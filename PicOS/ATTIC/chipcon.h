@@ -83,7 +83,7 @@
 					(zzv_rdbk->seed & zzv_rdbk->delbsbkf); \
 			} while (0)
 
-#define	irq_start_rcv	do { \
+#define	start_rcv	do { \
 				chp_pdioin; \
 				zzv_prmble = 0; \
 				zzv_curbit = 0; \
@@ -92,7 +92,7 @@
 				zzv_status = GP_INT_RCV; \
 			} while (0)
 
-#define	irq_start_xmt	do { \
+#define	start_xmt	do { \
 				LEDI (3, 1); \
 				chp_pdioout; \
 				zzv_curbit = 0; \

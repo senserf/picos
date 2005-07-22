@@ -85,6 +85,8 @@
 				} \
 			} while (0)
 
+#define	disable_xcv_timer	do { } while (0)
+
 // The LED configuration corrsponds to the three LEDs on DM2100. A led is
 // switched on by setting its pin to low.
 #define LEDI(n,s)	do { \

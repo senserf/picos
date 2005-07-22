@@ -23,8 +23,8 @@
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
 
-#define CHIPCON 		1
-#define DM2100 			0
+#define CHIPCON 		0
+#define DM2100 			1
 #define	ENTROPY_COLLECTION	1
 #define CHIPCON_FREQ 		868
 
