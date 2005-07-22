@@ -1,0 +1,860 @@
+#!/bin/sh
+##########################\
+exec tclsh "$0" "$@"
+
+############################################################################
+# This script generates makefiles for mspgcc and project files for CyanIDE #
+#                                                                          #
+# Usage: mkmk [-e|-m|-msp430-xxx]                                          #
+#                                                                          #
+# Copyright (C) Olsonet Communications, 2005, All Rights Reserved          #
+############################################################################
+
+set DEBUG 0
+
+if $DEBUG {
+	proc dmp { t } {
+		puts $t
+	}
+} else {
+	proc dmp { t } { }
+}
+
+#
+# Directories to be searched (in this order)
+#
+set DirList {
+		"PicOS/@TARGET@"
+		"PicOS/kernel"
+		"PicOS"
+		"Libs/*"
+		"."
+		"./*"
+}
+
+proc lappend_unique { li i } {
+
+	upvar $li l
+
+	if { ![info exists l] || [lsearch -exact $l $i] < 0 } {
+		lappend l $i
+	}
+}
+
+proc trimdir { } {
+#
+# Trim the directories
+#
+	global DirList DirShort IncShort ToCompile Depend
+
+	set dc 0
+	set ic 0
+	foreach fn $ToCompile {
+		set dir [file dirname $fn]
+		if ![info exists DirShort($dir)] {
+			set DirShort($dir) [format "S%02d" $dc]
+			incr dc
+		}
+	}
+
+	foreach dep [array names Depend] {
+		foreach fn $Depend($dep) {
+			set dir [file dirname $fn]
+			set ishort($dir) ""
+		}
+	}
+
+	# sort the include directories
+	set idl ""
+	foreach dir $DirList {
+		if [info exists ishort($dir)] {
+			lappend idl $dir
+			unset ishort($dir)
+			set IncShort($dir) [format "I%02d" $ic]
+			incr ic
+		}
+	}
+}
+proc outprf { def } {
+#
+# Output a project file for CyanIDE
+#
+	global DirList DirShort IncShort ToCompile Depend CWD
+
+	# build a trimmed list of relevant directories
+	trimdir
+
+	set pname "[file tail $CWD].cyp"
+	if [catch { open $pname "w" } mfd] {
+		error "cannot open $pname for writing: $mfd"
+	}
+
+	puts $mfd "<project buildenvironment=\"{5bb3321d-c620-467d-8787-1a268e2edf63}\" executionenvironment=\"{ab5780d6-ed62-47a1-a50c-bc70aee3b715}\" executionenvironmentname=\"eCOG1 Eval Board\" version=\"1.00.0003\" buildenvironmentname=\"eCOG1\" >\n"
+
+	# asm files
+	puts $mfd "<folder name=\"ASM Files\">\n<extension name=\"asm\"/>\n"
+	foreach fn $ToCompile {
+		if { [file extension $fn] == ".asm" } {
+			puts $mfd "<file path=\"$fn\"/>"
+		}
+	}
+	puts $mfd "</folder>"
+	puts $mfd "<folder name=\"C Files\">\n<extension name=\"c\"/>\n"
+	foreach fn $ToCompile {
+		if { [file extension $fn] == ".c" } {
+			puts $mfd "<file path=\"$fn\"/>"
+		}
+	}
+	# there should be no other files
+	puts $mfd "</folder>"
+	puts $mfd "<folder name=\"header Files\">\n<extension name=\"h\"/>\n"
+	foreach dep [array names Depend] {
+		foreach fn $Depend($dep) {
+			if { [file extension $fn] == ".h" &&
+			    ![info exists done($fn)] } {
+				set done($fn) ""
+				puts $mfd "<file path=\"$fn\"/>"
+			}
+		}
+	}
+	puts $mfd "</folder>"
+	puts $mfd "<properties currentconfiguration=\"Release\">"
+	foreach cnam { "Release" "Debug" } {
+		puts $mfd "<configuration name=\"$cnam\">"
+		if { $def != "" || $cnam == "Release" } {
+			puts -nonewline $mfd "<property key=\"defines\">"
+			if { $cnam == "Release" } {
+				puts -nonewline $mfd "NDEBUG"
+				set first 0
+			} else {
+				set first 1
+			}
+			foreach fn $def {
+				if !$first {
+					puts -nonewline $mfd ";"
+				} else {
+					set first 0
+				}
+				puts -nonewline $mfd "$fn"
+			}
+			puts $mfd "</property>"
+		}
+		if { $cnam == "Debug" } {
+			puts $mfd "<property key=\"keepAssembler\">1</property>"
+		}
+		puts $mfd "<property key=\"outputDir\">out</property>"
+		puts $mfd "<property key=\"intermediateDir\">temp</property>"
+		puts $mfd "<property key=\"mapFile\">internal</property>"
+		puts $mfd "<property key=\"packFile\">cstartup.asm</property>"
+		puts -nonewline $mfd "<property key=\"includeDirs\">"
+		set first 1
+		set idirs ""
+		foreach { dir sht } [array get IncShort] {
+			lappend idirs [list $dir $sht]
+		}
+		set idirs [lsort -index 1 $idirs]
+		foreach dir $idirs {
+			if !$first {
+				puts -nonewline $mfd ";"
+			} else {
+				set first 0
+			}
+			puts -nonewline $mfd [lindex $dir 0]
+		}
+		puts $mfd "</property>"
+		puts $mfd "</configuration>"
+	}
+	puts $mfd "</properties>"
+	puts $mfd "</project>"
+	catch { close $mfd }
+
+	foreach ef { "internal.map" "cstartup.asm" "irq.asm" } {
+		set fn [lookup $ef ""]
+		if { $fn == "" } {
+			lappend NotFound $ef
+		} else {
+			exec cp $fn $CWD
+		}
+	}
+}
+
+proc outmkf { def cpu } {
+#
+# Output a makefile for MSP430
+#
+	global DirList DirShort IncShort ToCompile Depend CWD NotFound
+
+	# build a trimmed list of relevant directories
+	trimdir
+
+	if [catch { open "Makefile" "w" } mfd] {
+		error "cannot open Makefile for writing: $mfd"
+	}
+
+	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
+	puts $mfd "CC=msp430-gcc"
+	puts $mfd "AS=msp430-as"
+	puts -nonewline $mfd "CF=-mmcu=$cpu -mendup-at=main"
+	foreach sht $def {
+		puts -nonewline $mfd " -D$sht"
+	}
+	puts $mfd ""
+	puts $mfd "AF=-mmcu=$cpu"
+	puts $mfd "OF=-O2 -g"
+	puts $mfd "TR=Image"
+	puts $mfd "TD=./KTMP"
+
+	# output the list of directories
+	puts $mfd "# include directories"
+	set idirs ""
+	foreach { dir sht } [array get IncShort] {
+		lappend idirs [list $dir $sht]
+	}
+	set idirs [lsort -index 1 $idirs]
+	foreach dir $idirs {
+		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+	}
+	puts $mfd "# source directories"
+
+	set sdirs ""
+	foreach { dir sht } [array get DirShort] {
+		lappend sdirs [list $dir $sht]
+	}
+	set sdirs [lsort -index 1 $sdirs]
+	foreach dir $sdirs {
+		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+	}
+	puts $mfd "#"
+
+	puts -nonewline $mfd "IN="
+	foreach dir $idirs {
+		puts -nonewline $mfd "-I \$([lindex $dir 1]) "
+	}
+	puts $mfd ""
+
+	puts -nonewline $mfd "BF="
+	foreach fn $ToCompile {
+		puts -nonewline $mfd "\$(TD)/[file rootname [file tail $fn]].o "
+	}
+	puts $mfd "\n"
+
+	# target
+	puts $mfd "\$(TR) :\t\$(BF)"
+	puts $mfd "\t\$(CC) -o \$(TR) \$(CF) \$(BF)\n"
+
+	# sources
+	foreach sf $ToCompile {
+		set rfn [file tail $sf]
+		set suf [file extension $rfn]
+		set ofn "[file rootname $rfn].o"
+		set dir [file dirname $sf]
+		set dsh $DirShort($dir)
+		puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh)/$rfn"
+		# dependencies
+		if [info exists Depend($sf)] {
+			foreach df $Depend($sf) {
+				set rfd [file tail $df]
+				set did [file dirname $df]
+				puts -nonewline $mfd " \$($IncShort($did))/$rfd"
+			}
+		}
+		puts $mfd ""
+		puts $mfd "\tmkdir -p \$(TD)"
+		if { [string first ".a" $suf] == 0 } {
+			puts -nonewline $mfd "\t\$(AS) \$(AF) \$(IN)"
+		} else {
+			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
+		}
+		puts $mfd " -c \$($DirShort($dir))/$rfn -o \$(TD)/$ofn\n"
+	}
+	puts $mfd "clean :\n\trm -rf \$(TD)/*"
+	catch { close $mfd }
+	# output the gdb.ini file
+	set    gdbi "set remoteaddresssize 64\n"
+	append gdbi "set remotetimeout 999999\n"
+	append gdbi "target remote localhost:2000\n"
+	foreach fn { ".gdbinit" "gdb.ini" } {
+		exec cat > $fn << $gdbi
+	}
+}
+
+proc canon { fn } {
+#
+# Normalize file name
+#
+	set fn [file normalize $fn]
+	set cn [string first "/home/" $fn]
+	if { $cn > 0 } {
+		set fn [string range $fn $cn end]
+	}
+	return $fn
+}
+		
+proc mkdlist { cpu } {
+#
+# Create the complete canonical list of directories to be searched
+#
+	global DirList DLIST CWD RPREF MKRECV
+
+	# working copy of the target list
+	set DLIST ""
+
+	# locate the root prefix
+	set RPREF $CWD
+	while { [file tail $RPREF] != "Apps" } {
+		set tmp [file dirname $RPREF]
+		if { $tmp == $RPREF } {
+			error "path to current directory contains no \"Apps\""
+		}
+		set RPREF $tmp
+	}
+	set RPREF [canon [file dirname $RPREF]]
+
+	foreach p $DirList {
+		set target [regsub -all "@TARGET@" $p $cpu p]
+		if [regexp {/\*$} $p] {
+			# wildcard means all subdirectories (recursively)
+			set p [string range $p 0 end-2]
+			if { $p != "." } {
+				set p [file join $RPREF $p]
+			}
+			set p [canon $p]
+			mkdrec $p
+			foreach p [lsort [array names MKRECV]] {
+				lappend_unique DLIST $p
+			}
+			array unset MKRECV
+			continue
+		}
+		# just this directory
+		if { $p != "." } {
+			set p [file join $RPREF $p]
+		}
+		set p [canon $p]
+		lappend_unique DLIST $p
+	}
+
+	# Replace the original patterns
+	set DirList $DLIST
+	dmp "DLIST: $DirList"
+	unset DLIST
+}
+
+proc mkdrec { dname } {
+#
+# Add all subdirectories of the indicated directory (in alphabetical order)
+#
+	global MKRECV
+	
+	foreach f [exec ls $dname] {
+		if [regexp -nocase "attic|junk" $f] {
+			# ignore oldies and garbage
+			continue
+		}
+		set ff [canon [file join $dname $f]]
+		if { $ff == "" } {
+			continue
+		}
+		if [info exists MKRECV($ff)] {
+			# avoid link loops
+			continue
+		}
+		if [file isdirectory $ff] {
+			set MKRECV($ff) ""
+			mkdrec $ff
+		}
+	}
+}
+
+proc lookup { fn prefdir } {
+#
+# Lookup the given file, prefdir is prefered directory, returns the
+# complete path
+#
+	global DirList
+
+	foreach dir [concat [list $prefdir] $DirList] {
+		if { $dir == "" } {
+			continue
+		}
+		set ffn [canon [file join $dir $fn]]
+		if [file isfile $ffn] {
+			return $ffn
+		}
+	}
+
+	return ""
+}
+
+proc sexpr { str } {
+#
+# Evaluates naive IF conditions
+#
+	global Symbols
+
+	set es [string first "//" $str]
+	set ps [string first "/*" $str]
+	set sl [string length $str]
+
+	if { $es < 0 } {
+		set es $sl
+	}
+	if { $ps < 0 } {
+		set ps $sl
+	}
+	if { $es < $ps } {
+		set ps $es
+	}
+	# eliminate any trailing comments
+	set str [string trim [string range $str 0 [expr $ps - 1]]]
+	if { $str == "" } {
+		return -1
+	}
+
+	set cond ""
+
+	while { $str != "" } {
+		set es [string first "&&" $str]
+		if { $es < 0 } {
+			set es [string first "||" $str]
+			if { $es >= 0 } {
+				if { $cond == "A" } {
+					# too complicated
+					return -1
+				}
+				set cond "O"
+			}
+		} else {
+			if { $cond == "O" } {
+				return -1
+			}
+			set cond "A"
+		}
+
+		if { $es < 0 } {
+			set chunk $str
+			set str ""
+		} else {
+			set chunk [string range $str 0 [expr $es - 1]]
+			set str [string trim [string range $str [expr $es + 2] \
+				end]]
+			if { $str == "" } {
+				return -1
+			}
+		}
+		set chunk [string trim $chunk]
+		if { $chunk == "" } {
+			return -1
+		}
+		dmp "EXPR COMP: '$chunk'"
+
+		if ![regexp -nocase \
+		  "^(\[a-z_0-9.\]+)\[ \t\]*(\[=<>!\]+)\[ \t\]*(\[a-z_0-9.\]+)$"\
+		    $chunk junk a0 op a1] {
+			# check for a single item
+			set neg ""
+			if ![regexp -nocase "^(!\[ \t\]*)?(\[a-z_0-9.\]+)$"\
+			    $chunk jk neg a0] {
+				# we don't understand this
+				dmp "EXPR: '$chunk' (unrecognized)"
+				return -1
+			}
+			if [catch { expr $a0 } v0] {
+				set v0 0
+				if [info exists Symbols($a0)] {
+					if [catch { expr $Symbols($a0) } v0] {
+						set v0 0
+					}
+				}
+			}
+			if { $v0 != 0 } {
+				set v0 1
+			}
+			if { $neg != "" } {
+				set v0 [expr ($v0 == 0)]
+			}
+			return $v0
+		}
+		# obtain the values
+		dmp "EXPR COMP: $a0 $op $a1"
+		if [catch { expr $a0 } v0] {
+			# not an expression
+			set v0 ""
+			if [info exists Symbols($a0)] {
+				if [catch { expr $Symbols($a0) } v0] {
+					set v0 ""
+				} 
+			}
+		}
+		if [catch { expr $a1 } v1] {
+			# not an expression
+			set v1 ""
+			if [info exists Symbols($a1)] {
+				if [catch { expr $Symbols($a1) } v1] {
+					set v1 ""
+				}
+			}
+		}
+		if { $v0 == "" || $v1 == "" } {
+			# we don't understand this
+			dmp "EXPR COMP: '$v0' $op '$v1' (unrecognized)"
+			return -1
+		}
+		switch $op {
+		  "==" { set v0 [expr $v0 == $v1] }
+		  "<"  { set v0 [expr $v0 <  $v1] }
+		  ">"  { set v0 [expr $v0 >  $v1] }
+		  "<=" { set v0 [expr $v0 <= $v1] }
+		  ">=" { set v0 [expr $v0 >= $v1] }
+		  "!=" { set v0 [expr $v0 != $v1] }
+		  default { set v0 -1 }
+		}
+		if { $v0 < 0 } {
+			# we don't understand this
+			dmp "EXPR COMP: $op (unrecognized)"
+			return -1
+		}
+		if $v0 {
+			if { $cond == "O" || $str == "" } {
+				return 1
+			}
+		} else {
+			if { $cond == "A" || $str == "" } {
+				return 0
+			}
+		}
+	}
+	return 0
+}
+
+proc scanfile { fname } {
+
+	global FList Depend Symbols Scanned NotFound ToCompile CFName
+
+	dmp "SCANNING: $fname"
+
+	if [info exists Scanned($fname)] {
+		return
+	}
+
+	set Scanned($fname) ""
+
+	if [catch { open $fname "r" } fd] {
+		error "cannot open file '$fname': $fd"
+	}
+
+	set ifnest 0
+	# assume that the entire file is encapsulated in a dummy if at level
+	# zero, which is being totally ignored
+	#
+	# Flags:
+	#
+	#	0	- ignore, i.e., both parts should be scanned
+	#	1	- accepting the current part
+	#	2	- skipping the current part, waiting for else or endif
+	#	3	- skipping both parts because the outer if is being
+	#		  skipped
+	#
+
+	set ifstack($ifnest) "0"
+
+	while 1 {
+
+		if { [gets $fd line] < 0 } {
+			if { $ifnest > 0 } {
+				puts stdout "Warning: #endif missing in $fname"
+			}
+			break
+		}
+
+		if { $ifstack($ifnest) <= 1 && \
+		    [regexp "^\[ \t\]*//\\+\\+\\+(.*)" $line jk ar] } {
+			# needed files
+			while 1 {
+				set ar [string trim $ar]
+				if { $ar == "" } {
+					break
+				}
+				set del [string index $ar 0]
+				if { $del == "\"" } {
+				  if ![regexp "\"(\[^ \t\"]+\\.(c|asm?))\"" \
+				    $ar jk nfn] {
+					# we don't understand this
+		puts stdout "Warning: '//+++' syntax error: '$ar' in $fname"
+					break
+				  }
+				} elseif { $del == "<" } {
+				  if ![regexp "<(\[^ \t<>]+\\.(c|asm?))>" \
+				    $ar jk nfn] {
+					# we don't understand this
+		puts stdout "Warning: '//+++' syntax error: '$ar' in $fname"
+					break
+				  }
+				} else {
+				  if ![regexp "\[^ \t]+\\.(c|asm?)" \
+				    $ar jk] {
+		puts stdout "Warning: '//+++' syntax error: '$ar' in $fname"
+					break
+				  } else {
+					set nfn $jk
+				  }
+				}
+
+				set cm [string first $jk $ar]
+
+				if { $cm < 0 } {
+					# impossible
+					set ar ""
+				} else {
+					set ar [string range $ar [expr $cm + \
+					  [string length $jk]] end]
+				}
+				set fn [lookup $nfn [file dirname $fname]]
+				dmp "NEEDED: $nfn"
+				if { $fn == "" } {
+					dmp "NEEDED: $nfn not found"
+					lappend_unique NotFound $nfn
+				} else {
+					dmp "NEEDED: $nfn added to compile"
+					lappend_unique ToCompile $fn
+				}
+			}
+			continue
+		}
+
+		if ![regexp "^\[ \t\]*#(\[a-z\]+)\[ \t\]*(.*)" $line jk cm ar] {
+			continue
+		}
+
+		if { $cm == "if" || $cm == "ifdef" || $cm == "ifndef" } {
+			dmp "IF: $ifnest, $ifstack($ifnest): '$line'"
+			if { $ifstack($ifnest) > 1 } {
+				# we are skipping an outer if, so we should
+				# skip this one entirely
+				incr ifnest
+				set ifstack($ifnest) 3
+				dmp "IF(S): $ifstack($ifnest)"
+				continue
+			}
+			incr ifnest
+			if { $cm == "ifdef" || $cm == "ifndef" } {
+				if ![regexp -nocase "^\[a-z_0-9.\]+" $ar nam] {
+					# illegal
+					set ifstack($ifnest) 0
+					continue
+				}
+				if [info exists Symbols($nam)] {
+					dmp "SYMBOL: $nam, value $Symbols($nam)"
+					if { $cm == "ifdef" } {
+						set ifstack($ifnest) 1
+					} else {
+						set ifstack($ifnest) 2
+					}
+				} else {
+					if { $cm == "ifdef" } {
+						set ifstack($ifnest) 2
+					} else {
+						set ifstack($ifnest) 1
+					}
+				}
+				dmp "IF\[N\]DEF: $ifstack($ifnest)"
+				continue
+			}
+			# we only handle here extremely simple conditions
+			set val [sexpr $ar]
+			if { $val < 0 } {
+		puts stdout "Warning: failed to evaluate: '$ar' in $fname"
+				set val 0
+			}
+			if $val {
+				set ifstack($ifnest) 1
+			} else {
+				set ifstack($ifnest) 2
+			}
+			dmp "IF (done) $ifstack($ifnest)"
+			continue
+		}
+
+		if { $cm == "else" } {
+			if { $ifnest < 1 } {
+			    puts stdout "Warning: extraneous #else in $fname"
+			    continue
+			}
+			if { $ifstack($ifnest) == 1 } {
+				set ifstack($ifnest) 2
+			} elseif { $ifstack($ifnest) == 2 } {
+				set ifstack($ifnest) 1
+			}
+			dmp "ELSE: $ifstack($ifnest)"
+			continue
+		}
+
+		if { $cm == "endif" } {
+			if { $ifnest > 0 } {
+				incr ifnest -1
+			} else {
+			    puts stdout "Warning: extraneous #endif in $fname"
+			}
+			dmp "ENDIF: $ifnest, $ifstack($ifnest)"
+			continue
+		}
+
+		if { $ifstack($ifnest) > 1 } {
+			continue
+		}
+
+		if { $cm == "define" } {
+			if ![regexp -nocase "^(\[a-z_0-9.\]+)\[ \t\]+(.*)" $ar\
+			    jk kwd nam] {
+				dmp "DEFINE: $ar (ignored)"
+				continue
+			}
+			if ![regexp -nocase "^\[a-z_0-9.\]+" $nam nam] {
+				set v0 "@@@"
+			} else {
+				if [catch { expr $nam } v0] {
+					if [info exists Symbols($nam)] {
+						set v0 $Symbols($nam)
+					} else {
+						set v0 $nam
+					}
+				}
+			}
+			set Symbols($kwd) $v0
+			dmp "DEFINE: $kwd $v0"
+			continue
+		}
+
+		if { $cm == "include" } {
+			if ![regexp -nocase "\[\"<\](\[^\"><\]+)\[\">\]" $ar \
+			    jk fn] {
+				continue
+			}
+			set fn [string trim $fn]
+			if { $fn == "" } {
+				continue
+			}
+			dmp "INCLUDE: $fn '$line'"
+			set fn [lookup $fn [file dirname $fname]]
+			if { $fn != "" } {
+				scanfile $fn
+				lappend_unique Depend($CFName) $fn
+				dmp "SCANNING (BACK): $fname"
+			} else {
+				dmp "INCLUDE: $fn not found"
+			}
+		}
+	}
+	catch { close $fd }
+}
+
+proc bad_usage { } {
+
+	puts stderr "Usage: mkmk [-m|-msp430xXXX|-e]"
+	exit (1);
+}
+
+proc main { } {
+
+	global argv ToCompile NotFound CWD Run Symbols Scanned CFName
+
+	set ToCompile ""
+	set CWD [canon [pwd]]
+	set NotFound ""
+
+	set ll [llength $argv]
+
+	if { $ll > 1} {
+		bad_usage
+	}
+
+	set Run(mode) "M"
+	set TGT "MSP430"
+	# this is the default
+	set mcpu "msp430x148"
+
+	if $ll {
+		set fn [lindex $argv 0]
+		if { $fn == "-e" } {
+			set Run(mode) "E"
+			set TGT "eCOG"
+			set mcpu ""
+		} elseif { [string first "-m" $fn] == 0 } {
+			set fn [string range $fn 2 end]
+			if ![regexp "^msp430x\[0-9\]+$" $fn] {
+				bad_usage
+			}
+			set mcpu $fn
+		} else {
+			bad_usage
+		}
+	}
+
+	# cleanup
+	if { $Run(mode) == "E" } {
+		catch {
+			file delete -force \
+				"out" "temp" "internal.map" "cstartup.asm" \
+					"cstartup.lif" "irq.asm" "irq.lif"
+		}
+		catch { file mkdir "out" "temp" }
+	} else {
+		catch { file delete -force -- "KTMP" }
+		catch { file mkdir "KTMP" }
+	}
+
+	mkdlist $TGT
+
+	# We expect to find app.c in the current directory
+	set fn [canon [file join $CWD "app.c"]]
+	if ![file isfile $fn] {
+		error "app.c not found in current directory"
+	}
+
+	lappend ToCompile $fn
+
+	array unset Processed
+
+	while { $ToCompile != "" } {
+		set CFName [lindex $ToCompile 0]
+		set ToCompile [lrange $ToCompile 1 end]
+		if [info exists Processed($CFName)] {
+			continue
+		}
+		set Processed($CFName) ""
+		# predefine symbols
+		if { $Run(mode) == "E" } {
+			set Symbols(__ECOG__) "@@@"
+		} else {
+			set Symbols(__MSP430__) "@@@"
+		}
+		scanfile $CFName
+		array unset Symbols
+		array unset Scanned
+	}
+	set ToCompile [array names Processed]
+	dmp "TO COMPILE: '$ToCompile'"
+
+	if { $Run(mode) == "M" } {
+		# makefile
+		outmkf	{"__MSP430__"} $mcpu
+	} else {
+		# project file
+		outprf	{"__ECOG__"}
+	}
+	if { $NotFound != "" } {
+		puts -nonewline stdout "Warning: //+++ sources not found:"
+		foreach fn $NotFound {
+			puts -nonewline stdout "$fn "
+		}
+		puts stdout ""
+	}
+}
+
+main
+exit
+
+if [catch { main } err] {
+
+	puts stderr $err
+}

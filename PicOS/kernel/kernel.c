@@ -1,0 +1,1048 @@
+#include "kernel.h"
+
+/* ============================================================================ */
+/*                       PicOS                                                  */
+/*                                                                              */
+/* The kernel                                                                   */
+/*                                                                              */
+/*                                                                              */
+/* Copyright (C) Olsonet Communications Corporation, 2002--2005                 */
+/*                                                                              */
+/* Permission is hereby granted, free of charge, to any person obtaining a copy */
+/* of this software and associated documentation files (the "Software"), to     */
+/* deal in the Software without restriction, including without limitation the   */
+/* rights to use, copy, modify, merge, publish, distribute, sublicense, and/or  */
+/* sell copies of the Software, and to permit persons to whom the Software is   */
+/* furnished to do so, subject to the following conditions:                     */
+/*                                                                              */
+/* The above copyright notice and this permission notice shall be included in   */
+/* all copies or substantial portions of the Software.                          */
+/*                                                                              */
+/* THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR   */
+/* IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,     */
+/* FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE  */
+/* AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER       */
+/* LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING      */
+/* FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS */
+/* IN THE SOFTWARE.                                                             */
+/*                                                                              */
+/* ============================================================================ */
+
+/* Task table */
+pcb_t __PCB [MAX_TASKS];
+
+/* Device table */
+static devreqfun_t ioreq [MAX_DEVICES];
+
+/* =============== */
+/* Current process */
+/* =============== */
+pcb_t	*zz_curr;
+
+/* ========= */
+/* The clock */
+/* ========= */
+static		lword 	nseconds;
+static 		word  	setticks, millisec;
+		word 	zz_mintk;
+volatile	word 	zz_lostk;
+
+/* ================================ */
+/* User-defineable countdown timers */
+/* ================================ */
+address		zz_utims [MAX_UTIMERS];
+
+#if	ENTROPY_COLLECTION
+lword	zzz_ent_acc;
+#endif
+
+int utimer (address ut, bool add) {
+/* ================= */
+/* Add/clear utimers */
+/* ================= */
+	int i;
+
+	/* Check if the timer is not in SDRAM */
+#if	SDRAM_PRESENT
+	if (ut >= (address)SDRAM_ADDR && ut < (address)
+		((word)SDRAM_ADDR + ((word)1 << SDRAM_SIZE)))
+		syserror (EREQPAR, "utimer in sdram");
+#endif
+
+	for (i = 0; i < MAX_UTIMERS; i++)
+		if (zz_utims [i] == NULL)
+			break;
+
+	if (add) {
+		/* Install a new timer */
+		if (i == MAX_UTIMERS)
+			/* The pool is full */
+			return 0;
+		zz_utims [i] = ut;
+		/* Return the number of all utimers */
+		return i+1;
+	}
+
+	/* Delete */
+	if (ut == NULL) {
+		/* Clear all utimers */
+		zz_utims [0] = NULL;
+		return i;
+	}
+
+	/* Delete a single specific timer */
+	for (i = 0; i < MAX_UTIMERS; i++) {
+		if (zz_utims [i] == 0)
+			/* Not found */
+			return 0;
+		if (zz_utims [i] == ut)
+			break;
+	}
+	cli_tim;
+	while (i < MAX_UTIMERS-1) {
+		zz_utims [i] = zz_utims [i+1];
+		if (zz_utims [i] == NULL)
+			break;
+		i++;
+	}
+	sti_tim;
+	return i+1;
+}
+
+lword seconds () {
+
+	return nseconds;
+}
+
+void zzz_tservice () {
+
+	word nticks;
+	pcb_t *i;
+
+	cli_tim;
+	nticks = zz_lostk;
+	zz_lostk = 0;
+	sti_tim;
+
+	if (nticks == 0)
+		return;
+
+	/* Keep the seconds clock running */
+	millisec += nticks;
+	while (millisec >= JIFFIES) {
+		millisec -= JIFFIES;
+		nseconds++;
+	}
+
+	do {
+		if (zz_mintk == 0)
+			return;
+		if (zz_mintk > nticks) {
+			zz_mintk -= nticks;
+			return;
+		}
+
+		nticks -= zz_mintk;
+		zz_mintk = 0;
+
+		for_all_tasks (i) {
+			if (i->Timer == 0)
+				continue;
+			if (i->Timer <= setticks) {
+				i->Timer = 0;
+				wakeuptm (i);
+			} else {
+				i->Timer -= setticks;
+				if (zz_mintk == 0 || i->Timer < zz_mintk)
+					zz_mintk = i->Timer;
+			}
+		}
+		setticks = zz_mintk;
+
+	} while (nticks);
+}
+
+/* ==================== */
+/* Launch a new process */
+/* ==================== */
+int zzz_fork (code_t func, address data) {
+
+	pcb_t *i;
+	int pc;
+
+	/* Limit for the number of instances */
+	if ((pc = func (0xffff, NULL)) > 0) {
+		for_all_tasks (i)
+			if (i->code == func)
+				pc--;
+		if (pc <= 0)
+			return 0;
+	}
+
+	for_all_tasks (i)
+		if (i->code == NULL)
+			break;
+
+	if (i == LAST_PCB)
+		syserror (ERESOURCE, "fork");
+
+	i -> Timer = 0;
+	i -> code = func;
+	i -> data = (address) data;
+	i -> Status = 0;
+#if SCHED_PRIO
+	i -> prio = tasknum (i) << 3;
+#endif
+	return (int) i;
+}
+
+/* ======================== */
+/* Proceed to another state */
+/* ======================== */
+void proceed (word state) {
+
+	prcdstate (zz_curr, state);
+	release;
+}
+
+/* ============*/
+/* System wait */
+/* =========== */
+void zz_swait (word etype, word event, word state) {
+
+	int j = nevents (zz_curr);
+
+	if (j == MAX_EVENTS_PER_TASK)
+		syserror (ENEVENTS, "swait");
+
+	setestatus (zz_curr->Events [j], etype, state);
+	zz_curr->Events [j] . Event = event;
+	incwait (zz_curr);
+}
+
+/* ========= */
+/* User wait */
+/* ========= */
+void wait (word event, word state) {
+
+	int j = nevents (zz_curr);
+
+	if (j == MAX_EVENTS_PER_TASK)
+		syserror (ENEVENTS, "wait");
+
+	setestatus (zz_curr->Events [j], ETYPE_USER, state);
+	zz_curr->Events [j] . Event = event;
+
+	incwait (zz_curr);
+}
+
+/* ========== */
+/* Timer wait */
+/* ========== */
+void delay (word d, word state) {
+
+	settstate (zz_curr, state);
+	if (d != 0) {
+		if (zz_mintk == 0) {
+			/* The alarm clock is not set */
+			zz_curr->Timer = zz_mintk = setticks = d;
+		} else if (zz_mintk <= d) {
+			/* The current setting of the alarm clock is OK */
+			zz_curr->Timer = d + (setticks - zz_mintk);
+		} else {
+			/* The alarm clock would go off too late, so it */
+			/* must be reset                                */
+			zz_curr->Timer = setticks = setticks - zz_mintk + d;
+			zz_mintk = d;
+		}
+	} else {
+		zz_curr->Timer = 0;
+	}
+	/* Indicate that we are waiting for the Timer */
+	inctimer (zz_curr);
+}
+
+/* =============================== */
+/* Continue interrupted timer wait */
+/* =============================== */
+void snooze (word state) {
+
+	settstate (zz_curr, state);
+	if (zz_mintk == 0 || zz_mintk > zz_curr->Timer) {
+		/*
+		 * This is a bit heuristic, but at least avoids problems
+		 * resulting from a possible misuse.
+		 */
+		delay (zz_curr->Timer, state);
+		return;
+	}
+	inctimer (zz_curr);
+}
+
+/* ============== */
+/* System trigger */
+/* ============== */
+int zz_strigger (int etype, word event) {
+
+	int j, c;
+	pcb_t *i;
+
+	c = 0;
+	for_all_tasks (i) {
+		if (nevents (i) == 0)
+			continue;
+		if (i->code == NULL)
+			continue;
+		for (j = 0; j < nevents (i); j++) {
+			if (i->Events [j] . Event == event &&
+				getetype (i->Events [j]) == etype) {
+					/* Wake up */
+					wakeupev (i, j);
+					c++;
+					break;
+			}
+		}
+	}
+
+	return c;
+}
+
+/* ============ */
+/* User trigger */
+/* ============ */
+int trigger (word event) {
+
+	int j, c;
+	pcb_t *i;
+
+	c = 0;
+	for_all_tasks (i) {
+		if (nevents (i) == 0)
+			continue;
+		if (i->code == NULL)
+			continue;
+		for (j = 0; j < nevents (i); j++) {
+			if (i->Events [j] . Event == event &&
+				getetype (i->Events [j]) == ETYPE_USER) {
+					/* Wake up */
+					wakeupev (i, j);
+					c++;
+					break;
+			}
+		}
+	}
+
+	return c;
+}
+
+static void killev (int pid, word wfun) {
+	word etp;
+	int j;
+	pcb_t *i;
+
+	for_all_tasks (i) {
+		if (nevents (i) == 0 || i->code == NULL)
+			continue;
+		for (j = 0; j < nevents (i); j++) {
+			etp = getetype (i->Events [j]);
+			if ((etp == ETYPE_TERM &&
+				i->Events [j] . Event == pid) ||
+			    (etp == ETYPE_TERMANY &&
+				i->Events [j] . Event == wfun) ) {
+					wakeupev (i, j);
+					break;
+			}
+		}
+	}
+}
+
+int kill (int pid) {
+/* =========================== */
+/* Terminate process execution */
+/* =========================== */
+
+	pcb_t *i;
+
+	if (pid == 0 || pid == -1 || pid == (int) zz_curr) {
+		/* Self */
+		killev ((int)zz_curr, (word)(zz_curr->code));
+		zz_curr->Status = 0;
+		zz_curr->Timer = 0;
+		if (pid == -1) {
+			/* This makes you a zombie ... */
+			swait (ETYPE_TERM, 0, 0);
+		} else {
+			/* ... while this makes you dead */
+			zz_curr->code = NULL;
+		}
+		release;
+	}
+
+	ver_pid (i, pid);
+
+	if (i->code != NULL) {
+		killev ((int)i, (word)(i->code));
+		i->Status = 0;
+		i->code = NULL;
+		return pid;
+	}
+	return 0;
+}
+
+int killall (code_t fun) {
+
+	pcb_t *i;
+	bool rel;
+	int nk;
+
+	rel = NO;
+	nk = 0;
+	for_all_tasks (i) {
+		if (i->code == fun) {
+			if (i == zz_curr)
+				rel = YES;
+			killev ((int)i, (word)(i->code));
+			i->Status = 0;
+			i->code = NULL;
+			nk++;
+		}
+	}
+	if (rel)
+		release;
+	return nk;
+}
+
+#if SCHED_PRIO
+
+int prioritizeall (code_t fun, int pr) {
+
+	pcb_t *i;
+	int np = 0;
+
+	sysassert (((pr >= 0) && (pr < MAX_PRIO)), "priority");
+
+	for_all_tasks (i){
+		if (i->code == fun) {
+			i -> prio = pr;
+			np++;
+		}
+	}
+
+	return np;
+}
+
+int prioritize (int pid, int pr) {
+
+	pcb_t *i;
+
+	if (pid == 0)
+	        i = zz_curr;
+	else
+	        ver_pid (i, pid);
+
+	if ((pr >= 0) && (pr < MAX_PRIO))
+	        i -> prio = pr;
+
+	return i -> prio ;
+}
+
+#endif
+
+int status (int pid) {
+
+	pcb_t *i;
+	int res;
+
+	if (pid == 0)
+		i = zz_curr;
+	else
+		ver_pid (i, pid);
+
+	res = nevents (i);
+
+	if (res == 1 && getetype (i->Events [0]) == ETYPE_TERM &&
+		i->Events [0] . Event == 0)
+			/* Zombie */
+			return -1;
+
+	if (twaiting (i))
+		res++;
+
+	return res;
+}
+
+code_t getcode (int pid) {
+
+	pcb_t *i;
+
+	if (pid == 0)
+		i = zz_curr;
+	else
+		ver_pid (i, pid);
+
+	return i->code;
+}
+
+int join (int pid, word state) {
+	pcb_t *i;
+
+	/* Check if pid is legit */
+
+	ver_pid (i, pid);
+
+	if (i->code == NULL)
+		return 0;
+
+	/* Do not wait for anything if the process is a zombie already */
+	if (nevents (i) != 1 || getetype (i->Events [0]) != ETYPE_TERM ||
+		i->Events [0] . Event != 0)
+			swait (ETYPE_TERM, pid, state);
+
+	return (int)i;
+}
+
+void joinall (code_t fun, word state) {
+
+	swait (ETYPE_TERMANY, (word)fun, state);
+}
+
+int running (code_t fun) {
+
+	pcb_t *i;
+
+	if (fun == NULL)
+		return (int) zz_curr;
+
+	for_all_tasks (i)
+		if (i->code == fun)
+			return (int) i;
+
+	return 0;
+}
+
+int zzz_find (code_t fun, address dat) {
+
+	pcb_t *i;
+
+	for_all_tasks (i)
+		if (i->code == fun && i->data == dat)
+			return (int) i;
+
+	return 0;
+}
+
+int zombie (code_t fun) {
+
+	pcb_t *i;
+
+	for_all_tasks (i)
+		if (i->code == fun && nevents (i) == 1 &&
+			getetype (i->Events [0]) == ETYPE_TERM &&
+				i->Events [0] . Event == 0)
+					return (int) i;
+	return 0;
+}
+
+/* ========================================================================= */
+/* Simple operations on strings. We prefer to have everything under control. */
+/* ========================================================================= */
+int zzz_strlen (const char *s) {
+
+	int i;
+
+	for (i = 0; *(s+i) != '\0'; i++);
+
+	return i;
+}
+
+void zzz_strcpy (char *d, const char *s) {
+
+	while ((bool)(*d++ = *s++));
+}
+
+void zzz_strncpy (char *d, const char *s, int n) {
+
+	while (n-- && (*s != '\0'))
+		*d++ = *s++;
+	*d = '\0';
+}
+
+void zzz_strcat (char *d, const char *s) {
+
+	while (*d != '\0') d++;
+	strcpy (d, s);
+}
+
+void zzz_strncat (char *d, const char *s, int n) {
+
+	strcpy (d+n, s);
+}
+
+void zzz_memcpy (char *dest, const char *src, int n) {
+
+	while (n--)
+		*dest++ = *src++;
+}
+
+void zzz_memset (char *dest, char c, int n) {
+
+	while (n--)
+		*dest++ = c;
+}
+
+/* ============================================= */
+/* Configures a driver-specific service function */
+/* ============================================= */
+void adddevfunc (devreqfun_t rf, int loc) {
+
+	if (loc < 0 || loc >= MAX_DEVICES)
+		syserror (EREQPAR, "addevfunc");
+
+	if (ioreq [loc] != NULL)
+		syserror (ERESOURCE, "addevfunc");
+
+	ioreq [loc] = rf;
+}
+
+/* ==================================== */
+/* User-visible i/o request distributor */
+/* ==================================== */
+int io (int retry, int dev, int operation, char *buf, int len) {
+
+	int ret;
+
+	if (dev < 0 || dev >= MAX_DEVICES || ioreq [dev] == NULL)
+		syserror (ENODEV, "io");
+
+	if (len == 0)
+		/* This means that the call is void */
+		return 0;
+
+	ret = (ioreq [dev]) (operation, buf, len);
+
+	if (ret >= 0)
+		return ret;
+
+	if (ret == -1) {
+		/*
+		 * This means busy with the ready event to be triggered by
+		 * a process, in which case iowait requires no locking.
+		 */
+		if (retry == NONE)
+			return 0;
+		iowait (dev, operation, retry);
+
+		release;
+	}
+
+	/* ======== */
+	/* ret < -1 */
+	/* ======== */
+
+	/* This means busy with the ready event to be triggered by an
+	 * interrupt handler. This option provides a shortcut for those
+	 * drivers that do not require separate driver processes, yet
+	 * want to perceive interrupts. In such a case, we have to call
+	 * the ioreq function again to clean up, i.e., unmask interrupts.
+	 */
+	if (retry != NONE) {
+		iowait (dev, operation, retry);
+		(ioreq [dev]) (NONE, buf, len);
+		release;
+	}
+	(ioreq [dev]) (NONE, buf, len);
+	return 0;
+}
+
+/* --------------------------------------------------------------------- */
+/* ========================= MEMORY ALLOCATORS ========================= */
+/* --------------------------------------------------------------------- */
+
+#if	MALLOC_SINGLEPOOL == 0
+extern	word zzz_heap [];
+#endif
+
+static 	address *mpools;
+static	address mevent;
+
+#if	MALLOC_STATS
+static 	address mfcount, mfree;
+#endif
+
+#define	m_nextp(c)	((address)(*(c)))
+#define m_setnextp(c,p)	(*(c) = (word)(p))
+#define m_size(c)	(*((c)-1))
+#define	m_magic(c) 	(*((c)+1))
+#define	m_hdrlen	1
+
+#if 0
+
+void dump_malloc (const char *s) {
+
+#if	MALLOC_SINGLEPOOL
+#define	MPMESS 		"N %u, F %u", nc, tot
+#define	NPOOLS		1
+#else
+#define	MPMESS		"POOL %d, N %u, F %u", i, nc, tot
+#define	NPOOLS		2
+#endif
+
+	word tot, nc;
+	address ch;
+	int i;
+
+	diag (s);
+
+	for (i = 0; i < NPOOLS; i++) {
+		tot = 0;
+		for (nc = 0, ch = mpools [i]; ch != NULL; ch = m_nextp (ch)) {
+			tot += m_size (ch);
+			nc++;
+		}
+		diag (MPMESS);
+	}
+
+#undef	MPMESS
+#undef	NPOOLS
+
+}
+
+#endif
+
+void zz_malloc_init () {
+/* =================================== */
+/* Initializes memory allocation pools */
+/* =================================== */
+
+#if	MALLOC_SINGLEPOOL
+#define	MA_NP		1
+#else
+#define	MA_NP		np
+	word	mtot, np, perc, chunk, fac, ceil;
+	address freelist, morg;
+
+	for (perc = np = 0; perc < 100; np++)
+		/* Calculate the number of pools */
+		perc += zzz_heap [np];
+#endif	/* MALLOC_SINGLEPOOL */
+
+	if (MALLOC_LENGTH < 512 + MA_NP)
+		/* Make sure we do have some memory available */
+		syserror (ERESOURCE, "malloc_init (1)");
+
+	/* Set aside the free list table for the pools */
+	mpools = (address*) MALLOC_START;
+	mevent = MALLOC_START + MA_NP;
+
+#if	MALLOC_SINGLEPOOL
+
+#if	MALLOC_STATS
+	mfcount = mevent + 1;
+	mfree = mfcount + 1;
+#define	morg 		(mfree + 1)
+#define	mtot		(MALLOC_LENGTH - 4)
+#else	/* MALLOC_STATS */
+#define	morg 		(mevent + 1)
+#define	mtot 		(MALLOC_LENGTH - 2)
+#endif	/* MALLOC_STATS */
+
+	mpools [0] = morg + m_hdrlen;
+	m_size (mpools [0]) = mtot - m_hdrlen;
+	mevent [0] = 0;
+
+#if	MALLOC_STATS
+	mfree [0] = m_size (mpools [0]);
+	mfcount [0] = 0;
+#endif
+	m_setnextp (mpools [0], NULL);
+#if	MALLOC_SAFE
+	m_magic (mpools [0]) = 0xdeaf;
+#endif
+
+#undef	morg
+#undef	mtot
+
+#else	/* MALLOC_SINGLEPOOL */
+
+#if	MALLOC_STATS
+	mfcount = mevent + np;
+	mfree = mfcount + np;
+	morg = mfree + np;
+	mtot = perc = MALLOC_LENGTH - 4 * np;
+#else	/* MALLOC_STATS */
+	morg = mevent + np;
+	mtot = perc = MALLOC_LENGTH - 2 * np;
+#endif	/* MALLOC_STATS */
+
+	while (np) {
+		np--;
+		mpools [np] = freelist = morg + m_hdrlen;
+		if (np) {
+			/* Do it avoiding long division */
+			ceil = MAX_UINT / zzz_heap [np];
+			for (chunk = mtot, fac = 0; chunk > ceil;
+				chunk >>= 1, fac++);
+			chunk = (chunk * zzz_heap [np]) / 100;
+			chunk <<= fac;
+			// This required __div/__mul from the library:
+			// chunk = (word)((((long) zzz_heap [np]) * mtot) /100);
+		} else
+			chunk = perc;
+		if (chunk < 128)
+			syserror (ERESOURCE, "malloc_init (2)");
+		m_size (freelist) =
+#if	MALLOC_STATS
+			mfree [np] =
+#endif
+				chunk - m_hdrlen;
+		mevent [np] =
+#if	MALLOC_STATS
+			mfcount [np] =
+#endif
+				0;
+		m_setnextp (freelist, NULL);
+#if	MALLOC_SAFE
+		m_magic (freelist) = 0xdeaf;
+#endif
+		morg += chunk;
+		/* Whatever remains for grabs */
+		perc -= chunk;
+	}
+#endif	/* MALLOC_SINGLEPOOL */
+#undef	MA_NP
+}
+
+#if	MALLOC_SINGLEPOOL
+static void qfree (address ch) {
+#define	MA_NP	0
+#else
+static void qfree (int np, address ch) {
+#define	MA_NP	np
+#endif
+
+	address chunk, cc;
+
+	cc = (address)(mpools + MA_NP);
+	for (chunk = mpools [MA_NP]; chunk != NULL; chunk = m_nextp (chunk)) {
+		if (chunk + m_size (chunk) + m_hdrlen == ch) {
+			/* Merge at the front */
+			m_setnextp (cc, m_nextp (chunk));
+			m_size (chunk) += m_hdrlen + m_size (ch);
+			ch = chunk;
+		} else if (ch + m_size (ch) + m_hdrlen == chunk) {
+			/* Merge at the back */
+			m_setnextp (cc, m_nextp (chunk));
+			m_size (ch) += m_hdrlen + m_size (chunk);
+		} else {
+			/* Skip */
+			cc = chunk;
+		}
+	}
+
+	/* Insert */
+	cc = (address)(mpools + MA_NP);
+	for (chunk = mpools [MA_NP]; chunk != NULL; cc = chunk,
+		chunk = m_nextp (chunk))
+			if (m_size (chunk) >= m_size (ch))
+				break;
+
+	m_setnextp (ch, chunk);
+	m_setnextp (cc, ch);
+
+#if	MALLOC_SAFE
+	m_magic (ch) = 0xdeaf;
+#endif
+
+#undef	MA_NP
+}
+
+#if	MALLOC_SINGLEPOOL
+void zzz_free (address ch) {
+#define	MA_NP	0
+#define	QFREE	qfree (ch)
+#else
+void zzz_free (int np, address ch) {
+#define	MA_NP	np
+#define	QFREE	qfree (np, ch)
+#endif
+/*
+ * User-visible free
+ */
+	if (ch == NULL)
+		/* free (NULL) is legal */
+		return;
+
+#if	MALLOC_SAFE
+	if ((m_size (ch) & 0x8000) == 0)
+		syserror (EMALLOC, "freeing garbage");
+	m_size (ch) &= 0x7fff;
+#endif
+
+#if	MALLOC_STATS
+	mfree [MA_NP] += m_size (ch);
+#endif
+	QFREE;
+
+	if (mevent [MA_NP]) {
+		trigger ((word)(&(mevent [MA_NP])));
+		mevent [MA_NP] --;
+	}
+
+#undef	QFREE
+#undef	MA_NP
+
+}
+
+#if	MALLOC_SINGLEPOOL
+address zzz_malloc (word size) {
+#define	MA_NP	0
+#define	QFREE	qfree (cc);
+#else
+address zzz_malloc (int np, word size) {
+#define	QFREE	qfree (np, cc);
+#define	MA_NP	np
+#endif
+	address chunk, cc;
+	word waste;
+
+	/* Put a limit on how many bytes you can formally request */
+	if (size > 0x8000)
+		syserror (EREQPAR, "malloc");
+	else if (size < 4)
+		/* Never allocate less than two words */
+		size = 2;
+	else
+		/* Convert size to words */
+		size = (size + 1) >> 1;
+	/* Right shift of unsigned doesn't propagate the sign bit */
+
+	cc = (address)(mpools + MA_NP);
+	for (chunk = mpools [MA_NP]; chunk != NULL; cc = chunk,
+		chunk = m_nextp (chunk)) {
+#if	MALLOC_SAFE
+			if (m_magic (chunk) != 0xdeaf)
+				syserror (EMALLOC, "inconsistency");
+#endif
+			if (m_size (chunk) >= size)
+				break;
+	}
+	if (chunk) {
+		/* We've got a chunk - remove it from the list */
+		m_setnextp (cc, m_nextp (chunk));
+		/* Is the waste acceptable ? */
+		if ((waste = m_size (chunk) - size) > MAX_MALLOC_WASTE) {
+			/* Split the chunk */
+			m_size (chunk) = size;
+			cc = chunk + size + m_hdrlen;
+			m_size (cc) = waste - m_hdrlen;
+			/* Insert the chunk */
+			QFREE;
+		}
+	}
+	/* Return NULL on failure */
+#if	MALLOC_STATS
+	if (chunk == NULL) {
+		mfcount [MA_NP]++;
+		return NULL;
+	} else
+		mfree [MA_NP] -= m_size (chunk);
+#endif
+#if	MALLOC_SAFE
+	if (chunk != NULL)
+		m_size (chunk) |= 0x8000;
+#endif
+	return (chunk);
+
+#undef	QFREE
+#undef	MA_NP
+
+}
+
+#if	MALLOC_SINGLEPOOL
+void zzz_waitmem (word state) {
+#define	MA_NP	0
+#else
+void zzz_waitmem (int np, word state) {
+#define	MA_NP	np
+#endif
+/*
+ * Wait for pool memory release
+ */
+	if (mevent [MA_NP] < MAX_TASKS)
+		mevent [MA_NP] ++;
+
+	wait ((word)(&(mevent [MA_NP])), state);
+#undef	MA_NP
+}
+
+#if	MALLOC_STATS
+#if	MALLOC_SINGLEPOOL
+word	zzz_memfree (address faults) {
+#define	MA_NP	0
+#else
+word	zzz_memfree (int np, address faults) {
+#define	MA_NP	np
+#endif
+/*
+ * Returns memory statistics
+ */
+	if (faults != NULL)
+		*faults = mfcount [MA_NP];
+	return mfree [MA_NP];
+#undef	MA_NP
+}
+
+#if	MALLOC_SINGLEPOOL
+word	zzz_maxfree (address nc) {
+#define	MA_NP	0
+#else
+word	zzz_maxfree (int np, address nc) {
+#define	MA_NP	np
+#endif
+/*
+ * Returns the maximum available chunk size (in words)
+ */
+	address chunk;
+	word max, nchk;
+
+	for (max = nchk = 0, chunk = mpools [MA_NP]; chunk != NULL;
+	    chunk = m_nextp (chunk), nchk++)
+		if (m_size (chunk) > max)
+			max = m_size (chunk);
+	if (nc != NULL)
+		*nc = nchk;
+
+	return max;
+#undef	MA_NP
+}
+
+#endif
+
+#if	SDRAM_PRESENT
+void zz_sdram_test (void) {
+
+	unsigned int loc, err;
+
+#if ! ECOG_SIM
+
+	for (loc = 0; loc != ((word)1 << SDRAM_SIZE); loc++)
+		*((word*)SDRAM_ADDR + loc) = 1 - loc;
+	err = 0;
+	for (loc = 0; loc != ((word)1 << SDRAM_SIZE); loc++)
+		if (*((word*)SDRAM_ADDR + loc) != 1 - loc)
+			err++;
+#else
+	err = 0;
+	loc = ((word)1 << SDRAM_SIZE);
+#endif
+
+	if (err)
+		diag ("SDRAM failure, 0x%x words, %u errors", loc, err);
+	else
+		diag ("SDRAM block OK, 0x%x words", loc);
+}
+#endif
+
+/* --------------------------------------------------------- */
+/* ====== end of MEMORY ALLOCATORS ========================= */
+/* --------------------------------------------------------- */

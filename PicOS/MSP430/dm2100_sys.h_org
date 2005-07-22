@@ -1,0 +1,211 @@
+#ifndef	__pg_dm2100_sys_h
+#define	__pg_dm2100_sys_h	1
+
+//+++ "dm2100irq.c"
+
+/* ================================================================== */
+
+/*
+ * Pin assignment (see IM2100):
+ *
+ *  TR1000                      MSP430Fxxx
+ * ===========================================
+ *  RXDATA			CCI0B (P2.2)		in
+ *  TXMOD			OUT0 (P2.7)		out
+ *  CNTRL0			P5.1			out
+ *  CNTRL1			P5.0			out
+ *  RSSI			A0 (P6.0)		analog in
+ */
+
+#define	ini_regs	do { \
+				_BIC (P2OUT, 0x84); \
+				_BIS (P2DIR, 0x80); \
+				_BIC (P2DIR, 0x04); \
+				_BIS (P2SEL, 0x84); \
+				_BIC (P5OUT, 0x03); \
+				_BIS (P5DIR, 0x03); \
+				_BIS (P4DIR, 0x0f); \
+			} while (0)
+
+/*
+ * DM2100 signal operations. Timer's A Capture/Compare Block is used for signal
+ * insertion/extraction.
+ */
+#define	c0up		_BIS (P5OUT, 0x02)
+#define	c0down		_BIC (P5OUT, 0x02)
+#define	c1up		_BIS (P5OUT, 0x01)
+#define	c1down		_BIC (P5OUT, 0x01)
+
+/*
+ * Timer setting. We are using SMCLK running at 4.5 MHz.
+ *
+ *	TACTL = TASSEL_SMCLK | TACLR; 	// Timer A driven by SMCLK at the
+ *                                      // CPU clock frequency
+ *
+ * The timer runs in the up mode setting up TAIFG whenever the count is
+ * reached.
+ *
+ * For transmission, the timer triggers comparator interrupts whenever it
+ * reaches the value in TACCR0. These interrupts strobe signal level flips.
+ * For reception, signal transitions on CCI0B trigger capture interrupts,
+ * with the time of the transition returned in TACCR0. Additionally, TACCR1
+ * is used to trigger a timeout interrupt if the signal does not change for
+ * a longish while.
+ *
+ */
+#define	timer_init		do { TACTL = TASSEL_SMCLK | TACLR; } while (0)
+
+// This is the number of SMCLK ticks corresponding to 1/2 bit time
+#define	DM_RATE_180us		400
+#define	DM_RATE_110us		250
+
+/*
+ * Change this to select a different rate. The math is simple: by dividing
+ * 4.5MHz by DM_RATE, we obtain twice the transmission rate expressed in signal
+ * transitions per second. Multiply this by 2/3 to get the approximate (logical)
+ * bit rate. Thus, DM_RATE_110us (250) yields 18000/2 = 9000 transitions per
+ * seconds, which yields ca. 6000 bps for the actual bit rate.
+ */
+#define	DM_RATE			DM_RATE_180us
+
+// Physical bit size
+#define	DM_RATE_INCR		(DM_RATE + DM_RATE)
+
+/*
+ * The first four entries are for the receiver and represent bounds
+ * for raw bit intervals.
+ */
+#define	DM_RATE_R0		DM_RATE
+#define	DM_RATE_R1		(DM_RATE_R0 + DM_RATE_INCR)
+#define	DM_RATE_R2		(DM_RATE_R1 + DM_RATE_INCR)
+#define	DM_RATE_R3		(DM_RATE_R2 + DM_RATE_INCR)
+/*
+ * Receiver timeout: no transition for this long terminates reception
+ */
+#define	DM_RATE_R4		(DM_RATE_R3 + DM_RATE)
+/*
+ * These are the exact intervals used by the transmitter
+ */
+#define DM_RATE_X1		DM_RATE_INCR
+#define DM_RATE_X2		(DM_RATE_X1 + DM_RATE_INCR)
+#define DM_RATE_X3		(DM_RATE_X2 + DM_RATE_INCR)
+
+#define	enable_xmt_timer	do { \
+					TACCR0 = DM_RATE_X1; \
+					TACCTL1 = 0; \
+					TACCTL0 = CCIE | OUT; \
+					_BIS (TACTL, MC_2 | TACLR); \
+				} while (0)
+/*
+ * This toggles the signal and makes it last for the prescribed interval
+ * of SMCLK ticks
+ */
+#define	set_signal_length(v)	do { \
+					TACCR0 += (v); \
+					TACCTL0 ^= OUT; \
+				} while (0)
+/*
+ * This stops the transmitter timer (and interrupts)
+ */
+#define	disable_xcv_timer	do { \
+					TACCTL0 = 0; \
+					TACCTL1 = 0; \
+					_BIC (TACTL, MC_3); \
+				} while (0)
+
+/*
+ * The reception is trickier. I tried capture on both slopes simultaneously,
+ * but I couldn't get the signal right from SCCI (don't know why, perhaps the
+ * input voltage from RXDATA tends to be flaky). So I have settled for 
+ * switching the slope after every capture. This is done by starting with
+ * CM_1 (meaning transition from low to high) and then switching to CM_2
+ * (accomplished by adding CM_1 to what was there), then back to CM_1, and
+ * so on. This way the actual perceived signal is implied from the last
+ * transition and determined by the contents of CM.
+ */
+#define	enable_rcv_timer	do { \
+					zzv_tmaux = 0; \
+					TACCTL0 = CM_1 | CCIS_1 | SCS | CAP \
+						| CCIE; \
+					_BIS (TACTL, MC_2 | TACLR); \
+				} while (0)
+
+#define	enable_rcv_timeout	do { TACCTL1 = CCIE; } while (0)
+#define	disable_rcv_timeout	do { TACCTL1 =    0; } while (0)
+
+#define get_signal_params(t,v)	do { \
+					(t) = ((word) TACCR0) - zzv_tmaux; \
+					zzv_tmaux = (word) TACCR0; \
+					if (((v) = (TACCTL0 & CM_1))) \
+						TACCTL0 += CM_1; \
+					else \
+						TACCTL0 -= CM_1; \
+				} while (0)
+
+#define	set_rcv_timer		do { TACCR1 = TACCR0 + DM_RATE_R4; } while (0)
+
+#define	hard_lock		do { \
+					_BIC (TACCTL0, CCIE); \
+					_BIC (TACCTL1, CCIE); \
+				} while (0)
+
+#define	hard_drop		do { \
+					if (zzv_status) { \
+						_BIS (TACCTL0, CCIE); \
+						if (zzv_status == HSTAT_RCV) \
+							_BIS (TACCTL1, CCIE); \
+					} \
+				} while (0)
+
+// The LED configuration corrsponds to the three LEDs on DM2100. A led is
+// switched on by setting its output pin low. LED 0 isn't there, but we
+// ignore this fact.
+#define LEDI(n,s)	do { \
+				if (s) \
+					_BIC (P4OUT, 1 << (n)); \
+				else \
+					_BIS (P4OUT, 1 << (n)); \
+			} while (0)
+
+/*
+ * ADC12 used for RSSI collection: source on A0 == P6.0, single sample,
+ * triggered by ADC12SC
+ * 
+ *	ADC12CTL0 =     SHT0_2 +	// 16 ADC12CLOCKs sample holding time
+ *		        SHT1_2 +	// 16 ADC12CLOCKs sample holding time
+ *	                 REFON +	// 1.5 V internal reference
+ *		       ADC12ON +	// ON
+ *			   ENC +	// Enable conversion
+ *
+ *	ADC10CTL1 = ADC12DIV_0 +	// Clock (ACLK) divided by 1
+ *		   ADC12SSEL_1 +	// ACLK
+ *                         SHP +	// Pulse sampling
+ *
+ *      ADC12MCTL0 =       EOS +	// Last word
+ *		        SREF_1 +	// Vref - Vss
+ *                      INCH_0 +	// A0
+ *
+ * The total sample time is equal to 16 + 13 ACLK ticks, which roughly
+ * translates into 0.9 ms. The shortest packet at 19,200 takes more than
+ * twice that long, so we should be safe.
+ */
+#define	adc_config	do { \
+		_BIC (ADC12CTL0, ENC); \
+		_BIC (P6DIR, 1 << 0); \
+		_BIS (P6SEL, 1 << 0); \
+		ADC12CTL1 = ADC12DIV_0 + ADC12SSEL_1 + SHP; \
+		ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
+		ADC12CTL0 = SHT0_2 + SHT1_2 + REFON + ADC12ON + ENC; \
+	} while (0)
+
+#define	adc_enable	_BIS (ADC12CTL0, ADC12SC)
+// This is just in case
+// #define	adc_disable	while ((ADC12CTL1 & ADC12BUSY))
+#define	adc_disable	do { } while (0)
+#define	adc_value	ADC12MEM0
+
+#define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
+#define	RSSI_MAX	0x0fff
+#define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
+
+#endif
