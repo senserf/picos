@@ -25,6 +25,8 @@
 #include "sysio.h"
 #include "tcvphys.h"
 
+#define	ENCRYPT	1
+
 /*
  * You should run this application on two boards at the same time. When
  * started (the 's' command), it will periodically send a packet over
@@ -65,7 +67,12 @@ heapmem {10, 90};
 
 #include "plug_null.h"
 
+#if ENCRYPT
 #include "encrypt.h"
+
+static const lword secret [4] = { 0xbabadead,0x12345678,0x98765432,0x6754a6cd };
+
+#endif
 
 #define	MAXPLEN		32
 #define	IBUFLEN		82
@@ -84,7 +91,6 @@ static	int	rkillflag = 0;
 static	long	last_snt, last_rcv, last_ack;
 static  char 	XMTon = 0, RCVon = 0;
 
-static const lword secret [] = { 0xbabadead,0x12345678,0x98765432,0x6754a6cd };
 
 static void lcd_update (void) {
 
@@ -118,9 +124,9 @@ process (receiver, void)
 	}
 	wait ((word) &rkillflag, RC_TRY);
 	packet = tcv_rnp (RC_TRY, sfd);
-
-	decrypt (packet + 1, 4, secret);
-
+#if ENCRYPT
+	decrypt (packet + 1, (tcv_left (packet) >> 1) - 2, secret);
+#endif
 	if (packet [1] == PKT_ACK) {
 		last_ack = ntowl (((lword*)packet) [1]);
 		proceed (RC_ACK);
@@ -153,8 +159,10 @@ process (receiver, void)
 		packet [0] = 0;
 		packet [1] = PKT_ACK;
 		((lword*)packet) [1] = wtonl (last_rcv);
+#if ENCRYPT
 		packet [4] = (word) entropy;
 		encrypt (packet + 1, 4, secret);
+#endif
 		tcv_endp (packet);
 		lcd_update ();
 	}
@@ -247,8 +255,10 @@ process (sender, void)
 	packet [0] = 0;
 	packet [1] = PKT_DAT;
 	((lword*)packet)[1] = wtonl (last_snt);
+#if ENCRYPT
 	packet [4] = (word) entropy;
 	encrypt (packet + 1, 4, secret);
+#endif
 	tcv_endp (packet);
 
   entry (SN_NEXT+1)
@@ -325,7 +335,7 @@ process (root, int)
 #if UART_DRIVER
 	static char *ibuf;
 	static int k, n1;
-	static char *fmt, obuf [24];
+	static char *fmt, obuf [32];
 	static word p [2];
 #endif
 
