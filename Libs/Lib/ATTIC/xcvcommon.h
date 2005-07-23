@@ -82,15 +82,10 @@ Finish:
 		proceed (RCV_GETIT);
 
 	/* Validate checksum */
-	if (zzv_rdbk->chks) {
-		if (w_chk (zzr_buffer, zzr_length))
-			proceed (RCV_GETIT);
-		/*
-		 * Check if should return RSSI in the last checksum byte
-		 */
-		if (zzv_rdbk->rssif && zzv_rdbk->chks > 1)
-			zzr_buffer [zzr_length - 1] = (word) rssi_cnv ();
-	}
+	if (w_chk (zzr_buffer, zzr_length))
+		proceed (RCV_GETIT);
+	 /* Return RSSI in the last checksum byte */
+	zzr_buffer [zzr_length - 1] = (word) rssi_cnv ();
 
 	tcvphy_rcv (zzv_rdbk->physid, zzr_buffer, zzr_length << 1);
 
@@ -176,10 +171,11 @@ Drain:
 			syserror (EREQPAR, "xmt/tlength");
 		stln >>= 1;
 
-		if (zzv_rdbk->chks) {
-			zzx_buffp [stln - 1] =
-				w_chk (zzx_buffp, stln - 1);
-		}
+		// Insert the station Id
+		if (zzv_rdbk->statid)
+	    		zzr_buffer [0] = zzv_rdbk->statid;
+		// Insert the checksum
+		zzx_buffp [stln - 1] = w_chk (zzx_buffp, stln - 1);
 #if 0
 		diag ("SND: %d (%x) %x %x %x %x %x %x", stln, (word) zzx_buffp,
 			zzx_buffer [0],

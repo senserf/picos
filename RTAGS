@@ -1,0 +1,42 @@
+This file lists CVS RTAGs pointing to significal commit's:
+
+R050722A:
+
+	Short checksums, encryption, cleaned PHYSOPT's, added PHYSOPT_SESID
+	(both in CHIPCON as well as DM2100); station Id is now inserted by
+	the transmitter; access to loose pins, including ADC on GP0-GP7 (in
+	fact, GP0 is not usable as it is reserved for RSSI).
+
+	phys_dm2100 (...) accepts only two arguments (the SId argument has
+	been removed).
+
+	The SId is now automatically inserted by the transmitter (its role
+	is to act as the network Id, so it makes sense), but only if it is
+	nonzero. Note that you can send a packet without touching the SId
+	field by setting the station's SId to zero (PHYSOPT_SESID).
+
+	New functions available from the dm2100 driver
+	(see Libs/Lib/phys_DM2100.h):
+
+	pin_get (pn). pn is the pin number (1 - 11, corresponding to GP1-7
+	and then CFG0-CFG3 (8-11). Number zero corresponds to GP0, but GP0
+	is illegal because it is reserved for RSSI. The function returns the
+	value (0/1) of the respective pin.
+
+	pin_set (pn, val) sets or clears the indicated pin (1-11), depending
+	on whether val is zero or nonzero.
+
+	pin_get_adc (pin, ref, stime) returns the ADC-converted voltage on the
+	indicated pin (1-7 - only P6 pins can be used for this). If ref is
+	zero, the reference voltage is 1.5V, otherwise it is 2.5V. stime gives
+	(roughly) the sampling time in milliseconds (64 is the max, 0 == 4
+	msec should be OK for signals that don't have to be integrated).
+
+	Note that the receiver should be stopped before calling pin_get_adc,
+	as the ADC converter is used by the receiver. If the function is
+	called while the receiver is active, it returns -1 and does nothing.
+
+	The direction of a pin is input by default. Upon the first call to
+	pin_set, the pin becomes output and cannot be used for input any
+	more.
+	

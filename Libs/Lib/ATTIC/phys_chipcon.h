@@ -3,6 +3,6 @@
 
 //+++ "phys_chipcon.c"
 
-void phys_chipcon (int, int, int, int);
+void phys_chipcon (int, int, int);
 
 #endif

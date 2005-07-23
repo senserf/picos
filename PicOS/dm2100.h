@@ -9,14 +9,15 @@
  */
 #define	CRC_ISO3309		1	/* Checksum according to ISO */
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length (bytes) */
+#define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
+
 /*
  * These values are defaults changeable with tcv_control
  */
 #define	RADIO_DEF_MNBACKOFF	32	/* Minimum backoff */
 #define	RADIO_DEF_XMITSPACE	8	/* Space between xmitted packets */
 #define	RADIO_DEF_BSBACKOFF	0xff	/* Randomized component */
-#define	RADIO_DEF_PREAMBLE	14	/* Preamble bits/2 */
-#define RADIO_DEF_CHECKSUM	1	/* Checksum present */
+
 
 #define	TRA(len)	switch ((len)) { \
 				case 0:	 SL1; break; \
@@ -72,7 +73,7 @@
 				
 #define	start_xmt	do { \
 				LEDI (3, 1); \
-				zzv_prmble = zzv_rdbk->preamble; \
+				zzv_prmble = PREAMBLE_LENGTH; \
 				zzv_istate = IRQ_XPR; \
 				zzv_status = HSTAT_XMT; \
 				enable_xmt_timer; \
@@ -98,7 +99,7 @@ extern const byte zzv_symtable [], zzv_nibtable [], zzv_srntable [];
 
 typedef	struct {
 
-	byte 	rxoff, txoff, chks, rssif, preamble;
+	byte 	rxoff, txoff;
 /* TEMPORARY */
 	word	rssi;
 	word	qevent, physid, statid;

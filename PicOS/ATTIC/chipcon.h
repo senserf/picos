@@ -3,14 +3,14 @@
 
 #include "chipcon_sys.h"
 
-#define	RADIO_DEF_BUF_LEN	32	/* Default buffer length */
+#define	RADIO_DEF_BUF_LEN	48	/* Default buffer length */
+#define	PREAMBLE_LENGTH		48	/* Preamble bits */
 /*
  * These values are merely defaults changeable with tcv_control
  */
 #define	RADIO_DEF_MNBACKOFF	32	/* Minimum backoff */
 #define	RADIO_DEF_XMITSPACE	8	/* Space between xmitted packets */
 #define	RADIO_DEF_BSBACKOFF	0xff	/* Randomized component */
-#define	RADIO_DEF_PREAMBLE	48	/* Preamble bits */
 #define RADIO_DEF_CHECKSUM	1	/* Checksum present */
 #define	RADIO_DEF_BITRATE	384	/* This is /100 */
 #define	RADIO_DEF_XPOWER	1	/* Default transmit power */
@@ -96,7 +96,7 @@
 				LEDI (3, 1); \
 				chp_pdioout; \
 				zzv_curbit = 0; \
-				zzv_prmble = zzv_rdbk->preamble; \
+				zzv_prmble = PREAMBLE_LENGTH; \
 				zzv_istate = IRQ_XPR; \
 				zzv_status = GP_INT_XMT; \
 			} while (0)
@@ -116,7 +116,7 @@ extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl, zzr_length,
 
 typedef	struct {
 
-	byte 	rxoff, txoff, chks, hstat, xpower, rssif;
+	byte 	rxoff, txoff, hstat, xpower;
 /* TEMPORARY */
 	word	rssi;
 	word	qevent, physid, statid;
@@ -128,7 +128,6 @@ typedef	struct {
 		delbsbkf,		// Backof mask for random component
 		delxmspc,		// Minimum xmit packet space
 		seed,			// For the random number generator
-		preamble,		// Xmit preamble length in bits
 		backoff;		// Calculated backoff for xmitter
 } radioblock_t;
 

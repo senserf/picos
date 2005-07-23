@@ -15,7 +15,7 @@
  *  CNTRL0			P5.1			out
  *  CNTRL1			P5.0			out
  *  RSSI			A0 (P6.0)		analog in
- *  RSSI POWER-UP		P2.0
+ *  RSSI POWER-UP		P2.0			up on zero
  */
 
 
@@ -34,8 +34,36 @@
 				_BIC (P5OUT, 0x03); \
 				_BIS (P5DIR, 0x03); \
 				_BIS (P4DIR, 0x0f); \
+				_BIC (P6DIR, 0xfe); \
+				_BIC (P1DIR, 0x0f); \
 			} while (0)
+/*
+ * Access to GP pins on the board
+ */
+#define	pin_sethigh(p)		do { \
+					if ((p) < 8) { \
+						_BIS (P6DIR, 1 << (p)); \
+						_BIS (P6OUT, 1 << (p)); \
+					} else { \
+						_BIS (P1DIR, 1 << ((p)-8)); \
+						_BIS (P1OUT, 1 << ((p)-8)); \
+					} \
+				} while (0)
 
+#define	pin_setlow(p)		do { \
+					if ((p) < 8) { \
+						_BIS (P6DIR, 1 << (p)); \
+						_BIC (P6OUT, 1 << (p)); \
+					} else { \
+						_BIS (P1DIR, 1 << ((p)-8)); \
+						_BIC (P1OUT, 1 << ((p)-8)); \
+					} \
+				} while (0)
+
+#define	pin_setinput(p)		do { \
+
+#define	pin_value(p)		((p) < 8 ? (P6IN & (1 << (p))) : \
+						(P1IN & (1 << ((p)-8))))
 /*
  * DM2100 signal operations. Timer's A Capture/Compare Block is used for signal
  * insertion/extraction.
@@ -182,17 +210,44 @@
  * translates into 0.9 ms. The shortest packet at 19,200 takes more than
  * twice that long, so we should be safe.
  */
-#define	adc_config	do { \
-		_BIC (ADC12CTL0, ENC); \
-		_BIC (P6DIR, 1 << 0); \
-		_BIS (P6SEL, 1 << 0); \
-		ADC12CTL1 = ADC12DIV_0 + ADC12SSEL_1 + SHP; \
-		ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
-		ADC12CTL0 = SHT0_2 + SHT1_2 + REF2_5V + ADC12ON; \
-	} while (0)
+#define	adc_config_rssi		do { \
+			_BIC (ADC12CTL0, ENC); \
+			_BIC (P6DIR, 1 << 0); \
+			_BIS (P6SEL, 1 << 0); \
+			ADC12CTL1 = ADC12DIV_0 + ADC12SSEL_1 + SHP; \
+			ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
+			ADC12CTL0 = SHT0_2 + SHT1_2 + REF2_5V + ADC12ON; \
+				} while (0)
+
+/*
+ * ADC configuration for polled sample collection
+ */
+#define	adc_config_read(p,r,t)	do { \
+			_BIC (ADC12CTL0, ENC); \
+			_BIC (P6DIR, 1 << (p)); \
+			_BIS (P6SEL, 1 << (p)); \
+			ADC12CTL1 = ADC12DIV_0 + ADC12SSEL_1 + SHP; \
+			ADC12MCTL0 = EOS + SREF_1 + (p); \
+			ADC12CTL0 = ((t) <=  4 ?  0 : \
+				    ((t) <=  8 ?  1 : \
+				    ((t) <= 16 ?  2 : \
+				    ((t) <= 32 ?  3 : \
+				     4 ))) ) + \
+				    ((r) ? REF2_5V : 0) + \
+				    REFON + ADC12ON; \
+				} while (0)
+
+
+#define	adc_wait	do { } while (ADC12CTL1 & ADC12BUSY)
 
 #define adc_enable	ADC12CTL0 |=  (REFON + ENC)
-#define	adc_disable	ADC12CTL0 &= ~(REFON + ENC)
+
+#define	adc_disable	do { \
+				_BIC (ADC12CTL0, ENC); \
+				_BIC (ADC12CTL0, REFON); \
+			} while (0)
+
+#define	adc_inuse	(ADC12CTL0 & REFON)
 #define	adc_start	_BIS (ADC12CTL0, ADC12SC)
 #define	adc_stop	do { } while (0)
 #define	adc_value	ADC12MEM0

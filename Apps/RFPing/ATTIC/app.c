@@ -317,14 +317,13 @@ int snd_stop (void) {
 #define	RS_QRCV		63
 #define	RS_QXMT		66
 #define	RS_QUIT		70
+#define	RS_SSID		75
 #define	RS_CAL		80
 #define	RS_STK		85
-#define	RS_AUTOSTART	90
-
-#if CHIPCON || DM2100
-const static word parm_rssc [2] = { 4, 2 };
-const static word parm_rssi [2] = { 5, 2 };
-#endif
+#define	RS_GADC		90
+#define	RS_SPIN		100
+#define	RS_GPIN		110
+#define	RS_AUTOSTART	200
 
 #if CHIPCON
 const static word parm_power = 1;
@@ -352,11 +351,11 @@ process (root, int)
 
 #if CHIPCON
 	// Configure CHIPCON for 19,200 bps
-	phys_chipcon (0, 0, MAXPLEN, 192 /* 192 768 384 */);
+	phys_chipcon (0, MAXPLEN, 192 /* 192 768 384 */);
 #endif
 
 #if DM2100
-	phys_dm2100 (0, 0, MAXPLEN);
+	phys_dm2100 (0, MAXPLEN);
 #endif
 
 #if RADIO_DRIVER
@@ -370,12 +369,6 @@ process (root, int)
 		diag ("Cannot open tcv interface");
 		halt ();
 	}
-
-#if CHIPCON || DM2100
-	// Collect RSSI and return via the checksum
-	tcv_control (sfd, PHYSOPT_SETPARAM, (address) parm_rssi);
-	tcv_control (sfd, PHYSOPT_SETPARAM, (address) parm_rssc);
-#endif
 
 #if CHIPCON
 	tcv_control (sfd, PHYSOPT_SETPOWER, (address) &parm_power);
@@ -403,6 +396,13 @@ process (root, int)
 		"o        -> stop receiver\r\n"
 		"t        -> stop transmitter\r\n"
 		"q        -> stop both\r\n"
+		"i        -> set station Id\r\n"
+#if DM2100
+		"x p r    -> read ADC pin 'p' with reference r (0/1 1.5V/2.5V)\r\n"
+		"y p v    -> set pin 'p' to v (0/1)\r\n"
+		"z p      -> show the value of pin 'p'\r\n"
+#endif
+
 #if STACK_GUARD
 		"v        -> show unused stack space\r\n"
 #endif
@@ -433,6 +433,15 @@ process (root, int)
 		proceed (RS_RCV);
 	if (ibuf [0] == 'd')
 		proceed (RS_PAR);
+#if DM2100
+	if (ibuf [0] == 'x')
+		proceed (RS_GADC);
+	if (ibuf [0] == 'y')
+		proceed (RS_SPIN);
+	if (ibuf [0] == 'z')
+		proceed (RS_GPIN);
+#endif
+
 #if STACK_GUARD
 	if (ibuf [0] == 'v')
 		proceed (RS_STK);
@@ -463,6 +472,8 @@ process (root, int)
 		proceed (RS_QRCV);
 	if (ibuf [0] == 't')
 		proceed (RS_QXMT);
+	if (ibuf [0] == 'i')
+		proceed (RS_SSID);
 
   entry (RS_RCMD+1)
 
@@ -573,6 +584,13 @@ process (root, int)
 
 	proceed (RS_RCMD);
 
+  entry (RS_SSID)
+
+	n1 = 0;
+	scan (ibuf + 1, "%d", &n1);
+	tcv_control (sfd, PHYSOPT_SETSID, (address) &n1);
+	proceed (RS_RCMD);
+
 #if CHIPCON == 0 && DM2100 == 0
 
   entry (RS_CAL)
@@ -599,7 +617,42 @@ process (root, int)
 #endif
 
 #endif	/* UART_DRIVER */
-	
+
+#if DM2100
+
+  entry (RS_GADC)
+
+	p [0] = 0;
+	p [1] = 0;
+	scan (ibuf + 1, "%u %u", p+0, p+1);
+	p [0] = pin_get_adc (p [0], p [1], 4);
+
+  entry (RS_GADC+1)
+
+	ser_outf (RS_GADC+1, "Value: %u\r\n", p [0]);
+	proceed (RS_RCMD);
+
+  entry (RS_SPIN)
+
+	p [1] = 0;
+	p [1] = 0;
+	scan (ibuf + 1, "%u %u", p+0, p+1);
+	pin_set (p [0], p [1]);
+	proceed (RS_RCMD);
+
+  entry (RS_GPIN)
+
+	p [0] = 1;
+	scan (ibuf + 1, "%u", p+0);
+	p [0] = pin_get (p [0]);
+
+  entry (RS_GPIN+1)
+
+	ser_outf (RS_GADC+1, "Value: %u\r\n", p [0]);
+	proceed (RS_RCMD);
+
+#endif
+
   entry (RS_AUTOSTART)
 	  
 	snd_start (1024);

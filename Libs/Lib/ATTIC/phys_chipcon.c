@@ -485,10 +485,9 @@ static byte rssi_cnv (void) {
 
 #include "xcvcommon.h"
 
-void phys_chipcon (int phy, int mod, int mbs, int bau) {
+void phys_chipcon (int phy, int mbs, int bau) {
 /*
  * phy  - interface number
- * mod  - if nonzero, selects framed mode with 'mod' used as station Id
  * mbs  - maximum packet length (excluding checksum, must be divisible by 4)
  * bau  - baud rate /100 (default assumed if zero)
  */
@@ -521,9 +520,8 @@ void phys_chipcon (int phy, int mod, int mbs, int bau) {
 
 	zzv_rdbk->xpower = RADIO_DEF_XPOWER;
 	zzv_rdbk->rssi = 0;
-	zzv_rdbk->rssif = 0;	// Flag == collect RSSI
 
-	zzv_rdbk -> statid = mod;
+	zzv_rdbk -> statid = 0;
 	zzv_rdbk -> physid = phy;
 	zzv_rdbk -> backoff = 0;
 
@@ -532,13 +530,9 @@ void phys_chipcon (int phy, int mod, int mbs, int bau) {
 	zzv_rdbk->delmnbkf = RADIO_DEF_MNBACKOFF;
 	zzv_rdbk->delxmspc = RADIO_DEF_XMITSPACE;
 	zzv_rdbk->delbsbkf = RADIO_DEF_BSBACKOFF;
-	zzv_rdbk->preamble = RADIO_DEF_PREAMBLE;
-	/* Checksum used by default */
-	zzv_rdbk->chks = RADIO_DEF_CHECKSUM;
 
 	/* Register the phy */
-	zzv_rdbk->qevent = tcvphy_reg (phy, option,
-		INFO_PHYS_CHIPCON | (mod != 0));
+	zzv_rdbk->qevent = tcvphy_reg (phy, option, INFO_PHYS_CHIPCON);
 
 	/* Both parts are initially inactive */
 	zzv_rdbk->rxoff = zzv_rdbk->txoff = 1;
@@ -631,14 +625,16 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_GETPOWER:
 
-		if (zzv_rdbk->rssif)
-			ret = ((int) rssi_cnv ()) & 0xff;
-		else
-			ret = 0;
+		ret = ((int) rssi_cnv ()) & 0xff;
 
 		if (val != NULL)
 			*val = ret;
 
+		break;
+
+	    case PHYSOPT_SETSID:
+
+		zzv_rdbk->statid = (val == NULL) ? 0 : *val;
 		break;
 
 	    case PHYSOPT_SETPARAM:
@@ -650,9 +646,6 @@ static int option (int opt, address val) {
 		 *    0 - minimum backoff (min = 0 msec)
 		 *    1 - backoff mask bits (from 1 to 15)
 		 *    2 - xmit packet space (min = 0, max = 256 msec)
-		 *    3 - preamble length (min = 32, max = 256)
-		 *    4 - checksum mode (0, 1-checksum, 2-checksum+power level
-		 *    5 - collect RSSI
 		 */
 #define pval	(*(val + 1))
 		/*
@@ -678,26 +671,6 @@ static int option (int opt, address val) {
 				if ((zzv_rdbk->delxmspc = pval) >
 				    zzv_rdbk->delmnbkf)
 					zzv_rdbk->delmnbkf = pval;
-				break;
-			case 3:
-				if (pval < 32)
-					pval = 32;
-				else if (pval > 256)
-					pval = 256;
-				zzv_rdbk->preamble = pval;
-				break;
-			case 4:
-				if (pval > 2)
-					pval = 2;
-				zzv_rdbk->chks = pval;
-				break;
-			case 5:
-				if (pval != 0) {
-					/* Collect RSSI */
-					zzv_rdbk->rssif = 1;
-				} else {
-					zzv_rdbk->rssif = 0;
-				}
 				break;
 			default:
 				syserror (EREQPAR, "options radio param index");

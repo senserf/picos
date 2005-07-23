@@ -132,11 +132,9 @@ if (chipcon_int) {
 			// End of packet
 			RISE_N_SHINE;
 			adc_disable;
-			if (zzv_rdbk->rssif) {
-				// Collecting RSSI
-				zzv_rdbk->rssi = adc_value;
-				add_entropy (zzv_rdbk->rssi & 0x1f);
-			}
+				// Collect RSSI
+			zzv_rdbk->rssi = adc_value;
+			add_entropy (zzv_rdbk->rssi & 0x1f);
 			zzv_status = 0;
 			clr_xcv_int;
 			zzr_length = zzr_buffp - zzr_buffer;
