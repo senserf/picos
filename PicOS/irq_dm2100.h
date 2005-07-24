@@ -220,7 +220,7 @@
 		register word st, sv;
 
 		get_signal_params (st, sv);
-		add_entropy (st & 0xf);
+		add_entropy (st);
 
 		if (st <= SH1) {
 			// A preamble bit
@@ -258,7 +258,7 @@
 		register word st, sv;
 
 		get_signal_params (st, sv);
-		add_entropy (st & 0xf);
+		add_entropy (st);
 		set_rcv_timeout;
 
 		if (st <= SH2) {
@@ -321,7 +321,7 @@
 		register word st, sv, sc;
 
 		get_signal_params (st, sv);
-		add_entropy (st & 0xf);
+		add_entropy (st);
 		set_rcv_timeout;
 
 		if (st <= SH2) {
@@ -386,7 +386,7 @@ REND:
 		adc_stop;
 		// Collect RSSI
 		zzv_rdbk->rssi = adc_value;
-		add_entropy (zzv_rdbk->rssi & 0xf);
+		add_entropy (zzv_rdbk->rssi);
 		zzv_status = 0;
 		zzr_length = zzr_buffp - zzr_buffer;
 		zzr_buffp = NULL;

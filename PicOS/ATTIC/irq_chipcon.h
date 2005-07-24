@@ -134,7 +134,7 @@ if (chipcon_int) {
 			adc_disable;
 				// Collect RSSI
 			zzv_rdbk->rssi = adc_value;
-			add_entropy (zzv_rdbk->rssi & 0x1f);
+			add_entropy (zzv_rdbk->rssi);
 			zzv_status = 0;
 			clr_xcv_int;
 			zzr_length = zzr_buffp - zzr_buffer;

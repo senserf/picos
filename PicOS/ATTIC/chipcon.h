@@ -105,8 +105,6 @@
 #define	receiver_active	(zzv_status == GP_INT_RCV)
 #define	xmitter_active	(zzv_status == GP_INT_XMT)
 
-void phys_chipcon (int, int, int, int);
-
 extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl, zzr_length,
 		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_curbit,
 		zzv_status, zzv_prmble,	zzv_istate;
