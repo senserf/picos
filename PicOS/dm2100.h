@@ -116,4 +116,7 @@ typedef	struct {
 
 extern radioblock_t *zzv_rdbk;
 
+// To trigger P1.0-P1.3 up events
+#define	DM2100PINS_INT	((word)(&zzv_tmaux))
+
 #endif

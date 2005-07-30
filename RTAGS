@@ -40,3 +40,11 @@ R050722A:
 	pin_set, the pin becomes output and cannot be used for input any
 	more.
 	
+R050730A:
+
+	Function pin_wait (word pin, word state) for dm2100. pin is between 
+	8 and 11 inclusively and corresponds to CFG0-CFG3. It declares a wait
+	for the specified pin to go up. The pin value must be checked after
+	the event is triggered to make sure that the pin value is in fact
+	high. Note: there is no trigger for the pin going down, so this state
+	must be polled by the application.

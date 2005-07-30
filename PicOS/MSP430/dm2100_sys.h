@@ -1,7 +1,7 @@
 #ifndef	__pg_dm2100_sys_h
 #define	__pg_dm2100_sys_h	1
 
-//+++ "dm2100irq.c"
+//+++ "dm2100irq.c" "p1irq.c"
 
 /* ================================================================== */
 
@@ -64,6 +64,17 @@
 
 #define	pin_value(p)		((p) < 8 ? (P6IN & (1 << (p))) : \
 						(P1IN & (1 << ((p)-8))))
+
+#define	pin_setint(p)		do { \
+					_BIC (P1IES, 0x0f); \
+					_BIS (P1IE, 1 << ((p)-8)); \
+				} while (0)
+
+#define	pin_clrint		_BIC (P1IE, 0x0f)
+
+
+#define	chipcon_int		(P1IFG & 0x01)
+#define	clear_chipcon_int	P1IFG &= ~0x01
 /*
  * DM2100 signal operations. Timer's A Capture/Compare Block is used for signal
  * insertion/extraction.

@@ -452,3 +452,17 @@ word pin_set (word pin, word val) {
 	else
 		pin_setlow (pin);
 }
+
+void pin_wait (word pin, word state) {
+
+	pin_clrint;
+	if (pin < 8 || pin > 11)
+		syserror (EREQPAR, "phys_dm2100 pin_wait");
+
+	wait (DM2100PINS_INT, state);
+	pin_setint (pin);
+
+	// In case we've just missed it
+	if (pin_get (pin))
+		delay (0, state);
+}
