@@ -48,3 +48,8 @@ R050730A:
 	the event is triggered to make sure that the pin value is in fact
 	high. Note: there is no trigger for the pin going down, so this state
 	must be polled by the application.
+
+R050730B:
+
+	Fixed pin_wait to operate on CFG1 and CFG2. The value of pin should be
+	1 or 2.

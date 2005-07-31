@@ -1,7 +1,7 @@
 #ifndef	__pg_dm2100_sys_h
 #define	__pg_dm2100_sys_h	1
 
-//+++ "dm2100irq.c" "p1irq.c"
+//+++ "dm2100irq.c" "p2irq.c"
 
 /* ================================================================== */
 
@@ -29,7 +29,7 @@
 #define	ini_regs	do { \
 				_BIC (P2OUT, 0x85); \
 				_BIS (P2DIR, 0x81); \
-				_BIC (P2DIR, 0x04); \
+				_BIC (P2DIR, 0x1C); \
 				_BIS (P2SEL, 0x84); \
 				_BIC (P5OUT, 0x03); \
 				_BIS (P5DIR, 0x03); \
@@ -66,11 +66,11 @@
 						(P1IN & (1 << ((p)-8))))
 
 #define	pin_setint(p)		do { \
-					_BIC (P1IES, 0x0f); \
-					_BIS (P1IE, 1 << ((p)-8)); \
+					_BIC (P2IES, 0x0f); \
+					_BIS (P2IE, 1 << ((p)+2)); \
 				} while (0)
 
-#define	pin_clrint		_BIC (P1IE, 0x0f)
+#define	pin_clrint		_BIC (P2IE, 0x0f)
 
 
 #define	chipcon_int		(P1IFG & 0x01)

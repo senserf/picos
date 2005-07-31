@@ -6,6 +6,7 @@
  */
 
 	i_trigger (ETYPE_USER, DM2100PINS_INT);
+	pin_clrint;
 
 
 #endif
