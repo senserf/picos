@@ -7,7 +7,7 @@
 #include	"dm2100.h"
 #endif
 
-interrupt (PORT2_VECTOR) p1_int () {
+interrupt (PORT2_VECTOR) p2_int () {
 
 #if	DM2100
 #include "irq_dm2100_pins.h"

@@ -4,9 +4,8 @@
 /*
  * P1 interrupts (corresponding to CFG0-CFG3 going up)
  */
-
-	i_trigger (ETYPE_USER, DM2100PINS_INT);
 	pin_clrint;
+	i_trigger (ETYPE_USER, DM2100PINS_INT);
 
 
 #endif

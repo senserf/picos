@@ -66,12 +66,15 @@
 						(P1IN & (1 << ((p)-8))))
 
 #define	pin_setint(p)		do { \
-					_BIC (P2IES, 0x0f); \
+					_BIC (P2IES, 0x18); \
 					_BIS (P2IE, 1 << ((p)+2)); \
+					_BIC (P2IFG, 0x18); \
 				} while (0)
 
-#define	pin_clrint		_BIC (P2IE, 0x0f)
-
+#define	pin_clrint		do { \
+					_BIC (P2IE, 0x18); \
+					_BIC (P2IFG, 0x18); \
+				} while (0)
 
 #define	chipcon_int		(P1IFG & 0x01)
 #define	clear_chipcon_int	P1IFG &= ~0x01

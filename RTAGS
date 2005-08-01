@@ -56,3 +56,6 @@ R050730B:
 
 R050730C:
 	Added p2irq.c that wasn't included in the previous release.
+
+R050730D:
+	Added clearing P2IFG after an interrupt.
