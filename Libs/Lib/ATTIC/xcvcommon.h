@@ -71,8 +71,8 @@ Finish:
 		zzr_buffer [4],
 		zzr_buffer [5]);
 #endif
-	/* The length is in words and must be at least 2 (4 bytes) */
-	if (zzr_length < 2)
+	/* The length is in words */
+	if (zzr_length < MINIMUM_PACKET_LENGTH/2)
 		proceed (RCV_GETIT);
 
 	/* Check the station Id */

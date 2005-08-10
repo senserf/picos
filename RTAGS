@@ -70,3 +70,12 @@ R050810A:
 	In addition to CONTROL/UART_CNTRL_RATE, there is UART_CNTRL_MODE,
 	with two word parameters: character width (7/8) and parity (0-even,
 	1-odd). The latter only applicable if character width is 7.
+
+
+R050810B:
+
+	Minimum legitimate packet length defineable as a constant (instead
+	of 4 bytes), set to 8 for now. This eliminates more false packets
+	from checksumming.
+	Long delays (operation ldelay (minutes, state)). Note: 1 minute is
+	64 seconds. This way I could avoid a division.

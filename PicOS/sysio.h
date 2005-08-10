@@ -429,6 +429,8 @@ int	io (int, int, int, char*, int);
 void	wait (word, word);
 /* Timer wait */
 void	delay (word, word);
+/* Minute wait */
+void	ldelay (word, word);
 /* Continue timer wait */
 void	snooze (word);
 /* Signal trigger: returns the number of awakened processes */

@@ -116,7 +116,7 @@ lword seconds () {
 
 void zzz_tservice () {
 
-	word nticks;
+	word nticks, nmins;
 	pcb_t *i;
 
 	cli_tim;
@@ -132,6 +132,10 @@ void zzz_tservice () {
 	while (millisec >= JIFFIES) {
 		millisec -= JIFFIES;
 		nseconds++;
+		if ((nseconds & 63) == 0)
+			/* Do this every "minute" */
+			ldtrigger ((word) (nseconds >> 6));
+			
 	}
 
 	do {
@@ -261,6 +265,27 @@ void delay (word d, word state) {
 	/* Indicate that we are waiting for the Timer */
 	inctimer (zz_curr);
 }
+
+/* =========== */
+/* Minute wait */
+/* =========== */
+void ldelay (word d, word state) {
+
+	int j = nevents (zz_curr);
+
+	if (j == MAX_EVENTS_PER_TASK)
+		syserror (ENEVENTS, "ldelay");
+
+	if (d == 0)
+		// There is no way to wait for zero minutes, use delay for that
+		syserror (EREQPAR, "ldelay");
+
+	setestatus (zz_curr->Events [j], ETYPE_LDELAY, state);
+	zz_curr->Events [j] . Event = (word) ((nseconds >> 6) + d);
+
+	incwait (zz_curr);
+}
+
 
 /* =============================== */
 /* Continue interrupted timer wait */

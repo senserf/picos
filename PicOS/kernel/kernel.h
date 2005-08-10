@@ -54,6 +54,7 @@ typedef struct	{
 #define	ETYPE_IO	3	/* I/O */
 #define	ETYPE_TERM	4	/* Process termination */
 #define	ETYPE_TERMANY	5	/* Termination of any process (joinall) */
+#define	ETYPE_LDELAY	6	/* Minute delay */
 
 #define	efree(e)		((e).Status == 0)
 #define	setestatus(e,t,s)	((e).Status = ((s) << 4) | (t))
@@ -123,6 +124,7 @@ void adddevfunc (devreqfun_t, int);
 #define	strigger(a,b)		zz_strigger (a, b)
 #define	iowait(dev,eve,sta)	swait (ETYPE_IO, devevent (dev,eve), sta)
 #define	iotrigger(dev,eve)	strigger (ETYPE_IO, devevent (dev, eve))
+#define	ldtrigger(del)		strigger (ETYPE_LDELAY, del)
 
 /* Special i/o 'operations': - attention events (interrupt + request) */
 #define	ATTENTION 	0xf
