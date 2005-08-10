@@ -541,31 +541,74 @@ static void ios_init () {
 static uart_t	uart [2];
 
 static const word uart_rates [] = {
-					 1200, 0x1B, 0x03,
-					 2400, 0x0D, 0x6B,
-					 4800, 0x06, 0x6F,
-					 9600, 0x03, 0x4A };
-					// We cannot go any further with ACLK used as
-					// the strobbing clock. We would need a special
-					// crystal for higher rates as the DCO clock is
-					// not very reliable.
+					 1200, 0x0EA6, 0x00,
+					 2400, 0x0753, 0x00,
+					 4800, 0x03A9, 0xAA,
+					 9600, 0x01D4, 0xBB,
+					19200, 0x00EA, 0x52,
+					32800, 0x0089, 0x84
+ };
 
-static INLINE void uart_setrate (int dev, word rate) {
+static void uart_setrate (int dev, word rate) {
 
 	int i;
 
 	for (i = 0; i < sizeof (uart_rates) / 2 - 3; i += 3)
 		if (uart_rates [i] >= rate)
 			break;
+	if (dev) {
+		_BIS (UCTL1, SWRST);
+		UBR01 = (uart_rates [i+1] & 0xff);
+		UBR11 = ((uart_rates [i+1] >> 8) & 0xff);
+		UMCTL1 = uart_rates [i+2];
+		_BIS (IFG2, UTXIFG1);
+		_BIS (ME2, UTXE1 + URXE1);
+		_BIC (UCTL1, SWRST);
+	} else {
+		_BIS (UCTL0, SWRST);
+		UBR00 = (uart_rates [i+1] & 0xff);
+		UBR10 = ((uart_rates [i+1] >> 8) & 0xff);
+		UMCTL0 = uart_rates [i+2];
+		_BIS (IFG1, UTXIFG0);
+		_BIS (ME1, UTXE0 + URXE0);
+		_BIC (UCTL0, SWRST);
+	}
+}
+
+static void uart_setmode (int dev, word bits, word par) {
 
 	if (dev) {
-		UBR01 = uart_rates [i+1];
-		UBR11 = 0;
-		UMCTL1 = uart_rates [i+2];
+		_BIS (UCTL1, SWRST);
+		if (bits != 8) {
+			_BIC (UCTL1, CHAR);	// 7 bits
+			_BIS (UCTL1, PENA);	// Parity enable
+			if (par)
+				_BIC (UCTL1, PEV);	// Odd
+			else
+				_BIS (UCTL1, PEV);	// Even
+		} else {
+			_BIS (UCTL1, CHAR);	
+			_BIC (UCTL1, PENA);	// Parity enable
+		}
+		_BIS (IFG2, UTXIFG1);
+		_BIS (ME2, UTXE1 + URXE1);
+		_BIC (UCTL1, SWRST);
 	} else {
-		UBR00 = uart_rates [i+1];
-		UBR10 = 0;
-		UMCTL0 = uart_rates [i+2];
+		_BIS (UCTL0, SWRST);
+		if (bits != 8) {
+			_BIC (UCTL0, CHAR);	// 7 bits
+			_BIS (UCTL0, PENA);	// Parity enable
+			if (par)
+				_BIC (UCTL0, PEV);	// Odd
+			else
+				_BIS (UCTL0, PEV);	// Even
+		} else {
+			_BIS (UCTL0, CHAR);	
+			_BIC (UCTL0, PENA);	// Parity enable
+		}
+		_BIS (IFG1, UTXIFG0);
+		_BIS (ME1, UTXE0 + URXE0);
+		_BIC (UCTL0, SWRST);
 	}
 }
 
@@ -639,17 +682,22 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 				}
 				return 0;
 			} else {
-				uart_disable_read_int (u);
-				/* One character at a time */
-				iotrigger (UART_BASE + u->selector, REQUEST);
-				if (len && uart_rpending (u)) {
-					*buf = uart_read (u);
+				if ((u->flags & UART_FLAGS_IN)) {
+					// Receive interrupt is disabled
+R_redo:
+					*buf = u->in;
+					_BIC (u->flags, UART_FLAGS_IN);
+					uart_enable_read_int (u);
 					return 1;
 				}
-				_BIS (u->flags, UART_FLAGS_WREAD);
+				uart_disable_read_int (u);
+				if ((u->flags & UART_FLAGS_IN))
+					// Account for the race
+					goto R_redo;
+				// The buffer is empty
 				return -2;
 			}
-
+				
 		case WRITE:
 
 			if ((u->flags & UART_FLAGS_LOCK)) {
@@ -659,25 +707,25 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 				}
 				return 0;
 			} else {
-				uart_disable_write_int (u);
-				iotrigger (UART_BASE + u->selector, REQUEST);
-				if (len == 0)
-					// In case
-					return -1;
-				if (uart_xpending (u)) {
-					uart_write8 (u, *buf);
+				if ((u->flags & UART_FLAGS_OUT) == 0) {
+X_redo:
+					u->out = *buf;
+					_BIS (u->flags, UART_FLAGS_OUT);
+					uart_enable_write_int (u);
 					return 1;
 				}
-				_BIS (u->flags, UART_FLAGS_WWRITE);
+				uart_disable_write_int (u);
+				if ((u->flags & UART_FLAGS_OUT) == 0)
+					goto X_redo;
 				return -2;
 			}
-
+					
 		case NONE:
 
 			// Cleanup
-			if ((u->flags & UART_FLAGS_WREAD))
+			if ((u->flags & UART_FLAGS_IN) == 0)
 				uart_enable_read_int (u);
-			if ((u->flags & UART_FLAGS_WWRITE))
+			if ((u->flags & UART_FLAGS_OUT))
 				uart_enable_write_int (u);
 
 			return 0;
@@ -699,6 +747,14 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 					uart_setrate (u->selector,
 						*((word*)buf));
 					return 1;
+
+				case UART_CNTRL_MODE:
+
+					uart_setmode (u->selector,
+						*((word*)buf),
+						*(((word*)buf)+1) );
+
+					return 1;
 			}
 			/* Fall through */
 
@@ -715,7 +771,7 @@ static void uart_unlock (uart_t *u) {
 /* ============================================ */
 	u->flags = 0;
 	uart_enable_read_int (u);
-	uart_enable_write_int (u);
+	// uart_enable_write_int (u);
 }
 
 static void uart_lock (uart_t *u) {
@@ -733,17 +789,30 @@ static void uart_lock (uart_t *u) {
 /* ========================== */
 interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 	RISE_N_SHINE;
+
+	if ((uart [0] . flags & UART_FLAGS_OUT) == 0) {
+		// Keep the interrupt pending
+		_BIS (IFG1, UTXIFG0);
+	} else {
+		_BIC (uart [0] . flags, UART_FLAGS_OUT);
+		TXBUF0 = uart [0] . out;
+	}
+	// Disable until a character arrival
 	_BIC (IE1, UTXIE0);
-	_BIS (IFG1, UTXIFG0);
-	_BIC (uart [0] . flags, UART_FLAGS_WWRITE);
 	i_trigger (ETYPE_IO, devevent (UART_A, WRITE));
 }
 
 interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 	RISE_N_SHINE;
+
+	if ((uart [0] . flags & UART_FLAGS_IN)) {
+		// Keep the interrupt pending
+		_BIS (IFG1, URXIFG0);
+	} else {
+		_BIS (uart [0] . flags, UART_FLAGS_IN);
+		uart [0] . in = RXBUF0;
+	}
 	_BIC (IE1, URXIE0);
-	_BIS (IFG1, URXIFG0);
-	_BIC (uart [0] . flags, UART_FLAGS_WREAD);
 	i_trigger (ETYPE_IO, devevent (UART_A, READ));
 }
 
@@ -755,17 +824,30 @@ static int ioreq_uart_a (int op, char *b, int len) {
 
 interrupt (UART1TX_VECTOR) uart1tx_int (void) {
 	RISE_N_SHINE;
+
+	if ((uart [1] . flags & UART_FLAGS_OUT) == 0) {
+		// Keep the interrupt pending
+		_BIS (IFG2, UTXIFG1);
+	} else {
+		_BIC (uart [1] . flags, UART_FLAGS_OUT);
+		TXBUF1 = uart [1] . out;
+	}
+	// Disable until a character arrival
 	_BIC (IE2, UTXIE1);
-	_BIS (IFG2, UTXIFG1);
-	_BIC (uart [1] . flags, UART_FLAGS_WWRITE);
 	i_trigger (ETYPE_IO, devevent (UART_B, WRITE));
 }
 
 interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 	RISE_N_SHINE;
+
+	if ((uart [1] . flags & UART_FLAGS_IN)) {
+		// Keep the interrupt pending
+		_BIS (IFG1, URXIFG1);
+	} else {
+		_BIS (uart [1] . flags, UART_FLAGS_IN);
+		uart [1] . in = RXBUF1;
+	}
 	_BIC (IE2, URXIE1);
-	_BIS (IFG2, URXIFG1);
-	_BIC (uart [1] . flags, UART_FLAGS_WREAD);
 	i_trigger (ETYPE_IO, devevent (UART_B, READ));
 }
 
@@ -787,27 +869,20 @@ static void devinit_uart (int devnum) {
 		_BIS (P3SEL, 0x30);	// 4, 5 special function
 		// _BIS (P3DIR, 0x10);
 		// _BIS (P3DIR, 0x20);
-		_BIS (ME1, UTXE0 + URXE0);
-		_BIS (UCTL0, CHAR);	// 1 stop bit, 8 bits, no parity
-		_BIS (UTCTL0, SSEL0);	// ACLK
-		_BIS (IFG1, UTXIFG0);
-		_BIC (UCTL0, SWRST);
+		_BIS (UTCTL0, SSEL1);	// SMCLK
 		adddevfunc (ioreq_uart_a, UART_A);
 #if UART_DRIVER > 1
 	} else {
 		// UART_B
 		_BIS (P3SEL, 0xc0);	// 6, 7 special function
-		_BIS (ME2, UTXE1 + URXE1);
-		_BIS (UCTL1, CHAR);	// 1 stop bit, 8 bits, no parity
-		_BIS (UTCTL1, SSEL0);	// ACLK
-		_BIS (IFG2, UTXIFG1);
-		_BIC (UCTL1, SWRST);
+		_BIS (UTCTL1, SSEL1);	// SMCLK
 		adddevfunc (ioreq_uart_b, UART_B);
 	}
 #endif
 	uart [devnum] . selector = devnum;
 	_BIS (uart [devnum] . flags, UART_FLAGS_LOCK);
-	uart_setrate (devnum, 9600);
+	uart_setrate (devnum, 19200);
+	uart_setmode (devnum, 7, 0);
 	uart_unlock (uart + devnum);
 }
 /* =========== */

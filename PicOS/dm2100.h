@@ -58,7 +58,7 @@
 #define	HSTAT_XMT	2
 
 #define	gbackoff	do { \
-				zzv_rdbk->seed = (zzv_rdbk->seed + 1) * 6789; \
+				zzv_rdbk->seed = (zzv_rdbk->seed + entropy + 1) * 6789; \
 				zzv_rdbk->backoff = zzv_rdbk->delmnbkf + \
 					(zzv_rdbk->seed & zzv_rdbk->delbsbkf); \
 			} while (0)

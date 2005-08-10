@@ -208,6 +208,7 @@ Drain:
 #endif
 
 	/* Restart a pending reception */
+	gbackoff;
 	hard_lock;
 	if (zzr_buffp != NULL) {
 		/* Reception queued or active */

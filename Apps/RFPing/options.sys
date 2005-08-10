@@ -25,7 +25,7 @@
 
 #define CHIPCON 		0
 #define DM2100 			1
-#define	ENTROPY_COLLECTION	1
+#define	ENTROPY_COLLECTION	0
 #define CHIPCON_FREQ 		868
 
 #define	RADIO_DRIVER		0

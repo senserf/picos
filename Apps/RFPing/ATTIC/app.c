@@ -329,6 +329,8 @@ int snd_stop (void) {
 const static word parm_power = 1;
 #endif
 
+const static word uart_mode [] = { 7, 0 }; 	/* 7bpc, even parity */
+
 process (root, int)
 
 #if UART_DRIVER
@@ -362,6 +364,8 @@ process (root, int)
 	// Generic
 	phys_radio (0, 0, MAXPLEN);
 #endif
+
+	ion (UART_A, CONTROL, (char*) uart_mode, UART_CNTRL_MODE);
 
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);

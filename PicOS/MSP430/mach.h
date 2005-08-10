@@ -47,13 +47,15 @@ typedef struct	{
 /* UART with two circular buffers */
 /* ============================== */
 	byte selector;
-	byte flags;
+	volatile byte flags;
+	byte in;
+	byte out;
 } uart_t;
 
 #define	UART_BASE		UART_A
 
-#define	UART_FLAGS_WREAD	0x80
-#define	UART_FLAGS_WWRITE	0x40
+#define	UART_FLAGS_IN		0x80
+#define	UART_FLAGS_OUT		0x40
 #define	UART_FLAGS_LOCK		0x01
 
 /* =============================== */

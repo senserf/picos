@@ -194,6 +194,7 @@ proc outmkf { def cpu } {
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
 	puts $mfd "CC=msp430-gcc"
 	puts $mfd "AS=msp430-as"
+	puts $mfd "OC=msp430-objcopy -O ihex"
 	puts -nonewline $mfd "CF=-mmcu=$cpu -mendup-at=main"
 	foreach sht $def {
 		puts -nonewline $mfd " -D$sht"
@@ -240,7 +241,8 @@ proc outmkf { def cpu } {
 
 	# target
 	puts $mfd "\$(TR) :\t\$(BF)"
-	puts $mfd "\t\$(CC) -o \$(TR) \$(CF) \$(BF)\n"
+	puts $mfd "\t\$(CC) -o \$(TR) \$(CF) \$(BF)"
+	puts $mfd "\t\$(OC) \$(TR) \$(TR).a43\n"
 
 	# sources
 	foreach sf $ToCompile {

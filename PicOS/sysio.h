@@ -531,6 +531,7 @@ void	dbb (word);
 
 #define	UART_CNTRL_LCK		1	/* UART lock/unlock */
 #define	UART_CNTRL_RATE		2	/* Set baud rate */
+#define	UART_CNTRL_MODE		3	/* Bits + parity */
 
 #define	LCD_CNTRL_POS		1	/* Position (SEEK) */
 #define	LCD_CNTRL_ERASE		2	/* Clear */

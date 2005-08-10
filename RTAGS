@@ -55,7 +55,18 @@ R050730B:
 	1 or 2.
 
 R050730C:
+
 	Added p2irq.c that wasn't included in the previous release.
 
 R050730D:
+
 	Added clearing P2IFG after an interrupt.
+
+R050810A:
+
+	Use SMCLK for driving the UARTS. This allows rates above 9600. By
+	default, the rate is 19,200 with 7 bits, even partiy, 1 stop.
+	Added random delays before transmission to eliminate livelocks.
+	In addition to CONTROL/UART_CNTRL_RATE, there is UART_CNTRL_MODE,
+	with two word parameters: character width (7/8) and parity (0-even,
+	1-odd). The latter only applicable if character width is 7.

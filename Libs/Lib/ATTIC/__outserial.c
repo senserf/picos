@@ -58,6 +58,9 @@ process (__outserial, const char)
 
   entry (OM_RETRY)
 
+	// In case of a race-missed wakeup, retstart us after 1 msec. Note
+	// that writing a character at 9600 bps will take less than that.
+	delay (1, OM_RETRY);
 	ptr += io (OM_RETRY, cport, WRITE, (char*)ptr, len);
 
 	proceed (OM_WRITE);

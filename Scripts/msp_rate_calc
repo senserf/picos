@@ -1,0 +1,82 @@
+#!/bin/sh
+##########################\
+exec tclsh "$0" "$@"
+
+#######################################################################
+# This script calculates UBR and UMCTL for the serial port setting on #
+# MSP430                                                              #
+#                                                                     #
+# Usage: msp_rate_calc (you will be prompted for parameters)          #
+#                                                                     #
+# Copyright (C) Olsonet Communications, 2005, All Rights Reserved     #
+#######################################################################
+
+proc readnum { var txt } {
+
+	global $var
+
+	while 1 {
+		puts -nonewline "$txt: "
+		flush stdout
+		if { [gets stdin line] < 0 } {
+			exit
+		}
+		if { ![catch { expr [string trim $line] } res] && $res > 0 } {
+			break
+		}
+	}
+
+	set $var $res
+}
+
+proc read_params { } {
+
+	readnum CLOCK_RATE "Clock rate in Hertz"
+	readnum BAUD_RATE "Desired baud rate in bps"
+	readnum CHAR_LENGTH "Number of bits in a symbol"
+}
+
+proc calculate { } {
+
+	global CLOCK_RATE BAUD_RATE UBR UMCTL CHAR_LENGTH
+
+	set UBR [expr int ($CLOCK_RATE / $BAUD_RATE)]
+
+	set umerr 1000000000.00
+	set br [expr double ($BAUD_RATE) / double ($CLOCK_RATE)]
+	for { set umctl 0 } { $umctl < 256 } { incr umctl } {
+		set err 0.0
+		set sum 0
+		for { set j 0 } { $j < $CHAR_LENGTH } { incr j } {
+			set com [expr double (($j + 1)) * double ($UBR)]
+			if { [expr ($umctl >> ($j & 0x7)) & 1] != 0 } {
+				incr sum
+			}
+			set e0 [expr abs ($br * ( $com + $sum ) - ($j + 1))]
+			if { $e0 > $err } {
+				set err $e0
+			}
+		}
+		if { $err < $umerr } {
+			set umerr $err
+			set UMCTL $umctl
+		}
+	}
+	puts "ERROR: [expr $umerr * 100]%"
+}
+
+proc write_output { } {
+
+	global UBR UMCTL
+
+	puts "UBR0  = [format %02X [expr $UBR & 0xff]]"
+	puts "UBR1  = [format %02X [expr ($UBR >> 8) && 0xff]]"
+	puts "UMCTL = [format %02X $UMCTL]"
+}
+
+while 1 {
+
+	read_params
+	calculate
+	write_output
+}
