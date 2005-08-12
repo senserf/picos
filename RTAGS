@@ -79,3 +79,8 @@ R050810B:
 	from checksumming.
 	Long delays (operation ldelay (minutes, state)). Note: 1 minute is
 	64 seconds. This way I could avoid a division.
+
+R050811A:
+
+	UART rate calibrated to compensate for the unreliability of SMCLK.
+	ACLK used for rates <= 9600 bps.

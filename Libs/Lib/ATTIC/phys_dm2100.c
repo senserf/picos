@@ -125,7 +125,7 @@ const byte zzv_srntable [] = {
 
 static INLINE void xmt_enable (void) {
 
-	rssi_on;
+	rssi_off;
 	adc_disable;
 	c0up;
 	c1down;
@@ -134,7 +134,7 @@ static INLINE void xmt_enable (void) {
 
 static INLINE void rcv_enable (void) {
 
-	rssi_off;
+	rssi_on;
 	adc_enable;
 	c0up;
 	c1up;

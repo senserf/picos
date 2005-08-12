@@ -86,8 +86,8 @@
 #define	c0down		_BIC (P5OUT, 0x02)
 #define	c1up		_BIS (P5OUT, 0x01)
 #define	c1down		_BIC (P5OUT, 0x01)
-#define	rssi_on		_BIC (P2OUT, 0x01)
-#define	rssi_off	_BIS (P2OUT, 0x01)
+#define	rssi_on		_BIS (P2OUT, 0x01)
+#define	rssi_off	_BIC (P2OUT, 0x01)
 
 /*
  * Timer setting. We are using SMCLK running at 4.5 MHz.

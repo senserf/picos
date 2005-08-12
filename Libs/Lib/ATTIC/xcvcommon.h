@@ -8,6 +8,10 @@
 #define	RCV_GETIT	0
 #define	RCV_CHECKIT	1
 
+#ifndef	LBS_TIME
+#define	LBS_TIME	0
+#endif
+
 static process (rcvradio, void)
 
     entry (RCV_GETIT)
@@ -207,8 +211,12 @@ Drain:
 	diag ("SND: DONE (%x)", (word) zzx_buffp);
 #endif
 
-	/* Restart a pending reception */
+#if LBS_TIME == 0
+	// This is to reduce the risk of multiple transmitters livelocks
 	gbackoff;
+#endif
+
+	/* Restart a pending reception */
 	hard_lock;
 	if (zzr_buffp != NULL) {
 		/* Reception queued or active */

@@ -40,6 +40,12 @@ word			zz_restart_sp;
 
 #define	STACK_SENTINEL	0xB779
 
+/* ====================================================================== */
+/* Accept UART rates above 9600. They use SMCLK, which is unreliable, and */
+/* thus involve a tricky calibration.                                     */
+/* ====================================================================== */
+#define	HIGH_UART_RATES	1
+
 void	zz_malloc_init (void);
 
 /* ========================== */
@@ -527,6 +533,10 @@ static void ios_init () {
 	for (i = UART+1; i < MAX_DEVICES; i++)
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
+
+	/* Make SMCLK available on P5.5 */
+	_BIS (P5OUT, 0x20);
+	_BIS (P5SEL, 0x20);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -541,34 +551,86 @@ static void ios_init () {
 static uart_t	uart [2];
 
 static const word uart_rates [] = {
-					 1200, 0x0EA6, 0x00,
-					 2400, 0x0753, 0x00,
-					 4800, 0x03A9, 0xAA,
-					 9600, 0x01D4, 0xBB,
-					19200, 0x00EA, 0x52,
-					32800, 0x0089, 0x84
- };
+					 1200, 0x001B, 0x03,
+					 2400, 0x000D, 0x6B,
+					 4800, 0x0006, 0x6F,
+					 9600, 0x0003, 0x4A
+};
 
 static void uart_setrate (int dev, word rate) {
 
 	int i;
+	byte	ubr0, ubr1, umctl, utctl;
 
-	for (i = 0; i < sizeof (uart_rates) / 2 - 3; i += 3)
-		if (uart_rates [i] >= rate)
-			break;
+#if	HIGH_UART_RATES
+	if (rate > 9600) {
+		// Need calibration
+		long ticks;
+		ticks = 0;
+		_DINT ();
+		TACTL = TASSEL_SMCLK | TACLR;
+		TACCR0 = 0xffff;
+		_BIC (TBCCTL0, CCIFG);
+		while ((TBCCTL0 & CCIFG) == 0);
+		_BIS (TACTL, MC_2 | TACLR);
+		_BIC (TBCCTL0, CCIFG);
+		for (i = 0; i < 256; i++) {
+			while ((TBCCTL0 & CCIFG) == 0);
+			_BIC (TBCCTL0, CCIFG);
+			while ((TBCCTL0 & CCIFG) == 0);
+			_BIC (TBCCTL0, CCIFG);
+			while ((TBCCTL0 & CCIFG) == 0);
+			_BIC (TBCCTL0, CCIFG);
+			while ((TBCCTL0 & CCIFG) == 0);
+			_BIC (TBCCTL0, CCIFG);
+			ticks += TAR;
+			_BIS (TACTL, MC_2 | TACLR);
+		}
+		_BIC (TACTL, MC_3);
+		_EINT ();
+		for (ubr0 = ubr1 = 0; ticks > rate; ticks -= rate) {
+			if (ubr0 == 255) {
+				ubr0 = 0;
+				ubr1++;
+			} else {
+				ubr0++;
+			}
+		}
+		umctl = 0;
+		utctl = SSEL1;	// Select SMCLK
+	} else {
+#endif
+		// Take it from the table
+		for (i = 0; i < sizeof (uart_rates) / 2 - 3; i += 3)
+			if (uart_rates [i] >= rate)
+				break;
+
+		ubr0 = uart_rates [i+1] & 0xff;
+		ubr1 = (uart_rates [i+1] >> 8) & 0xff;
+		umctl = (byte) (uart_rates [i+2]);
+		utctl = SSEL0;	// ACLK
+
+#if	HIGH_UART_RATES
+	}
+#endif
+	
 	if (dev) {
 		_BIS (UCTL1, SWRST);
-		UBR01 = (uart_rates [i+1] & 0xff);
-		UBR11 = ((uart_rates [i+1] >> 8) & 0xff);
-		UMCTL1 = uart_rates [i+2];
+		_BIC (UTCTL1, SSEL1 + SSEL0);
+		_BIS (UTCTL1, utctl);
+		UBR01 = ubr0;
+		UBR11 = ubr1;
+		UMCTL1 = umctl;
 		_BIS (IFG2, UTXIFG1);
 		_BIS (ME2, UTXE1 + URXE1);
 		_BIC (UCTL1, SWRST);
 	} else {
 		_BIS (UCTL0, SWRST);
-		UBR00 = (uart_rates [i+1] & 0xff);
-		UBR10 = ((uart_rates [i+1] >> 8) & 0xff);
-		UMCTL0 = uart_rates [i+2];
+		_BIC (UTCTL0, SSEL1 + SSEL0);
+		_BIS (UTCTL0, utctl);
+		UBR00 = ubr0;
+		UBR10 = ubr1;
+		UMCTL0 = umctl;
 		_BIS (IFG1, UTXIFG0);
 		_BIS (ME1, UTXE0 + URXE0);
 		_BIC (UCTL0, SWRST);
@@ -869,19 +931,18 @@ static void devinit_uart (int devnum) {
 		_BIS (P3SEL, 0x30);	// 4, 5 special function
 		// _BIS (P3DIR, 0x10);
 		// _BIS (P3DIR, 0x20);
-		_BIS (UTCTL0, SSEL1);	// SMCLK
 		adddevfunc (ioreq_uart_a, UART_A);
 #if UART_DRIVER > 1
 	} else {
 		// UART_B
 		_BIS (P3SEL, 0xc0);	// 6, 7 special function
-		_BIS (UTCTL1, SSEL1);	// SMCLK
 		adddevfunc (ioreq_uart_b, UART_B);
 	}
 #endif
 	uart [devnum] . selector = devnum;
 	_BIS (uart [devnum] . flags, UART_FLAGS_LOCK);
 	uart_setrate (devnum, 19200);
+	_DINT ();
 	uart_setmode (devnum, 7, 0);
 	uart_unlock (uart + devnum);
 }
