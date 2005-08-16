@@ -284,10 +284,15 @@ proc canon { fn } {
 #
 # Normalize file name
 #
+	global Run
+
 	set fn [file normalize $fn]
-	set cn [string first "/home/" $fn]
-	if { $cn > 0 } {
-		set fn [string range $fn $cn end]
+	if { $Run(mode) != "E" } {
+		# we are under cygwin, so remove the drive letter
+		set cn [string first "/home/" $fn]
+		if { $cn > 0 } {
+			set fn [string range $fn $cn end]
+		}
 	}
 	return $fn
 }
@@ -393,6 +398,21 @@ proc sexpr { str } {
 # Evaluates naive IF conditions
 #
 	global Symbols
+
+	if [info exists Symbols(mkmk_eval)] {
+		# do not evaluate
+		set es $Symbols(mkmk_eval)
+		if { $es == "" } {
+			set es 0
+		}
+		if [catch { expr $es } es] {
+			set es 0
+		}
+		if { $es == 0 } {
+			return 0
+		}
+		return 1
+	}
 
 	set es [string first "//" $str]
 	set ps [string first "/*" $str]
@@ -706,8 +726,9 @@ proc scanfile { fname } {
 		}
 
 		if { $cm == "define" } {
-			if ![regexp -nocase "^(\[a-z_0-9.\]+)\[ \t\]+(.*)" $ar\
-			    jk kwd nam] {
+			set nam ""
+			if ![regexp -nocase "^(\[a-z_0-9.\]+)(\[ \t\]+(.*))?" \
+			    $ar jk kwd jk nam] {
 				dmp "DEFINE: $ar (ignored)"
 				continue
 			}
@@ -724,6 +745,18 @@ proc scanfile { fname } {
 			}
 			set Symbols($kwd) $v0
 			dmp "DEFINE: $kwd $v0"
+			continue
+		}
+
+		if { $cm == "undef" } {
+			if ![regexp -nocase "^\[a-z_0-9.\]+" $ar kwd] {
+				dmp "UNDEF: $ar (ignored)"
+				continue
+			}
+			if [info exists Symbols($kwd)] {
+				unset Symbols($kwd)
+			}
+			dmp "UNDEF: $kwd"
 			continue
 		}
 
@@ -761,7 +794,6 @@ proc main { } {
 	global argv ToCompile NotFound CWD Run Symbols Scanned CFName
 
 	set ToCompile ""
-	set CWD [canon [pwd]]
 	set NotFound ""
 
 	set ll [llength $argv]
@@ -791,6 +823,8 @@ proc main { } {
 			bad_usage
 		}
 	}
+
+	set CWD [canon [pwd]]
 
 	# cleanup
 	if { $Run(mode) == "E" } {

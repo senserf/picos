@@ -59,9 +59,9 @@
 #define	HSTAT_XMT	2
 
 #define	gbackoff	do { \
-				zzv_rdbk->seed = (zzv_rdbk->seed + entropy + 1) * 6789; \
-				zzv_rdbk->backoff = zzv_rdbk->delmnbkf + \
-					(zzv_rdbk->seed & zzv_rdbk->delbsbkf); \
+				zzx_seed = (zzx_seed + entropy + 1) * 6789; \
+				zzx_backoff = zzx_delmnbkf + \
+					(zzx_seed & zzx_delbsbkf); \
 			} while (0)
 
 #define	start_rcv	do { \
@@ -88,34 +88,17 @@
 #define	xmitter_active	(zzv_status == HSTAT_XMT)
 
 extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl,
-		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_tmaux;
+		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_tmaux, zzr_rssi,
+		zzv_qevent, zzv_physid, zzv_statid, zzx_delmnbkf,	
+		zzx_delbsbkf, zzx_delxmspc, zzx_seed, zzx_backoff;
 
 extern byte	zzv_status, zzv_istate, zzv_prmble, zzv_curbit, zzr_length,
-		zzv_curnib, zzv_cursym;
+		zzv_curnib, zzv_cursym, zzv_rxoff, zzv_txoff;
 
 extern const byte zzv_symtable [], zzv_nibtable [], zzv_srntable [];
 
 #define	rxevent	((word)&zzr_buffer)
 #define	txevent	((word)&zzx_buffer)
-
-typedef	struct {
-
-	byte 	rxoff, txoff;
-/* TEMPORARY */
-	word	rssi;
-	word	qevent, physid, statid;
-
-	/* ================== */
-	/* Control parameters */
-	/* ================== */
-	word 	delmnbkf,		// Minimum backoff
-		delbsbkf,		// Backof mask for random component
-		delxmspc,		// Minimum xmit packet space
-		seed,			// For the random number generator
-		backoff;		// Calculated backoff for xmitter
-} radioblock_t;
-
-extern radioblock_t *zzv_rdbk;
 
 // To trigger P1.0-P1.3 up events
 #define	DM2100PINS_INT	((word)(&zzv_tmaux))

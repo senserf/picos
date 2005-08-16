@@ -6,6 +6,7 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length */
 #define	PREAMBLE_LENGTH		48	/* Preamble bits */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
+#define	CRC_ISO3309		1
 /*
  * These values are merely defaults changeable with tcv_control
  */
@@ -79,9 +80,9 @@
 #define	IRQ_RTR		9	// Receiving end-of-word trailer
 
 #define	gbackoff	do { \
-				zzv_rdbk->seed = (zzv_rdbk->seed + 1) * 6789; \
-				zzv_rdbk->backoff = zzv_rdbk->delmnbkf + \
-					(zzv_rdbk->seed & zzv_rdbk->delbsbkf); \
+				zzx_seed = (zzx_seed + 1) * 6789; \
+				zzx_backoff = zzx_delmnbkf + \
+					(zzx_seed & zzx_delbsbkf); \
 			} while (0)
 
 #define	start_rcv	do { \
@@ -108,28 +109,14 @@
 
 extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl, zzr_length,
 		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_curbit,
-		zzv_status, zzv_prmble,	zzv_istate;
+		zzv_status, zzv_prmble,	zzv_istate, zzr_rssi,
+		zzv_qevent, zzv_physid, zzv_statid,
+	 	zzx_delmnbkf, zzx_delbsbkf, zzx_delxmspc,
+		zzx_seed, zzx_backoff;
+
+extern byte 	zzv_rxoff, zzv_txoff, zzv_hstat, zzx_power;
 
 #define	rxevent	((word)&zzr_buffer)
 #define	txevent	((word)&zzx_buffer)
-
-typedef	struct {
-
-	byte 	rxoff, txoff, hstat, xpower;
-/* TEMPORARY */
-	word	rssi;
-	word	qevent, physid, statid;
-
-	/* ================== */
-	/* Control parameters */
-	/* ================== */
-	word 	delmnbkf,		// Minimum backoff
-		delbsbkf,		// Backof mask for random component
-		delxmspc,		// Minimum xmit packet space
-		seed,			// For the random number generator
-		backoff;		// Calculated backoff for xmitter
-} radioblock_t;
-
-extern radioblock_t *zzv_rdbk;
 
 #endif

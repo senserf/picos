@@ -691,7 +691,7 @@ static 	address *mpools;
 static	address mevent;
 
 #if	MALLOC_STATS
-static 	address mfcount, mfree;
+static 	address mnfree, mcfree;
 #endif
 
 #define	m_nextp(c)	((address)(*(c)))
@@ -762,9 +762,9 @@ void zz_malloc_init () {
 #if	MALLOC_SINGLEPOOL
 
 #if	MALLOC_STATS
-	mfcount = mevent + 1;
-	mfree = mfcount + 1;
-#define	morg 		(mfree + 1)
+	mnfree = mevent + 1;
+	mcfree = mnfree + 1;
+#define	morg 		(mcfree + 1)
 #define	mtot		(MALLOC_LENGTH - 4)
 #else	/* MALLOC_STATS */
 #define	morg 		(mevent + 1)
@@ -776,8 +776,7 @@ void zz_malloc_init () {
 	mevent [0] = 0;
 
 #if	MALLOC_STATS
-	mfree [0] = m_size (mpools [0]);
-	mfcount [0] = 0;
+	mnfree [0] = mcfree [0] = m_size (mpools [0]);
 #endif
 	m_setnextp (mpools [0], NULL);
 #if	MALLOC_SAFE
@@ -790,9 +789,9 @@ void zz_malloc_init () {
 #else	/* MALLOC_SINGLEPOOL */
 
 #if	MALLOC_STATS
-	mfcount = mevent + np;
-	mfree = mfcount + np;
-	morg = mfree + np;
+	mnfree = mevent + np;
+	mcfree = mnfree + np;
+	morg = mcfree + np;
 	mtot = perc = MALLOC_LENGTH - 4 * np;
 #else	/* MALLOC_STATS */
 	morg = mevent + np;
@@ -817,14 +816,10 @@ void zz_malloc_init () {
 			syserror (ERESOURCE, "malloc_init (2)");
 		m_size (freelist) =
 #if	MALLOC_STATS
-			mfree [np] =
+			mnfree [np] = mcfree [np] =
 #endif
 				chunk - m_hdrlen;
-		mevent [np] =
-#if	MALLOC_STATS
-			mfcount [np] =
-#endif
-				0;
+		mevent [np] = 0;
 		m_setnextp (freelist, NULL);
 #if	MALLOC_SAFE
 		m_magic (freelist) = 0xdeaf;
@@ -904,7 +899,7 @@ void zzz_free (int np, address ch) {
 #endif
 
 #if	MALLOC_STATS
-	mfree [MA_NP] += m_size (ch);
+	mcfree [MA_NP] += m_size (ch);
 #endif
 	QFREE;
 
@@ -967,10 +962,14 @@ address zzz_malloc (int np, word size) {
 	/* Return NULL on failure */
 #if	MALLOC_STATS
 	if (chunk == NULL) {
-		mfcount [MA_NP]++;
+		mnfree [MA_NP] = 0;
 		return NULL;
-	} else
-		mfree [MA_NP] -= m_size (chunk);
+	} else {
+		mcfree [MA_NP] -= m_size (chunk);
+		if (mnfree [MA_NP] > mcfree [MA_NP])
+			/* Update the minimum */
+			mnfree [MA_NP] == mcfree [MA_NP];
+	}
 #endif
 #if	MALLOC_SAFE
 	if (chunk != NULL)
@@ -1001,19 +1000,20 @@ void zzz_waitmem (int np, word state) {
 }
 
 #if	MALLOC_STATS
+
 #if	MALLOC_SINGLEPOOL
-word	zzz_memfree (address faults) {
+word	zzz_memfree (address min) {
 #define	MA_NP	0
 #else
-word	zzz_memfree (int np, address faults) {
+word	zzz_memfree (int np, address min) {
 #define	MA_NP	np
 #endif
 /*
  * Returns memory statistics
  */
-	if (faults != NULL)
-		*faults = mfcount [MA_NP];
-	return mfree [MA_NP];
+	if (min != NULL)
+		*min = mnfree [MA_NP];
+	return mcfree [MA_NP];
 #undef	MA_NP
 }
 
@@ -1041,7 +1041,7 @@ word	zzz_maxfree (int np, address nc) {
 #undef	MA_NP
 }
 
-#endif
+#endif /* MALLOC_STATS */
 
 #if	SDRAM_PRESENT
 void zz_sdram_test (void) {
@@ -1066,6 +1066,180 @@ void zz_sdram_test (void) {
 	else
 		diag ("SDRAM block OK, 0x%x words", loc);
 }
+#endif
+
+#if	dbg_level != 0
+
+void zz_dbg (const word lvl, word code) {
+
+#if	dbg_binary
+
+	diag_disable_int (a);
+
+	diag_wait (a); 	diag_wchar (0         , a);
+	diag_wait (a); 	diag_wchar (6         , a);
+	diag_wait (a); 	diag_wchar (0xAA      , a);
+	diag_wait (a); 	diag_wchar (0         , a);
+	diag_wait (a); 	diag_wchar (lvl       , a);
+	diag_wait (a); 	diag_wchar (code >> 8 , a);
+	diag_wait (a); 	diag_wchar (code      , a);
+	diag_wait (a); 	diag_wchar (4         , a);
+#else
+	int i; word v;
+
+	diag_disable_int (a);
+	diag_wait (a); 	diag_wchar ('+'       , a);
+	diag_wait (a); 	diag_wchar ('+'       , a);
+	diag_wait (a);
+	if (lvl < 10) {
+			diag_wchar ('0' + lvl , a);
+	} else {
+			diag_wchar ('a' + lvl - 10, a);
+	}
+	diag_wait (a); 	diag_wchar ('.'       , a);
+
+	for (i = 0; i < 16; i += 4) {
+		v = (code >> 12 - i) & 0xf;
+		if (v > 9)
+			v = (word)'a' + v - 10;
+		else
+			v = (word)'0' + v;
+		diag_wait (a);
+		diag_wchar (v, a);
+	}
+	
+	diag_wait (a); diag_wchar ('\r'       , a);
+	diag_wait (a); diag_wchar ('\n'       , a);
+#endif
+	diag_wait (a);
+	diag_enable_int (a);
+}
+
+#endif	/* dbg_level */
+
+#if	DIAG_MESSAGES
+
+void diag (const char *mess, ...) {
+/* ================================ */
+/* Writes a direct message to UART0 */
+/* ================================ */
+
+	va_list	ap;
+	word i, val, v;
+	char *s;
+
+	va_start (ap, mess);
+	diag_disable_int (a);
+
+	while  (*mess != '\0') {
+		if (*mess == '%') {
+			mess++;
+			switch (*mess) {
+			  case 'x' :
+				val = va_arg (ap, word);
+				for (i = 0; i < 16; i += 4) {
+					v = (val >> 12 - i) & 0xf;
+					if (v > 9)
+						v = (word)'a' + v - 10;
+					else
+						v = (word)'0' + v;
+					diag_wait (a);
+					diag_wchar (v, a);
+				}
+				break;
+			  case 'd' :
+				val = va_arg (ap, word);
+				if (val & 0x8000) {
+					diag_wait (a);
+					diag_wchar ('-', a);
+					val = (~val) + 1;
+				}
+			    DI_SIG:
+				i = 10000;
+				while (1) {
+					v = val / i;
+					if (v || i == 1) break;
+					i /= 10;
+				}
+				while (1) {
+					diag_wait (a);
+					diag_wchar (v + '0', a);
+					val = val - (v * i);
+					i /= 10;
+					if (i == 0) break;
+					v = val / i;
+				}
+				break;
+			  case 'u' :
+				val = va_arg (ap, word);
+				goto DI_SIG;
+			  case 's' :
+				s = va_arg (ap, char*);
+				while (*s != '\0') {
+					diag_wait (a);
+					diag_wchar (*s, a);
+					s++;
+				}
+				break;
+			  default:
+				diag_wait (a);
+				diag_wchar ('%', a);
+				diag_wait (a);
+				diag_wchar (*mess, a);
+			}
+			mess++;
+		} else {
+			diag_wait (a);
+			diag_wchar (*mess++, a);
+		}
+	}
+
+	diag_wait (a);
+	diag_wchar ('\r', a);
+	diag_wait (a);
+	diag_wchar ('\n', a);
+	diag_wait (a);
+
+	diag_enable_int (a);
+}
+
+#else
+
+void diag (const char *mess, ...) { }
+
+#endif
+
+#ifdef	DEBUG_BUFFER
+
+word	debug_buffer_pointer = 0;
+word	debug_buffer [DEBUG_BUFFER];
+
+void dbb (word d) {
+
+	if (debug_buffer_pointer == DEBUG_BUFFER)
+		debug_buffer_pointer = 0;
+
+	debug_buffer [debug_buffer_pointer++] = d;
+	debug_buffer [debug_buffer_pointer == DEBUG_BUFFER ? 0 :
+		debug_buffer_pointer] = 0xdead;
+}
+
+#endif
+
+#ifdef	DUMP_PCB
+void dpcb (pcb_t *p) {
+
+	diag ("PR %x: S%x T%x E (%x %x) (%x %x) (%x %x)", (word) p,
+		p->Status, p->Timer,
+		p->Events [0] . Status,
+		p->Events [0] . Event,
+		p->Events [1] . Status,
+		p->Events [1] . Event,
+		p->Events [2] . Status,
+		p->Events [2] . Event);
+}
+#else
+#define dpcb(a)
 #endif
 
 /* --------------------------------------------------------- */

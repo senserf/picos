@@ -216,6 +216,18 @@
 #define	ENTROPY_COLLECTION	0
 #endif
 
+#ifndef	UART_RATE
+#define	UART_RATE		9600
+#endif
+
+#ifndef	UART_PARITY
+#define	UART_PARITY		0	// 0-even, 1-odd
+#endif
+
+#ifndef	UART_BITS
+#define	UART_BITS		8
+#endif
+
 /* ======================================================================== */
 /*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */
 /* ======================================================================== */
@@ -237,8 +249,17 @@
 #define	DIAG_MESSAGES		0
 #endif
 
+#if	UART_DRIVER > 2
+#error	"UART_DRIVER can be 0, 1, or 2"
+#endif
+
+#if 	UART_BITS < 7 || UART_BITS > 8
+#error "UART_BITS can be 7 or 8"
+#endif
+
 #include "mach.h"
 
+#include "dbgtrc.h"
 
 #if SIM_NET==0
 
@@ -398,6 +419,8 @@ word			zzz_stackfree (void);
 #define	stackfree()	zzz_stackfree ()
 #endif
 
+#define	staticsize()	STATIC_LENGTH
+
 #if	DIAG_MESSAGES > 1
 void		zzz_syserror (int, const char*);
 #define		syserror(a,b)	zzz_syserror (a, b)
@@ -532,8 +555,7 @@ void	dbb (word);
 #define	CONTROL		2
 
 #define	UART_CNTRL_LCK		1	/* UART lock/unlock */
-#define	UART_CNTRL_RATE		2	/* Set baud rate */
-#define	UART_CNTRL_MODE		3	/* Bits + parity */
+#define	UART_CNTRL_CALIBRATE	2	/* For UARTs driven by flimsy clocks */
 
 #define	LCD_CNTRL_POS		1	/* Position (SEEK) */
 #define	LCD_CNTRL_ERASE		2	/* Clear */

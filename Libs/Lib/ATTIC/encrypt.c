@@ -10,7 +10,7 @@
 #define delta 	0x9E3779B9
 #define	gamma 	0xC6EF3720
 
-void encrypt (word *str, int nw, lword *key) {
+void encrypt (word *str, int nw, const lword *key) {
 /*
  * TEA encryption of the string of words in place using a 128-bit key.
  * The string is encrypted from the end, which assumes that the IV is
@@ -66,7 +66,7 @@ void encrypt (word *str, int nw, lword *key) {
 	str [nw] ^= (word) y;
 }
 
-void decrypt (word *str, int nw, lword *key) {
+void decrypt (word *str, int nw, const lword *key) {
 
 	int	n;
 	lword	y, z, sum;

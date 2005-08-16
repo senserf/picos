@@ -31,7 +31,7 @@
 ; This version of cstartup has been written for systems that run entirely
 ; from the eCOG1's internal memory. The memories are mapped as follows:
 ;
-;     Locical                 Physical              Size
+;     Logical                 Physical              Size
 ; -------------------------------------------------------
 ; 1.  CODE  H'0000-H'77FF     Flash H'0000-H'77FF    32K
 ; 2.  DATA  H'0000-H'07FF     Flash H'7800-H'7FFF    2K 
@@ -40,7 +40,7 @@
 ;
 ; At power up the memory map is as follows:
 ;
-;     Locical                 Physical              Size
+;     Logical                 Physical              Size
 ; -------------------------------------------------------
 ; 1.  CODE  H'0000-H'00FF     Flash H'0000-H'00FF    256
 ; 2.  DATA  H'0000-H'00FF     RAM   H'0000-H'00FF    256

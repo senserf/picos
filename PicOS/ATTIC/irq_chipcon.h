@@ -133,8 +133,8 @@ if (chipcon_int) {
 			RISE_N_SHINE;
 			adc_disable;
 				// Collect RSSI
-			zzv_rdbk->rssi = adc_value;
-			add_entropy (zzv_rdbk->rssi);
+			zzr_rssi = adc_value;
+			add_entropy (zzr_rssi);
 			zzv_status = 0;
 			clr_xcv_int;
 			zzr_length = zzr_buffp - zzr_buffer;

@@ -338,172 +338,6 @@ word switches (void) {
 		((fd.io.gp8_15_sts.sts14 == 0) << 3) ;
 }
 
-#if	DIAG_MESSAGES
-/* ==================================================================== */
-/* This is supposed to be useful for debugging,  so  it circumvents the */
-/* UART driver and uses no interrupts. Unfortunately, it isn't going to */
-/* work until the driver's init function has been called.               */
-/* ==================================================================== */
-#define DUART_a_STS_TX_RDY_MASK DUART_A_STS_TX_RDY_MASK
-#define DUART_b_STS_TX_RDY_MASK DUART_B_STS_TX_RDY_MASK
-
-#define	diag_wchar(c,a)		rg.duart. ## a ## _tx8 = (word)(c)
-#define	diag_wait(a)		while ((rg.duart. ## a ## _sts & \
-			        DUART_ ## a ## _STS_TX_RDY_MASK) \
-					== 0);
-#define	diag_disable_int(a)	uart_ ## a ## _disable_int
-#define	diag_enable_int(a)	do { \
-					if (uart [0].lock == 0) { \
-					    uart_ ## a ## _enable_read_int; \
-					    uart_ ## a ## _enable_write_int; \
-					} \
-				} while (0)
-static uart_t	uart [2];
-
-void diag (const char *mess, ...) {
-/* ================================ */
-/* Writes a direct message to UART0 */
-/* ================================ */
-
-	va_list	ap;
-	word i, val, v;
-	char *s;
-
-	va_start (ap, mess);
-	diag_disable_int (a);
-
-	while  (*mess != '\0') {
-		if (*mess == '%') {
-			mess++;
-			switch (*mess) {
-			  case 'x' :
-				val = va_arg (ap, word);
-				for (i = 0; i < 16; i += 4) {
-					v = (val >> 12 - i) & 0xf;
-					if (v > 9)
-						v = (word)'a' + v - 10;
-					else
-						v = (word)'0' + v;
-					diag_wait (a);
-					diag_wchar (v, a);
-				}
-				break;
-			  case 'd' :
-				val = va_arg (ap, word);
-				if (val & 0x8000) {
-					diag_wait (a);
-					diag_wchar ('-', a);
-					val = (~val) + 1;
-				}
-			    DI_SIG:
-				i = 10000;
-				while (1) {
-					v = val / i;
-					if (v || i == 1) break;
-					i /= 10;
-				}
-				while (1) {
-					diag_wait (a);
-					diag_wchar (v + '0', a);
-					val = val - (v * i);
-					i /= 10;
-					if (i == 0) break;
-					v = val / i;
-				}
-				break;
-			  case 'u' :
-				val = va_arg (ap, word);
-				goto DI_SIG;
-			  case 's' :
-				s = va_arg (ap, char*);
-				while (*s != '\0') {
-					diag_wait (a);
-					diag_wchar (*s, a);
-					s++;
-				}
-				break;
-			  default:
-				diag_wait (a);
-				diag_wchar ('%', a);
-				diag_wait (a);
-				diag_wchar (*mess, a);
-			}
-			mess++;
-		} else {
-			diag_wait (a);
-			diag_wchar (*mess++, a);
-		}
-	}
-
-	diag_wait (a);
-	diag_wchar ('\r', a);
-	diag_wait (a);
-	diag_wchar ('\n', a);
-	diag_wait (a);
-	/* ================================================================= */
-	/* This one is a bit tricky, but should be OK. The interrupt service */
-	/* routine will revert interrupt-enable bits to the previous state.  */
-	/* ================================================================= */
-	diag_enable_int (a);
-}
-
-#else
-
-void diag (const char *mess, ...) { }
-
-#endif
-
-#ifdef	DEBUG_BUFFER
-
-word	debug_buffer_pointer = 0;
-word	debug_buffer [DEBUG_BUFFER];
-
-void dbb (word d) {
-
-	if (debug_buffer_pointer == DEBUG_BUFFER)
-		debug_buffer_pointer = 0;
-
-	debug_buffer [debug_buffer_pointer++] = d;
-	debug_buffer [debug_buffer_pointer == DEBUG_BUFFER ? 0 :
-		debug_buffer_pointer] = 0xdead;
-}
-
-#endif
-
-#ifdef	DUMP_PCB
-void dpcb (pcb_t *p) {
-
-	diag ("PR %x: S%x T%x E (%x %x) (%x %x) (%x %x)", (word) p,
-		p->Status, p->Timer,
-		p->Events [0] . Status,
-		p->Events [0] . Event,
-		p->Events [1] . Status,
-		p->Events [1] . Event,
-		p->Events [2] . Status,
-		p->Events [2] . Event);
-}
-#else
-#define dpcb(a)
-#endif
-
-#if 0
-void dibg (const char *mess) {
-
-	diag_disable_int (b);
-	while (*mess != '\0') {
-		diag_wait (b);
-		diag_wchar (*mess, b);
-		mess++;
-	}
-	diag_wait (b);
-	diag_wchar ('\r', b);
-	diag_wait (b);
-	diag_wchar ('\n', b);
-	diag_wait (b);
-	diag_enable_int (b);
-}
-/* */
-#endif
 
 #if	DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
@@ -1193,15 +1027,7 @@ static void ios_init () {
 /* The UARTs */
 /* ========= */
 
-static uart_t	uart [2];
-
-static const word uart_rates [] = {
-					 1200, 640,
-					 2400, 320,
-					 4800, 160,
-					 9600,  80,
-					19200,  40,
-				(word)  38400,  20 };
+uart_t	zz_uart [UART_DRIVER];
 
 #define uart_canwrite(u) \
 	((u)->selector?(rg.duart.b_sts & \
@@ -1251,13 +1077,6 @@ static const word uart_rates [] = {
 		uart_b_enable_read_int; \
 	else \
 		uart_a_enable_read_int; \
-	} while (0)
-
-#define	uart_setrate(u,rate) do { \
-		if ((u)->selector) \
-			rg.duart.b_baud = (rate); \
-		else \
-			rg.duart.a_baud = (rate); \
 	} while (0)
 
 #define	inccbp(p)	do { \
@@ -1336,19 +1155,11 @@ static int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 						uart_unlock (u);
 					return 1;
 
-				case UART_CNTRL_RATE:
+				case UART_CNTRL_CALIBRATE:
 
-					for (ii = 0;
-					 ii < sizeof (uart_rates)/sizeof (word);
-					  ii += 2) {
-						if (uart_rates [ii] ==
-						  *((word*)buf)) {
-							uart_setrate (u,
-							  uart_rates [ii+1]);
-							return 1;
-						}
-					}
-					/* Fall through */
+					// Void for eCOG
+					return 1;
+
 			}
 			/* Fall through */
 		default:
@@ -1363,12 +1174,12 @@ static int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 /* Specific request functions */
 /* ========================== */
 static int ioreq_uart_a (int operation, char *buf, int len) {
-	return ioreq_uart (&(uart [0]), operation, buf, len);
+	return ioreq_uart (&(zz_uart [0]), operation, buf, len);
 }
 
 #if	UART_DRIVER > 1
 static int ioreq_uart_b (int operation, char *buf, int len) {
-	return ioreq_uart (&(uart [1]), operation, buf, len);
+	return ioreq_uart (&(zz_uart [1]), operation, buf, len);
 }
 #endif
 
@@ -1539,10 +1350,47 @@ static void devinit_uart (int devnum) {
 
 		/* 8 bits, no parity, 1 stop bit, tx and rx active low. */
 		rg.duart.frame_cfg = 0;
-		/* The default is 9600. (Assuming 100MHz High PLL). */
-		rg.duart.a_baud = 80;
+
+#if	UART_RATE == 1200
+#define	uart_baud	640
+#endif
+#if	UART_RATE == 2400
+#define	uart_baud	320
+#endif
+#if	UART_RATE == 4800
+#define	uart_baud	160
+#endif
+#if	UART_RATE == 9600
+#define	uart_baud	80
+#endif
+#if	UART_RATE == 19200
+#define	uart_baud	40
+#endif
+#if	UART_RATE == 32800
+#define	uart_baud	20
+#endif
+
+#ifndef	uart_baud
+#error "Illegal UART_RATE"
+#endif
+
+#if UART_BITS == 8
+#define	uctl_char	0
+#define	uctl_pena	0
+#else
+#define	uctl_char	1
+#if UART_PARITY == 0
+#define	uctl_pena	0x4
+#else
+#define	uctl_pena	0xc
+#endif
+#endif
+
+		rg.duart.a_baud = uart_baud;
+		rg.duart.frame_cfg |= (uctl_char | uctl_pena);
 #if	UART_DRIVER > 1
-		rg.duart.b_baud = 80;
+		rg.duart.b_baud = uart_baud;
+		rg.duart.frame_cfg |= ((uctl_char | uctl_pena) << 8);
 #endif
 		/* Enable tx and rx. */
 		rg.duart.ctrl =
@@ -1563,15 +1411,15 @@ static void devinit_uart (int devnum) {
 #endif
 	}
 	/* Assumes that buffer pointers are initialized to zero */
-	uart [devnum] . selector = devnum;
-	uart [devnum] . lock = 1;
+	zz_uart [devnum] . selector = devnum;
+	zz_uart [devnum] . lock = 1;
 	/* =============================================================== */
 	/* To do it right, I would have to store pointers to UART specific */
 	/* stuff,  but  in  the present circumstances,  and with the rigid */
 	/* organization of the reg structure,  it  makes more sense to use */
 	/* conditional code - for clarity and neatness.                    */
 	/* =============================================================== */
-	uart_unlock (uart + devnum);
+	uart_unlock (zz_uart + devnum);
 }
 
 #endif

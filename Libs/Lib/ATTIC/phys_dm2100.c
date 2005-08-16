@@ -4,20 +4,28 @@
 
 static int option (int, address);
 
-radioblock_t *zzv_rdbk = NULL;
-
 /*
  * We are wasting precious RAM words, but we really want to make it efficient,
  * because interrupts will have to access this AFAP.
  */
-word		*zzr_buffer,	// Pointer to static reception buffer
+				// Pointer to static reception buffer
+word		*zzr_buffer = NULL,
 		*zzr_buffp,	// Pointer to next buffer word; also used to
 				// indicate that a reception is pending
 		*zzr_buffl,	// Pointer to LWA+1 of buffer area
 		*zzx_buffer,	// Pointer to dynamic transmission buffer
 		*zzx_buffp,	// Next buffer word
 		*zzx_buffl,	// LWA+1 of xmit buffer
-		zzv_tmaux;	// To store previous value of signal timer
+		zzv_tmaux,	// To store previous value of signal timer
+		zzr_rssi,
+		zzv_qevent,
+		zzv_physid,
+		zzv_statid,
+		zzx_delmnbkf,		// Minimum backoff
+		zzx_delbsbkf,		// Backof mask for random component
+		zzx_delxmspc,		// Minimum xmit packet space
+		zzx_seed,		// For the random number generator
+		zzx_backoff;		// Calculated backoff for xmitter
 
 byte		zzv_curbit,	// Current bit index
 		zzv_prmble,	// Preamble counter
@@ -26,7 +34,8 @@ byte		zzv_curbit,	// Current bit index
 				// is set after a complete reception
 		zzv_curnib,	// Current nibble
 		zzv_cursym,	// Symbol buffer
-
+		zzv_rxoff,	// Transmitter on/off flags
+		zzv_txoff,
  		zzv_istate = IRQ_OFF;
 
 const byte zzv_symtable [] = {
@@ -192,7 +201,7 @@ static byte rssi_cnv (void) {
  */
 	int v;
 
-	v = zzv_rdbk->rssi;
+	v = zzr_rssi;
 
 #if RSSI_MIN >= 0x8000
 	// RSSI is signed
@@ -213,7 +222,7 @@ void phys_dm2100 (int phy, int mbs) {
  * phy  - interface number
  * mbs  - maximum packet length (excluding checksum, must be divisible by 4)
  */
-	if (zzv_rdbk != NULL)
+	if (zzr_buffer != NULL)
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_dm2100");
 
@@ -227,9 +236,6 @@ void phys_dm2100 (int phy, int mbs) {
 	/* For reading RSSI */
 	adc_config_rssi;
 
-	if ((zzv_rdbk = (radioblock_t*) umalloc (sizeof (radioblock_t))) ==
-	    NULL)
-		syserror (EMALLOC, "phys_dm2100 (r)");
 	if ((zzr_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_dm2100 (b)");
 
@@ -240,23 +246,22 @@ void phys_dm2100 (int phy, int mbs) {
 
 	zzv_status = 0;
 
-	zzv_rdbk->rssi = 0;
+	zzr_rssi = 0;
+	zzv_statid = 0;
+	zzv_physid = phy;
+	zzx_backoff = 0;
 
-	zzv_rdbk -> statid = 0;
-	zzv_rdbk -> physid = phy;
-	zzv_rdbk -> backoff = 0;
+	zzx_seed = 12345;
 
-	zzv_rdbk->seed = 12345;
-
-	zzv_rdbk->delmnbkf = RADIO_DEF_MNBACKOFF;
-	zzv_rdbk->delxmspc = RADIO_DEF_XMITSPACE;
-	zzv_rdbk->delbsbkf = RADIO_DEF_BSBACKOFF;
+	zzx_delmnbkf = RADIO_DEF_MNBACKOFF;
+	zzx_delxmspc = RADIO_DEF_XMITSPACE;
+	zzx_delbsbkf = RADIO_DEF_BSBACKOFF;
 
 	/* Register the phy */
-	zzv_rdbk->qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2100);
+	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2100);
 
 	/* Both parts are initially active */
-	zzv_rdbk->rxoff = zzv_rdbk->txoff = 1;
+	zzv_rxoff = zzv_txoff = 1;
 	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
@@ -276,23 +281,23 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = ((zzv_rdbk->txoff == 0) << 1) | (zzv_rdbk->rxoff == 0);
+		ret = ((zzv_txoff == 0) << 1) | (zzv_rxoff == 0);
 		if (val != NULL)
 			*val = ret;
 		break;
 
 	    case PHYSOPT_TXON:
 
-		zzv_rdbk->txoff = 0;
+		zzv_txoff = 0;
 		LEDI (1, 1);
 		if (!running (xmtradio))
 			fork (xmtradio, NULL);
-		trigger (zzv_rdbk->qevent);
+		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_RXON:
 
-		zzv_rdbk->rxoff = 0;
+		zzv_rxoff = 0;
 		LEDI (0, 1);
 		if (!running (rcvradio))
 			fork (rcvradio, NULL);
@@ -302,21 +307,21 @@ static int option (int opt, address val) {
 	    case PHYSOPT_TXOFF:
 
 		/* Drain */
-		zzv_rdbk->txoff = 2;
+		zzv_txoff = 2;
 		LEDI (1, 0);
-		trigger (zzv_rdbk->qevent);
+		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
-		zzv_rdbk->txoff = 1;
+		zzv_txoff = 1;
 		LEDI (1, 0);
-		trigger (zzv_rdbk->qevent);
+		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
-		zzv_rdbk->rxoff = 1;
+		zzv_rxoff = 1;
 		LEDI (0, 0);
 		trigger (rxevent);
 		break;
@@ -325,10 +330,10 @@ static int option (int opt, address val) {
 
 		/* Force an explicit backoff */
 		if (val == NULL)
-			zzv_rdbk->backoff = 0;
+			zzx_backoff = 0;
 		else
-			zzv_rdbk->backoff = *val;
-		trigger (zzv_rdbk->qevent);
+			zzx_backoff = *val;
+		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_SENSE:
@@ -352,7 +357,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETSID:
 
-		zzv_rdbk->statid = (val == NULL) ? 0 : *val;
+		zzv_statid = (val == NULL) ? 0 : *val;
 		break;
 
 	    case PHYSOPT_SETPARAM:
@@ -374,21 +379,21 @@ static int option (int opt, address val) {
 			case 0:
 				if (pval > 32767)
 					pval = 32767;
-				zzv_rdbk->delmnbkf = pval;
+				zzx_delmnbkf = pval;
 				break;
 			case 1:
 				if (pval > 15)
 					pval = 15;
 				if (pval)
 					pval = (1 << pval) - 1;
-				zzv_rdbk->delbsbkf = pval;
+				zzx_delbsbkf = pval;
 				break;
 			case 2:
 				if (pval > 256)
 					pval = 256;
-				if ((zzv_rdbk->delxmspc = pval) >
-				    zzv_rdbk->delmnbkf)
-					zzv_rdbk->delmnbkf = pval;
+				if ((zzx_delxmspc = pval) >
+				    zzx_delmnbkf)
+					zzx_delmnbkf = pval;
 				break;
 			default:
 				syserror (EREQPAR, "options radio param index");

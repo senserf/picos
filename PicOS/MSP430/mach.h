@@ -38,8 +38,9 @@
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
 
+#define	RAM_START	0x200
 #define	STACK_SIZE	256			// Bytes
-#define	STACK_START	(0x200 + 2048)		// FWA + 1 of stack
+#define	STACK_START	(RAM_START + 2048)	// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
 						// LWA of stack
 typedef struct	{
@@ -52,11 +53,24 @@ typedef struct	{
 	byte out;
 } uart_t;
 
+extern uart_t zz_uart [];
+
 #define	UART_BASE		UART_A
 
 #define	UART_FLAGS_IN		0x80
 #define	UART_FLAGS_OUT		0x40
 #define	UART_FLAGS_LOCK		0x01
+
+#if	DIAG_MESSAGES || (dbg_level != 0)
+
+#define	diag_wchar(c,a)		TXBUF0 = (byte)(c)
+#define	diag_wait(a)		while ((IFG1 & UTXIFG0) == 0)
+#define	diag_disable_int(a)	uart_a_disable_int
+#define	diag_enable_int(a)	do { \
+					uart_a_enable_read_int; \
+					uart_a_enable_write_int; \
+				} while (0)
+#endif
 
 /* =============================== */
 /* Enable/disable clock interrupts */

@@ -84,3 +84,37 @@ R050811A:
 
 	UART rate calibrated to compensate for the unreliability of SMCLK.
 	ACLK used for rates <= 9600 bps.
+
+R050814A:
+
+	UART parameters determined by compilation constants rather than
+	application-callable functions. The calibration for SMCLK-driven
+	rates is done by UART_CNTRL_CALIBRATE. This operation is void for
+	rates driven by ACLK.
+	The default rate is 9600-8-N-1. Example (put this in options.sys):
+
+		#define	UART_RATE	19200
+		#define	UART_BITS	7
+		#define	UART_PARITY	0	// 0-even, 1-odd
+
+	Variables used by the RF driver made global rather than being
+	allocated by malloc.
+
+	Fixed mkmk: my previous fix made it incompatible with CyanIDE.
+
+	Added macros: dbg_0(c) -- dbg_a(c) (16 of them). Constants settable
+	in options.sys:
+
+		#define	dbg_level	0x800c
+		// Activates dbg_2, dbg_3, dbg_f
+		#define	dbg_level	0
+		// Deactivates all
+		#define	dbg_binary	1
+		// Selects binary output: 00 06 aa 00 lv xx xx 04, where
+		// lv is the level (03 for dbg_03) and xx is the argument
+
+	Modified: memfree (p,s). The second argument (word pointer) returns
+	the minimum amount of free memory ever found in the pool. If malloc
+	has ever failed, the value is zero.
+	Added: word staticsize (void). Returns the amount of memory (in 
+	words, as usual) taken by static variables.

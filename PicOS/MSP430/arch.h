@@ -55,9 +55,15 @@ typedef struct {
 extern	systat_t zz_systat;
 
 extern void	__bss_end;
-extern word	zz_malloc_length;
 #define	MALLOC_START		((address)&__bss_end)
-#define MALLOC_LENGTH		zz_malloc_length
+
+#if	STACK_GUARD
+#define MALLOC_LENGTH	(	(((word) STACK_END - (word)&__bss_end)/2) - 1)
+#else
+#define MALLOC_LENGTH		(((word) STACK_END - (word)&__bss_end)/2)
+#endif
+
+#define	STATIC_LENGTH		(((word)&__bss_end - (word)RAM_START + 1)/2)
 
 extern	word	zz_restart_sp;
 #define	SET_RELEASE_POINT	asm (\

@@ -16,9 +16,9 @@ static process (rcvradio, void)
 
     entry (RCV_GETIT)
 
-	if (zzv_rdbk->rxoff) {
+	if (zzv_rxoff) {
 Finish:
-		if (zzv_rdbk->txoff) {
+		if (zzv_txoff) {
 			hard_lock;
 			if (!xmitter_active)
 				hstat (HSTAT_SLEEP);
@@ -62,7 +62,7 @@ Finish:
 		hard_drop;
 	}
 
-	if (zzv_rdbk->rxoff)
+	if (zzv_rxoff)
 		/* rcvevent can be also triggered by this */
 		goto Finish;
 
@@ -80,8 +80,8 @@ Finish:
 		proceed (RCV_GETIT);
 
 	/* Check the station Id */
-	if (zzv_rdbk->statid != 0 && zzr_buffer [0] != 0 &&
-	    zzr_buffer [0] != zzv_rdbk->statid)
+	if (zzv_statid != 0 && zzr_buffer [0] != 0 &&
+	    zzr_buffer [0] != zzv_statid)
 		/* Wrong packet */
 		proceed (RCV_GETIT);
 
@@ -91,7 +91,7 @@ Finish:
 	 /* Return RSSI in the last checksum byte */
 	zzr_buffer [zzr_length - 1] = (word) rssi_cnv ();
 
-	tcvphy_rcv (zzv_rdbk->physid, zzr_buffer, zzr_length << 1);
+	tcvphy_rcv (zzv_physid, zzr_buffer, zzr_length << 1);
 
 	proceed (RCV_GETIT);
 
@@ -106,7 +106,7 @@ static INLINE void xmt_down (void) {
  */
 	if (zzr_buffp == NULL) {
 		hard_lock;
-		hstat (zzv_rdbk->rxoff ? HSTAT_SLEEP : HSTAT_RCV);
+		hstat (zzv_rxoff ? HSTAT_SLEEP : HSTAT_RCV);
 		hard_drop;
 	}
 }
@@ -120,51 +120,51 @@ static process (xmtradio, void)
 
     entry (XM_LOOP)
 
-	if (zzv_rdbk->txoff) {
+	if (zzv_txoff) {
 		/* We are off */
-		if (zzv_rdbk->txoff == 3) {
+		if (zzv_txoff == 3) {
 Drain:
-			tcvphy_erase (zzv_rdbk->physid);
-			wait (zzv_rdbk->qevent, XM_LOOP);
+			tcvphy_erase (zzv_physid);
+			wait (zzv_qevent, XM_LOOP);
 			release;
-		} else if (zzv_rdbk->txoff == 1) {
+		} else if (zzv_txoff == 1) {
 			/* Queue held, transmitter off */
 			xmt_down ();
-			zzv_rdbk->backoff = 0;
+			zzx_backoff = 0;
 			finish;
 		}
 	}
 
-	if ((stln = tcvphy_top (zzv_rdbk->physid)) == 0) {
+	if ((stln = tcvphy_top (zzv_physid)) == 0) {
 		/* Packet queue is empty */
-		if (zzv_rdbk->txoff == 2) {
+		if (zzv_txoff == 2) {
 			/* Draining; stop xmt if the output queue is empty */
-			zzv_rdbk->txoff = 3;
+			zzv_txoff = 3;
 			xmt_down ();
 			/* Redo */
 			goto Drain;
 		}
-		wait (zzv_rdbk->qevent, XM_LOOP);
+		wait (zzv_qevent, XM_LOOP);
 		release;
 	}
 
-	if (zzv_rdbk->backoff && stln < 2) {
+	if (zzx_backoff && stln < 2) {
 		/* We have to wait and the packet is not urgent */
-		delay (zzv_rdbk->backoff, XM_LOOP);
-		zzv_rdbk->backoff = 0;
-		wait (zzv_rdbk->qevent, XM_LOOP);
+		delay (zzx_backoff, XM_LOOP);
+		zzx_backoff = 0;
+		wait (zzv_qevent, XM_LOOP);
 		release;
 	}
 
 	hard_lock;
 	if (receiver_busy) {
 		hard_drop;
-		delay (zzv_rdbk->delmnbkf, XM_LOOP);
-		wait (zzv_rdbk->qevent, XM_LOOP);
+		delay (zzx_delmnbkf, XM_LOOP);
+		wait (zzv_qevent, XM_LOOP);
 		release;
 	}
 	LEDI (2, 0);
-	if ((zzx_buffp = tcvphy_get (zzv_rdbk->physid, &stln)) != NULL) {
+	if ((zzx_buffp = tcvphy_get (zzv_physid, &stln)) != NULL) {
 
 		// Holding the lock
 
@@ -176,8 +176,8 @@ Drain:
 		stln >>= 1;
 
 		// Insert the station Id
-		if (zzv_rdbk->statid)
-	    		zzr_buffer [0] = zzv_rdbk->statid;
+		if (zzv_statid)
+	    		zzr_buffer [0] = zzv_statid;
 		// Insert the checksum
 		zzx_buffp [stln - 1] = w_chk (zzx_buffp, stln - 1);
 #if 0
@@ -230,20 +230,20 @@ Drain:
 		/* The receiver is running at this point */
 		tcvphy_end (zzx_buffer);
 		/* Delay for a while before next transmission */
-		delay (zzv_rdbk->delmnbkf, XM_LOOP);
+		delay (zzx_delmnbkf, XM_LOOP);
 	} else {
 		/* This is void: receiver is not active */
 		hard_drop;
 		sysassert (zzv_status == 0, "xmt illegal chip status");
 		tcvphy_end (zzx_buffer);
-		if (tcvphy_top (zzv_rdbk->physid)) {
+		if (tcvphy_top (zzv_physid)) {
 			/* More to xmit: keep the transmitter up */
-			delay (zzv_rdbk->delxmspc, XM_LOOP);
+			delay (zzx_delxmspc, XM_LOOP);
 			release;
 		}
 		/* Shut down the transmitter */
 		hstat (HSTAT_SLEEP);
-		delay (zzv_rdbk->delxmspc, XM_LOOP);
+		delay (zzx_delxmspc, XM_LOOP);
 	}
 	release;
 

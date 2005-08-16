@@ -93,4 +93,6 @@
 #define	RSSI_MAX	0x07ff
 #define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
 
+#define	disable_xcv_timer	do { } while (0)
+
 #endif

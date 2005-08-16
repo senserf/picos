@@ -5,7 +5,7 @@
 
 //+++ "encrypt.c"
 
-void encrypt (word*, int, lword*);
-void decrypt (word*, int, lword*);
+void encrypt (word*, int, const lword*);
+void decrypt (word*, int, const lword*);
 
 #endif

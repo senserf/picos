@@ -78,6 +78,8 @@ typedef	address		va_list;
 #endif	/* STACK_GUARD */
 #endif	/* SDRAM_PRESENT */
 
+#define	STATIC_LENGTH	((word)evar_ - RAM_START)
+
 /* Data/stack boundaries */
 extern	address evar_, estk_;
 

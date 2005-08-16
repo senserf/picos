@@ -385,8 +385,8 @@ REND:
 		RISE_N_SHINE;
 		adc_stop;
 		// Collect RSSI
-		zzv_rdbk->rssi = adc_value;
-		add_entropy (zzv_rdbk->rssi);
+		zzr_rssi = adc_value;
+		add_entropy (zzr_rssi);
 		zzv_status = 0;
 		zzr_length = zzr_buffp - zzr_buffer;
 		zzr_buffp = NULL;

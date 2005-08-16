@@ -107,7 +107,7 @@ process (root, void)
 #endif
 		"          'f %d %u %x %c %s %ld %lu %lx' (format test)\r\n"
 #if STACK_GUARD
-		"          'v (show free stack space)\r\n"
+		"          'v (show free memory)\r\n"
 #endif
 		"          'h' (HALT)\r\n"
 		"          'r' (RESET)\r\n");
@@ -184,8 +184,6 @@ process (root, void)
 	// if np=1 (for DUART B) this will distort the ECOG_SIM assumption
 	// that only DUART A is connected to the terminal
 #endif
-        ion (np, CONTROL, (char*)(&vu), UART_CNTRL_RATE);
-
 
   entry (RS_CUA+1)
 
@@ -297,7 +295,16 @@ process (root, void)
 
   entry (RS_SFREE)
 
-	ser_outf (RS_SFREE, "Free stack space: %u words\r\n", stackfree ());
+	ser_outf (RS_SFREE  , "Free stack space:  %u words\r\n", stackfree ());
+
+  entry (RS_SFREE+1)
+
+	ser_outf (RS_SFREE+1, "Static data size:  %u words\r\n", staticsize ());
+
+  entry (RS_SFREE+2)
+
+	ser_outf (RS_SFREE+2, "Mallocatable area: %u words\r\n", memfree (0,0));
+
 	proceed (RS_RCMD);
 #endif
 

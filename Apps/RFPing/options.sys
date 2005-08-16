@@ -31,3 +31,7 @@
 #define	RADIO_DRIVER		0
 
 #define	STACK_GUARD		1
+
+#define	UART_RATE		19200
+#define	UART_BITS		7
+#define	UART_PARITY		0
