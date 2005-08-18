@@ -1,5 +1,9 @@
 #ifndef __pg_xcvcommon_h
 #define	__pg_xcvcommon_h
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
 
 /*
  * Common code of CHIPCON and DM transveiver driver

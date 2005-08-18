@@ -124,3 +124,7 @@ R050817A:
 	Added M_AMRD, R_AMRD to Apps. They're cleaned up equivalents of
 	Master and Reader nodes sent to RFM for their AMR demo.
 	Rewritten LibComms.
+
+R050817B:
+
+	Copyrights.

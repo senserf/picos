@@ -1,3 +1,7 @@
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
 #include <ecog.h>
 #include <ecog1.h>
 #include "kernel.h"

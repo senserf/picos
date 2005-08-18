@@ -1,3 +1,7 @@
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
 #include "kernel.h"
 /*
  * This code handles all interrupts triggered by P1 pins

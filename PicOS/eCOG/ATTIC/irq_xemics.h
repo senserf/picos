@@ -1,5 +1,9 @@
 #ifndef	__irq_xemics_h
 #define	__irq_xemics_h
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
 
 /*
  * This is a bit messy - to be compatible with the other two radio boards.

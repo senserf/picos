@@ -1,5 +1,9 @@
 #ifndef	__irq_ethernet_h
 #define	__irq_ethernet_h
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
 
 	/*
 	 * select (2) not needed. If the interrupt is allowed to occur while

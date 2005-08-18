@@ -1,5 +1,9 @@
 #ifndef __pg_irq_dm2100_h
 #define __pg_irq_dm2100_h
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
 
 /*
  * This code handles signal strobes. For transmission, the strobe is triggered
