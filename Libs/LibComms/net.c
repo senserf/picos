@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2004.                   */
+/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "sysio.h"
@@ -28,10 +28,6 @@
 #endif
 
 #include "tarp.h"
-#include "diag.h"
-/*
-#include "phys_sim.h"
-*/
 
 extern int net_fd;
 extern int net_phys;
@@ -55,10 +51,9 @@ static int uart_init (word);
 static int radio_init (word);
 static int chipcon_init (word);
 static int dm2100_init (word);
-// static int sim_init (word);
 
 #define	NET_MAXPLEN		128
-static const char * myName = "net_init";
+static const char myName[] = "net_ini";
 
 int net_fd   = -1;
 int net_phys = -1;
@@ -90,10 +85,6 @@ int net_init (word phys, word plug) {
 
 	case INFO_PHYS_UART:
 		return (net_fd = uart_init (plug));
-/*
-	case INFO_PHYS_SIM:
-		return (net_fd = sim_init (plug));
-*/
 	default:
 		diag ("%s: Unknown phys", myName);
 		return (net_fd = -1);
@@ -134,8 +125,8 @@ static int chipcon_init (word plug) {
 	return -1;
 #else
 	int fd;
-	word opts[2] = {4, 2}; // checksum + power
-	phys_chipcon (0, 0, NET_MAXPLEN, 192);
+	// opts removed word opts[2] = {4, 2}; // checksum + power
+	phys_chipcon (0, NET_MAXPLEN, 192);
 
 	if (plug == INFO_PLUG_TARP)
 		tcv_plug (0, &plug_tarp);
@@ -147,9 +138,6 @@ static int chipcon_init (word plug) {
 		return -1;
 	}
 
-	tcv_control (fd, PHYSOPT_SETPARAM, opts);
-	opts[0] = 5; opts[1] = 1; // get rssi
-	tcv_control (fd, PHYSOPT_SETPARAM, opts);
 	tcv_control (fd, PHYSOPT_TXON, NULL);
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;
@@ -163,8 +151,7 @@ static int dm2100_init (word plug) {
 	return -1;
 #else
 	int fd;
-	word opts[2] = {4, 2}; // checksum + power
-	phys_dm2100 (0, 0, NET_MAXPLEN);
+	phys_dm2100 (0, NET_MAXPLEN);
 
 	if (plug == INFO_PLUG_TARP)
 		tcv_plug (0, &plug_tarp);
@@ -176,9 +163,6 @@ static int dm2100_init (word plug) {
 		return -1;
 	}
 
-	tcv_control (fd, PHYSOPT_SETPARAM, opts);
-	opts[0] = 5; opts[1] = 1; // get rssi
-	tcv_control (fd, PHYSOPT_SETPARAM, opts);
 	tcv_control (fd, PHYSOPT_TXON, NULL);
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;
@@ -283,12 +267,6 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 		diag ("%s: No net", myName);
 		return -1;
 	}
-/* option?
-	if (!(tcv_control(net_fd, PHYSOPT_STATUS, NULL) & 1)) {
-		diag ("%s: Rx off", myName);
-		return -1;
-	}
-*/
 	packet = tcv_rnp (state, net_fd); // if silence, will hang and go to state if not NONE
 	// size = tcv_left (packet);
 	if ((size = tcv_left (packet)) == 0) // this may be only if state is nonblocking NONE (?)
@@ -397,19 +375,16 @@ int net_tx (word state, char * buf, int len) {
 			net_phys == INFO_PHYS_DM2100) {
 		packet = tcv_wnp (state, net_fd, radio_len(len)); 
 		if (packet == NULL) {
-			net_diag (D_DEBUG, "%s: wnp failed", myName);
+			//net_diag (D_DEBUG, "%s: wnp failed", myName);
 			return -1;
 		}
-		net_diag (D_DEBUG, "%s: tcv_wnp len (%u->%u)", myName,
-			len, radio_len(len)); 
 		
-		packet[0] = 0; // not really needed in this mode?
+		packet[0] = 0;
 		memcpy (packet + 1,  buf, len);
 
 	} else {
 		packet = tcv_wnp (state, net_fd, len);
 		if (packet == NULL) {
-			net_diag (D_DEBUG, "%s: wnp failed (2)", myName);
 			return -1;
 		}
 		memcpy ((char*)packet, buf, len);
@@ -434,7 +409,6 @@ int net_close (word state) {
 	if ((rc = tcv_close(state, net_fd)) != 0)
 		diag ("%s: Close err %d", myName, rc);
 
-	// better (?) reset things in case of an error, too
 	net_fd = -1;
 	net_phys = -1;
 	net_plug = -1;

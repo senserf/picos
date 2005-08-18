@@ -118,3 +118,9 @@ R050814A:
 	has ever failed, the value is zero.
 	Added: word staticsize (void). Returns the amount of memory (in 
 	words, as usual) taken by static variables.
+
+R050817A:
+
+	Added M_AMRD, R_AMRD to Apps. They're cleaned up equivalents of
+	Master and Reader nodes sent to RFM for their AMR demo.
+	Rewritten LibComms.
