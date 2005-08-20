@@ -47,6 +47,11 @@ typedef	address		va_list;
 //#define	byteaddr(p)	((char*)(((long)(p)) << 1))
 #define	byteaddr(p)	((char*)(p))
 
+typedef struct {
+	word unused:14,	// Use this for power down, perhaps?
+	     evntpn:1;	// Scheduler event pending
+} systat_t;
+
 #if	SDRAM_PRESENT
 /* malloc is using exclusively SDRAM */
 #define	MALLOC_START		((address)SDRAM_ADDR)

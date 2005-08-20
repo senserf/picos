@@ -18,6 +18,8 @@
 
 #include "arch.h"
 
+#define	UART_INPUT_BUFFER_LENGTH	32
+
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
 
@@ -32,8 +34,13 @@ typedef struct	{
 /* ============================== */
 	byte selector;
 	volatile byte flags;
-	byte in;
 	byte out;
+#if	UART_INPUT_BUFFER_LENGTH < 2
+	byte in;
+#else
+	byte in [UART_INPUT_BUFFER_LENGTH];
+	int ib_in, ib_out;
+#endif
 } uart_t;
 
 extern uart_t zz_uart [];
@@ -55,6 +62,9 @@ extern uart_t zz_uart [];
 				} while (0)
 #endif
 
+#define	sti	_EINT ()
+#define	cli	_DINT ()
+
 /* =============================== */
 /* Enable/disable clock interrupts */
 /* =============================== */
@@ -74,11 +84,24 @@ extern uart_t zz_uart [];
 
 #define	SLEEP	do { \
 			if (zz_systat.pdmode) { \
-				_BIS_SR (LPM3_bits); \
+				_BIC_SR (GIE); \
+				if (zz_systat.evntpn) { \
+					zz_systat.evntpn = 0; \
+					_BIS_SR (GIE); \
+				} else { \
+					_BIS_SR (LPM3_bits + GIE); \
+					_NOP (); \
+				} \
 			} else { \
-				_BIS_SR (LPM0_bits); \
+				_BIC_SR (GIE); \
+				if (zz_systat.evntpn) { \
+					zz_systat.evntpn = 0; \
+					_BIS_SR (GIE); \
+				} else { \
+					_BIS_SR (LPM0_bits + GIE); \
+					_NOP (); \
+				} \
 			} \
-			_NOP (); \
 		} while (0)
 
 #define	RISE_N_SHINE	_BIC_SR_IRQ (LPM4_bits)

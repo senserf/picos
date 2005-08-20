@@ -16,6 +16,9 @@ pcb_t __PCB [MAX_TASKS];
 /* Device table */
 static devreqfun_t ioreq [MAX_DEVICES];
 
+/* System status word */
+systat_t 		zz_systat;
+
 /* =============== */
 /* Current process */
 /* =============== */

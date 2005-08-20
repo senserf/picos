@@ -11,7 +11,6 @@ extern 	volatile 	word 		zz_lostk;
 extern 			address	zz_utims [MAX_UTIMERS];
 extern	void		_reset_vector__;
 
-systat_t 		zz_systat;
 word			zz_restart_sp;
 
 #define	STACK_SENTINEL	0xB779
@@ -27,8 +26,54 @@ void	zz_malloc_init (void);
 /* Device driver initializers */
 /* ========================== */
 #if	UART_DRIVER
-static void	devinit_uart (int);
+
+#if 1	 /* BEGIN CRYSTAL KLUDGE */
+
+#if UART_RATE == 19200
+#ifndef	HIGH_CRYSTAL_RATE
+#error "HIGH_CRYSTAL_RATE must be defined for 19200 bps"
 #endif
+#if HIGH_CRYSTAL_RATE == 0
+#error "HIGH_CRYSTAL_RATE cannot be zero for 19200 bps"
+#endif
+#endif
+
+#ifndef	HIGH_CRYSTAL_RATE
+#define	HIGH_CRYSTAL_RATE	0
+#endif
+
+#if	HIGH_CRYSTAL_RATE == 0
+#define	TIMER_B_INIT_HIGH	3	/* 4 - 1 for 32768 kHz */
+#define	TIMER_B_INIT_LOW	4095
+#endif
+
+#if	HIGH_CRYSTAL_RATE == 1
+#define	TIMER_B_INIT_HIGH	121	/* 1 MHz crystal */
+#define	TIMER_B_INIT_LOW	TIMER_B_INIT_HIGH
+#endif
+
+#if	HIGH_CRYSTAL_RATE == 4
+#define	TIMER_B_INIT_HIGH	487	/* 4 MHz crystal */
+#define	TIMER_B_INIT_LOW	TIMER_B_INIT_HIGH
+#endif
+
+#if	HIGH_CRYSTAL_RATE == 8
+#define	TIMER_B_INIT_HIGH	976	/* 8 MHz crystal */
+#define	TIMER_B_INIT_LOW	TIMER_B_INIT_HIGH
+#endif
+
+#ifndef TIMER_B_INIT_HIGH
+#error "HIGH_CRYSTAL_RATE can be 0, 1, 4, or 8"
+#endif
+
+#else	/* CRYSTAL KLUDGE */
+
+#define	TIMER_B_INIT_HIGH	3
+
+#endif	/* END CRYSTAL KLUDGE */
+
+static void	devinit_uart (int);
+#endif	/* UART_DRIVER */
 
 extern void	__bss_end;
 
@@ -58,11 +103,11 @@ void powerup (void) {
 }
 
 void clockdown (void) {
-	TBCCR0 = 4095;	// 1 tick per second
+	TBCCR0 = TIMER_B_INIT_LOW;	// 1 tick per second
 }
 
 void clockup (void) {
-	TBCCR0 = 3;	// 1024 ticks per second
+	TBCCR0 = TIMER_B_INIT_HIGH;	// 1024 ticks per second
 }
 
 void reset (void) {
@@ -207,7 +252,16 @@ static void ssm_init () {
 #ifdef	__MSP430_148__
 	// Maximum DCO frequency
 	DCOCTL = DCO2 + DCO1 + DCO0;
-	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF;
+	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF
+
+#if 1	/* BEGIN CRYSTAL KLUDGE */
+#if	TIMER_B_INIT_HIGH == TIMER_B_INIT_LOW
+	// We are using a high-speed crystal
+		+ XTS
+#endif
+#endif	/* END CRYSTAL KLUDGE */
+
+	;
 	// Measured MCLK is ca. 4.5 MHz
 #endif	/* 148 */
 
@@ -253,7 +307,7 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 		syserror (ESTACK, "timer_int");
 #endif
 
-	if (TBCCR0 == 3) {
+	if (TBCCR0 == TIMER_B_INIT_HIGH) {
 		// Power up
 		/* This code assumes that MAX_UTIMERS is 4 */
 #define	UTIMS_CASCADE(x) 	if (zz_utims [x]) {\
@@ -385,124 +439,6 @@ static void ios_init () {
 
 uart_t	zz_uart [UART_DRIVER];
 
-static void uart_calibrate () {
-
-/* Some magic to determine UART parameters based on rate */
-#if UART_RATE <= 9600
-
-#define	ubr1		0
-#define	utctl		SSEL0
-
-#if UART_RATE == 1200
-#define	ubr0		0x1B
-#define	umctl		0x03
-#endif
-
-#if UART_RATE == 2400
-#define	ubr0		0x0D
-#define	umctl		0x6B
-#endif
-
-#if UART_RATE == 4800
-#define	ubr0		0x06
-#define	umctl		0x6F
-#endif
-
-#if UART_RATE == 9600
-#define	ubr0		0x03
-#define	umctl		0x4A
-#endif
-
-#ifndef	ubr0
-#error	"Illegal UART_RATE"
-#endif
-
-#else
-	int i;
-	byte	ubr0, ubr1, umctl, utctl;
-	long ticks;
-
-	ticks = 0;
-	_DINT ();
-	TACTL = TASSEL_SMCLK | TACLR;
-	TACCR0 = 0xffff;
-	_BIC (TBCCTL0, CCIFG);
-	while ((TBCCTL0 & CCIFG) == 0);
-	_BIS (TACTL, MC_2 | TACLR);
-	_BIC (TBCCTL0, CCIFG);
-	for (i = 0; i < 256; i++) {
-		while ((TBCCTL0 & CCIFG) == 0);
-		_BIC (TBCCTL0, CCIFG);
-		while ((TBCCTL0 & CCIFG) == 0);
-		_BIC (TBCCTL0, CCIFG);
-		while ((TBCCTL0 & CCIFG) == 0);
-		_BIC (TBCCTL0, CCIFG);
-		while ((TBCCTL0 & CCIFG) == 0);
-		_BIC (TBCCTL0, CCIFG);
-		ticks += TAR;
-		_BIS (TACTL, MC_2 | TACLR);
-	}
-	_BIC (TACTL, MC_3);
-	_EINT ();
-	for (ubr0 = ubr1 = 0; ticks > UART_RATE; ticks -= UART_RATE) {
-		if (ubr0 == 255) {
-			ubr0 = 0;
-			ubr1++;
-		} else {
-			ubr0++;
-		}
-	}
-	umctl = 0;
-	utctl = SSEL1;	// Select SMCLK
-#endif
-
-#if UART_BITS == 8
-
-#define	uctl_char	CHAR
-#define	uctl_pena	0
-#define	uctl_pev	0
-
-#else	/* UART_BITS == 7 */
-
-#define	uctl_char	0
-#define	uctl_pena	PENA
-
-#if UART_PARITY == 0
-#define	uctl_pev	PEV
-#else
-#define	uctl_pev	0
-#endif
-
-#endif	/* UART_BITS */
-
-	_BIS (UCTL0, SWRST);
-	_BIC (UTCTL0, SSEL1 + SSEL0);
-	_BIS (UTCTL0, utctl);
-	UBR00 = ubr0;
-	UBR10 = ubr1;
-	UMCTL0 = umctl;
-	_BIS (IFG1, UTXIFG0);
-	_BIS (ME1, UTXE0 + URXE0);
-	_BIS (UCTL0, uctl_char | uctl_pena | uctl_pev);
-	_BIC (UCTL0, SWRST);
-
-#if UART_DRIVER > 1
-
-	_BIS (UCTL1, SWRST);
-	_BIC (UTCTL1, SSEL1 + SSEL0);
-	_BIS (UTCTL1, utctl);
-	UBR01 = ubr0;
-	UBR11 = ubr1;
-	UMCTL1 = umctl;
-	_BIS (IFG2, UTXIFG1);
-	_BIS (ME2, UTXE1 + URXE1);
-	_BIS (UCTL1, uctl_char | uctl_pena | uctl_pev);
-	_BIC (UCTL1, SWRST);
-
-#endif
-
-}
-
 #define uart_xpending(u)	((u)->selector?(IFG2&UTXIFG1):(IFG1&UTXIFG0))
 
 #define	uart_write8(u,w)	do { \
@@ -573,6 +509,26 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 				}
 				return 0;
 			} else {
+
+#if UART_INPUT_BUFFER_LENGTH > 1
+				uart_disable_read_int (u);
+				if (u->ib_in == u->ib_out) {
+					// The buffer is empty
+					_BIS (u->flags, UART_FLAGS_IN);
+					return -2;
+				}
+				_BIC (u->flags, UART_FLAGS_IN);
+				uart_enable_read_int (u);
+				operation = len;
+				while (len && u->ib_in != u->ib_out) {
+					*buf++ = u->in [u->ib_out];
+					if (++(u->ib_out) ==
+						UART_INPUT_BUFFER_LENGTH)
+							u->ib_out = 0;
+					len--;
+				}
+				return operation - len;
+#else
 				if ((u->flags & UART_FLAGS_IN)) {
 					// Receive interrupt is disabled
 R_redo:
@@ -587,6 +543,7 @@ R_redo:
 					goto R_redo;
 				// The buffer is empty
 				return -2;
+#endif
 			}
 				
 		case WRITE:
@@ -614,7 +571,9 @@ X_redo:
 		case NONE:
 
 			// Cleanup
+#if UART_INPUT_BUFFER_LENGTH < 2
 			if ((u->flags & UART_FLAGS_IN) == 0)
+#endif
 				uart_enable_read_int (u);
 			if ((u->flags & UART_FLAGS_OUT))
 				uart_enable_write_int (u);
@@ -628,9 +587,6 @@ X_redo:
 					uart_lock (u);
 				else
 					uart_unlock (u);
-				return 1;
-			} else if (len == UART_CNTRL_CALIBRATE) {
-				uart_calibrate ();
 				return 1;
 			}
 			/* Fall through */
@@ -679,22 +635,45 @@ interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 }
 
 interrupt (UART0RX_VECTOR) uart0rx_int (void) {
+
+#define	ua	(zz_uart + 0)
+
+#if UART_INPUT_BUFFER_LENGTH > 1
+
+	register int inp;
+
+	if ((inp = ua->ib_in + 1) == UART_INPUT_BUFFER_LENGTH)
+		inp = 0;
+	if (inp != ua->ib_out) {
+		// Not full
+		ua->in [ua->ib_in] = RXBUF0;
+		ua->ib_in = inp;
+	}
+	if ((ua -> flags & UART_FLAGS_IN)) {
+		RISE_N_SHINE;
+		i_trigger (ETYPE_IO, devevent (UART_A, READ));
+	}
+#else
 	RISE_N_SHINE;
 
-	if ((zz_uart [0] . flags & UART_FLAGS_IN)) {
+	if ((ua -> flags & UART_FLAGS_IN)) {
 		// Keep the interrupt pending
 		_BIS (IFG1, URXIFG0);
 	} else {
-		_BIS (zz_uart [0] . flags, UART_FLAGS_IN);
-		zz_uart [0] . in = RXBUF0;
+		_BIS (ua -> flags, UART_FLAGS_IN);
+		ua -> in = RXBUF0;
 	}
 	_BIC (IE1, URXIE0);
 	i_trigger (ETYPE_IO, devevent (UART_A, READ));
+#endif
+
 }
 
 static int ioreq_uart_a (int op, char *b, int len) {
-	return ioreq_uart (&(zz_uart [0]), op, b, len);
+	return ioreq_uart (ua, op, b, len);
 }
+
+#undef ua
 
 #if UART_DRIVER > 1
 
@@ -714,22 +693,44 @@ interrupt (UART1TX_VECTOR) uart1tx_int (void) {
 }
 
 interrupt (UART1RX_VECTOR) uart1rx_int (void) {
+
+#define	ua	(zz_uart + 1)
+
+#if UART_INPUT_BUFFER_LENGTH > 1
+
+	register int inp;
+
+	if ((inp = ua->ib_in + 1) == UART_INPUT_BUFFER_LENGTH)
+		inp = 0;
+	if (inp != ua->ib_out) {
+		// Not full
+		ua->in [ua->ib_in] = RXBUF0;
+		ua->ib_in = inp;
+	}
+	if ((ua -> flags & UART_FLAGS_IN)) {
+		RISE_N_SHINE;
+		i_trigger (ETYPE_IO, devevent (UART_A, READ));
+	}
+#else
 	RISE_N_SHINE;
 
-	if ((zz_uart [1] . flags & UART_FLAGS_IN)) {
+	if ((ua -> flags & UART_FLAGS_IN)) {
 		// Keep the interrupt pending
 		_BIS (IFG1, URXIFG1);
 	} else {
-		_BIS (zz_uart [1] . flags, UART_FLAGS_IN);
-		zz_uart [1] . in = RXBUF1;
+		_BIS (ua -> flags, UART_FLAGS_IN);
+		ua -> in = RXBUF1;
 	}
 	_BIC (IE2, URXIE1);
 	i_trigger (ETYPE_IO, devevent (UART_B, READ));
+#endif
 }
 
 static int ioreq_uart_b (int op, char *b, int len) {
-	return ioreq_uart (&(zz_uart [1]), op, b, len);
+	return ioreq_uart (ua, op, b, len);
 }
+
+#undef ua
 
 #endif
 
@@ -738,6 +739,80 @@ static int ioreq_uart_b (int op, char *b, int len) {
 /* =========== */
 static void devinit_uart (int devnum) {
 
+#define	ubr1		0
+#define	utctl		SSEL0
+
+#if UART_RATE == 1200
+#define	ubr0		0x1B
+#define	umctl		0x03
+#endif
+
+#if UART_RATE == 2400
+#define	ubr0		0x0D
+#define	umctl		0x6B
+#endif
+
+#if UART_RATE == 4800
+#define	ubr0		0x06
+#define	umctl		0x6F
+#endif
+
+#if UART_RATE == 9600
+#define	ubr0		0x03
+#define	umctl		0x4A
+#endif
+
+#if UART_RATE == 19200
+
+#ifndef	HIGH_CRYSTAL_RATE
+#error "HIGH_CRYSTAL_RATE must be defined for 19200 bps"
+#endif
+#if HIGH_CRYSTAL_RATE == 0
+#error "HIGH_CRYSTAL_RATE cannot be zero for 19200 bps"
+#endif
+
+#if	HIGH_CRYSTAL_RATE == 1
+#define ubr0		0x34
+#define umctl		0x20
+#endif
+
+#if	HIGH_CRYSTAL_RATE == 4
+#define ubr0		0xD0
+#define umctl		0x4A
+#endif
+
+#if	HIGH_CRYSTAL_RATE == 8
+#undef	ubr1
+#define ubr0		0xA0
+#define	ubr1		0x01
+#define umctl		0x5B
+#endif
+
+#endif	/* UART_RATE == 19200 */
+
+#ifndef	ubr0
+#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600, 19200"
+#endif
+
+#if UART_BITS == 8
+
+#define	uctl_char	CHAR
+#define	uctl_pena	0
+#define	uctl_pev	0
+
+#else	/* UART_BITS == 7 */
+
+#define	uctl_char	0
+#define	uctl_pena	PENA
+
+#if UART_PARITY == 0
+#define	uctl_pev	PEV
+#else
+#define	uctl_pev	0
+#endif
+
+#endif	/* UART_BITS */
+
 #if UART_DRIVER > 1
 	if (devnum == 0) {
 #endif
@@ -745,19 +820,41 @@ static void devinit_uart (int devnum) {
 		_BIS (P3SEL, 0x30);	// 4, 5 special function
 		// _BIS (P3DIR, 0x10);
 		// _BIS (P3DIR, 0x20);
+		_BIS (UCTL0, SWRST);
+		_BIC (UTCTL0, SSEL1 + SSEL0);
+		_BIS (UTCTL0, utctl);
+		UBR00 = ubr0;
+		UBR10 = ubr1;
+		UMCTL0 = umctl;
+		_BIS (IFG1, UTXIFG0);
+		_BIS (ME1, UTXE0 + URXE0);
+		_BIS (UCTL0, uctl_char | uctl_pena | uctl_pev);
+		_BIC (UCTL0, SWRST);
 		adddevfunc (ioreq_uart_a, UART_A);
 #if UART_DRIVER > 1
 	} else {
 		// UART_B
 		_BIS (P3SEL, 0xc0);	// 6, 7 special function
+		_BIS (UCTL1, SWRST);
+		_BIC (UTCTL1, SSEL1 + SSEL0);
+		_BIS (UTCTL1, utctl);
+		UBR01 = ubr0;
+		UBR11 = ubr1;
+		UMCTL1 = umctl;
+		_BIS (IFG2, UTXIFG1);
+		_BIS (ME2, UTXE1 + URXE1);
+		_BIS (UCTL1, uctl_char | uctl_pena | uctl_pev);
+		_BIC (UCTL1, SWRST);
 		adddevfunc (ioreq_uart_b, UART_B);
 	}
 #endif
+
+#if UART_INPUT_BUFFER_LENGTH > 1
+	zz_uart [devnum] . ib_in = zz_uart [devnum] . ib_out = 0;
+#endif
+
 	zz_uart [devnum] . selector = devnum;
 	_BIS (zz_uart [devnum] . flags, UART_FLAGS_LOCK);
-	if (devnum == 0)
-		uart_calibrate ();
-	_DINT ();
 	uart_unlock (zz_uart + devnum);
 }
 /* =========== */

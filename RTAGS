@@ -128,3 +128,20 @@ R050817A:
 R050817B:
 
 	Copyrights.
+
+R050820A:
+
+	A few cleanups. Eliminated a race in the scheduler (it wasn't serious,
+	but it could occasionally cause a hiccup, especially on the UART).
+
+	Included the kludge for high frequency ACLK crystals. If the declared
+	UART rate is 19200, PicOS assumes that ACLK runs from a high frequency
+	crystal. HIGH_CRYSTAL_RATE (settable in options.sys) then indicates
+	the crystal frequency, which can be 1, 4, or 8 (this is in MHz). If you
+	use lower UART rates, everything works as before. This kludge will be
+	removed later. It is clearly identifiable and does no harm.
+
+	Added (opitonal) UART buffering on the receiving end. If the constant
+	UART_INPUT_BUFFER_LENGTH is set to > 1, then UART input will be
+	buffered. Previously, a scheduler action was needed for every input
+	character, which could (possibly) cause data loss.

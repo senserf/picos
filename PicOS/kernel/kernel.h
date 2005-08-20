@@ -134,6 +134,7 @@ void adddevfunc (devreqfun_t, int);
 		for (j = 0; j < nevents (i); j++) {\
 			if (i->Events [j] . Event == evnt &&\
 				getetype (i->Events [j]) == etype) {\
+					zz_systat.evntpn = 1;\
 					wakeupev (i, j);\
 					break;\
 			}\

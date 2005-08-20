@@ -7,6 +7,9 @@
 	static int       maxprio;
 	static pcb_t	*maxpriocurrent;
 #endif
+
+	zz_systat.evntpn = 0;
+
 	/* Set the return context for release */
 	SET_RELEASE_POINT;
 Redo:

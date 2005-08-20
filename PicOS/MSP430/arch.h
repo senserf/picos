@@ -32,7 +32,8 @@ typedef	volatile address	va_list;
 
 typedef struct {
 	word pdmode:1,	// Power down flag
-	     unused:15;
+	     unused:14,
+	     evntpn:1;	// Scheduler event pending
 } systat_t;
 
 extern	systat_t zz_systat;
