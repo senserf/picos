@@ -145,3 +145,8 @@ R050820A:
 	UART_INPUT_BUFFER_LENGTH is set to > 1, then UART input will be
 	buffered. Previously, a scheduler action was needed for every input
 	character, which could (possibly) cause data loss.
+
+R050820B:
+
+	Attempts at flow control (the code is present, but the signals are not
+	visible on the DB9). I am checking it in for the record - no harm.

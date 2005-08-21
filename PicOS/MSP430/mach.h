@@ -18,7 +18,9 @@
 
 #include "arch.h"
 
-#define	UART_INPUT_BUFFER_LENGTH	32
+#ifndef UART_INPUT_BUFFER_LENGTH
+#define	UART_INPUT_BUFFER_LENGTH	0
+#endif
 
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
@@ -39,7 +41,7 @@ typedef struct	{
 	byte in;
 #else
 	byte in [UART_INPUT_BUFFER_LENGTH];
-	int ib_in, ib_out;
+	byte ib_in, ib_out, ib_count;
 #endif
 } uart_t;
 

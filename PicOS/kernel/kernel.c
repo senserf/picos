@@ -641,27 +641,32 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 		if (retry == NONE)
 			return 0;
 		iowait (dev, operation, retry);
-
 		release;
 	}
 
-	/* ======== */
-	/* ret < -1 */
-	/* ======== */
-
-	/* This means busy with the ready event to be triggered by an
-	 * interrupt handler. This option provides a shortcut for those
-	 * drivers that do not require separate driver processes, yet
-	 * want to perceive interrupts. In such a case, we have to call
-	 * the ioreq function again to clean up, i.e., unmask interrupts.
-	 */
-	if (retry != NONE) {
-		iowait (dev, operation, retry);
+	if (ret == -2) {
+		/* This means busy with the ready event to be triggered by an
+		 * interrupt handler. This option provides a shortcut for those
+		 * drivers that do not require separate driver processes, yet
+		 * want to perceive interrupts. In such a case, we have to call
+		 * the ioreq function again to clean up (unmask interrupts)
+	 	*/
+		if (retry != NONE) {
+			iowait (dev, operation, retry);
+			(ioreq [dev]) (NONE, buf, len);
+			release;
+		}
 		(ioreq [dev]) (NONE, buf, len);
-		release;
+		return 0;
 	}
-	(ioreq [dev]) (NONE, buf, len);
-	return 0;
+
+	/* ret < -2. This means a timer retry after -ret -2 milliseconds */
+	if (retry != NONE) {
+		return 0;
+	}
+
+	delay (-ret - 2, retry);
+	release;
 }
 
 /* --------------------------------------------------------------------- */
@@ -736,7 +741,7 @@ void zz_malloc_init () {
 		perc += zzz_heap [np];
 #endif	/* MALLOC_SINGLEPOOL */
 
-	if (MALLOC_LENGTH < 512 + MA_NP)
+	if (MALLOC_LENGTH < 256 + MA_NP)
 		/* Make sure we do have some memory available */
 		syserror (ERESOURCE, "malloc_init (1)");
 

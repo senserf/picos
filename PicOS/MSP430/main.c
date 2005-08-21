@@ -27,6 +27,25 @@ void	zz_malloc_init (void);
 /* ========================== */
 #if	UART_DRIVER
 
+#ifndef	UART_INPUT_FLOW_CONTROL
+#define	UART_INPUT_FLOW_CONTROL		0
+#endif
+
+#ifndef	UART_OUTPUT_FLOW_CONTROL
+#define	UART_OUTPUT_FLOW_CONTROL	0
+#endif
+
+#if	UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
+#if	UART_DRIVER > 1
+#error	"flow control is only available when UART_DRIVER == 1"
+#endif
+
+#define	set_ready_to_receive	_BIS (P3OUT, 0x80)
+#define	clear_ready_to_receive	_BIC (P3OUT, 0x80)
+#define	peer_ready_to_receive	((P3IN & 0x40) != 0)
+
+#endif
+
 #if 1	 /* BEGIN CRYSTAL KLUDGE */
 
 #if UART_RATE == 19200
@@ -512,7 +531,7 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 
 #if UART_INPUT_BUFFER_LENGTH > 1
 				uart_disable_read_int (u);
-				if (u->ib_in == u->ib_out) {
+				if (u->ib_count == 0) {
 					// The buffer is empty
 					_BIS (u->flags, UART_FLAGS_IN);
 					return -2;
@@ -520,7 +539,19 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 				_BIC (u->flags, UART_FLAGS_IN);
 				uart_enable_read_int (u);
 				operation = len;
-				while (len && u->ib_in != u->ib_out) {
+				while (len) {
+					uart_disable_read_int (u);
+					if (u->ib_count == 0) {
+						uart_enable_read_int (u);
+						break;
+					}
+					u->ib_count--;
+					uart_enable_read_int (u);
+#if UART_INPUT_FLOW_CONTROL
+					if (u->ib_count <=
+						UART_INPUT_BUFFER_LENGTH/2)
+							set_ready_to_receive;
+#endif
 					*buf++ = u->in [u->ib_out];
 					if (++(u->ib_out) ==
 						UART_INPUT_BUFFER_LENGTH)
@@ -535,6 +566,9 @@ R_redo:
 					*buf = u->in;
 					_BIC (u->flags, UART_FLAGS_IN);
 					uart_enable_read_int (u);
+#if UART_INPUT_FLOW_CONTROL
+					set_ready_to_receive;
+#endif
 					return 1;
 				}
 				uart_disable_read_int (u);
@@ -555,6 +589,11 @@ R_redo:
 				}
 				return 0;
 			} else {
+#if UART_OUTPUT_FLOW_CONTROL
+				if (!peer_ready_to_receive) {
+					return - 16 - 2
+				}
+#endif
 				if ((u->flags & UART_FLAGS_OUT) == 0) {
 X_redo:
 					u->out = *buf;
@@ -572,9 +611,15 @@ X_redo:
 
 			// Cleanup
 #if UART_INPUT_BUFFER_LENGTH < 2
-			if ((u->flags & UART_FLAGS_IN) == 0)
-#endif
+			if ((u->flags & UART_FLAGS_IN) == 0) {
 				uart_enable_read_int (u);
+#if UART_INPUT_FLOW_CONTROL
+				set_ready_to_receive;
+#endif
+			}
+#else
+				uart_enable_read_int (u);
+#endif
 			if ((u->flags & UART_FLAGS_OUT))
 				uart_enable_write_int (u);
 
@@ -640,20 +685,27 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 
 #if UART_INPUT_BUFFER_LENGTH > 1
 
-	register int inp;
-
-	if ((inp = ua->ib_in + 1) == UART_INPUT_BUFFER_LENGTH)
-		inp = 0;
-	if (inp != ua->ib_out) {
+	if (ua->ib_count <= UART_INPUT_BUFFER_LENGTH) {
 		// Not full
 		ua->in [ua->ib_in] = RXBUF0;
-		ua->ib_in = inp;
+		if (++(ua->ib_in) == UART_INPUT_BUFFER_LENGTH)
+			ua->ib_in = 0;
+		ua->ib_count++;
+#if UART_INPUT_FLOW_CONTROL
+		if (ua->ib_count > UART_INPUT_BUFFER_LENGTH/2)
+			clear_ready_to_receive;
+#endif
 	}
+
 	if ((ua -> flags & UART_FLAGS_IN)) {
 		RISE_N_SHINE;
 		i_trigger (ETYPE_IO, devevent (UART_A, READ));
 	}
 #else
+
+#if UART_INPUT_FLOW_CONTROL
+	clear_ready_to_receive;
+#endif
 	RISE_N_SHINE;
 
 	if ((ua -> flags & UART_FLAGS_IN)) {
@@ -698,18 +750,16 @@ interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 
 #if UART_INPUT_BUFFER_LENGTH > 1
 
-	register int inp;
-
-	if ((inp = ua->ib_in + 1) == UART_INPUT_BUFFER_LENGTH)
-		inp = 0;
-	if (inp != ua->ib_out) {
+	if (ua->ib_count <= UART_INPUT_BUFFER_LENGTH) {
 		// Not full
 		ua->in [ua->ib_in] = RXBUF0;
-		ua->ib_in = inp;
+		if (++(ua->ib_in) == UART_INPUT_BUFFER_LENGTH)
+			ua->ib_in = 0;
+		ua->ib_count++;
 	}
 	if ((ua -> flags & UART_FLAGS_IN)) {
 		RISE_N_SHINE;
-		i_trigger (ETYPE_IO, devevent (UART_A, READ));
+		i_trigger (ETYPE_IO, devevent (UART_B, READ));
 	}
 #else
 	RISE_N_SHINE;
@@ -820,6 +870,10 @@ static void devinit_uart (int devnum) {
 		_BIS (P3SEL, 0x30);	// 4, 5 special function
 		// _BIS (P3DIR, 0x10);
 		// _BIS (P3DIR, 0x20);
+#if UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
+		_BIC (P3SEL, 0xc0);	// Standard use P3.6, P3.7
+		_BIS (P3DIR, 0x80);	// P3.7 == CTS, goes out
+#endif
 		_BIS (UCTL0, SWRST);
 		_BIC (UTCTL0, SSEL1 + SSEL0);
 		_BIS (UTCTL0, utctl);
@@ -850,9 +904,13 @@ static void devinit_uart (int devnum) {
 #endif
 
 #if UART_INPUT_BUFFER_LENGTH > 1
-	zz_uart [devnum] . ib_in = zz_uart [devnum] . ib_out = 0;
+	zz_uart [devnum] . ib_count = zz_uart [devnum] . ib_in =
+		zz_uart [devnum] . ib_out = 0;
 #endif
 
+#if UART_INPUT_FLOW_CONTROL
+	set_ready_to_receive;
+#endif
 	zz_uart [devnum] . selector = devnum;
 	_BIS (zz_uart [devnum] . flags, UART_FLAGS_LOCK);
 	uart_unlock (zz_uart + devnum);
