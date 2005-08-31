@@ -325,6 +325,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_RXOFF:
 
+		adc_disable;
 		zzv_rxoff = 1;
 		LEDI (0, 0);
 		trigger (rxevent);

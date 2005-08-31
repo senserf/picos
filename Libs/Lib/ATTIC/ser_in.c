@@ -26,12 +26,16 @@ int ser_in (word st, char *buf, int len) {
 	}
 
 	/* Input available */
-	prcs = strlen (__inpline);
+	if (*__inpline == NULL) // bin cmd
+		prcs = __inpline[1] + 3; // 0x00, len, 0x04
+	else
+		prcs = strlen (__inpline);
 	if (prcs >= len)
 		prcs = len-1;
 	memcpy (buf, __inpline, prcs);
 	ufree (__inpline);
 	__inpline = NULL;
-	buf [prcs] = '\0';
+	if (*buf) // if it's NULL, it's a bin cmd
+		buf [prcs] = '\0';
 	return (st == NONE) ? 0 : prcs;
 }

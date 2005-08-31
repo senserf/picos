@@ -21,7 +21,12 @@ int ser_out (word st, const char *m) {
 		release;
 	}
 
-	if ((buf = (char*) umalloc (strlen (m) + 1)) == NULL) {
+	if (*m)
+		prcs = strlen (m) +1;
+	else
+		prcs =  m[1] + 3;
+
+	if ((buf = (char*) umalloc (prcs)) == NULL) {
 		/*
 		 * We have to wait for memory
 		 */
@@ -30,7 +35,10 @@ int ser_out (word st, const char *m) {
 		umwait (st);
 		release;
 	}
-	strcpy (buf, m);
+	if (*m)
+		strcpy (buf, m);
+	else
+		memcpy (buf, m, prcs);
 	fork (__outserial, buf);
 	return 0;
 }

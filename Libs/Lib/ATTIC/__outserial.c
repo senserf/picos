@@ -23,15 +23,20 @@ process (__outserial, const char)
 
 	static const char *ptr;
 	static int cport, len;
+	int quant;
 
   entry (OM_INIT)
 
 	ptr = data;
 	cport = __serial_port;
+	if (*ptr)
+		len = strlen (ptr);
+	else
+		len = ptr[1] +3; // 3: 0x00, len, 0x04
 
   entry (OM_WRITE)
 
-	if ((len = strlen (ptr)) == 0) {
+	if (len == 0) {
 		/* This is always a fresh buffer allocated dynamically */
 		ufree (data);
 		finish;
@@ -39,12 +44,9 @@ process (__outserial, const char)
 
   entry (OM_RETRY)
 
-	// In case of a race-missed wakeup, retstart us after 1 msec. Note
-	// that writing a character at 9600 bps will take less than that.
-	// This shouldn't be necessary: I think I've eliminated the race
-	// delay (1, OM_RETRY);
-	ptr += io (OM_RETRY, cport, WRITE, (char*)ptr, len);
-
+	quant = io (OM_RETRY, cport, WRITE, (char*)ptr, len);
+	ptr += quant;
+	len -= quant;
 	proceed (OM_WRITE);
 
 endprocess (1)

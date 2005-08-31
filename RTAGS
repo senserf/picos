@@ -150,3 +150,11 @@ R050820B:
 
 	Attempts at flow control (the code is present, but the signals are not
 	visible on the DB9). I am checking it in for the record - no harm.
+
+R050830A:
+
+	Added RTag_RFM, the 1st iteration sent to RFM.
+	In Libs/Lib, ser_out, ser_in, __outserial, __inserial were modified
+	with bin cmd kludges.
+	phys_dm2100.c: adc_disable added to PHYSOPT_RXOFF handling.
+

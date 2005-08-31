@@ -18,6 +18,7 @@ extern int __serial_port;
 
 #define	IM_INIT		00
 #define	IM_READ		10
+#define IM_BIN		20
 
 process (__inserial, void)
 /* ============================== */
@@ -26,6 +27,7 @@ process (__inserial, void)
 
 	static char *tmp, *ptr;
 	static int len, cport;
+	int quant;
 
 	nodata;
 
@@ -49,9 +51,17 @@ process (__inserial, void)
   entry (IM_READ)
 
 	io (IM_READ, cport, READ, ptr, 1);
-	if (*ptr == '\n' && ptr == tmp)
-		/* Ignore new-lines at the beginning of line */
-		proceed (IM_READ);
+	if (ptr == tmp) { // new line
+		if (*ptr == NULL) { // bin cmd
+			ptr++;
+			len--;
+			proceed (IM_BIN);
+		}
+
+		if (*ptr < 0x20)
+			/* Ignore codes below space at the beginning of line */
+			proceed (IM_READ);
+	}
 	if (*ptr == '\n' || *ptr == '\r') {
 		*ptr = '\0';
 		__inpline = tmp;
@@ -65,7 +75,25 @@ process (__inserial, void)
 
 	proceed (IM_READ);
 
+  entry (IM_BIN)
+	io (IM_BIN, cport, READ, ptr, 1);
+	if (--len > *ptr +1) // 1 for 0x04
+		len = *ptr +1;
+	ptr++;
+
+  entry (IM_BIN +1)
+	quant = io (IM_BIN +1, cport, READ, ptr, len);
+	len -= quant;
+	if (len == 0) {
+		__inpline = tmp;
+		finish;
+	}
+	ptr += quant;
+	proceed (IM_BIN +1);
+
 endprocess (1)
 
 #undef	IM_INIT
 #undef	IM_READ
+#undef  IM_BIN
+
