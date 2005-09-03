@@ -376,8 +376,8 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #endif	/* RADIO_INTERRUPTS */
 
 		if (zz_lostk & 1024) {
-			// Run the scheduler at least once every second - to keep the
-			// second clock up to date
+			// Run the scheduler at least once every second - to
+			// keep the second clock up to date
 			RISE_N_SHINE;
 			return;
 		}

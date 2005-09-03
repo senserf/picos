@@ -107,7 +107,7 @@ if (chipcon_int) {
 			*zzr_buffp = 0;
 			LEDI (2, 1);
 			zzv_istate = IRQ_RCV;
-			adc_enable;
+			adc_start;
 		}
 		break;
 
@@ -135,10 +135,9 @@ if (chipcon_int) {
 		} else {
 			// End of packet
 			RISE_N_SHINE;
+			adc_stop;
 			adc_disable;
 				// Collect RSSI
-			zzr_rssi = adc_value;
-			add_entropy (zzr_rssi);
 			zzv_status = 0;
 			clr_xcv_int;
 			zzr_length = zzr_buffp - zzr_buffer;

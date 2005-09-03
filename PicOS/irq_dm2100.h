@@ -297,6 +297,7 @@
 					zzv_istate = IRQ_RPR;
 					return;
 				}
+				// Begin collecting RSSI after the start vector
 				adc_start;
 				LEDI (2, 1);
 				// Start the packet
@@ -388,9 +389,6 @@ REND:
 			++zzr_buffp;
 		RISE_N_SHINE;
 		adc_stop;
-		// Collect RSSI
-		zzr_rssi = adc_value;
-		add_entropy (zzr_rssi);
 		zzv_status = 0;
 		zzr_length = zzr_buffp - zzr_buffer;
 		zzr_buffp = NULL;

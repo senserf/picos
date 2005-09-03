@@ -21,13 +21,9 @@ word		*zzr_buffer = NULL,
 		*zzx_buffp,	// Next buffer word
 		*zzx_buffl,	// LWA+1 of xmit buffer
 		zzv_tmaux,	// To store previous value of signal timer
-		zzr_rssi,
 		zzv_qevent,
 		zzv_physid,
 		zzv_statid,
-		zzx_delmnbkf,		// Minimum backoff
-		zzx_delbsbkf,		// Backof mask for random component
-		zzx_delxmspc,		// Minimum xmit packet space
 		zzx_seed,		// For the random number generator
 		zzx_backoff;		// Calculated backoff for xmitter
 
@@ -148,7 +144,6 @@ static INLINE void xmt_enable (void) {
 static INLINE void rcv_enable (void) {
 
 	rssi_on;
-	adc_enable;
 	c0up;
 	c1up;
 }
@@ -199,13 +194,12 @@ static void hstat (word status) {
 	}
 }
 
-static byte rssi_cnv (void) {
+static byte rssi_cnv (word v) {
 /*
  * Converts the RSSI to a single byte 0-255
  */
-	int v;
 
-	v = zzr_rssi;
+	add_entropy (v);
 
 #if RSSI_MIN >= 0x8000
 	// RSSI is signed
@@ -216,7 +210,7 @@ static byte rssi_cnv (void) {
 #if RSSI_MIN != 0
 	v -= RSSI_MIN;
 #endif
-	return (byte) ((v - (int) RSSI_MIN) >> RSSI_SHF);
+	return (byte) (((int) v - (int) RSSI_MIN) >> RSSI_SHF);
 }
 
 #include "xcvcommon.h"
@@ -250,16 +244,11 @@ void phys_dm2100 (int phy, int mbs) {
 
 	zzv_status = 0;
 
-	zzr_rssi = 0;
 	zzv_statid = 0;
 	zzv_physid = phy;
 	zzx_backoff = 0;
 
 	zzx_seed = 12345;
-
-	zzx_delmnbkf = RADIO_DEF_MNBACKOFF;
-	zzx_delxmspc = RADIO_DEF_XMITSPACE;
-	zzx_delbsbkf = RADIO_DEF_BSBACKOFF;
 
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2100);
@@ -325,9 +314,9 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_RXOFF:
 
-		adc_disable;
 		zzv_rxoff = 1;
 		LEDI (0, 0);
+		adc_disable;
 		trigger (rxevent);
 		break;
 
@@ -343,7 +332,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SENSE:
 
-		ret = 0;
+		ret = receiver_busy;
 		break;
 
 	    case PHYSOPT_SETPOWER:
@@ -353,7 +342,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_GETPOWER:
 
-		ret = ((int) rssi_cnv ()) & 0xff;
+		ret = ((int) rssi_cnv (adc_value)) & 0xff;
 
 		if (val != NULL)
 			*val = ret;
@@ -365,48 +354,10 @@ static int option (int opt, address val) {
 		zzv_statid = (val == NULL) ? 0 : *val;
 		break;
 
-	    case PHYSOPT_SETPARAM:
+	    default:
 
-#define	pinx	(*val)
-		/*
-		 * This is the parameter index. The parameters are numbered:
-		 *
-		 *    0 - minimum backoff (min = 0 msec)
-		 *    1 - backoff mask bits (from 1 to 15)
-		 *    2 - xmit packet space (min = 0, max = 256 msec)
-		 */
-#define pval	(*(val + 1))
-		/*
-		 * This is the value. We do some checking here and make sure
-		 * that the values are within range.
-		 */
-		switch (pinx) {
-			case 0:
-				if (pval > 32767)
-					pval = 32767;
-				zzx_delmnbkf = pval;
-				break;
-			case 1:
-				if (pval > 15)
-					pval = 15;
-				if (pval)
-					pval = (1 << pval) - 1;
-				zzx_delbsbkf = pval;
-				break;
-			case 2:
-				if (pval > 256)
-					pval = 256;
-				if ((zzx_delxmspc = pval) >
-				    zzx_delmnbkf)
-					zzx_delmnbkf = pval;
-				break;
-			default:
-				syserror (EREQPAR, "options radio param index");
-		}
-#undef	pinx
-#undef	pval
-		ret = 1;
-		break;
+		syserror (EREQPAR, "phys_dm2100 option");
+
 	}
 	return ret;
 }
@@ -414,7 +365,7 @@ static int option (int opt, address val) {
 /*
  * Pin access operations
  */
-int pin_get_adc (word pin, word ref, word smpt) {
+int pin_get_adc (word state, word pin, word ref, word smpt) {
 /*
  * pin == 0-7 (corresponds to to P6.0-P6.7)
  * ref == 0 (1.5V) or 1 (2.5V)
@@ -425,17 +376,31 @@ int pin_get_adc (word pin, word ref, word smpt) {
 	if (pin == 0 || pin > 7)
 		syserror (EREQPAR, "phys_dm2100 pin_get_adc");
 
-	if (adc_inuse)
-		// We never interfere with the receiver
-		return -1;
+	if (adc_inuse) {
+		if (adc_rcvmode)
+			// We never interfere with the receiver
+			return -1;
+		goto End;
+	}
 
 	// Take over and reset the ADC
-	adc_config_read (pin, ref, smpt);
-	adc_enable;
-	udelay (12);
+	adc_config_read (pin, ref);
 	adc_start;
-	udelay (12);
+
+	if (smpt == 0)
+		smpt = 1;
+
+	if (state != NONE) {
+		delay (smpt, state);
+		release;
+	}
+
+	mdelay (smpt);
+
+End:
+	adc_stop;
 	adc_wait;
+
 	res = (int) adc_value;
 
 	// Restore RSSI setting

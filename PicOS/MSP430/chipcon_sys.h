@@ -126,14 +126,18 @@
 		_BIC (ADC12CTL0, ENC); \
 		_BIC (P6DIR, 1 << 5); \
 		_BIS (P6SEL, 1 << 5); \
-		ADC12CTL1 = ADC12DIV_0 + ADC12SSEL_1 + SHP; \
+		ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
 		ADC12MCTL0 = EOS + SREF_1 + INCH_5; \
-		ADC12CTL0 = SHT0_2 + SHT1_2 + REFON + ADC12ON + ENC; \
+		ADC12CTL0 = REFON + ADC12ON; \
 	} while (0)
 
-#define	adc_enable	_BIS (ADC12CTL0, ADC12SC)
+#define	adc_start	_BIS (ADC12CTL0, ADC12SC + ENC)
+#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
 // This is just in case
-#define	adc_disable	while ((ADC12CTL1 & ADC12BUSY))
+#define	adc_disable	do { \
+				while ((ADC12CTL1 & ADC12BUSY)); \
+				_BIC (ADC12CTL0, ENC); \
+			}
 #define	adc_value	ADC12MEM0
 
 #define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)

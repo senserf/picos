@@ -14,9 +14,7 @@
 /*
  * These values are merely defaults changeable with tcv_control
  */
-#define	RADIO_DEF_MNBACKOFF	32	/* Minimum backoff */
 #define	RADIO_DEF_XMITSPACE	8	/* Space between xmitted packets */
-#define	RADIO_DEF_BSBACKOFF	0xff	/* Randomized component */
 #define RADIO_DEF_CHECKSUM	1	/* Checksum present */
 #define	RADIO_DEF_BITRATE	384	/* This is /100 */
 #define	RADIO_DEF_XPOWER	1	/* Default transmit power */
@@ -85,8 +83,8 @@
 
 #define	gbackoff	do { \
 				zzx_seed = (zzx_seed + 1) * 6789; \
-				zzx_backoff = zzx_delmnbkf + \
-					(zzx_seed & zzx_delbsbkf); \
+				zzx_backoff = MIN_BACKOFF + \
+					(zzx_seed & MSK_BACKOFF); \
 			} while (0)
 
 #define	start_rcv	do { \
@@ -113,9 +111,8 @@
 
 extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl, zzr_length,
 		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_curbit,
-		zzv_status, zzv_prmble,	zzv_istate, zzr_rssi,
+		zzv_status, zzv_prmble,	zzv_istate,
 		zzv_qevent, zzv_physid, zzv_statid,
-	 	zzx_delmnbkf, zzx_delbsbkf, zzx_delxmspc,
 		zzx_seed, zzx_backoff;
 
 extern byte 	zzv_rxoff, zzv_txoff, zzv_hstat, zzx_power;

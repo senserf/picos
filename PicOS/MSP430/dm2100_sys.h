@@ -209,16 +209,13 @@
  * ADC12 used for RSSI collection: source on A0 == P6.0, single sample,
  * triggered by ADC12SC
  * 
- *	ADC12CTL0 =     SHT0_2 +	// 16 ADC12CLOCKs sample holding time
- *		        SHT1_2 +	// 16 ADC12CLOCKs sample holding time
- *	                 REFON +	// Internal reference
+ *	ADC12CTL0 =      REFON +	// Internal reference
  *                     REF2_5V +	// 2.5 V for reference
  *		       ADC12ON +	// ON
  *			   ENC +	// Enable conversion
  *
- *	ADC10CTL1 = ADC12DIV_0 +	// Clock (ACLK) divided by 1
- *		   ADC12SSEL_1 +	// ACLK
- *                         SHP +	// Pulse sampling
+ *	ADC10CTL1 = ADC12DIV_6 +	// Clock (SMCLK) divided by 7
+ *		   ADC12SSEL_3 +	// SMCLK
  *
  *      ADC12MCTL0 =       EOS +	// Last word
  *		        SREF_1 +	// Vref - Vss
@@ -229,46 +226,40 @@
  * twice that long, so we should be safe.
  */
 #define	adc_config_rssi		do { \
-			_BIC (ADC12CTL0, ENC); \
-			_BIC (P6DIR, 1 << 0); \
-			_BIS (P6SEL, 1 << 0); \
-			ADC12CTL1 = ADC12DIV_0 + ADC12SSEL_1 + SHP; \
-			ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
-			ADC12CTL0 = SHT0_2 + SHT1_2 + REF2_5V + ADC12ON; \
+					_BIC (ADC12CTL0, ENC); \
+					_BIC (P6DIR, 1 << 0); \
+					_BIS (P6SEL, 1 << 0); \
+					ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
+					ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
+					ADC12CTL0 = REF2_5V + ADC12ON; \
 				} while (0)
 
 /*
  * ADC configuration for polled sample collection
  */
-#define	adc_config_read(p,r,t)	do { \
-			_BIC (ADC12CTL0, ENC); \
-			_BIC (P6DIR, 1 << (p)); \
-			_BIS (P6SEL, 1 << (p)); \
-			ADC12CTL1 = ADC12DIV_0 + ADC12SSEL_1 + SHP; \
-			ADC12MCTL0 = EOS + SREF_1 + (p); \
-			ADC12CTL0 = ((t) <=  4 ?  0 : \
-				    ((t) <=  8 ?  1 : \
-				    ((t) <= 16 ?  2 : \
-				    ((t) <= 32 ?  3 : \
-				     4 ))) ) + \
-				    ((r) ? REF2_5V : 0) + \
-				    REFON + ADC12ON; \
+#define	adc_config_read(p,r)	do { \
+					_BIC (ADC12CTL0, ENC); \
+					_BIC (P6DIR, 1 << (p)); \
+					_BIS (P6SEL, 1 << (p)); \
+					ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_3; \
+					ADC12MCTL0 = EOS + SREF_1 + (p); \
+					ADC12CTL0 = ((r) ? REF2_5V : 0) + \
+				    		REFON + ADC12ON; \
 				} while (0)
 
-
-#define	adc_wait	do { } while (ADC12CTL1 & ADC12BUSY)
-
-#define adc_enable	ADC12CTL0 |=  (REFON + ENC)
-
-#define	adc_disable	do { \
-				_BIC (ADC12CTL0, ENC); \
-				_BIC (ADC12CTL0, REFON); \
+#define	adc_wait	do { \
+				while (ADC12CTL1 & ADC12BUSY); \
+				adc_disable; \
 			} while (0)
-
 #define	adc_inuse	(ADC12CTL0 & REFON)
-#define	adc_start	_BIS (ADC12CTL0, ADC12SC)
-#define	adc_stop	do { } while (0)
 #define	adc_value	ADC12MEM0
+#define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
+#define	adc_disable	 _BIC (ADC12CTL0, ENC + REFON)
+#define	adc_start	do { \
+				adc_disable; \
+				_BIS (ADC12CTL0, ADC12SC + REFON + ENC); \
+			} while (0)
+#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
 
 #define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
 #define	RSSI_MAX	0x0fff

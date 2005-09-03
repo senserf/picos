@@ -9,12 +9,8 @@
  * Common code of CHIPCON and DM transveiver driver
  */
 
-#define	RCV_GETIT	0
-#define	RCV_CHECKIT	1
-
-#ifndef	LBS_TIME
-#define	LBS_TIME	0
-#endif
+#define	RCV_GETIT		0
+#define	RCV_CHECKIT		1
 
 static process (rcvradio, void)
 
@@ -53,21 +49,22 @@ Finish:
 
     entry (RCV_CHECKIT)
 
-	/* Tell the receiver to stop in case we have been interrupted */
 	if (receiver_active) {
+		/*
+		 * Abort the reception if we have been interrupted, e.g.,
+		 * by an RXOFF request
+		 */
 		hard_lock;
 		zzr_buffp = NULL;
 		if (receiver_active) {
 			zzv_status = 0;
 			zzv_istate = IRQ_OFF;
 			disable_xcv_timer;
-			gbackoff;
 		}
 		hard_drop;
 	}
 
 	if (zzv_rxoff)
-		/* rcvevent can be also triggered by this */
 		goto Finish;
 
 #if 0
@@ -93,7 +90,8 @@ Finish:
 	if (w_chk (zzr_buffer, zzr_length))
 		proceed (RCV_GETIT);
 	 /* Return RSSI in the last checksum byte */
-	zzr_buffer [zzr_length - 1] = (word) rssi_cnv ();
+	adc_wait;
+	zzr_buffer [zzr_length - 1] = (word) rssi_cnv (adc_value);
 
 	tcvphy_rcv (zzv_physid, zzr_buffer, zzr_length << 1);
 
@@ -117,6 +115,7 @@ static INLINE void xmt_down (void) {
 	
 #define	XM_LOOP		0
 #define XM_TXDONE	1
+#define	XM_LBS		2
 
 static process (xmtradio, void)
 
@@ -162,11 +161,25 @@ Drain:
 
 	hard_lock;
 	if (receiver_busy) {
+		// We are receiving. This means the start vector has been
+		// recognized. Do not interfere now.
 		hard_drop;
-		delay (zzx_delmnbkf, XM_LOOP);
+		delay (MIN_BACKOFF, XM_LOOP);
 		wait (zzv_qevent, XM_LOOP);
 		release;
 	}
+
+#if LBT_DELAY > 0
+	if (receiver_active) {
+		// LBS requires the receiver to be listening
+		adc_start;
+		hard_drop;
+		delay (LBT_DELAY, XM_LBS);
+		release;
+	}
+#endif
+
+Xmit:
 	LEDI (2, 0);
 	if ((zzx_buffp = tcvphy_get (zzv_physid, &stln)) != NULL) {
 
@@ -215,11 +228,11 @@ Drain:
 	diag ("SND: DONE (%x)", (word) zzx_buffp);
 #endif
 
-#if LBS_TIME == 0
-	// This is to reduce the risk of multiple transmitters livelocks
+#if LBT_DELAY == 0
+	// This is to reduce the risk of multiple transmitters livelocks; not
+	// needed with LBS
 	gbackoff;
 #endif
-
 	/* Restart a pending reception */
 	hard_lock;
 	if (zzr_buffp != NULL) {
@@ -233,8 +246,6 @@ Drain:
 		hard_drop;
 		/* The receiver is running at this point */
 		tcvphy_end (zzx_buffer);
-		/* Delay for a while before next transmission */
-		delay (zzx_delmnbkf, XM_LOOP);
 	} else {
 		/* This is void: receiver is not active */
 		hard_drop;
@@ -242,14 +253,47 @@ Drain:
 		tcvphy_end (zzx_buffer);
 		if (tcvphy_top (zzv_physid)) {
 			/* More to xmit: keep the transmitter up */
-			delay (zzx_delxmspc, XM_LOOP);
+			delay (MIN_BACKOFF, XM_LOOP);
 			release;
 		}
 		/* Shut down the transmitter */
 		hstat (HSTAT_SLEEP);
-		delay (zzx_delxmspc, XM_LOOP);
 	}
+	delay (MIN_BACKOFF, XM_LOOP);
 	release;
+
+#if LBT_DELAY > 0
+
+    entry (XM_LBS)
+
+	hard_lock;
+	if (receiver_busy) {
+		hard_drop;
+		delay (MIN_BACKOFF, XM_LOOP);
+		wait (zzv_qevent, XM_LOOP);
+		release;
+	}
+
+	if (!receiver_active)
+		goto Xmit;
+
+	adc_stop;
+	adc_wait;
+	if (adc_value < (LBT_THRESHOLD * (4096 / 16))) {
+#if 0
+		diag ("O %u", adc_value);
+#endif
+		goto Xmit;
+	}
+	hard_drop;
+	// Backoff
+	gbackoff;
+#if 0
+diag ("D %u %u", adc_value, zzx_backoff);
+#endif
+	proceed (XM_LOOP);
+		
+#endif
 
     nodata;
 

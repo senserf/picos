@@ -217,8 +217,8 @@ void phys_radio (int phy, int mod, int mbs) {
 	radio -> physid = phy;
 	radio -> backoff = 0;
 
-	radio->delmnbkf = RADIO_DEF_MNBACKOFF;
-	radio->delbsbkf = RADIO_DEF_BSBACKOFF;
+	radio->delmnbkf = MIN_BACKOFF;
+	radio->delbsbkf = MSK_BACKOFF;
 	radio->delxmsen = RADIO_DEF_TCVSENSE;
 
 	/* Register the phy */

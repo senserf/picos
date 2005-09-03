@@ -158,3 +158,24 @@ R050830A:
 	with bin cmd kludges.
 	phys_dm2100.c: adc_disable added to PHYSOPT_RXOFF handling.
 
+R050903A:
+
+	ADC cleanups, change from pulse mode to extended sample mode. The ADC
+	clock changed to SMCLK - to make it independent of the ACLK crystal.
+	This is in preparation for the truly dual crystal version.
+	pin_get_adc (word, word, word, word) has a new argument. The first
+	argument is the state to resume the function after signal collection.
+	If the state is NULL, the function busy-waits for the result.
+
+	LBT (Listen Before Transmit). Two option.sys parameters:
+	LBT_DELAY (default == 0, meaning no LBT). Specifies the number of
+	milliseconds (1/1024s) to delay before a transmission.
+	LBT_THRESHOLD (default == 2). A value between 0 and 16 specifying
+	the RSSI threshold. LBT only works if the receiver is active, and it
+	does not damage a reception, should it occur during the waiting
+	period. My experiments suggest that LBT_DELAY == 8 and LBT_THRESHOLD
+	== 2 are not bad.
+
+	RF options cleaned. Removed the dynamically settable backoff options
+	and turned into compilation constants (see sysio.h). The only dynamic
+	option that can affect the backoff is PHYSOPT_CAV.

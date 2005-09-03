@@ -89,7 +89,8 @@
 				fd.ssm.ex_ctrl.adc_rst_clr = 1; \
 			} while (0)
 
-#define	adc_enable	(fd.ssm.cfg.adc_en = 1)
+#define	adc_start	(fd.ssm.cfg.adc_en = 1)
+#define	adc_stop	do { } while (0)
 #define	adc_disable	(fd.ssm.cfg.adc_en = 0)
 #define	adc_value	fd.adc.sts.data
 

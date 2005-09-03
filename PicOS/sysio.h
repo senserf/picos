@@ -182,6 +182,31 @@
 #define	DM2100			0
 #endif
 
+#ifndef	LBT_DELAY
+// Listen Before Transmit delay (0 disables)
+#define	LBT_DELAY		8
+#endif
+
+#ifndef	LBT_THRESHOLD
+// Listen Before Transmit RSSI threshold (quantized into levels 0-16)
+#define	LBT_THRESHOLD		2
+#endif
+
+#ifndef	MIN_BACKOFF
+// Minimum backoff of the transmitter (whenever it concludes that a transmission
+// would not be appropriate at the moment)
+#define	MIN_BACKOFF		8
+#endif
+
+#ifndef	MSK_BACKOFF
+// Backoff mask for the randomized component. Random backoff is generated as
+// MIN_BACKOFF + (random & MSK_BACKOFF)
+#define	MSK_BACKOFF		0xff
+#endif
+
+
+
+
 #if	CHIPCON
 #ifndef	CHIPCON_FREQ
 // Default Chipcon frequency. 868 is another option.

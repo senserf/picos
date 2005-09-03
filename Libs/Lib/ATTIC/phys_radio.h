@@ -9,8 +9,6 @@
 /*
  * These values are merely defaults changeable with tcv_control
  */
-#define	RADIO_DEF_MNBACKOFF	32	/* Minimum backoff */
-#define	RADIO_DEF_BSBACKOFF	0xff	/* Randomized component */
 #define	RADIO_DEF_TCVSENSE	4	/* Pre-Tx activity sense time */
 
 #define	RADIO_POST_SPACE	1	/* Milliseconds */

@@ -136,6 +136,10 @@ process (receiver, void)
   entry (RC_SACK)
 
 	if (XMTon) {
+		if (memfree (1, NULL) < 64) {
+			waitmem (1, RC_SACK);
+			release;
+		}
 		packet = tcv_wnp (RC_SACK, sfd, 12);
 		packet [0] = 0;
 		packet [1] = PKT_ACK;
@@ -231,6 +235,10 @@ process (sender, void)
 		finish;
 	}
 	wait ((word) &tkillflag, SN_SEND);
+	if (memfree (1, NULL) < 128) {
+		waitmem (1, SN_NEXT);
+		release;
+	}
 
 	packet = tcv_wnp (SN_NEXT, sfd, 12);
 	packet [0] = 0;
@@ -606,11 +614,14 @@ process (root, int)
 	p [0] = 0;
 	p [1] = 0;
 	scan (ibuf + 1, "%u %u", p+0, p+1);
-	p [0] = pin_get_adc (p [0], p [1], 4);
 
   entry (RS_GADC+1)
 
-	ser_outf (RS_GADC+1, "Value: %u\r\n", p [0]);
+	p [0] = pin_get_adc (RS_GADC+1, p [0], p [1], 4);
+
+  entry (RS_GADC+2)
+
+	ser_outf (RS_GADC+2, "Value: %u\r\n", p [0]);
 	proceed (RS_RCMD);
 
   entry (RS_SPIN)

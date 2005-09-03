@@ -25,13 +25,9 @@ word		*zzr_buffer = NULL,
 		zzv_curbit,	// Current bit index
 		zzv_status,	// Current interrupt mode (rcv/xmt/off)
 		zzv_prmble,	// Preamble counter
-		zzr_rssi,
 		zzv_qevent,
 		zzv_physid,
 		zzv_statid,
-	 	zzx_delmnbkf,	// Minimum backoff
-		zzx_delbsbkf,	// Backof mask for random component
-		zzx_delxmspc,	// Minimum xmit packet space
 		zzx_seed,	// For the random number generator
 		zzx_backoff;	// Calculated backoff for xmitter
 
@@ -479,13 +475,11 @@ static void hstat (word status) {
 
 /* ========================================= */
 
-static byte rssi_cnv (void) {
+static byte rssi_cnv (word v) {
 /*
  * Converts the RSSI to a single byte 0-255
  */
-	int v;
-
-	v = zzr_rssi;
+	add_entropy (v);
 
 #if RSSI_MIN >= 0x8000
 	// RSSI is signed
@@ -497,7 +491,7 @@ static byte rssi_cnv (void) {
 	v -= RSSI_MIN;
 #endif
 	// Higher RSSI means lower signal level
-	return (byte) ((((int)RSSI_MAX - (int)RSSI_MIN) - v) >> RSSI_SHF);
+	return (byte) ((((int)RSSI_MAX - (int)RSSI_MIN) - (int) v) >> RSSI_SHF);
 }
 
 #include "xcvcommon.h"
@@ -533,17 +527,12 @@ void phys_chipcon (int phy, int mbs, int bau) {
 	zzv_status = 0;
 
 	zzx_power = RADIO_DEF_XPOWER;
-	zzr_rssi = 0;
 
 	zzv_statid = 0;
 	zzv_physid = phy;
 	zzx_backoff = 0;
 
 	zzx_seed = 12345;
-
-	zzx_delmnbkf = RADIO_DEF_MNBACKOFF;
-	zzx_delxmspc = RADIO_DEF_XMITSPACE;
-	zzx_delbsbkf = RADIO_DEF_BSBACKOFF;
 
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CHIPCON);
@@ -639,7 +628,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_GETPOWER:
 
-		ret = ((int) rssi_cnv ()) & 0xff;
+		ret = ((int) rssi_cnv (adc_value)) & 0xff;
 
 		if (val != NULL)
 			*val = ret;
@@ -651,48 +640,9 @@ static int option (int opt, address val) {
 		zzv_statid = (val == NULL) ? 0 : *val;
 		break;
 
-	    case PHYSOPT_SETPARAM:
+	    default:
 
-#define	pinx	(*val)
-		/*
-		 * This is the parameter index. The parameters are numbered:
-		 *
-		 *    0 - minimum backoff (min = 0 msec)
-		 *    1 - backoff mask bits (from 1 to 15)
-		 *    2 - xmit packet space (min = 0, max = 256 msec)
-		 */
-#define pval	(*(val + 1))
-		/*
-		 * This is the value. We do some checking here and make sure
-		 * that the values are within range.
-		 */
-		switch (pinx) {
-			case 0:
-				if (pval > 32767)
-					pval = 32767;
-				zzx_delmnbkf = pval;
-				break;
-			case 1:
-				if (pval > 15)
-					pval = 15;
-				if (pval)
-					pval = (1 << pval) - 1;
-				zzx_delbsbkf = pval;
-				break;
-			case 2:
-				if (pval > 256)
-					pval = 256;
-				if ((zzx_delxmspc = pval) >
-				    zzx_delmnbkf)
-					zzx_delmnbkf = pval;
-				break;
-			default:
-				syserror (EREQPAR, "options radio param index");
-		}
-#undef	pinx
-#undef	pval
-		ret = 1;
-		break;
+		syserror (EREQPAR, "phys_chipcon option");
 	}
 	return ret;
 }

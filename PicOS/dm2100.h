@@ -16,14 +16,6 @@
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
 
-/*
- * These values are defaults changeable with tcv_control
- */
-#define	RADIO_DEF_MNBACKOFF	32	/* Minimum backoff */
-#define	RADIO_DEF_XMITSPACE	8	/* Space between xmitted packets */
-#define	RADIO_DEF_BSBACKOFF	0xff	/* Randomized component */
-
-
 #define	TRA(len)	switch ((len)) { \
 				case 0:	 SL1; break; \
 				case 1:  SL2; break; \
@@ -64,8 +56,8 @@
 
 #define	gbackoff	do { \
 				zzx_seed = (zzx_seed + entropy + 1) * 6789; \
-				zzx_backoff = zzx_delmnbkf + \
-					(zzx_seed & zzx_delbsbkf); \
+				zzx_backoff = MIN_BACKOFF + \
+					(zzx_seed & MSK_BACKOFF); \
 			} while (0)
 
 #define	start_rcv	do { \
@@ -84,17 +76,13 @@
 				enable_xmt_timer; \
 			} while (0)
 
-
 #define receiver_busy	(zzv_istate > IRQ_RPR)
-
-
 #define	receiver_active	(zzv_status == HSTAT_RCV)
 #define	xmitter_active	(zzv_status == HSTAT_XMT)
 
 extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl,
-		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_tmaux, zzr_rssi,
-		zzv_qevent, zzv_physid, zzv_statid, zzx_delmnbkf,	
-		zzx_delbsbkf, zzx_delxmspc, zzx_seed, zzx_backoff;
+		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_tmaux,
+		zzv_qevent, zzv_physid, zzv_statid, zzx_seed, zzx_backoff;
 
 extern byte	zzv_status, zzv_istate, zzv_prmble, zzv_curbit, zzr_length,
 		zzv_curnib, zzv_cursym, zzv_rxoff, zzv_txoff;
