@@ -46,51 +46,6 @@ void	zz_malloc_init (void);
 
 #endif
 
-#if 1	 /* BEGIN CRYSTAL KLUDGE */
-
-#if UART_RATE == 19200
-#ifndef	HIGH_CRYSTAL_RATE
-#error "HIGH_CRYSTAL_RATE must be defined for 19200 bps"
-#endif
-#if HIGH_CRYSTAL_RATE == 0
-#error "HIGH_CRYSTAL_RATE cannot be zero for 19200 bps"
-#endif
-#endif
-
-#ifndef	HIGH_CRYSTAL_RATE
-#define	HIGH_CRYSTAL_RATE	0
-#endif
-
-#if	HIGH_CRYSTAL_RATE == 0
-#define	TIMER_B_INIT_HIGH	3	/* 4 - 1 for 32768 kHz */
-#define	TIMER_B_INIT_LOW	4095
-#endif
-
-#if	HIGH_CRYSTAL_RATE == 1
-#define	TIMER_B_INIT_HIGH	121	/* 1 MHz crystal */
-#define	TIMER_B_INIT_LOW	TIMER_B_INIT_HIGH
-#endif
-
-#if	HIGH_CRYSTAL_RATE == 4
-#define	TIMER_B_INIT_HIGH	487	/* 4 MHz crystal */
-#define	TIMER_B_INIT_LOW	TIMER_B_INIT_HIGH
-#endif
-
-#if	HIGH_CRYSTAL_RATE == 8
-#define	TIMER_B_INIT_HIGH	976	/* 8 MHz crystal */
-#define	TIMER_B_INIT_LOW	TIMER_B_INIT_HIGH
-#endif
-
-#ifndef TIMER_B_INIT_HIGH
-#error "HIGH_CRYSTAL_RATE can be 0, 1, 4, or 8"
-#endif
-
-#else	/* CRYSTAL KLUDGE */
-
-#define	TIMER_B_INIT_HIGH	3
-
-#endif	/* END CRYSTAL KLUDGE */
-
 static void	devinit_uart (int);
 #endif	/* UART_DRIVER */
 
@@ -122,7 +77,7 @@ void powerup (void) {
 }
 
 void clockdown (void) {
-	TBCCR0 = TIMER_B_INIT_LOW;	// 1 tick per second
+	TBCCR0 = TIMER_B_INIT_LOW;	// 1 or 16 ticks per second
 }
 
 void clockup (void) {
@@ -273,12 +228,10 @@ static void ssm_init () {
 	DCOCTL = DCO2 + DCO1 + DCO0;
 	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF
 
-#if 1	/* BEGIN CRYSTAL KLUDGE */
-#if	TIMER_B_INIT_HIGH == TIMER_B_INIT_LOW
+#if	CRYSTAL_RATE != 32768
 	// We are using a high-speed crystal
 		+ XTS
 #endif
-#endif	/* END CRYSTAL KLUDGE */
 
 	;
 	// Measured MCLK is ca. 4.5 MHz
@@ -375,15 +328,11 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #endif	/* XEMICS */
 #endif	/* RADIO_INTERRUPTS */
 
-		if (zz_lostk & 1024) {
-			// Run the scheduler at least once every second - to
-			// keep the second clock up to date
+		// Run the scheduler at least once every second - to
+		// keep the second clock up to date
+		if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))
 			RISE_N_SHINE;
-			return;
-		}
 
-		if (zz_mintk && zz_mintk <= zz_lostk)
-			RISE_N_SHINE;
 		return;
 	}
 
@@ -397,8 +346,13 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 	UTIMS_CASCADE(2);
 	UTIMS_CASCADE(3);
 	}}}}
-	zz_lostk += JIFFIES;
-	RISE_N_SHINE;
+
+	zz_lostk += JIFFIES/TIMER_B_LOW_PER_SEC;
+
+#if TIMER_B_LOW_PER_SEC > 1
+	if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))
+#endif
+		RISE_N_SHINE;
 }
 
 static void mem_init () {
@@ -789,8 +743,11 @@ static int ioreq_uart_b (int op, char *b, int len) {
 /* =========== */
 static void devinit_uart (int devnum) {
 
-#define	ubr1		0
 #define	utctl		SSEL0
+
+#if	CRYSTAL_RATE == 32768
+// This is the standard (or perhaps not any more?)
+#define	ubr1		0
 
 #if UART_RATE == 1200
 #define	ubr0		0x1B
@@ -812,37 +769,22 @@ static void devinit_uart (int devnum) {
 #define	umctl		0x4A
 #endif
 
-#if UART_RATE == 19200
-
-#ifndef	HIGH_CRYSTAL_RATE
-#error "HIGH_CRYSTAL_RATE must be defined for 19200 bps"
-#endif
-#if HIGH_CRYSTAL_RATE == 0
-#error "HIGH_CRYSTAL_RATE cannot be zero for 19200 bps"
+#ifndef ubr0
+#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
 #endif
 
-#if	HIGH_CRYSTAL_RATE == 1
-#define ubr0		0x34
-#define umctl		0x20
+#else	/* CRYSTAL_RATE > 32768 */
+
+#if UART_RATE < 1200 || UART_RATE > 38400
+#error "Illegal UART_RATE, must be between 1200 and 38400"
 #endif
 
-#if	HIGH_CRYSTAL_RATE == 4
-#define ubr0		0xD0
-#define umctl		0x4A
-#endif
+// No need to use corrections for high-speed crystals
+#define	umctl		0
+#define	ubr0		((CRYSTAL_RATE/UART_RATE) % 256)
+#define	ubr1		((CRYSTAL_RATE/UART_RATE) / 256)
 
-#if	HIGH_CRYSTAL_RATE == 8
-#undef	ubr1
-#define ubr0		0xA0
-#define	ubr1		0x01
-#define umctl		0x5B
-#endif
-
-#endif	/* UART_RATE == 19200 */
-
-#ifndef	ubr0
-#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600, 19200"
-#endif
+#endif	/* CRYSTAL_RATE */
 
 #if UART_BITS == 8
 

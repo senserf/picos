@@ -18,6 +18,32 @@
 
 #include "arch.h"
 
+// ACLK crystal parameters
+
+#ifndef	CRYSTAL_RATE
+#define	CRYSTAL_RATE		32768
+#endif
+
+#if	CRYSTAL_RATE != 32768
+
+#if	CRYSTAL_RATE < 1000000
+#error "CRYSTAL_RATE can be 32768 or >= 1000000"
+#endif
+
+// The number of slow ticks per second
+#define	TIMER_B_LOW_PER_SEC	16
+#define	HIGH_CRYSTAL_RATE 	1
+
+#else	/* Low crystal rate */
+
+#define	TIMER_B_LOW_PER_SEC	1
+#define	HIGH_CRYSTAL_RATE	0
+
+#endif	/* CRYSTAL_RATE != 32768 */
+
+#define	TIMER_B_INIT_HIGH	((CRYSTAL_RATE/8192) - 1)
+#define	TIMER_B_INIT_LOW  	((CRYSTAL_RATE/(8*TIMER_B_LOW_PER_SEC)) - 1)
+
 #ifndef UART_INPUT_BUFFER_LENGTH
 #define	UART_INPUT_BUFFER_LENGTH	0
 #endif
