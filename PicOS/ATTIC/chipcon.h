@@ -10,7 +10,6 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length */
 #define	PREAMBLE_LENGTH		48	/* Preamble bits */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
-#define	CRC_ISO3309		1
 /*
  * These values are merely defaults changeable with tcv_control
  */

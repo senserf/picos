@@ -12,6 +12,7 @@
 /*                                                                            */
 
 #include "sysio.h"
+#include "uart.h"
 
 void	zzz_set_release (void);
 void	zzz_tservice (void);
@@ -140,6 +141,24 @@ void adddevfunc (devreqfun_t, int);
 			}\
 		}\
 	}\
+	} while (0)
+
+/* ==================================== */
+/* A shortcut when the process is known */
+/* ==================================== */
+#define	p_trigger(pcs,etype,evnt)	do {\
+	if (((pcb_t*)(pcs)) -> code != NULL) { \
+		int j; \
+		for (j = 0; j < nevents ((pcb_t*)(pcs)); j++) { \
+			if (((pcb_t*)(pcs))->Events [j] . Event == evnt && \
+				getetype (((pcb_t*)(pcs))->Events [j]) == \
+				    etype) {\
+					zz_systat.evntpn = 1;\
+					wakeupev ((pcb_t*)(pcs), j);\
+					break;\
+			} \
+		} \
+	} \
 	} while (0)
 
 #if     RADIO_INTERRUPTS

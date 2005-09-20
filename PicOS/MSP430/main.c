@@ -25,6 +25,10 @@ void	zz_malloc_init (void);
 /* ========================== */
 /* Device driver initializers */
 /* ========================== */
+#if	UART_DRIVER || UART_TCV
+static void preinit_uart (void);
+#endif
+
 #if	UART_DRIVER
 
 #ifndef	UART_INPUT_FLOW_CONTROL
@@ -381,18 +385,18 @@ static void ios_init () {
 		/* Mark all task table entries as available */
 		p->code = NULL;
 
-#if	UART_DRIVER
-	/* UART_A is initialized first, to enable diagnostic output */
-	devinit [UART] . init (devinit [UART] . param);
+#if	UART_DRIVER || UART_TCV
+	// An UART is configured, initialize it beforehand without enabling
+	// anyting, which is up to the driver plugin. We just want to be able
+	// to use diag.
+	preinit_uart ();
 	diag ("\r\nPicOS v" SYSVERSION ", "
         	"Copyright (C) Olsonet Communications, 2002-2005");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
-#if	SDRAM_PRESENT
-	// Stub
 #endif
-#endif
-	/* Initialize other devices and create their drivers */
-	for (i = UART+1; i < MAX_DEVICES; i++)
+
+	/* Initialize devices */
+	for (i = UART; i < MAX_DEVICES; i++)
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
 
@@ -405,12 +409,121 @@ static void ios_init () {
 /* ============================ DEVICE DRIVERS ============================ */
 /* ------------------------------------------------------------------------ */
 
+#if	UART_DRIVER || UART_TCV
+#if	UART_DRIVER
+#define	N_UARTS	UART_DRIVER
+#else
+#define	N_UARTS	UART_TCV
+#endif
+
+uart_t	zz_uart [N_UARTS];
+
+#define	utctl		SSEL0
+
+#if	CRYSTAL_RATE == 32768
+// This is the standard (or perhaps not any more?)
+#define	ubr1		0
+
+#if UART_RATE == 1200
+#define	ubr0		0x1B
+#define	umctl		0x03
+#endif
+
+#if UART_RATE == 2400
+#define	ubr0		0x0D
+#define	umctl		0x6B
+#endif
+
+#if UART_RATE == 4800
+#define	ubr0		0x06
+#define	umctl		0x6F
+#endif
+
+#if UART_RATE == 9600
+#define	ubr0		0x03
+#define	umctl		0x4A
+#endif
+
+#ifndef ubr0
+#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
+#endif
+
+#else	/* CRYSTAL_RATE > 32768 */
+
+#if UART_RATE < 1200 || UART_RATE > 38400
+#error "Illegal UART_RATE, must be between 1200 and 38400"
+#endif
+
+// No need to use corrections for high-speed crystals
+#define	umctl		0
+#define	ubr0		((CRYSTAL_RATE/UART_RATE) % 256)
+#define	ubr1		((CRYSTAL_RATE/UART_RATE) / 256)
+
+#endif	/* CRYSTAL_RATE */
+
+#if UART_BITS == 8
+
+#define	uctl_char	CHAR
+#define	uctl_pena	0
+#define	uctl_pev	0
+
+#else	/* UART_BITS == 7 */
+
+#define	uctl_char	0
+#define	uctl_pena	PENA
+
+#if UART_PARITY == 0
+#define	uctl_pev	PEV
+#else
+#define	uctl_pev	0
+#endif
+
+#endif	/* UART_BITS */
+
+static void preinit_uart () {
+
+	// UART_A
+	_BIS (P3SEL, 0x30);	// 4, 5 special function
+#if UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
+	_BIC (P3SEL, 0xc0);	// Standard use P3.6, P3.7
+	_BIS (P3DIR, 0x80);	// P3.7 == CTS, goes out
+#endif
+	_BIS (UCTL0, SWRST);
+	_BIC (UTCTL0, SSEL1 + SSEL0);
+	_BIS (UTCTL0, utctl);
+	UBR00 = ubr0;
+	UBR10 = ubr1;
+	UMCTL0 = umctl;
+	_BIS (IFG1, UTXIFG0);
+	_BIS (ME1, UTXE0 + URXE0);
+	_BIS (UCTL0, uctl_char | uctl_pena | uctl_pev);
+	_BIC (UCTL0, SWRST);
+
+#if N_UARTS > 1
+	// UART_B
+	_BIS (P3SEL, 0xc0);	// 6, 7 special function
+	_BIS (UCTL1, SWRST);
+	_BIC (UTCTL1, SSEL1 + SSEL0);
+	_BIS (UTCTL1, utctl);
+	UBR01 = ubr0;
+	UBR11 = ubr1;
+	UMCTL1 = umctl;
+	_BIS (IFG2, UTXIFG1);
+	_BIS (ME2, UTXE1 + URXE1);
+	_BIS (UCTL1, uctl_char | uctl_pena | uctl_pev);
+	_BIC (UCTL1, SWRST);
+#endif
+}
+
+/* ------------------------------------------------------------------------ */
+/* ------------------------------------------------------------------------ */
+
+#endif	/* UART_DRIVER || UART_TCV */
+
 #if	UART_DRIVER
 /* ======== */
 /* The UART */
 /* ======== */
-
-uart_t	zz_uart [UART_DRIVER];
 
 #define uart_xpending(u)	((u)->selector?(IFG2&UTXIFG1):(IFG1&UTXIFG0))
 
@@ -706,7 +819,7 @@ interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 
 	if (ua->ib_count <= UART_INPUT_BUFFER_LENGTH) {
 		// Not full
-		ua->in [ua->ib_in] = RXBUF0;
+		ua->in [ua->ib_in] = RXBUF1;
 		if (++(ua->ib_in) == UART_INPUT_BUFFER_LENGTH)
 			ua->ib_in = 0;
 		ua->ib_count++;
@@ -743,104 +856,12 @@ static int ioreq_uart_b (int op, char *b, int len) {
 /* =========== */
 static void devinit_uart (int devnum) {
 
-#define	utctl		SSEL0
-
-#if	CRYSTAL_RATE == 32768
-// This is the standard (or perhaps not any more?)
-#define	ubr1		0
-
-#if UART_RATE == 1200
-#define	ubr0		0x1B
-#define	umctl		0x03
-#endif
-
-#if UART_RATE == 2400
-#define	ubr0		0x0D
-#define	umctl		0x6B
-#endif
-
-#if UART_RATE == 4800
-#define	ubr0		0x06
-#define	umctl		0x6F
-#endif
-
-#if UART_RATE == 9600
-#define	ubr0		0x03
-#define	umctl		0x4A
-#endif
-
-#ifndef ubr0
-#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
-#endif
-
-#else	/* CRYSTAL_RATE > 32768 */
-
-#if UART_RATE < 1200 || UART_RATE > 38400
-#error "Illegal UART_RATE, must be between 1200 and 38400"
-#endif
-
-// No need to use corrections for high-speed crystals
-#define	umctl		0
-#define	ubr0		((CRYSTAL_RATE/UART_RATE) % 256)
-#define	ubr1		((CRYSTAL_RATE/UART_RATE) / 256)
-
-#endif	/* CRYSTAL_RATE */
-
-#if UART_BITS == 8
-
-#define	uctl_char	CHAR
-#define	uctl_pena	0
-#define	uctl_pev	0
-
-#else	/* UART_BITS == 7 */
-
-#define	uctl_char	0
-#define	uctl_pena	PENA
-
-#if UART_PARITY == 0
-#define	uctl_pev	PEV
-#else
-#define	uctl_pev	0
-#endif
-
-#endif	/* UART_BITS */
-
 #if UART_DRIVER > 1
 	if (devnum == 0) {
 #endif
-		// UART_A
-		_BIS (P3SEL, 0x30);	// 4, 5 special function
-		// _BIS (P3DIR, 0x10);
-		// _BIS (P3DIR, 0x20);
-#if UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
-		_BIC (P3SEL, 0xc0);	// Standard use P3.6, P3.7
-		_BIS (P3DIR, 0x80);	// P3.7 == CTS, goes out
-#endif
-		_BIS (UCTL0, SWRST);
-		_BIC (UTCTL0, SSEL1 + SSEL0);
-		_BIS (UTCTL0, utctl);
-		UBR00 = ubr0;
-		UBR10 = ubr1;
-		UMCTL0 = umctl;
-		_BIS (IFG1, UTXIFG0);
-		_BIS (ME1, UTXE0 + URXE0);
-		_BIS (UCTL0, uctl_char | uctl_pena | uctl_pev);
-		_BIC (UCTL0, SWRST);
 		adddevfunc (ioreq_uart_a, UART_A);
 #if UART_DRIVER > 1
 	} else {
-		// UART_B
-		_BIS (P3SEL, 0xc0);	// 6, 7 special function
-		_BIS (UCTL1, SWRST);
-		_BIC (UTCTL1, SSEL1 + SSEL0);
-		_BIS (UTCTL1, utctl);
-		UBR01 = ubr0;
-		UBR11 = ubr1;
-		UMCTL1 = umctl;
-		_BIS (IFG2, UTXIFG1);
-		_BIS (ME2, UTXE1 + URXE1);
-		_BIS (UCTL1, uctl_char | uctl_pena | uctl_pev);
-		_BIC (UCTL1, SWRST);
 		adddevfunc (ioreq_uart_b, UART_B);
 	}
 #endif

@@ -55,7 +55,10 @@
 #define	STACK_SIZE	256			// Bytes
 #define	STACK_START	(RAM_START + 2048)	// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
+
 						// LWA of stack
+#if	UART_DRIVER
+
 typedef struct	{
 /* ============================== */
 /* UART with two circular buffers */
@@ -79,14 +82,34 @@ extern uart_t zz_uart [];
 #define	UART_FLAGS_OUT		0x40
 #define	UART_FLAGS_LOCK		0x01
 
+#endif	/* UART_DRIVER */
+
+
 #if	DIAG_MESSAGES || (dbg_level != 0)
 
 #define	diag_wchar(c,a)		TXBUF0 = (byte)(c)
 #define	diag_wait(a)		while ((IFG1 & UTXIFG0) == 0)
-#define	diag_disable_int(a)	uart_a_disable_int
-#define	diag_enable_int(a)	do { \
-					uart_a_enable_read_int; \
-					uart_a_enable_write_int; \
+
+
+
+
+
+#define	diag_disable_int(a,u)	do { \
+					(u) = IE1 & (URXIE0 + UTXIE0); \
+					(u) |= (READ_SR & GIE); \
+					cli; \
+					_BIC (IE1, URXIE0 + UTXIE0); \
+					if ((u) & GIE) \
+						sti; \
+					(u) &= ~GIE; \
+				} while (0)
+					
+#define	diag_enable_int(a,u)	do { \
+					(u) |= (READ_SR & GIE); \
+					cli; \
+					_BIS (IE1, (u) & (URXIE0 + UTXIE0)); \
+					if ((u) & GIE) \
+						sti; \
 				} while (0)
 #endif
 

@@ -11,7 +11,6 @@
 /*
  * Some of these constants can be changed to taste
  */
-#define	CRC_ISO3309		1	/* Checksum according to ISO */
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length (bytes) */
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */

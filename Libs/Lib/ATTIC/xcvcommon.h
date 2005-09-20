@@ -87,7 +87,7 @@ Finish:
 		proceed (RCV_GETIT);
 
 	/* Validate checksum */
-	if (w_chk (zzr_buffer, zzr_length))
+	if (w_chk (zzr_buffer, zzr_length, 0))
 		proceed (RCV_GETIT);
 	 /* Return RSSI in the last checksum byte */
 	adc_wait;
@@ -189,14 +189,14 @@ Xmit:
 
 		/* This must be even */
 		if (stln < 4 || (stln & 1) != 0)
-			syserror (EREQPAR, "xmt/tlength");
+			syserror (EREQPAR, "rxmt/tlength");
 		stln >>= 1;
 
 		// Insert the station Id
 		if (zzv_statid)
 	    		zzr_buffer [0] = zzv_statid;
 		// Insert the checksum
-		zzx_buffp [stln - 1] = w_chk (zzx_buffp, stln - 1);
+		zzx_buffp [stln - 1] = w_chk (zzx_buffp, stln - 1, 0);
 #if 0
 		diag ("SND: %d (%x) %x %x %x %x %x %x", stln, (word) zzx_buffp,
 			zzx_buffer [0],

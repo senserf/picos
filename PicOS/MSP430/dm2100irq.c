@@ -3,8 +3,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
-
-#include	"dm2100.h"
+#include "dm2100.h"
 
 interrupt (TIMERA0_VECTOR) dm2100_st_int () {
 

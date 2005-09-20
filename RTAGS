@@ -185,3 +185,27 @@ R050911A:
 	Crystal issues cleaned up. CRYSTAL_RATE defines the crystal rate and
 	can be 32768 or anything >= 1000000. UART rates above 9600 are only
 	available with rates >= 1000000.
+
+R050919A:
+
+	Added two functions to get the remaining waiting time of the indicated
+	process. dleft (int pid) [pid is the process identifier, e.g., as
+	returned by fork or running] returns the remaning waiting time in 
+	msecs (1/1024s). If the process is not waiting on a delay, the returned
+	value is MAX_UINT. ldleft (int pid, address s) returns the long waiting
+	time in minutes (1 min = 64 seconds). If the process is not waiting on
+	ldelay, the returned value is MAX_UINT. If the second argument (s) is
+	not NULL, it points to a word to contain the residual number of seconds.
+	For example, if the process will be awakened after 5 minutes and 61
+	seconds, then ldleft returns 5 and *s returns 61. If s is NULL, the
+	value returned by ldleft is rounded to the nearest minute, e.g., 3:21
+	will be returned as 3, while 3:47 as 4.
+
+	A minor change in TCV: tcvphy_rcv returns 0 if the message was not
+	accepted (no claim or no memory) and 1 otherwise. Previously, tcvphy_rcv
+	returned no value.
+
+	Fixed a buglet in zzz_malloc pointed out by Wlodek.
+
+	UART phys added: see phys_uart.doc in Docs.
+

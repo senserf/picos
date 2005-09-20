@@ -14,7 +14,7 @@
 typedef	int (*ctrlfun_t) (int option, address);
 
 word tcvphy_reg (int, ctrlfun_t, int);
-void tcvphy_rcv (int, address, int);
+int tcvphy_rcv (int, address, int);
 address tcvphy_get (int, int*);
 int tcvphy_top (int);
 int tcvphy_erase (int);

@@ -23,17 +23,19 @@
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
 
+#define	UART_TCV		0
+
 #define CHIPCON 		0
 #define DM2100 			1
-#define	ENTROPY_COLLECTION	0
+#define	ENTROPY_COLLECTION	1
 #define CHIPCON_FREQ 		868
 
 #define	RADIO_DRIVER		0
 
 #define	STACK_GUARD		1
 
-#define	UART_RATE		19200
-#define	CRYSTAL_RATE		4000000
+#define	UART_RATE		9600
+#define	CRYSTAL_RATE		32768
 #define	UART_BITS		8
 #define	UART_PARITY		0
 

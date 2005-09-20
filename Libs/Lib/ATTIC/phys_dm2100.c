@@ -218,7 +218,7 @@ static byte rssi_cnv (word v) {
 void phys_dm2100 (int phy, int mbs) {
 /*
  * phy  - interface number
- * mbs  - maximum packet length (excluding checksum, must be divisible by 4)
+ * mbs  - maximum packet length (including checksum, must be divisible by 4)
  */
 	if (zzr_buffer != NULL)
 		/* We are allowed to do it only once */
@@ -235,7 +235,7 @@ void phys_dm2100 (int phy, int mbs) {
 	adc_config_rssi;
 
 	if ((zzr_buffer = umalloc (mbs)) == NULL)
-		syserror (EMALLOC, "phys_dm2100 (b)");
+		syserror (EMALLOC, "phys_dm2100");
 
 	/* This is static and will never change */
 	zzr_buffl = zzr_buffer + (mbs >> 1);

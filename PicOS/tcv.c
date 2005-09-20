@@ -807,7 +807,7 @@ word tcvphy_reg (int phy, ctrlfun_t ps, int info) {
 	return (word)q;
 }
 
-void tcvphy_rcv (int phy, address p, int len) {
+int tcvphy_rcv (int phy, address p, int len) {
 /*
  * Called when a packet is received by a phy. Each phy has its private
  * (possibly static) reception buffer that it maintains by itself.
@@ -842,16 +842,18 @@ void tcvphy_rcv (int phy, address p, int len) {
 		 * Either no one is claiming the packet or the claimant says
 		 * we should drop it.
 		 */
-		return;
+		return 0;
 
 	len -= (ap.head + ap.tail);
 
 	/* Acquire a buffer */
 	if ((c = tcvp_new (len, dsp, ses)) == NULL)
 		/* No room - drop it */
-		return;
+		return 0;
 
 	memcpy ((char*)c, ((char*)p) + ap.head, len);
+
+	return 1;
 }
 
 address tcvphy_get (int phy, int *len) {

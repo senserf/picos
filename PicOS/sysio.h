@@ -182,6 +182,10 @@
 #define	DM2100			0
 #endif
 
+#ifndef	UART_TCV
+#define	UART_TCV		0
+#endif
+
 #ifndef	LBT_DELAY
 // Listen Before Transmit delay (0 disables)
 #define	LBT_DELAY		8
@@ -203,9 +207,6 @@
 // MIN_BACKOFF + (random & MSK_BACKOFF)
 #define	MSK_BACKOFF		0xff
 #endif
-
-
-
 
 #if	CHIPCON
 #ifndef	CHIPCON_FREQ
@@ -230,6 +231,10 @@
 #define	UART_BITS		8
 #endif
 
+#ifndef	CRC_ISO3309
+#define CRC_ISO3309		1
+#endif
+
 /* ======================================================================== */
 /*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */
 /* ======================================================================== */
@@ -246,9 +251,19 @@
 /* ======================================================================== */
 #define MAX_UTIMERS		4
 
-#if	UART_DRIVER == 0
+#if	UART_DRIVER == 0 && UART_TCV == 0
 #undef	DIAG_MESSAGES
 #define	DIAG_MESSAGES		0
+#endif
+
+#if	UART_TCV
+#if	CRC_ISO3309 == 0
+#error	"UART_TCV requires CRC_ISO3309"
+#endif
+#endif
+
+#if	UART_DRIVER && UART_TCV
+#error	"UART_DRIVER and UART_TCV are incompatible"
 #endif
 
 #if	UART_DRIVER > 2
@@ -454,8 +469,10 @@ int	io (int, int, int, char*, int);
 void	wait (word, word);
 /* Timer wait */
 void	delay (word, word);
+word	dleft (int);
 /* Minute wait */
 void	ldelay (word, word);
+word	ldleft (int, address);
 /* Continue timer wait */
 void	snooze (word);
 /* Signal trigger: returns the number of awakened processes */
@@ -600,8 +617,11 @@ void	dbb (word);
 
 #define	PHYSOPT_STATUS		0	/* Get device status */
 #define	PHYSOPT_TXON		1	/* Transmitter on */
+#define	PHYSOPT_ON		1	/* General on */
 #define	PHYSOPT_TXOFF		2	/* Transmitter off */
+#define	PHYSOPT_OFF		2	/* General off */
 #define	PHYSOPT_TXHOLD		3	/* OFF + queue */
+#define	PHYSOPT_HOLD		3	/* General hold */
 #define	PHYSOPT_RXON		4	/* Receiver on */
 #define	PHYSOPT_RXOFF		5	/* Receiver off */
 #define	PHYSOPT_CAV		6	/* Set collision avoidance 'vector' */

@@ -251,6 +251,22 @@ void delay (word d, word state) {
 	inctimer (zz_curr);
 }
 
+/* ======================================================================== */
+/* Return the number of milliseconds that the indicated process is going to */
+/* sleep for                                                                */
+/* ======================================================================== */
+word dleft (int pid) {
+
+	pcb_t *i;
+
+	ver_pid (i, pid);
+	if (i->code == NULL || !twaiting (i))
+		return MAX_UINT;
+
+	return (i->Timer > (setticks - zz_mintk)) ?
+		i->Timer - (setticks - zz_mintk) : 0;
+}
+
 /* =========== */
 /* Minute wait */
 /* =========== */
@@ -271,6 +287,44 @@ void ldelay (word d, word state) {
 	incwait (zz_curr);
 }
 
+/* ======================================================================= */
+/* Return the number of minutes (and optionally seconds) remaining for the */
+/* process to long-sleep                                                   */
+/* ======================================================================= */
+word ldleft (int pid, word *s) {
+
+	pcb_t	*i;
+	word	j, nmin, ldel;
+
+	ver_pid (i, pid);
+
+	if (i->code == NULL)
+		return MAX_UINT;
+
+	j = ((word) nseconds & 0x3f);
+	if (s != NULL)
+		*s = j ? 64 - j : 0;
+
+	nmin = (word)(nseconds >> 6);
+	if (s == NULL) {
+		// Round it to the nearest minute
+		if (j > 32)
+			nmin++;
+	} else {
+		// Keep it exact
+		if (j)
+			nmin++;
+	}
+
+	ldel = MAX_UINT;
+
+	for (j = 0; j < nevents (i); j++)
+		if (getetype (i->Events [j]) == ETYPE_LDELAY)
+			if (i->Events [j] . Event - nmin < ldel)
+				ldel = i->Events [j] . Event - nmin;
+
+	return ldel;
+}
 
 /* =============================== */
 /* Continue interrupted timer wait */
@@ -958,7 +1012,7 @@ address zzz_malloc (int np, word size) {
 		mcfree [MA_NP] -= m_size (chunk);
 		if (mnfree [MA_NP] > mcfree [MA_NP])
 			/* Update the minimum */
-			mnfree [MA_NP] == mcfree [MA_NP];
+			mnfree [MA_NP] = mcfree [MA_NP];
 	}
 #endif
 #if	MALLOC_SAFE
@@ -1062,9 +1116,11 @@ void zz_sdram_test (void) {
 
 void zz_dbg (const word lvl, word code) {
 
+	byte is;
+
 #if	dbg_binary
 
-	diag_disable_int (a);
+	diag_disable_int (a, is);
 
 	diag_wait (a); 	diag_wchar (0         , a);
 	diag_wait (a); 	diag_wchar (6         , a);
@@ -1077,7 +1133,7 @@ void zz_dbg (const word lvl, word code) {
 #else
 	int i; word v;
 
-	diag_disable_int (a);
+	diag_disable_int (a, is);
 	diag_wait (a); 	diag_wchar ('+'       , a);
 	diag_wait (a); 	diag_wchar ('+'       , a);
 	diag_wait (a);
@@ -1102,7 +1158,7 @@ void zz_dbg (const word lvl, word code) {
 	diag_wait (a); diag_wchar ('\n'       , a);
 #endif
 	diag_wait (a);
-	diag_enable_int (a);
+	diag_enable_int (a, is);
 }
 
 #endif	/* dbg_level */
@@ -1117,9 +1173,10 @@ void diag (const char *mess, ...) {
 	va_list	ap;
 	word i, val, v;
 	char *s;
+	byte is;
 
 	va_start (ap, mess);
-	diag_disable_int (a);
+	diag_disable_int (a, is);
 
 	while  (*mess != '\0') {
 		if (*mess == '%') {
@@ -1190,7 +1247,7 @@ void diag (const char *mess, ...) {
 	diag_wchar ('\n', a);
 	diag_wait (a);
 
-	diag_enable_int (a);
+	diag_enable_int (a, is);
 }
 
 #else
