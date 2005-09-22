@@ -555,6 +555,7 @@ process (root, int)
   entry (RS_QUIT+1)
 
 	ser_outf (RS_QUIT+1, fmt, obuf);
+
 	proceed (RS_RCMD);
 
   entry (RS_PAR)

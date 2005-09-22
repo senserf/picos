@@ -354,6 +354,13 @@ static int option (int opt, address val) {
 		zzv_statid = (val == NULL) ? 0 : *val;
 		break;
 
+            case PHYSOPT_GETSID:
+
+		ret = (int) zzv_statid;
+		if (val != NULL)
+			*val = ret;
+		break;
+
 	    default:
 
 		syserror (EREQPAR, "phys_dm2100 option");

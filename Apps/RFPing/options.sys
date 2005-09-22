@@ -5,7 +5,6 @@
 #define	LCD_DRIVER		1	/* LCD driver */
 #define	ETHERNET_DRIVER		0	/* Ethernet driver absent */
 #define	SDRAM_PRESENT		1	/* SDRAM */
-#define	LEDS_DRIVER		1	/* LED driver */
 
 #else
 // MSP430
@@ -14,6 +13,8 @@
 
 #endif
 
+#define	LEDS_DRIVER		1
+#define	USE_LEDS		1
 #define	DIAG_MESSAGES		2	/* System messages to UART */
 #define	UART_DRIVER		1	/* UART A + B */
 #define	TCV_PRESENT		1	/* TCV present */
@@ -35,7 +36,7 @@
 #define	STACK_GUARD		1
 
 #define	UART_RATE		9600
-#define	CRYSTAL_RATE		32768
+#define	CRYSTAL_RATE		8000000
 #define	UART_BITS		8
 #define	UART_PARITY		0
 

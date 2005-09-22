@@ -629,8 +629,9 @@ void	dbb (word);
 #define	PHYSOPT_GETPOWER	8	/* Last reception power */
 #define	PHYSOPT_ERROR		9	/* Return/clear error code */
 #define	PHYSOPT_SETSID		10	/* Set station (network) ID */
-#define	PHYSOPT_SENSE		11	/* Return channel status */
-#define	PHYSOPT_SETPARAM	12	/* Set channel parameter */
+#define	PHYSOPT_GETSID		11	/* Return station Id */
+#define	PHYSOPT_SENSE		12	/* Return channel status */
+#define	PHYSOPT_SETPARAM	13	/* Set channel parameter */
 
 typedef	struct {
 /*

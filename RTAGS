@@ -209,3 +209,11 @@ R050919A:
 
 	UART phys added: see phys_uart.doc in Docs.
 
+R050921A:
+
+	Changed LED interface to DM2100. If USE_LEDS is zero, LEDs are never
+	used to conserve power. LEDs are now configured/unconfigured while
+	being turned on/off - to reduce power usage while they are off.
+	Application can use the leds (word) function, which only works if
+	LEDS_DRIVER is 1.
+	PHYSOPT_GETSID returns station Id.
