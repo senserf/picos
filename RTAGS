@@ -217,3 +217,10 @@ R050921A:
 	Application can use the leds (word) function, which only works if
 	LEDS_DRIVER is 1.
 	PHYSOPT_GETSID returns station Id.
+
+R050928A:
+
+	Fixed a bug in xcvcommon.h (zzr_buffer -> zzx_buffer). Station ID is
+	now always set by the transmitter, also when it is zero.
+	With a high-rate crystal, the radio is strobed by ACLK rather than
+	SMCLK, which should result in a better signal quality.

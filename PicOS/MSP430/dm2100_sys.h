@@ -28,7 +28,7 @@
  * physical bit time. Remember that SLCK runs at 4.5MHz. The math is simple:
  * one physical bit = 2/3 of real bit (excluding the preamble and checksum).
  */
-#define	DM_RATE		700
+#define	BIT_RATE	6429
 
 #ifndef	USE_LEDS
 #define	USE_LEDS	0
@@ -97,11 +97,6 @@
 #define	rssi_off	_BIC (P2OUT, 0x01)
 
 /*
- * Timer setting. We are using SMCLK running at 4.5 MHz.
- *
- *	TACTL = TASSEL_SMCLK | TACLR; 	// Timer A driven by SMCLK at the
- *                                      // CPU clock frequency
- *
  * The timer runs in the up mode setting up TAIFG whenever the count is
  * reached.
  *
@@ -113,7 +108,18 @@
  * a longish while.
  *
  */
-#define	timer_init		do { TACTL = TASSEL_SMCLK | TACLR; } while (0)
+
+#if CRYSTAL_RATE != 32768
+#define	TASSEL_RADIO	TASSEL_ACLK
+#define	TAFREQ		CRYSTAL_RATE
+#else
+#define	TASSEL_RADIO	TASSEL_SMCLK
+#define	TAFREQ		4500000
+#endif
+
+#define	DM_RATE			(TAFREQ/BIT_RATE)
+
+#define	timer_init		do { TACTL = TASSEL_RADIO | TACLR; } while (0)
 
 #define DM_RATE_X1		DM_RATE
 #define DM_RATE_X2		(DM_RATE + DM_RATE)
