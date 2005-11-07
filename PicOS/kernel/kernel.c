@@ -173,7 +173,7 @@ int zzz_fork (code_t func, address data) {
 			break;
 
 	if (i == LAST_PCB)
-		syserror (ERESOURCE, "fork");
+		return (int) NONE;
 
 	i -> Timer = 0;
 	i -> code = func;

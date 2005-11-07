@@ -42,6 +42,10 @@ heapmem {10, 90};
 #include "phys_dm2100.h"
 #endif
 
+#if RF24G
+#include "phys_rf24g.h"
+#endif
+
 #if RADIO_DRIVER
 #include "phys_radio.h"
 #endif
@@ -345,6 +349,10 @@ process (root, int)
 
 #if DM2100
 	phys_dm2100 (0, MAXPLEN);
+#endif
+
+#if RF24G
+	phys_rf24g (0, 5, 2);
 #endif
 
 #if RADIO_DRIVER

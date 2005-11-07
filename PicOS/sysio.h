@@ -182,6 +182,10 @@
 #define	DM2100			0
 #endif
 
+#ifndef	RF24G
+#define	RF24G			0
+#endif
+
 #ifndef	UART_TCV
 #define	UART_TCV		0
 #endif
@@ -304,6 +308,22 @@
 #endif
 //+++ "phys_dm2100.c"
 #endif	/* DM2100 */
+
+#if	RF24G
+#if     RADIO_DRIVER
+#error  "RF24G and RADIO_DRIVER are incompatible"
+#endif
+#if     TCV_PRESENT == 0
+#error  "RF24G requires TCV_PRESENT"
+#endif
+//+++ "phys_rf24g.c"
+#if	DM2100
+#error  "RF24G and DM2100 are incompatible"
+#endif
+#if	CHIPCON
+#error  "RF24G and CHIPCON are incompatible"
+#endif
+#endif	/* RF24G */
 
 #if	RADIO_DRIVER == 0
 #undef	RADIO_INTERRUPTS
@@ -632,6 +652,10 @@ void	dbb (word);
 #define	PHYSOPT_GETSID		11	/* Return station Id */
 #define	PHYSOPT_SENSE		12	/* Return channel status */
 #define	PHYSOPT_SETPARAM	13	/* Set channel parameter */
+
+#define	PHYSOPT_SETPAYLEN	14	/* Set payload length */
+#define	PHYSOPT_SETGROUP	15	/* Set station group */
+#define	PHYSOPT_SETCHANNEL	16	/* Set RF channel */
 
 typedef	struct {
 /*

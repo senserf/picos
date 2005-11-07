@@ -358,6 +358,10 @@ proc mkdrec { dname } {
 			# ignore oldies and garbage
 			continue
 		}
+		if [regexp "\\~\\$" $f] {
+			# ignore exotic filenames (cause problems on Windows)
+			continue
+		}
 		set ff [canon [file join $dname $f]]
 		if { $ff == "" } {
 			continue

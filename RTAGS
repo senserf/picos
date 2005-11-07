@@ -224,3 +224,17 @@ R050928A:
 	now always set by the transmitter, also when it is zero.
 	With a high-rate crystal, the radio is strobed by ACLK rather than
 	SMCLK, which should result in a better signal quality.
+
+R051106A:
+
+	Fixed a glitch in mkmk causing misbehavior if directories contained
+	files with exotic characters (like ~ for example).
+
+	Included a driver for RF24G. The Taiwanese boards that I have don't
+	seem to work, so I cannot test the driver, but it compiles and runs.
+	All signals collected from the board appear to be fine.
+
+	fork returns NONE (-1) on too many processes. Previously, the system
+	would abort on this error.
+
+	

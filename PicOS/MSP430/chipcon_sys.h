@@ -91,15 +91,19 @@
 
 #define	disable_xcv_timer	do { } while (0)
 
-// The LED configuration corrsponds to the three LEDs on DM2100. A led is
-// switched on by setting its pin to low.
+#if	USE_LEDS
 #define LEDI(n,s)	do { \
-				if (s) \
-					_BIS (P4DIR, 1 << (n)); \
-				else \
-					_BIC (P4DIR, 1 << (n)); \
+				if (s) { \
+					_BIC (P4OUT, 1 << (n)); \
+					_BIS (P4DIR, (1 << (n))); \
+				} else { \
+					_BIS (P4OUT, 1 << (n)); \
+					_BIC (P4DIR, (1 << (n))); \
+				} \
 			} while (0)
-
+#else
+#define	LEDI(n,s)	do { } while (0)
+#endif
 /*
  * ADC12 used for RSSI collection: source on A5 == P6.5, single sample,
  * triggered by ADC12SC
@@ -133,11 +137,12 @@
 
 #define	adc_start	_BIS (ADC12CTL0, ADC12SC + ENC)
 #define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
+#define	adc_wait	do { } while (0)
 // This is just in case
 #define	adc_disable	do { \
 				while ((ADC12CTL1 & ADC12BUSY)); \
 				_BIC (ADC12CTL0, ENC); \
-			}
+			} while (0)
 #define	adc_value	ADC12MEM0
 
 #define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)

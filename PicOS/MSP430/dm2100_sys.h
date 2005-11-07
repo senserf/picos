@@ -83,8 +83,6 @@
 					_BIC (P2IFG, 0x18); \
 				} while (0)
 
-#define	chipcon_int		(P1IFG & 0x01)
-#define	clear_chipcon_int	P1IFG &= ~0x01
 /*
  * DM2100 signal operations. Timer's A Capture/Compare Block is used for signal
  * insertion/extraction.
