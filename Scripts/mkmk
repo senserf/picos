@@ -28,7 +28,6 @@ set DirList {
 		"PicOS/kernel"
 		"PicOS"
 		"PicOS/Libs/*"
-		"Libs/*"
 		"."
 		"./*"
 }
