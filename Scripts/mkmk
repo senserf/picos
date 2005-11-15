@@ -27,6 +27,7 @@ set DirList {
 		"PicOS/@TARGET@"
 		"PicOS/kernel"
 		"PicOS"
+		"PicOS/Libs/*"
 		"Libs/*"
 		"."
 		"./*"

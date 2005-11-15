@@ -237,4 +237,9 @@ R051106A:
 	fork returns NONE (-1) on too many processes. Previously, the system
 	would abort on this error.
 
-	
+R051114A:
+
+	CVS tree restructured to make it possible to checkout and commit
+	individual components. In fact, the only thing I did was to move
+	Libs under PicOS. Now, PicOS constitutes the core component, with
+	SimNets and Apps being independent.
