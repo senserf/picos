@@ -1,5 +1,5 @@
-#ifndef	__pg_chipcon_sys_h
-#define	__pg_chipcon_sys_h	1
+#ifndef	__pg_cc1000_sys_h
+#define	__pg_cc1000_sys_h	1
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
@@ -12,7 +12,7 @@
 /*
  * Pin assignment:
  *
- *      eCOG                        CHIPCON                  GPIO
+ *      eCOG                        CC1000                  GPIO
  *   ===================================================================
  *   J12-06 (L3)                   PALE                      11   out
  *   J12-07 (L4)                   DIO                       12   in/out
@@ -46,11 +46,11 @@
 #define	clr_xcv_int		(rg.io.gp12_15_cfg &= ~GP_INT_MSK)
 #define	set_rcv_int		(rg.io.gp12_15_cfg |= GP_INT_RCV)
 #define	set_xmt_int		(rg.io.gp12_15_cfg |= GP_INT_XMT)
-#define	chipcon_int		(rg.io.gp8_15_sts & 0x0800)
-#define	clear_chipcon_int	do { } while (0)
+#define	cc1000_int		(rg.io.gp8_15_sts & 0x0800)
+#define	clear_cc1000_int	do { } while (0)
 
 /*
- * CHIPCON signal operations
+ * CC1000 signal operations
  */
 #define	chp_paledown	rg.io.gp8_11_out = IO_GP8_11_OUT_CLR11_MASK
 #define	chp_paleup	rg.io.gp8_11_out = IO_GP8_11_OUT_SET11_MASK

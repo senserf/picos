@@ -1,5 +1,5 @@
-#ifndef	__pg_chipcon_sys_h
-#define	__pg_chipcon_sys_h	1
+#ifndef	__pg_cc1000_sys_h
+#define	__pg_cc1000_sys_h	1
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
@@ -12,7 +12,7 @@
 /*
  * Pin assignment:
  *
- *  CHIPCON                        MSP430F1xx
+ *  CC1000                        MSP430F1xx
  * ===========================================
  *  DCLK			P1.0			in
  *  PALE			P1.1			out
@@ -33,11 +33,11 @@
 #define	GP_INT_XMT	0x1001	// Falling edge of P1.0 (bit 0)
 #define	GP_INT_MSK	0x0001  // interrupt on P1.0
 
-#define	chipcon_int		(P1IFG & 0x01)
-#define	clear_chipcon_int	P1IFG &= ~0x01
+#define	cc1000_int		(P1IFG & 0x01)
+#define	clear_cc1000_int	P1IFG &= ~0x01
 
 /*
- * CHIPCON signal operations
+ * CC1000 signal operations
  */
 #define	chp_paledown	_BIC (P1OUT, 0x02)
 #define	chp_paleup	_BIS (P1OUT, 0x02)
@@ -69,12 +69,12 @@
 
 #define	set_xmt_int	do { \
 				_BIS (P1IES, 0x01); \
-				clear_chipcon_int; \
+				clear_cc1000_int; \
 				_BIS (P1IE, 0x01); \
 			} while (0)
 #define	set_rcv_int	do { \
 				_BIC (P1IES, 0x01); \
-				clear_chipcon_int; \
+				clear_cc1000_int; \
 				_BIS (P1IE, 0x01); \
 			} while (0)
 

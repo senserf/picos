@@ -4,13 +4,13 @@
 /* ==================================================================== */
 #include "kernel.h"
 #include "tcvphys.h"
-#include "chipcon.h"
+#include "cc1000.h"
 
 static int option (int, address);
 
 /*
  * We are wasting precious RAM words, but we really want to make it efficient,
- * because interrupts will have to access this at CHIPCON's data clock rate.
+ * because interrupts will have to access this at CC1000's data clock rate.
  */
 				// Pointer to static reception buffer
 word		*zzr_buffer = NULL,
@@ -38,7 +38,7 @@ byte 		zzv_rxoff,
 		zzv_hstat,
 		zzx_power;
 
-#if CHIPCON_FREQ == 868
+#if CC1000_FREQ == 868
 
 #define TX_CURRENT	0xF3
 #define RX_CURRENT	0x88
@@ -48,7 +48,7 @@ byte 		zzv_rxoff,
 
 static const byte chp_defcA [] = {
 /*
- * Default contents of CHIPCON registers
+ * Default contents of CC1000 registers
  */
 	0x11,   // MAIN                 -> irrelevant
 
@@ -87,7 +87,7 @@ static const byte chp_defcA [] = {
 
 #endif
 
-#if CHIPCON_FREQ == 433
+#if CC1000_FREQ == 433
 
 #define TX_CURRENT	0x81
 #define RX_CURRENT	0x40
@@ -97,7 +97,7 @@ static const byte chp_defcA [] = {
 
 static const byte chp_defcA [] = {
 /*
- * Default contents of CHIPCON registers
+ * Default contents of CC1000 registers
  */
 	0x11,	// MAIN			-> irrelevant
 
@@ -137,7 +137,7 @@ static const byte chp_defcA [] = {
 #endif
 
 #ifndef	TX_CURRENT
-#error	ILLEGAL CHIPCON FREQUENCY, MUST BE 433 OR 868
+#error	ILLEGAL CC1000 FREQUENCY, MUST BE 433 OR 868
 #endif
 
 static const byte chp_defcB [7] = {
@@ -398,7 +398,7 @@ static int w_calibrate (word rate) {
 	return ((chp_rconf (CC1000_LOCK) & 0x01) == 0);
 }
 
-static void ini_chipcon (int baud) {
+static void ini_cc1000 (int baud) {
 /*
  * Initialize the device
  */
@@ -440,8 +440,8 @@ static void ini_chipcon (int baud) {
 	mdelay (10);
 	xcv_disable ();
 
-	diag ("CHIPCON 1000 %u MHz calibrated at %u00 bps, status = %u",
-		(CHIPCON_FREQ == 868 ? 868 : 433), baud, i);
+	diag ("CC1000 1000 %u MHz calibrated at %u00 bps, status = %u",
+		(CC1000_FREQ == 868 ? 868 : 433), baud, i);
 }
 
 static void hstat (word status) {
@@ -496,7 +496,7 @@ static byte rssi_cnv (word v) {
 
 #include "xcvcommon.h"
 
-void phys_chipcon (int phy, int mbs, int bau) {
+void phys_cc1000 (int phy, int mbs, int bau) {
 /*
  * phy  - interface number
  * mbs  - maximum packet length (excluding checksum, must be divisible by 4)
@@ -504,20 +504,20 @@ void phys_chipcon (int phy, int mbs, int bau) {
  */
 	if (zzr_buffer != NULL)
 		/* We are allowed to do it only once */
-		syserror (ETOOMANY, "phys_chipcon");
+		syserror (ETOOMANY, "phys_cc1000");
 
 	if (mbs < 8 || mbs & 0x3) {
 		if (mbs == 0)
 			mbs = RADIO_DEF_BUF_LEN;
 		else
-			syserror (EREQPAR, "phys_chipcon mbs");
+			syserror (EREQPAR, "phys_cc1000 mbs");
 	}
 
 	/* For reading RSSI */
 	adc_config;
 
 	if ((zzr_buffer = umalloc (mbs)) == NULL)
-		syserror (EMALLOC, "phys_chipcon (b)");
+		syserror (EMALLOC, "phys_cc1000 (b)");
 
 	/* This is static and will never change */
 	zzr_buffl = zzr_buffer + (mbs >> 1);
@@ -535,7 +535,7 @@ void phys_chipcon (int phy, int mbs, int bau) {
 	zzx_seed = 12345;
 
 	/* Register the phy */
-	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CHIPCON);
+	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1000);
 
 	/* Both parts are initially inactive */
 	zzv_rxoff = zzv_txoff = 1;
@@ -543,7 +543,7 @@ void phys_chipcon (int phy, int mbs, int bau) {
 	LEDI (1, 0);
 
 	/* Start the device */
-	ini_chipcon (bau);
+	ini_cc1000 (bau);
 
 	zzv_hstat = HSTAT_SLEEP;
 }
@@ -649,7 +649,7 @@ static int option (int opt, address val) {
 
 	    default:
 
-		syserror (EREQPAR, "phys_chipcon option");
+		syserror (EREQPAR, "phys_cc1000 option");
 	}
 	return ret;
 }

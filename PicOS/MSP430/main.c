@@ -5,6 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "irq_timer_headers.h"
+
 extern 			pcb_t		*zz_curr;
 extern 			word  		zz_mintk;
 extern 	volatile 	word 		zz_lostk;
@@ -307,36 +309,8 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 	// Stub
 #endif
 
-#if	RADIO_INTERRUPTS
-	/* 
-	 * This is legacy stuff. I don't think we will ever use it directly
-	 * in MSP430.
-	 */
-#if	RADIO_TYPE != RADIO_XEMICS
-
-		if (rcvhigh && !(zzz_radiostat & 1)) {
-			if (zzr_xwait
-#if	RADIO_INTERRUPTS > 1
-			    && zzz_last_sense < RADIO_INTERRUPTS
-#endif
-				/* Receiver waiting */
-				zzr_xwait -> Status = zzr_xstate << 4;
-				zzr_xwait = NULL;
-				zzz_last_sense = 0;
-				/* Wake up the scheduler */
-				RISE_N_SHINE;
-				return;
-			}
-			zzz_last_sense = 0;
-		} else {
-			if (zzz_last_sense != MAX_INT)
-				zzz_last_sense++;
-		}
-#else	/* XEMICS */
-		if (zzz_last_sense != MAX_INT)
-			zzz_last_sense++;
-#endif	/* XEMICS */
-#endif	/* RADIO_INTERRUPTS */
+	// Room for extras
+#include "irq_timer.h"
 
 		// Run the scheduler at least once every second - to
 		// keep the second clock up to date

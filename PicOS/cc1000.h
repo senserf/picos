@@ -1,11 +1,11 @@
-#ifndef	__pg_chipcon_h
-#define	__pg_chipcon_h	1
+#ifndef	__pg_cc1000_h
+#define	__pg_cc1000_h	1
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "chipcon_sys.h"
+#include "cc1000_sys.h"
 
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length */
 #define	PREAMBLE_LENGTH		48	/* Preamble bits */

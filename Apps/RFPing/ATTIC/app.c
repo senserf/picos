@@ -6,7 +6,9 @@
 #include "sysio.h"
 #include "tcvphys.h"
 
-#define	ENCRYPT	1
+#define	ENCRYPT	0
+#define	MIN_PACKET_LENGTH	24
+#define	MAX_PACKET_LENGTH	68
 
 /*
  * You should run this application on two boards at the same time. When
@@ -23,6 +25,8 @@
 
 heapmem {10, 90};
 
+#define	NEED_ROOM_FOR_CHECKSUM	1
+
 #if UART_DRIVER
 #include "ser.h"
 #include "serf.h"
@@ -34,8 +38,8 @@ heapmem {10, 90};
 #include "form.h"
 #endif
 
-#if CHIPCON
-#include "phys_chipcon.h"
+#if CC1000
+#include "phys_cc1000.h"
 #endif
 
 #if DM2100
@@ -50,6 +54,12 @@ heapmem {10, 90};
 #include "phys_radio.h"
 #endif
 
+#if CC1100
+#include "phys_cc1100.h"
+#undef	NEED_ROOM_FOR_CHECKSUM
+#define	NEED_ROOM_FOR_CHECKSUM	0
+#endif
+
 #include "plug_null.h"
 
 #if ENCRYPT
@@ -59,11 +69,18 @@ static const lword secret [4] = { 0xbabadead,0x12345678,0x98765432,0x6754a6cd };
 
 #endif
 
-#define	MAXPLEN		32
 #define	IBUFLEN		82
 
 #define	PKT_ACK		0x1234
 #define	PKT_DAT		0xABCD
+
+#if	NEED_ROOM_FOR_CHECKSUM
+#define	ACK_LENGTH	12
+#define MAXPLEN		(MAX_PACKET_LENGTH + 2)
+#else
+#define MAXPLEN		MAX_PACKET_LENGTH
+#define	ACK_LENGTH	10
+#endif
 
 static int sfd;
 
@@ -76,6 +93,19 @@ static	int	rkillflag = 0;
 static	long	last_snt, last_rcv, last_ack;
 static  char 	XMTon = 0, RCVon = 0;
 
+static word gen_packet_length (void) {
+
+#if MIN_PACKET_LENGTH >= MAX_PACKET_LENGTH
+	return MIN_PACKET_LENGTH;
+#else
+	static	word	rndseed = 12345;
+
+	rndseed = (entropy + 1 + rndseed) * 6751;
+	return ((rndseed % (MAX_PACKET_LENGTH - MIN_PACKET_LENGTH + 1)) +
+			MIN_PACKET_LENGTH) & 0xFFE;
+#endif
+
+}
 
 static void lcd_update (void) {
 
@@ -123,16 +153,15 @@ process (receiver, void)
   entry (RC_DATA)
 
 #if UART_DRIVER
-#if     CHIPCON || DM2100
+#if     CC1000 || DM2100 || CC1100
  	// Show RSSI
 	ser_outf (RC_DATA, "RCV: %lu (len = %d), pow = %x\r\n", last_rcv,
-		tcv_left (packet), packet [(tcv_left (packet) >> 1) - 1]);
+		tcv_left (packet) - 2, packet [(tcv_left (packet) >> 1) - 1]);
 #else
 	ser_outf (RC_DATA, "RCV: %lu (len = %d)\r\n", last_rcv,
-		tcv_left (packet));
+		tcv_left (packet) - 2);
 #endif
 #endif
-
 	tcv_endp (packet);
 
 	// Acknowledge it
@@ -144,12 +173,14 @@ process (receiver, void)
 			waitmem (1, RC_SACK);
 			release;
 		}
-		packet = tcv_wnp (RC_SACK, sfd, 12);
+
+		packet = tcv_wnp (RC_SACK, sfd, ACK_LENGTH);
 		packet [0] = 0;
 		packet [1] = PKT_ACK;
 		((lword*)packet) [1] = wtonl (last_rcv);
-#if ENCRYPT
+
 		packet [4] = (word) entropy;
+#if ENCRYPT
 		encrypt (packet + 1, 4, secret);
 #endif
 		tcv_endp (packet);
@@ -212,6 +243,10 @@ static	int	tdelay, tkillflag = 0;
 process (sender, void)
 
 	static address packet;
+	static word packet_length = 12;
+
+	word pl;
+	int  pp;
 
 	nodata;
 
@@ -230,6 +265,13 @@ process (sender, void)
 	}
 
 	last_snt++;
+
+	packet_length = gen_packet_length ();
+	if (packet_length < 10)
+		packet_length = 10;
+	else if (packet_length > MAX_PACKET_LENGTH)
+		packet_length = MAX_PACKET_LENGTH;
+
 	proceed (SN_NEXT);
 
   entry (SN_NEXT)
@@ -244,22 +286,32 @@ process (sender, void)
 		release;
 	}
 
-	packet = tcv_wnp (SN_NEXT, sfd, 12);
+	packet = tcv_wnp (SN_NEXT, sfd, packet_length
+
+#if NEED_ROOM_FOR_CHECKSUM
+					+ 2
+#endif
+					);
 	packet [0] = 0;
 	packet [1] = PKT_DAT;
+
+	// In words
+	pl = packet_length / 2;
 	((lword*)packet)[1] = wtonl (last_snt);
+
+	for (pp = 4; pp < pl; pp++)
+		packet [pp] = (word) entropy;
+
 #if ENCRYPT
-	packet [4] = (word) entropy;
-	encrypt (packet + 1, 4, secret);
+	encrypt (packet + 1, pl-1, secret);
 #endif
 	tcv_endp (packet);
 
   entry (SN_NEXT+1)
 
 #if UART_DRIVER
-	ser_outf (SN_NEXT+1, "SND %lu\r\n", last_snt);
+	ser_outf (SN_NEXT+1, "SND %lu, len = %d\r\n", last_snt, packet_length);
 #endif
-
 	lcd_update ();
 	proceed (SN_SEND);
 
@@ -318,7 +370,7 @@ int snd_stop (void) {
 #define	RS_GPIN		110
 #define	RS_AUTOSTART	200
 
-#if CHIPCON
+#if CC1000
 const static word parm_power = 1;
 #endif
 
@@ -342,13 +394,21 @@ process (root, int)
 	ibuf [0] = 0xff;
 #endif
 
-#if CHIPCON
-	// Configure CHIPCON for 19,200 bps
-	phys_chipcon (0, MAXPLEN, 192 /* 192 768 384 */);
+#if 0
+	ibuf [0] = 0;
+#endif
+
+#if CC1000
+	// Configure CC1000 for 19,200 bps
+	phys_cc1000 (0, MAXPLEN, 192 /* 192 768 384 */);
 #endif
 
 #if DM2100
 	phys_dm2100 (0, MAXPLEN);
+#endif
+
+#if CC1100
+	phys_cc1100 (0, MAXPLEN);
 #endif
 
 #if RF24G
@@ -367,7 +427,7 @@ process (root, int)
 		halt ();
 	}
 
-#if CHIPCON
+#if CC1000
 	tcv_control (sfd, PHYSOPT_SETPOWER, (address) &parm_power);
 #endif
 
@@ -380,7 +440,7 @@ process (root, int)
 		"s intvl  -> start/reset sending interval (2 secs default)\r\n"
 		"r        -> start receiver\r\n"
 		"d i v    -> change phys parameter i to v\r\n"
-#if CHIPCON == 0 && DM2100 == 0
+#if CC1000 == 0 && DM2100 == 0
 		// Not available
 		"c btime  -> recalibrate the transceiver\r\n"
 #endif
@@ -451,7 +511,7 @@ process (root, int)
 #if UART_DRIVER
 /* ========= */
 
-#if CHIPCON == 0 && DM2100 == 0
+#if CC1000 == 0 && DM2100 == 0
 	if (ibuf [0] == 'c')
 		proceed (RS_CAL);
 #endif
@@ -503,7 +563,7 @@ process (root, int)
 	n1 = 0;
 	scan (ibuf + 1, "%d", &n1);
 
-#if CHIPCON == 0
+#if CC1000 == 0
 	io (NONE, RADIO, CONTROL, (char*) &n1, RADIO_CNTRL_SETPOWER);
 #else
 	// There's no RADIO device, SETPOWER is available via
@@ -521,10 +581,10 @@ process (root, int)
 
   entry (RS_RCP)
 
-#if CHIPCON == 0 && DM2100 == 0
+#if CC1000 == 0 && DM2100 == 0
 	n1 = io (NONE, RADIO, CONTROL, NULL, RADIO_CNTRL_READPOWER);
 #else
-	// No RADIO device for CHIPCON & DM2100
+	// No RADIO device for CC1000 & DM2100
 	n1 = tcv_control (sfd, PHYSOPT_GETPOWER, NULL);
 #endif
 
@@ -589,7 +649,7 @@ process (root, int)
 	tcv_control (sfd, PHYSOPT_SETSID, (address) &n1);
 	proceed (RS_RCMD);
 
-#if CHIPCON == 0 && DM2100 == 0
+#if CC1000 == 0 && DM2100 == 0
 
   entry (RS_CAL)
 

@@ -6,8 +6,8 @@
 #include <ecog1.h>
 #include "kernel.h"
 
-#if	CHIPCON
-#include "chipcon.h"
+#if	CC1000
+#include "cc1000.h"
 #endif
 
 #if	ETHERNET_DRIVER
@@ -27,8 +27,8 @@ void __irq_entry gpio_int (void) {
  * At least I've tried.
  */
 
-#if	CHIPCON
-#include "irq_chipcon.h"
+#if	CC1000
+#include "irq_cc1000.h"
 #endif
 
 #if	ETHERNET_DRIVER

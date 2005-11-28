@@ -1,13 +1,13 @@
-#ifndef __pg_irq_chipcon_h
-#define __pg_irq_chipcon_h
+#ifndef __pg_irq_cc1000_h
+#define __pg_irq_cc1000_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-if (chipcon_int) {
+if (cc1000_int) {
 
-    clear_chipcon_int;
+    clear_cc1000_int;
 
     switch (zzv_istate) {
 

@@ -26,18 +26,19 @@
 
 #define	UART_TCV		0
 
-#define CHIPCON 		1
+#define CC1000 			0	
+#define	CC1100			1
 #define DM2100 			0
 #define RF24G 			0
 #define	ENTROPY_COLLECTION	1
-#define CHIPCON_FREQ 		868
+#define CC1000_FREQ 		868
 
 #define	RADIO_DRIVER		0
 
 #define	STACK_GUARD		1
 
 #define	UART_RATE		9600
-#define	CRYSTAL_RATE		32768
+#define	CRYSTAL_RATE		8000000
 #define	UART_BITS		8
 #define	UART_PARITY		0
 

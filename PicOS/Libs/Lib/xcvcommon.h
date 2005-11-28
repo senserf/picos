@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 /*
- * Common code of CHIPCON and DM transveiver driver
+ * Common code of CC1000 and DM transveiver driver
  */
 
 #define	RCV_GETIT		0

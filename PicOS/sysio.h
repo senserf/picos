@@ -174,8 +174,12 @@
 #define	MALLOC_SAFE		0
 #endif
 
-#ifndef CHIPCON
-#define CHIPCON                 0
+#ifndef CC1000
+#define CC1000                 	0
+#endif
+
+#ifndef CC1100
+#define CC1100                 	0
 #endif
 
 #ifndef	DM2100
@@ -212,10 +216,10 @@
 #define	MSK_BACKOFF		0xff
 #endif
 
-#if	CHIPCON
-#ifndef	CHIPCON_FREQ
-// Default Chipcon frequency. 868 is another option.
-#define	CHIPCON_FREQ		433
+#if	CC1000
+#ifndef	CC1000_FREQ
+// Default CC1000 frequency. 868 is another option.
+#define	CC1000_FREQ		433
 #endif
 #endif
 
@@ -284,46 +288,61 @@
 
 #if SIM_NET==0
 
-#if     CHIPCON
-// Chipcon has a separate module integrating phys + driver
-#if     RADIO_DRIVER
-#error  "CHIPCON and RADIO_DRIVER are incompatible"
-#endif
-#if	DM2100
-#error  "CHIPCON and DM2100 are incompatible"
-#endif
-#if     TCV_PRESENT == 0
-#error  "CHIPCON requires TCV_PRESENT"
-#endif
-//+++ "phys_chipcon.c"
-#endif	/* CHIPCON */
+#if	CC1000
 
-#if     DM2100
-// Chipcon has a separate module integrating phys + driver
-#if     RADIO_DRIVER
-#error  "DM2100 and RADIO_DRIVER are incompatible"
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#error	"CC1000 cannot coexist with any other radio driver"
+#else
+#define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
-#if     TCV_PRESENT == 0
-#error  "DM2100 requires TCV_PRESENT"
+
+#define	ZZ_TCV_REQUIRED		1
+
+//+++ "phys_cc1000.c"
+
+#endif	/* CC1000 */
+
+
+#if	DM2100
+
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#error	"DM2100 cannot coexist with any other radio driver"
+#else
+#define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
+
+#define	ZZ_TCV_REQUIRED		1
+
 //+++ "phys_dm2100.c"
+
 #endif	/* DM2100 */
 
+
 #if	RF24G
-#if     RADIO_DRIVER
-#error  "RF24G and RADIO_DRIVER are incompatible"
+
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#error	"RF24G cannot coexist with any other radio driver"
+#else
+#define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
-#if     TCV_PRESENT == 0
-#error  "RF24G requires TCV_PRESENT"
-#endif
+
+#define	ZZ_TCV_REQUIRED		1
+
 //+++ "phys_rf24g.c"
-#if	DM2100
-#error  "RF24G and DM2100 are incompatible"
-#endif
-#if	CHIPCON
-#error  "RF24G and CHIPCON are incompatible"
-#endif
+
 #endif	/* RF24G */
+
+
+#if	RADIO_DRIVER
+
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#error	"RADIO_DRIVER cannot coexist with any TCV-dependent radio device"
+#else
+#define	ZZ_RADIO_DRIVER_PRESENT	1
+#endif
+
+#endif	/* RADIO_DRIVER */
+
 
 #if	RADIO_DRIVER == 0
 #undef	RADIO_INTERRUPTS
@@ -331,6 +350,7 @@
 #define	RADIO_INTERRUPTS	0
 #define	RADIO_TYPE		0
 #endif
+
 
 #if	RADIO_TYPE == RADIO_XEMICS
 #undef	RADIO_INTERRUPTS
@@ -340,6 +360,12 @@
 #endif
 //+++ "radio.c"
 #endif /* XEMICS */
+
+#ifdef	ZZ_TCV_REQUIRED
+#if	TCV_PRESENT == 0
+#error	"TCV is required but has been explicitly removed from configuration"
+#endif
+#endif
 
 #define	MAX_INT			((int)0x7fff)
 #define	MAX_UINT		((word)0xffff)
@@ -582,6 +608,8 @@ int	rcvlast (void);
 
 #define	entry(s)	case s:
 
+#define	procname(p)	extern int p (word, address)
+
 #ifdef	DEBUG_BUFFER
 void	dbb (word);
 #else
@@ -724,14 +752,14 @@ extern	lword zzz_ent_acc;
 #define	ENEVENTS	5	/* Too many wait requests */
 #define	EMALLOC		6	/* Out of heap memory */
 #define	ESTATE		7	/* Illegal process state */
-#define	EHARDWARE	8	/* Illegal process state */
+#define	EHARDWARE	8	/* Hardware error */
 #define	ETOOMANY	9	/* Too many times (like more than once) */
 #define	EASSERT		10	/* Consistency check failed */
 #define	ESTACK		11	/* Stack overrun */
 
 #if	ADC_PRESENT
-#if     CHIPCON
-#error  "CHIPCON and ADC_PRESENT are incompatible"
+#if     CC1000
+#error  "CC1000 and ADC_PRESENT are incompatible"
 #endif
 /* === */
 /* ADC */
@@ -757,8 +785,9 @@ void	adc_stop (void);
 #define	INFO_PHYS_UART    	0x0100	/* Persistent UART */
 #define	INFO_PHYS_ETHER    	0x0200	/* Raw Ethernet */
 #define	INFO_PHYS_RADIO		0x0300	/* Radio */
-#define INFO_PHYS_CHIPCON       0x0400  /* Chipcon radio */
+#define INFO_PHYS_CC1000        0x0400  /* CC1000 radio */
 #define	INFO_PHYS_DM2100	0x0500	/* DM2100 */
+#define	INFO_PHYS_CC1100	0x0600	/* CC1100 */
 
 #endif //if SIM_NET==0
 

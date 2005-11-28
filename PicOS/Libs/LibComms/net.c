@@ -19,8 +19,8 @@
 #include "phys_radio.h"
 #endif
 
-#if CHIPCON
-#include "phys_chipcon.h"
+#if CC1000
+#include "phys_cc1000.h"
 #endif
 
 #if DM2100
@@ -49,7 +49,7 @@ int net_opt (int opt, address arg) {
 static int ether_init (word);
 static int uart_init (word);
 static int radio_init (word);
-static int chipcon_init (word);
+static int cc1000_init (word);
 static int dm2100_init (word);
 
 #define	NET_MAXPLEN		128
@@ -74,8 +74,8 @@ int net_init (word phys, word plug) {
 	case INFO_PHYS_RADIO:
 		return (net_fd = radio_init (plug));
 
-	case INFO_PHYS_CHIPCON:
-		return (net_fd = chipcon_init (plug));
+	case INFO_PHYS_CC1000:
+		return (net_fd = cc1000_init (plug));
 
 	case INFO_PHYS_DM2100:
 		return (net_fd = dm2100_init (plug));
@@ -119,14 +119,14 @@ static int radio_init (word plug) {
 #endif
 }
 
-static int chipcon_init (word plug) {
-#if !CHIPCON
-	diag ("%s: Chipcon phys missing", myName);
+static int cc1000_init (word plug) {
+#if !CC1000
+	diag ("%s: CC1000 phys missing", myName);
 	return -1;
 #else
 	int fd;
 	// opts removed word opts[2] = {4, 2}; // checksum + power
-	phys_chipcon (0, NET_MAXPLEN, 192);
+	phys_cc1000 (0, NET_MAXPLEN, 192);
 
 	if (plug == INFO_PLUG_TARP)
 		tcv_plug (0, &plug_tarp);
@@ -134,7 +134,7 @@ static int chipcon_init (word plug) {
 		tcv_plug (0, &plug_null);
 
 	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
-		diag ("%s: Cannot open chipcon interface", myName);
+		diag ("%s: Cannot open cc1000 interface", myName);
 		return -1;
 	}
 
@@ -273,7 +273,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 		return 0;
 
 	if (rssi_ptr) {
-		if (net_phys == INFO_PHYS_CHIPCON ||
+		if (net_phys == INFO_PHYS_CC1000 ||
 			net_phys == INFO_PHYS_DM2100)
 			// ?? under a specific option?? check***
 			*rssi_ptr = packet[(size >> 1) -1];
@@ -307,7 +307,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 		return size;
 
 	case INFO_PHYS_RADIO:
-	case INFO_PHYS_CHIPCON:
+	case INFO_PHYS_CC1000:
 	case INFO_PHYS_DM2100:
 		size -= 6;
 		if (*buf_ptr == NULL)
@@ -371,7 +371,7 @@ int net_tx (word state, char * buf, int len) {
 		memcpy ((char*)ether_offset(packet), buf, len);
 
 	} else if (net_phys == INFO_PHYS_RADIO ||
-			net_phys == INFO_PHYS_CHIPCON ||
+			net_phys == INFO_PHYS_CC1000 ||
 			net_phys == INFO_PHYS_DM2100) {
 		packet = tcv_wnp (state, net_fd, radio_len(len)); 
 		if (packet == NULL) {

@@ -6,9 +6,7 @@
 #include <ecog1.h>
 #include "kernel.h"
 
-#if	RADIO_INTERRUPTS
-#include "radio.h"
-#endif
+#include "irq_timer_headers.h"
 
 //+++ "gpioirq.c"
 
@@ -390,7 +388,7 @@ static void ssm_init () {
 	/* Remove the reset. */
 	rg.ssm.rst_clr = SSM_RST_CLR_TMR_MASK;
 
-#if	ADC_PRESENT || CHIPCON
+#if	ADC_PRESENT || CC1000
 	/* Enable ADC */
 
 	rg.ssm.ex_ctrl =
@@ -438,7 +436,7 @@ static void cnf_init () {
 /* ====== */
 /* PORT A */
 /* ====== */
-#if	SWITCHES || LEDS_DRIVER || ETHERNET_DRIVER || RADIO_TYPE == RADIO_XEMICS || CHIPCON
+#if	SWITCHES || LEDS_DRIVER || ETHERNET_DRIVER || RADIO_TYPE == RADIO_XEMICS || CC1000
 	/*
 	 * Port A as GPIO 0-7, needed for the LEDs on A0-A3, side effect:
 	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip). The LEDs ports
@@ -450,7 +448,7 @@ static void cnf_init () {
 	fd.port.sel1.a = 11;
 #endif
 
-#if	LCD_DRIVER || CHIPCON
+#if	LCD_DRIVER || CC1000
 	/*
 	 * B3-B5 as GPIO 8-10, B0-B2 -> SPI (SCLK, MOSI, MISO), B6,B7 ->
 	 * USART (DATA_IN, DATA_OUT); B3-B5 needed by LCD (see also Port J)
@@ -539,7 +537,7 @@ static void cnf_init () {
 	fd.port.sel2.k = 1;
 #endif
 
-#if 	RADIO_DRIVER || CHIPCON
+#if 	RADIO_DRIVER || CC1000
 /*
  * L3-7 on GPIO_11-15 (not used by anything else) L0-2 on GPIO8-10 conflict
  * with Port B.
@@ -650,34 +648,9 @@ void __irq_entry timer_int () {
 	}
 #endif
 
-#if	RADIO_INTERRUPTS
-	/* To assist the receiver */
+	// For extras
+#include "irq_timer.h"
 
-#if	RADIO_TYPE != RADIO_XEMICS
-
-	if (rcvhigh && !(zzz_radiostat & 1)) {
-		if (zzr_xwait
-#if	RADIO_INTERRUPTS > 1
-		    && zzz_last_sense < RADIO_INTERRUPTS
-#endif
-							) {
-			/* Receiver waiting */
-			zzr_xwait -> Status = zzr_xstate << 4;
-			zzr_xwait = NULL;
-			zzz_last_sense = 0;
-			RISE_N_SHINE;
-			return;
-		}
-		zzz_last_sense = 0;
-	} else {
-		if (zzz_last_sense != MAX_INT)
-			zzz_last_sense++;
-	}
-#else	/* XEMICS */
-	if (zzz_last_sense != MAX_INT)
-		zzz_last_sense++;
-#endif	/* XEMICS */
-#endif
 	if (zz_lostk & 1024) {
 		// Run the scheduler at least once every second - to keep the
 		// second clock up to date

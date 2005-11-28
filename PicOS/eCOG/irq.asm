@@ -176,7 +176,7 @@
 
 ;;$interrupt_gpio_any_vector:
 ;                 DC       $zzz_minimal_handler
-; For those devices that receive interrupts via GPIO (e.g., Ethernet, CHIPCON)
+; For those devices that receive interrupts via GPIO (e.g., Ethernet, CC1x00)
                   DC       $gpio_int??
 
 ;;$interrupt_adc_ready_vector:

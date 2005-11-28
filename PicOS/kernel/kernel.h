@@ -161,11 +161,4 @@ void adddevfunc (devreqfun_t, int);
 	} \
 	} while (0)
 
-#if     RADIO_INTERRUPTS
-
-extern  pcb_t *zzr_xwait;
-extern  int zzr_xstate, zzz_last_sense;
-
-#endif  
-
 #endif
