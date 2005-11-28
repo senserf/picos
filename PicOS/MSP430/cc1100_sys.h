@@ -22,10 +22,85 @@
  *  CSN				P1.7	P6.4	GP4    OUTPUT
  */
 
+#define	TARGET_BOARD	1
+
 #define	UWAIT1		udelay (1)
 #define	UWAIT41		udelay (41)
 #define	SPI_WAIT	do { } while (0)
 #define	STROBE_WAIT	udelay (10)
+
+
+#if TARGET_BOARD
+/*
+ * Pins for the target board
+ */
+
+#define	ini_regs	do { \
+				_BIC (P1OUT, 0xfc); \
+				_BIC (P1DIR, 0x70); \
+				_BIS (P1DIR, 0x8c); \
+				_BIC (P1IES, 0x40); \
+				_BIC (P1IFG, 0x40); \
+			} while (0)
+
+#define	cc1100_int		(P1IFG & 0x40)
+#define	clear_cc1100_int	_BIC (P1IFG, 0x40)
+
+#define	fifo_ready		(P1IN & 0x40)
+
+#define	request_rcv_int		_BIS (P1IFG, 0x40)
+
+#define	rcv_enable_int		do { \
+					_BIS (P1IE, 0x40); \
+					if (fifo_ready) \
+						request_rcv_int; \
+				} while (0)
+
+#define	rcv_disable_int		_BIC (P1IE, 0x40)
+
+#define	sclk_up		_BIS (P1OUT, 0x08)
+#define	sclk_down	_BIC (P1OUT, 0x08)
+
+#define	csn_up		_BIS (P1OUT, 0x80)
+#define	csn_down	_BIC (P1OUT, 0x80)
+
+#define	si_up		_BIS (P1OUT, 0x04)
+#define	si_down		_BIC (P1OUT, 0x04)
+
+#define	so_val		(P1IN & 0x10)
+
+#ifndef	USE_LEDS
+#define	USE_LEDS	0
+#endif
+
+#if	USE_LEDS
+#define	LEDI(n,s)	do { \
+				if ((n) == 2) { \
+					if (s) { \
+						_BIC (P1OUT, 0x02); \
+						_BIS (P1DIR, 0x02); \
+					} else { \
+						_BIS (P1OUT, 0x02); \
+						_BIC (P1DIR, 0x02); \
+					} \
+				} else if ((n) == 3) { \
+					if (s) { \
+						_BIC (P2OUT, 0x04); \
+						_BIS (P2DIR, 0x04); \
+					} else { \
+						_BIS (P2OUT, 0x04); \
+						_BIC (P2DIR, 0x04); \
+					} \
+				} \
+			} while (0)
+#else
+#define	LEDI(n,s)	do { } while (0)
+#endif
+
+#else	/* TARGET_BOARD */
+/*
+ * Pins for DM2100
+ */
 
 #define	ini_regs	do { \
 				_BIC (P1OUT, 0x0f); \
@@ -80,5 +155,7 @@
 #else
 #define	LEDI(n,s)	do { } while (0)
 #endif
+
+#endif	/* TARGET_BOARD */
 
 #endif

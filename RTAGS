@@ -243,3 +243,23 @@ R051114A:
 	individual components. In fact, the only thing I did was to move
 	Libs under PicOS. Now, PicOS constitutes the core component, with
 	SimNets and Apps being independent.
+
+R051127A:
+
+	First cut of the CC1100 driver. Phys interface:
+
+		phys_cc1100 (int id, int mbl);
+
+	Maximum buffer size need not inlcude space for CRC. Also, a written
+	packet (tcv_wnp) should not include room for CRC (this is a difference
+	w.r.t. CC1000 and DM2100). The two extra bytes are still returned with
+	a received packet. The last byte is RSSI (0-255), and the preceding
+	byte returns the channel quality assessment, whatever it is. Packet
+	length need not be even, but it makes sense to keep it even for
+	compatibility.
+
+	By default, the output power is set at 0dBm, which corresponds to the
+	value of 127 (RADIO_CONTROL_SETPOWER), i.e., more or less the middle.
+
+	I have also renamed everything related to the old CHIPCON to CC1000
+	(constants and file names) - for compatibility.
