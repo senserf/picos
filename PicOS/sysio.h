@@ -33,6 +33,15 @@
 /* if they are not mentioned in options.sys.                                */
 /* ======================================================================== */
 
+// The list of boards
+#define	BOARD_CYAN		0	/* Cyan evaluation board */
+#define	BOARD_DM2100		1	/* DM2100 from RFM */
+#define	BOARD_GENESIS		2	/* Genesis board from RFM */
+
+#ifndef	TARGET_BOARD
+#define	TARGET_BOARD		BOARD_DM2100
+#endif
+
 // This one indicates whether we are running under the simulator (0/1)
 #ifndef ECOG_SIM
 #define	ECOG_SIM		0
@@ -84,6 +93,10 @@
 // LEDs driver present (0/1)
 #ifndef	LEDS_DRIVER
 #define	LEDS_DRIVER		0
+#endif
+
+#ifndef	LEDS_BLINKING
+#define	LEDS_BLINKING		1
 #endif
 
 // LCD driver present (0/1)
@@ -501,8 +514,61 @@ void		ramget (address, lword, int);
 void		ramput (lword, address, int);
 #endif
 
+#if	LEDS_DRIVER
+
+#define	leds(a,b)	do { \
+				if ((b) == 0) { \
+					if ((a) == 0) { \
+						zz_systat.ledsts &= 0xe; \
+						LED0_OFF; \
+					} else if ((a) == 1) { \
+						zz_systat.ledsts &= 0xd; \
+						LED1_OFF; \
+					} else if ((a) == 2) { \
+						zz_systat.ledsts &= 0xb; \
+						LED2_OFF; \
+					} else if ((a) == 3) { \
+						zz_systat.ledsts &= 0x7; \
+						LED3_OFF; \
+					} \
+				} else if ((b) == 1) { \
+					if ((a) == 0) { \
+						zz_systat.ledsts &= 0xe; \
+						LED0_ON; \
+					} else if ((a) == 1) { \
+						zz_systat.ledsts &= 0xd; \
+						LED1_ON; \
+					} else if ((a) == 2) { \
+						zz_systat.ledsts &= 0xb; \
+						LED2_ON; \
+					} else if ((a) == 3) { \
+						zz_systat.ledsts &= 0x7; \
+						LED3_ON; \
+					} \
+				} else { \
+					if ((a) == 0) { \
+						zz_systat.ledsts |= 0x1; \
+						LED0_ON; \
+					} else if ((a) == 1) { \
+						zz_systat.ledsts |= 0x2; \
+						LED1_ON; \
+					} else if ((a) == 2) { \
+						zz_systat.ledsts |= 0x4; \
+						LED2_ON; \
+					} else if ((a) == 3) { \
+						zz_systat.ledsts |= 0x8; \
+						LED3_ON; \
+					} \
+				} \
+			} while (0)
+
+#else
+
+#define	leds (a,b)	do { } while (0)
+	
+#endif 	/* LEDS_DRIVER */
+
 void	diag (const char *, ...);
-void	leds (word);
 word	switches (void);
 
 /* ======================================= */

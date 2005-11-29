@@ -22,17 +22,14 @@
  *  CSN				P1.7	P6.4	GP4    OUTPUT
  */
 
-#define	TARGET_BOARD	1
-
 #define	UWAIT1		udelay (1)
 #define	UWAIT41		udelay (41)
 #define	SPI_WAIT	do { } while (0)
 #define	STROBE_WAIT	udelay (10)
 
-
-#if TARGET_BOARD
+#if TARGET_BOARD == BOARD_GENESIS
 /*
- * Pins for the target board
+ * Pins for the Genesis board
  */
 
 #define	ini_regs	do { \
@@ -69,35 +66,10 @@
 
 #define	so_val		(P1IN & 0x10)
 
-#ifndef	USE_LEDS
-#define	USE_LEDS	0
-#endif
+#endif	/* TARGET_BOARD == BOARD_GENESIS */
 
-#if	USE_LEDS
-#define	LEDI(n,s)	do { \
-				if ((n) == 2) { \
-					if (s) { \
-						_BIC (P1OUT, 0x02); \
-						_BIS (P1DIR, 0x02); \
-					} else { \
-						_BIS (P1OUT, 0x02); \
-						_BIC (P1DIR, 0x02); \
-					} \
-				} else if ((n) == 3) { \
-					if (s) { \
-						_BIC (P2OUT, 0x04); \
-						_BIS (P2DIR, 0x04); \
-					} else { \
-						_BIS (P2OUT, 0x04); \
-						_BIC (P2DIR, 0x04); \
-					} \
-				} \
-			} while (0)
-#else
-#define	LEDI(n,s)	do { } while (0)
-#endif
 
-#else	/* TARGET_BOARD */
+#if TARGET_BOARD == BOARD_DM2100
 /*
  * Pins for DM2100
  */
@@ -138,24 +110,8 @@
 
 #define	so_val		(P1IN & 0x04)
 
-#ifndef	USE_LEDS
-#define	USE_LEDS	0
-#endif
+#endif	/* TARGET_BOARD == BOARD_DM2100 */
 
-#if	USE_LEDS
-#define LEDI(n,s)	do { \
-				if (s) { \
-					_BIC (P4OUT, 1 << (n)); \
-					_BIS (P4DIR, (1 << (n))); \
-				} else { \
-					_BIS (P4OUT, 1 << (n)); \
-					_BIC (P4DIR, (1 << (n))); \
-				} \
-			} while (0)
-#else
-#define	LEDI(n,s)	do { } while (0)
-#endif
-
-#endif	/* TARGET_BOARD */
+#define	LEDI(a,b)	leds (a,b)
 
 #endif

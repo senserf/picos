@@ -17,4 +17,8 @@
 #include "irq_timer_cc1100.h"
 #endif
 
+#if LEDS_BLINKING
+#include "irq_timer_leds.h"
+#endif
+
 #endif

@@ -55,22 +55,6 @@
 #define	data_down		_BIC (P2OUT, 0x10)
 #define	data_val		(P2IN & 0x10)
 
-#ifndef	USE_LEDS
-#define	USE_LEDS	0
-#endif
-
-#if	USE_LEDS
-#define LEDI(n,s)	do { \
-				if (s) { \
-					_BIC (P4OUT, 1 << (n)); \
-					_BIS (P4DIR, (1 << (n))); \
-				} else { \
-					_BIS (P4OUT, 1 << (n)); \
-					_BIC (P4DIR, (1 << (n))); \
-				} \
-			} while (0)
-#else
-#define	LEDI(n,s)	do { } while (0)
-#endif
+#define	LEDI(a,b)		leds (a, b)
 
 #endif

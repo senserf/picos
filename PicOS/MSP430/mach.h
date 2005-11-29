@@ -157,4 +157,8 @@ extern uart_t zz_uart [];
 
 #define	RISE_N_SHINE	_BIC_SR_IRQ (LPM4_bits)
 
+#if LEDS_DRIVER
+#include "leds_sys.h"
+#endif
+
 #endif

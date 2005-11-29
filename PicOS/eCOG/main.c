@@ -30,9 +30,6 @@ static void	devinit_uart (int);
 #if	LCD_DRIVER
 static void	devinit_lcd (int);
 #endif
-#if	LEDS_DRIVER
-static void	devinit_leds (int);
-#endif
 #if	ETHERNET_DRIVER
 void		devinit_ethernet (int);
 #endif
@@ -56,12 +53,6 @@ const static devinit_t devinit [MAX_DEVICES] = 	{
 /* === */
 #if	LCD_DRIVER
 		{ devinit_lcd,	 0 },
-#else
-		{ NULL, 0 },
-#endif
-/* === */
-#if	LEDS_DRIVER
-		{ devinit_leds,	 0 },
 #else
 		{ NULL, 0 },
 #endif
@@ -296,6 +287,7 @@ void zzz_sched (void) {
 
 }
 
+####here FIXME
 void leds (word c) {
 
 	rg.io.gp0_3_out =
@@ -311,7 +303,7 @@ word switches (void) {
 		((fd.io.gp8_15_sts.sts13 == 0) << 2) |
 		((fd.io.gp8_15_sts.sts14 == 0) << 3) ;
 }
-
+#####
 
 #if	DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
@@ -1666,46 +1658,6 @@ static void devinit_lcd (int dummy) {
 	fork (lcd_driver, &lcd);
 }
 
-#endif
-/* ========= */
-
-#if	LEDS_DRIVER
-/* ==== */
-/* LEDs */
-/* ==== */
-
-static int ioreq_leds (int operation, char *buf, int len) {
-
-	switch (operation) {
-
-		case CONTROL:
-
-			if (len != LEDS_CNTRL_SET)
-				syserror (EREQPAR, "ioreq_leds");
-
-			leds (*buf);
-
-			return len;
-
-		default:
-
-			syserror (ENOOPER, "ioreq_leds");
-			return 0;
-	}
-}
-
-static void devinit_leds (int dummy) {
-
-	/* Enable GPIO outputs connected to LED's */
-	rg.io.gp0_3_out =
-		IO_GP0_3_OUT_EN0_MASK |
-		IO_GP0_3_OUT_EN1_MASK |
-		IO_GP0_3_OUT_EN2_MASK |
-		IO_GP0_3_OUT_EN3_MASK;
-
-	adddevfunc (ioreq_leds, LEDS);
-	/* No driver process needed */
-}
 #endif
 /* ========= */
 

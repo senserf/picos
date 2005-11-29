@@ -31,11 +31,17 @@ typedef	volatile address	va_list;
 #define	byteaddr(p)		((char*)(p))
 
 typedef struct {
-	word pdmode:1,	// Power down flag
-	     unused:14,
-	     evntpn:1;	// Scheduler event pending
-} systat_t;
 
+	byte	pdmode:1,	// Power down flag
+		evntpn:1,	// Scheduler event pending
+		unused:1,
+		ledblk:1,	// Blink flag
+		ledsts:4;	// Blink status of four leds
+
+	byte	ledblc;		// Blink counter
+
+} systat_t;
+		
 extern	systat_t zz_systat;
 
 extern void	__bss_end;

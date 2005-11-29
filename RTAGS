@@ -263,3 +263,15 @@ R051127A:
 
 	I have also renamed everything related to the old CHIPCON to CC1000
 	(constants and file names) - for compatibility.
+
+R051128A:
+
+	LED interface changed. USE_LEDS removed. This functionality is taken
+	over by LEDS_DRIVER. Old function leds (word) has been replaced by
+	leds (int n, int what), where n is the led number (0-3) and what is
+	0 (off), 1 (on), 2 (blinking). Macros LEDI (x,y) used in radio
+	drivers have been redefined as leds (x, y).
+
+	mkmk improved a bit. Its expression evaluation heuristics is now
+	slightly better. Note that old mkmk may complain about tricky
+	#if expressions with the new system.

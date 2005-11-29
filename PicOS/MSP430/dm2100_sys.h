@@ -30,10 +30,6 @@
  */
 #define	BIT_RATE	6429
 
-#ifndef	USE_LEDS
-#define	USE_LEDS	0
-#endif
-
 #define	ini_regs	do { \
 				_BIC (P2OUT, 0x85); \
 				_BIS (P2DIR, 0x81); \
@@ -202,22 +198,7 @@
 					} \
 				} while (0)
 
-// The LED configuration corrsponds to the three LEDs on DM2100. A led is
-// switched on by setting its output pin low. LED 0 isn't there, but we
-// ignore this fact.
-#if	USE_LEDS
-#define LEDI(n,s)	do { \
-				if (s) { \
-					_BIC (P4OUT, 1 << (n)); \
-					_BIS (P4DIR, (1 << (n))); \
-				} else { \
-					_BIS (P4OUT, 1 << (n)); \
-					_BIC (P4DIR, (1 << (n))); \
-				} \
-			} while (0)
-#else
-#define	LEDI(n,s)	do { } while (0)
-#endif
+#define	LEDI(a,b)		leds (a, b)
 
 /*
  * ADC12 used for RSSI collection: source on A0 == P6.0, single sample,

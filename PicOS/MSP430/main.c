@@ -182,27 +182,6 @@ int main (void) {
 #include "scheduler.h"
 }
 
-void leds (word c) {
-#if	LEDS_DRIVER
-/*
- * This is set up for IM2100/DM2100 with 3 leds attached to P4.1-P4.3,
- * being switched on by setting the ports to low impedance. P4.0 is not
- * used, although the virtual LED number zero is assumed to be there.
- */
-	int i;
-
-	for (i = 1; i < 4; i++) {
-		if (c & (1 << i)) {
-			_BIC (P4OUT, (1 << i));
-			_BIS (P4DIR, (1 << i));
-		} else {
-			_BIS (P4OUT, (1 << i));
-			_BIC (P4DIR, (1 << i));
-		}
-	}
-#endif
-}
-
 word switches (void) {
 /*
  * No switches are used at present

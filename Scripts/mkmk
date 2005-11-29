@@ -487,9 +487,18 @@ proc sexpr { str } {
 			}
 			if [catch { expr $a0 } v0] {
 				set v0 0
-				if [info exists Symbols($a0)] {
+				set lc 0
+				while { [info exists Symbols($a0)] } {
 					if [catch { expr $Symbols($a0) } v0] {
-						set v0 0
+						incr lc
+						if { $Symbols($a0) == "" || \
+						    $lc > 16 } {
+							set v0 0
+							break
+						}
+						set a0 $Symbols($a0)
+					} else {
+						break
 					}
 				}
 			}
@@ -506,18 +515,34 @@ proc sexpr { str } {
 		if [catch { expr $a0 } v0] {
 			# not an expression
 			set v0 ""
-			if [info exists Symbols($a0)] {
+			set lc 0
+			while { [info exists Symbols($a0)] } {
 				if [catch { expr $Symbols($a0) } v0] {
-					set v0 ""
-				} 
+					incr lc
+					if { $Symbols($a0) == "" || $lc > 16 } {
+						set v0 ""
+						break
+					}
+					set a0 $Symbols($a0)
+				} else {
+					break
+				}
 			}
 		}
 		if [catch { expr $a1 } v1] {
 			# not an expression
 			set v1 ""
-			if [info exists Symbols($a1)] {
+			set lc 0
+			while { [info exists Symbols($a1)] } {
 				if [catch { expr $Symbols($a1) } v1] {
-					set v1 ""
+					incr lc
+					if { $Symbols($a1) == "" || $lc > 16 } {
+						set v1 ""
+						break
+					}
+					set a1 $Symbols($a1)
+				} else {
+					break
 				}
 			}
 		}

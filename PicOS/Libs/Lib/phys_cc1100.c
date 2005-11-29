@@ -367,7 +367,6 @@ void phys_cc1100 (int phy, int mbs) {
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
 
 	/* Both parts are initially active */
-	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
 	LEDI (3, 0);
@@ -772,7 +771,12 @@ static int option (int opt, address val) {
 			cc1100_reset ();
 
 		zzv_txoff = 0;
-		LEDI (1, 1);
+
+		if (zzv_rxoff)
+			LEDI (1, 1);
+		else
+			LEDI (1, 2);
+
 		if (!running (cc1100_xmitter))
 			fork (cc1100_xmitter, NULL);
 		trigger (zzv_qevent);
@@ -785,7 +789,12 @@ static int option (int opt, address val) {
 			cc1100_reset ();
 
 		zzv_rxoff = 0;
-		LEDI (0, 1);
+
+		if (zzv_txoff)
+			LEDI (1, 1);
+		else
+			LEDI (1, 2);
+
 		if (!running (cc1100_receiver))
 			fork (cc1100_receiver, NULL);
 #if STAY_IN_RX
@@ -798,21 +807,30 @@ static int option (int opt, address val) {
 
 		/* Drain */
 		zzv_txoff = 2;
-		LEDI (1, 0);
+		if (zzv_rxoff)
+			LEDI (1, 0);
+		else
+			LEDI (1, 1);
 		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
 		zzv_txoff = 1;
-		LEDI (1, 0);
+		if (zzv_rxoff)
+			LEDI (1, 0);
+		else
+			LEDI (1, 1);
 		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
 		zzv_rxoff = 1;
-		LEDI (0, 0);
+		if (zzv_txoff)
+			LEDI (1, 0);
+		else
+			LEDI (1, 1);
 		trigger (rxevent);
 		break;
 

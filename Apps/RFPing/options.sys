@@ -14,6 +14,7 @@
 #endif
 
 #define	LEDS_DRIVER		1
+#define	LEDS_BLINKING		1
 #define	USE_LEDS		1
 #define	DIAG_MESSAGES		2	/* System messages to UART */
 #define	UART_DRIVER		1	/* UART A + B */
@@ -25,6 +26,8 @@
 #define	MALLOC_STATS		1
 
 #define	UART_TCV		0
+
+#define	TARGET_BOARD		BOARD_DM2100
 
 #define CC1000 			0	
 #define	CC1100			1
