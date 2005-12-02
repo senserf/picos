@@ -27,7 +27,7 @@
 
 #define	UART_TCV		0
 
-#define	TARGET_BOARD		BOARD_DM2100
+#define	TARGET_BOARD		BOARD_GENESIS
 
 #define CC1000 			0	
 #define	CC1100			1

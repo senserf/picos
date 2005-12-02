@@ -305,7 +305,7 @@ word switches (void) {
 }
 #####
 
-#if	DIAG_MESSAGES > 1
+#if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
 	diag ("SYSTEM ERROR: %x, %s", ec, m);
 #else
@@ -313,8 +313,16 @@ void zzz_syserror (int ec) {
 	diag ("SYSTEM ERROR: %x", ec);
 #endif
 	print_al (0);
-	while (1)
+	while (1) {
+#if LEDS_DRIVER
+		leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
+		mdelay (100);
+		leds (0, 0); leds (1, 0); leds (2, 0); leds (3, 0);
+		mdelay (100);
+#else
 		SLEEP;
+#endif
+	}
 }
 
 static void ssm_init () {

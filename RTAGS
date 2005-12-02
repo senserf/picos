@@ -275,3 +275,7 @@ R051128A:
 	mkmk improved a bit. Its expression evaluation heuristics is now
 	slightly better. Note that old mkmk may complain about tricky
 	#if expressions with the new system.
+
+R051201A:
+
+	CC1100 registers adjusted as per RFM's note.

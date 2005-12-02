@@ -113,22 +113,24 @@ const	byte	cc1100_rfsettings [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
         CCxxx0_FSCTRL0, 0x00,   // FSCTRL0
-        CCxxx0_FREQ2,   0x21,   // FREQ2 
-        CCxxx0_FREQ1,   0x65,   // FREQ1
-        CCxxx0_FREQ0,   0x6A,   // FREQ0
+        CCxxx0_FREQ2,   0x22,   // FREQ2 
+        CCxxx0_FREQ1,   0xC4,   // FREQ1
+        CCxxx0_FREQ0,   0xEC,   // FREQ0
         CCxxx0_MDMCFG4, 0xC8,   // MDMCFG4
         CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x03,   // MDMCFG2
-        CCxxx0_MDMCFG1, 0x22,   // MDMCFG1
+        CCxxx0_MDMCFG1, 0xA2,   // MDMCFG1
         CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0
         CCxxx0_DEVIATN, 0x34,   // DEVIATN
         CCxxx0_FREND1,  0x56,   // FREND1 
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_BSCFG,   0x6C,   // BSCFG
         CCxxx0_AGCCTRL2,0x83,   // AGCCTRL2
+	CCxxx0_AGCCTRL1,0x40,	// RFM spreadsheet
         CCxxx0_AGCCTRL0,0x91,   // AGCCTRL0
         CCxxx0_FSCAL3,  0xA9,   // FSCAL3
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
+	CCxxx0_FSCAL1,	0x00,	// RFM spreadsheet
         CCxxx0_FSCAL0,  0x0D,   // FSCAL0
         CCxxx0_FSTEST,  0x59,   // FSTEST
         CCxxx0_TEST2,   0x86,   // TEST2 
@@ -142,7 +144,7 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_IOCFG0,	0x00,	// RX ready - to be used as an interrupt
         CCxxx0_PKTLEN,  0xFF,   // PKTLEN    Packet length.
 	CCxxx0_PKTCTRL1,0x04,	// Append 2 status bytes on reception
-	CCxxx0_PKTCTRL0,0x05,	// Whitening, CRC, packet length follows sync
+	CCxxx0_PKTCTRL0,0x45,	// Whitening, CRC, packet length follows sync
         CCxxx0_ADDR,    0x00,   // ADDR      Device address.
         CCxxx0_CHANNR,  0x00,   // CHANNR    Channel number.
 	CCxxx0_FIFOTHR,	0x00,	// 4 bytes in the RX FIFO
@@ -154,7 +156,7 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_SYNC1,	((SYSTEM_IDENT >> 8) & 0xff),
 	CCxxx0_SYNC0,	((SYSTEM_IDENT     ) & 0xff),
 
-        CCxxx0_MCSM0,   0x18,   // Recalibrate on exiting IDLE state
+        CCxxx0_MCSM0,   0x15,   // Recalibrate on exiting IDLE state
 
 #if STAY_IN_RX
 // Assume RX after completing RX
@@ -173,6 +175,8 @@ const	byte	cc1100_rfsettings [] = {
 #endif
 
 	CCxxx0_MCSM1,	(MCSM1_FROM_RX | MCSM1_CCA),
+
+	CCxxx0_MCSM2,	0x07,	// RFM spreadsheet
 
 /* ========== */
 
