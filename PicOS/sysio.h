@@ -39,7 +39,7 @@
 #define	BOARD_GENESIS		2	/* Genesis board from RFM */
 
 #ifndef	TARGET_BOARD
-#define	TARGET_BOARD		BOARD_DM2100
+#define	TARGET_BOARD		BOARD_GENESIS
 #endif
 
 // This one indicates whether we are running under the simulator (0/1)
@@ -256,6 +256,10 @@
 #define CRC_ISO3309		1
 #endif
 
+#ifndef	EPROM_DRIVER
+#define	EPROM_DRIVER		0
+#endif
+
 /* ======================================================================== */
 /*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */
 /* ======================================================================== */
@@ -379,6 +383,19 @@
 #error	"TCV is required but has been explicitly removed from configuration"
 #endif
 #endif
+
+#if	EEPROM_DRIVER
+
+//+++ "eeprom.c"
+
+word 	ee_readw (address);
+lword 	ee_readl (address);
+void 	ee_reads (address, byte*, word);
+void 	ee_writew (address, word);
+void 	ee_writel (address, lword);
+void 	ee_writes (address, const byte*, word);
+
+#endif	/* EEPROM_DRIVER */
 
 #define	MAX_INT			((int)0x7fff)
 #define	MAX_UINT		((word)0xffff)

@@ -279,3 +279,30 @@ R051128A:
 R051201A:
 
 	CC1100 registers adjusted as per RFM's note.
+
+R051206A:
+
+	EEPROM driver included. The folowing functions are available:
+
+	word ee_readw (address); Returns a word from the specified address.
+	The address need not be aligned. Anything goes.
+
+	lword ee_readl (address); Returns a longword (32 bits) from the
+	specified address (see above).
+
+	void ee_reads (address, byte *str, word len); Reads len bytes from the
+	inidcated address and stores them in str.
+
+	void ee_writew (address, word); Stores a word at the indicated address,
+	which need not be aligned.
+
+	void ee_writel (address, lword); Stores a longword at the address.
+
+	void ee_writes (address, const byte *str, word len); Stores len bytes
+	from str at the address.
+
+	To configure EEPROM driver, put #define EEPROM_DRIVER 1 into
+	options.sys.
+
+	Directory Apps/EETest contains a trivial program for testing the
+	EEPROM driver.

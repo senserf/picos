@@ -371,6 +371,9 @@ static void ios_init () {
 	/* Make SMCLK available on P5.5 */
 	_BIS (P5OUT, 0x20);
 	_BIS (P5SEL, 0x20);
+#if EEPROM_DRIVER
+	zz_ee_init ();
+#endif
 }
 
 /* ------------------------------------------------------------------------ */
