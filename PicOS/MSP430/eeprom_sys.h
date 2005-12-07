@@ -31,9 +31,12 @@
 #error	"Cannot use two UARTs with SPI (needed for EEPROM)"
 #endif
 
+#define	EE_PAGE_SIZE	32	// bytes
+#define	EE_SIZE		8192	// 8 K
+
 #if EE_USE_UART
 
-#define	SPI_BAUD_RATE	8	// 8MHz/8 = 1MHz
+#define	SPI_BAUD_RATE	4	// 8MHz/4 = 2MHz
 
 #define	ee_ini_regs	do { \
 				_BIS (P5OUT, 0x01); \

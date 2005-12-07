@@ -73,85 +73,68 @@ void zz_ee_init () {
 	udelay (10);
 }
 
-static void start_cmd (byte cmd, address a) {
+void ee_read (word a, byte *s, word len) {
 
-	byte s;
+	byte c;
+
+	if (len == 0)
+		return;
 
 	ee_start;
 	put_byte (EE_RDSR);
 	do {
-		s = get_byte ();
-	} while (s & STAT_WIP);
+		c = get_byte ();
+	} while (c & STAT_WIP);
 	ee_stop;
 
-	if (cmd == EE_WRITE) {
-		// Set WEL
-		ee_start;
-		put_byte (EE_WREN);
-		ee_stop;
-	}
+	a &= (EE_SIZE - 1);
 
 	ee_start;
-	put_byte (cmd);
-	put_byte ((byte)(((word)(a)) >> 8));
-	put_byte ((byte)(((word)(a))     ));
-}
+	put_byte (EE_READ);
+	put_byte ((byte)((a) >> 8));
+	put_byte ((byte)((a)     ));
 
-word ee_readw (address a) {
-
-	word w;
-
-	start_cmd (EE_READ, a);
-	// We go little endian
-	w =   get_byte ();
-	w |= (get_byte () << 8);
-	ee_stop;
-	return w;
-}
-
-lword ee_readl (address a) {
-
-	lword lw;
-
-	start_cmd (EE_READ, a);
-	lw  = ((lword)get_byte ()      );
-	lw |= ((lword)get_byte () <<  8);
-	lw |= ((lword)get_byte () << 16);
-	lw |= ((lword)get_byte () << 24);
-	ee_stop;
-	return lw;
-}
-
-void ee_reads (address a, byte *s, word len) {
-
-	start_cmd (EE_READ, a);
 	while (len--)
 		*s++ = get_byte ();
 	ee_stop;
 }
 
-void ee_writew (address a, word w) {
+void ee_write (word a, const byte *s, word len) {
 
-	start_cmd (EE_WRITE, a);
-	put_byte ((byte)(w     ));
-	put_byte ((byte)(w >> 8));
-	ee_stop;
-}
+	byte c, ne;
 
-void ee_writel (address a, lword lw) {
+	a &= (EE_SIZE - 1);
 
-	start_cmd (EE_WRITE, a);
-	put_byte ((byte)(lw      ));
-	put_byte ((byte)(lw >>  8));
-	put_byte ((byte)(lw >> 16));
-	put_byte ((byte)(lw >> 24));
-	ee_stop;
-}
+	while (len) {
+		// How far to the end of page
+		ne = EE_PAGE_SIZE - (a & (EE_PAGE_SIZE - 1));
+		if (ne > len)
+			ne = len;
 
-void ee_writes (address a, const byte *s, word len) {
+		ee_start;
+		put_byte (EE_RDSR);
+		do {
+			// Wait for the end of previous write
+			c = get_byte ();
+		} while (c & STAT_WIP);
+		ee_stop;
 
-	start_cmd (EE_WRITE, a);
-	while (len--)
-		put_byte (*s++);
-	ee_stop;
+		// Set WEL
+		ee_start;
+		put_byte (EE_WREN);
+		ee_stop;
+
+		ee_start;
+		put_byte (EE_WRITE);
+		put_byte ((byte)((a) >> 8));
+		put_byte ((byte)((a)     ));
+
+		len -= ne;
+		a += ne;
+
+		while (ne--)
+			put_byte (*s++);
+		ee_stop;
+
+	}
 }

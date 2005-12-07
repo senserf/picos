@@ -388,12 +388,8 @@
 
 //+++ "eeprom.c"
 
-word 	ee_readw (address);
-lword 	ee_readl (address);
-void 	ee_reads (address, byte*, word);
-void 	ee_writew (address, word);
-void 	ee_writel (address, lword);
-void 	ee_writes (address, const byte*, word);
+void 	ee_read  (word, byte*, word);
+void 	ee_write (word, const byte*, word);
 
 #endif	/* EEPROM_DRIVER */
 
