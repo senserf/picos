@@ -282,6 +282,7 @@ R051201A:
 
 R051206A:
 R051206B:
+R051206C:
 
 	EEPROM driver included. The following two functions are available:
 
@@ -299,3 +300,7 @@ R051206B:
 
 	Directory Apps/EETest contains a trivial program for testing the
 	EEPROM driver.
+
+	RSSI returned by CC1100 in the last byte of a received packet is now
+	OK. The last-1 byte contains the channel quality indicator, for what
+	it is worth.

@@ -705,14 +705,12 @@ Abort:
 
 	// Check if the packet is OK
 
-	if (*(zzr_bptr-1) & 0x80) {
-		// Reverse the location RSSI to be compatible with DM2100
-#if BIG_ENDIAN
-		*(zzr_bptr-2) = 0;
-#else
-		*(zzr_bptr-2) = *(zzr_bptr-1);
-		*(zzr_bptr-1) = 0;
-#endif
+	zzr_left = *(zzr_bptr-1);
+	if (zzr_left & 0x80) {
+		// CRC OK
+		*(zzr_bptr-1) = *(zzr_bptr-2);
+		// Reverse the location of RSSI to be compatible with DM2100
+		*(zzr_bptr-2) = (zzr_left & 0x7f);
 	} else {
 		// Ignore
 		proceed (RCV_GETIT);
