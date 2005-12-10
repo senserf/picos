@@ -304,3 +304,30 @@ R051206C:
 	RSSI returned by CC1100 in the last byte of a received packet is now
 	OK. The last-1 byte contains the channel quality indicator, for what
 	it is worth.
+
+R051210A:
+
+	The argument for SETPOWER for CC1100 is between 0 and 7 (inclusively).
+	Previously, it was 0-255 scaled to 0-7.
+	PicOS version is now 1.5.
+
+	For the GENESIS board:
+
+	leds (0, .)	connectivity diode (GP1, P6.1)
+	leds (2, .)	transmitter diode (used by driver) (GP3, P6.3)
+	leds (3, .)	receiver diode (used by driver) (GP2, P6.2)
+
+	As before, leds (i, 2) == blinking. One more function,
+	void fastblink (f), sets the fast blinking rate (f != 0), or resets
+	the default (slow) rate (f == 0). The same rate applies to all blinking
+	leds.
+
+	Genesis reset button is on GP0. PLEASE MAKE SURE THAT THE PIN IS PULLED
+	UP BEFORE BOOTING THE BOARD (e.g., with a 100K resistor), as otherwise
+	it will be constantly rebooting itself (and erasing EEPROM). 
+
+	When the button is pressed, the leds (all of them) will blink once. If
+	the button is released in less than 4 sec after the blink, the board
+	will reset itself (as after power up). If the button is held for longer,
+	the leds will go on, an the board will erase EEPROM. Then the leds
+	will blink 7 times and the board will reset.

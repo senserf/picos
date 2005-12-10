@@ -1,20 +1,16 @@
-#ifndef __pg_irq_timer_headers_h
-#define __pg_irq_timer_headers_h
+#ifndef __pg_every_second_headers_h
+#define __pg_every_second_headers_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 /*
- * Room for headers for intrinsic extra code for timer interrupt
+ * Room for headers for intrinsic extre code to be executed every second
  */
 
-#if RADIO_INTERRUPTS
-#include "irq_timer_headers_radio.h"
-#endif
-
-#if CC1100
-#include "irq_timer_headers_cc1100.h"
+#if TARGET_BOARD == BOARD_GENESIS
+#include "every_second_headers_genesis.h"
 #endif
 
 #endif

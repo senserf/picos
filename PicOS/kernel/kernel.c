@@ -8,7 +8,9 @@
 /*                     PicOS                                                  */
 /*                                                                            */
 /* The kernel                                                                 */
-/*                                                                            */
+/* ========================================================================== */
+
+#include "every_second_headers.h"
 
 /* Task table */
 pcb_t __PCB [MAX_TASKS];
@@ -117,6 +119,9 @@ void zzz_tservice () {
 	while (millisec >= JIFFIES) {
 		millisec -= JIFFIES;
 		nseconds++;
+
+#include "every_second.h"
+
 		if ((nseconds & 63) == 0)
 			/* Do this every "minute" */
 			ldtrigger ((word) (nseconds >> 6));

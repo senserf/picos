@@ -29,6 +29,8 @@
 					LED3_OFF;
 				zz_systat.ledblk = 1;
 			}
+			if (zz_systat.fstblk)
+				zz_systat.ledblc = 200;
 		}
 	}
 #endif

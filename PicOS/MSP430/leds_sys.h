@@ -5,16 +5,6 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	ZZ_LEDON(a,b)	do { \
-				_BIC ( a ## OUT, (b)); \
-				_BIS ( a ## DIR, (b)); \
-			} while (0)
-
-#define	ZZ_LEDOFF(a,b)	do { \
-				_BIS ( a ## OUT, (b)); \
-				_BIC ( a ## DIR, (b)); \
-			} while (0)
-
 #define	LED0_ON		do { } while (0)
 #define	LED1_ON		do { } while (0)
 #define	LED2_ON		do { } while (0)
@@ -25,6 +15,8 @@
 #define	LED3_OFF	do { } while (0)
 
 #if	TARGET_BOARD == BOARD_DM2100
+
+#define	LEDS_HIGH_ON	0
 
 #undef	LED1_ON
 #undef	LED2_ON
@@ -45,17 +37,48 @@
 
 #if	TARGET_BOARD == BOARD_GENESIS
 
+#define	LEDS_HIGH_ON	1
+
+#undef	LED0_ON
 #undef	LED2_ON
 #undef	LED3_ON
+#undef	LED0_OFF
 #undef	LED2_OFF
 #undef	LED3_OFF
 
-#define	LED2_ON		ZZ_LEDON (P1, 2)
-#define	LED3_ON		ZZ_LEDON (P2, 4)
+#define	LED0_ON		ZZ_LEDON (P6, 2)
+#define	LED2_ON		ZZ_LEDON (P6, 8)
+#define	LED3_ON		ZZ_LEDON (P6, 4)
 
-#define	LED2_OFF	ZZ_LEDOFF (P1, 2)
-#define	LED3_OFF	ZZ_LEDOFF (P2, 4)
+#define	LED0_OFF	ZZ_LEDOFF (P6, 2)
+#define	LED2_OFF	ZZ_LEDOFF (P6, 8)
+#define	LED3_OFF	ZZ_LEDOFF (P6, 4)
 
 #endif	/* TARGET_BOARD == BOARD_GENESIS */
+
+#if	LEDS_HIGH_ON
+
+#define	ZZ_LEDON(a,b)	do { \
+				_BIS ( a ## OUT, (b)); \
+				_BIS ( a ## DIR, (b)); \
+			} while (0)
+
+#define	ZZ_LEDOFF(a,b)	do { \
+				_BIC ( a ## OUT, (b)); \
+				_BIC ( a ## DIR, (b)); \
+			} while (0)
+
+#else
+
+#define	ZZ_LEDON(a,b)	do { \
+				_BIC ( a ## OUT, (b)); \
+				_BIS ( a ## DIR, (b)); \
+			} while (0)
+
+#define	ZZ_LEDOFF(a,b)	do { \
+				_BIS ( a ## OUT, (b)); \
+				_BIC ( a ## DIR, (b)); \
+			} while (0)
+#endif	/* LEDS_HIGH_ON */
 
 #endif

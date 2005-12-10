@@ -6,7 +6,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	SYSVERSION		"1.15"
+#define	SYSVERSION		"1.5"
 
 /* ================================================= */
 /* Options are now settable on per-application basis */
@@ -575,9 +575,12 @@ void		ramput (lword, address, int);
 				} \
 			} while (0)
 
+#define	fastblink(a)	(zz_systat.fstblk = ((a) != 0))
+
 #else
 
-#define	leds (a,b)	do { } while (0)
+#define	leds(a,b)	do { } while (0)
+#define	fastblink(a)	do { } while (0)
 	
 #endif 	/* LEDS_DRIVER */
 

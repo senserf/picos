@@ -847,10 +847,10 @@ static int option (int opt, address val) {
 		if (val == NULL)
 			// Default
 			zzx_power = 3;
-		else if (*val > 255)
+		else if (*val > 7)
 			zzx_power = 7;
 		else
-			zzx_power = (*val >> 5) & 0x7;
+			zzx_power = *val;
 		cc1100_set_power ();
 
 		break;

@@ -34,7 +34,7 @@ typedef struct {
 
 	byte	pdmode:1,	// Power down flag
 		evntpn:1,	// Scheduler event pending
-		unused:1,
+		fstblk:1,	// Fast blink flag
 		ledblk:1,	// Blink flag
 		ledsts:4;	// Blink status of four leds
 
