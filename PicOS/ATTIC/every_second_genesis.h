@@ -6,8 +6,12 @@
 /* ==================================================================== */
 
 /*
- * Resets the Genesis board
+ * Resets the Genesis board: note we only do this if EEPROM is present. This
+ * gives us a way to disable the reset button (which is on low) for experiments
+ * with prototype boards.
  */
+#if EEPROM_DRIVER
+
 	if (GENESIS_RESET_KEY_PRESSED) {
 		// Disable all interrupts, we are going down
 		cli;
@@ -40,4 +44,6 @@
 		}
 		reset ();
 	}
+#endif
+
 #endif

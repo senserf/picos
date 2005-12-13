@@ -331,3 +331,12 @@ R051210A:
 	will reset itself (as after power up). If the button is held for longer,
 	the leds will go on, an the board will erase EEPROM. Then the leds
 	will blink 7 times and the board will reset.
+
+R051212A:
+
+	Added a test application for CC1100 (CC1100Test) that works like RFPing
+	without ACKs, but with a monitoring of packet loss.
+
+	The Genesis reset button is only active if EEPROM support is compiled
+	in. This way we can disable that button (note that it is active down)
+	for experiments with the prototype board.
