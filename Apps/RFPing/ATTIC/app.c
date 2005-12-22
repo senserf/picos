@@ -158,7 +158,8 @@ process (receiver, void)
 
 #if	CC1100
 
-	ser_outf (RC_DATA, "RCV: %lu (len = %d), pow = %d qua = %d\r\n",
+	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %d), pow = %d qua = %d\r\n",
+		packet [1],
 		last_rcv, tcv_left (packet) - 2,
 		((byte*)packet) [tcv_left (packet) - 1],
 		((byte*)packet) [tcv_left (packet) - 2]

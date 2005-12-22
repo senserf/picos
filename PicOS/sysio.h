@@ -187,6 +187,11 @@
 #define	MALLOC_SAFE		0
 #endif
 
+// Doubleword alignment of malloc'ed memory
+#ifndef	MALLOC_ALIGN4
+#define	MALLOC_ALIGN4		0
+#endif
+
 #ifndef CC1000
 #define CC1000                 	0
 #endif

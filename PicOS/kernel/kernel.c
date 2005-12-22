@@ -441,7 +441,7 @@ int kill (int pid) {
 			/* This makes you a zombie ... */
 			swait (ETYPE_TERM, 0, 0);
 		} else {
-			/* ... while this makes you dead */
+			/* ... and this makes you dead */
 			zz_curr->code = NULL;
 		}
 		release;
@@ -821,7 +821,20 @@ void zz_malloc_init () {
 #endif	/* MALLOC_STATS */
 
 	mpools [0] = morg + m_hdrlen;
+
+#if	MALLOC_ALIGN4
+	if (((word)(mpools [0]) & 0x2)) {
+		// Make sure the chunk origin is doubleword aligned
+		mpools [0]++;
+		m_size (mpools [0]) = mtot - m_hdrlen - 1;
+	} else {
+		m_size (mpools [0]) = mtot - m_hdrlen;
+	}
+#else
 	m_size (mpools [0]) = mtot - m_hdrlen;
+
+#endif	/* MALLOC_ALIGN4 */
+
 	mevent [0] = 0;
 
 #if	MALLOC_STATS
@@ -841,11 +854,20 @@ void zz_malloc_init () {
 	mnfree = mevent + np;
 	mcfree = mnfree + np;
 	morg = mcfree + np;
-	mtot = perc = MALLOC_LENGTH - 4 * np;
+	mtot = MALLOC_LENGTH - 4 * np;
 #else	/* MALLOC_STATS */
 	morg = mevent + np;
-	mtot = perc = MALLOC_LENGTH - 2 * np;
+	mtot = MALLOC_LENGTH - 2 * np;
 #endif	/* MALLOC_STATS */
+
+#if	MALLOC_ALIGN4
+	if (((word)morg & 0x2) == 0) {
+		// Make sure the chunk origin is doubleword aligned
+		morg++;
+		mtot--;
+	}
+#endif
+	perc = mtot;
 
 	while (np) {
 		np--;
@@ -859,10 +881,20 @@ void zz_malloc_init () {
 			chunk <<= fac;
 			// This required __div/__mul from the library:
 			// chunk = (word)((((long) zzz_heap [np]) * mtot) /100);
-		} else
+		} else {
 			chunk = perc;
+		}
+
+#if	MALLOC_ALIGN4
+		if ((chunk & 01))
+			// Make sure it is even, so the allocatable chunk size
+			// is odd
+			chunk--;
+#endif	/* MALOC_ALIGN4 */
+
 		if (chunk < 128)
 			syserror (ERESOURCE, "malloc_init (2)");
+
 		m_size (freelist) =
 #if	MALLOC_STATS
 			mnfree [np] = mcfree [np] =
@@ -977,13 +1009,26 @@ address zzz_malloc (int np, word size) {
 	/* Put a limit on how many bytes you can formally request */
 	if (size > 0x8000)
 		syserror (EREQPAR, "malloc");
-	else if (size < 4)
+
+#if	MALLOC_ALIGN4
+	if (size < 6) {
+		size = 3;
+	} else {
+		size = (size + 1) >> 1;
+		if ((size & 1) == 0)
+			// Make this an odd number of words, such that the next
+			// chunk will fall on an odd-word boundary
+			size++;
+	}
+#else
+	if (size < 4)
 		/* Never allocate less than two words */
 		size = 2;
 	else
 		/* Convert size to words */
 		size = (size + 1) >> 1;
 	/* Right shift of unsigned doesn't propagate the sign bit */
+#endif	/* MALLOC_ALIGN4 */
 
 	cc = (address)(mpools + MA_NP);
 	for (chunk = mpools [MA_NP]; chunk != NULL; cc = chunk,

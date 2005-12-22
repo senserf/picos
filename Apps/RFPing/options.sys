@@ -10,6 +10,7 @@
 // MSP430
 
 #define	MALLOC_SINGLEPOOL	1
+#define	MALLOC_ALIGN4		1
 
 #endif
 

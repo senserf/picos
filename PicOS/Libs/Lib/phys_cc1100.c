@@ -475,6 +475,9 @@ Drain:
 		proceed (XM_LOOP);
 	}
 
+	// Set the station Id
+	zzx_buffer [0] = zzv_statid;
+
 	zzx_paylen = (byte) stln;
 
 	// zzx_buffer being set enables the receiver to detect that a received

@@ -340,3 +340,9 @@ R051212A:
 	The Genesis reset button is only active if EEPROM support is compiled
 	in. This way we can disable that button (note that it is active down)
 	for experiments with the prototype board.
+
+R051221A:
+
+	Station Id was not set in the CC1100 transmitter.
+	When MALLOC_ALIGN4 == 1, chunks allocated by malloc are longword
+	aligned.
