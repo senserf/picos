@@ -6,6 +6,6 @@
 /* ==================================================================== */
 
 #include "cc1100_sys.h"
-#include "eeprom_sys.h"
+#include "eeprom.h"
 
 #endif

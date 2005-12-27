@@ -628,7 +628,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_GETPOWER:
 
-		ret = ((int) rssi_cnv (adc_value)) & 0xff;
+		ret = (int) zzx_power;
 
 		if (val != NULL)
 			*val = ret;

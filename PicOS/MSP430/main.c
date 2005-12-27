@@ -8,8 +8,6 @@
 #include "irq_timer_headers.h"
 
 extern 			pcb_t		*zz_curr;
-extern 			word  		zz_mintk;
-extern 	volatile 	word 		zz_lostk;
 extern 			address	zz_utims [MAX_UTIMERS];
 extern	void		_reset_vector__;
 
@@ -349,19 +347,25 @@ static void ios_init () {
 	int i;
 	pcb_t *p;
 
-	for_all_tasks (p)
-		/* Mark all task table entries as available */
-		p->code = NULL;
+#if EEPROM_DRIVER
+	zz_ee_init ();
+#endif
 
 #if	UART_DRIVER || UART_TCV
 	// An UART is configured, initialize it beforehand without enabling
 	// anyting, which is up to the driver plugin. We just want to be able
 	// to use diag.
 	preinit_uart ();
+#endif
 	diag ("\r\nPicOS v" SYSVERSION ", "
         	"Copyright (C) Olsonet Communications, 2002-2005");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
-#endif
+
+	for_all_tasks (p)
+		/* Mark all task table entries as available */
+		p->code = NULL;
+
+	/* Processes can be created past this point */
 
 	/* Initialize devices */
 	for (i = UART; i < MAX_DEVICES; i++)
@@ -371,9 +375,6 @@ static void ios_init () {
 	/* Make SMCLK available on P5.5 */
 	_BIS (P5OUT, 0x20);
 	_BIS (P5SEL, 0x20);
-#if EEPROM_DRIVER
-	zz_ee_init ();
-#endif
 }
 
 /* ------------------------------------------------------------------------ */

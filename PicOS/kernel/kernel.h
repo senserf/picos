@@ -17,6 +17,10 @@
 void	zzz_set_release (void);
 void	zzz_tservice (void);
 
+#if EEPROM_DRIVER
+void 	zz_ee_init (void);
+#endif
+
 typedef struct	{
 /* =================================== */
 /* A single event awaited by a process */
@@ -65,6 +69,9 @@ typedef struct	{
 } pcb_t;
 
 extern	pcb_t	__PCB [];
+
+extern 			word  		zz_mintk;
+extern 	volatile 	word 		zz_lostk;
 
 extern	void tcv_init (void);
 

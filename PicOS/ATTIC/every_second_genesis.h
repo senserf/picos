@@ -22,19 +22,8 @@
 		mdelay (4096);
 		if (GENESIS_RESET_KEY_PRESSED) {
 			leds (0, 1); leds (2, 1); leds (3, 1);
-			for (zz_mintk = 0; zz_mintk < (EE_SIZE+31)/32;
-			    zz_mintk++) {
-				ee_read (zz_mintk << 5, (byte*)__PCB, 32);
-				// Do not erase what appears to be erased
-				for (zz_lostk = 0; zz_lostk < 32; zz_lostk++)
-					if (((byte*)__PCB) [zz_lostk] != 0xff)
-						break;
-				if (zz_lostk >= 32)
-					continue;
-				for (zz_lostk = 0; zz_lostk < 32; zz_lostk++)
-					((byte*)__PCB) [zz_lostk] = 0xff;
-				ee_write (zz_mintk << 5, (byte*)__PCB, 32);
-			}
+			// EEPROM_RAW_ERASE;
+			ee_erase ();
 			for (zz_lostk = 0; zz_lostk < 8; zz_lostk++) {
 				leds (0, 1); leds (2, 1); leds (3, 1);
 				mdelay (200);
@@ -42,6 +31,7 @@
 				mdelay (200);
 			}
 		}
+		while (GENESIS_RESET_KEY_PRESSED);
 		reset ();
 	}
 #endif

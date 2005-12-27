@@ -261,8 +261,8 @@
 #define CRC_ISO3309		1
 #endif
 
-#ifndef	EPROM_DRIVER
-#define	EPROM_DRIVER		0
+#ifndef	EEPROM_DRIVER
+#define	EEPROM_DRIVER		0
 #endif
 
 /* ======================================================================== */
@@ -282,8 +282,10 @@
 #define MAX_UTIMERS		4
 
 #if	UART_DRIVER == 0 && UART_TCV == 0
+#if	DIAG_MESSAGES < 3
 #undef	DIAG_MESSAGES
 #define	DIAG_MESSAGES		0
+#endif
 #endif
 
 #if	UART_TCV
@@ -389,12 +391,20 @@
 #endif
 #endif
 
-#if	EEPROM_DRIVER
+#if	EEPROM_DRIVER == 0
+
+#if	DIAG_MESSAGES > 2
+#undef	DIAG_MESSAGES
+#define	DIAG_MESSAGES	0
+#endif
+
+#else
 
 //+++ "eeprom.c"
 
 void 	ee_read  (word, byte*, word);
 void 	ee_write (word, const byte*, word);
+void	ee_erase (void);
 
 #endif	/* EEPROM_DRIVER */
 
@@ -590,6 +600,11 @@ void		ramput (lword, address, int);
 #endif 	/* LEDS_DRIVER */
 
 void	diag (const char *, ...);
+
+#if	DIAG_MESSAGES > 2
+void	diag_dump (void);
+#endif
+
 word	switches (void);
 
 /* ======================================= */
@@ -843,6 +858,7 @@ extern	lword zzz_ent_acc;
 #define	ETOOMANY	9	/* Too many times (like more than once) */
 #define	EASSERT		10	/* Consistency check failed */
 #define	ESTACK		11	/* Stack overrun */
+#define	EEEPROM		12	/* EEPROM reference out of range */
 
 #if	ADC_PRESENT
 #if     CC1000

@@ -103,7 +103,7 @@ lword seconds () {
 
 void zzz_tservice () {
 
-	word nticks, nmins;
+	word nticks;
 	pcb_t *i;
 
 	cli_tim;
@@ -1215,6 +1215,10 @@ void zz_dbg (const word lvl, word code) {
 
 #if	DIAG_MESSAGES
 
+#if	DIAG_MESSAGES < 3
+
+// UART as opposed to EEPROM
+
 void diag (const char *mess, ...) {
 /* ================================ */
 /* Writes a direct message to UART0 */
@@ -1300,11 +1304,13 @@ void diag (const char *mess, ...) {
 	diag_enable_int (a, is);
 }
 
+#endif	/* DIAG_MESSAGES < 3 */
+
 #else
 
 void diag (const char *mess, ...) { }
 
-#endif
+#endif	/* DIAG_MESSAGES */
 
 #ifdef	DEBUG_BUFFER
 

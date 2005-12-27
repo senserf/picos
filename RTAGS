@@ -346,3 +346,29 @@ R051221A:
 	Station Id was not set in the CC1100 transmitter.
 	When MALLOC_ALIGN4 == 1, chunks allocated by malloc are longword
 	aligned.
+
+R051226A:
+
+	For CC1x00, GETPOWER returns the current transmit power rather than
+	RSSI.
+
+	GENESIS reset button pressed during boot erases EEPROM.
+
+	If DIAG_MESSAGES > 2, it represents the amount of EEPROM to be used
+	for storing diag messages. In this case, diag messages will not show
+	up on the UART but will be stored in a circular buffer at the end
+	of EEPROM. The specified size is rounded to up to an entire number
+	of pages. For example, suppose that DIAG_MESSAGES == 1020. The upper
+	1K (1024 bytes) of EEPROM will be used for the diag buffer. Application
+	writes (ww_write) are only allowed to the lower 7K of EEPROM.
+
+	`void ee_erase (void)' added to completely erase the EEPROM.
+
+	ee_write no longer wraps around on addresses exceeding 8K (or whatever
+	is available to the application after accounting for the diag buffer).
+	An attempt to write past the avalable area triggers a system error.
+	ee_read, however, wraps around and can read anything including the
+	diag buffer.
+
+	`void ee_dump (void)' dumps the EEPROM diag buffer to the UART (in 
+	ASCII). UART_DRIVER is required for that.

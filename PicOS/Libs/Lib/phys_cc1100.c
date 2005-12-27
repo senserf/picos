@@ -417,7 +417,7 @@ procname (cc1100_receiver);
 #define	XM_SEND		2
 #define	XM_WAIT		3
 
-static process (cc1100_xmitter, void)
+process (cc1100_xmitter, void)
 
     int stat, stln; 
 
@@ -634,7 +634,7 @@ endprocess (1)
 #define	RCV_CHECKIT		1
 #define	RCV_RECEIVE		2
 
-static process (cc1100_receiver, void)
+process (cc1100_receiver, void)
 
     int len;
 
@@ -649,7 +649,6 @@ static process (cc1100_receiver, void)
 	}
 
 	if (zzv_rxoff) {
-Finish:
 #if 0
 		diag ("RX closing");
 #endif
@@ -686,7 +685,6 @@ Finish:
 	}
 
 	if (zzr_bptr == NULL) {
-Abort:
 		unlock_rcv;
 		LEDI (3, 0);
 #if 0
@@ -856,6 +854,13 @@ static int option (int opt, address val) {
 			zzx_power = *val;
 		cc1100_set_power ();
 
+		break;
+
+	    case PHYSOPT_GETPOWER:
+
+		ret = (int) zzx_power;
+		if (val != NULL)
+			*val = ret;
 		break;
 
 	    case PHYSOPT_SETSID:

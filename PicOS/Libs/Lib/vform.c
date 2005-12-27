@@ -33,7 +33,7 @@ char *vform (char *res, const char *fm, va_list aq) {
 			c = (char) (val / i); \
 		}
 #define encx(s)	for (i = 0; i < (s); i += 4) { \
-			c = (char)((val >> ((s)-4)-i) & 0xf); \
+			c = (char)((val >> (((s)-4)-i)) & 0xf); \
 			if (c > 9) \
 				c = (char)('a' + c-10); \
 			else \
