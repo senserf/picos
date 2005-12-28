@@ -1,6 +1,6 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
-/* All rights reserved.                                                 */
+/* Copyright (C) Olsonet Communications, 2002 - 2005			*/
+/* All rights reserved.							*/
 /* ==================================================================== */
 #include "sysio.h"
 #include "tcvphys.h"
@@ -23,15 +23,19 @@
 #include "phys_cc1000.h"
 #endif
 
+#if CC1100
+#include "phys_cc1100.h"
+#endif
+
 #if DM2100
 #include "phys_dm2100.h"
 #endif
 
 #include "tarp.h"
 
-extern int net_fd;
-extern int net_phys;
-extern int net_plug;
+int net_fd = -1;
+int net_phys = -1;
+int net_plug = -1;
 
 int net_opt (int opt, address arg) {
 	if (opt == PHYSOPT_PHYSINFO)
@@ -46,18 +50,32 @@ int net_opt (int opt, address arg) {
 	return tcv_control (net_fd, opt, arg);
 }
 
+#if ETHERNET_DRIVER
 static int ether_init (word);
+#endif
+
+#if UART_DRIVER > 1
 static int uart_init (word);
+#endif
+
+#if RADIO_DRIVER
 static int radio_init (word);
+#endif
+
+#if CC1000
 static int cc1000_init (word);
+#endif
+
+#if CC1100
+static int cc1100_init (word);
+#endif
+
+#if DM2100
 static int dm2100_init (word);
+#endif
 
-#define	NET_MAXPLEN		128
-static const char myName[] = "net_ini";
-
-int net_fd   = -1;
-int net_phys = -1;
-int net_plug = -1;
+#define NET_MAXPLEN		64
+static const char myName[] = "net.c";
 
 int net_init (word phys, word plug) {
 
@@ -65,39 +83,43 @@ int net_init (word phys, word plug) {
 		diag ("%s: Net busy", myName);
 		return -1;
 	}
-	
+
 	net_phys = phys;
 	net_plug = plug;
 
 	switch (phys) {
-
+#if RADIO_DRIVER
 	case INFO_PHYS_RADIO:
 		return (net_fd = radio_init (plug));
-
+#endif
+#if CC1000
 	case INFO_PHYS_CC1000:
 		return (net_fd = cc1000_init (plug));
-
+#endif
+#if CC1100
+	case INFO_PHYS_CC1100:
+		return (net_fd = cc1100_init (plug));
+#endif
+#if DM2100
 	case INFO_PHYS_DM2100:
 		return (net_fd = dm2100_init (plug));
-
+#endif
+#if ETHERNET_DRIVER
 	case INFO_PHYS_ETHER:
 		return (net_fd = ether_init (plug));
-
+#endif
+#if UART_DRIVER > 1
 	case INFO_PHYS_UART:
 		return (net_fd = uart_init (plug));
+#endif
 	default:
-		diag ("%s: Unknown phys", myName);
+		diag ("%s: ? phys %d", myName, phys);
 		return (net_fd = -1);
 	}
 }
 
+#if RADIO_DRIVER
 static int radio_init (word plug) {
-#if !RADIO_DRIVER
-
-	diag ("%s: Radio driver missing", myName);
-	return -1;
-
-#else
 	int fd;
 
 	phys_radio (0, 0, NET_MAXPLEN);
@@ -115,15 +137,11 @@ static int radio_init (word plug) {
 	tcv_control (fd, PHYSOPT_TXON, NULL); // just for now
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;
-
-#endif
 }
+#endif
 
+#if CC1000
 static int cc1000_init (word plug) {
-#if !CC1000
-	diag ("%s: CC1000 phys missing", myName);
-	return -1;
-#else
 	int fd;
 	// opts removed word opts[2] = {4, 2}; // checksum + power
 	phys_cc1000 (0, NET_MAXPLEN, 192);
@@ -134,22 +152,36 @@ static int cc1000_init (word plug) {
 		tcv_plug (0, &plug_null);
 
 	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
-		diag ("%s: Cannot open cc1000 interface", myName);
+		diag ("%s: Cannot open CC1000 if", myName);
 		return -1;
 	}
 
 	tcv_control (fd, PHYSOPT_TXON, NULL);
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;
-
-#endif
 }
+#endif
 
+#if CC1100
+static int cc1100_init (word plug) {
+	int fd;
+	phys_cc1100 (0, NET_MAXPLEN);
+	if (plug == INFO_PLUG_TARP)
+		tcv_plug (0, &plug_tarp);
+	else
+		tcv_plug (0, &plug_null);
+	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+		diag ("%s: Cannot open cc1100", myName);
+		return -1;
+	}
+	tcv_control (fd, PHYSOPT_TXON, NULL);
+	tcv_control (fd, PHYSOPT_RXON, NULL);
+	return fd;
+}
+#endif
+
+#if DM2100
 static int dm2100_init (word plug) {
-#if !DM2100
-	diag ("%s: DM2100 phys missing", myName);
-	return -1;
-#else
 	int fd;
 	phys_dm2100 (0, NET_MAXPLEN);
 
@@ -166,18 +198,11 @@ static int dm2100_init (word plug) {
 	tcv_control (fd, PHYSOPT_TXON, NULL);
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;
-#endif
 }
-	
+#endif
+
+#if ETHERNET_DRIVER
 static int ether_init (word plug) {
-
-#if !ETHERNET_DRIVER
-
-	diag ("%s: Ethernet driver missing", myName);
-	return -1;
-
-#else
-
 	char c;
 	int  fd;
 
@@ -198,24 +223,16 @@ static int ether_init (word plug) {
 	tcv_control (fd, PHYSOPT_TXON, NULL);
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;
-
+}
 #endif
 
-}
-
+#if UART_DRIVER == 2
 static int uart_init (word plug) {
-
-#if UART_DRIVER != 2
-
-	diag ("%s: Uart_b driver missing", myName);
-	return -1;
-
-#else
 
 // #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
 // or
-#define	NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
-#define	NET_RATE			19200
+#define NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
+#define NET_RATE			19200
 
 	static word p [6]; // keep all 6? (does io write anything there?) ** check
 	int  fd;
@@ -239,22 +256,15 @@ static int uart_init (word plug) {
 
 #undef	NET_CHANNEL_MODE
 #undef	NET_RATE
-
-#endif
-
 }
+#endif
 
 // 7 words, 62 is the shortest frame
 #define ether_min_frame		62
 #define ether_offset(len)	((len) + 7)
-#define	ether_ptype		0x6007
-
-extern int net_fd;
-extern int net_phys;
+#define ether_ptype		0x6007
 
 int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
-
-	static const char * myName = "net_rx";
 	address packet;
 	word size;
 
@@ -262,27 +272,25 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 		diag ("%s: NULL buf addr", myName);
 		return -1;
 	}
-	
+
 	if (net_fd < 0) {
 		diag ("%s: No net", myName);
 		return -1;
 	}
-	packet = tcv_rnp (state, net_fd); // if silence, will hang and go to state if not NONE
-	// size = tcv_left (packet);
-	if ((size = tcv_left (packet)) == 0) // this may be only if state is nonblocking NONE (?)
+	packet = tcv_rnp (state, net_fd);
+	if ((size = tcv_left (packet)) == 0) // only if state is NONE (?)
 		return 0;
 
 	if (rssi_ptr) {
-		if (net_phys == INFO_PHYS_CC1000 ||
-			net_phys == INFO_PHYS_DM2100)
-			// ?? under a specific option?? check***
-			*rssi_ptr = packet[(size >> 1) -1];
-		else
-			*rssi_ptr = 0;
+#if CC1100 || CC1000 || DM2100
+		*rssi_ptr = packet[(size >> 1) -1];
+#else
+		*rssi_ptr = 0;
+#endif
 	}
 
 	switch (net_phys) {
-
+#if ETHERNET_DRIVER
 	case INFO_PHYS_ETHER:
 		if (packet [6] != ether_ptype || size < ether_min_frame) {
 			diag ("%s: Bad packet", myName);
@@ -298,24 +306,34 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 		memcpy(*buf_ptr, (char *)ether_offset(packet), size);
 		tcv_endp(packet);
 		return size;
-
+#endif
+#if UART_DRIVER == 2
 	case INFO_PHYS_UART:
 		if (*buf_ptr == NULL)
 			*buf_ptr = (char *)umalloc(size);
 		memcpy(*buf_ptr, (char *)packet, size);
 		tcv_endp(packet);
 		return size;
-
+#endif
 	case INFO_PHYS_RADIO:
 	case INFO_PHYS_CC1000:
+	case INFO_PHYS_CC1100: // sid, entropy, rssi
 	case INFO_PHYS_DM2100:
 		size -= 6;
+		if (size == 0 || size > NET_MAXPLEN) {
+			tcv_endp(packet);
+			return -1;
+		}
+			
 		if (*buf_ptr == NULL)
 			*buf_ptr = (char *)umalloc(size);
-		memcpy(*buf_ptr, (char *)(packet +1), size);
+		if (*buf_ptr == NULL)
+			size = 0;
+		else
+			memcpy(*buf_ptr, (char *)(packet +1), size);
 		tcv_endp(packet);
 		return size;
-		 
+
 	default:
 		diag ("%s: Unknown phys", myName);
 		return -1;
@@ -327,27 +345,30 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 // 7 words, 15 = 14 head + 1 tail bytes (needed), 62 is the shortest frame
 #define ether_min_frame		62
 #define ether_offset(len)	((len) + 7)
-#define	ether_ptype			0x6007
-#define ether_len(len)	 	((62 >= ((len) + 15)) ? 62 : ((len) + 15))
+#define ether_ptype			0x6007
+#define ether_len(len)		((62 >= ((len) + 15)) ? 62 : ((len) + 15))
 
+#if CC1100
+// 2 - station id, 2 - entropy
+#define radio_len(len)	((len) + 4)
+//#define radio_len(len)  (((len) + 4 +3) & 0xfffc)
+#else
 // 2 - header, 4 - crc, +3 mod 4 == 0
 // (if the length is not divisible by 4, strange things may happen)
 #define radio_len(len)		(((len) + 2+ 4 + 3) & 0xfffc)
-extern int net_fd;
-extern int net_phys;
-extern int net_plug;
+#endif
 
 int net_tx (word state, char * buf, int len) {
-
+#if ETHERNET_DRIVER
 	static const word ether_maddr [3] = { 0xe1aa, 0xbbcc, 0xddee};
-	static const char * myName = "net_tx";
+#endif
 	address packet;
 
 	if (buf == NULL || len <= 0) {
 		diag ("%s: Crap in", myName);
 		return -1;
 	}
-	
+
 	if (net_fd < 0) {
 		diag ("%s: No net", myName);
 		return -1;
@@ -358,7 +379,9 @@ int net_tx (word state, char * buf, int len) {
 		return -1;
 	}
 
-	if (net_phys == INFO_PHYS_ETHER) {
+	switch (net_phys) {
+#if ETHERNET_DRIVER
+	  case INFO_PHYS_ETHER:
 		packet = tcv_wnp (state, net_fd, ether_len (len));
 		if (packet == NULL) {	// state is NONE and we failed
 			diag ("%s: wnp failed", myName);
@@ -369,20 +392,21 @@ int net_tx (word state, char * buf, int len) {
 		/* and that this is a multicast address */
 		memcpy (packet + 0, ether_maddr, 6);
 		memcpy ((char*)ether_offset(packet), buf, len);
-
-	} else if (net_phys == INFO_PHYS_RADIO ||
-			net_phys == INFO_PHYS_CC1000 ||
-			net_phys == INFO_PHYS_DM2100) {
-		packet = tcv_wnp (state, net_fd, radio_len(len)); 
+		break;
+#endif
+	  case INFO_PHYS_RADIO:
+	  case INFO_PHYS_CC1000:
+	  case INFO_PHYS_CC1100:
+	  case INFO_PHYS_DM2100:
+		packet = tcv_wnp (state, net_fd, radio_len(len));
 		if (packet == NULL) {
-			//net_diag (D_DEBUG, "%s: wnp failed", myName);
 			return -1;
 		}
-		
-		packet[0] = 0;
+		//packet[0] = 0; not needed any more
 		memcpy (packet + 1,  buf, len);
+		break;
 
-	} else {
+	  default:
 		packet = tcv_wnp (state, net_fd, len);
 		if (packet == NULL) {
 			return -1;
@@ -393,19 +417,13 @@ int net_tx (word state, char * buf, int len) {
 	return 0;
 }
 
-extern int net_fd;
-extern int net_phys;
-extern int net_plug;
 int net_close (word state) {
-
-	static const char * myName = "net_close";
 	int rc;
-
 	if (net_fd < 0) {
-		diag ("%s: Net not open", myName);
+		diag ("%s: Not opened", myName);
 		return -1;
 	}
-	
+
 	if ((rc = tcv_close(state, net_fd)) != 0)
 		diag ("%s: Close err %d", myName, rc);
 
@@ -414,5 +432,4 @@ int net_close (word state) {
 	net_plug = -1;
 	return rc;
 }
-
 

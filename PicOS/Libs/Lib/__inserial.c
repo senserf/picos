@@ -14,7 +14,7 @@ char *__inpline = NULL;
 
 extern int __serial_port;
 
-#define	MAX_LINE_LENGTH	127
+#define	MAX_LINE_LENGTH	63
 
 #define	IM_INIT		00
 #define	IM_READ		10

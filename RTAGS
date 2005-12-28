@@ -372,3 +372,15 @@ R051226A:
 
 	`void ee_dump (void)' dumps the EEPROM diag buffer to the UART (in 
 	ASCII). UART_DRIVER is required for that.
+
+R051228A:
+
+	Added Apps/Genesis, with beta 0 for RFM (that's what was sent there).
+	GeneIF... and GeneOps... added to Docs.
+
+	Libs/LibComms updated with the newest TARP (for Genesis).
+
+	In Libs/Lib, __inserial.c has a shorter buffer (128->64).
+
+	Removed Libs/LibDiag.
+
