@@ -384,3 +384,7 @@ R051228A:
 
 	Removed Libs/LibDiag.
 
+R060103A:
+
+	Fixed an obscure bug in kernel.c causing old and cancelled delays to 
+	occasionally reincarnate in most unexpected places.

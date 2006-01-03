@@ -142,6 +142,11 @@ void zzz_tservice () {
 		for_all_tasks (i) {
 			if (i->Timer == 0)
 				continue;
+			if (!twaiting (i)) {
+				// Fix it for future checks
+				i->Timer = 0;
+				continue;
+			}
 			if (i->Timer <= setticks) {
 				i->Timer = 0;
 				wakeuptm (i);
