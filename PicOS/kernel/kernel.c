@@ -125,7 +125,6 @@ void zzz_tservice () {
 		if ((nseconds & 63) == 0)
 			/* Do this every "minute" */
 			ldtrigger ((word) (nseconds >> 6));
-			
 	}
 
 	do {
@@ -744,6 +743,9 @@ extern	word zzz_heap [];
 static 	address *mpools;
 static	address mevent;
 
+#define	MEV_NWAIT(np)	(*((byte*)(&(mevent [np])) + 0 ))
+#define	MEV_NFAIL(np)	(*((byte*)(&(mevent [np])) + 1 ))
+
 #if	MALLOC_STATS
 static 	address mnfree, mcfree;
 #endif
@@ -840,7 +842,7 @@ void zz_malloc_init () {
 
 #endif	/* MALLOC_ALIGN4 */
 
-	mevent [0] = 0;
+	MEV_NWAIT (0) = 0;
 
 #if	MALLOC_STATS
 	mnfree [0] = mcfree [0] = m_size (mpools [0]);
@@ -905,7 +907,7 @@ void zz_malloc_init () {
 			mnfree [np] = mcfree [np] =
 #endif
 				chunk - m_hdrlen;
-		mevent [np] = 0;
+		MEV_NWAIT (np) = 0;
 		m_setnextp (freelist, NULL);
 #if	MALLOC_SAFE
 		m_magic (freelist) = 0xdeaf;
@@ -989,9 +991,9 @@ void zzz_free (int np, address ch) {
 #endif
 	QFREE;
 
-	if (mevent [MA_NP]) {
+	if (MEV_NWAIT (MA_NP)) {
 		trigger ((word)(&(mevent [MA_NP])));
-		mevent [MA_NP] --;
+		MEV_NWAIT (MA_NP) --;
 	}
 
 #undef	QFREE
@@ -1057,24 +1059,38 @@ address zzz_malloc (int np, word size) {
 			/* Insert the chunk */
 			QFREE;
 		}
-	}
-	/* Return NULL on failure */
+		// Erase the failure counter
+		MEV_NFAIL (MA_NP) = 0;
 #if	MALLOC_STATS
-	if (chunk == NULL) {
-		mnfree [MA_NP] = 0;
-		return NULL;
-	} else {
 		mcfree [MA_NP] -= m_size (chunk);
 		if (mnfree [MA_NP] > mcfree [MA_NP])
 			/* Update the minimum */
 			mnfree [MA_NP] = mcfree [MA_NP];
-	}
 #endif
 #if	MALLOC_SAFE
-	if (chunk != NULL)
 		m_size (chunk) |= 0x8000;
 #endif
-	return (chunk);
+	} else {
+		// Failure
+		if (MEV_NFAIL (MA_NP) != 255)
+			MEV_NFAIL (MA_NP) ++;
+#if	RESET_ON_MALLOC
+		else {
+#if	RESET_ON_SYSERR
+			syserror (EWATCH, "malloc");
+#else
+			diag ("MALLOC STALL, RESETTING");
+			reset ();
+#endif	/* RESET_ON_SYSERR */
+		}
+#endif	/* RESET_ON_MALLOC */
+		
+#if	MALLOC_STATS
+		mnfree [MA_NP] = 0;
+#endif
+	}
+
+	return chunk;
 
 #undef	QFREE
 #undef	MA_NP
@@ -1091,8 +1107,8 @@ void zzz_waitmem (int np, word state) {
 /*
  * Wait for pool memory release
  */
-	if (mevent [MA_NP] < MAX_TASKS)
-		mevent [MA_NP] ++;
+	if (MEV_NWAIT (MA_NP) < MAX_TASKS)
+		MEV_NWAIT (MA_NP) ++;
 
 	wait ((word)(&(mevent [MA_NP])), state);
 #undef	MA_NP
@@ -1142,6 +1158,31 @@ word	zzz_maxfree (int np, address nc) {
 
 #endif /* MALLOC_STATS */
 
+#if	RESET_ON_MALLOC
+
+int zz_malloc_high_mark () {
+/*
+ * Checks if any of the pools has reached the failure limit
+ */
+
+#if	MALLOC_SINGLEPOOL
+
+	return (MEV_NFAIL (0) == 255);
+#else
+	word i, j;
+
+	for (i = j = 0; i < 100; j++) {
+		if (MEV_NFAIL (j))
+			return 1;
+		i += zzz_heap [j];
+	}
+	return 0;
+
+#endif	/* MALLOC_SINGLEPOOL */
+}
+
+#endif	/* RESET_ON_MALLOC */
+	
 #if	SDRAM_PRESENT
 void zz_sdram_test (void) {
 

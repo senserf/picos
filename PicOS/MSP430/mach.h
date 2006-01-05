@@ -51,6 +51,11 @@
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
 
+#if	INFO_FLASH
+#define	IFLASH_SIZE	128			// This is in words
+#define	IFLASH_HARD_ADDRESS	((word*)0x1000)
+#endif
+
 #define	RAM_START	0x200
 #define	STACK_SIZE	256			// Bytes
 #define	STACK_START	(RAM_START + 2048)	// FWA + 1 of stack
@@ -115,6 +120,13 @@ extern uart_t zz_uart [];
 
 #define	sti	_EINT ()
 #define	cli	_DINT ()
+
+/* =================== */
+/* Watchdog operations */
+/* =================== */
+
+#define	WATCHDOG_STOP		WDTCTL = WDTPW + WDTHOLD
+#define	WATCHDOG_START		WDTCL = WDTPW + WDTCNTCL + WDTSSEL
 
 /* =============================== */
 /* Enable/disable clock interrupts */

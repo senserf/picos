@@ -388,3 +388,32 @@ R060103A:
 
 	Fixed an obscure bug in kernel.c causing old and cancelled delays to 
 	occasionally reincarnate in most unexpected places.
+
+R060104A:
+
+	INFO FLASH has been made writable from the application. Set
+
+		INFO_FLASH == 1
+
+	in options.sys. Then
+
+		if_write (word num, word val)
+
+	will write val into word number num in INFO FLASH. The total size of
+	the flash is 128 words. The flash is available (for reading) as
+
+		const word IFLASH []
+
+	Use
+		if_erase ()
+
+	to completely erase the INFO FLASH (a good idea before starting to
+	write into it).
+	
+	If RESET_ON_SYSERR == 1 (in options.sys), syserror causes reset. If
+	LEDS_DRIVER == 1 as well, all LEDs will blink 16 times before the
+	reset.
+
+	If RESET_ON_MALLOC == 1 (in options.sys), 256 consecutive failed
+	mallocs (for any given pool) will trigger reset. The count starts
+	from zero after a successful allocation.

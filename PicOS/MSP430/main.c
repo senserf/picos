@@ -15,11 +15,6 @@ word			zz_restart_sp;
 
 #define	STACK_SENTINEL	0xB779
 
-/* ====================================================================== */
-/* Accept UART rates above 9600. They use SMCLK, which is unreliable, and */
-/* thus involve a tricky calibration.                                     */
-/* ====================================================================== */
-
 void	zz_malloc_init (void);
 
 /* ========================== */
@@ -91,7 +86,7 @@ void clockup (void) {
 void reset (void) {
 
 	cli_tim;
-	__asm__ __volatile__("br #_reset_vector__"::);
+	hard_reset;
 }
 
 void halt (void) {
@@ -194,6 +189,20 @@ void zzz_syserror (int ec, const char *m) {
 void zzz_syserror (int ec) {
 	diag ("SYSTEM ERROR: %x", ec);
 #endif
+	cli;
+
+#if RESET_ON_SYSERR
+
+#if LEDS_DRIVER
+	for (zz_lostk = 0; zz_lostk < 32; zz_lostk++) {
+		leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
+		mdelay (100);
+		leds (0, 0); leds (1, 0); leds (2, 0); leds (3, 0);
+		mdelay (100);
+	}
+#endif
+	hard_reset;
+#else	/* RESET_ON_SYSERR */
 
 	while (1) {
 #if LEDS_DRIVER
@@ -205,12 +214,15 @@ void zzz_syserror (int ec) {
 		_BIS_SR (LPM4_bits);
 #endif
 	}
+
+#endif	/* RESET_ON_SYSERR */
+
 }
 
 static void ssm_init () {
 
 	// Disable watchdog timer
-	WDTCTL = WDTPW + WDTHOLD;
+	WATCHDOG_STOP;
 
 #ifdef	__MSP430_449__
 	// This one needs the capacitance setting

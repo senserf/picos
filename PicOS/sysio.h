@@ -265,6 +265,18 @@
 #define	EEPROM_DRIVER		0
 #endif
 
+#ifndef	INFO_FLASH
+#define	INFO_FLASH		0
+#endif
+
+#ifndef	RESET_ON_SYSERR
+#define	RESET_ON_SYSERR		0
+#endif
+
+#ifndef	RESET_ON_MALLOC
+#define	RESET_ON_MALLOC		0
+#endif
+
 /* ======================================================================== */
 /*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */
 /* ======================================================================== */
@@ -407,6 +419,17 @@ void 	ee_write (word, const byte*, word);
 void	ee_erase (void);
 
 #endif	/* EEPROM_DRIVER */
+
+#if	INFO_FLASH
+
+//+++ "iflash.c"
+
+void	if_write (word, word);
+void	if_erase (void);
+#define	IFLASH	IFLASH_HARD_ADDRESS
+
+#endif
+
 
 #define	MAX_INT			((int)0x7fff)
 #define	MAX_UINT		((word)0xffff)
@@ -859,6 +882,8 @@ extern	lword zzz_ent_acc;
 #define	EASSERT		10	/* Consistency check failed */
 #define	ESTACK		11	/* Stack overrun */
 #define	EEEPROM		12	/* EEPROM reference out of range */
+#define	EFLASH		13	/* FLASH reference out of range */
+#define	EWATCH		14	/* Watchdog condition */
 
 #if	ADC_PRESENT
 #if     CC1000

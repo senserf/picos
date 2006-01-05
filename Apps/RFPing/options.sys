@@ -52,3 +52,6 @@
 #define	LBT_THRESHOLD		2
 
 #define	EEPROM_DRIVER		1
+#define	INFO_FLASH		1
+#define	RESET_ON_SYSERR		1
+#define RESET_ON_MALLOC		1

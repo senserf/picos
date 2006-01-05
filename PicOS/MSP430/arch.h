@@ -56,12 +56,14 @@ extern void	__bss_end;
 #define	STATIC_LENGTH		(((word)&__bss_end - (word)RAM_START + 1)/2)
 
 extern	word	zz_restart_sp;
-#define	SET_RELEASE_POINT	asm (\
+#define	SET_RELEASE_POINT	__asm__ __volatile__ (\
 		"mov r1, zz_restart_sp\n"\
 		".global zz_restart_entry\n"\
 		"zz_restart_entry: mov zz_restart_sp, r1")
 void		zz_restart_entry ();
 #define	release	zz_restart_entry ()
+
+#define	hard_reset	__asm__ __volatile__("br #_reset_vector__"::)
 
 #define	_BIS(a,b)	(a) |= (b)
 #define	_BIC(a,b)	(a) &= ~(b)
