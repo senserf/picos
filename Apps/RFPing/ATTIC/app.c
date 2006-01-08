@@ -25,8 +25,6 @@
 
 heapmem {10, 90};
 
-#define	NEED_ROOM_FOR_CHECKSUM	1
-
 #if UART_DRIVER
 #include "ser.h"
 #include "serf.h"
@@ -54,12 +52,6 @@ heapmem {10, 90};
 #include "phys_radio.h"
 #endif
 
-#if CC1100
-#include "phys_cc1100.h"
-#undef	NEED_ROOM_FOR_CHECKSUM
-#define	NEED_ROOM_FOR_CHECKSUM	0
-#endif
-
 #include "plug_null.h"
 
 #if ENCRYPT
@@ -74,13 +66,8 @@ static const lword secret [4] = { 0xbabadead,0x12345678,0x98765432,0x6754a6cd };
 #define	PKT_ACK		0x1234
 #define	PKT_DAT		0xABCD
 
-#if	NEED_ROOM_FOR_CHECKSUM
 #define	ACK_LENGTH	12
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
-#else
-#define MAXPLEN		MAX_PACKET_LENGTH
-#define	ACK_LENGTH	10
-#endif
 
 static int sfd;
 
@@ -291,12 +278,9 @@ process (sender, void)
 		finish;
 	}
 	wait ((word) &tkillflag, SN_SEND);
-	packet = tcv_wnp (SN_NEXT, sfd, packet_length
 
-#if NEED_ROOM_FOR_CHECKSUM
-					+ 2
-#endif
-					);
+	packet = tcv_wnp (SN_NEXT, sfd, packet_length + 2);
+
 	packet [0] = 0;
 	packet [1] = PKT_DAT;
 

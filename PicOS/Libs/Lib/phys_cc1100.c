@@ -344,7 +344,7 @@ void phys_cc1100 (int phy, int mbs) {
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_cc1100");
 
-	if (mbs < 4 || mbs > 255) {
+	if (mbs < 6 || mbs > 255) {
 		if (mbs == 0)
 			mbs = RADIO_DEF_BUF_LEN;
 		else
@@ -353,10 +353,10 @@ void phys_cc1100 (int phy, int mbs) {
 
 	// Account for the two status bytes
 
-	if ((zzr_buffer = umalloc (mbs + 2)) == NULL)
+	if ((zzr_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_cc1100");
 
-	zzr_buffl = (byte) mbs;		// buffer length in bytes (-2)
+	zzr_buffl = (byte) mbs;	// buffer length in bytes, including checksum
 	zzv_statid = 0;
 	zzv_physid = phy;
 	zzx_backoff = 0;
@@ -439,7 +439,11 @@ Drain:
 		}
 	}
 
+#if	URGENT_ALSO_WAITS
+	if (tcvphy_top (zzv_physid) == 0) {
+#else
 	if ((stln = tcvphy_top (zzv_physid)) == 0) {
+#endif
 		/* Packet queue is empty */
 		if (zzv_txoff == 2) {
 			/* Draining; stop xmt if the output queue is empty */
@@ -453,7 +457,11 @@ Drain:
 		release;
 	}
 
+#if	URGENT_ALSO_WAITS
+	if (zzx_backoff) {
+#else
 	if (zzx_backoff && stln < 2) {
+#endif
 		/* We have to wait and the packet is not urgent */
 		delay (zzx_backoff, XM_LOOP);
 		zzx_backoff = 0;
@@ -465,10 +473,10 @@ Drain:
 		// Last time to check
 		proceed (XM_LOOP);
 
-	if (stln > zzr_buffl) {
+	if (stln > zzr_buffl || stln < 6) {
 		// A precaution
 #if 0
-		diag ("TCV packet too long: %d", stln);
+		diag ("TCV illegal packet length: %d", stln);
 #endif
 		tcvphy_end (zzx_buffer);
 		zzx_buffer = NULL;
@@ -478,7 +486,7 @@ Drain:
 	// Set the station Id
 	zzx_buffer [0] = zzv_statid;
 
-	zzx_paylen = (byte) stln;
+	zzx_paylen = (byte) (stln - 2);		// Ignore the checksum bytes
 
 	// zzx_buffer being set enables the receiver to detect that a received
 	// packet matches the outgoing one. We will implement this later, but

@@ -10,7 +10,21 @@
 
 #define RADIO_DEF_BUF_LEN       48      /* Default buffer length */
 
-#define	CHANNEL_CLEAR_ON_RSSI	0	/* Only when receiving a packet */
+/*
+ * Channel clear indication for TX:
+ *
+ *    0  = always (no LBT at all)
+ *    1  = if RSSI below threshold
+ *    2  = if not receiving a packet
+ *    3  = 1+2
+ *
+ * Note that even with CC_INDICATION == 0, active receiver (actually active)
+ * still blocks the transmitter.
+ *
+ */
+#define	CC_INDICATION		0	/* Swithched off */
+
+#define	URGENT_ALSO_WAITS	1	/* Backoff for urgent packets */
 #define	SYSTEM_IDENT		0xAB35	/* Sync word */
 #define	STAY_IN_RX		1	/* Remain in RX after reception */
 #define	BUSY_TRANSMIT		1	/* Busy-wait transmission */
@@ -166,13 +180,7 @@ const	byte	cc1100_rfsettings [] = {
 #define	MCSM1_FROM_RX	0x00
 #endif
 
-#if CHANNEL_CLEAR_ON_RSSI
-// CCA includes RSSI threshold
-#define	MCSM1_CCA	0x30
-#else
-// Only if currently receiving a packet
-#define	MCSM1_CCA	0x20
-#endif
+#define	MCSM1_CCA	(CC_INDICATION << 4)
 
 	CCxxx0_MCSM1,	(MCSM1_FROM_RX | MCSM1_CCA),
 

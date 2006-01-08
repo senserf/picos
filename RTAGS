@@ -440,3 +440,17 @@ R060107A:
 	Function tcv_wnpu added with the header identical to tcv_wnp. It 
 	allocates a buffer for an urgent packet (and sets the urgent flag in
 	the header).
+
+R060108A:
+
+	Urgent packets are subjected to the same backoff as regular packets,
+	the only difference being that they are moved to the front of the
+	queues (CC1100 only).
+
+	Channel clear indication for CC1100 disabled. Note that active receiver
+	still blocks the transmitter.
+
+	File cc1100.h in PicOS/ has a few tuneable parameters at the front.
+
+	Packet length issues for CC1100 solved. Now things are compatible with
+	the previous drivers.
