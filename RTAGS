@@ -417,3 +417,26 @@ R060104A:
 	If RESET_ON_MALLOC == 1 (in options.sys), 256 consecutive failed
 	mallocs (for any given pool) will trigger reset. The count starts
 	from zero after a successful allocation.
+
+R060107A:
+
+	Modifications to TCV: 
+
+	#define	TCV_LIMIT_RCV	n	(in options.sys)
+
+	Imposes a limit on the number of packets queued for reception. If that
+	limit is reached, received packets will be dropped. One urgent packet
+	can exceed the limit, i.e., the effective limit for an urgent packet is
+	n+1. This also applies to tcvp_new with disposition RCV/RCVU (the limit
+	is n+1 for RCVU).
+
+	#define	TCV_LIMIT_XMT	n
+
+	Imposes a limit on the number of packets queued for transmission. If
+	that limit is reached, tcv_wnp will fail as on insufficient memory.
+	Also, tcvp_new with disposition XMT will fail. The limit is n+1 for
+	an urgent packet (DSP_XMTU).
+
+	Function tcv_wnpu added with the header identical to tcv_wnp. It 
+	allocates a buffer for an urgent packet (and sets the urgent flag in
+	the header).

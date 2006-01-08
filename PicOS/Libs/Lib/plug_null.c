@@ -20,7 +20,7 @@ const tcvplug_t plug_null =
 		{ tcv_ope, tcv_clo, tcv_rcv, tcv_frm, tcv_out, tcv_xmt, NULL,
 			0x0001 /* Plugin Id */ };
 
-int	*desc = NULL;
+static int *desc = NULL;
 
 static int tcv_ope (int phy, int fd, va_list plid) {
 /*

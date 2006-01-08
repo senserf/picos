@@ -95,7 +95,7 @@ typedef	struct hblock_struct	hblock_t;
 
 #define	q_first(q)	((hblock_t*)((q)->next))
 #define	q_end(p,q)	(((qitem_t*)(p)) == (q))
-#define	q_next(p)	((hblock_t*)(((p)->bqueue).next))
+#define	q_next(p)	((hblock_t*)(((p)->u.bqueue).next))
 #define	q_empty(q)	((q)->next == (qitem_t*)(q))
 #define	q_init(q)	((q)->next = (q)->prev = (qitem_t*)(q))
 

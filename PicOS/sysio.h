@@ -145,7 +145,13 @@
 #define	TCV_MAX_PHYS		3	// Maximum number of physical interfaces
 #endif
 #ifndef	TCV_MAX_PLUGS
-#define	TCV_MAX_PLUGS		3	// Maximul number of plugins
+#define	TCV_MAX_PLUGS		3	// Maximum number of plugins
+#ifndef	TCV_LIMIT_RCV
+#define	TCV_LIMIT_RCV		0	// No limit for RCV queue
+#endif
+#ifndef	TCV_LIMIT_XMT
+#define	TCV_LIMIT_XMT		0	// No limit for OUT queue
+#endif
 
 //+++ "tcv.c"
 
@@ -838,11 +844,12 @@ typedef struct {
 #if	TCV_PRESENT
 
 /* Functions, we declare them only if the device is present */
-void	tcv_plug (int, tcvplug_t*);
+void	tcv_plug (int, const tcvplug_t*);
 int	tcv_open (word, int, int, ...);
 int	tcv_close (word, int);
 address	tcv_rnp (word, int);
 address tcv_wnp (word, int, int);
+address tcv_wnpu (word, int, int);
 int	tcv_read (address, char*, int);
 int	tcv_write (address, const char*, int);
 void	tcv_endp (address);

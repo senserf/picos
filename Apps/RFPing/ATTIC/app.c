@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -184,11 +184,6 @@ process (receiver, void)
   entry (RC_SACK)
 
 	if (XMTon) {
-		if (memfree (1, NULL) < 64) {
-			waitmem (1, RC_SACK);
-			release;
-		}
-
 		packet = tcv_wnp (RC_SACK, sfd, ACK_LENGTH);
 		packet [0] = 0;
 		packet [1] = PKT_ACK;
@@ -296,11 +291,6 @@ process (sender, void)
 		finish;
 	}
 	wait ((word) &tkillflag, SN_SEND);
-	if (memfree (1, NULL) < 128) {
-		waitmem (1, SN_NEXT);
-		release;
-	}
-
 	packet = tcv_wnp (SN_NEXT, sfd, packet_length
 
 #if NEED_ROOM_FOR_CHECKSUM

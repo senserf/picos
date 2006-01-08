@@ -152,6 +152,18 @@ static void enq (qhead_t *q, hblock_t *p) {
 	p->attributes.b.queued = 1;
 }
 
+#if	TCV_LIMIT_RCV || TCV_LIMIT_XMT
+static bool qmore (qhead_t *q, word lim) {
+
+	hblock_t *p;
+
+	for (p = q_first (q); !q_end (p, q); p = q_next (p))
+		if (--lim == 0)
+			return YES;
+	return NO;
+}
+#endif
+
 static void dispose (hblock_t *p, int dv) {
 /*
  * Note that plugin functions can still return simple values, as in the previous
@@ -468,7 +480,7 @@ int tcv_close (word state, int fd) {
 	return (int)BLOCKED;
 }
 
-void tcv_plug (int ord, tcvplug_t *pl) {
+void tcv_plug (int ord, const tcvplug_t *pl) {
 /*
  * This is one way now. Later we may implement switching plugs on the fly.
  */
@@ -516,6 +528,68 @@ address tcv_rnp (word state, int fd) {
 	return p;
 }
 
+#if	TCV_LIMIT_XMT
+
+address tcv_wnpu (word state, int fd, int length) {
+/*
+ * Urgent variant of wnp. Bumps by 1 the queue size limit and marks the packet
+ * as urgent.
+ */
+	hblock_t *b;
+	tcvadp_t ptrs;
+	sesdesc_t *s;
+
+	verify_fds (fd, "tcv_wnpu fd");
+
+	s = descriptors [fd];
+
+	/* Obtain framing parameters */
+	verify_pld (s, tcv_frm, "tcv_wnp/tcv_frm");
+
+	plugins [s->attpattern.b.plugin]->tcv_frm (NULL, s->attpattern.b.phys,
+		&ptrs);
+
+	sysassert (s->attpattern.b.queued == 0, "tcv_wnpu partially opened");
+
+	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT+1)) {
+		if (state != NONE) {
+			tmwait (state);
+			release;
+		}
+		return NULL;
+	}
+
+	if ((b = apb (length + ptrs . head + ptrs . tail)) == NULL) {
+		/* No memory */
+		if (state != NONE) {
+			tmwait (state);
+			release;
+		}
+		return NULL;
+	}
+
+	b->attributes = s->attpattern;
+	b->attributes.b.urgent = 1;
+	b->u.pointers.head = ptrs.head;
+	b->u.pointers.tail = length;
+
+	return (address) (b + 1);
+}
+
+#else	/* TCV_LIMIT_XMT */
+
+address tcv_wnpu (word state, int fd, int length) {
+
+	address p = tcv_wnp (state, fd, length);
+
+	if (p != NULL)
+		tcv_urgent (p);
+
+	return p;
+}
+
+#endif	/* TCV_LIMIT_XMT */
+
 address tcv_wnp (word state, int fd, int length) {
 /*
  * Creates a new outgoing packet and makes it available for writing. Returns
@@ -539,6 +613,15 @@ address tcv_wnp (word state, int fd, int length) {
 
 	/* Total length of the packet */
 
+#if	TCV_LIMIT_XMT
+	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT)) {
+		if (state != NONE) {
+			tmwait (state);
+			release;
+		}
+		return NULL;
+	}
+#endif
 	if ((b = apb (length + ptrs . head + ptrs . tail)) == NULL) {
 		/* No memory */
 		if (state != NONE) {
@@ -693,21 +776,47 @@ address tcvp_new (int size, int dsp, int ses) {
  */
 	hblock_t *p;
 
-	p = apb (size);
-	if (p) {
-		if (dsp != TCV_DSP_PASS) {
-			/* Session must be defined for that */
-			if (ses == NONE)
-				syserror (EREQPAR, "tcvp_new");
-			verify_fds (ses, "tcvp_new fd");
+	if (dsp != TCV_DSP_PASS) {
+
+		/* Session must be defined for that */
+		if (ses == NONE)
+			syserror (EREQPAR, "tcvp_new");
+		verify_fds (ses, "tcvp_new fd");
+
+#if	TCV_LIMIT_RCV
+
+		if ((dsp == TCV_DSP_RCV || dsp == TCV_DSP_RCVU) &&
+	    	    qmore (&(descriptors [ses]->rqueue), (dsp == TCV_DSP_RCVU) ?
+			TCV_LIMIT_RCV + 1 : TCV_LIMIT_RCV)) {
+		    	    // Drop
+		    	    return NULL;
+		}
+#endif
+
+#if	TCV_LIMIT_XMT
+
+		if ((dsp == TCV_DSP_XMT || dsp == TCV_DSP_XMTU) &&
+	    	    qmore (oqueues [descriptors [ses]->attpattern.b.phys],
+			(dsp == TCV_DSP_XMTU) ? TCV_LIMIT_XMT + 1 :
+			    TCV_LIMIT_XMT)) {
+		    	   	 // Drop
+		    	   	 return NULL;
+		}
+#endif
+		if ((p = apb (size))) {
 			p->attributes = descriptors [ses] -> attpattern;
 			/* This will not be closed by tcv_endp */
 			p->attributes.b.outgoing = 0;
 			dispose (p, dsp);
+			return (address)(p + 1);
 		}
-		return (address)(p + 1);
+		return NULL;
 	}
-	return NULL;
+
+	if ((p = apb (size)))
+		return (address)(p + 1);
+	else
+		return NULL;
 }
 
 #if	TCV_HOOKS
@@ -812,7 +921,8 @@ int tcvphy_rcv (int phy, address p, int len) {
  * Called when a packet is received by a phy. Each phy has its private
  * (possibly static) reception buffer that it maintains by itself.
  */
-	int plg, dsp, ses;
+	word plg;
+	int dsp, ses;
 	tcvadp_t ap;
 	address c;
 

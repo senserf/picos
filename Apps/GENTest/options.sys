@@ -17,15 +17,11 @@
 #define	LEDS_DRIVER		1
 #define	LEDS_BLINKING		1
 #define	USE_LEDS		1
-#define	DIAG_MESSAGES		4096
+#define	DIAG_MESSAGES		2
 #define	UART_DRIVER		1	/* UART A + B */
-
 #define	TCV_PRESENT		1	/* TCV present */
 #define	TCV_TIMERS		0	/* TCV timers not needed */
 #define	TCV_HOOKS		0	/* TCV hooks not needed */
-#define	TCV_LIMIT_XMT		4
-#define	TCV_LIMIT_RCV		4
-
 #define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
@@ -59,3 +55,5 @@
 #define	INFO_FLASH		1
 #define	RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
+#define	TCV_LIMIT_XMT		4
+#define	TCV_LIMIT_RCV		3
