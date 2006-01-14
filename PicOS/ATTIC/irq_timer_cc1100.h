@@ -5,9 +5,4 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-if (zzr_state & RC_RCVI) {
-
-	request_rcv_int;
-}
-
 #endif

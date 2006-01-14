@@ -8,8 +8,6 @@
 #include "phys_cc1100.h"
 #include "cc1100_sys.h"
 
-#define RADIO_DEF_BUF_LEN       48      /* Default buffer length */
-
 /*
  * Channel clear indication for TX:
  *
@@ -18,21 +16,37 @@
  *    2  = if not receiving a packet
  *    3  = 1+2
  *
- * Note that even with CC_INDICATION == 0, active receiver (actually active)
- * still blocks the transmitter.
+ * Level 2 is the smallest recommended.
  *
  */
-#define	CC_INDICATION		0	/* Swithched off */
+#define	CC_INDICATION		3	/* If not receiving a packet */
+#define	CC_THRESHOLD		8	/* RSSI threshold (CC_IND == 3) 0..15 */
 
-#define	URGENT_ALSO_WAITS	1	/* Backoff for urgent packets */
+
+/*
+ * CRC calculation mode
+ *
+ *     0 = standard built-in CRC
+ *     1 = built-in CC2400-compatible
+ *     2 = software
+ *
+ */
+#define	CRC_MODE		2
+
+#define	DOUBLE_SYNC_WORD	1
+
+#define	GUARD_PROCESS		1	/* Guard process present */
+#define	GUARD_LONG_DELAY	2	/* Minutes */
+#define	GUARD_SHORT_DELAY	5000	/* 5 seconds */
+#define	TRACE_DRIVER		0	/* Debugging diags */
+#define	XMIT_SPACE		40	/* Inter packet space for xmit */
+
 #define	SYSTEM_IDENT		0xAB35	/* Sync word */
-#define	STAY_IN_RX		1	/* Remain in RX after reception */
-#define	BUSY_TRANSMIT		1	/* Busy-wait transmission */
+#define	TXEND_POLL_DELAY	2	/* Milliseconds */
+#define	CC1100_MAXPLEN		60	/* Including checksum */
 
-#define	SKIP_XMT_DELAY		2	/* Milliseconds */
-#define	TXEND_POLL_DELAY	4	/* Milliseconds */
 
-// CC2500/CC1100 STROBE, CONTROL AND STATUS REGSITER
+// CC2500/CC1100 STROBE, CONTROL AND STATUS REGISTERS
 #define CCxxx0_IOCFG2       0x00        // GDO2 output pin configuration
 #define CCxxx0_IOCFG1       0x01        // GDO1 output pin configuration
 #define CCxxx0_IOCFG0       0x02        // GDO0 output pin configuration
@@ -132,7 +146,14 @@ const	byte	cc1100_rfsettings [] = {
         CCxxx0_FREQ0,   0xEC,   // FREQ0
         CCxxx0_MDMCFG4, 0xC8,   // MDMCFG4
         CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x03,   // MDMCFG2
+
+#if DOUBLE_SYNC_WORD
+#define	SYNC_WORD_SIZE	0x03
+#else
+#define	SYNC_WORD_SIZE	0x01
+#endif
+        CCxxx0_MDMCFG2, SYNC_WORD_SIZE,
+
         CCxxx0_MDMCFG1, 0xA2,   // MDMCFG1
         CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0
         CCxxx0_DEVIATN, 0x34,   // DEVIATN
@@ -140,49 +161,70 @@ const	byte	cc1100_rfsettings [] = {
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_BSCFG,   0x6C,   // BSCFG
         CCxxx0_AGCCTRL2,0x83,   // AGCCTRL2
-	CCxxx0_AGCCTRL1,0x40,	// RFM spreadsheet
+
+#if CC_INDICATION == 3
+#define	RSSI_AGC	0
+#else
+#define	RSSI_AGC	((CC_THRESHOLD-8) & 0xf)
+#endif
+
+#define	AGCCTRL1	(0x40 | RSSI_AGC)
+
+	CCxxx0_AGCCTRL1,AGCCTRL1,
+
         CCxxx0_AGCCTRL0,0x91,   // AGCCTRL0
         CCxxx0_FSCAL3,  0xA9,   // FSCAL3
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
 	CCxxx0_FSCAL1,	0x00,	// RFM spreadsheet
         CCxxx0_FSCAL0,  0x0D,   // FSCAL0
         CCxxx0_FSTEST,  0x59,   // FSTEST
+#if 0
         CCxxx0_TEST2,   0x86,   // TEST2 
         CCxxx0_TEST1,   0x3D,   // TEST1 
         CCxxx0_TEST0,   0x09,   // TEST0
+#endif
 
 // These registers I prefer to set manually
 
-	CCxxx0_IOCFG2,	0x06,	// Unused
-	CCxxx0_IOCFG1,	0x06,	// Unused
-	CCxxx0_IOCFG0,	0x00,	// RX ready - to be used as an interrupt
-        CCxxx0_PKTLEN,  0xFF,   // PKTLEN    Packet length.
+	CCxxx0_IOCFG2,	0x2f,	// Unused and grounded
+	CCxxx0_IOCFG1,	0x2f,	// Unused and grounded
+	CCxxx0_IOCFG0,	0x01,	// Reception, EOP or threshold
+
+#if CRC_MODE > 1
+#define	MAX_TOTAL_PL	(CC1100_MAXPLEN+2)
+#else
+#define	MAX_TOTAL_PL	CC1100_MAXPLEN
+#endif
+        CCxxx0_PKTLEN,  MAX_TOTAL_PL,
+
 	CCxxx0_PKTCTRL1,0x04,	// Append 2 status bytes on reception
-	CCxxx0_PKTCTRL0,0x45,	// Whitening, CRC, packet length follows sync
+
+#if CRC_MODE == 0
+#define	CRC_FLAGS	0x04
+#endif
+
+#if CRC_MODE == 1
+#define	CRC_FLAGS	0x0C
+#endif
+
+#if CRC_MODE > 1
+#define	CRC_FLAGS	0x00
+#endif
+	CCxxx0_PKTCTRL0,(0x41 | CRC_FLAGS), // Whitening, pkt lngth follows sync
+
         CCxxx0_ADDR,    0x00,   // ADDR      Device address.
         CCxxx0_CHANNR,  0x00,   // CHANNR    Channel number.
-	CCxxx0_FIFOTHR,	0x00,	// 4 bytes in the RX FIFO
-
-// Note: CCxxx0_FIFOTHR == 0x01 (the most useful one) doesn't seem to work. It
-// forces me to play messy tricks to receive a complete packet without busy
-// waiting in the interrupt.
+	CCxxx0_FIFOTHR,	0x0F,	// 64 bytes in FIFO
 
 	CCxxx0_SYNC1,	((SYSTEM_IDENT >> 8) & 0xff),
 	CCxxx0_SYNC0,	((SYSTEM_IDENT     ) & 0xff),
 
         CCxxx0_MCSM0,   0x15,   // Recalibrate on exiting IDLE state
 
-#if STAY_IN_RX
-// Assume RX after completing RX
-#define	MCSM1_FROM_RX	0x0C
-#else
-// Assume IDLE after completing RX
-#define	MCSM1_FROM_RX	0x00
-#endif
+#define	MCSM1_TRANS_MODE	0x03	// RX->IDLE, TX->RX
+#define	MCSM1_CCA		(CC_INDICATION << 4)
 
-#define	MCSM1_CCA	(CC_INDICATION << 4)
-
-	CCxxx0_MCSM1,	(MCSM1_FROM_RX | MCSM1_CCA),
+	CCxxx0_MCSM1,	(MCSM1_TRANS_MODE | MCSM1_CCA),
 
 	CCxxx0_MCSM2,	0x07,	// RFM spreadsheet
 
@@ -218,25 +260,6 @@ extern const byte cc1100_rfsettings [];
 #define	CC1100_STATE_CALIBRATE			0x40
 #define	CC1100_STATE_SETTLING			0x50
 
-/*
- * RX state flag
- */
-#define	XM_LOCK		0x40
-#define	RC_LOCK		0x80
-#define	RC_RCVI		0x08
-
-
-#define	rx_rcnt		(zzr_state & 0x7)
-
-#define	rx_rcnt_upd	do { \
-				if ((zzr_state & 0x07) != 0x07) \
-					zzr_state += 1; \
-			} while (0)
-
-#define	rx_rcnt_res	zzr_state &= 0xf8
-
-#define	rx_rcnt_recalibrate	(rx_rcnt == 0x7)
-
 #define	SPI_START	do { \
 				csn_down; \
 				while (so_val); \
@@ -262,59 +285,13 @@ extern const byte cc1100_rfsettings [];
 				SPI_END; \
 			} while (0)
 
-#define	RCV_IGN			0x00	 // States of the receiver int. machine
-#define	RCV_STA			0x10
-#define	RCV_GET			0x20
-
-#define	rcv_istate		(zzr_state & 0x30)
-
-#define	set_rcv_istate(a)	(zzr_state = (zzr_state & 0xcf) | (a))
-
-#define	lock_rcv		(zzr_state |= RC_LOCK)
-
-#define	unlock_rcv		(zzr_state &= ~RC_LOCK)
-
-#define	lock_xmt		(zzr_state |= XM_LOCK)
-
-#define	unlock_xmt		(zzr_state &= ~XM_LOCK)
-
-#define	rcv_restore_int		do { \
-					if (rcv_istate != RCV_IGN) \
-						rcv_enable_int; \
-				} while (0)
-
-#define	unlock_xmt_reset	do { \
-					zzr_state &= ~XM_LOCK; \
-					if (rcv_istate != RCV_IGN) { \
-						set_rcv_istate (RCV_STA); \
-						rcv_enable_int; \
-					} \
-					trigger (rxunlock); \
-				} while (0)
-
-#define	xmt_busy		(zzr_state & XM_LOCK)
-
-#define rcv_busy		(zzr_state & RC_LOCK)
-
 #define	gbackoff	do { \
-				zzx_seed = (zzx_seed + entropy + 1) * 6789; \
-				zzx_backoff = MIN_BACKOFF + \
-					(zzx_seed & MSK_BACKOFF); \
+				rnd_seed = (rnd_seed + entropy + 1) * 6789; \
+				bckf_timer = MIN_BACKOFF + \
+					(rnd_seed & MSK_BACKOFF); \
 			} while (0)
 
-extern word	*zzr_buffer, *zzx_buffer, zzv_qevent, zzv_physid, zzv_statid,
-		zzx_seed, zzx_backoff;
-
-extern byte	zzx_paylen, zzr_buffl, zzr_state, zzr_left;
-
-extern byte	*zzr_bptr;
-
-byte cc1100_get_reg (byte);
-void cc1100_get_reg_burst (byte, byte*, word);
-int cc1100_rx_status ();
-
-
-#define	rxevent		((word)&zzr_buffer)
-#define	rxunlock	((word)&zzr_state)
+extern word		zzv_drvprcs, zzv_qevent;
+extern byte		zzv_iack, zzv_gwch;
 
 #endif

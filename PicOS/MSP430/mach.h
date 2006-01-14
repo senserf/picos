@@ -56,9 +56,10 @@
 #define	IFLASH_HARD_ADDRESS	((word*)0x1000)
 #endif
 
-#define	RAM_START	0x200
+#define	RAM_START	((byte*)0x200)
+#define	RAM_END		(RAM_START + 2048)
 #define	STACK_SIZE	256			// Bytes
-#define	STACK_START	(RAM_START + 2048)	// FWA + 1 of stack
+#define	STACK_START	RAM_END			// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
 
 						// LWA of stack

@@ -43,6 +43,11 @@ address		zz_utims [MAX_UTIMERS];
 lword	zzz_ent_acc;
 #endif
 
+char	zz_hex_enc_table [] = {
+				'0', '1', '2', '3', '4', '5', '6', '7',
+				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
+			      };
+
 int utimer (address ut, bool add) {
 /* ================= */
 /* Add/clear utimers */
@@ -983,6 +988,7 @@ void zzz_free (int np, address ch) {
 #if	MALLOC_SAFE
 	if ((m_size (ch) & 0x8000) == 0)
 		syserror (EMALLOC, "freeing garbage");
+
 	m_size (ch) &= 0x7fff;
 #endif
 
@@ -1077,7 +1083,7 @@ address zzz_malloc (int np, word size) {
 #if	RESET_ON_MALLOC
 		else {
 #if	RESET_ON_SYSERR
-			syserror (EWATCH, "malloc");
+			syserror (EWATCH, "malloc watch");
 #else
 			diag ("MALLOC STALL, RESETTING");
 			reset ();
@@ -1285,11 +1291,9 @@ void diag (const char *mess, ...) {
 			  case 'x' :
 				val = va_arg (ap, word);
 				for (i = 0; i < 16; i += 4) {
-					v = (val >> 12 - i) & 0xf;
-					if (v > 9)
-						v = (word)'a' + v - 10;
-					else
-						v = (word)'0' + v;
+					v = (word) zz_hex_enc_table [
+							(val >> 12 - i) & 0xf
+								    ];
 					diag_wait (a);
 					diag_wchar (v, a);
 				}
@@ -1389,6 +1393,49 @@ void dpcb (pcb_t *p) {
 }
 #else
 #define dpcb(a)
+#endif
+
+#ifdef	DUMP_MEM
+
+void dmp_mem () {
+
+	byte *addr, is;
+	int i;
+
+	diag ("FULL DUMP OF RAM:");
+
+	diag_disable_int (a, is);
+
+	addr = (byte*) RAM_START;
+
+	while (addr != (byte*) RAM_END) {
+		if ((((word)addr) & 0xF) == 0) {
+			// New line
+			diag_wait (a); diag_wchar ('\r', a);
+			diag_wait (a); diag_wchar ('\n', a);
+			for (i = 12; i >= 0; i -= 4) {
+				diag_wait (a);
+				diag_wchar (zz_hex_enc_table [(((word)addr) >>
+					i) & 0xf], a);
+			}
+			diag_wait (a); diag_wchar (':', a);
+		}
+		diag_wait (a); diag_wchar (' ', a);
+		diag_wait (a); diag_wchar (' ', a);
+		diag_wait (a); diag_wchar (
+			zz_hex_enc_table [((*addr) >> 4) & 0xf], a);
+		diag_wait (a); diag_wchar (
+			zz_hex_enc_table [((*addr)     ) & 0xf], a);
+		addr++;
+	}
+	diag_wait (a); diag_wchar ('\r', a);
+	diag_wait (a); diag_wchar ('\n', a);
+
+	diag_enable_int (a, is);
+
+	diag ("\r\nEND OF DUMP");
+}
+
 #endif
 
 /* --------------------------------------------------------- */

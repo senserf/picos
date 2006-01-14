@@ -910,6 +910,10 @@ static void ios_init () {
 #if	UART_DRIVER
 	/* UART_A is initialized first, to enable diagnostic output */
 	devinit [UART_A] . init (devinit [UART_A] . param);
+	diag ("");
+#ifdef	BANNER
+	diag (BANNER);
+#else
 	diag ("\r\nPicOS v" SYSVERSION ", "
         	"Copyright (C) Olsonet Communications, 2002-2005");
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);

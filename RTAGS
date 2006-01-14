@@ -454,3 +454,18 @@ R060108A:
 
 	Packet length issues for CC1100 solved. Now things are compatible with
 	the previous drivers.
+
+R060113A:
+
+	New CC1100 driver. The header (cc1100.h contains a few settable
+	parameters). Maximum packet length is 60 bytes (including the 2-byte
+	CRC).
+
+	Constant BANNER defined in options.sys, e.g.,
+
+		#define BANNER "Pizda Grochowa"
+
+	overrides the standard welcome message after boot.
+
+	Note: I am using software CRC (see constants in cc1100.h). You can fool
+	around with some of those options.

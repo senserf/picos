@@ -5,6 +5,8 @@
 #include "sysio.h"
 #include "form.h"
 
+extern	char zz_hex_enc_table [];
+
 char *vform (char *res, const char *fm, va_list aq) {
 
 	word fml, s, d;
@@ -33,12 +35,7 @@ char *vform (char *res, const char *fm, va_list aq) {
 			c = (char) (val / i); \
 		}
 #define encx(s)	for (i = 0; i < (s); i += 4) { \
-			c = (char)((val >> (((s)-4)-i)) & 0xf); \
-			if (c > 9) \
-				c = (char)('a' + c-10); \
-			else \
-				c = (char)('0' + c); \
-			outc (c); \
+			outc (zz_hex_enc_table [((val >> (((s)-4)-i)) & 0xf)]);\
 		}
 
 

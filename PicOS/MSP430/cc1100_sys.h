@@ -43,17 +43,16 @@
 #define	cc1100_int		(P1IFG & 0x40)
 #define	clear_cc1100_int	_BIC (P1IFG, 0x40)
 
-#define	fifo_ready		(P1IN & 0x40)
+#define	RX_FIFO_READY		(P1IN & 0x40)
 
-#define	request_rcv_int		_BIS (P1IFG, 0x40)
-
-#define	rcv_enable_int		do { \
+#define rcv_enable_int		do { \
+					zzv_iack = 1; \
 					_BIS (P1IE, 0x40); \
-					if (fifo_ready) \
-						request_rcv_int; \
+					if (RX_FIFO_READY && zzv_iack) \
+						_BIS (P1IFG, 0x40); \
 				} while (0)
-
-#define	rcv_disable_int		_BIC (P1IE, 0x40)
+						
+#define rcv_disable_int		_BIC (P1IE, 0x40)
 
 #define	sclk_up		_BIS (P1OUT, 0x08)
 #define	sclk_down	_BIC (P1OUT, 0x08)
@@ -87,24 +86,22 @@
 				_BIC (P1DIR, 0x07); \
 				_BIS (P1DIR, 0x08); \
 				_BIS (P6DIR, 0x18); \
-				_BIC (P1IES, 0x01); \
-				_BIC (P1IFG, 0x01); \
+				_BIC (P1IES, 0x02); \
 			} while (0)
 
 #define	cc1100_int		(P1IFG & 0x01)
 #define	clear_cc1100_int	_BIC (P1IFG, 0x01)
 
-#define	fifo_ready		(P1IN & 0x01)
+#define	RX_FIFO_READY		(P1IN & 0x01)
 
-#define	request_rcv_int		_BIS (P1IFG, 0x01)
-
-#define	rcv_enable_int		do { \
+#define rcv_enable_int		do { \
+					zzv_iack = 1; \
 					_BIS (P1IE, 0x01); \
-					if (fifo_ready) \
-						request_rcv_int; \
+					if (RX_FIFO_READY && zzv_iack) \
+						_BIS (P1IFG, 0x01); \
 				} while (0)
-
-#define	rcv_disable_int		_BIC (P1IE, 0x01)
+						
+#define rcv_disable_int		_BIC (P1IE, 0x01)
 
 #define	sclk_up		_BIS (P1OUT, 0x08)
 #define	sclk_down	_BIC (P1OUT, 0x08)

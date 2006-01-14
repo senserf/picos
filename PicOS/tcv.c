@@ -55,14 +55,35 @@ static unsigned long tcv_tim_set = 0;
 
 static void rlp (hblock_t*);
 
-#ifdef	DUMPQUEUES
+#ifdef	DUMP_MEM
 
 void dmpq (qhead_t *q) {
 	hblock_t *pp;
 	diag ("START Q DUMP %x", (word)q);
 	for (pp = q_first (q); !q_end (pp, q); pp = q_next (pp))
-		diag ("%d %d %x", pp->length, pp->tqueue.value, pp->attributes);
+		diag ("%d %x [%x %x %x]", pp->length, pp->attributes,
+			(word*)(payload (pp)) [0],
+			(word*)(payload (pp)) [1],
+			(word*)(payload (pp)) [2]
+		);
 	diag ("END Q DUMP %x", (word)q);
+}
+
+void tcv_dumpqueues (void) {
+
+	int	i;
+	for (i = 0; i < TCV_MAX_DESC; i++) {
+		if (descriptors [i] != NULL) {
+			diag ("TCV QUEUE RCV [%d]", i);
+			dmpq (&(descriptors [i]->rqueue));
+		}
+	}
+	for (i = 0; i < TCV_MAX_PHYS; i++) {
+		if (oqueues [i] != NULL) {
+			diag ("TCV QUEUE XMT [%d]", i);
+			dmpq (oqueues [i]);
+		}
+	}
 }
 
 #else

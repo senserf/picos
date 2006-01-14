@@ -12,28 +12,37 @@
 static int option (int, address);
 
 		// Pointer to the static reception buffer
-word		*zzr_buffer = NULL,
+static word	*rbuff = NULL,
+		bckf_timer = 0,
 
-		// ... and to the dynamic transmission buffer
-		*zzx_buffer = NULL,
+		physid,
+		statid,
+		rnd_seed;		// For the random number generator
 
-		zzv_qevent,
-		zzv_physid,
-		zzv_statid,
-		zzx_seed,		// For the random number generator
-		zzx_backoff;		// Calculated backoff for xmitter
+word		zzv_drvprcs, zzv_qevent;
+byte		zzv_iack,		// To resolve interrupt race
+		zzv_gwch;		// Guard watch
 
-byte		*zzx_bptr,
-		*zzr_bptr;
 
-byte		zzv_rxoff,		// Transmitter on/off flags
-		zzv_txoff,
-		zzx_paylen,		// Output payload length in bytes
-		zzr_buffl,		// Input buffer length (-2)
-		zzr_state,		// Receiver state
-		zzx_power,
-		zzx_left,
-		zzr_left;
+static byte	RxOFF,		// Transmitter on/off flags
+		TxOFF,
+		xpower,
+		rbuffl;
+
+#if GUARD_PROCESS
+
+#define	WATCH_RCV	1
+#define WATCH_XMT	2
+
+#define		guard_start(f)	_BIS (zzv_gwch, (f))
+#define		guard_stop(f)	_BIC (zzv_gwch, (f))
+
+#else
+
+#define		guard_start(f)	do { } while (0)
+#define		guard_stop(f)	do { } while (0)
+
+#endif	/* GUARD_PROCESS */
 
 /* ========================================= */
 
@@ -103,7 +112,7 @@ static void cc1100_set_reg (byte addr, byte val) {
 	SPI_END;
 }
 
-byte cc1100_get_reg (byte addr) {
+static byte cc1100_get_reg (byte addr) {
 
 	register byte val;
 
@@ -123,7 +132,7 @@ static void cc1100_set_reg_burst (byte addr, byte *buffer, word count) {
 	SPI_END;
 }
 
-void cc1100_get_reg_burst (byte addr, byte *buffer, word count) {
+static void cc1100_get_reg_burst (byte addr, byte *buffer, word count) {
 
 	SPI_START;
 	cc1100_spi_out (addr | 0xC0);
@@ -141,7 +150,7 @@ static void cc1100_strobe (byte cmd) {
 
 static void cc1100_set_power () {
 
-	cc1100_set_reg (CCxxx0_FREND0, FREND0 | zzx_power);
+	cc1100_set_reg (CCxxx0_FREND0, FREND0 | xpower);
 }
 
 static void init_cc_regs () {
@@ -205,25 +214,6 @@ static void enter_idle () {
 
 static void enter_rx () {
 
-#if STAY_IN_RX
-
-	// Recalibration is needed every once in a while, if we are allowed
-	// to stay indefinitely in RX
-
-	if (rx_rcnt_recalibrate) {
-		// Time to recalibrate
-		enter_idle ();
-#if 0
-		diag ("RECAL");
-#endif
-		// Reset recalibration counter
-		rx_rcnt_res;
-	} else {
-		// Update recalibration counter
-		rx_rcnt_upd;
-	}
-#endif	/* STAY_IN_RX */
-		
 	while (cc1100_status () != CC1100_STATE_RX)
 		cc1100_strobe (CCxxx0_SRX);
 }
@@ -241,49 +231,59 @@ int cc1100_rx_status () {
 
 	SPI_END;
 
-#if STAY_IN_RX
-	if (val == CC1100_STATE_RX)
-#else
-	if (val == CC1100_STATE_IDLE || val == CC1100_STATE_RX)
-#endif
+	if (val == CC1100_STATE_IDLE)
 		// The status is right, return #bytes in RX FIFO
 		return (b & 0x7f);
-
-	// Bring the status back to decency
-	cc1100_status ();
-#if 0
+#if TRACE_DRIVER
 	diag ("RX ILL = %x/%x", val, b);
 #endif
 	return -1;
 }
 
-int cc1100_tx_status () {
+void cc1100_rx_flush () {
 
-	register byte b, val;
-
-	SPI_START;
-
-	val = cc1100_spi_out_stat (CCxxx0_TXBYTES);
-
-	// Get TXBYTES
-	b = cc1100_spi_in ();
-
-	SPI_END;
-
-	if (val == CC1100_STATE_TX)
-		// We need the number of free bytes
-		return 64 - (b & 0x7f);
-
-	cc1100_status ();
-#if 0
-	diag ("TX ILL = %x/%x", val, b);
+	while (1) {
+		cc1100_strobe (CCxxx0_SFRX);
+		if (cc1100_get_reg (CCxxx0_RXBYTES) == 0)
+			return;
+#if TRACE_DRIVER
+		diag ("RX FLUSH LOOP");
 #endif
-	return -1;
+	}
+	enter_rx ();
 }
 
-static void cc1100_power_down () {
+static word clear_to_send () {
 
 #if 0
+	byte stat;
+
+	stat = cc1100_status ();
+	diag ("OLD STATUS: %x", stat);
+#else
+	// Make sure our status is sane (FIXME: try removing this)
+	cc1100_status ();
+#endif
+	// CCA will make this command ineffective if we are receiving a packet
+	// or RSSI is above threshold. How to set this threshold, I still have
+	// no clue. So I have disabled that part, as it appears to be overly
+	// sensitive. See CHANNEL_CLEAR_ON_RSSI.
+
+	cc1100_strobe (CCxxx0_STX);
+#if 0
+	stat = cc1100_status ();
+	diag ("NEW STATUS: %x", stat);
+	return (stat == CC1100_STATE_TX);
+#else
+	// We succeed if we have entered TX
+	return (cc1100_status () == CC1100_STATE_TX);
+#endif
+
+}
+
+static void power_down () {
+
+#if TRACE_DRIVER
 	diag ("CC1100 POWER DOWN");
 #endif
 	enter_idle ();
@@ -292,11 +292,10 @@ static void cc1100_power_down () {
 	cc1100_strobe (CCxxx0_SPWD);
 }
 
-static void cc1100_reset () {
+static void chip_reset () {
 
 	full_reset;
 	init_cc_regs ();
-	enter_idle ();
 }
 
 static void ini_cc1100 () {
@@ -304,7 +303,8 @@ static void ini_cc1100 () {
 	// Initialize the requisite pins
 	ini_regs;
 
-	cc1100_reset ();
+	chip_reset ();
+	power_down ();
 
 	// Read the chip number reg and write a message to the UART
 
@@ -334,34 +334,374 @@ static void ini_cc1100 () {
 		}
 	}
 #endif
-	// We start in the OFF state
-	cc1100_power_down ();
 }
 
-void phys_cc1100 (int phy, int mbs) {
+#if CRC_MODE > 1
+#include "checksum.h"
+#endif
 
-	if (zzr_buffer != NULL)
+#define	DR_LOOP		0
+#define	DR_SWAIT	1
+
+process (cc1100_driver, void)
+
+  address xbuff;
+  int paylen, len;
+  byte b, *eptr;
+
+  entry (DR_LOOP)
+
+RedoAll:
+	if (TxOFF) {
+		if (TxOFF == 3) {
+			// Make sure to drain the XMIT queue each time you get
+			// here
+			tcvphy_erase (physid);
+			if (RxOFF == 1) {
+				power_down ();
+				RxOFF = 2;
+			}
+		} else if (TxOFF == 1 && RxOFF) {
+			power_down ();
+			wait (zzv_qevent, DR_LOOP);
+			release;
+		}
+	}
+
+	if (RX_FIFO_READY) {
+RedoRX:
+    		LEDI (3, 1);
+
+		// A packet has been received and is waiting in RX FIFO
+		guard_stop (WATCH_RCV);
+		if (RxOFF) {
+			cc1100_rx_flush ();
+			// Ignore it
+			LEDI (3, 0);
+			goto DoXMT;
+		}
+
+		if ((len = cc1100_rx_status ()) < 0) {
+			// Error: typically FIFO overrun (shouldn't happen)
+#if TRACE_DRIVER
+			diag ("RX BAD STATUS");
+#endif
+			cc1100_rx_flush ();
+			goto DoSkp;
+		}
+
+		if ((len & 1) == 0 || len < 7) {
+			// Actual payload length must be even
+#if TRACE_DRIVER
+			diag ("RX BAD PACKET: %d", len);
+#endif
+			cc1100_rx_flush ();
+			goto DoSkp;
+		}
+
+		paylen = cc1100_get_reg (CCxxx0_RXFIFO);
+		if ((paylen & 1) || paylen != len - 3) {
+#if TRACE_DRIVER
+			diag ("RX PAYLOAD LENGTH MISMATCH: %d/%d", len, paylen);
+#endif
+			cc1100_rx_flush ();
+			goto DoSkp;
+		}
+
+		if (paylen > rbuffl) {
+#if TRACE_DRIVER
+			diag ("RX PACKET TOO LONG: %d", paylen);
+#endif
+			cc1100_rx_flush ();
+			goto DoSkp;
+		}
+
+		cc1100_get_reg_burst (CCxxx0_RXFIFO, (byte*)rbuff,
+			(byte) paylen + 2);
+
+		// We have extracted the packet, so we can start RCV for
+		// another one
+
+		// A precaution: make sure the FIFO is truly empty
+		while (RX_FIFO_READY) {
+#if TRACE_DRIVER
+			diag ("RX FIFO SHOULD BE EMPTY");
+#endif
+			cc1100_rx_flush ();
+		}
+
+		enter_rx ();
+
+		// Check the station ID before doing anything else
+		if (statid != 0 && rbuff [0] != 0 &&
+			rbuff [0] != statid) {
+#if TRACE_DRIVER
+			diag ("RX BAD STATID: %x", rbuff [0]);
+#endif
+			add_entropy (rbuff [3]);
+			goto DoSkp;
+		}
+
+
+#if CRC_MODE > 1
+		// Verify CRC
+		len = paylen >> 1;
+		if (w_chk (rbuff, len, 0)) {
+			// Bad checksum
+#if TRACE_DRIVER
+			diag ("BAD CHECKSUM %x %x %x",
+				(word*)(rbuff) [0],
+				(word*)(rbuff) [1],
+				(word*)(rbuff) [2]);
+#endif
+			// Ignore
+			goto DoSkp;
+		}
+
+		eptr = (byte*)rbuff + paylen;
+
+		((byte*)rbuff) [paylen - 2] = (*(eptr + 1) & 0x7f);
+		((byte*)rbuff) [paylen - 1] = *eptr;
+		add_entropy (rbuff [len-1]);
+
+#else	/* CRC_MODE */
+
+		// Status bytes
+		eptr = (byte*)rbuff + paylen;
+		b = *(eptr+1);
+		add_entropy (*eptr ^ b);
+		paylen += 2;
+
+		if (b & 0x80) {
+			// CRC OK: we will change this to software checksum
+			*(eptr+1) = *eptr;
+			// Swap these two
+			*eptr = (b & 0x7f);
+		} else {
+			// Bad checksum
+#if TRACE_DRIVER
+			diag ("BAD CHECKSUM %x %x %x",
+				(word*)(rbuff) [0],
+				(word*)(rbuff) [1],
+				(word*)(rbuff) [2]);
+#endif
+			// Ignore
+			goto DoSkp;
+		}
+#endif	/* CRC_MODE */
+
+		tcvphy_rcv (physid, rbuff, paylen);
+DoSkp:
+		LEDI (3, 0);
+		// Receiver is on, we don't know about transmitter
+
+		if ((TxOFF & 1)) {
+			// It is off solid - just wait for the RX FIFO to
+			// become ready
+CWaitRX:
+			if (RX_FIFO_READY)
+				goto RedoRX;
+WaitRX:
+			wait (zzv_qevent, DR_LOOP);
+			if (RxOFF == 0)
+				rcv_enable_int;
+			release;
+		}
+	}
+DoXMT:
+	// One more check: RX FIFO may have become ready in the meantime
+	if (RX_FIFO_READY)
+		// Reception has priority
+		goto RedoRX;
+
+	if (bckf_timer) {
+		delay (bckf_timer, DR_LOOP);
+		goto WaitRX;
+	}
+
+RetryXM:
+	// Check for transmission
+	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
+		if (TxOFF == 2) {
+			// Draining: stop xmt
+			TxOFF = 3;
+			goto RedoAll;
+		}
+		goto CWaitRX;
+	}
+
+	if (
+#if CRC_MODE > 1
+		paylen >= rbuffl	/* This includes 2 extra bytes */
+#else
+		paylen > rbuffl
+#endif
+			|| paylen < 6 || (paylen & 1)) {
+		// Sanity check
+#if TRACE_DRIVER
+		diag ("TX ILLEGAL PACKET LENGTH: %d", paylen);
+#endif
+		tcvphy_end (xbuff);
+		goto RetryXM;
+	}
+
+	xbuff [0] = statid;
+
+	if (RX_FIFO_READY)
+		// Last time to check
+		goto RedoRX;
+
+	if (clear_to_send () == NO) {
+		// We have to wait
+		gbackoff;
+		proceed (DR_LOOP);
+	}
+
+	LEDI (2, 1);
+
+
+#if CRC_MODE > 1
+	// Calculate CRC
+	len = (paylen >> 1) - 1;
+	((word*)xbuff) [len] = w_chk ((word*)xbuff, len, 0);
+#else
+	paylen -= 2;		// Ignore the checksum bytes
+#endif
+	// Send the length byte
+	cc1100_set_reg (CCxxx0_TXFIFO, paylen);
+
+	cc1100_set_reg_burst (CCxxx0_TXFIFO, (byte*)xbuff, (byte) paylen);
+
+	tcvphy_end (xbuff);
+
+	// Note: this is crude. We should wait (roughly):
+	// ((paylen + 6) * 8 / 10) * (1024/1000) ticks (assuming 0.1 msec per
+	// bit. For a 32-bit packet, the above formula yields 31.12, so ...
+	// you see ...
+	delay (paylen, DR_SWAIT);
+	release;
+
+  entry (DR_SWAIT)
+
+	if ((len = cc1100_status ()) == CC1100_STATE_TX) {
+		delay (TXEND_POLL_DELAY, DR_SWAIT);
+		release;
+	}
+
+	guard_stop (WATCH_XMT);
+	LEDI (2, 0);
+
+	bckf_timer = XMIT_SPACE;
+	proceed (DR_LOOP);
+
+endprocess (1)
+
+#if	GUARD_PROCESS
+
+#define	GU_ACTION	0
+
+process (cc1100_guard, void)
+
+  word stat;
+
+  entry (GU_ACTION)
+
+	if (zzv_gwch) {
+#if TRACE_DRIVER
+		diag ("GUARD WATCHDOG RESET: %x", zzv_gwch);
+#endif
+Reset:
+		zzv_gwch = 0;
+		chip_reset ();
+		enter_rx ();
+		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
+		ldelay (GUARD_SHORT_DELAY, GU_ACTION);
+		release;
+	}
+
+	if ((TxOFF & 1) && RxOFF) {
+		// The chip is powered down, so don't bother
+		ldelay (GUARD_LONG_DELAY, GU_ACTION);
+		release;
+	}
+
+	if (RX_FIFO_READY) {
+		// This one should go away eventually
+		guard_start (WATCH_RCV);
+		delay (GUARD_SHORT_DELAY, GU_ACTION);
+		// Won't hurt
+		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
+		release;
+	}
+
+	stat = cc1100_status ();
+
+	if (stat == CC1100_STATE_TX) {
+		// This one will go away eventually as well
+		guard_start (WATCH_XMT);
+		delay (GUARD_SHORT_DELAY, GU_ACTION);
+		release;
+	}
+
+	if (stat != CC1100_STATE_RX) {
+		// Something is wrong: note that stat == IDLE implies
+		// RX_FIFO_READY
+#if TRACE_DRIVER
+		diag ("GUARD BAD STATE: %d", stat);
+#endif
+		goto Reset;
+	}
+
+	// Do not break reception in progress
+	stat = cc1100_get_reg (CCxxx0_RXBYTES);
+
+	if (stat & 0x80) {
+		// Overflow
+#if TRACE_DRIVER
+		diag ("GUARD HUNG FIFO OVERFLOW");
+#endif
+		goto Reset;
+	}
+
+	if (stat == 0) {
+		// Recalibrate
+		enter_idle ();
+		enter_rx ();
+		ldelay (GUARD_LONG_DELAY, GU_ACTION);
+	} else {
+		guard_start (WATCH_RCV);
+		delay (GUARD_SHORT_DELAY, GU_ACTION);
+	}
+
+endprocess (1)
+
+#endif	/* GUARD_PROCESS */
+
+void phys_cc1100 (int phy, int mbs) {
+/*
+ * mbs includes two bytes for the checksum
+ */
+	if (rbuff != NULL)
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_cc1100");
 
-	if (mbs < 6 || mbs > 255) {
+	if (mbs < 6 || mbs > CC1100_MAXPLEN) {
 		if (mbs == 0)
-			mbs = RADIO_DEF_BUF_LEN;
+			mbs = CC1100_MAXPLEN;
 		else
 			syserror (EREQPAR, "phys_cc1100 mbs");
 	}
 
-	// Account for the two status bytes
-
-	if ((zzr_buffer = umalloc (mbs)) == NULL)
+	rbuffl = (byte) mbs;	// buffer length in bytes, including checksum
+#if CRC_MODE > 1
+	rbuffl += 2;
+#endif
+	if ((rbuff = umalloc (rbuffl)) == NULL)
 		syserror (EMALLOC, "phys_cc1100");
 
-	zzr_buffl = (byte) mbs;	// buffer length in bytes, including checksum
-	zzv_statid = 0;
-	zzv_physid = phy;
-	zzx_backoff = 0;
-	zzx_seed = 12345;
-	zzr_state = 0;
+	statid = 0;
+	physid = phy;
+	rnd_seed = 12345;
 
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
@@ -372,389 +712,24 @@ void phys_cc1100 (int phy, int mbs) {
 	LEDI (3, 0);
 
 	// Things start in the off state
-	zzv_rxoff = zzv_txoff = 1;
+	RxOFF = TxOFF = 1;
 	// Default power corresponds to the center == 0dBm
-	zzx_power = 3;
+	xpower = 3;
 	/* Initialize the device */
 	ini_cc1100 ();
-}
 
-static word clear_to_send () {
+	/* Install the backoff timer */
+	utimer (&bckf_timer, YES);
+	bckf_timer = 0;
 
-	// I am inclined to redo this (in the next version of the driver) and
-	// handle everything by hand. That is, unless I figure out how to set
-	// the RSSI threshold.
-#if 0
-	byte stat;
+	/* Start the processes */
+	zzv_drvprcs = fork (cc1100_driver, NULL);
 
-	stat = cc1100_status ();
-	diag ("OLD STATUS: %x", stat);
-#else
-	// Make sure our status is sane
-	cc1100_status ();
-#endif
-	// CCA will make this command ineffective if we are receiving a packet
-	// or RSSI is above threshold. How to set this threshold, I still have
-	// no clue. So I have disabled that part, as it appears to be overly
-	// sensitive. See CHANNEL_CLEAR_ON_RSSI.
-
-	cc1100_strobe (CCxxx0_STX);
-#if 0
-	stat = cc1100_status ();
-	diag ("NEW STATUS: %x", stat);
-	return (stat == CC1100_STATE_TX);
-#else
-	// We succeed if we have entered TX
-	return (cc1100_status () == CC1100_STATE_TX);
+#if GUARD_PROCESS
+	fork (cc1100_guard, NULL);
 #endif
 
 }
-
-procname (cc1100_receiver);
-
-#define	XM_LOOP		0
-#define	XM_LBT		1
-#define	XM_SEND		2
-#define	XM_WAIT		3
-
-process (cc1100_xmitter, void)
-
-    int stat, stln; 
-
-    entry (XM_LOOP)
-
-	if (zzv_txoff) {
-		/* We are off */
-		if (zzv_txoff == 3) {
-Drain:
-			tcvphy_erase (zzv_physid);
-			wait (zzv_qevent, XM_LOOP);
-			release;
-		} else if (zzv_txoff == 1) {
-			/* Queue held, transmitter off */
-			zzx_backoff = 0;
-			if (!running (cc1100_receiver))
-				cc1100_power_down ();
-			finish;
-		}
-	}
-
-#if	URGENT_ALSO_WAITS
-	if (tcvphy_top (zzv_physid) == 0) {
-#else
-	if ((stln = tcvphy_top (zzv_physid)) == 0) {
-#endif
-		/* Packet queue is empty */
-		if (zzv_txoff == 2) {
-			/* Draining; stop xmt if the output queue is empty */
-			if (!running (cc1100_receiver))
-				cc1100_power_down ();
-			zzv_txoff = 3;
-			/* Redo */
-			goto Drain;
-		}
-		wait (zzv_qevent, XM_LOOP);
-		release;
-	}
-
-#if	URGENT_ALSO_WAITS
-	if (zzx_backoff) {
-#else
-	if (zzx_backoff && stln < 2) {
-#endif
-		/* We have to wait and the packet is not urgent */
-		delay (zzx_backoff, XM_LOOP);
-		zzx_backoff = 0;
-		wait (zzv_qevent, XM_LOOP);
-		release;
-	}
-
-	if ((zzx_buffer = tcvphy_get (zzv_physid, &stln)) == NULL)
-		// Last time to check
-		proceed (XM_LOOP);
-
-	if (stln > zzr_buffl || stln < 6) {
-		// A precaution
-#if 0
-		diag ("TCV illegal packet length: %d", stln);
-#endif
-		tcvphy_end (zzx_buffer);
-		zzx_buffer = NULL;
-		proceed (XM_LOOP);
-	}
-
-	// Set the station Id
-	zzx_buffer [0] = zzv_statid;
-
-	zzx_paylen = (byte) (stln - 2);		// Ignore the checksum bytes
-
-	// zzx_buffer being set enables the receiver to detect that a received
-	// packet matches the outgoing one. We will implement this later, but
-	// the hooks are here already. To cancel the transmission, the receiver
-	// will do tcvphy_end, set zzx_buffer to NULL, and trigger qevent.
-
-    entry (XM_LBT)
-
-	if (zzx_buffer == NULL)
-		// Released by the receiver
-		proceed (XM_LOOP);
-
-	if (zzv_txoff) {
-		tcvphy_end (zzx_buffer);
-		zzx_buffer = NULL;
-		proceed (XM_LOOP);
-	}
-
-	// Check if the receiver isn't holding the device
-	rcv_disable_int;
-	if (rcv_busy) {
-		rcv_restore_int;
-#if 0
-		diag ("XMT LCK");
-#endif
-		gbackoff;
-		delay (zzx_backoff, XM_LBT);
-		zzx_backoff = 0;
-		wait (zzv_qevent, XM_LBT);
-		release;
-	}
-
-	lock_xmt;
-
-	if (clear_to_send () == NO) {
-		// CCA says NO
-		unlock_xmt;
-		rcv_restore_int;
-#if 0
-		diag ("LBT BACKOFF");
-#endif
-		gbackoff;
-		delay (zzx_backoff, XM_LBT);
-		zzx_backoff = 0;
-		wait (zzv_qevent, XM_LBT);
-		release;
-	}
-
-	// We have the channel and XMT is running
-	LEDI (2, 1);
-
-	// Send the length byte
-	cc1100_set_reg (CCxxx0_TXFIFO, zzx_paylen);
-
-	zzx_left = zzx_paylen;
-	zzx_bptr = (byte*) zzx_buffer;
-
-    entry (XM_SEND)
-
-	while (zzx_left) {
-
-		stat = cc1100_tx_status ();
-		if (stat < 0) {
-			// Underflow - we will redo the same packet
-			enter_idle ();
-#if 0
-			diag ("Xmit UNDERFLOW");
-#endif
-			goto SkipForNow;
-		}
-
-		if (stat == 0) {
-#if BUSY_TRANSMIT
-			continue;
-#else
-			// Retry in a couple of msec
-			delay (SKIP_XMT_DELAY, XM_SEND);
-			release;
-#endif
-		}
-
-		if (stat > zzx_left)
-			stat = zzx_left;
-
-		cc1100_set_reg_burst (CCxxx0_TXFIFO, zzx_bptr, stat);
-
-		zzx_bptr += stat;
-		zzx_left -= stat;
-	}
-
-	// We are done. Just hang on until the transmission ends.
-	tcvphy_end (zzx_buffer);
-
-SkipForNow:
-
-	zzx_buffer = NULL;
-
-    entry (XM_WAIT)
-	
-	if ((stat = cc1100_status ()) == CC1100_STATE_TX) {
-#if 0
-		diag ("STILL SENDING");
-#endif
-		delay (TXEND_POLL_DELAY, XM_WAIT);
-		release;
-	}
-#if 0
-	diag ("EOT STATUS: %x", stat);
-#endif
-
-	LEDI (2, 0);
-
-	// Before unlocking, check if the receiver is still around
-	if (zzv_rxoff) {
-		// Return to idle
-		if (stat != CC1100_STATE_IDLE)
-			enter_idle ();
-	} else {
-
-#if STAY_IN_RX
-		// Reset counter to recalibration
-		rx_rcnt_res;
-		// We are set to recalibrate on this transtition (we should be
-		// IDLE at this moment)
-		enter_rx ();
-		if (rcv_istate != RCV_IGN) {
-			// Receiver waiting for a packet: reset it
-			set_rcv_istate (RCV_STA);
-			rcv_enable_int;
-		}
-#else
-		if (rcv_istate != RCV_IGN) {
-			enter_rx ();
-			set_rcv_istate (RCV_STA);
-			rcv_enable_int;
-		} else {
-			enter_idle ();
-		}
-#endif
-	}
-
-	unlock_xmt;
-	trigger (rxunlock);
-
-	delay (MIN_BACKOFF, XM_LOOP);
-	release;
-
-    nodata;
-
-endprocess (1)
-
-#define	RCV_GETIT		0
-#define	RCV_CHECKIT		1
-#define	RCV_RECEIVE		2
-
-process (cc1100_receiver, void)
-
-    int len;
-
-    entry (RCV_GETIT)
-
-	if (xmt_busy) {
-#if 0
-		diag ("RC locked");
-#endif
-		wait (rxunlock, RCV_GETIT);
-		release;
-	}
-
-	if (zzv_rxoff) {
-#if 0
-		diag ("RX closing");
-#endif
-		set_rcv_istate (RCV_IGN);
-
-		if (zzv_txoff)
-			cc1100_power_down ();
-		else
-			enter_idle ();
-		finish;
-	}
-
-	zzr_bptr = NULL;
-
-	wait (rxevent, RCV_CHECKIT);
-	set_rcv_istate (RCV_STA);
-
-#if STAY_IN_RX == 0
-	// Need to enter RX explicitly
-	enter_rx ();
-#endif
-	rcv_enable_int;
-	release;
-
-    entry (RCV_CHECKIT)
-
-	rcv_disable_int;
-	set_rcv_istate (RCV_IGN);
-
-	if (zzv_rxoff) {
-		unlock_rcv;
-		LEDI (3, 0);
-		proceed (RCV_GETIT);
-	}
-
-	if (zzr_bptr == NULL) {
-		unlock_rcv;
-		LEDI (3, 0);
-#if 0
-		diag ("RCV failure %d", zzr_left);
-#endif
-
-#if STAY_IN_RX
-		if (!xmt_busy)
-			enter_rx ();
-#endif
-		proceed (RCV_GETIT);
-	}
-
-	unlock_rcv;
-
-	len = zzr_bptr - (byte*) zzr_buffer;
-
-	add_entropy (*(zzr_bptr-1) ^ *(zzr_bptr-2));
-
-	// Check if the packet is OK
-
-	zzr_left = *(zzr_bptr-1);
-	if (zzr_left & 0x80) {
-		// CRC OK
-		*(zzr_bptr-1) = *(zzr_bptr-2);
-		// Reverse the location of RSSI to be compatible with DM2100
-		*(zzr_bptr-2) = (zzr_left & 0x7f);
-	} else {
-		// Ignore
-		proceed (RCV_GETIT);
-	}
-
-	gbackoff;
-
-#if 0
-	diag ("RCV: %d %x %x %x %x %x %x", len,
-		zzr_buffer [0],
-		zzr_buffer [1],
-		zzr_buffer [2],
-		zzr_buffer [3],
-		zzr_buffer [4],
-		zzr_buffer [5]);
-#endif
-	/* Check the station Id */
-	if (zzv_statid != 0 && zzr_buffer [0] != 0 &&
-	    zzr_buffer [0] != zzv_statid)
-		/* Wrong packet */
-		proceed (RCV_GETIT);
-
-	tcvphy_rcv (zzv_physid, zzr_buffer, len);
-
-#if STAY_IN_RX
-	if (rx_rcnt_recalibrate) 
-		enter_rx ();
-	else
-		rx_rcnt_upd;
-#endif
-	proceed (RCV_GETIT);
-
-    nodata;
-
-endprocess (1)
 
 static int option (int opt, address val) {
 /*
@@ -766,55 +741,52 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = ((zzv_txoff == 0) << 1) | (zzv_rxoff == 0);
+		ret = ((TxOFF == 0) << 1) | (RxOFF == 0);
 		if (val != NULL)
 			*val = ret;
 		break;
 
 	    case PHYSOPT_TXON:
 
-		if (zzv_rxoff)
+		if (RxOFF) {
 			// Start up
-			cc1100_reset ();
+			chip_reset ();
+			// Even if RX is off, this is our default mode
+			enter_rx ();
+		}
 
-		zzv_txoff = 0;
+		TxOFF = 0;
 
-		if (zzv_rxoff)
+		if (RxOFF)
 			LEDI (1, 1);
 		else
 			LEDI (1, 2);
 
-		if (!running (cc1100_xmitter))
-			fork (cc1100_xmitter, NULL);
 		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_RXON:
 
-		if (zzv_txoff)
+		if (TxOFF) {
 			// Start up
-			cc1100_reset ();
+			chip_reset ();
+			enter_rx ();
+		}
 
-		zzv_rxoff = 0;
+		RxOFF = 0;
 
-		if (zzv_txoff)
+		if (TxOFF)
 			LEDI (1, 1);
 		else
 			LEDI (1, 2);
-
-		if (!running (cc1100_receiver))
-			fork (cc1100_receiver, NULL);
-#if STAY_IN_RX
-		if (!xmt_busy)
-			enter_rx ();
-#endif
+		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_TXOFF:
 
 		/* Drain */
-		zzv_txoff = 2;
-		if (zzv_rxoff)
+		TxOFF = 2;
+		if (RxOFF)
 			LEDI (1, 0);
 		else
 			LEDI (1, 1);
@@ -823,8 +795,8 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_TXHOLD:
 
-		zzv_txoff = 1;
-		if (zzv_rxoff)
+		TxOFF = 1;
+		if (RxOFF)
 			LEDI (1, 0);
 		else
 			LEDI (1, 1);
@@ -833,21 +805,21 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_RXOFF:
 
-		zzv_rxoff = 1;
-		if (zzv_txoff)
+		RxOFF = 1;
+		if (TxOFF)
 			LEDI (1, 0);
 		else
 			LEDI (1, 1);
-		trigger (rxevent);
+		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_CAV:
 
 		/* Force an explicit backoff */
 		if (val == NULL)
-			zzx_backoff = 0;
+			bckf_timer = 0;
 		else
-			zzx_backoff = *val;
+			bckf_timer = *val;
 		trigger (zzv_qevent);
 		break;
 
@@ -855,30 +827,30 @@ static int option (int opt, address val) {
 
 		if (val == NULL)
 			// Default
-			zzx_power = 3;
+			xpower = 3;
 		else if (*val > 7)
-			zzx_power = 7;
+			xpower = 7;
 		else
-			zzx_power = *val;
+			xpower = *val;
 		cc1100_set_power ();
 
 		break;
 
 	    case PHYSOPT_GETPOWER:
 
-		ret = (int) zzx_power;
+		ret = (int) xpower;
 		if (val != NULL)
 			*val = ret;
 		break;
 
 	    case PHYSOPT_SETSID:
 
-		zzv_statid = (val == NULL) ? 0 : *val;
+		statid = (val == NULL) ? 0 : *val;
 		break;
 
             case PHYSOPT_GETSID:
 
-		ret = (int) zzv_statid;
+		ret = (int) statid;
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -890,3 +862,5 @@ static int option (int opt, address val) {
 	}
 	return ret;
 }
+
+

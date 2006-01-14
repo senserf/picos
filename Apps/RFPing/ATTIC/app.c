@@ -8,7 +8,7 @@
 
 #define	ENCRYPT	0
 #define	MIN_PACKET_LENGTH	24
-#define	MAX_PACKET_LENGTH	68
+#define	MAX_PACKET_LENGTH	48
 
 /*
  * You should run this application on two boards at the same time. When

@@ -19,7 +19,8 @@
 #define	LITTLE_ENDIAN	0
 #define	BIG_ENDIAN	1
 
-#define	RAM_START	0xE800
+#define	RAM_START	(word*)(0xE800)
+#define	RAM_END		(RAM_START+2048)
 
 #define	UART_BASE	UART_A	/* Device number of the firt UART */
 #define	UART_BUF_SIZE	8	/* Size of the circular buffer */

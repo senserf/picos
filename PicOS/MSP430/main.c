@@ -184,6 +184,9 @@ word switches (void) {
 
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
+#ifdef DUMP_MEM
+	dmp_mem ();
+#endif
 	diag ("SYSTEM ERROR: %x, %s", ec, m);
 #else
 void zzz_syserror (int ec) {
@@ -369,9 +372,15 @@ static void ios_init () {
 	// to use diag.
 	preinit_uart ();
 #endif
-	diag ("\r\nPicOS v" SYSVERSION ", "
+	diag ("");
+
+#ifdef	BANNER
+	diag (BANNER);
+#else
+	diag ("PicOS v" SYSVERSION ", "
         	"Copyright (C) Olsonet Communications, 2002-2005");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
+#endif
 
 	for_all_tasks (p)
 		/* Mark all task table entries as available */
