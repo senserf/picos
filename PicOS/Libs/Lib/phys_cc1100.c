@@ -31,11 +31,15 @@ static byte	RxOFF,		// Transmitter on/off flags
 
 #if GUARD_PROCESS
 
-#define	WATCH_RCV	1
-#define WATCH_XMT	2
+#define	WATCH_RCV	0x01
+#define WATCH_XMT	0x02
+#define	WATCH_PRG	0x80
+#define	WATCH_HNG	0x0F
 
 #define		guard_start(f)	_BIS (zzv_gwch, (f))
 #define		guard_stop(f)	_BIC (zzv_gwch, (f))
+#define		guard_hung	zzv_gwch
+#define		guard_clear	(zzv_gwch = 0)
 
 #else
 
@@ -235,7 +239,7 @@ int cc1100_rx_status () {
 		// The status is right, return #bytes in RX FIFO
 		return (b & 0x7f);
 #if TRACE_DRIVER
-	diag ("RX ILL = %x/%x", val, b);
+	diag ("%u TRC RX ILL = %x/%x", (word) seconds (), val, b);
 #endif
 	return -1;
 }
@@ -247,9 +251,15 @@ void cc1100_rx_flush () {
 		if (cc1100_get_reg (CCxxx0_RXBYTES) == 0)
 			return;
 #if TRACE_DRIVER
-		diag ("RX FLUSH LOOP");
+		diag ("%u TRC RX FLUSH LOOP", (word) seconds ());
 #endif
 	}
+	enter_rx ();
+}
+
+void cc1100_rx_reset () {
+
+	chip_reset ();
 	enter_rx ();
 }
 
@@ -284,7 +294,7 @@ static word clear_to_send () {
 static void power_down () {
 
 #if TRACE_DRIVER
-	diag ("CC1100 POWER DOWN");
+	diag ("%u RC POWER DOWN", (word) seconds ());
 #endif
 	enter_idle ();
 	cc1100_strobe (CCxxx0_SPWD);
@@ -296,6 +306,9 @@ static void chip_reset () {
 
 	full_reset;
 	init_cc_regs ();
+#if TRACE_DRIVER
+	diag ("%u RC CHIP RESET", (word) seconds ());
+#endif
 }
 
 static void ini_cc1100 () {
@@ -340,6 +353,132 @@ static void ini_cc1100 () {
 #include "checksum.h"
 #endif
 
+static void do_rx_fifo () {
+
+	int len, paylen;
+	byte b, *eptr;
+
+	// We are making progress as far as reception
+	guard_stop (WATCH_RCV | WATCH_PRG);
+
+	if (RxOFF) {
+		// If we are switched off, just clean the FIFO and return
+		cc1100_rx_flush ();
+		return;
+	}
+
+	if ((len = cc1100_rx_status ()) < 0) {
+		// Error: typically FIFO overrun (shouldn't happen)
+#if TRACE_DRIVER
+		diag ("%u RC RX BAD STATUS", (word) seconds ());
+#endif
+		cc1100_rx_reset ();
+		// Skip reception
+		return;
+	}
+
+	if ((len & 1) == 0 || len < 7) {
+		// Actual payload length must be even
+#if TRACE_DRIVER
+		diag ("%u RC RX BAD PL: %d", (word) seconds (), len);
+#endif
+		cc1100_rx_reset ();
+		return;
+	}
+
+	paylen = cc1100_get_reg (CCxxx0_RXFIFO);
+		if ((paylen & 1) || paylen != len - 3) {
+#if TRACE_DRIVER
+		diag ("%u RC RX PL MISMATCH: %d/%d", (word) seconds (), len,
+			paylen);
+#endif
+		cc1100_rx_reset ();
+		return;
+	}
+
+	if (paylen > rbuffl) {
+#if TRACE_DRIVER
+		diag ("%u RC RX PACKET TOO LONG: %d", (word) seconds (),
+			paylen);
+#endif
+		cc1100_rx_reset ();
+		return;
+	}
+
+	// Include the status bytes
+	cc1100_get_reg_burst (CCxxx0_RXFIFO, (byte*)rbuff, (byte) paylen + 2);
+
+	// We have extracted the packet, so we can start RCV for another one
+
+	// A precaution: make sure the FIFO is truly empty
+	while (RX_FIFO_READY) {
+#if TRACE_DRIVER
+		diag ("%u RC RX FIFO SHOULD BE EMPTY", (word) seconds ());
+#endif
+		cc1100_rx_reset ();
+	}
+
+	enter_rx ();
+
+	// Check the station ID before doing anything else
+	if (statid != 0 && rbuff [0] != 0 && rbuff [0] != statid) {
+#if TRACE_DRIVER
+		diag ("%u RC RX BAD STATID: %x", (word) seconds (), rbuff [0]);
+#endif
+		add_entropy (rbuff [3]);
+		return;
+	}
+
+#if CRC_MODE > 1
+	// Verify CRC
+	len = paylen >> 1;
+	if (w_chk (rbuff, len, 0)) {
+		// Bad checksum
+#if TRACE_DRIVER
+		diag ("%u RC BAD CHECKSUM (S) %x %x %x", (word) seconds (),
+			(word*)(rbuff) [0],
+			(word*)(rbuff) [1],
+			(word*)(rbuff) [2]);
+#endif
+		// Ignore
+		return;
+	}
+
+	eptr = (byte*)rbuff + paylen;
+
+	((byte*)rbuff) [paylen - 2] = (*(eptr + 1) & 0x7f);
+	((byte*)rbuff) [paylen - 1] = *eptr;
+	add_entropy (rbuff [len-1]);
+
+#else	/* CRC_MODE (the hardware case) */
+
+	// Status bytes
+	eptr = (byte*)rbuff + paylen;
+	b = *(eptr+1);
+	add_entropy (*eptr ^ b);
+	paylen += 2;
+
+	if (b & 0x80) {
+		// CRC OK: we will change this to software checksum
+		*(eptr+1) = *eptr;
+		// Swap these two
+		*eptr = (b & 0x7f);
+	} else {
+		// Bad checksum
+#if TRACE_DRIVER
+		diag ("%u RC BAD CHECKSUM (H) %x %x %x", (word) seconds (),
+			(word*)(rbuff) [0],
+			(word*)(rbuff) [1],
+			(word*)(rbuff) [2]);
+#endif
+		// Ignore
+		return;
+	}
+#endif	/* CRC_MODE */
+
+	tcvphy_rcv (physid, rbuff, paylen);
+}
+
 #define	DR_LOOP		0
 #define	DR_SWAIT	1
 
@@ -347,12 +486,11 @@ process (cc1100_driver, void)
 
   address xbuff;
   int paylen, len;
-  byte b, *eptr;
 
   entry (DR_LOOP)
 
-RedoAll:
-	if (TxOFF) {
+	if (TxOFF & 1) {
+		// The transmitter is OFF solid
 		if (TxOFF == 3) {
 			// Make sure to drain the XMIT queue each time you get
 			// here
@@ -366,170 +504,49 @@ RedoAll:
 			wait (zzv_qevent, DR_LOOP);
 			release;
 		}
-	}
 
-	if (RX_FIFO_READY) {
-RedoRX:
-    		LEDI (3, 1);
-
-		// A packet has been received and is waiting in RX FIFO
-		guard_stop (WATCH_RCV);
-		if (RxOFF) {
-			cc1100_rx_flush ();
-			// Ignore it
-			LEDI (3, 0);
-			goto DoXMT;
-		}
-
-		if ((len = cc1100_rx_status ()) < 0) {
-			// Error: typically FIFO overrun (shouldn't happen)
-#if TRACE_DRIVER
-			diag ("RX BAD STATUS");
-#endif
-			cc1100_rx_flush ();
-			goto DoSkp;
-		}
-
-		if ((len & 1) == 0 || len < 7) {
-			// Actual payload length must be even
-#if TRACE_DRIVER
-			diag ("RX BAD PACKET: %d", len);
-#endif
-			cc1100_rx_flush ();
-			goto DoSkp;
-		}
-
-		paylen = cc1100_get_reg (CCxxx0_RXFIFO);
-		if ((paylen & 1) || paylen != len - 3) {
-#if TRACE_DRIVER
-			diag ("RX PAYLOAD LENGTH MISMATCH: %d/%d", len, paylen);
-#endif
-			cc1100_rx_flush ();
-			goto DoSkp;
-		}
-
-		if (paylen > rbuffl) {
-#if TRACE_DRIVER
-			diag ("RX PACKET TOO LONG: %d", paylen);
-#endif
-			cc1100_rx_flush ();
-			goto DoSkp;
-		}
-
-		cc1100_get_reg_burst (CCxxx0_RXFIFO, (byte*)rbuff,
-			(byte) paylen + 2);
-
-		// We have extracted the packet, so we can start RCV for
-		// another one
-
-		// A precaution: make sure the FIFO is truly empty
+		// Receive
 		while (RX_FIFO_READY) {
-#if TRACE_DRIVER
-			diag ("RX FIFO SHOULD BE EMPTY");
-#endif
-			cc1100_rx_flush ();
+			LEDI (3, 1);
+			do_rx_fifo ();
+			LEDI (3, 0);
 		}
-
-		enter_rx ();
-
-		// Check the station ID before doing anything else
-		if (statid != 0 && rbuff [0] != 0 &&
-			rbuff [0] != statid) {
-#if TRACE_DRIVER
-			diag ("RX BAD STATID: %x", rbuff [0]);
-#endif
-			add_entropy (rbuff [3]);
-			goto DoSkp;
-		}
-
-
-#if CRC_MODE > 1
-		// Verify CRC
-		len = paylen >> 1;
-		if (w_chk (rbuff, len, 0)) {
-			// Bad checksum
-#if TRACE_DRIVER
-			diag ("BAD CHECKSUM %x %x %x",
-				(word*)(rbuff) [0],
-				(word*)(rbuff) [1],
-				(word*)(rbuff) [2]);
-#endif
-			// Ignore
-			goto DoSkp;
-		}
-
-		eptr = (byte*)rbuff + paylen;
-
-		((byte*)rbuff) [paylen - 2] = (*(eptr + 1) & 0x7f);
-		((byte*)rbuff) [paylen - 1] = *eptr;
-		add_entropy (rbuff [len-1]);
-
-#else	/* CRC_MODE */
-
-		// Status bytes
-		eptr = (byte*)rbuff + paylen;
-		b = *(eptr+1);
-		add_entropy (*eptr ^ b);
-		paylen += 2;
-
-		if (b & 0x80) {
-			// CRC OK: we will change this to software checksum
-			*(eptr+1) = *eptr;
-			// Swap these two
-			*eptr = (b & 0x7f);
-		} else {
-			// Bad checksum
-#if TRACE_DRIVER
-			diag ("BAD CHECKSUM %x %x %x",
-				(word*)(rbuff) [0],
-				(word*)(rbuff) [1],
-				(word*)(rbuff) [2]);
-#endif
-			// Ignore
-			goto DoSkp;
-		}
-#endif	/* CRC_MODE */
-
-		tcvphy_rcv (physid, rbuff, paylen);
-DoSkp:
-		LEDI (3, 0);
-		// Receiver is on, we don't know about transmitter
-
-		if ((TxOFF & 1)) {
-			// It is off solid - just wait for the RX FIFO to
-			// become ready
-CWaitRX:
-			if (RX_FIFO_READY)
-				goto RedoRX;
-WaitRX:
-			wait (zzv_qevent, DR_LOOP);
-			if (RxOFF == 0)
-				rcv_enable_int;
-			release;
-		}
+		wait (zzv_qevent, DR_LOOP);
+		if (RxOFF == 0)
+			rcv_enable_int;
+		release;
 	}
-DoXMT:
-	// One more check: RX FIFO may have become ready in the meantime
-	if (RX_FIFO_READY)
-		// Reception has priority
-		goto RedoRX;
 
+	while (RX_FIFO_READY) {
+		LEDI (3, 1);
+		do_rx_fifo ();
+		LEDI (3, 0);
+	}
+
+	// We want to transmit
 	if (bckf_timer) {
 		delay (bckf_timer, DR_LOOP);
-		goto WaitRX;
+		wait (zzv_qevent, DR_LOOP);
+		if (RxOFF == 0)
+			rcv_enable_int;
+		release;
 	}
 
-RetryXM:
-	// Check for transmission
+	// Is there a packet queued for transmission
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
-		if (TxOFF == 2) {
-			// Draining: stop xmt
+		if (TxOFF) {
+			// TxOFF == 2 -> draining: stop xmt
 			TxOFF = 3;
-			goto RedoAll;
+			proceed (DR_LOOP);
 		}
-		goto CWaitRX;
+		// Wait
+		wait (zzv_qevent, DR_LOOP);
+		if (RxOFF == 0)
+			rcv_enable_int;
+		release;
 	}
 
+	// Transmit the packet
 	if (
 #if CRC_MODE > 1
 		paylen >= rbuffl	/* This includes 2 extra bytes */
@@ -539,26 +556,30 @@ RetryXM:
 			|| paylen < 6 || (paylen & 1)) {
 		// Sanity check
 #if TRACE_DRIVER
-		diag ("TX ILLEGAL PACKET LENGTH: %d", paylen);
+		diag ("%u RC TX ILLEGAL PL: %d", (word) seconds (), paylen);
 #endif
 		tcvphy_end (xbuff);
-		goto RetryXM;
+		proceed (DR_LOOP);
 	}
 
 	xbuff [0] = statid;
 
-	if (RX_FIFO_READY)
-		// Last time to check
-		goto RedoRX;
+	while (RX_FIFO_READY) {
+		// We are about to take over, so let us give it one more try
+		LEDI (3, 1);
+		do_rx_fifo ();
+		LEDI (3, 0);
+	}
 
+	// Try to grab the chip for TX
 	if (clear_to_send () == NO) {
 		// We have to wait
 		gbackoff;
 		proceed (DR_LOOP);
 	}
 
+	// We've got it
 	LEDI (2, 1);
-
 
 #if CRC_MODE > 1
 	// Calculate CRC
@@ -567,18 +588,21 @@ RetryXM:
 #else
 	paylen -= 2;		// Ignore the checksum bytes
 #endif
-	// Send the length byte
+	// Send the length byte ...
 	cc1100_set_reg (CCxxx0_TXFIFO, paylen);
 
+	// ... and the packet
 	cc1100_set_reg_burst (CCxxx0_TXFIFO, (byte*)xbuff, (byte) paylen);
 
+	// ... and release it
 	tcvphy_end (xbuff);
 
-	// Note: this is crude. We should wait (roughly):
+	// Note: this is a bit crude. We should wait (roughly):
 	// ((paylen + 6) * 8 / 10) * (1024/1000) ticks (assuming 0.1 msec per
 	// bit. For a 32-bit packet, the above formula yields 31.12, so ...
 	// you see ...
 	delay (paylen, DR_SWAIT);
+
 	release;
 
   entry (DR_SWAIT)
@@ -588,7 +612,7 @@ RetryXM:
 		release;
 	}
 
-	guard_stop (WATCH_XMT);
+	guard_stop (WATCH_XMT | WATCH_PRG);
 	LEDI (2, 0);
 
 	bckf_timer = XMIT_SPACE;
@@ -606,12 +630,16 @@ process (cc1100_guard, void)
 
   entry (GU_ACTION)
 
-	if (zzv_gwch) {
 #if TRACE_DRIVER
-		diag ("GUARD WATCHDOG RESET: %x", zzv_gwch);
+	diag ("%u RC GUARD ...", (word) seconds ());
+#endif
+	if (guard_hung) {
+#if TRACE_DRIVER
+		diag ("%u RC GUARD WATCH RESET: %x", (word) seconds (),
+			zzv_gwch);
 #endif
 Reset:
-		zzv_gwch = 0;
+		guard_clear;
 		chip_reset ();
 		enter_rx ();
 		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
@@ -640,6 +668,7 @@ Reset:
 		// This one will go away eventually as well
 		guard_start (WATCH_XMT);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
+		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
 		release;
 	}
 
@@ -647,7 +676,7 @@ Reset:
 		// Something is wrong: note that stat == IDLE implies
 		// RX_FIFO_READY
 #if TRACE_DRIVER
-		diag ("GUARD BAD STATE: %d", stat);
+		diag ("%u RC GUARD BAD STATE: %d", (word) seconds (), stat);
 #endif
 		goto Reset;
 	}
@@ -658,20 +687,27 @@ Reset:
 	if (stat & 0x80) {
 		// Overflow
 #if TRACE_DRIVER
-		diag ("GUARD HUNG FIFO OVERFLOW");
+		diag ("%u RC GUARD HUNG FIFO OVERFLOW", (word) seconds ());
 #endif
 		goto Reset;
 	}
 
 	if (stat == 0) {
 		// Recalibrate
+#if TRACE_DRIVE
+		diag ("%u RC GUARD RECAL", (word) (word) seconds ());
+#endif
 		enter_idle ();
 		enter_rx ();
+		// Will reset the chip periodically on LONG_DELAY if nothing
+		// happens in between
+		guard_start (WATCH_PRG);
 		ldelay (GUARD_LONG_DELAY, GU_ACTION);
 	} else {
 		guard_start (WATCH_RCV);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
 	}
+	p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
 
 endprocess (1)
 
