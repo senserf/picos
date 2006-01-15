@@ -469,3 +469,8 @@ R060113A:
 
 	Note: I am using software CRC (see constants in cc1100.h). You can fool
 	around with some of those options.
+
+R060115B:
+
+	A few improvements to the CC1100 driver aimed at eliminating receiver
+	hangups.
