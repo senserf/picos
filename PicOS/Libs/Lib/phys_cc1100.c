@@ -257,6 +257,8 @@ void cc1100_rx_flush () {
 	enter_rx ();
 }
 
+static void chip_reset();
+
 void cc1100_rx_reset () {
 
 	chip_reset ();
@@ -329,6 +331,11 @@ static void ini_cc1100 () {
 		(cc1100_get_reg (CCxxx0_VERSION) << 8) |
 		 cc1100_get_reg (CCxxx0_MCSM1)		);
 #endif
+	dbg_1 (0x2000); // CC1100 initialized
+	dbg_1 ((cc1100_get_reg (CCxxx0_SYNC1) << 8) |
+			cc1100_get_reg (CCxxx0_SYNC0));
+	dbg_1 ((cc1100_get_reg (CCxxx0_VERSION) << 8) |
+			cc1100_get_reg (CCxxx0_MCSM1));
 
 #if 1
 	// Validate registers

@@ -74,12 +74,13 @@ static int cc1100_init (word);
 static int dm2100_init (word);
 #endif
 
-#define NET_MAXPLEN		64
+#define NET_MAXPLEN		56
 static const char myName[] = "net.c";
 
 int net_init (word phys, word plug) {
 
 	if (net_fd >= 0) {
+		dbg_2 (0x1000); // net busy
 		diag ("%s: Net busy", myName);
 		return -1;
 	}
@@ -113,6 +114,7 @@ int net_init (word phys, word plug) {
 		return (net_fd = uart_init (plug));
 #endif
 	default:
+		dbg_2 (0x9000 | phys);
 		diag ("%s: ? phys %d", myName, phys);
 		return (net_fd = -1);
 	}
@@ -171,7 +173,8 @@ static int cc1100_init (word plug) {
 	else
 		tcv_plug (0, &plug_null);
 	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
-		diag ("%s: Cannot open cc1100", myName);
+		dbg_2 (0x2000); // Cannot open cc1100
+		diag ("%s: Cannot open CC1100 if", myName);
 		return -1;
 	}
 	tcv_control (fd, PHYSOPT_TXON, NULL);
@@ -268,15 +271,12 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 	address packet;
 	word size;
 
-	if (buf_ptr == NULL) {
-		diag ("%s: NULL buf addr", myName);
+	if (buf_ptr == NULL || net_fd < 0) {
+		dbg_2 (0x3000); // net_rx: no buffer or not net
+		diag ("%s: no buffer or not net",  myName);
 		return -1;
 	}
 
-	if (net_fd < 0) {
-		diag ("%s: No net", myName);
-		return -1;
-	}
 	packet = tcv_rnp (state, net_fd);
 	if ((size = tcv_left (packet)) == 0) // only if state is NONE (?)
 		return 0;
@@ -335,6 +335,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 		return size;
 
 	default:
+		dbg_2 (0x4000); // Unknown phys
 		diag ("%s: Unknown phys", myName);
 		return -1;
 	}
@@ -349,12 +350,11 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 #define ether_len(len)		((62 >= ((len) + 15)) ? 62 : ((len) + 15))
 
 #if CC1100
-// 2 - station id, 2 - entropy
-#define radio_len(len)	((len) + 4)
-//#define radio_len(len)  (((len) + 4 +3) & 0xfffc)
+// 2 - station id, 2 - entropy, 2 - rssi, even
+#define radio_len(len)  (((len) + 6 +1) & 0xfffe)
 #else
 // 2 - header, 4 - crc, +3 mod 4 == 0
-// (if the length is not divisible by 4, strange things may happen)
+// (if the length is not divisible by 4, things may happen)
 #define radio_len(len)		(((len) + 2+ 4 + 3) & 0xfffc)
 #endif
 
@@ -365,17 +365,20 @@ int net_tx (word state, char * buf, int len) {
 	address packet;
 
 	if (buf == NULL || len <= 0) {
-		diag ("%s: Crap in", myName);
+		dbg_2 (0x5000); // net_tx: corrupted input
+		diag ("%s: corrupted input", myName);
 		return -1;
 	}
 
 	if (net_fd < 0) {
-		diag ("%s: No net", myName);
+		dbg_2 (0x6000); // net_tx: no net
+		diag ("%s: no net", myName);
 		return -1;
 	}
 
 	if (!(tcv_control (net_fd, PHYSOPT_STATUS, NULL) & 2)) {
-		diag ("%s: Tx off", myName);
+		dbg_8 (0x1000); // xmt off
+		diag ("xmt off");
 		return -1;
 	}
 
@@ -407,11 +410,16 @@ int net_tx (word state, char * buf, int len) {
 		break;
 
 	  default:
+		dbg_2 (0x6000 | net_phys); // net_tx: corrupted phys
+		diag ("%s: currupted phys %d", net_phys);
+		return -1;
+#if 0
 		packet = tcv_wnp (state, net_fd, len);
 		if (packet == NULL) {
 			return -1;
 		}
 		memcpy ((char*)packet, buf, len);
+#endif
 	}
 	tcv_endp (packet);
 	return 0;
@@ -420,12 +428,15 @@ int net_tx (word state, char * buf, int len) {
 int net_close (word state) {
 	int rc;
 	if (net_fd < 0) {
-		diag ("%s: Not opened", myName);
+		dbg_2 (0x7000); // net_close: not opened
+		diag ("%s: not opened", myName);
 		return -1;
 	}
 
-	if ((rc = tcv_close(state, net_fd)) != 0)
-		diag ("%s: Close err %d", myName, rc);
+	if ((rc = tcv_close(state, net_fd)) != 0) {
+		dbg_2 (0x8000 | rc); // net_close: tcv error
+		diag ("%s: tcv_close err");
+	}
 
 	net_fd = -1;
 	net_phys = -1;

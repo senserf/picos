@@ -47,6 +47,7 @@ static int tcv_ope (int phy, int fd, va_list plid) {
 
 	/* phy has been verified by TCV */
 	if (desc [phy] != NONE) {
+		dbg_2 (0xA000); // tcv_ope phy?
 		diag ("%s: phy?", myName);
 		return ERROR;
 	}
@@ -62,6 +63,7 @@ static int tcv_clo (int phy, int fd) {
 	/* phy/fd has been verified */
 
 	if (desc == NULL || desc [phy] != fd) {
+		dbg_2 (0xB000); // tcv_clo desc
 		diag ("%s: desc?", myName);
 		return ERROR;
 	}

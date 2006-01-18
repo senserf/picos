@@ -10,9 +10,9 @@
 
 #define TARP_CACHES_MALLOCED	0
 
-// rcv, snd, fwd, |10 11 010 1|, flags
+// rcv, snd, fwd, |10 10 001 1|, flags
 // param: |level, rte_rec, slack, routing|
-tarpCtrlType tarp_ctrl = {0, 0, 0, 0xB5, 0};
+tarpCtrlType tarp_ctrl = {0, 0, 0, 0xA3, 0};
 
 #if TARP_CACHES_MALLOCED
 static ddcType	* ddCache = NULL;
@@ -20,8 +20,10 @@ static spdcType * spdCache = NULL;
 #else
 static ddcType	_ddCache;
 static spdcType _spdCache;
-static ddcType	* ddCache  = &_ddCache;
-static spdcType * spdCache = &_spdCache;
+#define ddCache (&_ddCache)
+#define spdCache (&_spdCache)
+//static ddcType	* ddCache  = &_ddCache;
+//static spdcType * spdCache = &_spdCache;
 #endif
 
 #define TARP_CACHES_TEST 0
@@ -58,10 +60,14 @@ word getSpdM(word * hop) {
 }
 
 #endif
-// set a rssi threshold for spd updates
-// tis is fakes, for now:
-#define SPD_RSSI_THRESHOLD	2
+
+// if rssi can be used to do it, do it ------
+#if 0
+#define SPD_RSSI_THRESHOLD	who knows what
 static bool strong_signal = YES;
+#endif
+#define strong_signal YES
+//---------------------------------------------
 
 // (h == master_host) should not get here
  // find the index
@@ -128,7 +134,11 @@ static bool dd_fresh (headerType * buffer) {
 	}
 	if (msg_isMaster (buffer->msg_type) && (
 		buffer->rcv == 0 || buffer->rcv == local_host)) {
-		master_host = buffer->snd; // my master ** kludge for upd_spd
+		if (master_host != buffer->snd) {
+			// kludge for upd_spd
+			master_host = buffer->snd;
+			set_master_chg;
+		}
 		ddCache->m_seq = buffer->seq_no;
 		if (strong_signal) { // is simplest best?
 			spdCache->m_hop = (word)(buffer->hoc & 0x7F) << 8;
@@ -227,28 +237,33 @@ int tarp_rx (address buffer, int length, int *ses) {
 
 	if (length == 0 || msgBuf->snd == local_host) {
 		// nothing in the recv buffer... can it happen?
-		// or my own echo -- drop it, for now
+		// or my own echo -- drop it
 		return TCV_DSP_DROP;
 	}
 
-	// it may be a better way from here...
 	if (net_id == 0 && !msg_isBind (msgBuf->msg_type))
 		return TCV_DSP_DROP;
 
-	if (++msgBuf->hoc >= msgBuf->hco) {
-		return msgBuf->rcv == 0 || msgBuf->rcv == local_host ?
-			TCV_DSP_RCV : TCV_DSP_DROP;
-	}
+	msgBuf->hoc++;
+
+#if 0
 	if (msgBuf->hoc & 0x80)
 		strong_signal = NO;
 	else {
 		strong_signal = YES;
-		  //buffer[(length >>1) -1] > SPD_RSSI_THRESHOLD ? YES : NO;
+		//buffer[(length >>1) -1] > SPD_RSSI_THRESHOLD ? YES : NO;
 		if (!strong_signal)
 			msgBuf->hoc |= 0x80;
 	}
-	if (tarp_level && !dd_fresh(msgBuf)) {	// check and update DD
-		return TCV_DSP_DROP;	//duplicate
+#endif
+
+	if (tarp_level && !dd_fresh(msgBuf)) {  // check and update DD
+		return TCV_DSP_DROP;    //duplicate
+	}
+
+	if ((msgBuf->hoc & 0x7F) >= msgBuf->hco + tarp_slack) {
+		return msgBuf->rcv == 0 || msgBuf->rcv == local_host ?
+			TCV_DSP_RCV : TCV_DSP_DROP;
 	}
 
 	if (tarp_level > 1 && strong_signal)
@@ -262,9 +277,10 @@ int tarp_rx (address buffer, int length, int *ses) {
 			return TCV_DSP_RCV;
 
 		if ((dup = tcvp_new (msg_isTrace (msgBuf->msg_type) ?
-		  length +sizeof(nid_t) : length, TCV_DSP_XMT, *ses)) == NULL)
+		  length +sizeof(nid_t) : length, TCV_DSP_XMT, *ses)) == NULL) {
+			dbg_8 (0x2000); // Tarp dup failed
 			diag ("Tarp dup failed");
-		else {
+		} else {
 			memcpy ((char *)dup, (char *)buffer, length);
 			if (msg_isTrace (msgBuf->msg_type)) // crap kludge
 			  memcpy ((char *)dup + tr_offset (msgBuf),
@@ -285,9 +301,10 @@ int tarp_rx (address buffer, int length, int *ses) {
 		if (!msg_isTrace (msgBuf->msg_type))
 			return TCV_DSP_XMT;
 		if ((dup = tcvp_new (length +sizeof(nid_t), TCV_DSP_XMT, *ses))
-			== NULL)
+			== NULL) {
+			dbg_8 (0x3000); // Tarp dup2 failed
 			diag ("Tarp dup2 failed");
-		else {
+		} else {
 			memcpy ((char *)dup, (char *)buffer, length);
 			memcpy ((char *)dup + tr_offset (msgBuf),
 				(char *)&local_host, sizeof(nid_t));

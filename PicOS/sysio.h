@@ -6,7 +6,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	SYSVERSION		"1.5"
+#define	SYSVERSION		"1.6"
 
 /* ================================================= */
 /* Options are now settable on per-application basis */

@@ -1,7 +1,7 @@
 #include "kernel.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -190,6 +190,7 @@ void zzz_syserror (int ec, const char *m) {
 	diag ("SYSTEM ERROR: %x, %s", ec, m);
 #else
 void zzz_syserror (int ec) {
+	dbg_0 (ec); // SYSTEM ERROR
 	diag ("SYSTEM ERROR: %x", ec);
 #endif
 	cli;
@@ -381,6 +382,8 @@ static void ios_init () {
         	"Copyright (C) Olsonet Communications, 2002-2005");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
+	dbg_1 (0x1160); // SYSVERSION 1.60
+	dbg_1 ((word)STACK_END - (word)(&__bss_end)); // RAM in bytes
 
 	for_all_tasks (p)
 		/* Mark all task table entries as available */

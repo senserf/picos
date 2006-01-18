@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -1225,9 +1225,8 @@ void zz_dbg (const word lvl, word code) {
 	diag_disable_int (a, is);
 
 	diag_wait (a); 	diag_wchar (0         , a);
-	diag_wait (a); 	diag_wchar (6         , a);
-	diag_wait (a); 	diag_wchar (0xAA      , a);
-	diag_wait (a); 	diag_wchar (0         , a);
+	diag_wait (a); 	diag_wchar (4         , a);
+	diag_wait (a); 	diag_wchar (0xFD      , a);
 	diag_wait (a); 	diag_wchar (lvl       , a);
 	diag_wait (a); 	diag_wchar (code >> 8 , a);
 	diag_wait (a); 	diag_wchar (code      , a);

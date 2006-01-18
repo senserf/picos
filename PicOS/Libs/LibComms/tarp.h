@@ -20,8 +20,8 @@
 #define false NO
 #endif
 
-#define ddCacheSize		5
-#define spdCacheSize		10
+#define ddCacheSize		10
+#define spdCacheSize		20
 #define tarp_maxHops		10
 
 /*
