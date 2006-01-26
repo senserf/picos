@@ -813,8 +813,13 @@ void	dbb (word);
 #define	PHYSOPT_SETPARAM	13	/* Set channel parameter */
 
 #define	PHYSOPT_SETPAYLEN	14	/* Set payload length */
-#define	PHYSOPT_SETGROUP	15	/* Set station group */
-#define	PHYSOPT_SETCHANNEL	16	/* Set RF channel */
+#define	PHYSOPT_GETPAYLEN	15
+
+#define	PHYSOPT_SETGROUP	16	/* Set station group */
+#define	PHYSOPT_GETGROUP	17
+
+#define	PHYSOPT_SETCHANNEL	18	/* Set RF channel */
+#define	PHYSOPT_GETCHANNEL	19
 
 typedef	struct {
 /*

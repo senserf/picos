@@ -475,7 +475,14 @@ R060115B:
 	A few improvements to the CC1100 driver aimed at eliminating receiver
 	hangups.
 
-R060117A
+R060117A:
 
 	Genesis Beta2, including LibComms. Adjusted phys_cc1100.c, main.c,
 	kernel.c to use dbg_n() without diag(). SYSVERSION 1.6.
+
+R060125A:
+
+	For CC1100, PHYSOPT_SETCHANNEL selects a channel 0-255,
+	PHYSOPT_GETCHANNEL returns the channel number currently in effect.
+
+	

@@ -213,7 +213,7 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_PKTCTRL0,(0x41 | CRC_FLAGS), // Whitening, pkt lngth follows sync
 
         CCxxx0_ADDR,    0x00,   // ADDR      Device address.
-        CCxxx0_CHANNR,  0x00,   // CHANNR    Channel number.
+
 	CCxxx0_FIFOTHR,	0x0F,	// 64 bytes in FIFO
 
 	CCxxx0_SYNC1,	((SYSTEM_IDENT >> 8) & 0xff),
@@ -244,7 +244,6 @@ const	byte	cc1100_rfsettings [] = {
 extern const byte cc1100_rfsettings [];
 
 #endif	/* DEFINE_RF_SETTINGS */
-
 /*
  * Chip states
  */

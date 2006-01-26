@@ -10,6 +10,7 @@
 #include "cc1100.h"
 
 static int option (int, address);
+static void chip_reset();
 
 		// Pointer to the static reception buffer
 static word	*rbuff = NULL,
@@ -27,7 +28,8 @@ byte		zzv_iack,		// To resolve interrupt race
 static byte	RxOFF,		// Transmitter on/off flags
 		TxOFF,
 		xpower,
-		rbuffl;
+		rbuffl,
+		channr = 0;
 
 #if GUARD_PROCESS
 
@@ -157,6 +159,16 @@ static void cc1100_set_power () {
 	cc1100_set_reg (CCxxx0_FREND0, FREND0 | xpower);
 }
 
+static byte cc1100_setchannel (byte ch) {
+
+	byte old;
+
+	old = channr;
+	channr = ch;
+	cc1100_set_reg (CCxxx0_CHANNR, channr);
+	return old;
+}
+
 static void init_cc_regs () {
 
 	const byte	*cur;
@@ -167,6 +179,8 @@ static void init_cc_regs () {
 	// Power setting is handled separately
 	cc1100_set_reg_burst (CCxxx0_PATABLE, patable, sizeof(patable));
 	cc1100_set_power ();
+	// And so is the channel number
+	cc1100_set_reg (CCxxx0_CHANNR, channr);
 }
 
 static byte cc1100_status () {
@@ -257,8 +271,6 @@ void cc1100_rx_flush () {
 	enter_rx ();
 }
 
-static void chip_reset();
-
 void cc1100_rx_reset () {
 
 	chip_reset ();
@@ -331,12 +343,12 @@ static void ini_cc1100 () {
 		(cc1100_get_reg (CCxxx0_VERSION) << 8) |
 		 cc1100_get_reg (CCxxx0_MCSM1)		);
 #endif
+
 	dbg_1 (0x2000); // CC1100 initialized
 	dbg_1 ((cc1100_get_reg (CCxxx0_SYNC1) << 8) |
 			cc1100_get_reg (CCxxx0_SYNC0));
 	dbg_1 ((cc1100_get_reg (CCxxx0_VERSION) << 8) |
 			cc1100_get_reg (CCxxx0_MCSM1));
-
 #if 1
 	// Validate registers
 	{
@@ -894,6 +906,22 @@ static int option (int opt, address val) {
             case PHYSOPT_GETSID:
 
 		ret = (int) statid;
+		if (val != NULL)
+			*val = ret;
+		break;
+
+	    case PHYSOPT_SETCHANNEL:
+
+		if (val == NULL)
+			// Default, immediate
+			ret = cc1100_setchannel (0);
+		else
+			ret = cc1100_setchannel ((*val) & 0xff);
+		break;
+
+	    case PHYSOPT_GETCHANNEL:
+
+		ret = channr;
 		if (val != NULL)
 			*val = ret;
 		break;

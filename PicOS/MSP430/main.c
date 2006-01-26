@@ -368,7 +368,7 @@ static void ios_init () {
 #endif
 
 #if	UART_DRIVER || UART_TCV
-	// An UART is configured, initialize it beforehand without enabling
+	// A UART is configured, initialize it beforehand without enabling
 	// anyting, which is up to the driver plugin. We just want to be able
 	// to use diag.
 	preinit_uart ();
