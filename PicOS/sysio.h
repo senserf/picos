@@ -821,6 +821,9 @@ void	dbb (word);
 #define	PHYSOPT_SETCHANNEL	18	/* Set RF channel */
 #define	PHYSOPT_GETCHANNEL	19
 
+#define	PHYSOPT_SETMODE		20
+#define	PHYSOPT_GETMODE		21
+
 typedef	struct {
 /*
  * Application data pointers. These two numbers represent the offset to the

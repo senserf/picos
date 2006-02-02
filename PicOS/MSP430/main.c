@@ -396,9 +396,9 @@ static void ios_init () {
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
 
-	/* Make SMCLK available on P5.5 */
-	_BIS (P5OUT, 0x20);
-	_BIS (P5SEL, 0x20);
+	/* Make SMCLK available on P5.4 */
+	_BIS (P5OUT, 0x10);
+	_BIS (P5SEL, 0x10);
 }
 
 /* ------------------------------------------------------------------------ */

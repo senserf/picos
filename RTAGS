@@ -485,4 +485,30 @@ R060125A:
 	For CC1100, PHYSOPT_SETCHANNEL selects a channel 0-255,
 	PHYSOPT_GETCHANNEL returns the channel number currently in effect.
 
-	
+R060201A:
+
+	For CC1100, PHYSOPT_SETMODE selects one of three (0, 1, 2) "modes".
+	The modes primarily refer to bit rates: 0->10kbps (the default),
+	1->4.8kbps, 2->38.4kbps.
+
+	CC1100 now backoffs (randomly) after a reception. This drastically
+	improves the performance of LBT in a situation when several nearby
+	nodes receive a packet and try to rebroadcast it at the same time.
+
+	The behavior of PHYSOPT_CAV modified slightly. If the argument is
+	NULL, the operation forces a random backoff before the next (immediate)
+	transmission.
+
+	Note that options.sys may define two constants related to calculating
+	the randomized backoff:
+
+	MIN_BACKOFF (default 8) determines the minimum amount of backoff in
+	milliseconds.
+
+	MSK_BACKOFF (default 0xff) is the mask applied to a random bit pattern
+	to extract the value to be added to MIN_BACKOFF. With the default
+	setting, the value will be between 0 and 255 (milliseconds). Feel free
+	to experiment with other values.
+
+	Script esnrpl.tcl added to Scripts - for generating variants of
+	Image.a43 with different ESN.

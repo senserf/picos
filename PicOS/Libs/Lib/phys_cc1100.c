@@ -29,7 +29,8 @@ static byte	RxOFF,		// Transmitter on/off flags
 		TxOFF,
 		xpower,
 		rbuffl,
-		channr = 0;
+		channr = 0,
+		rfopt = 0;
 
 #if GUARD_PROCESS
 
@@ -169,11 +170,48 @@ static byte cc1100_setchannel (byte ch) {
 	return old;
 }
 
+static byte cc1100_setrfmode (byte mo) {
+
+	byte old;
+	const byte *cur;
+
+	old = rfopt;
+	rfopt = mo;
+
+	for (cur = cc1100_rfsettings_opt [rfopt]; *cur != 255; cur += 2)
+		cc1100_set_reg (cur [0], cur [1]);
+
+	return old;
+}
+
+static word cc1100_setparam (byte *pa) {
+
+	word cnt;
+
+	if (pa == NULL) {
+		chip_reset ();
+		return;
+	}
+
+	cnt = 0;
+
+	while (*pa != 255) {
+		cc1100_set_reg (*pa, *(pa+1));
+		pa += 2;
+		cnt++;
+	}
+
+	return cnt;
+}
+
 static void init_cc_regs () {
 
-	const byte	*cur;
+	const byte *cur;
 
-	for (cur = cc1100_rfsettings; *cur != 255; cur += 2)
+	for (cur = cc1100_rfsettings_cmn; *cur != 255; cur += 2)
+		cc1100_set_reg (cur [0], cur [1]);
+
+	for (cur = cc1100_rfsettings_opt [rfopt]; *cur != 255; cur += 2)
 		cc1100_set_reg (cur [0], cur [1]);
 
 	// Power setting is handled separately
@@ -182,6 +220,30 @@ static void init_cc_regs () {
 	// And so is the channel number
 	cc1100_set_reg (CCxxx0_CHANNR, channr);
 }
+
+#if 1
+static void validate_cc_regs () {
+
+	const byte	*cur;
+	byte		val;
+
+	for (cur = cc1100_rfsettings_cmn; *cur != 255; cur += 2) {
+		val = cc1100_get_reg (cur [0]);
+		if (val != cur [1]) {
+RegErr:
+			diag ("Register check failed: [%d] == %x != %x",
+					cur [0], val, cur [1]);
+				syserror (EHARDWARE, "CC1100 reg");
+		}
+	}
+
+	for (cur = cc1100_rfsettings_opt [rfopt]; *cur != 255; cur += 2) {
+		val = cc1100_get_reg (cur [0]);
+		if (val != cur [1])
+			goto RegErr;
+	}
+}
+#endif
 
 static byte cc1100_status () {
 
@@ -350,21 +412,7 @@ static void ini_cc1100 () {
 	dbg_1 ((cc1100_get_reg (CCxxx0_VERSION) << 8) |
 			cc1100_get_reg (CCxxx0_MCSM1));
 #if 1
-	// Validate registers
-	{
-		const byte *cur;
-		byte val;
-
-		// Validate register settings
-		for (cur = cc1100_rfsettings; *cur != 255; cur += 2) {
-			val = cc1100_get_reg (cur [0]);
-			if (val != cur [1]) {
-				diag ("Register check failed: [%d] == %x != %x",
-					cur [0], val, cur [1]);
-				syserror (EHARDWARE, "CC1100 reg");
-			}
-		}
-	}
+	validate_cc_regs ();
 #endif
 }
 
@@ -383,7 +431,7 @@ static void do_rx_fifo () {
 	if (RxOFF) {
 		// If we are switched off, just clean the FIFO and return
 		cc1100_rx_flush ();
-		return;
+		goto Rtn;
 	}
 
 	if ((len = cc1100_rx_status ()) < 0) {
@@ -393,7 +441,7 @@ static void do_rx_fifo () {
 #endif
 		cc1100_rx_reset ();
 		// Skip reception
-		return;
+		goto Rtn;
 	}
 
 	if ((len & 1) == 0 || len < 7) {
@@ -402,7 +450,7 @@ static void do_rx_fifo () {
 		diag ("%u RC RX BAD PL: %d", (word) seconds (), len);
 #endif
 		cc1100_rx_reset ();
-		return;
+		goto Rtn;
 	}
 
 	paylen = cc1100_get_reg (CCxxx0_RXFIFO);
@@ -412,7 +460,7 @@ static void do_rx_fifo () {
 			paylen);
 #endif
 		cc1100_rx_reset ();
-		return;
+		goto Rtn;
 	}
 
 	if (paylen > rbuffl) {
@@ -421,7 +469,7 @@ static void do_rx_fifo () {
 			paylen);
 #endif
 		cc1100_rx_reset ();
-		return;
+		goto Rtn;
 	}
 
 	// Include the status bytes
@@ -445,7 +493,7 @@ static void do_rx_fifo () {
 		diag ("%u RC RX BAD STATID: %x", (word) seconds (), rbuff [0]);
 #endif
 		add_entropy (rbuff [3]);
-		return;
+		goto Rtn;
 	}
 
 #if CRC_MODE > 1
@@ -460,7 +508,7 @@ static void do_rx_fifo () {
 			(word*)(rbuff) [2]);
 #endif
 		// Ignore
-		return;
+		goto Rtn;
 	}
 
 	eptr = (byte*)rbuff + paylen;
@@ -491,11 +539,17 @@ static void do_rx_fifo () {
 			(word*)(rbuff) [2]);
 #endif
 		// Ignore
-		return;
+		goto Rtn;
 	}
 #endif	/* CRC_MODE */
 
 	tcvphy_rcv (physid, rbuff, paylen);
+Rtn:
+#if BACKOFF_AFTER_RECEIVE
+	gbackoff;
+#else
+	NOP;
+#endif
 }
 
 #define	DR_LOOP		0
@@ -620,6 +674,8 @@ process (cc1100_driver, void)
 	// ((paylen + 6) * 8 / 10) * (1024/1000) ticks (assuming 0.1 msec per
 	// bit. For a 32-bit packet, the above formula yields 31.12, so ...
 	// you see ...
+	// FIXME: if we go for different baud rates, this will have to be
+	// adjusted
 	delay (paylen, DR_SWAIT);
 
 	release;
@@ -872,7 +928,8 @@ static int option (int opt, address val) {
 
 		/* Force an explicit backoff */
 		if (val == NULL)
-			bckf_timer = 0;
+			// Random backoff
+			gbackoff;
 		else
 			bckf_timer = *val;
 		trigger (zzv_qevent);
@@ -924,6 +981,28 @@ static int option (int opt, address val) {
 		ret = channr;
 		if (val != NULL)
 			*val = ret;
+		break;
+
+	    case PHYSOPT_SETMODE:
+
+		if (val == NULL)
+			ret = cc1100_setrfmode (0);
+		else if (*val > CC1100_N_RF_OPTIONS) 
+			syserror (EREQPAR, "phys_cc1100 option setrfmode");
+		else
+			ret = cc1100_setrfmode ((byte)(*val));
+		break;
+
+	    case PHYSOPT_GETMODE:
+
+		ret = rfopt;
+		if (val != NULL)
+			*val = ret;
+		break;
+
+	    case PHYSOPT_SETPARAM:
+
+		ret = cc1100_setparam ((byte*)val);
 		break;
 
 	    default:
