@@ -30,7 +30,10 @@ void dsp_led (const char *m, word bint) {
 	if (m == NULL || (cnt = strlen (m)) == 0) {
 		/* Erase and do nothing */
 		cnt = 0xffff;
-		ion (LEDS, CONTROL, (char*) &cnt, LEDS_CNTRL_SET);
+		leds (0,0);
+		leds (1,0);
+		leds (2,0);
+		leds (3,0);
 		return;
 	}
 	if ((__blink_pmem = umalloc (4 * 2 + (cnt + 1) / 2)) == NULL)

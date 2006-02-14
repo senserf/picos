@@ -287,23 +287,14 @@ void zzz_sched (void) {
 
 }
 
-####here FIXME
-void leds (word c) {
-
-	rg.io.gp0_3_out =
-				(((c) & 1) ? 0x0002 : 0x0001) |
-				(((c) & 2) ? 0x0020 : 0x0010) |
-				(((c) & 4) ? 0x0200 : 0x0100) |
-				(((c) & 8) ? 0x2000 : 0x1000);
-}
-
+#if SWITCHES
 word switches (void) {
 	return 	 (fd.io.gp0_7_sts.sts4   == 0) |
 		((fd.io.gp0_7_sts.sts5   == 0) << 1) |
 		((fd.io.gp8_15_sts.sts13 == 0) << 2) |
 		((fd.io.gp8_15_sts.sts14 == 0) << 3) ;
 }
-#####
+#endif
 
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
@@ -561,10 +552,21 @@ static void cnf_init () {
 			PORT_L_ENABLE;
 
 #if 	SWITCHES
-// Use switches, make GPIO 4,5,13,14 input
+	// Use switches, make GPIO 4,5,13,14 input
 	rg.io.gp4_7_out = IO_GP4_7_OUT_DIS4_MASK | IO_GP4_7_OUT_DIS5_MASK;
-	rg.io.gp12_15_out = IO_GP12_15_OUT_DIS13_MASK | IO_GP12_15_OUT_DIS14_MASK;
+	rg.io.gp12_15_out = IO_GP12_15_OUT_DIS13_MASK |
+		IO_GP12_15_OUT_DIS14_MASK;
 #endif
+
+#if	LEDS_DRIVER
+	// Make GPIO 0-3 output
+	rg.io.gp0_3_out =
+		IO_GP0_3_OUT_EN0_MASK | IO_GP0_3_OUT_SET0_MASK |
+		IO_GP0_3_OUT_EN1_MASK | IO_GP0_3_OUT_SET1_MASK |
+		IO_GP0_3_OUT_EN2_MASK | IO_GP0_3_OUT_SET2_MASK |
+		IO_GP0_3_OUT_EN3_MASK | IO_GP0_3_OUT_SET3_MASK ;
+#endif
+
 }
 
 static void rtc_init () {
@@ -917,6 +919,7 @@ static void ios_init () {
 	diag ("\r\nPicOS v" SYSVERSION ", "
         	"Copyright (C) Olsonet Communications, 2002-2005");
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);
+#endif
 #if	SDRAM_PRESENT
 	zz_sdram_test ();
 #endif

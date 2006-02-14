@@ -512,3 +512,9 @@ R060201A:
 
 	Script esnrpl.tcl added to Scripts - for generating variants of
 	Image.a43 with different ESN.
+
+R060213A:
+
+	No changes to MSP code. In preparation for George's boards, I have
+	made sure that eCOG still compiles and runs with CC1000. Well, it
+	does, but a few touch-ups were needed.

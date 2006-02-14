@@ -8,7 +8,7 @@
 #include "sysio.h"
 
 #if	TCV_PRESENT
-extern	tcvplug_t	*zzz_plugins [];
+extern	const tcvplug_t	*zzz_plugins [];
 
 #if	TCV_TIMERS
 void	tcvp_settimer (address, word);

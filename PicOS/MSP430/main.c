@@ -175,13 +175,6 @@ int main (void) {
 #include "scheduler.h"
 }
 
-word switches (void) {
-/*
- * No switches are used at present
- */
-	return 0;
-}
-
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
 #ifdef DUMP_MEM

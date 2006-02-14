@@ -634,7 +634,11 @@ void	diag (const char *, ...);
 void	diag_dump (void);
 #endif
 
+#if	SWITCHES
 word	switches (void);
+#else
+#define	switches()	0
+#endif
 
 /* ======================================= */
 /* This is the common i/o request function */
@@ -757,8 +761,6 @@ void	dbb (word);
 
 #define	LCD_CNTRL_POS		1	/* Position (SEEK) */
 #define	LCD_CNTRL_ERASE		2	/* Clear */
-
-#define	LEDS_CNTRL_SET		1
 
 #define RADIO_CNTRL_XMTCTRL	1	/* Transmitter enable/disable */
 #define RADIO_CNTRL_RCVCTRL	2	/* Receiver enable/disable */

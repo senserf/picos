@@ -8,7 +8,7 @@
 
 #define	ENCRYPT	0
 #define	MIN_PACKET_LENGTH	24
-#define	MAX_PACKET_LENGTH	48
+#define	MAX_PACKET_LENGTH	46
 
 /*
  * You should run this application on two boards at the same time. When
@@ -87,7 +87,7 @@ static word gen_packet_length (void) {
 #else
 	static	word	rndseed = 12345;
 
-	rndseed = (entropy + 1 + rndseed) * 6751;
+	rndseed = (word) ((entropy + 1 + rndseed) * 6751);
 	return ((rndseed % (MAX_PACKET_LENGTH - MIN_PACKET_LENGTH + 1)) +
 			MIN_PACKET_LENGTH) & 0xFFE;
 #endif

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "tcv.h"
@@ -42,7 +42,7 @@ static int		physinfo [TCV_MAX_PHYS];
  * Plugins. Again, plugins register into this table and are identified by
  * their indexes. This table is normally very small.
  */
-tcvplug_t	*zzz_plugins [TCV_MAX_PLUGS];
+const tcvplug_t	*zzz_plugins [TCV_MAX_PLUGS];
 #define	plugins	zzz_plugins
 
 #if	TCV_TIMERS
@@ -717,7 +717,7 @@ int tcv_control (int fd, int opt, address arg) {
 		if (fd < 0)
 			return 0;
 		if (opt == PHYSOPT_PLUGINFO) {
-			tcvplug_t *p;
+			const tcvplug_t *p;
 			if (fd > TCV_MAX_PLUGS)
 				return 0;
 			if ((p = plugins [fd]) == NULL)
@@ -824,7 +824,7 @@ address tcvp_new (int size, int dsp, int ses) {
 		    	   	 return NULL;
 		}
 #endif
-		if ((p = apb (size))) {
+		if ((p = apb (size)) != NULL) {
 			p->attributes = descriptors [ses] -> attpattern;
 			/* This will not be closed by tcv_endp */
 			p->attributes.b.outgoing = 0;
@@ -834,7 +834,7 @@ address tcvp_new (int size, int dsp, int ses) {
 		return NULL;
 	}
 
-	if ((p = apb (size)))
+	if ((p = apb (size)) != NULL)
 		return (address)(p + 1);
 	else
 		return NULL;
@@ -942,8 +942,7 @@ int tcvphy_rcv (int phy, address p, int len) {
  * Called when a packet is received by a phy. Each phy has its private
  * (possibly static) reception buffer that it maintains by itself.
  */
-	word plg;
-	int dsp, ses;
+	int plg, dsp, ses;
 	tcvadp_t ap;
 	address c;
 

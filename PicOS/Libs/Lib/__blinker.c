@@ -36,7 +36,10 @@ process (__blinker, void)
 
   entry (BL_SHOW)
 
-	io (BL_SHOW, LEDS, CONTROL, ((char*)&chr) + 1, LEDS_CNTRL_SET);
+	leds (0, (chr >> 0) & 1);
+	leds (1, (chr >> 1) & 1);
+	leds (2, (chr >> 2) & 1);
+	leds (3, (chr >> 3) & 1);
 	delay (ntv, BL_NEXT);
 
 endprocess (1)

@@ -735,6 +735,11 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 
 	delay (-ret - 2, retry);
 	release;
+
+#if	__ECOG1__
+	/* Against stupidity ... */
+	return 0;
+#endif
 }
 
 /* --------------------------------------------------------------------- */

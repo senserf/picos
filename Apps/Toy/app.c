@@ -34,6 +34,7 @@ heapmem {100};
 #define	RS_LCD		20
 #define	RS_LCU		30
 #define	RS_LED		40
+#define	RS_LEF		45
 #define	RS_CUA		50
 #define RS_SDRAM	60
 #define	RS_FORMAT	70
@@ -81,6 +82,7 @@ process (root, void)
 
 #if LEDS_DRIVER
 		"          'b...hexdigits...' (LEDs)\r\n"
+		"          'c led val' (LED)\r\n"
 #endif
 		"          'u number(0/1) rate' (UART change)\r\n"
 #if SDRAM_PRESENT && ! ECOG_SIM
@@ -107,6 +109,8 @@ process (root, void)
 #if LEDS_DRIVER
 	if (ibuf [0] == 'b')
 		proceed (RS_LED);
+	if (ibuf [0] == 'c')
+		proceed (RS_LEF);
 #endif
 
 	if (ibuf [0] == 'u')
@@ -151,6 +155,19 @@ process (root, void)
   entry (RS_LED)
 
 	dsp_led (ibuf + 1, 256);
+	proceed (RS_RCMD);
+
+  entry (RS_LEF)
+
+	if (scan (ibuf + 1, "%u %u", &n, &m) < 2 || n > 3 || m > 3)
+		proceed (RS_RCMD+1);
+	if (m == 3) {
+		m = 2;
+		fastblink (1);
+	} else {
+		fastblink (0);
+	}
+	leds (n, m);
 	proceed (RS_RCMD);
 #endif
 

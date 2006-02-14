@@ -93,6 +93,7 @@
 #define	adc_stop	do { } while (0)
 #define	adc_disable	(fd.ssm.cfg.adc_en = 0)
 #define	adc_value	fd.adc.sts.data
+#define	adc_wait	do { } while (0)
 
 #define	RSSI_MIN	0xf800	// Minimum and maximum RSSI values (for scaling)
 #define	RSSI_MAX	0x07ff

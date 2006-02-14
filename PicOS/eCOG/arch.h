@@ -49,15 +49,19 @@ typedef	address		va_list;
 
 typedef struct {
 
-	byte	pdmode:1,	// Power down flag (unused on eCOG)
+	word	pdmode:1,	// Power down flag (unused on eCOG)
 		evntpn:1,	// Scheduler event pending
-		unused:1,
+		fstblk:1,	// Fast blink flag
 		ledblk:1,	// Blink flag
 		ledsts:4;	// Blink status of four leds
 
-	byte	ledblc;		// Blink counter
+		// Lots of room to spare
+
+	byte	ledblc;		// Blink counter (one byte needed)
 
 } systat_t;
+
+extern	systat_t zz_systat;
 		
 #if	SDRAM_PRESENT
 /* malloc is using exclusively SDRAM */
@@ -72,7 +76,7 @@ typedef struct {
 #endif	/* STACK_GUARD */
 #endif	/* SDRAM_PRESENT */
 
-#define	STATIC_LENGTH	((word)evar_ - RAM_START)
+#define	STATIC_LENGTH	((word)evar_ - (word)RAM_START)
 
 /* Data/stack boundaries */
 extern	address evar_, estk_;
