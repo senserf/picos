@@ -35,8 +35,10 @@
 
 // The list of boards
 #define	BOARD_CYAN		0	/* Cyan evaluation board */
-#define	BOARD_DM2100		1	/* DM2100 from RFM */
-#define	BOARD_GENESIS		2	/* Genesis board from RFM */
+#define	BOARD_GEORGE		1
+
+#define	BOARD_DM2100		100	/* DM2100 from RFM */
+#define	BOARD_GENESIS		101	/* Genesis board from RFM */
 
 #ifndef	TARGET_BOARD
 #define	TARGET_BOARD		BOARD_GENESIS
@@ -96,7 +98,7 @@
 #endif
 
 #ifndef	LEDS_BLINKING
-#define	LEDS_BLINKING		1
+#define	LEDS_BLINKING		0
 #endif
 
 // LCD driver present (0/1)
@@ -322,6 +324,11 @@
 
 #if 	UART_BITS < 7 || UART_BITS > 8
 #error "UART_BITS can be 7 or 8"
+#endif
+
+#if	LEDS_DRIVER == 0
+#undef	LEDS_BLINKING
+#define	LEDS_BLINKING	0
 #endif
 
 #include "mach.h"
@@ -892,7 +899,7 @@ extern	lword zzz_ent_acc;
 #define	EREQPAR		3	/* Illegal request parameters */
 #define	ERESOURCE	4	/* Out of resources */
 #define	ENEVENTS	5	/* Too many wait requests */
-#define	EMALLOC		6	/* Out of heap memory */
+#define	EMALLOC		6	/* Memory corruption */
 #define	ESTATE		7	/* Illegal process state */
 #define	EHARDWARE	8	/* Hardware error */
 #define	ETOOMANY	9	/* Too many times (like more than once) */

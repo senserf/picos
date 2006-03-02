@@ -14,15 +14,17 @@
 #include <ecog.h>
 #include <ecog1.h>
 
-#define	SDRAM_ADDR		0x4000	/* SDRAM location in data space */
-#define	SDRAM_PHYSICAL		0x0000	/* SDRAM physical block */
 #define	ETHER_ADDR		0x3c00
+
+#define	SDRAM_CPBUFSIZE		32
+#define	SDRAM_ADDR		0x4000	/* SDRAM location in data space */
 #define	SDRAM_SIZE		15	/* This is a power of 2 (15 == 32K) */
-#define	SDRAM_END		0x800000L
 #define	SDRAM_BLKSIZE		((word)1 << SDRAM_SIZE)
+
+#include "emi.h"
+
 #define	SDRAM_NBLOCKS		(SDRAM_END / SDRAM_BLKSIZE)
 #define	SDRAM_SPARE		(SDRAM_END - SDRAM_BLKSIZE)
-#define	SDRAM_CPBUFSIZE		32
 
 typedef unsigned char	bool;
 typedef	unsigned int	word;

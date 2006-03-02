@@ -16,7 +16,7 @@
 #define	LED2_OFF	do { } while (0)
 #define	LED3_OFF	do { } while (0)
 
-#if	TARGET_BOARD == BOARD_CYAN
+#if	(TARGET_BOARD == BOARD_CYAN) || (TARGET_BOARD == BOARD_GEORGE)
 
 #undef	LED0_ON
 #undef	LED1_ON
@@ -27,16 +27,36 @@
 #undef	LED2_OFF
 #undef	LED3_OFF
 
-#define	LED0_ON		ZZ_LEDS (0x0002)
-#define	LED1_ON		ZZ_LEDS (0x0020)
+#if 	TARGET_BOARD == BOARD_CYAN
+
+/* Negative polarity (as on the CYAN board) */
+
+#define	LED0_ON		do { } while (0)
+#define	LED1_ON		do { } while (0)
 #define	LED2_ON		ZZ_LEDS (0x0200)
-#define	LED3_ON		ZZ_LEDS (0x2000)
+#define	LED3_ON		do { } while (0)
 
-#define	LED0_OFF	ZZ_LEDS (0x0001)
-#define	LED1_OFF	ZZ_LEDS (0x0010)
+#define	LED0_OFF	do { } while (0)
+#define	LED1_OFF	do { } while (0)
 #define	LED2_OFF	ZZ_LEDS (0x0100)
-#define	LED3_OFF	ZZ_LEDS (0x1000)
+#define	LED3_OFF	do { } while (0)
 
-#endif	/* TARGET_BOARD == BOARD_CYAN */
+#else
+
+/* Positive polarity, one led only */
+
+#define	LED0_ON		ZZ_LEDS (0x0001)
+#define	LED1_ON		ZZ_LEDS (0x0010)
+#define	LED2_ON		ZZ_LEDS (0x0100)
+#define	LED3_ON		ZZ_LEDS (0x1000)
+
+#define	LED0_OFF	ZZ_LEDS (0x0002)
+#define	LED1_OFF	ZZ_LEDS (0x0020)
+#define	LED2_OFF	ZZ_LEDS (0x0200)
+#define	LED3_OFF	ZZ_LEDS (0x2000)
+
+#endif	/* CYAN */
+
+#endif	/* CYAN || GEORGE */
 
 #endif

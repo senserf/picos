@@ -518,3 +518,8 @@ R060213A:
 	No changes to MSP code. In preparation for George's boards, I have
 	made sure that eCOG still compiles and runs with CC1000. Well, it
 	does, but a few touch-ups were needed.
+
+R060301A:
+
+	Cosmetics for eCOG: separated definitions for SDRAM to enable 
+	easy declarations of other external memory chips.
