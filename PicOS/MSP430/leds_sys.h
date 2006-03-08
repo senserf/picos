@@ -56,6 +56,27 @@
 
 #endif	/* TARGET_BOARD == BOARD_GENESIS */
 
+#if	TARGET_BOARD == BOARD_VERSA2
+
+#define	LEDS_HIGH_ON	0
+
+#undef	LED1_ON
+#undef	LED2_ON
+#undef	LED3_ON
+#undef	LED1_OFF
+#undef	LED2_OFF
+#undef	LED3_OFF
+
+#define	LED1_ON		ZZ_LEDON (P4, 2)
+#define	LED2_ON		ZZ_LEDON (P4, 4)
+#define	LED3_ON		ZZ_LEDON (P4, 8)
+
+#define	LED1_OFF	ZZ_LEDOFF (P4, 2)
+#define	LED2_OFF	ZZ_LEDOFF (P4, 4)
+#define	LED3_OFF	ZZ_LEDOFF (P4, 8)
+
+#endif	/* TARGET_BOARD == BOARD_VERSA2 */
+
 #if	LEDS_HIGH_ON
 
 #define	ZZ_LEDON(a,b)	do { \

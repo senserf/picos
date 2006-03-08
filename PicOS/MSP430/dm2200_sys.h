@@ -1,48 +1,111 @@
-#ifndef	__pg_dm2100_sys_h
-#define	__pg_dm2100_sys_h	1
+#ifndef	__pg_dm2200_sys_h
+#define	__pg_dm2200_sys_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-//+++ "dm2100irq.c" "p2irq.c"
+//+++ "dm2200irq.c" "p2irq.c"
 
 /* ================================================================== */
 
 /*
- * Pin assignment (see IM2100):
+ * Pin assignment
  *
- *  TR1000                      MSP430Fxxx
+ *  TR8100                      MSP430Fxxx
  * ===========================================
- *  RXDATA			CCI0B (P2.2)		in
- *  TXMOD			OUT0 (P2.7)		out
- *  CNTRL0			P5.1			out
- *  CNTRL1			P5.0			out
- *  RSSI			A0 (P6.0)		analog in
- *  RSSI POWER-UP		P2.0			up on high
+ *  RXDATA			P2.2  		        in
+ *  RXDCLK			P2.6			in
+ *  CFG                         P4.0                    out
+ *  TXMOD			OUT0 (P2.7)		out (no change)
+ *  CFGDAT (CNTRL1)		P5.0			in/out (no change)
+ *  CFGCLK (CNTRL0)		P5.1			out (no change)
+ *  RSSI			A0 (P6.0)		analog in (no change)
+ *  RSSI POWER-UP		P2.0			up on 1 (no change)
+ *
  */
 
+/*
+ * CFG set high and then can be set low - this select the serial mode which
+ * remains active until power down. In serial mode, CFG up starts clocking
+ * sequence for serial data transfer.
+ */
 
 /*
  * Transmission rate: this is determined as the number of SLCK ticks per
  * physical bit time. Remember that SLCK runs at 4.5MHz. The math is simple:
  * one physical bit = 2/3 of real bit (excluding the preamble and checksum).
  */
-#define	BIT_RATE	6429
+#define	BIT_RATE	9600
 
 #define	ini_regs	do { \
-				_BIC (P2OUT, 0x85); \
-				_BIS (P2DIR, 0x81); \
-				_BIC (P2DIR, 0x1C); \
-				_BIS (P2SEL, 0x84); \
+				_BIC (P4OUT, 0x01); \
+				_BIS (P4DIR, 0x01); \
+				_BIC (P6DIR, 0xfe); \
 				_BIC (P5OUT, 0x03); \
 				_BIS (P5DIR, 0x03); \
-				_BIC (P6DIR, 0xfe); \
+				_BIC (P2OUT, 0xff); \
+				_BIC (P2DIR, 0x7C); \
+				_BIS (P2DIR, 0x81); \
+				_BIS (P2SEL, 0x80); \
+				_BIC (P2IES, 0x58); \
 				_BIC (P1DIR, 0x0f); \
 			} while (0)
 /*
- * Access to GP pins on the board
+ * Access to GP pins on the board:
+ *
+ * GP0-7 == P6.0 - P6.7
+ *
+ * CFG0 == P1.0
+ * CFG1 == P1.1
+ * CFG2 == P1.2 (will be 2.2 in the target version)
+ * CFG3 == P1.3
  */
+
+#if 0	/* For the target */
+
+#define	pin_sethigh(p)		do { \
+					if ((p) < 8) { \
+						_BIS (P6DIR, 1 << (p)); \
+						_BIS (P6OUT, 1 << (p)); \
+					} else if ((p) != 10) { \
+						_BIS (P1DIR, 1 << ((p)-8)); \
+						_BIS (P1OUT, 1 << ((p)-8)); \
+					} else { \
+						_BIS (P2DIR, 0x04); \
+						_BIS (P2OUT, 0x04); \
+					} \
+				} while (0)
+
+#define	pin_setlow(p)		do { \
+					if ((p) < 8) { \
+						_BIS (P6DIR, 1 << (p)); \
+						_BIC (P6OUT, 1 << (p)); \
+					} else if ((p) != 11) { \
+						_BIS (P1DIR, 1 << ((p)-8)); \
+						_BIC (P1OUT, 1 << ((p)-8)); \
+					} else { \
+						_BIS (P2DIR, 0x04); \
+						_BIC (P2OUT, 0x04); \
+					} \
+				} while (0)
+
+static inline pin_value (word p) {
+
+	if (p < 8) {
+		_BIC (P6DIR, 1 << p);
+		return (P6IN & (1 << p));
+	}
+	if (p != 10) {
+		_BIC (P1DIR, 1 << (p - 8));
+		return (P1IN & (1 << (p - 8)));
+	}
+	_BIC (P2DIR, 0x04);
+	return (P2IN & 0x04);
+};
+
+#endif	/* For the target */
+
 #define	pin_sethigh(p)		do { \
 					if ((p) < 8) { \
 						_BIS (P6DIR, 1 << (p)); \
@@ -63,8 +126,15 @@
 					} \
 				} while (0)
 
-#define	pin_value(p)		((p) < 8 ? (P6IN & (1 << (p))) : \
-						(P1IN & (1 << ((p)-8))))
+static inline pin_value (word p) {
+
+	if (p < 8) {
+		_BIC (P6DIR, 1 << p);
+		return (P6IN & (1 << p));
+	}
+	_BIC (P1DIR, 1 << (p - 8));
+	return (P1IN & (1 << (p - 8)));
+};
 
 #define	pin_setint(p)		do { \
 					_BIC (P2IES, 0x18); \
@@ -77,16 +147,33 @@
 					_BIC (P2IFG, 0x18); \
 				} while (0)
 
+#define	pin_interrupt		(P2IFG & 0x18)
+
 /*
- * DM2100 signal operations. Timer's A Capture/Compare Block is used for signal
- * insertion/extraction.
+ * DM2200 signal operations. Timer's A Capture/Compare Block is used for signal
+ * insertion (transmission).
  */
-#define	c0up		_BIS (P5OUT, 0x02)
-#define	c0down		_BIC (P5OUT, 0x02)
-#define	c1up		_BIS (P5OUT, 0x01)
-#define	c1down		_BIC (P5OUT, 0x01)
+
+#define	cfg_up		_BIS (P4OUT, 0x01)
+#define	cfg_down	_BIC (P4OUT, 0x01)
+
+#define	ser_up		_BIS (P5OUT, 0x01)
+#define	ser_down	_BIC (P5OUT, 0x01)
+#define	ser_out		_BIS (P5DIR, 0x01)
+#define	ser_in		_BIC (P5DIR, 0x01)
+#define	ser_data	(P5IN & 0x1)
+
+#define	ser_clk_up	_BIS (P5OUT, 0x02)
+#define	ser_clk_down	_BIC (P5OUT, 0x02)
+
 #define	rssi_on		_BIS (P2OUT, 0x01)
 #define	rssi_off	_BIC (P2OUT, 0x01)
+
+#define	rcv_sig_high	(P2IN & 0x04)
+#define	rcv_interrupt	(P2IFG & 0x40)
+#define	rcv_clrint	_BIC (P2IFG, 0x40)
+#define	rcv_enable	_BIS (P2IE, 0x40)
+#define	rcv_disable	_BIC (P2IE, 0x40)
 
 /*
  * The timer runs in the up mode setting up TAIFG whenever the count is
@@ -94,6 +181,7 @@
  *
  * For transmission, the timer triggers comparator interrupts whenever it
  * reaches the value in TACCR0. These interrupts strobe signal level flips.
+
  * For reception, signal transitions on CCI0B trigger capture interrupts,
  * with the time of the transition returned in TACCR0. Additionally, TACCR1
  * is used to trigger a timeout interrupt if the signal does not change for
@@ -118,14 +206,6 @@
 #define DM_RATE_X3		(DM_RATE + DM_RATE + DM_RATE)
 #define DM_RATE_X4		(DM_RATE + DM_RATE + DM_RATE + DM_RATE)
 
-#define	DM_RATE_DELTA		(DM_RATE / 2)
-
-#define	DM_RATE_R1		(DM_RATE_X1 + DM_RATE_DELTA)
-#define	DM_RATE_R2		(DM_RATE_X2 + DM_RATE_DELTA)
-#define	DM_RATE_R3		(DM_RATE_X3 + DM_RATE_DELTA)
-#define	DM_RATE_R4		(DM_RATE_X4 + DM_RATE_DELTA)
-#define	DM_RATE_R5		(DM_RATE_X4 + DM_RATE_X1 + DM_RATE_DELTA)
-
 #define	enable_xmt_timer	do { \
 					TACCR0 = DM_RATE_X1; \
 					TACCTL1 = 0; \
@@ -139,61 +219,32 @@
 					TACCTL0 ^= OUT; \
 					zzv_tmaux = TACCR0; \
 				} while (0)
-					
 
 #define	current_signal_level	(TACCTL0 & OUT)
-
+					
 /*
  * This stops the transmitter timer (and interrupts)
  */
-#define	disable_xcv_timer	do { \
+#define	disable_xmt_timer	do { \
 					TACCTL0 = 0; \
 					TACCTL1 = 0; \
 					_BIC (TACTL, MC_3); \
 				} while (0)
 
-/*
- * The reception is trickier. I tried capture on both slopes simultaneously,
- * but I couldn't get the signal right from SCCI (don't know why, perhaps the
- * input voltage from RXDATA tends to be flaky). So I have settled for 
- * switching the slope after every capture. This is done by starting with
- * CM_1 (meaning transition from low to high) and then switching to CM_2
- * (accomplished by adding CM_1 to what was there), then back to CM_1, and
- * so on. This way the actual perceived signal is implied from the last
- * transition and determined by the contents of CM.
- */
-#define	enable_rcv_timer	do { \
-					zzv_tmaux = 0; \
-					TACCTL0 = CM_1 | CCIS_1 | SCS | CAP \
-						| CCIE; \
-					_BIS (TACTL, MC_2 | TACLR); \
-				} while (0)
-
-#define	enable_rcv_timeout	do { TACCTL1 = CCIE; } while (0)
-#define	disable_rcv_timeout	do { TACCTL1 =    0; } while (0)
-
-#define get_signal_params(t,v)	do { \
-					(t) = ((word) TACCR0) - zzv_tmaux; \
-					zzv_tmaux = (word) TACCR0; \
-					if (((v) = (TACCTL0 & CM_1))) \
-						TACCTL0 += CM_1; \
-					else \
-						TACCTL0 -= CM_1; \
-				} while (0)
-
-#define	set_rcv_timeout		do { TACCR1 = TACCR0 + SH5; } while (0)
+// Needed by xcvcommon
+#define	disable_xcv_timer	rcv_disable
 
 #define	hard_lock		do { \
 					_BIC (TACCTL0, CCIE); \
 					_BIC (TACCTL1, CCIE); \
+					rcv_disable; \
 				} while (0)
 
 #define	hard_drop		do { \
-					if (zzv_status) { \
+					if (zzv_status == HSTAT_RCV) \
+						rcv_enable; \
+					else if (zzv_status == HSTAT_XMT) \
 						_BIS (TACCTL0, CCIE); \
-						if (zzv_status == HSTAT_RCV) \
-							_BIS (TACCTL1, CCIE); \
-					} \
 				} while (0)
 
 #define	LEDI(a,b)		leds (a, b)

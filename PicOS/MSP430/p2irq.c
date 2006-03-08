@@ -11,12 +11,20 @@
 #include	"dm2100.h"
 #endif
 
+#if	DM2200
+#include	"dm2200.h"
+#endif
+
 interrupt (PORT2_VECTOR) p2_int () {
 
 #if	DM2100
-#include "irq_dm2100_pins.h"
+#include	"irq_dm2100_pins.h"
 #endif
 
-// Here room for more functions
+#if	DM2200
+#include	"dm2200_p2.h"
+#endif
+
+// Room for more functions
 
 }

@@ -523,3 +523,7 @@ R060301A:
 
 	Cosmetics for eCOG: separated definitions for SDRAM to enable 
 	easy declarations of other external memory chips.
+
+R060307A:
+
+	First working version of TR8100 driver.

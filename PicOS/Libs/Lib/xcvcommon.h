@@ -64,6 +64,8 @@ Finish:
 		hard_drop;
 	}
 
+	end_rcv;
+
 	if (zzv_rxoff)
 		goto Finish;
 

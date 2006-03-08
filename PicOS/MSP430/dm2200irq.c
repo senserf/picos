@@ -1,15 +1,13 @@
-#ifndef __pg_irq_dm2100_pins_h
-#define __pg_irq_dm2100_pins_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
+#include "kernel.h"
+#include "dm2200.h"
 
-/*
- * P2 interrupts (corresponding to CFG0-CFG3 going up)
- */
-	pin_clrint;
-	i_trigger (ETYPE_USER, DM2100PINS_INT);
+interrupt (TIMERA0_VECTOR) dm2200_st_int () {
 
+// Signal strobe for transmission
+#include "irq_dm2200_xmt.h"
 
-#endif
+}

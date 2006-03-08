@@ -104,6 +104,8 @@
 				zzv_status = GP_INT_XMT; \
 			} while (0)
 
+#define	end_rcv		do { } while (0)
+
 #define receiver_busy	(zzv_istate == IRQ_RCV || zzv_istate == IRQ_RTR)
 #define	receiver_active	(zzv_status == GP_INT_RCV)
 #define	xmitter_active	(zzv_status == GP_INT_XMT)

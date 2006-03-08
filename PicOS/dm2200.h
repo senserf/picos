@@ -1,12 +1,12 @@
-#ifndef	__pg_dm2100_h
-#define	__pg_dm2100_h	1
+#ifndef	__pg_dm2200_h
+#define	__pg_dm2200_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "phys_dm2100.h"
-#include "dm2100_sys.h"
+#include "phys_dm2200.h"
+#include "dm2200_sys.h"
 
 /*
  * Some of these constants can be changed to taste
@@ -14,6 +14,27 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length (bytes) */
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
+
+/*
+ * Configuration registers:
+ *
+ *  0 CFG0   Sleep   TX/RX ASK/OOK  2.4GHz   Mode1   Mode0   RXHDR    SVEn
+ *               0   0==RX  0==OOK       0       0       1       0       1
+ *  1 CFG1   RXBlk   VCOLk  ISSMod    -        BR3     BR2     BR1     BR0
+ *           R/O 0   R/O 0       1       0       0       0       1       1
+ *  2 LOSYN   Test  LOSyn6  LOSyn5  LOSyn4  LOSyn3  LOSyn2  LOSyn1  LOSyn0
+ *               0       0       0       0       0       0       0       0
+ */
+
+#define	CFG0_RCV	0x05
+//#define	CFG0_RCV	0x03
+#define	CFG0_RCV_STOP	0x00
+#define	CFG0_XMT	0x48
+#define	CFG0_OFF	0x80
+
+#define	CFG1		0x23
+#define	LOSYN		0x00
+
 
 #define	TRA(len)	switch ((len)) { \
 				case 0:	 SL1; break; \
@@ -27,12 +48,6 @@
 #define	SL3	set_signal_length (DM_RATE_X3)
 #define	SL4	set_signal_length (DM_RATE_X4)
 
-#define	SH1	DM_RATE_R1
-#define	SH2	DM_RATE_R2
-#define	SH3	DM_RATE_R3
-#define	SH4	DM_RATE_R4
-#define	SH5	DM_RATE_R5	// Timeout
-
 /* States of the IRQ automaton */
 
 #define IRQ_OFF		0
@@ -45,9 +60,12 @@
 #define IRQ_XPK		7
 #define IRQ_XEP		8
 #define IRQ_EXM		9
+
 #define IRQ_RPR		10
-#define IRQ_RSV		11
-#define IRQ_RPK		12
+#define IRQ_RP0		11
+#define IRQ_RP1		12
+#define IRQ_RP2		13
+#define IRQ_RP3		14
 
 #define	HSTAT_SLEEP	0
 #define	HSTAT_RCV	1
@@ -60,13 +78,14 @@
 			} while (0)
 
 #define	start_rcv	do { \
-				zzv_prmble = 0; \
 				zzr_length = 0; \
 				zzv_istate = IRQ_RPR; \
 				zzv_status = HSTAT_RCV; \
-				enable_rcv_timer; \
+				rcv_clrint; \
 			} while (0)
 
+#define	end_rcv		dm2200_wreg (0, CFG0_RCV_STOP)
+				
 #define	start_xmt	do { \
 				LEDI (3, 1); \
 				zzv_prmble = PREAMBLE_LENGTH; \
@@ -75,8 +94,6 @@
 				enable_xmt_timer; \
 			} while (0)
 
-#define	end_rcv		do { } while (0)
-				
 #define receiver_busy	(zzv_istate > IRQ_RPR)
 #define	receiver_active	(zzv_status == HSTAT_RCV)
 #define	xmitter_active	(zzv_status == HSTAT_XMT)
@@ -94,6 +111,6 @@ extern const byte zzv_symtable [], zzv_nibtable [], zzv_srntable [];
 #define	txevent	((word)&zzx_buffer)
 
 // To trigger P1.0-P1.3 up events
-#define	DM2100PINS_INT	((word)(&zzv_tmaux))
+#define	DM2200PINS_INT	((word)(&zzv_tmaux))
 
 #endif

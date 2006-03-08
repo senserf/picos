@@ -1,6 +1,6 @@
 #ifdef __MSP430__
-#define	TARGET_BOARD		BOARD_GENESIS
-#define	CRYSTAL_RATE		32768
+#define	TARGET_BOARD		BOARD_VERSA2
+#define	CRYSTAL_RATE		8000000
 #else
 #define	TARGET_BOARD		BOARD_GEORGE
 #define	LCD_DRIVER		0	/* LCD driver present */
@@ -10,7 +10,7 @@
 
 #define	ECOG_SIM		0
 #define	DIAG_MESSAGES		2	/* System messages to UART */
-#define	UART_DRIVER		1	/* Both UARTs present */
+#define	UART_DRIVER		1
 #define	LEDS_DRIVER		1	/* LED driver present */
 #define	TCV_PRESENT		0	/* No TCV */
 #define	TCV_TIMERS		0	/* */

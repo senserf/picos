@@ -44,6 +44,10 @@ heapmem {10, 90};
 #include "phys_dm2100.h"
 #endif
 
+#if DM2200
+#include "phys_dm2200.h"
+#endif
+
 #if RF24G
 #include "phys_rf24g.h"
 #endif
@@ -394,6 +398,10 @@ process (root, int)
 
 #if DM2100
 	phys_dm2100 (0, MAXPLEN);
+#endif
+
+#if DM2200
+	phys_dm2200 (0, MAXPLEN);
 #endif
 
 #if CC1100

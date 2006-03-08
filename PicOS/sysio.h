@@ -39,6 +39,7 @@
 
 #define	BOARD_DM2100		100	/* DM2100 from RFM */
 #define	BOARD_GENESIS		101	/* Genesis board from RFM */
+#define	BOARD_VERSA2		102
 
 #ifndef	TARGET_BOARD
 #define	TARGET_BOARD		BOARD_GENESIS
@@ -940,6 +941,7 @@ void	adc_stop (void);
 #define INFO_PHYS_CC1000        0x0400  /* CC1000 radio */
 #define	INFO_PHYS_DM2100	0x0500	/* DM2100 */
 #define	INFO_PHYS_CC1100	0x0600	/* CC1100 */
+#define	INFO_PHYS_DM2200	0x0700  /* VERSA 2 */
 
 #endif //if SIM_NET==0
 
