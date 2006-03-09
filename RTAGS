@@ -527,3 +527,7 @@ R060301A:
 R060307A:
 
 	First working version of TR8100 driver.
+
+R060308A:
+
+	Minor fixes to TR8100, looks like pretty stable.

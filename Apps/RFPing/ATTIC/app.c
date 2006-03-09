@@ -145,7 +145,7 @@ process (receiver, void)
 
 #if UART_DRIVER
 
-#if     CC1000 || DM2100 || CC1100
+#if     CC1000 || DM2100 || CC1100 || DM2200
 
 #if	CC1100
 

@@ -14,10 +14,23 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length (bytes) */
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
+#define	DM2200_DEF_RCVMODE	0x05	/* Flat range, high sensitivity */
+
+/*
+ * Maximum mode setting. The mode (as per SETMODE) refers to the receiver
+ * mode as described by bits 1 and 2 of CFG0. For example, with mode 3, both
+ * bits are set; with mode 2, bit 2 is set and 1 is not.
+ *
+ *           X X X X X X X X    CFG0
+ *                     ===      Mode
+ */
+#define	DM2200_N_RF_OPTIONS	0x03
 
 /*
  * Configuration registers:
  *
+ *                                                      our mode
+ *                                                   =============
  *  0 CFG0   Sleep   TX/RX ASK/OOK  2.4GHz   Mode1   Mode0   RXHDR    SVEn
  *               0   0==RX  0==OOK       0       0       1       0       1
  *  1 CFG1   RXBlk   VCOLk  ISSMod    -        BR3     BR2     BR1     BR0
@@ -25,6 +38,8 @@
  *  2 LOSYN   Test  LOSyn6  LOSyn5  LOSyn4  LOSyn3  LOSyn2  LOSyn1  LOSyn0
  *               0       0       0       0       0       0       0       0
  */
+
+#define	CFG0_RCVH	0x05
 
 #define	CFG0_RCV	0x05
 //#define	CFG0_RCV	0x03

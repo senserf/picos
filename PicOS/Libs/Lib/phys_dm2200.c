@@ -31,6 +31,7 @@ byte		zzv_curbit,	// Current bit index
 		zzv_cursym,	// Symbol buffer
 		zzv_rxoff,	// Transmitter on/off flags
 		zzv_txoff,
+		rcvmode = DM2200_DEF_RCVMODE,
  		zzv_istate = IRQ_OFF;
 
 const byte zzv_symtable [] = {
@@ -251,7 +252,7 @@ static void hstat (word status) {
 		case HSTAT_RCV:
 
 			rssi_on;
-			dm2200_wreg (0, CFG0_RCV);
+			dm2200_wreg (0, rcvmode);
 			break;
 
 		default:
@@ -424,6 +425,24 @@ static int option (int opt, address val) {
             case PHYSOPT_GETSID:
 
 		ret = (int) zzv_statid;
+		if (val != NULL)
+			*val = ret;
+		break;
+
+	    case PHYSOPT_SETMODE:
+
+		ret = (rcvmode & 0x06) >> 1; 
+		if (val == NULL)
+			rcvmode = DM2200_DEF_RCVMODE;
+		else if (*val <= DM2200_N_RF_OPTIONS)
+			rcvmode = (rcvmode & 0xf9) | (((byte) (*val)) << 1);
+		else
+			syserror (EREQPAR, "phys_dm2200 option rfmode");
+		break;
+
+	    case PHYSOPT_GETMODE:
+
+		ret = (rcvmode & 0x06) >> 1; 
 		if (val != NULL)
 			*val = ret;
 		break;
