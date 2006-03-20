@@ -530,4 +530,5 @@ R060307A:
 
 R060308A:
 
-	Minor fixes to TR8100, looks like pretty stable.
+	Minor fixes to TR8100, appears quite stable. GENESIS branch created
+	(checkout -r GENESIS).

@@ -16,7 +16,7 @@
 #define	LED2_OFF	do { } while (0)
 #define	LED3_OFF	do { } while (0)
 
-#if	(TARGET_BOARD == BOARD_CYAN) || (TARGET_BOARD == BOARD_GEORGE)
+#if	TARGET_BOARD == BOARD_CYAN || TARGET_BOARD == BOARD_GEORGE
 
 #undef	LED0_ON
 #undef	LED1_ON

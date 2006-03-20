@@ -364,7 +364,7 @@ int snd_stop (void) {
 #define	RS_AUTOSTART	200
 
 #if CC1000
-const static word parm_power = 1;
+const static word parm_power = 255;
 #endif
 
 process (root, int)

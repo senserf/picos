@@ -213,6 +213,10 @@
 #define	DM2100			0
 #endif
 
+#ifndef	DM2200
+#define	DM2200			0
+#endif
+
 #ifndef	RF24G
 #define	RF24G			0
 #endif
@@ -284,6 +288,10 @@
 
 #ifndef	RESET_ON_MALLOC
 #define	RESET_ON_MALLOC		0
+#endif
+
+#ifndef	CONFIG_PINS
+#define	CONFIG_PINS		0
 #endif
 
 /* ======================================================================== */
