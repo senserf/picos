@@ -532,3 +532,7 @@ R060308A:
 
 	Minor fixes to TR8100, appears quite stable. GENESIS branch created
 	(checkout -r GENESIS).
+
+R060319A:
+
+	Insignificant cosmetics.
