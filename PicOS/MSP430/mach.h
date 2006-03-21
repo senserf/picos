@@ -16,12 +16,29 @@
 #error "this must be compiled with mspgcc!!!"
 #endif
 
+#ifdef        __MSP430_148__
+#define       __MSP430_14x__
+#endif
+#ifdef        __MSP430_149__
+#define       __MSP430_14x__
+#endif
+
 #include "arch.h"
 
 // ACLK crystal parameters
 
 #ifndef	CRYSTAL_RATE
 #define	CRYSTAL_RATE		32768
+#endif
+
+#ifndef	CRYSTAL2_RATE
+#define	CRYSTAL2_RATE		0
+#endif
+
+#if	CRYSTAL2_RATE != 0
+#if	CRYSTAL2_RATE < 1000000
+#error "CRYSTAL2_RATE must be >= 1000000"
+#endif
 #endif
 
 #if	CRYSTAL_RATE != 32768

@@ -67,13 +67,6 @@ const static devinit_t devinit [MAX_DEVICES] = {
 
 static void ssm_init (void), mem_init (void), ios_init (void);
 
-void powerdown (void) {
-	zz_systat.pdmode = 1;
-}
-
-void powerup (void) {
-	zz_systat.pdmode = 0;
-}
 
 void clockdown (void) {
 	TBCCR0 = TIMER_B_INIT_LOW;	// 1 or 16 ticks per second
@@ -81,6 +74,26 @@ void clockdown (void) {
 
 void clockup (void) {
 	TBCCR0 = TIMER_B_INIT_HIGH;	// 1024 ticks per second
+}
+
+void powerdown (void) {
+
+	zz_systat.pdmode = 1;
+	clockdown ();
+#if CRYSTAL2_RATE
+	// Disable XTL2
+	_BIS (BCSCTL1, XT2OFF);
+#endif
+}
+
+void powerup (void) {
+
+#if CRYSTAL2_RATE
+	// Enable XTL2
+	_BIC (BCSCTL1, XT2OFF);
+#endif
+	clockup ();
+	zz_systat.pdmode = 0;
 }
 
 void reset (void) {
@@ -119,14 +132,7 @@ void udelay (register word n) {
 		" dec %[n]\n"
 		" jne 1b\n"
 #endif
-#ifdef	__MSP430_149__
-		"1:\n"
-		" nop\n"
-		" nop\n"
-		" dec %[n]\n"
-		" jne 1b\n"
-#endif
-#ifdef	__MSP430_148__
+#ifdef	__MSP430_14x__
 		"1:\n"
 		" nop\n"
 		" nop\n"
@@ -226,30 +232,29 @@ static void ssm_init () {
 	_BIS (FLL_CTL0, XCAP18PF);
 #endif
 	// Power status
-	powerup ();
+	// powerup ();
 
 	// Set up the CPU clock
 
-#ifdef	__MSP430_148__
+#ifdef	__MSP430_14x__
 	// Maximum DCO frequency
 	DCOCTL = DCO2 + DCO1 + DCO0;
 	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF
 
 #if	CRYSTAL_RATE != 32768
-	// We are using a high-speed crystal
+	// We are using a high-speed crystal for XT1
 		+ XTS
 #endif
 
 	;
 	// Measured MCLK is ca. 4.5 MHz
-#endif	/* 148 */
 
-#ifdef	__MSP430_149__
-	// Maximum DCO frequency
-	DCOCTL = DCO2 + DCO1 + DCO0;
-	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF;
-	// Measured MCLK is ca. 4.5 MHz
-#endif	/* 149 */
+#if 	CRYSTAL2_RATE
+	// Assign SMCLK to XTL2
+	BCSCTL2 = SELM_DCOCLK | SELS;
+#endif
+
+#endif	/* 14x */
 
 #ifdef	__MSP430_449__
 	//
@@ -269,8 +274,8 @@ static void ssm_init () {
 	TBCTL = TBSSEL0 | TBCLR; 	// ACLK source
 	_BIS (TBCTL, ID0 | ID1);	// divided by 8 = 4096 ticks/sec
 
-	// Select high clock rate
-	clockup ();
+	// Select power up and high clock rate
+	powerup ();
 
 	// Start it in up mode, interrupts still disabled
 	_BIS (TBCTL, MC0);
@@ -389,9 +394,9 @@ static void ios_init () {
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
 
-	/* Make SMCLK available on P5.4 */
-	_BIS (P5OUT, 0x10);
-	_BIS (P5SEL, 0x10);
+	/* Make SMCLK/MCLK available on P5.5, P5.4 */
+	_BIS (P5OUT, 0x30);
+	_BIS (P5SEL, 0x30);
 }
 
 /* ------------------------------------------------------------------------ */
@@ -407,9 +412,17 @@ static void ios_init () {
 
 uart_t	zz_uart [N_UARTS];
 
+#if CRYSTAL2_RATE
+// SMCLK
+#define	utctl		SSEL1
+#define	UART_CLOCK_RATE	CRYSTAL2_RATE
+#else
+// ACLK
 #define	utctl		SSEL0
+#define	UART_CLOCK_RATE	CRYSTAL_RATE
+#endif
 
-#if	CRYSTAL_RATE == 32768
+#if	UART_CLOCK_RATE == 32768
 // This is the standard (or perhaps not any more?)
 #define	ubr1		0
 
@@ -437,7 +450,7 @@ uart_t	zz_uart [N_UARTS];
 #error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
 #endif
 
-#else	/* CRYSTAL_RATE > 32768 */
+#else	/* UART_CLOCK_RATE > 32768 */
 
 #if UART_RATE < 1200 || UART_RATE > 38400
 #error "Illegal UART_RATE, must be between 1200 and 38400"
@@ -445,10 +458,10 @@ uart_t	zz_uart [N_UARTS];
 
 // No need to use corrections for high-speed crystals
 #define	umctl		0
-#define	ubr0		((CRYSTAL_RATE/UART_RATE) % 256)
-#define	ubr1		((CRYSTAL_RATE/UART_RATE) / 256)
+#define	ubr0		((UART_CLOCK_RATE/UART_RATE) % 256)
+#define	ubr1		((UART_CLOCK_RATE/UART_RATE) / 256)
 
-#endif	/* CRYSTAL_RATE */
+#endif	/* UART_CLOCK_RATE */
 
 #if UART_BITS == 8
 

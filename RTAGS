@@ -542,3 +542,11 @@ R060320A:
 	Added VMesh2: copy of GENESIS from -r GENESIS as of G060319A.
 	SYSVER 2.0.
 
+R060320B:
+	Included second crystal option for MSP430 (Versa2). If
+	CRYSTAL2_RATE is defined in options.sys and nonzero, then it indicates
+	that XTL2 is present and tells its rate (which must be at least
+	1000000). XTL2 is then used for SMCLK, i.e., it drives UART and
+	DM2200.
+	
+        powerup implies clockup, powerdown implies clockdown.

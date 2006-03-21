@@ -181,21 +181,31 @@ static inline pin_value (word p) {
  *
  * For transmission, the timer triggers comparator interrupts whenever it
  * reaches the value in TACCR0. These interrupts strobe signal level flips.
-
- * For reception, signal transitions on CCI0B trigger capture interrupts,
- * with the time of the transition returned in TACCR0. Additionally, TACCR1
- * is used to trigger a timeout interrupt if the signal does not change for
- * a longish while.
+ *
+ * For reception, we use the data clock extracted by TR8100.
  *
  */
+
+#if CRYSTAL2_RATE
+
+// Use XTL2 (should be high speed)
+
+#define	TAFREQ		CRYSTAL2_RATE
+#define	TASSEL_RADIO	TASSEL_SMCLK
+
+#else	/* No XTL2 */
+
+// If XTL1 is high-speed, use it; otherwise, use SMCLK == MCLK == DCO
 
 #if CRYSTAL_RATE != 32768
 #define	TASSEL_RADIO	TASSEL_ACLK
 #define	TAFREQ		CRYSTAL_RATE
 #else
 #define	TASSEL_RADIO	TASSEL_SMCLK
-#define	TAFREQ		4500000
+#define	TAFREQ		4700000
 #endif
+
+#endif	/* CRYSTAL2_RATE */
 
 #define	DM_RATE			(TAFREQ/BIT_RATE)
 
