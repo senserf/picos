@@ -375,7 +375,7 @@ static void ios_init () {
         	"Copyright (C) Olsonet Communications, 2002-2005");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
-	dbg_1 (0x1160); // SYSVERSION 1.60
+	dbg_1 (0x1000 | SYSVER_B);
 	dbg_1 ((word)STACK_END - (word)(&__bss_end)); // RAM in bytes
 
 	for_all_tasks (p)

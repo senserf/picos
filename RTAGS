@@ -536,3 +536,9 @@ R060308A:
 R060319A:
 
 	Insignificant cosmetics.
+
+R060320A:
+
+	Added VMesh2: copy of GENESIS from -r GENESIS as of G060319A.
+	SYSVER 2.0.
+

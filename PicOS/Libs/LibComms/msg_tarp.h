@@ -19,6 +19,6 @@ typedef struct headerStruct {
 	hop_t   hoc;    // # of hops so far
 	hop_t   hco;    // last one from the destination to me
 } headerType;
-#define in_header(buf, field)   (((headerType *)buf)->field)
+#define in_header(buf, field)   (((headerType *)(buf))->field)
 
 #endif

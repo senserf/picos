@@ -32,6 +32,13 @@
 #endif
 
 #include "tarp.h"
+#include "app_tarp_if.h"
+#include "encrypt.h"
+
+static const lword enkeys [12] = {
+	0xbabadead, 0x12345678, 0x98765432, 0x6754a6cd,
+	0xbacaabeb, 0xface0fed, 0xabadef01, 0x23456789,
+	0xfedcba98, 0x76543210, 0xdadabcba, 0x90987654 };
 
 int net_fd = -1;
 int net_phys = -1;
@@ -267,9 +274,10 @@ static int uart_init (word plug) {
 #define ether_offset(len)	((len) + 7)
 #define ether_ptype		0x6007
 
-int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
+int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 	address packet;
 	word size;
+	byte in_key;
 
 	if (buf_ptr == NULL || net_fd < 0) {
 		dbg_2 (0x3000); // net_rx: no buffer or not net
@@ -329,8 +337,34 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 			*buf_ptr = (char *)umalloc(size);
 		if (*buf_ptr == NULL)
 			size = 0;
-		else
+		else {
+			// packet: {sid, header, payload, 0/1B, entropy, rssi}
+			in_key = in_header(packet +1, msg_type);
+			if (!msg_isClear(in_key)) {
+			    in_key >>= 6;
+			    if ((encr & 4) && (encr & 3) != in_key) {
+				tcv_endp(packet);
+				dbg_8 (0x4000 | in_key); // strict & mismatch 
+				return 0;
+			    }
+			    if (in_key) {
+			 	decrypt (packet +1 + (sizeof(headerType) >> 1),
+				  (size +6 -2 - sizeof(headerType) -2) >> 1,
+				  &enkeys[(in_key -1) << 2]);
+				in_key = *(((byte *)enkeys +
+			 	    ((in_key -1) << 4)) +
+				    (in_header(packet +1, msg_type) & 0x0F));
+				if (*((byte *)packet + size +6 -1 -2 -1) !=
+					in_key) {
+					tcv_endp(packet);
+					dbg_8 (0x5000 | in_key);
+					return 0;
+				}
+			    }
+			}
 			memcpy(*buf_ptr, (char *)(packet +1), size);
+			**buf_ptr &= 0x3F;
+		}
 		tcv_endp(packet);
 		return size;
 
@@ -358,7 +392,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr) {
 #define radio_len(len)		(((len) + 2+ 4 + 3) & 0xfffc)
 #endif
 
-int net_tx (word state, char * buf, int len) {
+int net_tx (word state, char * buf, int len, byte encr) {
 #if ETHERNET_DRIVER
 	static const word ether_maddr [3] = { 0xe1aa, 0xbbcc, 0xddee};
 #endif
@@ -407,6 +441,19 @@ int net_tx (word state, char * buf, int len) {
 		}
 		//packet[0] = 0; not needed any more
 		memcpy (packet + 1,  buf, len);
+		// always load entropy, just before rssi
+		packet [(radio_len(len) >> 1) - 2] = (word) entropy;
+		if ((encr & 3) && !msg_isClear(*buf)) {
+			// add encr to msg_type
+			*(byte *)(packet +1) |= encr << 6;
+			// load the "signature"
+			*((byte *)packet + radio_len(len) -4) =
+				*((byte *)enkeys + (((encr & 3) -1) << 4) +
+					(in_header(buf, msg_type) & 0x0F));
+			encrypt (packet + 1 + (sizeof(headerType) >> 1),
+			  (radio_len(len) - 2 - sizeof(headerType) - 2) >> 1,
+			  &enkeys[((encr & 3) -1) << 2]);
+		}
 		break;
 
 	  default:

@@ -2,11 +2,12 @@
 #define	__pg_sysio_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	SYSVERSION		"1.6"
+#define	SYSVERSION		"2.0"
+#define SYSVER_B		0x0200
 
 /* ================================================= */
 /* Options are now settable on per-application basis */
