@@ -43,7 +43,7 @@ address		zz_utims [MAX_UTIMERS];
 lword	zzz_ent_acc;
 #endif
 
-char	zz_hex_enc_table [] = {
+const char	zz_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };

@@ -550,3 +550,9 @@ R060320B:
 	DM2200.
 	
         powerup implies clockup, powerdown implies clockdown.
+
+R060323A:
+	zz_hex_enc_table in kernel.c should have been 'const'. Conditional
+	code in dm2200_sys.h for selecting between two versions of the board
+	(i.e., the broken one and the target one).
+	

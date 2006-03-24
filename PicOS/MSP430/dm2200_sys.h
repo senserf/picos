@@ -14,7 +14,7 @@
  *
  *  TR8100                      MSP430Fxxx
  * ===========================================
- *  RXDATA			P2.2  		        in
+ *  RXDATA			P2.2 (P2.5)	        in
  *  RXDCLK			P2.6			in
  *  CFG                         P4.0                    out
  *  TXMOD			OUT0 (P2.7)		out (no change)
@@ -104,7 +104,9 @@ static inline pin_value (word p) {
 	return (P2IN & 0x04);
 };
 
-#endif	/* For the target */
+#define	rcv_sig_high	(P2IN & 0x20)
+
+#else	/* For the temporary board with wrong RXDATA */
 
 #define	pin_sethigh(p)		do { \
 					if ((p) < 8) { \
@@ -135,6 +137,10 @@ static inline pin_value (word p) {
 	_BIC (P1DIR, 1 << (p - 8));
 	return (P1IN & (1 << (p - 8)));
 };
+
+#define	rcv_sig_high	(P2IN & 0x04)
+
+#endif	/* TARGET */
 
 #define	pin_setint(p)		do { \
 					_BIC (P2IES, 0x18); \
@@ -169,7 +175,6 @@ static inline pin_value (word p) {
 #define	rssi_on		_BIS (P2OUT, 0x01)
 #define	rssi_off	_BIC (P2OUT, 0x01)
 
-#define	rcv_sig_high	(P2IN & 0x04)
 #define	rcv_interrupt	(P2IFG & 0x40)
 #define	rcv_clrint	_BIC (P2IFG, 0x40)
 #define	rcv_enable	_BIS (P2IE, 0x40)
