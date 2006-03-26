@@ -22,11 +22,17 @@ void if_erase () {
 /*
  * Erase info flash block
  */
-	int i;
+	int i, j;
 
-	for (i = 0; i < IFLASH_SIZE * 2 ; i += IF_PAGE_SIZE) {
-		cli;
-		if_erase_sys ((int)(&IFLASH [0]) + i);
-		sti;
+	for (i = 0; i < IFLASH_SIZE; i += IF_PAGE_SIZE) {
+		// Check if the block needs to be erased
+		for (j = 0; j < IF_PAGE_SIZE; j++)
+			if (IFLASH [i + j] != 0xffff)
+				break;
+		if (j != IF_PAGE_SIZE) {
+			cli;
+			if_erase_sys ((int)(&(IFLASH [i])));
+			sti;
+		}
 	}
 }

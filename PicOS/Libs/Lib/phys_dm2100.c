@@ -258,7 +258,6 @@ void phys_dm2100 (int phy, int mbs) {
 	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
-	LEDI (3, 0);
 
 	/* Initialize the device */
 	ini_dm2100 ();
@@ -282,7 +281,10 @@ static int option (int opt, address val) {
 	    case PHYSOPT_TXON:
 
 		zzv_txoff = 0;
-		LEDI (1, 1);
+		if (zzv_rxoff)
+			LEDI (0, 1);
+		else
+			LEDI (0, 2);
 		if (!running (xmtradio))
 			fork (xmtradio, NULL);
 		trigger (zzv_qevent);
@@ -291,7 +293,12 @@ static int option (int opt, address val) {
 	    case PHYSOPT_RXON:
 
 		zzv_rxoff = 0;
-		LEDI (0, 1);
+
+		if (zzv_txoff)
+			LEDI (0, 1);
+		else
+			LEDI (0, 2);
+
 		if (!running (rcvradio))
 			fork (rcvradio, NULL);
 		trigger (rxevent);
@@ -301,21 +308,30 @@ static int option (int opt, address val) {
 
 		/* Drain */
 		zzv_txoff = 2;
-		LEDI (1, 0);
+		if (zzv_rxoff)
+			LEDI (0, 0);
+		else
+			LEDI (0, 1);
 		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
 		zzv_txoff = 1;
-		LEDI (1, 0);
+		if (zzv_rxoff)
+			LEDI (0, 0);
+		else
+			LEDI (0, 1);
 		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
 		zzv_rxoff = 1;
-		LEDI (0, 0);
+		if (zzv_txoff)
+			LEDI (0, 0);
+		else
+			LEDI (0, 1);
 		adc_disable;
 		trigger (rxevent);
 		break;

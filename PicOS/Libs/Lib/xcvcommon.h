@@ -182,7 +182,7 @@ Drain:
 #endif
 
 Xmit:
-	LEDI (2, 0);
+	LEDI (1, 0);
 	if ((zzx_buffp = tcvphy_get (zzv_physid, &stln)) != NULL) {
 
 		// Holding the lock

@@ -556,3 +556,5 @@ R060323A:
 	code in dm2200_sys.h for selecting between two versions of the board
 	(i.e., the broken one and the target one).
 	
+R060325A:
+	Reset on CFG3 added to VERSA2. LEDS reorganized.

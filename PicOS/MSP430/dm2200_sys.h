@@ -49,7 +49,7 @@
 				_BIS (P2DIR, 0x81); \
 				_BIS (P2SEL, 0x80); \
 				_BIC (P2IES, 0x58); \
-				_BIC (P1DIR, 0x0f); \
+				_BIC (P1DIR, 0x07); \
 			} while (0)
 /*
  * Access to GP pins on the board:
@@ -59,8 +59,10 @@
  * CFG0 == P1.0
  * CFG1 == P1.1
  * CFG2 == P1.2 (will be 2.2 in the target version)
- * CFG3 == P1.3
+ * CFG3 == P1.3 (used for reset)
  */
+
+#define	VERSA2_RESET_KEY_PRESSED	((P1IN & 0x08) == 0)
 
 #if 0	/* For the target */
 

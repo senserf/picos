@@ -92,7 +92,7 @@ if (cc1000_int) {
 		zzv_status = 0;
 		clr_xcv_int;
 		i_trigger (ETYPE_USER, txevent);
-		LEDI (3, 0);
+		LEDI (1, 0);
 		break;
 
 	case IRQ_RPR:

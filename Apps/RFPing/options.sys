@@ -33,7 +33,7 @@
 #define	DM2200			1
 
 #define	EEPROM_DRIVER		0
-#define	INFO_FLASH		0
+#define	INFO_FLASH		1
 
 #endif
 

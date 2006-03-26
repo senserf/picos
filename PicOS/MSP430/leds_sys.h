@@ -18,20 +18,20 @@
 
 #define	LEDS_HIGH_ON	0
 
+#undef	LED0_ON
 #undef	LED1_ON
 #undef	LED2_ON
-#undef	LED3_ON
+#undef	LED0_OFF
 #undef	LED1_OFF
 #undef	LED2_OFF
-#undef	LED3_OFF
 
-#define	LED1_ON		ZZ_LEDON (P4, 2)
-#define	LED2_ON		ZZ_LEDON (P4, 4)
-#define	LED3_ON		ZZ_LEDON (P4, 8)
+#define	LED0_ON		ZZ_LEDON (P4, 2)
+#define	LED1_ON		ZZ_LEDON (P4, 4)
+#define	LED2_ON		ZZ_LEDON (P4, 8)
 
-#define	LED1_OFF	ZZ_LEDOFF (P4, 2)
-#define	LED2_OFF	ZZ_LEDOFF (P4, 4)
-#define	LED3_OFF	ZZ_LEDOFF (P4, 8)
+#define	LED0_OFF	ZZ_LEDOFF (P4, 2)
+#define	LED1_OFF	ZZ_LEDOFF (P4, 4)
+#define	LED2_OFF	ZZ_LEDOFF (P4, 8)
 
 #endif	/* TARGET_BOARD == BOARD_DM2100 */
 
@@ -40,19 +40,19 @@
 #define	LEDS_HIGH_ON	1
 
 #undef	LED0_ON
+#undef	LED1_ON
 #undef	LED2_ON
-#undef	LED3_ON
 #undef	LED0_OFF
+#undef	LED1_OFF
 #undef	LED2_OFF
-#undef	LED3_OFF
 
 #define	LED0_ON		ZZ_LEDON (P6, 2)
+#define	LED1_ON		ZZ_LEDON (P6, 4)
 #define	LED2_ON		ZZ_LEDON (P6, 8)
-#define	LED3_ON		ZZ_LEDON (P6, 4)
 
 #define	LED0_OFF	ZZ_LEDOFF (P6, 2)
+#define	LED1_OFF	ZZ_LEDOFF (P6, 4)
 #define	LED2_OFF	ZZ_LEDOFF (P6, 8)
-#define	LED3_OFF	ZZ_LEDOFF (P6, 4)
 
 #endif	/* TARGET_BOARD == BOARD_GENESIS */
 
@@ -60,20 +60,20 @@
 
 #define	LEDS_HIGH_ON	0
 
+#undef	LED0_ON
 #undef	LED1_ON
 #undef	LED2_ON
-#undef	LED3_ON
+#undef	LED0_OFF
 #undef	LED1_OFF
 #undef	LED2_OFF
-#undef	LED3_OFF
 
-#define	LED1_ON		ZZ_LEDON (P4, 2)
-#define	LED2_ON		ZZ_LEDON (P4, 4)
-#define	LED3_ON		ZZ_LEDON (P4, 8)
+#define	LED0_ON		ZZ_LEDON (P4, 2)
+#define	LED1_ON		ZZ_LEDON (P4, 4)
+#define	LED2_ON		ZZ_LEDON (P4, 8)
 
-#define	LED1_OFF	ZZ_LEDOFF (P4, 2)
-#define	LED2_OFF	ZZ_LEDOFF (P4, 4)
-#define	LED3_OFF	ZZ_LEDOFF (P4, 8)
+#define	LED0_OFF	ZZ_LEDOFF (P4, 2)
+#define	LED1_OFF	ZZ_LEDOFF (P4, 4)
+#define	LED2_OFF	ZZ_LEDOFF (P4, 8)
 
 #endif	/* TARGET_BOARD == BOARD_VERSA2 */
 

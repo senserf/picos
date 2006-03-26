@@ -580,9 +580,9 @@ process (cc1100_driver, void)
 
 		// Receive
 		while (RX_FIFO_READY) {
-			LEDI (3, 1);
+			LEDI (2, 1);
 			do_rx_fifo ();
-			LEDI (3, 0);
+			LEDI (2, 0);
 		}
 		wait (zzv_qevent, DR_LOOP);
 		if (RxOFF == 0)
@@ -591,9 +591,9 @@ process (cc1100_driver, void)
 	}
 
 	while (RX_FIFO_READY) {
-		LEDI (3, 1);
+		LEDI (2, 1);
 		do_rx_fifo ();
-		LEDI (3, 0);
+		LEDI (2, 0);
 	}
 
 	// We want to transmit
@@ -639,9 +639,9 @@ process (cc1100_driver, void)
 
 	while (RX_FIFO_READY) {
 		// We are about to take over, so let us give it one more try
-		LEDI (3, 1);
+		LEDI (2, 1);
 		do_rx_fifo ();
-		LEDI (3, 0);
+		LEDI (2, 0);
 	}
 
 	// Try to grab the chip for TX
@@ -652,7 +652,7 @@ process (cc1100_driver, void)
 	}
 
 	// We've got it
-	LEDI (2, 1);
+	LEDI (1, 1);
 
 #if CRC_MODE > 1
 	// Calculate CRC
@@ -688,7 +688,7 @@ process (cc1100_driver, void)
 	}
 
 	guard_stop (WATCH_XMT | WATCH_PRG);
-	LEDI (2, 0);
+	LEDI (1, 0);
 
 	bckf_timer = XMIT_SPACE;
 	proceed (DR_LOOP);
@@ -818,9 +818,9 @@ void phys_cc1100 (int phy, int mbs) {
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
 
 	/* Both parts are initially active */
+	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
-	LEDI (3, 0);
 
 	// Things start in the off state
 	RxOFF = TxOFF = 1;
@@ -869,9 +869,9 @@ static int option (int opt, address val) {
 		TxOFF = 0;
 
 		if (RxOFF)
-			LEDI (1, 1);
+			LEDI (0, 1);
 		else
-			LEDI (1, 2);
+			LEDI (0, 2);
 
 		trigger (zzv_qevent);
 		break;
@@ -887,9 +887,9 @@ static int option (int opt, address val) {
 		RxOFF = 0;
 
 		if (TxOFF)
-			LEDI (1, 1);
+			LEDI (0, 1);
 		else
-			LEDI (1, 2);
+			LEDI (0, 2);
 		trigger (zzv_qevent);
 		break;
 
@@ -898,9 +898,9 @@ static int option (int opt, address val) {
 		/* Drain */
 		TxOFF = 2;
 		if (RxOFF)
-			LEDI (1, 0);
+			LEDI (0, 0);
 		else
-			LEDI (1, 1);
+			LEDI (0, 1);
 		trigger (zzv_qevent);
 		break;
 
@@ -908,9 +908,9 @@ static int option (int opt, address val) {
 
 		TxOFF = 1;
 		if (RxOFF)
-			LEDI (1, 0);
+			LEDI (0, 0);
 		else
-			LEDI (1, 1);
+			LEDI (0, 1);
 		trigger (zzv_qevent);
 		break;
 
@@ -918,9 +918,9 @@ static int option (int opt, address val) {
 
 		RxOFF = 1;
 		if (TxOFF)
-			LEDI (1, 0);
+			LEDI (0, 0);
 		else
-			LEDI (1, 1);
+			LEDI (0, 1);
 		trigger (zzv_qevent);
 		break;
 

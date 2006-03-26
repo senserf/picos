@@ -13,4 +13,8 @@
 #include "every_second_headers_genesis.h"
 #endif
 
+#if TARGET_BOARD == BOARD_VERSA2
+#include "every_second_headers_versa2.h"
+#endif
+
 #endif

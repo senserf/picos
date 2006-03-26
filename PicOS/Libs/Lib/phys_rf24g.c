@@ -305,7 +305,7 @@ Drain:
 
 	if ((buffp = tcvphy_get (zzv_physid, &stln)) != NULL) {
 
-		LEDI (2, 1);
+		LEDI (1, 1);
 
 		clr_rcv_int;
 		xmt_enable ();
@@ -328,7 +328,7 @@ Drain:
 
 		ce_down;
 
-		LEDI (2, 0);
+		LEDI (1, 0);
 		tcvphy_end (buffp);
 
 		if (stat_get (FLG_RCVA)) {
@@ -435,7 +435,7 @@ static int option (int opt, address val) {
 	    case PHYSOPT_TXON:
 
 		zzv_txoff = 0;
-		LEDI (1, 1);
+		LEDI (0, 1);
 		if (!running (xmtradio))
 			fork (xmtradio, NULL);
 		trigger (zzv_qevent);
@@ -444,7 +444,7 @@ static int option (int opt, address val) {
 	    case PHYSOPT_RXON:
 
 		zzv_rxoff = 0;
-		LEDI (0, 1);
+		LEDI (3, 1);
 		if (!running (rcvradio))
 			fork (rcvradio, NULL);
 		trigger (rxevent);
@@ -454,21 +454,21 @@ static int option (int opt, address val) {
 
 		/* Drain */
 		zzv_txoff = 2;
-		LEDI (1, 0);
+		LEDI (0, 0);
 		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
 		zzv_txoff = 1;
-		LEDI (1, 0);
+		LEDI (0, 0);
 		trigger (zzv_qevent);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
 		zzv_rxoff = 1;
-		LEDI (0, 0);
+		LEDI (3, 0);
 		trigger (rxevent);
 		break;
 

@@ -7,7 +7,7 @@
 
 #include "sysio.h"
 
-#define	IF_PAGE_SIZE	128	// bytes
+#define	IF_PAGE_SIZE	64	// in words
 
 /*
  * MOV #FWKEY+FSSEL1+FN0,&FCTL2 ; SMCLK/12 (assumes 4.7MHz SMCLK)

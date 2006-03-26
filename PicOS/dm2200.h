@@ -102,7 +102,7 @@
 #define	end_rcv		dm2200_wreg (0, CFG0_RCV_STOP)
 				
 #define	start_xmt	do { \
-				LEDI (3, 1); \
+				LEDI (1, 1); \
 				zzv_prmble = PREAMBLE_LENGTH; \
 				zzv_istate = IRQ_XPR; \
 				zzv_status = HSTAT_XMT; \

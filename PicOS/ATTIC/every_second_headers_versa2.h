@@ -1,20 +1,10 @@
-#ifndef __pg_every_second_h
-#define __pg_every_second_h
+#ifndef __pg_every_second_headers_versa2_h
+#define __pg_every_second_headers_versa2_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-/*
- * Here go various things to be executed every second
- */
-
-#if TARGET_BOARD == BOARD_GENESIS
-#include "every_second_genesis.h"
-#endif
-
-#if TARGET_BOARD == BOARD_VERSA2
-#include "every_second_versa2.h"
-#endif
+#include "dm2200_sys.h"
 
 #endif

@@ -68,7 +68,7 @@
 			} while (0)
 
 #define	start_xmt	do { \
-				LEDI (3, 1); \
+				LEDI (1, 1); \
 				zzv_prmble = PREAMBLE_LENGTH; \
 				zzv_istate = IRQ_XPR; \
 				zzv_status = HSTAT_XMT; \

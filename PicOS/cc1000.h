@@ -96,7 +96,7 @@
 			} while (0)
 
 #define	start_xmt	do { \
-				LEDI (3, 1); \
+				LEDI (1, 1); \
 				chp_pdioout; \
 				zzv_curbit = 0; \
 				zzv_prmble = PREAMBLE_LENGTH; \
