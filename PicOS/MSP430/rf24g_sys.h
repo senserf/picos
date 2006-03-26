@@ -55,6 +55,4 @@
 #define	data_down		_BIC (P2OUT, 0x10)
 #define	data_val		(P2IN & 0x10)
 
-#define	LEDI(a,b)		leds (a, b)
-
 #endif

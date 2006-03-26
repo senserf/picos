@@ -91,8 +91,6 @@
 
 #define	disable_xcv_timer	do { } while (0)
 
-#define	LEDI(a,b)	leds (a, b)
-
 /*
  * ADC12 used for RSSI collection: source on A5 == P6.5, single sample,
  * triggered by ADC12SC

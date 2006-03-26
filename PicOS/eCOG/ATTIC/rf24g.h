@@ -131,8 +131,6 @@
 					(zzv_rdbk->seed & zzv_rdbk->delbsbkf); \
 			} while (0)
 
-#define	LEDI(n,s) 	(rg.io.gp0_3_out = ((1 << (s)) << 4 * (n)))
-
 void phys_rf24g (int, int, int, int, int);
 
 #define	rxevent	((word)&zzv_rdbk)

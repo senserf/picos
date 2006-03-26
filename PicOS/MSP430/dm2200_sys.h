@@ -263,9 +263,6 @@ static inline pin_value (word p) {
 					else if (zzv_status == HSTAT_XMT) \
 						_BIS (TACCTL0, CCIE); \
 				} while (0)
-
-#define	LEDI(a,b)		leds (a, b)
-
 /*
  * ADC12 used for RSSI collection: source on A0 == P6.0, single sample,
  * triggered by ADC12SC

@@ -7,6 +7,7 @@
 
 #include "phys_cc1100.h"
 #include "cc1100_sys.h"
+#include "rfleds.h"
 
 /*
  * Channel clear indication for TX:

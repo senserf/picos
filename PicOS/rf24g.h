@@ -7,6 +7,7 @@
 
 #include "phys_rf24g.h"
 #include "rf24g_sys.h"
+#include "rfleds.h"
 
 #define	FLG_RCVA	0x80 	/* Receiver active */
 #define	FLG_RCVI	0x40	/* Receiver interrupt enabled */

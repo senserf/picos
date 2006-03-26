@@ -7,6 +7,7 @@
 
 #include "phys_dm2100.h"
 #include "dm2100_sys.h"
+#include "rfleds.h"
 
 /*
  * Some of these constants can be changed to taste

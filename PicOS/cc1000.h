@@ -6,6 +6,7 @@
 /* ==================================================================== */
 
 #include "cc1000_sys.h"
+#include "rfleds.h"
 
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length */
 #define	PREAMBLE_LENGTH		48	/* Preamble bits */

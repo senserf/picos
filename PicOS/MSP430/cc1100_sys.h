@@ -65,8 +65,6 @@
 
 #define	so_val		(P1IN & 0x10)
 
-#define	LEDI(a,b)	leds (a, b)
-
 #define	GENESIS_RESET_KEY_PRESSED	((P6IN & 0x01) == 0)
 
 #endif	/* TARGET_BOARD == BOARD_GENESIS */
@@ -110,8 +108,6 @@
 #define	si_down		_BIC (P6OUT, 0x08)
 
 #define	so_val		(P1IN & 0x04)
-
-#define	LEDI(a,b)	leds (a,b)
 
 #endif	/* TARGET_BOARD == BOARD_DM2100 */
 

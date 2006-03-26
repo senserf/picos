@@ -78,8 +78,6 @@
 #define	hard_lock	clr_xcv_int
 #define	hard_drop	rg.io.gp12_15_cfg |= zzv_status
 
-#define	LEDI(n,s) 	leds (n, s)
-
 /*
  * 0xc mean ANA0 - ANA1. ANA1 is used for calibration.
  */

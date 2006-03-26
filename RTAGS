@@ -557,4 +557,11 @@ R060323A:
 	(i.e., the broken one and the target one).
 	
 R060325A:
-	Reset on CFG3 added to VERSA2. LEDS reorganized.
+	Reset on CFG3 added to VERSA2. LEDS reorganized. On 3-led boards, LED
+	0 has the following meaning: OFF-RxOff/TxOff, ON (steady)-RxOn or TxOn,
+	ON (blinking)-RxOn and TxOn.
+
+R060326A:
+	RADIO_USE_LEDS controls globally (independently of LEDS_DRIVER) the
+	usage of leds by radio drivers. RADIO_USE_LEDS implies LEDS_DRIVERS
+	and LEDS_BLINKING.

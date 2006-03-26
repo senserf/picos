@@ -21,7 +21,7 @@
 
 #define	LEDS_DRIVER		1
 #define	LEDS_BLINKING		1
-#define	USE_LEDS		1
+#define	RADIO_USE_LEDS		0
 
 #define	UART_RATE		19200
 #define	CRYSTAL_RATE		32768
