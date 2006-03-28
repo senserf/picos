@@ -27,8 +27,8 @@
 #include "phys_cc1100.h"
 #endif
 
-#if DM2100
-#include "phys_dm2100.h"
+#if DM2200
+#include "phys_dm2200.h"
 #endif
 
 #include "tarp.h"
@@ -77,8 +77,8 @@ static int cc1000_init (word);
 static int cc1100_init (word);
 #endif
 
-#if DM2100
-static int dm2100_init (word);
+#if DM2200
+static int dm2200_init (word);
 #endif
 
 #define NET_MAXPLEN		56
@@ -108,9 +108,9 @@ int net_init (word phys, word plug) {
 	case INFO_PHYS_CC1100:
 		return (net_fd = cc1100_init (plug));
 #endif
-#if DM2100
-	case INFO_PHYS_DM2100:
-		return (net_fd = dm2100_init (plug));
+#if DM2200
+	case INFO_PHYS_DM2200:
+		return (net_fd = dm2200_init (plug));
 #endif
 #if ETHERNET_DRIVER
 	case INFO_PHYS_ETHER:
@@ -190,10 +190,10 @@ static int cc1100_init (word plug) {
 }
 #endif
 
-#if DM2100
-static int dm2100_init (word plug) {
+#if DM2200
+static int dm2200_init (word plug) {
 	int fd;
-	phys_dm2100 (0, NET_MAXPLEN);
+	phys_dm2200 (0, NET_MAXPLEN);
 
 	if (plug == INFO_PLUG_TARP)
 		tcv_plug (0, &plug_tarp);
@@ -201,7 +201,7 @@ static int dm2100_init (word plug) {
 		tcv_plug (0, &plug_null);
 
 	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
-		diag ("%s: Cannot open dm2100 interface", myName);
+		diag ("%s: Cannot open dm2200 interface", myName);
 		return -1;
 	}
 
@@ -290,7 +290,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 		return 0;
 
 	if (rssi_ptr) {
-#if CC1100 || CC1000 || DM2100
+#if CC1100 || CC1000 || DM2200
 		*rssi_ptr = packet[(size >> 1) -1];
 #else
 		*rssi_ptr = 0;
@@ -326,7 +326,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 	case INFO_PHYS_RADIO:
 	case INFO_PHYS_CC1000:
 	case INFO_PHYS_CC1100: // sid, entropy, rssi
-	case INFO_PHYS_DM2100:
+	case INFO_PHYS_DM2200:
 		size -= 6;
 		if (size == 0 || size > NET_MAXPLEN) {
 			tcv_endp(packet);
@@ -434,7 +434,7 @@ int net_tx (word state, char * buf, int len, byte encr) {
 	  case INFO_PHYS_RADIO:
 	  case INFO_PHYS_CC1000:
 	  case INFO_PHYS_CC1100:
-	  case INFO_PHYS_DM2100:
+	  case INFO_PHYS_DM2200:
 		packet = tcv_wnp (state, net_fd, radio_len(len));
 		if (packet == NULL) {
 			return -1;
