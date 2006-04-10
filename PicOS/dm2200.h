@@ -126,7 +126,31 @@ extern const byte zzv_symtable [], zzv_nibtable [], zzv_srntable [];
 #define	rxevent	((word)&zzr_buffer)
 #define	txevent	((word)&zzx_buffer)
 
-// To trigger P1.0-P1.3 up events
-#define	DM2200PINS_INT	((word)(&zzv_tmaux))
+#if	PULSE_MONITOR
+
+
+#define	pmon	zz_pmon
+
+#define	PMON_CNT_EDGE_UP	0x40	// Edge UP triggers counter
+#define	PMON_NOT_EDGE_UP	0x80	// Edge UP triggers notifier
+#define	PMON_CMP_ON		0x20	// Comparator is on
+#define	PMON_CMP_PENDING	0x10	// Comparator event pending
+#define	PMON_NOT_ON		0x08	// Notifier is on
+#define	PMON_NOT_PENDING	0x04	// Notifier event pending
+#define	PMON_CNT_ON		0x02	// Counter is on
+
+#define	PCS_WPULSE		0	// Interrupts states
+#define	PCS_WENDP		1
+#define	PCS_WECYC		2
+#define	PCS_WNEWC		3
+
+#define	PMON_DEBOUNCE_UNIT	16	// 16 clock ticks
+#define	PMON_RETRY_DELAY	255	// 1/4 sec (persistent status report)
+#define	PMON_DEBOUNCE_CNT_ON	3	// 48 msec on
+#define	PMON_DEBOUNCE_CNT_OFF	3	// 48 msec off
+#define	PMON_DEBOUNCE_NOT_ON	4	// 64 msec on
+#define	PMON_DEBOUNCE_NOT_OFF	100	// 2 sec off
+
+#endif	/* PULSE_MONITOR */
 
 #endif

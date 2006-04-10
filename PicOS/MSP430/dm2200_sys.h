@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-//+++ "dm2200irq.c" "p2irq.c"
+//+++ "dm2200irq.c" "p2irq.c" "dm2200_pins.c"
 
 /* ================================================================== */
 
@@ -32,11 +32,35 @@
  */
 
 /*
+ * Access to GP pins on the board:
+ *
+ * GP0-7 == P6.0 - P6.7
+ *
+ * CFG0 == P1.0
+ * CFG1 == P1.1
+ * CFG2 == P1.2 (will be 2.2 in the target version)
+ * CFG3 == P1.3 (used for reset)
+ */
+
+// Reset on CFG3 low (must be pulled up for normal operation)
+#define	VERSA2_RESET_KEY_PRESSED	((P1IN & 0x08) == 0)
+/*
+ * Ignore other CFG pins for now (we leave them open for future requirements).
+ * The available (to the application) pins are GP0-GP7. Two of them: GP1 and
+ * GP2, are dedicated to COUNTER and NOTIFIER.
+ */
+
+/*
  * Transmission rate: this is determined as the number of SLCK ticks per
  * physical bit time. Remember that SLCK runs at 4.5MHz. The math is simple:
  * one physical bit = 2/3 of real bit (excluding the preamble and checksum).
  */
 #define	BIT_RATE	9600
+
+#define	PIN_MAX			12	// Number of pins
+#define	PIN_MAX_ANALOG		8	// Number of available analog pins
+
+#define	VERSA2_PIN_MASK		(PIN_STDP_GP | PIN_CNTR_GP)
 
 #define	ini_regs	do { \
 				_BIC (P4OUT, 0x01); \
@@ -51,112 +75,88 @@
 				_BIC (P2IES, 0x58); \
 				_BIC (P1DIR, 0x07); \
 			} while (0)
+
+// FIXME: configure unused pins as output (the manual says this reduces power
+// consumption)
+
 /*
- * Access to GP pins on the board:
- *
- * GP0-7 == P6.0 - P6.7
- *
- * CFG0 == P1.0
- * CFG1 == P1.1
- * CFG2 == P1.2 (will be 2.2 in the target version)
- * CFG3 == P1.3 (used for reset)
+ * GP pin operations
  */
+bool zz_pin_available (word);
+word zz_pin_value (word);
+bool zz_pin_analog (word);
+bool zz_pin_output (word);
+void zz_pin_set (word p);
+void zz_pin_clear (word p);
+void zz_pin_setinput (word p);
+void zz_pin_setoutput (word p);
+void zz_pin_setanalog (word p);
 
-#define	VERSA2_RESET_KEY_PRESSED	((P1IN & 0x08) == 0)
-
-#if 0	/* For the target */
-
-#define	pin_sethigh(p)		do { \
-					if ((p) < 8) { \
-						_BIS (P6DIR, 1 << (p)); \
-						_BIS (P6OUT, 1 << (p)); \
-					} else if ((p) != 10) { \
-						_BIS (P1DIR, 1 << ((p)-8)); \
-						_BIS (P1OUT, 1 << ((p)-8)); \
-					} else { \
-						_BIS (P2DIR, 0x04); \
-						_BIS (P2OUT, 0x04); \
-					} \
+#define	pin_available(p)	zz_pin_available(p)
+#define	pin_value(p)		zz_pin_value(p)
+#define	pin_analog(p)		zz_pin_analog(p)
+#define	pin_output(p)		zz_pin_output(p)
+#define	pin_setvalue(p,v)	do { \
+					if (v) \
+						zz_pin_set (p); \
+					else \
+						zz_pin_clear (p); \
 				} while (0)
 
-#define	pin_setlow(p)		do { \
-					if ((p) < 8) { \
-						_BIS (P6DIR, 1 << (p)); \
-						_BIC (P6OUT, 1 << (p)); \
-					} else if ((p) != 11) { \
-						_BIS (P1DIR, 1 << ((p)-8)); \
-						_BIC (P1OUT, 1 << ((p)-8)); \
-					} else { \
-						_BIS (P2DIR, 0x04); \
-						_BIC (P2OUT, 0x04); \
-					} \
-				} while (0)
+#define	pin_setinput(p)		zz_pin_setinput (p)
+#define	pin_setoutput(p)	zz_pin_setoutput (p)
+#define	pin_setanalog(p)	zz_pin_setanalog (p)
 
-static inline pin_value (word p) {
+#define	pin_interrupt	(P2IFG & 0x18)
+#define	pin_int_cnt	(P2IFG & 0x08)
+#define	pin_int_not	(P2IFG & 0x10)
+#define	pin_trigger_cnt	_BIS (P2IFG, 0x08)
+#define	pin_trigger_not	_BIS (P2IFG, 0x10)
+#define	pin_enable_cnt	_BIS (P2IE, 0x08)
+#define	pin_enable_not	_BIS (P2IE, 0x10)
+#define	pin_disable_cnt	_BIC (P2IE, 0x08)
+#define	pin_disable_not	_BIC (P2IE, 0x10)
+#define	pin_clrint	_BIC (P2IFG, 0x18)
+#define	pin_clrint_cnt	_BIC (P2IFG, 0x08)
+#define	pin_clrint_not	_BIC (P2IFG, 0x10)
+#define	pin_value_cnt	(P2IN & 0x08)
+#define	pin_value_not	(P2IN & 0x10)
+#define	pin_edge_cnt	(P2IES & 0x08)
+#define	pin_edge_not	(P2IES & 0x10)
+/*
+ * Note: IES == 0 means low-high. pin_vedge_... means that the signal is
+ * pending, i.e., its value corresponds to the end of triggering transition.
+ */
+#define	pin_vedge_cnt	(pin_edge_cnt != pin_value_cnt)
+#define	pin_vedge_not	(pin_edge_not != pin_value_not)
 
-	if (p < 8) {
-		_BIC (P6DIR, 1 << p);
-		return (P6IN & (1 << p));
-	}
-	if (p != 10) {
-		_BIC (P1DIR, 1 << (p - 8));
-		return (P1IN & (1 << (p - 8)));
-	}
-	_BIC (P2DIR, 0x04);
-	return (P2IN & 0x04);
-};
+#define	pin_setedge_cnt	do { \
+				if ((pmon.stat & PMON_CNT_EDGE_UP)) \
+					_BIC (P2IES, 0x08); \
+				else \
+					_BIS (P2IES, 0x08); \
+			} while (0)
 
-#define	rcv_sig_high	(P2IN & 0x20)
+#define	pin_revedge_cnt	do { \
+				if ((pmon.stat & PMON_CNT_EDGE_UP)) \
+					_BIS (P2IES, 0x08); \
+				else \
+					_BIC (P2IES, 0x08); \
+			} while (0)
 
-#else	/* For the temporary board with wrong RXDATA */
+#define	pin_setedge_not	do { \
+				if ((pmon.stat & PMON_NOT_EDGE_UP)) \
+					_BIC (P2IES, 0x10); \
+				else \
+					_BIS (P2IES, 0x10); \
+			} while (0)
 
-#define	pin_sethigh(p)		do { \
-					if ((p) < 8) { \
-						_BIS (P6DIR, 1 << (p)); \
-						_BIS (P6OUT, 1 << (p)); \
-					} else { \
-						_BIS (P1DIR, 1 << ((p)-8)); \
-						_BIS (P1OUT, 1 << ((p)-8)); \
-					} \
-				} while (0)
-
-#define	pin_setlow(p)		do { \
-					if ((p) < 8) { \
-						_BIS (P6DIR, 1 << (p)); \
-						_BIC (P6OUT, 1 << (p)); \
-					} else { \
-						_BIS (P1DIR, 1 << ((p)-8)); \
-						_BIC (P1OUT, 1 << ((p)-8)); \
-					} \
-				} while (0)
-
-static inline pin_value (word p) {
-
-	if (p < 8) {
-		_BIC (P6DIR, 1 << p);
-		return (P6IN & (1 << p));
-	}
-	_BIC (P1DIR, 1 << (p - 8));
-	return (P1IN & (1 << (p - 8)));
-};
-
-#define	rcv_sig_high	(P2IN & 0x04)
-
-#endif	/* TARGET */
-
-#define	pin_setint(p)		do { \
-					_BIC (P2IES, 0x18); \
-					_BIS (P2IE, 1 << ((p)+2)); \
-					_BIC (P2IFG, 0x18); \
-				} while (0)
-
-#define	pin_clrint		do { \
-					_BIC (P2IE, 0x18); \
-					_BIC (P2IFG, 0x18); \
-				} while (0)
-
-#define	pin_interrupt		(P2IFG & 0x18)
-
+#define	pin_revedge_not	do { \
+				if ((pmon.stat & PMON_NOT_EDGE_UP)) \
+					_BIS (P2IES, 0x10); \
+				else \
+					_BIC (P2IES, 0x10); \
+			} while (0)
 /*
  * DM2200 signal operations. Timer's A Capture/Compare Block is used for signal
  * insertion (transmission).
@@ -177,6 +177,7 @@ static inline pin_value (word p) {
 #define	rssi_on		_BIS (P2OUT, 0x01)
 #define	rssi_off	_BIC (P2OUT, 0x01)
 
+#define	rcv_sig_high	(P2IN & 0x04)
 #define	rcv_interrupt	(P2IFG & 0x40)
 #define	rcv_clrint	_BIC (P2IFG, 0x40)
 #define	rcv_enable	_BIS (P2IE, 0x40)
@@ -283,6 +284,7 @@ static inline pin_value (word p) {
  * translates into 0.9 ms. The shortest packet at 19,200 takes more than
  * twice that long, so we should be safe.
  */
+// FIXME: experiment with conversion timing
 #define	adc_config_rssi		do { \
 					_BIC (ADC12CTL0, ENC); \
 					_BIC (P6DIR, 1 << 0); \

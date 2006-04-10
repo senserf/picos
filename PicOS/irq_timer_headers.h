@@ -1,7 +1,7 @@
 #ifndef __pg_irq_timer_headers_h
 #define __pg_irq_timer_headers_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -15,6 +15,10 @@
 
 #if CC1100
 #include "irq_timer_headers_cc1100.h"
+#endif
+
+#if DM2200
+#include "irq_timer_headers_dm2200.h"
 #endif
 
 #endif

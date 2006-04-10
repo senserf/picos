@@ -218,6 +218,10 @@
 #define	DM2200			0
 #endif
 
+#ifndef	PULSE_MONITOR
+#define	PULSE_MONITOR		0
+#endif
+
 #ifndef	RF24G
 #define	RF24G			0
 #endif

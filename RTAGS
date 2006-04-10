@@ -569,4 +569,101 @@ R060326A:
 R060327A:
 	Genesis on DM2200, as sent to Wavetrix (nvm, tr8100).
 
+R060409A:
+	Pins + pulse monitor for DM2200. Pins are numbered 0-11 (GPIO_0 - 7 and
+	CFG0 - 3). Pins 0 and 11 are marked as unavailable (GPIO_0 is used for
+	RSSI, and CFG3 is used for reset). If PULSE_MONITOR == 1 appears in
+	options.sys, the pulse monitor is configured and additionally pins
+	1 and 2 (GPIO_1, GPIO_2) are marked as unavailable. With the pulse
+	monitor configured, GPIO_1 is used for the counter, while GPIO_2 is
+	used for the notifier.
 
+	General functions on pins:
+
+	word pin_read (word pin)
+	returns bits:	0 - pin value
+		   	1 - pin is output
+			2 - pin is analog in
+			3 - pin is analog
+
+	void pin_write (word pin, word val) 
+	val bits:	0 - value to written (if other bits are zero)
+			1 - set pin to in
+			2 - set pin to analog in
+			the operation is void on unavailable pins, 2 is void
+			on pin >= 8
+
+	int pin_read_adc (word state, word pin, word ref, word smt)
+			pin - 0-7 (minus the unavailable pins)
+			ref - 0 (1.5V reference), 1 (2.5V reference)
+			smt - sample time in milliseconds
+			state (if not NONE) indicates restart state when
+			sample is done. Function must then be re-executed.
+			Returns -1 if pin unvailable or ADC used by the
+			receiver (switch off the radio before using ADC).
+
+	Operations related to the pulse monitor:
+
+	void pmon_init_cnt (bool edge) 
+			Declares edge for the counter (0 - down, 1 - up). Must
+			be called before other counter operations.
+
+	void pmon_start_cnt (long count)
+			Starts the counter. If count is negative, the old
+			counter value is retained. Otherwise, it is set to
+			count.
+
+	void pmon_stop_cnt () 
+			Stop the counter. It won't be incremented until the
+			subsequent call to pmon_start_cnt.
+
+	void pmon_set_cmp (long count)
+			If count >= 0, starts the comparator with the indicated
+			values. An event will be triggered whenever the counter
+			reaches the specified value. The event will remain
+			pending until accepted.
+			If count < 0, the comparator is stopped.
+
+	lword pmon_get_cnt ()
+			Returns the current counter value and clears any pending
+			comparator event.
+
+	bool pmon_pending_cnt ()
+			Checks if there is a pending comparator event and clears
+			it.
+
+	lword pmon_get_cmp () 
+			Returns the current setting of the comparator (whether
+			it is active or not).
+
+	void pmon_init_not (bool edge)
+			Declares edge for the notifier. Must be called before
+			the notifier is started.
+
+	void pmon_start_not ()
+			Starts the notifier. Events will be triggered whenever
+			a notifier signal arrives on GPIO_2. Such an event
+			remains pending until accepted.
+
+	bool pmon_pending_not () 
+			Checks if there is a pending notifier event and clears
+			it.
+
+	void pmon_stop_not ()
+			Stops the notifier until the next call to
+			pmon_start_not.
+
+	word pmon_get_state () 
+			Returns the state of the pulse monitor as the following
+			configuration of flags:
+			PMON_STATE_NOT_RISING	0x01	notifier edge is rising
+			PMON_STATE_NOT_ON	0x02	notifier is on
+			PMON_STATE_NOT_PENDING	0x04	notifier event pending
+			PMON_STATE_CNT_RISING	0x10	counter edge is rising
+			PMON_STATE_CNT_ON	0x20	counter is active
+			PMON_STATE_CMP_ON	0x40	comparator is on
+			PMON_STATE_CMP_PENDING	0x80	comparator event pending
+
+	Events triggered by the pulse monitor:
+			PMON_CMPEVENT		comparator event
+			PMON_NOTEVENT		notifier event
