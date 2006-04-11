@@ -42,6 +42,9 @@
  * CFG3 == P1.3 (used for reset)
  */
 
+// Set this to 1 to direct CFG2 to P2.2 and RXDATA to P2.5
+#define	VERSA2_TARGET_BOARD		0
+
 // Reset on CFG3 low (must be pulled up for normal operation)
 #define	VERSA2_RESET_KEY_PRESSED	((P1IN & 0x08) == 0)
 /*
@@ -106,6 +109,20 @@ void zz_pin_setanalog (word p);
 #define	pin_setinput(p)		zz_pin_setinput (p)
 #define	pin_setoutput(p)	zz_pin_setoutput (p)
 #define	pin_setanalog(p)	zz_pin_setanalog (p)
+
+#define	pin_book_cnt	do { \
+				_BIC (P6DIR, 0x02); \
+				_BIC (P6SEL, 0x02); \
+			} while (0);
+
+#define	pin_release_cnt	do { } while (0)
+
+#define	pin_book_not	do { \
+				_BIC (P6DIR, 0x04); \
+				_BIC (P6SEL, 0x04); \
+			} while (0);
+
+#define	pin_release_not	do { } while (0)
 
 #define	pin_interrupt	(P2IFG & 0x18)
 #define	pin_int_cnt	(P2IFG & 0x08)
@@ -177,7 +194,11 @@ void zz_pin_setanalog (word p);
 #define	rssi_on		_BIS (P2OUT, 0x01)
 #define	rssi_off	_BIC (P2OUT, 0x01)
 
+#if VERSA2_TARGET_BOARD
+#define	rcv_sig_high	(P2IN & 0x20)
+#else
 #define	rcv_sig_high	(P2IN & 0x04)
+#endif
 #define	rcv_interrupt	(P2IFG & 0x40)
 #define	rcv_clrint	_BIC (P2IFG, 0x40)
 #define	rcv_enable	_BIS (P2IE, 0x40)

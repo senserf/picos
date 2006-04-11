@@ -574,22 +574,24 @@ End:
 
 volatile zz_pmon_t	zz_pmon;	// This is aliased to 'pmon'
 
-void pmon_init_cnt (bool edge) {
+void pmon_start_cnt (long count, bool edge) {
 
 	pin_disable_cnt;
+
+	pin_book_cnt;
+
 	pmon.deb_cnt = 0;
+
 	if (edge)
 		// UP
 		_BIS (pmon.stat, PMON_CNT_EDGE_UP);
 	else
 		_BIC (pmon.stat, PMON_CNT_EDGE_UP);
-	_BIC (pmon.stat, PMON_CMP_PENDING | PMON_CMP_ON | PMON_CNT_ON);
-}
 
-void pmon_start_cnt (long count) {
+	_BIC (pmon.stat, PMON_CMP_PENDING);
 
-	pin_disable_cnt;
 	pmon.state_cnt = PCS_WPULSE;
+
 	if (count >= 0) {
 		pmon.cnt [0] = (count      ) & 0xff;
 		pmon.cnt [1] = (count >>  8) & 0xff;
@@ -598,13 +600,21 @@ void pmon_start_cnt (long count) {
 
 	pin_setedge_cnt;
 
+	pmon.deb_mas = PMON_RETRY_DELAY;
+
+	_BIS (pmon.stat, PMON_CNT_ON);
+
+	if ((pmon.stat & PMON_CMP_ON) &&
+		pmon.cmp [0] == pmon.cnt [0] &&
+	    	pmon.cmp [1] == pmon.cnt [1] &&
+	    	pmon.cmp [2] == pmon.cnt [2] )
+			_BIS (pmon.stat, PMON_CMP_PENDING);
+
 	if (pin_vedge_cnt)
 		pin_trigger_cnt;
 	else
 		pin_clrint_cnt;
 
-	pmon.deb_mas = PMON_RETRY_DELAY;
-	_BIS (pmon.stat, PMON_CNT_ON);
 	pin_enable_cnt;
 }
 
@@ -612,6 +622,7 @@ void pmon_stop_cnt () {
 
 	pmon.deb_cnt = 0;
 	pin_disable_cnt;
+	pin_release_cnt;
 	_BIC (pmon.stat, PMON_CNT_ON);
 }
 
@@ -673,21 +684,22 @@ lword pmon_get_cmp () {
 	return res;
 }
 
-void pmon_init_not (bool edge) {
+void pmon_start_not (bool edge) {
 
 	pin_disable_not;
+
+	pin_book_not;
+
 	pmon.deb_not = 0;
+
 	if (edge)
 		// UP
 		_BIS (pmon.stat, PMON_NOT_EDGE_UP);
 	else
 		_BIC (pmon.stat, PMON_NOT_EDGE_UP);
-	_BIC (pmon.stat, PMON_NOT_PENDING | PMON_NOT_ON);
-}
 
-void pmon_start_not () {
+	_BIC (pmon.stat, PMON_NOT_PENDING);
 
-	pin_disable_not;
 	pmon.state_not = PCS_WPULSE;
 
 	pin_setedge_not;
@@ -717,6 +729,7 @@ void pmon_stop_not () {
 
 	pmon.deb_not = 0;
 	pin_disable_not;
+	pin_release_not;
 	_BIC (pmon.stat, PMON_NOT_ON | PMON_NOT_PENDING);
 }
 

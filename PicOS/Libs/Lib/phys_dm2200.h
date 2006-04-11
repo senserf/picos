@@ -40,14 +40,12 @@ extern	volatile zz_pmon_t	zz_pmon;
 #define	PMON_STATE_CMP_ON	0x40
 #define	PMON_STATE_CMP_PENDING	0x80
 
-void pmon_init_cnt (bool);
-void pmon_start_cnt (long);
+void pmon_start_cnt (long, bool);
 void pmon_stop_cnt ();
 void pmon_set_cmp (long);
 lword pmon_get_cnt ();
 lword pmon_get_cmp ();
-void pmon_init_not (bool);
-void pmon_start_not ();
+void pmon_start_not (bool);
 void pmon_stop_not ();
 word pmon_get_state ();
 bool pmon_pending_not ();

@@ -667,3 +667,31 @@ R060409A:
 	Events triggered by the pulse monitor:
 			PMON_CMPEVENT		comparator event
 			PMON_NOTEVENT		notifier event
+
+R060410A:
+
+	The pins used by counter and notifier are made "available" if the
+	counter / notifier is stopped. Functions pmon_init_... eliminated.
+
+	Modifications:
+
+	void pmon_start_cnt (long count, bool edge)
+			Combines the functionality of previous pmon_init_cnt
+			and pmon_start_cnt in the obvious way. GPIO_1 is made
+			unavailable.
+
+	void pmon_stop_cnt () 
+			As before but GPIO_1 is made available. Its default
+			configuration (assumed after pmon_stop_cnt) is output.
+
+	void pmon_start_not (bool edge)
+			Combines the functionality of previous pmon_init_not
+			and pmon_start_not in the obvious way. GPIO_2 becomes
+			unavailable.
+
+	void pmon_stop_not ()
+			As before but GPIO_2 is made available. Its default
+			configuration (assumed after pmon_stop_cnt) is output.
+
+	Constant VERSA2_TARGET_BOARD included in dm2200_sys.h to choose between
+	the two variants of the board.
