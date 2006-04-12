@@ -210,6 +210,8 @@ static byte dm2200_rreg (byte reg) {
 	return v;
 }
 
+procname (rcvradio);
+
 static void ini_dm2200 (void) {
 /*
  * Initialize the device
@@ -234,9 +236,29 @@ static void ini_dm2200 (void) {
 	}
 
 	diag ("DM2200 initialized: %x, %x, %x", r0, r1, r2);
+
+#if FCC_TEST_MODE
+	if (fcc_test_send) {
+		diag ("DM2200 FCC test mode, sending 0101010101010 ....");
+		LEDI (0, 2);
+		hstat (HSTAT_XMT);
+		start_xmt;
+	} else {
+		diag ("DM2200 FCC test mode, listening .....");
+		zzv_rxoff = 0;
+		fork (rcvradio, NULL);
+		trigger (rxevent);
+		LEDI (1, 2);
+		LEDI (2, 0);
+	}
+#endif
+
 }
 
-static void hstat (word status) {
+#if FCC_TEST_MODE == 0
+static
+#endif
+void hstat (word status) {
 /*
  * Change chip status: xmt, rcv, off
  */

@@ -25,6 +25,9 @@
 		zzv_istate = IRQ_RP0;
 		adc_start;
 		LEDI (2, 1);
+#if FCC_TEST_MODE
+		mdelay (10);
+#endif
 		zzv_cursym = 0;
 		zzv_curbit = 0;
 

@@ -5,6 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#define	FCC_TEST_MODE	0
+
 //+++ "dm2200irq.c" "p2irq.c" "dm2200_pins.c"
 
 /* ================================================================== */
@@ -81,6 +83,10 @@
 
 // FIXME: configure unused pins as output (the manual says this reduces power
 // consumption)
+
+#if FCC_TEST_MODE
+#define	fcc_test_send		((P1IN & 0x01) != 0)
+#endif
 
 /*
  * GP pin operations

@@ -695,3 +695,13 @@ R060410A:
 
 	Constant VERSA2_TARGET_BOARD included in dm2200_sys.h to choose between
 	the two variants of the board.
+
+R060411A:
+
+	Added (conditional) code for FCC test for DM2200. RADIO_USE_LEDS is now
+	a bit mask indicating which leds are used by the radio. For example, if
+	RADIO_USE_LEDS is 6, led 0 is not used by the radio and is thus
+	available to the application.
+	
+
+	

@@ -6,7 +6,10 @@
 /* ==================================================================== */
 
 #if RADIO_USE_LEDS
-#define	LEDI(a,b)	leds (a, b)
+#define	LEDI(a,b)	do { \
+				if ((RADIO_USE_LEDS & (1 << (a)))) \
+					leds (a, b); \
+			} while (0)
 #else
 #define	LEDI(a,b)	do { } while (0)
 #endif

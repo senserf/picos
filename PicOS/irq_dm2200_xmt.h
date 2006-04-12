@@ -130,6 +130,20 @@
 
 	case IRQ_XPK:
 
+#if FCC_TEST_MODE
+		zzx_buffp = 0;
+		zzv_istate = IRQ_XEP;
+
+	case IRQ_XEP:
+		// Send a continuous alternating sequence of 0 and 1
+		toggle_signal;
+		SL1;
+
+		if (++((word)zzx_buffp) >= 1024) {
+			zzv_istate = IRQ_XPR;
+		}
+		break;
+#else
 	    {
 		register word sl, ni;
 
@@ -215,6 +229,8 @@
 		i_trigger (ETYPE_USER, txevent);
 		LEDI (1, 0);
 		break;
+
+#endif	/* FCC_TEST_MODE */
     }
 
 #endif
