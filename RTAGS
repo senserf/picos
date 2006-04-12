@@ -702,3 +702,8 @@ R060411A:
 	a bit mask indicating which leds are used by the radio. For example, if
 	RADIO_USE_LEDS is 6, led 0 is not used by the radio and is thus
 	available to the application.
+
+R060411B:
+	Updated VMesh2, so it runs as is (with right VERSA2_TARGET_BOARD).
+	Removed Genesis docs (they're in Genesis branch).
+
