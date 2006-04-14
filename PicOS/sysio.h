@@ -267,6 +267,10 @@
 #define	UART_RATE		9600
 #endif
 
+#ifndef	UART_RATE_SETTABLE
+#define	UART_RATE_SETTABLE	0
+#endif
+
 #ifndef	UART_PARITY
 #define	UART_PARITY		0	// 0-even, 1-odd
 #endif
@@ -789,7 +793,8 @@ void	dbb (word);
 #define	CONTROL		2
 
 #define	UART_CNTRL_LCK		1	/* UART lock/unlock */
-#define	UART_CNTRL_CALIBRATE	2	/* For UARTs driven by flimsy clocks */
+#define	UART_CNTRL_SETRATE	2
+#define	UART_CNTRL_CALIBRATE	3	/* For UARTs driven by flimsy clocks */
 
 #define	LCD_CNTRL_POS		1	/* Position (SEEK) */
 #define	LCD_CNTRL_ERASE		2	/* Clear */
@@ -857,6 +862,9 @@ void	dbb (word);
 
 #define	PHYSOPT_SETMODE		20
 #define	PHYSOPT_GETMODE		21
+
+#define	PHYSOPT_SETRATE		22
+#define	PHYSOPT_GETRATE		22
 
 typedef	struct {
 /*

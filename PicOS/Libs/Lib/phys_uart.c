@@ -22,6 +22,10 @@ static int option (int, address);
 #define	START_UART(a)	start_uart ()
 #endif
 
+#if UART_RATE_SETTABLE
+bool zz_uart_setrate (word, word);
+#endif
+
 static const byte ackc [2][2] = { 0x21, 0x10, 0x63, 0x30 };
 
 #define	XM_LOOP		0
@@ -424,6 +428,16 @@ static int option (int opt, address val) {
 		trigger (OFFEVENT);
 		break;
 
+#if UART_RATE_SETTABLE
+
+	    case PHYSOPT_SETRATE:
+
+		if (zz_uart_setrate (*val, UA == &(zz_uart [0])) {
+			ret = *val;
+			break;
+		}
+		syserror (EREQPAR, "phys_uart rate");
+#endif
 	    default:
 
 		syserror (EREQPAR, "phys_uart option");

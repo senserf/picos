@@ -707,3 +707,9 @@ R060411B:
 	Updated VMesh2, so it runs as is (with right VERSA2_TARGET_BOARD).
 	Removed Genesis docs (they're in Genesis branch).
 
+R060413A:
+	UART rate is now settable (if UART_RATE_SETTABLE is set). Operation:
+	io (NONE, UART, CONTROL, (char*) &rate, UART_CNTRL_SETRATE). With the
+	slow crystal, the legitimate rates are 12, 24, 48, 96 (the argument
+	is in full hundreds). With a high-speed crystal, any rate between
+	12 and 384 will work.

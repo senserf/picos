@@ -517,6 +517,78 @@ static void preinit_uart () {
 #endif
 }
 
+#if UART_RATE_SETTABLE
+
+#if UART_CLOCK_RATE == 32768
+
+static const byte urates [] =	{
+	12, 0x1B, 0x03,
+	24, 0x0D, 0x6B,
+	48, 0x06, 0x6F,
+	96, 0x03, 0x4A
+};
+
+bool zz_uart_setrate (word rate, word which) {
+
+	byte i;
+
+	for (i = 0; i < sizeof (urates); i += 3) {
+		if (rate == urates [i]) {
+			// Found
+#if N_UARTS > 1
+			if (which) {
+				// UART_B
+				UBR01 = urates [i+1];
+				UBR11 = 0;
+				UMCTL1 = urates [i+2];
+			} else {
+#endif
+				UBR00 = urates [i+1];
+				UBR10 = 0;
+				UMCTL0 = urates [i+2];
+#if N_UARTS > 1
+			}
+#endif
+			return YES;
+		}
+	}
+	return NO;
+}
+
+#else	/* UART_CLOCK_RATE != 32768 */
+
+bool zz_uart_setrate (word rate, word which) {
+
+	byte Ubr0, Ubr1;
+
+	if (rate < 12 || rate > 384)
+		return NO;
+
+	rate *= 100;
+
+	Ubr0 = (UART_CLOCK_RATE/rate) % 256;
+	Ubr1 = (UART_CLOCK_RATE/rate) / 256;
+
+#if N_UARTS > 1
+	if (which) {
+		// UART_B
+		UBR01 = Ubr0;
+		UBR11 = Ubr1;
+		UMCTL1 = 0;
+	} else {
+#endif
+		UBR00 = Ubr0;
+		UBR10 = Ubr1;
+		UMCTL0 = 0;
+#if N_UARTS > 1
+	}
+#endif
+	return YES;
+}
+#endif	/* UART_CLOCK_RATE */
+	
+#endif 	/* UART_RATE_SETTABLE */
+
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
@@ -703,6 +775,14 @@ X_redo:
 					uart_unlock (u);
 				return 1;
 			}
+#if UART_RATE_SETTABLE
+			if (len == UART_CNTRL_SETRATE) {
+				if (zz_uart_setrate (*((word*)buf),
+					u == &(zz_uart[0])))
+						return 1;
+				syserror (EREQPAR, "uart rate");
+			}
+#endif
 			/* Fall through */
 		default:
 			syserror (ENOOPER, "ioreq_uart");
