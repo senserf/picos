@@ -504,10 +504,10 @@ word pin_read (word pin) {
 	word res;
 	byte pm;
 
-	if (!pin_available (pin))
-		return 8;
-
 	res = pin_value (pin);
+
+	if (!pin_available (pin))
+		return res | 8;
 
 	if (pin_analog (pin))
 		// Analog
@@ -640,6 +640,57 @@ void pmon_start_cnt (long count, bool edge) {
 	pin_enable_cnt;
 }
 
+void pmon_dec_cnt (void) {
+
+	long cnt;
+
+	cli;
+
+	cnt = ((lword)(pmon.cnt [0]) | ((lword)(pmon.cnt [1]) << 8) |
+		((lword)(pmon.cnt [2]) << 16))
+		-
+	      ((lword)(pmon.cmp [0]) | ((lword)(pmon.cmp [1]) << 8) |
+		((lword)(pmon.cmp [2]) << 16));
+
+	pmon.cnt [0] = (cnt      ) & 0xff;
+	pmon.cnt [1] = (cnt >>  8) & 0xff;
+	pmon.cnt [2] = (cnt >> 16) & 0xff;
+
+	sti;
+}
+
+void pmon_sub_cnt (long decr) {
+
+	long cnt;
+
+	cli;
+
+	cnt = ((lword)(pmon.cnt [0]) | ((lword)(pmon.cnt [1]) << 8) |
+	      ((lword)(pmon.cnt [2]) << 16))
+	      -
+		decr;
+
+	pmon.cnt [0] = (cnt      ) & 0xff;
+	pmon.cnt [1] = (cnt >>  8) & 0xff;
+	pmon.cnt [2] = (cnt >> 16) & 0xff;
+
+	sti;
+}
+
+void pmon_add_cmp (long incr) {
+
+	cli;
+
+	incr += ((lword)(pmon.cmp [0]) | ((lword)(pmon.cmp [1]) << 8) |
+	        ((lword)(pmon.cmp [2]) << 16));
+
+	pmon.cmp [0] = (incr      ) & 0xff;
+	pmon.cmp [1] = (incr >>  8) & 0xff;
+	pmon.cmp [2] = (incr >> 16) & 0xff;
+
+	sti;
+}
+
 void pmon_stop_cnt () {
 
 	pmon.deb_cnt = 0;
@@ -675,7 +726,6 @@ lword pmon_get_cnt () {
 	lword res;
 
 	cli;
-	_BIC (pmon.stat, PMON_CMP_PENDING);
 
 	res = (lword)(pmon.cnt [0]) | ((lword)(pmon.cnt [1]) << 8) |
 		((lword)(pmon.cnt [2]) << 16);
@@ -684,7 +734,7 @@ lword pmon_get_cnt () {
 	return res;
 }
 
-bool pmon_pending_cnt () {
+bool pmon_pending_cmp () {
 
 	bool res;
 	cli;

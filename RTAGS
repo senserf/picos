@@ -713,3 +713,16 @@ R060413A:
 	slow crystal, the legitimate rates are 12, 24, 48, 96 (the argument
 	is in full hundreds). With a high-speed crystal, any rate between
 	12 and 384 will work.
+
+R060417A:
+	pmon_pending_cnt renamed to pmon_pending_cmp.  Added:
+	pmon_dec_cnt ()           - subtract cmp from cnt
+	pmon_sub_cnt (long dec)   - subtract dec from cnt
+	pmon_add_cmp (long inc)   - add inc to cmp
+
+	Pins used by counter/notifier are readable with pin_read (the 
+	unavailable bit being appended to the value)
+	
+	
+
+	

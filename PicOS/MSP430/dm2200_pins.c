@@ -59,6 +59,8 @@ bool zz_pin_available (word p) {
 
 word zz_pin_value (word p) {
 
+	if (p >= PIN_MAX)
+		return 0;
 	return (*(byte*)(P1IN_ + pinmap[p].poff) >> pinmap[p].pnum) & 1;
 }
 

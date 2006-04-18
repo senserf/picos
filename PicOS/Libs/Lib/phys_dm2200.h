@@ -49,7 +49,10 @@ void pmon_start_not (bool);
 void pmon_stop_not ();
 word pmon_get_state ();
 bool pmon_pending_not ();
-bool pmon_pending_cnt ();
+bool pmon_pending_cmp ();
+void pmon_dec_cnt ();
+void pmon_sub_cnt (long);
+void pmon_add_cmp (long);
 
 #endif	/* PULSE_MONITOR */
 
