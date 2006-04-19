@@ -23,7 +23,8 @@ static int option (int, address);
 #endif
 
 #if UART_RATE_SETTABLE
-bool zz_uart_setrate (word, word);
+bool zz_uart_setrate (word, uart_t*);
+word zz_uart_getrate (uart_t*);
 #endif
 
 static const byte ackc [2][2] = { 0x21, 0x10, 0x63, 0x30 };
@@ -432,11 +433,16 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETRATE:
 
-		if (zz_uart_setrate (*val, UA == &(zz_uart [0])) {
+		if (zz_uart_setrate (*val, UA) {
 			ret = *val;
 			break;
 		}
 		syserror (EREQPAR, "phys_uart rate");
+
+	    case PHYSOPT_GETRATE:
+
+		ret = zz_uart_getrate (UA);
+		break;
 #endif
 	    default:
 

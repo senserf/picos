@@ -361,6 +361,8 @@ int snd_stop (void) {
 #define	RS_GADC		90
 #define	RS_SPIN		100
 #define	RS_GPIN		110
+#define	RS_URS		120
+#define	RS_URG		130
 #define	RS_AUTOSTART	200
 
 #if CC1000
@@ -460,6 +462,11 @@ process (root, int)
 #if STACK_GUARD
 		"v        -> show unused stack space\r\n"
 #endif
+
+#if UART_RATE_SETTABLE
+		"S r      -> set UART rate\r\n"
+		"G        -> get UART rate\r\n"
+#endif
 		);
 #endif
 
@@ -500,6 +507,14 @@ process (root, int)
 	if (ibuf [0] == 'v')
 		proceed (RS_STK);
 #endif
+
+#if UART_RATE_SETTABLE
+	if (ibuf [0] == 'S')
+		proceed (RS_URS);
+	if (ibuf [0] == 'G')
+		proceed (RS_URG);
+#endif
+
 #else
 	delay (1024, RS_AUTOSTART);
 	release;
@@ -709,6 +724,24 @@ process (root, int)
 	ser_outf (RS_GADC+1, "Value: %u\r\n", p [0]);
 	proceed (RS_RCMD);
 
+#endif
+
+#if UART_RATE_SETTABLE
+
+  entry (RS_URS)
+
+	scan (ibuf + 1, "%d", &p [0]);
+	ion (UART, CONTROL, (char*) p, UART_CNTRL_SETRATE);
+	proceed (RS_RCMD);
+
+  entry (RS_URG)
+
+	ion (UART, CONTROL, (char*) p, UART_CNTRL_GETRATE);
+
+  entry (RS_URG+1)
+	
+	ser_outf (RS_URG+1, "Rate: %u[00]\r\n", p [0]);
+	proceed (RS_RCMD);
 #endif
 
   entry (RS_AUTOSTART)

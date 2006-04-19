@@ -103,7 +103,8 @@ extern uart_t zz_uart [];
 
 #define	UART_FLAGS_IN		0x80
 #define	UART_FLAGS_OUT		0x40
-#define	UART_FLAGS_LOCK		0x01
+#define	UART_FLAGS_LOCK		0x20
+#define	UART_RATE_MASK		0x07
 
 #endif	/* UART_DRIVER */
 

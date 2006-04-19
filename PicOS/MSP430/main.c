@@ -452,8 +452,33 @@ uart_t	zz_uart [N_UARTS];
 
 #else	/* UART_CLOCK_RATE > 32768 */
 
-#if UART_RATE < 1200 || UART_RATE > 38400
-#error "Illegal UART_RATE, must be between 1200 and 38400"
+#if UART_RATE == 1200
+#define	UART_RATE_INDEX	0
+#endif
+#if UART_RATE == 2400
+#define	UART_RATE_INDEX	1
+#endif
+#if UART_RATE == 4800
+#define	UART_RATE_INDEX	2
+#endif
+#if UART_RATE == 9600
+#define	UART_RATE_INDEX	3
+#endif
+#if UART_RATE == 14400
+#define	UART_RATE_INDEX	4
+#endif
+#if UART_RATE == 19200
+#define	UART_RATE_INDEX	5
+#endif
+#if UART_RATE == 28800
+#define	UART_RATE_INDEX	6
+#endif
+#if UART_RATE == 38400
+#define	UART_RATE_INDEX	7
+#endif
+
+#ifndef	UART_RATE_INDEX
+#error "Illegal UART_RATE"
 #endif
 
 // No need to use corrections for high-speed crystals
@@ -500,6 +525,9 @@ static void preinit_uart () {
 	_BIS (ME1, UTXE0 + URXE0);
 	_BIS (UCTL0, uctl_char | uctl_pena | uctl_pev);
 	_BIC (UCTL0, SWRST);
+#if UART_RATE_SETTABLE
+	zz_uart [0] . flags = UART_RATE_INDEX;
+#endif
 
 #if N_UARTS > 1
 	// UART_B
@@ -514,79 +542,88 @@ static void preinit_uart () {
 	_BIS (ME2, UTXE1 + URXE1);
 	_BIS (UCTL1, uctl_char | uctl_pena | uctl_pev);
 	_BIC (UCTL1, SWRST);
+#if UART_RATE_SETTABLE
+	zz_uart [1] . flags = UART_RATE_INDEX;
 #endif
+
+#endif	/* N_UARTS */
 }
 
 #if UART_RATE_SETTABLE
 
+typedef struct	{
+
+	word rate;
+	byte A, B;
+} uart_rate_t;
+
+static const uart_rate_t urates [] = {
+
 #if UART_CLOCK_RATE == 32768
 
-static const byte urates [] =	{
-	12, 0x1B, 0x03,
-	24, 0x0D, 0x6B,
-	48, 0x06, 0x6F,
-	96, 0x03, 0x4A
+    { 12, 0x1B, 0x03 },
+    { 24, 0x0D, 0x6B },
+    { 48, 0x06, 0x6F },
+    { 96, 0x03, 0x4A }
+#else
+    {	12, (UART_CLOCK_RATE/ 1200) % 256, (UART_CLOCK_RATE/ 1200) / 256 },
+    {	24, (UART_CLOCK_RATE/ 2400) % 256, (UART_CLOCK_RATE/ 2400) / 256 },
+    {	48, (UART_CLOCK_RATE/ 4800) % 256, (UART_CLOCK_RATE/ 4800) / 256 },
+    {	96, (UART_CLOCK_RATE/ 9600) % 256, (UART_CLOCK_RATE/ 9600) / 256 },
+    {  144, (UART_CLOCK_RATE/14400) % 256, (UART_CLOCK_RATE/14400) / 256 },
+    {  192, (UART_CLOCK_RATE/19200) % 256, (UART_CLOCK_RATE/19200) / 256 },
+    {  288, (UART_CLOCK_RATE/28800) % 256, (UART_CLOCK_RATE/28800) / 256 },
+    {  384, (UART_CLOCK_RATE/38400) % 256, (UART_CLOCK_RATE/38400) / 256 }
+#endif
+
 };
 
-bool zz_uart_setrate (word rate, word which) {
+#define	N_RATES		(sizeof(urates) / sizeof(uart_rate_t))
 
-	byte i;
+bool zz_uart_setrate (word rate, uart_t *ua) {
 
-	for (i = 0; i < sizeof (urates); i += 3) {
-		if (rate == urates [i]) {
+	byte j;
+
+	for (j = 0; j < N_RATES; j++) {
+		if (rate == urates [j] . rate) {
 			// Found
 #if N_UARTS > 1
-			if (which) {
+			if (ua != zz_uart) {
 				// UART_B
-				UBR01 = urates [i+1];
+				UBR01 = urates [j].A;
+#if UART_CLOCK_RATE == 32768
 				UBR11 = 0;
-				UMCTL1 = urates [i+2];
-			} else {
+				UMCTL1 = urates [j].B;
+#else
+				UBR01 = urates [j].B;
+				UMCTL1 = 0;
 #endif
-				UBR00 = urates [i+1];
+			} else {
+#endif	/* N_UARTS */
+				UBR00 = urates [j].A;
+#if UART_CLOCK_RATE == 32768
 				UBR10 = 0;
-				UMCTL0 = urates [i+2];
+				UMCTL0 = urates [j].B;
+#else
+				UBR10 = urates [j].B;
+				UMCTL0 = 0;
+#endif
+
 #if N_UARTS > 1
 			}
 #endif
+			ua->flags = (ua->flags & ~UART_RATE_MASK) | j;
 			return YES;
 		}
 	}
 	return NO;
 }
 
-#else	/* UART_CLOCK_RATE != 32768 */
+word zz_uart_getrate (uart_t *ua) {
 
-bool zz_uart_setrate (word rate, word which) {
-
-	byte Ubr0, Ubr1;
-
-	if (rate < 12 || rate > 384)
-		return NO;
-
-	rate *= 100;
-
-	Ubr0 = (UART_CLOCK_RATE/rate) % 256;
-	Ubr1 = (UART_CLOCK_RATE/rate) / 256;
-
-#if N_UARTS > 1
-	if (which) {
-		// UART_B
-		UBR01 = Ubr0;
-		UBR11 = Ubr1;
-		UMCTL1 = 0;
-	} else {
-#endif
-		UBR00 = Ubr0;
-		UBR10 = Ubr1;
-		UMCTL0 = 0;
-#if N_UARTS > 1
-	}
-#endif
-	return YES;
+	return urates [ua->flags & UART_RATE_MASK] . rate;
 }
-#endif	/* UART_CLOCK_RATE */
-	
+
 #endif 	/* UART_RATE_SETTABLE */
 
 /* ------------------------------------------------------------------------ */
@@ -777,10 +814,13 @@ X_redo:
 			}
 #if UART_RATE_SETTABLE
 			if (len == UART_CNTRL_SETRATE) {
-				if (zz_uart_setrate (*((word*)buf),
-					u == &(zz_uart[0])))
+				if (zz_uart_setrate (*((word*)buf), u))
 						return 1;
 				syserror (EREQPAR, "uart rate");
+			}
+			if (len == UART_CNTRL_GETRATE) {
+				*((word*)buf) = zz_uart_getrate (u);
+				return 1;
 			}
 #endif
 			/* Fall through */

@@ -723,6 +723,7 @@ R060417A:
 	Pins used by counter/notifier are readable with pin_read (the 
 	unavailable bit being appended to the value)
 	
-	
-
-	
+R060418A:
+	UART rates are limited to the standard set: 12, 24, 48, 96, 144, 192,
+	288, 384 (all * 100), with rates above 96 unavailable for the slow
+	crystal. UART_CNTRL_GETRATE returns the current rate / 100.

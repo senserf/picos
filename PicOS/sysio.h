@@ -794,7 +794,8 @@ void	dbb (word);
 
 #define	UART_CNTRL_LCK		1	/* UART lock/unlock */
 #define	UART_CNTRL_SETRATE	2
-#define	UART_CNTRL_CALIBRATE	3	/* For UARTs driven by flimsy clocks */
+#define	UART_CNTRL_GETRATE	3
+#define	UART_CNTRL_CALIBRATE	4	/* For UARTs driven by flimsy clocks */
 
 #define	LCD_CNTRL_POS		1	/* Position (SEEK) */
 #define	LCD_CNTRL_ERASE		2	/* Clear */
@@ -864,7 +865,7 @@ void	dbb (word);
 #define	PHYSOPT_GETMODE		21
 
 #define	PHYSOPT_SETRATE		22
-#define	PHYSOPT_GETRATE		22
+#define	PHYSOPT_GETRATE		23
 
 typedef	struct {
 /*

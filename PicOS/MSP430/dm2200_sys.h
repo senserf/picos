@@ -45,7 +45,7 @@
  */
 
 // Set this to 1 to direct CFG2 to P2.2 and RXDATA to P2.5
-#define	VERSA2_TARGET_BOARD		1
+#define	VERSA2_TARGET_BOARD		0
 
 // Reset on CFG3 low (must be pulled up for normal operation)
 #define	VERSA2_RESET_KEY_PRESSED	((P1IN & 0x08) == 0)
