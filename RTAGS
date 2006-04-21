@@ -727,3 +727,12 @@ R060418A:
 	UART rates are limited to the standard set: 12, 24, 48, 96, 144, 192,
 	288, 384 (all * 100), with rates above 96 unavailable for the slow
 	crystal. UART_CNTRL_GETRATE returns the current rate / 100.
+
+R060421A:
+	if_write returns a value: -1 == ERROR (word cannot be written), or
+	0 == OK.
+	if_erase takes an argument: void if_erase (int). If the argument is < 0,
+	the entire info flash is erased; otherwise, only the block containing
+	the specified word is erased, e.g., if_erase (1) erases block 0,
+	if_erase (67) erase block 1.
+
