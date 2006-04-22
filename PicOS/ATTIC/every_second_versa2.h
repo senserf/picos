@@ -23,7 +23,7 @@
 		mdelay (4096);
 		if (VERSA2_RESET_KEY_PRESSED) {
 			leds (0, 1); leds (1, 1); leds (2, 1);
-			if_erase ();
+			if_erase (-1);
 			for (zz_lostk = 0; zz_lostk < 8; zz_lostk++) {
 				leds (0, 1); leds (1, 1); leds (2, 1);
 				mdelay (200);
