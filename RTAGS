@@ -735,5 +735,9 @@ R060421A:
 	the entire info flash is erased; otherwise, only the block containing
 	the specified word is erased, e.g., if_erase (1) erases block 0,
 	if_erase (67) erase block 1.
+
 R060422A:
 	Fixed if_erase call in every_second_versa2.h.
+
+R060428A:
+	VERSA2 RESET key pressed on power up erases info flash.

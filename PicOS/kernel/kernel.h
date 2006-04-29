@@ -21,6 +21,10 @@ void	zzz_tservice (void);
 void 	zz_ee_init (void);
 #endif
 
+#if INFO_FLASH
+void	zz_if_init (void);
+#endif
+
 typedef struct	{
 /* =================================== */
 /* A single event awaited by a process */

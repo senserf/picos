@@ -365,6 +365,10 @@ static void ios_init () {
 	zz_ee_init ();
 #endif
 
+#if INFO_FLASH
+	zz_if_init ();
+#endif
+
 #if	UART_DRIVER || UART_TCV
 	// A UART is configured, initialize it beforehand without enabling
 	// anyting, which is up to the driver plugin. We just want to be able

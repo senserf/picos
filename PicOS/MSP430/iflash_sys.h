@@ -7,6 +7,10 @@
 
 #include "sysio.h"
 
+#if TARGET_BOARD == BOARD_VERSA2
+#include "dm2200.h"
+#endif
+
 #define	IF_PAGE_SIZE	64	// in words
 
 /*
