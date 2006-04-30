@@ -263,6 +263,10 @@
 #define	ENTROPY_COLLECTION	0
 #endif
 
+#ifndef	RANDOM_NUMBER_GENERATOR
+#define	RANDOM_NUMBER_GENERATOR	0
+#endif
+
 #ifndef	UART_RATE
 #define	UART_RATE		9600
 #endif
@@ -395,6 +399,19 @@
 
 #endif	/* DM2100 */
 
+#if	DM2200
+
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#error	"DM2200 cannot coexist with any other radio driver"
+#else
+#define	ZZ_RADIO_DRIVER_PRESENT	1
+#endif
+
+#define	ZZ_TCV_REQUIRED		1
+
+//+++ "phys_dm2200.c"
+
+#endif	/* DM2200 */
 
 #if	RF24G
 
@@ -421,6 +438,14 @@
 
 #endif	/* RADIO_DRIVER */
 
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+
+#if	RANDOM_NUMBER_GENERATOR == 0
+#undef	RANDOM_NUMBER_GENERATOR
+#define	RANDOM_NUMBER_GENERATOR	1
+#endif
+
+#endif	/* ZZ_RADIO_DRIVER_PRESENT */
 
 #if	RADIO_DRIVER == 0
 #undef	RADIO_INTERRUPTS
@@ -926,6 +951,35 @@ extern	lword zzz_ent_acc;
 #define	add_entropy(w)	do { } while (0)
 #define	entropy		0
 #endif
+
+
+#if	RANDOM_NUMBER_GENERATOR
+
+#if	RANDOM_NUMBER_GENERATOR > 1
+/* High quality */
+extern	lword zz_seed;
+
+#if	ENTROPY_COLLECTION
+#define	rnd()	(zz_seed = (1103515245 * zz_seed + 12345 + entropy) & 0x7fffff,\
+			(word) zz_seed)
+#else
+#define	rnd()	(zz_seed = (1103515245 * zz_seed + 12345) & 0x7fffff,\
+			(word) zz_seed)
+#endif
+
+#else	/* RANDOM_NUMBER_GENERATOR == 1 */
+/* Low quality */
+extern	word zz_seed;
+
+#if	ENTROPY_COLLECTION
+#define	rnd()	(zz_seed = (zz_seed + entropy + 1) * 12345, zz_seed)
+#else
+#define	rnd()	(zz_seed = (zz_seed + 1) * 12345, zz_seed)
+#endif
+
+#endif	/* RANDOM_NUMBER_GENERATOR == 1 */
+
+#endif	/* RANDOM_NUMBER_GENERATOR */
 
 /* Errors */
 #define	ENODEV		1	/* Illegal device */

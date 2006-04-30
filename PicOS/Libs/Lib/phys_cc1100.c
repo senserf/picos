@@ -17,8 +17,7 @@ static word	*rbuff = NULL,
 		bckf_timer = 0,
 
 		physid,
-		statid,
-		rnd_seed;		// For the random number generator
+		statid;
 
 word		zzv_drvprcs, zzv_qevent;
 byte		zzv_iack,		// To resolve interrupt race
@@ -812,7 +811,6 @@ void phys_cc1100 (int phy, int mbs) {
 
 	statid = 0;
 	physid = phy;
-	rnd_seed = 12345;
 
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);

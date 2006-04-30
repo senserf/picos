@@ -52,10 +52,7 @@ static word gbackoff () {
 /* ============================================ */
 /* Generate a backoff after sensing an activity */
 /* ============================================ */
-	static word seed = 12345;
-
-	seed = (seed + 1) * 6789;
-	return radio->delmnbkf + (seed & radio->delbsbkf);
+	return radio->delmnbkf + (rnd () & radio->delbsbkf);
 }
 
 static	int rx () {

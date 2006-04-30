@@ -54,11 +54,7 @@
 #define	HSTAT_RCV	1
 #define	HSTAT_XMT	2
 
-#define	gbackoff	do { \
-				zzx_seed = (zzx_seed + entropy + 1) * 6789; \
-				zzx_backoff = MIN_BACKOFF + \
-					(zzx_seed & MSK_BACKOFF); \
-			} while (0)
+#define	gbackoff 	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
 #define	start_rcv	do { \
 				zzv_prmble = 0; \
@@ -84,7 +80,7 @@
 
 extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl,
 		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_tmaux,
-		zzv_qevent, zzv_physid, zzv_statid, zzx_seed, zzx_backoff;
+		zzv_qevent, zzv_physid, zzv_statid, zzx_backoff;
 
 extern byte	zzv_status, zzv_istate, zzv_prmble, zzv_curbit, zzr_length,
 		zzv_curnib, zzv_cursym, zzv_rxoff, zzv_txoff;

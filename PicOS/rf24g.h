@@ -17,14 +17,9 @@
 #define	stat_set(flg)	zzx_power |= (flg)
 #define	stat_clr(flg)	zzx_power &= ~(flg)
 
-#define	gbackoff	do { \
-				zzx_seed = (zzx_seed + entropy + 1) * 6789; \
-				zzx_backoff = MIN_BACKOFF + \
-					(zzx_seed & MSK_BACKOFF); \
-			} while (0)
+#define	gbackoff	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
-extern word	*zzr_buffer, zzv_qevent, zzv_physid, zzv_statid, zzx_seed,
-		zzx_backoff;
+extern word	*zzr_buffer, zzv_qevent, zzv_physid, zzv_statid, zzx_backoff;
 
 extern byte	zzv_paylen, zzx_power, zzv_group, zzv_channel, zzv_rxoff,
 		zzv_txoff;

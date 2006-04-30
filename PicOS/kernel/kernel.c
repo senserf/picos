@@ -10,6 +10,19 @@
 /* The kernel                                                                 */
 /* ========================================================================== */
 
+/*
+ * Put all lword variables here to avoid losing memory on alignment
+ */
+lword 	zz_nseconds;
+
+#if	ENTROPY_COLLECTION
+lword	zzz_ent_acc;
+#endif
+
+#if	RANDOM_NUMBER_GENERATOR > 1
+lword	zz_seed = 327672838L;
+#endif
+
 #include "every_second_headers.h"
 
 /* Task table */
@@ -29,7 +42,6 @@ pcb_t	*zz_curr;
 /* ========= */
 /* The clock */
 /* ========= */
-static		lword 	nseconds;
 static 		word  	setticks, millisec;
 		word 	zz_mintk;
 volatile	word 	zz_lostk;
@@ -39,14 +51,14 @@ volatile	word 	zz_lostk;
 /* ================================ */
 address		zz_utims [MAX_UTIMERS];
 
-#if	ENTROPY_COLLECTION
-lword	zzz_ent_acc;
-#endif
-
 const char	zz_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
+
+#if	RANDOM_NUMBER_GENERATOR == 1
+word	zz_seed = 30011;
+#endif
 
 int utimer (address ut, bool add) {
 /* ================= */
@@ -103,7 +115,7 @@ int utimer (address ut, bool add) {
 
 lword seconds () {
 
-	return nseconds;
+	return zz_nseconds;
 }
 
 void zzz_tservice () {
@@ -123,13 +135,13 @@ void zzz_tservice () {
 	millisec += nticks;
 	while (millisec >= JIFFIES) {
 		millisec -= JIFFIES;
-		nseconds++;
+		zz_nseconds++;
 
 #include "every_second.h"
 
-		if ((nseconds & 63) == 0)
+		if ((zz_nseconds & 63) == 0)
 			/* Do this every "minute" */
-			ldtrigger ((word) (nseconds >> 6));
+			ldtrigger ((word) (zz_nseconds >> 6));
 	}
 
 	do {
@@ -296,7 +308,7 @@ void ldelay (word d, word state) {
 		syserror (EREQPAR, "ldelay");
 
 	setestatus (zz_curr->Events [j], ETYPE_LDELAY, state);
-	zz_curr->Events [j] . Event = (word) ((nseconds >> 6) + d);
+	zz_curr->Events [j] . Event = (word) ((zz_nseconds >> 6) + d);
 
 	incwait (zz_curr);
 }
@@ -315,11 +327,11 @@ word ldleft (int pid, word *s) {
 	if (i->code == NULL)
 		return MAX_UINT;
 
-	j = ((word) nseconds & 0x3f);
+	j = ((word) zz_nseconds & 0x3f);
 	if (s != NULL)
 		*s = j ? 64 - j : 0;
 
-	nmin = (word)(nseconds >> 6);
+	nmin = (word)(zz_nseconds >> 6);
 	if (s == NULL) {
 		// Round it to the nearest minute
 		if (j > 32)

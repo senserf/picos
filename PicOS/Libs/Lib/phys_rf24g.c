@@ -17,7 +17,6 @@ word		*zzr_buffer = NULL,
 		zzv_qevent,
 		zzv_physid,
 		zzv_statid,
-		zzx_seed,		// For the random number generator
 		zzx_backoff;		// Calculated backoff for xmitter
 
 byte		zzv_rxoff,		// Transmitter on/off flags
@@ -383,8 +382,6 @@ void phys_rf24g (int phy, int grp, int chn) {
 	zzx_power = 3;			// Maximum power
 	zzv_group = (byte) grp;
 	zzv_channel = (byte) chn;
-
-	zzx_seed = 12345;
 
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2100);

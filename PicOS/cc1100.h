@@ -301,11 +301,7 @@ extern const byte cc1100_rfsettings_cmn [],
 				SPI_END; \
 			} while (0)
 
-#define	gbackoff	do { \
-				rnd_seed = (rnd_seed + entropy + 1) * 6789; \
-				bckf_timer = MIN_BACKOFF + \
-					(rnd_seed & MSK_BACKOFF); \
-			} while (0)
+#define	gbackoff	(bckf_timer = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
 extern word		zzv_drvprcs, zzv_qevent;
 extern byte		zzv_iack, zzv_gwch;

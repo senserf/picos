@@ -89,10 +89,7 @@ static word gen_packet_length (void) {
 #if MIN_PACKET_LENGTH >= MAX_PACKET_LENGTH
 	return MIN_PACKET_LENGTH;
 #else
-	static	word	rndseed = 12345;
-
-	rndseed = (word) ((entropy + 1 + rndseed) * 6751);
-	return ((rndseed % (MAX_PACKET_LENGTH - MIN_PACKET_LENGTH + 1)) +
+	return ((rnd () % (MAX_PACKET_LENGTH - MIN_PACKET_LENGTH + 1)) +
 			MIN_PACKET_LENGTH) & 0xFFE;
 #endif
 

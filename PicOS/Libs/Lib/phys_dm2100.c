@@ -24,7 +24,6 @@ word		*zzr_buffer = NULL,
 		zzv_qevent,
 		zzv_physid,
 		zzv_statid,
-		zzx_seed,		// For the random number generator
 		zzx_backoff;		// Calculated backoff for xmitter
 
 byte		zzv_curbit,	// Current bit index
@@ -247,8 +246,6 @@ void phys_dm2100 (int phy, int mbs) {
 	zzv_statid = 0;
 	zzv_physid = phy;
 	zzx_backoff = 0;
-
-	zzx_seed = 12345;
 
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2100);

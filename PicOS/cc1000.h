@@ -81,11 +81,7 @@
 #define	IRQ_RCV		8	// Receiving packet
 #define	IRQ_RTR		9	// Receiving end-of-word trailer
 
-#define	gbackoff	do { \
-				zzx_seed = (zzx_seed + 1) * 6789; \
-				zzx_backoff = MIN_BACKOFF + \
-					(zzx_seed & MSK_BACKOFF); \
-			} while (0)
+#define	gbackoff	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
 #define	start_rcv	do { \
 				chp_pdioin; \
@@ -115,7 +111,7 @@ extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl, zzr_length,
 		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_curbit,
 		zzv_status, zzv_prmble,	zzv_istate,
 		zzv_qevent, zzv_physid, zzv_statid,
-		zzx_seed, zzx_backoff;
+		zzx_backoff;
 
 extern byte 	zzv_rxoff, zzv_txoff, zzv_hstat, zzx_power;
 

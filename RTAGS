@@ -741,3 +741,18 @@ R060422A:
 
 R060428A:
 	VERSA2 RESET key pressed on power up erases info flash.
+
+R060429A:
+	All the ad-hoc random number generators used by the individual radio
+	drivers have been combined into a public generator available as
+	word rnd (void);
+	RANDOM_NUMBER_GENERATOR should be set to 1 or 2 for this to be
+	available, unless a radio driver is present, in which case
+	RANDOM_NUMBER_GENERATOR is defined as 1, if it was undefined or zero.
+	RANDOM_NUMBER_GENERATOR == 2 selects a high-quality (32-bit) generator
+	(which needs a longword location in RAM).
+	if ENTROPY_COLLECTION is set, the generator uses entropy; otherwise,
+	it is congruential, deterministic, and pseudo-random.
+
+	Memory shuffled a bit in kernel.c to avoid losses on lword/word
+	misalignment.
