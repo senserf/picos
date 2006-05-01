@@ -756,3 +756,10 @@ R060429A:
 
 	Memory shuffled a bit in kernel.c to avoid losses on lword/word
 	misalignment.
+
+R060430A:
+	VersaMesh "alpha":
+	- subtree VMesh2,
+	- _IF, _Ops, Test docs, hands_on term. macra (in Docs),
+	- iflash.c (this may be temporary, but as is was sent to RFM).
+

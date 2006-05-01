@@ -27,15 +27,24 @@ int if_write (word a, word w) {
  */
 	if (a >= IFLASH_SIZE)
 		syserror (EFLASH, "if_write");
-
+#if 0
 	// Check if the word is writeable
 	if (IFLASH [a] != 0xffff)
 		return ERROR;
+#endif
 	cli;
 	if_write_sys (w, a);
 	sti;
 
+	return (IFLASH [a] == w) ? 0 : ERROR;
+#if 0
+	if (IFLASH [a] != w) {
+		dbg_1 (a); dbg_1 (IFLASH [a]); dbg_1 (w);
+		return ERROR;
+	}
+
 	return 0;
+#endif
 }
 
 void if_erase (int a) {
