@@ -763,3 +763,37 @@ R060430A:
 	- _IF, _Ops, Test docs, hands_on term. macra (in Docs),
 	- iflash.c (this may be temporary, but as is was sent to RFM).
 
+R060501A:
+	Fixed the receiver sensitivity problem as per Frank's e-mail.
+	#define GLACIER 1 (in options.sys) enables the following
+	function:
+	           word freeze (lword nsec, word pstat, word pval);
+
+	When called, freeze puts the system into the power-down/slow-clock
+	mode for nsec PicOS seconds effectively freezing all its activities.
+	Note that nsec is long.
+
+	With pstat and pval, you can specify a port condition (for P1 or P2)
+	that will unfreeze the system before the delay expires. Byte 0 (the
+	less significant byte) of pstat/pval corresponds to P1, byte 1
+	corresponds to P2. For illustration, suppose that
+
+	      pstat =  0 0 0 1 0 0 1 1  0 0 0 0 1 0 0 0      and
+              pval  =  0 0 0 0 0 0 1 0  0 0 0 0 1 0 0 1
+
+	This means that the system will unfreeze as soon as P2.0 becomes low
+	(position 0 in byte 1 of pval is zero), or P2.1 becomes high, or P2.4
+	becomes low, or P1.3 becomes high. Note that the 1 on position 0 in
+	byte 0 of pval is ignored (as pstat has zero on that position). In
+	general, pstat selects the ports, while pval indicates whether they
+	should be low or high.
+
+	If the function returns zero, it means that the delay has expired.
+	Otherwise, it returns a bit mask indicating the fired ports (a fired
+	port in the mask is 1 regardless of the level selection in pval).
+	The port conditions are checked at 1 sec intervals. Interrupts are
+	disabled during freeze, leds are off, etc. Things are restored before
+	the function returns, such that the freeze period is imperceptible by
+	the application. In particular, no timer attributes (including the
+	seconds clock) are advanced while the system is frozen.
+	

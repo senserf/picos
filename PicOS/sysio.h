@@ -163,6 +163,11 @@
 // TCV_PRESENT
 #endif
 
+// Enables 'freeze'
+#ifndef	GLACIER
+#define	GLACIER			0
+#endif
+
 // If this is 1, SDRAM is configured in. Dynamic memory is allocated within
 // the first 32K page of SDRAM. THe remaining SDRAM is available through
 // ramget / ramput. (0/1)
@@ -758,6 +763,10 @@ lword	seconds (void);
 /* Spin delay */
 void	udelay (word);
 void	mdelay (word);
+
+#if	GLACIER
+word	freeze (lword, word, word);
+#endif
 
 #if	RADIO_INTERRUPTS
 bool	rcvwait (word);

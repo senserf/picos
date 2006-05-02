@@ -339,6 +339,80 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 		RISE_N_SHINE;
 }
 
+#if GLACIER
+word freeze (lword nsec, word psel, word pval) {
+/*
+ * Freezes the system in power-down mode for the specified number of seconds.
+ * psel/pval may select ports (P1 or P2) to be monitored for (long) wakeup
+ * signals.
+ */
+	byte saveP1IE, saveP2IE;
+
+#if UART_DRIVER || UART_TCV
+	byte saveIE1, saveIE2, saveLEDs;
+#endif
+	word saveLostK, res;
+
+	cli;
+
+	// Save I/O pin interrupt configuration
+	saveP1IE = P1IE;
+	saveP2IE = P2IE;
+	// And disable them
+	P1IE = P2IE = 0x00;
+
+	saveLEDs = leds_save ();
+	leds_off ();
+
+#if UART_DRIVER || UART_TCV
+	// Save UART interrupt configuration
+	saveIE1 = IE1;
+	saveIE2 = IE2;
+	// And disable them
+	IE1 = 0;
+	IE2 = 0;
+#endif
+	powerdown ();
+	saveLostK = zz_lostk;
+
+	while (1) {
+		zz_lostk = 0;
+		_BIS_SR (LPM3_bits + GIE);
+		cli;
+		// Wakeup after one PicOS second
+		if (--nsec == 0)
+			break;
+		// Port status
+		if (psel) {
+			// Select the relevant bits from P1 and P2
+			res = (psel & ~(((((word)P2IN) << 8) | P1IN) ^ pval));
+			if (res)
+				break;
+		}
+	}
+
+	P1IE = saveP1IE;
+	P2IE = saveP2IE;
+
+#if UART_DRIVER || UART_TCV
+	IE1 = saveIE1;
+	IE2 = saveIE2;
+#endif
+	powerup ();
+
+	// Trigger the interrupts if they are pending
+	P1IFG = (P1IE & (P1IE ^ P1IN));
+	P2IFG = (P2IE & (P2IE ^ P2IN));
+	zz_lostk = saveLostK;
+	leds_restore (saveLEDs);
+
+	sti;
+
+	return res;
+}
+
+#endif	/* GLACIER */
+
 static void mem_init () {
 
 	zz_malloc_init ();

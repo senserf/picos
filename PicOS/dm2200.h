@@ -15,7 +15,7 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length (bytes) */
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
-#define	DM2200_DEF_RCVMODE	0x05	/* Flat range, high sensitivity */
+#define	DM2200_DEF_RCVMODE	0x01	/* Flat range, no high sensitivity */
 
 /*
  * Maximum mode setting. The mode (as per SETMODE) refers to the receiver
@@ -25,7 +25,7 @@
  *           X X X X X X X X    CFG0
  *                     ===      Mode
  */
-#define	DM2200_N_RF_OPTIONS	0x03
+#define	DM2200_N_RF_OPTIONS	0x07
 
 /*
  * Configuration registers:

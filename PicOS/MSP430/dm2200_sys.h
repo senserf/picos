@@ -56,7 +56,7 @@
  */
 
 /*
- * Transmission rate: this is determined as the number of SLCK ticks per
+ * Transmission rate: this is determined as the number of SCLK ticks per
  * physical bit time. Remember that SLCK runs at 4.5MHz. The math is simple:
  * one physical bit = 2/3 of real bit (excluding the preamble and checksum).
  */
@@ -67,22 +67,36 @@
 
 #define	VERSA2_PIN_MASK		(PIN_STDP_GP | PIN_CNTR_GP)
 
-#define	ini_regs	do { \
-				_BIC (P4OUT, 0x01); \
-				_BIS (P4DIR, 0x01); \
-				_BIC (P6DIR, 0xfe); \
-				_BIC (P5OUT, 0x03); \
-				_BIS (P5DIR, 0x03); \
-				_BIC (P2OUT, 0xff); \
-				_BIC (P2DIR, 0x7C); \
-				_BIS (P2DIR, 0x81); \
-				_BIS (P2SEL, 0x80); \
-				_BIC (P2IES, 0x58); \
-				_BIC (P1DIR, 0x07); \
-			} while (0)
+#if VERSA2_TARGET_BOARD
+#define	CFG_P1		_BIC (P1DIR, 0x0B); \
+			_BIS (P1DIR, 0xF4)
+#else
+#define	CFG_P1		_BIC (P1DIR, 0x0F); \
+			_BIS (P1DIR, 0xF0)
+#endif
 
-// FIXME: configure unused pins as output (the manual says this reduces power
-// consumption)
+#define	CFG_P2		_BIC (P2DIR, 0x7C); \
+			_BIS (P2OUT, 0xff); \
+			_BIS (P2DIR, 0x83); \
+			_BIS (P2SEL, 0x80); \
+			_BIC (P2IES, 0x58)
+
+#define	CFG_P3		do { } while (0)
+
+#define	CFG_P4		_BIC (P4DIR, 0x0E); \
+			_BIC (P4OUT, 0x01); \
+			_BIS (P4DIR, 0xF1)
+
+#define	CFG_P5		_BIC (P5OUT, 0x03); \
+			_BIS (P5DIR, 0xFF)
+
+#define	CFG_P6		_BIC (P6DIR, 0xFF)
+
+#define	ini_regs	do { CFG_P1; CFG_P2; CFG_P3; CFG_P4; CFG_P5; CFG_P6; } \
+			while (0)
+
+// Unused pins: P1.2, P1.4, P1.5-7, P2.1, P4.4-7, P5.2-7 consfigured as output
+// for power savings
 
 #if FCC_TEST_MODE
 #define	fcc_test_send		((P1IN & 0x01) != 0)

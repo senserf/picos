@@ -34,7 +34,7 @@ static const pind_t pinmap [] = {
 	{ P1IN_ - P1IN_, 0 },	// CFG0 == P1.0
 	{ P1IN_ - P1IN_, 1 },	// CFG1 == P1.1
 #if VERSA2_TARGET_BOARD
-	{ P2IN_ - P1IN_, 2 },	// CFG2 == P1.2 (will be P2.2)
+	{ P2IN_ - P1IN_, 2 },	// CFG2 == P2.2
 #else
 	{ P1IN_ - P1IN_, 2 },	// CFG2 == P1.2 (will be P2.2)
 #endif

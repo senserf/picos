@@ -164,6 +164,7 @@ static void dm2200_wreg (byte reg, byte val) {
 	};
 
 	cfg_down;
+	ser_down;
 }
 
 static byte dm2200_rreg (byte reg) {
@@ -464,11 +465,11 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETMODE:
 
-		ret = (rcvmode & 0x06) >> 1; 
+		ret = (rcvmode & 0x0e) >> 1; 
 		if (val == NULL)
 			rcvmode = DM2200_DEF_RCVMODE;
 		else if (*val <= DM2200_N_RF_OPTIONS)
-			rcvmode = (rcvmode & 0xf9) | (((byte) (*val)) << 1);
+			rcvmode = (rcvmode & 0xf1) | (((byte) (*val)) << 1);
 		else
 			syserror (EREQPAR, "phys_dm2200 option rfmode");
 		break;
