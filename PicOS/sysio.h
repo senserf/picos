@@ -765,7 +765,7 @@ void	udelay (word);
 void	mdelay (word);
 
 #if	GLACIER
-word	freeze (lword, word, word);
+void	freeze (word);
 #endif
 
 #if	RADIO_INTERRUPTS

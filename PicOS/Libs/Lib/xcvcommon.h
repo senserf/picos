@@ -79,18 +79,30 @@ Finish:
 		zzr_buffer [5]);
 #endif
 	/* The length is in words */
-	if (zzr_length < MINIMUM_PACKET_LENGTH/2)
+	if (zzr_length < MINIMUM_PACKET_LENGTH/2) {
+#if 0
+		diag ("TOO SHORT");
+#endif
 		proceed (RCV_GETIT);
+	}
 
 	/* Check the station Id */
 	if (zzv_statid != 0 && zzr_buffer [0] != 0 &&
-	    zzr_buffer [0] != zzv_statid)
+	    zzr_buffer [0] != zzv_statid) {
 		/* Wrong packet */
+#if 0
+		diag ("WRONG ID");
+#endif
 		proceed (RCV_GETIT);
+	}
 
 	/* Validate checksum */
-	if (w_chk (zzr_buffer, zzr_length, 0))
+	if (w_chk (zzr_buffer, zzr_length, 0)) {
+#if 0
+		diag ("BAD CHK");
+#endif
 		proceed (RCV_GETIT);
+	}
 	 /* Return RSSI in the last checksum byte */
 	adc_wait;
 	zzr_buffer [zzr_length - 1] = (word) rssi_cnv (adc_value);
@@ -207,6 +219,7 @@ Xmit:
 			zzx_buffer [4],
 			zzx_buffer [5]);
 #endif
+		// dis_tim;
 		hstat (HSTAT_XMT);
 		zzx_buffl = zzx_buffp + stln;
 		start_xmt;
@@ -224,6 +237,7 @@ Xmit:
 	proceed (XM_LOOP);
 
     entry (XM_TXDONE)
+    // ena_tim;
 
 #if 0
 	diag ("SND: DONE (%x)", (word) zzx_buffp);

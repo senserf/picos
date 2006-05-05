@@ -59,8 +59,11 @@
  * Transmission rate: this is determined as the number of SCLK ticks per
  * physical bit time. Remember that SLCK runs at 4.5MHz. The math is simple:
  * one physical bit = 2/3 of real bit (excluding the preamble and checksum).
+ * I see that if we crank it up a little, things appear to work better. This
+ * can be explained by the fact that the processing time tends to extend
+ * slightly bit strobes beyond the calculated bounds.
  */
-#define	BIT_RATE	9600
+#define	BIT_RATE	9601		// 9700 used with 6MHz crystal
 
 #define	PIN_MAX			12	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
@@ -220,9 +223,17 @@ void zz_pin_setanalog (word p);
 #define	rcv_sig_high	(P2IN & 0x04)
 #endif
 #define	rcv_interrupt	(P2IFG & 0x40)
+#define	rcv_edgelh	_BIC (P2IES, 0x40)
+#define	rcv_edgehl	_BIS (P2IES, 0x40)
 #define	rcv_clrint	_BIC (P2IFG, 0x40)
 #define	rcv_enable	_BIS (P2IE, 0x40)
 #define	rcv_disable	_BIC (P2IE, 0x40)
+
+#if COLLECT_RXDATA_ON_LOW
+#define	rcv_setedge	rcv_edgelh
+#else
+#define	rcv_setedge	do { } while (0)
+#endif
 
 /*
  * The timer runs in the up mode setting up TAIFG whenever the count is
@@ -264,22 +275,25 @@ void zz_pin_setanalog (word p);
 #define DM_RATE_X2		(DM_RATE + DM_RATE)
 #define DM_RATE_X3		(DM_RATE + DM_RATE + DM_RATE)
 #define DM_RATE_X4		(DM_RATE + DM_RATE + DM_RATE + DM_RATE)
+// Used at the end of packet
+#define	DM_RATE_XE		(DM_RATE_X4 + DM_RATE_X2)
 
 #define	enable_xmt_timer	do { \
 					TACCR0 = DM_RATE_X1; \
 					TACCTL1 = 0; \
-					TACCTL0 = CCIE | OUT; \
+					TACCTL0 = OUTMOD_TOGGLE | CCIE; \
 					_BIS (TACTL, MC_2 | TACLR); \
+					_BIC (zzr_rcvmode, 0x80); \
 				} while (0)
 
 #define	set_signal_length(v)	TACCR0 = zzv_tmaux + (v)
 
 #define	toggle_signal		do { \
-					TACCTL0 ^= OUT; \
+					zzr_rcvmode ^= 0x80; \
 					zzv_tmaux = TACCR0; \
 				} while (0)
 
-#define	current_signal_level	(TACCTL0 & OUT)
+#define	current_signal_level	(zzr_rcvmode & 0x80)
 					
 /*
  * This stops the transmitter timer (and interrupts)

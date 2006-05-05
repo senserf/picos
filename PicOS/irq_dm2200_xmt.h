@@ -19,13 +19,13 @@
 		zzv_status = 0;
 		return;
 
-	case IRQ_XPR:
+	case IRQ_XPQ:
 
 		// Transmitting preamble low
 		toggle_signal;
 		SL1;
 		if (--zzv_prmble) {
-			zzv_istate = IRQ_XPQ;
+			zzv_istate = IRQ_XPR;
 		} else {
 			// End of preamble
 			zzv_curbit = 3;
@@ -34,12 +34,12 @@
 		}
 		return;
 
-	case IRQ_XPQ:
+	case IRQ_XPR:
 
 		// Transmitting preamble high
 		toggle_signal;
 		SL1;
-		zzv_istate = IRQ_XPR;
+		zzv_istate = IRQ_XPQ;
 		return;
 
 	case IRQ_XSV:
@@ -209,7 +209,7 @@
 
 		if (zzv_curbit == 0) {
 			// We are done: the signal is now set set low
-			TRA (2); TRA (2);
+			SLE;
 			zzv_istate = IRQ_EXM;
 			return;
 		}
@@ -222,9 +222,9 @@
 
 	case IRQ_EXM:
 
+		disable_xmt_timer;
 		RISE_N_SHINE;
 		zzv_istate = IRQ_OFF;
-		disable_xmt_timer;
 		zzv_status = 0;
 		i_trigger (ETYPE_USER, txevent);
 		LEDI (1, 0);

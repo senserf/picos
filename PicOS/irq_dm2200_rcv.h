@@ -22,6 +22,10 @@
 
 	case IRQ_RPR:
 
+#if COLLECT_RXDATA_ON_LOW
+		rcv_edgehl;
+		rcv_clrint;
+#endif
 		zzv_istate = IRQ_RP0;
 		adc_start;
 		LEDI (2, 1);
@@ -43,6 +47,12 @@
 			// We have a complete nibble
 			sc = zzv_symtable [zzv_cursym];
 			if (sc > 15) {
+#if 0
+			// Reason for failure
+			diag ("SYM 0: %x %d %x %x", zzv_cursym,
+				zzr_buffp - zzr_buffer, *(zzr_buffp-2),
+					*(zzr_buffp-1));
+#endif
 REND:
 				rcv_disable;
 				zzv_status = 0;
@@ -78,9 +88,15 @@ REND:
 		if (zzv_curbit == 5) {
 			// Second complete nibble
 			sc = zzv_symtable [zzv_cursym];
-			if (sc > 15) 
+			if (sc > 15) {
+#if 0
+				diag ("SYM 1: %x %d %x %x", zzv_cursym,
+					zzr_buffp - zzr_buffer,
+						*(zzr_buffp-1), *(zzr_buffp));
+#endif
 				// Illegal
 				goto REND;
+			}
 
 			zzv_cursym = 0;
 			zzv_curbit = 0;
@@ -104,9 +120,15 @@ REND:
 		if (zzv_curbit == 5) {
 			// Third complete nibble
 			sc = zzv_symtable [zzv_cursym];
-			if (sc > 15) 
+			if (sc > 15) {
+#if 0
+				diag ("SYM 2: %x %d %x %x", zzv_cursym,
+					zzr_buffp - zzr_buffer,
+						*(zzr_buffp-1), *(zzr_buffp));
+#endif
 				// Illegal
 				goto REND;
+			}
 
 			zzv_cursym = 0;
 			zzv_curbit = 0;
@@ -130,9 +152,15 @@ REND:
 		if (zzv_curbit == 5) {
 			// Last nibble
 			sc = zzv_symtable [zzv_cursym];
-			if (sc > 15) 
+			if (sc > 15) {
+#if 0
+				diag ("SYM 3: %x %d %x %x", zzv_cursym,
+					zzr_buffp - zzr_buffer,
+						*(zzr_buffp-1), *(zzr_buffp));
+#endif
 				// Illegal
 				goto REND;
+			}
 			*zzr_buffp |= sc;
 
 			if (++zzr_buffp == zzr_buffl)

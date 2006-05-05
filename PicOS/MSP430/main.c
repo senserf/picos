@@ -286,6 +286,9 @@ static void ssm_init () {
 /* =============== */
 interrupt (TIMERB0_VECTOR) timer_int () {
 
+// Make interrupts visible on P1.2
+// _BIS (P1OUT, 0x04);
+
 #if	STACK_GUARD
 	if (*(((word*)STACK_END) - 1) != STACK_SENTINEL)
 		syserror (ESTACK, "timer_int");
@@ -316,7 +319,9 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 		// keep the second clock up to date
 		if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))
 			RISE_N_SHINE;
-
+// -------------------
+// _BIC (P1OUT, 0x04);
+// -------------------
 		return;
 	}
 
@@ -337,21 +342,22 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 	if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))
 #endif
 		RISE_N_SHINE;
+// -------------------
+// _BIC (P1OUT, 0x04);
+// -------------------
 }
 
 #if GLACIER
-word freeze (lword nsec, word psel, word pval) {
+void freeze (word nsec) {
 /*
  * Freezes the system in power-down mode for the specified number of seconds.
- * psel/pval may select ports (P1 or P2) to be monitored for (long) wakeup
- * signals.
  */
 	byte saveP1IE, saveP2IE;
 
 #if UART_DRIVER || UART_TCV
 	byte saveIE1, saveIE2, saveLEDs;
 #endif
-	word saveLostK, res;
+	word saveLostK;
 
 	cli;
 
@@ -361,6 +367,7 @@ word freeze (lword nsec, word psel, word pval) {
 	// And disable them
 	P1IE = P2IE = 0x00;
 
+	// Save leds status and turn them off
 	saveLEDs = leds_save ();
 	leds_off ();
 
@@ -373,22 +380,14 @@ word freeze (lword nsec, word psel, word pval) {
 	IE2 = 0;
 #endif
 	powerdown ();
+	// Save clock state
 	saveLostK = zz_lostk;
 
-	while (1) {
+	while (nsec) {
 		zz_lostk = 0;
 		_BIS_SR (LPM3_bits + GIE);
 		cli;
-		// Wakeup after one PicOS second
-		if (--nsec == 0)
-			break;
-		// Port status
-		if (psel) {
-			// Select the relevant bits from P1 and P2
-			res = (psel & ~(((((word)P2IN) << 8) | P1IN) ^ pval));
-			if (res)
-				break;
-		}
+		nsec--;
 	}
 
 	P1IE = saveP1IE;
@@ -407,8 +406,6 @@ word freeze (lword nsec, word psel, word pval) {
 	leds_restore (saveLEDs);
 
 	sti;
-
-	return res;
 }
 
 #endif	/* GLACIER */

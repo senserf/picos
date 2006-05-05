@@ -15,7 +15,8 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length (bytes) */
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
-#define	DM2200_DEF_RCVMODE	0x01	/* Flat range, no high sensitivity */
+#define	DM2200_DEF_RCVMODE	0x05	/* Flat range, no high sensitivity */
+#define	COLLECT_RXDATA_ON_LOW	1	/* RXDATA taken on H-L clk transition */
 
 /*
  * Maximum mode setting. The mode (as per SETMODE) refers to the receiver
@@ -40,10 +41,6 @@
  *               0       0       0       0       0       0       0       0
  */
 
-#define	CFG0_RCVH	0x05
-
-#define	CFG0_RCV	0x05
-//#define	CFG0_RCV	0x03
 #define	CFG0_RCV_STOP	0x00
 #define	CFG0_XMT	0x48
 #define	CFG0_OFF	0x80
@@ -63,6 +60,7 @@
 #define	SL2	set_signal_length (DM_RATE_X2)
 #define	SL3	set_signal_length (DM_RATE_X3)
 #define	SL4	set_signal_length (DM_RATE_X4)
+#define	SLE	set_signal_length (DM_RATE_XE)
 
 /* States of the IRQ automaton */
 
@@ -93,6 +91,7 @@
 				zzr_length = 0; \
 				zzv_istate = IRQ_RPR; \
 				zzv_status = HSTAT_RCV; \
+				rcv_setedge; \
 				rcv_clrint; \
 			} while (0)
 
@@ -115,7 +114,7 @@ extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl,
 		zzv_qevent, zzv_physid, zzv_statid, zzx_backoff;
 
 extern byte	zzv_status, zzv_istate, zzv_prmble, zzv_curbit, zzr_length,
-		zzv_curnib, zzv_cursym, zzv_rxoff, zzv_txoff;
+		zzr_rcvmode, zzv_curnib, zzv_cursym, zzv_rxoff, zzv_txoff;
 
 extern const byte zzv_symtable [], zzv_nibtable [], zzv_srntable [];
 

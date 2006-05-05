@@ -797,3 +797,13 @@ R060501A:
 	the application. In particular, no timer attributes (including the
 	seconds clock) are advanced while the system is frozen.
 	
+R060504A:
+	DM2200: improved signal timing for xmit. Added option to collect
+	RXDATA on low clock (set by default).
+	Simplified freeze; now it looks like this:
+
+		void freeze (word nsec);
+
+	and simply freezes everything for nsec seconds. It costs next to
+	nothing, so the application can do it in a loop, possibly with nsec
+	equal 1 or 2 (if needed), checking any wakeup conditions by itself.
