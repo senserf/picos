@@ -389,6 +389,20 @@
 
 #endif	/* CC1000 */
 
+#if	CC1100
+
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#error	"CC1100 cannot coexist with any other radio driver"
+#else
+#define	ZZ_RADIO_DRIVER_PRESENT	1
+#endif
+
+#define	ZZ_TCV_REQUIRED		1
+
+//+++ "phys_cc1100.c"
+
+#endif	/* CC1100 */
+
 
 #if	DM2100
 

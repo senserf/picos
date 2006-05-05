@@ -15,7 +15,7 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length (bytes) */
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
-#define	DM2200_DEF_RCVMODE	0x05	/* Flat range, no high sensitivity */
+#define	DM2200_DEF_RCVMODE	0x01	/* Flat range, no high sensitivity */
 #define	COLLECT_RXDATA_ON_LOW	1	/* RXDATA taken on H-L clk transition */
 
 /*
@@ -110,7 +110,7 @@
 #define	xmitter_active	(zzv_status == HSTAT_XMT)
 
 extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl,
-		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_tmaux,
+		*zzx_buffer, *zzx_buffp, *zzx_buffl,
 		zzv_qevent, zzv_physid, zzv_statid, zzx_backoff;
 
 extern byte	zzv_status, zzv_istate, zzv_prmble, zzv_curbit, zzr_length,

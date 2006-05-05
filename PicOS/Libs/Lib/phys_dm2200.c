@@ -15,7 +15,6 @@ word		*zzr_buffer = NULL,
 		*zzx_buffer,	// Pointer to dynamic transmission buffer
 		*zzx_buffp,	// Next buffer word
 		*zzx_buffl,	// LWA+1 of xmit buffer
-		zzv_tmaux,	// To store previous value of signal timer
 		zzv_qevent,
 		zzv_physid,
 		zzv_statid,

@@ -807,3 +807,8 @@ R060504A:
 	and simply freezes everything for nsec seconds. It costs next to
 	nothing, so the application can do it in a loop, possibly with nsec
 	equal 1 or 2 (if needed), checking any wakeup conditions by itself.
+
+R060505A:
+	Cosmetics in the new driver for DM2200 (got rid of one variable - saved
+	one word). The default rcvmode is now 1 (note that it can be easily
+	changed from the application).

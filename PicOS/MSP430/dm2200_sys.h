@@ -286,12 +286,18 @@ void zz_pin_setanalog (word p);
 					_BIC (zzr_rcvmode, 0x80); \
 				} while (0)
 
-#define	set_signal_length(v)	TACCR0 = zzv_tmaux + (v)
+// Got rid of tmaux
+//#define	set_signal_length(v)	TACCR0 = zzv_tmaux + (v)
+#define	set_signal_length(v)	TACCR0 += (v)
 
+#if 0
 #define	toggle_signal		do { \
 					zzr_rcvmode ^= 0x80; \
 					zzv_tmaux = TACCR0; \
 				} while (0)
+#endif
+
+#define	toggle_signal		(zzr_rcvmode ^= 0x80)
 
 #define	current_signal_level	(zzr_rcvmode & 0x80)
 					
