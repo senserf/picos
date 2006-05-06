@@ -812,3 +812,11 @@ R060505A:
 	Cosmetics in the new driver for DM2200 (got rid of one variable - saved
 	one word). The default rcvmode is now 1 (note that it can be easily
 	changed from the application).
+
+R060505B:
+	Pin cleanup to make sure that: 1) all unused pins are OUT (needed for
+	power savings; this assumes that the drivers/application accounts for
+	all connecting pins; note that if a pin is actually connected to a low
+	impedance source and it is left as OUT, there may be a current drain);
+	2) to make sure that all pins are properly re-initialized after a soft
+	(non-power-down) reset.

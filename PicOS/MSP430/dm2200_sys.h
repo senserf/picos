@@ -70,28 +70,25 @@
 
 #define	VERSA2_PIN_MASK		(PIN_STDP_GP | PIN_CNTR_GP)
 
+/*
+ * All pins are preset to OUT HIGH for power savings on unconnected pins. Thus,
+ * for adjustements in here, we only have to touch them up the right way.
+ */
 #if VERSA2_TARGET_BOARD
-#define	CFG_P1		_BIC (P1DIR, 0x0B); \
-			_BIS (P1DIR, 0xF4)
+#define	CFG_P1		_BIC (P1DIR, 0x0B)
 #else
-#define	CFG_P1		_BIC (P1DIR, 0x0F); \
-			_BIS (P1DIR, 0xF0)
+#define	CFG_P1		_BIC (P1DIR, 0x0F)
 #endif
 
 #define	CFG_P2		_BIC (P2DIR, 0x7C); \
-			_BIS (P2OUT, 0xff); \
-			_BIS (P2DIR, 0x83); \
-			_BIS (P2SEL, 0x80); \
-			_BIC (P2IES, 0x58)
+			_BIS (P2SEL, 0x80)
 
-#define	CFG_P3		do { } while (0)
+#define	CFG_P3		do { /* Not used here */ } while (0)
 
 #define	CFG_P4		_BIC (P4DIR, 0x0E); \
-			_BIC (P4OUT, 0x01); \
-			_BIS (P4DIR, 0xF1)
+			_BIC (P4OUT, 0x01)
 
-#define	CFG_P5		_BIC (P5OUT, 0x03); \
-			_BIS (P5DIR, 0xFF)
+#define	CFG_P5		_BIC (P5OUT, 0x03)
 
 #define	CFG_P6		_BIC (P6DIR, 0xFF)
 

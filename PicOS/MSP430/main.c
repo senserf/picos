@@ -227,6 +227,18 @@ static void ssm_init () {
 	// Disable watchdog timer
 	WATCHDOG_STOP;
 
+	P1IE = P2IE = 0x00;
+	P1IES = P2IES = 0x00;
+	P1IFG = P2IFG = 0x00;
+	// For power saving, the default setting of all registers
+	// is non-special + output.
+	P1SEL = P2SEL = P3SEL = P4SEL = P5SEL = P6SEL = 0x00;
+	// The value should be "don't care". We set it high, essentially for
+	// compatibility with the RESET key on Versa, which should be high
+	// initially.
+	P1OUT = P2OUT = P3OUT = P4OUT = P5OUT = P6OUT = 0xff;
+	P1DIR = P2DIR = P3DIR = P4DIR = P5DIR = P6DIR = 0xff;
+
 #ifdef	__MSP430_449__
 	// This one needs the capacitance setting
 	_BIS (FLL_CTL0, XCAP18PF);
@@ -585,6 +597,7 @@ uart_t	zz_uart [N_UARTS];
 static void preinit_uart () {
 
 	// UART_A
+	_BIC (P3DIR, 0x26);
 	_BIS (P3SEL, 0x30);	// 4, 5 special function
 #if UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
 	_BIC (P3SEL, 0xc0);	// Standard use P3.6, P3.7
@@ -606,6 +619,7 @@ static void preinit_uart () {
 
 #if N_UARTS > 1
 	// UART_B
+	_BIC (P3DIR, 0x89);
 	_BIS (P3SEL, 0xc0);	// 6, 7 special function
 	_BIS (UCTL1, SWRST);
 	_BIC (UTCTL1, SSEL1 + SSEL0);
