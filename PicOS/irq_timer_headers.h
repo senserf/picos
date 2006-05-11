@@ -17,8 +17,8 @@
 #include "irq_timer_headers_cc1100.h"
 #endif
 
-#if DM2200
-#include "irq_timer_headers_dm2200.h"
+#if PULSE_MONITOR
+#include "irq_timer_headers_pins.h"
 #endif
 
 #endif

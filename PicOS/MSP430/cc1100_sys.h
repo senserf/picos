@@ -38,7 +38,10 @@
 				_BIS (P1DIR, 0x8c); \
 				_BIC (P1IES, 0x40); \
 				_BIC (P1IFG, 0x40); \
+				_BIC (P6DIR, 0x01); \
 			} while (0)
+			// The last one is needed for the reset button. Not the
+			// most elegant place to set its direction.
 
 #define	cc1100_int		(P1IFG & 0x40)
 #define	clear_cc1100_int	_BIC (P1IFG, 0x40)
@@ -65,14 +68,13 @@
 
 #define	so_val		(P1IN & 0x10)
 
-#define	GENESIS_RESET_KEY_PRESSED	((P6IN & 0x01) == 0)
 
 #endif	/* TARGET_BOARD == BOARD_GENESIS */
 
 
 #if TARGET_BOARD == BOARD_DM2100
 /*
- * Pins for DM2100
+ * Pins for DM2100 (this is defunct, I think)
  */
 
 #define	ini_regs	do { \

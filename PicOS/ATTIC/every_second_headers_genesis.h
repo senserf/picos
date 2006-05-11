@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "cc1100_sys.h"
+#include "pins.h"
 #include "eeprom.h"
 
 #endif

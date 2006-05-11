@@ -17,8 +17,8 @@
 #include "irq_timer_cc1100.h"
 #endif
 
-#if DM2200
-#include "irq_timer_dm2200.h"
+#if PULSE_MONITOR
+#include "irq_timer_pins.h"
 #endif
 
 #if LEDS_BLINKING

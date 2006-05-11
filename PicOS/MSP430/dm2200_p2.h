@@ -6,21 +6,12 @@
 /* ==================================================================== */
 
 /*
- * P2 interrupts for DM2200
+ * P2 is used by the receiver
  */
 	if (rcv_interrupt) {
 
 #include "irq_dm2200_rcv.h"
 
 	}
-
-#if PULSE_MONITOR
-
-	if (pin_interrupt) {
-
-#include "irq_dm2200_pins.h"
-
-	}
-#endif
 
 #endif

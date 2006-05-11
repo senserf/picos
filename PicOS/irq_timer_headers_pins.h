@@ -1,10 +1,11 @@
-#ifndef __pg_irq_timer_headers_dm2200_h
-#define __pg_irq_timer_headers_dm2200_h
+#ifndef __pg_irq_timer_headers_pins_h
+#define __pg_irq_timer_headers_pins_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "dm2200.h"
+#include "pinopts.h"
+#include "pins.h"
 
 #endif

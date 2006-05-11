@@ -7,7 +7,7 @@
 
 #include "kernel.h"
 #include "eeprom_sys.h"
-#include "cc1100_sys.h"
+#include "pins.h"
 
 #define	EE_WREN		0x06		// Write enable
 #define	EE_WRDI		0x04		// Write disable

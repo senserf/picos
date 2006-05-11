@@ -5,7 +5,9 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-//+++ "dm2100irq.c" "p2irq.c"
+//+++ "dm2100irq.c"
+
+#include "pins.h"
 
 /* ================================================================== */
 
@@ -40,43 +42,6 @@
 				_BIC (P6DIR, 0xfe); \
 				_BIC (P1DIR, 0x0f); \
 			} while (0)
-/*
- * Access to GP pins on the board
- */
-#define	pin_sethigh(p)		do { \
-					if ((p) < 8) { \
-						_BIS (P6DIR, 1 << (p)); \
-						_BIS (P6OUT, 1 << (p)); \
-					} else { \
-						_BIS (P1DIR, 1 << ((p)-8)); \
-						_BIS (P1OUT, 1 << ((p)-8)); \
-					} \
-				} while (0)
-
-#define	pin_setlow(p)		do { \
-					if ((p) < 8) { \
-						_BIS (P6DIR, 1 << (p)); \
-						_BIC (P6OUT, 1 << (p)); \
-					} else { \
-						_BIS (P1DIR, 1 << ((p)-8)); \
-						_BIC (P1OUT, 1 << ((p)-8)); \
-					} \
-				} while (0)
-
-#define	pin_value(p)		((p) < 8 ? (P6IN & (1 << (p))) : \
-						(P1IN & (1 << ((p)-8))))
-
-#define	pin_setint(p)		do { \
-					_BIC (P2IES, 0x18); \
-					_BIS (P2IE, 1 << ((p)+2)); \
-					_BIC (P2IFG, 0x18); \
-				} while (0)
-
-#define	pin_clrint		do { \
-					_BIC (P2IE, 0x18); \
-					_BIC (P2IFG, 0x18); \
-				} while (0)
-
 /*
  * DM2100 signal operations. Timer's A Capture/Compare Block is used for signal
  * insertion/extraction.
@@ -195,64 +160,5 @@
 							_BIS (TACCTL1, CCIE); \
 					} \
 				} while (0)
-/*
- * ADC12 used for RSSI collection: source on A0 == P6.0, single sample,
- * triggered by ADC12SC
- * 
- *	ADC12CTL0 =      REFON +	// Internal reference
- *                     REF2_5V +	// 2.5 V for reference
- *		       ADC12ON +	// ON
- *			   ENC +	// Enable conversion
- *
- *	ADC10CTL1 = ADC12DIV_6 +	// Clock (SMCLK) divided by 7
- *		   ADC12SSEL_3 +	// SMCLK
- *
- *      ADC12MCTL0 =       EOS +	// Last word
- *		        SREF_1 +	// Vref - Vss
- *                      INCH_0 +	// A0
- *
- * The total sample time is equal to 16 + 13 ACLK ticks, which roughly
- * translates into 0.9 ms. The shortest packet at 19,200 takes more than
- * twice that long, so we should be safe.
- */
-#define	adc_config_rssi		do { \
-					_BIC (ADC12CTL0, ENC); \
-					_BIC (P6DIR, 1 << 0); \
-					_BIS (P6SEL, 1 << 0); \
-					ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
-					ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
-					ADC12CTL0 = REF2_5V + ADC12ON; \
-				} while (0)
-
-/*
- * ADC configuration for polled sample collection
- */
-#define	adc_config_read(p,r)	do { \
-					_BIC (ADC12CTL0, ENC); \
-					_BIC (P6DIR, 1 << (p)); \
-					_BIS (P6SEL, 1 << (p)); \
-					ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_3; \
-					ADC12MCTL0 = EOS + SREF_1 + (p); \
-					ADC12CTL0 = ((r) ? REF2_5V : 0) + \
-				    		REFON + ADC12ON; \
-				} while (0)
-
-#define	adc_wait	do { \
-				while (ADC12CTL1 & ADC12BUSY); \
-				adc_disable; \
-			} while (0)
-#define	adc_inuse	(ADC12CTL0 & REFON)
-#define	adc_value	ADC12MEM0
-#define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
-#define	adc_disable	 _BIC (ADC12CTL0, ENC + REFON)
-#define	adc_start	do { \
-				adc_disable; \
-				_BIS (ADC12CTL0, ADC12SC + REFON + ENC); \
-			} while (0)
-#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
-
-#define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
-#define	RSSI_MAX	0x0fff
-#define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
 
 #endif

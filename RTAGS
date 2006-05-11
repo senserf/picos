@@ -820,3 +820,36 @@ R060505B:
 	impedance source and it is left as OUT, there may be a current drain);
 	2) to make sure that all pins are properly re-initialized after a soft
 	(non-power-down) reset.
+
+R060510A:
+	Pin operations (including PULSE_MONITOR, i.e., counter, comparator,
+	notifier) have been separated from radio drivers and made independent
+	(parameterizeable by TARGET_BOARD). This means, for example, that the
+	set of operations previously available for DM2100 now looks exactly
+	as for DM2200. Pin definitions (per TARGET_BOARD) are kept in
+	MSP430/pins_sys.h. Note that different configurations of pins are
+	available for different boards. Here is what we have at the moment
+	(see MSP430/pins_sys.h):
+
+	VERSA2: Pins 0-11, analog 0-7, pin 0 reserved for RSSI, pin 11 reserved
+	for RESET key. Counter and notifier on pins 1 and 2.
+
+	DM2100: Pins 0-11, analog 0-7, pin 0 reserved for RSSI. Counter and
+	notifier on pins 1 and 2.
+
+	GENESIS: Pins 0-7, analog 0-7, pin 0 reserved for RESET key. If
+	LEDS_DRIVER is 1 (also when RADIO_USE_LEDS is nonzero), pins 3-5 are
+	reserved for the leds. On my GENESIS boards (I am not sure if what I
+	have is recent) pins 6 and 7 do not seem to be connected to the micro
+	(P6.6 and P6.7, where they belong according to the schematics).
+	Counter and notifier on pins 1 and 2.
+
+	Note that when the counter/notifier is not switched on, the
+	corresponding pin is available for standard use or for analog input.
+
+	Note that I have changed the positions of leds for GENESIS (was 1-3,
+	is 3-5).
+
+	IMPORTANT!! You should include "pinopts.h" in the application program
+	to have access to the pins operations. Those operations are as
+	described at R060409A and subsequent updates.

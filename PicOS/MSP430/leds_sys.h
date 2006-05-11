@@ -18,6 +18,8 @@
 #define	leds_off()	do { } while (0)
 #define	leds_restore(w)	do { } while (0)
 
+#if	LEDS_DRIVER
+
 #if	TARGET_BOARD == BOARD_DM2100
 
 #define	LEDS_HIGH_ON	0
@@ -60,17 +62,17 @@
 #undef	leds_off
 #undef	leds_restore
 
-#define	LED0_ON		ZZ_LEDON (P6, 2)
-#define	LED1_ON		ZZ_LEDON (P6, 4)
-#define	LED2_ON		ZZ_LEDON (P6, 8)
+#define	LED0_ON		ZZ_LEDON (P6, 0x08)
+#define	LED1_ON		ZZ_LEDON (P6, 0x10)
+#define	LED2_ON		ZZ_LEDON (P6, 0x20)
 
-#define	LED0_OFF	ZZ_LEDOFF (P6, 2)
-#define	LED1_OFF	ZZ_LEDOFF (P6, 4)
-#define	LED2_OFF	ZZ_LEDOFF (P6, 8)
+#define	LED0_OFF	ZZ_LEDOFF (P6, 0x08)
+#define	LED1_OFF	ZZ_LEDOFF (P6, 0x10)
+#define	LED2_OFF	ZZ_LEDOFF (P6, 0x20)
 
-#define	leds_save()	(P6OUT & (2+4+8))
-#define	leds_off()	ZZ_LEDOFF (P6, 2+4+8)
-#define	leds_restore(w)	ZZ_LEDON (P6, (w) & (2+4+8))
+#define	leds_save()	(P6OUT & (0x08+0x10+0x20))
+#define	leds_off()	ZZ_LEDOFF (P6, 0x08+0x10+0x20)
+#define	leds_restore(w)	ZZ_LEDON (P6, (w) & (0x08+0x10+0x20))
 
 #endif	/* TARGET_BOARD == BOARD_GENESIS */
 
@@ -126,5 +128,7 @@
 				_BIC ( a ## DIR, (b)); \
 			} while (0)
 #endif	/* LEDS_HIGH_ON */
+
+#endif	/* LEDS_DRIVER */
 
 #endif
