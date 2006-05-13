@@ -439,7 +439,8 @@ R060107A:
 
 	Function tcv_wnpu added with the header identical to tcv_wnp. It 
 	allocates a buffer for an urgent packet (and sets the urgent flag in
-	the header).
+	the header). If TCV_LIMIT_XMT is defined, tcv_wnpu allows it to be
+	exceeded by 1.
 
 R060108A:
 
@@ -853,3 +854,21 @@ R060510A:
 	IMPORTANT!! You should include "pinopts.h" in the application program
 	to have access to the pins operations. Those operations are as
 	described at R060409A and subsequent updates.
+
+R060512A:
+	A new operation added to TCV: int tcv_erase (int desc, int disp):
+
+   	disp == TCV_DSP_XMTU   -> empty the entire output queue
+           	TCV_DSP_XMT    -> ... except for urgent packets
+           	TCV_DSP_RCVU   -> empty the input queue
+           	TCV_DSP_RCV    -> ... except for urgent packets
+
+	See also R060107A. The immediate intent of tcv_erase is to implement
+	various scenarios of putting the transceiver to sleep.
+
+	Also: tcvphys_erase (used to empty the output queue from a phys) used to
+	call the xmt plugin function on every dropped packet. I don't think that
+	made a lot of sense. Now a dropped packet triggers no special plugin
+	action. Note that the plugin receives no feedback when a packet is
+	erased (dropped without an explicit plugin disposition), so it should
+	be prepared to put up with that.

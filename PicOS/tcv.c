@@ -185,6 +185,23 @@ static bool qmore (qhead_t *q, word lim) {
 }
 #endif
 
+static int empty (qhead_t *oq) {
+/*
+ * Empties the indicated queue
+ */
+	int nq;
+	hblock_t *b;
+
+	for (nq = 0; ; nq++) {
+		b = q_first (oq);
+		if (q_end (b, oq))
+			return nq;
+		deq (b);
+		rlp (b);
+	}
+	return nq;
+}
+
 static void dispose (hblock_t *p, int dv) {
 /*
  * Note that plugin functions can still return simple values, as in the previous
@@ -547,6 +564,49 @@ address tcv_rnp (word state, int fd) {
 		b->length - b->u.pointers.head - b->u.pointers.tail;
 	/* OK, it seems that we are set */
 	return p;
+}
+
+int tcv_erase (int fd, int disp) {
+/*
+ * Erases the indicated queue: TCV_DSP_RCV, TCV_DSP_XMT
+ */
+	sesdesc_t *s;
+	int nq;
+	qhead_t *rq;
+	hblock_t *b;
+
+	verify_fds (fd, "tcv_erase fd");
+
+	s = descriptors [fd];
+
+	if (disp == TCV_DSP_RCV || disp == TCV_DSP_RCVU) {
+		rq = &(s->rqueue);
+	} else if (disp == TCV_DSP_XMT || disp == TCV_DSP_XMTU) {
+		rq = oqueues [s->attpattern.b.phys];
+	} else {
+		syserror (EREQPAR, "tcv_erase");
+	}
+
+	if (disp == TCV_DSP_RCVU || disp == TCV_DSP_XMTU) {
+		// All
+		return empty (rq);
+	}
+
+	// Non-urgent
+
+Er_nu:
+	nq = 0;
+Er_rt:
+	for (b = q_first (rq); !q_end (b, rq); b = q_next (b)) {
+		if (b->attributes.b.urgent == 0) {
+			deq (b);
+			rlp (b);
+			nq++;
+			goto Er_rt;
+		}
+	}
+
+	return nq;
 }
 
 #if	TCV_LIMIT_XMT
@@ -1039,21 +1099,8 @@ int tcvphy_erase (int phy) {
 /*
  * Erases the output queue
  */
-	int nq;
-	qhead_t	*oq;
-	hblock_t *b;
-
 	verify_fph (phy, "tcvphy_erase phy");
-
-	for (nq = 0; ; nq++) {
-		oq = oqueues [phy];
-		b = q_first (oq);
-		if (q_end (b, oq))
-			return nq;
-		dispose (b,
-		    plugins [b->attributes.b.plugin]->tcv_xmt ((address)(b+1)));
-	}
-	return nq;
+	return empty (oqueues [phy]);
 }
 
 #if	TCV_TIMERS

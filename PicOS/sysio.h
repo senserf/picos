@@ -949,6 +949,7 @@ int	tcv_close (word, int);
 address	tcv_rnp (word, int);
 address tcv_wnp (word, int, int);
 address tcv_wnpu (word, int, int);
+int	tcv_erase (int, int);
 int	tcv_read (address, char*, int);
 int	tcv_write (address, const char*, int);
 void	tcv_endp (address);
