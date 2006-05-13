@@ -872,3 +872,6 @@ R060512A:
 	action. Note that the plugin receives no feedback when a packet is
 	erased (dropped without an explicit plugin disposition), so it should
 	be prepared to put up with that.
+
+R060513A:
+	Fixed GENESIS/Genesis inconsistency problems in the repository.
