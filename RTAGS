@@ -875,3 +875,6 @@ R060512A:
 
 R060513A:
 	Fixed GENESIS/Genesis inconsistency problems in the repository.
+
+R060515A:
+	FCC test mode for Genesis (CC1100).

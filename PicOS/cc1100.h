@@ -226,7 +226,7 @@ const	byte	cc1100_rfsettings_cmn [] = {
 };
 
 const	byte rf_opt0 [] = {
-        	CCxxx0_MDMCFG4, 0xC8,   // MDMCFG4 	(10 kbps)
+        	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
         	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
 		255, 255
 	};

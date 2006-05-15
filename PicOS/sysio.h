@@ -316,6 +316,10 @@
 #define	RADIO_USE_LEDS		0
 #endif
 
+#ifndef	FCC_TEST_MODE
+#define	FCC_TEST_MODE		0
+#endif
+
 /* ======================================================================== */
 /*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */
 /* ======================================================================== */

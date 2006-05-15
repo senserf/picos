@@ -7,8 +7,10 @@
 
 static const pind_t pinmap [] = PIN_LIST;
 
+#if PULSE_MONITOR
 word		zz_pmonevent [0];
 zz_pmon_t	zz_pmon;
+#endif
 
 bool zz_pin_available (word p) {
 

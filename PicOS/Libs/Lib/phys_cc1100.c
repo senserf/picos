@@ -24,7 +24,7 @@ byte		zzv_iack,		// To resolve interrupt race
 		zzv_gwch;		// Guard watch
 
 
-static byte	RxOFF,		// Transmitter on/off flags
+static byte	RxOFF,			// Transmitter on/off flags
 		TxOFF,
 		xpower,
 		rbuffl,
@@ -403,6 +403,10 @@ static void ini_cc1100 () {
 		 cc1100_get_reg (CCxxx0_SYNC0)		,
 		(cc1100_get_reg (CCxxx0_VERSION) << 8) |
 		 cc1100_get_reg (CCxxx0_MCSM1)		);
+#if FCC_TEST_MODE
+	diag ("FCC test mode ...");
+#endif
+
 #endif
 
 	dbg_1 (0x2000); // CC1100 initialized
@@ -429,6 +433,9 @@ static void do_rx_fifo () {
 
 	if (RxOFF) {
 		// If we are switched off, just clean the FIFO and return
+#if TRACE_DRIVER
+		diag ("Rx OFF Cleanup");
+#endif
 		cc1100_rx_flush ();
 		goto Rtn;
 	}
@@ -453,7 +460,7 @@ static void do_rx_fifo () {
 	}
 
 	paylen = cc1100_get_reg (CCxxx0_RXFIFO);
-		if ((paylen & 1) || paylen != len - 3) {
+	if ((paylen & 1) || paylen != len - 3) {
 #if TRACE_DRIVER
 		diag ("%u RC RX PL MISMATCH: %d/%d", (word) seconds (), len,
 			paylen);
@@ -542,6 +549,12 @@ static void do_rx_fifo () {
 	}
 #endif	/* CRC_MODE */
 
+#if TRACE_DRIVER
+	diag ("%u RC OK %x %x %x", (word) seconds (),
+		(word*)(rbuff) [0],
+		(word*)(rbuff) [1],
+		(word*)(rbuff) [2]);
+#endif
 	tcvphy_rcv (physid, rbuff, paylen);
 Rtn:
 #if BACKOFF_AFTER_RECEIVE
@@ -596,6 +609,7 @@ process (cc1100_driver, void)
 	}
 
 	// We want to transmit
+#if FCC_TEST_MODE == 0
 	if (bckf_timer) {
 		delay (bckf_timer, DR_LOOP);
 		wait (zzv_qevent, DR_LOOP);
@@ -603,6 +617,7 @@ process (cc1100_driver, void)
 			rcv_enable_int;
 		release;
 	}
+#endif
 
 	// Is there a packet queued for transmission
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
@@ -823,7 +838,7 @@ void phys_cc1100 (int phy, int mbs) {
 	// Things start in the off state
 	RxOFF = TxOFF = 1;
 	// Default power corresponds to the center == 0dBm
-	xpower = 3;
+	xpower = 2;
 	/* Initialize the device */
 	ini_cc1100 ();
 
@@ -937,7 +952,7 @@ static int option (int opt, address val) {
 
 		if (val == NULL)
 			// Default
-			xpower = 3;
+			xpower = 2;
 		else if (*val > 7)
 			xpower = 7;
 		else
