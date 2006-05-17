@@ -9,6 +9,8 @@
  * This code handles reception. Transmission is strobed by the CC timer.
  */
 
+  if (rcv_interrupt) {
+
     rcv_clrint;
 
     switch (zzv_istate) {
@@ -174,5 +176,6 @@ REND:
 		}
 	    }
     }
+  }
 
 #endif

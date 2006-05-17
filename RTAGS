@@ -878,3 +878,7 @@ R060513A:
 
 R060515A:
 	FCC test mode for Genesis (CC1100).
+
+R060516A:
+	Fixed an interrupt selection problem for DM2200 surfacing when the
+	pulse monitor was active.
