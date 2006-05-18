@@ -882,3 +882,7 @@ R060515A:
 R060516A:
 	Fixed an interrupt selection problem for DM2200 surfacing when the
 	pulse monitor was active.
+
+R060517A:
+	Fixed a pin allocation problems for DM2200 resulting in the wrong
+	default setting of GPIO10.

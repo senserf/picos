@@ -58,12 +58,16 @@
 			// This one is not used by the radio, but we need it
 			// for the reset button. Nowhere else to set its
 			// direction.
-#else
-#define	CFG_P1		do { } while (0)
-#endif
 
-#define	CFG_P2		_BIC (P2DIR, 0x7C); \
+#define	CFG_P2		_BIC (P2DIR, 0x78); \
 			_BIS (P2SEL, 0x80)
+#else
+
+#define	CFG_P1		do { } while (0)
+
+#define	CFG_P2		_BIC (P2DIR, 0x5C); \
+			_BIS (P2SEL, 0x80)
+#endif	/* TARGET_BOARD == BOADR_VERSA2 */
 
 #define	CFG_P3		do { /* Not used by the radio */ } while (0)
 
