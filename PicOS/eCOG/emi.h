@@ -33,9 +33,13 @@
 
 #if	TARGET_BOARD == BOARD_GEORGE
 
+#if 0
 // SRAM: BS62LV4000 (512 KB = 256 KW)
 
 #define	SDRAM_END		0x40000L	/* External memory size */
+#endif
+
+#define	SDRAM_END		0x10000L	/* 64 K words only */
 
 // 0x0A88
 // 0x3AAA

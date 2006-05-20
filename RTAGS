@@ -884,5 +884,10 @@ R060516A:
 	pulse monitor was active.
 
 R060517A:
-	Fixed a pin allocation problems for DM2200 resulting in the wrong
+	Fixed a pin allocation problem with DM2200 resulting in the wrong
 	default setting of GPIO10.
+
+R060520A:
+	Preliminary adjustements re George's new board (eCOG only). Only 128
+	kB of SRAM is visible (is it supposed to be like this?). This much
+	SRAM seems to work fine, two LEDs, serial port. Radio untested yet.

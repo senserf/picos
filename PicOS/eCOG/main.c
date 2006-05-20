@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include <ecog.h>
@@ -559,12 +559,9 @@ static void cnf_init () {
 #endif
 
 #if	LEDS_DRIVER
-	// Make GPIO 0-3 output
-	rg.io.gp0_3_out =
-		IO_GP0_3_OUT_EN0_MASK | IO_GP0_3_OUT_SET0_MASK |
-		IO_GP0_3_OUT_EN1_MASK | IO_GP0_3_OUT_SET1_MASK |
-		IO_GP0_3_OUT_EN2_MASK | IO_GP0_3_OUT_SET2_MASK |
-		IO_GP0_3_OUT_EN3_MASK | IO_GP0_3_OUT_SET3_MASK ;
+
+	leds_enable;
+
 #endif
 
 }
