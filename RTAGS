@@ -949,3 +949,11 @@ R060524A:
 	Other drivers, brought up to date regarding the new semantics of
 	tcvphy_get/tcvphy_end. Fixed a problem in phys_dm2200.c causing 
 	hung reception after freeze. Improved UART restart after freeze.
+
+R060524B:
+
+	pin_read_adc: parameter ref can now take 3 values:
+
+		0 - REF = 1.5V
+		1 - REF = 2.5V
+		2 - REF = Vcc

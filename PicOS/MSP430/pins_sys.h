@@ -11,13 +11,15 @@
  * ADC configuration for polled sample collection
  */
 #define	adc_config_read(p,r)	do { \
-					_BIC (ADC12CTL0, ENC); \
-					_BIC (P6DIR, 1 << (p)); \
-					_BIS (P6SEL, 1 << (p)); \
-					ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_3; \
-					ADC12MCTL0 = EOS + SREF_1 + (p); \
-					ADC12CTL0 = ((r) ? REF2_5V : 0) + \
-				    		REFON + ADC12ON; \
+				  _BIC (ADC12CTL0, ENC); \
+				  _BIC (P6DIR, 1 << (p)); \
+				  _BIS (P6SEL, 1 << (p)); \
+				  ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_3; \
+				  ADC12MCTL0 = EOS + \
+				  ((r) > 1 ? SREF_AVCC_AVSS : SREF_VREF_AVSS) +\
+				    (p); \
+				  ADC12CTL0 = ((r) ? REF2_5V : 0) + \
+				    REFON + ADC12ON; \
 				} while (0)
 
 #define	adc_wait	do { \

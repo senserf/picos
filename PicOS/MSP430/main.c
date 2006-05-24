@@ -20,11 +20,14 @@ void	zz_malloc_init (void);
 /* ========================== */
 /* Device driver initializers */
 /* ========================== */
+
 #if	UART_DRIVER || UART_TCV
+
 static void preinit_uart (void);
-#endif
 
 #if	UART_DRIVER
+
+#define	N_UARTS	UART_DRIVER
 
 #ifndef	UART_INPUT_FLOW_CONTROL
 #define	UART_INPUT_FLOW_CONTROL		0
@@ -46,7 +49,14 @@ static void preinit_uart (void);
 #endif
 
 static void	devinit_uart (int);
+
+#else	/* UART_DRIVER */
+
+#define	N_UARTS	UART_TCV
+
 #endif	/* UART_DRIVER */
+
+#endif  /* UART_DRIVER || UART_TCV */
 
 extern void	__bss_end;
 
@@ -500,11 +510,6 @@ static void ios_init () {
 /* ------------------------------------------------------------------------ */
 
 #if	UART_DRIVER || UART_TCV
-#if	UART_DRIVER
-#define	N_UARTS	UART_DRIVER
-#else
-#define	N_UARTS	UART_TCV
-#endif
 
 uart_t	zz_uart [N_UARTS];
 
