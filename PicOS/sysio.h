@@ -953,12 +953,14 @@ int	tcv_close (word, int);
 address	tcv_rnp (word, int);
 address tcv_wnp (word, int, int);
 address tcv_wnpu (word, int, int);
+int	tcv_qsize (int, int);
 int	tcv_erase (int, int);
 int	tcv_read (address, char*, int);
 int	tcv_write (address, const char*, int);
 void	tcv_endp (address);
 int	tcv_left (address);	/* Also plays the role of old tcv_plen */
 void	tcv_urgent (address);
+bool	tcv_isurgent (address);
 int	tcv_control (int, int, address);
 
 /* TCV malloc shortcut */
@@ -987,23 +989,14 @@ extern	lword zzz_ent_acc;
 /* High quality */
 extern	lword zz_seed;
 
-#if	ENTROPY_COLLECTION
 #define	rnd()	(zz_seed = (1103515245 * zz_seed + 12345 + entropy) & 0x7fffff,\
 			(word) zz_seed)
-#else
-#define	rnd()	(zz_seed = (1103515245 * zz_seed + 12345) & 0x7fffff,\
-			(word) zz_seed)
-#endif
 
 #else	/* RANDOM_NUMBER_GENERATOR == 1 */
 /* Low quality */
 extern	word zz_seed;
 
-#if	ENTROPY_COLLECTION
-#define	rnd()	(zz_seed = (zz_seed + entropy + 1) * 12345, zz_seed)
-#else
-#define	rnd()	(zz_seed = (zz_seed + 1) * 12345, zz_seed)
-#endif
+#define	rnd()	(zz_seed = (zz_seed + (word) entropy + 1) * 12345, zz_seed)
 
 #endif	/* RANDOM_NUMBER_GENERATOR == 1 */
 

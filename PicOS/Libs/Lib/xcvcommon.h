@@ -1,7 +1,7 @@
 #ifndef __pg_xcvcommon_h
 #define	__pg_xcvcommon_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -137,35 +137,54 @@ static process (xmtradio, void)
 
     entry (XM_LOOP)
 
-	if (zzv_txoff) {
-		/* We are off */
-		if (zzv_txoff == 3) {
+	if (zzx_buffer == NULL) {
+		// Postpone going off until the current packet is done
+		if (zzv_txoff) {
+			/* We are off */
+			if (zzv_txoff == 3) {
 Drain:
-			tcvphy_erase (zzv_physid);
+				tcvphy_erase (zzv_physid);
+				wait (zzv_qevent, XM_LOOP);
+				release;
+			} else if (zzv_txoff == 1) {
+				/* Queue held, transmitter off */
+				xmt_down ();
+				zzx_backoff = 0;
+				finish;
+			}
+		}
+
+		// Now, as of 060523, tcvphy_get dequeues the buffer
+		if ((zzx_buffer = tcvphy_get (zzv_physid, &stln)) != NULL) {
+			zzx_buffp = zzx_buffer;
+		
+			/* This must be even */
+			if (stln < 4 || (stln & 1) != 0)
+				syserror (EREQPAR, "rxmt/tlength");
+			stln >>= 1;
+
+			// Insert the station Id
+    			zzx_buffer [0] = zzv_statid;
+			// Insert the checksum
+			zzx_buffp [stln - 1] = w_chk (zzx_buffp, stln - 1, 0);
+			zzx_buffl = zzx_buffp + stln;
+		} else {
+			// Nothing to transmit
+			if (zzv_txoff == 2) {
+				/* Draining; stop if the queue is empty */
+				zzv_txoff = 3;
+				xmt_down ();
+				/* Redo */
+				goto Drain;
+			}
 			wait (zzv_qevent, XM_LOOP);
 			release;
-		} else if (zzv_txoff == 1) {
-			/* Queue held, transmitter off */
-			xmt_down ();
-			zzx_backoff = 0;
-			finish;
 		}
 	}
 
-	if ((stln = tcvphy_top (zzv_physid)) == 0) {
-		/* Packet queue is empty */
-		if (zzv_txoff == 2) {
-			/* Draining; stop xmt if the output queue is empty */
-			zzv_txoff = 3;
-			xmt_down ();
-			/* Redo */
-			goto Drain;
-		}
-		wait (zzv_qevent, XM_LOOP);
-		release;
-	}
+	// We have a packet
 
-	if (zzx_backoff && stln < 2) {
+	if (zzx_backoff && !tcv_isurgent (zzx_buffer)) {
 		/* We have to wait and the packet is not urgent */
 		delay (zzx_backoff, XM_LOOP);
 		zzx_backoff = 0;
@@ -195,46 +214,28 @@ Drain:
 
 Xmit:
 	LEDI (1, 0);
-	if ((zzx_buffp = tcvphy_get (zzv_physid, &stln)) != NULL) {
-
-		// Holding the lock
-
-		zzx_buffer = zzx_buffp;
-
-		/* This must be even */
-		if (stln < 4 || (stln & 1) != 0)
-			syserror (EREQPAR, "rxmt/tlength");
-		stln >>= 1;
-
-		// Insert the station Id
-    		zzx_buffer [0] = zzv_statid;
-		// Insert the checksum
-		zzx_buffp [stln - 1] = w_chk (zzx_buffp, stln - 1, 0);
+	// Holding the lock
 #if 0
-		diag ("SND: %d (%x) %x %x %x %x %x %x", stln, (word) zzx_buffp,
-			zzx_buffer [0],
-			zzx_buffer [1],
-			zzx_buffer [2],
-			zzx_buffer [3],
-			zzx_buffer [4],
-			zzx_buffer [5]);
+	diag ("SND: %d (%x) %x %x %x %x %x %x", zzx_buffl - zzx_buffp,
+		(word) zzx_buffp,
+		zzx_buffer [0],
+		zzx_buffer [1],
+		zzx_buffer [2],
+		zzx_buffer [3],
+		zzx_buffer [4],
+		zzx_buffer [5]);
 #endif
-		// dis_tim;
-		hstat (HSTAT_XMT);
-		zzx_buffl = zzx_buffp + stln;
-		start_xmt;
-		/*
-		 * Now, txevent is used exclusively for the end of transmission.
-		 * We HAVE to perceive it, as we are responsible for restarting
-		 * a pending reception.
-		 */
-		wait (txevent, XM_TXDONE);
-		hard_drop;
-		release;
-	}
+	// dis_tim;
+	hstat (HSTAT_XMT);
+	start_xmt;
+	/*
+	 * Now, txevent is used exclusively for the end of transmission.
+	 * We HAVE to perceive it, as we are responsible for restarting
+	 * a pending reception.
+	 */
+	wait (txevent, XM_TXDONE);
 	hard_drop;
-	// We should never get here
-	proceed (XM_LOOP);
+	release;
 
     entry (XM_TXDONE)
     // ena_tim;
@@ -261,11 +262,13 @@ Xmit:
 		hard_drop;
 		/* The receiver is running at this point */
 		tcvphy_end (zzx_buffer);
+		zzx_buffer = NULL;
 	} else {
 		/* This is void: receiver is not active */
 		hard_drop;
 		sysassert (zzv_status == 0, "xmt illegal chip status");
 		tcvphy_end (zzx_buffer);
+		zzx_buffer = NULL;
 		if (tcvphy_top (zzv_physid)) {
 			/* More to xmit: keep the transmitter up */
 			delay (MIN_BACKOFF, XM_LOOP);

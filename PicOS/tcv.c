@@ -16,6 +16,10 @@
 
 #if	TCV_PRESENT
 
+#ifndef	DUMP_MEM
+#define	DUMP_MEM	0
+#endif
+
 /*
  * Session descriptor pool
  */
@@ -55,7 +59,7 @@ static unsigned long tcv_tim_set = 0;
 
 static void rlp (hblock_t*);
 
-#ifdef	DUMP_MEM
+#if	DUMP_MEM
 
 void dmpq (qhead_t *q) {
 	hblock_t *pp;
@@ -196,7 +200,7 @@ static int empty (qhead_t *oq) {
 		b = q_first (oq);
 		if (q_end (b, oq))
 			return nq;
-		deq (b);
+		// deq (b);
 		rlp (b);
 	}
 	return nq;
@@ -566,6 +570,45 @@ address tcv_rnp (word state, int fd) {
 	return p;
 }
 
+int tcv_qsize (int fd, int disp) {
+/*
+ * Return the queue size
+ */
+	sesdesc_t *s;
+	int nq;
+	qhead_t *rq;
+	hblock_t *b;
+
+	verify_fds (fd, "tcv_qsize fd");
+
+	s = descriptors [fd];
+
+	if (disp == TCV_DSP_RCV || disp == TCV_DSP_RCVU) {
+		rq = &(s->rqueue);
+	} else if (disp == TCV_DSP_XMT || disp == TCV_DSP_XMTU) {
+		rq = oqueues [s->attpattern.b.phys];
+	} else {
+		syserror (EREQPAR, "tcv_qsize");
+	}
+
+	nq = 0;
+	if (disp == TCV_DSP_XMTU || disp == TCV_DSP_RCVU) {
+		// Urgent only
+		for (b = q_first (rq); !q_end (b, rq); b = q_next (b)) {
+			if (b->attributes.b.urgent)
+				nq++;
+			else
+				// They are all in front
+				break;
+		}
+	} else {
+		for (b = q_first (rq); !q_end (b, rq); b = q_next (b))
+			nq++;
+	}
+
+	return nq;
+}
+
 int tcv_erase (int fd, int disp) {
 /*
  * Erases the indicated queue: TCV_DSP_RCV, TCV_DSP_XMT
@@ -599,7 +642,7 @@ Er_nu:
 Er_rt:
 	for (b = q_first (rq); !q_end (b, rq); b = q_next (b)) {
 		if (b->attributes.b.urgent == 0) {
-			deq (b);
+			// deq (b);
 			rlp (b);
 			nq++;
 			goto Er_rt;
@@ -768,6 +811,11 @@ void tcv_urgent (address p) {
 	header (p) -> attributes.b.urgent = 1;
 }
 
+bool tcv_isurgent (address p) {
+
+	return header (p) -> attributes.b.urgent;
+}
+
 int tcv_control (int fd, int opt, address arg) {
 /*
  * This generic function covers phys control operations available to the
@@ -886,7 +934,7 @@ address tcvp_new (int size, int dsp, int ses) {
 #endif
 		if ((p = apb (size)) != NULL) {
 			p->attributes = descriptors [ses] -> attpattern;
-			/* This will not be closed by tcv_endp */
+			/* If you accidentally call tcv_endp on it */
 			p->attributes.b.outgoing = 0;
 			dispose (p, dsp);
 			return (address)(p + 1);
@@ -1064,6 +1112,7 @@ address tcvphy_get (int phy, int *len) {
 	}
 
 	*len = b->length;
+	deq (b);
 	return (address) (b + 1);
 }
 

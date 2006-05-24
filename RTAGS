@@ -544,6 +544,7 @@ R060320A:
 	SYSVER 2.0.
 
 R060320B:
+
 	Included second crystal option for MSP430 (Versa2). If
 	CRYSTAL2_RATE is defined in options.sys and nonzero, then it indicates
 	that XTL2 is present and tells its rate (which must be at least
@@ -553,24 +554,29 @@ R060320B:
         powerup implies clockup, powerdown implies clockdown.
 
 R060323A:
+
 	zz_hex_enc_table in kernel.c should have been 'const'. Conditional
 	code in dm2200_sys.h for selecting between two versions of the board
 	(i.e., the broken one and the target one).
 	
 R060325A:
+
 	Reset on CFG3 added to VERSA2. LEDS reorganized. On 3-led boards, LED
 	0 has the following meaning: OFF-RxOff/TxOff, ON (steady)-RxOn or TxOn,
 	ON (blinking)-RxOn and TxOn.
 
 R060326A:
+
 	RADIO_USE_LEDS controls globally (independently of LEDS_DRIVER) the
 	usage of leds by radio drivers. RADIO_USE_LEDS implies LEDS_DRIVERS
 	and LEDS_BLINKING.
 
 R060327A:
+
 	Genesis on DM2200, as sent to Wavetrix (nvm, tr8100).
 
 R060409A:
+
 	Pins + pulse monitor for DM2200. Pins are numbered 0-11 (GPIO_0 - 7 and
 	CFG0 - 3). Pins 0 and 11 are marked as unavailable (GPIO_0 is used for
 	RSSI, and CFG3 is used for reset). If PULSE_MONITOR == 1 appears in
@@ -705,10 +711,12 @@ R060411A:
 	available to the application.
 
 R060411B:
+
 	Updated VMesh2, so it runs as is (with right VERSA2_TARGET_BOARD).
 	Removed Genesis docs (they're in Genesis branch).
 
 R060413A:
+
 	UART rate is now settable (if UART_RATE_SETTABLE is set). Operation:
 	io (NONE, UART, CONTROL, (char*) &rate, UART_CNTRL_SETRATE). With the
 	slow crystal, the legitimate rates are 12, 24, 48, 96 (the argument
@@ -716,6 +724,7 @@ R060413A:
 	12 and 384 will work.
 
 R060417A:
+
 	pmon_pending_cnt renamed to pmon_pending_cmp.  Added:
 	pmon_dec_cnt ()           - subtract cmp from cnt
 	pmon_sub_cnt (long dec)   - subtract dec from cnt
@@ -725,11 +734,13 @@ R060417A:
 	unavailable bit being appended to the value)
 	
 R060418A:
+
 	UART rates are limited to the standard set: 12, 24, 48, 96, 144, 192,
 	288, 384 (all * 100), with rates above 96 unavailable for the slow
 	crystal. UART_CNTRL_GETRATE returns the current rate / 100.
 
 R060421A:
+
 	if_write returns a value: -1 == ERROR (word cannot be written), or
 	0 == OK.
 	if_erase takes an argument: void if_erase (int). If the argument is < 0,
@@ -738,12 +749,15 @@ R060421A:
 	if_erase (67) erase block 1.
 
 R060422A:
+
 	Fixed if_erase call in every_second_versa2.h.
 
 R060428A:
+
 	VERSA2 RESET key pressed on power up erases info flash.
 
 R060429A:
+
 	All the ad-hoc random number generators used by the individual radio
 	drivers have been combined into a public generator available as
 	word rnd (void);
@@ -759,12 +773,14 @@ R060429A:
 	misalignment.
 
 R060430A:
+
 	VersaMesh "alpha":
 	- subtree VMesh2,
 	- _IF, _Ops, Test docs, hands_on term. macra (in Docs),
 	- iflash.c (this may be temporary, but as is was sent to RFM).
 
 R060501A:
+
 	Fixed the receiver sensitivity problem as per Frank's e-mail.
 	#define GLACIER 1 (in options.sys) enables the following
 	function:
@@ -799,6 +815,7 @@ R060501A:
 	seconds clock) are advanced while the system is frozen.
 	
 R060504A:
+
 	DM2200: improved signal timing for xmit. Added option to collect
 	RXDATA on low clock (set by default).
 	Simplified freeze; now it looks like this:
@@ -810,11 +827,13 @@ R060504A:
 	equal 1 or 2 (if needed), checking any wakeup conditions by itself.
 
 R060505A:
+
 	Cosmetics in the new driver for DM2200 (got rid of one variable - saved
 	one word). The default rcvmode is now 1 (note that it can be easily
 	changed from the application).
 
 R060505B:
+
 	Pin cleanup to make sure that: 1) all unused pins are OUT (needed for
 	power savings; this assumes that the drivers/application accounts for
 	all connecting pins; note that if a pin is actually connected to a low
@@ -823,6 +842,7 @@ R060505B:
 	(non-power-down) reset.
 
 R060510A:
+
 	Pin operations (including PULSE_MONITOR, i.e., counter, comparator,
 	notifier) have been separated from radio drivers and made independent
 	(parameterizeable by TARGET_BOARD). This means, for example, that the
@@ -856,6 +876,7 @@ R060510A:
 	described at R060409A and subsequent updates.
 
 R060512A:
+
 	A new operation added to TCV: int tcv_erase (int desc, int disp):
 
    	disp == TCV_DSP_XMTU   -> empty the entire output queue
@@ -874,20 +895,51 @@ R060512A:
 	be prepared to put up with that.
 
 R060513A:
+
 	Fixed GENESIS/Genesis inconsistency problems in the repository.
 
 R060515A:
+
 	FCC test mode for Genesis (CC1100).
 
 R060516A:
+
 	Fixed an interrupt selection problem for DM2200 surfacing when the
 	pulse monitor was active.
 
 R060517A:
+
 	Fixed a pin allocation problem with DM2200 resulting in the wrong
 	default setting of GPIO10.
 
 R060520A:
+
 	Preliminary adjustements re George's new board (eCOG only). Only 128
 	kB of SRAM is visible (is it supposed to be like this?). This much
 	SRAM seems to work fine, two LEDs, serial port. Radio untested yet.
+
+R060523:
+
+	Fixed a problem in TCV introduced with R060512A. tcvphy_get now
+	removes the packet from the phys queue (previously the packet
+	stayed there until a call to tcvphy_end). This means that the
+	transmitter's logic in radio drivers must be changed to account
+	for the fact that subsequent calls to tcvphy_get will return
+	different packets. tcvphy_end still deallocates the packet after
+	transmission. Added to TCV:
+
+		int tcv_qsize (int sfd, int dsp);
+
+	Returns the size of the respective queue:
+
+		dsp = TCV_DSP_RCV	- receive (input)
+		      TCV_DSP_XMT	- transmit (output)
+		      TCV_DSP_RCVU	- urgent packets on input
+		      TCV_DSP_XMTU	- urgent packets in output queue
+
+		bool tcv_isurgent (address pkt);
+
+	Returns true if the packet is urgent.
+
+	Note, I think I have fixed the driver for Versa. Still am not sure
+	about GENESIS.

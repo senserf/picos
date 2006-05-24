@@ -5,6 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#if	PULSE_MONITOR
 /*
  * COUNTER and NOTIFIER pin interrupts. Depending on the edge selection,
  * the "ON" signal can be high (edge UP) or low (edge down).
@@ -111,5 +112,6 @@ WNoff:
 			
 	// =============================================================== //
     }
+#endif	/* PULSE_MONITOR */
 
 #endif
