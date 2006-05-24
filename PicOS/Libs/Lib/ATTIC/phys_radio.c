@@ -117,7 +117,8 @@ static process (xmtradio, void)
 
     ForceXmt:
 
-	if ((radio->packet = tcvphy_get (radio->physid, &(radio->tlen))) !=
+	if (radio->packet ||
+	  (radio->packet = tcvphy_get (radio->physid, &(radio->tlen))) !=
 	    NULL) {
 		if (rcvlast () <= radio->delxmsen) {
 			/* Activity, we backoff even if the packet was urgent */
@@ -131,6 +132,7 @@ static process (xmtradio, void)
 		c = 0;
 		io (NONE, RADIO, CONTROL, &c, RADIO_CNTRL_XMTCTRL);
 		tcvphy_end (radio->packet);
+		radio->packet = NULL;
 		delay (RADIO_POST_SPACE, XM_LOOP);
 		release;
 	}
@@ -213,6 +215,7 @@ void phys_radio (int phy, int mod, int mbs) {
 	radio -> statid = mod;
 	radio -> physid = phy;
 	radio -> backoff = 0;
+	radio -> packet = NULL;
 
 	radio->delmnbkf = MIN_BACKOFF;
 	radio->delbsbkf = MSK_BACKOFF;

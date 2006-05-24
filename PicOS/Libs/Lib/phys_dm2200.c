@@ -12,7 +12,7 @@ word		*zzr_buffer = NULL,
 		*zzr_buffp,	// Pointer to next buffer word; also used to
 				// indicate that a reception is pending
 		*zzr_buffl,	// Pointer to LWA+1 of buffer area
-		*zzx_buffer,	// Pointer to dynamic transmission buffer
+		*zzx_buffer = NULL, // Pointer to dynamic transmission buffer
 		*zzx_buffp,	// Next buffer word
 		*zzx_buffl,	// LWA+1 of xmit buffer
 		zzv_qevent,
@@ -417,6 +417,16 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
+		hard_lock;
+		if (receiver_active) {
+			LEDI (2, 0);
+			// Force RCV interrupt reset: the receiver process may
+			// not be given a chance to run
+			zzv_status = 0;
+			zzv_istate = IRQ_OFF;
+			disable_xcv_timer;
+		}
+		hard_drop;
 		adc_disable;
 		trigger (rxevent);
 		break;

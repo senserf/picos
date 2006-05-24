@@ -367,8 +367,9 @@ void freeze (word nsec) {
 	byte saveP1IE, saveP2IE;
 
 #if UART_DRIVER || UART_TCV
-	byte saveIE1, saveIE2, saveLEDs;
+	byte saveIE1, saveIE2;
 #endif
+	byte saveLEDs;
 	word saveLostK;
 
 	cli;
@@ -406,14 +407,22 @@ void freeze (word nsec) {
 	P2IE = saveP2IE;
 
 #if UART_DRIVER || UART_TCV
+	// Reset the UART to get it back to normal
+	_BIS (UCTL0, SWRST);
+	_BIC (UCTL0, SWRST);
+#if N_UARTS > 1
+	_BIS (UCTL1, SWRST);
+	_BIC (UCTL1, SWRST);
+#endif
 	IE1 = saveIE1;
 	IE2 = saveIE2;
 #endif
 	powerup ();
 
 	// Trigger the interrupts if they are pending
-	P1IFG = (P1IE & (P1IE ^ P1IN));
-	P2IFG = (P2IE & (P2IE ^ P2IN));
+	P1IFG = (P1IE & (P1IES ^ P1IN));
+	P2IFG = (P2IE & (P2IES ^ P2IN));
+
 	zz_lostk = saveLostK;
 	leds_restore (saveLEDs);
 
@@ -464,7 +473,7 @@ static void ios_init () {
 	diag (BANNER);
 #else
 	diag ("PicOS v" SYSVERSION ", "
-        	"Copyright (C) Olsonet Communications, 2002-2005");
+        	"Copyright (C) Olsonet Communications, 2002-2006");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
 	dbg_1 (0x1000 | SYSVER_B);

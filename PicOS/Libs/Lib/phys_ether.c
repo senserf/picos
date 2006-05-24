@@ -55,13 +55,14 @@ endprocess (1)
 static void write (int mode) {
 
 	istat_t *s;
-	address buffer;
+	static address buffer = NULL;
 	int len;
 
 	s = &(idata->istatus [mode]);
 
 	while (1) {
-		buffer = tcvphy_get (s->physid, &len);
+		if (buffer == NULL)
+			buffer = tcvphy_get (s->physid, &len);
 		if (s->txoff) {
 			switch (s->txoff) {
 				case 1:
@@ -76,6 +77,10 @@ static void write (int mode) {
 					s->txoff = 3;
 				default:
 					/* Drain */
+					if (buffer != NULL) {
+						tcvphy_end (buffer);
+						buffer = NULL;
+					}
 					tcvphy_erase (s->physid);
 					wait (s->qevent, 0);
 					release;
@@ -92,6 +97,7 @@ static void write (int mode) {
 		}
 		io (0, ETHERNET, WRITE, (char*) buffer, len);
 		tcvphy_end (buffer);
+		buffer = NULL;
 	}
 }
 

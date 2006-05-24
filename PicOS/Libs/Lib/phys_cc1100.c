@@ -619,8 +619,8 @@ process (cc1100_driver, void)
 	}
 #endif
 
-	// Is there a packet queued for transmission
-	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
+	if (!tcvphy_top (physid)) {
+		// Nothing to transmit
 		if (TxOFF) {
 			// TxOFF == 2 -> draining: stop xmt
 			TxOFF = 3;
@@ -633,31 +633,14 @@ process (cc1100_driver, void)
 		release;
 	}
 
-	// Transmit the packet
-	if (
-#if CRC_MODE > 1
-		paylen >= rbuffl	/* This includes 2 extra bytes */
-#else
-		paylen > rbuffl
-#endif
-			|| paylen < 6 || (paylen & 1)) {
-		// Sanity check
-#if TRACE_DRIVER
-		diag ("%u RC TX ILLEGAL PL: %d", (word) seconds (), paylen);
-#endif
-		tcvphy_end (xbuff);
-		proceed (DR_LOOP);
-	}
-
-	xbuff [0] = statid;
-
+#if 0
 	while (RX_FIFO_READY) {
 		// We are about to take over, so let us give it one more try
 		LEDI (2, 1);
 		do_rx_fifo ();
 		LEDI (2, 0);
 	}
-
+#endif
 	// Try to grab the chip for TX
 	if (clear_to_send () == NO) {
 		// We have to wait
@@ -665,8 +648,19 @@ process (cc1100_driver, void)
 		proceed (DR_LOOP);
 	}
 
-	// We've got it
+	// This must succeed
+	xbuff = tcvphy_get (physid, &paylen);
+
+#if CRC_MODE > 1
+	sysassert (paylen <  rbuffl && paylen >= 6 && (paylen & 1) == 0,
+		"phys_cc1100 xmt pktl");
+#else
+	sysassert (paylen <= rbuffl && paylen >= 6 && (paylen & 1) == 0,
+		"phys_cc1100 xmt pktl");
+#endif
 	LEDI (1, 1);
+
+	xbuff [0] = statid;
 
 #if CRC_MODE > 1
 	// Calculate CRC
