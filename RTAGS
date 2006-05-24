@@ -918,7 +918,7 @@ R060520A:
 	kB of SRAM is visible (is it supposed to be like this?). This much
 	SRAM seems to work fine, two LEDs, serial port. Radio untested yet.
 
-R060523:
+R060523A:
 
 	Fixed a problem in TCV introduced with R060512A. tcvphy_get now
 	removes the packet from the phys queue (previously the packet
