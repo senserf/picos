@@ -957,3 +957,29 @@ R060524B:
 		0 - REF = 1.5V
 		1 - REF = 2.5V
 		2 - REF = Vcc
+
+R060525A:
+
+	This function has been added to the library (Libs/Lib):
+
+		void lhold (word state, lword *del);
+
+	which holds the process for the specified number of seconds, as in
+	this example:
+
+		#include "lhold.h"
+		...
+		static lword del;
+		...
+
+		  del = number_of_seconds;
+
+		enry (HOLD_ME)
+
+		  lhold (HOLD_ME, &del);
+		  ... will get here in so many seconds ...
+
+	The function provides a way to wait for long delays expressed in
+	seconds and compensates for the inaccuracy of ldelay, which truncates
+	minute delays to internal minute boundaries.
+	
