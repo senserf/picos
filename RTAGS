@@ -983,3 +983,10 @@ R060525A:
 	seconds and compensates for the inaccuracy of ldelay, which truncates
 	minute delays to internal minute boundaries.
 	
+R060525B:
+
+	lword lhleft (int pid, lword *del);
+
+	returns the number of seconds that the process (pid) that has issued
+	lhold will still have to wait. The result only makes sense if the
+	process is actually within lhold (or about to be awakened).

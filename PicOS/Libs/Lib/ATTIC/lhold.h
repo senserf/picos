@@ -9,5 +9,6 @@
 //+++ "lhold.c"
 
 void lhold (word, lword*);
+lword lhleft (int, lword*);
 
 #endif

@@ -72,3 +72,21 @@ void lhold (word st, lword *nsec) {
 	}
 	// Just return
 }
+
+lword lhleft (int pid, lword *nsec) {
+
+	word nm, ns;
+	lword res;
+
+	// First check if we are waiting on long delay
+	if ((nm = ldleft (pid, &ns)) != MAX_UINT) {
+		if ((*nsec & 0x80000000) != 0)
+			ns += (word) *nsec;
+		return ((lword) nm << 6) + ns;
+	} else {
+		if ((ns = dleft (pid)) != MAX_UINT)
+			return (lword) (ns >> 10);
+	}
+	// Neither one nor the other
+	return *nsec & 0x7fffffff;
+}
