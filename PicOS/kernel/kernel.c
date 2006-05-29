@@ -146,34 +146,51 @@ void zzz_tservice () {
 
 	do {
 		if (zz_mintk == 0)
+			// Minimum ticks to a wakeup
 			return;
 		if (zz_mintk > nticks) {
+			// More than elapsed to this run: just decrement the
+			// count
 			zz_mintk -= nticks;
 			return;
 		}
+
+		// nticks >= zz_mintk; normally, we will have
+		// nticks == zz_mintk, but lest us play it safe (in case we have
+		// lost a tick
 
 		nticks -= zz_mintk;
 		zz_mintk = 0;
 
 		for_all_tasks (i) {
 			if (i->Timer == 0)
+				// Not waiting for Timer
 				continue;
 			if (!twaiting (i)) {
-				// Fix it for future checks
+				// Not waiting either; this test is more costly,
+				// so fix it to speed up future checks
 				i->Timer = 0;
 				continue;
 			}
 			if (i->Timer <= setticks) {
+				// setticks is the number of ticks for which the
+				// timer was last set; thus, this means that
+				// this particular process must be awakened
 				i->Timer = 0;
 				wakeuptm (i);
 			} else {
+				// Reset the timer
 				i->Timer -= setticks;
 				if (zz_mintk == 0 || i->Timer < zz_mintk)
+					// And calculate new setticks as the
+					// minimum of them all
 					zz_mintk = i->Timer;
 			}
 		}
+		// This is the new minimum
 		setticks = zz_mintk;
 
+		// Keep going in case we have a lag
 	} while (nticks);
 }
 
@@ -256,18 +273,61 @@ void wait (word event, word state) {
 /* ========== */
 void delay (word d, word state) {
 
+	word t;
+	pcb_t *i;
+
 	settstate (zz_curr, state);
 	if (d != 0) {
 		if (zz_mintk == 0) {
-			/* The alarm clock is not set */
+			// Alarm not set, we are alone, this case is easy. Note
+			// that setticks tells the last setting of the timer,
+			// while zz_mintk runs down at the clock rate to zero.
 			zz_curr->Timer = zz_mintk = setticks = d;
 		} else if (zz_mintk <= d) {
-			/* The current setting of the alarm clock is OK */
-			zz_curr->Timer = d + (setticks - zz_mintk);
+			// The alarm clock will go off earlier than required
+			// to wake us up. Thus, we have to increase our
+			// requested delay by the time elapsed since the
+			// last setting.
+			if ((t = d + (setticks - zz_mintk)) < d) {
+HardWay:
+				// We have run out of precision, use the 
+				// precision-safe version that involves no
+				// incrementation
+				sysassert (setticks >= zz_mintk, "delay mintk");
+				setticks -= zz_mintk;
+				zz_mintk = 0;
+				for_all_tasks (i) {
+					if (i->Timer == 0)
+						// Not waiting
+						continue;
+					if (!twaiting (i)) {
+						i->Timer = 0;
+						continue;
+					}
+					sysassert (i->Timer > setticks,
+						"delay setticks");
+					i->Timer -= setticks;
+					if (zz_mintk == 0 || i->Timer <
+					    zz_mintk)
+						zz_mintk = i->Timer;
+				}
+				sysassert (zz_mintk > 0, "delay minwait");
+				zz_curr->Timer = d;
+				if (zz_mintk > d)
+					zz_mintk = d;
+				setticks = zz_mintk;
+
+			} else {
+				zz_curr->Timer = t;
+			}
 		} else {
-			/* The alarm clock would go off too late, so it */
-			/* must be reset                                */
-			zz_curr->Timer = setticks = setticks - zz_mintk + d;
+			// The alarm clock would go off later than required, so
+			// we have to reset it.
+			if ((t = d + (setticks - zz_mintk)) < d) {
+				// Out of precision
+				goto HardWay;
+			}
+			zz_curr->Timer = setticks = t;
 			zz_mintk = d;
 		}
 	} else {

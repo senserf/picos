@@ -990,3 +990,9 @@ R060525B:
 	returns the number of seconds that the process (pid) that has issued
 	lhold will still have to wait. The result only makes sense if the
 	process is actually within lhold (or about to be awakened).
+
+R060528A:
+
+	Fixed a problem with delay causing incorrect delays over 32 seconds
+	under some circumstances.
+
