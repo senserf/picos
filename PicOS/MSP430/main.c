@@ -401,6 +401,10 @@ void freeze (word nsec) {
 	// And disable them
 	IE1 = 0;
 	IE2 = 0;
+	while ((UTCTL0 & TXEPT) == 0);
+#if N_UARTS > 1
+	while ((UTCTL1 & TXEPT) == 0);
+#endif
 #endif
 	powerdown ();
 	// Save clock state

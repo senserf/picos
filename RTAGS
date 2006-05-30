@@ -996,3 +996,7 @@ R060528A:
 	Fixed a problem with delay causing incorrect delays over 32 seconds
 	under some circumstances.
 
+R060529A:
+
+	Improved UART handling on freeze. Hopefuly, no spurious characters will
+	be inserted by freeze any more.
