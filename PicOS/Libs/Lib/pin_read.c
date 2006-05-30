@@ -16,7 +16,6 @@ word pin_read (word pin) {
  * Bit 3 == pin is unavailable
  */
 	word res;
-	byte pm;
 
 	res = pin_value (pin);
 
@@ -39,8 +38,6 @@ void pin_write (word pin, word val) {
  * Bit 1 == set pin to IN
  * Bit 2 == set pin to analog in
  */
-	word pm;
-
 	if (!pin_available (pin))
 		return;
 

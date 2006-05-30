@@ -320,6 +320,10 @@
 #define	FCC_TEST_MODE		0
 #endif
 
+#ifndef	DUMP_MEMORY
+#define	DUMP_MEMORY		0
+#endif
+
 /* ======================================================================== */
 /*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */
 /* ======================================================================== */
@@ -639,13 +643,22 @@ word			zzz_stackfree (void);
 #define	staticsize()	STATIC_LENGTH
 
 #if	DIAG_MESSAGES > 1
-void		zzz_syserror (int, const char*);
+void		zzz_syserror (int, const char*)
+#if	__MSP430__
+		__attribute__ ((noreturn))
+#endif
+;
+
 #define		syserror(a,b)	zzz_syserror (a, b)
 #define		sysassert(a,b)	do { \
 					if (!(a)) syserror (EASSERT, b); \
 				} while (0)
 #else
-void		zzz_syserror (int);
+void		zzz_syserror (int)
+#if	__MSP430__
+		__attribute__ ((noreturn))
+#endif
+;
 #define		syserror(a,b)	zzz_syserror (a)
 #define		sysassert(a,b)
 #endif
@@ -653,6 +666,10 @@ void		zzz_syserror (int);
 #if	SDRAM_PRESENT
 void		ramget (address, lword, int);
 void		ramput (lword, address, int);
+#endif
+
+#if	DUMP_MEMORY
+void		dmp_mem (void);
 #endif
 
 #if	LEDS_DRIVER
@@ -832,6 +849,7 @@ int	rcvlast (void);
 #define	entry(s)	case s:
 
 #define	procname(p)	extern int p (word, address)
+#define	sprocname(p)	static int p (word, address)
 
 #ifdef	DEBUG_BUFFER
 void	dbb (word);

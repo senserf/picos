@@ -193,7 +193,7 @@ int main (void) {
 
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
-#ifdef DUMP_MEM
+#if	DUMP_MEMORY
 	dmp_mem ();
 #endif
 	diag ("SYSTEM ERROR: %x, %s", ec, m);

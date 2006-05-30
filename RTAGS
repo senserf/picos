@@ -1000,3 +1000,7 @@ R060529A:
 
 	Improved UART handling on freeze. Hopefuly, no spurious characters will
 	be inserted by freeze any more.
+
+R060529B:
+
+	Code cleanup.

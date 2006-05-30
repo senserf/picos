@@ -189,7 +189,7 @@ static word cc1100_setparam (byte *pa) {
 
 	if (pa == NULL) {
 		chip_reset ();
-		return;
+		return 0;
 	}
 
 	cnt = 0;
@@ -426,7 +426,10 @@ static void ini_cc1100 () {
 static void do_rx_fifo () {
 
 	int len, paylen;
-	byte b, *eptr;
+	byte *eptr;
+#if CRC_MODE <= 1
+	byte b;
+#endif
 
 	// We are making progress as far as reception
 	guard_stop (WATCH_RCV | WATCH_PRG);

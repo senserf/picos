@@ -1368,7 +1368,7 @@ void diag (const char *mess, ...) {
 				val = va_arg (ap, word);
 				for (i = 0; i < 16; i += 4) {
 					v = (word) zz_hex_enc_table [
-							(val >> 12 - i) & 0xf
+							(val >> (12 - i)) & 0xf
 								    ];
 					diag_wait (a);
 					diag_wchar (v, a);
@@ -1471,7 +1471,7 @@ void dpcb (pcb_t *p) {
 #define dpcb(a)
 #endif
 
-#ifdef	DUMP_MEM
+#if	DUMP_MEMORY
 
 void dmp_mem () {
 

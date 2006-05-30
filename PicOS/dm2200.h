@@ -85,7 +85,7 @@
 #define	HSTAT_RCV	1
 #define	HSTAT_XMT	2
 
-#define	gbackoff	(zzx_backoff = MIN_BACKOFF + rnd () & MSK_BACKOFF)
+#define	gbackoff	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
 #define	start_rcv	do { \
 				zzr_length = 0; \

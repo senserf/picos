@@ -60,7 +60,7 @@ extern	word	zz_restart_sp;
 		"mov r1, zz_restart_sp\n"\
 		".global zz_restart_entry\n"\
 		"zz_restart_entry: mov zz_restart_sp, r1")
-void		zz_restart_entry ();
+void		zz_restart_entry () __attribute__ ((noreturn));
 #define	release	zz_restart_entry ()
 
 #define	hard_reset	__asm__ __volatile__("br #_reset_vector__"::)

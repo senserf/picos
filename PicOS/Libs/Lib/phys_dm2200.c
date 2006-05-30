@@ -209,7 +209,7 @@ static byte dm2200_rreg (byte reg) {
 	return v;
 }
 
-procname (rcvradio);
+sprocname (rcvradio);
 
 static void ini_dm2200 (void) {
 /*

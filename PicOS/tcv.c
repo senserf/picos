@@ -16,10 +16,6 @@
 
 #if	TCV_PRESENT
 
-#ifndef	DUMP_MEM
-#define	DUMP_MEM	0
-#endif
-
 /*
  * Session descriptor pool
  */
@@ -59,16 +55,16 @@ static unsigned long tcv_tim_set = 0;
 
 static void rlp (hblock_t*);
 
-#if	DUMP_MEM
+#if	DUMP_MEMORY
 
 void dmpq (qhead_t *q) {
 	hblock_t *pp;
 	diag ("START Q DUMP %x", (word)q);
 	for (pp = q_first (q); !q_end (pp, q); pp = q_next (pp))
 		diag ("%d %x [%x %x %x]", pp->length, pp->attributes,
-			(word*)(payload (pp)) [0],
-			(word*)(payload (pp)) [1],
-			(word*)(payload (pp)) [2]
+			((word*)(payload (pp))) [0],
+			((word*)(payload (pp))) [1],
+			((word*)(payload (pp))) [2]
 		);
 	diag ("END Q DUMP %x", (word)q);
 }
@@ -636,8 +632,6 @@ int tcv_erase (int fd, int disp) {
 	}
 
 	// Non-urgent
-
-Er_nu:
 	nq = 0;
 Er_rt:
 	for (b = q_first (rq); !q_end (b, rq); b = q_next (b)) {
