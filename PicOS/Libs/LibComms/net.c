@@ -57,6 +57,12 @@ int net_opt (int opt, address arg) {
 	return tcv_control (net_fd, opt, arg);
 }
 
+int net_qera (int d) {
+	if (net_fd < 0)
+		return -1;
+	return tcv_erase (net_fd, d);
+}
+
 #if ETHERNET_DRIVER
 static int ether_init (word);
 #endif

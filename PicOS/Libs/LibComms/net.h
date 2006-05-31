@@ -10,6 +10,7 @@
 int net_init (word, word);
 int net_close (word);
 int net_opt (int, address);
+int net_qera (int);
 int net_rx (word, char **, address, byte);
 int net_tx (word, char *, int, byte);
 

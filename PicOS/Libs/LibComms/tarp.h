@@ -37,6 +37,7 @@
 typedef struct ddc {
 	int	head;
 	seq_t	m_seq;
+	byte	spare;
 	nid_t	node[ddCacheSize];
 	seq_t	seq[ddCacheSize];
 } ddcType;
@@ -58,8 +59,8 @@ typedef struct tarpCtrlStruct {
 	word	rcv;
 	word	snd;
 	word	fwd;
-	byte	param;
-	byte	flags;
+	word	param :8;
+	word	flags :8;
 } tarpCtrlType;
 
 // param
