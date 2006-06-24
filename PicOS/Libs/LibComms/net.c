@@ -87,7 +87,7 @@ static int cc1100_init (word);
 static int dm2200_init (word);
 #endif
 
-#define NET_MAXPLEN		56
+#define NET_MAXPLEN		80
 static const char myName[] = "net.c";
 
 int net_init (word phys, word plug) {

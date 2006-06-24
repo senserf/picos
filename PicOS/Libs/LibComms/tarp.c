@@ -260,12 +260,7 @@ int tarp_rx (address buffer, int length, int *ses) {
 	if (tarp_level && !dd_fresh(msgBuf)) {  // check and update DD
 		return TCV_DSP_DROP;    //duplicate
 	}
-#if 0
-	if ((msgBuf->hoc & 0x7F) >= msgBuf->hco + tarp_slack) {
-		return msgBuf->rcv == 0 || msgBuf->rcv == local_host ?
-			TCV_DSP_RCV : TCV_DSP_DROP;
-	}
-#endif
+
 	if (tarp_level > 1 && strong_signal)
 		upd_spd (msgBuf);
 
@@ -273,7 +268,7 @@ int tarp_rx (address buffer, int length, int *ses) {
 		return TCV_DSP_RCV;
 
 	if (msgBuf->rcv == 0) {
-		if (!tarp_fwd_on)
+		if (!tarp_fwd_on || (msgBuf->hoc & 0x7F) >= msgBuf->hco)
 			return TCV_DSP_RCV;
 
 		if ((dup = tcvp_new (msg_isTrace (msgBuf->msg_type) ?
