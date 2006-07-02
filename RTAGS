@@ -1012,3 +1012,6 @@ R060624A:
 	Misc updates, ported Genesis 1.9 requests.
 	Only Apps/VMesh2 and LibComms updates.
 
+R060702A:
+	Data mode, a few other fixes. Only VMesh2, LibComms updated.
+

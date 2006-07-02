@@ -204,7 +204,7 @@ static int check_spd (headerType * msg) {
 		i = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
 			(msg->hoc & 0x7F) -
 			(spdCache->m_hop >>8) +
-			((spdCache->m_hop & 0x00FF) >> tarp_rte_rec) +
+			((spdCache->m_hop & 0x00FF) >> (tarp_rte_rec << 1)) +
 			tarp_slack;
 		if (i < 0)
 			spdCache->m_hop++;
