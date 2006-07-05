@@ -1015,3 +1015,6 @@ R060624A:
 R060702A:
 	Data mode, a few other fixes. Only VMesh2, LibComms updated.
 
+R060704A:
+	Minor VMesh2 corrections: binder, fork(st_rep) after CMD_MODE 1.
+
