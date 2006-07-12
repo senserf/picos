@@ -100,6 +100,7 @@ static const byte chp_defcA [] = {
  */
 	0x11,	// MAIN			-> irrelevant
 
+#if 0
 	0x66,	// FREQ_2A		-> set for RX 433 MHz @ REFDIV = 9
 	0xA0,	// FREQ_1A
 	0x00,	// FREQ_0A
@@ -131,6 +132,40 @@ static const byte chp_defcA [] = {
 	0x00,	// PSHAPE1
 	0x00,	// FSDELAY
 	0x00 	// PRESCALER
+#endif
+#if 1
+	0x66,	// FREQ_2A		-> set for RX 433 MHz @ REFDIV = 9
+	0xA0,	// FREQ_1A
+	0x00,	// FREQ_0A
+
+	0x41,	// FREQ_2B		-> set for TX 433 MHz @ REFDIV = 14
+	0xF2,	// FREQ_1B
+	0x53,	// FREQ_0B
+
+	0x03,	// FSEP1		-> set for RX
+	0x80,	// FSEP0
+
+	0x40,	// CURRENT
+	0x02,	// FRONT_END
+	0x1,	// PA_POW		-> lowest power by default
+	PLL_A,	// PLL			-> updated
+	0x10,	// LOCK
+	0x26,	// CAL
+	0x8e,	// 9C,	// MODEM2
+  	0x6F,	// MODEM1
+	0x57,	// MODEM0	-> max baud + manchester
+	0x70,	// MATCH
+	0x01,	// FSCTRL
+	0x00,	// PSHAPE7
+	0x00,	// PSHAPE6
+	0x00,	// PSHAPE5
+	0x00,	// PSHAPE4
+	0x00,	// PSHAPE3
+	0x00,	// PSHAPE2
+	0x00,	// PSHAPE1
+	0x00,	// FSDELAY
+	0x00 	// PRESCALER
+#endif
 };
 
 #endif

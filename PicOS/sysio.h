@@ -644,7 +644,7 @@ word			zzz_stackfree (void);
 
 #if	DIAG_MESSAGES > 1
 void		zzz_syserror (int, const char*)
-#if	__MSP430__
+#ifdef	__MSP430__
 		__attribute__ ((noreturn))
 #endif
 ;
@@ -655,7 +655,7 @@ void		zzz_syserror (int, const char*)
 				} while (0)
 #else
 void		zzz_syserror (int)
-#if	__MSP430__
+#ifdef	__MSP430__
 		__attribute__ ((noreturn))
 #endif
 ;

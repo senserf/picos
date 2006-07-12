@@ -280,13 +280,15 @@ proc outmkf { def cpu } {
 	}
 }
 
-proc canon { fn } {
+proc canon { fnf } {
 #
 # Normalize file name
 #
 	global Run
 
-	set fn [file normalize $fn]
+	if [catch { file normalize $fnf } fn] {
+		set fn $fnf
+	}
 	if { $Run(mode) != "E" } {
 		# we are under cygwin, so remove the drive letter
 		set cn [string first "/home/" $fn]

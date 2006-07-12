@@ -349,11 +349,6 @@ static word clear_to_send () {
 	// Make sure our status is sane (FIXME: try removing this)
 	cc1100_status ();
 #endif
-	// CCA will make this command ineffective if we are receiving a packet
-	// or RSSI is above threshold. How to set this threshold, I still have
-	// no clue. So I have disabled that part, as it appears to be overly
-	// sensitive. See CHANNEL_CLEAR_ON_RSSI.
-
 	cc1100_strobe (CCxxx0_STX);
 #if 0
 	stat = cc1100_status ();
@@ -523,7 +518,9 @@ static void do_rx_fifo () {
 	eptr = (byte*)rbuff + paylen;
 
 	((byte*)rbuff) [paylen - 2] = (*(eptr + 1) & 0x7f);
-	((byte*)rbuff) [paylen - 1] = *eptr;
+	// This number is signed and starts negative, so we have
+	// to bias it properly
+	((byte*)rbuff) [paylen - 1] = *((char*)eptr) + 128;
 	add_entropy (rbuff [len-1]);
 
 #else	/* CRC_MODE (the hardware case) */
@@ -536,7 +533,7 @@ static void do_rx_fifo () {
 
 	if (b & 0x80) {
 		// CRC OK: we will change this to software checksum
-		*(eptr+1) = *eptr;
+		*(eptr+1) = *((char*)eptr) + 128;
 		// Swap these two
 		*eptr = (b & 0x7f);
 	} else {

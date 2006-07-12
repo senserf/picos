@@ -144,21 +144,13 @@ process (receiver, void)
 
 #if     CC1000 || DM2100 || CC1100 || DM2200
 
-#if	CC1100
-
 	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %d), pow = %d qua = %d\r\n",
 		packet [1],
 		last_rcv, tcv_left (packet) - 2,
-		((byte*)packet) [tcv_left (packet) - 1],
-		((byte*)packet) [tcv_left (packet) - 2]
+		((byte*)packet) [tcv_left (packet) - 2],
+		((byte*)packet) [tcv_left (packet) - 1]
+###here: which way to go?
 	);
-
-#else
-
-	ser_outf (RC_DATA, "RCV: %lu (len = %d), pow = %x\r\n", last_rcv,
-		tcv_left (packet) - 2, packet [(tcv_left (packet) >> 1) - 1]);
-#endif
-
 
 #else
 	ser_outf (RC_DATA, "RCV: %lu (len = %d)\r\n", last_rcv,
