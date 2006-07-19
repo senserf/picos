@@ -619,7 +619,7 @@ process (cc1100_driver, void)
 	}
 #endif
 
-	if (!tcvphy_top (physid)) {
+	if (tcvphy_top (physid) == NULL) {
 		// Nothing to transmit
 		if (TxOFF) {
 			// TxOFF == 2 -> draining: stop xmt
@@ -648,8 +648,10 @@ process (cc1100_driver, void)
 		proceed (DR_LOOP);
 	}
 
-	// This must succeed
-	xbuff = tcvphy_get (physid, &paylen);
+	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL)
+		// The last check: the packet may have been removed while
+		// waiting on LBT
+		proceed (DR_LOOP);
 
 #if CRC_MODE > 1
 	sysassert (paylen <  rbuffl && paylen >= 6 && (paylen & 1) == 0,

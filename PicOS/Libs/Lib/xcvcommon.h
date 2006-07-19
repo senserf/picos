@@ -269,7 +269,7 @@ Xmit:
 		sysassert (zzv_status == 0, "xmt illegal chip status");
 		tcvphy_end (zzx_buffer);
 		zzx_buffer = NULL;
-		if (tcvphy_top (zzv_physid)) {
+		if (tcvphy_top (zzv_physid) != NULL) {
 			/* More to xmit: keep the transmitter up */
 			delay (MIN_BACKOFF, XM_LOOP);
 			release;

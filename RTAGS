@@ -1006,19 +1006,31 @@ R060529B:
 	Code cleanup.
 
 R060530A:
+
 	VersaMesh2 beta.
 
 R060624A:
+
 	Misc updates, ported Genesis 1.9 requests.
 	Only Apps/VMesh2 and LibComms updates.
 
 R060702A:
+
 	Data mode, a few other fixes. Only VMesh2, LibComms updated.
 
 R060704A:
+
 	Minor VMesh2 corrections: binder, fork(st_rep) after CMD_MODE 1.
 
 R060712A:
+
 	Fixed RSSI in CC1100 (in line with GENESIS). Fixed mkmk to work with
 	older Tcl versions (esp. under Linux). Cosmetic mods to CC1000 for
 	experiments with George's boards.
+
+R060719A:
+
+	tcvphy_top modified to return packet pointer instead of the packet
+	priority status. This makes more sense as the priority can be inferred
+	from the packet pointer (via tcv_isurgent), while the packet pointer
+	is generally much more useful.

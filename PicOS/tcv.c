@@ -1110,10 +1110,9 @@ address tcvphy_get (int phy, int *len) {
 	return (address) (b + 1);
 }
 
-int tcvphy_top (int phy) {
+address tcvphy_top (int phy) {
 /*
- * Returns 0 if there's no outgoing packet, 1 if there's a non-urgent
- * outgoing packet, and 2 if the packet is urgent.
+ * Returns the pointer to the first outgoing packet.
  */
 	qhead_t *oq;
 	hblock_t *b;
@@ -1123,9 +1122,9 @@ int tcvphy_top (int phy) {
 	oq = oqueues [phy];
 	b = q_first (oq);
 	if (q_end (b, oq))
-		return 0;
+		return NULL;
 
-	return (b->attributes.b.urgent) ? 2 : 1;
+	return (address)(b + 1);
 }
 
 void tcvphy_end (address pkt) {

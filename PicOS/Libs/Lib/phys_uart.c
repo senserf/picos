@@ -184,7 +184,7 @@ process (xmtuart, uart_t)
 		UA->x_buffer = NULL;
 	}
 
-	if (tcvphy_top (UA->v_physid))
+	if (tcvphy_top (UA->v_physid) != NULL)
 		proceed (XM_LOOP);
 
 	wait (UA->x_qevent, XM_LOOP);

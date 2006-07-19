@@ -80,7 +80,6 @@ static	int rx () {
 #define	tx(p,l)	io (NONE, RADIO, WRITE, (char*)(p), l)
 
 #define	XM_LOOP	0
-#define XM_URGN	1
 
 static process (xmtradio, void)
 
@@ -102,24 +101,23 @@ static process (xmtradio, void)
 		}
 	}
 
+	if (radio->packet == NULL)
+		radio->packet = tcvphy_get (radio->physid, &(radio->tlen);
+
 	if (radio->backoff) {
-		if (tcvphy_top (radio->physid) > 1) {
-			/* Urgent packet already pending, transmit it */
+		if (radio->packet != NULL && tcv_isurgent (radio->packet)) {
+			/* Urgent packet pending, transmit it */
 			radio->backoff = 0;
 		} else  {
 			delay (radio->backoff, XM_LOOP);
 			radio->backoff = 0;
-			/* Transmit an urgent packet when it shows up */
-			wait (radio->qevent, XM_URGN);
 			release;
 		}
 	}
 
     ForceXmt:
 
-	if (radio->packet ||
-	  (radio->packet = tcvphy_get (radio->physid, &(radio->tlen))) !=
-	    NULL) {
+	if (radio->packet != NULL) {
 		if (rcvlast () <= radio->delxmsen) {
 			/* Activity, we backoff even if the packet was urgent */
 			delay (gbackoff (), XM_LOOP);
@@ -145,15 +143,6 @@ static process (xmtradio, void)
 
 	wait (radio->qevent, 0);
 	wait (txevent, 0);
-	release;
-
-    entry (XM_URGN)
-
-	/* Urgent packet while obeying CAV */
-	if (tcvphy_top (radio->physid) > 1)
-		goto ForceXmt;
-	wait (radio->qevent, XM_URGN);
-	snooze (XM_LOOP);
 	release;
 
     nodata;

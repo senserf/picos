@@ -147,11 +147,9 @@ process (receiver, void)
 	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %d), pow = %d qua = %d\r\n",
 		packet [1],
 		last_rcv, tcv_left (packet) - 2,
-		((byte*)packet) [tcv_left (packet) - 2],
-		((byte*)packet) [tcv_left (packet) - 1]
-###here: which way to go?
+		((byte*)packet) [tcv_left (packet) - 1],
+		((byte*)packet) [tcv_left (packet) - 2]
 	);
-
 #else
 	ser_outf (RC_DATA, "RCV: %lu (len = %d)\r\n", last_rcv,
 		tcv_left (packet) - 2);
