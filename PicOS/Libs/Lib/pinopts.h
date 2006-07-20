@@ -8,7 +8,7 @@
 //+++ "pin_read.c"
 
 word pin_read (word);
-void pin_write (word pin, word val);
+int pin_write (word pin, word val);
 int pin_read_adc (word, word, word, word);
 
 #if	PULSE_MONITOR

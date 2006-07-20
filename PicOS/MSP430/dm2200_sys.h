@@ -49,34 +49,23 @@
 #define	BIT_RATE	9601		// 9700 used with 6MHz crystal
 
 /*
- * All pins are preset to OUT HIGH for power savings on unconnected pins. Thus,
- * for adjustements in here, we only have to touch them up the right way.
+ * All used pins are preset to IN LOW. Thus, for adjustements in this place, we
+ * only have to touch them up the right way.
  */
 
-#if TARGET_BOARD == BOARD_VERSA2
-#define	CFG_P1		_BIC (P1DIR, 0x08)
-			// This one is not used by the radio, but we need it
-			// for the reset button. Nowhere else to set its
-			// direction.
+#define	CFG_P1		CNOP
 
-#define	CFG_P2		_BIC (P2DIR, 0x78); \
+#define	CFG_P2		_BIS (P2DIR, 0x81); \
 			_BIS (P2SEL, 0x80)
-#else
 
-#define	CFG_P1		do { } while (0)
+#define	CFG_P3		CNOP
 
-#define	CFG_P2		_BIC (P2DIR, 0x5C); \
-			_BIS (P2SEL, 0x80)
-#endif	/* TARGET_BOARD == BOADR_VERSA2 */
-
-#define	CFG_P3		do { /* Not used by the radio */ } while (0)
-
-#define	CFG_P4		_BIC (P4DIR, 0x0E); \
+#define	CFG_P4		_BIS (P4DIR, 0x01); \
 			_BIC (P4OUT, 0x01)
 
-#define	CFG_P5		_BIC (P5OUT, 0x03)
+#define	CFG_P5		_BIS (P5DIR, 0x02)
 
-#define	CFG_P6		_BIC (P6DIR, 0x01)
+#define	CFG_P6		CNOP
 
 #define	ini_regs	do { CFG_P1; CFG_P2; CFG_P3; CFG_P4; CFG_P5; CFG_P6; } \
 			while (0)

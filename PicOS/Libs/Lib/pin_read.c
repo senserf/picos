@@ -24,7 +24,7 @@ word pin_read (word pin) {
 
 	if (pin_analog (pin))
 		// Analog
-		return res | 4;
+		return 4;
 
 	if (pin_output (pin))
 		return res | 2;
@@ -32,29 +32,30 @@ word pin_read (word pin) {
 	return res;
 }
 
-void pin_write (word pin, word val) {
+int pin_write (word pin, word val) {
 /*
  * Bit 0 == value to be written (if other bits are zero)
  * Bit 1 == set pin to IN
  * Bit 2 == set pin to analog in
  */
 	if (!pin_available (pin))
-		return;
+		return ERROR;
 
 	if ((val & 4)) {
 		// Set to analog input
 		pin_setanalog (pin);
-		return;
+		return 0;
 	}
 
 	if ((val & 2)) {
 		// Set to digital IN
 		pin_setinput (pin);
-		return;
+		return 0;
 	}
 
 	pin_setvalue (pin, val);
 	pin_setoutput (pin);
+	return 0;
 }
 
 int pin_read_adc (word state, word pin, word ref, word smpt) {

@@ -76,7 +76,6 @@ void lhold (word st, lword *nsec) {
 lword lhleft (int pid, lword *nsec) {
 
 	word nm, ns;
-	lword res;
 
 	// First check if we are waiting on long delay
 	if ((nm = ldleft (pid, &ns)) != MAX_UINT) {

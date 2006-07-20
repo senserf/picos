@@ -33,8 +33,8 @@ void encrypt (word *str, int nw, const lword *key) {
 		sum = 0L;
 		for (n = 0; n < 32; n++) {
 			sum += delta;
-      			y += (z << 4) + a ^ z + sum ^ (z >> 5) + b;
-      			z += (y << 4) + c ^ y + sum ^ (y >> 5) + d;
+      			y += ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
+      			z += ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
 		}
 		str [nw-4] = (word) (y >> 16);
 		str [nw-3] = (word)  y;
@@ -50,8 +50,8 @@ void encrypt (word *str, int nw, const lword *key) {
 	sum = 0L;
 	for (n = 0; n < 32; n++) {
 		sum += delta;
-      		y += (z << 4) + a ^ z + sum ^ (z >> 5) + b;
-      		z += (y << 4) + c ^ y + sum ^ (y >> 5) + d;
+      		y += ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
+      		z += ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
 	}
 
 	nw--;
@@ -86,8 +86,8 @@ void decrypt (word *str, int nw, const lword *key) {
 		z = ((lword) str [nw-2] << 16) | str [nw - 1];
 		sum = gamma;
 		for (n = 0; n < 32; n++) {
-			z -= (y << 4) + c ^ y + sum ^ (y >> 5) + d;
-      			y -= (z << 4) + a ^ z + sum ^ (z >> 5) + b;
+			z -= ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
+      			y -= ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
       			sum -= delta;
       		}
 		xc = yh;
@@ -115,8 +115,8 @@ void decrypt (word *str, int nw, const lword *key) {
 	z = ((lword) zh << 16) | zl;
 	for (n = 0; n < 32; n++) {
 		sum += delta;
-      		y += (z << 4) + a ^ z + sum ^ (z >> 5) + b;
-      		z += (y << 4) + c ^ y + sum ^ (y >> 5) + d;
+      		y += ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
+      		z += ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
 	}
 
 	nw--;

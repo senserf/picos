@@ -558,6 +558,8 @@ void	if_erase (int);
 #define	NO	((bool)0)
 #define	YES	((bool)1)
 
+#define	CNOP	do { } while (0)
+
 /* ============= */
 /* Byte ordering */
 /* ============= */

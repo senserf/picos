@@ -237,17 +237,93 @@ static void ssm_init () {
 	// Disable watchdog timer
 	WATCHDOG_STOP;
 
+#ifndef	PIN_DEFAULT_P1SEL
+#define	PIN_DEFAULT_P1SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P1DIR
+#define	PIN_DEFAULT_P1DIR	0xFF	// For power savings, the default is OUT
+#endif
+#ifndef	PIN_DEFAULT_P1OUT
+#define	PIN_DEFAULT_P1OUT	0x00
+#endif
+
+#ifndef	PIN_DEFAULT_P2SEL
+#define	PIN_DEFAULT_P2SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P2DIR
+#define	PIN_DEFAULT_P2DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P2OUT
+#define	PIN_DEFAULT_P2OUT	0x00
+#endif
+
+#ifndef	PIN_DEFAULT_P3SEL
+#define	PIN_DEFAULT_P3SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P3DIR
+#define	PIN_DEFAULT_P3DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P3OUT
+#define	PIN_DEFAULT_P3OUT	0x00
+#endif
+
+#ifndef	PIN_DEFAULT_P4SEL
+#define	PIN_DEFAULT_P4SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P4DIR
+#define	PIN_DEFAULT_P4DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P4OUT
+#define	PIN_DEFAULT_P4OUT	0x00
+#endif
+
+#ifndef	PIN_DEFAULT_P5SEL
+#define	PIN_DEFAULT_P5SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P5DIR
+#define	PIN_DEFAULT_P5DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P5OUT
+#define	PIN_DEFAULT_P5OUT	0x00
+#endif
+
+#ifndef	PIN_DEFAULT_P6SEL
+#define	PIN_DEFAULT_P6SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P6DIR
+#define	PIN_DEFAULT_P6DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P6OUT
+#define	PIN_DEFAULT_P6OUT	0x00
+#endif
+	// Pre-initialize pins
 	P1IE = P2IE = 0x00;
 	P1IES = P2IES = 0x00;
 	P1IFG = P2IFG = 0x00;
-	// For power saving, the default setting of all registers
-	// is non-special + output.
-	P1SEL = P2SEL = P3SEL = P4SEL = P5SEL = P6SEL = 0x00;
-	// The value should be "don't care". We set it high, essentially for
-	// compatibility with the RESET key on Versa, which should be high
-	// initially.
-	P1OUT = P2OUT = P3OUT = P4OUT = P5OUT = P6OUT = 0xff;
-	P1DIR = P2DIR = P3DIR = P4DIR = P5DIR = P6DIR = 0xff;
+
+	P1SEL = PIN_DEFAULT_P1SEL;
+	P1OUT = PIN_DEFAULT_P1OUT;
+	P1DIR = PIN_DEFAULT_P1DIR;
+
+	P2SEL = PIN_DEFAULT_P2SEL;
+	P2OUT = PIN_DEFAULT_P2OUT;
+	P2DIR = PIN_DEFAULT_P2DIR;
+
+	P3SEL = PIN_DEFAULT_P3SEL;
+	P3OUT = PIN_DEFAULT_P3OUT;
+	P3DIR = PIN_DEFAULT_P3DIR;
+
+	P4SEL = PIN_DEFAULT_P4SEL;
+	P4OUT = PIN_DEFAULT_P4OUT;
+	P4DIR = PIN_DEFAULT_P4DIR;
+
+	P5SEL = PIN_DEFAULT_P5SEL;
+	P5OUT = PIN_DEFAULT_P5OUT;
+	P5DIR = PIN_DEFAULT_P5DIR;
+
+	P6SEL = PIN_DEFAULT_P6SEL;
+	P6OUT = PIN_DEFAULT_P6OUT;
+	P6DIR = PIN_DEFAULT_P6DIR;
 
 #ifdef	__MSP430_449__
 	// This one needs the capacitance setting

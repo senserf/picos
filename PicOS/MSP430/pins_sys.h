@@ -49,12 +49,26 @@
 
 //+++ p2irq.c
 
-#define	PINS_BOARD_FOUND		1
-#define	MONITOR_PINS_SEND_INTERRUPTS	1
-
 #ifndef	VERSA2_TARGET_BOARD
 #define	VERSA2_TARGET_BOARD		1
 #endif
+
+// Departures from default pre-initialization (0xFF for power savings)
+#if VERSA2_TARGET_BOARD
+#define	PIN_DEFAULT_P1DIR	0xF4
+#else
+#define	PIN_DEFAULT_P1DIR	0xF0
+#endif
+#define	PIN_DEFAULT_P2DIR	0x02
+#define	PIN_DEFAULT_P2DIR	0x04
+#define	PIN_DEFAULT_P1DIR	0xF4
+#define	PIN_DEFAULT_P2DIR	0x02
+#define	PIN_DEFAULT_P4DIR	0xF0
+#define	PIN_DEFAULT_P5DIR	0xFC
+#define	PIN_DEFAULT_P6DIR	0x00
+
+#define	PINS_BOARD_FOUND		1
+#define	MONITOR_PINS_SEND_INTERRUPTS	1
 
 /*
  * Access to GP pins on the board:
@@ -218,6 +232,12 @@
 
 #if TARGET_BOARD == BOARD_GENESIS
 
+// Departures from default pre-initialization
+#define	PIN_DEFAULT_P1DIR	0xC0
+#define	PIN_DEFAULT_P3DIR	0xCF
+#define	PIN_DEFAULT_P5DIR	0xE0
+#define	PIN_DEFAULT_P6DIR	0x00
+
 #define	PINS_BOARD_FOUND		1
 #define	MONITOR_PINS_SEND_INTERRUPTS	0
 #define	GENESIS_RESET_KEY_PRESSED	((P6IN & 0x01) == 0)
@@ -324,6 +344,14 @@
 #if TARGET_BOARD == BOARD_DM2100
 
 //+++ p2irq.c
+
+// Departures from default pre-initialization
+#define	PIN_DEFAULT_P1DIR	0xF0
+#define	PIN_DEFAULT_P2DIR	0x22
+#define	PIN_DEFAULT_P3DIR	0x00
+#define	PIN_DEFAULT_P4DIR	0xF0
+#define	PIN_DEFAULT_P5DIR	0xFC
+#define	PIN_DEFAULT_P6DIR	0x00
 
 #define	PINS_BOARD_FOUND		1
 #define	MONITOR_PINS_SEND_INTERRUPTS	1

@@ -1034,3 +1034,10 @@ R060719A:
 	priority status. This makes more sense as the priority can be inferred
 	from the packet pointer (via tcv_isurgent), while the packet pointer
 	is generally much more useful.
+
+R060720A:
+
+	Reorganized pin initialization, such that only the truly unused pins
+	are pre-initialized to OUT, while everything else starts as IN.
+	This seems to be safer. pin_write is now int and returns ERROR if the
+	operation was unsuccessful (0 otherwise).

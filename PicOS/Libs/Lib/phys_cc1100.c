@@ -560,7 +560,7 @@ Rtn:
 #if BACKOFF_AFTER_RECEIVE
 	gbackoff;
 #else
-	NOP;
+	CNOP;
 #endif
 }
 
