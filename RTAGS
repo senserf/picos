@@ -1036,6 +1036,7 @@ R060719A:
 	is generally much more useful.
 
 R060720A:
+R060720B:
 
 	Reorganized pin initialization, such that only the truly unused pins
 	are pre-initialized to OUT, while everything else starts as IN.
