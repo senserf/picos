@@ -1059,4 +1059,5 @@ R060721A:
 	- uart buffer 72 chars, dat string up to 64 bytes;
 	- reset (CMD_RESET): 0 -- soft, != 0 -- nvm erase + reset.
 
-	
+R060721B:
+	Copied GENESIS as of G060713A; to be continued here, if needed.
