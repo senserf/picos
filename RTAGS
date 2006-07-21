@@ -1042,3 +1042,21 @@ R060720B:
 	are pre-initialized to OUT, while everything else starts as IN.
 	This seems to be safer. pin_write is now int and returns ERROR if the
 	operation was unsuccessful (0 otherwise).
+
+R060721A:
+	VMesh changes:
+	- removed esn aggregation; dedicated counter page in flash instead;
+	- obsolete: msg_st, msg_stNack, CMD_SNACK, CMD_SENS, ATTR_BRIDGE;
+	- msg_br output: no esn #, no st #;
+	- msg_stAck, CMD_SACK: no esn #;
+	- removed option to use eeprom in VMesh;
+	- pin config is backed up in nvm;
+	- GPIO defaults:
+	  - pins 1, 2, 3, 8, 9, 10: dig in;
+	  - pins 4, 5: out high;
+	  - pins 6, 7: analog in;
+	- counter & io state backup on [0 - 63] 15-min. units;
+	- uart buffer 72 chars, dat string up to 64 bytes;
+	- reset (CMD_RESET): 0 -- soft, != 0 -- nvm erase + reset.
+
+	
