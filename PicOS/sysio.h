@@ -978,6 +978,7 @@ int	tcv_erase (int, int);
 int	tcv_read (address, char*, int);
 int	tcv_write (address, const char*, int);
 void	tcv_endp (address);
+void	tcv_drop (address);
 int	tcv_left (address);	/* Also plays the role of old tcv_plen */
 void	tcv_urgent (address);
 bool	tcv_isurgent (address);

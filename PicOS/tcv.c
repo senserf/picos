@@ -791,6 +791,13 @@ int tcv_write (address p, const char *buf, int len) {
 	return len;
 }
 
+void tcv_drop (address p) {
+/*
+ * Drop the packet unconditionally
+ */
+	rlp (header (p));
+}
+
 int tcv_left (address p) {
 /*
  * Tells how much packet space is left

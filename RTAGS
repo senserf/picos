@@ -1044,6 +1044,7 @@ R060720B:
 	operation was unsuccessful (0 otherwise).
 
 R060721A:
+
 	VMesh changes:
 	- removed esn aggregation; dedicated counter page in flash instead;
 	- obsolete: msg_st, msg_stNack, CMD_SNACK, CMD_SENS, ATTR_BRIDGE;
@@ -1060,4 +1061,9 @@ R060721A:
 	- reset (CMD_RESET): 0 -- soft, != 0 -- nvm erase + reset.
 
 R060721B:
+
 	Copied GENESIS as of G060713A; to be continued here, if needed.
+
+R060721C:
+
+	Added void tcv_drop (address) to TCV.
