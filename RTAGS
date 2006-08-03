@@ -1073,4 +1073,7 @@ R060725A:
 
 R060803A
 	VMesh: Added UART rate backup, removed 1 char from dat output.
+R060803B
+	Eliminated binary output in MSP430/main.c of sysver and memory.
+	Corrected UART restore in VMesh.
 
