@@ -1071,3 +1071,6 @@ R060721C:
 R060725A:
 	VMesh changes after tests. To be sent to RFM.
 
+R060803A
+	VMesh: Added UART rate backup, removed 1 char from dat output.
+
