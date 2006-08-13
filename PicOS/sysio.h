@@ -6,8 +6,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	SYSVERSION		"2.0"
-#define SYSVER_B		0x0200
+#define	SYSVERSION		"2.01"
+#define SYSVER_B		0x0201
 
 /* ================================================= */
 /* Options are now settable on per-application basis */

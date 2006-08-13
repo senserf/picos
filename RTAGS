@@ -1071,9 +1071,18 @@ R060721C:
 R060725A:
 	VMesh changes after tests. To be sent to RFM.
 
-R060803A
+R060803A:
 	VMesh: Added UART rate backup, removed 1 char from dat output.
-R060803B
+
+R060803B:
 	Eliminated binary output in MSP430/main.c of sysver and memory.
 	Corrected UART restore in VMesh.
+
+R060813A:
+	VMesh updates:
+	- SYSVER 2.01
+	- corrected NVM_CYC_CTRL restore from nvm
+	- back to startup FD output (dbg_1) 
+	- attempt at streamlined (more restricted but easier to operate)
+	  duty cycles
 

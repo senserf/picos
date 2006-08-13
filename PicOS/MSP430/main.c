@@ -566,10 +566,8 @@ static void ios_init () {
         	"Copyright (C) Olsonet Communications, 2002-2006");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
-#if 0
 	dbg_1 (0x1000 | SYSVER_B);
 	dbg_1 ((word)STACK_END - (word)(&__bss_end)); // RAM in bytes
-#endif
 	for_all_tasks (p)
 		/* Mark all task table entries as available */
 		p->code = NULL;
