@@ -13,7 +13,7 @@
  */
 typedef	int (*ctrlfun_t) (int option, address);
 
-word tcvphy_reg (int, ctrlfun_t, int);
+int tcvphy_reg (int, ctrlfun_t, int);
 int tcvphy_rcv (int, address, int);
 address tcvphy_get (int, int*);
 address tcvphy_top (int);

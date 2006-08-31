@@ -35,6 +35,7 @@
 #define	ini_regs	do { \
 				_BIC (P1OUT, 0xfc); \
 				_BIS (P1DIR, 0x8c); \
+				_BIC (P1IES, 0x40); \
 			} while (0)
 			// The last one is needed for the reset button. Not the
 			// most elegant place to set its direction.

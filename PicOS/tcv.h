@@ -22,6 +22,8 @@ struct qitem_struct {
 typedef	struct qitem_struct	qitem_t;
 typedef	struct qitem_struct	qhead_t;
 
+#define	TCV_QHEAD_LENGTH	4
+
 struct titem_struct {
 	struct titem_struct	*next,
 				*prev;
@@ -62,28 +64,37 @@ struct hblock_struct {
 	 * has been either removed from a queue, or not yet put into a queue;
 	 * thus, we recycle the links for this purpose.
 	 */
-    } u;
+    } u;			// 4 bytes PicOS, 8 bytes simulator
+
 #if	TCV_HOOKS
-	address *hptr;				/* Hook backpointer */
+	address *hptr;		// 2 bytes PicOS, 4 bytes simulator
+#define	TCV_HBLOCK_HOOKS_LENGTH		2
+#else
+#define	TCV_HBLOCK_HOOKS_LENGTH		0
 #endif
 	/*
 	 * Packet length in bytes.
 	 */
-	word	length;
+	word	length;		// 2 bytes
 	/*
 	 * Flags (e.g., whether the packet is queued or not) + plugin ID +
 	 * phys ID
 	 */
-	battr_t	attributes;
+	battr_t	attributes;	// 2 bytes
 
 #if	TCV_TIMERS
 	/*
 	 * Timer queue links (must be the last item, see
 	 * t_tqoffset below
 	 */
-	titem_t	tqueue;
+	titem_t	tqueue;		// 6 bytes PicOS, 12 bytes simulator
+#define	TCV_HBLOCK_TIMERS_LENGTH	6
+#else
+#define	TCV_HBLOCK_TIMERS_LENGTH	0
 #endif
 };
+
+#define	TCV_HBLOCK_LENGTH   (8+TCV_HBLOCK_HOOKS_LENGTH+TCV_HBLOCK_TIMERS_LENGTH)
 
 typedef	struct hblock_struct	hblock_t;
 
@@ -140,6 +151,10 @@ typedef	struct {
 	 */
 	int		pid;
 } sesdesc_t;
+
+#define	TCV_SESDESC_LENGTH	(4+2+2)
+
+
 
 #endif
 

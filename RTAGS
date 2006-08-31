@@ -1069,16 +1069,20 @@ R060721C:
 	Added void tcv_drop (address) to TCV.
 
 R060725A:
+
 	VMesh changes after tests. To be sent to RFM.
 
 R060803A:
+
 	VMesh: Added UART rate backup, removed 1 char from dat output.
 
 R060803B:
+
 	Eliminated binary output in MSP430/main.c of sysver and memory.
 	Corrected UART restore in VMesh.
 
 R060813A:
+
 	VMesh updates:
 	- SYSVER 2.01
 	- corrected NVM_CYC_CTRL restore from nvm
@@ -1086,3 +1090,9 @@ R060813A:
 	- attempt at streamlined (more restricted but easier to operate)
 	  duty cycles
 
+R060831A:
+
+	Fixed a bug introduced in R060720B to pin_sys.h. The CC1100 interrupt
+	pin was incorrectly initialized as output.
+	TCV restructured to make it directly compatible with SMURPH simulator.
+	Fixed mkmk to properly canonize file names outside cygwin tree.

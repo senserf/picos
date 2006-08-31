@@ -232,7 +232,7 @@
 #if TARGET_BOARD == BOARD_GENESIS
 
 // Departures from default pre-initialization
-#define	PIN_DEFAULT_P1DIR	0xC0
+#define	PIN_DEFAULT_P1DIR	0x80
 #define	PIN_DEFAULT_P3DIR	0xCF
 #define	PIN_DEFAULT_P5DIR	0xE0
 #define	PIN_DEFAULT_P6DIR	0x00

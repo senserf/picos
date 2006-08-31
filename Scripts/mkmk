@@ -294,6 +294,9 @@ proc canon { fnf } {
 		set cn [string first "/home/" $fn]
 		if { $cn > 0 } {
 			set fn [string range $fn $cn end]
+		} else {
+			# we are under a directory not rooted at cygwin
+			regsub -nocase "^(\[A-Z\]):" $fn "/cygdrive/\\1" fn
 		}
 	}
 	return $fn

@@ -16,48 +16,60 @@
 
 #if	TCV_PRESENT
 
-/*
- * Session descriptor pool
- */
-static sesdesc_t	*descriptors [TCV_MAX_DESC];
+#ifdef	__SMURPH__
 
-/*
- * Phys interfaces. An interface registers by calling phys_reg (see below) and
- * providing a pointer to the options function, which is stored in this array.
- */
-static ctrlfun_t	physical [TCV_MAX_PHYS];
+#include "node.h"
 
-/*
- * Phys output queues, each registered interface gets one dedicated output
- * queue.
- */
-static qhead_t		*oqueues [TCV_MAX_PHYS];
+// The simulator
 
-/*
- * Physinfo declared when the interface is registered
- */
-static int		physinfo [TCV_MAX_PHYS];
+#define	TRIGGER(a)	(TheNode->TB.signal ((int)(a)))
+#define	TMALLOC(a,b)	(TheNode->memAlloc (a, b))
+#define	TFREE(a)	(TheNode->memFree (a))
+#define	UMALLOC(a,b)	TMALLOC (a, b)
+#define	UFREE(a)	TFREE (a)
 
-/*
- * Plugins. Again, plugins register into this table and are identified by
- * their indexes. This table is normally very small.
- */
-const tcvplug_t	*zzz_plugins [TCV_MAX_PLUGS];
-#define	plugins	zzz_plugins
+#define	PRIVF(tp,nam)	tp Node::nam
+#define	PUBLF(tp,nam)	tp Node::nam
 
-#if	TCV_TIMERS
-/*
- * This is the timer queue, and the time when the timer was last set.
- */
-static thead_t	tcv_q_tim = { (titem_t*) &tcv_q_tim, (titem_t*) &tcv_q_tim };
-static unsigned long tcv_tim_set = 0;
-#endif
+#else	/* PicOS */
+// PicOS
+#define	TRIGGER(a)	trigger((word)(a))
+#define	TMALLOC(a,b)	tmalloc (a)
+#define	UMALLOC(a,b)	umalloc (a)
+
+#define	PRIVF(tp,nam)	static tp nam
+#define	PUBLF(tp,nam)	tp nam
+
+#define	RELEASE		release
+#define	WNONE		NONE
+
+#endif	/* SMURPH or PicOS */
+
+// Memory allocators (good for all occasions)
+#define	b_malloc(s)	TMALLOC (s, (s)-(sizeof (hblock_t)-TCV_HBLOCK_LENGTH))
+#define	s_malloc(s)	UMALLOC (s, (s)-(sizeof (sesdesc_t)-TCV_SESDESC_LENGTH))
+#define	q_malloc(s)	UMALLOC (s, (s)-(sizeof (qhead_t)-TCV_QHEAD_LENGTH))
+
+#ifndef __SMURPH__
+
+#include "tcvdata.h"
 
 static void rlp (hblock_t*);
 
-#if	DUMP_MEMORY
+#endif
 
-void dmpq (qhead_t *q) {
+/*
+ * Plugins. Again, plugins register into this table and are identified by
+ * their indexes. This table is normally very small. 
+ * Note: for __SMURPH__, we assume that the plugin is static, i.e., the same
+ * for all nodes.
+ */
+static const tcvplug_t	*plugins [TCV_MAX_PLUGS];
+
+
+PUBLF (void, dmpq) (qhead_t *q) {
+
+#if DUMP_MEMORY
 	hblock_t *pp;
 	diag ("START Q DUMP %x", (word)q);
 	for (pp = q_first (q); !q_end (pp, q); pp = q_next (pp))
@@ -67,10 +79,12 @@ void dmpq (qhead_t *q) {
 			((word*)(payload (pp))) [2]
 		);
 	diag ("END Q DUMP %x", (word)q);
+#endif
 }
 
-void tcv_dumpqueues (void) {
+PUBLF (void, tcv_dumpqueues) (void) {
 
+#if DUMP_MEMORY
 	int	i;
 	for (i = 0; i < TCV_MAX_DESC; i++) {
 		if (descriptors [i] != NULL) {
@@ -84,13 +98,8 @@ void tcv_dumpqueues (void) {
 			dmpq (oqueues [i]);
 		}
 	}
-}
-
-#else
-
-#define	dmpq(a)
-
 #endif
+}
 
 #if DIAG_MESSAGES > 1
 /* FIXME: check if everything works with DIAG_MESSAGES == 1 and 0 */
@@ -135,7 +144,7 @@ void tcv_dumpqueues (void) {
 #define	verify_pld(p,f,m)
 #endif
 
-static void deq (hblock_t *p) {
+PRIVF (void, deq) (hblock_t *p) {
 /*
  * Removes a buffer from its queue
  */
@@ -146,14 +155,14 @@ static void deq (hblock_t *p) {
 	}
 }
 
-static void enq (qhead_t *q, hblock_t *p) {
+PRIVF (void, enq) (qhead_t *q, hblock_t *p) {
 /*
  * Inserts a buffer into a queue
  */
 	sysassert (p->attributes.b.queued == 0, "tcv enq item already queued");
 	if (p->attributes.b.urgent) {
 		/* At the front. This always triggers a queue event. */
-		trigger ((word)q);
+		TRIGGER(q);
 		p->u.bqueue.next = q->next;
 		p->u.bqueue.prev = q;
 		q->next->prev = (qitem_t*) p;
@@ -164,7 +173,7 @@ static void enq (qhead_t *q, hblock_t *p) {
 		 * empty.
 		 */
 		if (q_empty (q))
-			trigger ((word)q);
+			TRIGGER (q);
 		p->u.bqueue.next = q;
 		p->u.bqueue.prev = q->prev;
 		q->prev->next = (qitem_t*) p;
@@ -174,7 +183,7 @@ static void enq (qhead_t *q, hblock_t *p) {
 }
 
 #if	TCV_LIMIT_RCV || TCV_LIMIT_XMT
-static bool qmore (qhead_t *q, word lim) {
+PRIVF (bool, qmore) (qhead_t *q, word lim) {
 
 	hblock_t *p;
 
@@ -185,7 +194,7 @@ static bool qmore (qhead_t *q, word lim) {
 }
 #endif
 
-static int empty (qhead_t *oq) {
+PRIVF (int, empty) (qhead_t *oq) {
 /*
  * Empties the indicated queue
  */
@@ -202,7 +211,7 @@ static int empty (qhead_t *oq) {
 	return nq;
 }
 
-static void dispose (hblock_t *p, int dv) {
+PRIVF (void, dispose) (hblock_t *p, int dv) {
 /*
  * Note that plugin functions can still return simple values, as in the previous
  * version, because the targets can be decoded from the buffer attributes.
@@ -241,7 +250,7 @@ static void dispose (hblock_t *p, int dv) {
 
 #if 	TCV_TIMERS
 
-static word runtq () {
+PRIVF (word, runtq) () {
 /*
  * This function is called to run the timer queue. It returns the delay after
  * which it should be called again.
@@ -289,7 +298,7 @@ static word runtq () {
 /* TCV_TIMERS */
 #endif
 
-static void rlp (hblock_t *p) {
+PRIVF (void, rlp) (hblock_t *p) {
 /*
  * Releases the packet buffer, frees its memory
  */
@@ -314,7 +323,7 @@ static void rlp (hblock_t *p) {
  * packets explicitly (if they really want to).
  */
 
-static hblock_t *apb (word size) {
+PRIVF (hblock_t*, apb) (word size) {
 /* ========================================= */
 /* Allocates a packet buffer size bytes long */
 /* ========================================= */
@@ -322,7 +331,7 @@ static hblock_t *apb (word size) {
 	hblock_t *p;
 	word cs = size + hblenb;
 
-	if ((p = (hblock_t*)tmalloc (cs)) == NULL)
+	if ((p = (hblock_t*)b_malloc (cs)) == NULL)
 		return NULL;
 
 #if	TCV_HOOKS
@@ -353,7 +362,7 @@ static hblock_t *apb (word size) {
 		/* ===================================== */
 /* ---------------------------------------------------------------------- */
 
-void tcv_endp (address p) {
+PUBLF (void, tcv_endp) (address p) {
 /*
  * Closes an outgoing or incoming packet. Note that this one cannot possibly
  * block because the packet is there already, and it either has to be queued
@@ -373,7 +382,7 @@ void tcv_endp (address p) {
 		rlp (b);
 }
 
-int tcv_open (word state, int phy, int plid, ... ) {
+PUBLF (int, tcv_open) (word state, int phy, int plid, ... ) {
 /*
  * This function creates a new session descriptor and returns its number.
  *   phy  - physical interface number
@@ -385,6 +394,11 @@ int tcv_open (word state, int phy, int plid, ... ) {
 	battr_t attp;
 	sesdesc_t *s;
 
+#ifdef	__UNIX__
+#define	va_par(s)	ap
+	va_list	ap;
+	va_start (ap, plid);
+#endif
 	/* Check if we have the plugin and the phys */
 	if (phy < 0 || phy >= TCV_MAX_PHYS || oqueues [phy] == NULL ||
 		plid < 0 || plid >= TCV_MAX_PLUGS || plugins [plid] == NULL)
@@ -437,7 +451,7 @@ int tcv_open (word state, int phy, int plid, ... ) {
 
 	if (eid == TCV_MAX_DESC) {
 		/* We have to create the session */
-		s = (sesdesc_t*) umalloc (sizeof (sesdesc_t));
+		s = (sesdesc_t*) s_malloc (sizeof (sesdesc_t));
 		if (s == NULL)
 			syserror (EMALLOC, "tcv_open");
 		descriptors [fd] = s;
@@ -468,15 +482,15 @@ int tcv_open (word state, int phy, int plid, ... ) {
 	}
 
 	/* We block */
-	if (state != NONE) {
+	if (state != WNONE) {
 		wait (eid, state);
-		release;
+		RELEASE;
 	}
 
 	return (int)BLOCKED;
 }
 
-int tcv_close (word state, int fd) {
+PUBLF (int, tcv_close) (word state, int fd) {
 /*
  * This one closes a session descriptor
  */
@@ -493,7 +507,7 @@ int tcv_close (word state, int fd) {
 	eid = (word) (plugins [s->attpattern.b.plugin]->
 					tcv_clo (s->attpattern.b.phys, fd));
 
-	if (eid == ERROR)
+	if (eid == (word) ERROR)
 		return (int) ERROR;
 
 	if (eid == 0) {
@@ -510,25 +524,26 @@ int tcv_close (word state, int fd) {
 
 	/* We block */
 	s->pid = getpid ();	/* We may use it for something later */
-	if (state != NONE) {
+	if (state != WNONE) {
 		wait (eid, state);
-		release;
+		RELEASE;
 	}
 
 	return (int)BLOCKED;
 }
 
-void tcv_plug (int ord, const tcvplug_t *pl) {
+PUBLF (void, tcv_plug) (int ord, const tcvplug_t *pl) {
 /*
  * This is one way now. Later we may implement switching plugs on the fly.
  */
-	if (ord < 0 || ord >= TCV_MAX_PLUGS || plugins [ord] != NULL)
+	if (ord < 0 || ord >= TCV_MAX_PLUGS ||
+	    (plugins [ord] != NULL && plugins [ord] != pl))
 		syserror (EREQPAR, "tcv_plug");
 
 	plugins [ord] = pl;
 }
 
-address tcv_rnp (word state, int fd) {
+PUBLF (address, tcv_rnp) (word state, int fd) {
 /*
  * Read next packet. Makes the next packet available for reading. Returns
  * the packet handle. Note: we do not worry about closing the previous read
@@ -545,9 +560,9 @@ address tcv_rnp (word state, int fd) {
 	b = q_first (rq);
 	if (q_end (b, rq)) {
 		/* The queue is empty */
-		if (state != NONE) {
-			wait ((word)rq, state);
-			release;
+		if (state != WNONE) {
+			wait ((int)rq, state);
+			RELEASE;
 		}
 		return NULL;
 	}
@@ -566,7 +581,7 @@ address tcv_rnp (word state, int fd) {
 	return p;
 }
 
-int tcv_qsize (int fd, int disp) {
+PUBLF (int, tcv_qsize) (int fd, int disp) {
 /*
  * Return the queue size
  */
@@ -605,7 +620,7 @@ int tcv_qsize (int fd, int disp) {
 	return nq;
 }
 
-int tcv_erase (int fd, int disp) {
+PUBLF (int, tcv_erase) (int fd, int disp) {
 /*
  * Erases the indicated queue: TCV_DSP_RCV, TCV_DSP_XMT
  */
@@ -648,7 +663,7 @@ Er_rt:
 
 #if	TCV_LIMIT_XMT
 
-address tcv_wnpu (word state, int fd, int length) {
+PUBLF (address, tcv_wnpu) (word state, int fd, int length) {
 /*
  * Urgent variant of wnp. Bumps by 1 the queue size limit and marks the packet
  * as urgent.
@@ -670,18 +685,18 @@ address tcv_wnpu (word state, int fd, int length) {
 	sysassert (s->attpattern.b.queued == 0, "tcv_wnpu partially opened");
 
 	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT+1)) {
-		if (state != NONE) {
+		if (state != WNONE) {
 			tmwait (state);
-			release;
+			RELEASE;
 		}
 		return NULL;
 	}
 
 	if ((b = apb (length + ptrs . head + ptrs . tail)) == NULL) {
 		/* No memory */
-		if (state != NONE) {
+		if (state != WNONE) {
 			tmwait (state);
-			release;
+			RELEASE;
 		}
 		return NULL;
 	}
@@ -696,7 +711,7 @@ address tcv_wnpu (word state, int fd, int length) {
 
 #else	/* TCV_LIMIT_XMT */
 
-address tcv_wnpu (word state, int fd, int length) {
+PUBLF (address, tcv_wnpu) (word state, int fd, int length) {
 
 	address p = tcv_wnp (state, fd, length);
 
@@ -708,7 +723,7 @@ address tcv_wnpu (word state, int fd, int length) {
 
 #endif	/* TCV_LIMIT_XMT */
 
-address tcv_wnp (word state, int fd, int length) {
+PUBLF (address, tcv_wnp) (word state, int fd, int length) {
 /*
  * Creates a new outgoing packet and makes it available for writing. Returns
  * the packet handle. There may be several such packets started up per
@@ -733,18 +748,18 @@ address tcv_wnp (word state, int fd, int length) {
 
 #if	TCV_LIMIT_XMT
 	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT)) {
-		if (state != NONE) {
+		if (state != WNONE) {
 			tmwait (state);
-			release;
+			RELEASE;
 		}
 		return NULL;
 	}
 #endif
 	if ((b = apb (length + ptrs . head + ptrs . tail)) == NULL) {
 		/* No memory */
-		if (state != NONE) {
+		if (state != WNONE) {
 			tmwait (state);
-			release;
+			RELEASE;
 		}
 		return NULL;
 	}
@@ -756,7 +771,7 @@ address tcv_wnp (word state, int fd, int length) {
 	return (address) (b + 1);
 }
 
-int tcv_read (address p, char *buf, int len) {
+PUBLF (int, tcv_read) (address p, char *buf, int len) {
 /*
  * Extracts (up to) len bytes from the packet
  */
@@ -774,7 +789,7 @@ int tcv_read (address p, char *buf, int len) {
 	return len;
 }
 
-int tcv_write (address p, const char *buf, int len) {
+PUBLF (int, tcv_write) (address p, const char *buf, int len) {
 /*
  * Writes (up to) len bytes to the packet
  */
@@ -791,33 +806,33 @@ int tcv_write (address p, const char *buf, int len) {
 	return len;
 }
 
-void tcv_drop (address p) {
+PUBLF (void, tcv_drop) (address p) {
 /*
  * Drop the packet unconditionally
  */
 	rlp (header (p));
 }
 
-int tcv_left (address p) {
+PUBLF (int, tcv_left) (address p) {
 /*
  * Tells how much packet space is left
  */
 	return header (p) -> u.pointers.tail;
 }
 
-void tcv_urgent (address p) {
+PUBLF (void, tcv_urgent) (address p) {
 /*
  * Mark the packet as urgent
  */
 	header (p) -> attributes.b.urgent = 1;
 }
 
-bool tcv_isurgent (address p) {
+PUBLF (bool, tcv_isurgent) (address p) {
 
 	return header (p) -> attributes.b.urgent;
 }
 
-int tcv_control (int fd, int opt, address arg) {
+PUBLF (int, tcv_control) (int fd, int opt, address arg) {
 /*
  * This generic function covers phys control operations available to the
  * application.
@@ -848,7 +863,7 @@ int tcv_control (int fd, int opt, address arg) {
 	           /* ================================ */
 /* ---------------------------------------------------------------------- */
 
-int tcvp_control (int phy, int opt, address arg) {
+PUBLF (int, tcvp_control) (int phy, int opt, address arg) {
 /*
  * Plugin version of interface control
  */
@@ -856,7 +871,7 @@ int tcvp_control (int phy, int opt, address arg) {
 	return (physical [phy]) (opt, arg);
 }
 
-void tcvp_assign (address p, int ses) {
+PUBLF (void, tcvp_assign) (address p, int ses) {
 /*
  * Assigns the packet buffer to a specific session.
  */
@@ -865,7 +880,7 @@ void tcvp_assign (address p, int ses) {
 	header (p) -> attributes.b.phys = descriptors [ses]->attpattern.b.phys;
 }
 
-void tcvp_attach (address p, int phy) {
+PUBLF (void, tcvp_attach) (address p, int phy) {
 /*
  * Attaches the packet to a specific physical interface.
  */
@@ -873,7 +888,7 @@ void tcvp_attach (address p, int phy) {
 	header (p) -> attributes.b.phys = phy;
 }
 
-address tcvp_clone (address p, int disp) {
+PUBLF (address, tcvp_clone) (address p, int disp) {
 /*
  * Duplicate the packet
  */
@@ -893,14 +908,14 @@ address tcvp_clone (address p, int disp) {
 	return (address)(pc + 1);
 }
 
-void tcvp_dispose (address p, int dsp) {
+PUBLF (void, tcvp_dispose) (address p, int dsp) {
 /*
  * Plugin-visible dispose
  */
 	dispose (header (p), dsp);
 }
 
-address tcvp_new (int size, int dsp, int ses) {
+PUBLF (address, tcvp_new) (int size, int dsp, int ses) {
 /*
  * Create a new packet with attributes inherited from the session
  */
@@ -950,12 +965,12 @@ address tcvp_new (int size, int dsp, int ses) {
 }
 
 #if	TCV_HOOKS
-void tcvp_hook (address p, address *h) {
+PUBLF (void, tcvp_hook) (address p, address *h) {
 
 	header (p) -> hptr = h;
 }
 
-void tcvp_unhook (address p) {
+PUBLF (void, tcvp_unhook) (address p) {
 
 	header (p) -> hptr = NULL;
 }
@@ -963,7 +978,7 @@ void tcvp_unhook (address p) {
 #endif
 
 #if	TCV_TIMERS
-void tcvp_settimer (address p, word del) {
+PUBLF (void, tcvp_settimer) (address p, word del) {
 /*
  * Put the packet on the timer queue
  */
@@ -979,7 +994,7 @@ void tcvp_settimer (address p, word del) {
 		tcv_q_tim . next = tcv_q_tim . prev = t;
 		t -> next = t -> prev = (titem_t*)(&tcv_q_tim);
 		tcv_tim_set = seconds ();
-		trigger ((word)(&tcv_q_tim));
+		TRIGGER (&tcv_q_tim);
 	} else {
 		titem_t *tt;
 		/* Adjust the delay */
@@ -988,7 +1003,7 @@ void tcvp_settimer (address p, word del) {
 		tt = t_first;
 		if (tt->value >= del) {
 			/* Our delay is the smallest */
-			trigger ((word)(&tcv_q_tim));
+			TRIGGER (&tcv_q_tim);
 		} else {
 			for (tt = t_next (tt); !t_end (tt); tt = t_next (tt))
 				if (tt->value >= del)
@@ -1001,7 +1016,7 @@ void tcvp_settimer (address p, word del) {
 	}
 }
 
-void tcvp_cleartimer (address p) {
+PUBLF (void, tcvp_cleartimer) (address p) {
 /*
  * Plugin-callable function to remove a packet from the timer queue
  */
@@ -1010,7 +1025,7 @@ void tcvp_cleartimer (address p) {
 }
 #endif
 
-int tcvp_length (address p) {
+PUBLF (int, tcvp_length) (address p) {
 	return header (p) -> length;
 }
 
@@ -1020,7 +1035,7 @@ int tcvp_length (address p) {
 		    /* ============================== */
 /* ---------------------------------------------------------------------- */
 
-word tcvphy_reg (int phy, ctrlfun_t ps, int info) {
+PUBLF (int, tcvphy_reg) (int phy, ctrlfun_t ps, int info) {
 /*
  * This is called to register a physical interface. The second argument
  * points to a function that controls (i.e., changes the options of) the
@@ -1034,7 +1049,7 @@ word tcvphy_reg (int phy, ctrlfun_t ps, int info) {
 	physical [phy] = ps;
 	physinfo [phy] = info;
 
-	oqueues [phy] = q = (qhead_t*) umalloc (sizeof (qhead_t));
+	oqueues [phy] = q = (qhead_t*) q_malloc (sizeof (qhead_t));
 	if (q == NULL)
 		syserror (EMALLOC, "tcvphy_reg");
 	q_init (q);
@@ -1043,10 +1058,10 @@ word tcvphy_reg (int phy, ctrlfun_t ps, int info) {
 	 * Queue event identifier (which happens to be the queue pointer
 	 * in disguise).
 	 */
-	return (word)q;
+	return (int)q;
 }
 
-int tcvphy_rcv (int phy, address p, int len) {
+PUBLF (int, tcvphy_rcv) (int phy, address p, int len) {
 /*
  * Called when a packet is received by a phy. Each phy has its private
  * (possibly static) reception buffer that it maintains by itself.
@@ -1095,7 +1110,7 @@ int tcvphy_rcv (int phy, address p, int len) {
 	return 1;
 }
 
-address tcvphy_get (int phy, int *len) {
+PUBLF (address, tcvphy_get) (int phy, int *len) {
 /*
  * Acquires the next outgoing packet to be sent on the specified interface.
  * Returns the packet pointer and its length.
@@ -1117,7 +1132,7 @@ address tcvphy_get (int phy, int *len) {
 	return (address) (b + 1);
 }
 
-address tcvphy_top (int phy) {
+PUBLF (address, tcvphy_top) (int phy) {
 /*
  * Returns the pointer to the first outgoing packet.
  */
@@ -1134,7 +1149,7 @@ address tcvphy_top (int phy) {
 	return (address)(b + 1);
 }
 
-void tcvphy_end (address pkt) {
+PUBLF (void, tcvphy_end) (address pkt) {
 /*
  * Marks the end of packet transmission
  */
@@ -1144,7 +1159,7 @@ void tcvphy_end (address pkt) {
 	dispose (b, plugins [b->attributes.b.plugin]->tcv_xmt (pkt));
 }
 
-int tcvphy_erase (int phy) {
+PUBLF (int, tcvphy_erase) (int phy) {
 /*
  * Erases the output queue
  */
@@ -1152,6 +1167,7 @@ int tcvphy_erase (int phy) {
 	return empty (oqueues [phy]);
 }
 
+#ifndef	__SMURPH__
 #if	TCV_TIMERS
 static process (timersrv, void)
 /*
@@ -1159,22 +1175,25 @@ static process (timersrv, void)
  */
     entry (0)
 
-	delay (runtq (), 0);
+	DELAY (runtq (), 0);
 	wait ((word)(&tcv_q_tim), 0);
-	release;
+	RELEASE;
 	
 	nodata;
 
 endprocess (1)
 #endif
+#endif
 
-void tcv_init () {
+PUBLF (void, tcv_init) () {
 /*
  * This one is really simple in this version. There isn't much to initialize,
  * and whatever little there is, it can be done statically.
  */
 #if	TCV_TIMERS
-	fork (timersrv, NULL);
+	tcv_tim_set = 0;
+	tcv_q_tim = { (titem_t*) &tcv_q_tim, (titem_t*) &tcv_q_tim };
+	FORK (timersrv, NULL);
 #endif
 }
 

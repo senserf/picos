@@ -6,6 +6,7 @@
 /* ==================================================================== */
 
 #include "irq_timer_headers.h"
+#include "pins.h"
 
 extern 			pcb_t		*zz_curr;
 extern 			address	zz_utims [MAX_UTIMERS];
@@ -568,6 +569,7 @@ static void ios_init () {
 #endif
 	dbg_1 (0x1000 | SYSVER_B);
 	dbg_1 ((word)STACK_END - (word)(&__bss_end)); // RAM in bytes
+
 	for_all_tasks (p)
 		/* Mark all task table entries as available */
 		p->code = NULL;
