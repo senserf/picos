@@ -126,7 +126,7 @@
 
 // Indicates whether the Ethernet chip should be configured into the system
 #ifndef	ETHERNET_DRIVER
-#define	ETHERNET_DRIVER		1
+#define	ETHERNET_DRIVER		0
 #endif
 
 // Indicates whether TCV is present

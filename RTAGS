@@ -1096,3 +1096,8 @@ R060831A:
 	pin was incorrectly initialized as output.
 	TCV restructured to make it directly compatible with SMURPH simulator.
 	Fixed mkmk to properly canonize file names outside cygwin tree.
+
+R060901A:
+
+	Jacek's Peg and Tag incorporated into Apps. They compile, but I had to
+	hack them a bit, and haven't tested them yet.
