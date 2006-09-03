@@ -5,35 +5,29 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#ifdef	__SMURPH__
-#define	STATIC
-#else
-#define	STATIC	static
-#endif
-
 /* #define	DUMPQUEUES	1 */
 
 /*
  * Session descriptor pool
  */
-STATIC sesdesc_t	*descriptors [TCV_MAX_DESC];
+__STATIC sesdesc_t	*descriptors [TCV_MAX_DESC];
 
 /*
  * Phys interfaces. An interface registers by calling phys_reg (see below) and
  * providing a pointer to the options function, which is stored in this array.
  */
-STATIC ctrlfun_t	physical [TCV_MAX_PHYS];
+__STATIC ctrlfun_t	physical [TCV_MAX_PHYS];
 
 /*
  * Phys output queues, each registered interface gets one dedicated output
  * queue.
  */
-STATIC qhead_t		*oqueues [TCV_MAX_PHYS];
+__STATIC qhead_t	*oqueues [TCV_MAX_PHYS];
 
 /*
  * Physinfo declared when the interface is registered
  */
-STATIC int		physinfo [TCV_MAX_PHYS];
+__STATIC int		physinfo [TCV_MAX_PHYS];
 
 
 #ifdef	__SMURPH__
@@ -108,11 +102,9 @@ STATIC int		physinfo [TCV_MAX_PHYS];
 /*
  * This is the timer queue, and the time when the timer was last set.
  */
-STATIC thead_t	tcv_q_tim;
-STATIC unsigned long tcv_tim_set;
+__STATIC thead_t tcv_q_tim;
+__STATIC unsigned long tcv_tim_set;
 
 #endif
-
-#undef	STATIC
 
 #endif

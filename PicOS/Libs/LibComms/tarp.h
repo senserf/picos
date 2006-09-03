@@ -9,6 +9,10 @@
 #include "tcvplug.h"
 #include "msg_tarp.h"
 
+#define TARP_CACHES_MALLOCED	0
+#define	TARP_CACHES_TEST	0
+#define	SPD_RSSI_THRESHOLD	0	/* Disabled */
+
 //+++ "tarp.c"
 
 // I'm missing them...
@@ -35,7 +39,12 @@
 
 // DD cache struct
 typedef struct ddc {
-	int	head;
+	// Note: int changed to sint. The idea is to use this type consistently
+	// in all structures (like packet headers) to distinguish it from int
+	// in the simulator. We want to preserve in the simulator the original
+	// size of all items that contribute to packets. Notably, we cannot do
+	// this with pointers (as in TCV buffers), and then we play tricks.
+	sint	head;
 	seq_t	m_seq;
 	byte	spare;
 	nid_t	node[ddCacheSize];
@@ -50,7 +59,7 @@ struct spde {
 
 // SPD cache struct
 typedef struct spdc {
-	int	head;
+	sint	head;
 	word	m_hop; // check if it's really better with int instead word
 	struct	spde en[spdCacheSize];
 } spdcType;

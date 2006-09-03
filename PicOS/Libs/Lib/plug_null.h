@@ -9,6 +9,6 @@
 
 //+++ "plug_null.c"
 
-extern tcvplug_t plug_null;
+extern const tcvplug_t plug_null;
 
 #endif

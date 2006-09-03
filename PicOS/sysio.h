@@ -1074,4 +1074,32 @@ void	adc_stop (void);
 
 #endif //if SIM_NET==0
 
+/* ======================================== */
+/* Tools for isolating SMURPH-specific code */
+/* ======================================== */
+
+// Function declaration. In the simulator, these macros expand as:
+// #define	PRIVF(tp,nam)	tp Node::nam
+// #define	PUBLF(tp,nam)	tp Node::nam
+// to make the marked functions Node methods.
+#define	__PROCESS(a,b)	process (a, b)
+#define	__ENTRY(a)	entry (a)
+#define	__DELAY(a,b)	delay (a, b)
+#define	__WAIT(a,b)	wait (a, b)
+#define	__RELEASE	release
+#define	__NODATA	nodata
+#define	__ENDPROCESS(a)	endprocess (a)
+#define	__PRIVF(tp,nam)	static tp nam
+#define	__PUBLF(tp,nam)	tp nam
+#define	__STATIC	static
+#define	__NA(a)		(a)
+#define	__FORK(a)	fork (a, NULL)
+
+// A few symbolic state ordinals
+#define	__S0		0
+#define	__S1		1
+#define	__S2		2
+#define	__S3		3
+#define	__S4		4
+
 #endif 

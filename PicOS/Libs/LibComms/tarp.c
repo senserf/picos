@@ -3,75 +3,59 @@
 /* All rights reserved.							*/
 /* ==================================================================== */
 
+#ifdef	__SMURPH__
+
+#include "node.h"
+
+#else
+
 #include "sysio.h"
+
+#endif
+
 #include "tarp.h"
 #include "app_tarp_if.h"
 #include "msg_tarp.h"
 
-#define TARP_CACHES_MALLOCED	0
+#include "tarp_node_data.h"
 
-// rcv, snd, fwd, |10 10 001 1|, flags
-// param: |level, rte_rec, slack, routing|
-tarpCtrlType tarp_ctrl = {0, 0, 0, 0xA3, 0};
-
-#if TARP_CACHES_MALLOCED
-static ddcType	* ddCache = NULL;
-static spdcType * spdCache = NULL;
-#else
-static ddcType	_ddCache;
-static spdcType _spdCache;
-#define ddCache (&_ddCache)
-#define spdCache (&_spdCache)
-//static ddcType	* ddCache  = &_ddCache;
-//static spdcType * spdCache = &_spdCache;
-#endif
-
-#define TARP_CACHES_TEST 0
 #if TARP_CACHES_TEST
-#define NULL			0
-int getSpdCacheSize() {
+
+__PUBLF (int, getSpdCacheSize) () {
 	return spdCacheSize;
 }
 
-int getDdCacheSize() {
+__PUBLF (int, getDdCacheSize) () {
 	return ddCacheSize;
 }
 
-int getDd(int i, word * host, word * seq) {
+__PUBLF (int, getDd) (int i, word * host, word * seq) {
 	*host = _ddCache.node[i];
 	*seq  = _ddCache.seq[i];
 	return _ddCache.head;
 }
 
-int getSpd(int i, word * host, word * hop) {
+__PUBLF (int, getSpd) (int i, word * host, word * hop) {
 	*host = _spdCache.en[i].host;
 	*hop  = _spdCache.en[i].hop;
 	return _spdCache.head;
 }
 
-word getDdM(word * seq) {
+__PUBLF (word, getDdM) (word * seq) {
 	*seq  = _ddCache.m_seq;
 	return master_host;
 }
 
-word getSpdM(word * hop) {
+__PUBLF (word, getSpdM) (word * hop) {
 	*hop  = _spdCache.m_hop;
 	return master_host;
 }
 
 #endif
 
-// if rssi can be used to do it, do it ------
-#if 0
-#define SPD_RSSI_THRESHOLD	who knows what
-static bool strong_signal = YES;
-#endif
-#define strong_signal YES
-//---------------------------------------------
-
 // (h == master_host) should not get here
  // find the index
-static word tarp_findInSpd (nid_t host) {
+__PRIVF (word, tarp_findInSpd) (nid_t host) {
 	int i;
 
 	if (host == 0)
@@ -92,7 +76,7 @@ static word tarp_findInSpd (nid_t host) {
 	return spdCacheSize;
 }
 
-void tarp_init() {
+__PUBLF (void, tarp_init) () {
 #if TARP_CACHES_MALLOCED
 	ddCache = (ddcType *)
 		umalloc (sizeof(ddcType));
@@ -123,7 +107,7 @@ void tarp_init() {
 // it should be enough (?)
 //#define in_shadow(c, m) ((c) == (m))
 
-static bool dd_fresh (headerType * buffer) {
+__PRIVF (bool, dd_fresh) (headerType * buffer) {
 	int i;
 
 	if (buffer->snd == master_host) {
@@ -177,7 +161,7 @@ static bool dd_fresh (headerType * buffer) {
 
 // rssi may be involved to filter out sources blinking on perimeter,
 // if so, do it on a tarp_option
-static void upd_spd (headerType * msg) {
+__PRIVF (void, upd_spd) (headerType * msg) {
 	word i;
 	if (msg->snd == master_host) {
 		// clears retries or empty write:
@@ -195,7 +179,7 @@ static void upd_spd (headerType * msg) {
 	return;
 }
 
-static int check_spd (headerType * msg) {
+__PRIVF (int, check_spd) (headerType * msg) {
 	int i, j;
 
 	if (msg->rcv == master_host) {
@@ -225,7 +209,7 @@ static int check_spd (headerType * msg) {
 	return j;
 }
 
-int tarp_rx (address buffer, int length, int *ses) {
+__PUBLF (int, tarp_rx) (address buffer, int length, int *ses) {
 
 	address dup;
 	headerType * msgBuf = (headerType *)(buffer+1);
@@ -246,7 +230,7 @@ int tarp_rx (address buffer, int length, int *ses) {
 
 	msgBuf->hoc++;
 
-#if 0
+#if SPD_RSSI_THRESHOLD
 	if (msgBuf->hoc & 0x80)
 		strong_signal = NO;
 	else {
@@ -308,9 +292,7 @@ int tarp_rx (address buffer, int length, int *ses) {
 	return TCV_DSP_DROP;
 }
 
-static word tarp_cyclingSeq	= 0;
-
-static void setHco (headerType * msg) {
+__PRIVF (void, setHco) (headerType * msg) {
 	word i;
 
 	if (msg->hco != 0) // application decided
@@ -332,7 +314,7 @@ static void setHco (headerType * msg) {
 		msg->hco = tarp_maxHops;
 }
 
-int tarp_tx (address buffer) {
+__PUBLF (int, tarp_tx) (address buffer) {
 	headerType * msgBuf = (headerType *)(buffer+1);
 	int rc = (tarp_ctrl.flags & TARP_URGENT ? TCV_DSP_XMTU : TCV_DSP_XMT);
 

@@ -4,7 +4,7 @@
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
-#include "kernel.h"
+#include "sysio.h"
 
 /* ========================================================================== */
 /*                     PicOS                                                  */
@@ -99,7 +99,7 @@ struct hblock_struct {
 typedef	struct hblock_struct	hblock_t;
 
 #define	hblenb		(sizeof (hblock_t))
-#define hblen		(hblenb/2)
+#define hblen		(hblenb/sizeof(word))
 
 #define	payload(p)	(byteaddr ((p) + 1))
 #define	header(p)	((hblock_t*)((p) - hblen))
@@ -118,7 +118,7 @@ typedef	struct hblock_struct	hblock_t;
 //#define	t_tqoffset	(((int*)(((hblock_t*)0)->tqueue))-(int*)((hblock_t*)0))
 // ... and this one is a bit less reliable:
 #define	t_tqoffset	((sizeof(hblock_t) - sizeof(titem_t))/sizeof (word))
-#define t_buffer(p)	((hblock_t*)((int*)(p) - t_tqoffset))
+#define t_buffer(p)	((hblock_t*)((sint*)(p) - t_tqoffset))
 #define	t_empty		(tcv_q_tim . next == (titem_t*)(&tcv_q_tim))
 
 #define	deqt(t)		do { \
@@ -153,8 +153,6 @@ typedef	struct {
 } sesdesc_t;
 
 #define	TCV_SESDESC_LENGTH	(4+2+2)
-
-
 
 #endif
 

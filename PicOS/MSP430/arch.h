@@ -16,6 +16,7 @@
 
 typedef unsigned char	bool;
 typedef	unsigned int	word;
+typedef	int		sint;
 typedef	unsigned char	byte;
 typedef	unsigned long	lword;
 typedef	unsigned int	field;

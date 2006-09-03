@@ -2,6 +2,13 @@
 /* Copyright (C) Olsonet Communications, 2002 - 2005			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
+
+#ifdef __SMURPH__
+
+#include "node.h"
+
+#else	/* if not the simulator */
+
 #include "sysio.h"
 #include "tcvphys.h"
 #include "plug_null.h"
@@ -31,6 +38,8 @@
 #include "phys_dm2200.h"
 #endif
 
+#endif	/* if not the simulator */
+
 #include "tarp.h"
 #include "app_tarp_if.h"
 #include "encrypt.h"
@@ -40,11 +49,11 @@ static const lword enkeys [12] = {
 	0xbacaabeb, 0xface0fed, 0xabadef01, 0x23456789,
 	0xfedcba98, 0x76543210, 0xdadabcba, 0x90987654 };
 
-int net_fd = -1;
-int net_phys = -1;
-int net_plug = -1;
+#ifndef	__SMURPH__
+#include "net_node_data.h"
+#endif
 
-int net_opt (int opt, address arg) {
+__PUBLF (int, net_opt) (int opt, address arg) {
 	if (opt == PHYSOPT_PHYSINFO)
 		return net_phys;
 
@@ -57,11 +66,15 @@ int net_opt (int opt, address arg) {
 	return tcv_control (net_fd, opt, arg);
 }
 
-int net_qera (int d) {
+__PUBLF (int, net_qera) (int d) {
 	if (net_fd < 0)
 		return -1;
 	return tcv_erase (net_fd, d);
 }
+
+#ifndef __SMURPH__
+// These are not needed in the simulator as the functions
+// are all methods
 
 #if ETHERNET_DRIVER
 static int ether_init (word);
@@ -87,10 +100,17 @@ static int cc1100_init (word);
 static int dm2200_init (word);
 #endif
 
+#endif	/* __SMURPH__ */
+
+#if CC1100
+#define	NET_MAXPLEN		60
+#else
 #define NET_MAXPLEN		80
+#endif
+
 static const char myName[] = "net.c";
 
-int net_init (word phys, word plug) {
+__PUBLF (int, net_init) (word phys, word plug) {
 
 	if (net_fd >= 0) {
 		dbg_2 (0x1000); // net busy
@@ -134,7 +154,7 @@ int net_init (word phys, word plug) {
 }
 
 #if RADIO_DRIVER
-static int radio_init (word plug) {
+__PRIVF (int, radio_init) (word plug) {
 	int fd;
 
 	phys_radio (0, 0, NET_MAXPLEN);
@@ -156,7 +176,7 @@ static int radio_init (word plug) {
 #endif
 
 #if CC1000
-static int cc1000_init (word plug) {
+__PRIVF (int, cc1000_init) (word plug) {
 	int fd;
 	// opts removed word opts[2] = {4, 2}; // checksum + power
 	phys_cc1000 (0, NET_MAXPLEN, 192);
@@ -178,7 +198,7 @@ static int cc1000_init (word plug) {
 #endif
 
 #if CC1100
-static int cc1100_init (word plug) {
+__PRIVF (int, cc1100_init) (word plug) {
 	int fd;
 	phys_cc1100 (0, NET_MAXPLEN);
 	if (plug == INFO_PLUG_TARP)
@@ -197,7 +217,7 @@ static int cc1100_init (word plug) {
 #endif
 
 #if DM2200
-static int dm2200_init (word plug) {
+__PRIVF (int, dm2200_init) (word plug) {
 	int fd;
 	phys_dm2200 (0, NET_MAXPLEN);
 
@@ -218,7 +238,7 @@ static int dm2200_init (word plug) {
 #endif
 
 #if ETHERNET_DRIVER
-static int ether_init (word plug) {
+__PRIVF (int, ether_init) (word plug) {
 	char c;
 	int  fd;
 
@@ -243,18 +263,17 @@ static int ether_init (word plug) {
 #endif
 
 #if UART_DRIVER == 2
-static int uart_init (word plug) {
+__PRIVF (int, uart_init) (word plug) {
 
 // #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
 // or
 #define NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
 #define NET_RATE			19200
 
-	static word p [6]; // keep all 6? (does io write anything there?) ** check
 	int  fd;
 
-	p [0] = (word) NET_RATE;
-	ion (UART_B, CONTROL, (char*)p, UART_CNTRL_RATE);
+	uart_init_p [0] = (word) NET_RATE;
+	ion (UART_B, CONTROL, (char*)uart_init_p, UART_CNTRL_RATE);
 	phys_uart (0, UART_B, NET_CHANNEL_MODE, NET_MAXPLEN);
 
 	if (plug == INFO_PLUG_TARP)
@@ -280,7 +299,8 @@ static int uart_init (word plug) {
 #define ether_offset(len)	((len) + 7)
 #define ether_ptype		0x6007
 
-int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
+__PUBLF (int, net_rx)
+		(word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 	address packet;
 	word size;
 	byte in_key;
@@ -398,7 +418,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 #define radio_len(len)		(((len) + 2+ 4 + 3) & 0xfffc)
 #endif
 
-int net_tx (word state, char * buf, int len, byte encr) {
+__PUBLF (int, net_tx) (word state, char * buf, int len, byte encr) {
 #if ETHERNET_DRIVER
 	static const word ether_maddr [3] = { 0xe1aa, 0xbbcc, 0xddee};
 #endif
@@ -478,7 +498,7 @@ int net_tx (word state, char * buf, int len, byte encr) {
 	return 0;
 }
 
-int net_close (word state) {
+__PUBLF (int, net_close) (word state) {
 	int rc;
 	if (net_fd < 0) {
 		dbg_2 (0x7000); // net_close: not opened
@@ -496,4 +516,3 @@ int net_close (word state) {
 	net_plug = -1;
 	return rc;
 }
-
