@@ -30,7 +30,9 @@ const tcvplug_t plug_null =
 		{ tcv_ope, tcv_clo, tcv_rcv, tcv_frm, tcv_out, tcv_xmt, NULL,
 			0x0001 /* Plugin Id */ };
 
+#ifndef	__SMURPH__
 #include "plug_null_node_data.h"
+#endif
 
 // This is how we should access node attributes, i.e., the plugin's dynamic
 // data. __NA expands into TheNode-> in the simulator.

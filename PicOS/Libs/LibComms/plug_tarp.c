@@ -33,7 +33,9 @@ const tcvplug_t plug_tarp =
 		{ tcv_ope, tcv_clo, tcv_rcv, tcv_frm, tcv_out, tcv_xmt, NULL,
 			INFO_PLUG_TARP };
 
+#ifndef	__SMURPH__
 #include "plug_tarp_node_data.h"
+#endif
 
 static const char myName[] = "pl_tarp";
 

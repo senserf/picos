@@ -17,7 +17,9 @@
 #include "app_tarp_if.h"
 #include "msg_tarp.h"
 
+#ifndef	__SMURPH__
 #include "tarp_node_data.h"
+#endif
 
 #if TARP_CACHES_TEST
 

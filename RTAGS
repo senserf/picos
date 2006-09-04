@@ -1102,7 +1102,7 @@ R060901A:
 	Jacek's Peg and Tag incorporated into Apps. They compile, but I had to
 	hack them a bit, and haven't tested them yet.
 
-R060903A:
+R060903B:
 
 	LibComms and a few other pieces converted to make them compatible with
 	SMURPH models. TARP not tested yet (in the simulator), but TCV is fine.
