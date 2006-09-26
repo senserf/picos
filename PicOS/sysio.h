@@ -231,6 +231,10 @@
 #define	RF24G			0
 #endif
 
+#ifndef	RF24L10
+#define	RF24L10			0
+#endif
+
 #ifndef	UART_TCV
 #define	UART_TCV		0
 #endif
@@ -410,6 +414,20 @@
 //+++ "phys_cc1100.c"
 
 #endif	/* CC1100 */
+
+#if	RF24L01
+
+#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#error	"RF24L01 cannot coexist with any other radio driver"
+#else
+#define	ZZ_RADIO_DRIVER_PRESENT	1
+#endif
+
+#define	ZZ_TCV_REQUIRED		1
+
+//+++ "phys_rf24l01.c"
+
+#endif	/* RF24L01 */
 
 
 #if	DM2100
@@ -1071,6 +1089,7 @@ void	adc_stop (void);
 #define	INFO_PHYS_DM2100	0x0500	/* DM2100 */
 #define	INFO_PHYS_CC1100	0x0600	/* CC1100 */
 #define	INFO_PHYS_DM2200	0x0700  /* VERSA 2 */
+#define	INFO_PHYS_RF24L01	0x0800
 
 #endif //if SIM_NET==0
 

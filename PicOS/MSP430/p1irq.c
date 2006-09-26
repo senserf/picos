@@ -15,6 +15,10 @@
 #include	"rf24g.h"
 #endif
 
+#if		RF24L01
+#include	"rf24l01.h"
+#endif
+
 #if		CC1100
 #include	"cc1100.h"
 #endif
@@ -27,6 +31,10 @@ interrupt (PORT1_VECTOR) p1_int () {
 
 #if		RF24G
 #include	"irq_rf24g.h"
+#endif
+
+#if		RF24L01
+#include	"irq_rf24l01.h"
 #endif
 
 #if		CC1100

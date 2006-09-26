@@ -1,16 +1,12 @@
-#ifndef __pg_irq_rf24g_h
-#define __pg_irq_rf24g_h
+#ifndef	__pg_phys_rf24l01_h
+#define	__pg_phys_rf24l01_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-if (rf24g_int) {
+//+++ "phys_rf24l01.c"
 
-    clear_rf24g_int;
-    i_trigger (ETYPE_USER, rxevent);
-    RISE_N_SHINE;
-
-}
+void phys_rf24l01 (int, int);
 
 #endif

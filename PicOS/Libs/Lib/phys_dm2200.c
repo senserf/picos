@@ -358,6 +358,9 @@ static int option (int opt, address val) {
 
 	switch (opt) {
 
+		// FIXME: move parts of this to xcvcommon.h. Force chip status
+		// change (hstat) immediately if both parts are OFF.
+
 	    case PHYSOPT_STATUS:
 
 		ret = ((zzv_txoff == 0) << 1) | (zzv_rxoff == 0);

@@ -8,7 +8,12 @@
 
 #define	ENCRYPT	0
 #define	MIN_PACKET_LENGTH	24
-#define	MAX_PACKET_LENGTH	46
+
+#if RF24L01
+#define	MAX_PACKET_LENGTH	30
+#else
+#define	MAX_PACKET_LENGTH	42
+#endif
 
 /*
  * You should run this application on two boards at the same time. When
@@ -40,6 +45,10 @@ heapmem {10, 90};
 #include "phys_cc1000.h"
 #endif
 
+#if CC1100
+#include "phys_cc1100.h"
+#endif
+
 #if DM2100
 #include "phys_dm2100.h"
 #endif
@@ -50,6 +59,10 @@ heapmem {10, 90};
 
 #if RF24G
 #include "phys_rf24g.h"
+#endif
+
+#if RF24L01
+#include "phys_rf24l01.h"
 #endif
 
 #if RADIO_DRIVER
@@ -399,6 +412,10 @@ process (root, int)
 
 #if RF24G
 	phys_rf24g (0, 5, 2);
+#endif
+
+#if RF24L01
+	phys_rf24l01 (0, MAXPLEN);
 #endif
 
 #if RADIO_DRIVER

@@ -826,7 +826,6 @@ void phys_cc1100 (int phy, int mbs) {
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
 
-	/* Both parts are initially active */
 	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
