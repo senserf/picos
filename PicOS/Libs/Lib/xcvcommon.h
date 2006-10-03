@@ -31,6 +31,10 @@ Finish:
 	 * running at this time. We block the interrupts for a little while
 	 * to avoid race with the transmitter.
 	 */
+#if DISABLE_CLOCK_INTERRUPT
+	// DEBUG ONLY !!!
+	dis_tim;
+#endif
 	hard_lock;
 	/* This also resets the receiver if it was running */
 	zzr_buffp = zzr_buffer;
@@ -65,23 +69,27 @@ Finish:
 	}
 
 	end_rcv;
-
+#if DISABLE_CLOCK_INTERRUPT
+	ena_tim;
+#endif
 	if (zzv_rxoff)
 		goto Finish;
 
 #if 0
-	diag ("RCV: %d %x %x %x %x %x %x", zzr_length,
+	diag ("*** RCV: [%d,%d] %x %x %x", zzr_length, zzv_curbit - IRQ_RP0,
 		zzr_buffer [0],
 		zzr_buffer [1],
-		zzr_buffer [2],
-		zzr_buffer [3],
-		zzr_buffer [4],
-		zzr_buffer [5]);
+		zzr_buffer [2]);
 #endif
 	/* The length is in words */
 	if (zzr_length < MINIMUM_PACKET_LENGTH/2) {
 #if 0
-		diag ("TOO SHORT");
+		diag ("*** ABT [too short]: [%d,%d] %x %x %x",
+			zzr_length,
+			zzv_curbit - IRQ_RP0,
+			zzr_buffer [0],
+			zzr_buffer [1],
+			zzr_buffer [2]);
 #endif
 		proceed (RCV_GETIT);
 	}
@@ -91,7 +99,12 @@ Finish:
 	    zzr_buffer [0] != zzv_statid) {
 		/* Wrong packet */
 #if 0
-		diag ("WRONG ID");
+		diag ("*** ABT [wrong SID]: [%d,%d] %x %x %x",
+			zzr_length,
+			zzv_curbit - IRQ_RP0,
+			zzr_buffer [0],
+			zzr_buffer [1],
+			zzr_buffer [2]);
 #endif
 		proceed (RCV_GETIT);
 	}
@@ -99,7 +112,12 @@ Finish:
 	/* Validate checksum */
 	if (w_chk (zzr_buffer, zzr_length, 0)) {
 #if 0
-		diag ("BAD CHK");
+		diag ("*** ABT [CRC]: [%d,%d] %x %x %x",
+			zzr_length,
+			zzv_curbit - IRQ_RP0,
+			zzr_buffer [0],
+			zzr_buffer [1],
+			zzr_buffer [2]);
 #endif
 		proceed (RCV_GETIT);
 	}
@@ -225,7 +243,10 @@ Xmit:
 		zzx_buffer [4],
 		zzx_buffer [5]);
 #endif
-	// dis_tim;
+
+#if DISABLE_CLOCK_INTERRUPT
+	dis_tim;
+#endif
 	hstat (HSTAT_XMT);
 	start_xmt;
 	/*
@@ -238,7 +259,10 @@ Xmit:
 	release;
 
     entry (XM_TXDONE)
-    // ena_tim;
+
+#if DISABLE_CLOCK_INTERRUPT
+	ena_tim;
+#endif
 
 #if 0
 	diag ("SND: DONE (%x)", (word) zzx_buffp);

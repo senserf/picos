@@ -62,6 +62,10 @@ REND:
 				adc_stop;
 				zzr_length = zzr_buffp - zzr_buffer;
 				zzr_buffp = NULL;
+#if 0
+				// Make nibble number available for debugging
+				zzv_curbit = zzv_istate;
+#endif
 				zzv_istate = IRQ_OFF;
 				i_trigger (ETYPE_USER, rxevent);
 				gbackoff;

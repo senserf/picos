@@ -18,7 +18,7 @@ word		*zzr_buffer = NULL,
 		zzv_qevent,
 		zzv_physid,
 		zzv_statid,
-		zzx_backoff;		// Calculated backoff for xmitter
+		zzx_backoff;	// Calculated backoff for xmitter
 
 byte		zzv_curbit,	// Current bit index
 		zzv_prmble,	// Preamble counter

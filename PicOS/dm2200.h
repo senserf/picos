@@ -16,7 +16,9 @@
 #define	PREAMBLE_LENGTH		14	/* Preamble bits/2 */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
 #define	DM2200_DEF_RCVMODE	0x01	/* Flat range, no high sensitivity */
-#define	COLLECT_RXDATA_ON_LOW	1	/* RXDATA taken on H-L clk transition */
+#define	COLLECT_RXDATA_ON_LOW	0	/* RXDATA taken on H-L clk transition */
+
+#define	DISABLE_CLOCK_INTERRUPT	0	/* DEBUG ONLY !!!! */
 
 /*
  * Maximum mode setting. The mode (as per SETMODE) refers to the receiver

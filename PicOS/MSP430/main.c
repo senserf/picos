@@ -386,7 +386,9 @@ static void ssm_init () {
 interrupt (TIMERB0_VECTOR) timer_int () {
 
 // Make interrupts visible on P1.2
+// -------------------
 // _BIS (P1OUT, 0x04);
+// -------------------
 
 #if	STACK_GUARD
 	if (*(((word*)STACK_END) - 1) != STACK_SENTINEL)
@@ -413,7 +415,6 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 
 	// Room for extras
 #include "irq_timer.h"
-
 		// Run the scheduler at least once every second - to
 		// keep the second clock up to date
 		if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))

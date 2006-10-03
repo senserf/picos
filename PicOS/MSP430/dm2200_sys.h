@@ -46,10 +46,10 @@
  * can be explained by the fact that the processing time tends to extend
  * slightly bit strobes beyond the calculated bounds.
  */
-#define	BIT_RATE	9601		// 9700 used with 6MHz crystal
+#define	BIT_RATE	9601	// 9700 seems to give best results
 
 /*
- * All used pins are preset to IN LOW. Thus, for adjustements in this place, we
+ * All used pins are preset to IN LOW. Thus, for adjustments in this place, we
  * only have to touch them up the right way.
  */
 
