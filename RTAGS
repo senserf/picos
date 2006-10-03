@@ -1113,4 +1113,5 @@ R060925B:
 
 R061003A:
 
-	Cosmetic rearrangements in Apps.
+	Cosmetic rearrangements in Apps. In DM2200, receiver collects data on
+	L->H transition.
