@@ -1117,5 +1117,11 @@ R061003A:
 	L->H transition.
 
 R061003B:
+
 	Tags and Pegs running on MSP430. A few of known issues still there.
+
+R061004A:
+
+	VERSA branched off at R060813A. Superfluous files removed from Apps/Peg
+	and Apps/Tag.
 
