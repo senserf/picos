@@ -1115,3 +1115,7 @@ R061003A:
 
 	Cosmetic rearrangements in Apps. In DM2200, receiver collects data on
 	L->H transition.
+
+R061003B:
+	Tags and Pegs running on MSP430. A few of known issues still there.
+
