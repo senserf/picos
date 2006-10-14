@@ -1,6 +1,6 @@
 #ifdef __MSP430__
-#define	TARGET_BOARD		BOARD_VERSA2
-#define	CRYSTAL_RATE		8000000
+#define	CRYSTAL_RATE		32768
+#define	MALLOC_SINGLE_POOL	1
 #else
 #define	TARGET_BOARD		BOARD_GEORGE
 #define	LCD_DRIVER		0	/* LCD driver present */

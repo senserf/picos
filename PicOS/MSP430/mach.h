@@ -1,7 +1,7 @@
 #ifndef __pg_mach_h
 #define	__pg_mach_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -16,11 +16,38 @@
 #error "this must be compiled with mspgcc!!!"
 #endif
 
-#ifdef        __MSP430_148__
-#define       __MSP430_14x__
+#ifdef        	__MSP430_148__
+#define       	__MSP430_1xx__
 #endif
-#ifdef        __MSP430_149__
-#define       __MSP430_14x__
+#ifdef        	__MSP430_149__
+#define       	__MSP430_1xx__
+#endif
+#ifdef		__MSP430_1611__
+#define		__MSP430_1xx__
+#endif
+
+#ifdef		__MSP430_148__
+#define		RAM_START	0x200
+#define		RAM_SIZE	0x800	// 2048
+#endif
+
+#ifdef		__MSP430_149__
+#define		RAM_START	0x200
+#define		RAM_SIZE	0x800	// 2048
+#endif
+
+#ifdef		__MSP430_449__
+#define		RAM_START	0x200
+#define		RAM_SIZE	0x800	// 2048
+#endif
+
+#ifdef		__MSP430_1611__
+#define		RAM_START	0x1100
+#define		RAM_SIZE	0x2800	// 10240
+#endif
+
+#ifndef		RAM_SIZE
+#error	"untried yet CPU type: check MSP430/mach.h"
 #endif
 
 #include "arch.h"
@@ -73,10 +100,9 @@
 #define	IFLASH_HARD_ADDRESS	((word*)0x1000)
 #endif
 
-#define	RAM_START	((byte*)0x200)
-#define	RAM_END		(RAM_START + 2048)
+#define	RAM_END		(RAM_START + RAM_SIZE)
 #define	STACK_SIZE	256			// Bytes
-#define	STACK_START	RAM_END			// FWA + 1 of stack
+#define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
 
 						// LWA of stack

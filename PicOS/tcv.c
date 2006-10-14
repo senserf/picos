@@ -18,7 +18,7 @@
 
 #ifdef	__SMURPH__
 
-#include "node.h"
+#include "board.h"
 
 // The simulator
 
@@ -59,7 +59,7 @@ static void rlp (hblock_t*);
 static const tcvplug_t	*plugins [TCV_MAX_PLUGS];
 
 
-__PUBLF (void, dmpq) (qhead_t *q) {
+__PUBLF (PicOSNode, void, dmpq) (qhead_t *q) {
 
 #if DUMP_MEMORY
 	hblock_t *pp;
@@ -74,7 +74,7 @@ __PUBLF (void, dmpq) (qhead_t *q) {
 #endif
 }
 
-__PUBLF (void, tcv_dumpqueues) (void) {
+__PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
 
 #if DUMP_MEMORY
 	int	i;
@@ -136,7 +136,7 @@ __PUBLF (void, tcv_dumpqueues) (void) {
 #define	verify_pld(p,f,m)
 #endif
 
-__PRIVF (void, deq) (hblock_t *p) {
+__PRIVF (PicOSNode, void, deq) (hblock_t *p) {
 /*
  * Removes a buffer from its queue
  */
@@ -147,7 +147,7 @@ __PRIVF (void, deq) (hblock_t *p) {
 	}
 }
 
-__PRIVF (void, enq) (qhead_t *q, hblock_t *p) {
+__PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
 /*
  * Inserts a buffer into a queue
  */
@@ -175,7 +175,7 @@ __PRIVF (void, enq) (qhead_t *q, hblock_t *p) {
 }
 
 #if	TCV_LIMIT_RCV || TCV_LIMIT_XMT
-__PRIVF (bool, qmore) (qhead_t *q, word lim) {
+__PRIVF (PicOSNode, bool, qmore) (qhead_t *q, word lim) {
 
 	hblock_t *p;
 
@@ -186,7 +186,7 @@ __PRIVF (bool, qmore) (qhead_t *q, word lim) {
 }
 #endif
 
-__PRIVF (int, empty) (qhead_t *oq) {
+__PRIVF (PicOSNode, int, empty) (qhead_t *oq) {
 /*
  * Empties the indicated queue
  */
@@ -203,7 +203,7 @@ __PRIVF (int, empty) (qhead_t *oq) {
 	return nq;
 }
 
-__PRIVF (void, dispose) (hblock_t *p, int dv) {
+__PRIVF (PicOSNode, void, dispose) (hblock_t *p, int dv) {
 /*
  * Note that plugin functions can still return simple values, as in the previous
  * version, because the targets can be decoded from the buffer attributes.
@@ -242,7 +242,7 @@ __PRIVF (void, dispose) (hblock_t *p, int dv) {
 
 #if 	TCV_TIMERS
 
-__PRIVF (word, runtq) () {
+__PRIVF (PicOSNode, word, runtq) () {
 /*
  * This function is called to run the timer queue. It returns the delay after
  * which it should be called again.
@@ -290,7 +290,7 @@ __PRIVF (word, runtq) () {
 /* TCV_TIMERS */
 #endif
 
-__PRIVF (void, rlp) (hblock_t *p) {
+__PRIVF (PicOSNode, void, rlp) (hblock_t *p) {
 /*
  * Releases the packet buffer, frees its memory
  */
@@ -315,7 +315,7 @@ __PRIVF (void, rlp) (hblock_t *p) {
  * packets explicitly (if they really want to).
  */
 
-__PRIVF (hblock_t*, apb) (word size) {
+__PRIVF (PicOSNode, hblock_t*, apb) (word size) {
 /* ========================================= */
 /* Allocates a packet buffer size bytes long */
 /* ========================================= */
@@ -354,7 +354,7 @@ __PRIVF (hblock_t*, apb) (word size) {
 		/* ===================================== */
 /* ---------------------------------------------------------------------- */
 
-__PUBLF (void, tcv_endp) (address p) {
+__PUBLF (PicOSNode, void, tcv_endp) (address p) {
 /*
  * Closes an outgoing or incoming packet. Note that this one cannot possibly
  * block because the packet is there already, and it either has to be queued
@@ -374,7 +374,7 @@ __PUBLF (void, tcv_endp) (address p) {
 		rlp (b);
 }
 
-__PUBLF (int, tcv_open) (word state, int phy, int plid, ... ) {
+__PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 /*
  * This function creates a new session descriptor and returns its number.
  *   phy  - physical interface number
@@ -482,7 +482,7 @@ __PUBLF (int, tcv_open) (word state, int phy, int plid, ... ) {
 	return (int)BLOCKED;
 }
 
-__PUBLF (int, tcv_close) (word state, int fd) {
+__PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 /*
  * This one closes a session descriptor
  */
@@ -524,7 +524,7 @@ __PUBLF (int, tcv_close) (word state, int fd) {
 	return (int)BLOCKED;
 }
 
-__PUBLF (void, tcv_plug) (int ord, const tcvplug_t *pl) {
+__PUBLF (PicOSNode, void, tcv_plug) (int ord, const tcvplug_t *pl) {
 /*
  * This is one way now. Later we may implement switching plugs on the fly.
  */
@@ -535,7 +535,7 @@ __PUBLF (void, tcv_plug) (int ord, const tcvplug_t *pl) {
 	plugins [ord] = pl;
 }
 
-__PUBLF (address, tcv_rnp) (word state, int fd) {
+__PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 /*
  * Read next packet. Makes the next packet available for reading. Returns
  * the packet handle. Note: we do not worry about closing the previous read
@@ -573,7 +573,7 @@ __PUBLF (address, tcv_rnp) (word state, int fd) {
 	return p;
 }
 
-__PUBLF (int, tcv_qsize) (int fd, int disp) {
+__PUBLF (PicOSNode, int, tcv_qsize) (int fd, int disp) {
 /*
  * Return the queue size
  */
@@ -612,7 +612,7 @@ __PUBLF (int, tcv_qsize) (int fd, int disp) {
 	return nq;
 }
 
-__PUBLF (int, tcv_erase) (int fd, int disp) {
+__PUBLF (PicOSNode, int, tcv_erase) (int fd, int disp) {
 /*
  * Erases the indicated queue: TCV_DSP_RCV, TCV_DSP_XMT
  */
@@ -655,7 +655,7 @@ Er_rt:
 
 #if	TCV_LIMIT_XMT
 
-__PUBLF (address, tcv_wnpu) (word state, int fd, int length) {
+__PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 /*
  * Urgent variant of wnp. Bumps by 1 the queue size limit and marks the packet
  * as urgent.
@@ -703,7 +703,7 @@ __PUBLF (address, tcv_wnpu) (word state, int fd, int length) {
 
 #else	/* TCV_LIMIT_XMT */
 
-__PUBLF (address, tcv_wnpu) (word state, int fd, int length) {
+__PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 
 	address p = tcv_wnp (state, fd, length);
 
@@ -715,7 +715,7 @@ __PUBLF (address, tcv_wnpu) (word state, int fd, int length) {
 
 #endif	/* TCV_LIMIT_XMT */
 
-__PUBLF (address, tcv_wnp) (word state, int fd, int length) {
+__PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 /*
  * Creates a new outgoing packet and makes it available for writing. Returns
  * the packet handle. There may be several such packets started up per
@@ -763,7 +763,7 @@ __PUBLF (address, tcv_wnp) (word state, int fd, int length) {
 	return (address) (b + 1);
 }
 
-__PUBLF (int, tcv_read) (address p, char *buf, int len) {
+__PUBLF (PicOSNode, int, tcv_read) (address p, char *buf, int len) {
 /*
  * Extracts (up to) len bytes from the packet
  */
@@ -781,7 +781,7 @@ __PUBLF (int, tcv_read) (address p, char *buf, int len) {
 	return len;
 }
 
-__PUBLF (int, tcv_write) (address p, const char *buf, int len) {
+__PUBLF (PicOSNode, int, tcv_write) (address p, const char *buf, int len) {
 /*
  * Writes (up to) len bytes to the packet
  */
@@ -798,33 +798,33 @@ __PUBLF (int, tcv_write) (address p, const char *buf, int len) {
 	return len;
 }
 
-__PUBLF (void, tcv_drop) (address p) {
+__PUBLF (PicOSNode, void, tcv_drop) (address p) {
 /*
  * Drop the packet unconditionally
  */
 	rlp (header (p));
 }
 
-__PUBLF (int, tcv_left) (address p) {
+__PUBLF (PicOSNode, int, tcv_left) (address p) {
 /*
  * Tells how much packet space is left
  */
 	return header (p) -> u.pointers.tail;
 }
 
-__PUBLF (void, tcv_urgent) (address p) {
+__PUBLF (PicOSNode, void, tcv_urgent) (address p) {
 /*
  * Mark the packet as urgent
  */
 	header (p) -> attributes.b.urgent = 1;
 }
 
-__PUBLF (bool, tcv_isurgent) (address p) {
+__PUBLF (PicOSNode, bool, tcv_isurgent) (address p) {
 
 	return header (p) -> attributes.b.urgent;
 }
 
-__PUBLF (int, tcv_control) (int fd, int opt, address arg) {
+__PUBLF (PicOSNode, int, tcv_control) (int fd, int opt, address arg) {
 /*
  * This generic function covers phys control operations available to the
  * application.
@@ -855,7 +855,7 @@ __PUBLF (int, tcv_control) (int fd, int opt, address arg) {
 	           /* ================================ */
 /* ---------------------------------------------------------------------- */
 
-__PUBLF (int, tcvp_control) (int phy, int opt, address arg) {
+__PUBLF (PicOSNode, int, tcvp_control) (int phy, int opt, address arg) {
 /*
  * Plugin version of interface control
  */
@@ -863,7 +863,7 @@ __PUBLF (int, tcvp_control) (int phy, int opt, address arg) {
 	return (physical [phy]) (opt, arg);
 }
 
-__PUBLF (void, tcvp_assign) (address p, int ses) {
+__PUBLF (PicOSNode, void, tcvp_assign) (address p, int ses) {
 /*
  * Assigns the packet buffer to a specific session.
  */
@@ -872,7 +872,7 @@ __PUBLF (void, tcvp_assign) (address p, int ses) {
 	header (p) -> attributes.b.phys = descriptors [ses]->attpattern.b.phys;
 }
 
-__PUBLF (void, tcvp_attach) (address p, int phy) {
+__PUBLF (PicOSNode, void, tcvp_attach) (address p, int phy) {
 /*
  * Attaches the packet to a specific physical interface.
  */
@@ -880,7 +880,7 @@ __PUBLF (void, tcvp_attach) (address p, int phy) {
 	header (p) -> attributes.b.phys = phy;
 }
 
-__PUBLF (address, tcvp_clone) (address p, int disp) {
+__PUBLF (PicOSNode, address, tcvp_clone) (address p, int disp) {
 /*
  * Duplicate the packet
  */
@@ -900,14 +900,14 @@ __PUBLF (address, tcvp_clone) (address p, int disp) {
 	return (address)(pc + 1);
 }
 
-__PUBLF (void, tcvp_dispose) (address p, int dsp) {
+__PUBLF (PicOSNode, void, tcvp_dispose) (address p, int dsp) {
 /*
  * Plugin-visible dispose
  */
 	dispose (header (p), dsp);
 }
 
-__PUBLF (address, tcvp_new) (int size, int dsp, int ses) {
+__PUBLF (PicOSNode, address, tcvp_new) (int size, int dsp, int ses) {
 /*
  * Create a new packet with attributes inherited from the session
  */
@@ -957,12 +957,12 @@ __PUBLF (address, tcvp_new) (int size, int dsp, int ses) {
 }
 
 #if	TCV_HOOKS
-__PUBLF (void, tcvp_hook) (address p, address *h) {
+__PUBLF (PicOSNode, void, tcvp_hook) (address p, address *h) {
 
 	header (p) -> hptr = h;
 }
 
-__PUBLF (void, tcvp_unhook) (address p) {
+__PUBLF (PicOSNode, void, tcvp_unhook) (address p) {
 
 	header (p) -> hptr = NULL;
 }
@@ -970,7 +970,7 @@ __PUBLF (void, tcvp_unhook) (address p) {
 #endif
 
 #if	TCV_TIMERS
-__PUBLF (void, tcvp_settimer) (address p, word del) {
+__PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 /*
  * Put the packet on the timer queue
  */
@@ -1008,7 +1008,7 @@ __PUBLF (void, tcvp_settimer) (address p, word del) {
 	}
 }
 
-__PUBLF (void, tcvp_cleartimer) (address p) {
+__PUBLF (PicOSNode, void, tcvp_cleartimer) (address p) {
 /*
  * Plugin-callable function to remove a packet from the timer queue
  */
@@ -1017,7 +1017,7 @@ __PUBLF (void, tcvp_cleartimer) (address p) {
 }
 #endif
 
-__PUBLF (int, tcvp_length) (address p) {
+__PUBLF (PicOSNode, int, tcvp_length) (address p) {
 	return header (p) -> length;
 }
 
@@ -1027,7 +1027,7 @@ __PUBLF (int, tcvp_length) (address p) {
 		    /* ============================== */
 /* ---------------------------------------------------------------------- */
 
-__PUBLF (int, tcvphy_reg) (int phy, ctrlfun_t ps, int info) {
+__PUBLF (PicOSNode, int, tcvphy_reg) (int phy, ctrlfun_t ps, int info) {
 /*
  * This is called to register a physical interface. The second argument
  * points to a function that controls (i.e., changes the options of) the
@@ -1053,7 +1053,7 @@ __PUBLF (int, tcvphy_reg) (int phy, ctrlfun_t ps, int info) {
 	return (int)q;
 }
 
-__PUBLF (int, tcvphy_rcv) (int phy, address p, int len) {
+__PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {
 /*
  * Called when a packet is received by a phy. Each phy has its private
  * (possibly static) reception buffer that it maintains by itself.
@@ -1102,7 +1102,7 @@ __PUBLF (int, tcvphy_rcv) (int phy, address p, int len) {
 	return 1;
 }
 
-__PUBLF (address, tcvphy_get) (int phy, int *len) {
+__PUBLF (PicOSNode, address, tcvphy_get) (int phy, int *len) {
 /*
  * Acquires the next outgoing packet to be sent on the specified interface.
  * Returns the packet pointer and its length.
@@ -1124,7 +1124,7 @@ __PUBLF (address, tcvphy_get) (int phy, int *len) {
 	return (address) (b + 1);
 }
 
-__PUBLF (address, tcvphy_top) (int phy) {
+__PUBLF (PicOSNode, address, tcvphy_top) (int phy) {
 /*
  * Returns the pointer to the first outgoing packet.
  */
@@ -1141,7 +1141,7 @@ __PUBLF (address, tcvphy_top) (int phy) {
 	return (address)(b + 1);
 }
 
-__PUBLF (void, tcvphy_end) (address pkt) {
+__PUBLF (PicOSNode, void, tcvphy_end) (address pkt) {
 /*
  * Marks the end of packet transmission
  */
@@ -1151,7 +1151,7 @@ __PUBLF (void, tcvphy_end) (address pkt) {
 	dispose (b, plugins [b->attributes.b.plugin]->tcv_xmt (pkt));
 }
 
-__PUBLF (int, tcvphy_erase) (int phy) {
+__PUBLF (PicOSNode, int, tcvphy_erase) (int phy) {
 /*
  * Erases the output queue
  */
@@ -1161,8 +1161,8 @@ __PUBLF (int, tcvphy_erase) (int phy) {
 
 #if	TCV_TIMERS
 
-#define	runtq_na 	__NA (runtq)
-#define	tcv_q_tim_na	__NA (tcv_q_tim)
+#define	runtq_na 	__NA (PicOSNode, runtq)
+#define	tcv_q_tim_na	__NA (PicOSNode, tcv_q_tim)
 
 __STATIC __PROCESS (timersrv, void)
 /*
@@ -1180,7 +1180,7 @@ __ENDPROCESS (1)
 
 #endif
 
-__PUBLF (void, tcv_init) () {
+__PUBLF (PicOSNode, void, tcv_init) () {
 /*
  * This one is really simple in this version. There isn't much to initialize,
  * and whatever little there is, it can be done dynamically.

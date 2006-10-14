@@ -2,19 +2,29 @@
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
+
+#ifndef	__encrypt_c__
+// This is for SMURPH inclusion from source library
+#define	__encrypt_c__
+
+#ifdef __SMURPH__
+#include "board.h"
+#else
 #include "encrypt.h"
+#endif
+
 /*
  * TEA encryption/decryption
  */
 
-#define	a 	key [0]
-#define	b 	key [1]
-#define	c 	key [2]
-#define	d 	key [3]
-#define delta 	0x9E3779B9
-#define	gamma 	0xC6EF3720
+#define	zcr_a 		key [0]
+#define	zcr_b 		key [1]
+#define	zcr_c 		key [2]
+#define	zcr_d 		key [3]
+#define zcr_delta 	0x9E3779B9
+#define	zcr_gamma 	0xC6EF3720
 
-void encrypt (word *str, int nw, const lword *key) {
+__PUBLF (PicOSNode, void, encrypt) (word *str, int nw, const lword *key) {
 /*
  * TEA encryption of the string of words in place using a 128-bit key.
  * The string is encrypted from the end, which assumes that the IV is
@@ -32,9 +42,9 @@ void encrypt (word *str, int nw, const lword *key) {
 		z ^= ((lword) str [nw-2] << 16) | str [nw - 1];
 		sum = 0L;
 		for (n = 0; n < 32; n++) {
-			sum += delta;
-      			y += ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
-      			z += ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
+			sum += zcr_delta;
+      			y += ((z << 4) + zcr_a) ^ (z + sum) ^ ((z >> 5) + zcr_b);
+      			z += ((y << 4) + zcr_c) ^ (y + sum) ^ ((y >> 5) + zcr_d);
 		}
 		str [nw-4] = (word) (y >> 16);
 		str [nw-3] = (word)  y;
@@ -49,9 +59,9 @@ void encrypt (word *str, int nw, const lword *key) {
 	// One more iteration to encrypt the partial block
 	sum = 0L;
 	for (n = 0; n < 32; n++) {
-		sum += delta;
-      		y += ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
-      		z += ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
+		sum += zcr_delta;
+      		y += ((z << 4) + zcr_a) ^ (z + sum) ^ ((z >> 5) + zcr_b);
+      		z += ((y << 4) + zcr_c) ^ (y + sum) ^ ((y >> 5) + zcr_d);
 	}
 
 	nw--;
@@ -70,7 +80,7 @@ void encrypt (word *str, int nw, const lword *key) {
 	str [nw] ^= (word) y;
 }
 
-void decrypt (word *str, int nw, const lword *key) {
+__PUBLF (PicOSNode, void, decrypt) (word *str, int nw, const lword *key) {
 
 	int	n;
 	lword	y, z, sum;
@@ -84,11 +94,11 @@ void decrypt (word *str, int nw, const lword *key) {
 	while (nw >= 4) {
 		y = ((lword) str [nw-4] << 16) | str [nw - 3];
 		z = ((lword) str [nw-2] << 16) | str [nw - 1];
-		sum = gamma;
+		sum = zcr_gamma;
 		for (n = 0; n < 32; n++) {
-			z -= ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
-      			y -= ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
-      			sum -= delta;
+			z -= ((y << 4) + zcr_c) ^ (y + sum) ^ ((y >> 5) + zcr_d);
+      			y -= ((z << 4) + zcr_a) ^ (z + sum) ^ ((z >> 5) + zcr_b);
+      			sum -= zcr_delta;
       		}
 		xc = yh;
 		yh = str [nw-4];
@@ -114,9 +124,9 @@ void decrypt (word *str, int nw, const lword *key) {
 	y = ((lword) yh << 16) | yl;
 	z = ((lword) zh << 16) | zl;
 	for (n = 0; n < 32; n++) {
-		sum += delta;
-      		y += ((z << 4) + a) ^ (z + sum) ^ ((z >> 5) + b);
-      		z += ((y << 4) + c) ^ (y + sum) ^ ((y >> 5) + d);
+		sum += zcr_delta;
+      		y += ((z << 4) + zcr_a) ^ (z + sum) ^ ((z >> 5) + zcr_b);
+      		z += ((y << 4) + zcr_c) ^ (y + sum) ^ ((y >> 5) + zcr_d);
 	}
 
 	nw--;
@@ -134,3 +144,12 @@ void decrypt (word *str, int nw, const lword *key) {
 	nw--;
 	str [nw] ^= (word) y;
 }
+
+#undef	zcr_a
+#undef	zcr_b
+#undef	zcr_c
+#undef	zcr_d
+#undef 	zcr_delta
+#undef	zcr_gamma
+
+#endif

@@ -143,7 +143,7 @@ void udelay (register word n) {
 		" dec %[n]\n"
 		" jne 1b\n"
 #endif
-#ifdef	__MSP430_14x__
+#ifdef	__MSP430_1xx__
 		"1:\n"
 		" nop\n"
 		" nop\n"
@@ -215,7 +215,8 @@ void zzz_syserror (int ec) {
 		mdelay (100);
 	}
 #endif
-	hard_reset;
+	while (1) hard_reset;
+
 #else	/* RESET_ON_SYSERR */
 
 	while (1) {
@@ -228,9 +229,7 @@ void zzz_syserror (int ec) {
 		_BIS_SR (LPM4_bits);
 #endif
 	}
-
 #endif	/* RESET_ON_SYSERR */
-
 }
 
 static void ssm_init () {
@@ -335,7 +334,7 @@ static void ssm_init () {
 
 	// Set up the CPU clock
 
-#ifdef	__MSP430_14x__
+#ifdef	__MSP430_1xx__
 	// Maximum DCO frequency
 	DCOCTL = DCO2 + DCO1 + DCO0;
 	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF

@@ -5,7 +5,9 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#ifndef	__SMURPH__
 #include "sysio.h"
+#endif
 
 //+++ "encrypt.c"
 

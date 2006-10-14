@@ -570,6 +570,7 @@ void	if_erase (int);
 					/* FIXME: check how accurate this is */
 #define	NULL			0
 #define	NONE			((word)(-1))
+#define	WNONE			NONE
 #define	ERROR			NONE
 #define	BLOCKED			((word)(-2))
 
@@ -1108,10 +1109,10 @@ void	adc_stop (void);
 #define	__RELEASE	release
 #define	__NODATA	nodata
 #define	__ENDPROCESS(a)	endprocess (a)
-#define	__PRIVF(tp,nam)	static tp nam
-#define	__PUBLF(tp,nam)	tp nam
+#define	__PRIVF(ot,tp,nam)	static tp nam
+#define	__PUBLF(ot,tp,nam)	tp nam
 #define	__STATIC	static
-#define	__NA(a)		(a)
+#define	__NA(a,b)	(b)
 #define	__FORK(a)	fork (a, NULL)
 
 // A few symbolic state ordinals

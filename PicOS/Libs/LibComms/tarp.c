@@ -1,11 +1,11 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005.			*/
+/* Copyright (C) Olsonet Communications, 2002 - 2006.			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
 
 #ifdef	__SMURPH__
 
-#include "node.h"
+#include "board.h"
 
 #else
 
@@ -14,41 +14,41 @@
 #endif
 
 #include "tarp.h"
-#include "app_tarp_if.h"
 #include "msg_tarp.h"
 
 #ifndef	__SMURPH__
+#include "app_tarp_if.h"
 #include "tarp_node_data.h"
 #endif
 
 #if TARP_CACHES_TEST
 
-__PUBLF (int, getSpdCacheSize) () {
+__PUBLF (TNode, int, getSpdCacheSize) () {
 	return spdCacheSize;
 }
 
-__PUBLF (int, getDdCacheSize) () {
+__PUBLF (TNode, int, getDdCacheSize) () {
 	return ddCacheSize;
 }
 
-__PUBLF (int, getDd) (int i, word * host, word * seq) {
+__PUBLF (TNode, int, getDd) (int i, word * host, word * seq) {
 	*host = _ddCache.node[i];
 	*seq  = _ddCache.seq[i];
 	return _ddCache.head;
 }
 
-__PUBLF (int, getSpd) (int i, word * host, word * hop) {
+__PUBLF (TNode, int, getSpd) (int i, word * host, word * hop) {
 	*host = _spdCache.en[i].host;
 	*hop  = _spdCache.en[i].hop;
 	return _spdCache.head;
 }
 
-__PUBLF (word, getDdM) (word * seq) {
+__PUBLF (TNode, word, getDdM) (word * seq) {
 	*seq  = _ddCache.m_seq;
 	return master_host;
 }
 
-__PUBLF (word, getSpdM) (word * hop) {
+__PUBLF (TNode, word, getSpdM) (word * hop) {
 	*hop  = _spdCache.m_hop;
 	return master_host;
 }
@@ -57,7 +57,7 @@ __PUBLF (word, getSpdM) (word * hop) {
 
 // (h == master_host) should not get here
  // find the index
-__PRIVF (word, tarp_findInSpd) (nid_t host) {
+__PRIVF (TNode, word, tarp_findInSpd) (nid_t host) {
 	int i;
 
 	if (host == 0)
@@ -78,7 +78,7 @@ __PRIVF (word, tarp_findInSpd) (nid_t host) {
 	return spdCacheSize;
 }
 
-__PUBLF (void, tarp_init) () {
+__PUBLF (TNode, void, tarp_init) () {
 #if TARP_CACHES_MALLOCED
 	ddCache = (ddcType *)
 		umalloc (sizeof(ddcType));
@@ -109,7 +109,7 @@ __PUBLF (void, tarp_init) () {
 // it should be enough (?)
 //#define in_shadow(c, m) ((c) == (m))
 
-__PRIVF (bool, dd_fresh) (headerType * buffer) {
+__PRIVF (TNode, bool, dd_fresh) (headerType * buffer) {
 	int i;
 
 	if (buffer->snd == master_host) {
@@ -123,7 +123,7 @@ __PRIVF (bool, dd_fresh) (headerType * buffer) {
 		if (master_host != buffer->snd) {
 			// kludge for upd_spd
 			master_host = buffer->snd;
-			set_master_chg;
+			set_master_chg ();
 		}
 		ddCache->m_seq = buffer->seq_no;
 		if (strong_signal) { // is simplest best?
@@ -163,7 +163,7 @@ __PRIVF (bool, dd_fresh) (headerType * buffer) {
 
 // rssi may be involved to filter out sources blinking on perimeter,
 // if so, do it on a tarp_option
-__PRIVF (void, upd_spd) (headerType * msg) {
+__PRIVF (TNode, void, upd_spd) (headerType * msg) {
 	word i;
 	if (msg->snd == master_host) {
 		// clears retries or empty write:
@@ -181,7 +181,7 @@ __PRIVF (void, upd_spd) (headerType * msg) {
 	return;
 }
 
-__PRIVF (int, check_spd) (headerType * msg) {
+__PRIVF (TNode, int, check_spd) (headerType * msg) {
 	int i, j;
 
 	if (msg->rcv == master_host) {
@@ -211,7 +211,7 @@ __PRIVF (int, check_spd) (headerType * msg) {
 	return j;
 }
 
-__PUBLF (int, tarp_rx) (address buffer, int length, int *ses) {
+__PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 
 	address dup;
 	headerType * msgBuf = (headerType *)(buffer+1);
@@ -294,7 +294,7 @@ __PUBLF (int, tarp_rx) (address buffer, int length, int *ses) {
 	return TCV_DSP_DROP;
 }
 
-__PRIVF (void, setHco) (headerType * msg) {
+__PRIVF (TNode, void, setHco) (headerType * msg) {
 	word i;
 
 	if (msg->hco != 0) // application decided
@@ -316,7 +316,7 @@ __PRIVF (void, setHco) (headerType * msg) {
 		msg->hco = tarp_maxHops;
 }
 
-__PUBLF (int, tarp_tx) (address buffer) {
+__PUBLF (TNode, int, tarp_tx) (address buffer) {
 	headerType * msgBuf = (headerType *)(buffer+1);
 	int rc = (tarp_ctrl.flags & TARP_URGENT ? TCV_DSP_XMTU : TCV_DSP_XMT);
 

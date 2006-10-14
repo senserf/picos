@@ -819,8 +819,8 @@ proc scanfile { fname } {
 
 proc bad_usage { } {
 
-	puts stderr "Usage: mkmk [-m|-msp430xXXX|-e]"
-	exit (1);
+	puts stderr "Usage: mkmk \[-m|-msp430xXXX|-e\]"
+	exit 1
 }
 
 proc main { } {
@@ -848,7 +848,7 @@ proc main { } {
 			set TGT "eCOG"
 			set mcpu ""
 		} elseif { [string first "-m" $fn] == 0 } {
-			set fn [string range $fn 2 end]
+			set fn [string range $fn 1 end]
 			if ![regexp "^msp430x\[0-9\]+$" $fn] {
 				bad_usage
 			}

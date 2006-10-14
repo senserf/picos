@@ -1125,3 +1125,6 @@ R061004A:
 	VERSA branched off at R060813A. Superfluous files removed from Apps/Peg
 	and Apps/Tag.
 
+R061014A:
+
+	MSP430F1611 memory map added. Cleanup in Apps.
