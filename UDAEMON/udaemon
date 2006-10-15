@@ -1,0 +1,262 @@
+#!/usr/bin/wish -f
+
+package require siclef 1.0
+
+#
+# This is the mailbox buffer size, which should be at least as big as a
+# reasonable maximum for the UART buffer size in PicOS
+#
+set IBSize		256
+set Unique		0
+set MaxLineCount	1024
+
+sicle
+
+class Port { } { }
+
+interface Port
+
+class Listener { port } {
+
+	global MSock
+
+	set MSock [create Port InternetServer $port]
+}
+
+process Listener {
+
+	global MSock IBSize
+
+	set nc [client $MSock Port $IBSize]
+
+	if { $nc != "" } {
+		# a new client
+		create UServer $nc
+	}
+
+	# wait for more clients
+	wait $MSock Client None
+}
+
+class UServer { int } {
+#
+# Handles one UART terminal
+#
+	useown Sok Wn TBuf
+	global Unique Wins
+
+	set Sok $int
+	# the frame tag
+	set ftag $Unique
+	incr Unique
+
+	set Wn ".wx$ftag"
+
+	if { $ftag != 0 } {
+		# this is not the first window
+		toplevel $Wn
+	} else {
+		frame $Wn
+	}
+
+	# previous buffer (for interpreting CR+LF properly)
+	set TBuf ""
+
+	mkTerm $Wn
+	set Wins($Wn) $This
+
+	if { $ftag == 0 } {
+		pack $Wn
+	}
+
+	bind $Wn <Destroy> "destroyTerminal \"$Wn\""
+}
+
+proc destroyTerminal { w } {
+
+	global Wins
+
+	if ![info exists Wins($w)] {
+		return
+	}
+
+	use $Wins($w) Sok
+
+	attention $Sok
+}
+
+process UServer {
+
+	useown State Sok Wn TBuf
+
+	switch $State {
+
+	    Start {
+		if [closed $Sok] {
+			proceed Close
+		}
+
+		if [extract $Sok chunk] {
+			# we have something
+			append TBuf $chunk
+			# look for CR+LF, LF+CR, CR, LF; if there is only
+			# one of those at the end, ignore it for now and
+			# keep for posterity
+			set sl [string length $TBuf]
+			while { [regexp "\[\r\n\]" $TBuf m] } {
+				set el [string first $m $TBuf]
+				if { $el == 0 } {
+					# first character
+					if { $sl < 2 } {
+						# have to leave it and wait
+						proceed Start
+					}
+					# check the second one
+					set n [string index $TBuf 1]
+					if { $m == "\r" && $n == "\n" || \
+					     $m == "\n" && $n == "\r"    } {
+						# two-character EOL
+						set TBuf \
+						      [string range $TBuf 2 end]
+						incr sl -2
+					} else {
+						set TBuf \
+						      [string range $TBuf 1 end]
+						incr sl -1
+					}
+					# complete previous line
+					endLine $Wn
+					continue
+				}
+				# send the preceding string to the terminal
+				addText $Wn [string range $TBuf \
+							       0 [expr $el - 1]]
+				incr sl -$el
+				set TBuf [string range $TBuf $el end]
+			}
+			if { $TBuf != "" } {
+				addText $Wn $TBuf
+				set TBuf ""
+			}
+			proceed Start
+		}
+
+		wait $Sok Newitem Start
+		wait $Sok Attention Stop
+	    }
+
+	    Close {
+	
+	   	endLine $Wn
+	   	addText $Wn "CONNECTION CLOSED!!!!"
+	   	endLine $Wn
+
+		delete $Sok
+		delete $This
+	    }
+
+	    Stop {
+		# the window is no more
+		delete $Sok
+		delete $This
+	    }
+	}
+}
+
+###############################################################################
+
+proc addText { w txt } {
+
+	$w.t configure -state normal
+	$w.t insert end "$txt"
+	$w.t configure -state disabled
+
+}
+
+proc endLine { w } {
+
+	global	MaxLineCount
+	
+	$w.t configure -state normal
+	$w.t insert end "\n"
+
+	set ix [$w.t index end]
+	set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
+
+	if { $ix > $MaxLineCount } {
+		# scroll out the topmost line if above limit
+		$w.t delete 1.0 2.0
+	}
+
+	$w.t configure -state disabled
+	# make sure the last line is displayed
+	$w.t yview -pickplace end
+
+}
+
+proc handleUserInput { w } {
+
+	global Wins
+
+	set tx ""
+	# extract the line
+	regexp "\[^\r\n\]+" [$w.u get 0.0 end] tx
+	# remove it from the input field
+	$w.u delete 0.0 end
+
+	if ![info exists Wins($w)] {
+		addText $w "NO CONNECTION!!!"
+		endLine $w
+		return
+	}
+
+	use $Wins($w) Sok
+
+	if [closed $Sok] {
+		addText $w "INTERFACE CLOSED!!!"
+		endLine $w
+		return
+	}
+
+	deposit $Sok "${tx}\r\n"
+
+	# echo
+	addText $w $tx
+	endLine $w
+}
+
+proc mkTerm { w } {
+#
+# Creates a new terminal
+#
+	text $w.t \
+		-yscrollcommand "$w.scroly set" \
+		-xscrollcommand "$w.scrolx set" \
+		-setgrid true \
+        	-width 80 -height 24 -wrap none \
+		-font {-family courier -size 10} \
+		-exportselection 1 \
+		-state disabled
+
+	scrollbar $w.scroly -command "$w.t yview"
+	scrollbar $w.scrolx -orient horizontal -command "$w.t xview"
+
+	pack $w.scroly -side right -fill y
+	pack $w.scrolx -side bottom -fill x
+
+	pack $w.t -expand yes -fill both
+
+	text $w.u -height 1 -font {-family courier -size 10}
+	pack $w.u -expand yes -fill x
+
+	bind $w.u <Return> "handleUserInput \"$w\""
+
+
+	return $w.t
+}
+
+###############################################################################
+
+create Listener 2211
+
+kernel

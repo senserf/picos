@@ -1,0 +1,4 @@
+fork: counting processes (can it be done reasonably?)
+perhaps encapsulating process actions into methods would help?
+reset: node should be able to restart from scratch. Need to account for stuff
+like eeprom.
