@@ -1,0 +1,124 @@
+SMURPH Version 1.71      MNA-Hypercube    Wed Sep 15 18:36:11 1993
+Call arguments: data_smp.txt out
+
+Traffic parameters
+
+UTraffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean = 1.02e+03)
+MLE distribution:      EXPONENTIAL (Mean = 8.19e+03)
+Standard Client is:    ON
+Standard measures are: ON
+
+Communication group #000 (density       32)
+
+Senders:   all stations
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+(   16        1)   (   17        1)   (   18        1)   (   19        1)   
+(   20        1)   (   21        1)   (   22        1)   (   23        1)   
+(   24        1)   (   25        1)   (   26        1)   (   27        1)   
+(   28        1)   (   29        1)   (   30        1)   (   31        1)   
+
+Receivers: all stations
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+(   16        1)   (   17        1)   (   18        1)   (   19        1)   
+(   20        1)   (   21        1)   (   22        1)   (   23        1)   
+(   24        1)   (   25        1)   (   26        1)   (   27        1)   
+(   28        1)   (   29        1)   (   30        1)   (   31        1)   
+
+(UTraffic 0) End of list
+
+(Client) End of list
+
+Time:      8592484846     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               8192
+      Minimum value:               1.44e+04
+      Maximum value:               2.28e+05
+      Mean value:                  5.64e+04
+      Variance:                     7.5e+08
+      Standard deviation:          2.74e+04
+      Confidence int @95%:           0.0105
+      Confidence int @99%:           0.0138
+
+APD - Absolute packet delay:
+
+      Number of samples:              61775
+      Minimum value:               1.44e+04
+      Maximum value:               2.65e+05
+      Mean value:                  5.71e+04
+      Variance:                    7.44e+08
+      Standard deviation:          2.73e+04
+      Confidence int @95%:          0.00376
+      Confidence int @99%:          0.00494
+
+WMD - Weighted message delay:
+
+      Number of samples:           66335560
+      Minimum value:               1.44e+04
+      Maximum value:               2.65e+05
+      Mean value:                   5.9e+04
+      Variance:                    7.53e+08
+      Standard deviation:          2.74e+04
+      Confidence int @95%:         0.000112
+      Confidence int @99%:         0.000147
+
+MAT - Message access time:
+
+      Number of samples:               8257
+      Minimum value:               1.19e+03
+      Maximum value:                2.2e+04
+      Mean value:                  3.29e+03
+      Variance:                    7.12e+06
+      Standard deviation:          2.67e+03
+      Confidence int @95%:           0.0175
+      Confidence int @99%:            0.023
+
+PAT - Packet access time:
+
+      Number of samples:              62286
+      Minimum value:               1.19e+03
+      Maximum value:               1.87e+04
+      Mean value:                  1.65e+03
+      Variance:                    7.81e+05
+      Standard deviation:               884
+      Confidence int @95%:          0.00421
+      Confidence int @99%:          0.00553
+
+MLS - Message length distribution:
+
+      Number of samples:               8262
+      Minimum value:                      8
+      Maximum value:               6.39e+04
+      Mean value:                   8.1e+03
+      Variance:                    6.12e+07
+      Standard deviation:          7.83e+03
+      Confidence int @95%:           0.0208
+      Confidence int @99%:           0.0274
+
+    Number of generated messages:              8262
+    Number of queued messages:                    5
+    Number of transmitted messages:            8257
+    Number of received messages:               8192
+    Number of transmitted packets:            62286
+    Number of received packets:               61775
+    Number of queued bits:                    36392
+    Number of transmitted bits:            66880312
+    Number of received bits:               66335560
+    Measurement start time:                       0
+    Throughput:                                7.72
+
+(Client) End of list
+
+
+@@@ End of output

@@ -1,0 +1,21 @@
+Time granularity                       1000
+Clock tolerance                      0.0001
+
+Number of switches                       25
+Inter-switch Link length                  2 bits
+Switch-to-host link length                1 bit
+
+Minimum payload length                  384 bits
+Maximum payload length                65536 bits
+Header and trailer                      256 bits
+Receiver recognition delay               64 bits
+Packet space                             32 bits
+
+Noise packet length                       8 bits
+Shortest recognizable activity            8 bits
+Network flooding time estimate           20 bits
+
+Mean message interarrival time         4096 bits
+Mean message length                    2048 bits
+
+The number of messages to be received  4096

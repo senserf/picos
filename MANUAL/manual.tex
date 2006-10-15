@@ -1,0 +1,138 @@
+\documentstyle [twoside,epsfig,11pt] {article}
+%\usepackage{graphicx}
+\pagestyle{headings}
+
+%% Checkpointing stuff deleted (%%%CHKP)
+
+%Fonts
+\font\ssf=cmss10 %%%% san serif font, the default "sf" is really bold san serif
+\font\ssfb=cmssbx10 %%%% bold san serif font
+
+\newcommand{\sectdef}[3]{%
+	\ifcase #1%
+		\typeout{Section depth #1 undefined; 1 used instead.}%
+		\section{#3\label{sect.#2}}%
+	\or	\section{#3\label{sect.#2}}%
+	\or	\subsection{#3\label{sect.#2}}%
+	\or	\subsubsection{#3\label{sect.#2}}%
+	\or	\paragraph{#3\label{sect.#2}}%
+	\or	\subparagraph{#3\label{sect.#2}}%
+	\else%
+		\typeout{Section depth #1 undefined; 1 used instead.}%
+		\section{#3\label{sect.#2}}%
+	\fi%
+}%
+
+\newcommand{\fig}[1]{figure~\ref{fig.#1}}%
+\newcommand{\Fig}[1]{Figure~\ref{fig.#1}}%
+\newcommand{\tab}[1]{table~\ref{tab.#1}}%
+\newcommand{\Tab}[1]{Table~\ref{tab.#1}}%
+\newcommand{\sect}[1]{section~\ref{#1}}%
+\newcommand{\Sect}[1]{Section~\ref{#1}}%
+\newcommand{\defi}[1]{definition~\ref{#1}}%
+\newcommand{\Defi}[1]{Definition~\ref{#1}}%
+\newcommand{\chap}[1]{chapter~\ref{#1}}%
+\newcommand{\Chap}[1]{Chapter~\ref{#1}}%
+\newcommand{\appe}[1]{appendix~\ref{#1}}%
+\newcommand{\Appe}[1]{Appendix~\ref{#1}}%
+
+\newcommand{\references}[1]{%
+	\bibliographystyle{#1}%
+	\bibliography{defs-#1,references}%
+}%
+
+\newenvironment{doublespace}%
+{\renewcommand{\baselinestretch}{1.50} \large \normalsize}%
+{\renewcommand{\baselinestretch}{1} \large \normalsize}%
+
+\newenvironment{singlespace}%
+{\renewcommand{\baselinestretch}{1} \large \normalsize}%
+{\renewcommand{\baselinestretch}{1.50} \large \normalsize}%
+
+\newcommand{\lansf}{{\sc LANSF}}
+\newcommand{\smurph}{{\sc SIDE}}
+\newcommand{\dsd}{{\sc DSD}}
+\newcommand{\smurphtt}{{\tt SIDE}}
+\newcommand{\smurphrm}{{SIDE}}
+\newcommand{\smurphtts}{{\tt side}}
+\newcommand{\serdel}{{\sc SERDEL}}
+\newcommand{\djgpp}{{\sc DJGPP}}
+
+\topmargin = 0.0in
+\oddsidemargin = 0.3in
+\evensidemargin = 0.3in
+\textheight = 200mm
+\textwidth = 150mm
+\parindent = 0in
+\parskip = 1.5mm
+
+\sloppy
+
+\begin {document}
+
+\begin{titlepage}
+
+\vspace*{0.35in}
+
+\begin{center}
+
+\psfig{figure=FIGURES/olso.eps} \\
+
+\vspace*{0.45in}
+
+\Huge\bf SIDE/SMURPH:\vspace{0.1in} \\
+
+\huge\bf a Modeling Environment for\vspace{0.1in} \\
+
+Reactive Telecommunication Systems\vspace{0.25in}\\
+
+\Large version 2.8 \\
+
+\vspace{1.2in}
+
+\bf Pawel Gburzynski \\
+
+\vspace*{1.5in}
+
+{\Large {\copyright}~Copyright 2006, Olsonet Communications Corporation.\\
+{\bf All Rights Reserved.}}
+
+\normalsize
+
+\end{center}
+
+\end{titlepage}
+
+\pagenumbering{roman}
+\newpage
+{
+\parskip = 0mm
+\tableofcontents
+}
+\clearpage
+\pagenumbering{arabic}
+\setcounter{page}{1}
+
+\input{total}
+
+%\input{intro}
+%\input{lexic}
+%\input{exten}
+%\input{auxil}
+%\input{stype}
+%\input{defin}
+%\input{proce}
+%\input{timer}
+%\input{clien}
+%\input{porta}
+%\input{trans}
+%\input{mailb}
+%\input{perfo}
+%\input{termi}
+%\input{tests}
+%\input{expos}
+%\input{displ}
+%\input{unixw}
+
+\end {document}
+

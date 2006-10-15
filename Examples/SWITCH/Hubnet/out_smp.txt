@@ -1,0 +1,444 @@
+SMURPH Version 1.71      Fri Aug  6 16:03:13 1993
+Call arguments: data_smp.txt out_smp.txt
+
+Network topology
+
+Stations:
+
+  NumId             Type         NPorts       NBuffers                NName
+      0         HStation              2              1                -----
+      1         HStation              2              1                -----
+      2         HStation              2              1                -----
+      3         HStation              2              1                -----
+      4         HStation              2              1                -----
+      5         HStation              2              1                -----
+      6         HStation              2              1                -----
+      7         HStation              2              1                -----
+      8         HStation              2              1                -----
+      9         HStation              2              1                -----
+     10         HStation              2              1                -----
+     11         HStation              2              1                -----
+     12         HStation              2              1                -----
+     13         HStation              2              1                -----
+     14         HStation              2              1                -----
+     15         HStation              2              1                -----
+     16              Hub             17              0                -----
+
+Links:
+
+  Link    0,    Type: Link
+
+    Distance matrix:
+
+     0:      ---     3832
+     1:     3832      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       0        1000
+         1         16       0           0
+
+  Link    1,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    54356
+     1:    54356      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          1       0        1000
+         1         16       1           0
+
+  Link    2,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    27442
+     1:    27442      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          2       0        1000
+         1         16       2           0
+
+  Link    3,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    70364
+     1:    70364      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          3       0        1000
+         1         16       3           0
+
+  Link    4,    Type: Link
+
+    Distance matrix:
+
+     0:      ---   229775
+     1:   229775      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          4       0        1000
+         1         16       4           0
+
+  Link    5,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    57651
+     1:    57651      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          5       0        1000
+         1         16       5           0
+
+  Link    6,    Type: Link
+
+    Distance matrix:
+
+     0:      ---   154170
+     1:   154170      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          6       0        1000
+         1         16       6           0
+
+  Link    7,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    66910
+     1:    66910      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          7       0        1000
+         1         16       7           0
+
+  Link    8,    Type: Link
+
+    Distance matrix:
+
+     0:      ---   209362
+     1:   209362      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          8       0        1000
+         1         16       8           0
+
+  Link    9,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    43215
+     1:    43215      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          9       0        1000
+         1         16       9           0
+
+  Link   10,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    97354
+     1:    97354      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         10       0        1000
+         1         16      10           0
+
+  Link   11,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    58125
+     1:    58125      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         11       0        1000
+         1         16      11           0
+
+  Link   12,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    99912
+     1:    99912      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         12       0        1000
+         1         16      12           0
+
+  Link   13,    Type: Link
+
+    Distance matrix:
+
+     0:      ---   131598
+     1:   131598      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         13       0        1000
+         1         16      13           0
+
+  Link   14,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    56726
+     1:    56726      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         14       0        1000
+         1         16      14           0
+
+  Link   15,    Type: Link
+
+    Distance matrix:
+
+     0:      ---    30600
+     1:    30600      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         15       0        1000
+         1         16      15           0
+
+  Link   16,    Type: Link
+
+    Distance matrix:
+
+     0:      ---     3832    54356    27442    70364   229775    57651   154170
+   ...:    66910   209362    43215    97354    58125    99912   131598    56726
+   ...:    30600
+
+     1:     3832      ---    58188    31274    74196   233607    61483   158002
+   ...:    70742   213194    47047   101186    61957   103744   135430    60558
+   ...:    34432
+
+     2:    54356    58188      ---    81798   124720   284131   112007   208526
+   ...:   121266   263718    97571   151710   112481   154268   185954   111082
+   ...:    84956
+
+     3:    27442    31274    81798      ---    97806   257217    85093   181612
+   ...:    94352   236804    70657   124796    85567   127354   159040    84168
+   ...:    58042
+
+     4:    70364    74196   124720    97806      ---   300139   128015   224534
+   ...:   137274   279726   113579   167718   128489   170276   201962   127090
+   ...:   100964
+
+     5:   229775   233607   284131   257217   300139      ---   287426   383945
+   ...:   296685   439137   272990   327129   287900   329687   361373   286501
+   ...:   260375
+
+     6:    57651    61483   112007    85093   128015   287426      ---   211821
+   ...:   124561   267013   100866   155005   115776   157563   189249   114377
+   ...:    88251
+
+     7:   154170   158002   208526   181612   224534   383945   211821      ---
+   ...:   221080   363532   197385   251524   212295   254082   285768   210896
+   ...:   184770
+
+     8:    66910    70742   121266    94352   137274   296685   124561   221080
+   ...:      ---   276272   110125   164264   125035   166822   198508   123636
+   ...:    97510
+
+     9:   209362   213194   263718   236804   279726   439137   267013   363532
+   ...:   276272      ---   252577   306716   267487   309274   340960   266088
+   ...:   239962
+
+    10:    43215    47047    97571    70657   113579   272990   100866   197385
+   ...:   110125   252577      ---   140569   101340   143127   174813    99941
+   ...:    73815
+
+    11:    97354   101186   151710   124796   167718   327129   155005   251524
+   ...:   164264   306716   140569      ---   155479   197266   228952   154080
+   ...:   127954
+
+    12:    58125    61957   112481    85567   128489   287900   115776   212295
+   ...:   125035   267487   101340   155479      ---   158037   189723   114851
+   ...:    88725
+
+    13:    99912   103744   154268   127354   170276   329687   157563   254082
+   ...:   166822   309274   143127   197266   158037      ---   231510   156638
+   ...:   130512
+
+    14:   131598   135430   185954   159040   201962   361373   189249   285768
+   ...:   198508   340960   174813   228952   189723   231510      ---   188324
+   ...:   162198
+
+    15:    56726    60558   111082    84168   127090   286501   114377   210896
+   ...:   123636   266088    99941   154080   114851   156638   188324      ---
+   ...:    87326
+
+    16:    30600    34432    84956    58042   100964   260375    88251   184770
+   ...:    97510   239962    73815   127954    88725   130512   162198    87326
+   ...:      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         16      16        1000
+         1          0       1           0
+         2          1       1           0
+         3          2       1           0
+         4          3       1           0
+         5          4       1           0
+         6          5       1           0
+         7          6       1           0
+         8          7       1           0
+         9          8       1           0
+        10          9       1           0
+        11         10       1           0
+        12         11       1           0
+        13         12       1           0
+        14         13       1           0
+        15         14       1           0
+        16         15       1           0
+
+(System) End of list
+
+Traffic parameters
+
+Traffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean = 2.05e+03)
+MLE distribution:      EXPONENTIAL (Mean = 1.02e+03)
+Standard Client is:    ON
+Standard measures are: ON
+
+Communication group #000 (density       16)
+
+Senders:      16
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+
+Receivers:    16
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+
+(Traffic 0) End of list
+
+(Client) End of list
+
+Time:     17077448963     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               8192
+      Minimum value:                    175
+      Maximum value:               4.22e+04
+      Mean value:                  2.63e+03
+      Variance:                    7.57e+06
+      Standard deviation:          2.75e+03
+      Confidence int @95%:           0.0227
+      Confidence int @99%:           0.0298
+
+APD - Absolute packet delay:
+
+      Number of samples:               8192
+      Minimum value:                    175
+      Maximum value:                3.3e+04
+      Mean value:                  2.43e+03
+      Variance:                    5.95e+06
+      Standard deviation:          2.44e+03
+      Confidence int @95%:           0.0217
+      Confidence int @99%:           0.0285
+
+WMD - Weighted message delay:
+
+      Number of samples:            8328056
+      Minimum value:                    175
+      Maximum value:               4.22e+04
+      Mean value:                  3.57e+03
+      Variance:                    8.44e+06
+      Standard deviation:          2.91e+03
+      Confidence int @95%:         0.000553
+      Confidence int @99%:         0.000726
+
+MAT - Message access time:
+
+      Number of samples:               8192
+      Minimum value:                    112
+      Maximum value:               4.19e+04
+      Mean value:                  2.46e+03
+      Variance:                    7.52e+06
+      Standard deviation:          2.74e+03
+      Confidence int @95%:           0.0241
+      Confidence int @99%:           0.0317
+
+PAT - Packet access time:
+
+      Number of samples:               8192
+      Minimum value:                    112
+      Maximum value:               3.28e+04
+      Mean value:                  2.27e+03
+      Variance:                     5.9e+06
+      Standard deviation:          2.43e+03
+      Confidence int @95%:           0.0232
+      Confidence int @99%:           0.0305
+
+MLS - Message length distribution:
+
+      Number of samples:               8195
+      Minimum value:                      8
+      Maximum value:               9.71e+03
+      Mean value:                  1.02e+03
+      Variance:                    9.74e+05
+      Standard deviation:               987
+      Confidence int @95%:            0.021
+      Confidence int @99%:           0.0276
+
+    Number of generated messages:              8195
+    Number of queued messages:                    3
+    Number of transmitted messages:            8192
+    Number of received messages:               8192
+    Number of transmitted packets:             8192
+    Number of received packets:                8192
+    Number of queued bits:                     3160
+    Number of transmitted bits:             8328056
+    Number of received bits:                8328056
+    Measurement start time:                       0
+    Throughput:                               0.488
+
+(Client) End of list
+
+
+@@@ End of output

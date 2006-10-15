@@ -1,0 +1,16 @@
+Time granularity            1000 ITUs/bit
+Clock tolerance           0.0001
+
+Number of nodes               32
+Link length                12000 bits
+
+Minimum packet length       1152 bits
+Maximum packet length       1152 bits
+Packet header length          40 bits
+
+Delay line length      1152+40+1 bits
+
+Mean message interarrival time   1024 bits
+Mean message length              8192 bits
+
+Mesage number limit             8192

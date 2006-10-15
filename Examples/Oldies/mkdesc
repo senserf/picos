@@ -1,0 +1,8 @@
+#
+cd DISK ; latex descr ; dvips descr ; cd ..
+cd ETHERNET ; latex descr ; dvips descr ; cd ..
+cd HUBNET ; latex descr ; dvips descr ; cd ..
+cd MTRING ; latex descr ; dvips descr ; cd ..
+cd TRING ; latex descr ; dvips descr ; cd ..
+#
+rm */descr.aux  */descr.log  */descr.dvi

@@ -1,0 +1,123 @@
+SMURPH Version 1.7      Alternating Bit (basic version)    Sun Feb  7 14:25:57 1993
+Call arguments: data_smp.txt out_smp.txt
+
+Time:        32102194     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               2000
+      Minimum value:               2.02e+03
+      Maximum value:               1.09e+05
+      Mean value:                  8.65e+03
+      Variance:                    1.53e+08
+      Standard deviation:          1.24e+04
+      Confidence int @95%:           0.0627
+      Confidence int @99%:           0.0824
+
+APD - Absolute packet delay:
+
+      Number of samples:               2000
+      Minimum value:               2.02e+03
+      Maximum value:               6.51e+04
+      Mean value:                  4.03e+03
+      Variance:                    4.39e+07
+      Standard deviation:          6.63e+03
+      Confidence int @95%:            0.072
+      Confidence int @99%:           0.0947
+
+WMD - Weighted message delay:
+
+      Number of samples:            2048000
+      Minimum value:               2.02e+03
+      Maximum value:               1.09e+05
+      Mean value:                  8.65e+03
+      Variance:                    1.53e+08
+      Standard deviation:          1.24e+04
+      Confidence int @95%:          0.00196
+      Confidence int @99%:          0.00257
+
+MAT - Message access time:
+
+      Number of samples:               1999
+      Minimum value:               3.28e+03
+      Maximum value:                1.1e+05
+      Mean value:                  1.05e+04
+      Variance:                    1.67e+08
+      Standard deviation:          1.29e+04
+      Confidence int @95%:           0.0538
+      Confidence int @99%:           0.0707
+
+PAT - Packet access time:
+
+      Number of samples:               1999
+      Minimum value:               3.28e+03
+      Maximum value:               6.64e+04
+      Mean value:                   5.9e+03
+      Variance:                    5.94e+07
+      Standard deviation:          7.71e+03
+      Confidence int @95%:           0.0572
+      Confidence int @99%:           0.0752
+
+MLS - Message length distribution:
+
+      Number of samples:               2000
+      Minimum value:               1.02e+03
+      Maximum value:               1.02e+03
+      Mean value:                  1.02e+03
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:                0
+      Confidence int @99%:                0
+
+    Number of generated messages:              2000
+    Number of queued messages:                    1
+    Number of transmitted messages:            1999
+    Number of received messages:               2000
+    Number of transmitted packets:             1999
+    Number of received packets:                2000
+    Number of queued bits:                     1024
+    Number of transmitted bits:             2046976
+    Number of received bits:                2048000
+    Measurement start time:                       0
+    Throughput:                              0.0638
+
+(Client) End of list
+
+Time:        32102194     (Link 0) Performance measures:
+
+    Number of jamming signals:                    0
+    Number of transfer attempts:               2250
+    Number of transmitted packets:             2250
+    Number of transmitted bits:             2304000
+    Number of received packets:                2000
+    Number of received bits:                2048000
+    Number of transmitted messages:            2250
+    Number of received messages:               2000
+    Number of damaged packets:                  197
+    Number of h-damaged packets:                  0
+    Number of damaged bits:                  201728
+    Throughput (by received bits):           0.0638
+    Throughput (by trnsmtd bits):            0.0718
+
+(Link 0) End of list
+
+Time:        32102194     (Link 1) Performance measures:
+
+    Number of jamming signals:                    0
+    Number of transfer attempts:               2230
+    Number of transmitted packets:             2230
+    Number of transmitted bits:              570880
+    Number of received packets:                   0
+    Number of received bits:                      0
+    Number of transmitted messages:               0
+    Number of received messages:                  0
+    Number of damaged packets:                   62
+    Number of h-damaged packets:                  0
+    Number of damaged bits:                   15872
+    Throughput (by received bits):                0
+    Throughput (by trnsmtd bits):            0.0178
+
+(Link 1) End of list
+
+
+@@@ End of output

@@ -1,0 +1,13 @@
+Number of stations           12
+Ring length in bits          64
+
+Minimum payload length        8 bits
+Maximum payload length     4096 bits
+Frame                        96 bits
+Header                       64
+Buffer length              4192 bits
+
+Mean message interarrival time   8192 bits
+Mean message length              1024 bits
+
+Number of messages         8192

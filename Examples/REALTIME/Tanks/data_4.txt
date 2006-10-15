@@ -1,0 +1,22 @@
+The number of pumps:                 3
+Tank capacity:                    1000  litres
+Flow rate:                          10  litres/s
+Sensor accuracy:                   100  levels
+
+Pump network addresses:
+
+1 1 1
+2 2 2
+3 3 3
+
+2 2 2
+4 4 4
+5 5 5
+
+4 4 4
+6 6 6
+7 7 7
+
+Port number:                      3341
+
+Idle time:			  300 seconds

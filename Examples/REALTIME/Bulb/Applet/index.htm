@@ -1,0 +1,58 @@
+<html>
+<body text="#000000" link="#006666" vlink="#990002">
+
+<title> SIDE Bulb Switching Panel</title>
+
+<center>
+<img src="tspan.gif">
+</center>
+<br>
+
+<br>
+
+<p>
+From this page, you can access the SDS network with the bulb.
+You can use these buttons:
+
+<br><br><br>
+
+<center>
+
+<applet code=Senscom.class width=227 height=111>
+<param name="name" value="senscom">
+<param name=host value="sheerness.cs.ualberta.ca">
+<param name=port value=2286>
+</applet>
+
+</center>
+<br><br>
+
+<p>
+to switch the bulb on and off.
+
+<br><br><br>
+
+<p>
+Here you see the bulb status and the round trip delay separating your
+action from the perceived response in milliseconds:
+
+<br><br><br>
+
+<center>
+
+<applet code=Status.class width=400 height=200>
+<param name="name" value="status">
+<param name=host value="sheerness.cs.ualberta.ca">
+<param name=port value=2286>
+<param name=imagesource value="images">
+</applet>
+
+</center>
+<br><br>
+
+<p>
+Note that the control program in SIDE makes sure that the
+bulb goes off automatically after 30 seconds.
+
+</body>
+</html>

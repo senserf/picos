@@ -1,0 +1,4 @@
+#!/bin/sh
+if [ -f "/bin/ranlib" -o -f "/usr/bin/ranlib" ]; then
+ranlib libtcpip.a
+fi

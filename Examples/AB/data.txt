@@ -1,0 +1,10 @@
+Acknowledgement packet length   256	(bits)
+Transmission rate               1	(time units per bit)
+Link fault rate                 0.0001	(per bit)
+Distance between stations       1000	(in time units == bits)
+Sender timeout                  20000	(in bits)
+Recipient timeout               40000	(in bits)
+Message/packet length           1024	(fixed)
+Message interarrival time       16382	(mean, Poisson, in bits)
+
+Message number limit            200000

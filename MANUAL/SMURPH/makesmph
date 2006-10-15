@@ -1,0 +1,8 @@
+#!/bin/sh
+latex report
+bibtex report
+latex report
+latex report
+dvips -o report.ps report
+ps2pdf report.ps report.pdf
+rm -rf report.dvi report.log report.aux report.bbl report.blg report.ps

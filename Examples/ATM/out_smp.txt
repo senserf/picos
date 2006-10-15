@@ -1,0 +1,1146 @@
+SMURPH Version 1.82      ATM Switch Model Exercise    Mon Dec 26 16:07:22 1994
+Call arguments: data out
+
+Network topology
+
+Stations:
+
+  NumId             Type         NPorts       NBuffers                NName
+      0          EndNode              2              1                -----
+      1          EndNode              2              1                -----
+      2          EndNode              2              1                -----
+      3          EndNode              2              1                -----
+      4          EndNode              2              1                -----
+      5          EndNode              2              1                -----
+      6          EndNode              2              1                -----
+      7          EndNode              2              1                -----
+      8          EndNode              2              1                -----
+      9          EndNode              2              1                -----
+     10          EndNode              2              1                -----
+     11          EndNode              2              1                -----
+     12          EndNode              2              1                -----
+     13          EndNode              2              1                -----
+     14          EndNode              2              1                -----
+     15          EndNode              2              1                -----
+     16          ASwitch              8              0                -----
+     17          ASwitch              8              0                -----
+     18          ASwitch              8              0                -----
+     19          ASwitch              8              0                -----
+     20          ASwitch              8              0                -----
+     21          ASwitch              8              0                -----
+     22          ASwitch              8              0                -----
+     23          ASwitch              8              0                -----
+     24          ASwitch              8              0                -----
+     25          ASwitch              8              0                -----
+     26          ASwitch              8              0                -----
+     27          ASwitch              8              0                -----
+     28          ASwitch              8              0                -----
+     29          ASwitch              8              0                -----
+     30          ASwitch              8              0                -----
+     31          ASwitch              8              0                -----
+
+Links:
+
+  Link    0,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       0           2
+         1         16       1           0
+
+  Link    1,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         16       0           2
+         1          0       1           0
+
+  Link    2,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          1       0           2
+         1         17       1           0
+
+  Link    3,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         17       0           2
+         1          1       1           0
+
+  Link    4,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          2       0           2
+         1         18       1           0
+
+  Link    5,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         18       0           2
+         1          2       1           0
+
+  Link    6,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          3       0           2
+         1         19       1           0
+
+  Link    7,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         19       0           2
+         1          3       1           0
+
+  Link    8,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          4       0           2
+         1         19       3           0
+
+  Link    9,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         19       2           2
+         1          4       1           0
+
+  Link   10,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          5       0           2
+         1         23       1           0
+
+  Link   11,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         23       0           2
+         1          5       1           0
+
+  Link   12,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          6       0           2
+         1         27       1           0
+
+  Link   13,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         27       0           2
+         1          6       1           0
+
+  Link   14,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          7       0           2
+         1         31       1           0
+
+  Link   15,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         31       0           2
+         1          7       1           0
+
+  Link   16,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          8       0           2
+         1         31       3           0
+
+  Link   17,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         31       2           2
+         1          8       1           0
+
+  Link   18,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          9       0           2
+         1         30       1           0
+
+  Link   19,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         30       0           2
+         1          9       1           0
+
+  Link   20,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         10       0           2
+         1         29       1           0
+
+  Link   21,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         29       0           2
+         1         10       1           0
+
+  Link   22,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         11       0           2
+         1         28       1           0
+
+  Link   23,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         28       0           2
+         1         11       1           0
+
+  Link   24,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         12       0           2
+         1         28       3           0
+
+  Link   25,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         28       2           2
+         1         12       1           0
+
+  Link   26,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         13       0           2
+         1         24       1           0
+
+  Link   27,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         24       0           2
+         1         13       1           0
+
+  Link   28,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         14       0           2
+         1         20       1           0
+
+  Link   29,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         20       0           2
+         1         14       1           0
+
+  Link   30,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         15       0           2
+         1         16       3           0
+
+  Link   31,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         16       2           2
+         1         15       1           0
+
+  Link   32,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         16       4           2
+         1         17       3           0
+
+  Link   33,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         17       2           2
+         1         16       5           0
+
+  Link   34,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         16       6           2
+         1         20       3           0
+
+  Link   35,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         20       2           2
+         1         16       7           0
+
+  Link   36,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         17       4           2
+         1         18       3           0
+
+  Link   37,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         18       2           2
+         1         17       5           0
+
+  Link   38,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         17       6           2
+         1         21       1           0
+
+  Link   39,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         21       0           2
+         1         17       7           0
+
+  Link   40,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         18       4           2
+         1         19       5           0
+
+  Link   41,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         19       4           2
+         1         18       5           0
+
+  Link   42,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         18       6           2
+         1         22       1           0
+
+  Link   43,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         22       0           2
+         1         18       7           0
+
+  Link   44,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         19       6           2
+         1         23       3           0
+
+  Link   45,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         23       2           2
+         1         19       7           0
+
+  Link   46,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         20       4           2
+         1         21       3           0
+
+  Link   47,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         21       2           2
+         1         20       5           0
+
+  Link   48,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         20       6           2
+         1         24       3           0
+
+  Link   49,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         24       2           2
+         1         20       7           0
+
+  Link   50,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         21       4           2
+         1         22       3           0
+
+  Link   51,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         22       2           2
+         1         21       5           0
+
+  Link   52,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         21       6           2
+         1         25       1           0
+
+  Link   53,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         25       0           2
+         1         21       7           0
+
+  Link   54,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         22       4           2
+         1         23       5           0
+
+  Link   55,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         23       4           2
+         1         22       5           0
+
+  Link   56,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         22       6           2
+         1         26       1           0
+
+  Link   57,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         26       0           2
+         1         22       7           0
+
+  Link   58,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         23       6           2
+         1         27       3           0
+
+  Link   59,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         27       2           2
+         1         23       7           0
+
+  Link   60,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         24       4           2
+         1         25       3           0
+
+  Link   61,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         25       2           2
+         1         24       5           0
+
+  Link   62,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         24       6           2
+         1         28       5           0
+
+  Link   63,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         28       4           2
+         1         24       7           0
+
+  Link   64,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         25       4           2
+         1         26       3           0
+
+  Link   65,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         26       2           2
+         1         25       5           0
+
+  Link   66,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         25       6           2
+         1         29       3           0
+
+  Link   67,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         29       2           2
+         1         25       7           0
+
+  Link   68,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         26       4           2
+         1         27       5           0
+
+  Link   69,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         27       4           2
+         1         26       5           0
+
+  Link   70,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         26       6           2
+         1         30       3           0
+
+  Link   71,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         30       2           2
+         1         26       7           0
+
+  Link   72,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         27       6           2
+         1         31       5           0
+
+  Link   73,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         31       4           2
+         1         27       7           0
+
+  Link   74,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         28       6           2
+         1         29       5           0
+
+  Link   75,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         29       4           2
+         1         28       7           0
+
+  Link   76,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         29       6           2
+         1         30       5           0
+
+  Link   77,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         30       4           2
+         1         29       7           0
+
+  Link   78,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         30       6           2
+         1         31       7           0
+
+  Link   79,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    50000
+     1:      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         31       6           2
+         1         30       7           0
+
+(System) End of list
+
+Traffic conditions
+
+SignalTP 0:
+
+MIT distribution:      UNDEFINED
+MLE distribution:      UNDEFINED
+Standard Client is:    OFF
+Standard measures are: OFF
+
+(SignalTP 0) End of list
+
+FilesTP 1:
+
+MIT distribution:      EXPONENTIAL (Mean =     0.06)
+MLE distribution:      EXPONENTIAL (Mean =    5e+05)
+Standard Client is:    OFF
+Standard measures are: OFF
+
+Communication group #000 (density       16)
+
+Senders:      16
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+
+Receivers:    16
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+
+(FilesTP 1) End of list
+
+(Client) End of list
+
+File traffic statistics:
+
+Delay
+
+      Number of samples:              15195
+      Minimum value:               0.000104
+      Maximum value:                 0.0111
+      Mean value:                   0.00145
+      Variance:                    1.42e-06
+      Standard deviation:           0.00119
+      Confidence int @95%:            0.013
+      Confidence int @99%:           0.0171
+
+Number of retransmissions:            845
+Retransmitted bits:             710137336
+
+Video traffic statistics:
+Total number of cells:            181871
+Number of lost cells:                  0
+Lost/Total:                            0
+
+
+@@@ End of output

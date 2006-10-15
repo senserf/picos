@@ -1,0 +1,733 @@
+/* ooooooooooooooooooooooooooooooooooooo */
+/* Copyright (C) 1991-06   P. Gburzynski */
+/* ooooooooooooooooooooooooooooooooooooo */
+
+/* --- */
+
+/* ------------------------------------------------------ */
+/* This is a simple interactive initializer of everything */
+/* ------------------------------------------------------ */
+
+#include        "version.h"
+
+#include        <sys/param.h>
+#include	<sys/stat.h>
+#include        <sys/types.h>
+#include        <sys/socket.h>
+#include        <netinet/in.h>
+#include	<netdb.h>
+#include        <ctype.h>
+#include	<string.h>
+#include	<unistd.h>
+#include	<stdlib.h>
+#include	<stdio.h>
+
+#include        "defaults.h"
+
+#include	<iostream>
+#include	<fstream>
+
+#define	BFFSIZE	(1024*16)
+
+#define	FLUSH
+
+char    is [BFFSIZE],
+	cb [BFFSIZE];
+
+char    wd [MAXPATHLEN];
+
+char    *incdir, *ccomp, *ckomp, *jcomp, *srcdir, *libdir, *monhost, *mkname,
+        *mksdir, *sokdir;
+int     maxlib, monport;
+
+#define	HOME getenv ("HOME")
+#define notabsolute(s)   ((s)[0] != '/')
+#define	getwd(a) getcwd (a, MAXPATHLEN)
+
+using std::cin;
+using std::cout;
+using std::cerr;
+using std::istream;
+using std::ostream;
+using std::ifstream;
+using std::ofstream;
+
+ostream	*openOStream (char *fn) {
+
+	return (new ofstream (fn));
+
+}
+
+istream	*openIStream (char *fn) {
+
+	return (new ifstream (fn));
+}
+
+void    getstring () {
+
+/* ----------------------------------------------- */
+/* Reads a string of characters from 'cin' to 'is' */
+/* ----------------------------------------------- */
+
+	int     i;
+	char    c;
+
+	if (cin.eof ()) {
+
+		// Keep returning empty string on eof
+		is [0] = '\0';
+		return;
+	}
+
+	while (1) {
+
+		cin.get (c);
+		if (!isspace (c)) break;
+		if (c == '\n') {
+			is [0] = '\0';
+			return;
+		}
+	}
+
+	for (is [0] = c, i = 1; i < 8192; i++) {
+
+		cin.get (c);
+		if (isspace (c)) break;
+		is [i] = c;
+	}
+
+	is [i] = '\0';
+
+	while (c != '\n' && ! cin.eof ()) cin.get (c);
+}
+
+void	encint (int v) {
+
+/* ---------------------------------------------- */
+/* Encodes a nonnegative integer number into 'is' */
+/* ---------------------------------------------- */
+
+	char  code [16];
+	int   n;
+
+	for (n = 14; ; n--) {
+		code [n] = (v % 10) + '0';
+		if ((v = v / 10) == 0) break;
+	}
+	code [15] = '\0';
+	strcpy (is, & (code [n]));
+}
+	
+main () {
+
+	char    c, *s;
+	istream *vfi;
+	ostream	*vfo;
+	int	i, m;
+
+cout << "Hi, this is SMURPH/SIDE Version " << VERSION << '\n';
+cout << "You will be asked a few simple questions.  By  hitting  RETURN you\n";
+cout << "select the default answer indicated in the question.  Note that in\n";
+cout << "the vast majority of cases the default answers are fine.\n\n";
+
+	ccomp = new char [strlen (DEFCCOMP) + 1];
+	ckomp = new char [strlen (DEFCKOMP) + 1];
+	strcpy (ccomp, DEFCCOMP);
+	strcpy (ckomp, DEFCKOMP);
+
+cout << '\n';
+cout << "If you want to recompile the DSD applet,  please  specify  now the\n";
+cout << "name of your Java compiler.  If you accept the default (none), DSD\n";
+cout << "will not be recompiled.  This usually makes perfect sense, because\n";
+cout << "Java code is supposed to be platform-independent.\n\n";
+cout << "So what is the name of your Java compiler? (" << DEFJCOMP << "): ";
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << DEFJCOMP << '\n';
+		strcpy (is, DEFJCOMP);
+	} else
+		cout << "The name of your compiler is " << is << '\n';
+
+	jcomp = new char [strlen (is) + 1];
+	strcpy (jcomp, is);
+
+cout << '\n';
+cout << "Give me the path to  SMURPH/SIDE  sources (at least from your home\n";
+cout << "directory).  If the path starts with '/', it will be assumed to be\n";
+cout << "absolute;  otherwise, it will be interpreted relative to your home\n";
+cout << "directory. The default path is:\n\n";
+
+	getwd (wd);
+	cout << "        " << wd << "\n\n";
+
+cout << "which is the current working directory.\n";
+
+SP_RETRY:
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << wd << '\n';
+		strcpy (is, wd);
+	} else {
+		// Check if the directory is reachable
+		if (notabsolute (is)) {
+			// Turn it into $HOME/is
+			if ((s = HOME) == NULL) {
+				cout << "Cannot determine your home directory;"
+					<< " please specify the full path\n";
+				goto SP_RETRY;
+			}
+			strcpy (is+4096, is);
+			strcpy (is, s);
+			strcat (is, "/");
+			strcat (is, is+4096);
+		}
+
+		// Execute a tentative chdir there
+
+		if (chdir (is) < 0) {
+			cout << "This directory is inaccessible;" <<
+				" please specify another path\n";
+			goto SP_RETRY;
+		}
+		// Move back to where you should be
+		chdir (wd);
+	}
+
+	srcdir = new char [strlen (is) + 1];
+	strcpy (srcdir, is);
+
+cout << '\n';
+cout << "Please give the path to the  directory  where  you  want  to  keep\n";
+cout << "binary libraries.  This directory need not exist at present; if it\n";
+cout << "exists, however, IT WILL BE CLEARED. The default path is:\n\n";
+
+	for (s = wd + strlen (wd); s != wd && *(s-1) != '/'; s--);
+	*s = '\0';
+	strcat (wd, DEFLIBDR);
+	cout << "        " << wd << "\n\n";
+
+cout << "which is equivalent to: ../" << DEFLIBDR << '\n';
+
+LB_RETRY:
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << wd << '\n';
+		strcpy (is, wd);
+	} else {
+		if (notabsolute (is)) {
+			// Turn it into $HOME/is
+			if ((s = HOME) == NULL) {
+				cout << "Cannot determine your home directory;"
+					<< " please specify the full path\n";
+				goto LB_RETRY;
+			}
+			strcpy (is+4096, is);
+			strcpy (is, s);
+			strcat (is, "/");
+			strcat (is, is+4096);
+		}
+	}
+
+	// Check if the directory exists
+	getwd (wd);             // Save current wd
+LB_CD:
+	if (chdir (is) < 0) {
+
+		// Assume that it does not exist and try to create it
+
+		for (s = is+1; *s != '\0'; s++) {
+			if (*s == '/' && *(s+1) != '\0') {
+				c = *s;
+				*s = '\0';
+				mkdir (is, 0777);
+				*s = c;
+			}
+		}
+
+		if (mkdir (is, 0777) < 0) {
+			cout << "I have problems accessing this";
+			cout << " directory; please speify another";
+			cout << " path\n";
+			goto LB_RETRY;
+		}
+
+	} else {
+		chdir (wd);     // Move back
+	}
+
+	strcpy (cb, "rm -fr ");
+	strcat (cb, is);
+	strcat (cb, "/l* 2>/dev/null");
+	system (cb);
+
+	libdir = new char [strlen (is) + 1];
+	strcpy (libdir, is);
+
+cout << '\n';
+cout << "Specify the maximum number of versions of the binary library to be\n";
+cout << "kept simultaneously.  Whenever the configuration of options of mks\n";
+cout << "requests a new library version to  be  created,  and  the  current\n";
+cout << "number  of  library  versions  is  equal to the maximum, the least\n";
+cout << "recently used library will be removed. The default limit is " <<
+	DEFMAXLB << '\n';
+
+ML_RETRY:
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << (maxlib = DEFMAXLB) << '\n';
+	} else {
+		for (s = is; *s != '\0' && isdigit (*s); s++);
+		if (*s != '\0') {
+			cout << "This is not a legal number; try again\n";
+			goto ML_RETRY;
+		}
+		maxlib = atoi (is);
+		cout << "The limit is " << maxlib << '\n';
+	}
+
+cout << '\n';
+cout << "Give me  the path to the include library  (absolute or relative to\n";
+cout << "your home directory). The default path is:\n\n";
+
+	getwd (wd);
+        for (s = wd + strlen (wd); s != wd && *(s-1) != '/'; s--);
+        *s = '\0';
+        strcat (wd, DEFINDIR);
+        cout << "        " << wd << "\n\n";
+
+cout << "which is equivalent to: ../" << DEFINDIR << '\n';
+
+
+IN_RETRY:
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << wd << '\n';
+		strcpy (is, wd);
+	} else {
+		if (notabsolute (is)) {
+			// Turn it into $HOME/is
+			if ((s = HOME) == NULL) {
+				cout << "Cannot determine your home directory;"
+					<< " please specify the full path\n";
+				goto IN_RETRY;
+			}
+			strcpy (is+4096, is);
+			strcpy (is, s);
+			strcat (is, "/");
+			strcat (is, is+4096);
+		}
+
+		// Check if the directory exists
+		getwd (wd);             // Save current wd
+IN_CD:
+		if (chdir (is) < 0) {
+
+			// Assume that it does not exist and try to create it
+
+			for (s = is+1; *s != '\0'; s++) {
+				if (*s == '/' && *(s+1) != '\0') {
+					c = *s;
+					*s = '\0';
+					mkdir (is, 0777);
+					*s = c;
+				}
+			}
+
+			if (mkdir (is, 0777) < 0) {
+				cout << "I have problems accessing this";
+				cout << " directory; please specify another";
+				cout << " path\n";
+				goto IN_RETRY;
+			}
+
+		} else {
+			chdir (wd);     // Move back
+		}
+	}
+
+	incdir = new char [strlen (is) + 1];
+	strcpy (incdir, is);
+
+cout << '\n';
+cout << "Specify the host to run the monitor. By default, there is no host,\n";
+cout << "which means that you don't  want to use the display applet.   Note\n";
+cout << "that if you want to run everything on a single machine,  you still\n";
+cout << "have to specify its Internet name here (localhost is fine).\n\n";
+
+HS_RETRY:
+
+	getstring ();
+
+	if (is [0] != '\0') {
+		// Check if the host is reachable
+		if (gethostbyname (is) == NULL) {
+			cout << "This host is unknown; please specify";
+			cout << " another host\n";
+			goto HS_RETRY;
+		}
+	}
+
+	monhost = new char [strlen (is) + 1];
+	strcpy (monhost, is);
+
+cout << '\n';
+    if (monhost [0] != '\0') {
+cout << "Specify  the  number  of  the monitor socket port on the host that\n";
+cout << "will be running the monitor. The default port number is ";
+cout << DEFMONPT << '\n';
+
+PN_RETRY:
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << (monport = DEFMONPT) << '\n';
+	} else {
+		for (s = is; *s != '\0' && isdigit (*s); s++);
+		if (*s != '\0') {
+			cout << "This is not a legal number; try again\n";
+			goto PN_RETRY;
+		}
+		monport = atoi (is);
+	}
+    }
+
+cout << '\n';
+cout << "Specify the name of the make program (" << DEFMKNAM << "): ";
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << DEFMKNAM << '\n';
+		strcpy (is, DEFMKNAM);
+	}
+
+	mkname = new char [strlen (is) + 1];
+	strcpy (mkname, is);
+
+cout << '\n';
+cout << "Specify  the  path  to  the  directory that is to contain the make\n";
+cout << "program. The default path is:\n\n";
+
+	if ((s = HOME) == NULL)
+		wd [0] = '\0';
+	else
+		strcpy (wd, s);
+	if ((i = strlen (wd) - 1) >= 0 && wd [i] != '/')
+		strcat (wd, "/");
+	strcat (wd, DEFMKDIR);
+
+	cout << "        " << wd << "\n\n";
+
+MD_RETRY:
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		cout << "Assuming " << wd << '\n';
+		strcpy (is, wd);
+	} else {
+		if (notabsolute (is)) {
+			// Turn it into $HOME/is
+			if ((s = HOME) == NULL) {
+				cout << "Cannot determine your home directory;"
+					<< " please specify the full path\n";
+				goto MD_RETRY;
+			}
+			strcpy (is+4096, is);
+			strcpy (is, s);
+			strcat (is, "/");
+			strcat (is, is+4096);
+		}
+	}
+
+	// Execute a tentative chdir there
+
+	getwd (wd);
+MD_CD:
+	if (chdir (is) < 0) {
+		cout << "This directory does not exist;";
+		cout << " should I create it? (y): ";
+		strcpy (cb, is);
+		getstring ();
+		if (is [0] != 'y' && is [0] != 'Y' && is [0] != '\0') {
+			cout << "Try another path\n";
+			goto MD_RETRY;
+		}
+		strcpy (is, cb);
+
+		for (s = is+1; *s != '\0'; s++) {
+			if (*s == '/' && *(s+1) != '\0') {
+				c = *s;
+				*s = '\0';
+				mkdir (is, 0777);
+				*s = c;
+			}
+		}
+
+		if (mkdir (is, 0777) < 0) {
+			cout << "I have problems accessing this";
+			cout << " directory; please specify another";
+			cout << " path\n";
+			goto MD_RETRY;
+		}
+	} else {
+		chdir (wd);
+	}
+
+	mksdir = new char [strlen (is) + 1];
+	strcpy (mksdir, is);
+
+	// OK, Now update the version.h file
+
+	if ((vfi = openIStream ("version.h")) == NULL) {
+COVH:
+		cout << "Sorry, I can't open version.h\n";
+		exit (1);
+	}
+
+	// Read everything from version.h up to the line that looks like
+	// #define ZZ_SOURCES ... or to the end
+
+	for (m = 0; m < BFFSIZE && !vfi->eof (); m++) vfi->get (cb[m]);
+
+	if (m >= BFFSIZE) {
+		cout << "Sorry, the version.h file seems too long. Recompile\n";
+		cout << "maker with increased BFFSIZE and try again.\n";
+		exit (1);
+	}
+
+	// Look up #define first
+
+	for (i = 0; i < m; i++) {
+		if (strncmp (&(cb [i]), "#define", 7) == 0) {
+			i += 7;
+			while (i < m && isspace (cb [i])) i++;
+			if (i >= m) break;
+			if (strncmp (&(cb [i]), "ZZ_SOURCES", 10) == 0) {
+				// Find the first newline back
+				while (i >= 0 && cb [i] != '\n') i--;
+				i++;
+				break;
+			}
+		}
+	}
+
+	// vfi->close ();
+	delete (vfi);
+
+	// Now rewrite version.h
+
+	vfo = openOStream ("version.h");
+	if (vfo == NULL) goto COVH;
+
+	for (m = 0; m < i; m++) vfo->put (cb [m]);
+
+	*vfo << "#define  ZZ_SOURCES      \"" << srcdir << "\"\n";
+	*vfo << "#define  ZZ_LIBPATH      \"" << libdir << "\"\n";
+	*vfo << "#define  ZZ_INCPATH      \"";
+	if (incdir != NULL)
+		*vfo << incdir;
+	else
+		*vfo << '.';
+	*vfo << "\"\n";
+
+	if (monhost [0] != '\0') {
+		*vfo << "#define  ZZ_MONHOST      \"" << monhost << "\"\n";
+		*vfo << "#define  ZZ_MONSOCK      " << monport << '\n';
+	}
+
+	// vfo->close ();
+	vfo -> flush ();
+	delete (vfo);
+
+	getwd (wd);
+	chdir ("LIB");
+        system ("rm -rf *.o *.a");
+
+	cout << "Creating the library ...\n";
+	strcpy (cb, "make COMP=");
+	strcat (cb, ccomp);
+        strcat (cb, " CCOMP=\"");
+        strcat (cb, ckomp);
+	strcat (cb, "\"");
+	strcat (cb, " RANLIB=./ifranlib");
+
+	if (system (cb)) {
+		cout << "Problems creating the library,";
+		cout << " procedure aborted\n" FLUSH;
+		exit (1);
+	}
+
+	chdir (wd);
+
+	// Create mks
+
+	cout << "Creating 'mks' ...\n" FLUSH;
+
+	strcpy (cb, ccomp);
+	// strcat (cb, " -w -o ");
+	strcat (cb, " -o ");
+	strcat (cb, mksdir);
+	strcat (cb, "/");
+	strcat (cb, mkname);
+	strcat (cb, " mks.cc ");
+	strcat (cb, "-LLIB -ltcpip ");
+	strcat (cb, "-DCCOMP=\\\"");
+	strcat (cb, ccomp);
+	strcat (cb, "\\\" -DMAXLIB=");
+	encint (maxlib);
+	strcat (cb, is);
+	if (system (cb)) {
+		cout << "Problems installing 'mks', procedure aborted\n" FLUSH;
+		exit (1);
+	}
+
+	strcpy (cb, "strip ");
+	strcat (cb, mksdir);
+	strcat (cb, "/");
+	strcat (cb, mkname);
+
+#ifdef	ZZ_CYW
+	strcat (cb, ".exe");
+#endif
+	system (cb);
+
+	// Create the preprocessor
+
+	getwd (wd);
+	chdir ("SMPP");
+	cout << "Creating 'smpp' ...\n" FLUSH;
+	strcpy (cb, "make ");
+	strcat (cb, " COMP=");
+	strcat (cb, ccomp);
+	// strcat (cb, " OPTI=-w");
+	strcat (cb, " OPTI=-O");
+
+	if (system (cb)) {
+		cout << "Problems creating smpp,";
+		cout << " procedure aborted\n" FLUSH;
+		exit (1);
+	}
+
+#ifdef	ZZ_CYW
+	system ("strip smpp.exe");
+#else
+	system ("strip smpp");
+#endif
+
+	chdir (wd);
+
+    	if (monhost [0] != '\0') {
+
+		cout << "Should I create the monitor ? (y): ";
+		getstring ();
+		if (is [0] == 'y' || is [0] == 'Y' || is [0] == '\0') {
+
+			getwd (wd);
+			chdir ("MONITOR");
+			cout << "Creating 'monitor' ...\n" FLUSH;
+			strcpy (cb, "make COMP=");
+			strcat (cb, ccomp);
+#ifdef	ZZ_CYW
+	                strcat (cb, " PROG=monpol.cc");
+#else
+	                strcat (cb, " PROG=monsel.cc");
+#endif
+			// strcat (cb, " OPTI=-w");
+
+			if (system (cb)) {
+				cout << "Problems creating monitor,";
+				cout << " procedure aborted\n" FLUSH;
+				exit (1);
+			}
+#ifdef	ZZ_CYW
+			system ("strip monitor.exe");
+#else
+			system ("strip monitor");
+#endif
+			chdir (wd);
+
+cout << '\n';
+cout << "The monitor is in file 'MONITOR/monitor'. If you want to run it on\n";
+cout << "this machine, move to directory MONITOR and execute:\n\n";
+cout << "                    monitor standard.t &\n\n";
+cout << "Make  sure  that  no other copy of the monitor is running already,\n";
+cout << "because otherwise the monitor will complain about occupied port.\n\n";
+		}
+
+		getwd (wd);
+		chdir ("DSD");
+		cout << "Setting up 'dsd' ...\n" FLUSH;
+		sprintf (cb,
+           "sed -e \"s/hhhh/%s/\" -e \"s/pppp/%1d/\" < index.pat > index.htm",
+		monhost, monport);
+                cout << cb << '\n';
+                m = system (cb);
+
+        	if (strcmp (jcomp, DEFJCOMP)) {
+	                if (m == 0) {
+				strcpy (cb, jcomp);
+				strcat (cb, " -nowarn DSD.java");
+	                	cout << cb << '\n';
+	                	m = system (cb);
+	                }
+			if (m) {
+				cout << "Problems creating DSD,";
+				cout << " procedure aborted\n" FLUSH;
+				exit (1);
+			}
+	        }
+
+		cout << '\n';
+		cout << "The display applet is in directory 'DSD'.\n";
+		cout << "Should I move it elsewhere? (n): ";
+		getstring ();
+		if (is [0] == 'y' || is [0] == 'Y') {
+			cout << '\n';
+DS_RETRY:
+	   cout << "Specify the directory where the applet should be moved: ";
+  	          	getstring ();
+	          	if (is [0] == '\0') goto DS_RETRY;
+ 		  	// Check if the directory is reachable
+  		  	if (notabsolute (is)) {
+				// Turn it into $HOME/is
+				if ((s = HOME) == NULL) {
+				 cout << "Cannot determine your home directory;"
+					<< " please specify the full path\n";
+				 goto DS_RETRY;
+				}
+				strcpy (is+4096, is);
+				strcpy (is, s);
+				strcat (is, "/");
+				strcat (is, is+4096);
+		   	}
+		   	// Execute a tentative chdir there
+		   	if (chdir (is) < 0) {
+				cout << "This directory is inaccessible;" <<
+					" please specify another path\n";
+				goto DS_RETRY;
+		    	}
+		    	// Move back to where you should be
+		    	chdir (wd);
+                    	chdir ("DSD");
+                    	strcpy (cb, "cp *.cla* *.htm* *.gif* ");
+                    	strcat (cb, is);
+                    	system (cb);
+          	}
+          	chdir (wd);
+
+    	}
+
+	cout << "Done.\n" FLUSH;
+}

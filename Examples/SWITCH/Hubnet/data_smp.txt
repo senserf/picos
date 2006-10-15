@@ -1,0 +1,15 @@
+Time granularity                 1000 ITUs/bit
+Clock tolerance                0.0001
+
+Number of regular stations         16
+Mean link length                  100  bits
+
+Minimum payload length              8  bits
+Maximum payload length          32768  bits
+Frame information length          104  bits
+Sender recognition time            48  bits
+
+Mean message interarrival time    2048 bits
+Mean message length               1024 bits
+
+Message number limit              8192

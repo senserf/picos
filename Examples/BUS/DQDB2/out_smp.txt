@@ -1,0 +1,321 @@
+SMURPH Version 2.22      DQDB2    Wed Feb 13 18:26:18 2002
+Call arguments: data_smp.txt junk
+
+Network topology
+
+Stations:
+
+  NumId             Type         NPorts       NBuffers                NName
+      0          HeadEnd              2              2                -----
+      1         HStation              2              1                -----
+      2         HStation              2              1                -----
+      3         HStation              2              1                -----
+      4         HStation              2              1                -----
+      5         HStation              2              1                -----
+      6         HStation              2              1                -----
+      7         HStation              2              1                -----
+      8         HStation              2              1                -----
+      9         HStation              2              1                -----
+     10         HStation              2              1                -----
+     11         HStation              2              1                -----
+     12          HeadEnd              2              2                -----
+
+Links:
+
+  Link    0,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    56666   113332   169998   226664   283330   339996   396662
+   ...:   453328   509994   566660   623326   679992
+
+     1:      ***      ---    56666   113332   169998   226664   283330   339996
+   ...:   396662   453328   509994   566660   623326
+
+     2:      ***      ***      ---    56666   113332   169998   226664   283330
+   ...:   339996   396662   453328   509994   566660
+
+     3:      ***      ***      ***      ---    56666   113332   169998   226664
+   ...:   283330   339996   396662   453328   509994
+
+     4:      ***      ***      ***      ***      ---    56666   113332   169998
+   ...:   226664   283330   339996   396662   453328
+
+     5:      ***      ***      ***      ***      ***      ---    56666   113332
+   ...:   169998   226664   283330   339996   396662
+
+     6:      ***      ***      ***      ***      ***      ***      ---    56666
+   ...:   113332   169998   226664   283330   339996
+
+     7:      ***      ***      ***      ***      ***      ***      ***      ---
+   ...:    56666   113332   169998   226664   283330
+
+     8:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ---    56666   113332   169998   226664
+
+     9:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ---    56666   113332   169998
+
+    10:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ---    56666   113332
+
+    11:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ---    56666
+
+    12:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0          0       0        1000
+         1          1       0        1000
+         2          2       0        1000
+         3          3       0        1000
+         4          4       0        1000
+         5          5       0        1000
+         6          6       0        1000
+         7          7       0        1000
+         8          8       0        1000
+         9          9       0        1000
+        10         10       0        1000
+        11         11       0        1000
+        12         12       0        1000
+
+  Link    1,    Type: PLink
+
+    Distance matrix:
+
+     0:      ---    56666   113332   169998   226664   283330   339996   396662
+   ...:   453328   509994   566660   623326   679992
+
+     1:      ***      ---    56666   113332   169998   226664   283330   339996
+   ...:   396662   453328   509994   566660   623326
+
+     2:      ***      ***      ---    56666   113332   169998   226664   283330
+   ...:   339996   396662   453328   509994   566660
+
+     3:      ***      ***      ***      ---    56666   113332   169998   226664
+   ...:   283330   339996   396662   453328   509994
+
+     4:      ***      ***      ***      ***      ---    56666   113332   169998
+   ...:   226664   283330   339996   396662   453328
+
+     5:      ***      ***      ***      ***      ***      ---    56666   113332
+   ...:   169998   226664   283330   339996   396662
+
+     6:      ***      ***      ***      ***      ***      ***      ---    56666
+   ...:   113332   169998   226664   283330   339996
+
+     7:      ***      ***      ***      ***      ***      ***      ***      ---
+   ...:    56666   113332   169998   226664   283330
+
+     8:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ---    56666   113332   169998   226664
+
+     9:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ---    56666   113332   169998
+
+    10:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ---    56666   113332
+
+    11:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ---    56666
+
+    12:      ***      ***      ***      ***      ***      ***      ***      ***
+   ...:      ***      ***      ***      ***      ---
+
+    Ports:
+
+      LRId    Station    SRId        Rate
+         0         12       1        1000
+         1         11       1        1000
+         2         10       1        1000
+         3          9       1        1000
+         4          8       1        1000
+         5          7       1        1000
+         6          6       1        1000
+         7          5       1        1000
+         8          4       1        1000
+         9          3       1        1000
+        10          2       1        1000
+        11          1       1        1000
+        12          0       1        1000
+
+(System) End of list
+
+Traffic parameters
+
+RQTraffic 0:
+
+MIT distribution:      EXPONENTIAL (Mean = 1.64e+04)
+MLE distribution:      UNDEFINED
+Standard Client is:    OFF
+Standard measures are: ON
+
+Communication group #000 (density       12)
+
+Senders:      12
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    7        1)   (    8        1)   
+(    9        1)   (   10        1)   (   11        1)   (   12        1)   
+
+Receivers:     1
+
+(    6        1)   
+
+(RQTraffic 0) End of list
+
+RPTraffic 1:
+
+MIT distribution:      EXPONENTIAL (Mean = 1.02e+03)
+MLE distribution:      UNDEFINED
+Standard Client is:    OFF
+Standard measures are: ON
+
+(RPTraffic 1) End of list
+
+(Client) End of list
+
+Time:      8326930968     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:               2000
+      Minimum value:                472.689
+      Maximum value:             126867.206
+      Mean value:               41234.66911
+      Variance:                  1469775278
+      Standard deviation:       38337.64831
+      Confidence int @95%:    0.04074778713
+      Confidence int @99%:    0.05353344483
+
+APD - Absolute packet delay:
+
+      Number of samples:              22958
+      Minimum value:                472.689
+      Maximum value:               8207.322
+      Mean value:               787.9246181
+      Variance:                 108709.6741
+      Standard deviation:       329.7115013
+      Confidence int @95%:   0.005413005552
+      Confidence int @99%:    0.00711147413
+
+WMD - Weighted message delay:
+
+      Number of samples:            8367680
+      Minimum value:                472.689
+      Maximum value:             126867.206
+      Mean value:               57105.63167
+      Variance:                  1035969120
+      Standard deviation:       32186.47417
+      Confidence int @95%:   0.000381898546
+      Confidence int @99%:  0.0005017289571
+
+MAT - Message access time:
+
+      Number of samples:               2000
+      Minimum value:                416.023
+      Maximum value:             126753.874
+      Mean value:               41036.19644
+      Variance:                  1469819694
+      Standard deviation:       38338.22758
+      Confidence int @95%:    0.04094548357
+      Confidence int @99%:    0.05379317356
+
+PAT - Packet access time:
+
+      Number of samples:              22958
+      Minimum value:                416.023
+      Maximum value:                8093.99
+      Mean value:               589.4257773
+      Variance:                 101989.0028
+      Standard deviation:       319.3571712
+      Confidence int @95%:    0.00700868584
+      Confidence int @99%:   0.009207839816
+
+MLS - Message length distribution:
+
+      Number of samples:               2007
+      Minimum value:                    128
+      Maximum value:                   8256
+      Mean value:               4189.975087
+      Variance:                  16516091.9
+      Standard deviation:       4063.999496
+      Confidence int @95%:    0.04243503745
+      Confidence int @99%:    0.05575011297
+
+    Number of generated messages:              2007
+    Number of queued messages:                    7
+    Number of transmitted messages:            2000
+    Number of received messages:               2000
+    Number of transmitted packets:            22958
+    Number of received packets:               22958
+    Number of queued bits:                    41600
+    Number of transmitted bits:             8367680
+    Number of received bits:                8367680
+    Measurement start time:                       0
+    Throughput:                         1.004893644
+
+(Client) End of list
+
+Local request waiting times
+
+       RVariable         Samples         Minimum         Maximum            Mean
+    RWT Sttn   0              83       42296.218      121084.543     80988.94486
+    RWT Sttn   1              84       47954.092      125567.491     84158.49915
+    RWT Sttn   2              83       34884.168      123670.066     84507.30519
+    RWT Sttn   3              82       32903.437      122504.307     85284.68001
+    RWT Sttn   4              81       34904.644       118060.46     85842.26078
+    RWT Sttn   5              81       31207.694       121631.64     84969.64851
+    RWT Sttn   7              84        25718.79      137501.014     83242.98604
+    RWT Sttn   8              84       26521.406      128838.448     82132.12887
+    RWT Sttn   9              86       40507.869      118592.727     84241.89194
+    RWT Sttn  10              83       14846.944      134016.184     83953.41711
+    RWT Sttn  11              81       40485.144      124732.558     84501.70651
+    RWT Sttn  12              84        48545.14      116174.042     83207.79868
+
+Global request waiting time
+
+      Number of samples:                996
+      Minimum value:              14846.944
+      Maximum value:             137501.014
+      Mean value:               83908.78553
+      Variance:                 287624803.1
+      Standard deviation:        16959.5048
+      Confidence int @95%:    0.01255255503
+      Confidence int @99%:    0.01649123939
+
+RL-link performance measures
+
+    Number of jamming signals:                    0
+    Number of transfer attempts:              31256
+    Number of transmitted packets:            31255
+    Number of transmitted bits:             4429336
+    Number of received packets:               11708
+    Number of received bits:                4272960
+    Number of transmitted messages:             998
+    Number of received messages:                998
+    Throughput (by received bits):     0.5131494444
+    Throughput (by trnsmtd bits):      0.5319289924
+
+(PLink 1) End of list
+
+LR-link performance measures
+
+    Number of jamming signals:                    0
+    Number of transfer attempts:              30797
+    Number of transmitted packets:            30797
+    Number of transmitted bits:             4251096
+    Number of received packets:               11250
+    Number of received bits:                4094720
+    Number of transmitted messages:            1002
+    Number of received messages:               1002
+    Throughput (by received bits):     0.4917441991
+    Throughput (by trnsmtd bits):      0.5105237471
+
+(PLink 0) End of list
+
+
+@@@ End of output

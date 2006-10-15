@@ -1,0 +1,113 @@
+SMURPH Version 2.21      Unidentified protocol    Tue Jan 29 17:23:57 2002
+Call arguments: data.txt out
+
+Transmission rate:                                      100000000
+Link length:                                               500000
+The same in bits:                                          250000
+Link bit error rate:                                        1e-05
+Minimum frame length:                                           8
+Maximum frame length:                                       32768
+Acknowledgement length:                                       256
+Window size:                                                    7
+Sender timeout:                                             0.004
+The same in bits:                                          400000
+Receiver timeout:                                            0.01
+The same in bits:                                         1000000
+Minimum message length:                                      2048
+Maximum message length:                                      6144
+Mean message interarrival time:                              0.01
+Stop after receiving this many messages:                   100000
+Stop after this many seconds:                                1000
+Equivalent to this many bits:                        100000000000
+
+
+Number of transmissions:                                   100000
+Number of transmitted bits:                             409948296
+Number of retransmissions:                                 112801
+Number of retransmitted bits:                           463789936
+
+
+Time:     99826772433     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:             100000
+      Minimum value:             0.00252048
+      Maximum value:             0.01474895
+      Mean value:            0.002719782608
+      Variance:             6.995745604e-07
+      Standard deviation:   0.0008364057391
+      Confidence int @95%:   0.001906070163
+      Confidence int @99%:   0.002504148301
+
+APD - Absolute packet delay:
+
+      Number of samples:             100000
+      Minimum value:             0.00252048
+      Maximum value:             0.01474895
+      Mean value:            0.002719781924
+      Variance:              6.99574798e-07
+      Standard deviation:   0.0008364058811
+      Confidence int @95%:   0.001906070967
+      Confidence int @99%:   0.002504149357
+
+WMD - Weighted message delay:
+
+      Number of samples:          409948296
+      Minimum value:             0.00252048
+      Maximum value:             0.01474895
+      Mean value:            0.002736564751
+      Variance:             7.570138458e-07
+      Standard deviation:   0.0008700654262
+      Confidence int @95%:   3.07778098e-05
+      Confidence int @99%:  4.043513277e-05
+
+MAT - Message access time:
+
+      Number of samples:              99999
+      Minimum value:             0.00502304
+      Maximum value:             0.01862969
+      Mean value:            0.005237701015
+      Variance:             8.190752838e-07
+      Standard deviation:   0.0009050277807
+      Confidence int @95%:   0.001070975287
+      Confidence int @99%:   0.001407021104
+
+PAT - Packet access time:
+
+      Number of samples:              99999
+      Minimum value:             0.00502304
+      Maximum value:             0.01862969
+      Mean value:            0.005237700331
+      Variance:             8.190755423e-07
+      Standard deviation:   0.0009050279235
+      Confidence int @95%:   0.001070975596
+      Confidence int @99%:    0.00140702151
+
+MLS - Message length distribution:
+
+      Number of samples:             100000
+      Minimum value:                   2048
+      Maximum value:                   6144
+      Mean value:                4099.48296
+      Variance:                 1401525.546
+      Standard deviation:       1183.860442
+      Confidence int @95%:   0.001789894753
+      Confidence int @99%:   0.002351519892
+
+    Number of generated messages:            100000
+    Number of queued messages:                    1
+    Number of transmitted messages:           99999
+    Number of received messages:             100000
+    Number of transmitted packets:            99999
+    Number of received packets:              100000
+    Number of queued bits:                     5528
+    Number of transmitted bits:           409942768
+    Number of received bits:              409948296
+    Measurement start time:                       0
+    Throughput:                         410659.6718
+
+(Client) End of list
+
+
+@@@ End of output

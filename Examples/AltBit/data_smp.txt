@@ -1,0 +1,10 @@
+Acknowledgement packet length   256
+Transmission rate               1
+Link fault rate                 0.0001
+Distance between stations       1000
+Sender timeout                  20000
+Recipient timeout               40000
+Message length                  1024
+Message interarrival time       16382
+
+Message number limit            200000

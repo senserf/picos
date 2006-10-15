@@ -1,0 +1,167 @@
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+===============
+The system part
+===============
+
+  Number of segments:            5
+  Number of diverters:           1
+  Number of mergers:             1
+
+  For each segment
+  ================
+
+     Motor:                address: [0, 1, 1],  inertia:  0.1 sec
+     Entrance sensor:      address: [0, 1, 2],  inertia: 0.05 sec
+     Exit sensor:          address: [0, 1, 3],  inertia: 0.05 sec
+     E-E time bound:       15 sec
+
+     Motor:                address: [0, 1, 4],  inertia:  0.1 sec
+     Entrance sensor:      address: [0, 1, 5],  inertia: 0.05 sec
+     Exit sensor:          address: [0, 1, 6],  inertia: 0.05 sec
+     E-E time bound:       15 sec
+
+     Motor:                address: [0, 1, 7],  inertia:  0.1 sec
+     Entrance sensor:      address: [0, 1, 8],  inertia: 0.05 sec
+     Exit sensor:          address: [0, 1, 9],  inertia: 0.05 sec
+     E-E time bound:       10 sec
+
+     Motor:                address: [0, 1,10],  inertia:  0.1 sec
+     Entrance sensor:      address: [0, 1,11],  inertia: 0.05 sec
+     Exit sensor:          address: [0, 1,12],  inertia: 0.05 sec
+     E-E time bound:       10 sec
+
+     Motor:                address: [0, 1,13],  inertia:  0.1 sec
+     Entrance sensor:      address: [0, 1,14],  inertia: 0.05 sec
+     Exit sensor:          address: [0, 1,15],  inertia: 0.05 sec
+     E-E time bound:       10 sec
+
+  For each diverter
+  =================
+
+     Motor:                address: [0, 1,16],  inertia:  0.1 sec
+     Presence sensor:      address: [0, 1,17],  inertia: 0.05 sec
+     Reader sensor:        address: [0, 1,18],  inertia:  0.1 sec
+
+  For each merger
+  ===============
+
+     Motor:                address: [0, 1,19],  inertia:  0.1 sec
+     First entry sensor:   address: [0, 1,20],  inertia: 0.05 sec
+     Second entry sensor:  address: [0, 1,21],  inertia: 0.05 sec
+     Output sensor:        address: [0, 1,22],  inertia: 0.05 sec
+     Passage time bound:   5 sec
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+====================
+The board model part
+====================
+
+  For each segment
+  ================
+
+     Coordinates:  M=[0, 1, 1], E=[0, 1, 2], X=[0, 1, 3]
+     Length:       10m
+     Speed:         1m/s
+
+     Coordinates:  M=[0, 1, 4], E=[0, 1, 5], X=[0, 1, 6]
+     Length:       10m
+     Speed:         1m/s
+
+     Coordinates:  M=[0, 1, 7], E=[0, 1, 8], X=[0, 1, 9]
+     Length:       15m
+     Speed:         2m/s
+
+     Coordinates:  M=[0, 1,10], E=[0, 1,11], X=[0, 1,12]
+     Length:       10m
+     Speed:        1.5m/s
+
+     Coordinates:  M=[0, 1,13], E=[0, 1,14], X=[0, 1,15]
+     Length:       10m
+     Speed:        1.2m/s
+
+  For each diverter
+  =================
+
+     Coordinates:  M=[0, 1,16], F=[0, 1,17], D=[0, 1,18]
+     Speed:          2.0m/s
+     Reader speed:  30.0m/s
+
+  For each merger
+  ===============
+
+     Coordinates:  M=[0, 1,19], E=[0, 1,20], E=[0, 1,21], X=[0, 1,22]
+     Length:         4m
+     Input speed:    4m/s
+     Output speed:   2m/s
+
+  Number of connections: 2
+
+  For each connection
+  ===================
+
+     Type 3 (SSMS):
+
+           Connect segment 0 and segment 1 to merger 0 and output goes
+           via segment 2
+
+     Type 2 (SDSS):
+
+           Connect segment 2 to diverter 0 then segment 3 goes straight
+           and segment 4 diverts
+
+           Divert 1 type of boxes, namely type 1
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+======================
+The traffic model part
+======================
+
+  Number of sources:   2 
+  Number of sinks:     2
+
+  For each source
+  ===============
+
+      Plug into entrance to segment   0
+      Minimum box spacing is          0.5 sec
+
+      Plug into entrance to segment   1
+      Minimum box spacing is          0.5 sec
+
+  For each sink
+  =============
+
+      Plug into exit from segment     3
+
+      Plug into exit from segment     4
+
+  Number of box types:  2
+
+  For each box type
+  =================
+
+      Arrival process descriptor is 2+16 (uniform arrival, uniform length)
+      Interarrival time is bounded by 3.0 and 4.0 seconds
+      Box length is bounded by 0.5 and 0.8 metres
+      The number of senders is 2 and the senders are source 0 and source 1
+
+      Arrival process descriptor is 2+16 (uniform arrival, uniform length)
+      Interarrival time is bounded by 5.0 and 9.0 seconds
+      Box length is bounded by 0.6 and 0.7 metres
+      The number of senders is 2 and the senders are source 0 and source 1
+
+||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
+=================
+The operator part
+=================
+
+Port number is 3346
+
+Note: this number must match the port number in index.html of the operator
+      applet.
+
+=============
+The root part
+=============
+
+Time to die is 600 seconds

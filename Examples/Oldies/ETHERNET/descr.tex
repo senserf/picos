@@ -1,0 +1,218 @@
+\documentstyle [amssymbols,11pt] {article}
+\input {../../../MANUAL/rm_en}
+
+\begin{document}
+
+\begin{titlepage}
+
+\vspace*{3.5in}
+\begin{center}
+\Huge\bf ETHERNET \vspace{0.25in}
+\end{center}
+\end{titlepage}
+
+\section{The protocol}
+
+The following Ethernet protocol is based on the commercial
+network according to (IEEE 802 Local Network Standard):
+\begin{llist}{EEE}
+\litem{E1}
+The network consists of a number of stations distributed along the bus.
+The bus is a single link and forms a tree with the stations being the leaves.
+Each station has a single {\em port} connecting it to the bus.
+\litem{E2}
+All stations constantly monitor the bus and are able to perceive its
+status.
+At any given moment there may be
+several activities on the bus, each started by a different station.
+If a station can sense any of these activities
+then it assumes that the bus is {\em busy}.
+\litem{E3}
+A station acquiring a packet to transmit senses the bus.
+If the bus has been {\em idle} for the amount of time equal to the
+{\em inter-packet space}, the station starts transmitting the packet.
+If the bus is sensed idle, but the silence period has been too short,
+the station waits until the inter-packet space is obeyed and then starts to
+transmit.
+If the bus is busy, the station waits until it becomes idle, then obeys the
+inter-packet space and transmits.
+\litem{E4}
+A transmitting station keeps sensing for a {\em collision\/}---an
+interference caused by some other activity on the bus.
+If a collision has been detected, the station
+aborts the transfer immediately and sends a
+{\em jamming signal} to make sure that
+any other party involved in the collision also recognizes it.
+Then the station reschedules the retransmission attempt of its packet after
+a randomized time delay determined by the {\em backoff algorithm}.
+\litem{E5}
+There is an upper limit on the length of a packet which can be sent in one
+transfer.
+Any message longer than the maximum packet size is split into several packets.
+Each packet is
+augmented by fixed-length {\em frame information} (header and trailer).
+There also is a lower limit on the
+packet length---to make sure that no packet is shorter than
+$2t_a$ (the round-trip propagation delay of the bus expressed in bits).
+This way all collisions are detectable during the
+transmission time, and
+as soon as the end of packet is transmitted, the station may stop listening for
+a collision.
+Packets shorter than that limit are expanded to the minimum legal size.
+\end{llist}
+
+Ethernet is a uniform network, in the sense that all stations obey the
+same protocol and transmit with the same speed.
+Thus, it is natural and convenient to assume that all distances and time
+intervals are expressed in bits.
+For example, in the commercial network $1$ bit $= 10^{-7}$
+second $\approx $15m.
+
+The numerical values of the relevant parameters for the protocol outlined above
+are given in the following table.
+Note that all values are expressed in bits.
+
+\medskip
+
+\begin{center}
+\begin{tabular}{|lr@{\ }l|}
+\hline 
+Data rate		& 10	&Mbps\\
+Minimum packet size	& 368	&bits\\
+Maximum packet size	& 12000 &bits\\
+Frame information	& 208 	&bits\\
+Minimum packet spacing	& 96 	&bits\\
+Minimum jam size	& 32 	&bits\\
+Maximum bus length	& 256 	&bits\\ \hline
+\end{tabular}
+\end{center}
+
+\medskip
+
+The algorithm used to reschedule the retransmission after a colliding transfer
+attempt is the so-called {\em Binary Exponential Backoff\/} ({\em BEB\/}). The
+delay is generated as:
+$2t_a \times U(0,2^{n_c} )$,
+where $t_a$ is the maximum end-to-end propagation delay of the bus ($256$ bits),
+$U$ denotes a uniformly distributed random number from the specified
+interval, and $n_c$ is the number of collisions (unsuccessful transfer
+attempts) suffered by the current packet.
+It is assumed than if $n_c$ exceeds $10$, an exception condition is passed to
+the higher protocol layers.
+
+\section{The protocol code}
+
+\subsection{Data structures and network topology}
+
+An Ethernet station is described by type {\tt Node} having two non-standard
+attributes: a single packet buffer and a port connecting the station to the
+bus.
+The bus is represented by a single, bidirectional, broadcast link
+(an object of type {\tt Link}) created by the {\tt Root}
+process.
+Note that the archival time for the bus link is non-zero.
+The transmitter process (see below) takes advantage of port inquiries to
+the bus to determine whether the packet space has been obeyed.
+The archive time is equal to the time duration of the packet space augmented
+by a ``safety margin".
+
+It is assumed that the bus geometry is strictly linear: the distance between
+two neighboring stations (or rather their ports) is the same and equal to
+{\tt (BusLength~*~TGran)/(NNodes-1)}, where {\tt BusLength} is the (one-way)
+length of the bus expressed in bits, {\tt TGran} is the {\em time granularity},
+i.e., the number of {\em ITU\/}s corresponding to the time represented by a
+single bit-slot.
+
+Note that although the bus is strictly linear, it is represented by an
+object of type {\tt Link} (not {\tt PLink}), as it is a bidirectional,
+broadcast channel.
+Thus, the distance matrix for the bus must be specified completely
+(it is done at state {\tt Start} in the {\tt Root} process), i.e.,
+the distance between each pair of ports has to be explicitly given.
+
+Each station runs two processes: the transmitter ({\tt Xmitter}) that takes
+care of acquiring packets for transmission, recognizing collisions,
+backing off, etc., and a very simple receiver ({\tt Receiver}) that just
+accepts packets addressed to its station and executes {\tt receive} for
+them.
+
+\subsection{The transmitter}
+
+Upon setup, the transmitter process creates its private copy of the
+port pointer (denoted by {\tt Bus}) and the pointer to the
+station's packet buffer.
+It also converts some time parameters specified in bits to {\em ITU\/}s,
+so that they can be used more efficiently, without dynamic conversion in
+the process' code.
+
+The operation cycle of the transmitter starts at state {\tt NPacket} where
+the process attempts to acquire a packet for transmission.
+If this attempt fails, the process waits for a {\tt Client}'s message
+{\tt ARRIVAL} event; otherwise, it clears the collision counter
+(attribute {\tt CCounter}), which will be used to count the number of
+collisions suffered by the newly acquired packet, and continues at
+state {\tt Retry}.
+
+The first operation performed at {\tt Retry} is determining the time
+when the {\tt Bus} was last sensed idle.
+The method {\tt lastEOA} returns the time when the last activity on the
+port was terminated, or an undefined value (recognized by the predicate
+{\tt undef}) if the port is currently perceiving some activity, i.e., the
+{\tt Bus} is busy.
+In such case, the transmitter waits for a {\tt SILENCE} on the port and tries
+again.
+
+If the bus is idle, the value of {\tt IPeriod} calculated as the difference
+between the current time ({\tt Time}) and the time when the current silence
+period began ({\tt LSTime}) tells the length of the silence period.
+This length must not be shorter than the required packet space interval
+({\tt PSpace}) for the transmission to commence.
+Note that {\tt lastEOA} monitors the past activities in the bus only down
+to the period determined by the bus' archival time.
+It is sufficient for this period to be only as long as {\tt PSPace}:
+anything that happened in the bus earlier than {\tt PSPace} time units
+before the current moment is irrelevant and can be treated as silence.
+
+If the idle period turns out to be too short, the transmitter waits for
+the amount of time corresponding to the difference between the required
+packet space and the actual length of the silence period.
+Otherwise, it moves directly
+to state {\tt Xmit} where the packet transmission is started.
+
+Having started the packet transmission, the process issues a wait request
+to the {\tt Bus} port to be notified about a possible collision.
+If the packet has been transmitted successfully without a collision,
+the transmitter gets to state {\tt XDone} where it terminates the
+transfer, releases the packet (empties the packet buffer), and moves
+back to state {\tt NPacket}---to acquire another packet for transmission.
+If a collision occurs, the process wakes up at state {\tt XAbort} where
+it aborts the transfer, increments the collision counter, and starts
+sending a jamming signal.
+
+After the amount of time needed to send the jamming signal, the transmitter
+is restarted at state {\tt JDone}.
+There it stops jamming, waits for the amount of time determined by the
+backoff function, and moves to {\tt Retry}---to retransmit the packet.
+Note that the backoff function directly implements the formula from the
+first section.
+The collision counter used by the backoff function is forced not to exceed
+10.
+
+\subsection{The receiver}
+
+The receiver process is very simple and it needs little explanation.
+The only {\tt Bus} event interesting from the viewpoint of the receiver
+is {\tt EMP} ({\em End of My Packet\/}) representing a complete and
+successful reception of a packet addressed to the station.
+Note that packets aborted (due to collisions) do not generate {\tt EMP}
+events.
+
+Whenever the process is awakened by an {\em EMP} event, it executes
+{\tt receive} for the packet and moves back to state
+{\tt WPacket} to await another such event.
+Note that the receiver uses {\tt skipto} (as opposed to {\tt proceed}),
+to make sure that the {\tt EMP} event has disappeared from the port.
+Otherwise, the process would loop infinitely on the same {\tt EMP}
+event without advancing the modeled time.
+
+\end{document}

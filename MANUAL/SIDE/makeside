@@ -1,0 +1,8 @@
+#!/bin/sh
+latex paper
+bibtex paper
+latex paper
+latex paper
+dvips -o paper.ps paper
+ps2pdf paper.ps paper.pdf
+rm -rf paper.dvi paper.log paper.aux paper.bbl paper.blg paper.bbl paper.blg paper.ps

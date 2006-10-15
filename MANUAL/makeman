@@ -1,0 +1,7 @@
+#!/bin/sh
+latex manual
+latex manual
+latex manual
+dvips manual
+ps2pdf manual.ps manual.pdf
+rm -rf *.aux *.dvi *.log *.ps *.toc

@@ -1,0 +1,173 @@
+\documentstyle [amssymbols,11pt] {article}
+\input {../../../MANUAL/rm_en}
+
+\begin{document}
+
+\begin{titlepage}
+
+\vspace*{3.5in}
+\begin{center}
+\Huge\bf A Disk Model \vspace{0.25in}
+\end{center}
+\end{titlepage}
+
+\section{The model}
+
+This program models a simple disk consisting of two physical items:
+the disk drive and the disk controller.
+We assume that the disk controller receives requests from the outside world
+(modeled by the \smurph\ {\tt Client})
+and passes them to the disk drive for processing.
+Two request types are considered: read requests and write requests.
+With a write request, the controller sends to the disk drive the new contents
+of a sector to be written.
+A read request identifies a sector whose contents are to be read from the
+disk and returned to the controller.
+
+The amount of time spent by the disk drive on processing a request depends
+on the current position of the heads (the seek time) and on the location
+of the addressed sector within the track (the latency).
+The disk drive keeps track of the current heads position and simulates the
+rotation of the disk platters.
+
+\section{The implementation}
+
+\subsection{The topology}
+
+The network implementing the disk model consists of two stations:
+the controller and the disk drive which are connected by a link.
+Each of the two stations has one port to the link.
+The controller uses its port to pass requests to the disk drive,
+the disk drive sends on its port responses to the controller.
+
+\subsection{The traffic}
+
+A special message type {\tt Request} is introduced to represent disk
+requests arriving from the {\tt Client}.
+This message type has two non-standard attributes:
+{\tt SecAddr} specifying the sector number and {\tt Type} identifying the
+request type ({\tt READ} or {\tt WRITE}).
+
+The controller turns such a message into a packet of type {\tt Preamble}
+which describes the request for the disk drive.
+This packet is transmitted to the disk drive on the single link
+connecting the two components of our system.
+If the request is a {\tt WRITE} operation, the {\tt Preamble}
+is followed by a packet of type {\tt Sector} representing the data to
+be written.
+The only relevant attribute of this packet is its length (equal to the
+sector length) which determines the amount of time needed to transmit and
+write the sector contents.
+A {\tt READ} request is completely characterized by the {\tt Preamble}.
+
+An operation completed by the disk drive results
+in a reply being sent to the
+controller.
+With the completion of a {\tt READ} operation, the drive responds with
+the sector contents transmitted as a packet of
+type {\tt Sector}.
+This packet is immediately followed by another short packet of type
+{\tt Response} that represents the status information returned by the
+disk drive to the controller.
+The reception of this status packet marks the completion of the i/o
+operation on the controller's end.
+The {\tt Response} packet is the only reply sent to the controller
+after processing a {\tt WRITE} request.
+
+The behavior of the standard {\tt Client} is driven by two traffic patterns:
+one handling the {\tt READ}-type requests and the other generating
+the {\tt WRITE}-type requests.
+All messages representing requests are queued at the controller and are
+addressed by the {\tt Client} to the disk drive.
+
+The standard {\tt Client} is responsible for determining inter-arrival intervals
+between requests and setting the message and packet length attributes.
+The message length for each of the two patterns is the same: it represents
+the length of the request {\tt Preamble} that each message is turned into.
+Two more message attributes must be determined:
+the sector number and the request type.
+This is done by the {\tt RqstGen} process which intercepts client messages
+and augments them with a randomly generated (function {\tt toss}) sector
+number.
+The request type is directly inferred from the traffic pattern generating
+the message.
+Actually, the request type attribute is redundant (the traffic pattern
+{\tt Id} is inherited by the packet sent to the disk); it exists merely for
+clarity.
+
+\subsection{The protocol}
+
+Preprocessed messages are retrieved by the {\tt Handler} process
+(running at the controller) which
+turns them into requests (one at a time) and transmits to the disk drive.
+A {\tt WRITE} request is followed by a {\tt Sector} packet representing the
+image of the new sector.
+Having sent a complete request to the disk drive, the {\tt Handler}
+awaits the response which comes as one packet (for {\tt WRITE})
+or two packets (for {\tt READ}).
+When the complete response arrives, the process updates the random variable
+{\tt Delay} by including a new service time sample.
+The service time is calculated as the difference between the time when
+the response from the disk drive is received and the time when the
+request was generated and queued at the controller.
+This interval is expressed in {\em ETU\/}s (intentionally representing
+real seconds).
+
+The disk drive (a station of type {\tt Disk})
+runs two permanent processes {\tt Drive} and {\tt Service},
+the latter occasionally spawning two more processes ({\tt Seek} and
+{\tt Find}).
+The objective of {\tt Drive} is to model the rotation of disk platters on the
+spindle.
+The process wakes up every time interval needed to advance the heads to a new
+sector and inserts a dummy item into the mailbox {\tt NewSector}.
+Note that the mailbox is created with the queue size of $0$.
+Thus the operation of storing an item into the mailbox can be viewed as
+a generation of a simple interrupt signal indicating a new sector
+boundary.
+This signal is perceived by the {\tt Find} process (see below) and used to
+time the operation of accessing a specific sector on a given track.
+With each signal, the {\tt Drive} process
+updates the {\tt Disk}'s attribute {\tt CurSec} telling the current
+track-relative sector number.
+
+Whenever the {\tt Service} process gets a new request from the {\tt Handler},
+it calculates the sector parameters and initiates the seek operation by
+starting a special process ({\tt Seek}) to do the job.
+The {\tt Seek} process determines the amount of time needed to perform the
+seek operation and triggers an interrupt after that time.
+Again, the interrupt comes as a dummy item being stored in a mailbox
+pointed to by {\tt Positioned}.
+Having completed the modeled seek operation the process terminates.
+The seek time is calculated by function {\tt seekTime} associated with the
+{\tt Disk}.
+For simplicity, we assume that this time consists of three components:
+the fixed startup time, the moving time proportional to the number of
+cylinders swept, and the fixed braking time.
+
+If the request is {\tt WRITE}, the {\tt Service} process reads the sector
+image arriving from the controller.
+This is done in parallel with the seek operation.
+Otherwise, for a {\tt READ} request, nothing more is expected from the
+controller and the process just waits until the seek operation
+is completed.
+
+The next stage is to wait until the sector to be accessed gets under the
+heads.
+Again this is done by a special process called {\tt Find} which
+is created by {\tt Service} dynamically.
+The process monitors the sectors passing by (the wait request to the
+{\tt NewSector} mailbox) and it
+terminates itself when the sector in question arrives.
+Then the {\tt Service} process simulates the operation to be performed.
+If the operation is {\tt WRITE}, the process waits until the sector is
+gone.
+For a {\tt READ} operation, a {\tt Sector} packet is transmitted to the
+controller.
+Note that the port transmission rate ({\tt ChannelBandwidth}) is defined as
+the ratio of the sector advancing time to the sector length.
+This way, the transmission of a {\tt Sector} packet takes the same
+amount of time as reading or writing a disk sector.
+Finally, the {\tt Service} process sends a {\tt Response} packet indicating
+the completion of the transfer.
+\end{document}

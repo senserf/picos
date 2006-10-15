@@ -1,0 +1,16 @@
+Transmission rate            1000 ITUs/bit
+Clock tolerance            0.0001
+
+Number of stations           8
+Ring length in bits          10000
+
+Slot marker length           16 bits
+Segment payload length      416 bits
+Segment header and trailer   96 bits
+Segment window size    416+96+2 bits
+Token holding time            1 slot
+
+Mean message interarrival time    800 bits
+Mean message length               900 bits
+
+Number of messages               8192

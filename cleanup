@@ -1,0 +1,36 @@
+#!/bin/sh
+
+find . -regex ".*\.o" -exec rm -f '{}' \;
+
+cd Examples
+find . -name "side" -exec rm -f '{}' \;
+find . -name "side.exe" -exec rm -f '{}' \;
+find . -name "side.sgn" -exec rm -f '{}' \;
+find . -regex ".*junk.*" -exec rm -f '{}' \;
+cd ..
+
+rm -rf LIB/l*
+touch LIB/empty
+
+cd MANUAL
+rm -rf *.aux *.dvi *.log *.ps *.toc
+cd SIDE
+rm -rf *.aux *.dvi *.log *.ps *.toc
+cd ..
+cd SMURPH
+rm -rf *.aux *.dvi *.log *.ps *.toc
+cd ..
+cd ..
+
+cd SOURCES
+cd LIB
+rm -rf libtcpip.a libsxml.a
+cd ..
+cd SMPP
+rm -rf smpp smpp.exe
+cd ..
+cd MONITOR
+rm -rf monitor monitor.exe
+cd ..
+rm -rf maker maker.exe
+cd ..
