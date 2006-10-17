@@ -235,8 +235,8 @@
 #define	RF24G			0
 #endif
 
-#ifndef	RF24L10
-#define	RF24L10			0
+#ifndef	RF24L01
+#define	RF24L01			0
 #endif
 
 #ifndef	UART_TCV

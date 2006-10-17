@@ -104,12 +104,7 @@
 #define	rcv_clrint	_BIC (P2IFG, 0x40)
 #define	rcv_enable	_BIS (P2IE, 0x40)
 #define	rcv_disable	_BIC (P2IE, 0x40)
-
-#if COLLECT_RXDATA_ON_LOW
-#define	rcv_setedge	rcv_edgelh
-#else
 #define	rcv_setedge	do { } while (0)
-#endif
 
 /*
  * The timer runs in the up mode setting up TAIFG whenever the count is

@@ -247,8 +247,12 @@ RegErr:
 static byte cc1100_status () {
 
 	register byte val;
+	int i;
 
-	while (1) {
+ReTry:
+	for (i = 0; i < 32; i++) {
+
+		i--;
 
 		SPI_START;
 		val = cc1100_spi_out_stat (CCxxx0_SNOP | 0x80);
@@ -261,40 +265,79 @@ static byte cc1100_status () {
 			case CC1100_STATE_TX_UNDERFLOW:
 
 				cc1100_strobe (CCxxx0_SFTX);
-#if 0
-				diag ("Hung TX_UNF");
-#endif
+				mdelay (1);
 				continue;
 
 			case CC1100_STATE_RX_OVERFLOW:
 
 				cc1100_strobe (CCxxx0_SFRX);
-#if 0
-				diag ("Hung RX_OVF");
-#endif
+
 			// Loop on transitional states until they go away
 
 			case CC1100_STATE_CALIBRATE:
 			case CC1100_STATE_SETTLING:
 
+				mdelay (1);
 				continue;
 
 			default:
 				return val;
 		}
 	}
+#if 1
+	diag ("cc1100_status hung!!");
+#endif
+	mdelay (1);
+	chip_reset ();
+	mdelay (1);
+	goto ReTry;
 }
 
 static void enter_idle () {
 
-	while (cc1100_status () != CC1100_STATE_IDLE)
+	int i;
+ReTry:
+	i = 32;
+	while (cc1100_status () != CC1100_STATE_IDLE) {
+		i--;
 		cc1100_strobe (CCxxx0_SIDLE);
+		if (i < 16) {
+			if (i == 0) {
+#if 1
+				diag ("cc1100_enter_idle hung!!");
+#endif
+				mdelay (1);
+				chip_reset ();
+				mdelay (1);
+				goto ReTry;
+
+			}
+			mdelay (2);
+		}
+	}
 }
 
 static void enter_rx () {
 
-	while (cc1100_status () != CC1100_STATE_RX)
+	int i;
+ReTry:
+	i = 32;
+	while (cc1100_status () != CC1100_STATE_RX) {
+		i--;
 		cc1100_strobe (CCxxx0_SRX);
+		if (i < 16) {
+			if (i == 0) {
+#if 1
+				diag ("cc1100_enter_rx hung!!");
+#endif
+				mdelay (1);
+				chip_reset ();
+				mdelay (1);
+				goto ReTry;
+			}
+			mdelay (2);
+		}
+	}
 }
 
 int cc1100_rx_status () {
@@ -321,13 +364,26 @@ int cc1100_rx_status () {
 
 void cc1100_rx_flush () {
 
+	int i;
+ReTry:
+	i = 32;
 	while (1) {
 		cc1100_strobe (CCxxx0_SFRX);
 		if (cc1100_get_reg (CCxxx0_RXBYTES) == 0)
-			return;
-#if TRACE_DRIVER
-		diag ("%u TRC RX FLUSH LOOP", (word) seconds ());
+			return;	// FIXME
+		i--;
+		if (i < 16) {
+			if (i == 0) {
+#if 1
+				diag ("cc1100_rx_flush hung!!");
 #endif
+				mdelay (1);
+				chip_reset ();
+				mdelay (1);
+				goto ReTry;
+			}
+			mdelay (2);
+		}
 	}
 	enter_rx ();
 }
@@ -487,6 +543,7 @@ static void do_rx_fifo () {
 		diag ("%u RC RX FIFO SHOULD BE EMPTY", (word) seconds ());
 #endif
 		cc1100_rx_reset ();
+		mdelay (1);
 	}
 
 	enter_rx ();
@@ -779,7 +836,7 @@ Reset:
 
 	if (stat == 0) {
 		// Recalibrate
-#if TRACE_DRIVE
+#if TRACE_DRIVER
 		diag ("%u RC GUARD RECAL", (word) (word) seconds ());
 #endif
 		enter_idle ();

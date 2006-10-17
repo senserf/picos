@@ -1159,3 +1159,9 @@ R061016B:
 	fast enough to clear the watchdog on time (the maximum watchdog
 	interval is too short). This shouldn't affect GENESIS, which never
 	enters the power-down mode.
+
+R061017A:
+
+	A minor improvement to watchdog. I have noticed that the variable
+	I introduced to handle the software watchdog can be eliminated with
+	an easy trick. Thus, the watchdog needs no extra memory at all!!

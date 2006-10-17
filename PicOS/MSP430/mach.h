@@ -191,8 +191,6 @@ extern uart_t zz_uart [];
 /* =============================== */
 #define sti_tim	_BIS (TBCCTL0, CCIE)
 #define cli_tim	_BIC (TBCCTL0, CCIE)
-//#define sti_tim	_BIS (TBCTL, TBIE)
-//#define cli_tim	_BIC (TBCTL, TBIE)
 #define	dis_tim _BIC (TBCTL, MC0 + MC1)
 #define	ena_tim _BIS (TBCTL, MC0      )
 

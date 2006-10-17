@@ -13,6 +13,11 @@
 #if TARGET_BOARD == BOARD_VERSA2
 
 	if (VERSA2_RESET_KEY_PRESSED) {
+
+#if WATCHDOG_ENABLED
+		WATCHDOG_STOP;
+#endif
+
 		// Disable all interrupts, we are going down
 		cli;
 		leds (0, 1); leds (1, 1); leds (2, 1);

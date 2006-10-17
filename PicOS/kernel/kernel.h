@@ -78,7 +78,6 @@ extern 			word  		zz_mintk;
 extern 	volatile 	word 		zz_lostk;
 
 #if WATCHDOG_ENABLED
-extern			word		zz_watchdog;
 #ifdef	WATCHDOG_SAVER
 void	WATCHDOG_SAVER ();
 #endif

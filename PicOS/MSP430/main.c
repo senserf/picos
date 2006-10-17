@@ -216,12 +216,21 @@ int main (void) {
 
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
+
+#if	WATCHDOG_ENABLED
+	WATCHDOG_STOP;
+#endif
+
 #if	DUMP_MEMORY
 	dmp_mem ();
 #endif
 	diag ("SYSTEM ERROR: %x, %s", ec, m);
 #else
 void zzz_syserror (int ec) {
+
+#if	WATCHDOG_ENABLED
+	WATCHDOG_STOP;
+#endif
 	dbg_0 (ec); // SYSTEM ERROR
 	diag ("SYSTEM ERROR: %x", ec);
 #endif
@@ -403,7 +412,8 @@ static void ssm_init () {
 	// Select power up and high clock rate
 	powerup ();
 #if HIGH_CRYSTAL_RATE && WATCHDOG_ENABLED
-	// Was set by powerup
+	// Was set by powerup, we have to stop it until we actually start
+	// the clock
 	WATCHDOG_STOP;
 #endif
 	// Start it in up mode, interrupts still disabled
@@ -452,10 +462,11 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #include "irq_timer.h"
 		// Run the scheduler at least once every second - to
 		// keep the second clock up to date
-		if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk)) {
+		if ((zz_lostk >= JIFFIES) ||
+		    (zz_mintk && zz_mintk <= zz_lostk)) {
 
 #if WATCHDOG_ENABLED
-			if (++zz_watchdog > 16 * JIFFIES ) {
+			if (zz_lostk >= 16 * JIFFIES ) {
 				// Software watchdog reset: 16 seconds
 #ifdef	WATCHDOG_SAVER
 				WATCHDOG_CLEAR;
@@ -492,12 +503,12 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 	zz_lostk += JIFFIES/TIMER_B_LOW_PER_SEC;
 
 #if TIMER_B_LOW_PER_SEC > 1
-	if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))
+	if ((zz_lostk >= JIFFIES) || (zz_mintk && zz_mintk <= zz_lostk))
 #endif
 	{
 
 #if WATCHDOG_ENABLED
-		if (++zz_watchdog > 16 * TIMER_B_LOW_PER_SEC) {
+		if (zz_lostk >= 16 * JIFFIES) {
 			// Software watchdog reset (16 sec)
 #ifdef	WATCHDOG_SAVER
 			WATCHDOG_CLEAR;
@@ -527,6 +538,10 @@ void freeze (word nsec) {
 	byte saveLEDs;
 	word saveLostK;
 
+#if WATCHDOG_ENABLED
+	// In case some of these take too long for the clock guard
+	WATCHDOG_STOP;
+#endif
 	cli;
 
 	// Save I/O pin interrupt configuration
@@ -551,6 +566,11 @@ void freeze (word nsec) {
 	while ((UTCTL1 & TXEPT) == 0);
 #endif
 #endif
+
+#if WATCHDOG_ENABLED
+	// We should be OK now
+	WATCHDOG_START;
+#endif
 	powerdown ();
 	// Save clock state
 	saveLostK = zz_lostk;
@@ -562,6 +582,9 @@ void freeze (word nsec) {
 		nsec--;
 	}
 
+#if WATCHDOG_ENABLED
+	WATCHDOG_STOP;
+#endif
 	P1IE = saveP1IE;
 	P2IE = saveP2IE;
 
@@ -585,6 +608,9 @@ void freeze (word nsec) {
 	zz_lostk = saveLostK;
 	leds_restore (saveLEDs);
 
+#if WATCHDOG_ENABLED
+	WATCHDOG_START;
+#endif
 	sti;
 }
 

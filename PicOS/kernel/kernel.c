@@ -60,10 +60,6 @@ const char	zz_hex_enc_table [] = {
 word	zz_seed = 30011;
 #endif
 
-#if	WATCHDOG_ENABLED
-word	zz_watchdog = 0;
-#endif
-
 int utimer (address ut, bool add) {
 /* ================= */
 /* Add/clear utimers */
@@ -132,10 +128,6 @@ void zzz_tservice () {
 	zz_lostk = 0;
 	sti_tim;
 
-#if WATCHDOG_ENABLED
-	// Software watchdog: this means that we are alive
-	zz_watchdog = 0;
-#endif
 	if (nticks == 0)
 		return;
 
@@ -815,7 +807,7 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 	delay (-ret - 2, retry);
 	release;
 
-#if	__ECOG1__
+#ifdef	__ECOG1__
 	/* Against stupidity ... */
 	return 0;
 #endif

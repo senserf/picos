@@ -201,7 +201,7 @@ proc outmkf { def cpu } {
 	}
 	puts $mfd ""
 	puts $mfd "AF=-mmcu=$cpu"
-	puts $mfd "OF=-O2 -g"
+	puts $mfd "OF=-O2 -g -Wundef"
 	puts $mfd "TR=Image"
 	puts $mfd "TD=./KTMP"
 
