@@ -1129,7 +1129,7 @@ R061014B:
 
 	MSP430F1611 memory map added. Cleanup in Apps.
 
-R061016A:
+R061016B:
 
 	Watchdog option added to MSP430. '#define WATCHDOG_ENABLED 1' in
 	options.sys enables the watchdog, which operates on two levels.
@@ -1146,6 +1146,12 @@ R061016A:
 
 	where 'my_fun' is the actual function name. The function must be
 	defined in the application as 'void my_watch_fun ()'.
+
+	The function has about 1s to carry out its operation, whatever it
+	is. It has even less when ACLK is driven by a high-speed crystal
+	(roughly 32768/f seconds, where f is the crystal rate in Hz). If it
+	takes longer than that, the hardware watchdog will kick in and reset
+	the chip.
 
 	Caveat: if ACLK is driven by a high-speed crystal (as in GENESIS),
 	the watchdog is disabled when the powerd-own mode is entered (i.e.,

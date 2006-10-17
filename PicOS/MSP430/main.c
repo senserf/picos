@@ -457,8 +457,8 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #if WATCHDOG_ENABLED
 			if (++zz_watchdog > 16 * JIFFIES ) {
 				// Software watchdog reset: 16 seconds
-				WATCHDOG_STOP;
 #ifdef	WATCHDOG_SAVER
+				WATCHDOG_CLEAR;
 				WATCHDOG_SAVER ();
 #endif
 				reset ();
@@ -499,8 +499,8 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #if WATCHDOG_ENABLED
 		if (++zz_watchdog > 16 * TIMER_B_LOW_PER_SEC) {
 			// Software watchdog reset (16 sec)
-			WATCHDOG_STOP;
 #ifdef	WATCHDOG_SAVER
+			WATCHDOG_CLEAR;
 			WATCHDOG_SAVER ();
 #endif
 			reset ();
