@@ -1128,3 +1128,28 @@ R061004A:
 R061014B:
 
 	MSP430F1611 memory map added. Cleanup in Apps.
+
+R061016A:
+
+	Watchdog option added to MSP430. '#define WATCHDOG_ENABLED 1' in
+	options.sys enables the watchdog, which operates on two levels.
+	Hardware watchdog makes sure that clock interrupts keep arriving, and
+	resets the chip if the clock stops ticking for between 1/250s and
+	1s, depending on the ACLK rate. Then, a software watchdog driven
+	by clock interrupts makes sure that the scheduler doesn't get stuck
+	on a looping process (for more than about 17s). In the latter case,
+	the reset is triggered by software, and it is then possible to
+	execute an application-provided function before the actual reset.
+	Such a function, if provided, has to be declared in options.sys like
+	this:
+			#define	WATCHDOG_SAVER()	my_watch_fun ()
+
+	where 'my_fun' is the actual function name. The function must be
+	defined in the application as 'void my_watch_fun ()'.
+
+	Caveat: if ACLK is driven by a high-speed crystal (as in GENESIS),
+	the watchdog is disabled when the powerd-own mode is entered (i.e.,
+	powerdown () is called). This is because the clock cannot then run
+	fast enough to clear the watchdog on time (the maximum watchdog
+	interval is too short). This shouldn't affect GENESIS, which never
+	enters the power-down mode.

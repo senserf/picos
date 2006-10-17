@@ -80,7 +80,19 @@
 
 #else	/* Low crystal rate */
 
+#if	WATCHDOG_ENABLED
+// If we want to take advantage of the watchdog in power-down mode, the clock
+// must run at least 2 times per second to clear the watchdog, which, at its
+// slowest, goes off after 1 second. Note that with HIGH_CRYSTAL_RATE,
+// watchdog is impossible in power down mode (hopefully, it won't be entered
+// then) because at, say, 8MHz ACLK rate, the watchdog will go off after
+// ca. 1/250 s. Well, we could slow down ACLK, but the whole point of having
+// a high speed crystal for ACLK is to run it at a high rate.
+#define	TIMER_B_LOW_PER_SEC	2
+#else
 #define	TIMER_B_LOW_PER_SEC	1
+#endif
+
 #define	HIGH_CRYSTAL_RATE	0
 
 #endif	/* CRYSTAL_RATE != 32768 */
@@ -171,7 +183,8 @@ extern uart_t zz_uart [];
 /* =================== */
 
 #define	WATCHDOG_STOP		WDTCTL = WDTPW + WDTHOLD
-#define	WATCHDOG_START		WDTCL = WDTPW + WDTCNTCL + WDTSSEL
+#define	WATCHDOG_START		WDTCTL = WDTPW + WDTCNTCL + WDTSSEL
+#define	WATCHDOG_CLEAR		WDTCTL = WDTPW + WDTCNTCL
 
 /* =============================== */
 /* Enable/disable clock interrupts */

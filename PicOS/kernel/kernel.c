@@ -60,6 +60,10 @@ const char	zz_hex_enc_table [] = {
 word	zz_seed = 30011;
 #endif
 
+#if	WATCHDOG_ENABLED
+word	zz_watchdog = 0;
+#endif
+
 int utimer (address ut, bool add) {
 /* ================= */
 /* Add/clear utimers */
@@ -128,6 +132,10 @@ void zzz_tservice () {
 	zz_lostk = 0;
 	sti_tim;
 
+#if WATCHDOG_ENABLED
+	// Software watchdog: this means that we are alive
+	zz_watchdog = 0;
+#endif
 	if (nticks == 0)
 		return;
 
@@ -156,7 +164,7 @@ void zzz_tservice () {
 		}
 
 		// nticks >= zz_mintk; normally, we will have
-		// nticks == zz_mintk, but lest us play it safe (in case we have
+		// nticks == zz_mintk, but lets us play it safe (in case we have
 		// lost a tick
 
 		nticks -= zz_mintk;
@@ -189,7 +197,6 @@ void zzz_tservice () {
 		}
 		// This is the new minimum
 		setticks = zz_mintk;
-
 		// Keep going in case we have a lag
 	} while (nticks);
 }

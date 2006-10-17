@@ -80,11 +80,25 @@ static void ssm_init (void), mem_init (void), ios_init (void);
 
 
 void clockdown (void) {
-	TBCCR0 = TIMER_B_INIT_LOW;	// 1 or 16 ticks per second
+
+#if HIGH_CRYSTAL_RATE && WATCHDOG_ENABLED
+	// Sorry, the watchdog must be stopped in the slow-clock mode if ACLK
+	// is driven by a high-speed crystal
+	WATCHDOG_STOP;
+#endif
+	TBCCR0 = TIMER_B_INIT_LOW;	// 1, 2, or 16 ticks per second
 }
 
 void clockup (void) {
+
 	TBCCR0 = TIMER_B_INIT_HIGH;	// 1024 ticks per second
+
+#if HIGH_CRYSTAL_RATE && WATCHDOG_ENABLED
+	// Resume the watchdog (it is never stopped if ACLK is driven by a
+	// low-speed crystal
+	WATCHDOG_START;
+#endif
+
 }
 
 void powerdown (void) {
@@ -189,6 +203,14 @@ int main (void) {
 	sti_tim;
 	_EINT ();
 	// Run the scheduler
+#if WATCHDOG_ENABLED
+	// We run at the longest possible interval, which means 1 sec for
+	// the standard 32768Hz crystal, but may mean as little as 1/250 sec
+	// for the 8MHz crystal.
+	WATCHDOG_START;
+#endif
+
+
 #include "scheduler.h"
 }
 
@@ -329,9 +351,6 @@ static void ssm_init () {
 	// This one needs the capacitance setting
 	_BIS (FLL_CTL0, XCAP18PF);
 #endif
-	// Power status
-	// powerup ();
-
 	// Set up the CPU clock
 
 #ifdef	__MSP430_1xx__
@@ -343,7 +362,6 @@ static void ssm_init () {
 	// We are using a high-speed crystal for XT1
 		+ XTS
 #endif
-
 	;
 	// Measured MCLK is ca. 4.5 MHz
 
@@ -352,7 +370,17 @@ static void ssm_init () {
 	BCSCTL2 = SELM_DCOCLK | SELS;
 #endif
 
-#endif	/* 14x */
+/*
+ * The clock mess:
+ *
+ * ACLK from 32768 Hz crystal: TB runs at 4096 Hz; in power-up mode, TB
+ * is set to 32768/8192 - 1 == 3, which means that a timer interrupt is
+ * generated 1024 times per second (4096/4).
+ * In power-down mode, TB is set to 32768/(8 * 16) - 1, i.e., 256-1, which
+ * means that the system clock runs 4096/256 = 16 times per second.
+ */
+
+#endif	/* 1xx */
 
 #ifdef	__MSP430_449__
 	//
@@ -374,7 +402,10 @@ static void ssm_init () {
 
 	// Select power up and high clock rate
 	powerup ();
-
+#if HIGH_CRYSTAL_RATE && WATCHDOG_ENABLED
+	// Was set by powerup
+	WATCHDOG_STOP;
+#endif
 	// Start it in up mode, interrupts still disabled
 	_BIS (TBCTL, MC0);
 }
@@ -394,8 +425,13 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 		syserror (ESTACK, "timer_int");
 #endif
 
+#if	WATCHDOG_ENABLED
+	// Clear hardware watchdog. Its sole purpose is to guard clock
+	// interrupts, while clock interrupts implement a software watchdog.
+	WATCHDOG_CLEAR;
+#endif
 	if (TBCCR0 == TIMER_B_INIT_HIGH) {
-		// Power up
+		// Power up: one tick == 1 JIFFIE
 		/* This code assumes that MAX_UTIMERS is 4 */
 #define	UTIMS_CASCADE(x) 	if (zz_utims [x]) {\
 					 if (*(zz_utims [x]))\
@@ -416,19 +452,37 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #include "irq_timer.h"
 		// Run the scheduler at least once every second - to
 		// keep the second clock up to date
-		if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))
+		if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk)) {
+
+#if WATCHDOG_ENABLED
+			if (++zz_watchdog > 16 * JIFFIES ) {
+				// Software watchdog reset: 16 seconds
+				WATCHDOG_STOP;
+#ifdef	WATCHDOG_SAVER
+				WATCHDOG_SAVER ();
+#endif
+				reset ();
+			}
+			
+#endif	/* WATCHDOG_ENABLED */
+
 			RISE_N_SHINE;
+		}
 // -------------------
 // _BIC (P1OUT, 0x04);
 // -------------------
 		return;
 	}
 
-	// Here we are running in the slooooow mode
-#define	UTIMS_CASCADE(x) if (zz_utims [x]) {\
-			     if (*(zz_utims [x]))\
-				*(zz_utims [x]) = *(zz_utims [x]) > JIFFIES ?\
-				    *(zz_utims [x]) - JIFFIES : 0
+	// Here we are running in the SLOW mode: one tick ==
+	// JIFFIES/TIMER_B_LOW_PER_SEC
+#define	UTIMS_CASCADE(x) \
+		if (zz_utims [x]) { \
+		  if (*(zz_utims [x])) \
+		    *(zz_utims [x]) = *(zz_utims [x]) > \
+		      (JIFFIES/TIMER_B_LOW_PER_SEC) ? \
+			*(zz_utims [x]) - (JIFFIES/TIMER_B_LOW_PER_SEC) : 0
+
 	UTIMS_CASCADE(0);
 	UTIMS_CASCADE(1);
 	UTIMS_CASCADE(2);
@@ -440,7 +494,21 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #if TIMER_B_LOW_PER_SEC > 1
 	if ((zz_lostk & 1024) || (zz_mintk && zz_mintk <= zz_lostk))
 #endif
+	{
+
+#if WATCHDOG_ENABLED
+		if (++zz_watchdog > 16 * TIMER_B_LOW_PER_SEC) {
+			// Software watchdog reset (16 sec)
+			WATCHDOG_STOP;
+#ifdef	WATCHDOG_SAVER
+			WATCHDOG_SAVER ();
+#endif
+			reset ();
+		}
+#endif	/* WATCHDOG_ENABLED */
+
 		RISE_N_SHINE;
+	}
 // -------------------
 // _BIC (P1OUT, 0x04);
 // -------------------

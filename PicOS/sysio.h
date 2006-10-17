@@ -51,6 +51,10 @@
 #define	ECOG_SIM		0
 #endif
 
+#ifndef	WATCHDOG_ENABLED
+#define	WATCHDOG_ENABLED	0
+#endif
+
 #ifndef	SCHED_PRIO
 #define	SCHED_PRIO		0
 #endif
