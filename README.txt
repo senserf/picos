@@ -39,7 +39,7 @@ Quick start:
    Remember that diags are written to the emulator's stdout (such that they
    show up even if the node has no UART).
 
-   Enjoy!
+   Enjoy!!
 
 ===============================================================================
 
