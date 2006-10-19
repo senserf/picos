@@ -1165,3 +1165,8 @@ R061017A:
 	A minor improvement to watchdog. I have noticed that the variable
 	I introduced to handle the software watchdog can be eliminated with
 	an easy trick. Thus, the watchdog needs no extra memory at all!!
+
+R061018A:
+
+	Added SFU board + a simplified (educational) RFPing for the SFU
+	group.

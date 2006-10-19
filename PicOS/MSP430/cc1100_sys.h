@@ -27,6 +27,9 @@
 #define	SPI_WAIT	do { } while (0)
 #define	STROBE_WAIT	udelay (10)
 
+/* ========================================================================== */
+/*                              G E N E S I S                                 */
+/* ========================================================================== */
 #if TARGET_BOARD == BOARD_GENESIS
 /*
  * Pins for the Genesis board
@@ -68,11 +71,56 @@
 
 #endif	/* TARGET_BOARD == BOARD_GENESIS */
 
+/* ========================================================================== */
+/*                          S F U   P R O T O T Y P E                         */
+/* ========================================================================== */
+#if TARGET_BOARD == BOARD_SFU_PROTOTYPE
+/*
+ * Pins for the SFU prototype board: they are the same as for GENESIS for
+ * now, but we keep them separate for future changes.
+ */
+
+#define	ini_regs	do { \
+				_BIC (P1OUT, 0xfc); \
+				_BIS (P1DIR, 0x8c); \
+				_BIC (P1IES, 0x40); \
+			} while (0)
+			// The last one is needed for the reset button. Not the
+			// most elegant place to set its direction.
+
+#define	cc1100_int		(P1IFG & 0x40)
+#define	clear_cc1100_int	_BIC (P1IFG, 0x40)
+
+#define	RX_FIFO_READY		(P1IN & 0x40)
+
+#define rcv_enable_int		do { \
+					zzv_iack = 1; \
+					_BIS (P1IE, 0x40); \
+					if (RX_FIFO_READY && zzv_iack) \
+						_BIS (P1IFG, 0x40); \
+				} while (0)
+						
+#define rcv_disable_int		_BIC (P1IE, 0x40)
+
+#define	sclk_up		_BIS (P1OUT, 0x08)
+#define	sclk_down	_BIC (P1OUT, 0x08)
+
+#define	csn_up		_BIS (P1OUT, 0x80)
+#define	csn_down	_BIC (P1OUT, 0x80)
+
+#define	si_up		_BIS (P1OUT, 0x04)
+#define	si_down		_BIC (P1OUT, 0x04)
+
+#define	so_val		(P1IN & 0x10)
+
+
+#endif	/* TARGET_BOARD == BOARD_SFU_PROTOTYPE */
+
+/* ========================================================================== */
+/*                      DM2100 running CC1100 (defunct)                       */
+/* ========================================================================== */
 
 #if TARGET_BOARD == BOARD_DM2100
-/*
- * Pins for DM2100 (this is defunct, I think)
- */
 
 #define	ini_regs	do { \
 				_BIC (P1OUT, 0x0f); \
@@ -109,6 +157,5 @@
 #define	so_val		(P1IN & 0x04)
 
 #endif	/* TARGET_BOARD == BOARD_DM2100 */
-
 
 #endif

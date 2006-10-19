@@ -43,8 +43,9 @@
 #define	RSSI_MAX	0x0fff
 #define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
 
-// =========================================================== //
-
+/* ========================================================================== */
+/*                                 V E R S A 2                                */
+/* ========================================================================== */
 #if TARGET_BOARD == BOARD_VERSA2
 
 //+++ p2irq.c
@@ -225,8 +226,9 @@
 
 #endif 	/* BOARD_VERSA2 */
 
-// =========================================================== //
-
+/* ========================================================================== */
+/*                               G E N E S I S                                */
+/* ========================================================================== */
 #if TARGET_BOARD == BOARD_GENESIS
 
 // Departures from default pre-initialization
@@ -272,35 +274,7 @@
 #define	PIN_MAX			8	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
 
-/*
- * ADC12 used for RSSI collection: source on A0 == P6.0, single sample,
- * triggered by ADC12SC
- * 
- *	ADC12CTL0 =      REFON +	// Internal reference
- *                     REF2_5V +	// 2.5 V for reference
- *		       ADC12ON +	// ON
- *			   ENC +	// Enable conversion
- *
- *	ADC10CTL1 = ADC12DIV_6 +	// Clock (SMCLK) divided by 7
- *		   ADC12SSEL_3 +	// SMCLK
- *
- *      ADC12MCTL0 =       EOS +	// Last word
- *		        SREF_1 +	// Vref - Vss
- *                      INCH_0 +	// A0
- *
- * The total sample time is equal to 16 + 13 ACLK ticks, which roughly
- * translates into 0.9 ms. The shortest packet at 19,200 takes more than
- * twice that long, so we should be safe.
- */
-
-#define	adc_config_rssi		do { \
-					_BIC (ADC12CTL0, ENC); \
-					_BIC (P6DIR, 1 << 0); \
-					_BIS (P6SEL, 1 << 0); \
-					ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
-					ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
-					ADC12CTL0 = REF2_5V + ADC12ON; \
-				} while (0)
+#define	adc_config_rssi		do { } while (0)	// Unused for RSSI
 
 #define	pin_book_cnt	do { \
 				_BIC (P6DIR, 0x02); \
@@ -335,9 +309,11 @@
 				(pin_value_cnt == 0))
 #define	pin_vedge_not	(((pmon.stat & PMON_NOT_EDGE_UP) == 0) == \
 				(pin_value_not == 0))
-
 #endif	/* BOARD_GENESIS */
 
+/* ========================================================================== */
+/*                               D M 2 1 0 0                                  */
+/* ========================================================================== */
 #if TARGET_BOARD == BOARD_DM2100
 
 //+++ p2irq.c
@@ -449,8 +425,67 @@
 
 #endif	/* BOARD_DM2100 */
 
-// =========================================================== //
-// =========================================================== //
+/* ========================================================================== */
+/*                        S F U    P R O T O T Y P E                          */
+/* ========================================================================== */
+#if TARGET_BOARD == BOARD_SFU_PROTOTYPE
+
+// Departures from default pre-initialization
+#define	PIN_DEFAULT_P1DIR	0x80
+#define	PIN_DEFAULT_P3DIR	0xCF
+#define	PIN_DEFAULT_P5DIR	0xE0
+#define	PIN_DEFAULT_P6DIR	0x00
+
+#define	PINS_BOARD_FOUND		1
+
+#define	PIN_LIST	{ 	\
+				\
+	{ P6IN_ - P1IN_, 0 },	\
+	{ P6IN_ - P1IN_, 1 },	\
+	{ P6IN_ - P1IN_, 2 },	\
+	{ P6IN_ - P1IN_, 3 },	\
+	{ P6IN_ - P1IN_, 4 },	\
+	{ P6IN_ - P1IN_, 5 },	\
+	{ P6IN_ - P1IN_, 6 },	\
+	{ P6IN_ - P1IN_, 7 },	\
+				\
+	{ P2IN_ - P1IN_, 0 },	\
+	{ P2IN_ - P1IN_, 1 },	\
+	{ P2IN_ - P1IN_, 2 },	\
+	{ P2IN_ - P1IN_, 3 },	\
+	{ P2IN_ - P1IN_, 4 },	\
+	{ P2IN_ - P1IN_, 5 },	\
+	{ P2IN_ - P1IN_, 6 },	\
+	{ P2IN_ - P1IN_, 7 },	\
+				\
+	{ P4IN_ - P1IN_, 0 },	\
+	{ P4IN_ - P1IN_, 1 },	\
+	{ P4IN_ - P1IN_, 2 },	\
+	{ P4IN_ - P1IN_, 3 },	\
+	{ P4IN_ - P1IN_, 4 },	\
+	{ P4IN_ - P1IN_, 5 },	\
+	{ P4IN_ - P1IN_, 6 },	\
+	{ P4IN_ - P1IN_, 7 },	\
+				\
+	{ P5IN_ - P1IN_, 0 },	\
+	{ P5IN_ - P1IN_, 1 },	\
+	{ P5IN_ - P1IN_, 2 },	\
+	{ P5IN_ - P1IN_, 3 },	\
+	{ P5IN_ - P1IN_, 4 },	\
+	{ P5IN_ - P1IN_, 5 },	\
+	{ P5IN_ - P1IN_, 6 },	\
+	{ P5IN_ - P1IN_, 7 },	\
+}
+
+#define	PIN_MAX			32	// Number of pins
+#define	PIN_MAX_ANALOG		8	// Number of available analog pins
+
+#define	adc_config_rssi		do { } while (0)	// Unsused for RSSI
+
+#endif	/* BOARD_GENESIS */
+/* ========================================================================== */
+/* ========================================================================== */
+/* ========================================================================== */
 
 #ifdef	PINS_BOARD_FOUND
 

@@ -41,6 +41,7 @@
 #define	BOARD_DM2100		100	/* DM2100 from RFM */
 #define	BOARD_GENESIS		101	/* Genesis board from RFM */
 #define	BOARD_VERSA2		102
+#define	BOARD_SFU_PROTOTYPE	103	/* Prototype board for Bozena's Lab */
 
 #ifndef	TARGET_BOARD
 #define	TARGET_BOARD		BOARD_GENESIS
