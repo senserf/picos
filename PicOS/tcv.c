@@ -1181,11 +1181,22 @@ __ENDPROCESS (1)
 #endif
 
 __PUBLF (PicOSNode, void, tcv_init) () {
-/*
- * This one is really simple in this version. There isn't much to initialize,
- * and whatever little there is, it can be done dynamically.
- */
+
+#ifdef __SMURPH__
+	// Initialize the otherwise statically initialized data
+	int i;
+
+	for (i = 0; i < TCV_MAX_DESC; i++)
+		descriptors [i] = NULL;
+	for (i = 0; i < TCV_MAX_PHYS; i++) {
+		physical [i] = NULL;
+		oqueues [i] = NULL;
+		physinfo [i] = 0;
+	}
+#endif
+
 #if	TCV_TIMERS
+	// These ones are always initialized dynamically
 	tcv_tim_set = 0;
 	tcv_q_tim . next = tcv_q_tim . prev = (titem_t*) &tcv_q_tim;
 	__FORK (timersrv);

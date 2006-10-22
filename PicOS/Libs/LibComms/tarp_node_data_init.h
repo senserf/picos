@@ -1,5 +1,3 @@
-#ifndef __tarp_node_data_init_h
-#define __tarp_node_data_init_h
 
 	tarp_ctrl.rcv = tarp_ctrl.snd = tarp_ctrl.fwd = 0;
 	tarp_ctrl.flags = 0;
@@ -18,4 +16,3 @@
 	strong_signal = YES;
 #endif
 
-#endif

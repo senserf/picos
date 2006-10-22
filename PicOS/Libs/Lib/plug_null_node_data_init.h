@@ -1,6 +1,4 @@
-#ifndef __plug_null_node_data_init_h
-#define __plug_null_node_data_init_h
+// Note: this can be included multiple times. No harm and sometimes needed.
 
 	desc = NULL;
 
-#endif
