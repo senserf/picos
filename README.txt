@@ -750,3 +750,24 @@
 	   repository (on sheerness) and start a new one on the Olsonet server.
 	   I am archiving the sheerness repository, and the older versions of
 	   SIDE will no longer be retrievable directly.
+
+ R061021A  When a process is killed, and its descendants list is nonempty, the
+	   descendants are moved to its parent process. Previously, it was
+	   illegal to kill a process with a non-empty list of decendants.
+	   A new event added to the Process AI: CHILD. This event is triggered
+	   whenever a child of the process terminates. Info01 and Info02 are
+	   then set to their values in the children, as for DEATH.
+
+	   There are no more zombies, i.e., processes that have been killed
+	   while somebody is waiting for them. Wait request that used to be
+	   queued at such processes are now moved to a special list.
+
+           Added terminate () as a Station method, which terminates all
+	   processes run (owned) by the station. This is intended as a prereq
+	   for reset.
+
+	   Added Boolean transmitting () to Port and Transceiver. The method
+	   returns YES, if the Port/Transmitter is currently emitting an
+	   activity.
+
+	   Note: manual still has to be updated.

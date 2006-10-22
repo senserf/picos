@@ -1,43 +1,43 @@
-SMURPH Version 1.82      ATM Switch Model Exercise    Mon Dec 26 16:07:22 1994
-Call arguments: data out
+SMURPH Version 2.80L      ATM Switch Model Exercise    Fri Oct 20 23:38:39 2006
+Call arguments: data_smp.txt out
 
 Network topology
 
 Stations:
 
-  NumId             Type         NPorts       NBuffers                NName
-      0          EndNode              2              1                -----
-      1          EndNode              2              1                -----
-      2          EndNode              2              1                -----
-      3          EndNode              2              1                -----
-      4          EndNode              2              1                -----
-      5          EndNode              2              1                -----
-      6          EndNode              2              1                -----
-      7          EndNode              2              1                -----
-      8          EndNode              2              1                -----
-      9          EndNode              2              1                -----
-     10          EndNode              2              1                -----
-     11          EndNode              2              1                -----
-     12          EndNode              2              1                -----
-     13          EndNode              2              1                -----
-     14          EndNode              2              1                -----
-     15          EndNode              2              1                -----
-     16          ASwitch              8              0                -----
-     17          ASwitch              8              0                -----
-     18          ASwitch              8              0                -----
-     19          ASwitch              8              0                -----
-     20          ASwitch              8              0                -----
-     21          ASwitch              8              0                -----
-     22          ASwitch              8              0                -----
-     23          ASwitch              8              0                -----
-     24          ASwitch              8              0                -----
-     25          ASwitch              8              0                -----
-     26          ASwitch              8              0                -----
-     27          ASwitch              8              0                -----
-     28          ASwitch              8              0                -----
-     29          ASwitch              8              0                -----
-     30          ASwitch              8              0                -----
-     31          ASwitch              8              0                -----
+  NumId             Type  NPorts  NTrans  NBuffs            NName
+      0          EndNode       2       0       1            -----
+      1          EndNode       2       0       1            -----
+      2          EndNode       2       0       1            -----
+      3          EndNode       2       0       1            -----
+      4          EndNode       2       0       1            -----
+      5          EndNode       2       0       1            -----
+      6          EndNode       2       0       1            -----
+      7          EndNode       2       0       1            -----
+      8          EndNode       2       0       1            -----
+      9          EndNode       2       0       1            -----
+     10          EndNode       2       0       1            -----
+     11          EndNode       2       0       1            -----
+     12          EndNode       2       0       1            -----
+     13          EndNode       2       0       1            -----
+     14          EndNode       2       0       1            -----
+     15          EndNode       2       0       1            -----
+     16          ASwitch       8       0       0            -----
+     17          ASwitch       8       0       0            -----
+     18          ASwitch       8       0       0            -----
+     19          ASwitch       8       0       0            -----
+     20          ASwitch       8       0       0            -----
+     21          ASwitch       8       0       0            -----
+     22          ASwitch       8       0       0            -----
+     23          ASwitch       8       0       0            -----
+     24          ASwitch       8       0       0            -----
+     25          ASwitch       8       0       0            -----
+     26          ASwitch       8       0       0            -----
+     27          ASwitch       8       0       0            -----
+     28          ASwitch       8       0       0            -----
+     29          ASwitch       8       0       0            -----
+     30          ASwitch       8       0       0            -----
+     31          ASwitch       8       0       0            -----
 
 Links:
 
@@ -45,7 +45,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -58,7 +58,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -71,7 +71,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -84,7 +84,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -97,7 +97,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -110,7 +110,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -123,7 +123,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -136,7 +136,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -149,7 +149,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -162,7 +162,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -175,7 +175,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -188,7 +188,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -201,7 +201,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -214,7 +214,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -227,7 +227,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -240,7 +240,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -253,7 +253,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -266,7 +266,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -279,7 +279,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -292,7 +292,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -305,7 +305,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -318,7 +318,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -331,7 +331,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -344,7 +344,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -357,7 +357,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -370,7 +370,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -383,7 +383,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -396,7 +396,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -409,7 +409,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -422,7 +422,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -435,7 +435,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -448,7 +448,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -461,7 +461,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -474,7 +474,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -487,7 +487,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -500,7 +500,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -513,7 +513,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -526,7 +526,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -539,7 +539,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -552,7 +552,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -565,7 +565,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -578,7 +578,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -591,7 +591,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -604,7 +604,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -617,7 +617,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -630,7 +630,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -643,7 +643,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -656,7 +656,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -669,7 +669,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -682,7 +682,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -695,7 +695,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -708,7 +708,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -721,7 +721,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -734,7 +734,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -747,7 +747,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -760,7 +760,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -773,7 +773,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -786,7 +786,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -799,7 +799,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -812,7 +812,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -825,7 +825,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -838,7 +838,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -851,7 +851,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -864,7 +864,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -877,7 +877,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -890,7 +890,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -903,7 +903,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -916,7 +916,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -929,7 +929,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -942,7 +942,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -955,7 +955,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -968,7 +968,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -981,7 +981,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -994,7 +994,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -1007,7 +1007,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -1020,7 +1020,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -1033,7 +1033,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -1046,7 +1046,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -1059,7 +1059,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -1072,7 +1072,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---    50000
+     0:      ---    5e+04
      1:      ***      ---
 
     Ports:
@@ -1080,6 +1080,9 @@ Links:
       LRId    Station    SRId        Rate
          0         31       6           2
          1         30       7           0
+
+
+RFChannels
 
 (System) End of list
 
@@ -1126,13 +1129,13 @@ File traffic statistics:
 Delay
 
       Number of samples:              15195
-      Minimum value:               0.000104
-      Maximum value:                 0.0111
-      Mean value:                   0.00145
-      Variance:                    1.42e-06
-      Standard deviation:           0.00119
-      Confidence int @95%:            0.013
-      Confidence int @99%:           0.0171
+      Minimum value:             0.00010424
+      Maximum value:            0.011080688
+      Mean value:            0.001454486199
+      Variance:             1.418091324e-06
+      Standard deviation:    0.001190836397
+      Confidence int @95%:    0.01301811832
+      Confidence int @99%:    0.01710288504
 
 Number of retransmissions:            845
 Retransmitted bits:             710137336

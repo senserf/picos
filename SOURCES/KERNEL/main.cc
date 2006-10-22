@@ -1381,27 +1381,6 @@ CSTOP:
 		    for (cp = chain; ; cp = cq) {
 			cq = cp -> other;
 			queue_out (cp);
-
-			if (cp->id == RQTYPE_PRC) {
-			    // Process AI wait request
-			    if (((Process*)(cp->ai))->Owner == NULL &&
-				((Process*)(cp->ai))->TWList == NULL &&
-				    ((Process*)(cp->ai))->SWList == NULL) {
-				// This is a zombie process that couldn't
-				// be destroyed in its right time because
-				// some processes were waiting for its events.
-				// We are at the last such waiting process, so
-				// now the zombie can be destroyed.
-				assert (((Process*)(cp->ai))->ChList == NULL,
-					"Can't terminate %s, ownership list not"
-						" empty", cp->ai->getOName ());
-				zz_queue_out (cp->ai);
-				zz_DREM (cp->ai);
-				if (cp->ai->zz_nickname != NULL)
-					delete (cp->ai->zz_nickname);
-				delete ((void*)(cp->ai));
-			    }
-			}
 			delete ((void*) cp);
 			if (cq == chain) break;
 		    }

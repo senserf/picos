@@ -513,6 +513,8 @@ extern	jmp_buf	zz_waker;
 #define         STALL                   (-5)    // No events
 #endif
 
+#define		CHILD			(-6)	// Child termination
+
 /* ---------------------------- */
 /* Forward definitions of types */
 /* ---------------------------- */
@@ -2485,6 +2487,7 @@ class   Station : public ZZ_Object {
 #endif
 	static  void    pttrav (ZZ_Object*);    // Recursive printer
 	static  void    dttrav (ZZ_Object*);    // Recursive displayer
+	void		sttrav (ZZ_Object*);	// Recursive process walker
 
 	public:
 
@@ -2497,6 +2500,9 @@ class   Station : public ZZ_Object {
 	   excptn ("Station: [%1d] once created, a station cannot be destroyed",
 	      getId ());
 	};
+
+	// Kill all processes owned by this station
+	void terminate ();
 
 #if	ZZ_TOL
 	void	setTolerance (double t, int q);
@@ -3257,6 +3263,8 @@ class   Port : public AI {
 
 	TIME             IJTime;        // Estimated time when the interpolator
 					// will leave the link 
+
+	Boolean transmitting () { return Activity != NULL; };
 
 	// Determines the earliest silence period heard on the port
 
@@ -4563,6 +4571,8 @@ class	Transceiver : public AI {
 		return TRANSFER;
 	};
 
+	Boolean transmitting () { return Activity != NULL; };
+
 	int activities (int&);
 
 	inline int activities () {
@@ -5732,6 +5742,7 @@ class   Process : public AI {
 	static Long sernum;             // Serial number
 
 	Station         *Owner;         // The station the proceess runs at
+	Process		*Father;	// The creating process
 	ZZ_REQUEST      *TWList,        // Processes waiting for termination
 					// Signal wait requests also kept here
 
@@ -5783,6 +5794,9 @@ class   Process : public AI {
 	inline void terminate () {
 		::terminate (this);
 	};
+
+	// returns the number of alive children
+	int children ();
 
 	// Sends a regular signal to the process
 	int signal (void *sp = NULL);

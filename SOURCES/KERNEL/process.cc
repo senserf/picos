@@ -21,6 +21,12 @@ extern  int     zz_setjmp_done;          // Flag == longjmp legal
 static  ZZ_REQUEST  *CRList = NULL;      // START request list
 #endif
 
+/*
+ * This is a zombie request list. The requests put in it come from terminated
+ * processes that some other processes are waiting for.
+ */
+static	ZZ_REQUEST  *ZRList = NULL;	// Zombie request list
+
 void    Process::zz_start () {
 
 	Process    *savecontext;
@@ -37,6 +43,7 @@ void    Process::zz_start () {
 	if_from_observer ("Process: observers can't generate processes");
 
 	Owner = TheStation;
+	Father = (TheProcess == Kernel) ? NULL : TheProcess;
 
 	TWList = SWList = NULL;
 	ChList = NULL;
@@ -69,8 +76,9 @@ void    Process::zz_start () {
 	// Add the object to the owner's list
 
 	if (TheProcess != NULL) {
-
-		// TheProcess == NULL means that Kernel is created
+		// TheProcess == NULL means that Kernel is being created,
+		// otherwise, the process gets appended to the parent's
+		// children list
 		zz_queue_head (this, TheProcess->ChList, ZZ_Object);
 	}
 };
@@ -179,10 +187,13 @@ void    Process::wait (int ev, int pstate) {
 	} else {
 	  switch (ev) {
 	     case DEATH:
+		// Termination
+	     case CHILD:
+		// Child termination
 #ifdef STALL
              case STALL:
+		// Stall (no progress)
 #endif
-		// Wait request for termination
 		new ZZ_REQUEST (&TWList, this, ev, pstate, RQTYPE_PRC);
 		assert (zz_c_other != NULL,
 			"Process->wait: internal error -- null request");
@@ -479,6 +490,8 @@ void terminate (Process *p) {
 
 ZZ_EVENT   *ev, *eh;
 ZZ_REQUEST *cw, *rq, *rc;
+Process	   *f;
+ZZ_Object  *ob;
 #if ZZ_TAG
 	int q;
 #endif
@@ -569,13 +582,34 @@ HOLD:                   // Remove all requests except for the Kernel's DEATH
 
 	// Regular process
 	if (p->ChList != NULL) {
-
+#if 0
+		// This is how it was
 		if (p != ZZ_Main)
 			excptn ("terminate: process %s has descendants",
 				p->getSName ());
+#else
+		// This is how it is now: move the descendants to the parent
+		// process
+		if ((f = p->Father) == NULL)
+			f = Kernel;
+
+		while (p->ChList != NULL) {
+			ob = p->ChList;
+			zz_queue_out (ob);
+			// This will make it temporarily disappear from the
+			// display list, but it will reappear in the new
+			// place.
+			zz_DREM (ob);
+			if (ob->Class == AIC_process)
+				((Process*)ob)->Father = f;
+			zz_queue_head (ob, f->ChList, ZZ_Object);
+		}
+#endif
 	}
 
 	for (ev = zz_eq; ev != zz_sentinel_event; ) {
+		// Remove all events owned by this process (in case the
+		// termination request is issued after some wait requests)
 		if (ev -> process != p) {
 			ev = ev -> next;
 			continue;
@@ -587,9 +621,8 @@ HOLD:                   // Remove all requests except for the Kernel's DEATH
 		ev = eh;
 	}
 
-	// Wake up processes waiting for the termination
-
 	for (cw = p->TWList; cw != NULL; cw = cw -> next) {
+		// Wake up processes waiting for the termination
 		if (cw -> event_id == DEATH) {
 			cw -> Info01 = Info01;
 			cw -> Info02 = Info02;
@@ -605,21 +638,180 @@ HOLD:                   // Remove all requests except for the Kernel's DEATH
 		}
 	}
 
+	if ((f = p->Father) != NULL) {
+		// Wake up processes waiting for child termination
+		for (cw = f->TWList; cw != NULL; cw = cw->next) {
+			if (cw->event_id == CHILD) {
+				cw->Info01 = Info01;
+				cw->Info02 = Info02;
+#if     ZZ_TAG
+				cw->when . set (Time);
+				if ((q = (ev = cw->event)->waketime .
+				  cmp (cw->when)) > 0 || (q == 0 && FLIP))
+#elsje
+				cw->when = Time;
+				if ((ev = cw->event)->waketime > Time || FLIP)
+#endif
+					ev->new_top_request (cw);
+			}
+		}
+	}
+
 	// Deallocate the process: the top-level destructor will remove it
 	// from the owner's list
 
-	if (p->TWList == NULL) {
-		zz_queue_out (p);
-                zz_DREM (p);
-		if (p->zz_nickname != NULL) delete (p->zz_nickname);
-		delete (p);
-	} else
-		p->Owner = NULL;        // Flag == zombie process
+	while (p->TWList != NULL) {
+		// Move these requests to the zombie list. They will be
+		// deallocated when the respective processes get awakened.
+		rq = p->TWList;
+		queue_out (rq);
+		zz_queue_head (rq, ZRList, ZZ_REQUEST);
+	}
 
-	// If somebody is waiting for the process, leave it as a zombie
-	// until the last waiting process destroys it.
-
+	zz_queue_out (p);
+        zz_DREM (p);
+	if (p->zz_nickname != NULL) delete (p->zz_nickname);
 	if (p == TheProcess) TheProcess = Kernel;
+	delete (p);
+}
+
+/*
+ * Here is the set of funtions to implement Station::terminate (). We need a
+ * recursive traverser of the ownership tree.
+ */
+class	sttr_st_c {
+
+	public:
+
+	Process	**PList;	// Process list
+	int	PLL,		// Current length
+		PLS;		// Size
+
+	sttr_st_c () {
+		PList = new Process* [PLS = 16];
+		PLL = 0;
+	};
+
+	~sttr_st_c () {
+		delete PList;
+	};
+
+	void add (Process *p) {
+
+		Process **pl;
+		int i;
+
+		if (PLL == PLS) {
+			// Grow the array
+			pl = new Process* [PLS += PLS];
+			for (i = 0; i < PLL; i++)
+				pl [i] = PList [i];
+			delete PList;
+			PList = pl;
+		}
+
+		PList [PLL++] = p;
+	};
+};
+
+static sttr_st_c *sttr_st;
+
+void Station::sttrav (ZZ_Object *o) {
+
+    	ZZ_Object  *clist;
+
+	if (o->Class == AIC_process) {
+		if (((Process*)o)->Owner == this)
+			sttr_st->add ((Process*)o);
+		clist = ((Process*)o)->ChList;
+	} else if (o->Class == OBJ_station) {
+		clist = ((Station*)o)->ChList;
+	} else {
+		return;
+	}
+
+	while (clist != NULL) {
+		sttrav (clist);
+		clist = clist->next;
+	}
+}
+
+void	Station::terminate () {
+/*
+ * This variant of terminate kills all the processes run by this station. The
+ * killed processes trigger no events, and their dependants are deallocated.
+ * The operation can be viewed as a prerequisite to 'reset'.
+ */
+	ZZ_Object *ob;
+	Process *p;
+	ZZ_EVENT   *ev, *eh;
+	ZZ_REQUEST *rq;
+	int i;
+
+	sttr_st = new sttr_st_c;
+	sttrav (zz_flg_started ? (ZZ_Object*)System : (ZZ_Object*)ZZ_Main);
+
+	for (i = 0; i < sttr_st->PLL; i++) {
+		p = sttr_st->PList [i];
+		while (p->ChList != NULL) {
+			ob = p->ChList;
+			zz_queue_out (ob);
+			zz_DREM (ob);
+			// If this isn't a process, just drop the thing
+			if (ob->Class != AIC_process) {
+				if (ob->zz_nickname != NULL)
+					delete (ob->zz_nickname);
+				delete ob;
+			} else {
+				// Move it to the Kernel - most likely it will
+				// be killed shortly
+				zz_queue_head (ob, Kernel->ChList, ZZ_Object);
+			}
+		}
+
+		for (ev = zz_eq; ev != zz_sentinel_event; ) {
+			// Remove all events owned by this process
+			if (ev -> process != p) {
+				ev = ev -> next;
+				continue;
+			}
+			eh = ev -> next;
+			ev -> cancel ();
+			delete ev;
+			ev = eh;
+		}
+
+		while (p->TWList != NULL) {
+			// Move these requests to the zombie list
+			rq = p->TWList;
+			queue_out (rq);
+			zz_queue_head (rq, ZRList, ZZ_REQUEST);
+		}
+
+		zz_queue_out (p);
+		zz_DREM (p);
+
+		if (p->zz_nickname != NULL)
+			delete (p->zz_nickname);
+		if (p == TheProcess)
+			TheProcess = Kernel;
+		delete (p);
+	}
+
+	delete sttr_st;
+}
+
+int Process::children () {
+
+	int cc;
+	ZZ_Object *de;
+
+	for (cc = 0, de = ChList; de != NULL; de = de->next) {
+		if (de->Class == AIC_process)
+			cc++;
+	}
+
+	return cc;
 }
 
 sexposure (Process)

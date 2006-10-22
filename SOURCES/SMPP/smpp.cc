@@ -2262,7 +2262,7 @@ xerror ("virtual process cannot specify father process or owning station");
 	}
 
 	if (sar [0] != '\0') {
-		// Owning station defined (impossible for virtual process)
+		// Owning station defined (illegal for a virtual process)
 		putC (sar);
 		putC (" *S; ");
 	}
