@@ -10,7 +10,14 @@ station	Node : NNode {
 	/*
 	 * Session (application) specific data
 	 */
-#include "app_node_data.h"
+
+	int	sfd, last_snt, last_rcv, last_ack;
+	Boolean	XMTon, RCVon, rkillflag, tkillflag;
+
+	int rcv_start ();
+	int rcv_stop ();
+	int snd_start (int);
+	int snd_stop ();
 
 	/*
 	 * Application starter
@@ -35,6 +42,9 @@ station	Node : NNode {
 		char	*UIDV,		// Input device for UART
 		char	*UODV		// Output device for UART
 	);
+
+	void reset ();
+	void init ();
 };
 
 #endif

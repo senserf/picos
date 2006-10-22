@@ -110,20 +110,30 @@ UART::UART (int speed, const char *idev, const char *odev, int mode, int bsize) 
 				TheStation->getSName (), odev);
 	}
 
-	if (R) {
+	if (R)
 		IBuf = new byte [B_len];
+
+	if (W)
+		OBuf = new byte [B_len];
+
+	// Account for start / stop bits, assuming there is no parity and one
+	// stop bit, which is the case in all our setups
+	ByteTime = (TIME) ((Second / speed) * 10.0);
+
+	reset ();
+}
+
+void UART::reset () {
+
+	if (IBuf != NULL) {
 		IB_in = IB_out = 0;
 		PI = create UART_in (this);
 	}
 
-	if (W) {
-		OBuf = new byte [B_len];
+	if (OBuf != NULL) {
 		OB_in = OB_out = 0;
 		PO = create UART_out (this);
 	}
-	// Account for start / stop bits, assuming there is no parity and one
-	// stop bit, which is the case in all our setups
-	ByteTime = (TIME) ((Second / speed) * 10.0);
 }
 
 void UART_in::setup (UART *u) {

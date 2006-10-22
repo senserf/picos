@@ -26,6 +26,13 @@ void TagNode::setup (
 
 	ui_ibuf = ui_obuf = NULL;
 
+	init ();
+}
+
+void TagNode::init () {
+
+	ui_ibuf = ui_obuf = NULL;
+
 	cmd_line = NULL;
 
 	pong_params.freq_maj = 5120;
@@ -42,6 +49,13 @@ void TagNode::setup (
 	app_count.fwd   = 0;
 
 	appStart ();
+}
+
+void TagNode::reset () {
+
+	TNode::reset ();
+
+	init ();
 }
 
 // lib_app.c ==================================================================

@@ -216,7 +216,6 @@ peg_cmd_in::perform {
 	state CS_INIT:
 		if (S->ui_ibuf == NULL)
 			S->ui_ibuf = S->get_mem (CS_INIT, UI_BUFLEN);
-trace ("PEG I 1");
 
 	transient CS_IN:
 		S->ser_in (CS_IN, S->ui_ibuf, UI_BUFLEN);
@@ -231,7 +230,6 @@ trace ("PEG I 1");
 
 		S->cmd_line = S->get_mem (CS_WAIT, strlen(S->ui_ibuf) +1);
 		strcpy (S->cmd_line, S->ui_ibuf);
-trace ("PEG I 2");
 		trigger (CMD_READER);
 		proceed CS_IN;
 }
@@ -262,15 +260,12 @@ peg_root::perform {
 		S->init_tags ();
 		S->ui_out (RS_INIT, welcome_str);
 		S->ui_obuf = S->get_mem (RS_INIT, UI_BUFLEN);
-trace ("PEG 1");
 
 		if (S->net_init (INFO_PHYS_DEV, INFO_PLUG_TARP) < 0) {
 			app_diag (D_FATAL, "net_init failed");
-			excptn ("peg_root: reset called");
-			// reset();
+			reset ();
 		}
 
-trace ("PEG 2");
 		S->net_opt (PHYSOPT_SETSID, &(S->net_id));
 		S->net_opt (PHYSOPT_SETPOWER, &(S->host_pl));
 		(void) fork (peg_rcv, NULL);
@@ -281,12 +276,10 @@ trace ("PEG 2");
 	state RS_FREE:
 		ufree (S->cmd_line);
 		S->cmd_line = NULL;
-trace ("PEG 3");
 		trigger (CMD_WRITER);
 
 	transient RS_RCMD:
 		if (S->cmd_line == NULL) {
-trace ("PEG 4");
 			S->wait (CMD_READER, RS_RCMD);
 			sleep;
 		}
@@ -304,8 +297,7 @@ trace ("PEG 4");
 		}
 
 		if (S->cmd_line[0] == 'q')
-			excptn ("peg_root: reset called");
-			// reset();
+			reset ();
 
 		if (S->cmd_line[0] == 'm') {
 			 S->scan (S->cmd_line+1, "%u", &in_peg);

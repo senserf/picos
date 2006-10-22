@@ -65,6 +65,11 @@ station PicOSNode {
 	Mailbox	TB;		// For trigger
 
 	/*
+	 * Defaults needed for reset
+	 */
+	double		DefXPower, DefRPower;
+
+	/*
 	 * Memory allocator
 	 */
 	MemChunk	*MHead, *MTail;
@@ -90,6 +95,7 @@ station PicOSNode {
 	 */
 	uart_t		*uart;
 
+	void reset ();
 	int getpid () { return (int) TheProcess; };
 	lword seconds ();
 	address	memAlloc (int, word);
@@ -128,6 +134,7 @@ station PicOSNode {
 	int ser_inf (word, const char*, ...);
 
 #include "encrypt.h"
+	// Note: static TCV data is initialized in tcv_init.
 #include "tcv_node_data.h"
 
 	void setup (word, double, double, double, double, Long, Long, Long,
@@ -186,6 +193,7 @@ station NNode : PicOSNode {
 #include "plug_null_node_data.h"
 
 	void setup ();
+	void reset ();
 };
 
 station TNode : PicOSNode {
@@ -202,6 +210,12 @@ station TNode : PicOSNode {
 	nid_t	net_id 		/* = 85 */; // 0x55 set network id to any value
 	nid_t	local_host 	/* = 97 */;
 	nid_t   master_host 	/* = 1 */;
+
+	// Defaults needed for reset
+
+	nid_t	Def_net_id;
+	nid_t	Def_local_host;
+	nid_t	Def_master_host;
 
 	// Application-level parameters for TARP
 	virtual int tr_offset (headerType *mb) {
@@ -231,6 +245,7 @@ station TNode : PicOSNode {
 #include "tarp_node_data.h"
 
 	void setup (nid_t ni, nid_t lh, nid_t mh);
+	void reset ();
 };
 
 process	BoardRoot {

@@ -107,6 +107,8 @@ class	UART {
 
 	int io (int st, int op, char*, int len);
 
+	void reset ();
+
 	UART (int, const char*, const char*, int, int);
 	~UART ();
 };

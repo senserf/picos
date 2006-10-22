@@ -24,6 +24,11 @@ void PegNode::setup (
 	// TARP
 	TNode::setup (85, 1, 1);	// network_id, local_host, master_host
 
+	init ();
+}
+
+void PegNode::init () {
+
 	ui_ibuf = ui_obuf = NULL;
 	cmd_line = NULL;
 
@@ -43,6 +48,13 @@ void PegNode::setup (
 	app_count.rcv = app_count.snd = app_count.fwd = 0;
 
 	appStart ();
+}
+
+void PegNode::reset () {
+
+	TNode::reset ();
+
+	init ();
 }
 
 // lib_app.c ==================================================================
@@ -493,8 +505,7 @@ void PegNode::msg_pong_in (word state, char * buf, word rssi) {
 		default:
 			app_diag (D_SERIOUS, "Tag state?(%u) Suicide!",
 				tagArray[tagIndex].state);
-			excptn ("PegNode->msg_pong_in: reset called");
-			// reset();
+			reset();
 	}
 
 	if (out_buf) {

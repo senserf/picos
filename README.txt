@@ -31,7 +31,7 @@ Quick start:
 5. Things are set. Go to VUEE/MODELS/RFPING and create the simulator. Execute
    mks -W in that directory. mks is the SIDE compiler.
 
-6. In VUEE/UDAEMON, execute udaemon.tk . This is a Tk script that emulates
+6. In VUEE/UDAEMON, execute udaemon . This is a Tk script that emulates
    multiple UARTs perceptible by nodes modeled in VUEE.
 
 7. Start the model. In VUEE/MODELS/RFPING, execute side data.txt . Two UART
@@ -48,3 +48,10 @@ R061015A:
    Original import. Lots of things to do: reset doesn't work, ways to initially
    distribute ESN's, generic mobility engine driven by external programs. And
    of course GUI, i.e., Tk interface. Wladek's stuff has to be accommodated.
+
+R061021A:
+
+    DIAG messages tagged with Node Id. This is the 'creation' Id corresponding
+    to the node number specified in the data file.
+    RESET implemented and tested on RFPing. TAGSANDPEGS modified to enable
+    reset (previously disabled). A few cosmetic changes.

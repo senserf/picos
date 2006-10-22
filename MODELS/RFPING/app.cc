@@ -261,7 +261,8 @@ process NRoot (Node) {
 		RS_PAR,
 		RS_PAR1,
 		RS_SSID,
-		RS_AUTOSTART
+		RS_AUTOSTART,
+		RS_RES
 	};
 
 	perform;
@@ -302,6 +303,7 @@ NRoot::perform {
 		"t        -> stop transmitter\r\n"
 		"q        -> stop both\r\n"
 		"i        -> set station Id\r\n"
+		"z        -> reset the node\r\n"
 	);
 
     transient RS_RCMDM1:
@@ -331,6 +333,8 @@ NRoot::perform {
 		proceed RS_QXMT;
 	if (ibuf [0] == 'i')
 		proceed RS_SSID;
+	if (ibuf [0] == 'z')
+		proceed RS_RES;
 
     transient RS_RCMD1:
 
@@ -413,6 +417,11 @@ NRoot::perform {
 	S->snd_start (1024);
   	S->rcv_start ();
 	terminate;
+
+    state RS_RES:
+
+	S->reset ();
+	// We should be killed past this
 }
 
 void Node::appStart () {

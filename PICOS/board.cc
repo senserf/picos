@@ -17,6 +17,49 @@ const char	zz_hex_enc_table [] = {
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
 
+void PicOSNode::reset () {
+
+	MemChunk *mc;
+
+	// Kill all processes run by this station
+	terminate ();
+
+	// Clean up memory
+	MFree = MTotal;
+	while (MHead != NULL) {
+		delete (byte*)(MHead->PTR);
+		mc = MHead -> Next;
+		delete MHead;
+		MHead = mc;
+	}
+	MTail = NULL;
+
+	// Abort the transceiver if transmitting
+	if (RFInterface->transmitting ())
+		RFInterface->abort ();
+
+	// Reset the transceiver to defaults
+	RFInterface->rcvOn ();
+	RFInterface->setXPower (DefXPower);
+	RFInterface->setRPower (DefRPower);
+
+	if (uart != NULL) {
+		uart->__inpline = NULL;
+		uart->pcsInserial = uart->pcsOutserial = NULL;
+		uart->U->reset ();
+	}
+
+	entropy = 0;
+
+	Receiving = Xmitting = NO;
+	TXOFF = RXOFF = YES;
+
+	OBuffer.fill (NONE, NONE, 0, 0, 0);
+
+	// This will do the dynamic initialization of static stuff in TCV
+	tcv_init ();
+}
+
 void PicOSNode::setup ( word mem,
 			double x, double y,
 			double xp, double rp,
@@ -30,16 +73,17 @@ void PicOSNode::setup ( word mem,
 	// Turn this into a trigger mailbox
 	TB.setLimit (-1);
 
-	// Initialize memory
-	MTotal = MFree = (mem + 3) / 4;		// This is in full words
+	MTotal = (mem + 3) / 4;			// This is in full words
 	MHead = MTail = NULL;
-	entropy = 0;
 
+	// These two survive reset. We assume that they are never changed
+	// by the application.
 	min_backoff = (word) bcmin;
 	// This is the argument for 'toss' to generate the proper
 	// offset. The consistency has been verified by readNodeParams.
 	max_backoff = (word) bcmax - min_backoff + 1;
 
+	// Same about these two
 	if (lbtdel == 0) {
 		// Disable it
 		lbt_threshold = HUGE;
@@ -55,29 +99,23 @@ void PicOSNode::setup ( word mem,
 		uart = NULL;
 	} else {
 		uart = new uart_t;
-		uart->__inpline = NULL;
-		uart->pcsInserial = uart->pcsOutserial = NULL;
 		uart->U = new UART (usp, uidv, uodv, umode, ubs);
 	}
+
+	DefXPower = dBToLin (xp);
+	DefRPower = dBToLin (rp);
 
 	RFInterface = create Transceiver (
 			rate,
 			pre,
-			dBToLin (xp),
-			dBToLin (rp),
+			DefXPower,
+			DefRPower,
 			x, y );
-
-	Receiving = Xmitting = NO;
-	TXOFF = RXOFF = YES;
 
 	Ether->connect (RFInterface);
 
-	// Note: the traffic type is 0. We are using a traffic pattern for
-	// tracking those packets, but the "standard" performance measures
-	// will be mostly useless.
-	OBuffer.fill (NONE, NONE, 0, 0, 0);
+	reset ();
 
-	tcv_init ();
 };
 
 lword PicOSNode::seconds () {
@@ -712,15 +750,36 @@ void NNode::setup () {
 
 }
 
+void NNode::reset () {
+
+	PicOSNode::reset ();
+
+#include "plug_null_node_data_init.h"
+
+}
+
 void TNode::setup (nid_t ni, nid_t lh, nid_t mh) {
 
 #include "net_node_data_init.h"
 #include "plug_tarp_node_data_init.h"
 #include "tarp_node_data_init.h"
-	
-	net_id = ni;
-	local_host = lh;
-	master_host = mh;
+
+	net_id = Def_net_id = ni;
+	local_host = Def_local_host = lh;
+	master_host = Def_master_host = mh;
+}
+
+void TNode::reset () {
+
+	PicOSNode::reset ();
+
+#include "net_node_data_init.h"
+#include "plug_tarp_node_data_init.h"
+#include "tarp_node_data_init.h"
+
+	net_id = Def_net_id;
+	local_host = Def_local_host;
+	master_host = Def_master_host;
 }
 
 // =====================================

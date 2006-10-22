@@ -24,6 +24,21 @@ void Node::setup (
 
 	NNode::setup ();
 
-#include "app_node_data_init.h"
+	init ();
+}
 
+void Node::init () {
+
+	tkillflag = rkillflag = NO;
+	XMTon = RCVon = NO;
+	last_snt = last_rcv = last_ack = 0;
+	// Start application root
+	appStart ();
+}
+
+void Node::reset () {
+
+	NNode::reset ();
+
+	init ();
 }

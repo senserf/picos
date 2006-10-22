@@ -108,6 +108,9 @@ station PegNode : TNode {
 		char	*UIDV,		// Input device for UART
 		char	*UODV		// Output device for UART
 	);
+
+	void reset ();
+	void init ();
 };
 
 #define	ThePeg	((PegNode*)TheNode)
