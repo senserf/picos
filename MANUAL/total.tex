@@ -4349,7 +4349,7 @@ It is assumed that these types agree with those specified in the
 process type definition and the actual pointers are cast to the types
 declared for {\tt S} and {\tt F}.
 It is posible for processes of the same type to be spawned by processes
-{\em fathers\/} of different types.
+({\em fathers\/}) of different types.
 In such a case, the {\tt F} pointer, if used, should be cast properly, except
 when the reference is to a generic attribute (e.g., a method)
 shared by all processes.
@@ -4385,14 +4385,71 @@ following the call to {\tt terminate} are ignored.
 
 \medskip
 
-\noindent
-{\bf Note:} It is illegal to terminate a process (either by itself or from
-another process) if the process currently {\em owns\/} some dynamically
-allocatable exposable objects (see \sect{rm_ds_om_oh}).
-Such objects must be deallocated before the process can be terminated.
-The {\tt Kernel} process (\sect{rm_pr_or}) is exempt from this rule, i.e.,
-it is always legal to request {\tt Kernel} termination
-(\sect{rm_pr_or}), which operation has a special meaning.
+It may happen that a terminated process has a non-empty set of descendants,
+which may include children processes and/or other exposable objects
+(\sect{rm_ex}) that
+have been created by the process during its lifetime.
+Such objects are linked to the process and, in particular, show up as its
+descendants in the hierarchy of exposable objects (\sect{rm_ds_om_oh}).
+When a process whose descendant list is nonempty is being terminated,
+the descendants are moved to the process's father, i.e., the process
+originally responsible for its creation.
+Then, if the descendant is a process, its father (the {\tt F} attribute)
+is set to the new owner.
+Note that the actual type of that owner need not agree with the type of
+{\tt F} (\sect{rm_pr_dp}).
+Therefore, if such situations can legitimately arise at all, the program must
+take necessary precautions to avoid confusion.
+
+A non-process descendant (e.g., {\tt RVariable} or {\tt EObject}) is simply
+moved to the new owner for the practically sole purpose of being locatable
+by {\tt DSD} as an exposable object (\sect{rm_ds_om_oh}).
+Normally, a process that terminates itself would take care to clean up its
+dependants, although sometimes it may be difficult, especially when those
+descendants are processes.
+While it is illegal to use standard C++ constructors for a process, destructors
+are OK.
+A process that expects to be terminated unexpectedly
+can use its destructor to make sure that the unnecessary dependants and other
+dynamic objects are always cleaned up properly.
+
+There exists a way to terminate all processes owned by a particular station.
+This is accomplished by executing {\tt terminate ()} as a {\tt Station}
+method, e.g., as in the following sequence:
+\begin{verbatim}
+       ...
+        state Reset:
+            S->terminate ();
+            sleep;
+           ...
+\end{verbatim}
+The role of this operation is to provide for a way to reinitialize (reset)
+a station
+by completely eliminating its processes and starting from a clean slate.
+When a process is terminated this way, all its non-process descendants are
+deallocated, and its children processes are moved to {\tt Kernel}
+(\sect{rm_pr_or}) as its new father.
+This is usually very temporary: such children are typically owned by the
+same station, so they will be terminated as well; however, it is technically
+possible for a process running at station $A$ to create a process at station
+$B$ (e.g., by explicitly re-setting {\tt TheStation}---\sect{rm_to_st_cu}).
+Such tricks may lead to a confusion, so they should be applied with due care.
+
+As the deallocation of descendants of a process killed by the {\tt Station}
+variant of {\tt terminate} follows the execution of the process's
+destructor, there is no danger if the process itself deallocates all or
+some of them upon termination.
+
+Note that the process executing {\tt S->terminate} will be terminated as well
+by this operation.
+As in many cases the operation must be followed by other statements, e.g.,
+ones that
+start up a new set of processes, it does not automatically return from the
+process.
+One should remember that following {\tt terminate} the current
+process is no more;
+in particular, any references to its methods and/or attributes will likely
+result in errors.
 
 \subsection{Process operation}
 \label{rm_pr_po}
@@ -4450,7 +4507,7 @@ than one wait request, the multiple wait requests are interpreted as an
 It means that when the process becomes suspended, it will be waiting for
 a collection of event types, possibly coming from different {\em AI\/}s,
 and the occurrence of the 
-{\bf earliest} of those events will reactivate the process.
+{\bf earliest} of those events will resuscitate the process.
 When a process is restarted, its collection of awaited events is {\bf cleared},
 which means that in each operation cycle these events must be specified
 from scratch.
@@ -4473,8 +4530,11 @@ whenever a process is awakened, it is always due to exactly one event.
 \noindent
 {\bf Note:} Many protocols can be programmed without assuming any ordering
 of events that can possibly occur at the same modeled time.
+Generally, the nondeterminism inherent in such scenarios is useful, as it
+accounts for the real-life phenomena like races and thus tends to
+enhance the model's fidelity.
 Therefore, for the sake of efficiency, the possibility to specify the
-third argument of {\tt wait} is switched on by a special option
+third argument of {\tt wait} is switched on by a special compilation option
 ({\tt -p}) of {\tt mks} (\sect{rm_un_cr}).
 Without this option, {\tt wait} accepts only two arguments and all
 events (except for the cases mentioned in
@@ -4491,7 +4551,7 @@ same {\em ITU\/}
 are additionally ordered by the absolute timing of the corresponding
 wait requests (earlier awaited events receive lower order).
 This feature is usually selected together with the real mode of operation
-(option {\tt -R}---\sect{rm_un_cr})
+(option {\tt -R}, \sect{rm_un_cr})
 to make sure that a program controlling a real physical
 system behaves in an absolutely deterministic way.
 
@@ -4527,7 +4587,7 @@ the created process's {\tt setup} method.
 The argument of {\tt setSP} specifies the order of the first waking event
 for the new process.
 The program must have been created with 
-{\tt -p} in order for {\tt setSP} to be accessible.
+{\tt -p} for {\tt setSP} to be accessible.
 
 Owing to the sequential nature of the \smurph\ kernel, only one process
 can be active at a given moment of real time (\smurph\ does not resort
@@ -4553,7 +4613,7 @@ An awakened process gets into a specific state
 and performs a sequence of operations associated with that state.
 By issuing wait requests, the process specifies dynamically the transition
 function, which tells it where to go from the current state upon the occurrence
-of some interesting events.
+of interesting events.
 The standard layout of the process code method is this:
 {\tt\begin{tabbing}
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
@@ -4616,13 +4676,13 @@ The semantics of operations {\tt Timer->wait}, {\tt WakeUp->put}, and
 \subsection{Process environment}
 \label{rm_pr_en}
 
-By the {\em process environment\/} we mean a collection of global variables
+By the {\em process environment\/} we mean a collection of variables
 readable by an active process and describing some elements of the
 process context or carrying some information related to the waking
 event.
 Two such variables: {\tt TheStation} (\sect{rm_to_st_cu}) and
 {\tt TheState} (\sect{rm_pr_po}) have already been discussed.
-Two more variables in this category are
+Two more variables in this category are:
 
 \medskip
 
@@ -4670,20 +4730,24 @@ This and other aliases will be discussed at the individual {\em AI\/}s.
 \label{rm_pr_pa}
 
 Type {\tt Process} is a subtype of {\tt AI} which suggests that a process
-can appear as an activity interpreter to another process.
+can appear as an activity interpreter to another process (or even to itself).
 It is possible for a process, say $P_1$, to issue a wait request to
 another process, say $P_2$, to be awakened when $P_2$ enters a
 specific state.
 The first argument of {\tt wait} in this case is an integer enumeration
 value identifying a process state.
-One special value, represented by the constant {\tt DEATH} (--1), is used
-to denote the termination of the process to which the wait request is
-addressed.
+A few special (negative) values, represented by symbolic constants
+(e.g., {\tt DEATH} defined as --1), are used to denote some
+special (non-state) events.
 
 A process $P_1$ restarted by process $P_2$ entering the state specified in
 $P_1$'s wait request addressed to $P_2$, is awakened {\bf after} $P_2$ is
 given control (i.e., when $P_2$ puts itself to sleep after completing the
 state), but still within the same {\em ITU}.
+The two environment variables {\tt Info01} and {\tt Info02} (\sect{rm_pr_en})
+presented to
+$P_1$ look exactly as they were when $P_2$ was completing its state.
+Note that $P_2$ can modify them to pass a specific message to $P_1$.
 
 Typically, when a process creates another process, the two processes run
 in parallel, at least from the viewpoint of the internal time.
@@ -4701,6 +4765,42 @@ the current process spawns a child process and goes to sleep until the
 child terminates.
 When it happens,
 the parent will resume its execution in state {\tt Done}.
+
+In addition to {\tt DEATH} of a specific process, a process can await the
+termination of any of its immediate children by issuing a wait request to
+itself with {\tt CHILD} as the first argument.
+Here is a sample sequence to make sure that all your children have disappeared
+before proceeding:
+\begin{verbatim}
+       ...
+        state WaitChildren:
+            if (children () != 0) {
+                wait (CHILD, WaitChildren);
+                sleep;
+            }
+           ...
+\end{verbatim}
+The {\tt children} method of {\tt Process} returns the number of
+processes appearing in the descendant list of the process.
+This can be viewed as the formal definition of the children set.
+There are circumstances (see \sect{rm_pr_ct}) when a process
+that has not been explicitly created by a given process may nonetheless
+show up as its descendant.
+Note that any process can await the termination of any process's child.
+For {\tt DEATH}, as well as for {\tt CHILD}, the two environment variables
+{\tt Info01} and {\tt Info02} (\sect{rm_pr_en}) presented to the restarted
+process look as they were last seen by the process that has
+triggered the event.
+
+\medskip
+
+\noindent
+{\bf Note:}
+A process terminated by reset, i.e., the {\tt terminate} method of its
+owning station (\sect{rm_pr_ct}), triggers neither {\tt DEATH} nor
+{\tt CHILD} events.
+
+\medskip
 
 The first waking event for a process, triggered after the process's creation
 (\sect{rm_pr_po}), is assumed to have been generated by the process itself.

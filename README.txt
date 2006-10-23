@@ -771,3 +771,13 @@
 	   activity.
 
 	   Note: manual still has to be updated.
+
+ R061022A  Improved deallocation of killed processes. Previously if a process
+	   wanted to take advantage of its destructor to deallocate its
+	   descendants, the outcome was different depending on whether the
+	   process was terminated "normally" (by regular terminate) or by
+	   reset (Station::terminate). In the latter case, the non-process
+	   descendants were deallocated by the system before the process's
+	   desctructor was able to run, which might cause errors. Now, the
+	   forced deallocation of descendants takes place after the process
+	   subtype desctructor has run, which should be always safe.

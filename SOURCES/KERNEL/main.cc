@@ -1335,8 +1335,8 @@ CSTOP:
 					zz_c_other -> when = Time;
 #endif
 				zz_c_wait_event -> chain = zz_c_other;
-				zz_c_wait_event -> Info01 = NULL;
-				zz_c_wait_event -> Info02 = NULL;
+				zz_c_wait_event -> Info01 = Info01;
+				zz_c_wait_event -> Info02 = Info02;
 				zz_c_whead = zz_c_other;
 				zz_c_first_wait = NO;
 				zz_c_wait_event->enqueue ();
@@ -1359,6 +1359,8 @@ CSTOP:
 			      }
 			    } else {
                                 cdebugl ("Rescheduling");
+				cp->Info01 = Info01;
+				cp->Info02 = Info02;
 #if     ZZ_TAG
 				cp -> when . set (Time);
 				if ((qq = ev->waketime . cmp (cp->when)) > 0 ||

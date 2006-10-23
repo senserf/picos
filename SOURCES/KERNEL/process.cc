@@ -490,8 +490,6 @@ void terminate (Process *p) {
 
 ZZ_EVENT   *ev, *eh;
 ZZ_REQUEST *cw, *rq, *rc;
-Process	   *f;
-ZZ_Object  *ob;
 #if ZZ_TAG
 	int q;
 #endif
@@ -580,98 +578,9 @@ HOLD:                   // Remove all requests except for the Kernel's DEATH
 		// Never returns
 	}
 
-	// Regular process
-	if (p->ChList != NULL) {
-#if 0
-		// This is how it was
-		if (p != ZZ_Main)
-			excptn ("terminate: process %s has descendants",
-				p->getSName ());
-#else
-		// This is how it is now: move the descendants to the parent
-		// process
-		if ((f = p->Father) == NULL)
-			f = Kernel;
+	// Regular process: flag == regular (soft) termination 
 
-		while (p->ChList != NULL) {
-			ob = p->ChList;
-			zz_queue_out (ob);
-			// This will make it temporarily disappear from the
-			// display list, but it will reappear in the new
-			// place.
-			zz_DREM (ob);
-			if (ob->Class == AIC_process)
-				((Process*)ob)->Father = f;
-			zz_queue_head (ob, f->ChList, ZZ_Object);
-		}
-#endif
-	}
-
-	for (ev = zz_eq; ev != zz_sentinel_event; ) {
-		// Remove all events owned by this process (in case the
-		// termination request is issued after some wait requests)
-		if (ev -> process != p) {
-			ev = ev -> next;
-			continue;
-		}
-
-		eh = ev -> next;
-		ev -> cancel ();
-		delete ev;
-		ev = eh;
-	}
-
-	for (cw = p->TWList; cw != NULL; cw = cw -> next) {
-		// Wake up processes waiting for the termination
-		if (cw -> event_id == DEATH) {
-			cw -> Info01 = Info01;
-			cw -> Info02 = Info02;
-#if     ZZ_TAG
-			cw->when . set (Time);
-			if ((q = (ev = cw->event)->waketime .
-			  cmp (cw->when)) > 0 || (q == 0 && FLIP))
-#else
-			cw->when = Time;
-			if ((ev = cw->event)->waketime > Time || FLIP)
-#endif
-					ev->new_top_request (cw);
-		}
-	}
-
-	if ((f = p->Father) != NULL) {
-		// Wake up processes waiting for child termination
-		for (cw = f->TWList; cw != NULL; cw = cw->next) {
-			if (cw->event_id == CHILD) {
-				cw->Info01 = Info01;
-				cw->Info02 = Info02;
-#if     ZZ_TAG
-				cw->when . set (Time);
-				if ((q = (ev = cw->event)->waketime .
-				  cmp (cw->when)) > 0 || (q == 0 && FLIP))
-#elsje
-				cw->when = Time;
-				if ((ev = cw->event)->waketime > Time || FLIP)
-#endif
-					ev->new_top_request (cw);
-			}
-		}
-	}
-
-	// Deallocate the process: the top-level destructor will remove it
-	// from the owner's list
-
-	while (p->TWList != NULL) {
-		// Move these requests to the zombie list. They will be
-		// deallocated when the respective processes get awakened.
-		rq = p->TWList;
-		queue_out (rq);
-		zz_queue_head (rq, ZRList, ZZ_REQUEST);
-	}
-
-	zz_queue_out (p);
-        zz_DREM (p);
-	if (p->zz_nickname != NULL) delete (p->zz_nickname);
-	if (p == TheProcess) TheProcess = Kernel;
+	p->ISpec = NULL;
 	delete (p);
 }
 
@@ -747,58 +656,136 @@ void	Station::terminate () {
 	ZZ_EVENT   *ev, *eh;
 	ZZ_REQUEST *rq;
 	int i;
+	Boolean own;
+
+	own = (TheProcess->Owner == this);
 
 	sttr_st = new sttr_st_c;
 	sttrav (zz_flg_started ? (ZZ_Object*)System : (ZZ_Object*)ZZ_Main);
 
 	for (i = 0; i < sttr_st->PLL; i++) {
 		p = sttr_st->PList [i];
-		while (p->ChList != NULL) {
-			ob = p->ChList;
-			zz_queue_out (ob);
-			zz_DREM (ob);
-			// If this isn't a process, just drop the thing
-			if (ob->Class != AIC_process) {
-				if (ob->zz_nickname != NULL)
-					delete (ob->zz_nickname);
-				delete ob;
-			} else {
-				// Move it to the Kernel - most likely it will
-				// be killed shortly
-				zz_queue_head (ob, Kernel->ChList, ZZ_Object);
-			}
-		}
-
-		for (ev = zz_eq; ev != zz_sentinel_event; ) {
-			// Remove all events owned by this process
-			if (ev -> process != p) {
-				ev = ev -> next;
-				continue;
-			}
-			eh = ev -> next;
-			ev -> cancel ();
-			delete ev;
-			ev = eh;
-		}
-
-		while (p->TWList != NULL) {
-			// Move these requests to the zombie list
-			rq = p->TWList;
-			queue_out (rq);
-			zz_queue_head (rq, ZRList, ZZ_REQUEST);
-		}
-
-		zz_queue_out (p);
-		zz_DREM (p);
-
-		if (p->zz_nickname != NULL)
-			delete (p->zz_nickname);
-		if (p == TheProcess)
-			TheProcess = Kernel;
-		delete (p);
+		// Flag == hard termination: no events
+		p->ISpec = p;
+		delete p;
 	}
 
 	delete sttr_st;
+}
+
+Process::~Process () {
+/*
+ * Take care of your descendants and events when terminating. There is a 
+ * difference between a regular termination and from Station::terminate.
+ * In the latter case, we deallocate descendants and trigger no events.
+ */
+	ZZ_Object *ob;
+	Process *f;
+	ZZ_EVENT   *ev, *eh;
+	ZZ_REQUEST *rq;
+#if ZZ_TAG
+	int q;
+#endif
+	if (ChList != NULL) {
+
+		if (ISpec != NULL || (f = Father) == NULL) {
+			/*
+			 * ISpec is used as a flag (nonzero means that we are
+			 * being kliied by Station::terminate). The idea is
+			 * the descendants will be moved to 'f'. Also, if ISPec
+			 * is nonsero (Station::terminate), we will delete non
+			 * process descendants.
+			 */
+			f = Kernel;
+		}
+
+		while (ChList != NULL) {
+			ob = ChList;
+			zz_queue_out (ob);
+			// This will make it temporarily disappear from the
+			// display list, but it will reappear in the new
+			// place.
+			zz_DREM (ob);
+			if (ob->Class == AIC_process) {
+				((Process*)ob)->Father = f;
+			} else if (ISpec != NULL) {
+				// Deallocate it
+				if (ob->zz_nickname != NULL)
+					delete (ob->zz_nickname);
+				delete ob;
+				continue;
+			}
+			zz_queue_head (ob, f->ChList, ZZ_Object);
+		}
+	}
+	
+	for (ev = zz_eq; ev != zz_sentinel_event; ) {
+		// Remove all events owned by this process
+		if (ev -> process != this) {
+			ev = ev -> next;
+			continue;
+		}
+		eh = ev -> next;
+		ev -> cancel ();
+		delete ev;
+		ev = eh;
+	}
+
+	while (TWList != NULL) {
+		// Take care of the wait list
+		rq = TWList;
+		if (ISpec == NULL && rq->event_id == DEATH) {
+			// Normal termination: wake up processes waiting for it
+			rq -> Info01 = Info01;
+			rq -> Info02 = Info02;
+#if     ZZ_TAG
+			rq->when . set (Time);
+			if ((q = (ev = rq->event)->waketime.cmp (rq->when)) > 0
+			    || (q == 0 && FLIP))
+#else
+			rq->when = Time;
+			if ((ev = rq->event)->waketime > Time || FLIP)
+#endif
+				ev->new_top_request (rq);
+		}
+		queue_out (rq);
+		// Move these requests to the zombie list. They will be
+		// deallocated when the respective processes get awakened.
+		zz_queue_head (rq, ZRList, ZZ_REQUEST);
+	}
+
+	while (SWList != NULL) {
+		// I almost forgot about these
+		rq = SWList;
+		queue_out (rq);
+		zz_queue_head (rq, ZRList, ZZ_REQUEST);
+	}
+
+	if (ISpec == NULL && Father != NULL) {
+		// Wake up the parent waiting from child's termination
+		for (rq = Father->TWList; rq != NULL; rq = rq->next) {
+			if (rq->event_id == CHILD) {
+				rq->Info01 = Info01;
+				rq->Info02 = Info02;
+#if     ZZ_TAG
+				rq->when . set (Time);
+				if ((q = (ev = rq->event)->waketime .
+				    cmp (rq->when)) > 0 || (q == 0 && FLIP))
+#elsje
+				rq->when = Time;
+				if ((ev = rq->event)->waketime > Time || FLIP)
+#endif
+					ev->new_top_request (rq);
+			}
+		}
+	}
+
+	zz_queue_out (this);
+	zz_DREM (this);
+	if (zz_nickname != NULL)
+		delete zz_nickname;
+	if (TheProcess == this)
+		TheProcess = Kernel;
 }
 
 int Process::children () {

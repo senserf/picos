@@ -763,6 +763,8 @@ const char    *AI::zz_eid (LPointer eid) {
 #endif
 				case DEATH:
 				    return ("DEATH");
+				case CHILD:
+				    return ("CHILD");
 				case START:
 				    return ("START");
 				case SIGNAL:

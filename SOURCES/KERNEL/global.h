@@ -5811,7 +5811,7 @@ class   Process : public AI {
 	int erase ();
 
 	// Destructor for derived classes
-	VIRCONS	~Process () { };
+	VIRCONS	~Process ();
 
         Station *getOwner () { return Owner; };
 
