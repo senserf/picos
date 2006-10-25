@@ -90,7 +90,7 @@ process (root, void)
 #endif
 		"          'f %d %u %x %c %s %ld %lu %lx' (format test)\r\n"
 #if STACK_GUARD
-		"          'v (show free memory)\r\n"
+		"          'v' (show free memory)\r\n"
 #endif
 		"          'h' (HALT)\r\n"
 		"          'r' (RESET)\r\n");

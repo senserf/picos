@@ -298,9 +298,17 @@ word switches (void) {
 
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
+
+#if	DUMP_MEMORY
+	dmp_mem ();
+#endif
 	diag ("SYSTEM ERROR: %x, %s", ec, m);
 #else
 void zzz_syserror (int ec) {
+
+#if	DUMP_MEMORY
+	dmp_mem ();
+#endif
 	diag ("SYSTEM ERROR: %x", ec);
 #endif
 	print_al (0);
@@ -906,7 +914,7 @@ static void ios_init () {
 	diag (BANNER);
 #else
 	diag ("\r\nPicOS v" SYSVERSION ", "
-        	"Copyright (C) Olsonet Communications, 2002-2005");
+        	"Copyright (C) Olsonet Communications, 2002-2006");
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);
 #endif
 #if	SDRAM_PRESENT

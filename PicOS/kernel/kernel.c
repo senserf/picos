@@ -227,6 +227,11 @@ int zzz_fork (code_t func, address data) {
 	return (int) i;
 }
 
+void savedata (void *d) {
+
+	zz_curr -> data = d;
+}
+
 /* ======================== */
 /* Proceed to another state */
 /* ======================== */

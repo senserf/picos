@@ -30,14 +30,6 @@ static void preinit_uart (void);
 
 #define	N_UARTS	UART_DRIVER
 
-#ifndef	UART_INPUT_FLOW_CONTROL
-#define	UART_INPUT_FLOW_CONTROL		0
-#endif
-
-#ifndef	UART_OUTPUT_FLOW_CONTROL
-#define	UART_OUTPUT_FLOW_CONTROL	0
-#endif
-
 #if	UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
 #if	UART_DRIVER > 1
 #error	"flow control is only available when UART_DRIVER == 1"

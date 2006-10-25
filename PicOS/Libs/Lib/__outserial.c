@@ -27,12 +27,12 @@ process (__outserial, const char)
 
   entry (OM_INIT)
 
-	ptr = data;
 	cport = __serial_port;
+	ptr = data;
 	if (*ptr)
 		len = strlen (ptr);
 	else
-		len = ptr[1] +3; // 3: 0x00, len, 0x04
+		len = ptr [1] +3; // 3: 0x00, len, 0x04
 
   entry (OM_WRITE)
 

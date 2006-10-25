@@ -26,322 +26,16 @@
 //+++ "main.c"
 //+++ "kernel.c"
 
-/* ======================================================================== */
-/*              C O N F I G U R A T I O N    O P T I O N S                  */
-/*              ==========================================                  */
-/*                                                                          */
-/* We make sure that the configuration symbols receive default values, even */
-/* if they are not mentioned in options.sys.                                */
-/* ======================================================================== */
-
-// The list of boards
-#define	BOARD_CYAN		0	/* Cyan evaluation board */
-#define	BOARD_GEORGE		1
-
-#define	BOARD_DM2100		100	/* DM2100 from RFM */
-#define	BOARD_GENESIS		101	/* Genesis board from RFM */
-#define	BOARD_VERSA2		102
-#define	BOARD_SFU_PROTOTYPE	103	/* Prototype board for Bozena's Lab */
-
-#ifndef	TARGET_BOARD
-#define	TARGET_BOARD		BOARD_GENESIS
-#endif
-
-// This one indicates whether we are running under the simulator (0/1)
-#ifndef ECOG_SIM
-#define	ECOG_SIM		0
-#endif
-
-#ifndef	WATCHDOG_ENABLED
-#define	WATCHDOG_ENABLED	0
-#endif
-
-#ifndef	SCHED_PRIO
-#define	SCHED_PRIO		0
-#endif
-
-// The maximum number of tasks in the system. The overall performance may
-// depend on it (somewhat).
-#ifndef	MAX_TASKS
-#define	MAX_TASKS		16
-#endif
-
-#ifndef	MAX_PRIO
-#define MAX_PRIO                (MAX_TASKS *10)
-#endif
-
-// Detect stack overrun
-#ifndef	STACK_GUARD
-#define	STACK_GUARD		0
-#endif
-
-// The maximum number of simultaneously awaited events (timer excluded)
-// per task (see above).
-#ifndef	MAX_EVENTS_PER_TASK
-#define	MAX_EVENTS_PER_TASK	4
-#endif
-
-// This one makes system messages go to UART_A. Also 'diag' becomes enabled
-// and useful for debugging (0/1). If DIAG_MESSAGES > 1, system error
-// messages are verbose.
-#ifndef	DIAG_MESSAGES
-#define	DIAG_MESSAGES	2
-#endif
-
-// Use switches for PIO input
-#ifndef	SWITCHES
-#define	SWITCHES		0
-#endif
-
-// Indicates whether the UART driver is present at all (0/1/2, 2 == both UARTs,
-// i.e., A and B)
-#ifndef	UART_DRIVER
-#define	UART_DRIVER		0
-#endif
-
-// LEDs driver present (0/1)
-#ifndef	LEDS_DRIVER
-#define	LEDS_DRIVER		0
-#endif
-
-#ifndef	LEDS_BLINKING
-#define	LEDS_BLINKING		0
-#endif
-
-// LCD driver present (0/1)
-#ifndef	LCD_DRIVER
-#define	LCD_DRIVER		0
-#endif
-
-// RADIO driver present (0/1)
-#ifndef	RADIO_DRIVER
-#define	RADIO_DRIVER		0
-#endif
-// radio options
-#define	RADIO_NONE              0
-#define	RADIO_RFMI		2
-#define	RADIO_XEMICS		3
-// Select the radio type in options.sys if present
-#ifndef RADIO_TYPE
-#define RADIO_TYPE              RADIO_NONE
-#endif
-// If this is nonzero, the radio driver is assisted by a helper simulating
-// interrupts (triggering events) when an activity is sensed
-#define	RADIO_INTERRUPTS	4
-
-// Indicates whether the Ethernet chip should be configured into the system
-#ifndef	ETHERNET_DRIVER
-#define	ETHERNET_DRIVER		0
-#endif
-
-// Indicates whether TCV is present
-#ifndef	TCV_PRESENT
-#define	TCV_PRESENT		1
-#endif
-
-#if TCV_PRESENT
-// These select TCV configuration options
-#ifndef	TCV_TIMERS
-#define	TCV_TIMERS		1	// 0/1
-#endif
-#ifndef	TCV_HOOKS
-#define	TCV_HOOKS		1	// 0/1
-#endif
-#ifndef	TCV_MAX_DESC
-#define	TCV_MAX_DESC		16	// Maximum number of sessions
-#endif
-#ifndef	TCV_MAX_PHYS
-#define	TCV_MAX_PHYS		3	// Maximum number of physical interfaces
-#endif
-#ifndef	TCV_MAX_PLUGS
-#define	TCV_MAX_PLUGS		3	// Maximum number of plugins
-#ifndef	TCV_LIMIT_RCV
-#define	TCV_LIMIT_RCV		0	// No limit for RCV queue
-#endif
-#ifndef	TCV_LIMIT_XMT
-#define	TCV_LIMIT_XMT		0	// No limit for OUT queue
-#endif
-
-//+++ "tcv.c"
-
-#endif
-// TCV_PRESENT
-#endif
-
-// Enables 'freeze'
-#ifndef	GLACIER
-#define	GLACIER			0
-#endif
-
-// If this is 1, SDRAM is configured in. Dynamic memory is allocated within
-// the first 32K page of SDRAM. THe remaining SDRAM is available through
-// ramget / ramput. (0/1)
-#ifndef	SDRAM_PRESENT
-#define	SDRAM_PRESENT		0
-#endif
-
-// Makes long encoding/decoding formats (%ld, %lu, %lx) available in form
-// and scan (library functions) (0/1)
-#ifndef	CODE_LONG_INTS
-#define	CODE_LONG_INTS		1
-#endif
-
-// Configures the ADC interface: 0/1
-#ifndef	ADC_PRESENT
-#define	ADC_PRESENT		0
-#endif
-
-// Use a single memory pool for malloc (may make better sense for tight
-// memory boards)
-#ifndef	MALLOC_SINGLEPOOL
-#define	MALLOC_SINGLEPOOL	0
-#endif
-
-// Calculate malloc statistics
-#ifndef	MALLOC_STATS
-#define	MALLOC_STATS		0
-#endif
-
-// Safe malloc (safer anyway)
-#ifndef	MALLOC_SAFE
-#define	MALLOC_SAFE		0
-#endif
-
-// Doubleword alignment of malloc'ed memory
-#ifndef	MALLOC_ALIGN4
-#define	MALLOC_ALIGN4		0
-#endif
-
-#ifndef CC1000
-#define CC1000                 	0
-#endif
-
-#ifndef CC1100
-#define CC1100                 	0
-#endif
-
-#ifndef	DM2100
-#define	DM2100			0
-#endif
-
-#ifndef	DM2200
-#define	DM2200			0
-#endif
-
-#ifndef	PULSE_MONITOR
-#define	PULSE_MONITOR		0
-#endif
-
-#ifndef	RF24G
-#define	RF24G			0
-#endif
-
-#ifndef	RF24L01
-#define	RF24L01			0
-#endif
-
-#ifndef	UART_TCV
-#define	UART_TCV		0
-#endif
-
-#ifndef	LBT_DELAY
-// Listen Before Transmit delay (0 disables)
-#define	LBT_DELAY		8
-#endif
-
-#ifndef	LBT_THRESHOLD
-// Listen Before Transmit RSSI threshold (quantized into levels 0-16)
-#define	LBT_THRESHOLD		2
-#endif
-
-#ifndef	MIN_BACKOFF
-// Minimum backoff of the transmitter (whenever it concludes that a transmission
-// would not be appropriate at the moment)
-#define	MIN_BACKOFF		8
-#endif
-
-#ifndef	MSK_BACKOFF
-// Backoff mask for the randomized component. Random backoff is generated as
-// MIN_BACKOFF + (random & MSK_BACKOFF)
-#define	MSK_BACKOFF		0xff
-#endif
-
-#if	CC1000
-#ifndef	CC1000_FREQ
-// Default CC1000 frequency. 868 is another option.
-#define	CC1000_FREQ		433
-#endif
-#endif
-
-#ifndef	ENTROPY_COLLECTION
-#define	ENTROPY_COLLECTION	0
-#endif
-
-#ifndef	RANDOM_NUMBER_GENERATOR
-#define	RANDOM_NUMBER_GENERATOR	0
-#endif
-
-#ifndef	UART_RATE
-#define	UART_RATE		9600
-#endif
-
-#ifndef	UART_RATE_SETTABLE
-#define	UART_RATE_SETTABLE	0
-#endif
-
-#ifndef	UART_PARITY
-#define	UART_PARITY		0	// 0-even, 1-odd
-#endif
-
-#ifndef	UART_BITS
-#define	UART_BITS		8
-#endif
-
-#ifndef	CRC_ISO3309
-#define CRC_ISO3309		1
-#endif
-
-#ifndef	EEPROM_DRIVER
-#define	EEPROM_DRIVER		0
-#endif
-
-#ifndef	INFO_FLASH
-#define	INFO_FLASH		0
-#endif
-
-#ifndef	RESET_ON_SYSERR
-#define	RESET_ON_SYSERR		0
-#endif
-
-#ifndef	RESET_ON_MALLOC
-#define	RESET_ON_MALLOC		0
-#endif
-
-#ifndef	CONFIG_PINS
-#define	CONFIG_PINS		0
-#endif
-
-#ifndef	RADIO_USE_LEDS
-#define	RADIO_USE_LEDS		0
-#endif
-
-#ifndef	FCC_TEST_MODE
-#define	FCC_TEST_MODE		0
-#endif
-
-#ifndef	DUMP_MEMORY
-#define	DUMP_MEMORY		0
-#endif
-
-/* ======================================================================== */
-/*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */
-/* ======================================================================== */
+#include "options.h"
 
 /* ================================== */
 /* Some hard configuration parameters */
 /* ================================== */
 #define	MAX_DEVICES		6
 #define	MAX_MALLOC_WASTE	12
+
+// Only needed if SCHED_PRIO != 0
+#define MAX_PRIO                (MAX_TASKS * 10)
 
 /* ======================================================================== */
 /* This one is not easy to change because the loop in timer_int is unwound. */
@@ -618,6 +312,7 @@ typedef	int (*code_t)(word, address);
 int		zzz_fork (code_t func, address data);
 void		reset (void);
 void		halt (void);
+void		savedata (void*);
 int		zzz_strlen (const char*);
 void		zzz_strcpy (char*, const char*);
 void		zzz_strncpy (char*, const char*, int);
@@ -699,6 +394,10 @@ void		dmp_mem (void);
 #endif
 
 #if	LEDS_DRIVER
+
+#define	LED_OFF		0
+#define	LED_ON		1
+#define	LED_BLINK	2
 
 #define	leds(a,b)	do { \
 				if ((b) == 0) { \

@@ -20,12 +20,12 @@ extern int __serial_port;
 #define	IM_READ		10
 #define IM_BIN		20
 
-process (__inserial, void)
+process (__inserial, char)
 /* ============================== */
 /* Inputs a line from serial port */
 /* ============================== */
 
-	static char *tmp, *ptr;
+	static char *ptr;
 	static int len, cport;
 	int quant;
 
@@ -37,13 +37,14 @@ process (__inserial, void)
 		/* Never overwrite previous unclaimed stuff */
 		finish;
 
-	if ((tmp = ptr = (char*) umalloc (MAX_LINE_LENGTH + 1)) == NULL) {
+	if ((data = ptr = (char*) umalloc (MAX_LINE_LENGTH + 1)) == NULL) {
 		/*
 		 * We have to wait for memory
 		 */
 		umwait (IM_INIT);
 		release;
 	}
+	savedata (data);
 	len = MAX_LINE_LENGTH;
 	/* Make sure this doesn't change while we are reading */
 	cport = __serial_port;
@@ -51,7 +52,7 @@ process (__inserial, void)
   entry (IM_READ)
 
 	io (IM_READ, cport, READ, ptr, 1);
-	if (ptr == tmp) { // new line
+	if (ptr == data) { // new line
 		if (*ptr == NULL) { // bin cmd
 			ptr++;
 			len--;
@@ -64,7 +65,7 @@ process (__inserial, void)
 	}
 	if (*ptr == '\n' || *ptr == '\r') {
 		*ptr = '\0';
-		__inpline = tmp;
+		__inpline = data;
 		finish;
 	}
 
@@ -85,7 +86,7 @@ process (__inserial, void)
 	quant = io (IM_BIN +1, cport, READ, ptr, len);
 	len -= quant;
 	if (len == 0) {
-		__inpline = tmp;
+		__inpline = data;
 		finish;
 	}
 	ptr += quant;

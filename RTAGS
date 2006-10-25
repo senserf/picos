@@ -1175,3 +1175,12 @@ R061021A:
 
 	A few minor changes to the parts recycled in VUEE, inconsequential
 	for PicOS.
+
+R061024A:
+
+	Added "void savedata (void*)". The function saves the indicated pointer
+	as this process's 'data'. Sometimes this will let us save one global
+	variable per process (as in new __inserial).
+	Added Apps/TEST/ToySimple as a simplified Toy application to be
+	discussed in the new manual.
+	Some mods to Tags and Pegs re VUEE by Wlodek.

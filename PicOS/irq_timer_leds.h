@@ -1,7 +1,7 @@
 #ifndef __pg_irq_timer_leds_h
 #define __pg_irq_timer_leds_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
