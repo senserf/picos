@@ -22,7 +22,7 @@ void TagNode::setup (
 	PicOSNode::setup (mem, X, Y, XP, RP, BCmin, BCmax, LBTDel, LBTThs,
 		rate, PRE, UMODE, UBS, USP, UIDV, UODV);
 	// TARP
-	TNode::setup (85, 97, 1);	// net_id, local_host, master_host
+	TNode::setup (85, 97, 0);	// net_id, local_host, master_host
 
 	ui_ibuf = ui_obuf = NULL;
 

@@ -430,11 +430,18 @@ void PegNode::msg_getTagAck_in (word state, char * buf, word size) {
 }
 
 void PegNode::msg_master_in (char * buf) {
-
+	if (master_host != in_header(buf, snd)) {
+		app_diag (D_SERIOUS, "master? %d %d", master_host,
+				in_header(buf, snd));
+		master_host  = in_header(buf, snd);
+		set_master_chg ();
+	}
+	if (is_master_chg()) {
+		clr_master_chg();
+		app_diag (D_INFO, "Set master to %u at %ld", master_host,
+				master_delta);
+	}
 	master_delta = in_master(buf, mtime) - seconds();
-	master_host  = in_header(buf, snd); // blindly, for now
-	app_diag (D_INFO, "Set master to %u at %ld", master_host,
-			master_delta);
 }
 
 void PegNode::msg_master_out (word state, char** buf_out, nid_t peg) {
@@ -631,22 +638,22 @@ void PegNode::oss_report_out (char * buf, word fmt) {
 		case OSS_HT:
 			lbuf = form (NULL, "Tag %u at Peg %u at %lu: %s(%u)"\
 					" with rss:pl (%u:%u)\r\n",
-				*((word*)&in_report(buf, tagId) +1), 
+				(word)in_report(buf, tagId), 
 				in_header(buf, snd),
 				in_report(buf, tStamp),
 				stateName (in_report(buf, state)),
 				in_report(buf, state),
-				(*(word*)&in_report(buf, tagId)) >>8,
-				(*(word*)&in_report(buf, tagId)) & 0x00ff);
+				(word)(in_report(buf, tagId) >> 24),
+				(word)(in_report(buf, tagId) >> 16) & 0x00ff);
 			break;
 
 		case OSS_TCL:
 			lbuf = form (NULL, "Type%u Peg%u T%u %u %u %lu %u\n",
 				in_header(buf, msg_type),
 				in_header(buf, snd),
-				*((word*)&in_report(buf, tagId) +1),
-				(*(word*)&in_report(buf, tagId)) & 0x00ff,
-				(*(word*)&in_report(buf, tagId)) >>8,
+				(word)in_report(buf, tagId),
+				(word)(in_report(buf, tagId) >> 16) & 0x00ff,
+				(word)(in_report(buf, tagId) >> 24),
 				in_report(buf, tStamp),
 				in_report(buf, state) == goneTag ? 0 : 1);
 			break;

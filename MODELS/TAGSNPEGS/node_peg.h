@@ -80,10 +80,12 @@ station PegNode : TNode {
 
 	virtual bool msg_isBind (msg_t m) { return NO; };
 	virtual bool msg_isTrace (msg_t m) { return NO; };
-	virtual bool msg_isMaster (msg_t m) { m == msg_master; };
+	virtual bool msg_isMaster (msg_t m) { return m == msg_master; };
 	virtual bool msg_isNew (msg_t m) { return NO; }
 	virtual bool msg_isClear (byte o) { return YES; };
 	virtual void set_master_chg () { app_flags |= 2; };
+	virtual void clr_master_chg () { app_flags &= ~2; };
+	virtual bool is_master_chg () { return app_flags & 2; };
 
 	/*
 	 * Application starter

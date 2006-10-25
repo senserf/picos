@@ -36,7 +36,7 @@ typedef struct wroomStruct {
 
 #define OSS_HT 	0
 #define OSS_TCL	1
-#define oss_fmt	OSS_TCL
+#define oss_fmt	OSS_HT
 
 // ===========================================================================
 
