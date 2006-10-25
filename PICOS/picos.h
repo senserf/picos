@@ -15,8 +15,9 @@ typedef	unsigned char	byte;
 
 #define	MAX_UINT	((word)0xFFFF)
 
-#define	diag(s, ...)	trace ("DIAG [%1d]: %s", TheStation->getId (), s, \
-				## __VA_ARGS__)
+#define	diag(s, ...)	trace ("DIAG [%1d]: %s", TheStation->getId (), \
+				::form (s, ## __VA_ARGS__))
+
 #define	syserror(a,b)	excptn (::form ("SYSERROR: %1d, %s", a, b))
 #define	sysassert(a,b)	do { if (!(a)) syserror (EASSERT, b); } while (0)
 #define	halt()		excptn ("HALTED!!!")

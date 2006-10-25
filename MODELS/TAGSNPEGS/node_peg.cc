@@ -52,9 +52,15 @@ void PegNode::init () {
 
 void PegNode::reset () {
 
+	// reset must explicitly request supertype reset
 	TNode::reset ();
 
+	// init does application-specific initialization, upon
+	// first setup, as well as after reset
 	init ();
+
+	// We have to return from the process, which doesn't exist any more
+	sleep;
 }
 
 // lib_app.c ==================================================================

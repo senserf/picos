@@ -55,3 +55,9 @@ R061021A:
     to the node number specified in the data file.
     RESET implemented and tested on RFPing. TAGSANDPEGS modified to enable
     reset (previously disabled). A few cosmetic changes.
+
+R061025A:
+
+    A few mods by Wlodek. udaemon patched a bit - to be slightly less stupid.
+    diag fixed to properly display formatted items. Segmentation errors on
+    reset eliminated.

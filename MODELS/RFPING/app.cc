@@ -314,6 +314,8 @@ NRoot::perform {
 				);
     transient RS_RCMD:
 
+diag ("COMMAND: %d %x", ibuf [0], ibuf [1]);
+
 	if ((unsigned char) ibuf [0] == 0xff)
 		S->delay (1024*10, RS_AUTOSTART);
   

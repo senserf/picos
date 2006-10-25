@@ -55,8 +55,7 @@ class UServer { int } {
 	if { $ftag != 0 } {
 		# this is not the first window
 		toplevel $Wn
-	} else {
-		frame $Wn
+		text $Wn.t
 	}
 
 	# previous buffer (for interpreting CR+LF properly)
@@ -66,23 +65,32 @@ class UServer { int } {
 	set Wins($Wn) $This
 
 	if { $ftag == 0 } {
-		pack $Wn
+		# pack $Wn
+		bind . <Destroy> "destroyTerminal \"$Wn\""
+	} else {
+		bind $Wn <Destroy> "destroyTerminal \"$Wn\""
 	}
-
-	bind $Wn <Destroy> "destroyTerminal \"$Wn\""
 }
 
 proc destroyTerminal { w } {
 
-	global Wins
+	global Wins MSock
 
 	if ![info exists Wins($w)] {
 		return
 	}
 
+
+	if { $w == ".wx0" } {
+		# closing the first window, exit the thing
+		exit 0
+	}
+
 	use $Wins($w) Sok
 
-	attention $Sok
+	if [info exists Sok] {
+		attention $Sok
+	}
 }
 
 process UServer {
@@ -92,7 +100,7 @@ process UServer {
 	switch $State {
 
 	    Start {
-		if [closed $Sok] {
+		if { ![info exists Sok] || [closed $Sok] } {
 			proceed Close
 		}
 
@@ -151,7 +159,9 @@ process UServer {
 	   	addText $Wn "CONNECTION CLOSED!!!!"
 	   	endLine $Wn
 
-		delete $Sok
+		if [info exists Sok] {
+			delete $Sok
+		}
 		delete $This
 	    }
 
@@ -161,6 +171,19 @@ process UServer {
 		delete $This
 	    }
 	}
+}
+
+class Ticker { }
+
+process Ticker {
+#
+# FIXME: attention event (and possibly other events triggerd in callbacks)
+# doesn't make it to the process, i.e., doesn't kick the scheduler. How to
+# do that?
+#
+	global Timer
+
+	wait $Timer 1000
 }
 
 ###############################################################################
@@ -212,8 +235,8 @@ proc handleUserInput { w } {
 
 	use $Wins($w) Sok
 
-	if [closed $Sok] {
-		addText $w "INTERFACE CLOSED!!!"
+	if { ![info exists Sok] || [closed $Sok] } {
+		addText $w "CONNECTION CLOSED!!!"
 		endLine $w
 		return
 	}
@@ -229,14 +252,20 @@ proc mkTerm { w } {
 #
 # Creates a new terminal
 #
-	text $w.t \
+	$w.t configure \
 		-yscrollcommand "$w.scroly set" \
 		-xscrollcommand "$w.scrolx set" \
 		-setgrid true \
         	-width 80 -height 24 -wrap none \
 		-font {-family courier -size 10} \
 		-exportselection 1 \
-		-state disabled
+		-state normal
+
+	$w.t delete 1.0 end
+
+	if { $w == ".wx0" } {
+		$w.t insert end "Kill this window to exit the program!!\n"
+	}
 
 	scrollbar $w.scroly -command "$w.t yview"
 	scrollbar $w.scrolx -orient horizontal -command "$w.t xview"
@@ -251,6 +280,7 @@ proc mkTerm { w } {
 
 	bind $w.u <Return> "handleUserInput \"$w\""
 
+	$w.t configure -state disabled
 
 	return $w.t
 }
@@ -258,5 +288,11 @@ proc mkTerm { w } {
 ###############################################################################
 
 create Listener 2211
+create Ticker
 
+frame .wx0
+text .wx0.t -width 26 -height 1 -font {-family courier -size 14}
+pack .wx0.t
+pack .wx0
+.wx0.t insert end "Waiting for connections!!"
 kernel

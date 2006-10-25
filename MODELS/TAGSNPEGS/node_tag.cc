@@ -24,8 +24,6 @@ void TagNode::setup (
 	// TARP
 	TNode::setup (85, 97, 0);	// net_id, local_host, master_host
 
-	ui_ibuf = ui_obuf = NULL;
-
 	init ();
 }
 
@@ -54,8 +52,8 @@ void TagNode::init () {
 void TagNode::reset () {
 
 	TNode::reset ();
-
 	init ();
+	sleep;
 }
 
 // lib_app.c ==================================================================
