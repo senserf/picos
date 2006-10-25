@@ -307,7 +307,7 @@ tag_root::perform {
 		S->ui_obuf = S->get_mem (RS_INIT, UI_BUFLEN);
 		if (S->net_init (INFO_PHYS_DEV, INFO_PLUG_TARP) < 0) {
 			app_diag (D_FATAL, "net_init failed");
-			reset ();
+			S->reset ();
 		}
 
 		S->net_opt (PHYSOPT_SETSID, &(S->net_id));
@@ -344,7 +344,7 @@ tag_root::perform {
 		}
 
 		if (S->cmd_line[0] == 'q')
-			reset();
+			S->reset();
 			
 		if (S->cmd_line[0] == 's') {
 			in_lh = in_pl = in_maj = in_min = in_span = 0;

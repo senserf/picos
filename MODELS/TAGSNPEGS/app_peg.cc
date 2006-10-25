@@ -263,7 +263,7 @@ peg_root::perform {
 
 		if (S->net_init (INFO_PHYS_DEV, INFO_PLUG_TARP) < 0) {
 			app_diag (D_FATAL, "net_init failed");
-			reset ();
+			S->reset ();
 		}
 
 		S->net_opt (PHYSOPT_SETSID, &(S->net_id));
@@ -297,7 +297,7 @@ peg_root::perform {
 		}
 
 		if (S->cmd_line[0] == 'q')
-			reset ();
+			S->reset ();
 
 		if (S->cmd_line[0] == 'm') {
 			 S->scan (S->cmd_line+1, "%u", &in_peg);
