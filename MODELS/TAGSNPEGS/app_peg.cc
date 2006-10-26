@@ -31,7 +31,7 @@ static const char stats_str3[] = " Freq audit (%u) events (%u),\r\n";
 static const char stats_str4[] = 
 		" PLev (%u), Time (%lu), Delta (%ld) to Master (%u),\r\n";
 static const char stats_str5[] = " phys: %x, plug: %x, txrx: %x\r\n";
-static const char stats_str6[] = " Mem free (%u, %u) faults (%u, %u)\r\n";
+static const char stats_str6[] = " Mem free (%u, %u) min (%u, %u)\r\n";
 
 // Display node stats on UI
 void PegNode::stats () {
