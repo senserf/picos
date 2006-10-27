@@ -1184,3 +1184,8 @@ R061024A:
 	Added Apps/TEST/ToySimple as a simplified Toy application to be
 	discussed in the new manual.
 	Some mods to Tags and Pegs re VUEE by Wlodek.
+
+R061027B:
+
+	Modified pin access functions to provide for the DAC available on
+	MSP430x1611. A couple of applicatons added (SFU, ToySimple).
