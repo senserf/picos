@@ -5,10 +5,19 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "sysio.h"
+
 //+++ "ser_out.c" "ser_in.c" "ser_select.c"
 
 int ser_out (word, const char*);
 int ser_in (word, char*, int);
+
+#if UART_DRIVER > 1
 int ser_select (int);
+#else
+#ifndef ser_select
+#define	ser_select(a)	CNOP
+#endif
+#endif
 
 #endif

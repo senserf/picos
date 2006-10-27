@@ -12,49 +12,63 @@ word pin_read (word pin) {
 /*
  * Bit 0 == pin value
  * Bit 1 == pin is out
- * Bit 2 == pin is analog in
+ * Bit 2 == pin is analog (bit 1 tells whether DAC (1) or ADC (0))
  * Bit 3 == pin is unavailable
  */
 	word res;
 
-	res = pin_value (pin);
+	if (!zz_pin_available (pin))
+		return 8;
 
-	if (!pin_available (pin))
-		return res | 8;
+	// Mind the order of testing
+	if (zz_pin_dac (pin))
+		return 6;			// Analog + output
 
-	if (pin_analog (pin))
-		// Analog
-		return 4;
+	if (zz_pin_adc (pin))
+		return 4;			// Analog + input
 
-	if (pin_output (pin))
-		return res | 2;
+	if (zz_pin_output (pin))
+		return zz_pin_ovalue (pin) | 2;	// Output
 
-	return res;
+	return zz_pin_ivalue (pin);		// Input
 }
 
 int pin_write (word pin, word val) {
 /*
  * Bit 0 == value to be written (if other bits are zero)
  * Bit 1 == set pin to IN
- * Bit 2 == set pin to analog in
+ * Bit 2 == set pin to analog (bit 1 tells whether DAC (0) or ADC (1))
  */
-	if (!pin_available (pin))
+	if (!zz_pin_available (pin))
 		return ERROR;
 
 	if ((val & 4)) {
-		// Set to analog input
-		pin_setanalog (pin);
+#if PIN_DAC_PINS
+		if ((val & 2) == 0) {
+			if (!zz_pin_dac_available (pin))
+				return ERROR;
+			zz_set_dac (pin);
+		} else
+#endif
+		{
+			if (!zz_pin_adc_available (pin))
+				return ERROR;
+			zz_pin_set_adc (pin);
+		}
 		return 0;
 	}
 
 	if ((val & 2)) {
 		// Set to digital IN
-		pin_setinput (pin);
+		zz_pin_set_input (pin);
 		return 0;
 	}
 
-	pin_setvalue (pin, val);
-	pin_setoutput (pin);
+	if (val)
+		zz_pin_set (pin);
+	else
+		zz_pin_clear (pin);
+	zz_pin_set_output (pin);
 	return 0;
 }
 
@@ -66,8 +80,10 @@ int pin_read_adc (word state, word pin, word ref, word smpt) {
  */
 	int res;
 
-	if (!pin_available (pin))
+	if (!zz_pin_adc_available (pin))
 		return -1;
+
+	zz_clear_dac (pin);
 
 	if (adc_inuse) {
 		if (adc_rcvmode)
@@ -102,6 +118,20 @@ End:
 	adc_config_rssi;
 
 	return res;
+}
+
+
+int pin_write_dac (word pin, word val, word ref) {
+/*
+ * ref = 1 -> 3x Vref
+ */
+#if PIN_DAC_PINS
+	if (!zz_pin_dac_available (pin))
+		return -1;
+	zz_write_dac (pin, val, ref);
+#else
+	return -1;
+#endif	/* PIN_DAC_PINS */
 }
 
 #if	PULSE_MONITOR

@@ -7,6 +7,9 @@
 
 #include "sysio.h"
 
+#define	PIN_DEF(p,n)	{ p ## IN_ - P1IN_ , n }
+#define PIN_RESERVED	{ 0xff, 0 }
+
 /*
  * ADC configuration for polled sample collection
  */
@@ -27,14 +30,18 @@
 				adc_disable; \
 			} while (0)
 
-#define	adc_inuse	(ADC12CTL0 & REFON)
+#define	adc_inuse	(ADC12CTL0 & ADC12ON)
 #define	adc_value	ADC12MEM0
 #define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
-#define	adc_disable	 _BIC (ADC12CTL0, ENC + REFON)
+#define	adc_disable	do { \
+				_BIC (ADC12CTL0, ENC); \
+				_BIC (ADC12CTL0, ADC12ON); \
+			} while (0)
 
 #define	adc_start	do { \
-				adc_disable; \
-				_BIS (ADC12CTL0, ADC12SC + REFON + ENC); \
+				_BIC (ADC12CTL0, ENC); \
+				_BIS (ADC12CTL0, ADC12ON); \
+				_BIS (ADC12CTL0, ADC12SC + ENC); \
 			} while (0)
 
 #define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
@@ -43,6 +50,25 @@
 #define	RSSI_MAX	0x0fff
 #define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
 
+/*
+ * DAC configuration for immediate voltage setup
+ */
+#define dac_config_write(p,v,r)	do { \
+				  if ((p) == 0) { \
+				    _BIC (DAC12_0CTL,DAC12ENC); \
+				    DAC12_0CTL = DAC12SREF_0 + \
+					((r) ? 0 : DAC12IR) + \
+					DAC12AMP_5; \
+				    DAC12_0DAT = (v); \
+				  } else { \
+				    _BIC (DAC12_1CTL,DAC12ENC); \
+				    DAC12_1CTL = DAC12SREF_0 + \
+					((r) ? 0 : DAC12IR) + \
+					DAC12AMP_5; \
+				    DAC12_1DAT = (v); \
+				  } \
+				} while (0)
+					
 /* ========================================================================== */
 /*                                 V E R S A 2                                */
 /* ========================================================================== */
@@ -85,49 +111,42 @@
 #if VERSA2_TARGET_BOARD	
 	// Stupid two versions of the Versa board !!
 #define	PIN_LIST	{ 	\
-				\
-	{ 0xff, 0 },		\
-				\
-	{ P6IN_ - P1IN_, 1 },	\
-	{ P6IN_ - P1IN_, 2 },	\
-				\
-	{ P6IN_ - P1IN_, 3 },	\
-	{ P6IN_ - P1IN_, 4 },	\
-	{ P6IN_ - P1IN_, 5 },	\
-	{ P6IN_ - P1IN_, 6 },	\
-	{ P6IN_ - P1IN_, 7 },	\
-				\
-	{ P1IN_ - P1IN_, 0 },	\
-	{ P1IN_ - P1IN_, 1 },	\
-	{ P2IN_ - P1IN_, 2 },	\
-	{ 0xff, 0}		\
+	PIN_RESERVED,		\
+	PIN_DEF (P6, 1),	\
+	PIN_DEF (P6, 2),	\
+	PIN_DEF (P6, 3),	\
+	PIN_DEF (P6, 4),	\
+	PIN_DEF (P6, 5),	\
+	PIN_DEF (P6, 6),	\
+	PIN_DEF (P6, 7),	\
+	PIN_DEF (P1, 0),	\
+	PIN_DEF (P1, 1),	\
+	PIN_DEF (P2, 2),	\
+	PIN_RESERVED,		\
 }
 
 #else	/* VERSA2_TARGET_BOARD */
 
 #define	PIN_LIST	{ 	\
-				\
-	{ 0xff, 0 },		\
-				\
-	{ P6IN_ - P1IN_, 1 },	\
-	{ P6IN_ - P1IN_, 2 },	\
-				\
-	{ P6IN_ - P1IN_, 3 },	\
-	{ P6IN_ - P1IN_, 4 },	\
-	{ P6IN_ - P1IN_, 5 },	\
-	{ P6IN_ - P1IN_, 6 },	\
-	{ P6IN_ - P1IN_, 7 },	\
-				\
-	{ P1IN_ - P1IN_, 0 },	\
-	{ P1IN_ - P1IN_, 1 },	\
-	{ P1IN_ - P1IN_, 2 },	\
-	{ 0xff, 0}		\
+	PIN_RESERVED,		\
+	PIN_DEF (P6, 1),	\
+	PIN_DEF (P6, 2),	\
+	PIN_DEF (P6, 3),	\
+	PIN_DEF (P6, 4),	\
+	PIN_DEF (P6, 5),	\
+	PIN_DEF (P6, 6),	\
+	PIN_DEF (P6, 7),	\
+	PIN_DEF (P1, 0),	\
+	PIN_DEF (P1, 1),	\
+	PIN_DEF (P1, 2),	\
+	PIN_RESERVED,		\
 }
 
 #endif	/* VERSA2_TARGET_BOARD */
 
 #define	PIN_MAX			12	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	PIN_DAC_PINS		0	// No DAC
 
 /*
  * ADC12 used for RSSI collection: source on A0 == P6.0, single sample,
@@ -244,37 +263,36 @@
 #if LEDS_DRIVER
 
 #define	PIN_LIST	{ 	\
-				\
-	{ 0xff, 0 },		\
-	{ P6IN_ - P1IN_, 1 },	\
-	{ P6IN_ - P1IN_, 2 },	\
-	{ 0xff, 0 },		\
-	{ 0xff, 0 },		\
-	{ 0xff, 0 },		\
-	{ P6IN_ - P1IN_, 6 },	\
-	{ P6IN_ - P1IN_, 7 },	\
+	PIN_RESERVED,		\
+	PIN_DEF (P6, 1),	\
+	PIN_DEF (P6, 2),	\
+	PIN_RESERVED,		\
+	PIN_RESERVED,		\
+	PIN_RESERVED,		\
+	PIN_DEF (P6, 6),	\
+	PIN_DEF (P6, 7),	\
 }
 
 #else	/* LEDS_DRIVER */
 
 #define	PIN_LIST	{ 	\
-				\
-	{ 0xff, 0 },		\
-	{ P6IN_ - P1IN_, 1 },	\
-	{ P6IN_ - P1IN_, 2 },	\
-	{ P6IN_ - P1IN_, 3 },	\
-	{ P6IN_ - P1IN_, 4 },	\
-	{ P6IN_ - P1IN_, 5 },	\
-	{ P6IN_ - P1IN_, 6 },	\
-	{ P6IN_ - P1IN_, 7 },	\
+	PIN_RESERVED,		\
+	PIN_DEF (P6, 1),	\
+	PIN_DEF (P6, 2),	\
+	PIN_DEF (P6, 3),	\
+	PIN_DEF (P6, 4),	\
+	PIN_DEF (P6, 5),	\
+	PIN_DEF (P6, 6),	\
+	PIN_DEF (P6, 7),	\
 }
 
 #endif	/* LEDS_DRIVER */
 
 #define	PIN_MAX			8	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	PIN_DAC_PINS		0	// No DAC
 
-#define	adc_config_rssi		do { } while (0)	// Unused for RSSI
+#define	adc_config_rssi		adc_disable
 
 #define	pin_book_cnt	do { \
 				_BIC (P6DIR, 0x02); \
@@ -330,26 +348,23 @@
 #define	MONITOR_PINS_SEND_INTERRUPTS	1
 
 #define	PIN_LIST	{ 	\
-				\
-	{ 0xff, 0 },		\
-				\
-	{ P6IN_ - P1IN_, 1 },	\
-	{ P6IN_ - P1IN_, 2 },	\
-				\
-	{ P6IN_ - P1IN_, 3 },	\
-	{ P6IN_ - P1IN_, 4 },	\
-	{ P6IN_ - P1IN_, 5 },	\
-	{ P6IN_ - P1IN_, 6 },	\
-	{ P6IN_ - P1IN_, 7 },	\
-				\
-	{ P1IN_ - P1IN_, 0 },	\
-	{ P1IN_ - P1IN_, 1 },	\
-	{ P1IN_ - P1IN_, 2 },	\
-	{ P1IN_ - P1IN_, 3 }	\
+	PIN_RESERVED,		\
+	PIN_DEF (P6, 1),	\
+	PIN_DEF (P6, 2),	\
+	PIN_DEF (P6, 3),	\
+	PIN_DEF (P6, 4),	\
+	PIN_DEF (P6, 5),	\
+	PIN_DEF (P6, 6),	\
+	PIN_DEF (P6, 7),	\
+	PIN_DEF (P1, 0),	\
+	PIN_DEF (P1, 1),	\
+	PIN_DEF (P1, 2),	\
+	PIN_DEF (P1, 3),	\
 }
 
 #define	PIN_MAX			12	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	PIN_DAC_PINS		0	// No DAC
 					// P6.0 is reserved for RSSI
 
 #define	adc_config_rssi		do { \
@@ -440,49 +455,50 @@
 
 #define	PIN_LIST	{ 	\
 				\
-	{ P6IN_ - P1IN_, 0 },	\
-	{ P6IN_ - P1IN_, 1 },	\
-	{ P6IN_ - P1IN_, 2 },	\
-	{ P6IN_ - P1IN_, 3 },	\
-	{ P6IN_ - P1IN_, 4 },	\
-	{ P6IN_ - P1IN_, 5 },	\
-	{ P6IN_ - P1IN_, 6 },	\
-	{ P6IN_ - P1IN_, 7 },	\
+	PIN_DEF (P6, 0),	\
+	PIN_DEF (P6, 1),	\
+	PIN_DEF (P6, 2),	\
+	PIN_DEF (P6, 3),	\
+	PIN_DEF (P6, 4),	\
+	PIN_DEF (P6, 5),	\
+	PIN_DEF (P6, 6),	\
+	PIN_DEF (P6, 7),	\
 				\
-	{ P2IN_ - P1IN_, 0 },	\
-	{ P2IN_ - P1IN_, 1 },	\
-	{ P2IN_ - P1IN_, 2 },	\
-	{ P2IN_ - P1IN_, 3 },	\
-	{ P2IN_ - P1IN_, 4 },	\
-	{ P2IN_ - P1IN_, 5 },	\
-	{ P2IN_ - P1IN_, 6 },	\
-	{ P2IN_ - P1IN_, 7 },	\
+	PIN_DEF (P2, 0),	\
+	PIN_DEF (P2, 1),	\
+	PIN_DEF (P2, 2),	\
+	PIN_DEF (P2, 3),	\
+	PIN_DEF (P2, 4),	\
+	PIN_DEF (P2, 5),	\
+	PIN_DEF (P2, 6),	\
+	PIN_DEF (P2, 7),	\
 				\
-	{ P4IN_ - P1IN_, 0 },	\
-	{ P4IN_ - P1IN_, 1 },	\
-	{ P4IN_ - P1IN_, 2 },	\
-	{ P4IN_ - P1IN_, 3 },	\
-	{ P4IN_ - P1IN_, 4 },	\
-	{ P4IN_ - P1IN_, 5 },	\
-	{ P4IN_ - P1IN_, 6 },	\
-	{ P4IN_ - P1IN_, 7 },	\
+	PIN_DEF (P4, 0),	\
+	PIN_DEF (P4, 1),	\
+	PIN_DEF (P4, 2),	\
+	PIN_DEF (P4, 3),	\
+	PIN_DEF (P4, 4),	\
+	PIN_DEF (P4, 5),	\
+	PIN_DEF (P4, 6),	\
+	PIN_DEF (P4, 7),	\
 				\
-	{ P5IN_ - P1IN_, 0 },	\
-	{ P5IN_ - P1IN_, 1 },	\
-	{ P5IN_ - P1IN_, 2 },	\
-	{ P5IN_ - P1IN_, 3 },	\
-	{ P5IN_ - P1IN_, 4 },	\
-	{ P5IN_ - P1IN_, 5 },	\
-	{ P5IN_ - P1IN_, 6 },	\
-	{ P5IN_ - P1IN_, 7 },	\
+	PIN_DEF (P5, 0),	\
+	PIN_DEF (P5, 1),	\
+	PIN_DEF (P5, 2),	\
+	PIN_DEF (P5, 3),	\
+	PIN_DEF (P5, 4),	\
+	PIN_DEF (P5, 5),	\
+	PIN_DEF (P5, 6),	\
+	PIN_DEF (P5, 7),	\
 }
 
 #define	PIN_MAX			32	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
 
-#define	adc_config_rssi		do { } while (0)	// Unsused for RSSI
+#define	adc_config_rssi		adc_disable
 
-#endif	/* BOARD_GENESIS */
+#endif	/* BOARD_SFU_PROTOTYPE */
 /* ========================================================================== */
 /* ========================================================================== */
 /* ========================================================================== */
@@ -502,33 +518,38 @@ typedef struct {
  * GP pin operations
  */
 bool zz_pin_available (word);
-word zz_pin_value (word);
-bool zz_pin_analog (word);
+bool zz_pin_adc_available (word);
+word zz_pin_ivalue (word);
+word zz_pin_ovalue (word);
+bool zz_pin_adc (word);
 bool zz_pin_output (word);
-void zz_pin_set (word p);
-void zz_pin_clear (word p);
-void zz_pin_setinput (word p);
-void zz_pin_setoutput (word p);
-void zz_pin_setanalog (word p);
+void zz_pin_set (word);
+void zz_pin_clear (word);
+void zz_pin_set_input (word);
+void zz_pin_set_output (word);
+void zz_pin_set_adc (word);
 
-#define	pin_available(p)	zz_pin_available(p)
-#define	pin_value(p)		zz_pin_value(p)
-#define	pin_analog(p)		zz_pin_analog(p)
-#define	pin_output(p)		zz_pin_output(p)
-#define	pin_setvalue(p,v)	do { \
-					if (v) \
-						zz_pin_set (p); \
-					else \
-						zz_pin_clear (p); \
-				} while (0)
+#if PIN_DAC_PINS != 0
 
-#define	pin_setinput(p)		zz_pin_setinput (p)
-#define	pin_setoutput(p)	zz_pin_setoutput (p)
-#define	pin_setanalog(p)	zz_pin_setanalog (p)
+bool zz_pin_dac_available (word);
+bool zz_pin_dac (word);
+void zz_clear_dac (word);
+void zz_set_dac (word);
+void zz_write_dac (word, word, word);
+
+#else
+
+#define	zz_pin_dac_available(a)	NO
+#define	zz_pin_dac(a)		NO
+#define	zz_clear_dac(a)		CNOP
+#define	zz_set_dac(a)		CNOP
+#define	zz_write_dac(a,b,c)	CNOP
+
+#endif	/* PIN_DAC_PINS */
 
 #else	/* PINS_BOARD_FOUND */
 
-#define	adc_config_rssi		do { } while (0)
+#define	adc_config_rssi		adc_disable
 
 
 #endif	/* PINS_BOARD_FOUND */

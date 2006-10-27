@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "sysio.h"
@@ -12,7 +12,18 @@
 
 char *__inpline = NULL;
 
+#if UART_DRIVER > 1
+
 extern int __serial_port;
+static int __cport;
+#define	set_cport	(__cport = __serial_port)
+
+#else	/* UART_DRIVER <= 1 */
+
+#define	__cport		UART_A
+#define	set_cport	CNOP
+
+#endif	/* UART_DRIVER > 1 */
 
 #define	MAX_LINE_LENGTH	63
 
@@ -26,7 +37,7 @@ process (__inserial, char)
 /* ============================== */
 
 	static char *ptr;
-	static int len, cport;
+	static int len;
 	int quant;
 
 	nodata;
@@ -47,11 +58,11 @@ process (__inserial, char)
 	savedata (data);
 	len = MAX_LINE_LENGTH;
 	/* Make sure this doesn't change while we are reading */
-	cport = __serial_port;
+	set_cport;
 
   entry (IM_READ)
 
-	io (IM_READ, cport, READ, ptr, 1);
+	io (IM_READ, __cport, READ, ptr, 1);
 	if (ptr == data) { // new line
 		if (*ptr == NULL) { // bin cmd
 			ptr++;
@@ -77,13 +88,13 @@ process (__inserial, char)
 	proceed (IM_READ);
 
   entry (IM_BIN)
-	io (IM_BIN, cport, READ, ptr, 1);
+	io (IM_BIN, __cport, READ, ptr, 1);
 	if (--len > *ptr +1) // 1 for 0x04
 		len = *ptr +1;
 	ptr++;
 
   entry (IM_BIN +1)
-	quant = io (IM_BIN +1, cport, READ, ptr, len);
+	quant = io (IM_BIN +1, __cport, READ, ptr, len);
 	len -= quant;
 	if (len == 0) {
 		__inpline = data;

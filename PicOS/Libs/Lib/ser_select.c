@@ -4,6 +4,8 @@
 /* ==================================================================== */
 #include "sysio.h"
 
+#if	UART_DRIVER > 1
+
 #define THE_UART UART_A
 
 int __serial_port = THE_UART;
@@ -16,3 +18,5 @@ int ser_select (int port) {
 	__serial_port = port ? UART_B : UART_A;
 	return ret;
 }
+
+#endif

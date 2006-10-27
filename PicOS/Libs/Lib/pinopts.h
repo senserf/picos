@@ -10,6 +10,7 @@
 word pin_read (word);
 int pin_write (word pin, word val);
 int pin_read_adc (word, word, word, word);
+int pin_write_dac (word, word, word);
 
 #if	PULSE_MONITOR
 
