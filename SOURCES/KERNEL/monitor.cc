@@ -84,13 +84,16 @@ int zz_monitor::signal (void *ev) {
 	ZZ_REQUEST *rq;
 	ZZ_EVENT *e;
 	int na;
+#if ZZ_TAG
+	int q;
+#endif
 
 	for (na = 0, rq = WList [hash (ev)]; rq != NULL; rq = rq->next) {
 		if (rq->event_id == (int) ev) {
 			na++;
 			// TheSender
 			rq->Info02 = (void*) TheProcess;
-#if     ZZ_TAG
+#if ZZ_TAG
 			rq->when . set (Time);
 			if ((q = (e = rq->event)->waketime . cmp (rq->when)) >
 			  0 || (q == 0 && FLIP))

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-03   P. Gburzynski */
+/* Copyright (C) 1991-06   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -67,6 +67,11 @@ void    RVariable::setup (int type, int moments) {
 	Class = OBJ_rvariable;
 	Id    = sernum++;
 
+#if BIG_precision == 1
+	size = (MOMENT + moments);
+	s = (LONG*) (new double [size]);
+	stype(s) = moments;
+#else
 	if (type == TYPE_long)
 		size = (MOMENT + moments);
 	else
@@ -82,7 +87,7 @@ void    RVariable::setup (int type, int moments) {
 		stype(s) = moments;
 	else
 		stype(s) = - moments - 1;
-
+#endif
 	erase ();
 }
 

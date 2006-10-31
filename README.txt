@@ -781,3 +781,6 @@
 	   desctructor was able to run, which might cause errors. Now, the
 	   forced deallocation of descendants takes place after the process
 	   subtype desctructor has run, which should be always safe.
+
+ R061030A  Fixed lots of nonsense to make this thing compile (and hopefully
+	   run) under Linux, including x86_64. 

@@ -1580,7 +1580,9 @@ void Transceiver::handle_ifv () {
 	ZZ_REQUEST	*rq, *rm;
 	ZZ_EVENT	*ev;
 	int		qt;
-
+#if ZZ_TAG
+	int		q;
+#endif
 	assert (TracedActivity != NULL,
 		"Transceiver->handle_ifv: %s, no traced activity",
 			getSName ());
@@ -1704,7 +1706,7 @@ void Transceiver::startTransfer (Packet *packet) {
 	}
 
 	Info01 = (void*) (tpckt = &(Activity -> Pkt));      // ThePacket
-	Info02 = (void*) (tpckt -> TP);                     // TheTraffic
+	Info02 = (void*) (IPointer) (tpckt -> TP);          // TheTraffic
 }
 
 void Transceiver::term_xfer (int evnt) {
@@ -1720,7 +1722,7 @@ void Transceiver::term_xfer (int evnt) {
 		"activity already stopped, internal error");
 
 	Info01 = (void*) (tpckt = &(Activity -> Pkt));       // ThePacket
-	Info02 = (void*) (tpckt->TP);      	             // TheTraffic
+	Info02 = (void*) (IPointer) (tpckt->TP);             // TheTraffic
 
 	if (evnt == EOT) {
 		RFC->spfmPTR (tpckt);
@@ -1770,8 +1772,13 @@ void Transceiver::term_xfer (int evnt) {
 				// Check if should reschedule the service event
 				if (Activity->RE->waketime >
 				    Activity->SchEOT->Schedule) {
+#if ZZ_TAG
+					Activity->RE->waketime.set (
+						Activity->SchEOT->Schedule);
+#else
 					Activity->RE->waketime =
 						Activity->SchEOT->Schedule;
+#endif
 					Activity->RE->reschedule ();
 				}
 			}
@@ -1940,7 +1947,7 @@ void Transceiver::reschedule_aev (int act) {
 		else
 			rq -> Info01 = NULL;
 
-		rq -> Info02 = (void*) act;
+		rq -> Info02 = (void*)(IPointer)act;
 #if     ZZ_TAG
 		rq->when . set (Time);
 		if ((ev = rq->event) -> waketime.cmp (rq->when) <= 0 && FLIP)
@@ -2346,7 +2353,11 @@ void ZZ_RF_ACTIVITY::triggerBOT () {
 
 		// Check if should reschedule the service event
 		if (RE->waketime > SchBOT->Schedule) {
+#if ZZ_TAG
+			RE->waketime . set (SchBOT->Schedule);
+#else
 			RE->waketime = SchBOT->Schedule;
+#endif
 			RE->reschedule ();
 		}
 	}
@@ -2368,9 +2379,9 @@ int Transceiver::activities (int &packets) {
 	zz_temp_event_id = NONE;
 
 #if	ZZ_ASR
-	Info02 = (void*) (appid = (int) GYID (Id));
+	Info02 = (void*) (IPointer) (appid = (int) GYID (Id));
 #else
-	Info02 = (void*) GYID (Id);
+	Info02 = (void*) (IPointer) GYID (Id);
 #endif
 	Info01 = NULL;
 
@@ -2602,7 +2613,7 @@ int Transceiver::events (int etype) {
 
 
 	Info01 = NULL;
-	Info02 = (void*) GYID (Id);
+	Info02 = (void*) (IPointer) GYID (Id);
 
 	if (!RxOn)
 		// Don't look any further

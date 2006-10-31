@@ -12,8 +12,8 @@
 /* include files.                                             */
 /* ---------------------------------------------------------- */
 
-#include "../version.h"
 
+#include "../version.h"
 #include "../LIB/lib.h"
 
 #define VA_TYPE va_list
@@ -98,7 +98,7 @@ extern	jmp_buf	zz_waker;
 /* ------------------------------ */
 #if     ZZ_ASR
 #define         idToStation(id)         (isStationId (id) ? zz_st [id] :\
-                (Station*) excptn ("idToStation: illegal station Id %d", (id)))
+      (Station*) (IPointer) excptn ("idToStation: illegal station Id %d", (id)))
 #else
 #define         idToStation(id)         zz_st [id]
 #endif
@@ -116,7 +116,7 @@ extern	jmp_buf	zz_waker;
 /* ------------------------------ */
 #if     ZZ_ASR
 #define         idToTraffic(id)         (isTrafficId (id) ? zz_tp [id] :\
-                (Traffic*) excptn ("idToTraffic: illegal Traffic id %d", (id)))
+      (Traffic*) (IPointer) excptn ("idToTraffic: illegal Traffic id %d", (id)))
 #else
 #define         idToTraffic(id)         (zz_tp [id])
 #endif
@@ -136,7 +136,7 @@ extern	jmp_buf	zz_waker;
 /* ------------------------ */
 #if     ZZ_ASR
 #define         idToLink(id)            (isLinkId (id) ? zz_lk [id] :\
-			(Link*) excptn ("idToLink: illegal Link Id %d", (id)))
+		(Link*) (IPointer) excptn ("idToLink: illegal Link Id %d", (id)))
 #else
 #define         idToLink(id)            (zz_lk [id])
 #endif
@@ -155,9 +155,9 @@ extern	jmp_buf	zz_waker;
 /* ---------------------------------- */
 #if     ZZ_ASR
 #define         idToRFChannel(id)       (isRFChannelId (id) ? zz_rf [id] :\
-	    (RFChannel*) excptn ("idToRFChannel: illegal RFChannel Id %d", (id)))
+(RFChannel*) (IPointer) excptn ("idToRFChannel: illegal RFChannel Id %d", (id)))
 #else
-#define         idToRFCHannel(id)            (zz_rf [id])
+#define         idToRFChannel(id)            (zz_rf [id])
 #endif
 
 /* -------------------------------------------- */
@@ -3174,12 +3174,12 @@ class   Mailbox : public AI {
 	inline  int nonempty () { return !empty (); };
 	inline  int full () { return (limit >= 0 && count >= limit); };
 	inline  int notfull () { return !full (); };
-	inline	int signal (int sig) {
+	inline	int signal (IPointer sig) {
 		assert (limit < 0, "Mailbox->signal: %s, not a barrier mailbox",
 			getSName ());
 		return zz_put ((void*)sig);
 	};
-	inline	int signalP (int sig) {
+	inline	int signalP (IPointer sig) {
 		assert (limit < 0, "Mailbox->signalP: %s, not a barrier "
 			"mailbox", getSName ());
 		return zz_putP ((void*)sig);
@@ -4280,7 +4280,7 @@ class	RFChannel : public AI {
 
 	void 	connect (Transceiver*);
 	void	setTRate (RATE);
-	void	setPreamble (long);
+	void	setPreamble (Long);
 	void	setTag (Long);
 	void	setErrorRun (Long);
 	void	setXPower (double);

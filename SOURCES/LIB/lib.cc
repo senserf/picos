@@ -19,6 +19,7 @@ char *vform (const char *f, va_list pmts) {
 
 	int rs;
 	char *tar;
+	va_list psave;
 
 	if (cbi == NFMTBUF)
 		cbi = 0;
@@ -28,13 +29,14 @@ char *vform (const char *f, va_list pmts) {
 		fmtbuf [cbi] = (char*) malloc (FMINISZ);
 		fmtbsiz [cbi] = FMINISZ;
 	}
-Redo:
-	rs = vsnprintf (fmtbuf [cbi], fmtbsiz [cbi], f, pmts);
-	if (rs >= fmtbsiz [cbi]) {
+	va_copy (psave, pmts);
+
+	while ((rs = vsnprintf (fmtbuf [cbi], (size_t)(fmtbsiz [cbi]), f, pmts))
+	    >= fmtbsiz [cbi]) {
 		// Reallocate
 		fmtbuf [cbi] = (char*) realloc (fmtbuf [cbi], rs + 1);
 		fmtbsiz [cbi] = rs + 1;
-		goto Redo;
+		va_copy (pmts, psave);
 	}
 
 	tar = fmtbuf [cbi];

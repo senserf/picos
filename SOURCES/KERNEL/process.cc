@@ -771,7 +771,7 @@ Process::~Process () {
 				rq->when . set (Time);
 				if ((q = (ev = rq->event)->waketime .
 				    cmp (rq->when)) > 0 || (q == 0 && FLIP))
-#elsje
+#else
 				rq->when = Time;
 				if ((ev = rq->event)->waketime > Time || FLIP)
 #endif

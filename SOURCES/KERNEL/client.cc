@@ -920,7 +920,7 @@ void    SGroup::setup (int n, int *sl) {
 	}
 }
 
-void    SGroup::setup (int n, int, ...) {
+void    SGroup::setup (int n, int f, ...) {
 
 /* ------------------------------------------- */
 /* As above, but with an explicit station list */
@@ -934,17 +934,17 @@ void    SGroup::setup (int n, int, ...) {
 
 	va_start (ap, n);   // Start variable-length argument processing
 
-	ap = (VA_TYPE) ((char*)ap - sizeof (int));
-	for (i = 0; i < n; i++) {
-          slist [i] = *((int*)ap);
-          va_arg (ap, int);
-        }
+	slist [0] = f;
+
+	for (i = 1; i < n; i++)
+          slist [i] = va_arg (ap, int);
+
 	va_end (ap);
         setup (n, slist);
 	darray (slist);
 }
 
-void    SGroup::setup (int n, Station*, ...) {
+void    SGroup::setup (int n, Station *f, ...) {
 
 /* -------------------------------------------------- */
 /* As above, but with station pointers instead of ids */
@@ -959,10 +959,10 @@ void    SGroup::setup (int n, Station*, ...) {
 
 	va_start (ap, n);   // Start variable-length argument processing
 
-	ap = (VA_TYPE) ((char*)ap - sizeof (int));
-	for (i = 0; i < n; i++) {
-                st = *((Station**)ap);
-		va_arg (ap, Station*);
+	slist [0] = (int)(f->Id);
+
+	for (i = 1; i < n; i++) {
+		st = va_arg (ap, Station*);
 		slist [i] = (int)(st->Id);
 	}
 	va_end (ap);

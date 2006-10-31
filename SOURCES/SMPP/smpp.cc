@@ -2475,14 +2475,15 @@ Assumereal:
 		putC ("inline "); putC (par);
 		putC (" get () { return ((");
 		putC (par);
-		putC (") zz_get ()); }; inline "); putC (par);
+		putC (") (IPointer) zz_get ()); }; inline "); putC (par);
 		putC (" first () { return ((");
 		putC (par);
-		putC (") zz_first ()); }; inline int put (");
+		putC (") (IPointer) zz_first ()); }; inline int put (");
 		putC (par);
-		putC (" a) { return (zz_put ((void*) a));}; inline int putP (");
+		putC (" a) { return (zz_put ((void*)(IPointer)a));}; "
+				"inline int putP (");
 		putC (par);
-		putC (" a) { return (zz_putP ((void*)a)); };");
+		putC (" a) { return (zz_putP ((void*)(IPointer)a)); };");
 		putC (" inline int erase () { return (zz_erase ()); }; ");
 		// Indicate type present (for inItem / outItem)
 		co -> PAnn = YES;
