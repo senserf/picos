@@ -1203,3 +1203,9 @@ R061030A:
 	of the board, which must coincide with one of the subdirectories in
 	BOARDS (for MSP430 or eCOG). For example: 'mkmk GENESIS'. The default
 	board name is GENERIC_MSP430.
+
+R061101A:
+
+	Fixed a bug introduced in R061027B resulting in the misbehavior of ADC
+	when calculating RSSI, e.g., for VERSA2.
+	Cosmetics related to R061030A.

@@ -231,13 +231,14 @@
 					_BIS (P6SEL, 1 << PIN_ADC_RSSI); \
 					ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
 					ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
-					ADC12CTL0 = REF2_5V + ADC12ON; \
+					ADC12CTL0 = REF2_5V + ADC12ON + REFON; \
 				} while (0)
 #else	/* NO ADC RSSI */
 
 #define	adc_config_rssi		adc_disable
 
 #endif	/* PIN_ADC_RSSI */
+
 
 #define	adc_wait	do { \
 				while (ADC12CTL1 & ADC12BUSY); \

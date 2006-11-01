@@ -4,6 +4,7 @@
 #define	TCV_TIMERS		0
 #define	TCV_HOOKS		0
 #define	CODE_LONG_INTS		0	/* 'ld' 'lu' 'lx' in formats */
+#define	MALLOC_ALIGN4		1
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
 #define STACK_GUARD		1
