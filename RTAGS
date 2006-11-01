@@ -1189,3 +1189,17 @@ R061027B:
 
 	Modified pin access functions to provide for the DAC available on
 	MSP430x1611. A couple of applicatons added (SFU, ToySimple).
+
+R061030A:
+
+	A few drastic changes to the way PicOS applications are parameterized
+	and compiled. Directories PicOS/MSP430/BOARDS and PicOS/eCOG/BOARDS
+	contain board description, each board being described by a subdirectory
+	with a few board-specific files (mostly includes). Optional params.sys
+	contains CPU-specific C compiler argument, which defaults to msp430x148
+	(this feature is not used at present for eCOG). board_options.sys takes
+	precedence over options.sys in the application's directory. The proper
+	way to call mkmk is now 'mkmk board_name', where board_name is the name
+	of the board, which must coincide with one of the subdirectories in
+	BOARDS (for MSP430 or eCOG). For example: 'mkmk GENESIS'. The default
+	board name is GENERIC_MSP430.
