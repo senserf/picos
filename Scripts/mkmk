@@ -21,10 +21,20 @@ if $DEBUG {
 }
 
 #
+# Legitimate targets, the corresponding modes, and default comp params
+#
+set Targets {
+		{ "MSP430"	"M" "msp430x148" }
+		{ "eCOG"	"E" "" }
+}
+# eCOG has no parameters for now
+
+#
 # Directories to be searched (in this order)
 #
 set DirList {
 		"PicOS/@TARGET@"
+		"PicOS/@TARGET@/BOARDS"
 		"PicOS/kernel"
 		"PicOS"
 		"PicOS/Libs/*"
@@ -39,6 +49,12 @@ proc lappend_unique { li i } {
 	if { ![info exists l] || [lsearch -exact $l $i] < 0 } {
 		lappend l $i
 	}
+}
+
+proc errab { m } {
+
+	puts stderr $m
+	exit 1
 }
 
 proc trimdir { } {
@@ -75,9 +91,10 @@ proc trimdir { } {
 		}
 	}
 }
-proc outprf { def } {
+proc outprf { def cpu } {
 #
-# Output a project file for CyanIDE
+# Output a project file for CyanIDE. The second argument (compilation params)
+# ignored for now, but may be useful later.
 #
 	global DirList DirShort IncShort ToCompile Depend CWD
 
@@ -301,30 +318,92 @@ proc canon { fnf } {
 	}
 	return $fn
 }
+
+proc rootpf { } {
+#
+# Find the root prefix for all directories, i.e., PICOS, as the one containing
+# "Apps"
+#
+	global CWD RPREF
+
+	set RPREF $CWD
+	while { [file tail $RPREF] != "Apps" } {
+		set tmp [file dirname $RPREF]
+		if { $tmp == $RPREF } {
+			errab "path to current directory contains no \"Apps\""
+		}
+		set RPREF $tmp
+	}
+	set RPREF [file dirname $RPREF]
+}
+
+proc lboard { tgt flg } {
+#
+# Locate the board directory
+#
+	global RPREF Run DirList Targets
+	upvar $tgt target
+	upvar $flg flags
+
+	set nof 1
+	foreach dir $DirList {
+		if [regexp "/BOARDS$" $dir] {
+			set nof 0
+			break
+		}
+	}
+
+	if $nof {
+		errab "DirList is broken: BOARDS not found"
+	}
+
+	foreach tar $Targets {
+		set target [lindex $tar 0]
+		# try each in turn until you find the right board
+		regsub "@TARGET@" $dir $target tdir
+		set pard [file join $RPREF $tdir $Run(board)]
+		if ![file isdirectory $pard] {
+			continue
+		}
+		# we have found the target
+		set pard [file join $pard "params.sys"]
+		set Run(mode) [lindex $tar 1]
+		if [catch { open $pard "r" } pfd] {
+			# no parameters, use defaults
+			set flags [lindex $tar 2]
+			return
+		}
+		# params file present, read it
+		if [catch { read $pfd } flags] {
+			catch { close $pfd }
+			error "cannot read '$pard'"
+		}
+		catch { close $pfd }
+		set flags [string trim $flags]
+		if { $flags == "" } {
+			set flags [lindex $tar 2]
+		}
+		return
+	}
+
+	errab "board '$Run(board)' not found"
+}
 		
 proc mkdlist { cpu } {
 #
 # Create the complete canonical list of directories to be searched
 #
-	global DirList DLIST CWD RPREF MKRECV
+	global DirList DLIST CWD RPREF MKRECV Run
 
 	# working copy of the target list
 	set DLIST ""
 
-	# locate the root prefix
-	set RPREF $CWD
-	while { [file tail $RPREF] != "Apps" } {
-		set tmp [file dirname $RPREF]
-		if { $tmp == $RPREF } {
-			error "path to current directory contains no \"Apps\""
-		}
-		set RPREF $tmp
-	}
-	set RPREF [canon [file dirname $RPREF]]
-
 	foreach p $DirList {
 		set target [regsub -all "@TARGET@" $p $cpu p]
-		if [regexp {/\*$} $p] {
+		if [regexp "/BOARDS$" $p] {
+			# insert the proper board directory
+			set p "${p}/$Run(board)"
+		} elseif [regexp {/\*$} $p] {
 			# wildcard means all subdirectories (recursively)
 			set p [string range $p 0 end-2]
 			if { $p != "." } {
@@ -766,7 +845,8 @@ proc scanfile { fname } {
 				dmp "DEFINE: $ar (ignored)"
 				continue
 			}
-			if ![regexp -nocase "^\[a-z_0-9.\]+" $nam nam] {
+			if { ![regexp -nocase "^\[a-z_0-9.\]+" $nam nam] &&
+			     ![regexp -nocase "^\"\[a-z_0-9.\]+\"" $nam nam] } {
 				set v0 "@@@"
 			} else {
 				if [catch { expr $nam } v0] {
@@ -797,7 +877,20 @@ proc scanfile { fname } {
 		if { $cm == "include" } {
 			if ![regexp -nocase "\[\"<\](\[^\"><\]+)\[\">\]" $ar \
 			    jk fn] {
-				continue
+				# the file name to include may be a symbol
+				if ![regexp -nocase "^\[ \t\]*(\[a-z_0-9.\]+)" \
+				    $ar jk fn] {
+					# unrecognizable
+					dmp "INCLUDE" $fn '$line' (UNREC)"
+					continue
+				}
+				# try the symbol
+				if ![info exists Symbols($fn)] {
+					dmp "INCLUDE" $fn '$line' (NOSYMBOL)"
+					continue
+				}
+				set fn [string trim $Symbols($fn) "\"<>"]
+				dmp "INCLUDE: SYM $fn '$line'"
 			}
 			set fn [string trim $fn]
 			if { $fn == "" } {
@@ -836,29 +929,23 @@ proc main { } {
 		bad_usage
 	}
 
-	set Run(mode) "M"
-	set TGT "MSP430"
-	# this is the default
-	set mcpu "msp430x148"
+	set CWD [pwd]
+
+	# locate the root directory prefix
+	rootpf
 
 	if $ll {
-		set fn [lindex $argv 0]
-		if { $fn == "-e" } {
-			set Run(mode) "E"
-			set TGT "eCOG"
-			set mcpu ""
-		} elseif { [string first "-m" $fn] == 0 } {
-			set fn [string range $fn 1 end]
-			if ![regexp "^msp430x\[0-9\]+$" $fn] {
-				bad_usage
-			}
-			set mcpu $fn
-		} else {
-			bad_usage
-		}
+		set Run(board) [lindex $argv 0]
+	} else {
+		# this is the default
+		set Run(board)	"GENERIC_MSP430"
 	}
 
-	set CWD [canon [pwd]]
+	# locate the board directory
+	lboard TGT mcpu
+
+	set CWD [canon $CWD]
+	set RPREF [canon RPREF]
 
 	# cleanup
 	if { $Run(mode) == "E" } {
@@ -878,7 +965,7 @@ proc main { } {
 	# We expect to find app.c in the current directory
 	set fn [canon [file join $CWD "app.c"]]
 	if ![file isfile $fn] {
-		error "app.c not found in current directory"
+		errab "app.c not found in current directory"
 	}
 
 	lappend ToCompile $fn
@@ -910,7 +997,7 @@ proc main { } {
 		outmkf	{"__MSP430__"} $mcpu
 	} else {
 		# project file
-		outprf	{"__ECOG__"}
+		outprf	{"__ECOG__"} $mcpu
 	}
 	if { $NotFound != "" } {
 		puts -nonewline stdout "Warning: //+++ sources not found:"

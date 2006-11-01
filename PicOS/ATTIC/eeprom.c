@@ -61,8 +61,6 @@ static void put_byte (byte b) {
 
 void zz_ee_init () {
 
-	int i;
-
 	ee_ini_regs;
 	ee_ini_spi;
 
@@ -72,18 +70,7 @@ void zz_ee_init () {
 	ee_stop;
 	udelay (10);
 
-#if TARGET_BOARD == BOARD_GENESIS
-	if (GENESIS_RESET_KEY_PRESSED) {
-		for (i = 0; i < 4; i++) {
-			leds (0, 1); leds (2, 1); leds (3, 1);
-			mdelay (256);
-			leds (0, 0); leds (2, 0); leds (3, 0);
-			mdelay (256);
-		}
-		ee_erase ();
-		while (GENESIS_RESET_KEY_PRESSED);
-	}
-#endif
+	ee_postinit;
 }
 
 void ee_read (word a, byte *s, word len) {

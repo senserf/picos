@@ -17,7 +17,7 @@
 #include "irq_timer_cc1100.h"
 #endif
 
-#if PULSE_MONITOR
+#ifdef PULSE_MONITOR
 #include "irq_timer_pins.h"
 #endif
 

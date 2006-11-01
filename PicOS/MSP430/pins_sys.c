@@ -7,7 +7,7 @@
 
 static const pind_t pinmap [] = PIN_LIST;
 
-#if PULSE_MONITOR
+#ifdef PULSE_MONITOR
 word		zz_pmonevent [0];
 zz_pmon_t	zz_pmon;
 #endif
@@ -17,7 +17,7 @@ bool zz_pin_available (word p) {
 	if ((p >= PIN_MAX) || (pinmap[p].poff == 0xff))
 		return NO;
 
-#if PULSE_MONITOR
+#ifdef PULSE_MONITOR
 
 	if (p == 1 && (pmon.stat & PMON_CNT_ON) != 0)
 		return NO;

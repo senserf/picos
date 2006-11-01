@@ -14,21 +14,6 @@
 /* if they are not mentioned in options.sys.                                */
 /* ======================================================================== */
 
-// The list of known board types =============================================
-#define	BOARD_CYAN		0	/* Cyan evaluation board */
-#define	BOARD_GEORGE		1
-
-#define	BOARD_DM2100		100	/* DM2100 from RFM */
-#define	BOARD_GENESIS		101	/* Genesis board from RFM */
-#define	BOARD_VERSA2		102
-#define	BOARD_SFU_PROTOTYPE	103	/* Prototype board for Bozena's Lab */
-// ===========================================================================
-
-// Default board
-#ifndef	TARGET_BOARD
-#define	TARGET_BOARD		BOARD_GENESIS
-#endif
-
 // This one indicates whether we are running under the simulator (0/1) [eCOG]
 #ifndef ECOG_SIM
 #define	ECOG_SIM		0
@@ -279,11 +264,6 @@
 #endif
 #endif
 
-// Pulse monitor function enabled (see Libs/Lib/pin_read.c)
-#ifndef	PULSE_MONITOR
-#define	PULSE_MONITOR		0
-#endif
-
 // Entropy collection enabled, if possible
 #ifndef	ENTROPY_COLLECTION
 #define	ENTROPY_COLLECTION	0
@@ -356,6 +336,10 @@
 // Enables dmp_mem (). Dump memory to UART on system error.
 #ifndef	DUMP_MEMORY
 #define	DUMP_MEMORY		0
+#endif
+
+#ifndef	dbg_level
+#define	dbg_level		0
 #endif
 
 /* ======================================================================== */

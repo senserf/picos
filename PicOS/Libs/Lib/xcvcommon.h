@@ -12,6 +12,10 @@
 #define	RCV_GETIT		0
 #define	RCV_CHECKIT		1
 
+#ifndef	DISABLE_CLOCK_INTERRUPT
+#define	DISABLE_CLOCK_INTERRUPT	0
+#endif
+
 static process (rcvradio, void)
 
     entry (RCV_GETIT)
@@ -230,7 +234,9 @@ Drain:
 	}
 #endif
 
+#if LBT_DELAY > 0
 Xmit:
+#endif
 	LEDI (1, 0);
 	// Holding the lock
 #if 0

@@ -7,8 +7,10 @@
 
 #include "sysio.h"
 
-#if TARGET_BOARD == BOARD_VERSA2
-#include "dm2200.h"
+#include "board_iflash.h"
+
+#ifndef	if_start_up
+#define	if_start_up	CNOP
 #endif
 
 #define	IF_PAGE_SIZE	64	// in words

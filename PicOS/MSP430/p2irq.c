@@ -19,12 +19,10 @@ interrupt (PORT2_VECTOR) p2_int () {
 #include	"irq_dm2200_rcv.h"
 #endif
 
-#if	TARGET_BOARD == BOARD_DM2100
+#ifdef	MONITOR_PINS_SEND_INTERRUPTS
+#if	MONITOR_PINS_SEND_INTERRUPTS
 #include	"irq_pins.h"
 #endif
-
-#if	TARGET_BOARD == BOARD_VERSA2
-#include	"irq_pins.h"
 #endif
 
 // Room for more functions

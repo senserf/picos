@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#if	PULSE_MONITOR
+#ifdef	PULSE_MONITOR
 /*
  * COUNTER and NOTIFIER pin interrupts. Depending on the edge selection,
  * the "ON" signal can be high (edge UP) or low (edge down).
@@ -13,17 +13,17 @@
  * milliseconds to trigger the event. Then it must be OFF for at least
  * xxx_DEBOUNCE_OFF milliseconds before we start looking for another cycle.
  */
-    if (pin_interrupt) {
+    if (pin_interrupt ()) {
 
-	if (pin_int_cnt) {
+	if (pin_int_cnt ()) {
 
-		pin_clrint_cnt;
+		pin_clrint_cnt ();
 
 		switch (pmon.state_cnt) {
 
 		    case PCS_WPULSE:
 
-			if (!pin_vedge_cnt)
+			if (!pin_vedge_cnt ())
 				// Spurious? Must be ON.
 				goto WCon;
 
@@ -32,7 +32,7 @@
 
 		    case PCS_WENDP:
 
-			if (pin_vedge_cnt) {
+			if (pin_vedge_cnt ()) {
 				// Signal has gone OFF. Too short: ignore.
 WCon:
 				wait_cnt_on (PCS_WPULSE, 0);
@@ -54,7 +54,7 @@ WCoff:
 
 		    case PCS_WNEWC:
 
-			if (pin_vedge_cnt)
+			if (pin_vedge_cnt ())
 				goto WCoff;
 			goto WCon;
 		}
@@ -63,15 +63,15 @@ WCoff:
 	// =============================================================== //
 	// =============================================================== //
 
-	if (pin_int_not) {
+	if (pin_int_not ()) {
 
-		pin_clrint_not;
+		pin_clrint_not ();
 
 		switch (pmon.state_not) {
 
 		    case PCS_WPULSE:
 
-			if (!pin_vedge_not)
+			if (!pin_vedge_not ())
 				// Spurious?
 				goto WNon;
 
@@ -81,7 +81,7 @@ WCoff:
 
 		    case PCS_WENDP:
 
-			if (pin_vedge_not) {
+			if (pin_vedge_not ()) {
 				// Signal has gone OFF. Too short: ignore.
 WNon:
 				wait_not_on (PCS_WPULSE, 0);
@@ -103,7 +103,7 @@ WNoff:
 
 		    case PCS_WNEWC:
 
-			if (pin_vedge_not)
+			if (pin_vedge_not ())
 				// Too short
 				goto WNoff;
 			goto WNon;

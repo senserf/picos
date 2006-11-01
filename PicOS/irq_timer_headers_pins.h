@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "pinopts.h"
 #include "pins.h"
+#include "pinopts.h"
 
 #endif

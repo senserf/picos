@@ -394,7 +394,7 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	/* Check if we have the plugin and the phys */
 	if (phy < 0 || phy >= TCV_MAX_PHYS || oqueues [phy] == NULL ||
 		plid < 0 || plid >= TCV_MAX_PLUGS || plugins [plid] == NULL)
-			syserror (ENODEV, "tcv_open");
+			syserror (ENODEVICE, "tcv_open");
 
 	pid = getpid ();
 	/* Prepare the attribute pattern word */

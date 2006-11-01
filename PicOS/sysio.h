@@ -19,6 +19,7 @@
 
 #if SIM_NET==0
 
+#include "board_options.sys"
 #include "options.sys"
 
 #endif
@@ -747,7 +748,7 @@ extern	word zz_seed;
 #endif	/* RANDOM_NUMBER_GENERATOR */
 
 /* Errors */
-#define	ENODEV		1	/* Illegal device */
+#define	ENODEVICE	1	/* Illegal device */
 #define	ENOOPER		2	/* Illegal operation */
 #define	EREQPAR		3	/* Illegal request parameters */
 #define	ERESOURCE	4	/* Out of resources */

@@ -5,7 +5,9 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#if	PULSE_MONITOR
+#include "pins_sys.h"
+
+#ifdef	PULSE_MONITOR
 
 typedef	struct {
 
@@ -53,13 +55,13 @@ extern	zz_pmon_t	zz_pmon;
 		if (deb) \
 			pmon.deb_mas = PMON_DEBOUNCE_UNIT; \
 		if (on) \
-			pin_setedge_cnt; \
+			pin_setedge_cnt (); \
 		else \
-			pin_revedge_cnt; \
+			pin_revedge_cnt (); \
 		pmon.state_cnt = (st); \
-		pin_clrint_cnt; \
-		if (pin_vedge_cnt) \
-			pin_trigger_cnt; \
+		pin_clrint_cnt (); \
+		if (pin_vedge_cnt ()) \
+			pin_trigger_cnt (); \
 	} while (0)
 
 #define	wait_cnt_on(st,deb)	wait_cnt (st, deb, 1)
@@ -93,13 +95,13 @@ extern	zz_pmon_t	zz_pmon;
 		if (deb) \
 			pmon.deb_mas = PMON_DEBOUNCE_UNIT; \
 		if (on) \
-			pin_setedge_not; \
+			pin_setedge_not (); \
 		else \
-			pin_revedge_not; \
+			pin_revedge_not (); \
 		pmon.state_not = (st); \
-		pin_clrint_not; \
-		if (pin_vedge_not) \
-			pin_trigger_not; \
+		pin_clrint_not (); \
+		if (pin_vedge_not ()) \
+			pin_trigger_not (); \
 	} while (0)
 
 #define	wait_not_on(st,deb)	wait_not (st, deb, 1)
@@ -118,8 +120,9 @@ extern	zz_pmon_t	zz_pmon;
 			pmon.deb_mas = PMON_RETRY_DELAY; \
 	} while (0)
 
-#endif  /* PULSE_MONITOR */
+PULSE_MONITOR;
 
-#include "pins_sys.h"
+
+#endif  /* PULSE_MONITOR */
 
 #endif

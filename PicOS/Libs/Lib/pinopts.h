@@ -6,13 +6,14 @@
 /* ==================================================================== */
 
 //+++ "pin_read.c"
+#include "board_pins.h"
 
 word pin_read (word);
 int pin_write (word pin, word val);
 int pin_read_adc (word, word, word, word);
 int pin_write_dac (word, word, word);
 
-#if	PULSE_MONITOR
+#ifdef	PULSE_MONITOR
 
 #define	PMON_STATE_NOT_RISING	0x01
 #define	PMON_STATE_NOT_ON	0x02

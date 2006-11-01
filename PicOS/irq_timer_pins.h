@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#if	PULSE_MONITOR
+#ifdef	PULSE_MONITOR
 
 #if	MONITOR_PINS_SEND_INTERRUPTS
 	if (pmon.deb_mas) {
@@ -14,14 +14,14 @@
 			if (pmon.deb_cnt) {
 				if (--(pmon.deb_cnt) == 0)
 					// Trigger counter interrupt
-					pin_trigger_cnt;
+					pin_trigger_cnt ();
 				else
 					pmon.deb_mas = PMON_DEBOUNCE_UNIT;
 			
 			}
 			if (pmon.deb_not) {
 				if (--(pmon.deb_not) == 0)
-					pin_trigger_not;
+					pin_trigger_not ();
 				else
 					pmon.deb_mas = PMON_DEBOUNCE_UNIT;
 			}
@@ -47,7 +47,7 @@
 		pmon.deb_mas = PMON_DEBOUNCE_UNIT-1;
 		switch (pmon.state_cnt) {
 			case PCS_WPULSE:
-				if (pin_vedge_cnt) {
+				if (pin_vedge_cnt ()) {
 					// Gone up
 					if ((pmon.stat & PMON_CNT_ON) == 0)
 						// Ignore
@@ -57,7 +57,7 @@
 				}
 				break;
 			case PCS_WENDP:
-				if (!pin_vedge_cnt) {
+				if (!pin_vedge_cnt ()) {
 					// Disappeared - ignore it
 					pmon.state_cnt = PCS_WPULSE;
 				} else if (--(pmon.deb_cnt) == 0) {
@@ -67,13 +67,13 @@
 				}
 				break;
 			case PCS_WECYC:
-				if (!pin_vedge_cnt)
+				if (!pin_vedge_cnt ())
 					pmon.state_cnt = PCS_WPULSE;
 				break;
 		}
 		switch (pmon.state_not) {
 			case PCS_WPULSE:
-				if (pin_vedge_not) {
+				if (pin_vedge_not ()) {
 					// Gone up
 					if ((pmon.stat & PMON_NOT_ON) == 0)
 						// Ignore
@@ -83,7 +83,7 @@
 				}
 				break;
 			case PCS_WENDP:
-				if (!pin_vedge_not) {
+				if (!pin_vedge_not ()) {
 					// Disappeared - ignore
 					pmon.state_not = PCS_WPULSE;
 				} else if (--(pmon.deb_not) == 0) {
@@ -92,13 +92,13 @@
 				}
 				break;
 			case PCS_WECYC:
-				if (!pin_vedge_not) {
+				if (!pin_vedge_not ()) {
 					pmon.state_not = PCS_WNEWC;
 					pmon.deb_not = PMON_DEBOUNCE_NOT_OFF;
 				}
 				break;
 			case PCS_WNEWC:
-				if (pin_vedge_not) {
+				if (pin_vedge_not ()) {
 					// Ignore
 					pmon.state_not = PCS_WECYC;
 				} else if (--(pmon.deb_not) == 0) {

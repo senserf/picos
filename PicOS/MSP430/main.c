@@ -5,8 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "irq_timer_headers.h"
 #include "pins.h"
+#include "irq_timer_headers.h"
 
 extern 			pcb_t		*zz_curr;
 extern 			address	zz_utims [MAX_UTIMERS];

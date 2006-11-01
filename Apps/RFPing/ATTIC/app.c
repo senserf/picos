@@ -702,7 +702,7 @@ process (root, int)
 
   entry (RS_GADC+1)
 
-	p [0] = pin_get_adc (RS_GADC+1, p [0], p [1], 4);
+	p [0] = pin_read_adc (RS_GADC+1, p [0], p [1], 4);
 
   entry (RS_GADC+2)
 
@@ -714,14 +714,14 @@ process (root, int)
 	p [1] = 0;
 	p [1] = 0;
 	scan (ibuf + 1, "%u %u", p+0, p+1);
-	pin_set (p [0], p [1]);
+	pin_write (p [0], p [1]);
 	proceed (RS_RCMD);
 
   entry (RS_GPIN)
 
 	p [0] = 1;
 	scan (ibuf + 1, "%u", p+0);
-	p [0] = pin_get (p [0]);
+	p [0] = pin_read (p [0]);
 
   entry (RS_GPIN+1)
 

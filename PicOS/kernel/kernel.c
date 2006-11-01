@@ -23,7 +23,7 @@ lword	zzz_ent_acc;
 lword	zz_seed = 327672838L;
 #endif
 
-#include "every_second_headers.h"
+#include "pins.h"
 
 /* Task table */
 pcb_t __PCB [MAX_TASKS];
@@ -137,7 +137,7 @@ void zzz_tservice () {
 		millisec -= JIFFIES;
 		zz_nseconds++;
 
-#include "every_second.h"
+#include "board_second.h"
 
 		if ((zz_nseconds & 63) == 0)
 			/* Do this every "minute" */
@@ -229,7 +229,7 @@ int zzz_fork (code_t func, address data) {
 
 void savedata (void *d) {
 
-	zz_curr -> data = d;
+	zz_curr -> data = (address) d;
 }
 
 /* ======================== */
@@ -766,7 +766,7 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 	int ret;
 
 	if (dev < 0 || dev >= MAX_DEVICES || ioreq [dev] == NULL)
-		syserror (ENODEV, "io");
+		syserror (ENODEVICE, "io");
 
 	if (len == 0)
 		/* This means that the call is void */

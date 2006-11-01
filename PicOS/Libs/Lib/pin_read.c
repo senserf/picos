@@ -78,6 +78,9 @@ int pin_read_adc (word state, word pin, word ref, word smpt) {
  * ref == 0 (1.5V) or 1 (2.5V) or 2 (Vcc)
  * smpt == sample time in msec (0 == 1)
  */
+
+#if PIN_MAX_ANALOG
+
 	int res;
 
 	if (!zz_pin_adc_available (pin))
@@ -118,6 +121,10 @@ End:
 	adc_config_rssi;
 
 	return res;
+#else
+	return -1;
+
+#endif /* PIN_MAX_ANALOG */
 }
 
 
@@ -134,13 +141,13 @@ int pin_write_dac (word pin, word val, word ref) {
 #endif	/* PIN_DAC_PINS */
 }
 
-#if	PULSE_MONITOR
+#ifdef	PULSE_MONITOR
 
 void pmon_start_cnt (long count, bool edge) {
 
-	pin_disable_cnt;
+	pin_disable_cnt ();
 
-	pin_book_cnt;
+	// pin_book_cnt;
 
 	pmon.deb_cnt = 0;
 
@@ -160,7 +167,7 @@ void pmon_start_cnt (long count, bool edge) {
 		pmon.cnt [2] = (count >> 16) & 0xff;
 	}
 
-	pin_setedge_cnt;
+	pin_setedge_cnt ();
 
 	pmon.deb_mas = PMON_RETRY_DELAY;
 
@@ -173,11 +180,11 @@ void pmon_start_cnt (long count, bool edge) {
 			_BIS (pmon.stat, PMON_CMP_PENDING);
 
 	if (pin_vedge_cnt)
-		pin_trigger_cnt;
+		pin_trigger_cnt ();
 	else
-		pin_clrint_cnt;
+		pin_clrint_cnt ();
 
-	pin_enable_cnt;
+	pin_enable_cnt ();
 }
 
 void pmon_dec_cnt (void) {
@@ -234,8 +241,7 @@ void pmon_add_cmp (long incr) {
 void pmon_stop_cnt () {
 
 	pmon.deb_cnt = 0;
-	pin_disable_cnt;
-	pin_release_cnt;
+	pin_disable_cnt ();
 	_BIC (pmon.stat, PMON_CNT_ON);
 }
 
@@ -298,9 +304,9 @@ lword pmon_get_cmp () {
 
 void pmon_start_not (bool edge) {
 
-	pin_disable_not;
+	pin_disable_not ();
 
-	pin_book_not;
+	// pin_book_not;
 
 	pmon.deb_not = 0;
 
@@ -314,16 +320,16 @@ void pmon_start_not (bool edge) {
 
 	pmon.state_not = PCS_WPULSE;
 
-	pin_setedge_not;
+	pin_setedge_not ();
 
 	if (pin_vedge_not)
-		pin_trigger_not;
+		pin_trigger_not ();
 	else
-		pin_clrint_not;
+		pin_clrint_not ();
 
 	_BIS (pmon.stat, PMON_NOT_ON);
 
-	pin_enable_not;
+	pin_enable_not ();
 }
 
 bool pmon_pending_not () {
@@ -340,8 +346,7 @@ bool pmon_pending_not () {
 void pmon_stop_not () {
 
 	pmon.deb_not = 0;
-	pin_disable_not;
-	pin_release_not;
+	pin_disable_not ();
 	_BIC (pmon.stat, PMON_NOT_ON | PMON_NOT_PENDING);
 }
 
