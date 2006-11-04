@@ -254,7 +254,7 @@ static void ini_dm2200 (void) {
 
 }
 
-#if FCC_TEST_MODE == 0
+#if FCC_TEST_MODE == 0 && GLACIER == 0
 static
 #endif
 void hstat (word status) {
