@@ -410,7 +410,8 @@ char *PicOSNode::vform (char *res, const char *fm, va_list aq) {
 			fml = actsize ((address)res) - 1;
 		}
 		s = d = 0;
-		ap = aq;
+
+		va_copy (ap, aq);
 
 		while (1) {
 			c = fm [s++];

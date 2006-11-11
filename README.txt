@@ -61,3 +61,9 @@ R061025A:
     A few mods by Wlodek. udaemon patched a bit - to be slightly less stupid.
     diag fixed to properly display formatted items. Segmentation errors on
     reset eliminated.
+
+R061111A:
+
+    A few mods by Wlodek + cosmetics needed to make the stuff compile on 64-bit
+    Linux systems.
+    

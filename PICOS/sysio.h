@@ -133,13 +133,13 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	WNONE		((word)NONE)
 #define	BLOCKED		(-2)
 
-#define	trigger(a)	(TheNode->TB.signal ((int)(a)))
+#define	trigger(a)	(TheNode->TB.signal ((IPointer)(a)))
 
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
 	    ((a) - 'a' + 10) : (((a)>='A'&&(a)<='F') ? ((a) - 'A' + 10) : 0) ) )
 
 /* Errors */
-#define	ENODEV		1	/* Illegal device */
+#define	ENODEVICE	1	/* Illegal device */
 #define	ENOOPER		2	/* Illegal operation */
 #define	EREQPAR		3	/* Illegal request parameters */
 #define	ERESOURCE	4	/* Out of resources */

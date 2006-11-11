@@ -7,7 +7,7 @@
 		XP    = transmitted power
 		X     = lognormal random Gaussian component
  		=======================================================
-		RP(d)/XP [dB] = -10 x 3.0 x log(d/1.0m) + X(8.0) - 38.0
+		RP(d)/XP [dB] = -10 x 3.0 x log(d/1.0m) + X(1.0) - 38.0
  		=======================================================
 	</shadowing>
 	<cutoff>400m</cutoff>
