@@ -34,7 +34,7 @@ process	ADC (PicOSNode) {
 		DT = (double)(Time - Last);
 		NA = ATime + DT;
 		res = ((Average * ATime) / NA) + (CLevel * DT) / NA;
-		// trc ("ADC: [%1d] -> %f", S->getId (), res);
+// diag ("ADC: %d / %g / %g", S->getId (), res, S->lbt_threshold);
 		return res;
 	};
 

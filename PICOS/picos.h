@@ -14,9 +14,10 @@ typedef	unsigned int	lword;
 typedef	unsigned char	byte;
 
 #define	MAX_UINT	((word)0xFFFF)
+#define	MAX_ULONG	((lword)0xFFFFFFFF)
 
-#define	diag(s, ...)	trace ("DIAG [%1d]: %s", TheStation->getId (), \
-				::form (s, ## __VA_ARGS__))
+#define	diag(s, ...)	trace ("[%1.3f] DIAG [%1d]: %s", ituToEtu (Time), \
+			      TheStation->getId (), ::form (s, ## __VA_ARGS__))
 
 #define	syserror(a,b)	excptn (::form ("SYSERROR: %1d, %s", a, b))
 #define	sysassert(a,b)	do { if (!(a)) syserror (EASSERT, b); } while (0)

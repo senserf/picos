@@ -50,6 +50,7 @@ void PicOSNode::reset () {
 	}
 
 	entropy = 0;
+	statid = 0;
 
 	Receiving = Xmitting = NO;
 	TXOFF = RXOFF = YES;
@@ -92,6 +93,7 @@ void PicOSNode::setup ( word mem,
 		lbt_threshold = dBToLin (lbtths);
 		lbt_delay = (word) lbtdel;
 	}
+trace ("THS: %d %g %g", lbt_delay, lbt_threshold, lbtths);
 
 	if ((umode & (UART_IMODE_MASK | UART_OMODE_MASK)) ==
 	    (UART_IMODE_NONE | UART_OMODE_NONE)) {
