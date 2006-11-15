@@ -66,3 +66,7 @@ R061111A:
 
     A few mods by Wlodek + cosmetics needed to make the stuff compile on 64-bit
     Linux systems.
+
+R061115A:
+
+    Cosmetics. Added app to test LBT.
