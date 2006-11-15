@@ -236,8 +236,8 @@
 #endif
 
 #ifndef	LBT_THRESHOLD
-// Listen Before Transmit RSSI threshold (quantized into levels 0-16)
-#define	LBT_THRESHOLD		2
+// Listen Before Transmit RSSI threshold (percentage)
+#define	LBT_THRESHOLD		50
 #endif
 
 #ifndef	MIN_BACKOFF

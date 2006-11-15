@@ -327,7 +327,7 @@ Xmit:
 
 	adc_stop;
 	adc_wait;
-	if (adc_value < (LBT_THRESHOLD * (4096 / 16))) {
+	if (adc_value < (word)(((long)LBT_THRESHOLD * 4096) / 100)) {
 #if 0
 		diag ("O %u", adc_value);
 #endif

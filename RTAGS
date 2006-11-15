@@ -1222,3 +1222,7 @@ R061112A:
 
 	Watchdog stopped during FIM write/erase operations. This is how the
 	manual says things should be done.
+
+R061115A:
+
+	LBT threshold setting changed to percentage (0-100) instead of 0-16.

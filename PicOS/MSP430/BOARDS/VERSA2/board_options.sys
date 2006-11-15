@@ -25,7 +25,7 @@
 #define CRYSTAL_RATE		32768
 
 #define LBT_DELAY		8
-#define LBT_THRESHOLD		2
+#define LBT_THRESHOLD		52
 
 #define INFO_FLASH		1
 
