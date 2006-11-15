@@ -73,10 +73,10 @@ static void ssm_init (void), mem_init (void), ios_init (void);
 
 void clockdown (void) {
 
-#if HIGH_CRYSTAL_RATE && WATCHDOG_ENABLED
+#if HIGH_CRYSTAL_RATE
 	// Sorry, the watchdog must be stopped in the slow-clock mode if ACLK
 	// is driven by a high-speed crystal
-	WATCHDOG_STOP;
+	WATCHDOG_HOLD;
 #endif
 	TBCCR0 = TIMER_B_INIT_LOW;	// 1, 2, or 16 ticks per second
 }
@@ -85,10 +85,10 @@ void clockup (void) {
 
 	TBCCR0 = TIMER_B_INIT_HIGH;	// 1024 ticks per second
 
-#if HIGH_CRYSTAL_RATE && WATCHDOG_ENABLED
+#if HIGH_CRYSTAL_RATE
 	// Resume the watchdog (it is never stopped if ACLK is driven by a
 	// low-speed crystal
-	WATCHDOG_START;
+	WATCHDOG_RESUME;
 #endif
 
 }
@@ -194,14 +194,13 @@ int main (void) {
 	// Start the clock
 	sti_tim;
 	_EINT ();
-	// Run the scheduler
-#if WATCHDOG_ENABLED
+
 	// We run at the longest possible interval, which means 1 sec for
 	// the standard 32768Hz crystal, but may mean as little as 1/250 sec
 	// for the 8MHz crystal.
 	WATCHDOG_START;
-#endif
 
+	// Run the scheduler
 
 #include "scheduler.h"
 }
@@ -209,9 +208,7 @@ int main (void) {
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
 
-#if	WATCHDOG_ENABLED
-	WATCHDOG_STOP;
-#endif
+	WATCHDOG_HOLD;
 
 #if	DUMP_MEMORY
 	dmp_mem ();
@@ -220,9 +217,8 @@ void zzz_syserror (int ec, const char *m) {
 #else
 void zzz_syserror (int ec) {
 
-#if	WATCHDOG_ENABLED
-	WATCHDOG_STOP;
-#endif
+	WATCHDOG_HOLD;
+
 	dbg_0 (ec); // SYSTEM ERROR
 	diag ("SYSTEM ERROR: %x", ec);
 #endif
@@ -403,10 +399,10 @@ static void ssm_init () {
 
 	// Select power up and high clock rate
 	powerup ();
-#if HIGH_CRYSTAL_RATE && WATCHDOG_ENABLED
+#if HIGH_CRYSTAL_RATE
 	// Was set by powerup, we have to stop it until we actually start
 	// the clock
-	WATCHDOG_STOP;
+	WATCHDOG_HOLD;
 #endif
 	// Start it in up mode, interrupts still disabled
 	_BIS (TBCTL, MC0);
@@ -427,11 +423,10 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 		syserror (ESTACK, "timer_int");
 #endif
 
-#if	WATCHDOG_ENABLED
 	// Clear hardware watchdog. Its sole purpose is to guard clock
 	// interrupts, while clock interrupts implement a software watchdog.
 	WATCHDOG_CLEAR;
-#endif
+
 	if (TBCCR0 == TIMER_B_INIT_HIGH) {
 		// Power up: one tick == 1 JIFFIE
 		/* This code assumes that MAX_UTIMERS is 4 */
@@ -530,10 +525,9 @@ void freeze (word nsec) {
 	byte saveLEDs;
 	word saveLostK;
 
-#if WATCHDOG_ENABLED
 	// In case some of these take too long for the clock guard
-	WATCHDOG_STOP;
-#endif
+	WATCHDOG_HOLD;
+
 	cli;
 
 	// Save I/O pin interrupt configuration
@@ -559,10 +553,9 @@ void freeze (word nsec) {
 #endif
 #endif
 
-#if WATCHDOG_ENABLED
 	// We should be OK now
-	WATCHDOG_START;
-#endif
+	WATCHDOG_RESUME;
+
 	powerdown ();
 	// Save clock state
 	saveLostK = zz_lostk;
@@ -574,9 +567,8 @@ void freeze (word nsec) {
 		nsec--;
 	}
 
-#if WATCHDOG_ENABLED
-	WATCHDOG_STOP;
-#endif
+	WATCHDOG_HOLD;
+
 	P1IE = saveP1IE;
 	P2IE = saveP2IE;
 
@@ -600,9 +592,7 @@ void freeze (word nsec) {
 	zz_lostk = saveLostK;
 	leds_restore (saveLEDs);
 
-#if WATCHDOG_ENABLED
 	WATCHDOG_START;
-#endif
 	sti;
 }
 

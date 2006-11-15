@@ -179,8 +179,22 @@ extern uart_t zz_uart [];
 /* =================== */
 
 #define	WATCHDOG_STOP		WDTCTL = WDTPW + WDTHOLD
+
+#if WATCHDOG_ENABLED
+
+#define	WATCHDOG_HOLD		WATCHDOG_STOP
 #define	WATCHDOG_START		WDTCTL = WDTPW + WDTCNTCL + WDTSSEL
 #define	WATCHDOG_CLEAR		WDTCTL = WDTPW + WDTCNTCL
+
+#else
+
+#define	WATCHDOG_HOLD		CNOP
+#define	WATCHDOG_START		CNOP
+#define	WATCHDOG_CLEAR		CNOP
+
+#endif
+
+#define	WATCHDOG_RESUME		WATCHDOG_START
 
 /* =============================== */
 /* Enable/disable clock interrupts */

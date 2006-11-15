@@ -15,8 +15,6 @@ word pin_read (word pin) {
  * Bit 2 == pin is analog (bit 1 tells whether DAC (1) or ADC (0))
  * Bit 3 == pin is unavailable
  */
-	word res;
-
 	if (!zz_pin_available (pin))
 		return 8;
 

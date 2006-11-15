@@ -14,11 +14,8 @@ static void if_erase_block (int i) {
 	for (j = 0; j < IF_PAGE_SIZE; j++)
 		if (IFLASH [i + j] != 0xffff)
 				break;
-	if (j != IF_PAGE_SIZE) {
-		cli;
+	if (j != IF_PAGE_SIZE)
 		if_erase_sys ((int)(&(IFLASH [i])));
-		sti;
-	}
 }
 
 int if_write (word a, word w) {
@@ -32,9 +29,7 @@ int if_write (word a, word w) {
 	if (IFLASH [a] != 0xffff)
 		return ERROR;
 #endif
-	cli;
 	if_write_sys (w, a);
-	sti;
 
 	return (IFLASH [a] == w) ? 0 : ERROR;
 #if 0

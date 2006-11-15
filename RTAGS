@@ -1211,8 +1211,14 @@ R061101A:
 	Cosmetics related to R061030A.
 
 R061104A:
+
 	- Sync'ed in Apps/VMesh2 from VERSA (V061017A), and Apps/GENESIS from
 	GENESIS.
 	- PicOS SYSVERSION / SYSVER_B is 2.0 now, Genesis SYSVER_B is 1.12,
 	VMesh SYSVER_B is 2.2.
 	- hstat() is not static if GLACIER.
+
+R061112A:
+
+	Watchdog stopped during FIM write/erase operations. This is how the
+	manual says things should be done.
