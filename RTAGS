@@ -1226,3 +1226,9 @@ R061112A:
 R061115A:
 
 	LBT threshold setting changed to percentage (0-100) instead of 0-16.
+
+R061122A:
+
+	Directory order in Makefiles created by mkmk is now deterministic (and
+	does not depend on the location of the program tree), which will
+	hopefully eliminate the bizarre relocation errors.

@@ -30,7 +30,8 @@ set Targets {
 # eCOG has no parameters for now
 
 #
-# Directories to be searched (in this order)
+# Directories to be searched (in this order). This also reflects the order of
+# search.
 #
 set DirList {
 		"PicOS/@TARGET@"
@@ -96,7 +97,7 @@ proc outprf { def cpu } {
 # Output a project file for CyanIDE. The second argument (compilation params)
 # ignored for now, but may be useful later.
 #
-	global DirList DirShort IncShort ToCompile Depend CWD
+	global IncShort ToCompile Depend CWD
 
 	# build a trimmed list of relevant directories
 	trimdir
@@ -971,6 +972,7 @@ proc main { } {
 	lappend ToCompile $fn
 
 	array unset Processed
+	set tcn ""
 
 	while { $ToCompile != "" } {
 		set CFName [lindex $ToCompile 0]
@@ -979,6 +981,7 @@ proc main { } {
 			continue
 		}
 		set Processed($CFName) ""
+		lappend tcn $CFName
 		# predefine symbols
 		if { $Run(mode) == "E" } {
 			set Symbols(__ECOG__) "@@@"
@@ -989,7 +992,8 @@ proc main { } {
 		array unset Symbols
 		array unset Scanned
 	}
-	set ToCompile [array names Processed]
+	array unset Processed
+	set ToCompile $tcn
 	dmp "TO COMPILE: '$ToCompile'"
 
 	if { $Run(mode) == "M" } {
