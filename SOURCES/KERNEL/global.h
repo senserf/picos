@@ -3883,7 +3883,7 @@ class	IHist {
 		clevel = sig;
 	};
 
-	inline void start () { History = new IHEntry [csize = 8]; };
+	inline void start () { History = new IHEntry [csize = 8]; init (); };
 	inline void stop () { delete History; };
 	
 	public:

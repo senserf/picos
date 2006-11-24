@@ -211,7 +211,7 @@ double IHist::avg (double ts, double du) const {
 
 double IHist::max (double ts, double du) const {
 /*
- * Maxmum starting from ts for du ITUs. If du is negative (or unspecified),
+ * Maximum starting from ts for du ITUs. If du is negative (or unspecified),
  * we go to the end.
  */
 	int i;
@@ -256,7 +256,7 @@ double IHist::max (double ts, double du) const {
 				s = History [i] . Value;
 		}
 	} else {
-		for (i++; i < NEntries, t < du; i++) {
+		for (i++; i < NEntries && t < du; i++) {
 			t += (double) (History [i] . Interval);
 			if (History [i] . Value > s)
 				s = History [i] . Value;
@@ -661,6 +661,7 @@ void    Transceiver::zz_start () {
 	// Remove from the temporary list
 	zz_nctrans = NULL;
 	nextp = NULL;
+	Activities = NULL;
 
 	if ((p = TheStation->Transceivers) == NULL) {
 		TheStation->Transceivers = this;

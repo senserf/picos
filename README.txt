@@ -784,3 +784,7 @@
 
  R061030A  Fixed lots of nonsense to make this thing compile (and hopefully
 	   run) under Linux, including x86_64. 
+
+ R061121A  Fixed a bug in double IHist::max (double, double) detected by Nick.
+
+ R061122A  Two more bugs found by Nick. Good work!!
