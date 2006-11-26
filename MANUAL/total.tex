@@ -712,7 +712,7 @@ microsecond.
 The visualization mode brings no restrictions compared to the
 virtual mode; however, it makes sense to agree to interpret the
 {\em ETU\/} as one second.
-This is beause the operation of entering the visualization mode
+This is because the operation of entering the visualization mode
 (\sect{rm_pr_vi}) specifies the number of real 
 milliseconds to be used as the synchronization grain (at those intervals
 the simulator will be synchronizing its virtual time to real time)
@@ -756,7 +756,7 @@ and there is no implicit interpretation of the internal time unit with
 respect to real time.
 It is illegal to redefine the {\em ETU\/} after the visualization mode
 has been entered.
-Note, however, that the visualization mode can be existed and entered
+Note, however, that the visualization mode can be exited and entered
 dynamically (\sect{rm_pr_vi}).
 
 If the same program is supposed to run in a simulation mode as well as in
@@ -976,7 +976,7 @@ These two predicates tell whether a {\tt BIG} number is {\em defined\/}
 \begin{verbatim}
         int def (BIG a);
 \end{verbatim}
-returning 1 when {\tt a} is defined (or definite) and 0 otherwise, and
+returning 1 when {\tt a} is defined (or finite) and 0 otherwise, and
 \begin{verbatim}
         int undef (BIG a);
 \end{verbatim}
@@ -1246,7 +1246,7 @@ Each seed represents a separate pattern of pseudo-random numbers.
 The initial values of the seeds (which are of type {\tt long}) can be specified
 when the \smurph\ program is called (see \sect{rm_un_ru}); otherwise,
 some default (always the same) values are assumed.
-This way simulation runs are replicatable, which is important from the
+This way simulation runs are replicable, which is important from the
 viewpoint of debugging.
 
 Intentionally, each of the three seeds represents one category of objects
@@ -1800,7 +1800,7 @@ The tag has no attributes and its text is empty.
 \begin{quote}
 \noindent\hspace{-0.35in}{\tt sxml\_t sxml\_add\_child[\_d] (sxml\_t node, const char *name, size\_t off); }\\ \hspace{0in}
 The function adds a child tag to {\tt node} and assigns {\tt name} to it.
-The {\tt off} srgument specifies the offset into the parent tag's 
+The {\tt off} argument specifies the offset into the parent tag's 
 character content.
 The returned value points to the child node.
 The offset argument can be used to order the children, which will appear in the
@@ -1877,7 +1877,7 @@ XML tree.
 The function reads the standard data file (stream {\tt Inf}---\sect{rm_au_io})
 and treats it as an XML string to be parsed and transformed into a tree.
 It returns the root node of the tree, which should be checked for 
-succesful conversion with {\tt sxml\_ok} and/or {\tt sxml\_error} (see above).
+successful conversion with {\tt sxml\_ok} and/or {\tt sxml\_error} (see above).
 If the argument is not {\tt '{\char092}0'}, its occurrence as the first
 character of a line will terminate the interpretation of the input file.
 \end{quote}
@@ -2767,7 +2767,7 @@ of real-life radio channels relevant from the viewpoint of modeling signal
 propagation and packet reception.
 Owing to the large and unforeseeable set of possible channel models that
 people may want to plug into \smurph\ simulators, the package does not
-presume any build-in characteristics, except for the timing of signals
+presume any built-in characteristics, except for the timing of signals
 according to the distance among different geographical points.
 
 The radio channel equivalent of a port is called a {\em transceiver}.
@@ -3564,7 +3564,7 @@ the configuration of its transceivers.
 In particular, those transceivers are assigned positions represented by
 pairs (or triplets) of coordinates (\sect{rm_to_tr}).
 The distance between a pair of ports is determined as the Euclidean distance
-in two or three dimesnions and expressed in {\em DU\/}s (\sect{rm_mp_ti}).
+in two or three dimensions and expressed in {\em DU\/}s (\sect{rm_mp_ti}).
 
 The primary reason for extending the base type {\tt RFChannel} is to define
 a collection of virtual functions describing the channels properties, viz.\ the
@@ -3578,7 +3578,7 @@ fate of packets is given in \sect{rm_tr_ra_ea}.
 \begin{quote}
 \noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_att (double sl, double d, Transceiver *src, Transceiver *dst);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
-This methods describes signal attenuation depending on the distance and possibly
+This method describes signal attenuation depending on the distance and possibly
 other attributes that can be extracted from the source and destination
 transceivers.
 The first argument is the original (transmitted) signal level, the second
@@ -3650,9 +3650,9 @@ interference histogram applies to the packet rather than the preamble.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt Boolean RFC\_cut (double x, double s);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_cut (double x, double s);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
-This method returns the {\em cut off\/} distance (in {\em ETU\/}s), i.e., the
+This method returns the {\em cut off\/} distance (in {\em DU\/}s), i.e., the
 distance after which a signal ceases to be noticeable (causes no perceptible
 interference).
 The two arguments specify the transmission power and the receiver sensitivity.
@@ -3683,7 +3683,7 @@ The first four arguments are as for {\tt RFC\_erb}.
 The method returns the randomized number of received
 bits (under the conditions described by the first four arguments)
 preceding the occurrence of
-a user-defineable ``special''
+a user-definable ``special''
 configuration of bits described by the last argument.
 Typically, that configuration
 (the timing of its occurrence described as a bit interval)
@@ -3772,8 +3772,8 @@ error rates parameterized by detailed interference profiles.
 
 The interpretation of the signal levels and their role in determining the fate
 of bits and packets is up to the user-defined assessment functions. 
-For example, tge default variant of {\tt RFC\_add} assumes the linear
-interpretation of the signals, which is internally prefered,
+For example, the default variant of {\tt RFC\_add} assumes the linear
+interpretation of the signals, which is internally preferred,
 as it simplifies signal combination at the receivers.
 It is possible to express signal levels in dBm (and their ratios in dB);
 however, their interpretation must be consistent across all the
@@ -4348,7 +4348,7 @@ process type was defined (\sect{rm_pr_dp}).
 It is assumed that these types agree with those specified in the
 process type definition and the actual pointers are cast to the types
 declared for {\tt S} and {\tt F}.
-It is posible for processes of the same type to be spawned by processes
+It is possible for processes of the same type to be spawned by processes
 ({\em fathers\/}) of different types.
 In such a case, the {\tt F} pointer, if used, should be cast properly, except
 when the reference is to a generic attribute (e.g., a method)
@@ -4405,12 +4405,12 @@ A non-process descendant (e.g., {\tt RVariable} or {\tt EObject}) is simply
 moved to the new owner for the practically sole purpose of being locatable
 by {\tt DSD} as an exposable object (\sect{rm_ds_om_oh}).
 Normally, a process that terminates itself would take care to clean up its
-dependants, although sometimes it may be difficult, especially when those
+dependents, although sometimes it may be difficult, especially when those
 descendants are processes.
 While it is illegal to use standard C++ constructors for a process, destructors
 are OK.
 A process that expects to be terminated unexpectedly
-can use its destructor to make sure that the unnecessary dependants and other
+can use its destructor to make sure that the unnecessary dependents and other
 dynamic objects are always cleaned up properly.
 
 There exists a way to terminate all processes owned by a particular station.
@@ -5164,7 +5164,7 @@ The visualization mode is available to any simulation program that
 has been compiled with {\tt -W} (\sect{rm_un_cr}).
 It must be explicitly entered by the program and can be exited at any time.
 When the visualization mode is {\em not\/} active, the simulator executes in
-a purely virtual manner, with time being entirely abstract and bearng no
+a purely virtual manner, with time being entirely abstract and bearing no
 relationship to the execution time of the program.
 
 The visualization mode is entered by calling this (global) function:
@@ -5241,7 +5241,7 @@ the process declares that it wants to be awakened in state {\em where},
 {\em delay\/} {\em ITU\/}s after the current moment.
 
 The delay can also be specified in {\em ETU\/}s by using the following method
-intead of {\tt wait}:
+instead of {\tt wait}:
 \begin{verbatim}
         void delay (double etus, int state);
         void delay (double etus, int state, LONG order);
@@ -8993,7 +8993,7 @@ If the method returns {\tt YES}, the packet will undergo another
 assessment at stage {\em E\/}---regarding the successful
 reception of its last bit.
 This second assessment will be handled by {\tt RFC\_eot}.
-Iny any case, also following a negative assessment by {\tt RFC\_bot},
+In any case, also following a negative assessment by {\tt RFC\_bot},
 the packet will continue contributing its signal to the population of
 activities perceived by the transceiver until stage {\em E}, i.e., until
 is heard no more.
@@ -9097,7 +9097,7 @@ histogram, i.e., the sum of all {\tt Interval}s, in bits, based on the specified
 transmission rate {\tt r}.
 The result is obtained by dividing the value returned by {\tt duration} by
 {\tt r} and, if the fractional part is nonzero, applying
-the randomized adjustement described at {\tt entry}.
+the randomized adjustment described at {\tt entry}.
 
 \begin{verbatim}
         double avg ();
@@ -9132,7 +9132,7 @@ The first bit of the histogram is numbered 0.
 Intervals extending behind the histogram are treated as in the previous case.
 Argument {\tt r} specifies the transmission rate needed to transform
 time intervals into bits.
-If the last argument is not specfified (or is negative), all the bits of the
+If the last argument is not specified (or is negative), all the bits of the
 histogram starting at bit number {\tt sb} are examined.
 If {\tt sb} is negative, {\tt nb} bits are scanned from the end of the
 activity represented by the histogram.
@@ -9453,7 +9453,7 @@ condition: the packet must be addressed to the station running the process
 that has issued the wait request.
 Formally, it means that {\tt isMy} (\sect{rm_po_wr_rp}) returns {\tt YES}
 for the packet (this also covers broadcast scenarios in which the current
-station is one of possibly multiple receipients).
+station is one of possibly multiple recipients).
 \end{quote}
 
 \begin{quote}
@@ -9465,7 +9465,7 @@ condition: the packet must be addressed to the station running the process
 that has issued the wait request.
 Formally, it means that {\tt isMy} (\sect{rm_po_wr_rp}) returns {\tt YES}
 for the packet (this also covers broadcast scenarios in which the current
-station is one of possibly multiple receipients).
+station is one of possibly multiple recipients).
 This is the most natural way of receiving packets at their proper
 destinations.
 \end{quote}
@@ -9648,7 +9648,7 @@ If the event type is {\tt BOT} or {\tt EOT},
 Similar to the port variant of the event, it is possible to
 declare a special mode of {\tt ANYEVENT}, whereby the event is never pending
 (see~\sect{rm_po_wr}).
-This is accomplished by invoking the {\tt setAevMode} moethod of
+This is accomplished by invoking the {\tt setAevMode} method of
 {\tt Transceiver}, whose properties are identical to its {\tt Port}
 counterpart.
 
@@ -13096,7 +13096,7 @@ Then, if the standard performance measures are effective for the channel, the
 counters are updated in the following way:
 \begin{itemize}
 \item
-Whenever a packet transmission is started on a tranceiver interfaced to the
+Whenever a packet transmission is started on a transceiver interfaced to the
 radio channel, {\tt NTAttempts} is incremented by one.
 \item
 Whenever a packet transmission on a transceiver interfaced to the channel
@@ -15524,13 +15524,13 @@ The station-relative transceiver {\tt ID}.
 The distance in {\em DU\/}s from the current transceiver.
 \item
 The coordinates (in {\em DU\/}s) specifying the neighbor's location.
-These can be two or three numbers dependening on the dimensionality of the
-noe deployment space (\sect{rm_to_tr_cr}).
+These can be two or three numbers depending on the dimensionality of the
+node deployment space (\sect{rm_to_tr_cr}).
 \end{itemize}
 
 The information displayed by the ``screen'' form of the exposure contains the
 same data as the ``paper'' form.
-Owing to the rigid structure of the diplay template (\sect{rm_ds_tp}), the
+Owing to the rigid structure of the display template (\sect{rm_ds_tp}), the
 list of node coordinates always includes three items (with the third item
 being cropped out by the standard geometry of the window).
 In the 2-D case, the third coordinate is blank.

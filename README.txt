@@ -788,3 +788,5 @@
  R061121A  Fixed a bug in double IHist::max (double, double) detected by Nick.
 
  R061122A  Two more bugs found by Nick. Good work!!
+
+ R061125A  Corrections to the manual by Nick.
