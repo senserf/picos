@@ -43,6 +43,54 @@ set DirList {
 		"./*"
 }
 
+#
+# List of patterns identifying the "to compile" files to be moved to the end
+# of list, e.g., because of relocation problems.
+#
+set TocTail {
+		"kernel"
+}
+
+proc lappend_toc { li i } {
+
+	global TocTail
+	upvar $li l
+
+	if ![info exists l] {
+		lappend l $i
+		return
+	}
+
+	if { [lsearch -exact $l $i] >= 0 } {
+		return
+	}
+
+	foreach p $TocTail {
+		if [regexp -nocase $p $i] {
+			lappend l $i
+			return
+		}
+	}
+
+	set x 0
+	foreach u $l {
+		set f 0
+		foreach p $TocTail {
+			if [regexp -nocase $p $u] {
+				set f 1
+				break
+			}
+		}
+		if $f {
+			# insert here
+			set l [linsert $l $x $i]
+			return
+		}
+		incr x
+	}
+	lappend l $i
+}
+
 proc lappend_unique { li i } {
 
 	upvar $li l
@@ -752,7 +800,7 @@ proc scanfile { fname } {
 					lappend_unique NotFound $nfn
 				} else {
 					dmp "NEEDED: $nfn added to compile"
-					lappend_unique ToCompile $fn
+					lappend_toc ToCompile $fn
 				}
 			}
 			continue
@@ -969,7 +1017,7 @@ proc main { } {
 		errab "app.c not found in current directory"
 	}
 
-	lappend ToCompile $fn
+	lappend_toc ToCompile $fn
 
 	array unset Processed
 	set tcn ""
@@ -981,7 +1029,7 @@ proc main { } {
 			continue
 		}
 		set Processed($CFName) ""
-		lappend tcn $CFName
+		lappend_toc tcn $CFName
 		# predefine symbols
 		if { $Run(mode) == "E" } {
 			set Symbols(__ECOG__) "@@@"

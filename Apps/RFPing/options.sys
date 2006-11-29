@@ -22,6 +22,3 @@
 #define	LEDS_DRIVER	1
 #define	RADIO_USE_LEDS	7
 #define	CODE_LONG_INTS	1
-#define	LBT_DELAY	8
-#define	LBT_THRESHOLD	2
-

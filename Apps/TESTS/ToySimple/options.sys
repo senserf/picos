@@ -1,1 +1,5 @@
-// Insert here applications-specific options
+#ifdef	MALLOC_STATS
+#undef	MALLOC_STATS
+#endif
+
+#define	MALLOC_STATS	1

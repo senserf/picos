@@ -1114,6 +1114,13 @@ static void uart_lock (uart_t *u) {
 /* Interrupt service routines */
 /* ========================== */
 interrupt (UART0TX_VECTOR) uart0tx_int (void) {
+
+	// Disable until a character arrival
+	_BIC (IE1, UTXIE0);
+
+	// Enable other interrupts. Note: we do this only for UART0.
+	_BIS_SR (GIE);
+
 	RISE_N_SHINE;
 
 	if ((zz_uart [0] . flags & UART_FLAGS_OUT) == 0) {
@@ -1123,14 +1130,16 @@ interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 		_BIC (zz_uart [0] . flags, UART_FLAGS_OUT);
 		TXBUF0 = zz_uart [0] . out;
 	}
-	// Disable until a character arrival
-	_BIC (IE1, UTXIE0);
 	i_trigger (ETYPE_IO, devevent (UART_A, WRITE));
 }
 
 interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 
 #define	ua	(zz_uart + 0)
+
+	_BIC (IE1, URXIE0);
+	// Enable other interrupts (UART0 only)
+	_BIS_SR (GIE);
 
 #if UART_INPUT_BUFFER_LENGTH > 1
 
@@ -1150,7 +1159,11 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 		RISE_N_SHINE;
 		i_trigger (ETYPE_IO, devevent (UART_A, READ));
 	}
-#else
+
+	_BIC_SR (GIE);
+	_BIS (IE1, URXIE0);
+
+#else	/* UART_INPUT_BUFFER_LENGTH */
 
 #if UART_INPUT_FLOW_CONTROL
 	clear_ready_to_receive;
@@ -1164,7 +1177,6 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 		_BIS (ua -> flags, UART_FLAGS_IN);
 		ua -> in = RXBUF0;
 	}
-	_BIC (IE1, URXIE0);
 	i_trigger (ETYPE_IO, devevent (UART_A, READ));
 #endif
 

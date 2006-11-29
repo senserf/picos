@@ -1232,3 +1232,16 @@ R061122A:
 	Directory order in Makefiles created by mkmk is now deterministic (and
 	does not depend on the location of the program tree), which will
 	hopefully eliminate the bizarre relocation errors.
+
+R061128A:
+
+	Another fix to mkmk. I have no clue what is going on, but this time I
+	have moved kernel.o to be the last loadable file. This seems to fix the
+	relocation problems for good.
+
+	UART interrupts made interruptible. This is for UART0 only, but for
+	both ends (TX and RX). Apparently, i_trigger was too costly timewise
+	and caused lost ticks for VERSA TX strobe timer. Generally, as long
+	as we are not desperate about stack space, it may make sense to keep
+	the UART interrupts interruptible.
+	COLLECT_RXDATA_ON_LOW set to 0 as default (as requested by RFM).
