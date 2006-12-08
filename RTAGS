@@ -1246,4 +1246,7 @@ R061128A:
 	the UART interrupts interruptible.
 	COLLECT_RXDATA_ON_LOW set to 0 as default (as requested by RFM).
 
+R061207A:
 
+	if_read added as a dummy function (macro) for compatibility with VUEE
+	models.
