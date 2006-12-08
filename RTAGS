@@ -1245,3 +1245,5 @@ R061128A:
 	as we are not desperate about stack space, it may make sense to keep
 	the UART interrupts interruptible.
 	COLLECT_RXDATA_ON_LOW set to 0 as default (as requested by RFM).
+
+
