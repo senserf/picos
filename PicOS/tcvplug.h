@@ -9,6 +9,8 @@
 
 #if	TCV_PRESENT
 
+#ifndef	__SMURPH__
+
 #if	TCV_TIMERS
 void	tcvp_settimer (address, word);
 void	tcvp_cleartimer (address);
@@ -27,6 +29,8 @@ void	tcvp_hook (address, address*);
 void	tcvp_unhook (address);
 #endif
 
+#endif	/* __SMURPH __ */
+
 /* Disposition codes */
 #define	TCV_DSP_PASS	0
 #define	TCV_DSP_DROP	1
@@ -35,6 +39,6 @@ void	tcvp_unhook (address);
 #define	TCV_DSP_XMT	4
 #define	TCV_DSP_XMTU	5
 
-#endif
+#endif	/* TCV_PRESENT */
 
 #endif

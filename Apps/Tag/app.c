@@ -10,6 +10,8 @@
 #include "diag.h"
 #include "msg_tags.h"
 #include "lib_apps.h"
+#include "app_tarp_if.h"
+
 // #include "trc.h"
 
 heapmem {80, 20}; // how to find out a good ratio?
@@ -405,7 +407,11 @@ process (root, void)
 	nodata;
 
 	entry (RS_INIT)
-		local_host = (nid_t)host_id;
+
+		local_host = (nid_t) host_id;
+		net_id = 85;	// 0x55 set network id to any value
+		master_host = 1;
+
 		tarp_ctrl.param &= 0xFE; // routing off
 		ui_out (RS_INIT, welcome_str);
 		ui_obuf = get_mem (RS_INIT, UI_BUFLEN);

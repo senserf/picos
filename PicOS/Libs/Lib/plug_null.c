@@ -5,6 +5,7 @@
 #ifdef	__SMURPH__
 // The simulator
 #include "board.h"
+#include "stdattr.h"
 #else
 // The real world
 #include "tcvplug.h"
@@ -35,9 +36,7 @@ const tcvplug_t plug_null =
 #include "plug_null_node_data.h"
 #endif
 
-// This is how we should access node attributes, i.e., the plugin's dynamic
-// data. __NA expands into TheNode-> in the simulator.
-#define	ndesc_na	__NA (NNode, desc)
+#define	desc	_dac (NNode, desc)
 
 static int tcv_ope_null (int phy, int fd, va_list plid) {
 /*
@@ -45,19 +44,19 @@ static int tcv_ope_null (int phy, int fd, va_list plid) {
  */
 	int i;
 
-	if (ndesc_na == NULL) {
-		ndesc_na = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
-		if (ndesc_na == NULL)
+	if (desc == NULL) {
+		desc = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
+		if (desc == NULL)
 			syserror (EMALLOC, "plug_null tcv_ope_null");
 		for (i = 0; i < TCV_MAX_PHYS; i++)
-			ndesc_na [i] = NONE;
+			desc [i] = NONE;
 	}
 
 	/* phy has been verified by TCV */
-	if (ndesc_na [phy] != NONE)
+	if (desc [phy] != NONE)
 		return ERROR;
 
-	ndesc_na [phy] = fd;
+	desc [phy] = fd;
 	return 0;
 }
 
@@ -65,17 +64,17 @@ static int tcv_clo_null (int phy, int fd) {
 
 	/* phy/fd has been verified */
 
-	if (ndesc_na == NULL || ndesc_na [phy] != fd)
+	if (desc == NULL || desc [phy] != fd)
 		return ERROR;
 
-	ndesc_na [phy] = NONE;
+	desc [phy] = NONE;
 	return 0;
 }
 
 static int tcv_rcv_null (int phy, address p, int len, int *ses,
 							     tcvadp_t *bounds) {
 
-	if (ndesc_na == NULL || (*ses = ndesc_na [phy]) == NONE)
+	if (desc == NULL || (*ses = desc [phy]) == NONE)
 		return TCV_DSP_PASS;
 
 	bounds->head = bounds->tail = 0;
@@ -98,3 +97,9 @@ static int tcv_xmt_null (address p) {
 
 	return TCV_DSP_DROP;
 }
+
+#ifdef	__SMURPH__
+#include "stdattr_undef.h"
+#endif
+
+#undef desc

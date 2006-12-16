@@ -1,11 +1,12 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005			*/
+/* Copyright (C) Olsonet Communications, 2002 - 2006			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
 
 #ifdef __SMURPH__
 
 #include "board.h"
+#include "stdattr.h"
 
 #else	/* if not the simulator */
 
@@ -523,3 +524,7 @@ __PUBLF (TNode, int, net_close) (word state) {
 	net_plug = -1;
 	return rc;
 }
+
+#ifdef __SMURPH__
+#include "stdattr_undef.h"
+#endif

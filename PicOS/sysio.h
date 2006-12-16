@@ -476,6 +476,9 @@ int	io (int, int, int, char*, int);
 
 /* User wait */
 void	wait (word, word);
+/* A prefered alias */
+#define	when(a,b)	wait (a,b)
+
 /* Timer wait */
 void	delay (word, word);
 word	dleft (int);
@@ -804,6 +807,29 @@ void	adc_stop (void);
 /* Tools for isolating SMURPH-specific code */
 /* ======================================== */
 
+#define	_da(a)		a
+#define	_dac(a,b)	b
+#define	_dad(t,a)	a
+
+#define	thread(p)	process (p, void)
+#define	endthread	endprocess(0)
+#define	runthread(a)	fork (a, NULL)
+
+#define	strand(a,b)	process (a, b)
+#define	endstrand	endthread
+#define	runstrand(a,b)	fork (a, b)
+
+#define	praxis_starter(a)	//
+
+#define	__STATIC	static
+#define	__CONST		const
+#define	__EXTERN	extern
+
+#define	__PRIVF(ot,tp,nam)	static tp nam
+#define	__PUBLF(ot,tp,nam)	tp nam
+#define	__PUBLS(ot,tp,nam)	__PRIVF (ot, tp, nam)
+
+// FIXME: cleanup these
 // Function declaration. In the simulator, these macros expand as:
 // #define	PRIVF(tp,nam)	tp Node::nam
 // #define	PUBLF(tp,nam)	tp Node::nam
@@ -815,9 +841,6 @@ void	adc_stop (void);
 #define	__RELEASE	release
 #define	__NODATA	nodata
 #define	__ENDPROCESS(a)	endprocess (a)
-#define	__PRIVF(ot,tp,nam)	static tp nam
-#define	__PUBLF(ot,tp,nam)	tp nam
-#define	__STATIC	static
 #define	__NA(a,b)	(b)
 #define	__FORK(a)	fork (a, NULL)
 

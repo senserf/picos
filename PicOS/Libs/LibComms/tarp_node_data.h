@@ -6,21 +6,30 @@
 
 #ifdef	__SMURPH__
 
-tarpCtrlType tarp_ctrl;
+tarpCtrlType _da (tarp_ctrl);
+
 __STATIC word tarp_cyclingSeq;
 #if SPD_RSSI_THRESHOLD
 __STATIC bool	strong_signal;
 #endif
 
+nid_t	_da (net_id); 
+nid_t	_da (local_host);
+nid_t   _da (master_host);
+
 #else	/* The real world */
 
-tarpCtrlType tarp_ctrl = {0, 0, 0, 0xA3, 0};
+tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, 0xA3, 0};
 __STATIC word tarp_cyclingSeq = 0;
 #if SPD_RSSI_THRESHOLD
 __STATIC bool	strong_signal = YES;
 #endif
 
-#endif	/* __SMURPH__ */
+nid_t	_da (net_id) = 85;
+nid_t	_da (local_host) = 97;
+nid_t   _da (master_host) = 1;
+
+#endif	/* SMURPH or PicOS */
 
 #if SPD_RSSI_THRESHOLD == 0
 #define	strong_signal	YES
@@ -55,23 +64,24 @@ __STATIC spdcType _spdCache;
  */
 #if TARP_CACHES_TEST
 
-int getSpdCacheSize();
-int getDdCacheSize();
-int getDd(int i, word * host, word * seq);
-int getSpd(int i, word * host, word * hop);
-word getDdM(word * seq);
-word getSpdM(word * hop);
+int _da (getSpdCacheSize) ();
+int _da (getDdCacheSize) ();
+int _da (getDd) (int i, word * host, word * seq);
+int _da (getSpd) (int i, word * host, word * hop);
+word _da (getDdM) (word * seq);
+word _da (getSpdM) (word * hop);
 
 #endif	/* TARP_CACHES_TEST */
 
+void _da (tarp_init) ();
+int _da (tarp_rx) (address buffer, int length, int *ses);
+int _da (tarp_tx) (address buffer);
+
 word tarp_findInSpd (nid_t host);
-void tarp_init();
 bool dd_fresh (headerType * buffer);
 void upd_spd (headerType * msg);
 int check_spd (headerType * msg);
-int tarp_rx (address buffer, int length, int *ses);
 void setHco (headerType * msg);
-int tarp_tx (address buffer);
 
 #endif	/* __SMURPH__ */
 

@@ -46,55 +46,55 @@ __STATIC int		physinfo [TCV_MAX_PHYS];
 #if TCV_TIMERS
 	word runtq ();
 #endif
+	void dmpq (qhead_t *q);
 	void rlp (hblock_t *p);
 	hblock_t *apb (word size);
 
     public:
 
-	void tcv_endp (address p);
-	int tcv_open (word state, int phy, int plid, ... );
-	int tcv_close (word state, int fd);
-	void tcv_plug (int ord, const tcvplug_t *pl);
-	address tcv_rnp (word state, int fd);
-	int tcv_qsize (int fd, int disp);
-	int tcv_erase (int fd, int disp);
-	address tcv_wnpu (word state, int fd, int length);
-	address tcv_wnp (word state, int fd, int length);
-	int tcv_read (address p, char *buf, int len);
-	int tcv_write (address p, const char *buf, int len);
-	void tcv_drop (address p);
-	int tcv_left (address p);
-	void tcv_urgent (address p);
-	bool tcv_isurgent (address p);
-	int tcv_control (int fd, int opt, address arg);
+	void    	_da (tcv_endp) (address p);
+	int  		_da (tcv_open) (word state, int phy, int plid, ... );
+	int 		_da (tcv_close) (word state, int fd);
+	void 		_da (tcv_plug) (int ord, const tcvplug_t *pl);
+	address 	_da (tcv_rnp) (word state, int fd);
+	int 		_da (tcv_qsize) (int fd, int disp);
+	int 		_da (tcv_erase) (int fd, int disp);
+	address 	_da (tcv_wnpu) (word state, int fd, int length);
+	address 	_da (tcv_wnp) (word state, int fd, int length);
+	int 		_da (tcv_read) (address p, char *buf, int len);
+	int 		_da (tcv_write) (address p, const char *buf, int len);
+	void 		_da (tcv_drop) (address p);
+	int 		_da (tcv_left) (address p);
+	void 		_da (tcv_urgent) (address p);
+	bool 		_da (tcv_isurgent) (address p);
+	int 		_da (tcv_control) (int fd, int opt, address arg);
 
-	int tcvp_control (int phy, int opt, address arg);
-	void tcvp_assign (address p, int ses);
-	void tcvp_attach (address p, int phy);
-	address tcvp_clone (address p, int disp);
-	void tcvp_dispose (address p, int dsp);
-	address tcvp_new (int size, int dsp, int ses);
+	int 		_da (tcvp_control) (int phy, int opt, address arg);
+	void 		_da (tcvp_assign) (address p, int ses);
+	void 		_da (tcvp_attach) (address p, int phy);
+	address 	_da (tcvp_clone) (address p, int disp);
+	void 		_da (tcvp_dispose) (address p, int dsp);
+	address 	_da (tcvp_new) (int size, int dsp, int ses);
 #if TCV_HOOKS
-	void tcvp_hook (address p, address *h);
-	void tcvp_unhook (address p);
+	void 		_da (tcvp_hook) (address p, address *h);
+	void 		_da (tcvp_unhook) (address p);
 #endif
 #if TCV_TIMERS
-	void tcvp_settimer (address p, word del);
-	void tcvp_cleartimer (address p);
+	void 		_da (tcvp_settimer) (address p, word del);
+	void 		_da (tcvp_cleartimer) (address p);
 #endif
-	int tcvp_length (address p);
+	int 		_da (tcvp_length) (address p);
 
-	int tcvphy_reg (int phy, ctrlfun_t ps, int info);
-	int tcvphy_rcv (int phy, address p, int len);
-	address tcvphy_get (int phy, int *len);
-	address tcvphy_top (int phy);
-	void tcvphy_end (address pkt);
-	int tcvphy_erase (int phy);
+	int 		_da (tcvphy_reg) (int phy, ctrlfun_t ps, int info);
+	int 		_da (tcvphy_rcv) (int phy, address p, int len);
+	address 	_da (tcvphy_get) (int phy, int *len);
+	address 	_da (tcvphy_top) (int phy);
+	void 		_da (tcvphy_end) (address pkt);
+	int 		_da (tcvphy_erase) (int phy);
 
-	void tcv_init ();
+	void		_da (tcv_init) ();
 
-	void dmpq (qhead_t *q);
-	void tcv_dumpqueues (void);
+	void 		_da (tcv_dumpqueues) (void);
 
 #endif	/* __SMURPH__ (method definitions) */
 

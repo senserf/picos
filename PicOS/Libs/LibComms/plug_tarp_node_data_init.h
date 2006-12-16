@@ -1,2 +1,2 @@
 
-	desc = NULL;
+	_da (desc) = NULL;

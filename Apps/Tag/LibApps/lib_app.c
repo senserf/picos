@@ -17,10 +17,12 @@ pongParamsType pong_params = {	5120, 	// freq_maj
 
 word	app_flags = 0;
 lword	host_passwd = 0;
-const lword	host_id = 0xBACA0061;
-nid_t	net_id = 85; // 0x55 set network id to any value
-nid_t	local_host = 97;
-nid_t   master_host = 1;
+const 	lword	host_id = 0xBACA0061;
+
+// These are now defined in tarp_node_data.h and must be set by the praxis root
+extern	nid_t	net_id;
+extern	nid_t	local_host;
+extern	nid_t   master_host;
 
 appCountType app_count = {0, 0, 0};
 

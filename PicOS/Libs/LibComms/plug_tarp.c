@@ -6,6 +6,7 @@
 #ifdef	__SMURPH__
 
 #include "board.h"
+#include "stdattr.h"
 
 #else
 
@@ -44,10 +45,10 @@ const tcvplug_t plug_tarp =
 
 #define myName "pl_tarp"
 
-#define	desc_na		__NA (TNode, desc)
-#define	tarp_init_na	__NA (TNode, tarp_init)
-#define	tarp_rx_na	__NA (TNode, tarp_rx)
-#define	tarp_tx_na	__NA (TNode, tarp_tx)
+#define	desc		_dac (TNode, desc)
+#define	tarp_init	_dac (TNode, tarp_init)
+#define	tarp_rx		_dac (TNode, tarp_rx)
+#define	tarp_tx		_dac (TNode, tarp_tx)
 
 static int tcv_ope_tarp (int phy, int fd, va_list plid) {
 
@@ -58,24 +59,24 @@ static int tcv_ope_tarp (int phy, int fd, va_list plid) {
 
 	int i;
 
-	if (desc_na == NULL) {
-		desc_na = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
-		if (desc_na == NULL)
+	if (desc == NULL) {
+		desc = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
+		if (desc == NULL)
 			syserror (EMALLOC, myName);
 		for (i = 0; i < TCV_MAX_PHYS; i++)
-			desc_na [i] = NONE;
+			desc [i] = NONE;
 	}
 
 	/* phy has been verified by TCV */
-	if (desc_na [phy] != NONE) {
+	if (desc [phy] != NONE) {
 		dbg_2 (0xA000); // tcv_ope_tarp phy?
 		diag ("%s: phy?", myName);
 		return ERROR;
 	}
 
-	desc_na [phy] = fd;
+	desc [phy] = fd;
 
-	tarp_init_na ();
+	tarp_init ();
 	return 0;
 }
 
@@ -83,19 +84,19 @@ static int tcv_clo_tarp (int phy, int fd) {
 
 	/* phy/fd has been verified */
 
-	if (desc_na == NULL || desc_na [phy] != fd) {
+	if (desc == NULL || desc [phy] != fd) {
 		dbg_2 (0xB000); // tcv_clo_tarp desc
 		diag ("%s: desc?", myName);
 		return ERROR;
 	}
 
-	desc_na [phy] = NONE;
+	desc [phy] = NONE;
 	return 0;
 }
 
 static int tcv_rcv_tarp (int phy, address p, int len, int *ses, tcvadp_t *bounds) {
 	int	rc;
-	if (desc_na == NULL || (*ses = desc_na [phy]) == NONE) {
+	if (desc == NULL || (*ses = desc [phy]) == NONE) {
 		return TCV_DSP_PASS;
 	}
 
@@ -103,7 +104,7 @@ static int tcv_rcv_tarp (int phy, address p, int len, int *ses, tcvadp_t *bounds
 	// bounds in tcv_out_tarp as well (?)
 	bounds->head = bounds->tail = 0;
 
-	rc = tarp_rx_na (p, len, ses);
+	rc = tarp_rx (p, len, ses);
 	return rc;
 	
 }
@@ -116,7 +117,7 @@ static int tcv_frm_tarp (address p, int phy, tcvadp_t *bounds) {
 }
 
 static int tcv_out_tarp (address p) {
-	int rc = tarp_tx_na (p);
+	int rc = tarp_tx (p);
 	return rc;
 
 }
@@ -124,3 +125,12 @@ static int tcv_out_tarp (address p) {
 static int tcv_xmt_tarp (address p) {
 	return TCV_DSP_DROP;
 }
+
+#ifdef	__SMURPH__
+#include "stdattr_undef.h"
+#endif
+
+#undef	desc
+#undef	tarp_init
+#undef	tarp_rx	
+#undef	tarp_tx

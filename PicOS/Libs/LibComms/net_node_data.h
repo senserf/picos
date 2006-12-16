@@ -5,12 +5,12 @@
 
 // We need method headers in here
 
-int net_opt (int opt, address arg);
-int net_qera (int d);
-int net_init (word phys, word plug);
-int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr);
-int net_tx (word state, char * buf, int len, byte encr);
-int net_close (word state);
+int _da (net_opt)   (int opt, address arg);
+int _da (net_qera)  (int d);
+int _da (net_init)  (word phys, word plug);
+int _da (net_rx)    (word state, char ** buf_ptr, address rssi_ptr, byte encr);
+int _da (net_tx)    (word state, char * buf, int len, byte encr);
+int _da (net_close) (word state);
 
 #if RADIO_DRIVER
 int radio_init (word plug);
@@ -39,7 +39,7 @@ int net_plug;
 
 #else	// In the real world
 
-int net_fd = -1;
+int net_fd   = -1;
 int net_phys = -1;
 int net_plug = -1;
 

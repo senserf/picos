@@ -6,6 +6,7 @@
 #ifdef	__SMURPH__
 
 #include "board.h"
+#include "stdattr.h"
 
 #else
 
@@ -331,3 +332,7 @@ __PUBLF (TNode, int, tarp_tx) (address buffer) {
 	tarp_ctrl.flags = 0;
 	return rc;
 }
+
+#ifdef	__SMURPH__
+#include "stdattr_undef.h"
+#endif

@@ -59,7 +59,7 @@ static void rlp (hblock_t*);
 static const tcvplug_t	*plugins [TCV_MAX_PLUGS];
 
 
-__PUBLF (PicOSNode, void, dmpq) (qhead_t *q) {
+__PRIVF (PicOSNode, void, dmpq) (qhead_t *q) {
 
 #if DUMP_MEMORY
 	hblock_t *pp;
@@ -386,9 +386,9 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	battr_t attp;
 	sesdesc_t *s;
 
-#ifdef	__UNIX__
+#ifdef	__SMURPH__
 #define	va_par(s)	ap
-	va_list	ap;
+	va_list		ap;
 	va_start (ap, plid);
 #endif
 	/* Check if we have the plugin and the phys */
@@ -475,7 +475,7 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 
 	/* We block */
 	if (state != WNONE) {
-		wait (eid, state);
+		when (eid, state);
 		RELEASE;
 	}
 
@@ -517,7 +517,7 @@ __PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 	/* We block */
 	s->pid = getpid ();	/* We may use it for something later */
 	if (state != WNONE) {
-		wait (eid, state);
+		when (eid, state);
 		RELEASE;
 	}
 
@@ -553,7 +553,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 	if (q_end (b, rq)) {
 		/* The queue is empty */
 		if (state != WNONE) {
-			wait ((int)rq, state);
+			when ((int)rq, state);
 			RELEASE;
 		}
 		return NULL;

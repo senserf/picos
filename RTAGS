@@ -1250,3 +1250,13 @@ R061207A:
 
 	if_read added as a dummy function (macro) for compatibility with VUEE
 	models.
+
+R061216A:
+
+	The first version with Tags and Pegs (TNP) existing in a single version
+	for VUEE as well as PicOS. See Apps/TNP. mkmk redone. It can now compile
+	multiple praxes co-existing in the same directory. This is needed for
+	VUEE because VUEE projects may consist of multiple correlated praxes.
+	A few macros added to provide alternative names for those operations
+	of PicOC that tend to collide with SMURPH. I am going to document this
+	soon.
