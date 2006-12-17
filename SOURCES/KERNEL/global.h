@@ -685,6 +685,8 @@ int     zz_aerror (char*);              // Same, but after arithmetic error
 #endif
 void    zz_ierror (char*);              // Fatal error before starting
 
+void	trace (const char*, ...);
+
 #if	ZZ_NFP
 
 void 	zz_nfp (const char*);

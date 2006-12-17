@@ -117,8 +117,8 @@ typedef void (*SIGARG) (int);
 
 /* The following defs are inserted by maker. Everything starting with the */
 /* next line will be removed and written from scratch.                    */
-#define  ZZ_SOURCES      "/compsci/nevis2/cshome/pawel/SIDE/SOURCES"
-#define  ZZ_LIBPATH      "/compsci/nevis2/cshome/pawel/SIDE/LIB"
-#define  ZZ_INCPATH      "/compsci/nevis2/cshome/pawel/SIDE/Examples/IncLib"
+#define  ZZ_SOURCES      "/home/pawel/SOFTWARE/SIDE/SOURCES"
+#define  ZZ_LIBPATH      "/home/pawel/SOFTWARE/SIDE/LIB"
+#define  ZZ_INCPATH      "/home/pawel/SOFTWARE/SIDE/Examples/IncLib"
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442

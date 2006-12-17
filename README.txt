@@ -790,3 +790,7 @@
  R061122A  Two more bugs found by Nick. Good work!!
 
  R061125A  Corrections to the manual by Nick.
+
+ R061216A  A transient state declaration is now legal for the first state (and
+	   produces the same code as state). Macro 'trace' previously expanded
+	   by SMPP is now a straightforward function.

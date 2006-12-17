@@ -1621,7 +1621,17 @@ TIME    tRndTolerance   (TIME a, TIME b, int q) {
 	r = a + (TIME)(((double)(b - a) + 1.0) * y);
 	if (r > b) return (b); else return (r);
 #endif
-};
+}
+
+void trace (const char *s, ...) {
+
+	VA_TYPE	ap;
+
+	va_start (ap, s);
+
+	Ouf << "Time: " << Time << " --> " << ::vform (s, ap) << '\n';
+	Ouf.flush ();
+}
 
 /* ============================================================================
  * This part borrowed from gsl 1.7:

@@ -1406,13 +1406,10 @@ int     processTransient (int del) {
 	// expands into: 'case state :'
 
 	if (! CodeType) return (NO);
-	if (! CodeWasState) {
-	  xerror ("illegal 'transient' before first 'state' in this 'perform'");
-		return (NO);
-	}
+	if (!CodeWasState)
+		return processState (del);
 
 	// Get the state identifier
-
 	lc = getKeyword (arg, del);
 	if (lc == END || lc == ERROR) return (NO);
 	if (lc != ':') {
@@ -4549,44 +4546,6 @@ int     processNew (int del) {
 	return (NO);
 }
 
-int     processTrace (int del) {
-
-/* ---------------------- */
-/* Expands the trace call */
-/* ---------------------- */
-
-	// trace (plist);                       -> zz_trace (form (plist));
-
-	char    nkn [MAXKWDLEN+1];
-	int     lc;
-
-	lc = del;
-	if (lc == END) {
-Endfile:
-		xerror ("file ends in the middle of 'trace'");
-		return (NO);
-	}
-
-	if (lc != '(') return (NO);
-	putC ("do { (*zz_ofpp) << \"Time: \" << Time << \" --> \" << ::form (");
-	while (1) {
-		// Process arguments
-		lc = getArg (nkn);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto Endfile;
-		putC (nkn);
-		if (lc == ')') break;
-		if (lc != ',') {
-			xerror ("trace syntax error");
-			return (NO);
-		}
-		putC (',');
-	}
-	putC (") << '\\n'; zz_ofpp->flush (); } while (0)");
-	catchUp ();
-	return (YES);
-}
-
 int     doExposure (int del, SymDesc *obj) {
 
 /* ------------------------------- */
@@ -5205,7 +5164,6 @@ main (int argc, char *argv []) {
 	new KeyDesc ("pfmPDE", processPFMPDE);
 	new KeyDesc ("outItem", processOutitem);
 	new KeyDesc ("inItem", processInitem);
-	new KeyDesc ("trace", processTrace);
 	new KeyDesc ("identify", processIdentify);
 	new KeyDesc ("terminate", processTerminate);
 	new KeyDesc ("expose", processExpose);

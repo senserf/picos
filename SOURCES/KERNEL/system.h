@@ -278,17 +278,6 @@ extern  int     zz_processId;
 #define         DEBUGGING               1
 #endif
 
-// #define         trace(s)     Ouf << "Time: " << Time << " --> " << s << '\n'
-#define         trace(s, ...)   do { Ouf << "Time: " << Time << " --> " << \
-		::form (s, ## __VA_ARGS__) << '\n'; Ouf.flush (); } while (0)
-
-#define         tracf(s, ...)   Ouf << "Time: " << Time << " --> " << \
-		::form (s, ## __VA_ARGS__)
-
-#define		tracg(s, ...) 	Ouf << ::form (s, ## __VA_ARGS__)
-
-#define		tracc		do { Ouf << '\n'; Ouf.flush (); } while (0)
-
 #define		tohex(d)	((char)((d) > 9) ? (d) + 'a' - 10 : (d) + '0'))
 
 
