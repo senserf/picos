@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #                                                                          #
 # Usage: mkmk [-e|-m|-msp430-xxx]                                          #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005, All Rights Reserved          #
+# Copyright (C) Olsonet Communications, 2005, 2006 All Rights Reserved     #
 ############################################################################
 
 set DEBUG 0
@@ -106,19 +106,36 @@ proc errab { m } {
 	exit 1
 }
 
+proc addeps { flist } {
+
+	global Depend Locdep
+
+	foreach fn $flist {
+		if ![info exists Locdep($fn)] {
+			set Locdep($fn) ""
+			if [info exists Depend($fn)] {
+				addeps $Depend($fn)
+			}
+		}
+	}
+}
+
 proc trimdir { } {
 #
 # Trim the directories
 #
-	global DirList DirShort IncShort ToCompile Depend
+	global DirList DirShort IncShort Depend SrcLists
 
 	set dc 0
 	set ic 0
-	foreach fn $ToCompile {
-		set dir [file dirname $fn]
-		if ![info exists DirShort($dir)] {
-			set DirShort($dir) [format "S%02d" $dc]
-			incr dc
+	array unset DirShort
+	foreach tar [array names SrcLists] {
+		foreach fn $SrcLists($tar) {
+			set dir [file dirname $fn]
+			if ![info exists DirShort($dir)] {
+				set DirShort($dir) [format "S%02d" $dc]
+				incr dc
+			}
 		}
 	}
 
@@ -140,99 +157,153 @@ proc trimdir { } {
 		}
 	}
 }
+
 proc outprf { def cpu } {
 #
 # Output a project file for CyanIDE. The second argument (compilation params)
 # ignored for now, but may be useful later.
 #
-	global IncShort ToCompile Depend CWD
+	global IncShort SrcLists Depend CWD Locdep
 
 	# build a trimmed list of relevant directories
 	trimdir
 
-	set pname "[file tail $CWD].cyp"
-	if [catch { open $pname "w" } mfd] {
-		error "cannot open $pname for writing: $mfd"
-	}
-
-	puts $mfd "<project buildenvironment=\"{5bb3321d-c620-467d-8787-1a268e2edf63}\" executionenvironment=\"{ab5780d6-ed62-47a1-a50c-bc70aee3b715}\" executionenvironmentname=\"eCOG1 Eval Board\" version=\"1.00.0003\" buildenvironmentname=\"eCOG1\" >\n"
-
-	# asm files
-	puts $mfd "<folder name=\"ASM Files\">\n<extension name=\"asm\"/>\n"
-	foreach fn $ToCompile {
-		if { [file extension $fn] == ".asm" } {
-			puts $mfd "<file path=\"$fn\"/>"
+	foreach tar [array names SrcLists] {
+		# build the file suffix
+		if { $tar == "" } {
+			set tarn ""
+		} else {
+			set tarn "_$tar"
 		}
-	}
-	puts $mfd "</folder>"
-	puts $mfd "<folder name=\"C Files\">\n<extension name=\"c\"/>\n"
-	foreach fn $ToCompile {
-		if { [file extension $fn] == ".c" } {
-			puts $mfd "<file path=\"$fn\"/>"
+
+		set pname "[file tail $CWD]${tarn}.cyp"
+
+		if [catch { open $pname "w" } mfd] {
+			errab "cannot open $pname for writing: $mfd"
 		}
-	}
-	# there should be no other files
-	puts $mfd "</folder>"
-	puts $mfd "<folder name=\"header Files\">\n<extension name=\"h\"/>\n"
-	foreach dep [array names Depend] {
-		foreach fn $Depend($dep) {
-			if { [file extension $fn] == ".h" &&
-			    ![info exists done($fn)] } {
-				set done($fn) ""
+
+		puts $mfd "<project buildenvironment=\"{5bb3321d-c620-467d-8787-1a268e2edf63}\" executionenvironment=\"{ab5780d6-ed62-47a1-a50c-bc70aee3b715}\" executionenvironmentname=\"eCOG1 Eval Board\" version=\"1.00.0003\" buildenvironmentname=\"eCOG1\" >\n"
+
+		# asm files
+		puts $mfd "<folder name=\"ASM Files\">"
+		puts $mfd "<extension name=\"asm\"/>\n"
+
+		foreach fn $SrcLists($tar) {
+			if { [file extension $fn] == ".asm" } {
 				puts $mfd "<file path=\"$fn\"/>"
 			}
 		}
-	}
-	puts $mfd "</folder>"
-	puts $mfd "<properties currentconfiguration=\"Release\">"
-	foreach cnam { "Release" "Debug" } {
-		puts $mfd "<configuration name=\"$cnam\">"
-		if { $def != "" || $cnam == "Release" } {
-			puts -nonewline $mfd "<property key=\"defines\">"
-			if { $cnam == "Release" } {
-				puts -nonewline $mfd "NDEBUG"
-				set first 0
-			} else {
-				set first 1
+
+		puts $mfd "</folder>"
+		puts $mfd "<folder name=\"C Files\">\n<extension name=\"c\"/>\n"
+
+		foreach fn $SrcLists($tar) {
+			set fex [file extension $fn]
+			if { $fex == ".cc" } {
+				# must copy to .c (we shouldn't trust links as
+				# this will be ultimately handled by Windows)
+				set tfn [file join $CWD "KTMP"]
+				if [catch { exec mkdir -p $tfn } err] {
+					errab \
+						"cannot mkdir '$tfn': $err"
+				}
+
+				set tfn [file join $tfn \
+					 "[file rootname [file tail $fn]].c]"]
+			
+				if [catch { exec cp $fn $tfn } err] {
+					errab \
+					   "cannot copy '$fn' to 'xxx.c': $err"
+				}
+				set fn $tfn
+			} elseif { $fex != ".c" } {
+				continue
 			}
-			foreach fn $def {
+			puts $mfd "<file path=\"$fn\"/>"
+		}
+
+		# there should be no other files
+		puts $mfd "</folder>"
+		puts $mfd "<folder name=\"header Files\">"
+		puts $mfd "<extension name=\"h\"/>\n"
+
+		# collect the proper dependency subset
+		array unset Locdep
+		foreach fn $SrcLists($tar) {
+			if [info exists Depend($fn)] {
+				addeps $Depend($fn)
+			}
+		}
+
+		foreach dep [array names Locdep] {
+			if { [file extension $fn] == ".h" } {
+				puts $mfd "<file path=\"$fn\"/>"
+			}
+		}
+		array unset Locdep
+
+		puts $mfd "</folder>"
+
+		puts $mfd "<properties currentconfiguration=\"Release\">"
+		foreach cnam { "Release" "Debug" } {
+			puts $mfd "<configuration name=\"$cnam\">"
+			if { $def != "" || $cnam == "Release" } {
+				puts -nonewline $mfd \
+					"<property key=\"defines\">"
+				if { $cnam == "Release" } {
+					puts -nonewline $mfd "NDEBUG"
+					set first 0
+				} else {
+					set first 1
+				}
+				foreach fn $def {
+					if !$first {
+						puts -nonewline $mfd ";"
+					} else {
+						set first 0
+					}
+					puts -nonewline $mfd "$fn"
+				}
+				puts $mfd "</property>"
+			}
+			if { $cnam == "Debug" } {
+				puts $mfd \
+				  "<property key=\"keepAssembler\">1</property>"
+			}
+
+			puts $mfd \
+				    "<property key=\"outputDir\">out</property>"
+			puts $mfd \
+			     "<property key=\"intermediateDir\">temp</property>"
+			puts $mfd \
+			    	 "<property key=\"mapFile\">internal</property>"
+			puts $mfd \
+			    "<property key=\"packFile\">cstartup.asm</property>"
+
+			puts -nonewline $mfd "<property key=\"includeDirs\">"
+
+
+			set first 1
+			set idirs ""
+			foreach { dir sht } [array get IncShort] {
+				lappend idirs [list $dir $sht]
+			}
+			set idirs [lsort -index 1 $idirs]
+			foreach dir $idirs {
 				if !$first {
 					puts -nonewline $mfd ";"
 				} else {
 					set first 0
 				}
-				puts -nonewline $mfd "$fn"
+				puts -nonewline $mfd [lindex $dir 0]
 			}
 			puts $mfd "</property>"
+			puts $mfd "</configuration>"
 		}
-		if { $cnam == "Debug" } {
-			puts $mfd "<property key=\"keepAssembler\">1</property>"
-		}
-		puts $mfd "<property key=\"outputDir\">out</property>"
-		puts $mfd "<property key=\"intermediateDir\">temp</property>"
-		puts $mfd "<property key=\"mapFile\">internal</property>"
-		puts $mfd "<property key=\"packFile\">cstartup.asm</property>"
-		puts -nonewline $mfd "<property key=\"includeDirs\">"
-		set first 1
-		set idirs ""
-		foreach { dir sht } [array get IncShort] {
-			lappend idirs [list $dir $sht]
-		}
-		set idirs [lsort -index 1 $idirs]
-		foreach dir $idirs {
-			if !$first {
-				puts -nonewline $mfd ";"
-			} else {
-				set first 0
-			}
-			puts -nonewline $mfd [lindex $dir 0]
-		}
-		puts $mfd "</property>"
-		puts $mfd "</configuration>"
+		puts $mfd "</properties>"
+		puts $mfd "</project>"
+		catch { close $mfd }
 	}
-	puts $mfd "</properties>"
-	puts $mfd "</project>"
-	catch { close $mfd }
 
 	foreach ef { "internal.map" "cstartup.asm" "irq.asm" } {
 		set fn [lookup $ef ""]
@@ -248,7 +319,12 @@ proc outmkf { def cpu } {
 #
 # Output a makefile for MSP430
 #
-	global DirList DirShort IncShort ToCompile Depend CWD NotFound
+#	IncShort:	array of include directories indexed by paths
+#	DirShort:	array of source directories
+#	Depend:		array of dependency lists (can be global)
+#	SrcLists:	per-target array of files to compile (ToCompile)
+#
+	global DirShort IncShort SrcLists Depend CWD NotFound
 
 	# build a trimmed list of relevant directories
 	trimdir
@@ -297,44 +373,105 @@ proc outmkf { def cpu } {
 	foreach dir $idirs {
 		puts -nonewline $mfd "-I \$([lindex $dir 1]) "
 	}
-	puts $mfd ""
-
-	puts -nonewline $mfd "BF="
-	foreach fn $ToCompile {
-		puts -nonewline $mfd "\$(TD)/[file rootname [file tail $fn]].o "
-	}
 	puts $mfd "\n"
 
-	# target
-	puts $mfd "\$(TR) :\t\$(BF)"
-	puts $mfd "\t\$(CC) -o \$(TR) \$(CF) \$(BF)"
-	puts $mfd "\t\$(OC) \$(TR) \$(TR).a43\n"
+	# target names
+	set tnames [lsort [array names SrcLists]]
 
-	# sources
-	foreach sf $ToCompile {
-		set rfn [file tail $sf]
-		set suf [file extension $rfn]
-		set ofn "[file rootname $rfn].o"
-		set dir [file dirname $sf]
-		set dsh $DirShort($dir)
-		puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh)/$rfn"
-		# dependencies
-		if [info exists Depend($sf)] {
-			foreach df $Depend($sf) {
-				set rfd [file tail $df]
-				set did [file dirname $df]
-				puts -nonewline $mfd " \$($IncShort($did))/$rfd"
+	# the "all" target becomes the default
+	puts -nonewline $mfd "all :	"
+
+	if { [llength $tnames] == 1 && [lindex $tnames 0] == "" } {
+		# Single simple target
+		puts $mfd "\$(TR)\n"
+	} else {
+		foreach tar $tnames {
+			if { $tar == "" } {
+				# this will not happen
+				errab "illegal default target"
 			}
+			puts -nonewline $mfd "$tar "
 		}
-		puts $mfd ""
-		puts $mfd "\tmkdir -p \$(TD)"
-		if { [string first ".a" $suf] == 0 } {
-			puts -nonewline $mfd "\t\$(AS) \$(AF) \$(IN)"
-		} else {
-			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
+		puts $mfd "\n"
+	
+		foreach tar $tnames {
+			puts $mfd "$tar :\t\$(TR)_$tar\n"
 		}
-		puts $mfd " -c \$($DirShort($dir))/$rfn -o \$(TD)/$ofn\n"
+		puts $mfd "\n"
 	}
+
+	array unset tgts
+
+	foreach tar $tnames {
+		# we do this for every target
+		puts $mfd "# target: \"$tar\""
+		if { $tar != "" } {
+			set tarn "_$tar"
+		} else {
+			set tarn ""
+		}
+		# names the list of binary files comprising the target
+		puts -nonewline $mfd "BF${tarn}="
+		foreach fn $SrcLists($tar) {
+			puts -nonewline $mfd \
+				"\$(TD)/[file rootname [file tail $fn]].o "
+		}
+		puts $mfd "\n"
+
+		# the actual target
+		puts $mfd "\$(TR)$tarn :\t\$(BF$tarn)"
+		puts $mfd "\t\$(CC) -o \$(TR)$tarn \$(CF) \$(BF$tarn)"
+		puts $mfd "\t\$(OC) \$(TR)$tarn \$(TR)${tarn}.a43\n"
+
+		# the list of compileable sources
+		foreach sf $SrcLists($tar) {
+			set rfn [file tail $sf]
+			set suf [file extension $rfn]
+			set rna [file rootname $rfn]
+			if [info exists tgts($rna)] {
+				# already present
+				continue
+			}
+			set tgts($rna) ""
+			set ofn "${rna}.o"
+			set dir [file dirname $sf]
+			set dsh $DirShort($dir)
+			puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh)/$rfn"
+			# dependencies
+			if [info exists Depend($sf)] {
+				foreach df $Depend($sf) {
+					set rfd [file tail $df]
+					set did [file dirname $df]
+					puts -nonewline $mfd \
+						" \$($IncShort($did))/$rfd"
+				}
+			}
+			puts $mfd ""
+			puts $mfd "\tmkdir -p \$(TD)"
+			if { $suf == ".cc" } {
+				# this is a VUEE source, copy it to plain C
+				set rfn "${rna}.c"
+				puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+				set spfx "\$(TD)"
+				puts -nonewline $mfd \
+						"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+			} else {
+				set spfx "\$($dsh)"
+				if { $suf == ".c" } {
+					puts -nonewline $mfd \
+						"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+				} elseif { [string first ".a" $suf] == 0 } {
+					puts -nonewline $mfd \
+						"\t\$(AS) \$(AF) \$(IN)"
+				} else {
+					errab "illegal source suffix '$sf'"
+				}
+			}
+			puts $mfd " -c $spfx/$rfn -o \$(TD)/$ofn\n"
+		}
+		puts $mfd "\n"
+	}
+
 	puts $mfd "clean :\n\trm -rf \$(TD)/*"
 	catch { close $mfd }
 	# output the gdb.ini file
@@ -793,7 +930,15 @@ proc scanfile { fname } {
 					set ar [string range $ar [expr $cm + \
 					  [string length $jk]] end]
 				}
-				set fn [lookup $nfn [file dirname $fname]]
+				set dnn [file dirname $fname]
+				set fn [lookup $nfn $dnn]
+				if { $fn == "" &&
+				    [file extension $nfn] == ".c" } {
+					# try ".cc"
+					set fn [lookup \
+					  "[file rootname $nfn].cc" $dnn]
+				}
+
 				dmp "NEEDED: $nfn"
 				if { $fn == "" } {
 					dmp "NEEDED: $nfn not found"
@@ -967,10 +1112,7 @@ proc bad_usage { } {
 
 proc main { } {
 
-	global argv ToCompile NotFound CWD Run Symbols Scanned CFName
-
-	set ToCompile ""
-	set NotFound ""
+	global argv ToCompile NotFound CWD Run Symbols Scanned CFName SrcLists
 
 	set ll [llength $argv]
 
@@ -1011,38 +1153,91 @@ proc main { } {
 
 	mkdlist $TGT
 
+	set sufflist ""
+	set empsuff 0
+	set rootsuff ".c"
 	# We expect to find app.c in the current directory
 	set fn [canon [file join $CWD "app.c"]]
 	if ![file isfile $fn] {
-		errab "app.c not found in current directory"
+		dmp "app.c not found, trying app_xxx.cc"
+		# try to locate all files that look like "app_xxx.cc", where
+		# xxx has no _. This will mean that we have possibly multiple
+		# VUEE-like setups.
+		if [catch { exec ls $CWD } flist] {
+			errab "cannot scan current directory: $flist"
+		}
+		foreach fn $flist {
+
+			if { $fn == "app.cc" } {
+				# there should be only one file like this, i.e.,
+				# no app_xxx.cc files, but keep looking for
+				# consistency
+				set empsuff 1
+			} elseif [regexp "^app_(\[^_.\]+)\\.cc$" $fn jnk suff] {
+				lappend sufflist $suff
+			}
+		}
+
+		if { $empsuff && $sufflist != "" } {
+			errab "app.cc cannot coexist with app_xxx.cc files"
+		}
+
+		if { $empsuff == 0 && $sufflist == "" } {
+			errab "no app.c, app.cc or app_xxx.cc found in current\
+				directory"
+		}
+		set rootsuff ".cc"
+	} else {
+		dmp "app.c found, traditional mode"
 	}
 
-	lappend_toc ToCompile $fn
+	if { $sufflist == "" } {
+		set sufflist [list ""]
+	}
 
-	array unset Processed
-	set tcn ""
+	set NotFound ""
 
-	while { $ToCompile != "" } {
-		set CFName [lindex $ToCompile 0]
-		set ToCompile [lrange $ToCompile 1 end]
-		if [info exists Processed($CFName)] {
-			continue
-		}
-		set Processed($CFName) ""
-		lappend_toc tcn $CFName
-		# predefine symbols
-		if { $Run(mode) == "E" } {
-			set Symbols(__ECOG__) "@@@"
+	foreach suffix $sufflist {
+
+		dmp "doing suffix '$suffix'"
+
+		set ToCompile ""
+
+		if { $suffix == "" } {
+			set suff ""
 		} else {
-			set Symbols(__MSP430__) "@@@"
+			set suff "_$suffix"
 		}
-		scanfile $CFName
-		array unset Symbols
-		array unset Scanned
+
+		lappend_toc ToCompile "app${suff}${rootsuff}"
+
+		array unset Processed
+
+		set SrcLists($suffix) ""
+
+		while { $ToCompile != "" } {
+			set CFName [lindex $ToCompile 0]
+			set ToCompile [lrange $ToCompile 1 end]
+			if [info exists Processed($CFName)] {
+				continue
+			}
+			set Processed($CFName) ""
+			lappend_toc SrcLists($suffix) $CFName
+			# predefine symbols
+			if { $Run(mode) == "E" } {
+				set Symbols(__ECOG__) "@@@"
+			} else {
+				set Symbols(__MSP430__) "@@@"
+			}
+			scanfile $CFName
+			array unset Symbols
+			array unset Scanned
+		}
+
+		array unset Processed
+		array unset ToCompile
+		dmp "TO COMPILE \[$suffix\]: '$SrcLists($suffix)'"
 	}
-	array unset Processed
-	set ToCompile $tcn
-	dmp "TO COMPILE: '$ToCompile'"
 
 	if { $Run(mode) == "M" } {
 		# makefile

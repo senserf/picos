@@ -434,11 +434,6 @@ process (root, int)
 	tcv_control (sfd, PHYSOPT_SETPOWER, (address) &parm_power);
 #endif
 
-
-k = muka (1, 2);
-
-
-
   entry (RS_RCMD-2)
 
 #if UART_DRIVER
