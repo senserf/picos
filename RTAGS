@@ -1251,7 +1251,7 @@ R061207A:
 	if_read added as a dummy function (macro) for compatibility with VUEE
 	models.
 
-R061216B:
+R061216C:
 
 	The first version with Tags and Pegs (TNP) existing in a single version
 	for VUEE as well as PicOS. See Apps/TNP. mkmk redone. It can now compile
