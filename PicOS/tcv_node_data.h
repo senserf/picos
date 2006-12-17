@@ -43,15 +43,15 @@ __STATIC int		physinfo [TCV_MAX_PHYS];
 #endif
 	int empty (qhead_t *oq);
 	void dispose (hblock_t *p, int dv);
-#if TCV_TIMERS
-	word runtq ();
-#endif
 	void dmpq (qhead_t *q);
 	void rlp (hblock_t *p);
 	hblock_t *apb (word size);
 
     public:
 
+#if TCV_TIMERS
+	word runtq ();
+#endif
 	void    	_da (tcv_endp) (address p);
 	int  		_da (tcv_open) (word state, int phy, int plid, ... );
 	int 		_da (tcv_close) (word state, int fd);

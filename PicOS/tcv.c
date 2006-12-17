@@ -32,8 +32,8 @@
 #define	TMALLOC(a,b)	tmalloc (a)
 #define	UMALLOC(a,b)	umalloc (a)
 
-#define	RELEASE		release
-#define	WNONE		NONE
+// #define	RELEASE		release
+// #define	WNONE		NONE
 
 #endif	/* SMURPH or PicOS */
 
@@ -476,7 +476,7 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	/* We block */
 	if (state != WNONE) {
 		when (eid, state);
-		RELEASE;
+		release;
 	}
 
 	return (int)BLOCKED;
@@ -518,7 +518,7 @@ __PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 	s->pid = getpid ();	/* We may use it for something later */
 	if (state != WNONE) {
 		when (eid, state);
-		RELEASE;
+		release;
 	}
 
 	return (int)BLOCKED;
@@ -554,7 +554,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 		/* The queue is empty */
 		if (state != WNONE) {
 			when ((int)rq, state);
-			RELEASE;
+			release;
 		}
 		return NULL;
 	}
@@ -679,7 +679,7 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT+1)) {
 		if (state != WNONE) {
 			tmwait (state);
-			RELEASE;
+			release;
 		}
 		return NULL;
 	}
@@ -688,7 +688,7 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 		/* No memory */
 		if (state != WNONE) {
 			tmwait (state);
-			RELEASE;
+			release;
 		}
 		return NULL;
 	}
@@ -742,7 +742,7 @@ __PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT)) {
 		if (state != WNONE) {
 			tmwait (state);
-			RELEASE;
+			release;
 		}
 		return NULL;
 	}
@@ -751,7 +751,7 @@ __PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 		/* No memory */
 		if (state != WNONE) {
 			tmwait (state);
-			RELEASE;
+			release;
 		}
 		return NULL;
 	}
@@ -1168,13 +1168,13 @@ __STATIC __PROCESS (timersrv, void)
 /*
  * This simple process is needed to service the timer queue
  */
-    __ENTRY (__S0)
+    entry (__S0)
 
-	__DELAY (runtq_na (), __S0);
-	__WAIT ((word)(&tcv_q_tim_na), __S0);
-	__RELEASE;
+	delay (runtq_na (), __S0);
+	when ((word)(int)(&tcv_q_tim_na), __S0);
+	release;
 	
-	__NODATA;
+	nodata;
 
 __ENDPROCESS (1)
 
@@ -1199,7 +1199,7 @@ __PUBLF (PicOSNode, void, tcv_init) () {
 	// These ones are always initialized dynamically
 	tcv_tim_set = 0;
 	tcv_q_tim . next = tcv_q_tim . prev = (titem_t*) &tcv_q_tim;
-	__FORK (timersrv);
+	runthread (timersrv);
 #endif
 }
 

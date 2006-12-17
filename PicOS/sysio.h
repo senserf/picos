@@ -829,20 +829,9 @@ void	adc_stop (void);
 #define	__PUBLF(ot,tp,nam)	tp nam
 #define	__PUBLS(ot,tp,nam)	__PRIVF (ot, tp, nam)
 
-// FIXME: cleanup these
-// Function declaration. In the simulator, these macros expand as:
-// #define	PRIVF(tp,nam)	tp Node::nam
-// #define	PUBLF(tp,nam)	tp Node::nam
-// to make the marked functions Node methods.
 #define	__PROCESS(a,b)	process (a, b)
-#define	__ENTRY(a)	entry (a)
-#define	__DELAY(a,b)	delay (a, b)
-#define	__WAIT(a,b)	wait (a, b)
-#define	__RELEASE	release
-#define	__NODATA	nodata
 #define	__ENDPROCESS(a)	endprocess (a)
 #define	__NA(a,b)	(b)
-#define	__FORK(a)	fork (a, NULL)
 
 // A few symbolic state ordinals
 #define	__S0		0
