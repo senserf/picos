@@ -195,22 +195,6 @@ process Outserial (PicOSNode) {
 	perform;
 };
 
-#if TCV_TIMERS
-// We need a TCV process to handle timers
-process timeserv (PicOSNode) {
-
-	states { Run };
-
-	perform {
-
-		state Run:
-
-			S->delay (runrq (), Run);
-			sleep;
-	};
-};
-#endif /* TCV_TIMERS */
-
 station NNode : PicOSNode {
 /*
  * A node equipped with NULL plugin

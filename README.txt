@@ -75,7 +75,7 @@ R061208A:
 
     NVRAM (EEPROM + FIM) model added.
 
-R061216A:
+R061216B:
 
     Lots of changes. It is now possible to keep a VUEE model and PICOS praxis
     as the same set of sources.

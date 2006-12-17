@@ -125,6 +125,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	ERROR		NONE
 #endif
 
+#define	JIFFIES		1024	/* Clock ticks in a second */
+
 #define	umalloc(s)	tmalloc (s)
 #define	ufree(s)	tfree (s)
 #define	umwait(s)	tmwait (s)
@@ -217,15 +219,9 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 // FIXME: cleanup this
 
-#define	__PROCESS(a,b)	process a (Node) { \
+#define	__PROCESS(a,b)	process a (PicOSNode) { \
 		states { __S0, __S1, __S2, __S3, __S4 }; perform {
 #define	__ENDPROCESS(a)	}};
-#define	__ENTRY(a)	transient a :
-#define	__DELAY(a,b)	TheNode->delay (a, b)
-#define	__WAIT(a,b)	TheNode->wait (a, b)
-#define	__RELEASE	sleep
-#define	__NODATA	NOP
-
 
 #define	__NA(a,b)		(((a*)TheNode)->b)
 
