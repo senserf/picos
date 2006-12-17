@@ -3,6 +3,7 @@
 
 #include "picos.h"
 #include "uart.h"
+#include "nvram.h"
 #include "tcv.h"
 #include "tcvphys.h"
 #include "chan_radio.h"
@@ -19,6 +20,8 @@
 
 
 extern	const char zz_hex_enc_table [];
+
+void	syserror (int, const char*);
 
 struct mem_chunk_struct	{
 
@@ -60,7 +63,7 @@ packet	PKT {
 
 station PicOSNode {
 
-	void		phys_dm2200 (int, int);
+	void		_da (phys_dm2200) (int, int);
 
 	Mailbox	TB;		// For trigger
 
@@ -74,71 +77,93 @@ station PicOSNode {
 	 */
 	MemChunk	*MHead, *MTail;
 	word		MTotal, MFree,
-			NFree;	// Minimum free so far - for stats
+			NFree;		// Minimum free so far - for stats
+
+	/*
+	 * RF interface
+	 */
+	PKT		_da (OBuffer);	// Output buffer
+	Transceiver	*_da (RFInterface);
 
 	/*
 	 * RF interface component. We may want to modify it later, if it turns
 	 * out to be dependent on RFModule.
 	 */
-	PKT		OBuffer;	// Output buffer
-	Transceiver	*RFInterface;
-	Boolean		Receiving, Xmitting, TXOFF, RXOFF;
-	int		tx_event;
-	lword		entropy;
-	word		statid;		// Station/network ID
-	word		min_backoff, max_backoff, backoff;
-	word		lbt_delay;
-	double		lbt_threshold;
+	Boolean		_da (Receiving), _da (Xmitting),
+			_da (TXOFF), _da (RXOFF);
+	int		_da (tx_event);
+	lword		_da (entropy);
+	word		_da (statid);		// Station/network ID
+	word		_da (min_backoff), _da (max_backoff), _da (backoff);
+	word		_da (lbt_delay);
+	double		_da (lbt_threshold);
 	
 	/*
 	 * This is NULL if the node has no UART
 	 */
 	uart_t		*uart;
 
+	/*
+	 * This is EEPROM and FIM (IFLASH)
+	 */
+	NVRAM		*eeprom, *iflash;
+
+	void _da (diag) (const char*, ...);
 	void reset ();
-	int getpid () { return (int) TheProcess; };
-	lword seconds ();
+	int _da (getpid) () { return (int) TheProcess; };
+	lword _da (seconds) ();
 	address	memAlloc (int, word);
 	void memFree (address);
-	word actsize (address);
+	word _da (actsize) (address);
 	Boolean memBook (word);
 	void memUnBook (word);
 	word memfree (int pool, word *faults);
 	inline void waitMem (int state) { TB.wait (N_MEMEVENT, state); };
-	inline void delay (word msec, int state) {
+	inline void _da (delay) (word msec, int state) {
 		Timer->delay (msec * MILLISECOND, state);
 	};
-	inline void wait (int ev, int state) { TB.wait (ev, state); };
-	inline void gbackoff () {
-		backoff = min_backoff + toss (max_backoff);
+	inline void _da (when) (int ev, int state) { TB.wait (ev, state); };
+	inline void _da (gbackoff) () {
+		_da (backoff) = _da (min_backoff) + toss (_da (max_backoff));
 	};
 
-	inline int io (int state, int dev, int ope, char *buf, int len) {
+	inline int _da (io) (int state, int dev, int ope, char *buf, int len) {
 		// Note: 'dev' is ignored: it exists for compatibility with
 		// PicOS
 		assert (uart != NULL, "PicOSNode->io: node %s has no UART",
 			getSName ());
-		return uart->U->io (state, ope, buf, len);
+		return uart->U->ioop (state, ope, buf, len);
 	};
 
 	/*
 	 * I/O formatting
 	 */
-	char *vform (char*, const char*, va_list);
-	int vscan (const char*, const char*, va_list);
-	char *form (char*, const char*, ...);
-	int scan (const char*, const char*, ...);
-	int ser_out (word, const char*);
-	int ser_in (word, char*, int);
-	int ser_outf (word, const char*, ...);
-	int ser_inf (word, const char*, ...);
+	char * _da (vform) (char*, const char*, va_list);
+	int _da (vscan) (const char*, const char*, va_list);
+	char * _da (form) (char*, const char*, ...);
+	int _da (scan) (const char*, const char*, ...);
+	int _da (ser_out) (word, const char*);
+	int _da (ser_in) (word, char*, int);
+	int _da (ser_outf) (word, const char*, ...);
+	int _da (ser_inf) (word, const char*, ...);
+
+	/*
+	 * EEPROM + FIM (IFLASH)
+	 */
+	void _da (ee_read)  (word, byte*, word);
+	void _da (ee_erase) ();
+	void _da (ee_write) (word, const byte*, word);
+	int  _da (if_write) (word, word);
+	word _da (if_read)  (word);
+	void _da (if_erase) (int);
 
 #include "encrypt.h"
 	// Note: static TCV data is initialized in tcv_init.
 #include "tcv_node_data.h"
 
 	void setup (word, double, double, double, double, Long, Long, Long,
-		double, RATE, long, Long, Long, Long, char*, char*);
+		double, RATE, Long, Long, Long, Long, Long, Long, Long, char*,
+			char*);
 
 };
 
@@ -151,7 +176,7 @@ process Inserial (PicOSNode) {
 	states { IM_INIT, IM_READ, IM_BIN, IM_BIN1 };
 
 	void setup ();
-	void finish ();
+	void close ();
 
 	perform;
 };
@@ -165,7 +190,7 @@ process Outserial (PicOSNode) {
 	states { OM_INIT, OM_WRITE, OM_RETRY };
 
 	void setup (const char*);
-	void finish ();
+	void close ();
 
 	perform;
 };
@@ -200,43 +225,26 @@ station TNode : PicOSNode {
 /*
  * A node equipped with TARP stuff
  */
-
-// These ones are supposed to be provided/set by the application. Why arent they
-// simply TARP data settable by the application (via some 'init' call), which
-// would be easier to translate to SMURPH? Another little problem is the bunch
-// of macros normally stored in app_tarp_if.h (on the application's side), which
-// I have moved temporarily to options.sys (yyyeeechhhh).
-
-	nid_t	net_id 		/* = 85 */; // 0x55 set network id to any value
-	nid_t	local_host 	/* = 97 */;
-	nid_t   master_host 	/* = 1 */;
-
-	// Defaults needed for reset
-
-	nid_t	Def_net_id;
-	nid_t	Def_local_host;
-	nid_t	Def_master_host;
-
 	// Application-level parameters for TARP
-	virtual int tr_offset (headerType *mb) {
+	virtual int _da (tr_offset) (headerType *mb) {
 		excptn ("TNode->tr_offset undefined");
 	};
-	virtual bool msg_isBind (msg_t m) {
+	virtual bool _da (msg_isBind) (msg_t m) {
 		excptn ("TNode->msg_isBind undefined");
 	};
-	virtual bool msg_isTrace (msg_t m) {
+	virtual bool _da (msg_isTrace) (msg_t m) {
 		excptn ("TNode->msg_isTrace undefined");
 	};
-	virtual bool msg_isMaster (msg_t m) {
+	virtual bool _da (msg_isMaster) (msg_t m) {
 		excptn ("TNode->msg_isMaster undefined");
 	};
-	virtual bool msg_isNew (msg_t m) {
+	virtual bool _da (msg_isNew) (msg_t m) {
 		excptn ("TNode->msg_isNew undefined");
 	};
-	virtual bool msg_isClear (byte o) {
+	virtual bool _da (msg_isClear) (byte o) {
 		excptn ("TNode->msg_isClear undefined");
 	};
-	virtual void set_master_chg () {
+	virtual void _da (set_master_chg) () {
 		excptn ("TNode->set_master_chg undefined");
 	};
 
@@ -244,7 +252,7 @@ station TNode : PicOSNode {
 #include "plug_tarp_node_data.h"
 #include "tarp_node_data.h"
 
-	void setup (nid_t ni, nid_t lh, nid_t mh);
+	void setup ();
 	void reset ();
 };
 
@@ -258,6 +266,9 @@ process	BoardRoot {
 		Long&,
 		Long&,
 		double&,
+		Long&,
+		Long&,
+		Long&,
 		Long&,
 		Long&,
 		Long&,
@@ -289,6 +300,9 @@ process	BoardRoot {
 		double	LBTThs,
 		RATE	rate,
 		Long	PRE,		// Preamble
+		Long	eesz,		// EEPROM size
+		Long	ifsz,		// IFLASH size
+		Long	ifps,		// IFLASH page size
 		Long	UMODE,		// UART mode
 		Long	UBS,		// UART buffer size
 		Long	USP,		// UART rate

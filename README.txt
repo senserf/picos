@@ -70,3 +70,12 @@ R061111A:
 R061115A:
 
     Cosmetics. Added app to test LBT.
+
+R061208A:
+
+    NVRAM (EEPROM + FIM) model added.
+
+R061216A:
+
+    Lots of changes. It is now possible to keep a VUEE model and PICOS praxis
+    as the same set of sources.

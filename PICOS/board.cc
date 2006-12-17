@@ -3,19 +3,29 @@
 
 #include "board.h"
 
-#include "uart.cc"
-#include "rfmodule_dm2200.cc"
 #include "chan_shadow.cc"
 #include "encrypt.cc"
-#include "net.cc"
-#include "plug_null.cc"
-#include "plug_tarp.cc"
-#include "tarp.cc"
+#include "nvram.cc"
 
 const char	zz_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
+
+void _dad (PicOSNode, diag) (const char *s, ...) {
+
+	va_list ap;
+
+	va_start (ap, s);
+
+	trace ("[%1.3f] DIAG [%1d]: %s", ituToEtu (Time), \
+		      TheStation->getId (), ::vform (s, ap));
+}
+
+void syserror (int p, const char *s) {
+
+	excptn (::form ("SYSERROR [%1d]: %1d, %s", TheStation->getId (), p, s));
+}
 
 void PicOSNode::reset () {
 
@@ -35,30 +45,30 @@ void PicOSNode::reset () {
 	MTail = NULL;
 
 	// Abort the transceiver if transmitting
-	if (RFInterface->transmitting ())
-		RFInterface->abort ();
+	if (_da (RFInterface)->transmitting ())
+		_da (RFInterface)->abort ();
 
 	// Reset the transceiver to defaults
-	RFInterface->rcvOn ();
-	RFInterface->setXPower (DefXPower);
-	RFInterface->setRPower (DefRPower);
+	_da (RFInterface)->rcvOn ();
+	_da (RFInterface)->setXPower (DefXPower);
+	_da (RFInterface)->setRPower (DefRPower);
 
 	if (uart != NULL) {
 		uart->__inpline = NULL;
 		uart->pcsInserial = uart->pcsOutserial = NULL;
-		uart->U->reset ();
+		uart->U->rst ();
 	}
 
-	entropy = 0;
-	statid = 0;
+	_da (entropy) = 0;
+	_da (statid) = 0;
 
-	Receiving = Xmitting = NO;
-	TXOFF = RXOFF = YES;
+	_da (Receiving) = _da (Xmitting) = NO;
+	_da (TXOFF) = _da (RXOFF) = YES;
 
-	OBuffer.fill (NONE, NONE, 0, 0, 0);
+	_da (OBuffer).fill (NONE, NONE, 0, 0, 0);
 
 	// This will do the dynamic initialization of static stuff in TCV
-	tcv_init ();
+	_da (tcv_init) ();
 }
 
 void PicOSNode::setup ( word mem,
@@ -67,7 +77,8 @@ void PicOSNode::setup ( word mem,
 			Long bcmin, Long bcmax,
 			Long lbtdel, double lbtths,
 			RATE rate,
-			long pre,
+			Long pre,
+			Long eeprs, Long iflashs, Long iflashp,
                        	Long umode, Long ubs, Long usp,
 			char *uidv, char *uodv) {
 
@@ -79,21 +90,20 @@ void PicOSNode::setup ( word mem,
 
 	// These two survive reset. We assume that they are never changed
 	// by the application.
-	min_backoff = (word) bcmin;
+	_da (min_backoff) = (word) bcmin;
 	// This is the argument for 'toss' to generate the proper
 	// offset. The consistency has been verified by readNodeParams.
-	max_backoff = (word) bcmax - min_backoff + 1;
+	_da (max_backoff) = (word) bcmax - _da (min_backoff) + 1;
 
 	// Same about these two
 	if (lbtdel == 0) {
 		// Disable it
-		lbt_threshold = HUGE;
-		lbt_delay = 0;
+		_da (lbt_threshold) = HUGE;
+		_da (lbt_delay) = 0;
 	} else {
-		lbt_threshold = dBToLin (lbtths);
-		lbt_delay = (word) lbtdel;
+		_da (lbt_threshold) = dBToLin (lbtths);
+		_da (lbt_delay) = (word) lbtdel;
 	}
-trace ("THS: %d %g %g", lbt_delay, lbt_threshold, lbtths);
 
 	if ((umode & (UART_IMODE_MASK | UART_OMODE_MASK)) ==
 	    (UART_IMODE_NONE | UART_OMODE_NONE)) {
@@ -107,20 +117,31 @@ trace ("THS: %d %g %g", lbt_delay, lbt_threshold, lbtths);
 	DefXPower = dBToLin (xp);
 	DefRPower = dBToLin (rp);
 
-	RFInterface = create Transceiver (
+	_da (RFInterface) = create Transceiver (
 			rate,
 			pre,
 			DefXPower,
 			DefRPower,
 			x, y );
 
-	Ether->connect (RFInterface);
+	Ether->connect (_da (RFInterface));
+
+	// EEPROM and IFLASH: note that they are not reset
+	if (eeprs)
+		eeprom = new NVRAM ((word)eeprs, 0);
+	else
+		eeprom = NULL;
+
+	if (iflashs)
+		iflash = new NVRAM ((word)iflashs, (word)iflashp);
+	else
+		iflash = NULL;
 
 	reset ();
 
 };
 
-lword PicOSNode::seconds () {
+lword _dad (PicOSNode, seconds) () {
 
 	// FIXME: make those different at different stations
 	return (lword) ituToEtu (Time);
@@ -196,7 +217,7 @@ word PicOSNode::memfree (int pool, word *res) {
 	return MFree << 1;
 }
 
-word PicOSNode::actsize (address p) {
+word _dad (PicOSNode, actsize) (address p) {
 
 	MemChunk *mc;
 
@@ -226,145 +247,23 @@ void PicOSNode::memUnBook (word lsize) {
 	assert (MFree <= MTotal, "PicOSNode->memUnBook: corrupted memory");
 }
 
-void Inserial::setup () {
-
-	uart = S->uart;
-	assert (uart->pcsInserial == NULL,
-		"Inserial->setup: duplicated process");
-	uart->pcsInserial = this;
-}
-
-void Inserial::finish () {
-	terminate ();
-	uart->pcsInserial = NULL;
-	sleep;
-}
-
-Inserial::perform {
-
-    int quant;
-
-    state IM_INIT:
-
-	if (uart->__inpline != NULL)
-		/* Never overwrite previous unclaimed stuff */
-		finish ();
-
-	if ((tmp = ptr = (char*) umalloc (MAX_LINE_LENGTH + 1)) == NULL) {
-		/*
-		 * We have to wait for memory
-		 */
-		umwait (IM_INIT);
-		sleep;
-	}
-	len = MAX_LINE_LENGTH;
-
-    transient IM_READ:
-
-	S->io (IM_READ, 0, READ, ptr, 1);
-	if (ptr == tmp) { // new line
-		if (*ptr == '\0') { // bin cmd
-			ptr++;
-			len--;
-			proceed IM_BIN;
-		}
-
-		if (*ptr < 0x20)
-			/* Ignore codes below space at the beginning of line */
-			proceed IM_READ;
-	}
-	if (*ptr == '\n' || *ptr == '\r') {
-		*ptr = '\0';
-		uart->__inpline = tmp;
-		finish ();
-	}
-
-	if (len) {
-		ptr++;
-		len--;
-	}
-
-	proceed IM_READ;
-
-    state IM_BIN:
-
-	S->io (IM_BIN, 0, READ, ptr, 1);
-	if (--len > *ptr +1) // 1 for 0x04
-		len = *ptr +1;
-	ptr++;
-
-    transient IM_BIN1:
-
-	quant = S->io (IM_BIN1, 0, READ, ptr, len);
-	len -= quant;
-	if (len == 0) {
-		uart->__inpline = tmp;
-		finish ();
-	}
-	ptr += quant;
-	proceed IM_BIN1;
-
-}
-
-void Outserial::setup (const char *d) {
-
-	uart = S->uart;
-	assert (uart->pcsOutserial == NULL,
-		"Outserial->setup: duplicated process");
-	uart->pcsOutserial = this;
-	ptr = data = d;
-}
-
-void Outserial::finish () {
-	terminate ();
-	uart->pcsOutserial = NULL;
-	sleep;
-}
-
-Outserial::perform {
-
-    int quant;
-
-    state OM_INIT:
-
-	if (*ptr)
-		len = strlen (ptr);
-	else
-		len = ptr [1] +3; // 3: 0x00, len, 0x04
-
-    transient OM_WRITE:
-
-	if (len == 0) {
-		/* This is always a fresh buffer allocated dynamically */
-		ufree (data);
-		finish ();
-	}
-
-    transient OM_RETRY:
-
-	quant = S->io (OM_RETRY, 0, WRITE, (char*)ptr, len);
-	ptr += quant;
-	len -= quant;
-	proceed OM_WRITE;
-}
-
-char *PicOSNode::form (char *buf, const char *fm, ...) {
+char* _dad (PicOSNode, form) (char *buf, const char *fm, ...) {
 
 	va_list	ap;
 	va_start (ap, fm);
 
-	return vform (buf, fm, ap);
+	return _da (vform) (buf, fm, ap);
 }
 
-int PicOSNode::scan (const char *buf, const char *fmt, ...) {
+int _dad (PicOSNode, scan) (const char *buf, const char *fmt, ...) {
 
 	va_list ap;
 	va_start (ap, fmt);
 
-	return vscan (buf, fmt, ap);
+	return _da (vscan) (buf, fmt, ap);
 }
 
-char *PicOSNode::vform (char *res, const char *fm, va_list aq) {
+char* _dad (PicOSNode, vform) (char *res, const char *fm, va_list aq) {
 
 	word fml, s, d;
 	char c;
@@ -409,7 +308,7 @@ char *PicOSNode::vform (char *res, const char *fm, va_list aq) {
 				/* There is not much we can do */
 				return NULL;
 			/* This is how far we can go */
-			fml = actsize ((address)res) - 1;
+			fml = _da (actsize) ((address)res) - 1;
 		}
 		s = d = 0;
 
@@ -512,7 +411,7 @@ char *PicOSNode::vform (char *res, const char *fm, va_list aq) {
 	}
 }
 
-int PicOSNode::vscan (const char *buf, const char *fmt, va_list ap) {
+int _dad (PicOSNode, vscan) (const char *buf, const char *fmt, va_list ap) {
 
 	int nc;
 
@@ -625,7 +524,7 @@ int PicOSNode::vscan (const char *buf, const char *fmt, va_list ap) {
 	return nc;
 }
 
-int PicOSNode::ser_in (word st, char *buf, int len) {
+int _dad (PicOSNode, ser_in) (word st, char *buf, int len) {
 
 	int prcs;
 
@@ -657,7 +556,7 @@ int PicOSNode::ser_in (word st, char *buf, int len) {
 	return 0;
 }
 
-int PicOSNode::ser_out (word st, const char *m) {
+int _dad (PicOSNode, ser_out) (word st, const char *m) {
 
 	int prcs;
 	char *buf;
@@ -692,7 +591,7 @@ int PicOSNode::ser_out (word st, const char *m) {
 	return 0;
 }
 
-int PicOSNode::ser_inf (word st, const char *fmt, ...) {
+int _dad (PicOSNode, ser_inf) (word st, const char *fmt, ...) {
 /* ========= */
 /* Formatted */
 /* ========= */
@@ -712,7 +611,7 @@ int PicOSNode::ser_inf (word st, const char *fmt, ...) {
 	/* Input available */
 	va_start (ap, fmt);
 
-	prcs = vscan (uart->__inpline, fmt, ap);
+	prcs = _da (vscan) (uart->__inpline, fmt, ap);
 
 	ufree (uart->__inpline);
 	uart->__inpline = NULL;
@@ -720,7 +619,7 @@ int PicOSNode::ser_inf (word st, const char *fmt, ...) {
 	return 0;
 }
 
-int PicOSNode::ser_outf (word st, const char *m, ...) {
+int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 
 	int prcs;
 	char *buf;
@@ -735,7 +634,7 @@ int PicOSNode::ser_outf (word st, const char *m, ...) {
 	
 	va_start (ap, m);
 
-	if ((buf = vform (NULL, m, ap)) == NULL) {
+	if ((buf = _da (vform) (NULL, m, ap)) == NULL) {
 		/*
 		 * This means we are out of memory
 		 */
@@ -746,6 +645,50 @@ int PicOSNode::ser_outf (word st, const char *m, ...) {
 	create Outserial (buf);
 	return 0;
 }
+
+void _dad (PicOSNode, ee_read) (word adr, byte *buf, word n) {
+
+	sysassert (eeprom != NULL, "ee_read no eeprom");
+	eeprom->get (adr, buf, n);
+};
+
+void _dad (PicOSNode, ee_write) (word adr, const byte *buf, word n) {
+
+	sysassert (eeprom != NULL, "ee_write no eeprom");
+	eeprom->put (adr, buf, n);
+};
+
+void _dad (PicOSNode, ee_erase) () {
+
+	sysassert (eeprom != NULL, "ee_erase no eeprom");
+	eeprom->erase ();
+};
+
+int _dad (PicOSNode, if_write) (word adr, word w) {
+
+	sysassert (iflash != NULL, "if_write no iflash");
+	iflash->put (adr << 1, (const byte*) (&w), 2);
+	return 0;
+};
+
+word _dad (PicOSNode, if_read) (word adr) {
+
+	word w;
+
+	sysassert (iflash != NULL, "if_read no iflash");
+	iflash->get (adr << 1, (byte*) (&w), 2);
+	return w;
+};
+
+void _dad (PicOSNode, if_erase) (int a) {
+
+	sysassert (iflash != NULL, "if_erase no iflash");
+
+	if (a < 0)
+		iflash->erase ();
+	else
+		iflash->erase ((word)(a << 1));
+};
 
 void NNode::setup () {
 
@@ -761,15 +704,12 @@ void NNode::reset () {
 
 }
 
-void TNode::setup (nid_t ni, nid_t lh, nid_t mh) {
+void TNode::setup () {
 
 #include "net_node_data_init.h"
 #include "plug_tarp_node_data_init.h"
 #include "tarp_node_data_init.h"
 
-	net_id = Def_net_id = ni;
-	local_host = Def_local_host = lh;
-	master_host = Def_master_host = mh;
 }
 
 void TNode::reset () {
@@ -780,9 +720,6 @@ void TNode::reset () {
 #include "plug_tarp_node_data_init.h"
 #include "tarp_node_data_init.h"
 
-	net_id = Def_net_id;
-	local_host = Def_local_host;
-	master_host = Def_master_host;
 }
 
 // =====================================
@@ -1058,6 +995,9 @@ void BoardRoot::readNodeParams (sxml_t data, int nn,
 		Long	&lbtdel,
 		double	&lbtth,
 		Long	&pre,
+		Long	&eesz,
+		Long	&ifsz,
+		Long	&ifps,
 		Long	&uimo,
 		Long	&uomo,
 		Long	&uitm,
@@ -1096,6 +1036,9 @@ void BoardRoot::readNodeParams (sxml_t data, int nn,
 	uocn = UART_OMODE_ASCII;
 	uspe = 0;
 	ubsi = 0;
+
+	// EEPROM + UART initialized as absent
+	eesz = ifsz = ifps = 0;
 	
 	if (data == NULL)
 		return;
@@ -1182,6 +1125,42 @@ void BoardRoot::readNodeParams (sxml_t data, int nn,
 			excptn ("Root: preamble length must be > 0, is %1d, "
 				"in %s", pre, es);
 		print (form ("  Preamble:   %1d bits\n", pre));
+	}
+
+	/* EEPROM + IFLASH */
+	if ((cur = sxml_child (data, "eeprom")) != NULL) {
+		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+			excptn ("Root: one int number required in <eeprom> "
+				"in %s", es);
+		eesz = (Long) (np [0].LVal);
+		if (eesz < 0 || eesz > 65536)
+			excptn ("Root: eeprom size must be >= 0 and <= 65536, "
+				"is %1d, in %s", eesz, es);
+		if (eesz)
+		    printf (form ("  EEPROM:     %1d bytes\n", eesz));
+	}
+
+	if ((cur = sxml_child (data, "iflash")) != NULL) {
+		len = parseNumbers (sxml_txt (cur), 2, np);
+		if (len != 1 && len != 2)
+			excptn ("Root: one or two int number required in "
+				"<iflash> in %s", es);
+		ifsz = (Long) (np [0].LVal);
+		if (ifsz < 0 || ifsz > 65536)
+			excptn ("Root: iflash size must be >= 0 and <= 65536, "
+				"is %1d, in %s", ifsz, es);
+		if (len == 2) {
+			ifps = (Long) (np [1].LVal);
+			if (ifps) {
+			    if (ifps < 0 || ifps > ifsz || (ifsz % ifps) != 0)
+				excptn ("Root: number of iflash pages, %1d, is "
+					"illegal in %s", ifps, es);
+			    ifps = ifsz / ifps;
+			}
+		}
+		if (ifsz)
+		    printf (form ("  IFLASH:     %1d bytes, page size: %1d\n",
+			ifsz, ifps));
 	}
 
 	/* The UART */
@@ -1392,6 +1371,10 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 	
 	Long 	def_pre,
 
+		def_eesz,
+		def_ifsz,
+		def_ifps,
+
 		def_uimo,
 		def_uomo,
 		def_uitm,
@@ -1421,6 +1404,10 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		nod_lbtdel;
 
 	Long	nod_pre,
+
+		nod_eesz,
+		nod_ifsz,
+		nod_ifps,
 
 		nod_uimo,
 		nod_uomo,
@@ -1469,6 +1456,9 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			def_lbtdel,
 			def_lbtth,
 			def_pre,
+			def_eesz,
+			def_ifsz,
+			def_ifps,
 			def_uimo,
 			def_uomo,
 			def_uitm,
@@ -1524,6 +1514,9 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 				nod_lbtdel,
 				nod_lbtth,
 				nod_pre,
+				nod_eesz,
+				nod_ifsz,
+				nod_ifps,
 				nod_uimo,
 				nod_uomo,
 				nod_uitm,
@@ -1573,6 +1566,14 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			  excptn ("Root: LBT parameters for node %1d are "
 				"undefined", i);
 		}
+
+		if (nod_eesz == 0)
+			nod_eesz = def_eesz;
+
+		if (nod_ifsz == 0) {
+			nod_ifsz = def_ifsz;
+			nod_ifps = def_ifps;
+		}
 				
 		if (nod_uspe == 0) {
 			nod_uimo = def_uimo;
@@ -1608,6 +1609,7 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			nod_lbtdel, nod_lbtth,		// LBT
 			Rate,
 			nod_pre,			// Preamble
+			nod_eesz, nod_ifsz, nod_ifps,
 			nod_uimo | nod_uomo | nod_uitm | nod_uicn |
 				nod_uocn | nod_uisl,
 			nod_ubsi, nod_uspe,
@@ -1657,5 +1659,142 @@ void BoardRoot::initAll () {
 
 	setResync (500, 0.5);
 }
+
+// ======================================================== //
+// Here is the part to run under the fake PicOS environment //
+// ======================================================== //
+
+#include "stdattr.h"
+
+void Inserial::setup () {
+
+	uart = S->uart;
+	assert (uart->pcsInserial == NULL,
+		"Inserial->setup: duplicated process");
+	uart->pcsInserial = this;
+}
+
+void Inserial::close () {
+	terminate ();
+	uart->pcsInserial = NULL;
+	sleep;
+}
+
+Inserial::perform {
+
+    int quant;
+
+    state IM_INIT:
+
+	if (uart->__inpline != NULL)
+		/* Never overwrite previous unclaimed stuff */
+		close ();
+
+	if ((tmp = ptr = (char*) umalloc (MAX_LINE_LENGTH + 1)) == NULL) {
+		/*
+		 * We have to wait for memory
+		 */
+		umwait (IM_INIT);
+		sleep;
+	}
+	len = MAX_LINE_LENGTH;
+
+    transient IM_READ:
+
+	io (IM_READ, 0, READ, ptr, 1);
+	if (ptr == tmp) { // new line
+		if (*ptr == '\0') { // bin cmd
+			ptr++;
+			len--;
+			proceed IM_BIN;
+		}
+
+		if (*ptr < 0x20)
+			/* Ignore codes below space at the beginning of line */
+			proceed IM_READ;
+	}
+	if (*ptr == '\n' || *ptr == '\r') {
+		*ptr = '\0';
+		uart->__inpline = tmp;
+		close ();
+	}
+
+	if (len) {
+		ptr++;
+		len--;
+	}
+
+	proceed IM_READ;
+
+    state IM_BIN:
+
+	io (IM_BIN, 0, READ, ptr, 1);
+	if (--len > *ptr +1) // 1 for 0x04
+		len = *ptr +1;
+	ptr++;
+
+    transient IM_BIN1:
+
+	quant = io (IM_BIN1, 0, READ, ptr, len);
+	len -= quant;
+	if (len == 0) {
+		uart->__inpline = tmp;
+		close ();
+	}
+	ptr += quant;
+	proceed IM_BIN1;
+
+}
+
+void Outserial::setup (const char *d) {
+
+	uart = S->uart;
+	assert (uart->pcsOutserial == NULL,
+		"Outserial->setup: duplicated process");
+	uart->pcsOutserial = this;
+	ptr = data = d;
+}
+
+void Outserial::close () {
+	terminate ();
+	uart->pcsOutserial = NULL;
+	sleep;
+}
+
+Outserial::perform {
+
+    int quant;
+
+    state OM_INIT:
+
+	if (*ptr)
+		len = strlen (ptr);
+	else
+		len = ptr [1] +3; // 3: 0x00, len, 0x04
+
+    transient OM_WRITE:
+
+	if (len == 0) {
+		/* This is always a fresh buffer allocated dynamically */
+		ufree (data);
+		close ();
+	}
+
+    transient OM_RETRY:
+
+	quant = io (OM_RETRY, 0, WRITE, (char*)ptr, len);
+	ptr += quant;
+	len -= quant;
+	proceed OM_WRITE;
+}
+
+#include "stdattr_undef.h"
+
+#include "uart.cc"
+#include "rfmodule_dm2200.cc"
+#include "net.cc"
+#include "plug_null.cc"
+#include "plug_tarp.cc"
+#include "tarp.cc"
 
 #endif

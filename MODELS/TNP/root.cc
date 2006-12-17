@@ -1,39 +1,5 @@
 #include "common.h"
 #include "board.cc"
-#include "diag.h"
-
-void app_diag (const word level, const char *fmt, ... ) {
-
-	char 		*buf;
-	va_list		ap;
-	va_start	(ap, fmt);
-
-	if (app_dl < level)
-		return;
-
-	// compiled out if both levels are constant?
-	// if not, go by #if DIAG_MESSAGES as well
-
-	buf = TheNode->vform (NULL, fmt, ap);
-	diag ("app_diag: %s", buf);
-	ufree (buf);
-}
-
-void net_diag (const word level, const char * fmt, ...) {
-	char * buf;
-	va_list	ap;
-
-	if (net_dl < level)
-		return;
-
-	va_start (ap, fmt);
-
-	// compiled out if both levels are constant?
-
-	buf = TheNode->vform (NULL, fmt, ap);
-	diag ("net_diag: %s", buf);
-	ufree (buf);
-}
 
 process Root : BoardRoot {
 
@@ -50,6 +16,9 @@ process Root : BoardRoot {
 		double	LBTThs,
 		RATE	rate,
 		Long	PRE,		// Preamble
+		Long	eesz,
+		Long	ifsz,
+		Long	ifps,
 		Long	UMODE,		// UART mode
 		Long	UBS,		// UART buffer size
 		Long	USP,		// UART rate
@@ -68,6 +37,9 @@ process Root : BoardRoot {
 			LBTDel, LBTThs,
 			rate,
 			PRE,
+			eesz,
+			ifsz,
+			ifps,
 			UMODE,
 			UBS,
 			USP,
@@ -86,6 +58,9 @@ process Root : BoardRoot {
 			LBTDel, LBTThs,
 			rate,
 			PRE,
+			eesz,
+			ifsz,
+			ifps,
 			UMODE,
 			UBS,
 			USP,

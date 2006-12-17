@@ -16,16 +16,12 @@ typedef	unsigned char	byte;
 #define	MAX_UINT	((word)0xFFFF)
 #define	MAX_ULONG	((lword)0xFFFFFFFF)
 
-#define	diag(s, ...)	trace ("[%1.3f] DIAG [%1d]: %s", ituToEtu (Time), \
-			      TheStation->getId (), ::form (s, ## __VA_ARGS__))
-
-#define	syserror(a,b)	excptn (::form ("SYSERROR: %1d, %s", a, b))
 #define	sysassert(a,b)	do { if (!(a)) syserror (EASSERT, b); } while (0)
 #define	halt()		excptn ("HALTED!!!")
 #define	CNOP		do { } while (0)
 
 #define	byteaddr(p)	((char*)(p))
-#define	entry(s)	state s :
+#define	entry(s)	transient s :
 #define	process(a,b)	a::perform {
 #define	endprocess(a)	}
 #define	nodata		CNOP
@@ -33,7 +29,6 @@ typedef	unsigned char	byte;
 #define fork(a,b)	(int) (create a (b))
 #define	RELEASE		sleep
 #define	nodefun(t,n,s)	t Node::n
-#define	RND()		toss (65536)
 
 /* ========================================================================== */
 

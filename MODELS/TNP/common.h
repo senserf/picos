@@ -1,8 +1,7 @@
-#ifndef __common_h__
-#define	__common_h__
+#ifndef	__tnp_common_h__
+#define	__tnp_common_h__
 
 #include "sysio.h"
-#include "msg_tarp.h"
 
 void buildTagNode (
 		word mem,
@@ -16,6 +15,9 @@ void buildTagNode (
 		double	LBTThs,
 		RATE	rate,
 		Long	PRE,		// Preamble
+		Long	eesz,		// EEPROM
+		Long	ifsz,		// IFLASH
+		Long	ifps,		// IFLASH page size
 		Long	UMODE,		// UART mode
 		Long	UBS,		// UART buffer size
 		Long	USP,		// UART rate
@@ -37,6 +39,9 @@ void buildPegNode (
 		double	LBTThs,
 		RATE	rate,
 		Long	PRE,		// Preamble
+		Long	eesz,		// EEPROM
+		Long	ifsz,		// IFLASH
+		Long	ifps,		// IFLASH page size
 		Long	UMODE,		// UART mode
 		Long	UBS,		// UART buffer size
 		Long	USP,		// UART rate

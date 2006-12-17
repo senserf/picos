@@ -1,16 +1,20 @@
-#ifndef __node_h__
-#define	__node_h__
+#ifndef __node_peg_h__
+#define	__node_peg_h__
+
+#ifdef	__node_tag_h__
+#error "node_tag.h and node_peg.h cannot be included together"
+#endif
 
 #include "board.h"
 #include "chan_shadow.h"
-#include "plug_null.h"
+#include "plug_tarp.h"
 
-station	Node : NNode {
+station	NodePeg : TNode {
 
 	/*
 	 * Session (application) specific data
 	 */
-#include "attribs.h"
+#include "attribs_peg.h"
 
 	/*
 	 * Application starter
@@ -28,10 +32,10 @@ station	Node : NNode {
 		Long	LBTDel, 	// LBT delay (ms) and threshold (dBm)
 		double	LBTThs,
 		RATE	rate,
-		Long	PRE,		// Preamble
 		Long	eesz,		// EEPROM size
 		Long	ifsz,		// IFLASH size
 		Long	ifps,		// IFLASH page size
+		Long	PRE,		// Preamble
 		Long	UMODE,		// UART mode
 		Long	UBS,		// UART buffer size
 		Long	USP,		// UART rate

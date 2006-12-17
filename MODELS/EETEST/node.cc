@@ -32,13 +32,11 @@ void Node::setup (
 
 void Node::init () {
 
-#include "attribs_init.h"
-
 	// Start application root
 	appStart ();
 }
 
-__PUBLF (Node, void, reset) () {
+void Node::reset () {
 
 	NNode::reset ();
 

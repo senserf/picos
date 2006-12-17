@@ -10,7 +10,11 @@ station	Node : NNode {
 	/*
 	 * Session (application) specific data
 	 */
-#include "attribs.h"
+	word	_na_a, _na_w, _na_len, _na_bs, _na_nt, _na_sl, _na_ss, _na_dcnt;
+	int	_na_b;
+	lword	_na_lw;
+	byte	_na_str [129], *_na_blk;
+	char	_na_ibuf [132];
 
 	/*
 	 * Application starter
@@ -28,10 +32,10 @@ station	Node : NNode {
 		Long	LBTDel, 	// LBT delay (ms) and threshold (dBm)
 		double	LBTThs,
 		RATE	rate,
-		Long	PRE,		// Preamble
 		Long	eesz,		// EEPROM size
 		Long	ifsz,		// IFLASH size
 		Long	ifps,		// IFLASH page size
+		Long	PRE,		// Preamble
 		Long	UMODE,		// UART mode
 		Long	UBS,		// UART buffer size
 		Long	USP,		// UART rate
@@ -39,7 +43,7 @@ station	Node : NNode {
 		char	*UODV		// Output device for UART
 	);
 
-	void _da (reset) ();
+	void reset ();
 	void init ();
 };
 

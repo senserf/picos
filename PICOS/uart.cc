@@ -5,6 +5,7 @@
 // other projects as well
 
 #include "uart.h"
+#include "stdattr.h"
 
 #define	UART_SOCKET_BUFLEN	64
 #define	UART_DEVICE_BUFLEN	32
@@ -120,10 +121,10 @@ UART::UART (int speed, const char *idev, const char *odev, int mode, int bsize) 
 	// stop bit, which is the case in all our setups
 	ByteTime = (TIME) ((Second / speed) * 10.0);
 
-	reset ();
+	rst ();
 }
 
-void UART::reset () {
+void UART::rst () {
 
 	if (IBuf != NULL) {
 		IB_in = IB_out = 0;
@@ -164,8 +165,8 @@ char UART::getOneByte (int st) {
 			// This event will never happen. We wait here forever
 			// when the string has ended. Perhaps later I will do
 			// something about the process.
-			TheNode->wait ((int)(&st), st);
-			sleep;
+			when ((int)(&st), st);
+			release;
 		}
 		SLen--;
 		return *String++;
@@ -173,7 +174,7 @@ char UART::getOneByte (int st) {
 	// Read from the mailbox
 	if (I->read (&c, 1) != ACCEPTED) {
 		I->wait (NEWITEM, st);
-		sleep;
+		release;
 	}
 
 	return c;
@@ -252,7 +253,7 @@ Redo:
 		// Waiting for the right time
 		if (TimedChunkTime > Time) {
 			Timer->wait (TimedChunkTime - Time, state);
-			sleep;
+			release;
 		}
 		if (Flags & UART_IMODE_HEX) {
 			// Reading HEX
@@ -331,7 +332,7 @@ UART_in::perform {
 		// Timed
 		if ((D = TimeLastRead + U->ByteTime) > Time) {
 			Timer->wait (D - Time, Get);
-			sleep;
+			release;
 		}
 		// Timed sequences get in even if nobody wants them, i.e.,
 		// no room in the buffer. They are lost in such cases.
@@ -343,11 +344,11 @@ UART_in::perform {
 		// wait until needed
 		if (U->ibuf_full ()) {
 			Monitor->wait (&(U->IB_out), Get);
-			sleep;
+			release;
 		}
 		if ((D = TimeLastRead + U->ByteTime) > Time) {
 			Timer->wait (D - Time, Get);
-			sleep;
+			release;
 		}
 		// Get next byte
 		c = U->getOneByte (Get);
@@ -398,12 +399,12 @@ UART_out::perform {
 
 	if (U->obuf_empty ()) {
 		Monitor->wait (&(U->OB_in), Put);
-		sleep;
+		release;
 	}
 
 	if ((D = TimeLastWritten + U->ByteTime) > Time) {
 		Timer->wait (D - Time, Put);
-		sleep;
+		release;
 	}
 
 	b = U->obuf_peek ();
@@ -417,13 +418,13 @@ UART_out::perform {
 			// This will practically never happen, so the cost
 			// of redoing the conversion is nil
 			U->O->wait (OUTPUT, Put);
-			sleep;
+			release;
 		}
 	} else {
 		if (U->O->write ((char*)(&b), 1) == REJECTED) {
 			// Output device is blocked
 			U->O->wait (OUTPUT, Put);
-			sleep;
+			release;
 		}
 	}
 		
@@ -474,7 +475,7 @@ UART::~UART () {
 		delete TI_aux;
 }
 
-int UART::io (int state, int ope, char *buf, int len) {
+int UART::ioop (int state, int ope, char *buf, int len) {
 /*
  * Note: there is no 'dev' parameter from the PicOS version. Nodes will want
  * to wrap this method anyway.
@@ -502,7 +503,7 @@ int UART::io (int state, int ope, char *buf, int len) {
 				if (state == NONE)
 					return 0;
 				Monitor->wait (&IB_in, state);
-				sleep;
+				release;
 			}
 
 			// We have extracted something
@@ -524,7 +525,7 @@ int UART::io (int state, int ope, char *buf, int len) {
 				if (state == NONE)
 					return 0;
 				Monitor->wait (&OB_out, state);
-				sleep;
+				release;
 			}
 
 			// We have stored something
@@ -533,8 +534,10 @@ int UART::io (int state, int ope, char *buf, int len) {
 
 		default:
 
-			excptn ("UART->io: illegal operation");
+			excptn ("UART->ioop: illegal operation");
 	}
 }
+
+#include "stdattr_undef.h"
 
 #endif

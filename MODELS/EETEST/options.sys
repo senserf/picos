@@ -1,4 +1,3 @@
-#ifdef	__SMURPH__
 #define	TCV_PRESENT	1
 #define	TCV_HOOKS	0
 #define	TCV_TIMERS	0
@@ -24,4 +23,3 @@
 #define	dbg_d(c)	do { } while (0)
 #define	dbg_e(c)	do { } while (0)
 #define	dbg_f(c)	do { } while (0)
-#endif

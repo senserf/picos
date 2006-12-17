@@ -7,8 +7,8 @@
 
 #include "tcv.cc"
 
-#define	TX_EVENT		((int)(TheNode->tx_event))
-#define	RX_EVENT		((int)(TheNode->RFInterface))
+#include "stdattr.h"
+#include "rfmattr.h"
 
 static int option (int, address);
 
@@ -18,10 +18,10 @@ byte Receiver::get_rssi (byte &qual) {
 	double sl, sd, bn, ra;
 	byte res;
 
-	ih = RFC->iHist (ThePckt);
+	ih = RFInterface->iHist (ThePckt);
 	assert (ih != NULL, "Receiver->get_rssi: no IHist");
 
-	sl = RFC->sigLevel (ThePckt, SIGL_OWN);
+	sl = RFInterface->sigLevel (ThePckt, SIGL_OWN);
 	assert (sl >= 0.0, "Receiver->get_rssi: no signal");
 
 	// Weight it between background noise and 10dBm, which is the default
@@ -43,7 +43,7 @@ byte Receiver::get_rssi (byte &qual) {
 	// By quality, we mean the S/N ratio normalized between 10.0/bn and
 	// 0dB
 
-	ra = RFC->sigLevel (ThePckt, SIGL_IFA) + Ether->BNoise;
+	ra = RFInterface->sigLevel (ThePckt, SIGL_IFA) + Ether->BNoise;
 	sl = (linTodB (sl/ra) + 5.0) / 55.0;
 	if (sl >= 1.0)
 		qual = 127;
@@ -60,90 +60,90 @@ Xmitter::perform {
     state XM_LOOP:
 
 	if (buffer == NULL) {
-		if (S->TXOFF) {
-			if (S->TXOFF == 3) {
+		if (TXOFF) {
+			if (TXOFF == 3) {
 Drain:
-				S->tcvphy_erase (PHYSID);
-				S->wait (TX_EVENT, XM_LOOP);
-				sleep;
-			} else if (S->TXOFF == 1) {
-				S->backoff = 0;
-				S->wait (TX_EVENT, XM_LOOP);
-				sleep;
+				tcvphy_erase (PHYSID);
+				when (tx_event, XM_LOOP);
+				release;
+			} else if (TXOFF == 1) {
+				backoff = 0;
+				when (tx_event, XM_LOOP);
+				release;
 			}
 		}
 
-		if ((buffer = S->tcvphy_get (PHYSID, &buflen)) != NULL) {
+		if ((buffer = tcvphy_get (PHYSID, &buflen)) != NULL) {
 			assert (buflen >= 4 && (buflen & 1) == 0,
 				"Xmitter: illegal packet length");
-			buffer [0] = S->statid;
+			buffer [0] = statid;
 		} else {
 			// Nothing to transmit
-			if (S->TXOFF == 2) {
+			if (TXOFF == 2) {
 				// Draining, stop if the queue is empty
-				S->TXOFF = 3;
+				TXOFF = 3;
 				goto Drain;
 			}
-			S->wait (TX_EVENT, XM_LOOP);
-			sleep;
+			when (tx_event, XM_LOOP);
+			release;
 		}
 	}
 
-	if (S->backoff && !S->tcv_isurgent (buffer)) {
+	if (backoff && !tcv_isurgent (buffer)) {
 		// backing off and the packet is not urgent
-		S->delay (S->backoff, XM_LOOP);
-		S->backoff = 0;
-		S->wait (TX_EVENT, XM_LOOP);
-		sleep;
+		delay (backoff, XM_LOOP);
+		backoff = 0;
+		when (tx_event, XM_LOOP);
+		release;
 	}
 
-	if (S->Receiving) {
-		S->delay (S->min_backoff, XM_LOOP);
-		S->wait (TX_EVENT, XM_LOOP);
-		sleep;
+	if (Receiving) {
+		delay (min_backoff, XM_LOOP);
+		when (tx_event, XM_LOOP);
+		release;
 	}
 
-	if (S->lbt_delay && !S->RXOFF) {
+	if (lbt_delay && !RXOFF) {
 		// Start the ADC
 		RSSI->signal ((void*)YES);
-		S->delay (S->lbt_delay, XM_LBS);
-		sleep;
+		delay (lbt_delay, XM_LBS);
+		release;
 	}
 
 Xmit:
-	S->OBuffer.load (buffer, buflen);
-	S->Xmitting = YES;
-	RFC->transmit (&(S->OBuffer), XM_TXDONE);
+	OBuffer.load (buffer, buflen);
+	Xmitting = YES;
+	RFInterface->transmit (&OBuffer, XM_TXDONE);
 
     state XM_TXDONE:
 
-	RFC->stop ();
-	if (S->lbt_delay == 0)
+	RFInterface->stop ();
+	if (lbt_delay == 0)
 		// To reduce the risk of livelocks; not needed with LBT
-		S->gbackoff ();
+		gbackoff ();
 
-	S->tcvphy_end (buffer);
+	tcvphy_end (buffer);
 	buffer = NULL;
-	S->Xmitting = NO;
-	trigger (RX_EVENT);
-	S->delay (S->min_backoff, XM_LOOP);
+	Xmitting = NO;
+	trigger (rx_event);
+	delay (min_backoff, XM_LOOP);
 
     state XM_LBS:
 
 	RSSI->signal ((void*)NO);
-	if (S->Receiving) {
-		S->delay (S->min_backoff, XM_LOOP);
-		S->wait (TX_EVENT, XM_LOOP);
-		sleep;
+	if (Receiving) {
+		delay (min_backoff, XM_LOOP);
+		when (tx_event, XM_LOOP);
+		release;
 	}
 
-	if (S->RXOFF)
+	if (RXOFF)
 		goto Xmit;
 
-	if (RSSI->sigLevel () < S->lbt_threshold)
+	if (RSSI->sigLevel () < lbt_threshold)
 		goto Xmit;
 
-	S->gbackoff ();
+	gbackoff ();
 	proceed XM_LOOP;
 
 }
@@ -163,10 +163,10 @@ ADC::perform {
 	ATime = 0.0;
 	Average = 0.0;
 	Last = Time;
-	CLevel = RFC->sigLevel ();
+	CLevel = RFInterface->sigLevel ();
 
 	// In case something is already pending
-	RFC->wait (ANYEVENT, ADC_UPDATE);
+	RFInterface->wait (ANYEVENT, ADC_UPDATE);
 	this->wait (SIGNAL, ADC_STOP);
 
     state ADC_UPDATE:
@@ -177,11 +177,11 @@ ADC::perform {
 	DT = (double)(Time - Last);	// Time increment
 	NA = ATime + DT;		// New total sampling time
 	Average = ((Average * ATime) / NA) + (CLevel * DT) / NA;
-	CLevel = RFC->sigLevel ();
+	CLevel = RFInterface->sigLevel ();
 	Last = Time;
 	ATime = NA;
 	// Only new events, no looping!
-	RFC->wait (ANYEVENT, ADC_UPDATE);
+	RFInterface->wait (ANYEVENT, ADC_UPDATE);
 	this->wait (SIGNAL, ADC_STOP);
 
     state ADC_STOP:
@@ -199,32 +199,32 @@ Receiver::perform {
 
     state RCV_GETIT:
 
-	S->Receiving = NO;
+	Receiving = NO;
 
-	if (S->RXOFF) {
+	if (RXOFF) {
 Finidh:
-		S->wait (RX_EVENT, RCV_GETIT);
-		sleep;
+		when (rx_event, RCV_GETIT);
+		release;
 	}
 	this->signal ((void*)NONE);
-	RFC->wait (BOT, RCV_START);
+	RFInterface->wait (BOT, RCV_START);
 
     state RCV_START:
 
-	if (S->Xmitting) {
-		S->wait (RX_EVENT, RCV_GETIT);
-		sleep;
+	if (Xmitting) {
+		when (rx_event, RCV_GETIT);
+		release;
 	}
 
-	S->Receiving = YES;
-	RFC->follow (ThePckt);
+	Receiving = YES;
+	RFInterface->follow (ThePckt);
 	skipto RCV_RECEIVE;
 
     state RCV_RECEIVE:
 
-	RFC->wait (EOT, RCV_GOTIT);
-	RFC->wait (BERROR, RCV_GETIT);
-	RFC->wait (BOT, RCV_START);
+	RFInterface->wait (EOT, RCV_GOTIT);
+	RFInterface->wait (BERROR, RCV_GETIT);
+	RFInterface->wait (BOT, RCV_START);
 
     state RCV_GOTIT:
 
@@ -234,18 +234,18 @@ Finidh:
 	pktlen = ThePckt -> PaySize;
 
 	assert (pktlen > MINIMUM_PACKET_LENGTH, "Receiver: packet too short");
-	if (S->statid != 0 && packet [0] != 0 && packet [0] != S->statid)
+	if (statid != 0 && packet [0] != 0 && packet [0] != statid)
 		// Ignore
 		proceed RCV_GETIT;
 
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
 	packet [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 
-	S->tcvphy_rcv (PHYSID, packet, pktlen);
+	tcvphy_rcv (PHYSID, packet, pktlen);
 	proceed RCV_GETIT;
 }
 
-void PicOSNode::phys_dm2200 (int phy, int mbs) {
+__PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 /*
  * phy  - interface number
  * mbs  - maximum packet length (including checksum, must be divisible by 4)
@@ -283,54 +283,54 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = ((TheNode->TXOFF == 0) << 1) | (TheNode->RXOFF == 0);
+		ret = ((TXOFF == 0) << 1) | (RXOFF == 0);
 		if (val != NULL)
 			*val = ret;
 		break;
 
 	    case PHYSOPT_TXON:
 
-		if (TheNode->TXOFF) {
-			TheNode->TXOFF = NO;
-			trigger (TX_EVENT);
+		if (TXOFF) {
+			TXOFF = NO;
+			trigger (tx_event);
 		}
 		break;
 
 	    case PHYSOPT_RXON:
 
-		if (TheNode->RXOFF) {
-			TheNode->RXOFF = NO;
-			trigger (RX_EVENT);
+		if (RXOFF) {
+			RXOFF = NO;
+			trigger (rx_event);
 		}
 		break;
 
 	    case PHYSOPT_TXOFF:
 
 		/* Drain */
-		TheNode->TXOFF = 2;
-		trigger (TX_EVENT);
+		TXOFF = 2;
+		trigger (tx_event);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
-		TheNode->TXOFF = 1;
-		trigger (TX_EVENT);
+		TXOFF = 1;
+		trigger (tx_event);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
-		TheNode->RXOFF = 1;
-		trigger (RX_EVENT);
+		RXOFF = 1;
+		trigger (rx_event);
 		break;
 
 	    case PHYSOPT_CAV:
 
 		/* Force an explicit backoff */
 		if (val == NULL)
-			TheNode->backoff = 0;
+			backoff = 0;
 		else
-			TheNode->backoff = *val;
-		trigger (TX_EVENT);
+			backoff = *val;
+		trigger (tx_event);
 		break;
 
 	    case PHYSOPT_SENSE:
@@ -350,12 +350,12 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETSID:
 
-		TheNode->statid = (val == NULL) ? 0 : *val;
+		statid = (val == NULL) ? 0 : *val;
 		break;
 
             case PHYSOPT_GETSID:
 
-		ret = (int) TheNode->statid;
+		ret = (int) statid;
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -377,5 +377,8 @@ static int option (int opt, address val) {
 	}
 	return ret;
 }
+
+#include "rfmattr_undef.h"
+#include "stdattr_undef.h"
 
 #endif

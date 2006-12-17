@@ -1,3 +1,5 @@
+#ifndef __diag_h__
+#define __diag_h__
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2004.                   */
 /* All rights reserved.                                                 */
@@ -19,7 +21,4 @@
 #define net_dl          D_WARNING
 #define app_dl          D_WARNING
 
-//+++ "net_diag.c" "app_diag.c"
-
-void net_diag (const word, const char *, ...);
-void app_diag (const word, const char *, ...);
+#endif

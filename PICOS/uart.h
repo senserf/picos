@@ -105,9 +105,9 @@ class	UART {
 
 	void getTimed (char*, int);
 
-	int io (int st, int op, char*, int len);
+	int ioop (int st, int op, char*, int len);
 
-	void reset ();
+	void rst ();
 
 	UART (int, const char*, const char*, int, int);
 	~UART ();

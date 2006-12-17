@@ -185,6 +185,38 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 /* ======================================================================== */
 
+#define	_da(a)				_na_ ## a
+#define	_dac(a,b)			(((a *)TheStation)-> _na_ ## b)
+#define	_dad(t,a)			t::_na_ ## a
+
+#define	__PRIVF(ot,tp,nam)		tp ot::nam
+#define	__PUBLS(ot,tp,nam)		__PUBLF (ot, tp, nam)
+#define	__PUBLF(ot,tp,nam)		tp ot::_na_ ## nam
+
+#define	__STATIC
+#define	__EXTERN
+#define	__CONST
+
+#ifndef	THREADNAME
+#define	THREADNAME(a)	a
+#endif
+
+#define	threadhdr(a,b)	process THREADNAME(a) (b)
+#define	strandhdr(a,b)	threadhdr (a, b)
+
+#define	thread(a)	THREADNAME(a)::perform {
+#define	runthread(a)	create THREADNAME(a)
+#define	runstrand(a,b)	create THREADNAME(a) (b)
+
+#define	strand(a,b)	thread(a)
+#define	endthread	}
+#define	endstrand	endthread
+
+#define	praxis_starter(nt) \
+		void nt::appStart () { create THREADNAME(root); }
+
+// FIXME: cleanup this
+
 #define	__PROCESS(a,b)	process a (Node) { \
 		states { __S0, __S1, __S2, __S3, __S4 }; perform {
 #define	__ENDPROCESS(a)	}};
@@ -194,10 +226,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	__RELEASE	sleep
 #define	__NODATA	NOP
 
-#define	__PRIVF(ot,tp,nam)		tp ot::nam
-#define	__PUBLF(ot,tp,nam)		tp ot::nam
 
-#define	__STATIC
 #define	__NA(a,b)		(((a*)TheNode)->b)
+
 
 #endif

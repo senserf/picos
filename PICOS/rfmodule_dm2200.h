@@ -5,22 +5,14 @@
 
 process Receiver (PicOSNode) {
 
-	Transceiver *RFC;
-
 	states { RCV_GETIT, RCV_START, RCV_RECEIVE, RCV_GOTIT };
 
 	byte get_rssi (byte&);
-
-	void setup () {
-		RFC = S->RFInterface;
-	};
 
 	perform;
 };
 
 process	ADC (PicOSNode) {
-
-	Transceiver *RFC;
 
 	double		ATime,		// Accumulated sampling time
 			Average,	// Average signal so far
@@ -40,16 +32,10 @@ process	ADC (PicOSNode) {
 
 	states { ADC_WAIT, ADC_RESUME, ADC_UPDATE, ADC_STOP };
 
-	void setup () {
-		RFC = S->RFInterface;
-	};
-
 	perform;
 };
 
 process Xmitter (PicOSNode) {
-
-	Transceiver *RFC;
 
 	address		buffer;
 	int		buflen;
@@ -62,7 +48,6 @@ process Xmitter (PicOSNode) {
 	void setup () {
 		buffer = NULL;
 		RSSI = create ADC;
-		RFC = S->RFInterface;
 	};
 };
 
