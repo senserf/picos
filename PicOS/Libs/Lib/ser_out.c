@@ -39,6 +39,6 @@ int ser_out (word st, const char *m) {
 		strcpy (buf, m);
 	else
 		memcpy (buf, m, prcs);
-	fork (__outserial, buf);
+	runstrand (__outserial, buf);
 	return 0;
 }

@@ -437,7 +437,7 @@ Rtn:
 
 #endif	/* MULTIPLE_PIPES */
 
-process (rf24l01_driver, void)
+thread (rf24l01_driver)
 
   byte pn, st;
   address xbuff;
@@ -585,7 +585,7 @@ process (rf24l01_driver, void)
 	proceed (DR_LOOP);
 #endif
 
-endprocess (1)
+endthread
 
 void phys_rf24l01 (int phy, int mbs) {
 
@@ -626,7 +626,7 @@ void phys_rf24l01 (int phy, int mbs) {
 	bckf_timer = 0;
 
 	/* Start the driver process */
-	zzv_drvprcs = fork (rf24l01_driver, NULL);
+	zzv_drvprcs = runthread (rf24l01_driver);
 }
 
 static int option (int opt, address val) {

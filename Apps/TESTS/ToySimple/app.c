@@ -12,7 +12,7 @@
 #define	OU_WRITE	1
 #define	OU_RETRY	2
 
-process (output, char)
+strand (output, char)
 
     static int nc;
     int k;
@@ -34,12 +34,12 @@ process (output, char)
 	savedata (data);
 	proceed (OU_WRITE);
 
-endprocess (1)
+endstrand
 
 #define	IN_INIT		0
 #define	IN_READ		1
 
-process (input, char)
+strand (input, char)
 
     static int nc;
     int k;
@@ -67,7 +67,7 @@ process (input, char)
 
 	proceed (IN_READ);
 
-endprocess (1)
+endstrand
 
 #define	RS_INIT		0
 #define	RS_SHOW		1
@@ -76,7 +76,7 @@ endprocess (1)
 #define	RS_FORMAT	4
 #define	RS_SHOWMEM	5
 
-process (root, void)
+thread (root)
 /* =========================================== */
 /* This is the main program of the application */
 /* =========================================== */
@@ -143,4 +143,4 @@ process (root, void)
 
 	call (output, ibuf, RS_READ);
 
-endprocess (1)
+endthread

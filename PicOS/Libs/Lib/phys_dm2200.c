@@ -245,7 +245,7 @@ static void ini_dm2200 (void) {
 	} else {
 		diag ("DM2200 FCC test mode, listening .....");
 		zzv_rxoff = 0;
-		fork (rcvradio, NULL);
+		runthread (rcvradio);
 		trigger (rxevent);
 		LEDI (1, 2);
 		LEDI (2, 0);
@@ -376,7 +376,7 @@ static int option (int opt, address val) {
 		else
 			LEDI (0, 2);
 		if (!running (xmtradio))
-			fork (xmtradio, NULL);
+			runthread (xmtradio);
 		trigger (zzv_qevent);
 		break;
 
@@ -388,7 +388,7 @@ static int option (int opt, address val) {
 		else
 			LEDI (0, 2);
 		if (!running (rcvradio))
-			fork (rcvradio, NULL);
+			runthread (rcvradio);
 		trigger (rxevent);
 		break;
 

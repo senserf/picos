@@ -26,7 +26,7 @@ typedef	struct {
 
 static idata_t	*idata = NULL;
 
-static process (reader, void)
+static thread (reader)
 
     int ln;
     istat_t *s;
@@ -48,9 +48,7 @@ static process (reader, void)
 
 	proceed (0);
 
-	nodata;
-
-endprocess (1)
+endthread
 
 static void write (int mode) {
 
@@ -101,7 +99,7 @@ static void write (int mode) {
 	}
 }
 
-static process (writer, void)
+static thread (writer)
 
     entry (0)
 
@@ -112,9 +110,7 @@ static process (writer, void)
 
 	release;
 
-	nodata;
-
-endprocess (1)
+endthread
 
 void phys_ether (int phy, int cid, int mbs) {
 /*
@@ -183,8 +179,8 @@ void phys_ether (int phy, int cid, int mbs) {
 
 	/* Start the driver processes, unless they are present already */
 	if (idata->summary < 2) {
-		fork (reader, NULL);
-		fork (writer, NULL);
+		runthread (reader);
+		runthread (writer);
 	}
 
 	ion (ETHERNET, CONTROL, (char*)&(idata->summary), ETHERNET_CNTRL_RMODE);

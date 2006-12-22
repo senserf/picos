@@ -27,7 +27,7 @@ static int __cport;
 
 #endif	/* UART_DRIVER > 1 */
 
-process (__outserial, const char)
+strand (__outserial, const char)
 /* ===================== */
 /* Runs the output queue */
 /* ===================== */

@@ -81,7 +81,7 @@ static	int rx () {
 
 #define	XM_LOOP	0
 
-static process (xmtradio, void)
+static thread (xmtradio)
 
     char c;
 
@@ -145,11 +145,9 @@ static process (xmtradio, void)
 	wait (txevent, 0);
 	release;
 
-    nodata;
+endthread
 
-endprocess (1)
-
-static process (rcvradio, void)
+static thread (rcvradio)
 
     entry (0)
 
@@ -173,9 +171,7 @@ static process (rcvradio, void)
 	rcvcancel ();
 	proceed (0);
 
-    nodata;
-
-endprocess (1)
+endthread
 
 void phys_radio (int phy, int mod, int mbs) {
 /*
@@ -220,8 +216,8 @@ void phys_radio (int phy, int mod, int mbs) {
 	c = 1;
 	io (NONE, RADIO, CONTROL, &c, RADIO_CNTRL_RCVCTRL);
 
-	fork (xmtradio, NULL);
-	fork (rcvradio, NULL);
+	runthread (xmtradio);
+	runthread (rcvradio);
 }
 
 static int option (int opt, address val) {
@@ -244,7 +240,7 @@ static int option (int opt, address val) {
 
 		radio->txoff = 0;
 		if (!running (xmtradio))
-			fork (xmtradio, NULL);
+			runthread (xmtradio);
 		trigger (txevent);
 		break;
 
@@ -254,7 +250,7 @@ static int option (int opt, address val) {
 		c = 1;
 		io (NONE, RADIO, CONTROL, &c, RADIO_CNTRL_RCVCTRL);
 		if (!running (rcvradio))
-			fork (rcvradio, NULL);
+			runthread (rcvradio);
 		trigger (rxevent);
 		break;
 

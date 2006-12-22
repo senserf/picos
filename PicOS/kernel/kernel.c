@@ -60,6 +60,10 @@ const char	zz_hex_enc_table [] = {
 word	zz_seed = 30011;
 #endif
 
+void zz_badstate (void) {
+	syserror (ESTATE, "no such state");
+}
+
 int utimer (address ut, bool add) {
 /* ================= */
 /* Add/clear utimers */

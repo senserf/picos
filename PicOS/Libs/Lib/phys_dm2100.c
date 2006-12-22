@@ -283,7 +283,7 @@ static int option (int opt, address val) {
 		else
 			LEDI (0, 2);
 		if (!running (xmtradio))
-			fork (xmtradio, NULL);
+			runthread (xmtradio);
 		trigger (zzv_qevent);
 		break;
 
@@ -297,7 +297,7 @@ static int option (int opt, address val) {
 			LEDI (0, 2);
 
 		if (!running (rcvradio))
-			fork (rcvradio, NULL);
+			runthread (rcvradio);
 		trigger (rxevent);
 		break;
 

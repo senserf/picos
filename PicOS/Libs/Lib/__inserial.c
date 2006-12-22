@@ -31,7 +31,7 @@ static int __cport;
 #define	IM_READ		10
 #define IM_BIN		20
 
-process (__inserial, char)
+strand (__inserial, char)
 /* ============================== */
 /* Inputs a line from serial port */
 /* ============================== */
@@ -39,8 +39,6 @@ process (__inserial, char)
 	static char *ptr;
 	static int len;
 	int quant;
-
-	nodata;
 
   entry (IM_INIT)
 

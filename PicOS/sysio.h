@@ -565,21 +565,34 @@ int	rcvlast (void);
 /* Actual size of an malloc'ed piece */
 #define	actsize(p)	(*(((word*)(p))-1) << 1)
 
+void zz_badstate (void);
+
 /* Process operations */
 #define	process(p,d)	int p (word zz_st, address zz_da) { \
 				d *data = (d*) zz_da; \
 				switch (zz_st) {
 
+#define	strand(a,b)	process (a, b)
+
+#define	thread(p)	int p (word zz_st, address zz_dummy) { \
+				switch (zz_st) {
+
 #define	endprocess(n)			break; \
 				    default: \
 					if (zz_st == 0xffff) return (n); \
-					syserror (ESTATE, "no such state"); \
+					zz_badstate (); \
 				} return 1; }
+
+#define	endthread	endprocess (1)
+#define	endstrand	endprocess (0)
 
 #define	entry(s)	case s:
 
 #define	procname(p)	extern int p (word, address)
 #define	sprocname(p)	static int p (word, address)
+
+#define	runthread(a)	fork (a, NULL)
+#define	runstrand(a,b)	fork (a, b)
 
 #ifdef	DEBUG_BUFFER
 void	dbb (word);
@@ -810,14 +823,6 @@ void	adc_stop (void);
 #define	_da(a)		a
 #define	_dac(a,b)	b
 #define	_dad(t,a)	a
-
-#define	thread(p)	process (p, void)
-#define	endthread	endprocess(0)
-#define	runthread(a)	fork (a, NULL)
-
-#define	strand(a,b)	process (a, b)
-#define	endstrand	endthread
-#define	runstrand(a,b)	fork (a, b)
 
 #define	praxis_starter(a)	//
 

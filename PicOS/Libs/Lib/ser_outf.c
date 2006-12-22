@@ -35,7 +35,7 @@ int ser_outf (word st, const char *m, ...) {
 		release;
 	}
 
-	fork (__outserial, buf);
+	runstrand (__outserial, buf);
 	/* No need to wait for anything */
 	return 0;
 }

@@ -27,7 +27,7 @@ void beep (word del, word tone, word st) {
 	del = del << 8 | tone;
 
 	if (st == NONE)
-		fork (__beeper, (address) del);
+		runstrand (__beeper, (address) del);
 	else
 		call (__beeper, (address) del, st);
 }

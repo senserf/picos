@@ -624,7 +624,7 @@ Rtn:
 #define	DR_LOOP		0
 #define	DR_SWAIT	1
 
-process (cc1100_driver, void)
+thread (cc1100_driver)
 
   address xbuff;
   int paylen, len;
@@ -760,13 +760,13 @@ process (cc1100_driver, void)
 	bckf_timer = XMIT_SPACE;
 	proceed (DR_LOOP);
 
-endprocess (1)
+endthread
 
 #if	GUARD_PROCESS
 
 #define	GU_ACTION	0
 
-process (cc1100_guard, void)
+thread (cc1100_guard)
 
   word stat;
 
@@ -851,7 +851,7 @@ Reset:
 	}
 	p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
 
-endprocess (1)
+endthread
 
 #endif	/* GUARD_PROCESS */
 
@@ -899,10 +899,10 @@ void phys_cc1100 (int phy, int mbs) {
 	bckf_timer = 0;
 
 	/* Start the processes */
-	zzv_drvprcs = fork (cc1100_driver, NULL);
+	zzv_drvprcs = runthread (cc1100_driver);
 
 #if GUARD_PROCESS
-	fork (cc1100_guard, NULL);
+	runthread (cc1100_guard);
 #endif
 
 }

@@ -33,7 +33,7 @@ int dsp_lcd (const char *m, bool kl) {
 	__display_pmem = umalloc (5 * sizeof (int) + strlen (m) + 1);
 	if (__display_pmem != NULL) {
 		strcpy (mess, m);
-		fork (__display, NULL);
+		runthread (__display);
 	}
 	return 0;
 }

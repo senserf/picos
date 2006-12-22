@@ -26,7 +26,7 @@ address __display_pmem = NULL;
 #define	shft	(*((int*)(__display_pmem + 4)))
 #define	mess	( (char*)(__display_pmem + 5))
 
-process (__display, void)
+thread (__display)
 /* =================================== */
 /* Writes a message to the LCD display */
 /* =================================== */

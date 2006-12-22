@@ -16,7 +16,7 @@
 #define	DISABLE_CLOCK_INTERRUPT	0
 #endif
 
-static process (rcvradio, void)
+static thread (rcvradio, void)
 
     entry (RCV_GETIT)
 
@@ -133,9 +133,7 @@ Finish:
 
 	proceed (RCV_GETIT);
 
-    nodata;
-
-endprocess (1)
+endthread
 
 static INLINE void xmt_down (void) {
 /*
@@ -153,7 +151,7 @@ static INLINE void xmt_down (void) {
 #define XM_TXDONE	1
 #define	XM_LBS		2
 
-static process (xmtradio, void)
+static thread (xmtradio, void)
 
     int stln;
 
@@ -343,9 +341,7 @@ diag ("D %u %u", adc_value, zzx_backoff);
 		
 #endif
 
-    nodata;
-
-endprocess (1)
+endthread
 
 
 #endif

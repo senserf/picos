@@ -10,10 +10,18 @@
 static	char	*__procname;
 
 #undef	process
+#undef	thread
 #undef	entry
 
 #define	process(p,d)	int p (word zz_st, address zz_da) { \
 				d *data = (d*) zz_da; \
+				if (zz_st == 0xffff) \
+					diag ("PCS " #p " STARTED"); \
+				else \
+					__procname = #p; \
+				switch (zz_st) {
+
+#define	thread(p)	int p (word zz_st, address zz_dummy) { \
 				if (zz_st == 0xffff) \
 					diag ("PCS " #p " STARTED"); \
 				else \

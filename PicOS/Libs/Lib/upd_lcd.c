@@ -65,7 +65,7 @@ void upd_lcd (const char *buf) {
 		lastend = i;
 	}
 	if (changed && updpid == 0)
-		updpid = fork (__dupdater, NULL);
+		updpid = runthread (__dupdater);
 }
 
 

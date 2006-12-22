@@ -18,7 +18,7 @@ int ser_in (word st, char *buf, int len) {
 
 	if (__inpline == NULL) {
 		if ((prcs = running (__inserial)) == 0)
-			prcs = fork (__inserial, NULL);
+			prcs = runthread (__inserial);
 		if (st == NONE)
 			return prcs;
 		join (prcs, st);

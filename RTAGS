@@ -1260,3 +1260,9 @@ R061216C:
 	A few macros added to provide alternative names for those operations
 	of PicOC that tend to collide with SMURPH. I am going to document this
 	soon (some time, anyway).
+
+R061222A:
+
+	Some cosmetics related to VUEE + docs update: PicOS201.pdf,
+	VNETI201.pdf, PinOps201.pdf (partial) + source directories for these
+	docs.

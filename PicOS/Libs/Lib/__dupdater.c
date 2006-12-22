@@ -22,11 +22,9 @@ address __dupdater_pmem = NULL;
 #define	lastend		(*((int*)(__dupdater_pmem + 7)))
 #define	sbuf		( (char*)(__dupdater_pmem + 8))
 
-process (__dupdater, void)
+thread (__dupdater)
 
   byte k;
-
-  nodata;
 
   entry (UPD_INIT)
 

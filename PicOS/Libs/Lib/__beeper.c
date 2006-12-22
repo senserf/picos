@@ -9,7 +9,7 @@
 #define	BP_INIT	0
 #define	BP_STOP	1
 
-process (__beeper, word)
+strand (__beeper, word)
 /* ================ */
 /* Beeps the buzzer */
 /* ================ */

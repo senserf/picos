@@ -33,7 +33,7 @@ static const byte ackc [2][2] = { 0x21, 0x10, 0x63, 0x30 };
 #define	XM_END		1
 #define	XM_NEXT		2
 
-process (xmtuart, uart_t)
+strand (xmtuart, uart_t)
 
 #if UART_TCV > 1
 #define	UA data
@@ -192,14 +192,14 @@ process (xmtuart, uart_t)
 
 #undef	UA
 
-endprocess (UART_TCV)
+endstrand
 
 #define	RC_LOOP		0
 #define	RC_START	1
 #define	RC_RESET	2
 #define	RC_END		3
 
-process (rcvuart, uart_t)
+strand (rcvuart, uart_t)
 
 #if UART_TCV > 1
 #define	UA data
@@ -285,7 +285,7 @@ process (rcvuart, uart_t)
 
 	proceed (RC_LOOP);
 
-endprocess (UART_TCV)
+endstrand
 	
 #if UART_TCV > 1
 static void ini_uart (int which) {
@@ -316,9 +316,9 @@ static void start_uart () {
 #endif
 	UA->v_flags &= ~(UAFLG_HOLD | UAFLG_DRAI);
 	if (UA->r_prcs == 0)
-		UA->r_prcs = fork (rcvuart, UA);
+		UA->r_prcs = runstrand (rcvuart, UA);
 	if (UA->x_prcs == 0) {
-		UA->x_prcs = fork (xmtuart, UA);
+		UA->x_prcs = runstrand (xmtuart, UA);
 	}
 	trigger (UA->x_qevent);
 #undef	UA

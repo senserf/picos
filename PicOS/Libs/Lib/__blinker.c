@@ -13,9 +13,7 @@
 
 address __blink_pmem;
 
-process (__blinker, void)
-
-	nodata;
+thread (__blinker)
 
 #define	len    (*((int*)(__blink_pmem + 0)))
 #define	pos    (*((int*)(__blink_pmem + 1)))

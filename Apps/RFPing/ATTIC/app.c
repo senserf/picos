@@ -126,11 +126,9 @@ static void lcd_update (void) {
 
 }
 
-process (receiver, void)
+thread (receiver)
 
 	static address packet;
-
-	nodata;
 
   entry (RC_TRY)
 
@@ -201,14 +199,14 @@ process (receiver, void)
 	lcd_update ();
 	proceed (RC_TRY);
 
-endprocess (1)
+endthread
 
 int rcv_start (void) {
 
 	rkillflag = 0;
 	tcv_control (sfd, PHYSOPT_RXON, NULL);
 	if (!running (receiver)) {
-		fork (receiver, NULL);
+		runthread (receiver);
 		RCVon = 1;
 		return 1;
 	}
@@ -241,15 +239,13 @@ static	int	tdelay, tkillflag = 0;
 #define	SN_SEND		00
 #define	SN_NEXT		01
 
-process (sender, void)
+thread (sender)
 
 	static address packet;
 	static word packet_length = 12;
 
 	word pl;
 	int  pp;
-
-	nodata;
 
   entry (SN_SEND)
 
@@ -308,7 +304,7 @@ process (sender, void)
 	lcd_update ();
 	proceed (SN_SEND);
 
-endprocess (1)
+endthread
 
 int snd_start (int del) {
 
@@ -318,7 +314,7 @@ int snd_start (int del) {
 
 	tcv_control (sfd, PHYSOPT_TXON, NULL);
 	if (!running (sender)) {
-		fork (sender, NULL);
+		runthread (sender);
 		XMTon = 1;
 		return 1;
 	}
@@ -369,7 +365,7 @@ int snd_stop (void) {
 const static word parm_power = 255;
 #endif
 
-process (root, int)
+thread (root)
 
 #if UART_DRIVER
 	static char *ibuf;
@@ -754,10 +750,8 @@ process (root, int)
   	rcv_start ();
 
   	finish;
-	
-	nodata;
 
-endprocess (1)
+endthread
 
 #undef	RS_INIT
 #undef	RS_RCMD

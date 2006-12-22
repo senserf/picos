@@ -194,7 +194,7 @@ static void rcv (byte *p, int len) {
 #define	RCV_GETIT		0
 #define	RCV_CHECKIT		1
 
-static process (rcvradio, void)
+static thread (rcvradio)
 
     byte nb;
 
@@ -254,13 +254,11 @@ Finish:
 
 	proceed (RCV_GETIT);
 
-    nodata;
-
-endprocess (1)
+endthread
 
 #define	XM_LOOP		0
 
-static process (xmtradio, void)
+static thread (xmtradio)
 
     int stln;
     address buffp;
@@ -342,9 +340,7 @@ Drain:
 
 	proceed (XM_LOOP);
 		
-    nodata;
-
-endprocess (1)
+endthread
 
 void phys_rf24g (int phy, int grp, int chn) {
 /*
@@ -434,7 +430,7 @@ static int option (int opt, address val) {
 		zzv_txoff = 0;
 		LEDI (0, 1);
 		if (!running (xmtradio))
-			fork (xmtradio, NULL);
+			runthread (xmtradio);
 		trigger (zzv_qevent);
 		break;
 
@@ -443,7 +439,7 @@ static int option (int opt, address val) {
 		zzv_rxoff = 0;
 		LEDI (3, 1);
 		if (!running (rcvradio))
-			fork (rcvradio, NULL);
+			runthread (rcvradio);
 		trigger (rxevent);
 		break;
 
