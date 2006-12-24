@@ -9,7 +9,7 @@
 #include "board_pins.h"
 
 word pin_read (word);
-int pin_write (word pin, word val);
+int pin_write (word, word);
 int pin_read_adc (word, word, word, word);
 int pin_write_dac (word, word, word);
 
