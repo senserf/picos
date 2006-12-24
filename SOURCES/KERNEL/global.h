@@ -3060,8 +3060,6 @@ class   Mailbox : public AI {
 	void    exDisplay2 ();
         int 	checkImmediate (Long);
 
-	private:
-
 	Long            count,          // Mailbox element count
 			limit;          // Limit for the number of elements
 	ZZ_QITEM        *head, *tail;
@@ -3089,17 +3087,22 @@ class   Mailbox : public AI {
         int     rawRead (char*, int);
         void	setUnblocking (int which = 0), setBlocking (int which = 0),
 		doClose (int which = 0);
+	void	destroy_bound ();
 #endif
+
+	void	trigger_all_events ();
+	void	destroy_simple () { trigger_all_events (); };
+	
 	public:
 
 #if  ZZ_REA || ZZ_RSY
-        int connect (int, const char *nm, int port = 0, int bs = 0,
+        int  connect (int, const char *nm, int port = 0, int bs = 0,
                                         int sp = 0, int par = 0, int stpb = 0);
-        int connect (int fg, int port, int bs = 0) {
+        int  connect (int fg, int port, int bs = 0) {
           // A shortcut for server mailbox
           return connect (fg, (char*)NULL, port, bs);
         };
-        int connect (Mailbox *m, int bs = 0) {
+        int  connect (Mailbox *m, int bs = 0) {
           // This may be clumsy, but it is effective
           return connect (NONE, (char*)m, 0, bs);
         };
@@ -3112,10 +3115,11 @@ class   Mailbox : public AI {
         int  isActive ();
         int  read (char*, int);              // Block get
         int  readToSentinel (char*, int);    // Block get to sentinel
-        int  readAvailable (char*, int);           // Block get available
+        int  readAvailable (char*, int);     // Block get available
         int  write (const char*, int);       // Block put
 	void setSentinel (char c) { snt = (char) c; };
-        int sentinelFound ();
+        int  sentinelFound ();
+	Long outputPending ();
 #endif
 	inline  Long    getCount () { return count; };
 	Long		setLimit (Long lim = 0);
@@ -5816,6 +5820,9 @@ class   Process : public AI {
 	VIRCONS	~Process ();
 
         Station *getOwner () { return Owner; };
+
+	Station *reassign (Station *);
+	Long reassign (Long);
 
 	inline  void    printRqs (const char *hd = NULL, Long sid = NONE) {
 		// Print request list

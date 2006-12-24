@@ -197,7 +197,8 @@ ZZ_EVENT   *zz_pe = NULL,               // Priority event
 	   zz_rsent,                    // Rear sentinel event
 	   *zz_sentinel_event;          // Pointer to the rear sentinel
 
-ZZ_REQUEST *zz_pr = NULL;               // Priority request
+ZZ_REQUEST *zz_pr = NULL,               // Priority request
+	   *zz_orphans = NULL;		// To queue orphaned requests
 
 Long    zz_npee = 0,                    // Number of pending events
 	zz_npre = 0;                    // Number of processed events

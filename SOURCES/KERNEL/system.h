@@ -191,6 +191,8 @@ extern  ZZ_TBIG zz_c_wait_tmin;                 // Earliest request so far
 extern  TIME    zz_c_wait_tmin;                 // Earliest request so far
 #endif
 
+extern	ZZ_REQUEST *zz_orphans;			// Orphaned wait requests
+
 extern  AI      *zz_ai;                         // The current AI pointer
 
 #if     ZZ_OBS

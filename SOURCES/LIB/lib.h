@@ -14,6 +14,7 @@
 #include	<math.h>
 #include	<stdarg.h>
 #include	<setjmp.h>
+#include	<netinet/in.h>
 #include	"sxml.h"
 
 #ifndef	HUGE

@@ -126,6 +126,20 @@ static void setTTYRaw (int desc, int speed, int parity, int stopb) {
 		excptn ("Mailbox->connect: cannot set raw tty status (ioctl)");
 };
 
+void	Mailbox::destroy_bound () {
+/*
+ * This one disconnects the mailbox and destroys it altogether triggering all
+ * possible events - to let everybody know that it has been gone.
+ */
+	if (JT == NULL) {
+		// There is a socket/device to close
+		::close (sfd);
+		if (sfd != csd && csd != NONE)
+			::close (csd);
+	}
+	trigger_all_events ();
+};
+
 void	Mailbox::setUnblocking (int which) {
   if ((skt & ZZ_MTYPEMASK) == DEVICE) {
     fcntl (csd, F_SETFL, (fcntl(csd, F_GETFL) | O_NONBLOCK));
@@ -342,7 +356,9 @@ int	Mailbox::disconnect (int who) {
            e -> new_top_request (rq);
       }
     }
-    if (jrnl) return OK;
+    if (jrnl)
+	// This means a server mailbox, client disconnection, and journal
+	return OK;
     count = iin = iout = oin = oout = 0;
   } else {
     if (WList != NULL) return ERROR;   // Other disconnect illegal
@@ -428,7 +444,7 @@ int	Mailbox::rawWrite (const char *buf, int length) {
   }
   if (JO != NULL && k > 0) JO->writeData (buf, k, 'O');
   return k;
-};
+}
 
 int     Mailbox::rawRead (char *buf, int length) {
 
@@ -467,7 +483,21 @@ int     Mailbox::rawRead (char *buf, int length) {
 
   if (JO != NULL && k > 0) JO->writeData (buf, k, 'I');
   return k;
-};
+}
+
+Long	Mailbox::outputPending () {
+
+/* ------------------------------------------------------------ */
+/* Returns the number of outstanding bytes in the output buffer */
+/* ------------------------------------------------------------ */
+
+	if (oin == oout)
+		return 0;
+	else if (oin > oout)
+		return oin - oout;
+	else
+		return limit - oout + oin + 1;
+}
 
 void	Mailbox::flushOutput () {
 

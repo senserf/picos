@@ -21,12 +21,6 @@ extern  int     zz_setjmp_done;          // Flag == longjmp legal
 static  ZZ_REQUEST  *CRList = NULL;      // START request list
 #endif
 
-/*
- * This is a zombie request list. The requests put in it come from terminated
- * processes that some other processes are waiting for.
- */
-static	ZZ_REQUEST  *ZRList = NULL;	// Zombie request list
-
 void    Process::zz_start () {
 
 	Process    *savecontext;
@@ -751,14 +745,14 @@ Process::~Process () {
 		queue_out (rq);
 		// Move these requests to the zombie list. They will be
 		// deallocated when the respective processes get awakened.
-		zz_queue_head (rq, ZRList, ZZ_REQUEST);
+		zz_queue_head (rq, zz_orphans, ZZ_REQUEST);
 	}
 
 	while (SWList != NULL) {
 		// I almost forgot about these
 		rq = SWList;
 		queue_out (rq);
-		zz_queue_head (rq, ZRList, ZZ_REQUEST);
+		zz_queue_head (rq, zz_orphans, ZZ_REQUEST);
 	}
 
 	if (ISpec == NULL && Father != NULL) {
@@ -799,6 +793,30 @@ int Process::children () {
 	}
 
 	return cc;
+}
+
+Station *Process::reassign (Station *s) {
+
+	Station *prev;
+	ZZ_EVENT *ev;
+
+	prev = TheStation;
+	TheStation = s;
+	for (ev = zz_eq; ev != zz_sentinel_event; ev = ev->next) {
+		if (ev->process == this) {
+			prev = ev->station;
+			ev->station = s;
+		}
+	}
+	return prev;
+}
+
+Long Process::reassign (Long sid) {
+
+	Assert (isStationId (sid), "Process->reassign: illegal station Id, "
+		"reassigning %s to %1d", getSName (), sid);
+
+	return reassign (zz_st [sid]) -> getId ();
 }
 
 sexposure (Process)

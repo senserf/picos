@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -15,17 +15,50 @@ Mailbox::~Mailbox () {
   if (nextm != (Mailbox*)NONE)
     excptn ("Mailbox: %s, once created, a station mailbox cannot be destroyed",
 	getSName ());
-  if (WList != NULL)
-    excptn ("Mailbox: %s, cannot delete, there are processes waiting",
-	getSName ());
+
 #if ZZ_REA || ZZ_RSY
   if (sfd != NONE)
-    excptn ("Mailbox: %s cannot delete, the mailbox is bound", getSName ());
+    // This is a bound mailbox
+    destroy_bound ();
+  else
 #endif
+  destroy_simple ();
+
   zz_queue_out (this);
   zz_DREM (this);
   if (zz_nickname != NULL) delete (zz_nickname);
-};
+}
+
+void Mailbox::trigger_all_events () {
+/*
+ * When we destroy a mailbox, we wake up all processes waiting on it - to let
+ * them know about this rather important occurrence.
+ */
+	ZZ_REQUEST 	*rq;
+	ZZ_EVENT	*ev;
+
+	while (WList != NULL) {
+		rq = WList;
+		// TheMailbox = NULL; this will let them know that the mailbox
+		// is no more
+		rq->Info01 = NULL;
+		rq->Info02 = NULL;
+#if     ZZ_TAG
+		rq->when . set (Time);
+		if ((q = (ev = rq->event)->waketime.cmp (rq->when)) > 0
+		    || (q == 0 && FLIP))
+#else
+		rq->when = Time;
+		if ((ev = rq->event)->waketime > Time || FLIP)
+#endif
+			ev->new_top_request (rq);
+
+		queue_out (rq);
+		// Move these requests to the zombie list. They will be
+		// deallocated when the respective processes get awakened.
+		zz_queue_head (rq, zz_orphans, ZZ_REQUEST);
+	}
+}
 
 Mailbox::Mailbox (Long lm, const char *nn) {
 
@@ -72,7 +105,7 @@ Mailbox *p;
         }
 	// Add to the ownership tree
 	zz_queue_head (this, TheProcess->ChList, ZZ_Object);
-};
+}
 
 void    Mailbox::zz_start () {
 
@@ -404,7 +437,7 @@ int     Mailbox::get () {
 		return (YES);
 	}
 	return (NO);
-};
+}
 
 int     Mailbox::put () {
 
@@ -471,7 +504,7 @@ int     Mailbox::put () {
 	    }
 	}
 	return (na ? ACCEPTED : REJECTED);
-};
+}
 
 int     Mailbox::putP () {
 
@@ -526,7 +559,7 @@ int     Mailbox::putP () {
 
 	zz_pe = (zz_pr = rs) -> event;
 	return (ACCEPTED);
-};
+}
 
 int     Mailbox::erase () {
 
@@ -564,7 +597,7 @@ int     Mailbox::erase () {
 	if (sfd != NONE) iin = iout = 0;
 #endif
 	return ni;
-};
+}
 
 void    *Mailbox::zz_get () {
 
@@ -615,7 +648,7 @@ void    *Mailbox::zz_get () {
 		return (zz_mbi);
 	}
 	return (NULL);
-};
+}
 
 void    *Mailbox::zz_first () {
 
@@ -637,7 +670,7 @@ void    *Mailbox::zz_first () {
 		return (head->item);
 	}
 	return (NULL);
-};
+}
 
 int     Mailbox::zz_put (void *it) {
 
@@ -737,7 +770,7 @@ int     Mailbox::zz_put (void *it) {
 		}
 	}
 	return (na ? ACCEPTED : REJECTED);
-};
+}
 
 int     Mailbox::zz_putP (void *it) {
 
@@ -802,7 +835,7 @@ int     Mailbox::zz_putP (void *it) {
 
 	zz_pe = (zz_pr = rs) -> event;
 	return (ACCEPTED);
-};
+}
 
 int     Mailbox::zz_erase () {
 
@@ -857,7 +890,7 @@ int     Mailbox::zz_erase () {
 	}
 
 	return ni;
-};
+}
 		
 sexposure (Mailbox)
 
