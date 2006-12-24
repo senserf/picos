@@ -47,8 +47,8 @@
 	    <eeprom>4096 bytes</eeprom>
 	    <iflash>256 bytes in 2 pages</iflash>
 	    <uart rate="9600" bsize="12">
-		<input source="socket" type="untimed">localhost:2211</input>
-		<output target="socket"></output>
+		<input source="socket" type="untimed"></input>
+		<output target="socket" type="held"></output>
 	    </uart>
 	</defaults>
 	<node number="0">

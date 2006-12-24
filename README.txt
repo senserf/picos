@@ -79,3 +79,53 @@ R061216B:
 
     Lots of changes. It is now possible to keep a VUEE model and PICOS praxis
     as the same set of sources.
+
+R061223A:
+
+    Agent connection paradigm revised, udaemon reimplemented. Now there is a
+    single socket set up by VUEE for all agent connections. Its number is 
+    4443 (can be made flexible later, e.g., definable in data). An agent, like
+    udaemon, connects to this socket and specifies the service type by sending
+    8 bytes with the following contents:
+
+    Bytes 0-1 - magic shortword 0xBAB4 in network format, i.e., MSB first;
+    Bytes 2-3 - the request code (a short int in network format):
+                    1 - UART
+                    2 - Pin control
+                    3 - LEDs display
+                    4 - mobility
+    Bytes 4-7 - the node number (according to the numeration in the data file).
+
+    VUEE responds with a single byte, which is 129 decimal if the request is OK.
+    Otherwise, it means that there was an error (see agent.h in VUEE/PICOS for
+    the current list of error codes.
+
+    For UART, things work pretty much as before. After the initial handshake,
+    the clien't (agent's) socket is directly connected to the UART. Note that,
+    unlike before, the connection is established after the VUEE model starts,
+    so some UART output can be potentially lost. This can be remedied as
+    follows.
+
+    The data format describing a UART has changed. See this for an example:
+
+	    <uart rate="9600" bsize="12">
+		<input source="socket" type="untimed"></input>
+		<output target="socket" type="held"></output>
+	    </uart>
+
+    Now there is no hostname/port specification (because the connection is
+    reversed). Type HELD for the output end of the socket means that any
+    UART output before the first connection is to be saved (it goes to a
+    temporary buffer in memory) and will be presented (immediately flushed
+    to the socket) on first connection. From then on, if the agent disconnects,
+    the output WILL NOT be saved. As soon as the agent connects again, the
+    new output will be showing up on the socket.
+
+    It is very easy to save the output always when the UART is disconnected.
+    Another option? I am not sure as this may put stress on memory requirements
+    of the simulator, when you abandon a UART with lots of output to come.
+
+    Udaemon's terminals have a HEX option to display and accept data in
+    hexadecimal.
+
+    Pin control, LEDs and mobility protocols still to be devised.

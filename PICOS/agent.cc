@@ -1,10 +1,9 @@
-#ifndef __uart_c__
-#define __uart_c__
+#ifndef __agent_c__
+#define __agent_c__
 
-// This is a UART model prepared for the TARP project, but possibly useful for
-// other projects as well
+// External agent interface
 
-#include "uart.h"
+#include "agent.h"
 #include "stdattr.h"
 
 #define	UART_SOCKET_BUFLEN	64
@@ -14,22 +13,23 @@ UART::UART (int speed, const char *idev, const char *odev, int mode, int bsize) 
 /*
  * Initialize the UART model. mode is sum of
  *
- *    UART_IMODE_NONE, UART_IMODE_DEVICE, UART_IMODE_SOCKET or UART_IMODE_STRING
- *    UART_OMODE_NONE, UART_OMODE_DEVICE or UART_OMODE_SOCKET
- *    UART_IMODE_TIMED or UART_IMODE_UNTIMED
- *    UART_IMODE_HEX or UART_IMODE_ASCII
- *    UART_OMODE_HEX or UART_OMODE_ASCII
- *    input string length is orred into mode
+ *  UART_IMODE_NONE, UART_IMODE_DEVICE, UART_IMODE_SOCKET or UART_IMODE_STRING
+ *  UART_OMODE_NONE, UART_OMODE_DEVICE, UART_OMODE_SOCKET
+ *  UART_IMODE_TIMED or UART_IMODE_UNTIMED
+ *  UART_IMODE_HEX or UART_IMODE_ASCII
+ *  UART_OMODE_HEX or UART_OMODE_ASCII
+ *  UART_OMODE_HOLD of UART_OMODE_NOHOLD
+ *  input string length is orred into mode
  *
- *    IMODE_SOCKET requires OMODE_SOCKET (this is value zero, i.e., default)
- *    IMODE_DEVICE + OMODE_DEVICE (the two devices can, but need not have to,
- *    be the same)
+ *  IMODE_SOCKET requires OMODE_SOCKET (this is value zero, i.e., default)
+ *  IMODE_DEVICE + OMODE_DEVICE (the two devices can, but need not have to,
+ *  be the same)
  *
- *    For _SOCKET, idev == hostname, odev == port number (in ASCII)
+ *  For _SOCKET, idev == NULL
  *
- *    _HEX data: 12af565e4ffg .... (whitespace ignored on input)
- *    _ASCII means "raw"
- *    _TIMED (input only) [+]Time { ... } (Time is in ITUs)
+ *  _HEX data: 12af565e4ffg .... (whitespace ignored on input)
+ *  _ASCII means "raw"
+ *  _TIMED (input only) [+]Time { ... } (Time is in ITUs)
  */
 	char *sp, *fn;
 	int st, imode, omode;
@@ -49,21 +49,20 @@ UART::UART (int speed, const char *idev, const char *odev, int mode, int bsize) 
 	imode = (mode & UART_IMODE_MASK);
 	omode = (mode & UART_OMODE_MASK);
 
+	// Account for start / stop bits, assuming there is no parity and one
+	// stop bit, which is the case in all our setups
+	ByteTime = (TIME) ((Second / speed) * 10.0);
+
 	if (imode == UART_IMODE_SOCKET || omode == UART_OMODE_SOCKET) {
 		// The socket case: both ends must use the same socket
 		Assert (imode == UART_IMODE_SOCKET &&
-			omode == UART_OMODE_SOCKET, 
-				"UART at %s: confilcting modes %x",
-					TheStation->getSName (),
-						mode);
-		// We have a socket: one mailbox acting both ways
+		    omode == UART_OMODE_SOCKET, 
+			"UART at %s: confilcting modes %x",
+			    TheStation->getSName (),
+			        mode);
+		// Don't create the device now; it will be created upon
+		// connection. That's it for now.
 		R = W = YES;
-		I = create Dev;
-		if (I->connect (CLIENT+INTERNET+READ+WRITE, idev, atoi (odev),
-		    UART_SOCKET_BUFLEN) == ERROR)
-			excptn ("UART at %s: cannot connect to socket",
-				TheStation->getSName ());
-		O = I;
 	} else if (imode == UART_IMODE_DEVICE) {
 		// Need a mailbox for the input end
 		Assert (idev != NULL, "UART at %s: input device cannot be NULL",
@@ -102,7 +101,7 @@ UART::UART (int speed, const char *idev, const char *odev, int mode, int bsize) 
 	}
 
 	// We are done with the input end
-	if (O == NULL && omode != UART_OMODE_NONE) {
+	if (I != NULL && O == NULL && omode != UART_OMODE_NONE) {
 		// This can only mean a separate DEVICE 
 		W = YES;
 		O = create Dev;
@@ -116,10 +115,6 @@ UART::UART (int speed, const char *idev, const char *odev, int mode, int bsize) 
 
 	if (W)
 		OBuf = new byte [B_len];
-
-	// Account for start / stop bits, assuming there is no parity and one
-	// stop bit, which is the case in all our setups
-	ByteTime = (TIME) ((Second / speed) * 10.0);
 
 	rst ();
 }
@@ -172,8 +167,23 @@ char UART::getOneByte (int st) {
 		return *String++;
 	}
 	// Read from the mailbox
-	if (I->read (&c, 1) != ACCEPTED) {
-		I->wait (NEWITEM, st);
+	if (I == NULL) {
+		// This can only mean that we are reading from a socket that
+		// isn't there yet. Hold on.
+		Assert ((Flags & UART_IMODE_MASK) == UART_IMODE_SOCKET,
+			"UART at %s: mailbox pointer is NULL",
+				TheStation->getSName ());
+		Monitor->wait (&I, st);
+		release;
+	}
+	if (I->r (st, &c, 1) == ERROR) {
+		// Disconnection: only possible for a socket mailbox
+		Assert ((Flags & UART_IMODE_MASK) == UART_IMODE_SOCKET,
+			"UART at %s: illegal closure on socket",
+				TheStation->getSName ());
+		delete I;
+		I = O = NULL;
+		Monitor->wait (&I, st);
 		release;
 	}
 
@@ -389,6 +399,207 @@ Complete:
 			
 }
 
+void UART::sendStuff (int st, char *buf, int nc) {
+
+	if (O == NULL) {
+ReDo:
+		// Here comes the tricky bit. This means that we are
+		// writing to a socket and there is no connection yet.
+		if ((Flags & UART_OMODE_HOLD) == 0)
+			// Just drop the stuff
+			return;
+
+		// Should collect the bytes to present them once we get
+		// connected
+
+		Assert (I == NULL, "UART at %s: I != NULL while O == NULL",
+			TheStation->getSName ());
+
+		// Under the circumstances, we can recycle TI_aux for the
+		// temporary buffer. We shall flush it forcibly when we get
+		// the mailbox.
+
+		if (TI_aux == NULL) {
+			TI_aux = (char*) malloc (1024);
+			// The first word of TI_aux stores the limit
+			*((int*)TI_aux) = 1024;
+			TI_ptr = sizeof (int);
+		}
+
+		while (TI_ptr + nc > *((int*)TI_aux)) {
+			// We have to grow the buffer
+			TI_aux = (char*) realloc (TI_aux, 
+				*((int*)TI_aux) += 1024);
+		}
+
+		memcpy (TI_aux + TI_ptr, buf, nc);
+		TI_ptr += nc;
+		return;
+	}
+
+	if (O->w (st, buf, nc) == ERROR) {
+		// Disconnected, kill the mailbox
+		Assert ((Flags & UART_IMODE_MASK) == UART_IMODE_SOCKET,
+			"UART at %s: illegal closure on socket",
+				TheStation->getSName ());
+		delete O;
+		I = O = NULL;
+		goto ReDo;
+	}
+}
+
+void AgentConnector::setup (Dev *m) {
+
+	Agent = create Dev;
+
+	if (Agent->connect (m, UART_SOCKET_BUFLEN) != OK) {
+		// Failed
+		delete Agent;
+		terminate ();
+	}
+}
+
+AgentConnector::perform {
+
+	rqhdr_t	header;
+	int	nc;
+
+	state Init:
+
+		delay (CONNECTION_TIMEOUT, KillAnyway);
+
+		if (Agent->r (Init, (char*)&header, sizeof (rqhdr_t)) == ERROR)
+			goto Term;
+
+		// Sanity check
+		if (header.magic != AGENT_MAGIC) {
+			c = ECONN_MAGIC;
+			proceed KillConnection;
+		}
+
+		nc = ntohl (header.stnum);
+		if (nc > NStations) {
+			c = ECONN_STATION;
+			proceed KillConnection;
+		}
+
+		reassign (nc);
+
+		switch (ntohs (header.rqcod)) {
+
+			case AGENT_RQ_UART:	proceed DoUart;
+
+			// More options will come later
+
+			default:
+				c = ECONN_UNIMPL;
+		}
+
+		proceed KillConnection;
+
+	state DoUart:
+
+		UA = ((PicOSNode*)TheStation)->uart->U;
+		if (UA == NULL) {
+			// No UART for this station
+			c = ECONN_NOUART;
+			proceed KillConnection;
+		}
+
+		if (UA->I != NULL || UA->O != NULL) {
+			// Duplicate connection, refuse it
+			assert (UA->I != NULL && UA->O != NULL,
+				"UART at %s: inconsistent status",
+					TheStation->getSName ());
+			c = ECONN_ALREADY;
+			proceed KillConnection;
+		}
+
+		// Connection OK, send the OK byte
+		c = ECONN_OK;
+
+	transient AckUart:
+
+		if (Agent->w (AckUart, (char*)(&c), 1) == ERROR)
+			goto Term;
+
+		// Check if there is output to be flushed
+		if (UA->TI_aux != NULL) {
+			buf = UA->TI_aux + sizeof (int);
+			left = UA->TI_ptr - sizeof (int);
+			proceed UartFlush;
+		}
+UartFlushed:
+		UA->I = UA->O = Agent;
+		Monitor->signal (&(UA->I));
+
+		// We are done; the UART driver takes over
+		terminate;
+
+	state UartFlush:
+
+		if (left <= 0) {
+			// Done flushing, clean up
+			free (UA->TI_aux);
+			UA->TI_aux = NULL;
+			// Cancel the save option. Note, if you remove this
+			// statement, the save option will be effective for
+			// all disconnections
+			UA->Flags &= ~UART_OMODE_HOLD;
+			goto UartFlushed;
+		}
+
+		// Some decent portion, not all at once
+		nc = (left > UART_SOCKET_BUFLEN) ? UART_SOCKET_BUFLEN : left;
+
+		if (Agent->w (UartFlush, buf, nc) == ERROR)
+			goto Term;
+
+		buf += nc;
+		left -= nc;
+
+		proceed UartFlush;
+
+	state KillConnection:
+
+		delay (SHORT_TIMEOUT, KillAnyway);
+		if (Agent->w (KillConnection, (char*)(&c), 1) == ERROR)
+			goto Term;
+
+	transient WaitKilled:
+
+		if (!Agent->isActive () || !Agent->outputPending ())
+			goto Term;
+
+		Agent->wait (OUTPUT, WaitKilled);
+		delay (SHORT_TIMEOUT, KillAnyway);
+
+	state KillAnyway:
+
+Term:
+		delete Agent;
+		terminate;
+}
+
+void AgentInterface::setup () {
+
+	M = create Dev;
+	if (M->connect (INTERNET + SERVER + MASTER, AGENT_SOCKET) != OK)
+		excptn ("AgentInterface: cannot set up master socket");
+}
+
+AgentInterface::perform {
+
+	state WaitConn:
+
+		if (M->isPending ()) {
+			create AgentConnector (M);
+			proceed WaitConn;
+		}
+
+		M->wait (UPDATE, WaitConn);
+}
+
 UART_out::perform {
 
     byte b;
@@ -414,20 +625,11 @@ UART_out::perform {
 		tc [0] = tohex (b >> 4);
 		tc [1] = tohex (b & 0xf);
 		tc [3] = ' ';
-		if (U->O->write (tc, 3) == REJECTED) {
-			// This will practically never happen, so the cost
-			// of redoing the conversion is nil
-			U->O->wait (OUTPUT, Put);
-			release;
-		}
+		U->sendStuff (Put, tc, 3);
 	} else {
-		if (U->O->write ((char*)(&b), 1) == REJECTED) {
-			// Output device is blocked
-			U->O->wait (OUTPUT, Put);
-			release;
-		}
+		U->sendStuff (Put, (char*)(&b), 1);
 	}
-		
+	
 	// Remove the byte
 	U->obuf_get ();
 	Monitor->signal (&(U->OB_out));

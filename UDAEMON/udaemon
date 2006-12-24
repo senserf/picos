@@ -9,102 +9,153 @@ package require siclef 1.0
 set IBSize		256
 set Unique		0
 set MaxLineCount	1024
+set HostName		"localhost"
+set PortNumber		4443
+set AGENT_MAGIC		0xBAB4
+set ECONN_OK		129
 
 sicle
+
+class Ticker { }
+
+process Ticker {
+#
+# FIXME: attention event (and possibly other events triggered in callbacks)
+# doesn't make it to the process, i.e., doesn't kick the scheduler. How to
+# do that?
+#
+	global Timer
+
+	wait $Timer 400
+}
 
 class Port { } { }
 
 interface Port
 
-class Listener { port } {
+class uartHandler { stid } {
 
-	global MSock
+	useown Sok StatId
+	global PortNumber HostName
 
-	set MSock [create Port InternetServer $port]
-}
-
-process Listener {
-
-	global MSock IBSize
-
-	set nc [client $MSock Port $IBSize]
-
-	if { $nc != "" } {
-		# a new client
-		create UServer $nc
-	}
-
-	# wait for more clients
-	wait $MSock Client None
-}
-
-class UServer { int } {
-#
-# Handles one UART terminal
-#
-	useown Sok Wn TBuf
-	global Unique Wins
-
-	set Sok $int
-	# the frame tag
-	set ftag $Unique
-	incr Unique
-
-	set Wn ".wx$ftag"
-
-	if { $ftag != 0 } {
-		# this is not the first window
-		toplevel $Wn
-		text $Wn.t
-	}
-
-	# previous buffer (for interpreting CR+LF properly)
-	set TBuf ""
-
-	mkTerm $Wn
-	set Wins($Wn) $This
-
-	if { $ftag == 0 } {
-		# pack $Wn
-		bind . <Destroy> "destroyTerminal \"$Wn\""
-	} else {
-		bind $Wn <Destroy> "destroyTerminal \"$Wn\""
-	}
-}
-
-proc destroyTerminal { w } {
-
-	global Wins MSock
-
-	if ![info exists Wins($w)] {
+	set StatId $stid
+	log "connecting to UART at node $stid ..."
+	if [catch { create Port internet ${HostName}:$PortNumber } Sok] {
+		set Sok ""
 		return
 	}
-
-
-	if { $w == ".wx0" } {
-		# closing the first window, exit the thing
-		exit 0
-	}
-
-	use $Wins($w) Sok
-
-	if [info exists Sok] {
-		attention $Sok
-	}
+	log "connection established"
 }
 
-process UServer {
+process uartHandler {
 
-	useown State Sok Wn TBuf
+	useown State Sok Wn FTag TBuf StatId HexM LFill
+	global Timer Unique Wins
 
 	switch $State {
 
 	    Start {
+
+		global AGENT_MAGIC
+		# prepare the request
+		set rqs ""
+		abinS rqs $AGENT_MAGIC
+		abinS rqs 1
+		abinI rqs $StatId
+
+		if { $Sok == "" } {
+			proceed Stop
+		}
+
+		if [catch { deposit $Sok $rqs } res] {
+			proceed Stop
+		}
+
+		if $res {
+			log "failed sending the request"
+			proceed Stop
+		}
+		proceed Connect
+	    }
+
+	    Connect {
+
+		global ECONN_OK
+
+		# wait for the ACK byte before opening the window
+		if { [extract $Sok ack 1] == 0 } {
+			wait $Sok Newitem Connect
+			wait $Timer 10000 Stop
+			sleep
+		}
+
+		set code [dbinB ack]
+		if { $code != $ECONN_OK } {
+			log "failed to connect: [conerror $code]"
+			delete $Sok
+			delete $This
+			sleep
+		}
+
+		# create the window
+
+		set FTag $Unique
+		incr Unique
+
+		set Wn ".wx$FTag"
+		toplevel $Wn
+		text $Wn.t
+		set TBuf ""
+		set LFill 0
+
+		# This stores the previous mode (1 HEX, 0 ASCII)
+		set HexM 0
+		mkTerm $Wn $FTag "UART at node $StatId"
+		set Wins($Wn) $This
+		bind $Wn <Destroy> "destroyTerminal \"$Wn\""
+
+		proceed Run
+
+	    }
+
+	    Run {
 		if { ![info exists Sok] || [closed $Sok] } {
 			proceed Close
 		}
 
 		if [extract $Sok chunk] {
+		    if [ishex $FTag] {
+			# handle the HEX case
+			if !$HexM {
+				# just entered
+				endLine $Wn.t
+				set HexM 1
+				set LFill 0
+			}
+
+			set sl [string length $chunk]
+			for { set ix 0 } { $ix < $sl } { incr ix } {
+				set b [string index $chunk $ix]
+				# this gets converted to three characters
+				set enc [tohex $b]
+				if { $LFill >= 80 } {
+					endLine $Wn.t
+					set LFill 0
+				}
+				addText $Wn.t $enc
+				incr LFill 2
+				if { $LFill <= 77 } {
+					addText $Wn.t " "
+					incr LFill
+				}
+			}
+		    } else {
+			if $HexM {
+				# just exited
+				set HexM 0
+				set LFill 0
+				endLine $Wn.t
+			}
 			# we have something
 			append TBuf $chunk
 			# look for CR+LF, LF+CR, CR, LF; if there is only
@@ -117,7 +168,7 @@ process UServer {
 					# first character
 					if { $sl < 2 } {
 						# have to leave it and wait
-						proceed Start
+						proceed Run
 					}
 					# check the second one
 					set n [string index $TBuf 1]
@@ -133,33 +184,39 @@ process UServer {
 						incr sl -1
 					}
 					# complete previous line
-					endLine $Wn
+					endLine $Wn.t
+					set LFill 0
 					continue
 				}
 				# send the preceding string to the terminal
-				addText $Wn [string range $TBuf \
+				addText $Wn.t [string range $TBuf \
 							       0 [expr $el - 1]]
 				incr sl -$el
+				# in the ASCII mode, this is only used to tel
+				# wheter we are at the beginning of a line or
+				# not
+				incr LFill 1
 				set TBuf [string range $TBuf $el end]
 			}
 			if { $TBuf != "" } {
-				addText $Wn $TBuf
+				addText $Wn.t $TBuf
+				incr LFill 1
 				set TBuf ""
 			}
-			proceed Start
+			proceed Run
+		    }
 		}
 
-		wait $Sok Newitem Start
+		wait $Sok Newitem Run
 		wait $Sok Attention Stop
 	    }
 
 	    Close {
-	
-	   	endLine $Wn
-	   	addText $Wn "CONNECTION CLOSED!!!!"
-	   	endLine $Wn
 
-		if [info exists Sok] {
+	   	endLine $Wn.t
+		log "connection closed"
+
+		if { [info exists Sok] && $Sok != "" } {
 			delete $Sok
 		}
 		delete $This
@@ -167,54 +224,13 @@ process UServer {
 
 	    Stop {
 		# the window is no more
-		delete $Sok
+		log "connection to UART at node $StatId closed"
+		if { $Sok != "" } {
+			delete $Sok
+		}
 		delete $This
 	    }
 	}
-}
-
-class Ticker { }
-
-process Ticker {
-#
-# FIXME: attention event (and possibly other events triggerd in callbacks)
-# doesn't make it to the process, i.e., doesn't kick the scheduler. How to
-# do that?
-#
-	global Timer
-
-	wait $Timer 1000
-}
-
-###############################################################################
-
-proc addText { w txt } {
-
-	$w.t configure -state normal
-	$w.t insert end "$txt"
-	$w.t configure -state disabled
-
-}
-
-proc endLine { w } {
-
-	global	MaxLineCount
-	
-	$w.t configure -state normal
-	$w.t insert end "\n"
-
-	set ix [$w.t index end]
-	set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
-
-	if { $ix > $MaxLineCount } {
-		# scroll out the topmost line if above limit
-		$w.t delete 1.0 2.0
-	}
-
-	$w.t configure -state disabled
-	# make sure the last line is displayed
-	$w.t yview -pickplace end
-
 }
 
 proc handleUserInput { w } {
@@ -223,76 +239,402 @@ proc handleUserInput { w } {
 
 	set tx ""
 	# extract the line
-	regexp "\[^\r\n\]+" [$w.u get 0.0 end] tx
+	regexp "\[^\r\n\]+" [$w.stat.u get 0.0 end] tx
 	# remove it from the input field
-	$w.u delete 0.0 end
+	$w.stat.u delete 0.0 end
 
-	if ![info exists Wins($w)] {
-		addText $w "NO CONNECTION!!!"
-		endLine $w
+	if { [catch { use $Wins($w) Sok FTag LFill HexM } ] ||
+	   	 ![info exists Sok] ||
+	   		[closed $Sok] } {
+
+		addText $w.t "NO CONNECTION!!!"
+		endLine $w.t
 		return
 	}
 
-	use $Wins($w) Sok
-
-	if { ![info exists Sok] || [closed $Sok] } {
-		addText $w "CONNECTION CLOSED!!!"
-		endLine $w
-		return
+	if $LFill {
+		set LFill 0
+		endLine $w.t
 	}
 
-	deposit $Sok "${tx}\r\n"
-
-	# echo
-	addText $w $tx
-	endLine $w
+	if [ishex $FTag] {
+		set HexM 1
+		addText $w.t $tx
+		endLine $w.t
+		set os ""
+		set tx [string trim $tx]
+		set err 0
+		while { $tx != "" } {
+			set d0 [string index $tx 0]
+			set d1 [string index $tx 1]
+			set tx [string trimleft [string range $tx 2 end]]
+			set d0 [htodec $d0]
+			if { $d0 < 0 } {
+				set err 1
+				break
+			}
+			set d1 [htodec $d1]
+			if { $d1 < 0 } {
+				set err 1
+				break
+			}
+			append os [format %c [expr $d0 * 16 + $d1]]
+			#abinB os [expr $d0 * 10 + $d1]
+		}
+		if $err {
+			addText $w.t "ILLEGAL HEX INPUT, LINE IGNORED!!!"
+			endLine $w.t
+			return
+		}
+		deposit $Sok $os
+	} else {
+		set HexM 0
+		# ASCII
+		deposit $Sok "${tx}\r\n"
+		# echo
+		addText $w.t $tx
+		endLine $w.t
+	}
 }
 
-proc mkTerm { w } {
+proc ishex { ft } {
+
+	global whex_$ft
+
+	eval "return \$whex_$ft"
+}
+
+proc mkTerm { w ft tt } {
 #
 # Creates a new terminal
 #
+
+	wm title $w $tt
+
+	#	-xscrollcommand "$w.scrolx set" 
+
 	$w.t configure \
 		-yscrollcommand "$w.scroly set" \
-		-xscrollcommand "$w.scrolx set" \
 		-setgrid true \
-        	-width 80 -height 24 -wrap none \
+        	-width 80 -height 24 -wrap char \
 		-font {-family courier -size 10} \
 		-exportselection 1 \
 		-state normal
 
 	$w.t delete 1.0 end
 
-	if { $w == ".wx0" } {
-		$w.t insert end "Kill this window to exit the program!!\n"
-	}
-
 	scrollbar $w.scroly -command "$w.t yview"
-	scrollbar $w.scrolx -orient horizontal -command "$w.t xview"
+	# scrollbar $w.scrolx -orient horizontal -command "$w.t xview"
 
 	pack $w.scroly -side right -fill y
-	pack $w.scrolx -side bottom -fill x
+	# pack $w.scrolx -side bottom -fill x
 
 	pack $w.t -expand yes -fill both
 
-	text $w.u -height 1 -font {-family courier -size 10}
-	pack $w.u -expand yes -fill x
+	frame $w.stat -borderwidth 2
+	pack $w.stat -expand no -fill x
 
-	bind $w.u <Return> "handleUserInput \"$w\""
+	text $w.stat.u -height 1 -font {-family courier -size 10}
+	pack $w.stat.u -side left -expand yes -fill x
+
+	bind $w.stat.u <Return> "handleUserInput \"$w\""
+
+	frame $w.stat.hsel -borderwidth 2
+	pack $w.stat.hsel -side right -expand no
+
+	label $w.stat.hsel.lab -text "HEX"
+	pack $w.stat.hsel.lab -side left
+
+	checkbutton $w.stat.hsel.but -state active -variable whex_$ft
+	pack $w.stat.hsel.but -side left
 
 	$w.t configure -state disabled
 
 	return $w.t
 }
 
+proc destroyTerminal { w } {
+
+	global Wins MSock
+
+	if ![info exists Wins($w)] {
+		return
+	}
+
+	if { ![catch { use $Wins($w) Sok } ] && [info exists Sok] } {
+		# the socket is still around
+		attention $Sok
+	}
+
+	unset Wins($w)
+}
+
 ###############################################################################
 
-create Listener 2211
+proc addText { w txt } {
+
+	$w configure -state normal
+	$w insert end "$txt"
+	$w configure -state disabled
+
+}
+
+proc endLine { w } {
+
+	global	MaxLineCount
+	
+	$w configure -state normal
+	$w insert end "\n"
+
+	set ix [$w index end]
+	set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
+
+	if { $ix > $MaxLineCount } {
+		# scroll out the topmost line if above limit
+		$w delete 1.0 2.0
+	}
+
+	$w configure -state disabled
+	# make sure the last line is displayed
+	$w yview -pickplace end
+
+}
+
+proc log { txt } {
+#
+# Writes a line to log
+#
+	global Logger
+
+	while 1 {
+
+		set el [string first "\n" $txt]
+		if { $el < 0 } {
+			set el [string length $txt]
+		}
+		incr el -1
+		set out [string range $txt 0 $el]
+		incr el +2
+		set txt [string range $txt $el end]
+		addText $Logger "$out"
+		endLine $Logger
+		if { $txt == "" } {
+			return
+		}
+	}
+}
+
+proc conerror { code } {
+
+    switch $code {
+
+	0 { return "protocol violation" }
+	1 { return "node number out of range" }
+	2 { return "unimplelented function" }
+	3 { return "node has no UART" }
+	4 { return "already connected to this component" }
+    }
+
+    return "error code $code (unnown)"
+}
+
+## binary encoding/decoding ###################################################
+
+proc tohex { b } {
+
+	scan $b %c v
+	return [format %02x $v]
+}
+	
+proc htodec { d } {
+#
+# Converts a hex digit to decimal
+#
+	global HDIGS
+
+	if ![info exists HDIGS(0)] {
+		# initialize
+		set HDIGS(0) 0
+		set HDIGS(1) 1
+		set HDIGS(2) 2
+		set HDIGS(3) 3
+		set HDIGS(4) 4
+		set HDIGS(5) 5
+		set HDIGS(6) 6
+		set HDIGS(7) 7
+		set HDIGS(8) 8
+		set HDIGS(9) 9
+		set HDIGS(a) 10
+		set HDIGS(b) 11
+		set HDIGS(c) 12
+		set HDIGS(d) 13
+		set HDIGS(e) 14
+		set HDIGS(f) 15
+		set HDIGS(A) 10
+		set HDIGS(B) 11
+		set HDIGS(C) 12
+		set HDIGS(D) 13
+		set HDIGS(E) 14
+		set HDIGS(F) 15
+	}
+
+	if ![info exists HDIGS($d)] {
+		return -1
+	}
+
+	return $HDIGS($d)
+}
+
+proc abinB { s b } {
+#
+# append one binary byte to string s
+#
+	upvar $s str
+	append str [binary format c $b]
+}
+
+proc abinS { s h } {
+#
+# append one short int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format S $h]
+}
+
+proc abinI { s l } {
+#
+# append one 32-bit int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format I $l]
+}
+
+proc dbinB { s } {
+#
+# decode one binary byte from string s
+#
+	upvar $s str
+	if { $str == "" } {
+		return -1
+	}
+	binary scan $str c val
+	set str [string range $str 1 end]
+	return [expr ($val & 0x000000ff)]
+}
+
+proc dbinS { s } {
+#
+# decode one binary short int from string s
+#
+	upvar $s str
+	if { [string length $str] < 2 } {
+		return -1
+	}
+	binary scan $str S val
+	set str [string range $str 2 end]
+	return [expr ($val & 0x0000ffff)]
+}
+
+proc dbinI { s } {
+#
+# decode one binary 32-bit int from string s
+#
+	upvar $s str
+	if { [string length $str] < 4 } {
+		return -1
+	}
+	binary scan $str I val
+	set str [string range $str 4 end]
+	return $val
+}
+
+###############################################################################
+
+proc doConnect { } {
+#
+# Handle a new connection request
+#
+	global Option StatId AGENT_MAGIC
+
+	if [catch { expr $StatId } num] {
+		# there should be no problem (see validSid); this is just
+		# a precaution
+		log "request ignored: illegal station Id '$StatId'"
+		return
+	}
+
+	switch $Option {
+
+		"UART"	{ create uartHandler $StatId }
+		"PINS"	{ log "UNIMPLEMENTED!!!" ;# create pinsHandler $StatId }
+		"LEDS"	{ log "UNIMPLEMENTED!!!" ;# create ledsHandler $StatId }
+		"MOVER"	{ log "UNIMPLEMENTED!!!" ;# create moveHandler $StatId }
+
+		default {
+			log "request ignored: $Option unimplemented"
+		}
+	}
+}
+
+proc validSid { v } {
+
+	if { $v == "" } {
+		return 1
+	}
+	if { [string length $v] > 6 } {
+		return 0
+	}
+	if { $v == "0" } {
+		return 1
+	}
+	return [regexp "^\[1-9\]\[0-9\]*$" $v]
+}
+
+wm title . "VUEE udaemon"
+
+frame .top -borderwidth 10
+pack .top -side top -expand 0 -fill x
+button .top.quit -text "Quit" -command exit
+button .top.connect -text "Connect" -command doConnect
+
+tk_optionMenu .top.select Option UART PINS LEDS MOVER
+
+label .top.l -text "Station Id:"
+entry .top.stat -width 6 -relief sunken -textvariable StatId \
+	-validate key -vcmd {validSid %P} -invcmd bell
+
+pack .top.quit .top.connect .top.select -side right
+pack .top.l .top.stat -side left
+
+bind .top.stat <Return> doConnect
+
+focus .top.stat
+
+frame .logger
+
+set Logger [text .logger.t -width 64 -height 10 \
+	-borderwidth 2 -relief raised -setgrid true -wrap none \
+	-yscrollcommand {.logger.scrolly set} \
+	-xscrollcommand {.logger.scrollx set} \
+	-font {-family courier -size 9} \
+	-exportselection 1 \
+	-state normal]
+
+scrollbar .logger.scrolly -command {.logger.t yview}
+scrollbar .logger.scrollx -orient horizontal -command {.logger.t xview}
+
+pack .logger.scrolly -side right -fill y
+pack .logger.scrollx -side bottom -fill x
+
+pack .logger.t -side left -fill both -expand true
+
+pack .logger -side top -fill both -expand true
+
+$Logger delete 1.0 end
+$Logger configure -state disabled
+
+bind . <Destroy> { exit }
+
 create Ticker
 
-frame .wx0
-text .wx0.t -width 26 -height 1 -font {-family courier -size 14}
-pack .wx0.t
-pack .wx0
-.wx0.t insert end "Waiting for connections!!"
 kernel

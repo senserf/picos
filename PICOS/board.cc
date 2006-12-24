@@ -6,6 +6,7 @@
 #include "chan_shadow.cc"
 #include "encrypt.cc"
 #include "nvram.cc"
+#include "agent.h"
 
 const char	zz_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
@@ -1218,23 +1219,10 @@ void BoardRoot::readNodeParams (sxml_t data, int nn,
 			uidv = str;
 			print (form ("device '%s'", uidv));
 		} else if (strcmp (att, "socket") == 0) {
-			// Expect something like "hostname:port"
-			len = sanitize_string (str);
-			if (len == 0)
-				excptn ("Root: socket string in <uart> "
-				    "<input> for %s is empty", es);
-			str [len] = '\0';
-			// Locate ':'
-			for (as = str; *as != '\0' && *as != ':'; as++);
-			if (*as == '\0')
-				excptn ("Root: socket string (%s) in <uart> "
-				    "<input> for %s contains no ':'", str, es);
-			*as = '\0';
-			uidv = str;
-			uodv = as + 1;
+			// Ignore the item string
 			uimo = UART_IMODE_SOCKET;
 			uomo = UART_OMODE_SOCKET;
-			print (form ("socket, host: %s, port: %s", uidv, uodv));
+			print ("socket");
 		} else if (strcmp (att, "string") == 0) {
 			len = sanitize_string (str);
 			uidv = str;
@@ -1289,7 +1277,7 @@ NoUInput:
 						att, es);
 			print ("    OUTPUT: ");
 			print (" socket (see INPUT)");
-			goto NoUOutput;
+			goto CheckOType;
 		} else if (strcmp (att, "none") == 0)
 			// Equivalent to 'no uart output spec'
 			goto NoUOutput;
@@ -1326,7 +1314,20 @@ NoUInput:
 			uodv = as + 1;
 			uomo = UART_OMODE_SOCKET;
 			uimo = UART_IMODE_SOCKET;
-			print (form ("socket, host: %s, port: %s", uidv, uodv));
+			print ("socket");
+CheckOType:
+			// Check the type attribute
+			if ((att = sxml_attr (cur, "type")) != NULL) {
+				if (strcmp (att, "held") == 0 ||
+				    strcmp (att, "hold") == 0 ||
+				    strcmp (att, "wait") == 0 ) {
+					print (", HELD");
+					// Hold output until connected
+					uomo |= UART_OMODE_HOLD;
+				}
+				// Ignore other types for now; we may need more
+				// later
+			}
 		} else {
 			excptn ("Root: illegal 'target' (%s) in <uart> "
 				"<output> for %s", att, es);
@@ -1658,6 +1659,10 @@ void BoardRoot::initAll () {
 	sxml_free (xml);
 
 	setResync (500, 0.5);
+
+	TheStation = System;
+	create AgentInterface;
+	
 }
 
 // ======================================================== //
@@ -1790,7 +1795,7 @@ Outserial::perform {
 
 #include "stdattr_undef.h"
 
-#include "uart.cc"
+#include "agent.cc"
 #include "rfmodule_dm2200.cc"
 #include "net.cc"
 #include "plug_null.cc"

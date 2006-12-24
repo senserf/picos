@@ -2,7 +2,7 @@
 #define	__picos_board_h__
 
 #include "picos.h"
-#include "uart.h"
+#include "agent.h"
 #include "nvram.h"
 #include "tcv.h"
 #include "tcvphys.h"
@@ -129,7 +129,7 @@ station PicOSNode {
 
 	inline int _da (io) (int state, int dev, int ope, char *buf, int len) {
 		// Note: 'dev' is ignored: it exists for compatibility with
-		// PicOS
+		// PicOS; io only works for the (single) UART.
 		assert (uart != NULL, "PicOSNode->io: node %s has no UART",
 			getSName ());
 		return uart->U->ioop (state, ope, buf, len);
