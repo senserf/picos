@@ -16,7 +16,7 @@
 #define	DISABLE_CLOCK_INTERRUPT	0
 #endif
 
-static thread (rcvradio, void)
+static thread (rcvradio)
 
     entry (RCV_GETIT)
 
@@ -151,7 +151,7 @@ static INLINE void xmt_down (void) {
 #define XM_TXDONE	1
 #define	XM_LBS		2
 
-static thread (xmtradio, void)
+static thread (xmtradio)
 
     int stln;
 
