@@ -9,7 +9,7 @@ int vscan (const char *buf, const char *fmt, va_list ap) {
 
 	int nc;
 
-#define	scani(at)	{ unsigned at *vap; bool mf; \
+#define	scani(at)	{ unsigned at *vap; Boolean mf; \
 			Retry_d_ ## at: \
 			while (!isdigit (*buf) && *buf != '-' && *buf != '+') \
 				if (*buf++ == '\0') \

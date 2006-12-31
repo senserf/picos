@@ -21,7 +21,10 @@
  *
  */
 #define	CC_INDICATION		3	/* If not receiving a packet */
-#define	CC_THRESHOLD		8	/* RSSI threshold (CC_IND == 3) 0..15 */
+
+// RSSI threshold (for LBT), previous values: 8, 0
+#define	CC_THRESHOLD		1	/* 1 lowest, 15 highest, 0 disable */
+#define	CC_THRESHOLD_REL	1	/* 1 lowest, 3 highest, 0 disable */
 
 /*
  * CRC calculation mode
@@ -159,13 +162,12 @@ const	byte	cc1100_rfsettings_cmn [] = {
         CCxxx0_FREND1,  0x56,   // FREND1
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_BSCFG,   0x6C,   // BSCFG
-        CCxxx0_AGCCTRL2,0x83,   // AGCCTRL2
 
-#if CC_INDICATION == 3
-#define	RSSI_AGC	0
-#else
+//      CCxxx0_AGCCTRL2,0x83,   // AGCCTRL2
+// Changed Dec 31, 2006 PG
+        CCxxx0_AGCCTRL2,0x03,   // AGCCTRL2
+
 #define	RSSI_AGC	((CC_THRESHOLD-8) & 0xf)
-#endif
 
 #define	AGCCTRL1	(0x40 | RSSI_AGC)
 
@@ -302,6 +304,8 @@ extern const byte cc1100_rfsettings_cmn [],
 			} while (0)
 
 #define	gbackoff	(bckf_timer = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+// REMOVEME
+// #define		gbackoff	9
 
 extern word		zzv_drvprcs, zzv_qevent;
 extern byte		zzv_iack, zzv_gwch;

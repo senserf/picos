@@ -44,7 +44,7 @@ int zzr_xstate, zzz_last_sense;
 * used by the XEMICS (which really appears clumsy).
 */
 
-bool rcvwait (word state) {
+Boolean rcvwait (word state) {
 
 	int j = nevents (zz_curr);
 

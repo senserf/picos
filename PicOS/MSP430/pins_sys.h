@@ -298,12 +298,12 @@ typedef struct {
 /*
  * GP pin operations
  */
-bool zz_pin_available (word);
-bool zz_pin_adc_available (word);
+Boolean zz_pin_available (word);
+Boolean zz_pin_adc_available (word);
 word zz_pin_ivalue (word);
 word zz_pin_ovalue (word);
-bool zz_pin_adc (word);
-bool zz_pin_output (word);
+Boolean zz_pin_adc (word);
+Boolean zz_pin_output (word);
 void zz_pin_set (word);
 void zz_pin_clear (word);
 void zz_pin_set_input (word);
@@ -312,8 +312,8 @@ void zz_pin_set_adc (word);
 
 #if PIN_DAC_PINS != 0
 
-bool zz_pin_dac_available (word);
-bool zz_pin_dac (word);
+Boolean zz_pin_dac_available (word);
+Boolean zz_pin_dac (word);
 void zz_clear_dac (word);
 void zz_set_dac (word);
 void zz_write_dac (word, word, word);

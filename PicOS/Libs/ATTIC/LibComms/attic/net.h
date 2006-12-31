@@ -9,6 +9,6 @@ int net_init (word, word);
 int net_close (word);
 int net_opt (int, address);
 int net_rx (word, char **, address);
-int net_tx (word, char *, int, word, bool);
+int net_tx (word, char *, int, word, Boolean);
 
 #endif

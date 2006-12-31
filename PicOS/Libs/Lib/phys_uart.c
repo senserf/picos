@@ -23,7 +23,7 @@ static int option (int, address);
 #endif
 
 #if UART_RATE_SETTABLE
-bool zz_uart_setrate (word, uart_t*);
+Boolean zz_uart_setrate (word, uart_t*);
 word zz_uart_getrate (uart_t*);
 #endif
 

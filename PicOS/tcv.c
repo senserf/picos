@@ -175,7 +175,7 @@ __PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
 }
 
 #if	TCV_LIMIT_RCV || TCV_LIMIT_XMT
-__PRIVF (PicOSNode, bool, qmore) (qhead_t *q, word lim) {
+__PRIVF (PicOSNode, Boolean, qmore) (qhead_t *q, word lim) {
 
 	hblock_t *p;
 
@@ -819,7 +819,7 @@ __PUBLF (PicOSNode, void, tcv_urgent) (address p) {
 	header (p) -> attributes.b.urgent = 1;
 }
 
-__PUBLF (PicOSNode, bool, tcv_isurgent) (address p) {
+__PUBLF (PicOSNode, Boolean, tcv_isurgent) (address p) {
 
 	return header (p) -> attributes.b.urgent;
 }

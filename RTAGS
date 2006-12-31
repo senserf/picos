@@ -1274,3 +1274,9 @@ R061223A:
 R061224A:
 
 	Cosmetics to fix the previous cosmetics.
+
+R061231A:
+
+	A few tentative changes to CC1100 driver that seem to improve LBT a bit.
+	Perhaps we should send this to John. I will add the same mods to the
+	official GENESIS branch.

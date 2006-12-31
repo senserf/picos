@@ -21,7 +21,7 @@ int __display (word, address);
 #define	shft	(*((int*)(__display_pmem + 4)))
 #define	mess	( (char*)(__display_pmem + 5))
 
-int dsp_lcd (const char *m, bool kl) {
+int dsp_lcd (const char *m, Boolean kl) {
 
 	if (__display_pmem) {
 		if (!kl)
@@ -41,7 +41,7 @@ int dsp_lcd (const char *m, bool kl) {
 #else
 void sim_lcd (const char *m);
 
-int dsp_lcd (const char *m, bool kl) {
+int dsp_lcd (const char *m, Boolean kl) {
 	sim_lcd (m);
 	return 0;
 }

@@ -110,7 +110,7 @@ __PUBLF (TNode, void, tarp_init) () {
 // it should be enough (?)
 //#define in_shadow(c, m) ((c) == (m))
 
-__PRIVF (TNode, bool, dd_fresh) (headerType * buffer) {
+__PRIVF (TNode, Boolean, dd_fresh) (headerType * buffer) {
 	int i;
 
 	if (buffer->snd == master_host) {

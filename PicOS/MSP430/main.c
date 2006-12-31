@@ -840,7 +840,7 @@ static const uart_rate_t urates [] = {
 
 #define	N_RATES		(sizeof(urates) / sizeof(uart_rate_t))
 
-bool zz_uart_setrate (word rate, uart_t *ua) {
+Boolean zz_uart_setrate (word rate, uart_t *ua) {
 
 	byte j;
 

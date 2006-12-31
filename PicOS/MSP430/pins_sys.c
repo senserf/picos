@@ -12,7 +12,7 @@ word		zz_pmonevent [0];
 zz_pmon_t	zz_pmon;
 #endif
 
-bool zz_pin_available (word p) {
+Boolean zz_pin_available (word p) {
 
 	if ((p >= PIN_MAX) || (pinmap[p].poff == 0xff))
 		return NO;
@@ -28,7 +28,7 @@ bool zz_pin_available (word p) {
 	return YES;
 }
 
-bool zz_pin_adc_available (word p) {
+Boolean zz_pin_adc_available (word p) {
 
 	if (!zz_pin_available (p) || p >= PIN_MAX_ANALOG)
 		return NO;
@@ -53,7 +53,7 @@ word zz_pin_ovalue (word p) {
 
 #if PIN_DAC_PINS != 0
 
-bool zz_pin_dac_available (word p) {
+Boolean zz_pin_dac_available (word p) {
 
 	if (p != (PIN_DAC_PINS & 0xf) && p != ((PIN_DAC_PINS >> 8) & 0xf))
 		return NO;
@@ -61,7 +61,7 @@ bool zz_pin_dac_available (word p) {
 	return YES;
 }
 
-bool zz_pin_dac (word p) {
+Boolean zz_pin_dac (word p) {
 
 	if (p != (PIN_DAC_PINS & 0xf) && p != ((PIN_DAC_PINS >> 8) & 0xf))
 		// Up to two DAC pins are handled at the moment
@@ -110,7 +110,7 @@ void zz_write_dac (word p, word val, word ref) {
 
 #endif	/* PIN_DAC_PINS */
 
-bool zz_pin_adc (word p) {
+Boolean zz_pin_adc (word p) {
 
 	if (p >= PIN_MAX_ANALOG)
 		return 0;
@@ -119,7 +119,7 @@ bool zz_pin_adc (word p) {
 		& 1;
 }
 
-bool zz_pin_output (word p) {
+Boolean zz_pin_output (word p) {
 
 	return (*(byte*)(P1IN_ + pinmap[p].poff + PDIR_off) >> pinmap[p].pnum)
 		& 1;

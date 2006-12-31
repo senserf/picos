@@ -23,16 +23,16 @@ int pin_write_dac (word, word, word);
 #define	PMON_STATE_CMP_ON	0x40
 #define	PMON_STATE_CMP_PENDING	0x80
 
-void pmon_start_cnt (long, bool);
+void pmon_start_cnt (long, Boolean);
 void pmon_stop_cnt ();
 void pmon_set_cmp (long);
 lword pmon_get_cnt ();
 lword pmon_get_cmp ();
-void pmon_start_not (bool);
+void pmon_start_not (Boolean);
 void pmon_stop_not ();
 word pmon_get_state ();
-bool pmon_pending_not ();
-bool pmon_pending_cmp ();
+Boolean pmon_pending_not ();
+Boolean pmon_pending_cmp ();
 void pmon_dec_cnt ();
 void pmon_sub_cnt (long);
 void pmon_add_cmp (long);

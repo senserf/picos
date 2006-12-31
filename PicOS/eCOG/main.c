@@ -1148,7 +1148,7 @@ process (uart_driver, uart_t)
 
 #define	dev data
 
-    bool wr, ww, did;
+    Boolean wr, ww, did;
     word wd;
     int ii;
 

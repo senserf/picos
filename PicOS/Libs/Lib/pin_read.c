@@ -141,7 +141,7 @@ int pin_write_dac (word pin, word val, word ref) {
 
 #ifdef	PULSE_MONITOR
 
-void pmon_start_cnt (long count, bool edge) {
+void pmon_start_cnt (long count, Boolean edge) {
 
 	pin_disable_cnt ();
 
@@ -278,9 +278,9 @@ lword pmon_get_cnt () {
 	return res;
 }
 
-bool pmon_pending_cmp () {
+Boolean pmon_pending_cmp () {
 
-	bool res;
+	Boolean res;
 	cli;
 	res = ((pmon.stat & PMON_CMP_PENDING) != 0);
 	_BIC (pmon.stat, PMON_CMP_PENDING);
@@ -300,7 +300,7 @@ lword pmon_get_cmp () {
 	return res;
 }
 
-void pmon_start_not (bool edge) {
+void pmon_start_not (Boolean edge) {
 
 	pin_disable_not ();
 
@@ -330,9 +330,9 @@ void pmon_start_not (bool edge) {
 	pin_enable_not ();
 }
 
-bool pmon_pending_not () {
+Boolean pmon_pending_not () {
 
-	bool res;
+	Boolean res;
 	cli;
 	res = ((pmon.stat & PMON_NOT_PENDING) != 0);
 	_BIC (pmon.stat, PMON_NOT_PENDING);

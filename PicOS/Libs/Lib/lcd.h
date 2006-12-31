@@ -7,7 +7,7 @@
 
 //+++ "dsp_lcd.c" "upd_lcd.c"
 
-int dsp_lcd (const char*, bool);
+int dsp_lcd (const char*, Boolean);
 void upd_lcd (const char*);
 
 #endif

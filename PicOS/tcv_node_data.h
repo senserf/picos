@@ -39,7 +39,7 @@ __STATIC int		physinfo [TCV_MAX_PHYS];
 	void deq (hblock_t *p);
 	void enq (qhead_t *q, hblock_t *p);
 #if TCV_LIMIT_RCV || TCV_LIMIT_XMT
-	bool qmore (qhead_t *q, word lim);
+	Boolean qmore (qhead_t *q, word lim);
 #endif
 	int empty (qhead_t *oq);
 	void dispose (hblock_t *p, int dv);
@@ -66,7 +66,7 @@ __STATIC int		physinfo [TCV_MAX_PHYS];
 	void 		_da (tcv_drop) (address p);
 	int 		_da (tcv_left) (address p);
 	void 		_da (tcv_urgent) (address p);
-	bool 		_da (tcv_isurgent) (address p);
+	Boolean		_da (tcv_isurgent) (address p);
 	int 		_da (tcv_control) (int fd, int opt, address arg);
 
 	int 		_da (tcvp_control) (int phy, int opt, address arg);

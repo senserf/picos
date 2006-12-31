@@ -64,7 +64,7 @@ void zz_badstate (void) {
 	syserror (ESTATE, "no such state");
 }
 
-int utimer (address ut, bool add) {
+int utimer (address ut, Boolean add) {
 /* ================= */
 /* Add/clear utimers */
 /* ================= */
@@ -550,7 +550,7 @@ int kill (int pid) {
 int killall (code_t fun) {
 
 	pcb_t *i;
-	bool rel;
+	Boolean rel;
 	int nk;
 
 	rel = NO;
@@ -715,7 +715,7 @@ int zzz_strlen (const char *s) {
 
 void zzz_strcpy (char *d, const char *s) {
 
-	while ((bool)(*d++ = *s++));
+	while ((Boolean)(*d++ = *s++));
 }
 
 void zzz_strncpy (char *d, const char *s, int n) {

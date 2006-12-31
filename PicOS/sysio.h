@@ -271,12 +271,14 @@ void	if_erase (int);
 					/* FIXME: check how accurate this is */
 #define	NULL			0
 #define	NONE			((word)(-1))
+#define	SNONE			((int)(-1))
 #define	WNONE			NONE
+#define	BNONE			0xff
 #define	ERROR			NONE
 #define	BLOCKED			((word)(-2))
 
-#define	NO	((bool)0)
-#define	YES	((bool)1)
+#define	NO	((Boolean)0)
+#define	YES	((Boolean)1)
 
 #define	CNOP	do { } while (0)
 
@@ -522,7 +524,7 @@ void	proceed (word);
 /* Power up/down functions */
 void	powerup (void), powerdown (void), clockup (void), clockdown (void);
 /* User timers */
-int	utimer (address, bool);
+int	utimer (address, Boolean);
 /* Second clock */
 lword	seconds (void);
 /* Spin delay */
@@ -534,7 +536,7 @@ void	freeze (word);
 #endif
 
 #if	RADIO_INTERRUPTS
-bool	rcvwait (word);
+Boolean	rcvwait (word);
 void	rcvcancel (void);
 int	rcvlast (void);
 #endif
@@ -722,7 +724,7 @@ void	tcv_endp (address);
 void	tcv_drop (address);
 int	tcv_left (address);	/* Also plays the role of old tcv_plen */
 void	tcv_urgent (address);
-bool	tcv_isurgent (address);
+Boolean	tcv_isurgent (address);
 int	tcv_control (int, int, address);
 
 /* TCV malloc shortcut */
@@ -824,7 +826,7 @@ void	adc_stop (void);
 #define	_dac(a,b)	b
 #define	_dad(t,a)	a
 
-#define	praxis_starter(a)	//
+#define	praxis_starter(a)
 
 #define	__STATIC	static
 #define	__CONST		const

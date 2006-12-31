@@ -27,6 +27,7 @@
 #define	SDRAM_SPARE		(SDRAM_END - SDRAM_BLKSIZE)
 
 typedef unsigned char	bool;
+typedef unsigned char	Boolean;
 typedef	unsigned int	word;
 typedef	int		sint;
 typedef	unsigned char	byte;

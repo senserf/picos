@@ -10,7 +10,7 @@ tarpCtrlType _da (tarp_ctrl);
 
 __STATIC word tarp_cyclingSeq;
 #if SPD_RSSI_THRESHOLD
-__STATIC bool	strong_signal;
+__STATIC Boolean strong_signal;
 #endif
 
 nid_t	_da (net_id); 
@@ -22,7 +22,7 @@ nid_t   _da (master_host);
 tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, 0xA3, 0};
 __STATIC word tarp_cyclingSeq = 0;
 #if SPD_RSSI_THRESHOLD
-__STATIC bool	strong_signal = YES;
+__STATIC Boolean strong_signal = YES;
 #endif
 
 nid_t	_da (net_id) = 85;
@@ -78,7 +78,7 @@ int _da (tarp_rx) (address buffer, int length, int *ses);
 int _da (tarp_tx) (address buffer);
 
 word tarp_findInSpd (nid_t host);
-bool dd_fresh (headerType * buffer);
+Boolean dd_fresh (headerType * buffer);
 void upd_spd (headerType * msg);
 int check_spd (headerType * msg);
 void setHco (headerType * msg);
