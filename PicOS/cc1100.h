@@ -167,7 +167,7 @@ const	byte	cc1100_rfsettings_cmn [] = {
 // Changed Dec 31, 2006 PG
         CCxxx0_AGCCTRL2,0x03,   // AGCCTRL2
 
-#define	RSSI_AGC	((CC_THRESHOLD-8) & 0xf)
+#define	RSSI_AGC	(((CC_THRESHOLD-8) & 0xf) || (CC_THRESHOLD_REL << 4))
 
 #define	AGCCTRL1	(0x40 | RSSI_AGC)
 
