@@ -148,13 +148,13 @@ void    Observer::zz_start () {
 	ChList = NULL;
 
 	// Add the observer to the global observer list
-	queue_head (this, zz_obslist, Observer);
+	pool_in (this, zz_obslist, Observer);
 	inlistHead = zz_inlist_tail = NULL;
 	tevent = NULL;
 	smask = pmask = nmask = amask = 0L;
 
 	// Add the observer to the owner's list
-	zz_queue_head ((ZZ_Object*)this, TheProcess->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)this, TheProcess->ChList, ZZ_Object);
 	zz_observer_running = YES;
 	zz_current_observer = this;
 	zz_jump_flag = NO;
@@ -215,8 +215,8 @@ void terminate (Observer *o) {
 		"Can't terminate %s, ownership list not empty",
 			o->getSName ());
 
-	queue_out (o);
-	queue_out ((ZZ_Object*)o);
+	pool_out (o);
+	pool_out ((ZZ_Object*)o);
         zz_DREM (o);
 	if (o->zz_nickname != NULL)
 		delete (o->zz_nickname);

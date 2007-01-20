@@ -257,33 +257,33 @@ void    zz_start_client () {            // Starts the standard Client
 
 			rvcreate (RVAMD, "AMDelay", TYPE_long);
 			// Move it to Traffic
-			queue_out ((ZZ_Object*)(tp->RVAMD));
-			queue_head ((ZZ_Object*)(tp->RVAMD), tp->ChList,
+			pool_out ((ZZ_Object*)(tp->RVAMD));
+			pool_in ((ZZ_Object*)(tp->RVAMD), tp->ChList,
 				ZZ_Object);
 	
 			rvcreate (RVAPD, "APDelay", TYPE_long);
-			queue_out ((ZZ_Object*)(tp->RVAPD));
-			queue_head ((ZZ_Object*)(tp->RVAPD), tp->ChList,
+			pool_out ((ZZ_Object*)(tp->RVAPD));
+			pool_in ((ZZ_Object*)(tp->RVAPD), tp->ChList,
 				ZZ_Object);
 	
 			rvcreate (RVWMD, "WMDelay", TYPE_BITCOUNT);
-			queue_out ((ZZ_Object*)(tp->RVWMD));
-			queue_head ((ZZ_Object*)(tp->RVWMD), tp->ChList,
+			pool_out ((ZZ_Object*)(tp->RVWMD));
+			pool_in ((ZZ_Object*)(tp->RVWMD), tp->ChList,
 				ZZ_Object);
 	
 			rvcreate (RVMAT, "MAcTime", TYPE_long);
-			queue_out ((ZZ_Object*)(tp->RVMAT));
-			queue_head ((ZZ_Object*)(tp->RVMAT), tp->ChList,
+			pool_out ((ZZ_Object*)(tp->RVMAT));
+			pool_in ((ZZ_Object*)(tp->RVMAT), tp->ChList,
 				ZZ_Object);
 	
 			rvcreate (RVPAT, "PAcTime", TYPE_long);
-			queue_out ((ZZ_Object*)(tp->RVPAT));
-			queue_head ((ZZ_Object*)(tp->RVPAT), tp->ChList,
+			pool_out ((ZZ_Object*)(tp->RVPAT));
+			pool_in ((ZZ_Object*)(tp->RVPAT), tp->ChList,
 				ZZ_Object);
 	
 			rvcreate (RVMLS, "MsgStat", TYPE_long);
-			queue_out ((ZZ_Object*)(tp->RVMLS));
-			queue_head ((ZZ_Object*)(tp->RVMLS), tp->ChList,
+			pool_out ((ZZ_Object*)(tp->RVMLS));
+			pool_in ((ZZ_Object*)(tp->RVMLS), tp->ChList,
 				ZZ_Object);
 	
 		}
@@ -1416,7 +1416,7 @@ void    Traffic::zz_start () {
 	Class = AIC_traffic;
 
 	// Add the object to the owner (at this moment it is Kernel)
-	zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList, ZZ_Object);
 }
 
 void    Traffic::zz_setup_flags (int flags) {
@@ -2571,7 +2571,7 @@ int Traffic::getPacket (Packet *p, Long min, Long max, Long frm) {
 		Info01 = NULL;
 
 		// Deallocate the message
-		queue_out (m);
+		pool_out (m);
 		if (TheStation->MQTail [Id] == m)
 			// The last message being removed - adjust the tail
 			TheStation->MQTail [Id] = NULL;
@@ -2647,7 +2647,7 @@ int Traffic::getPacket (Packet *p, ZZ_MTTYPE tf, Long min, Long max, Long frm) {
 		setFlag (p->Flags, PF_last);
 		Info01 = NULL;
 
-		queue_out (m);
+		pool_out (m);
 		// Deallocate the message
 		if (TheStation->MQTail [Id] == m)
 			// The last message being removed - adjust the tail
@@ -2854,7 +2854,7 @@ int zz_client::getPacket (Packet *p, Long min, Long max, Long frm) {
 		Info01 = NULL;
 
 		// Deallocate the message
-		queue_out (m);
+		pool_out (m);
 		if (TheStation->MQTail [mtype] == m)
 			// The last message being removed - adjust the tail
 			TheStation->MQTail [mtype] = NULL;
@@ -2961,7 +2961,7 @@ int zz_client::getPacket (Packet *p, ZZ_MTTYPE tf, Long min, Long max,
 		Info01 = NULL;
 
 		// Deallocate the message
-		queue_out (m);
+		pool_out (m);
 		if (TheStation->MQTail [mtype] == m)
 			// The last message being removed - adjust the tail
 			TheStation->MQTail [mtype] =
@@ -3030,7 +3030,7 @@ int     Message::getPacket (Packet *p, Long min, Long max, Long frm) {
 				&& (TheStation->MQTail [p->TP]
 					!= NULL),
 				"Message->getPacket: message queue corrupted");
-			queue_out (this);
+			pool_out (this);
 			if (TheStation->MQTail [p->TP] == this)
 				// Adjust the tail pointer
 				TheStation->MQTail [p->TP] =

@@ -131,12 +131,32 @@ void	Mailbox::destroy_bound () {
  * This one disconnects the mailbox and destroys it altogether triggering all
  * possible events - to let everybody know that it has been gone.
  */
+  	Mailbox *m, *q;
+
 	if (JT == NULL) {
 		// There is a socket/device to close
 		::close (sfd);
 		if (sfd != csd && csd != NONE)
 			::close (csd);
 	}
+	if (ibuf != NULL)
+		delete (ibuf);
+	if (obuf != NULL)
+		delete (obuf);
+
+	ibuf = obuf = NULL;
+    	count = iin = iout = oin = oout = 0;
+
+	// Remove the mailbox from the socket list
+	for (q = NULL, m = zz_socket_list; m != this && m != NULL; m = m->nexts)
+      		q = m;
+
+	Assert (m != NULL, "delete Mailbox: internal error, socket not found");
+	if (q == NULL)
+		zz_socket_list = nexts;
+	else
+		q->nexts = nexts;
+
 	trigger_all_events ();
 };
 
@@ -320,6 +340,60 @@ SetBuffer:
   return ACCEPTED;
 };
 
+int Mailbox::resize (int bsize) {
+/*
+ * Resizes the mailbox buffer in the direction UP.
+ * The buffer need not be empty. If the new size is <= old size, nothing
+ * happens. The method returns the old size.
+ */
+	char *nibuf, *nobuf;
+	int ni, no, where;
+
+	if (sfd == NONE)
+		excptn ("Mailbox->resize: the mailbox is not connected");
+
+	if (ibuf == NULL)
+		excptn ("Mailbox->resize: illegal on master socket");
+
+	if (bsize <= limit)
+		// Do nothing
+		return limit;
+
+	nibuf = new char [bsize + 1];
+	nobuf = new char [bsize + 1];
+
+	where = 0;
+	for (no = iout; no != iin; ) {
+		nibuf [where++] = ibuf [no];
+		if (++no > limit)
+			no = 0;
+	}
+	iout = 0;
+	iin = where;
+
+	// Now the other buffer
+
+	where = 0;
+	for (no = oout; no != oin; ) {
+		nobuf [where++] = obuf [no];
+		if (++no > limit)
+			no = 0;
+	}
+	oout = 0;
+	oin = where;
+
+	delete ibuf;
+	delete obuf;
+
+	ibuf = nibuf;
+	obuf = nobuf;
+
+	ni = limit;
+	limit = bsize;
+
+	return ni;
+}
+
 int	Mailbox::disconnect (int who) {
 
 /* ---------------------------------------- */
@@ -385,6 +459,8 @@ int	Mailbox::disconnect (int who) {
       // connection (for a MASTER socket, that is)
       delete (ibuf);
       delete (obuf);
+      ibuf = NULL;
+      obuf = NULL;
     }
     limit = oldlimit;
     // Remove the mailbox from the socket list
@@ -740,6 +816,7 @@ int Mailbox::readToSentinel (char *b, int nc) {
   if (sfd == NONE) return ERROR;
   Assert (nc > 0, "Mailbox->readToSentinel: %s, number of bytes must be > 0",
 	getSName ());
+  Info01 = (void*)((int)NO);
   for (ip = iout, ic = 0, fc = 0; fc < count; fc++) {
     if (ip > limit) ip = 0;
     xc = ibuf [ip++];
@@ -747,7 +824,10 @@ int Mailbox::readToSentinel (char *b, int nc) {
       b [ic++] = xc;
       fp = ip;
     }
-    if (xc == snt) goto SF;
+    if (xc == snt) {
+      Info01 = (void*)((int)YES);
+      goto SF;
+    }
   }
   // The sentinel hasn't been found
   if (count < limit) {

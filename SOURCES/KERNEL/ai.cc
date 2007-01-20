@@ -97,12 +97,12 @@ void    zz_adjust_ownership () {
 	Assert (System->ChList == NULL,
 	"Adjusting ownership tree: internal error -- System ChList not empty");
 
-	queue_head ((ZZ_Object*)Kernel, System->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)Kernel, System->ChList, ZZ_Object);
 
 	for (i = 0; i < NStations; i++) {
 		o = idToStation (i);
-		queue_out (o);
-		queue_head (o, System->ChList, ZZ_Object);
+		pool_out (o);
+		pool_in (o, System->ChList, ZZ_Object);
 		// Note that all objects are linked at their owners in the
 		// reverse order of creation
 	}
@@ -112,8 +112,8 @@ void    zz_adjust_ownership () {
 	for (i = 0; i < NLinks; i++) {
 
 		o = idToLink (i);
-		queue_out (o);
-		queue_head (o, System->ChList, ZZ_Object);
+		pool_out (o);
+		pool_in (o, System->ChList, ZZ_Object);
 	}
 #endif
 
@@ -122,8 +122,8 @@ void    zz_adjust_ownership () {
 	for (i = 0; i < NRFChannels; i++) {
 
 		o = idToRFChannel (i);
-		queue_out (o);
-		queue_head (o, System->ChList, ZZ_Object);
+		pool_out (o);
+		pool_in (o, System->ChList, ZZ_Object);
 	}
 #endif
 
@@ -132,16 +132,16 @@ void    zz_adjust_ownership () {
 	for (i = 0; i < NTraffics; i++) {
 
 		o = idToTraffic (i);
-		queue_out (o);
-		queue_head (o, System->ChList, ZZ_Object);
+		pool_out (o);
+		pool_in (o, System->ChList, ZZ_Object);
 	}
 
 	// Fixed standard AI's
 
-	queue_head ((ZZ_Object*)Client, System->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)Client, System->ChList, ZZ_Object);
 #endif
-	queue_head ((ZZ_Object*)Timer, System->ChList, ZZ_Object);
-	queue_head ((ZZ_Object*)Monitor, System->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)Timer, System->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)Monitor, System->ChList, ZZ_Object);
 
 	// Assign static mailboxes to their stations
 	for (i = 0; i < NStations; i++) {
@@ -150,8 +150,8 @@ void    zz_adjust_ownership () {
 
 		st = idToStation (i);
 		for (o = st->Mailboxes; o != NULL; o = ((Mailbox*)o)->nextm) {
-			queue_out (o);
-			queue_head (o, st->ChList, ZZ_Object);
+			pool_out (o);
+			pool_in (o, st->ChList, ZZ_Object);
 		}
 	}
 
@@ -161,8 +161,8 @@ void    zz_adjust_ownership () {
 		Station *st;
 		st = idToStation (i);
 		for (o = st->Ports; o != NULL; o = ((Port*)o)->nextp) {
-			queue_out (o);
-			queue_head (o, st->ChList, ZZ_Object);
+			pool_out (o);
+			pool_in (o, st->ChList, ZZ_Object);
 		}
 	}
 #endif
@@ -174,8 +174,8 @@ void    zz_adjust_ownership () {
 		st = idToStation (i);
 		for (o = st->Transceivers; o != NULL; o =
 		    ((Transceiver*)o)->nextp) {
-			queue_out (o);
-			queue_head (o, st->ChList, ZZ_Object);
+			pool_out (o);
+			pool_in (o, st->ChList, ZZ_Object);
 		}
 	}
 #endif
@@ -201,8 +201,8 @@ void    zz_adjust_ownership () {
 
 			ox = o->prev;
 
-			queue_out (o);
-			queue_head (o, ((Process*)o)->Owner->ChList, ZZ_Object);
+			pool_out (o);
+			pool_in (o, ((Process*)o)->Owner->ChList, ZZ_Object);
 			if (o == so) break;
 			o = ox;
 		}
@@ -220,7 +220,7 @@ void    zz_adjust_ownership () {
 				continue;
 			}
 			so = o->next;
-			queue_out (o);
+			pool_out (o);
 			o->prev = ox;
 			o->next = ox->next;
 			if (o->next != NULL) o->next->prev = o;
@@ -249,7 +249,7 @@ void    zz_adjust_ownership () {
 
 			so = o->next;
 
-			queue_out (o);
+			pool_out (o);
 			o->prev = ox;
 			o->next = ox->next;
 			if (o->next != NULL) o->next->prev = o;
@@ -275,8 +275,8 @@ void    zz_adjust_ownership () {
 	if (o == NULL)
 	   excptn ("Adjusting ownership tree: Root missing from Kernel's list");
 
-	queue_out (o);
-	queue_head (o, Kernel->ChList, ZZ_Object);
+	pool_out (o);
+	pool_in (o, Kernel->ChList, ZZ_Object);
 
 	// Now for system processes
 
@@ -288,8 +288,8 @@ void    zz_adjust_ownership () {
 
 		// A system process
 		so = o->next;
-		queue_out (o);
-		queue_head (o, Kernel->ChList, ZZ_Object);
+		pool_out (o);
+		pool_in (o, Kernel->ChList, ZZ_Object);
 		o = so;
 	}
 
@@ -306,7 +306,7 @@ void    zz_adjust_ownership () {
 
 		so = o->next;
 
-		queue_out (o);
+		pool_out (o);
 		o->prev = ox;
 		o->next = ox->next;
 		if (o->next != NULL) o->next->prev = o;
@@ -327,7 +327,7 @@ void    zz_adjust_ownership () {
 
 		so = o->next;
 
-		queue_out (o);
+		pool_out (o);
 		o->prev = ox;
 		o->next = ox->next;
 		if (o->next != NULL) o->next->prev = o;
@@ -525,7 +525,7 @@ void    EObject::zz_start () {
 		 "EObject: %s, cannot create from Root after protocol has "
 		   "started", getSName ());
 
-		zz_queue_head ((ZZ_Object*)this, TheStation->ChList, ZZ_Object);
+		pool_in ((ZZ_Object*)this, TheStation->ChList, ZZ_Object);
 
 	} else {
 
@@ -536,12 +536,12 @@ void    EObject::zz_start () {
 		if (zz_observer_running) {
 			// Observers are also allowed to create dynamic
 			// displayable objects
-			zz_queue_head (this, zz_current_observer->ChList,
+			pool_in (this, zz_current_observer->ChList,
 				ZZ_Object);
 		} else
 #endif
 		{
-			zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+			pool_in (this, TheProcess->ChList, ZZ_Object);
 		}
 	}
 
@@ -555,7 +555,7 @@ EObject::~EObject () {
 /* Destructor for EObjects */
 /* ----------------------- */
 
-	zz_queue_out (this);
+	pool_out (this);
         zz_DREM (this);
 	if (zz_nickname != NULL) delete (zz_nickname);
 };

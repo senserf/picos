@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -115,7 +115,7 @@ void    Station::zz_start () {
 	// Add the station to the owner's list
 
 	if (TheProcess != NULL)
-		zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+		pool_in (this, TheProcess->ChList, ZZ_Object);
 }
 
 #if	ZZ_TOL

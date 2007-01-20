@@ -317,6 +317,14 @@ Long    zz_max_sleep_time;              // Minimum time to next journal event
 void    *zz_COBJ [MXOCLEVEL];
 int     zz_clv = 0;
 
+/* ----------------------------------------------------------------------- */
+/* This is used as a stack for Stations specified with create (...) tn ... */
+/* We make sure to resume the previous station after such a create. As for */
+/* COBJ, no overflow is ever checked.                                      */
+/* ----------------------------------------------------------------------- */
+Station	*zz_CSTA [MXOCLEVEL];
+int	zz_csv = 0;
+
 /* ----------------- */
 /* Smurph process id */
 /* ----------------- */

@@ -670,13 +670,13 @@ inline void zz_advance_real_time () {
 
     	// Resync to real time
 
-    	zz_check_asyn_io ();
-    	if (DisplayActive)
-		// Do not check any further. If we are displaying in this mode,
-		// we should be refreshing at sync intervals
-	        refreshDisplay ();
-
 	do {
+	    	zz_check_asyn_io ();
+	    	if (DisplayActive)
+			// If we are displaying in this mode, we
+			// should be refreshing at sync intervals
+		        refreshDisplay ();
+
 		for (sok = zz_socket_list; sok != NULL; sok = sok->nexts) {
 	            // Update the status of socket buffers
 	            sok->flushOutput ();
@@ -884,7 +884,7 @@ int main (int argc, char *argv []) {
 	// but who knows ...)
 	for (cp = chain; ; cp = cq) {
 		cq = cp -> other;
-		queue_out (cp);
+		pool_out (cp);
 		delete ((void*) cp);
 		if (cq == chain) break;
 	}
@@ -1382,7 +1382,7 @@ CSTOP:
 		if (chain != NULL) {
 		    for (cp = chain; ; cp = cq) {
 			cq = cp -> other;
-			queue_out (cp);
+			pool_out (cp);
 			delete ((void*) cp);
 			if (cq == chain) break;
 		    }
@@ -1525,8 +1525,8 @@ LoRet:
 			  ws->process = wsd->process;
 			  ws->ai = wsd->ai;
 			  ws->obs = wsd->obs;
-			  queue_head (ws, zz_steplist, ZZ_SIT);
-			  queue_out (wsd);
+			  pool_in (ws, zz_steplist, ZZ_SIT);
+			  pool_out (wsd);
 			  delete (wsd);
 			}
 		      }

@@ -244,7 +244,7 @@ INLINE  void    ZZ_EVENT::cancel () {
 	if (chain != NULL) {
 		for (cp = chain; ; ) {
 			cq = cp -> other;
-			zz_queue_out (cp);
+			pool_out (cp);
 			delete (cp);
 			if (cq == chain) break;
 			cp = cq;

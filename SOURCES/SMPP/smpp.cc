@@ -4431,9 +4431,15 @@ Setupdone:
 		putC (tpn);
 		putC ("*)(zz_COBJ[zz_clv]))->zz_start (); ");
 	}
+
+	if (ths [0] != '\0')
+		// Remove the station from the stack
+		putC ("zz_remths (); ");
+
 	putC ('(');
 	putC (tpn);
 	putC ("*)(zz_COBJ[zz_clv--]);})");
+
 	if (delim != -1) putC (delim);
 	catchUp ();
 	return (YES);

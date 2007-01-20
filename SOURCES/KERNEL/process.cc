@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -73,7 +73,7 @@ void    Process::zz_start () {
 		// TheProcess == NULL means that Kernel is being created,
 		// otherwise, the process gets appended to the parent's
 		// children list
-		zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+		pool_in (this, TheProcess->ChList, ZZ_Object);
 	}
 };
 
@@ -552,7 +552,7 @@ HOLD:                   // Remove all requests except for the Kernel's DEATH
 					continue;
 				}
 				rc->other = rq->other;
-				queue_out (rq);
+				pool_out (rq);
 				delete (rq);
 				rq = rc->other;
 			}
@@ -650,9 +650,6 @@ void	Station::terminate () {
 	ZZ_EVENT   *ev, *eh;
 	ZZ_REQUEST *rq;
 	int i;
-	Boolean own;
-
-	own = (TheProcess->Owner == this);
 
 	sttr_st = new sttr_st_c;
 	sttrav (zz_flg_started ? (ZZ_Object*)System : (ZZ_Object*)ZZ_Main);
@@ -695,7 +692,7 @@ Process::~Process () {
 
 		while (ChList != NULL) {
 			ob = ChList;
-			zz_queue_out (ob);
+			pool_out (ob);
 			// This will make it temporarily disappear from the
 			// display list, but it will reappear in the new
 			// place.
@@ -709,7 +706,7 @@ Process::~Process () {
 				delete ob;
 				continue;
 			}
-			zz_queue_head (ob, f->ChList, ZZ_Object);
+			pool_in (ob, f->ChList, ZZ_Object);
 		}
 	}
 	
@@ -742,17 +739,17 @@ Process::~Process () {
 #endif
 				ev->new_top_request (rq);
 		}
-		queue_out (rq);
+		pool_out (rq);
 		// Move these requests to the zombie list. They will be
 		// deallocated when the respective processes get awakened.
-		zz_queue_head (rq, zz_orphans, ZZ_REQUEST);
+		pool_in (rq, zz_orphans, ZZ_REQUEST);
 	}
 
 	while (SWList != NULL) {
 		// I almost forgot about these
 		rq = SWList;
-		queue_out (rq);
-		zz_queue_head (rq, zz_orphans, ZZ_REQUEST);
+		pool_out (rq);
+		pool_in (rq, zz_orphans, ZZ_REQUEST);
 	}
 
 	if (ISpec == NULL && Father != NULL) {
@@ -774,7 +771,7 @@ Process::~Process () {
 		}
 	}
 
-	zz_queue_out (this);
+	pool_out (this);
 	zz_DREM (this);
 	if (zz_nickname != NULL)
 		delete zz_nickname;
@@ -793,30 +790,6 @@ int Process::children () {
 	}
 
 	return cc;
-}
-
-Station *Process::reassign (Station *s) {
-
-	Station *prev;
-	ZZ_EVENT *ev;
-
-	prev = TheStation;
-	TheStation = s;
-	for (ev = zz_eq; ev != zz_sentinel_event; ev = ev->next) {
-		if (ev->process == this) {
-			prev = ev->station;
-			ev->station = s;
-		}
-	}
-	return prev;
-}
-
-Long Process::reassign (Long sid) {
-
-	Assert (isStationId (sid), "Process->reassign: illegal station Id, "
-		"reassigning %s to %1d", getSName (), sid);
-
-	return reassign (zz_st [sid]) -> getId ();
 }
 
 sexposure (Process)

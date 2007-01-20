@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 //#define	ZZ_RF_DEBUG
@@ -18,7 +18,6 @@
 
 #define VA_TYPE va_list
 #define	INLINE inline
-#define VIRCONS virtual
 
 /* ------------------- */
 /* Scratch array sizes */
@@ -226,12 +225,12 @@ extern	jmp_buf	zz_waker;
 #define		zz_hptr(hd,tp)\
    ((tp*)(((char*)&(hd))-(((char*)(&(((tp*)0x8000)->next)))-((char*)0x8000))))
 
-#define         zz_queue_head(item,hd,type)      {(item)->next = (hd);\
+#define         pool_in(item,hd,type)      {(item)->next = (hd);\
 					 (item)->prev = zz_hptr (hd, type);\
 	if ((hd) != NULL) (hd)->prev = (item);\
 	(hd) = (item);}
 
-#define         zz_queue_out(item)                      {\
+#define         pool_out(item)                      {\
 	if ((item)->next != NULL) ((item)->next)->prev = (item)->prev;\
 	((item)->prev)->next = (item)->next;}
 
@@ -373,6 +372,8 @@ extern	jmp_buf	zz_waker;
 #define         TYPE_short      1       // Short integer
 #define         TYPE_BIG        2       // TIME
 #define		TYPE_double	3
+#define		TYPE_int	4
+#define		TYPE_hex	5	// Last two used solely by parseNumbers
 
 /* ---------------------------------- */
 /* Seeds for random number generators */
@@ -1764,6 +1765,7 @@ typedef	struct	{
 	union {
 		double	DVal;
 		LONG	LVal;
+		int	IVal;
 	};
 } nparse_t;
 
@@ -2287,7 +2289,7 @@ class   EObject : public ZZ_Object  {
 	public:
 	void zz_start ();                       // Nonstandard constructor
 	virtual char *getTName () { return ("EObject"); };
-	VIRCONS ~EObject ();
+	virtual ~EObject ();
 };
 
 #if	ZZ_NOS
@@ -2651,7 +2653,7 @@ class   ZZ_REQUEST {
 		Info02 = in2;
 		if (zz_c_other != NULL) zz_c_other -> other = this;
 		zz_c_other = this;
-		zz_queue_head (this, *q, ZZ_REQUEST);
+		pool_in (this, *q, ZZ_REQUEST);
 	};
 
 	inline ZZ_REQUEST      (         AI *a,         // The AI pointer
@@ -2672,7 +2674,7 @@ class   ZZ_REQUEST {
 		if (zz_c_other != NULL) zz_c_other -> other = this;
 		zz_c_other = this;
 		// Use a dummy queue
-		zz_queue_head (this, zz_nqrqs, ZZ_REQUEST);
+		pool_in (this, zz_nqrqs, ZZ_REQUEST);
 	};
 };
 
@@ -2756,7 +2758,7 @@ class   ZZ_EVENT {
 
 	// Removes event from the queue without purging it
 
-		zz_queue_out (this);
+		pool_out (this);
 		zz_npee--;
 	};
 
@@ -3120,6 +3122,7 @@ class   Mailbox : public AI {
 	void setSentinel (char c) { snt = (char) c; };
         int  sentinelFound ();
 	Long outputPending ();
+	int  resize (int);
 #endif
 	inline  Long    getCount () { return count; };
 	Long		setLimit (Long lim = 0);
@@ -3166,7 +3169,7 @@ class   Mailbox : public AI {
 
 	void    setup (Long limit = 0);
 
-	VIRCONS ~Mailbox ();
+	virtual ~Mailbox ();
 
 	// Default functions (counters only)
 
@@ -5681,7 +5684,7 @@ class ZZ_RF_ACTIVITY {
 				if (ro->Destination->TracedActivity == ro)
 					// Make sure this never points nowhere
 					ro->Destination->TracedActivity = NULL;
-				zz_queue_out (ro);
+				pool_out (ro);
 			}
 			delete Roster;
 		}
@@ -5817,12 +5820,9 @@ class   Process : public AI {
 	int erase ();
 
 	// Destructor for derived classes
-	VIRCONS	~Process ();
+	virtual	~Process ();
 
         Station *getOwner () { return Owner; };
-
-	Station *reassign (Station *);
-	Long reassign (Long);
 
 	inline  void    printRqs (const char *hd = NULL, Long sid = NONE) {
 		// Print request list
@@ -6444,11 +6444,28 @@ void    zz_timeout_rq (TIME, int);
 /* For create */
 /* ---------- */
 
-inline void zz_setths (Long i) { TheStation = idToStation (i); };
-#ifndef ZZ_Long_eq_int
-inline void zz_setths (int i) { TheStation = idToStation (i); };
-#endif
-inline void zz_setths (Station *s) { TheStation = s; };
+extern  Station *zz_CSTA [];
+extern  int     zz_csv;
 
+inline void zz_setths (Long i) { 
+	zz_CSTA [zz_csv++] = TheStation;
+	TheStation = idToStation (i);
+}
+
+#ifndef ZZ_Long_eq_int
+inline void zz_setths (int i) {
+	zz_CSTA [zz_csv++] = TheStation;
+	TheStation = idToStation (i);
+}
+#endif
+
+inline void zz_setths (Station *s) {
+	zz_CSTA [zz_csv++] = TheStation;
+	TheStation = s;
+}
+
+inline void zz_remths () {
+	TheStation = zz_CSTA [--zz_csv];
+}
 
 #include        "inlines.h"

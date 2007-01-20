@@ -488,12 +488,6 @@ void    zz_ptime (ZZ_TBIG&, int);
 /* Convenient aliases for user-invisible macros */
 /* -------------------------------------------- */
 
-/* -------------------- */
-/* Operations on queues */
-/* -------------------- */
-#define         queue_head(item,hd,type) zz_queue_head(item,hd,type)
-#define         queue_out(item) zz_queue_out(item)
-
 #define         ierror(a)       zz_ierror(a)
 #define         aerror(a)       zz_aerror(a)
 

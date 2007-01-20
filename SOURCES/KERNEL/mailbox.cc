@@ -24,7 +24,7 @@ Mailbox::~Mailbox () {
 #endif
   destroy_simple ();
 
-  zz_queue_out (this);
+  pool_out (this);
   zz_DREM (this);
   if (zz_nickname != NULL) delete (zz_nickname);
 }
@@ -53,10 +53,10 @@ void Mailbox::trigger_all_events () {
 #endif
 			ev->new_top_request (rq);
 
-		queue_out (rq);
+		pool_out (rq);
 		// Move these requests to the zombie list. They will be
 		// deallocated when the respective processes get awakened.
-		zz_queue_head (rq, zz_orphans, ZZ_REQUEST);
+		pool_in (rq, zz_orphans, ZZ_REQUEST);
 	}
 }
 
@@ -104,7 +104,7 @@ Mailbox *p;
 	  }
         }
 	// Add to the ownership tree
-	zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList, ZZ_Object);
 }
 
 void    Mailbox::zz_start () {

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -1133,7 +1133,7 @@ void  zz_processWindowPhrase () {
       if (strcmp (ws->win->obj->getSName (), sname) != 0)
         continue;
       // We've got it
-      queue_out (ws);
+      pool_out (ws);
       delete (ws);
       break;
     }
@@ -1147,7 +1147,7 @@ void  zz_processWindowPhrase () {
       if (strcmp (wsd->win->obj->getSName (), sname) != 0)
         continue;
       // We've got it
-      queue_out (wsd);
+      pool_out (wsd);
       delete (wsd);
       // Perhaps we should update here the minimum intervals
       // until the earliest deferred window will be stepped.
@@ -1177,7 +1177,7 @@ void  zz_processWindowPhrase () {
       return;
     }
     w = new ZZ_WINDOW (o, mode, stat, scount, ecount);
-    queue_head (w, zz_windows, ZZ_WINDOW);
+    pool_in (w, zz_windows, ZZ_WINDOW);
   } else {
     // A possible count modification
     if (ecount != MAX_int) {
@@ -1254,7 +1254,7 @@ void  zz_processWindowPhrase () {
     ws->process = stepprocess;
     ws->ai      = stepai;
     ws->obs     = stepobs;
-    queue_head (ws, zz_steplist, ZZ_SIT);
+    pool_in (ws, zz_steplist, ZZ_SIT);
     return;
   }
   // Deferred stepping
@@ -1270,7 +1270,7 @@ void  zz_processWindowPhrase () {
     zz_commit_event = MAX_Long;
     zz_commit_time  = TIME_inf;
   }
-  queue_head (wsd, zz_steplist_delayed, ZZ_WSIT);
+  pool_in (wsd, zz_steplist_delayed, ZZ_WSIT);
   // Update minimum intervals
   if (stepevent < zz_commit_event) zz_commit_event = stepevent;
   if (steptime < zz_commit_time) zz_commit_time = steptime;
@@ -1286,12 +1286,12 @@ static  void    processEStepMode () {
 
   for (ws = zz_steplist; ws != NULL; ws = wws) {
     wws = ws->next;
-    queue_out (ws);
+    pool_out (ws);
     delete (ws);
   }
   for (wsd = zz_steplist_delayed; wsd != NULL; wsd = wwsd) {
     wwsd = wsd->next;
-    queue_out (wsd);
+    pool_out (wsd);
     delete (wsd);
   }
 };
@@ -1362,18 +1362,18 @@ static  void    processEWindowPhrase () {
     "displayOut: %s, %1d, startRegion not matched by endRegion",
 	w->obj->getSName (), w->mode);
   withinwindow = NO;
-  queue_out (w);          // Remove from the active list
+  pool_out (w);          // Remove from the active list
 
   // Check if occurs on steplists
   for (ws = zz_steplist; ws != NULL; ws = ws->next)
     if (ws->win == w) {
-      queue_out (ws);
+      pool_out (ws);
       delete (ws);
       break;
     }
   for (wsd = zz_steplist_delayed; wsd != NULL; wsd = wsd->next)
     if (wsd->win == w) {
-      queue_out (wsd);
+      pool_out (wsd);
       delete (wsd);
       break;
     }
@@ -1458,9 +1458,11 @@ void    refreshDisplay () {
       // empty without executing a single event in the meantime.
       st = MOB->write (monsock, YES);
     } else {
+#if ZZ_RSY == 0
       // Skip this turn, but don't wait as long for the next one
       zz_events_to_display = RefreshDelay;
       if (++RefreshDelay > DisplayInterval) RefreshDelay = DisplayInterval;
+#endif
       return;
     }
   }
@@ -1561,14 +1563,14 @@ void    zz_DREM (ZZ_Object *ob) {
   for (ws = zz_steplist; ws != NULL; ws = wsq) {
     wsq = ws->next;
     if (ws->win->obj == ob) {
-      queue_out (ws);
+      pool_out (ws);
       delete (ws);
     }
   }
   for (wws = zz_steplist_delayed; wws != NULL; wws = wwsq) {
     wwsq = wws->next;
     if (wws->win->obj == ob) {
-      queue_out (wws);
+      pool_out (wws);
       delete (wws);
     }
   }
@@ -1576,7 +1578,7 @@ void    zz_DREM (ZZ_Object *ob) {
     wq = w->next;
     if (w->obj == ob) {
       new ORequest (ORQ_REMOVE, ob->getSName (), w->mode, w->stid);     
-      queue_out (w);
+      pool_out (w);
       delete (w);
     }
   }

@@ -241,10 +241,10 @@ void    LinkService::zz_code () {
 				cl->AliveTail->next = NULL;
 			}
 		} else {
-			queue_out (a);
+			pool_out (a);
 		}
 	} else
-		queue_out (a);
+		pool_out (a);
 
 	cl->NAlive --;
 
@@ -307,7 +307,7 @@ void    LinkService::zz_code () {
 		}
 	} else {
 
-		queue_head (a, cl->Archived, ZZ_LINK_ACTIVITY);
+		pool_in (a, cl->Archived, ZZ_LINK_ACTIVITY);
 
 		new ZZ_EVENT (Time + cl->ArchiveTime, System, (void*) a, NULL,
 			TheProcess, cl, ARC_PURGE, RemFromAr, NULL);
@@ -330,10 +330,10 @@ void    LinkService::zz_code () {
 				cl->ArchivedTail->next = NULL;
 			}
 		} else {
-			queue_out (a);
+			pool_out (a);
 		}
 	} else
-		queue_out (a);
+		pool_out (a);
 
 	cl->NArchived--;
 
@@ -369,7 +369,7 @@ void    Link::zz_start () {
 #endif
 	Type = LT_broadcast;
 	// Add the link to Kernel
-	zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList, ZZ_Object);
 };
 
 void Link::setFaultRate (double r, int ft) {
@@ -836,7 +836,7 @@ Port::Port () {
 	}
 
 	// Add to the ownership tree
-	zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList, ZZ_Object);
 }
 
 void    Port::zz_start () {
@@ -2883,7 +2883,7 @@ void    Port::startTransfer (Packet *packet) {
 		if (a == NULL) {
 			// Queue at tail
 			if (Lnk -> AliveTail == NULL) {
-				queue_head (new_activity, Lnk->Alive,
+				pool_in (new_activity, Lnk->Alive,
 					ZZ_LINK_ACTIVITY);
 				Lnk -> AliveTail = new_activity;
 			} else {
@@ -2909,7 +2909,7 @@ void    Port::startTransfer (Packet *packet) {
 		}
 				
 	} else
-		queue_head (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
+		pool_in (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
 
 	Activity = new_activity;
 
@@ -2945,12 +2945,12 @@ void    Port::startJam () {
 	  case LT_broadcast:
 	  case LT_unidirectional:
 
-		queue_head (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
+		pool_in (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
 		break;
 
 	  case LT_cpropagate:
 
-		queue_head (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
+		pool_in (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
 
 		// Look for a transfer attempt originated by this port
 		// ending at Time (optimization for CPROPAGATE link type)
@@ -2978,7 +2978,7 @@ void    Port::startJam () {
 		if (a == NULL) {
 			// Queue at tail
 			if (Lnk -> AliveTail == NULL) {
-				queue_head (new_activity, Lnk->Alive,
+				pool_in (new_activity, Lnk->Alive,
 					ZZ_LINK_ACTIVITY);
 				Lnk -> AliveTail = new_activity;
 			} else {

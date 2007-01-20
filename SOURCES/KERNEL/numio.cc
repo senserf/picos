@@ -41,6 +41,7 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 	char *en, *em;
 	double	dv;
 	LONG	lv;
+	long	iv;
 	Boolean FPE, INE;
 
 	while (1) {
@@ -56,7 +57,70 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 
 		if (count < max) {
 			// Still room
-			if (res->type < 0) {
+			switch (res->type) {
+
+			    case TYPE_hex:
+
+				// Expect hex
+				iv = strtol (txt, &en, 16);
+				goto Hex;
+
+			    case TYPE_int:
+
+				// Expect int
+				iv = strtol (txt, &en, 10);
+Hex:
+				if (en == txt) {
+					// No number
+					txt++;
+					continue;
+				}
+				if (errno == ERANGE)
+					return ERROR;
+
+				// This will be optimized out on 32-bit
+				// machines
+				if ((sizeof (long) > sizeof (int)) &&
+				    (iv > (long)MAXINT || iv < (long)MININT))
+					return ERROR;
+
+				res->IVal = (int) iv;
+				txt = en;
+				break;
+
+			    case TYPE_LONG:
+
+				// Expect LONG
+				lv = strtoll (txt, &en, 10);
+				if (en == txt) {
+					// No number
+					txt++;
+					continue;
+				}
+				if (errno == ERANGE)
+					return ERROR;
+				res->LVal = lv;
+				txt = en;
+				break;
+
+			    case TYPE_double:
+
+				// Expect double
+				dv = strtod (txt, &en);
+				if (en == txt) {
+					// Failure
+					txt++;
+					continue;
+				}
+				if (errno == ERANGE)
+					return ERROR;
+				res->DVal = dv;
+				txt = en;
+				break;
+
+			    default:
+
+			      if (res->type < 0) {
 				// Any type, determine based on number format
 				dv = strtod (txt, &en);
 				// Try double first
@@ -83,40 +147,16 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 					res->DVal = dv;
 					txt = en;
 				}
-			} else if (res->type == TYPE_LONG) {
-				// Expect LONG
-				lv = strtoll (txt, &en, 10);
-				if (en == txt) {
-					// No number
-					txt++;
-					continue;
-				}
-				if (errno == ERANGE)
-					return ERROR;
-				res->LVal = lv;
-				txt = en;
-			} else if (res->type == TYPE_double) {
-				// Expect double
-				dv = strtod (txt, &en);
-				if (en == txt) {
-					// Failure
-					txt++;
-					continue;
-				}
-				if (errno == ERANGE)
-					return ERROR;
-				res->DVal = dv;
-				txt = en;
-			} else
+			      } else
 				excptn ("parseNumbers: illegal item type: %1d",
 					res->type);
+			}
 			res++;
 		} else {
 			// No room, skip a double
 			strtod (txt, &en);
 			txt = (en == txt) ? txt + 1 : en;
 		}
-
 		count++;
 	}
 	return count;

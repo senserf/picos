@@ -793,9 +793,11 @@
 
  R061216A  A transient state declaration is now legal for the first state (and
 	   produces the same code as state). Macro 'trace' previously expanded
-	   by SMPP is now a straightforward function.
+	   by SMPP is now a function.
 
- R061223A  Mailboxes can now be destroyed (deleted) with processes waiting on
+ R070119A  Several changes and extensions inspired by VUEE:
+
+	   Mailboxes can now be destroyed (deleted) with processes waiting on
 	   them. Such processes are awakened regardless of the event. They can
 	   tell that the mailbox has been destroyed by looking at TheMailbox,
 	   which is then NULL. This is primarily useful for killing Internet
@@ -803,8 +805,24 @@
 	   perceive their correct status (with a bit of extra effort). While
 	   that was also possible previously (with disconnect (CLEAR)), the
 	   actual consistent deallocation of mailboxes did pose a bit of
-	   problem.
+	   problem and was messy.
+
 	   Method pendingOutput added to (bound) Mailbox.
-	   Method reassign added to Process.
-	   Still to be documented.
-	   Planning to make journaling optional in real/visualization mode.
+
+	   Method resize added to (bound) Mailbox.
+
+	   readToSentinel sets info01 to YES if sentinel found.
+
+	   parseNumbers now reads ints and hexs (TYPE_int, TYPE_hex) + IVal.
+
+	   Operations on pools (doubly-linked lists of related objects) made
+	   generally available as pool_in, pool_out.
+
+	   Operation create pushes TheStation on the stack. Previously
+	   create (S) T (...) was confusing as it would reset TheStation as
+	   a side effect.
+
+	   Known things to do:
+
+	   Documenting the above changes in the manual.
+	   Making journaling optional.

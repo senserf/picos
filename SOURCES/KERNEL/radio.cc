@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -150,7 +150,7 @@ inline void ZZ_RSCHED::initAct (double xpower) {
 
 	LVL_RSI = Destination->RFC->RFC_att (xpower, ituToDu (Distance),
 		RFA->Tcv, Destination);
-	queue_head (this, Destination->Activities, ZZ_RSCHED);
+	pool_in (this, Destination->Activities, ZZ_RSCHED);
 	Destination->NActivities++;
 	if (Destination->RxOn)
 		initSS ();
@@ -483,7 +483,7 @@ void    RFChannel::zz_start () {
 	// Initialize some members
 	FlgSPF = ON;
 	// Add to the Kernel
-	queue_head (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList, ZZ_Object);
 };
 
 void RFChannel::setup (Long nx, int spf) {
@@ -571,6 +571,18 @@ void Transceiver::setup (RATE r, int pre, double XP, double RP,
 
 	TRate = r;
 
+#if ZZ_R3D
+	assert (x >= 0.0 && y >= 0.0 && z >= 0.0, "Transceiver: "
+		"%s, location coordinates (%f, %f, %f) must not be negative",
+			TheStation->getSName (),
+			x, y, z);
+#else
+	assert (x >= 0.0 && y >= 0.0, "setLocation: %s, location "
+		"coordinates (%f, %f) must not be negative",
+			TheStation->getSName (),
+			x, y);
+#endif
+
 	X = duToItu (x);
 	Y = duToItu (y);
 #if ZZ_R3D
@@ -643,7 +655,7 @@ Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
 	for (i = 0; i < N_TRANSCEIVER_EVENTS; i++)
 		RQueue [i] = NULL;
 
-	zz_queue_head (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList, ZZ_Object);
 }
 
 void    Transceiver::zz_start () {
@@ -730,6 +742,18 @@ void	Transceiver::setLocation (double x, double y) {
 
 	DISTANCE xx, yy;
 
+#if ZZ_R3D
+	assert (x >= 0.0 && y >= 0.0 && z >= 0.0, "Transceiver->setLocation: "
+		"%s, location coordinates (%f, %f, %f) must not be negative",
+			TheStation->getSName (),
+			x, y, z);
+#else
+	assert (x >= 0.0 && y >= 0.0, "Transceiver->setLocation: %s, location "
+		"coordinates (%f, %f) must not be negative",
+			TheStation->getSName (),
+			x, y);
+#endif
+
 	xx = duToItu (x);
 	yy = duToItu (y);
 #if ZZ_R3D
@@ -755,8 +779,7 @@ void	Transceiver::setLocation (double x, double y) {
 		"Transceiver->setLocation: %s not interfaced to RFChannel",
 			getSName ());
 
-	// A bit more work
-
+	// Bookkeeping
 	RFC->nei_bld (this);
 	RFC->nei_cor (this);
 }
@@ -1431,7 +1454,8 @@ void RFChannel::nei_add (Transceiver *T) {
 			memcpy (nei_sort + j + 1, t->Neighbors,
 				sizeof (ZZ_NEIGHBOR) * (t->NNeighbors - j));
 		t->NNeighbors++;
-		delete t->Neighbors;
+		if (t->Neighbors != NULL)
+			delete t->Neighbors;
 		t->Neighbors = nei_sort;
 Next:
 		NOP;
@@ -1458,7 +1482,10 @@ void RFChannel::nei_del (Transceiver *T) {
 					while (++j < t->NNeighbors)
 						t->Neighbors [j-1] =
 							t->Neighbors [j];
-					t->NNeighbors--;
+					if (--(t->NNeighbors) == 0) {
+						delete t->Neighbors;
+						t->Neighbors = NULL;
+					}
 				}
 				goto Next;
 			}
@@ -1481,17 +1508,23 @@ void RFChannel::nei_cor (Transceiver *T) {
 	ZZ_NEIGHBOR ne;
 
 	for (i = 0; i < NTransceivers; i++) {
-		t = Tcvs [i];
+		if ((t = Tcvs [i]) == T)
+			continue;
 		d = t->qdst (T);
 		if (d > RFC_cut (t->XPower, T->RPower)) {
 			// Remove if present
 			for (j = 0; j < t->NNeighbors; j++) {
 				if (t->Neighbors [j] . Neighbor == T) {
-					// Remove (the array doesn't shrink)
+					// Remove (the array doesn't shrink, but
+					// we remove it if the list of neighbors
+					// ends up empty)
 					while (++j < t->NNeighbors)
 						t->Neighbors [j-1] =
 							t->Neighbors [j];
-					t->NNeighbors--;
+					if (--(t->NNeighbors) == 0) {
+						delete t->Neighbors;
+						t->Neighbors = NULL;
+					}
 					goto Next;
 				}
 			}
@@ -1504,14 +1537,14 @@ void RFChannel::nei_cor (Transceiver *T) {
 					if (j == t->NNeighbors - 1 ||
 					  D <= t->Neighbors [j+1] . Distance) {
 						// Stays where it was
-						t->Neighbors [j+1] . Distance =
-							D;
+						t->Neighbors [j] . Distance = D;
 						goto Next;
 					}
 					// Delete it and insert further, the
 					// array won't have to be resized
 					while (++j < t->NNeighbors) {
-					  if (t->Neighbors [j] . Distance > D) {
+					  if (t->Neighbors [j] . Distance >= 
+					   D) {
 					    // Insert the new one
 					    t->Neighbors [j-1].Neighbor = T;
 					    t->Neighbors [j-1].Distance = D;
@@ -1526,7 +1559,7 @@ void RFChannel::nei_cor (Transceiver *T) {
 					goto Next;
 				}
 				// Find the slot to put it in
-				if (t->Neighbors [j] . Distance > D) {
+				if (t->Neighbors [j] . Distance >= D) {
 					// Here it goes
 					for (k = j+1; k < t->NNeighbors; k++) {
 					  if (t->Neighbors [k].Neighbor == T) {
@@ -1551,7 +1584,8 @@ void RFChannel::nei_cor (Transceiver *T) {
 					while (j++ < t->NNeighbors)
 					  // The trailer
 					  nei_sort [j] = t->Neighbors [j-1];
-					delete t->Neighbors;
+					if (t->Neighbors != NULL)
+						delete t->Neighbors;
 					t->Neighbors = nei_sort;
 					t->NNeighbors++;
 					goto Next;
