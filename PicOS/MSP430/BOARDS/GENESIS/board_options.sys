@@ -23,6 +23,7 @@
 
 #define CRYSTAL_RATE		8000000
 #define	MCLOCK_FROM_CRYSTAL	1
+#define	SPIN_WHEN_HALTED	1
 
 #define LBT_DELAY		0
 #define LBT_THRESHOLD		2

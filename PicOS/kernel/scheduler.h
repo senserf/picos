@@ -63,7 +63,10 @@ Redo:
 
 #endif
 	/* No process to run */
+
+#if SPIN_WHEN_HALTED == 0
 	SLEEP;
+#endif
 	goto Redo;
 
 #if SCHED_PRIO

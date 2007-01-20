@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 ############################################################################
 # This script generates makefiles for mspgcc and project files for CyanIDE #
 #                                                                          #
-# Usage: mkmk [-e|-m|-msp430-xxx]                                          #
+# Usage: mkmk [boardname]
 #                                                                          #
 # Copyright (C) Olsonet Communications, 2005, 2006 All Rights Reserved     #
 ############################################################################
@@ -1106,7 +1106,7 @@ proc scanfile { fname } {
 
 proc bad_usage { } {
 
-	puts stderr "Usage: mkmk \[-m|-msp430xXXX|-e\]"
+	puts stderr "Usage: mkmk \[boardname]"
 	exit 1
 }
 

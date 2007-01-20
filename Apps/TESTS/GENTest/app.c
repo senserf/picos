@@ -54,7 +54,8 @@ static word 	ME = 1,
 		SendRnd = 0,
 		BID = 0;
 
-static byte	Action = 0, Channel = 0, Mode = 0, SndRnd = 0, BkfRnd;
+static byte	Action = 0, Channel = 0, Power = 2, Mode = 0, SndRnd = 0,
+		BkfRnd;
 
 static word gen_packet_length (void) {
 
@@ -427,6 +428,7 @@ endprocess (1)
 #define	RS_DUM		75
 #define	RS_ECO		78
 #define	RS_SEC		80
+#define RS_SEP		83
 #define	RS_SMO		86
 #define	RS_SRE		87
 #define	RS_PDO		95
@@ -493,7 +495,7 @@ diag (
 	"s n      -> start (0-stop, 1-xm, 2-rcv, 3-both, 4-bnc) [%u]\r\n"
 	"b n      -> bounce delay (fixed) msec [%u]\r\n"
 	"e        -> reset packet counters\r\n"
-	"p        -> show packet counters [%lu, %lu]\r\n"
+	"p        -> show packet counters\r\n"
 	"q n      -> set board ID [%u]\r\n"
 	"t n      -> set bounce backoff (LS bits) [%u]\r\n"
 	"f        -> ram dump\r\n"
@@ -501,6 +503,7 @@ diag (
 	"o n      -> set mode [%u]\r\n"
 #if CC1100
 	"k n      -> select channel n [%u]\r\n"
+	"n [0-7]  -> set xmit power [%u]\r\n"
 	"r n v    -> set CC1100 reg n to v\r\n"
 #endif
 	"u d      -> enter power-down mode for d seconds\r\n"
@@ -526,8 +529,7 @@ diag (
 #endif
 	,
 		ME, YOU, CloneCount, SendInterval, SendRnd, ReceiverDelay,
-		Action, BounceDelay, CntSent, CntRcvd, BID, BkfRnd, Mode,
-		Channel
+		Action, BounceDelay, BID, BkfRnd, Mode, Channel, Power
 	);
 
   entry (RS_RCMD)
@@ -568,6 +570,8 @@ diag (
 #if CC1100
 	if (ibuf [0] == 'k')
 		proceed (RS_SEC);
+	if (ibuf [0] == 'n')
+		proceed (RS_SEP);
 	if (ibuf [0] == 'r')
 		proceed (RS_SRE);
 #endif
@@ -763,6 +767,13 @@ diag (
 	scan (ibuf + 1, "%d", &n);
 	Channel = (byte) (n &= 0xff);
 	tcv_control (sfd, PHYSOPT_SETCHANNEL, (address)(&n));
+	proceed (RS_DON);
+
+  entry (RS_SEP)
+
+	scan (ibuf + 1, "%d", &n);
+	Power = (byte) (n &= 0x7);
+	tcv_control (sfd, PHYSOPT_SETPOWER, (address)(&n));
 	proceed (RS_DON);
 
   entry (RS_SRE)

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -248,7 +248,6 @@ static byte cc1100_status () {
 
 	register byte val;
 	int i;
-
 ReTry:
 	for (i = 0; i < 32; i++) {
 
@@ -495,7 +494,7 @@ static void do_rx_fifo () {
 	}
 
 	if ((len = cc1100_rx_status ()) < 0) {
-		// Error: typically FIFO overrun (shouldn't happen)
+		// Error: normally FIFO overrun (shouldn't happen)
 #if TRACE_DRIVER
 		diag ("%u RC RX BAD STATUS", (word) seconds ());
 #endif
@@ -675,7 +674,6 @@ thread (cc1100_driver)
 		release;
 	}
 #endif
-
 	if (tcvphy_top (physid) == NULL) {
 		// Nothing to transmit
 		if (TxOFF) {
@@ -705,10 +703,12 @@ thread (cc1100_driver)
 		proceed (DR_LOOP);
 	}
 
-	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL)
+	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
 		// The last check: the packet may have been removed while
 		// waiting on LBT
+		enter_rx ();
 		proceed (DR_LOOP);
+	}
 
 #if CRC_MODE > 1
 	sysassert (paylen <  rbuffl && paylen >= 6 && (paylen & 1) == 0,

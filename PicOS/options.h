@@ -19,6 +19,10 @@
 #define	ECOG_SIM		0
 #endif
 
+#ifndef	SPIN_WHEN_HALTED
+#define	SPIN_WHEN_HALTED	0
+#endif
+
 // Watchdog
 #ifndef	WATCHDOG_ENABLED
 #define	WATCHDOG_ENABLED	0

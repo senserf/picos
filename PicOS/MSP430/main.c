@@ -8,6 +8,10 @@
 #include "pins.h"
 #include "irq_timer_headers.h"
 
+#ifndef	MCLOCK_FROM_CRYSTAL
+#define	MCLOCK_FROM_CRYSTAL	0
+#endif
+
 extern 			pcb_t		*zz_curr;
 extern 			address	zz_utims [MAX_UTIMERS];
 extern	void		_reset_vector__;
@@ -351,6 +355,20 @@ static void ssm_init () {
 	// Set up the CPU clock
 
 #ifdef	__MSP430_1xx__
+
+
+#if MCLOCK_FROM_CRYSTAL
+
+	BCSCTL1 |= XTS;
+	do {
+		_BIC (IFG1, OFIFG);
+		udelay (100);
+	} while ((IFG1 & OFIFG) != 0);
+
+  	BCSCTL2 |= SELM1+SELM0; 
+
+#else	/* MCLOCK from DCO */
+
 	// Maximum DCO frequency
 	DCOCTL = DCO2 + DCO1 + DCO0;
 	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF
@@ -361,6 +379,9 @@ static void ssm_init () {
 #endif
 	;
 	// Measured MCLK is ca. 4.5 MHz
+
+#endif	/* MCLOCK_FROM_CRYSTAL */
+
 
 #if 	CRYSTAL2_RATE
 	// Assign SMCLK to XTL2

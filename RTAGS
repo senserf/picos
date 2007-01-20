@@ -1280,3 +1280,9 @@ R061231B:
 	A few tentative changes to CC1100 driver that seem to improve LBT a bit.
 	Perhaps we should send this to John. I will add the same mods to the
 	official GENESIS branch.
+
+R070119A:
+
+	VUEE directory added to Apps to store those praxes that have been 
+	made VUEE-compliant. Two such praxes are present there at the momennt.
+	I am planning to re-do the CC1100 driver, so stay tuned.

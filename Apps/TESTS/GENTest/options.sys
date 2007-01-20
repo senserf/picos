@@ -14,3 +14,9 @@
 #define	DUMP_MEMORY	1
 #define	DIAG_MESSAGES	1
 #define	CODE_LONG_INTS	1
+
+#ifdef	RADIO_USE_LEDS
+#undef	RADIO_USE_LEDS
+#endif
+
+#define	RADIO_USE_LEDS	7

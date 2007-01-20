@@ -1,10 +1,11 @@
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "kernel.h"
 #include "phys_cc1100.h"
 #include "cc1100_sys.h"
 #include "rfleds.h"
@@ -156,7 +157,7 @@ const	byte	cc1100_rfsettings_cmn [] = {
 #endif
         CCxxx0_MDMCFG2, SYNC_WORD_SIZE,	//	.. modulation (2-fsk), no MCHSTR
 
-        CCxxx0_MDMCFG1, 0xA2,   // MDMCFG1	22 FEC + pre + ch spacing
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
         CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0	F8 channel spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FREND1,  0x56,   // FREND1
@@ -191,7 +192,7 @@ const	byte	cc1100_rfsettings_cmn [] = {
 #endif
         CCxxx0_PKTLEN,  MAX_TOTAL_PL,
 
-	CCxxx0_PKTCTRL1,0x04,	// Append 2 status bytes on reception
+	CCxxx0_PKTCTRL1,0x0C,	// Autoflush + 2 status bytes on reception
 
 #if CRC_MODE == 0
 #define	CRC_FLAGS	0x04
