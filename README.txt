@@ -129,3 +129,13 @@ R061223A:
     hexadecimal.
 
     Pin control, LEDs and mobility protocols still to be devised.
+
+--------:
+
+    Global HEX option added to udaemon.
+
+R070119A:
+
+    Lots of updates to VUEE. Agent protocol implemented. Udaemon extended by
+    CLOCK, PINS, LEDS, MOVER. Documentation coming up.
+

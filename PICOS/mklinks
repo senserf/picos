@@ -4,6 +4,7 @@ ln -sf ../../PICOS/PicOS/tcv.h .
 ln -sf ../../PICOS/PicOS/tcv_node_data.h .
 ln -sf ../../PICOS/PicOS/tcvphys.h .
 ln -sf ../../PICOS/PicOS/tcvplug.h .
+ln -sf ../../PICOS/PicOS/rfleds.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null.c plug_null.cc
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null_node_data.h .

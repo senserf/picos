@@ -93,7 +93,7 @@ void	tcv_endp (address);
 void	tcv_drop (address);
 int	tcv_left (address);	/* Also plays the role of old tcv_plen */
 void	tcv_urgent (address);
-bool	tcv_isurgent (address);
+Boolean	tcv_isurgent (address);
 int	tcv_control (int, int, address);
 
 typedef	int (*ctrlfun_t) (int option, address);
@@ -110,6 +110,11 @@ typedef	int (*ctrlfun_t) (int option, address);
 /* End of TCV specific stuff */
 /* ========================= */
 #endif
+
+/* LEDs operations */
+#define	LED_OFF		0
+#define	LED_ON		1
+#define	LED_BLINK	2
 
 /* malloc shortcut */
 #define	tmalloc(s)	(TheNode->memAlloc (s, (word)(s)))
@@ -133,9 +138,10 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	SNONE		((int)NONE)
 #define	WNONE		((word)NONE)
+#define	BNONE		0xff
 #define	BLOCKED		(-2)
 
-#define	trigger(a)	(TheNode->TB.signal ((IPointer)(a)))
+#define	trigger(a)	(((PicOSNode*)TheStation)->TB.signal ((IPointer)(a)))
 
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
 	    ((a) - 'a' + 10) : (((a)>='A'&&(a)<='F') ? ((a) - 'A' + 10) : 0) ) )

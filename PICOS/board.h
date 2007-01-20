@@ -2,6 +2,7 @@
 #define	__picos_board_h__
 
 #include "picos.h"
+#include "ndata.h"
 #include "agent.h"
 #include "nvram.h"
 #include "tcv.h"
@@ -12,6 +13,16 @@
 #include "plug_null.h"
 
 #define	N_MEMEVENT	0xFFFF0001
+#define	PMON_CNTEVENT	0xFFFF0002
+#define	PMON_NOTEVENT	0xFFFF0003
+
+#define	PMON_STATE_NOT_RISING	0x01
+#define	PMON_STATE_NOT_ON	0x02
+#define	PMON_STATE_NOT_PENDING	0x04
+#define	PMON_STATE_CNT_RISING	0x10
+#define	PMON_STATE_CNT_ON	0x20
+#define	PMON_STATE_CMP_ON	0x40
+#define	PMON_STATE_CMP_PENDING	0x80
 
 #define	TheNode		((PicOSNode*)TheStation)
 #define	ThePckt		((PKT*)ThePacket)
@@ -78,7 +89,6 @@ station PicOSNode {
 	MemChunk	*MHead, *MTail;
 	word		MTotal, MFree,
 			NFree;		// Minimum free so far - for stats
-
 	/*
 	 * RF interface
 	 */
@@ -104,6 +114,16 @@ station PicOSNode {
 	uart_t		*uart;
 
 	/*
+	 * Pins
+	 */
+	PINS		*pins;
+
+	/*
+	 * Leds
+	 */
+	LEDSM		*ledsm;
+
+	/*
 	 * This is EEPROM and FIM (IFLASH)
 	 */
 	NVRAM		*eeprom, *iflash;
@@ -127,6 +147,17 @@ station PicOSNode {
 		_da (backoff) = _da (min_backoff) + toss (_da (max_backoff));
 	};
 
+	inline void _da (leds) (word led, word op) {
+		if (ledsm != NULL)
+			// Ignore otherwise
+			ledsm->leds_op (led, op);
+	};
+
+	inline void _da (fastblink) (Boolean a) {
+		if (ledsm != NULL)
+			ledsm->fastblink (a);
+	};
+
 	inline int _da (io) (int state, int dev, int ope, char *buf, int len) {
 		// Note: 'dev' is ignored: it exists for compatibility with
 		// PicOS; io only works for the (single) UART.
@@ -139,13 +170,122 @@ station PicOSNode {
 	 * I/O formatting
 	 */
 	char * _da (vform) (char*, const char*, va_list);
-	int _da (vscan) (const char*, const char*, va_list);
+	int    _da (vscan) (const char*, const char*, va_list);
 	char * _da (form) (char*, const char*, ...);
-	int _da (scan) (const char*, const char*, ...);
-	int _da (ser_out) (word, const char*);
-	int _da (ser_in) (word, char*, int);
-	int _da (ser_outf) (word, const char*, ...);
-	int _da (ser_inf) (word, const char*, ...);
+	int    _da (scan) (const char*, const char*, ...);
+	int    _da (ser_out) (word, const char*);
+	int    _da (ser_in) (word, char*, int);
+	int    _da (ser_outf) (word, const char*, ...);
+	int    _da (ser_inf) (word, const char*, ...);
+
+	/*
+	 * Operations on pins
+	 */
+	void no_pin_module (const char*);
+
+	inline word  _da (pin_read) (word pn) {
+		if (pins == NULL)
+			no_pin_module ("pin_read");
+		return pins->pin_read (pn);
+	};
+
+	inline int   _da (pin_write) (word pn, word val) {
+		if (pins == NULL)
+			no_pin_module ("pin_write");
+		return pins->pin_write (pn, val);
+	};
+
+	inline int   _da (pin_read_adc) (word st, word pn, word ref, word smt) {
+		if (pins == NULL)
+			no_pin_module ("pin_read_adc");
+		return pins->pin_read_adc (st, pn, ref, smt);
+	};
+
+	inline int   _da (pin_write_dac) (word pn, word val, word ref) {
+		if (pins == NULL)
+			no_pin_module ("pin_write_dac");
+		return pins->pin_write_dac (pn, val, ref);
+	};
+
+	// The pulse monitor
+
+	inline void  _da (pmon_start_cnt) (long cnt, Boolean edge) {
+		if (pins == NULL)
+			no_pin_module ("pmon_start_cnt");
+		pins->pmon_start_cnt (cnt, edge);
+	};
+
+	inline void  _da (pmon_stop_cnt) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_stop_cnt");
+		pins->pmon_stop_cnt ();
+	};
+
+	inline void  _da (pmon_set_cmp) (long cnt) {
+		if (pins == NULL)
+			no_pin_module ("pmon_set_cmp");
+		pins->pmon_set_cmp (cnt);
+	};
+
+	inline lword _da (pmon_get_cnt) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_get_cnt");
+		return pins->pmon_get_cnt ();
+	};
+
+	inline lword _da (pmon_get_cmp) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_get_cmp");
+		return pins->pmon_get_cmp ();
+	};
+
+	inline void  _da (pmon_start_not) (Boolean edge) {
+		if (pins == NULL)
+			no_pin_module ("pmon_start_not");
+		pins->pmon_start_not (edge);
+	};
+
+	inline void  _da (pmon_stop_not) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_stop_not");
+		pins->pmon_stop_not ();
+	};
+
+	inline word  _da (pmon_get_state) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_get_state");
+		return pins->pmon_get_state ();
+	};
+
+	inline Boolean  _da (pmon_pending_not) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_pending_not");
+		return pins->pmon_pending_not ();
+	};
+
+	inline Boolean  _da (pmon_pending_cmp) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_pending_cmp");
+		return pins->pmon_pending_cmp ();
+	};
+
+	inline void  _da (pmon_dec_cnt) () {
+		if (pins == NULL)
+			no_pin_module ("pmon_dec_cnt");
+		pins->pmon_dec_cnt ();
+	};
+
+	inline void  _da (pmon_sub_cnt) (long decr) {
+		if (pins == NULL)
+			no_pin_module ("pmon_sub_cnt");
+		pins->pmon_sub_cnt (decr);
+	};
+
+	inline void  _da (pmon_add_cmp) (long incr) {
+		if (pins == NULL)
+			no_pin_module ("pmon_add_cmp");
+		pins->pmon_add_cmp (incr);
+	};
 
 	/*
 	 * EEPROM + FIM (IFLASH)
@@ -161,10 +301,7 @@ station PicOSNode {
 	// Note: static TCV data is initialized in tcv_init.
 #include "tcv_node_data.h"
 
-	void setup (word, double, double, double, double, Long, Long, Long,
-		double, RATE, Long, Long, Long, Long, Long, Long, Long, char*,
-			char*);
-
+	void setup (data_no_t*);
 };
 
 process Inserial (PicOSNode) {
@@ -213,19 +350,19 @@ station TNode : PicOSNode {
 	virtual int _da (tr_offset) (headerType *mb) {
 		excptn ("TNode->tr_offset undefined");
 	};
-	virtual bool _da (msg_isBind) (msg_t m) {
+	virtual Boolean _da (msg_isBind) (msg_t m) {
 		excptn ("TNode->msg_isBind undefined");
 	};
-	virtual bool _da (msg_isTrace) (msg_t m) {
+	virtual Boolean _da (msg_isTrace) (msg_t m) {
 		excptn ("TNode->msg_isTrace undefined");
 	};
-	virtual bool _da (msg_isMaster) (msg_t m) {
+	virtual Boolean _da (msg_isMaster) (msg_t m) {
 		excptn ("TNode->msg_isMaster undefined");
 	};
-	virtual bool _da (msg_isNew) (msg_t m) {
+	virtual Boolean _da (msg_isNew) (msg_t m) {
 		excptn ("TNode->msg_isNew undefined");
 	};
-	virtual bool _da (msg_isClear) (byte o) {
+	virtual Boolean _da (msg_isClear) (byte o) {
 		excptn ("TNode->msg_isClear undefined");
 	};
 	virtual void _da (set_master_chg) () {
@@ -242,57 +379,17 @@ station TNode : PicOSNode {
 
 process	BoardRoot {
 
-	void readNodeParams (sxml_t, int,
-		Long&,
-		double&,
-		double&,
-		Long&,
-		Long&,
-		Long&,
-		double&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		Long&,
-		char*&,
-		char*&
-	);
+	data_no_t *readNodeParams (sxml_t, int);
+	data_ua_t *readUartParams (sxml_t, const char*);
+	data_pn_t *readPinsParams (sxml_t, const char*);
+	data_le_t *readLedsParams (sxml_t, const char*);
 
 	void initTiming (sxml_t);
 	void initChannel (sxml_t, int);
 	void initNodes (sxml_t, int);
 	void initAll ();
 
-	virtual void buildNode (
-		const char *tp,		// Type
-		word mem,
-		double	X,		// Coordinates
-		double  Y,
-		double	XP,		// Power
-		double	RP,
-		Long	BCmin,		// Backoff
-		Long	BCmax,
-		Long	LBTDel, 	// LBT delay (ms) and threshold (dBm)
-		double	LBTThs,
-		RATE	rate,
-		Long	PRE,		// Preamble
-		Long	eesz,		// EEPROM size
-		Long	ifsz,		// IFLASH size
-		Long	ifps,		// IFLASH page size
-		Long	UMODE,		// UART mode
-		Long	UBS,		// UART buffer size
-		Long	USP,		// UART rate
-		char	*UIDV,		// Input device for UART
-		char	*UODV		// Output device for UART
-	) {
+	virtual void buildNode (const char *tp, data_no_t *nddata) {
 		excptn ("BoardRoot: buildNode undefined");
 	};
 

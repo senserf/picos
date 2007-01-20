@@ -40,6 +40,10 @@
 #define io(a,b,c,d,e)	(  ((PicOSNode*)TheStation)->_na_io (a,b,c,d,e)  )
 #define encrypt(a,b,c)	(  ((PicOSNode*)TheStation)->_na_encrypt (a,b,c)  )
 #define decrypt(a,b,c)	(  ((PicOSNode*)TheStation)->_na_decrypt (a,b,c)  )
+#define leds(a,b) \
+	(  ((PicOSNode*)TheStation)->_na_leds ((word)(a),(word)(b))  )
+#define fastblink(a) \
+	(  ((PicOSNode*)TheStation)->_na_fastblink ((Boolean)(a))  )
 
 // ============================================================================
 
@@ -55,6 +59,33 @@
 	(  ((PicOSNode*)TheStation)->_na_ser_outf (a, ## __VA_ARGS__)  )
 #define ser_inf(a, ...) \
 	(  ((PicOSNode*)TheStation)->_na_ser_inf (a, ## __VA_ARGS__)  )
+
+// ============================================================================
+
+#define pin_read(a)	(  ((PicOSNode*)TheStation)->_na_pin_read (a)  )
+#define pin_write(a,b)	(  ((PicOSNode*)TheStation)->_na_pin_write (a,b)  )
+#define pin_read_adc(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_pin_read_adc (a,b,c,d)  )
+#define pin_write_dac(a,b,c) \
+	(  ((PicOSNode*)TheStation)->_na_pin_write_dac (a,b,c)  )
+#define pmon_start_cnt(a,b) \
+	(  ((PicOSNode*)TheStation)->_na_pmon_start_cnt (a,b)  )
+#define pmon_stop_cnt() (  ((PicOSNode*)TheStation)->_na_pmon_stop_cnt ()  )
+#define pmon_set_cmp(a) (  ((PicOSNode*)TheStation)->_na_pmon_set_cmp (a)  )
+#define pmon_get_cnt() 	(  ((PicOSNode*)TheStation)->_na_pmon_get_cnt ()  )
+#define pmon_get_cmp() 	(  ((PicOSNode*)TheStation)->_na_pmon_get_cmp ()  )
+#define pmon_start_not(a) \
+	(  ((PicOSNode*)TheStation)->_na_pmon_start_not (a)  )
+#define pmon_stop_not() (  ((PicOSNode*)TheStation)->_na_pmon_stop_not ()  )
+#define pmon_get_state() \
+	(  ((PicOSNode*)TheStation)->_na_pmon_get_state ()  )
+#define pmon_pending_not() \
+	(  ((PicOSNode*)TheStation)->_na_pmon_pending_not ()  )
+#define pmon_pending_cmp() \
+	(  ((PicOSNode*)TheStation)->_na_pmon_pending_cmp ()  )
+#define pmon_dec_cnt() 	(  ((PicOSNode*)TheStation)->_na_pmon_dec_cnt ()  )
+#define pmon_sub_cnt(a) (  ((PicOSNode*)TheStation)->_na_pmon_sub_cnt (a)  )
+#define pmon_add_cmp(a) (  ((PicOSNode*)TheStation)->_na_pmon_add_cmp (a)  )
 
 // ============================================================================
 

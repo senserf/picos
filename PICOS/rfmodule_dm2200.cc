@@ -4,11 +4,10 @@
 #include "board.h"
 #include "rfmodule_dm2200.h"
 #include "tcvphys.h"
-
-#include "tcv.cc"
-
 #include "stdattr.h"
+#include "tcv.cc"
 #include "rfmattr.h"
+#include "rfleds.h"
 
 static int option (int, address);
 
@@ -113,11 +112,13 @@ Drain:
 Xmit:
 	OBuffer.load (buffer, buflen);
 	Xmitting = YES;
+	LEDI (1, 1);
 	RFInterface->transmit (&OBuffer, XM_TXDONE);
 
     state XM_TXDONE:
 
 	RFInterface->stop ();
+	LEDI (1, 0);
 	if (lbt_delay == 0)
 		// To reduce the risk of livelocks; not needed with LBT
 		gbackoff ();
@@ -200,6 +201,7 @@ Receiver::perform {
     state RCV_GETIT:
 
 	Receiving = NO;
+	LEDI (2, 0);
 
 	if (RXOFF) {
 Finidh:
@@ -215,7 +217,7 @@ Finidh:
 		when (rx_event, RCV_GETIT);
 		release;
 	}
-
+	LEDI (2, 1);
 	Receiving = YES;
 	RFInterface->follow (ThePckt);
 	skipto RCV_RECEIVE;
@@ -268,6 +270,9 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 
 	/* Both parts are initially active */
 	RXOFF = TXOFF = 1;
+	LEDI (0, 2);
+	LEDI (1, 0);
+	LEDI (2, 0);
 
 	create Xmitter;
 	create Receiver;
@@ -294,6 +299,12 @@ static int option (int opt, address val) {
 			TXOFF = NO;
 			trigger (tx_event);
 		}
+
+		if (RXOFF)
+			LEDI (0, 1);
+		else
+			LEDI (0, 2);
+
 		break;
 
 	    case PHYSOPT_RXON:
@@ -302,6 +313,12 @@ static int option (int opt, address val) {
 			RXOFF = NO;
 			trigger (rx_event);
 		}
+
+		if (TXOFF)
+			LEDI (0, 1);
+		else
+			LEDI (0, 2);
+
 		break;
 
 	    case PHYSOPT_TXOFF:
@@ -309,18 +326,33 @@ static int option (int opt, address val) {
 		/* Drain */
 		TXOFF = 2;
 		trigger (tx_event);
+
+		if (RXOFF)
+			LEDI (0, 0);
+		else
+			LEDI (0, 1);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
 		TXOFF = 1;
 		trigger (tx_event);
+
+		if (TXOFF)
+			LEDI (0, 1);
+		else
+			LEDI (0, 2);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
 		RXOFF = 1;
 		trigger (rx_event);
+
+		if (TXOFF)
+			LEDI (0, 1);
+		else
+			LEDI (0, 2);
 		break;
 
 	    case PHYSOPT_CAV:

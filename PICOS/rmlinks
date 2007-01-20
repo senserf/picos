@@ -4,6 +4,7 @@ rm -f tcv.h
 rm -f tcv_node_data.h
 rm -f tcvphys.h
 rm -f tcvplug.h
+rm -f rfleds.h
 rm -f plug_null.h
 rm -f plug_null.cc
 rm -f plug_null_node_data.h

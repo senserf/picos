@@ -2,6 +2,7 @@
 #define __picos_stdattr_undef_h__
 // Created automatically, do not edit!!!
 #undef __picos_stdattr_h__
+#undef NODENAME
 #undef release
 #undef finish
 #undef entropy
@@ -22,6 +23,8 @@
 #undef io
 #undef encrypt
 #undef decrypt
+#undef leds
+#undef fastblink
 #undef vform
 #undef vscan
 #undef form
@@ -30,6 +33,23 @@
 #undef ser_in
 #undef ser_outf
 #undef ser_inf
+#undef pin_read
+#undef pin_write
+#undef pin_read_adc
+#undef pin_write_dac
+#undef pmon_start_cnt
+#undef pmon_stop_cnt
+#undef pmon_set_cmp
+#undef pmon_get_cnt
+#undef pmon_get_cmp
+#undef pmon_start_not
+#undef pmon_stop_not
+#undef pmon_get_state
+#undef pmon_pending_not
+#undef pmon_pending_cmp
+#undef pmon_dec_cnt
+#undef pmon_sub_cnt
+#undef pmon_add_cmp
 #undef ee_read
 #undef ee_write
 #undef ee_erase

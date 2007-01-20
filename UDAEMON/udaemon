@@ -1,12 +1,5 @@
-#!/usr/bin/wish -f
+#!/usr/bin/wish
 
-package require siclef 1.0
-
-#
-# This is the mailbox buffer size, which should be at least as big as a
-# reasonable maximum for the UART buffer size in PicOS
-#
-set IBSize		256
 set Unique		0
 set MaxLineCount	1024
 set HostName		"localhost"
@@ -14,300 +7,414 @@ set PortNumber		4443
 set AGENT_MAGIC		0xBAB4
 set ECONN_OK		129
 
-sicle
+array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 
-class Ticker { }
+set NTYPE_COLORS	{ yellow blue orange red yellow }
 
-process Ticker {
 #
-# FIXME: attention event (and possibly other events triggered in callbacks)
-# doesn't make it to the process, i.e., doesn't kick the scheduler. How to
-# do that?
+# Pin status ordinals:
 #
-	global Timer
+#	PINSTAT_INPUT		0
+# 	PINSTAT_OUTPUT		1
+# 	PINSTAT_ADC		2
+# 	PINSTAT_DAC0		3
+# 	PINSTAT_DAC1		4
+# 	PINSTAT_PULSE		5
+# 	PINSTAT_NOTIFIER	6
+# 	PINSTAT_ABSENT		7
+#
 
-	wait $Timer 400
+array set PIN_COLORS	{ D,0 "#A4E22E" D,1 "#FFFF7F" D,2 "#FE8592"
+			  D,3 "#7EDCED" D,4 "#7EDCED" D,5 "#61A77E"
+			  D,6 "#FE3512" D,7 "#C0C0C0" O,0 "#8C82EC"
+			  O,1 "#FF0000" O,2 "#C0C0C0" I,0 "#8C82EC"
+			  I,1 "#FF0000" I,2 "#C0C0C0" A   "#7EDCED"
+			  I   "#C0C0C0" N   "#7EB0ED"
+			}
+
+array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
+
+array set HPA		{ 1 "(\[0-9a-f\])"
+			  2 "(\[0-9a-f\]\[0-9a-f\])"
+			  4 "(\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\])"
+			  H "(\[0-9a-f\]+)"
+			  F "(\[0-9.+-E\]+)"
+			}
+
+#
+# Canvas margins for MOVER:
+#
+# NR     = node radius
+# ND     = node diameter
+# TO     = text label Y offset
+# RX, RY = running coordinate offset from left bottom
+# MW, MH = minimum width and height
+# DW, DH = default (initial) width and height
+#
+array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 ND 10 TO 10 RX 10 RY 10
+			  MW 200 MH 200 DW 400 DH 400 }
+
+proc dbg { mess } {
+
+	puts $mess
+	flush stdout
 }
 
-class Port { } { }
+proc stName { Sok } {
 
-interface Port
+	global Stat
 
-class uartHandler { stid } {
-
-	useown Sok StatId
-	global PortNumber HostName
-
-	set StatId $stid
-	log "connecting to UART at node $stid ..."
-	if [catch { create Port internet ${HostName}:$PortNumber } Sok] {
-		set Sok ""
-		return
+	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
+		return " at station $Stat($Sok,S)"
 	}
-	log "connection established"
+
+	return ""
 }
 
-process uartHandler {
+proc stimeout { Sok } {
 
-	useown State Sok Wn FTag TBuf StatId HexM LFill
-	global Timer Unique Wins
+	global Stat
 
-	switch $State {
+	set Stat($Sok,T) [after 10000 doAbort $Sok]
+}
 
-	    Start {
+proc ctimeout { Sok } {
 
-		global AGENT_MAGIC
-		# prepare the request
-		set rqs ""
-		abinS rqs $AGENT_MAGIC
-		abinS rqs 1
-		abinI rqs $StatId
+	global Stat
 
-		if { $Sok == "" } {
-			proceed Stop
-		}
-
-		if [catch { deposit $Sok $rqs } res] {
-			proceed Stop
-		}
-
-		if $res {
-			log "failed sending the request"
-			proceed Stop
-		}
-		proceed Connect
-	    }
-
-	    Connect {
-
-		global ECONN_OK
-
-		# wait for the ACK byte before opening the window
-		if { [extract $Sok ack 1] == 0 } {
-			wait $Sok Newitem Connect
-			wait $Timer 10000 Stop
-			sleep
-		}
-
-		set code [dbinB ack]
-		if { $code != $ECONN_OK } {
-			log "failed to connect: [conerror $code]"
-			delete $Sok
-			delete $This
-			sleep
-		}
-
-		# create the window
-
-		set FTag $Unique
-		incr Unique
-
-		set Wn ".wx$FTag"
-		toplevel $Wn
-		text $Wn.t
-		set TBuf ""
-		set LFill 0
-
-		# This stores the previous mode (1 HEX, 0 ASCII)
-		set HexM 0
-		mkTerm $Wn $FTag "UART at node $StatId"
-		set Wins($Wn) $This
-		bind $Wn <Destroy> "destroyTerminal \"$Wn\""
-
-		proceed Run
-
-	    }
-
-	    Run {
-		if { ![info exists Sok] || [closed $Sok] } {
-			proceed Close
-		}
-
-		if [extract $Sok chunk] {
-		    if [ishex $FTag] {
-			# handle the HEX case
-			if !$HexM {
-				# just entered
-				endLine $Wn.t
-				set HexM 1
-				set LFill 0
-			}
-
-			set sl [string length $chunk]
-			for { set ix 0 } { $ix < $sl } { incr ix } {
-				set b [string index $chunk $ix]
-				# this gets converted to three characters
-				set enc [tohex $b]
-				if { $LFill >= 80 } {
-					endLine $Wn.t
-					set LFill 0
-				}
-				addText $Wn.t $enc
-				incr LFill 2
-				if { $LFill <= 77 } {
-					addText $Wn.t " "
-					incr LFill
-				}
-			}
-		    } else {
-			if $HexM {
-				# just exited
-				set HexM 0
-				set LFill 0
-				endLine $Wn.t
-			}
-			# we have something
-			append TBuf $chunk
-			# look for CR+LF, LF+CR, CR, LF; if there is only
-			# one of those at the end, ignore it for now and
-			# keep for posterity
-			set sl [string length $TBuf]
-			while { [regexp "\[\r\n\]" $TBuf m] } {
-				set el [string first $m $TBuf]
-				if { $el == 0 } {
-					# first character
-					if { $sl < 2 } {
-						# have to leave it and wait
-						proceed Run
-					}
-					# check the second one
-					set n [string index $TBuf 1]
-					if { $m == "\r" && $n == "\n" || \
-					     $m == "\n" && $n == "\r"    } {
-						# two-character EOL
-						set TBuf \
-						      [string range $TBuf 2 end]
-						incr sl -2
-					} else {
-						set TBuf \
-						      [string range $TBuf 1 end]
-						incr sl -1
-					}
-					# complete previous line
-					endLine $Wn.t
-					set LFill 0
-					continue
-				}
-				# send the preceding string to the terminal
-				addText $Wn.t [string range $TBuf \
-							       0 [expr $el - 1]]
-				incr sl -$el
-				# in the ASCII mode, this is only used to tel
-				# wheter we are at the beginning of a line or
-				# not
-				incr LFill 1
-				set TBuf [string range $TBuf $el end]
-			}
-			if { $TBuf != "" } {
-				addText $Wn.t $TBuf
-				incr LFill 1
-				set TBuf ""
-			}
-			proceed Run
-		    }
-		}
-
-		wait $Sok Newitem Run
-		wait $Sok Attention Stop
-	    }
-
-	    Close {
-
-	   	endLine $Wn.t
-		log "connection closed"
-
-		if { [info exists Sok] && $Sok != "" } {
-			delete $Sok
-		}
-		delete $This
-	    }
-
-	    Stop {
-		# the window is no more
-		log "connection to UART at node $StatId closed"
-		if { $Sok != "" } {
-			delete $Sok
-		}
-		delete $This
-	    }
+	if [info exists Stat($Sok,T)] {
+		after cancel $Stat($Sok,T)
+		unset Stat($Sok,T)
 	}
 }
 
-proc handleUserInput { w } {
-
+proc stwin { Sok } {
+#
+# Safe window acqusition from callbacks
+#
 	global Wins
 
-	set tx ""
-	# extract the line
-	regexp "\[^\r\n\]+" [$w.stat.u get 0.0 end] tx
-	# remove it from the input field
-	$w.stat.u delete 0.0 end
+	if ![info exists Wins($Sok)] {
+		return -code return
+	}
 
-	if { [catch { use $Wins($w) Sok FTag LFill HexM } ] ||
-	   	 ![info exists Sok] ||
-	   		[closed $Sok] } {
+	set w $Wins($Sok)
 
-		addText $w.t "NO CONNECTION!!!"
-		endLine $w.t
+	if { $w == "x" } {
+		# stub
+		return -code return
+	}
+
+	if ![winfo exists $w] {
+		return -code return
+	}
+
+	return $w
+}
+
+proc winlocate { tag stid } {
+
+	global Wins Stat
+
+	set wn ""
+
+	foreach s [array names Wins] {
+		# window name
+		set w $Wins($s)
+		if ![regexp "^.w$tag\[0-9\]" $w] {
+			continue
+		}
+		# check station ID
+		if { $stid == "" } {
+			if { ![info exists Stat($s,S)] || $Stat($s,S) == "" } {
+				set wn $w
+				break
+			}
+		} elseif { [info exists Stat($s,S)] && \
+		    $stid == $Stat($s,S) } {
+			set wn $w
+			break
+		}
+	}
+
+	if { $wn != "" } {
+		if { $wn == "x" } {
+			log "connection already in progress"
+		} else {
+			log "window already present"
+			catch { raise $wn }
+		}
+		return 1
+	}
+
+	return 0
+}
+
+proc ledColor { i } {
+
+	global LED_COLORS
+
+	if [info exists LED_COLORS($i)] {
+		return $LED_COLORS($i)
+	} else {
+		return "red"
+	}
+}
+
+proc dealloc { Sok } {
+
+	global Wins Stat Unique
+
+	ctimeout $Sok
+	if [info exists Wins($Sok)] {
+		set w $Wins($Sok)
+		if [winfo exists $w] {
+			set Wins(Zombie_$Unique) $w
+			bind $w <Destroy> "destroyWindow Zombie_$Unique"
+			incr Unique
+		}
+		unset Wins($Sok)
+	}
+
+	foreach it [array names Stat "$Sok,*"] {
+		unset Stat($it)
+	}
+
+	catch { close $Sok }
+}
+
+proc uartHandler { stid mode } {
+
+	global PortNumber HostName Wins Stat
+
+	if { $mode == "h" } {
+		set HexM 1
+	} else {
+		set HexM 0
+	}
+
+	# try to locate the window, if it already exists
+
+	if [winlocate "u" $stid] {
 		return
 	}
 
-	if $LFill {
-		set LFill 0
-		endLine $w.t
+	set Wn ""
+	
+	log "connecting to UART at node $stid ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
 	}
 
-	if [ishex $FTag] {
-		set HexM 1
-		addText $w.t $tx
-		endLine $w.t
-		set os ""
-		set tx [string trim $tx]
-		set err 0
-		while { $tx != "" } {
-			set d0 [string index $tx 0]
-			set d1 [string index $tx 1]
-			set tx [string trimleft [string range $tx 2 end]]
-			set d0 [htodec $d0]
-			if { $d0 < 0 } {
-				set err 1
-				break
-			}
-			set d1 [htodec $d1]
-			if { $d1 < 0 } {
-				set err 1
-				break
-			}
-			append os [format %c [expr $d0 * 16 + $d1]]
-			#abinB os [expr $d0 * 10 + $d1]
-		}
-		if $err {
-			addText $w.t "ILLEGAL HEX INPUT, LINE IGNORED!!!"
-			endLine $w.t
-			return
-		}
-		deposit $Sok $os
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	# this is a placeholder - to preannounce the window for winlocate
+	# until we actually get it up (or otherwise)
+	set Wins($Sok) "x"
+	set Stat($Sok,S) $stid
+	set Stat($Sok,M) $HexM
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 1"
+	fileevent $Sok readable "uartIni $Sok"
+}
+
+proc sendReq { Sok rqnum } {
+
+	global Stat AGENT_MAGIC
+
+	# prepare the request
+	set rqs ""
+	
+	abinS rqs $AGENT_MAGIC
+	abinS rqs $rqnum
+	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
+		abinI rqs $Stat($Sok,S)
 	} else {
-		set HexM 0
-		# ASCII
-		deposit $Sok "${tx}\r\n"
-		# echo
-		addText $w.t $tx
-		endLine $w.t
+		abinI rqs -1
+	}
+
+	if [catch { puts -nonewline $Sok $rqs } err] {
+		log "connection failed: $err"
+		dealloc $Sok
+		return
+	}
+
+	# wait for the timer to detect timeouts
+	stimeout $Sok
+	fileevent $Sok writable ""
+}
+
+proc uartIni { Sok } {
+
+	global Wins Stat Unique ECONN_OK
+
+	# we are reading the initial OK response
+	ctimeout $Sok
+
+	# exactly one byte expected
+	if [catch { read $Sok 1 } res] {
+		# disconenction
+		log "connection failed: $res"
+		dealloc $Sok
+		return
+	}
+
+	if { $res == "" } {
+		log "connection closed by peer"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinB res]
+	if { $code != $ECONN_OK } {
+		log "connection rejected by SIDE: [conerror $code]"
+		dealloc $Sok
+		return
+	}
+
+	# create the window
+
+	set Wn ".wu$Unique"
+	incr Unique
+
+	set Stat($Sok,B) ""
+	set Stat($Sok,F) 0
+
+	set Wins($Sok) $Wn
+
+	mkTerm $Sok "UART at node $Stat($Sok,S)" $Stat($Sok,M)
+
+	# reset the input script
+	fileevent $Sok readable "uartRead $Sok"
+
+	log "connected"
+}
+
+proc uartRead { Sok } {
+
+	global Wins Stat
+
+	if [catch { read $Sok } chunk] {
+		# assume disconnection
+		log "connection to UART[stName $Sok] terminated: $chunk"
+		dealloc $Sok
+		return
+	}
+
+	if [eof $Sok] {
+		# closed
+		log "connection to UART[stName $Sok] closed"
+		dealloc $Sok
+		return
+	}
+
+	if { $chunk == "" } {
+		return
+	}
+
+	set Wn $Wins($Sok)
+
+	if $Stat($Sok,M) {
+		# handle the HEX case
+		if !$Stat($Sok,H) {
+			# just entered
+			endLine $Wn.t
+			set Stat($Sok,H) 1
+			set Stat($Sok,F) 0
+		}
+
+		set sl [string length $chunk]
+		for { set ix 0 } { $ix < $sl } { incr ix } {
+			set b [string index $chunk $ix]
+			# this gets converted to three characters
+			set enc [tohex $b]
+			if { $Stat($Sok,F) >= 80 } {
+				endLine $Wn.t
+				set Stat($Sok,F) 0
+			}
+			addText $Wn.t $enc
+			incr Stat($Sok,F) 2
+			if { $Stat($Sok,F) <= 77 } {
+				addText $Wn.t " "
+				incr Stat($Sok,F)
+			}
+		}
+	} else {
+		if $Stat($Sok,H) {
+			# just exited
+			set Stat($Sok,H) 0
+			set Stat($Sok,F) 0
+			endLine $Wn.t
+		}
+		# we have something
+		append Stat($Sok,B) $chunk
+		# look for CR+LF, LF+CR, CR, LF; if there is only
+		# one of those at the end, ignore it for now and
+		# keep for posterity
+		set sl [string length $Stat($Sok,B)]
+
+		while { [regexp "\[\r\n\]" $Stat($Sok,B) m] } {
+			set el [string first $m $Stat($Sok,B)]
+			if { $el == 0 } {
+				# first character
+				if { $sl < 2 } {
+					# have to leave it and wait
+					return
+				}
+				# check the second one
+				set n [string index $Stat($Sok,B) 1]
+				if { $m == "\r" && $n == "\n" || \
+				     $m == "\n" && $n == "\r"    } {
+					# two-character EOL
+					set Stat($Sok,B) \
+					      [string range $Stat($Sok,B) 2 end]
+					incr sl -2
+				} else {
+					set Stat($Sok,B) \
+					      [string range $Stat($Sok,B) 1 end]
+					incr sl -1
+				}
+				# complete previous line
+				endLine $Wn.t
+				set Stat($Sok,F) 0
+				continue
+			}
+			# send the preceding string to the terminal
+			addText $Wn.t [string range $Stat($Sok,B) \
+						       0 [expr $el - 1]]
+			incr sl -$el
+			# in the ASCII mode, this is only used to tel
+			# wheter we are at the beginning of a line or
+			# not
+			incr Stat($Sok,F) 1
+			set Stat($Sok,B) [string range $Stat($Sok,B) $el end]
+		}
+		if { $Stat($Sok,B) != "" } {
+			addText $Wn.t $Stat($Sok,B)
+			incr Stat($Sok,F) 1
+			set Stat($Sok,B) ""
+		}
 	}
 }
 
-proc ishex { ft } {
-
-	global whex_$ft
-
-	eval "return \$whex_$ft"
-}
-
-proc mkTerm { w ft tt } {
+proc mkTerm { Sok tt hex } {
 #
 # Creates a new terminal
 #
+	global Wins Stat
+
+	set w $Wins($Sok)
+
+	toplevel $w
+	text $w.t
 
 	wm title $w $tt
 
@@ -337,7 +444,7 @@ proc mkTerm { w ft tt } {
 	text $w.stat.u -height 1 -font {-family courier -size 10}
 	pack $w.stat.u -side left -expand yes -fill x
 
-	bind $w.stat.u <Return> "handleUserInput \"$w\""
+	bind $w.stat.u <Return> "handleUserInput $Sok"
 
 	frame $w.stat.hsel -borderwidth 2
 	pack $w.stat.hsel -side right -expand no
@@ -345,37 +452,89 @@ proc mkTerm { w ft tt } {
 	label $w.stat.hsel.lab -text "HEX"
 	pack $w.stat.hsel.lab -side left
 
-	checkbutton $w.stat.hsel.but -state active -variable whex_$ft
+	set Stat($Sok,H) $hex
+
+	checkbutton $w.stat.hsel.but -state normal -variable Stat($Sok,H)
 	pack $w.stat.hsel.but -side left
 
 	$w.t configure -state disabled
 
+	bind $w <Destroy> "destroyWindow $Sok"
+
 	return $w.t
 }
 
-proc destroyTerminal { w } {
+proc handleUserInput { Sok } {
 
-	global Wins MSock
+	global Stat
 
-	if ![info exists Wins($w)] {
-		return
+	set w [stwin $Sok]
+
+	set tx ""
+	# extract the line
+	regexp "\[^\r\n\]+" [$w.stat.u get 0.0 end] tx
+	# remove it from the input field
+	$w.stat.u delete 0.0 end
+
+	if $Stat($Sok,F) {
+		set Stat($Sok,F) 0
+		endLine $w.t
 	}
 
-	if { ![catch { use $Wins($w) Sok } ] && [info exists Sok] } {
-		# the socket is still around
-		attention $Sok
+	if $Stat($Sok,H) {
+		set Stat($Sok,M) 1
+		addText $w.t $tx
+		endLine $w.t
+		set os ""
+		set tx [string trim $tx]
+		set err 0
+		while { $tx != "" } {
+			set d0 [string index $tx 0]
+			set d1 [string index $tx 1]
+			set tx [string trimleft [string range $tx 2 end]]
+			set d0 [htodec $d0]
+			if { $d0 < 0 } {
+				set err 1
+				break
+			}
+			set d1 [htodec $d1]
+			if { $d1 < 0 } {
+				set err 1
+				break
+			}
+			append os [format %c [expr $d0 * 16 + $d1]]
+			#abinB os [expr $d0 * 10 + $d1]
+		}
+		if $err {
+			addText $w.t "ILLEGAL HEX INPUT, LINE IGNORED!!!"
+			endLine $w.t
+			return
+		}
+		if [catch { puts -nonewline $Sok $os } err] {
+			log "connection to UART[stName $Sok] closed: $err"
+			dealloc $Sok
+			return
+		}
+	} else {
+		set Stat($Sok,M) 0
+		# ASCII
+		if [catch { puts -nonewline $Sok "${tx}\r\n" } err] {
+			log "connection to UART[stName $Sok] closed: $err"
+			dealloc $Sok
+			return
+		}
+		# echo
+		addText $w.t $tx
+		endLine $w.t
 	}
-
-	unset Wins($w)
 }
-
-###############################################################################
 
 proc addText { w txt } {
 
 	$w configure -state normal
 	$w insert end "$txt"
 	$w configure -state disabled
+	$w yview -pickplace end
 
 }
 
@@ -397,6 +556,1584 @@ proc endLine { w } {
 	$w configure -state disabled
 	# make sure the last line is displayed
 	$w yview -pickplace end
+
+}
+
+proc clockHandler { } {
+
+	global PortNumber HostName Wins
+
+	if [winlocate "c" ""] {
+		return
+	}
+
+	set Wn ""
+	
+	log "connecting to CLOCK ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	# stub
+	set Wins($Sok) "x"
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 5"
+	fileevent $Sok readable "clockIni $Sok"
+}
+
+proc clockIni { Sok } {
+
+	global Wins Stat Unique ECONN_OK CTime
+
+	# we are reading the initial OK response
+	ctimeout $Sok
+
+	# exactly one byte expected
+	if [catch { read $Sok 1 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		log "connection closed by peer"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinB res]
+	if { $code != $ECONN_OK } {
+		dealloc $Sok
+		log "connection rejected by SIDE: [conerror $code]"
+		return
+	}
+
+	# create the window
+
+	set Wins($Sok) ".wc$Unique"
+	incr Unique
+
+	set Stat($Sok,B) ""
+	set Stat($Sok,F) 0
+
+	set CTime(sec) 0
+	set CTime(tim) ""
+
+	mkClock $Sok
+
+	# reset the input script
+	fileevent $Sok readable "clockRead $Sok"
+
+	log "connected"
+}
+
+proc clockRead { Sok } {
+
+	global CTime
+
+	if [catch { read $Sok 4 } chunk] {
+		# assume disconnection
+		log "CLOCK connection terminated: $chunk"
+		dealloc $Sok
+		return
+	}
+
+	if [eof $Sok] {
+		# closed
+		log "CLOCK connection closed"
+		dealloc $Sok
+		return
+	}
+
+	set CTime(sec) [dbinI chunk]
+ 	set CTime(tim) [sectos $CTime(sec)]
+}
+
+proc sectos { sec } {
+
+	set hr [expr ($sec / 3600) % 24]
+	set mn [expr ($sec / 60) % 60]
+	set se [expr ($sec % 60)]
+	return [format %02d:%02d:%02d $hr $mn $se]
+}
+
+proc mkClock { Sok } {
+#
+# Creates a clock
+#
+	global Wins
+
+	set w $Wins($Sok)
+	toplevel $w
+
+	wm title $w "CLOCK"
+
+	label $w.clock -textvariable CTime(tim) -font {Courier 24}
+	label $w.sec -textvariable CTime(sec) -font {Courier 24}
+	pack $w.clock $w.sec -side top -expand 0
+	bind $w <Destroy> "destroyWindow $Sok"
+}
+
+proc ledsHandler { stid } {
+
+	global PortNumber HostName Wins Stat
+
+	if [winlocate "l" $stid] {
+		return
+	}
+
+	set Wn ""
+	
+	log "connecting to LEDS at node $stid ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	set Wins($Sok) "x"
+	set Stat($Sok,S) $stid
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 3"
+	fileevent $Sok readable "ledsIni $Sok"
+}
+
+proc ledsIni { Sok } {
+
+	global Stat ECONN_OK
+
+	# we are reading the initial OK response
+	ctimeout $Sok
+
+	# exactly one byte expected
+	if [catch { read $Sok 1 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		log "connection closed by peer"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinB res]
+	if { $code != $ECONN_OK } {
+		dealloc $Sok
+		log "connection rejected by SIDE: [conerror $code]"
+		return
+	}
+
+	# wait for first update
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "ledsFirst $Sok"
+	log "connection established"
+}
+
+proc ledsFirst { Sok } {
+
+	global Wins Stat Unique
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			dealloc $Sok
+			log "connection failed: $ch"
+			return
+		}
+		if { $ch == "" } {
+			if [eof $Sok] {
+				log "connection closed by peer"
+				dealloc $Sok
+			}
+			# wait for more
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	if { ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Fast Leds] } {
+		# ignore NOPs and illegal commands
+		return
+	}
+
+	# terminate the timeout timer
+	ctimeout $Sok
+
+	# create the window
+	set Wn ".wl$Unique"
+	incr Unique
+
+	set Wins($Sok) $Wn
+	set Stat($Sok,D) 80
+
+	mkLeds $Sok [string length $Leds] "LEDS at node $Stat($Sok,S)"
+
+	ledsStatus $Sok $Fast $Leds
+
+	fileevent $Sok readable "ledsUpdate $Sok"
+}
+
+proc ledsUpdate { Sok } {
+
+	global Stat
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log \
+			  "connection to LEDS[stName $Sok] terminated"
+			dealloc $Sok
+			return
+		}
+		if { $ch == "" } {
+			# wait for more
+			if [eof $Sok] {
+				log \
+				  "connection to LEDS[stName $Sok] terminated"
+				dealloc $Sok
+				return
+			}
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "ledsUpdate $Sok"
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			set nd [expr $Stat($Sok,D) - 10]
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+			if { ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Fast \
+			   Leds] } {
+				# ignore NOPs and illegal commands
+				return
+			}
+
+			ledsStatus $Sok $Fast $Leds
+			if { $nd > 0 } {
+				fileevent $Sok readable ""
+				after $nd ledsUpdate $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc mkoneled { canv off } {
+
+	set t [$canv create oval $off 4 [expr 20 + $off] 24 -fill grey]
+	return $t
+}
+
+proc mkLeds { Sok nleds tt } {
+#
+# Creates a new leds window
+#
+	global Wins Stat
+
+	set w $Wins($Sok)
+
+	toplevel $w
+
+	wm title $w $tt
+
+	canvas $w.c -width [expr 8 + $nleds * 24] -height 28
+
+	# blinker callback
+	set Stat($Sok,G) ""
+	# blinker toggle
+	set Stat($Sok,X) 1
+
+	for { set i 0 } { $i < $nleds } { incr i } {
+		set Stat($Sok,O,$i) [mkoneled $w.c [expr 4 + $i * 24]]
+		set Stat($Sok,V,$i) 0
+	}
+	grid $w.c -row 0 -column 0
+	bind $w <Destroy> "destroyWindow $Sok"
+}
+
+proc ledsStatus { Sok fast stat } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set n [string length $stat]
+	set blink 0
+
+	for { set i 0 } { $i < $n } { incr i } {
+		if ![info exists Stat($Sok,O,$i)] {
+			# something wrong
+			break
+		}
+		# new value
+		set val [string index $stat $i]
+		if { $val == 2 } {
+			# some leds blink
+			set blink 1
+		}
+		# old value
+		set ova $Stat($Sok,V,$i)
+		#
+		if { $val != $ova } {
+			# new value
+			set Stat($Sok,V,$i) $val
+			if { $val == 1 || ($val == 2 && $Stat($Sok,X)) } {
+				# on
+				$w.c itemconfigure $Stat($Sok,O,$i) -fill \
+					[ledColor $i]
+			} else {
+				# off
+				$w.c itemconfigure $Stat($Sok,O,$i) -fill grey
+			}
+		}
+	}
+
+	if $blink {
+		if $fast {
+			set Stat($Sok,J) 128
+		} else {
+			set Stat($Sok,J) 512
+		}
+		if { $Stat($Sok,G) == "" } {
+			# start the blinker callback
+			set Stat($Sok,G) [after $Stat($Sok,J) ledsBlinker $Sok]
+		}
+	} elseif { $Stat($Sok,G) != "" } {
+		after cancel $Stat($Sok,G)
+		set Stat($Sok,G) ""
+	}
+}
+
+proc ledsBlinker { Sok } {
+
+	global Stat
+
+	if { ![info exists Stat($Sok,G)] || $Stat($Sok,G) == "" } {
+		# we are gone
+		return
+	}
+
+	set on $Stat($Sok,X)
+
+	set w [stwin $Sok]
+
+	for { set i 0 } { [info exists Stat($Sok,V,$i)] } { incr i } {
+		if { $Stat($Sok,V,$i) == 2 } {
+			if $on {
+				$w.c itemconfigure $Stat($Sok,O,$i) -fill \
+					[ledColor $i]
+			} else {
+				$w.c itemconfigure $Stat($Sok,O,$i) -fill grey
+			}
+		}
+	}
+
+	if $on {
+		set Stat($Sok,X) 0
+	} else {
+		set Stat($Sok,X) 1
+	}
+
+	set Stat($Sok,G) [after $Stat($Sok,J) ledsBlinker $Sok]
+}
+
+proc pinsHandler { stid } {
+
+	global PortNumber HostName Wins Stat
+
+	if [winlocate "p" ""] {
+		return
+	}
+
+	set Wn ""
+	
+	log "connecting to PINS at node $stid ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	set Wins($Sok) "x"
+	set Stat($Sok,S) $stid
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 2"
+	fileevent $Sok readable "pinsIni $Sok"
+}
+
+proc pinsIni { Sok } {
+
+	global Stat ECONN_OK
+
+	ctimeout $Sok
+
+	# exactly one byte expected
+	if [catch { read $Sok 1 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		# closed
+		log "connection closed by peer"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinB res]
+	if { $code != $ECONN_OK } {
+		log "connection rejected by SIDE: [conerror $code]"
+		dealloc $Sok
+		return
+	}
+
+	# wait for first update
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "pinsFirst $Sok"
+}
+
+proc pinsFirst { Sok } {
+
+	global Wins Stat Unique HPA
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log "connection failed: $ch"
+			dealloc $Sok
+			return
+		}
+		if { $ch == "" } {
+			if [eof $Sok] {
+				log "connection closed by peer"
+				dealloc $Sok
+			}
+			# wait for more
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	# terminate the timeout timer
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	if ![regexp -nocase "$HPA(2) $HPA(2) $HPA(2) $HPA(1) $HPA(4)" $cmd \
+	    junk np na] {
+		# this is not a pin status message
+		log "incorrect handshake, pin status message expected"
+		dealloc $Sok
+		return
+	}
+
+	# decode the pin number
+	scan $np "%2x" np
+	scan $na "%2x" na
+
+	# basic sanity check
+	if { $np < 1 || $na > $np } {
+		log "incorrect handshake, illegal pin numbers $np/$na"
+		dealloc $Sok
+		return
+	}
+
+	# create the window
+	set Wn ".wp$Unique"
+	incr Unique
+
+	set Wins($Sok) $Wn
+	set Stat($Sok,D) 80
+
+	mkPins $Sok $np $na "PINS at node $Stat($Sok,S)"
+
+	newPinStatus $Sok $cmd
+
+	fileevent $Sok readable "pinsUpdate $Sok"
+
+	log "connection established"
+}
+
+proc pinsUpdate { Sok } {
+
+	global Stat
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log \
+			  "connection to PINS[stName $Sok] terminated"
+			dealloc $Sok
+			return
+		}
+		if { $ch == "" } {
+			# wait for more
+			if [eof $Sok] {
+				log "connection to PINS[stName $Sok] terminated"
+				dealloc $Sok
+				return
+			}
+			# revert to default damping delay
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "pinsUpdate $Sok"
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			set nd [expr $Stat($Sok,D) - 10]
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+
+			newPinStatus $Sok $cmd
+
+			if { $nd > 0 } {
+				fileevent $Sok readable ""
+				after $nd pinsUpdate $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc pinsInput { Sok pin } {
+
+	global Stat PIN_COLORS
+
+	set w [stwin $Sok]
+
+	set b $w.dig.i$pin
+	# the previous value
+	set ov $Stat($Sok,J$pin)
+	if { $ov == "-" } {
+		log "pin input ignored, pin $pin is not input"
+		return
+	}
+
+	if $ov {
+		set ov 0
+	} else {
+		set ov 1
+	}
+
+	if [catch { puts -nonewline $Sok [format "P %x %x\n" $pin $ov] } ] {
+		log "connection to PINS[stName $Sok] terminated"
+		dealloc $Sok
+		return
+	}
+
+	$b configure -text $ov -activebackground $PIN_COLORS(A) \
+		-bg $PIN_COLORS(I,$ov)
+
+	set Stat($Sok,J$pin) $ov
+}
+
+proc setPinDac { Sok pin v } {
+
+	set w [stwin $Sok]
+
+	# convert the value
+	set v [expr int (($v / 3.3) * 32768.0)]
+	if { $v > 32767 } {
+		set v 32767
+	}
+
+	if [catch { puts -nonewline $Sok [format "D %x %x\n" $pin $v] } ] {
+		log "connection to PINS[stName $Sok] terminated"
+		dealloc $Sok
+	}
+}
+
+proc mkPins { Sok np na tt } {
+
+	global Wins Stat
+
+	set w $Wins($Sok)
+	toplevel $w
+
+	wm title $w $tt
+
+	frame $w.dig -borderwidth 4
+	pack $w.dig -side top -expand 1 -fill x
+
+	set iw 3
+	set ih 2
+
+	set Stat($Sok,NP) $np
+	set Stat($Sok,NA) $na
+
+	for { set i 0 } { $i < $np } { incr i } {
+		# numbers
+		set c [label $w.dig.h$i -width $iw -height $ih -text $i]
+		grid $c -column $i -row 0 -sticky nsew
+		# directions
+		set Stat($Sok,D$i) -1
+		set c [label $w.dig.d$i -width $iw -height $ih -text "-" \
+			 -relief raised]
+		grid $c -column $i -row 1 -sticky nsew
+		# output
+		set Stat($Sok,O$i) -1
+		set c [label $w.dig.o$i -width $iw -height $ih -text "-" \
+			-relief sunken]
+		grid $c -column $i -row 2 -sticky nsew
+		# buttons
+		set Stat($Sok,I$i) -1
+		set c [button $w.dig.i$i -width $iw -height $ih -text "-" \
+			-command "pinsInput $Sok $i" -state normal]
+		set Stat($Sok,J$i) "-"
+		grid $c -column $i -row 3 -sticky nsew
+	}
+
+	for { set i 0 } { $i < $np } { incr i } {
+		grid rowconfigure $w.dig.d$i 0 -weight 1
+		grid rowconfigure $w.dig.o$i 0 -weight 1
+		grid rowconfigure $w.dig.i$i 0 -weight 1
+	}
+
+
+	# Analog input
+	if { $na > 0 } {
+
+		frame $w.adc -borderwidth 4
+		pack $w.adc -side top -expand 0 -fill x
+
+		for { set i 0 } { $i < $na } { incr i } {
+			set Stat($Sok,A$i) 0
+			set f [frame $w.adc.f$i -borderwidth 0]
+			pack $f -side top -expand 0 -fill x
+			scale $f.s -orient horizontal -length 200 \
+				-from 0.0 -to 3.3 -resolution 0.01 \
+				-command "setPinDac $Sok $i" -state normal
+			pack $f.s -side right
+			$f.s set 0.0
+			label $f.l -text "ADC $i"
+			pack $f.l -side right -expand 1 -fill x
+		}
+	}
+
+	frame $w.dac -borderwidth 4 -relief raised
+	pack $w.dac -side top -expand 0 -fill x
+
+	# DAC output
+	for { set i 0 } { $i < 2 } { incr i } {
+		set f [frame $w.dac.f$i -borderwidth 0]
+		pack $f -side left -expand 1 -fill x
+		label $f.v -text "00.000 V" -relief sunken
+		pack $f.v -side right
+		label $f.l -justify left -text "DAC $i"
+		pack $f.l -side left -expand 1 -fill x
+	}
+
+	bind $w <Destroy> "destroyWindow $Sok"
+}
+
+proc toVoltage { v } {
+
+	if { $v > 32767 } {
+		# this is in fact negative
+		return 00.000
+	}
+	return [format %06.3f [expr 3.3 * ($v / 32768.0)]]
+}
+
+proc newPinStatus { Sok upd } {
+
+	global Stat HPA PIN_COLORS PIN_STCODE
+
+	set w [stwin $Sok]
+
+	if ![regexp -nocase "$HPA(2) $HPA(2) $HPA(2) $HPA(1) $HPA(4)" $upd \
+	    junk np na pin sta val] {
+		# erroneous message
+		return
+	}
+
+	# a few sanity checks
+	scan $np "%2x" np
+	scan $na "%4x" na
+
+	if { $np != $Stat($Sok,NP) || $na != $Stat($Sok,NA) } {
+		return
+	}
+
+	if ![regexp "^\[0-7\]$" $sta] {
+		# incorrect status
+		return
+	}
+
+	scan $pin "%2x" pin
+	scan $val "%4x" val
+
+	if { $pin >= $np } {
+		# too large
+		return
+	}
+
+	$w.dig.d$pin configure -bg $PIN_COLORS(D,$sta) -text $PIN_STCODE($sta)
+
+	if { $sta == 0 || $sta == 5 || $sta == 6 } {
+		# input
+		if $val {
+			# make sure this is zero or 1
+			set $val 1
+		}
+		$w.dig.i$pin configure -activebackground $PIN_COLORS(A) \
+			-bg $PIN_COLORS(I,$val) -text $val -state normal
+		set Stat($Sok,J$pin) $val
+	} else {
+		$w.dig.i$pin configure -bg $PIN_COLORS(I,2) -text "-" \
+			-state disabled
+		set Stat($Sok,J$pin) "-"
+	}
+
+	if { $sta == 1 } {
+		#output
+		if $val {
+			# make sure this is zero or 1
+			set $val 1
+		}
+		$w.dig.o$pin configure -bg $PIN_COLORS(O,$val) -text $val
+	} else {
+		$w.dig.o$pin configure -bg $PIN_COLORS(O,2) -text "-"
+	}
+
+	if { $sta == 2 } {
+		# ADC
+		if { $pin >= $na } {
+			return
+		}
+		set f $w.adc.f$pin
+		$f.s configure -state normal -activebackground $PIN_COLORS(A) \
+			-bg $PIN_COLORS(N)
+		$f.s set [toVoltage $val]
+	} elseif { $pin < $na } {
+		$w.adc.f${pin}.s configure -state disabled -bg $PIN_COLORS(I)
+	}
+
+	if { $sta == 3 } {
+		$w.dac.f0.v configure -text [toVoltage $val]
+	} elseif { $sta == 4 } {
+		$w.dac.f1.v configure -text [toVoltage $val]
+	}
+}
+
+proc moveHandler { stid } {
+
+	global PortNumber HostName Wins Stat
+
+	# FIXME: I don't want to implement too much at this moment as we are
+	# going to revise the whole concept of network geometry by admitting
+	# explicit loss matrices among node pairs. The proper implementation
+	# of this part will wait until we figure out how to do that.
+	if { $stid != "" } {
+		set stid ""
+	}
+	####################################################################
+
+	if { $stid != "" && [catch { expr $stid } stid] } {
+		log "request ignored: illegal station Id"
+		return
+	}
+
+	if [winlocate "m" $stid] {
+		return
+	}
+
+	log "connecting to MOVER ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	set Wins($Sok) "x"
+	# this can legitimately be null
+	set Stat($Sok,S) $stid
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 4"
+	fileevent $Sok readable "moveIni $Sok"
+}
+
+proc moveIni { Sok } {
+
+	global Stat ECONN_OK
+
+	ctimeout $Sok
+
+	# exactly one byte expected
+	if [catch { read $Sok 1 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		# closed
+		log "connection closed by peer"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinB res]
+	if { $code != $ECONN_OK } {
+		log "connection rejected by SIDE: [conerror $code]"
+		dealloc $Sok
+		return
+	}
+
+	# must collect node info: total number of nodes unknown
+	set Stat($Sok,NN) -1
+	# number of node colors used so far, one color per node type
+	set Stat($Sok,NT) 0
+	# current node number requested
+	set Stat($Sok,CI) 0
+	# message acquisition buffer
+	set Stat($Sok,B) ""
+
+	log "receiving node positions ..."
+
+	fileevent $Sok readable "moveGNP $Sok"
+	if [catch { puts -nonewline $Sok "0\n" } res] {
+		log "connection aborted: $res"
+		dealloc $Sok
+		return
+	}
+	stimeout $Sok
+}
+
+proc moveGNP { Sok } {
+
+	global Wins Stat HPA Unique NTYPE_COLORS
+
+	if ![info exists Stat($Sok,NN)] {
+		# play it safe
+		return
+	}
+
+	# read the response line
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log "connection failed: $ch"
+			dealloc $Sok
+			return
+		}
+		if { $ch == "" } {
+			if [eof $Sok] {
+				log "connection closed by peer"
+				dealloc $Sok
+			}
+			# wait for more
+			return
+		}
+		if { $ch == "\n" } {
+			# a new line
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+			if ![regexp \
+			   "$HPA(H)  *$HPA(H)  *$HPA(F)  *$HPA(F) (\[^ \]+)" \
+			      $cmd junk nod tot x y tn] {
+				continue
+			}
+
+			scan $nod "%x" nod
+			scan $tot "%x" tot
+
+			if { $nod != $Stat($Sok,CI) } {
+				# the expected node number
+				log \
+				   "illegal or out of sequence node number $nod"
+				dealloc $Sok
+				return
+			}
+
+			if { $Stat($Sok,NN) < 0 } {
+				set Stat($Sok,NN) $tot
+			} elseif { $Stat($Sok,NN) != $tot } {
+				log "illegal response format '$cmd'"
+				dealloc $Sok
+				return
+			}
+
+			if [catch {
+				set x [expr $x]
+				set y [expr $y]
+			} ] {
+				log "illegal node coordinates <$x, $y>"
+				dealloc $Sok
+				return
+			}
+
+			if { $x < 0.0 || $y < 0.0 } {
+				log "negative node coordinate <$x, $y>"
+				dealloc $Sok
+				return
+			}
+
+			# we have received a new sample
+			ctimeout $Sok
+
+			# node type color
+			if ![info exists Stat($Sok,NT,$tn)] {
+				# this is a new type
+				if { $Stat($Sok,NT) >= \
+				    [llength $NTYPE_COLORS] } {
+					# no more colors
+					set co "grey"
+					set Stat($Sok,NT,$tn) $co
+				} else {
+					set co \
+					   [lindex $NTYPE_COLORS $Stat($Sok,NT)]
+					set Stat($Sok,NT,$tn) $co
+					incr Stat($Sok,NT)
+				}
+			} else {
+				set co $Stat($Sok,NT,$tn)
+			}
+	
+			set Stat($Sok,NL,$nod) [list $x $y $tn $co ""]
+
+			incr Stat($Sok,CI)
+			if { $Stat($Sok,CI) == $tot } {
+				# done
+				unset Stat($Sok,CI)
+				fileevent $Sok readable "moveUpd $Sok"
+				set Wins($Sok) ".wm$Unique"
+				incr Unique
+				log "connection established"
+				mkMove $Sok
+				return
+			}
+			if [catch {
+				puts -nonewline $Sok "$Stat($Sok,CI)\n"
+			} res] {
+				log "connection aborted: $res"
+				dealloc $Sok
+				return
+			}
+
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc xtocv { Sok x } {
+
+	global Stat CMARGIN
+
+	return [expr round (($Stat($Sok,M,w) * \
+		($x - $Stat($Sok,M,XL)))/$Stat($Sok,M,W)) + $CMARGIN(L)]
+}
+
+proc ytocv { Sok y } {
+
+	global Stat CMARGIN
+
+	set ch $Stat($Sok,M,h)
+	return [expr $ch - round (($ch * \
+		($y - $Stat($Sok,M,YL)))/$Stat($Sok,M,H)) + $CMARGIN(U)]
+}
+
+proc xfromcv { Sok nx } {
+
+	global Stat CMARGIN
+
+	return [expr ($Stat($Sok,M,W) * \
+		double ($nx - $CMARGIN(L))) / double ($Stat($Sok,M,w)) + \
+			$Stat($Sok,M,XL)]
+}
+
+proc yfromcv { Sok ny } {
+
+	global Stat CMARGIN
+
+	set ch $Stat($Sok,M,h)
+	return [expr ($Stat($Sok,M,H) * \
+		double ($ch - $ny + $CMARGIN(U))) / double ($ch) + \
+			$Stat($Sok,M,YL)]
+}
+
+proc cvcalc { Sok { cre 0 }} {
+#
+# Recalculate canvas parameters based on current network bounds
+#
+	global Stat CMARGIN
+
+	# calculate the minimum and maximum network coordinates
+	set XL ""
+	set XH ""
+	set YL ""
+	set YH ""
+
+	for { set n 0 } { $n < $Stat($Sok,NN) } { incr n } {
+		set p $Stat($Sok,NL,$n)
+		set x [lindex $p 0]
+		set y [lindex $p 1]
+		if { $XL == "" || $XL > $x } {
+			set XL $x
+		}
+		if { $XH == "" || $XH < $x } {
+			set XH $x
+		}
+		if { $YL == "" || $YL > $y } {
+			set YL $y
+		}
+		if { $YH == "" || $YH < $y } {
+			set YH $y
+		}
+	}
+
+	set W [expr $XH - $XL]
+	set H [expr $YH - $YL]
+
+	# make it at least one meter on each dimension
+	if { $W < 1.0 } {
+		set D [expr (1.0 - $W) / 2.0]
+		set XL [expr $XL - $D]
+		set XH [expr $XH + $D]
+		set W [expr $XH - $XL]
+	}
+
+	if { $H < 1.0 } {
+		set D [expr (1.0 - $H) / 2.0]
+		set YL [expr $YL - $D]
+		set YH [expr $YH + $D]
+		set H [expr $YH - $YL]
+	}
+
+	# absolute parameters of the canvas
+	foreach { aw ah } $Stat($Sok,NC) { }
+
+	# subtract the margins to obtain the active width and height
+	set cw [expr $aw - $CMARGIN(L) - $CMARGIN(R)]
+	set ch [expr $ah - $CMARGIN(U) - $CMARGIN(D)]
+
+	if { $cw < 10 || $ch < 10 } {
+		# and what to do now? formally, this is impossible because the
+		# windows has constrained minimum dimensions of 200x200
+		return
+	}
+
+	# make the coordinates fit
+
+	if { [expr double ($ch) / double ($cw)] > \
+	    [expr double ( $H) / double ( $W)] } {
+		# constrained by width, calculate height increment
+		set D [expr (((double ($W) * double ($ch)) / double ($cw)) \
+			- $H) / 2.0]
+		set YL [expr $YL - $D]
+		set YH [expr $YH + $D]
+		set H [expr $YH - $YL]
+	} else {
+		# vice versa
+		set D [expr (((double ($H) * double ($cw)) / double ($ch)) \
+			- $W) / 2.0]
+		set XL [expr $XL - $D]
+		set XH [expr $XH + $D]
+		set W [expr $XH - $XL]
+	}
+
+	set Stat($Sok,M,XL) $XL
+	set Stat($Sok,M,XH) $XH
+	set Stat($Sok,M,YL) $YL
+	set Stat($Sok,M,YH) $YH
+	
+	# network width and height
+	set Stat($Sok,M,W) $W
+	set Stat($Sok,M,H) $H
+
+	# active canvas width and height
+	set Stat($Sok,M,w) $cw
+	set Stat($Sok,M,h) $ch
+}
+
+proc mkMove { Sok } {
+
+	global Wins Stat CMARGIN
+
+	set w $Wins($Sok)
+	toplevel $w
+
+	wm title $w "Node mover"
+	wm minsize $w $CMARGIN(MW) $CMARGIN(MH)
+
+	# initial canvas size
+	set Stat($Sok,NC) [list $CMARGIN(DW) $CMARGIN(DH)]
+
+	# compute the canvas
+	cvcalc $Sok 1
+
+	foreach { aw ah } $Stat($Sok,NC) { }
+
+	canvas $w.c -width $aw -height $ah
+	pack $w.c -expand 1 -fill both
+
+	moveRedraw $Sok
+
+	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w.c <Configure> "moveResize $Sok %w %h"
+}
+
+proc moveRedraw { Sok } {
+
+	global Stat CMARGIN
+
+	set w [stwin $Sok]
+	set N $Stat($Sok,NN)
+
+	set W $Stat($Sok,M,W)
+	set H $Stat($Sok,M,H)
+	set dmsg [format "%4.3fm x %4.3fm" $W $H]
+	foreach { aw ah } $Stat($Sok,NC) { }
+	set ddx [expr $aw - $CMARGIN(RX)]
+	set ddy [expr $ah - $CMARGIN(RY)]
+
+	if ![info exists Stat($Sok,AX)] {
+		# we are creating the canvas
+		for { set n 0 } { $n < $N } { incr n } {
+			foreach { x y z o t } $Stat($Sok,NL,$n) { }
+			set cx [xtocv $Sok $x]
+			set cy [ytocv $Sok $y]
+			set o [$w.c create oval \
+			    [expr $cx - $CMARGIN(NR)] \
+			    [expr $cy - $CMARGIN(NR)] \
+			    [expr $cx + $CMARGIN(NR)] \
+			    [expr $cy + $CMARGIN(NR)] \
+				-fill $o]
+			$w.c bind $o <B1-Motion> "moveMove $Sok $n %x %y"
+			$w.c bind $o <B1-ButtonRelease> "moveUpButton $Sok $n"
+			$w.c bind $o <Enter> "moveEnter $Sok $n"
+			$w.c bind $o <Leave> "moveLeave $Sok"
+			# the node number
+			set t [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
+				-anchor s -text $n -state disabled]
+			set Stat($Sok,NL,$n) [list $x $y $z $o $t]
+		}
+		set Stat($Sok,AX) [$w.c create text $ddx $ddy -anchor e \
+			-text $dmsg -state disabled]
+	} else {
+		for { set n 0 } { $n < $N } { incr n } {
+			foreach { x y z o t } $Stat($Sok,NL,$n) { }
+			set cx [xtocv $Sok $x]
+			set cy [ytocv $Sok $y]
+  			$w.c coords $o \
+			    [expr $cx - $CMARGIN(NR)] \
+			    [expr $cy - $CMARGIN(NR)] \
+			    [expr $cx + $CMARGIN(NR)] \
+			    [expr $cy + $CMARGIN(NR)]
+			$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
+		}
+		$w.c coords $Stat($Sok,AX) $ddx $ddy
+		$w.c itemconfigure $Stat($Sok,AX) -text $dmsg
+	}
+}
+
+proc moveEnter { Sok n } {
+
+	global Stat CMARGIN
+
+	set w [stwin $Sok]
+	set p $Stat($Sok,NL,$n)
+
+	set msg [format "<%4.3f,%4.3f>: %s" [lindex $p 0] [lindex $p 1] \
+		[lindex $p 2]]
+
+	if [info exists Stat($Sok,RC)] {
+		$w.c delete $Stat($Sok,RC)
+	}
+	set ch $Stat($Sok,M,h)
+	set Stat($Sok,RC) [$w.c create text $CMARGIN(RX) \
+		[expr [lindex $Stat($Sok,NC) 1] - $CMARGIN(RY)] -anchor sw \
+			-text $msg -state disabled]
+}
+
+proc moveLeave { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	if [info exists Stat($Sok,RC)] {
+		$w.c delete $Stat($Sok,RC)
+		unset Stat($Sok,RC)
+	}
+}
+
+proc moveMove { Sok n nx ny } {
+
+	global Stat CMARGIN
+
+	set w [stwin $Sok]
+
+	foreach { x y z o t } $Stat($Sok,NL,$n) { }
+
+	# update the actual coordinates
+	set x [xfromcv $Sok $nx]
+	set y [yfromcv $Sok $ny]
+
+	# make sure the network coordinates never get below zero
+	if { $x < 0.0 } {
+		set x 0.0
+		set nx [xtocv $Sok 0.0]
+	}
+
+	if { $y < 0.0 } {
+		set y 0.0
+		set ny [ytocv $Sok 0.0]
+	}
+
+	# update the canvas coordinates
+	$w.c coords $o \
+	    [expr $nx - $CMARGIN(NR)] \
+	    [expr $ny - $CMARGIN(NR)] \
+	    [expr $nx + $CMARGIN(NR)] \
+	    [expr $ny + $CMARGIN(NR)]
+
+	set Stat($Sok,NL,$n) [list $x $y $z $o $t]
+
+	# send them to the simulator
+	set msg [format "%x %f %f\n" $n $x $y]
+
+	if [catch { puts -nonewline $Sok $msg } res] {
+		log "MOVER connection aborted: $res"
+		dealloc $Sok
+		return
+	}
+
+	# update node label
+	$w.c coords $t $nx [expr $ny - $CMARGIN(TO)]
+
+	# update running coordinate display
+	if [info exists Stat($Sok,RC)] {
+		$w.c itemconfigure $Stat($Sok,RC) -text \
+			[format "<%4.3f,%4.3f>: %s" $x $y $z]
+	}
+
+	# move flag for moveUpButton
+	set Stat($Sok,MF) $n
+}
+
+proc moveShowDist { Sok n0 n1 } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set p $Stat($Sok,NL,$n0)
+	set x0 [lindex $p 0]
+	set y0 [lindex $p 1]
+
+	set p $Stat($Sok,NL,$n1)
+	set x1 [lindex $p 0]
+	set y1 [lindex $p 1]
+
+	set X0 [xtocv $Sok $x0]
+	set Y0 [ytocv $Sok $y0]
+	set X1 [xtocv $Sok $x1]
+	set Y1 [ytocv $Sok $y1]
+
+	set d [expr sqrt (double ($x1 - $x0) * double ($x1 - $x0) + \
+		double ($y1 - $y0) * double ($y1 - $y0))]
+
+	set XM [expr round (($X0 + $X1) / 2.0)]
+	set YM [expr round (($Y0 + $Y1) / 2.0)]
+	set Stat($Sok,PU) [$w.c create text $XM $YM -text [format "%4.3fm" $d] \
+		-state disabled]
+
+	set Stat($Sok,PT) [$w.c create line $X0 $Y0 $X1 $Y1 -state disabled \
+		-dash { 2 4 }]
+
+	after 2000 moveClearDist $Sok
+}
+
+proc moveClearDist { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	if [info exists Stat($Sok,PT)] {
+		$w.c delete $Stat($Sok,PT)
+		$w.c delete $Stat($Sok,PU)
+		unset Stat($Sok,PT)
+		unset Stat($Sok,PU)
+	}
+}
+
+proc moveUpButton { Sok n } {
+
+	global Stat
+
+	# just checking if we are still around
+	stwin $Sok
+
+	if ![info exists Stat($Sok,MF)] {
+		# no move to complete
+		if [info exists Stat($Sok,PS)] {
+			if { $Stat($Sok,PS) == $n } {
+				# cancel
+				unset Stat($Sok,PS)
+				return
+			}
+			# draw a line between the two nodes and display
+			# the distance
+			if [info exists Stat($Sok,PT)] {
+				# previous distance still displayed
+				return
+			}
+			moveShowDist $Sok $Stat($Sok,PS) $n
+			unset Stat($Sok,PS)
+			return
+		}
+		# the first point
+		set Stat($Sok,PS) $n
+		return
+	}
+
+	if [info exists Stat($Sok,PS)] {
+		unset Stat($Sok,PS)
+	}
+
+	unset Stat($Sok,MF)
+
+	foreach { x y z o t } $Stat($Sok,NL,$n) { }
+
+	moveRedim $Sok $x $y
+}
+
+proc moveResize { Sok nw nh } {
+
+	global Stat
+
+	stwin $Sok
+
+	if ![info exists Stat($Sok,RM)] {
+		# this is a dummy first time after startup; we use it to
+		# determine the window margin size, i.e., the difference
+		# between the resized widthe and height and the actual
+		# canvas parameters
+		foreach { aw ah } $Stat($Sok,NC) { }
+		set Stat($Sok,RM) [list [expr $nw - $aw] [expr $nh - $ah]]
+		return
+	}
+
+	if [info exists Stat($Sok,T)] {
+		# update timer running, kill it
+		after cancel $Stat($Sok,T)
+	}
+
+	set Stat($Sok,NC) [list $nw $nh]
+
+	# delay the actual action until we have stabilized
+	set Stat($Sok,T) [after 1000 moveDoResize $Sok]
+
+	# FIXME: how to avoid shrinking the canvas below a minimum decent size
+}
+
+proc moveDoResize { Sok } {
+
+	global Stat
+
+	stwin $Sok
+
+	if [info exists Stat($Sok,T)] {
+		unset Stat($Sok,T)
+	}
+
+	# correct for the window boundary
+	foreach { aw ah } $Stat($Sok,NC) { }
+	foreach { dw dh } $Stat($Sok,RM) { }
+
+	set aw [expr $aw - $dw]
+	set ah [expr $ah - $dh]
+
+	set Stat($Sok,NC) [list $aw $ah]
+
+	cvcalc $Sok
+
+	moveRedraw $Sok
+}
+
+proc moveUpd { $Sok } {
+#
+# read location updates
+#
+	global Stat
+
+	if ![info exists Sok] {
+		return
+	}
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log \
+			  "connection to MOVER terminated"
+			return
+		}
+		if { $ch == "" } {
+			# wait for more
+			if [eof $Sok] {
+				log "connection to MOVER terminated"
+				dealloc $Sok
+			}
+			return
+		}
+		if { $ch == "\n" } {
+			# end of line
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+
+			if ![regexp "$HPA(H)  *$HPA(H)  *$HPA(F)  *$HPA(F)" \
+			      $cmd junk nod tot x y] {
+				continue
+			}
+			scan $nod "%x" nod
+			moveNewLocation $Sok $nod $x $y
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc moveRedim { Sok nx ny } {
+#
+# Checks if the location is out of present canvas bounds and optionally
+# redimensions the canvas
+#
+	global Stat
+
+	set XL $Stat($Sok,M,XL)
+	set XH $Stat($Sok,M,XH)
+	set YL $Stat($Sok,M,YL)
+	set YH $Stat($Sok,M,YH)
+
+	if { $nx < $XL || $nx > $XH || $ny < $YL || $ny > $YH } {
+		cvcalc $Sok
+		moveRedraw $Sok
+		return 1
+	}
+
+	return 0
+}
+
+proc moveNewLocation { Sok nod nx ny } {
+
+	global Stat CMARGIN
+
+	set w [stwin $Sok]
+
+	foreach { x y z o t } $Stat($Sok,NL,$nod) { }
+
+	if { $x == $nx || $ny == $ny } {
+		# easy way out
+		return
+	}
+
+	set Stat($Sok,NL,$nod) [list $nx $ny $z $o $t]
+
+	if [moveRedim $Sok $nx $ny] {
+		# done - the canvas has been redrawn
+		return
+	}
+
+	# move just the one node
+
+	set cx [xtocv $Sok $nx]
+	set cy [ytocv $Sok $ny]
+
+	$w.c coords $o \
+	    [expr $cx - $CMARGIN(NR)] \
+	    [expr $cy - $CMARGIN(NR)] \
+	    [expr $cx + $CMARGIN(NR)] \
+	    [expr $cy + $CMARGIN(NR)]
+
+	$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
+}
+
+proc doAbort { Sok } {
+
+	log "connection timed out"
+	dealloc $Sok
+}
+
+proc destroyWindow { Sok } {
+
+	global Wins Stat
+
+	if [info exists Wins($Sok)] {
+		unset Wins($Sok)
+	}
+
+	if ![regexp "^Zombie" $Sok] {
+		dealloc $Sok
+	}
 
 }
 
@@ -426,13 +2163,20 @@ proc log { txt } {
 
 proc conerror { code } {
 
-    switch $code {
+    switch -- $code {
 
 	0 { return "protocol violation" }
 	1 { return "node number out of range" }
 	2 { return "unimplelented function" }
 	3 { return "node has no UART" }
 	4 { return "already connected to this component" }
+	5 { return "node has no PINS module" }
+	6 { return "server-side timeout" }
+	7 { return "module has a non-socket interface" }
+	8 { return "no leds module at this station" }
+	9 { return "unexpected disconnection" }
+       10 { return "request line too long" }
+       11 { return "invalid request" }
     }
 
     return "error code $code (unnown)"
@@ -550,25 +2294,56 @@ proc dbinI { s } {
 
 ###############################################################################
 
+proc valsid { } {
+
+	global StatId
+
+	if [catch { expr $StatId } num] {
+		log "request ignored: illegal station Id '$StatId'"
+		return 1
+	}
+	set StatId $num
+	return 0
+}
+
 proc doConnect { } {
 #
 # Handle a new connection request
 #
 	global Option StatId AGENT_MAGIC
 
-	if [catch { expr $StatId } num] {
-		# there should be no problem (see validSid); this is just
-		# a precaution
-		log "request ignored: illegal station Id '$StatId'"
-		return
-	}
 
 	switch $Option {
 
-		"UART"	{ create uartHandler $StatId }
-		"PINS"	{ log "UNIMPLEMENTED!!!" ;# create pinsHandler $StatId }
-		"LEDS"	{ log "UNIMPLEMENTED!!!" ;# create ledsHandler $StatId }
-		"MOVER"	{ log "UNIMPLEMENTED!!!" ;# create moveHandler $StatId }
+		"UART (ascii)"	{
+			if [valsid] { return }
+			uartHandler $StatId a
+		}
+
+		"UART (hex)"	{
+			if [valsid] { return }
+			uartHandler $StatId h
+		}
+
+		"PINS"	{
+			if [valsid] { return }
+			pinsHandler $StatId
+		}
+
+		"LEDS"	{ 
+			if [valsid] { return }
+			ledsHandler $StatId
+		}
+
+		"MOVER"	{
+
+			moveHandler $StatId
+		}
+
+		"CLOCK"	{
+
+			clockHandler
+		}
 
 		default {
 			log "request ignored: $Option unimplemented"
@@ -597,7 +2372,8 @@ pack .top -side top -expand 0 -fill x
 button .top.quit -text "Quit" -command exit
 button .top.connect -text "Connect" -command doConnect
 
-tk_optionMenu .top.select Option UART PINS LEDS MOVER
+tk_optionMenu .top.select Option \
+		"UART (ascii)" "UART (hex)" "PINS" "LEDS" "MOVER" "CLOCK"
 
 label .top.l -text "Station Id:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \
@@ -635,6 +2411,4 @@ $Logger configure -state disabled
 
 bind . <Destroy> { exit }
 
-create Ticker
-
-kernel
+vwait forever
