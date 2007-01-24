@@ -21,6 +21,8 @@ heapmem {10, 90};
 #define	RS_RST		70
 #define	RS_WRI		80
 #define	RS_REA		90
+#define	RS_ERA		95
+#define	RS_SYN		97
 #define	RS_LED		100
 #define	RS_BLI		110
 #define	RS_DIA		120
@@ -54,6 +56,8 @@ process (root, int)
 		"f adr n      -> read string\r\n"
 		"g adr n p    -> write n longwords with p starting at adr\r\n"
 		"h adr n b t  -> read n blks of b starting at adr t times\r\n"
+		"x frm upt    -> erase eeprom from upto\r\n"
+		"s            -> sync eeprom\r\n"
 		"i led w      -> led status [w = 0, 1, 2]\r\n"
 		"j w          -> blinkrate 0-low, 1-high\r\n"
 		"k m          -> write a diag message\r\n"
@@ -95,6 +99,12 @@ process (root, int)
 	if (ibuf [0] == 'h')
 		proceed (RS_REA);
 
+	if (ibuf [0] == 'x')
+		proceed (RS_ERA);
+
+	if (ibuf [0] == 's')
+		proceed (RS_SYN);
+
 	if (ibuf [0] == 'i')
 		proceed (RS_LED);
 
@@ -132,7 +142,7 @@ process (root, int)
   entry (RS_SWO)
 
 	scan (ibuf + 1, "%u %u", &a, &w);
-	ee_write (a, (byte*)(&w), 2);
+	ee_write (WNONE, a, (byte*)(&w), 2);
 
   entry (RS_SWO+1)
 
@@ -142,7 +152,7 @@ process (root, int)
   entry (RS_SLW)
 
 	scan (ibuf + 1, "%u %lu", &a, &lw);
-	ee_write (a, (byte*)(&lw), 4);
+	ee_write (WNONE, a, (byte*)(&lw), 4);
 
   entry (RS_SLW+1)
 
@@ -156,7 +166,7 @@ process (root, int)
 	if (len == 0)
 		proceed (RS_RCMD+1);
 
-	ee_write (a, str, len);
+	ee_write (WNONE, a, str, len);
 
   entry (RS_SST+1)
 
@@ -205,7 +215,7 @@ process (root, int)
 	if (len == 0)
 		proceed (RS_RCMD+1);
 	while (len--) {
-		ee_write (a, (byte*)(&lw), 4);
+		ee_write (WNONE, a, (byte*)(&lw), 4);
 		a += 4;
 	}
 
@@ -242,6 +252,22 @@ Done:
 
 	}
 
+	ufree (blk);
+
+	goto Done;
+
+  entry (RS_ERA)
+
+	bs = 0;
+	nt = 0;
+	scan (ibuf + 1, "%u %u", &bs, &nt);
+
+	ee_erase (WNONE, bs, nt);
+	goto Done;
+
+  entry (RS_SYN)
+
+	ee_sync (WNONE);
 	goto Done;
 
   entry (RS_LED)

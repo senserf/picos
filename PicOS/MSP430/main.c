@@ -641,7 +641,7 @@ static void ios_init () {
 	int i;
 	pcb_t *p;
 
-#if EEPROM_DRIVER
+#if EEPROM_PRESENT
 	zz_ee_init ();
 #endif
 

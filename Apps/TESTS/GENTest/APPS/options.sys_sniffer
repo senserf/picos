@@ -30,7 +30,6 @@
 
 #define	LBT_DELAY		0
 
-#define	EEPROM_DRIVER		0
 #define	INFO_FLASH		0
 #define	RESET_ON_SYSERR		0
 #define RESET_ON_MALLOC		0

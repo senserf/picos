@@ -8,7 +8,7 @@
  * gives us a way to disable the reset button (which is on low) for experiments
  * with prototype boards.
  */
-#if EEPROM_DRIVER
+#if EEPROM_PRESENT
 
 	if (GENESIS_RESET_KEY_PRESSED) {
 
@@ -25,7 +25,7 @@
 		if (GENESIS_RESET_KEY_PRESSED) {
 			leds (0, 1); leds (2, 1); leds (3, 1);
 			// EEPROM_RAW_ERASE;
-			ee_erase ();
+			ee_erase (WNONE, 0, 0);
 			for (zz_lostk = 0; zz_lostk < 8; zz_lostk++) {
 				leds (0, 1); leds (2, 1); leds (3, 1);
 				mdelay (200);

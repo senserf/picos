@@ -18,11 +18,14 @@
 #define	leds_off()	do { } while (0)
 #define	leds_restore(w)	do { } while (0)
 
-#define	LEDS_HIGH_ON	1	// This is the default
 
 #if	LEDS_DRIVER
 
 #include "board_leds.h"
+
+#ifndef	LEDS_HIGH_ON
+#define	LEDS_HIGH_ON	1	// This is the default
+#endif
 
 #if	LEDS_HIGH_ON
 

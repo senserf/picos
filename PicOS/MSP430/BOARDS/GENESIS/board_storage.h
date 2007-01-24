@@ -5,7 +5,7 @@
 /*
  * Pin assignment (M9xxxx <-> MSP430-148/DM2300)
  *
- *  M9xxxx		       GENESIS
+ *  M95xxx		       GENESIS
  *  =================================
  *  S				P5.0 STE1
  *  D				P5.1 SIMO1	DATA ->
@@ -15,12 +15,14 @@
 
 #include "board_pins.h"
 
+#ifndef	EE_USE_UART
+#define	EE_USE_UART	0
+#endif
+
 #if	UART_DRIVER > 1 || UART_TCV > 1
 #error	"Cannot use two UARTs with SPI (needed for EEPROM)"
 #endif
 
-#define	EE_PAGE_SIZE	32	// bytes
-#define	EE_SIZE		8192	// 8 K
 
 #if EE_USE_UART
 
@@ -84,7 +86,7 @@ static inline void ee_erase_eeprom_on_key () {
 			leds (0, 0); leds (2, 0); leds (3, 0);
 			mdelay (256);
 		}
-		ee_erase ();
+		ee_erase (WNONE, 0, 0);
 		while (GENESIS_RESET_KEY_PRESSED);
 	}
 }

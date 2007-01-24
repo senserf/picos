@@ -17,7 +17,7 @@
 void	zzz_set_release (void);
 void	zzz_tservice (void);
 
-#if EEPROM_DRIVER
+#if EEPROM_PRESENT
 void 	zz_ee_init (void);
 #endif
 

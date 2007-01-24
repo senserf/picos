@@ -1286,3 +1286,17 @@ R070119A:
 	VUEE directory added to Apps to store those praxes that have been 
 	made VUEE-compliant. Two such praxes are present there at the momennt.
 	I am planning to re-do the CC1100 driver, so stay tuned.
+
+R070123A:
+
+	Old EEPROM_DRIVER changed to STORAGE_M95XXX - to reflect the fact that
+	we will have to deal with multiple memory types (looking like EEPROM,
+	more or less), which will be covered by multiple (quite incompatible)
+	drivers.
+
+	Operations ee_... revised to be more general and compatible with new
+	external flash memories. Code foe DIAG_MESSAGS > 2 removed (I don't
+	think it was extremely useful - well, we have it in the CVS archive,
+	so we can revive it if ever needed).
+
+	WARSAW board added to MSP430/BOARDS. Flash memory and radio tested.

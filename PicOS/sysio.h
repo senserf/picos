@@ -45,10 +45,8 @@
 #define MAX_UTIMERS		4
 
 #if	UART_DRIVER == 0 && UART_TCV == 0
-#if	DIAG_MESSAGES < 3
 #undef	DIAG_MESSAGES
 #define	DIAG_MESSAGES		0
-#endif
 #endif
 
 #if	UART_TCV
@@ -215,27 +213,35 @@
 #endif
 #endif
 
-#if	EEPROM_DRIVER == 0
-
-#if	DIAG_MESSAGES > 2
-#undef	DIAG_MESSAGES
-#define	DIAG_MESSAGES	0
+// Operations on EEPROM and external flash
+#ifdef	EEPROM_PRESENT
+#undef	EEPROM_PRESENT
 #endif
 
-#else
+#if STORAGE_M95XXX
+#define	EEPROM_PRESENT	1
+//+++ "storage_m95xxx.c"
+#endif
 
-//+++ "eeprom.c"
+#if STORAGE_AT45XXX
+#define	EEPROM_PRESENT	1
+//+++ "storage_at45xxx.c"
+#endif
 
-void 	ee_read  (word, byte*, word);
-void 	ee_write (word, const byte*, word);
-void	ee_erase (void);
+#if	EEPROM_PRESENT
 
-#endif	/* EEPROM_DRIVER */
+void 	ee_read  (lword, byte*, word);
+void 	ee_write (word, lword, const byte*, word);
+void	ee_erase (word, lword, lword);
+void	ee_sync (word);
+
+#endif	/* EEPROM_PRESENT */
 
 #if	INFO_FLASH
 
 //+++ "iflash.c"
 
+// Operation on the internal "information" flash (also dubbed FIM)
 int	if_write (word, word);
 void	if_erase (int);
 #define	IFLASH		IFLASH_HARD_ADDRESS
@@ -459,10 +465,6 @@ void		dmp_mem (void);
 #endif 	/* LEDS_DRIVER */
 
 void	diag (const char *, ...);
-
-#if	DIAG_MESSAGES > 2
-void	diag_dump (void);
-#endif
 
 #if	SWITCHES
 word	switches (void);

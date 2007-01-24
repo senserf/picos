@@ -1,1 +1,7 @@
 // Insert here applications-specific options
+#define	INFO_FLASH	1
+
+#ifdef	DIAG_MESSAGES
+#undef	DIAG_MESSAGES
+#endif
+#define	DIAG_MESSAGES	2

@@ -1,3 +1,4 @@
+#define	EE_USE_UART		1
 #define	MALLOC_SINGLEPOOL	1
 #define DIAG_MESSAGES		0
 #define	TCV_PRESENT		1
@@ -20,14 +21,13 @@
 
 #define CC1100			1
 
-#define CRYSTAL_RATE		8000000
-#define	MCLOCK_FROM_CRYSTAL	1
-#define	SPIN_WHEN_HALTED	1
+#define CRYSTAL_RATE		32768
+#define	CRYSTAL2_RATE		6000000
 
 #define LBT_DELAY		0
 #define LBT_THRESHOLD		2
 
-#define STORAGE_M95XXX		1
+#define STORAGE_AT45XXX		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1

@@ -312,10 +312,16 @@
 #define	UART_INPUT_BUFFER_LENGTH	0
 #endif
 
-// EEPROM operations available (see eeprom.c)
-#ifndef	EEPROM_DRIVER
-#define	EEPROM_DRIVER		0
+// ============================================================================
+// EEPROM drivers
+#ifndef	STORAGE_M95XXX
+#define	STORAGE_M95XXX		0
 #endif
+#ifndef	STORAGE_AT45XXX
+#define	STORAGE_AT45XXX		0
+#endif
+// ============================================================================
+
 
 // Operations for accessing INFO flash on MSP430
 #ifndef	INFO_FLASH

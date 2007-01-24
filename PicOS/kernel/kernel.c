@@ -1351,10 +1351,6 @@ void zz_dbg (const word lvl, word code) {
 
 #if	DIAG_MESSAGES
 
-#if	DIAG_MESSAGES < 3
-
-// UART as opposed to EEPROM
-
 void diag (const char *mess, ...) {
 /* ================================ */
 /* Writes a direct message to UART0 */
@@ -1437,8 +1433,6 @@ void diag (const char *mess, ...) {
 
 	diag_enable_int (a, is);
 }
-
-#endif	/* DIAG_MESSAGES < 3 */
 
 #else
 

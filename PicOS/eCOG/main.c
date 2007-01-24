@@ -970,7 +970,7 @@ static void ios_init () {
 /* */
 #endif
 
-#if EEPROM_DRIVER
+#if EEPROM_PRESENT
 	zz_ee_init ();
 #endif
 
