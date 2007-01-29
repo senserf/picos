@@ -57,6 +57,8 @@ static void	devinit_uart (int);
 
 extern void	__bss_end;
 
+#if MAX_DEVICES
+
 const static devinit_t devinit [MAX_DEVICES] = {
 /* === */
 #if	UART_DRIVER
@@ -65,12 +67,16 @@ const static devinit_t devinit [MAX_DEVICES] = {
 		{ NULL, 0 },
 #endif
 /* === */
+#if	MAX_DEVICES > 1
 #if	UART_DRIVER > 1
 		{ devinit_uart,	 1 },
 #else
 		{ NULL, 0 }
 #endif
+#endif	/* MAX_DEVICES */
 	 };
+
+#endif	/* MAX_DEVICES */
 
 static void ssm_init (void), mem_init (void), ios_init (void);
 
@@ -641,8 +647,12 @@ static void ios_init () {
 	int i;
 	pcb_t *p;
 
-#if EEPROM_PRESENT
+#ifdef EEPROM_PRESENT
 	zz_ee_init ();
+#endif
+
+#ifdef LCD_PRESENT
+	zz_lcd_init ();
 #endif
 
 #if INFO_FLASH
@@ -673,10 +683,12 @@ static void ios_init () {
 
 	/* Processes can be created past this point */
 
+#if MAX_DEVICES
 	/* Initialize devices */
 	for (i = UART; i < MAX_DEVICES; i++)
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
+#endif
 
 	/* Make SMCLK/MCLK available on P5.5, P5.4 */
 	_BIS (P5OUT, 0x30);

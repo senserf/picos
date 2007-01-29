@@ -1300,3 +1300,9 @@ R070123A:
 	so we can revive it if ever needed).
 
 	WARSAW board added to MSP430/BOARDS. Flash memory and radio tested.
+
+R070130A:
+
+	Driver for MT29xxxx flash memory for Micron included and tested. Other
+	"EEPROM" interfaces slightly improved and unified (as far as the
+	semantics of illegal parameters).

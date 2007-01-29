@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 #include "kernel.h"
-#include "storage_sys.h"
+#include "storage.h"
 #include "pins.h"
 
 #define	EE_WREN		0x06		// Write enable
@@ -20,8 +20,13 @@
 #define	STAT_INI	0x00
 
 #define	EE_PAGE_SIZE	32	// bytes
-#define	EE_SIZE		8192	// 8 K
+#define	EE_PAGE_SIZE_T	32
+#define	EE_BLOCK_SIZE	EE_PAGE_SIZE
+#define	EE_NPAGES	EE_NBLOCKS
+#define	EE_SIZE		(EE_NPAGES * EE_PAGE_SIZE)
 
-#define	EE_PAGES	(EE_SIZE / EE_PAGE_SIZE)
+#define	EE_ERASE_UNIT		1
+#define	EE_ERASE_BEFORE_WRITE	0
+#define	EE_RANDOM_WRITE		1
 
 #endif

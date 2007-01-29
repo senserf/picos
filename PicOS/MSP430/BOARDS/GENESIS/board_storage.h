@@ -14,6 +14,9 @@
  */
 
 #include "board_pins.h"
+#include "storage_m95xxx.h"
+
+#define	EE_NBLOCKS	256	// 8K
 
 #ifndef	EE_USE_UART
 #define	EE_USE_UART	0

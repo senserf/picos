@@ -32,7 +32,12 @@
 /* ================================== */
 /* Some hard configuration parameters */
 /* ================================== */
+#ifdef	__MSP430__
+#define	MAX_DEVICES		UART_DRIVER
+#else
 #define	MAX_DEVICES		6
+#endif
+
 #define	MAX_MALLOC_WASTE	12
 
 // Only needed if SCHED_PRIO != 0
@@ -213,7 +218,8 @@
 #endif
 #endif
 
-// Operations on EEPROM and external flash
+// External storage ==========================================================
+
 #ifdef	EEPROM_PRESENT
 #undef	EEPROM_PRESENT
 #endif
@@ -228,14 +234,45 @@
 //+++ "storage_at45xxx.c"
 #endif
 
-#if	EEPROM_PRESENT
+#if STORAGE_MT29XXX
+#define	EEPROM_PRESENT	1
+//+++ "storage_mt29xxx.c"
+#endif
 
-void 	ee_read  (lword, byte*, word);
-void 	ee_write (word, lword, const byte*, word);
-void	ee_erase (word, lword, lword);
-void	ee_sync (word);
+#ifdef	EEPROM_PRESENT
+
+word 	ee_read  (lword, byte*, word);
+word 	ee_write (word, lword, const byte*, word);
+word	ee_erase (word, lword, lword);
+word	ee_sync (word);
 
 #endif	/* EEPROM_PRESENT */
+
+// ===========================================================================
+
+// LCD =======================================================================
+
+#ifdef	LCD_PRESENT
+#undef	LCD_PRESENT
+#endif
+
+#if LCD_ST7036
+#define	LCD_PRESENT	1
+//+++ lcd_st7036.c
+#endif
+
+#ifdef	LCD_PRESENT
+
+#define	LCD_CURSOR_ON		0x0001
+
+void	lcd_on (word);
+void	lcd_off ();
+void	lcd_clear (word, word);
+void	lcd_write (word, const char*);
+
+#endif
+
+// ===========================================================================
 
 #if	INFO_FLASH
 
@@ -252,12 +289,16 @@ void	if_erase (int);
 
 #define	MAX_INT			((int)0x7fff)
 #define	MAX_UINT		((word)0xffff)
+#define	MAX_WORD		MAX_UINT
 #define	MIN_INT			((int)0x8000)
 #define	MIN_UINT		((word)0)
+#define	MIN_WORD		MIN_UINT
 #define	MAX_LONG		((long)0x7fffffffL)
 #define	MIN_LONG		((long)0x80000000L)
 #define MAX_ULONG		((lword)0xfffffffL)
+#define	MAX_LWORD		MAX_ULONG
 #define	MIN_ULONG		((lword)0)
+#define	MIN_LWORD		MIN_ULONG
 
 /* ============================ */
 /* Device identifiers (numbers) */
@@ -277,6 +318,8 @@ void	if_erase (int);
 					/* FIXME: check how accurate this is */
 #define	NULL			0
 #define	NONE			((word)(-1))
+#define	LNONE			((word)(-1))
+#define	LWNONE			LNONE
 #define	SNONE			((int)(-1))
 #define	WNONE			NONE
 #define	BNONE			0xff
@@ -472,11 +515,13 @@ word	switches (void);
 #define	switches()	0
 #endif
 
+#if MAX_DEVICES
 /* ======================================= */
 /* This is the common i/o request function */
 /* ======================================= */
 int	io (int, int, int, char*, int);
 #define	ion(a,b,c,d)	io (NONE, a, b, c, d)
+#endif	/* MAX_DEVICES */
 
 /* User wait */
 void	wait (word, word);
@@ -783,6 +828,7 @@ extern	word zz_seed;
 #define	EEEPROM		12	/* EEPROM reference out of range */
 #define	EFLASH		13	/* FLASH reference out of range */
 #define	EWATCH		14	/* Watchdog condition */
+#define	ENOTNOW		15	/* Operation illegal at this time */
 
 #if	ADC_PRESENT
 #if     CC1000

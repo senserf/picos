@@ -17,8 +17,12 @@
 void	zzz_set_release (void);
 void	zzz_tservice (void);
 
-#if EEPROM_PRESENT
+#ifdef EEPROM_PRESENT
 void 	zz_ee_init (void);
+#endif
+
+#ifdef LCD_PRESENT
+void 	zz_lcd_init (void);
 #endif
 
 #if INFO_FLASH

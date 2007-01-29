@@ -10,14 +10,16 @@
  */
 
 #include "board_pins.h"
+#include "storage_at45xxx.h"
 
 #if	UART_DRIVER > 1 || UART_TCV > 1
 #error	"Cannot use two UARTs with SPI (needed for external FLASH)"
 #endif
 
+#define	EE_NBLOCKS	2048
+
 #define	ee_ini_regs	do { \
-				_BIS (P5OUT, 0x01); \
-				_BIS (P5OUT, 0x08); \
+				_BIS (P5OUT, 0x09); \
 				_BIS (P5DIR, 0x0b); \
 			} while (0)
 

@@ -5,3 +5,9 @@
 #undef	DIAG_MESSAGES
 #endif
 #define	DIAG_MESSAGES	2
+
+#ifdef	CODE_LONG_INTS
+#undef	CODE_LONG_INTS
+#endif
+
+#define	CODE_LONG_INTS	1

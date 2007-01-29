@@ -76,7 +76,8 @@
 #define	LEDS_BLINKING		0
 #endif
 
-// LCD driver present (0/1) [eCOG]
+// LCD driver present (0/1) [eCOG]; note: this is obsolete. For new LCD's we
+// shall use the lcd_... interface (see sysio.h)
 #ifndef	LCD_DRIVER
 #define	LCD_DRIVER		0
 #endif
@@ -311,14 +312,23 @@
 #ifndef UART_INPUT_BUFFER_LENGTH
 #define	UART_INPUT_BUFFER_LENGTH	0
 #endif
+// ============================================================================
+// LCD drivers
+#ifndef	LCD_ST7036
+#define	LCD_ST7036		0
+#endif
+// ============================================================================
 
 // ============================================================================
-// EEPROM drivers
+// EEPROM/FLASH drivers
 #ifndef	STORAGE_M95XXX
 #define	STORAGE_M95XXX		0
 #endif
 #ifndef	STORAGE_AT45XXX
 #define	STORAGE_AT45XXX		0
+#endif
+#ifndef	STORAGE_MT29XXX
+#define	STORAGE_MT29XXX		0
 #endif
 // ============================================================================
 

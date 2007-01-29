@@ -3,6 +3,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "kernel.h"
+#include "storage.h"
 #include "storage_m95xxx.h"
 
 #if EE_USE_UART
@@ -73,12 +75,15 @@ void zz_ee_init () {
 	ee_postinit;
 }
 
-void ee_read (lword a, byte *s, word len) {
+word ee_read (lword a, byte *s, word len) {
 
 	byte c;
 
 	if (len == 0)
-		return;
+		return 0;
+
+	if (a >= EE_SIZE || (a + len) > EE_SIZE)
+		return 1;
 
 	ee_start;
 	put_byte (EE_RDSR);
@@ -97,21 +102,28 @@ void ee_read (lword a, byte *s, word len) {
 	while (len--)
 		*s++ = get_byte ();
 	ee_stop;
+	return 0;
 }
 
-void ee_erase (word st, lword from, lword upto) {
+word ee_erase (word st, lword from, lword upto) {
 
 	word a, b;
 	byte c, d;
 	byte cnt;
 
-	// Note: the state argument is ignore in this version. Erase blocks
+	// Note: the state argument is ignored in this version. Erase blocks
 	// the CPU.
 
-	a = ((word)from) & (EE_SIZE - 1);
-	b = ((word)upto) & (EE_SIZE - 1);
-	if (b == 0)
-		b = EE_SIZE - 1;
+	if (from >= EE_SIZE)
+		return 1;
+
+	if (upto >= EE_SIZE || upto == 0)
+		upto = EE_SIZE - 1;
+	else if (upto < from)
+		return 1;
+
+	a = (word)from;
+	b = (word)upto;
 
 	while (a <= b) {
 
@@ -168,12 +180,12 @@ void ee_erase (word st, lword from, lword upto) {
 	}
 }
 
-void ee_write (word st, lword a, const byte *s, word len) {
+word ee_write (word st, lword a, const byte *s, word len) {
 
 	byte c, ne;
 
 	if (a >= EE_SIZE || (a + len) > EE_SIZE)
-		syserror (EEEPROM, "ee_write");
+		return 1;
 
 	while (len) {
 		// How far to the end of page
@@ -207,8 +219,10 @@ void ee_write (word st, lword a, const byte *s, word len) {
 		ee_stop;
 
 	}
+	return 0;
 }
 
-void ee_sync (word st) { 
+word ee_sync (word st) { 
 // This one is void
+	return 0;
 }

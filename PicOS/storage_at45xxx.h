@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 #include "kernel.h"
-#include "storage_sys.h"
+#include "storage.h"
 #include "pins.h"
 
 #define	EE_MMPR		0x52		// Main memory page read (direct)
@@ -30,9 +30,16 @@
 #define	EE_ERASE	0x81		// Page erase
 
 #define	EE_PAGE_SIZE	256		// bytes used by the praxis
-#define	EE_PAGE_SHIFT	8
 #define	EE_PAGE_SIZE_T	(EE_PAGE_SIZE + 8)	// including the extra 8 bytes
-#define	EE_NPAGES	2048
+#define	EE_PAGE_SHIFT	8
+#define	EE_BLOCK_SIZE	EE_PAGE_SIZE
+#define	EE_NPAGES	EE_NBLOCKS
 #define	EE_SIZE		(((lword)EE_NPAGES) * EE_PAGE_SIZE)
+
+#define	EE_ERASE_UNIT		1
+#define	EE_ERASE_BEFORE_WRITE	0
+#define	EE_RANDOM_WRITE		1
+
+
 
 #endif

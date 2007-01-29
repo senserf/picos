@@ -28,8 +28,10 @@ lword	zz_seed = 327672838L;
 /* Task table */
 pcb_t __PCB [MAX_TASKS];
 
+#if MAX_DEVICES
 /* Device table */
 static devreqfun_t ioreq [MAX_DEVICES];
+#endif
 
 /* System status word */
 systat_t 		zz_systat;
@@ -748,6 +750,7 @@ void zzz_memset (char *dest, char c, int n) {
 		*dest++ = c;
 }
 
+#if MAX_DEVICES
 /* ============================================= */
 /* Configures a driver-specific service function */
 /* ============================================= */
@@ -761,7 +764,9 @@ void adddevfunc (devreqfun_t rf, int loc) {
 
 	ioreq [loc] = rf;
 }
+#endif	/* MAX_DEVICES */
 
+#if MAX_DEVICES
 /* ==================================== */
 /* User-visible i/o request distributor */
 /* ==================================== */
@@ -821,6 +826,8 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 	return 0;
 #endif
 }
+
+#endif	/* MAX_DEVICES */
 
 /* --------------------------------------------------------------------- */
 /* ========================= MEMORY ALLOCATORS ========================= */

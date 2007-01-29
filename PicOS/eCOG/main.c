@@ -37,6 +37,8 @@ void		devinit_ethernet (int);
 void		devinit_radio (int);
 #endif
 
+#if MAX_DEVICES
+
 const static devinit_t devinit [MAX_DEVICES] = 	{
 /* === */
 #if	UART_DRIVER
@@ -69,6 +71,8 @@ const static devinit_t devinit [MAX_DEVICES] = 	{
 		{ NULL, 0 },
 #endif
 	 };
+
+#endif	/* MAX_DEVICES */
 
 static void ssm_init (void), cnf_init (void), rtc_init (void),
 	    mem_init (void), ios_init (void);
@@ -928,10 +932,13 @@ static void ios_init () {
 	/* ========================================================== */
 	zz_malloc_init ();
 
+#if MAX_DEVICES
 	/* Initialize other devices and create their drivers */
 	for (i = UART_B; i < MAX_DEVICES; i++)
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
+#endif
+
 #if 0
 	diag ("PicOS reporting on UART_A, hit '+' to proceed");
 	//

@@ -3,6 +3,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "kernel.h"
+#include "storage.h"
 #include "storage_at45xxx.h"
 
 // All this stuff is only needed for writing, quite a bit (for a micro).
@@ -162,13 +164,16 @@ void zz_ee_init () {
 	ee_postinit;
 }
 
-void ee_read (lword a, byte *s, word len) {
+word ee_read (lword a, byte *s, word len) {
 
 	word pn, nb;
 	byte bi, po;
 
 	if (len == 0)
-		return;
+		return 0;
+
+	if (a >= EE_SIZE || (a + len) > EE_SIZE)
+		return 1;
 
 	// Page offset
 	po = (byte)(a & (EE_PAGE_SIZE - 1));
@@ -183,7 +188,6 @@ void ee_read (lword a, byte *s, word len) {
 	while (1) {
 		// Check if the page is present in one of the internal buffers
 		if ((bi = blook (pn)) == BNONE) {
-//diag ("RD MEM: %x %x", pn, po);
 			ee_start;
 			put_byte (EE_MMPR);
 			// Page number
@@ -197,7 +201,6 @@ void ee_read (lword a, byte *s, word len) {
 			// Needed to initialize the transfer
 			sdc (32);
 		} else {
-//diag ("RD BUF: %d %x %x", bi, pn, po);
 			ee_start;
 			put_byte (EE_BiR (bi));
 			// 16 zeros == 15 don't care + zero MSB offset bit
@@ -222,7 +225,7 @@ void ee_read (lword a, byte *s, word len) {
 		ee_stop;
 
 		if (len == 0)
-			return;
+			return 0;
 
 		// more to read
 		pn++;
@@ -342,7 +345,7 @@ static void sync (word st) {
 	wwait (st);
 }
 
-void ee_write (word st, lword a, const byte *s, word len) {
+word ee_write (word st, lword a, const byte *s, word len) {
 
 	word nb;
 	byte bi;
@@ -351,9 +354,12 @@ void ee_write (word st, lword a, const byte *s, word len) {
 
 	    case WS_DONE:
 
+		if (a >= EE_SIZE || (a + len) > EE_SIZE)
+			return 1;
+
 		if (len == 0)
 			// Basic sanity check
-			return;
+			return 0;
 
 		// Start a new write
 		wstate = WS_NEXT;
@@ -361,7 +367,6 @@ void ee_write (word st, lword a, const byte *s, word len) {
 		wpagen = (word) (a >> EE_PAGE_SHIFT);
 		wpageo = (byte)(a & (EE_PAGE_SIZE - 1));
 		wrsize = len;
-//diag ("WS: %x %x %d", wpagen, wpageo, wrsize);
 
 		// Fall through
 
@@ -369,28 +374,24 @@ void ee_write (word st, lword a, const byte *s, word len) {
 
 		while ((bi = blook (wpagen)) != BNONE) {
 Found:
-//diag ("WS FND");
 			wwait (st);
 			nb = (word) EE_PAGE_SIZE - wpageo;
 			if (nb > len)
 				nb = len;
 
 			// Write to the block
-//diag ("WS BW: %d %x %d", bi, wpageo, nb);
 			bwrite (bi, wpageo, wbuffp, nb);
 
 			len -= nb;
 			if (len == 0) {
-//diag ("WS DONE");
 				wstate = WS_DONE;
-				return;
+				return 0;
 			}
 
 			// More, we are necessarily at a page boundary
 			wbuffp += nb;
 			wpageo = 0;
 			wpagen++;
-//diag ("WS NP %x", wpagen);
 		}
 
 		// Have to fetch the page
@@ -398,39 +399,39 @@ Found:
 		// Fall through
 
 	    case WS_GETPAGE:
-//diag ("WS GP");
 
 		if ((bi = bfree ()) == BNONE) {
 			// We are about to start a buffer transfer;
 			// make sure we are idle
-//diag ("WS GP NO FREE");
 			wwait (st);
 			// Select and flush the victim
 			bi = bflush ();
-//diag ("WS FL %d", bi);
 			// This makes us busy
 		}
-//diag ("WS FE");
 
 		// Fetch the page
 		wwait (st);
 		bfetch (wpagen, bi);
-//diag ("WS BF");
 		wstate = WS_NEXT;
 		goto Found;
 	}
 }
 
-void ee_erase (word st, lword from, lword upto) {
+word ee_erase (word st, lword from, lword upto) {
 
 	word nb;
 	byte bi;
 
-	if (upto == 0)
-		upto = EE_SIZE;
-	else
-		// Make it LWA+1
-		upto++;
+	if (from >= EE_SIZE)
+		return 1;
+
+	if (upto >= EE_SIZE || upto == 0)
+		upto = EE_SIZE - 1;
+	else if (upto < from)
+		return 1;
+
+	// Make it LWA+1
+	upto++;
 
 	switch (wstate) {
 
@@ -438,7 +439,6 @@ void ee_erase (word st, lword from, lword upto) {
 
 		wpagen = (word) (from >> EE_PAGE_SHIFT);
 		wpageo = (byte) (from & (EE_PAGE_SIZE - 1));
-//diag ("ER %x %x", wpagen, wpageo);
 
 		if (wpageo) {
 			// Partial first page
@@ -448,7 +448,6 @@ void ee_erase (word st, lword from, lword upto) {
 WS_pcheck:
 		// From is at a page boundary
 		wrsize = (word)((upto - from) >> EE_PAGE_SHIFT);
-//diag ("ER %d pages", wrsize);
 		// The number of complete pages
 		if (wrsize == 0)
 			goto WS_left;
@@ -461,7 +460,6 @@ WS_pcheck:
 		// Flush wrsize entire pages from wpagen 
 		sync (st);
 		buf_page [0] = buf_page [1] = WNONE;
-//diag ("ER synced");
 
 		// We get here when we have been synced, i.e., the buffers
 		// are clean; hopefully, sync is stateless and idempotent
@@ -472,7 +470,6 @@ WS_pcheck:
 	    case WS_NPAGE:
 
 		while (wrsize) {
-//diag ("ER erasing page %x", wpagen);
 			wwait (st);
 			ee_start;
 			put_byte (EE_ERASE);
@@ -494,7 +491,6 @@ WS_left:
 		}
 
 		wstate = WS_LAST;
-//diag ("ER leftover %d", wpageo);
 
 	    case WS_LAST:
 WS_last:
@@ -527,11 +523,10 @@ WS_sync:
 		sync (st);
 		buf_page [0] = buf_page [1] = WNONE;
 		wstate = WS_DONE;
-		return;
+		return 0;
 
 	    case WS_FIRST:
 WS_first:
-//diag ("ER first %d", wpageo);
 		// Write a single portion of the first page
 		if ((bi = blook (wpagen)) != BNONE) {
 			wwait (st);
@@ -575,7 +570,8 @@ WS_first:
 	}
 }
 
-void ee_sync (word st) { 
+word ee_sync (word st) { 
 
 	sync (st);
+	return 0;
 }
