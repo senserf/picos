@@ -1306,3 +1306,4 @@ R070130A:
 	Driver for MT29xxxx flash memory for Micron included and tested. Other
 	"EEPROM" interfaces slightly improved and unified (as far as the
 	semantics of illegal parameters).
+	Driver for ST7063 LCD modules added and tested.
