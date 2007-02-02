@@ -8,6 +8,10 @@
 	static pcb_t	*maxpriocurrent;
 #endif
 
+#ifdef	MONITOR_PIN_SCHED
+	_PVS (MONITOR_PIN_SCHED, 1);
+#endif
+
 	zz_systat.evntpn = 0;
 
 	/* Set the return context for release */
@@ -41,6 +45,9 @@ Redo:
 
 	if (maxprio != MAX_PRIO) {
 		zz_curr = maxpriocurrent;
+#ifdef	MONITOR_PIN_SCHED
+		_PVS (MONITOR_PIN_SCHED, 0);
+#endif
 		(zz_curr->code) (tstate (zz_curr), zz_curr->data);
 		goto Redo;
 	} else {
@@ -51,11 +58,17 @@ Redo:
 			// PCB unused
 			continue;
 		if (!waiting (zz_curr)) {
+#ifdef	MONITOR_PIN_SCHED
+			_PVS (MONITOR_PIN_SCHED, 0);
+#endif
 			(zz_curr->code) (tstate (zz_curr), zz_curr->data);
 			goto Redo;
 		}
 		if (twaiting (zz_curr) && zz_curr->Timer == 0) {
 			zz_curr->Status &= 0xfff0;
+#ifdef	MONITOR_PIN_SCHED
+			_PVS (MONITOR_PIN_SCHED, 0);
+#endif
 			(zz_curr->code) (tstate (zz_curr), zz_curr->data);
 			goto Redo;
 		}

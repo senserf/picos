@@ -1307,3 +1307,46 @@ R070130A:
 	"EEPROM" interfaces slightly improved and unified (as far as the
 	semantics of illegal parameters).
 	Driver for ST7063 LCD modules added and tested.
+
+R070202A:
+
+	ADC sampler implemented whereby a continous sequence of samples can be
+	collected from up to 8 ADC channels at the same time and, for example,
+	stored in flash or sent over the RF link. The interface consists of
+	these functions (see adc_sampler.c):
+
+	word adcs_start (word bufsize);
+
+	Starts the sampler (its parameters come in board_adc_sampler.h in the
+	respective BOARDS directory). bufsize is the buffer size (in the number
+	of sample blocks, one block corresponding to the number of channels
+	sampled simultaneously). cons is the PID of the consummer process to
+	be awakened whenever the buffer becomes nonempty. The function returns
+	0 on success and ERROR if no memory can be allocated for the buffer.
+	Note that the buffer is circular and its actual size is equal to
+	(bufsize + 1) * ADCS_SAMPLE_LENGTH words, with ADCS_SAMPLE_LENGTH
+	defined in board_adc_sampler.h.
+
+	void adcs_stop ();
+
+	Stops the sampler.
+
+	void adcs_get_sample (word state, word *b);
+
+	Called by the consummer process to retrieve a sample from the circular
+	buffer. Returns YES on success, NO on empty buffer, but only if state
+	is NONE. Otherwise, on empty buffer, the caller will be suspended and
+	resumed at the indicated state when a sample becomes available. The
+	second argument points to a buffer of ADCS_SAMPLE_SIZE words.
+
+	word adcs_overflow ();
+
+	Returns the number of overflow conditions on the buffer since last
+	check. An overflow condition occurs when a sample arrives and the
+	buffer is full. Zeroes the overflow counter.
+
+	On the side, unwait(state) added to kernel.c. The function removes all
+	wait requests issued in the current state so far, including the timer
+	request (delay). If state is not NONE, it sets the continuation state
+	for the process, i.e., the default proceed state upon the completion
+	of the current state.

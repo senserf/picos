@@ -1,11 +1,10 @@
-#ifndef	__pg_storage_h
-#define	__pg_storage_h	1
+#ifndef	__pg_adc_sampler_h
+#define	__pg_adc_sampler_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "sysio.h"
-#include "board_storage.h"
+#include "adc_sampler_sys.h"
 
 #endif

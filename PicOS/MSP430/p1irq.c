@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"

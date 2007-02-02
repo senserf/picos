@@ -5,6 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "portnames.h"
 
 /* ========================================================================== */
 /*                     PicOS                                                  */
@@ -216,7 +217,20 @@ extern uart_t zz_uart [];
 #define	uart_b_enable_read_int		_BIS (IE2, URXIE1)
 #define	uart_b_enable_write_int		_BIS (IE2, UTXIE1)
 
+#ifdef	MONITOR_PIN_CPU
+
+#define	CPU_MARK_IDLE	_PVS (MONITOR_PIN_CPU, 0)
+#define	CPU_MARK_BUSY	_PVS (MONITOR_PIN_CPU, 1)
+
+#else
+
+#define	CPU_MARK_IDLE	do { } while (0)
+#define	CPU_MARK_BUSY	do { } while (0)
+
+#endif
+
 #define	SLEEP	do { \
+			CPU_MARK_IDLE; \
 			if (zz_systat.pdmode) { \
 				_BIC_SR (GIE); \
 				if (zz_systat.evntpn) { \
@@ -236,6 +250,7 @@ extern uart_t zz_uart [];
 					_NOP (); \
 				} \
 			} \
+			CPU_MARK_BUSY; \
 		} while (0)
 
 #define	RISE_N_SHINE	_BIC_SR_IRQ (LPM4_bits)

@@ -1075,12 +1075,12 @@ proc scanfile { fname } {
 				if ![regexp -nocase "^\[ \t\]*(\[a-z_0-9.\]+)" \
 				    $ar jk fn] {
 					# unrecognizable
-					dmp "INCLUDE" $fn '$line' (UNREC)"
+					dmp "INCLUDE: $fn '$line' (UNREC)"
 					continue
 				}
 				# try the symbol
 				if ![info exists Symbols($fn)] {
-					dmp "INCLUDE" $fn '$line' (NOSYMBOL)"
+					dmp "INCLUDE: $fn '$line' (NOSYMBOL)"
 					continue
 				}
 				set fn [string trim $Symbols($fn) "\"<>"]

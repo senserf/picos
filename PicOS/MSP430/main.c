@@ -354,6 +354,20 @@ static void ssm_init () {
 	P6OUT = PIN_DEFAULT_P6OUT;
 	P6DIR = PIN_DEFAULT_P6DIR;
 
+// ======================
+// Monitor pins overrides
+// ======================
+#ifdef	MONITOR_PIN_CPU
+	_PDS (MONITOR_PIN_CPU, 1);
+#endif
+#ifdef	MONITOR_PIN_CLOCK
+	_PDS (MONITOR_PIN_CLOCK, 1);
+#endif
+#ifdef	MONITOR_PIN_SCHED
+	_PDS (MONITOR_PIN_SCHED, 1);
+#endif
+// ======================
+
 #ifdef	__MSP430_449__
 	// This one needs the capacitance setting
 	_BIS (FLL_CTL0, XCAP18PF);
@@ -440,10 +454,9 @@ static void ssm_init () {
 /* =============== */
 interrupt (TIMERB0_VECTOR) timer_int () {
 
-// Make interrupts visible on P1.2
-// -------------------
-// _BIS (P1OUT, 0x04);
-// -------------------
+#ifdef	MONITOR_PIN_CLOCK
+	_PVS (MONITOR_PIN_CLOCK, 1);
+#endif
 
 #if	STACK_GUARD
 	if (*(((word*)STACK_END) - 1) != STACK_SENTINEL)
@@ -493,9 +506,10 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 
 			RISE_N_SHINE;
 		}
-// -------------------
-// _BIC (P1OUT, 0x04);
-// -------------------
+
+#ifdef	MONITOR_PIN_CLOCK
+		_PVS (MONITOR_PIN_CLOCK, 0);
+#endif
 		return;
 	}
 
@@ -657,6 +671,10 @@ static void ios_init () {
 
 #if INFO_FLASH
 	zz_if_init ();
+#endif
+
+#if ADC_SAMPLER
+	zz_adcs_init ();
 #endif
 
 #if	UART_DRIVER || UART_TCV

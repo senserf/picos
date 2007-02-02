@@ -278,7 +278,7 @@ void	lcd_write (word, const char*);
 
 //+++ "iflash.c"
 
-// Operation on the internal "information" flash (also dubbed FIM)
+// Operations on the internal "information" flash (also dubbed FIM)
 int	if_write (word, word);
 void	if_erase (int);
 #define	IFLASH		IFLASH_HARD_ADDRESS
@@ -286,6 +286,16 @@ void	if_erase (int);
 
 #endif
 
+#if	ADC_SAMPLER
+
+//+++ "adc_sampler.c" "adc_sampler_sys.c"
+
+word	adcs_start (word);
+void	adcs_stop ();
+Boolean	adcs_get_sample (word, address);
+word	adcs_overflow ();
+
+#endif	/* ADC_SAMPLER */
 
 #define	MAX_INT			((int)0x7fff)
 #define	MAX_UINT		((word)0xffff)
@@ -366,10 +376,10 @@ int		zzz_fork (code_t func, address data);
 void		reset (void);
 void		halt (void);
 void		savedata (void*);
+
 int		zzz_strlen (const char*);
 void		zzz_strcpy (char*, const char*);
 void		zzz_strncpy (char*, const char*, int);
-void		zzz_bcopy (const char *src, char *dest, int);
 void		zzz_strcat (char*, const char*);
 void		zzz_strncat (char*, const char*, int);
 void		zzz_memcpy (char *dest, const char *src, int);
@@ -599,7 +609,7 @@ int	rcvlast (void);
 
 #define	heapmem		const word zzz_heap [] =
 
-#define strlen(s)	zzz_strlen (s)
+#define	strlen(s)	zzz_strlen (s)
 #define	strcpy(a,b)	zzz_strcpy (a, b)
 #define	strncpy(a,b,c)	zzz_strncpy (a, b, c)
 #define	strcat(a,b) 	zzz_strcat (a, b)

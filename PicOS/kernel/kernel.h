@@ -29,6 +29,10 @@ void 	zz_lcd_init (void);
 void	zz_if_init (void);
 #endif
 
+#if ADC_SAMPLER
+void	zz_adcs_init (void);
+#endif
+
 typedef struct	{
 /* =================================== */
 /* A single event awaited by a process */
@@ -95,6 +99,7 @@ extern	void tcv_init (void);
 #define tasknum(p)		((p) - FIRST_PCB)
 
 #define	incwait(p)	((p)->Status++)
+#define	cnclwait(p)	((p)->Status &= 0xfff0)
 #define	inctimer(p)	((p)->Status |= 0x8)
 #define	waiting(p)	((p)->Status & 0xf)
 #define	twaiting(p)	((p)->Status & 0x8)

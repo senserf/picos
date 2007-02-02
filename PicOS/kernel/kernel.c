@@ -347,6 +347,15 @@ HardWay:
 	inctimer (zz_curr);
 }
 
+void unwait (word state) {
+/* =========================================== */
+/* Cancels all wait requests including a delay */
+/* =========================================== */
+	if (state != WNONE)
+		settstate (zz_curr, state);
+	cnclwait (zz_curr);
+}
+
 /* ======================================================================== */
 /* Return the number of milliseconds that the indicated process is going to */
 /* sleep for                                                                */
@@ -703,9 +712,6 @@ int zombie (code_t fun) {
 	return 0;
 }
 
-/* ========================================================================= */
-/* Simple operations on strings. We prefer to have everything under control. */
-/* ========================================================================= */
 int zzz_strlen (const char *s) {
 
 	int i;
