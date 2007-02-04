@@ -139,3 +139,8 @@ R070119A:
     Lots of updates to VUEE. Agent protocol implemented. Udaemon extended by
     CLOCK, PINS, LEDS, MOVER. Documentation coming up.
 
+R070203A:
+
+    EEPROM (FLASH) model brought up to data with recent changes in PicOS.
+    EETest revritten according to the compatibility rules and moved to
+    PICOS/Apps/VUEE.

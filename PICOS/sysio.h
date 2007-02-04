@@ -5,6 +5,13 @@
 
 #include "options.sys"
 
+#ifdef	TCV_PRESENT
+#undef	TCV_PRESENT
+#endif
+
+// This must be overriden because TCV is always compiled in
+#define	TCV_PRESENT	1
+
 // ----------------------------------------------------------------------- //
 // NOTE: this will be replaced in PicOS as an isolated fragment of sysio.h //
 // ----------------------------------------------------------------------- //
@@ -138,6 +145,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	SNONE		((int)NONE)
 #define	WNONE		((word)NONE)
+#define	LWNONE		((lword)NONE)
 #define	BNONE		0xff
 #define	BLOCKED		(-2)
 

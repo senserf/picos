@@ -22,13 +22,25 @@ typedef	struct {
 		Pre;		// Preamble length
 } data_rf_t;
 
+#define	EP_N_BOUNDS		6
+
 typedef struct {
 
 // EEPROM + IFLASH (FIM)
 
-	word	EEPRS,		// EEPROM size in bytes
-		IFLSS,		// IFLASH size
+	lword	EEPRS,		// EEPROM size in bytes
+		EEPPS;		// EEPROM page size
+
+	FLAGS	EFLGS;
+
+	// Write/erase/sync timing bounds, 6 numbers:
+	// byte write time (min, max), byte erase time (min, max), sync time
+	// (min, max)
+	double	bounds [EP_N_BOUNDS];
+
+	word	IFLSS,		// IFLASH size
 		IFLPS;		// IFLASH page size
+
 	Boolean	absent;		// Flag == explicitly absent
 } data_ep_t;
 

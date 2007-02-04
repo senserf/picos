@@ -190,10 +190,13 @@ void PicOSNode::setup (data_no_t *nd) {
 	eeprom = NULL;
 	iflash = NULL;
 	if (nd->ep != NULL) {
-		if (nd->ep->EEPRS)
-			eeprom = new NVRAM (nd->ep->EEPRS, 0);
-		if (nd->ep->IFLSS)
-			iflash = new NVRAM (nd->ep->IFLSS, nd->ep->IFLPS);
+		data_ep_t *EP = nd->ep;
+		if (EP->EEPRS)
+			eeprom = new NVRAM (EP->EEPRS, EP->EEPPS, EP->EFLGS,
+				EP->bounds);
+		if (EP->IFLSS)
+			iflash = new NVRAM (EP->IFLSS, EP->IFLPS, 
+				NVRAM_TYPE_NOOVER | NVRAM_TYPE_ERPAGE, NULL);
 	}
 
 	reset ();
@@ -709,28 +712,34 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 	return 0;
 }
 
-void _dad (PicOSNode, ee_read) (word adr, byte *buf, word n) {
+word _dad (PicOSNode, ee_read) (lword adr, byte *buf, word n) {
 
 	sysassert (eeprom != NULL, "ee_read no eeprom");
-	eeprom->get (adr, buf, n);
+	return eeprom->get (adr, buf, (lword) n);
 };
 
-void _dad (PicOSNode, ee_write) (word adr, const byte *buf, word n) {
+word _dad (PicOSNode, ee_write) (word st, lword adr, const byte *buf, word n) {
 
 	sysassert (eeprom != NULL, "ee_write no eeprom");
-	eeprom->put (adr, buf, n);
+	eeprom->put (st, adr, buf, (lword) n);
 };
 
-void _dad (PicOSNode, ee_erase) () {
+word _dad (PicOSNode, ee_erase) (word st, lword fr, lword up) {
 
 	sysassert (eeprom != NULL, "ee_erase no eeprom");
-	eeprom->erase ();
+	eeprom->erase (st, fr, up);
+};
+
+word _dad (PicOSNode, ee_sync) (word st) {
+
+	sysassert (eeprom != NULL, "ee_sync no eeprom");
+	eeprom->sync (st);
 };
 
 int _dad (PicOSNode, if_write) (word adr, word w) {
 
 	sysassert (iflash != NULL, "if_write no iflash");
-	iflash->put (adr << 1, (const byte*) (&w), 2);
+	iflash->put (WNONE, (lword) adr << 1, (const byte*) (&w), 2);
 	return 0;
 };
 
@@ -739,7 +748,7 @@ word _dad (PicOSNode, if_read) (word adr) {
 	word w;
 
 	sysassert (iflash != NULL, "if_read no iflash");
-	iflash->get (adr << 1, (byte*) (&w), 2);
+	iflash->get ((lword) adr << 1, (byte*) (&w), 2);
 	return w;
 };
 
@@ -747,10 +756,12 @@ void _dad (PicOSNode, if_erase) (int a) {
 
 	sysassert (iflash != NULL, "if_erase no iflash");
 
-	if (a < 0)
-		iflash->erase ();
-	else
-		iflash->erase ((word)(a << 1));
+	if (a < 0) {
+		iflash->erase (WNONE, 0, 0);
+	} else {
+		a <<= 1;
+		iflash->erase (WNONE, (lword)a, (lword)a);
+	}
 };
 
 void NNode::setup () {
@@ -1064,11 +1075,11 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 
-	nparse_t np [2];
+	nparse_t np [2 + EP_N_BOUNDS];
 	sxml_t cur;
 	const char *att;
 	char *str, *as, es [32];
-	int len;
+	int i, len;
 	data_rf_t *RF;
 	data_ep_t *EP;
 	data_no_t *ND;
@@ -1186,9 +1197,12 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 	EP = NULL;
 	/* EEPROM */
 	np [0].type = np [1].type = TYPE_LONG;
+	for (i = 0; i < EP_N_BOUNDS; i++)
+		np [i + 2] . type = TYPE_double;
+
 	if ((cur = sxml_child (data, "eeprom")) != NULL) {
 
-		Long eesz;
+		lword pgsz;
 
 		if (EP == NULL) {
 			EP = ND->ep = new data_ep_t;
@@ -1196,19 +1210,81 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 			EP->IFLSS = WNONE;
 		}
 
-		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			excptn ("Root: one int number required in <eeprom> "
-				"in %s", es);
-		eesz = (Long) (np [0].LVal);
-		if (eesz < 0 || eesz > 65536)
-			excptn ("Root: eeprom size must be >= 0 and <= 65536, "
-				"is %1d, in %s", eesz, es);
+		EP->EFLGS = 0;
 
-		EP->EEPRS = (word) eesz;
+		if ((att = sxml_attr (cur, "erase")) != NULL) {
+			if (strcmp (att, "block") == 0 || strcmp (att, "page")
+			    == 0)
+				EP->EFLGS |= NVRAM_TYPE_ERPAGE;
+			else if (strcmp (att, "byte") != 0)
+				xeai ("erase", "eeprom", att);
+		}
 
-		if (eesz)
-		   	print (form ("  EEPROM:     %1d bytes\n", eesz));
-		else
+		if ((att = sxml_attr (cur, "overwrite")) != NULL) {
+			if (strcmp (att, "no") == 0)
+				EP->EFLGS |= NVRAM_TYPE_NOOVER;
+			else if (strcmp (att, "yes") != 0)
+				xeai ("overwrite", "eeprom", att);
+		}
+
+		len = parseNumbers (sxml_txt (cur), EP_N_BOUNDS + 2, np);
+		if (len == 0)
+			excptn ("Root: at least one int number required in "
+				"<eeprom> in %s", es);
+
+		EP->EEPRS = (lword) (np [0] . LVal);
+		EP->EEPPS = 0;
+		for (i = 0; i < EP_N_BOUNDS; i++)
+			EP->bounds [i] = 0.0;
+
+		// Check for pagesize and timing params
+		if (EP->EEPRS && len > 1) {
+			pgsz = (lword) (np [1] . LVal);
+			if (pgsz) {
+				// This is the number of pages, so turn it into
+				// a page size
+				if (pgsz > EP->EEPRS || (EP->EEPRS % pgsz) != 0)
+					excptn ("Root: number of eeprom pages, "
+						"%1d, is illegal in %s",
+							pgsz, es);
+				pgsz = EP->EEPRS / pgsz;
+			}
+			EP->EEPPS = pgsz;
+			for (i = 0; i < EP_N_BOUNDS; i++) {
+				if (i + 2 >= len)
+					break;
+				EP->bounds [i] =
+					np [i + 2] . DVal;
+			}
+		} 
+
+		for (i = 0; i < EP_N_BOUNDS; i += 2) {
+			if (EP->bounds [i] != 0.0 && EP->bounds [i+1] == 0.0)
+				EP->bounds [i+1] = EP->bounds [i];
+			if (EP->bounds [i] < 0.0 || EP->bounds [i+1] <
+			    EP->bounds [i] )
+				excptn ("Root: timing distribution parameters "
+					"for eeprom: %1g %1g are illegal in %s",
+						EP->bounds [i],
+						EP->bounds [i+1],
+						es);
+		}
+
+		if (EP->EEPRS) {
+		   	print (form (
+				"  EEPROM:     %1d bytes, page size: %1d\n",
+					EP->EEPRS, EP->EEPPS));
+			print (form (
+				"              W: [%1g,%1g], E: [%1g,%1g], "
+							"S: [%1g,%1g]\n",
+					EP->bounds [0],
+					EP->bounds [1],
+					EP->bounds [2],
+					EP->bounds [3],
+					EP->bounds [4],
+					EP->bounds [5],
+					EP->bounds [6]));
+		} else
 			      print ("  EEPROM:     none\n");
 	}
 

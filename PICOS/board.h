@@ -290,9 +290,10 @@ station PicOSNode {
 	/*
 	 * EEPROM + FIM (IFLASH)
 	 */
-	void _da (ee_read)  (word, byte*, word);
-	void _da (ee_erase) ();
-	void _da (ee_write) (word, const byte*, word);
+	word _da (ee_read)  (lword, byte*, word);
+	word _da (ee_erase) (word, lword, lword);
+	word _da (ee_write) (word, lword, const byte*, word);
+	word _da (ee_sync) (word);
 	int  _da (if_write) (word, word);
 	word _da (if_read)  (word);
 	void _da (if_erase) (int);

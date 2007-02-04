@@ -6,7 +6,7 @@
 #if 0
 void NVRAM::dump () {
 
-	word cur;
+	lword cur;
 
 	trace ("NVRAM at %s, list of chunks [%1d,%1d,%1d]:",
 		TheStation->getSName (), tsize, esize, asize);
@@ -21,9 +21,9 @@ void NVRAM::dump () {
 }
 #endif
 
-NVRAM::NVRAM (word size, word psize) {
+NVRAM::NVRAM (lword size, lword psize, FLAGS tp, double *bounds) {
 
-	word k;
+	lword k;
 
 	tsize = size;
 	if (psize) {
@@ -31,6 +31,7 @@ NVRAM::NVRAM (word size, word psize) {
 		for (k = 1; k < psize; k *= 2);
 		if (k != psize)
 			excptn ("NVRAM: psize must be a power of 2");
+		// Turn it into a mask
 		psize = ~(psize - 1);
 	}
 
@@ -38,16 +39,37 @@ NVRAM::NVRAM (word size, word psize) {
 
 	chunks = NULL;
 	asize = esize = 0;
+
+	TP = tp & ~NVRAM_FLAG_WEHANG;
+
+	ftimes = NULL;
+
+	if (bounds != NULL) {
+
+		for (k = 0; k < EP_N_BOUNDS; k++)
+			if (bounds [k] != 0.0)
+				break;
+
+		if (k < EP_N_BOUNDS) {
+			// There are bounds
+			ftimes = new nvram_timing_t;
+			ftimes->UnHang = TIME_0;
+			memcpy (ftimes->Bounds, bounds,
+				EP_N_BOUNDS * sizeof (double));
+		}
+	}
 };
 
 NVRAM::~NVRAM () {
 
-	erase ();
+	erase (WNONE, 0, 0);
+	if (ftimes)
+		delete ftimes;
 };
 
-void NVRAM::merge (byte *target, const byte *source, word length) {
+void NVRAM::merge (byte *target, const byte *source, lword length) {
 
-	if (pmask) {
+	if ((TP & NVRAM_TYPE_NOOVER)) {
 		// This is flash: writing 1 to 0 is void
 		while (length--)
 			*target++ &= *source++;
@@ -61,7 +83,7 @@ void NVRAM::grow () {
 
 	if (esize <= asize) {
 		// Must grow the array
-		esize = asize + 4;
+		esize = asize + 8;
 		chunks = (nvram_chunk_t*) ((chunks == NULL) ?
 		  malloc (esize * sizeof (nvram_chunk_t)) :
 		    realloc (chunks, esize * sizeof (nvram_chunk_t)));
@@ -69,15 +91,20 @@ void NVRAM::grow () {
 }
 
 
-void NVRAM::get (word adr, byte *buf, word len) {
+word NVRAM::get (lword adr, byte *buf, lword len) {
 
-	word cur, n;
+	lword cur, n;
 	int off;
 
 	cur = 0;
 
-	Assert ((long) len + adr <= tsize, "NVRAM->get: %d + %d out of range",
-		adr, len);
+	if (adr >= tsize || adr + len > tsize)
+		return 1;
+
+	if (len == 0)
+		return 0;
+
+	TP &= ~NVRAM_FLAG_UNSNCD;
 
 	while (len && cur < asize) {
 
@@ -109,15 +136,44 @@ void NVRAM::get (word adr, byte *buf, word len) {
 #if 0
 	dump ();
 #endif
+	return 0;
 }
 
-void NVRAM::put (word adr, const byte *buf, word len) {
+word NVRAM::put (word st, lword adr, const byte *buf, lword len) {
 
-	word cur, nlm, olm, cus, nad, nle;
+	TIME del;
+	lword cur, nlm, olm, cus, nad, nle;
 	byte *nc;
 
-	Assert ((long) len + adr <= tsize, "NVRAM->put: %d + %d out of range",
-		adr, len);
+	if (adr >= tsize || adr + len > tsize)
+		return 1;
+
+	if (len == 0)
+		return 0;
+
+	TP |= NVRAM_FLAG_UNSNCD;
+
+	if (st != WNONE && ftimes != NULL) {
+		// This is a somewhat crude model of timing
+		if ((TP & NVRAM_FLAG_WEHANG) == 0) {
+			// Set up the timer
+			del = etuToItu ((double) len *
+			  dRndUniform (ftimes->Bounds [0], ftimes->Bounds [1]));
+			if (del != TIME_0) {
+				TP |= NVRAM_FLAG_WEHANG;
+				ftimes -> UnHang = Time + del;
+				Timer->wait (del, st);
+				sleep;
+			}
+		} else {
+			if (ftimes->UnHang <= Time) {
+				TP &= ~NVRAM_FLAG_WEHANG;
+			} else {
+				Timer->wait (ftimes->UnHang - Time, st);
+				sleep;
+			}
+		}
+	}
 
 	for (cur = 0; cur < asize; cur++) {
 
@@ -139,14 +195,14 @@ void NVRAM::put (word adr, const byte *buf, word len) {
 		chunks [cur] . ptr = (byte*) malloc (len);
 
 		memcpy (chunks [cur] . ptr, buf, len);
-		return;
+		return 0;
 	}
 
 	if (nlm <= olm && adr >= chunks [cur] . start) {
 		// Case 1: no need to grow or merge the previous segment
 		merge (chunks [cur] . ptr + (adr - chunks [cur] . start),
 			buf, len);
-		return;
+		return 0;
 	}
 
 	// Case 2: we have at least to grow it and possibly merge other chunks
@@ -196,34 +252,52 @@ void NVRAM::put (word adr, const byte *buf, word len) {
 	}
 
 	merge (chunks [cur] . ptr + (adr - nad), buf, len);
+	return 0;
 }
 
-void NVRAM::erase () {
+word NVRAM::erase (word st, lword adrf, lword len) {
 
-	word cur;
-
-	if (chunks != NULL) {
-		for (cur = 0; cur < asize; cur++)
-			free (chunks [cur] . ptr);
-
-		free (chunks);
-		chunks = NULL;
-	}
-	asize = esize = 0;
-}
-
-void NVRAM::erase (word adrf) {
-
-	word len, off, n, cur, cus;
+	lword off, n, cur, cus;
+	TIME del;
 	byte *nc;
 
-	Assert (adrf < tsize, "NVRAM->erase: %d out of range", adrf);
+	// len is 'upto' at this point
+	if (adrf >= tsize)
+		return 1;
+	if (len >= tsize || len == 0)
+		len = tsize - 1;
+	else if (len < adrf)
+		return 1;
 
-	if (pmask == 0)
-		excptn ("NVRAM->erase (adr): page size is zero");
+	if (pmask != 0 && (TP & NVRAM_TYPE_ERPAGE) != 0) {
+		// Erase applies to pages
+		adrf &=  pmask;
+		len |= ~pmask;
+	}
 
-	adrf &= pmask;				// From
-	len = (~pmask) + 1;			// Length
+	// Turn this into actual length
+	len = len - adrf + 1;
+
+	if (st != WNONE && ftimes != NULL) {
+		if ((TP & NVRAM_FLAG_WEHANG) == 0) {
+			// Set up the timer
+			del = etuToItu ((double) len *
+			  dRndUniform (ftimes->Bounds [2], ftimes->Bounds [3]));
+			if (del != TIME_0) {
+				TP |= NVRAM_FLAG_WEHANG;
+				ftimes -> UnHang = Time + del;
+				Timer->wait (del, st);
+				sleep;
+			}
+		} else {
+			if (ftimes->UnHang <= Time) {
+				TP &= ~NVRAM_FLAG_WEHANG;
+			} else {
+				Timer->wait (ftimes->UnHang - Time, st);
+				sleep;
+			}
+		}
+	}
 
 	cur = 0;
 	while (len && cur < asize) {
@@ -303,6 +377,36 @@ void NVRAM::erase (word adrf) {
 		if (chunks [cur] . ptr != NULL)
 			chunks [cus++] = chunks [cur];
 	asize = cus;
+	return 0;
 }
 
+word NVRAM::sync (word st) {
+
+	TIME del;
+
+	if (st == WNONE || ftimes == NULL || (TP & NVRAM_FLAG_UNSNCD) == 0)
+		return 0;
+
+	if ((TP & NVRAM_FLAG_WEHANG) == 0) {
+		// Set up the timer
+		del = etuToItu (dRndUniform (ftimes->Bounds [4],
+			ftimes->Bounds [5]));
+		if (del != TIME_0) {
+			TP |= NVRAM_FLAG_WEHANG;
+			ftimes -> UnHang = Time + del;
+			Timer->wait (del, st);
+			sleep;
+		}
+	} else {
+		if (ftimes->UnHang <= Time) {
+			TP &= ~NVRAM_FLAG_WEHANG;
+		} else {
+			Timer->wait (ftimes->UnHang - Time, st);
+			sleep;
+		}
+	}
+
+	return 0;
+}
+	
 #endif

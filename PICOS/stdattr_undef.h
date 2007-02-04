@@ -53,6 +53,10 @@
 #undef ee_read
 #undef ee_write
 #undef ee_erase
+#undef ee_sync
+#undef if_write
+#undef if_read
+#undef if_erase
 #undef net_opt
 #undef net_qera
 #undef net_init

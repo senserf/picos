@@ -90,9 +90,14 @@
 // ============================================================================
 
 #define ee_read(a,b,c)	(  ((PicOSNode*)TheStation)->_na_ee_read (a,b,c)  )
-#define ee_write(a,b,c)	(  ((PicOSNode*)TheStation)->_na_ee_write (a,b,c)  )
-#define ee_erase(...) \
-	(  ((PicOSNode*)TheStation)->_na_ee_erase ( __VA_ARGS__)  )
+#define ee_write(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_ee_write (a,b,c,d)  )
+#define ee_erase(a,b,c) \
+	(  ((PicOSNode*)TheStation)->_na_ee_erase (a,b,c)  )
+#define ee_sync(a)	(  ((PicOSNode*)TheStation)->_na_ee_sync (a)  )
+#define	if_write(a,b)	(  ((PicOSNode*)TheStation)->_na_if_write (a,b)  )
+#define	if_read(a)	(  ((PicOSNode*)TheStation)->_na_if_read (a)  )
+#define	if_erase(a)	(  ((PicOSNode*)TheStation)->_na_if_erase (a)  )
 
 // ============================================================================
 

@@ -16,6 +16,8 @@ typedef	unsigned char	byte;
 #define	MAX_UINT	((word)0xFFFF)
 #define	MAX_ULONG	((lword)0xFFFFFFFF)
 
+#define	IFLASH_SIZE	128	// Words
+
 #define	sysassert(a,b)	do { if (!(a)) syserror (EASSERT, b); } while (0)
 #define	halt()		excptn ("HALTED!!!")
 #define	CNOP		do { } while (0)
