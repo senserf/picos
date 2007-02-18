@@ -133,7 +133,10 @@ void	Mailbox::destroy_bound () {
  */
   	Mailbox *m, *q;
 
-	if (JT == NULL) {
+#if ZZ_JOU
+	if (JT == NULL)
+#endif
+	{
 		// There is a socket/device to close
 		::close (sfd);
 		if (sfd != csd && csd != NONE)
@@ -175,7 +178,11 @@ void	Mailbox::setBlocking (int which) {
 };
 
 void	Mailbox::doClose (int which) {
+
+#if ZZ_JOU
   if (JT != NULL) return;  // Do nothing for a journaled mailbox
+#endif
+
   if ((skt & ZZ_MTYPEMASK) == DEVICE) {
     close (csd);
   } else
@@ -192,7 +199,9 @@ int    Mailbox::connect (int st, const char *hostname, int port, int bsize,
   Mailbox *m, *q;
   int k;
 
+#if ZZ_JOU
   findJournals ();
+#endif
 
   Assert (sfd == NONE, "Mailbox->connect: %s, already connected", getSName ());
   Assert (limit >= 0, "Mailbox->connect: %s, cannot connect a barrier mailbox",
@@ -217,6 +226,8 @@ int    Mailbox::connect (int st, const char *hostname, int port, int bsize,
     if ((csd = sfd = (int) (m->obuf)) == NONE) return REJECTED;
     m->obuf = (char*) NONE;
     skt = m->skt & ~(MASTER | SERVER);
+
+#if ZZ_JOU
     if (JT != NULL) {
       // The mailbox is to be read from journal
       Assert (csd == JOURNAL, "Mailbox->connect: %s, journaled mailbox "
@@ -228,6 +239,10 @@ int    Mailbox::connect (int st, const char *hostname, int port, int bsize,
 	     "one", getSName ());
       setUnblocking ();
     }
+#else
+    setUnblocking ();
+#endif
+
     // Skip all further checks
     goto SetBuffer;
   }
@@ -240,13 +255,17 @@ int    Mailbox::connect (int st, const char *hostname, int port, int bsize,
 	getSName ());
   }
 
+#if ZZ_JOU
   if (JT != NULL) {
     if (JT->skipConnectBlock () != OK) return REJECTED;
     // This mailbox will be read from a journal and its output will be
     // ignored -- we do no further checks
     csd = sfd = JOURNAL;
     // This is higher than any descriptor
-  } else if ((skt & ZZ_MTYPEMASK) == DEVICE) {
+  } else
+#endif
+
+    if ((skt & ZZ_MTYPEMASK) == DEVICE) {
     // We have a device mailbox
     if ((skt & WRITE) && (skt & READ))
       k = O_RDWR | O_CREAT;
@@ -336,7 +355,10 @@ SetBuffer:
     q->nexts = this;
   nexts = NULL;
 
+#if ZZ_JOU
   if (JO != NULL) JO->connectBlock ();
+#endif
+
   return ACCEPTED;
 };
 
@@ -406,12 +428,17 @@ int	Mailbox::disconnect (int who) {
 #if ZZ_TAG
   int qq;
 #endif
+
+#if ZZ_JOU
   Boolean jrnl;
+#endif
 
   if (sfd == NONE) return OK;          // Already disconnected
 
+#if ZZ_JOU
   // Client disconnection for a mailbox read from a journal
   jrnl = (JT != NULL && who != SERVER && (skt & SERVER));
+#endif
 
   if (who == CLEAR) {
     // Trigger NEWITEM (UPDATE) and OUTPUT
@@ -430,9 +457,13 @@ int	Mailbox::disconnect (int who) {
            e -> new_top_request (rq);
       }
     }
+
+#if ZZ_JOU
     if (jrnl)
 	// This means a server mailbox, client disconnection, and journal
 	return OK;
+#endif
+
     count = iin = iout = oin = oout = 0;
   } else {
     if (WList != NULL) return ERROR;   // Other disconnect illegal
@@ -445,7 +476,9 @@ int	Mailbox::disconnect (int who) {
 
   if (oin != oout) return ERROR;       // Pending outgoing stuff
 
+#if ZZ_JOU
   if (jrnl) return OK;
+#endif
 
   doClose (YES);
   csd = NONE;
@@ -472,7 +505,11 @@ int	Mailbox::disconnect (int who) {
     else
       q->nexts = nexts;
   }
+
+#if ZZ_JOU
   JT = JO = NULL;   // We will restore them upon connect
+#endif
+
   return OK;
 };
 
@@ -506,10 +543,15 @@ int	Mailbox::rawWrite (const char *buf, int length) {
     if (csd < 0) return (csd = NONE);       // Better luck next time
     setUnblocking (YES);
   }
+
+#if ZZ_JOU
   if (csd == JOURNAL) {
     // Write is void -- the operation always succeeds
     k = length;
-  } else {
+  } else
+#endif
+
+  {
     k = writeSocket (csd, buf, length);
     if (k < 0) {
       if (errno != EAGAIN && count == 0) {
@@ -518,7 +560,11 @@ int	Mailbox::rawWrite (const char *buf, int length) {
       }
     }
   }
+
+#if ZZ_JOU
   if (JO != NULL && k > 0) JO->writeData (buf, k, 'O');
+#endif
+
   return k;
 }
 
@@ -539,10 +585,14 @@ int     Mailbox::rawRead (char *buf, int length) {
     setUnblocking (YES);
   }
 
+#if ZZ_JOU
   if (csd == JOURNAL) {
     k = JT->readData (buf, length);
     dsc = k < 0;
-  } else {
+  } else
+#endif
+
+  {
     k = readSocket (csd, buf, length);
     dsc = (k < 0 && errno != EAGAIN) || k == 0;
   }
@@ -557,7 +607,10 @@ int     Mailbox::rawRead (char *buf, int length) {
     }
   }
 
+#if ZZ_JOU
   if (JO != NULL && k > 0) JO->writeData (buf, k, 'I');
+#endif
+
   return k;
 }
 
@@ -640,6 +693,9 @@ void	Mailbox::readInput () {
     // This is a master socket -- check for incoming connection request
     if (obuf == (void*)NONE) {
       // If not pending already
+
+#if ZZ_JOU
+
       if (csd == JOURNAL) {
         // Reading from journal
         br = JT->readData (cbuf, 4);
@@ -652,14 +708,26 @@ void	Mailbox::readInput () {
         obuf = (char*) JOURNAL;
         // Update new journal
         if (JO != NULL) JO->writeData (CONNECTMAGIC, 4, 'I');
-      } else {
+
+
+
+      } else
+
+#endif
+
+      {
         // Try "accept"
         if ((nw = getSocketConnection (sfd)) < 0) return;
         obuf = (char*) nw;
+
+#if ZZ_JOU
         // Update new journal
         if (JO != NULL) JO->writeData (CONNECTMAGIC, 4, 'I');
+#endif
+
       }
     }
+
     if (obuf != (void*)NONE) {
       // Restart processes waiting for this event
       for (rq = WList; rq != NULL; rq = rq -> next) {
@@ -756,7 +824,11 @@ int Mailbox::isWaiting () {
 
   if (WList != NULL) {
     if ((fd = csd) == NONE) fd = sfd;  // Use master descriptor if disconnected
-    return (fd == JOURNAL) ? -1 : fd;  // Fed from a journal
+    return
+#if ZZ_JOU
+    	(fd == JOURNAL) ? -1 : 	// Fed from a journal
+#endif
+		fd;
   } else
     return -1;
 };
@@ -888,6 +960,8 @@ int Mailbox::write (const char *b, int nc) {
   }
   return ACCEPTED;
 };
+
+#if ZZ_JOU
 
 // --------------------- //
 // Journalling functions //
@@ -1119,7 +1193,7 @@ int ZZ_Journal::readData (char *S, int Len) {
     }
   }
   return k;
-};
+}
 
 void ZZ_Journal::writeData (const char *S, int Len, char tp) {
   char block [JBUFSIZE];
@@ -1140,7 +1214,7 @@ void ZZ_Journal::writeData (const char *S, int Len, char tp) {
     if (writeBlock (S, Len) == ERROR)
                excptn ("Journal->writeData: write error in '%s'", JName);
   }
-};
+}
   
 int ZZ_Journal::writeBlock (const char *S, int Len) {
   int k;
@@ -1150,7 +1224,7 @@ int ZZ_Journal::writeBlock (const char *S, int Len) {
     S += k;
     Len -= k;
   }
-};
+}
   
 void Mailbox::findJournals () {
   ZZ_Journal *jn;
@@ -1176,4 +1250,6 @@ void Mailbox::findJournals () {
       }
     }
   }
-};
+}
+
+#endif /* JOU */

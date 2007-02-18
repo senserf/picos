@@ -48,6 +48,9 @@
 
 #define		NOP			do { } while (0)
 
+// How to cast a pointer to integer
+#define		__cpint(a)		((int)(IPointer)(a))
+
 /* ------------------- */
 /* User-visible macros */
 /* ------------------- */
@@ -179,21 +182,22 @@ extern	jmp_buf	zz_waker;
 
 #if	ZZ_NOC
 
-#define         TheTraffic              ((int)Info02)
+#define         TheTraffic              __cpint (Info02)
 #define         ThePacket               ((Packet*)(Info01))
 #define         ThePort                 ((Port*)(Info02))
 #define         TheMessage              ((Message*)(Info01))
 
 #endif
 
-#define         TheEvent                ((int)(Info02))
-#define         TheCount                ((int)(Info01))
+#define         TheEvent                __cpint (Info02)
+#define         TheCount                __cpint (Info01)
 #define         TheItem                 Info01
 #define         TheMailbox              ((Mailbox*)(Info02))
-#define         TheExitCode             ((int)(Info01))
+#define         TheExitCode             __cpint (Info01)
 #define         TheSender               ((Process*)(Info02))
 #define         TheSignal               Info01
-#define         TheBarrier              ((int)(Info01))
+#define         TheBarrier              __cpint (Info01)
+#define		TheEnd			((Boolean)__cpint (Info01))
 
 /* ---------------------------------------------------------- */
 /* One  more  alias of the same type, but for something else. */
@@ -233,6 +237,8 @@ extern	jmp_buf	zz_waker;
 #define         pool_out(item)                      {\
 	if ((item)->next != NULL) ((item)->next)->prev = (item)->prev;\
 	((item)->prev)->next = (item)->next;}
+
+#define	for_pool(p,h)	for ((p) = (h); (p) != NULL; (p) = (p)->next)
 
 /* ---------------------------------- */
 /* Convert stream pointers to streams */
@@ -3009,7 +3015,8 @@ extern  zz_timer  zz_AI_timer;                         // Announcement
 /* Mailbox and company */
 /* ------------------- */
 
-#if  ZZ_REA || ZZ_RSY
+#if  ZZ_JOU
+
 class ZZ_Journal {
   // Description of a journal file being created
   friend class Mailbox;
@@ -3030,6 +3037,7 @@ class ZZ_Journal {
   int skipConnectBlock ();
   void writeData (const char*, int, char);
 };
+
 #endif
 
 class   Mailbox : public AI {
@@ -3039,7 +3047,9 @@ class   Mailbox : public AI {
 	friend  Mailbox *idToMailbox (int);
 	friend  void    zz_adjust_ownership ();
 #if  ZZ_REA || ZZ_RSY
+#if  ZZ_JOU
         friend  class   ZZ_Journal;
+#endif
 	friend  void	zz_wait_for_sockets (Long);
 	friend  void 	zz_advance_real_time ();
 #endif
@@ -3081,8 +3091,12 @@ class   Mailbox : public AI {
 			oldlimit;
 
         Mailbox         *nexts;         // Next on the socket list
+
+#if  ZZ_JOU
         ZZ_Journal      *JT, *JO;       // Journals
         void    findJournals ();        // Locate journals for this mailbox
+#endif
+
         void    flushOutput (), readInput ();
         int     isWaiting ();
         int     rawWrite (const char*, int);

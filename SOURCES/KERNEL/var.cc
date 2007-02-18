@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -297,11 +297,18 @@ char    *zz_ifn = NULL,                 // Pointer to input filename
 	*zz_ofn = NULL;                 // Pointer to output filename
 
 #if     ZZ_REA || ZZ_RSY
+
 Mailbox *zz_socket_list = NULL;		// List of connected mailboxes
 int     zz_nfdesc;                      // Max number of file descriptors
+Long    zz_max_sleep_time;              // Minimum time to next event
+
+#if	ZZ_JOU
+
 ZZ_Journal *ZZ_Journals = NULL;         // Journal list
 char	*ZZ_OffsetArg = NULL;           // Time offset argument
-Long    zz_max_sleep_time;              // Minimum time to next journal event
+
+#endif
+
 #endif
 
 /* ---------------------------------------------------------- */

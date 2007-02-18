@@ -22,7 +22,7 @@
 
 
 
-                               VERSION 2.80
+                               VERSION 2.90
 
         Author:
                     Pawel Gburzynski
@@ -807,7 +807,7 @@
 	   actual consistent deallocation of mailboxes did pose a bit of
 	   problem and was messy.
 
-	   Method pendingOutput added to (bound) Mailbox.
+	   Method outputPending added to (bound) Mailbox.
 
 	   Method resize added to (bound) Mailbox.
 
@@ -816,13 +816,14 @@
 	   parseNumbers now reads ints and hexs (TYPE_int, TYPE_hex) + IVal.
 
 	   Operations on pools (doubly-linked lists of related objects) made
-	   generally available as pool_in, pool_out.
+	   generally available as pool_in, pool_out. This will not be
+	   documented.
 
 	   Operation create pushes TheStation on the stack. Previously
 	   create (S) T (...) was confusing as it would reset TheStation as
 	   a side effect.
 
-	   Known things to do:
+ R070217A  Version 2.90.
 
-	   Documenting the above changes in the manual.
-	   Making journaling optional.
+	   Documentation and cleanups. Tested on 32-bit and 64-bit Linux
+	   systems, as well as (32-bit) Cygwin.

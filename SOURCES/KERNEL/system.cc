@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-03   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -68,7 +68,7 @@ static void bad_arguments () {
 #if     ZZ_TOL
 	cerr << "     -k t q          define clock tolerance and quality\n";
 #endif
-#if     ZZ_REA || ZZ_RSY
+#if     JOU
         cerr << "     -J mname        journal the specified mailbox\n";
         cerr << "     -I mname        input from journal input\n";
         cerr << "     -O mname        input from journal output\n";
@@ -306,7 +306,7 @@ void    zz_init_system  (int argc, char *argv []) {
                                 } else
                                   bad_arguments ();
                                 break;
-#if ZZ_REA || ZZ_RSY
+#if JOU
 			case 'D' : // Set effective date/time
 
 				if (!argc) bad_arguments ();

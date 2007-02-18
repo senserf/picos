@@ -1,5 +1,5 @@
 /* SIDE version number */
-#define  VERSION      "2.80L"
+#define  VERSION      "2.90-OC"
 
 #ifdef	__CYGWIN32__
 #define	ZZ_CYW				1
@@ -119,6 +119,6 @@ typedef void (*SIGARG) (int);
 /* next line will be removed and written from scratch.                    */
 #define  ZZ_SOURCES      "/home/pawel/SOFTWARE/SIDE/SOURCES"
 #define  ZZ_LIBPATH      "/home/pawel/SOFTWARE/SIDE/LIB"
-#define  ZZ_INCPATH      "/home/pawel/SOFTWARE/SIDE/Examples/IncLib"
+#define  ZZ_INCPATH      "/home/pawel/SOFTWARE/VUEE/PICOS"
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442

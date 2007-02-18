@@ -7,10 +7,11 @@ find . -name "side" -exec rm -f '{}' \;
 find . -name "side.exe" -exec rm -f '{}' \;
 find . -name "side.sgn" -exec rm -f '{}' \;
 find . -regex ".*junk.*" -exec rm -f '{}' \;
+find . -regex ".*stackdump.*" -exec rm -f '{}' \;
 cd ..
 
 rm -rf LIB/l*
-touch LIB/empty
+touch LIB/liblock
 
 cd MANUAL
 rm -rf *.aux *.dvi *.log *.ps *.toc

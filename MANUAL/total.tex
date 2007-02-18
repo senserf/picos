@@ -1539,6 +1539,7 @@ where {\tt nparse\_t} is a structure declared as follows:
         union {
           double  DVal;
           LONG    LVal;
+          int     IVal;
         };
      } nparse_t;
 \end{verbatim}
@@ -1562,6 +1563,18 @@ When found, it will be stored in {\tt DVal}.
 \noindent\hspace{-0.35in}{\bf {\tt TYPE\_LONG}}\\ \hspace{0in}
 The expected number is {\tt LONG}.
 When found, it will be stored in {\tt LVal}.
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt TYPE\_int}}\\ \hspace{0in}
+The expected number is {\tt int}.
+When found, it will be stored in {\tt IVal}.
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt TYPE\_hex}}\\ \hspace{0in}
+The expected number is a hexadecimally encoded {\tt int} value.
+When found, it will be stored in {\tt IVal}.
 \end{quote}
 
 \begin{quote}
@@ -2677,30 +2690,21 @@ or
 \>{\tt obj = create ({\em expr\/}) {\em typename}, {\em nickname}, (} {\em setup args\/} {\tt );}
 \end{tabbing}}
 \noindent
-where {\em expr\/} must be either of type {\tt int} or a pointer to an object
-belonging to a {\tt Station} subtype.
+where {\em expr\/} must be either of type {\tt int} (in which case it will be
+interpreted as a station {\tt Id})
+or a pointer to an object belonging to a {\tt Station} subtype.
 It identifies the
 station in the context of which the new object is to be created and is
 relevant for some object types only (e.g., see \sect{rm_pr_ct}).
-The effect is as if the {\tt create} operation was preceded by one of the
-following statements:
-
-{\tt\begin{tabbing}
-12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
-\>{\tt TheStation = {\em expr};}\\
-\end{tabbing}}
-or
-{\tt\begin{tabbing}
-12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
-\>{\tt TheStation = idToStation ({\em expr\/});}\\
-\end{tabbing}}
-\noindent
-depending on whether {\em expr\/} points to a {\tt Station} object
-or produces an {\tt int} type value (see sections \ref{rm_to_st_cs},
-\ref{rm_to_st_cu}).
+The switchover to the context of the indicated station
+only affects the {\tt create} operation, as well as any operations triggered
+by it (e.g., the execution of the created object's setup method).
 
 Objects belonging to types {\tt SGroup}, {\tt CGroup}, {\tt Station},
-{\tt Traffic}, {\tt Link}, {\tt RFChannel}, {\tt Mailbox}, {\tt Port}, and
+{\tt Traffic}, {\tt Link}, {\tt RFChannel}, {\tt Mailbox},\footnote{This only
+concerns those mailboxes that are owned by stations.
+Mailboxes owned by processes can be destroyed (see \sect{rm_mb_fi_dc}).}
+{\tt Port}, and
 {\tt Transceiver} can only be created and never explicitly destroyed.
 Other dynamically created
 objects can be destroyed with the standard C++ operator {\tt delete}.
@@ -10438,9 +10442,10 @@ Formally, the two methods can be declared for a counting mailbox (when no
 item type is specified in the mailbox declaration), but they will
 never be called.
 
-A mailbox can be owned either by a station or by a process, the difference
-being generally irrelevant, except for understanding mailbox exposures
-(\sect{rm_ex}).
+A mailbox can be owned either by a station or by a process.
+The most relevant difference is that a mailbox owned by a station cannot be
+destroyed, while that owned by a process can.
+Another difference may come into play when a mailbox is exposed (\sect{rm_ex}).
 This applies to all kinds of mailboxes, not only fifos.
 Those mailboxes that have been created during the initialization phase
 of the protocol program (i.e., while the {\tt Root} process was in its first
@@ -10518,10 +10523,8 @@ A mailbox created dynamically after the initialization phase
 is owned by the creating process and its {\tt Id} attribute
 is a simple serial number incremented globally, e.g., as
 for a process (\sect{rm_st_on}).
-A mailbox belonging to a station cannot be destroyed.
-A dynamically created mailbox belonging to a process
-can be destroyed (by {\tt delete} as long as it has no outstanding
-wait requests.
+As we said before, a process mailbox is more dynamic than one owned by a
+station because it can be destroyed (by {\tt delete}).
 
 A mailbox type declaration can specify private {\tt setup} methods.
 These methods are only accessible when the mailbox is created dynamically,
@@ -10574,7 +10577,7 @@ is {\tt NEWITEM} ({\tt UPDATE}).
 \medskip
 
 When a process is restarted by {\tt NEWITEM} (on a nonzero capacity
-mailbox) or {\tt NONEMPTY}, it is not
+mailbox) or {\tt NONEMPTY}, it is not absolutely
 guaranteed that the mailbox is in fact nonempty.
 This can happen when
 two or more processes have been waiting for {\tt NONEMPTY} (or
@@ -10635,6 +10638,21 @@ For a typed mailbox, and when it makes sense, the environment variable
 the item that has triggered the event.
 Note that for some events this value may not be up to date.
 For a counting mailbox, {\tt TheItem} is always {\tt NULL}.
+
+\noindent
+{\bf Note:} if a process is waiting on a mailbox and that mailbox becomes
+deleted,\footnote{This can only happen for a mailbox owned by a process as
+opposed to one owned by a station.}
+the process will be awakened regardless of the event awaited by it.
+This is potentially dangerous.
+If the program admits such a situation at all, the process should make
+sure that the mailbox is still around when it wakes up.
+This can be easily determined by looking at {\tt TheMailbox}, which will be
+{\tt NULL} if the mailbox has been destroyed.
+This feature applies to all mailbox types and all events that can be
+awaited on them.
+
+\medskip
 
 The interpretation of {\tt TheItem} for {\tt NONEMPTY},
 {\tt NEWITEM}, and a count event is sensible under the assumption that
@@ -10727,8 +10745,8 @@ The following method removes the first item from a mailbox:
 \end{tabbing}}
 For a counting mailbox, {\em etype\/} is {\tt int}
 and the method returns {\tt YES}, if the mailbox was
-nonempty and one pending token has been removed from the mailbox, and
-{\tt NO} otherwise.
+nonempty (in which case one pending token has been removed from the mailbox)
+and {\tt NO} otherwise.
 For a typed mailbox, {\em etype} coincides with the mailbox element type.
 The method returns the value of the
 removed item, if the mailbox was
@@ -10785,6 +10803,8 @@ In particular, a {\tt put} operation triggers
 trigger {\tt NONEMPTY}, {\tt RECEIVE} and a count event.
 Operations {\tt get} and {\tt erase} trigger {\tt GET}
 and may trigger count events (the latter also triggers {\tt EMPTY}).
+Also, remember that deleting the mailbox itself triggers all possible events
+(see \sect{rm_mb_fi_wr}).
 
 Operations {\tt get}, {\tt first}, and {\tt nonempty} performed on
 a capacity 0 mailbox always return 0.
@@ -11111,7 +11131,7 @@ a barrier mailbox from a fifo.
 
 A barrier mailbox is usually untyped.
 The simplest way to set up a barrier mailbox is to use the default mailbox
-type ans set its capacity to something negative, e.g.,
+type and set its capacity to something negative, e.g.,
 \begin{verbatim}
         Mailbox *bm;
           ...
@@ -11150,7 +11170,7 @@ There is no use for {\tt outItem}, however.
 \label{rm_mb_ba_wr}
 
 The event argument of a wait request addressed to a barrier mailbox identifies
-the signal that process wants to await.
+the signal that the process wants to await.
 The event will occur as soon as some other process executes {\tt signal}
 (\sect{rm_mb_ba_op}) whose argument identifies the same event.
 
@@ -11171,6 +11191,11 @@ variable {\tt TheMailbox} ({\tt Info02})
 of type {\tt Mailbox}, points to the mailbox on which the event has occurred.
 {\tt TheBarrier} ({\tt Info01}) of type {\tt int} contains the signal number
 that has triggered the event.
+Similar to other mailbox types, when a barrier mailbox is deleted
+(\sect{rm_mb_fi_wr}), all processes waiting on it will be awakened.
+If a situation like this is possible, the awakened
+process should check the value of {\tt TheMailbox}, which will be {\tt NULL}
+if the mailbox has beed deleted.
 
 \subsubsection{Operations on barrier mailboxes}
 \label{rm_mb_ba_op}
@@ -11186,7 +11211,7 @@ Similar to {\tt put} (\sect{rm_mb_fi_op}), {\tt trigger} returns
 {\tt ACCEPTED} if there was at least one process awakened by the operation,
 and {\tt REJECTED} otherwise.
 If the mailbox is typed (and its item type is {\tt int}---\sect{rm_mb_ba}),
-{\tt trigger} can be in fact
+{\tt trigger} can be
 replaced by {\tt put} (note that {\tt put} in that case
 accepts an {\tt int} argument).
 
@@ -11210,7 +11235,8 @@ thus, {\tt erase} performed on a barrier mailbox is void and returns zero.
 If the capacity of a barrier mailbox is changed to a nonnegative value
 (with {\tt setLimit}---\sect{rm_mb_fi_op}), the mailbox becomes a fifo
 (\sect{rm_mb_fi}).
-This is possible, similar to changing a fifo mailbox to a barrier
+This is seldom useful, if at all, but
+possible, similar to changing a fifo mailbox to a barrier
 (by resetting a nonnegative capacity to negative), except
 in a situation when there are outstanding wait requests on the mailbox.
 If that is the case, {\tt setLimit} will abort the program with an error
@@ -11829,6 +11855,14 @@ Note that the mailbox is automatically unbound in such a case:
 there is no need to perform {\tt disconnect} on it, although it will
 do no harm.
 
+A drastic but effective way to completely close a connection and forget about
+it is to simply delete the mailbox.\footnote{This must be a process mailbox
+rather than one owned by a station (\sect{rm_mb_fi_dc}).}
+This has the effect of closing any connection currently active on the mailbox,
+deallocating all buffers, and waking up all processes waiting on it.
+An awakened process can find out that the mailbox does not exist any more
+by examining {\tt TheMailbox}, which will be {\tt NULL} in that case.
+
 \subsubsection{Wait requests}
 \label{rm_mb_bo_wr}
 
@@ -11893,9 +11927,10 @@ triggered because the buffer is full), {\tt TheCount} contains zero.
 
 When a bound mailbox becomes forcibly disconnected
 by {\tt disconnect~(CLEAR)} (\sect{rm_mb_bo_ub}), which will also happen
-when the connection is closed or broken,
+when the connection is closed or broken, or the mailbox is deleted
+(\sect{rm_mb_bo_ub}),
 all awaited {\tt NEWITEM}, {\tt SENTINEL}, {\tt OUTPUT}, and count
-events are triggered on the mailbox.
+events are triggered.
 This way, a process waiting to receive or expedite some data through
 the mailbox will be awakened and it will be able to respond to the
 new status of the mailbox.
@@ -11951,6 +11986,18 @@ Also, {\tt getCount} tells the number of bytes present in the input buffer.
 \noindent
 {\bf Note:} operations {\tt setLimit} and {\tt putP} are illegal while the
 mailbox is bound.
+However, the size of the mailbox buffer can be enlarged dynamically, at any
+time, with this {\tt Mailbox} method:
+
+\begin{verbatim}
+        int resize (int newsize);
+\end{verbatim}
+where the argument specifies the new size.
+If the new size is less than or equal to the present buffer size (limit),
+the method does nothing.
+Otherwise, it reallocates the buffers according to the new increased size
+and preserves their contents.
+In both cases, the method returns the old size.
 
 \medskip
 
@@ -12026,6 +12073,11 @@ The reason for this behavior was given in \sect{rm_mb_bo_wr}.
 It makes no sense to wait for the sentinel in such a case, as some
 room must be freed in the buffer before the sentinel can possibly
 arrive.
+The calling process can easily determine what happened (without searching the
+acquired data for the sentinel), by examing the {\tt Boolean}
+environment variable {\tt TheEnd} (an alias for {\tt Info01}).
+Its value is {\tt YES} if the sentinel is present in the acquired data
+chunk, and {\tt NO} otherwise.
 
 The following {\tt Mailbox} method:
 \begin{verbatim}
@@ -12075,6 +12127,19 @@ A process that cannot send its message immediately
 may use this event to determine when the operation can be sensibly retried.
 In most cases, the {\tt OUTPUT} event indicates that the entire buffer
 (or at least a substantial part of it) has become available.
+
+It is possible, however, to check whether the output buffer contains any
+pending data that has not been sent yet to the other party.
+For example, before deleting a bound mailbox (which operation immediately
+discards all buffered data), you may want to wait until all output has been
+flushed.
+This {\tt Mailbox} method:
+
+\begin{verbatim}
+        Long outputPending ();
+\end{verbatim}
+returns the outstanding number of bytes in the output buffer that are still
+waiting to be expedited.
 
 \subsubsection*{Example}
 
@@ -12187,6 +12252,9 @@ transactions performed on the mailbox in a file.
 This file, called a {\em journal file}, can be used later (in another run)
 to feed the same or a different mailbox
 whose input would be otherwise acquired from a TCP/IP port or a device.
+The journaling capability is only available if the program has been
+compiled with the {\tt -J} option of {\tt mks} (\sect{rm_un_cr}) and
+only if one of {\tt -R} or {\tt -W} has been selected as well.
 
 Applications of journal files are two-fold.
 First, journals
@@ -18009,6 +18077,14 @@ Note that {\tt -W} and {\tt -R} cannot be specified together.
 \end{quote}
 
 \begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt -J}}\\ \hspace{0in}
+This option compiles in the code for journaling (\sect{rm_mb_ju}) and is
+only effective together with {\tt -R} or {\tt -W}.
+The journal-related call arguments of \smurph\ programs (sections
+\ref{rm_mb_ju_dm}, \ref{rm_un_ru}) are not available without this option.
+\end{quote}
+
+\begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -D}}\\ \hspace{0in}
 Deterministic version.
 With this option, the nondeterminism of scheduling events is switched off
@@ -18170,6 +18246,8 @@ These values will be used as the default clock tolerance parameters, i.e.,
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -D}}\\ \hspace{0in}
 This argument, which is only available in the real and visualization modes,
+and requires journaling to be compiled in
+(the {\tt -J} option of {\tt mks}---\sect{rm_un_cr})
 can be used to
 shift the real time of the program to a specified date/time.
 {\tt -D} should be followed by a space followed in turn
@@ -18200,7 +18278,8 @@ of a journal (\sect{rm_mb_ju_dj}).
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -J}}\\ \hspace{0in}
 This argument, which is only available in the real and visualization
-modes, must be followed
+modes, with journaling compiled in
+(the {\tt -J} option of {\tt mks}---\sect{rm_un_cr}), must be followed
 by the specification of a mailbox.
 It declares a mailbox to be journaled (\sect{rm_mb_ju_dm}).
 \end{quote}
@@ -18208,7 +18287,7 @@ It declares a mailbox to be journaled (\sect{rm_mb_ju_dm}).
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -I}}\\ \hspace{0in}
 This argument, which is only available in the real and visualization
-modes, must be followed
+modes with journaling, must be followed
 by the specification of a mailbox.
 It declares a mailbox to be driven from the input section of a journal
 file (\sect{rm_mb_ju_dj}).
@@ -18217,7 +18296,7 @@ file (\sect{rm_mb_ju_dj}).
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -O}}\\ \hspace{0in}
 This argument, which is only available in the real and visualization
-modes, must be followed
+modes with journaling, must be followed
 by the specification of a mailbox.
 It declares a mailbox to be driven from the output section of a journal
 file (\sect{rm_mb_ju_dj}).

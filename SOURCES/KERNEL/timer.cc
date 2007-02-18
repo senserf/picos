@@ -46,7 +46,7 @@ void    zz_timer::wait (TIME ev, int pstate) {
 
 		zz_c_other = NULL;    // No requests so far
 
-		// Create new simulation event
+		// Create a new simulation event
 		zz_c_wait_event = new ZZ_EVENT;
 		zz_c_wait_event -> station = TheStation;
 		zz_c_wait_event -> process = TheProcess;

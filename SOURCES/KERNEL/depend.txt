@@ -4,7 +4,7 @@
 ##
 ## SRC=, LIB= , PRC...CLI, CMP=
 
-CFLAGS= $(DET) $(REA) $(RSY) $(PRC) $(OPT) $(ASR) $(OBS) $(AER) $(DST) $(BTC) $(RTS) $(TOL) $(DBG) $(CLI) $(QSL) $(R3D) $(R48) $(TAG) $(FLK) $(NOC) $(NOL) $(NOR) $(NOS) $(NFP) -D__SIDE__=\"$(VER)\" -D__SMURPH__=\"$(VER)\"
+CFLAGS= $(DET) $(JOU) $(REA) $(RSY) $(PRC) $(OPT) $(ASR) $(OBS) $(AER) $(DST) $(BTC) $(RTS) $(TOL) $(DBG) $(CLI) $(QSL) $(R3D) $(R48) $(TAG) $(FLK) $(NOC) $(NOL) $(NOR) $(NOS) $(NFP) -D__SIDE__=\"$(VER)\" -D__SMURPH__=\"$(VER)\"
 
 $(TRG): $(USO) $(LIB)/ai.o $(LIB)/client.o $(LIB)/display.o $(LIB)/link.o $(LIB)/radio.o $(LIB)/mailbox.o $(LIB)/main.o $(LIB)/monitor.o $(LIB)/mparithm.o $(LIB)/numio.o $(LIB)/observer.o $(LIB)/process.o $(LIB)/rvar.o $(LIB)/sparithm.o $(LIB)/station.o $(LIB)/system.o $(LIB)/timer.o $(LIB)/var.o
 	echo "Linking"

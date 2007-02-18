@@ -54,10 +54,13 @@ extern	Long ZZ_ResyncMsec;
 
 #if  ZZ_REA || ZZ_RSY
 extern  int             zz_nfdesc; 
+extern  Long		zz_max_sleep_time;
+#if  ZZ_JOU
 extern  ZZ_Journal      *ZZ_Journals;
 extern  char		*ZZ_OffsetArg;
-extern  Long		zz_max_sleep_time;
 #endif
+#endif
+
 extern  int             TheObserverState;       // The observer state
 
 extern  ZZ_EVENT        *zz_CE;                 // Current event
@@ -296,6 +299,8 @@ extern  int     zz_processId;
 #define         IOCHECKINT              1000   // One seconds
 // For simulating select, if it doesn't exits: retry every SOCKCHKINT msec
 #define		SOCKCHKINT                10   // 0.01 sec
+
+#if ZZ_JOU
 // Journal magic
 #define         JOURNALMAGIC            "SIDEJRNL"
 // Connect header
@@ -317,8 +322,9 @@ extern  int     zz_processId;
 #define		JOURNAL                 32768
 // Scratch buffer size (allocated on the stack)
 #define		JBUFSIZE		4096
+#endif	/* JOU */
 
-#endif
+#endif	/* REA, RSY */
 
 #if	ZZ_NOC
 #if	ZZ_NOS

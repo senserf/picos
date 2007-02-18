@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -243,6 +243,8 @@ static void initrnd () {
 /* ================== */
 static struct timeval RealTime;
 
+#if  ZZ_JOU
+
 // This is the time offset for running the program at a different time from
 // a journal
 static time_t TimeOffset = 0;
@@ -338,6 +340,12 @@ SD_Fail:
   gettimeofday (&RT, NULL);
   TimeOffset = off - RT.tv_sec;
 };
+
+#else	/* not JOU */
+
+#define	TimeOffset	0
+
+#endif	/* JOU */
 
 static inline Long msecdiff (struct timeval &early, struct timeval &late) {
   // Returns the difference in milliseconds between late and early
@@ -790,7 +798,7 @@ int main (int argc, char *argv []) {
 
 	zz_init_system (argc, argv);    // Files + options
 
-#if  ZZ_REA || ZZ_RSY
+#if  JOU
         // Source journals must be opened first, so that we can use their
         // creation times in setTimeOffset. This in turn is needed to setup
         // the headers of tracing yournals.
@@ -798,12 +806,14 @@ int main (int argc, char *argv []) {
         setTimeOffset ();
         openTracingJournals ();
 #endif
+
 #if  ZZ_REA
 	mark_real_time ();
 	Ouf << "SIDE Version " << VERSION << "      ";
 #else
 	Ouf << "SMURPH Version " << VERSION << "      ";
 #endif
+
 	if (ProtocolId != NULL)
 		Ouf << ProtocolId << "    ";
 	Ouf << tDate () << '\n';

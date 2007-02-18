@@ -1,6 +1,7 @@
 #!/bin/sh
 ed=`echo $0 | sed -e 's,/[^/][^/]*$,,'`
 mkdir LIB SOURCES SOURCES/KERNEL
+touch LIB/liblock
 mkdir SOURCES/MONITOR SOURCES/DSD SOURCES/SMPP SOURCES/LIB
 ln -s $ed/README* .
 cp $ed/SOURCES/version.h SOURCES

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -23,10 +23,6 @@
 #endif
 
 #define	getwd(a) getcwd (a, PATH_MAX)
-
-#if	ZZ_CYW
-#define	flock(a,b)	0
-#endif
 
 /* ---------------------------------------------------- */
 /* The three constants below should be defined by maker */
@@ -72,8 +68,9 @@
 	//      -o fname     -- send binaries to 'fname' (default 'side')
 	//      -t           -- 'touch' the protocol source files
         //
-	//	-W           -- viewable simulation option
+	//	-W           -- vizualization mode
         //      -R           -- the real-time version of the simulator
+	//	-J	     -- journaling compiled in
         //      -D           -- deterministic scheduler
         //      -L           -- no links
 	//	-X           -- no radio
@@ -117,7 +114,8 @@
 #define	LIBX_CLI	(LIBX_DBG+1)
 #define	LIBX_REA	(LIBX_CLI+1)
 #define	LIBX_RSY	(LIBX_REA+1)
-#define	LIBX_DET	(LIBX_RSY+1)
+#define	LIBX_JOU	(LIBX_RSY+1)
+#define	LIBX_DET	(LIBX_JOU+1)
 #define	LIBX_NOC	(LIBX_DET+1)
 #define	LIBX_NOL	(LIBX_NOC+1)
 #define	LIBX_NOR	(LIBX_NOL+1)
@@ -131,8 +129,8 @@ IPointer	MemoryUsed;
 
 char    PRC [24], OPT [16], ASR [16], OBS [16], AER [16], DST [16], BTC [16],
 	RTS [16], TOL [16], TAG [16], QSL [16], R3D [16], R48 [16], DBG [16],
-	CLI [16], REA [16], RSY [16], DET [16], NOC [16], NOL [16], NOR [16],
-	NOS [16], NFP [16], FLK [16];
+	CLI [16], REA [16], RSY [16], JOU [16], DET [16], NOC [16], NOL [16],
+	NOR [16], NOS [16], NFP [16], FLK [16];
 
 char    *options [32],
 	*ofname, libindex [LNAMESIZE], libfname [LNAMELENG], **cfiles, *pname;
@@ -739,6 +737,7 @@ void    makeSmurph () {
 	*out << "CLI= " << CLI << '\n';
         *out << "REA= " << REA << '\n';
         *out << "RSY= " << RSY << '\n';
+        *out << "JOU= " << JOU << '\n';
         *out << "DET= " << DET << '\n';
 	*out << "PRC= " << PRC << '\n';
 
@@ -844,12 +843,16 @@ void    makeSmurph () {
 main    (int argc, char *argv[]) {
 
 	int     i, semfd, verfd;
+	char	*str;
 
 	// Initialize things for argument processing
 
 	ofname = NULL;
 
-	pname = *argv;
+	for (pname = *argv + strlen (*argv); pname != *argv; pname--)
+		if (*(pname - 1) == '/') 
+			break;
+
 	argc--; argv++;
 
 	strcpy (OPT, "-DZZ_OPT=0");             options [LIBX_OPT] = OPT;
@@ -868,16 +871,30 @@ main    (int argc, char *argv[]) {
 	strcpy (DBG, "-DZZ_DBG=0");             options [LIBX_DBG] = DBG;
 	strcpy (CLI, "-DZZ_CLI=1");             options [LIBX_CLI] = CLI;
         strcpy (REA, "-DZZ_REA=0");		options [LIBX_REA] = REA;
-        strcpy (RSY, "-DZZ_RSY=0");		options [LIBX_RSY] = RSY;
+        strcpy (JOU, "-DZZ_JOU=0");		options [LIBX_JOU] = JOU;
         strcpy (DET, "-DZZ_DET=0");		options [LIBX_DET] = DET;
         strcpy (NOC, "-DZZ_NOC=1");		options [LIBX_NOC] = NOC;
-        strcpy (NOL, "-DZZ_NOL=1");		options [LIBX_NOL] = NOL;
         strcpy (NOR, "-DZZ_NOR=1");		options [LIBX_NOR] = NOR;
         strcpy (NOS, "-DZZ_NOS=1");		options [LIBX_NOS] = NOS;
         strcpy (NFP, "-DZZ_NFP=0");		options [LIBX_NFP] = NFP;
 	// LONG is always at least 64 bits
 	strcpy (PRC, "-DBIG_precision=1");      options [LIBX_PRC] = PRC;
-						options [NOPT] = NULL;
+
+	if (strcmp (pname, "vuee") == 0 ||
+	    strcmp (pname, "vue2") == 0  ) {
+		// VUEE options selection
+        	strcpy (RSY, "-DZZ_RSY=1");
+        	strcpy (NOL, "-DZZ_NOL=0");
+	} else {
+        	strcpy (RSY, "-DZZ_RSY=0");
+        	strcpy (NOL, "-DZZ_NOL=1");
+	}
+
+        options [LIBX_RSY] = RSY;
+        options [LIBX_NOL] = NOL;
+
+	options [NOPT] = NULL;
+
 	strcpy (libindex, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
 	cfiles = new char* [cfsize];
@@ -1017,6 +1034,14 @@ main    (int argc, char *argv[]) {
                         libindex [LIBX_REA] = 'y';
                         break;
 
+
+                  case 'J' :
+
+                        if (libindex [LIBX_JOU] != 'x') badArgs ();
+                        JOU [9] = '1';
+                        libindex [LIBX_JOU] = 'y';
+                        break;
+
                   case 'D' :
 
                         if (libindex [LIBX_DET] != 'x') badArgs ();
@@ -1128,6 +1153,11 @@ main    (int argc, char *argv[]) {
 		argc--;
 	}
 
+	// Adjustments ...
+	if (REA [9] != '1' && RSY [9] != '1')
+		// Make sure that journaling is only present when it makes sense
+		JOU [9] = '0';
+
 	if (ofname == NULL) {
 		ofname = new char [16];
 		strcpy (ofname, "side");
@@ -1161,17 +1191,17 @@ main    (int argc, char *argv[]) {
 	if (chdir (ZZ_LIBPATH) < 0)
 		excptn (form ("cannot access '%s'", ZZ_LIBPATH));
 
-	// Now open the version file to be used as a semaphore
-	if ((semfd = open (form ("%s/version.h", ZZ_SOURCES), O_WRONLY, 0)) < 0)
-		excptn ("cannot open version.h");
+	str = form ("%s/liblock", ZZ_LIBPATH);
+
+	// Now open the global lock file to be used as a semaphore
+	if ((semfd = open (str, O_RDONLY, 0)) < 0) {
+		if ((semfd = open (str, O_WRONLY+O_CREAT, 0660)) < 0)
+			excptn ("cannot open liblock file");
+	}
 
 	// Hard lock: make sure nothing changes in the library for a while
+	flock (semfd, LOCK_EX);
 
-#ifdef	ZZ_CYW
-	cout << "Warning: no file locks under CYGWIN -- do not invoke\n";
-	cout << "         multiple instances of mks at the same time!\n";
-	cout . flush ();
-#endif
 	// Check if the library exists
 	if ((verfd = findLVer ()) < 0)
 		excptn ("cannot open library version subdirectory");
@@ -1179,9 +1209,14 @@ main    (int argc, char *argv[]) {
 	// Lock the library to make sure that another copy of mks doesn't
 	// attempt to modify/remove it
 
-	if (flock (verfd, LOCK_EX) < 0)
-		cerr << pname << ": warning -- cannot lock '" << ZZ_LIBPATH <<
-			'/' << libfname << "'\n";
+	if (flock (verfd, LOCK_EX | LOCK_NB) < 0) {
+		cout <<
+	        "Waiting for a lock, conflicting compilation in progress ...\n";
+		if (flock (verfd, LOCK_EX) < 0)
+			cerr << pname << ": warning -- cannot lock '"
+				<< ZZ_LIBPATH << '/' << libfname << "'\n";
+		cout << "Lock acquired, proceeding ...\n";
+	}
 
 	flock (semfd, LOCK_UN);         // Others can proceed (as long as they
 	close (semfd);                  // don't try to remove our version)
