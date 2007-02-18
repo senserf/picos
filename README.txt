@@ -141,6 +141,11 @@ R070119A:
 
 R070203A:
 
-    EEPROM (FLASH) model brought up to data with recent changes in PicOS.
+    EEPROM (FLASH) model brought up to date with recent changes in PicOS.
     EETest revritten according to the compatibility rules and moved to
     PICOS/Apps/VUEE.
+
+R070217A:
+
+    Udaemon polished up a bit, document added to VUEE/Doc, tested on Cygwin,
+    32-bit and 64-bit Linux.

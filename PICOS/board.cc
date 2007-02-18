@@ -1372,26 +1372,32 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 
 	UA = new data_ua_t;
 
+	np [0].type = np [1].type = TYPE_LONG;
+
 	/* The rate */
-	if ((att = sxml_attr (data, "rate")) == NULL)
-		xemi ("'rate'", es);
-
-	np [0].type = TYPE_LONG;
-	if (parseNumbers (att, 1, np) != 1 || np [0].LVal <= 0)
-		xeai ("'rate'", es, att);
-
-	UA->URate = (word) (np [0].LVal);
+	UA->URate = 0;
+	if ((att = sxml_attr (data, "rate")) != NULL) {
+		if (parseNumbers (att, 1, np) != 1 || np [0].LVal <= 0)
+			xeai ("'rate'", es, att);
+		UA->URate = (word) (np [0].LVal);
+	}
 
 	/* Buffer size */
-	if ((att = sxml_attr (data, "bsize")) == NULL)
-		xemi ("'bsize'", es);
+	UA->UIBSize = UA->UOBSize = 0;
 
-	if (parseNumbers (att, 1, np) != 1 || np [0].LVal <= 0)
-		xeai ("'bsize'", es, att);
-
-	UA->UBSize = (word) (np [0].LVal);
-	print (form ("  UART [rate = %1d bps, bsize = %1d bytes]:\n", UA->URate,
-		UA->UBSize));
+	if ((att = sxml_attr (data, "bsize")) != NULL) {
+		len = parseNumbers (att, 2, np);
+		if ((len != 1 && len != 2) || np [0].LVal < 0)
+			xeai ("'bsize'", es, att);
+		UA->UIBSize = (word) (np [0].LVal);
+		if (len == 2) {
+			if (np [1].LVal < 0)
+				xeai ("'bsize'", es, att);
+			UA->UOBSize = (word) (np [1].LVal);
+		}
+	}
+	print (form ("  UART [rate = %1d bps, bsize i = %1d, o = %d bytes]:\n",
+		UA->URate, UA->UIBSize, UA->UOBSize));
 
 	UA->UMode = 0;
 	UA->UIDev = UA->UODev = NULL;
@@ -1534,6 +1540,9 @@ NoUOutput:
 	// Check if the UART is there after all this parsing
 	UA->absent = ((UA->UMode & (XTRN_OMODE_MASK | XTRN_IMODE_MASK)) == 0);
 
+	if (!UA->absent && UA->URate == 0)
+		xemi ("'rate'", es);
+
 	return UA;
 }
 
@@ -1573,8 +1582,10 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 
 	/* Total number of pins */
 	if ((att = sxml_attr (data, "total")) == NULL &&
-	    (att = sxml_attr (data, "number")) == NULL)
-		xemi ("'total'", es);
+	    (att = sxml_attr (data, "number")) == NULL) {
+		PN->absent = YES;
+		return PN;
+	}
 
 	np [0].type = np [1].type = TYPE_LONG;
 	
@@ -1609,8 +1620,6 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 
 	/* DAC */
 	if ((att = sxml_attr (data, "dac")) != NULL) {
-		// This condition looks nasty. Shouldn't we be using some
-		// table to store the pins booked so far?
 		len = parseNumbers (att, 2, np);
 		if (len < 1 || len > 2)
 	        	xeai ("'dac'", es, att);
@@ -1853,22 +1862,23 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 
 	LE = new data_le_t;
 	LE->LODev = NULL;
-	LE->absent = NO;
 
-	if ((att = sxml_attr (data, "number")) == NULL)
-		xemi ("'total'", es);
-
-	np [0].type = TYPE_LONG;
-	
-	if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
-	    np [0].LVal > 64)
-		xeai ("'total'", es, att);
-
-	if (np [0].LVal == 0) {
-		// Explicit NO
-		print ("  LEDS: none\n");
+	if ((att = sxml_attr (data, "number")) == NULL &&
+	    (att = sxml_attr (data, "total")) == NULL    ) {
 		LE->absent = YES;
 		return LE;
+	} else {
+		LE->absent = NO;
+		np [0].type = TYPE_LONG;
+		if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
+		    np [0].LVal > 64)
+			xeai ("'number'", es, att);
+		if (np [0].LVal == 0) {
+			// Explicit NO
+			print ("  LEDS: none\n");
+			LE->absent = YES;
+			return LE;
+		}
 	}
 
 	LE->NLeds = (word) (np [0].LVal);
@@ -2154,6 +2164,14 @@ void BoardRoot::initAll () {
 	if (NN <= 0)
 		excptn ("Root: 'nodes' in <network> must be strictly positive, "
 			"is %1d", NN);
+
+	// Check for the non-standard port
+	if ((att = sxml_attr (xml, "port")) != NULL) {
+		if (parseNumbers (att, 1, np) != 1 || np [0] . LVal < 1 ||
+		    np [0] . LVal > 0x0000ffff)
+			xeai ("'port'", "<network>", att);
+		ZZ_Agent_Port = (word) (np [0] . LVal);
+	}
 
 	initTiming (xml);
 	initChannel (xml, NN);

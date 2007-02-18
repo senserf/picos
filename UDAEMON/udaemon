@@ -3,13 +3,20 @@
 set Unique		0
 set MaxLineCount	1024
 set HostName		"localhost"
-set PortNumber		4443
 set AGENT_MAGIC		0xBAB4
 set ECONN_OK		129
+set PortNumber		4443
+
+if { [lindex $argv 0] != "" } {
+	if { [catch { set PortNumber [expr [lindex $argv 0] ] }] ||
+	    $PortNumber < 1 || $PortNumber > 65535 } {
+		puts "Error: illegal port number '[lindex $argv 0]'"
+	}
+}
 
 array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 
-set NTYPE_COLORS	{ yellow blue orange red yellow }
+set NTYPE_COLORS	{ yellow blue orange red green }
 
 #
 # Pin status ordinals:
@@ -53,6 +60,54 @@ array set HPA		{ 1 "(\[0-9a-f\])"
 #
 array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 ND 10 TO 10 RX 10 RY 10
 			  MW 200 MH 200 DW 400 DH 400 }
+
+#
+# Stuff for the "LCD" clock
+#
+
+array set LCDSHAPE {
+    a {3.0 5 5.2 3 7.0 5 6.0 15 3.8 17 2.0 15}
+    b {6.3 2 8.5 0 18.5 0 20.3 2 18.1 4 8.1 4}
+    c {19.0 5 21.2 3 23.0 5 22.0 15 19.8 17 18.0 15}
+    d {17.4 21 19.6 19 21.4 21 20.4 31 18.2 33 16.4 31}
+    e {3.1 34 5.3 32 15.3 32 17.1 34 14.9 36 4.9 36}
+    f {1.4 21 3.6 19 5.4 21 4.4 31 2.2 33 0.4 31}
+    g {4.7 18 6.9 16 16.9 16 18.7 18 16.5 20 6.5 20}
+    h {3.5 7.5 6.5 7.5 6.5 11.5 3.5 11.5}
+    i {2.0 23.5 5 23.5 5.0 27.5 2.0 27.5}
+}
+
+array set LCDONITEMS {
+    0 {a b c d e f}
+    1 {c d}
+    2 {b c e f g}
+    3 {b c d e g}
+    4 {a c d g}
+    5 {a b d e g}
+    6 {a b d e f g}
+    7 {b c d}
+    8 {a b c d e f g}
+    9 {a b c d e g}
+    - {g}
+    { } {}
+}
+
+array set LCDOFFITEMS {
+    0 {g}
+    1 {a b e f g}
+    2 {a d}
+    3 {a f}
+    4 {b e f}
+    5 {c f}
+    6 {c}
+    7 {a e f g}
+    8 {}
+    9 {f}
+    - {a b c d e f}
+    { } {a b c d e f g}
+}
+
+array set LCDCOLORS 	{ ONE #ff8080 ONI #ff0000 OFE #000000 OFI #0F0F0F }
 
 proc dbg { mess } {
 
@@ -629,6 +684,7 @@ proc clockIni { Sok } {
 
 	set CTime(sec) 0
 	set CTime(tim) ""
+	set CTime(buf) ""
 
 	mkClock $Sok
 
@@ -642,7 +698,9 @@ proc clockRead { Sok } {
 
 	global CTime
 
-	if [catch { read $Sok 4 } chunk] {
+	set rd [expr 4 - [string length $CTime(buf)]]
+
+	if [catch { read $Sok $rd } chunk] {
 		# assume disconnection
 		log "CLOCK connection terminated: $chunk"
 		dealloc $Sok
@@ -656,8 +714,15 @@ proc clockRead { Sok } {
 		return
 	}
 
-	set CTime(sec) [dbinI chunk]
+	append CTime(buf) $chunk
+	if { [string length $chunk] != $rd } {
+		return
+	}
+
+	set CTime(sec) [dbinI CTime(buf)]
  	set CTime(tim) [sectos $CTime(sec)]
+
+	showClock $Sok
 }
 
 proc sectos { sec } {
@@ -665,7 +730,68 @@ proc sectos { sec } {
 	set hr [expr ($sec / 3600) % 24]
 	set mn [expr ($sec / 60) % 60]
 	set se [expr ($sec % 60)]
-	return [format %02d:%02d:%02d $hr $mn $se]
+
+	if [expr $se & 0x01] {
+		return [format "%02d:%02d:%02d" $hr $mn $se]
+	} else {
+		return [format "%02d %02d %02d" $hr $mn $se]
+	}
+}
+
+proc showClock { Sok } {
+
+	global CTime LCDSHAPE LCDONITEMS LCDOFFITEMS LCDCOLORS
+
+	set w [stwin $Sok]
+
+	$w.c delete lcd
+	set offset 8
+
+	foreach char [split $CTime(tim) ""] {
+
+		if { $char == ":" || $char == " " } {
+			if { $char == ":" } {
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(h) -tags lcd \
+						-outline $LCDCOLORS(ONE) \
+						-fill $LCDCOLORS(ONI) ] \
+							$offset 4
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(i) -tags lcd \
+						-outline $LCDCOLORS(ONE) \
+						-fill $LCDCOLORS(ONI) ] \
+							$offset 4
+			} else {
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(h) -tags lcd \
+						-outline $LCDCOLORS(OFE) \
+						-fill $LCDCOLORS(OFI) ] \
+							$offset 4
+				$w.c move [eval $w.c create polygon \
+					$LCDSHAPE(i) -tags lcd \
+						-outline $LCDCOLORS(OFE) \
+						-fill $LCDCOLORS(OFI) ] \
+							$offset 4
+			}
+        		incr offset 8
+			continue
+		}
+
+	        foreach sym $LCDONITEMS($char) {
+            		$w.c move [eval $w.c create polygon $LCDSHAPE($sym) \
+				-tags lcd \
+                    		-outline $LCDCOLORS(ONE) \
+				-fill $LCDCOLORS(ONI)] $offset 4
+        	}
+	        foreach sym $LCDOFFITEMS($char) {
+            		$w.c move [eval $w.c create polygon $LCDSHAPE($sym) \
+				-tags lcd \
+                    		-outline $LCDCOLORS(OFE) \
+				-fill $LCDCOLORS(OFI)] $offset 4
+        	}
+
+		incr offset 24
+	}
 }
 
 proc mkClock { Sok } {
@@ -679,9 +805,8 @@ proc mkClock { Sok } {
 
 	wm title $w "CLOCK"
 
-	label $w.clock -textvariable CTime(tim) -font {Courier 24}
-	label $w.sec -textvariable CTime(sec) -font {Courier 24}
-	pack $w.clock $w.sec -side top -expand 0
+	canvas $w.c -width 170 -height 45 -bg black
+	pack $w.c -expand y
 	bind $w <Destroy> "destroyWindow $Sok"
 }
 
@@ -2175,8 +2300,8 @@ proc conerror { code } {
 	7 { return "module has a non-socket interface" }
 	8 { return "no leds module at this station" }
 	9 { return "unexpected disconnection" }
-       10 { return "request line too long" }
-       11 { return "invalid request" }
+       11 { return "request line too long" }
+       12 { return "invalid request" }
     }
 
     return "error code $code (unnown)"
@@ -2375,7 +2500,7 @@ button .top.connect -text "Connect" -command doConnect
 tk_optionMenu .top.select Option \
 		"UART (ascii)" "UART (hex)" "PINS" "LEDS" "MOVER" "CLOCK"
 
-label .top.l -text "Station Id:"
+label .top.l -text "Node Id:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \
 	-validate key -vcmd {validSid %P} -invcmd bell
 

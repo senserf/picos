@@ -36,7 +36,7 @@
 #define	seconds()	(  ((PicOSNode*)TheStation)->_na_seconds ()  )
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )
 #define	delay(a,b)	(  ((PicOSNode*)TheStation)->_na_delay (a,b)  )
-#define	when(a,b)	(  ((PicOSNode*)TheStation)->_na_when (a,b)  )
+#define	when(a,b)	(  ((PicOSNode*)TheStation)->_na_when (__cpint (a),b)  )
 #define io(a,b,c,d,e)	(  ((PicOSNode*)TheStation)->_na_io (a,b,c,d,e)  )
 #define encrypt(a,b,c)	(  ((PicOSNode*)TheStation)->_na_encrypt (a,b,c)  )
 #define decrypt(a,b,c)	(  ((PicOSNode*)TheStation)->_na_decrypt (a,b,c)  )

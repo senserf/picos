@@ -9,6 +9,8 @@
 
 //#undef	rnd
 
+word	ZZ_Agent_Port	= AGENT_SOCKET;
+
 process	Teleporter;
 
 struct	movepool_s {
@@ -27,7 +29,7 @@ static movepool_t *find_mip (Long sid) {
 
 	movepool_t *p;
 
-	for (p = MIP; p != NULL; p = p->next)
+	for_pool (p, MIP)
 		if (p->NNumber == sid)
 			return p;
 	return NULL;
@@ -304,18 +306,22 @@ UART::UART (data_ua_t *UAD) {
  */
 	char *sp, *fn;
 	int st, imode, omode;
-	Boolean R, W;
 
-	R = W = NO;
 	I = O = NULL;
 	Flags = UAD->UMode;
 	PI = NULL;
 	PO = NULL;
-	B_len = UAD->UBSize;
-	IBuf = OBuf = NULL;
+	// Account for the UART register on the micro, which always provides
+	// a single byte of buffer space, one byte extra for the circular
+	// organization of the buffer
+	B_ilen = UAD->UIBSize + 2;
+	B_olen = UAD->UOBSize + 2;
 	String = NULL;
 	TI_aux = NULL;
 	TimedChunkTime = TIME_0;
+
+	IBuf = new byte [B_ilen];
+	OBuf = new byte [B_olen];
 
 	imode = (Flags & XTRN_IMODE_MASK);
 	omode = (Flags & XTRN_OMODE_MASK);
@@ -333,13 +339,11 @@ UART::UART (data_ua_t *UAD) {
 			        Flags);
 		// Don't create the device now; it will be created upon
 		// connection. That's it for now.
-		R = W = YES;
 	} else if (imode == XTRN_IMODE_DEVICE) {
 		// Need a mailbox for the input end
 		Assert (UAD->UIDev != NULL,
 			"UART at %s: input device cannot be NULL",
 				TheStation->getSName ());
-		R = YES;
 		I = create Dev;
 		// Check if the output end uses the same device
 		if (omode == XTRN_OMODE_DEVICE &&
@@ -348,7 +352,6 @@ UART::UART (data_ua_t *UAD) {
 			st = I->connect (DEVICE+READ+WRITE, UAD->UIDev, 0,
 					XTRN_MBX_BUFLEN);
 			O = I;
-			W = YES;
 		} else {
 			st = I->connect (DEVICE+READ, UAD->UIDev, 0,
 				XTRN_MBX_BUFLEN);
@@ -371,7 +374,6 @@ UART::UART (data_ua_t *UAD) {
 		// No need to copy the string; it has been allocated as
 		// shared by readNodeParams
 		String = UAD->UIDev;
-		R = YES;
 	}
 
 	// We are done with the input end
@@ -379,33 +381,22 @@ UART::UART (data_ua_t *UAD) {
 		// This can only mean a separate DEVICE 
 		Assert (UAD->UODev != NULL, "UART at %s: no output device name",
 			TheStation->getSName ());
-		W = YES;
 		O = create Dev;
 		if (O->connect (DEVICE+WRITE, UAD->UODev, 0, XTRN_MBX_BUFLEN))
 			excptn ("UART at %s: cannot open device %s",
 			    	TheStation->getSName (), UAD->UODev);
 	}
 
-	if (R)
-		IBuf = new byte [B_len];
-
-	if (W)
-		OBuf = new byte [B_len];
-
 	rst ();
 }
 
 void UART::rst () {
 
-	if (IBuf != NULL) {
-		IB_in = IB_out = 0;
-		PI = create UART_in (this);
-	}
+	IB_in = IB_out = 0;
+	PI = create UART_in (this);
 
-	if (OBuf != NULL) {
-		OB_in = OB_out = 0;
-		PO = create UART_out (this);
-	}
+	OB_in = OB_out = 0;
+	PO = create UART_out (this);
 }
 
 void UART_in::setup (UART *u) {
@@ -445,11 +436,10 @@ char UART::getOneByte (int st) {
 	}
 	// Read from the mailbox
 	if (I == NULL) {
-		// This can only mean that we are reading from a socket that
-		// isn't there yet. Hold on.
-		Assert ((Flags & XTRN_IMODE_MASK) == XTRN_IMODE_SOCKET,
-			"UART at %s: mailbox pointer is NULL",
-				TheStation->getSName ());
+		// This means that we are reading from a socket that
+		// isn't there yet, or from a non-existent interface. In
+		// both cases, wait for the event (in the second case, it
+		// will never arrive).
 		Monitor->wait (&I, st);
 		sleep;
 	}
@@ -633,7 +623,8 @@ ReDo:
 		// Here comes the tricky bit. This means that we are
 		// writing to a socket and there is no connection yet.
 		if ((Flags & XTRN_OMODE_HOLD) == 0)
-			// Just drop the stuff
+			// Just drop the stuff; this also applies for a
+			// non-socked (absent) interface
 			return;
 
 		// Should collect the bytes to present them once we get
@@ -803,11 +794,8 @@ UART::~UART () {
 	if (PO != NULL)
 		PO->terminate ();
 
-	if (IBuf != NULL)
-		delete IBuf;
-
-	if (OBuf != NULL)
-		delete OBuf;
+	delete IBuf;
+	delete OBuf;
 
 	// if (String != NULL)
 		// delete String;
@@ -1075,7 +1063,6 @@ PINS::PINS (data_pn_t *PID) {
 	assert (PIN_MAX_ANALOG <= PIN_MAX,
 		"PINS: number of ADC-capable pins (%1d) at %s is > total",
 			PIN_MAX_ANALOG, TheStation->getSName ());
-
 
 	// We assume that those arrays won't disappear on us; these are the
 	// defaults, which we need for reset. They also describe the static
@@ -2527,15 +2514,11 @@ Immediate:
 			proceed Loop;
 		}
 
-		if (NP [3].DVal < 0.0001 || NP [4].DVal < 0.0001) {
-			// Illegal move parameters
-			if (Device)
-				excptn ("MoveHandler: illegal speed or grain, "
-					"%f, %f, must be >= 0.0001",
-						NP [3].DVal, NP[4].DVal);
-			create Disconnector (Agent, ECONN_INVALID);
-			terminate;
-		}
+		if (NP [3].DVal < 0.0001)
+			NP [3].DVal = 0.0001;
+
+		if (NP [4].DVal < 0.0001)
+			NP [4].DVal = 0.0001;
 
 		ThePicOSNode->_da (RFInterface)->getLocation (xx, yy);
 
@@ -2756,7 +2739,7 @@ Term:
 void AgentInterface::setup () {
 
 	M = create Dev;
-	if (M->connect (INTERNET + SERVER + MASTER, AGENT_SOCKET) != OK)
+	if (M->connect (INTERNET + SERVER + MASTER, ZZ_Agent_Port) != OK)
 		excptn ("AgentInterface: cannot set up master socket");
 }
 

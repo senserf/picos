@@ -149,7 +149,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	BNONE		0xff
 #define	BLOCKED		(-2)
 
-#define	trigger(a)	(((PicOSNode*)TheStation)->TB.signal ((IPointer)(a)))
+#define	trigger(a)	(((PicOSNode*)TheStation)->TB.signal (__cpint(a)))
 
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
 	    ((a) - 'a' + 10) : (((a)>='A'&&(a)<='F') ? ((a) - 'A' + 10) : 0) ) )
@@ -200,6 +200,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	INFO_PHYS_RF24L01	0x0800
 
 /* ======================================================================== */
+
+#define	intofp(a)			__cpint (a)
 
 #define	_da(a)				_na_ ## a
 #define	_dac(a,b)			(((a *)TheStation)-> _na_ ## b)

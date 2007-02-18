@@ -130,7 +130,7 @@ station PicOSNode {
 
 	void _da (diag) (const char*, ...);
 	void reset ();
-	int _da (getpid) () { return (int) TheProcess; };
+	int _da (getpid) () { return __cpint (TheProcess); };
 	lword _da (seconds) ();
 	address	memAlloc (int, word);
 	void memFree (address);

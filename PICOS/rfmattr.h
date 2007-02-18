@@ -12,6 +12,6 @@
 #define	tx_event		_dac (PicOSNode, tx_event)
 #define	statid			_dac (PicOSNode, statid)
 #define	gbackoff()		(  ((PicOSNode*)TheStation)->_na_gbackoff ()  )
-#define	rx_event		((int)RFInterface)
+#define	rx_event		RFInterface
 
 #endif

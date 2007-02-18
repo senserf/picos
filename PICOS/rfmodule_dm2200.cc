@@ -159,7 +159,7 @@ ADC::perform {
 
     state ADC_RESUME:
 
-	assert ((int)TheSignal == YES, "ADC: illegal ON signal");
+	assert (intofp (TheSignal) == YES, "ADC: illegal ON signal");
 	
 	ATime = 0.0;
 	Average = 0.0;
@@ -187,7 +187,7 @@ ADC::perform {
 
     state ADC_STOP:
 
-	Assert ((int)TheSignal == NO, "ADC: illegal OFF signal");
+	Assert (intofp (TheSignal) == NO, "ADC: illegal OFF signal");
 	// Done: wait for another request
 	proceed ADC_WAIT;
 }

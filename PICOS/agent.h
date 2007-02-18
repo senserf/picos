@@ -74,8 +74,8 @@
 #define	ECONN_ITYPE		7		/* Non-socket interface */
 #define	ECONN_NOLEDS		8
 #define	ECONN_DISCONN		9		/* This is in fact a dummy */
-#define	ECONN_LONG		10
-#define	ECONN_INVALID		11		/* Invalid request */
+#define	ECONN_LONG		11
+#define	ECONN_INVALID		12		/* Invalid request */
 #define	ECONN_OK		129		/* Positive ack */
 
 #define	ThePicOSNode	((PicOSNode*)TheStation)
@@ -179,17 +179,17 @@ class	UART {
 
 	Dev	*I, *O;		// Input and output mailboxes
 	FLAGS	Flags;
-	int	B_len;
+	word	B_ilen, B_olen;
 	TIME	ByteTime;
 
 	char 	*String;
 	int	SLen;
 
 	byte	*IBuf;
-	int	IB_in, IB_out;
+	word	IB_in, IB_out;
 
 	byte	*OBuf;
-	int	OB_in, OB_out;
+	word	OB_in, OB_out;
 
 	char	*TI_aux;
 	int	TCS, TI_ptr;
@@ -201,12 +201,12 @@ class	UART {
 	public:
 
 	inline Boolean ibuf_full () {
-		return ((IB_in + 1) % B_len) == IB_out;
+		return ((IB_in + 1) % B_ilen) == IB_out;
 	};
 
 	inline void ibuf_put (int b) {
 		IBuf [IB_in++] = (byte) b;
-		if (IB_in == B_len)
+		if (IB_in == B_ilen)
 			IB_in = 0;
 	};
 
@@ -215,7 +215,7 @@ class	UART {
 		if (IB_in == IB_out)
 			return -1;
 		k = IBuf [IB_out++];
-		if (IB_out == B_len)
+		if (IB_out == B_ilen)
 			IB_out = 0;
 		return k;
 	};
@@ -229,15 +229,15 @@ class	UART {
 	};
 
 	inline void obuf_get () {
-		if (++OB_out == B_len)
+		if (++OB_out == B_olen)
 			OB_out = 0;
 	};
 
 	inline int obuf_put (byte b) {
-		if (((OB_in + 1) % B_len) == OB_out)
+		if (((OB_in + 1) % B_olen) == OB_out)
 			return -1;
 		OBuf [OB_in++] = b;
-		if (OB_in == B_len)
+		if (OB_in == B_olen)
 			OB_in = 0;
 		return 0;
 	};
@@ -545,5 +545,7 @@ process	AgentInterface {
 	void setup ();
 	perform;
 };
+
+extern word ZZ_Agent_Port;
 
 #endif
