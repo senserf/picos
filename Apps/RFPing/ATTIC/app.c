@@ -136,7 +136,7 @@ thread (receiver)
 		rkillflag = 0;
 		finish;
 	}
-	wait ((word) &rkillflag, RC_TRY);
+	wait (&rkillflag, RC_TRY);
 	packet = tcv_rnp (RC_TRY, sfd);
 #if ENCRYPT
 	decrypt (packet + 1, (tcv_left (packet) >> 1) - 2, secret);
@@ -195,7 +195,7 @@ thread (receiver)
 #endif
 
 	tcv_endp (packet);
-	trigger ((word)&last_ack);
+	trigger (&last_ack);
 	lcd_update ();
 	proceed (RC_TRY);
 
@@ -218,7 +218,7 @@ int rcv_stop (void) {
 	if (running (receiver)) {
 		tcv_control (sfd, PHYSOPT_RXOFF, NULL);
 		rkillflag = 1;
-		trigger ((word) &rkillflag);
+		trigger (&rkillflag);
 		RCVon = 0;
 		return 1;
 	}
@@ -253,11 +253,11 @@ thread (sender)
 		tkillflag = 0;
 		finish;
 	}
-	wait ((word) &tkillflag, SN_SEND);
+	wait (&tkillflag, SN_SEND);
 
 	if (last_ack != last_snt) {
 		delay (tdelay, SN_NEXT);
-		wait ((word) &last_ack, SN_SEND);
+		wait (&last_ack, SN_SEND);
 		release;
 	}
 
@@ -277,7 +277,7 @@ thread (sender)
 		tkillflag = 0;
 		finish;
 	}
-	wait ((word) &tkillflag, SN_SEND);
+	wait (&tkillflag, SN_SEND);
 
 	packet = tcv_wnp (SN_NEXT, sfd, packet_length + 2);
 
@@ -327,7 +327,7 @@ int snd_stop (void) {
 	if (running (sender)) {
 		tkillflag = 1;
 		tcv_control (sfd, PHYSOPT_TXOFF, NULL);
-		trigger ((word) &tkillflag);
+		trigger (&tkillflag);
 		XMTon = 0;
 		return 1;
 	}

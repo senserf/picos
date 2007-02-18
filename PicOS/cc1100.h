@@ -41,7 +41,13 @@
 #define	BACKOFF_AFTER_RECEIVE	1
 
 #define	GUARD_PROCESS		1	/* Guard process present */
+
+#ifdef	NO_LONG_DELAYS
+#define	GUARD_LONG_DELAY	60000	/* Must be less than a minute */
+#else
 #define	GUARD_LONG_DELAY	2	/* Minutes */
+#endif
+
 #define	GUARD_SHORT_DELAY	5000	/* 5 seconds */
 #define	TRACE_DRIVER		0	/* Debugging diags */
 #define	XMIT_SPACE		40	/* Inter packet space for xmit */

@@ -1,65 +1,20 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "sysio.h"
-#include "storage.h"
+#define	IBUFLEN		132
 
-heapmem {10, 90};
+#include "globals.h"
+#include "threadhdrs.h"
 
-#include "ser.h"
-#include "serf.h"
-#include "form.h"
+thread (root)
 
-#define	RS_INIT		0
-#define	RS_RCMD		10
-#define	RS_SWO		20
-#define	RS_SLW		30
-#define	RS_SST		40
-#define	RS_RWO		50
-#define	RS_RLW		60
-#define	RS_RST		70
-#define	RS_WRI		80
-#define	RS_REA		90
-#define	RS_ERA		95
-#define	RS_SYN		97
-#define	RS_LED		100
-#define	RS_BLI		110
-#define	RS_DIA		120
-#define	RS_DUM		130
-#define	RS_FLR		140
-#define	RS_FLW		150
-#define	RS_FLE		160
-#define	RS_SYS		170
-#define	RS_MAL		180
+    entry (RS_INIT)
 
-#define	RS_ETS		190
-#define	RS_ETS_E	191
-#define	RS_ETS_F	192
-#define	RS_ETS_G	193
-#define	RS_ETS_H	194
-#define	RS_ETS_I	195
-#define	RS_ETS_J	196
-#define	RS_ETS_K	197
-#define	RS_ETS_L	198
-#define	RS_ETS_M	199
-#define	RS_ETS_N	200
-#define	RS_ETS_O	201
+    entry (RS_RCMD_M)
 
-word	w, err, len, bs, nt, sl, ss, dcnt;
-int	b;
-lword	s, a, u, lw, pat;
-byte	str [129], *blk;
-char	ibuf [132];
-
-process (root, int)
-
-  entry (RS_INIT)
-
-  entry (RS_RCMD-2)
-
-	ser_out (RS_RCMD-2,
+	ser_out (RS_RCMD_M,
 		"\r\nEEPROM Test\r\n"
 		"Commands:\r\n"
 		"a adr int    -> store a word\r\n"
@@ -73,23 +28,15 @@ process (root, int)
 		"x frm upt    -> erase eeprom from upto\r\n"
 		"s            -> sync eeprom\r\n"
 		"w fr ln pat  -> erase-write-read test\r\n"
-		"i led w      -> led status [w = 0, 1, 2]\r\n"
-		"j w          -> blinkrate 0-low, 1-high\r\n"
-		"k m          -> write a diag message\r\n"
-#if DIAG_MESSAGES > 2
-		"l            -> dump diag\r\n"
-#endif
 		"m adr w      -> write word to info flash\r\n"
 		"n adr        -> read word from info flash\r\n"
 		"o adr        -> erase info flash\r\n"
-		"p            -> trigger syserror\r\n"
-		"q            -> malloc reset test\r\n"
-		);
+	);
 
-  entry (RS_RCMD)
+    entry (RS_RCMD)
 
 	err = 0;
-	ser_in (RS_RCMD, ibuf, 132-1);
+	ser_in (RS_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
 		case 'a': proceed (RS_SWO);
@@ -103,66 +50,59 @@ process (root, int)
 		case 'x': proceed (RS_ERA);
 		case 's': proceed (RS_SYN);
 		case 'w': proceed (RS_ETS);
-		case 'i': proceed (RS_LED);
-		case 'j': proceed (RS_BLI);
-		case 'k': proceed (RS_DIA);
-#if DIAG_MESSAGES > 2
-		case 'l': proceed (RS_DUM);
-#endif
 		case 'm': proceed (RS_FLW);
 		case 'n': proceed (RS_FLR);
 		case 'o': proceed (RS_FLE);
-		case 'p': proceed (RS_SYS);
-		case 'q': proceed (RS_MAL);
 	}
+
+    entry (RS_RCMD_E)
+
+	ser_out (RS_RCMD_E, "?????????\r\n");
+	proceed (RS_RCMD_M);
 	
-  entry (RS_RCMD+1)
-
-	ser_out (RS_RCMD+1, "?????????\r\n");
-	proceed (RS_RCMD-2);
-
-  entry (RS_SWO)
+    entry (RS_SWO)
 
 	scan (ibuf + 1, "%lu %u", &a, &w);
 	err = ee_write (WNONE, a, (byte*)(&w), 2);
 
-  entry (RS_SWO+1)
+    entry (RS_SWO_A)
 
-	ser_outf (RS_SWO+1, "[%d] Stored %u at %lu\r\n", err, w, a);
+	ser_outf (RS_SWO_A, "[%d] Stored %u at %lu\r\n", err, w, a);
 	proceed (RS_RCMD);
 
-  entry (RS_SLW)
+    entry (RS_SLW)
 
 	scan (ibuf + 1, "%lu %lu", &a, &lw);
 	err = ee_write (WNONE, a, (byte*)(&lw), 4);
 
-  entry (RS_SLW+1)
+    entry (RS_SLW_A)
 
-	ser_outf (RS_SLW+1, "[%d] Stored %lu at %lu\r\n", err, lw, a);
+	ser_outf (RS_SLW_A, "[%d] Stored %lu at %lu\r\n", err, lw, a);
 	proceed (RS_RCMD);
 
-  entry (RS_SST)
+    entry (RS_SST)
 
 	scan (ibuf + 1, "%lu %s", &a, str);
-	len = strlen (str);
+	len = strlen ((char*)str);
 	if (len == 0)
-		proceed (RS_RCMD+1);
+		proceed (RS_RCMD_E);
 
 	err = ee_write (WNONE, a, str, len);
 
-  entry (RS_SST+1)
+  entry (RS_SST_A)
 
-	ser_outf (RS_SST+1, "[%d] Stored %s (%u) at %lu\r\n", err, str, len, a);
+	ser_outf (RS_SST_A, "[%d] Stored %s (%u) at %lu\r\n", err, str, len, a);
 	proceed (RS_RCMD);
 
   entry (RS_RWO)
 
+	w = 0;
 	scan (ibuf + 1, "%lu", &a);
 	err = ee_read (a, (byte*)(&w), 2);
 
-  entry (RS_RWO+1)
+  entry (RS_RWO_A)
 
-	ser_outf (RS_RWO+1, "[%d] Read %u (%x) from %lu\r\n", err, w, w, a);
+	ser_outf (RS_RWO_A, "[%d] Read %u (%x) from %lu\r\n", err, w, w, a);
 	proceed (RS_RCMD);
 
   entry (RS_RLW)
@@ -170,24 +110,24 @@ process (root, int)
 	scan (ibuf + 1, "%u", &a);
 	err = ee_read (a, (byte*)(&lw), 4);
 
-  entry (RS_RLW+1)
+  entry (RS_RLW_A)
 
-	ser_outf (RS_RLW+1, "[%d] Read %lu (%lx) from %lu\r\n", err, lw, lw, a);
+	ser_outf (RS_RLW_A, "[%d] Read %lu (%lx) from %lu\r\n", err, lw, lw, a);
 	proceed (RS_RCMD);
 
   entry (RS_RST)
 
 	scan (ibuf + 1, "%lu %u", &a, &len);
 	if (len == 0)
-		proceed (RS_RCMD+1);
+		proceed (RS_RCMD_E);
 
 	str [0] = '\0';
 	err = ee_read (a, str, len);
 	str [len] = '\0';
 
-  entry (RS_RST+1)
+  entry (RS_RST_A)
 
-	ser_outf (RS_RST+1, "[%d] Read %s (%u) from %lu\r\n", err, str, len, a);
+	ser_outf (RS_RST_A, "[%d] Read %s (%u) from %lu\r\n", err, str, len, a);
 	proceed (RS_RCMD);
 
   entry (RS_WRI)
@@ -195,16 +135,16 @@ process (root, int)
 	len = 0;
 	scan (ibuf + 1, "%lu %u %lu", &a, &len, &lw);
 	if (len == 0)
-		proceed (RS_RCMD+1);
+		proceed (RS_RCMD_E);
 	while (len--) {
 		err += ee_write (WNONE, a, (byte*)(&lw), 4);
 		a += 4;
 	}
 
-  entry(RS_WRI+1)
+  entry (RS_WRI_A)
 
 Done:
-	ser_outf (RS_WRI+1, "Done %d\r\n", err);
+	ser_outf (RS_WRI_A, "Done %d\r\n", err);
 	proceed (RS_RCMD);
 
   entry (RS_REA)
@@ -214,7 +154,7 @@ Done:
 	nt = 0;
 	scan (ibuf + 1, "%lu %u %u %u", &a, &len, &bs, &nt);
 	if (len == 0)
-		proceed (RS_RCMD+1);
+		proceed (RS_RCMD_E);
 	if (bs == 0)
 		bs = 4;
 
@@ -224,18 +164,15 @@ Done:
 	blk = (byte*) umalloc (bs);
 
 	while (nt--) {
-
 		sl = len;
 		ss = a;
 		while (sl--) {
 			err += ee_read (ss, blk, bs);
 			ss += bs;
 		}
-
 	}
 
 	ufree (blk);
-
 	goto Done;
 
   entry (RS_ERA)
@@ -251,49 +188,25 @@ Done:
 	err = ee_sync (WNONE);
 	goto Done;
 
-  entry (RS_LED)
-
-	scan (ibuf + 1, "%u %u", &bs, &nt);
-	leds (bs, nt);
-	proceed (RS_RCMD);
-
-  entry (RS_BLI)
-
-	scan (ibuf + 1, "%u", &bs);
-	fastblink (bs);
-	proceed (RS_RCMD);
-
-  entry (RS_DIA)
-
-	diag ("MSG %d (%x) %u: %s", dcnt, dcnt, dcnt, ibuf+1);
-	dcnt++;
-	proceed (RS_RCMD);
-
-#if DIAG_MESSAGES > 2
-
-  entry (RS_DUM)
-
-	diag_dump ();
-	proceed (RS_RCMD);
-#endif
-
   entry (RS_FLR)
 
 	scan (ibuf + 1, "%u", &a);
 	if (a >= IFLASH_SIZE)
-		proceed (RS_RCMD+1);
-	diag ("IF [%u] = %x", a, if_read (a));
+		proceed (RS_RCMD_E);
+
+  entry (RS_FLR_A)
+
+	ser_outf (RS_FLR_A, "IF [%u] = %x\r\n", a, if_read (a));
 	proceed (RS_RCMD);
 
   entry (RS_FLW)
 
 	scan (ibuf + 1, "%u %u", &a, &bs);
+
 	if (a >= IFLASH_SIZE)
-		proceed (RS_RCMD+1);
-	if (if_write (a, bs))
-		diag ("FAILED");
-	else
-		diag ("OK");
+		proceed (RS_RCMD_E);
+
+	if_write (a, bs);
 	goto Done;
 
   entry (RS_FLE)
@@ -303,19 +216,9 @@ Done:
 	if_erase (b);
 	goto Done;
 
-  entry (RS_SYS)
-
-	syserror (111, "error");
-
-  entry (RS_MAL)
-
-	umalloc (16);
-	delay (100, RS_MAL);
-
   entry (RS_ETS)
 
 	// ERASE-WRITE-READ
-
 	s = 1;
 	u = 0;
 	pat = LWNONE;
@@ -425,4 +328,6 @@ Done:
 	ser_outf (RS_ETS_L, "READ %lu (%lx)\r\n", a, a);
 	proceed (RS_ETS_N);
 
-endprocess (1)
+endthread
+
+praxis_starter (Node);

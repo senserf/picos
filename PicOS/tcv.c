@@ -154,7 +154,7 @@ __PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
 	sysassert (p->attributes.b.queued == 0, "tcv enq item already queued");
 	if (p->attributes.b.urgent) {
 		/* At the front. This always triggers a queue event. */
-		trigger ((int)q);
+		trigger (q);
 		p->u.bqueue.next = q->next;
 		p->u.bqueue.prev = q;
 		q->next->prev = (qitem_t*) p;
@@ -165,7 +165,7 @@ __PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
 		 * empty.
 		 */
 		if (q_empty (q))
-			trigger ((int)q);
+			trigger (q);
 		p->u.bqueue.next = q;
 		p->u.bqueue.prev = q->prev;
 		q->prev->next = (qitem_t*) p;
@@ -553,7 +553,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 	if (q_end (b, rq)) {
 		/* The queue is empty */
 		if (state != WNONE) {
-			when ((int)rq, state);
+			when (rq, state);
 			release;
 		}
 		return NULL;
@@ -986,7 +986,7 @@ __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 		tcv_q_tim . next = tcv_q_tim . prev = t;
 		t -> next = t -> prev = (titem_t*)(&tcv_q_tim);
 		tcv_tim_set = seconds ();
-		trigger ((int)(&tcv_q_tim));
+		trigger (&tcv_q_tim);
 	} else {
 		titem_t *tt;
 		/* Adjust the delay */
@@ -995,7 +995,7 @@ __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 		tt = t_first;
 		if (tt->value >= del) {
 			/* Our delay is the smallest */
-			trigger ((int)(&tcv_q_tim));
+			trigger (&tcv_q_tim);
 		} else {
 			for (tt = t_next (tt); !t_end (tt); tt = t_next (tt))
 				if (tt->value >= del)
@@ -1050,7 +1050,7 @@ __PUBLF (PicOSNode, int, tcvphy_reg) (int phy, ctrlfun_t ps, int info) {
 	 * Queue event identifier (which happens to be the queue pointer
 	 * in disguise).
 	 */
-	return (int)q;
+	return intofp (q);
 }
 
 __PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {
@@ -1171,7 +1171,7 @@ __STATIC __PROCESS (timersrv, void)
     entry (__S0)
 
 	delay (runtq_na (), __S0);
-	when ((word)(int)(&tcv_q_tim_na), __S0);
+	when (&tcv_q_tim_na, __S0);
 	release;
 	
 	nodata;

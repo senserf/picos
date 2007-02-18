@@ -246,6 +246,13 @@ word 	ee_write (word, lword, const byte*, word);
 word	ee_erase (word, lword, lword);
 word	ee_sync (word);
 
+#else
+
+#define	ee_read(a,b,c)		1
+#define	ee_write (a,b,c,d)	1
+#define	ee_erase (a,b,c)	1
+#define	ee_sync (a)		1
+
 #endif	/* EEPROM_PRESENT */
 
 // ===========================================================================
@@ -261,14 +268,21 @@ word	ee_sync (word);
 //+++ lcd_st7036.c
 #endif
 
-#ifdef	LCD_PRESENT
-
 #define	LCD_CURSOR_ON		0x0001
+
+#ifdef	LCD_PRESENT
 
 void	lcd_on (word);
 void	lcd_off ();
 void	lcd_clear (word, word);
 void	lcd_write (word, const char*);
+
+#else
+
+#define	lcd_on(a)	do { } while (0)
+#define	lcd_off()	do { } while (0)
+#define	lcd_clear(a,b)	do { } while (0)
+#define	lcd_write(a,b)	do { } while (0)
 
 #endif
 
@@ -341,6 +355,11 @@ word	adcs_overflow ();
 
 #define	CNOP	do { } while (0)
 
+/* ============ */
+/* Tricky casts */
+/* ============ */
+#define	intofp(a)	((int)(a))	// Pointer to integer
+
 /* ============= */
 /* Byte ordering */
 /* ============= */
@@ -372,6 +391,8 @@ int	root (word state, address data);
 
 typedef	int (*code_t)(word, address);
 
+void		zzz_uwait (word, word);
+int		zzz_utrigger (word);
 int		zzz_fork (code_t func, address data);
 void		reset (void);
 void		halt (void);
@@ -534,20 +555,24 @@ int	io (int, int, int, char*, int);
 #endif	/* MAX_DEVICES */
 
 /* User wait */
-void	wait (word, word);
+#define	wait(a,b)	zzz_uwait ((word)(a),b)
 /* A prefered alias */
 #define	when(a,b)	wait (a,b)
 
 /* Timer wait */
 void	delay (word, word);
 word	dleft (int);
+
+#ifndef	NO_LONG_DELAYS
 /* Minute wait */
 void	ldelay (word, word);
 word	ldleft (int, address);
+#endif
+
 /* Continue timer wait */
 void	snooze (word);
 /* Signal trigger: returns the number of awakened processes */
-int	trigger (word signal);
+#define	trigger(a)	zzz_utrigger ((word)(a))
 /* Kill the indicated process */
 int	kill (int);
 /* Kill all processes running this code */

@@ -9,6 +9,14 @@
 #include "tcvphys.h"
 #include "cc1100.h"
 
+#if GUARD_LONG_DELAY < 1000
+// In minutes
+#define	GDELAY(s) 	ldelay (GUARD_LONG_DELAY, s)
+#else
+// In miliisecs
+#define	GDELAY(s)	delay (GUARD_LONG_DELAY, s)
+#endif
+
 static int option (int, address);
 static void chip_reset();
 
@@ -785,13 +793,13 @@ Reset:
 		chip_reset ();
 		enter_rx ();
 		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
-		ldelay (GUARD_SHORT_DELAY, GU_ACTION);
+		GDELAY (GU_ACTION);
 		release;
 	}
 
 	if ((TxOFF & 1) && RxOFF) {
 		// The chip is powered down, so don't bother
-		ldelay (GUARD_LONG_DELAY, GU_ACTION);
+		GDELAY (GU_ACTION);
 		release;
 	}
 
@@ -844,7 +852,7 @@ Reset:
 		// Will reset the chip periodically on LONG_DELAY if nothing
 		// happens in between
 		guard_start (WATCH_PRG);
-		ldelay (GUARD_LONG_DELAY, GU_ACTION);
+		GDELAY (GU_ACTION);
 	} else {
 		guard_start (WATCH_RCV);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);

@@ -145,9 +145,11 @@ void zzz_tservice () {
 
 #include "board_second.h"
 
+#ifndef NO_LONG_DELAYS
 		if ((zz_nseconds & 63) == 0)
 			/* Do this every "minute" */
 			ldtrigger ((word) (zz_nseconds >> 6));
+#endif
 	}
 
 	do {
@@ -265,7 +267,7 @@ void zz_swait (word etype, word event, word state) {
 /* ========= */
 /* User wait */
 /* ========= */
-void wait (word event, word state) {
+void zzz_uwait (word event, word state) {
 
 	int j = nevents (zz_curr);
 
@@ -372,6 +374,8 @@ word dleft (int pid) {
 		i->Timer - (setticks - zz_mintk) : 0;
 }
 
+#ifndef	NO_LONG_DELAYS
+
 /* =========== */
 /* Minute wait */
 /* =========== */
@@ -431,6 +435,8 @@ word ldleft (int pid, word *s) {
 	return ldel;
 }
 
+#endif	/* NO_LONG_DELAYS */
+
 /* =============================== */
 /* Continue interrupted timer wait */
 /* =============================== */
@@ -479,7 +485,7 @@ int zz_strigger (int etype, word event) {
 /* ============ */
 /* User trigger */
 /* ============ */
-int trigger (word event) {
+int zzz_utrigger (word event) {
 
 	int j, c;
 	pcb_t *i;

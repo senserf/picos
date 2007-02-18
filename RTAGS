@@ -1350,3 +1350,10 @@ R070202A:
 	request (delay). If state is not NONE, it sets the continuation state
 	for the process, i.e., the default proceed state upon the completion
 	of the current state.
+
+R070217A:
+
+	A few rather minor tweaks required by VUEE. wait, when, trigger are now
+	macros because the event number argument must be usually cast from
+	pointer to int. This cast may be tricky on 64-bit machines (for VUEE),
+	so it is easier to do it in a macro.

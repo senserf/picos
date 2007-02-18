@@ -51,8 +51,9 @@ Redo:
 		(zz_curr->code) (tstate (zz_curr), zz_curr->data);
 		goto Redo;
 	} else {
-#else
-	//-----default :
+
+#else	/* NO PRIORITIES */
+
 	for_all_tasks (zz_curr) {
 		if (zz_curr->code == NULL)
 			// PCB unused
