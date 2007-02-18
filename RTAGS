@@ -1357,3 +1357,5 @@ R070217A:
 	macros because the event number argument must be usually cast from
 	pointer to int. This cast may be tricky on 64-bit machines (for VUEE),
 	so it is easier to do it in a macro.
+
+	Application ILLUSTRATION added to Apps/VUEE.
