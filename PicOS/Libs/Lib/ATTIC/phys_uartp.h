@@ -1,15 +1,12 @@
+#ifndef	__pg_phys_uartp_h
+#define	__pg_phys_uartp_h	1
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2005                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
-#include "kernel.h"
-#include "dm2200.h"
 
-interrupt (TIMERA0_VECTOR) dm2200_st_int () {
+//+++ "phys_uartp.c"
 
-// Signal strobe for transmission
-#include "irq_dm2200_xmt.h"
+void phys_uartp (int /* physid */, int /* MAXPLEN */, int /* uart (0, 1) */);
 
-	RTNI;
-
-}
+#endif

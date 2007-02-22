@@ -8,7 +8,7 @@
 // Testing phys_uart
 
 #include "tcvphys.h"
-#include "phys_uart.h"
+#include "phys_uartp.h"
 #include "plug_null.h"
 
 heapmem {100};
@@ -22,7 +22,7 @@ process (root, void)
 
     entry (0)
 
-	phys_uart (1, 64, 0);
+	phys_uartp (1, 64, 0);
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 1, 0);
 	if (sfd < 0)

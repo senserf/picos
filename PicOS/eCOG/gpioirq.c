@@ -39,4 +39,5 @@ void __irq_entry gpio_int (void) {
 #include "irq_xemics.h"
 #endif
 
+	RTNI;
 }

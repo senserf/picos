@@ -18,7 +18,7 @@
 		// Stop the automaton
 		disable_xcv_timer;
 		zzv_status = 0;
-		return;
+		RTNI;
 
 	case IRQ_XPR:
 
@@ -33,7 +33,7 @@
 			zzv_cursym = 0x20;
 			zzv_istate = IRQ_XSV;
 		}
-		return;
+		RTNI;
 
 	case IRQ_XPQ:
 
@@ -41,7 +41,7 @@
 		toggle_signal;
 		SL1;
 		zzv_istate = IRQ_XPR;
-		return;
+		RTNI;
 
 	case IRQ_XSV:
 
@@ -69,7 +69,7 @@
 		}
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_XSW:
 
@@ -94,7 +94,7 @@
 		}
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_XSX:
 
@@ -127,7 +127,7 @@
 		}
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_XPK:
 
@@ -184,7 +184,7 @@
 		TRA (sl);
 	    }
 
-	    return;
+	    RTNI;
 
 	case IRQ_XEP:
 
@@ -198,14 +198,14 @@
 			// We are done: the signal is now set set low
 			TRA (2); TRA (2);
 			zzv_istate = IRQ_EXM;
-			return;
+			RTNI;
 		}
 		sl = (zzv_cursym & 0x3);
 		zzv_curbit--;
 		zzv_cursym >>= 2;
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_EXM:
 
@@ -233,7 +233,7 @@
 				// The polarity is reversed: 0 means 1
 				zzv_prmble |= 1;
 			// We stay in the same state
-			return;
+			RTNI;
 		}
 
 		if (st > SH2 && st <= SH3 && zzv_prmble == 0xAA) {
@@ -246,14 +246,14 @@
 			zzv_istate = IRQ_RSV;
 			set_rcv_timeout;
 			enable_rcv_timeout;
-			return;
+			RTNI;
 		}
 
 		// This is illegal, reset the preamble
 		zzv_prmble = 0;
 	    }
 
-	    return;
+	    RTNI;
 
 	case IRQ_RSV:
 
@@ -280,7 +280,7 @@
 				disable_rcv_timeout;
 				zzv_prmble = 0;
 				zzv_istate = IRQ_RPR;
-				return;
+				RTNI;
 			}
 		}
 
@@ -295,7 +295,7 @@
 					disable_rcv_timeout;
 					zzv_prmble = 0;
 					zzv_istate = IRQ_RPR;
-					return;
+					RTNI;
 				}
 				// Begin collecting RSSI after the start vector
 				adc_start;
@@ -312,12 +312,12 @@
 							(zzv_cursym << 1) | 1;
 				}
 				zzv_istate = IRQ_RPK;
-				return;
+				RTNI;
 			}
 		}
 	    }
 
-	    return;
+	    RTNI;
 
 	case IRQ_RPK:
 
@@ -377,7 +377,7 @@
 			}
 		}
 
-		return;
+		RTNI;
 
 REND:
 		// Disable all interrupts
@@ -398,7 +398,7 @@ REND:
 		LEDI (2, 0);
 	    }
 
-	    return;
+	    RTNI;
     }
 
 #endif

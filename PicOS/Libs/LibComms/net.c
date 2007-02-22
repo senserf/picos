@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006			*/
+/* Copyright (C) Olsonet Communications, 2002 - 2007			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
 
@@ -19,7 +19,11 @@
 #include "phys_ether.h"
 #endif
 
-#if UART_DRIVER > 1
+#if UARTP_TCV
+#include "phys_uartp.h"
+#endif
+
+#if UART_TCV
 #include "phys_uart.h"
 #endif
 
@@ -84,7 +88,11 @@ __PUBLF (TNode, int, net_qera) (int d) {
 static int ether_init (word);
 #endif
 
-#if UART_DRIVER > 1
+#if UARTP_TCV
+static int uartp_init (word);
+#endif
+
+#if UART_TCV
 static int uart_init (word);
 #endif
 
@@ -150,7 +158,11 @@ __PUBLF (TNode, int, net_init) (word phys, word plug) {
 	case INFO_PHYS_ETHER:
 		return (net_fd = ether_init (plug));
 #endif
-#if UART_DRIVER > 1
+#if UARTP_TCV
+	case INFO_PHYS_UARTP:
+		return (net_fd = uartp_init (plug));
+#endif
+#if UART_TCV
 	case INFO_PHYS_UART:
 		return (net_fd = uart_init (plug));
 #endif
@@ -270,7 +282,40 @@ __PRIVF (TNode, int, ether_init) (word plug) {
 }
 #endif
 
-#if UART_DRIVER == 2
+
+#if UARTP_TCV
+__PRIVF (TNode, int, uartp_init) (word plug) {
+
+// #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
+// or
+#define NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
+#define NET_RATE			19200
+
+	int  fd;
+
+	uart_init_p [0] = (word) NET_RATE;
+	ion (UART_B, CONTROL, (char*)uart_init_p, UART_CNTRL_RATE);
+	phys_uartp (0, UART_B, NET_CHANNEL_MODE, NET_MAXPLEN);
+
+	if (plug == INFO_PLUG_TARP)
+		tcv_plug (0, &plug_tarp);
+	else
+		tcv_plug (0, &plug_null);
+
+	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+		diag ("%s: Cannot open tcv uart_b interface", myName);
+		return -1;
+	}
+	tcv_control (fd, PHYSOPT_TXON, NULL);
+	tcv_control (fd, PHYSOPT_RXON, NULL);
+	return fd;
+
+#undef	NET_CHANNEL_MODE
+#undef	NET_RATE
+}
+#endif
+
+#if UART_TCV
 __PRIVF (TNode, int, uart_init) (word plug) {
 
 // #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
@@ -349,7 +394,17 @@ __PUBLF (TNode, int, net_rx)
 		tcv_endp(packet);
 		return size;
 #endif
-#if UART_DRIVER == 2
+
+#if UARTP_TCV
+	case INFO_PHYS_UARTP:
+		if (*buf_ptr == NULL)
+			*buf_ptr = (char *)umalloc(size);
+		memcpy(*buf_ptr, (char *)packet, size);
+		tcv_endp(packet);
+		return size;
+#endif
+
+#if UART_TCV
 	case INFO_PHYS_UART:
 		if (*buf_ptr == NULL)
 			*buf_ptr = (char *)umalloc(size);
@@ -357,6 +412,7 @@ __PUBLF (TNode, int, net_rx)
 		tcv_endp(packet);
 		return size;
 #endif
+
 	case INFO_PHYS_RADIO:
 	case INFO_PHYS_CC1000:
 	case INFO_PHYS_CC1100: // sid, entropy, rssi

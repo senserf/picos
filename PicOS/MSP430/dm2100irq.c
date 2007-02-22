@@ -10,6 +10,8 @@ interrupt (TIMERA0_VECTOR) dm2100_st_int () {
 // Signal strobe (transmission and reception)
 #include "irq_dm2100.h"
 
+	RTNI;
+
 }
 
 // Receiver timeout
@@ -22,4 +24,5 @@ interrupt (TIMERA1_VECTOR) dm2100_tm_int () {
 		// Disable further timeout interrupts
 		disable_rcv_timeout;
 	}
+	RTNI;
 }

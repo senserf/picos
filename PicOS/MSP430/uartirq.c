@@ -5,7 +5,7 @@
 #include "kernel.h"
 #include "uart.h"
 
-#if UART_TCV
+#ifdef	N_UARTS_TCV
 
 interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 
@@ -14,6 +14,7 @@ interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 
 #include "irq_uart_x.h"
 
+	RTNI;
 }
 
 interrupt (UART0RX_VECTOR) uart0rx_int (void) {
@@ -23,9 +24,10 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 
 #include "irq_uart_r.h"
 
+	RTNI;
 }
 
-#if UART_TCV > 1
+#if N_UARTS_TCV > 1
 
 interrupt (UART1TX_VECTOR) uart1tx_int (void) {
 
@@ -34,6 +36,7 @@ interrupt (UART1TX_VECTOR) uart1tx_int (void) {
 
 #include "irq_uart_x.h"
 
+	RTNI;
 }
 
 interrupt (UART1RX_VECTOR) uart1rx_int (void) {
@@ -43,9 +46,9 @@ interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 
 #include "irq_uart_r.h"
 
+	RTNI;
 }
 
-#endif 	/* UART_TCV > 1 */
-
+#endif 	/* N_UARTS_TCV > 1 */
 
 #endif

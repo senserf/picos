@@ -9,10 +9,17 @@
 // things up, such that the drivers (also for the non-phys version) will be
 // machine independent.
 
-#if UART_TCV
+#if UARTP_TCV
+#include "phys_uartp.h"
+#endif
 
+#if UART_TCV
 #include "phys_uart.h"
+#endif
+
 #include "uart_sys.h"
+
+#ifdef	N_UARTS_TCV				// Set in uart_sys.h
 
 #define	UART_DEF_BUF_LEN	64
 
@@ -25,16 +32,18 @@
 #define	UAFLG_HOLD		0x40
 #define	UAFLG_DRAI		0x80
 
+#define	UAFLG_ROFF		0x20		// RCV off (non-persistent only)
+
 #define	TXEVENT			((word)(&(UA->x_buffer)))
 #define	RXEVENT			((word)(&(UA->r_buffer)))
 #define	RSEVENT			((word)(&(UA->r_buffl)))
 #define	OFFEVENT		((word)(&(UA->r_buffs)))
 #define	ACKEVENT		((word)(&(UA->r_buffp)))
 
-#define	XMTSPACE		(   20 + (entropy &   0xf))
-#define	RCVSPACE		(   40 + (entropy &  0x1f))
+#define	XMTSPACE		(   20 + (rnd () &   0xf))
+#define	RCVSPACE		(   40 + (rnd () &  0x1f))
 #define	RXTIME			1024
-#define	RETRTIME		( 1024 + (entropy & 0x1ff))
+#define	RETRTIME		( 1024 + (rnd () & 0x1ff))
 
 typedef	struct	{
 
@@ -42,17 +51,21 @@ typedef	struct	{
 	address r_buffer;
 
 	byte	x_buffl,  x_buffp,
+#if UARTP_TCV
 		x_chk0,   x_chk1,
+#endif
 		r_buffl,  r_buffs,
 		r_buffp,  x_istate,
 		r_istate, v_flags;
-
+#if UART_TCV
+	word	v_statid;
+#endif
 	word	v_physid, x_qevent;
 	word	r_prcs,   x_prcs;
 
 } uart_t;
 
-extern	uart_t zz_uart [UART_TCV];
+extern	uart_t zz_uart [N_UARTS_TCV];
 
 // IRQ states
 
@@ -69,9 +82,6 @@ extern	uart_t zz_uart [UART_TCV];
 #define	IRQ_X_CH1	4
 #define	IRQ_X_STOP	5
 
-
-
-
-#endif	/* UART_TCV */
+#endif	/* N_UARTS_TCV */
 
 #endif

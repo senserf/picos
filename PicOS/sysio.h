@@ -49,19 +49,19 @@
 /* ======================================================================== */
 #define MAX_UTIMERS		4
 
-#if	UART_DRIVER == 0 && UART_TCV == 0
-#undef	DIAG_MESSAGES
-#define	DIAG_MESSAGES		0
+#if	UART_TCV || UARTP_TCV
+#if	UART_TCV && UARTP_TCV
+#error	"UART_TCV and UARTP_TCV are incompatible"
 #endif
-
-#if	UART_TCV
 #if	CRC_ISO3309 == 0
-#error	"UART_TCV requires CRC_ISO3309"
+#error	"UART_TCV/UARTP_TCV requires CRC_ISO3309"
 #endif
 #endif
 
-#if	UART_DRIVER && UART_TCV
-#error	"UART_DRIVER and UART_TCV are incompatible"
+#if	UART_DRIVER
+#if	UART_TCV || UARTP_TCV
+#error	"UART_DRIVER and UART_TCV/UARTP_TCV are incompatible"
+#endif
 #endif
 
 #if	UART_DRIVER > 2
@@ -83,6 +83,40 @@
 #undef	LEDS_BLINKING
 #define	LEDS_BLINKING	0
 #endif
+
+// LCD =======================================================================
+
+#ifdef	LCD_PRESENT
+#undef	LCD_PRESENT
+#endif
+
+#if LCD_ST7036
+#define	LCD_PRESENT	1
+//+++ lcd_st7036.c
+#endif
+
+// ===========================================================================
+
+// DIAG MESSAGES =============================================================
+
+#if	DIAG_MESSAGES
+
+#if	UART_DRIVER == 0
+#ifdef	LCD_PRESENT
+
+#define	DIAG_MESSAGES_TO_LCD	1	// Diag messages go to LCD
+
+#else	/* No UART, no LCD */
+
+#undef	DIAG_MESSAGES
+#define	DIAG_MESSAGES		0
+
+#endif	/* LCD_PRESENT */
+#endif	/* UART absent */
+
+#endif	/* DIAG_MESSAGES */
+
+// ===========================================================================
 
 #include "mach.h"
 
@@ -218,6 +252,32 @@
 #endif
 #endif
 
+// LCD =======================================================================
+
+#ifdef	LCD_PRESENT
+
+#define	LCD_CURSOR_ON		0x0001
+
+void	lcd_on (word);
+void	lcd_off ();
+void	lcd_clear (word, word);
+void	lcd_write (word, const char*);
+void	lcd_putchar (char);
+
+#define	LCD_N_CHARS	(LCD_LINE_LENGTH * LCD_N_LINES)
+
+#else
+
+#define	lcd_on(a)	do { } while (0)
+#define	lcd_off()	do { } while (0)
+#define	lcd_clear(a,b)	do { } while (0)
+#define	lcd_write(a,b)	do { } while (0)
+#define	lcd_putchar(a)	do { } while (0)
+
+#endif
+
+// ===========================================================================
+
 // External storage ==========================================================
 
 #ifdef	EEPROM_PRESENT
@@ -254,37 +314,6 @@ word	ee_sync (word);
 #define	ee_sync (a)		1
 
 #endif	/* EEPROM_PRESENT */
-
-// ===========================================================================
-
-// LCD =======================================================================
-
-#ifdef	LCD_PRESENT
-#undef	LCD_PRESENT
-#endif
-
-#if LCD_ST7036
-#define	LCD_PRESENT	1
-//+++ lcd_st7036.c
-#endif
-
-#define	LCD_CURSOR_ON		0x0001
-
-#ifdef	LCD_PRESENT
-
-void	lcd_on (word);
-void	lcd_off ();
-void	lcd_clear (word, word);
-void	lcd_write (word, const char*);
-
-#else
-
-#define	lcd_on(a)	do { } while (0)
-#define	lcd_off()	do { } while (0)
-#define	lcd_clear(a,b)	do { } while (0)
-#define	lcd_write(a,b)	do { } while (0)
-
-#endif
 
 // ===========================================================================
 
@@ -890,7 +919,8 @@ void	adc_stop (void);
 #define	INFO_PLUG_NULL		0x0001	/* NULL plugin */
 #define INFO_PLUG_TARP          0x0002  /* TARP plugin */
 
-#define	INFO_PHYS_UART    	0x0100	/* Persistent UART */
+#define	INFO_PHYS_UART    	0x0100	/* Non-persistent UART */
+#define	INFO_PHYS_UARTP		0x4100	/* Persistent UART */
 #define	INFO_PHYS_ETHER    	0x0200	/* Raw Ethernet */
 #define	INFO_PHYS_RADIO		0x0300	/* Radio */
 #define INFO_PHYS_CC1000        0x0400  /* CC1000 radio */

@@ -11,8 +11,8 @@
 #ifdef	MONITOR_PIN_SCHED
 	_PVS (MONITOR_PIN_SCHED, 1);
 #endif
-
-	zz_systat.evntpn = 0;
+	// not needed
+	// zz_systat.evntpn = 0;
 
 	/* Set the return context for release */
 	SET_RELEASE_POINT;

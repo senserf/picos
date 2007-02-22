@@ -1359,3 +1359,15 @@ R070217A:
 	so it is easier to do it in a macro.
 
 	Application ILLUSTRATION added to Apps/VUEE.
+
+--------:
+
+	phys_uart renamed phys_uartp (for persistent). The idea is to implement
+	another phys_uart that would be closer to a radio interface over UART,
+	i.e., without any reliability tweaks except for CRC.
+	Fixed a problem with interruptible interrupts (introduced to accommodate
+	VERSA2's transmitter). The problem was that the RISE_AND_SHINE status
+	from a stacked interrupt wasn't conveyed to the bottom of the stack.
+	Finally, decided to make the new version of triggering scheduler events
+	from interrupts non-optional (independent of NESTED_INTERRUPTS) as its
+	semantics are simple and clear.  It isn't even more expensive.

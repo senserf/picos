@@ -7,11 +7,11 @@
 
 interrupt (ADC12_VECTOR) adc_smp_int () {
 
-	if ((ADC12IFG & ADCS_INT_BIT) == 0)
-		return;
-
-	ADC12IFG = 0;
+	if ((ADC12IFG & ADCS_INT_BIT) != 0) {
+		ADC12IFG = 0;
 
 #include "irq_adc_sampler.h"
 
+	}
+	RTNI;
 }

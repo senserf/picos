@@ -133,6 +133,7 @@ typedef struct	{
 
 #define	SLEEP		do { evening; sleep (); } while (0)
 #define	RISE_N_SHINE	morning
+#define	RTNI		return
 
 #if LEDS_DRIVER
 #include "leds_sys.h"

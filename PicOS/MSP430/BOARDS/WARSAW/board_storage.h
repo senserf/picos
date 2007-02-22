@@ -12,7 +12,7 @@
 #include "board_pins.h"
 #include "storage_at45xxx.h"
 
-#if	UART_DRIVER > 1 || UART_TCV > 1
+#if	UART_DRIVER > 1 || UART_TCV > 1 || UARTP_TCV > 1
 #error	"Cannot use two UARTs with SPI (needed for external FLASH)"
 #endif
 

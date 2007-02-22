@@ -27,4 +27,5 @@ interrupt (PORT2_VECTOR) p2_int () {
 
 // Room for more functions
 
+	RTNI;
 }

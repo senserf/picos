@@ -19,6 +19,10 @@
 #define	ECOG_SIM		0
 #endif
 
+#ifndef	NESTED_INTERRUPTS
+#define	NESTED_INTERRUPTS	0
+#endif
+
 #ifndef	SPIN_WHEN_HALTED
 #define	SPIN_WHEN_HALTED	0
 #endif
@@ -221,6 +225,10 @@
 
 #ifndef	UART_TCV
 #define	UART_TCV		0
+#endif
+
+#ifndef	UARTP_TCV
+#define	UARTP_TCV		0
 #endif
 
 /* ========================================================================= */

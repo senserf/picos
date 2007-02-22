@@ -11,7 +11,7 @@ heapmem {10, 90};
 #include "lcd.h"
 #include "ser.h"
 #include "serf.h"
-#include "phys_uart.h"
+#include "phys_uartp.h"
 #include "plug_null.h"
 
 /* ====================================================================== */
@@ -195,7 +195,7 @@ process (root, int)
 	ibuf = (char*) umalloc (IBUFLEN);
 	p [0] = (word) SERIAL_RATE;
 	ion (CHANNEL, CONTROL, (char*)p, UART_CNTRL_RATE);
-	phys_uart (0, CHANNEL, CHANNEL_MODE, MAXPLEN);
+	phys_uartp (0, CHANNEL, CHANNEL_MODE, MAXPLEN);
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);
 	if (sfd < 0) {

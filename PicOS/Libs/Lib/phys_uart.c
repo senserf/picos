@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -11,188 +11,25 @@
 /* ========================================= */
 
 #if UART_TCV > 1
+
 static int option (int, address, uart_t*);
 static int option0 (int, address);
 static int option1 (int, address);
 #define	INI_UART(a)	ini_uart (a)
-#define	START_UART(a)	start_uart (a)
+#define	START_UART(a,b)	start_uart (a,b)
+
 #else
+
 static int option (int, address);
 #define	INI_UART(a)	ini_uart ()
-#define	START_UART(a)	start_uart ()
+#define	START_UART(a,b)	start_uart (b)
+
 #endif
 
 #if UART_RATE_SETTABLE
 Boolean zz_uart_setrate (word, uart_t*);
 word zz_uart_getrate (uart_t*);
 #endif
-
-static const byte ackc [2][2] = { 0x21, 0x10, 0x63, 0x30 };
-
-#define	XM_LOOP		0
-#define	XM_END		1
-#define	XM_NEXT		2
-
-strand (xmtuart, uart_t)
-
-#if UART_TCV > 1
-#define	UA data
-#else
-#define	UA zz_uart
-#endif
-
-    word stln;
-
-    entry (XM_LOOP)
-
-	if ((UA->v_flags & 0xc0)) {
-		// Closing
-		if (UA->x_buffer != NULL) {
-			tcvphy_end (UA->x_buffer);
-			UA->x_buffer = NULL;
-		}
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			// Draining
-			UART_STOP_XMITTER;
-			tcvphy_erase (UA->v_physid);
-			wait (UA->x_qevent, XM_LOOP);
-			release;
-		}
-		// UAFLG_HOLD: queue held, no activity
-		UA->x_prcs = 0;
-		finish;
-	}
-
-	UA->x_buffp = 0;
-	if ((UA->v_flags & UAFLG_UNAC) == 0) {
-		// No previous unacked message
-		if (UA->x_buffer != NULL)
-			// Release previous buffer, if any
-			tcvphy_end (UA->x_buffer);
-		if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
-			// Send ACK
-			if ((UA->v_flags & UAFLG_EMAB)) {
-				// Set the outgoing ACK AB to expected AB
-				UA->v_flags |= UAFLG_OAAB;
-				// Precalculated checksum
-				UA->x_chk0 = ackc [1][0];
-				UA->x_chk1 = ackc [1][1];
-			} else {
-				UA->v_flags &= ~UAFLG_OAAB;
-				UA->x_chk0 = ackc [0][0];
-				UA->x_chk1 = ackc [0][1];
-			}
-			// Outgoing message AB is always 1 for an ACK
-			UA->v_flags |= UAFLG_OMAB;
-			// The message is empty
-			UA->x_buffl = 0;
-		} else {
-			// This is a new message; flip the outgoing AB
-			if ((UA->v_flags & UAFLG_SMAB))
-				UA->v_flags &= ~(UAFLG_SMAB | UAFLG_OMAB);
-			else
-				UA->v_flags |=  (UAFLG_SMAB | UAFLG_OMAB);
-			UA->x_buffl = (byte) stln;
-			if ((stln & 1)) {
-				// We know that the buffer consists of an
-				// entire number of words, so there is room
-				// for one extra byte
-				((byte*)(UA->x_buffer)) [stln] = 0xff;
-			}
-			// Set the outgoing ACK AB
-			if ((UA->v_flags & UAFLG_EMAB))
-				UA->v_flags |= UAFLG_OAAB;
-			else
-				UA->v_flags &= ~UAFLG_OAAB;
-			// Calculate the checksum
-			((byte*)(&stln)) [0] = (UA->v_flags & 0x03);
-			((byte*)(&stln)) [1] = UA->x_buffl;
-			stln = w_chk (&stln, 1, 0);
-			stln = w_chk (UA->x_buffer, (UA->x_buffl + 1) >> 1,
-				stln);
-			UA->x_chk0 = ((byte*)(&stln)) [0];
-			UA->x_chk1 = ((byte*)(&stln)) [1];
-			// Mark it as unacknowledged
-			UA->v_flags |= UAFLG_UNAC;
-		}
-	} else {
-		// Previous unacknowledged message
-		stln = 0;
-		if ((UA->v_flags & UAFLG_EMAB)) {
-			if ((UA->v_flags & UAFLG_OAAB) == 0) {
-				// The expected AB has changed
-				UA->v_flags |= UAFLG_OAAB;
-				stln = 1;
-			}
-		} else {
-			if ((UA->v_flags & UAFLG_OAAB)) {
-				// The expected AB has changed
-				UA->v_flags &= ~UAFLG_OAAB;
-				stln = 1;
-			}
-		}
-		if (stln) {
-			// Must recalculate checksum
-			((byte*)(&stln)) [0] = (UA->v_flags & 0x03);
-			((byte*)(&stln)) [1] = UA->x_buffl;
-			stln = w_chk (&stln, 1, 0);
-			stln = w_chk (UA->x_buffer, (UA->x_buffl + 1) >> 1,
-				stln);
-			UA->x_chk0 = ((byte*)(&stln)) [0];
-			UA->x_chk1 = ((byte*)(&stln)) [1];
-		}
-	}
-
-	// Acknowledgement sent (one way or the other), clear the flag
-	UA->v_flags &= ~UAFLG_SACK;
-			
-	wait (TXEVENT, XM_END);
-	// Transmit
-	UART_START_XMITTER;
-	release;
-
-    entry (XM_END)
-
-	if ((UA->v_flags & 0xc0))
-		// Switched off
-		proceed (XM_LOOP);
-
-	delay (XMTSPACE, XM_NEXT);
-	wait (OFFEVENT, XM_END);
-
-	release;
-
-    entry (XM_NEXT)
-
-	if ((UA->v_flags & UAFLG_SACK)) {
-		// Sending ACK, delay a bit
-		delay (XMTSPACE, XM_LOOP);
-		release;
-	}
-
-	if ((UA->v_flags & UAFLG_UNAC)) {
-		// Don't look at the next message until this one is acked
-		delay (RETRTIME, XM_LOOP);
-		wait (OFFEVENT, XM_END);
-		wait (ACKEVENT, XM_NEXT);
-		release;
-	}
-
-	if (UA->x_buffer != NULL) {
-		// Release any previous buffer
-		tcvphy_end (UA->x_buffer);
-		UA->x_buffer = NULL;
-	}
-
-	if (tcvphy_top (UA->v_physid) != NULL)
-		proceed (XM_LOOP);
-
-	wait (UA->x_qevent, XM_LOOP);
-	wait (ACKEVENT, XM_NEXT);
-
-#undef	UA
-
-endstrand
 
 #define	RC_LOOP		0
 #define	RC_START	1
@@ -207,86 +44,125 @@ strand (rcvuart, uart_t)
 #define	UA zz_uart
 #endif
 
-    byte b;
-    word stln;
-
     entry (RC_LOOP)
 
-	if ((UA->v_flags & 0xc0)) {
-		UART_STOP_RECEIVER;
-		// Off
+	if (UA->v_flags & UAFLG_ROFF) {
 		UA->r_prcs = 0;
+		// Terminate
 		finish;
 	}
 
-	wait (OFFEVENT, RC_LOOP);
-	wait (RSEVENT, RC_START);
+	when (OFFEVENT, RC_LOOP);
+	when (RSEVENT, RC_START);
+
 	UART_START_RECEIVER;
 	release;
 
     entry (RC_START)
 
+	// We are past the length byte
 	delay (RXTIME, RC_RESET);
-	wait (RXEVENT, RC_END);
-	wait (OFFEVENT, RC_LOOP);
+	when (RXEVENT, RC_END);
+	when (OFFEVENT, RC_LOOP);
 	release;
 
     entry (RC_RESET)
 
+	// Timeout, i.e., packet messup
 	UART_STOP_RECEIVER;
 	proceed (RC_LOOP);
 
     entry (RC_END)
 
+	UART_STOP_RECEIVER;
+
 	if (UA->r_buffer [0] == 0xffff) {
-		UART_STOP_RECEIVER;
-		delay (RCVSPACE, RC_LOOP);
-		wait (OFFEVENT, RC_LOOP);
-		release;
-	}
-	// Validate checksum
-	if (w_chk (UA->r_buffer, (UA->r_buffp >> 1) + 1, 0))
-		// Garbage
-		proceed (RC_LOOP);
-
-	b = ((byte*)(UA->r_buffer)) [0];
-	stln = ((byte*)(UA->r_buffer)) [1];
-	if (stln == 0 && (b & 1) == 0)
-		// Ack with MAB == 0 is illegal
-		proceed (RC_LOOP);
-
-	if ((UA->v_flags & UAFLG_UNAC)) {
-		// Look at the ACK bit
-		if (((b & UAFLG_OAAB) && (UA->v_flags & UAFLG_OMAB) == 0) ||
-		    ((b & UAFLG_OAAB) == 0 && (UA->v_flags & UAFLG_OMAB))) {
-			// We are acked
-			UA->v_flags &= ~UAFLG_UNAC;
-			// Play the transmitter part and release the buffer
-			trigger (ACKEVENT);
-		}
+		// Length field error, reset the thing
+			delay (RCVSPACE, RC_LOOP);
+			when (OFFEVENT, RC_LOOP);
+			release;
 	}
 
-	// Now for the message
-	if (stln == 0)
-		// No message, just ACK
+	// Check network ID
+	if (UA->v_statid != 0 && UA->r_buffer [0] != 0 &&
+	    UA->r_buffer [0] != UA->v_statid) {
+		// Wrong packet, ignore
 		proceed (RC_LOOP);
-
-	// Check if the message is expected
-	if (((b & UAFLG_OMAB) && (UA->v_flags & UAFLG_EMAB)) ||
-	    ((b & UAFLG_OMAB) == 0 && (UA->v_flags & UAFLG_EMAB) == 0)) {
-		// Yes, it is, pass it up
-		if (tcvphy_rcv (UA->v_physid, UA->r_buffer + 1, stln))
-			// Message has been accepted, flip EMAB
-			UA->v_flags ^= UAFLG_EMAB;
 	}
-	// Send ACK (for this or previous message)
-	UA->v_flags |= UAFLG_SACK;
-	trigger (ACKEVENT);
 
+	// Validate checksum: r_buffp is even
+	if (w_chk (UA->r_buffer, UA->r_buffp >> 1, 0)) {
+		// Wrong
+		proceed (RC_LOOP);
+	}
+
+	// Receive the packet
+	tcvphy_rcv (UA->v_physid, UA->r_buffer, UA->r_buffp);
 	proceed (RC_LOOP);
 
 endstrand
-	
+
+#define	XM_LOOP		0
+#define	XM_END		1
+
+strand (xmtuart, uart_t)
+
+#if UART_TCV > 1
+#define	UA data
+#else
+#define	UA zz_uart
+#endif
+
+    word stln;
+
+    entry (XM_LOOP)
+
+	if ((UA->v_flags & UAFLG_HOLD)) {
+		// Solid OFF
+		if ((UA->v_flags & UAFLG_DRAI)) {
+			// Draining
+Drain:
+			UART_STOP_XMITTER;
+			tcvphy_erase (UA->v_physid);
+			when (UA->x_qevent, XM_LOOP);
+			release;
+		}
+		// Queue held
+		UA->x_prcs = 0;
+		finish;
+	}
+
+	if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
+		// Nothing to transmit
+		if ((UA->v_flags & UAFLG_DRAI)) {
+			UA->v_flags |=  UAFLG_HOLD;
+			goto Drain;
+		}
+		when (UA->x_qevent, XM_LOOP);
+		release;
+	}
+
+	if (stln < 4 || (stln & 1) != 0)
+		syserror (EREQPAR, "xmtu/length");
+
+	// In bytes
+	UA->x_buffl = stln;
+	stln >>= 1;
+	// Checksum
+	UA->x_buffer [0] = UA->v_statid;
+	UA->x_buffer [stln - 1] = w_chk (UA->x_buffer, stln - 1, 0);
+
+	when (TXEVENT, XM_END);
+	UART_START_XMITTER;
+	release;
+
+    entry (XM_END)
+
+	tcvphy_end (UA->x_buffer);
+	proceed (XM_LOOP);
+
+endstrand;
+
 #if UART_TCV > 1
 static void ini_uart (int which) {
 #define	WHICH	which
@@ -301,33 +177,40 @@ static void ini_uart () {
 		WHICH,
 		UART_RATE/100, UART_BITS, (UART_BITS == 8) ? "none" :
 		(UART_PARITY ? "odd" : "even"));
-	// Note: the UART(s) is(are) initialized in the kernel, as they are
-	// also needed for diag, so there isn't much to do here, except for
-	// enabling the interrupts, as needed
 #undef	WHICH
 }
 
 #if UART_TCV > 1
-static void start_uart (int which) {
+static void start_uart (int which, word what) {
 #define	UA zz_uart + which
 #else
-static void start_uart () {
+static void start_uart (word what) {
 #define	UA zz_uart
 #endif
-	UA->v_flags &= ~(UAFLG_HOLD | UAFLG_DRAI);
-	if (UA->r_prcs == 0)
-		UA->r_prcs = runstrand (rcvuart, UA);
-	if (UA->x_prcs == 0) {
-		UA->x_prcs = runstrand (xmtuart, UA);
+
+	if (what & 0x1) {
+		// Transmitter
+		if (UA->x_prcs == 0)
+			UA->x_prcs = runstrand (xmtuart, UA);
+		UA->v_flags &= ~(UAFLG_HOLD + UAFLG_DRAI);
+		trigger (UA->x_qevent);
 	}
-	trigger (UA->x_qevent);
+
+	if (what & 0x2) {
+		// Receiver
+		if (UA->r_prcs == 0)
+			UA->r_prcs = runstrand (rcvuart, UA);
+		UA->v_flags &= ~UAFLG_ROFF;
+		trigger (OFFEVENT);
+	}
+
 #undef	UA
 }
 
 void phys_uart (int phy, int mbs, int which) {
 /*
  * phy   - interface number
- * mbs   - maximum packet length (including checksum and header)
+ * mbs   - maximum packet length (including checksum and statid)
  * which - which uart (0 or 1)
  */
 
@@ -336,6 +219,7 @@ void phys_uart (int phy, int mbs, int which) {
 #else
 #define	UA	zz_uart
 #endif
+
 	if (which < 0 || which >= UART_TCV)
 		syserror (EREQPAR, "phys_uart");
 
@@ -343,18 +227,17 @@ void phys_uart (int phy, int mbs, int which) {
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_uart");
 
-	if (mbs < 0 || mbs > 256 - 4)
+	if (mbs < 0 || mbs > 254)
 		syserror (EREQPAR, "phys_uart mbs");
 	else if (mbs == 0)
 		mbs = UART_DEF_BUF_LEN;
 
-	mbs = (((mbs + 1) >> 1) << 1) + 4;
+	mbs = (((mbs + 1) >> 1) << 1);
 
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_uart");
 
-	// If not NULL, the buffer must be released to TCV
-	UA->x_buffer = NULL;
+	UA->r_prcs = UA->x_prcs = 0;
 
 	// Length in bytes
 	UA->r_buffl = mbs;
@@ -370,11 +253,8 @@ void phys_uart (int phy, int mbs, int which) {
 #endif
 			INFO_PHYS_UART + which);
 
-	// This is flipped before first send
-	UA->v_flags = UAFLG_SMAB;
-
 	INI_UART (which);
-	START_UART (which);
+	START_UART (which, 0x3);
 
 #undef	UA
 }
@@ -400,33 +280,57 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = (UA->v_flags & 0xc0) >> 6;
+		ret = (((UA->v_flags & (UAFLG_HOLD + UAFLG_DRAI)) != 0) << 1) |
+		       ((UA->v_flags &  UAFLG_ROFF) != 0);
+
 		if (val != NULL)
 			*val = ret;
 		break;
 
-	    case PHYSOPT_ON:
+	    case PHYSOPT_TXON:
 
-		START_UART (UA);
+		START_UART (UA, 1);
 		break;
 
-	    case PHYSOPT_OFF:
+	    case PHYSOPT_RXON:
+
+		START_UART (UA, 2);
+		break;
+
+	    case PHYSOPT_TXOFF:
 
 		/* Drain */
-		if ((UA->v_flags & (UAFLG_DRAI | UAFLG_HOLD)))
+		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
 			break;
-
 		UA->v_flags |= UAFLG_DRAI;
-		trigger (OFFEVENT);
+		trigger (UA->x_qevent);
 		break;
 
-	    case PHYSOPT_HOLD:
+	    case PHYSOPT_TXHOLD:
 
-		if ((UA->v_flags & (UAFLG_DRAI | UAFLG_HOLD)))
+		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
 			break;
 
 		UA->v_flags |= UAFLG_HOLD;
+		trigger (UA->x_qevent);
+		break;
+
+	    case PHYSOPT_RXOFF:
+
+		UA->v_flags |= UAFLG_ROFF;
 		trigger (OFFEVENT);
+		break;
+
+	    case PHYSOPT_SETSID:
+
+		UA->v_statid = (val == NULL) ? 0 : *val;
+		break;
+
+            case PHYSOPT_GETSID:
+
+		ret = (int) (UA->v_statid);
+		if (val != NULL)
+			*val = ret;
 		break;
 
 #if UART_RATE_SETTABLE

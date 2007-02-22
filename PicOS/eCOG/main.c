@@ -666,12 +666,14 @@ void __irq_entry timer_int () {
 		// Run the scheduler at least once every second - to keep the
 		// second clock up to date
 		RISE_N_SHINE;
-		return;
+		RTNI;
 	}
 
 	if (zz_mintk && zz_mintk <= zz_lostk) {
 		RISE_N_SHINE;
 	}
+
+	RTNI;
 }
 
 #if	SDRAM_PRESENT
@@ -1278,6 +1280,7 @@ void __irq_entry uart_a_int (void) {
 	RISE_N_SHINE;
 	i_trigger (ETYPE_IO, devevent (UART_BASE, ATTENTION));
 #endif
+	RTNI;
 }
 
 void __irq_entry uart_b_int (void) {
@@ -1287,6 +1290,7 @@ void __irq_entry uart_b_int (void) {
 	RISE_N_SHINE;
 	i_trigger (ETYPE_IO, devevent (UART_BASE+1, ATTENTION));
 #endif
+	RTNI;
 }
 
 #if	UART_DRIVER

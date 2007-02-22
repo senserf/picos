@@ -5,11 +5,19 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#if UARTP_TCV
+#define	N_UARTS_TCV	UARTP_TCV
+#endif
+
 #if UART_TCV
+#define	N_UARTS_TCV	UART_TCV
+#endif
+
+#ifdef N_UARTS_TCV
 
 //+++ "uartirq.c"
 
-#if UART_TCV > 1
+#if N_UARTS_TCV > 1
 // ----------------------------------------------------------------------------
 
 #define	UART_START_XMITTER	do { \
@@ -47,7 +55,7 @@
 					UA->r_istate = IRQ_R_OFF; \
 				} while (0)
 
-#else
+#else /* single UART */
 
 // ----------------------------------------------------------------------------
 
@@ -72,8 +80,9 @@
 					UA->r_istate = IRQ_R_OFF; \
 				} while (0)
 
-#endif	/* UART_TCV > 1 */
+#endif	/* N_UARTS_TCV > 1 */
 
 
-#endif
+#endif	/* defined N_UARTS_TCV */
+
 #endif

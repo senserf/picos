@@ -10,7 +10,6 @@ static word	*buff = NULL;
 static int	consummer = 0;
 
 #define	BSTAT_OVF	0x0001
-#define	SMP_EVENT	((word)(&buff))
 
 void zz_adcs_init () {
 
@@ -66,7 +65,7 @@ Boolean adcs_new_sample () {
 	b_in = bp;
 
 	if (wake && consummer) {
-		p_trigger (consummer, ETYPE_USER, SMP_EVENT);
+		p_trigger (consummer, ETYPE_USER, consummer);
 		return YES;
 	}
 	return NO;
@@ -83,19 +82,19 @@ Boolean adcs_get_sample (word st, word *b) {
 		consummer = getpid ();
 		cli;
 		if (b_in == b_out) {
-			wait (SMP_EVENT, st);
+			wait (consummer, st);
 			sti;
 			release;
 		}
 		sti;
+		consummer = 0;
 	}
 
 	memcpy (b, buff + b_out, ADCS_SAMPLE_LENGTH * sizeof (word));
-	if ((bp = b_out + ADCS_SAMPLE_LENGTH) >= b_limit)
+	if ((bp = b_out + ADCS_SAMPLE_LENGTH) == b_limit)
 		b_out = 0;
 	else
 		b_out = bp;
-	consummer = 0;
 	return YES;
 }
 

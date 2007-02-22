@@ -1,1 +1,3 @@
 // Insert here applications-specific options
+#undef	TCV_UARTP
+#define	TCV_UARTP	1

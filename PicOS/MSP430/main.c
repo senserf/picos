@@ -26,7 +26,7 @@ void	zz_malloc_init (void);
 /* Device driver initializers */
 /* ========================== */
 
-#if	UART_DRIVER || UART_TCV
+#if	UART_DRIVER || UART_TCV || UARTP_TCV
 
 static void preinit_uart (void);
 
@@ -49,11 +49,15 @@ static void	devinit_uart (int);
 
 #else	/* UART_DRIVER */
 
+#if UART_TCV
 #define	N_UARTS	UART_TCV
+#else
+#define	N_UARTS	UARTP_TCV
+#endif
 
 #endif	/* UART_DRIVER */
 
-#endif  /* UART_DRIVER || UART_TCV */
+#endif  /* UART_DRIVER || UART_TCV || UARTP_TCV */
 
 extern void	__bss_end;
 
@@ -510,7 +514,7 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 #ifdef	MONITOR_PIN_CLOCK
 		_PVS (MONITOR_PIN_CLOCK, 0);
 #endif
-		return;
+		RTNI;
 	}
 
 	// Here we are running in the SLOW mode: one tick ==
@@ -548,9 +552,7 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 
 		RISE_N_SHINE;
 	}
-// -------------------
-// _BIC (P1OUT, 0x04);
-// -------------------
+	RTNI;
 }
 
 #if GLACIER
@@ -560,7 +562,7 @@ void freeze (word nsec) {
  */
 	byte saveP1IE, saveP2IE;
 
-#if UART_DRIVER || UART_TCV
+#if UART_DRIVER || UART_TCV || UARTP_TCV
 	byte saveIE1, saveIE2;
 #endif
 	byte saveLEDs;
@@ -581,7 +583,7 @@ void freeze (word nsec) {
 	saveLEDs = leds_save ();
 	leds_off ();
 
-#if UART_DRIVER || UART_TCV
+#if UART_DRIVER || UART_TCV || UARTP_TCV
 	// Save UART interrupt configuration
 	saveIE1 = IE1;
 	saveIE2 = IE2;
@@ -613,7 +615,7 @@ void freeze (word nsec) {
 	P1IE = saveP1IE;
 	P2IE = saveP2IE;
 
-#if UART_DRIVER || UART_TCV
+#if UART_DRIVER || UART_TCV || UARTP_TCV
 	// Reset the UART to get it back to normal
 	_BIS (UCTL0, SWRST);
 	_BIC (UCTL0, SWRST);
@@ -677,9 +679,9 @@ static void ios_init () {
 	zz_adcs_init ();
 #endif
 
-#if	UART_DRIVER || UART_TCV
+#if	UART_DRIVER || UART_TCV || UARTP_TCV
 	// A UART is configured, initialize it beforehand without enabling
-	// anyting, which is up to the driver plugin. We just want to be able
+	// anything, which is up to the driver plugin. We just want to be able
 	// to use diag.
 	preinit_uart ();
 #endif
@@ -709,15 +711,15 @@ static void ios_init () {
 #endif
 
 	/* Make SMCLK/MCLK available on P5.5, P5.4 */
-	_BIS (P5OUT, 0x30);
-	_BIS (P5SEL, 0x30);
+	//_BIS (P5OUT, 0x30);
+	//_BIS (P5SEL, 0x30);
 }
 
 /* ------------------------------------------------------------------------ */
 /* ============================ DEVICE DRIVERS ============================ */
 /* ------------------------------------------------------------------------ */
 
-#if	UART_DRIVER || UART_TCV
+#if	UART_DRIVER || UART_TCV || UARTP_TCV
 
 uart_t	zz_uart [N_UARTS];
 
@@ -940,7 +942,7 @@ word zz_uart_getrate (uart_t *ua) {
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-#endif	/* UART_DRIVER || UART_TCV */
+#endif	/* UART_DRIVER || UART_TCV || UARTP_TCV */
 
 #if	UART_DRIVER
 /* ======== */
@@ -1169,9 +1171,10 @@ interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 	// Disable until a character arrival
 	_BIC (IE1, UTXIE0);
 
+#if NESTED_INTERRUPTS
 	// Enable other interrupts. Note: we do this only for UART0.
-	_BIS_SR (GIE);
-
+	sti;
+#endif
 	RISE_N_SHINE;
 
 	if ((zz_uart [0] . flags & UART_FLAGS_OUT) == 0) {
@@ -1182,6 +1185,7 @@ interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 		TXBUF0 = zz_uart [0] . out;
 	}
 	i_trigger (ETYPE_IO, devevent (UART_A, WRITE));
+	RTNI;
 }
 
 interrupt (UART0RX_VECTOR) uart0rx_int (void) {
@@ -1189,8 +1193,11 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 #define	ua	(zz_uart + 0)
 
 	_BIC (IE1, URXIE0);
+
+#if NESTED_INTERRUPTS
 	// Enable other interrupts (UART0 only)
-	_BIS_SR (GIE);
+	sti;
+#endif
 
 #if UART_INPUT_BUFFER_LENGTH > 1
 
@@ -1211,7 +1218,9 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 		i_trigger (ETYPE_IO, devevent (UART_A, READ));
 	}
 
-	_BIC_SR (GIE);
+#if NESTED_INTERRUPTS
+	cli;
+#endif
 	_BIS (IE1, URXIE0);
 
 #else	/* UART_INPUT_BUFFER_LENGTH */
@@ -1230,6 +1239,7 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 	}
 	i_trigger (ETYPE_IO, devevent (UART_A, READ));
 #endif
+	RTNI;
 
 }
 
@@ -1254,6 +1264,7 @@ interrupt (UART1TX_VECTOR) uart1tx_int (void) {
 	// Disable until a character arrival
 	_BIC (IE2, UTXIE1);
 	i_trigger (ETYPE_IO, devevent (UART_B, WRITE));
+	RTNI;
 }
 
 interrupt (UART1RX_VECTOR) uart1rx_int (void) {
@@ -1286,6 +1297,7 @@ interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 	_BIC (IE2, URXIE1);
 	i_trigger (ETYPE_IO, devevent (UART_B, READ));
 #endif
+	RTNI;
 }
 
 static int ioreq_uart_b (int op, char *b, int len) {

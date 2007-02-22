@@ -43,4 +43,5 @@ interrupt (PORT1_VECTOR) p1_int () {
 
 // Here room for more functions
 
+	RTNI;
 }

@@ -22,7 +22,7 @@
 				zzz_last_sense = 0;
 				/* Wake up the scheduler */
 				RISE_N_SHINE;
-				return;
+				RTNI;
 			}
 			zzz_last_sense = 0;
 		} else {

@@ -17,7 +17,7 @@
 		// Stop the automaton
 		disable_xmt_timer;
 		zzv_status = 0;
-		return;
+		RTNI;
 
 	case IRQ_XPQ:
 
@@ -32,7 +32,7 @@
 			zzv_cursym = 0x20;
 			zzv_istate = IRQ_XSV;
 		}
-		return;
+		RTNI;
 
 	case IRQ_XPR:
 
@@ -40,7 +40,7 @@
 		toggle_signal;
 		SL1;
 		zzv_istate = IRQ_XPQ;
-		return;
+		RTNI;
 
 	case IRQ_XSV:
 
@@ -68,7 +68,7 @@
 		}
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_XSW:
 
@@ -93,7 +93,7 @@
 		}
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_XSX:
 
@@ -126,7 +126,7 @@
 		}
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_XPK:
 
@@ -197,7 +197,7 @@
 		TRA (sl);
 	    }
 
-	    return;
+	    RTNI;
 
 	case IRQ_XEP:
 
@@ -211,14 +211,14 @@
 			// We are done: the signal is now set set low
 			SLE;
 			zzv_istate = IRQ_EXM;
-			return;
+			RTNI;
 		}
 		sl = (zzv_cursym & 0x3);
 		zzv_curbit--;
 		zzv_cursym >>= 2;
 		TRA (sl);
 	    }
-	    return;
+	    RTNI;
 
 	case IRQ_EXM:
 

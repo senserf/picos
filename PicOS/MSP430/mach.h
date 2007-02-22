@@ -146,12 +146,17 @@ extern uart_t zz_uart [];
 
 #if	DIAG_MESSAGES || (dbg_level != 0)
 
+#ifdef	DIAG_MESSAGES_TO_LCD
+
+#define	diag_disable_int(a,u)	lcd_clear (0, 0)
+#define	diag_wchar(c,a)		lcd_putchar (c)
+#define	diag_wait(a)		do { } while (0)
+#define	diag_enable_int(a,u)	do { } while (0)
+
+#else	/* DIAG MESSAGES TO UART */
+
 #define	diag_wchar(c,a)		TXBUF0 = (byte)(c)
 #define	diag_wait(a)		while ((IFG1 & UTXIFG0) == 0)
-
-
-
-
 
 #define	diag_disable_int(a,u)	do { \
 					(u) = IE1 & (URXIE0 + UTXIE0); \
@@ -170,7 +175,12 @@ extern uart_t zz_uart [];
 					if ((u) & GIE) \
 						sti; \
 				} while (0)
-#endif
+
+
+
+#endif	/* DIAG MESSAGES TO UART */
+
+#endif	/* DIAG MESSAGES */
 
 #define	sti	_EINT ()
 #define	cli	_DINT ()
@@ -232,28 +242,52 @@ extern uart_t zz_uart [];
 #define	SLEEP	do { \
 			CPU_MARK_IDLE; \
 			if (zz_systat.pdmode) { \
-				_BIC_SR (GIE); \
+				cli; \
 				if (zz_systat.evntpn) { \
-					zz_systat.evntpn = 0; \
-					_BIS_SR (GIE); \
+					sti; \
 				} else { \
 					_BIS_SR (LPM3_bits + GIE); \
-					_NOP (); \
 				} \
 			} else { \
-				_BIC_SR (GIE); \
+				cli; \
 				if (zz_systat.evntpn) { \
-					zz_systat.evntpn = 0; \
-					_BIS_SR (GIE); \
+					sti; \
 				} else { \
 					_BIS_SR (LPM0_bits + GIE); \
-					_NOP (); \
 				} \
 			} \
+			zz_systat.evntpn = 0; \
 			CPU_MARK_BUSY; \
 		} while (0)
 
-#define	RISE_N_SHINE	_BIC_SR_IRQ (LPM4_bits)
+#if 1
+// used to be: #if NESTED_INTERRUPTS
+/*
+ * Although it may appear a bit more costly, this way of triggering scheduler
+ * events from interrupts should be preferred. This is because this version of
+ * RISE_N_SHINE can be called from a nested function called from the proper
+ * interrupt function. Also, there is no harm when called from a non-interrupt
+ * (and may be sometimes useful). Besides, with NESTED_INTERRUPTS, this is the
+ * only formally correct way, as the RISE_N_SHINE status must be conveyed down
+ * to the very bottom of the interrupt stack.
+ *
+ */
+#define	RISE_N_SHINE	do { zz_systat.evntpn = 1; } while (0)
+#define	RTNI		do { \
+				if (zz_systat.evntpn) \
+					_BIC_SR_IRQ (LPM4_bits); \
+				return; \
+			} while (0)
+#else	/* dead code */
+
+#define	RISE_N_SHINE	do { \
+				zz_systat.evntpn = 1; \
+				_BIC_SR_IRQ (LPM4_bits); \
+			} while (0)
+#define	RTNI		return
+
+#endif	/* dead code, was: NESTED_INTERRUPTS */
+
 
 #if LEDS_DRIVER
 #include "leds_sys.h"

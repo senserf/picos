@@ -5,7 +5,7 @@
 
 #include "lcd_st7036.h"
 
-#define	LCD_N_CHARS	(LCD_LINE_LENGTH * LCD_N_LINES)
+static byte Cursor;
 
 static byte put_byte (byte b) {
 
@@ -40,6 +40,8 @@ static void put_data (byte b) {
 
 void zz_lcd_init () {
 
+	Cursor = 0;
+
 	lcd_ini_regs;
 
 	lcd_start;
@@ -58,7 +60,6 @@ void zz_lcd_init () {
 	lcd_stop;
 
 	lcd_off ();
-	
 }
 
 void lcd_on (word params) {
@@ -79,6 +80,7 @@ void lcd_off () {
 void lcd_clear (word from, word n) {
 
 	if (n == 0 || (from == 0 && n == LCD_N_CHARS)) {
+		Cursor = 0;
 		lcd_start;
 		put_cmd (0x01);
 		mdelay (2);
@@ -102,6 +104,8 @@ void lcd_clear (word from, word n) {
 
 void lcd_write (word from, const char *str) {
 
+	if (from == WNONE)
+		from = Cursor;
 	if (*str != '\0' && from < LCD_N_CHARS) {
 		lcd_start;
 		// Set the memory address
@@ -115,6 +119,18 @@ void lcd_write (word from, const char *str) {
 				set_addr (0x40);
 			from++;
 		}
+		lcd_stop;
+	}
+	Cursor = from;
+}
+
+void lcd_putchar (char c) {
+
+	if (Cursor < LCD_N_CHARS) {
+		lcd_start;
+		set_addr (Cursor > 15 ? (0x40 - 16) + Cursor : Cursor);
+		put_data (c);
+		Cursor++;
 		lcd_stop;
 	}
 }

@@ -1,1 +1,9 @@
 // Insert here applications-specific options
+#undef	UART_DRIVER
+#undef 	UARTP_TCV
+#undef	TCV_PRESENT
+
+#define	UART_DRIVER	0
+#define	UARTP_TCV	1
+#define	TCV_PRESENT	1
+
