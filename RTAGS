@@ -1360,14 +1360,16 @@ R070217A:
 
 	Application ILLUSTRATION added to Apps/VUEE.
 
---------:
+R070221B:
 
-	phys_uart renamed phys_uartp (for persistent). The idea is to implement
-	another phys_uart that would be closer to a radio interface over UART,
-	i.e., without any reliability tweaks except for CRC.
-	Fixed a problem with interruptible interrupts (introduced to accommodate
-	VERSA2's transmitter). The problem was that the RISE_AND_SHINE status
-	from a stacked interrupt wasn't conveyed to the bottom of the stack.
-	Finally, decided to make the new version of triggering scheduler events
-	from interrupts non-optional (independent of NESTED_INTERRUPTS) as its
-	semantics are simple and clear.  It isn't even more expensive.
+	The old phys_uart interface renamed as phys_uartp (for persistent), and
+	another interface (phys_uart) implemened to simulate simple (unacked)
+	RF interface over UART (with CRC but no built-in reliability of
+	delivery). 
+	Fixed a problem with interruptible interrupts (introduced some time
+	ago to accommodate VERSA2's transmitter). The problem was that the
+	RISE_AND_SHINE status from a stacked interrupt wasn't conveyed to the
+	bottom of the stack. Constant NESTED_INTERRUPTS added in case we want
+	extend this feature (selectively) over other interrupts.
+	We have a new an more elegant mechanism for triggering scheduler events
+	from interrupts.
