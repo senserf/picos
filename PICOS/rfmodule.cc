@@ -1,8 +1,8 @@
-#ifndef	__rfmodule_dm2200_cc__
-#define	__rfmodule_dm2200_cc__
+#ifndef	__rfmodule_cc__
+#define	__rfmodule_cc__
 
 #include "board.h"
-#include "rfmodule_dm2200.h"
+#include "rfmodule.h"
 #include "tcvphys.h"
 #include "stdattr.h"
 #include "tcv.cc"
@@ -13,45 +13,22 @@ static int option (int, address);
 
 byte Receiver::get_rssi (byte &qual) {
 
-	IHist *ih;
-	double sl, sd, bn, ra;
-	byte res;
+	word wr;
 
-	ih = RFInterface->iHist (ThePckt);
-	assert (ih != NULL, "Receiver->get_rssi: no IHist");
+	// Let us ignore this for a while
+	qual = 0;
 
-	sl = RFInterface->sigLevel (ThePckt, SIGL_OWN);
-	assert (sl >= 0.0, "Receiver->get_rssi: no signal");
+	if (Ether->RSSIC == NULL)
+		// No RSSI calculator present
+		return 0;
 
-	// Weight it between background noise and 10dBm, which is the default
-	// transmit power
-	sd = linTodB (sl);
-	bn = linTodB (Ether->BNoise);
+	wr = Ether->RSSIC->calculate (RFInterface->sigLevel (ThePckt,
+		SIGL_OWN));
 
-	// This should be precomputed 
-	ra = 10.0 - bn;
+	if (wr > 255)
+		wr = 255;
 
-	ra = ((sd - bn) / ra) * 127.0;
-	if (ra < 0.0)
-		res = 0;
-	else if (ra > 127.0)
-		res = 127;
-	else
-		res = (byte) ra;
-
-	// By quality, we mean the S/N ratio normalized between 10.0/bn and
-	// 0dB
-
-	ra = RFInterface->sigLevel (ThePckt, SIGL_IFA) + Ether->BNoise;
-	sl = (linTodB (sl/ra) + 5.0) / 55.0;
-	if (sl >= 1.0)
-		qual = 127;
-	else if (sl < 0.0)
-		qual = 0;
-	else
-		qual = (byte) (128.0 * sl);
-
-	return res;
+	return (byte) wr;
 }
 
 Xmitter::perform {
@@ -75,7 +52,9 @@ Drain:
 		if ((buffer = tcvphy_get (PHYSID, &buflen)) != NULL) {
 			assert (buflen >= 4 && (buflen & 1) == 0,
 				"Xmitter: illegal packet length");
-			buffer [0] = statid;
+			if (statid != 0xffff)
+				// otherwise, honor the packet's statid
+				buffer [0] = statid;
 		} else {
 			// Nothing to transmit
 			if (TXOFF == 2) {
@@ -236,15 +215,37 @@ Finidh:
 	pktlen = ThePckt -> PaySize;
 
 	assert (pktlen > MINIMUM_PACKET_LENGTH, "Receiver: packet too short");
-	if (statid != 0 && packet [0] != 0 && packet [0] != statid)
-		// Ignore
-		proceed RCV_GETIT;
 
+	if (statid != 0 && statid != 0xffff) {
+		// Admit only packets with agreeable statid
+		if (packet [0] != 0 && packet [0] != statid)
+			// Ignore
+			proceed RCV_GETIT;
+	}
+		
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
 	packet [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 
 	tcvphy_rcv (PHYSID, packet, pktlen);
 	proceed RCV_GETIT;
+}
+
+__PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
+/*
+ * phy  - interface number
+ * mbs  - maximum packet length (including checksum, must be divisible by 4)
+ */
+	if (mbs < 6 || mbs > CC1100_MAXPLEN) {
+		if (mbs == 0)
+			mbs = CC1100_MAXPLEN;
+		else
+			syserror (EREQPAR, "phys_cc1100");
+	}
+
+	if (memBook (mbs+2) == NO)
+		syserror (EMALLOC, "phys_cc1100");
+
+	phys_rfmodule_init (phy);
 }
 
 __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
@@ -261,6 +262,11 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 
 	if (memBook (mbs) == NO)
 		syserror (EMALLOC, "phys_dm2200");
+
+	phys_rfmodule_init (phy);
+}
+
+void PicOSNode::phys_rfmodule_init (int phy) {
 
 	statid = 0;
 	backoff = 0;
@@ -372,12 +378,20 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETPOWER:
 
-		// Void: power not settable on DM2200
+		if (Ether->PS != NULL)
+			RFInterface->setXPower ((val == NULL) ? 
+				DefXPower : Ether->PS->setvalue (*val));
 		break;
 
 	    case PHYSOPT_GETPOWER:
 
-		excptn ("PHYSOPT_GETPOWER unimplemented");
+		if (Ether->PS == NULL)
+			excptn ("PHYSOPT_GETPOWER unimplemented");
+
+		ret = Ether->PS->getvalue (RFInterface->getXPower ());
+
+		if (val != NULL)
+			*val = ret;
 		break;
 
 	    case PHYSOPT_SETSID:

@@ -75,13 +75,15 @@ packet	PKT {
 station PicOSNode {
 
 	void		_da (phys_dm2200) (int, int);
+	void		_da (phys_cc1100) (int, int);
+	void		phys_rfmodule_init (int);
 
 	Mailbox	TB;		// For trigger
 
 	/*
 	 * Defaults needed for reset
 	 */
-	double		DefXPower, DefRPower;
+	double		_da (DefXPower), _da (DefRPower);
 
 	/*
 	 * Memory allocator
@@ -303,6 +305,8 @@ station PicOSNode {
 #include "tcv_node_data.h"
 
 	void setup (data_no_t*);
+
+	IPointer preinit (const char*);
 };
 
 process Inserial (PicOSNode) {
@@ -388,13 +392,40 @@ process	BoardRoot {
 	void initTiming (sxml_t);
 	void initChannel (sxml_t, int);
 	void initNodes (sxml_t, int);
+	void initRoamers (sxml_t);
 	void initAll ();
 
+	void readPreinits (sxml_t, int);
+	
 	virtual void buildNode (const char *tp, data_no_t *nddata) {
 		excptn ("BoardRoot: buildNode undefined");
 	};
 
 	states { Start, Stop } ;
+
+	perform;
+};
+
+process MoveHandler {
+
+	TIME TimedRequestTime;
+
+	union	{
+		Dev	   *Agent;	// May be string
+		const char *String;
+	};
+
+	int Left;
+	char *BP;
+	char *RBuf;
+	word RBSize;
+	FLAGS Flags;
+
+	states { AckMove, Loop, ReadRq, Reply, Delay };
+
+	void setup (Dev*, FLAGS);
+
+	~MoveHandler ();
 
 	perform;
 };

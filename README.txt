@@ -149,3 +149,9 @@ R070217A:
 
     Udaemon polished up a bit, document added to VUEE/Doc, tested on Cygwin,
     32-bit and 64-bit Linux.
+
+R070325A:
+
+    MOVER renamed ROAMER and made available from the input data. Random
+    way point mobility model implemented. Added preinits, RSSI and SETPOWER
+    conversion tables in the input data. Agent protocol poished up.

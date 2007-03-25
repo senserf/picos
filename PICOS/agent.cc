@@ -9,9 +9,12 @@
 
 //#undef	rnd
 
+#define	imode(f)	((f) & XTRN_IMODE_MASK)
+#define	omode(f)	((f) & XTRN_OMODE_MASK)
+
 word	ZZ_Agent_Port	= AGENT_SOCKET;
 
-process	Teleporter;
+process	Teleporter;		// Shared by agent
 
 struct	movepool_s {
 
@@ -24,6 +27,8 @@ struct	movepool_s {
 typedef	struct movepool_s movepool_t;
 
 static movepool_t *MIP = NULL;		// List of moves in progress
+
+static MUpdates *MUP = NULL;
 
 static movepool_t *find_mip (Long sid) {
 
@@ -40,63 +45,6 @@ static inline double dist (double x, double y, double xt, double yt) {
 	return sqrt ((xt - x) * (xt - x) + (yt - y) * (yt - y));
 }
 
-static void push_bval (char *&tb, byte val) {
-/*
- * Two hex digits + leading space
- */
-	int d;
-
-	*tb++ = ' ';
-	d = (val >> 4) & 0xf;
-	*tb++ = tohex (d);
-	d = val & 0xf;
-	*tb++ = tohex (d);
-}
-
-static void push_pval (char *&tb, byte *pns, int ns) {
-/*
- * A hex string of binary pin values
- */
-	int i, d;
-
-	*tb++ = ' ';
-	for (i = 0; i < ns; i++) {
-		d = pns [i >> 1];
-		if ((i & 1))
-			d = (d >> 4);
-		d &= 0xf;
-		*tb++ = tohex (d);
-	}
-}
-
-static void push_sval (char *&tb, short val) {
-
-	int i, d;
-
-	*tb++ = ' ';
-	for (i = 12; i >= 0; i -= 4) {
-		d = (val >> i) & 0xf;
-		*tb++ = tohex (d);
-	}
-}
-
-static void push_msec (char *&tb, TIME t) {
-
-	double d;
-	Long s, m;
-
-	// This gives us seconds
-	s = (Long)(d = ituToEtu (t));
-	// This gives us milliseconds
-	m = (Long)((d - s) * 1000.0);
-
-	if (s >= 10000)
-		s = s % 10000;
-
-	sprintf (tb, "%04d.%03d: ", s, m);
-	tb += 10;
-}
-
 inline static void skipblk (char *&bp) {
 	while (isspace (*bp))
 		bp++;
@@ -108,15 +56,25 @@ static int dechex (char *&bp) {
 
 	skipblk (bp);
 
-	if (!isxdigit (*bp))
-		return ERROR;
-
 	res = 0;
 
-	do {
-		res = (res << 4) | unhex (*bp);
-		bp++;
-	} while (isxdigit (*bp));
+	if (*bp == '0' && *(bp+1) == 'x') {
+		bp += 2;
+		if (!isxdigit (*bp))
+			return ERROR;
+		do {
+			res = (res << 4) | unhex (*bp);
+			bp++;
+		} while (isxdigit (*bp));
+	} else {
+		// Assume this is decimal
+		if (!isdigit (*bp))
+			return ERROR;
+		do {
+			res = (res * 10) + (*bp) - '0';
+			bp++;
+		} while (isdigit (*bp));
+	}
 
 	return res;
 }
@@ -247,38 +205,37 @@ process LedsHandler {
 	perform;
 };
 
-process MoveHandler {
-
-	TIME TimedRequestTime;
-	Dev *Agent;
-	int Left;
-	char *BP;
-	nparse_t NP [5];
-	char *RBuf;
-	word RBSize;
-
-	Boolean	Device;
-
-	states { AckMove, Loop, ReadRq, Reply, Delay };
-
-	void setup (Dev*, Boolean);
-	~MoveHandler () { delete RBuf; };
-
-	perform;
-};
-
 process Teleporter {
 
 	movepool_t *ME;
 	PicOSNode *No;
-	double CX, CY, TX, TY, TLeft;
-	Long Count;
 
-	states { Advance };
+	double	X0, Y0, X1, Y1;			// Bounding rectangle
 
-	// pool item, X, Y, steps, total time
-	void setup (movepool_t*, double, double, Long, double);
+	double	MINSP, MAXSP,			// Speed
+		MINPA, MAXPA;			// Pause
 
+	double	CX, CY,				// Current coordinates
+		TX, TY;				// Target coordinates
+
+	TIME	Until,				// Total time for the roaming
+		TLeft;				// Left for the present leg
+
+	Long	Count;				// Number of steps
+
+	states { NextLeg, Advance };
+
+	void setup (Long,			// Node number
+				double,		// X0  ** this is the rectangle
+				double, 	// Y0  ** within which the node
+				double, 	// X1  ** will be happily
+				double,		// Y1  ** roaming
+				double, 	// Mns ** minimum speed
+				double,		// Mxs ** maximum speed
+				double,		// Mnp ** minimum pause
+				double,		// Mxp ** maximum pause
+				double		// Tim ** total time (inf if 0)
+					);
 	perform;
 };
 
@@ -305,7 +262,7 @@ UART::UART (data_ua_t *UAD) {
  *  _TIMED (input only) [+]Time { ... } (Time is in ITUs)
  */
 	char *sp, *fn;
-	int st, imode, omode;
+	int st;
 
 	I = O = NULL;
 	Flags = UAD->UMode;
@@ -316,37 +273,34 @@ UART::UART (data_ua_t *UAD) {
 	// organization of the buffer
 	B_ilen = UAD->UIBSize + 2;
 	B_olen = UAD->UOBSize + 2;
-	String = NULL;
 	TI_aux = NULL;
 	TimedChunkTime = TIME_0;
 
 	IBuf = new byte [B_ilen];
 	OBuf = new byte [B_olen];
 
-	imode = (Flags & XTRN_IMODE_MASK);
-	omode = (Flags & XTRN_OMODE_MASK);
-
 	// Account for start / stop bits, assuming there is no parity and one
 	// stop bit, which is the case in all our setups
 	ByteTime = (TIME) ((Second / UAD->URate) * 10.0);
 
-	if (imode == XTRN_IMODE_SOCKET || omode == XTRN_OMODE_SOCKET) {
+	if (imode (Flags) == XTRN_IMODE_SOCKET ||
+					omode (Flags) == XTRN_OMODE_SOCKET) {
 		// The socket case: both ends must use the same socket
-		Assert (imode == XTRN_IMODE_SOCKET &&
-		    omode == XTRN_OMODE_SOCKET, 
+		Assert (imode (Flags) == XTRN_IMODE_SOCKET &&
+		    omode (Flags) == XTRN_OMODE_SOCKET, 
 			"UART at %s: confilcting modes %x",
 			    TheStation->getSName (),
 			        Flags);
 		// Don't create the device now; it will be created upon
 		// connection. That's it for now.
-	} else if (imode == XTRN_IMODE_DEVICE) {
+	} else if (imode (Flags) == XTRN_IMODE_DEVICE) {
 		// Need a mailbox for the input end
 		Assert (UAD->UIDev != NULL,
 			"UART at %s: input device cannot be NULL",
 				TheStation->getSName ());
 		I = create Dev;
 		// Check if the output end uses the same device
-		if (omode == XTRN_OMODE_DEVICE &&
+		if (omode (Flags) == XTRN_OMODE_DEVICE &&
 		    strcmp (UAD->UIDev, UAD->UODev) == 0) {
 			// Yep, single mailbox will do
 			st = I->connect (DEVICE+READ+WRITE, UAD->UIDev, 0,
@@ -359,11 +313,13 @@ UART::UART (data_ua_t *UAD) {
 		if (st == ERROR)
 			excptn ("UART at %s: cannot open device %s",
 				TheStation->getSName (), UAD->UIDev);
-	} else if (imode == XTRN_IMODE_STRING) {
+	} else if (imode (Flags) == XTRN_IMODE_STRING) {
 		// String
 		Assert (UAD->UIDev != NULL,
 			"UART at %s: the input string is empty",
 				TheStation->getSName ());
+#if 0
+		// SLen is part of Flags
 		SLen = (Flags & XTRN_IMODE_STRLEN);
 		if (SLen == 0)
 			// Use strlen
@@ -371,13 +327,14 @@ UART::UART (data_ua_t *UAD) {
 		if (SLen == 0)
 			excptn ("UART at %s: input string length is 0",
 				TheStation->getSName ());
+#endif
 		// No need to copy the string; it has been allocated as
 		// shared by readNodeParams
-		String = UAD->UIDev;
+		S = UAD->UIDev;
 	}
 
 	// We are done with the input end
-	if (O == NULL && omode == XTRN_OMODE_DEVICE) {
+	if (O == NULL && omode (Flags) == XTRN_OMODE_DEVICE) {
 		// This can only mean a separate DEVICE 
 		Assert (UAD->UODev != NULL, "UART at %s: no output device name",
 			TheStation->getSName ());
@@ -392,7 +349,16 @@ UART::UART (data_ua_t *UAD) {
 
 void UART::rst () {
 
+	// When a node is reset, SMURPH kills all its processes, including
+	// UART drivers. 
+
+	// Note that the input is not reset, should it? I don't think so.
+	// Event string input should not be used for post reset initialization
+	// (preinit) is for that. So what is gone is gone.
+
 	IB_in = IB_out = 0;
+	// Note that if we are reading from string, and the string is gone,
+	// the process will immediately terminate itself.
 	PI = create UART_in (this);
 
 	OB_in = OB_out = 0;
@@ -422,17 +388,16 @@ char UART::getOneByte (int st) {
  */
 	char c;
 
-	if ((Flags & XTRN_IMODE_MASK) == XTRN_IMODE_STRING) {
-		if (SLen == 0) {
-			// This event will never happen. We wait here forever
-			// when the string has ended. Perhaps later I will do
-			// something about the process.
+	if (imode (Flags) == XTRN_IMODE_STRING) {
+		if ((Flags & XTRN_IMODE_STRLEN) == 0) {
+			// Kill the input process
 			terminate (PI);
 			PI = NULL;
+			S = NULL;
 			sleep;
 		}
-		SLen--;
-		return *String++;
+		Flags--;
+		return  *S++;
 	}
 	// Read from the mailbox
 	if (I == NULL) {
@@ -797,10 +762,6 @@ UART::~UART () {
 	delete IBuf;
 	delete OBuf;
 
-	// if (String != NULL)
-		// delete String;
-	// String may be shared
-
 	if (TI_aux != NULL)
 		delete TI_aux;
 #endif
@@ -885,7 +846,7 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 	if (UA == NULL) {
 		// No UART for this station
 		c = ECONN_NOUART;
-	} else if ((UA->Flags & XTRN_IMODE_SOCKET) == 0) {
+	} else if (imode (UA->Flags) != XTRN_IMODE_SOCKET) {
 		c = ECONN_ITYPE;
 	} else if (UA->I != NULL || UA->O != NULL) {
 		// Duplicate connection, refuse it
@@ -1022,7 +983,7 @@ short PINS::dac (word v, int ref) {
 
 PINS::PINS (data_pn_t *PID) {
 
-	int i, imode, omode;
+	int i;
 	byte *taken;
 	PicOSNode *ThisNode;
 
@@ -1035,8 +996,6 @@ PINS::PINS (data_pn_t *PID) {
 	TPN = ThePicOSNode;
 
 	Flags = PID->PMode;
-	imode = (Flags & XTRN_IMODE_MASK);
-	omode = (Flags & XTRN_OMODE_MASK);
 
 	// This has been checked already
 	assert (PID->NP != 0, "PINS: the number of pins at %s is zero",
@@ -1122,22 +1081,23 @@ PINS::PINS (data_pn_t *PID) {
 		VADC = NULL;
 	}
 
-	if (imode == XTRN_IMODE_SOCKET || omode == XTRN_OMODE_SOCKET) {
-		Assert (imode == XTRN_IMODE_SOCKET &&
-		    omode == XTRN_OMODE_SOCKET, 
+	if (imode (Flags) == XTRN_IMODE_SOCKET ||
+					omode (Flags) == XTRN_OMODE_SOCKET) {
+		Assert (imode (Flags) == XTRN_IMODE_SOCKET &&
+		    omode (Flags) == XTRN_OMODE_SOCKET, 
 			"PINS at %s: confilcting modes %x",
 			    TheStation->getSName (),
 			        Flags);
 		// That's it, the devices will be created upon connection
 	
-	} else if (imode == XTRN_IMODE_DEVICE) {
+	} else if (imode (Flags) == XTRN_IMODE_DEVICE) {
 		// Need a mailbox for the input end
 		Assert (PID->PIDev != NULL,
 			"PINS at %s: input device cannot be NULL",
 				TheStation->getSName ());
 		I = create Dev;
 		// Check if the output end uses the same device
-		if (omode == XTRN_OMODE_DEVICE && strcmp (PID->PIDev,
+		if (omode (Flags) == XTRN_OMODE_DEVICE && strcmp (PID->PIDev,
 		    PID->PODev) == 0) {
 			// Yep, single mailbox will do
 			i = I->connect (DEVICE+READ+WRITE, PID->PIDev, 0,
@@ -1151,10 +1111,15 @@ PINS::PINS (data_pn_t *PID) {
 		if (i == ERROR)
 			excptn ("PINS at %s: cannot open device %s",
 				TheStation->getSName (), PID->PIDev);
+	} else if (imode (Flags) == XTRN_IMODE_STRING) {
+		Assert (PID->PIDev != NULL,
+			"PINS at %s: the input string is empty",
+				TheStation->getSName ());
+		S = PID->PIDev;
 	}
 
 	// We are done with the input end
-	if (O == NULL && omode == XTRN_OMODE_DEVICE) {
+	if (O == NULL && omode (Flags) == XTRN_OMODE_DEVICE) {
 		// A separate DEVICE 
 		Assert (PID->PODev != NULL, "PINS at %s: no output device name",
 			TheStation->getSName ());
@@ -1168,6 +1133,7 @@ PINS::PINS (data_pn_t *PID) {
 	// Allocate buffer for updates
 	UBuf = new char [PUPD_OUTPUT_BUFLEN];
 
+	// Note that I shares location with S
 	if (I != NULL) {
 		// The input end
 		create (System) PinsInput (this);
@@ -1500,6 +1466,8 @@ void PINS::qupd_all () {
  */
 	byte pin;
 
+	// Request parameters
+	Upd->put (-1);
 	for (pin = 0; pin < PIN_MAX; pin++) 
 		qupd_pin (pin);
 }
@@ -1816,19 +1784,15 @@ int PINS::pinup_status (pin_update_t upd) {
 	char *tb;
 	tb = UBuf;
 
-	push_msec (tb, Time);
-	push_bval (tb, PIN_MAX);
-	push_bval (tb, PIN_MAX_ANALOG);
-	push_bval (tb, upd.pin);
+	if (*((long*)(&upd)) == -1) {
+		// This is a params update: two numbers only
+		sprintf (UBuf, "N %1u %1u\n", PIN_MAX, PIN_MAX_ANALOG);
+	} else {
+		sprintf (UBuf, "U %08.3f: %1u %1u %1u\n", ituToEtu (Time),
+			upd.pin, upd.stat, upd.value);
+	}
 
-	*tb++ = ' ';
-	*tb++ = tohex (upd.stat);
-
-	push_sval (tb, upd.value);
-	*tb++ = '\n';
-	*tb = '\0';
-
-	return tb - UBuf;
+	return strlen (UBuf);
 }
 
 int PINS::pinup_update (char *rb) {
@@ -1873,7 +1837,6 @@ int PINS::pinup_update (char *rb) {
 
 		// Ignore: this may be an empty line or a comment
 		return OK;
-
 	}
 }
 	
@@ -1903,7 +1866,7 @@ void PinsHandler::setup (PINS *pn, Dev *a) {
 		c = ECONN_OK;
 		if (PN == NULL)
 			c = ECONN_NOPINS;
-		else if ((PN->Flags & XTRN_IMODE_SOCKET) == 0)
+		else if (imode (PN->Flags) != XTRN_IMODE_SOCKET)
 			c = ECONN_ITYPE;
 		else if (PN->OutputThread != NULL)
 			c = ECONN_ALREADY;
@@ -2005,7 +1968,10 @@ void PinsInput::setup (PINS *p) {
 	assert (PN->InputThread == NULL, "PinsInput at %d: duplicate thread",
 		PN->TPN->getSName ());
 	PN->InputThread = this;
-	PN->I->setSentinel ('\n');
+
+	if (imode (PN->Flags) != XTRN_IMODE_STRING)
+		// Otherwise, the mailbox is not a mailbox at all
+		PN->I->setSentinel ('\n');
 }
 
 PinsInput::perform {
@@ -2021,15 +1987,40 @@ PinsInput::perform {
 	int rc;
 	char *re;
 	Boolean off, err;
+	char cc;
 
 	state Loop:
 
 		BP = &(RBuf [0]);
 		Left = PRQS_INPUT_BUFLEN;
 
+		if (imode (PN->Flags) == XTRN_IMODE_STRING) {
+			// This is simple
+			while ((PN->Flags & XTRN_IMODE_STRLEN) != 0) {
+				PN->Flags--;
+				cc = *(PN->S)++;
+				if (cc == '\n' || cc == '\0') {
+					*BP = '\0';
+					goto HandleInput;
+				}
+				if (Left > 1) {
+					*BP++ = cc;
+					Left--;
+				}
+			}
+			if (Left == PRQS_INPUT_BUFLEN) {
+				// End of string
+				PN->InputThread = NULL;
+				terminate;
+			}
+			*BP = '\0';
+			goto HandleInput;
+		}
+
 	transient ReadRq:
 
 		if ((rc = PN->I->rs (ReadRq, BP, Left)) == ERROR) {
+			// Here we know this is not string
 			if ((PN->Flags & XTRN_IMODE_SOCKET) == 0) {
 				// A device,  EOF, close this part of the shop
 				PN->InputThread = NULL;
@@ -2062,7 +2053,7 @@ PinsInput::perform {
 
 		// Fine: this is the length excluding the newline
 		RBuf [PRQS_INPUT_BUFLEN - 1 - Left] = '\0';
-
+HandleInput:
 		BP = &(RBuf [0]);
 
 		skipblk (BP);
@@ -2217,23 +2208,17 @@ int LEDSM::ledup_status () {
 /*
  * Prepare an update message
  */
-	char *BP;
-	word i;
-	word s;
+	
+	int i, len;
 
-	BP = UBuf;
+	sprintf (UBuf, "U %08.3f: %c ", ituToEtu (Time), Fast ? '1' : '0');
 
-	push_msec (BP, Time);
-	*BP++ = Fast ? '1' : '0';
-	*BP++ = ' ';
+	for (len = strlen (UBuf), i = 0; i < NLeds; i++)
+		UBuf [len++] = (char) (getstat (i) + '0');
 
-	for (i = 0; i < NLeds; i++) {
-		s = getstat (i);
-		*BP++ = (char)(s + '0');
-	}
-	*BP++ = '\n';
+	UBuf [len++] = '\n';
 
-	return BP - UBuf;
+	return len;
 }
 
 void LedsHandler::setup (PicOSNode *tpn, LEDSM *le, Dev *a) {
@@ -2338,41 +2323,61 @@ Error:
 		proceed Loop;
 }
 
-void MoveHandler::setup (Dev *a, Boolean device) {
+void MoveHandler::setup (Dev *a, FLAGS f) {
 
 	int i;
 
+	Flags = f;
+
+	if (imode (Flags) == XTRN_IMODE_SOCKET) {
+		if (MUP != NULL) {
+			// For now allow only one Internet connection at a time
+			create Disconnector (a, ECONN_ALREADY);
+			terminate ();
+			return;
+		}
+		// Create the mailbox to receive updates
+		MUP = create MUpdates (MAX_Long);
+	}
+
 	Agent = a;
-	Agent->setSentinel ('\n');
-	Device = device;
+
+	if (imode (Flags) != XTRN_IMODE_STRING)
+		Agent->setSentinel ('\n');
 	TimedRequestTime = Time;
-	// Note: we allow multiple such processes, because they operate
-	// globally and their service areas may be disjoint.
-	// Initialize the number parse structure
-	NP [0] . type = TYPE_hex;
-	for (i = 1; i < 5; i++)
-		NP [i] . type = TYPE_double;
 	// This will do for input requests, but we have to play it
-	// safe with the output stuff, which includes node type names, as
-	// there is no explicit limit on their length
+	// safe with the output stuff, which includes node type names,
+	// as there is no explicit limit on their length
 	RBuf = new char [RBSize = MRQS_INPUT_BUFLEN];
+}
+
+MoveHandler::~MoveHandler () {
+
+	delete RBuf;
+	if (imode (Flags) == XTRN_IMODE_SOCKET) {
+		delete MUP;
+		MUP = NULL;
+	}
 }
 
 MoveHandler::perform {
 
 	TIME st;
-	double dd, ee, xx, yy;
+	double xx, yy;
 	movepool_t *ME;
+	nparse_t NP [9];
 	int rc;
 	Long NN, NS;
 	char *re;
 	PicOSNode *pn;
 	byte c;
+	char cc;
 	Boolean off;
 
 	state AckMove:
 
-		if (!Device) {
+		if (imode (Flags) == XTRN_IMODE_SOCKET) {
+			// Need to acknowledge
 			c = ECONN_OK;
 			if (Agent->wi (AckMove, (char*)(&c), 1) == ERROR) {
 				// Disconnected
@@ -2386,19 +2391,62 @@ MoveHandler::perform {
 		BP = RBuf;
 		Left = MRQS_INPUT_BUFLEN;
 
+		if (imode (Flags) == XTRN_IMODE_STRING) {
+			// Reading from string
+			while ((Flags & XTRN_IMODE_STRLEN) != 0) {
+				Flags--;
+				cc = *(String)++;
+				if (cc == '\n' || cc == '\0') {
+					*BP = '\0';
+					goto HandleInput;
+				}
+				if (Left > 1) {
+					*BP++ = cc;
+					Left--;
+				}
+			}
+			if (Left == MRQS_INPUT_BUFLEN) {
+				// End of string
+				terminate;
+			}
+			*BP = '\0';
+			goto HandleInput;
+		}
+
 	transient ReadRq:
 
+		if (imode (Flags) == XTRN_IMODE_SOCKET && 
+						Left == MRQS_INPUT_BUFLEN) {
+			// This is extremely clumsy; the process asks to
+			// be completely reorganized. This condition tells
+			// us that we haven't started reading yet and we
+			// are an Internet mover, in which case MUP must
+			// be present.
+			if (!MUP->empty ()) {
+				NN = MUP->get ();
+				pn = (PicOSNode*) idToStation (NN);
+				pn -> _da (RFInterface)->getLocation (xx, yy);
+				// This one is safe as we do not include the
+				// standard name in an update
+				sprintf (RBuf, "U %1d %1f %1f\n", NN, xx, yy);
+				BP = &(RBuf [0]);
+				Left = strlen (RBuf);
+				proceed Reply;
+			}
+
+			MUP->wait (NONEMPTY, ReadRq);
+		}
+
 		if ((rc = Agent->rs (ReadRq, BP, Left)) == ERROR) {
-			if (!Device)
+			if (imode (Flags) == XTRN_IMODE_SOCKET)
 				delete Agent;
-				// EOF. That's it. We cannot delete the mailbox
-				// because it formally belongs to a station.
-				// FIXME: can we do that somehow?
+			// EOF. That's it. We cannot delete the mailbox
+			// because it formally belongs to a station.
 			terminate;
 		}
 
 		if (rc == REJECTED) {
-			if (Device)
+			if (imode (Flags) != XTRN_IMODE_SOCKET)
 				excptn ("MoveHandler: request line too long, "
 					"%1d is the max", MRQS_INPUT_BUFLEN);
 			create Disconnector (Agent, ECONN_LONG);
@@ -2407,18 +2455,22 @@ MoveHandler::perform {
 			
 		// this is the length excluding the newline
 		RBuf [MRQS_INPUT_BUFLEN - 1 - Left] = '\0';
-
+HandleInput:
 		// Request format:
 		// T delay
 		// node (and nothing else) -> request for coordinates, illegal
 		// if device;
 		// node x y -> teleport there immediately
-		// node x y speed grain (4 fp numbers) -> move there at speed
-		// speed with granularity grain metres
+		// node x0 y0 x1 y1 mins maxs minp maxp time -> starts a
+		// random mobility process for the node
 
 		BP = RBuf;
 		skipblk (BP);
-		if (*BP == 'T') {
+
+		switch (*BP++) {
+
+		    case 'T':
+
 			// Delay request
 			BP++;
 			skipblk (BP);
@@ -2432,7 +2484,7 @@ MoveHandler::perform {
 			if (BP == re || xx < 0.0) {
 				// Illegal request
 Illegal:
-				if (Device)
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
 					excptn ("MoveHandler: illegal request "
 						"%s", RBuf);
 				create Disconnector (Agent, ECONN_INVALID);
@@ -2445,34 +2497,34 @@ Illegal:
 				TimedRequestTime = st;
 
 			proceed Delay;
-		}
 
-		if ((rc = parseNumbers (RBuf, 5, NP)) == 0)
-			// Treat this as a null line, e.g., heartbeat or comment
-			proceed Loop;
+		    case 'Q':
 
-		// Otherwise, this must be a valid node number
-		NN = NP [0].IVal;
-		if (!isStationId (NN)) {
-			if (Device)
-				excptn ("MoveHandler: illegal node Id %1d", NN);
-			// Socket, NACK + disconnect
-			create Disconnector (Agent, ECONN_STATION);
-			terminate;
-		}
+			// Position query
+			if ((NN = dechex (BP)) == ERROR)
+				goto Illegal;
 
-		if (rc == 1) {
-			// Node number only: send back the coordinates
-			if (Device)
-				excptn ("MoveHandler: coordinate request '%s; "
+			if (imode (Flags) != XTRN_IMODE_SOCKET)
+				excptn ("MoveHandler: coordinate query '%s; "
 					"illegal from non-socket interface",
 						RBuf);
+
+			if (!isStationId (NN)) {
+Illegal_nid:
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: illegal node Id "
+						"%1d", NN);
+				// Socket, NACK + disconnect
+				create Disconnector (Agent, ECONN_STATION);
+				terminate;
+			}
 
 			pn = (PicOSNode*)idToStation (NN);
 			pn -> _da (RFInterface)->getLocation (xx, yy);
 
-			while ((rc = snprintf (RBuf, RBSize, "%x %x %f %f %s\n",
-			   NN, NStations, xx, yy, pn->getTName ())) >= RBSize) {
+			while ((rc = snprintf (RBuf, RBSize,
+			   "P %1d %1d %1f %1f %s\n", NN, NStations, xx, yy,
+			      pn->getTName ())) >= RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
 				delete RBuf;
@@ -2482,66 +2534,130 @@ Illegal:
 			BP = &(RBuf [0]);
 			Left = strlen (RBuf);
 			proceed Reply;
-		}
 
-		if (rc != 3 && rc != 5)
-			goto Illegal;
+		    case 'M':
 
-		if ((ME = find_mip (NN)) != NULL) {
-			// Terminate the previous mover
-			ME->Thread->terminate ();
-			pool_out (ME);
-			delete ME;
-		}
+			// Move
+			if ((NN = dechex (BP)) == ERROR)
+				goto Illegal;
 
-		if (NP [1].DVal < 0.0 || NP [2].DVal < 0.0) {
-			// Illegal target coordinate
-			if (Device)
-				excptn ("MoveHandler: illegal coordinates "
-					"(%f, %f), must not be negative",
-						NP[1].DVal, NP[2].DVal);
-			// Socket
-			create Disconnector (Agent, ECONN_INVALID);
-			terminate;
-		}
-		
-		if (rc == 3) {
-			// Immediate teleport
-Immediate:
+			if (!isStationId (NN))
+				goto Illegal_nid;
+
+			// Prepare the parse structure
+			NP [0] . type = NP [1] . type = TYPE_double;
+
+			if ((rc = parseNumbers (BP, 2, NP)) != 2)
+				goto Illegal;
+
+			if (NP [0].DVal < 0.0 || NP [1].DVal < 0.0) {
+Illegal_crd:
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: illegal "
+					    "coordinates (%f, %f), must not be "
+						"negative", NP[0].DVal,
+						    NP[1].DVal);
+				// Socket
+				create Disconnector (Agent, ECONN_INVALID);
+				terminate;
+			}
+	
+			// Remove from MIP (roaming) pool
+			if ((ME = find_mip (NN)) != NULL) {
+				ME->Thread->terminate ();
+				pool_out (ME);
+				delete ME;
+			}
+
 			((PicOSNode*)idToStation (NN))->
-				_da (RFInterface)->setLocation (NP [1].DVal,
-					NP [2].DVal);
+				_da (RFInterface)->setLocation (NP [0].DVal,
+					NP [1].DVal);
+
+			// Send the update
+			if (MUP != NULL)
+				MUP->queue (NN);
+
 			proceed Loop;
+
+		    case 'R':
+
+			// Start roaming
+			if ((NN = dechex (BP)) == ERROR)
+				goto Illegal;
+
+			if (!isStationId (NN))
+				goto Illegal_nid;
+
+			for (rc = 0; rc < 9; rc++)
+				NP [rc] . type = TYPE_double;
+
+			if ((rc = parseNumbers (BP, 9, NP)) != 9)
+				goto Illegal;
+
+			if ((ME = find_mip (NN)) != NULL) {
+				// Terminate the previous roamer
+				ME->Thread->terminate ();
+				pool_out (ME);
+				delete ME;
+			}
+
+			if (NP [0].DVal < 0.0 || NP [1].DVal < 0.0)
+				goto Illegal_crd;
+
+			// More validation of arguments: the rectangle
+			if (NP [2].DVal < NP [0].DVal || NP [3].DVal <
+			    NP [1].DVal) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+				    excptn ("MoveHandler: illegal rectangle "
+					"coordinates "
+					"<%f,%f> <%f,%f>", NP[0].DVal,
+					   NP[1].DVal, NP[2].DVal, NP[3].DVal);
+				// Socket
+				create Disconnector (Agent, ECONN_INVALID);
+				terminate;
+			}
+
+			if (NP [4].DVal <= 0.0 || NP [5].DVal < NP [4].DVal) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: illegal speed "
+					"parameters "
+					"(%f,%f)", NP[4].DVal, NP[5].DVal);
+				// Socket
+				create Disconnector (Agent, ECONN_INVALID);
+				terminate;
+			}
+
+			if (NP [6].DVal < 0.0 || NP [7].DVal < NP [6].DVal) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: illegal pause "
+					"parameters "
+					"(%f,%f)", NP[6].DVal, NP[7].DVal);
+				// Socket
+				create Disconnector (Agent, ECONN_INVALID);
+				terminate;
+			}
+
+			// The time can be negative, which (including zero)
+			// means that we roam forever
+
+			create Teleporter (NN,
+				NP [0].DVal, NP [1].DVal,
+				NP [2].DVal, NP [3].DVal,
+				NP [4].DVal, NP [5].DVal,
+				NP [6].DVal, NP [7].DVal,
+				NP [8].DVal);
+
+			proceed Loop;
+
+		    case '\0':
+
+			// Empty line
+			proceed Loop;
+
 		}
 
-		if (NP [3].DVal < 0.0001)
-			NP [3].DVal = 0.0001;
-
-		if (NP [4].DVal < 0.0001)
-			NP [4].DVal = 0.0001;
-
-		ThePicOSNode->_da (RFInterface)->getLocation (xx, yy);
-
-		// Distance
-		dd = dist (xx, yy, NP [1].DVal, NP [2].DVal);
-		// Number of steps
-		ee = dd / NP [4].DVal;
-		if (ee > 10000.0) {
-			// Make this a limit
-			NS = 10000;
-		} else {
-			NS = (Long)(ee + 0.5);
-			if (NS = 0)
-				goto Immediate;
-		}
-		// Total time interval
-		dd = dd / NP [3].DVal;
-
-		ME = new movepool_t;
-		ME->NNumber = NN;
-		ME->Thread = create Teleporter (ME, NP [1].DVal, NP [2].DVal,
-			NS, dd);
-		pool_in (ME, MIP, movepool_t);
+		if (imode (Flags) != XTRN_IMODE_SOCKET)
+			excptn ("MoveHandler: illegal request '%s'", BP);
 
 		proceed Loop;
 	
@@ -2566,59 +2682,131 @@ Immediate:
 		proceed Loop;
 }
 
-void Teleporter::setup (movepool_t *me, double x, double y, Long cn,
-					   			double ttot) {
-	
-	ME = me;
-	No = (PicOSNode*)idToStation (ME->NNumber);
-	TX = x;
-	TY = y;
-	// Calculate the number of steps needed
-	No->_da (RFInterface)->getLocation (CX, CY);
-	Count = cn;
-	TLeft = ttot;
+void Teleporter::setup (Long nn,		double x0,
+						double y0,
+						double x1,
+						double y1,
+						double minsp,
+						double maxsp,
+						double minpa,
+						double maxpa,
+						double howlong) {
+
+	ME = new movepool_t;
+	ME->NNumber = nn;
+	ME->Thread = this;
+	pool_in (ME, MIP, movepool_t);
+
+	No = (PicOSNode*) idToStation (nn);
+
+	X0 = x0;
+	Y0 = y0;
+	X1 = x1;
+	Y1 = y1;
+
+	MINSP = minsp;
+	MAXSP = maxsp;
+
+	MINPA = minpa;
+	MAXPA = maxpa;
+
+	if (howlong <= 0.0)
+		Until = TIME_inf;
+	else
+		Until = Time + etuToItu (howlong);
+
+	No -> _da (RFInterface)->getLocation (TX, TY);
 }
 
 Teleporter::perform {
 
-	double d, dd;
+    TIME delta;
+    double cn, sp;
 
-	state Advance:
+    state NextLeg:
 
-		No->_da (RFInterface)->setLocation (CX, CY);
-		if (Count == 0) {
-			pool_out (ME);
-			delete ME;
-			terminate;
-		}
+	// Current coordinates
+	CX = TX;
+	CY = TY;
 
-		// Calculate next step
-		if (Count == 1) {
-			Count = 0;
-			CX = TX;
-			CY = TY;
-			Timer->delay (TLeft, Advance);
-			sleep;
-		}
+	// Generate a random destination within the rectangle
+	TX = dRndUniform (X0, X1);
+	TY = dRndUniform (Y0, Y1);
 
-		d = dist (CX, CY, TX, TY);
-		if (d < 0.0001) {
-			// Just in case
-			CX = TX;
-			CY = TY;
-		} else {
-			// Distance fraction for next step
-			dd =  d / Count;
-			CX += dd * (TX - CX) / d;
-			CY += dd * (TY - CY) / d;
-		}
+	// Distance in meters
+	sp = dist (TX, TY, CX, CY);
 
-		// Current interval
-		d = TLeft / Count;
-		Count--;
-		TLeft -= d;
-		Timer->delay (d, Advance);
+	// Target number of steps (tiny teleportations)
+	cn = sp / MOVER_TARGET_STEP;
+
+	// Total time per move in ITUs
+	TLeft = etuToItu (sp / dRndUniform (MINSP, MAXSP));
+
+	// We try to make it as smooth as feasible, but no more than that;
+	// Count is the total number of steps
+	if (cn > MOVER_MAX_STEPS)
+		Count = MOVER_MAX_STEPS;
+	else if (cn < MOVER_MIN_STEPS)
+		Count = MOVER_MIN_STEPS;
+	else
+		Count = (Long) cn;
+
+    transient Advance:
+
+	No->_da (RFInterface)->setLocation (CX, CY);
+
+	if (MUP != NULL)
+		MUP->queue (No->getId ());
+
+	if (Time >= Until) {
+		// We are done
+Finish:
+		pool_out (ME);
+		delete ME;
+		terminate;
+	}
+
+	if (Count == 0) {
+		// End of leg
+		delta = etuToItu (dRndUniform (MINPA, MAXPA));
+		if (delta == TIME_0)
+			proceed NextLeg;
+		if (def (Until) && Time + delta >= Until)
+			// This will get is beyond termination
+			goto Finish;
+		Timer->wait (delta, NextLeg);
 		sleep;
+	}
+		
+	// Calculate next step
+	if (Count == 1) {
+		// Make sure we always end up where we wanted to get
+		Count = 0;
+		CX = TX;
+		CY = TY;
+		Timer->wait (TLeft, Advance);
+		sleep;
+	}
+
+	// Remaining distance in meters
+	sp = dist (CX, CY, TX, TY);
+	if (sp < 0.0001) {
+		// Just in case
+		CX = TX;
+		CY = TY;
+	} else {
+		// Distance fraction for next step
+		cn =  sp / Count;
+		CX += cn * (TX - CX) / sp;
+		CY += cn * (TY - CY) / sp;
+	}
+
+	// Current interval
+	delta = (TIME) ((double) TLeft / Count);
+	Count--;
+	TLeft -= delta;
+	Timer->wait (delta, Advance);
+	sleep;
 }
 
 void AgentConnector::setup (Dev *m) {
@@ -2690,7 +2878,7 @@ AgentConnector::perform {
 
 			case AGENT_RQ_MOVE:
 
-				create MoveHandler (Agent, NO);
+				create MoveHandler (Agent, XTRN_IMODE_SOCKET);
 				terminate;
 
 			case AGENT_RQ_CLOCK:

@@ -7,6 +7,8 @@
 #undef Receiving
 #undef TXOFF
 #undef RXOFF
+#undef DefXPower
+#undef DefRPower
 #undef Xmitting
 #undef tx_event
 #undef statid

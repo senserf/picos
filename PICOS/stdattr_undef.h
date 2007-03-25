@@ -12,6 +12,7 @@
 #undef lbt_delay
 #undef lbt_threshold
 #undef phys_dm2200
+#undef phys_cc1100
 #undef rnd
 #undef diag
 #undef reset

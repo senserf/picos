@@ -45,11 +45,12 @@ array set HPA		{ 1 "(\[0-9a-f\])"
 			  2 "(\[0-9a-f\]\[0-9a-f\])"
 			  4 "(\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\])"
 			  H "(\[0-9a-f\]+)"
+			  D "(\[0-9\]+)"
 			  F "(\[0-9.+-E\]+)"
 			}
 
 #
-# Canvas margins for MOVER:
+# Canvas margins for ROAMER:
 #
 # NR     = node radius
 # ND     = node diameter
@@ -906,7 +907,7 @@ proc ledsFirst { Sok } {
 	set cmd $Stat($Sok,B)
 	set Stat($Sok,B) ""
 
-	if { ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Fast Leds] } {
+	if { ![regexp ": (\[0-1\]) (\[0-2\]+)" $cmd junk Fast Leds] } {
 		# ignore NOPs and illegal commands
 		return
 	}
@@ -961,7 +962,7 @@ proc ledsUpdate { Sok } {
 			set Stat($Sok,D) $nd
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
-			if { ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Fast \
+			if { ![regexp ": (\[0-1\]) (\[0-2\]+)" $cmd junk Fast \
 			   Leds] } {
 				# ignore NOPs and illegal commands
 				return
@@ -1166,7 +1167,7 @@ proc pinsIni { Sok } {
 
 proc pinsFirst { Sok } {
 
-	global Wins Stat Unique HPA
+	global Wins Stat Unique
 
 	while 1 {
 		if [catch { read $Sok 1 } ch] {
@@ -1196,20 +1197,14 @@ proc pinsFirst { Sok } {
 	set cmd $Stat($Sok,B)
 	set Stat($Sok,B) ""
 
-	if ![regexp -nocase "$HPA(2) $HPA(2) $HPA(2) $HPA(1) $HPA(4)" $cmd \
-	    junk np na] {
-		# this is not a pin status message
-		log "incorrect handshake, pin status message expected"
+	if ![regexp "^N (\[0-9\]+) (\[0-9\]+)" $cmd junk np na] {
+		log "incorrect handshake, pin count message expected"
 		dealloc $Sok
 		return
 	}
 
-	# decode the pin number
-	scan $np "%2x" np
-	scan $na "%2x" na
-
-	# basic sanity check
-	if { $np < 1 || $na > $np } {
+	if { [catch { set np [expr $np] ; set na [expr $na] } ] || $np < 1 || 
+	    $na > $np } {
 		log "incorrect handshake, illegal pin numbers $np/$na"
 		dealloc $Sok
 		return
@@ -1223,8 +1218,6 @@ proc pinsFirst { Sok } {
 	set Stat($Sok,D) 80
 
 	mkPins $Sok $np $na "PINS at node $Stat($Sok,S)"
-
-	newPinStatus $Sok $cmd
 
 	fileevent $Sok readable "pinsUpdate $Sok"
 
@@ -1298,7 +1291,7 @@ proc pinsInput { Sok pin } {
 		set ov 1
 	}
 
-	if [catch { puts -nonewline $Sok [format "P %x %x\n" $pin $ov] } ] {
+	if [catch { puts -nonewline $Sok "P $pin $ov\n" } ] {
 		log "connection to PINS[stName $Sok] terminated"
 		dealloc $Sok
 		return
@@ -1320,7 +1313,7 @@ proc setPinDac { Sok pin v } {
 		set v 32767
 	}
 
-	if [catch { puts -nonewline $Sok [format "D %x %x\n" $pin $v] } ] {
+	if [catch { puts -nonewline $Sok "D $pin $v\n" } ] {
 		log "connection to PINS[stName $Sok] terminated"
 		dealloc $Sok
 	}
@@ -1420,34 +1413,29 @@ proc toVoltage { v } {
 
 proc newPinStatus { Sok upd } {
 
-	global Stat HPA PIN_COLORS PIN_STCODE
+	global Stat PIN_COLORS PIN_STCODE
 
 	set w [stwin $Sok]
 
-	if ![regexp -nocase "$HPA(2) $HPA(2) $HPA(2) $HPA(1) $HPA(4)" $upd \
-	    junk np na pin sta val] {
-		# erroneous message
+	if ![regexp ": (\[0-9\]+) (\[0-9\]+) (\[0-9\]+)" $upd jnk pin sta val] {
+		# ignore
 		return
 	}
 
 	# a few sanity checks
-	scan $np "%2x" np
-	scan $na "%4x" na
+	set np $Stat($Sok,NP)
+	set na $Stat($Sok,NA)
 
-	if { $np != $Stat($Sok,NP) || $na != $Stat($Sok,NA) } {
+	if { [catch {
+		set pin [expr $pin]
+		set val [expr $val]
+	     }] || $pin >= $np } {
+	
 		return
 	}
 
 	if ![regexp "^\[0-7\]$" $sta] {
 		# incorrect status
-		return
-	}
-
-	scan $pin "%2x" pin
-	scan $val "%4x" val
-
-	if { $pin >= $np } {
-		# too large
 		return
 	}
 
@@ -1521,7 +1509,7 @@ proc moveHandler { stid } {
 		return
 	}
 
-	log "connecting to MOVER ..."
+	log "connecting to ROAMER ..."
 
 	if [catch { socket -async $HostName $PortNumber } Sok] {
 		log "connection failed: $Sok"
@@ -1584,7 +1572,8 @@ proc moveIni { Sok } {
 	log "receiving node positions ..."
 
 	fileevent $Sok readable "moveGNP $Sok"
-	if [catch { puts -nonewline $Sok "0\n" } res] {
+	# query for node 0
+	if [catch { puts -nonewline $Sok "Q 0\n" } res] {
 		log "connection aborted: $res"
 		dealloc $Sok
 		return
@@ -1622,13 +1611,17 @@ proc moveGNP { Sok } {
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
 			if ![regexp \
-			   "$HPA(H)  *$HPA(H)  *$HPA(F)  *$HPA(F) (\[^ \]+)" \
+			   "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+)" \
 			      $cmd junk nod tot x y tn] {
 				continue
 			}
 
-			scan $nod "%x" nod
-			scan $tot "%x" tot
+			if [catch {
+				set nod [expr $nod]
+				set tot [expr $tot]
+			} ] {
+				continue
+			}
 
 			if { $nod != $Stat($Sok,CI) } {
 				# the expected node number
@@ -1641,7 +1634,7 @@ proc moveGNP { Sok } {
 			if { $Stat($Sok,NN) < 0 } {
 				set Stat($Sok,NN) $tot
 			} elseif { $Stat($Sok,NN) != $tot } {
-				log "illegal response format '$cmd'"
+				log "illegal response '$cmd'"
 				dealloc $Sok
 				return
 			}
@@ -1696,12 +1689,13 @@ proc moveGNP { Sok } {
 				return
 			}
 			if [catch {
-				puts -nonewline $Sok "$Stat($Sok,CI)\n"
+				puts -nonewline $Sok "Q $Stat($Sok,CI)\n"
 			} res] {
 				log "connection aborted: $res"
 				dealloc $Sok
 				return
 			}
+			continue
 
 		}
 		append Stat($Sok,B) $ch
@@ -1982,11 +1976,8 @@ proc moveMove { Sok n nx ny } {
 
 	set Stat($Sok,NL,$n) [list $x $y $z $o $t]
 
-	# send them to the simulator
-	set msg [format "%x %f %f\n" $n $x $y]
-
-	if [catch { puts -nonewline $Sok $msg } res] {
-		log "MOVER connection aborted: $res"
+	if [catch { puts -nonewline $Sok "M $n $x $y\n" } res] {
+		log "ROAMER connection aborted: $res"
 		dealloc $Sok
 		return
 	}
@@ -2145,27 +2136,23 @@ proc moveDoResize { Sok } {
 	moveRedraw $Sok
 }
 
-proc moveUpd { $Sok } {
+proc moveUpd { Sok } {
 #
 # read location updates
 #
-	global Stat
-
-	if ![info exists Sok] {
-		return
-	}
+	global Stat HPA
 
 	while 1 {
 		if [catch { read $Sok 1 } ch] {
 			# disconnection
 			log \
-			  "connection to MOVER terminated"
+			  "connection to ROAMER terminated"
 			return
 		}
 		if { $ch == "" } {
 			# wait for more
 			if [eof $Sok] {
-				log "connection to MOVER terminated"
+				log "connection to ROAMER terminated"
 				dealloc $Sok
 			}
 			return
@@ -2175,11 +2162,20 @@ proc moveUpd { $Sok } {
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
 
-			if ![regexp "$HPA(H)  *$HPA(H)  *$HPA(F)  *$HPA(F)" \
-			      $cmd junk nod tot x y] {
+			if ![regexp "^U $HPA(D) $HPA(F) $HPA(F)" \
+			      $cmd junk nod x y] {
 				continue
 			}
-			scan $nod "%x" nod
+
+			if { [catch {
+				set nod [expr $nod]
+				set x [expr $x]
+				set y [expr $y]
+			}] || $x < 0.0 || $y < 0.0 || $nod >= $Stat($Sok,NN) } {
+				# just ignore
+				continue
+			}
+
 			moveNewLocation $Sok $nod $x $y
 			continue
 		}
@@ -2216,7 +2212,7 @@ proc moveNewLocation { Sok nod nx ny } {
 
 	foreach { x y z o t } $Stat($Sok,NL,$nod) { }
 
-	if { $x == $nx || $ny == $ny } {
+	if { $x == $nx && $y == $ny } {
 		# easy way out
 		return
 	}
@@ -2460,7 +2456,7 @@ proc doConnect { } {
 			ledsHandler $StatId
 		}
 
-		"MOVER"	{
+		"ROAMER" {
 
 			moveHandler $StatId
 		}
@@ -2498,7 +2494,7 @@ button .top.quit -text "Quit" -command exit
 button .top.connect -text "Connect" -command doConnect
 
 tk_optionMenu .top.select Option \
-		"UART (ascii)" "UART (hex)" "PINS" "LEDS" "MOVER" "CLOCK"
+		"UART (ascii)" "UART (hex)" "PINS" "LEDS" "ROAMER" "CLOCK"
 
 label .top.l -text "Node Id:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \

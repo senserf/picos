@@ -24,6 +24,7 @@
 #define	lbt_threshold	_dac (PicOSNode, lbt_threshold)
 
 #define	phys_dm2200	_dac (PicOSNode, phys_dm2200)
+#define	phys_cc1100	_dac (PicOSNode, phys_cc1100)
 
 #define	rnd()		toss (65536)
 #define	diag(...)	(  ((PicOSNode*)TheStation)->_na_diag ( __VA_ARGS__)  )

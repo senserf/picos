@@ -24,6 +24,26 @@ struct strpool_s {
 
 typedef	struct strpool_s strpool_t;
 
+typedef struct {
+
+	const char *Tag;
+	IPointer Value;
+
+} preitem_t;
+
+struct preinit_s {
+
+	Long NodeId;
+	preitem_t *PITS;
+	int NPITS;
+
+	struct preinit_s *Next;
+};
+
+typedef struct preinit_s preinit_t;
+
+static	preinit_t *PREINITS = NULL;
+
 static	strpool_t *STRPOOL = NULL;
 
 static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
@@ -61,6 +81,11 @@ static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
 	STRPOOL = p;
 
 	return p->STR;
+}
+
+static const char *xname (int nn) {
+
+	return (nn < 0) ? "<defaults>" : form ("node %1d", nn);
 }
 
 void _dad (PicOSNode, diag) (const char *s, ...) {
@@ -101,8 +126,8 @@ void PicOSNode::reset () {
 
 	// Reset the transceiver to defaults
 	_da (RFInterface)->rcvOn ();
-	_da (RFInterface)->setXPower (DefXPower);
-	_da (RFInterface)->setRPower (DefRPower);
+	_da (RFInterface)->setXPower (_da (DefXPower));
+	_da (RFInterface)->setRPower (_da (DefRPower));
 
 	if (uart != NULL) {
 		uart->__inpline = NULL;
@@ -174,14 +199,14 @@ void PicOSNode::setup (data_no_t *nd) {
 		ledsm = new LEDSM (nd->le);
 	}
 
-	DefXPower = dBToLin (nd->rf->XP);
-	DefRPower = dBToLin (nd->rf->RP);
+	_da (DefXPower) = dBToLin (nd->rf->XP);
+	_da (DefRPower) = dBToLin (nd->rf->RP);
 
 	_da (RFInterface) = create Transceiver (
 			XmitRate,
 			(Long)(nd->rf->Pre),
-			DefXPower,
-			DefRPower,
+			_da (DefXPower),
+			_da (DefRPower),
 			nd->X, nd->Y );
 
 	Ether->connect (_da (RFInterface));
@@ -952,10 +977,15 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 	const char *att;
 	double bn_db, beta, dref, sigm, loss_db, psir, pber, cutoff;
 	nparse_t np [NPTABLE_SIZE];
-	int n, i, syncbits, bpb, frml;
+	int nb, nr, ns, i, syncbits, bpb, frml;
 	Long brate;
 	sxml_t cur;
-	static	sir_to_ber_t	*STB;
+	sir_to_ber_t	*STB;
+	RSSICalc	*RSC;
+	PowerSetter	*PS;
+	word *wt, *vt;
+	word rmo, smo;
+	double *dta, *eta;
 
 	if ((data = sxml_child (data, "channel")) == NULL)
 		xenf ("<channel>", "<network>");
@@ -986,9 +1016,9 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 	att = sxml_txt (cur);
 	for (i = 0; i < NPTABLE_SIZE; i++)
 		np [i].type = TYPE_double;
-	if ((n = parseNumbers (att, 5, np)) != 5)
+	if ((nb = parseNumbers (att, 5, np)) != 5)
 		excptn ("Root: expected 5 numbers in <shadowing>, found %1d",
-			n);
+			nb);
 
 	if (np [0].DVal != -10.0)
 		excptn ("Root: the factor in <shadowing> must be -10, is %f",
@@ -1004,17 +1034,20 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 		xenf ("<ber>", "<channel>");
 
 	att = sxml_txt (cur);
-	n = parseNumbers (att, NPTABLE_SIZE, np);
-	if (n < 4 || (n & 1) != 0)
+	nb = parseNumbers (att, NPTABLE_SIZE, np);
+	if (nb > NPTABLE_SIZE)
+		excptn ("Root: <ber> table too large, increase NPTABLE_SIZE");
+
+	if (nb < 4 || (nb & 1) != 0)
 		excptn ("Root: illegal size of <ber> table (%1d), must be "
 			"an even number >= 4", np);
 	psir = HUGE;
 	pber = -1.0;
-	STB = new sir_to_ber_t [n / 2];
+	STB = new sir_to_ber_t [nb / 2];
 
 	// This is the size of BER table
-	n /= 2;
-	for (i = 0; i < n; i++) {
+	nb /= 2;
+	for (i = 0; i < nb; i++) {
 		// The SIR is stored as a linear ratio
 		STB [i].sir = dBToLin (np [2 * i] . DVal);
 		STB [i].ber = np [2 * i + 1] . DVal;
@@ -1033,6 +1066,11 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 					pber, STB [i] . ber);
 		pber = STB [i] . ber;
 	}
+
+	// Pre-calculate factors
+	for (i = 0; i < nb-1; i++)
+		STB [i].fac = (STB [i+1].ber - STB [i].ber) /
+			(STB [i].sir - STB [i+1].sir);
 
 	// The cutoff threshold wrt to background noise: the dafault means no
 	// cutoff
@@ -1058,31 +1096,379 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 	if (brate <= 0 || bpb <= 0 || frml < 0)
 		xevi ("<frame>", "<channel>", att);
 
-	// Create the channel (this sets SEther)
-	create RFShadow (NT, STB, n, dref, loss_db, beta, sigm, bn_db, cutoff,
-		syncbits, brate, bpb, frml);
+	// Prepare np for reading interpolation tables (RSSICalc & PowerSetter)
+	for (i = 0; i < NPTABLE_SIZE; i += 2) {
+		np [i  ] . type = TYPE_double;
+		np [i+1] . type = TYPE_int;
+	}
 
 	print ("Channel:\n");
 	print (form ("  RP(d)/XP [dB] = -10 x %g x log(d/%gm) + X(%g) - %g\n",
 			beta, dref, sigm, loss_db));
 	print ("  BER Table:           SIR         BER\n");
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < nb; i++) {
  		print (form ("             %11gdB %11g\n",
 			linTodB (STB[i].sir), STB[i].ber));
 	}
+
+	if ((cur = sxml_child (data, "rssi")) == NULL) {
+		// No RSSI calculator
+		RSC = NULL;
+		nr = 0;
+	} else {
+		// Decode the mode
+		rmo = 0;
+		// The default is transformation, logarithmic
+		if ((att = sxml_attr (cur, "mode")) != NULL) {
+			if (strstr (att, "lin") != NULL)
+				// Linear (log is the default)
+				rmo |= 1;
+			if (strstr (att, "int") != NULL)
+				rmo |= 2;
+		}
+		att = sxml_txt (cur);
+		nr = parseNumbers (att, NPTABLE_SIZE, np);
+		if (nr > NPTABLE_SIZE)
+			excptn ("Root: <rssi> table too large, increase "
+				"NPTABLE_SIZE");
+
+		if (rmo < 2) {
+			if (nr != 4)
+				excptn ("Root: <rssi> table needs exactly 4 "
+					"items, has %1d", nr);
+		} else {
+			if ((nr & 1) || nr < 4)
+				excptn ("Root: <rssi> table needs at least 4 "
+					"items and their number must be even, "
+						"is %1d", nr);
+		}
+
+		nr /= 2;
+
+		// Need one extra element for transformation
+		dta = new double [nr + (rmo < 2)];
+		wt = new word [nr];
+
+		for (i = 0; i < nr; i++) {
+			dta [i] = np [i + i] . DVal;
+			wt [i] = (word) (np [i + i + 1] . IVal);
+			if (i) {
+				if (dta [i] <= dta [i-1] || wt [i] <= wt [i-1])
+					excptn ("Root: entries in <rssi> table "
+						"are not monotonic");
+			}
+		}
+
+		print (form (
+		    "  RSSI Table:          SIG         VAL   [%s,%s]\n",
+			(rmo >= 2) ? "int," : "tra",
+			(rmo &  1) ? "lin"  : "log"));
+		for (i = 0; i < nr; i++) {
+ 			print (form ("             %11g%s %5d\n",
+				dta [i],
+				(rmo & 1) ? "mW " : "dBm",
+				wt [i]));
+		}
+
+		RSC = new RSSICalc (nr, rmo, wt, dta);
+	}
+
+
+	if ((cur = sxml_child (data, "power")) == NULL) {
+		// No power setter
+		PS = NULL;
+		ns = 0;
+	} else {
+		// Decode the mode
+		smo = 0;
+		// The default is transformation, logarithmic
+		if ((att = sxml_attr (cur, "mode")) != NULL) {
+			if (strstr (att, "lin") != NULL)
+				// Linear (log is the default)
+				smo |= 1;
+			if (strstr (att, "int") != NULL)
+				smo |= 2;
+		}
+		att = sxml_txt (cur);
+		ns = parseNumbers (att, NPTABLE_SIZE, np);
+		if (ns > NPTABLE_SIZE)
+			excptn ("Root: <power> table too large, increase "
+				"NPTABLE_SIZE");
+
+		if (smo < 2) {
+			if (ns != 4)
+				excptn ("Root: <power> table needs exactly 4 "
+					"items, has %1d", ns);
+		} else {
+			if ((ns & 1) || ns < 4)
+				excptn ("Root: <power> table needs at least 4 "
+					"items and their number must be even, "
+						"is %1d", ns);
+		}
+
+		ns /= 2;
+
+		// Need three extra elements for transmormation
+		eta = new double [ns + (smo < 2) * 3];
+		vt = new word [ns];
+
+		for (i = 0; i < ns; i++) {
+			eta [i] = np [i + i] . DVal;
+			vt [i] = (word) (np [i + i + 1] . IVal);
+			if (i) {
+				if (eta [i] <= eta [i-1] || vt [i] <= vt [i-1])
+					excptn ("Root: entries in <power> table"
+						" are not monotonic");
+			}
+		}
+
+		print (form (
+		    "  Power Settings:      SIG         VAL   [%s,%s]\n",
+			(smo >= 2) ? "int," : "tra",
+			(smo &  1) ? "lin"  : "log"));
+		for (i = 0; i < ns; i++) {
+ 			print (form ("             %11g%s %5d\n",
+				eta [i],
+				(rmo & 1) ? "mW " : "dBm",
+				vt [i]));
+		}
+
+		PS = new PowerSetter (ns, smo, vt, eta);
+	}
+
 	print ("\n");
+
+	// Create the channel (this sets SEther)
+	create RFShadow (NT, STB, nb, dref, loss_db, beta, sigm, bn_db, cutoff,
+		syncbits, brate, bpb, frml, RSC, PS);
 }
 
+void BoardRoot::initRoamers (sxml_t data) {
+
+	sxml_t cur;
+	const char *att;
+	char *str, *sts;
+	int CNT, len;
+	Dev *d;
+	Boolean lf;
+
+	TheStation = System;
+
+	for (lf = YES, CNT = 0, data = sxml_child (data, "roamer");
+					data != NULL; data = sxml_next (data)) {
+
+		if (lf) {
+			print ("\n");
+			lf = NO;
+		}
+
+		print (form ("Roamer %1d: source = ", CNT));
+
+		if ((cur = sxml_child (data, "input")) == NULL)
+			excptn ("Root: <input> missing for roamer %1d", CNT);
+
+		str = (char*) sxml_txt (cur);
+		len = sanitize_string (str);
+
+		if ((att = sxml_attr (cur, "source")) == NULL)
+			// Shouldn't we have a default?
+			excptn ("Root: <source> missing from <input> in roamer "
+				"%1d", CNT);
+
+		if (strcmp (att, "device") == 0) {
+			if (len == 0)
+				excptn ("Root: device name missing in roamer "
+					"%1d", CNT);
+			str [len] = '\0';
+
+			print (form ("device '%s'\n", str));
+
+			d = create Dev;
+
+			if (d->connect (DEVICE+READ, str, 0, XTRN_MBX_BUFLEN) ==
+			    ERROR)
+				excptn ("Root: roamer %1d, cannot open device "
+					"%s", str);
+			create MoveHandler (d, XTRN_IMODE_DEVICE);
+			continue;
+		}
+
+		if (strcmp (att, "string") == 0) {
+			if (len == 0)
+				excptn ("Root: empty input string in roamer "
+					"%1d", CNT);
+			sts = (char*) find_strpool ((const byte*) str, len + 1,
+				YES);
+
+			print (form ("string '%c%c%c%c ...'\n",
+				sts [0],
+				sts [1],
+				sts [2],
+				sts [3] ));
+
+			create MoveHandler ((Dev*)sts, XTRN_IMODE_STRING | len);
+			continue;
+		}
+
+		if (strcmp (att, "socket") == 0) {
+			print ("socket (redundant)\n");
+			continue;
+		}
+
+		excptn ("Root: illegal input type '%s' in roamer %1d", att,
+			CNT);
+	}
+}
+
+void BoardRoot::readPreinits (sxml_t data, int nn) {
+
+	const char *att;
+	sxml_t chd, che;
+	preinit_t *P;
+	int i, j, d, tp;
+	nparse_t np [1];
+
+	chd = sxml_child (data, "preinit");
+
+	if (chd == NULL)
+		// No preinits for this node
+		return;
+
+	P = new preinit_t;
+
+	P->NodeId = nn;
+
+	// Calculate the number of preinits at this level
+	for (P->NPITS = 0, che = chd; che != NULL; che = sxml_next (che))
+		P->NPITS++;
+
+	P->PITS = new preitem_t [P->NPITS];
+
+	print ("  Preinits:\n");
+
+	for (i = 0; chd != NULL; chd = sxml_next (chd), i++) {
+
+		if ((att = sxml_attr (chd, "tag")) == NULL)
+			excptn ("Root: <preinit> for %s, tag missing",
+				xname (nn));
+
+		if ((d = strlen (att)) == 0)
+			excptn ("Root: <preinit> for %s, empty tag",
+				xname (nn));
+
+		// Check for uniqueness
+		for (j = 0; j < i; j++)
+			if (strcmp (att, P->PITS [j].Tag) == 0)
+				excptn ("Root: <preinit> for %s, duplicate tag "
+					"%s", xname (nn), att);
+
+		// Allocate storage for the tag
+		P->PITS [i] . Tag = (char*) find_strpool ((const byte*) att,
+			d + 1, YES);
+
+		printf (form ("    Tag: %s, Value: ", P->PITS [i] . Tag));
+
+		if ((att = sxml_attr (chd, "type")) == NULL || *att == 'w')
+			// Expect a short number (decimal or hex)
+			tp = 0;
+		else if (*att == 'l')
+			// Long size
+			tp = 1;
+		else if (*att == 's')
+			// String
+			tp = 2;
+		else
+			excptn ("Root: <preinit> for %s, illegal type %s",
+				xname (nn), att);
+
+		att = sxml_txt (chd);
+
+		if (tp < 2) {
+			// A single number, hex or int (signed or unsigned)
+			printf (att);
+			while (isspace (*att))
+				att++;
+			if (*att == '0' && (*(att+1) == 'x' ||
+							    *(att+1) == 'X')) {
+				// Hex
+				att += 2;
+				np [0] . type = TYPE_hex;
+				if (parseNumbers (att, 1, np) != 1)
+					excptn ("Root: <preinit> for %s, "
+						"illegal value for tag %s",
+							xname (nn),
+							P->PITS [i] . Tag);
+				P->PITS [i] . Value = (IPointer) np [0]. IVal;
+
+			} else {
+
+				np [0] . type = TYPE_LONG;
+				if (parseNumbers (att, 1, np) != 1)
+					excptn ("Root: <preinit> for %s, "
+						"illegal value for tag %s",
+							xname (nn),
+							P->PITS [i] . Tag);
+
+				P->PITS [i] . Value = (IPointer) np [0]. LVal;
+			}
+		} else {
+			// Collect the string
+			d = sanitize_string ((char*) att);
+			printf (att);
+			if (d == 0) {
+				P->PITS [i] . Value = 0;
+			} else {
+				P->PITS [i] . Value = (IPointer)
+					find_strpool ((const byte*) att, d + 1,
+						YES);
+			}
+		}
+		printf ("\n");
+	}
+
+	// Add the preinit to the list. We create them in the increasing order
+	// of node numbers, with <default> going first. This is ASSUMED here.
+	// The list will start with the largest numbered node and end with the
+	// <default> entry.
+
+	printf ("\n");
+
+	P->Next = PREINITS;
+
+	PREINITS = P;
+}
+
+IPointer PicOSNode::preinit (const char *tag) {
+
+	preinit_t *P;
+	int i;
+
+	P = PREINITS;
+
+	while (P != NULL) {
+		if (P->NodeId < 0 || P->NodeId == getId ()) {
+			// Search for the tag
+			for (i = 0; i < P->NPITS; i++)
+				if (strcmp (P->PITS [i] . Tag, tag) == 0)
+					return P->PITS [i] . Value;
+		}
+		P = P -> Next;
+	}
+
+	return 0;
+}
+	
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 
 	nparse_t np [2 + EP_N_BOUNDS];
 	sxml_t cur;
 	const char *att;
-	char *str, *as, es [32];
+	char *str, *as;
 	int i, len;
 	data_rf_t *RF;
 	data_ep_t *EP;
 	data_no_t *ND;
+	Boolean ppf;
 
 	ND = new data_no_t;
 	ND->Mem = 0;
@@ -1105,16 +1491,21 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 		// This is how we stand so far
 		return ND;
 
-	// This is for error diagnostics
-	strcpy (es, (nn < 0) ? "<defaults>" : form ("node %1d", nn));
-
 	print ("Node configuration [");
 
 	if (nn < 0)
 		print ("default");
 	else
 		print (form ("    %3d", nn));
-	print ("]:\n");
+	print ("]:\n\n");
+
+/* ======== */
+/* Preinits */
+/* ======== */
+
+	readPreinits (data, nn);
+
+	ppf = NO;
 
 /* ====== */
 /* MEMORY */
@@ -1123,12 +1514,13 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 	if ((cur = sxml_child (data, "memory")) != NULL) {
 		np [0].type = np [1].type = TYPE_LONG;
 		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xevi ("<memory>", es, sxml_txt (cur));
+			xevi ("<memory>", xname (nn), sxml_txt (cur));
 		ND->Mem = (word) (np [0] . LVal);
 		if (ND->Mem > 0x00008000)
 			excptn ("Root: <memory> too large (%1d) in %s; the "
-				"maximum is 32768", ND->Mem, es);
+				"maximum is 32768", ND->Mem, xname (nn));
 		print (form ("  Memory:     %1d bytes\n", ND->Mem));
+		ppf = YES;
 	}
 
 /* ========= */
@@ -1141,12 +1533,13 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 		np [0].type = np [1].type = TYPE_double;
 		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
 			excptn ("Root: two double numbers required in <power> "
-				"in %s", es);
+				"in %s", xname (nn));
 		RF->XP = np [0].DVal;
 		RF->RP = np [1].DVal;
 		// This is in dBm/dB
 		print (form ("  Power:      X=%gdBm, R=%gdB\n", RF->XP,
 			RF->RP));
+		ppf = YES;
 	}
 
 	/* BACKOFF */
@@ -1155,15 +1548,16 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 		np [0].type = np [1].type = TYPE_LONG;
 		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
 			excptn ("Root: two int numbers required in <backoff> "
-				"in %s", es);
+				"in %s", xname (nn));
 		RF->BCMin = (word) (np [0].LVal);
 		RF->BCMax = (word) (np [1].LVal);
 
 		if (RF->BCMax < RF->BCMin)
-			xevi ("<backoff>", es, sxml_txt (cur));
+			xevi ("<backoff>", xname (nn), sxml_txt (cur));
 
 		print (form ("  Backoff:    min=%1d, max=%1d\n", RF->BCMin,
 			RF->BCMax));
+		ppf = YES;
 	}
 
 	/* LBT */
@@ -1171,24 +1565,27 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 		np [0].type = TYPE_LONG;
 		np [1].type = TYPE_double;
 		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
-			xevi ("<lbt>", es, sxml_txt (cur));
+			xevi ("<lbt>", xname (nn), sxml_txt (cur));
 		RF->LBTDel = (word) (np [0].LVal);
 		RF->LBTThs = np [1].DVal;
 
 		print (form ("  LBT:        del=%1d, ths=%g\n", RF->LBTDel,
 			RF->LBTThs));
+		ppf = YES;
 	}
 
 	/* PREAMBLE */
 	if ((cur = sxml_child (data, "preamble")) != NULL) {
 		np [0].type = np [1].type = TYPE_LONG;
 		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xevi ("<preamble>", es, sxml_txt (cur));
+			xevi ("<preamble>", xname (nn), sxml_txt (cur));
 		RF->Pre = (word) (np [0].LVal);
 		print (form ("  Preamble:   %1d bits\n", RF->Pre));
+		ppf = YES;
 	}
 
-	print ("\n");
+	if (ppf)
+		print ("\n");
 
 /* ============ */
 /* EEPROM & FIM */
@@ -1230,7 +1627,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 		len = parseNumbers (sxml_txt (cur), EP_N_BOUNDS + 2, np);
 		if (len == 0)
 			excptn ("Root: at least one int number required in "
-				"<eeprom> in %s", es);
+				"<eeprom> in %s", xname (nn));
 
 		EP->EEPRS = (lword) (np [0] . LVal);
 		EP->EEPPS = 0;
@@ -1246,7 +1643,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 				if (pgsz > EP->EEPRS || (EP->EEPRS % pgsz) != 0)
 					excptn ("Root: number of eeprom pages, "
 						"%1d, is illegal in %s",
-							pgsz, es);
+							pgsz, xname (nn));
 				pgsz = EP->EEPRS / pgsz;
 			}
 			EP->EEPPS = pgsz;
@@ -1267,7 +1664,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 					"for eeprom: %1g %1g are illegal in %s",
 						EP->bounds [i],
 						EP->bounds [i+1],
-						es);
+						xname (nn));
 		}
 
 		if (EP->EEPRS) {
@@ -1300,18 +1697,18 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 
 		len = parseNumbers (sxml_txt (cur), 2, np);
 		if (len != 1 && len != 2)
-			xevi ("<iflash>", es, sxml_txt (cur));
+			xevi ("<iflash>", xname (nn), sxml_txt (cur));
 		ifsz = (Long) (np [0].LVal);
 		if (ifsz < 0 || ifsz > 65536)
 			excptn ("Root: iflash size must be >= 0 and <= 65536, "
-				"is %1d, in %s", ifsz, es);
+				"is %1d, in %s", ifsz, xname (nn));
 		ifps = ifsz;
 		if (len == 2) {
 			ifps = (Long) (np [1].LVal);
 			if (ifps) {
 			    if (ifps < 0 || ifps > ifsz || (ifsz % ifps) != 0)
 				excptn ("Root: number of iflash pages, %1d, is "
-					"illegal in %s", ifps, es);
+					"illegal in %s", ifps, xname (nn));
 			    ifps = ifsz / ifps;
 			}
 		}
@@ -1335,19 +1732,19 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 /* LEDS */
 /* ==== */
 
-	ND->le = readLedsParams (data, es);
+	ND->le = readLedsParams (data, xname (nn));
 
 /* ==== */
 /* UART */
 /* ==== */
 
-	ND->ua = readUartParams (data, es);
+	ND->ua = readUartParams (data, xname (nn));
 
 /* ==== */
 /* PINS */
 /* ==== */
 
-	ND->pn = readPinsParams (data, es);
+	ND->pn = readPinsParams (data, xname (nn));
 
 	return ND;
 }
@@ -1678,6 +2075,17 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 			// No string
 			PN->PMode |= XTRN_IMODE_SOCKET | XTRN_OMODE_SOCKET;
 			print ("socket");
+		} else if (strcmp (att, "string") == 0) {
+			len = sanitize_string (str);
+			sts = (char*) find_strpool ((const byte*) str, len + 1,
+				YES);
+			PN->PIDev = sts;
+			PN->PMode |= XTRN_IMODE_STRING | len;
+			print (form ("string '%c%c%c%c ...'",
+				sts [0],
+				sts [1],
+				sts [2],
+				sts [3] ));
 		} else {
 			xeai ("'source'", es, att);
 		}
@@ -2176,8 +2584,11 @@ void BoardRoot::initAll () {
 	initTiming (xml);
 	initChannel (xml, NN);
 	initNodes (xml, NN);
+	initRoamers (xml);
 
 	sxml_free (xml);
+
+	print ("\n");
 
 	setResync (500, 0.5);
 
@@ -2315,7 +2726,7 @@ Outserial::perform {
 #include "stdattr_undef.h"
 
 #include "agent.cc"
-#include "rfmodule_dm2200.cc"
+#include "rfmodule.cc"
 #include "net.cc"
 #include "plug_null.cc"
 #include "plug_tarp.cc"

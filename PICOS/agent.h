@@ -29,7 +29,11 @@
 #define	XTRN_MBX_BUFLEN		64		// Mailbox buffer size
 #define	PRQS_INPUT_BUFLEN	82		// PIN request buffer size
 #define	PUPD_OUTPUT_BUFLEN	32		// PIN update buffer size
-#define	MRQS_INPUT_BUFLEN	82		// MOVE request buffer size
+#define	MRQS_INPUT_BUFLEN	112		// MOVE request buffer size
+
+#define	MOVER_MAX_STEPS		10000		// Max number of steps per leg
+#define	MOVER_TARGET_STEP	0.05		// 5 centimeters
+#define	MOVER_MIN_STEPS		8		// Even a tiny move is no jump
 
 #define	XTRN_IMODE_NONE		(0<<29)
 #define	XTRN_IMODE_DEVICE	(1<<29)
@@ -177,13 +181,16 @@ class	UART {
 	friend  class UART_out;
 	friend	class UartHandler;
 
-	Dev	*I, *O;		// Input and output mailboxes
+	union	{
+		Dev 	    *I;	// Input mailbox (shared with string)
+		const char  *S;
+	};
+
+	Dev	*O;		// Output mailbox
+
 	FLAGS	Flags;
 	word	B_ilen, B_olen;
 	TIME	ByteTime;
-
-	char 	*String;
-	int	SLen;
 
 	byte	*IBuf;
 	word	IB_in, IB_out;
@@ -331,15 +338,23 @@ typedef	struct	{
 
 } pin_update_t;
 
-mailbox PUpdates (lword) {
+mailbox PUpdates (long) {
 
 	inline void queue (pin_update_t u) {
-		this->put (*((lword*)(&u)));
+		this->put (*((long*)(&u)));
 	};
 
 	inline pin_update_t retrieve () {
-		lword it = this->get ();
+		long it = this->get ();
 		return *((pin_update_t*)(&it));
+	};
+};
+
+mailbox MUpdates (Long) {
+
+	inline void queue (Long nid) {
+		if (!queued (nid))
+			this->put (nid);
 	};
 };
 
@@ -358,7 +373,7 @@ class PINS {
 	lword	pmon_cnt,		// Pulse monitor counter
 		pmon_cmp;		// And comparator
 
-	PicOSNode	*TPN;		// Station backpointer
+	PicOSNode	*TPN;		// Node backpointer
 
 	byte	PIN_MAX,		// Number of pins (0 ... MAX - 1)
 		PIN_MAX_ANALOG,		// Analog capable pin range from 0
@@ -393,7 +408,14 @@ class PINS {
 
 	FLAGS	Flags;
 
-	Dev	*I, *O;
+	int 	SLen;			// String length for string input
+
+	union	{
+		Dev	   *I;
+		const char *S;
+	};
+
+	Dev	*O;
 
 	char	*UBuf;			// Buffer for updates
 

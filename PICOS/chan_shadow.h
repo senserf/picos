@@ -46,9 +46,11 @@ rfchannel RFShadow : RadioChannel {
 		Long mp,		// Minimum received preamble length
 		Long br,		// Bit rate
 		int bpb,		// Bits per byte
-		int frm			// Packet frame (excl. prmbl and chksum)
+		int frm,		// Packet frame (excl. prmbl and chksum)
+		RSSICalc *rsc,		// RSSI calculator
+		PowerSetter *ps		// Power setting converter (SETPOWER)
 	) {
-		RadioChannel::setup (nt, no, st, sl, br, bpb, frm);
+		RadioChannel::setup (nt, no, st, sl, br, bpb, frm, rsc, ps);
 
 		RDist = rd;
 		CDist = co;

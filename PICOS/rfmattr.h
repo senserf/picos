@@ -8,6 +8,8 @@
 #define	Receiving		_dac (PicOSNode, Receiving)
 #define	TXOFF			_dac (PicOSNode, TXOFF)
 #define	RXOFF			_dac (PicOSNode, RXOFF)
+#define	DefXPower		_dac (PicOSNode, DefXPower)
+#define	DefRPower		_dac (PicOSNode, DefRPower)
 #define	Xmitting		_dac (PicOSNode, Xmitting)
 #define	tx_event		_dac (PicOSNode, tx_event)
 #define	statid			_dac (PicOSNode, statid)
