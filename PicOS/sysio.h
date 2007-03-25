@@ -122,6 +122,8 @@
 
 #include "dbgtrc.h"
 
+#include "board_headers.h"
+
 #if SIM_NET==0
 
 #if	CC1000
@@ -305,6 +307,7 @@ word 	ee_read  (lword, byte*, word);
 word 	ee_write (word, lword, const byte*, word);
 word	ee_erase (word, lword, lword);
 word	ee_sync (word);
+lword	ee_size (Boolean*, lword*);
 
 #else
 
@@ -312,6 +315,7 @@ word	ee_sync (word);
 #define	ee_write (a,b,c,d)	1
 #define	ee_erase (a,b,c)	1
 #define	ee_sync (a)		1
+#define	ee_size (b,w)		0
 
 #endif	/* EEPROM_PRESENT */
 
@@ -421,7 +425,7 @@ int	root (word state, address data);
 typedef	int (*code_t)(word, address);
 
 void		zzz_uwait (word, word);
-int		zzz_utrigger (word);
+int		zzz_utrigger (word), zzz_ptrigger (int, word);
 int		zzz_fork (code_t func, address data);
 void		reset (void);
 void		halt (void);
@@ -434,6 +438,9 @@ void		zzz_strcat (char*, const char*);
 void		zzz_strncat (char*, const char*, int);
 void		zzz_memcpy (char *dest, const char *src, int);
 void		zzz_memset (char *dest, char c, int);
+
+extern 	const char	zz_hex_enc_table [];
+#define	HEX_TO_ASCII(p)		(zz_hex_enc_table [(p) & 0xf])
 
 #if	MALLOC_SINGLEPOOL
 
@@ -602,6 +609,7 @@ word	ldleft (int, address);
 void	snooze (word);
 /* Signal trigger: returns the number of awakened processes */
 #define	trigger(a)	zzz_utrigger ((word)(a))
+#define	ptrigger(a,b)	zzz_ptrigger (a, (word)(b))
 /* Kill the indicated process */
 int	kill (int);
 /* Kill all processes running this code */

@@ -3,9 +3,15 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
+#include "pins.h"
+#include "pinopts.h"
 /*
  * This code handles all interrupts triggered by P1 pins
  */
+
+#if 0
+
+// Note: this is obsolete and should be handled on a per-board basis
 
 #if		CC1000
 #include	"cc1000.h"
@@ -17,10 +23,6 @@
 
 #if		RF24L01
 #include	"rf24l01.h"
-#endif
-
-#if		CC1100
-#include	"cc1100.h"
 #endif
 
 interrupt (PORT1_VECTOR) p1_int () {
@@ -37,11 +39,16 @@ interrupt (PORT1_VECTOR) p1_int () {
 #include	"irq_rf24l01.h"
 #endif
 
-#if		CC1100
-#include	"irq_cc1100.h"
-#endif
+#endif	/* OBSOLETE */
 
-// Here room for more functions
+// ============================================================================
+
+
+interrupt (PORT1_VECTOR) p1_int () {
+
+#define	P1_INTERRUPT_SERVICE
+#include "board_pins_interrupts.h"
+#undef	P1_INTERRUPT_SERVICE
 
 	RTNI;
 }

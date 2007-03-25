@@ -29,10 +29,6 @@ void 	zz_lcd_init (void);
 void	zz_if_init (void);
 #endif
 
-#if ADC_SAMPLER
-void	zz_adcs_init (void);
-#endif
-
 typedef struct	{
 /* =================================== */
 /* A single event awaited by a process */

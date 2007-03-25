@@ -84,10 +84,11 @@ strand (rcvuart, uart_t)
 	}
 
 	// Check network ID
-	if (UA->v_statid != 0 && UA->r_buffer [0] != 0 &&
-	    UA->r_buffer [0] != UA->v_statid) {
-		// Wrong packet, ignore
-		proceed (RC_LOOP);
+	if (UA->v_statid != 0 && UA->v_statid != 0xffff) {
+		// Admit only packets with agreeable statid
+		if (UA->r_buffer [0] != 0 && UA->r_buffer [0] != UA->v_statid)
+			// Drop
+			proceed (RC_LOOP);
 	}
 
 	// Validate checksum: r_buffp is even
@@ -149,7 +150,8 @@ Drain:
 	UA->x_buffl = stln;
 	stln >>= 1;
 	// Checksum
-	UA->x_buffer [0] = UA->v_statid;
+	if (UA->v_statid != 0xffff)
+		UA->x_buffer [0] = UA->v_statid;
 	UA->x_buffer [stln - 1] = w_chk (UA->x_buffer, stln - 1, 0);
 
 	when (TXEVENT, XM_END);
@@ -255,6 +257,8 @@ void phys_uart (int phy, int mbs, int which) {
 
 	INI_UART (which);
 	START_UART (which, 0x3);
+	// Start in the OFF state
+	UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
 
 #undef	UA
 }

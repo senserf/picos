@@ -34,14 +34,19 @@
 
 		XBUF = ((byte*)(UA->x_buffer)) [UA->x_buffp++];
 
-		if (UA->x_buffp == UA->x_buffl) {
-			// All done
-			RISE_N_SHINE;
-			if (UA->x_prcs != 0)
-				p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
-			UART_STOP_XMITTER;
-		}
+		if (UA->x_buffp == UA->x_buffl)
+			// Last byte - wait for the last interrupt, which will
+			// indicate that the UART is in fact done
+			UA->x_istate = IRQ_X_STOP;
+		RTNI;
 
+	case IRQ_X_STOP:
+
+		// All done
+		RISE_N_SHINE;
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+		UART_STOP_XMITTER;
 		RTNI;
     }
 

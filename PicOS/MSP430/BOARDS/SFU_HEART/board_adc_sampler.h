@@ -66,16 +66,14 @@
 } while (0)
 
 #define	adcs_sample(b)	do { \
-	(b) [0] = ADC12MEM0; \
-	(b) [1] = ADC12MEM1; \
-	(b) [2] = ADC12MEM2; \
-	(b) [3] = ADC12MEM3; \
-	(b) [4] = ADC12MEM4; \
-	(b) [5] = ADC12MEM5; \
-	(b) [6] = ADC12MEM6; \
-	(b) [7] = ADC12MEM7; \
+	(b) [0] = (ADC12MEM0 <<  4) | (ADC12MEM1 >>  8); \
+	(b) [1] = (ADC12MEM1 <<  8) | (ADC12MEM2 >>  4); \
+	(b) [2] = (ADC12MEM2 << 12) | (ADC12MEM3      ); \
+	(b) [3] = (ADC12MEM4 <<  4) | (ADC12MEM5 >>  8); \
+	(b) [4] = (ADC12MEM5 <<  8) | (ADC12MEM6 >>  4); \
+	(b) [5] = (ADC12MEM6 << 12) | (ADC12MEM7      ); \
 } while (0)
 
-#define	ADCS_SAMPLE_LENGTH	8	// In words
+#define	ADCS_SAMPLE_LENGTH	6	// In words
 
 #endif

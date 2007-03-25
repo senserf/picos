@@ -52,6 +52,8 @@ static word w_chk (const word *wa, int nw, word chs) {
 
 main () {
 
+
+#if 0
 	static word buf [] = { 0x300, 0x6c61, 0x7861, 0x892c };
 
 
@@ -61,4 +63,8 @@ main () {
 	printf ("%x\n", w_chk (&zero, 1, 0));
 	printf ("%x\n", w_chk (&one , 1, 0));
 	printf ("%x\n", w_chk (buf  , 4, 0));
+
+#endif
+
+	
 }

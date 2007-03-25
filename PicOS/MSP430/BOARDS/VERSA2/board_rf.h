@@ -1,4 +1,5 @@
 //+++ "dm2200irq.c"
+//+++ p2irq.c
 
 #define	CFG_P1		CNOP
 

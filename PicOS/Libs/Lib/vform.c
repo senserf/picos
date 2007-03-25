@@ -5,8 +5,6 @@
 #include "sysio.h"
 #include "form.h"
 
-extern	char zz_hex_enc_table [];
-
 char *vform (char *res, const char *fm, va_list aq) {
 
 	word fml, s, d;

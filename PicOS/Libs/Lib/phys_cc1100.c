@@ -31,7 +31,6 @@ word		zzv_drvprcs, zzv_qevent;
 byte		zzv_iack,		// To resolve interrupt race
 		zzv_gwch;		// Guard watch
 
-
 static byte	RxOFF,			// Transmitter on/off flags
 		TxOFF,
 		xpower,
@@ -39,7 +38,7 @@ static byte	RxOFF,			// Transmitter on/off flags
 		channr = 0,
 		rfopt = 0;
 
-#if GUARD_PROCESS
+#if RADIO_GUARD
 
 #define	WATCH_RCV	0x01
 #define WATCH_XMT	0x02
@@ -56,7 +55,7 @@ static byte	RxOFF,			// Transmitter on/off flags
 #define		guard_start(f)	do { } while (0)
 #define		guard_stop(f)	do { } while (0)
 
-#endif	/* GUARD_PROCESS */
+#endif	/* RADIO_GUARD */
 
 /* ========================================= */
 
@@ -177,20 +176,6 @@ static byte cc1100_setchannel (byte ch) {
 	return old;
 }
 
-static byte cc1100_setrfmode (byte mo) {
-
-	byte old;
-	const byte *cur;
-
-	old = rfopt;
-	rfopt = mo;
-
-	for (cur = cc1100_rfsettings_opt [rfopt]; *cur != 255; cur += 2)
-		cc1100_set_reg (cur [0], cur [1]);
-
-	return old;
-}
-
 static word cc1100_setparam (byte *pa) {
 
 	word cnt;
@@ -215,10 +200,7 @@ static void init_cc_regs () {
 
 	const byte *cur;
 
-	for (cur = cc1100_rfsettings_cmn; *cur != 255; cur += 2)
-		cc1100_set_reg (cur [0], cur [1]);
-
-	for (cur = cc1100_rfsettings_opt [rfopt]; *cur != 255; cur += 2)
+	for (cur = cc1100_rfsettings; *cur != 255; cur += 2)
 		cc1100_set_reg (cur [0], cur [1]);
 
 	// Power setting is handled separately
@@ -234,7 +216,7 @@ static void validate_cc_regs () {
 	const byte	*cur;
 	byte		val;
 
-	for (cur = cc1100_rfsettings_cmn; *cur != 255; cur += 2) {
+	for (cur = cc1100_rfsettings; *cur != 255; cur += 2) {
 		val = cc1100_get_reg (cur [0]);
 		if (val != cur [1]) {
 RegErr:
@@ -242,12 +224,6 @@ RegErr:
 					cur [0], val, cur [1]);
 				syserror (EHARDWARE, "CC1100 reg");
 		}
-	}
-
-	for (cur = cc1100_rfsettings_opt [rfopt]; *cur != 255; cur += 2) {
-		val = cc1100_get_reg (cur [0]);
-		if (val != cur [1])
-			goto RegErr;
 	}
 }
 #endif
@@ -477,7 +453,7 @@ static void ini_cc1100 () {
 #endif
 }
 
-#if CRC_MODE > 1
+#if RADIO_CRC_MODE > 1
 #include "checksum.h"
 #endif
 
@@ -485,7 +461,7 @@ static void do_rx_fifo () {
 
 	int len, paylen;
 	byte *eptr;
-#if CRC_MODE <= 1
+#if RADIO_CRC_MODE <= 1
 	byte b;
 #endif
 
@@ -555,16 +531,21 @@ static void do_rx_fifo () {
 
 	enter_rx ();
 
-	// Check the station ID before doing anything else
-	if (statid != 0 && rbuff [0] != 0 && rbuff [0] != statid) {
+	if (statid != 0 && statid != 0xffff) {
+		// Admit only packets with agreeable statid
+		if (rbuff [0] != 0 && rbuff [0] != statid) {
+			// Drop
 #if TRACE_DRIVER
-		diag ("%u RC RX BAD STATID: %x", (word) seconds (), rbuff [0]);
+			diag ("%u RC RX BAD STATID: %x", (word) seconds (),
+				rbuff [0]);
 #endif
-		add_entropy (rbuff [3]);
-		goto Rtn;
+			// FIXME: what the hell is this?
+			add_entropy (rbuff [3]);
+			goto Rtn;
+		}
 	}
 
-#if CRC_MODE > 1
+#if RADIO_CRC_MODE > 1
 	// Verify CRC
 	len = paylen >> 1;
 	if (w_chk (rbuff, len, 0)) {
@@ -587,7 +568,7 @@ static void do_rx_fifo () {
 	((byte*)rbuff) [paylen - 1] = *((char*)eptr) + 128;
 	add_entropy (rbuff [len-1]);
 
-#else	/* CRC_MODE (the hardware case) */
+#else	/* RADIO_CRC_MODE (the hardware case) */
 
 	// Status bytes
 	eptr = (byte*)rbuff + paylen;
@@ -611,7 +592,7 @@ static void do_rx_fifo () {
 		// Ignore
 		goto Rtn;
 	}
-#endif	/* CRC_MODE */
+#endif	/* RADIO_CRC_MODE */
 
 #if TRACE_DRIVER
 	diag ("%u RC OK %x %x %x", (word) seconds (),
@@ -695,7 +676,6 @@ thread (cc1100_driver)
 			rcv_enable_int;
 		release;
 	}
-
 #if 0
 	while (RX_FIFO_READY) {
 		// We are about to take over, so let us give it one more try
@@ -707,8 +687,13 @@ thread (cc1100_driver)
 	// Try to grab the chip for TX
 	if (clear_to_send () == NO) {
 		// We have to wait
+#if AGGRESSIVE_XMITTER
+		delay (1, DR_LOOP);
+		release;
+#else
 		gbackoff;
 		proceed (DR_LOOP);
+#endif
 	}
 
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
@@ -718,7 +703,7 @@ thread (cc1100_driver)
 		proceed (DR_LOOP);
 	}
 
-#if CRC_MODE > 1
+#if RADIO_CRC_MODE > 1
 	sysassert (paylen <  rbuffl && paylen >= 6 && (paylen & 1) == 0,
 		"phys_cc1100 xmt pktl");
 #else
@@ -727,9 +712,11 @@ thread (cc1100_driver)
 #endif
 	LEDI (1, 1);
 
-	xbuff [0] = statid;
+	if (statid != 0xffff)
+		// This means "honor the packet's statid
+		xbuff [0] = statid;
 
-#if CRC_MODE > 1
+#if RADIO_CRC_MODE > 1
 	// Calculate CRC
 	len = (paylen >> 1) - 1;
 	((word*)xbuff) [len] = w_chk ((word*)xbuff, len, 0);
@@ -745,13 +732,9 @@ thread (cc1100_driver)
 	// ... and release it
 	tcvphy_end (xbuff);
 
-	// Note: this is a bit crude. We should wait (roughly):
-	// ((paylen + 6) * 8 / 10) * (1024/1000) ticks (assuming 0.1 msec per
-	// bit. For a 32-bit packet, the above formula yields 31.12, so ...
-	// you see ...
-	// FIXME: if we go for different baud rates, this will have to be
-	// adjusted
-	delay (paylen, DR_SWAIT);
+	// Wait for some minimum time needed to transmit the packet
+
+	delay (APPROX_XMIT_TIME (paylen), DR_SWAIT);
 
 	release;
 
@@ -770,7 +753,7 @@ thread (cc1100_driver)
 
 endthread
 
-#if	GUARD_PROCESS
+#if	RADIO_GUARD
 
 #define	GU_ACTION	0
 
@@ -861,7 +844,7 @@ Reset:
 
 endthread
 
-#endif	/* GUARD_PROCESS */
+#endif	/* RADIO_GUARD */
 
 void phys_cc1100 (int phy, int mbs) {
 /*
@@ -879,7 +862,7 @@ void phys_cc1100 (int phy, int mbs) {
 	}
 
 	rbuffl = (byte) mbs;	// buffer length in bytes, including checksum
-#if CRC_MODE > 1
+#if RADIO_CRC_MODE > 1
 	rbuffl += 2;
 #endif
 	if ((rbuff = umalloc (rbuffl)) == NULL)
@@ -909,7 +892,7 @@ void phys_cc1100 (int phy, int mbs) {
 	/* Start the processes */
 	zzv_drvprcs = runthread (cc1100_driver);
 
-#if GUARD_PROCESS
+#if RADIO_GUARD
 	runthread (cc1100_guard);
 #endif
 
@@ -1052,23 +1035,6 @@ static int option (int opt, address val) {
 	    case PHYSOPT_GETCHANNEL:
 
 		ret = channr;
-		if (val != NULL)
-			*val = ret;
-		break;
-
-	    case PHYSOPT_SETMODE:
-
-		if (val == NULL)
-			ret = cc1100_setrfmode (0);
-		else if (*val > CC1100_N_RF_OPTIONS) 
-			syserror (EREQPAR, "phys_cc1100 option setrfmode");
-		else
-			ret = cc1100_setrfmode ((byte)(*val));
-		break;
-
-	    case PHYSOPT_GETMODE:
-
-		ret = rfopt;
 		if (val != NULL)
 			*val = ret;
 		break;

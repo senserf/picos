@@ -385,7 +385,7 @@ thread (root)
 	ibuf [0] = 0xff;
 #endif
 
-#if 0
+#if 1
 	ibuf [0] = 0;
 #endif
 

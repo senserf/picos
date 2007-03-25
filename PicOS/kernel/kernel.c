@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -508,6 +508,33 @@ int zzz_utrigger (word event) {
 	}
 
 	return c;
+}
+
+/* ================================= */
+/* Trigger when the process is known */
+/* ================================= */
+int zzz_ptrigger (int pid, word event) {
+
+	pcb_t	*i;
+	int 	j;
+
+	if (pid == 0)
+		return zzz_utrigger (event);
+
+	ver_pid (i, pid);
+
+	if (i->code == NULL)
+		return 0;
+
+	for (j = 0; j < nevents (i); j++) {
+		if (i->Events [j] . Event == event &&
+		    getetype (i->Events [j]) == ETYPE_USER) {
+			wakeupev (i, j);
+			return 1;
+		}
+	} 
+
+	return 0;
 }
 
 static void killev (int pid, word wfun) {

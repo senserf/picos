@@ -11,6 +11,29 @@
 #include "rfleds.h"
 
 /*
+ * CRC calculation mode
+ *
+ *     0 = standard built-in CRC
+ *     1 = built-in CC2400-compatible
+ *     2 = software
+ */
+#ifndef	RADIO_CRC_MODE
+#define	RADIO_CRC_MODE		2
+#endif
+
+#ifndef	RADIO_BITRATE
+#define	RADIO_BITRATE		10000
+#endif
+
+#ifndef	RADIO_GUARD
+#define	RADIO_GUARD		1	/* Guard process present */
+#endif
+
+#ifndef	RADIO_SYSTEM_IDENT
+#define	RADIO_SYSTEM_IDENT	0xAB35	/* Sync word */
+#endif
+
+/*
  * Channel clear indication for TX:
  *
  *    0  = always (no LBT at all)
@@ -21,26 +44,33 @@
  * Level 2 is the smallest recommended.
  *
  */
-#define	CC_INDICATION		3	/* If not receiving a packet */
+#define	CC_INDICATION		2	/* If not receiving a packet */
 
 // RSSI threshold (for LBT), previous values: 8, 0
-#define	CC_THRESHOLD		1	/* 1 lowest, 15 highest, 0 disable */
-#define	CC_THRESHOLD_REL	1	/* 1 lowest, 3 highest, 0 disable */
+#define	CC_THRESHOLD		0	/* 1 lowest, 15 highest, 0 disable */
+#define	CC_THRESHOLD_REL	0	/* 1 lowest, 3 highest, 0 disable */
 
-/*
- * CRC calculation mode
- *
- *     0 = standard built-in CRC
- *     1 = built-in CC2400-compatible
- *     2 = software
- *
- */
-#define	CRC_MODE		2
+// ============================================================================
 
+#if RADIO_BITRATE > 50000
+
+#define	AGGRESSIVE_XMITTER	1
+#define	DOUBLE_SYNC_WORD	0
+#define	BACKOFF_AFTER_RECEIVE	0
+#define	XMIT_SPACE		2	/* Inter packet space for xmit */
+#define	TXEND_POLL_DELAY	1	/* Milliseconds */
+
+#else
+
+#define	AGGRESSIVE_XMITTER	0
 #define	DOUBLE_SYNC_WORD	1
 #define	BACKOFF_AFTER_RECEIVE	1
+#define	XMIT_SPACE		40	/* Inter packet space for xmit */
+#define	TXEND_POLL_DELAY	2	/* Milliseconds */
 
-#define	GUARD_PROCESS		1	/* Guard process present */
+#endif	/* HIGH RATE */
+
+// ============================================================================
 
 #ifdef	NO_LONG_DELAYS
 #define	GUARD_LONG_DELAY	60000	/* Must be less than a minute */
@@ -50,14 +80,11 @@
 
 #define	GUARD_SHORT_DELAY	5000	/* 5 seconds */
 #define	TRACE_DRIVER		0	/* Debugging diags */
-#define	XMIT_SPACE		40	/* Inter packet space for xmit */
 
-#define	SYSTEM_IDENT		0xAB35	/* Sync word */
-#define	TXEND_POLL_DELAY	2	/* Milliseconds */
 #define	CC1100_MAXPLEN		60	/* Including checksum */
 
+// Register Numbers ===========================================================
 
-// CC2500/CC1100 STROBE, CONTROL AND STATUS REGISTERS
 #define CCxxx0_IOCFG2       0x00        // GDO2 output pin configuration
 #define CCxxx0_IOCFG1       0x01        // GDO1 output pin configuration
 #define CCxxx0_IOCFG0       0x02        // GDO0 output pin configuration
@@ -146,28 +173,25 @@
 
 #ifdef	DEFINE_RF_SETTINGS
 
-const	byte	cc1100_rfsettings_cmn [] = {
-//
-// Common settings for all options
-//
-        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-        CCxxx0_FSCTRL0, 0x00,   // FSCTRL0
-        CCxxx0_FREQ2,   0x22,   // FREQ2 	23 these three determine
-        CCxxx0_FREQ1,   0xC4,   // FREQ1	3B the base radio
-        CCxxx0_FREQ0,   0xEC,   // FREQ0	13 frequency
+// Define Register Contents ===================================================
 
 #if DOUBLE_SYNC_WORD
 #define	SYNC_WORD_SIZE	0x03
 #else
-#define	SYNC_WORD_SIZE	0x01
+#define	SYNC_WORD_SIZE	0x02
 #endif
-        CCxxx0_MDMCFG2, SYNC_WORD_SIZE,	//	.. modulation (2-fsk), no MCHSTR
 
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+const	byte	cc1100_rfsettings [] = {
+//
+// Common settings for all rates
+//
+        CCxxx0_FSCTRL0, 0x00,   // FSCTRL0
+        CCxxx0_FREQ1,   0xC4,   // FREQ1	3B the base radio
+        CCxxx0_FREQ0,   0xEC,   // FREQ0	13 frequency
+
+
         CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0	F8 channel spacing
-        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FREND1,  0x56,   // FREND1
-        CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_BSCFG,   0x6C,   // BSCFG
 
 //      CCxxx0_AGCCTRL2,0x83,   // AGCCTRL2
@@ -182,7 +206,6 @@ const	byte	cc1100_rfsettings_cmn [] = {
 
         CCxxx0_AGCCTRL0,0x91,   // AGCCTRL0
         CCxxx0_FSCAL3,  0xA9,   // FSCAL3
-        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
 	CCxxx0_FSCAL1,	0x00,	// RFM
         CCxxx0_FSCAL0,  0x0D,   // FSCAL0
         CCxxx0_FSTEST,  0x59,   // FSTEST
@@ -191,7 +214,7 @@ const	byte	cc1100_rfsettings_cmn [] = {
 	CCxxx0_IOCFG1,	0x2f,	// Unused and grounded
 	CCxxx0_IOCFG0,	0x01,	// Reception, EOP or threshold
 
-#if CRC_MODE > 1
+#if RADIO_CRC_MODE > 1
 #define	MAX_TOTAL_PL	(CC1100_MAXPLEN+2)
 #else
 #define	MAX_TOTAL_PL	CC1100_MAXPLEN
@@ -200,15 +223,15 @@ const	byte	cc1100_rfsettings_cmn [] = {
 
 	CCxxx0_PKTCTRL1,0x0C,	// Autoflush + 2 status bytes on reception
 
-#if CRC_MODE == 0
+#if RADIO_CRC_MODE == 0
 #define	CRC_FLAGS	0x04
 #endif
 
-#if CRC_MODE == 1
+#if RADIO_CRC_MODE == 1
 #define	CRC_FLAGS	0x0C
 #endif
 
-#if CRC_MODE > 1
+#if RADIO_CRC_MODE > 1
 #define	CRC_FLAGS	0x00
 #endif
 	CCxxx0_PKTCTRL0,(0x41 | CRC_FLAGS), // Whitening, pkt lngth follows sync
@@ -217,8 +240,8 @@ const	byte	cc1100_rfsettings_cmn [] = {
 
 	CCxxx0_FIFOTHR,	0x0F,	// 64 bytes in FIFO
 
-	CCxxx0_SYNC1,	((SYSTEM_IDENT >> 8) & 0xff),
-	CCxxx0_SYNC0,	((SYSTEM_IDENT     ) & 0xff),
+	CCxxx0_SYNC1,	((RADIO_SYSTEM_IDENT >> 8) & 0xff),
+	CCxxx0_SYNC0,	((RADIO_SYSTEM_IDENT     ) & 0xff),
 
         CCxxx0_MCSM0,   0x15,   // Recalibrate on exiting IDLE state	08
 
@@ -229,47 +252,102 @@ const	byte	cc1100_rfsettings_cmn [] = {
 
 	CCxxx0_MCSM2,	0x07,
 
+// Rate Dependent Settings ====================================================
+
+#if RADIO_BITRATE == 10000
+#define	RBITR_SET	1
+
+        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
+	CCxxx0_FREQ2,   0x22,   // FREQ2
+       	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
+       	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
+        CCxxx0_MDMCFG2, 0x00 + SYNC_WORD_SIZE,
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
+        CCxxx0_FOCCFG,  0x15,   // FOCCFG
+        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
+
+	// We should wait (roughly): ((paylen + 6) * 8 / 10) * (1024/1000) 
+	// ticks (assuming 0.1 msec per bit. For a 32-bit packet, the above
+	// formula yields 31.12, so ... you see ... it almost works
+#define	APPROX_XMIT_TIME(p)	(p)
+
+#endif
+
+#if RADIO_BITRATE == 5000
+#define	RBITR_SET	1
+
+        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
+	CCxxx0_FREQ2,   0x22,   // FREQ2
+       	CCxxx0_MDMCFG4, 0xC7,   // MDMCFG4 	(4.8 kbps)
+       	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
+        CCxxx0_MDMCFG2, 0x00 + SYNC_WORD_SIZE,
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
+        CCxxx0_FOCCFG,  0x15,   // FOCCFG
+        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
+
+#define	APPROX_XMIT_TIME(p)	((p) >> 1)
+
+#endif
+
+#if RADIO_BITRATE == 38400
+#define	RBITR_SET	1
+
+        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
+	CCxxx0_FREQ2,   0x22,   // FREQ2
+       	CCxxx0_MDMCFG4, 0xCA,   // MDMCFG4 	(38.4 kbps)
+       	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
+        CCxxx0_MDMCFG2, 0x00 + SYNC_WORD_SIZE,
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
+        CCxxx0_FOCCFG,  0x15,   // FOCCFG
+        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
+
+#define	APPROX_XMIT_TIME(p)	((p) >> 4)
+
+#endif
+
+#if RADIO_BITRATE == 200000
+#define	RBITR_SET	1
+
+        CCxxx0_FSCTRL1, 0x0A,   // FSCTRL1	WAS 0C
+        CCxxx0_FREQ2,   0x1E,   // FREQ2
+       	CCxxx0_MDMCFG4, 0x8C,   // MDMCFG4 	(10 kbps)
+	CCxxx0_MDMCFG3, 0x22,   // MDMCFG3
+        CCxxx0_MDMCFG2, 0x10 + SYNC_WORD_SIZE,
+        CCxxx0_MDMCFG1, 0x22,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_DEVIATN, 0x47,   // DEVIATN	47 -> 40 -> 34
+        CCxxx0_FOCCFG,  0x36,   // FOCCFG
+        CCxxx0_FSCAL2,  0x0A,   // FSCAL2
+
+#define APPROX_XMIT_TIME(p)	1
+
+#endif
+
+#ifndef	RBITR_SET
+#error	"unknown bit rate, legal rates are 5000, 10000, 38400, 200000"
+#endif
+
 /* ========== */
 
         255, 255
 };
 
-const	byte rf_opt0 [] = {
-        	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
-        	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
-		255, 255
-	};
-
-const	byte rf_opt1 [] = {
-        	CCxxx0_MDMCFG4, 0xC7,   // MDMCFG4 	(4.8 kbps)
-        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
-		255, 255
-	};
-
-const	byte rf_opt2 [] = {
-        	CCxxx0_MDMCFG4, 0xCA,   // MDMCFG4 	(38.4 kbps)
-        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
-		255, 255
-	};
-
-const	byte	*cc1100_rfsettings_opt [CC1100_N_RF_OPTIONS] = {
-
-	rf_opt0,
-	rf_opt1,
-	rf_opt2
-};
-
 #define	PATABLE { 0x03, 0x1C, 0x67, 0x60, 0x85, 0xCC, 0xC6, 0xC3 }
 
-// This is a single-value PATABLE at 0dBm
-// #define	PATABLE { 0x60 }
+// ============================================================================
 
 #else	/* DEFINE_RF_SETTINGS */
 
-extern const byte cc1100_rfsettings_cmn [],
-			cc1100_rfsettings_opt [CC1100_N_RF_OPTIONS][];
+// No Register Definitions ====================================================
+
+extern const byte cc1100_rfsettings [];
 
 #endif	/* DEFINE_RF_SETTINGS */
+
+// ============================================================================
+
 /*
  * Chip states
  */

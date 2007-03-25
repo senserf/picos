@@ -79,8 +79,8 @@ extern	uart_t zz_uart [N_UARTS_TCV];
 #define	IRQ_X_STRT	1
 #define	IRQ_X_LEN	2
 #define	IRQ_X_PKT	3
-#define	IRQ_X_CH1	4
-#define	IRQ_X_STOP	5
+#define	IRQ_X_STOP	4
+#define	IRQ_X_CH1	5
 
 #endif	/* N_UARTS_TCV */
 

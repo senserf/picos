@@ -5,6 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "dm2200.h"
+
 /*
  * This code handles reception. Transmission is strobed by the CC timer.
  */

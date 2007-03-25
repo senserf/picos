@@ -9,9 +9,46 @@
 #include "storage.h"
 #include "pins.h"
 
+#ifndef	STORAGE_AT45_TYPE
+#define	STORAGE_AT45_TYPE	41	// This is what we started from
+#endif
+
+#if STORAGE_AT45_TYPE == 41
+
 #define	EE_MMPR		0x52		// Main memory page read (direct)
 #define	EE_B1R		0x54		// Buffer 1 read
 #define	EE_B2R		0x56		// Buffer 2 read
+#define	EE_STAT		0x57		// Status
+
+#define	EE_PADDR_BITS	15		// Page address bits
+#define	EE_POFFS_BITS	9		// Including extra zero bit
+
+#define	EE_PAGE_SIZE	256			// bytes used by the praxis
+#define	EE_PAGE_SIZE_T	(EE_PAGE_SIZE + 8)	// including the extra 8 bytes
+#define	EE_PAGE_SHIFT	8
+
+#define	EE_NBLOCKS	2048
+
+#endif	/* 41 */
+
+#if STORAGE_AT45_TYPE == 321
+
+#define	EE_MMPR		0xD2		// Main memory page read (direct)
+#define	EE_B1R		0xD4		// Buffer 1 read
+#define	EE_B2R		0xD6		// Buffer 2 read
+#define	EE_STAT		0xD7		// Status
+
+#define	EE_PADDR_BITS	14		// Page address bits
+#define	EE_POFFS_BITS	10		// Bits in offset, including one dummy
+
+#define	EE_PAGE_SIZE	512			// bytes used by the praxis
+#define	EE_PAGE_SIZE_T	(EE_PAGE_SIZE + 16)	// including the extra 8 bytes
+#define	EE_PAGE_SHIFT	9
+
+#define	EE_NBLOCKS	8192
+
+#endif	/* 321 */
+
 #define	EE_MMPB1R	0x53		// Main memory page read to buffer 1
 #define	EE_MMPB2R	0x55		// Main memory page read to buffer 2
 #define	EE_MMPB1C	0x60		// Main memory page compare buffer 1
@@ -26,20 +63,16 @@
 #define	EE_MMPB2	0x85		// MM program through buffer 2
 #define	EE_APRB1	0x58		// Auto page rewrite through buffer 1
 #define	EE_APRB2	0x59		// Auto page rewrite through buffer 2
-#define	EE_STAT		0x57		// Status
 #define	EE_ERASE	0x81		// Page erase
 
-#define	EE_PAGE_SIZE	256		// bytes used by the praxis
-#define	EE_PAGE_SIZE_T	(EE_PAGE_SIZE + 8)	// including the extra 8 bytes
-#define	EE_PAGE_SHIFT	8
+
 #define	EE_BLOCK_SIZE	EE_PAGE_SIZE
 #define	EE_NPAGES	EE_NBLOCKS
+
 #define	EE_SIZE		(((lword)EE_NPAGES) * EE_PAGE_SIZE)
 
 #define	EE_ERASE_UNIT		1
 #define	EE_ERASE_BEFORE_WRITE	0
 #define	EE_RANDOM_WRITE		1
-
-
 
 #endif

@@ -226,3 +226,5 @@ word ee_sync (word st) {
 // This one is void
 	return 0;
 }
+
+#include "storage.c"

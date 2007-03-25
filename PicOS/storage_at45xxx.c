@@ -20,10 +20,10 @@ static	word buf_page [2];	// page in buffer
 static	byte buf_flags [2];	// buffer state
 
 static	byte wstate,		// current state of the write operation
-	     wpageo,		// Page offset for write
 	     cbsel;		// Alternating buffer selector
 
-static  word wpagen,		// page number
+static  word wpageo,		// page offset for write
+	     wpagen,		// page number
 	     wrsize;		// residual length
 
 static 	const byte *wbuffp;	// write buffer pointer
@@ -129,8 +129,27 @@ static void saddr (word a) {
 
 	register int i;
 
-	a <<= 1;
-	for (i = 0; i < 15; i++) {
+	a <<= (16 - EE_PADDR_BITS);
+	for (i = 0; i < EE_PADDR_BITS; i++) {
+		if (a & 0x8000)
+			ee_outh;
+		else
+			ee_outl;
+		ee_clkh;
+		ee_clkl;
+		a <<= 1;
+	}
+}
+
+static void soffs (word a) {
+
+// Send page offset
+
+	register int i;
+
+	a <<= (16 - EE_POFFS_BITS);
+	
+	for (i = 0; i < EE_POFFS_BITS; i++) {
 		if (a & 0x8000)
 			ee_outh;
 		else
@@ -167,7 +186,7 @@ void zz_ee_init () {
 word ee_read (lword a, byte *s, word len) {
 
 	word pn, nb;
-	byte bi, po;
+	word bi, po;
 
 	if (len == 0)
 		return 0;
@@ -176,7 +195,7 @@ word ee_read (lword a, byte *s, word len) {
 		return 1;
 
 	// Page offset
-	po = (byte)(a & (EE_PAGE_SIZE - 1));
+	po = (word)(a & (EE_PAGE_SIZE - 1));
 	// Page number
 	pn = (word)(a >> EE_PAGE_SHIFT);
 
@@ -192,21 +211,16 @@ word ee_read (lword a, byte *s, word len) {
 			put_byte (EE_MMPR);
 			// Page number
 			saddr (pn);
-			// The most significant offset bit is always zero
-			// as we never use the last 8 bytes of the page
-			// in the application
-			sdc (1);
 			// Page offset
-			put_byte (po);
+			soffs (po);
 			// Needed to initialize the transfer
 			sdc (32);
 		} else {
 			ee_start;
 			put_byte (EE_BiR (bi));
-			// 16 zeros == 15 don't care + zero MSB offset bit
-			sdc (16);
+			sdc (EE_PADDR_BITS);
 			// Page offset
-			put_byte (po);
+			soffs (po);
 			// 8 don't care bits
 			sdc (8);
 		}
@@ -281,7 +295,7 @@ static byte bflush () {
 	ee_start;
 	put_byte (i < 2 ? EE_BiMMP (k) : EE_BiMMPE (k));
 	saddr (buf_page [k]);
-	sdc (9);
+	sdc (EE_POFFS_BITS);
 	ee_stop;
 
 	buf_page [k] = WNONE;
@@ -295,7 +309,7 @@ static void bfetch (word pn, byte bi) {
 	ee_start;
 	put_byte (EE_MMPBiR(bi));
 	saddr (pn);
-	sdc (9);
+	sdc (EE_POFFS_BITS);
 	ee_stop;
 
 	buf_page [bi] = pn;
@@ -303,12 +317,13 @@ static void bfetch (word pn, byte bi) {
 	// FIXME: no erased flag is available yet
 }
 
-static void bwrite (byte bi, byte po, const char *buf, word nb) {
+static void bwrite (byte bi, word po, const char *buf, word nb) {
 
 	ee_start;
 	put_byte (EE_BiW (bi));
-	sdc (16);
-	put_byte (po);
+
+	sdc (EE_PADDR_BITS);
+	soffs (po);
 
 	if (buf != NULL) {
 		while (nb--)
@@ -335,7 +350,7 @@ static void sync (word st) {
 				put_byte ((buf_flags [i] & BF_ERASED) ? 
 					EE_BiMMP (i) : EE_BiMMPE (i));
 				saddr (buf_page [i]);
-				sdc (9);
+				sdc (EE_POFFS_BITS);
 				ee_stop;
 			}
 			buf_flags [i] &= ~BF_DIRTY;
@@ -365,7 +380,7 @@ word ee_write (word st, lword a, const byte *s, word len) {
 		wstate = WS_NEXT;
 		wbuffp = s;
 		wpagen = (word) (a >> EE_PAGE_SHIFT);
-		wpageo = (byte)(a & (EE_PAGE_SIZE - 1));
+		wpageo = (word) (a & (EE_PAGE_SIZE - 1));
 		wrsize = len;
 
 		// Fall through
@@ -438,7 +453,7 @@ word ee_erase (word st, lword from, lword upto) {
 	    case WS_DONE:
 
 		wpagen = (word) (from >> EE_PAGE_SHIFT);
-		wpageo = (byte) (from & (EE_PAGE_SIZE - 1));
+		wpageo = (word) (from & (EE_PAGE_SIZE - 1));
 
 		if (wpageo) {
 			// Partial first page
@@ -474,7 +489,7 @@ WS_pcheck:
 			ee_start;
 			put_byte (EE_ERASE);
 			saddr (wpagen);
-			sdc (9);
+			sdc (EE_POFFS_BITS);
 			ee_stop;
 			wpagen++;
 			wrsize--;
@@ -575,3 +590,5 @@ word ee_sync (word st) {
 	sync (st);
 	return 0;
 }
+
+#include "storage.c"

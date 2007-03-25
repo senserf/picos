@@ -482,3 +482,5 @@ word ee_write (word st, lword a, const byte *s, word len) {
 		wleft -= nb;
 	}
 }
+
+#include "storage.c"

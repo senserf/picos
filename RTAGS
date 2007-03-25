@@ -1373,3 +1373,21 @@ R070221B:
 	extend this feature (selectively) over other interrupts.
 	We have a new an more elegant mechanism for triggering scheduler events
 	from interrupts.
+
+R070325A:
+
+	AT45XXX flash driver extended to accommodate AT45DB321C (as well as
+	AT45DB041 from the Warsaw board). ee_size added to the set of storage
+	functions.
+
+	ptrigger (int, word) added. It triggers the event for one indicated
+	process, which is more efficient when the process Id is handy.
+
+	SETMODE removed for CC1100. The rate is now selected by a symbolic
+	constant at compilation time. It was too messy for a run-time option
+	(and useless).
+
+	Another special value (0xffff) used for station (network) Id means that
+	the sender should honor the network Id value in the praxis packet. On
+	reception it is equivalent to 0, i.e., promiscuous mode. For now, this
+	only applies to CC1100 and phys_uart.

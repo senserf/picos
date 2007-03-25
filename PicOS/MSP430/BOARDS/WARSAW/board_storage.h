@@ -9,14 +9,10 @@
  *  SCK				P5.3 UCLK1
  */
 
+#define	STORAGE_AT45_TYPE	41	// Select the actual model used
+
 #include "board_pins.h"
 #include "storage_at45xxx.h"
-
-#if	UART_DRIVER > 1 || UART_TCV > 1 || UARTP_TCV > 1
-#error	"Cannot use two UARTs with SPI (needed for external FLASH)"
-#endif
-
-#define	EE_NBLOCKS	2048
 
 #define	ee_ini_regs	do { \
 				_BIS (P5OUT, 0x09); \

@@ -3,11 +3,15 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
+#include "pins.h"
+#include "pinopts.h"
 /*
  * This code handles all interrupts triggered by P2 pins
  */
-#include	"pins.h"
-#include	"pinopts.h"
+
+#if 0
+
+// Obsolete
 
 #if	DM2200
 #include	"dm2200.h"
@@ -25,7 +29,15 @@ interrupt (PORT2_VECTOR) p2_int () {
 #endif
 #endif
 
-// Room for more functions
+#endif	/* OBSOLETE */
+
+// ============================================================================
+
+interrupt (PORT2_VECTOR) p2_int () {
+
+#define	P2_INTERRUPT_SERVICE
+#include "board_pins_interrupts.h"
+#undef	P2_INTERRUPT_SERVICE
 
 	RTNI;
 }

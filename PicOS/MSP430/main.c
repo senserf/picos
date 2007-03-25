@@ -675,10 +675,6 @@ static void ios_init () {
 	zz_if_init ();
 #endif
 
-#if ADC_SAMPLER
-	zz_adcs_init ();
-#endif
-
 #if	UART_DRIVER || UART_TCV || UARTP_TCV
 	// A UART is configured, initialize it beforehand without enabling
 	// anything, which is up to the driver plugin. We just want to be able
@@ -787,12 +783,22 @@ uart_t	zz_uart [N_UARTS];
 #if UART_RATE == 38400
 #define	UART_RATE_INDEX	7
 #endif
+#if UART_RATE == 76800
+#define	UART_RATE_INDEX	8
+#endif
+#if UART_RATE == 115200
+#define	UART_RATE_INDEX	9
+#endif
+#if UART_RATE == 256000
+#define	UART_RATE_INDEX	10
+#endif
 
 #ifndef	UART_RATE_INDEX
 #error "Illegal UART_RATE"
 #endif
 
-// No need to use corrections for high-speed crystals
+// No need to use corrections for high-speed crystals. FIXME: may need 
+// correction for 115200 and more.
 #define	umctl		0
 #define	ubr0		((UART_CLOCK_RATE/UART_RATE) % 256)
 #define	ubr1		((UART_CLOCK_RATE/UART_RATE) / 256)
@@ -879,14 +885,17 @@ static const uart_rate_t urates [] = {
     { 48, 0x06, 0x6F },
     { 96, 0x03, 0x4A }
 #else
-    {	12, (UART_CLOCK_RATE/ 1200) % 256, (UART_CLOCK_RATE/ 1200) / 256 },
-    {	24, (UART_CLOCK_RATE/ 2400) % 256, (UART_CLOCK_RATE/ 2400) / 256 },
-    {	48, (UART_CLOCK_RATE/ 4800) % 256, (UART_CLOCK_RATE/ 4800) / 256 },
-    {	96, (UART_CLOCK_RATE/ 9600) % 256, (UART_CLOCK_RATE/ 9600) / 256 },
-    {  144, (UART_CLOCK_RATE/14400) % 256, (UART_CLOCK_RATE/14400) / 256 },
-    {  192, (UART_CLOCK_RATE/19200) % 256, (UART_CLOCK_RATE/19200) / 256 },
-    {  288, (UART_CLOCK_RATE/28800) % 256, (UART_CLOCK_RATE/28800) / 256 },
-    {  384, (UART_CLOCK_RATE/38400) % 256, (UART_CLOCK_RATE/38400) / 256 }
+    {	12, (UART_CLOCK_RATE/  1200) % 256, (UART_CLOCK_RATE/  1200) / 256 },
+    {	24, (UART_CLOCK_RATE/  2400) % 256, (UART_CLOCK_RATE/  2400) / 256 },
+    {	48, (UART_CLOCK_RATE/  4800) % 256, (UART_CLOCK_RATE/  4800) / 256 },
+    {	96, (UART_CLOCK_RATE/  9600) % 256, (UART_CLOCK_RATE/  9600) / 256 },
+    {  144, (UART_CLOCK_RATE/ 14400) % 256, (UART_CLOCK_RATE/ 14400) / 256 },
+    {  192, (UART_CLOCK_RATE/ 19200) % 256, (UART_CLOCK_RATE/ 19200) / 256 },
+    {  288, (UART_CLOCK_RATE/ 28800) % 256, (UART_CLOCK_RATE/ 28800) / 256 },
+    {  384, (UART_CLOCK_RATE/ 38400) % 256, (UART_CLOCK_RATE/ 38400) / 256 },
+    {  768, (UART_CLOCK_RATE/ 76800) % 256, (UART_CLOCK_RATE/ 76800) / 256 },
+    { 1152, (UART_CLOCK_RATE/115200) % 256, (UART_CLOCK_RATE/115200) / 256 },
+    { 2560, (UART_CLOCK_RATE/256000) % 256, (UART_CLOCK_RATE/256000) / 256 }
 #endif
 
 };

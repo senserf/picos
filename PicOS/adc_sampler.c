@@ -11,12 +11,9 @@ static int	consummer = 0;
 
 #define	BSTAT_OVF	0x0001
 
-void zz_adcs_init () {
+word adcs_start (word bufsize) {
 
 	adcs_init_regs;
-}
-
-word adcs_start (word bufsize) {
 
 	// Allocate the buffer
 	if (buff != NULL)
@@ -35,10 +32,11 @@ word adcs_start (word bufsize) {
 
 void adcs_stop () {
 
-	adcs_stop_sys;
-	if (buff != NULL)
+	if (buff != NULL) {
 		ufree (buff);
-	buff = NULL;
+		buff = NULL;
+		adcs_stop_sys;
+	}
 }
 
 Boolean adcs_new_sample () {

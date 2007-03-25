@@ -77,4 +77,31 @@ proc crc { str } {
 
 inicrc
 
-puts [crc "alamakotaa"]
+
+
+while 1 {
+
+	set line [gets stdin]
+
+	set len 0
+	set buf ""
+	while { [regexp -nocase "\[0-9a-z\]\[0-9a-z\]" $line di] } {
+		set ix [string first $di $line]
+		set line [string range $line [expr $ix + 2] end]
+		scan $di "%2x" di
+		append buf [binary format c $di]
+	}
+
+	if { [expr $len % 1] } {
+		puts "Odd length!"
+		continue
+	}
+
+	set di [crc $buf]
+
+	puts [format %04x $di]
+}
+
+	
+
+
