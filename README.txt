@@ -827,3 +827,6 @@
 
 	   Documentation and cleanups. Tested on 32-bit and 64-bit Linux
 	   systems, as well as (32-bit) Cygwin.
+
+ R070325A  Method queued added to Mailbox. Fixed a deallocation problem for
+	   queueing (typed) mailbox.

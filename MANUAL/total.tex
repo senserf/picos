@@ -10724,6 +10724,17 @@ the item is {\tt ACCEPTED} or {\tt QUEUED}, or
 the mailbox capacity is zero
 \end{itemize}
 
+For a typed mailbox, this method checks whether the mailbox contains a specific
+item:
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\>{\tt Boolean queued (}{\em itypename\/} {\tt item);}
+\end{tabbing}}
+\noindent
+where {\em itypename\/} stands for the item type.
+The method returns {\tt YES} is the specified item is stored in the mailbox,
+and {\tt NO} otherwise.
+
 One of the following four methods can be called to determine the full/empty
 status of a mailbox:
 \begin{verbatim}

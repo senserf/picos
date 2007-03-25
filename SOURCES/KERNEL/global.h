@@ -3107,7 +3107,6 @@ class   Mailbox : public AI {
 #endif
 
 	void	trigger_all_events ();
-	void	destroy_simple () { trigger_all_events (); };
 	
 	public:
 
@@ -3215,6 +3214,8 @@ class   Mailbox : public AI {
 	int     zz_put (void*);
 	int     zz_putP (void*);
 	int     zz_erase ();
+
+	Boolean zz_queued (void*);
 
 	virtual void zz_initem () { };  // Dummy
 	virtual void zz_outitem () { };

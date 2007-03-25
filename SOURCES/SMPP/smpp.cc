@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-2006   P. Gburzynski */
+/* Copyright (C) 1991-2007   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -2481,7 +2481,12 @@ Assumereal:
 				"inline int putP (");
 		putC (par);
 		putC (" a) { return (zz_putP ((void*)(IPointer)a)); };");
-		putC (" inline int erase () { return (zz_erase ()); }; ");
+		putC (" inline int erase () { return (zz_erase ()); };");
+		putC (" inline Boolean queued (");
+		putC (par);
+		putC (" a) { return (zz_queued ((void*)(IPointer)a));}; ");
+
+
 		// Indicate type present (for inItem / outItem)
 		co -> PAnn = YES;
 		co -> States = (char**) new char [strlen (par) + 1];

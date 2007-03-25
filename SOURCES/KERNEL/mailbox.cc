@@ -22,7 +22,14 @@ Mailbox::~Mailbox () {
     destroy_bound ();
   else
 #endif
-  destroy_simple ();
+  {
+    ZZ_QITEM *c, *d;
+    for (c = head; c != NULL; c = d) {
+      d = c->next;
+      delete c;
+    }
+    trigger_all_events ();
+  }
 
   pool_out (this);
   zz_DREM (this);
@@ -835,6 +842,16 @@ int     Mailbox::zz_putP (void *it) {
 
 	zz_pe = (zz_pr = rs) -> event;
 	return (ACCEPTED);
+}
+
+Boolean Mailbox::zz_queued (void *el) {
+
+	ZZ_QITEM *c;
+
+	for (c = head; c != NULL; c = c->next)
+		if (c->item == el)
+			return YES;
+	return NO;
 }
 
 int     Mailbox::zz_erase () {
