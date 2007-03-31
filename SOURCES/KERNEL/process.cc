@@ -73,7 +73,7 @@ void    Process::zz_start () {
 		// TheProcess == NULL means that Kernel is being created,
 		// otherwise, the process gets appended to the parent's
 		// children list
-		pool_in (this, TheProcess->ChList, ZZ_Object);
+		pool_in (this, TheProcess->ChList);
 	}
 };
 
@@ -706,7 +706,7 @@ Process::~Process () {
 				delete ob;
 				continue;
 			}
-			pool_in (ob, f->ChList, ZZ_Object);
+			pool_in (ob, f->ChList);
 		}
 	}
 	
@@ -742,14 +742,14 @@ Process::~Process () {
 		pool_out (rq);
 		// Move these requests to the zombie list. They will be
 		// deallocated when the respective processes get awakened.
-		pool_in (rq, zz_orphans, ZZ_REQUEST);
+		pool_in (rq, zz_orphans);
 	}
 
 	while (SWList != NULL) {
 		// I almost forgot about these
 		rq = SWList;
 		pool_out (rq);
-		pool_in (rq, zz_orphans, ZZ_REQUEST);
+		pool_in (rq, zz_orphans);
 	}
 
 	if (ISpec == NULL && Father != NULL) {

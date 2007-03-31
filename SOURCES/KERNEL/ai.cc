@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -14,7 +14,7 @@
 
 #include	"cdebug.h"
 
-#define		o_sent(o,tp)	zz_hptr (((tp*)(o))->ChList, ZZ_Object)
+#define		o_sent(o,tp)	((tp*) zz_hptr ((o)->ChList))
 
 #ifdef  CDEBUG
 void    zz_dumpTree (ZZ_Object *o) {
@@ -97,12 +97,12 @@ void    zz_adjust_ownership () {
 	Assert (System->ChList == NULL,
 	"Adjusting ownership tree: internal error -- System ChList not empty");
 
-	pool_in ((ZZ_Object*)Kernel, System->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)Kernel, System->ChList);
 
 	for (i = 0; i < NStations; i++) {
 		o = idToStation (i);
 		pool_out (o);
-		pool_in (o, System->ChList, ZZ_Object);
+		pool_in (o, System->ChList);
 		// Note that all objects are linked at their owners in the
 		// reverse order of creation
 	}
@@ -113,7 +113,7 @@ void    zz_adjust_ownership () {
 
 		o = idToLink (i);
 		pool_out (o);
-		pool_in (o, System->ChList, ZZ_Object);
+		pool_in (o, System->ChList);
 	}
 #endif
 
@@ -123,7 +123,7 @@ void    zz_adjust_ownership () {
 
 		o = idToRFChannel (i);
 		pool_out (o);
-		pool_in (o, System->ChList, ZZ_Object);
+		pool_in (o, System->ChList);
 	}
 #endif
 
@@ -133,15 +133,15 @@ void    zz_adjust_ownership () {
 
 		o = idToTraffic (i);
 		pool_out (o);
-		pool_in (o, System->ChList, ZZ_Object);
+		pool_in (o, System->ChList);
 	}
 
 	// Fixed standard AI's
 
-	pool_in ((ZZ_Object*)Client, System->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)Client, System->ChList);
 #endif
-	pool_in ((ZZ_Object*)Timer, System->ChList, ZZ_Object);
-	pool_in ((ZZ_Object*)Monitor, System->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)Timer, System->ChList);
+	pool_in ((ZZ_Object*)Monitor, System->ChList);
 
 	// Assign static mailboxes to their stations
 	for (i = 0; i < NStations; i++) {
@@ -151,7 +151,7 @@ void    zz_adjust_ownership () {
 		st = idToStation (i);
 		for (o = st->Mailboxes; o != NULL; o = ((Mailbox*)o)->nextm) {
 			pool_out (o);
-			pool_in (o, st->ChList, ZZ_Object);
+			pool_in (o, st->ChList);
 		}
 	}
 
@@ -162,7 +162,7 @@ void    zz_adjust_ownership () {
 		st = idToStation (i);
 		for (o = st->Ports; o != NULL; o = ((Port*)o)->nextp) {
 			pool_out (o);
-			pool_in (o, st->ChList, ZZ_Object);
+			pool_in (o, st->ChList);
 		}
 	}
 #endif
@@ -175,7 +175,7 @@ void    zz_adjust_ownership () {
 		for (o = st->Transceivers; o != NULL; o =
 		    ((Transceiver*)o)->nextp) {
 			pool_out (o);
-			pool_in (o, st->ChList, ZZ_Object);
+			pool_in (o, st->ChList);
 		}
 	}
 #endif
@@ -202,7 +202,7 @@ void    zz_adjust_ownership () {
 			ox = o->prev;
 
 			pool_out (o);
-			pool_in (o, ((Process*)o)->Owner->ChList, ZZ_Object);
+			pool_in (o, ((Process*)o)->Owner->ChList);
 			if (o == so) break;
 			o = ox;
 		}
@@ -265,7 +265,7 @@ void    zz_adjust_ownership () {
 	// At least Root should be there
 	Assert (ox != NULL,
 		"Adjusting ownership tree: Kernel's ChList is empty");
-	ox->prev = zz_hptr (ox, ZZ_Object); // Make it consistent
+	ox->prev = zz_hptr (ox); // Make it consistent
 	Kernel->ChList = NULL;
 
 	// Find Root: it goes first
@@ -276,7 +276,7 @@ void    zz_adjust_ownership () {
 	   excptn ("Adjusting ownership tree: Root missing from Kernel's list");
 
 	pool_out (o);
-	pool_in (o, Kernel->ChList, ZZ_Object);
+	pool_in (o, Kernel->ChList);
 
 	// Now for system processes
 
@@ -289,7 +289,7 @@ void    zz_adjust_ownership () {
 		// A system process
 		so = o->next;
 		pool_out (o);
-		pool_in (o, Kernel->ChList, ZZ_Object);
+		pool_in (o, Kernel->ChList);
 		o = so;
 	}
 
@@ -525,7 +525,7 @@ void    EObject::zz_start () {
 		 "EObject: %s, cannot create from Root after protocol has "
 		   "started", getSName ());
 
-		pool_in ((ZZ_Object*)this, TheStation->ChList, ZZ_Object);
+		pool_in ((ZZ_Object*)this, TheStation->ChList);
 
 	} else {
 
@@ -536,12 +536,11 @@ void    EObject::zz_start () {
 		if (zz_observer_running) {
 			// Observers are also allowed to create dynamic
 			// displayable objects
-			pool_in (this, zz_current_observer->ChList,
-				ZZ_Object);
+			pool_in (this, zz_current_observer->ChList);
 		} else
 #endif
 		{
-			pool_in (this, TheProcess->ChList, ZZ_Object);
+			pool_in (this, TheProcess->ChList);
 		}
 	}
 

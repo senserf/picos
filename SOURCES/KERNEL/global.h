@@ -226,11 +226,11 @@ extern	jmp_buf	zz_waker;
 /* is accidental; it used to be zero, but the new compiler version */
 /* started to complain.                                            */
 /* =============================================================== */
-#define		zz_hptr(hd,tp)\
-   ((tp*)(((char*)&(hd))-(((char*)(&(((tp*)0x8000)->next)))-((char*)0x8000))))
+#define		zz_hptr(hd)\
+((typeof(hd))(((char*)&(hd))-(((char*)(&(((typeof(hd))0x8000)->next)))-((char*)0x8000))))
 
-#define         pool_in(item,hd,type)      {(item)->next = (hd);\
-					 (item)->prev = zz_hptr (hd, type);\
+#define         pool_in(item,hd)      {(item)->next = (hd);\
+					 (item)->prev = zz_hptr (hd); \
 	if ((hd) != NULL) (hd)->prev = (item);\
 	(hd) = (item);}
 
@@ -239,6 +239,17 @@ extern	jmp_buf	zz_waker;
 	((item)->prev)->next = (item)->next;}
 
 #define	for_pool(p,h)	for ((p) = (h); (p) != NULL; (p) = (p)->next)
+
+#define	trim_pool(p,h,c) do { \
+				typeof (h) pb; \
+				for ((p) = (h); (p) != NULL; (p) = pb) { \
+					pb = (p)->next; \
+					if (c) { \
+						pool_out (p); \
+						delete (p); \
+					} \
+				} \
+			} while (0)
 
 /* ---------------------------------- */
 /* Convert stream pointers to streams */
@@ -2659,7 +2670,7 @@ class   ZZ_REQUEST {
 		Info02 = in2;
 		if (zz_c_other != NULL) zz_c_other -> other = this;
 		zz_c_other = this;
-		pool_in (this, *q, ZZ_REQUEST);
+		pool_in (this, *q);
 	};
 
 	inline ZZ_REQUEST      (         AI *a,         // The AI pointer
@@ -2680,7 +2691,7 @@ class   ZZ_REQUEST {
 		if (zz_c_other != NULL) zz_c_other -> other = this;
 		zz_c_other = this;
 		// Use a dummy queue
-		pool_in (this, zz_nqrqs, ZZ_REQUEST);
+		pool_in (this, zz_nqrqs);
 	};
 };
 
@@ -3140,6 +3151,7 @@ class   Mailbox : public AI {
 	inline  Long    getCount () { return count; };
 	Long		setLimit (Long lim = 0);
 	inline	Long	getLimit () { return limit; };
+	inline	Long	free () { return limit - count; };
 
 	// Exposable
 	virtual void zz_expose (int, const char *h = NULL, Long s = NONE);
@@ -3399,7 +3411,7 @@ class   Port : public AI {
 
 	// Convert bits to time
 
-	INLINE TIME bitsToTime (LONG n = 1);
+	INLINE TIME bitsToTime (Long n = 1);
 
 	// Start jamming
 
@@ -3835,8 +3847,8 @@ typedef	struct {
 /* =========================== */
 /* Received signal description */
 /* =========================== */
-	double	Level;
-	Long	Tag;
+	double		Level;
+	IPointer	Tag;
 } SLEntry;
 
 class	IHist {
@@ -4254,6 +4266,15 @@ class	RFChannel : public AI {
 		// Nodes separated by more than this range are not considered
 		// neighbors, i.e., they cannot hear each other.
 
+	virtual TIME RFC_xmt (
+			RATE,	// Transmission rate (from the Transceiver)
+			Long	// Total packet length (TLength)
+		);
+		// This one isn't really an assessment method. It calculates
+		// the transmission time of a packet with a given total
+		// length excluding the preamble time. The default variant
+		// returns rate * tlength
+
 	char		FlgSPF;
 
 	int		NTransceivers;
@@ -4305,7 +4326,7 @@ class	RFChannel : public AI {
 	void 	connect (Transceiver*);
 	void	setTRate (RATE);
 	void	setPreamble (Long);
-	void	setTag (Long);
+	void	setTag (IPointer);
 	void	setErrorRun (Long);
 	void	setXPower (double);
 	void	setRPower (double);
@@ -4489,7 +4510,7 @@ class	Transceiver : public AI {
 	 * Signal Tag - to be submitted along with the signal for interference
 	 * assessment.
 	 */
-	Long		Tag;
+	IPointer	Tag;
 
 	/*
 	 * Error run: the number of consecutive error bits for triggering the
@@ -4572,7 +4593,7 @@ class	Transceiver : public AI {
 
 	void connect (Long);
 
-	INLINE TIME bitsToTime (LONG n = 1);
+	INLINE TIME bitsToTime (Long n = 1);
 
 	inline double distTo (Transceiver *tcv) {
 		Assert (RFC != NULL && RFC == tcv->RFC,
@@ -4655,7 +4676,7 @@ class	Transceiver : public AI {
 	Long	setPreamble (Long);
 	double	setXPower (double);
 	double	setRPower (double);
-	Long	setTag (Long);
+	IPointer setTag (IPointer);
 	Long	setErrorRun (Long);
 	double 	setSigThreshold (double);
 	double 	setMinDistance (double);
@@ -4700,7 +4721,7 @@ class	Transceiver : public AI {
 	Long	getPreamble ();
 	inline	double	getXPower () { return XPower; };
 	inline	double	getRPower () { return RPower; };
-	inline	Long	getTag () { return Tag; };
+	inline	IPointer getTag () { return Tag; };
 	inline	Long	getErrorRun () { return ErrorRun; };
 	inline  double  getSigThreshold () { return SigThreshold; };
 	inline	double  getMinDistance () { return ituToDu (MinDistance); };
@@ -5671,7 +5692,7 @@ class ZZ_RF_ACTIVITY {
 	Boolean		Aborted;	// Preamble only
 
 	double		XPower;
-	Long		Tag;		// Signal tag
+	IPointer	Tag;		// Signal tag
 	/*
 	 * The usage of this is exactly as for ZZ_LINK_ACTIVITY. No data must
 	 * be declared below this point.
@@ -6295,19 +6316,19 @@ inline void Transceiver::zz_transmit (Packet *p, int s, LONG tag) {
 
 	// TRate verified by startTransfer
 	startTransfer (p);
-	Timer->wait ((TIME)TRate * (LONG)(p->TLength) + Preamble, s, tag);
+	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + Preamble, s, tag);
 };
 
 inline void Transceiver::zz_transmit (Packet &p, int s, LONG tag) {
 
 	startTransfer (&p);
-	Timer->wait ((TIME)TRate * (LONG)(p.TLength) + Preamble, s, tag);
+	Timer->wait (RFC->RFC_xmt (TRate, p.TLength) + Preamble, s, tag);
 };
 #else
 inline void Transceiver::zz_transmit (Packet *p, int s) {
 
 	startTransfer (p);
-	Timer->wait ((TIME)TRate * (LONG)(p->TLength) + Preamble, s);
+	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + Preamble, s);
 };
 
 inline void Transceiver::zz_transmit (Packet &p, int s) {

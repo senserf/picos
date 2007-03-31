@@ -45,7 +45,6 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 	Boolean FPE, INE;
 
 	while (1) {
-		// Skip anything that cannot be part of a number
 		while (	*txt != '\0' &&
 				*txt != '+' &&
 					*txt != '-' &&
@@ -56,13 +55,13 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 			break;
 
 		if (count < max) {
+
 			// Still room
 			switch (res->type) {
 
 			    case TYPE_hex:
 
-				// Expect hex
-				iv = strtol (txt, &en, 16);
+				iv = (int) strtoll (txt, &en, 16);
 				goto Hex;
 
 			    case TYPE_int:
@@ -151,9 +150,12 @@ Hex:
 				excptn ("parseNumbers: illegal item type: %1d",
 					res->type);
 			}
+
 			res++;
+
 		} else {
-			// No room, skip a double
+
+			// Skip a double (who cares)
 			strtod (txt, &en);
 			txt = (en == txt) ? txt + 1 : en;
 		}
@@ -300,9 +302,11 @@ void    readIn (double &frs) {
 /* Read the next floating point number from input */
 /* ---------------------------------------------- */
 #if	FLOATING_POINT
-	double          res, fact;
+	char 		collect [32];
+	Boolean		wasdot, wasexp, wasdig, wassig;
+	double          res;
 	char            sign, k;
-	int             ef;
+	int             ef, nc;
 
 	Assert (zz_ifpp != NULL,
 		"readIn: can't read data file after the protocol has started");
@@ -339,25 +343,51 @@ void    readIn (double &frs) {
 	while (YES) {
 		sign = find_number ();  // Find beginning of the number
 		if (EndOfData) goto F_DONE;
+		if (sign == '-') {
+			collect [0] = '-';
+			nc = 1;
+		} else {
+			nc = 0;
+		}
 
-		for (res = 0.0; ef = !Inf.eof (); ) {
+		wasdot = wasexp = wasdig = wassig = NO;
+		while ((ef = !Inf.eof ())) {
 			Inf.get (k);
-			if (k < '0' || k > '9') break;
-			res = res * 10.0 - (k - '0');
+			if (k >= '0' && k <= '9') {
+				// A digit, OK
+				wasdig = YES;
+			} else if (k == 'E' || k == 'e') {
+				if (wasexp)
+					break;
+				if (!wasdig)
+					break;
+				wasexp = YES;
+				wasdig = NO;
+			} else if (k == '.') {
+				if (wasdot || !wasdig)
+					break;
+				wasdot = YES;
+				wasdig = NO;
+			} else if (k == '+' || k == '-') {
+				if (!wasexp || wassig || wasdig)
+					break;
+				wassig = YES;
+				wasdig = NO;
+			} else
+				break;
+
+			if (nc == 31)
+				break;
+
+			collect [nc++] = k;
 		}
 
-		if (ef && k == '.') {
-			fact  = 1.0;
-			while (ef = !Inf.eof ()) {
-				Inf.get (k);
-				if (k < '0' || k > '9') break;
-				fact *= 0.1;
-				res -= fact * (k - '0');
-			}
-		}
+		collect [nc] = '\0';
+
+		res = strtod (collect, NULL);
 
 		if (ef) Inf.putback (k);
-		frs += (sign == '-') ? res : -res;
+		frs +=  res;
 		if ((k != '+') && (k != '-')) break;
 	}
 F_DONE:

@@ -115,7 +115,7 @@ void    Station::zz_start () {
 	// Add the station to the owner's list
 
 	if (TheProcess != NULL)
-		pool_in (this, TheProcess->ChList, ZZ_Object);
+		pool_in (this, TheProcess->ChList);
 }
 
 #if	ZZ_TOL

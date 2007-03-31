@@ -150,7 +150,7 @@ inline void ZZ_RSCHED::initAct (double xpower) {
 
 	LVL_RSI = Destination->RFC->RFC_att (xpower, ituToDu (Distance),
 		RFA->Tcv, Destination);
-	pool_in (this, Destination->Activities, ZZ_RSCHED);
+	pool_in (this, Destination->Activities);
 	Destination->NActivities++;
 	if (Destination->RxOn)
 		initSS ();
@@ -483,7 +483,7 @@ void    RFChannel::zz_start () {
 	// Initialize some members
 	FlgSPF = ON;
 	// Add to the Kernel
-	pool_in (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList);
 };
 
 void RFChannel::setup (Long nx, int spf) {
@@ -655,7 +655,7 @@ Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
 	for (i = 0; i < N_TRANSCEIVER_EVENTS; i++)
 		RQueue [i] = NULL;
 
-	pool_in (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList);
 }
 
 void    Transceiver::zz_start () {
@@ -793,9 +793,9 @@ RATE	Transceiver::setTRate (RATE r) {
 	return qr;
 }
 
-Long	Transceiver::setTag (Long t) {
+IPointer Transceiver::setTag (IPointer t) {
 
-	Long old;
+	IPointer old;
 
 	old = Tag;
 	Tag = t;
@@ -906,7 +906,7 @@ void RFChannel::setPreamble (Long t) {
 	}
 }
 
-void RFChannel::setTag (Long t) {
+void RFChannel::setTag (IPointer t) {
 
 /* ================================ */
 /* Set the rate of all transceivers */
@@ -1344,7 +1344,8 @@ void RFChannel::nei_xtd (Transceiver *T) {
 		T->Neighbors [i] . Neighbor -> Mark = YES;
 
 	for (nw = i = 0; i < NTransceivers; i++) {
-		if ((t = Tcvs [i]) -> Mark)
+		if ((t = Tcvs [i]) == T || t -> Mark)
+			// Ignore self and those already present
 			continue;
 		d = T->qdst (t);
 		if (d > RFC_cut (T->XPower, t->RPower))
@@ -1429,7 +1430,9 @@ void RFChannel::nei_add (Transceiver *T) {
 	ZZ_NEIGHBOR *ne;
 
 	for (i = 0; i < NTransceivers; i++) {
-		t = Tcvs [i];
+		if ((t = Tcvs [i]) == T)
+			// Don't add yourself to your own list
+			continue;
 		d = t->qdst (T);
 		if (d > RFC_cut (t->XPower, T->RPower))
 			continue;
@@ -1451,7 +1454,7 @@ void RFChannel::nei_add (Transceiver *T) {
 		nei_sort [j] . Neighbor = T;
 		nei_sort [j] . Distance = D;
 		if (j < t->NNeighbors)
-			memcpy (nei_sort + j + 1, t->Neighbors,
+			memcpy (nei_sort + j + 1, t->Neighbors + j,
 				sizeof (ZZ_NEIGHBOR) * (t->NNeighbors - j));
 		t->NNeighbors++;
 		if (t->Neighbors != NULL)
@@ -1473,7 +1476,8 @@ void RFChannel::nei_del (Transceiver *T) {
 	Transceiver *t;
 
 	for (i = 0; i < NTransceivers; i++) {
-		t = Tcvs [i];
+		if ((t = Tcvs [i]) == T)
+			continue;
 		for (j = 0; j < t->NNeighbors; j++) {
 			if (t->Neighbors [j] . Neighbor == T) {
 				if (t->Neighbors [j] . Distance >
@@ -4606,6 +4610,11 @@ Long RFChannel::RFC_erd (RATE tr, double rl, double sen, double ir, Long nb) {
 	// Absent
 	return excptn ("RFChannel->RFC_erd: %s, must define this method",
 		getSName ());
+}
+
+TIME RFChannel::RFC_xmt (RATE tr, Long pl) {
+
+	return (TIME) tr * (LONG) pl;
 }
 
 #endif	/* NOR */

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -27,7 +27,8 @@
 #include	<iostream>
 #include	<fstream>
 
-#define	BFFSIZE	(1024*16)
+#define	BFFSIZE		(1024*16)
+#define	MAXINCDIRS	8
 
 #define	FLUSH
 
@@ -36,8 +37,8 @@ char    is [BFFSIZE],
 
 char    wd [MAXPATHLEN];
 
-char    *incdir, *ccomp, *ckomp, *jcomp, *srcdir, *libdir, *monhost, *mkname,
-        *mksdir, *sokdir;
+char    *incdir [MAXINCDIRS], *ccomp, *ckomp, *jcomp, *srcdir, *libdir,
+	*monhost, *mkname, *mksdir, *sokdir;
 int     maxlib, monport;
 
 #define	HOME getenv ("HOME")
@@ -294,8 +295,9 @@ ML_RETRY:
 	}
 
 cout << '\n';
-cout << "Give me  the path to the include library  (absolute or relative to\n";
-cout << "your home directory). The default path is:\n\n";
+cout << "Now, please enter the list of paths to 'include' libraries  (which\n";
+cout << "can be absolute or relative to your home directory),  each path in\n";
+cout << "a separate line. Enter an empty line when done. This path:\n\n";
 
 	getwd (wd);
         for (s = wd + strlen (wd); s != wd && *(s-1) != '/'; s--);
@@ -303,60 +305,99 @@ cout << "your home directory). The default path is:\n\n";
         strcat (wd, DEFINDIR);
         cout << "        " << wd << "\n\n";
 
-cout << "which is equivalent to: ../" << DEFINDIR << '\n';
+cout << "is standard and need not be specified.  If you want to exclude the\n";
+cout << "standard path, enter '-' as the only character of an input line.\n";
 
+	// Put in the default
+	incdir [0] = new char [strlen (wd) + 1];
+	strcpy (incdir [0], wd);
+
+	m = 1;
 
 IN_RETRY:
 
 	getstring ();
 
 	if (is [0] == '\0') {
-		cout << "Assuming " << wd << '\n';
-		strcpy (is, wd);
-	} else {
-		if (notabsolute (is)) {
-			// Turn it into $HOME/is
-			if ((s = HOME) == NULL) {
-				cout << "Cannot determine your home directory;"
-					<< " please specify the full path\n";
-				goto IN_RETRY;
-			}
-			strcpy (is+4096, is);
-			strcpy (is, s);
-			strcat (is, "/");
-			strcat (is, is+4096);
-		}
-
-		// Check if the directory exists
-		getwd (wd);             // Save current wd
-IN_CD:
-		if (chdir (is) < 0) {
-
-			// Assume that it does not exist and try to create it
-
-			for (s = is+1; *s != '\0'; s++) {
-				if (*s == '/' && *(s+1) != '\0') {
-					c = *s;
-					*s = '\0';
-					mkdir (is, 0777);
-					*s = c;
-				}
-			}
-
-			if (mkdir (is, 0777) < 0) {
-				cout << "I have problems accessing this";
-				cout << " directory; please specify another";
-				cout << " path\n";
-				goto IN_RETRY;
-			}
-
+		i = m;
+		if (incdir [0] == NULL)
+			i--;
+		cout << "Done: ";
+		if (i) {
+			if (i == 1)
+				cout << "one";
+			else
+				cout << i;
 		} else {
-			chdir (wd);     // Move back
+			cout << "no";
 		}
+		cout << " include librar";
+		cout << ((i == 1) ? "y" : "ies");
+		cout << '\n';
+		goto IN_DONE;
 	}
 
-	incdir = new char [strlen (is) + 1];
-	strcpy (incdir, is);
+	if (is [0] == '-' && is [1] == '\0') {
+		// Exclude the standard library
+		if (incdir [0] == NULL) {
+			cout << "Standard library already excluded!\n";
+		} else {
+			cout << "Excluding standard library\n";
+			delete incdir [0];
+			incdir [0] = NULL;
+		}
+		goto IN_RETRY;
+	}
+
+	if (m == MAXINCDIRS) {
+		cout << "Too many libraries!\n";
+		goto IN_RETRY;
+	}
+
+	if (notabsolute (is)) {
+		// Turn it into $HOME/is
+		if ((s = HOME) == NULL) {
+			cout << "Cannot determine your home directory;"
+				<< " please specify the full path\n";
+			goto IN_RETRY;
+		}
+		strcpy (is+4096, is);
+		strcpy (is, s);
+		strcat (is, "/");
+		strcat (is, is+4096);
+	}
+
+	// Check if the directory exists
+	getwd (wd);             // Save current wd
+IN_CD:
+	if (chdir (is) < 0) {
+		// Assume that it does not exist and try to create it
+		for (s = is+1; *s != '\0'; s++) {
+			if (*s == '/' && *(s+1) != '\0') {
+				c = *s;
+				*s = '\0';
+				mkdir (is, 0777);
+				*s = c;
+			}
+		}
+
+		if (mkdir (is, 0777) < 0) {
+			cout << "I have problems accessing this";
+			cout << " directory; please specify another";
+			cout << " path\n";
+			goto IN_RETRY;
+		}
+
+	} else {
+		chdir (wd);     // Move back
+	}
+
+	incdir [m] = new char [strlen (is) + 1];
+	strcpy (incdir [m], is);
+	m++;
+	goto IN_RETRY;
+
+IN_DONE:
 
 cout << '\n';
 cout << "Specify the host to run the monitor. By default, there is no host,\n";
@@ -536,10 +577,16 @@ COVH:
 	*vfo << "#define  ZZ_SOURCES      \"" << srcdir << "\"\n";
 	*vfo << "#define  ZZ_LIBPATH      \"" << libdir << "\"\n";
 	*vfo << "#define  ZZ_INCPATH      \"";
-	if (incdir != NULL)
-		*vfo << incdir;
-	else
-		*vfo << '.';
+
+
+	for (i = m = 0; i < MAXINCDIRS; i++) {
+		if (incdir [i]) {
+			if (m++)
+				*vfo << ' ';
+			*vfo << "-I " << incdir [i];
+		}
+	}
+
 	*vfo << "\"\n";
 
 	if (monhost [0] != '\0') {

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -34,7 +34,7 @@
 
 #define tcreate(t) { trv = new ZZ_TRVariable; trv->setup (t, 2); }
 
-#define	mq_sen(qp)	zz_hptr (qp, Message)
+#define	mq_sen(qp)	zz_hptr (qp)
 
 zz_client::zz_client () {
 
@@ -258,33 +258,27 @@ void    zz_start_client () {            // Starts the standard Client
 			rvcreate (RVAMD, "AMDelay", TYPE_long);
 			// Move it to Traffic
 			pool_out ((ZZ_Object*)(tp->RVAMD));
-			pool_in ((ZZ_Object*)(tp->RVAMD), tp->ChList,
-				ZZ_Object);
+			pool_in ((ZZ_Object*)(tp->RVAMD), tp->ChList);
 	
 			rvcreate (RVAPD, "APDelay", TYPE_long);
 			pool_out ((ZZ_Object*)(tp->RVAPD));
-			pool_in ((ZZ_Object*)(tp->RVAPD), tp->ChList,
-				ZZ_Object);
+			pool_in ((ZZ_Object*)(tp->RVAPD), tp->ChList);
 	
 			rvcreate (RVWMD, "WMDelay", TYPE_BITCOUNT);
 			pool_out ((ZZ_Object*)(tp->RVWMD));
-			pool_in ((ZZ_Object*)(tp->RVWMD), tp->ChList,
-				ZZ_Object);
+			pool_in ((ZZ_Object*)(tp->RVWMD), tp->ChList);
 	
 			rvcreate (RVMAT, "MAcTime", TYPE_long);
 			pool_out ((ZZ_Object*)(tp->RVMAT));
-			pool_in ((ZZ_Object*)(tp->RVMAT), tp->ChList,
-				ZZ_Object);
+			pool_in ((ZZ_Object*)(tp->RVMAT), tp->ChList);
 	
 			rvcreate (RVPAT, "PAcTime", TYPE_long);
 			pool_out ((ZZ_Object*)(tp->RVPAT));
-			pool_in ((ZZ_Object*)(tp->RVPAT), tp->ChList,
-				ZZ_Object);
+			pool_in ((ZZ_Object*)(tp->RVPAT), tp->ChList);
 	
 			rvcreate (RVMLS, "MsgStat", TYPE_long);
 			pool_out ((ZZ_Object*)(tp->RVMLS));
-			pool_in ((ZZ_Object*)(tp->RVMLS), tp->ChList,
-				ZZ_Object);
+			pool_in ((ZZ_Object*)(tp->RVMLS), tp->ChList);
 	
 		}
 	    }
@@ -1416,7 +1410,7 @@ void    Traffic::zz_start () {
 	Class = AIC_traffic;
 
 	// Add the object to the owner (at this moment it is Kernel)
-	pool_in (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList);
 }
 
 void    Traffic::zz_setup_flags (int flags) {

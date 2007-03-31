@@ -830,3 +830,19 @@
 
  R070325A  Method queued added to Mailbox. Fixed a deallocation problem for
 	   queueing (typed) mailbox.
+
+ R070331A  Multiple include libraries are now possible (change to maker/mks).
+	   Models of radio channels and mobility (RWPMM) moved from VUEE/PICOS
+	   to Example/IncLib, as they are of more general use.
+	   Fixed a bug in radio.c causing corruption of neighborhood lists when
+	   transmitter power was increased.
+	   Operation trim_pool added. 
+	   Fixed a bug in numio.c causing incorrect conversion of HEX numbers
+	   by parseNumbers.
+	   Simplified syntax of pool_in (type argument removed).
+	   Fixed numio (readIn) to accept floating point numbers in the full
+	   notation.
+	   RFC_xmt added as an honorary assessment method. It determines the
+	   amount of time needed to transmit at packet. This way we avoid
+	   clumsy and confusing tricks with TLength (packet attrributes), which
+	   is best left to mean what it is supposed to mean.

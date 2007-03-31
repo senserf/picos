@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -25,7 +25,7 @@ void    RVariable::zz_start () {
 		// Created at level 0 -- should be assigned to its station
 		Assert (!zz_flg_started,
 	       "RVariable: cannot create from Root after protocol has started");
-		pool_in ((ZZ_Object*)this, TheStation->ChList, ZZ_Object);
+		pool_in ((ZZ_Object*)this, TheStation->ChList);
 	} else {
 		// Not level 0 -- assign to the rightful owner, i.e. the
 		// process that creates the object
@@ -33,12 +33,11 @@ void    RVariable::zz_start () {
 #if     ZZ_OBS
 		if (zz_observer_running) {
 			// Observers are also allowed to create RVariables
-			pool_in (this, zz_current_observer->ChList,
-				ZZ_Object);
+			pool_in (this, zz_current_observer->ChList);
 		} else
 #endif
 		{
-			pool_in (this, TheProcess->ChList, ZZ_Object);
+			pool_in (this, TheProcess->ChList);
 		}
 	}
 

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-03   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -148,13 +148,13 @@ void    Observer::zz_start () {
 	ChList = NULL;
 
 	// Add the observer to the global observer list
-	pool_in (this, zz_obslist, Observer);
+	pool_in (this, zz_obslist);
 	inlistHead = zz_inlist_tail = NULL;
 	tevent = NULL;
 	smask = pmask = nmask = amask = 0L;
 
 	// Add the observer to the owner's list
-	pool_in ((ZZ_Object*)this, TheProcess->ChList, ZZ_Object);
+	pool_in ((ZZ_Object*)this, TheProcess->ChList);
 	zz_observer_running = YES;
 	zz_current_observer = this;
 	zz_jump_flag = NO;

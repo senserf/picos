@@ -1177,7 +1177,7 @@ void  zz_processWindowPhrase () {
       return;
     }
     w = new ZZ_WINDOW (o, mode, stat, scount, ecount);
-    pool_in (w, zz_windows, ZZ_WINDOW);
+    pool_in (w, zz_windows);
   } else {
     // A possible count modification
     if (ecount != MAX_int) {
@@ -1254,7 +1254,7 @@ void  zz_processWindowPhrase () {
     ws->process = stepprocess;
     ws->ai      = stepai;
     ws->obs     = stepobs;
-    pool_in (ws, zz_steplist, ZZ_SIT);
+    pool_in (ws, zz_steplist);
     return;
   }
   // Deferred stepping
@@ -1270,7 +1270,7 @@ void  zz_processWindowPhrase () {
     zz_commit_event = MAX_Long;
     zz_commit_time  = TIME_inf;
   }
-  pool_in (wsd, zz_steplist_delayed, ZZ_WSIT);
+  pool_in (wsd, zz_steplist_delayed);
   // Update minimum intervals
   if (stepevent < zz_commit_event) zz_commit_event = stepevent;
   if (steptime < zz_commit_time) zz_commit_time = steptime;

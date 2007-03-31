@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1997-2003   P. Gburzynski */
+/* Copyright (C) 1997-2007   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */

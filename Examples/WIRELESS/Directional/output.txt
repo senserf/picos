@@ -1,0 +1,87 @@
+SMURPH Version 2.90-OC      Very Simple Wireless Network    Sat Mar 31 12:02:38 2007
+Call arguments: data.txt junk
+
+Time:  21585062943527     (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:                750
+      Minimum value:         0.006391546715
+      Maximum value:            1.377080546
+      Mean value:              0.2653626685
+      Variance:               0.05770804376
+      Standard deviation:      0.2402249857
+      Confidence int @95%:    0.06478937493
+      Confidence int @99%:    0.08511869411
+
+APD - Absolute packet delay:
+
+      Number of samples:                750
+      Minimum value:         0.006391546715
+      Maximum value:            1.377080546
+      Mean value:              0.2653626685
+      Variance:               0.05770804376
+      Standard deviation:      0.2402249857
+      Confidence int @95%:    0.06478937493
+      Confidence int @99%:    0.08511869411
+
+WMD - Weighted message delay:
+
+      Number of samples:            5950576
+      Minimum value:         0.006391546715
+      Maximum value:            1.377080546
+      Mean value:              0.3547749349
+      Variance:               0.06775123498
+      Standard deviation:       0.260290674
+      Confidence int @95%:  0.0005894978794
+      Confidence int @99%:  0.0007744678773
+
+MAT - Message access time:
+
+      Number of samples:               1725
+      Minimum value:                      0
+      Maximum value:                      0
+      Mean value:                         0
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:              nan
+      Confidence int @99%:              nan
+
+PAT - Packet access time:
+
+      Number of samples:               1725
+      Minimum value:                      0
+      Maximum value:                      0
+      Mean value:                         0
+      Variance:                           0
+      Standard deviation:                 0
+      Confidence int @95%:              nan
+      Confidence int @99%:              nan
+
+MLS - Message length distribution:
+
+      Number of samples:               1725
+      Minimum value:                    256
+      Maximum value:                  16352
+      Mean value:               8436.735072
+      Variance:                 21301505.36
+      Standard deviation:       4615.355388
+      Confidence int @95%:    0.02581619649
+      Confidence int @99%:    0.03391668671
+
+    Number of generated messages:              1725
+    Number of queued messages:                    0
+    Number of transmitted messages:            1725
+    Number of received messages:                750
+    Number of transmitted packets:             1725
+    Number of received packets:                 750
+    Number of queued bits:                        0
+    Number of transmitted bits:            14553368
+    Number of received bits:                5950576
+    Measurement start time:                       0
+    Throughput:                         826.4686604
+
+(Client) End of list
+
+
+@@@ End of output

@@ -1535,7 +1535,7 @@ LoRet:
 			  ws->process = wsd->process;
 			  ws->ai = wsd->ai;
 			  ws->obs = wsd->obs;
-			  pool_in (ws, zz_steplist, ZZ_SIT);
+			  pool_in (ws, zz_steplist);
 			  pool_out (wsd);
 			  delete (wsd);
 			}

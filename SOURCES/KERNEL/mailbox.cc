@@ -63,7 +63,7 @@ void Mailbox::trigger_all_events () {
 		pool_out (rq);
 		// Move these requests to the zombie list. They will be
 		// deallocated when the respective processes get awakened.
-		pool_in (rq, zz_orphans, ZZ_REQUEST);
+		pool_in (rq, zz_orphans);
 	}
 }
 
@@ -111,7 +111,7 @@ Mailbox *p;
 	  }
         }
 	// Add to the ownership tree
-	pool_in (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList);
 }
 
 void    Mailbox::zz_start () {

@@ -708,9 +708,7 @@ void    makeSmurph () {
 	*out << "VER= " << VERSION << '\n';
 	*out << "SRC= " << ZZ_SOURCES << '\n';
 	*out << "LIB= " << ZZ_LIBPATH << '/' << libfname << '\n';
-#ifdef	ZZ_INCPATH
 	*out << "INC= " << ZZ_INCPATH << '\n';
-#endif
 
 	*out << "CMP= " << CCOMP;
 	if (BeVerbose) *out << " -v";

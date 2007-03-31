@@ -360,7 +360,7 @@ INLINE Port *idToPort (int id) {
 	return (p);
 };
 
-INLINE TIME Port::bitsToTime (LONG b) {
+INLINE TIME Port::bitsToTime (Long b) {
 	return ((TIME)TRate * b);
 };
 #endif	/* NOL */
@@ -390,8 +390,9 @@ INLINE Transceiver *idToTransceiver (int id) {
 	return (p);
 };
 
-INLINE TIME Transceiver::bitsToTime (LONG b) {
-	return ((TIME)TRate * b);
+INLINE TIME Transceiver::bitsToTime (Long b) {
+
+	return RFC->RFC_xmt (TRate, b);
 };
 #endif	/* NOR */
 

@@ -1474,10 +1474,10 @@ An {\bf integer number} begins with a digit or a sign
 and continues as long as the subsequent characters are digits.
 A sign not followed by a digit is not interpreted as the beginning of a number.
 A real number may additionally contain a decimal
-point followed by a sequence of digits (the fraction).
-The number of digits in the fraction may
-be zero, in which case the decimal point is not necessary.
-Exponents are not allowed.
+point followed by a sequence of digits (the fraction)
+and/or an exponent.
+The syntaxt is essentially as that accepted by the standard UNIX parsing
+tools, e.g., {\tt strtod}.
 A decimal point encountered in an expected integer number
 stops the interpretation
 of that number, i.e., the next number will be looked for starting from the first
@@ -1933,6 +1933,75 @@ This type is intended to represent simple binary flags that can have one
 of two values: 0 represented by the symbolic constant {\tt NO} (standing for
 ``false'') and 1 represented by the symbolic constant {\tt YES} (which stands
 for ``true'').
+
+\subsection{Pools}
+\label{rm_au_po}
+
+In several places, \smurph\ uses internally the so-called {\em pools}, which
+are (possibly ordered) sets of items stored in doubly-linked lists.
+Sometimes it may be convenient to use those tools (which are made available
+to the protocol program) to implement a pool of non-standard objects.
+In order to be managed that way, an object should define two attributes
+{\tt prev} and {\tt next} to be used as list links, for example:
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\> {\tt struct my\_pool\_item\_s \{ }\\
+\>\> {\tt struct my\_pool\_item *prev, *next; }\\
+\>\> {\em ... other stuff ...}\\
+\> {\tt \};}\\
+\> {\tt typedef struct my\_pool\_item\_s my\_pool\_item; }
+\end{tabbing}}
+\noindent
+A pool of such objects is represented by a single pointer, e.g.,
+\begin{verbatim}
+        my_pool_item *Head;
+\end{verbatim}
+which should be initialized to {\tt NULL} (for an empty pool).
+Then, the following operations (macros) are available:
+\begin{verbatim}
+        pool_in (item, head);
+\end{verbatim}
+\noindent
+to add the new item pointed to by the first argument (an item pointer)
+to the pool represented by the second argument (the head pointer);
+
+\begin{verbatim}
+        pool_out (item);
+\end{verbatim}
+\noindent
+to remove the indicated item from the pool ({\tt item} is a pointer);
+
+\begin{verbatim}
+        for_pool (item, head)
+\end{verbatim}
+to traverse the pool as in this example:
+\begin{verbatim}
+        my_pool_item *find (int ident, my_pool_item *Head) {
+            my_pool_item *el;
+            for_pool (el, Head) {
+                if (el->Ident == ident)
+                    return el;
+            }
+            return NULL;
+        }
+\end{verbatim}
+\noindent
+and finally,
+\begin{verbatim}
+        trim_pool (item, head, cond);
+\end{verbatim}
+\noindent
+to remove from the pool all items satisfying the provided condition, e.g.,
+\begin{verbatim}
+        trim_pool (el, Head, el->Expiry > Time);
+\end{verbatim}
+
+It may be useful to know that the pool is organized in such a way that new
+items (added with {\tt pool\_in}) are stored at the head.
+The list is not looped: the {\tt prev} pointer of the first element points to
+the head (or rather to a dummy item whose {\tt next} pointer coincides
+with the head pointer.
+The {\tt next} pointer of the last (oldest) element in the pool is {\tt NULL}.
 
 \subsection{Error handling}
 \label{rm_au_eh}
@@ -3504,7 +3573,7 @@ the {\em ITU\/} can always be chosen to represent an arbitrarily fine unit of
 distance.
 This is important because the coordinate change is always instantaneous:
 a node is simply teleported from one location to another.
-There is no problem with this approach as long as the mobility patterns
+There is no problem with this approach as long as the mobility pattern
 is realistic, i.e., the nodes move in reasonably small steps at a
 reasonably low (non-relativistic) speed.
 It is up to the user to maintain the sanity of the mobility model.
@@ -3571,7 +3640,7 @@ The distance between a pair of ports is determined as the Euclidean distance
 in two or three dimensions and expressed in {\em DU\/}s (\sect{rm_mp_ti}).
 
 The primary reason for extending the base type {\tt RFChannel} is to define
-a collection of virtual functions describing the channels properties, viz.\ the
+a collection of virtual functions describing the channel's properties, viz.\ the
 conditions for packet reception.
 Below we list those methods and briefly describe their roles.
 The exact explanation of the way those methods are used to determine the
@@ -3667,6 +3736,24 @@ the simulation time owing to unnecessarily large neighborhoods.
 \end{quote}
 
 \begin{quote}
+\noindent\hspace{-0.35in}{\small {\bf {\tt TIME RFC\_xmt (RATE r, Long nb);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent
+This method determines the amount of time needed to transmit {\tt nb} (payload)
+bits at rate {\tt r} through the channel.
+For example, the encoding scheme assumed by the channel may transform
+logical (payload) bits into physical bits (e.g., encoding each four-bit nibble
+into a six-bit symbol).
+Also, if there are any extra framing bits (like start/end symbols) added to
+physical packets, the method should account for them.
+Note, however, that the preamble is a separate issue.
+It is considered a {\tt Transceiver} attribute (see \sect{rm_to_tr_cr}),
+which means that different transceivers may use
+different preamble length, is always expressed directly in physical bits,
+and is included separately in the transmission time of every packet.
+This is explained in detail in \sect{rm_tr_ac_st}.
+\end{quote}
+
+\begin{quote}
 \noindent\hspace{-0.35in}{\small {\bf {\tt Long RFC\_erb (RATE r, double sl, double rs, double il, Long nb);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 The method returns the randomized number of error bits within the sequence of
@@ -3678,6 +3765,8 @@ signal to interference (SIR) ratio.
 The method is only needed if the protocol program calls
 {\tt errors} or {\tt error}, which occur in several variants as methods of
 {\tt RFChannel} and {\tt Transceiver} (see \sect{rm_tr_ac_be}).
+Note that the {\em bits\/} counted by {\tt RFC\_erb} (and also {\tt RFC\_erd}),
+are ``physical'' (see \sect{rm_tr_ra_ps}).
 \end{quote}
 
 \begin{quote}
@@ -3749,6 +3838,11 @@ virtual methods:
       // Global village: cutoff distance is infinite, all nodes
       // are neighbors
       return Distance_inf;
+  };
+
+  virtual TIME RFC_xmt (RATE r, Long nb) {
+      // Assumes that logical bits are same as physical
+      return (TIME) r * (LONG) nb;
   };
 \end{verbatim}}
 
@@ -3834,8 +3928,8 @@ for transmission (it can still be used for reception).
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt pre}}\\ \hspace{0in}
-The preamble length in bits to be inserted by the transmitter before
-an actual packet.
+The preamble length in ``physical'' bits to be inserted by the transmitter
+before an actual packet.
 If the transceiver is to be used for transmission, this
 length cannot be zero.
 \end{quote}
@@ -4013,7 +4107,8 @@ The method returns the previous setting of the transmission rate.
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt Long setPreamble (Long p);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
-This method sets (or re-sets) the preamble length (in bits)
+This method sets (or re-sets) the preamble length
+(in physical bits---\sect{rm_tr_ra_ps})
 to be applied to all
 packets subsequently transmitted from the transceiver.
 The method returns the previous setting of the preamble length.
@@ -8692,7 +8787,7 @@ Essentially, there is only one type of activity that can be inserted into
 a transceiver, i.e., a packet transmission.\footnote{In contrast to ports
 (\sect{rm_po_ac}), there are no jamming signals.}
 A packet is always preceded by a {\em preamble}, which consists of a specific
-number of bits.
+number of ``physical'' bits.
 These bits do not count to the total length of the packet (attribute
 {\tt TLength}---\sect{rm_cl_mp}), but they do take bandwidth, i.e.,
 time to transmit.
@@ -8700,6 +8795,7 @@ A preamble can be as short as one bit, but its length cannot be zero.
 The preamble length can be defined when the transceiver is created
 (\sect{rm_to_tr_cr}), or re-defined at any time with {\tt setPreamble}
 (\sect{rm_to_tr_if}).
+Different transceivers can use preambles of different length.
 
 \subsubsection{The stages of packet transmission and perception}
 \label{rm_tr_ra_ps}
@@ -8736,13 +8832,37 @@ The timing of the three stages at the transmitter is
 determined by the transceiver's transmission rate ({\tt TRate}) and the lengths
 of the corresponding packet components.
 If stage {\em P\/} occurs at time $t$, then stage {\em T\/} will take place
-at $t$ + {\tt tcv->TRate * prm}, where {\tt tcv} is the transmitting
-transceiver and {\tt prm} is the preamble length in bits.
-Similarly, stage {\em E\/} will occur 
-{\tt tcv->TRate * pkt->TLength} {\em ITU\/}s after stage {\em T}, where
+at $t$ + {\tt tcv->TRate * tcv->Preamble}, where {\tt tcv} is the transmitting
+transceiver and {\tt Preamble} is its assumed preamble length.
+Then, stage {\em E\/} will occur {\tt RFC\_xmt (tcv->TRate, pkt->TLength)}
+{\em ITU\/}s after stage {\em T}, where
 {\tt pkt} points to the packet being transmitted.
 Recall that {\tt TRate} is a transceiver attribute representing the number of
-{\em ITU\/}s required to transmit a single bit (\sect{rm_to_po_cr}).
+{\em ITU\/}s required to transmit a single bit (\sect{rm_to_po_cr}), and
+{\tt RFC\_xmt} is one of the ``assessment methods'' of the radio channel to
+which the transceiver is interfaced (\sect{rm_to_rf_cr}).
+
+Note that the default version of {\tt RFC\_xmt} (\sect{rm_to_rf_cr})
+calculates the packet transmission time as {\tt tcv->TRate * pkt->TLength},
+assuming a straightforward interpretation of the packet's bits as the
+``actual'' bits to be sent over the channel at the specified rate.
+This need not always be the case.
+In many encoding schemes, the ``logical''
+packet bits (represented by {\tt pkt->TLength})
+are transmormed into symbols expressed as sequences of ``physical bits.''
+For example, those symbols may balance the number of physical zeros and ones
+and/or provide for forward error correction (FEC).
+It is the responsibility of {\tt RFC\_xmt} to account for such features and
+determine the correct timing for sending the packet contents over the channel.
+The transmission rate ({\tt tcv->TRate}) usually applies to the physical
+bits.
+The preamble, however, is treated separately, in the sense that its length
+is always
+assumed to be in physical bits, i.e., its is directly multiplied by the
+rate to yield the separation between stages {\em P\/} and {\em T}.
+Thus, it should be viewed as a timing parameter rather than a sequence of
+some bits, which need not be related to the bits constituting the packet
+content.
 
 Formally, the time separation of the three stages at any perceiving
 transceiver reached by
@@ -8826,6 +8946,10 @@ to other assessment methods like {\tt RFC\_bot} and {\tt RFC\_eot},
 and help implement
 tricky events whose timing depends on the distribution of bit errors in
 received packets.
+Note that the {\em bits\/} referred to above are physical bits
+(see \sect{rm_tr_ra_ps}).
+It is natural to express bit error rates and conditions caused by bit errors
+in terms of the physical signals actually transmitted over the channel.
 
 Owing to the fact that the assessment methods are (easily) exchangeable by the
 user, the radio channel model provided by \smurph\ is truly open-ended.
@@ -9201,26 +9325,33 @@ and {\tt TheTraffic} (to the
 
 \medskip
 
-As explained in \sect{rm_tr_ra_ps}, each packet transmitted over a
-radio channel is preceded by a preamble, whose length cannot be zero.
-The total amount of time needed to transmit a packet {\tt buf} on a
-transceiver {\tt tcv} is equal to
-{\tt (tcv->Preamble + buf->TLength) * tcv->TRate},
-i.e., to the total length of the packet (\sect{rm_cl_mp}) plus the
-preamble length in bits multiplied by the
-transceiver's transmission rate (\sect{rm_to_tr_cr}).
-Thus, the proper way to transmit a packet is to invoke
-{\tt startTransfer}, wait for
-the amount of time prescribed by the above formula, and
-execute {\tt stop()}.
 The following transceiver method:
 \begin{verbatim}
         void transmit (Packet *buf, int done);
 \end{verbatim}
-starts transmitting the packet contained in {\tt buf} and automatically
+starts transmitting the packet contained in {\tt buf} (by calling
+{\tt startTransfer}) and automatically
 sets up the {\tt Timer} to wake up the process in state {\tt done} when the
 transmission is complete.
-The transmission still has to be terminated explicitly.
+
+As explained in \sect{rm_tr_ra_ps}, each packet transmitted over a
+radio channel is preceded by a preamble, whose length cannot be zero.
+The total amount of time needed to transmit a packet {\tt buf} via a
+transceiver {\tt tcv} is equal to
+\begin{verbatim}
+        RFC_xmt (tcv->TRate, buf->TLength) + (tcv->Preamble * tcv->TRate)
+\end{verbatim}
+\noindent
+and this is the amount of time after which the process will wake up
+in state {\tt done}.\footnote{For efficiency, the {\tt Preamble} attribute
+is stored internally as a {\tt TIME} value (having been already multiplied by
+{\tt TRate}).
+This is one more argument for viewing it as a timing attribute rather
+than a sequence of bits.
+Thus, the real formula used by {\tt transmit} is
+{\tt RFC\_xmt (tcv->TRate, buf->TLength) + tcv->Preamble}.}
+
+A started transmission has to be terminated explicitly.
 Thus, the following sample code illustrates the full incantation:
 {\tt\begin{tabbing}
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
@@ -9245,14 +9376,23 @@ Calling
 \begin{verbatim}
         t = p->bitsToTime (n);
 \end{verbatim}
-has the same effect as executing:
+has the effect of executing:
 \begin{verbatim}
-        t = p->getTRate () * n;
+        t = RFC_xmt (p->TRate, n);
 \end{verbatim}
+\noindent
+Note, however, that various variants of {\tt RFC\_xmt} may consider it illegal
+to be called with certain values of {\tt n}.
+For example, the method may only work if the bit count is a multiple of 8.
+Also, it may include a standard ``fixed'' nonzero component in the returned
+value, e.g., accounting for the length of a start symbol.
+Thus, unlike the {\tt Port} variant of this method (\sect{rm_po_ac_st}),
+{\tt Transceiver} {\tt bitsToTime} comes with caveats and is not recommended
+for directly converting logical bits to time.
 
 \medskip
 
-The transmission rate of a port can be changed at any time by calling
+The transmission rate of a transceiver can be changed at any time by calling
 {\tt setTRate} (see \sect{rm_to_tr_if}).
 If {\tt setTRate} is invoked after {\tt startTransfer} or {\tt transmit} but
 before {\tt stop}, it has no impact on the packet being transmitted.
@@ -10964,10 +11104,11 @@ The following method:
 returns the number of elements in the mailbox.
 
 The capacity of a fifo
-mailbox can be determined and modified with these two methods:
+mailbox can be modified and checked with these three methods:
 \begin{verbatim}
-        Long getLimit ();
         Long setLimit (Long lim = 0);
+        Long getLimit ();
+        Long free ();
 \end{verbatim}
 In particular, a call to {\tt setLimit} can be put into a user-supplied
 setup method for a mailbox subtype (\sect{rm_mb_fi_dc}).
@@ -10975,6 +11116,7 @@ The argument of {\tt setLimit} must not be negative.
 The method returns the previous capacity of the mailbox.
 The new capacity cannot be less than the number of elements currently
 present in the mailbox.
+Method {\tt free} provides a shorthand for {\tt getLimit()-getCount()}.
 
 \subsubsection{The priority put operation}
 \label{rm_mb_fi_pp}
@@ -17523,7 +17665,7 @@ and their meaning is exactly the same.
 \label{rm_un}
 
 This section contains information on using \smurph\ in the UNIX
-environment and under CYGWIN on Windows 98 and XP.
+environment and under CYGWIN on Windows 98, XP and Vista.
 
 In principle, \smurph\ can be installed on any machine running
 a BSD or POSIX-compatible UNIX system, equipped with the GNU C++ compiler.
@@ -17629,7 +17771,7 @@ to turn \smurph\ constructs into C++ code.
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt LIB}}\\ \hspace{0in}
 This directory contains the source code of the \smurph\ 
-i/o library.
+i/o and XML library.
 \end{quote}
 
 \begin{quote}
@@ -17746,13 +17888,20 @@ The maximum number of versions of the binary library to be kept in the
 library directory (see \sect{rm_un_cr}).
 The default number is 25.
 \item
-The name of the directory containing {\tt include} files for protocol
-programs.
-It is possible to maintain a library of {\tt include} files, which will be
-searched automatically for any files {\tt included} by the protocol program
-and not found in the protocol program's directory.
-The default is {\tt Examples/IncLib} containing the include files for the
-examples that come with the package.
+The name of the directory containing {\tt include} files for protocol programs.
+It is possible to have several simultaneous versions of such {\tt include}
+libraries, which will be searched in the order of their specification.
+By default, the standard library in {\tt Examples/IncLib} is made available.
+It is needed by the example protocol programs in {\tt Examples}, but it also
+contains many handy pieces that may be of general value, so it always makes
+sense to have it on the list.
+When you hit Enter (empty line) in response to this prompt, the standard
+{\tt include} library will be the only library used.
+You can also enter paths to your personal libraries, one path per line, and
+then they will add to the list.
+You can eliminate the standard library (at any moment) by entering a line
+containing `{\tt -}' (minus) as the only character.
+An empty line always terminates the list.
 \item
 The Internet
 name of the host running the \smurph\ monitor (\sect{rm_ds_mo}).

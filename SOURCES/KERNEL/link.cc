@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-07   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -307,7 +307,7 @@ void    LinkService::zz_code () {
 		}
 	} else {
 
-		pool_in (a, cl->Archived, ZZ_LINK_ACTIVITY);
+		pool_in (a, cl->Archived);
 
 		new ZZ_EVENT (Time + cl->ArchiveTime, System, (void*) a, NULL,
 			TheProcess, cl, ARC_PURGE, RemFromAr, NULL);
@@ -369,7 +369,7 @@ void    Link::zz_start () {
 #endif
 	Type = LT_broadcast;
 	// Add the link to Kernel
-	pool_in (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList);
 };
 
 void Link::setFaultRate (double r, int ft) {
@@ -836,7 +836,7 @@ Port::Port () {
 	}
 
 	// Add to the ownership tree
-	pool_in (this, TheProcess->ChList, ZZ_Object);
+	pool_in (this, TheProcess->ChList);
 }
 
 void    Port::zz_start () {
@@ -2883,8 +2883,7 @@ void    Port::startTransfer (Packet *packet) {
 		if (a == NULL) {
 			// Queue at tail
 			if (Lnk -> AliveTail == NULL) {
-				pool_in (new_activity, Lnk->Alive,
-					ZZ_LINK_ACTIVITY);
+				pool_in (new_activity, Lnk->Alive);
 				Lnk -> AliveTail = new_activity;
 			} else {
 				Lnk->AliveTail->next = new_activity;
@@ -2909,7 +2908,7 @@ void    Port::startTransfer (Packet *packet) {
 		}
 				
 	} else
-		pool_in (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
+		pool_in (new_activity, Lnk->Alive);
 
 	Activity = new_activity;
 
@@ -2945,12 +2944,12 @@ void    Port::startJam () {
 	  case LT_broadcast:
 	  case LT_unidirectional:
 
-		pool_in (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
+		pool_in (new_activity, Lnk->Alive);
 		break;
 
 	  case LT_cpropagate:
 
-		pool_in (new_activity, Lnk->Alive, ZZ_LINK_ACTIVITY);
+		pool_in (new_activity, Lnk->Alive);
 
 		// Look for a transfer attempt originated by this port
 		// ending at Time (optimization for CPROPAGATE link type)
@@ -2978,8 +2977,7 @@ void    Port::startJam () {
 		if (a == NULL) {
 			// Queue at tail
 			if (Lnk -> AliveTail == NULL) {
-				pool_in (new_activity, Lnk->Alive,
-					ZZ_LINK_ACTIVITY);
+				pool_in (new_activity, Lnk->Alive);
 				Lnk -> AliveTail = new_activity;
 			} else {
 				Lnk->AliveTail->next = new_activity;

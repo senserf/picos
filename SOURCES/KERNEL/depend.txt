@@ -14,7 +14,7 @@ $(TRG): $(USO) $(LIB)/ai.o $(LIB)/client.o $(LIB)/display.o $(LIB)/link.o $(LIB)
 	echo "#include \"Smurph.h\"" > .zzzzscc.C
 	echo "# 1 \"%\"" >> .zzzzscc.C
 	cat % >> .zzzzscc.C
-	$(CMP) $(CFLAGS) -E .zzzzscc.C -DZZ_FN=^ -I$(SRC)/KERNEL -I$(INC) -I. | $(SRC)/SMPP/smpp ! > &
+	$(CMP) $(CFLAGS) -E .zzzzscc.C -DZZ_FN=^ -I$(SRC)/KERNEL $(INC) -I. | $(SRC)/SMPP/smpp ! > &
 	rm -f .zzzzscc.C
 	$(CMP) $(CFLAGS) -c & -o @ -DZZ_FN=^ -I$(SRC)/KERNEL?
 $(LIB)/ai.o:		$(SRC)/KERNEL/ai.cc $(SRC)/KERNEL/system.h $(SRC)/KERNEL/global.h $(SRC)/version.h $(SRC)/KERNEL/inlines.h
