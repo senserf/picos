@@ -4455,9 +4455,18 @@ shared by all processes.
 
 \medskip
 
+This {\tt Process} method:
+\begin{verbatim}
+        Station *getOwner ();
+\end{verbatim}
+returns a pointer to the station owning the process. 
+It is not very useful from within the process itself ({\tt S} and
+{\tt TheStation} point to the respective station), but can be used when you
+have a process pointer, e.g., referenced from another process.
+
 A process can terminate itself by calling the following method:
 \begin{verbatim}
-        terminate ();
+        void terminate ();
 \end{verbatim}
 or by executing
 \begin{verbatim}
@@ -4549,6 +4558,60 @@ One should remember that following {\tt terminate} the current
 process is no more;
 in particular, any references to its methods and/or attributes will likely
 result in errors.
+
+There is a way to locate processes by their type names and owning stations,
+which is seldom used, but provides a powerful last-resort means to find 
+processes and account for them all, e.g., to terminate them as part of a
+cleanup operation, even if no explicit pointers to them are available.
+This operation:
+\begin{verbatim}
+        Long getproclist (Station *s, ptype, Process **PL, Long Len);
+\end{verbatim}
+\noindent
+stores in the array of pointers represented by the third argument the list
+of pointers to processes described by the first two arguments.
+The last argument gives the length of the array of pointers.
+The operation looks like a global function, but, strictly speaking, it isn't
+because the second argument is the name of a process type.
+The operation is intercepted by {\tt smpp}
+(sections \ref{rm_in_ov}, \ref{rm_un_cr}) and transformed into a call to some
+internal and obscure function.
+
+If the first argument is not {\tt NULL}, then it should point to a station.
+The processes located by the operation will belong to that station.
+The second argument can be absent, in which case the operation will look like
+this:
+\begin{verbatim}
+        Long getproclist (Station *s, Process **PL, Long Len);
+\end{verbatim}
+and will return all processes owned by the station pointed to by the first
+argument.
+Finally, if the first argument is also {\tt NULL}, it can be skipped like
+this:
+\begin{verbatim}
+        Long getproclist (Process **PL, Long Len);
+\end{verbatim}
+This practically never makes sense as
+the operation will then return pointers to all processes run by the
+simulator.
+
+The array of pointers is filled up to the specified length
+({\tt Len}).
+The number of process pointers stored in it is returned as the function value.
+If that number is equal to {\tt Len}, then there may be more processes to
+be returned.
+For illustration, here is the (not very efficient but effective)
+code to kill all copies of process {\tt Consumer} run by the current station:
+\begin{verbatim}
+        Process *PT [1];
+          ...
+        while (getproclist (TheStation, Consumer, PT, 1))
+            PT [0] -> terminate ();
+\end{verbatim}
+\noindent
+A call to {\tt getproclist} is rather costly as the operation may end up
+traversing a significant part of the entire object ownership hierarchy
+(\sect{rm_ds_om_oh}) before it locates all the relevant processes.
 
 \subsection{Process operation}
 \label{rm_pr_po}

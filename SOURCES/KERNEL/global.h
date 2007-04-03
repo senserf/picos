@@ -2214,6 +2214,7 @@ class   ZZ_Object  {
 	friend  void    zz_inspect_rq (Station*, void*, char*, int, int);
 	friend  void    terminate (Process*);
 	friend  void    terminate (Observer*);
+	friend	void	zz_pcslook (ZZ_Object*);
 
 	// All objects whose contents are to be displayable and/or
 	// printable in a natural way must be declared as subobjects of
@@ -2443,6 +2444,7 @@ class   Station : public ZZ_Object {
 #endif
 	friend  ZZ_Object *zz_findAdvance (ZZ_Object*);
 	friend  ZZ_Object *zz_findWAdvance (ZZ_Object*);
+	friend 	void	zz_pcslook (ZZ_Object*);
 
 	public:
 
@@ -2508,7 +2510,6 @@ class   Station : public ZZ_Object {
 #endif
 	static  void    pttrav (ZZ_Object*);    // Recursive printer
 	static  void    dttrav (ZZ_Object*);    // Recursive displayer
-	void		sttrav (ZZ_Object*);	// Recursive process walker
 
 	public:
 
@@ -5781,6 +5782,7 @@ class   Process : public AI {
         friend  int     zz_noevents ();
 	friend  ZZ_Object *zz_findAdvance (ZZ_Object*);
 	friend  ZZ_Object *zz_findWAdvance (ZZ_Object*);
+	friend 	void	zz_pcslook (ZZ_Object*);
 
 	private:
 
@@ -5858,7 +5860,7 @@ class   Process : public AI {
 	// Destructor for derived classes
 	virtual	~Process ();
 
-        Station *getOwner () { return Owner; };
+        inline Station *getOwner () { return Owner; };
 
 	inline  void    printRqs (const char *hd = NULL, Long sid = NONE) {
 		// Print request list
@@ -5880,6 +5882,8 @@ inline  void    zz_bld_Process (char *nn = NULL) {
 		strcpy (p->zz_nickname, nn);
 	}
 }
+
+Long zz_getproclist (Station*, void*, Process**, Long);
 
 /* --------- */
 /* Observers */

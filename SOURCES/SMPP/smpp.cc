@@ -4806,6 +4806,103 @@ int     processExpose (int del) {
 	return (NO);
 }
 
+int     processGetproclist (int del) {
+
+	// getproclist (a, b, k, n)	->
+	//
+	// 	zz_getproclist (a, (void*)(&zz_b_prcs), k, n);
+	//
+	// getproclist (a, k, n)	->
+	//
+	// 	zz_getproclist (a, NULL, k, n);
+	//
+	// getproclist (k, n)		->
+	//
+	// 	zz_getproclist (NULL, NULL, k, n);
+	//
+
+	char    arg [4] [MAXKWDLEN+1];  // Up to 4 arguments
+	int     lc, ac;
+
+	lc = del;
+	if (lc == ERROR) return (NO);
+	if (lc == END) {
+Endfile:
+		xerror ("file ends in the middle of getproclist");
+		return (NO);
+	}
+
+	if (lc != '(') {
+Synerror:
+		xerror ("getproclist syntax error");
+		return (NO);
+	}
+
+	for (ac = 0; ac < 4;) {
+		// Parse the arguments
+		lc = getArg (arg [ac]);
+		ac++;
+		if (lc == ERROR) return (NO);
+		if (lc == END) goto Endfile;
+		if (lc == ')') break;
+		if (lc != ',') goto Synerror;
+	}
+	if (lc != ')') {
+		xerror ("too many arguments to getproclist");
+		return (NO);
+	}
+
+	putC ("zz_getproclist (");
+
+	switch (ac) {
+
+	    case 2:     // Process list and size only
+
+		putC ("NULL, NULL, ");
+		putC (arg [0]);
+		putC (", ");
+		putC (arg [1]);
+		putC (')');
+		break;
+
+	    case 3:	// + Station
+
+		putC ("(Sation*)(");
+		putC (arg [0]);
+		putC ("), NULL, ");
+		putC (arg [1]);
+		putC (", ");
+		putC (arg [2]);
+		putC (')');
+		break;
+
+	    case 4:	// + Type Id
+
+		putC ("(Sation*)(");
+		putC (arg [0]);
+		if (!isSymbol (arg [1])) {
+			xerror ("process type name is formally illegal");
+			return (NO);
+		}
+		putC ("), (void*)(&zz_");
+		putC (arg [1]);
+		putC ("_prcs), ");
+		putC (arg [3]);
+		putC (", ");
+		putC (arg [4]);
+		putC (')');
+		break;
+
+	    default:
+
+		xerror ("illegal number of arguments to getproclist");
+		return NO;
+	}
+
+	catchUp ();
+	return (YES);
+}
+
 int     processPerform (int del) {
 
 /* ----------------------------------------------------- */
@@ -5210,6 +5307,7 @@ main (int argc, char *argv []) {
 	new KeyDesc ("state", processState);
 	new KeyDesc ("wait", processWait, YES);
 	new KeyDesc ("wait", processWait);
+	new KeyDesc ("getproclist", processGetproclist);
 
 	addSym ("Station", STATION, DEFINED, REAL);
 	addSym ("EObject", EOBJECT, DEFINED, REAL);
@@ -5380,6 +5478,18 @@ UnclString:
 		ArrowInFront = 2;
 	      else
 		ArrowInFront = NO;
+	      continue;
+
+	    case '!':
+
+	      // Two consecutive '!' outside string are removed
+	      ArrowInFront = NO;
+	      if (peekC () == '!') {
+		// Strip them
+		getC ();
+	      } else {
+		putC ('!');
+	      }
 	      continue;
 
 	    default:

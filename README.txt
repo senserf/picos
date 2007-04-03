@@ -844,5 +844,12 @@
 	   notation.
 	   RFC_xmt added as an honorary assessment method. It determines the
 	   amount of time needed to transmit at packet. This way we avoid
-	   clumsy and confusing tricks with TLength (packet attrributes), which
+	   clumsy and confusing tricks with TLength (packet attributes), which
 	   is best left to mean what it is supposed to mean.
+
+ R070402A  Process method getOwner () documented (it was missing from the
+           manual). Added operation getproclist. A special sequence (!!), i.e.
+	   two consecutive exclamation marks, is detected by SMPP and removed
+	   from the source wherever it occurs. This is a way of adding some
+	   power to the concatenation mechanism of cpp macros - to allow
+	   concatenation of arbitrary token fragments. Quite handy.

@@ -582,7 +582,17 @@ HOLD:                   // Remove all requests except for the Kernel's DEATH
  * Here is the set of funtions to implement Station::terminate (). We need a
  * recursive traverser of the ownership tree.
  */
-class	sttr_st_c {
+class	pttr_st_c {
+
+// This is a recursive traverser of the ownership tree to locate processes with
+// some properties and store their pointers in a table. Needed by
+// Station::terminate and getproclist.
+
+	friend void zz_pcslook (ZZ_Object*);
+
+	Station	*OW;
+	void	*TID;
+	Boolean	Extend, Internal;
 
 	public:
 
@@ -590,21 +600,45 @@ class	sttr_st_c {
 	int	PLL,		// Current length
 		PLS;		// Size
 
-	sttr_st_c () {
-		PList = new Process* [PLS = 16];
+	pttr_st_c (Station *ow, void *tid = NULL, Process **pl = NULL,
+								Long sz = 0) {
+		OW = ow;
+		TID = tid;
 		PLL = 0;
+
+		if (pl == NULL) {
+			Internal = YES;
+			if (sz > 0) {
+				PLS = sz;
+				Extend = NO;
+			} else {
+				Extend = YES;
+				PLS = 16;
+			}
+			PList = new Process* [PLS];
+		} else {
+			Internal = NO;
+			Extend = NO;
+			if (sz <= 0)
+				sz = 1;
+			PList = pl;
+			PLS = (sz < 1) ? 1 : sz;
+		}
 	};
 
-	~sttr_st_c () {
-		delete PList;
+	~pttr_st_c () {
+		if (Internal)
+			delete PList;
 	};
 
-	void add (Process *p) {
+	inline Boolean add (Process *p) {
 
 		Process **pl;
 		int i;
 
 		if (PLL == PLS) {
+			if (!Extend)
+				return NO;
 			// Grow the array
 			pl = new Process* [PLS += PLS];
 			for (i = 0; i < PLL; i++)
@@ -614,18 +648,29 @@ class	sttr_st_c {
 		}
 
 		PList [PLL++] = p;
+		return YES;
 	};
 };
 
-static sttr_st_c *sttr_st;
+static pttr_st_c *pttr_st;
 
-void Station::sttrav (ZZ_Object *o) {
+void zz_pcslook (ZZ_Object *o) {
+
+// This is global to save on stack and time
 
     	ZZ_Object  *clist;
 
 	if (o->Class == AIC_process) {
-		if (((Process*)o)->Owner == this)
-			sttr_st->add ((Process*)o);
+		if ((pttr_st->OW == NULL || ((Process*)o)->getOwner () ==
+		  pttr_st->OW)
+		   &&
+		    (pttr_st->TID == NULL || ((Process*)o)->zz_typeid == 
+		      pttr_st->TID)) {
+			// Add this one
+			if (pttr_st->add ((Process*)o) == NO)
+				// No more
+				return;
+		}
 		clist = ((Process*)o)->ChList;
 	} else if (o->Class == OBJ_station) {
 		clist = ((Station*)o)->ChList;
@@ -634,7 +679,7 @@ void Station::sttrav (ZZ_Object *o) {
 	}
 
 	while (clist != NULL) {
-		sttrav (clist);
+		zz_pcslook (clist);
 		clist = clist->next;
 	}
 }
@@ -651,17 +696,32 @@ void	Station::terminate () {
 	ZZ_REQUEST *rq;
 	int i;
 
-	sttr_st = new sttr_st_c;
-	sttrav (zz_flg_started ? (ZZ_Object*)System : (ZZ_Object*)ZZ_Main);
+	pttr_st = new pttr_st_c (this);
+	zz_pcslook (zz_flg_started ? (ZZ_Object*)System : (ZZ_Object*)ZZ_Main);
 
-	for (i = 0; i < sttr_st->PLL; i++) {
-		p = sttr_st->PList [i];
+	for (i = 0; i < pttr_st->PLL; i++) {
+		p = pttr_st->PList [i];
 		// Flag == hard termination: no events
 		p->ISpec = p;
 		delete p;
 	}
 
-	delete sttr_st;
+	delete pttr_st;
+}
+
+Long zz_getproclist (Station *ow, void *pt, Process **list, Long len) {
+/*
+ * Produce the list of processes belonging to the given station and being
+ * of the given type.
+ */
+	assert (list != NULL, "getproclist: the list pointer is NULL");
+
+	pttr_st = new pttr_st_c (ow, pt, list, len);
+	zz_pcslook (zz_flg_started ? (ZZ_Object*)System : (ZZ_Object*)ZZ_Main);
+	len = pttr_st->PLL;
+	delete pttr_st;
+
+	return len;
 }
 
 Process::~Process () {
