@@ -31,10 +31,6 @@
 #define	PUPD_OUTPUT_BUFLEN	32		// PIN update buffer size
 #define	MRQS_INPUT_BUFLEN	112		// MOVE request buffer size
 
-#define	MOVER_MAX_STEPS		10000		// Max number of steps per leg
-#define	MOVER_TARGET_STEP	0.05		// 5 centimeters
-#define	MOVER_MIN_STEPS		8		// Even a tiny move is no jump
-
 #define	XTRN_IMODE_NONE		(0<<29)
 #define	XTRN_IMODE_DEVICE	(1<<29)
 #define	XTRN_IMODE_SOCKET	(2<<29)

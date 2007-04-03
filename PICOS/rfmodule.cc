@@ -51,7 +51,7 @@ Drain:
 
 		if ((buffer = tcvphy_get (PHYSID, &buflen)) != NULL) {
 			assert (buflen >= 4 && (buflen & 1) == 0,
-				"Xmitter: illegal packet length");
+				"Xmitter: illegal packet length %1d", buflen);
 			if (statid != 0xffff)
 				// otherwise, honor the packet's statid
 				buffer [0] = statid;

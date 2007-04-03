@@ -241,5 +241,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	__NA(a,b)		(((a*)TheNode)->b)
 
+/* running + killall */
+#define	running(pt)	zz_running (&zz_!!THREADNAME(pt)!!_prcs)
+#define	killall(pt)	zz_killall (&zz_!!THREADNAME(pt)!!_prcs)
 
 #endif

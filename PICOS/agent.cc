@@ -14,40 +14,16 @@
 
 word	ZZ_Agent_Port	= AGENT_SOCKET;
 
-process	Teleporter;		// Shared by agent
-
-struct	movepool_s {
-
-	struct movepool_s *next, *prev;
-
-	Teleporter *Thread;
-	Long NNumber;
-};
-
-typedef	struct movepool_s movepool_t;
-
-static movepool_t *MIP = NULL;		// List of moves in progress
-
 static MUpdates *MUP = NULL;
-
-static movepool_t *find_mip (Long sid) {
-
-	movepool_t *p;
-
-	for_pool (p, MIP)
-		if (p->NNumber == sid)
-			return p;
-	return NULL;
-}
-
-static inline double dist (double x, double y, double xt, double yt) {
-
-	return sqrt ((xt - x) * (xt - x) + (yt - y) * (yt - y));
-}
 
 inline static void skipblk (char *&bp) {
 	while (isspace (*bp))
 		bp++;
+}
+
+static void mup_update (Long n) {
+
+	MUP->queue (n);
 }
 
 static int dechex (char *&bp) {
@@ -202,40 +178,6 @@ process LedsHandler {
 
 	void setup (PicOSNode*, LEDSM*, Dev*);
 
-	perform;
-};
-
-process Teleporter {
-
-	movepool_t *ME;
-	PicOSNode *No;
-
-	double	X0, Y0, X1, Y1;			// Bounding rectangle
-
-	double	MINSP, MAXSP,			// Speed
-		MINPA, MAXPA;			// Pause
-
-	double	CX, CY,				// Current coordinates
-		TX, TY;				// Target coordinates
-
-	TIME	Until,				// Total time for the roaming
-		TLeft;				// Left for the present leg
-
-	Long	Count;				// Number of steps
-
-	states { NextLeg, Advance };
-
-	void setup (Long,			// Node number
-				double,		// X0  ** this is the rectangle
-				double, 	// Y0  ** within which the node
-				double, 	// X1  ** will be happily
-				double,		// Y1  ** roaming
-				double, 	// Mns ** minimum speed
-				double,		// Mxs ** maximum speed
-				double,		// Mnp ** minimum pause
-				double,		// Mxp ** maximum pause
-				double		// Tim ** total time (inf if 0)
-					);
 	perform;
 };
 
@@ -2338,6 +2280,7 @@ void MoveHandler::setup (Dev *a, FLAGS f) {
 		}
 		// Create the mailbox to receive updates
 		MUP = create MUpdates (MAX_Long);
+		rwpmmSetNotifier (mup_update);
 	}
 
 	Agent = a;
@@ -2357,6 +2300,7 @@ MoveHandler::~MoveHandler () {
 	if (imode (Flags) == XTRN_IMODE_SOCKET) {
 		delete MUP;
 		MUP = NULL;
+		rwpmmSetNotifier (NULL);
 	}
 }
 
@@ -2364,12 +2308,12 @@ MoveHandler::perform {
 
 	TIME st;
 	double xx, yy;
-	movepool_t *ME;
 	nparse_t NP [9];
 	int rc;
 	Long NN, NS;
 	char *re;
 	PicOSNode *pn;
+	Transceiver *TR;
 	byte c;
 	char cc;
 	Boolean off;
@@ -2561,17 +2505,13 @@ Illegal_crd:
 				create Disconnector (Agent, ECONN_INVALID);
 				terminate;
 			}
-	
-			// Remove from MIP (roaming) pool
-			if ((ME = find_mip (NN)) != NULL) {
-				ME->Thread->terminate ();
-				pool_out (ME);
-				delete ME;
-			}
 
-			((PicOSNode*)idToStation (NN))->
-				_da (RFInterface)->setLocation (NP [0].DVal,
-					NP [1].DVal);
+			TR = ((PicOSNode*)idToStation (NN))-> _da (RFInterface);
+
+			// Cancel any present movement
+			rwpmmStop (TR);
+
+			TR -> setLocation (NP [0].DVal, NP [1].DVal);
 
 			// Send the update
 			if (MUP != NULL)
@@ -2593,13 +2533,6 @@ Illegal_crd:
 
 			if ((rc = parseNumbers (BP, 9, NP)) != 9)
 				goto Illegal;
-
-			if ((ME = find_mip (NN)) != NULL) {
-				// Terminate the previous roamer
-				ME->Thread->terminate ();
-				pool_out (ME);
-				delete ME;
-			}
 
 			if (NP [0].DVal < 0.0 || NP [1].DVal < 0.0)
 				goto Illegal_crd;
@@ -2640,7 +2573,8 @@ Illegal_crd:
 			// The time can be negative, which (including zero)
 			// means that we roam forever
 
-			create Teleporter (NN,
+			rwpmmStart (NN,
+			  ((PicOSNode*) idToStation (NN)) -> _da (RFInterface),
 				NP [0].DVal, NP [1].DVal,
 				NP [2].DVal, NP [3].DVal,
 				NP [4].DVal, NP [5].DVal,
@@ -2680,133 +2614,6 @@ Illegal_crd:
 			TimedRequestTime = Time;
 
 		proceed Loop;
-}
-
-void Teleporter::setup (Long nn,		double x0,
-						double y0,
-						double x1,
-						double y1,
-						double minsp,
-						double maxsp,
-						double minpa,
-						double maxpa,
-						double howlong) {
-
-	ME = new movepool_t;
-	ME->NNumber = nn;
-	ME->Thread = this;
-	pool_in (ME, MIP, movepool_t);
-
-	No = (PicOSNode*) idToStation (nn);
-
-	X0 = x0;
-	Y0 = y0;
-	X1 = x1;
-	Y1 = y1;
-
-	MINSP = minsp;
-	MAXSP = maxsp;
-
-	MINPA = minpa;
-	MAXPA = maxpa;
-
-	if (howlong <= 0.0)
-		Until = TIME_inf;
-	else
-		Until = Time + etuToItu (howlong);
-
-	No -> _da (RFInterface)->getLocation (TX, TY);
-}
-
-Teleporter::perform {
-
-    TIME delta;
-    double cn, sp;
-
-    state NextLeg:
-
-	// Current coordinates
-	CX = TX;
-	CY = TY;
-
-	// Generate a random destination within the rectangle
-	TX = dRndUniform (X0, X1);
-	TY = dRndUniform (Y0, Y1);
-
-	// Distance in meters
-	sp = dist (TX, TY, CX, CY);
-
-	// Target number of steps (tiny teleportations)
-	cn = sp / MOVER_TARGET_STEP;
-
-	// Total time per move in ITUs
-	TLeft = etuToItu (sp / dRndUniform (MINSP, MAXSP));
-
-	// We try to make it as smooth as feasible, but no more than that;
-	// Count is the total number of steps
-	if (cn > MOVER_MAX_STEPS)
-		Count = MOVER_MAX_STEPS;
-	else if (cn < MOVER_MIN_STEPS)
-		Count = MOVER_MIN_STEPS;
-	else
-		Count = (Long) cn;
-
-    transient Advance:
-
-	No->_da (RFInterface)->setLocation (CX, CY);
-
-	if (MUP != NULL)
-		MUP->queue (No->getId ());
-
-	if (Time >= Until) {
-		// We are done
-Finish:
-		pool_out (ME);
-		delete ME;
-		terminate;
-	}
-
-	if (Count == 0) {
-		// End of leg
-		delta = etuToItu (dRndUniform (MINPA, MAXPA));
-		if (delta == TIME_0)
-			proceed NextLeg;
-		if (def (Until) && Time + delta >= Until)
-			// This will get is beyond termination
-			goto Finish;
-		Timer->wait (delta, NextLeg);
-		sleep;
-	}
-		
-	// Calculate next step
-	if (Count == 1) {
-		// Make sure we always end up where we wanted to get
-		Count = 0;
-		CX = TX;
-		CY = TY;
-		Timer->wait (TLeft, Advance);
-		sleep;
-	}
-
-	// Remaining distance in meters
-	sp = dist (CX, CY, TX, TY);
-	if (sp < 0.0001) {
-		// Just in case
-		CX = TX;
-		CY = TY;
-	} else {
-		// Distance fraction for next step
-		cn =  sp / Count;
-		CX += cn * (TX - CX) / sp;
-		CY += cn * (TY - CY) / sp;
-	}
-
-	// Current interval
-	delta = (TIME) ((double) TLeft / Count);
-	Count--;
-	TLeft -= delta;
-	Timer->wait (delta, Advance);
-	sleep;
 }
 
 void AgentConnector::setup (Dev *m) {

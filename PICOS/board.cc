@@ -3,7 +3,9 @@
 
 #include "board.h"
 
-#include "chan_shadow.cc"
+#include "rwpmm.cc"
+
+#include "wchansh.cc"
 #include "encrypt.cc"
 #include "nvram.cc"
 #include "agent.h"
@@ -1043,10 +1045,10 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 			"an even number >= 4", np);
 	psir = HUGE;
 	pber = -1.0;
-	STB = new sir_to_ber_t [nb / 2];
-
 	// This is the size of BER table
 	nb /= 2;
+	STB = new sir_to_ber_t [nb];
+
 	for (i = 0; i < nb; i++) {
 		// The SIR is stored as a linear ratio
 		STB [i].sir = dBToLin (np [2 * i] . DVal);
@@ -1067,14 +1069,9 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 		pber = STB [i] . ber;
 	}
 
-	// Pre-calculate factors
-	for (i = 0; i < nb-1; i++)
-		STB [i].fac = (STB [i+1].ber - STB [i].ber) /
-			(STB [i].sir - STB [i+1].sir);
-
-	// The cutoff threshold wrt to background noise: the dafault means no
+	// The cutoff threshold wrt to background noise: the default means no
 	// cutoff
-	cutoff = 0.0;
+	cutoff = -HUGE;
 	if ((cur = sxml_child (data, "cutoff")) != NULL) {
 		att = sxml_txt (cur);
 		if (parseNumbers (att, 1, np) != 1)
@@ -1240,7 +1237,7 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 
 	// Create the channel (this sets SEther)
 	create RFShadow (NT, STB, nb, dref, loss_db, beta, sigm, bn_db, cutoff,
-		syncbits, brate, bpb, frml, RSC, PS);
+		syncbits, brate, bpb, frml, NULL, RSC, PS);
 }
 
 void BoardRoot::initRoamers (sxml_t data) {
@@ -1391,7 +1388,6 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 			if (*att == '0' && (*(att+1) == 'x' ||
 							    *(att+1) == 'X')) {
 				// Hex
-				att += 2;
 				np [0] . type = TYPE_hex;
 				if (parseNumbers (att, 1, np) != 1)
 					excptn ("Root: <preinit> for %s, "
@@ -1399,6 +1395,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 							xname (nn),
 							P->PITS [i] . Tag);
 				P->PITS [i] . Value = (IPointer) np [0]. IVal;
+trace ("IVAL: %x", P->PITS [i] . Value);
 
 			} else {
 
@@ -2722,6 +2719,30 @@ Outserial::perform {
 	len -= quant;
 	proceed OM_WRITE;
 }
+
+int zz_running (void *tid) {
+
+	Process *P [1];
+
+	return zz_getproclist (TheNode, tid, P, 1) ? __cpint (P [0]) : 0;
+}
+
+int zz_killall (void *tid) {
+
+	Process *P [16];
+	Long np, i, tot;
+
+	tot = 0;
+	while (1) {
+		np = zz_getproclist (TheNode, tid, P, 16);
+		tot += np;
+		for (i = 0; i < np; i++)
+			P [i] -> terminate ();
+		if (np < 16)
+			return tot;
+	}
+}
+
 
 #include "stdattr_undef.h"
 

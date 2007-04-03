@@ -155,3 +155,14 @@ R070325A:
     MOVER renamed ROAMER and made available from the input data. Random
     way point mobility model implemented. Added preinits, RSSI and SETPOWER
     conversion tables in the input data. Agent protocol poished up.
+
+R070402A:
+
+    Channel and random waypoint mobility models cleaned and moved to the
+    standard SMURPH library (IncLib) from where they can be used in non-PicOS
+    models. File chan_shadow.h need not be included by the praxis anymore.
+    The <cutoff> parameters is no longer the absolute distance, but the
+    signal level (factored by the receiver sensitivity) below which its impact
+    on the receiver is deemed irrelevant. It should be set at a fraction of
+    background noise. Operations running and killal implemented.
+    

@@ -7,7 +7,7 @@
 #include "nvram.h"
 #include "tcv.h"
 #include "tcvphys.h"
-#include "chan_radio.h"
+#include "wchan.h"
 #include "tarp.h"
 #include "plug_tarp.h"
 #include "plug_null.h"
@@ -29,6 +29,8 @@
 
 #define	MAX_LINE_LENGTH	63	// For Inserial
 
+int zz_running (void*);
+int zz_killall (void*);
 
 extern	const char zz_hex_enc_table [];
 
@@ -66,9 +68,10 @@ packet	PKT {
 		Payload = new word [(PaySize = paysize)/2];
 		memcpy (Payload, pay, paysize);
 		// Assuming the checksum falls into the payload (but excluding
-		// the preamble)
-		ILength = TLength = paysize * Ether->BitsPerByte + 
-			Ether->PacketFrameLength;
+		// the preamble). This is in bits, according to the rules of
+		// SMURPH. Perhaps some day we will take advantage of some of
+		// its statistics collection tools?
+		ILength = TLength = (paysize << 3);
 	};
 };
 
