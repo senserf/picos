@@ -156,7 +156,7 @@ R070325A:
     way point mobility model implemented. Added preinits, RSSI and SETPOWER
     conversion tables in the input data. Agent protocol poished up.
 
-R070402A:
+R070402B:
 
     Channel and random waypoint mobility models cleaned and moved to the
     standard SMURPH library (IncLib) from where they can be used in non-PicOS
