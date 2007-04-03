@@ -847,7 +847,7 @@
 	   clumsy and confusing tricks with TLength (packet attributes), which
 	   is best left to mean what it is supposed to mean.
 
- R070402A  Process method getOwner () documented (it was missing from the
+ R070402B  Process method getOwner () documented (it was missing from the
            manual). Added operation getproclist. A special sequence (!!), i.e.
 	   two consecutive exclamation marks, is detected by SMPP and removed
 	   from the source wherever it occurs. This is a way of adding some
