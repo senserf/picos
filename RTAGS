@@ -1370,8 +1370,8 @@ R070221B:
 	ago to accommodate VERSA2's transmitter). The problem was that the
 	RISE_AND_SHINE status from a stacked interrupt wasn't conveyed to the
 	bottom of the stack. Constant NESTED_INTERRUPTS added in case we want
-	extend this feature (selectively) over other interrupts.
-	We have a new an more elegant mechanism for triggering scheduler events
+	to extend this feature (selectively) over other interrupts.
+	We have a new and more elegant mechanism for triggering scheduler events
 	from interrupts.
 
 R070325A:
@@ -1385,9 +1385,15 @@ R070325A:
 
 	SETMODE removed for CC1100. The rate is now selected by a symbolic
 	constant at compilation time. It was too messy for a run-time option
-	(and useless).
+	(and useless). A few parameters added to the driver to facilitate
+	very high transmission rates (like 200kbps).
 
 	Another special value (0xffff) used for station (network) Id means that
 	the sender should honor the network Id value in the praxis packet. On
 	reception it is equivalent to 0, i.e., promiscuous mode. For now, this
 	only applies to CC1100 and phys_uart.
+
+R070402A:
+
+	Application LOSSTEST added to Apps/VUEE to help calibrate the
+	parameters of radio channel.
