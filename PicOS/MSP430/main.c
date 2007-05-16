@@ -1,7 +1,7 @@
 #include "kernel.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -828,6 +828,7 @@ static void preinit_uart () {
 
 	// UART_A
 	_BIC (P3DIR, 0x26);
+	_BIS (P3DIR, 0x10);
 	_BIS (P3SEL, 0x30);	// 4, 5 special function
 #if UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
 	_BIC (P3SEL, 0xc0);	// Standard use P3.6, P3.7
@@ -847,9 +848,15 @@ static void preinit_uart () {
 	zz_uart [0] . flags = UART_RATE_INDEX;
 #endif
 
+/*
+ * Note: the second UART doesn't want to work at 9600 with the standard slow
+ * crystal. The xmitter is OK, but the receiver gets garbage. 4800 is fine. 
+ * Also, things seem to work (up to 115200) with a high speed crystal.
+ */
 #if N_UARTS > 1
 	// UART_B
 	_BIC (P3DIR, 0x89);
+	_BIS (P3DIR, 0x40);
 	_BIS (P3SEL, 0xc0);	// 6, 7 special function
 	_BIS (UCTL1, SWRST);
 	_BIC (UTCTL1, SSEL1 + SSEL0);
@@ -1298,7 +1305,7 @@ interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 
 	if ((ua -> flags & UART_FLAGS_IN)) {
 		// Keep the interrupt pending
-		_BIS (IFG1, URXIFG1);
+		_BIS (IFG2, URXIFG1);
 	} else {
 		_BIS (ua -> flags, UART_FLAGS_IN);
 		ua -> in = RXBUF1;

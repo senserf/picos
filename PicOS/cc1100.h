@@ -313,7 +313,7 @@ const	byte	cc1100_rfsettings [] = {
 
         CCxxx0_FSCTRL1, 0x0A,   // FSCTRL1	WAS 0C
         CCxxx0_FREQ2,   0x1E,   // FREQ2
-       	CCxxx0_MDMCFG4, 0x8C,   // MDMCFG4 	(10 kbps)
+       	CCxxx0_MDMCFG4, 0x8C,   // MDMCFG4
 	CCxxx0_MDMCFG3, 0x22,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x10 + SYNC_WORD_SIZE,
         CCxxx0_MDMCFG1, 0x22,   // MDMCFG1	22 FEC + 4 pre + ch spacing

@@ -63,6 +63,8 @@ process (root, void)
 
   entry (RS_INIT)
 
+	// ser_select (1);
+
 	if (ibuf == NULL)
 		ibuf = (char*) umalloc (IBUFSIZE);
 
