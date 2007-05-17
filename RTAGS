@@ -1401,3 +1401,8 @@ R070402A:
 R070515A:
 
 	Misc updates to SFU praxes.
+
+R070517A:
+
+	Bluetooth driver for LinkMatic 2.0 by www.flexipanel.com (operating as
+	an extension of phys_uart). A new board type: SFU_HEART_BLUE.

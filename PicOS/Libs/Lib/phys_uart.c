@@ -8,6 +8,10 @@
 
 #include "checksum.h"
 
+#ifdef BLUETOOTH_PRESENT
+#include "bluetooth.h"
+#endif
+
 /* ========================================= */
 
 #if UART_TCV > 1
@@ -46,6 +50,7 @@ strand (rcvuart, uart_t)
 
     entry (RC_LOOP)
 
+	LEDI (2, 0);
 	if (UA->v_flags & UAFLG_ROFF) {
 		UA->r_prcs = 0;
 		// Terminate
@@ -60,6 +65,7 @@ strand (rcvuart, uart_t)
 
     entry (RC_START)
 
+	LEDI (2, 1);
 	// We are past the length byte
 	delay (RXTIME, RC_RESET);
 	when (RXEVENT, RC_END);
@@ -118,6 +124,7 @@ strand (xmtuart, uart_t)
 
     entry (XM_LOOP)
 
+	LEDI (1, 0);
 	if ((UA->v_flags & UAFLG_HOLD)) {
 		// Solid OFF
 		if ((UA->v_flags & UAFLG_DRAI)) {
@@ -143,8 +150,25 @@ Drain:
 		release;
 	}
 
+#ifdef BLUETOOTH_PRESENT
+/*
+ * Do not send anything is the BlueTooth link is inactive
+ */
+#if BLUETOOTH_PRESENT == 1
+	// On the first UART
+	if (UA == zz_uart && !blue_ready)
+		proceed (XM_LOOP);
+#else
+	// On the second UART
+	if (UA != zz_uart && !blue_ready)
+		proceed (XM_LOOP);
+#endif
+#endif /* BLUETOOTH_PRESENT */
+
 	if (stln < 4 || (stln & 1) != 0)
 		syserror (EREQPAR, "xmtu/length");
+
+	LEDI (1, 1);
 
 	// In bytes
 	UA->x_buffl = stln;
@@ -163,11 +187,13 @@ Drain:
 	tcvphy_end (UA->x_buffer);
 	proceed (XM_LOOP);
 
+#undef UA
+
 endstrand;
 
 #if UART_TCV > 1
-static void ini_uart (int which) {
-#define	WHICH	which
+static void ini_uart (uart_t *ua) {
+#define	WHICH	(ua == zz_uart ? 0 : 1)
 #else
 static void ini_uart () {
 #define	WHICH	0
@@ -183,8 +209,8 @@ static void ini_uart () {
 }
 
 #if UART_TCV > 1
-static void start_uart (int which, word what) {
-#define	UA zz_uart + which
+static void start_uart (uart_t *ua, word what) {
+#define	UA ua
 #else
 static void start_uart (word what) {
 #define	UA zz_uart
@@ -205,8 +231,7 @@ static void start_uart (word what) {
 		UA->v_flags &= ~UAFLG_ROFF;
 		trigger (OFFEVENT);
 	}
-
-#undef	UA
+#undef UA
 }
 
 void phys_uart (int phy, int mbs, int which) {
@@ -217,7 +242,7 @@ void phys_uart (int phy, int mbs, int which) {
  */
 
 #if UART_TCV > 1
-#define	UA	zz_uart + which
+#define	UA	(zz_uart + which)
 #else
 #define	UA	zz_uart
 #endif
@@ -236,6 +261,13 @@ void phys_uart (int phy, int mbs, int which) {
 
 	mbs = (((mbs + 1) >> 1) << 1);
 
+#ifdef BLUETOOTH_PRESENT
+	if (which == BLUETOOTH_PRESENT - 1) {
+		ini_blue_regs;
+		blue_reset;
+	}
+#endif
+
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_uart");
 
@@ -253,10 +285,18 @@ void phys_uart (int phy, int mbs, int which) {
 #else
 		option,
 #endif
-			INFO_PHYS_UART + which);
 
-	INI_UART (which);
-	START_UART (which, 0x3);
+#if BLUETOOTH_PRESENT
+			((which == BLUETOOTH_PRESENT - 1) ?
+			  INFO_PHYS_UARTB :
+			    INFO_PHYS_UART)
+#else
+			INFO_PHYS_UART
+#endif
+				+ which);
+
+	INI_UART (UA);
+	START_UART (UA, 0x3);
 	// Start in the OFF state
 	UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
 

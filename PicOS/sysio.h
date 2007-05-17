@@ -95,7 +95,21 @@
 //+++ lcd_st7036.c
 #endif
 
-// ===========================================================================
+// BLUETOOTH through UART ====================================================
+
+#ifdef	BLUETOOTH_PRESENT
+#undef	BLUETOOTH_PRESENT
+#endif
+
+#if BLUETOOTH_LM20
+#define	BLUETOOTH_PRESENT	BLUETOOTH_LM20
+#endif
+
+#ifdef BLUETOOTH_PRESENT
+#if BLUETOOTH_PRESENT > UART_TCV
+#error "Bluetooth on serial requires UART_TCV >= BLUETOOTH_PRESENT"
+#endif
+#endif
 
 // DIAG MESSAGES =============================================================
 
@@ -928,6 +942,7 @@ void	adc_stop (void);
 #define INFO_PLUG_TARP          0x0002  /* TARP plugin */
 
 #define	INFO_PHYS_UART    	0x0100	/* Non-persistent UART */
+#define	INFO_PHYS_UARTB    	0x1100	/* Non-persistent UART + BlueTooth */
 #define	INFO_PHYS_UARTP		0x4100	/* Persistent UART */
 #define	INFO_PHYS_ETHER    	0x0200	/* Raw Ethernet */
 #define	INFO_PHYS_RADIO		0x0300	/* Radio */

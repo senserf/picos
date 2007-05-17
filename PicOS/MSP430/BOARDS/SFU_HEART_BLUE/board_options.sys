@@ -1,0 +1,38 @@
+#define	MALLOC_SINGLEPOOL		1
+#define DIAG_MESSAGES			0
+#define	TCV_PRESENT			1
+#define	TCV_TIMERS			0
+#define	TCV_HOOKS			0
+#define	CODE_LONG_INTS			1
+#define	MALLOC_SAFE			1
+#define	MALLOC_STATS			1
+#define STACK_GUARD			1
+#define ENTROPY_COLLECTION		1
+#define	RANDOM_NUMBER_GENERATOR		2
+
+#define LEDS_DRIVER			1
+#define LEDS_BLINKING			1
+#define	RADIO_USE_LEDS			3
+
+#define	ADC_SAMPLER			1
+
+#define	MONITOR_PIN_CPU			P1_0
+
+#define UART_DRIVER			0
+#define UART_TCV			2	/* Two UARTs, one for LM 2.0 */
+
+#define UART_RATE			115200
+#define UART_BITS			8
+#define UART_PARITY			0
+
+#define BLUETOOTH_LM20			2	/* Linkmatic 2.0 on UART 2 */
+
+#define CRYSTAL_RATE			32768
+#define	CRYSTAL2_RATE			6000000
+
+#define STORAGE_AT45XXX			1
+#define	LCD_ST7036			1
+
+#define RESET_ON_SYSERR			1
+#define RESET_ON_MALLOC			1
+#define UART_INPUT_BUFFER_LENGTH 	64

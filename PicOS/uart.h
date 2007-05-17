@@ -9,6 +9,8 @@
 // things up, such that the drivers (also for the non-phys version) will be
 // machine independent.
 
+#include "rfleds.h"
+
 #if UARTP_TCV
 #include "phys_uartp.h"
 #endif

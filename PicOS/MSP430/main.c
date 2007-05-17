@@ -851,7 +851,7 @@ static void preinit_uart () {
 /*
  * Note: the second UART doesn't want to work at 9600 with the standard slow
  * crystal. The xmitter is OK, but the receiver gets garbage. 4800 is fine. 
- * Also, things seem to work (up to 115200) with a high speed crystal.
+ * Also, things seem to work fine (up to 115200) with a high speed crystal.
  */
 #if N_UARTS > 1
 	// UART_B
@@ -910,8 +910,13 @@ static const uart_rate_t urates [] = {
 #define	N_RATES		(sizeof(urates) / sizeof(uart_rate_t))
 
 Boolean zz_uart_setrate (word rate, uart_t *ua) {
-
-	byte j;
+/*
+ * Note: dynamic rate setting for UART_B doesn't work, and I have no clue why.
+ * Have tried lots of tricks, including disabling, re-enabling, and so on.
+ * After a change, the UART gets into a weird state where it receives NULLs.
+ * UART_A is fine.
+ */ 
+	byte j, saveIE;
 
 	for (j = 0; j < N_RATES; j++) {
 		if (rate == urates [j] . rate) {
