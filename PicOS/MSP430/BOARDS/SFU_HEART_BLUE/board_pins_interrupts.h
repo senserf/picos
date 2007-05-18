@@ -5,8 +5,6 @@
 
 #ifdef	P1_INTERRUPT_SERVICE
 
-#include "irq_cc1100.h"
-
 if (heart_rate_counter_int) {
 
 	HeartRateIntervals [HRINext] = HRTimer;

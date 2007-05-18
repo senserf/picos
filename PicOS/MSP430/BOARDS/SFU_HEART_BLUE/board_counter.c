@@ -1,6 +1,7 @@
 #include "kernel.h"
 #include "pins.h"
 
+//+++ "p1irq.c"
 
 word	HeartRateIntervals [N_HEART_RATE_INTERVALS];
 word	HRINext;

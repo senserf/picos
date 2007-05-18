@@ -54,8 +54,7 @@
 
 // This one makes system messages go to UART_A. Also 'diag' becomes enabled
 // and useful for debugging (0/1). If DIAG_MESSAGES > 1, system error
-// messages are verbose. If DIAG_MESSAGES > 2, diag messages go to EEPROM
-// (which must be present and handled).
+// messages are verbose.
 #ifndef	DIAG_MESSAGES
 #define	DIAG_MESSAGES		2
 #endif
