@@ -1,8 +1,3 @@
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
-
 //+++ "board_counter.c"
 
 // Departures from default pre-initialization

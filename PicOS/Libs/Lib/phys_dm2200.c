@@ -348,6 +348,25 @@ void phys_dm2200 (int phy, int mbs) {
 
 	/* Initialize the device */
 	ini_dm2200 ();
+
+#if ENTROPY_COLLECTION
+#if FCC_TEST_MODE == 0
+	{
+		int i;
+		/* Use the RSSI to initialize entropy */
+		hstat (HSTAT_RCV);
+		for (i = 0; i < 8; i++) {
+			adc_start;
+			mdelay (8);
+			adc_stop;
+			adc_wait;
+			add_entropy (adc_value & 0x0f);
+			mdelay (1);
+		}
+		rssi_off;
+	}
+#endif
+#endif
 }
 
 static int option (int opt, address val) {

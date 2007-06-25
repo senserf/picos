@@ -1154,7 +1154,7 @@ R061016B:
 	the chip.
 
 	Caveat: if ACLK is driven by a high-speed crystal (as in GENESIS),
-	the watchdog is disabled when the powerd-own mode is entered (i.e.,
+	the watchdog is disabled when the power-down mode is entered (i.e.,
 	powerdown () is called). This is because the clock cannot then run
 	fast enough to clear the watchdog on time (the maximum watchdog
 	interval is too short). This shouldn't affect GENESIS, which never

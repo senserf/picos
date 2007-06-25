@@ -217,6 +217,7 @@ int main (void) {
 	// Run the scheduler
 
 #include "scheduler.h"
+
 }
 
 #if DIAG_MESSAGES > 1

@@ -57,7 +57,7 @@
 #define	AGGRESSIVE_XMITTER	1
 #define	DOUBLE_SYNC_WORD	0
 #define	BACKOFF_AFTER_RECEIVE	0
-#define	XMIT_SPACE		2	/* Inter packet space for xmit */
+#define	XMIT_SPACE		1	/* Inter packet space for xmit */
 #define	TXEND_POLL_DELAY	1	/* Milliseconds */
 
 #else

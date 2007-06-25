@@ -279,6 +279,7 @@ void	lcd_off ();
 void	lcd_clear (word, word);
 void	lcd_write (word, const char*);
 void	lcd_putchar (char);
+void	lcd_setp (word);
 
 #define	LCD_N_CHARS	(LCD_LINE_LENGTH * LCD_N_LINES)
 

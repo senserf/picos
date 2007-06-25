@@ -12,6 +12,8 @@
 //    Make sure P1 interrupts are coming
 //+++ "p1irq.c"
 
+#define	CC_BUSY_WAIT_FOR_EOT	1
+
 #define	ini_regs	do { \
 				_BIC (P1OUT, 0xE0); \
 				_BIS (P1DIR, 0xE0); \

@@ -25,7 +25,7 @@ static word	*rbuff = NULL,
 		bckf_timer = 0,
 
 		physid,
-		statid;
+		statid = 0;
 
 word		zzv_drvprcs, zzv_qevent;
 byte		zzv_iack,		// To resolve interrupt race
@@ -740,14 +740,16 @@ thread (cc1100_driver)
 
   entry (DR_SWAIT)
 
+#ifdef CC_BUSY_WAIT_FOR_EOT
+	while ((len = cc1100_status ()) == CC1100_STATE_TX);
+#else
 	if ((len = cc1100_status ()) == CC1100_STATE_TX) {
 		delay (TXEND_POLL_DELAY, DR_SWAIT);
 		release;
 	}
-
+#endif
 	guard_stop (WATCH_XMT | WATCH_PRG);
 	LEDI (1, 0);
-
 	bckf_timer = XMIT_SPACE;
 	proceed (DR_LOOP);
 

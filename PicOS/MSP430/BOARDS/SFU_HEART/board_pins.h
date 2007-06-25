@@ -1,8 +1,3 @@
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
-
 //+++ "board_counter.c"
 
 // Departures from default pre-initialization
@@ -17,17 +12,13 @@
 	PIN_DEF (P2, 7),	\
 	PIN_DEF	(P3, 0),	\
 	PIN_DEF	(P3, 1),	\
-	PIN_DEF	(P3, 2),	\
-	PIN_DEF	(P3, 3),	\
-	PIN_DEF	(P3, 6),	\
-	PIN_DEF	(P3, 7),	\
 	PIN_DEF	(P5, 4),	\
 	PIN_DEF	(P5, 5),	\
 	PIN_DEF	(P5, 6),	\
 	PIN_DEF	(P5, 7),	\
 }
 
-#define	PIN_MAX			11	// Number of pins
+#define	PIN_MAX			7	// Number of pins
 #define	PIN_MAX_ANALOG		0
 #define	PIN_DAC_PINS		0x0
 

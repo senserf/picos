@@ -135,5 +135,11 @@ void lcd_putchar (char c) {
 	}
 }
 
+void lcd_setp (word n) {
+
+	if ((Cursor = n) > LCD_N_CHARS)
+		Cursor = LCD_N_CHARS;
+}
+
 word lcd_nlines () { return LCD_N_LINES; }
 word lcd_llength () { return LCD_LINE_LENGTH; }

@@ -78,9 +78,18 @@ Redo:
 #endif
 	/* No process to run */
 
-#if SPIN_WHEN_HALTED == 0
-	SLEEP;
+#if SPIN_WHEN_HALTED
+	/* Keep spinning the CPU */
+#if ENTROPY_COLLECTION
+	entropy++;
 #endif
+
+#else	/* SPIN_WHEN_HALTED */
+
+	SLEEP;
+
+#endif	/* SPIN_WHEN_HALTED */
+
 	goto Redo;
 
 #if SCHED_PRIO
