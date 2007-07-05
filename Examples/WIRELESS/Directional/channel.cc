@@ -187,7 +187,7 @@ Long initChannel () {
 	readIn (COFF);
 
 	// This sets SEther
-	create RFShadow (NS, STB, STBL, RD, LossRD, Beta, Sigma, BN, COFF,
+	create RFShadow (NS, STB, STBL, RD, LossRD, Beta, Sigma, BN, BN, COFF,
 		MPR, BR, BPB, EFB, dir_gain, NULL, NULL);
 
 	return NS;

@@ -1,5 +1,5 @@
-SMURPH Version 2.50L      Ethernet1    Wed Aug  9 11:18:01 2006
-Call arguments: data_smp.txt junk
+SMURPH Version 2.90-OC      Ethernet1    Mon Jul  2 23:49:33 2007
+Call arguments: data_smp.txt junko
 
 Network topology
 

@@ -853,3 +853,12 @@
 	   from the source wherever it occurs. This is a way of adding some
 	   power to the concatenation mechanism of cpp macros - to allow
 	   concatenation of arbitrary token fragments. Quite handy.
+
+ R070704A  Operations 'transmit' and 'sendJam' converted from SMPP macros to
+	   regular methods to make it possible to use them from outside of 
+	   the process code method.
+	   Fixed a small bug in radio.cc: ACTIVITY/SILENCE was not rescheduled
+	   after start/end of own transmission.
+	   Options added to trace (global function settrace). It is also
+	   possible to diable trace from the program (manual updated).
+	   DCF module (rfmod_dcf.cc/rfmod_dcf.h) added to Examples/IncLib.

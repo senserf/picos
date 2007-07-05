@@ -42,15 +42,10 @@ double RFShadow::RFC_att (double xp, double d,
 Boolean RFShadow::RFC_act (double sl, double sn) {
 
 /*
- * We assume that the receiver hears nothing if the received
- * signal is at the background noise level. This isn't very
- * relevant as RFC_act should not be used for anything
- * serious. Perhaps we should use Gaussian randomization?
- *
  * Note: sn (receiver sensitivity) is a linear multiplier for the
  * received signal. I.e., 0dB means "standard sensitivity" of 1.
  */
-	return sl * sn > BNoise;
+	return sl * sn > BThrs;
 }
 
 double RFShadow::RFC_cut (double xp, double rp) {

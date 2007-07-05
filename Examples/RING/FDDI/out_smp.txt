@@ -1,5 +1,5 @@
-SMURPH Version 2.50L      FDDI    Wed Aug  9 11:19:49 2006
-Call arguments: data_smp.txt junk
+SMURPH Version 2.90-OC      FDDI    Mon Jul  2 23:50:18 2007
+Call arguments: data_smp.txt junko
 
 Network topology
 

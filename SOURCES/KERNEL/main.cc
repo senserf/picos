@@ -1633,13 +1633,41 @@ TIME    tRndTolerance   (TIME a, TIME b, int q) {
 #endif
 }
 
+static	FLAGS	trace_options = TRACE_OPTION_TIME;
+
+void settrace (FLAGS f) {
+
+	trace_options = f;
+}
+
 void trace (const char *s, ...) {
 
 	VA_TYPE	ap;
 
+	if (trace_options == 0)
+		// This can be used to switch tracing off from the program
+		return;
+
 	va_start (ap, s);
 
-	Ouf << "Time: " << Time << " --> " << ::vform (s, ap) << '\n';
+	if (trace_options & TRACE_OPTION_TIME) {
+		Ouf << "Time: " << Time;
+		if (trace_options & TRACE_OPTION_ETIME)
+			Ouf << ::form (" [%g] ", ituToEtu (Time));
+	} else if (trace_options & TRACE_OPTION_ETIME) {
+		Ouf << ::form ("Time: %g ", ituToEtu (Time));
+	}
+
+	if (trace_options & TRACE_OPTION_STATID)
+		Ouf << ::form ("<%1d> ", TheStation->getId ());
+
+	if (trace_options & TRACE_OPTION_PROCESS)
+		Ouf << ::form ("/%s/ ", TheProcess->getSName ());
+
+	if (trace_options & TRACE_OPTION_STATE)
+		Ouf << ::form ("+%s+ ", TheProcess->zz_sn (TheState));
+
+	Ouf << ::vform (s, ap) << '\n';
 	Ouf.flush ();
 }
 

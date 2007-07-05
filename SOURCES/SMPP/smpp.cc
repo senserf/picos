@@ -986,142 +986,6 @@ int     processTerminate (int del) {
 	return (YES);
 }
 
-int     processTransmit (int del) {
-
-/* --------------------------------------------- */
-/* Expands the ...->transmit (a, b) ... sequence */
-/* --------------------------------------------- */
-
-	// transmit (a, b) expands into 'zz_transmit (a, b)'
-
-	char    arg [MAXKWDLEN+1];
-	int     lc;
-
-	if (CodeType != PROCESS) return (NO);
-	if (del != '(') return (NO);
-	if (NoLink && NoRFC) {
-		xerror ("'transmit' illegal with -L and -X "
-			"(neither links nor radio channels present)");
-		return NO;
-	}
-
-	// Get the first argument
-
-	lc = getArg (arg);
-	if (lc == END || lc == ERROR) return (NO);
-	if (lc != ',') {
-		xerror ("event identifier missing");
-		return (NO);
-	}
-
-	putC ("zz_transmit (");
-	putC (arg);
-	putC (", ");
-
-	// The second argument should be an identifier
-
-	lc = getKeyword (arg);
-	if (lc == ERROR) return (NO);
-	if (lc == END) {
-TransErr:
-		xerror ("file ends in the middle of 'transmit'");
-		return (NO);
-	}
-
-	if (!isState (arg)) return (NO);
-	putC (arg);
-
-	if (lc == ',') {
-		// Third argument (possibly an expression)
-		if (! Tagging) {
-			xerror ("three-argument transmit requires '-p'");
-			return (NO);
-		}
-		lc = getArg (arg);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto TransErr;	
-		putC (',');
-		putC (arg);
-	}
-
-	if (lc != ')') {
-		xerror ("too many arguments to 'transmit'");
-		return (NO);
-	}
-
-	putC (')');
-
-	catchUp ();     // Catch up with the lookahead pointer
-	return (YES);
-}
-
-int     processSendJam (int del) {
-
-/* -------------------------------------------- */
-/* Expands the ...->sendJam (a, b) ... sequence */
-/* -------------------------------------------- */
-
-	// sendjam (a, b)
-	//
-	// expands into: 'startJam (), zz_AI_timer.wait (a, b)'
-
-	char    arg [MAXKWDLEN+1];
-	int     lc;
-
-	if (CodeType != PROCESS) return (NO);
-	if (del != '(') return (NO);
-	if (NoLink) {
-		xerror ("'sendJam' illegal with -L (no links)");
-		return NO;
-	}
-
-	// Get the first argument
-
-	lc = getArg (arg);
-	if (lc == END || lc == ERROR) return (NO);
-	if (lc != ',') {
-		xerror ("event identifier missing");
-		return (NO);
-	}
-
-	putC ("startJam (), zz_AI_timer.wait (");
-	putC (arg);
-	putC (", ");
-
-	// The second argument should be an identifier
-
-	lc = getKeyword (arg);
-	if (lc == ERROR) return (NO);
-	if (lc == END) {
-SjamErr:
-		xerror ("file ends in the middle of 'sendJam'");
-		return (NO);
-	}
-	if (!isState (arg)) return (NO);
-	putC (arg);
-	if (lc == ',') {
-		// Third argument (possibly an expression)
-		if (! Tagging) {
-			xerror ("three-argument sendJam requires '-p'");
-			return (NO);
-		}
-		lc = getArg (arg);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto SjamErr;	
-		putC (',');
-		putC (arg);
-	}
-	if (lc != ')') {
-		xerror ("too many arguments to 'sendJam'");
-		return (NO);
-	}
-
-	putC (')');
-
-	catchUp ();     // Catch up with the lookahead pointer
-	return (YES);
-}
-
 int     processGetDelay (int del) {
 
 /* --------------------------------------------- */
@@ -5281,7 +5145,6 @@ main (int argc, char *argv []) {
 	new KeyDesc ("exmode", processExmode);
 	new KeyDesc ("getDelay", processGetDelay, YES);
 	new KeyDesc ("setDelay", processSetDelay, YES);
-	new KeyDesc ("sendJam", processSendJam, YES);
 	new KeyDesc ("transient", processTransient);
 	new KeyDesc ("new", processNew);
 	new KeyDesc ("states", processStates);
@@ -5298,7 +5161,6 @@ main (int argc, char *argv []) {
 	new KeyDesc ("perform", processPerform);
 	new KeyDesc ("setup", processSetup);
 	new KeyDesc ("process", processProcess);
-	new KeyDesc ("transmit", processTransmit, YES);
 	new KeyDesc ("sleep", processSleep);
 	new KeyDesc ("skipto", processSkipto);
 	new KeyDesc ("station", processStation);

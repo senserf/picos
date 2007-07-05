@@ -22,6 +22,7 @@ rfchannel RFShadow : RadioChannel {
 	       Sigma,	// Gaussian (lognormal) loss component (std deviation)
 	       LFac,	// Ref distance ** Beta / loss at ref distance (lin)
 	       RDist,	// Reference distance
+	       BThrs,	// Channel busy signal threshold
 	       COSL;	// Cut-off signal level
 
 	Long   MinPr;	// Minimum number of preamble bits
@@ -47,6 +48,7 @@ rfchannel RFShadow : RadioChannel {
 		double be,		// Path loss exponent (Beta)
 		double sg,		// Gaussian lognormal component Sigma
 		double no,		// Background noise (dBm)
+		double bu,		// Channel busy signal threshold dBm
 		double co,		// Cut off signal level
 		Long mp,		// Minimum received preamble length
 		Long br,		// Bit rate
@@ -65,6 +67,7 @@ rfchannel RFShadow : RadioChannel {
 		NBeta = -be;		// The exponent is negative
 		OBeta = 1.0 / -be;
 		MinPr = mp;
+		BThrs = dBToLin (bu);
 		gain = g;
 	};
 };

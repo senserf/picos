@@ -1717,8 +1717,8 @@ void Transceiver::rcvOn () {
 void Transceiver::rcvOff () {
 
 	RxOn = NO;
-	reschedule_sil ();
 	reschedule_thl ();
+	reschedule_sil ();
 }
 
 void Transceiver::startTransfer (Packet *packet) {
@@ -1742,6 +1742,7 @@ void Transceiver::startTransfer (Packet *packet) {
 	if (RxOn) {
 		updateIF ();
 		reschedule_thh ();
+		reschedule_act ();
 	}
 
 	Info01 = (void*) (tpckt = &(Activity -> Pkt));      // ThePacket
@@ -1829,6 +1830,7 @@ void Transceiver::term_xfer (int evnt) {
 	if (RxOn) {
 		updateIF ();
 		reschedule_thl ();
+		reschedule_sil ();
 	}
 }
 
@@ -2257,9 +2259,9 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 			SchBOT->Stage = RFA_STAGE_APR;
 			if (D->RxOn) {
 				D->updateIF ();
-				D->reschedule_sil ();
 				D->reschedule_thl ();
 				D->reschedule_eop ();
+				D->reschedule_sil ();
 			}
 			SchBOT = SchBOT->next;
 			continue;
@@ -2307,9 +2309,9 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 			D->updateIF ();
 			// Complete and close this one
 			SchEOT->INT.update (0.0);
+			D->reschedule_thl ();
 			// This covers AEV, SILENCE, EOT, EMP ....
 			D->reschedule_eot (SchEOT);
-			D->reschedule_thl ();
 		}
 
 		// Remove it from the roster, it will be deallocated later

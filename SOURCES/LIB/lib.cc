@@ -1,5 +1,5 @@
 /* oooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06  P. Gburzynski */
+/* Copyright (C) 1991-07  P. Gburzynski */
 /* oooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -8,7 +8,7 @@
 #include "lib.h"
 #include "syshdr.h"
 
-#define	NFMTBUF	4	// Number of buffers for form
+#define	NFMTBUF	16	// Number of buffers for form
 #define	FMINISZ	64	// Initial size
 
 static	char	*fmtbuf [NFMTBUF];

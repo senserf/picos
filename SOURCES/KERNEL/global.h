@@ -703,8 +703,6 @@ int     zz_aerror (char*);              // Same, but after arithmetic error
 #endif
 void    zz_ierror (char*);              // Fatal error before starting
 
-void	trace (const char*, ...);
-
 #if	ZZ_NFP
 
 void 	zz_nfp (const char*);
@@ -3403,11 +3401,11 @@ class   Port : public AI {
 	// Transmit packet
 
 #if  ZZ_TAG
-	inline void zz_transmit (Packet*, int, LONG tag = 0L);
-	inline void zz_transmit (Packet&, int, LONG tag = 0L);
+	inline void transmit (Packet*, int, LONG tag = 0L);
+	inline void transmit (Packet&, int, LONG tag = 0L);
 #else
-	inline void zz_transmit (Packet*, int);
-	inline void zz_transmit (Packet&, int);
+	inline void transmit (Packet*, int);
+	inline void transmit (Packet&, int);
 #endif
 
 	// Convert bits to time
@@ -3417,6 +3415,10 @@ class   Port : public AI {
 	// Start jamming
 
 	void    startJam ();
+	inline void sendJam (TIME d, int st) {
+		startJam ();
+		zz_AI_timer . wait (d, st);
+	};
 
 	// Terminate transfer or jamming signal
 
@@ -4658,12 +4660,12 @@ class	Transceiver : public AI {
 	};
 
 #if  ZZ_TAG
-	inline void zz_transmit (Packet*, int, LONG tag = 0L);
-	inline void zz_transmit (Packet&, int, LONG tag = 0L);
+	inline void transmit (Packet*, int, LONG tag = 0L);
+	inline void transmit (Packet&, int, LONG tag = 0L);
 	void wait (int, int, LONG tag = 0L);
 #else
-	inline void zz_transmit (Packet*, int);
-	inline void zz_transmit (Packet&, int);
+	inline void transmit (Packet*, int);
+	inline void transmit (Packet&, int);
 	void wait (int, int);
 #endif
 
@@ -6221,6 +6223,19 @@ class   ZZ_KERNEL : public ZZ_SProcess {
 	}
 };
 
+/* ------------------------ */
+/* Global tracing functions */
+/* ------------------------ */
+
+#define	TRACE_OPTION_TIME		1
+#define	TRACE_OPTION_ETIME		2
+#define	TRACE_OPTION_STATID		4
+#define	TRACE_OPTION_PROCESS		8
+#define	TRACE_OPTION_STATE		16
+
+void	trace (const char*, ...);
+void	settrace (FLAGS);
+
 /* ---------------------------------------------------------- */
 /* Inline   functions   removed   from   objects  to  resolve */
 /* cross-reference conflicts                                  */
@@ -6229,7 +6244,7 @@ class   ZZ_KERNEL : public ZZ_SProcess {
 #if	ZZ_NOL
 
 #if  ZZ_TAG
-inline void Port::zz_transmit (Packet *p, int s, LONG tag) {
+inline void Port::transmit (Packet *p, int s, LONG tag) {
 
 	startTransfer (p);
 	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
@@ -6237,7 +6252,7 @@ inline void Port::zz_transmit (Packet *p, int s, LONG tag) {
 	Timer->wait ((TIME)TRate * (LONG)(p->TLength), s, tag);
 };
 
-inline void Port::zz_transmit (Packet &p, int s, LONG tag) {
+inline void Port::transmit (Packet &p, int s, LONG tag) {
 
 	startTransfer (&p);
 	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
@@ -6245,7 +6260,7 @@ inline void Port::zz_transmit (Packet &p, int s, LONG tag) {
 	Timer->wait ((TIME)TRate * (LONG)(p.TLength), s, tag);
 };
 #else
-inline void Port::zz_transmit (Packet *p, int s) {
+inline void Port::transmit (Packet *p, int s) {
 
 	startTransfer (p);
 	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
@@ -6253,9 +6268,9 @@ inline void Port::zz_transmit (Packet *p, int s) {
 	Timer->wait ((TIME)TRate * (LONG)(p->TLength), s);
 };
 
-inline void Port::zz_transmit (Packet &p, int s) {
+inline void Port::transmit (Packet &p, int s) {
 
-	zz_transmit (&p, s);
+	transmit (&p, s);
 };
 #endif
 
@@ -6316,28 +6331,28 @@ inline void RFChannel::stdpfmPAB (Packet *p) {
 };
 
 #if  ZZ_TAG
-inline void Transceiver::zz_transmit (Packet *p, int s, LONG tag) {
+inline void Transceiver::transmit (Packet *p, int s, LONG tag) {
 
 	// TRate verified by startTransfer
 	startTransfer (p);
 	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + Preamble, s, tag);
 };
 
-inline void Transceiver::zz_transmit (Packet &p, int s, LONG tag) {
+inline void Transceiver::transmit (Packet &p, int s, LONG tag) {
 
 	startTransfer (&p);
 	Timer->wait (RFC->RFC_xmt (TRate, p.TLength) + Preamble, s, tag);
 };
 #else
-inline void Transceiver::zz_transmit (Packet *p, int s) {
+inline void Transceiver::transmit (Packet *p, int s) {
 
 	startTransfer (p);
 	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + Preamble, s);
 };
 
-inline void Transceiver::zz_transmit (Packet &p, int s) {
+inline void Transceiver::transmit (Packet &p, int s) {
 
-	zz_transmit (&p, s);
+	transmit (&p, s);
 };
 #endif
 

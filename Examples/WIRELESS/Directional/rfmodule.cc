@@ -34,7 +34,7 @@ Xmitter::perform {
 
     state XM_LOOP:
 
-	// Wat here until the packet queue becomes non-empty
+	// Wait here until the packet queue becomes non-empty
 	if (S->PQ->empty ()) {
 		// No packet to transmit
 		S->PQ->wait (NONEMPTY, XM_LOOP);

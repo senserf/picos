@@ -13715,18 +13715,69 @@ This format string is used to interpret the remaining arguments (in the same way
 as in {\tt form}), which are encoded and written to the output file.
 The printout is automatically terminated by a new line, so the format string
 shouldn't end with one.
-The printed values of the arguments are preceded by the current simulated
-time.
+
+A line produced by {\tt trace}
+is preceded by a header, which by default looks like this:
+\begin{verbatim}
+        Time xxxxxxxxx: ...
+\end{verbatim}
+\noindent
+where the x's stand for the current simulated time in {\em ITU\/}s.
+This header can be modified by calling:
+\begin{verbatim}
+        void settrace (FLAGS opt);
+\end{verbatim}
+where {\tt opt} is a collection of additive flags identifying the different
+components of the {\tt trace} header.
+If {\tt opt} is zero, {\tt trace} is effectively disabled, i.e., its subsequent
+invocations in the program will produce no output until a next call to
+{\tt settrace} actually selects some options.
+Here are the values that can contribute to the arument of {\tt settrace}:
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt TRACE\_OPTION\_TIME}}\\ \hspace{0in}
+This option selects the standard header, i.e., current simulation time
+in {\em ITU\/}s.
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt TRACE\_OPTION\_ETIME}}\\ \hspace{0in}
+Includes the simulated time presented in {\em ETU\/}s---as a floating point
+number.
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt TRACE\_OPTION\_STATID}}\\ \hspace{0in}
+Includes the numerical {\tt Id} of the current station (\sect{rm_to_st_cu}).
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt TRACE\_OPTION\_PROCESS}}\\ \hspace{0in}
+Includes the standard name of the current process (\sect{rm_st_on}).
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt TRACE\_OPTION\_STATE}}\\ \hspace{0in}
+Includes the symbolic name of the state in which the current
+process has been awakened.
+This is independent of the previous option.
+\end{quote}
+
+Note that that the default component of the {\tt trace} header, represented by
+{\tt TRACE\_OPTION\_TIME}, will be removed if the argument of {\tt settrace}
+does not include this value.
+However, there is no way to produce a {\tt trace} line without a single header
+component because {\tt trace}~{(0)} diables {\tt trace} output completely.
 
 The concept of ``screen'' exposing (see \sect{rm_ex})
 is also useful in debugging.
 When an error occurs, e.g.,
 due to a failing {\tt assert} or {\tt Assert}, the program prints out,
-among other things, the modeled time of the failure.
-The user may call the program again under control of \dsd\
+among other things, the simulated time of the failure.
+Then you may call the program again under control of \dsd\
 (\sect{rm_ds}) requesting to halt the program some time before
 the error occurrence.
-Then it is possible to execute the protocol in the {\em step mode},
+Then you will be able to execute the protocol in the {\em step mode},
 examining individual events and their environment.
 
 \subsection{Observers}
