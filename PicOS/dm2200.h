@@ -43,11 +43,19 @@
  *               0       0       0       0       0       0       0       0
  */
 
+#ifndef	DM2200_CFG0
+#define	DM2200_CFG0	0x48
+#endif
+
+#ifndef	DM2200_CFG1
+#define	DM2200_CFG1	0x23
+#endif
+
 #define	CFG0_RCV_STOP	0x00
-#define	CFG0_XMT	0x48
+#define	CFG0_XMT	DM2200_CFG0
 #define	CFG0_OFF	0x80
 
-#define	CFG1		0x23
+#define	CFG1		DM2200_CFG1
 #define	LOSYN		0x00
 
 

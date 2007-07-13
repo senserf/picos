@@ -1,0 +1,11 @@
+#undef	FCC_TEST_MODE
+#undef	DIAG_MESSAGES
+#undef	RADIO_USE_LEDS
+
+
+
+#define	FCC_TEST_MODE		1
+#define	DM2200_CFG0		0x40
+#define	DM2200_CFG1		0x03
+#define	DIAG_MESSAGES		2
+#define	RADIO_USE_LEDS		7

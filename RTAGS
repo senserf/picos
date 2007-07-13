@@ -1412,3 +1412,10 @@ R070625A:
 	Added initial entropy acquisition to DM2200 based on RSSI collected
 	from radio noise.
 	A few adjustements to SFU heart monitor.
+
+R070712A:
+
+	Created an "experimental" version of SFU HeartForce board to be used
+	for trying different polling algorithm for missing samples. Added 
+	FCC to Apps/TEST to keep the recently requested FCC test version of
+	VERSA2 (and similar things requested in the future).
