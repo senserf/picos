@@ -1419,3 +1419,7 @@ R070712A:
 	for trying different polling algorithm for missing samples. Added 
 	FCC to Apps/TEST to keep the recently requested FCC test version of
 	VERSA2 (and similar things requested in the future).
+
+R070715A:
+	Minor updates and fixes for VUEE/TNP, also init in LibComms.
+

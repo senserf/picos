@@ -184,7 +184,7 @@ __PRIVF (TNode, int, radio_init) (word plug) {
 	else
 		tcv_plug (0, &plug_null);
 
-	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		diag ("%s: Cannot open tcv radio interface", myName);
 		return -1;
 	}
@@ -206,7 +206,7 @@ __PRIVF (TNode, int, cc1000_init) (word plug) {
 	else
 		tcv_plug (0, &plug_null);
 
-	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		diag ("%s: Cannot open CC1000 if", myName);
 		return -1;
 	}
@@ -225,7 +225,7 @@ __PRIVF (TNode, int, cc1100_init) (word plug) {
 		tcv_plug (0, &plug_tarp);
 	else
 		tcv_plug (0, &plug_null);
-	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		dbg_2 (0x2000); // Cannot open cc1100
 		diag ("%s: Cannot open CC1100 if", myName);
 		return -1;
@@ -272,7 +272,7 @@ __PRIVF (TNode, int, ether_init) (word plug) {
 		tcv_plug (0, &plug_null);
 
 	// state, phid, plid (indices, not ids)
-	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		diag ("%s: Cannot open tcv ethernet interface", myName);
 		return -1;
 	}
@@ -302,7 +302,7 @@ __PRIVF (TNode, int, uartp_init) (word plug) {
 	else
 		tcv_plug (0, &plug_null);
 
-	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		diag ("%s: Cannot open tcv uart_b interface", myName);
 		return -1;
 	}
@@ -334,7 +334,7 @@ __PRIVF (TNode, int, uart_init) (word plug) {
 	else
 		tcv_plug (0, &plug_null);
 
-	if ((fd = tcv_open (NONE, 0, 0)) < 0) {
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		diag ("%s: Cannot open tcv uart_b interface", myName);
 		return -1;
 	}
