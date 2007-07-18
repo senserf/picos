@@ -102,13 +102,29 @@ BITCOUNT        zz_NQBits,              // Number of queued bits
 
 Mailbox         *zz_ncmailbox = NULL;	// Temporary head for mailbox list
 
-/* --------- */
-/* Debugging */
-/* --------- */
-TIME            TracingTime;            // Trace flag (initially off)
-Long            TracedStation = NONE;   // Tracing all stations
-int             FullTracing = NO,       // Full trace flag
-		EndOfData = NO;         // EOF flag
+/* --------------------- */
+/* Debugging and tracing */
+/* --------------------- */
+#if	ZZ_DBG
+TIME		DebugTracingTimeStart,	// Initialized dyamically in main.c
+		DebugTracingTimeStop;
+int		DebugTracingFull = NO;
+Long		DebugTracingStation = ANY;
+
+// For initializing from double (specified as ETU)
+double		zz_debug_tracing_start_d = -1.0,
+		zz_debug_tracing_stop_d = -1.0;
+#endif
+
+TIME            TracingTimeStart, TracingTimeStop;
+Long            TracingStation = ANY;   // Tracing all stations
+
+FLAGS		zz_trace_options = TRACE_OPTION_TIME;
+
+double		zz_tracing_start_d = -1.0,
+		zz_tracing_stop_d = -1.0;
+
+int 		EndOfData = NO;         // EOF flag
 
 /* ------------------------------------- */
 /* Boundary conditions of the simulation */

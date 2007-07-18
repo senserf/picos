@@ -1739,7 +1739,7 @@ void    zz_print_debug_info () {
 	Ouf << '\n';
 
 #if ZZ_NOL || ZZ_NOR
-	if (FullTracing) {
+	if (DebugTracingFull) {
 	    int     i;
 	    char    hdr [256];
 #endif

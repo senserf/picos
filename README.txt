@@ -53,7 +53,7 @@
   ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
- |  Copyright (C) 1994-2006 P. Gburzynski                                     |
+ |  Copyright (C) 1994-2007 P. Gburzynski                                     |
   ----------------------------------------------------------------------------
 
        ----------------------------------------------------------------
@@ -862,3 +862,13 @@
 	   Options added to trace (global function settrace). It is also
 	   possible to diable trace from the program (manual updated).
 	   DCF module (rfmod_dcf.cc/rfmod_dcf.h) added to Examples/IncLib.
+
+ R070718A  Methods reassess an getPreambleTime added to Transceiver.
+	   Those assessment method for which it makes sense can now reference
+	   TheTransceiver and ThePacket to get hold of potentially useful
+	   "context" information.
+	   Template file name option changed to 'M'. Parameters of tracing
+	   redone: -t now controls exclusively the "user" trace operation,
+	   while -T applies to the state dumping available with -g. Also,
+	   settrace expanded to cover the timing parameters. Manual updated
+	   accordingly.

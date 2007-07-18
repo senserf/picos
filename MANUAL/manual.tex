@@ -23,6 +23,20 @@
 	\fi%
 }%
 
+
+\def\dllist#1{%
+	\begin{list}{[]}%
+		{\settowidth{\labelwidth}{#1}%
+		 \settowidth{\leftmargin}{#1}%
+		 \addtolength{\leftmargin}{2em}%
+		 \setlength{\itemsep}{0in}%
+		 \setlength{\labelsep}{1em}% 
+		}%
+\newcommand{\litem}[1]{\item[{\makebox[\labelwidth][l]{##1}}]}%
+}
+
+\newenvironment{llist}[1]{\dllist{#1}}{\end{list}}
+
 \newcommand{\fig}[1]{figure~\ref{fig.#1}}%
 \newcommand{\Fig}[1]{Figure~\ref{fig.#1}}%
 \newcommand{\tab}[1]{table~\ref{tab.#1}}%

@@ -9,6 +9,7 @@ void DataPacket::setup (Message *m) {
 	DCFP_S = Sender;
 	DCFP_Flags = 0;
 	DCFP_Type = DCFP_TYPE_DATA;
+	SN = ((Node*)TheStation) -> Serial++;
 }
 
 void initTraffic () {

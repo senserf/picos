@@ -42,7 +42,9 @@
 					 ErrorRun))
 
 static	Process	*rshandle = NULL;	// Roster service process handle
-static  Packet  *tpckt;         	// Triggering packet
+
+#define	tpckt (*((Packet**)(&Info01)))		// Triggering packet
+#define	txcvr (*((Transceiver**)(&Info02)))	// Transceiver in question
 
 static  IPointer    rinfo;          	// Used by wait functions
 static  ZZ_RSCHED   *tact;       	// Ditto
@@ -148,7 +150,10 @@ inline void ZZ_RSCHED::initSS () {
 
 inline void ZZ_RSCHED::initAct (double xpower) {
 
-	LVL_RSI = Destination->RFC->RFC_att (xpower, ituToDu (Distance),
+	txcvr = Destination;
+	tpckt = &(RFA->Pkt);
+	LVL_XPower = xpower;
+	LVL_RSI = Destination->RFC->RFC_att (LVL_XPower, ituToDu (Distance),
 		RFA->Tcv, Destination);
 	pool_in (this, Destination->Activities);
 	Destination->NActivities++;
@@ -282,6 +287,8 @@ inline double Transceiver::sigLevel () {
 		}
 	}
 
+	txcvr = this;
+
 	if (Activity) {
 		// Transmitter active
 		xm.Level = XPower;
@@ -289,6 +296,37 @@ inline double Transceiver::sigLevel () {
 		return RFC->RFC_add (na, NONE, ac, &xm);
 	}
 	return RFC->RFC_add (na, NONE, ac, NULL);
+}
+
+void Transceiver::reassess () {
+/*
+ * This one is heavy duty. Called to completely reassess the signals perceived
+ * by the transceiver. To be used after some attribute in the transceiver, that
+ * is used by RFC_att, changes. One example would be a directional antenna used
+ * for reception.
+ */
+	ZZ_RSCHED *a;
+	double sl, sn;
+
+	sl = sigLevel ();
+	
+	txcvr = this;
+
+	for (a = Activities; a != NULL; a = a->next) {
+		tpckt = &(a->RFA->Pkt);
+		a->LVL_RSI = RFC->RFC_att (a->LVL_XPower, ituToDu (a->Distance),
+			a->RFA->Tcv, this);
+	}
+	updateIF ();
+
+	sn = sigLevel ();
+	if (sn > sl) {
+		reschedule_thh ();
+		reschedule_act ();
+	} else if (sn < sl) {
+		reschedule_thl ();
+		reschedule_sil ();
+	}
 }
 
 inline ZZ_RF_ACTIVITY *Transceiver::gen_rfa (Packet *p) {
@@ -1745,8 +1783,8 @@ void Transceiver::startTransfer (Packet *packet) {
 		reschedule_act ();
 	}
 
-	Info01 = (void*) (tpckt = &(Activity -> Pkt));      // ThePacket
-	Info02 = (void*) (IPointer) (tpckt -> TP);          // TheTraffic
+	tpckt = &(Activity -> Pkt);      		// ThePacket (Info01)
+	Info02 = (void*) (IPointer) (tpckt -> TP); 	// TheTraffic
 }
 
 void Transceiver::term_xfer (int evnt) {
@@ -1761,8 +1799,8 @@ void Transceiver::term_xfer (int evnt) {
 	assert (Activity->EOTTime == TIME_inf, "Transceiver->stop/abort: "
 		"activity already stopped, internal error");
 
-	Info01 = (void*) (tpckt = &(Activity -> Pkt));       // ThePacket
-	Info02 = (void*) (IPointer) (tpckt->TP);             // TheTraffic
+	tpckt = &(Activity -> Pkt);       		// ThePacket
+	Info02 = (void*) (IPointer) (tpckt->TP);        // TheTraffic
 
 	if (evnt == EOT) {
 		RFC->spfmPTR (tpckt);
@@ -1844,6 +1882,8 @@ void Transceiver::updateIF () {
 		// Do nothing if the receiver is switched off
 		return;
 
+	txcvr = this;
+
 	for (na = 0, a = Activities; a != NULL; a = a->next) {
 		if (a->Done)
 			continue;
@@ -1903,7 +1943,7 @@ void Transceiver::reschedule_thh () {
 
 void Transceiver::reschedule_thl () {
 /*
- * Handles signal level going up
+ * Handles signal level going down
  */
 	ZZ_REQUEST	*rq;
 	ZZ_EVENT	*ev;
@@ -2009,12 +2049,14 @@ Packet *Transceiver::findRPacket () {
  */
 	ZZ_RSCHED	*a;
 
+	txcvr = this;
 	for (a = Activities; a != NULL; a = a->next) {
 		if (a->within_packet () && !a->Killed) {
 			a->INT.update ();
+			tpckt = &(a->RFA->Pkt);
 			if (RFC->RFC_eot (a->RFA->TRate, a->LVL_RSI,
 				RPower, &(a->INT)))
-					return &(a->RFA->Pkt);
+					return tpckt;
 		}
 	}
 	return NULL;
@@ -2026,6 +2068,8 @@ void Transceiver::reschedule_sil () {
  */
 	ZZ_REQUEST      *rq;
 	ZZ_EVENT        *ev;
+
+	txcvr = this;
 
 	if (RxOn && RFC->RFC_act (sigLevel (), RPower))
 		return;
@@ -2056,6 +2100,8 @@ void Transceiver::reschedule_act () {
  */
 	ZZ_REQUEST      *rq;
 	ZZ_EVENT        *ev;
+
+	txcvr = this;
 
 	if (RFC->RFC_act (sigLevel (), RPower) == NO)
 		return;
@@ -2089,6 +2135,7 @@ void Transceiver::reschedule_bot (ZZ_RSCHED *rfa) {
 	ZZ_REQUEST      *rq;
 	ZZ_EVENT        *ev;
 
+	txcvr = this;
 	if (RFC->RFC_bot (rfa->RFA->TRate, rfa->LVL_RSI, RPower, &(rfa->INT))) {
 		// Receivable
 		for (rq = RQueue [BOT]; rq != NULL; rq = rq->next) {
@@ -2153,8 +2200,9 @@ void Transceiver::reschedule_eot (ZZ_RSCHED *rfa) {
 	ZZ_REQUEST      *rq;
 	ZZ_EVENT        *ev;
 
-	if (!rfa->Killed && RFC->RFC_eot (rfa->RFA->TRate, rfa->LVL_RSI,
-	    RPower, &(rfa->INT))) {
+	txcvr = this;
+	if (!rfa->Killed && RFC->RFC_eot (rfa->RFA->TRate, rfa->LVL_RSI, RPower,
+	   &(rfa->INT))) {
 		// Receivable
 		for (rq = RQueue [EOT]; rq != NULL; rq = rq->next) {
 
@@ -2730,8 +2778,12 @@ Redo:
 					// Not yet
 					return NO;
 				a->INT.update ();
-				return !RFC->RFC_eot (a->RFA->TRate,
-					a->LVL_RSI, RPower, &(a->INT));
+
+				tpckt = (Packet*) p;
+				txcvr = this;
+
+				return RFC->RFC_eot (a->RFA->TRate, a->LVL_RSI,
+					RPower, &(a->INT));
 			}
 		}
 		// FIXME: I am not sure if this is the right thing to
@@ -3037,8 +3089,8 @@ void    Transceiver::wait (int ev, int pstate) {
 	}
 
 	rinfo = (IPointer) this;
-
 	t = TIME_inf;
+	txcvr = this;
 
 	if (RxOn) {
 
@@ -3096,10 +3148,10 @@ void    Transceiver::wait (int ev, int pstate) {
 			if (a->Schedule == Time && a->Stage == RFA_STAGE_BOT) {
 				// Hasn't been processed by handleEvent yet
 				a->INT.update ();
+				tpckt = &(a->RFA->Pkt);
 				if (RFC->RFC_bot (a->RFA->TRate, a->LVL_RSI,
 				    RPower, &(a->INT))) {
 					TracedActivity = a;
-					tpckt = &(a->RFA->Pkt);
 					t = Time;
 					break;
 				}
@@ -3127,10 +3179,10 @@ void    Transceiver::wait (int ev, int pstate) {
 			if (a->Schedule == Time && a->Stage == RFA_STAGE_BOT) {
 				// Hasn't been processed by handleEvent yet
 				a->INT.update ();
+				tpckt = &(a->RFA->Pkt);
 				if (RFC->RFC_bot (a->RFA->TRate, a->LVL_RSI,
 				    RPower, &(a->INT))) {
 					TracedActivity = a;
-					tpckt = &(a->RFA->Pkt);
 					t = Time;
 					break;
 				}
@@ -3167,9 +3219,10 @@ void    Transceiver::wait (int ev, int pstate) {
 			if (a->Schedule == Time && a->Stage == RFA_STAGE_EOT) {
 				// Hasn't been process by handleEvent yet
 				a->INT.update ();
-				if (RFC->RFC_eot (a->RFA->TRate, a->LVL_RSI,
-	    			    RPower, &(a->INT))) {
-					tpckt = &(a->RFA->Pkt);
+
+				tpckt = &(a->RFA->Pkt);
+	    			if (RFC->RFC_eot (a->RFA->TRate, a->LVL_RSI,
+				    RPower, &(a->INT))) {
 					t = Time;
 					break;
 				}
@@ -3196,9 +3249,10 @@ void    Transceiver::wait (int ev, int pstate) {
 			if (a->Schedule == Time && a->Stage == RFA_STAGE_EOT) {
 				// Hasn't been process by handleEvent yet
 				a->INT.update ();
-				if (RFC->RFC_eot (a->RFA->TRate, a->LVL_RSI,
-	    			    RPower, &(a->INT))) {
-					tpckt = &(a->RFA->Pkt);
+
+				tpckt = &(a->RFA->Pkt);
+	    			if (RFC->RFC_eot (a->RFA->TRate, a->LVL_RSI,
+				    RPower, &(a->INT))) {
 					t = Time;
 					break;
 				}
@@ -3405,7 +3459,7 @@ void Transceiver::dspEvnt (int *elist) {
 /* ====================================================== */
 
 	ZZ_RSCHED	*a;
-	int ev;
+	int 		ev;
 /*
  *  ACT, BOP, BOT, EOT, BMP, EMP, ANY, PRE, PAC, KIL, OWN
  *   0    1    2    3    4    5    6    7    8    9   10
@@ -3439,6 +3493,7 @@ void Transceiver::dspEvnt (int *elist) {
 				continue;
 			} else {
 				// Assessed events
+				tpckt = &(a->RFA->Pkt);
 				if (ev == BOT) {
 					// Assessment needed
 					a->INT.update ();
@@ -3453,7 +3508,8 @@ void Transceiver::dspEvnt (int *elist) {
 				}
 				if (ev == EOT) {
 					a->INT.update ();
-					if (RFC->RFC_eot (a->RFA->TRate,
+
+	    				if (RFC->RFC_eot (a->RFA->TRate,
 					    a->LVL_RSI, RPower, &(a->INT))) {
 						elist [3] ++;
 						if (a->RFA->Pkt.isMy (Owner))
@@ -3655,7 +3711,8 @@ void RFChannel::exPrtRfa (int sid, const RFChannel *which) {
 			// Avoid duplicate listing
 			continue;
 
-		if (which != NULL && (tcv = rfa->Tcv)->RFC != which)
+		tcv = rfa->Tcv;
+		if (which != NULL && tcv->RFC != which)
 			// Not our RFChannel
 			continue;
 
@@ -3675,9 +3732,9 @@ void RFChannel::exPrtRfa (int sid, const RFChannel *which) {
 		Ouf << ' ';
 		ptime (rfa->EOTTime, 15);
 		if (rfa->Aborted)
-			Ouf << '*';
+			Ouf << "* ";
 		else
-			Ouf << ' ';
+			Ouf << "  ";
 
 		if (isStationId (rfa->Pkt.Receiver))
 			print (zz_trunc (rfa->Pkt.Receiver, 5), 5);
@@ -4188,7 +4245,7 @@ void    Transceiver::exPrint1 (const char *hdr) {
 
 	Ouf << '\n';
 
-	Ouf << " Sndr  Rcvr Tp Length ST           Time   LvlOwn   LvlCur" <<
+	Ouf << " Sndr   Rcvr Tp Length ST           Time   LvlOwn   LvlCur" <<
 		"   LvlMax   LvlAve";
 #if ZZ_DBG
 	Ouf << "  Signature";
@@ -4202,9 +4259,11 @@ void    Transceiver::exPrint1 (const char *hdr) {
 		if (isStationId (p->Sender))
 			print (zz_trunc (p->Sender, 5), 5);
 		else if (p->Sender == NONE)
-			printf ("none", 5);
+			print ("none", 5);
 		else
-			printf ("inv", 5);
+			print ("inv", 5);
+
+		Ouf << ' ';
 
 		if (isStationId (p->Receiver))
 			print (zz_trunc (p->Receiver, 5), 6);
@@ -4234,6 +4293,7 @@ void    Transceiver::exPrint1 (const char *hdr) {
 #if ZZ_DBG
 		print (zz_trunc (p->Signature, 10), 11);
 #endif
+		Ouf << '\n';
 	}
 
 	for (a = Activities; a != NULL; a = a -> next) {
@@ -4243,9 +4303,9 @@ void    Transceiver::exPrint1 (const char *hdr) {
 		if (isStationId (p->Sender))
 			print (zz_trunc (p->Sender, 5), 5);
 		else if (p->Sender == NONE)
-			printf ("none", 6);
+			print ("none", 6);
 		else
-			printf ("inv", 6);
+			print ("inv", 6);
 
 		Ouf << ' ';
 
@@ -4291,6 +4351,7 @@ void    Transceiver::exPrint1 (const char *hdr) {
 #if ZZ_DBG
 		print (zz_trunc (p->Signature, 10), 10);
 #endif
+		Ouf << '\n';
 	}
 
 	Ouf << "\n(" << getOName () << ") End of list\n\n";

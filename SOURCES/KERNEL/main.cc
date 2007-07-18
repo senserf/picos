@@ -188,6 +188,19 @@ void    buildNetwork () {
 
 	if (!zz_flg_started) {
 
+		// Convert tracing timing from double
+		if (zz_tracing_start_d >= 0.0)
+			TracingTimeStart = etuToItu (zz_tracing_start_d);
+		if (zz_tracing_stop_d >= 0.0)
+			TracingTimeStop = etuToItu (zz_tracing_stop_d);
+#if	ZZ_DBG
+		if (zz_debug_tracing_start_d >= 0.0)
+			DebugTracingTimeStart =
+				etuToItu (zz_debug_tracing_start_d);
+		if (zz_debug_tracing_stop_d >= 0.0)
+			DebugTracingTimeStop =
+				etuToItu (zz_debug_tracing_stop_d);
+#endif
 		s = TheStation;
 		p = TheProcess;
 		TheStation = System;
@@ -758,8 +771,14 @@ int main (int argc, char *argv []) {
 	// Initialize the divisor for rnd
 	initrnd ();
 #endif
+        // Cannot initialize statically. Note that user tracing is by
+	// default on, while debug tracing is off.
+	TracingTimeStart = TIME_0;
+	TracingTimeStop = TIME_inf;
 
-	TracingTime = TIME_inf;         // Cannot initialize statically
+#if  ZZ_DBG
+	DebugTracingTimeStart = DebugTracingTimeStop = TIME_inf;
+#endif
 	zz_max_Time = TIME_inf;
 
 	// Initialize event queue sentinels
@@ -1300,11 +1319,9 @@ CSTOP:
 
 #endif	/* NOL || NOR */
 
-#if     ZZ_DBG
-		// Check if tracing is on and, if appropriate, print out debug
-		// information
-
-		if (Debugging) zz_print_debug_info ();
+#if	ZZ_DBG
+		if (DebugTracing)
+			zz_print_debug_info ();
 #endif
 		// Initialize new request chain for the process
 		zz_c_first_wait = YES;
@@ -1633,38 +1650,98 @@ TIME    tRndTolerance   (TIME a, TIME b, int q) {
 #endif
 }
 
-static	FLAGS	trace_options = TRACE_OPTION_TIME;
+void setTrace (int full) {
+#if ZZ_DBG
+	DebugTracingFull = full ? YES : NO;
+#endif	/* DBG */
+}
 
-void settrace (FLAGS f) {
+void setTrace (int full, Long st) {
+#if ZZ_DBG
+	DebugTracingFull = full ? YES : NO;
+	DebugTracingStation = isStationId (st) ? st : ANY;
+#endif	/* DBG */
+}
 
-	trace_options = f;
+void setTrace (int full, Long st, TIME be) {
+#if ZZ_DBG
+	setTrace (full, st);
+	DebugTracingTimeStart = be;
+#endif	/* DBG */
+}
+
+void setTrace (int full, Long st, TIME be, TIME en) {
+#if ZZ_DBG
+	setTrace (full, st, be);
+	DebugTracingTimeStop = en;
+#endif	/* DBG */
+}
+
+void setTrace (int full, Long st, double be) {
+#if ZZ_DBG
+	setTrace (full, st, etuToItu (be));
+#endif	/* DBG */
+}
+
+void setTrace (int full, Long st, double be, double en) {
+#if ZZ_DBG
+	setTrace (full, st, etuToItu (be), etuToItu (en));
+#endif	/* DBG */
+}
+
+void settrace (FLAGS f) { zz_trace_options = f; }
+
+void settrace (FLAGS f, Long st) {
+	zz_trace_options = f;
+	TracingStation = isStationId (st) ? st : ANY;
+}
+
+void settrace (FLAGS f, Long st, TIME be) {
+	settrace (f, st);
+	TracingTimeStart = be;
+}
+
+void settrace (FLAGS f, Long st, TIME be, TIME en) {
+	settrace (f, st, be);
+	TracingTimeStop = en;
+}
+
+void settrace (FLAGS f, Long st, double be) {
+	settrace (f, st, etuToItu (be));
+}
+
+void settrace (FLAGS f, Long st, double be, double en) {
+	settrace (f, st, etuToItu (be), etuToItu (en));
 }
 
 void trace (const char *s, ...) {
 
 	VA_TYPE	ap;
 
-	if (trace_options == 0)
-		// This can be used to switch tracing off from the program
-		return;
+	if (zz_trace_options == 0 ||
+		Time <  TracingTimeStart ||
+		Time >= TracingTimeStop ||
+		(TracingStation != ANY &&
+		    TracingStation != TheStation->getId ()))
+			return;
 
 	va_start (ap, s);
 
-	if (trace_options & TRACE_OPTION_TIME) {
+	if (zz_trace_options & TRACE_OPTION_TIME) {
 		Ouf << "Time: " << Time;
-		if (trace_options & TRACE_OPTION_ETIME)
-			Ouf << ::form (" [%g] ", ituToEtu (Time));
-	} else if (trace_options & TRACE_OPTION_ETIME) {
-		Ouf << ::form ("Time: %g ", ituToEtu (Time));
+		if (zz_trace_options & TRACE_OPTION_ETIME)
+			Ouf << ::form (" [%8.6f] ", ituToEtu (Time));
+	} else if (zz_trace_options & TRACE_OPTION_ETIME) {
+		Ouf << ::form ("Time: %8.6f ", ituToEtu (Time));
 	}
 
-	if (trace_options & TRACE_OPTION_STATID)
+	if (zz_trace_options & TRACE_OPTION_STATID)
 		Ouf << ::form ("<%1d> ", TheStation->getId ());
 
-	if (trace_options & TRACE_OPTION_PROCESS)
+	if (zz_trace_options & TRACE_OPTION_PROCESS)
 		Ouf << ::form ("/%s/ ", TheProcess->getSName ());
 
-	if (trace_options & TRACE_OPTION_STATE)
+	if (zz_trace_options & TRACE_OPTION_STATE)
 		Ouf << ::form ("+%s+ ", TheProcess->zz_sn (TheState));
 
 	Ouf << ::vform (s, ap) << '\n';

@@ -26,9 +26,22 @@
 
 // Tracing options: switch them on (set to 1) to see various traces in the
 // output file.
-#define	TRACE_PACKETS		1
+#define	TRACE_PACKETS		0
 #define	TRACE_ROUTES		0
-#define	TRACE_RTABLES		0
+
+// Number of re-forwarding tries on RFM drop
+#define	MAX_ROUTE_TRIES		3
+
+// A small distance used as EPSILON
+#define	TINY_DISTANCE		0.01	// This is 1 cm
+
+// Reliability parameters
+#define	RELIABILITY_MIN		0.0
+#define	RELIABILITY_MAX		1.0
+#define	RELIABILITY_INC		0.1	// Increment on HELLO
+#define	RELIABILITY_THS		0.7
+#define	RELIABILITY_STP		0.2
+#define	RELIABILITY_ACC		0.1
 
 packet WDPacket : DCFPacket {
 
@@ -36,8 +49,9 @@ packet WDPacket : DCFPacket {
 	// all packets have some standard attributes (which are not mentioned
 	// here). For example Sender is the transport sender of the packet.
 
-	Long	SN;	// Serial number for
-	int	TTL;	// Time to live
+	Long	SN;		// Serial number for
+	unsigned short TTL;	// Time to live
+	unsigned short Retries;	// Routing retries
 };
 
 packet HelloPacket : WDPacket {
@@ -60,9 +74,23 @@ packet DataPacket : WDPacket {
 
 };
 
+class MY_RFModule : public RFModule {
+
+	public:
+
+	void rcv_data (DCFPacket*, double);
+	void suc_data (DCFPacket*, Long);
+	void fai_data (DCFPacket*);
+	void col_data ();
+
+	MY_RFModule (Transceiver *t, Long pqs, Long nret) : RFModule (t, pqs, nret) { };
+
+};
+
 struct RTE_s {
 
-	// Routing table entry: describes the wherebouts of a single node
+	// Routing table entry: describes the location of one prospective
+	// destination
 
 	struct RTE_s *prev, *next;	// Needed by the pooling operations
 
@@ -75,9 +103,7 @@ typedef	struct RTE_s RTE_i;
 
 class RTable {
 
-	// The oouting table. This may be too grandiose a word for the present
-	// version, but I am sure you will turn this into something more
-	// impresive.
+	// The routing table, i.e., the list of destinations we know about
 
 	RTE_i *Head;
 
@@ -86,30 +112,60 @@ class RTable {
 	// Look up a node and get its coordinates
 	Boolean getCoords (Long, double&, double&);
 
-	// Add/update node coordinates
+	// Add/update destination info
 	void update (Long, double, double);
-
-	// Find the best neighbor towards which the packet should be sent
-	Long route (Long, double, double, double);
-
-	// Delete obsolte entries. Only used for the Neighbors pool.
-	void deleteOld (TIME);
-
-#if TRACE_RTABLES
-
-	void dump (const char *a) {
-		RTE_i *pe;
-		trace ("RTable %s at %1d", a, TheStation->getId ());
-		for_pool (pe, Head)
-			trace ("  %1d %f %f [TS = %f]", pe->A, pe->X, pe->Y,
-				ituToEtu (pe->TStamp));
-	};
-#endif
 
 	RTable () {
 		// Starts as empty
 		Head = NULL;
 	};
+};
+
+struct NTE_s {
+
+	// Neighbor table entry: describes the parameters of one neighbor
+
+	struct NTE_s *prev, *next;	// Needed by the pooling operations
+
+	TIME TStamp;			// Time stamp (when last set or updated)
+	Long A;				// Node address
+	double X, Y;			// Coordinates
+	double RSSI;			// Signal strength (neighbors only)
+	double Reliability;
+};
+
+typedef	struct NTE_s NTE_i;
+
+class NTable {
+
+	// The neighbor table - describing the population of currently known
+	// neighbors
+
+	NTE_i *Head;
+
+	public:
+
+	// Add/update neighbor info
+	void update (Long, double, double, double rssi);
+
+	// Find the best neighbor to which the packet should be forwarded
+	Long route (Long, double, double, double);
+
+	// Mark neighbor as unreliable
+	void unreliable (Long);
+
+	// Delete obsolte entries
+	void deleteOld (TIME);
+
+	NTable () {
+		// Starts as empty
+		Head = NULL;
+	};
+};
+
+inline double ema (double ol, double ne, double alpha) {
+// Exponential moving average
+	return (ne * alpha + ol * (1.0 - alpha));
 };
 
 struct PCache_s {
@@ -150,10 +206,11 @@ station Node {
 	DataPacket Buffer;	// For outgoing session packets
 	Transceiver *RFI;	// The RF interface
 
-	RFModule *RFM;
+	MY_RFModule *RFM;
 
-	RTable	*Neighbors,	// The neighbor pool
-		*NetMap;	// Node coordinate database
+	NTable	*Neighbors;	// The neighbor pool
+
+	RTable 	*NetMap;	// Node coordinate database
 
 	PCache 	*PC;		// Packet cache for duplicate rejection
 

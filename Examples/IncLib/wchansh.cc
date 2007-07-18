@@ -114,7 +114,7 @@ Boolean RFShadow::RFC_eot (RATE r, double sl, double sn, const IHist *h) {
  * going to abort a reception in progress on the first error bit. Thus, if
  * EOT is ever reached, it is bound to be OK.
  */
-	return YES;
+	return TheTransceiver->isFollowed (ThePacket);
 }
 
 #endif

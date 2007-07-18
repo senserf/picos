@@ -68,11 +68,22 @@
 #endif
 #define Assert(a,b, ...) do { if (!(a)) excptn (b, ## __VA_ARGS__); } while (0)
 
-/* ------------------------------------------------------ */
-/* A macro telling whether the protocol is being debugged */
-/* ------------------------------------------------------ */
-#define Debugging        (def (TracingTime) && (Time >= TracingTime) &&\
-    (TracedStation == NONE || TracedStation == TheStation->getId ()))
+// Macros telling whether we are being traced
+#if ZZ_DBG
+#define	DebugTracing	( \
+				Time >= DebugTracingTimeStart && \
+				Time <  DebugTracingTimeStop && \
+				(  DebugTracingStation == ANY || \
+				   DebugTracingStation == TheStation->getId ()))
+#else
+#define	DebugTracing	0
+#endif
+
+#define	Tracing		( \
+				Time >= TracingTimeStart && \
+				Time <  TracingTimeStop && \
+				(  TracingStation == ANY || \
+				   TracingStation == TheStation->getId () ))
 
 /* --------------------- */
 /* Pointers to fixed AIs */
@@ -1903,8 +1914,21 @@ extern  int                    TheState;
 extern  void                   *Info01, *Info02, *zz_mbi;
 extern  ZZ_EVENT               zz_fsent, zz_rsent, *zz_sentinel_event;
 extern  ZZ_REQUEST             *zz_nqrqs;
-extern  TIME                   TracingTime;
-extern  Long                   TracedStation;
+
+// Tracing variables (soft + hard)
+
+extern  TIME                   TracingTimeStart, TracingTimeStop;
+extern  Long                   TracingStation;
+
+#if	ZZ_DBG
+extern	TIME		       DebugTracingTimeStart,
+			       DebugTracingTimeStop;
+
+extern	Long		       DebugTracingStation;
+#endif
+
+// -------------------------------
+
 extern  volatile int           DisplayActive;
 extern  ZZ_SYSTEM              *System;
 extern  int                    zz_dispfound;    // A flag for screen exposures
@@ -4129,7 +4153,12 @@ class ZZ_RSCHED {
 	unsigned char	Stage;
 
 	// Received signal strength
-	double		LVL_RSI;
+	double		LVL_RSI,
+	// Original transmitted power; needed in those rare cases when some
+	// attribute of receiver (used by RFC_att) changes half way through
+	// packet perception, and we have to re-assess the signal level using
+	// its original transmitted power.
+			LVL_XPower;
 
 	/*
 	 * This one is for calculating interference statistics
@@ -4685,6 +4714,9 @@ class	Transceiver : public AI {
 	double 	setMinDistance (double);
 	Boolean	setAevMode (Boolean);
 	Boolean follow (Packet *p = NULL);
+	inline Boolean isFollowed (Packet*);
+
+	void reassess ();
 
 #if	ZZ_R3D
 
@@ -4722,6 +4754,7 @@ class	Transceiver : public AI {
 
 	inline	RATE	getTRate () { return TRate; };
 	Long	getPreamble ();
+	TIME	getPreambleTime () { return Preamble; };
 	inline	double	getXPower () { return XPower; };
 	inline	double	getRPower () { return RPower; };
 	inline	IPointer getTag () { return Tag; };
@@ -6235,6 +6268,19 @@ class   ZZ_KERNEL : public ZZ_SProcess {
 
 void	trace (const char*, ...);
 void	settrace (FLAGS);
+void	settrace (FLAGS, Long);
+void	settrace (FLAGS, Long, TIME);
+void	settrace (FLAGS, Long, TIME, TIME);
+void	settrace (FLAGS, Long, double);
+void	settrace (FLAGS, Long, double, double);
+
+// These are void if not ZZ_DBG
+void	setTrace (int);
+void	setTrace (int, Long);
+void	setTrace (int, Long, TIME);
+void	setTrace (int, Long, TIME, TIME);
+void	setTrace (int, Long, double);
+void	setTrace (int, Long, double, double);
 
 /* ---------------------------------------------------------- */
 /* Inline   functions   removed   from   objects  to  resolve */
@@ -6355,6 +6401,10 @@ inline void Transceiver::transmit (Packet &p, int s) {
 	transmit (&p, s);
 };
 #endif
+
+inline Boolean Transceiver::isFollowed (Packet *p) {
+	return TracedActivity != NULL && p == &(TracedActivity->RFA->Pkt);
+};
 
 #endif	/* ZZ_NOR */
 

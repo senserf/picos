@@ -105,9 +105,16 @@ extern  Mailbox         *zz_ncmailbox;
 /* --------- */
 /* Debugging */
 /* --------- */
+#if	ZZ_DBG
+extern	int		DebugTracingFull;
 
-extern  int             FullTracing,            // Full trace flag
-			EndOfData;              // EOF flag
+extern	double		zz_debug_tracing_start_d, zz_debug_tracing_stop_d;
+#endif
+
+extern	FLAGS		zz_trace_options;
+extern	double		zz_tracing_start_d, zz_tracing_stop_d;
+
+extern  int 		EndOfData;              // EOF flag
 
 /* ------------------------------------- */
 /* Boundary conditions of the simulation */

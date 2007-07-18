@@ -56,15 +56,17 @@ static void bad_arguments () {
 	cerr << "    Options:\n";
 	cerr << "     -r [n [n [n]]]  setting rnd seeds\n";
 	cerr << "     -d              hang until display server connected\n";
-	cerr << "     -t [n] [s]      start tracing at n ITUs for station s\n";
-	cerr << "     -f              full tracing (together with -t)\n";
+	cerr << "     -t frm-to/s     trace on from frm until to for stat s\n";
+#if ZZ_DBG
+	cerr << "     -t frm-to/s[+]  debug trace on\n";
+#endif
 	cerr << "     -o              echo topology def to output file\n";
 #if	ZZ_NOC
 	cerr << "     -c              empty message queues\n";
 	cerr << "     -u              disable standard client\n";
 #endif
 	cerr << "     -s              system event info to be exposed\n";
-        cerr << "     -T fn           template file name\n";
+        cerr << "     -M fn           template file name\n";
 #if     ZZ_TOL
 	cerr << "     -k t q          define clock tolerance and quality\n";
 #endif
@@ -164,6 +166,106 @@ void    zz_ierror (char *t) {
 	exit (20);
 }
 
+static int decode_tracing_arg (int argc, char *argv [],
+		Long &st, TIME &be, TIME &en, double &bef, double &enf) {
+
+// Decodes the trace parameters argument for 't' and 'T'
+
+	int i, j;
+	char *ap, *ep;
+	char numc [2][65];
+	Boolean fl;
+
+	if (argc == 0 ||
+	    (**argv != '/' && **argv != '+' && **argv < '0' && **argv > '9')) {
+		// The defaults
+		be = TIME_0;
+		// The stop time already initialized to TIME_inf; also, st
+		// already initialized to ANY
+		return -1;
+	}
+
+	// We have something that looks like an argument
+	ap = *argv;
+	fl = NO;
+	i = 0;
+	do {
+		// Decode the numbers
+		for (j = 0; ; j++) {
+			if (*ap <= '9' && *ap >= '0') {
+				// This is a digit
+				if (j == 64)
+					bad_arguments ();
+				numc [i][j] = *ap++;
+				continue;
+			}
+			if (*ap != '.')
+				break;
+			fl = YES;
+			if (j == 64)
+				bad_arguments ();
+			numc [i][j] = *ap++;
+		}
+		if (j == 0)
+			break;
+		numc [i][j] = '\0';
+		i++;
+		if (i == 2 || *ap != '-')
+			break;
+		ap++;
+
+	} while (1);
+
+	if (i) {
+		// There are numbers at all, at least one
+		if (fl) {
+			bef = strtod (numc [0], &ep);
+			if (ep != numc [0] + strlen (numc [0]))
+				bad_arguments ();
+		} else {
+			// TIME
+			be = TIME_0;
+			for (ep = numc [0]; *ep != '\0'; ep++)
+				be = be * 10 + (LONG)(*ep - '0');
+		}
+		if (i == 2) {
+			// Second one
+			if (fl) {
+				enf = strtod (numc [1], &ep);
+				if (ep != numc [1] + strlen (numc [1]))
+					bad_arguments ();
+			} else {
+				// TIME
+				en = TIME_0;
+				for (ep = numc [1]; *ep != '\0'; ep++)
+					en = en * 10 + (LONG)(*ep - '0');
+			}
+		}
+	}
+
+	// Done with the numbers
+
+	if (*ap == '/') {
+		// Station
+		ap++;
+		if (!isdigit (*ap))
+			bad_arguments ();
+		for (st = 0; isdigit (*ap); ap++)
+			st = st * 10 + (*ap - '0');
+	}
+
+	if (*ap != '+' && *ap != '\0')
+		bad_arguments ();
+
+	if (*ap == '+') {
+		if (*(ap+1) != '\0')
+			bad_arguments ();
+		return YES;
+	}
+
+	return NO;
+}
+
 void    zz_init_system  (int argc, char *argv []) {
 
 /* ---------------------------------------------------------- */
@@ -257,47 +359,44 @@ void    zz_init_system  (int argc, char *argv []) {
 
 			case 't' : // Tracing
 
-				if (argc && (**argv >= '0') &&
-					(**argv <= '9')) {
+				// The argument may look like this:
+				// -t starttime-stoptime/st, with shortcuts
+				// -t starttime/st
+				// -t starttime
+				// -t 
+				// -t /st
 
-					for (k = 0, TracingTime = TIME_0;
-						((*argv)[k] >= '0') &&
-							((*argv)[k] <= '9');
-								k++)
+				if (decode_tracing_arg (argc, argv,
+					TracingStation,
+					TracingTimeStart,
+					TracingTimeStop,
+					zz_tracing_start_d,
+					zz_tracing_stop_d) >= 0) {
 
-						TracingTime = TracingTime
-						      * 10 + ((*argv)[k] - '0');
-
-					if ((*argv)[k] != '\0')
-						bad_arguments ();
-
-					argv++;
-					argc--;
-				} else {
-					TracingTime = TIME_0;
+						argv++;
+						argc--;
 				}
-				
-				if (argc && (**argv >= '0') &&
-					(**argv <= '9')) {
+				break;
+#if ZZ_DBG
+			case 'T' : // Debug tracing
 
-					for (k = 0, TracedStation = 0;
-						((*argv)[k] >= '0') &&
-							((*argv)[k] <= '9');
-								k++)
+				k = decode_tracing_arg (argc, argv,
+					DebugTracingStation,
+					DebugTracingTimeStart,
+					DebugTracingTimeStop,
+					zz_debug_tracing_start_d,
+					zz_debug_tracing_stop_d);
 
-						TracedStation = TracedStation
-						      * 10 + ((*argv)[k] - '0');
-
-					if ((*argv)[k] != '\0')
-						bad_arguments ();
-
+				if (k >= 0) {
+					if (k)
+						DebugTracingFull = YES;
 					argv++;
 					argc--;
 				}
 
 				break;
-
-                        case 'T' : // Template file name
+#endif
+                        case 'M' : // Template file name
 
 				if (argc) {
                                   if (zz_TemplateFile) bad_arguments ();
@@ -328,12 +427,6 @@ void    zz_init_system  (int argc, char *argv []) {
                                   bad_arguments ();
                                 break;
 #endif
-			case 'f' : // Full trace (links dumped)
-
-				if (undef (TracingTime)) bad_arguments ();
-				FullTracing = YES;
-				break;
-
 			case 'o' : // Echo definitions to the output file
 
 				zz_flg_printDefs = YES;

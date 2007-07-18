@@ -644,7 +644,7 @@ The call
 \begin{verbatim}
         setEtu (a);
 \end{verbatim}
-is equivalent to the call
+is equivalent to the call:
 \begin{verbatim}
         setItu (1/a);
 \end{verbatim}
@@ -760,7 +760,7 @@ Note, however, that the visualization mode can be exited and entered
 dynamically (\sect{rm_pr_vi}).
 
 If the same program is supposed to run in a simulation mode as well as in
-the control mode, it usually makes sense to put the statement
+the control mode, it usually makes sense to put the statement:
 \begin{verbatim}
         setEtu (1000000.0);
 \end{verbatim}
@@ -4201,6 +4201,17 @@ depending on the selected dimensionality of the node deployment space.
 The method returns the two or three coordinates of the transceiver
 (in {\em DU\/}s) via the arguments.
 
+In addition to {\tt getPreamble}, this {\tt Transceiver} method:
+\begin{verbatim}
+        TIME getPreambleTime ();
+\end{verbatim}
+provides a fast shortcut producing the amount of time (in {\em ITU\/}s) taken
+by the transmitted preamble.
+This is faster than multiplying the value returned by
+{\tt getPreamble} by the transceiver's transmission rate, because the
+preamble length is stored internally in {\em ITU\/}s; thus,
+{\tt getPreambleTime} is trivial (while {\tt getPreamble} is not).
+
 Many attributes of transceivers can be set globally, i.e., to the same value
 for all transceivers interfaced to the same radio channel, by calling the
 corresponding method of {\tt RFChannel} rather than the one of
@@ -4887,6 +4898,16 @@ that can be perceived as a packet pointer:
         #define ThePacket ((Packet*)Info01)
 \end{verbatim}
 This and other aliases will be discussed at the individual {\em AI\/}s.
+
+\noindent
+{\bf Note:}
+The values returned by {\tt Info01} and {\tt Info02} (in their numerous
+aliases), are only guaranteed to be valid immediately after the
+respective event is received (i.e., the process wakes up in the
+corresponding state).
+Many operations on activity interpreters (that the process may subsequently
+want to execute) are likely to overwrite those variables, which are
+shared by all {\em AI\/}s.
 
 \subsection{Process as an {\em AI}}
 \label{rm_pr_pa}
@@ -9339,6 +9360,87 @@ The arguments are exactly as for the {\tt avg} methods above.
 These methods return the maximum interference over the specified time fragment
 of the histogram.
 
+\subsubsection{Event reassessment}
+\label{rm_po_wr_re}
+
+In some advanced reception models,
+the conditions determining the calculation of
+signal levels, interference, the bit error rate and, consequently,
+event assessment for {\tt BOT} and {\tt EOT} may change half way through
+a packet reception.
+We do not consider here mobility, whose impact is only re-evaluated at
+activity (packet) boundaries.
+In all realistic mobility scenarios, the amount of distance change during
+the reception of a single packet is completely negligible.
+
+For an example of what we have in mind in this section,
+suppose the receiver uses a
+directional antenna that can be reset instantaneously at will.
+The right way of implementing this operation in the channel model is to
+use a dynamic gain factor in
+{\tt RFC\_att} (sections \ref{rm_to_rf_cr}, \ref{rm_tr_ra_ea}) 
+depending on the antenna angle and the location of the transmitter and the
+receiver.
+When the antenna setting changes, the transceiver must re-evaluate all
+signals reaching it at the moment based on the new setting.
+This is accomplished with the following {\tt Transceiver} method:
+\begin{verbatim}
+        void reassess ();
+\end{verbatim}
+which is
+to be called in all circumstances where the perception of signal levels by
+the receiver may have changed ``behind the scenes.''
+Note that standard situations, like, for example, changing the receiver
+gain with {\tt setRPower} (\sect{rm_tr_ra_ca}), are handled automatically
+by the simulator.
+By ``behind the scenes,'' we mean ``in a way not naturally perceptible by the
+simulator,'' which practically always means ``affecting the results
+produced by {\tt RFC\_att}.''
+
+Note that directional transmission is different in this respect.
+This is because (at least in all sane schemes), the transmitter sets the
+antenna before sending out a packet, and the entire packet is sent out with
+the same antenna setting.
+Also note that an obsessive experimenter may use this feature to implement
+``extreme fidelity'' mobility models, whereby signals at the receiver are
+reassessed after a minuscule distance change occuring half-way through a packet
+reception.
+Needless to say, {\tt reassess} is a rather costly method and its
+frivolous usage is discouraged.
+
+\subsubsection{The context of assessment methods}
+\label{rm_tr_ra_cn}
+
+The assessment methods, whose role is described in \sect{rm_tr_ra_ea},
+constitute the bulk part of the user-specified channel model.
+One should be aware that they execute in a context that is somewhat
+different from that of a protocol process.
+In this respect,
+they are unique examples of user-supplied code that does not belong to any
+process, but instead constitutes a kind of plug-in to the simulator kernel.
+
+However, two standard environment variables, {\tt TheTransceiver} and
+{\tt ThePacket} (\sect{rm_tr_pp_wr}) are made available to some
+assessment methods---to provide them with local information that may
+facilitate the implementation of tricky models.
+Specifcally, for these methods:
+{\tt RFC\_att},
+{\tt RFC\_add},
+{\tt RFC\_act},
+{\tt RFC\_bot},
+{\tt RFC\_eot},
+{\tt TheTransceiver} points to the transceiver carrying out the
+assessment.
+Additionally, for 
+{\tt RFC\_att},
+{\tt RFC\_bot},
+{\tt RFC\_eot},
+{\tt ThePacket} points to the assessed packet.
+These variables can be viewed as extra arguments to the respective
+assessment methods.
+In most cases, those methods can be programmed without taking them into
+account.
+
 \subsubsection{Starting and terminating packet transmission}
 \label{rm_tr_ac_st}
 
@@ -9733,7 +9835,7 @@ a selected activity, typically a packet being in some partial stage of
 reception.
 This transceiver method:
 \begin{verbatim}
-        int follow (Packet *p = NULL);
+        Boolean follow (Packet *p = NULL);
 \end{verbatim}
 allows the program to declare the activity to be monitored (followed).
 If a non-NULL argument is present, it should point to a packet being carried
@@ -9747,6 +9849,15 @@ The method returns {\tt OK}, if the argument (or the
 last transceiver inquiry) identifies an activity currently perceived by
 the transceiver (in which case the activity whose interference level is to
 be monitored has been successfully specified), or {\tt ERROR} otherwise.
+
+Given the pointer to one of the packets currently being perceived by a
+transceiver, this {\tt Transceiver} method:
+\begin{verbatim}
+        Boolean isFollowed (Packet *p);
+\end{verbatim}
+returns {\tt YES}, if and only if the packet pointed to by {\tt p} is the one
+being ``followed,''
+i.e., it was previously tagged with {\tt follow}.
 
 The threshold interference level is set by {\tt setSigThreshold}---as for
 {\tt SIGLOW} and {\tt SIGHIGH}.
@@ -11484,7 +11595,7 @@ This operation is performed by the following method defined in class
 \end{verbatim}
 If it succeeds, the method returns {\tt OK} (zero).
 The first argument indicates the intended type of binding.
-It is a sum (boolean or arithmetic) of several components/flags
+It is a sum (Boolean or arithmetic) of several components/flags
 whose values are represented by the following constants:
 
 \medskip
@@ -13621,11 +13732,11 @@ However, the specific nature of protocol programs, especially medium access
 control protocols, makes them susceptible
 for errors of the second type, which may be more difficult to diagnose.
 
-\subsection{Protocol tracing}
+\subsection{User-level tracing}
 \label{rm_ob_pt}
 
-One simple way to detect run time errors is to assert certain boolean
-properties.
+One simple way to detect run time errors is to assert Boolean properties
+involving variables in the program.
 \smurph\ offers some tools for this purpose (see \sect{rm_au_eh}).
 Once an error has been found, the detection of its origin may still pose
 a tricky problem.
@@ -13633,111 +13744,69 @@ Often, one has to trace the protocol behavior for some time
 prior to the occurrence of the error to identify the circumstances
 leading to the trouble.
 
-The natural event-driven structure of \smurph\ programs makes
-their local debugging relatively easy and straightforward. 
-Often, the best way to find a bug in a protocol is to
-trace its actions printing out the configurations of link activities
-(sections \ref{rm_ex_se_po}, \ref{rm_ex_se_li}) and
-the contents of user-defined variables.
-
-There exist two global variables:
-{\tt TracingTime} of type {\tt TIME} and {\tt TracedStation} of type
-{\tt Long}, which can be set by the
-`{\tt -t}' option of the protocol program (see \sect{rm_un_ru}).
-These variables can be used to determine whether
-the protocol tracing should be switched on or off and whether the tracing
-should be global or restricted to one specific station.
-Intentionally, when {\tt TracingTime} is undefined (contains {\tt TIME\_inf})
-the tracing is switched off.
-Otherwise, the variable shows the starting moment of the simulated time---when the tracing should commence.
-The other variable tells the {\tt Id} of the station to which the tracing
-should be confined.
-By default, {\tt TracedStation} contains {\tt NONE} (--1) meaning that the
-tracing is global, i.e., all stations are monitored.
-The following global macro:
-\begin{verbatim}
-        Debugging
-\end{verbatim}
-returns {\tt YES} if {\tt TracingTime} is defined
-and less than or equal to {\tt Time} and the last event has occurred in the
-context of the station indicated by {\tt TracedStation}.
-
-If the program has been created with the {\tt -g} (debug) flag (see
-\sect{rm_un_cr}), {\tt TracingTime} and {\tt TracedStation} are
-interpreted by
-\smurph\ and the `{\tt -t}' call
-option can be used to turn on the standard tracing.
-The standard tracing starts when the simulated time reaches the value in
-{\tt TracingTime}.
-When the tracing is on, \smurph\ writes to the results file
-(\sect{rm_au_io})
-one line of text for each process waking episode.
-If {\tt TracedStation} contains a value different from {\tt NONE},
-the awakened process must belong to the station whose {\tt Id} matches the
-contents of {\tt TracedStation}.
-The trace line is printed {\bf before} the awakened process is given
-control and includes the following items:
-\begin{itemize}
-\item
-the current simulated time
-\item
-the {\em type name\/} and the {\tt Id} of the {\em AI\/} generating the event
-\item
-the event identifier (in the {\em AI\/}-specific format, see \sect{rm_ex_se_ei})
-\item
-the station {\tt Id}
-\item
-the output name of the process (\sect{rm_st_on})
-\item
-the identifier of the state to be assumed by the process
-\end{itemize}
-
-When the `{\tt -t}' call option is used together with `{\tt -f}'
-(indicating the
-so-called {\em full tracing\/}---see \sect{rm_un_ru}),
-\smurph\ follows each line of the above trace information by the
-dump of all links and radio channels accessible via
-ports and transceivers from the current station.
-This dump is obtained by requesting mode 2 exposures of
-{\tt Link} (\sect{rm_ex_se_li}) and {\tt RFChannel}
-(\sect{rm_ex_se_rc}).
-
-Irrespective of the setting of the `{\tt -t}' option (and irrespective of
-whether the program has been created with `{\tt -g}'), it is always possible
+The following function can be used
 to write to the output file a line of information describing the contents
-of some variables at the given moment.
-The following function:
+of some variables at the moment:
 \begin{verbatim}
         void trace (const char*, ...);
 \end{verbatim}
-accepts a format string as the first argument.
-This format string is used to interpret the remaining arguments (in the same way
-as in {\tt form}), which are encoded and written to the output file.
+It accepts a format string as the first argument, which
+is used to interpret the remaining arguments (in the same way
+as in {\tt printf} or {\tt form}).
 The printout is automatically terminated by a new line, so the format string
 shouldn't end with one.
-
 A line produced by {\tt trace}
-is preceded by a header, which by default looks like this:
+is preceded by a header, whose default form consists of the modeled time
+in {\em ITU\/}.
+For example, this command:
 \begin{verbatim}
-        Time xxxxxxxxx: ...
+        trace ("Here is the value: %1d", n);
 \end{verbatim}
-\noindent
-where the x's stand for the current simulated time in {\em ITU\/}s.
-This header can be modified by calling:
+may produce a line looking like this:
+\begin{verbatim}
+        Time: 1184989002 Here is the value: 93
+\end{verbatim}
+
+The most useful feature of {\tt trace}, which gives it an advantage over
+standard output tools, is that it can be easily disabled or restricted
+to a narrow interval of modeled time by a program call argument.
+This is important because tracing problems that manifest themselves after
+lengthy execution may generate tonnes of intimidating output.
+The {\tt -t} program call argument (described in \sect{rm_un_ru})
+can be used to disable or restrict the output of {\tt trace}.
+It is also possible to confine that output to the context of one
+specific station.
+By default, i.e., without {\tt -t}, every {\tt trace} command is
+effective.
+
+The program can also affect the behavior of {\tt trace} dynamically, by
+executing the global function {\tt settrace}, in one of the following
+variants:
+
 \begin{verbatim}
         void settrace (FLAGS opt);
+        void settrace (FLAGS opt, Long s);
+        void settrace (FLAGS opt, Long s, TIME begin);
+        void settrace (FLAGS opt, Long s, TIME begin, TIME end);
+        void settrace (FLAGS opt, Long s, double begin);
+        void settrace (FLAGS opt, Long s, double begin, double end);
 \end{verbatim}
-where {\tt opt} is a collection of additive flags identifying the different
-components of the {\tt trace} header.
-If {\tt opt} is zero, {\tt trace} is effectively disabled, i.e., its subsequent
+
+\noindent
+The first argument of {\tt settrace} is a collection of additive
+flags that describe
+the optional components of the header preceding a line written by {\tt trace}.
+If {\tt opt} is zero, {\tt trace} is unconditionally
+disabled, i.e., its subsequent
 invocations in the program will produce no output until a next call to
-{\tt settrace} actually selects some options.
-Here are the values that can contribute to the arument of {\tt settrace}:
+{\tt settrace} selects some actual header components.
+Here are the options (represented by symbolic constants):
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt TRACE\_OPTION\_TIME}}\\ \hspace{0in}
 This option selects the standard header, i.e., current simulation time
 in {\em ITU\/}s.
+It is the only option in effect by default.
 \end{quote}
 
 \begin{quote}
@@ -13763,22 +13832,162 @@ process has been awakened.
 This is independent of the previous option.
 \end{quote}
 
+For example, having executed:
+\begin{verbatim}
+        settrace (TRACE_OPTION_ETIME + TRACE_OPTION_PROCESS);
+\end{verbatim}
+followed by:
+\begin{verbatim}
+        trace ("Here is the value: %1d, n);
+\end{verbatim}
+\noindent
+you may see something like this:
+\begin{verbatim}
+        Time: 13.554726 /Transmitter/ Here is the value: 93
+\end{verbatim}
+\noindent
 Note that that the default component of the {\tt trace} header, represented by
 {\tt TRACE\_OPTION\_TIME}, will be removed if the argument of {\tt settrace}
 does not include this value.
 However, there is no way to produce a {\tt trace} line without a single header
-component because {\tt trace}~{(0)} diables {\tt trace} output completely.
+component because {\tt trace}~{(0)} completely diables {\tt trace} output.
 
-The concept of ``screen'' exposing (see \sect{rm_ex})
-is also useful in debugging.
-When an error occurs, e.g.,
-due to a failing {\tt assert} or {\tt Assert}, the program prints out,
-among other things, the simulated time of the failure.
-Then you may call the program again under control of \dsd\
-(\sect{rm_ds}) requesting to halt the program some time before
-the error occurrence.
-Then you will be able to execute the protocol in the {\em step mode},
-examining individual events and their environment.
+The remaining arguments of {\tt settrace} stand for:
+\begin{llist}{{\tt beginn}}
+\litem{\tt s}
+the numerical {\tt Id} of the station to which the tracing should be
+restricted, or {\tt ANY} denoting all stations (no restriction).
+The restriction means that
+a {\tt trace} call occurring in the context of a different station
+(with {\tt TheStation} pointing to a station with a different {\tt Id})
+will be ignored.
+\litem{\tt begin}
+the starting time.
+This is the first moment of modeled time
+when the {\tt trace} statements will be activated.
+By default, they are activated at time 0.
+The {\tt TIME} version of the argument is in {\em ITU\/}s, while the
+{\tt double} one is in {\em ETU\/}s.
+\litem{\tt end}
+the ending time. 
+This is the time when the {\tt trace} statements will be deactivated.
+By default, they are never deactivated (or are deactivated at infinite time).
+As for {\tt begin}, the
+{\tt TIME} version of the argument is in {\em ITU\/}s, while the
+{\tt double} version is in {\em ETU\/}s.
+\end{llist}
+
+\noindent
+A variant of {\tt settrace} that does not cover a given argument
+(e.g., {\tt end}), leaves the corresponding setting intact.
+If {\tt -t} is absent from the program call line (\sect{rm_un_ru},
+the defaults are:
+{\tt opt~=~TRACE\_OPTION\_TIME},
+{\tt s~=~ANY},
+{\tt begin~=~TIME\_0},
+{\tt end~=~TIME\_inf}.
+Otherwise, the command will be applied to the settings inherited from
+{\tt -t}, with the following caveat.
+
+\noindent
+{\bf Note:}
+The interpretation of an {\em ETU\/} value (in {\tt settrace} or
+within the {\tt -t} call argument) can only be meaningful
+after the {\em ETU\/} has been defined by the program (\sect{rm_mp_ti}),
+which normally happens in the first state of {\tt Root} (\sect{rm_pr_or}).
+Consequently, if the {\tt -t} argument includes {\tt double} values
+(to be interpreted as time in {\em ETU\/}), its application is postponed until
+the simulator leaves the first state of the {\tt Root} process
+(or ``the network has been built,'' in the sense of \sect{rm_pr_or}).
+Consequently, in such circumstances, a call to {\tt settrace} executed in
+the first state of {\tt Root}\footnote{Note that if that call specfies
+time values in {\em ETU\/}s, it should be placed after the call to
+{\tt setEtu} (or {\tt setItu}) that assigns a meaning to the {\em ETU\/}
+(\sect{rm_mp_ti}).}
+may be (later) overriden by {\tt -t}.
+The moral is that {\tt settrace} and {\tt -t} should be mixed with 
+due care.
+
+You can easily take advantage of the restriction mechanism for
+{\tt trace} in your own debugging operations.
+The global macro {\tt Tracing} with the properties of a {\tt Boolean}
+variable is {\tt YES}, if {\tt trace} would be active in the present context,
+and {\tt NO} otherwise.
+
+\subsection{Simulator-level tracing}
+\label{rm_ob_st}
+
+In addition to explicit tracing described in \sect{rm_ob_pt}, \smurph\ has
+a built-in mechanism for dumping the sequence of process states traversed
+by the simulator during its execution to the output file.
+This feature is only available when the program has been compiled with the
+{\tt -g} (debug) option of {\tt mks} (\sect{rm_un_cr}).
+
+One way of switching on the state dumping is to use the {\tt -T} program call
+argument (see \sect{rm_un_ru}).
+Its role is similar to {\tt -t} (which controls the user-level
+tracing---\sect{rm_ob_pt}), except that, in the present case, the
+tracing is disabled by default.
+The same effect can be accomplished dynamically from the program, by
+invoking the global function {\tt setTrace} in
+one of the following variants:
+
+\begin{verbatim}
+        void setTrace (Boolean full);
+        void setTrace (Boolean full, Long s);
+        void setTrace (Boolean full, Long s, TIME begin);
+        void setTrace (Boolean full, Long s, TIME begin, TIME end);
+        void setTrace (Boolean full, Long s, double begin);
+        void setTrace (Boolean full, Long s, double begin, double end);
+\end{verbatim}
+
+\noindent
+If {\tt full} is {\tt YES}, it selects the ``full'' version of state
+dumps, as described below.
+The remaining arguments restrict the tracing context in the same way
+as for {\tt settrace}, as explained in \sect{rm_ob_pt}.
+
+Any episode of a process being awakened that falls into the confines of the
+tracing parameters (in terms of time and station context)
+results in one line being written to the output file.
+That line is produced before the awakened process gains control and
+includes the following items:
+
+\begin{itemize}
+\item
+the current simulated time
+\item
+the {\em type name\/} and the {\tt Id} of the {\em AI\/} generating the event
+\item
+the event identifier (in the {\em AI\/}-specific format, see \sect{rm_ex_se_ei})
+\item
+the station {\tt Id}
+\item
+the output name of the process (\sect{rm_st_on})
+\item
+the identifier of the state to be assumed by the process
+\end{itemize}
+
+With ``full'' tracing, that line is followed by a
+dump of all links and radio channels accessible via
+ports and transceivers from the current station.
+This dump is obtained by requesting mode 2 exposures of
+{\tt Link} (\sect{rm_ex_se_li}) and {\tt RFChannel}
+(\sect{rm_ex_se_rc}).
+
+The global macro {\tt DebugTracing} has the appearance of a {\tt Boolean}
+variable whose value is {\tt YES} if 1)~the program has been compiled with
+{\tt -g}, i.e., debugging is enabled, and 2)~state dumping is active in the
+current context.
+Otherwise, {\tt DebugTracing} evaluates to {\tt NO}.
+
+\noindent
+{\bf Note:}
+normally, the waking episodes of \smurph\ internal processes are not dumped
+with simulator-level tracing
+(they are seldom interesting to the user).
+To include them alongside the protocol processes, use the {\tt -s} program
+call option (\sect{rm_un_cr}).
 
 \subsection{Observers}
 \label{rm_ob_ob}
@@ -14881,8 +15090,8 @@ from the user's point of view.
 To include information about these internal requests and events in
 the exposed data, the protocol program should be called with the `{\tt -s}'
 option.
-This also concerns the event information generated when the protocol
-is being {\em traced\/} (see \sect{rm_ob_pt}).
+This also concerns the event information generated with
+simulator-level tracing (see \sect{rm_ob_st}).
 
 Information produced by standard exposures often
 contains {\em event identifiers}.
@@ -15570,7 +15779,7 @@ In the ``paper'' version of the exposure, item 8 is only printed if the
 program has been created with the {\tt -g} option of {\tt mks}
 (\sect{rm_un_cr}).
 In the ``screen'' version, item 8 is always
-displayed,\footnote{Display templates (\sect{rm_ds_tp})
+displayed,\footnote{Window templates (\sect{rm_ds_tp})
 are independent of the protocol program, so their
 layout cannot be influenced by the options of {\tt mks}.}
 but unless the program has been created with {\tt -g}, item 8 is filled
@@ -15865,7 +16074,7 @@ node deployment space (\sect{rm_to_tr_cr}).
 
 The information displayed by the ``screen'' form of the exposure contains the
 same data as the ``paper'' form.
-Owing to the rigid structure of the display template (\sect{rm_ds_tp}), the
+Owing to the rigid structure of the window template (\sect{rm_ds_tp}), the
 list of node coordinates always includes three items (with the third item
 being cropped out by the standard geometry of the window).
 In the 2-D case, the third coordinate is blank.
@@ -18196,7 +18405,7 @@ The default is ``no optimization.''
 This argument indicates that a ``debug'' version of the program is to be
 created.
 The C++ compiler will be called with the debugging option;
-protocol tracing (\sect{rm_ob_pt}) will be activated.
+simulator-level tracing (\sect{rm_ob_st}) will be enabled.
 \end{quote}
 
 \begin{quote}
@@ -18446,33 +18655,88 @@ and wait for a connection from \dsd.
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -t}}\\ \hspace{0in}
-This argument indicates that protocol tracing should be switched on
-(\sect{rm_ob_pt}).
-A nonnegative {\tt BIG} integer number can optionally follow `{\tt -t}',
-to indicate the simulated time when the tracing should commence.
-If the time argument is absent, 0 is assumed, i.e.,
-the tracing is active from the very beginning.
-The time argument is available to the protocol program via the global
-variable {\tt TracingTime} of type {\tt BIG}.
-This variable contains {\tt BIG\_INF} if `{\tt -t}' has not been specified.
-The tracing time can be optionally followed by a second number which,
-if present, will be stored in {\tt TracedStation} (\sect{rm_ob_pt}).
-This number identifies the station to which the tracing should be
-restricted.
-The `{\tt -t}' argument is ineffective, if the program wasn't created
-with the `{\tt -g}' option of {\tt mks} (\sect{rm_un_cr}).
+This argument pertains to user-level tracing (\sect{rm_ob_pt}) and
+specifies the time interval during which the tracing should be on and,
+optionally, the station to which it should be confined.
+The string following {\tt -t} (after a space) should have one of the following
+forms:
+
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\>{\em start} \\
+\>{\em start\/}{\tt -}{\em stop} \\
+\>{\em start\/}{\tt /}{\em station} \\
+\>{\em start\/}{\tt -}{\em stop\/}{\tt /}{\em station} \\
+\>{\tt /}{\em station}
+\end{tabbing}}
+\noindent
+where {\em start\/} specifies the first moment of modeled time when the tracing
+should become active, and {\em stop\/} indicates
+the first moment when the tracing should stop.
+If those numbers look like integers (i.e., they only contain digits), they are
+interpreted in {\em ITU\/}s.
+If a decimal point appears within {\em any\/}
+of the two numbers, then {\em both\/} of them
+are assumed to be in {\em ETU\/}s.
+A single number describes the starting time, with the ending time being
+undefined, i.e., equal to inifity.
+No numbers (like in the last variant in the above list) means no time
+restriction ({\em start\/} is zero, {\em stop\/} is infinity).
+
+The optional station identifier (\sect{rm_to_st_cs}) appearing at the end of
+the argument (preceded by a slash) restricts the tracing to the specified
+station.
+This effectively means that a trace message will only be printed if
+{\tt TheStation->getId}~{\tt ()} equals the indicated station {\tt Id}.
+
+Here we have a few examples:
+\begin{verbatim}
+        -t 1.0-2.0
+        -t 3-3.5/2
+        -t 1000000
+\end{verbatim}
+\noindent
+Note that in the second case the first number will be interpreted in
+{\em ETU\/}s, despite the fact that it has no decimal point, because the
+second number does have it.
+
+By default, if {\tt -t} is absent, or if it is not followed by any
+specification, the user-level tracing is on for all time and for all stations.
+This simply means that all {\tt trace} commands appearing in the program
+are always effective.
+Note that the program can redefine tracing parameters dynamically with
+{\tt settrace} (see \sect{rm_ob_pt}).
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt -f}}\\ \hspace{0in}
-This argument can be used together with `{\tt -t}' to switch on the
-{\em full\/} tracing (\sect{rm_ob_pt}).
-It is illegal to specify `{\tt -f}' if `{\tt -t}' has not been specified
-earlier.
-The presence of this argument is indicated to the protocol program by the
-contents of the global variable {\tt FullTracing} of type {\tt int}.
-This variable contains {\tt YES} if `{\tt -f}' has been selected, and
-{\tt NO} otherwise.
+\noindent\hspace{-0.35in}{\bf {\tt -T}}\\ \hspace{0in}
+This argument is similar to {\tt -t}, except that it refers to 
+simulator-level tracing (\sect{rm_ob_st}).
+It is only available if the simulator has been compiled with the {\tt -g}
+option of {\tt mks} (\sect{rm_un_cr}).
+Its format is exactly as for {\tt -t}, with one extra option represented by
+{\tt +}, which can appear at the end of the specification string.
+The time interval determines the range of simulator-level tracing, which
+consists in dumping to the output file detailed
+information about the states
+executed by the protocol processes (\sect{rm_ob_st}).
+Here are a few examples:
+\begin{verbatim}
+        -T 667888388880
+        -T /12
+        -T 47.5-49.5/12+
+\end{verbatim}
+\noindent
+The {\tt +} option (in the last case) selects the so-called ``full tracing''
+(\sect{rm_ob_st}), whereby the state information is accompanied by dumps of
+activities in all links and radio channels accessible via ports and
+transceivers of the current station.
+
+In contrast to {\tt -t}, the lack of {\tt -T} means no tracing.
+A single time value selects the starting time with the ending time being
+unbounded.
+The appearance of {\tt -T} not followed by any specification string is
+equivalent to `{\tt -T 0}', i.e., all stations being traced all the time.
 \end{quote}
 
 \begin{quote}
@@ -18515,6 +18779,16 @@ This argument must be followed by exactly two numbers: a nonnegative
 number.
 These values will be used as the default clock tolerance parameters, i.e.,
 {\tt deviation} and {\tt quality}, respectively (\sect{rm_ti_to}).
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt -M}}\\ \hspace{0in}
+This argument must be followed by a file name.
+The file is expected to contain extra window templates needed by the
+protocol program (see \sect{rm_ds_tp}),
+which apply to non-standard exposures defined by
+the user and/or, possibly, override some of the standard templates of
+the monitor (\sect{rm_ds_mo}).
 \end{quote}
 
 \begin{quote}

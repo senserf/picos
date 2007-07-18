@@ -31,8 +31,11 @@ extern  int                    TheObserverState;       // The observer state
 /* Debugging */
 /* --------- */
 
-extern  int             FullTracing,            // Full trace flag
-			EndOfData;              // EOF flag
+extern  int		EndOfData;              // EOF flag
+
+#if ZZ_DBG
+extern  int             DebugTracingFull;       // Full debug trace flag
+#endif
 
 /* ---------------------- */
 /* Display (visible part) */
