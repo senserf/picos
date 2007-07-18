@@ -96,7 +96,7 @@ void _dad (PicOSNode, diag) (const char *s, ...) {
 
 	va_start (ap, s);
 
-	trace ("[%1.3f] DIAG [%1d]: %s", ituToEtu (Time), \
+	trace (" [%1.3f] DIAG [%1d]: %s", ituToEtu (Time), \
 		      TheStation->getId (), ::vform (s, ap));
 }
 
@@ -1236,8 +1236,8 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 	print ("\n");
 
 	// Create the channel (this sets SEther)
-	create RFShadow (NT, STB, nb, dref, loss_db, beta, sigm, bn_db, cutoff,
-		syncbits, brate, bpb, frml, NULL, RSC, PS);
+	create RFShadow (NT, STB, nb, dref, loss_db, beta, sigm, bn_db, bn_db,
+		cutoff, syncbits, brate, bpb, frml, NULL, RSC, PS);
 }
 
 void BoardRoot::initRoamers (sxml_t data) {

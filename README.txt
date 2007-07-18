@@ -165,4 +165,9 @@ R070402B:
     signal level (factored by the receiver sensitivity) below which its impact
     on the receiver is deemed irrelevant. It should be set at a fraction of
     background noise. Operations running and killal implemented.
+
+R070718A:
+
+    Cosmetics to make VUEE compatible with the improved channel model in
+    SIDE.
     
