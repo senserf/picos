@@ -1423,3 +1423,8 @@ R070712A:
 R070715A:
 	Minor updates and fixes for VUEE/TNP, also init in LibComms.
 
+R070719A:
+	Rtag refreshed for today's PicOS:
+	- ATTIC contains 1st Rtag (ASCII i/f) and RTag_RFM
+	- Doc contains docs and Tcl i/f frozen in 2005
+	- untested application
