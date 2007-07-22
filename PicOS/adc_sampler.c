@@ -55,6 +55,9 @@ Boolean adcs_new_sample () {
 		// The buffer is full: overflow
 		if (b_overflow != MAX_WORD)
 			b_overflow++;
+		// This may be void. On some versions of MSP430, you have to
+		// read the conversion registers to clear the interrupt
+		adcs_clear_sample ();
 		return NO;
 	}
 

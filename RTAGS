@@ -1421,10 +1421,21 @@ R070712A:
 	VERSA2 (and similar things requested in the future).
 
 R070715A:
+
 	Minor updates and fixes for VUEE/TNP, also init in LibComms.
 
 R070719A:
+
 	Rtag refreshed for today's PicOS:
 	- ATTIC contains 1st Rtag (ASCII i/f) and RTag_RFM
 	- Doc contains docs and Tcl i/f frozen in 2005
 	- untested application
+
+R070722A:
+
+	Fixed three issues pointed out by Nick: 1. fixed a bug in mkmk causing
+	it to ignore all but the first component of an OR/AND #if; 2. one BIS
+	replaced with BIC in adcs_stop_sys (board_adc_sampler.h); 3. added a
+	workaround to the bug in ADC12 (at least in some versions), which
+	requires the program to access the conversion memory registers to
+	clear a pending ADC interrupt.

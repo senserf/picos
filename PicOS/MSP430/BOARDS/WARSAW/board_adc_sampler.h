@@ -61,7 +61,7 @@
 	_BIC (TACTL, MC_3); \
 	ADC12IE = 0; \
 	_BIC (ADC12CTL0, ENC); \
-	_BIS (ADC12CTL0, ADC12ON); \
+	_BIC (ADC12CTL0, ADC12ON); \
 	ADC12IFG = 0; \
 } while (0)
 
@@ -75,6 +75,17 @@
 	(b) [6] = ADC12MEM6; \
 	(b) [7] = ADC12MEM7; \
 } while (0)
+
+#define	adcs_clear_sample()	do { \
+		ADC12MEM0; \
+		ADC12MEM1; \
+		ADC12MEM2; \
+		ADC12MEM3; \
+		ADC12MEM4; \
+		ADC12MEM5; \
+		ADC12MEM6; \
+		ADC12MEM7; \
+	} while (0);
 
 #define	ADCS_SAMPLE_LENGTH	8	// In words
 
