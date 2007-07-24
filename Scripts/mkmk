@@ -739,13 +739,17 @@ proc sexpr { str } {
 			}
 		}
 		set chunk [string trim $chunk]
+		# I don't believe I am doing this
+		set chunk [string trimleft $chunk "("]
+		set chunk [string trimright $chunk ")"]
 		if { $chunk == "" } {
 			return -1
 		}
+
 		dmp "EXPR COMP: '$chunk'"
 
 		if ![regexp -nocase \
-		  "^(\[a-z_0-9.\]+)\[ \t\]*(\[=<>!\]+)\[ \t\]*(\[a-z_0-9.\]+)$"\
+		"^(\[a-z_0-9.\]+)\[ \t\]*(\[=<>!&|\]+)\[ \t\]*(\[a-z_0-9.\]+)$"\
 		    $chunk junk a0 op a1] {
 			# check for a single item
 			set neg ""
@@ -830,6 +834,8 @@ proc sexpr { str } {
 		  	"<=" { set v0 [expr $v0 <= $v1] }
 		  	">=" { set v0 [expr $v0 >= $v1] }
 		  	"!=" { set v0 [expr $v0 != $v1] }
+		  	"&"  { set v0 [expr $v0 & $v1] }
+		  	"|"  { set v0 [expr $v0 | $v1] }
 		  	default { set v0 -1 }
 			}
 	

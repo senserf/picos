@@ -1439,3 +1439,8 @@ R070722A:
 	workaround to the bug in ADC12 (at least in some versions), which
 	requires the program to access the conversion memory registers to
 	clear a pending ADC interrupt.
+
+R070723A:
+
+	Fixed mkmk (again), this time to allow simple parenthesized stuff like
+	#if (BLABLA & 0x1) || (FUBAR == 2)

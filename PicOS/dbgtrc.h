@@ -9,8 +9,6 @@
 #define	dbg_level	0
 #endif
 
-#define	mkmk_eval	1
-
 #if			(dbg_level & 1)
 #define	dbg_0(c)	zz_dbg (0, (word)(c))
 #else
@@ -116,7 +114,5 @@
 extern	void zz_dbg (const word, word);
 
 #endif
-
-#undef	mkmk_eval
 
 #endif
