@@ -286,7 +286,7 @@ void phys_uart (int phy, int mbs, int which) {
 		option,
 #endif
 
-#if BLUETOOTH_PRESENT
+#ifdef BLUETOOTH_PRESENT
 			((which == BLUETOOTH_PRESENT - 1) ?
 			  INFO_PHYS_UARTB :
 			    INFO_PHYS_UART)

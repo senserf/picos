@@ -6,6 +6,20 @@
 #include "adc_sampler.h"
 
 static word	b_limit, b_in, b_out, b_overflow;
+
+#ifndef	ADCS_SAMPLE_BLOCK
+#define	ADCS_SAMPLE_BLOCK	1
+#endif
+
+#if ADCS_SAMPLE_BLOCK == 0
+#undef	ADCS_SAMPLE_BLOCK
+#define	ADCS_SAMPLE_BLOCK	1
+#endif
+
+#if ADCS_SAMPLE_BLOCK > 1
+static word	b_blkptr, b_newin;
+#endif
+
 static word	*buff = NULL;
 static int	consummer = 0;
 
@@ -20,11 +34,14 @@ word adcs_start (word bufsize) {
 		syserror (ETOOMANY, "adcs_start");
 
 	// This is in words
-	b_limit = bufsize * ADCS_SAMPLE_LENGTH;
+	b_limit = bufsize * ADCS_SAMPLE_LENGTH * ADCS_SAMPLE_BLOCK;
 	if ((buff = umalloc (b_limit * sizeof (word))) == NULL)
 		return ERROR;
 
 	b_in = b_out = b_overflow = 0;
+#if ADCS_SAMPLE_BLOCK > 1
+	b_blkptr = 0;
+#endif
 	adcs_start_sys;
 
 	return 0;
@@ -43,11 +60,45 @@ Boolean adcs_new_sample () {
 /*
  * Note: this may run asynchronously with the praxis
  */
-	Boolean wake;
-	word bp, i;
+	word bp;
 
-	wake = (b_in == b_out);
+#if ADCS_SAMPLE_BLOCK > 1
 
+	if (b_blkptr == 0) {
+		b_newin = b_in;
+		// Full condition
+		if ((bp = b_in + ADCS_SAMPLE_LENGTH * ADCS_SAMPLE_BLOCK)
+		    == b_limit)
+			bp = 0;
+
+		if (bp == b_out) {
+			// Overflow
+			if (b_overflow != MAX_WORD)
+				b_overflow++;
+			adcs_clear_sample ();
+			return NO;
+		}
+	}
+
+	adcs_sample (buff + b_newin);
+	b_newin += ADCS_SAMPLE_LENGTH;
+
+	if (b_blkptr == ADCS_SAMPLE_BLOCK - 1) {
+		// The last block
+		b_blkptr = 0;
+		if ((b_in == b_out) && consummer) {
+			p_trigger (consummer, ETYPE_USER, consummer);
+			b_in = (b_newin == b_limit) ? 0 : b_newin;
+			return YES;
+		}
+		b_in = (b_newin == b_limit) ? 0 : b_newin;
+		return NO;
+	}
+
+	b_blkptr++;
+	return NO;
+
+#else
 	if ((bp = b_in + ADCS_SAMPLE_LENGTH) == b_limit)
 		bp = 0;
 
@@ -63,13 +114,16 @@ Boolean adcs_new_sample () {
 
 	adcs_sample (buff + b_in);
 
-	b_in = bp;
-
-	if (wake && consummer) {
+	if ((b_in == b_out) && consummer) {
 		p_trigger (consummer, ETYPE_USER, consummer);
+		b_in = bp;
 		return YES;
 	}
+
+	b_in = bp;
 	return NO;
+#endif
+
 }
 
 Boolean adcs_get_sample (word st, word *b) {
@@ -91,8 +145,9 @@ Boolean adcs_get_sample (word st, word *b) {
 		consummer = 0;
 	}
 
-	memcpy (b, buff + b_out, ADCS_SAMPLE_LENGTH * sizeof (word));
-	if ((bp = b_out + ADCS_SAMPLE_LENGTH) == b_limit)
+	memcpy (b, buff + b_out, ADCS_SAMPLE_BLOCK * ADCS_SAMPLE_LENGTH *
+								sizeof (word));
+	if ((bp = b_out + ADCS_SAMPLE_LENGTH * ADCS_SAMPLE_BLOCK) == b_limit)
 		b_out = 0;
 	else
 		b_out = bp;

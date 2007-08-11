@@ -1444,3 +1444,14 @@ R070723A:
 
 	Fixed mkmk (again), this time to allow simple parenthesized stuff like
 	#if (BLABLA & 0x1) || (FUBAR == 2)
+
+R070811A:
+
+	ADC sampler has a blocking option whereby a whole bunch of samples can
+	be sent to the circular buffer as a single unit. A few tweaks for the
+	SFU boards.
+	SFU HeartForce App redone by adding an array to store the numbers of
+	those samples that knowingly couldn't be sent (because of xmt buffer
+	overflow). Such samples are automatically sent at the end of the first
+	round.
+

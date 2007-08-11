@@ -13,7 +13,7 @@
 // In minutes
 #define	GDELAY(s) 	ldelay (GUARD_LONG_DELAY, s)
 #else
-// In miliisecs
+// In millisecs
 #define	GDELAY(s)	delay (GUARD_LONG_DELAY, s)
 #endif
 
@@ -464,7 +464,6 @@ static void do_rx_fifo () {
 #if RADIO_CRC_MODE <= 1
 	byte b;
 #endif
-
 	// We are making progress as far as reception
 	guard_stop (WATCH_RCV | WATCH_PRG);
 
@@ -577,7 +576,7 @@ static void do_rx_fifo () {
 	paylen += 2;
 
 	if (b & 0x80) {
-		// CRC OK: we will change this to software checksum
+		// CRC OK
 		*(eptr+1) = *((char*)eptr) + 128;
 		// Swap these two
 		*eptr = (b & 0x7f);

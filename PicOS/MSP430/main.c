@@ -381,20 +381,11 @@ static void ssm_init () {
 
 #ifdef	__MSP430_1xx__
 
+// ===========================================================================
 
-#if MCLOCK_FROM_CRYSTAL
+#if MCLOCK_FROM_CRYSTAL == 0
 
-	BCSCTL1 |= XTS;
-	do {
-		_BIC (IFG1, OFIFG);
-		udelay (100);
-	} while ((IFG1 & OFIFG) != 0);
-
-  	BCSCTL2 |= SELM1+SELM0; 
-
-#else	/* MCLOCK from DCO */
-
-	// Maximum DCO frequency
+	// DCO: select maximum frequency
 	DCOCTL = DCO2 + DCO1 + DCO0;
 	BCSCTL1 = RSEL2 + RSEL1 + RSEL0 + XT2OFF
 
@@ -405,13 +396,58 @@ static void ssm_init () {
 	;
 	// Measured MCLK is ca. 4.5 MHz
 
-#endif	/* MCLOCK_FROM_CRYSTAL */
-
-
 #if 	CRYSTAL2_RATE
 	// Assign SMCLK to XTL2
 	BCSCTL2 = SELM_DCOCLK | SELS;
 #endif
+
+#endif	/* MCLOCK_FROM_CRYSTAL == 0 */
+
+// ===========================================================================
+
+#if MCLOCK_FROM_CRYSTAL	== 1
+#if CRYSTAL_RATE < 4000000
+#error "CRYSTAL_RATE must be >= 4000000 for MCLOCK_FROM_CRYSTAL == 1"
+#endif
+
+// Clock from crystal 1
+
+	BCSCTL1 |= XTS;
+	do {
+		_BIC (IFG1, OFIFG);
+		udelay (100);
+	} while ((IFG1 & OFIFG) != 0);
+
+  	BCSCTL2 == SELM1 + SELM0
+
+#if CRYSTAL2_RATE > CRYSTAL_RATE
+	// Assign SMCLK to XTL2
+		+ SELS
+#endif
+	; 
+#endif	/* MCLOCK_FROM_CRYSTAL == 1 */
+
+// ===========================================================================
+
+#if MCLOCK_FROM_CRYSTAL == 2
+#if CRYSTAL2_RATE == 0
+#error "Need XT2 for MCLOCK_FROM_CRYSTAL == 2"
+#endif
+	// Clock from crystal 2: make sure the second oscillator is running
+	_BIC_SR (LPM4_bits);
+
+	// Make sure XT2 is enabled
+	BCSCTL1 = 0;
+
+	do {
+		_BIC (IFG1, OFIFG);
+		udelay (100);
+	} while ((IFG1 & OFIFG) != 0);
+
+	// SELS is not needed, I think
+	BCSCTL2 = SELM1 | SELS; 
+
+#endif	/* MCLOCK_FROM_CRYSTAL == 2 */
 
 /*
  * The clock mess:

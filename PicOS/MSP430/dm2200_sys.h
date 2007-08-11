@@ -35,7 +35,7 @@
 
 /*
  * Transmission rate: this is determined as the number of SCLK ticks per
- * physical bit time. Remember that SLCK runs at 4.5MHz. The math is simple:
+ * physical bit time. Remember that SCLK runs at 4.5MHz. The math is simple:
  * one physical bit = 2/3 of real bit (excluding the preamble and checksum).
  * I see that if we crank it up a little, things appear to work better. This
  * can be explained by the fact that the processing time tends to extend

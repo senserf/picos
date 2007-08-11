@@ -53,9 +53,6 @@
 #if	UART_TCV && UARTP_TCV
 #error	"UART_TCV and UARTP_TCV are incompatible"
 #endif
-#if	CRC_ISO3309 == 0
-#error	"UART_TCV/UARTP_TCV requires CRC_ISO3309"
-#endif
 #endif
 
 #if	UART_DRIVER

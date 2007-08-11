@@ -86,5 +86,6 @@
 	} while (0);
 
 #define	ADCS_SAMPLE_LENGTH	6	// In words
+#define	ADCS_SAMPLE_BLOCK	4	// This many samples per storage unit
 
 #endif
