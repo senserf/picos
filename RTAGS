@@ -1455,3 +1455,7 @@ R070811A:
 	overflow). Such samples are automatically sent at the end of the first
 	round.
 
+R070813A:
+
+	HeartForce firmware modified for 8-byte ESN. Documentation included in
+	the app's directory.

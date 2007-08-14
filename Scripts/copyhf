@@ -1,0 +1,33 @@
+#!/bin/sh
+cd ~/SOFTWARE
+rm -rf ~/PICOS_HF
+cp -r PICOS ~/PICOS_HF
+cd ~/PICOS_HF/Apps
+./cleanall
+cd ..
+rm -rf Distrib Linux SimNets
+mv Scripts TMP
+mkdir Scripts
+cd TMP
+mv UTILS.zip mkmk ../Scripts
+cd ..
+rm -rf TMP
+mv Apps TMP
+mkdir Apps
+cd TMP/SFU/
+mv HEART_MONITOR URF_BRIDGE ../../Apps
+cd ../..
+rm -rf TMP Libs
+cd PicOS
+rm -rf ATTIC eCOG
+cd Libs
+rm -rf ATTIC LibComms LibDiag
+cd ../MSP430
+mv BOARDS TMP
+mkdir BOARDS
+cd TMP
+mv SFU_HEART SFU_HEART_AP ../BOARDS/
+cd ..
+rm -rf TMP
+cd ../..
+find_rm_cvs
