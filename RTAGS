@@ -1459,3 +1459,8 @@ R070813A:
 
 	HeartForce firmware modified for 8-byte ESN. Documentation included in
 	the app's directory.
+
+R070814A:
+
+	Ashik fixed a minor bug in HEART_MONITIOR/app.c - I forgot to increase
+	the formal length of HELLO packet.
