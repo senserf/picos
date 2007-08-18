@@ -571,9 +571,9 @@ int _dad (PicOSNode, vscan) (const char *buf, const char *fmt, va_list ap) {
 			continue;
 		switch (*fmt++) {
 		    case '\0': return nc;
-		    case 'd': scani (int); break;
-		    case 'u': scanu (int); break;
-		    case 'x': scanx (int); break;
+		    case 'd': scani (short); break;
+		    case 'u': scanu (short); break;
+		    case 'x': scanx (short); break;
 #if	CODE_LONG_INTS
 		    case 'l':
 			switch (*fmt++) {
@@ -681,6 +681,20 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 
 	create Outserial (buf);
 
+	return 0;
+}
+
+int _dad (PicOSNode, ser_outb) (word st, const char *m) {
+
+	int prcs;
+	char *buf;
+	assert (st != WNONE, "PicOSNode->ser_outb: NONE state unimplemented");
+
+	if (uart->pcsOutserial != NULL) {
+		uart->pcsOutserial->wait (DEATH, st);
+		sleep;
+	}
+	create Outserial (m);
 	return 0;
 }
 
@@ -2706,17 +2720,14 @@ Outserial::perform {
 
     transient OM_WRITE:
 
+	quant = io (OM_WRITE, 0, WRITE, (char*)ptr, len);
+    	ptr += quant;
+	len -= quant;
 	if (len == 0) {
 		/* This is always a fresh buffer allocated dynamically */
 		ufree (data);
 		close ();
 	}
-
-    transient OM_RETRY:
-
-	quant = io (OM_RETRY, 0, WRITE, (char*)ptr, len);
-	ptr += quant;
-	len -= quant;
 	proceed OM_WRITE;
 }
 

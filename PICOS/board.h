@@ -179,6 +179,7 @@ station PicOSNode {
 	char * _da (form) (char*, const char*, ...);
 	int    _da (scan) (const char*, const char*, ...);
 	int    _da (ser_out) (word, const char*);
+	int    _da (ser_outb) (word, const char*);
 	int    _da (ser_in) (word, char*, int);
 	int    _da (ser_outf) (word, const char*, ...);
 	int    _da (ser_inf) (word, const char*, ...);
@@ -332,7 +333,7 @@ process Outserial (PicOSNode) {
 	const char *data, *ptr;
 	int len;
 
-	states { OM_INIT, OM_WRITE, OM_RETRY };
+	states { OM_INIT, OM_WRITE };
 
 	void setup (const char*);
 	void close ();

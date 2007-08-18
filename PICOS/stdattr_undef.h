@@ -31,6 +31,7 @@
 #undef form
 #undef scan
 #undef ser_out
+#undef ser_outb
 #undef ser_in
 #undef ser_outf
 #undef ser_inf

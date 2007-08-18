@@ -171,3 +171,7 @@ R070718A:
     Cosmetics to make VUEE compatible with the improved channel model in
     SIDE.
     
+R070818A:
+
+    ser_outb added and __outserial improved as per Wlodek's fixes. Also scan
+    fixed to use the proper operand size for accessing local word args.

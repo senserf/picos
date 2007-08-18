@@ -55,6 +55,7 @@
 #define scan(a, ...) \
 	(  ((PicOSNode*)TheStation)->_na_scan (a, ## __VA_ARGS__)  )
 #define ser_out(a,b)	(  ((PicOSNode*)TheStation)->_na_ser_out (a,b)  )
+#define ser_outb(a,b)   (  ((PicOSNode*)TheStation)->_na_ser_outb (a,b)  )
 #define ser_in(a,b,c)	(  ((PicOSNode*)TheStation)->_na_ser_in (a,b,c)  )
 #define ser_outf(a, ...) \
 	(  ((PicOSNode*)TheStation)->_na_ser_outf (a, ## __VA_ARGS__)  )
