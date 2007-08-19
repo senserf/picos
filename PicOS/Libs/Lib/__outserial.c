@@ -12,7 +12,6 @@
 
 #define	OM_INIT		00
 #define	OM_WRITE	10
-#define	OM_RETRY	20
 
 #if UART_DRIVER > 1
 
@@ -37,7 +36,6 @@ strand (__outserial, const char)
 	int quant;
 
   entry (OM_INIT)
-
 	set_cport;
 	ptr = data;
 	if (*ptr)
@@ -46,18 +44,14 @@ strand (__outserial, const char)
 		len = ptr [1] +3; // 3: 0x00, len, 0x04
 
   entry (OM_WRITE)
-
+	quant = io (OM_WRITE, __cport, WRITE, (char*)ptr, len);
+	ptr += quant;
+	len -= quant;
 	if (len == 0) {
 		/* This is always a fresh buffer allocated dynamically */
 		ufree (data);
 		finish;
 	}
-
-  entry (OM_RETRY)
-
-	quant = io (OM_RETRY, __cport, WRITE, (char*)ptr, len);
-	ptr += quant;
-	len -= quant;
 	proceed (OM_WRITE);
 
 endprocess (1)

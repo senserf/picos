@@ -11,6 +11,7 @@
 
 int ser_out (word, const char*);
 int ser_in (word, char*, int);
+int ser_outb (word, const char*);
 
 #if UART_DRIVER > 1
 int ser_select (int);
