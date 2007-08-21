@@ -175,3 +175,10 @@ R070818A:
 
     ser_outb added and __outserial improved as per Wlodek's fixes. Also scan
     fixed to use the proper operand size for accessing local word args.
+
+R070821A:
+
+    Fixed a bug in reset causing occasional SIGSEGVs. Redone reset to make
+    it ready for turning nodes on/off from the agent (should be next commit).
+    Manual to be updated (next commit?) as the init/reset declarations in
+    node.cc have been changed.

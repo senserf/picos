@@ -134,7 +134,22 @@ station PicOSNode {
 	NVRAM		*eeprom, *iflash;
 
 	void _da (diag) (const char*, ...);
-	void reset ();
+
+	//
+	// Here comes the 'reset' mess:
+	//
+
+	// This one is called by the praxis to reset the node
+	void _da (reset) ();
+	// This is type specific reset; also called by the agent to halt the
+	// node
+	virtual void reset ();
+	// This is type specific init (usually defined in the bottom type
+	// to start the root process); also called by the agent to switch
+	// the node on (after switchOff)
+	virtual void init () { };
+	// Are we done yet?
+
 	int _da (getpid) () { return __cpint (TheProcess); };
 	lword _da (seconds) ();
 	address	memAlloc (int, word);
@@ -348,7 +363,7 @@ station NNode : PicOSNode {
 #include "plug_null_node_data.h"
 
 	void setup ();
-	void reset ();
+	virtual void reset ();
 };
 
 station TNode : PicOSNode {
@@ -383,7 +398,7 @@ station TNode : PicOSNode {
 #include "tarp_node_data.h"
 
 	void setup ();
-	void reset ();
+	virtual void reset ();
 };
 
 process	BoardRoot {

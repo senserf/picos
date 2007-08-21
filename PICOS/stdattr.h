@@ -5,12 +5,6 @@
 // Attribute conversion for praxis programs and plugins
 // ====================================================
 
-#ifndef	NODENAME
-// So far, this trick is only needed for reset. Perhaps some virtual method
-// would be better?
-#define	NODENAME	Node
-#endif
-
 // ============================================================================
 
 #define	release		sleep
@@ -31,8 +25,7 @@
 
 // ============================================================================
 
-#define	reset()		(  ((NODENAME*)TheStation)->_na_reset ()  )
-
+#define	reset()		(  ((PicOSNode*)TheStation)->_na_reset ()  )
 #define	getpid()	(  ((PicOSNode*)TheStation)->_na_getpid ()  )
 #define	seconds()	(  ((PicOSNode*)TheStation)->_na_seconds ()  )
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )

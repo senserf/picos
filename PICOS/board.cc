@@ -105,11 +105,21 @@ void syserror (int p, const char *s) {
 	excptn (::form ("SYSERROR [%1d]: %1d, %s", TheStation->getId (), p, s));
 }
 
+void _dad (PicOSNode, reset) () {
+//
+// This is the actual reset method callable by the praxis
+
+	reset ();
+	init ();
+	sleep;
+}
+
 void PicOSNode::reset () {
 
 	MemChunk *mc;
 
-	// Kill all processes run by this station
+	// Kill all processes run by this station (note that this terminate is
+	// a station method)
 	terminate ();
 
 	// Clean up memory
@@ -151,7 +161,7 @@ void PicOSNode::reset () {
 
 	_da (OBuffer).fill (NONE, NONE, 0, 0, 0);
 
-	// This will do the dynamic initialization of static stuff in TCV
+	// This will do the dynamic initialization of the static stuff in TCV
 	_da (tcv_init) ();
 }
 
@@ -226,7 +236,10 @@ void PicOSNode::setup (data_no_t *nd) {
 				NVRAM_TYPE_NOOVER | NVRAM_TYPE_ERPAGE, NULL);
 	}
 
-	reset ();
+	PicOSNode::reset ();
+	// This can be optional based on whether the node is supposed to be
+	// initially on or off 
+	init ();
 };
 
 lword _dad (PicOSNode, seconds) () {
