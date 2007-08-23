@@ -1468,3 +1468,8 @@ R070814A:
 R070818A:
 
 	Added ser_outb and __outserial improved (both by Wlodek).
+
+R070822A:
+
+	Slight adjustments to VUEE praxes corresponding to the recent changes
+	in VUEE.
