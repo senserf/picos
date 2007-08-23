@@ -96,8 +96,7 @@ void _dad (PicOSNode, diag) (const char *s, ...) {
 
 	va_start (ap, s);
 
-	trace (" [%1.3f] DIAG [%1d]: %s", ituToEtu (Time), \
-		      TheStation->getId (), ::vform (s, ap));
+	trace ("DIAG: %s", ::vform (s, ap));
 }
 
 void syserror (int p, const char *s) {
@@ -105,41 +104,60 @@ void syserror (int p, const char *s) {
 	excptn (::form ("SYSERROR [%1d]: %1d, %s", TheStation->getId (), p, s));
 }
 
-void _dad (PicOSNode, reset) () {
+void PicOSNode::stopall () {
 //
-// This is the actual reset method callable by the praxis
-
-	reset ();
-	init ();
-	sleep;
-}
-
-void PicOSNode::reset () {
-
+// Cleanup all activities at the node, as for halt
+//
 	MemChunk *mc;
 
-	// Kill all processes run by this station (note that this terminate is
-	// a station method)
 	terminate ();
 
 	// Clean up memory
-	MFree = MTotal;
 	while (MHead != NULL) {
 		delete (byte*)(MHead->PTR);
 		mc = MHead -> Next;
 		delete MHead;
 		MHead = mc;
 	}
-	MTail = NULL;
 
 	// Abort the transceiver if transmitting
 	if (_da (RFInterface)->transmitting ())
 		_da (RFInterface)->abort ();
 
-	// Reset the transceiver to defaults
-	_da (RFInterface)->rcvOn ();
-	_da (RFInterface)->setXPower (_da (DefXPower));
-	_da (RFInterface)->setRPower (_da (DefRPower));
+	Halted = YES;
+}
+
+void _dad (PicOSNode, reset) () {
+//
+// This is the actual reset method callable by the praxis
+//
+	stopall ();
+	reset ();
+	Halted = NO;
+	init ();
+	sleep;
+}
+
+void _dad (PicOSNode, halt) () {
+//
+// This halts the node
+//
+	stopall ();
+	// Signal panel status change; note: no need to do that for reset
+	// because the status change is momentary and not perceptible by
+	// agents
+	zz_panel_signal (getId ());
+	sleep;
+}
+
+void PicOSNode::reset () {
+
+	assert (Halted, "reset at %s: should be Halted", getSName ());
+	assert (MHead == NULL, "reset at %s: MHead should be NULL",
+		getSName ());
+
+	MFree = MTotal;
+	MTail = NULL;
 
 	if (uart != NULL) {
 		uart->__inpline = NULL;
@@ -152,6 +170,16 @@ void PicOSNode::reset () {
 
 	if (ledsm != NULL)
 		ledsm->rst ();
+
+	initParams ();
+}
+
+void PicOSNode::initParams () {
+
+	// Reset the transceiver to defaults
+	_da (RFInterface)->rcvOn ();
+	_da (RFInterface)->setXPower (_da (DefXPower));
+	_da (RFInterface)->setRPower (_da (DefRPower));
 
 	_da (entropy) = 0;
 	_da (statid) = 0;
@@ -170,7 +198,7 @@ void PicOSNode::setup (data_no_t *nd) {
 	// Turn this into a trigger mailbox
 	TB.setLimit (-1);
 
-	MTotal = (nd->Mem + 3) / 4;			// This is in full words
+	MFree = MTotal = (nd->Mem + 3) / 4;	// This is in full words
 	MHead = MTail = NULL;
 
 	// These two survive reset. We assume that they are never changed
@@ -236,9 +264,17 @@ void PicOSNode::setup (data_no_t *nd) {
 				NVRAM_TYPE_NOOVER | NVRAM_TYPE_ERPAGE, NULL);
 	}
 
-	PicOSNode::reset ();
+	initParams ();
 	// This can be optional based on whether the node is supposed to be
 	// initially on or off 
+
+	if (nd->On == 0) {
+		// This value means OFF (it can be WNONE - for default - or 1)
+		Halted = YES;
+		return;
+	}
+
+	Halted = NO;
 	init ();
 };
 
@@ -1267,6 +1303,83 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 		cutoff, syncbits, brate, bpb, frml, NULL, RSC, PS);
 }
 
+void BoardRoot::initPanels (sxml_t data) {
+
+	sxml_t cur;
+	const char *att;
+	char *str, *sts;
+	int CNT, len;
+	Dev *d;
+	Boolean lf;
+
+	TheStation = System;
+
+	for (lf = YES, CNT = 0, data = sxml_child (data, "panel");
+					data != NULL; data = sxml_next (data)) {
+
+		if (lf) {
+			print ("\n");
+			lf = NO;
+		}
+
+		print (form ("Panel %1d: source = ", CNT));
+
+		if ((cur = sxml_child (data, "input")) == NULL)
+			excptn ("Root: <input> missing for panel %1d", CNT);
+
+		str = (char*) sxml_txt (cur);
+		len = sanitize_string (str);
+
+		if ((att = sxml_attr (cur, "source")) == NULL)
+			// Shouldn't we have a default?
+			excptn ("Root: <source> missing from <input> in panel "
+				"%1d", CNT);
+
+		if (strcmp (att, "device") == 0) {
+			if (len == 0)
+				excptn ("Root: device name missing in panel "
+					"%1d", CNT);
+			str [len] = '\0';
+
+			print (form ("device '%s'\n", str));
+
+			d = create Dev;
+
+			if (d->connect (DEVICE+READ, str, 0, XTRN_MBX_BUFLEN) ==
+			    ERROR)
+				excptn ("Root: panel %1d, cannot open device "
+					"%s", str);
+			create PanelHandler (d, XTRN_IMODE_DEVICE);
+			continue;
+		}
+
+		if (strcmp (att, "string") == 0) {
+			if (len == 0)
+				excptn ("Root: empty input string in panel "
+					"%1d", CNT);
+			sts = (char*) find_strpool ((const byte*) str, len + 1,
+				YES);
+
+			print (form ("string '%c%c%c%c ...'\n",
+				sts [0],
+				sts [1],
+				sts [2],
+				sts [3] ));
+
+			create PanelHandler ((Dev*)sts, XTRN_IMODE_STRING|len);
+			continue;
+		}
+
+		if (strcmp (att, "socket") == 0) {
+			print ("socket (redundant)\n");
+			continue;
+		}
+
+		excptn ("Root: illegal input type '%s' in panel %1d", att,
+			CNT);
+	}
+}
+
 void BoardRoot::initRoamers (sxml_t data) {
 
 	sxml_t cur;
@@ -1422,7 +1535,6 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 							xname (nn),
 							P->PITS [i] . Tag);
 				P->PITS [i] . Value = (IPointer) np [0]. IVal;
-trace ("IVAL: %x", P->PITS [i] . Value);
 
 			} else {
 
@@ -1482,7 +1594,7 @@ IPointer PicOSNode::preinit (const char *tag) {
 	return 0;
 }
 	
-data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
+data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 	nparse_t np [2 + EP_N_BOUNDS];
 	sxml_t cur;
@@ -1499,6 +1611,15 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn) {
 	// These ones are not set here, placeholders only to be set by
 	// the caller
 	ND->X = ND->Y = 0.0;
+
+	if (ion == NULL)
+		ND->On = WNONE;
+	else if (strcmp (ion, "on") == 0)
+		ND->On = 1;
+	else if (strcmp (ion, "off") == 0)
+		ND->On = 0;
+	else
+		xeai ("start", "node or defaults", ion);
 
 	// This one is always present (not optional)
 	RF = ND->rf = new data_rf_t;
@@ -2357,7 +2478,7 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 
 	double d;
 	data_no_t *DEF, *NOD;
-	const char *def_type, *nod_type, *att;
+	const char *def_type, *nod_type, *att, *start;
 	sxml_t chd, cno, cur;
 	nparse_t np [2];
 	Long i, j;
@@ -2385,16 +2506,17 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 
 	// Check for the defaults
 	chd = sxml_child (data, "defaults");
-	// OK if NULL, readNodeParams will initialize them
-	DEF = readNodeParams (chd, -1);
-	// DEF is never NULL, remember to deallocate it
-	
-	if (chd != NULL)
-		// Check for type attribute
+	start = NULL;
+	if (chd != NULL) {
 		def_type = sxml_attr (chd, "type");
-	else
+		start = sxml_attr (chd, "start");
+	} else
 		def_type = NULL;
 
+	// OK if NULL, readNodeParams will initialize them
+	DEF = readNodeParams (chd, -1, start);
+	// DEF is never NULL, remember to deallocate it
+	
 	chd = sxml_child (data, "node");
 	if (chd == NULL)
 		xenf ("<node>", "<nodes>");
@@ -2424,7 +2546,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 				break;
 		}
 
-		NOD = readNodeParams (cno, i);
+		start = sxml_attr (cno, "start");
+		NOD = readNodeParams (cno, i, start);
 
 		if ((nod_type = sxml_attr (cno, "type")) == NULL)
 			nod_type = def_type;
@@ -2432,6 +2555,9 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		// Substitute defaults as needed; validate later
 		if (NOD->Mem == 0)
 			NOD->Mem = DEF->Mem;
+
+		if (NOD->On == WNONE)
+			NOD->On = DEF->On;
 
 		// Neither of these is ever NULL
 		NRF = NOD->rf;
@@ -2577,6 +2703,11 @@ void BoardRoot::initAll () {
 	nparse_t np [1];
 	int NN;
 
+	settraceFlags (	TRACE_OPTION_TIME +
+			TRACE_OPTION_ETIME +
+			TRACE_OPTION_STATID +
+			TRACE_OPTION_PROCESS );
+
 	xml = sxml_parse_input ();
 	if (!sxml_ok (xml))
 		excptn ("Root: XML input data error, %s",
@@ -2608,6 +2739,7 @@ void BoardRoot::initAll () {
 	initTiming (xml);
 	initChannel (xml, NN);
 	initNodes (xml, NN);
+	initPanels (xml);
 	initRoamers (xml);
 
 	sxml_free (xml);
@@ -2710,6 +2842,7 @@ void Outserial::setup (const char *d) {
 	uart = S->uart;
 	assert (uart->pcsOutserial == NULL,
 		"Outserial->setup: duplicated process");
+	assert (d != NULL, "Outserial->setup: string pointer is NULL");
 	uart->pcsOutserial = this;
 	ptr = data = d;
 }

@@ -23,8 +23,6 @@ void Node::setup (
 		rate, PRE, UMODE, UBS, USP, UIDV, UODV);
 
 	NNode::setup ();
-
-	init ();
 }
 
 void Node::init () {
@@ -41,6 +39,4 @@ void Node::init () {
 void Node::reset () {
 
 	NNode::reset ();
-
-	init ();
 }

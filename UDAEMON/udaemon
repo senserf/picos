@@ -39,6 +39,9 @@ array set PIN_COLORS	{ D,0 "#A4E22E" D,1 "#FFFF7F" D,2 "#FE8592"
 			  I   "#C0C0C0" N   "#7EB0ED"
 			}
 
+array set PANEL_COLORS	{ ACTIVE  "#F0EC00" DISABLED "#BEBEBE" DEL "#007DFF"
+			  ONLABEL "#FF0000" OFFLABEL "#909090"               }
+
 array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
 
 array set HPA		{ 1 "(\[0-9a-f\])"
@@ -121,7 +124,7 @@ proc stName { Sok } {
 	global Stat
 
 	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
-		return " at station $Stat($Sok,S)"
+		return " at node $Stat($Sok,S)"
 	}
 
 	return ""
@@ -180,7 +183,7 @@ proc winlocate { tag stid } {
 		if ![regexp "^.w$tag\[0-9\]" $w] {
 			continue
 		}
-		# check station ID
+		# check node ID
 		if { $stid == "" } {
 			if { ![info exists Stat($s,S)] || $Stat($s,S) == "" } {
 				set wn $w
@@ -643,7 +646,7 @@ proc clockHandler { } {
 	set Wins($Sok) "x"
 
 	# send the request when the socket becomes writeable
-	fileevent $Sok writable "sendReq $Sok 5"
+	fileevent $Sok writable "sendReq $Sok 6"
 	fileevent $Sok readable "clockIni $Sok"
 }
 
@@ -1487,7 +1490,300 @@ proc newPinStatus { Sok upd } {
 	}
 }
 
-proc moveHandler { stid } {
+proc panelHandler { } {
+
+	global PortNumber HostName Wins
+
+	if [winlocate "a" ""] {
+		return
+	}
+
+	set Wn ""
+
+	log "connecting to PANEL ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	# stub
+	set Wins($Sok) "x"
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 5"
+	fileevent $Sok readable "panelIni $Sok"
+}
+
+proc panelIni { Sok } {
+
+	global Stat ECONN_OK
+
+	ctimeout $Sok
+
+	# exactly one byte expected
+	if [catch { read $Sok 1 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		# closed
+		log "connection closed by peer"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinB res]
+	if { $code != $ECONN_OK } {
+		log "connection rejected by SIDE: [conerror $code]"
+		dealloc $Sok
+		return
+	}
+
+	# issue a request for node 0, which is the default display
+	set Stat($Sok,NN) -1
+
+	log "receiving status info ..."
+
+	fileevent $Sok readable "panelZero $Sok"
+
+	# query for node 0
+	if [catch { puts -nonewline $Sok "Q 0\n" } res] {
+		log "connection aborted: $res"
+		dealloc $Sok
+		return
+	}
+
+	stimeout $Sok
+}
+
+proc panelZero { Sok } {
+
+	global Wins Stat HPA Unique NTYPE_COLORS
+
+	if ![info exists Stat($Sok,NN)] {
+		# sanity check
+		return
+	}
+
+	# read the response line
+	while 1 {
+
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log "connection failed: $ch"
+			dealloc $Sok
+			return
+		}
+
+		if { $ch == "" } {
+			if [eof $Sok] {
+				log "connection closed by peer"
+				dealloc $Sok
+			}
+			# wait for more
+			return
+		}
+
+		if { $ch == "\n" } {
+
+			# a new line
+			set cmd [string trim $Stat($Sok,B)]
+			set Stat($Sok,B) ""
+			set nnm ""
+			if ![regexp "^(\[0-9\]+) (\[FO\])(.*)" $cmd junk nod \
+			    sta nnm] {
+				continue
+			}
+
+			if [catch { set nod [expr $nod] } ] {
+				# ignore
+				continue
+			}
+
+			if { $Stat($Sok,NN) < 0 } {
+				# waiting for the number of nodes to display
+				# the window for the first time
+				if { $nod != 0 } {
+					continue
+				}
+				if ![regexp "(\[0-9\]+) (.*)" $nnm junk tot \
+				    nnm] {
+					continue
+				}
+				if [catch { set tot [expr $tot] } ] {
+					continue
+				}
+				if { $tot < 0 } {
+					continue
+				}
+				# start the window
+				ctimeout $Sok
+				set Stat($Sok,NN) $tot
+				set nnm [string trim $nnm]
+				# current node list
+				set Stat($Sok,SL) [list [list 0 $sta $nnm]]
+				# current displayed list
+				set Stat($Sok,DL) ""
+				# asked for (waiting to be included)
+				set Stat($Sok,EL) ""
+				set Wins($Sok) ".wa$Unique"
+				incr Unique
+				log "connection established"
+				updPanel $Sok
+				continue
+			}
+
+			# the window is up and running, so this must be an
+			# update; look up the node number
+
+			set nl ""
+			set up 0
+			foreach no $Stat($Sok,SL) {
+				if { $nod == [lindex $no 0] } {
+					set up 1
+					if { $sta != [lindex $no 1] } {
+						# actual status change
+						set up 2
+						lappend nl [list $nod $sta \
+							[lindex $no 2]]
+					}
+				} else {
+					lappend nl $no
+				}
+			}
+
+			if $up {
+				# node found on the list
+				if { $up > 1 } {
+					# actual change
+					set Stat($Sok,SL) $nl
+					updPanel $Sok
+				}
+				continue
+			}
+
+			# node not found; check if this is a long status message
+			if ![regexp "(\[0-9\]+) (.*)" $nnm junk tot nnm] {
+				# nope, ignore it
+				continue
+			}
+
+			# are we waiting for it?
+			set ix [lsearch -exact $Stat($Sok,EL) $nod]
+			if { $ix < 0 } {
+				# we are not
+				continue
+			}
+
+			# remove the node from the waiting list
+			set Stat($Sok,EL) [lreplace $Stat($Sok,EL) $ix $ix]
+
+			# and add it to the panel
+			lappend Stat($Sok,SL) \
+				[list $nod $sta [string trim $nnm]]
+
+			updPanel $Sok
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc addPanel { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	if { ![info exists Stat($Sok,NA)] || $Stat($Sok,NA) == "" } {
+		# no node
+		log "node number required"
+		return
+	}
+
+	if { [catch { expr $Stat($Sok,NA) } nod] || $nod < 0 } {
+		# this is just a precaution
+		log "illegal node number"
+		return
+	}
+
+	if { $nod >= $Stat($Sok,NN) } {
+		log "node number out of range"
+		return
+	}
+
+	# check if the node is not already present
+	foreach no $Stat($Sok,SL) {
+		if { [lindex $no 0] == $nod } {
+			log "node $nod already present in panel"
+			return
+		}
+	}
+
+	# OK, can request this node
+
+	if [catch {
+		puts -nonewline $Sok "Q $nod\n"
+	} res] {
+		log "connection aborted: $res"
+		dealloc $Sok
+	}
+
+	# append the node to the awaited list
+	if { [lsearch -exact $Stat($Sok,EL) $nod] < 0 } {
+		lappend Stat($Sok,EL) $nod
+	}
+}
+
+proc reqPanel { Sok ix rq } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set no [lindex $Stat($Sok,SL) $ix]
+
+	if { $no == "" } {
+		log "request ignored, bad node index"
+		return
+	}
+
+	if [catch {
+		puts -nonewline $Sok "$rq [lindex $no 0]\n"
+	} res] {
+		log "connection aborted: $res"
+	}
+}
+
+proc delPanel { Sok ix } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set no [lindex $Stat($Sok,SL) $ix]
+
+	if { $no == "" } {
+		log "request ignored, bad node index"
+		return
+	}
+
+	set Stat($Sok,SL) [lreplace $Stat($Sok,SL) $ix $ix]
+
+	updPanel $Sok
+}
+
+proc moveHandler { } {
 
 	global PortNumber HostName Wins Stat
 
@@ -1495,17 +1791,8 @@ proc moveHandler { stid } {
 	# going to revise the whole concept of network geometry by admitting
 	# explicit loss matrices among node pairs. The proper implementation
 	# of this part will wait until we figure out how to do that.
-	if { $stid != "" } {
-		set stid ""
-	}
-	####################################################################
 
-	if { $stid != "" && [catch { expr $stid } stid] } {
-		log "request ignored: illegal station Id"
-		return
-	}
-
-	if [winlocate "m" $stid] {
+	if [winlocate "m" ""] {
 		return
 	}
 
@@ -1524,8 +1811,6 @@ proc moveHandler { stid } {
 	}
 
 	set Wins($Sok) "x"
-	# this can legitimately be null
-	set Stat($Sok,S) $stid
 
 	# send the request when the socket becomes writeable
 	fileevent $Sok writable "sendReq $Sok 4"
@@ -1830,6 +2115,102 @@ proc cvcalc { Sok { cre 0 }} {
 	# active canvas width and height
 	set Stat($Sok,M,w) $cw
 	set Stat($Sok,M,h) $ch
+}
+
+proc updPanel { Sok } {
+#
+# Make or re-make, e.g., after adding/deleting a node
+#
+	global Wins Stat PANEL_COLORS
+
+	set w $Wins($Sok)
+
+	if { $Stat($Sok,SL) == $Stat($Sok,DL) } {
+		# no need to update
+		return
+	}
+
+	set ne [llength $Stat($Sok,SL)]
+
+	if { $ne != [llength $Stat($Sok,DL)] } {
+
+		# redo the whole window
+		if [catch { wm geometry $w } ge] {
+			# window absent
+			set ge ""
+		} else {
+			set Wins($Sok,NODESTROY) 1
+			destroy $w
+			unset Wins($Sok,NODESTROY)
+		}
+
+		toplevel $w
+		wm title $w "PANEL"
+		bind $w <Destroy> "destroyWindow $Sok"
+		if { $ge != "" } {
+			# preserve previous location
+			regexp "\\+.*\\+.*" $ge ge
+			wm geometry $w $ge
+		}
+
+		frame $w.stat -borderwidth 1
+		pack $w.stat -side top -expand 1 -fill x
+
+		for { set ix 0 } { $ix < $ne } { incr ix } {
+			# create placeholders for the node descriptors
+			set fr [frame $w.stat.pa$ix]
+			pack $fr -side top -expand 1 -fill x
+			label $fr.ide -text ""
+			pack $fr.ide -side left
+			button $fr.del -text "Delete" -state normal \
+				-command "delPanel $Sok $ix" \
+				-bg $PANEL_COLORS(DEL)
+			button $fr.res -text "Reset" -state normal \
+				-command "reqPanel $Sok $ix R" \
+				-bg $PANEL_COLORS(ACTIVE)
+			button $fr.off -text "Off" \
+				-command "reqPanel $Sok $ix F"
+			button $fr.on -text "On" \
+				-command "reqPanel $Sok $ix O"
+			pack $fr.del $fr.res $fr.off $fr.on -side right
+		}
+
+		frame $w.add -borderwidth 1
+		pack $w.add -side top -expand 1 -fill x
+		entry $w.add.non -width 6 -relief sunken \
+			-textvariable Stat($Sok,NA) -validate key \
+				-vcmd {validSid %P} -invcmd bell
+		button $w.add.but -text "Add" -command "addPanel $Sok"
+		pack $w.add.non $w.add.but -side left
+	}
+
+	# update labels and buttons
+	set ix 0
+	foreach no $Stat($Sok,SL) {
+		set non [lindex $no 0]
+		set nos [lindex $no 1]
+		set not [lindex $no 2]
+		set fr $w.stat.pa$ix
+		$fr.ide configure -text [format "%4d: %s" $non $not]
+		if { $nos == "F" } {
+			# node is down: ON active, OFF disabled
+			$fr.ide configure -bg $PANEL_COLORS(OFFLABEL)
+			$fr.on configure -state normal -bg \
+				$PANEL_COLORS(ACTIVE)
+			$fr.off configure -state disabled -bg \
+				$PANEL_COLORS(DISABLED)
+		} else {
+			# node is up: OFF active, ON disabled
+			$fr.ide configure -bg $PANEL_COLORS(ONLABEL)
+			$fr.on configure -state disabled -bg \
+				$PANEL_COLORS(DISABLED)
+			$fr.off configure -state normal -bg \
+				$PANEL_COLORS(ACTIVE)
+		}
+		incr ix
+	}
+		
+	set Stat($Sok,DL) $Stat($Sok,SL)
 }
 
 proc mkMove { Sok } {
@@ -2248,6 +2629,10 @@ proc destroyWindow { Sok } {
 
 	global Wins Stat
 
+	if [info exists Wins($Sok,NODESTROY)] {
+		return
+	}
+
 	if [info exists Wins($Sok)] {
 		unset Wins($Sok)
 	}
@@ -2294,7 +2679,7 @@ proc conerror { code } {
 	5 { return "node has no PINS module" }
 	6 { return "server-side timeout" }
 	7 { return "module has a non-socket interface" }
-	8 { return "no leds module at this station" }
+	8 { return "no leds module at this node" }
 	9 { return "unexpected disconnection" }
        11 { return "request line too long" }
        12 { return "invalid request" }
@@ -2420,7 +2805,7 @@ proc valsid { } {
 	global StatId
 
 	if [catch { expr $StatId } num] {
-		log "request ignored: illegal station Id '$StatId'"
+		log "request ignored: illegal node Id '$StatId'"
 		return 1
 	}
 	set StatId $num
@@ -2458,7 +2843,12 @@ proc doConnect { } {
 
 		"ROAMER" {
 
-			moveHandler $StatId
+			moveHandler
+		}
+
+		"PANEL" {
+
+			panelHandler 
 		}
 
 		"CLOCK"	{
@@ -2494,7 +2884,7 @@ button .top.quit -text "Quit" -command exit
 button .top.connect -text "Connect" -command doConnect
 
 tk_optionMenu .top.select Option \
-		"UART (ascii)" "UART (hex)" "PINS" "LEDS" "ROAMER" "CLOCK"
+	"UART (ascii)" "UART (hex)" "PINS" "LEDS" "ROAMER" "PANEL" "CLOCK"
 
 label .top.l -text "Node Id:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \

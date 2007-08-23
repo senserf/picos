@@ -19,7 +19,6 @@ typedef	unsigned char	byte;
 #define	IFLASH_SIZE	128	// Words
 
 #define	sysassert(a,b)	do { if (!(a)) syserror (EASSERT, b); } while (0)
-#define	halt()		excptn ("HALTED!!!")
 #define	CNOP		do { } while (0)
 
 #define	byteaddr(p)	((char*)(p))

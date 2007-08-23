@@ -98,6 +98,7 @@ typedef struct {
  * during network construction stage.
  */
 	word	Mem;		// Memory
+	word	On;		// Initially on
 	double X, Y;		// Coordinates
 	data_rf_t *rf;		// RF module data parameters
 	data_ep_t *ep;		// EEPROM parameters

@@ -30,6 +30,7 @@
 #define	PRQS_INPUT_BUFLEN	82		// PIN request buffer size
 #define	PUPD_OUTPUT_BUFLEN	32		// PIN update buffer size
 #define	MRQS_INPUT_BUFLEN	112		// MOVE request buffer size
+#define	ARQS_INPUT_BUFLEN	64		// PANEL request buffer size
 
 #define	XTRN_IMODE_NONE		(0<<29)
 #define	XTRN_IMODE_DEVICE	(1<<29)
@@ -62,7 +63,8 @@
 #define	AGENT_RQ_PINS		2		/* Pin control */
 #define	AGENT_RQ_LEDS		3
 #define	AGENT_RQ_MOVE		4		/* Mobility */
-#define	AGENT_RQ_CLOCK		5
+#define	AGENT_RQ_PANEL		5
+#define	AGENT_RQ_CLOCK		6
 
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */
@@ -406,7 +408,7 @@ class PINS {
 
 	int 	SLen;			// String length for string input
 
-	union	{
+	union {
 		Dev	   *I;
 		const char *S;
 	};

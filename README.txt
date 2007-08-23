@@ -181,4 +181,18 @@ R070821A:
     Fixed a bug in reset causing occasional SIGSEGVs. Redone reset to make
     it ready for turning nodes on/off from the agent (should be next commit).
     Manual to be updated (next commit?) as the init/reset declarations in
-    node.cc have been changed.
+    node.cc have been changed. Also NODENAME is no longer needed.
+
+R070822A:
+
+    It is now possible to start/stop/reset a node both from the data as well as
+    via udaemon. Changes to the praxis layout:
+
+	- node.cc, node.h (see Apps/VUE/[RFPing/TNP] in PicOS (R070822) and
+	  read pages 11 and 12 in the manual. Note: in TNP, see files 
+	  node_peg.cc, node_tag.cc, node_peg.h, node_tag.h.
+
+	- NODENAME no longer needed: file app.h [app_tag.h, app_peg.h] (just
+	  remove the definition)
+
+    A new component (PANEL) in udaemon, hopefully self explanatory.

@@ -14,7 +14,14 @@
 
 word	ZZ_Agent_Port	= AGENT_SOCKET;
 
-static MUpdates *MUP = NULL;
+static MUpdates *MUP = NULL,	// To signal mobility updates
+		*PUP = NULL;	// To signal panel updates
+
+void zz_panel_signal (Long sid) {
+
+	if (PUP)
+		PUP->queue (sid);
+}
 
 inline static void skipblk (char *&bp) {
 	while (isspace (*bp))
@@ -2270,6 +2277,7 @@ void MoveHandler::setup (Dev *a, FLAGS f) {
 	int i;
 
 	Flags = f;
+	RBuf = NULL;	// Used as flag by the destructor
 
 	if (imode (Flags) == XTRN_IMODE_SOCKET) {
 		if (MUP != NULL) {
@@ -2296,11 +2304,14 @@ void MoveHandler::setup (Dev *a, FLAGS f) {
 
 MoveHandler::~MoveHandler () {
 
-	delete RBuf;
-	if (imode (Flags) == XTRN_IMODE_SOCKET) {
-		delete MUP;
-		MUP = NULL;
-		rwpmmSetNotifier (NULL);
+	if (RBuf != NULL) {
+		// We have managed to create some stuff
+		delete RBuf;
+		if (imode (Flags) == XTRN_IMODE_SOCKET) {
+			delete MUP;
+			MUP = NULL;
+			rwpmmSetNotifier (NULL);
+		}
 	}
 }
 
@@ -2402,10 +2413,10 @@ MoveHandler::perform {
 HandleInput:
 		// Request format:
 		// T delay
-		// node (and nothing else) -> request for coordinates, illegal
+		// Q node (and nothing else) -> request for coordinates, illegal
 		// if device;
-		// node x y -> teleport there immediately
-		// node x0 y0 x1 y1 mins maxs minp maxp time -> starts a
+		// M node x y -> teleport there immediately
+		// R node x0 y0 x1 y1 mins maxs minp maxp time -> starts a
 		// random mobility process for the node
 
 		BP = RBuf;
@@ -2616,6 +2627,316 @@ Illegal_crd:
 		proceed Loop;
 }
 
+void PanelHandler::setup (Dev *a, FLAGS f) {
+
+	Flags = f;
+	RBuf = NULL;	// A flag for the destructor
+
+	if (imode (Flags) == XTRN_IMODE_SOCKET) {
+		if (PUP != NULL) {
+			// Allow only one connection at a time
+			create Disconnector (a, ECONN_ALREADY);
+			terminate ();
+			return;
+		}
+		// Create the mailbox for updates; note: the only reason we
+		// need it is that nodes may halt by themselves
+		PUP = create MUpdates (MAX_Long);
+	}
+
+	Agent = a;
+
+	if (imode (Flags) != XTRN_IMODE_STRING)
+		Agent->setSentinel ('\n');
+
+	TimedRequestTime = Time;
+
+	RBuf = new char [RBSize = ARQS_INPUT_BUFLEN];
+}
+
+PanelHandler::~PanelHandler () {
+
+	if (RBuf) {
+
+		delete RBuf;
+
+		if (imode (Flags) == XTRN_IMODE_SOCKET) {
+			delete PUP;
+			PUP = NULL;
+		}
+	}
+}
+
+PanelHandler::perform {
+
+	TIME st;
+	double d;
+	PicOSNode *pn;
+	char *re;
+	Long NN;
+	int rc;
+	byte c;
+	char cc;
+	Boolean off;
+
+	state AckPanel:
+
+		// Done only once, if ever, upon startup
+
+		if (imode (Flags) == XTRN_IMODE_SOCKET) {
+			// Need to acknowledge
+			c = ECONN_OK;
+			if (Agent->wi (AckPanel, (char*)(&c), 1) == ERROR) {
+				// Disconnected
+				delete Agent;
+				terminate;
+			}
+		}
+
+	transient Loop:
+
+		BP = RBuf;
+		Left = ARQS_INPUT_BUFLEN;
+
+		if (imode (Flags) == XTRN_IMODE_STRING) {
+			// Reading from string
+			while ((Flags & XTRN_IMODE_STRLEN) != 0) {
+				Flags--;
+				cc = *(String)++;
+				if (cc == '\n' || cc == '\0') {
+					*BP = '\0';
+					goto HandleInput;
+				}
+				if (Left > 1) {
+					*BP++ = cc;
+					Left--;
+				}
+			}
+			if (Left == ARQS_INPUT_BUFLEN) {
+				// End of string
+				terminate;
+			}
+			*BP = '\0';
+			goto HandleInput;
+		}
+
+	transient ReadRq:
+
+		if (imode (Flags) == XTRN_IMODE_SOCKET && 
+						Left == ARQS_INPUT_BUFLEN) {
+			// We haven't started reading yet and we run from
+			// a socket; thus PUP must be present
+			if (!PUP->empty ()) {
+				NN = PUP->get ();
+				sprintf (RBuf, "%1d %c\n", NN,
+					((PicOSNode*)idToStation (NN))->Halted ?
+						'F' : 'O');
+				BP = &(RBuf [0]);
+				Left = strlen (RBuf);
+				proceed Reply;
+			}
+			PUP->wait (NONEMPTY, ReadRq);
+		}
+
+		if ((rc = Agent->rs (ReadRq, BP, Left)) == ERROR) {
+			if (imode (Flags) == XTRN_IMODE_SOCKET)
+				delete Agent;
+			// Cannot delete station's mailbox
+			terminate;
+		}
+
+		if (rc == REJECTED) {
+			if (imode (Flags) != XTRN_IMODE_SOCKET)
+				excptn ("PanelHandler: request line too long, "
+					"%1d is the max", ARQS_INPUT_BUFLEN);
+			create Disconnector (Agent, ECONN_LONG);
+			terminate;
+		}
+			
+		// this is the length excluding the newline
+		RBuf [ARQS_INPUT_BUFLEN - 1 - Left] = '\0';
+HandleInput:
+		// Request format:
+		// T delay
+		// Q node -> request for name and status,
+		// O node -> on
+		// F node -> off
+		// R node -> Reset
+
+		BP = RBuf;
+		skipblk (BP);
+
+		switch (*BP++) {
+
+		    case 'T':
+
+			// Delay request
+			BP++;
+			skipblk (BP);
+			if (*BP == '+') {
+				// Offset
+				off = YES;
+				BP++;
+			} else
+				off = NO;
+			d = strtod (BP, &re);
+			if (BP == re || d < 0.0) {
+				// Illegal request
+Illegal:
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("PanelHandler: illegal request "
+						"%s", RBuf);
+				create Disconnector (Agent, ECONN_INVALID);
+				terminate;
+			}
+			st = etuToItu (d);
+			if (off)
+				TimedRequestTime += st;
+			else
+				TimedRequestTime = st;
+
+			proceed Delay;
+
+		    case 'Q':
+
+			// Status query
+			if ((NN = dechex (BP)) == ERROR)
+				goto Illegal;
+
+			if (imode (Flags) != XTRN_IMODE_SOCKET)
+				excptn ("PanelHandler: node query '%s; "
+					"illegal from non-socket interface",
+						RBuf);
+
+			if (!isStationId (NN)) {
+Illegal_nid:
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("PanelHandler: illegal node Id "
+						"%1d", NN);
+				// Socket, NACK + disconnect
+				create Disconnector (Agent, ECONN_STATION);
+				terminate;
+			}
+
+			pn = (PicOSNode*)idToStation (NN);
+
+			while ((rc = snprintf (RBuf, RBSize, "%1d %c %1d %s\n",
+			    NN,
+			    pn->Halted ?  'F' : 'O',
+			    NStations,
+			    pn->getTName ())) >= RBSize) {
+				// Must grow the buffer
+				RBSize = (word)(rc + 1);
+				delete RBuf;
+				RBuf = new char [RBSize];
+			}
+
+			BP = &(RBuf [0]);
+			Left = strlen (RBuf);
+			proceed Reply;
+
+		    case 'O':
+
+			// ON
+			if ((NN = dechex (BP)) == ERROR)
+				goto Illegal;
+
+			if (!isStationId (NN))
+				goto Illegal_nid;
+
+			pn = (PicOSNode*)idToStation (NN);
+
+			if (pn->Halted) {
+				// Execute this in the right context
+				TheStation = pn;
+Init:
+				pn->reset ();
+				pn->init ();
+				pn->Halted = NO;
+				zz_panel_signal (NN);
+				TheStation = System;
+			}
+
+			proceed Loop;
+
+		    case 'F':
+
+			// OFF
+			if ((NN = dechex (BP)) == ERROR)
+				goto Illegal;
+
+			if (!isStationId (NN))
+				goto Illegal_nid;
+
+			pn = (PicOSNode*)idToStation (NN);
+
+			if (!pn->Halted) {
+				TheStation = pn;
+				// This sets Halted
+				pn->stopall ();
+				zz_panel_signal (NN);
+				TheStation = System;
+			}
+
+			proceed Loop;
+
+		    case 'R':
+
+			// Reset
+			if ((NN = dechex (BP)) == ERROR)
+				goto Illegal;
+
+			if (!isStationId (NN))
+				goto Illegal_nid;
+
+			pn = (PicOSNode*)idToStation (NN);
+
+			TheStation = pn;
+
+			if (pn->Halted)
+				goto Init;
+
+			pn->stopall ();
+			pn->reset ();
+			pn->Halted = NO;
+			pn->init ();
+			TheStation = System;
+
+			proceed Loop;
+				
+		    case '\0':
+
+			// Empty line
+			proceed Loop;
+
+		}
+
+		if (imode (Flags) != XTRN_IMODE_SOCKET)
+			excptn ("PanelHandler: illegal request '%s'", BP);
+
+		proceed Loop;
+	
+	state Reply:
+
+		if (Agent->wl (Reply, BP, Left) != ERROR)
+			proceed Loop;
+
+		// Disconnection (this can only be a socket)
+		delete Agent;
+		terminate;
+
+	state Delay:
+
+		if (TimedRequestTime > Time) {
+			// FIXME: what if waiting erroneously long??
+			Timer->wait (TimedRequestTime - Time, Delay);
+			sleep;
+		} else
+			TimedRequestTime = Time;
+
+		proceed Loop;
+}
+
 void AgentConnector::setup (Dev *m) {
 
 	Agent = create Dev;
@@ -2691,6 +3012,11 @@ AgentConnector::perform {
 			case AGENT_RQ_CLOCK:
 
 				create ClockHandler (Agent);
+				terminate;
+
+			case AGENT_RQ_PANEL:
+
+				create PanelHandler (Agent, XTRN_IMODE_SOCKET);
 				terminate;
 
 			// More options will come later

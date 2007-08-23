@@ -31,6 +31,7 @@
 
 int zz_running (void*);
 int zz_killall (void*);
+void zz_panel_signal (Long);
 
 extern	const char zz_hex_enc_table [];
 
@@ -106,6 +107,14 @@ station PicOSNode {
 	 */
 	Boolean		_da (Receiving), _da (Xmitting),
 			_da (TXOFF), _da (RXOFF);
+	/*
+	 * One more Boolean flag - to tell if the node is halted; we may want
+	 * to reorganize this a bit later (like into a bunch of binary flags
+	 * perhaps?
+	 *
+	 */
+	Boolean		Halted;
+
 	int		_da (tx_event);
 	lword		_da (entropy);
 	word		_da (statid);		// Station/network ID
@@ -141,6 +150,10 @@ station PicOSNode {
 
 	// This one is called by the praxis to reset the node
 	void _da (reset) ();
+	// This one halts the node (from the praxis)
+	void _da (halt) ();
+	// This one stops the node (from outside the praxis)
+	void stopall ();
 	// This is type specific reset; also called by the agent to halt the
 	// node
 	virtual void reset ();
@@ -148,7 +161,8 @@ station PicOSNode {
 	// to start the root process); also called by the agent to switch
 	// the node on (after switchOff)
 	virtual void init () { };
-	// Are we done yet?
+
+	void initParams ();
 
 	int _da (getpid) () { return __cpint (TheProcess); };
 	lword _da (seconds) ();
@@ -403,7 +417,7 @@ station TNode : PicOSNode {
 
 process	BoardRoot {
 
-	data_no_t *readNodeParams (sxml_t, int);
+	data_no_t *readNodeParams (sxml_t, int, const char*);
 	data_ua_t *readUartParams (sxml_t, const char*);
 	data_pn_t *readPinsParams (sxml_t, const char*);
 	data_le_t *readLedsParams (sxml_t, const char*);
@@ -411,6 +425,7 @@ process	BoardRoot {
 	void initTiming (sxml_t);
 	void initChannel (sxml_t, int);
 	void initNodes (sxml_t, int);
+	void initPanels (sxml_t);
 	void initRoamers (sxml_t);
 	void initAll ();
 
@@ -445,6 +460,30 @@ process MoveHandler {
 	void setup (Dev*, FLAGS);
 
 	~MoveHandler ();
+
+	perform;
+};
+
+process PanelHandler {
+
+	TIME TimedRequestTime;
+
+	union	{
+		Dev	   *Agent;	// May be string
+		const char *String;
+	};
+
+	int Left;
+	char *BP;
+	char *RBuf;
+	word RBSize;
+	FLAGS Flags;
+
+	states { AckPanel, Loop, ReadRq, Reply, Delay };
+
+	void setup (Dev*, FLAGS);
+
+	~PanelHandler ();
 
 	perform;
 };

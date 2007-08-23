@@ -2,7 +2,6 @@
 #define __picos_stdattr_undef_h__
 // Created automatically, do not edit!!!
 #undef __picos_stdattr_h__
-#undef NODENAME
 #undef release
 #undef finish
 #undef entropy
@@ -16,6 +15,7 @@
 #undef rnd
 #undef diag
 #undef reset
+#undef halt
 #undef getpid
 #undef seconds
 #undef actsize

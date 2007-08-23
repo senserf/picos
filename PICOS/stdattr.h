@@ -26,6 +26,7 @@
 // ============================================================================
 
 #define	reset()		(  ((PicOSNode*)TheStation)->_na_reset ()  )
+#define	halt()		(  ((PicOSNode*)TheStation)->_na_halt ()  )
 #define	getpid()	(  ((PicOSNode*)TheStation)->_na_getpid ()  )
 #define	seconds()	(  ((PicOSNode*)TheStation)->_na_seconds ()  )
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )
