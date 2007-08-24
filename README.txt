@@ -200,3 +200,8 @@ R070822A:
 R070824A:
 
     Deallocating NULL was illegal in VUEE (sorry about that). It is now.
+
+R070824B:
+
+    Added a few safety hatches (matching those in PicOS) accounting for various
+    NULLs (ser_in, ser_out, vscan, ...)

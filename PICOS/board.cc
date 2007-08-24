@@ -616,6 +616,8 @@ int _dad (PicOSNode, vscan) (const char *buf, const char *fmt, va_list ap) {
 			} \
 			}
 
+	if (buf == NULL || fmt == NULL)
+		return 0;
 
 	nc = 0;
 	while (*fmt != '\0') {
@@ -675,6 +677,9 @@ int _dad (PicOSNode, ser_in) (word st, char *buf, int len) {
 
 	assert (st != WNONE, "PicOSNode->ser_in: NONE state unimplemented");
 
+	if (buf == NULL || len == 0)
+		return 0;
+
 	if (uart->__inpline == NULL) {
 		if (uart->pcsInserial == NULL)
 			create Inserial;
@@ -708,6 +713,9 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 
 	assert (st != WNONE, "PicOSNode->ser_out: NONE state unimplemented");
 
+	if (m == NULL)
+		return 0;
+
 	if (uart->pcsOutserial != NULL) {
 		uart->pcsOutserial->wait (DEATH, st);
 		sleep;
@@ -740,7 +748,11 @@ int _dad (PicOSNode, ser_outb) (word st, const char *m) {
 
 	int prcs;
 	char *buf;
+
 	assert (st != WNONE, "PicOSNode->ser_outb: NONE state unimplemented");
+
+	if (m == NULL)
+		return 0;
 
 	if (uart->pcsOutserial != NULL) {
 		uart->pcsOutserial->wait (DEATH, st);
@@ -759,6 +771,9 @@ int _dad (PicOSNode, ser_inf) (word st, const char *fmt, ...) {
 	va_list	ap;
 
 	assert (st != WNONE, "PicOSNode->ser_inf: NONE state unimplemented");
+
+	if (fmt == NULL)
+		return 0;
 
 	if (uart->__inpline == NULL) {
 		if (uart->pcsInserial == NULL)
@@ -785,6 +800,9 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 	va_list ap;
 
 	assert (st != WNONE, "PicOSNode->ser_outf: NONE state unimplemented");
+
+	if (m == NULL)
+		return 0;
 
 	if (uart->pcsOutserial != NULL) {
 		uart->pcsOutserial->wait (DEATH, st);
