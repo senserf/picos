@@ -316,6 +316,9 @@ void PicOSNode::memFree (address p) {
 
 	MemChunk *mc, *pc;
 
+	if (p == NULL)
+		return;
+
 	for (pc = NULL, mc = MHead; mc != NULL; pc = mc, mc = mc -> Next) {
 
 		if (p == mc->PTR) {

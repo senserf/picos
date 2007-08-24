@@ -196,3 +196,7 @@ R070822A:
 	  remove the definition)
 
     A new component (PANEL) in udaemon, hopefully self explanatory.
+
+R070824A:
+
+    Deallocating NULL was illegal in VUEE (sorry about that). It is now.
