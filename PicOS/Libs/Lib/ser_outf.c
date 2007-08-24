@@ -15,6 +15,9 @@ int ser_outf (word st, const char *m, ...) {
 	char *buf;
 	va_list ap;
 
+	if (m == NULL)
+		return 0;
+
 	if ((prcs = running (__outserial)) != 0) {
 		/* We have to wait */
 		if (st == NONE)

@@ -65,8 +65,9 @@ int vscan (const char *buf, const char *fmt, va_list ap) {
 			} \
 			}
 
-
-
+	if (buf == NULL || fmt == NULL)
+		// A safety hatch
+		return 0;
 
 	nc = 0;
 	while (*fmt != '\0') {

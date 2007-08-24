@@ -13,6 +13,9 @@ int ser_outb (word st, const char *m) {
 	int prcs;
 	char *buf;
 
+	if (m == NULL)
+		return 0;
+
 	if ((prcs = running (__outserial)) != 0) {
 		if (st == NONE)
 			return prcs;

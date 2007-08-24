@@ -16,6 +16,10 @@ int ser_in (word st, char *buf, int len) {
 /* ====== */
 	int prcs;
 
+	if (buf == NULL || len == 0)
+		// I am not sure if this one makes a lot of sense
+		return 0;
+
 	if (__inpline == NULL) {
 		if ((prcs = running (__inserial)) == 0)
 			prcs = runthread (__inserial);

@@ -19,6 +19,9 @@ int ser_inf (word st, const char *fmt, ...) {
 	int prcs;
 	va_list	ap;
 
+	if (fmt == NULL)
+		return 0;
+
 	if (__inpline == NULL) {
 		if ((prcs = running (__inserial)) == 0)
 			prcs = runthread (__inserial);

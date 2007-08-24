@@ -1473,3 +1473,8 @@ R070822A:
 
 	Slight adjustments to VUEE praxes corresponding to the recent changes
 	in VUEE.
+
+R070824B:
+
+	A few safety hatches added to I/O function to admit NULLs and ignore
+	them, as opposed to crashing.
