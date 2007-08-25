@@ -1,0 +1,42 @@
+#!/usr/bin/tclsh
+
+set CONV	[expr 299792458.0 * 10.0]
+
+proc toetu { arg } {
+
+	global CONV
+
+	puts [format %8.6f [expr $arg / $CONV]]
+}
+
+proc toitu { arg } {
+
+	global CONV
+
+	puts [format %1.0f [expr $arg * $CONV]]
+}
+
+while 1 {
+
+	set lin [string trim [gets stdin]]
+	if { $lin == "" } {
+		continue
+	}
+	if { [string first "." $lin] >= 0 } {
+		set etu 1
+	} else {
+		append lin "."
+		set etu 0
+	}
+
+	if [catch { expr $lin } arg] {
+		puts "Illegal number"
+		continue
+	}
+
+	if $etu {
+		toitu $arg
+	} else {
+		toetu $arg
+	}
+}
