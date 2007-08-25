@@ -117,4 +117,46 @@ Boolean RFShadow::RFC_eot (RATE r, double sl, double sn, const IHist *h) {
 	return TheTransceiver->isFollowed (ThePacket);
 }
 
+void RFShadow::setup (
+
+	Long nt,		// The number of transceivers
+	const sir_to_ber_t *st,	// SIR to BER conversion table
+	int    sl,		// Length of the conversion table
+	double rd,		// Reference distance
+	double lo,		// Loss at reference distance (dB)
+	double be,		// Path loss exponent (Beta)
+	double sg,		// Gaussian lognormal component Sigma
+	double no,		// Background noise (dBm)
+	double bu,		// Channel busy signal threshold dBm
+	double co,		// Cut off signal level
+	Long mp,		// Minimum received preamble length
+	Long br,		// Bit rate
+	int bpb,		// Bits per byte
+	int frm,		// Packet frame (extra physical bits)
+	double (*g) (Transceiver*, Transceiver*),	// Gain function
+	RSSICalc *rsc,		// RSSI calculator
+	PowerSetter *ps		// Power setting converter
+) {
+	RadioChannel::setup (nt, no, st, sl, br, bpb, frm, rsc, ps);
+
+	RDist = rd;
+	COSL = (co == -HUGE) ? 0.0 : dBToLin (co);
+	Sigma = sg;
+
+	LFac = pow (RDist, be) / dBToLin (lo);
+	NBeta = -be;		// The exponent is negative
+	OBeta = 1.0 / -be;
+	MinPr = mp;
+	BThrs = dBToLin (bu);
+	gain = g;
+
+	print (MinPr, "  Minimum preamble:", 10, 26);
+	print (bu, "  Activity threshold:", 10, 26);
+	print (co, "  Cutoff threshold:", 10, 26);
+
+	print ("  Fading fromula:\n");
+	print (form ("    RP(d)/XP = -10 x %3.1f x log(d/%3.1fm) + X(%3.1f) - "
+		"%4.1fdB\n\n", be, rd, sg, lo));
+}
+
 #endif

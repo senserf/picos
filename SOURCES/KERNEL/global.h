@@ -68,23 +68,6 @@
 #endif
 #define Assert(a,b, ...) do { if (!(a)) excptn (b, ## __VA_ARGS__); } while (0)
 
-// Macros telling whether we are being traced
-#if ZZ_DBG
-#define	DebugTracing	( \
-				Time >= DebugTracingTimeStart && \
-				Time <  DebugTracingTimeStop && \
-				(  DebugTracingStation == ANY || \
-				   DebugTracingStation == TheStation->getId ()))
-#else
-#define	DebugTracing	0
-#endif
-
-#define	Tracing		( \
-				Time >= TracingTimeStart && \
-				Time <  TracingTimeStop && \
-				(  TracingStation == ANY || \
-				   TracingStation == TheStation->getId () ))
-
 /* --------------------- */
 /* Pointers to fixed AIs */
 /* --------------------- */
@@ -770,6 +753,24 @@ inline void combineRV (RVariable &a, RVariable &b) { combineRV (&a, &b, &b); };
 typedef         Long            FLAGS;
 typedef         char            Boolean;
 typedef         char            boolean;
+
+// Macros telling whether we are being traced =================================
+
+#if ZZ_DBG
+
+extern Boolean zz_debug_tracing_on ();
+
+#define	DebugTracing	(zz_debug_tracing_on ())
+
+#else
+#define	DebugTracing	0
+#endif
+
+extern Boolean zz_tracing_on ();
+
+#define	Tracing	(zz_tracing_on ())
+
+// ============================================================================
 
 /* ---------- */
 /* BIG / TIME */
@@ -1918,13 +1919,15 @@ extern  ZZ_REQUEST             *zz_nqrqs;
 // Tracing variables (soft + hard)
 
 extern  TIME                   TracingTimeStart, TracingTimeStop;
-extern  Long                   TracingStation;
+extern  Long                   *TracingStations;
+extern	Long		       NTracingStations;
 
 #if	ZZ_DBG
 extern	TIME		       DebugTracingTimeStart,
 			       DebugTracingTimeStop;
 
-extern	Long		       DebugTracingStation;
+extern	Long		       *DebugTracingStations;
+extern	Long		       DebugNTracingStations;
 #endif
 
 // -------------------------------
@@ -6267,20 +6270,17 @@ class   ZZ_KERNEL : public ZZ_SProcess {
 #define	TRACE_OPTION_STATE		16
 
 void	trace (const char*, ...);
-void	settrace (FLAGS);
-void	settrace (FLAGS, Long);
-void	settrace (FLAGS, Long, TIME);
-void	settrace (FLAGS, Long, TIME, TIME);
-void	settrace (FLAGS, Long, double);
-void	settrace (FLAGS, Long, double, double);
+
+void settraceFlags (FLAGS);
+void settraceTime (TIME fr, TIME upto = TIME_inf);
+void settraceTime (double fr, double upto = Time_inf);
+void settraceStation (Long st);
 
 // These are void if not ZZ_DBG
-void	setTrace (int);
-void	setTrace (int, Long);
-void	setTrace (int, Long, TIME);
-void	setTrace (int, Long, TIME, TIME);
-void	setTrace (int, Long, double);
-void	setTrace (int, Long, double, double);
+void setTraceFlags (Boolean);
+void setTraceTime (TIME fr, TIME upto = TIME_inf);
+void setTraceTime (double fr, double upto = Time_inf);
+void setTraceStation (Long st);
 
 /* ---------------------------------------------------------- */
 /* Inline   functions   removed   from   objects  to  resolve */
@@ -6538,11 +6538,9 @@ inline ZZ_INSPECT::ZZ_INSPECT (Station *s, void *pt, char *nik, int st, int os){
 #endif
 };
 
-/* ------------------------------------------------ */
-/* Announcing two auxiliary functions for observers */
-/* ------------------------------------------------ */
-
-void    zz_jump_rq (int);
+/* ----------------------------------------------- */
+/* Announcing one auxiliary function for observers */
+/* ----------------------------------------------- */
 void    zz_timeout_rq (TIME, int);
 
 /* ---------- */

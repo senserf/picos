@@ -88,10 +88,8 @@ class   ObserverService : public ZZ_SProcess {
 
 		zz_observer_running = YES;
 
-		do {
-		  zz_jump_flag = NO;
-		  zz_current_observer->zz_code ();
-		  if (DisplayActive) {
+		zz_current_observer->zz_code ();
+		if (DisplayActive) {
 		    // Observer stepping check
 		    ZZ_SIT   *ws;
 
@@ -108,9 +106,7 @@ class   ObserverService : public ZZ_SProcess {
 		      zz_send_step_phrase = YES;
 		      break;
 		    }
-		  }
-		  TheObserverState = zz_state_to_jump;
-		} while (zz_jump_flag);
+		}
 
 		zz_observer_running = NO;
 	 }
@@ -157,14 +153,8 @@ void    Observer::zz_start () {
 	pool_in ((ZZ_Object*)this, TheProcess->ChList);
 	zz_observer_running = YES;
 	zz_current_observer = this;
-	zz_jump_flag = NO;
 	TheObserverState = 0;                   // First time around
 	zz_code ();
-	while (zz_jump_flag) {  // Process jump
-		zz_jump_flag = NO;
-		TheObserverState = zz_state_to_jump;
-		zz_code ();
-	}
 	zz_observer_running = NO;
 
 #endif
@@ -293,20 +283,6 @@ void    zz_timeout_rq (TIME t, int a) {
 #endif
 }
 
-void    zz_jump_rq (int a) {
-
-/* --------------------------------------------- */
-/* Resume the current observer at a given action */
-/* --------------------------------------------- */
-
-#if     ZZ_OBS
-
-	if_not_from_observer ("jumpto: called not from an observer");
-	zz_state_to_jump = a;
-	zz_jump_flag    = YES;
-#endif
-}
-
 char    *ZZ_INSPECT::getptype () {
 
 #if     ZZ_OBS
@@ -409,7 +385,7 @@ void    Observer::exPrint0 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << "(Observer) Inspect lists of all observers:\n\n";
 	}
 
@@ -479,7 +455,7 @@ void    Observer::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Inspect list:\n\n";
 	}
 

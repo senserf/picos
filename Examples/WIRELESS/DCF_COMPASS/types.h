@@ -1,6 +1,13 @@
 #ifndef __types_h__
 #define	__types_h__
 
+// Tracing options: switch them on (set to 1) to see various traces in the
+// output file.
+#define	TRACE_PACKETS		0
+#define	TRACE_ROUTES		0
+
+#define	DEBUGGING		0	// This one is for the RF module
+
 #include "rfmod_dcf.h"
 
 // HELLO packet types. Note that in SMURPH negative types are used for special
@@ -10,6 +17,11 @@
 // generator) can be immediatelly accommodated, as we never assume that type 0
 // is all there is.
 #define	PKT_TYPE_HELLO		(-1)
+
+// Note: the RF module uses an internal notion of packet type, which is
+// different, e.g., from its point of view both HELLO and DATA are "data"
+// packets, and RTS, CTS, ACK are special packets tagged with the appropriate
+// "internal" type attribute.
 
 // HELLO packet: need the address of original sender, but no recipient address.
 // On top of that, we have 8 bytes for the two coordinates + 2 bytes for a
@@ -21,27 +33,14 @@
 // TTL + some serial number (or whatever). Lots of framing, isn't it?
 #define	PKT_LENGTH_DATA		(PKT_LENGTH_RTS + (6 + 6 + 2 + 2) * 8)
 
-#define	PKT_TTL_DATA		18	// Initial TTL settings for data packets
+#define	PKT_TTL_DATA		15	// Initial TTL settings for data packets
 #define	PKT_TTL_HELLO		10	// ... and for HELLO
 
-// Tracing options: switch them on (set to 1) to see various traces in the
-// output file.
-#define	TRACE_PACKETS		0
-#define	TRACE_ROUTES		0
-
-// Number of re-forwarding tries on RFM drop
+// Number of re-forwarding attempts if the packet is dropped by the MAC layer
 #define	MAX_ROUTE_TRIES		3
 
 // A small distance used as EPSILON
 #define	TINY_DISTANCE		0.01	// This is 1 cm
-
-// Reliability parameters
-#define	RELIABILITY_MIN		0.0
-#define	RELIABILITY_MAX		1.0
-#define	RELIABILITY_INC		0.1	// Increment on HELLO
-#define	RELIABILITY_THS		0.7
-#define	RELIABILITY_STP		0.2
-#define	RELIABILITY_ACC		0.1
 
 packet WDPacket : DCFPacket {
 
@@ -49,9 +48,9 @@ packet WDPacket : DCFPacket {
 	// all packets have some standard attributes (which are not mentioned
 	// here). For example Sender is the transport sender of the packet.
 
-	Long	SN;		// Serial number for
+	Long	SN;		// Serial number for eliminating duplicates
 	unsigned short TTL;	// Time to live
-	unsigned short Retries;	// Routing retries
+	unsigned short Retries;	// Number of re-routing attempts at last node
 };
 
 packet HelloPacket : WDPacket {
@@ -76,14 +75,124 @@ packet DataPacket : WDPacket {
 
 class MY_RFModule : public RFModule {
 
+// This class completes the specification of RFModule, which is an abstract
+// library class. Some virtual methods that can be declared here provide
+// hooks for various occasions, which, in particular, may be useful for
+// implementing directional transmission/reception. I am listing (defining)
+// them all for illustration; only those that are nonempty or different from
+// the default actions need be defined.
+
 	public:
 
-	void rcv_data (DCFPacket*, double);
-	void suc_data (DCFPacket*, Long);
-	void fai_data (DCFPacket*);
-	void col_data ();
+	// --- rcv group ---
 
-	MY_RFModule (Transceiver *t, Long pqs, Long nret) : RFModule (t, pqs, nret) { };
+	void UPPER_rcv_data (DCFPacket*, double);
+		// This method MUST be defined; it is called whenever a packet
+		// has been received by the MAC layer; the second argument is
+		// the RSSI. This is the only method that has no default
+		// action.
+
+	void UPPER_rcv_rts (Long snd, double rssi) {
+		// Called immediately after RTS reception, with the first
+		// argument identifying the sender; the second argument is
+		// the RSSI at which the RTS has been received
+	};
+
+	void UPPER_rcv_cts (Long snd, double rssi) {
+		// Called after (a solicited) CTS reception
+	};
+
+	void UPPER_rcv_ack (Long snd, double rssi) {
+		// Called after a solicited ACK reception
+	};
+
+	// --- snd group ---
+
+	void UPPER_snd_data (DCFPacket *p) {
+		// Called when the RF module is about to start transmitting
+		// a data packet
+	};
+
+	void UPPER_snd_rts (Long rcp) {
+		// Called when the RF module is about to start transmitting
+		// an RTS packet; the argument identifies the recipient
+	};
+
+	void UPPER_snd_cts (Long rcp) {
+		// Called when the RF module is about to start transmitting
+		// a CTS packet; the argument identifies the recipient
+	};
+
+	void UPPER_snd_ack (Long rcp) {
+		// Called when the RF module is about to start transmitting
+		// an ACK packet; the argument identifies the recipient
+	};
+
+	// --- snd group ---
+
+	void UPPER_snt_data (DCFPacket *p) {
+		// Called immediately after the RF module stops sending a data
+		// packet; the packet is pointed to by the argument
+	};
+
+	void UPPER_snt_rts (Long rcp) {
+		// Called immediately after the RF module stops sending an RTS
+		// packet to the node identified by the argument
+	};
+
+	void UPPER_snt_cts (Long rcp) {
+		// Called immediately after the RF module stops sending a CTS
+		// packet to the node identified by the argument
+	};
+
+	void UPPER_snt_ack (Long rcp) {
+		// Called immediately after the RF module stops sending an ACK
+		// packet to the node identified by the argument
+	};
+
+	// --- suc / fai
+
+	void UPPER_suc_data (DCFPacket*, int, int);
+		// Called whenever a data packet is successfully transmitted;
+		// for a broadcast data packet, this means just transmitted
+		// (the method is called along with UPPER_snt_data; for a
+		// non-broadcast data packet, the method is called when the ACK
+		// is receieved; the last two arguments give the values of the
+		// short and long retransmission counters, respectively; they
+		// are always both zeros for a broadcast packet.
+		// The default method deletes the packet; note that it also
+		// must be explicitly deleted (at some point) by any local
+		// variant
+
+	void UPPER_fai_data (DCFPacket*, int, int);
+		// Called when the transmission of a data packet fails, i.e.,
+		// one of the retransmission counters runs out; never called
+		// for a broadcast packet; the last two arguments as for 
+		// UPPER_suc_data; the failure occurs when the expected ACK
+		// packet times out after the last allowed retransmission;
+		// The default method deletes the packet; note that it also
+		// must be explicitly deleted (at some point) by any local
+		// variant
+
+	// --- the col group
+
+	void UPPER_col_data () {
+		// Called when the data packet fails to arrive (timeout) after
+		// CTS
+	};
+
+	void UPPER_col_cts (int sh, int ln) {
+		// Called when CTS fails to arrive after RTS
+	};
+
+	void UPPER_col_ack (int sh, int ln) {
+		// Called when ACK fails to arrive after DATA
+	};
+
+	// --- end of redefineable methods ----
+
+
+	MY_RFModule (Transceiver *t, Long pqs) : RFModule (t, pqs) { };
 
 };
 
@@ -94,7 +203,6 @@ struct RTE_s {
 
 	struct RTE_s *prev, *next;	// Needed by the pooling operations
 
-	TIME TStamp;			// Time stamp (when last set or updated)
 	Long A;				// Node address
 	double X, Y;			// Coordinates
 };
@@ -130,8 +238,7 @@ struct NTE_s {
 	TIME TStamp;			// Time stamp (when last set or updated)
 	Long A;				// Node address
 	double X, Y;			// Coordinates
-	double RSSI;			// Signal strength (neighbors only)
-	double Reliability;
+	double RSSI;			// Signal strength of last HELLO
 };
 
 typedef	struct NTE_s NTE_i;
@@ -141,25 +248,40 @@ class NTable {
 	// The neighbor table - describing the population of currently known
 	// neighbors
 
+	friend class Node;
+
 	NTE_i *Head;
+	Long NN;
+
+	double RelRSSI,			// Reliable RSSI threshold
+	       AvgRSSI,			// Average RSSI
+	       MinRSSI,			// Minimum RSSI
+	       MaxRSSI;			// Minimum RSSI
+
+	// We implement a somewhat exotic scheme for re-routing (i.e., trying
+	// different neighbors) after a forwarding failure, for which we need
+	// the above statistics. This is explained in node.cc.
 
 	public:
 
 	// Add/update neighbor info
 	void update (Long, double, double, double rssi);
 
-	// Find the best neighbor to which the packet should be forwarded
-	Long route (Long, double, double, double);
-
-	// Mark neighbor as unreliable
+	// Called when routing through a neighbor fails; the argument is the
+	// neighbor Id; its role is to update RelRSSI, i.e., the reliable RSSI
+	// threshold
 	void unreliable (Long);
 
-	// Delete obsolte entries
+	// Delete obsolete entries
 	void deleteOld (TIME);
 
 	NTable () {
 		// Starts as empty
 		Head = NULL;
+		NN = 0;
+		AvgRSSI = 0.0;
+		MinRSSI = HUGE;
+		RelRSSI = MaxRSSI = -HUGE;
 	};
 };
 
@@ -216,13 +338,16 @@ station Node {
 
 	Long	Serial;		// Serial number for outgoing packets
 
+	Long route (Long);
 	void receive (WDPacket*, double);
-	void sent (WDPacket*, Long);
+	void sent (WDPacket*, int, int);
 	void dropped (WDPacket*);
 	void dispatch ();
 
 	void setup (RATE, Long);
 };
+
+#define	TheNode	((Node*)TheStation)
 
 process HelloSender (Node) {
 
@@ -280,11 +405,12 @@ process PositionReporter {
 	perform;
 };
 
-void initNodes (Long);
+void initNodes (Long, Long);
 void initMobility ();
-Long initChannel ();
+void initChannel (Long&, Long&);
 
 inline double dist (double x0, double y0, double x1, double y1) {
+	// Calculate distance between two points on a plane
 	return sqrt ((y1 - y0) * (y1 - y0) + (x1 - x0) * (x1 - x0));
 }
 

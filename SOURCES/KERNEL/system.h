@@ -107,12 +107,12 @@ extern  Mailbox         *zz_ncmailbox;
 /* --------- */
 #if	ZZ_DBG
 extern	int		DebugTracingFull;
-
-extern	double		zz_debug_tracing_start_d, zz_debug_tracing_stop_d;
 #endif
 
+// To indicate that time limit cannot be reset by setLimit
+#define	TRACE_OPTION_TIME_LIMIT_SET	31
+
 extern	FLAGS		zz_trace_options;
-extern	double		zz_tracing_start_d, zz_tracing_stop_d;
 
 extern  int 		EndOfData;              // EOF flag
 
@@ -213,8 +213,6 @@ extern  AI      *zz_ai;                         // The current AI pointer
 
 extern  Observer   *zz_obslist;                 // The list of all observers
 
-extern  int        zz_jump_flag,                // Resume in progress
-		   zz_state_to_jump;            // The obsrvr state to jump to
 #endif
 
 #if     ZZ_TOL
@@ -351,6 +349,8 @@ class   ZZ_TRVariable : public RVariable {
 #endif
 #endif
 
+void	zz_run_delayed_initializers ();
+
 /* ---------------------------------------------------------- */
 /* Exposure   macros.  In  the  user  protocol  file  similar */
 /* constructs are processed by smpp.                          */
@@ -397,6 +397,7 @@ void    zz_closeMonitor ();
 int     zz_msock_stat (int&);           // Monitor socket status
 void    zz_dterminate ();               // Sends termination phrase to server
 void    zz_ptime (TIME&, int);          // Prints out time values
+void	zz_outth ();			// Time header for paper exposures
 #if  ZZ_TAG
 void    zz_ptime (ZZ_TBIG&, int);
 #define pless(a,b) ((a).cmp (b) < 0)

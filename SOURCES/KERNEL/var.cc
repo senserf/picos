@@ -109,20 +109,15 @@ Mailbox         *zz_ncmailbox = NULL;	// Temporary head for mailbox list
 TIME		DebugTracingTimeStart,	// Initialized dyamically in main.c
 		DebugTracingTimeStop;
 int		DebugTracingFull = NO;
-Long		DebugTracingStation = ANY;
-
-// For initializing from double (specified as ETU)
-double		zz_debug_tracing_start_d = -1.0,
-		zz_debug_tracing_stop_d = -1.0;
+Long		*DebugTracingStations = NULL;
+Long		DebugNTracingStations = 0;
 #endif
 
 TIME            TracingTimeStart, TracingTimeStop;
-Long            TracingStation = ANY;   // Tracing all stations
+Long            *TracingStations = NULL;
+Long		NTracingStations = 0;
 
 FLAGS		zz_trace_options = TRACE_OPTION_TIME;
-
-double		zz_tracing_start_d = -1.0,
-		zz_tracing_stop_d = -1.0;
 
 int 		EndOfData = NO;         // EOF flag
 
@@ -247,9 +242,7 @@ AI      *zz_ai;                         // The current AI pointer
 Observer   *zz_obslist = NULL,          // The list of all observers
 	   *zz_current_observer;        // The observer currently running
 
-int        zz_observer_running = NO,    // YES, if an observer is running
-	   zz_jump_flag = NO,           // Resume in progress
-	   zz_state_to_jump;            // The observer's state to jump to
+int        zz_observer_running = NO;    // YES, if an observer is running
 
 ZZ_INSPECT *zz_inlist_tail;             // The tail of the created inlist
 

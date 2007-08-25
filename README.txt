@@ -22,7 +22,7 @@
 
 
 
-                               VERSION 2.90
+                               VERSION 3.0
 
         Author:
                     Pawel Gburzynski
@@ -872,3 +872,20 @@
 	   while -T applies to the state dumping available with -g. Also,
 	   settrace expanded to cover the timing parameters. Manual updated
 	   accordingly.
+
+ R070825A  Tracing redone again, well, not completely. Now, all -t, -T
+	   setting are always applied after the network has been built (which,
+	   arguably, removes some of the confusion). Flag 'q'/'s' added at the
+	   end of the tracing argument to indicate that simulation should stop
+	   at the end of tracing.
+	   Operation 'sameas state' added to process code method to work as
+	   a goto. In an observer, it behaves exactly as proceed. The handling
+	   of proceed in observers has been simplified (retaining all the
+	   original semantics).
+	   The settrace set completely redone. Multiple stations can now be
+	   traced.
+	   Fixed a bug in radio.cc: missing one initialization in TRansceiver,
+	   which was normally fine as malloc starts from zeroed out storage,
+	   but occasionally, with some memory deallocation at initialization,
+	   it would cause problems (permanent activity at the transceiver).
+	   The version is now 3.0 !!!!!

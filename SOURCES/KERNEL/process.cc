@@ -890,7 +890,7 @@ void    Process::exPrint0 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName ();
 		if (Owner != NULL)
 			Ouf << '/' << Owner->getOName ();
@@ -977,7 +977,7 @@ void    Process::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName ();
 		if (Owner != NULL)
 			Ouf << '/' << Owner->getOName ();
@@ -1166,13 +1166,19 @@ void    ZZ_KERNEL::exPrint2 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << "(Kernel) Simulation status:\n\n";
 	}
 
 	print (zz_processId,  "Smurph process id:              ");
 	print (cpuTime ()   , "CPU execution time:             ");
-	print (Time         , "Simulated time:                 ");
+	if (Etu == 1.0) {
+		print (Time         , "Simulated time:                 ");
+	} else {
+		print (Time         , "Simulated time (ITU):           ");
+		Ouf << ::form (       "Simulated time (ETU):           %8.6f\n",
+			ituToEtu (Time));
+	}
 	print (zz_npre      , "Number of processed events:     ");
 	print (zz_npee      , "Number of pending events:       ");
 #if	ZZ_NOC
@@ -1237,7 +1243,7 @@ void    ZZ_KERNEL::exPrint0 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << "(Kernel) Full event queue";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();
@@ -1363,7 +1369,7 @@ void    ZZ_KERNEL::exPrint1 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << "(Kernel) Abbreviated event queue";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();

@@ -3227,7 +3227,7 @@ void    zz_client::exPrint0 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Full AI wait list";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();
@@ -3351,7 +3351,7 @@ void    zz_client::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Global performance measures";
 		Ouf << ":\n\n";
 	}
@@ -3483,7 +3483,7 @@ void    zz_client::exPrint2 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Message queues at";
 		if (isStationId (sid))
 			Ouf << ' ' << idToStation (sid)->getOName ();
@@ -3577,7 +3577,7 @@ void    zz_client::exPrint3 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Traffic definitions:";
 	}
 
@@ -3971,7 +3971,7 @@ void    Traffic::exPrint0 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Full AI wait list";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();
@@ -4095,7 +4095,7 @@ void    Traffic::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Performance measures:\n\n";
 	}
 
@@ -4149,7 +4149,7 @@ void    Traffic::exPrint2 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Message queue";
 		if (isStationId (sid))
 			Ouf << " at " << idToStation (sid)->getOName ();
@@ -4225,7 +4225,7 @@ void    Traffic::exPrint3 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else  {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Definition:";
 	}
 

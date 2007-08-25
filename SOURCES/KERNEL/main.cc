@@ -153,7 +153,10 @@ void    setLimit (Long nm, TIME mt, double ct) {
 #if	ZZ_NOC
 	zz_max_NMessages = (nm == 0) ? MAX_Long : nm;
 #endif
-	zz_max_Time = (mt == TIME_0) ? TIME_inf : mt;
+	if (!flagSet (zz_trace_options, TRACE_OPTION_TIME_LIMIT_SET) ||
+	    (mt != TIME_0 && mt < zz_max_Time))
+		// Allow only reduction if set from call parameters
+		zz_max_Time = (mt == TIME_0) ? TIME_inf : mt;
 #if	ZZ_NFP
 	Assert (ct >= 0, "setLimit: illegal CPU time limit %1d", ct);
 	zz_max_cpuTime = (ct < 1) ? MAX_Long : ct;
@@ -188,19 +191,8 @@ void    buildNetwork () {
 
 	if (!zz_flg_started) {
 
-		// Convert tracing timing from double
-		if (zz_tracing_start_d >= 0.0)
-			TracingTimeStart = etuToItu (zz_tracing_start_d);
-		if (zz_tracing_stop_d >= 0.0)
-			TracingTimeStop = etuToItu (zz_tracing_stop_d);
-#if	ZZ_DBG
-		if (zz_debug_tracing_start_d >= 0.0)
-			DebugTracingTimeStart =
-				etuToItu (zz_debug_tracing_start_d);
-		if (zz_debug_tracing_stop_d >= 0.0)
-			DebugTracingTimeStop =
-				etuToItu (zz_debug_tracing_stop_d);
-#endif
+		zz_run_delayed_initializers ();
+
 		s = TheStation;
 		p = TheProcess;
 		TheStation = System;
@@ -1497,10 +1489,8 @@ LoRet:
 
 		// Call the observer
 
-		do {
-		  zz_jump_flag = NO;
-		  zz_current_observer->zz_code ();
-		  if (DisplayActive) {
+		zz_current_observer->zz_code ();
+		if (DisplayActive) {
 		    // Observer stepping check
 		    ZZ_SIT   *ws;
 
@@ -1517,11 +1507,7 @@ LoRet:
 		      zz_send_step_phrase = YES;
 		      break;
 		    }
-		  }
-
-		  TheObserverState = zz_state_to_jump;
-
-		} while (zz_jump_flag);
+		}
 
 		break;          // Continue with the next observer
 	}
@@ -1650,80 +1636,90 @@ TIME    tRndTolerance   (TIME a, TIME b, int q) {
 #endif
 }
 
-void setTrace (int full) {
+// ===========================================================================
+
+static void set_xtrace_station (Long st, Long *&ts, Long &nts) {
+
+	int i;
+
+	if (!isStationId (st)) {
+		// Treat as "any"
+		if (ts)
+			delete ts;
+		ts = NULL;
+		nts = 0;
+		return;
+	}
+
+	if (ts == NULL) {
+		ts = (Long*) malloc (sizeof (Long));
+		Assert (ts, "set[Tt]race: out of memory");
+		ts [0] = st;
+		nts = 1;
+		return;
+	}
+
+	for (i = 0; i < nts; i++)
+		if (ts [i] == st)
+			return;
+
+	ts = (Long*) realloc (ts, (nts + 1) * sizeof (Long));
+	Assert (ts, "set[Tt]race: out of memory");
+	ts [nts++] = st;
+}
+
+void setTraceFlags (Boolean full) {
 #if ZZ_DBG
 	DebugTracingFull = full ? YES : NO;
 #endif	/* DBG */
 }
 
-void setTrace (int full, Long st) {
+void setTraceTime (TIME be, TIME en) {
 #if ZZ_DBG
-	DebugTracingFull = full ? YES : NO;
-	DebugTracingStation = isStationId (st) ? st : ANY;
-#endif	/* DBG */
-}
-
-void setTrace (int full, Long st, TIME be) {
-#if ZZ_DBG
-	setTrace (full, st);
 	DebugTracingTimeStart = be;
-#endif	/* DBG */
-}
-
-void setTrace (int full, Long st, TIME be, TIME en) {
-#if ZZ_DBG
-	setTrace (full, st, be);
 	DebugTracingTimeStop = en;
 #endif	/* DBG */
 }
 
-void setTrace (int full, Long st, double be) {
+void setTraceTime (double be, double en) {
 #if ZZ_DBG
-	setTrace (full, st, etuToItu (be));
+	DebugTracingTimeStart = etuToItu (be);
+	DebugTracingTimeStop =  etuToItu (en);
 #endif	/* DBG */
 }
 
-void setTrace (int full, Long st, double be, double en) {
+void setTraceStation (Long st) {
 #if ZZ_DBG
-	setTrace (full, st, etuToItu (be), etuToItu (en));
+	set_xtrace_station (st, DebugTracingStations, DebugNTracingStations);
 #endif	/* DBG */
 }
 
-void settrace (FLAGS f) { zz_trace_options = f; }
+// ===========================================================================
 
-void settrace (FLAGS f, Long st) {
-	zz_trace_options = f;
-	TracingStation = isStationId (st) ? st : ANY;
-}
+void settraceFlags (FLAGS f) { zz_trace_options = f; }
 
-void settrace (FLAGS f, Long st, TIME be) {
-	settrace (f, st);
+void settraceTime (TIME be, TIME en) {
 	TracingTimeStart = be;
-}
-
-void settrace (FLAGS f, Long st, TIME be, TIME en) {
-	settrace (f, st, be);
 	TracingTimeStop = en;
 }
 
-void settrace (FLAGS f, Long st, double be) {
-	settrace (f, st, etuToItu (be));
+void settraceTime (double be, double en) {
+	TracingTimeStart = etuToItu (be);
+	TracingTimeStop = etuToItu (en);
 }
 
-void settrace (FLAGS f, Long st, double be, double en) {
-	settrace (f, st, etuToItu (be), etuToItu (en));
+void settraceStation (Long st) {
+	set_xtrace_station (st, TracingStations, NTracingStations);
 }
+
+// ===========================================================================
 
 void trace (const char *s, ...) {
 
 	VA_TYPE	ap;
 
-	if (zz_trace_options == 0 ||
-		Time <  TracingTimeStart ||
-		Time >= TracingTimeStop ||
-		(TracingStation != ANY &&
-		    TracingStation != TheStation->getId ()))
-			return;
+	if (!Tracing)
+		return;
 
 	va_start (ap, s);
 
@@ -1748,6 +1744,49 @@ void trace (const char *s, ...) {
 	Ouf.flush ();
 }
 
+Boolean zz_tracing_on () {
+
+	Long s;
+	int i;
+
+	if (zz_trace_options == 0)
+		return NO;
+
+	if (Time < TracingTimeStart || Time >= TracingTimeStop)
+		return NO;
+
+	if (NTracingStations == 0)
+		return YES;
+
+	s = TheStation->getId ();
+	for (i = 0; i < NTracingStations; i++)
+		if (TracingStations [i] == s)
+			return YES;
+
+	return NO;
+}
+
+#if ZZ_DBG
+Boolean zz_debug_tracing_on () {
+
+	Long s;
+	int i;
+
+	if (Time < DebugTracingTimeStart || Time >= DebugTracingTimeStop)
+		return NO;
+
+	if (DebugNTracingStations == 0)
+		return YES;
+
+	s = TheStation->getId ();
+	for (i = 0; i < DebugNTracingStations; i++)
+		if (DebugTracingStations [i] == s)
+			return YES;
+
+	return NO;
+}
+#endif
+		
 /* ============================================================================
  * This part borrowed from gsl 1.7:
  * 

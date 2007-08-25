@@ -27,6 +27,8 @@ void RadioChannel::setup (
 	Assert (Ether == NULL, "RadioChannel->setup: only one Ether channel"
 		" can exist in the present version");
 
+	print ("RFChannel parameters:\n\n");
+
 	RFChannel::setup (nt);
 
 	BNoise = dBToLin (no);
@@ -44,6 +46,17 @@ void RadioChannel::setup (
 	for (i = 0; i < STBL-1; i++)
 		stb [i].fac = (stb [i+1].ber - stb [i].ber) /
 			(stb [i].sir - stb [i+1].sir);
+
+	print (nt, "  Number of xceivers:", 10, 26);
+	print (no, "  Background noise (dBm):", 10, 26);
+	print (BitRate, "  Bit rate (bps):", 10, 26);
+	print (BitsPerByte, "  Phys bits per byte:", 10, 26);
+	print (PacketFrameLength, "  Phys header length:", 10, 26);
+	print ("  -------SIR to -------BER ---table:\n");
+	for (i = 0; i < STBL; i++)
+		print (form ("  %10g    %10g\n", linTodB (stb [i].sir),
+			stb [i].ber));
+	print ("  ----------------------------------\n");
 }
 
 TIME RadioChannel::RFC_xmt (RATE r, Long tl) {

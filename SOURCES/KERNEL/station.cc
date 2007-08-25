@@ -313,7 +313,7 @@ void     Station::exPrint0 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Sleeping processes:\n\n";
 	}
 
@@ -345,7 +345,7 @@ void     Station::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Packet buffers:\n\n";
 	}
 
@@ -411,7 +411,7 @@ void     Station::exPrint2 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Mailbox contents:\n\n";
 	}
 
@@ -443,7 +443,7 @@ void     Station::exPrint3 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Activities in links";
 		Ouf << ':';
 	}
@@ -523,7 +523,7 @@ void     Station::exPrint4 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Port status";
 		Ouf << ':';
 	}
@@ -574,7 +574,7 @@ void    Station::exPrint5 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Activities in RFChannels";
 		Ouf << ':';
 	}
@@ -598,7 +598,7 @@ void    Station::exPrint6 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Transceiver status";
 		Ouf << ':';
 	}
@@ -1004,7 +1004,7 @@ void    ZZ_SYSTEM::exPrint0 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << "(System) Full network configuration:\n\n";
 	}
 
@@ -1165,7 +1165,7 @@ void    ZZ_SYSTEM::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << "(System) Abbreviated network configuration:\n\n";
 	}
 

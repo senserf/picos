@@ -3,6 +3,8 @@
 
 static char *pkt_dump (WDPacket *p) {
 
+// For debugging
+
 	if (p->TP == PKT_TYPE_HELLO) 
 		return form ("PKT HELLO S %1d [%1d], TTL: %1d, SN %1d",
 			p->Sender, p->DCFP_S, p->TTL, p->SN);
@@ -84,11 +86,13 @@ void RTable::update (Long N, double X, double Y) {
 
 	RTE_i *re;
 
-	for_pool (re, Head)
+	for_pool (re, Head) {
 		if (re->A == N)
 			break;
+	}
 
 	if (re) {
+		// The node already exists
 #if TRACE_ROUTES
 		if (re->X == X && re->Y == Y)
 			trace ("ROUTING table, location unchanged");
@@ -108,141 +112,177 @@ void RTable::update (Long N, double X, double Y) {
 		trace ("ROUTING table, new entry: <%1d,%f,%f>", N, X, Y);
 #endif
 	}
-	re->TStamp = Time;
 }
 
 void NTable::update (Long N, double X, double Y, double rssi) {
 
 // This one updates the neighbor table
 
-	NTE_i *re;
+	NTE_i *re, *rf;
+	double delta;
 
-	for_pool (re, Head)
+	for_pool (re, Head) {
 		if (re->A == N)
 			break;
+	}
 
 	if (re) {
 		if (re->X == X && re->Y == Y) {
-			// Location unchanged: average RSSI
-			if (rssi >= 0.0)
-				re->RSSI = ema (re->RSSI, rssi, 0.25);
-			if ((re->Reliability += RELIABILITY_INC) >
-			    RELIABILITY_MAX)
-				re->Reliability = RELIABILITY_MAX;
+			// Location unchanged: average RSSI; allowing for RSSI
+			// fluctuations, we calculate the "current" RSSI of the
+			// neighbors as an exponential moving average; this is
+			// stupid, of course, as the RSSI's are themselves
+			// random numbers coming from some distribution (with
+			// a well-defined average); just for illustration
+			rssi = ema (re->RSSI, rssi, 0.25);
 #if TRACE_ROUTES
-			trace ("NEIGHBOR table, location unchanged, rssi = %g"
-				", rel = %g",
-					linTodB (re->RSSI), re->Reliability);
+			trace ("NEIGHBOR table, location unchanged, rssi = %g",
+				rssi);
 #endif
 		} else {
 			// Location changed, RSSI starts from scratch
-			re->RSSI = rssi;
-			re->Reliability = RELIABILITY_MAX;
 #if TRACE_ROUTES
 			trace ("NEIGHBOR table, location for %1d changed: "
-				"[%f,%f], rssi = %g", N, X, Y,
-					linTodB (re->RSSI));
+				"[%f,%f], rssi = %g", N, X, Y, rssi);
 #endif
 		}
+		// Update the average RSSI; AvgRSSI gives you the average RSSI
+		// over all your neighbors
+		AvgRSSI += (rssi - re->RSSI) / NN;
+
 		re->X = X;
 		re->Y = Y;
 		re->TStamp = Time;
+
 	} else {
+
+		// This is a new neighbor
+
 		re = new NTE_i;
 		re->A = N;
 		re->X = X;
 		re->Y = Y;
-		re->RSSI = rssi;
-		re->Reliability = RELIABILITY_MAX;
 		pool_in (re, Head);
 #if TRACE_ROUTES
 		trace ("NEIGHBOR table, new entry: <%1d,%f,%f>, rssi = %g",
-			N, X, Y, linTodB (re->RSSI));
+			N, X, Y, rssi);
 #endif
+		if (NN == 0)
+			RelRSSI = rssi;
+		NN++;
+		// Update the average RSSI over all neighbors
+		AvgRSSI = (AvgRSSI * (NN - 1) + rssi) / NN;
 	}
+
+	re->RSSI = rssi;
+
+	if (rssi < MinRSSI)
+		// Calculate the minimum RSSI over your neighbors
+		MinRSSI = rssi;
+
+	if (rssi > MaxRSSI)
+		// ... and the maximum
+		MaxRSSI = rssi;
+
+	if (rssi < RelRSSI)
+		// ... and tentatively push the threshold towards the new
+		// RSSI as to allow the node to explore the neighbor
+		RelRSSI = ema (RelRSSI, rssi, 0.9);
+
+#if TRACE_ROUTES
+	trace ("AVG: %g, MIN: %g, MAX: %g, REL: %g", AvgRSSI, MinRSSI, MaxRSSI,
+		RelRSSI);
+#endif
 	re->TStamp = Time;
 }
 
 void NTable::unreliable (Long n) {
 
+// Called after neighbor n fails to receive our packet
+
 	NTE_i *re;
 
 	for_pool (re, Head) {
 		if (re->A == n) {
-			re->Reliability = RELIABILITY_MIN;
+			// The neighbor has failed to receive the last packet;
+			// we set the reliable RSSI threshold to the average
+			// of this node's and the MAX; in other words, we say
+			// that we will prefer nodes whose RSSI is no weaker
+			// than half way between the current node's and	the
+			// closest node's (trying to use neighbors that are
+			// closer to us than the failed one)
+			RelRSSI = (MaxRSSI + re->RSSI) / 2.0;
 #if TRACE_ROUTES
 			trace ("NEIGHBOR table, %1d marked as unreliable", n);
+			trace ("AVG: %g, MIN: %g, MAX: %g, REL: %g",
+				AvgRSSI, MinRSSI, MaxRSSI, RelRSSI);
 #endif
 			return;
 		}
 	}
 }
 
-Long NTable::route (Long d, double cd, double X, double Y) {
+Long Node::route (Long d) {
 
-// This method is called to locate in the routing table a node which is
-// either d, or whose distance to (X,Y) is the smallest and less than cd.
+// Called to find the neighbor to forward our packet to destination d
 
-	double CD, MD, DD;
-	Long N;
-	NTE_i *re;
-
-	N = NONE;
-	MD = HUGE;
-
-	for_pool (re, Head) {
-		if (linTodB (re->RSSI) < -84.0)
-			continue;
-		if (re->A == d) {
-#if TRACE_ROUTES
-			trace ("ROUTE to %1d <%f> [IMMED] %g", d, cd,
-				linTodB (re->RSSI));
-#endif
-			return d;
-		}
-		DD = dist (re->X, re->Y, X, Y);
-
-		if (DD + TINY_DISTANCE >= cd)
-			continue;
-
-		if (DD < MD) {
-			MD = DD;
-			N = re->A;
-		}
-	}
-#if TRACE_ROUTES
-	if (N == NONE) 
-		trace ("ROUTE to %1d [%f], NOT FOUND, packet dropped",
-			d, cd);
-	else
-		trace ("ROUTE to %1d [%f], via %1d [%f]", d, cd, N, MD);
-#endif
-	return N;
-
-#if 0
-
+	double X_own, Y_own, X_dest, Y_dest;
 	double CD, MD, DD, RT;
-
 	Long N;
+	int i;
 	NTE_i *re;
-	N = NONE;	// The best neighbor so far
+
+	if (Neighbors->NN == 0) {
+		// We have no neighbors
+		trace ("destination %d unreachable, no neighbors", d);
+		return NONE;
+	}
+
+	// Destination coordinates
+	if (!NetMap->getCoords (d, X_dest, Y_dest)) {
+		// Destination unknown
+#if TRACE_ROUTES
+		trace ("destination %d, coordinates unknown");
+#endif
+		return NONE;
+	}
+
+	// Own location
+	TheNode->RFI->getLocation (X_own, Y_own);
+
+	// Distance from here to the destinaton
+	CD = dist (X_own, Y_own, X_dest, Y_dest);
 	MD = HUGE;
+	N = NONE;
 
+	// We execute two turns to find the next hop node. The first time
+	// around, we only consider nodes with RSSI >= the current reliability
+	// threshold. If that fails to find a neighbor getting us closer to the
+	// destination, we redo the same with all neighbors. In each turn we
+	// try to locate the neighbor located closest to the destination
+	// (but within the RSSI threshold in the first turn).
 
-	// Try reliable routes first
-	for (RT = RELIABILITY_THS; RT >= RELIABILITY_ACC; RT -=
-	    RELIABILITY_STP) {
+	for (i = 0; i < 2; i++) {
+		// Two turns: 1. RSSI above threshold, 2. Any RSSI
 
-		for_pool (re, Head) {
+		RT = i ? -HUGE : Neighbors->RelRSSI;
 
-			if (re->Reliability < RT)
+		for_pool (re, Neighbors->Head) {
+
+			if (re->RSSI < RT)
 				continue;
 
 			if (re->A == d) {
-				DD = 0.0;
+#if TRACE_ROUTES
+				trace ("destination reachable in one hop at "
+					"rssi %g", re->RSSI);
+#endif
+				// Destination available in one hop
+				return d;
 			} else {
-				DD = dist (re->X, re->Y, X, Y);
-				if (DD + TINY_DISTANCE >= cd) {
+
+				DD = dist (re->X, re->Y, X_dest, Y_dest);
+				if (DD + TINY_DISTANCE > CD) {
 					// No distance improvement
 					continue;
 				}
@@ -255,61 +295,93 @@ Long NTable::route (Long d, double cd, double X, double Y) {
 		}
 
 		if (N != NONE) {
-		// Go there
+			// Go there
 #if TRACE_ROUTES
-			if (cd == HUGE)
-				cd = 0.0;
-			trace ("ROUTE to %1d [%f], via %1d [%f] %g", d, cd, N,
+			trace ("ROUTE to %1d [%f], via %1d [%f] %g", d, CD, N,
 				MD, RT);
 #endif
 			return N;
 		}
+
+		if (i == 0 && RT <= Neighbors->MinRSSI)
+			// No need to go for a second round; current threshold
+			// already low
+			break;
+
+		RT = Neighbors->MinRSSI;
 	}
 
 #if TRACE_ROUTES
-	if (cd == HUGE)
-		cd = 0.0;
-	trace ("ROUTE to %1d [%f], NOT FOUND, packet dropped, %g", d, cd, RT);
+	trace ("ROUTE to %1d [%f], NOT FOUND, packet dropped, %g", d, CD, RT);
 #endif
 	return NONE;
-
-#endif	/* 0 */
-
-
 }
 
 void NTable::deleteOld (TIME et) {
 
-// Deletes obsolete entries from the table. We only run it for the neighbor
-// pool to remove those entries that have not been updated for a time longer
-// than the threshold (specified as the argument).
+// Deletes obsolete entries from the neighbor table
 
 	NTE_i *pe;
+	int nd;
+	double mind, maxd, sumd;
 
-#if TRACE_ROUTES
+	nd = 0;
+	sumd = 0.0;
+	maxd = -HUGE;
+	mind = HUGE;
 	for_pool (pe, Head) {
-		if (pe->TStamp + et < Time)
+		if (pe->TStamp + et < Time) {
+			nd++;
+			sumd += pe->RSSI;
+			if (pe->RSSI < mind)
+				mind = pe->RSSI;
+			if (pe->RSSI > maxd);
+				maxd = pe->RSSI;
+#if TRACE_ROUTE
 			trace ("NEIGHBOR table, entry for %1d timed out",
 				pe->A);
-	}
 #endif
-	// This operation scans the pool and removes from it all items that
-	// fulfill the indicated condition.
-	trim_pool (pe, Head, pe->TStamp + et < Time);
+		}
+	}
+
+	// Re-calculate statistics: only if we have deleted some neighbors
+	if (nd) {
+		if (nd == NN) {
+			// Empty pool
+			AvgRSSI = 0.0;
+			MinRSSI = HUGE;
+			RelRSSI = MaxRSSI = -HUGE;
+			trim_pool (pe, Head, pe->TStamp + et < Time);
+		} else {
+			AvgRSSI = (AvgRSSI * NN - sumd) / (NN - nd);
+			trim_pool (pe, Head, pe->TStamp + et < Time);
+			if (mind == MinRSSI || maxd == MaxRSSI) {
+				for_pool (pe, Head) {
+					if (pe->RSSI < MinRSSI)
+						MinRSSI = pe->RSSI;
+					if (pe->RSSI > MaxRSSI);
+						MaxRSSI = pe->RSSI;
+				}
+			}
+		}
+		NN -= nd;
+	}
 }
 		
 void Node::receive (WDPacket *P, double rssi) {
 
 // This method determines what to do with a received packet
 
-	double XO, YO, XD, YD, DA, TA;
 	Long NE;
 
+	// Use RSSI in decibells
+	rssi = linTodB (rssi);
+
 #if TRACE_PACKETS
-	trace ("ARRIVED: %s, RSSI = %gdBm", pkt_dump (P), linTodB (rssi));
+	trace ("ARRIVED: %s, RSSI = %gdBm", pkt_dump (P), rssi);
 #endif
 	if (P->Sender == getId ()) {
-		// This packet was sent by you - ignore it no matter
+		// This packet was sent by us - ignore it no matter
 		// what
 #if TRACE_PACKETS
 		trace ("OWN packet, ignored");
@@ -341,11 +413,11 @@ void Node::receive (WDPacket *P, double rssi) {
 				((HelloPacket*)P)->X,
 				((HelloPacket*)P)->Y);
 	} else {
-		// This is a data packet: check if addressed to you
+		// This is a data packet: check if addressed to us
 		if (P->isMy ()) {
 			// This is SMURPH's way to check if you are the
 			// "transport" recipient of the packet. You are, so
-			// pass the packet to "higher layers". This is done
+			// pass the packet to "upper layers". This is done
 			// by the (standard) receive method of Client.
 #if TRACE_PACKETS
 			trace ("PACKET RECEIVED");
@@ -357,7 +429,7 @@ void Node::receive (WDPacket *P, double rssi) {
 
 	// Check if should retransmit the packet
 	if (P->TTL <= 1) {
-		// The packet has made its one last hop
+		// The packet has made its last allowed hop
 #if TRACE_PACKETS
 		trace ("TTL LIMIT, packet dropped");
 #endif
@@ -365,7 +437,7 @@ void Node::receive (WDPacket *P, double rssi) {
 	}
 
 	// Note that you are not allowed to modify P, as this is the "Ether"
-	// copy that is usually seen by othe nodes. Thus, for example, I
+	// copy that may be seen by other nodes. Thus, for example, I
 	// didn't decrement the TTL yet. We can only do it when we create
 	// a new copy of the packet to be retransmitted. We want to postpone
 	// that until we know for a fact that the packet will actually be
@@ -374,41 +446,22 @@ void Node::receive (WDPacket *P, double rssi) {
 	if (P->TP != PKT_TYPE_HELLO) {
 
 		// It is a data packet, and it wasn't addressed to us. Thus,
-		// we are supposed to forward it towards the destination. Our
-		// naive idea is to select the single neighbor being closest
-		// to the destination. We drop the packet if nobody is closer
-		// than us, and the destination is not our neighbor
-
-		if (!NetMap->getCoords (P->Receiver, XD, YD)) {
-			// Sorry, we don't know about the destination, drop
-			// the packet
-#if TRACE_ROUTES
-			trace ("NO ROUTE, packet dropped");
-#endif
-			return;
-		}
-
-		// Our own coordinates
-		RFI->getLocation (XO, YO);
-		DA = dist (XO, YO, XD, YD);
-
-		if ((NE = Neighbors->route ((Long)(P->Receiver), DA, XD, YD)) ==
-		    NONE)
-			// Sorry, no way. This means we have no neighbors.
+		// we are supposed to forward it towards the destination. So
+		// we invoke the routing function.
+		
+		if ((NE = route ((Long)(P->Receiver))) == NONE)
+			// Sorry, no way
 			return;
 
-		// Now is the time to create a copy of the packet. You must
-		// call the clone method as the operation is a bit trickier
-		// than it seems at first sight.
+		// Now is the time to create a copy of the packet. The best
+		// way to copy a packet is to call its clone method.
 		P = (WDPacket*) (P->clone ());
 		// And now we can decrement the TTL
 		--(P->TTL);
 		// Initialize the number of routing attempts
 		P->Retries = 0;
-
-		// New MAC sender and next-hop node
+		// New next-hop node
 		P->DCFP_R = NE;
-		P->DCFP_S = getId ();
 	} else {
 		// Here we handle the case of a forwarded HELLO packet
 		P = (WDPacket*) (P->clone ());
@@ -424,7 +477,7 @@ void Node::receive (WDPacket *P, double rssi) {
 
 	if (RFM->send (P)) {
 		// Packet queued for transmission, we shall learn when it
-		// is done
+		// is done, so we can deallocate it
 #if TRACE_PACKETS
 		trace ("PACKET QUEUED for forwarding");
 #endif
@@ -433,7 +486,7 @@ void Node::receive (WDPacket *P, double rssi) {
 #if TRACE_PACKETS
 		trace ("QUEUE FULL, packet dropped");
 #endif
-		// Must delete explicitly
+		// No room in queue: drop the packet
 		delete P;
 	}
 }
@@ -442,8 +495,7 @@ void Node::dispatch () {
 
 // This one is called to send a data packet that originates at this node
 
-	double XO, YO, XD, YD, DA, TA;
-	Long D, NE;
+	Long NE;
 	WDPacket *P;
 
 #if TRACE_PACKETS
@@ -454,26 +506,15 @@ void Node::dispatch () {
 	// simpler because we know that this is is a data packet and that it
 	// just begins its life.
 
-	D = Buffer . Receiver;
-
-	if (!NetMap->getCoords (D, XD, YD)) {
-#if TRACE_RUTES
-		trace ("NO ROUTE, packet dropped");
-#endif
+	if ((NE = route (Buffer.Receiver)) == NONE)
+		// No way
 		return;
-	}
-
-	RFI->getLocation (XO, YO);
-	DA = dist (XO, YO, XD, YD);
-
-	if ((NE = Neighbors->route (D, DA, XD, YD)) == NONE) {
-		// Sorry, no way
-		return;
-	}
 
 	P = (WDPacket*) (Buffer.clone ());
 
-	P -> DCFP_R = NE;
+	P->DCFP_R = NE;
+
+	P->Retries = 0;
 
 	if (RFM->send (P)) {
 #if TRACE_PACKETS
@@ -492,7 +533,7 @@ void HelloPacket::setup () {
 
 // This is the initialization of a HELLO packet
 
-	Node *TN = (Node*)TheStation;
+	Node *TN = TheNode;
 
 	// Insert this node's location
 	TN->RFI->getLocation (X, Y);
@@ -525,39 +566,49 @@ void HelloPacket::setup () {
 
 void Node::dropped (WDPacket *P) {
 
-// Called for every packet dropped by the Xmitter
+// Called for every packet dropped by the Xmitter because of retransmission
+// number limit (see UPPER_fai_data below)
 
-	double DA, XO, YO, XD, YD;
 	Long NE;
 
 	if (P->Retries >= MAX_ROUTE_TRIES) {
-#if TRACE_PACKETS
+		// We have tried to reroute it several times, and it has
+		// failed: drop it
+#if TRACE_ROUTES
 		trace ("PACKET DROPPED by RFM and by Node: %s", pkt_dump (P));
 #endif
 		delete P;
 		return;
 	}
+#if TRACE_ROUTES
+	trace ("PACKET FAILED, try %1d: %s", P->Retries, pkt_dump (P));
+#endif
+
+	// Increment retry counter
 	P->Retries++;
+
+	// Mark the neighbor as unreliable
 	Neighbors->unreliable (P->DCFP_R);
 
-	// Re-route
-	RFI->getLocation (XO, YO);
-	DA = dist (XO, YO, XD, YD);
-
-	if ((NE = Neighbors->route ((Long)(P->Receiver), DA, XD, YD)) == NONE)
+	// And try again
+	if ((NE = route ((Long)(P->Receiver))) == NONE)
 		return;
 
+	// New MAC-level recipient
 	P->DCFP_R = NE;
 
+#if TRACE_ROUTES
+	trace ("PACKET REROUTED VIA %1d", NE);
+#endif
+
 	if (RFM->send (P)) {
-		// Packet queued for transmission, we shall learn when it
-		// is done
-#if TRACE_PACKETS
+		// Packet queued for transmission, as for "receive"
+#if TRACE_ROUTES
 		trace ("PACKET QUEUED for %1d re-forwarding", P->Retries);
 #endif
 		NOP;
 	} else {
-#if TRACE_PACKETS
+#if TRACE_ROUTES
 		trace ("QUEUE FULL, packet not re-forwarded %1d", P->Retries);
 #endif
 		// Must delete explicitly
@@ -565,12 +616,13 @@ void Node::dropped (WDPacket *P) {
 	}
 }
 
-void Node::sent (WDPacket *P, Long nret) {
+void Node::sent (WDPacket *P, int rets, int retl) {
 
-// Called for every packet actually sent by the Xmitter
+// Called for every packet successfully sent by the Xmitter (see UPPER_suc_data
+// below)
 
 #if TRACE_PACKETS
-	trace ("PACKET SENT [NRetr = %1d]: %s", nret, pkt_dump (P));
+	trace ("PACKET SENT [NRetr = %1d,%1d]: %s", rets, retl, pkt_dump (P));
 #endif
 	delete P;
 }
@@ -645,29 +697,24 @@ DataSender::perform {
 
 // ============================================================================
 
-void MY_RFModule::rcv_data (DCFPacket *p, double rssi) {
+void MY_RFModule::UPPER_rcv_data (DCFPacket *p, double rssi) {
 
-	((Node*)TheStation)->receive ((WDPacket*)p, rssi);
+	TheNode -> receive ((WDPacket*)p, rssi);
 };
 
-void MY_RFModule::suc_data (DCFPacket *p, Long retr) {
+void MY_RFModule::UPPER_suc_data (DCFPacket *p, int rets, int retl) {
 
-	((Node*)TheStation) -> sent ((WDPacket*)p, retr);
+	TheNode -> sent ((WDPacket*)p, rets, retl);
 };
 
-void MY_RFModule::fai_data (DCFPacket *p) {
+void MY_RFModule::UPPER_fai_data (DCFPacket *p, int sh, int ln) {
 
-	((Node*)TheStation) -> dropped ((WDPacket*)p);
-};
-
-void MY_RFModule::col_data () {
-
-	trace ("DATA PACKET LOST");
+	TheNode -> dropped ((WDPacket*)p);
 };
 
 // ============================================================================
 
-void Node::setup (RATE xr, Long nr) {
+void Node::setup (RATE xr, Long Pre) {
 
 // Compare the sequence of readIn's to the input data file
 
@@ -680,9 +727,8 @@ void Node::setup (RATE xr, Long nr) {
 
 	// Transceiver parameters
 	readIn (xp);	// Xmit power in dBm
-	readIn (pr);	// Preamble length in physical bits
 
-	RFI = create Transceiver (xr, pr, dBToLin (xp), 1.0, X, Y);
+	RFI = create Transceiver (xr, Pre, dBToLin (xp), 1.0, X, Y);
 
 	SEther->connect (RFI);
 
@@ -703,7 +749,7 @@ void Node::setup (RATE xr, Long nr) {
 	// Packet cache size
 	readIn (c);
 
-	RFM = new MY_RFModule (RFI, q, nr);
+	RFM = new MY_RFModule (RFI, q);
 
 	Neighbors = new NTable;
 	NetMap = new RTable;
@@ -715,7 +761,7 @@ void Node::setup (RATE xr, Long nr) {
 	create DataSender ();
 }
 
-void initNodes (Long N) {
+void initNodes (Long N, Long P) {
 
 	double  d;
 	Long n, nret;
@@ -726,11 +772,8 @@ void initNodes (Long N) {
 	// Number of ITUs per bit
 	XmitRate = (RATE) round (d / SEther->BitRate);
 
-	// Number of retransmissions
-	readIn (nret);
-
 	for (n = 0; n < N; n++)
-		create Node (XmitRate, nret);
+		create Node (XmitRate, P);
 
 	// Global parameters for transceivers
 

@@ -712,6 +712,7 @@ void    Transceiver::zz_start () {
 	zz_nctrans = NULL;
 	nextp = NULL;
 	Activities = NULL;
+	Activity = NULL;
 
 	if ((p = TheStation->Transceivers) == NULL) {
 		TheStation->Transceivers = this;
@@ -3541,7 +3542,7 @@ void RFChannel::exPrint0 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Full AI wait list";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();
@@ -3654,7 +3655,7 @@ void    RFChannel::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Performance measures:\n\n";
 	}
 
@@ -3761,7 +3762,7 @@ void	RFChannel::exPrint2 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") List of activities";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid) -> getOName ();
@@ -3856,7 +3857,7 @@ void RFChannel::exPrint3 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Node distribution";
 	}
 
@@ -4170,7 +4171,7 @@ void Transceiver::exPrint0 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Full AI wait list:\n\n";
 	}
 
@@ -4232,7 +4233,7 @@ void    Transceiver::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Activities:\n\n";
 	}
 
@@ -4370,7 +4371,7 @@ void    Transceiver::exPrint2 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Neighborhood:\n\n";
 	}
 

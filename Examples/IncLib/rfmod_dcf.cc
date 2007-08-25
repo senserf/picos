@@ -4,53 +4,84 @@
 #include "rfmod_dcf.h"
 
 // Global variables, i.e., constants, of the DCF scheme
-TIME	DCF_TDifs, DCF_TSifs, DCF_TSifs2, DCF_TEifs, DCF_NAV_delta, DCF_NAV_rts,
-		DCF_NAV_cts, DCF_NAV_data, DCF_TIMEOUT_cts, DCF_TIMEOUT_ack,
-			DCF_PRE_time;
+TIME	DCF_TSifs, DCF_TDifs, DCF_TEifs, DCF_NAV_rts,
+		DCF_NAV_rts_auto, DCF_NAV_cts, DCF_NAV_data, DCF_TIMEOUT_bot,
+			DCF_TIMEOUT_cts, DCF_TIMEOUT_ack;
 
-double	DCF_Slot;
+double	DCF_DSlot;
 
 // A shortcut: assumes the same transmission rate for everybody
 RATE	DCF_XRate = TIME_0;
 
-Long	DCF_CW_min,	// Minimum backoff window size
+int	DCF_RTR_short,	// Short retransmission threshold
+	DCF_RTR_long;	// Long retransmission threshold
+
+int	DCF_CW_min,	// Minimum backoff window size
 	DCF_CW_max;	// Maximum backoff window size
 
+Long	DCF_RTS_ths;	// Short data threshold
+
 void initDCF (
-		double sf, double df, double ef,
-		double nd,
-		double ss,
-		Long cwmin,
-		Long cwmax
+		double sf,
+		double sl,
+
+		Long rth,
+
+		int srl,
+		int lrl,
+
+		int cwmin,
+		int cwmax
 	     						) {
 
+	// SIFS in ITU
 	DCF_TSifs = etuToItu (sf);
-	// Pre-computed SIFS * 2
-	DCF_TSifs2 = DCF_TSifs + DCF_TSifs;
-	DCF_TDifs = etuToItu (df);
-	DCF_TEifs = etuToItu (ef);
-	// Safety margin added to every NAV (calculated solely on exact packet
-	// timing)
-	DCF_NAV_delta = etuToItu (nd);
-	// Slot time in seconds
-	DCF_Slot = ss;
-	// Minimum and maximum window size in slots
+
+	// This is the slot length stored as double - for ease of calculations
+	DCF_DSlot = Etu * sl;
+
+	// Calculate DIFS
+	DCF_TDifs = DCF_TSifs + (TIME) (DCF_DSlot * 2.0);
+
+	// Short data threshold
+	DCF_RTS_ths = rth;
+
+	// Retransmission
+	DCF_RTR_short = srl;
+	DCF_RTR_long = lrl;
+
+	// Thresholds
 	DCF_CW_min = cwmin;
 	DCF_CW_max = cwmax;
+
+	print ("DCF parameters:\n\n");
+	print (ituToEtu (DCF_TSifs), "  SIFS:", 			10, 26);
+	print (DCF_DSlot * Itu,      "  SLOT: ", 			10, 26);
+	print (ituToEtu (DCF_TDifs), "  DIFS:", 			10, 26);
+	print (DCF_RTS_ths,          "  RTS ths:", 			10, 26);
+	print (DCF_RTR_short,        "  Max retr count (short):",	10, 26);
+	print (DCF_RTR_long,         "  Max retr count (long):", 	10, 26);
+	print (DCF_CW_min,           "  CW min:", 			10, 26);
+	print (DCF_CW_max,           "  CW max:", 			10, 26);
 }
 
-RFModule::RFModule (Transceiver *r, Long pqs, Long retr) {
+RFModule::RFModule (Transceiver *r, Long pqs) {
 
+	TIME pr;
 	RATE xr;
 
 	S = TheStation;
 	Xcv = r;
 	PQ = create PQueue (pqs);
-	RMax = retr;
-	rstb ();			// Make sure CWin is initialized
+
+	backoff_reset ();
+	backoff_clear ();
 
 	xr = r->getTRate ();
+
 	if (DCF_XRate == TIME_0) {
+
+		TIME xt_ack, xt_cts;
 
 		// First time around: initialize global "constants"
 
@@ -60,324 +91,473 @@ RFModule::RFModule (Transceiver *r, Long pqs, Long retr) {
 		// preamble length. If not, we will have to make it the
 		// maximum (and wait with the initialization of globals
 		// until the last RFModule has been created).
-		DCF_PRE_time = Xcv->getPreambleTime();
+		pr = Xcv->getPreambleTime();
 
-		/*
-		 * Pre-calculate the fixed NAV components: 
-		 */
+		xt_ack = Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_ACK);
+		xt_cts = Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_CTS);
 
-		// This is the amount of NAV time for a DATA packet to allow
-		// everybody to provide room for the following ACK.
-		// We start counting from the end of the DATA packet. Formally,
-		// NAV in that case should be SIFS + the transmission time of
-		// the ACK, but the SIFS should be included twice because it
-		// represents the (maximum) propagation time across the medium
-		// diameter. The ACK is transmitted SIFS time units after the
-		// perception of the end of the DATA packet, so the maximum
-		// gap separating DATA and ACK perceived by a third party can
-		// only be bounded by 2*SIFS.
-		DCF_NAV_data =
+		print (ituToEtu(pr),	 "  Preamble time:",		10, 26);
+		print (PKT_LENGTH_RTS,   "  RTS length:",		10, 26);
+		print (ituToEtu(Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_RTS)),
+					 "  RTS time:",			10, 26);
+		print (PKT_LENGTH_CTS,   "  CTS length:",		10, 26);
+		print (ituToEtu(xt_cts), "  CTS time:", 		10, 26);
+		print (PKT_LENGTH_ACK,   "  ACK length:",		10, 26);
+		print (ituToEtu(xt_ack), "  ACK time:", 		10, 26);
+
+		DCF_TEifs = DCF_TSifs + DCF_TDifs + pr + xt_ack;
+		print (ituToEtu (DCF_TEifs), "  EIFS:", 		10, 26);
+
+		// Pre-calculate the fixed NAV components: just add to this
+		// the data transmission time.
+
+		DCF_NAV_data = 
 			// Time to transmit the ACK packet sans the preamble
-			Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_ACK) 
+			xt_ack
 			// Time to send the preamble
-			+ DCF_PRE_time
-			// The SIFS contribution (maximum separation of DATA
-			// and ACK)
-			+ DCF_TSifs2	// This is SIFS * 2
-			// And any explicit extra margin
-			+ DCF_NAV_delta;
-		// Note that at this time DCF_PRE_time is the exact preamble
-		// transmission time. Later (see below) we inflate it by 15%
-		// to provide a safe bound for the receiver (see the comments
-		// there).
-		// I am not sure if there are any specific recommendations for
-		// the "delta" of NAV (I would be surprised if there were, or 
-		// if there were, then if the manufacturers cared about them).
+			+ pr
+			// SIFS before the ACK
+			+ DCF_TSifs;
+		print (ituToEtu (DCF_NAV_data), "  NAV data:",		10, 26);
 
-		// Here is the NAV setting for a CTS packet (without the
-		// actual DATA transmission time, which will be added to it.
 		DCF_NAV_cts =
-			// We need all that is needed for DATA
 			DCF_NAV_data
-			// Plus DATA preamble (note: we want to make sure that
-			// the only component missing from this is the actual
-			// transmission time of the "pure" DATA packet (minus
-			// its preamble).
-			+ DCF_PRE_time
-			// Plus the gap separating CTS and DATA
-			+ DCF_TSifs2;
-		// Note that this applies after we have seen the CTS packet,
-		// so we are expecting DATA to follow after max SIFS * 2.
-		// And remember that this does not include the DATA transmission
-		// time.
+			// Data preamble
+			+ pr
+			// Plus the SIFS separating CTS and DATA
+			+ DCF_TSifs;
+		print (ituToEtu (DCF_NAV_cts), "  NAV CTS:",		10, 26);
 
-		// And here is the NAV setting for RTS on top of DATA, i.e.,
-		// you have to add to this the pure DATA transmission time to
-		// get the NAV setting for the RTS packet.
 		DCF_NAV_rts =
 			// We need all that is needed for a CTS
-			DCF_NAV_cts + 
+			DCF_NAV_cts
 			// Plus the pure transmission time of the CTS packet
-			Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_RTS)
+			+ xt_cts
 			// Plus the CTS preamble
-			+ DCF_PRE_time
+			+ pr
 			// Plus the gap separating RTS from CTS
-			+ DCF_TSifs2;
+			+ DCF_TSifs;
+		print (ituToEtu (DCF_NAV_rts), "  NAV RTS:",		10, 26);
 
-		// Now tip the preamble time 15% as, from now on, it will be
-		// used for detecting timeouts in the receiver
-		DCF_PRE_time = (TIME)(((double)DCF_PRE_time) * 1.15);
+		// This is the delay after which a node that has set its
+		// NAV based on RTS can cancel the NAV if it doesn't perceive
+		// a data packet earlier. Well, in plain English, this is the
+		// NAV setting for a node that hears an RTS. In our 
+		// implementation, data packets carry NAV, which will reset
+		// the short NAV after RTS, if the data packet makes it.
+		// We can do this because we do not have multisegment
+		// handshakes.
+		//
+		// Note: this is optional, so perhaps we should make it
+		// optional as well
+		DCF_NAV_rts_auto =
+			DCF_TSifs + DCF_TSifs
+			+ xt_cts
+			+ pr
+			+ (TIME) (DCF_DSlot * 2.0);
+		print (ituToEtu (DCF_NAV_rts_auto), "  NAV RTS (auto):",
+									10, 26);
+		// Timeout to a BOT after RTS or CTS
+		DCF_TIMEOUT_bot =
+			DCF_TSifs
+			+ pr 
+			+ (TIME) (DCF_DSlot * 2.0);
+		print (ituToEtu (DCF_TIMEOUT_bot),  "  BOT timeout:", 	10, 26);
 
-		// CTS timeout: this is the amount of time that the sender
-		// of RTS has to wait (following the last transmitted bit of
-		// CTS) before it concludes that no RTS is forthcoming. This
-		// time is measured until the complete reception of the CTS,
-		// i.e., the transmitter will wait for this much until the
-		// receiver tells it that the CTS has been received.
+		// CTS timeout counted from perceived BOT, i.e., the length
+		// of CTS + something small
 		DCF_TIMEOUT_cts =
-			// The separation (as usual)
-			DCF_TSifs2
-			// CTS preamble (this time inflated by 15%)
-			+ DCF_PRE_time
-			// The actual duration of the pure CTS packet
-			+ Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_CTS);
+			xt_cts
+			+ DCF_TSifs;
+		// ACK timeout, counted as for CTS
+		print (ituToEtu (DCF_TIMEOUT_cts),  "  CTS timeout:", 	10, 26);
 
-		// ACK timeout: same thing
-		DCF_TIMEOUT_ack = DCF_TSifs2
-			+ DCF_PRE_time
-			+ Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_ACK);
-
-	} else {
-		Assert (DCF_XRate == xr,
-			"RFModule init: transmission rates of all nodes "
-				"must be the same");
-		Assert (DCF_PRE_time ==
-		    (TIME)(((double)Xcv->getPreambleTime()) * 1.15),
-			"RFModule init: preamble lengths of all nodes "
-			    "must be the same");
+		DCF_TIMEOUT_ack = xt_ack + DCF_TSifs;
+		print (ituToEtu (DCF_TIMEOUT_ack),  "  ACK timeout:", 	10, 26);
+		print ("\n");
+			
 	}
-
-	TAccs = TIdle = TBusy = TEnav = TIME_0;
 
 	create Xmitter (this);
 	create Receiver (this);
+
+	TEnav = TIME_0;
+	FLG_vbusy = NO;
 }
 
 Xmitter::perform {
 
-    state XM_LOOP:
+    state XM_READY:
 
-	// Acquire a packet to transmit
-	CP = RFM->getp (XM_LOOP);
-	// Reset the retransmission counter
-	Retrans = 0;
-	// This flag will be set if the packet is retransmitted. I saw this
-	// as a requirement of 802.11 and put it in just in case.
-	clearFlag (CP->DCFP_Flags, DCFP_FLAG_RETRANS);
-	trc_pkt (CP, "ACQUIRED");
-	// Fall through
+	// We get here every time the backoff happily expires; so first, mark
+	// there is no backoff condition; we need this to tell (when we sense
+	// an activity), that the backoff should be set anew
+	RFM->backoff_clear ();
 
-    transient XM_TRY:
+	// See if there is a packet to transmit
+	if (CP == NULL) {
+		// Need a brand new packet
+		if ((CP = RFM->get_packet (XM_READY)) != NULL) {
+			// Just in case, zero out the NAV; note that, as we
+			// do not implement fragments, the packet's NAV can
+			// (in fact should) be zero.
+			CP->NAV = TIME_0;
+			// Also, reset the failure counters
+			RetrS = RetrL = 0;
+			// Mark it first transmission
+			clearFlag (CP->DCFP_Flags, DCFP_FLAG_RETRANS);
+			_trc ("NEW %s", _dpk (CP));
+		} else {
+			// No packet; get_packet has issued the wait request,
+			// so just take care of ACTIVITY; note that even if
+			// we have nothing to transmit we should be keeping
+			// track of what is going on
+			_trc ("NO PACKET");
+			if (RFM->wait_activity_event (XM_BUSY))
+				sameas XM_BUSY;
+			sleep;
+		}
+	} else
+		_trc ("RETR [%1d,%1d] %s", RetrS, RetrL, _dpk (CP));
 
-	// Obey backoff, NAV, and difs
-	RFM->bckf (XM_TRY, XM_BACK);
+	// A packet is available: it may be a brand new packet, or a
+	// retransmission; first two special cases
+
 	if (flagSet (CP->DCFP_Flags, DCFP_FLAG_BCST)) {
-		// Broadcast packet, no handshake, no NAV
-		CP->NAV = TIME_0;
-		trc_pkt (CP, "BROADCAST");
-		RFM->xmit (CP, XM_EBCST);
+		// This is a broadcast packet: no handshake, no ACK
+		_trc ("DATA BCST");
+		RFM->xmit_data (CP, XM_EBCST);
 		sleep;
-		// No way past this point
 	}
-	// Send RTS: this also sets the packet's NAV (see xrts in RFModule)
-	RFM->xrts (CP, XM_RTS);
 
-    state XM_BACK:
+	if (CP->TLength <= DCF_RTS_ths) {
+		// Short packet: send without a CTS, but expect an ACK
+		_trc ("DATA SHRT");
+		RFM->xmit_data (CP, XM_ESHRT);
+		sleep;
+	}
 
-	// Backoff required, i.e., channel became busy or idle after busy.
-	// Note: genb honors previous backoff in progress
-	RFM->genb (BKF_BUSY);
-	proceed XM_TRY;
+	// Need the handshake, start with RTS; note that xrts sets the NAV of
+	// the RTS packet based on the packet length
+	RFM->xmit_rts (CP, XM_RTSD);
 
-    state XM_RTS:
+    state XM_RTSD:
 
-	// Stop RTS
+	_trc ("RTS SENT");
+	// RTS done: stop it and wait for CTS
 	RFM->xstop ();
 	// Notify upper layers
-	RFM->snt_rts (TheDCFP->DCFP_R);
-	// Wait for CTS
-	RFM->wcts (XM_DATA, XM_NOCTS);
+	RFM->UPPER_snt_rts (TheDCFP->DCFP_R);
+	// Wait for CTS: the maximum time before BOT
+	RFM->TDExp = Time + DCF_TIMEOUT_bot;
+
+    transient XM_WCTB:
+
+	RFM->wait_bot_event (XM_WCTS, XM_COLC);
+
+    state XM_WCTS:
+
+	_trc ("CTS BOT");
+	RFM->wait_cts_event (XM_CTSD, XM_CTSN, XM_COLC);
+
+    state XM_CTSN:
+
+	// Another BOT
+	_trc ("CTS BOT SUP");
+	if (RFM->TDExp > Time)
+		// Keep waiting
+		sameas XM_WCTB;
+
+    transient XM_COLC:
+
+	_trc ("NO CTS");
+	// CTS-level collision, i.e., missing CTS
+	RFM->UPPER_col_cts (RetrL, RetrS);
+	if (++RetrS >= DCF_RTR_short) {
+		// Limit reached, drop the packet
+		_trc ("DROPPING C [%1d,%1d] %s", RetrS, RetrL, _dpk (CP));
+		RFM->UPPER_fai_data (CP, RetrS, RetrL);
+		// Mark done with the packet
+		CP = NULL;
+		// Reset backoff window
+		RFM->backoff_reset ();
+	} else {
+		// We shall retransmit: push the backoff window
+		RFM->backoff_push ();
+	}
+	// Generate the backoff
+	RFM->backoff_generate ();
+	sameas XM_BACK;
+
+    state XM_CTSD:
+
+	_trc ("CTS RECEIVED");
+	// Reset the short counter after every successful CTS reception
+	RetrS = 0;
+	// Notify the upper layers that the CTS has been received
+	RFM->UPPER_rcv_cts (CP->DCFP_R, RFM->RSSI);
+	// Wait for SIFS
+	Timer->wait (DCF_TSifs, XM_DATA);
+	// Note: the standard says that having received CTS, wait blindly for
+	// SIFS and transmit the packet, so no further checks are needed here.
 
     state XM_DATA:
 
-	// CTS received: notify upper layers
-	RFM->rcv_cts (CP->DCFP_R, RFM->RSSI);
-	// Wait for SIFS
-	RFM->sifs (XM_XMT, XM_SBUSY);
+	_trc ("XMIT DATA H");
+	// Transmit a DATA packet after RTS/CTS handshake
+	RFM->xmit_data (CP, XM_DATD);
 
-    state XM_XMT:
+    state XM_DATD:
 
-	// SIFS obeyed, transmit data
-	RFM->xmit (CP, XM_WAK);
-
-    state XM_SBUSY:
-
-	// Busy while waiting for SIFS (before sending data); I am not sure
-	// we have to monitor for this. Perhaps we should just go ahead (as
-	// in Ethernet), to enforce "collision consensus". Don't think so, but
-	// wouldn't be surprised if other implementation did just that.
-	trc_col (CP, "INTERRUPTED CTS-DATA SIFS");
-	RFM->genb (BKF_BUSY);
-	proceed XM_TRY;
-
-    state XM_WAK:
-
+	_trc ("DATA H DONE");
 	// Stop data transmission
 	RFM->xstop ();
 	// Notify upper layers
-	RFM->snt_data (CP);
+	RFM->UPPER_snt_data (CP);
 	// Wait for ACK
-	RFM->wack (XM_DONE, XM_COLL);
+	RFM->TDExp = Time + DCF_TIMEOUT_bot;
 
-    state XM_DONE:
+    transient XM_WACB:
 
-	// ACK received: notify upper layers
-	RFM->rcv_ack (CP->DCFP_R, RFM->RSSI);
+	RFM->wait_bot_event (XM_WACK, XM_COLD);
+
+    state XM_WACK:
+
+	RFM->wait_ack_event (XM_ACKD, XM_ACKN, XM_COLD);
+
+    state XM_ACKN:
+
+	// Another BOT
+	_trc ("ACK BOT SUP");
+	if (RFM->TDExp > Time)
+		// Keep waiting
+		sameas XM_WACB;
+
+    transient XM_COLD:
+
+	_trc ("NO H ACK");
+	// DATA-level collision
+	RFM->UPPER_col_ack (RetrL, RetrS);
+	if (++RetrL >= DCF_RTR_long) {
+		// Limit reached; drop the packet
+		_trc ("DROPPING A [%1d,%1d] %s", RetrS, RetrL, _dpk (CP));
+		RFM->UPPER_fai_data (CP, RetrS, RetrL);
+		CP = NULL;
+		// Reset backoff
+		RFM->backoff_reset ();
+	} else {
+		// Push the backoff window
+		RFM->backoff_push ();
+		// Flag == data retransmitted
+		setFlag (CP->DCFP_Flags, DCFP_FLAG_RETRANS);
+	}
+	// Generate backoff
+	RFM->backoff_generate ();
+
+    transient XM_BACK:
+
+	// Start the backoff if silence and wait for it; we check for activity
+	// immediately to avoid races
+	if (!RFM->busy ()) {
+		_trc ("IDLE I");
+		// Activate the backoff
+		TIME t = RFM->backoff_delay ();
+		if (t == 0)
+			sameas XM_READY;
+		Timer->wait (t, XM_READY);
+		if (RFM->wait_activity_event (XM_BUSY))
+			sameas XM_BUSY;
+		sleep;
+	}
+
+    transient XM_BUSY:
+
+	// An activity
+	_trc ("BUSY");
+	if (!RFM->backoff_on ()) {
+		// Generate backoff, if not on already
+		RFM->backoff_generate ();
+		// Perhaps should put this check into backoff_generate
+	} else {
+		RFM->backoff_stop ();
+	}
+
+	if (RFM->wait_silence_event (XM_IDLE))
+		sameas XM_IDLE;
+
+    state XM_ACKD:
+
+	_trc ("ACK H RECEIVED");
+	// Notify the upper layers
+	RFM->UPPER_rcv_ack (CP->DCFP_R, RFM->RSSI);
 	// Tell them about the success
-	RFM->suc_data (CP, Retrans);
-	// Reset backof parameters
-	RFM->rstb ();
-	// And start from the beginning
-	proceed XM_LOOP;
+	RFM->UPPER_suc_data (CP, RetrS, RetrL);
+
+XM_EData:
+	CP = NULL;
+	// Reset the backoff window
+	RFM->backoff_reset ();
+	// Generate backoff (left suspended until run)
+	RFM->backoff_generate ();
+	// The role of this is to make the next slot has actually begun
+	// when we start waiting for DIFS; in particular, whatever activity
+	// is detected, even immediately after we start waiting, it will
+	// result in the proper advancement of the backoff
+	skipto XM_SLOT;
+
+    state XM_SLOT:
+
+	// We have to wait for DIFS before backing off
+	Timer->wait (DCF_TDifs, XM_BACK);
+	// And if anything happens in the meantime, we shall know
+	if (RFM->wait_activity_event (XM_BUSY))
+		sameas XM_BUSY;
+
+    state XM_IDLE:
+
+	if (RFM->FLG_garbage) {
+		// Delay for EIFS
+		_trc ("IDLE S EIFS");
+		Timer->wait (DCF_TEifs, XM_BACK);
+	} else {
+		_trc ("IDLE S DIFS");
+		Timer->wait (DCF_TDifs, XM_BACK);
+	}
+
+	if (RFM->wait_activity_event (XM_BUSY))
+		sameas XM_BUSY;
+
+    state XM_ESHRT:
+
+	// End of short transmission
+	_trc ("DATA S DONE");
+	RFM->xstop ();
+	RFM->UPPER_snt_data (CP);
+	// Wait for ACK
+	RFM->TDExp = Time + DCF_TIMEOUT_bot;
+
+    transient XM_WASB:
+
+	RFM->wait_bot_event (XM_WASK, XM_COLS);
+
+    state XM_WASK:
+
+	RFM->wait_ack_event (XM_ACKD, XM_ASKN, XM_COLS);
+
+    state XM_ASKN:
+
+	// Another BOT
+	_trc ("ASK BOT SUP");
+	if (RFM->TDExp > Time)
+		// Keep waiting
+		sameas XM_WASB;
+	
+    transient XM_COLS:
+
+	_trc ("NO S ACK");
+	// DATA-level collision
+	RFM->UPPER_col_ack (RetrL, RetrS);
+	if (++RetrS >= DCF_RTR_short) {
+		// Limit reached; drop the packet
+		_trc ("DROPPING [%1d,%1d] %s", RetrS, RetrL, _dpk (CP));
+		RFM->UPPER_fai_data (CP, RetrS, RetrL);
+		CP = NULL;
+		// Reset backoff
+		RFM->backoff_reset ();
+	} else {
+		// Push the backoff window
+		RFM->backoff_push ();
+		// Flag == data retransmitted
+		setFlag (CP->DCFP_Flags, DCFP_FLAG_RETRANS);
+	}
+	// Generate the backoff
+	RFM->backoff_generate ();
+
+	sameas XM_BACK;
 
     state XM_EBCST:
 
-	// End of a brodcast (no handshake)
+	// End of a broadcast transmission
+	_trc ("DATA B DONE");
 	RFM->xstop ();
-	// Upper layers
-	RFM->snt_data (CP);
-	RFM->suc_data (CP, 0);
-	// Reset backoff
-	RFM->rstb ();
-	proceed XM_LOOP;
+	RFM->UPPER_snt_data (CP);
+	RFM->UPPER_suc_data (CP, 0, 0);
 
-    state XM_NOCTS:
-
-	// CTS timeout
-	trc_col (CP, "CTS TIMEOUT");
-	// Upper layers
-	RFM->col_cts ();
-	if (Retrans >= RFM->RMax) {
-		// Retransmission limit reached: drop the packet
-		trc_col (CP, "DROPPING DATA PACKET");
-		// Failure conveyed to upper layers
-		RFM->fai_data (CP);
-		// Start over
-		RFM->rstb ();
-		proceed XM_LOOP;
-	}
-
-	trc_pkt (CP, "RETRYING");
-	// Update the retransmission counter
-	Retrans++;
-	// Backoff
-	RFM->genb (BKF_COLL);
-	// And so on ...
-	proceed XM_TRY;
-
-    state XM_COLL:
-
-	// ACK timeout - essentially as for a lost CTS
-	trc_col (CP, "ACK TIMEOUT");
-	// Upper layers
-	RFM->col_ack ();
-	if (Retrans >= RFM->RMax) {
-		// Drop the packet
-		trc_col (CP, "DROPPING DATA PACKET");
-		RFM->fai_data (CP);
-		RFM->rstb ();
-		proceed XM_LOOP;
-	}
-
-	trc_pkt (CP, "RETRYING");
-	Retrans++;
-	RFM->genb (BKF_COLL);
-	// The only difference w.r.t. NOCTS is the setting of this flag. 
-	// I understand that this is what it means: the packet was actually
-	// transmitted before
-	setFlag (CP->DCFP_Flags, DCFP_FLAG_RETRANS);
-	proceed XM_TRY;
+	goto XM_EData;
 }
 
-
 Receiver::perform {
-//
-// Note: in addition to reception, this process is responsible for monitoring
-// the channel status, like in IDLE, BUSY, and conveing those changes to the
-// transmitter. Thus it looks messy.
-//
-    state RC_LOOP:
-
-	// In this state we are idle - waiting for any activity
-	RFM->wact (RC_ACT);
-
-    state RC_ACT:
 
 // =============================================================================
 // This is what we do when we are done with the interpretation of a reception
 // episode
 
 #define	rc_endcycle	do { \
-			    if (RFM->busy ()) goto RC_wbot; else goto RC_ssil; \
+			  if (RFM->active ()) \
+			    sameas RC_STILLACTIVE; \
+			  else \
+			    sameas RC_SILENCE; \
 			} while (0)
 
 // =============================================================================
 
-	// Activity perceived. Note: we use labels to eliminate some 'proceeds'
-	// for efficiency and elimination of potential races.
-RC_sact:
-	// Set the status
-	RFM->sact ();
-RC_wbot:
-	// Wait for beginning of packet
-	RFM->wbot (RC_BOT, RC_SIL);
+    state RC_LOOP:
 
-    state RC_SIL:
+	RFM->wait_reception (RC_ACTIVITY);
 
-RC_ssil:
-	// Silence
-	if (RFM->ssil (RC_ACT, RC_SIL))
-		// Still busy
-		goto RC_sact;
+    state RC_ACTIVITY:
 
-    state RC_BOT:
+	RFM->mark_activity ();
 
-	// BOT sensed, initialize packet reception
-	RFM->strc (RC_RCV);
+    transient RC_STILLACTIVE:
 
-    state RC_RCV:
+	RFM->wait_packet (RC_PACKET, RC_SILENCE);
 
-	// Wait for the outcome
-	RFM->wrec (RC_RCVD, RC_RABT);
+    state RC_SILENCE:
 
-    state RC_RCVD:
+	// This is channel silence, we are also responsible for handling
+	// the NAV
+	if (RFM->mark_silence (RC_ACTIVITY, RC_SILENCE))
+		// Note: mark_silence does nothing in that case
+		sameas RC_STILLACTIVE;
+
+    state RC_PACKET:
+
+	// Beginning of packet
+	RFM->signal_bot ();
+	RFM->init_reception (RC_GETPACKET);
+
+    state RC_GETPACKET:
+
+	RFM->trace_packet (RC_RECEIVED, RC_ABORTED);
+
+    state RC_RECEIVED:
 
 	// Packet received
+	RFM->FLG_garbage = NO;
 
 	if (flagSet (TheDCFP->DCFP_Flags, DCFP_FLAG_BCST)) {
 		assert (TheDCFP->DCFP_Type == DCFP_TYPE_DATA, 
 			"rfmodule rcv: broadcast packet not DATA");
-		// Receive a brodcast DATA packet (no handshake, no NAV)
-		RFM->recv ();
-		// Direct transition as needed (we can be busy or silent)
+		// Receive a brodcast DATA packet
+		RFM->receive ();
 		rc_endcycle;
 	}
 
 	// A non-broadcast packet must be addressed to us (in data link)
-	if (!RFM->ismy (TheDCFP)) {
-		// No, set NAV and ignore the packet
-		RFM->snav (TheDCFP->NAV);
-		// ... and go wherever needed
+	if (!RFM->my_packet (TheDCFP)) {
+		// Set the NAV
+		if (TheDCFP->DCFP_Type == DCFP_TYPE_RTS) {
+			// NAV is set to a constant timeout for the data
+			// packet; if the data packet arrives, the NAV will
+			// be reset. This is an option.
+			_trc ("RTS OTHER");
+			RFM->set_nav (DCF_NAV_rts_auto);
+		} else {
+			// Take it at the face value
+			_trc ("NON-RTS OTHER");
+			RFM->set_nav (TheDCFP->NAV);
+		}
 		rc_endcycle;
 	}
 
@@ -387,45 +567,49 @@ RC_spacket:
 
 	    case DCFP_TYPE_DATA:
 
-		// Non-broadcast DATA packets are received elsewhere (see
-		// below). If we see it here, it means that something was
-		// wrong (the sender couldn't possibly have sent it without
-		// our CTS). So we ignore it.
-		trc_unx ("N-B DATA PACKET RECEIVED WITH NO PRIOR CTS");
-		rc_endcycle;
+		// A non-broadcast data packet received without a handshake
+		// must be short
+		assert (TheDCFP->TLength <= DCF_RTS_ths,
+			"rfmdule rcv: non-handshake data packet not short");
+
+		RFM->receive ();
+		// Delay before sending ACK
+		Timer->wait (DCF_TSifs, RC_SACK);
+		sleep;
 
 	    case DCFP_TYPE_RTS:
 
-		// RTS packet to me. I am not setting my own NAV (any existing
-		// setting means that it comes from an overheard handshake,
-		// and I will honor it by not responding with CTS). My xmitter
-		// will still think the medium is busy, as I am not going to
-		// tell it otherwise.
+		// RTS packet to us. Do not set your own NAV. Any existing
+		// NAV setting will be honored when we get to sending CTS.
 
 		// Save the sender identity for CTS
 		CS = TheDCFP->DCFP_S;
 		if ((NV = TheDCFP->NAV) != TIME_0)
-			// Calcuate the pure DATA component of the NAV
+			// Calculate the pure DATA component of the NAV; we
+			// need it for the CTS
 			NV -= DCF_NAV_rts;
+		_trc ("RTS MY %f", (double) NV);
+
 		// Notify the upper layers
-		RFM->rcv_rts (CS, RFM->RSSI);
-		// Delay for SIFS while keeping the channel's appearance as
-		// busy for the transmitter
+		RFM->UPPER_rcv_rts (CS, RFM->RSSI);
+		// Delay for SIFS; the logical channel status remains busy
 		Timer->wait (DCF_TSifs, RC_SCTS);
 		sleep;
 
 	    case DCFP_TYPE_CTS:
 
 		// CTS packet: signal the transmitter. Note that in this case
-		// the upper layers will be notified by the transmitter, if the
-		// CTS is relevant.
-		RFM->scts ();
+		// the upper layers will be notified by the transmitter, if
+		// the CTS is relevant.
+		_trc ("CTS MY");
+		RFM->signal_cts ();
 		rc_endcycle;
 
 	    case DCFP_TYPE_ACK:
 
 		// ACK packet: signal the transmitter
-		RFM->sack ();
+		_trc ("ACK MY");
+		RFM->signal_ack ();
 		rc_endcycle;
 
 	    default:
@@ -434,12 +618,11 @@ RC_spacket:
 			TheDCFP->DCFP_Type);
 	}
 
-    state RC_RABT:
+    state RC_ABORTED:
 
+	_trc ("RCPT ABORTED");
 	// This is an aborted something that at some point looked like a
-	// packet. If I understand the protocol correctly, we should now
-	// delay for EIFS.
-	RFM->snav (DCF_TEifs);
+	// packet. FLG_garbage will be set by default.
 	rc_endcycle;
 
     state RC_SCTS:
@@ -450,121 +633,94 @@ RC_spacket:
 	// that the transmitter is kept under the impression that medium is
 	// busy, so it will not interfere.
 
-	if (!RFM->xcts (CS, NV, RC_SCTSD))
+	if (!RFM->xmit_cts (CS, NV, RC_SCTSD))
 		rc_endcycle;
 
     state RC_SCTSD:
 
+	_trc ("CTS SENT");
 	// Done sending CTS
 	RFM->xstop ();
 	// Notify upper layers
-	RFM->snt_cts (TheDCFP->DCFP_R);
+	RFM->UPPER_snt_cts (TheDCFP->DCFP_R);
+	// Wait for the data packet
+	RFM->FLG_garbage = YES;
+	// Set the BOT timer
+	RFM->TDExp = Time + DCF_TIMEOUT_bot;
 
-	// Now for the tricky bit: wait for DATA to detect collisions on time
-	// and report on them to the "upper layers". We expect a data packet
-	// to commence within SIFS. But don't forget to keep the transmitter
-	// under the impression that the channel is busy - until it is safe
-	// to tell it otherwise. Note that we haven't set our own NAV on the
-	// RTS.
+    transient RC_WDATA:
 
-	// Silence timeout for expecting DATA packet (the 'active' timeout
-	// is equal to this + DCF_PRE_time
-	RFM->TData = Time + DCF_TSifs2;
+	RFM->wait_bot (RC_DATAP, RC_NODATA);
 
-	if (RFM->busy ())
-		goto RD_sact;
+    state RC_DATAP:
 
-    transient RD_SIL:
+	RFM->init_reception (RC_GETDATA);
 
-	if (RFM->dsil (RD_ACT, RD_NDATA))
-		goto RD_ndat;
+    state RC_GETDATA:
 
-    state RD_ACT:
+	RFM->trace_packet (RC_DATARCV, RC_DATAABT);
 
-RD_sact:
-	if (RFM->wbod (RD_BOT, RD_SIL))
-		goto RD_ndat;
+    state RC_DATAABT:
 
-    // =======================================================================
-    // This is essentially the same receiver redone for capturing a data packet
-    // following CTS.  The additional twist is that we want to diagnose ASAP
-    // the case of a missing data packet. This will happen when
-    //    
-    // - there has been no BOT for DCF_TSifs from the end of CTS
-    // - there has been a BOT, but the packet reception has been aborted
-    // - a packet has been received, but it isn't DATA
-    //
-    // A simplification is that we don't have to keep track of the medium
-    // status and report it to the transmitter, which is left to believe that
-    // the medium is busy all this time - until we have figured our whatever
-    // has happened to the DATA packet.
-    // =======================================================================
+	// Should we reset FLG_garbage to 0?
+	_trc ("EXP DATA ABORT");
+	if (Time < RFM->TDExp)
+		// Keep waiting
+		sameas RC_WDATA;
 
-    state RD_BOT:
+    transient RC_NODATA:
 
-	RFM->strc (RD_RCV);
+	_trc ("EXP DATA NODATA");
+	RFM->UPPER_col_data ();
+	rc_endcycle;
 
-    state RD_RCV:
+    state RC_DATARCV:
 
-	RFM->wrec (RD_RCVD, RD_RABT);
-
-    state RD_RCVD:
+	RFM->FLG_garbage = NO;
 
 	// This must be a non-broadcast data packet addressed to us
 	if (flagSet (TheDCFP->DCFP_Flags, DCFP_FLAG_BCST)) {
 		// Broadcast: signal a collision to the upper layers
-		RFM->col_data ();
+		_trc ("EXP DATA BCST");
+		RFM->UPPER_col_data ();
 		// ... but receive the packet anyway (as a gift)
-		RFM->recv ();
+		RFM->receive ();
 		rc_endcycle;
 	}
 
 	// A non-broadcast packet must be addressed to us
-	if (!RFM->ismy (TheDCFP)) {
-		RFM->col_data ();
+	if (!RFM->my_packet (TheDCFP)) {
+		_trc ("EXP DATA FOREIGN");
+		RFM->UPPER_col_data ();
 		// Set NAV and ignore the packet
-		RFM->snav (TheDCFP->NAV);
+		RFM->set_nav (TheDCFP->NAV);
 		rc_endcycle;
 	}
 
 	if (TheDCFP->DCFP_Type != DCFP_TYPE_DATA) {
 		// Not a data packet
-		RFM->col_data ();
+		_trc ("EXP DATA NODATA");
+		RFM->UPPER_col_data ();
 		// process as for a standard reception
 		goto RC_spacket;
 	}
 
 	// Data packet: receive it
-	RFM->recv ();
+	RFM->receive ();
 	// Delay before sending ACK
-	Timer->wait (DCF_TSifs, RD_SACK);
+	Timer->wait (DCF_TSifs, RC_SACK);
 	sleep;
 
-    state RD_SACK:
+    state RC_SACK:
 
-	RFM->xack (CS, RD_SACKD);
+	RFM->xmit_ack (CS, RC_SACKD);
 
-    state RD_SACKD:
+    state RC_SACKD:
 
+	_trc ("ACK SENT");
 	RFM->xstop ();
 	// Upper layers go again
-	RFM->snt_ack (TheDCFP->DCFP_R);
-	rc_endcycle;
-
-    state RD_RABT:
-
-	// Something looking like a packet but aborted. I think we should
-	// reasonably expect it was for us and avoid setting NAV to EIFS.
-
-	// RFM->snav (DCF_TEifs);
-
-	// Fall through
-
-    transient RD_NDATA:
-
-RD_ndat:
-
-	RFM->col_data ();
+	RFM->UPPER_snt_ack (TheDCFP->DCFP_R);
 	rc_endcycle;
 }
 

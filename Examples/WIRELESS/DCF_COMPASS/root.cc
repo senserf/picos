@@ -13,15 +13,17 @@ static void initAll () {
 //
 //	initChannel, initNodes, initTraffic, InitMobility
 //
+	Long NS, PRE;
 
-	settrace (
+	settraceFlags (
 			TRACE_OPTION_TIME +
 			TRACE_OPTION_ETIME +
 			TRACE_OPTION_STATID +
 			TRACE_OPTION_STATE
 		 );
 
-	initNodes (initChannel ());
+	initChannel (NS, PRE);
+	initNodes (NS, PRE);
 	initTraffic ();
 	initMobility ();
 }

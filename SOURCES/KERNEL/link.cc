@@ -4637,7 +4637,7 @@ void    Port::exPrint0 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Full AI wait list:\n\n";
 	}
 
@@ -4699,7 +4699,7 @@ void    Port::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") List of activities:\n\n";
 	}
 
@@ -4812,7 +4812,7 @@ void    Port::exPrint2 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Timing of events";
 		Ouf << ':';
 	}
@@ -5960,7 +5960,7 @@ void    Link::exPrint0 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Full AI wait list";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();
@@ -6071,7 +6071,7 @@ void    Link::exPrint1 (const char *hdr) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Performance measures:\n\n";
 	}
 
@@ -6107,7 +6107,7 @@ void    Link::exPrint2 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr;
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") List of activities";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid) -> getOName ();

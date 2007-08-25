@@ -1476,7 +1476,7 @@ A sign not followed by a digit is not interpreted as the beginning of a number.
 A real number may additionally contain a decimal
 point followed by a sequence of digits (the fraction)
 and/or an exponent.
-The syntaxt is essentially as that accepted by the standard UNIX parsing
+The syntax is essentially as that accepted by the standard UNIX parsing
 tools, e.g., {\tt strtod}.
 A decimal point encountered in an expected integer number
 stops the interpretation
@@ -1644,7 +1644,7 @@ the second argument equal {\tt NULL} and {\tt hs} equal 0.
 To facilitate interfacing the simulator to external programs that may act as
 the suppliers of simulation data and, possibly, absorbers of the output, 
 \smurph\ has been equipped with a simple XML
-parser.\footnote{Adopted from the publicly available (MIT licence)
+parser.\footnote{Adopted from the publicly available (MIT license)
 code by Aaron Voisine.}
 Being a rather independent add-on,
 the parser is a self-contained feature, which can be used
@@ -5507,6 +5507,22 @@ The two-argument variants of {\tt proceed} and {\tt skipto} are only
 available if the \smurph\ program has been created with the 
 {\tt -p} option of {\tt mks} (\sect{rm_un_cr}).
 
+If you really want to transit to a given state immediately, with absolute
+certainty that nothing will happen in the meantime, use this
+operation:
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\>sameas {\em newstate};\\
+\>sameas ({\em newstate\/});
+\end{tabbing}}
+\noindent
+where the second argument is the symbolic state identifier.
+This operation actually executes a direct branch to the beginning of the state
+body.
+Before that happens, {\tt TheState} is set to the new state number.
+The environment variables {\tt Info01} and {\tt Info02} (\sect{rm_pr_en})
+remain unchanged.
+
 \medskip
 
 \noindent
@@ -8933,7 +8949,7 @@ assuming a straightforward interpretation of the packet's bits as the
 This need not always be the case.
 In many encoding schemes, the ``logical''
 packet bits (represented by {\tt pkt->TLength})
-are transmormed into symbols expressed as sequences of ``physical bits.''
+are transformed into symbols expressed as sequences of ``physical bits.''
 For example, those symbols may balance the number of physical zeros and ones
 and/or provide for forward error correction (FEC).
 It is the responsibility of {\tt RFC\_xmt} to account for such features and
@@ -9403,7 +9419,7 @@ antenna before sending out a packet, and the entire packet is sent out with
 the same antenna setting.
 Also note that an obsessive experimenter may use this feature to implement
 ``extreme fidelity'' mobility models, whereby signals at the receiver are
-reassessed after a minuscule distance change occuring half-way through a packet
+reassessed after a minuscule distance change occurring half-way through a packet
 reception.
 Needless to say, {\tt reassess} is a rather costly method and its
 frivolous usage is discouraged.
@@ -11417,34 +11433,10 @@ actually a {\tt Timer} wait request (for 0 {\em ITU\/}s).
 Thus, it is possible that when the second server executes {\tt putP},
 the customer is not ready to receive the item (although it will become
 ready within the current {\em ITU\/}).
-
-\smurph\ offers no immediate {\tt goto} to another state (other than the
-straightforward {\tt goto} statement of C++).
-The following operation:
-\begin{verbatim}
-        proceed newstate, MIN_long;
-\end{verbatim}
-comes close to it, but it is still not guaranteed that no other wait request
-will use the same lowest-possible order.
-A safe {\tt goto} operation can be simulated by a mailbox, e.g., in
-the following way:
-\begin{verbatim}
-        state GetNumber:
-            NRcv = 0;
-            Request1->put ();
-            Request2->put ();
-        transient Loop:
-            Reply1->wait (NEWITEM, GetIt);
-            Reply2->wait (NEWITEM, GetIt);
-        state GetIt:
-            Num = TheItem;
-            GoTo->wait (NEWITEM, Loop);
-            if (!NRcv++) { GoTo->putP (); sleep; }
-\end{verbatim}
-{\tt GoTo} can be a counting mailbox of any capacity, in particular 0.
-Of course, this example is purely a curiosity, as one can always resort to a
-direct {\tt goto} statement.
-There is no need to shy away from such statements in reactive programming.
+By replacing {\tt proceed} with {\tt sameas} (\sect{rm_ti_wa}), you will
+retain the exact functionality of the original code, as
+{\tt sameas} effectively ``replicates'' the body of state {\tt Loop} at
+its occurrence (no state transition via the simulator is involved).
 
 \subsection{Barrier mailboxes}
 \label{rm_mb_ba}
@@ -12401,7 +12393,7 @@ It makes no sense to wait for the sentinel in such a case, as some
 room must be freed in the buffer before the sentinel can possibly
 arrive.
 The calling process can easily determine what happened (without searching the
-acquired data for the sentinel), by examing the {\tt Boolean}
+acquired data for the sentinel), by examining the {\tt Boolean}
 environment variable {\tt TheEnd} (an alias for {\tt Info01}).
 Its value is {\tt YES} if the sentinel is present in the acquired data
 chunk, and {\tt NO} otherwise.
@@ -13632,9 +13624,16 @@ if the program has been invoked with the `{\tt -c}' option.
 \label{rm_ts_st}
 
 The second argument of {\tt setLimit} declares the maximum interval of
-the modeled time in {\em ITU\/}s.
+the modeled (virtual) time in {\em ITU\/}s.
 The execution will stop as soon as the modeled time (the contents of
 variable {\tt Time}) has reached the limit.
+
+\noindent
+{\bf Note:}
+If the virtual time limit has been reset
+to the end time of the tracing interval with {\tt -t} (see \sect{rm_un_ru}),
+{\tt setLimit} can only reduce that limit.
+Any attempts to extend it will be quietly ignored.
 
 \subsection{CPU time limit}
 \label{rm_ts_cp}
@@ -13709,7 +13708,7 @@ are 0--5, in the order in which the constants are listed.
 \section{Tools for testing and debugging}
 \label{rm_ob}
 
-\smurph\ provides the user with a few simple tools that can greatly help in the
+\smurph\ is equipped with a few tools that can assist you in the
 process of debugging and validating a protocol program, especially in those
 numerous cases when formal correctness proofs are infeasible.
 
@@ -13735,7 +13734,8 @@ for errors of the second type, which may be more difficult to diagnose.
 \subsection{User-level tracing}
 \label{rm_ob_pt}
 
-One simple way to detect run time errors is to assert Boolean properties
+One simple way to detect run time inconsistencies
+is to assert Boolean properties
 involving variables in the program.
 \smurph\ offers some tools for this purpose (see \sect{rm_au_eh}).
 Once an error has been found, the detection of its origin may still pose
@@ -13745,8 +13745,8 @@ prior to the occurrence of the error to identify the circumstances
 leading to the trouble.
 
 The following function can be used
-to write to the output file a line of information describing the contents
-of some variables at the moment:
+to write to the output file a line describing the contents
+of some variables at the moment of its call:
 \begin{verbatim}
         void trace (const char*, ...);
 \end{verbatim}
@@ -13774,32 +13774,29 @@ This is important because tracing problems that manifest themselves after
 lengthy execution may generate tonnes of intimidating output.
 The {\tt -t} program call argument (described in \sect{rm_un_ru})
 can be used to disable or restrict the output of {\tt trace}.
-It is also possible to confine that output to the context of one
-specific station.
+It is also possible to confine that output to the context of a few
+specific stations.
 By default, i.e., without {\tt -t}, every {\tt trace} command is
 effective.
 
 The program can also affect the behavior of {\tt trace} dynamically, by
-executing the global function {\tt settrace}, in one of the following
-variants:
+calling the following global functions:
 
 \begin{verbatim}
-        void settrace (FLAGS opt);
-        void settrace (FLAGS opt, Long s);
-        void settrace (FLAGS opt, Long s, TIME begin);
-        void settrace (FLAGS opt, Long s, TIME begin, TIME end);
-        void settrace (FLAGS opt, Long s, double begin);
-        void settrace (FLAGS opt, Long s, double begin, double end);
+        void settraceFlags (FLAGS opt);
+        void settraceTime (TIME begin, TIME end = TIME_inf);
+        void settraceTime (double begin, double end = Time_inf);
+        void settraceStation (Long s);
 \end{verbatim}
 
 \noindent
-The first argument of {\tt settrace} is a collection of additive
+The first argument of {\tt settraceFlags} is a collection of additive
 flags that describe
 the optional components of the header preceding a line written by {\tt trace}.
 If {\tt opt} is zero, {\tt trace} is unconditionally
 disabled, i.e., its subsequent
 invocations in the program will produce no output until a next call to
-{\tt settrace} selects some actual header components.
+{\tt settraceFlags} selects some actual header components.
 Here are the options (represented by symbolic constants):
 
 \begin{quote}
@@ -13829,12 +13826,12 @@ Includes the standard name of the current process (\sect{rm_st_on}).
 \noindent\hspace{-0.35in}{\bf {\tt TRACE\_OPTION\_STATE}}\\ \hspace{0in}
 Includes the symbolic name of the state in which the current
 process has been awakened.
-This is independent of the previous option.
+This option is independent of the previous option.
 \end{quote}
 
 For example, having executed:
 \begin{verbatim}
-        settrace (TRACE_OPTION_ETIME + TRACE_OPTION_PROCESS);
+        settraceFlags (TRACE_OPTION_ETIME + TRACE_OPTION_PROCESS);
 \end{verbatim}
 followed by:
 \begin{verbatim}
@@ -13847,66 +13844,67 @@ you may see something like this:
 \end{verbatim}
 \noindent
 Note that that the default component of the {\tt trace} header, represented by
-{\tt TRACE\_OPTION\_TIME}, will be removed if the argument of {\tt settrace}
+{\tt TRACE\_OPTION\_TIME}, will be removed if the argument of
+{\tt settraceFlags}
 does not include this value.
 However, there is no way to produce a {\tt trace} line without a single header
-component because {\tt trace}~{(0)} completely diables {\tt trace} output.
+component because {\tt settraceFlags}~{(0)}
+completely disables {\tt trace} output.
 
-The remaining arguments of {\tt settrace} stand for:
-\begin{llist}{{\tt beginn}}
-\litem{\tt s}
-the numerical {\tt Id} of the station to which the tracing should be
-restricted, or {\tt ANY} denoting all stations (no restriction).
-The restriction means that
-a {\tt trace} call occurring in the context of a different station
-(with {\tt TheStation} pointing to a station with a different {\tt Id})
-will be ignored.
-\litem{\tt begin}
-the starting time.
-This is the first moment of modeled time
-when the {\tt trace} statements will be activated.
-By default, they are activated at time 0.
-The {\tt TIME} version of the argument is in {\em ITU\/}s, while the
-{\tt double} one is in {\em ETU\/}s.
-\litem{\tt end}
-the ending time. 
-This is the time when the {\tt trace} statements will be deactivated.
-By default, they are never deactivated (or are deactivated at infinite time).
-As for {\tt begin}, the
-{\tt TIME} version of the argument is in {\em ITU\/}s, while the
-{\tt double} version is in {\em ETU\/}s.
-\end{llist}
+With the two variants of {\tt settraceTime} you can confine the output of
+{\tt trace} to a specific time interval.
+For the first variant, that interval is described as a pair of {\tt TIME}
+values in {\em ITU\/}s, while
+the second variant accepts {\tt double} {\em ETU\/} values.
+If the second value is absent, the end of the tracing period is undetermined,
+i.e., {\tt trace} remains active until the end of run (see \sect{rm_mp_ot} for
+the meaning of constants {\tt TIME\_inf} and {\tt Time\_inf}).
+The specified time interval is interpreted in such a way that {\tt begin}
+describes the first moment of time at which {\tt trace} is to be activated,
+while {\tt end} (if not infinite)
+points to the first instant at which {\tt trace} becomes
+inactive.
+This means that {\tt trace} invoked exactly at time {\tt end}
+will produce no output.
+Every call to {\tt settraceTime} (any variant) overrides all previous
+calls.
+The only way to define multiple tracing intervals is to issue a new
+{\tt settraceTime} call for the next interval exactly at the end of the
+previous one.
 
-\noindent
-A variant of {\tt settrace} that does not cover a given argument
-(e.g., {\tt end}), leaves the corresponding setting intact.
-If {\tt -t} is absent from the program call line (\sect{rm_un_ru},
-the defaults are:
-{\tt opt~=~TRACE\_OPTION\_TIME},
-{\tt s~=~ANY},
-{\tt begin~=~TIME\_0},
-{\tt end~=~TIME\_inf}.
-Otherwise, the command will be applied to the settings inherited from
-{\tt -t}, with the following caveat.
+Tracing can be restriced in space as well as in time.
+The argument of {\tt settraceStation} specifies the station to which the
+output of {\tt trace} should be confined.
+This means that the environment variable {\tt TheStation} (\sect{rm_to_st_cu})
+must point to the indicated station at the moment {\tt trace} is invoked.
+Multiple calls to the function add stations to the tracing pool.
+This way it is possible to trace an arbitrary subset of the network.
+By calling {\tt settraceStation} with {\tt ANY} as the argument,
+you revert to the default case of tracing all stations.
 
 \noindent
 {\bf Note:}
-The interpretation of an {\em ETU\/} value (in {\tt settrace} or
-within the {\tt -t} call argument) can only be meaningful
-after the {\em ETU\/} has been defined by the program (\sect{rm_mp_ti}),
-which normally happens in the first state of {\tt Root} (\sect{rm_pr_or}).
-Consequently, if the {\tt -t} argument includes {\tt double} values
-(to be interpreted as time in {\em ETU\/}), its application is postponed until
-the simulator leaves the first state of the {\tt Root} process
-(or ``the network has been built,'' in the sense of \sect{rm_pr_or}).
-Consequently, in such circumstances, a call to {\tt settrace} executed in
-the first state of {\tt Root}\footnote{Note that if that call specfies
-time values in {\em ETU\/}s, it should be placed after the call to
-{\tt setEtu} (or {\tt setItu}) that assigns a meaning to the {\em ETU\/}
-(\sect{rm_mp_ti}).}
-may be (later) overriden by {\tt -t}.
-The moral is that {\tt settrace} and {\tt -t} should be mixed with 
-due care.
+The {\tt -t} program call argument (\sect{rm_un_ru}) is interpreted after
+the network has been built (\sect{rm_pr_or})
+and thus overrides any {\tt settraceTime} and
+{\tt settraceStation} calls made from the first state of {\tt Root}.
+This postponement in the processing of {\tt -t} is required because the
+interpretation of an {\em ETU\/} value (as a time bound)
+can only be meaningful after the {\em ETU\/} has been defined by the program
+(\sect{rm_mp_ti}).
+The {\tt -t} argument, if it appears on the program call line, effectively
+cancels the effect of all {\tt settraceTime} and {\tt settraceStation}
+calls issued in the first state of {\tt Root}.
+However, any calls to those functions issued later on (after
+the network has been built) will override the effects of {\tt -t}.
+
+\noindent
+By the same token, a sensible {\tt settraceTime} call with
+{\em ETU\/} arguments can only be made after the {\em ETU\/} has been set.
+Otherwise, the function will transform the specified values into {\tt TIME}
+using the default setting of 1~{\em ITU\/}~=~1~{\em ETU}.
+
+\medskip
 
 You can easily take advantage of the restriction mechanism for
 {\tt trace} in your own debugging operations.
@@ -13929,23 +13927,21 @@ Its role is similar to {\tt -t} (which controls the user-level
 tracing---\sect{rm_ob_pt}), except that, in the present case, the
 tracing is disabled by default.
 The same effect can be accomplished dynamically from the program, by
-invoking the global function {\tt setTrace} in
-one of the following variants:
+invoking functions from this list:
 
 \begin{verbatim}
-        void setTrace (Boolean full);
-        void setTrace (Boolean full, Long s);
-        void setTrace (Boolean full, Long s, TIME begin);
-        void setTrace (Boolean full, Long s, TIME begin, TIME end);
-        void setTrace (Boolean full, Long s, double begin);
-        void setTrace (Boolean full, Long s, double begin, double end);
+        void setTraceFlags (Boolean full);
+        void setTraceTime (TIME begin, TIME end = TIME_inf);
+        void setTraceTime (double begin, double end = Time_inf);
+        void setTraceStation (Long s);
 \end{verbatim}
 
 \noindent
-If {\tt full} is {\tt YES}, it selects the ``full'' version of state
+For the first function,
+if {\tt full} is {\tt YES}, it selects the ``full'' version of state
 dumps, as described below.
-The remaining arguments restrict the tracing context in the same way
-as for {\tt settrace}, as explained in \sect{rm_ob_pt}.
+The remaining functions restrict the tracing context in the same way
+as for the corresponding user-level functions discussed in \sect{rm_ob_pt}.
 
 Any episode of a process being awakened that falls into the confines of the
 tracing parameters (in terms of time and station context)
@@ -18656,8 +18652,8 @@ and wait for a connection from \dsd.
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -t}}\\ \hspace{0in}
 This argument pertains to user-level tracing (\sect{rm_ob_pt}) and
-specifies the time interval during which the tracing should be on and,
-optionally, the station to which it should be confined.
+specifies the time interval during which the tracing should be on and/or
+the set of station to which it should be confined.
 The string following {\tt -t} (after a space) should have one of the following
 forms:
 
@@ -18665,9 +18661,9 @@ forms:
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
 \>{\em start} \\
 \>{\em start\/}{\tt -}{\em stop} \\
-\>{\em start\/}{\tt /}{\em station} \\
-\>{\em start\/}{\tt -}{\em stop\/}{\tt /}{\em station} \\
-\>{\tt /}{\em station}
+\>{\em start\/}{\tt /}{\em stations} \\
+\>{\em start\/}{\tt -}{\em stop\/}{\tt /}{\em stations} \\
+\>{\tt /}{\em stations}
 \end{tabbing}}
 \noindent
 where {\em start\/} specifies the first moment of modeled time when the tracing
@@ -18679,33 +18675,71 @@ If a decimal point appears within {\em any\/}
 of the two numbers, then {\em both\/} of them
 are assumed to be in {\em ETU\/}s.
 A single number describes the starting time, with the ending time being
-undefined, i.e., equal to inifity.
+undefined, i.e., equal to infinity.
 No numbers (like in the last variant in the above list) means no time
 restriction ({\em start\/} is zero, {\em stop\/} is infinity).
 
-The optional station identifier (\sect{rm_to_st_cs}) appearing at the end of
-the argument (preceded by a slash) restricts the tracing to the specified
-station.
+The optional list of station identifiers (\sect{rm_to_st_cs}) separated
+by commas (not including blanks) appearing at the end of
+the argument (preceded by a slash) restricts the tracing to the specified set
+of station.
 This effectively means that a trace message will only be printed if
-{\tt TheStation->getId}~{\tt ()} equals the indicated station {\tt Id}.
+{\tt TheStation->getId}~{\tt ()} matches one of the indicated station
+{\tt Id}.
 
-Here we have a few examples:
+Here are a few examples:
 \begin{verbatim}
         -t 1.0-2.0
         -t 3-3.5/2
         -t 1000000
+        -t /3,7,123
 \end{verbatim}
 \noindent
 Note that in the second case the first number will be interpreted in
 {\em ETU\/}s, despite the fact that it has no decimal point, because the
 second number does have it.
 
+One more handy feature is the option
+to terminate the string following {\tt -t} with the letter
+{\tt s} ({\tt q} works as well), which has the effect of redefining the
+virtual time limit of the model (\sect{rm_ts})
+to the end boundary of the tracing interval.
+For example, with this sequence:
+\begin{verbatim}
+        -t 12.33-47.99/0,1s
+\end{verbatim}
+\noindent
+you tell the program to make the tracing effective from time 12.33 until
+47.99 (expressed in {\em ETU\/}s) and trace two stations 0 and 1.
+At the end of the tracing interval, the program will terminate.
+This feature is useful for quickly producing narrow traces surrounding the
+place of an error.
+
+The interpretation of the argument string of {\tt -t} is postponed until
+the network has been built, i.e., until the program leaves the first state
+of {\tt Root} (\sect{rm_pr_or}).
+As we explain in \sect{rm_ob_pt},
+this is required because the
+interpretation of a time bound expressed in {\em ETU\/}s
+can only be meaningful after the {\em ETU\/} has been defined by the program
+(\sect{rm_mp_ti}), which typically happens in the first state of {\tt Root}.
+In particular, if the program issues a call to {\tt setLimit} in the
+first state of {\tt Root}, to define the virtual time limit for the run,
+that call will be overridden by the {\tt s} flag of {\tt -t},
+but only if the end bound in the specification is finite.
+Otherwise, the {\tt s} flag will be ignored.
+If the flag has been effective, i.e., once the time limit has been reset to the
+end bound of the tracing interval, any {\tt setLimit} request from the
+program can only reduce the time limit (any attempts to extend will be ignored).
+
 By default, if {\tt -t} is absent, or if it is not followed by any
 specification, the user-level tracing is on for all time and for all stations.
 This simply means that all {\tt trace} commands appearing in the program
 are always effective.
-Note that the program can redefine tracing parameters dynamically with
-{\tt settrace} (see \sect{rm_ob_pt}).
+Note, however, that an empty {\tt -t} specification is different from is
+total absence, as it nullifies any {\tt settraceTime} or
+{\tt settraceStation} invocations issued by the program in the first
+state of {\tt Root} (\sect{rm_ob_pt}).
 \end{quote}
 
 \begin{quote}
@@ -18715,7 +18749,8 @@ simulator-level tracing (\sect{rm_ob_st}).
 It is only available if the simulator has been compiled with the {\tt -g}
 option of {\tt mks} (\sect{rm_un_cr}).
 Its format is exactly as for {\tt -t}, with one extra option represented by
-{\tt +}, which can appear at the end of the specification string.
+{\tt +}, which can appear at the end of the specification string
+(preceding or following the optional {\tt s}).
 The time interval determines the range of simulator-level tracing, which
 consists in dumping to the output file detailed
 information about the states
@@ -18723,11 +18758,13 @@ executed by the protocol processes (\sect{rm_ob_st}).
 Here are a few examples:
 \begin{verbatim}
         -T 667888388880
-        -T /12
-        -T 47.5-49.5/12+
+        -T /12+
+        -T 47.5-49.5/8,6
+        -T 0-999999999/1,3,5,7s+
 \end{verbatim}
 \noindent
-The {\tt +} option (in the last case) selects the so-called ``full tracing''
+The {\tt +} option (in the second and last cases)
+selects the so-called ``full tracing''
 (\sect{rm_ob_st}), whereby the state information is accompanied by dumps of
 activities in all links and radio channels accessible via ports and
 transceivers of the current station.

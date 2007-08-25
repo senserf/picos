@@ -1,5 +1,5 @@
 /* SIDE version number */
-#define  VERSION      "2.90-OC"
+#define  VERSION      "3.00-OA"
 
 #ifdef	__CYGWIN32__
 #define	ZZ_CYW				1

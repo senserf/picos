@@ -39,37 +39,24 @@ rfchannel RFShadow : RadioChannel {
 	Long RFC_erd (RATE, double, double, double, Long);
 
 	void setup (
-
-		Long nt,		// The number of transceivers
-		const sir_to_ber_t *st,	// SIR to BER conversion table
-		int    sl,		// Length of the conversion table
-		double rd,		// Reference distance
-		double lo,		// Loss at reference distance (dB)
-		double be,		// Path loss exponent (Beta)
-		double sg,		// Gaussian lognormal component Sigma
-		double no,		// Background noise (dBm)
-		double bu,		// Channel busy signal threshold dBm
-		double co,		// Cut off signal level
-		Long mp,		// Minimum received preamble length
-		Long br,		// Bit rate
-		int bpb,		// Bits per byte
-		int frm,		// Packet frame (extra physical bits)
+		Long,			// The number of transceivers
+		const sir_to_ber_t*,	// SIR to BER conversion table
+		int,			// Length of the conversion table
+		double,			// Reference distance
+		double,			// Loss at reference distance (dB)
+		double,			// Path loss exponent (Beta)
+		double,			// Gaussian lognormal component Sigma
+		double,			// Background noise (dBm)
+		double,			// Channel busy signal threshold dBm
+		double,			// Cut off signal level
+		Long,			// Minimum received preamble length
+		Long,			// Bit rate
+		int,			// Bits per byte
+		int,			// Packet frame (extra physical bits)
 		double (*g) (Transceiver*, Transceiver*) = NULL,
 		RSSICalc *rsc = NULL,	// RSSI calculator
 		PowerSetter *ps = NULL	// Power setting converter
-	) {
-		RadioChannel::setup (nt, no, st, sl, br, bpb, frm, rsc, ps);
-
-		RDist = rd;
-		COSL = (co == -HUGE) ? 0.0 : dBToLin (co);
-		Sigma = sg;
-		LFac = pow (RDist, be) / dBToLin (lo);
-		NBeta = -be;		// The exponent is negative
-		OBeta = 1.0 / -be;
-		MinPr = mp;
-		BThrs = dBToLin (bu);
-		gain = g;
-	};
+	);
 };
 
 #define	SEther ((RFShadow*) Ether)

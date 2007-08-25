@@ -1,11 +1,11 @@
 #include "types.h"
 #include "wchansh.cc"
 
-Long initChannel () {
+void initChannel (Long &NS, Long &PRE) {
 
 // Read channel parameters from the input data
 
-	Long NS, BR, BPB, EFB, MPR, STBL;
+	Long BR, BPB, EFB, MPR, STBL;
 	double g, psir, pber, BN, AL, Beta, RD, Sigma, LossRD, COFF;
 	sir_to_ber_t *STB;
 	int i;
@@ -23,7 +23,7 @@ Long initChannel () {
 	// The distance unit (1m), i.e., propagation time across 1m
 	setDu (1.0/g);
 
-	// Clock tolerance (keep it at 0.01%)
+	// Clock tolerance (0.01%)
 	setTolerance (0.0001, 2);
 
 	// The number of nodes
@@ -55,6 +55,9 @@ Long initChannel () {
 
 	// Bits per physical byte
 	readIn (BPB);
+
+	// Physical preamble length
+	readIn (PRE);
 
 	// Extra framing bits
 	readIn (EFB);
@@ -100,14 +103,12 @@ Long initChannel () {
 	// Initialize global parameters of the DCF scheme
 
 	readIn (g);	// SIFS
-	readIn (psir);	// DIFS
-	readIn (pber);	// EIFS
-	readIn (BN);	// NAV delta
-	readIn (AL);	// Slot size
-	readIn (BR);	// CW min
-	readIn (BPB);	// CW max
+	readIn (psir);	// SLOT
+	readIn (BR);	// Short data threshold
+	readIn (BPB);	// Short retransmission limit
+	readIn (EFB);	// Long retransmission limit
+	readIn (MPR);	// CW min
+	readIn (STBL);	// CW max
 
-	initDCF (g, psir, pber, BN, AL, BR, BPB);
-
-	return NS;
+	initDCF (g, psir, BR, (int)BPB, (int)EFB, (int)MPR, (int)STBL);
 }

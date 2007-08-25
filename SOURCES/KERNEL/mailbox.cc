@@ -963,7 +963,7 @@ void    Mailbox::exPrint0 (const char *hdr, int sid) {
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () << ") Full AI wait list";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();
@@ -1048,7 +1048,7 @@ void    Mailbox::exPrint1 (const char *hdr, int sid) {
 	if (hdr != NULL)
 		Ouf << hdr << "\n\n";
 	else {
-		Ouf << "Time: "; print (Time, 15); Ouf << "     ";
+		zz_outth (); Ouf << ' ';
 		Ouf << '(' << getOName () <<") Abbreviated AI wait list";
 		if (isStationId (sid))
 			Ouf << " for " << idToStation (sid)->getOName ();

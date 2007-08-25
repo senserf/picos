@@ -1252,6 +1252,10 @@ int     processState (int del) {
 	putC (arg);
 	putC (":");
 
+	putC (" __state_label_");
+	putC (arg);
+	putC (":");
+
 	catchUp ();     // Catch up with the lookahead pointer
 	return (YES);
 }
@@ -1284,6 +1288,10 @@ int     processTransient (int del) {
 	if (!isState (arg)) return (NO);
 
 	putC ("case ");
+	putC (arg);
+	putC (":");
+
+	putC (" __state_label_");
 	putC (arg);
 	putC (":");
 
@@ -1444,7 +1452,8 @@ int     processProceed (int del) {
 	//    do { zz_AI_timer.zz_proceed (state); return; } while (0);
 	//
 	// within an observer expands into:
-	//    zz_jump_rq (state);
+	//    do { TheObserverState = state; goto __state_label_state; }
+	//	while (0);
 
 	char    arg [MAXKWDLEN+1], sarg [MAXKWDLEN+1];
 	int     lc, pc;
@@ -1507,20 +1516,26 @@ ProcErr:
 
 	if (!isState (arg)) return (NO);
 
+	putC ("do { ");
+
 	if (CodeType == PROCESS) {
-		putC ("do { zz_AI_timer.zz_proceed (");
+		putC ("zz_AI_timer.zz_proceed (");
 		putC (arg);
 		if (sarg [0] != '\0') {
 			putC (',');
 			putC (sarg);
 		}
-		putC ("); return; } while (0);");
+		putC ("); return;");
 	} else {
 		// The observer version
-		putC ("zz_jump_rq (");
+		putC ("TheObserverState = ");
 		putC (arg);
-		putC (");");
+		putC ("; goto __state_label_");
+		putC (arg);
+		putC (";");
 	}
+
+	putC (" } while (0);");
 
 	catchUp ();
 	return (YES);
@@ -1594,6 +1609,80 @@ int     processSkipto (int del) {
 	}
 
 	putC ("); return; } while (0);");
+
+	catchUp ();
+	return (YES);
+}
+
+int     processSameas (int del) {
+
+/* -------------------------------- */
+/* Expands the `sameas s;' sequence */
+/* -------------------------------- */
+
+	// sameas state;
+	// sameas (state);
+	//
+	// expands into:
+	//    do { The[Observer]State = state; goto __state_label_state; }
+	//	while (0);
+
+	char    arg [MAXKWDLEN+1], sarg [MAXKWDLEN+1];
+	int     lc, pc;
+
+	if (! CodeType) return (NO);
+
+	lc = del;
+	sarg [0] = '\0';
+
+	if (lc == '(') {
+		pc = 1;
+		while (1) {
+			if ((lc = lkpC ()) == '(') pc++;
+			if (!isspace (lc)) break;
+		}
+	} else {
+		pc = 0;
+	}
+
+	if (lc == ERROR) return (NO);
+	if (lc == END) {
+ProcErr:
+		xerror ("file ends in the middle of 'sameas'");
+		return (NO);
+	}
+
+	lc = getKeyword (arg, lc);
+
+	while (pc) {
+		if (lc != ')') {
+			xerror ("'sameas' syntax error");
+			return (NO);
+		}
+		pc--;
+		while (1) {
+			lc = lkpC ();
+			if (!isspace (lc)) break;
+		}
+	}
+
+	if (lc != ';') {
+		xerror ("semicolon missing after 'sameas'");
+		return (NO);
+	}
+
+	if (!isState (arg)) return (NO);
+
+	putC ("do { The");
+
+	if (CodeType != PROCESS)
+		putC ("Observer");
+
+	putC ("State = ");
+	putC (arg);
+	putC ("; goto __state_label_");
+	putC (arg);
+	putC ("; } while (0);");
 
 	catchUp ();
 	return (YES);
@@ -5165,6 +5254,7 @@ main (int argc, char *argv []) {
 	new KeyDesc ("skipto", processSkipto);
 	new KeyDesc ("station", processStation);
 	new KeyDesc ("proceed", processProceed);
+	new KeyDesc ("sameas", processSameas);
 	new KeyDesc ("create", processCreate);
 	new KeyDesc ("state", processState);
 	new KeyDesc ("wait", processWait, YES);

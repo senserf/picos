@@ -29,6 +29,131 @@ static  double          base_time,
 			time_so_far = 0.0;
 #endif
 
+// ============================================================================
+
+// Delayed initializers triggered by program call arguments - to be run when
+// the network becomes "built".
+
+class	DelInit {
+
+	DelInit *next;
+	void *Data;
+	void (*Action)(void*);
+
+	public:
+
+	DelInit (void (*) (void*), void*);
+
+	~DelInit ();
+};
+
+static	DelInit	*DelList = NULL;
+
+DelInit::DelInit (void (*act) (void*), void *data) {
+
+	Action = act;
+	Data = data;
+
+	next = DelList;
+	DelList = this;
+}
+
+DelInit::~DelInit () {
+
+	// Carry out the action
+	(*Action) (Data);
+
+	if (Data)
+		delete Data;
+
+	DelList = next;
+}
+
+void zz_run_delayed_initializers () {
+
+	while (DelList)
+		delete DelList;
+}
+
+typedef struct {
+
+	Boolean	inEtu, Term, Full;
+
+	Long *Stats;
+	Long NStats;
+
+	union {
+		TIME Start_t;
+		double Start_d;
+	};
+
+	union {
+		TIME Stop_t;
+		double Stop_d;
+	};
+
+} del_trace_init_block;
+
+static void del_init_tracing (void *d) {
+
+	del_trace_init_block *D = (del_trace_init_block*) d;
+
+	if (D->inEtu) {
+		TracingTimeStart = etuToItu (D->Start_d);
+		TracingTimeStop = etuToItu (D->Stop_d);
+	} else {
+		TracingTimeStart = D->Start_t;
+		TracingTimeStop = D->Stop_t;
+	}
+
+	if (TracingStations)
+		delete TracingStations;
+
+	TracingStations = D->Stats;
+	NTracingStations = D->NStats;
+
+	if (D->Term) {
+		// Stop on TracingTimeStop
+		if (TracingTimeStop < zz_max_Time)
+			zz_max_Time = TracingTimeStop;
+		setFlag (zz_trace_options, TRACE_OPTION_TIME_LIMIT_SET);
+	}
+}
+
+#if ZZ_DBG
+
+static void del_debug_tracing (void *d) {
+
+	del_trace_init_block *D = (del_trace_init_block*) d;
+
+	if (D->inEtu) {
+		DebugTracingTimeStart = etuToItu (D->Start_d);
+		DebugTracingTimeStop = etuToItu (D->Stop_d);
+	} else {
+		DebugTracingTimeStart = D->Start_t;
+		DebugTracingTimeStop = D->Stop_t;
+	}
+
+	if (DebugTracingStations)
+		delete DebugTracingStations;
+
+	DebugTracingStations = D->Stats;
+	DebugNTracingStations = D->NStats;
+
+	if (D->Term) {
+		// Stop on TracingTimeStop
+		if (DebugTracingTimeStop < zz_max_Time)
+			zz_max_Time = DebugTracingTimeStop;
+		setFlag (zz_trace_options, TRACE_OPTION_TIME_LIMIT_SET);
+	}
+
+	DebugTracingFull = D->Full;
+}
+
+#endif
+		
+// ============================================================================
+
 static  int             ConMsg = NO;    // Console message flag
 
 /* -------------------------------------- */
@@ -166,34 +291,34 @@ void    zz_ierror (char *t) {
 	exit (20);
 }
 
-static int decode_tracing_arg (int argc, char *argv [],
-		Long &st, TIME &be, TIME &en, double &bef, double &enf) {
+static Boolean decode_tracing_arg (int argc, char *argv [],
+						del_trace_init_block *dtib) {
 
 // Decodes the trace parameters argument for 't' and 'T'
 
 	int i, j;
 	char *ap, *ep;
 	char numc [2][65];
-	Boolean fl;
 
+	dtib->Stats = NULL;
+	dtib->NStats = 0;
+
+	dtib->Full = dtib->inEtu = NO;
+	dtib->Start_t = TIME_0;
+	dtib->Stop_t = TIME_inf;
 	if (argc == 0 ||
-	    (**argv != '/' && **argv != '+' && **argv < '0' && **argv > '9')) {
+	    (**argv != '/' && **argv != '+' && !isdigit (**argv))) {
 		// The defaults
-		be = TIME_0;
-		// The stop time already initialized to TIME_inf; also, st
-		// already initialized to ANY
-		return -1;
+		return NO;
 	}
 
 	// We have something that looks like an argument
 	ap = *argv;
-	fl = NO;
 	i = 0;
 	do {
 		// Decode the numbers
 		for (j = 0; ; j++) {
-			if (*ap <= '9' && *ap >= '0') {
-				// This is a digit
+			if (isdigit (*ap)) {
 				if (j == 64)
 					bad_arguments ();
 				numc [i][j] = *ap++;
@@ -201,7 +326,7 @@ static int decode_tracing_arg (int argc, char *argv [],
 			}
 			if (*ap != '.')
 				break;
-			fl = YES;
+			dtib->inEtu = YES;
 			if (j == 64)
 				bad_arguments ();
 			numc [i][j] = *ap++;
@@ -218,27 +343,31 @@ static int decode_tracing_arg (int argc, char *argv [],
 
 	if (i) {
 		// There are numbers at all, at least one
-		if (fl) {
-			bef = strtod (numc [0], &ep);
+		if (dtib->inEtu) {
+			dtib->Start_d = strtod (numc [0], &ep);
 			if (ep != numc [0] + strlen (numc [0]))
 				bad_arguments ();
+			// Make sure the second default in Etu looks right
+			dtib->Stop_d = Time_inf;
 		} else {
 			// TIME
-			be = TIME_0;
+			dtib->Start_t = TIME_0;
 			for (ep = numc [0]; *ep != '\0'; ep++)
-				be = be * 10 + (LONG)(*ep - '0');
+				dtib->Start_t = dtib->Start_t * 10 +
+					(LONG)(*ep - '0');
 		}
 		if (i == 2) {
 			// Second one
-			if (fl) {
-				enf = strtod (numc [1], &ep);
+			if (dtib->inEtu) {
+				dtib->Stop_d = strtod (numc [1], &ep);
 				if (ep != numc [1] + strlen (numc [1]))
 					bad_arguments ();
 			} else {
 				// TIME
-				en = TIME_0;
+				dtib->Stop_t = TIME_0;
 				for (ep = numc [1]; *ep != '\0'; ep++)
-					en = en * 10 + (LONG)(*ep - '0');
+					dtib->Stop_t = dtib->Stop_t * 10 +
+						(LONG)(*ep - '0');
 			}
 		}
 	}
@@ -246,24 +375,36 @@ static int decode_tracing_arg (int argc, char *argv [],
 	// Done with the numbers
 
 	if (*ap == '/') {
-		// Station
+		// Station(s): calculate how many
+		for (i = 1, ep = ++ap; isdigit (*ep) || *ep == ','; ep++)
+			if (*ep == ',')
+				i++;
+		dtib->Stats = new Long [dtib->NStats = i];
+		i = 0;
+		while (1) {
+			if (!isdigit(*ap))
+				break;
+			for (dtib->Stats [i] = 0; isdigit (*ap); ap++)
+				dtib->Stats [i] = dtib->Stats [i] * 10 +
+					(*ap - '0');
+			if (*ap == ',')
+				ap++;
+			i++;
+		}
+	}
+
+	// Trailing flags ('+' and/or 'q')
+	while (*ap != '\0') {
+		if (*ap == '+')
+			dtib->Full = YES;
+		else if (*ap == 'q' || *ap == 's')
+			dtib->Term = YES;
+		else
+			bad_arguments ();
 		ap++;
-		if (!isdigit (*ap))
-			bad_arguments ();
-		for (st = 0; isdigit (*ap); ap++)
-			st = st * 10 + (*ap - '0');
 	}
 
-	if (*ap != '+' && *ap != '\0')
-		bad_arguments ();
-
-	if (*ap == '+') {
-		if (*(ap+1) != '\0')
-			bad_arguments ();
-		return YES;
-	}
-
-	return NO;
+	return YES;
 }
 
 void    zz_init_system  (int argc, char *argv []) {
@@ -273,9 +414,10 @@ void    zz_init_system  (int argc, char *argv []) {
 /* things                                                     */
 /* ---------------------------------------------------------- */
 
-	int     i, k;
-	Long    l;
-        char    param;
+	int     		i, k;
+	Long    		l;
+	del_trace_init_block	*dtib;
+        char    		param;
 
 	zz_callArgs = argv;
 	zz_callArgc = argc;
@@ -366,34 +508,22 @@ void    zz_init_system  (int argc, char *argv []) {
 				// -t 
 				// -t /st
 
-				if (decode_tracing_arg (argc, argv,
-					TracingStation,
-					TracingTimeStart,
-					TracingTimeStop,
-					zz_tracing_start_d,
-					zz_tracing_stop_d) >= 0) {
-
-						argv++;
-						argc--;
+				dtib = new del_trace_init_block;
+				if (decode_tracing_arg (argc, argv, dtib)) {
+					argv++;
+					argc--;
 				}
+				new DelInit (del_init_tracing, dtib);
 				break;
 #if ZZ_DBG
 			case 'T' : // Debug tracing
 
-				k = decode_tracing_arg (argc, argv,
-					DebugTracingStation,
-					DebugTracingTimeStart,
-					DebugTracingTimeStop,
-					zz_debug_tracing_start_d,
-					zz_debug_tracing_stop_d);
-
-				if (k >= 0) {
-					if (k)
-						DebugTracingFull = YES;
+				dtib = new del_trace_init_block;
+				if (decode_tracing_arg (argc, argv, dtib)) {
 					argv++;
 					argc--;
 				}
-
+				new DelInit (del_debug_tracing, dtib);
 				break;
 #endif
                         case 'M' : // Template file name

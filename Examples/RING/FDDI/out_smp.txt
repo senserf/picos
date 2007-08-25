@@ -1,4 +1,4 @@
-SMURPH Version 2.90-OC      FDDI    Mon Jul  2 23:50:18 2007
+SMURPH Version 2.90-OC      FDDI    Sun Jul 29 22:34:08 2007
 Call arguments: data_smp.txt junko
 
 Network topology
@@ -209,7 +209,7 @@ Receivers: all stations
 
 (Client) End of list
 
-Time:     68476278329     (Client) Global performance measures:
+Time: 68476278329 [68476278.329000] (Client) Global performance measures:
 
 AMD - Absolute message delay:
 

@@ -746,6 +746,15 @@ sxml_t	sxml_parse_input (char del) {
 	return xml;
 }
 
+void 	zz_outth () {
+
+// Used to include the time header in paper exposures
+
+	Ouf << "Time: " << Time;
+	if (Etu != 1.0)
+		Ouf << ::form (" [%8.6f]", ituToEtu (Time));
+}
+
 #if  ZZ_TAG
 void    zz_ptime (ZZ_TBIG &t, int s) {
 
