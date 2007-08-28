@@ -63,6 +63,7 @@ void initDCF (
 	print (DCF_RTR_long,         "  Max retr count (long):", 	10, 26);
 	print (DCF_CW_min,           "  CW min:", 			10, 26);
 	print (DCF_CW_max,           "  CW max:", 			10, 26);
+	print ("\n");
 }
 
 RFModule::RFModule (Transceiver *r, Long pqs) {

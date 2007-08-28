@@ -1,4 +1,4 @@
-SMURPH Version 2.90-OC      Very Simple Wireless Network    Tue Aug 14 22:54:56 2007
+SMURPH Version 3.00-OA      Very Simple Wireless Network    Mon Aug 27 10:27:31 2007
 Call arguments: data.txt junko
 
 RFChannel parameters:

@@ -1,13 +1,22 @@
 #ifndef __types_h__
 #define	__types_h__
 
+#define	DIRECTIONAL_DATA	1
+#define	DIRECTIONAL_RTS		1
+#define	DIRECTIONAL_CTS		1
+#define	DIRECTIONAL_ACK		1
+#define	DIRECTIONAL_RECEPTION	1
+
 // Tracing options: switch them on (set to 1) to see various traces in the
 // output file.
 #define	TRACE_PACKETS		0
 #define	TRACE_ROUTES		0
+#define	TRACE_ANGLES		0
+#define	TRACE_XEVENTS		0
 
 #define	DEBUGGING		0	// This one is for the RF module
 
+#include "angles.h"
 #include "rfmod_dcf.h"
 
 // HELLO packet types. Note that in SMURPH negative types are used for special
@@ -73,6 +82,8 @@ packet DataPacket : WDPacket {
 
 };
 
+station Node;
+
 class MY_RFModule : public RFModule {
 
 // This class completes the specification of RFModule, which is an abstract
@@ -82,7 +93,45 @@ class MY_RFModule : public RFModule {
 // them all for illustration; only those that are nonempty or different from
 // the default actions need be defined.
 
+	// Antenna setting: we assume that the setting is always described
+	// by an absolute (and exact) angle, while, possibly, only a limited
+	// number of discrete settings may be available.
+	// This will give us most flexibility as the gain assessment can be
+	// made independent of the actual policy for selecting the discrete
+	// settings.
+	// The angle is always nonnegative, measured from East == 0,
+	// conterclockwise upto 2 PI; thus, North is PI/2, West is PI and
+	// South is 3PI/2.
+	// A negative value for an antenna angle means "omni".
+
+	double	R_Ant,		// Receiver antenna setting
+		X_Ant;		// Xmitter antenna setting
+
+	Node	*MyNode;
+
 	public:
+
+	// These methods set the antennas based on the node (Id)
+	// towards which they should be pointing. The methods do not rely
+	// on absolute knowledge, but look up the node in the routing
+	// database. This way, you need not use the exact coordinates,
+	// but whatever coordinate info you decide to store in the routing
+	// tables.
+	void setXAnt (Long);
+	void setRAnt (Long);
+
+	// These ones retrieve antenna settings, e.g., to be resumed later
+	// (at a lower cost, without having to go thorugh angle recalculations)
+	inline double getXAnt () { return X_Ant; };
+	inline double getRAnt () { return R_Ant; };
+
+	// These ones re-set the antennas from saved values
+	inline void setXAnt (double v) { X_Ant = v; };
+	inline void setRAnt (double v) { R_Ant = v; };
+
+	// An a couple more (see channel.c for the actual code)
+	void setXAntOmni ();
+	void setRAntOmni ();
 
 	// --- rcv group ---
 
@@ -96,14 +145,28 @@ class MY_RFModule : public RFModule {
 		// Called immediately after RTS reception, with the first
 		// argument identifying the sender; the second argument is
 		// the RSSI at which the RTS has been received
+#if TRACE_XEVENTS
+		trace ("RCV RTS: %1d <- %1d", TheStation->getId (), snd);
+#endif
 	};
 
 	void UPPER_rcv_cts (Long snd, double rssi) {
 		// Called after (a solicited) CTS reception
+#if TRACE_XEVENTS
+		trace ("RCV CTS: %1d <- %1d", TheStation->getId (), snd);
+#endif
 	};
 
 	void UPPER_rcv_ack (Long snd, double rssi) {
 		// Called after a solicited ACK reception
+#if TRACE_XEVENTS
+		trace ("RCV ACK: %1d <- %1d", TheStation->getId (), snd);
+#endif
+#if DIRECTIONAL_RECEPTION
+		// ACK is the last message of an exchange, so when we are done,
+		// we reset the RCV antenna to OMNI
+		setRAntOmni ();
+#endif
 	};
 
 	// --- snd group ---
@@ -111,21 +174,60 @@ class MY_RFModule : public RFModule {
 	void UPPER_snd_data (DCFPacket *p) {
 		// Called when the RF module is about to start transmitting
 		// a data packet
+#if TRACE_XEVENTS
+		trace ("SND DATA: %1d -> %1d", TheStation->getId (), p->DCFP_R);
+#endif
+#if DIRECTIONAL_DATA
+		if (flagSet (p->DCFP_Flags, DCFP_FLAG_BCST))
+			// Broadcast data packets are sent with OMNI XMT antenna
+			// setting
+			setXAntOmni ();
+		else
+			// Set the antenna towards the recipient
+			setXAnt (p->DCFP_R);
+#else
+		// This is when DATA is sent omnidirectionally
+		setXAntOmni ();
+#endif
 	};
 
 	void UPPER_snd_rts (Long rcp) {
 		// Called when the RF module is about to start transmitting
 		// an RTS packet; the argument identifies the recipient
+#if TRACE_XEVENTS
+		trace ("SND RTS: %1d -> %1d", TheStation->getId (), rcp);
+#endif
+#if DIRECTIONAL_RTS
+		setXAnt (rcp);
+#else
+		setXAntOmni ();
+#endif
 	};
 
 	void UPPER_snd_cts (Long rcp) {
 		// Called when the RF module is about to start transmitting
 		// a CTS packet; the argument identifies the recipient
+#if TRACE_XEVENTS
+		trace ("SND CTS: %1d -> %1d", TheStation->getId (), rcp);
+#endif
+#if DIRECTIONAL_CTS
+		setXAnt (rcp);
+#else
+		setXAntOmni ();
+#endif
 	};
 
 	void UPPER_snd_ack (Long rcp) {
 		// Called when the RF module is about to start transmitting
 		// an ACK packet; the argument identifies the recipient
+#if TRACE_XEVENTS
+		trace ("SND ACK: %1d -> %1d", TheStation->getId (), rcp);
+#endif
+#if DIRECTIONAL_ACK
+		setXAnt (rcp);
+#else
+		setXAntOmni ();
+#endif
 	};
 
 	// --- snt group ---
@@ -133,24 +235,65 @@ class MY_RFModule : public RFModule {
 	void UPPER_snt_data (DCFPacket *p) {
 		// Called immediately after the RF module stops sending a data
 		// packet; the packet is pointed to by the argument
+
+#if TRACE_XEVENTS
+		trace ("SNT DATA: %1d -> %1d", TheStation->getId (), p->DCFP_S);
+#endif
+
+#if DIRECTIONAL_RECEPTION
+		// This can be conditional on short data packets as otherwise
+		// the RAnt will have been set by snt_rts. If the packet is
+		// broadcast, it was sent with OMNI and no ACK is expected, so
+		// we need not worry about receiving any feedback. Otherwise,
+		// we would like to point the RCV antenna for the ACK. But that
+		// has been done already after RTS, unless the DATA packet
+		// was below the RTS threshold (and there was no RTS).
+		if (!flagSet (p->DCFP_Flags, DCFP_FLAG_BCST) && p->TLength <=
+		    DCF_RTS_ths)
+			setRAnt (p->DCFP_R);
+#endif
 	};
 
 	void UPPER_snt_rts (Long rcp) {
 		// Called immediately after the RF module stops sending an RTS
 		// packet to the node identified by the argument
+#if TRACE_XEVENTS
+		trace ("SNT RTS: %1d -> %1d", TheStation->getId (), rcp);
+#endif
+#if DIRECTIONAL_RECEPTION
+		// Having sent the RTS, point the RCV antenna towards the 
+		// recipient for the CTS
+		setRAnt (rcp);
+#endif
 	};
 
 	void UPPER_snt_cts (Long rcp) {
 		// Called immediately after the RF module stops sending a CTS
 		// packet to the node identified by the argument
+#if TRACE_XEVENTS
+		trace ("SNT CTS: %1d -> %1d", TheStation->getId (), rcp);
+#endif
+#if DIRECTIONAL_RECEPTION
+		// Having sent the CTS, point the antenna towards the recipient	
+		// for the DATA packet
+		setRAnt (rcp);
+#endif
 	};
 
 	void UPPER_snt_ack (Long rcp) {
 		// Called immediately after the RF module stops sending an ACK
 		// packet to the node identified by the argument
+#if TRACE_XEVENTS
+		trace ("SNT ACK: %1d -> %1d", TheStation->getId (), rcp);
+#endif
+		// No directional settings after ACK - nothing more is
+		// expected
 	};
 
 	// --- suc / fai
+
+	// See node.cc for the code of these two methods; they have no
+	// direction-related responsibilities
 
 	void UPPER_suc_data (DCFPacket*, int, int);
 		// Called whenever a data packet is successfully transmitted;
@@ -179,20 +322,44 @@ class MY_RFModule : public RFModule {
 	void UPPER_col_data () {
 		// Called when the data packet fails to arrive (timeout) after
 		// CTS
+#if TRACE_XEVENTS
+		trace ("COL DATA: %1d", TheStation->getId ());
+#endif
+#if DIRECTIONAL_RECEPTION
+		// DATA was expected, but didn't make it; should reset the
+		// RCV antenna to OMNI
+		setRAntOmni ();
+#endif
 	};
 
 	void UPPER_col_cts (int sh, int ln) {
 		// Called when CTS fails to arrive after RTS
+#if TRACE_XEVENTS
+		trace ("COL CTS: %1d", TheStation->getId ());
+#endif
+#if DIRECTIONAL_RECEPTION
+		// CTS was expected, but didn't make it: reset the RCV antenna
+		setRAntOmni ();
+#endif
 	};
 
 	void UPPER_col_ack (int sh, int ln) {
 		// Called when ACK fails to arrive after DATA
+#if TRACE_XEVENTS
+		trace ("COL ACK: %1d", TheStation->getId ());
+#endif
+#if DIRECTIONAL_RECEPTION
+		// ACK was expected but didn't make it: reset the RCV antenna
+		// as after receiving the ACK
+		setRAntOmni ();
+#endif
 	};
 
 	// --- end of redefineable methods ----
 
-
-	MY_RFModule (Transceiver *t, Long pqs) : RFModule (t, pqs) { };
+	MY_RFModule (Transceiver *t, Long pqs) : RFModule (t, pqs) {
+		MyNode = (Node*) TheStation;
+	};
 
 };
 
@@ -266,6 +433,9 @@ class NTable {
 
 	// Add/update neighbor info
 	void update (Long, double, double, double rssi);
+
+	// Look up a given neighbor and get its coordinates
+	Boolean getCoords (Long, double&, double&);
 
 	// Called when routing through a neighbor fails; the argument is the
 	// neighbor Id; its role is to update RelRSSI, i.e., the reliable RSSI
@@ -408,10 +578,5 @@ process PositionReporter {
 void initNodes (Long, Long);
 void initMobility ();
 void initChannel (Long&, Long&);
-
-inline double dist (double x0, double y0, double x1, double y1) {
-	// Calculate distance between two points on a plane
-	return sqrt ((y1 - y0) * (y1 - y0) + (x1 - x0) * (x1 - x0));
-}
 
 #endif

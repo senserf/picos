@@ -98,10 +98,9 @@ Xmit:
 
 	// Now set the antenna. Each packet put into the transmit queue is
 	// tagged with a direction, which is simply the angle from East, which
-	// can be up to PI (counterclockwise towards West) or down to -PI
-	// (clockwise towards West). A packet that is to be sent without the
-	// directional setting, i.e., a brodcast packet, has this angle set to
-	// 10.0, which is larger than any legitimate angle.
+	// can be up to 2 PI (counterclockwise). A packet that is to be sent
+	// without the directional setting, i.e., a brodcast packet, has this
+	// angle set to a negative value.
 	//
 	// Before transmission, we extract the angle from the packet (it isn't
 	// really needed there) and plug it into the Transceiver as the Tag

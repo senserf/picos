@@ -10577,6 +10577,27 @@ Specifically {\tt activities} and {\tt events} return zero,
 {\tt anotherActivity} immediately returns {\tt NONE},
 {\tt anotherPacket} immediately returns {\tt NULL}, {\tt sigLevel} returns
 $0.0$, and {\tt dead} returns {\tt YES} regardless of the argument.
+
+\medskip
+
+The following global function does not formally belong to transceiver
+inquiries, and is mentioned here for the record:
+\begin{verbatim}
+        double dist (double x0, double y0, double x1, double y1);
+\end{verbatim}
+\noindent
+It calculates the distance between the two points ({\tt x0},{\tt y0})
+and ({\tt x1},{\tt y1}).
+If the simulator has been created with the {\tt -3} option of {\tt mks}
+(selecting the 3-dimensional spatial model---see \sect{rm_un_cr}),
+the method's header looks like this:
+\begin{verbatim}
+        double dist (double x0, double y0, double z0,
+                                double x1, double y1, double z1);
+\end{verbatim}
+\noindent
+i.e., each point is described by three coordinates.
+
 %%%@@@-- mailb.tex
 \section{The {\tt Mailbox} {\em AI}}
 \label{rm_mb}

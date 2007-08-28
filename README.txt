@@ -889,3 +889,14 @@
 	   but occasionally, with some memory deallocation at initialization,
 	   it would cause problems (permanent activity at the transceiver).
 	   The version is now 3.0 !!!!!
+
+ R070828A  To do: when station numbers are specified for trace, traces occurring
+	   in SYSTEM context are never listed. Is it a bug or a feature? OK,
+	   let us ignore this for a while. Note that some callbacks (possibly
+	   traced by the user), e.g., channel assessment methods may run in
+	   the context of System (station -1). If they are traced, the trace
+	   will not show up unless ALL stations are traced.
+	   Directional example redone, new example: GreedyDir created in
+	   Examples/WIRELESS.
+	   Function dist (inline) added to global.h, angles.h added to IncLib.
+	

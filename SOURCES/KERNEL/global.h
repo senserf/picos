@@ -6499,6 +6499,22 @@ inline	double linTodB (double v) {
 	return log10 (v) * 10.0;
 };
 
+inline double dist (	double x0, double y0,
+#if ZZ_R3D
+  double z0,
+#endif
+			double x1, double y1
+#if ZZ_R3D
+, double z1
+#endif
+								) {
+	return sqrt (
+#if ZZ_R3D
+			(z1 - z0) * (z1 - z0) +
+#endif
+			(y1 - y0) * (y1 - y0) + (x1 - x0) * (x1 - x0));
+};
+
 #endif	/* NOR */
 
 inline Packet::~Packet () {

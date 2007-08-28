@@ -214,14 +214,14 @@ class	RFModule {
 		TDExp,		// Time when data wait (after CTS) expires
 		BKSet;		// Since when counting backoff
 
+	Transceiver *Xcv;
+
 	Boolean	FLG_vbusy,
 		FLG_garbage,
 		FLG_backon,	// Backoff on
 		FLG_backtv;	// In progress
 
 	double	RSSI;		// Signal level of the packet being received
-
-	Transceiver *Xcv;
 
 	PQueue *PQ;		// Queue for outgoing packets
 	Station *S;		// Station owning the module

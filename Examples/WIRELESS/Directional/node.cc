@@ -260,7 +260,7 @@ void Node::receive (WDPacket *P) {
 		P = (WDPacket*) (P->clone ());
 		// This is illegal value for an angle, which means
 		// omnidirectional broadcast.
-		P->Direction = (float) 10;
+		P->Direction = -1.0;
 		trc_h (P, "REBROADCAST");
 		--(P->TTL);
 	}
@@ -343,8 +343,8 @@ void HelloPacket::setup () {
 	// Time to live
 	TTL = PKT_TTL_HELLO;
 
-	// Broadcast antenna setting
-	Direction = 10.0;
+	// Broadcast (omni) antenna setting
+	Direction = -1.0;
 }
 
 HelloSender::perform {

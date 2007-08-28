@@ -4,35 +4,6 @@
 // The library channel module
 #include "wchansh.cc"
 
-#define	EPSILON	0.00000001	// Almost zero
-
-double angle (double XS, double YS, double XD, double YD) {
-
-// This function calculates the angle from (XS,YS) [source] to
-// (XD,YD) [destination], which is between -PI and +PI. [+-]PI means
-// West, 0 means East, PI/2 means North, and -PI/2 means South.
-
-	double DX, DY, a;
-
-	DX = XD - XS;
-	DY = YD - YS;
-
-	if (fabs (DX) < EPSILON)
-		return DY < 0.0 ? -M_PI_2 : M_PI_2;
-	else if (fabs (DY) < EPSILON)
-		return DX < 0.0 ? M_PI : 0.0;
-	else {
-		// This is between -M_PI_2 and M_PI_2
-		a = atan (DY / DX);
-		if (DX < 0.0) {
-			if (DY < 0.0)
-				return a - M_PI;
-			else
-				return a + M_PI;
-		}
-	}
-}
-
 static double dir_gain (Transceiver *src, Transceiver *dst) {
 
 // This function is plugged into the shadowing channel model (see create
@@ -50,7 +21,7 @@ static double dir_gain (Transceiver *src, Transceiver *dst) {
 	// Direction at which our antenna is pointing
 	Dir = tag_to_angle (src->getTag ());
 
-	if (Dir > 5.0) {
+	if (Dir < 0.0) {
 		// Omnidirectional transmission, the gain is 1.0
 #if 0
 		trace ("GAIN: <%f> = 0 dB (BROADCAST)", Dir);
@@ -68,7 +39,7 @@ static double dir_gain (Transceiver *src, Transceiver *dst) {
 	Angle = angle (XS, YS, XD, YD);
 
 	// Absolute angle difference between the antenna setting and the
-	// destination (modulo PI)
+	// destination
 	Delta = adiff (Dir, Angle);
 
 	// Now we need a formula to convert the absolute angular difference
@@ -92,9 +63,7 @@ static double dir_gain (Transceiver *src, Transceiver *dst) {
 						DA);
 #endif
 	// The model needs a linear factor, so we turn dB to linear
-
 	return dBToLin (DA);
-
 }
 
 Long initChannel () {
