@@ -1478,3 +1478,8 @@ R070824B:
 
 	A few safety hatches added to I/O function to admit NULLs and ignore
 	them, as opposed to crashing.
+
+R070830A:
+
+	ser_outb.c added to ser.h (++) to be compiled when that header is
+	included.

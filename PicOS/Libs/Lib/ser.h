@@ -7,7 +7,7 @@
 
 #include "sysio.h"
 
-//+++ "ser_out.c" "ser_in.c" "ser_select.c"
+//+++ "ser_out.c" "ser_outb.c" "ser_in.c" "ser_select.c"
 
 int ser_out (word, const char*);
 int ser_in (word, char*, int);
