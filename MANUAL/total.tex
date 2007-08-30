@@ -18011,7 +18011,7 @@ In principle, \smurph\ can be installed on any machine running
 a BSD or POSIX-compatible UNIX system, equipped with the GNU C++ compiler.
 The package has been also successfully installed on many machines
 and UNIX systems using several versions of C++ compilers.
-Under Windows, \smurph\ runs within the CYGWIN environment available
+Under Windows, \smurph\ runs within the Cygwin environment available
 from {http://www.cygwin.com/}.
 
 To take advantage of \dsd, a Java environment is needed.
@@ -18423,6 +18423,13 @@ This argument indicates that a ``debug'' version of the program is to be
 created.
 The C++ compiler will be called with the debugging option;
 simulator-level tracing (\sect{rm_ob_st}) will be enabled.
+
+\noindent
+An alternative variant of this option is {\tt -G}.
+It is almost identical to {\tt -g}, but it additionally disables catching 
+signals (like SIGSEGV) by \smurph.
+This may help you properly intercept and diagnose errors triggering those
+signals in {\tt gdb}, especially under Cygwin.
 \end{quote}
 
 \begin{quote}

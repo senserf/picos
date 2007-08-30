@@ -1405,7 +1405,7 @@ void RFChannel::nei_xtd (Transceiver *T) {
 	}
 
 	// Extend
-	nei_sort = new ZZ_NEIGHBOR [nw];
+	nei_sort = new ZZ_NEIGHBOR [T->NNeighbors + nw];
 	if (T->NNeighbors) {
 		memcpy (nei_sort, T->Neighbors,
 			sizeof (ZZ_NEIGHBOR) * T->NNeighbors);

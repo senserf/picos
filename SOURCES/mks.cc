@@ -110,8 +110,7 @@
 #define	LIBX_QSL	(LIBX_FLK+1)
 #define	LIBX_R3D	(LIBX_QSL+1)
 #define	LIBX_R48	(LIBX_R3D+1)
-#define	LIBX_DBG	(LIBX_R48+1)
-#define	LIBX_CLI	(LIBX_DBG+1)
+#define	LIBX_CLI	(LIBX_R48+1)
 #define	LIBX_REA	(LIBX_CLI+1)
 #define	LIBX_RSY	(LIBX_REA+1)
 #define	LIBX_JOU	(LIBX_RSY+1)
@@ -121,7 +120,8 @@
 #define	LIBX_NOR	(LIBX_NOL+1)
 #define	LIBX_NOS	(LIBX_NOR+1)
 #define LIBX_NFP	(LIBX_NOS+1)
-#define	LIBX_PRC	(LIBX_NFP+1)
+#define	LIBX_DBG	(LIBX_NFP+1)
+#define	LIBX_PRC	(LIBX_DBG+1)
 
 #define	NOPT		(LIBX_PRC+1)
 
@@ -216,6 +216,7 @@ void    badArgs () {
 	cerr << "       -3         3-d geometry of radio channels\n";
 	cerr << "       -8         use the standard drand48 rnd gen family\n";
 	cerr << "       -g         debugging\n";
+	cerr << "       -G         like -g, no signals caught\n";
 	cerr << "       -u         standard client permanently disabled\n";
 	cerr << "       -z         links can be made faulty\n";
 	cerr << "       -W         viewable version (emulate real time)\n";
@@ -231,6 +232,7 @@ void    badArgs () {
 	cerr << "       -t         'touch' the protocol source files\n";
 	cerr << "      Default: '-b 2 -o side' (other flags cleared)\n";
         cerr << "      Incompatibilities: -F and -8, -R and -V, -b 0 and -F\n";
+        cerr << "                         -G and -g";
 	exit (1);
 }
 
@@ -360,19 +362,33 @@ void    getFNames () {
 }
 
 void compressLibName () {
-  // Compresses the library name length to 8 characters
-  int i, ix, bit, dig;
-  for (i = ix = 0, bit = 1; (dig = libindex [i]) != '\0'; i++, bit += bit) {
-    if (dig != 'n') {
-      if (dig == 'y')
-        ix += bit;
-      else
-        ix = ix * 10 + (dig - '0');
+  // Compress the library name
+  int i, bit, dig;
+  long long ix;
+
+  ix = 0;
+  for (i = 0; (dig = libindex [i]) != '\0'; i++) {
+    if (dig == 'n' || dig == 'y') {
+	// Binary
+	ix = (ix << 1) | (dig == 'y');
+	continue;
     }
+    if (dig == '-' || dig == 'a' || dig == 'b') {
+	// Alternative
+	ix = (ix * 3) + (dig == '-' ? 0 : (dig == 'a' ? 1 : 2));
+	continue;
+    }
+    // A digit
+    ix = ix * 10 + (dig - '0');
   }
-  if (ix >= (1 << ((LNAMELENG - 2) * 4)))
-    excptn ("Library file name too long");
-  sprintf (libfname, "l%1x", ix);
+  libfname [0] = 'L';
+  for (i = 1; ix != 0; i++) {
+    if (i == LNAMELENG)
+      excptn ("Library file name too long");
+    libfname [i] = (char) ('a' + ix % 26);
+    ix /= 26;
+  }
+  libfname [i] = '\0';
 }
 
 int     findLVer () {
@@ -756,7 +772,7 @@ void    makeSmurph () {
 
 		if (c == '?') {
 			// Pattern
-			if (libindex [LIBX_DBG] != 'y') {
+			if (libindex [LIBX_DBG] == '-') {
 				// Strip the executable unless
 				// -g has been selected
 				*out << "\tstrip " << ofname <<
@@ -1009,6 +1025,13 @@ main    (int argc, char *argv[]) {
 			libindex [LIBX_DBG] = 'y';
 			break;
 
+		  case 'G' :
+
+			if (libindex [LIBX_DBG] != 'x') badArgs ();
+			strcpy (&(DBG [9]), "2 -g");
+			libindex [LIBX_DBG] = 'y';
+			break;
+
 		  case 'u' :
 
 			if (libindex [LIBX_CLI] != 'x') badArgs ();
@@ -1163,17 +1186,23 @@ main    (int argc, char *argv[]) {
 
 	// Prepare the library name
 
-	for (i = 0; i < NOPT-1; i++) {
+	for (i = 0; i < NOPT-2; i++) {
 
 		if ((options [i])[9] == '1')
 			libindex [i] = 'y';
 		else
 			libindex [i] = 'n';
-
 	}
 
-	// Now the precision of time
+	// Debug
+	if ((options [NOPT-2])[9] == '1')
+		libindex [i] = 'a';
+	else if ((options [NOPT-2])[9] == '2')
+		libindex [i] = 'b';
+	else
+		libindex [i] = '-';
 
+	// Now the precision of time
 	libindex [NOPT-1] = PRC [16];
 	libindex [NOPT] = '\0';
 

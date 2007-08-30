@@ -415,7 +415,7 @@ BIG  operator* (const BIG &a, const BIG &b) {
 
 	// Note: this is slow -- avoid at all cost
 
-	unsigned        LONG    tmp [LL];
+	U_LONG   	tmp [LL];
 	BIG             r;              // The result
 	int		i;
 
@@ -440,8 +440,8 @@ BIG  operator* (const BIG &a, const BIG &b) {
 
 BIG  operator* (const BIG &a, LONG b) {
 
-unsigned        LONG    aa [LL], cc [LL], sc [LL];
-unsigned        LONG    mp1, mp2, carry, ccc;
+U_LONG    	aa [LL], cc [LL], sc [LL];
+U_LONG    	mp1, mp2, carry, ccc;
 int             i, al, k;
 BIG             r;                      // The result
 
@@ -851,8 +851,8 @@ static  int     btoable = 0;
 
 char    *btoa (const BIG &a, char *s, int nc) { // BIG to string
 
-	unsigned        LONG    aa [LL];
-	unsigned        LONG    carry, ccc;
+	U_LONG    	aa [LL];
+	U_LONG    	carry, ccc;
 	int             i, j, al, k;
 	char            temp [256], *tm, *res;  // Hopefully enough
 

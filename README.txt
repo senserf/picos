@@ -900,3 +900,13 @@
 	   Examples/WIRELESS.
 	   Function dist (inline) added to global.h, angles.h added to IncLib.
 	
+ R070830A  Option -G added to mks. It acts exactly as -g, but the signal
+	   handlers for SIGSEGV and so on are disabled. Under Cygwin (at least),
+	   this helps to properly catch and diagnose those errors with GDB.
+	   A few fixes for time precision > 2 (for some strange reason, a few
+	   functions in mparithm caused compilation errors. Not that time
+	   precision > 2 is extremely important these days (I don't recall
+	   when it was last tested).
+	   Fixed a nasty memory allocation bug in nei_xtd (radio.cc) showing
+	   up when the xmit power was increased and new nodes were thereby
+	   included in the neighborhood.

@@ -82,15 +82,15 @@ typedef struct {
 	Long *Stats;
 	Long NStats;
 
-	union {
-		TIME Start_t;
-		double Start_d;
-	};
+	// If TIME is a structure, union doesn't like us; so we have to waste
+	// some memory (the two are alternatives), but only before network
+	// build
+	TIME Start_t;
+	double Start_d;
 
-	union {
-		TIME Stop_t;
-		double Stop_d;
-	};
+	// These two are alternatives, too
+	TIME Stop_t;
+	double Stop_d;
 
 } del_trace_init_block;
 
@@ -223,6 +223,8 @@ static void signal_service () {
 /* Declares signal service */
 /* ----------------------- */
 
+#if ZZ_DBG < 2
+
 #ifdef	SIGHUP
 	signal (SIGHUP , (SIGARG) sigint );
 #endif
@@ -252,6 +254,9 @@ static void signal_service () {
 #endif
 	if (signal (SIGINT, SIG_IGN) != SIG_IGN)
 		signal (SIGINT, (SIGARG) sigint);
+
+#endif /* ZZ_DBG */
+
 }
 
 static void outmes (ostream &fiptr, char *txt) {

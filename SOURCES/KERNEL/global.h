@@ -4380,7 +4380,6 @@ class	RFChannel : public AI {
 #else
 	double	getRange (double&, double&, double&, double&);
 #endif
-
 	private:
 
 	// Extend the transceiver's neighborhood. Called, e.g., when the

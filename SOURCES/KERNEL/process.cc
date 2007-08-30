@@ -34,7 +34,7 @@ void    Process::zz_start () {
 #endif
 	Id = sernum++;
 
-	if_from_observer ("Process: observers can't generate processes");
+	if_from_observer ("Process: observers cannot create processes");
 
 	Owner = TheStation;
 	Father = (TheProcess == Kernel) ? NULL : TheProcess;
@@ -688,7 +688,7 @@ void	Station::terminate () {
 /*
  * This variant of terminate kills all the processes run by this station. The
  * killed processes trigger no events, and their dependants are deallocated.
- * The operation can be viewed as a prerequisite to 'reset'.
+ * The operation is a prerequisite to 'reset'.
  */
 	ZZ_Object *ob;
 	Process *p;
@@ -742,8 +742,8 @@ Process::~Process () {
 		if (ISpec != NULL || (f = Father) == NULL) {
 			/*
 			 * ISpec is used as a flag (nonzero means that we are
-			 * being kliied by Station::terminate). The idea is
-			 * the descendants will be moved to 'f'. Also, if ISPec
+			 * being killed by Station::terminate). The idea is
+			 * the descendants will be moved to 'f'. Also, if ISpec
 			 * is nonsero (Station::terminate), we will delete non
 			 * process descendants.
 			 */

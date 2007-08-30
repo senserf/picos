@@ -62,6 +62,7 @@
 
 #define 	ZZ_LONG_is_not_long 	1
 typedef		long long		LONG;
+typedef		unsigned long long	U_LONG;
 typedef		int			IPointer;
 typedef		LONG			LPointer;
 typedef		long			Long;
@@ -74,6 +75,7 @@ typedef		long			Long;
 #else
 
 typedef		long			LONG;
+typedef		unsigned long		U_LONG;
 #define		MAX_LONG		MAX_long
 #define		MIN_LONG		MIN_long
 /* Honorary long, must be 32-bits long, but doesn't have to be longer */
@@ -119,6 +121,6 @@ typedef void (*SIGARG) (int);
 /* next line will be removed and written from scratch.                    */
 #define  ZZ_SOURCES      "/home/pawel/SOFTWARE/SIDE/SOURCES"
 #define  ZZ_LIBPATH      "/home/pawel/SOFTWARE/SIDE/LIB"
-#define  ZZ_INCPATH      "-I /home/pawel/SOFTWARE/SIDE/Examples/IncLib"
+#define  ZZ_INCPATH      "-I /home/pawel/SOFTWARE/SIDE/Examples/IncLib -I /home/pawel/SOFTWARE/VUEE/PICOS"
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442
