@@ -205,3 +205,15 @@ R070824B:
 
     Added a few safety hatches (matching those in PicOS) accounting for various
     NULLs (ser_in, ser_out, vscan, ...)
+
+R070830A:
+
+    Fixed a couple of minor problems in board.cc resulting in some data that
+    should be sent to the SMURPH output file being in fact writtent to standard
+    output.
+    Function seconds () after reset now starts from zero.
+    Fixed a minor problem in find_strpool (board.cc) resulting in unnecessary
+    allocation of duplicate strings.
+    Fixed initialization of EEPROF/IFLASH to make sure that all cases involving
+    defaults are handled properly.
+    

@@ -60,9 +60,11 @@ static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
 		s0 = str;
 		s1 = p->STR;
 		l = len;
-		while (l--)
+		while (l) {
 			if (*s0++ != *s1++)
 				break;
+			l--;
+		}
 		if (l)
 			continue;
 		// Found
@@ -124,6 +126,8 @@ void PicOSNode::stopall () {
 	if (_da (RFInterface)->transmitting ())
 		_da (RFInterface)->abort ();
 
+	_da (RFInterface)->rcvOff ();
+
 	Halted = YES;
 }
 
@@ -158,6 +162,7 @@ void PicOSNode::reset () {
 
 	MFree = MTotal;
 	MTail = NULL;
+	LastResetTime = Time;
 
 	if (uart != NULL) {
 		uart->__inpline = NULL;
@@ -265,6 +270,7 @@ void PicOSNode::setup (data_no_t *nd) {
 	}
 
 	initParams ();
+
 	// This can be optional based on whether the node is supposed to be
 	// initially on or off 
 
@@ -275,13 +281,15 @@ void PicOSNode::setup (data_no_t *nd) {
 	}
 
 	Halted = NO;
+	// This is TIME_0
+	LastResetTime = Time;
 	init ();
 };
 
 lword _dad (PicOSNode, seconds) () {
 
 	// FIXME: make those different at different stations
-	return (lword) ituToEtu (Time);
+	return (lword) ituToEtu (Time - LastResetTime);
 };
 
 address PicOSNode::memAlloc (int size, word lsize) {
@@ -1524,7 +1532,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 		P->PITS [i] . Tag = (char*) find_strpool ((const byte*) att,
 			d + 1, YES);
 
-		printf (form ("    Tag: %s, Value: ", P->PITS [i] . Tag));
+		print (form ("    Tag: %s, Value: ", P->PITS [i] . Tag));
 
 		if ((att = sxml_attr (chd, "type")) == NULL || *att == 'w')
 			// Expect a short number (decimal or hex)
@@ -1543,7 +1551,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 
 		if (tp < 2) {
 			// A single number, hex or int (signed or unsigned)
-			printf (att);
+			print (att);
 			while (isspace (*att))
 				att++;
 			if (*att == '0' && (*(att+1) == 'x' ||
@@ -1571,7 +1579,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 		} else {
 			// Collect the string
 			d = sanitize_string ((char*) att);
-			printf (att);
+			print (att);
 			if (d == 0) {
 				P->PITS [i] . Value = 0;
 			} else {
@@ -1580,7 +1588,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 						YES);
 			}
 		}
-		printf ("\n");
+		print ("\n");
 	}
 
 	// Add the preinit to the list. We create them in the increasing order
@@ -1588,7 +1596,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 	// The list will start with the largest numbered node and end with the
 	// <default> entry.
 
-	printf ("\n");
+	print ("\n");
 
 	P->Next = PREINITS;
 
@@ -1858,7 +1866,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		if (EP == NULL) {
 			EP = ND->ep = new data_ep_t;
 			// Flag: EEPROM still inheritable from defaults
-			EP->EEPRS = WNONE;
+			EP->EEPRS = LWNONE;
 		}
 
 		len = parseNumbers (sxml_txt (cur), 2, np);
@@ -2505,6 +2513,7 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 	Long i, j;
 	int tq;
 	data_rf_t *NRF, *DRF;
+	data_ep_t *NEP, *DEP;
 
 	d = (double) etuToItu (1.0);
 	XmitRate = (RATE) round (d / SEther->BitRate);
@@ -2603,14 +2612,40 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		}
 
 		// EEPROM
-		if (NOD->ep == NULL) {
+		NEP = NOD->ep;
+		DEP = DEF->ep;
+		if (NEP == NULL) {
 			// Inherit the defaults
-			if (DEF->ep != NULL && !(DEF->ep->absent))
-				NOD->ep = DEF->ep;
-		} else if (NOD->ep->absent) {
+			if (DEP != NULL && !(DEP->absent)) {
+				NEP = NOD->ep = DEP;
+			}
+		} else if (NEP->absent) {
 			// Explicit "no", ignore the default
-			delete NOD->ep;
-			NOD->ep = NULL;
+			delete NEP;
+			NEP = NOD->ep = NULL;
+		} else if (DEP != NULL && !(DEP->absent)) {
+			// Partial defaults?
+			if (NEP->EEPRS == LWNONE) {
+				// FIXME: provide a function to copy this
+				NEP->EEPRS = DEP->EEPRS;
+				NEP->EEPPS = DEP->EEPPS;
+				NEP->EFLGS = DEP->EFLGS;
+				for (j = 0; j < EP_N_BOUNDS; j++)
+					NEP->bounds [j] =
+						DEP->bounds [j];
+			}
+			if (NEP->IFLSS == WNONE) {
+				NEP->IFLSS = DEP->IFLSS;
+				NEP->IFLPS = DEP->IFLPS;
+			}
+		}
+
+		if (NEP) {
+			// FIXME: this desperately calls to be cleaned up
+			if (NEP->EEPRS == LWNONE)
+				NEP->EEPRS = 0;
+			if (NEP->IFLSS == WNONE)
+				NEP->IFLSS = 0;
 		}
 
 		// UART

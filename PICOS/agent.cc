@@ -301,7 +301,7 @@ void UART::rst () {
 	// When a node is reset, SMURPH kills all its processes, including
 	// UART drivers. 
 
-	// Note that the input is not reset, should it? I don't think so.
+	// Note that the input is not reset, should it be? I don't think so.
 	// Event string input should not be used for post reset initialization
 	// (preinit) is for that. So what is gone is gone.
 
