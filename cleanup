@@ -10,7 +10,7 @@ find . -regex ".*junk.*" -exec rm -f '{}' \;
 find . -regex ".*stackdump.*" -exec rm -f '{}' \;
 cd ..
 
-rm -rf LIB/l*
+rm -rf LIB/L* LIB/l*
 touch LIB/liblock
 
 cd MANUAL
