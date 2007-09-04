@@ -910,3 +910,5 @@
 	   Fixed a nasty memory allocation bug in nei_xtd (radio.cc) showing
 	   up when the xmit power was increased and new nodes were thereby
 	   included in the neighborhood.
+
+ R070904A  Ethernet example slightly modfified for the purpose of CMPUT 642.
