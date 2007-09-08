@@ -1483,3 +1483,12 @@ R070830A:
 
 	ser_outb.c added to ser.h (++) to be compiled when that header is
 	included.
+
+R070908A:
+
+	Added Apps/VUEE/tnp_demo. It includes updated TNP. TNP.doc hints on
+	ways to demonstrate TNP. This is TNP version with ASCII interface,
+	and some functionality still missing (trace, more commands).
+	The version with binary interface and complete set of commands will
+	go to VUEE/TNP directory.
+
