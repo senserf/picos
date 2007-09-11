@@ -897,6 +897,12 @@ R060512A:
 R060513A:
 
 	Fixed GENESIS/Genesis inconsistency problems in the repository.
+	A couple options borrowed from GENESIS, which are generally applicable:
+
+	MCLOCK_FROM_CRYSTAL == 1  -> MCLK is driven by XT1 (only makes sense
+	if XT1 is high frequency, above 4.5MHz)
+	SPIN_WHEN_HALTED == 1     -> CPU never halts (spins through the
+	scheduler if formally idle).
 
 R060515A:
 
@@ -1459,6 +1465,9 @@ R070813A:
 
 	HeartForce firmware modified for 8-byte ESN. Documentation included in
 	the app's directory.
+
+	MCLOCK_FROM_CRYSTAL == 2  -> MCLK is driven by XT2 (this is an
+	extension of MCLOCK_FROM_CRYSTAL == 1, which drives MCLK from XT1)
 
 R070814A:
 
