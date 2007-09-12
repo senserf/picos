@@ -1501,3 +1501,10 @@ R070908A:
 	The version with binary interface and complete set of commands will
 	go to VUEE/TNP directory.
 
+
+R070912A:
+
+	Fixed a bug in clock setting (with MCLOCK_FROM_CRYSTAL == 1) introduced
+	when cleaning up clock settings ;-).
+	CRYSTAL_RATE in BOARDS/GENESIS set to 6000000 (was 8000000, assuming the
+	old type of board)

@@ -418,7 +418,7 @@ static void ssm_init () {
 		udelay (100);
 	} while ((IFG1 & OFIFG) != 0);
 
-  	BCSCTL2 == SELM1 + SELM0
+  	BCSCTL2 = SELM1 + SELM0
 
 #if CRYSTAL2_RATE > CRYSTAL_RATE
 	// Assign SMCLK to XTL2
