@@ -12,14 +12,14 @@
 #undef	leds_off
 #undef	leds_restore
 
-#define	LED0_ON		ZZ_LEDON (P6, 0x08)
-#define	LED1_ON		ZZ_LEDON (P6, 0x10)
-#define	LED2_ON		ZZ_LEDON (P6, 0x20)
+#define	LED0_ON		ZZ_LEDON (P6, 0x02)
+#define	LED1_ON		ZZ_LEDON (P6, 0x08)
+#define	LED2_ON		ZZ_LEDON (P6, 0x04)
 
-#define	LED0_OFF	ZZ_LEDOFF (P6, 0x08)
-#define	LED1_OFF	ZZ_LEDOFF (P6, 0x10)
-#define	LED2_OFF	ZZ_LEDOFF (P6, 0x20)
+#define	LED0_OFF	ZZ_LEDOFF (P6, 0x02)
+#define	LED1_OFF	ZZ_LEDOFF (P6, 0x08)
+#define	LED2_OFF	ZZ_LEDOFF (P6, 0x04)
 
-#define	leds_save()	(P6OUT & (0x08+0x10+0x20))
-#define	leds_off()	ZZ_LEDOFF (P6, 0x08+0x10+0x20)
-#define	leds_restore(w)	ZZ_LEDON (P6, (w) & (0x08+0x10+0x20))
+#define	leds_save()	(P6OUT & (0x02+0x08+0x04))
+#define	leds_off()	ZZ_LEDOFF (P6, 0x02+0x08+0x04)
+#define	leds_restore(w)	ZZ_LEDON (P6, (w) & (0x02+0x08+0x04))

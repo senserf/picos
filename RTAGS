@@ -1508,3 +1508,8 @@ R070912A:
 	when cleaning up clock settings ;-).
 	CRYSTAL_RATE in BOARDS/GENESIS set to 6000000 (was 8000000, assuming the
 	old type of board)
+
+R070912B:
+
+	Fixed Apps/VUEE/RFPING. Fixed LEDs at GENESIS to match those at GENESIS
+	branch.

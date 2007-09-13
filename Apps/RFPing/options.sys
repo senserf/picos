@@ -39,8 +39,3 @@
 
 #undef CRYSTAL2_RATE
 #define	CRYSTAL2_RATE	0
-
-#undef	UART_RATE
-#define	UART_RATE	9600
-
-#define	MCLOCK_FROM_CRYSTAL 0
