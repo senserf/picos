@@ -1513,3 +1513,7 @@ R070912B:
 
 	Fixed Apps/VUEE/RFPING. Fixed LEDs at GENESIS to match those at GENESIS
 	branch.
+
+R070915A:
+
+	Cosmetics in VUEE/tnp_demo. Tag's rx ON by default.
