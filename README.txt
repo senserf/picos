@@ -217,3 +217,7 @@ R070830A:
     Fixed initialization of EEPROF/IFLASH to make sure that all cases involving
     defaults are handled properly.
     
+R070917A:
+
+    Fixed a bug in rfmodule.cc causing delayed RX off, i.e., one packet after
+    RX off was received.

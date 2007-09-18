@@ -189,6 +189,7 @@ Finidh:
 	}
 	this->signal ((void*)NONE);
 	RFInterface->wait (BOT, RCV_START);
+	when (rx_event, RCV_GETIT);
 
     state RCV_START:
 
