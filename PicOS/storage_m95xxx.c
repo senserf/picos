@@ -178,6 +178,7 @@ word ee_erase (word st, lword from, lword upto) {
 
 		a += cnt;
 	}
+	return 0;
 }
 
 word ee_write (word st, lword a, const byte *s, word len) {

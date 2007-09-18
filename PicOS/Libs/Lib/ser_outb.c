@@ -11,7 +11,6 @@ int __outserial (word, address);
 int ser_outb (word st, const char *m) {
 
 	int prcs;
-	char *buf;
 
 	if (m == NULL)
 		return 0;

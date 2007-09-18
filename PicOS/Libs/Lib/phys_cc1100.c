@@ -35,8 +35,7 @@ static byte	RxOFF,			// Transmitter on/off flags
 		TxOFF,
 		xpower,
 		rbuffl,
-		channr = 0,
-		rfopt = 0;
+		channr = 0;
 
 #if RADIO_GUARD
 
@@ -219,7 +218,6 @@ static void validate_cc_regs () {
 	for (cur = cc1100_rfsettings; *cur != 255; cur += 2) {
 		val = cc1100_get_reg (cur [0]);
 		if (val != cur [1]) {
-RegErr:
 			diag ("Register check failed: [%d] == %x != %x",
 					cur [0], val, cur [1]);
 				syserror (EHARDWARE, "CC1100 reg");
@@ -620,26 +618,21 @@ thread (cc1100_driver)
 
 	if (TxOFF & 1) {
 		// The transmitter is OFF solid
-		if (TxOFF == 3) {
-			// Make sure to drain the XMIT queue each time you get
-			// here
-			tcvphy_erase (physid);
-			if (RxOFF == 1) {
-				power_down ();
-				RxOFF = 2;
-			}
-		} else if (TxOFF == 1 && RxOFF) {
+		if (RxOFF == 1) {
+			// Power down the chip
 			power_down ();
-			wait (zzv_qevent, DR_LOOP);
-			release;
+			RxOFF = 2;
 		}
+		if (TxOFF == 3)
+			tcvphy_erase (physid);
 
-		// Receive
+		// Receive or drain
 		while (RX_FIFO_READY) {
 			LEDI (2, 1);
 			do_rx_fifo ();
 			LEDI (2, 0);
 		}
+
 		wait (zzv_qevent, DR_LOOP);
 		if (RxOFF == 0)
 			rcv_enable_int;
@@ -935,7 +928,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_RXON:
 
-		if (TxOFF) {
+		if ((TxOFF & 1)) {
 			// Start up
 			chip_reset ();
 			enter_rx ();
@@ -1052,5 +1045,3 @@ static int option (int opt, address val) {
 	}
 	return ret;
 }
-
-

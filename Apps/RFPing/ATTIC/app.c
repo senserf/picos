@@ -5,6 +5,7 @@
 
 #include "sysio.h"
 #include "tcvphys.h"
+#include "pinopts.h"
 
 #define	ENCRYPT	0
 #define	MIN_PACKET_LENGTH	24
@@ -453,11 +454,9 @@ thread (root)
 		"t        -> stop transmitter\r\n"
 		"q        -> stop both\r\n"
 		"i        -> set station Id\r\n"
-#if DM2100
 		"x p r    -> read ADC pin 'p' with reference r (0/1 1.5V/2.5V)\r\n"
 		"y p v    -> set pin 'p' to v (0/1)\r\n"
 		"z p      -> show the value of pin 'p'\r\n"
-#endif
 
 #if STACK_GUARD
 		"v        -> show unused stack space\r\n"
@@ -494,14 +493,12 @@ thread (root)
 		proceed (RS_RCV);
 	if (ibuf [0] == 'd')
 		proceed (RS_PAR);
-#if DM2100
 	if (ibuf [0] == 'x')
 		proceed (RS_GADC);
 	if (ibuf [0] == 'y')
 		proceed (RS_SPIN);
 	if (ibuf [0] == 'z')
 		proceed (RS_GPIN);
-#endif
 
 #if STACK_GUARD
 	if (ibuf [0] == 'v')
@@ -688,8 +685,6 @@ thread (root)
 
 #endif	/* UART_DRIVER */
 
-#if DM2100
-
   entry (RS_GADC)
 
 	p [0] = 0;
@@ -723,8 +718,6 @@ thread (root)
 
 	ser_outf (RS_GADC+1, "Value: %u\r\n", p [0]);
 	proceed (RS_RCMD);
-
-#endif
 
 #if UART_RATE_SETTABLE
 

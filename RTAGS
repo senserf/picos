@@ -1517,3 +1517,11 @@ R070912B:
 R070915A:
 
 	Cosmetics in VUEE/tnp_demo. Tag's rx ON by default.
+
+R070918A:
+
+	Fixed a bug in phys_cc1100.c exposing the driver to a race condition
+	when RX was switched off immediately after TXOFF. The net outcome was
+	that the transmissions of leftover packets in such circumstances was
+	ineffective.
+	A few minor cleanups to eliminate -Wall warnings.
