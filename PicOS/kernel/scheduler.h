@@ -11,9 +11,6 @@
 #ifdef	MONITOR_PIN_SCHED
 	_PVS (MONITOR_PIN_SCHED, 1);
 #endif
-	// not needed
-	// zz_systat.evntpn = 0;
-
 	/* Set the return context for release */
 	SET_RELEASE_POINT;
 Redo:
@@ -84,7 +81,7 @@ Redo:
 	entropy++;
 #endif
 
-#else	/* SPIN_WHEN_HALTED */
+#else	/* NOT SPIN_WHEN_HALTED */
 
 	SLEEP;
 

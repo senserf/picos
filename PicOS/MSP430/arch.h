@@ -44,7 +44,7 @@ typedef struct {
 
 } systat_t;
 		
-extern	systat_t zz_systat;
+extern volatile systat_t zz_systat;
 
 extern void	__bss_end;
 #define	MALLOC_START		((address)&__bss_end)

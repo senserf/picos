@@ -523,11 +523,12 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 		zz_lostk++;
 
 #if	ADC_PRESENT
-	// Stub
+		// Stub
 #endif
 
-	// Room for extras
+		// Extras
 #include "irq_timer.h"
+
 		// Run the scheduler at least once every second - to
 		// keep the second clock up to date
 		if ((zz_lostk >= JIFFIES) ||

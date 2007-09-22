@@ -34,7 +34,7 @@ static devreqfun_t ioreq [MAX_DEVICES];
 #endif
 
 /* System status word */
-systat_t 		zz_systat;
+volatile systat_t zz_systat;
 
 /* =============== */
 /* Current process */
@@ -197,7 +197,7 @@ void zzz_tservice () {
 		}
 		// This is the new minimum
 		setticks = zz_mintk;
-		// Keep going in case we have a lag
+		// Keep going in case we are experiencing a lag
 	} while (nticks);
 }
 

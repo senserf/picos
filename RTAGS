@@ -1525,3 +1525,10 @@ R070918A:
 	that the transmissions of leftover packets in such circumstances was
 	ineffective.
 	A few minor cleanups to eliminate -Wall warnings.
+
+R070922A:
+
+	Fixed a bug in Apps/VUEE/RFPing causing system errors after 'q'.
+	System status word made volatile. Some weird problems resulting from
+	the incorrect optimization of access to some flags in it caused
+	scheduler events to interfere with led blinking.
