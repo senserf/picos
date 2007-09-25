@@ -1532,3 +1532,10 @@ R070922A:
 	System status word made volatile. Some weird problems resulting from
 	the incorrect optimization of access to some flags in it caused
 	scheduler events to interfere with led blinking.
+
+R070924A:
+
+	Minor changes to tnp_demo:
+        - added 'proxy' distance,
+        - rssi calibrated for VUEE and GENESIS boards in handcrafted boxes.
+
