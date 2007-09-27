@@ -70,7 +70,7 @@ void initChannel (Long &NS, Long &PRE) {
 
 	STB = new sir_to_ber_t [STBL];
 
-	for (psir = HUGE, i = 0; i < STBL; i++) {
+	for (psir = HUGE, pber = -1.0, i = 0; i < STBL; i++) {
 		readIn (g);			// SIR in dB
 		STB [i] . sir = dBToLin (g);	// Convert to linear
 		readIn (STB [i] . ber);		// BER

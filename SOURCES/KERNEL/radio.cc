@@ -92,6 +92,9 @@ class   RosterService : public ZZ_SProcess {
 
 void    RosterService::zz_code () {
 
+#define	TheACT	((ZZ_RF_ACTIVITY*)Info01)
+#define	TheRFC	((RFChannel*)zz_ai)
+
   switch (TheState) {
 
       case Start:
@@ -100,19 +103,22 @@ void    RosterService::zz_code () {
 
       break; case HandleRosterSchedule:
 
-	((ZZ_RF_ACTIVITY*) Info01) -> handleEvent ();
+	TheACT -> handleEvent ();
 
       break; case PurgeActivity:
 
-	// ((ZZ_RF_ACTIVITY*) Info01) -> destruct ();
+	if (TheRFC->PCleaner)
+		(*(TheRFC->PCleaner)) (&(TheACT->Pkt));
 
-	delete (ZZ_RF_ACTIVITY*) Info01;
+	delete TheACT;
 
       break; case TriggerBOT:
 
-	((ZZ_RF_ACTIVITY*) Info01) -> triggerBOT ();
+	TheACT -> triggerBOT ();
 	
   }
+#undef	TheACT
+#undef	TheRFC
 }
 
 inline Boolean ZZ_RSCHED::within_packet () {
@@ -159,6 +165,11 @@ inline void ZZ_RSCHED::initAct (double xpower) {
 	Destination->NActivities++;
 	if (Destination->RxOn)
 		initSS ();
+}
+
+void RFChannel::setPacketCleaner (void (*pclr) (Packet *p)) {
+
+	PCleaner = pclr;
 }
 
 double IHist::avg (double ts, double du) const {
@@ -270,7 +281,7 @@ double IHist::max (double ts, double du) const {
 	return s;
 }
 
-inline double Transceiver::sigLevel () {
+double Transceiver::sigLevel () {
 
 	ZZ_RSCHED *a;
 	int na;
@@ -393,7 +404,7 @@ inline ZZ_RF_ACTIVITY *Transceiver::gen_rfa (Packet *p) {
 		(void*)a,	// Info01
 		NULL,		// Info02
 		rshandle,	// Process
-		this,		// AI (note that this is TCV not RFC)
+		this->RFC,	// AI - the channel
 		DO_ROSTER,	// Event
 		HandleRosterSchedule,	// State
 		NULL		// No request chain
@@ -405,7 +416,7 @@ inline ZZ_RF_ACTIVITY *Transceiver::gen_rfa (Packet *p) {
 		(void*)a,	// Info01
 		NULL,		// Info02
 		rshandle,	// Process
-		this,		// AI (note that this is TCV not RFC)
+		this->RFC,	// AI
 		BOT_TRIGGER,	// Event
 		TriggerBOT,	// State
 		NULL		// No request chain
@@ -520,6 +531,7 @@ void    RFChannel::zz_start () {
 
 	// Initialize some members
 	FlgSPF = ON;
+	PCleaner = NULL;
 	// Add to the Kernel
 	pool_in (this, TheProcess->ChList);
 };
@@ -1362,6 +1374,14 @@ void RFChannel::nei_bld (Transceiver *T) {
 		memcpy (T->Neighbors, nei_sort, sizeof (ZZ_NEIGHBOR) * n);
 	}
 
+#if 0
+	print (form ("Neighborhood of %s\n", T->getSName ()));
+	for (i = 0; i < T->NNeighbors; i++)
+		print (form (" %f  [%s]\n",
+			ituToDu (T->Neighbors [i] . Distance),
+				T->Neighbors [i] . Neighbor -> getSName ()));
+#endif
+
 	delete nei_sort;
 }
 
@@ -1819,7 +1839,7 @@ void Transceiver::term_xfer (int evnt) {
 			(void*)Activity,	// Info01
 			NULL,			// Info02
 			rshandle,		// Process
-			this,			// AI
+			this->RFC,		// AI
 			RACT_PURGE,		// Event
 			PurgeActivity,		// State
 			NULL			// No request chain

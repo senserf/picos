@@ -156,6 +156,61 @@ void    Station::setQSLimit (Long lim) {
 #endif
 }
 
+BITCOUNT Station::getMQBits (int tp) {
+
+// Perhaps we should maintain counters, although so far these methods are only
+// useful at the end of simulation or for display, so the counters may be an
+// unencessary memory expense
+
+	Message *m;
+	BITCOUNT bc;
+	int nt;
+
+	assert (tp < 0 || isTrafficId (tp), "Station->getMQBits: illegal "
+		"traffic Id %1d", tp);
+
+	bc = BITCOUNT_0;
+	if (MQHead == NULL)
+		return bc;
+
+	if (tp < 0) {
+		for (nt = 0; nt < NTraffics; nt++)
+			for (m = MQHead [nt]; m != NULL; m = m->next)
+				bc += m->Length;
+	} else {
+		for (m = MQHead [tp]; m != NULL; m = m->next)
+			bc += m->Length;
+	}
+
+	return bc;
+}
+
+Long Station::getMQSize (int tp) {
+
+	Message *m;
+	Long mc;
+	int nt;
+
+	assert (tp < 0 || isTrafficId (tp), "Station->getMQSize: illegal "
+		"traffic Id %1d", tp);
+
+	if (MQHead == NULL)
+		return 0;
+
+	mc = 0;
+
+	if (tp < 0) {
+		for (nt = 0; nt < NTraffics; nt++)
+			for (m = MQHead [nt]; m != NULL; m = m->next)
+				mc ++;
+	} else {
+		for (m = MQHead [tp]; m != NULL; m = m->next)
+			mc ++;
+	}
+
+	return mc;
+}
+
 #endif	/* NOC */
 
 void	ZZ_SYSTEM::makeTopology () {

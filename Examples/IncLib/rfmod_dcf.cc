@@ -569,9 +569,9 @@ RC_spacket:
 	    case DCFP_TYPE_DATA:
 
 		// A non-broadcast data packet received without a handshake
-		// must be short
-		assert (TheDCFP->TLength <= DCF_RTS_ths,
-			"rfmdule rcv: non-handshake data packet not short");
+		// must be short; not really, everything is possible
+		// assert (TheDCFP->TLength <= DCF_RTS_ths,
+		// 	"rfmdule rcv: non-handshake data packet not short");
 
 		RFM->receive ();
 		// Delay before sending ACK

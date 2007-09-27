@@ -1624,8 +1624,11 @@ int     processSameas (int del) {
 	// sameas (state);
 	//
 	// expands into:
-	//    do { The[Observer]State = state; goto __state_label_state; }
-	//	while (0);
+	//    do {
+	//	The[Observer]State = state;
+	//	unwait (); // Process only
+	//	goto __state_label_state;
+	//    }	while (0);
 
 	char    arg [MAXKWDLEN+1], sarg [MAXKWDLEN+1];
 	int     lc, pc;
@@ -1680,7 +1683,12 @@ ProcErr:
 
 	putC ("State = ");
 	putC (arg);
-	putC ("; goto __state_label_");
+	putC ("; ");
+
+	if (CodeType == PROCESS)
+		putC ("unwait (); ");
+
+	putC ("goto __state_label_");
 	putC (arg);
 	putC ("; } while (0);");
 

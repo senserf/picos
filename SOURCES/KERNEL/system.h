@@ -529,3 +529,6 @@ void    zz_ptime (ZZ_TBIG&, int);
 #define	GSID(id)	(((id) >> 16) & 0xFFFF)
 #define	GYID(id)	(((id)      ) & 0xFFFF)
 #define	GSID_NONE	0xFFFF
+
+// Trigger segmentation violation to abort the program for gdb
+#define	EXCPTN		do { *((Long*)0) = 1; } while (1)

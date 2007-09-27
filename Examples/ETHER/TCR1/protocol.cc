@@ -31,26 +31,27 @@ Transmitter:: perform {
     Competing = NO;
     Buffer->release ();
     proceed SenseEOT;
+
+
   state SenseCollision:
     if (!TournamentInProgress) {
       Ply = DelayCount = 0;
       DeferCount = 1;
       TournamentInProgress = YES;
     }
+    DeferCount++;
     if (Competing) {
       if (Transmitting) {
         if (loser ()) DelayCount = 1;
         Ply++;
+        Bus->abort ();
+        Transmitting = NO;
+        Bus->sendJam (TJamL, EndJam);
+        sleep;
       } else
         DelayCount++;
     }
-    DeferCount++;
-    if (Transmitting) {
-      Bus->abort ();
-      Transmitting = NO;
-      Bus->sendJam (TJamL, EndJam);
-    } else
-      Timer->wait (TJamL + SlotLength, NewSlot);
+    Timer->wait (TJamL + SlotLength, NewSlot);
   state EndJam:
     Bus->stop ();
     Timer->wait (SlotLength, NewSlot);

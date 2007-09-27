@@ -1062,7 +1062,8 @@ CoRet:
                      // Note that priority put is illegal on a socket mailbox
 			      // The item must be there
 			      m = (Mailbox*) (zz_CE->ai);
-    assert (m->count, "Internal error -- mailbox item lost at priority event");
+    			      assert (m->count, "Internal error -- mailbox "
+					"item lost at priority event");
 			      (m->count)--;
 			      if (m->head != NULL) {
 				zz_mbi = Info01 = (q = m->head)->item;
@@ -1606,6 +1607,19 @@ LoRet:
                 }
 	}
 	zz_done ();
+}
+
+void unwait () {
+
+// Un-waits the current process, i.e., removes all wait requests accumulated
+// so far
+
+	if (zz_c_first_wait)
+		// Nothing to do
+		return;
+
+	zz_c_first_wait = YES;
+	zz_c_wait_event->cancel ();
 }
 
 /* ----------------------------------- */

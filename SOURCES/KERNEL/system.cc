@@ -692,6 +692,13 @@ int excptn  (char *sig, ...) {
 
 	mess = vform (sig, pmts);
 
+#if ZZ_DBG > 1
+	// Force abort on SEGV, so we can be caught in gdb
+	write (2, mess, strlen (mess));
+	write (2, "\n", 1);
+	EXCPTN;
+#else
+
 	if (DisplayActive)
 		displayNote (form ("*%s", mess));
 
@@ -708,6 +715,9 @@ int excptn  (char *sig, ...) {
 	// Set up the abort flag
 	Kernel->terminate ();
 	return (0);
+
+#endif	/* ZZ_GDB <= 1 */
+
 }
 
 /* ------------------------ */

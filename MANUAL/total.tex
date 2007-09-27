@@ -4212,6 +4212,19 @@ This is faster than multiplying the value returned by
 preamble length is stored internally in {\em ITU\/}s; thus,
 {\tt getPreambleTime} is trivial (while {\tt getPreamble} is not).
 
+To determine the total amount of time it would take to transmit a given number
+of (logical) bits, use this {\tt Transceiver} method:
+\begin{verbatim}
+        TIME getXTime (Long bits);
+\end{verbatim}
+\noindent
+The value returned by it tells the number of {\em ITU\/}s needed to transmit
+a packet whose {\tt TLength} attribute is equal to {\tt bits}.
+Note that this transformation is more complex than in the case of {\tt Port}
+(where it boils down to a simple multiplication by
+{\tt TRate}---\sect{rm_po_ac_st}) and involves {\tt RFC\_xmt}
+(\sect{rm_tr_ac_st}).
+
 Many attributes of transceivers can be set globally, i.e., to the same value
 for all transceivers interfaced to the same radio channel, by calling the
 corresponding method of {\tt RFChannel} rather than the one of
@@ -4684,6 +4697,17 @@ and the occurrence of the
 When a process is restarted, its collection of awaited events is {\bf cleared},
 which means that in each operation cycle these events must be specified
 from scratch.
+
+A process may undo its already issued collection of wait requests by calling
+this function:
+\begin{verbatim}
+        void unwait ();
+\end{verbatim}
+\noindent
+This operation is seldom useful and must be used with care, as some wait
+requests may be implicit (and they will be also undone by {\tt unwait}).
+For example, undoing the implicit wait request issued by
+{\tt transmit} (\sect{rm_po_ac_st}) seldom makes sense.
 
 It is possible that
 two or more events, from the collection of events awaited by the process,
@@ -5390,7 +5414,7 @@ simulator must be faster (or at least not slower) than the scaled progress
 of the model in virtual time.
 
 %%%@@@-- timer.tex
-\section{Timer {\em AI}}
+\section{The Timer {\em AI}}
 \label{rm_ti}
 
 Although formally the {\tt Timer} {\em AI\/} occurs
@@ -5657,13 +5681,13 @@ is determined according to the distribution
 
 
 %%%@@@-- monit.tex
-\section{Monitor {\em AI\/}}
+\section{The Monitor {\em AI\/}}
 \label{rm_mo}
 
-Similar to {\tt Timer}, the monitor {\em AI\/} occurs in a single
+Similar to {\tt Timer}, the {\tt Monitor} {\em AI\/} occurs in a single
 instance pointed to by the global constant {\tt Monitor}.
 It provides a crude, but effective and cheap,
-inter-rprocess synchronization tool.
+inter-process synchronization tool.
 The idea is extremely simple: wait requests identify events by numbers.
 When signaled, the event will wake up all processes waiting for it, globally,
 regardless of their ownership and other properties.
@@ -5696,10 +5720,30 @@ depending on whether the program has been compiled without or with {\tt -p}
 The type of the {\em event\/} argument is {\tt void*}.
 This is because it is natural to use addresses of the ``critical'' variables
 or data structures as event identifies.
-Note that those identifiers are global, so their uniqueness and consistency
-may pose a problem.
+Note that those identifiers are global, so the uniqueness and consistency of
+events intentionally restricted to the context of, say, a single station
+can only be maintained by using different numbers.
+To this end, \smurph\ defines this macro:
+\begin{verbatim}
+        #define MONITOR_LOCAL_EVENT(o) ((void*)(((char*)TheStation)+(o)))
+\end{verbatim}
+\noindent
+to be used for creating event identifiers
+intended to be local with respect to the
+current station (\sect{rm_to_st_cu}).
+For example, by declaring the following apparent constants:
+\begin{verbatim}
+        #define EVENT_XMIT      MONITOR_LOCAL_EVENT(0)
+        #define EVENT_RCV       MONITOR_LOCAL_EVENT(1)
+        #define EVENT_DONE      MONITOR_LOCAL_EVENT(2)
+\end{verbatim}
+\noindent
+you can use them as event identifiers, which will actually represent different
+numbers within the context of different stations---at least as long as the
+argument of the macro is not larger than the size of the station object.
 
-A process issuing such a wait request is suspended until the event is
+A process issuing a wait request to {\tt Monitor}
+is suspended until the event is
 delivered (signaled) by some other process.
 A signaled event is never queued:
 the receiving
@@ -6069,7 +6113,8 @@ returns 1, while {\tt isStandard} returns 0.
 
 \noindent
 {\bf Note:} If the protocol program has been created with the 
-{\tt -g} option of {\tt mks} (debugging---see \sect{rm_un_cr}), each packet
+{\tt -g} (or {\tt -G})
+option of {\tt mks} (debugging---see \sect{rm_un_cr}), each packet
 carries one additional attribute of type {\tt Long} called {\tt Signature}.
 For packets acquired from the {\tt Client} (via {\tt getPacket}---see
 \sect{rm_cl_in_ap}) this attribute is set to consecutive integer values,
@@ -7259,12 +7304,19 @@ Its pointer is also returned as the function value.
 
 Sometimes packets and/or messages may contain pointers to dynamically allocated
 structures that have to be freed when the packet disappears.
-The philosophy of \smurph\ is not to use the C++ constructors/destructors
-of the standard object types, which are reserved for various internal roles.
-It is possible, however, to intercept packet and message deallocation events,
-even for the standard types, i.e., {\tt Packet} and {\tt Message}, in a way
-that exploits the connection between those objects and the client.
+Unfortunately, using the standard destruction mechanism for this kind of 
+clean-up is not possible in \smurph, because, for the sake of
+memory efficiency, packets are represented
+within link activities as variable-length chunks (allocated at the end of
+the activity object) that formally belong to the standard type {\tt Packet}.
+Virtual destructors do not help because the function that internally clones
+a transmitted packet to become part of the corresponding link activity
+cannot know the packet's actual type: it merely knows the length of the 
+packet's object.
 
+It is possible, however, to intercept packet and message deallocation events,
+including the standard types, i.e., {\tt Packet} and {\tt Message}, in a way
+that exploits the connection between those objects and the client.
 To this end,
 the following two virtual methods can be declared within a traffic type:
 
@@ -7280,6 +7332,11 @@ about to be deallocated with the argument pointing to the packet.
 This covers the cases when a packet is explicitly {\tt delete}d by the
 protocol program, as well the internal deallocations of {\tt Link} or
 {\tt RFChannel} activities (sections~\ref{rm_po_ac_pr} and \ref{rm_tr_pp_wr}).
+Note that the deallocation of a
+non-standard packet (i.e., one that has no associated traffic
+object---\sect{rm_cl_mp}) cannot be intercepted this way.
+Link-level cleanup (\sect{rm_po_cl}) is recommended for such packets,
+if needed.
 
 Similarly, {\tt pfmMDE} will be called for each message deallocation, which
 in most cases happens internally---when a queued message has been entirely 
@@ -7385,6 +7442,21 @@ For efficiency reasons, the queue size limit checking is
 disabled by default.
 The program must be created with the {\tt -q} option of {\tt mks}
 (\sect{rm_un_cr}) to enable this feature.
+
+\medskip
+\noindent
+The following two {\tt Station} methods tell the number of messages and bits
+queued at the station:
+\begin{verbatim}
+        Long getMQSize (int tp = NONE);
+        BITCOUNT getMQBits (int tp = NONE);
+\end{verbatim}
+\noindent
+When the argument is {\tt NONE} (or absent), the methods return the total
+number of messages/bits accumulated over all traffic patterns (queues) 
+at the station.
+Otherwise, the argument must be a legal traffic pattern {\tt Id} and the
+returned values pertain to the single indicated traffic pattern.
 
 \subsection{Inquiries}
 \label{rm_cl_in}
@@ -7738,7 +7810,7 @@ and the {\tt Id} of the message traffic pattern, respectively.
 
 
 %%%@@@-- porta.tex
-\section{The {\tt Port} {\em AI\/}}
+\section{Links and the {\tt Port} {\em AI\/}}
 \label{rm_po}
 
 A process may wish to reference a port for one of the following three reasons:
@@ -8857,8 +8929,66 @@ The possibility of declaring links as ``faulty'' is switched off by default---to
 avoid simulation overhead.
 To enable faulty links, the program must be created with the {\tt -z}
 option of {\tt mks} (\sect{rm_un_cr}).
+
+\subsection{Cleaning after packets}
+\label{rm_po_cl}
+
+Sometimes you would like a packet to carry a pointer to a dynamically
+allocatable data structure that must be deallocated when the packet disappears
+from the network.
+This issue was discussed in \sect{rm_cl_dt_de}, where tools for cleaning
+up after standard (i.e., {\tt Client}) packets (and messages) were presented.
+It is possible to perform the same kind of operation at the link level---in a
+way that makes it applicable to all packets (including non-standard ones) that
+complete their life time within the link (or its archive---\sect{rm_po_ac_pr}).
+With this {\tt Link} method:
+\begin{verbatim}
+        void setPacketCleaner (void (*)(Packet*));
+\end{verbatim}
+\noindent
+you can plug\footnote{As link types cannot be extended by the user, virtual
+functions cannot be applied here.
+Extending a link type to accommodate this single feature into a virtual method
+would be (arguably, we admit) an overkill.}
+into the link a function to be called for every packet
+disappearing from it.
+By examining the packet's {\tt TP} attribute (\sect{rm_cl_mp})
+and casting the packet to the proper type,
+you can then selectively perform the required cleaning duties, e.g.,
+\begin{verbatim}
+        void cleanPackets (Packet *p) {
+            if (p->TP == -1)
+                delete ((HelloPacket*)p)->NeighborList;
+        }
+       ...
+        EtherLink->setPacketCleaner (cleanPackets);
+       ...
+\end{verbatim}
+\noindent
+Note that the cleaner function is global.
+Needless to say, one has to be aware that the data structure deallocated by the
+cleaner is volatile.
+Thus, if the packet's recipient needs to preserve it beyond the life time of the
+packet's activity in the link, it must make itself a copy.
+Also, if traffic-level cleaning is used together with link-level cleaning,
+you should make sure that the same packets are not cleaned twice.
+
+By calling {\tt setPacketCleaner} with a {\tt NULL} argument, you remove the
+packet cleaner function from the link.
+
+Note that for a packet belonging to a traffic pattern (i.e., one generated and
+absorbed by the {\tt Client}---sections \ref{rm_cl_mp},
+\ref{rm_cl_dt_tt}), packet deallocation can be intercepted with
+a virtual method defined within the traffic type to which the packet
+belongs (\sect{rm_cl_dt_de}).
+Thus, a link-level interceptor is recommended for those situations when
+either all or most packets must be processed that way, or
+special packets (i.e., ones that do not originate in the {\tt Client} and have
+no associated traffic objects)
+must be subjected to the procedure.
+
 %%%@@@-- trans.tex
-\section{The {\tt Transceiver} {\em AI\/}}
+\section{Radio channels and the {\tt Transceiver} {\em AI\/}}
 \label{rm_tr}
 
 The role of transceivers is conceptually identical to that of ports: thus,
@@ -10597,6 +10727,17 @@ the method's header looks like this:
 \end{verbatim}
 \noindent
 i.e., each point is described by three coordinates.
+
+\subsection{Cleaning after packets}
+\label{rm_tr_cl}
+
+The same feature for postprocessing packets at the end of their life time in
+the radio channel is available for radio channels as for links
+(\sect{rm_po_cl}).
+Even though, in contrast to links, type {\tt RFChannel} is extensible by the
+user (and the cleaning function could be accommodated as a virtual
+method), the idea of a plug-in global function has been retained---for
+disputable compatibility with links.
 
 %%%@@@-- mailb.tex
 \section{The {\tt Mailbox} {\em AI}}
@@ -13939,8 +14080,8 @@ and {\tt NO} otherwise.
 In addition to explicit tracing described in \sect{rm_ob_pt}, \smurph\ has
 a built-in mechanism for dumping the sequence of process states traversed
 by the simulator during its execution to the output file.
-This feature is only available when the program has been compiled with the
-{\tt -g} (debug) option of {\tt mks} (\sect{rm_un_cr}).
+This feature is only available when the program has been compiled with
+{\tt -g} or {\tt -G} (see \sect{rm_un_cr}).
 
 One way of switching on the state dumping is to use the {\tt -T} program call
 argument (see \sect{rm_un_ru}).
@@ -13994,7 +14135,8 @@ This dump is obtained by requesting mode 2 exposures of
 
 The global macro {\tt DebugTracing} has the appearance of a {\tt Boolean}
 variable whose value is {\tt YES} if 1)~the program has been compiled with
-{\tt -g}, i.e., debugging is enabled, and 2)~state dumping is active in the
+{\tt -g} or {\tt -G}, i.e.,
+debugging is enabled, and 2)~state dumping is active in the
 current context.
 Otherwise, {\tt DebugTracing} evaluates to {\tt NO}.
 
@@ -15793,14 +15935,14 @@ Items 6--8 are meaningful for packets only.
 If the activity is not a packet transmission, ``{\tt ---}''
 appears in place of each of the three items.
 In the ``paper'' version of the exposure, item 8 is only printed if the
-program has been created with the {\tt -g} option of {\tt mks}
+program has been created with the {\tt -g} (or {\tt -G}) option of {\tt mks}
 (\sect{rm_un_cr}).
 In the ``screen'' version, item 8 is always
 displayed,\footnote{Window templates (\sect{rm_ds_tp})
 are independent of the protocol program, so their
 layout cannot be influenced by the options of {\tt mks}.}
-but unless the program has been created with {\tt -g}, item 8 is filled
-with dashes.
+but unless the program has been created with {\tt -g}/{\tt -G},
+item 8 is filled with dashes.
 
 If, according to the port's perception, the current configuration of activities
 results in a future or present collision, a virtual activity representing
@@ -16053,7 +16195,7 @@ stage (\sect{rm_tr_ra}).
 Average interference level suffered by the activity.
 \item
 The packet's signature (\sect{rm_cl_mp}), included if the simulator
-has been compiled with {\tt -g}.
+has been compiled with {\tt -g} or {\tt -G}.
 \end{enumerate}
 
 Items 8--10 do not show up for an ``own'' activity and are substituted with
@@ -16061,7 +16203,7 @@ dashes.
 
 Exactly the same items are displayed with the ``screen''
 form of the exposure, except that item 11 is always included.
-Unless the program has been created with {\tt -g}, item 11 is filled
+Unless the program has been created with {\tt -g} or {\tt -G}, item 11 is filled
 with dashes.
 
 \subsubsection*{Mode 2: the neighborhood}
@@ -16205,7 +16347,7 @@ The packet type, i.e., the {\tt TP} attribute (\sect{rm_cl_mp}).
 The total length of the packet (attribute {\tt TLength}).
 \item
 The packet's signature (\sect{rm_cl_mp}), included if the simulator
-has been compiled with {\tt -g}.
+has been compiled with {\tt -g} or {\tt -G}.
 \end{enumerate}
 
 An asterisk following the ending time of transmission indicates an aborted
@@ -16213,7 +16355,7 @@ packet.
 
 Exactly the same items are displayed with the ``screen''
 form of the exposure, except that item 8 is always included.
-Unless the program has been created with {\tt -g}, item 8 is filled
+Unless the program has been created with {\tt -g} or {\tt -G}, item 8 is filled
 with dashes.
 
 \subsubsection*{Mode 3: topology}
@@ -16698,7 +16840,7 @@ The packet type, i.e., the {\tt TP} attribute (\sect{rm_cl_mp}).
 The total length of the packet (attribute {\tt TLength}).
 \item
 The packet's signature (\sect{rm_cl_mp}), included if the simulator
-has been compiled with {\tt -g}.
+has been compiled with {\tt -g} or {\tt -G}.
 \end{enumerate}
 
 An asterisk following the ending time of transmission indicates an aborted
@@ -16706,7 +16848,7 @@ packet.
 
 Exactly the same items are displayed with the ``screen''
 form of the exposure, except that item 8 is always included.
-Unless the program has been created with {\tt -g}, item 8 is filled
+Unless the program has been created with {\tt -g} or {\tt -G}, item 8 is filled
 with dashes.
 
 \subsubsection*{Mode 6: transceiver status}
@@ -18427,9 +18569,10 @@ simulator-level tracing (\sect{rm_ob_st}) will be enabled.
 \noindent
 An alternative variant of this option is {\tt -G}.
 It is almost identical to {\tt -g}, but it additionally disables catching 
-signals (like SIGSEGV) by \smurph.
-This may help you properly intercept and diagnose errors triggering those
-signals in {\tt gdb}, especially under Cygwin.
+signals (like SIGSEGV) by \smurph\ and makes sure to trigger a hard error
+(like SIGSEGV) when {\tt excptn} (\sect{rm_au_eh}) is called.
+This makes it easier to catch and diagnose some errors (including violations
+of internal assertions) in {\tt gdb}.
 \end{quote}
 
 \begin{quote}

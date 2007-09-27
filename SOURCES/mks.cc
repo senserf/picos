@@ -232,7 +232,7 @@ void    badArgs () {
 	cerr << "       -t         'touch' the protocol source files\n";
 	cerr << "      Default: '-b 2 -o side' (other flags cleared)\n";
         cerr << "      Incompatibilities: -F and -8, -R and -V, -b 0 and -F\n";
-        cerr << "                         -G and -g";
+        cerr << "                         -G and -g\n";
 	exit (1);
 }
 

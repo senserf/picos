@@ -3543,19 +3543,8 @@ void    zz_client::exPrint2 (const char *hdr, int sid) {
 		Ouf << "Station   Messages       Bits\n";
 
 		for (i = 0; i < NStations; i++) {
-			mc = bc = 0;
-			if (idToStation (i)->MQHead != NULL) {
-				for (l = 0; l < NTraffics; l++) {
-					for (m = idToStation(i)->MQHead[l];
-						m != NULL;
-							m = m->next) {
-
-						mc ++;
-						bc += m->Length;
-					}
-				}
-			}
-
+			mc = (LONG)(idToStation (i) -> getMQSize (NONE));
+			bc = (LONG)(idToStation (i) -> getMQBits (NONE));
 			print (i, 7);
 			print (mc, 11);
 			print (bc, 11);
@@ -3827,7 +3816,7 @@ void    zz_client::exDisplay2 (int sid) {
 /* ---------------------- */
 
 	int             l, i;
-	LONG            bc, maxbc;
+	BITCOUNT        bc, maxbc;
 	Message         *m, **mm;
 	TIME            t;
 
@@ -3875,41 +3864,21 @@ void    zz_client::exDisplay2 (int sid) {
 
 	// Graphical display for all stations
 
-	maxbc = 0;
+	maxbc = BITCOUNT_0;
 	// Calculate the maximum
 	for (i = 0; i < NStations; i++) {
-		bc = 0;
-		if (idToStation (i)->MQHead != NULL) {
-			for (l = 0; l < NTraffics; l++) {
-				for (m = idToStation(i)->MQHead[l];
-					m != NULL;
-						m = m->next) {
-
-					bc ++;
-				}
-			}
-		}
-
+		bc = idToStation (i)->getMQBits (NONE);
 		if (maxbc < bc) maxbc = bc;
 	}
 
-	if (maxbc == 0) maxbc = 1;
+	if (maxbc == BITCOUNT_0)
+		maxbc = BITCOUNT_1;
 
 	startRegion (0.0, (double)(NStations-1), 0.0, (double) maxbc);
 	startSegment (00+4*3);       // Stripes (histograms)
 
 	for (i = 0; i < NStations; i++) {
-		bc = 0;
-		if (idToStation (i)->MQHead != NULL) {
-			for (l = 0; l < NTraffics; l++) {
-				for (m = idToStation(i)->MQHead[l];
-					m != NULL;
-						m = m->next) {
-
-					bc ++;
-				}
-			}
-		}
+		bc = idToStation (i)->getMQBits (NONE);
 		displayPoint ((double)i, (double)bc);
 	}
 
@@ -4190,16 +4159,8 @@ void    Traffic::exPrint2 (const char *hdr, int sid) {
 		Ouf << "Station   Messages       Bits\n";
 
 		for (i = 0; i < NStations; i++) {
-			mc = bc = 0;
-			if (idToStation (i)->MQHead != NULL) {
-				for (m = idToStation(i)->MQHead[Id];
-					m != NULL; m = m->next) {
-
-					mc ++;
-					bc += m->Length;
-				}
-			}
-
+			mc = (LONG)(idToStation (i) -> getMQSize (Id));
+			bc = (LONG)(idToStation (i) -> getMQBits (Id));
 			print (i, 7);
 			print (mc, 11);
 			print (bc, 11);
@@ -4544,7 +4505,7 @@ void    Traffic::exDisplay2 (int sid) {
 
 
 	int             i;
-	LONG            bc, maxbc;
+	BITCOUNT        bc, maxbc;
 	Message         *m, **mm;
 
 	if (isStationId (sid)) {
@@ -4571,30 +4532,20 @@ void    Traffic::exDisplay2 (int sid) {
 
 	// Graphical display for all stations
 
-	maxbc = 0;
+	maxbc = BITCOUNT_0;
 	// Calculate the maximum
 	for (i = 0; i < NStations; i++) {
-		bc = 0;
-		if (idToStation (i)->MQHead != NULL) {
-			for (m = idToStation(i)->MQHead[Id]; m != NULL;
-				m = m->next)
-					bc += m->Length;
-		}
+		bc = idToStation (i) -> getMQBits (Id);
 		if (maxbc < bc) maxbc = bc;
 	}
 
-	if (maxbc == 0) maxbc = 1;
+	if (maxbc == BITCOUNT_0) maxbc = BITCOUNT_1;
 
 	startRegion (0.0, (double)(NStations-1), 0.0, (double) maxbc);
 	startSegment (00+4*3);       // Stripes (histograms)
 
 	for (i = 0; i < NStations; i++) {
-		bc = 0;
-		if (idToStation (i)->MQHead != NULL) {
-			for (m = idToStation(i)->MQHead[Id]; m != NULL;
-				m = m->next)
-					bc += m->Length;
-		}
+		bc = idToStation (i) -> getMQBits (Id);
 		displayPoint ((double)i, (double)bc);
 	}
 

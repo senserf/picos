@@ -214,8 +214,6 @@ class	RFModule {
 		TDExp,		// Time when data wait (after CTS) expires
 		BKSet;		// Since when counting backoff
 
-	Transceiver *Xcv;
-
 	Boolean	FLG_vbusy,
 		FLG_garbage,
 		FLG_backon,	// Backoff on
@@ -230,6 +228,8 @@ class	RFModule {
 		BKSlots;	// Remaining backoff slots
 
     public:
+
+	Transceiver *Xcv;
 
 	// Backoff functions --------------------------------------------------
 
@@ -405,12 +405,17 @@ class	RFModule {
 
 	inline DCFPacket *get_packet (int st) {
 		// Acquire next packet for transmission
+		DCFPacket *p;
 		if (PQ->empty ()) {
 			PQ->wait (NONEMPTY, st);
-			// Note, we do return even if no packet is available
+			// Note, we do return (no sleep) even if no packet is
+			// available
 			return NULL;
 		}
-		return PQ->get ();
+		p = PQ->get ();
+		// Make sure we are the MAC-level transmitter
+		p->DCFP_S = S->getId ();
+		return p;
 	};
 
 	inline Boolean busy () { return FLG_vbusy; };
@@ -501,7 +506,6 @@ class	RFModule {
 
 		// Start transmitting RTS
 		Xcv->transmit (rts, st);
-
 		// Delete the packet
 		delete rts;
 	};

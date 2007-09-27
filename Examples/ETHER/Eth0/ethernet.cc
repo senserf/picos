@@ -155,7 +155,7 @@ void Root::buildNetwork (int ns, TIME bl) {
   DISTANCE d;
   d = bl / (ns - 1);  // Distance between neighboring stations
   for (i = 0; i < ns; i++) create EtherStation;
-  lk = create Link (ns, PSpace+10);
+  lk = create Link (ns);
   for (i = 0; i < ns; i++) {
     s = (EtherStation*) idToStation (i);
     s->Bus->connect (lk);

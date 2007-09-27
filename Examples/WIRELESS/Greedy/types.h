@@ -409,9 +409,4 @@ void initNodes (Long, Long);
 void initMobility ();
 void initChannel (Long&, Long&);
 
-inline double dist (double x0, double y0, double x1, double y1) {
-	// Calculate distance between two points on a plane
-	return sqrt ((y1 - y0) * (y1 - y0) + (x1 - x0) * (x1 - x0));
-}
-
 #endif

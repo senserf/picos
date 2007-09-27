@@ -912,3 +912,15 @@
 	   included in the neighborhood.
 
  R070904A  Ethernet example slightly modfified for the purpose of CMPUT 642.
+
+ R070927A  -G now forces excptn to abort with SIGSEGV - to make sure that all
+	   errors (including violations of internal assertions) are caught by
+	   gdb (so you can see from there where exactly the problem occured).
+	   Packet cleaners added to Link and RFChannel.
+	   Macro MONITOR_LOCAL_EVENT added as a tool to declare station-
+	   differentiated Monitor events.
+	   Method getXTime method added to Transceiver.
+	   Global function unwait cancels the wait requests issued so far from
+	   the current process.
+	   Two new Station methods: getMQBits and getMQSize.
+	   Manual updated.

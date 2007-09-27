@@ -629,6 +629,7 @@ void    buildNetwork ();
 /* ------------------ */
 void    zz_done ();
 int     zz_noevents ();                 // Run out of events
+void	unwait ();			// Cancels wait requests issued so far
 
 #if	ZZ_NOC
 
@@ -2557,6 +2558,10 @@ class   Station : public ZZ_Object {
 #endif
 
 #if	ZZ_NOC
+
+	BITCOUNT getMQBits (int tp = NONE);
+	Long	 getMQSize (int tp = NONE);
+
 	void    setQSLimit (Long l = MAX_Long); // Sets QSLimit (see above)
 
 	inline  void    printBuf (const char *hd = NULL) {
@@ -2805,8 +2810,6 @@ class   ZZ_EVENT {
 		zz_npee--;
 	};
 
-	INLINE  void    cancel ();
-
 	inline  void    reschedule () {
 
 	// Reschedule the event
@@ -2833,6 +2836,8 @@ class   ZZ_EVENT {
 	static  INLINE  ZZ_EVENT  *get ();
 
 	public:                         // Constructors
+
+	INLINE  void    cancel ();
 
 	inline  ZZ_EVENT () { };        // Dummy constructor
 
@@ -2980,6 +2985,9 @@ class	zz_monitor : public AI {
 };
 
 extern	zz_monitor  zz_AI_monitor;
+
+// A macro to define object-related event ordinals
+#define	MONITOR_LOCAL_EVENT(o)	((void*)(((char*)TheStation)+(o)))
 
 /* -------- */
 /* Timer AI */
@@ -3566,6 +3574,9 @@ class   Link : public AI {
 
 			  *AliveTail,           // LT_pointtopoint only
 			  *ArchivedTail;        // >= LT_unidirectional
+
+	void (*PCleaner) (Packet*);		// Packet cleaner funtion
+
 #if ZZ_FLK
 	double  FRate;                          // Fault rate
 	int     FType;                          // Type of fault processing
@@ -3589,6 +3600,8 @@ class   Link : public AI {
 	void    setFaultRate (double r = 0.0, int ft = FT_LEVEL1);
 	void    setTRate (RATE);
 	void	setAevMode (Boolean);
+
+	void	setPacketCleaner (void (*)(Packet*));
 
 	// Exposable
 	virtual void zz_expose (int, const char *h = NULL, Long s = NONE);
@@ -4180,6 +4193,7 @@ class ZZ_RSCHED {
 class	RFChannel : public AI {
 
 	friend class Transceiver;
+	friend class RosterService;
 	friend class ZZ_RSCHED;
 	friend class ZZ_SYSTEM;
 	friend class Station;
@@ -4191,6 +4205,8 @@ class	RFChannel : public AI {
 
 	// The set of all Transceivers belonging to the channel
 	Transceiver	**Tcvs;
+
+	void (*PCleaner) (Packet*);		// Packet cleaner funtion
 
 	// Exposures:
 	//	0 - wait requests (the usual); only Transceivers can have
@@ -4367,6 +4383,8 @@ class	RFChannel : public AI {
 	void	setRPower (double);
 	void	setMinDistance (double);
 	void	setAevMode (Boolean);
+
+	void	setPacketCleaner (void (*)(Packet*));
 
 	// If the histogram contains a bit error
 	Boolean error (RATE, double, double, const IHist*);
@@ -4699,6 +4717,7 @@ class	Transceiver : public AI {
 	inline void transmit (Packet&, int);
 	void wait (int, int);
 #endif
+	inline TIME getXTime (Long);
 
 	void	zz_start ();
 	~Transceiver ();
@@ -5655,11 +5674,12 @@ class   ZZ_LINK_ACTIVITY {
 
 	ZZ_LINK_ACTIVITY_GENERIC;
 
-	Packet             Pkt;                 // Information buffer
+	Packet             Pkt;
 
 	// Note: when the activity is generated, the amount of memory
 	// needed is determined by the actual size of the packet data
-	// structure, possibly extended by the user
+	// structure, possibly extended by the user; this is why Pkt is
+	// last
 
 	public:
 
@@ -6400,6 +6420,10 @@ inline void Transceiver::transmit (Packet &p, int s) {
 	transmit (&p, s);
 };
 #endif
+
+inline TIME Transceiver::getXTime (Long bits) {
+	return RFC->RFC_xmt (TRate, bits) + Preamble;
+};
 
 inline Boolean Transceiver::isFollowed (Packet *p) {
 	return TracedActivity != NULL && p == &(TracedActivity->RFA->Pkt);

@@ -262,6 +262,8 @@ void    LinkService::zz_code () {
 			cl->NAliveTransfers--;
 			assert (cl->NAliveTransfers >= 0,
 			   "LinkService: negative number of link transfers");
+			if (cl->PCleaner)
+				(*(cl->PCleaner))(&(a->Pkt));
 			delete (a);
 		}
 
@@ -349,10 +351,16 @@ void    LinkService::zz_code () {
 		cl->NArchivedTransfers--;
 		assert (cl->NArchivedTransfers >= 0,
 			"LinkService: negative number of archived transfers");
+		if (cl->PCleaner)
+			(*(cl->PCleaner))(&(a->Pkt));
 		delete a;
 	}
-
   }
+}
+
+void Link::setPacketCleaner (void (*clnr)(Packet*)) {
+
+	PCleaner = clnr;
 }
 
 void    Link::zz_start () {
@@ -368,6 +376,7 @@ void    Link::zz_start () {
 	FType = NONE;
 #endif
 	Type = LT_broadcast;
+	PCleaner = NULL;
 	// Add the link to Kernel
 	pool_in (this, TheProcess->ChList);
 };
