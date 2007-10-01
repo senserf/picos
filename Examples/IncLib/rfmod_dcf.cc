@@ -21,6 +21,30 @@ int	DCF_CW_min,	// Minimum backoff window size
 
 Long	DCF_RTS_ths;	// Short data threshold
 
+#if DEBUGGING
+char *_zz_dpk (DCFPacket *p) {
+/*
+ * Dump a packet to a character string
+ */
+	char *tp;
+
+	switch (p->TP) {
+		case DCFP_TYPE_RTS:	tp = "rts"; break;
+		case DCFP_TYPE_CTS:	tp = "cts"; break;
+		case DCFP_TYPE_ACK:	tp = "ack"; break;
+		default:
+			if (flagSet (p->DCFP_Flags, DCFP_FLAG_BCST))
+				tp = "dbc";
+			else
+				tp = "dun";
+	}
+
+	return form ("T %s, F %1x, S %1d [%1d], R %1d [%1d], L %1d, N %gus",
+		tp, p->DCFP_Flags, p->Sender, p->DCFP_S, p->Receiver,
+			p->DCFP_R, p->TLength, ituToEtu (p->NAV) * 1000000.0);
+}
+#endif
+
 void initDCF (
 		double sf,
 		double sl,
@@ -33,6 +57,7 @@ void initDCF (
 		int cwmin,
 		int cwmax
 	     						) {
+	int n;
 
 	// SIFS in ITU
 	DCF_TSifs = etuToItu (sf);
@@ -64,6 +89,8 @@ void initDCF (
 	print (DCF_CW_min,           "  CW min:", 			10, 26);
 	print (DCF_CW_max,           "  CW max:", 			10, 26);
 	print ("\n");
+
+	Assert (NRFChannels, "intiDCF: no RFChannels exist");
 }
 
 RFModule::RFModule (Transceiver *r, Long pqs) {
@@ -538,7 +565,7 @@ Receiver::perform {
 	RFM->FLG_garbage = NO;
 
 	if (flagSet (TheDCFP->DCFP_Flags, DCFP_FLAG_BCST)) {
-		assert (TheDCFP->DCFP_Type == DCFP_TYPE_DATA, 
+		assert (DCFP_IS_DATA (TheDCFP),
 			"rfmodule rcv: broadcast packet not DATA");
 		// Receive a brodcast DATA packet
 		RFM->receive ();
@@ -548,7 +575,7 @@ Receiver::perform {
 	// A non-broadcast packet must be addressed to us (in data link)
 	if (!RFM->my_packet (TheDCFP)) {
 		// Set the NAV
-		if (TheDCFP->DCFP_Type == DCFP_TYPE_RTS) {
+		if (TheDCFP->TP == DCFP_TYPE_RTS) {
 			// NAV is set to a constant timeout for the data
 			// packet; if the data packet arrives, the NAV will
 			// be reset. This is an option.
@@ -564,19 +591,7 @@ Receiver::perform {
 
 RC_spacket:
 
-	switch (TheDCFP->DCFP_Type) {
-
-	    case DCFP_TYPE_DATA:
-
-		// A non-broadcast data packet received without a handshake
-		// must be short; not really, everything is possible
-		// assert (TheDCFP->TLength <= DCF_RTS_ths,
-		// 	"rfmdule rcv: non-handshake data packet not short");
-
-		RFM->receive ();
-		// Delay before sending ACK
-		Timer->wait (DCF_TSifs, RC_SACK);
-		sleep;
+	switch (TheDCFP->TP) {
 
 	    case DCFP_TYPE_RTS:
 
@@ -613,10 +628,16 @@ RC_spacket:
 		RFM->signal_ack ();
 		rc_endcycle;
 
-	    default:
+	    default:	/* DATA */
 
-		excptn ("rfmodule rcv: illegal packet type %1d",
-			TheDCFP->DCFP_Type);
+		// A non-broadcast data packet received without a handshake
+		// must be short; not really, everything is possible
+		// assert (TheDCFP->TLength <= DCF_RTS_ths,
+		// 	"rfmdule rcv: non-handshake data packet not short");
+
+		RFM->receive ();
+		// Delay before sending ACK
+		Timer->wait (DCF_TSifs, RC_SACK);
 	}
 
     state RC_ABORTED:
@@ -698,7 +719,7 @@ RC_spacket:
 		rc_endcycle;
 	}
 
-	if (TheDCFP->DCFP_Type != DCFP_TYPE_DATA) {
+	if (!DCFP_IS_DATA (TheDCFP)) {
 		// Not a data packet
 		_trc ("EXP DATA NODATA");
 		RFM->UPPER_col_data ();

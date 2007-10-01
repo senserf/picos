@@ -8938,7 +8938,7 @@ allocatable data structure that must be deallocated when the packet disappears
 from the network.
 This issue was discussed in \sect{rm_cl_dt_de}, where tools for cleaning
 up after standard (i.e., {\tt Client}) packets (and messages) were presented.
-It is possible to perform the same kind of operation at the link level---in a
+It is possible to perform a similar kind of operation at the link level---in a
 way that makes it applicable to all packets (including non-standard ones) that
 complete their life time within the link (or its archive---\sect{rm_po_ac_pr}).
 With this {\tt Link} method:
@@ -8981,11 +8981,16 @@ absorbed by the {\tt Client}---sections \ref{rm_cl_mp},
 \ref{rm_cl_dt_tt}), packet deallocation can be intercepted with
 a virtual method defined within the traffic type to which the packet
 belongs (\sect{rm_cl_dt_de}).
-Thus, a link-level interceptor is recommended for those situations when
+Thus, a link-level interceptor is only recommended for those situations when
 either all or most packets must be processed that way, or
 special packets (i.e., ones that do not originate in the {\tt Client} and have
 no associated traffic objects)
 must be subjected to the procedure.
+Beware that, unlike the cleaning methods associated with traffic patterns,
+link-level cleaners are only invoked when a packet disappears from the link
+or its archive.
+They are not called when a packet is deallocated the standard way, i.e., with
+explicit {\tt delete}.
 
 %%%@@@-- trans.tex
 \section{Radio channels and the {\tt Transceiver} {\em AI\/}}

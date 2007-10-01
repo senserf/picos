@@ -11,21 +11,6 @@
 #define	DEBUGGING	0
 #endif
 
-#if DEBUGGING
-// Tracing/debugging macros
-#define	_trc(a, ...)	trace (a, ## __VA_ARGS__)
-#define	_dpk(p)		form ("T %1d [%1d], F %1x, S %1d [%1d], " \
-			     "R %1d [%1d], L %1d, N %gus", \
-				(p)->TP, (p)->DCFP_Type, (p)->DCFP_Flags, \
-				(p)->Sender, (p)->DCFP_S, \
-				(p)->Receiver, (p)->DCFP_R, \
-				(p)->TLength, \
-				ituToEtu ((p)->NAV) * 1000000.0)
-#else
-#define	_trc(a, ...)	do { } while (0)
-#define	_dpk(p)		0
-#endif
-
 // Packet length in (info) bits excluding physical preambles, but including
 // everything else (like the PLCP header)
 #define	PKT_LENGTH_RTS	(20 * 8)
@@ -76,21 +61,24 @@ void initDCF (
 
 // Event identifiers for xmitter and receiver processes; it makes sense to use
 // pointers specific to the RFModule
-#define	DCF_EVENT_ACT	((void*)(((char*)this) + 0))
-#define	DCF_EVENT_BOT	((void*)(((char*)this) + 1))
-#define	DCF_EVENT_SIL	((void*)(((char*)this) + 2))
-#define	DCF_EVENT_CTS	((void*)(((char*)this) + 3))
-#define	DCF_EVENT_ACK	((void*)(((char*)this) + 4))
+#define	DCF_EVENT_ACT	((void*)(((char*)this) + 16))
+#define	DCF_EVENT_BOT	((void*)(((char*)this) + 17))
+#define	DCF_EVENT_SIL	((void*)(((char*)this) + 18))
+#define	DCF_EVENT_CTS	((void*)(((char*)this) + 19))
+#define	DCF_EVENT_ACK	((void*)(((char*)this) + 20))
 
 // Packet flags
 #define	DCFP_FLAG_RETRANS	0	// Bit number zero
 #define	DCFP_FLAG_BCST		1	// Bit number 1, broadcast, e.g, HELLO
 
-// Packet types
-#define	DCFP_TYPE_DATA		0
-#define	DCFP_TYPE_RTS		1
-#define	DCFP_TYPE_CTS		2
-#define	DCFP_TYPE_ACK		3
+// Packet types: use large negative values for the special packets to leave
+// room for any special packets needed by the "higher layers"
+#define	DCFP_TYPE_SPECIAL_BASE	MININT
+#define	DCFP_TYPE_RTS		(DCFP_TYPE_SPECIAL_BASE + 0)
+#define	DCFP_TYPE_CTS		(DCFP_TYPE_SPECIAL_BASE + 1)
+#define	DCFP_TYPE_ACK		(DCFP_TYPE_SPECIAL_BASE + 2)
+#define	DCFP_TYPE_MIN_DATA	(DCFP_TYPE_SPECIAL_BASE + 3)
+#define	DCFP_IS_DATA(p)		((p)->TP >= DCFP_TYPE_MIN_DATA)
 
 packet DCFPacket {
 
@@ -98,11 +86,20 @@ packet DCFPacket {
 
 	TIME	NAV;
 	Long	DCFP_S, DCFP_R;		// Data-link sender-recipient
-	unsigned short DCFP_Flags;	// Flags (mostly for grabs)
-	unsigned short DCFP_Type;	// Internal (Data-link) type
+	FLAGS	DCFP_Flags;		// Flags (mostly for grabs)
 };
 
 #define	TheDCFP	((DCFPacket*)ThePacket)
+
+#if DEBUGGING
+// Tracing/debugging macros
+#define	_trc(a, ...)	trace (a, ## __VA_ARGS__)
+extern	char *_zz_dpk (DCFPacket*);
+#define	_dpk(p)		_zz_dpk (p)
+#else
+#define	_trc(a, ...)	do { } while (0)
+#define	_dpk(p)		0
+#endif
 
 mailbox PQueue (DCFPacket*) {
 
@@ -148,7 +145,7 @@ packet RTSPacket : DCFPacket {
 		// better sense to keep things simple.
 
 		DCFP_Flags = 0;
-		DCFP_Type = DCFP_TYPE_RTS;
+		TP = DCFP_TYPE_RTS;
 	};
 };
 
@@ -175,7 +172,7 @@ packet CTSPacket : DCFPacket {
 		// present implementation.
 		NAV = (dtt != TIME_0) ? dtt + DCF_NAV_cts : TIME_0;
 		DCFP_Flags = 0;
-		DCFP_Type = DCFP_TYPE_CTS;
+		TP = DCFP_TYPE_CTS;
 	};
 };
 
@@ -195,7 +192,7 @@ packet ACKPacket : DCFPacket {
 		ILength = 0;
 		NAV = TIME_0;
 		DCFP_Flags = 0;
-		DCFP_Type = DCFP_TYPE_ACK;
+		TP = DCFP_TYPE_ACK;
 	};
 };
 
@@ -670,7 +667,11 @@ process Xmitter {
 
 	perform;
 
-	void setup (RFModule *rfm) { RFM = rfm; };
+	void setup (RFModule *rfm) {
+		RFM = rfm;
+		RFM->Xcv->setAevMode (NO);
+		RFM->Xcv->setMinDistance (SEther->RDist);
+	};
 };
 
 process Receiver {

@@ -924,3 +924,6 @@
 	   the current process.
 	   Two new Station methods: getMQBits and getMQSize.
 	   Manual updated.
+
+ R071001A  Added a new example (WIRELESS/SimpleRoaming) to be used in a
+	   CMPUT642 project. A minor clarification in the manual

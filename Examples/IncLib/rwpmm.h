@@ -4,8 +4,8 @@
 // Random waypoint mobility model for wireless networks
 
 #define	RWPMM_MAX_STEPS		10000		// Max number of steps per leg
-#define	RWPMM_TARGET_STEP	0.05		// 5 centimeters
-#define	RWPMM_MIN_STEPS		8		// Even a tiny move is no jump
+#define	RWPMM_TARGET_STEP	0.25		// 25 centimeters
+#define	RWPMM_MIN_STEPS		4		// Even a tiny move is no jump
 
 process RWPMover;
 
