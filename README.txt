@@ -927,3 +927,7 @@
 
  R071001A  Added a new example (WIRELESS/SimpleRoaming) to be used in a
 	   CMPUT642 project. A minor clarification in the manual
+
+ R071005A  Yet another example (WIRELES/Easy) for CMPUT642. Incorporated Nick's
+           fix of a cast in mailbox.c, which was frowned upon by gcc 4.1.0 on
+	   his MAC.

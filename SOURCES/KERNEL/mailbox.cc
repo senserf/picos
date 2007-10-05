@@ -697,7 +697,7 @@ int     Mailbox::zz_put (void *it) {
   if (sfd != NONE) {
     // We are dealing with a connected mailbox
     if (csd == NONE || (oin + 1) % (limit + 1) == oout) return REJECTED;
-    obuf [oin] = (char)it;
+    obuf [oin] = (char)(IPointer)it;
     if (++oin > limit) oin = 0;
     return ACCEPTED;
   }

@@ -6518,7 +6518,7 @@ inline  void   receive (Packet &p, RFChannel &l) {
 inline	double linTodB (double v) {
 
 	if (v <= 0.0)
-		excptn ("lintoDb: argument must be > 0.0, is %f", v);
+		excptn ("linTodB: argument must be > 0.0, is %f", v);
 	return log10 (v) * 10.0;
 };
 
