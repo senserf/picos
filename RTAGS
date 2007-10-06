@@ -1539,3 +1539,7 @@ R070924A:
         - added 'proxy' distance,
         - rssi calibrated for VUEE and GENESIS boards in handcrafted boxes.
 
+
+R071006A:
+
+	is_fastblink added back to sysio.h.

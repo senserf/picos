@@ -578,11 +578,13 @@ void		dmp_mem (void);
 			} while (0)
 
 #define	fastblink(a)	(zz_systat.fstblk = ((a) != 0))
+#define is_fastblink    (zz_systat.fstblk != 0)
 
 #else
 
 #define	leds(a,b)	do { } while (0)
 #define	fastblink(a)	do { } while (0)
+#define is_fastblink	0
 	
 #endif 	/* LEDS_DRIVER */
 
