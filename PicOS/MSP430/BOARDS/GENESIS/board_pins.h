@@ -13,7 +13,7 @@
 #define	PIN_DEFAULT_P5DIR	0xE0
 #define	PIN_DEFAULT_P6DIR	0x00
 
-#define	GENESIS_RESET_KEY_PRESSED	((P6IN & 0x01) == 0)
+#define	EEPROM_INIT_ON_KEY_PRESSED	((P6IN & 0x01) == 0)
 
 #if LEDS_DRIVER
 // If selected by the application (for experiment), some pins have

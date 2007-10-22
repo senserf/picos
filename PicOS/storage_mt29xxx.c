@@ -275,6 +275,7 @@ void zz_ee_init () {
 	ee_ini_regs;
 	// Reset
 	ee_reset;
+	ee_postinit;
 }
 
 word ee_read (lword a, byte *s, word len) {

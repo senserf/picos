@@ -31,5 +31,3 @@
 
 #define	ee_start	do { _BIC (P2OUT, 0x01); ee_clkl; } while (0)
 #define	ee_stop		do { _BIS (P2OUT, 0x01); ee_clkh; } while (0)
-
-#define	ee_postinit	CNOP

@@ -76,20 +76,3 @@
 
 #define	ee_start	_BIC (P5OUT, 0x01)
 #define	ee_stop		_BIS (P5OUT, 0x01)
-
-/* Erase EEPROM on key pressed */
-#define	ee_postinit	ee_erase_eeprom_on_key ()
-
-static inline void ee_erase_eeprom_on_key () {
-	int i;
-	if (GENESIS_RESET_KEY_PRESSED) { \
-		for (i = 0; i < 4; i++) {
-			leds (0, 1); leds (2, 1); leds (3, 1);
-			mdelay (256);
-			leds (0, 0); leds (2, 0); leds (3, 0);
-			mdelay (256);
-		}
-		ee_erase (WNONE, 0, 0);
-		while (GENESIS_RESET_KEY_PRESSED);
-	}
-}

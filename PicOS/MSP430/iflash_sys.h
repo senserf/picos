@@ -7,12 +7,6 @@
 
 #include "sysio.h"
 
-#include "board_iflash.h"
-
-#ifndef	if_start_up
-#define	if_start_up	CNOP
-#endif
-
 #define	IF_PAGE_SIZE	64	// in words
 
 /*

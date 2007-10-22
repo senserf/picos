@@ -37,5 +37,5 @@
 #undef 	STORAGE_AT45XXX
 #undef	LCD_ST7036
 
-#undef CRYSTAL2_RATE
-#define	CRYSTAL2_RATE	0
+//#undef CRYSTAL2_RATE
+//#define	CRYSTAL2_RATE	0

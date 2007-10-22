@@ -4,7 +4,7 @@
 /* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
-
+#include "board_pins.h"
 #include "iflash_sys.h"
 
 #endif

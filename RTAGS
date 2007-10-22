@@ -1543,3 +1543,14 @@ R070924A:
 R071006A:
 
 	is_fastblink added back to sysio.h.
+
+R071022A:
+
+        LEDs in GENESIS (main trunk) reordered. Also the LED numbers flashed on
+	key-pressed-erase have been fixed.
+	LEDs in the Warsaw board are initially off, as they should be.
+	Forced sync for EEPROM on syserror.
+	Cleaned up code for special-key reset/eeprom/iflash cleanup. Warsaw
+	board clears eeprom when P2.4 goes high.
+	Fixed a bug in MSP430 zz_uart_setrate causing incorrect dynamic rate
+	setting for the second UART.

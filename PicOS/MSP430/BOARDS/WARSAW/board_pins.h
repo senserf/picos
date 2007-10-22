@@ -9,7 +9,10 @@
 #define	PIN_DEFAULT_P3DIR	0xC9
 #define	PIN_DEFAULT_P5DIR	0xE0
 #define	PIN_DEFAULT_P4DIR	0x0E
+#define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P6DIR	0x00
+
+#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
 #if ADC_SAMPLER
 

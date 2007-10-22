@@ -130,6 +130,9 @@ void powerup (void) {
 void reset (void) {
 
 	cli_tim;
+#ifdef	EEPROM_PRESENT
+	ee_sync (WNONE);
+#endif
 	hard_reset;
 }
 
@@ -249,10 +252,14 @@ void zzz_syserror (int ec) {
 		mdelay (100);
 	}
 #endif
-	while (1) hard_reset;
+	while (1) 
+		reset ();
 
 #else	/* RESET_ON_SYSERR */
 
+#ifdef	EEPROM_PRESENT
+	ee_sync (WNONE);
+#endif
 	while (1) {
 #if LEDS_DRIVER
 		leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
@@ -967,7 +974,7 @@ Boolean zz_uart_setrate (word rate, uart_t *ua) {
 				UBR11 = 0;
 				UMCTL1 = urates [j].B;
 #else
-				UBR01 = urates [j].B;
+				UBR11 = urates [j].B;
 				UMCTL1 = 0;
 #endif
 			} else {

@@ -143,7 +143,7 @@ void zzz_tservice () {
 		millisec -= JIFFIES;
 		zz_nseconds++;
 
-#include "board_second.h"
+#include "second.h"
 
 #ifndef NO_LONG_DELAYS
 		if ((zz_nseconds & 63) == 0)
