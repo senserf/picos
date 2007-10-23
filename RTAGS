@@ -1544,7 +1544,7 @@ R071006A:
 
 	is_fastblink added back to sysio.h.
 
-R071022A:
+R071023A:
 
         LEDs in GENESIS (main trunk) reordered. Also the LED numbers flashed on
 	key-pressed-erase have been fixed.
