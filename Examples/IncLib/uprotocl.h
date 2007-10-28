@@ -6,15 +6,15 @@
 
 extern Long MinPL, MaxPL, FrameL;    // Read from the input file
 
-process UTransmitter {
+process UTransmitter abstract {
   Port *Bus;
   Packet *Buffer;
-  virtual Boolean gotPacket () { return NO; };
+  virtual Boolean gotPacket () = 0;
   states {NPacket, WSilence, Transmit, XDone, Abort};
   perform;
 };
 
-process UReceiver {
+process UReceiver abstract {
   Port *Bus;
   states {WPacket, Rcvd};
   perform;

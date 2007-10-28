@@ -13,7 +13,7 @@ extern TIME SlotLength,      // The length of a virtual slot (2L + epsilon)
 
 extern RATE TRate;           // Time granularity (read from data file)
 
-process CTransmitter (EtherStation) {
+process CTransmitter abstract (EtherStation) {
   Port *Bus;          // A copy of the bus port
   Packet *Buffer;     // Packet buffer pointer
   Boolean TournamentInProgress, Transmitting, Competing;
@@ -22,9 +22,9 @@ process CTransmitter (EtherStation) {
     Buffer = &(S->Buffer);
     TournamentInProgress = Transmitting = Competing = NO;
   };
-  virtual void onCollision () {};   // When the station senses a collision
-  virtual void onEndSlot () {};     // End of an empty slot
-  virtual void onEOT () {};         // Sensing end of a valid transmission
+  virtual void onCollision () = 0;   // When the station senses a collision
+  virtual void onEndSlot () = 0;     // End of an empty slot
+  virtual void onEOT () = 0;         // Sensing end of a valid transmission
   virtual Boolean participating () {
     // Tells whether station is making a move
     return YES;

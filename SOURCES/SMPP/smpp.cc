@@ -361,12 +361,12 @@ SymDesc *addSym (char *sym, int qual, int stts, int mode, int estat) {
 	for (cs = SymTab [h = hash (sym)]; cs != NULL; cs = cs->next) {
 	    if (strcmp (cs->Name, sym) == 0) {
 	      if (cs->Type != qual) {
-		xerror (form ("'%s' conflicitng declarations", sym));
+		xerror ("'%s' conflicitng declarations", sym);
 		return (NULL);
 	      }
 	      if (cs->Status == DEFINED) {
 		if (stts == DEFINED) {
-		  xerror (form ("'%s' defined more than once", sym));
+		  xerror ("'%s' defined more than once", sym);
 		  return (NULL);
 		}
 	      } else {
@@ -374,8 +374,7 @@ SymDesc *addSym (char *sym, int qual, int stts, int mode, int estat) {
 	      }
 	      if (cs->Mode != FREE) {
 		if (mode != FREE && mode != cs->Mode) {
-		  xerror (form ("'%s' mode conflicts with previous declaration",
-		    sym));
+		  xerror ("'%s' mode conflicts with previous declaration", sym);
 		  return (NULL);
 		}
 	      } else {
@@ -383,7 +382,7 @@ SymDesc *addSym (char *sym, int qual, int stts, int mode, int estat) {
 	      }
 	      if (cs->EStat != estat) {
 		if (cs->EStat == UNEXPOSABLE) {
-		  xerror (form ("'%s' is unexposable", cs->Name));
+		  xerror ("'%s' is unexposable", cs->Name);
 		  return (NULL);
 		}
 		if (estat == ANNOUNCED) cs->EStat = ANNOUNCED;
@@ -523,18 +522,25 @@ static INLINE int peekC () {
 	return (*OutP);
 }
 
-void    xerror (char *t) {
+void    xerror (const char *t, ...) {
 
 /* ----------------------- */
 /* Print out error message */
 /* ----------------------- */
 
+	va_list	ap;
 	char    *s;
+
+	va_start (ap, t);
 
 	ErrorsFound++;
 	write (STDERR, CFName, strlen (CFName));
-	s = form (":%1d: %s\n", LineNumber, t);
+	s = form (":%1d: ", LineNumber);
 	write (STDERR, s, strlen (s));
+	s = vform (t, ap);
+	write (STDERR, s, strlen (s));
+	write (STDERR, "\n", 1);
+
 	if (ErrorsFound < MAXERRCNT) return;
 	// That's it: ignore the rest of the program
 	write (STDERR, CFName, strlen (CFName));
@@ -855,7 +861,7 @@ int     isState (char *st) {
 	char    **sl;
 
 	if ((sl = CodeObject->States) == NULL) {
-		xerror (form ("no states declared for '%s'", CodeObject->Name));
+		xerror ("no states declared for '%s'", CodeObject->Name);
 		return (NO);
 	}
 
@@ -863,7 +869,7 @@ int     isState (char *st) {
 		if (strcmp (*sl, st) == 0) break;
 
 	if (*sl == NULL) {
-	  xerror (form ("'%s' is not a state for '%s'", st, CodeObject->Name));
+	  xerror ("'%s' is not a state for '%s'", st, CodeObject->Name);
 	  return (NO);
 	}
 
@@ -884,7 +890,7 @@ char    *isStateP (char *st) {
 	for (p = CodeObject; p != NULL && (sl = p->States) == NULL;
           p = p->Parent);
 	if (sl == NULL) {
-	  xerror (form ("no states visible from '%s'", CodeObject->Name));
+	  xerror ("no states visible from '%s'", CodeObject->Name);
 	  return (NULL);
 	}
 
@@ -892,8 +898,7 @@ char    *isStateP (char *st) {
 		if (strcmp (*sl, st) == 0) break;
 
 	if (*sl == NULL) {
-          xerror (form ("'%s' is not a legal state for '%s'",
-            st, CodeObject->Name));
+          xerror ("'%s' is not a legal state for '%s'", st, CodeObject->Name);
 	  return (NULL);
 	}
 
@@ -1322,8 +1327,8 @@ int     processStates (int del) {
 	}
 
 	if (CObject->States != NULL) {
-		xerror (form ("duplicate 'states' declaration for '%s'",
-			CObject->Name));
+		xerror ("duplicate 'states' declaration for '%s'",
+			CObject->Name);
 		return (NO);
 	}
 
@@ -1342,7 +1347,7 @@ int     processStates (int del) {
 		// Check against double occurrence
 		for (i = 0; i < ns; i++) {
 		  if (strcmp (sl [i], arg) == 0) {
-		    xerror (form ("state '%s' multiply defined", arg));
+		    xerror ("state '%s' multiply defined", arg);
 		    delete (sl);
 		    return (NO);
 		  }
@@ -1696,21 +1701,28 @@ ProcErr:
 	return (YES);
 }
 
-int     processEobject (int del) {
+int     process_nt (
+		int del,		// Delimiter
+		int xt,			// Type ordinal
+		const char *ki,		// Declaration keyword
+		const char *ky,		// Base type name
+		int es,			// Exposure status
+		int si			// State inheritance
+	) {
 
-/* ------------------------------------ */
-/* Expands the EObject type declaration */
-/* ------------------------------------ */
+/* --------------------------------------------------------- */
+/* Expands a simple type declaration, e.g., eobject, station */
+/* --------------------------------------------------------- */
 
 	char    arg [MAXKWDLEN+1], par [MAXKWDLEN+1];
 	int     lc, mode, fsup, empty;
 	SymDesc *ob, *co;
 
-	// eobject A [virtual];
+	// something A [virtual|abstract];
 	// expands into 'class A;'
 	//
-	// eobject A [virtual] : symlist {
-	// eobject A [virtual] {
+	// something A [virtual|abstract] : symlist {
+	// eobject A [virtual|abstract] {
 	//
 	// expands into:
 	//
@@ -1724,20 +1736,23 @@ int     processEobject (int del) {
 	empty = NO;
 	if (lc == END) {
 Endfile:
-		xerror ("file ends in the middle of 'eobject' declaration");
+		xerror ("file ends in the middle of '%s' declaration", ki);
 		return (NO);
 	}
 	if (lc == ERROR || !isalpha (lc) && lc != '_' && lc != '$') return (NO);
 
-	// This is the EObject type name
 	lc = getKeyword (arg, lc);
 
 	// Determine the delimiter
-
 	if (lc == ';') {
 		// Just announcing the type
-		if (!addSym (arg, EOBJECT)) return (NO);
+		if (!addSym (arg, xt, ANNOUNCED, FREE, es)) return (NO);
 Announce:
+		if (CodeType) {
+CodeError:
+			xerror ("%s declaration within a code method", ki);
+			return (NO);
+		}
 		putC ("class ");
 		putC (arg);
 		putC (';');
@@ -1746,27 +1761,36 @@ Announce:
 	}
 
 	if (lc != ':' && lc != '{') {
-		// Check if followed by 'virtual'
+
+		// Check if followed by 'virtual' or 'abstract'
 		lc = getKeyword (par, lc);
 		if (lc == ERROR) return (NO);
 		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
+
+		if (strcmp (par, "virtual") == 0)
+			mode = VIRTUAL;
+		else if (strcmp (par, "abstract") == 0)
+			mode = ABSTRACT;
+		else {
 Synerror:
-			xerror ("'eobject' declaration syntax error");
+			xerror ("'%s' declaration syntax error", ki);
 			return (NO);
 		}
+
 		if (lc == ';') {
-			if (!addSym (arg, EOBJECT, ANNOUNCED, VIRTUAL))
+			if (!addSym (arg, xt, ANNOUNCED, mode, es))
 				return (NO);
 			goto Announce;
 		}
 		if (lc != ':' && lc != '{') goto Synerror;
-		mode = VIRTUAL;
 	} else {
 		mode = REAL;
 	}
 
-	if (!(co = addSym (arg, EOBJECT, DEFINED, mode))) return (NO);
+	if (!(co = addSym (arg, xt, DEFINED, mode, es))) return (NO);
+
+	if (CodeType)
+		goto CodeError;
 
 	putC ("class "); putC (arg);
 
@@ -1779,16 +1803,15 @@ Synerror:
 			if (lc == ERROR) return (NO);
 			if (lc == END) goto Endfile;
 			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
+				xerror ("'%s' refers to itself", par);
 				goto Assumereal;
 			}
 			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
+				xerror ("'%s' undefined", par);
 				goto Assumereal;
 			}
-			if (!isDefined (ob, EOBJECT, DEFINED)) {
-				xerror (form ("'%s' not a defined EObject",
-					par));
+			if (!isDefined (ob, xt, DEFINED)) {
+				xerror ("'%s' not a defined %s", par, ki);
 				goto Assumereal;
 			}
 			if (fsup) {
@@ -1796,19 +1819,28 @@ Synerror:
 				fsup = NO;
 				// The first keyword
 				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
+					if (mode != VIRTUAL) {
 						// Force the REAL status
-						putC ("public EObject, ");
+						putC ("public ");
+						putC (ky);
+						putC (", ");
 					} 
 				} else {
 					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
+xerror ("'%s' declared virtual but '%s' is not virtual", arg, par);
 						goto Assumereal;
+					}
+					if (si) {
+						// Inherit states
+						if (ob->States)
+							co->Parent = ob;
+						else
+							co->Parent = ob->Parent;
 					}
 				}
 			} else {
 				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
+				    xerror ("'%s' is not virtual", par);
 				}
 			}
 Assumereal:
@@ -1824,12 +1856,19 @@ Assumereal:
 			} else goto Synerror;
 		}
 	} else {
-		// Derived from EObject or from nothing
-		if (mode != VIRTUAL) putC (" : public EObject");
+		// Derived from base or from nothing
+		if (mode != VIRTUAL) {
+			putC (" : public ");
+			putC (ky);
+		}
 	}
 
 	putC (" { public: ");
-        genDCons (arg);
+
+	if (es == EXPOSABLE)
+		// This test is confusing, but es == UNEXPOSABLE also identifies
+		// Message and Packet
+        	genDCons (arg);
 
 	if (!empty) {
 		if (pushDecl (co) == NO) return (NO);
@@ -1837,9 +1876,17 @@ Assumereal:
 	}
 
 	if (mode != VIRTUAL) {
-		putC ("virtual char *getTName () { return (\"");
-		putC (arg);
-		putC ("\"); }; ");
+		if (es == EXPOSABLE) {
+			// This won't hurt abstract types, will it?
+			putC ("virtual char *getTName () { return (\"");
+			putC (arg);
+			putC ("\"); }; ");
+		} else {
+			// This is for packets and messages
+			putC ("virtual int frameSize () { return (sizeof (");
+			putC (arg);
+			putC (")); };");
+		}
 	}
 	catchUp ();
 	if (empty) {
@@ -1849,164 +1896,73 @@ Assumereal:
 	return (YES);
 }
 
+int     processEobject (int del) {
+
+	return process_nt (del, EOBJECT, "eobject", "EObject", EXPOSABLE, NO);
+}
+
 int     processStation (int del) {
 
-/* ------------------------------------ */
-/* Expands the Station type declaration */
-/* ------------------------------------ */
+	return process_nt (del, STATION, "station", "Station", EXPOSABLE, NO);
+}
 
-	char    arg [MAXKWDLEN+1], par [MAXKWDLEN+1];
-	int     lc, mode, fsup, empty;
-	SymDesc *ob, *co;
+int     processObserver (int del) {
 
-	// station A [virtual];
-	// expands into 'class A;'
-	//
-	// station A [virtual] : symlist {
-	// station A [virtual] {
-	//
-	// expands into:
-	//
-	// class A : symlist {          // public added in front of each item
-	//               public:
-	//               virtual char *getTName () {
-	//                   return ("A");
-	//               };
+	return process_nt (del, OBSERVER, "observer", "Observer", EXPOSABLE,
+		YES);
+}
 
-	if (CodeType) {
-		xerror ("station declaration within a code method");
-		return (NO);
+int     processMessage (int del) {
+
+	int res;
+
+	res = process_nt (del, MESSAGE, "message", "Message", UNEXPOSABLE, NO);
+	if (res && NoClient) {
+		xerror ("'message' illegal with -C (no Client)");
+		return NO;
 	}
 
-	lc = del;
-	empty = NO;
+	return res;
+}
 
-	if (lc == END) {
-Endfile:
-		xerror ("file ends in the middle of station declaration");
-		return (NO);
-	}
-	if (lc == ERROR || !isalpha (lc) && lc != '_' && lc != '$') return (NO);
+int     processPacket (int del) {
 
-	// This is the new Station type name
-	lc = getKeyword (arg, lc);
+	int res;
 
-	// Determine the delimiter
-
-	if (lc == ';') {
-		// Just announcing the type
-		if (!addSym (arg, STATION)) return (NO);
-Announce:
-		putC ("class ");
-		putC (arg);
-		putC (';');
-		catchUp ();
-		return (YES);
+	res = process_nt (del, PACKET, "packet", "Packet", UNEXPOSABLE, NO);
+	if (res && NoClient) {
+		xerror ("'packet' illegal with -C (no Client)");
+		return NO;
 	}
 
-	if (lc != ':' && lc != '{') {
-		// Check if followed by 'virtual'
-		lc = getKeyword (par, lc);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
-Synerror:
-			xerror ("station declaration syntax error");
-			return (NO);
-		}
-		if (lc == ';') {
-			if (!addSym (arg, STATION, ANNOUNCED, VIRTUAL))
-				return (NO);
-			goto Announce;
-		}
-		if (lc != ':' && lc != '{') goto Synerror;
-		mode = VIRTUAL;
-	} else {
-		mode = REAL;
+	return res;
+}
+
+int     processLink (int del) {
+
+	int res;
+
+	res = process_nt (del, LINK, "link", "Link", EXPOSABLE, NO);
+	if (res && NoLink) {
+		xerror ("'link' illegal with -L (no links)");
+		return NO;
 	}
 
-	if (!(co = addSym (arg, STATION, DEFINED, mode))) return (NO);
+	return res;
+}
 
-	putC ("class "); putC (arg);
+int     processRFChannel (int del) {
 
-	fsup = YES;
-	if (lc == ':') {
-		// Derived from something: go through the list of identifiers
-		// and append them to the declaration
-		while (1) {
-			lc = getKeyword (par);
-			if (lc == ERROR) return (NO);
-			if (lc == END) goto Endfile;
-			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
-				goto Assumereal;
-			}
-			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
-				goto Assumereal;
-			}
-			if (!isDefined (ob, STATION, DEFINED)) {
-				xerror (form ("'%s' not a defined Station",
-					par));
-				goto Assumereal;
-			}
-			if (fsup) {
-				putC (" : ");
-				fsup = NO;
-				// The first keyword
-				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
-						// Force the REAL status
-						putC ("public Station, ");
-					} 
-				} else {
-					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
-						goto Assumereal;
-					}
-				}
-			} else {
-				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
-				}
-			}
-Assumereal:
-			putC ("public ");
-			putC (par);
-			if (lc == ',') {
-				putC (',');
-			} else if (lc == '{') {
-				break;
-			} else if (lc == ';') {
-				empty = YES;
-				break;
-			} else goto Synerror;
-		}
-	} else {
-		// Derived from Station or from nothing
-		if (mode != VIRTUAL) putC (" : public Station");
+	int res;
+
+	res = process_nt (del, RFCHANNEL, "rfchannel", "RFChannel", EXPOSABLE,
+		NO);
+	if (res && NoRFC) {
+		xerror ("'rfchannel' illegal with -X (no RF channels)");
+		return NO;
 	}
 
-	putC (" { public: ");
-        genDCons (arg);
-
-	if (!empty) {
-		if (pushDecl (co) == NO) return (NO);
-		BraceLevel++;
-	}
-
-	if (mode != VIRTUAL) {
-		putC ("virtual char *getTName () { ");
-		putC ("return (\"");
-		putC (arg);
-		putC ("\"); }; ");
-	}
-	catchUp ();
-	if (empty) {
-		putC ("}; ");
-		emitBuilder (co);
-	}
-	return (YES);
+	return res;
 }
 
 int     processProcess (int del) {
@@ -2070,22 +2026,27 @@ Announce:
 	}
 
 	if (lc != ':' && lc != '{' && lc != '(') {
+
 		// Check if followed by 'virtual'
 		lc = getKeyword (par, lc);
 		if (lc == ERROR) return (NO);
 		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
+
+		if (strcmp (par, "virtual") == 0)
+			mode = VIRTUAL;
+		else if (strcmp (par, "abstract") == 0)
+			mode = ABSTRACT;
+		else {
 Synerror:
-			xerror ("process declaration syntax error");
+			xerror ("'process' declaration syntax error");
 			return (NO);
 		}
+
 		if (lc == ';') {
-			if (!addSym (arg, PROCESS, ANNOUNCED, VIRTUAL))
+			if (!addSym (arg, PROCESS, ANNOUNCED, mode))
 				return (NO);
 			goto Announce;
 		}
-		if (lc != ':' && lc != '{' && lc != '(') goto Synerror;
-		mode = VIRTUAL;
 	} else {
 		mode = REAL;
 	}
@@ -2093,6 +2054,8 @@ Synerror:
 	if (!(co = addSym (arg, PROCESS, DEFINED, mode))) return (NO);
 
 	if (mode == REAL) {
+	    // I guess, this isn't needed for abstract processes as well as
+	    // for virtual ones
 	    strcpy (par, "zz_");
 	    strcat (par, arg);
 	    strcat (par, "_prcs");
@@ -2114,16 +2077,15 @@ Synerror:
 			if (lc == ERROR) return (NO);
 			if (lc == END) goto Endfile;
 			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
+				xerror ("'%s' refers to itself", par);
 				goto Assumereal;
 			}
 			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
+				xerror ("'%s' undefined", par);
 				goto Assumereal;
 			}
 			if (!isDefined (ob, PROCESS, DEFINED)) {
-				xerror (form ("'%s' not a defined Process",
-					par));
+				xerror ("'%s' not a defined Process", par);
 				goto Assumereal;
 			}
 			if (fsup) {
@@ -2131,13 +2093,13 @@ Synerror:
 				fsup = NO;
 				// The first keyword
 				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
+					if (mode != VIRTUAL) {
 						// Force the REAL status
 						putC ("public Process, ");
 					} 
 				} else {
 					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
+xerror ("'%s' declared virtual but '%s' is not virtual", arg, par);
 						goto Assumereal;
 					}
 					if (ob->States)
@@ -2147,7 +2109,7 @@ xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
 				}
 			} else {
 				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
+				    xerror ("'%s' is not virtual", par);
 				}
 			}
 Assumereal:
@@ -2174,7 +2136,8 @@ Assumereal:
 
 	if (lc == '(') {
 		if (mode == VIRTUAL) {
-xerror ("virtual process cannot specify father process or owning station");
+			xerror ("a virtual process cannot specify "
+				"father process or owning station");
 			return (NO);
 		}
 		// Owning station type goes first
@@ -2182,11 +2145,11 @@ xerror ("virtual process cannot specify father process or owning station");
 		if (lc == ERROR) return (NO);
 		if (lc == END) goto Endfile;
 		if ((ob = getSym (sar)) == NULL) {
-			xerror (form ("'%s' undefined", sar));
+			xerror ("'%s' undefined", sar);
 		} else if (!isDefined (ob, STATION, ANNOUNCED)) {
-			xerror (form ("'%s' not defined as 'Station'", sar));
+			xerror ("'%s' not defined as 'Station'", sar);
 		} else if (ob->Mode == VIRTUAL) {
-			xerror (form ("'%s' is virtual", sar));
+			xerror ("'%s' is virtual", sar);
 		}
 
 		// Continue with this error
@@ -2196,11 +2159,11 @@ xerror ("virtual process cannot specify father process or owning station");
 			if (lc == ERROR) return (NO);
 			if (lc == END) goto Endfile;
 			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
+				xerror ("'%s' undefined", par);
 			} else if (!isDefined (ob, PROCESS, ANNOUNCED)) {
-			   xerror (form ("'%s' not defined as 'Process'", par));
+			   xerror ("'%s' not defined as 'Process'", par);
 			} else if (ob->Mode == VIRTUAL) {
-			   xerror (form ("'%s' is virtual", par));
+			   xerror ("'%s' is virtual", par);
 			}
 		}
 		if (lc != ')') goto Synerror;
@@ -2229,7 +2192,7 @@ xerror ("virtual process cannot specify father process or owning station");
 		putC (par);
 		putC (" *F; ");
 	}
-	if (mode == REAL) {
+	if (mode != VIRTUAL) {
 		putC (arg);
 		putC (" () { ");
 		if (sar [0] != '\0') {
@@ -2244,9 +2207,13 @@ xerror ("virtual process cannot specify father process or owning station");
 			putC (par);
 			putC ("*)TheProcess; ");
 		}
-		putC ("zz_typeid = (void*) (&zz_");
-		putC (arg);
-		putC ("_prcs); }; virtual char *getTName () { return (\"");
+		if (mode == REAL) {
+			putC ("zz_typeid = (void*) (&zz_");
+			putC (arg);
+			putC ("_prcs); ");
+		}
+
+		putC (" }; virtual char *getTName () { return (\"");
 		putC (arg);
 		putC ("\"); };");
 	} else {
@@ -2320,18 +2287,22 @@ Announce:
 		lc = getKeyword (par, lc);
 		if (lc == ERROR) return (NO);
 		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
+
+		if (strcmp (par, "virtual") == 0)
+			mode = VIRTUAL;
+		else if (strcmp (par, "abstract") == 0)
+			mode = ABSTRACT;
+		else {
 Synerror:
-			xerror ("mailbox declaration syntax error");
+			xerror ("'mailbox' declaration syntax error");
 			return (NO);
 		}
+
 		if (lc == ';') {
-			if (!addSym (arg, MAILBOX, ANNOUNCED, VIRTUAL))
+			if (!addSym (arg, PROCESS, ANNOUNCED, mode))
 				return (NO);
 			goto Announce;
 		}
-		if (lc != ':' && lc != '{' && lc != '(') goto Synerror;
-		mode = VIRTUAL;
 	} else {
 		mode = REAL;
 	}
@@ -2350,16 +2321,15 @@ Synerror:
 			if (lc == ERROR) return (NO);
 			if (lc == END) goto Endfile;
 			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
+				xerror ("'%s' refers to itself", par);
 				goto Assumereal;
 			}
 			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
+				xerror ("'%s' undefined", par);
 				goto Assumereal;
 			}
 			if (!isDefined (ob, MAILBOX, DEFINED)) {
-				xerror (form ("'%s' not a defined Mailbox",
-					par));
+				xerror ("'%s' not a defined Mailbox", par);
 				goto Assumereal;
 			}
 			if (fsup) {
@@ -2367,19 +2337,19 @@ Synerror:
 				fsup = NO;
 				// The first keyword
 				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
+					if (mode != VIRTUAL) {
 						// Force the REAL status
 						putC ("public Mailbox, ");
 					} 
 				} else {
 					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
+xerror ("'%s' declared virtual but '%s' is not virtual", arg, par);
 						goto Assumereal;
 					}
 				}
 			} else {
 				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
+				    xerror ("'%s' is not virtual", par);
 				}
 			}
 Assumereal:
@@ -2406,7 +2376,8 @@ Assumereal:
 
 	if (lc == '(') {
 		if (mode == VIRTUAL) {
-			xerror ("virtual mailbox cannot specify element type");
+			xerror ("a virtual mailbox cannot specify "
+				"element type");
 			return (NO);
 		}
 		lc = getArg (par);
@@ -2454,7 +2425,7 @@ Assumereal:
 		strcpy ((char*)(co->States), par);
 	}
 
-	if (mode == REAL) {
+	if (mode != VIRTUAL) {
 		putC ("virtual char *getTName () { return (\"");
 		putC (arg);
 		putC ("\"); };");
@@ -2792,7 +2763,7 @@ char	*pfmtype;
 
 void	pxerror (char *s) {
 
-	xerror (form ("%s %s", pfmtype, s));
+	xerror ("%s %s", pfmtype, s);
 }
 
 int     prcPFM (int del) {
@@ -2866,164 +2837,6 @@ int	processPFMPTR (int del) { pfmtype = "pfmPTR"; return (prcPFM (del)); }
 int	processPFMPRC (int del) { pfmtype = "pfmPRC"; return (prcPFM (del)); }
 int	processPFMPDE (int del) { pfmtype = "pfmPDE"; return (prcPFM (del)); }
 
-int     processObserver (int del) {
-
-/* ------------------------------------- */
-/* Expands the Observer type declaration */
-/* ------------------------------------- */
-
-	char    arg[MAXKWDLEN+1], par[MAXKWDLEN+1];
-	int     lc, mode, fsup, empty;
-	SymDesc *ob, *co;
-
-	// process A [virtual];                 -> class A;
-	// process A [virtual] [: symlist] {
-	//
-	// class A : symlist {          // public inserted before each symbol
-	//                              // absent symlist -> 'public Observer'
-	//
-	//   virtual char *getTName () {
-	//      return ("A");
-	//   };
-
-	if (CodeType) {
-		xerror ("observer declaration within a code method");
-		return (NO);
-	}
-	lc = del;
-	empty = NO;
-	if (lc == END) {
-Endfile:
-		xerror ("file ends in the middle of observer declaration");
-		return (NO);
-	}
-	if (lc == ERROR || !isalpha (lc) && lc != '_' && lc != '$') return (NO);
-
-	// This is the new process type name
-	lc = getKeyword (arg, lc);
-
-	// Determine the delimiter
-
-	if (lc == ';') {
-		// Just announcing the type
-		if (!addSym (arg, OBSERVER)) return (NO);
-Announce:
-		putC ("class ");
-		putC (arg);
-		putC (';');
-		catchUp ();
-		return (YES);
-	}
-
-	if (lc != ':' && lc != '{') {
-		// Check if followed by 'virtual'
-		lc = getKeyword (par, lc);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
-Synerror:
-			xerror ("observer declaration syntax error");
-			return (NO);
-		}
-		if (lc == ';') {
-			if (!addSym (arg, OBSERVER, ANNOUNCED, VIRTUAL))
-				return (NO);
-			goto Announce;
-		}
-		if (lc != ':' && lc != '{') goto Synerror;
-		mode = VIRTUAL;
-	} else {
-		mode = REAL;
-	}
-
-	if (!(co = addSym (arg, OBSERVER, DEFINED, mode))) return (NO);
-
-	putC ("class ");
-	putC (arg);
-
-	fsup = YES;
-	if (lc == ':') {
-		// Derived from something: go through the list of identifiers
-		// and append them to the declaration
-		while (1) {
-			lc = getKeyword (par);
-			if (lc == ERROR) return (NO);
-			if (lc == END) goto Endfile;
-			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
-				goto Assumereal;
-			}
-			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
-				goto Assumereal;
-			}
-			if (!isDefined (ob, OBSERVER, DEFINED)) {
-				xerror (form ("'%s' not a defined Observer",
-					par));
-				goto Assumereal;
-			}
-			if (fsup) {
-				putC (" : ");
-				fsup = NO;
-				// The first keyword
-				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
-						// Force the REAL status
-						putC ("public Observer, ");
-					} 
-				} else {
-					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
-						goto Assumereal;
-					}
-					if (ob->States)
-						co->Parent = ob;
-					else
-						co->Parent = ob->Parent;
-				}
-			} else {
-				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
-				}
-			}
-Assumereal:
-			putC ("public ");
-			putC (par);
-			if (lc == ',') {
-				putC (',');
-			} else if (lc == '{') {
-				break;
-			} else if (lc == ';') {
-				empty = YES;
-				break;
-			} else goto Synerror;
-		}
-	} else {
-		// Derived from Observer or from nothing
-		if (mode != VIRTUAL) putC (" : public Observer");
-	}
-
-	putC (" { public: ");
-        genDCons (arg);
-
-	if (!empty) {
-		if (pushDecl (co) == NO) return (NO);
-		BraceLevel++;
-	}
-
-	if (mode == REAL) {
-		putC ("virtual char *getTName () { return (\"");
-		putC (arg);
-		putC ("\"); };");
-	}
-	catchUp ();
-	if (empty) {
-		putC ("}; ");
-		emitBuilder (co);
-	}
-	return (YES);
-}
-
 int     doPerform (int del, SymDesc *obj) {
 
 /* --------------------------------- */
@@ -3057,7 +2870,7 @@ int     doPerform (int del, SymDesc *obj) {
 			xerror ("'perform' announced incorrectly");
 			return (NO);
 		}
-		if (obj->Mode != REAL) {
+		if (obj->Mode == VIRTUAL) {
 Modeerr:
 			xerror ("'perform' illegal in a virtual process");
 			return (NO);
@@ -3081,7 +2894,7 @@ Modeerr:
 	putC ("zz_code () {");
 	CodeWasState = NO;
 
-	if (obj->Mode != REAL) goto Modeerr;
+	if (obj->Mode == VIRTUAL) goto Modeerr;
 
 	obj->PAnn = YES;
 
@@ -3154,18 +2967,22 @@ Announce:
 		lc = getKeyword (par, lc);
 		if (lc == ERROR) return (NO);
 		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
+
+		if (strcmp (par, "virtual") == 0)
+			mode = VIRTUAL;
+		else if (strcmp (par, "abstract") == 0)
+			mode = ABSTRACT;
+		else {
 Synerror:
-			xerror ("traffic declaration syntax error");
+			xerror ("'traffic' declaration syntax error");
 			return (NO);
 		}
+
 		if (lc == ';') {
-			if (!addSym (arg, TRAFFIC, ANNOUNCED, VIRTUAL))
+			if (!addSym (arg, PROCESS, ANNOUNCED, mode))
 				return (NO);
 			goto Announce;
 		}
-		if (lc != ':' && lc != '{' && lc != '(') goto Synerror;
-		mode = VIRTUAL;
 	} else {
 		mode = REAL;
 	}
@@ -3183,16 +3000,15 @@ Synerror:
 			if (lc == ERROR) return (NO);
 			if (lc == END) goto Endfile;
 			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
+				xerror ("'%s' refers to itself", par);
 				goto Assumereal;
 			}
 			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
+				xerror ("'%s' undefined", par);
 				goto Assumereal;
 			}
 			if (!isDefined (ob, TRAFFIC, DEFINED)) {
-				xerror (form ("'%s' not a defined Traffic",
-					par));
+				xerror ("'%s' not a defined Traffic", par);
 				goto Assumereal;
 			}
 			if (fsup) {
@@ -3200,19 +3016,19 @@ Synerror:
 				fsup = NO;
 				// The first keyword
 				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
+					if (mode != VIRTUAL) {
 						// Force the REAL status
 						putC ("public Traffic, ");
 					} 
 				} else {
 					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
+xerror ("'%s' declared virtual but '%s' is not virtual", arg, par);
 						goto Assumereal;
 					}
 				}
 			} else {
 				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
+				    xerror ("'%s' is not virtual", par);
 				}
 			}
 Assumereal:
@@ -3236,9 +3052,9 @@ Assumereal:
 	mar [0] = par [0] = '\0';
 
 	if (lc == '(') {
-		if (mode != REAL) {
-			xerror (
-   "virtual traffic type cannot specify associated message and/or packet type");
+		if (mode == VIRTUAL) {
+			xerror ("virtual traffic type cannot "
+			    "specify associated message and/or packet type");
 			return (NO);
 		}
 		// Message type goes first
@@ -3246,11 +3062,11 @@ Assumereal:
 		if (lc == ERROR) return (NO);
 		if (lc == END) goto Endfile;
 		if ((ob = getSym (mar)) == NULL) {
-			xerror (form ("'%s' undefined", mar));
+			xerror ("'%s' undefined", mar);
 		} else if (!isDefined (ob, MESSAGE, ANNOUNCED)) {
-			xerror (form ("'%s' not defined as 'Message'", mar));
+			xerror ("'%s' not defined as 'Message'", mar);
 		} else if (ob->Mode == VIRTUAL) {
-			xerror (form ("'%s' is virtual", mar));
+			xerror ("'%s' is virtual", mar);
 		}
 		// Continue with this error
 		if (lc == ',') {
@@ -3259,11 +3075,11 @@ Assumereal:
 			if (lc == ERROR) return (NO);
 			if (lc == END) goto Endfile;
 			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
+				xerror ("'%s' undefined", par);
 			} else if (!isDefined (ob, PACKET, ANNOUNCED)) {
-			   xerror (form ("'%s' not defined as 'Packet'", par));
+			   xerror ("'%s' not defined as 'Packet'", par);
 			} else if (ob->Mode == VIRTUAL) {
-			   xerror (form ("'%s' is virtual", par));
+			   xerror ("'%s' is virtual", par);
 			}
 			// Continue with this error
 		}
@@ -3308,325 +3124,7 @@ Assumereal:
 		putC (" { public: ");
         	genDCons (arg);
 	}
-	catchUp ();
-	if (empty) {
-		putC ("}; ");
-		emitBuilder (co);
-	}
-	return (YES);
-}
 
-int     processMessage (int del) {
-
-/* ------------------------------------ */
-/* Expands the Message type declaration */
-/* ------------------------------------ */
-
-	char    arg [MAXKWDLEN+1], par [MAXKWDLEN+1];
-	int     lc, mode, fsup, empty;
-	SymDesc *ob, *co;
-
-	// message A [virtual];                 -> class A;
-	// message A [virtual] [: symlist] {
-	//
-	// expands as:
-	//
-	// class A : symlist {                  // public inserted
-	//       public:
-	//       virtual int frameSize () { return (sizeof (A)); };
-
-	lc = del;
-	empty = NO;
-	if (lc == END) {
-Endfile:
-		xerror ("file ends in the middle of 'message' declaration");
-		return (NO);
-	}
-	if (lc == ERROR || !isalpha (lc) && lc != '_' && lc != '$') return (NO);
-
-	if (CodeType) {
-		xerror ("'message' declaration within a code method");
-		return (NO);
-	}
-	if (NoClient) {
-		xerror ("'message' illegal with -C (no Client)");
-		return NO;
-	}
-
-	// This is the new Message type name
-	lc = getKeyword (arg, lc);
-
-	// Determine the delimiter
-
-	if (lc == ';') {
-		// Just announcing the type
-		if (!addSym (arg, MESSAGE, ANNOUNCED, FREE, UNEXPOSABLE))
-			return (NO);
-Announce:
-		putC ("class ");
-		putC (arg);
-		putC (';');
-		catchUp ();
-		return (YES);
-	}
-
-	if (lc != ':' && lc != '{') {
-		// Check if followed by 'virtual'
-		lc = getKeyword (par, lc);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
-Synerror:
-			xerror ("'message' declaration syntax error");
-			return (NO);
-		}
-		if (lc == ';') {
-			if (!addSym (arg, MESSAGE, ANNOUNCED, VIRTUAL,
-			    UNEXPOSABLE))
-				return (NO);
-			goto Announce;
-		}
-		if (lc != ':' && lc != '{') goto Synerror;
-		mode = VIRTUAL;
-	} else {
-		mode = REAL;
-	}
-
-	if (!(co = addSym (arg, MESSAGE, DEFINED, mode, UNEXPOSABLE)))
-		return (NO);
-
-	putC ("class ");
-	putC (arg);
-
-	fsup = YES;
-	if (lc == ':') {
-		// Derived from something: go through the list of identifiers
-		// and append them to the declaration
-		while (1) {
-			lc = getKeyword (par);
-			if (lc == ERROR) return (NO);
-			if (lc == END) goto Endfile;
-			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
-				goto Assumereal;
-			}
-			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
-				goto Assumereal;
-			}
-			if (!isDefined (ob, MESSAGE, DEFINED)) {
-				xerror (form ("'%s' not a defined Message",
-					par));
-				goto Assumereal;
-			}
-			if (fsup) {
-				putC (" : ");
-				fsup = NO;
-				// The first keyword
-				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
-						// Force the REAL status
-						putC ("public Message, ");
-					} 
-				} else {
-					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
-						goto Assumereal;
-					}
-				}
-			} else {
-				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
-				}
-			}
-Assumereal:
-			putC ("public ");
-			putC (par);
-			if (lc == ',') {
-				putC (',');
-			} else if (lc == '{') {
-				break;
-			} else if (lc == ';') {
-				empty = YES;
-				break;
-			} else goto Synerror;
-		}
-	} else {
-		// Derived from Message or from nothing
-		if (mode != VIRTUAL) putC (" : public Message");
-	}
-
-	if (!empty) {
-		if (pushDecl (co) == NO) return (NO);
-		BraceLevel++;
-	}
-
-	putC (" { public: ");
-        // genDCons (arg);   Let us wait with this for a while
-	if (mode != VIRTUAL) {
-		putC ("virtual int frameSize () { return (sizeof (");
-		putC (arg);
-		putC (")); };");
-	}
-	catchUp ();
-	if (empty) {
-		putC ("}; ");
-		emitBuilder (co);
-	}
-	return (YES);
-}
-
-int     processPacket (int del) {
-
-/* ----------------------------------- */
-/* Expands the Packet type declaration */
-/* ----------------------------------- */
-
-	char    arg [MAXKWDLEN+1], par [MAXKWDLEN+1];
-	int     lc, mode, fsup, empty;
-	SymDesc *ob, *co;
-
-	// packet A;                            -> class A;
-	// packet A : symlist {
-	//
-	// expands as:
-	//
-	// class A : symlist {                  // public inserted
-	//       public:
-	//       virtual int frameSize () { return (sizeof (A)); };
-
-	lc = del;
-	empty = NO;
-	if (lc == END) {
-Endfile:
-		xerror ("file ends in the middle of 'packet' declaration");
-		return (NO);
-	}
-	if (lc == ERROR || !isalpha (lc) && lc != '_' && lc != '$') return (NO);
-
-	if (CodeType) {
-		xerror ("'packet' declaration within a code method");
-		return (NO);
-	}
-	if (NoClient) {
-		xerror ("'packet' illegal with -C (no Client)");
-		return NO;
-	}
-
-	// This is the new Packet type name
-	lc = getKeyword (arg, lc);
-
-	// Determine the delimiter
-
-	if (lc == ';') {
-		// Just announcing the type
-		if (!addSym (arg, PACKET, ANNOUNCED, FREE, UNEXPOSABLE))
-			return (NO);
-Announce:
-		putC ("class ");
-		putC (arg);
-		putC (';');
-		catchUp ();
-		return (YES);
-	}
-
-	if (lc != ':' && lc != '{') {
-		// Check if followed by 'virtual'
-		lc = getKeyword (par, lc);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
-Synerror:
-			xerror ("'packet' declaration syntax error");
-			return (NO);
-		}
-		if (lc == ';') {
-			if (!addSym (arg, PACKET, ANNOUNCED, VIRTUAL,
-			    UNEXPOSABLE))
-				return (NO);
-			goto Announce;
-		}
-		if (lc != ':' && lc != '{') goto Synerror;
-		mode = VIRTUAL;
-	} else {
-		mode = REAL;
-	}
-
-	if (!(co = addSym (arg, PACKET, DEFINED, mode, UNEXPOSABLE)))
-		return (NO);
-
-	putC ("class "); putC (arg);
-
-	fsup = YES;
-	if (lc == ':') {
-		// Derived from something: go through the list of identifiers
-		// and append them to the declaration
-		while (1) {
-			lc = getKeyword (par);
-			if (lc == ERROR) return (NO);
-			if (lc == END) goto Endfile;
-			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
-				goto Assumereal;
-			}
-			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
-				goto Assumereal;
-			}
-			if (!isDefined (ob, PACKET, DEFINED)) {
-				xerror (form ("'%s' not a defined Packet",
-					par));
-				goto Assumereal;
-			}
-			if (fsup) {
-				putC (" : ");
-				fsup = NO;
-				// The first keyword
-				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
-						// Force the REAL status
-						putC ("public Packet, ");
-					} 
-				} else {
-					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
-						goto Assumereal;
-					}
-				}
-			} else {
-				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
-				}
-			}
-Assumereal:
-			putC ("public ");
-			putC (par);
-			if (lc == ',') {
-				putC (',');
-			} else if (lc == '{') {
-				break;
-			} else if (lc == ';') {
-				empty = YES;
-				break;
-			} else goto Synerror;
-		}
-	} else {
-		// Derived from Packet or from nothing
-		if (mode != VIRTUAL) putC (" : public Packet");
-	}
-
-	if (!empty) {
-		if (pushDecl (co) == NO) return (NO);
-		BraceLevel++;
-	}
-
-	putC (" { public: ");
-        // genDCons (arg);   Let us wait with this for a while
-	if (mode != VIRTUAL) {
-		putC ("virtual int frameSize () { return (sizeof (");
-		putC (arg);
-		putC (")); };");
-	}
 	catchUp ();
 	if (empty) {
 		putC ("}; ");
@@ -3650,322 +3148,6 @@ int     isSymbol (char *arg) {
 	return (YES);
 }
 
-int     processLink (int del) {
-
-/* --------------------------------- */
-/* Expands the Link type declaration */
-/* --------------------------------- */
-
-	char    arg [MAXKWDLEN+1], par [MAXKWDLEN+1];
-	int     lc, mode, fsup, empty;
-	SymDesc *ob, *co;
-
-	// link A [virtual];                    -> class A;
-	// link A [virtual] [:symlist] {
-	//
-	// full expansion:
-	//
-	// class A : symlist {                  // public added
-	//       public:
-	//       virtual char *getTName () {
-	//           return ("A");
-	//       };
-
-	lc = del;
-	empty = NO;
-	if (lc == END) {
-Endfile:
-		xerror ("file ends in the middle of link declaration");
-		return (NO);
-	}
-	if (lc == ERROR || !isalpha (lc) && lc != '_' && lc != '$') return (NO);
-
-	if (CodeType) {
-		xerror ("link declaration within a code method");
-		return (NO);
-	}
-	if (NoLink) {
-		xerror ("'link' illegal with -L (no links)");
-		return NO;
-	}
-
-	// This is the new Link type name
-	lc = getKeyword (arg, lc);
-
-	// Determine the delimiter
-
-	if (lc == ';') {
-		// Just announcing the type
-		if (!addSym (arg, LINK)) return (NO);
-Announce:
-		putC ("class ");
-		putC (arg);
-		putC (';');
-		catchUp ();
-		return (YES);
-	}
-
-	if (lc != ':' && lc != '{') {
-		// Check if followed by 'virtual'
-		lc = getKeyword (par, lc);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
-Synerror:
-			xerror ("link declaration syntax error");
-			return (NO);
-		}
-		if (lc == ';') {
-			if (!addSym (arg, LINK, ANNOUNCED, VIRTUAL))
-				return (NO);
-			goto Announce;
-		}
-		if (lc != ':' && lc != '{') goto Synerror;
-		mode = VIRTUAL;
-	} else {
-		mode = REAL;
-	}
-
-	if (!(co = addSym (arg, LINK, DEFINED, mode))) return (NO);
-
-	putC ("class "); putC (arg);
-
-	fsup = YES;
-	if (lc == ':') {
-		// Derived from something: go through the list of identifiers
-		// and append them to the declaration
-		while (1) {
-			lc = getKeyword (par);
-			if (lc == ERROR) return (NO);
-			if (lc == END) goto Endfile;
-			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
-				goto Assumereal;
-			}
-			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
-				goto Assumereal;
-			}
-			if (!isDefined (ob, LINK, DEFINED)) {
-				xerror (form ("'%s' not a defined Link", par));
-				goto Assumereal;
-			}
-			if (fsup) {
-				putC (" : ");
-				fsup = NO;
-				// The first keyword
-				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
-						// Force the REAL status
-						putC ("public Link, ");
-					} 
-				} else {
-					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
-						goto Assumereal;
-					}
-				}
-			} else {
-				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
-				}
-			}
-Assumereal:
-			putC ("public ");
-			putC (par);
-			if (lc == ',') {
-				putC (',');
-			} else if (lc == '{') {
-				break;
-			} else if (lc == ';') {
-				empty = YES;
-				break;
-			} else goto Synerror;
-		}
-	} else {
-		// Derived from Link or from nothing
-		if (mode != VIRTUAL) putC (" : public Link");
-	}
-
-	if (!empty) {
-		if (pushDecl (co) == NO) return (NO);
-		BraceLevel++;
-	}
-
-	putC (" { public: ");
-        genDCons (arg);
-	if (mode != VIRTUAL) {
-		putC ("virtual char *getTName () { ");
-		putC ("return (\"");
-		putC (arg);
-		putC ("\"); }; ");
-	}
-	catchUp ();
-	if (empty) {
-		putC ("}; ");
-		emitBuilder (co);
-	}
-	return (YES);
-}
-
-int     processRFChannel (int del) {
-
-/* -------------------------------------- */
-/* Expands the RFChannel type declaration */
-/* -------------------------------------- */
-
-	char    arg [MAXKWDLEN+1], par [MAXKWDLEN+1];
-	int     lc, mode, fsup, empty;
-	SymDesc *ob, *co;
-
-	// rfchannel A [virtual];               -> class A;
-	// rfchannel A [virtual] [:symlist] {
-	//
-	// full expansion:
-	//
-	// class A : symlist {                  // public added
-	//       public:
-	//       virtual char *getTName () {
-	//           return ("A");
-	//       };
-
-	lc = del;
-	empty = NO;
-	if (lc == END) {
-Endfile:
-		xerror ("file ends in the middle of rfchannel declaration");
-		return (NO);
-	}
-	if (lc == ERROR || !isalpha (lc) && lc != '_' && lc != '$') return (NO);
-
-	if (CodeType) {
-		xerror ("rfchannel declaration within a code method");
-		return (NO);
-	}
-	if (NoRFC) {
-		xerror ("'rfchannel' illegal with -X (no RF channels)");
-		return NO;
-	}
-
-	// This is the type name
-	lc = getKeyword (arg, lc);
-
-	// The delimiter
-	if (lc == ';') {
-		// Just announcing the type
-		if (!addSym (arg, RFCHANNEL)) return (NO);
-Announce:
-		putC ("class ");
-		putC (arg);
-		putC (';');
-		catchUp ();
-		return (YES);
-	}
-
-	if (lc != ':' && lc != '{') {
-		// Check if followed by 'virtual'
-		lc = getKeyword (par, lc);
-		if (lc == ERROR) return (NO);
-		if (lc == END) goto Endfile;
-		if (strcmp (par, "virtual")) {
-Synerror:
-			xerror ("rfchannel declaration syntax error");
-			return (NO);
-		}
-		if (lc == ';') {
-			if (!addSym (arg, RFCHANNEL, ANNOUNCED, VIRTUAL))
-				return (NO);
-			goto Announce;
-		}
-		if (lc != ':' && lc != '{') goto Synerror;
-		mode = VIRTUAL;
-	} else {
-		mode = REAL;
-	}
-
-	if (!(co = addSym (arg, RFCHANNEL, DEFINED, mode))) return (NO);
-
-	putC ("class "); putC (arg);
-
-	fsup = YES;
-	if (lc == ':') {
-		// Derived from something: go through the list of identifiers
-		// and append them to the declaration
-		while (1) {
-			lc = getKeyword (par);
-			if (lc == ERROR) return (NO);
-			if (lc == END) goto Endfile;
-			if (strcmp (par, arg) == 0) {
-				xerror (form ("'%s' refers to itself", par));
-				goto Assumereal;
-			}
-			if ((ob = getSym (par)) == NULL) {
-				xerror (form ("'%s' undefined", par));
-				goto Assumereal;
-			}
-			if (!isDefined (ob, RFCHANNEL, DEFINED)) {
-				xerror (form ("'%s' not a defined RFChannel",
-					par));
-				goto Assumereal;
-			}
-			if (fsup) {
-				putC (" : ");
-				fsup = NO;
-				// The first keyword
-				if (ob->Mode == VIRTUAL) {
-					if (mode == REAL) {
-						// Force the REAL status
-						putC ("public RFChannel, ");
-					} 
-				} else {
-					if (mode == VIRTUAL) {
-xerror (form ("'%s' declared virtual but '%s' is not virtual", arg, par));
-						goto Assumereal;
-					}
-				}
-			} else {
-				if (ob->Mode != VIRTUAL) {
-				    xerror (form ("'%s' must be virtual", par));
-				}
-			}
-Assumereal:
-			putC ("public ");
-			putC (par);
-			if (lc == ',') {
-				putC (',');
-			} else if (lc == '{') {
-				break;
-			} else if (lc == ';') {
-				empty = YES;
-				break;
-			} else goto Synerror;
-		}
-	} else {
-		// Derived from RFChannel or from nothing
-		if (mode != VIRTUAL) putC (" : public RFChannel");
-	}
-
-	if (!empty) {
-		if (pushDecl (co) == NO) return (NO);
-		BraceLevel++;
-	}
-
-	putC (" { public: ");
-        genDCons (arg);
-	if (mode != VIRTUAL) {
-		putC ("virtual char *getTName () { ");
-		putC ("return (\"");
-		putC (arg);
-		putC ("\"); }; ");
-	}
-	catchUp ();
-	if (empty) {
-		putC ("}; ");
-		emitBuilder (co);
-	}
-	return (YES);
-}
-
 SymDesc *isPrcs (char *s) {
 
 /* ---------------------------------------------------------------- */
@@ -3975,17 +3157,17 @@ SymDesc *isPrcs (char *s) {
 	SymDesc  *ob;
 
 	if (!isSymbol (s)) {
-		xerror (form ("process type id '%s' is not a symbol", s));
+		xerror ("process type id '%s' is not a symbol", s);
 		return (NULL);
 	}
 
 	if ((ob = getSym (s)) == NULL) {
-		xerror (form ("'%s' undefined", s));
+		xerror ("'%s' undefined", s);
 		return (NULL);
 	}
 
 	if (ob->Type != PROCESS) {
-		xerror (form ("'%s' is not a process type", s));
+		xerror ("'%s' is not a process type", s);
 		return (NULL);
 	}
 	return (ob);
@@ -4319,15 +3501,15 @@ Endfile:
 	if (lc == END) goto Endfile;
 	// Check if the type is defined properly
 	if ((ob = getSym (tpn)) == NULL) {
-		xerror (form ("'%s' undefined", tpn));
+		xerror ("'%s' undefined", tpn);
 		return (NO);
 	}
 	if (ob->Status != DEFINED) {
-		xerror (form ("'%s' announced but undefined", tpn));
+		xerror ("'%s' announced but undefined", tpn);
 		return (NO);
 	}
 	if (ob->Mode != REAL) {
-		xerror (form ("'%s' is virtual", tpn));
+		xerror ("'%s' is virtual or abstract", tpn);
 		return (NO);
 	}
 	putC ("({");
@@ -4343,8 +3525,8 @@ Endfile:
 		// Nickname specified
 		if (ob->Type == MESSAGE || ob->Type == PACKET || ob->Type ==
 		  SGROUP || ob->Type == CGROUP) {
-		    xerror (form (
-		       "'%s': objects of this type don't have nicknames", tpn));
+		    xerror ("'%s': objects of this type don't have nicknames",
+			tpn);
 		    return (NO);
 		}
 		lc = getArg (nkn);
@@ -4464,26 +3646,28 @@ void    emitBuilder (SymDesc *co) {
 	nn = co->Type != MESSAGE && co->Type != PACKET &&
 		co->Type != SGROUP && co->Type != CGROUP;
 
-	putC ("inline void zz_bld_");
-	putC (co->Name);
-	putC (" (");
-	if (nn) putC ("char *nn = 0");
-	putC (") { register ");
-	putC (co->Name);
-	putC (" *p; zz_COBJ [++zz_clv] = (void*) (p = new ");
-	putC (co->Name);
-	putC ("); ");
-	if (co->Type != OBSERVER)
-		// For an observer, zz_start must be called 'by hand'
-		putC ("p->zz_start (); ");
-	if (nn) {
-		// Assign the nickname
-		putC ("if (nn != 0) { p->zz_nickname = ");
-		putC ("new char [strlen (nn) + 1]; ");
-		putC ("strcpy (p->zz_nickname, nn); } ");
-	}
+	if (co->Mode == REAL) {
+		putC ("inline void zz_bld_");
+		putC (co->Name);
+		putC (" (");
+		if (nn) putC ("char *nn = 0");
+		putC (") { register ");
+		putC (co->Name);
+		putC (" *p; zz_COBJ [++zz_clv] = (void*) (p = new ");
+		putC (co->Name);
+		putC ("); ");
+		if (co->Type != OBSERVER)
+			// For an observer, zz_start must be called 'by hand'
+			putC ("p->zz_start (); ");
+		if (nn) {
+			// Assign the nickname
+			putC ("if (nn != 0) { p->zz_nickname = ");
+			putC ("new char [strlen (nn) + 1]; ");
+			putC ("strcpy (p->zz_nickname, nn); } ");
+		}
 
-	putC ("}; ");
+		putC ("}; ");
+	}
 Done:
 	if (lc != ';' && lc != END && lc != ERROR) putC (lc);
 	if (lc != END) catchUp ();
@@ -4553,7 +3737,7 @@ int     doExposure (int del, SymDesc *obj) {
 	  }
 	  if (obj->EStat == UNEXPOSABLE) {
 Unexperr:
-		xerror (form ("'%s' is unexposable", obj->Name));
+		xerror ("'%s' is unexposable", obj->Name);
 		return (NO);
 	  }
 	  obj->EStat = ANNOUNCED;
@@ -4578,8 +3762,7 @@ Unexperr:
 	}
 	if (obj->EStat == UNEXPOSABLE) goto Unexperr;
 	if (obj->EStat != ANNOUNCED && obj != CObject) {
-		xerror (form ("'exposure' not announced for type '%s'",
-			obj->Name));
+		xerror ("'exposure' not announced for type '%s'", obj->Name);
 		return (NO);
 	}
 	WithinExposure = BraceLevel++;
@@ -4967,11 +4150,10 @@ int     processKeyword (int fc) {
 			return (NO);
 		    }
 		    if (!(ob->PAnn)) {
-			xerror (form ("'perform' was not announced in '%s'",
-			  kwd));
+			xerror ("'perform' was not announced in '%s'", kwd);
 		    }
 		    CodeTypeBC = BraceLevel;
-		    if (ob->Mode != REAL) {
+		    if (ob->Mode == VIRTUAL) {
 		   xerror ("'perform' for a virtual or announced process type");
 		       CodeType = NO;
 		       return (NO);
@@ -5306,7 +4488,7 @@ main (int argc, char *argv []) {
             if ((c = getC ()) == END) { // End of file
 UnclString:
               if (WithinString == '"' || WithinString == '\'')
-                xerror (form ("unclosed string opened at line %1d", StrLine));
+                xerror ("unclosed string opened at line %1d", StrLine);
               finish ();
             }
             putC (c);

@@ -33,7 +33,7 @@ Receiver::perform {
 
 	state Wait:
 
-		Xcv->wait (BMP, BPacket);
+		Xcv->wait (BOT, BPacket);
 
 	state BPacket:
 
@@ -47,6 +47,7 @@ Receiver::perform {
 
 	state Received:
 
-		Client->receive (ThePacket, TheTransceiver);
+		if (ThePacket->isMy ())
+			Client->receive (ThePacket, TheTransceiver);
 		proceed Wait;
 }

@@ -1,26 +1,27 @@
-SMURPH Version 1.7      H-Net4    Tue May 25 15:33:24 1993
+SMURPH Version 3.00-OA      H-Net4    Sun Oct 28 10:10:53 2007
+Call arguments: data_smp.txt junko
 
 Network topology
 
 Stations:
 
-  NumId             Type         NPorts       NBuffers                NName
-      0         HStation              2              1                -----
-      1         HStation              2              1                -----
-      2         HStation              2              1                -----
-      3         HStation              2              1                -----
-      4         HStation              2              1                -----
-      5         HStation              2              1                -----
-      6         HStation              2              1                -----
-      7         HStation              2              1                -----
-      8         HStation              2              1                -----
-      9         HStation              2              1                -----
-     10         HStation              2              1                -----
-     11         HStation              2              1                -----
-     12         HStation              2              1                -----
-     13         HStation              2              1                -----
-     14         HStation              2              1                -----
-     15         HStation              2              1                -----
+  NumId             Type  NPorts  NTrans  NBuffs            NName
+      0         HStation       2       0       1            -----
+      1         HStation       2       0       1            -----
+      2         HStation       2       0       1            -----
+      3         HStation       2       0       1            -----
+      4         HStation       2       0       1            -----
+      5         HStation       2       0       1            -----
+      6         HStation       2       0       1            -----
+      7         HStation       2       0       1            -----
+      8         HStation       2       0       1            -----
+      9         HStation       2       0       1            -----
+     10         HStation       2       0       1            -----
+     11         HStation       2       0       1            -----
+     12         HStation       2       0       1            -----
+     13         HStation       2       0       1            -----
+     14         HStation       2       0       1            -----
+     15         HStation       2       0       1            -----
 
 Links:
 
@@ -28,50 +29,50 @@ Links:
 
     Distance matrix:
 
-     0:      ---    32000    64000    96000   128000   160000   192000   224000
-   ...:   256000   288000   320000   352000   384000   416000   448000   480000
+     0:      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05
+   ...: 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05 4.16e+05 4.48e+05  4.8e+05
 
-     1:      ***      ---    32000    64000    96000   128000   160000   192000
-   ...:   224000   256000   288000   320000   352000   384000   416000   448000
+     1:      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05
+   ...: 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05 4.16e+05 4.48e+05
 
-     2:      ***      ***      ---    32000    64000    96000   128000   160000
-   ...:   192000   224000   256000   288000   320000   352000   384000   416000
+     2:      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05
+   ...: 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05 4.16e+05
 
-     3:      ***      ***      ***      ---    32000    64000    96000   128000
-   ...:   160000   192000   224000   256000   288000   320000   352000   384000
+     3:      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05
+   ...:  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05
 
-     4:      ***      ***      ***      ***      ---    32000    64000    96000
-   ...:   128000   160000   192000   224000   256000   288000   320000   352000
+     4:      ***      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04
+   ...: 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05
 
-     5:      ***      ***      ***      ***      ***      ---    32000    64000
-   ...:    96000   128000   160000   192000   224000   256000   288000   320000
+     5:      ***      ***      ***      ***      ***      ---  3.2e+04  6.4e+04
+   ...:  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05
 
-     6:      ***      ***      ***      ***      ***      ***      ---    32000
-   ...:    64000    96000   128000   160000   192000   224000   256000   288000
+     6:      ***      ***      ***      ***      ***      ***      ---  3.2e+04
+   ...:  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05
 
      7:      ***      ***      ***      ***      ***      ***      ***      ---
-   ...:    32000    64000    96000   128000   160000   192000   224000   256000
+   ...:  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05
 
      8:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ---    32000    64000    96000   128000   160000   192000   224000
+   ...:      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05
 
      9:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ---    32000    64000    96000   128000   160000   192000
+   ...:      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05
 
     10:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ---    32000    64000    96000   128000   160000
+   ...:      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05
 
     11:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ---    32000    64000    96000   128000
+   ...:      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05
 
     12:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ***      ---    32000    64000    96000
+   ...:      ***      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04
 
     13:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ***      ***      ---    32000    64000
+   ...:      ***      ***      ***      ***      ***      ---  3.2e+04  6.4e+04
 
     14:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ***      ***      ***      ---    32000
+   ...:      ***      ***      ***      ***      ***      ***      ---  3.2e+04
 
     15:      ***      ***      ***      ***      ***      ***      ***      ***
    ...:      ***      ***      ***      ***      ***      ***      ***      ---
@@ -100,50 +101,50 @@ Links:
 
     Distance matrix:
 
-     0:      ---    32000    64000    96000   128000   160000   192000   224000
-   ...:   256000   288000   320000   352000   384000   416000   448000   480000
+     0:      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05
+   ...: 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05 4.16e+05 4.48e+05  4.8e+05
 
-     1:      ***      ---    32000    64000    96000   128000   160000   192000
-   ...:   224000   256000   288000   320000   352000   384000   416000   448000
+     1:      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05
+   ...: 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05 4.16e+05 4.48e+05
 
-     2:      ***      ***      ---    32000    64000    96000   128000   160000
-   ...:   192000   224000   256000   288000   320000   352000   384000   416000
+     2:      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05
+   ...: 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05 4.16e+05
 
-     3:      ***      ***      ***      ---    32000    64000    96000   128000
-   ...:   160000   192000   224000   256000   288000   320000   352000   384000
+     3:      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05
+   ...:  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05 3.84e+05
 
-     4:      ***      ***      ***      ***      ---    32000    64000    96000
-   ...:   128000   160000   192000   224000   256000   288000   320000   352000
+     4:      ***      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04
+   ...: 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05 3.52e+05
 
-     5:      ***      ***      ***      ***      ***      ---    32000    64000
-   ...:    96000   128000   160000   192000   224000   256000   288000   320000
+     5:      ***      ***      ***      ***      ***      ---  3.2e+04  6.4e+04
+   ...:  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05  3.2e+05
 
-     6:      ***      ***      ***      ***      ***      ***      ---    32000
-   ...:    64000    96000   128000   160000   192000   224000   256000   288000
+     6:      ***      ***      ***      ***      ***      ***      ---  3.2e+04
+   ...:  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05 2.88e+05
 
      7:      ***      ***      ***      ***      ***      ***      ***      ---
-   ...:    32000    64000    96000   128000   160000   192000   224000   256000
+   ...:  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05 2.56e+05
 
      8:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ---    32000    64000    96000   128000   160000   192000   224000
+   ...:      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05 2.24e+05
 
      9:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ---    32000    64000    96000   128000   160000   192000
+   ...:      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05 1.92e+05
 
     10:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ---    32000    64000    96000   128000   160000
+   ...:      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05  1.6e+05
 
     11:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ---    32000    64000    96000   128000
+   ...:      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04 1.28e+05
 
     12:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ***      ---    32000    64000    96000
+   ...:      ***      ***      ***      ***      ---  3.2e+04  6.4e+04  9.6e+04
 
     13:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ***      ***      ---    32000    64000
+   ...:      ***      ***      ***      ***      ***      ---  3.2e+04  6.4e+04
 
     14:      ***      ***      ***      ***      ***      ***      ***      ***
-   ...:      ***      ***      ***      ***      ***      ***      ---    32000
+   ...:      ***      ***      ***      ***      ***      ***      ---  3.2e+04
 
     15:      ***      ***      ***      ***      ***      ***      ***      ***
    ...:      ***      ***      ***      ***      ***      ***      ***      ---
@@ -167,6 +168,9 @@ Links:
         13          2       1        1000
         14          1       1        1000
         15          0       1        1000
+
+
+RFChannels
 
 (System) End of list
 
@@ -208,146 +212,146 @@ Standard measures are: ON
 
 (Client) End of list
 
-Time:      4882172755     (Client) Global performance measures:
+Time: 5219559043 [5219559.043000] (Client) Global performance measures:
 
 AMD - Absolute message delay:
 
       Number of samples:               2000
-      Minimum value:                    296
-      Maximum value:                6.9e+05
-      Mean value:                  2.21e+04
-      Variance:                    3.11e+09
-      Standard deviation:          5.58e+04
-      Confidence int @95%:            0.111
-      Confidence int @99%:            0.145
+      Minimum value:                 295.96
+      Maximum value:             472881.506
+      Mean value:               23506.28298
+      Variance:                  2405184468
+      Standard deviation:       49042.68007
+      Confidence int @95%:     0.0914389665
+      Confidence int @99%:     0.1201302749
 
 APD - Absolute packet delay:
 
       Number of samples:               2000
-      Minimum value:                    296
-      Maximum value:               6.58e+05
-      Mean value:                  1.07e+04
-      Variance:                    9.38e+08
-      Standard deviation:          3.06e+04
-      Confidence int @95%:            0.125
-      Confidence int @99%:            0.165
+      Minimum value:                 295.96
+      Maximum value:             459460.706
+      Mean value:               12079.29855
+      Variance:                  1029433506
+      Standard deviation:        32084.7862
+      Confidence int @95%:     0.1164122029
+      Confidence int @99%:     0.1529395013
 
 WMD - Weighted message delay:
 
-      Number of samples:            3980656
-      Minimum value:                    296
-      Maximum value:                6.9e+05
-      Mean value:                  4.41e+04
-      Variance:                    6.79e+09
-      Standard deviation:          8.24e+04
-      Confidence int @95%:          0.00184
-      Confidence int @99%:          0.00241
+      Number of samples:            4256416
+      Minimum value:                 295.96
+      Maximum value:             472881.506
+      Mean value:               45621.75456
+      Variance:                  4603056155
+      Standard deviation:       67845.82636
+      Confidence int @95%:   0.001412814653
+      Confidence int @99%:   0.001856121292
 
 MAT - Message access time:
 
       Number of samples:               2000
-      Minimum value:                    264
-      Maximum value:                6.9e+05
-      Mean value:                  2.19e+04
-      Variance:                    3.11e+09
-      Standard deviation:          5.58e+04
-      Confidence int @95%:            0.112
-      Confidence int @99%:            0.147
+      Minimum value:                263.955
+      Maximum value:             472817.506
+      Mean value:               23327.01898
+      Variance:                  2406728823
+      Standard deviation:       49058.42255
+      Confidence int @95%:    0.09217123579
+      Confidence int @99%:     0.1210923123
 
 PAT - Packet access time:
 
       Number of samples:               2000
-      Minimum value:                    264
-      Maximum value:               6.57e+05
-      Mean value:                  1.05e+04
-      Variance:                    9.39e+08
-      Standard deviation:          3.06e+04
-      Confidence int @95%:            0.127
-      Confidence int @99%:            0.167
+      Minimum value:                263.955
+      Maximum value:             459396.706
+      Mean value:               11900.03455
+      Variance:                  1030746979
+      Standard deviation:       32105.24846
+      Confidence int @95%:     0.1182412157
+      Confidence int @99%:     0.1553424135
 
 MLS - Message length distribution:
 
-      Number of samples:               2007
+      Number of samples:               2012
       Minimum value:                      8
-      Maximum value:               2.62e+04
-      Mean value:                     2e+03
-      Variance:                    1.06e+07
-      Standard deviation:          3.26e+03
-      Confidence int @95%:           0.0714
-      Confidence int @99%:           0.0938
+      Maximum value:                  26240
+      Mean value:               2127.761431
+      Variance:                 11678165.45
+      Standard deviation:        3417.33309
+      Confidence int @95%:    0.07017888479
+      Confidence int @99%:    0.09219930017
 
-    Number of generated messages:              2007
-    Number of queued messages:                    7
+    Number of generated messages:              2012
+    Number of queued messages:                   12
     Number of transmitted messages:            2000
     Number of received messages:               2000
     Number of transmitted packets:             2000
     Number of received packets:                2000
-    Number of queued bits:                    30256
-    Number of transmitted bits:             3980656
-    Number of received bits:                3980656
+    Number of queued bits:                    24640
+    Number of transmitted bits:             4256416
+    Number of received bits:                4256416
     Measurement start time:                       0
-    Throughput:                               0.815
+    Throughput:                        0.8154742508
 
 (Client) End of list
 
 Local request waiting times
 
        RVariable         Samples         Minimum         Maximum            Mean
-    RWT Sttn   0              49        1.62e+03        6.72e+05        6.28e+04
-    RWT Sttn   1              80           1e+03        4.08e+05        3.28e+04
-    RWT Sttn   2              50        2.69e+03        6.91e+05        6.14e+04
-    RWT Sttn   3              68        1.44e+03        2.35e+05         3.7e+04
-    RWT Sttn   4              54        1.17e+03        6.06e+05        5.39e+04
-    RWT Sttn   5              55        2.08e+03        3.56e+05        5.78e+04
-    RWT Sttn   6              50        1.61e+03        3.92e+05         6.6e+04
-    RWT Sttn   7              55        1.75e+03        3.44e+05        5.11e+04
-    RWT Sttn   8              62        1.08e+03        3.12e+05        4.27e+04
-    RWT Sttn   9              65        1.21e+03        2.65e+05        3.75e+04
-    RWT Sttn  10              60        1.47e+03        3.91e+05        4.58e+04
-    RWT Sttn  11              61        1.26e+03        6.25e+05        5.08e+04
-    RWT Sttn  12              76        1.13e+03        2.61e+05        3.48e+04
-    RWT Sttn  13              71        1.31e+03        3.23e+05        3.55e+04
-    RWT Sttn  14              62        1.03e+03        5.17e+05        4.05e+04
-    RWT Sttn  15              79        1.31e+03        4.62e+05         2.9e+04
+    RWT Sttn   0              62        1621.911      281497.608     45041.44608
+    RWT Sttn   1              65        1151.467      560688.056     49606.77345
+    RWT Sttn   2              45         1392.51      416820.189     71016.60367
+    RWT Sttn   3              48        2307.209      396239.471     56991.21162
+    RWT Sttn   4              61        1375.519      404467.279     48994.10849
+    RWT Sttn   5              65        1256.262      215535.703     49574.65692
+    RWT Sttn   6              66        1306.773      223375.726     41200.54156
+    RWT Sttn   7              63        1419.342      342340.124     53968.54511
+    RWT Sttn   8              57        1162.025      259346.764     53430.84077
+    RWT Sttn   9              54        1186.731      375807.487     60205.89635
+    RWT Sttn  10              67        1557.953      343988.243     42951.39621
+    RWT Sttn  11              65        1224.793      372434.399     46897.08168
+    RWT Sttn  12              73        1844.021      204311.219     36887.36866
+    RWT Sttn  13              70        1325.038      244853.832     41835.84791
+    RWT Sttn  14              59        1525.869      320408.772     46606.88815
+    RWT Sttn  15              75        1340.601      234493.911     31118.66763
 
 Global request waiting time
 
-      Number of samples:                997
-      Minimum value:                  1e+03
-      Maximum value:               6.91e+05
-      Mean value:                  4.45e+04
-      Variance:                    5.89e+09
-      Standard deviation:          7.67e+04
-      Confidence int @95%:            0.107
-      Confidence int @99%:            0.141
+      Number of samples:                995
+      Minimum value:               1151.467
+      Maximum value:             560688.056
+      Mean value:                47443.5242
+      Variance:                  4582534616
+      Standard deviation:       67694.42086
+      Confidence int @95%:    0.08865851777
+      Confidence int @99%:     0.1164773894
 
 RL-link performance measures
 
     Number of jamming signals:                    0
-    Number of transfer attempts:               1543
-    Number of transmitted packets:             1000
-    Number of transmitted bits:             1970904
-    Number of received packets:                1000
-    Number of received bits:                1970904
-    Number of transmitted messages:            1000
-    Number of received messages:               1000
-    Throughput (by received bits):            0.404
-    Throughput (by trnsmtd bits):             0.404
+    Number of transfer attempts:               1518
+    Number of transmitted packets:             1004
+    Number of transmitted bits:             2184368
+    Number of received packets:                1004
+    Number of received bits:                2184368
+    Number of transmitted messages:            1004
+    Number of received messages:               1004
+    Throughput (by received bits):      0.418496655
+    Throughput (by trnsmtd bits):       0.418496655
 
 (PLink 1) End of list
 
 LR-link performance measures
 
     Number of jamming signals:                    0
-    Number of transfer attempts:               1330
-    Number of transmitted packets:             1000
-    Number of transmitted bits:             2009752
-    Number of received packets:                1000
-    Number of received bits:                2009752
-    Number of transmitted messages:            1000
-    Number of received messages:               1000
-    Throughput (by received bits):            0.412
-    Throughput (by trnsmtd bits):             0.412
+    Number of transfer attempts:               1376
+    Number of transmitted packets:              996
+    Number of transmitted bits:             2072048
+    Number of received packets:                 996
+    Number of received bits:                2072048
+    Number of transmitted messages:             996
+    Number of received messages:                996
+    Throughput (by received bits):     0.3969775958
+    Throughput (by trnsmtd bits):      0.3969775958
 
 (PLink 0) End of list
 

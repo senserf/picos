@@ -580,7 +580,6 @@ void HelloPacket::setup () {
 
 	// Flags
 	DCFP_Flags = (1 << DCFP_FLAG_BCST);
-	DCFP_Type = DCFP_TYPE_DATA;
 }
 
 void Node::dropped (WDPacket *P) {

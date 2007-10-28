@@ -8,7 +8,6 @@ void DataPacket::setup (Message *m) {
 	TTL = PKT_TTL_DATA;
 	DCFP_S = Sender;
 	DCFP_Flags = 0;
-	DCFP_Type = DCFP_TYPE_DATA;
 	SN = TheNode -> Serial++;
 }
 

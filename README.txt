@@ -24,7 +24,7 @@
 
                                VERSION 3.0
 
-        Author:
+        By:
                     Pawel Gburzynski
                     University of Alberta
                     Department of Computing Science
@@ -931,3 +931,8 @@
  R071005A  Yet another example (WIRELES/Easy) for CMPUT642. Incorporated Nick's
            fix of a cast in mailbox.c, which was frowned upon by gcc 4.1.0 on
 	   his MAC.
+
+ R071028A  Added "abstract" as a type qualifier (alternative to "virtual"). An
+	   "abstract" type may specify abstract methods and cannot be create'd.
+	   Fixed a bug in Examples/IncLib/rfmod_dcf.h: the CP attribute of
+	   Xmitter was not initialized.

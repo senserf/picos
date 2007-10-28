@@ -1,0 +1,5 @@
+#!/bin/sh
+g++ -o maker maker.cc
+strip maker
+./maker < mkdata
+./maker < mkdata_vuee

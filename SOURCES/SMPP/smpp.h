@@ -96,6 +96,7 @@ char    CFName [MFNLEN],                // The current file name
 #define VIRTUAL         0
 #define REAL            1
 #define FREE            2
+#define	ABSTRACT	3
 
 /* --------------- */
 /* Exposure status */
@@ -237,4 +238,4 @@ Signature *S = NULL;			// Signature pointer
 					// Process/observer declaration stack
 DeclStackFrame DeclStack [MSTACK];
 
-void	xerror (char*);
+void	xerror (const char*, ...);

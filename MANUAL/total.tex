@@ -2524,7 +2524,8 @@ to the objects created from the defined type.
 The inherited supertype class is made {\tt public} in the subclass.
 Following the opening brace of the type definition, the user can define
 attributes and methods of the new type.
-By default, all these attributes are {\tt public}; the C++ keywords
+By default, all these attributes are {\tt public}.
+The C++ keywords
 {\tt private}, {\tt protected}, and {\tt public} can be used to associate
 specific access rights with user-defined attributes.
 
@@ -2585,7 +2586,7 @@ If the name of a newly defined \smurph\ supertype is followed by
 \> {\tt \};}
 \end{tabbing}}
 \noindent
-it means that formally the type will belong to the corresponding base type,
+it means that formally the type belongs to the corresponding base type,
 but the frame of the base type will not be attached to the type's frame.
 
 The {\em itypename\/} part of a \smurph\ subtype definition
@@ -2622,6 +2623,49 @@ This is not a big problem, as very few of these attributes may be of
 interest to the user.
 Virtual functions can be used to overcome this difficulty, if it ever
 causes a problem.
+
+\subsection{Abstract types}
+\label{rm_st_ab}
+
+A \smurph\ type can be explicitly declared as incomplete (and thus unusable
+for creating objects) by putting the keyword {\tt abstract} into its
+declaration, e.g.,
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\>{\tt traffic MyTrafficInterface abstract \{}\\
+\> \>\ldots \\
+\> {\tt \};}
+\end{tabbing}}
+\noindent
+An abstract type can be derived from other (possibly non-abstract) types, but
+it cannot be virtual (\sect{rm_st_mi}).
+Thus, the keywords {\tt abstract} and {\tt virtual} cannot occur in the same
+type declaration.
+
+If an abstract type is derived from other types, then those types must be
+listed after a colon following the {\tt abstract} keyword, e.g.,
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\>{\tt traffic MyTrafficInterface abstract : XTraffic (Msg, Pkt) \{}\\
+\> \>\ldots \\
+\> {\tt \};}
+\end{tabbing}}
+
+Essentially, an abstract type has all the features of a regular
+type, except that {\tt create} for such a type (\sect{rm_st_oc}) is illegal.
+Moreover, a type {\em must\/} be declared {\tt abstract} if it declares
+abstract virtual methods.
+For example, this declaration:
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\>{\tt traffic MyTrafficInterface abstract (Msg, Pkt) \{}\\
+\> \>{\tt virtual Boolean check\_it (Pkt *p) = 0;} \\
+\> \>\ldots \\
+\> {\tt \};}
+\end{tabbing}}
+\noindent
+would trigger errors if the {\tt abstract} keyword following the traffic type
+name were absent.
 
 \subsection {Announcing types}
 \label{rm_st_an}
