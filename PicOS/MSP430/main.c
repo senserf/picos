@@ -955,12 +955,7 @@ static const uart_rate_t urates [] = {
 #define	N_RATES		(sizeof(urates) / sizeof(uart_rate_t))
 
 Boolean zz_uart_setrate (word rate, uart_t *ua) {
-/*
- * Note: dynamic rate setting for UART_B doesn't work, and I have no clue why.
- * Have tried lots of tricks, including disabling, re-enabling, and so on.
- * After a change, the UART gets into a weird state where it receives NULLs.
- * UART_A is fine.
- */ 
+
 	byte j, saveIE;
 
 	for (j = 0; j < N_RATES; j++) {

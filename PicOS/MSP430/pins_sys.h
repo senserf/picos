@@ -19,10 +19,11 @@
 				  _BIS (P6SEL, 1 << (p)); \
 				  ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_3; \
 				  ADC12MCTL0 = EOS + \
-				  ((r) > 1 ? SREF_AVCC_AVSS : SREF_VREF_AVSS) +\
-				    (p); \
-				  ADC12CTL0 = ((r) ? REF2_5V : 0) + \
-				    REFON + ADC12ON; \
+				  ((r) > 2 ? SREF_VEREF_AVSS : ((r) == 2 ? \
+				    SREF_AVCC_AVSS : SREF_VREF_AVSS)) + (p); \
+				  ADC12CTL0 = ADC12ON + \
+				   ((r) == 1 ? REF2_5V : 0) + \
+				   ((r) < 2 ? REFON : 0); \
 				} while (0)
 
 /*

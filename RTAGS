@@ -1554,3 +1554,12 @@ R071023A:
 	board clears eeprom when P2.4 goes high.
 	Fixed a bug in MSP430 zz_uart_setrate causing incorrect dynamic rate
 	setting for the second UART.
+
+R071031A:
+
+	One more value of 'r' for pin_read_adc. 3 => use VERef+ for reference
+	voltage.
+	Praxis-specific macros used by TARP converted to functions for 
+	compatibility with VUEE. Note, some Apps may not compile unless they
+	are fixed (e.g., see Apps/Peg, which has been fixed).
+	

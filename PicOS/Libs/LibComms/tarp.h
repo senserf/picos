@@ -81,4 +81,10 @@ typedef struct tarpCtrlStruct {
 // flags
 #define tarp_setretry(r)   (tarp_ctrl.flags |= (r & 0x0F))
 #define TARP_URGENT	0x10
+
+extern 	tarpCtrlType	tarp_ctrl;
+extern	nid_t		net_id; 
+extern	nid_t		local_host;
+extern	nid_t   	master_host;
+
 #endif

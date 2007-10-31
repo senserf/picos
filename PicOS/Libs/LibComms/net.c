@@ -48,7 +48,8 @@
 #include "tarp.h"
 
 #ifndef __SMURPH__
-#include "app_tarp_if.h"
+// The macros have become functions
+// #include "app_tarp_if.h"
 #include "encrypt.h"
 #endif
 

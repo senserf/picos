@@ -73,7 +73,7 @@ int pin_write (word pin, word val) {
 int pin_read_adc (word state, word pin, word ref, word smpt) {
 /*
  * pin == 0-7 (corresponds to to P6.0-P6.7)
- * ref == 0 (1.5V) or 1 (2.5V) or 2 (Vcc)
+ * ref == 0 (1.5V) or 1 (2.5V) or 2 (Vcc) or 3 (VERef+)
  * smpt == sample time in msec (0 == 1)
  */
 

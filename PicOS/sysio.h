@@ -692,6 +692,7 @@ int	rcvlast (void);
 #define	strncat(a,b,c)	zzz_strncat (a, b, c)
 #define	memcpy(a,b,c)	zzz_memcpy ((char*)(a), (const char*)(b), c)
 #define	memset(a,b,c)	zzz_memset ((char*)(a), (char)(b), c)
+#define	bzero(a,c)	memset ((char*)(a), 0, c)
 
 /* User malloc shortcut */
 #define	umalloc(s)	malloc (0, s)
@@ -967,6 +968,8 @@ void	adc_stop (void);
 #define	__STATIC	static
 #define	__CONST		const
 #define	__EXTERN	extern
+#define	__VIRTUAL
+#define	__ABSTRACT
 
 #define	__PRIVF(ot,tp,nam)	static tp nam
 #define	__PUBLF(ot,tp,nam)	tp nam
