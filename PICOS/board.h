@@ -76,7 +76,7 @@ packet	PKT {
 	};
 };
 
-station PicOSNode {
+station PicOSNode abstract {
 
 	void		_da (phys_dm2200) (int, int);
 	void		_da (phys_cc1100) (int, int);
@@ -372,7 +372,7 @@ process Outserial (PicOSNode) {
 	perform;
 };
 
-station NNode : PicOSNode {
+station NNode abstract : PicOSNode {
 /*
  * A node equipped with NULL plugin
  */
@@ -382,32 +382,10 @@ station NNode : PicOSNode {
 	virtual void reset ();
 };
 
-station TNode : PicOSNode {
+station TNode abstract : PicOSNode {
 /*
  * A node equipped with TARP stuff
  */
-	// Application-level parameters for TARP
-	virtual int _da (tr_offset) (headerType *mb) {
-		excptn ("TNode->tr_offset undefined");
-	};
-	virtual Boolean _da (msg_isBind) (msg_t m) {
-		excptn ("TNode->msg_isBind undefined");
-	};
-	virtual Boolean _da (msg_isTrace) (msg_t m) {
-		excptn ("TNode->msg_isTrace undefined");
-	};
-	virtual Boolean _da (msg_isMaster) (msg_t m) {
-		excptn ("TNode->msg_isMaster undefined");
-	};
-	virtual Boolean _da (msg_isNew) (msg_t m) {
-		excptn ("TNode->msg_isNew undefined");
-	};
-	virtual Boolean _da (msg_isClear) (byte o) {
-		excptn ("TNode->msg_isClear undefined");
-	};
-	virtual void _da (set_master_chg) () {
-		excptn ("TNode->set_master_chg undefined");
-	};
 
 #include "net_node_data.h"
 #include "plug_tarp_node_data.h"

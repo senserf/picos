@@ -221,3 +221,9 @@ R070917A:
 
     Fixed a bug in rfmodule.cc causing delayed RX off, i.e., one packet after
     RX off was received.
+
+R071031A:
+
+    Matching fix to PicOS (the same date): removal of TARP macros (defineable
+    by the praxis), which have been replaced by functions. Note that SIDE
+    R071028A is required to run this.

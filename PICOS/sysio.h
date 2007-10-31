@@ -214,6 +214,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	__STATIC
 #define	__EXTERN
 #define	__CONST
+#define	__VIRTUAL	virtual
+#define	__ABSTRACT	= 0
 
 #ifndef	THREADNAME
 #define	THREADNAME(a)	a
