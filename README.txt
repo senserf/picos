@@ -227,3 +227,7 @@ R071031A:
     Matching fix to PicOS (the same date): removal of TARP macros (defineable
     by the praxis), which have been replaced by functions. Note that SIDE
     R071028A is required to run this.
+
+R071114A:
+
+    Added ee_size, which was accidentally missing from the set of ee ops.

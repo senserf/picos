@@ -85,6 +85,7 @@
 
 // ============================================================================
 
+#define ee_size(a,b)	(  ((PicOSNode*)TheStation)->_na_ee_size (a,b)  )
 #define ee_read(a,b,c)	(  ((PicOSNode*)TheStation)->_na_ee_read (a,b,c)  )
 #define ee_write(a,b,c,d) \
 	(  ((PicOSNode*)TheStation)->_na_ee_write (a,b,c,d)  )

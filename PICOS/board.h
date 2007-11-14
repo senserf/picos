@@ -327,6 +327,7 @@ station PicOSNode abstract {
 	/*
 	 * EEPROM + FIM (IFLASH)
 	 */
+	lword _da (ee_size) (Boolean*, lword*);
 	word _da (ee_read)  (lword, byte*, word);
 	word _da (ee_erase) (word, lword, lword);
 	word _da (ee_write) (word, lword, const byte*, word);

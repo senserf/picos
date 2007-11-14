@@ -201,7 +201,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 /* ======================================================================== */
 
-#define	intofp(a)			__cpint (a)
+#define	ptrtoint(a)			__cpint (a)
 
 #define	_da(a)				_na_ ## a
 #define	_dac(a,b)			(((a *)TheStation)-> _na_ ## b)

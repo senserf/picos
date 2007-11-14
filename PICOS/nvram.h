@@ -37,6 +37,7 @@ class NVRAM {
 #if 0
 	void dump ();
 #endif
+	lword size (Boolean*, lword*);
 	word get (lword, byte*, lword);
 	word put (word, lword, const byte*, lword);
 	word erase (word, lword, lword);

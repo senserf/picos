@@ -90,6 +90,19 @@ void NVRAM::grow () {
 	}
 }
 
+lword NVRAM::size (Boolean *er, lword *eru) {
+
+	if (eru) {
+		if (pmask == 0)
+			*eru = 1;
+		*eru = ~pmask + 1;
+	}
+
+	if (er)
+		*er = ((TP & NVRAM_TYPE_NOOVER) != 0);
+
+	return tsize;
+}
 
 word NVRAM::get (lword adr, byte *buf, lword len) {
 

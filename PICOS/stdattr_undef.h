@@ -52,6 +52,7 @@
 #undef pmon_dec_cnt
 #undef pmon_sub_cnt
 #undef pmon_add_cmp
+#undef ee_size
 #undef ee_read
 #undef ee_write
 #undef ee_erase

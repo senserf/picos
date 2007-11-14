@@ -831,6 +831,12 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 	return 0;
 }
 
+lword _dad (PicOSNode, ee_size) (Boolean *er, lword *rt) {
+
+	sysassert (eeprom != NULL, "ee_size no eeprom");
+	return eeprom->size (er, rt);
+};
+
 word _dad (PicOSNode, ee_read) (lword adr, byte *buf, word n) {
 
 	sysassert (eeprom != NULL, "ee_read no eeprom");
