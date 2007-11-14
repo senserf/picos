@@ -1563,3 +1563,8 @@ R071031A:
 	compatibility with VUEE. Note, some Apps may not compile unless they
 	are fixed (e.g., see Apps/Peg, which has been fixed).
 	
+
+R071114A:
+
+	The name of intofp macro changed to ptrtoint to bring it in sync with
+	VUEE. A minor extension of Apps/VUEE/EETest.

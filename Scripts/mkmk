@@ -337,6 +337,7 @@ proc outmkf { def cpu } {
 	puts $mfd "CC=msp430-gcc"
 	puts $mfd "AS=msp430-as"
 	puts $mfd "OC=msp430-objcopy -O ihex"
+	puts $mfd "SI=msp430-size -Ax"
 	puts -nonewline $mfd "CF=-mmcu=$cpu -mendup-at=main"
 	foreach sht $def {
 		puts -nonewline $mfd " -D$sht"
@@ -421,7 +422,8 @@ proc outmkf { def cpu } {
 		# the actual target
 		puts $mfd "\$(TR)$tarn :\t\$(BF$tarn)"
 		puts $mfd "\t\$(CC) -o \$(TR)$tarn \$(CF) \$(BF$tarn)"
-		puts $mfd "\t\$(OC) \$(TR)$tarn \$(TR)${tarn}.a43\n"
+		puts $mfd "\t\$(OC) \$(TR)$tarn \$(TR)${tarn}.a43"
+		puts $mfd "\t\$(SI) \$(TR)$tarn\n"
 
 		# the list of compileable sources
 		foreach sf $SrcLists($tar) {

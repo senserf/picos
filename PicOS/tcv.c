@@ -1050,7 +1050,7 @@ __PUBLF (PicOSNode, int, tcvphy_reg) (int phy, ctrlfun_t ps, int info) {
 	 * Queue event identifier (which happens to be the queue pointer
 	 * in disguise).
 	 */
-	return intofp (q);
+	return ptrtoint (q);
 }
 
 __PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {

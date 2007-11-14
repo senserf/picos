@@ -403,7 +403,7 @@ word	adcs_overflow ();
 /* ============ */
 /* Tricky casts */
 /* ============ */
-#define	intofp(a)	((int)(a))	// Pointer to integer
+#define	ptrtoint(a)	((int)(a))	// Pointer to integer
 
 /* ============= */
 /* Byte ordering */
