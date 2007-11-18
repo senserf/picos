@@ -13,6 +13,10 @@ int pin_write (word, word);
 int pin_read_adc (word, word, word, word);
 int pin_write_dac (word, word, word);
 
+#ifdef	ADC_AVERAGING_OPTION
+int pin_read_adc_avg (word, word, word, word, word, word);
+#endif
+
 #ifdef	PULSE_MONITOR
 
 #define	PMON_STATE_NOT_RISING	0x01

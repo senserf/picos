@@ -13,17 +13,19 @@
 /*
  * ADC configuration for polled sample collection
  */
-#define	adc_config_read(p,r)	do { \
+#define	adc_config_read(p,r,t)	do { \
 				  _BIC (ADC12CTL0, ENC); \
 				  _BIC (P6DIR, 1 << (p)); \
 				  _BIS (P6SEL, 1 << (p)); \
-				  ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_3; \
+				  ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_0 + \
+				  ((t) != 0 ? SHP : 0); \
 				  ADC12MCTL0 = EOS + \
 				  ((r) > 2 ? SREF_VEREF_AVSS : ((r) == 2 ? \
 				    SREF_AVCC_AVSS : SREF_VREF_AVSS)) + (p); \
 				  ADC12CTL0 = ADC12ON + \
 				   ((r) == 1 ? REF2_5V : 0) + \
-				   ((r) < 2 ? REFON : 0); \
+				   ((r) < 2 ? REFON : 0) + \
+				   (((t) & 0xf) << 12) + (((t) & 0xf) << 8); \
 				} while (0)
 
 /*
@@ -234,23 +236,29 @@
 					ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
 					ADC12CTL0 = REF2_5V + ADC12ON + REFON; \
 				} while (0)
+
 #else	/* NO ADC RSSI */
 
 #define	adc_config_rssi		adc_disable
 
 #endif	/* PIN_ADC_RSSI */
 
+#define	adc_busy	(ADC12CTL1 & ADC12BUSY)
 
 #define	adc_wait	do { \
-				while (ADC12CTL1 & ADC12BUSY); \
+				while (adc_busy); \
 				adc_disable; \
 			} while (0)
 
 #define	adc_inuse	(ADC12CTL0 & ADC12ON)
 #define	adc_value	ADC12MEM0
 #define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
+
+#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
+#define	adc_off		_BIC (ADC12CTL0, ENC)
+
 #define	adc_disable	do { \
-				_BIC (ADC12CTL0, ENC); \
+				adc_off; \
 				_BIC (ADC12CTL0, ADC12ON); \
 			} while (0)
 
@@ -259,8 +267,6 @@
 				_BIS (ADC12CTL0, ADC12ON); \
 				_BIS (ADC12CTL0, ADC12SC + ENC); \
 			} while (0)
-
-#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
 
 #define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
 #define	RSSI_MAX	0x0fff

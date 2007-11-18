@@ -1568,3 +1568,33 @@ R071114A:
 
 	The name of intofp macro changed to ptrtoint to bring it in sync with
 	VUEE. A minor extension of Apps/VUEE/EETest.
+
+R071118A:
+
+	Added a driver for SHT_XX temperature/humidity sensors from Sensirion
+	(www.sensirion.com). The pin-oriented ADC interface reorganized a bit.
+	The ADC oscillator is now used for sample timing. A new function added
+	to pin_read.c (only available if ADC_AVERAGING_OPTION is defined in
+	options.sys). Its header is:
+
+	int pin_read_adc_avg (
+ 
+ 		word state,	// To restart when done
+ 		word pin,	// The pin
+ 		word ref,	// Reference: 0-1.5V, 1-2.5V, 2-Vcc, 3-Veref
+ 		word smpt,	// Sample hold time interval select (0-15)
+ 		word intv,	// Inter-sampling interval msec
+ 		word nsmp	// Number of samples to average
+ 
+ 		      );
+
+	smpt is now the holding time for the sampler expressed as on page
+	17-21 of slau049f.pdf. The clock is set to ADC oscillator (at ca. 5MHz)
+	with the divider of 8 (111). For example, smpt = 6 translates into
+	128 cycles, roughly equal to 1/5MHz * 8 * 128 = 0.2 msec. The maximum
+	holding interval, for smpt >= 12, is 1/5MHz * 8 * 1024 = 1.6 ms. 
+	intv is the inter-sampling interval (if nsmp > 1). nsmp samples are
+	collected and averaged. The amount of time needed by the function is
+	roughly equal to nsmp * (1 + intv) msec.
+
+	Added Apps/ECOPROJECT.

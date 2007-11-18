@@ -356,6 +356,15 @@ word	adcs_overflow ();
 
 #endif	/* ADC_SAMPLER */
 
+#if	SHTXX_SENSOR
+
+//+++ "sht_xx.c"
+
+void shtxx_reset ();
+word shtxx_read (word, word);
+
+#endif
+
 #define	MAX_INT			((int)0x7fff)
 #define	MAX_UINT		((word)0xffff)
 #define	MAX_WORD		MAX_UINT

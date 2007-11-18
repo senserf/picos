@@ -321,7 +321,11 @@
 #endif
 
 #ifndef	ADC_SAMPLER
-#define	ADC_SAMPLER		0
+#define	ADC_SAMPLER			0
+#endif
+
+#ifndef	SHTXX_SENSOR
+#define	SHTXX_SENSOR			0
 #endif
 
 // ============================================================================
