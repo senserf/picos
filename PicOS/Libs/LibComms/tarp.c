@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006.			*/
+/* Copyright (C) Olsonet Communications, 2002 - 2007.			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
 
@@ -18,8 +18,6 @@
 #include "msg_tarp.h"
 
 #ifndef	__SMURPH__
-// The macros have become functions
-// #include "app_tarp_if.h"
 #include "tarp_node_data.h"
 #endif
 
@@ -93,6 +91,7 @@ __PUBLF (TNode, void, tarp_init) () {
 #endif
 	memset (ddCache, 0,  sizeof(ddcType));
 	memset (spdCache, 0, sizeof(spdcType));
+	tarp_cyclingSeq = rnd() & 0xFF;
 }
 
 // !FAST_HOSTS is not only about slower msg ratio, but also about skewed
@@ -108,7 +107,6 @@ __PUBLF (TNode, void, tarp_init) () {
 			((m) > (c) && (m) > CBUFSIZE - SHADOW + (c))) ? 1 : 0)
 #endif
 
-// it should be enough (?)
 //#define in_shadow(c, m) ((c) == (m))
 
 __PRIVF (TNode, Boolean, dd_fresh) (headerType * buffer) {
@@ -128,7 +126,7 @@ __PRIVF (TNode, Boolean, dd_fresh) (headerType * buffer) {
 			set_master_chg ();
 		}
 		ddCache->m_seq = buffer->seq_no;
-		if (strong_signal) { // is simplest best?
+		if (tarp_ctrl.ssignal) {
 			spdCache->m_hop = (word)(buffer->hoc & 0x7F) << 8;
 		}
 		return true;
@@ -192,9 +190,9 @@ __PRIVF (TNode, int, check_spd) (headerType * msg) {
 		i = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
 			(msg->hoc & 0x7F) -
 			(spdCache->m_hop >>8) +
-			((spdCache->m_hop & 0x00FF) >> (tarp_rte_rec << 1)) +
+			((spdCache->m_hop & 0x00FF) >> tarp_rte_rec) +
 			tarp_slack;
-		if (i < 0)
+		if (i < 0 && tarp_rte_rec != 0)
 			spdCache->m_hop++;
 		return i;
 	}
@@ -208,7 +206,7 @@ __PRIVF (TNode, int, check_spd) (headerType * msg) {
 		(spdCache->en[i].hop >>8) +
 		((spdCache->en[i].hop & 0x00FF) >> tarp_rte_rec) +
 		tarp_slack;
-	if (j < 0)
+	if (j < 0 && tarp_rte_rec != 0)
 		spdCache->en[i].hop++; // failed routing attempts ++
 	return j;
 }
@@ -217,6 +215,21 @@ __PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 
 	address dup;
 	headerType * msgBuf = (headerType *)(buffer+1);
+
+#if DM2200
+	// RSSI on TR8100 is LSB, MSB is 0
+	tarp_ctrl.ssignal = (buffer[(length >>1) -1] >=
+			tarp_ctrl.rssi_th) ?  YES : NO;
+#else
+	// assuming CC1100: RSSI is MSB
+	tarp_ctrl.ssignal = ((buffer[(length >>1) -1] >> 8) >=
+			tarp_ctrl.rssi_th) ?  YES : NO;
+#endif
+	if (!tarp_ctrl.ssignal) {
+		dbg_8 (0x0600 | msgBuf->hoc + 1);
+		if (tarp_drop_weak)
+			return TCV_DSP_DROP;
+	}
 
 	tarp_ctrl.rcv++;
 	if (*buffer == 0) // from unbound node
@@ -234,22 +247,19 @@ __PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 
 	msgBuf->hoc++;
 
-#if SPD_RSSI_THRESHOLD
-	if (msgBuf->hoc & 0x80)
-		strong_signal = NO;
-	else {
-		strong_signal = YES;
-		//buffer[(length >>1) -1] > SPD_RSSI_THRESHOLD ? YES : NO;
-		if (!strong_signal)
+	if (msgBuf->hoc & 0x80) {
+		dbg_8 (0x0700 | msgBuf->hoc);
+		tarp_ctrl.ssignal = NO;
+	} else {
+		if (!tarp_ctrl.ssignal)
 			msgBuf->hoc |= 0x80;
 	}
-#endif
 
 	if (tarp_level && !dd_fresh(msgBuf)) {  // check and update DD
 		return TCV_DSP_DROP;    //duplicate
 	}
 
-	if (tarp_level > 1 && strong_signal)
+	if (tarp_level > 1 && tarp_ctrl.ssignal)
 		upd_spd (msgBuf);
 
 	if (msgBuf->rcv == local_host)

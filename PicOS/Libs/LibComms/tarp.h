@@ -1,7 +1,7 @@
 #ifndef __tarp_h
 #define __tarp_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005.			*/
+/* Copyright (C) Olsonet Communications, 2002 - 2007.			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
 
@@ -11,7 +11,6 @@
 
 #define TARP_CACHES_MALLOCED	0
 #define	TARP_CACHES_TEST	0
-#define	SPD_RSSI_THRESHOLD	0	/* Disabled */
 
 //+++ "tarp.c"
 
@@ -27,6 +26,10 @@
 #define ddCacheSize		10
 #define spdCacheSize		20
 #define tarp_maxHops		10
+
+#ifndef DEFAULT_RSSI_THOLD
+#define DEFAULT_RSSI_THOLD	80
+#endif
 
 /*
  C compilter on eCog produces wrong code if chars are mixed with words
@@ -70,11 +73,14 @@ typedef struct tarpCtrlStruct {
 	word	fwd;
 	word	param :8;
 	word	flags :8;
+	word	rssi_th :8;  // rssi threshold
+	word	ssignal :8; // spare: a bool that can be local in tarp_rx
 } tarpCtrlType;
 
 // param
 #define tarp_fwd_on	(tarp_ctrl.param & 1)
-#define tarp_slack	((tarp_ctrl.param >> 1) & 7)
+#define tarp_slack	((tarp_ctrl.param >> 1) & 3)
+#define tarp_drop_weak	((tarp_ctrl.param >> 3) & 1)
 #define tarp_rte_rec	((tarp_ctrl.param >> 4) & 3)
 #define tarp_level	((tarp_ctrl.param >> 6) & 3)
 
@@ -82,9 +88,9 @@ typedef struct tarpCtrlStruct {
 #define tarp_setretry(r)   (tarp_ctrl.flags |= (r & 0x0F))
 #define TARP_URGENT	0x10
 
-extern 	tarpCtrlType	tarp_ctrl;
-extern	nid_t		net_id; 
-extern	nid_t		local_host;
-extern	nid_t   	master_host;
+extern  tarpCtrlType	tarp_ctrl;
+extern  nid_t		net_id;
+extern  nid_t		local_host;
+extern  nid_t		master_host;
 
 #endif

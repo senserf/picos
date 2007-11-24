@@ -1,7 +1,7 @@
 #ifndef __tarp_node_data_h
 #define __tarp_node_data_h
 
-// rcv, snd, fwd, |10 10 001 1|, flags
+// rcv, snd, fwd, |10 10 0 01 1|, flags, rssi_th, ssignal
 // param: |level, rte_rec, slack, routing|
 
 #ifdef	__SMURPH__
@@ -9,9 +9,6 @@
 tarpCtrlType _da (tarp_ctrl);
 
 __STATIC word tarp_cyclingSeq;
-#if SPD_RSSI_THRESHOLD
-__STATIC Boolean strong_signal;
-#endif
 
 nid_t	_da (net_id); 
 nid_t	_da (local_host);
@@ -19,11 +16,10 @@ nid_t   _da (master_host);
 
 #else	/* The real world */
 
-tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, 0xA3, 0};
+tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, 0xA3, 0,
+	DEFAULT_RSSI_THOLD, YES};
+
 __STATIC word tarp_cyclingSeq = 0;
-#if SPD_RSSI_THRESHOLD
-__STATIC Boolean strong_signal = YES;
-#endif
 
 nid_t	_da (net_id) = 85;
 nid_t	_da (local_host) = 97;
@@ -31,9 +27,6 @@ nid_t   _da (master_host) = 1;
 
 #endif	/* SMURPH or PicOS */
 
-#if SPD_RSSI_THRESHOLD == 0
-#define	strong_signal	YES
-#endif
 
 /* ================================================================ */
 

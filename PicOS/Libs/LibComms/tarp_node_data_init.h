@@ -2,6 +2,8 @@
 	_da (tarp_ctrl).rcv = _da (tarp_ctrl).snd = _da (tarp_ctrl).fwd = 0;
 	_da (tarp_ctrl).flags = 0;
 	_da (tarp_ctrl).param = 0xA3;
+	_da (tarp_ctrl).rssi_th = DEFAULT_RSSI_THOLD;
+	_da (tarp_ctrl).ssignal = YES;
 
 	tarp_cyclingSeq = 0;
 
@@ -15,9 +17,5 @@
 	ddCache = NULL;
 	spdCache = NULL;
 
-#endif
-
-#if SPD_RSSI_THRESHOLD
-	strong_signal = YES;
 #endif
 

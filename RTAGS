@@ -1598,3 +1598,16 @@ R071118A:
 	roughly equal to nsmp * (1 + intv) msec.
 
 	Added Apps/ECOPROJECT.
+
+R071124A:
+
+	Added VUEE/BoardTest, modified WARSAW/board_second.h,
+	WARSAW/board_leds.h. This is for the board's volume production tests.
+	(WARSAW LEDS 0, 1, 2 are RGB now.)
+
+	Updated VUEE/tnp_demo: a few details were overwritten or missing.
+
+	Updated Apps/VMesh2 and LibComms. They should be functionally equivalent
+	to V070628A in VERSA2 branch. Rssi-based rules may be useful in
+	general, and VMesh2 will be moved under VUEE.
+
