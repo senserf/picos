@@ -5,7 +5,10 @@
 
 #include "sysio.h"
 #include "tcvphys.h"
+
+#ifdef	PIN_TEST
 #include "pinopts.h"
+#endif
 
 #define	ENCRYPT	0
 #define	MIN_PACKET_LENGTH	24
@@ -159,8 +162,13 @@ thread (receiver)
 	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %d), pow = %d qua = %d\r\n",
 		packet [1],
 		last_rcv, tcv_left (packet) - 2,
+#if LITTLE_ENDIAN
 		((byte*)packet) [tcv_left (packet) - 1],
 		((byte*)packet) [tcv_left (packet) - 2]
+#else
+		((byte*)packet) [tcv_left (packet) - 2],
+		((byte*)packet) [tcv_left (packet) - 1]
+#endif
 	);
 #else
 	ser_outf (RC_DATA, "RCV: %lu (len = %d)\r\n", last_rcv,
@@ -360,6 +368,7 @@ int snd_stop (void) {
 #define	RS_GPIN		110
 #define	RS_URS		120
 #define	RS_URG		130
+#define	RS_SDRAM	140
 #define	RS_AUTOSTART	200
 
 #if CC1000
@@ -373,6 +382,10 @@ thread (root)
 	static int k, n1;
 	static char *fmt, obuf [32];
 	static word p [2];
+#if SDRAM_PRESENT
+	static word *mbuf, n, m, bp;
+	static lword nw, i, j;
+#endif
 #endif
 
   entry (RS_INIT)
@@ -392,7 +405,7 @@ thread (root)
 
 #if CC1000
 	// Configure CC1000 for 19,200 bps
-	phys_cc1000 (0, MAXPLEN, 192 /* 192 768 384 */);
+	phys_cc1000 (0, MAXPLEN, 96 /* 192 768 384 */);
 #endif
 
 #if DM2100
@@ -448,15 +461,20 @@ thread (root)
 #if DM2100 == 0
 		"p v      -> set transmit power\r\n"
 #endif
-
 		"g        -> get received power\r\n"
 		"o        -> stop receiver\r\n"
 		"t        -> stop transmitter\r\n"
 		"q        -> stop both\r\n"
 		"i        -> set station Id\r\n"
+#ifdef PIN_TEST
 		"x p r    -> read ADC pin 'p' with reference r (0/1 1.5V/2.5V)\r\n"
 		"y p v    -> set pin 'p' to v (0/1)\r\n"
 		"z p      -> show the value of pin 'p'\r\n"
+#endif
+
+#if SDRAM_PRESENT
+		"M b n    -> SDRAM test: n kwds, b bufsize\r\n"
+#endif
 
 #if STACK_GUARD
 		"v        -> show unused stack space\r\n"
@@ -493,12 +511,19 @@ thread (root)
 		proceed (RS_RCV);
 	if (ibuf [0] == 'd')
 		proceed (RS_PAR);
+#ifdef PIN_TEST
 	if (ibuf [0] == 'x')
 		proceed (RS_GADC);
 	if (ibuf [0] == 'y')
 		proceed (RS_SPIN);
 	if (ibuf [0] == 'z')
 		proceed (RS_GPIN);
+#endif
+
+#if SDRAM_PRESENT
+	if (ibuf [0] == 'M')
+		proceed (RS_SDRAM);
+#endif
 
 #if STACK_GUARD
 	if (ibuf [0] == 'v')
@@ -683,7 +708,7 @@ thread (root)
 	proceed (RS_RCMD);
 #endif
 
-#endif	/* UART_DRIVER */
+#ifdef PIN_TEST
 
   entry (RS_GADC)
 
@@ -719,6 +744,8 @@ thread (root)
 	ser_outf (RS_GADC+1, "Value: %u\r\n", p [0]);
 	proceed (RS_RCMD);
 
+#endif
+
 #if UART_RATE_SETTABLE
 
   entry (RS_URS)
@@ -737,6 +764,87 @@ thread (root)
 	proceed (RS_RCMD);
 #endif
 
+#if SDRAM_PRESENT
+
+  entry (RS_SDRAM)
+
+	if (scan (ibuf + 1, "%u %u", &m, &n) != 2)
+		proceed (RS_RCMD+1);
+
+	if (m == 0 || n == 0)
+		proceed (RS_RCMD+1);
+
+	mbuf = umalloc (m + m);
+
+  entry (RS_SDRAM+1)
+
+	ser_outf (RS_SDRAM+1, "Testing %u Kwords using a %u word buffer\r\n",
+		n, m);
+
+	delay (512, RS_SDRAM+2);
+	release;
+
+  entry (RS_SDRAM+2);
+
+	nw = (lword)n * 1024;
+
+	bp = 0;
+	for (i = j = 0; i < nw; i++) {
+		mbuf [bp++] = (word) (i + 1);
+		if (bp == m) {
+			/* Flush the buffer */
+			ramput (j, mbuf, bp);
+			j += bp;
+			bp = 0;
+		}
+	}
+
+	if (bp)
+		/* The tail */
+		ramput (j, mbuf, bp);
+
+  entry (RS_SDRAM+3)
+
+	ser_out (RS_SDRAM+3, "Writing complete\r\n");
+
+	delay (512, RS_SDRAM+4);
+	release;
+
+  entry (RS_SDRAM+4)
+
+	for (i = 0; i < nw; ) {
+		bp = (nw - i > m) ? m : (word) (nw - i);
+		ramget (mbuf, i, bp);
+		j = i + bp;
+		bp = 0;
+		while (i < j) {
+			if (mbuf [bp] != (word) (i + 1))
+				proceed (RS_SDRAM+6);
+			bp++;
+			i++;
+		}
+	}
+
+  entry (RS_SDRAM+5)
+
+	ser_outf (RS_SDRAM+5, "Test OK %x\r\n", mbuf [0]);
+	ufree (mbuf);
+	proceed (RS_RCMD);
+
+  entry (RS_SDRAM+6)
+
+	ser_outf (RS_SDRAM+6, "Error: %x%x %x -> %x\r\n",
+				(word)((i >> 16) & 0xffff),
+				(word)( i        & 0xffff),
+				mbuf [bp],
+				(word) (i + 1));
+	ufree (mbuf);
+	proceed (RS_RCMD);
+
+#endif	/* SDRAM_PRESENT */
+
+#endif	/* UART_DRIVER */
+
   entry (RS_AUTOSTART)
 	  
 	snd_start (1024);
@@ -745,12 +853,3 @@ thread (root)
   	finish;
 
 endthread
-
-#undef	RS_INIT
-#undef	RS_RCMD
-#undef	RS_SND
-#undef  RS_RCV
-#undef	RS_RCV
-#undef	RS_PAR
-#undef	RS_QUIT
-#undef  RS_CAL

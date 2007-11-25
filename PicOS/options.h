@@ -269,13 +269,6 @@
 #define	RADIO_USE_LEDS		0
 #endif
 
-#if	CC1000
-#ifndef	CC1000_FREQ
-// Default CC1000 frequency. 868 is another option.
-#define	CC1000_FREQ		433
-#endif
-#endif
-
 // Entropy collection enabled, if possible
 #ifndef	ENTROPY_COLLECTION
 #define	ENTROPY_COLLECTION	0

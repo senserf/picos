@@ -112,11 +112,11 @@ $STACK_SIZE       =        H'0100
 $??STACK_SIZE     =        $STACK_SIZE
 $??HEAP_SIZE      =        H'0000  ; PG - No heap in this application
 
-; ROM segments
+; ROM segments (moved to pack.asm, PG, 071119)
 $??INITC_SIZE     =        h'0009  ; !PACK
 $??CONST_SIZE     =        h'03d6  ; !PACK
 
-; RAM segments
+; RAM segments (moved to pack.asm)
 $??INIT_SIZE      =        h'0009  ; !PACK
 $??VAR_SIZE       =        h'016f  ; !PACK
 
@@ -192,9 +192,9 @@ ESTK		= ADDR
 ;
 
 ??SEGCOPY         MACRO    src, dest
-                  IF       $??&src!_SIZE NE $??&dest!_SIZE
-                  .ERR     "Different segment sizes"
-                  ENDIF
+;                  IF       $??&src!_SIZE NE $??&dest!_SIZE
+;                  .ERR     "Different segment sizes"
+;                  ENDIF
                   IF       $??&src!_SIZE
                   ld       x, #$??&src
                   ld       y, #$??&dest

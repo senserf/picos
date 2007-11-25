@@ -1,4 +1,5 @@
 // Insert here applications-specific options
+
 #ifdef	LEDS_DRIVER
 #undef	LEDS_DRIVER
 #endif
@@ -9,14 +10,6 @@
 
 #ifdef	CODE_LONG_INTS
 #undef	CODE_LONG_INTS
-#endif
-
-#ifdef	LBT_DELAY
-#undef	LBT_DELAY
-#endif
-
-#ifdef	LBT_THRESHOLD
-#undef	LBT_THRESHOLD
 #endif
 
 #define	LEDS_DRIVER	1

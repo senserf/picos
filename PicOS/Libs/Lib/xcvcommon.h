@@ -1,12 +1,12 @@
 #ifndef __pg_xcvcommon_h
 #define	__pg_xcvcommon_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 /*
- * Common code of CC1000 and DM transveiver driver
+ * Common code of CC1000 and DM transceiver driver
  */
 
 #define	RCV_GETIT		0
@@ -80,7 +80,7 @@ Finish:
 		goto Finish;
 
 #if 0
-	diag ("*** RCV: [%d,%d] %x %x %x", zzr_length, zzv_curbit - IRQ_RP0,
+	diag ("*** RCV: [%d] %x %x %x", zzr_length,
 		zzr_buffer [0],
 		zzr_buffer [1],
 		zzr_buffer [2]);
@@ -88,9 +88,8 @@ Finish:
 	/* The length is in words */
 	if (zzr_length < MINIMUM_PACKET_LENGTH/2) {
 #if 0
-		diag ("*** ABT [too short]: [%d,%d] %x %x %x",
+		diag ("*** ABT [too short]: [%d] %x %x %x",
 			zzr_length,
-			zzv_curbit - IRQ_RP0,
 			zzr_buffer [0],
 			zzr_buffer [1],
 			zzr_buffer [2]);
@@ -103,9 +102,8 @@ Finish:
 	    zzr_buffer [0] != zzv_statid) {
 		/* Wrong packet */
 #if 0
-		diag ("*** ABT [wrong SID]: [%d,%d] %x %x %x",
+		diag ("*** ABT [wrong SID]: [%d] %x %x %x",
 			zzr_length,
-			zzv_curbit - IRQ_RP0,
 			zzr_buffer [0],
 			zzr_buffer [1],
 			zzr_buffer [2]);
@@ -116,17 +114,17 @@ Finish:
 	/* Validate checksum */
 	if (w_chk (zzr_buffer, zzr_length, 0)) {
 #if 0
-		diag ("*** ABT [CRC]: [%d,%d] %x %x %x",
+		diag ("*** ABT [CRC]: [%d] %x %x %x",
 			zzr_length,
-			zzv_curbit - IRQ_RP0,
 			zzr_buffer [0],
 			zzr_buffer [1],
 			zzr_buffer [2]);
 #endif
 		proceed (RCV_GETIT);
 	}
-	 /* Return RSSI in the last checksum byte */
+	/* Return RSSI in the last checksum byte */
 	adc_wait;
+
 	zzr_buffer [zzr_length - 1] = (word) rssi_cnv (adc_value) << 8;
 
 	tcvphy_rcv (zzv_physid, zzr_buffer, zzr_length << 1);
@@ -224,7 +222,7 @@ Drain:
 
 #if LBT_DELAY > 0
 	if (receiver_active) {
-		// LBS requires the receiver to be listening
+		// LBT requires the receiver to be listening
 		adc_start;
 		hard_drop;
 		delay (LBT_DELAY, XM_LBS);
@@ -325,7 +323,8 @@ Xmit:
 
 	adc_stop;
 	adc_wait;
-	if (adc_value < (word)(((long)LBT_THRESHOLD * 4096) / 100)) {
+
+	if (lbt_ok (adc_value)) {
 #if 0
 		diag ("O %u", adc_value);
 #endif
@@ -335,13 +334,12 @@ Xmit:
 	// Backoff
 	gbackoff;
 #if 0
-diag ("D %u %u", adc_value, zzx_backoff);
+	diag ("D %u %u", adc_value, zzx_backoff);
 #endif
 	proceed (XM_LOOP);
 		
 #endif
 
 endthread
-
 
 #endif

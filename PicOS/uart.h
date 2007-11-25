@@ -19,9 +19,9 @@
 #include "phys_uart.h"
 #endif
 
-#include "uart_sys.h"
-
 #ifdef	N_UARTS_TCV				// Set in uart_sys.h
+
+#include "uart_sys.h"
 
 #define	UART_DEF_BUF_LEN	64
 

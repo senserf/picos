@@ -8,6 +8,10 @@
 #include "cc1000_sys.h"
 #include "rfleds.h"
 
+#ifndef	CC1000_FREQ
+#define	CC1000_FREQ		433
+#endif
+
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length */
 #define	PREAMBLE_LENGTH		48	/* Preamble bits */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
@@ -82,6 +86,21 @@
 #define	IRQ_RTR		9	// Receiving end-of-word trailer
 
 #define	gbackoff	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+
+//
+// Any pin-actions required by the physical radio setup, e.g., antenna switching
+//
+#ifndef	pins_rf_disable
+#define	pins_rf_disable		CNOP
+#endif
+
+#ifndef	pins_rf_enable_rcv
+#define	pins_rf_enable_rcv	CNOP
+#endif
+
+#ifndef	pins_rf_enable_xmt
+#define	pins_rf_enable_xmt	CNOP
+#endif
 
 #define	start_rcv	do { \
 				chp_pdioin; \

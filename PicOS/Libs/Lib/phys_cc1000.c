@@ -99,8 +99,10 @@ static const byte chp_defcA [] = {
  * Default contents of CC1000 registers
  */
 	0x11,	// MAIN			-> irrelevant
-
-#if 0
+#if 1
+//
+// Fixed based on George's test code, not sure if for the better (PG)
+//
 	0x66,	// FREQ_2A		-> set for RX 433 MHz @ REFDIV = 9
 	0xA0,	// FREQ_1A
 	0x00,	// FREQ_0A
@@ -118,9 +120,11 @@ static const byte chp_defcA [] = {
 	PLL_A,	// PLL			-> updated
 	0x10,	// LOCK
 	0x26,	// CAL
-	0xB7,	// 9C,	// MODEM2
-  	0x6F,	// MODEM1
-	0x50 | MODEM0_LEAST,	// MODEM0	-> max baud + manchester
+
+	0x8E,	// 9C,	// MODEM2
+  	0x69,	// MODEM1
+	0x50 | MODEM0_LEAST,	// MODEM0 (irrelevant, will be set by init)
+
 	0x70,	// MATCH
 	0x01,	// FSCTRL
 	0x00,	// PSHAPE7
@@ -133,7 +137,10 @@ static const byte chp_defcA [] = {
 	0x00,	// FSDELAY
 	0x00 	// PRESCALER
 #endif
-#if 1
+#if 0
+//
+// Previous settings
+//
 	0x66,	// FREQ_2A		-> set for RX 433 MHz @ REFDIV = 9
 	0xA0,	// FREQ_1A
 	0x00,	// FREQ_0A
@@ -151,6 +158,7 @@ static const byte chp_defcA [] = {
 	PLL_A,	// PLL			-> updated
 	0x10,	// LOCK
 	0x26,	// CAL
+
 	0x8e,	// 9C,	// MODEM2
   	0x6F,	// MODEM1
 	0x57,	// MODEM0	-> max baud + manchester
@@ -380,6 +388,11 @@ static int w_calibrate (word rate) {
 /*
  * Sets the bit rate and calibrates the chip
  */
+	word i;
+	int res;
+
+	res = 0;
+
 	// I have redone this code according to the book (page 25 of the
 	// data sheet)
 
@@ -402,9 +415,13 @@ static int w_calibrate (word rate) {
 	chp_wconf (CC1000_CAL, 0xA6);
 
 	// Wait for maximum 34 ms, or Read CAL and wait until CAL_COMPLETE=1
-	do {
-		udelay (100);
-	} while ((chp_rconf (CC1000_CAL) & 0x08) == 0);
+	for (i = 0; i < 35; i++) {
+		mdelay (1);
+		if ((chp_rconf (CC1000_CAL) & 0x08) != 0) {
+			res |= 4;
+			break;
+		}
+	}
 
 	// Write CAL: CAL_START=0
 	chp_wconf (CC1000_CAL, 0x26);
@@ -422,14 +439,27 @@ static int w_calibrate (word rate) {
 	chp_wconf (CC1000_CAL, 0xA6);
 	
 	// Wait for maximum 34 ms, or Read CAL and wait until CAL_COMPLETE=1
-	do {
-		udelay (100);
-	} while ((chp_rconf (CC1000_CAL) & 0x08) == 0);
+	for (i = 0; i < 35; i++) {
+		mdelay (1);
+		if ((chp_rconf (CC1000_CAL) & 0x08) != 0) {
+			res |= 2;
+			break;
+		}
+	}
 
 	// Write CAL: CAL_START=0
 	chp_wconf (CC1000_CAL, 0x26);
 
-	return ((chp_rconf (CC1000_LOCK) & 0x01) == 0);
+	// Wait for the lock
+	for (i = 0; i < 35; i++) {
+		mdelay (1);
+		if ((chp_rconf (CC1000_LOCK) & 0x01)) {
+			res |= 1;
+			break;
+		}
+	}
+
+	return res;
 }
 
 static void ini_cc1000 (int baud) {
@@ -469,7 +499,7 @@ static void ini_cc1000 (int baud) {
 
 	i = w_calibrate (chp_rates [i] . rate);
 
-	// Unlock the averaging filter
+	// Unlock the averaging filter ???
 	chp_wconf (CC1000_MODEM1, 0x09);
 	mdelay (10);
 	xcv_disable ();
@@ -488,15 +518,18 @@ static void hstat (word status) {
 	switch (status) {
 
 		case HSTAT_SLEEP:
+			pins_rf_disable;
 			xcv_disable ();
 			break;
 		case HSTAT_RCV:
+			pins_rf_enable_rcv;
 			if (zzv_hstat == HSTAT_SLEEP)
 				rcv_enable_cold ();
 			else
 				rcv_enable_warm ();
 			break;
 		default:
+			pins_rf_enable_xmt;
 			if (zzv_hstat == HSTAT_SLEEP)
 				xmt_enable_cold ();
 			else
@@ -514,12 +547,6 @@ static byte rssi_cnv (word v) {
  * Converts the RSSI to a single byte 0-255
  */
 	add_entropy (v);
-
-#if RSSI_MIN >= 0x8000
-	// RSSI is signed
-	if ((v & RSSI_MIN))
-		v |= RSSI_MIN;
-#endif
 
 #if RSSI_MIN != 0
 	v -= RSSI_MIN;

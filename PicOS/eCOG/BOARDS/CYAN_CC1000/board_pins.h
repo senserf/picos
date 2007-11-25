@@ -1,53 +1,23 @@
-/*
- * Note: this is the most generic and flexible assignment that used to be
- * hardwired into main.c; we copy it here for comment and illustration.
- *
- */
-
-/*
- * GPIO assignment:
- *
- *            00-07     PortA (LEDs 0-3 + XEMICS 0-3 + Ethernet 6-7 + SW1-2 4-5
- *                      4-5 available if switch is OFF -> piggy radio?)
- *            08-10     PortB (LCD 3-5)
- *            11-15     PortL (RADIO 3-7)
- *            16        Free  (C3?)
- *            17-20     PortJ (LCD 2-5)
- *            21-22     PortD (RADIO 2-3)
- * 
- */
-
-#if	SDRAM_PRESENT || ETHERNET_DRIVER
-#define	EMI_USED		1
-#endif
-
 /* ====== */
 /* PORT A */
 /* ====== */
-#if	SWITCHES || LEDS_DRIVER || ETHERNET_DRIVER || RADIO_TYPE == RADIO_XEMICS || CC1000
+
+#define	EMI_USED		1
 	/*
 	 * Port A as GPIO 0-7, needed for the LEDs on A0-A3, side effect:
-	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip). The LEDs ports
-	 * (configured as output) are used to drive some pins on the
-	 * XEMICS.
+	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip).
 	 */
 #define	PORT_A_ENABLE		PORT_EN_A_MASK
 #define	PORT_A_SELECT		fd.port.sel1.a = 11
 
-#endif
-
-
-#if	LCD_DRIVER || CC1000
 	/*
 	 * B3-B5 as GPIO 8-10, B0-B2 -> SPI (SCLK, MOSI, MISO), B6,B7 ->
 	 * USART (DATA_IN, DATA_OUT); B3-B5 needed by LCD (see also Port J)
-	 * CHICPON doesn't want to work without it, although it doesn't
+	 * CC1000 doesn't want to work without it, although it doesn't
 	 * need Port B. Strange.
 	 */
 #define	PORT_B_ENABLE		PORT_EN_B_MASK
 #define	PORT_B_SELECT		fd.port.sel1.b = 3
-
-#endif
 
 #if 	SWITCHES
 	/*
@@ -64,7 +34,7 @@
 				} while (0)
 #endif
 
-#if	UART_DRIVER == 2 || RADIO_TYPE == RADIO_XEMICS
+#if	UART_DRIVER == 2
 	/*
 	 * Port D as DUART B (D0-D1), side effect: D2-D3 -> GPIO 21-22. D2 is
 	 * used by XEMICS.
@@ -73,39 +43,20 @@
 #define	PORT_D_SELECT		fd.port.sel1.d = 1
 #endif
 
-#ifdef	EMI_USED
 	/*
 	 * Ports E-I are used by EMI
 	 */
 #define	PORT_E_ENABLE		PORT_EN_E_MASK
 #define	PORT_E_SELECT		fd.port.sel1.e = 0
-#endif
-
-#ifdef	EMI_USED
-	/* Port F as A8-15 (address lines that is). */
 #define	PORT_F_ENABLE		PORT_EN_F_MASK
 #define	PORT_F_SELECT		fd.port.sel1.f = 0
-#endif
-
-#ifdef	EMI_USED
-	/* Port G as D0-7 (data lines that is). */
 #define	PORT_G_ENABLE		PORT_EN_G_MASK
 #define	PORT_G_SELECT		fd.port.sel2.g = 0
-#endif
-
-#ifdef	EMI_USED
-	/* Port H as D8-D15 (more data lines). */
 #define	PORT_H_ENABLE		PORT_EN_H_MASK
 #define	PORT_H_SELECT		fd.port.sel2.h = 0
-#endif
-
-#ifdef	EMI_USED
-	/* Port I as EMI control lines. */
 #define	PORT_I_ENABLE		PORT_EN_I_MASK
 #define	PORT_I_SELECT		fd.port.sel2.i = 0
-#endif
 
-#if	UART_DRIVER || LCD_DRIVER
 	/*
 	 * Port J as a DUART A (J0-J1), side effect: J2-J5 -> GPIO 17-20, with
 	 * GPIO 17-20 being used by the LCD.
@@ -113,21 +64,10 @@
 	 */
 #define	PORT_J_ENABLE		PORT_EN_J_MASK
 #define	PORT_J_SELECT		fd.port.sel2.j = 3
-#endif
 
-#if 0
-#define	PORT_K_ENABLE		PORT_EN_K_MASK
-	/*
-	 * PIOB on port K
-	 */
-#define	PORT_K_SELECT		fd.port.sel2.k = 1
-#endif
-
-#if 	RADIO_DRIVER || CC1000
 /*
- * L3-7 on GPIO_11-15 (not used by anything else) L0-2 on GPIO8-10 conflict
- * with Port B.
+ * L3-7 on GPIO_11-15 for CC1000 (not used by anything else) L0-2 on GPIO8-10
+ * conflicts with Port B.
  */
 #define	PORT_L_ENABLE		PORT_EN_L_MASK
 #define	PORT_L_SELECT		fd.port.sel2.l = 2
-#endif

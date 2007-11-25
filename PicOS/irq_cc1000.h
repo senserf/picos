@@ -98,10 +98,12 @@ if (cc1000_int) {
 	case IRQ_RPR:
 
 		// Receiving preamble
-		if (chp_getdbit)
+		if (chp_getdbit) {
 			zzv_prmble = (zzv_prmble << 1) | 1;
-		else
+		} else {
 			zzv_prmble <<= 1;
+		}
+
 		if (zzv_prmble == RCV_PREAMBLE) {
 			// Initialize the first word of packet
 			*zzr_buffp = 0;

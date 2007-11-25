@@ -65,7 +65,7 @@ typedef struct {
 
 } systat_t;
 
-extern	systat_t zz_systat;
+extern	volatile systat_t zz_systat;
 		
 #if	SDRAM_PRESENT
 /* malloc is using exclusively SDRAM */
@@ -85,11 +85,6 @@ extern	systat_t zz_systat;
 /* Data/stack boundaries */
 extern	address evar_, estk_;
 
-#if	SDRAM_PRESENT || ETHERNET_DRIVER
-#define	EMI_USED		1
-#else
-#define	EMI_USED		0
-#endif
 
 /* Exit to scheduler */
 void 				zzz_set_release (void);

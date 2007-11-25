@@ -1611,3 +1611,8 @@ R071124A:
 	to V070628A in VERSA2 branch. Rssi-based rules may be useful in
 	general, and VMesh2 will be moved under VUEE.
 
+R071124B:
+
+	Added miscellaneous fixes to make eCOG stuff work again, especially for
+	George's new board. As viewed by MSP430, these were mostly cosmetics,
+	I hope.

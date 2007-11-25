@@ -33,8 +33,6 @@ thread (__display)
 
 	char c;
 
-	nodata;
-
   entry (DS_INIT)
 
 	io (DS_INIT, LCD, CONTROL, (char*) &cnt, LCD_CNTRL_ERASE);

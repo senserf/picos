@@ -127,4 +127,6 @@
 						_BIS (TACCTL0, CCIE); \
 				} while (0)
 
+#define	lbt_ok(v)	((v) < (word)(((long)LBT_THRESHOLD * 4096) / 100))
+
 #endif
