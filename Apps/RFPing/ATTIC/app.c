@@ -371,7 +371,7 @@ int snd_stop (void) {
 #define	RS_SDRAM	140
 #define	RS_AUTOSTART	200
 
-#if CC1000
+#if CC1000 || CC1100
 const static word parm_power = 255;
 #endif
 
@@ -440,7 +440,7 @@ thread (root)
 		halt ();
 	}
 
-#if CC1000
+#if CC1000 || CC1100
 	tcv_control (sfd, PHYSOPT_SETPOWER, (address) &parm_power);
 #endif
 

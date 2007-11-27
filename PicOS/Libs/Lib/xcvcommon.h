@@ -125,7 +125,9 @@ Finish:
 	/* Return RSSI in the last checksum byte */
 	adc_wait;
 
+// diag ("V0 %x", adc_value);
 	zzr_buffer [zzr_length - 1] = (word) rssi_cnv (adc_value) << 8;
+// diag ("V1 %x", adc_value);
 
 	tcvphy_rcv (zzv_physid, zzr_buffer, zzr_length << 1);
 
@@ -330,6 +332,7 @@ Xmit:
 #endif
 		goto Xmit;
 	}
+
 	hard_drop;
 	// Backoff
 	gbackoff;

@@ -21,12 +21,15 @@
 
 #define	disable_xcv_timer	CNOP
 
+// See mach.h
 // #define	adc_value	fd.adc.sts.data
 
 #define	adc_start	(fd.ssm.cfg.adc_en = 1)
 #define	adc_disable	CNOP
 
+#if 0
 #define	lbt_ok(v)	((int)RSSI_MAX - (int)(v) < \
 			(word)(((long)LBT_THRESHOLD * (RSSI_MAX-RSSI_MIN))/100))
+#endif	/* DISABLED */
 
 #endif

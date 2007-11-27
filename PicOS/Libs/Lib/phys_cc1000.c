@@ -548,13 +548,44 @@ static byte rssi_cnv (word v) {
  */
 	add_entropy (v);
 
+#if 0
 #if RSSI_MIN != 0
 	v -= RSSI_MIN;
 #endif
 	// Higher RSSI means lower signal level
 	return (byte) ((((int)RSSI_MAX - (int)RSSI_MIN) - (int) v) >> RSSI_SHF);
+#endif	/* DISABLED CODE */
+
+#if 1
+	// This is the tricky and costly way
+
+	if (v > RSSI_MAX)
+		return 0;
+
+	return (byte) ( (((lword)RSSI_MAX - (lword)v) * 255) /
+		(RSSI_MAX - RSSI_MIN) );
+#endif
 }
 
+#ifdef __ECOG1__
+#if LBT_DELAY > 0
+
+static Boolean lbt_ok (word v) {
+
+	if (v > RSSI_MAX)
+		return YES;
+#if 0
+	diag ("LBT %d", (int)
+		((((lword)RSSI_MAX - (lword)v) * 100) / (RSSI_MAX - RSSI_MIN)));
+#endif
+	return 
+		((((lword)RSSI_MAX - (lword)v) * 100) / (RSSI_MAX - RSSI_MIN))
+			< LBT_THRESHOLD;
+}
+
+#endif	/* LBT_DELAY */
+#endif	/* __ECOG1__ */
+	
 #include "xcvcommon.h"
 
 void phys_cc1000 (int phy, int mbs, int bau) {

@@ -38,7 +38,9 @@
 		 // erase fim, eeprom
 		 if_erase (-1);
 #endif
+#ifdef	EEPROM_PRESENT
 		 ee_erase (WNONE, 0, 0);
+#endif
 		 for (zz_lostk = 0; zz_lostk < 8; zz_lostk++) {
 			 leds (0,1); leds (1,1); leds (2,1);
 			 mdelay (200);

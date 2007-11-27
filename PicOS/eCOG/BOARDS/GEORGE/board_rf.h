@@ -48,8 +48,6 @@
 #define	lna_on 			(rg.io.gp0_3_out = IO_GP0_3_OUT_CLR0_MASK)
 #define	lna_off			(rg.io.gp0_3_out = IO_GP0_3_OUT_SET0_MASK)
 
-#define	pins_rf_disable		lna_off
-
 #define	pins_rf_enable_rcv	do { \
 				  lna_on; \
 				  rg.io.gp8_11_out = IO_GP8_11_OUT_SET8_MASK | \
@@ -57,10 +55,16 @@
 				} while (0)
 
 #define	pins_rf_enable_xmt	do { \
-				  lna_on; \
 				  rg.io.gp8_11_out = IO_GP8_11_OUT_CLR8_MASK | \
 				  		     IO_GP8_11_OUT_SET9_MASK; \
 				} while (0)
+
+#define	pins_rf_disable		do { lna_off; \
+				  rg.io.gp8_11_out = IO_GP8_11_OUT_CLR8_MASK | \
+				  		     IO_GP8_11_OUT_CLR9_MASK; \
+				} while (0)
+
+
 
 #define	clr_xcv_int		(rg.io.gp12_15_cfg &= ~GP_INT_MSK)
 #define	set_rcv_int		(rg.io.gp12_15_cfg |= GP_INT_RCV)
