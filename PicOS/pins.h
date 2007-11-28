@@ -9,6 +9,14 @@
 
 #ifdef	PULSE_MONITOR
 
+#define	PMON_STATE_NOT_RISING	0x01
+#define	PMON_STATE_NOT_ON	0x02
+#define	PMON_STATE_NOT_PENDING	0x04
+#define	PMON_STATE_CNT_RISING	0x10
+#define	PMON_STATE_CNT_ON	0x20
+#define	PMON_STATE_CMP_ON	0x40
+#define	PMON_STATE_CMP_PENDING	0x80
+
 typedef	struct {
 
 	byte	deb_mas,	// Master debounce timer
@@ -24,6 +32,12 @@ typedef	struct {
 extern	zz_pmon_t	zz_pmon;
 
 #define	pmon		zz_pmon
+
+extern	word 	zz_pmonevent [0];
+
+#define	PMON_NOTEVENT	((word)&zz_pmonevent)
+#define	PMON_CNTEVENT	((word)&zz_pmonevent + 1)
+#define	PMON_CMPEVENT	PMON_CNTEVENT
 
 #define	PMON_CNT_EDGE_UP	0x40	// Edge UP triggers counter
 #define	PMON_NOT_EDGE_UP	0x80	// Edge UP triggers notifier
@@ -121,7 +135,6 @@ extern	zz_pmon_t	zz_pmon;
 	} while (0)
 
 PULSE_MONITOR;
-
 
 #endif  /* PULSE_MONITOR */
 

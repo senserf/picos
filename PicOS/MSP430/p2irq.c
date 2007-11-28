@@ -4,7 +4,6 @@
 /* ==================================================================== */
 #include "kernel.h"
 #include "pins.h"
-#include "pinopts.h"
 /*
  * This code handles all interrupts triggered by P2 pins
  */

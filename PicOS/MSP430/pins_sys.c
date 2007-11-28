@@ -5,12 +5,14 @@
 #include "kernel.h"
 #include "pins.h"
 
-static const pind_t pinmap [] = PIN_LIST;
-
 #ifdef PULSE_MONITOR
 word		zz_pmonevent [0];
 zz_pmon_t	zz_pmon;
 #endif
+
+#if PIN_MAX
+
+static const pind_t pinmap [] = PIN_LIST;
 
 Boolean zz_pin_available (word p) {
 
@@ -160,3 +162,5 @@ void zz_pin_set_adc (word p) {
 		1 << pinmap[p].pnum);
 	}
 }
+
+#endif /* PIN_MAX */

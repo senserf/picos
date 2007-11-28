@@ -12,54 +12,38 @@
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P6DIR	0x00	// P6.0 input from PAR
 
-#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+//#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
-#if ADC_SAMPLER
+#define	PIN_MAX 		0
+#define	PIN_MAX_ANALOG		0
+#define	PIN_DAC_PINS		0
 
-#define	PIN_LIST	{	\
-	PIN_DEF	(P2, 2),	\
-	PIN_DEF	(P2, 3),	\
-	PIN_DEF	(P2, 4),	\
-	PIN_DEF	(P2, 5),	\
-	PIN_DEF	(P2, 6),	\
-	PIN_DEF	(P4, 0),	\
-	PIN_DEF	(P4, 4),	\
-	PIN_DEF	(P4, 5),	\
-	PIN_DEF	(P4, 6),	\
-	PIN_DEF	(P4, 7),	\
-	PIN_DEF	(P5, 4),	\
-}
+#include "sht_xx.h"
+#include "qso_par.h"
+#include "sensors.h"
 
-#define	PIN_MAX			11	// Number of pins
-#define	PIN_MAX_ANALOG		0	// Number of available analog pins
+#define	SENSOR_LIST	{ \
+		SENSOR_DEF (NULL, qso_par_read), \
+		SENSOR_DEF (shtxx_init, shtxx_temp), \
+		SENSOR_DEF (NULL, shtxx_humid) \
+	}
 
-#else	/* NO SAMPLER */
+#define	SENSOR_PAR	0
+#define	SENSOR_TEMP	1
+#define	SENSOR_HUMID	2
 
-#define	PIN_LIST	{	\
-	PIN_DEF	(P6, 0),	\
-	PIN_DEF	(P6, 1),	\
-	PIN_DEF	(P6, 2),	\
-	PIN_DEF	(P6, 3),	\
-	PIN_DEF	(P6, 4),	\
-	PIN_DEF	(P6, 5),	\
-	PIN_DEF	(P6, 6),	\
-	PIN_DEF	(P6, 7),	\
-	PIN_DEF	(P2, 2),	\
-	PIN_DEF	(P2, 3),	\
-	PIN_DEF	(P2, 4),	\
-	PIN_DEF	(P2, 5),	\
-	PIN_DEF	(P2, 6),	\
-	PIN_DEF	(P4, 0),	\
-	PIN_DEF	(P4, 4),	\
-	PIN_DEF	(P4, 5),	\
-	PIN_DEF	(P4, 6),	\
-	PIN_DEF	(P4, 7),	\
-	PIN_DEF	(P5, 4),	\
-}
+// Pin definitions for the SHT sensor
 
-#define	PIN_MAX			19	// Number of pins
-#define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	shtxx_ini_regs	do { _BIS (P1OUT, 0x80); _BIC (P1OUT, 0x40); } while (0)
+#define	shtxx_dtup	_BIC (P1DIR, 0x40)
+#define	shtxx_dtdown	_BIS (P1DIR, 0x40)
+#define	shtxx_dtin	_BIC (P1DIR, 0x40)
+#define	shtxx_dtout	do { } while (0)
+#define	shtxx_data	(P1IN & 0x40)
 
-#endif /* SAMPLER or no SAMPLER */
+#define	shtxx_ckup	_BIS (P1OUT, 0x80)
+#define	shtxx_ckdown	_BIC (P1OUT, 0x80)
 
-#define	PIN_DAC_PINS		0x0
+// Definitions for the QSO PAR sensor
+
+#define QSO_PAR_PIN	0	// P6.0

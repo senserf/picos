@@ -317,10 +317,6 @@
 #define	ADC_SAMPLER			0
 #endif
 
-#ifndef	SHTXX_SENSOR
-#define	SHTXX_SENSOR			0
-#endif
-
 // ============================================================================
 // LCD drivers
 #ifndef	LCD_ST7036

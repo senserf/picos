@@ -712,8 +712,8 @@ static void ios_init () {
 	zz_ee_init ();
 #endif
 
-#if SHTXX_SENSOR
-	zz_shtxx_init ();
+#ifdef SENSORS_PRESENT
+	zz_init_sensors ();
 #endif
 
 #ifdef LCD_PRESENT

@@ -8,7 +8,6 @@
 //
 // Driver for SHTxx temperature/humidity sensors
 //
-
 static byte shtxx_status = 0;
 
 #define	SHTXX_STAT_IDLE 	0
@@ -102,14 +101,7 @@ static byte shtxx_get (Boolean ack) {
 	return r;
 }
 			
-void shtxx_reset () {
-
-	shtxx_cmd (SHTXX_CMD_RESET);
-	mdelay (12);
-	shtxx_status = 0;
-}
-
-word shtxx_read (word st, word what) {
+static shtxx_read (word st, word what) {
 //
 // Read the sensor
 //
@@ -154,9 +146,16 @@ GetItNow:
 	return what;
 }
 
-void zz_shtxx_init () {
+void shtxx_temp (word st, address val) { *val = shtxx_read (st, 0); }
 
+void shtxx_humid (word st, address val) { *val = shtxx_read (st, 1); }
+
+void shtxx_init () {
+/*
+ * Init and reset
+ */
 	shtxx_ini_regs;
-
-	shtxx_reset ();
+	shtxx_cmd (SHTXX_CMD_RESET);
+	mdelay (12);
+	shtxx_status = 0;
 }

@@ -1621,3 +1621,24 @@ R071127A:
 
 	Finishing touch for GEORGE's boards. RSSI calculation for CC1000
 	improved.
+
+R071128A:
+
+	Redone support for sensors (see R071118A). There is a single operation
+	for reading sensor values:
+
+	void read_sensor (word state, word sensid, address);
+
+	where sensid is a sensor number, and address points to the place where
+	the sensor value will be returned. Note that the length of that
+	value generally depends on the sensor type. For ARTURO board, the
+	sensor identifiers are SENSOR_PAR(0), SENSOR_TEMP(1), SENSOR_HUMID(2).
+	Operation pin_read_adc_avg (from R071118A) has been removed as overly
+	extravagant. This is still pretty much how the QSO PAR sensor is
+	implemented (see PicOS/qso_par.c), but the parameters (number of
+	samples to average, the intervals) are defined as constants in
+	board_pins.h. Note that the sensor operations are now independent of
+	the pin operations (pinopts), which means that PIN_MAX in board_pins.h
+	should be zero, unless actual pin operations are needed.
+	
+

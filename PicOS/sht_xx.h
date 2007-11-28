@@ -6,6 +6,7 @@
 /* ==================================================================== */
 
 #include "sht_xx_sys.h"
+//+++ "sht_xx.c"
 
 #define	SHTXX_TEMP	0
 #define	SHTXX_HUMID	1
@@ -18,5 +19,9 @@
 
 #define	SHTXX_DELAY_TEMP	210	// milliseconds (measurement delay)
 #define	SHTXX_DELAY_HUMID	55
+
+void shtxx_temp (word, address);
+void shtxx_humid (word, address);
+void shtxx_init ();
 
 #endif
