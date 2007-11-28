@@ -8,6 +8,7 @@
 #define	PIN_DEFAULT_P2DIR	0x83	// 0,1 and 7 hang loose
 #define	PIN_DEFAULT_P3DIR	0xC9
 #define	PIN_DEFAULT_P5DIR	0xE0
+#define	PIN_DEFAULT_P5OUT	0x10	// P5.4 == reference voltage for PAR
 #define	PIN_DEFAULT_P4DIR	0x0E
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P6DIR	0x00	// P6.0 input from PAR
@@ -47,3 +48,9 @@
 // Definitions for the QSO PAR sensor
 
 #define QSO_PAR_PIN	0	// P6.0
+#define	QSO_PAR_REF	3	// Veref
+
+// For providing the reference voltage dynamically - to save on battery;
+// let us just check it out
+#define	qso_set_ref	_BIS (P5DIR, 0x10)
+#define	qso_clr_ref	_BIC (P5DIR, 0x10)

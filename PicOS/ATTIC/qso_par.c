@@ -30,6 +30,14 @@
 #define	QSO_PAR_REF	0	// 1.5V by default
 #endif
 
+#ifndef	qso_set_ref
+#define	qso_set_ref	CNOP
+#endif
+
+#ifndef	qso_clr_ref
+#define	qso_clr_ref	CNOP
+#endif
+
 static	lword praa_avg, praa_count = 0;
 
 void qso_par_read (word state, address val) {
@@ -45,6 +53,7 @@ void qso_par_read (word state, address val) {
 			release;
 		}
 
+		qso_set_ref;
 		adc_config_read (QSO_PAR_PIN, QSO_PAR_REF, QSO_PAR_SHOLD);
 
 		praa_count = QSO_PAR_NSMP * 2;
@@ -87,6 +96,7 @@ Next:
 		goto Next;
 	}
 
+	qso_clr_ref;
 	praa_count = 0;
 	adc_disable;
 
