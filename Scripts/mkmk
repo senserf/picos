@@ -188,6 +188,12 @@ proc outprf { def cpu } {
 		puts $mfd "<folder name=\"ASM Files\">"
 		puts $mfd "<extension name=\"asm\"/>\n"
 
+		# add the standard files
+		foreach fn { "cstartup.asm" "irq.asm" } {
+			puts $mfd "<file path=\"$fn\"/>"
+		}
+
+		# any application's asm files
 		foreach fn $SrcLists($tar) {
 			if { [file extension $fn] == ".asm" } {
 				puts $mfd "<file path=\"$fn\"/>"
@@ -226,6 +232,10 @@ proc outprf { def cpu } {
 		puts $mfd "</folder>"
 		puts $mfd "<folder name=\"header Files\">"
 		puts $mfd "<extension name=\"h\"/>\n"
+
+		# internal.map should be mentioned here, I guess
+		puts $mfd "<file path=\"internal.map\"/>"
+		# I am not sure if we could use a cfg file
 
 		# collect the proper dependency subset
 		array unset Locdep
@@ -271,6 +281,8 @@ proc outprf { def cpu } {
 				  "<property key=\"keepAssembler\">1</property>"
 			}
 
+   			puts $mfd \
+				"<property key=\"brkInstallAddr\" >0</property>"
 			puts $mfd \
 				    "<property key=\"outputDir\">out</property>"
 			puts $mfd \
@@ -279,6 +291,8 @@ proc outprf { def cpu } {
 			    	 "<property key=\"mapFile\">internal</property>"
 			puts $mfd \
 			    "<property key=\"packFile\">cstartup.asm</property>"
+
+   			puts $mfd "<property key=\"stabsInfo\" >1</property>"
 
 			puts -nonewline $mfd "<property key=\"includeDirs\">"
 

@@ -1645,3 +1645,7 @@ R071130A:
 
 	VUEE/BoardTest. Both All and RF go to Aries for production tests.
 
+R071201A:
+
+	Fixed mkmk (I forgot to replace it after eCOG fixes, sorry, sorry).
+	Fixed Apps/VUEE/RFPing (pinopts.h included in globals.h).
