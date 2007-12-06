@@ -11,7 +11,7 @@
 #else
 
 #include "tcvplug.h"
-extern void tarp_init();
+extern void tarp_init(void);
 extern int tarp_rx (address buffer, int length, int *ses);
 extern int tarp_tx (address buffer);
 

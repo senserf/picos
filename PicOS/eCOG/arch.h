@@ -92,7 +92,7 @@ void 				zzz_set_release (void);
 void				zzz_release (void);
 #define	release			zzz_release ()
 
-#define	nodata			(*((int*)&data) = 0)
+#define	nodata			CNOP
 
 #define	INLINE
 

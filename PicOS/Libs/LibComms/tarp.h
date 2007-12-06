@@ -93,4 +93,8 @@ extern  nid_t		net_id;
 extern  nid_t		local_host;
 extern  nid_t		master_host;
 
+#ifndef	__SMURPH__
+#include "tarp_hooks.h"
+#endif
+
 #endif

@@ -963,7 +963,9 @@ void	adc_stop (void);
 #define	_dac(a,b)	b
 #define	_dad(t,a)	a
 
-#define	praxis_starter(a)
+// Should be something redundant and empty; cannot be literaly empty as the
+// stupid CYAN compiler won't take it
+#define	praxis_starter(a)	int kill (int)
 
 #define	__STATIC	static
 #define	__CONST		const

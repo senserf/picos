@@ -47,6 +47,8 @@
 
 #include "tarp.h"
 
+#include "net.h"
+
 #ifndef __SMURPH__
 // The macros have become functions
 // #include "app_tarp_if.h"

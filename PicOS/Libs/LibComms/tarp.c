@@ -78,7 +78,7 @@ __PRIVF (TNode, word, tarp_findInSpd) (nid_t host) {
 	return spdCacheSize;
 }
 
-__PUBLF (TNode, void, tarp_init) () {
+__PUBLF (TNode, void, tarp_init) (void) {
 #if TARP_CACHES_MALLOCED
 	ddCache = (ddcType *)
 		umalloc (sizeof(ddcType));

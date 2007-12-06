@@ -1649,3 +1649,10 @@ R071201A:
 
 	Fixed mkmk (I forgot to replace it after eCOG fixes, sorry, sorry).
 	Fixed Apps/VUEE/RFPing (pinopts.h included in globals.h).
+
+R071206A:
+
+	Fixes to allow CYAN IDE accommodate multiple projects in one directory
+	and to let tnp_demo compile. Had to add one include file in
+	PicOS/Libs/LibComms (tcv_hooks.h) to eliminate the most serious of
+	compilation warnings. Requires VUEE R071206A.

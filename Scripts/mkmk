@@ -209,13 +209,13 @@ proc outprf { def cpu } {
 				# must copy to .c (we shouldn't trust links as
 				# this will be ultimately handled by Windows)
 				set tfn [file join $CWD "KTMP"]
+				# create KTMP
 				if [catch { exec mkdir -p $tfn } err] {
 					errab \
-						"cannot mkdir '$tfn': $err"
+					    "cannot mkdir '$tfn': $err"
 				}
-
 				set tfn [file join $tfn \
-					 "[file rootname [file tail $fn]].c]"]
+					 "[file rootname [file tail $fn]].c"]
 			
 				if [catch { exec cp $fn $tfn } err] {
 					errab \
@@ -1167,15 +1167,12 @@ proc main { } {
 	set RPREF [canon RPREF]
 
 	# cleanup
+	catch { exec rm -rf "*.cyp" "*.cyw" "*.lif" "Makefile" "KTMP" \
+			"out" "temp" "internal.map" "cstartup.asm" "irq.asm" }
+
 	if { $Run(mode) == "E" } {
-		catch {
-			file delete -force \
-				"out" "temp" "internal.map" "cstartup.asm" \
-					"cstartup.lif" "irq.asm" "irq.lif"
-		}
 		catch { file mkdir "out" "temp" }
 	} else {
-		catch { file delete -force -- "KTMP" }
 		catch { file mkdir "KTMP" }
 	}
 
