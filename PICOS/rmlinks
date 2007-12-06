@@ -12,6 +12,7 @@ rm -f plug_null_node_data_init.h
 #################################
 rm -f msg_tarp.h
 rm -f net.cc
+rm -f net.h
 rm -f net_node_data.h
 rm -f net_node_data_init.h
 rm -f plug_tarp.cc
@@ -20,6 +21,7 @@ rm -f plug_tarp_node_data.h
 rm -f plug_tarp_node_data_init.h
 rm -f tarp.cc
 rm -f tarp.h
+rm -f tarp_hooks.h
 rm -f tarp_node_data.h
 rm -f tarp_node_data_init.h
 

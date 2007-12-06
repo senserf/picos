@@ -231,3 +231,8 @@ R071031A:
 R071114A:
 
     Added ee_size, which was accidentally missing from the set of ee ops.
+
+R071206A:
+
+    Added a couple of links to PICOS. Had to split some includes to eliminate
+    complaints of the CYAN compiler. Matches PICOS R071206A.
