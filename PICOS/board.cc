@@ -292,6 +292,28 @@ lword _dad (PicOSNode, seconds) () {
 	return (lword) ituToEtu (Time - LastResetTime);
 };
 
+void _dad (PicOSNode, ldelay) (word d, word state) {
+/*
+ * Minute wait
+ */
+	if (d == 0)
+		syserror (ENEVENTS, "ldelay");
+
+	Timer->delay (64.0 * d, state);
+}
+
+void _dad (PicOSNode, lhold) (word st, lword *nsec) {
+/*
+ * Long second wait:
+ */
+	if (*nsec == 0)
+		return;
+
+	Timer->delay ((double)(*nsec), st);
+	*nsec = 0;
+	sleep;
+};
+
 address PicOSNode::memAlloc (int size, word lsize) {
 /*
  * size  == real size 

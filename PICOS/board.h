@@ -82,7 +82,7 @@ station PicOSNode abstract {
 	void		_da (phys_cc1100) (int, int);
 	void		phys_rfmodule_init (int);
 
-	TIME	LastResetTime;
+	TIME	LastResetTime, LastWaitTime;
 
 	Mailbox	TB;		// For trigger
 
@@ -201,6 +201,9 @@ station PicOSNode abstract {
 			getSName ());
 		return uart->U->ioop (state, ope, buf, len);
 	};
+
+	void _da (ldelay) (word, word);
+	void _da (lhold) (word, lword*);
 
 	/*
 	 * I/O formatting

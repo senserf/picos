@@ -39,6 +39,8 @@
 	(  ((PicOSNode*)TheStation)->_na_leds ((word)(a),(word)(b))  )
 #define fastblink(a) \
 	(  ((PicOSNode*)TheStation)->_na_fastblink ((Boolean)(a))  )
+#define	ldelay(a,b)	(  ((PicOSNode*)TheStation)->_na_ldelay (a,b)  )
+#define	lhold(a,b)	(  ((PicOSNode*)TheStation)->_na_lhold (a,b)  )
 
 // ============================================================================
 

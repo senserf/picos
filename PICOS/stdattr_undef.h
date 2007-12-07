@@ -26,6 +26,8 @@
 #undef decrypt
 #undef leds
 #undef fastblink
+#undef ldelay
+#undef lhold
 #undef vform
 #undef vscan
 #undef form
