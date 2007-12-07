@@ -82,7 +82,7 @@ station PicOSNode abstract {
 	void		_da (phys_cc1100) (int, int);
 	void		phys_rfmodule_init (int);
 
-	TIME	LastResetTime, LastWaitTime;
+	TIME	LastResetTime;
 
 	Mailbox	TB;		// For trigger
 
