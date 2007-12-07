@@ -236,3 +236,8 @@ R071206A:
 
     Added a couple of links to PICOS. Had to split some includes to eliminate
     complaints of the CYAN compiler. Matches PICOS R071206A.
+
+R071206A:
+
+    Added ldelay and lhold. Not added dleft, ldleft, lhleft (perhaps nobody
+    needs them, and they are a bit tricky)
