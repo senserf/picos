@@ -7,6 +7,7 @@
 #include "sensors.h"
 #include "pins.h"
 
+#ifdef	SENSOR_LIST
 static sensdesc_t sensmap [] = SENSOR_LIST;
 
 #define	N_SENSORS	(sizeof (sensmap) / sizeof (sensdesc_t))
@@ -22,7 +23,11 @@ void zz_init_sensors () {
 	}
 }
 
+#endif	/* SENSOR_LIST */
+
 void read_sensor (word st, word sn, address val) {
+
+#ifdef	SENSOR_LIST
 
 	sensdesc_t *s;
 
@@ -30,4 +35,8 @@ void read_sensor (word st, word sn, address val) {
 		syserror (EREQPAR, "read_sensor");
 
 	(*(sensmap [sn] . fun_val)) (st, val);
+#else
+	syserror (EREQPAR, "read_sensor");
+#endif
+
 }

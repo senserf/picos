@@ -317,7 +317,29 @@ void zz_pin_set_input (word);
 void zz_pin_set_output (word);
 void zz_pin_set_adc (word);
 
-#if PIN_DAC_PINS != 0
+#else	/* PIN_MAX == 0 */
+
+#define zz_pin_available(a)		0
+#define zz_pin_adc_available(a)		0
+#define zz_pin_ivalue(a)		0
+#define zz_pin_ovalue(a)		0
+#define zz_pin_adc(a)			0
+#define zz_pin_output(a)		0
+#define zz_pin_set(a)			CNOP
+#define zz_pin_clear(a)			CNOP
+#define zz_pin_set_input(a)		CNOP
+#define zz_pin_set_output(a)		CNOP
+#define zz_pin_set_adc(a)		CNOP
+
+#define	adc_config_rssi		adc_disable
+
+#endif	/* PIN_MAX == 0 */
+
+#ifndef	PIN_DAC_PINS
+#define	PIN_DAC_PINS			0
+#endif
+
+#if PIN_DAC_PINS
 
 Boolean zz_pin_dac_available (word);
 Boolean zz_pin_dac (word);
@@ -334,11 +356,5 @@ void zz_write_dac (word, word, word);
 #define	zz_write_dac(a,b,c)	CNOP
 
 #endif	/* PIN_DAC_PINS */
-
-#else	/* PIN_MAX == 0 */
-
-#define	adc_config_rssi		adc_disable
-
-#endif	/* PIN_MAX == 0 */
 
 #endif

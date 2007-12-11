@@ -1656,3 +1656,7 @@ R071206A:
 	and to let tnp_demo compile. Had to add one include file in
 	PicOS/Libs/LibComms (tcv_hooks.h) to eliminate the most serious of
 	compilation warnings. Requires VUEE R071206A.
+
+R071210A:
+
+	Stub support for actuators added. A bit of cleanup in pins handling.
