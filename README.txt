@@ -241,3 +241,7 @@ R071206C:
 
     Added ldelay and lhold. Not added dleft, ldleft, lhleft (perhaps nobody
     needs them, and they are a bit tricky)
+
+R071210A:
+
+    Added support for sensors and actuators.

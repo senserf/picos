@@ -28,9 +28,11 @@
 
 #define	XTRN_MBX_BUFLEN		64		// Mailbox buffer size
 #define	PRQS_INPUT_BUFLEN	82		// PIN request buffer size
-#define	PUPD_OUTPUT_BUFLEN	32		// PIN update buffer size
+#define	PUPD_OUTPUT_BUFLEN	48		// PIN update buffer size
 #define	MRQS_INPUT_BUFLEN	112		// MOVE request buffer size
+#define	SRQS_INPUT_BUFLEN	64		// SENSOR request buffer size
 #define	ARQS_INPUT_BUFLEN	64		// PANEL request buffer size
+#define	AUPD_OUTPUT_BUFLEN	64		// Actuator update buffer size
 
 #define	XTRN_IMODE_NONE		(0<<29)
 #define	XTRN_IMODE_DEVICE	(1<<29)
@@ -65,6 +67,7 @@
 #define	AGENT_RQ_MOVE		4		/* Mobility */
 #define	AGENT_RQ_PANEL		5
 #define	AGENT_RQ_CLOCK		6
+#define	AGENT_RQ_SENSORS	7
 
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */
@@ -72,10 +75,11 @@
 #define	ECONN_NOUART		3		/* Station has no UART */
 #define	ECONN_ALREADY		4		/* Already connected to this */
 #define	ECONN_NOPINS		5		/* No pin module */
-#define	ECONN_TIMEOUT		6
-#define	ECONN_ITYPE		7		/* Non-socket interface */
-#define	ECONN_NOLEDS		8
-#define	ECONN_DISCONN		9		/* This is in fact a dummy */
+#define	ECONN_NOSENSORS		6
+#define	ECONN_TIMEOUT		7
+#define	ECONN_ITYPE		8		/* Non-socket interface */
+#define	ECONN_NOLEDS		9
+#define	ECONN_DISCONN		10		/* This is in fact a dummy */
 #define	ECONN_LONG		11
 #define	ECONN_INVALID		12		/* Invalid request */
 #define	ECONN_OK		129		/* Positive ack */
@@ -328,7 +332,7 @@ class LEDSM {
 	void rst ();
 };
 
-typedef	struct	{
+typedef	struct {
 
 	unsigned int pin:8;
 	unsigned int stat:8;
@@ -338,6 +342,8 @@ typedef	struct	{
 
 mailbox PUpdates (long) {
 
+// Pin updates
+
 	inline void queue (pin_update_t u) {
 		this->put (*((long*)(&u)));
 	};
@@ -345,6 +351,46 @@ mailbox PUpdates (long) {
 	inline pin_update_t retrieve () {
 		long it = this->get ();
 		return *((pin_update_t*)(&it));
+	};
+};
+
+#define	SEN_TYPE_PARAMS		0	// Number of sens/act
+#define	SEN_TYPE_SENSOR		1	// Update types
+#define	SEN_TYPE_ACTUATOR	2
+
+typedef struct {
+
+        unsigned int tp:8;      // SEN_TYPE_SENSOR/SEN_TYPE_ACTUATOR
+        unsigned int lm:8;      // Nonzero -> send bounds
+        unsigned int sn:16;     // Sensor/actuator number
+
+} act_update_t;
+
+mailbox SUpdates (long) {
+
+// Sensor/actuator updates
+
+	void queue (byte tp, byte sn, Boolean lm = NO) {
+
+		act_update_t p;
+
+		p.sn = sn;
+		p.tp = tp;
+		p.lm = lm;
+
+		this->put (*((long*)(&p)));
+	};
+
+	Boolean retrieve (byte &tp, byte &sn) {
+
+		act_update_t p;
+
+		*((long*)(&p)) = this->get ();
+
+		sn = p.sn;
+		tp = p.tp;
+
+		return p.lm;
 	};
 };
 
@@ -552,6 +598,56 @@ class PINS {
 	void pmon_dec_cnt ();
 	void pmon_sub_cnt (long);
 	void pmon_add_cmp (long);
+};
+
+class SNSRS {
+/*
+ * Sensors and actuators
+ */
+	friend class SensorsHandler;
+	friend class SensorsInput;
+
+	TIME	TimedRequestTime;
+
+	PicOSNode	*TPN;		// Node backpointer
+
+	SensActDesc	*Sensors,	// The actual objects
+			*Actuators;
+
+	byte		NSensors, NActuators;
+
+	FLAGS		Flags;
+
+	int		SLen;		// String length for string input
+
+	union {
+		Dev *I;			// If input from device
+		const char *S;		// If input from string
+	};
+
+	Dev		*O;		// Output device
+
+	char		*UBuf;		// Buffer for updates
+
+	SUpdates	*Upd;
+
+	Process		*InputThread, *OutputThread;
+
+	public:
+
+	void qupd_act (byte, byte, Boolean lm = NO);
+	void qupd_all ();
+	int act_status (byte, byte, Boolean);
+	int sensor_update (char*);
+
+	void read (int, word, address);
+	void write (int, word, address);
+
+	SNSRS (data_sa_t*);
+
+	void rst ();			// Called on reset
+
+	~SNSRS ();
 };
 
 process	AgentInterface {

@@ -41,6 +41,10 @@
 	(  ((PicOSNode*)TheStation)->_na_fastblink ((Boolean)(a))  )
 #define	ldelay(a,b)	(  ((PicOSNode*)TheStation)->_na_ldelay (a,b)  )
 #define	lhold(a,b)	(  ((PicOSNode*)TheStation)->_na_lhold (a,b)  )
+#define	read_sensor(a,b,c) \
+		(  ((PicOSNode*)TheStation)->_na_read_sensor (a,b,c)  )
+#define	write_actuator(a,b,c) \
+		(  ((PicOSNode*)TheStation)->_na_write_actuator (a,b,c)  )
 
 // ============================================================================
 

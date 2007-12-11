@@ -80,6 +80,73 @@ typedef struct {
 
 } data_pn_t;
 
+class SensActDesc {
+
+// A sensor/actuator descriptor, more like a structure
+
+	public:
+
+	TIME	ReadyTime;
+
+	double	MinTime, MaxTime;
+
+	lword	Max, Value,
+		RValue;		// Reset value
+	byte	Length,		// This is the value length in bytes
+		Type,		// Type: SEN_TYPE_SENSOR or SEN_TYPE_ACTUATOR
+		Id;		// Number in the array
+
+	SensActDesc () {
+		Length = 0;	// Default == absent
+		Type = 0;
+		MinTime = MaxTime = 0.0;
+		ReadyTime = TIME_inf;
+	};	
+
+	// Determine the number size for a value
+	static int bsize (lword);
+
+	// Set the value
+	Boolean set (lword v) {
+		if (v > Max)
+			v = Max;
+		if (Value != v) {
+			Value = v;
+			return YES;
+		}
+		return NO;
+	}
+		
+	Boolean expand (address v);
+
+	// Retrieve the value
+	void get (address);
+	
+	// Action delay
+	TIME action_time () {
+		return etuToItu (MinTime == MaxTime ? MinTime :
+			dRndUniform (MinTime, MaxTime) );
+	};
+};
+
+typedef	struct {
+
+// SNSRS (sensors and actuators)
+
+	FLAGS	SMode;
+
+	byte	NS, NA;		// Total number of sensors/actuators
+
+	SensActDesc	*Sensors,
+			*Actuators;
+
+	const char	*SIDev,	// Input device
+			*SODev;	// Output device
+
+	Boolean absent;		// Explicitly absent
+
+} data_sa_t;
+
 typedef	struct {
 
 // LEDs module
@@ -104,6 +171,7 @@ typedef struct {
 	data_ep_t *ep;		// EEPROM parameters
 	data_ua_t *ua;		// UART parameters
 	data_pn_t *pn; 		// PINS module parameters
+	data_sa_t *sa;
 	data_le_t *le;		// LEDs module
 
 } data_no_t;

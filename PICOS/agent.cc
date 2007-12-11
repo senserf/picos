@@ -173,6 +173,42 @@ process PulseMonitor {
 	perform;
 };
 
+process SensorsHandler {
+/*
+ * Handles a SNSRS module connection and acts as the driver
+ */
+	PicOSNode *TPN;
+	Dev	  *Agent;
+	SNSRS	  *SN;
+	int	  Length;
+	char	  *Buf;
+
+	states { AckSens, Loop, Send };
+
+	void setup (SNSRS*, Dev*);
+
+	void goaway (byte);
+
+	perform;
+};
+
+process SensorsInput {
+/*
+ * A sidekick tp SensorsHandler: handles the input end of the connection
+ * (or device)
+ */
+	SNSRS	  *SN;
+	char      *BP;
+	int       Left;
+	char      RBuf [SRQS_INPUT_BUFLEN];
+
+	states { Loop, ReadRq, Delay };
+
+	void setup (SNSRS*);
+
+	perform;
+};
+
 process LedsHandler {
 
 	PicOSNode *TPN;
@@ -934,7 +970,6 @@ PINS::PINS (data_pn_t *PID) {
 
 	int i;
 	byte *taken;
-	PicOSNode *ThisNode;
 
 	I = O = NULL;
 	Upd = NULL;
@@ -1091,10 +1126,8 @@ PINS::PINS (data_pn_t *PID) {
 	if (O != NULL) {
 		// Note that this one will be indestructible
 		Upd = create PUpdates (MAX_Long);
-		// Signal initial (full) update
-		qupd_all ();
-		// create will steal ThePicOSNode from us
-		ThisNode = ThePicOSNode;
+		// Signal initial (full) update; not needed, rst does it
+		// qupd_all ();
 		create (System) PinsHandler (this, NULL);
 	}
 
@@ -1727,8 +1760,7 @@ word PINS::pmon_get_state () {
 
 int PINS::pinup_status (pin_update_t upd) {
 /*
- * Transforms a pin update request into an outgoing message. The message
- * size is 10 + 1 + 2 + 1 + 2 + 1 + 2 + 1 + 1 + 4 + 1 = 26 bytes
+ * Transforms a pin update request into an outgoing message
  */
 	char *tb;
 	tb = UBuf;
@@ -1795,10 +1827,8 @@ void PinsHandler::setup (PINS *pn, Dev *a) {
 
 	PN = pn;
 
-	assert (PN != NULL, "PinsHandler: no PINS to handle");
-
 	if ((Agent = a) == NULL) {
-
+		assert (PN != NULL, "PinsHandler: no PINS to handle");
 		// We have been called to handle device IO
 		assert (PN->O != NULL,
 			"PinsHandler at %s: the mailbox is missing",
@@ -1925,7 +1955,7 @@ void PinsInput::setup (PINS *p) {
 
 PinsInput::perform {
 /*
- * Request formats (all numbers in hex):
+ * Request formats:
  *
  *      T [+]delay (double)  [24]
  *      P pin val [0,1]	     [7]
@@ -2058,6 +2088,564 @@ Error:
 			sleep;
 		} else
 			PN->TimedRequestTime = Time;
+
+		proceed Loop;
+}
+
+void SNSRS::rst () {
+/*
+ * Sensor/actuator reset
+ */
+	int i;
+
+	// Change all actuator values to defaults (do not touch the sensors);
+	// Note: the "reset" values are stored there, so we can still do
+	// something with them, if we want
+
+	for (i = 0; i < NActuators; i++)
+		if (Actuators [i] . Length)
+			Actuators [i] . Value = Actuators [i] . RValue;
+
+	if (Upd != NULL) {
+		// Send all actuator values
+		Upd->erase ();
+		qupd_all ();
+	}
+}
+
+SNSRS::SNSRS (data_sa_t *SID) {
+
+	int i;
+
+	I = O = NULL;
+	Upd = NULL;
+	InputThread = OutputThread = NULL;
+
+	TimedRequestTime = TIME_0;
+
+	TPN = ThePicOSNode;
+
+	Flags = SID->SMode;
+
+	Sensors = SID->Sensors;
+	Actuators = SID->Actuators;
+
+	NSensors = SID->NS;
+	NActuators = SID->NA;
+
+	// This should have been checked by now
+	assert (NSensors != 0 || NActuators != 0,
+		"SENSORS: the number of sensors and actuators at %s is zero",
+			TheStation->getSName ());
+
+	if (imode (Flags) == XTRN_IMODE_SOCKET ||
+					omode (Flags) == XTRN_OMODE_SOCKET) {
+		Assert (imode (Flags) == XTRN_IMODE_SOCKET &&
+		    omode (Flags) == XTRN_OMODE_SOCKET, 
+			"SENSORS at %s: confilcting modes %x",
+			    TheStation->getSName (),
+			        Flags);
+		// That's it, the devices will be created upon connection
+	
+	} else if (imode (Flags) == XTRN_IMODE_DEVICE) {
+		// Need a mailbox for the input end
+		Assert (SID->SIDev != NULL,
+			"SENSORS at %s: input device cannot be NULL",
+				TheStation->getSName ());
+		I = create Dev;
+		// Check if the output end uses the same device
+		if (omode (Flags) == XTRN_OMODE_DEVICE && strcmp (SID->SIDev,
+		    SID->SODev) == 0) {
+			// Yep, single mailbox will do
+			i = I->connect (DEVICE+READ+WRITE, SID->SIDev, 0,
+				(XTRN_MBX_BUFLEN > AUPD_OUTPUT_BUFLEN) ?
+					XTRN_MBX_BUFLEN : AUPD_OUTPUT_BUFLEN);
+			O = I;
+		} else {
+			i = I->connect (DEVICE+READ, SID->SIDev, 0,
+				XTRN_MBX_BUFLEN);
+		}
+		if (i == ERROR)
+			excptn ("SENSORS at %s: cannot open device %s",
+				TheStation->getSName (), SID->SIDev);
+	} else if (imode (Flags) == XTRN_IMODE_STRING) {
+		Assert (SID->SIDev != NULL,
+			"SENSORS at %s: the input string is empty",
+				TheStation->getSName ());
+		S = SID->SIDev;
+	}
+
+	// We are done with the input end
+	if (O == NULL && omode (Flags) == XTRN_OMODE_DEVICE) {
+		// A separate DEVICE 
+		Assert (SID->SODev != NULL,
+			"SENSORS at %s: no output device name",
+			TheStation->getSName ());
+		O = create Dev;
+		if (O->connect (DEVICE+WRITE, SID->SODev, 0,
+		    AUPD_OUTPUT_BUFLEN))
+			excptn ("SENSORS at %s: cannot open device %s",
+				TheStation->getSName (), SID->SODev);
+	}
+
+	// Allocate buffer for updates
+	UBuf = new char [AUPD_OUTPUT_BUFLEN];
+
+	// Note that I shares location with S
+	if (I != NULL) {
+		// The input end
+		create (System) SensorsInput (this);
+	}
+
+	if (O != NULL) {
+		// Note that this one will be indestructible
+		Upd = create SUpdates (MAX_Long);
+		// Signal initial (full) update; no, let rst do that
+		// qupd_all ();
+		create (System) SensorsHandler (this, NULL);
+	}
+	rst ();
+}
+
+SNSRS::~SNSRS () {
+
+	excptn ("SENSORS at %s: cannot delete SENSORS",
+		TheStation->getSName ());
+}
+
+void SNSRS::read (int state, word sn, address vp) {
+
+	TIME del;
+	SensActDesc *s;
+
+	if (sn >= NSensors || (s = Sensors + sn) -> Length == 0)
+		syserror (EREQPAR, "read_sensor");
+
+	if (s->MaxTime == 0.0) {
+		// return immediately
+		s->get (vp);
+		return;
+	}
+
+	if (undef (s->ReadyTime)) {
+		// Starting up
+		s->ReadyTime = Time + (del = s->action_time ());
+		Timer->wait (del, state);
+		sleep;
+	}
+
+	if (Time >= s->ReadyTime) {
+		s->ReadyTime = TIME_inf;
+		s->get (vp);
+		return;
+	}
+	Timer->wait (s->ReadyTime - Time, state);
+	sleep;
+}
+
+void SNSRS::write (int state, word sn, address vp) {
+
+	TIME del;
+	SensActDesc *s;
+
+	if (sn >= NActuators || (s = Actuators + sn) -> Length == 0)
+		syserror (EREQPAR, "write_actuator");
+
+	if (s->MaxTime == 0.0)
+		// return immediately
+		goto SetIt;
+
+	if (undef (s->ReadyTime)) {
+		// Starting up
+		s->ReadyTime = Time + (del = s->action_time ());
+		Timer->wait (del, state);
+		sleep;
+	}
+
+	if (Time >= s->ReadyTime) {
+		s->ReadyTime = TIME_inf;
+SetIt:
+		if (s->expand (vp)) 
+			qupd_act (SEN_TYPE_ACTUATOR, sn);
+		return;
+	}
+
+	Timer->wait (s->ReadyTime - Time, state);
+	sleep;
+}
+
+int SNSRS::act_status (byte what, byte sid, Boolean lm) {
+/*
+ * Transforms an actuator update message into an outgoing message
+ */
+	double tm;
+	char *tb;
+	SensActDesc *s;
+	char ct;
+
+	tb = UBuf;
+
+	if (what == SEN_TYPE_PARAMS) {
+		// Send the number of actuators + the number of sensors
+		sprintf (UBuf, "N %1u %1u\n", NActuators, NSensors);
+	} else {
+		if (what == SEN_TYPE_SENSOR) {
+			ct = 'S';
+			s = &(Sensors [0]);
+		} else {
+			ct = 'A';
+			s = &(Actuators [0]);
+		}
+		tm = ituToEtu (Time);
+		s += sid;
+		if (lm)
+			sprintf (UBuf, "%c %08.3f: %1u %08x %08x\n",
+				ct, tm, sid, s->Value, s->Max);
+		else
+			sprintf (UBuf, "%c %08.3f: %1u %08x\n", ct, tm, sid,
+				s->Value);
+	}
+	return strlen (UBuf);
+}
+
+int SNSRS::sensor_update (char *rb) {
+/*
+ * Update the sensor according to the input request. When we are called, rb
+ * points to the first non-blank character of the request.
+ */
+	SensActDesc *s;
+	lword sn, sv;
+	char c;
+
+	c = *rb++;
+
+	if (c != 'S')
+		// Only sensor setting is accepted
+		return OK;
+
+	sn = (lword) dechex (rb);
+	sv = (lword) dechex (rb);
+
+	if (sn > NSensors)
+		return ERROR;
+
+	s = Sensors + sn;
+
+	if (s->Length == 0)
+		// This sensor does not exist
+		return ERROR;
+
+	if (s->set (sv) && omode (Flags) == XTRN_OMODE_SOCKET) {
+		// The value has changed and this is a socket
+		qupd_act (SEN_TYPE_SENSOR, sn);
+	}
+
+	return OK;
+}
+
+void SNSRS::qupd_act (byte tp, byte sn, Boolean lm) {
+/*
+ * Queue a value update for output
+ */
+	if (OutputThread == NULL)
+		return;
+
+	Upd->queue (tp, sn, lm);
+}
+
+void SNSRS::qupd_all () {
+/*
+ * Queue all updates
+ */
+	int i;
+
+	// The '1' is to make sure that the request does not look like zero
+	// (in case we want to check it against NULL)
+	Upd->queue (SEN_TYPE_PARAMS, 1);
+
+	for (i = 0; i < NActuators; i++) {
+		if (Actuators [i] . Length)
+			qupd_act (SEN_TYPE_ACTUATOR, (byte) i, YES);
+	}
+
+	if (omode (Flags) != XTRN_OMODE_SOCKET)
+		// Do not send sensor values unless this is a socket
+		return;
+
+	for (i = 0; i < NSensors; i++) {
+		if (Sensors [i] . Length)
+			qupd_act (SEN_TYPE_SENSOR, (byte) i, YES);
+	}
+}
+	
+void SensorsHandler::setup (SNSRS *sn, Dev *a) {
+
+	byte c;
+
+	SN = sn;
+
+
+	if ((Agent = a) == NULL) {
+		assert (SN != NULL, "SensorsHandler: no Sensors to handle");
+		// We have been called to handle device IO
+		assert (SN->O != NULL,
+			"SensorsHandler at %s: the mailbox is missing",
+				SN->TPN->getSName ());
+		assert (SN->OutputThread == NULL,
+			"SensorsHandler at %s: agent thread already running",
+				SN->TPN->getSName ());
+		SN->OutputThread = this;
+
+	} else {
+		// This is a socket connection, so we know for a fact that
+		// both ends are active; thus, we are responsible for creating
+		// the other thread
+		c = ECONN_OK;
+		if (SN == NULL)
+			c = ECONN_NOSENSORS;
+		else if (imode (SN->Flags) != XTRN_IMODE_SOCKET)
+			c = ECONN_ITYPE;
+		else if (SN->OutputThread != NULL)
+			c = ECONN_ALREADY;
+
+		// Make sure the buffer size will allow us to accommodate
+		// requests and updates
+		Agent->resize (XTRN_MBX_BUFLEN > AUPD_OUTPUT_BUFLEN ?
+			XTRN_MBX_BUFLEN : AUPD_OUTPUT_BUFLEN);
+
+		if (c != ECONN_OK) {
+			create Disconnector (Agent, c);
+			terminate ();
+		} else {
+			Assert (SN->Upd == NULL,
+				"SensorsHandler at %s: Upd not NULL",
+					SN->TPN->getSName ());
+			SN->Upd = create SUpdates (MAX_Long);
+			SN->I = SN->O = Agent;
+			SN->OutputThread = this;
+			SN->InputThread = create SensorsInput (SN);
+			SN->qupd_all ();
+		}
+	}
+}
+
+void SensorsHandler::goaway (byte c) {
+/*
+ * Can also be called by the input thread to kill the output end, but only
+ * for a socket connection. It will also terminate the input thread itself,
+ * so be careful.
+ */
+	if (Agent == NULL)
+		excptn ("SensorsHandler at %s: error writing to device",
+			SN->TPN->getSName ());
+
+	// This is a socket, so clean up and continue
+	if (Agent->isActive ())
+		create Disconnector (Agent, c);
+	else
+		delete Agent;
+
+	SN->I = SN->O = NULL;
+	if (SN->InputThread != NULL)
+		SN->InputThread->terminate ();
+	delete SN->Upd;
+	SN->Upd = NULL;
+	SN->OutputThread = SN->InputThread = NULL;
+	this->terminate ();
+}
+
+SensorsHandler::perform {
+/*
+ * This is a close cousin of PinsDriver. We will have to combine them into
+ * one set.
+ */
+	byte c, sid;
+	Boolean lm;
+
+	state AckSens:
+
+		if (Agent != NULL) {
+			// Socket connection: acknowledge
+			c = ECONN_OK;
+			if (Agent->wi (AckSens, (char*)(&c), 1) == ERROR) {
+				// We are disconnected
+				goaway (ECONN_DISCONN);
+				// This means 'terminate'
+				sleep;
+			}
+		}
+
+	transient Loop:
+
+		// This is the main loop
+		if (SN->Upd->empty ()) {
+			// No updates
+			SN->Upd->wait (NONEMPTY, Loop);
+			sleep;
+		}
+
+		lm = SN->Upd->retrieve (c, sid);
+		Length = SN->act_status (c, sid, lm);
+		Buf = SN->UBuf;
+
+	transient Send:
+
+		if (SN->O->wl (Send, Buf, Length) == ERROR) {
+			// Got disconnected
+			goaway (ECONN_DISCONN);
+			sleep;
+		}
+
+		proceed Loop;
+}
+
+void SensorsInput::setup (SNSRS *s) {
+
+	SN = s;
+	assert (SN->InputThread == NULL, "SensorsInput at %d: duplicate thread",
+		SN->TPN->getSName ());
+	SN->InputThread = this;
+
+	if (imode (SN->Flags) != XTRN_IMODE_STRING)
+		// Otherwise, the mailbox is not a mailbox at all
+		SN->I->setSentinel ('\n');
+}
+
+SensorsInput::perform {
+/*
+ * Request formats
+ *
+ *      T [+]delay (double)  [24]
+ *      S num val
+ *      FIXME: this MUST be merged with PinsInput
+ */
+	TIME st;
+	double del;
+	int rc;
+	char *re;
+	Boolean off, err;
+	char cc;
+
+	state Loop:
+
+		BP = &(RBuf [0]);
+		Left = SRQS_INPUT_BUFLEN;
+
+		if (imode (SN->Flags) == XTRN_IMODE_STRING) {
+			// This is simple
+			while ((SN->Flags & XTRN_IMODE_STRLEN) != 0) {
+				SN->Flags--;
+				cc = *(SN->S)++;
+				if (cc == '\n' || cc == '\0') {
+					*BP = '\0';
+					goto HandleInput;
+				}
+				if (Left > 1) {
+					*BP++ = cc;
+					Left--;
+				}
+			}
+			if (Left == SRQS_INPUT_BUFLEN) {
+				// End of string
+				SN->InputThread = NULL;
+				terminate;
+			}
+			*BP = '\0';
+			goto HandleInput;
+		}
+
+	transient ReadRq:
+
+		if ((rc = SN->I->rs (ReadRq, BP, Left)) == ERROR) {
+			// We know this is not string
+			if ((SN->Flags & XTRN_IMODE_SOCKET) == 0) {
+				// A device,  EOF, close this part of the shop
+				SN->InputThread = NULL;
+				terminate;
+			}
+			// This is a socket disconnection
+			Assert (SN->OutputThread != NULL,
+			    	"SensorsInput at %s: sibling thread is gone",
+					SN->TPN->getSName ());
+			((SensorsHandler*)(SN->OutputThread))->
+				goaway (ECONN_DISCONN);
+			// We are dead now
+			sleep;
+		}
+
+		if (rc == REJECTED) {
+			// Line too long
+			if ((SN->Flags & XTRN_IMODE_SOCKET) == 0) {
+				// A device
+				excptn ("SensorsHandler at %s: request "
+				    "line too long, %1d is the max",
+					SN->TPN->getSName (),
+					    SRQS_INPUT_BUFLEN);
+			}
+
+			((SensorsHandler*)(SN->OutputThread))->
+				goaway (ECONN_LONG);
+			sleep;
+		}
+
+		// Fine: this is the length excluding the newline
+		RBuf [SRQS_INPUT_BUFLEN - 1 - Left] = '\0';
+HandleInput:
+		BP = &(RBuf [0]);
+
+		skipblk (BP);
+		if (*BP == 'T') {
+			// This is a delay request, which we handle locally
+			BP++;
+			skipblk (BP);
+			if (*BP == '+') {
+				// Offset
+				off = YES;
+				BP++;
+			} else
+				off = NO;
+
+			del = strtod (BP, &re);
+			if (BP == re || del < 0.0) {
+Error:
+				// This is an error
+				if ((SN->Flags & XTRN_IMODE_SOCKET) == 0) {
+				    excptn ("SensorsHandler at %s: illegal "
+					"request '%s'", SN->TPN->getSName (),
+						RBuf);
+				} else {
+				    // This may be temporary (FIXME)
+				    trace ("SensorsHandler at %s: illegal "
+					"request '%s'", SN->TPN->getSName (),
+						RBuf);
+				    ((SensorsHandler*)(SN->OutputThread))->
+					goaway (ECONN_INVALID);
+				    sleep;
+				}
+			}
+			st = etuToItu (del);
+			if (off)
+				SN->TimedRequestTime += st;
+			else
+				SN->TimedRequestTime = st;
+
+			proceed Delay;
+		}
+
+		if (SN->sensor_update (BP) == ERROR)
+			goto Error;
+			
+		proceed Loop;
+
+	state Delay:
+
+		if (SN->TimedRequestTime > Time) {
+			// May put in here some mailbox monitoring
+			// code ???
+			Timer->wait (SN->TimedRequestTime - Time, Delay);
+			sleep;
+		} else
+			SN->TimedRequestTime = Time;
 
 		proceed Loop;
 }
@@ -2993,6 +3581,16 @@ AgentConnector::perform {
 						ECONN_STATION);
 				else
 					create PinsHandler (TPN->pins, Agent);
+				terminate;
+
+			case AGENT_RQ_SENSORS:
+
+				if (TPN == NULL)
+					create Disconnector (Agent,
+						ECONN_STATION);
+				else
+					create SensorsHandler (TPN->snsrs,
+						Agent);
 				terminate;
 
 			case AGENT_RQ_LEDS:

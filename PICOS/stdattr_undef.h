@@ -28,6 +28,8 @@
 #undef fastblink
 #undef ldelay
 #undef lhold
+#undef read_sensor
+#undef write_actuator
 #undef vform
 #undef vscan
 #undef form

@@ -113,6 +113,8 @@ array set LCDOFFITEMS {
 
 array set LCDCOLORS 	{ ONE #ff8080 ONI #ff0000 OFE #000000 OFI #0F0F0F }
 
+set MAXSVAL	[expr pow (2.0, 32.0) - 1.0]
+
 proc dbg { mess } {
 
 	puts $mess
@@ -1490,6 +1492,342 @@ proc newPinStatus { Sok upd } {
 	}
 }
 
+proc sensorsHandler { stid } {
+
+	global PortNumber HostName Wins Stat
+
+	if [winlocate "s" ""] {
+		return
+	}
+
+	set Wn ""
+
+	log "connecting to SENSORS at node $stid ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	set Wins($Sok) "x"
+	set Stat($Sok,S) $stid
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 7"
+	fileevent $Sok readable "sensorsIni $Sok"
+}
+
+proc sensorsIni { Sok } {
+
+	global Stat ECONN_OK
+
+	ctimeout $Sok
+
+	if [catch { read $Sok 1 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		# closed
+		log "connection closed by peer"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinB res]
+	if { $code != $ECONN_OK } {
+		log "connection rejected by SIDE: [conerror $code]"
+		dealloc $Sok
+		return
+	}
+
+	# wait for first update
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "sensorsFirst $Sok"
+}
+
+proc sensorsFirst { Sok } {
+
+	global Wins Stat Unique
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log "connection failed: $ch"
+			dealloc $Sok
+			return
+		}
+		if { $ch == "" } {
+			if [eof $Sok] {
+				log "connection closed by peer"
+				dealloc $Sok
+			}
+			# wait for more
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	# This must be the first update with parameters
+	if ![regexp "^N (\[0-9\]+) (\[0-9\]+)" $cmd junk na ns] {
+		log "incorrect handshake, sensor count message expected"
+		dealloc $Sok
+		return
+	}
+
+	if { [catch { set na [expr $na] ; set ns [expr $ns] } ] } {
+		log "incorrect handshake, illegal sensor numbers $na/$ns"
+		dealloc $Sok
+		return
+	}
+
+	# create the window
+	set Wn ".wp$Unique"
+	incr Unique
+
+	set Wins($Sok) $Wn
+	# damping delay
+	set Stat($Sok,D) 80
+
+	mkSensors $Sok $ns $na "SENSORS at node $Stat($Sok,S)"
+
+	fileevent $Sok readable "sensorsUpdate $Sok"
+
+	log "connection established"
+}
+
+proc mkSensors { Sok ns na tt } {
+
+	global Wins Stat MAXSVAL PIN_COLORS
+
+	set w $Wins($Sok)
+	toplevel $w
+
+	wm title $w $tt
+
+	set Stat($Sok,NS) $ns
+	set Stat($Sok,NA) $na
+
+	if { $na > 0 } {
+
+		if { $ns > 0 } {
+			frame $w.act -borderwidth 4 -pady 4 -relief sunken
+		} else {
+			frame $w.act -borderwidth 4
+		}
+		pack $w.act -side top -expand 0 -fill x
+
+		for { set i 0 } { $i < $na } { incr i } {
+			set f [frame $w.act.f$i -borderwidth 0]
+			pack $f -side top -expand 0 -fill x
+			# min/max/value: initialized to unusable
+			set Stat($Sok,AC$i) ""
+			scale $f.s -orient horizontal -from 0.0 -length 300 \
+				-command {} -state disabled \
+				-sliderlength 7
+			# rescale them later once we know everything about
+			# the window
+			pack $f.s -side right -expand 1 -fill x
+			$f.s set 0.0
+			label $f.l -text "Act $i"
+			pack $f.l -side right -expand 0 -fill x
+		}
+	}
+
+	if { $ns > 0 } {
+
+		if { $na > 0 } {
+			frame $w.sen -borderwidth 4 -pady 4 -relief sunken
+		} else {
+			frame $w.sen -borderwidth 4
+		}
+		pack $w.sen -side top -expand 0 -fill x
+
+		for { set i 0 } { $i < $ns } { incr i } {
+			set f [frame $w.sen.f$i -borderwidth 0]
+			pack $f -side top -expand 0 -fill x
+			# min/max/value
+			set Stat($Sok,SE$i) ""
+			scale $f.s -orient horizontal -from 0.0 -length 300 \
+				-command "setSensor $Sok $i" -state disabled
+			pack $f.s -side right -expand 1 -fill x
+			$f.s set 0.0
+			label $f.l -text "Sen $i"
+			pack $f.l -side right -expand 0 -fill x
+		}
+	}
+
+	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <B1-ButtonRelease> "sensorSend $Sok"
+}
+
+proc sensorsUpdate { Sok } {
+
+	global Stat
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log \
+			  "connection to SENSORS[stName $Sok] terminated"
+			dealloc $Sok
+			return
+		}
+		if { $ch == "" } {
+			# wait for more
+			if [eof $Sok] {
+			     	log \
+				 "connection to SENSORS[stName $Sok] terminated"
+				dealloc $Sok
+				return
+			}
+			# revert to default damping delay
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "sensorsUpdate $Sok"
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			set nd [expr $Stat($Sok,D) - 10]
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			set cmd $Stat($Sok,B)
+			set Stat($Sok,B) ""
+
+			newSensorStatus $Sok $cmd
+
+			if { $nd > 0 } {
+				fileevent $Sok readable ""
+				after $nd sensorsUpdate $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc newSensorStatus { Sok upd } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set par ""
+	if ![regexp "^(\[AS\])\[^:\]+: (\[0-9\]+) (\[^ \]+)(.*)" $upd jnk \
+	    typ sen val max] {
+		# ignore
+		return
+	}
+
+	if [catch {
+		set sen [expr $sen]
+		# this (at least in version 8.4) treats val as unsigned, i.e.,
+		# the result is alwayn nonnegative; good!
+		set val [expr double (0x$val)]
+	     }] {
+		# garbage
+		return
+	}
+
+	if { $typ == "A" } {
+		if { $sen >= $Stat($Sok,NA) } {
+			# illegal
+			return
+		}
+		set xx "AC$sen"
+		set f "$w.act.f$sen"
+	} else {
+		if { $sen >= $Stat($Sok,NS) } {
+			return
+		}
+		set xx "SE$sen"
+		set f "$w.sen.f$sen"
+	}
+
+	if { $Stat($Sok,$xx) == "" } {
+		# undefined yet, check for max specification
+		set max [string trim $max]
+		if { $max == "" } {
+			return
+		}
+		if [catch {
+			set max [expr double (0x$max)]
+		   }] {
+			return
+		}
+		if { $max <= 0.0 } {
+			# a precaution
+			return
+		}
+		set Stat($Sok,$xx) $max
+		$f.s configure -to $max -tickinterval [expr $max / 5.0]
+		if { $typ != "A" } {
+			# enable input
+			$f.s configure -state normal
+		}
+	}
+
+	if { $val > $Stat($Sok,$xx) } {
+		# another precaution
+		set val $Stat($Sok,$xx)
+	}
+	if { $typ == "A" } {
+		$f.s configure -state normal
+		$f.s set $val
+		$f.s configure -state disabled
+	} else {
+		$f.s set $val
+	}
+}
+
+proc setSensor { Sok sen v } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set Stat($Sok,SEV,$sen) [list $sen $v]
+}
+
+proc sensorSend { Sok } {
+
+	global Stat
+
+	foreach va [array names Stat "$Sok,SEV,*"] {
+		set sn [lindex $Stat($va) 0]
+		set sv [lindex $Stat($va) 1]
+		set ln "S $sn [format 0x%1x [expr int ($sv)]]\n"
+		if [catch { puts -nonewline $Sok $ln } ] {
+			log "connection to SENSORS[stName $Sok] terminated"
+			dealloc $Sok
+			return
+		}
+	}
+}
+
 proc panelHandler { } {
 
 	global PortNumber HostName Wins
@@ -2473,7 +2811,7 @@ proc moveResize { Sok nw nh } {
 	if ![info exists Stat($Sok,RM)] {
 		# this is a dummy first time after startup; we use it to
 		# determine the window margin size, i.e., the difference
-		# between the resized widthe and height and the actual
+		# between the resized width and height and the actual
 		# canvas parameters
 		foreach { aw ah } $Stat($Sok,NC) { }
 		set Stat($Sok,RM) [list [expr $nw - $aw] [expr $nh - $ah]]
@@ -2677,10 +3015,11 @@ proc conerror { code } {
 	3 { return "node has no UART" }
 	4 { return "already connected to this component" }
 	5 { return "node has no PINS module" }
-	6 { return "server-side timeout" }
-	7 { return "module has a non-socket interface" }
-	8 { return "no leds module at this node" }
-	9 { return "unexpected disconnection" }
+	6 { return "node has no SENSORS module" }
+	7 { return "server-side timeout" }
+	8 { return "module has a non-socket interface" }
+	9 { return "no leds module at this node" }
+       10 { return "unexpected disconnection" }
        11 { return "request line too long" }
        12 { return "invalid request" }
     }
@@ -2818,7 +3157,6 @@ proc doConnect { } {
 #
 	global Option StatId AGENT_MAGIC
 
-
 	switch $Option {
 
 		"UART (ascii)"	{
@@ -2829,6 +3167,11 @@ proc doConnect { } {
 		"UART (hex)"	{
 			if [valsid] { return }
 			uartHandler $StatId h
+		}
+
+		"SENSORS"	{
+			if [valsid] { return }
+			sensorsHandler $StatId
 		}
 
 		"PINS"	{
@@ -2884,7 +3227,8 @@ button .top.quit -text "Quit" -command exit
 button .top.connect -text "Connect" -command doConnect
 
 tk_optionMenu .top.select Option \
-	"UART (ascii)" "UART (hex)" "PINS" "LEDS" "ROAMER" "PANEL" "CLOCK"
+	"UART (ascii)" "UART (hex)" "SENSORS" "PINS" "LEDS" "ROAMER" "PANEL" \
+		"CLOCK"
 
 label .top.l -text "Node Id:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \

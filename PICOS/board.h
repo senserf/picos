@@ -140,6 +140,11 @@ station PicOSNode abstract {
 	LEDSM		*ledsm;
 
 	/*
+	 * Sensors/actuators
+	 */
+	SNSRS		*snsrs;
+
+	/*
 	 * This is EEPROM and FIM (IFLASH)
 	 */
 	NVRAM		*eeprom, *iflash;
@@ -202,8 +207,8 @@ station PicOSNode abstract {
 		return uart->U->ioop (state, ope, buf, len);
 	};
 
-	void _da (ldelay) (word, word);
-	void _da (lhold) (word, lword*);
+	void _da (ldelay) (word, int);
+	void _da (lhold) (int, lword*);
 
 	/*
 	 * I/O formatting
@@ -328,6 +333,22 @@ station PicOSNode abstract {
 	};
 
 	/*
+	 * Sensors/actuators
+	 */
+	void no_sensor_module (const char*);
+
+	inline void _da (read_sensor) (int st, word sn, address val) {
+		if (snsrs == NULL)
+			no_sensor_module ("read_sensor");
+		snsrs->read (st, sn, val);
+	}
+	inline void _da (write_actuator) (int st, word sn, address val) {
+		if (snsrs == NULL)
+			no_sensor_module ("write_actuator");
+		snsrs->write (st, sn, val);
+	}
+
+	/*
 	 * EEPROM + FIM (IFLASH)
 	 */
 	lword _da (ee_size) (Boolean*, lword*);
@@ -404,6 +425,7 @@ process	BoardRoot {
 	data_no_t *readNodeParams (sxml_t, int, const char*);
 	data_ua_t *readUartParams (sxml_t, const char*);
 	data_pn_t *readPinsParams (sxml_t, const char*);
+	data_sa_t *readSensParams (sxml_t, const char*);
 	data_le_t *readLedsParams (sxml_t, const char*);
 
 	void initTiming (sxml_t);

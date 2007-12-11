@@ -173,6 +173,9 @@ void PicOSNode::reset () {
 	if (pins != NULL)
 		pins->rst ();
 
+	if (snsrs != NULL)
+		snsrs->rst ();
+
 	if (ledsm != NULL)
 		ledsm->rst ();
 
@@ -228,6 +231,7 @@ void PicOSNode::setup (data_no_t *nd) {
 		uart = NULL;
 	} else {
 		uart = new uart_t;
+		bzero (uart, sizeof (*uart));
 		uart->U = new UART (nd->ua);
 	}
 
@@ -236,6 +240,13 @@ void PicOSNode::setup (data_no_t *nd) {
 		pins = NULL;
 	} else {
 		pins = new PINS (nd->pn);
+	}
+
+	if (nd->sa == NULL) {
+		// No sensors/actuators
+		snsrs = NULL;
+	} else {
+		snsrs = new SNSRS (nd->sa);
 	}
 
 	if (nd->le == NULL) {
@@ -292,7 +303,7 @@ lword _dad (PicOSNode, seconds) () {
 	return (lword) ituToEtu (Time - LastResetTime);
 };
 
-void _dad (PicOSNode, ldelay) (word d, word state) {
+void _dad (PicOSNode, ldelay) (word d, int state) {
 /*
  * Minute wait
  */
@@ -302,7 +313,7 @@ void _dad (PicOSNode, ldelay) (word d, word state) {
 	Timer->delay (64.0 * d, state);
 }
 
-void _dad (PicOSNode, lhold) (word st, lword *nsec) {
+void _dad (PicOSNode, lhold) (int st, lword *nsec) {
 /*
  * Long second wait:
  */
@@ -420,6 +431,11 @@ void PicOSNode::memUnBook (word lsize) {
 void PicOSNode::no_pin_module (const char *fn) {
 
 	excptn ("%s: no PINS module at %s", fn, getSName ());
+}
+
+void PicOSNode::no_sensor_module (const char *fn) {
+
+	excptn ("%s: no SENSORS module at %s", fn, getSName ());
 }
 
 char* _dad (PicOSNode, form) (char *buf, const char *fm, ...) {
@@ -1117,20 +1133,20 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 		xenf ("<shadowing>", "<channel>");
 
 	if ((att = sxml_attr (cur, "bn")) == NULL)
-		xemi ("'bn'", "<shadowing> for <channel>");
+		xemi ("bn", "<shadowing> for <channel>");
 
 	np [0].type = TYPE_double;
 	if (parseNumbers (att, 1, np) != 1)
-		xeai ("'bn'", "<shadowing> for <channel>", att);
+		xeai ("bn", "<shadowing> for <channel>", att);
 
 	bn_db = np [0].DVal;
 
 	if ((att = sxml_attr (cur, "syncbits")) == NULL)
-		xemi ("'syncbits'", "<shadowing> for <channel>");
+		xemi ("syncbits", "<shadowing> for <channel>");
 
 	np [0].type = TYPE_LONG;
 	if (parseNumbers (att, 1, np) != 1)
-		xeai ("'syncbits'", "<shadowing> for <channel>", att);
+		xeai ("syncbits", "<shadowing> for <channel>", att);
 
 	syncbits = np [0].LVal;
 	
@@ -1687,6 +1703,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	ND->ua = NULL;
 	ND->ep = NULL;
 	ND->pn = NULL;
+	ND->sa = NULL;
 	ND->le = NULL;
 
 	if (data == NULL)
@@ -1948,6 +1965,12 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 	ND->pn = readPinsParams (data, xname (nn));
 
+/* ================= */
+/* Sensors/Actuators */
+/* ================= */
+
+	ND->sa = readSensParams (data, xname (nn));
+
 	return ND;
 }
 
@@ -1977,7 +2000,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	UA->URate = 0;
 	if ((att = sxml_attr (data, "rate")) != NULL) {
 		if (parseNumbers (att, 1, np) != 1 || np [0].LVal <= 0)
-			xeai ("'rate'", es, att);
+			xeai ("rate", es, att);
 		UA->URate = (word) (np [0].LVal);
 	}
 
@@ -1987,11 +2010,11 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	if ((att = sxml_attr (data, "bsize")) != NULL) {
 		len = parseNumbers (att, 2, np);
 		if ((len != 1 && len != 2) || np [0].LVal < 0)
-			xeai ("'bsize'", es, att);
+			xeai ("bsize", es, att);
 		UA->UIBSize = (word) (np [0].LVal);
 		if (len == 2) {
 			if (np [1].LVal < 0)
-				xeai ("'bsize'", es, att);
+				xeai ("bsize", es, att);
 			UA->UOBSize = (word) (np [1].LVal);
 		}
 	}
@@ -2005,7 +2028,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	if ((cur = sxml_child (data, "input")) != NULL) {
 		str = (char*) sxml_txt (cur);
 		if ((att = sxml_attr (cur, "source")) == NULL)
-			xemi ("'source'", es);
+			xemi ("source", es);
 		if (strcmp (att, "none") == 0) {
 			// Equivalent to 'no uart input spec'
 			goto NoUInput;
@@ -2044,7 +2067,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 				sts [2],
 				sts [3] ));
 		} else {
-			xeai ("'source'", es, att);
+			xeai ("source", es, att);
 		}
 
 		// Now for the 'type'
@@ -2053,7 +2076,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 				UA->UMode |= XTRN_IMODE_TIMED;
 				print (", TIMED");
 			} else if (strcmp (att, "untimed"))
-				xeai ("'type'", es, att);
+				xeai ("type", es, att);
 		}
 		// And the coding
 		if ((att = sxml_attr (cur, "coding")) != NULL) {
@@ -2061,7 +2084,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 				print (", HEX");
 				UA->UMode |= XTRN_IMODE_HEX;
 			} else if (strcmp (att, "ascii"))
-				xeai ("'coding'", es, att);
+				xeai ("coding", es, att);
 		}
 			
 		print ("\n");
@@ -2073,7 +2096,7 @@ NoUInput:
 	if ((cur = sxml_child (data, "output")) != NULL) {
 		str = (char*) sxml_txt (cur);
 		if ((att = sxml_attr (cur, "target")) == NULL)
-			xemi ("'target'", es);
+			xemi ("target", es);
 		if ((UA->UMode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
 			// This must be a socket
 			if (strcmp (att, "socket"))
@@ -2120,7 +2143,7 @@ CheckOType:
 				// later
 			}
 		} else {
-			xeai ("'target'", es, att);
+			xeai ("target", es, att);
 		}
 
 		// The coding
@@ -2129,7 +2152,7 @@ CheckOType:
 				UA->UMode |= XTRN_OMODE_HEX;
 				print (", HEX");
 			} else if (strcmp (att, "ascii"))
-				xeai ("'coding'", es, att);
+				xeai ("coding", es, att);
 		}
 		print ("\n\n");
 	}
@@ -2140,7 +2163,7 @@ NoUOutput:
 	UA->absent = ((UA->UMode & (XTRN_OMODE_MASK | XTRN_IMODE_MASK)) == 0);
 
 	if (!UA->absent && UA->URate == 0)
-		xemi ("'rate'", es);
+		xemi ("rate", es);
 
 	return UA;
 }
@@ -2190,7 +2213,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 	
 	if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
 	    np [0].LVal > 254)
-		xeai ("'total'", es, att);
+		xeai ("total", es, att);
 
 	if (np [0].LVal == 0) {
 		// An explicit way to say that there are no PINS
@@ -2203,7 +2226,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 	if ((att = sxml_attr (data, "adc")) != NULL) {
 		if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
 	    	  np [0].LVal > PN->NP)
-		    xeai ("'adc'", es, att);
+		    xeai ("adc", es, att);
 		PN->NA = (byte) (np [0].LVal);
 	}
 
@@ -2212,7 +2235,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 		if (parseNumbers (att, 2, np) != 2 || np [0].LVal < 0 ||
 		  np [0].LVal >= PN->NP || np [1].LVal < 0 || np [1].LVal >=
 		    PN->NP || np [0].LVal == np [1].LVal)
-		        xeai ("'pulse'", es, att);
+		        xeai ("pulse", es, att);
 		PN->MPIN = (byte) (np [0].LVal);
 		PN->NPIN = (byte) (np [1].LVal);
 	}
@@ -2221,10 +2244,10 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 	if ((att = sxml_attr (data, "dac")) != NULL) {
 		len = parseNumbers (att, 2, np);
 		if (len < 1 || len > 2)
-	        	xeai ("'dac'", es, att);
+	        	xeai ("dac", es, att);
 		if (np [0].LVal < 0 || np [0].LVal >= PN->NP ||
 		     np [0].LVal == PN->MPIN || np [0].LVal == PN->NPIN)
-	        	xeai ("'dac'", es, att);
+	        	xeai ("dac", es, att);
 		// The firs one is OK
 		PN->D0PIN = (byte) (np [0].LVal);
 		if (len == 2) {
@@ -2232,7 +2255,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 			if (np [1].LVal < 0 || np [1].LVal >= PN->NP ||
 			  np [0].LVal == np [1].LVal || np [1].LVal == PN->MPIN
 			    || np [1].LVal == PN->NPIN)
-	        	      xeai ("'dac'", es, att);
+	        	      xeai ("dac", es, att);
 			PN->D1PIN = (byte) (np [1].LVal);
 		}
 	}
@@ -2253,7 +2276,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 	if ((cur = sxml_child (data, "input")) != NULL) {
 		str = (char*) sxml_txt (cur);
 		if ((att = sxml_attr (cur, "source")) == NULL)
-			xemi ("'source'", es);
+			xemi ("source", es);
 		if (strcmp (att, "none") == 0) {
 			// No input
 			goto NoPInput;
@@ -2289,7 +2312,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 				sts [2],
 				sts [3] ));
 		} else {
-			xeai ("'source'", es, att);
+			xeai ("source", es, att);
 		}
 
 		print ("\n");
@@ -2301,7 +2324,7 @@ NoPInput:
 	if ((cur = sxml_child (data, "output")) != NULL) {
 		str = (char*) sxml_txt (cur);
 		if ((att = sxml_attr (cur, "target")) == NULL)
-			xemi ("'target'", es);
+			xemi ("target", es);
 		if ((PN->PMode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
 			// This must be a socket
 			if (strcmp (att, "socket"))
@@ -2340,7 +2363,7 @@ NoPInput:
 	
 			} else if (strcmp (att, "none") != 0) {
 	
-				xeai ("'target'", es, att);
+				xeai ("target", es, att);
 			}
 			print ("\n");
 		}
@@ -2451,6 +2474,386 @@ NoPInput:
 	return PN;
 }
 
+static int sa_smax (const char *what, const char *err, sxml_t root) {
+/*
+ * Calculates the maximum number of sensors/actuators
+ */
+	int max, last;
+	const char *att;
+	nparse_t np [1];
+
+	np [0].type = TYPE_LONG;
+	max = last = -1;
+	// No consistency checks yet - just the maximum
+	for (root = sxml_child (root, what); root != NULL;
+						root = sxml_next (root)) {
+		
+		if ((att = sxml_attr (root, "number")) != NULL) {
+			if (parseNumbers (att, 1, np) != 1 ||
+				np [0].LVal < 0 || np [0].LVal > 255)
+					// This is an error
+					xeai ("number", err, att);
+			last = (int) (np [0].LVal);
+		} else
+			last++;
+
+		if (last > max)
+			max = last;
+	}
+
+	return max + 1;
+}
+
+int SensActDesc::bsize (lword bound) {
+/*
+ * Determines the number size for sensor value bound. Note that the
+ * value returned by a sensor is normalized and unsigned, such that
+ * Min == 0
+ */
+	if ((bound & 0xFF000000))
+		return 4;
+	if ((bound & 0x00FF0000))
+		return 3;
+	if ((bound & 0x0000FF00))
+		return 2;
+	return 1;
+}
+
+Boolean SensActDesc::expand (address vp) {
+/*
+ * Expand and store the value
+ */
+	lword v;
+
+	switch (Length) {
+	
+		case 1:
+			v = (lword) *((byte*) vp);
+			break;
+
+		case 2:
+
+			v = (lword) *((word*) vp);
+			break;
+
+		case 3:
+			// This one assumes little endianness (avoid!!!)
+			v = 	((lword)(*((byte*)vp))) |
+				(((lword)(*(((byte*)vp) + 1))) <<  8) |
+				(((lword)(*(((byte*)vp) + 2))) << 16);
+			break;
+		case 4:
+			v = *((lword*)vp);
+			break;
+
+		default:
+			excptn ("Illegal length in sensor: %1d", Length);
+	}
+	return set (v);
+}
+
+void SensActDesc::get (address vp) {
+/*
+ * Retrieve a properly sized value
+ */
+	switch (Length) {
+
+		case 1:
+			*((byte*) vp) = (byte) Value;
+			return;
+		case 2:
+			*((word*) vp) = (word) Value;
+			return;
+		case 3:
+			// This one assumes little endianness (avoid!!!)
+			*(((byte*)vp) + 0) = (byte) (Value      );
+			*(((byte*)vp) + 1) = (byte) (Value >>  8);
+			*(((byte*)vp) + 2) = (byte) (Value >> 16);
+			return;
+		case 4:
+			*((lword*) vp) = Value;
+			return;
+
+		default:
+			excptn ("Illegal length in sensor: %1d", Length);
+	}
+}
+
+static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
+									int n) {
+/*
+ * Initialize the sensor/actuator array
+ */
+	int last, i, j, rqs, mns, fill;
+	lword ival;
+	const char *att;
+	nparse_t np [2];
+	SensActDesc *res;
+	byte Type;
+
+	Type = strcmp (what, "sensor") ? SEN_TYPE_ACTUATOR : SEN_TYPE_SENSOR;
+	
+	res = new SensActDesc [n];
+	np [0].type = TYPE_LONG;
+	np [1].type = TYPE_LONG;
+
+	last = -1;
+	fill = 0;
+
+	for (root = sxml_child (root, what); root != NULL;
+						root = sxml_next (root)) {
+		np [0].type = np [1].type = TYPE_LONG;
+		
+		if ((att = sxml_attr (root, "number")) != NULL) {
+			if (parseNumbers (att, 1, np) != 1 ||
+				np [0].LVal < 0 || np [0].LVal > 255)
+					// This has been verified already, but
+					// let us play it safe
+					xeai ("number", erc, att);
+			last = (int) (np [0].LVal);
+		} else
+			last++;
+
+		if (last >= n || res [last] . Length != 0)
+			xeai ("number", erc, att);
+
+		fill++;
+
+		res [last] . Type = Type;
+		res [last] . Id = last;
+
+		// Check for range
+		att = sxml_txt (root);
+		i = parseNumbers (att, 1, np);
+		if (i == 0) {
+			// Assume unsigned full size
+			res [last] . Max = 0xffffffff;
+		} else {
+			if (np [0] . LVal <= 0)
+			   excptn ("Root: max value for %s in %s: is <= 0 (%s)",
+			      what, erc, att);
+			res [last] . Max = (lword) (np [0] . LVal);
+		}
+
+		// Check for initial value
+		if ((att = sxml_attr (root, "init")) != NULL) {
+			if (parseNumbers (att, 1, np) != 1 || np [0] . LVal < 0)
+				xeai ("init", erc, att);
+			ival = (lword)(np [0].LVal);
+		} else
+			ival = 0;
+
+		// Check for explicit length indication
+		if ((att = sxml_attr (root, "vsize")) != NULL) {
+			if (parseNumbers (att, 1, np) != 1 ||
+				np [0].LVal < 1 || np [0].LVal > 4)
+					excptn ("Root: illegal value size in "
+						"%s in %s: %s", what, erc, att);
+			rqs = (int) (np [0].LVal);
+		} else
+			// Requested size, if any
+			rqs = 0;
+
+		// Size derived from Max
+		mns = SensActDesc::bsize (res [last] . Max);
+
+		if (i == 0) {
+			// Derive bound from size
+			if (rqs == 0)
+				// This is the default
+				rqs = 4;	
+			else if (rqs < 4)
+				// Actually derive the upper bound
+				res [last] . Max = (1 << (rqs*8)) - 1;
+		} else if (rqs == 0) {
+			// Derive size from Max
+			rqs = mns;
+		} else {
+			// Verify
+			if (rqs < mns)
+				excptn ("Root: requested vsize for %s in %s is "
+					"less than minimum required: %s",
+						what, erc, att);
+		}
+
+		// Timing
+		np [0].type = np [1].type = TYPE_double;
+		if ((att = sxml_attr (root, "delay")) != NULL) {
+			if ((j = parseNumbers (att, 2, np)) < 1 || j > 2)
+				xeai ("delay", erc, att);
+			if ((res [last] . MinTime = np [0] . DVal) < 0.0)
+				xeai ("delay", erc, att);
+			if (j > 1) {
+				if ((res [last] . MaxTime = np [1] . DVal) <
+							  res [last] . MinTime)
+					xeai ("delay", erc, att);
+			} else {
+				res [last] . MaxTime = res [last] . MinTime;
+			}
+		}
+
+		res [last] . Length = rqs;
+		res [last] . set (ival);
+		res [last] . RValue = res [last] . Value;
+	}
+
+	print (form ("  %s [total = %1d, used = %1d]:\n",
+		strcmp (what, "sensor") ? "ACTUATORS" : "SENSORS", n, fill));
+
+	for (i = 0; i < n; i++)
+		if (res [i] . Length)
+			print (form ("    NUMBER %1d, VSize %1d, "
+				"Range %1u, Init: %1u, "
+					"Delay: [%f7.4,%f7.4]\n",
+						i, res [i] . Length,
+						res [i] . Max,
+						res [i] . Value,
+						res [i] . MinTime,
+						res [i] . MaxTime));
+	return res;
+}
+
+data_sa_t *BoardRoot::readSensParams (sxml_t data, const char *esn) {
+/*
+ * Decodes Sensors/Actuators
+ */
+	data_sa_t *SA;
+	sxml_t cur;
+	int len;
+	const char *att;
+	char es [48];
+	char *str, *sts;
+
+	if ((data = sxml_child (data, "sensors")) == NULL)
+		return NULL;
+
+	strcpy (es, "<sensors> for ");
+	strcat (es, esn);
+
+	SA = new data_sa_t;
+
+	SA->Sensors = SA->Actuators = NULL;
+	SA->SIDev = SA->SODev = NULL;
+	SA->absent = NO;
+	SA->SMode = 0;
+
+	SA->NS = (byte) sa_smax ("sensor", es, data);
+	SA->NA = (byte) sa_smax ("actuator", es, data);
+
+	if (SA->NS == 0 && SA->NA == 0) {
+		// That's it
+		SA->absent = YES;
+		return SA;
+	}
+
+	if (SA->NS != 0)
+		SA->Sensors = sa_doit ("sensor", es, data, SA->NS);
+	if (SA->NA != 0)
+		SA->Actuators = sa_doit ("actuator", es, data, SA->NA);
+
+	/*
+	 * I/O FIXME: these operations look similar to PINS, perhaps we
+	 * encapsulate them out. Note that this also applies to the Agent
+	 * interface.
+	 */
+			  
+	/* The INPUT spec */
+	if ((cur = sxml_child (data, "input")) != NULL) {
+		str = (char*) sxml_txt (cur);
+		if ((att = sxml_attr (cur, "source")) == NULL)
+			xemi ("source", es);
+		if (strcmp (att, "none") == 0) {
+			// No input
+			goto NoSInput;
+		}
+
+		print ("    INPUT:  ");
+
+		if (strcmp (att, "device") == 0) {
+			len = sanitize_string (str);
+			if (len == 0)
+				xevi ("<input> device string", es, "-empty-");
+			// This is a device name
+			str [len] = '\0';
+			SA->SMode |= XTRN_IMODE_DEVICE;
+			SA->SIDev = str;
+			print (form ("device '%s'", str));
+		} else if (strcmp (att, "socket") == 0) {
+			// No string
+			SA->SMode |= XTRN_IMODE_SOCKET | XTRN_OMODE_SOCKET;
+			print ("socket");
+		} else if (strcmp (att, "string") == 0) {
+			len = sanitize_string (str);
+			sts = (char*) find_strpool ((const byte*) str, len + 1,
+				YES);
+			SA->SIDev = sts;
+			SA->SMode |= XTRN_IMODE_STRING | len;
+			print (form ("string '%c%c%c%c ...'",
+				sts [0],
+				sts [1],
+				sts [2],
+				sts [3] ));
+		} else {
+			xeai ("source", es, att);
+		}
+
+		print ("\n");
+	}
+
+NoSInput:
+
+	// The OUTPUT spec
+	if ((cur = sxml_child (data, "output")) != NULL) {
+		str = (char*) sxml_txt (cur);
+		if ((att = sxml_attr (cur, "target")) == NULL)
+			xemi ("target", es);
+		if ((SA->SMode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
+			// This must be a socket
+			if (strcmp (att, "socket"))
+				// but isn't
+				excptn ("Root: 'target' for <sensors> <output> "
+					"(%s) in %s must be 'socket'",
+						att, es);
+			print ("    OUTPUT: socket (see INPUT)\n");
+		} else {
+			print ("    OUTPUT: ");
+			if (strcmp (att, "device") == 0) {
+
+				len = sanitize_string (str);
+				if (len == 0)
+					xevi ("<output> device string", es,
+						"-empty-");
+				// This is a device name
+				str [len] = '\0';
+				SA->SMode |= XTRN_OMODE_DEVICE;
+				SA->SODev = str;
+				print (form ("device '%s'", str));
+
+			} else if (strcmp (att, "socket") == 0) {
+
+				if ((SA->SMode & XTRN_IMODE_MASK) !=
+				    XTRN_IMODE_NONE)
+					excptn ("Root: 'target' in <sensors> "
+					    "<output> (%s) for %s conflicts "
+						"with <input> source", att, es);
+
+				SA->SMode |= (XTRN_OMODE_SOCKET |
+					XTRN_IMODE_SOCKET);
+				print ("socket");
+	
+			} else if (strcmp (att, "none") != 0) {
+	
+				xeai ("target", es, att);
+			}
+			print ("\n");
+		}
+	}
+
+	print ("\n");
+
+	return SA;
+}
+
 data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 /*
  * Decodes LEDs parameters
@@ -2482,7 +2885,7 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 		np [0].type = TYPE_LONG;
 		if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
 		    np [0].LVal > 64)
-			xeai ("'number'", es, att);
+			xeai ("number", es, att);
 		if (np [0].LVal == 0) {
 			// Explicit NO
 			print ("  LEDS: none\n");
@@ -2504,7 +2907,7 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 	}
 
 	if ((att = sxml_attr (cur, "target")) == NULL)
-		xemi ("'target'", es);
+		xemi ("target", es);
 	if (strcmp (att, "none") == 0) {
 		// Equivalent to no leds
 		LE->absent = YES;
@@ -2526,7 +2929,7 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 	} else if (strcmp (att, "socket") == 0) {
 		print (form ("socket\n\n", str));
 	} else
-		xeai ("'target'", es, att);
+		xeai ("target", es, att);
 
 	return LE;
 }
@@ -2536,10 +2939,10 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 	double d;
 	data_no_t *DEF, *NOD;
 	const char *def_type, *nod_type, *att, *start;
-	sxml_t chd, cno, cur;
-	nparse_t np [2];
-	Long i, j;
+	sxml_t cno, cur, *xnodes;
+	Long i, j, last, fill;
 	int tq;
+	nparse_t np [2];
 	data_rf_t *NRF, *DRF;
 	data_ep_t *NEP, *DEP;
 
@@ -2563,47 +2966,59 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		xenf ("<nodes>", "<network>");
 
 	// Check for the defaults
-	chd = sxml_child (data, "defaults");
+	cno = sxml_child (data, "defaults");
 	start = NULL;
-	if (chd != NULL) {
-		def_type = sxml_attr (chd, "type");
-		start = sxml_attr (chd, "start");
+	if (cno != NULL) {
+		def_type = sxml_attr (cno, "type");
+		start = sxml_attr (cno, "start");
 	} else
 		def_type = NULL;
 
 	// OK if NULL, readNodeParams will initialize them
-	DEF = readNodeParams (chd, -1, start);
+	DEF = readNodeParams (cno, -1, start);
 	// DEF is never NULL, remember to deallocate it
 	
-	chd = sxml_child (data, "node");
-	if (chd == NULL)
-		xenf ("<node>", "<nodes>");
+	// A temporary
+	xnodes = new sxml_t [NT];
+	for (i = 0; i < NT; i++)
+		xnodes [i] = NULL;
 
-	// Create all nodes
-	for (i = 0; i < NT; i++) {
-		// Try to locate the node's explicit definition. This
-		// isn't terribly efficient, but should be OK for
-		// initialization, unless the number of nodes is really
-		// huge. Let's wait and see ...
-		np [0] . type = TYPE_LONG;
-		for (j = 0; ; j++) {
-			cno = sxml_idx (chd, j);
-			if (cno == NULL)
-				xenf (form ("<node number=\"%1d\">", i),
-					"<nodes");
+	last = -1;
+	fill = 0;
+	np [0] . type = TYPE_LONG;
 
-			att = sxml_attr (cno, "number");
-			if (att == NULL)
-				xemi ("'number'", "<node>");
+	for (cno = sxml_child (data, "node"); cno != NULL;
+							cno = sxml_next (cno)) {
+		att = sxml_attr (cno, "number");
+		if (att != NULL) {
+			if (parseNumbers (att, 1, np) != 1 ||
+			    np [0].LVal < 0 || np [0].LVal >= NT)
+				xeai ("number", "<node>", att);
+			last = (Long) (np [0].LVal);
+		} else
+			last++;
 
-			if (parseNumbers (att, 1, np) != 1) 
-				xeai ("'number'", "<node>", att);
+		if (last >= NT)
+			excptn ("Root: implict node number reaches the limit"
+				" of %1d", NT);
 
-			if ((Long) (np [0] . LVal) == i)
-				// Found
+		if (xnodes [last] != NULL)
+			excptn ("Root: node %1d multiply defined", last);
+
+		xnodes [last] = cno;
+
+		fill++;
+	}
+
+	if (fill < NT) {
+		for (i = 0; i < NT; i++)
+			if (xnodes [i] == NULL)
 				break;
-		}
+		excptn ("Root: some nodes undefined, first is %1d", i);
+	}
 
+	for (i = 0; i < NT; i++) {
+		cno = xnodes [i];
 		start = sxml_attr (cno, "start");
 		NOD = readNodeParams (cno, i, start);
 
@@ -2698,6 +3113,17 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			NOD->pn = NULL;
 		}
 
+		// Sensors/Actuators
+		if (NOD->sa == NULL) {
+			// Inherit the defaults
+			if (DEF->sa != NULL && !(DEF->sa->absent))
+				NOD->sa = DEF->sa;
+		} else if (NOD->sa->absent) {
+			// Explicit "no", ignore the default
+			delete NOD->sa;
+			NOD->sa = NULL;
+		}
+
 		// LEDs
 		if (NOD->le == NULL) {
 			// Inherit the defaults
@@ -2757,10 +3183,15 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			delete NOD->ua;
 		if (NOD->pn != NULL && NOD->pn != DEF->pn)
 			delete NOD->pn;
+		if (NOD->sa != NULL && NOD->sa != DEF->sa)
+			delete NOD->sa;
 		if (NOD->le != NULL && NOD->le != DEF->le)
 			delete NOD->le;
 		delete NOD;
 	}
+
+	// Delete the scratch node list
+	delete xnodes;
 
 	// Delete the default data block
 	delete DEF->rf;
@@ -2770,6 +3201,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		delete DEF->ua;
 	if (DEF->pn != NULL)
 		delete DEF->pn;
+	if (DEF->sa != NULL)
+		delete DEF->sa;
 	if (DEF->le != NULL)
 		delete DEF->le;
 	delete DEF;
@@ -2801,11 +3234,11 @@ void BoardRoot::initAll () {
 
 	// Decode the number of stations
 	if ((att = sxml_attr (xml, "nodes")) == NULL)
-		xemi ("'nodes'", "<network>");
+		xemi ("nodes", "<network>");
 
 	np [0] . type = TYPE_LONG;
 	if (parseNumbers (att, 1, np) != 1)
-		xeai ("'nodes'", "<network>", att);
+		xeai ("nodes", "<network>", att);
 
 	NN = (int) (np [0] . LVal);
 	if (NN <= 0)
@@ -2816,7 +3249,7 @@ void BoardRoot::initAll () {
 	if ((att = sxml_attr (xml, "port")) != NULL) {
 		if (parseNumbers (att, 1, np) != 1 || np [0] . LVal < 1 ||
 		    np [0] . LVal > 0x0000ffff)
-			xeai ("'port'", "<network>", att);
+			xeai ("port", "<network>", att);
 		ZZ_Agent_Port = (word) (np [0] . LVal);
 	}
 
