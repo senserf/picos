@@ -245,3 +245,7 @@ R071206C:
 R071210A:
 
     Added support for sensors and actuators.
+
+R071211A:
+
+    PHYSOPT_STATUS extended as per R071211A of PICOS.

@@ -2,6 +2,7 @@
 #define	__rfmodule_dm2200_h__
 
 #include "board.h"
+#include "rfmattr.h"
 
 process Receiver (PicOSNode) {
 
@@ -37,7 +38,6 @@ process	ADC (PicOSNode) {
 
 process Xmitter (PicOSNode) {
 
-	address		buffer;
 	int		buflen;
 	ADC		*RSSI;
 
@@ -46,7 +46,7 @@ process Xmitter (PicOSNode) {
 	perform;
 
 	void setup () {
-		buffer = NULL;
+		zzx_buffer = NULL;
 		RSSI = create ADC;
 	};
 };

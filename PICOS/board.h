@@ -118,6 +118,7 @@ station PicOSNode abstract {
 	Boolean		Halted;
 
 	int		_da (tx_event);
+	address		_da (zzx_buffer);
 	lword		_da (entropy);
 	word		_da (statid);		// Station/network ID
 	word		_da (min_backoff), _da (max_backoff), _da (backoff);

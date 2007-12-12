@@ -11,6 +11,7 @@
 #undef DefRPower
 #undef Xmitting
 #undef tx_event
+#undef zzx_buffer
 #undef statid
 #undef gbackoff
 #undef rx_event

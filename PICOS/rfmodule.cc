@@ -2,11 +2,11 @@
 #define	__rfmodule_cc__
 
 #include "board.h"
+#include "stdattr.h"
+#include "rfmattr.h"
 #include "rfmodule.h"
 #include "tcvphys.h"
-#include "stdattr.h"
 #include "tcv.cc"
-#include "rfmattr.h"
 #include "rfleds.h"
 
 static int option (int, address);
@@ -35,7 +35,7 @@ Xmitter::perform {
 
     state XM_LOOP:
 
-	if (buffer == NULL) {
+	if (zzx_buffer == NULL) {
 		if (TXOFF) {
 			if (TXOFF == 3) {
 Drain:
@@ -49,12 +49,12 @@ Drain:
 			}
 		}
 
-		if ((buffer = tcvphy_get (PHYSID, &buflen)) != NULL) {
+		if ((zzx_buffer = tcvphy_get (PHYSID, &buflen)) != NULL) {
 			assert (buflen >= 4 && (buflen & 1) == 0,
 				"Xmitter: illegal packet length %1d", buflen);
 			if (statid != 0xffff)
 				// otherwise, honor the packet's statid
-				buffer [0] = statid;
+				zzx_buffer [0] = statid;
 		} else {
 			// Nothing to transmit
 			if (TXOFF == 2) {
@@ -67,7 +67,7 @@ Drain:
 		}
 	}
 
-	if (backoff && !tcv_isurgent (buffer)) {
+	if (backoff && !tcv_isurgent (zzx_buffer)) {
 		// backing off and the packet is not urgent
 		delay (backoff, XM_LOOP);
 		backoff = 0;
@@ -89,7 +89,7 @@ Drain:
 	}
 
 Xmit:
-	OBuffer.load (buffer, buflen);
+	OBuffer.load (zzx_buffer, buflen);
 	Xmitting = YES;
 	LEDI (1, 1);
 	RFInterface->transmit (&OBuffer, XM_TXDONE);
@@ -102,8 +102,8 @@ Xmit:
 		// To reduce the risk of livelocks; not needed with LBT
 		gbackoff ();
 
-	tcvphy_end (buffer);
-	buffer = NULL;
+	tcvphy_end (zzx_buffer);
+	zzx_buffer = NULL;
 	Xmitting = NO;
 	trigger (rx_event);
 	delay (min_backoff, XM_LOOP);
@@ -295,7 +295,16 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = ((TXOFF == 0) << 1) | (RXOFF == 0);
+		if (TXOFF == 0)
+			ret = 2;
+		if ((TXOFF & 1) == 0) {
+			// On or draining
+			if (zzx_buffer != NULL || tcvphy_top (PHYSID) != NULL)
+				ret |= 4;
+		}
+		if (RXOFF == 0)
+			ret++;
+	
 		if (val != NULL)
 			*val = ret;
 		break;

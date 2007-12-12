@@ -927,7 +927,7 @@ proc ledsFirst { Sok } {
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 
-	mkLeds $Sok [string length $Leds] "LEDS at node $Stat($Sok,S)"
+	mkLeds $Sok [string length $Leds] "$Stat($Sok,S) LEDS"
 
 	ledsStatus $Sok $Fast $Leds
 
@@ -1003,7 +1003,7 @@ proc mkLeds { Sok nleds tt } {
 
 	wm title $w $tt
 
-	canvas $w.c -width [expr 8 + $nleds * 24] -height 28
+	canvas $w.c -width [expr 32 + $nleds * 24] -height 28
 
 	# blinker callback
 	set Stat($Sok,G) ""
@@ -1011,7 +1011,7 @@ proc mkLeds { Sok nleds tt } {
 	set Stat($Sok,X) 1
 
 	for { set i 0 } { $i < $nleds } { incr i } {
-		set Stat($Sok,O,$i) [mkoneled $w.c [expr 4 + $i * 24]]
+		set Stat($Sok,O,$i) [mkoneled $w.c [expr 16 + $i * 24]]
 		set Stat($Sok,V,$i) 0
 	}
 	grid $w.c -row 0 -column 0
