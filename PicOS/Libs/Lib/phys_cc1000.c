@@ -630,7 +630,8 @@ void phys_cc1000 (int phy, int mbs, int bau) {
 	/* Both parts are initially inactive */
 	zzv_rxoff = zzv_txoff = 1;
 	LEDI (0, 0);
-	LEDI (3, 0);
+	LEDI (1, 0);
+	LEDI (2, 0);
 
 	/* Start the device */
 	ini_cc1000 (bau);
@@ -646,62 +647,7 @@ static int option (int opt, address val) {
 
 	switch (opt) {
 
-	    case PHYSOPT_STATUS:
-
-		ret = ((zzv_txoff == 0) << 1) | (zzv_rxoff == 0);
-		if (val != NULL)
-			*val = ret;
-		break;
-
-	    case PHYSOPT_TXON:
-
-		zzv_txoff = 0;
-		LEDI (0, 1);
-		if (!running (xmtradio))
-			runthread (xmtradio);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_RXON:
-
-		zzv_rxoff = 0;
-		LEDI (3, 1);
-		if (!running (rcvradio))
-			runthread (rcvradio);
-		trigger (rxevent);
-		break;
-
-	    case PHYSOPT_TXOFF:
-
-		/* Drain */
-		zzv_txoff = 2;
-		LEDI (0, 0);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_TXHOLD:
-
-		zzv_txoff = 1;
-		LEDI (0, 0);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_RXOFF:
-
-		zzv_rxoff = 1;
-		LEDI (3, 0);
-		trigger (rxevent);
-		break;
-
-	    case PHYSOPT_CAV:
-
-		/* Force an explicit backoff */
-		if (val == NULL)
-			zzx_backoff = 0;
-		else
-			zzx_backoff = *val;
-		trigger (zzv_qevent);
-		break;
+#include "xcvcommop.h"
 
 	    case PHYSOPT_SENSE:
 
@@ -723,18 +669,6 @@ static int option (int opt, address val) {
 		if (val != NULL)
 			*val = ret;
 
-		break;
-
-	    case PHYSOPT_SETSID:
-
-		zzv_statid = (val == NULL) ? 0 : *val;
-		break;
-
-            case PHYSOPT_GETSID:
-
-		ret = (int) zzv_statid;
-		if (val != NULL)
-			*val = ret;
 		break;
 
 	    default:

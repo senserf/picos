@@ -268,89 +268,11 @@ static int option (int opt, address val) {
 
 	switch (opt) {
 
-	    case PHYSOPT_STATUS:
-
-		ret = ((zzv_txoff == 0) << 1) | (zzv_rxoff == 0);
-		if (val != NULL)
-			*val = ret;
-		break;
-
-	    case PHYSOPT_TXON:
-
-		zzv_txoff = 0;
-		if (zzv_rxoff)
-			LEDI (0, 1);
-		else
-			LEDI (0, 2);
-		if (!running (xmtradio))
-			runthread (xmtradio);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_RXON:
-
-		zzv_rxoff = 0;
-
-		if (zzv_txoff)
-			LEDI (0, 1);
-		else
-			LEDI (0, 2);
-
-		if (!running (rcvradio))
-			runthread (rcvradio);
-		trigger (rxevent);
-		break;
-
-	    case PHYSOPT_TXOFF:
-
-		/* Drain */
-		zzv_txoff = 2;
-		if (zzv_rxoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_TXHOLD:
-
-		zzv_txoff = 1;
-		if (zzv_rxoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_RXOFF:
-
-		zzv_rxoff = 1;
-		if (zzv_txoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		adc_disable;
-		trigger (rxevent);
-		break;
-
-	    case PHYSOPT_CAV:
-
-		/* Force an explicit backoff */
-		if (val == NULL)
-			zzx_backoff = 0;
-		else
-			zzx_backoff = *val;
-		trigger (zzv_qevent);
-		break;
+#include "xcvcommop.h"
 
 	    case PHYSOPT_SENSE:
 
 		ret = receiver_busy;
-		break;
-
-	    case PHYSOPT_SETPOWER:
-
-		// Not implemented on TR1000
 		break;
 
 	    case PHYSOPT_GETPOWER:
@@ -360,18 +282,6 @@ static int option (int opt, address val) {
 		if (val != NULL)
 			*val = ret;
 
-		break;
-
-	    case PHYSOPT_SETSID:
-
-		zzv_statid = (val == NULL) ? 0 : *val;
-		break;
-
-            case PHYSOPT_GETSID:
-
-		ret = (int) zzv_statid;
-		if (val != NULL)
-			*val = ret;
 		break;
 
 	    default:

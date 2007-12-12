@@ -377,100 +377,11 @@ static int option (int opt, address val) {
 
 	switch (opt) {
 
-		// FIXME: move parts of this to xcvcommon.h. Force chip status
-		// change (hstat) immediately if both parts are OFF.
-
-	    case PHYSOPT_STATUS:
-
-		ret = ((zzv_txoff == 0) << 1) | (zzv_rxoff == 0);
-		if (val != NULL)
-			*val = ret;
-		break;
-
-	    case PHYSOPT_TXON:
-
-		zzv_txoff = 0;
-		if (zzv_rxoff)
-			LEDI (0, 1);
-		else
-			LEDI (0, 2);
-		if (!running (xmtradio))
-			runthread (xmtradio);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_RXON:
-
-		zzv_rxoff = 0;
-		if (zzv_txoff)
-			LEDI (0, 1);
-		else
-			LEDI (0, 2);
-		if (!running (rcvradio))
-			runthread (rcvradio);
-		trigger (rxevent);
-		break;
-
-	    case PHYSOPT_TXOFF:
-
-		/* Drain */
-		zzv_txoff = 2;
-		if (zzv_rxoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_TXHOLD:
-
-		zzv_txoff = 1;
-		if (zzv_rxoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		trigger (zzv_qevent);
-		break;
-
-	    case PHYSOPT_RXOFF:
-
-		zzv_rxoff = 1;
-		if (zzv_txoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		hard_lock;
-		if (receiver_active) {
-			LEDI (2, 0);
-			// Force RCV interrupt reset: the receiver process may
-			// not be given a chance to run
-			zzv_status = 0;
-			zzv_istate = IRQ_OFF;
-			disable_xcv_timer;
-		}
-		hard_drop;
-		adc_disable;
-		trigger (rxevent);
-		break;
-
-	    case PHYSOPT_CAV:
-
-		/* Force an explicit backoff */
-		if (val == NULL)
-			zzx_backoff = 0;
-		else
-			zzx_backoff = *val;
-		trigger (zzv_qevent);
-		break;
+#include "xcvcommop.h"
 
 	    case PHYSOPT_SENSE:
 
 		ret = receiver_busy;
-		break;
-
-	    case PHYSOPT_SETPOWER:
-
-		// Not implemented on TR1000
 		break;
 
 	    case PHYSOPT_GETPOWER:
@@ -482,21 +393,9 @@ static int option (int opt, address val) {
 
 		break;
 
-	    case PHYSOPT_SETSID:
-
-		zzv_statid = (val == NULL) ? 0 : *val;
-		break;
-
-            case PHYSOPT_GETSID:
-
-		ret = (int) zzv_statid;
-		if (val != NULL)
-			*val = ret;
-		break;
-
 	    case PHYSOPT_SETMODE:
 
-		ret = (zzr_rcvmode & 0x0e) >> 1; 
+		ret = (zzr_rcvmode & 0x0E) >> 1; 
 		if (val == NULL)
 			zzr_rcvmode = DM2200_DEF_RCVMODE;
 		else if (*val <= DM2200_N_RF_OPTIONS)

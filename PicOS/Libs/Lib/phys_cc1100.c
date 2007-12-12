@@ -733,9 +733,9 @@ thread (cc1100_driver)
   entry (DR_SWAIT)
 
 #ifdef CC_BUSY_WAIT_FOR_EOT
-	while ((len = cc1100_status ()) == CC1100_STATE_TX);
+	while (cc1100_status () == CC1100_STATE_TX);
 #else
-	if ((len = cc1100_status ()) == CC1100_STATE_TX) {
+	if (cc1100_status () == CC1100_STATE_TX) {
 		delay (TXEND_POLL_DELAY, DR_SWAIT);
 		release;
 	}
@@ -902,7 +902,17 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = ((TxOFF == 0) << 1) | (RxOFF == 0);
+		if (TxOFF == 0)
+			ret = 2;
+		if ((TxOFF & 1) == 0) {
+			// On or draining
+			if (tcvphy_top (physid) != NULL || cc1100_status () ==
+			    CC1100_STATE_TX)
+				ret |= 4;
+		}
+		if (RxOFF == 0)
+			ret++;
+				
 		if (val != NULL)
 			*val = ret;
 		break;

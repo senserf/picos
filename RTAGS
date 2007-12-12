@@ -1660,3 +1660,13 @@ R071206A:
 R071210A:
 
 	Stub support for actuators added. A bit of cleanup in pins handling.
+
+R071211A:
+
+	PHYSOPT_STATUS returns now one more bit. If 0x4 is set, it means that
+	the transmitter has a pending packet to send. You can check, e.g.,
+	before a reset to make sure that the last packet has been expedited.
+	Here is how:
+
+		if ((tcv_control (sfd, PHYSOPT_STATUS, NULL) & 0x4) == 0)
+			goto XmitIdle;
