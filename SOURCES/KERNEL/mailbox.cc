@@ -81,9 +81,10 @@ Mailbox *p;
         csd = sfd = NONE;
 #endif
 	count = 0;
-	setLimit (lm);
 	head = tail = NULL;
 	WList = NULL;
+
+	limit = lm;
 
 	if (zz_flg_started) {
           // Ignore this constructor if we are not in the first state

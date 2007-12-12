@@ -4957,6 +4957,8 @@ class   zz_client : public AI {
 	void resume ();
 	int isSuspended ();
 	inline int isResumed () { return (! isSuspended () ); };
+
+	double throughput ();
 };
 
 extern  zz_client  zz_AI_client;         // Announcement
@@ -5354,6 +5356,8 @@ class   Traffic : public AI {
 #else
 	void    wait (int, int);
 #endif
+
+	double	throughput ();
 
 	inline  void    printRqs (const char *hd = NULL, Long s = NONE) {
 		// Print request list

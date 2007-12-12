@@ -94,6 +94,14 @@ class	RFModule {
 
     public:
 
+inline Boolean isXmitting(){
+  return Xmitting;
+ }
+ 
+ inline Boolean isReceiving(){
+  return Receiving;
+ }
+
 	Transceiver *Xcv;
 
 	// --- Virtual methods that can be overriden in a subtype -------------
@@ -141,7 +149,7 @@ class	RFModule {
 
 	inline void wait_backoff (int st) {
 		if (TBackoff > Time) {
-			Timer->wait (Time - TBackoff, st);
+			Timer->wait (TBackoff - Time, st);
 			sleep;
 		}
 	};
@@ -202,6 +210,7 @@ class	RFModule {
 
 	inline void init_rcv (int st) {
 		Receiving = NO;
+		Monitor->signal (RAW_EVENT_TXGO);
 		Xcv->wait (BOT, st);
 		sleep;
 	};

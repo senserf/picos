@@ -24,7 +24,7 @@
 
 /*
  * I have redone this a bit: mostly changed the function names and added a
- * couple of handy wrappers here and there. Thanks Aaron.
+ * couple of wrappers here and there. Thanks Aaron.
  *
  *                                         PG
  */

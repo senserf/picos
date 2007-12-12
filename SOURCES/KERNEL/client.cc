@@ -3172,6 +3172,28 @@ char    *Packet::zz_pflags () {
 	return (fg);
 }
 
+double zz_client::throughput () {
+
+	TIME dt;
+
+	dt = Time - zz_GSMTime;
+	if (dt == TIME_0)
+		return 0.0;
+
+	return Etu * ((double)zz_NRBits / dt);
+}
+
+double Traffic::throughput () {
+
+	TIME dt;
+
+	dt = Time - zz_GSMTime;
+	if (dt == TIME_0)
+		return 0.0;
+
+	return Etu * ((double)NRBits / dt);
+}
+
 sexposure (zz_client)
 
 	sonpaper {
@@ -3346,7 +3368,6 @@ void    zz_client::exPrint1 (const char *hdr) {
 
 	int             l, i;
 	ZZ_TRVariable   *trv;
-	TIME            dt;
 
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
@@ -3462,8 +3483,7 @@ void    zz_client::exPrint1 (const char *hdr) {
 	print (zz_NTBits    , "    Number of transmitted bits:     ");
 	print (zz_NRBits    , "    Number of received bits:        ");
 	print (zz_GSMTime   , "    Measurement start time:         ");
-	dt = Time - zz_GSMTime;
-	print (Etu * ((double)zz_NRBits / (dt == TIME_0 ? TIME_1 : dt)),
+	print (throughput (),
 		"    Throughput:                     ");
 
 	Ouf << "\n(" << getOName () << ") End of list\n\n";
@@ -3794,10 +3814,7 @@ void    zz_client::exDisplay3 () {
 /* Display sent-received statistics */
 /* -------------------------------- */
 
-	TIME    dt;
-
-	dt = Time - zz_GSMTime;
-	display (Etu * ((double)zz_NRBits / (dt == TIME_0 ? TIME_1 : dt)));
+	display (throughput ());
 	display (zz_NGMessages);
 	display (zz_NQMessages);
 	display (zz_NTMessages);

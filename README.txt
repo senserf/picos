@@ -936,3 +936,10 @@
 	   "abstract" type may specify abstract methods and cannot be create'd.
 	   Fixed a bug in Examples/IncLib/rfmod_dcf.h: the CP attribute of
 	   Xmitter was not initialized.
+
+ R071211A  Method throughput () added to Traffic and Client. It returns ... well
+	   ... the current throughput.
+	   Fixed a bug in IncLib/rfmod_raw.h.
+	   Fixed a (more serious) bug in mailbox.c causing occasional
+	   initialization problems when the malloc'ed area for a mailbox was
+	   not zeroed out.

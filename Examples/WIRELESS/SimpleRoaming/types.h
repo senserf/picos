@@ -104,7 +104,7 @@ process Dispatcher (Node) {
 process PositionReporter {
 
 	// See node.cc for the code method. This is an optional process that
-	// reports the positions of all nodes at regular interval.
+	// reports the positions of all nodes at regular intervals.
 
 	states { Report } ;
 

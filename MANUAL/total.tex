@@ -13486,6 +13486,17 @@ throughput\footnote{Assuming the denominator is nonzero.}
 for the traffic pattern {\tt tp} measured
 from the last time the performance statistics for {\tt tp} were
 reset.
+This method of {\tt Traffic}:
+\begin{verbatim}
+        double throughput ();
+\end{verbatim}
+\noindent
+returns the same value normalized to the {\em ETU}, i.e., multiplied by
+{\tt Etu} (the number of {\em ITU\/}s in one {\em ETU\/}---\sect{rm_mp_ti}).
+A similar method of the {\tt Client} returns the global throughput over all
+traffic patterns expressed in bits per {\em ETU}.
+It doesn't crash when the measurement time is zero, but returns zero in such
+a case.
 
 It is possible to reset the standard performance statistics globally
 for the entire {\tt Client}, by executing the {\tt resetSPF} method
