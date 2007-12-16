@@ -1670,3 +1670,7 @@ R071211A:
 
 		if ((tcv_control (sfd, PHYSOPT_STATUS, NULL) & 0x4) == 0)
 			goto XmitIdle;
+
+R071216A:
+
+	Added VUEE/eco_demo, first draft. See quick.txt in there.

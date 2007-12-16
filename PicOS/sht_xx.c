@@ -101,7 +101,7 @@ static byte shtxx_get (Boolean ack) {
 	return r;
 }
 			
-static shtxx_read (word st, word what) {
+static word shtxx_read (word st, word what) {
 //
 // Read the sensor
 //
