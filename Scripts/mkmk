@@ -1249,6 +1249,7 @@ proc main { } {
 			set Processed($CFName) ""
 			lappend_toc SrcLists($suffix) $CFName
 			# predefine symbols
+			set Symbols(BOARD_$Run(board)) "@@@"
 			if { $Run(mode) == "E" } {
 				set Symbols(__ECOG__) "@@@"
 			} else {
@@ -1266,10 +1267,10 @@ proc main { } {
 
 	if { $Run(mode) == "M" } {
 		# makefile
-		outmkf	{"__MSP430__"} $mcpu
+		outmkf	[list "__MSP430__" "BOARD_$Run(board)"] $mcpu
 	} else {
 		# project file
-		outprf	{"__ECOG__"} $mcpu
+		outprf	[list "__ECOG__" "BOARD_$Run(board)"] $mcpu
 	}
 	if { $NotFound != "" } {
 		puts -nonewline stdout "Warning: //+++ sources not found:"

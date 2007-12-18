@@ -1675,6 +1675,13 @@ R071216A:
 
 	Added VUEE/eco_demo, first draft. See quick.txt in there.
 
-	R071217A:
+R071217A:
+
 	In VUEE/eco_demo, added large_eco.xml, minor corrections.
 
+R071217B:
+
+	Changed the default inter-sampling delay in eco_demo to 1 min.
+	mkmk now defines the symbol BOARD_xxxx, where xxxx is the board name.
+	This can be used, e.g., in options.sys, to select board-specific
+	tweaks.
