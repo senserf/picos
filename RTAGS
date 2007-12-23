@@ -1685,3 +1685,11 @@ R071217B:
 	mkmk now defines the symbol BOARD_xxxx, where xxxx is the board name.
 	This can be used, e.g., in options.sys, to select board-specific
 	tweaks.
+
+R071222A:
+
+	Fixed CC1100 driver to use the absolutely lowest current in SLEEP state.
+	Improved initial pin configuration for WARSAW board and fixed LEDs
+	restore after freeze. To do: clean up LEDs. The way they are
+	paremeterized is ugly and confusing.
+	LEDs

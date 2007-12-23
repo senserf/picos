@@ -243,7 +243,7 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_SYNC1,	((RADIO_SYSTEM_IDENT >> 8) & 0xff),
 	CCxxx0_SYNC0,	((RADIO_SYSTEM_IDENT     ) & 0xff),
 
-        CCxxx0_MCSM0,   0x15,   // Recalibrate on exiting IDLE state	08
+        CCxxx0_MCSM0,   0x14,   // Recalibrate on exiting IDLE state, full SLEEP
 
 #define	MCSM1_TRANS_MODE	0x03	// RX->IDLE, TX->RX
 #define	MCSM1_CCA		(CC_INDICATION << 4)

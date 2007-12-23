@@ -15,7 +15,7 @@
 #include "storage_at45xxx.h"
 
 #define	ee_ini_regs	do { \
-				_BIS (P5OUT, 0x09); \
+				_BIS (P5OUT, 0x01); \
 				_BIS (P5DIR, 0x0b); \
 			} while (0)
 

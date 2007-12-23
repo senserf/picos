@@ -6,6 +6,7 @@
 #undef	UART_RATE
 #undef	UART_INPUT_BUFFER_LENGTH
 #undef	DIAG_MESSAGES
+#undef	CODE_LONG_INTS
 
 #define	UART_DRIVER			2
 #define	UART_RATE			115200
@@ -15,3 +16,4 @@
 
 #define	INFO_FLASH	1
 #define	DIAG_MESSAGES	2
+#define	CODE_LONG_INTS	1

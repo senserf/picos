@@ -924,15 +924,13 @@ static int option (int opt, address val) {
 			chip_reset ();
 			// Even if RX is off, this is our default mode
 			enter_rx ();
-		}
-
-		TxOFF = 0;
-
-		if (RxOFF)
+			// Flag == need to power down on TxOFF
+			RxOFF = 1;
 			LEDI (0, 1);
-		else
+		} else {
 			LEDI (0, 2);
-
+		}
+		TxOFF = 0;
 		trigger (zzv_qevent);
 		break;
 

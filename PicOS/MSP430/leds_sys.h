@@ -18,7 +18,6 @@
 #define	leds_off()	do { } while (0)
 #define	leds_restore(w)	do { } while (0)
 
-
 #if	LEDS_DRIVER
 
 #include "board_leds.h"

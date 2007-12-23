@@ -12,11 +12,7 @@
 //    Make sure P1 interrupts are coming
 //+++ "p1irq.c"
 
-#define	ini_regs	do { \
-				_BIC (P1OUT, 0x23); \
-				_BIS (P1DIR, 0x23); \
-				_BIC (P1IES, 0x10); \
-			} while (0)
+#define	ini_regs		_BIC (P1IES, 0x10)
 
 #define	cc1100_int		(P1IFG & 0x10)
 #define	clear_cc1100_int	_BIC (P1IFG, 0x10)
