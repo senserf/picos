@@ -1692,4 +1692,6 @@ R071222A:
 	Improved initial pin configuration for WARSAW board and fixed LEDs
 	restore after freeze. To do: clean up LEDs. The way they are
 	paremeterized is ugly and confusing.
-	LEDs
+
+R071226A:
+	Added econet.odt/pdf docs to VUEE/eco_demo.
