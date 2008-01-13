@@ -1694,4 +1694,14 @@ R071222A:
 	paremeterized is ugly and confusing.
 
 R071226A:
+
 	Added econet.odt/pdf docs to VUEE/eco_demo.
+
+R080110A:
+
+	A cosmetic modification to the QSO PAR sensor driver. I added a
+	(conditionally compiled) option to delay the first measurement for
+	some time after bringing up the reference voltage and initializing
+	the ADC, hoping that it might help to stabilize the (first) result
+	and thus allow me to reduce the number of samples needed to produce
+	a stable reading. No such luck. But the option is left just in case.

@@ -30,6 +30,10 @@
 #define	QSO_PAR_REF	0	// 1.5V by default
 #endif
 
+#ifndef	QSO_PAR_IDEL
+#define	QSO_PAR_IDEL	0	// Delay before first take
+#endif
+
 #ifndef	qso_set_ref
 #define	qso_set_ref	CNOP
 #endif
@@ -38,24 +42,38 @@
 #define	qso_clr_ref	CNOP
 #endif
 
-static	lword praa_avg, praa_count = 0;
+static	lword praa_avg;
+static	int praa_count = 0;
 
 void qso_par_read (word state, address val) {
 
-	if (praa_count == 0) {
+	if (praa_count <= 0) {
 		// Starting up
-		if (adc_inuse) {
-			// Do not interfere
-			if (state == NONE)
-				// No way out
-				syserror (ENOTNOW, "qso_par_read");
-			delay (2, state);
-			release;
+#if QSO_PAR_IDEL
+		if (praa_count == 0) {
+			// Initializing
+#endif
+			if (adc_inuse) {
+				// Do not interfere
+				if (state == NONE)
+					// No way out
+					syserror (ENOTNOW, "qso_par_read");
+				delay (2, state);
+				release;
+			}
+
+			qso_set_ref;
+			adc_config_read (QSO_PAR_PIN, QSO_PAR_REF,
+								QSO_PAR_SHOLD);
+#if QSO_PAR_IDEL
+			if (state != NONE) {
+				praa_count = -1;
+				delay (QSO_PAR_IDEL, state);
+				release;
+			}
+			mdelay (QSO_PAR_IDEL);
 		}
-
-		qso_set_ref;
-		adc_config_read (QSO_PAR_PIN, QSO_PAR_REF, QSO_PAR_SHOLD);
-
+#endif
 		praa_count = QSO_PAR_NSMP * 2;
 		praa_avg = 0;
 Next:
