@@ -12,6 +12,8 @@
 //    Make sure P1 interrupts are coming
 //+++ "p1irq.c"
 
+REQUEST_EXTERNAL (p1irq);
+
 #define	CC_BUSY_WAIT_FOR_EOT	1
 
 #define	ini_regs	do { \

@@ -74,4 +74,6 @@ void		zz_restart_entry () __attribute__ ((noreturn));
 
 #define	INLINE		inline
 
+#define	REQUEST_EXTERNAL(p) __asm__ (".global " #p)
+
 #endif

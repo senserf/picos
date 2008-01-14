@@ -224,6 +224,7 @@
 
 #if	MONITOR_PINS_SEND_INTERRUPTS
 //+++ p2irq.c
+REQUEST_EXTERNAL (p2irq);
 #endif
 
 #ifdef	PIN_ADC_RSSI

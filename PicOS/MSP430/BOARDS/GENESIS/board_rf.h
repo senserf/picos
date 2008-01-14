@@ -5,6 +5,8 @@
 //    Make sure P1 interrupts are coming
 //+++ "p1irq.c"
 
+REQUEST_EXTERNAL (p1irq);
+
 #define	ini_regs	do { \
 				_BIC (P1OUT, 0xfc); \
 				_BIS (P1DIR, 0x8c); \

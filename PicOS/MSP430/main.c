@@ -1217,7 +1217,7 @@ static void uart_unlock (uart_t *u) {
 /* ============================================ */
 /* Start up normal (interrupt-driven) operation */
 /* ============================================ */
-	u->flags = 0;
+	u->flags &= UART_RATE_MASK;
 	uart_enable_read_int (u);
 	// uart_enable_write_int (u);
 }

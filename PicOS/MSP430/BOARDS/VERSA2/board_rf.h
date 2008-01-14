@@ -1,6 +1,8 @@
 //+++ "dm2200irq.c"
 //+++ p2irq.c
 
+REQUEST_EXTERNAL (p2irq);
+
 #define	CFG_P1		CNOP
 
 #define	CFG_P2		_BIS (P2DIR, 0x81); \

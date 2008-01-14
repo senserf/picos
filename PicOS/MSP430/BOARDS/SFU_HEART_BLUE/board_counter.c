@@ -3,6 +3,8 @@
 
 //+++ "p1irq.c"
 
+REQUEST_EXTERNAL (p1irq);
+
 word	HeartRateIntervals [N_HEART_RATE_INTERVALS];
 word	HRINext;
 word	HRTimer;

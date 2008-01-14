@@ -16,7 +16,7 @@
 #include	"dm2200.h"
 #endif
 
-interrupt (PORT2_VECTOR) p2_int () {
+interrupt (PORT2_VECTOR) p2irq () {
 
 #if	DM2200
 #include	"irq_dm2200_rcv.h"
@@ -32,7 +32,7 @@ interrupt (PORT2_VECTOR) p2_int () {
 
 // ============================================================================
 
-interrupt (PORT2_VECTOR) p2_int () {
+interrupt (PORT2_VECTOR) p2irq () {
 
 #define	P2_INTERRUPT_SERVICE
 #include "board_pins_interrupts.h"

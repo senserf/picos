@@ -1705,3 +1705,38 @@ R080110A:
 	the ADC, hoping that it might help to stabilize the (first) result
 	and thus allow me to reduce the number of samples needed to produce
 	a stable reading. No such luck. But the option is left just in case.
+
+R080114A:
+
+	It is now possible to use mkmk to create a library of object modules
+	for the particular board. For that, the params.sys file in the BOARD
+	directory must specify the list of "root" files. All those + all the
+	dependent files will be compiled and added to the library. Also, all
+	includes listed in params.sys, as well as those needed to resolve
+	compilation dependencies, will be send to the include directory
+	associated with the library.
+
+	Look at BOARDS/WARSAW/params.sys for an illustration. To build a
+	library for that board, create a directory in Apps, put an empty
+	options.sys file in that directory (you may use a non-empty file to
+	override some options), and execute:
+
+		mkmk WARSAW -l
+
+	followed by make. This will create a subdirectory named LIBRARY
+	containing libpicos.a + include. For illustration how to link to such
+	a library, look at Apps/LIB_EXAMPLE/APP (file Makefile_app). To see the
+	complete picture, do this:
+
+		cd Apps/LIB_EXAMPLE
+		mkmk WARSAW -l
+		make
+		cd APP
+		make -f Makefile_app
+
+	The set of includes copied to LIBRARY/include is larger than needed,
+	but there should be no problem with that.
+
+	Fixed a minor bug in UART initialization, which caused that GETRATE
+	(for a settable-rate UART) returned incorrect rate until it was reset
+	by SETRATE.

@@ -24,7 +24,7 @@
 #include	"rf24l01.h"
 #endif
 
-interrupt (PORT1_VECTOR) p1_int () {
+interrupt (PORT1_VECTOR) p1irq () {
 
 #if		CC1000
 #include 	"irq_cc1000.h"
@@ -43,7 +43,7 @@ interrupt (PORT1_VECTOR) p1_int () {
 // ============================================================================
 
 
-interrupt (PORT1_VECTOR) p1_int () {
+interrupt (PORT1_VECTOR) p1irq () {
 
 #define	P1_INTERRUPT_SERVICE
 #include "board_pins_interrupts.h"

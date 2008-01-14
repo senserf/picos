@@ -9,8 +9,11 @@
  *	  CSN	P1.5	OUT
  */
 
-//    Make sure P1 interrupts are coming
+//    Make sure P1 interrupts are serviced
 //+++ "p1irq.c"
+
+REQUEST_EXTERNAL (p1irq);	// Needed to force the file to be loaded
+				// if loading from library
 
 #define	ini_regs		_BIC (P1IES, 0x10)
 

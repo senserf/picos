@@ -499,6 +499,145 @@ proc outmkf { def cpu } {
 	}
 }
 
+proc outmkf_lib { def cpu } {
+#
+# Output a makefile for lib run of MSP430
+#
+#	IncShort:	array of include directories indexed by paths
+#	DirShort:	array of source directories
+#	Depend:		array of dependency lists (can be global)
+#	SrcLists:	per-target array of files to compile (ToCompile)
+#
+	global DirShort IncShort SrcLists Depend CWD NotFound LIncludes
+
+	# build a trimmed list of relevant directories
+	trimdir
+
+	if [catch { open "Makefile" "w" } mfd] {
+		error "cannot open Makefile for writing: $mfd"
+	}
+
+	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
+	puts $mfd "CC=msp430-gcc"
+	puts $mfd "AS=msp430-as"
+	puts $mfd "AR=msp430-ar"
+	puts $mfd "RL=msp430-ranlib"
+	puts $mfd "RM=rm"
+	puts -nonewline $mfd "CF=-mmcu=$cpu -mendup-at=main"
+	foreach sht $def {
+		puts -nonewline $mfd " -D$sht"
+	}
+	puts $mfd ""
+	puts $mfd "AF=-mmcu=$cpu"
+	puts $mfd "OF=-O2 -g -Wundef"
+	puts $mfd "TR=LIBRARY/libpicos.a"
+	puts $mfd "TD=./KTMP"
+
+	# output the list of directories
+	puts $mfd "# include directories"
+	set idirs ""
+	foreach { dir sht } [array get IncShort] {
+		lappend idirs [list $dir $sht]
+	}
+	set idirs [lsort -index 1 $idirs]
+	foreach dir $idirs {
+		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+	}
+	puts $mfd "# source directories"
+
+	set sdirs ""
+	foreach { dir sht } [array get DirShort] {
+		lappend sdirs [list $dir $sht]
+	}
+	set sdirs [lsort -index 1 $sdirs]
+	foreach dir $sdirs {
+		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+	}
+	puts $mfd "#"
+
+	puts -nonewline $mfd "IN="
+	foreach dir $idirs {
+		puts -nonewline $mfd "-I \$([lindex $dir 1]) "
+	}
+	puts $mfd "\n"
+
+	# target names
+	set tnames [lsort [array names SrcLists]]
+
+	# the "all" target becomes the default
+	puts -nonewline $mfd "all :\t\$(TR)\n"
+
+	puts -nonewline $mfd "BF="
+
+	foreach fn $SrcLists() {
+		puts -nonewline $mfd "\$(TD)/[file rootname [file tail $fn]].o "
+	}
+	puts $mfd "\n"
+
+	# the actual target
+	puts $mfd "\$(TR):\t\$(BF)"
+	puts $mfd "\trm -rf \$(TR)"
+	puts $mfd "\t\$(AR) q \$(TR) \$(BF)"
+	puts $mfd "\t\$(RL) \$(TR)"
+
+	# the list of compileable sources
+	foreach sf $SrcLists() {
+		set rfn [file tail $sf]
+		set suf [file extension $rfn]
+		set rna [file rootname $rfn]
+		set ofn "${rna}.o"
+		set dir [file dirname $sf]
+		set dsh $DirShort($dir)
+		puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh)/$rfn"
+		# dependencies
+		if [info exists Depend($sf)] {
+			foreach df $Depend($sf) {
+				set rfd [file tail $df]
+				set did [file dirname $df]
+				puts -nonewline $mfd " \$($IncShort($did))/$rfd"
+			}
+		}
+		puts $mfd ""
+		puts $mfd "\tmkdir -p \$(TD)"
+		if { $suf == ".cc" } {
+			# this is a VUEE source, copy it to plain C
+			set rfn "${rna}.c"
+			puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+			set spfx "\$(TD)"
+			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
+		} else {
+			set spfx "\$($dsh)"
+			if { $suf == ".c" } {
+				puts -nonewline $mfd \
+					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+			} elseif { [string first ".a" $suf] == 0 } {
+				puts -nonewline $mfd \
+					"\t\$(AS) \$(AF) \$(IN)"
+			} else {
+				errab "illegal source suffix '$sf'"
+			}
+		}
+		puts $mfd " -c $spfx/$rfn -o \$(TD)/$ofn\n"
+	}
+	puts $mfd "\n"
+
+	puts $mfd "clean :\n\trm -rf \$(TD)/*"
+	catch { close $mfd }
+
+	# copy the includes
+	foreach dep [array names Depend] {
+		foreach fn $Depend($dep) {
+			lappend_unique LIncludes $fn
+		}
+	}
+
+	foreach fn $LIncludes {
+		if [catch { exec cp $fn LIBRARY/include/ } ] {
+			errab "cannot copy include file: $fn"
+		}
+	}
+}
+
 proc canon { fnf } {
 #
 # Normalize file name
@@ -539,13 +678,12 @@ proc rootpf { } {
 	set RPREF [file dirname $RPREF]
 }
 
-proc lboard { tgt flg } {
+proc lboard { tgt } {
 #
 # Locate the board directory
 #
-	global RPREF Run DirList Targets
+	global RPREF Run DirList Targets Flags
 	upvar $tgt target
-	upvar $flg flags
 
 	set nof 1
 	foreach dir $DirList {
@@ -572,19 +710,25 @@ proc lboard { tgt flg } {
 		set Run(mode) [lindex $tar 1]
 		if [catch { open $pard "r" } pfd] {
 			# no parameters, use defaults
-			set flags [lindex $tar 2]
+			set Flags [lindex $tar 2]
 			return
 		}
 		# params file present, read it
-		if [catch { read $pfd } flags] {
+		if [catch { read $pfd } Flags] {
 			catch { close $pfd }
 			error "cannot read '$pard'"
 		}
 		catch { close $pfd }
-		set flags [string trim $flags]
-		if { $flags == "" } {
-			set flags [lindex $tar 2]
+		#
+		# this consists of lines in the format:
+		#	-x param
+		# exceptionally, the CPU ID may appear without -c
+		#
+		set Flags [string trim $Flags]
+		if { $Flags == "" } {
+			set Flags [lindex $tar 2]
 		}
+		set Flags [split $Flags "\n"]
 		return
 	}
 
@@ -1134,41 +1278,82 @@ proc scanfile { fname } {
 
 proc bad_usage { } {
 
-	puts stderr "Usage: mkmk \[boardname]"
+	puts stderr "Usage: mkmk \[boardname \[-l|-p]]"
 	exit 1
+}
+
+proc getflag { fg } {
+
+	global Flags
+
+	set m "-$fg"
+	set par ""
+	foreach f $Flags {
+		set f [string trim $f]
+		if { $f == "" } {
+			continue
+		}
+		if [regexp "^${m}(.*)" $f junk par] {
+			set o 1
+			break
+		}
+		if { $fg == "c" && [string index $f 0] != "-" } {
+			set par $f
+			break
+		}
+	}
+
+	return [string trim $par]
 }
 
 proc main { } {
 
 	global argv ToCompile NotFound CWD Run Symbols Scanned CFName SrcLists
+	global LIncludes
 
 	set ll [llength $argv]
 
-	if { $ll > 1} {
+	if { $ll > 2 || ($ll > 0  && [string index $argv 0] == "-") } {
 		bad_usage
 	}
+
 
 	set CWD [pwd]
 
 	# locate the root directory prefix
 	rootpf
 
+	# library flag
+	set Run(type) "p"
+
 	if $ll {
 		set Run(board) [lindex $argv 0]
+		if { $ll > 1 } {
+			# library flag
+			set lf [lindex $argv 1]
+			if { $lf != "-l" && $lf != "-p" } {
+				bad_usage
+			}
+			if { $lf == "-l" } {
+				set Run(type) "l"
+			}
+		}
 	} else {
 		# this is the default
 		set Run(board)	"GENERIC_MSP430"
 	}
 
 	# locate the board directory
-	lboard TGT mcpu
+	lboard TGT
+	set mcpu [getflag "c"]
 
 	set CWD [canon $CWD]
 	set RPREF [canon RPREF]
-
+	
 	# cleanup
 	catch { exec rm -rf "*.cyp" "*.cyw" "*.lif" "Makefile" "KTMP" \
-			"out" "temp" "internal.map" "cstartup.asm" "irq.asm" }
+			"out" "temp" "internal.map" "cstartup.asm" "irq.asm" \
+				"LIBRARY" ".gdbinit" "gdb.ini" }
 
 	if { $Run(mode) == "E" } {
 		catch { file mkdir "out" "temp" }
@@ -1181,64 +1366,53 @@ proc main { } {
 	set sufflist ""
 	set empsuff 0
 	set rootsuff ".c"
-	# We expect to find app.c in the current directory
-	set fn [canon [file join $CWD "app.c"]]
-	if ![file isfile $fn] {
-		dmp "app.c not found, trying app_xxx.cc"
-		# try to locate all files that look like "app_xxx.cc", where
-		# xxx has no _. This will mean that we have possibly multiple
-		# VUEE-like setups.
-		if [catch { exec ls $CWD } flist] {
-			errab "cannot scan current directory: $flist"
-		}
-		foreach fn $flist {
-
-			if { $fn == "app.cc" } {
-				# there should be only one file like this, i.e.,
-				# no app_xxx.cc files, but keep looking for
-				# consistency
-				set empsuff 1
-			} elseif [regexp "^app_(\[^_.\]+)\\.cc$" $fn jnk suff] {
-				lappend sufflist $suff
-			}
-		}
-
-		if { $empsuff && $sufflist != "" } {
-			errab "app.cc cannot coexist with app_xxx.cc files"
-		}
-
-		if { $empsuff == 0 && $sufflist == "" } {
-			errab "no app.c, app.cc or app_xxx.cc found in current\
-				directory"
-		}
-		set rootsuff ".cc"
-	} else {
-		dmp "app.c found, traditional mode"
-	}
-
-	if { $sufflist == "" } {
-		set sufflist [list ""]
-	}
-
 	set NotFound ""
 
-	foreach suffix $sufflist {
-
-		dmp "doing suffix '$suffix'"
-
+	if { $Run(type) == "l" } {
+		# library run
+		set iflist [getflag "l"]
+		if { $iflist == "" } {
+			errab "board defines no files for library run"
+		}
 		set ToCompile ""
+		set LIncludes ""
+		while 1 {
+			set iflist [string trim $iflist]
+			if ![regexp "^(\[^ \t\]+)" $iflist f] {
+				break
+			}
 
-		if { $suffix == "" } {
-			set suff ""
-		} else {
-			set suff "_$suffix"
+			set nf [lookup $f ""]
+			if { $nf == "" } {
+				# not found
+				lappend_unique NotFound $f
+			} elseif { [file extension $nf] == ".h" } {
+				# extra includes
+				lappend_toc LIncludes $nf
+			} else {
+				lappend_toc ToCompile $nf
+			}
+			set f [string length $f]
+			set iflist [string range $iflist $f end]
 		}
 
-		lappend_toc ToCompile "app${suff}${rootsuff}"
+		if { $NotFound != "" } {
+			puts "Library sources not found:"
+			foreach fn $NotFound {
+				puts -nonewline stdout "$fn "
+			}
+			puts stdout ""
+			exit 1
+		}
 
+		if { $ToCompile == "" } {
+			errab \
+			    "no library files to compile, check board's params"
+		}
+
+		set suffix ""
 		array unset Processed
-
-		set SrcLists($suffix) ""
+		set ScrLists($suffix) ""
 
 		while { $ToCompile != "" } {
 			set CFName [lindex $ToCompile 0]
@@ -1262,16 +1436,115 @@ proc main { } {
 
 		array unset Processed
 		array unset ToCompile
+
 		dmp "TO COMPILE \[$suffix\]: '$SrcLists($suffix)'"
+
+		if { $Run(mode) != "M" } {
+			errab "library runs not implemented for this CPU"
+		}
+
+		catch { file mkdir "LIBRARY" }
+		catch { file mkdir "LIBRARY/include" }
+
+		outmkf_lib [list "__MSP430__" "BOARD_$Run(board)"] $mcpu
+
+	} else {
+		# regular run
+
+		# We expect to find app.c in the current directory
+		set fn [canon [file join $CWD "app.c"]]
+		if ![file isfile $fn] {
+			dmp "app.c not found, trying app_xxx.cc"
+			# try to locate all files that look like "app_xxx.cc",
+			# where xxx has no _. This will mean that we have
+			# possibly multiple VUEE-like setups.
+			if [catch { exec ls $CWD } flist] {
+				errab "cannot scan current directory: $flist"
+			}
+			foreach fn $flist {
+	
+				if { $fn == "app.cc" } {
+					# there should be only one file like
+					# this, i.e., no app_xxx.cc files, but
+					# keep looking for consistency
+					set empsuff 1
+				} elseif [regexp "^app_(\[^_.\]+)\\.cc$" $fn \
+				    jnk suff] {
+					lappend sufflist $suff
+				}
+			}
+	
+			if { $empsuff && $sufflist != "" } {
+				errab \
+				    "app.cc cannot coexist with app_xxx.cc files"
+			}
+	
+			if { $empsuff == 0 && $sufflist == "" } {
+				errab "no app.c, app.cc or app_xxx.cc found in\
+					current directory"
+			}
+			set rootsuff ".cc"
+		} else {
+			dmp "app.c found, traditional mode"
+		}
+	
+		if { $sufflist == "" } {
+			set sufflist [list ""]
+		}
+
+
+		foreach suffix $sufflist {
+
+			dmp "doing suffix '$suffix'"
+
+			set ToCompile ""
+
+			if { $suffix == "" } {
+				set suff ""
+			} else {
+				set suff "_$suffix"
+			}
+
+			lappend_toc ToCompile "app${suff}${rootsuff}"
+
+			array unset Processed
+
+			set SrcLists($suffix) ""
+
+			while { $ToCompile != "" } {
+				set CFName [lindex $ToCompile 0]
+				set ToCompile [lrange $ToCompile 1 end]
+				if [info exists Processed($CFName)] {
+					continue
+				}
+				set Processed($CFName) ""
+				lappend_toc SrcLists($suffix) $CFName
+				# predefine symbols
+				set Symbols(BOARD_$Run(board)) "@@@"
+				if { $Run(mode) == "E" } {
+					set Symbols(__ECOG__) "@@@"
+				} else {
+					set Symbols(__MSP430__) "@@@"
+				}
+				scanfile $CFName
+				array unset Symbols
+				array unset Scanned
+			}
+
+			array unset Processed
+			array unset ToCompile
+			dmp "TO COMPILE \[$suffix\]: '$SrcLists($suffix)'"
+		}
+
+		if { $Run(mode) == "M" } {
+			# makefile
+			outmkf	[list "__MSP430__" "BOARD_$Run(board)"] $mcpu
+		} else {
+			# project file
+			outprf	[list "__ECOG__" "BOARD_$Run(board)"] $mcpu
+		}
 	}
 
-	if { $Run(mode) == "M" } {
-		# makefile
-		outmkf	[list "__MSP430__" "BOARD_$Run(board)"] $mcpu
-	} else {
-		# project file
-		outprf	[list "__ECOG__" "BOARD_$Run(board)"] $mcpu
-	}
 	if { $NotFound != "" } {
 		puts -nonewline stdout "Warning: //+++ sources not found:"
 		foreach fn $NotFound {
