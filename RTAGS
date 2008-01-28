@@ -1740,3 +1740,7 @@ R080114A:
 	Fixed a minor bug in UART initialization, which caused that GETRATE
 	(for a settable-rate UART) returned incorrect rate until it was reset
 	by SETRATE.
+
+R080128A:
+
+	Test for the WARSAW board (Apps/TESTS/WARSAW).

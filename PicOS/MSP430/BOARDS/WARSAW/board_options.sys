@@ -1,6 +1,6 @@
 #define	EE_USE_UART		1
 #define	MALLOC_SINGLEPOOL	1
-#define DIAG_MESSAGES		0
+#define DIAG_MESSAGES		2
 #define	TCV_PRESENT		1
 #define	TCV_TIMERS		0
 #define	TCV_HOOKS		0
@@ -9,6 +9,7 @@
 #define	MALLOC_STATS		1
 #define STACK_GUARD		1
 #define ENTROPY_COLLECTION	1
+#define	GLACIER			1
 
 #define LEDS_DRIVER		1
 #define LEDS_BLINKING		1
@@ -30,6 +31,7 @@
 #define LBT_THRESHOLD		2
 
 #define STORAGE_AT45XXX		1
+#define	INFO_FLASH		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
