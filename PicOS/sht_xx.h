@@ -20,8 +20,8 @@
 #define	SHTXX_DELAY_TEMP	210	// milliseconds (measurement delay)
 #define	SHTXX_DELAY_HUMID	55
 
-void shtxx_temp (word, address);
-void shtxx_humid (word, address);
+void shtxx_temp (word, word, address);
+void shtxx_humid (word, word, address);
 void shtxx_init ();
 
 #endif

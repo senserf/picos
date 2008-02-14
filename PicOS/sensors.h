@@ -8,12 +8,16 @@
 #include "sysio.h"
 //+++ "sensors.c"
 
-#define	SENSOR_DEF(inf,vlf)	{ vlf, inf }
-
+#define	SENSOR_DEF(inf,vlf,par)	{ vlf, inf, par }
+//
+// Init function (or NULL), action function, parameter (to be interpreted
+// by the action function)
+//
 typedef	struct {
 
-	void (*fun_val) (word, address);
+	void (*fun_val) (word, word, address);
 	void (*fun_ini) (void);
+	word param;
 
 } sensdesc_t;
 

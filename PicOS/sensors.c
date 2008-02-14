@@ -34,9 +34,10 @@ void read_sensor (word st, word sn, address val) {
 	if (sn >= N_SENSORS)
 		syserror (EREQPAR, "read_sensor");
 
-	(*(sensmap [sn] . fun_val)) (st, val);
+	s = sensmap + sn;
+
+	(*(s->fun_val)) (st, s->param, val);
 #else
 	syserror (EREQPAR, "read_sensor");
 #endif
-
 }

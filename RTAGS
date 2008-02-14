@@ -1744,3 +1744,19 @@ R080114A:
 R080128A:
 
 	Test for the WARSAW board (Apps/TESTS/WARSAW).
+
+R080214A:
+
+	Removed qso_par.[ch] and replaced with analog_sensor.[ch]. As that
+	functionality in fact captures the operation of a general analog sensor
+	(of which you may want to have more than one), we now allow multiple
+	analog sensors to be defined this way. I was tempted to do the same for
+	sht_xx, but that would complicate the driver beyond decent. And, of
+	course, it makes much less sense to have multiple (identical) copies
+	of the sht sensor than to have multiple analog sensors that all appear
+	the way the QSO PAR sensor used to appear.
+
+	See BOARDS/ARTURO/board_pins.h for the illustration of changes. This
+	board now includes two analog sensors: the PAR (as it used to be) +
+	the photodiode which I added (for testing) as sensor number 3. No need
+	to change anything in eco_demo.

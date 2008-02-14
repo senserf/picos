@@ -146,9 +146,13 @@ GetItNow:
 	return what;
 }
 
-void shtxx_temp (word st, address val) { *val = shtxx_read (st, 0); }
+void shtxx_temp (word st, word junk, address val) {
+	*val = shtxx_read (st, 0);
+}
 
-void shtxx_humid (word st, address val) { *val = shtxx_read (st, 1); }
+void shtxx_humid (word st, word junk, address val) {
+	*val = shtxx_read (st, 1);
+}
 
 void shtxx_init () {
 /*
