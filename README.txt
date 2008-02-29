@@ -943,3 +943,7 @@
 	   Fixed a (more serious) bug in mailbox.c causing occasional
 	   initialization problems when the malloc'ed area for a mailbox was
 	   not zeroed out.
+
+ R080229A  Cosmetics needed to eliminate compilation problems with gcc 4.1.2.
+	   Apparently "friend" declaration doesn't count as announcement any
+	   more.

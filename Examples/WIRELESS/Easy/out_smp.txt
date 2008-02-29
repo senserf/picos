@@ -1,0 +1,227 @@
+SMURPH Version 3.00-OA      Very Simple Wireless Network    Tue Feb 26 20:56:53 2008
+Call arguments: data.txt junko
+
+Parameters of shadowing channel:
+
+ Distance granularity:           0.1
+ Number of nodes:                100
+ Background noise:              -110
+ Loss exponent:                    4
+ Reference distance:               1
+ Gaussian sigma:                   2
+ Loss base:                       32
+ Bits per byte:                   12
+ Extra framing bits:              16
+ Minimum preamble:                 8
+ Ber table length:                10
+       50.000dB ->    1e-07
+       40.000dB ->    2e-07
+       30.000dB ->    5e-07
+       20.000dB ->    1e-06
+       10.000dB ->    1e-05
+        5.000dB ->   0.0001
+        2.000dB ->     0.01
+        0.000dB ->      0.2
+       -2.000dB ->      0.5
+       -5.000dB ->     0.99
+
+ Cut-off threshold:             -115
+ Activity threshold:             -96
+Parameters shared by all nodes:
+
+ Transmission rate:            19200
+ Preamble length:                 32
+  Transmission power:            1.2
+  Minimum backoff:             0.002
+  Maximum backoff:              0.04
+  Node    0 at <1000.000,1000.000>
+  Node    1 at <1050.000,1000.000>
+  Node    2 at <1100.000,1000.000>
+  Node    3 at <1150.000,1000.000>
+  Node    4 at <1200.000,1000.000>
+  Node    5 at <1250.000,1000.000>
+  Node    6 at <1300.000,1000.000>
+  Node    7 at <1350.000,1000.000>
+  Node    8 at <1400.000,1000.000>
+  Node    9 at <1450.000,1000.000>
+  Node   10 at <1000.000,1050.000>
+  Node   11 at <1050.000,1050.000>
+  Node   12 at <1100.000,1050.000>
+  Node   13 at <1150.000,1050.000>
+  Node   14 at <1200.000,1050.000>
+  Node   15 at <1250.000,1050.000>
+  Node   16 at <1300.000,1050.000>
+  Node   17 at <1350.000,1050.000>
+  Node   18 at <1400.000,1050.000>
+  Node   19 at <1450.000,1050.000>
+  Node   20 at <1000.000,1100.000>
+  Node   21 at <1050.000,1100.000>
+  Node   22 at <1100.000,1100.000>
+  Node   23 at <1150.000,1100.000>
+  Node   24 at <1200.000,1100.000>
+  Node   25 at <1250.000,1100.000>
+  Node   26 at <1300.000,1100.000>
+  Node   27 at <1350.000,1100.000>
+  Node   28 at <1400.000,1100.000>
+  Node   29 at <1450.000,1100.000>
+  Node   30 at <1000.000,1150.000>
+  Node   31 at <1050.000,1150.000>
+  Node   32 at <1100.000,1150.000>
+  Node   33 at <1150.000,1150.000>
+  Node   34 at <1200.000,1150.000>
+  Node   35 at <1250.000,1150.000>
+  Node   36 at <1300.000,1150.000>
+  Node   37 at <1350.000,1150.000>
+  Node   38 at <1400.000,1150.000>
+  Node   39 at <1450.000,1150.000>
+  Node   40 at <1000.000,1200.000>
+  Node   41 at <1050.000,1200.000>
+  Node   42 at <1100.000,1200.000>
+  Node   43 at <1150.000,1200.000>
+  Node   44 at <1200.000,1200.000>
+  Node   45 at <1250.000,1200.000>
+  Node   46 at <1300.000,1200.000>
+  Node   47 at <1350.000,1200.000>
+  Node   48 at <1400.000,1200.000>
+  Node   49 at <1450.000,1200.000>
+  Node   50 at <1000.000,1250.000>
+  Node   51 at <1050.000,1250.000>
+  Node   52 at <1100.000,1250.000>
+  Node   53 at <1150.000,1250.000>
+  Node   54 at <1200.000,1250.000>
+  Node   55 at <1250.000,1250.000>
+  Node   56 at <1300.000,1250.000>
+  Node   57 at <1350.000,1250.000>
+  Node   58 at <1400.000,1250.000>
+  Node   59 at <1450.000,1250.000>
+  Node   60 at <1000.000,1300.000>
+  Node   61 at <1050.000,1300.000>
+  Node   62 at <1100.000,1300.000>
+  Node   63 at <1150.000,1300.000>
+  Node   64 at <1200.000,1300.000>
+  Node   65 at <1250.000,1300.000>
+  Node   66 at <1300.000,1300.000>
+  Node   67 at <1350.000,1300.000>
+  Node   68 at <1400.000,1300.000>
+  Node   69 at <1450.000,1300.000>
+  Node   70 at <1000.000,1350.000>
+  Node   71 at <1050.000,1350.000>
+  Node   72 at <1100.000,1350.000>
+  Node   73 at <1150.000,1350.000>
+  Node   74 at <1200.000,1350.000>
+  Node   75 at <1250.000,1350.000>
+  Node   76 at <1300.000,1350.000>
+  Node   77 at <1350.000,1350.000>
+  Node   78 at <1400.000,1350.000>
+  Node   79 at <1450.000,1350.000>
+  Node   80 at <1000.000,1400.000>
+  Node   81 at <1050.000,1400.000>
+  Node   82 at <1100.000,1400.000>
+  Node   83 at <1150.000,1400.000>
+  Node   84 at <1200.000,1400.000>
+  Node   85 at <1250.000,1400.000>
+  Node   86 at <1300.000,1400.000>
+  Node   87 at <1350.000,1400.000>
+  Node   88 at <1400.000,1400.000>
+  Node   89 at <1450.000,1400.000>
+  Node   90 at <1000.000,1450.000>
+  Node   91 at <1050.000,1450.000>
+  Node   92 at <1100.000,1450.000>
+  Node   93 at <1150.000,1450.000>
+  Node   94 at <1200.000,1450.000>
+  Node   95 at <1250.000,1450.000>
+  Node   96 at <1300.000,1450.000>
+  Node   97 at <1350.000,1450.000>
+  Node   98 at <1400.000,1450.000>
+  Node   99 at <1450.000,1450.000>
+
+Traffic parameters:
+
+  Minimum message length:          4
+  Maximum message length:         48
+  Mean interarrival time:      0.005
+
+Time: 1798759162004 [600.001472] (Client) Global performance measures:
+
+AMD - Absolute message delay:
+
+      Number of samples:              12487
+      Minimum value:         0.004999689819
+      Maximum value:           0.1399962453
+      Mean value:             0.02121689793
+      Variance:             0.0001441381479
+      Standard deviation:     0.01200575478
+      Confidence int @95%:   0.009925093277
+      Confidence int @99%:    0.01303934448
+
+APD - Absolute packet delay:
+
+      Number of samples:              12487
+      Minimum value:         0.004999689819
+      Maximum value:          0.09388050383
+      Mean value:             0.02065862108
+      Variance:             0.0001098606387
+      Standard deviation:     0.01048144258
+      Confidence int @95%:    0.00889911349
+      Confidence int @99%:    0.01169143737
+
+WMD - Weighted message delay:
+
+      Number of samples:            2614352
+      Minimum value:         0.004999689819
+      Maximum value:           0.1399962453
+      Mean value:             0.02509656599
+      Variance:             0.0001290385819
+      Standard deviation:     0.01135951504
+      Confidence int @95%:   0.000548680507
+      Confidence int @99%:   0.000720843013
+
+MAT - Message access time:
+
+      Number of samples:             119919
+      Minimum value:         0.004999510695
+      Maximum value:           0.1635773679
+      Mean value:             0.02113518676
+      Variance:             0.0001440454963
+      Standard deviation:     0.01200189553
+      Confidence int @95%:   0.003214073651
+      Confidence int @99%:   0.004222571251
+
+PAT - Packet access time:
+
+      Number of samples:             119919
+      Minimum value:         0.004999510695
+      Maximum value:           0.1189722228
+      Mean value:             0.02056493426
+      Variance:             0.0001080429941
+      Standard deviation:     0.01039437319
+      Confidence int @95%:    0.00286077072
+      Confidence int @99%:   0.003758410512
+
+MLS - Message length distribution:
+
+      Number of samples:             119922
+      Minimum value:                     32
+      Maximum value:                    384
+      Mean value:               208.8338086
+      Variance:                 10342.18497
+      Standard deviation:       101.6965337
+      Confidence int @95%:   0.002756207951
+      Confidence int @99%:   0.003621038507
+
+    Number of generated messages:            119922
+    Number of queued messages:                    3
+    Number of transmitted messages:          119919
+    Number of received messages:              12487
+    Number of transmitted packets:           119919
+    Number of received packets:               12487
+    Number of queued bits:                      504
+    Number of transmitted bits:            25043264
+    Number of received bits:                2614352
+    Measurement start time:                       0
+    Throughput:                         4357.242641
+
+(Client) End of list
+
+
+@@@ End of output

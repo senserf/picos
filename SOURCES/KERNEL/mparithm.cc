@@ -210,6 +210,19 @@ int  ZZ_TBIG::cmp (const ZZ_TBIG &a) {
 	return (0);
 }
 
+int  ZZ_TBIG::cmp (const BIG &a) {
+
+/* -------------------- */
+/* comparison with TIME */
+/* -------------------- */
+
+	for (int i = L - 1; i >= 0; i--) {
+		if (a.x [i] < x [i]) return (1);
+		if (a.x [i] > x [i]) return (-1);
+	}
+	return (0);
+}
+
 int  ZZ_TBIG::cmp (const BIG &a, LONG tg) {
 
 /* -------------- */

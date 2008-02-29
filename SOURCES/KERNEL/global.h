@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 //#define	ZZ_RF_DEBUG
@@ -145,6 +145,8 @@ extern	jmp_buf	zz_waker;
 #endif	/* NOL */
 
 #if	ZZ_NOR
+
+class		ZZ_RF_ACTIVITY;
 
 /* ---------------------------------- */
 /* Converts RFChannel id to RFChannel */
@@ -561,6 +563,9 @@ class Mailbox;
 class Station;
 class Process;
 class Observer;
+
+void terminate (Process*);
+void terminate (Observer*);
 
 class ZZ_QITEM;
 class ZZ_SIG;
@@ -1482,6 +1487,7 @@ class   ZZ_TBIG : public BIG {
 
 	int cmp (const ZZ_TBIG&);
 	int cmp (const BIG&, LONG);
+	int cmp (const BIG&);
 	friend  INLINE  int  operator== (const ZZ_TBIG &a, const ZZ_TBIG &b);
 };
 #endif
@@ -1565,6 +1571,15 @@ class   ZZ_TBIG {
 	  else
 	    return (0);
 	};
+
+	inline int cmp (BIG a) {
+	  if (x < a)
+	    return (-1);
+	  else if (x > a)
+	    return (1);
+	  return (0);
+	};
+
 	friend  inline  int  operator== (const ZZ_TBIG&, const ZZ_TBIG&);
 	friend  inline  int  operator== (const ZZ_TBIG&, BIG);
 	friend  inline  int  operator== (BIG, const ZZ_TBIG&);
@@ -2185,6 +2200,9 @@ TIME	tRndTolerance (TIME, TIME, int);
 INLINE TIME    tRndTolerance   (double, double, int);
 
 /* =========================================== */
+
+void zz_processWindowPhrase ();
+void zz_adjust_ownership ();
 
 /* ------------------------------------------- */
 /* General displayable and/or printable object */
@@ -5241,7 +5259,9 @@ class   Traffic : public AI {
 	friend  class   zz_client;
 	friend  class   zz_client_service;
 	friend  class   ZZ_LINK_ACTIVITY;
+#if ZZ_NOL
 	friend  ZZ_LINK_ACTIVITY *zz_gen_activity (int, Port*, int, Packet *p);
+#endif
 	friend  class   Message;
 	friend  class   Packet;
 	friend  void    zz_adjust_ownership ();
@@ -5356,7 +5376,6 @@ class   Traffic : public AI {
 #else
 	void    wait (int, int);
 #endif
-
 	double	throughput ();
 
 	inline  void    printRqs (const char *hd = NULL, Long s = NONE) {
@@ -5642,6 +5661,8 @@ inline  void    zz_bld_Traffic (char *nn = NULL) {
 	}
 }
 
+#if ZZ_NOL
+
 #define	ZZ_LINK_ACTIVITY_GENERIC 	\
 					\
 	friend  class   Port;		\
@@ -5696,6 +5717,8 @@ class	ZZ_LINK_ACTIVITY_JAM {
 
 	ZZ_LINK_ACTIVITY_GENERIC;
 };
+
+#endif	/* NOL */
 
 /* ------------------------- */
 /* Packet buffer description */

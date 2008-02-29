@@ -94,13 +94,13 @@ class	RFModule {
 
     public:
 
-inline Boolean isXmitting(){
-  return Xmitting;
- }
+	inline Boolean isXmitting(){
+		return Xmitting;
+ 	};
  
- inline Boolean isReceiving(){
-  return Receiving;
- }
+	inline Boolean isReceiving(){
+		return Receiving;
+	};
 
 	Transceiver *Xcv;
 

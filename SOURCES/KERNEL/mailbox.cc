@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -43,6 +43,10 @@ void Mailbox::trigger_all_events () {
  */
 	ZZ_REQUEST 	*rq;
 	ZZ_EVENT	*ev;
+
+#if 	ZZ_TAG
+	int		q;
+#endif
 
 	while (WList != NULL) {
 		rq = WList;

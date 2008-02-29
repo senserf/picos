@@ -50,7 +50,7 @@ class SockBuff {
     int tlength () {
       return (Buffer [1] << 16) | (Buffer [2] << 8) | Buffer [3];
     };
-    void SockBuff::grow (int nsize = 0) {
+    void grow (int nsize = 0) {
       unsigned char *NewBuffer;
       int i;
       while ((size += size) < nsize);

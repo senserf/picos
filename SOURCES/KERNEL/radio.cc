@@ -1869,12 +1869,14 @@ void Transceiver::term_xfer (int evnt) {
 						ro->Killed = YES;
 				}
 				// Check if should reschedule the service event
-				if (Activity->RE->waketime >
-				    Activity->SchEOT->Schedule) {
 #if ZZ_TAG
+				if (Activity->RE->waketime.cmp (
+				  Activity->SchEOT->Schedule) > 0) {
 					Activity->RE->waketime.set (
 						Activity->SchEOT->Schedule);
 #else
+				if (Activity->RE->waketime >
+				    Activity->SchEOT->Schedule) {
 					Activity->RE->waketime =
 						Activity->SchEOT->Schedule;
 #endif
@@ -2462,10 +2464,11 @@ void ZZ_RF_ACTIVITY::triggerBOT () {
 			ro->Schedule = ro->Distance + Time;
 
 		// Check if should reschedule the service event
-		if (RE->waketime > SchBOT->Schedule) {
 #if ZZ_TAG
+		if (RE->waketime.cmp (SchBOT->Schedule) > 0) {
 			RE->waketime . set (SchBOT->Schedule);
 #else
+		if (RE->waketime > SchBOT->Schedule) {
 			RE->waketime = SchBOT->Schedule;
 #endif
 			RE->reschedule ();
