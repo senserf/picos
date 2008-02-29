@@ -1,0 +1,67 @@
+#!/bin/sh
+##########################\
+exec tclsh "$0" "$@"
+
+############################################################################
+# This script strips comments from ecog's asm files                        #
+#                                                                          #
+# Copyright (C) Olsonet Communications, 2008 All Rights Reserved           #
+############################################################################
+
+# source directory
+set SD [lindex $argv 0]
+
+# target directory
+set TD [lindex $argv 1]
+
+proc errab { m } {
+
+	puts stderr $m
+	exit 1
+}
+
+proc dofile { } {
+
+	global SFC
+
+	regsub -all "\n\r" $SFC "\n" SFC
+	regsub -all "\r\n" $SFC "\n" SFC
+	regsub -all "\n\[ \t\]*;\[^\n\]*" $SFC "\n" SFC
+}
+
+if { ![file isdirectory $SD] || ![file isdirectory $TD] } {
+	errab "Usage: $argv0 directory directory"
+}
+
+set lf [exec ls $SD]
+
+foreach fn $lf {
+
+	if ![regexp -nocase "\\.asm$" $fn] {
+		continue
+	}
+
+	set sfn [file join $SD $fn]
+	if [catch { open $sfn "r" } sfd] {
+		errab "cannot open $sfn"
+	}
+
+	if [catch { read $sfd } SFC] {
+		errab "cannot read $sfn"
+	}
+
+	catch { close $sfd }
+
+	dofile
+
+	set tfn [file join $TD $fn]
+	if [catch { open $tfn "w" } tfd] {
+		errab "cannot open $tfn"
+	}
+
+	if [catch { puts -nonewline $tfd $SFC } ] {
+		errab "cannot write to $tfn"
+	}
+
+	catch { close $tfd }
+}

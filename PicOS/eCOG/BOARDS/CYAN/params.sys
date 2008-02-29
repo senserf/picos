@@ -1,0 +1,1 @@
+-l main.c sysio.h ser_in.c ser_out.c ser_inf.c ser_outf.c form.c ser.h serf.h upd_lcd.c beep.c beeper.h led.h lcd.h dsp_led.c dsp_lcd.c __blinker.c
