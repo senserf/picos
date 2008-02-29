@@ -5,9 +5,9 @@ exec tclsh "$0" "$@"
 ############################################################################
 # This script generates makefiles for mspgcc and project files for CyanIDE #
 #                                                                          #
-# Usage: mkmk [boardname]                                                  #
+# See: proc bad_usage for usage                                            #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005 - 2007 All Rights Reserved    #
+# Copyright (C) Olsonet Communications, 2005 - 2008 All Rights Reserved    #
 ############################################################################
 
 set DEBUG 0
@@ -91,6 +91,14 @@ proc lappend_toc { li i } {
 	lappend l $i
 }
 
+proc islibrun { } {
+
+	global Run
+
+	# run type letter is anything upper case
+	return [regexp "^\[A-Z\]" $Run(type)]
+}
+
 proc lappend_unique { li i } {
 
 	upvar $li l
@@ -158,15 +166,146 @@ proc trimdir { } {
 	}
 }
 
+proc getstubs { srcs } {
+#
+# Find the stubs to be compiled separately (CYAN only)
+#
+	global DirList PDirList StubDir StubList RPREF Depend
+
+	# locate the Stubs directory
+	set StubList ""
+	set StubDir ""
+
+	set fn ""
+	foreach dir $DirList {
+		if { [string tolower [file tail $dir]] == "stubs" &&
+		    [file isdirectory $dir] &&
+		    [lsearch -exact $PDirList $dir] < 0 } {
+			set fn [uxname $dir]
+			break
+		}
+	}
+			
+	if { $fn == "" } {
+		return
+	}
+
+	if [catch { exec ls $fn } sli] {
+		errab "Cannot list stub directory $fn"
+	}
+
+	foreach st $sli {
+
+		if ![regexp "\\.c$" $st] {
+			# all stubs must be .c files
+			continue
+		}
+		# find the contingencies
+		set sf [file join $fn $st]
+		if [catch { open $sf "r" } sd] {
+			errab "Cannot access stub $sf"
+		}
+		if [catch { read $sd } sc] {
+			errab "Cannot read stub $sf"
+		}
+		catch { close $sd }
+
+		# build the contingency list (this is a bit heuristic, as if
+		# this were news)
+		set cl ""
+		while 1 {
+			if ![regexp "//\[ \t\]*\\+\\+\\+(\[^\n\]*)" $sc m c] {
+				break
+			}
+			foreach c [needlist $c $sf] {
+				lappend_unique cl $c
+			}
+			set ix [string first $m $sc]
+			if { $ix < 0 } {
+				# impossible
+				break
+			}
+			set sc [string range $sc \
+				[expr $ix + [string length $m]] end]
+		}
+
+		# verify that all contingency files are included in the lib
+		set ok 1
+		foreach c $cl {
+			set c [string tolower $c]
+			set fnd 0
+			if [regexp "\\.h$" $c] {
+				# this is a header, search dependencies
+				foreach dep [array names Depend] {
+					foreach dn $Depend($dep) {
+						set rn [string tolower \
+							[file tail $dn]]
+						if { $rn == $c } {
+							set fnd 1
+							break
+						}
+					}
+					if $fnd {
+						break
+					}
+				}
+			} else {
+				foreach dn $srcs {
+					set rn [string tolower [file tail $dn]]
+					if { $rn == $c } {
+						set fnd 1
+						break
+					}
+				}
+			}
+			if !$fnd {
+				# first not found stops us
+				set ok 0
+				break
+			}
+		}
+
+		if $ok {
+			lappend StubList $st
+		}
+	}
+
+	if { $StubList != "" } {
+		set StubDir $fn
+	}
+}
+
 proc outprf { def cpu } {
 #
 # Output a project file for CyanIDE. The second argument (compilation params)
 # ignored for now, but may be useful later.
 #
-	global IncShort SrcLists Depend CWD Locdep
+	global IncShort SrcLists Depend CWD Locdep Run
 
 	# build a trimmed list of relevant directories
 	trimdir
+
+	if [islibrun] {
+		set LD [file join $Run(library) asm]
+		set LI [file join $Run(library) include]
+		set LS [file join $Run(library) stubs]
+		# prepare the list of ASM files in the library
+		if [catch { exec ls [uxname [file join $Run(library) asm]] } \
+		    asl] {
+			errab "Cannot access the ASM component of library at\					$Run(library)"
+		}
+		set flist ""
+		foreach fi $asl {
+			if [regexp -nocase "\\.asm$" $fi] {
+				# tolower is not necessary
+				lappend flist [string tolower $fi]
+			}
+		}
+	} else {
+		set LD ""
+		set LI ""
+		set LS ""
+	}
 
 	foreach tar [array names SrcLists] {
 		# build the file suffix
@@ -188,9 +327,16 @@ proc outprf { def cpu } {
 		puts $mfd "<folder name=\"ASM Files\">"
 		puts $mfd "<extension name=\"asm\"/>\n"
 
-		# add the standard files
-		foreach fn { "cstartup.asm" "irq.asm" } {
-			puts $mfd "<file path=\"$fn\"/>"
+		if [islibrun] {
+			# all asm files from the library
+			foreach fn $flist {
+				puts $mfd "<file path=\"[file join $LD $fn]\"/>"
+			}
+		} else {
+			# add the standard files
+			foreach fn { "cstartup.asm" "irq.asm" } {
+				puts $mfd "<file path=\"$fn\"/>"
+			}
 		}
 
 		# any application's asm files
@@ -234,7 +380,13 @@ proc outprf { def cpu } {
 		puts $mfd "<extension name=\"h\"/>\n"
 
 		# internal.map should be mentioned here, I guess
-		puts $mfd "<file path=\"internal.map\"/>"
+		if [islibrun] {
+			puts $mfd \
+				"<file path=\"[file join $LD internal.map]\"/>"
+		} else {
+			puts $mfd "<file path=\"internal.map\"/>"
+		}
+
 		# I am not sure if we could use a cfg file
 
 		# collect the proper dependency subset
@@ -287,18 +439,34 @@ proc outprf { def cpu } {
 				    "<property key=\"outputDir\">out</property>"
 			puts $mfd \
 			     "<property key=\"intermediateDir\">temp</property>"
-			puts $mfd \
+
+			if [islibrun] {
+				puts $mfd \
+   	 "<property key=\"mapFile\">[file join $LD internal]</property>"
+				puts $mfd \
+	 "<property key=\"packFile\">[file join $LD cstartup.asm]</property>"
+				puts $mfd \
+	 "<property key=\"libDirs\">$LS</property>"
+
+			} else {
+				puts $mfd \
 			    	 "<property key=\"mapFile\">internal</property>"
-			puts $mfd \
+				puts $mfd \
 			    "<property key=\"packFile\">cstartup.asm</property>"
+			}
 
    			puts $mfd "<property key=\"stabsInfo\" >1</property>"
 
 			puts -nonewline $mfd "<property key=\"includeDirs\">"
 
-
 			set first 1
 			set idirs ""
+
+			if [islibrun] {
+				lappend idirs $LI
+				set first 0
+			}
+
 			foreach { dir sht } [array get IncShort] {
 				lappend idirs [list $dir $sht]
 			}
@@ -329,6 +497,423 @@ proc outprf { def cpu } {
 	}
 }
 
+proc outmkfc { def } {
+#
+# Output a makefile for CYANIDE: this should allow for multiple praxes in one
+# directory, similar to MSP430
+#
+#	IncShort:	array of include directories indexed by paths
+#	DirShort:	array of source directories
+#	Depend:		array of dependency lists (can be global)
+#	SrcLists:	per-target array of files to compile (ToCompile)
+#
+	global DirShort IncShort SrcLists Depend CWD NotFound Run
+
+	# build a trimmed list of relevant directories
+	trimdir
+
+	if [catch { open "Makefile" "w" } mfd] {
+		error "cannot open Makefile for writing: $mfd"
+	}
+
+	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
+	puts $mfd "CC=ecogncc"
+	puts $mfd "CL=ecogcl"
+
+	puts -nonewline $mfd "CF=-quiet"
+	foreach sht $def {
+		puts -nonewline $mfd " -D$sht"
+	}
+
+	puts $mfd ""
+	puts $mfd "OF=-g -DNDEBUG"
+	puts $mfd "TD=temp"
+	puts $mfd "OD=out"
+
+	if [islibrun] {
+		# using a library
+		set lid [file join $Run(library) asm]
+		puts $mfd "LD=$lid"
+		puts $mfd "LDU=[uxname $lid]"
+		puts $mfd "LI=-I[file join $Run(library) include]"
+		puts $mfd "LS=-lib [file join $Run(library) stubs]"
+		# prepare the list of ASM files in the library
+		if [catch { exec ls [uxname [file join $Run(library) ASM]] }\
+		    asl] {
+			errab "Cannot access the ASM component of library at\					$Run(library)"
+		}
+		set flist ""
+		foreach fi $asl {
+			if [regexp -nocase "\\.asm$" $fi] {
+				# tolower is not necessary
+				set fi [string tolower $fi]
+				if { $fi != "irq.asm" && 
+						      $fi != "cstartup.asm" } {
+					lappend flist $fi
+				}
+			}
+		}
+	} else {
+		puts $mfd "LD=\$(TD)"
+		puts $mfd "LDU=\$(TD)"
+		puts $mfd "LI="
+		puts $mfd "LS="
+	}
+
+	# output the list of directories
+	puts $mfd "# include directories"
+	set idirs ""
+	foreach { dir sht } [array get IncShort] {
+		lappend idirs [list $dir $sht]
+	}
+	set idirs [lsort -index 1 $idirs]
+	foreach dir $idirs {
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		puts $mfd "${tag}U=[uxname $fna]"
+	}
+	puts $mfd "# source directories"
+
+	set sdirs ""
+	foreach { dir sht } [array get DirShort] {
+		lappend sdirs [list $dir $sht]
+	}
+	set sdirs [lsort -index 1 $sdirs]
+	foreach dir $sdirs {
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		puts $mfd "${tag}U=[uxname $fna]"
+	}
+	puts $mfd "#"
+
+	puts -nonewline $mfd "IN="
+	foreach dir $idirs {
+		puts -nonewline $mfd "-I\$([lindex $dir 1]) "
+	}
+	puts $mfd "\n"
+
+	# target names
+	set tnames [lsort [array names SrcLists]]
+
+	# the "all" target becomes the default
+	puts -nonewline $mfd "all :	"
+
+	if { [llength $tnames] == 1 && [lindex $tnames 0] == "" } {
+		# Single simple target
+		puts $mfd "\$(OD)/app.xpv\n"
+	} else {
+		foreach tar $tnames {
+			if { $tar == "" } {
+				# this will not happen
+				errab "illegal default target"
+			}
+			puts -nonewline $mfd "$tar "
+		}
+		puts $mfd "\n"
+	
+		foreach tar $tnames {
+			puts $mfd "$tar :\t\$(OD)/app_${tar}.xpv\n"
+		}
+		puts $mfd "\n"
+	}
+
+	array unset tgts
+
+	foreach tar $tnames {
+		# we do this for every target
+		puts $mfd "# target: \"$tar\""
+		if { $tar != "" } {
+			set tarn "_$tar"
+		} else {
+			set tarn ""
+		}
+		# names the list of binary files comprising the target
+
+		puts -nonewline $mfd \
+			"BFU${tarn}=\$(LDU)/irq.asm \$(LDU)/cstartup.asm"
+
+		foreach fn $SrcLists($tar) {
+			puts -nonewline $mfd \
+				" \$(TD)/[file rootname [file tail $fn]].asm"
+		}
+		if [islibrun] {
+			foreach fi $flist {
+				puts -nonewline $mfd " \$(LDU)/$fi"
+			}
+		}
+		puts $mfd "\n"
+
+		puts -nonewline $mfd \
+			"BF${tarn}=\$(LD)/irq.asm \$(LD)/cstartup.asm"
+
+		foreach fn $SrcLists($tar) {
+			puts -nonewline $mfd \
+				" \$(TD)/[file rootname [file tail $fn]].asm"
+		}
+		if [islibrun] {
+			foreach fi $flist {
+				puts -nonewline $mfd " \$(LD)/$fi"
+			}
+		}
+		puts $mfd "\n"
+
+		# the actual target
+		set targ "\$(OD)/app${tarn}.xpv"
+
+		puts $mfd "$targ :\t\$(BFU$tarn)"
+
+		puts -nonewline $mfd "\t\$(CL) -g -pack \$(LD)/cstartup.asm "
+		puts $mfd "-map \$(LD)/internal \$(LS) -o $targ \$(BF$tarn)\n"
+
+		# the list of compileable sources
+		foreach sf $SrcLists($tar) {
+			set rfn [file tail $sf]
+			set suf [file extension $rfn]
+			set rna [file rootname $rfn]
+			if [info exists tgts($rna)] {
+				# already present
+				continue
+			}
+			set tgts($rna) ""
+			set ofn "${rna}.asm"
+			set dir [file dirname $sf]
+			set dsh $DirShort($dir)
+			puts -nonewline $mfd "\$(TD)/$ofn : \$(${dsh}U)/$rfn"
+			# dependencies
+			if [info exists Depend($sf)] {
+				foreach df $Depend($sf) {
+					set rfd [file tail $df]
+					set did [file dirname $df]
+					puts -nonewline $mfd \
+						" \$($IncShort($did)U)/$rfd"
+				}
+			}
+			puts $mfd ""
+			puts $mfd "\tmkdir -p \$(TD)"
+			if { $suf == ".cc" } {
+				# this is a VUEE source, copy it to plain C
+				set rfn "${rna}.c"
+				puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+				set spfx "\$(TD)"
+				puts -nonewline $mfd \
+					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+			} else {
+				set spfx "\$($dsh)"
+				if { $suf == ".c" } {
+					puts -nonewline $mfd \
+					  "\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+				} else {
+					errab "illegal source suffix '$sf'"
+				}
+			}
+			puts $mfd " $spfx/$rfn -o \$(TD)/$ofn\n"
+		}
+		puts $mfd "\n"
+	}
+
+	puts $mfd "clean :\n\trm -rf \$(TD)/*"
+	catch { close $mfd }
+
+	if ![islibrun] {
+		# fetch the auxiliary files
+		foreach ef { "internal.map" "cstartup.asm" "irq.asm" } {
+			set fn [lookup $ef ""]
+			if { $fn == "" } {
+				lappend NotFound $ef
+			} else {
+				exec cp $fn $CWD/temp/
+			}
+		}
+	}
+}
+
+proc outmkfc_lib { def } {
+#
+# Output a makefile for lib run on eCOG
+#
+#	IncShort:	array of include directories indexed by paths
+#	DirShort:	array of source directories
+#	Depend:		array of dependency lists (can be global)
+#	SrcLists:	per-target array of files to compile (ToCompile)
+#
+	global DirShort IncShort SrcLists Depend CWD NotFound LIncludes
+	global StubDir StubList
+
+	# build a trimmed list of relevant directories
+	trimdir
+
+	if [catch { open "Makefile" "w" } mfd] {
+		error "cannot open Makefile for writing: $mfd"
+	}
+
+	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
+	puts $mfd "CC=ecogncc"
+	puts $mfd "RM=rm"
+
+	puts -nonewline $mfd "CF=-quiet"
+	foreach sht $def {
+		puts -nonewline $mfd " -D$sht"
+	}
+
+	puts $mfd ""
+	puts $mfd "OF=-g -DNDEBUG"
+	puts $mfd "TD=temp"
+	puts $mfd "TS=temp/stubs"
+	puts $mfd "TR=LIBRARY/include/sysio.h"
+
+	# any stubs?
+	getstubs $SrcLists()
+
+	if { $StubList != "" } {
+		puts $mfd "SD=[canon $StubDir]"
+		puts $mfd "SDU=$StubDir"
+	}
+
+	# output the list of directories
+	puts $mfd "# include directories"
+	set idirs ""
+	foreach { dir sht } [array get IncShort] {
+		lappend idirs [list $dir $sht]
+	}
+	set idirs [lsort -index 1 $idirs]
+	foreach dir $idirs {
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		puts $mfd "${tag}U=[uxname $fna]"
+	}
+	puts $mfd "# source directories"
+
+	set sdirs ""
+	foreach { dir sht } [array get DirShort] {
+		lappend sdirs [list $dir $sht]
+	}
+	set sdirs [lsort -index 1 $sdirs]
+	foreach dir $sdirs {
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		puts $mfd "${tag}U=[uxname $fna]"
+	}
+	puts $mfd "#"
+
+	puts -nonewline $mfd "IN="
+	foreach dir $idirs {
+		puts -nonewline $mfd "-I\$([lindex $dir 1]) "
+	}
+	puts $mfd "\n"
+
+	# the "all" target becomes the default
+	puts -nonewline $mfd "all :\t\$(TR)\n\n"
+
+	puts -nonewline $mfd "BF="
+
+	foreach fn $SrcLists() {
+		puts -nonewline $mfd \
+			"\$(TD)/[file rootname [file tail $fn]].asm "
+	}
+
+	if { $StubList != "" } {
+		foreach fn $StubList {
+			puts -nonewline $mfd \
+				"\$(TS)/[file rootname $fn].asm "
+		}
+	}
+
+	puts $mfd "\n"
+
+	# the actual target
+	puts $mfd "\$(TR):\t\$(BF)"
+
+	set asmcp [scrloc "move_ecog_asm"]
+	puts $mfd "\t$asmcp \$(TD) LIBRARY/asm\n"
+
+	if { $StubList != "" } {
+		puts $mfd "\t$asmcp \$(TS) LIBRARY/stubs\n"
+	}
+
+	# the list of compileable sources
+	foreach sf $SrcLists() {
+		set rfn [file tail $sf]
+		set suf [file extension $rfn]
+		set rna [file rootname $rfn]
+		set ofn "${rna}.asm"
+		set dir [file dirname $sf]
+		set dsh $DirShort($dir)
+		puts -nonewline $mfd "\$(TD)/$ofn : \$(${dsh}U)/$rfn"
+		# dependencies
+		if [info exists Depend($sf)] {
+			foreach df $Depend($sf) {
+				set rfd [file tail $df]
+				set did [file dirname $df]
+				puts -nonewline $mfd \
+					" \$($IncShort($did)U)/$rfd"
+			}
+		}
+		puts $mfd ""
+		puts $mfd "\tmkdir -p \$(TD)"
+		if { $suf == ".cc" } {
+			# this is a VUEE source, copy it to plain C
+			set rfn "${rna}.c"
+			puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+			set spfx "\$(TD)"
+			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
+		} else {
+			set spfx "\$($dsh)"
+			if { $suf == ".c" } {
+				puts -nonewline $mfd \
+					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+			} else {
+				errab "illegal source suffix '$sf'"
+			}
+		}
+		puts $mfd " $spfx/$rfn -o \$(TD)/$ofn\n"
+	}
+
+	if { $StubList != "" } {
+		foreach sf $StubList {
+			set rna [file rootname $sf]
+			set ofn "${rna}.asm"
+			puts $mfd "\$(TS)/$ofn : \$(SDU)/$sf"
+			puts $mfd "\tmkdir -p \$(TS)"
+			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
+			puts $mfd " \$(SD)/$sf -o \$(TS)/$ofn\n"
+		}
+	}
+
+	puts $mfd "\n"
+
+	puts $mfd "clean :\n\trm -rf \$(TD)/*"
+	catch { close $mfd }
+
+	catch { file mkdir "LIBRARY/asm" }
+	catch { file mkdir "LIBRARY/stubs" }
+
+	foreach ef { "internal.map" "cstartup.asm" "irq.asm" } {
+		set fn [lookup $ef ""]
+		if { $fn == "" } {
+			lappend NotFound $ef
+		} else {
+			exec cp $fn LIBRARY/asm/
+		}
+	}
+
+	# copy the includes
+	foreach dep [array names Depend] {
+		foreach fn $Depend($dep) {
+			lappend_unique LIncludes $fn
+		}
+	}
+
+	foreach fn $LIncludes {
+		if [catch { exec cp $fn LIBRARY/include/ } ] {
+			errab "cannot copy include file: $fn"
+		}
+	}
+}
+
 proc outmkf { def cpu } {
 #
 # Output a makefile for MSP430
@@ -338,7 +923,7 @@ proc outmkf { def cpu } {
 #	Depend:		array of dependency lists (can be global)
 #	SrcLists:	per-target array of files to compile (ToCompile)
 #
-	global DirShort IncShort SrcLists Depend CWD NotFound
+	global DirShort IncShort SrcLists Depend CWD NotFound Run
 
 	# build a trimmed list of relevant directories
 	trimdir
@@ -361,6 +946,14 @@ proc outmkf { def cpu } {
 	puts $mfd "OF=-O2 -g -Wundef"
 	puts $mfd "TR=Image"
 	puts $mfd "TD=./KTMP"
+
+	if [islibrun] {
+		puts $mfd "LD=-L$Run(library) -lpicos"
+		puts $mfd "LI=-I[file join $Run(library) include]"
+	} else {
+		puts $mfd "LD="
+		puts $mfd "LI="
+	}
 
 	# output the list of directories
 	puts $mfd "# include directories"
@@ -435,7 +1028,7 @@ proc outmkf { def cpu } {
 
 		# the actual target
 		puts $mfd "\$(TR)$tarn :\t\$(BF$tarn)"
-		puts $mfd "\t\$(CC) -o \$(TR)$tarn \$(CF) \$(BF$tarn)"
+		puts $mfd "\t\$(CC) -o \$(TR)$tarn \$(CF) \$(BF$tarn) \$(LD)"
 		puts $mfd "\t\$(OC) \$(TR)$tarn \$(TR)${tarn}.a43"
 		puts $mfd "\t\$(SI) \$(TR)$tarn\n"
 
@@ -470,15 +1063,15 @@ proc outmkf { def cpu } {
 				puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
 				set spfx "\$(TD)"
 				puts -nonewline $mfd \
-						"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
 			} else {
 				set spfx "\$($dsh)"
 				if { $suf == ".c" } {
 					puts -nonewline $mfd \
-						"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+					  "\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
 				} elseif { [string first ".a" $suf] == 0 } {
 					puts -nonewline $mfd \
-						"\t\$(AS) \$(AF) \$(IN)"
+						"\t\$(AS) \$(AF) \$(LI) \$(IN)"
 				} else {
 					errab "illegal source suffix '$sf'"
 				}
@@ -561,9 +1154,6 @@ proc outmkf_lib { def cpu } {
 	}
 	puts $mfd "\n"
 
-	# target names
-	set tnames [lsort [array names SrcLists]]
-
 	# the "all" target becomes the default
 	puts -nonewline $mfd "all :\t\$(TR)\n"
 
@@ -638,6 +1228,20 @@ proc outmkf_lib { def cpu } {
 	}
 }
 
+proc uxname { fn } {
+#
+# Convert Windows file name to UNIX
+#
+	set cn [string first "/home/" $fn]
+	if { $cn > 0 } {
+		set fn [string range $fn $cn end]
+	} else {
+		# we are under a directory not rooted at cygwin
+		regsub -nocase "^(\[A-Z\]):" $fn "/cygdrive/\\1" fn
+	}
+	return $fn
+}
+
 proc canon { fnf } {
 #
 # Normalize file name
@@ -648,14 +1252,7 @@ proc canon { fnf } {
 		set fn $fnf
 	}
 	if { $Run(mode) != "E" } {
-		# we are under cygwin, so remove the drive letter
-		set cn [string first "/home/" $fn]
-		if { $cn > 0 } {
-			set fn [string range $fn $cn end]
-		} else {
-			# we are under a directory not rooted at cygwin
-			regsub -nocase "^(\[A-Z\]):" $fn "/cygdrive/\\1" fn
-		}
+		set fn [uxname $fn]
 	}
 	return $fn
 }
@@ -702,13 +1299,15 @@ proc lboard { tgt } {
 		# try each in turn until you find the right board
 		regsub "@TARGET@" $dir $target tdir
 		set pard [file join $RPREF $tdir $Run(board)]
-		if ![file isdirectory $pard] {
+		set uprd [uxname $pard]
+		if ![file isdirectory $uprd] {
 			continue
 		}
 		# we have found the target
-		set pard [file join $pard "params.sys"]
+		set Run(bdir) $pard
+		set uprd [file join $uprd "params.sys"]
 		set Run(mode) [lindex $tar 1]
-		if [catch { open $pard "r" } pfd] {
+		if [catch { open $uprd "r" } pfd] {
 			# no parameters, use defaults
 			set Flags [lindex $tar 2]
 			return
@@ -716,7 +1315,7 @@ proc lboard { tgt } {
 		# params file present, read it
 		if [catch { read $pfd } Flags] {
 			catch { close $pfd }
-			error "cannot read '$pard'"
+			error "cannot read '$uprd'"
 		}
 		catch { close $pfd }
 		#
@@ -734,15 +1333,112 @@ proc lboard { tgt } {
 
 	errab "board '$Run(board)' not found"
 }
+
+proc dboard { tgt } {
+#
+# Locate the default board
+#
+	global RPREF Run DirList Targets Flags
+	upvar $tgt TGT
+
+	set nof 1
+	foreach dir $DirList {
+		if [regexp "/BOARDS$" $dir] {
+			set nof 0
+			break
+		}
+	}
+
+	if $nof {
+		errab "DirList is broken: BOARDS not found"
+	}
+
+	set bfi ""
+
+	foreach tar $Targets {
+		set target [lindex $tar 0]
+		regsub "@TARGET@" $dir $target tdir
+		set pard [file join $RPREF $tdir]
+		set uprd [uxname $pard]
+		if ![file isdirectory $uprd] {
+			continue
+		}
+		if [catch { exec ls $uprd } bli] {
+			continue
+		}
+
+		set ble [lsearch -exact $bli "CVS"]
+		if { $ble >= 0 } {
+			set bli [lreplace $bli $ble $ble]
+		}
+
+		set ble [llength $bli]
+		if { $ble == 0 } {
+			continue
+		}
+
+		if { $bfi != "" || $ble > 1 } {
+			# too much
+			errab "More than one board to choose from, board name\
+				required"
+		}
+
+		set bfi [lindex $bli 0]
+		set bta $tar
+		set btd $tdir
+	}
+
+	if { $bfi == "" } {
+		errab "No boards configured"
+	}
+
+	set Run(board) $bfi
+	set pard [file join $RPREF $btd $Run(board)]
+	set uprd [uxname $pard]
+	if ![file isdirectory $uprd] {
+		errab "Cannot access board directory $bfi ($pard)"
+	}
+
+	if [file isdirectory [file join $uprd LIBRARY]] {
+		# library present
+		set lif 1
+	} else {
+		set lif 0
+	}
+
+	set TGT [lindex $bta 0]
+	# board directory
+	set Run(bdir) $pard
+	set uprd [file join $uprd "params.sys"]
+	set Run(mode) [lindex $bta 1]
+	if [catch { open $uprd "r" } pfd] {
+		# no parameters, use defaults
+		set Flags [lindex $bta 2]
+		return $lif
+	}
+	# params file present, read it
+	if [catch { read $pfd } Flags] {
+		catch { close $pfd }
+		error "cannot read '$pard'"
+	}
+	catch { close $pfd }
+	set Flags [string trim $Flags]
+	if { $Flags == "" } {
+		set Flags [lindex $bta 2]
+	}
+	set Flags [split $Flags "\n"]
+	return $lif
+}
 		
 proc mkdlist { cpu } {
 #
 # Create the complete canonical list of directories to be searched
 #
-	global DirList DLIST CWD RPREF MKRECV Run
+	global PDirList DirList DLIST CWD RPREF MKRECV Run
 
 	# working copy of the target list
 	set DLIST ""
+	set PDirList ""
 
 	foreach p $DirList {
 		set target [regsub -all "@TARGET@" $p $cpu p]
@@ -765,7 +1461,15 @@ proc mkdlist { cpu } {
 		}
 		# just this directory
 		if { $p != "." } {
-			set p [file join $RPREF $p]
+			set p [canon [file join $RPREF $p]]
+			if { $PDirList != "" } {
+				# local directories, i.e., subdirs of .
+				lappend_unique PDirList $p
+			}
+		} else {
+			set p [canon $p]
+			# first one considered local
+			lappend PDirList $p
 		}
 		set p [canon $p]
 		lappend_unique DLIST $p
@@ -782,6 +1486,11 @@ proc mkdrec { dname } {
 # Add all subdirectories of the indicated directory (in alphabetical order)
 #
 	global MKRECV
+
+	if [catch { exec ls $dname } sdl] {
+		# doesn't exist
+		return
+	}
 	
 	foreach f [exec ls $dname] {
 		if [regexp -nocase "attic|junk" $f] {
@@ -807,6 +1516,57 @@ proc mkdrec { dname } {
 	}
 }
 
+proc needlist { ar fname } {
+#
+# Returns the list of files from "//+++". The argument is the piece of line
+# past the +++ string.
+#
+	set fl ""
+	while 1 {
+		set ar [string trim $ar]
+		if { $ar == "" } {
+			break
+		}
+		set del [string index $ar 0]
+		if { $del == "\"" } {
+			if ![regexp "\"(\[^ \t\"]+\\.(c|asm?))\"" $ar jk nfn] {
+				# we don't understand this
+				puts stdout \
+				"Warning: '//+++' syntax error: '$ar' in $fname"
+				break
+			}
+		} elseif { $del == "<" } {
+			if ![regexp "<(\[^ \t<>]+\\.(c|asm?))>" $ar jk nfn] {
+				puts stdout \
+				"Warning: '//+++' syntax error: '$ar' in $fname"
+				break
+			}
+		} else {
+			if ![regexp "\[^ \t]+\\.(c|asm?)" $ar jk] {
+				puts stdout \
+				"Warning: '//+++' syntax error: '$ar' in $fname"
+				break
+			} else {
+				set nfn $jk
+			}
+		}
+
+		set cm [string first $jk $ar]
+
+		if { $cm < 0 } {
+			# impossible
+			set ar ""
+		} else {
+			set ar [string range $ar [expr $cm + \
+				[string length $jk]] end]
+		}
+
+		lappend fl $nfn
+	}
+
+	return $fl
+}
+
 proc lookup { fn prefdir } {
 #
 # Lookup the given file, prefdir is prefered directory, returns the
@@ -825,6 +1585,46 @@ proc lookup { fn prefdir } {
 	}
 
 	return ""
+}
+
+proc llookup { fn prefdir } {
+#
+# Lookup the given file in local directory or globally, depending whether
+# we are in library mode or not
+#
+	global DirList PDirList Run
+
+	if [islibrun] {
+		set pd $PDirList
+	} else {
+		set pd $DirList
+	}
+
+	foreach dir [concat [list $prefdir] $pd] {
+		if { $dir == "" } {
+			continue
+		}
+		set ffn [canon [file join $dir $fn]]
+		if [file isfile $ffn] {
+			return $ffn
+		}
+	}
+
+	return ""
+}
+
+proc scrloc { fn } {
+#
+# Locate a script in PicOS script library
+
+	global RPREF
+
+	set fn [file join $RPREF "Scripts" $fn]
+	if ![file exists $fn] {
+		errab "cannot locate $fn script"
+	}
+
+	return [uxname $fn]
 }
 
 proc sexpr { str } {
@@ -1022,7 +1822,7 @@ proc sexpr { str } {
 
 proc scanfile { fname } {
 
-	global FList Depend Symbols Scanned NotFound ToCompile CFName
+	global FList Depend Symbols Scanned NotFound ToCompile CFName Run
 
 	dmp "SCANNING: $fname"
 
@@ -1063,58 +1863,24 @@ proc scanfile { fname } {
 		if { $ifstack($ifnest) <= 1 && \
 		    [regexp "^\[ \t\]*//\\+\\+\\+(.*)" $line jk ar] } {
 			# needed files
-			while 1 {
-				set ar [string trim $ar]
-				if { $ar == "" } {
-					break
-				}
-				set del [string index $ar 0]
-				if { $del == "\"" } {
-				  if ![regexp "\"(\[^ \t\"]+\\.(c|asm?))\"" \
-				    $ar jk nfn] {
-					# we don't understand this
-		puts stdout "Warning: '//+++' syntax error: '$ar' in $fname"
-					break
-				  }
-				} elseif { $del == "<" } {
-				  if ![regexp "<(\[^ \t<>]+\\.(c|asm?))>" \
-				    $ar jk nfn] {
-					# we don't understand this
-		puts stdout "Warning: '//+++' syntax error: '$ar' in $fname"
-					break
-				  }
-				} else {
-				  if ![regexp "\[^ \t]+\\.(c|asm?)" \
-				    $ar jk] {
-		puts stdout "Warning: '//+++' syntax error: '$ar' in $fname"
-					break
-				  } else {
-					set nfn $jk
-				  }
-				}
-
-				set cm [string first $jk $ar]
-
-				if { $cm < 0 } {
-					# impossible
-					set ar ""
-				} else {
-					set ar [string range $ar [expr $cm + \
-					  [string length $jk]] end]
-				}
+			set ar [needlist $ar $fname]
+			foreach nfn $ar {
 				set dnn [file dirname $fname]
-				set fn [lookup $nfn $dnn]
+				set fn [llookup $nfn $dnn]
 				if { $fn == "" &&
 				    [file extension $nfn] == ".c" } {
 					# try ".cc"
-					set fn [lookup \
+					set fn [llookup \
 					  "[file rootname $nfn].cc" $dnn]
 				}
 
 				dmp "NEEDED: $nfn"
 				if { $fn == "" } {
 					dmp "NEEDED: $nfn not found"
-					lappend_unique NotFound $nfn
+					if ![islibrun] {
+						# no warning if library mode
+						lappend_unique NotFound $nfn
+					}
 				} else {
 					dmp "NEEDED: $nfn added to compile"
 					lappend_toc ToCompile $fn
@@ -1263,7 +2029,7 @@ proc scanfile { fname } {
 				continue
 			}
 			dmp "INCLUDE: $fn '$line'"
-			set fn [lookup $fn [file dirname $fname]]
+			set fn [llookup $fn [file dirname $fname]]
 			if { $fn != "" } {
 				scanfile $fn
 				lappend_unique Depend($CFName) $fn
@@ -1278,7 +2044,8 @@ proc scanfile { fname } {
 
 proc bad_usage { } {
 
-	puts stderr "Usage: mkmk \[boardname \[-l|-p]]"
+	puts stderr "Usage: mkmk \[boardname \[-m|-l|-p]]"
+	puts stderr "       mkmk boardname \[-M|-P \[libdir]]"
 	exit 1
 }
 
@@ -1313,43 +2080,71 @@ proc main { } {
 
 	set ll [llength $argv]
 
-	if { $ll > 2 || ($ll > 0  && [string index $argv 0] == "-") } {
-		bad_usage
-	}
-
-
 	set CWD [pwd]
 
 	# locate the root directory prefix
 	rootpf
 
-	# library flag
-	set Run(type) "p"
+	# make type: default = makefile
+	set Run(type) "m"
 
-	if $ll {
-		set Run(board) [lindex $argv 0]
-		if { $ll > 1 } {
-			# library flag
-			set lf [lindex $argv 1]
-			if { $lf != "-l" && $lf != "-p" } {
-				bad_usage
-			}
-			if { $lf == "-l" } {
-				set Run(type) "l"
+	if { $ll == 0 || [string index [lindex $argv 0] 0] == "-" } {
+		# no board name; figure out if there is a single board
+		# if we return, things are OK: Run(board) has been set
+		if [dboard TGT] {
+			# forced library flag (LIBRARY present)
+			if { $ll == 0 } {
+				set ll 1
+				set argv "-M"
 			}
 		}
 	} else {
-		# this is the default
-		set Run(board)	"GENERIC_MSP430"
+		# get the board
+		set Run(board) [lindex $argv 0]
+		# and move it out of the way
+		set argv [lrange $argv 1 end]
+		incr ll -1
+		lboard TGT
 	}
 
-	# locate the board directory
-	lboard TGT
 	set mcpu [getflag "c"]
-
-	set CWD [canon $CWD]
 	set RPREF [canon RPREF]
-	
+	set CWD [canon $CWD]
+	set Run(bdir) [canon $Run(bdir)]
+
+	if $ll {
+		# mode flag
+		set lf [lindex $argv 0]
+		incr ll -1
+		set argv [lrange $argv 1 end]
+
+		# library, makefile, project
+		if ![regexp "^-\[lmpMP\]" $lf] {
+			bad_usage
+		}
+
+		if { $lf == "-M" || $lf == "-P" } {
+			# generate a makefile or project with library
+			if $ll {
+				set Run(library) [lindex $argv 0]
+				set argv [lrange $argv 1 end]
+				incr ll -1
+			} else {
+				# look it up in the board directory
+				set mf [file join $Run(bdir) LIBRARY]
+				if ![file isdirectory [uxname $mf]] {
+					errab "No LIBRARY found in $Run(bdir)"
+				}
+				set Run(library) $mf
+			}
+		}
+		set Run(type) [string index $lf 1]
+	}
+
+	if $ll {
+		bad_usage
+	}
+
 	# cleanup
 	catch { exec rm -rf "*.cyp" "*.cyw" "*.lif" "Makefile" "KTMP" \
 			"out" "temp" "internal.map" "cstartup.asm" "irq.asm" \
@@ -1439,18 +2234,17 @@ proc main { } {
 
 		dmp "TO COMPILE \[$suffix\]: '$SrcLists($suffix)'"
 
-		if { $Run(mode) != "M" } {
-			errab "library runs not implemented for this CPU"
-		}
-
 		catch { file mkdir "LIBRARY" }
 		catch { file mkdir "LIBRARY/include" }
 
-		outmkf_lib [list "__MSP430__" "BOARD_$Run(board)"] $mcpu
+		if { $Run(mode) == "M" } {
+			outmkf_lib [list "__MSP430__" "BOARD_$Run(board)"] $mcpu
+		} else {
+			outmkfc_lib [list "__ECOG__" "BOARD_$Run(board)"]
+		}
 
 	} else {
-		# regular run
-
+		# -m, -p, -M, -P
 		# We expect to find app.c in the current directory
 		set fn [canon [file join $CWD "app.c"]]
 		if ![file isfile $fn] {
@@ -1476,7 +2270,7 @@ proc main { } {
 	
 			if { $empsuff && $sufflist != "" } {
 				errab \
-				    "app.cc cannot coexist with app_xxx.cc files"
+				   "app.cc cannot coexist with app_xxx.cc files"
 			}
 	
 			if { $empsuff == 0 && $sufflist == "" } {
@@ -1537,11 +2331,16 @@ proc main { } {
 		}
 
 		if { $Run(mode) == "M" } {
-			# makefile
+			# MSP430: no project
 			outmkf	[list "__MSP430__" "BOARD_$Run(board)"] $mcpu
 		} else {
 			# project file
-			outprf	[list "__ECOG__" "BOARD_$Run(board)"] $mcpu
+			set marg [list "__ECOG__" "BOARD_$Run(board)"]
+			if { $Run(type) == "p" || $Run(type) == "P" } {
+				outprf	$marg $mcpu
+			} else {
+				outmkfc $marg
+			}
 		}
 	}
 

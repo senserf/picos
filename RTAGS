@@ -1760,3 +1760,110 @@ R080214A:
 	board now includes two analog sensors: the PAR (as it used to be) +
 	the photodiode which I added (for testing) as sensor number 3. No need
 	to change anything in eco_demo.
+
+R080228A:
+
+	A significant rewrite of mkmk. The standard most popular invocation,
+	i.e.,
+			mkmk boardname
+
+	works as before, except that for eCOG it generates a Makefile rather
+	than a project. Running make (and assuming the standard installation
+	of CyanIDE V1.3) will produce loadable files in subdirectory out. If
+	you want to create a project, use -p at the end, e.g.,
+
+			mkmk GEORGE -p
+
+	To create a library for a particular board, do this:
+
+			mkmk boardname -l
+
+	For an MSP430 board, this will work essentially as before (R080114A).
+	For an eCOG board, the library consists of three components:
+
+	- the include files (LIBRARY/include)
+	- the ASM files (LIBRARY/asm); this is as close to a binary library
+	  as you can get; a special script removes comments from those files,
+	  which would otherwise reveal pretty much the complete source
+	- the stubs of some files (LIBRARY/Stubs); alsoe see PicOS/Libs/Stubs
+
+	Note that CyanIDE doesn't really allow you to have a decent library.
+	What they call a library is a directory with C or ASM files, which is
+	searched based on the file name. If you have an external symbol defined
+	in some file, but the file name is different than that symbol, the
+	file will not be located automatically. This is kind of natural, as
+	those files are sources.
+
+	My options were to program a wrapper that would search those files using
+	some heuristics (that wouldn't be prohibitively tricky for C generated
+	ASM files), or to assume that ALL the files in the "library" must be
+	loaded with every program. As the library is intended for one specific
+	board, such and assumption makes some sense. Except for one thing.
+	When tarp.c/net.c are loaded, they expect the application to define
+	a few "virtual" functions, abd if they are absent, the linker fails.
+	This is why the Stubs are needed. They are put in an actual CyanIDE
+	library, which is only searched for missing symbols. The file names of
+	the Stubs are the same as the names of the corresponding functions,
+	so they can link automatically. 
+
+	The files to be compiled into a library are determined by a list stored
+	in BOARDS/boardname/params.sys (see BOARDS/GEORGE for illustration) and
+	their dependencies (// +++ and includes). As the Stubs are kind of
+	"flexible" (did I say that?), each of them is compiled and included in
+	LIBRARY/stubs only if its "contingent" file is included in the library
+	(otherwise, the stub wouldn't compile, as it wouldn't have the right
+	includes). The standard explicit dependency sequence (// +++) in a stub,
+	specifies its contingent files. If any of those DOES NOT belong to the
+	library, the stub is not included. Don't worry if you have no clue what
+	I am talking about. You can see, as well as I do, that I would have
+	been better off with a wrapper emulating a true library search. Too
+	late. This is for CyanIDE, which is broken and likely on its way out.
+
+	To check how it works, do something like this:
+
+	1. Create a directory, say LIB_TEST, e.g., in Apps.
+	2. Move there and create an empty options.sys file.
+	3. Execute mkmk GEORGE -l followed by make.
+
+	Now you see a subdirectory LIBRARY with three subdirectories: include,
+	asm, and stubs. Here you have it.
+
+	Now do this:
+
+	1. Move to some praxis directory, say RFPing.
+	2. Execute mkmk GEORGE -P .../LIBRARY  (where ... stands for the path
+	   to the LIBRARY you have just created)
+
+	This will produce a project for your praxis that will work with the
+	library. If you go mkmk GEORGE -M, you will get a Makefile. The same
+	idea applies to MSP430, except that there are no projects (so -P works
+	the same as -M).
+
+	Summary of options (following boardname):
+
+	-l	= create Makefile for bilding a library (in current directory);
+		  note that a list of files is required in params.sys (in the
+		  board's directory)
+	-m	= create Makefile for a full compilation (traditional use)
+	-p	= create a project (CyanIDE only)
+	-M	= create Makefile for library-based compilation (should be
+		  followed by library path)
+	-P	= like -M, except that creates a project for CyanIDE
+
+	Once you have created a library, you can move the directory (I mean
+	LIBRARY) to the board's directory, e.g.,
+
+		mv LIBRARY ~/PICOS/PicOS/eCOG/BOARDS/GEORGE/
+
+	Then, you won't have to specify the library path after -M or -P. If you
+	want to create a depleted version of PICOS tree for a single board, do
+	this:
+
+	1. Create the LIBRARY.
+	2. Move it to the board directory.
+	3. Remove everything else from the board directory, remove all sources,
+	   and pretty much everything, except for (sample) applications. Also,
+	   leave these scripts in Scripts: mkmk, move_ecog_asm, cleanapp.
+
+	If there is only one BOARD in such a package, mkmk (with no arguments)
+	will default to mkmk that_board_name -M.
