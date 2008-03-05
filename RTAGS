@@ -1867,3 +1867,7 @@ R080228A:
 
 	If there is only one BOARD in such a package, mkmk (with no arguments)
 	will default to mkmk that_board_name -M.
+
+R080304A:
+	Added VUEE/mm_demo for Combat Networks. See mm2.odt/pdf in there.
+
