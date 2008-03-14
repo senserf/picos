@@ -19,6 +19,7 @@
 #undef getpid
 #undef seconds
 #undef actsize
+#undef memfree
 #undef delay
 #undef when
 #undef io

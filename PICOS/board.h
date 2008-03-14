@@ -179,8 +179,9 @@ station PicOSNode abstract {
 	word _da (actsize) (address);
 	Boolean memBook (word);
 	void memUnBook (word);
-	word memfree (int pool, word *faults);
 	inline void waitMem (int state) { TB.wait (N_MEMEVENT, state); };
+
+	word _da (memfree) (int, word*);
 	inline void _da (delay) (word msec, int state) {
 		Timer->delay (msec * MILLISECOND, state);
 	};

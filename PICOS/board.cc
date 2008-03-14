@@ -160,7 +160,7 @@ void PicOSNode::reset () {
 	assert (MHead == NULL, "reset at %s: MHead should be NULL",
 		getSName ());
 
-	MFree = MTotal;
+	NFree = MFree = MTotal;
 	MTail = NULL;
 	LastResetTime = Time;
 
@@ -206,7 +206,7 @@ void PicOSNode::setup (data_no_t *nd) {
 	// Turn this into a trigger mailbox
 	TB.setLimit (-1);
 
-	MFree = MTotal = (nd->Mem + 3) / 4;	// This is in full words
+	NFree = MFree = MTotal = (nd->Mem + 3) / 4; // This is in full words
 	MHead = MTail = NULL;
 
 	// These two survive reset. We assume that they are never changed
@@ -342,7 +342,10 @@ address PicOSNode::memAlloc (int size, word lsize) {
 	mc -> Next = NULL;
 	mc -> PTR = (address) new byte [size];
 	mc -> Size = lsize;
+
 	MFree -= lsize;
+	if (NFree > MFree)
+		NFree = MFree;
 
 	if (MHead == NULL)
 		MHead = mc;
@@ -386,9 +389,9 @@ void PicOSNode::memFree (address p) {
 	excptn ("PicOSNode->memFree: chunk not found");
 }
 
-word PicOSNode::memfree (int pool, word *res) {
+word _dad (PicOSNode, memfree) (int pool, word *res) {
 /*
- * This one is solely for stats
+ * This one is for stats
  */
 	if (res != NULL)
 		*res = NFree << 1;
@@ -418,6 +421,8 @@ Boolean PicOSNode::memBook (word lsize) {
 		return NO;
 	}
 	MFree -= lsize;
+	if (NFree > MFree)
+		NFree = MFree;
 	return YES;
 }
 

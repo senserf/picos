@@ -249,3 +249,7 @@ R071210A:
 R071211A:
 
     PHYSOPT_STATUS extended as per R071211A of PICOS.
+
+R080313A:
+
+    Fixed a problem with memfree.

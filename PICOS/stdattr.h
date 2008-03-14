@@ -30,6 +30,7 @@
 #define	getpid()	(  ((PicOSNode*)TheStation)->_na_getpid ()  )
 #define	seconds()	(  ((PicOSNode*)TheStation)->_na_seconds ()  )
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )
+#define	memfree(a,b)	(  ((PicOSNode*)TheStation)->_na_memfree (a,b)  )
 #define	delay(a,b)	(  ((PicOSNode*)TheStation)->_na_delay (a,b)  )
 #define	when(a,b)	(  ((PicOSNode*)TheStation)->_na_when (__cpint (a),b)  )
 #define io(a,b,c,d,e)	(  ((PicOSNode*)TheStation)->_na_io (a,b,c,d,e)  )
