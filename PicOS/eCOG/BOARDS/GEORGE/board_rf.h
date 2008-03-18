@@ -103,13 +103,14 @@
  * It used to be 0xc (for adc.cgf) meaning ANA0 - ANA1, with ANA1 used for
  * calibration. George uses Vref for the reference.
  */
-#define	adc_config	do { \
-				fd.ssm.ex_ctrl.adc_rst_set = 1; \
-				fd.ssm.ex_ctrl.adc_low_pll_clk = 1; \
-				fd.ssm.ex_ctrl.adc_rst_clr = 1; \
-				rg.adc.cfg = 0x00; \
-			} while (0)
 
-#define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
-#define	RSSI_MAX	1490	// Max for 1.2 V
+// This is the 'cfg' field, i.e., ANA0 - VRef
+#define	PIN_ADC_RSSI	0x00
+
+// George has recalibrated the RSSI, such that the maximum voltage sets the
+// value to 4095 and the MIN is around 2630, so this is the new scale. It used
+// to be RSSI_MIN = 0, RSSI_MAX = 1490
+
+#define	RSSI_MIN	(2800-2048)
+#define	RSSI_MAX	(3500-2048)
 #define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte

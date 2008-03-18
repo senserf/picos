@@ -112,8 +112,8 @@ int pin_read_adc (word state, word pin, word ref, word smpt) {
 End:
 	adc_stop;
 	adc_wait;
-
 	res = (int) adc_value;
+	adc_disable;
 
 	// Restore RSSI setting
 	adc_config_rssi;

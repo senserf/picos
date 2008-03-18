@@ -1869,7 +1869,66 @@ R080228A:
 	will default to mkmk that_board_name -M.
 
 R080304A:
+
 	Added VUEE/mm_demo for Combat Networks. See mm2.odt/pdf in there.
 
 R080314A:
+
 	Updated mm_demo, see mm doc in there.
+
+R080318A:
+
+	Modifications for GEORGE: RSSI rescaled, also ADC code reorganized,
+	hopefully cleaned up and improved.
+
+	If you want to rescale RSSI (different boards give slightly different
+	indications unders similar conditions), look into
+	PicOS/eCOG/BOARDS/GEORGE/board_rf.h. At the bottom, you will see this:
+
+	#define	RSSI_MIN	(2800-2048)
+	#define	RSSI_MAX	(3500-2048)
+
+	The indications top off at 255. If you see that 255 is not reachable,
+	then INCREASE MIN (above 2800). If you see that 255 shows up a lot,
+	DECREASE MIN. If you want to see the bottom is too high, DECREASE
+	MAX (below 3500), and so on.
+
+	Battery check function added (GEORGE's board only). This is what the
+	application can invoke to check the battery status:
+
+		int battery (void);
+
+	The function returns the ADC reading on Vin3, which should be about
+	1/2 of the battery voltage under the load incurred by MN1 (switched
+	with A6). Specifically, the function does this:
+
+	1. If the ADC is currently active (being running for the receiver), it
+	   does nothing and returns -1.
+
+	2. Reconfigures the ADC to take Vin3 relative to reference.
+
+	3. Pulls up A6 and delays for 10 msec.
+
+	4. Starts the ADC and skips 5 samples.
+
+	5. Collects 16 consecutive samples, then pulls A6 down and
+	   returns the ADC to the receiver.
+
+	6. Returns the rounded average of the 16 samples.
+
+	CC1100 driver modified to make it possible to switch transmission
+	rates from the praxis. See Apps/TESTS/CC1100Test for illustration.
+	Basically, you go:
+
+		tcv_control (sfd, PHYSOPT_SETRATE, (address)(&r))
+
+	where r is word containing the rate index, which can be:
+
+	0 -    5,000 bps
+	1 -   10,000 bps
+	2 -   38,400 bps
+	3 -  200,000 bps
+
+	Do this with both transmitter and receiver switched off. I have
+	polished out a few things in the driver (also noticed that LBT was off
+	by default - put it back in).

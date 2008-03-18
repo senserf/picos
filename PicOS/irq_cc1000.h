@@ -134,10 +134,13 @@ if (cc1000_int) {
 			zzv_curbit = 0;
 			*zzr_buffp = 0;
 			zzv_istate = IRQ_RCV;
+			// In case anything is needed to keep the ADC ticking
+			adc_advance;
 		} else {
 			// End of packet
 			RISE_N_SHINE;
 			adc_stop;
+			adc_wait;
 			adc_disable;
 				// Collect RSSI
 			zzv_status = 0;

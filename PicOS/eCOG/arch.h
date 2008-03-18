@@ -59,6 +59,8 @@ typedef struct {
 		ledblk:1,	// Blink flag
 		ledsts:4;	// Blink status of four leds
 
+	word	adcval;		// For reading ADC
+
 		// Lots of room to spare
 
 	byte	ledblc;		// Blink counter (one byte needed)
@@ -66,7 +68,7 @@ typedef struct {
 } systat_t;
 
 extern	volatile systat_t zz_systat;
-		
+
 #if	SDRAM_PRESENT
 /* malloc is using exclusively SDRAM */
 #define	MALLOC_START		((address)SDRAM_ADDR)

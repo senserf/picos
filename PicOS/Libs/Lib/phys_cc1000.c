@@ -550,21 +550,28 @@ static byte rssi_cnv (word v) {
 
 #if 0
 #if RSSI_MIN != 0
-	v -= RSSI_MIN;
+	if (v < RSSI_MIN)
+		v = RSSI_MIN;
+	else
+		v -= RSSI_MIN;
 #endif
 	// Higher RSSI means lower signal level
 	return (byte) ((((int)RSSI_MAX - (int)RSSI_MIN) - (int) v) >> RSSI_SHF);
 #endif	/* DISABLED CODE */
 
 #if 1
-	// This is the tricky and costly way
+	// This is the costly but accurate way
 
-	if (v > RSSI_MAX)
+	if (v >= RSSI_MAX)
 		return 0;
+
+	if (v <= RSSI_MIN)
+		return 255;
 
 	return (byte) ( (((lword)RSSI_MAX - (lword)v) * 255) /
 		(RSSI_MAX - RSSI_MIN) );
 #endif
+
 }
 
 #ifdef __ECOG1__
@@ -606,7 +613,7 @@ void phys_cc1000 (int phy, int mbs, int bau) {
 	}
 
 	/* For reading RSSI */
-	adc_config;
+	adc_config_rssi;
 
 	if ((zzr_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_cc1000 (b)");

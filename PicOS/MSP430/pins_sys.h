@@ -244,30 +244,44 @@ REQUEST_EXTERNAL (p2irq);
 
 #endif	/* PIN_ADC_RSSI */
 
+// Result not available
 #define	adc_busy	(ADC12CTL1 & ADC12BUSY)
 
-#define	adc_wait	do { \
-				while (adc_busy); \
-				adc_disable; \
-			} while (0)
+// Wait for result
+#define	adc_wait	do { } while (adc_busy)
 
+// ADC is on
 #define	adc_inuse	(ADC12CTL0 & ADC12ON)
+
+// ADC reading
 #define	adc_value	ADC12MEM0
+
+// ADC operating for the RF receiver; this is heuristic, and perhaps
+// not needed (used in pin_read.c to save a status bit that would have to be
+// stored somewhere)
 #define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
 
+// Explicit end of sample indication
 #define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
+
+// Off but possibly less than disable
 #define	adc_off		_BIC (ADC12CTL0, ENC)
 
+// Complete off
 #define	adc_disable	do { \
 				adc_off; \
 				_BIC (ADC12CTL0, ADC12ON); \
 			} while (0)
 
+// Start meanurement
 #define	adc_start	do { \
 				_BIC (ADC12CTL0, ENC); \
 				_BIS (ADC12CTL0, ADC12ON); \
 				_BIS (ADC12CTL0, ADC12SC + ENC); \
 			} while (0)
+
+// Anything needed to keep it happy (like skipping samples on eCOG)
+#define	adc_advance	CNOP
 
 #define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
 #define	RSSI_MAX	0x0fff

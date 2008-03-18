@@ -33,8 +33,9 @@ byte		zzv_iack,		// To resolve interrupt race
 
 static byte	RxOFF,			// Transmitter on/off flags
 		TxOFF,
-		xpower,
+		xpower,			// Power select
 		rbuffl,
+		vrate = RADIO_BITRATE_INDEX,	// Rate select
 		channr = 0;
 
 #if RADIO_GUARD
@@ -202,6 +203,10 @@ static void init_cc_regs () {
 	for (cur = cc1100_rfsettings; *cur != 255; cur += 2)
 		cc1100_set_reg (cur [0], cur [1]);
 
+	// Rate-specific registers
+	for (cur = cc1100_ratemenu [vrate]; *cur != 255; cur += 2)
+		cc1100_set_reg (cur [0], cur [1]);
+
 	// Power setting is handled separately
 	cc1100_set_reg_burst (CCxxx0_PATABLE, patable, sizeof(patable));
 	cc1100_set_power ();
@@ -210,12 +215,11 @@ static void init_cc_regs () {
 }
 
 #if 1
-static void validate_cc_regs () {
+static void validate_cc_regs (const byte *cur) {
 
-	const byte	*cur;
 	byte		val;
 
-	for (cur = cc1100_rfsettings; *cur != 255; cur += 2) {
+	for (; *cur != 255; cur += 2) {
 		val = cc1100_get_reg (cur [0]);
 		if (val != cur [1]) {
 			diag ("Register check failed: [%d] == %x != %x",
@@ -430,7 +434,8 @@ static void ini_cc1100 () {
 
 #if DIAG_MESSAGES
 
-	diag ("CC1100 initialized: [%x] %x",
+	diag ("CC1100 initialized: %d [%x] %x",
+		vrate,
 		(cc1100_get_reg (CCxxx0_SYNC1)   << 8) |
 		 cc1100_get_reg (CCxxx0_SYNC0)		,
 		(cc1100_get_reg (CCxxx0_VERSION) << 8) |
@@ -447,7 +452,8 @@ static void ini_cc1100 () {
 	dbg_1 ((cc1100_get_reg (CCxxx0_VERSION) << 8) |
 			cc1100_get_reg (CCxxx0_MCSM1));
 #if 1
-	validate_cc_regs ();
+	validate_cc_regs (cc1100_rfsettings);
+	validate_cc_regs (cc1100_ratemenu [vrate]);
 #endif
 }
 
@@ -599,11 +605,8 @@ static void do_rx_fifo () {
 #endif
 	tcvphy_rcv (physid, rbuff, paylen);
 Rtn:
-#if BACKOFF_AFTER_RECEIVE
-	gbackoff;
-#else
-	CNOP;
-#endif
+	if (backoff_after_receive)
+		gbackoff;
 }
 
 #define	DR_LOOP		0
@@ -679,13 +682,12 @@ thread (cc1100_driver)
 	// Try to grab the chip for TX
 	if (clear_to_send () == NO) {
 		// We have to wait
-#if AGGRESSIVE_XMITTER
-		delay (1, DR_LOOP);
-		release;
-#else
+		if (aggressive_transmitter) {
+			delay (1, DR_LOOP);
+			release;
+		}
 		gbackoff;
 		proceed (DR_LOOP);
-#endif
 	}
 
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
@@ -726,7 +728,7 @@ thread (cc1100_driver)
 
 	// Wait for some minimum time needed to transmit the packet
 
-	delay (APPROX_XMIT_TIME (paylen), DR_SWAIT);
+	delay (approx_xmit_time (paylen), DR_SWAIT);
 
 	release;
 
@@ -912,10 +914,8 @@ static int option (int opt, address val) {
 		}
 		if (RxOFF == 0)
 			ret++;
-				
-		if (val != NULL)
-			*val = ret;
-		break;
+
+		goto RVal;
 
 	    case PHYSOPT_TXON:
 
@@ -1009,9 +1009,7 @@ static int option (int opt, address val) {
 	    case PHYSOPT_GETPOWER:
 
 		ret = (int) xpower;
-		if (val != NULL)
-			*val = ret;
-		break;
+		goto RVal;
 
 	    case PHYSOPT_SETSID:
 
@@ -1021,9 +1019,7 @@ static int option (int opt, address val) {
             case PHYSOPT_GETSID:
 
 		ret = (int) statid;
-		if (val != NULL)
-			*val = ret;
-		break;
+		goto RVal;
 
 	    case PHYSOPT_SETCHANNEL:
 
@@ -1037,9 +1033,18 @@ static int option (int opt, address val) {
 	    case PHYSOPT_GETCHANNEL:
 
 		ret = channr;
-		if (val != NULL)
-			*val = ret;
+		goto RVal;
+
+	    case PHYSOPT_SETRATE:
+
+		vrate = (val == NULL) ? RADIO_BITRATE_INDEX :
+			(*val >= CC1100_NRATES ? CC1100_NRATES - 1 : *val);
 		break;
+
+	    case PHYSOPT_GETRATE:
+
+		ret = (int) vrate;
+		goto RVal;
 
 	    case PHYSOPT_SETPARAM:
 
@@ -1051,5 +1056,10 @@ static int option (int opt, address val) {
 		syserror (EREQPAR, "phys_cc1100 option");
 
 	}
+	return ret;
+RVal:
+	if (val != NULL)
+		*val = ret;
+
 	return ret;
 }

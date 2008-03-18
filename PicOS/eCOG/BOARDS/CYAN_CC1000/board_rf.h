@@ -72,11 +72,7 @@
 /*
  * 0xc mean ANA0 - ANA1. ANA1 is used for calibration.
  */
-#define	adc_config	do { \
-				fd.ssm.ex_ctrl.adc_rst_set = 1; \
-				rg.adc.cfg = 0xc; \
-				fd.ssm.ex_ctrl.adc_rst_clr = 1; \
-			} while (0)
+#define	PIN_ADC_RSSI	0xc
 
 /*
  * RSSI pre-calibration

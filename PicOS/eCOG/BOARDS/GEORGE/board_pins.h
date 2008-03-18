@@ -1,3 +1,5 @@
+#include "board_rf.h"
+
 #define	EMI_USED		1
 
 /* ====== */

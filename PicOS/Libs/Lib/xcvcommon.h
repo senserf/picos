@@ -123,7 +123,6 @@ Finish:
 		proceed (RCV_GETIT);
 	}
 	/* Return RSSI in the last checksum byte */
-	adc_wait;
 
 // diag ("V0 %x", adc_value);
 	zzr_buffer [zzr_length - 1] = (word) rssi_cnv (adc_value) << 8;
@@ -325,6 +324,7 @@ Xmit:
 
 	adc_stop;
 	adc_wait;
+	adc_disable;
 
 	if (lbt_ok (adc_value)) {
 #if 0

@@ -93,47 +93,6 @@ REQUEST_EXTERNAL (p1irq);
 
 #define	disable_xcv_timer	do { } while (0)
 
-/*
- * ADC12 used for RSSI collection: source on A5 == P6.5, single sample,
- * triggered by ADC12SC
- * 
- *	ADC12CTL0 =     SHT0_2 +	// 16 ADC12CLOCKs sample holding time
- *		        SHT1_2 +	// 16 ADC12CLOCKs sample holding time
- *	                 REFON +	// 1.5 V internal reference
- *		       ADC12ON +	// ON
- *			   ENC +	// Enable conversion
- *
- *	ADC10CTL1 = ADC12DIV_0 +	// Clock (ACLK) divided by 1
- *		   ADC12SSEL_1 +	// ACLK
- *                         SHP +	// Pulse sampling
- *
- *      ADC12MCTL0 =       EOS +	// Last word
- *		        SREF_1 +	// Vref - Vss
- *                      INCH_5 +	// A5
- *
- * The total sample time is equal to 16 + 13 ACLK ticks, which roughly
- * translates into 0.9 ms. The shortest packet at 19,200 takes more than
- * twice that long, so we should be safe.
- */
-#define	adc_config	do { \
-		_BIC (ADC12CTL0, ENC); \
-		_BIC (P6DIR, 1 << 5); \
-		_BIS (P6SEL, 1 << 5); \
-		ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
-		ADC12MCTL0 = EOS + SREF_1 + INCH_5; \
-		ADC12CTL0 = REFON + ADC12ON; \
-	} while (0)
-
-#define	adc_start	_BIS (ADC12CTL0, ADC12SC + ENC)
-#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
-#define	adc_wait	do { } while (0)
-// This is just in case
-#define	adc_disable	do { \
-				while ((ADC12CTL1 & ADC12BUSY)); \
-				_BIC (ADC12CTL0, ENC); \
-			} while (0)
-#define	adc_value	ADC12MEM0
-
 #define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
 #define	RSSI_MAX	0x0fff
 #define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte

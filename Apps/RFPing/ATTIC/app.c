@@ -369,6 +369,7 @@ int snd_stop (void) {
 #define	RS_URS		120
 #define	RS_URG		130
 #define	RS_SDRAM	140
+#define	RS_BTS		150
 #define	RS_AUTOSTART	200
 
 #if CC1000 || CC1100
@@ -484,6 +485,10 @@ thread (root)
 		"S r      -> set UART rate\r\n"
 		"G        -> get UART rate\r\n"
 #endif
+
+#ifdef	BATTERY_TEST
+		"B        -> battery test\r\n"
+#endif
 		);
 #endif
 
@@ -535,6 +540,11 @@ thread (root)
 		proceed (RS_URS);
 	if (ibuf [0] == 'G')
 		proceed (RS_URG);
+#endif
+
+#ifdef BATTERY_TEST
+	if (ibuf [0] == 'B')
+		proceed (RS_BTS);
 #endif
 
 #else
@@ -842,6 +852,18 @@ thread (root)
 	proceed (RS_RCMD);
 
 #endif	/* SDRAM_PRESENT */
+
+#ifdef	BATTERY_TEST
+
+  entry	(RS_BTS)
+
+	k = battery ();
+
+  entry (RS_BTS+1)
+
+	ser_outf (RS_BTS+1, "Battery status: %d\r\n", k);
+	proceed (RS_RCMD);
+#endif
 
 #endif	/* UART_DRIVER */
 

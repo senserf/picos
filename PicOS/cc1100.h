@@ -22,7 +22,7 @@
 #endif
 
 #ifndef	RADIO_BITRATE
-#define	RADIO_BITRATE		10000
+#define	RADIO_BITRATE		10000	/* This is the default */
 #endif
 
 #ifndef	RADIO_GUARD
@@ -44,31 +44,11 @@
  * Level 2 is the smallest recommended.
  *
  */
-#define	CC_INDICATION		2	/* If not receiving a packet */
+#define	CC_INDICATION		3	/* If not receiving a packet */
 
 // RSSI threshold (for LBT), previous values: 8, 0
-#define	CC_THRESHOLD		0	/* 1 lowest, 15 highest, 0 disable */
+#define	CC_THRESHOLD		6	/* 1 lowest, 15 highest, 0 disable */
 #define	CC_THRESHOLD_REL	0	/* 1 lowest, 3 highest, 0 disable */
-
-// ============================================================================
-
-#if RADIO_BITRATE > 50000
-
-#define	AGGRESSIVE_XMITTER	1
-#define	DOUBLE_SYNC_WORD	0
-#define	BACKOFF_AFTER_RECEIVE	0
-#define	XMIT_SPACE		1	/* Inter packet space for xmit */
-#define	TXEND_POLL_DELAY	1	/* Milliseconds */
-
-#else
-
-#define	AGGRESSIVE_XMITTER	0
-#define	DOUBLE_SYNC_WORD	1
-#define	BACKOFF_AFTER_RECEIVE	1
-#define	XMIT_SPACE		40	/* Inter packet space for xmit */
-#define	TXEND_POLL_DELAY	2	/* Milliseconds */
-
-#endif	/* HIGH RATE */
 
 // ============================================================================
 
@@ -169,17 +149,9 @@
 // This one is for power control; we set it up separately
 #define FREND0		    0x10
 
-#define	CC1100_N_RF_OPTIONS	3
-
 #ifdef	DEFINE_RF_SETTINGS
 
 // Define Register Contents ===================================================
-
-#if DOUBLE_SYNC_WORD
-#define	SYNC_WORD_SIZE	0x03
-#else
-#define	SYNC_WORD_SIZE	0x02
-#endif
 
 const	byte	cc1100_rfsettings [] = {
 //
@@ -252,86 +224,73 @@ const	byte	cc1100_rfsettings [] = {
 
 	CCxxx0_MCSM2,	0x07,
 
-// Rate Dependent Settings ====================================================
+/* ========== */
 
-#if RADIO_BITRATE == 10000
-#define	RBITR_SET	1
+        255
+};
 
-        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-	CCxxx0_FREQ2,   0x22,   // FREQ2
-       	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
-       	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x00 + SYNC_WORD_SIZE,
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
-        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
-        CCxxx0_FOCCFG,  0x15,   // FOCCFG
-        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
-
-	// We should wait (roughly): ((paylen + 6) * 8 / 10) * (1024/1000) 
-	// ticks (assuming 0.1 msec per bit. For a 32-bit packet, the above
-	// formula yields 31.12, so ... you see ... it almost works
-#define	APPROX_XMIT_TIME(p)	(p)
-
-#endif
-
-#if RADIO_BITRATE == 5000
-#define	RBITR_SET	1
+static const	byte	zz_rate0 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
 	CCxxx0_FREQ2,   0x22,   // FREQ2
        	CCxxx0_MDMCFG4, 0xC7,   // MDMCFG4 	(4.8 kbps)
        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x00 + SYNC_WORD_SIZE,
+        CCxxx0_MDMCFG2, 0x00 + 0x03,		// Double sync word
         CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
 
-#define	APPROX_XMIT_TIME(p)	((p) >> 1)
+	255
+};
 
-#endif
+static const	byte	zz_rate1 [] = {
 
-#if RADIO_BITRATE == 38400
-#define	RBITR_SET	1
+        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
+	CCxxx0_FREQ2,   0x22,   // FREQ2
+       	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
+       	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
+        CCxxx0_MDMCFG2, 0x00 + 0x03,
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
+        CCxxx0_FOCCFG,  0x15,   // FOCCFG
+        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
+
+	255
+};
+
+static const	byte	zz_rate2 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
 	CCxxx0_FREQ2,   0x22,   // FREQ2
        	CCxxx0_MDMCFG4, 0xCA,   // MDMCFG4 	(38.4 kbps)
        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x00 + SYNC_WORD_SIZE,
+        CCxxx0_MDMCFG2, 0x00 + 0x03,
         CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
 
-#define	APPROX_XMIT_TIME(p)	((p) >> 4)
+	255
+};
 
-#endif
-
-#if RADIO_BITRATE == 200000
-#define	RBITR_SET	1
+static const	byte	zz_rate3 [] = {
 
         CCxxx0_FSCTRL1, 0x0A,   // FSCTRL1	WAS 0C
         CCxxx0_FREQ2,   0x1E,   // FREQ2
-       	CCxxx0_MDMCFG4, 0x8C,   // MDMCFG4
+       	CCxxx0_MDMCFG4, 0x8C,   // MDMCFG4	(200 kbps)
 	CCxxx0_MDMCFG3, 0x22,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x10 + SYNC_WORD_SIZE,
+        CCxxx0_MDMCFG2, 0x10 + 0x02,		// Single sync word
         CCxxx0_MDMCFG1, 0x22,   // MDMCFG1	22 FEC + 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x47,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x36,   // FOCCFG
         CCxxx0_FSCAL2,  0x0A,   // FSCAL2
 
-#define APPROX_XMIT_TIME(p)	1
+	255
+};
 
-#endif
-
-#ifndef	RBITR_SET
-#error	"unknown bit rate, legal rates are 5000, 10000, 38400, 200000"
-#endif
-
-/* ========== */
-
-        255, 255
+const	byte	*cc1100_ratemenu [] = {
+			zz_rate0, zz_rate1, zz_rate2, zz_rate3
 };
 
 #define	PATABLE { 0x03, 0x1C, 0x67, 0x60, 0x85, 0xCC, 0xC6, 0xC3 }
@@ -343,8 +302,42 @@ const	byte	cc1100_rfsettings [] = {
 // No Register Definitions ====================================================
 
 extern const byte cc1100_rfsettings [];
+extern const byte *cc1100_ratemenu [];
 
 #endif	/* DEFINE_RF_SETTINGS */
+
+#define	CC1100_NRATES	4
+
+#define	aggressive_transmitter	(vrate > 2)
+#define	backoff_after_receive	(vrate < 2)
+#define	default_xmit_space	(0x10 >> vrate)
+#define	approx_xmit_time(p)	(vrate < 2 ? (p) : 1)
+
+#define	TXEND_POLL_DELAY	1	/* Milliseconds */
+
+#ifndef	XMIT_SPACE
+#define	XMIT_SPACE		default_xmit_space
+#endif
+
+#if	RADIO_BITRATE == 5000
+#define	RADIO_BITRATE_INDEX	0
+#endif
+
+#if	RADIO_BITRATE == 10000
+#define	RADIO_BITRATE_INDEX	1
+#endif
+
+#if	RADIO_BITRATE == 38400
+#define	RADIO_BITRATE_INDEX	2
+#endif
+
+#if	RADIO_BITRATE == 200000
+#define	RADIO_BITRATE_INDEX	3
+#endif
+
+#ifndef	RADIO_BITRATE_INDEX
+#error	"unknown bit rate, legal rates are 5000, 10000, 38400, 200000"
+#endif
 
 // ============================================================================
 

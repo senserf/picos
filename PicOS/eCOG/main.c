@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include <ecog.h>
@@ -135,6 +135,12 @@ static int	adc_cmode, adc_nmodes;
 void adc_start (int mode, int which, int interval) {
 
 	word mo;
+
+	// Set up ADC
+	rg.ssm.ex_ctrl =
+		SSM_EX_CTRL_ADC_HIGH_REF_CLK_MASK |
+		SSM_EX_CTRL_ADC_RST_CLR_MASK;
+	fd.adc.ctrl.int_dis = 1;
 
 	cli_tim;
 	/* Switch it off */
@@ -391,19 +397,6 @@ static void ssm_init () {
 
 	/* Remove the reset. */
 	rg.ssm.rst_clr = SSM_RST_CLR_TMR_MASK;
-
-#if	ADC_PRESENT || CC1000
-	/* Enable ADC */
-
-	rg.ssm.ex_ctrl =
-		SSM_EX_CTRL_ADC_HIGH_REF_CLK_MASK |
-		SSM_EX_CTRL_ADC_RST_CLR_MASK;
-	/* We are not using interrupts for this */
-	fd.adc.ctrl.int_dis = 1;
-	/* Starts disabled */
-	fd.ssm.cfg.adc_en = 0;
-#endif
-
 }
 
 static void cnf_init () {
@@ -871,7 +864,7 @@ static void ios_init () {
 	diag (BANNER);
 #else
 	diag ("\r\nPicOS v" SYSVERSION ", "
-        	"Copyright (C) Olsonet Communications, 2002-2006");
+        	"Copyright (C) Olsonet Communications, 2002-2008");
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);
 #endif
 #if	SDRAM_PRESENT

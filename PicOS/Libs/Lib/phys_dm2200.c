@@ -363,6 +363,7 @@ void phys_dm2200 (int phy, int mbs) {
 			add_entropy (adc_value & 0x0f);
 			mdelay (1);
 		}
+		adc_disable;
 		rssi_off;
 	}
 #endif

@@ -139,6 +139,4 @@ typedef struct	{
 #include "leds_sys.h"
 #endif
 
-#define	adc_value	((word)(fd.adc.sts.data)+((fd.adc.sts.data & 0x0800) ? \
-				0xF800 : 0x800))
 #endif
