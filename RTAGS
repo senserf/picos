@@ -1932,3 +1932,11 @@ R080318A:
 	Do this with both transmitter and receiver switched off. I have
 	polished out a few things in the driver (also noticed that LBT was off
 	by default - put it back in).
+
+R080320A
+	mm_demo, as shown at Combat Networks on March 19th. For the record:
+	The nodes bought by Combat were loaded with images with
+	host_id = BACA000A, -B, -66, -67, and eeprom set as in mm.pdf.
+
+
+
