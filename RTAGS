@@ -1933,10 +1933,52 @@ R080318A:
 	polished out a few things in the driver (also noticed that LBT was off
 	by default - put it back in).
 
-R080320A
+R080320A:
+
 	mm_demo, as shown at Combat Networks on March 19th. For the record:
 	The nodes bought by Combat were loaded with images with
 	host_id = BACA000A, -B, -66, -67, and eeprom set as in mm.pdf.
 
 
+R080321A:
 
+	Script genihex added to Scripts. This is how you call it:
+
+		genihex IFile Tag Rep Count
+
+	e.g.,
+
+		genihex Image_peg.a43 BACA000A CABA0FF0 10
+
+	where:
+
+	IFile is an ihex (a43) file (to be uploaded to the microcontroller).
+
+	Tag is a hex value to be looked up in the file. It is treated as a
+	little-endian number of the specified length. The number of hex digits
+	must be even, but the total number of bytes is arbitrary.
+
+	Rep is the replacement for the Tag. Its length (the number of hex
+	digits) must be even. In principle, it can be longer or shorter than
+	the Tag.
+
+	Count is the number of versions of the Image file to be created. It
+	can be absent and defaults to 1.
+
+	This is what happens:
+
+	The specified ihex file is read into memory and unpacked. The Tag is
+	located in the file as a string of bytes starting from the least
+	significant byte of the Tag. Suppose its position is L. Note that it
+	can cross the record boundary in the ihex file (this is not a simple
+	textual search).
+
+	Count times this procedure is performed: the replacement is written
+	into the image starting at L (the least significant byte of the
+	replacement goes into position L); then the resulting image is written
+	to a file, whose name looks like the input file name with the
+	replacement string inserted before the suffix, e.g.,
+	Image_peg_CABA0FF0.a43; then the replacement is incremented by one.
+
+	The script verifies whether the Tag is unique within the image file,
+	i.e., it occurs there exactly once.

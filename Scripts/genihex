@@ -1,0 +1,355 @@
+#!/bin/sh
+##########################\
+exec tclsh "$0" "$@"
+
+############################################################################
+# Generates copies of an ihex file with modified node ID                   #
+#                                                                          #
+# Copyright (C) Olsonet Communications, 2008 All Rights Reserved           #
+############################################################################
+
+proc bad_usage { } {
+
+	global argv0
+
+	puts stderr "Usage: $argv0 ifile tag sval n"
+	exit 99
+}
+
+proc natnum { s } {
+#
+# Integer >= 1
+#
+	if ![regexp "^\[0-9\]+$" $s] {
+		bad_usage
+	}
+
+	if [catch { expr $s } v] {
+		bad_usage
+	}
+
+	if { $v < 1 } {
+		bad_usage
+	}
+
+	return $v
+}
+
+proc normalize { s } {
+#
+# A string of bytes represented as hex digits in little endian
+#
+	set ln [string length $s]
+	if { $ln == 0 || [expr $ln & 1] != 0 } {
+		bad_usage
+	}
+
+	set res ""
+
+	while { $ln } {
+		set b [string toupper [string range $s 0 1]]
+		set s [string range $s 2 end]
+		if ![regexp "\[0-9A-F\]\[0-9A-F\]" $b] {
+			bad_usage
+		}
+		if { $res == "" } {
+			set res $b
+		} else {
+			set res "$b $res"
+		}
+		incr ln -2
+	}
+
+	return $res
+}
+
+proc increment { b } {
+#
+# Increments the hex string
+#
+	set r ""
+
+	set more 1
+
+	foreach v $b {
+
+		if $more {
+			set v [expr 0x$v + 1]
+			if { $v < 256 } {
+				set more 0
+			} else {
+				set v 0
+			}
+			set v [format "%02X" $v]
+		}
+		lappend r $v
+	}
+
+	return $r
+}
+
+proc checksum { s } {
+
+	if { [expr [string length $s] & 1] != 0 } {
+		return ""
+	}
+
+	set sum 0
+
+	while { $s != "" } {
+		set b [string range $s 0 1]
+		set s [string range $s 2 end]
+		if [catch { expr 0x$b + $sum } sum] {
+			return ""
+		}
+	}
+
+	return [format %02X [expr (0x100 - ( $sum & 0xff )) & 0xff]]
+}
+
+proc ferror { n s } {
+
+	puts stderr "Image format error, line $n: $s"
+	exit 99
+}
+
+proc cerror { n s } {
+
+	puts stderr "Checksum error, line $n: $s"
+	exit 99
+}
+
+proc read_source { fn } {
+#
+# Reads the source image file
+#
+	set chunks ""
+	set chunk ""
+	set caddr -1
+
+	if [catch { open $fn "r" } fd] {
+		puts stderr "Cannot open image file $fn: $fd"
+		exit 99
+	}
+
+	if [catch { read $fd } fc] {
+		puts stderr "Cannot read image file $fn: $fc"
+		exit 99
+	}
+
+	catch { close $fd }
+
+	# preprocess into chunks
+	set fc [split $fc "\n"]
+	set linenum 1
+	foreach ln $fc {
+		set ln [string toupper [string trim $ln]]
+		if ![regexp "^:(..)(....)(..)(.*)(..)" $ln jk bc ad rt rec ch] {
+			incr linenum
+			continue
+		}
+		set chk [checksum "$bc$ad$rt$rec"]
+		if { $chk == "" } {
+			ferror $linenum $ln
+		}
+		if { [catch { expr 0x$rt } rt] || \
+		     [catch { expr 0x$bc } bc] || \
+		     [catch { expr 0x$ad } ad] || \
+		     [catch { expr 0x$ch } ch]  } {
+			    ferror $linenum $ln
+		}
+		set ll [string length $rec]
+		if { $ll != [expr $bc * 2] } {
+			ferror $linenum $ln
+		}
+		if { $ch != [expr 0x$chk] } {
+			cerror $linenum $ln
+		}
+		if { $rt != 0 } {
+			# not a data record
+			if { $chunk != "" } {
+				# pending data record
+				lappend chunks [list $start 0 $chunk]
+				set chunk ""
+				set caddr -1
+			}
+			lappend chunks [list $ad $rt $rec]
+		} else {
+			# data record
+			if { $ad != $caddr } {
+				# start a new chunk
+				if { $chunk != "" } {
+					lappend chunks \
+						[list $start 0 $chunk]
+				}
+				set start $ad
+				set chunk $rec
+				set caddr [expr $ad + $bc]
+			} else {
+				append chunk $rec
+				set caddr [expr $caddr + $bc]
+			}
+		}
+		incr linenum
+	}
+
+	if { $chunk != "" } {
+		lappend chunks [list $start 0 $chunk]
+	}
+
+	return $chunks
+}
+
+proc locate_id { im idn } {
+#
+# Locates the tag in the image
+#
+	set cn -1
+	set ix -1
+	foreach ch $im {
+		incr ix
+		if { [lindex $ch 1] != 0 } {
+			# not a data record
+			continue
+		}
+		set chunk [lindex $ch 2]
+		set loc [string first $idn $chunk] 
+		if { $loc < 0 } {
+			lappend new $ch
+			continue
+		}
+		if { $cn >= 0 || [string last $idn $chunk] != $loc } {
+			puts stderr "Multiple occurrences of tag code"
+			exit 99
+		}
+		set cn $ix
+		set po $loc
+	}
+
+	if { $cn < 0 } {
+		puts stderr "Tag code not found"
+		exit 99
+	}
+
+	return [list $cn $po]
+}
+
+proc modify_image { im org s } {
+#
+# Substitute the new string in the image
+#
+	set new ""
+
+	set wh [lindex $org 0]
+	set ix [lindex $org 1]
+
+	set ch [lindex $im $wh]
+	set ad [lindex $ch 0]
+	set rc [lindex $ch 2]
+
+	set rl [string length $s]
+
+	set rc "[string range $rc 0 [expr $ix - 1]]$s[string range $rc \
+		[expr $ix + $rl] end]"
+
+	set im [lreplace $im $wh $wh [list $ad 0 $rc]]
+
+	return $im
+}
+
+proc mkfname { ofn s } {
+#
+# New file name
+#
+	set t ""
+	foreach q $s {
+		set t "${q}$t"
+	}
+	set rfn "[file rootname $ofn]"
+
+	if { $rfn == $ofn } {
+		return "${rfn}_$t"
+	}
+
+	return "${rfn}_$t[file extension $ofn]"
+}
+
+proc write_image { im fn } {
+
+	if [catch { open $fn "w" } fd] {
+		puts stderr "Cannot open $fn for writing: $fd"
+		exit 99
+	}
+
+	foreach ch $im {
+		set ad [lindex $ch 0]
+		set rt [lindex $ch 1]
+		set rc [lindex $ch 2]
+		while 1 {
+			set ln [string length $rc]
+			if { $ln > 32 } {
+				set ln 32
+			}
+			set bc [expr $ln / 2]
+			set bk [format "%02X%04X%02X" $bc $ad $rt]
+			append bk [string range $rc 0 [expr $ln - 1]]
+			append bk [checksum $bk]
+			if [catch {
+				puts $fd ":$bk"
+			} er] {
+				puts stderr "Cannot write to $fn:$er"
+				exit 99
+			}
+			set rc [string range $rc $ln end]
+			if { $rc == "" } {
+				break
+			}
+			set ad [expr $ad + $bc]
+		}
+	}
+	catch { close $fd }
+}
+			
+###############################################################################
+
+set na [llength $argv]
+
+if { $na != 3  && $na != 4 } {
+	bad_usage
+}
+
+set IFN [lindex $argv 0]
+
+# location identifier (a hex string)
+set IDN [lindex $argv 1]
+
+# starting value
+set FRM [lindex $argv 2]
+
+# number of copies
+if { $na > 3 } {
+	set CNT [natnum [lindex $argv 3]]
+} else {
+	set CNT 1
+}
+
+# normalize and validate the hex values
+set IDN [normalize $IDN]
+set FRM [normalize $FRM]
+
+set image [read_source $IFN]
+
+set org [locate_id $image [join $IDN ""]]
+
+while { $CNT } {
+
+	set image [modify_image $image $org [join $FRM ""]]
+
+	set NFN [mkfname $IFN $FRM]
+
+	write_image $image $NFN
+
+	set FRM [increment $FRM]
+
+	incr CNT -1
+}
