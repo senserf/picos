@@ -1,4 +1,7 @@
 #!/bin/sh
+rm -f form.h
+rm -f ser.h
+#################################
 rm -f tcv.cc
 rm -f tcv.h
 rm -f tcv_node_data.h

@@ -216,6 +216,7 @@ Finidh:
 	pktlen = ThePckt -> PaySize;
 
 	assert (pktlen > MINIMUM_PACKET_LENGTH, "Receiver: packet too short");
+	assert (pktlen <= RBS, "Receiver: packet too long");
 
 	if (statid != 0 && statid != 0xffff) {
 		// Admit only packets with agreeable statid
@@ -223,11 +224,13 @@ Finidh:
 			// Ignore
 			proceed RCV_GETIT;
 	}
+
+	memcpy (zzr_buffer, packet, pktlen);
 		
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
-	packet [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
+	zzr_buffer [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 
-	tcvphy_rcv (PHYSID, packet, pktlen);
+	tcvphy_rcv (PHYSID, zzr_buffer, pktlen);
 	proceed RCV_GETIT;
 }
 
@@ -243,10 +246,11 @@ __PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
 			syserror (EREQPAR, "phys_cc1100");
 	}
 
-	if (memBook (mbs+2) == NO)
+	zzr_buffer = (address) memAlloc (mbs + 2, (word) (mbs + 2));
+	if (zzr_buffer == NULL)
 		syserror (EMALLOC, "phys_cc1100");
 
-	phys_rfmodule_init (phy);
+	phys_rfmodule_init (phy, mbs+2);
 }
 
 __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
@@ -261,13 +265,14 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 			syserror (EREQPAR, "phys_dm2200 mbs");
 	}
 
-	if (memBook (mbs) == NO)
+	zzr_buffer = (address) memAlloc (mbs, (word) mbs);
+	if (zzr_buffer == NULL)
 		syserror (EMALLOC, "phys_dm2200");
 
-	phys_rfmodule_init (phy);
+	phys_rfmodule_init (phy, mbs);
 }
 
-void PicOSNode::phys_rfmodule_init (int phy) {
+void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 
 	statid = 0;
 	backoff = 0;
@@ -282,7 +287,7 @@ void PicOSNode::phys_rfmodule_init (int phy) {
 	LEDI (2, 0);
 
 	create Xmitter;
-	create Receiver;
+	create Receiver (rbs);
 }
 
 static int option (int opt, address val) {

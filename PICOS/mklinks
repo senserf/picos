@@ -27,3 +27,6 @@ ln -sf ../../PICOS/PicOS/Libs/LibComms/tarp_node_data_init.h .
 
 ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.c encrypt.cc
+####################################### for completeness (PicOS side)
+ln -sf board.h form.h
+ln -sf board.h ser.h

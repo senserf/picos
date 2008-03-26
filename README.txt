@@ -253,3 +253,9 @@ R071211A:
 R080313A:
 
     Fixed a problem with memfree.
+
+R080326A:
+
+    Using a receive buffer in rfmodule, instead of recycling the internal
+    "Packet" buffer. The way it was, the plugin could modify the internal copy
+    of the packet confusing receivers at other nodes.

@@ -6,11 +6,17 @@
 
 process Receiver (PicOSNode) {
 
+	int RBS;			// Receive buffer size
+
 	states { RCV_GETIT, RCV_START, RCV_RECEIVE, RCV_GOTIT };
 
 	byte get_rssi (byte&);
 
 	perform;
+
+	void setup (int s) {
+		RBS = s;
+	};
 };
 
 process	ADC (PicOSNode) {

@@ -31,6 +31,8 @@ typedef	unsigned char	byte;
 #define	RELEASE		sleep
 #define	nodefun(t,n,s)	t Node::n
 
+#define	heapmem		const static byte zz_heapmem [] =
+
 /* ========================================================================== */
 
 #define	PHYSID			0

@@ -80,7 +80,7 @@ station PicOSNode abstract {
 
 	void		_da (phys_dm2200) (int, int);
 	void		_da (phys_cc1100) (int, int);
-	void		phys_rfmodule_init (int);
+	void		phys_rfmodule_init (int, int);
 
 	TIME	LastResetTime;
 
@@ -119,6 +119,7 @@ station PicOSNode abstract {
 
 	int		_da (tx_event);
 	address		_da (zzx_buffer);
+	address		_da (zzr_buffer);
 	lword		_da (entropy);
 	word		_da (statid);		// Station/network ID
 	word		_da (min_backoff), _da (max_backoff), _da (backoff);
