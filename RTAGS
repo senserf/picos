@@ -1982,3 +1982,9 @@ R080321A:
 
 	The script verifies whether the Tag is unique within the image file,
 	i.e., it occurs there exactly once.
+
+R080328A:
+
+	Driver for the DS18B20 temperature sensor included. The ARTURO board
+	includes it at sensor number 4. Note that the formula for converting
+	its readings to (centigrade) temperature is (v - 2048) / 16.
