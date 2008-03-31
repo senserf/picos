@@ -1988,3 +1988,9 @@ R080328A:
 	Driver for the DS18B20 temperature sensor included. The ARTURO board
 	includes it at sensor number 4. Note that the formula for converting
 	its readings to (centigrade) temperature is (v - 2048) / 16.
+
+R080330A:
+
+	Modified Apps/VUEE/RFPING to include tests for counter/notifier pins.
+	One of the input data files in that directory, data4.txt, modified to
+	account for the change in VUEE's specification of those pins.

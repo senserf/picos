@@ -72,7 +72,8 @@ static void shtxx_cmd (byte cmd) {
 
 	} while (ec < 8);
 
-	syserror (EHARDWARE, "shtxx_cmd");
+	// Ignore absent sensor
+	// syserror (EHARDWARE, "shtxx_cmd");
 }
 
 static byte shtxx_get (Boolean ack) {

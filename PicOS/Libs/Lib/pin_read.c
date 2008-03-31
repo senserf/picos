@@ -134,6 +134,7 @@ int pin_write_dac (word pin, word val, word ref) {
 	if (!zz_pin_dac_available (pin))
 		return -1;
 	zz_write_dac (pin, val, ref);
+	return 0;
 #else
 	return -1;
 #endif	/* PIN_DAC_PINS */
