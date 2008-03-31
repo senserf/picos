@@ -259,3 +259,8 @@ R080326A:
     Using a receive buffer in rfmodule, instead of recycling the internal
     "Packet" buffer. The way it was, the plugin could modify the internal copy
     of the packet confusing receivers at other nodes.
+
+R080330A:
+
+    Changed (and debugged) the handling of the so-called pin (pulse) monitor,
+    aka counter and notifier. Read section 6.6 from the manual (version 0.65).

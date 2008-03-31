@@ -76,6 +76,9 @@ typedef struct {
 
 	const char	*PIDev,	// Input device
 			*PODev;	// Output device
+
+	Long		DEB[4];	// Debouncers for pin monitor
+
 	Boolean	absent;		// Flag == explicitly absent
 
 } data_pn_t;

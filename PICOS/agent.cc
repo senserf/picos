@@ -168,7 +168,14 @@ process PulseMonitor {
 
 	states { Probe, WECyc, WNewCyc };
 
-	void setup (PINS*, Process**, byte, Long, Long);
+	void setup (
+			PINS*,		// The module
+			Process**,	// Thread pointer
+			byte,		// The pin: 0-cnt, 1-not
+			byte,		// Polarity 0-low, 1-high
+			Long,		// Ontime (debouncer)
+			Long		// Offtime (debouncer)
+	);
 
 	perform;
 };
@@ -937,8 +944,9 @@ word PINS::adc (short v, int ref) {
 
 		case 0:	  range = (word) ((1.5/3.3) * (int)0x7fff); break;
 		case 1:	  range = (word) ((2.5/3.3) * (int)0x7fff); break;
-		default:  range = (word) 0x7fff;
-
+		case 3:		// Vref (have to define it in the data set)
+				// ignore for now, i.e., use Vcc
+		default:  range = (word) 0x7fff;	// Vcc
 	}
 
 	if (v >= range)
@@ -1016,22 +1024,37 @@ PINS::PINS (data_pn_t *PID) {
 	DefAVo = PID->VO;
 	Status = PID->ST;
 
-	if (PID->MPIN == BNONE || PID->NPIN == BNONE) {
-		Assert (PID->MPIN == BNONE && PID->NPIN == BNONE, 
-		"PINS: monitor and notifier pins at %s must be both absent or"
-		" both present", TheStation->getSName ());
-		PIN_MONITOR [0] = PIN_MONITOR [1] = BNONE;
-	} else {
-		Assert (PID->MPIN < PIN_MAX && gbit (taken, PID->MPIN) == 0,
-		    "PINS: illegal monitor pin number %1d at %s", PID->MPIN,
-			TheStation->getSName ());
-		PIN_MONITOR [0] = PID->MPIN;
-		sbit (taken, PID->MPIN);
-		Assert (PID->NPIN < PIN_MAX && gbit (taken, PID->NPIN) == 0,
-		    "PINS: illegal notifier pin number %1d at %s", PID->NPIN,
-			TheStation->getSName ());
-		PIN_MONITOR [1] = (byte) PID->NPIN;
-		sbit (taken, PID->NPIN);
+	Debouncers = NULL;
+	PIN_MONITOR [0] = PIN_MONITOR [1] = BNONE;
+
+	if (PID->MPIN != BNONE || PID->NPIN != BNONE) {
+		// At least one of the monitor pins is defined; check for
+		// debouncers
+		for (i = 0; i < 4; i++)
+			if (PID->DEB [i] != 0)
+				break;
+		if (i < 4) {
+			// Allocate the debouncers array
+			Debouncers = new Long [4];
+			for (i = 0; i < 4; i++)
+				Debouncers [i] = PID->DEB [i];
+		}
+		if (PID->MPIN != BNONE) {
+			Assert (PID->MPIN < PIN_MAX && gbit (taken, PID->MPIN)
+				== 0,
+		    	"PINS: illegal counter pin number %1d at %s", PID->MPIN,
+				TheStation->getSName ());
+			sbit (taken, PID->MPIN);
+			PIN_MONITOR [0] = PID->MPIN;
+		}
+		if (PID->NPIN != BNONE) {
+			Assert (PID->NPIN < PIN_MAX && gbit (taken, PID->NPIN)
+				== 0,
+	    	       "PINS: illegal notifier pin number %1d at %s", PID->NPIN,
+				TheStation->getSName ());
+			sbit (taken, PID->NPIN);
+			PIN_MONITOR [1] = PID->NPIN;
+		}
 	}
 
 	if (PID->D0PIN != BNONE) {
@@ -1190,14 +1213,14 @@ PINS::~PINS () {
 	excptn ("PINS at %s: cannot delete PINS", TheStation->getSName ());
 }
 
-void PulseMonitor::setup (PINS *pins, Process **p, byte onv, Long ontime,
-								Long offtime) {
+void PulseMonitor::setup (PINS *pins, Process **p, byte pin, byte onv,
+						Long ontime, Long offtime) {
 	PN = pins;
 	TH = p;
 	ONV = onv;
 	WCNT = ontime;
 	OFFTime = offtime;
-	PIN = PN->PIN_MONITOR [0];
+	PIN = PN->PIN_MONITOR [pin];
 	assert (*TH == NULL, "PulseMonitor at %s: previous monitor thread is "
 		"alive", PN->TPN->getSName ());
 	*TH = this;
@@ -1261,6 +1284,10 @@ PulseMonitor::perform {
 			*TH = NULL;
 			terminate;
 		}
+
+		WCNT--;
+
+		Timer->delay (MILLISECOND, WNewCyc);
 }
 			
 void PINS::pin_new_value (word pin, word val) {
@@ -1280,14 +1307,26 @@ void PINS::pin_new_value (word pin, word val) {
 			else
 				cbit (IValues, pin);
 
-			if (val == MonPolarity && MonitorThread == NULL)
-				// Must run at System to make it independent
-				// of the node's resets
-				create (System) PulseMonitor (this,
-						&MonitorThread,
-						MonPolarity,
-						PMON_DEBOUNCE_CNT_ON,
-						PMON_DEBOUNCE_CNT_OFF);
+			if (val == MonPolarity) {
+				// Counter trigger
+				if (Debouncers == NULL || (Debouncers [0] == 0 
+				    && Debouncers [1] == 0)) {
+					// No debouncer
+					pmon_update (pin);
+				} else {
+					if (MonitorThread == NULL) {
+						// Must run at System to make
+						// oblivious to node's resets
+						create (System)
+							PulseMonitor (this,
+								&MonitorThread,
+								0,
+								MonPolarity,
+								Debouncers [0],
+								Debouncers [1]);
+					}
+				}
+			}
 			return;
 		}
 	} else if (pin == PIN_MONITOR [1]) {
@@ -1303,12 +1342,24 @@ void PINS::pin_new_value (word pin, word val) {
 			else
 				cbit (IValues, pin);
 
-			if (val == NotPolarity && NotifierThread == NULL)
-				create (System) PulseMonitor (this,
-						&NotifierThread,
-						NotPolarity,
-						PMON_DEBOUNCE_NOT_ON,
-						PMON_DEBOUNCE_NOT_OFF);
+			if (val == NotPolarity) {
+				// Notifier trigger
+				if (Debouncers == NULL || (Debouncers [2] == 0
+				    && Debouncers [3] == 0)) {
+					// No debouncer
+					pmon_update (pin);
+				} else {
+					if (NotifierThread == NULL) {
+						create (System)
+							PulseMonitor (this,
+								&NotifierThread,
+								1,
+								NotPolarity,
+								Debouncers [2],
+								Debouncers [3]);
+					}
+				}
+			}
 			return;
 		}
 	}
@@ -1369,14 +1420,14 @@ void PINS::pmon_update (byte pin) {
 			pmon_cnt = 0;
 		if (pmon_cmp_on && pmon_cnt == pmon_cmp) {
 			pmon_cmp_pending = YES;
-			trigger (PMON_CNTEVENT);
+			TPN->TB.signal (PMON_CNTEVENT);
 		}
 	} else {
 		assert (pin == PIN_MONITOR [1],
 			"pmon_update at %s: illegal monitor pin %1d",
 				TPN->getSName (), pin);
 		pmon_not_pending = YES;
-		trigger (PMON_NOTEVENT);
+		TPN->TB.signal (PMON_NOTEVENT);
 	}
 }
 
@@ -1661,7 +1712,7 @@ void PINS::pmon_set_cmp (long count) {
 
 	if (pmon_cmp == pmon_cnt) {
 		pmon_cmp_pending = YES;
-		trigger (PMON_CNTEVENT);
+		TPN->TB.signal (PMON_CNTEVENT);
 	}
 }
 
@@ -1708,7 +1759,7 @@ void PINS::pmon_stop_not () {
 		NotifierThread = NULL;
 	}
 
-	pmon_not_pending = pmon_not_on = YES;
+	pmon_not_pending = pmon_not_on = NO;
 	qupd_pin (PIN_MONITOR [1]);
 }
 

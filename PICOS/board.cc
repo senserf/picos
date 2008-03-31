@@ -2179,14 +2179,14 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
  */
 	double d;
 	sxml_t cur;
-	nparse_t np [2], *npp;
+	nparse_t np [3], *npp;
 	const char *att;
 	char es [48];
 	char *str, *sts;
 	data_pn_t *PN;
 	byte *BS;
 	short *SS;
-	int len;
+	int len, ni, nj;
 	byte pn;
 
 	if ((data = sxml_child (data, "pins")) == NULL)
@@ -2197,9 +2197,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 
 	PN = new data_pn_t;
 
-	PN->NP = (byte) (np [0].LVal);
 	PN->PMode = 0;
-
 	PN->NA = 0;
 	PN->MPIN = PN->NPIN = PN->D0PIN = PN->D1PIN = BNONE;
 	PN->ST = PN->IV = NULL;
@@ -2214,7 +2212,10 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 		return PN;
 	}
 
-	np [0].type = np [1].type = TYPE_LONG;
+	np [0].type = np [1].type = np [2].type = TYPE_LONG;
+
+	for (len = 0; len < 4; len++)
+		PN->DEB [len] = 0;
 	
 	if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
 	    np [0].LVal > 254)
@@ -2235,14 +2236,46 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 		PN->NA = (byte) (np [0].LVal);
 	}
 
-	/* Pulse monitor */
-	if ((att = sxml_attr (data, "pulse")) != NULL) {
-		if (parseNumbers (att, 2, np) != 2 || np [0].LVal < 0 ||
-		  np [0].LVal >= PN->NP || np [1].LVal < 0 || np [1].LVal >=
-		    PN->NP || np [0].LVal == np [1].LVal)
-		        xeai ("pulse", es, att);
+	/* Counter */
+	if ((att = sxml_attr (data, "counter")) != NULL) {
+		if ((ni = parseNumbers (att, 3, np)) < 1) {
+CntErr:
+		      xeai ("counter", es, att);
+		}
+		if (np [0].LVal < 0 || np [0].LVal >= PN->NP)
+			goto CntErr;
 		PN->MPIN = (byte) (np [0].LVal);
-		PN->NPIN = (byte) (np [1].LVal);
+		if (ni > 1) {
+			// Debouncers
+			if ((PN->DEB [0] = (Long)(np [1].LVal)) < 0)
+				goto CntErr;
+			if (ni > 2) {
+				if ((PN->DEB [1] = (Long)(np [2].LVal)) < 0)
+					goto CntErr;
+			}
+		}
+	}
+
+	/* Notifier */
+	if ((att = sxml_attr (data, "notifier")) != NULL) {
+		if ((ni = parseNumbers (att, 3, np)) < 1) {
+NotErr:
+		      xeai ("notifier", es, att);
+		}
+		if (np [0].LVal < 0 || np [0].LVal >= PN->NP)
+			goto NotErr;
+		PN->NPIN = (byte) (np [0].LVal);
+		if (PN->NPIN == PN->MPIN)
+			goto NotErr;
+		if (ni > 1) {
+			// Debouncers
+			if ((PN->DEB [2] = (Long)(np [1].LVal)) < 0)
+				goto NotErr;
+			if (ni > 2) {
+				if ((PN->DEB [3] = (Long)(np [2].LVal)) < 0)
+					goto NotErr;
+			}
+		}
 	}
 
 	/* DAC */
@@ -2266,8 +2299,16 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 	}
 
 	print (form ("  PINS [total = %1d, adc = %1d", PN->NP, PN->NA));
-	if (PN->MPIN != BNONE)
-		print (form (", PM = %1d, EN = %1d", PN->MPIN, PN->NPIN));
+	if (PN->MPIN != BNONE) {
+		print (form (", PM = %1d", PN->MPIN));
+		if (PN->DEB [0] != 0 || PN->DEB [1] != 0)
+			print (form (" /%1d,%1d/", PN->DEB [0], PN->DEB [1]));
+	}
+	if (PN->NPIN != BNONE) {
+		print (form (", EN = %1d", PN->NPIN));
+		if (PN->DEB [2] != 0 || PN->DEB [3] != 0)
+			print (form (" /%1d,%1d/", PN->DEB [2], PN->DEB [3]));
+	}
 	if (PN->D0PIN != BNONE) {
 		print (form (", DAC = %1d", PN->D0PIN));
 		if (PN->D1PIN != BNONE)

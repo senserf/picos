@@ -3,11 +3,6 @@
 
 #define	AGENT_SOCKET		4443
 
-#define	PMON_DEBOUNCE_CNT_ON	(3*16)		// 48 msec on
-#define	PMON_DEBOUNCE_CNT_OFF	(3*16)		// 48 msec off
-#define	PMON_DEBOUNCE_NOT_ON	(4*16)		// 64 msec on
-#define	PMON_DEBOUNCE_NOT_OFF	(100*16)	// 2 sec off
-
 // Pin status
 #define	PINSTAT_INPUT		0
 #define	PINSTAT_OUTPUT		1
@@ -429,6 +424,8 @@ class PINS {
 		NASIZE,			// PASIZE in nibbles
 		MonPolarity,		// Trigger value of monitor pin
 		NotPolarity;		// Trigger value of notifier pin
+
+	Long	*Debouncers;		// Optional debouncers
 
 	Boolean	adc_inuse,		// Pending ADC cpnversion
 		pmon_cnt_on,		// Counter is ON
