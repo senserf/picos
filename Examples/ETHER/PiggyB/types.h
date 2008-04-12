@@ -13,7 +13,7 @@ station PiggyStation : EtherStation {
 
 #include "pxmitter.h"
 
-process Monitor (PiggyStation) {
+process Mtr (PiggyStation) {
   Mailbox *Ready;
   TIME DelayP, DelayX;
   Port *Bus;

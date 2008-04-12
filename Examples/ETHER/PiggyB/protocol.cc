@@ -3,7 +3,7 @@
 
 identify "Piggyback Ethernet (B)";
 
-Monitor::perform {
+Mtr::perform {
   state Waiting:
     Bus->wait (ACTIVITY, Active);
   state Active:
@@ -31,12 +31,12 @@ Monitor::perform {
     Bus->wait (ACTIVITY, Active);
 };
 
-void Monitor::setup () {
+void Mtr::setup () {
   Bus = S->Bus;
   Ready = S->Ready;
 };
 
-Boolean Monitor::eligible () {
+Boolean Mtr::eligible () {
   Long Sender, SId;
   Sender = ThePacket->Sender;
   SId = S->getId ();

@@ -33,7 +33,7 @@ Mailbox::~Mailbox () {
 
   pool_out (this);
   zz_DREM (this);
-  if (zz_nickname != NULL) delete (zz_nickname);
+  if (zz_nickname != NULL) delete [] zz_nickname;
 }
 
 void Mailbox::trigger_all_events () {

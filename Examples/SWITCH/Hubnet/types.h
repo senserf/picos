@@ -59,7 +59,7 @@ process Receiver (HStation) {
 
 process AClock;
 
-process Monitor (HStation) {
+process Supervisor (HStation) {
   Port *BPort;
   Mailbox *StartEW, *ACK, *NACK;
   Packet *Pkt;
@@ -71,14 +71,15 @@ process Monitor (HStation) {
     ACK = S->ACK;
     NACK = S->NACK;
     // Calculate echo timeout
-    EchoTimeout = (BPort->distTo (((Hub*)idToStation (NStations-1))->BPort) +
-      SndRecTime) * 2;
+    EchoTimeout = 
+	(duToItu (BPort->distTo (((Hub*)idToStation (NStations-1))->BPort)) +
+      		SndRecTime) * 2;
   };
   states {WaitSignal, WaitEcho, Waiting, NewPacket, CheckEcho, NoEcho};
   perform;
 };
       
-process AClock (HStation, Monitor) {
+process AClock (HStation, Supervisor) {
   TIME Delay;
   void setup (TIME d) { Delay = d; };
   states {Start, GoOff};

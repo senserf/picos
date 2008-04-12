@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -1178,7 +1178,7 @@ NEXTEV:
 
 		zz_event_id = zz_CE -> event_id;
 		TheState    = zz_CE -> pstate;
-		zz_ai = zz_CE->ai;
+		// zz_ai = zz_CE->ai;
 
 #if	(ZZ_NOL || ZZ_NOR)
 
@@ -1659,7 +1659,7 @@ static void set_xtrace_station (Long st, Long *&ts, Long &nts) {
 	if (!isStationId (st)) {
 		// Treat as "any"
 		if (ts)
-			delete ts;
+			free (ts);
 		ts = NULL;
 		nts = 0;
 		return;

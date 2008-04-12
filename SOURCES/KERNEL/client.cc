@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -1137,10 +1137,10 @@ void    Traffic::zz_addinit (int gr) {
 			// The group array must be extended
 			tcg = new CGroup* [NCGroups];
 			for (i = 0; i < NCGroups; i++) tcg [i] = CGCluster [i];
-			delete (CGCluster);
+			delete [] CGCluster;
 			CGCluster = new CGroup* [cp2m1 (mgr)];
 			for (i = 0; i < NCGroups; i++) CGCluster [i] = tcg [i];
-			delete (tcg);
+			delete [] tcg;
 		}
 		for (i = NCGroups; i < mgr; i++) CGCluster [i] = NULL;
 		NCGroups = mgr;
@@ -1219,17 +1219,17 @@ void    Traffic::addSender (Station *s, double w, int gr) {
 		// The group array must be extended
 		sl = new short [sg->NStations];
 		for (i = 0; i < sg->NStations; i++) sl [i] = sg->SIdents [i];
-		delete (sg->SIdents);
+		delete [] sg->SIdents;
 		sg->SIdents = new short [cp2m1 (sg->NStations + 1)];
 		for (i = 0; i < sg->NStations; i++) sg->SIdents [i] = sl [i];
-		delete (sl);
+		delete [] sl;
 
 		fl = new float [sg->NStations];
 		for (i = 0; i < sg->NStations; i++) fl [i] = cg->SWeights [i];
-		delete (cg->SWeights);
+		delete [] cg->SWeights;
 		cg->SWeights = new float [cp2m1 (sg->NStations + 1)];
 		for (i = 0; i < sg->NStations; i++) cg->SWeights [i] = fl [i];
-		delete (fl);
+		delete [] fl;
 	}
 
 	sg->SIdents [sg->NStations] = (short) ident (s);
@@ -1315,20 +1315,20 @@ void    Traffic::addReceiver (Station *s, double w, int gr) {
 		// The group array must be extended
 		sl = new short [sg->NStations];
 		for (i = 0; i < sg->NStations; i++) sl [i] = sg->SIdents [i];
-		delete (sg->SIdents);
+		delete [] sg->SIdents;
 		sg->SIdents = new short [cp2m1 (sg->NStations + 1)];
 		for (i = 0; i < sg->NStations; i++) sg->SIdents [i] = sl [i];
-		delete (sl);
+		delete [] sl;
 
 		if (cg->RWeights != (float*) (-1)) {
 			fl = new float [sg->NStations];
 			for (i = 0; i < sg->NStations; i++)
 				fl [i] = cg->RWeights [i];
-			delete (cg->RWeights);
+			delete [] cg->RWeights;
 			cg->RWeights = new float [cp2m1 (sg->NStations + 1)];
 			for (i = 0; i < sg->NStations; i++)
 				cg->RWeights [i] = fl [i];
-			delete (fl);
+			delete [] fl;
 		}
 	}
 
@@ -1397,10 +1397,10 @@ void    Traffic::zz_start () {
 			// Backup copy
 			scratch [i] = zz_tp [i];
 
-		delete (zz_tp);         // Deallocate previous array
+		delete [] zz_tp;         // Deallocate previous array
 		zz_tp = new Traffic* [asize = (asize+1) * 2 - 1];
 		while (i--) zz_tp [i] = scratch [i];
-		delete (scratch);
+		delete [] scratch;
 	}
 
 	zz_tp [Id] = this;
@@ -1851,7 +1851,7 @@ static  int select_station (int ns, short *idents, float *weights, double w) {
       return ((idents == NULL) ? j : (int)(idents [j]));
 }
 
-int     Traffic::genSND () {
+Long Traffic::genSND () {
 
 /* --------------- */
 /* Generate sender */
@@ -3554,7 +3554,7 @@ void    zz_client::exPrint2 (const char *hdr, int sid) {
 				Ouf << '\n';
 			}
 
-			delete (mm);
+			delete [] mm;
 
 		}
 
@@ -3872,7 +3872,7 @@ void    zz_client::exDisplay2 (int sid) {
 				else
 					display ("bcast");
 			}
-			delete (mm);
+			delete [] mm;
 		}
 
 		return;

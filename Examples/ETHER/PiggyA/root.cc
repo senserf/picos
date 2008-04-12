@@ -14,10 +14,11 @@ void PiggyStation::setup () {
     // The last station
     for (i = 0; i < NNodes; i++) {
       ps = (PiggyStation*) idToStation (i);
-      ps->RDist = ps->Bus->distTo (Bus);
+      ps->RDist = (DISTANCE) duToItu (ps->Bus->distTo (Bus));
     }
   }
-  LDist = ((PiggyStation*) idToStation (0)) -> Bus -> distTo (Bus);
+  LDist = (DISTANCE) duToItu (((PiggyStation*) idToStation (0)) -> Bus ->
+	distTo (Bus));
   Ready = create Mailbox (0);  // Note that this must be a capacity zero mailbox
   Blocked = NO;
 };
@@ -55,7 +56,7 @@ process Root {
       for (i = 0; i < NNodes; i++) create PiggyStation;
       // Processes
       for (i = 0; i < NStations; i++) {
-        create (i) Monitor;
+        create (i) Mtr;
         create (i) Transmitter;
         create (i) Receiver;
       }

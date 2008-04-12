@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -88,7 +88,7 @@ class ORequest {
     char *contents;
     ORequest *next;
     ORequest (int, const char *t = NULL, IPointer p1 = NONE, Long p2 = NONE);
-    ~ORequest () { if (contents) delete contents; };
+    ~ORequest () { if (contents) delete [] contents; };
 };
 
 static ORequest  *ORQ = NULL;

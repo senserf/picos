@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -709,9 +709,9 @@ sxml_t	sxml_parse_input (char del) {
 
 #define	sxml_put(h)	do { \
 				if (CSize == MSize) { \
-					SF = new char [MSize + MSize]; \
+					SF = (char*) malloc (MSize + MSize); \
 					memcpy (SF, IF, CSize); \
-					delete IF; \
+					free (IF); \
 					IF = SF; \
 					MSize += MSize; \
 				} \
@@ -721,7 +721,7 @@ sxml_t	sxml_parse_input (char del) {
 	if (EndOfData)
 		return sxml_parse_str ("", 0);
 
-	IF = new char [MSize];
+	IF = (char*) malloc (MSize);
 	CSize = 0;
 	EOL = YES;
 

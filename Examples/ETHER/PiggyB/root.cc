@@ -45,7 +45,7 @@ process Root {
       for (i = 0; i < NNodes; i++) create PiggyStation;
       // Processes
       for (i = 0; i < NStations; i++) {
-        create (i) Monitor;
+        create (i) Mtr;
         create (i) Transmitter;
         create (i) Receiver;
       }

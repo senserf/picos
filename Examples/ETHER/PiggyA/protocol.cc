@@ -3,7 +3,7 @@
 
 identify "Piggyback Ethernet (A)";
 
-Monitor::perform {
+Mtr::perform {
   state Waiting:
     Bus->wait (ACTIVITY, Active);
   state Active:
@@ -35,7 +35,7 @@ Monitor::perform {
     Bus->wait (ACTIVITY, Active);
 };
 
-void Monitor::setup () {
+void Mtr::setup () {
   Bus = S->Bus;
   LDist = S->LDist;
   RDist = S->RDist;
@@ -43,7 +43,7 @@ void Monitor::setup () {
   DelayX = 2 * L + 2 * NStations * DelayQuantum;
 };
 
-void Monitor::setDelays () {
+void Mtr::setDelays () {
   Long Sender, SId;
   Sender = ThePacket->Sender;
   SId = S->getId ();

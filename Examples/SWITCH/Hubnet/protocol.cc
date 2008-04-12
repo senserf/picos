@@ -54,7 +54,7 @@ AClock::perform {
     terminate;
 };
 
-Monitor::perform {
+Supervisor::perform {
   state WaitSignal:                           // Wait for a waking signal
     StartEW->wait (RECEIVE, WaitEcho);
   state WaitEcho:                             // Setup the alarm clock

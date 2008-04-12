@@ -3961,7 +3961,7 @@ class	IHist {
 			tmp = new IHEntry [csize << 1];
 			while (csize--)
 				tmp [csize] = History [csize];
-			delete History;
+			delete [] History;
 			History = tmp;
 			csize = NEntries + NEntries;
 		}
@@ -3981,7 +3981,7 @@ class	IHist {
 	};
 
 	inline void start () { History = new IHEntry [csize = 8]; init (); };
-	inline void stop () { delete History; };
+	inline void stop () { delete [] History; };
 	
 	public:
 
@@ -5332,7 +5332,7 @@ class   Traffic : public AI {
 	virtual Long     genMLE ();      // Generate message length
 	virtual TIME     genBIT ();      // Generate burst interarrival time
 	virtual Long     genBSI ();      // Generate burst size
-	virtual int      genSND ();      // Generate sender
+	virtual Long     genSND ();      // Generate sender
 	virtual IPointer genRCV ();      // Generate receiver
 
 	// Functions for dynamic initialization of communication groups
@@ -5807,7 +5807,7 @@ class ZZ_RF_ACTIVITY {
 					ro->Destination->TracedActivity = NULL;
 				pool_out (ro);
 			}
-			delete Roster;
+			delete [] Roster;
 		}
 	};
 

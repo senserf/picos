@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -54,10 +54,10 @@ void    Station::zz_start () {
 			// Backup copy
 			scratch [i] = zz_st [i];
 
-		delete (zz_st);         // Deallocate previous array
+		delete [] zz_st;         // Deallocate previous array
 		zz_st = new Station* [asize = (asize+1) * 2 - 1];
 		while (i--) zz_st [i] = scratch [i];
-		delete (scratch);
+		delete [] scratch;
 	}
 	zz_st [Id] = this;
 	NStations = sernum;

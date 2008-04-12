@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -107,7 +107,7 @@ static void del_init_tracing (void *d) {
 	}
 
 	if (TracingStations)
-		delete TracingStations;
+		delete [] TracingStations;
 
 	TracingStations = D->Stats;
 	NTracingStations = D->NStats;
@@ -135,7 +135,7 @@ static void del_debug_tracing (void *d) {
 	}
 
 	if (DebugTracingStations)
-		delete DebugTracingStations;
+		delete [] DebugTracingStations;
 
 	DebugTracingStations = D->Stats;
 	DebugNTracingStations = D->NStats;
@@ -183,7 +183,7 @@ static void bad_arguments () {
 	cerr << "     -d              hang until display server connected\n";
 	cerr << "     -t frm-to/s     trace on from frm until to for stat s\n";
 #if ZZ_DBG
-	cerr << "     -t frm-to/s[+]  debug trace on\n";
+	cerr << "     -T frm-to/s[+]  debug trace on\n";
 #endif
 	cerr << "     -o              echo topology def to output file\n";
 #if	ZZ_NOC
@@ -308,7 +308,7 @@ static Boolean decode_tracing_arg (int argc, char *argv [],
 	dtib->Stats = NULL;
 	dtib->NStats = 0;
 
-	dtib->Full = dtib->inEtu = NO;
+	dtib->Full = dtib->inEtu = dtib->Term = NO;
 	dtib->Start_t = TIME_0;
 	dtib->Stop_t = TIME_inf;
 	if (argc == 0 ||

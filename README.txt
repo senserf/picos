@@ -947,3 +947,12 @@
  R080229A  Cosmetics needed to eliminate compilation problems with gcc 4.1.2.
 	   Apparently "friend" declaration doesn't count as announcement any
 	   more.
+
+ R080412A  The type of genSND changed to Long, as it should be.
+	   Fixed a minor (-t) confusion in bad_arguments message.
+	   Fixed a few memory allocation glitches, mostly harmless, diagnosed
+	   by valgrind.
+	   Fixed a bug causing references to a deallocated AI (mostly harmless)
+	   when the process responsible for triggering a signal or DEATH event
+	   was terminated before the event was presented. Now, in such cases,
+	   the triggerring AI is assumed to be Kernel.

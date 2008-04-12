@@ -214,7 +214,7 @@ class	RFModule {
 	Boolean	FLG_vbusy,
 		FLG_garbage,
 		FLG_backon,	// Backoff on
-		FLG_backtv;	// In progress
+		FLG_backtv;	// In progress, i.e., waiting
 
 	double	RSSI;		// Signal level of the packet being received
 

@@ -16,7 +16,7 @@ station PiggyStation : EtherStation {
 
 #include "pxmitter.h"
 
-process Monitor (PiggyStation) {
+process Mtr (PiggyStation) {
   DISTANCE LDist, RDist;
   Mailbox *Ready;
   TIME Delay1, Delay2, DelayX;

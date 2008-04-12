@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -441,10 +441,10 @@ void    Link::setup (Long np, TIME at, int spf) {
 			// Backup copy
 			scratch [i] = zz_lk [i];
 
-		delete (zz_lk);         // Deallocate previous array
+		delete [] zz_lk;         // Deallocate previous array
 		zz_lk = new Link* [asize = (asize+1) * 2 - 1];
 		while (i--) zz_lk [i] = scratch [i];
-		delete (scratch);
+		delete [] scratch;
 	}
 
 	Class = AIC_link;
@@ -1043,8 +1043,8 @@ void    ZZ_SYSTEM::makeTopologyL () {
 
 		// Deallocate temporary data structures
 
-		delete ((void*)TDM(Lnk));
-		delete ((void*)DTB(Lnk));
+		delete [] ((void*)TDM(Lnk));
+		delete [] ((void*)DTB(Lnk));
 		// DTB (Lnk) = TDM (Lnk) = 0;
 		Lnk->Alive = Lnk->Archived = 0;
 		Lnk->LASTI = Lnk->LASTJ = 0;

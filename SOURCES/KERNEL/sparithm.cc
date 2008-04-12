@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-03   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -39,7 +39,7 @@ char    *btoa (const BIG a, char *s, int nc) {
 
 	if (s == NULL) {
 		if (nc > 0 && btoable < nc) {
-			if (btoable > 0) delete (btoabuf);
+			if (btoable > 0) delete [] btoabuf;
 			btoabuf = new char [(btoable = nc) + 1];
 		}
 		s = btoabuf;

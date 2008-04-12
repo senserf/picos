@@ -133,7 +133,7 @@ RVariable::~RVariable   () {
 			"RVariable destructor: illegal RVariable contents");
 
 		// Remove the array
-		delete (s);
+		delete [] s;
 
 		// Remove the RVariable from the owner's list
 		pool_out (this);
@@ -142,7 +142,7 @@ RVariable::~RVariable   () {
                 zz_DREM (this);
 	}
 
-	if (zz_nickname != NULL) delete (zz_nickname);
+	if (zz_nickname != NULL) delete [] zz_nickname;
 }
 
 #if	ZZ_NOC
@@ -167,7 +167,7 @@ ZZ_TRVariable::~ZZ_TRVariable   () {
 			"RVariable destructor: illegal RVariable contents");
 
 		// Remove the array
-		delete (s);
+		delete [] s;
 
 		// Fool the superclass destructor
 		s = NULL;
@@ -549,7 +549,7 @@ void    RVariable::exDisplay0 (int reg) {
 	    } else if (DisplayClosing) {
 		// Last time around -- deallocate the region array
 		x = (double*) TheWFrame;
-		delete (x);
+		delete [] x;
 		return;
 	    }
 

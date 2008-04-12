@@ -5169,6 +5169,20 @@ the value of the argument given to {\tt signal} by the sender.
 The two environment variables are aliases for {\tt Info02} and
 {\tt Info01}, respectively (\sect{rm_pr_en}).
 
+\medskip
+
+\noindent
+{\bf Note:}
+It is possible that the process responsible for sending a signal is no longer
+present (it has terminated itself or has been terminated by some other
+process) when the signal is received.
+In such a case, {\tt TheSender} will point to the {\tt Kernel} process,
+which can be used as an indication that the signal sender has terminated.
+Generally, any event triggered by a process that terminates before the event
+is presented is assumed to have been triggered by {\tt Kernel}.
+
+\medskip
+
 Only one signal can remain pending at a process at a time, i.e., multiple
 signals {\bf are not} queued.
 The {\tt signal} method returns an integer value that tells what has happened

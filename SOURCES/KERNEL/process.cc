@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -564,7 +564,8 @@ HOLD:                   // Remove all requests except for the Kernel's DEATH
 		setLimit (MAX_Long, TIME_inf, HUGE); // Reset limits to infinity
 
 		// Make sure the main loop has something to deallocate
-		zz_CE = new ZZ_EVENT ();
+		// Not needed any more
+		// zz_CE = new ZZ_EVENT ();
 		if (zz_setjmp_done) longjmp (zz_mloop, NONE);
 		// Force unconditional termination
                 cdebug ("Terminating in kernel 2");
@@ -628,7 +629,7 @@ class	pttr_st_c {
 
 	~pttr_st_c () {
 		if (Internal)
-			delete PList;
+			delete [] PList;
 	};
 
 	inline Boolean add (Process *p) {
@@ -643,7 +644,7 @@ class	pttr_st_c {
 			pl = new Process* [PLS += PLS];
 			for (i = 0; i < PLL; i++)
 				pl [i] = PList [i];
-			delete PList;
+			delete [] PList;
 			PList = pl;
 		}
 
@@ -736,33 +737,32 @@ Process::~Process () {
 	ZZ_REQUEST *rq;
 #if ZZ_TAG
 	int q;
+	TIME t;
 #endif
-	if (ChList != NULL) {
+	// This will be used to replace the process pointer in those
+	// places where this process pointer used to be present, and
+	// which must linger beyond its termination
+	f = Father == NULL ? Kernel : Father;
 
-		if (ISpec != NULL || (f = Father) == NULL) {
-			/*
-			 * ISpec is used as a flag (nonzero means that we are
-			 * being killed by Station::terminate). The idea is
-			 * the descendants will be moved to 'f'. Also, if ISpec
-			 * is nonsero (Station::terminate), we will delete non
-			 * process descendants.
-			 */
-			f = Kernel;
-		}
+	if (ChList != NULL) {
 
 		while (ChList != NULL) {
 			ob = ChList;
 			pool_out (ob);
 			// This will make it temporarily disappear from the
-			// display list, but it will reappear in the new
+			// display list, but it will soon reappear in the new
 			// place.
 			zz_DREM (ob);
 			if (ob->Class == AIC_process) {
+				// Children receive a new owner
 				((Process*)ob)->Father = f;
 			} else if (ISpec != NULL) {
-				// Deallocate it
+				// ISpec is used as a flag (nonzero means that
+				// we are being killed by Station::terminate).
+				// In such a case, we deallocate non-process
+				// descendants.
 				if (ob->zz_nickname != NULL)
-					delete (ob->zz_nickname);
+					delete [] ob->zz_nickname;
 				delete ob;
 				continue;
 			}
@@ -782,9 +782,55 @@ Process::~Process () {
 		ev = eh;
 	}
 
+	// Check if there is a signal reception pending from this process.
+	// Note: it is enough to check events scheduled at this Time.
+
+	ev = zz_eq;
+	while (1) {
+#if ZZ_TAG
+		t = (ev->waketime).get (t);
+		if (t > Time ||
+#else
+		if (ev->waketime > Time ||
+#endif
+		    ev == zz_sentinel_event)
+			break;
+
+		if ((rq = ev->chain) != NULL) {
+			while (1) {
+				if (rq->ai == this) {
+					rq->ai = f;
+					if (rq->Info02 == this)
+						rq->Info02 = f;
+				}
+				if ((rq = rq->other) == ev->chain)
+					break;
+			}
+			if (ev->ai == this) {
+				ev->ai = f;
+				if (ev->Info02 == this)
+					ev->Info02 = f;
+			}
+		}
+		ev = ev->next;
+	}
+
+	// Now take care of those still undelivered
+
 	while (TWList != NULL) {
-		// Take care of the wait list
+
 		rq = TWList;
+		rq -> ai = f;
+		if (rq->Info02 == this)
+			rq->Info02 = f;
+
+		if (rq->event->ai == this) {
+			// In case this is the 'top' request
+			rq->event->ai = f;
+			if (rq->event->Info02 == this)
+				rq->event->Info02 = f;
+		}
+
 		if (ISpec == NULL && rq->event_id == DEATH) {
 			// Normal termination: wake up processes waiting for it
 			rq -> Info01 = Info01;
@@ -798,7 +844,8 @@ Process::~Process () {
 			if ((ev = rq->event)->waketime > Time || FLIP)
 #endif
 				ev->new_top_request (rq);
-		}
+		} 
+
 		pool_out (rq);
 		// Move these requests to the zombie list. They will be
 		// deallocated when the respective processes get awakened.
@@ -813,7 +860,7 @@ Process::~Process () {
 	}
 
 	if (ISpec == NULL && Father != NULL) {
-		// Wake up the parent waiting from child's termination
+		// Wake up the parent waiting for child's termination
 		for (rq = Father->TWList; rq != NULL; rq = rq->next) {
 			if (rq->event_id == CHILD) {
 				rq->Info01 = Info01;
@@ -834,7 +881,7 @@ Process::~Process () {
 	pool_out (this);
 	zz_DREM (this);
 	if (zz_nickname != NULL)
-		delete zz_nickname;
+		delete [] zz_nickname;
 	if (TheProcess == this)
 		TheProcess = Kernel;
 }

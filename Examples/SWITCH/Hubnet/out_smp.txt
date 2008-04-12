@@ -1,28 +1,28 @@
-SMURPH Version 1.71      Fri Aug  6 16:03:13 1993
-Call arguments: data_smp.txt out_smp.txt
+SMURPH Version 3.00-OA      Unidentified protocol    Sat Apr 12 16:32:11 2008
+Call arguments: data_smp.txt junko
 
 Network topology
 
 Stations:
 
-  NumId             Type         NPorts       NBuffers                NName
-      0         HStation              2              1                -----
-      1         HStation              2              1                -----
-      2         HStation              2              1                -----
-      3         HStation              2              1                -----
-      4         HStation              2              1                -----
-      5         HStation              2              1                -----
-      6         HStation              2              1                -----
-      7         HStation              2              1                -----
-      8         HStation              2              1                -----
-      9         HStation              2              1                -----
-     10         HStation              2              1                -----
-     11         HStation              2              1                -----
-     12         HStation              2              1                -----
-     13         HStation              2              1                -----
-     14         HStation              2              1                -----
-     15         HStation              2              1                -----
-     16              Hub             17              0                -----
+  NumId             Type  NPorts  NTrans  NBuffs            NName
+      0         HStation       2       0       1            -----
+      1         HStation       2       0       1            -----
+      2         HStation       2       0       1            -----
+      3         HStation       2       0       1            -----
+      4         HStation       2       0       1            -----
+      5         HStation       2       0       1            -----
+      6         HStation       2       0       1            -----
+      7         HStation       2       0       1            -----
+      8         HStation       2       0       1            -----
+      9         HStation       2       0       1            -----
+     10         HStation       2       0       1            -----
+     11         HStation       2       0       1            -----
+     12         HStation       2       0       1            -----
+     13         HStation       2       0       1            -----
+     14         HStation       2       0       1            -----
+     15         HStation       2       0       1            -----
+     16              Hub      17       0       0            -----
 
 Links:
 
@@ -30,8 +30,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---     3832
-     1:     3832      ---
+     0:      --- 3.83e+03
+     1: 3.83e+03      ---
 
     Ports:
 
@@ -43,8 +43,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    54356
-     1:    54356      ---
+     0:      --- 5.44e+04
+     1: 5.44e+04      ---
 
     Ports:
 
@@ -56,8 +56,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    27442
-     1:    27442      ---
+     0:      --- 2.74e+04
+     1: 2.74e+04      ---
 
     Ports:
 
@@ -69,8 +69,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    70364
-     1:    70364      ---
+     0:      --- 7.04e+04
+     1: 7.04e+04      ---
 
     Ports:
 
@@ -82,8 +82,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---   229775
-     1:   229775      ---
+     0:      ---  2.3e+05
+     1:  2.3e+05      ---
 
     Ports:
 
@@ -95,8 +95,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    57651
-     1:    57651      ---
+     0:      --- 5.77e+04
+     1: 5.77e+04      ---
 
     Ports:
 
@@ -108,8 +108,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---   154170
-     1:   154170      ---
+     0:      --- 1.54e+05
+     1: 1.54e+05      ---
 
     Ports:
 
@@ -121,8 +121,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    66910
-     1:    66910      ---
+     0:      --- 6.69e+04
+     1: 6.69e+04      ---
 
     Ports:
 
@@ -134,8 +134,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---   209362
-     1:   209362      ---
+     0:      --- 2.09e+05
+     1: 2.09e+05      ---
 
     Ports:
 
@@ -147,8 +147,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    43215
-     1:    43215      ---
+     0:      --- 4.32e+04
+     1: 4.32e+04      ---
 
     Ports:
 
@@ -160,8 +160,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    97354
-     1:    97354      ---
+     0:      --- 9.74e+04
+     1: 9.74e+04      ---
 
     Ports:
 
@@ -173,8 +173,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    58125
-     1:    58125      ---
+     0:      --- 5.81e+04
+     1: 5.81e+04      ---
 
     Ports:
 
@@ -186,8 +186,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    99912
-     1:    99912      ---
+     0:      --- 9.99e+04
+     1: 9.99e+04      ---
 
     Ports:
 
@@ -199,8 +199,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---   131598
-     1:   131598      ---
+     0:      --- 1.32e+05
+     1: 1.32e+05      ---
 
     Ports:
 
@@ -212,8 +212,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    56726
-     1:    56726      ---
+     0:      --- 5.67e+04
+     1: 5.67e+04      ---
 
     Ports:
 
@@ -225,8 +225,8 @@ Links:
 
     Distance matrix:
 
-     0:      ---    30600
-     1:    30600      ---
+     0:      --- 3.06e+04
+     1: 3.06e+04      ---
 
     Ports:
 
@@ -238,72 +238,72 @@ Links:
 
     Distance matrix:
 
-     0:      ---     3832    54356    27442    70364   229775    57651   154170
-   ...:    66910   209362    43215    97354    58125    99912   131598    56726
-   ...:    30600
+     0:      --- 3.83e+03 5.44e+04 2.74e+04 7.04e+04  2.3e+05 5.77e+04 1.54e+05
+   ...: 6.69e+04 2.09e+05 4.32e+04 9.74e+04 5.81e+04 9.99e+04 1.32e+05 5.67e+04
+   ...: 3.06e+04
 
-     1:     3832      ---    58188    31274    74196   233607    61483   158002
-   ...:    70742   213194    47047   101186    61957   103744   135430    60558
-   ...:    34432
+     1: 3.83e+03      --- 5.82e+04 3.13e+04 7.42e+04 2.34e+05 6.15e+04 1.58e+05
+   ...: 7.07e+04 2.13e+05  4.7e+04 1.01e+05  6.2e+04 1.04e+05 1.35e+05 6.06e+04
+   ...: 3.44e+04
 
-     2:    54356    58188      ---    81798   124720   284131   112007   208526
-   ...:   121266   263718    97571   151710   112481   154268   185954   111082
-   ...:    84956
+     2: 5.44e+04 5.82e+04      --- 8.18e+04 1.25e+05 2.84e+05 1.12e+05 2.09e+05
+   ...: 1.21e+05 2.64e+05 9.76e+04 1.52e+05 1.12e+05 1.54e+05 1.86e+05 1.11e+05
+   ...:  8.5e+04
 
-     3:    27442    31274    81798      ---    97806   257217    85093   181612
-   ...:    94352   236804    70657   124796    85567   127354   159040    84168
-   ...:    58042
+     3: 2.74e+04 3.13e+04 8.18e+04      --- 9.78e+04 2.57e+05 8.51e+04 1.82e+05
+   ...: 9.44e+04 2.37e+05 7.07e+04 1.25e+05 8.56e+04 1.27e+05 1.59e+05 8.42e+04
+   ...:  5.8e+04
 
-     4:    70364    74196   124720    97806      ---   300139   128015   224534
-   ...:   137274   279726   113579   167718   128489   170276   201962   127090
-   ...:   100964
+     4: 7.04e+04 7.42e+04 1.25e+05 9.78e+04      ---    3e+05 1.28e+05 2.25e+05
+   ...: 1.37e+05  2.8e+05 1.14e+05 1.68e+05 1.28e+05  1.7e+05 2.02e+05 1.27e+05
+   ...: 1.01e+05
 
-     5:   229775   233607   284131   257217   300139      ---   287426   383945
-   ...:   296685   439137   272990   327129   287900   329687   361373   286501
-   ...:   260375
+     5:  2.3e+05 2.34e+05 2.84e+05 2.57e+05    3e+05      --- 2.87e+05 3.84e+05
+   ...: 2.97e+05 4.39e+05 2.73e+05 3.27e+05 2.88e+05  3.3e+05 3.61e+05 2.87e+05
+   ...:  2.6e+05
 
-     6:    57651    61483   112007    85093   128015   287426      ---   211821
-   ...:   124561   267013   100866   155005   115776   157563   189249   114377
-   ...:    88251
+     6: 5.77e+04 6.15e+04 1.12e+05 8.51e+04 1.28e+05 2.87e+05      --- 2.12e+05
+   ...: 1.25e+05 2.67e+05 1.01e+05 1.55e+05 1.16e+05 1.58e+05 1.89e+05 1.14e+05
+   ...: 8.83e+04
 
-     7:   154170   158002   208526   181612   224534   383945   211821      ---
-   ...:   221080   363532   197385   251524   212295   254082   285768   210896
-   ...:   184770
+     7: 1.54e+05 1.58e+05 2.09e+05 1.82e+05 2.25e+05 3.84e+05 2.12e+05      ---
+   ...: 2.21e+05 3.64e+05 1.97e+05 2.52e+05 2.12e+05 2.54e+05 2.86e+05 2.11e+05
+   ...: 1.85e+05
 
-     8:    66910    70742   121266    94352   137274   296685   124561   221080
-   ...:      ---   276272   110125   164264   125035   166822   198508   123636
-   ...:    97510
+     8: 6.69e+04 7.07e+04 1.21e+05 9.44e+04 1.37e+05 2.97e+05 1.25e+05 2.21e+05
+   ...:      --- 2.76e+05  1.1e+05 1.64e+05 1.25e+05 1.67e+05 1.99e+05 1.24e+05
+   ...: 9.75e+04
 
-     9:   209362   213194   263718   236804   279726   439137   267013   363532
-   ...:   276272      ---   252577   306716   267487   309274   340960   266088
-   ...:   239962
+     9: 2.09e+05 2.13e+05 2.64e+05 2.37e+05  2.8e+05 4.39e+05 2.67e+05 3.64e+05
+   ...: 2.76e+05      --- 2.53e+05 3.07e+05 2.67e+05 3.09e+05 3.41e+05 2.66e+05
+   ...:  2.4e+05
 
-    10:    43215    47047    97571    70657   113579   272990   100866   197385
-   ...:   110125   252577      ---   140569   101340   143127   174813    99941
-   ...:    73815
+    10: 4.32e+04  4.7e+04 9.76e+04 7.07e+04 1.14e+05 2.73e+05 1.01e+05 1.97e+05
+   ...:  1.1e+05 2.53e+05      --- 1.41e+05 1.01e+05 1.43e+05 1.75e+05 9.99e+04
+   ...: 7.38e+04
 
-    11:    97354   101186   151710   124796   167718   327129   155005   251524
-   ...:   164264   306716   140569      ---   155479   197266   228952   154080
-   ...:   127954
+    11: 9.74e+04 1.01e+05 1.52e+05 1.25e+05 1.68e+05 3.27e+05 1.55e+05 2.52e+05
+   ...: 1.64e+05 3.07e+05 1.41e+05      --- 1.55e+05 1.97e+05 2.29e+05 1.54e+05
+   ...: 1.28e+05
 
-    12:    58125    61957   112481    85567   128489   287900   115776   212295
-   ...:   125035   267487   101340   155479      ---   158037   189723   114851
-   ...:    88725
+    12: 5.81e+04  6.2e+04 1.12e+05 8.56e+04 1.28e+05 2.88e+05 1.16e+05 2.12e+05
+   ...: 1.25e+05 2.67e+05 1.01e+05 1.55e+05      --- 1.58e+05  1.9e+05 1.15e+05
+   ...: 8.87e+04
 
-    13:    99912   103744   154268   127354   170276   329687   157563   254082
-   ...:   166822   309274   143127   197266   158037      ---   231510   156638
-   ...:   130512
+    13: 9.99e+04 1.04e+05 1.54e+05 1.27e+05  1.7e+05  3.3e+05 1.58e+05 2.54e+05
+   ...: 1.67e+05 3.09e+05 1.43e+05 1.97e+05 1.58e+05      --- 2.32e+05 1.57e+05
+   ...: 1.31e+05
 
-    14:   131598   135430   185954   159040   201962   361373   189249   285768
-   ...:   198508   340960   174813   228952   189723   231510      ---   188324
-   ...:   162198
+    14: 1.32e+05 1.35e+05 1.86e+05 1.59e+05 2.02e+05 3.61e+05 1.89e+05 2.86e+05
+   ...: 1.99e+05 3.41e+05 1.75e+05 2.29e+05  1.9e+05 2.32e+05      --- 1.88e+05
+   ...: 1.62e+05
 
-    15:    56726    60558   111082    84168   127090   286501   114377   210896
-   ...:   123636   266088    99941   154080   114851   156638   188324      ---
-   ...:    87326
+    15: 5.67e+04 6.06e+04 1.11e+05 8.42e+04 1.27e+05 2.87e+05 1.14e+05 2.11e+05
+   ...: 1.24e+05 2.66e+05 9.99e+04 1.54e+05 1.15e+05 1.57e+05 1.88e+05      ---
+   ...: 8.73e+04
 
-    16:    30600    34432    84956    58042   100964   260375    88251   184770
-   ...:    97510   239962    73815   127954    88725   130512   162198    87326
+    16: 3.06e+04 3.44e+04  8.5e+04  5.8e+04 1.01e+05  2.6e+05 8.83e+04 1.85e+05
+   ...: 9.75e+04  2.4e+05 7.38e+04 1.28e+05 8.87e+04 1.31e+05 1.62e+05 8.73e+04
    ...:      ---
 
     Ports:
@@ -326,6 +326,9 @@ Links:
         14         13       1           0
         15         14       1           0
         16         15       1           0
+
+
+RFChannels
 
 (System) End of list
 
@@ -358,85 +361,85 @@ Receivers:    16
 
 (Client) End of list
 
-Time:     17077448963     (Client) Global performance measures:
+Time: 167682718611 [167682718.611000] (Client) Global performance measures:
 
 AMD - Absolute message delay:
 
-      Number of samples:               8192
-      Minimum value:                    175
-      Maximum value:               4.22e+04
-      Mean value:                  2.63e+03
-      Variance:                    7.57e+06
-      Standard deviation:          2.75e+03
-      Confidence int @95%:           0.0227
-      Confidence int @99%:           0.0298
+      Number of samples:              81922
+      Minimum value:                143.272
+      Maximum value:              70209.344
+      Mean value:                2768.50803
+      Variance:                 9250358.392
+      Standard deviation:       3041.440184
+      Confidence int @95%:   0.007522969312
+      Confidence int @99%:   0.009883492847
 
 APD - Absolute packet delay:
 
-      Number of samples:               8192
-      Minimum value:                    175
-      Maximum value:                3.3e+04
-      Mean value:                  2.43e+03
-      Variance:                    5.95e+06
-      Standard deviation:          2.44e+03
-      Confidence int @95%:           0.0217
-      Confidence int @99%:           0.0285
+      Number of samples:              81922
+      Minimum value:                143.268
+      Maximum value:              70209.344
+      Mean value:               2549.670267
+      Variance:                 7430491.567
+      Standard deviation:       2725.892802
+      Confidence int @95%:   0.007321171013
+      Confidence int @99%:   0.009618375183
 
 WMD - Weighted message delay:
 
-      Number of samples:            8328056
-      Minimum value:                    175
-      Maximum value:               4.22e+04
-      Mean value:                  3.57e+03
-      Variance:                    8.44e+06
-      Standard deviation:          2.91e+03
-      Confidence int @95%:         0.000553
-      Confidence int @99%:         0.000726
+      Number of samples:           83543544
+      Minimum value:                143.272
+      Maximum value:              70209.344
+      Mean value:               3823.638574
+      Variance:                 10783394.76
+      Standard deviation:       3283.807966
+      Confidence int @95%:  0.0001841622201
+      Confidence int @99%:  0.0002419478147
 
 MAT - Message access time:
 
-      Number of samples:               8192
-      Minimum value:                    112
-      Maximum value:               4.19e+04
-      Mean value:                  2.46e+03
-      Variance:                    7.52e+06
-      Standard deviation:          2.74e+03
-      Confidence int @95%:           0.0241
-      Confidence int @99%:           0.0317
+      Number of samples:              81922
+      Minimum value:                111.991
+      Maximum value:              69936.425
+      Mean value:               2607.447453
+      Variance:                 9194219.192
+      Standard deviation:        3032.19709
+      Confidence int @95%:   0.007963384028
+      Confidence int @99%:    0.01046209891
 
 PAT - Packet access time:
 
-      Number of samples:               8192
-      Minimum value:                    112
-      Maximum value:               3.28e+04
-      Mean value:                  2.27e+03
-      Variance:                     5.9e+06
-      Standard deviation:          2.43e+03
-      Confidence int @95%:           0.0232
-      Confidence int @99%:           0.0305
+      Number of samples:              81922
+      Minimum value:                111.991
+      Maximum value:              69936.425
+      Mean value:                2388.60969
+      Variance:                 7381251.064
+      Standard deviation:       2716.845793
+      Confidence int @95%:   0.007788890478
+      Confidence int @99%:    0.01023285356
 
 MLS - Message length distribution:
 
-      Number of samples:               8195
+      Number of samples:              81923
       Minimum value:                      8
-      Maximum value:               9.71e+03
-      Mean value:                  1.02e+03
-      Variance:                    9.74e+05
-      Standard deviation:               987
-      Confidence int @95%:            0.021
-      Confidence int @99%:           0.0276
+      Maximum value:                  11976
+      Mean value:               1019.788728
+      Variance:                 1051769.066
+      Standard deviation:       1025.557929
+      Confidence int @95%:   0.006886572701
+      Confidence int @99%:   0.009047410564
 
-    Number of generated messages:              8195
-    Number of queued messages:                    3
-    Number of transmitted messages:            8192
-    Number of received messages:               8192
-    Number of transmitted packets:             8192
-    Number of received packets:                8192
-    Number of queued bits:                     3160
-    Number of transmitted bits:             8328056
-    Number of received bits:                8328056
+    Number of generated messages:             81923
+    Number of queued messages:                    1
+    Number of transmitted messages:           81922
+    Number of received messages:              81922
+    Number of transmitted packets:            81922
+    Number of received packets:               81922
+    Number of queued bits:                      608
+    Number of transmitted bits:            83543544
+    Number of received bits:               83543544
     Measurement start time:                       0
-    Throughput:                               0.488
+    Throughput:                        0.4982239356
 
 (Client) End of list
 

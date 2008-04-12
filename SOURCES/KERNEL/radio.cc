@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -110,7 +110,7 @@ void    RosterService::zz_code () {
 	if (TheRFC->PCleaner)
 		(*(TheRFC->PCleaner)) (&(TheACT->Pkt));
 
-	delete TheACT;
+	delete [] (char*) TheACT;
 
       break; case TriggerBOT:
 
@@ -123,7 +123,7 @@ void    RosterService::zz_code () {
 
 inline Boolean ZZ_RSCHED::within_packet () {
 /*
- * Checks if the activity is currently withing a packet, excluding the
+ * Checks if the activity is currently within a packet, excluding the
  * very EOT event.
  */
 	return (Stage == RFA_STAGE_BOT && Schedule == Time) || 
@@ -132,7 +132,7 @@ inline Boolean ZZ_RSCHED::within_packet () {
 
 inline Boolean ZZ_RSCHED::in_packet () {
 /*
- * Checks if the activity is currently withing a packet, including the EOT
+ * Checks if the activity is currently within a packet, including the EOT
  * event.
  */
 	if (Stage == RFA_STAGE_BOT && Schedule == Time)
@@ -567,11 +567,11 @@ void RFChannel::setup (Long nx, int spf) {
 			// Backup copy
 			scratch [i] = zz_rf [i];
 
-		delete (zz_rf); 
+		delete [] zz_rf; 
 		zz_rf = new RFChannel* [asize = (asize+1) * 2 - 1];
 		while (i--)
 			zz_rf [i] = scratch [i];
-		delete (scratch);
+		delete [] scratch;
 	}
 
 	Class = AIC_rfchannel;
@@ -1348,7 +1348,7 @@ void RFChannel::nei_bld (Transceiver *T) {
 	int i, n;
 
 	if (T->Neighbors != NULL)
-		delete T->Neighbors;
+		delete [] T->Neighbors;
 
 	nei_sort = new ZZ_NEIGHBOR [NTransceivers-1];
 
@@ -1382,7 +1382,7 @@ void RFChannel::nei_bld (Transceiver *T) {
 				T->Neighbors [i] . Neighbor -> getSName ()));
 #endif
 
-	delete nei_sort;
+	delete [] nei_sort;
 }
 
 void RFChannel::nei_xtd (Transceiver *T) {
@@ -1420,7 +1420,7 @@ void RFChannel::nei_xtd (Transceiver *T) {
 
 	if (nw == 0) {
 		// No extension
-		delete nei;
+		delete [] nei;
 		return;
 	}
 
@@ -1429,12 +1429,12 @@ void RFChannel::nei_xtd (Transceiver *T) {
 	if (T->NNeighbors) {
 		memcpy (nei_sort, T->Neighbors,
 			sizeof (ZZ_NEIGHBOR) * T->NNeighbors);
-		delete T->Neighbors;
+		delete [] T->Neighbors;
 	}
 
 	memcpy (nei_sort + T->NNeighbors, nei, sizeof (ZZ_NEIGHBOR) * nw);
 
-	delete nei;
+	delete [] nei;
 
 	sort_nei (0, (T->NNeighbors += nw) - 1);
 	T->Neighbors = nei_sort;
@@ -1469,7 +1469,7 @@ void RFChannel::nei_trm (Transceiver *T) {
 	}
 
 	if (i == 0)
-		delete T->Neighbors;
+		delete [] T->Neighbors;
 
 	// We do not resize the array at this stage
 	T->NNeighbors = i;
@@ -1517,7 +1517,7 @@ void RFChannel::nei_add (Transceiver *T) {
 				sizeof (ZZ_NEIGHBOR) * (t->NNeighbors - j));
 		t->NNeighbors++;
 		if (t->Neighbors != NULL)
-			delete t->Neighbors;
+			delete [] t->Neighbors;
 		t->Neighbors = nei_sort;
 Next:
 		NOP;
@@ -1546,7 +1546,7 @@ void RFChannel::nei_del (Transceiver *T) {
 						t->Neighbors [j-1] =
 							t->Neighbors [j];
 					if (--(t->NNeighbors) == 0) {
-						delete t->Neighbors;
+						delete [] t->Neighbors;
 						t->Neighbors = NULL;
 					}
 				}
@@ -1585,7 +1585,7 @@ void RFChannel::nei_cor (Transceiver *T) {
 						t->Neighbors [j-1] =
 							t->Neighbors [j];
 					if (--(t->NNeighbors) == 0) {
-						delete t->Neighbors;
+						delete [] t->Neighbors;
 						t->Neighbors = NULL;
 					}
 					goto Next;
@@ -1648,7 +1648,7 @@ void RFChannel::nei_cor (Transceiver *T) {
 					  // The trailer
 					  nei_sort [j] = t->Neighbors [j-1];
 					if (t->Neighbors != NULL)
-						delete t->Neighbors;
+						delete [] t->Neighbors;
 					t->Neighbors = nei_sort;
 					t->NNeighbors++;
 					goto Next;
@@ -1659,7 +1659,7 @@ void RFChannel::nei_cor (Transceiver *T) {
 			if (t->NNeighbors) {
 				memcpy (nei_sort, t->Neighbors,
 					sizeof (ZZ_NEIGHBOR) * t->NNeighbors);
-				delete t->Neighbors;
+				delete [] t->Neighbors;
 			}
 			nei_sort [t->NNeighbors  ] . Neighbor = T;
 			nei_sort [t->NNeighbors++] . Distance = D;

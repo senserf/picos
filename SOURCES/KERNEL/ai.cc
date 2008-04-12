@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -370,7 +370,7 @@ void ZZ_Object::setNName (const char *nn) {
 /* Sets up a nickname */
 /* ------------------ */
 
-	if (zz_nickname != NULL) delete zz_nickname;
+	if (zz_nickname != NULL) delete [] zz_nickname;
 	zz_nickname = new char [strlen (nn) + 1];
 	strcpy (zz_nickname, nn);
 };
@@ -556,7 +556,7 @@ EObject::~EObject () {
 
 	pool_out (this);
         zz_DREM (this);
-	if (zz_nickname != NULL) delete (zz_nickname);
+	if (zz_nickname != NULL) delete [] zz_nickname;
 };
 
 Long    zz_trunc (LONG a, int b) {

@@ -151,12 +151,12 @@ Receiver::perform {
       skipto (Wait);                            // and continue
 };
 
-process Monitor;
+process HMonitor;
 
 /* -------------------------------------------------------- */
 /* An auxiliary alarm clock used by the monitor (see below) */
 /* -------------------------------------------------------- */
-process Trumpet (User, Monitor) {
+process Trumpet (User, HMonitor) {
 
   TIME  Delay;
 
@@ -172,7 +172,7 @@ process Trumpet (User, Monitor) {
 /* Detects  the  echo  of  a packet sent by this station or a */
 /* timeout                                                    */
 /* ---------------------------------------------------------- */
-process Monitor (User) {
+process HMonitor (User) {
 
   Port          *BPort;
   Trumpet       *AClock;
@@ -192,7 +192,7 @@ Trumpet::perform {
       terminate ();
 };
 
-Monitor::perform {
+HMonitor::perform {
     state WaitSignal:                           // Wait for a waking signal
       S->StartEW->wait (RECEIVE, WaitEcho);
     state WaitEcho:                             // Setup the alarm clock
@@ -307,7 +307,7 @@ void    Root::initProtocol () {
 	// User stations' processes
 	create (i) Xmitter;
 	create (i) Receiver;
-	create (i) Monitor;
+	create (i) HMonitor;
       }
 
       TheStation = idToStation (0);

@@ -36,7 +36,7 @@ process Root {
       for (NNodes = 0; NNodes < NStations-1; NNodes++) {
         create (NNodes) Transmitter;
         create (NNodes) Receiver;
-        create (NNodes) Monitor;
+        create (NNodes) Supervisor;
         create (NStations-1) HubProcess (NNodes);
       }
       readIn (NMessages);

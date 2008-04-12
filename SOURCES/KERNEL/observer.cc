@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-08   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -209,7 +209,7 @@ void terminate (Observer *o) {
 	pool_out ((ZZ_Object*)o);
         zz_DREM (o);
 	if (o->zz_nickname != NULL)
-		delete (o->zz_nickname);
+		delete [] o->zz_nickname;
 	delete ((void*) o);
 #endif
 }

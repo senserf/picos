@@ -75,7 +75,7 @@ void initDCF (
 	DCF_RTR_short = srl;
 	DCF_RTR_long = lrl;
 
-	// Thresholds
+	// Backoff thresholds
 	DCF_CW_min = cwmin;
 	DCF_CW_max = cwmax;
 
@@ -176,8 +176,8 @@ RFModule::RFModule (Transceiver *r, Long pqs) {
 		// We can do this because we do not have multisegment
 		// handshakes.
 		//
-		// Note: this is optional, so perhaps we should make it
-		// optional as well
+		// Note: this is optional in the standard, so perhaps we should
+		// make it optional as well
 		DCF_NAV_rts_auto =
 			DCF_TSifs + DCF_TSifs
 			+ xt_cts

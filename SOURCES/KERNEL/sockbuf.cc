@@ -45,7 +45,7 @@ class SockBuff {
     }
 #endif
     ~SockBuff () {
-      delete Buffer;
+      delete [] Buffer;
     };
     int tlength () {
       return (Buffer [1] << 16) | (Buffer [2] << 8) | Buffer [3];
@@ -56,7 +56,7 @@ class SockBuff {
       while ((size += size) < nsize);
       NewBuffer = new unsigned char [size];
       for (i = 0; i < fill; i++) NewBuffer [i] = Buffer [i];
-      delete Buffer;
+      delete [] Buffer;
       Buffer = NewBuffer;
     };
     void reset (unsigned char b) {

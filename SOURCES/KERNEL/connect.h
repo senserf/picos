@@ -143,9 +143,9 @@ void	Mailbox::destroy_bound () {
 			::close (csd);
 	}
 	if (ibuf != NULL)
-		delete (ibuf);
+		delete [] ibuf;
 	if (obuf != NULL)
-		delete (obuf);
+		delete [] obuf;
 
 	ibuf = obuf = NULL;
     	count = iin = iout = oin = oout = 0;
@@ -404,8 +404,8 @@ int Mailbox::resize (int bsize) {
 	oout = 0;
 	oin = where;
 
-	delete ibuf;
-	delete obuf;
+	delete [] ibuf;
+	delete [] obuf;
 
 	ibuf = nibuf;
 	obuf = nobuf;
@@ -490,8 +490,8 @@ int	Mailbox::disconnect (int who) {
       // MASTER sockets don't have buffers. Note the obuff can't be tested
       // against NULL because it contains the decriptor of the incoming
       // connection (for a MASTER socket, that is)
-      delete (ibuf);
-      delete (obuf);
+      delete [] ibuf;
+      delete [] obuf;
       ibuf = NULL;
       obuf = NULL;
     }
@@ -1039,7 +1039,7 @@ int ZZ_Journal::openFile () {
     }
   }
   // Deallocate file name
-  delete FN;
+  delete [] FN;
   if (JType == 'J') {
     // Write journal header
     strcpy (tmp, JOURNALMAGIC);
