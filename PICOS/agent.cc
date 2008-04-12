@@ -477,7 +477,7 @@ Redo:
 				tm = strtod (TI_aux, &sp);
 				if (sp != TI_aux + TI_ptr || tm < 0.0)
 					ti_err ();
-				delete TI_aux;
+				delete [] TI_aux;
 				TI_aux = NULL;
 				// Determine the starting time in ITU
 				st = etuToItu (tm);
@@ -751,11 +751,11 @@ UART::~UART () {
 	if (PO != NULL)
 		PO->terminate ();
 
-	delete IBuf;
-	delete OBuf;
+	delete [] IBuf;
+	delete [] OBuf;
 
 	if (TI_aux != NULL)
-		delete TI_aux;
+		delete [] TI_aux;
 #endif
 
 }
@@ -1075,7 +1075,7 @@ PINS::PINS (data_pn_t *PID) {
 	} else
 		PIN_DAC [1] = BNONE;
 
-	delete taken;
+	delete [] taken;
 
 	if (PIN_MAX_ANALOG) {
 		AASIZE = (PIN_MAX_ANALOG + 7) >> 3;
@@ -1165,12 +1165,6 @@ void PINS::rst () {
 	// sure what we should do other than sending a "full update" to
 	// the agent.
 
-	if (Upd != NULL) {
-		// Signal a change: send all
-		Upd->erase ();
-		qupd_all ();
-	}
-
 	for (i = 0; i < PASIZE; i++) {
 		// Default directions are IN
 		Direction [i] = 0;
@@ -1196,6 +1190,12 @@ void PINS::rst () {
 
 	adc_inuse = pmon_cnt_on = pmon_cmp_on = pmon_cmp_pending = pmon_not_on =
 		pmon_not_pending = NO;
+
+	if (Upd != NULL) {
+		// Signal a change: send all
+		Upd->erase ();
+		qupd_all ();
+	}
 
 	if (MonitorThread != NULL) {
 		MonitorThread->terminate ();
@@ -2750,7 +2750,7 @@ void LEDSM::rst () {
 	word i;
 
 	for (i = 0; i < NLeds; i++)
-		LStat [i] = LED_OFF;
+		setstat (i, LED_OFF);
 
 	Changed = YES;
 	Fast = NO;
@@ -2945,7 +2945,7 @@ MoveHandler::~MoveHandler () {
 
 	if (RBuf != NULL) {
 		// We have managed to create some stuff
-		delete RBuf;
+		delete [] RBuf;
 		if (imode (Flags) == XTRN_IMODE_SOCKET) {
 			delete MUP;
 			MUP = NULL;
@@ -3121,7 +3121,7 @@ Illegal_nid:
 			      pn->getTName ())) >= RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
-				delete RBuf;
+				delete [] RBuf;
 				RBuf = new char [RBSize];
 			}
 
@@ -3297,7 +3297,7 @@ PanelHandler::~PanelHandler () {
 
 	if (RBuf) {
 
-		delete RBuf;
+		delete [] RBuf;
 
 		if (imode (Flags) == XTRN_IMODE_SOCKET) {
 			delete PUP;
@@ -3466,7 +3466,7 @@ Illegal_nid:
 			    pn->getTName ())) >= RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
-				delete RBuf;
+				delete [] RBuf;
 				RBuf = new char [RBSize];
 			}
 

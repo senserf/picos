@@ -114,6 +114,7 @@ mailbox Dev (int) {
 			left -= nc;
 			buf += nc;
 		}
+		return OK;
 	}
 
 	inline int wi (int st, char *buf, int nc) {

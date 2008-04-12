@@ -8,9 +8,27 @@ set ECONN_OK		129
 set PortNumber		4443
 
 if { [lindex $argv 0] != "" } {
-	if { [catch { set PortNumber [expr [lindex $argv 0] ] }] ||
+	set h ""
+	set p ""
+	set j [lindex $argv 0]
+	if ![regexp "(.*):(.*)" $j j h p] {
+		if [catch { expr $j } p] {
+			set p ""
+			set h $j
+		} else {
+			set h ""
+		}
+	}
+	if { $p != "" } {
+		set PortNumber $p
+	}
+	if { $h != "" } {
+		set HostName $h
+	}
+
+	if { [catch { set PortNumber [expr $PortNumber ] }] ||
 	    $PortNumber < 1 || $PortNumber > 65535 } {
-		puts "Error: illegal port number '[lindex $argv 0]'"
+		puts "Error: illegal port number: $PortNumber"
 	}
 }
 

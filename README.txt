@@ -264,3 +264,14 @@ R080330A:
 
     Changed (and debugged) the handling of the so-called pin (pulse) monitor,
     aka counter and notifier. Read section 6.6 from the manual (version 0.65).
+
+R080412A:
+
+    Fixed a memory leak caused by not cleaned packet payloads. The argument of
+    udaemon now allows you to specify the host as well as the port, e.g.,
+
+		udaemon sheerness.cs.ualberta.ca:4431
+		udaemon sheerness.cs.ualberta.ca	(default port)
+		udaemon sheerness.cs.ualberta.ca:	(same thing)
+		udaemon 5533				(localhost)
+		udaemon :5533				(same thing)

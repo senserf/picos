@@ -116,7 +116,7 @@ void PicOSNode::stopall () {
 
 	// Clean up memory
 	while (MHead != NULL) {
-		delete (byte*)(MHead->PTR);
+		delete [] (byte*)(MHead->PTR);
 		mc = MHead -> Next;
 		delete MHead;
 		MHead = mc;
@@ -375,7 +375,7 @@ void PicOSNode::memFree (address p) {
 			if (mc->Next == NULL)
 				MTail = pc;
 
-			delete (byte*) (mc->PTR);
+			delete [] (byte*) (mc->PTR);
 			MFree += mc -> Size;
 			assert (MFree <= MTotal,
 				"PicOSNode->memFree: corrupted memory");
@@ -1113,6 +1113,13 @@ void BoardRoot::initTiming (sxml_t xml) {
 	}
 }
 
+static void packetCleaner (Packet *p) {
+
+	// Assumes there are no other packet types
+	delete [] ((PKT*)p)->Payload;
+
+}
+
 void BoardRoot::initChannel (sxml_t data, int NT) {
 
 #define	NPTABLE_SIZE	64
@@ -1379,6 +1386,9 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 	// Create the channel (this sets SEther)
 	create RFShadow (NT, STB, nb, dref, loss_db, beta, sigm, bn_db, bn_db,
 		cutoff, syncbits, brate, bpb, frml, NULL, RSC, PS);
+
+	// Packet cleaner
+	SEther->setPacketCleaner (packetCleaner);
 }
 
 void BoardRoot::initPanels (sxml_t data) {
@@ -2443,7 +2453,7 @@ NoPInput:
 		PN->ST = find_strpool ((const byte*)BS, len, NO);
 		if (PN->ST != BS)
 			// Recycled
-			delete BS;
+			delete [] BS;
 	}
 
 	/* Default (initial) pin values */
@@ -2473,7 +2483,7 @@ NoPInput:
 		PN->IV = find_strpool ((const byte*)BS, len, NO);
 		if (PN->IV != BS)
 			// Recycled
-			delete BS;
+			delete [] BS;
 	}
 
 	/* Default (initial) ADC input voltage */
@@ -2504,7 +2514,7 @@ NoPInput:
 
 		if (PN->VO != SS)
 			// Recycled
-			delete SS;
+			delete [] SS;
 
 		print ("    ADC INPUTS: ");
 		for (pn = 0; pn < PN->NA; pn++)
@@ -2512,7 +2522,7 @@ NoPInput:
 				3.3/32768.0));
 		print ("\n");
 
-		delete npp;
+		delete [] npp;
 	}
 
 	print ("\n");
@@ -2640,6 +2650,7 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 	Type = strcmp (what, "sensor") ? SEN_TYPE_ACTUATOR : SEN_TYPE_SENSOR;
 	
 	res = new SensActDesc [n];
+	bzero (res, sizeof (SensActDesc) * n);
 	np [0].type = TYPE_LONG;
 	np [1].type = TYPE_LONG;
 
@@ -3237,7 +3248,7 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 	}
 
 	// Delete the scratch node list
-	delete xnodes;
+	delete [] xnodes;
 
 	// Delete the default data block
 	delete DEF->rf;
@@ -3329,8 +3340,8 @@ void Inserial::setup () {
 }
 
 void Inserial::close () {
-	terminate ();
 	uart->pcsInserial = NULL;
+	terminate ();
 	sleep;
 }
 
@@ -3411,8 +3422,8 @@ void Outserial::setup (const char *d) {
 }
 
 void Outserial::close () {
-	terminate ();
 	uart->pcsOutserial = NULL;
+	terminate ();
 	sleep;
 }
 

@@ -66,6 +66,8 @@ packet	PKT {
 	void load (word *pay, int paysize) {
 		// Note that paysize is in bytes and must be even. This is
 		// called just before transmission.
+		assert (paysize >= 2, "PKT: illegal payload size: %1d",
+			paysize);
 		Payload = new word [(PaySize = paysize)/2];
 		memcpy (Payload, pay, paysize);
 		// Assuming the checksum falls into the payload (but excluding
