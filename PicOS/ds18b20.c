@@ -94,7 +94,7 @@ static void write_byte (byte b) {
 
 static byte read_byte () {
 
-	byte b;
+	byte b = 0;
 	word i;
 
 	for (i = 0; i < 8; i++) {

@@ -1994,3 +1994,8 @@ R080330A:
 	Modified Apps/VUEE/RFPING to include tests for counter/notifier pins.
 	One of the input data files in that directory, data4.txt, modified to
 	account for the change in VUEE's specification of those pins.
+
+R080413A:
+
+	VUEE/eco_demo rewritten. See ecoossi, econet documents in there.
+
