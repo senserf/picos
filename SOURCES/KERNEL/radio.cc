@@ -110,6 +110,7 @@ void    RosterService::zz_code () {
 	if (TheRFC->PCleaner)
 		(*(TheRFC->PCleaner)) (&(TheACT->Pkt));
 
+	TheACT->destruct ();
 	delete [] (char*) TheACT;
 
       break; case TriggerBOT:

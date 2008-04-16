@@ -5790,10 +5790,11 @@ class ZZ_RF_ACTIVITY {
 	void triggerBOT ();
 
 	/*
-	 * We may want to replace this with a regular method if things turn
-	 * out nasty.
+	 * We need an explicit destructor method as the standard destructor
+	 * cannot be used, because ZZ_RF_ACTIVITY is created as a character
+	 * array and deallocated as such.
 	 */
-	~ZZ_RF_ACTIVITY () {
+	void destruct () {
 
 		int i;
 		ZZ_RSCHED *ro;
