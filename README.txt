@@ -957,5 +957,5 @@
 	   was terminated before the event was presented. Now, in such cases,
 	   the triggerring AI is assumed to be Kernel.
 
- R080415A  Fixed a memory leak in radio.cc caused by wrong deallocation of
-	   RF_ACTIVITY objects.
+ R080415B  Fixed a memory leak in radio.cc caused by wrong deallocation of
+	   RF_ACTIVITY objects. Any more memory leaks?
