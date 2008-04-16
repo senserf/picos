@@ -1999,3 +1999,12 @@ R080413A:
 
 	VUEE/eco_demo rewritten. See ecoossi, econet documents in there.
 
+R081415A:
+
+	Updated eco_demo for genihex. E.g.
+	- generate 2 aggregators with id 10, 11:
+		genihex Image_peg.a43 BACADEAD BACA000A 2
+
+	- generate 10 collectors ids 101 - 110:
+		genihex Image_tag.a43 BACADEAD BACA0065 10
+
