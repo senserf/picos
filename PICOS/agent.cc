@@ -1020,6 +1020,9 @@ PINS::PINS (data_pn_t *PID) {
 	// values of pins, if they are not supposed to change during the
 	// experiment. Note that default directions for all praxis-accessible
 	// PINS are IN.
+	//
+	// Note: it is essential that they are not mofified, as they can be
+	// shared by multiple nodes, if decribed in <defaults>!!!
 	DefIVa = PID->IV;
 	DefAVo = PID->VO;
 	Status = PID->ST;
@@ -2178,12 +2181,19 @@ SNSRS::SNSRS (data_sa_t *SID) {
 
 	Flags = SID->SMode;
 
-	Sensors = SID->Sensors;
-	Actuators = SID->Actuators;
+	if ((NSensors = SID->NS) != 0) {
+		Sensors = new SensActDesc [NSensors];
+		bcopy (SID->Sensors, Sensors, sizeof (SensActDesc) * NSensors);
+	} else
+		Sensors = NULL;
 
-	NSensors = SID->NS;
-	NActuators = SID->NA;
-
+	if ((NActuators = SID->NA) != 0) {
+		Actuators = new SensActDesc [NActuators];
+		bcopy (SID->Actuators, Actuators, sizeof (SensActDesc) *
+			NActuators);
+	} else
+		Actuators = NULL;
+		
 	// This should have been checked by now
 	assert (NSensors != 0 || NActuators != 0,
 		"SENSORS: the number of sensors and actuators at %s is zero",

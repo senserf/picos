@@ -132,9 +132,11 @@ class SensActDesc {
 	};
 };
 
-typedef	struct {
+class data_sa_t {
 
 // SNSRS (sensors and actuators)
+
+	public:
 
 	FLAGS	SMode;
 
@@ -148,7 +150,12 @@ typedef	struct {
 
 	Boolean absent;		// Explicitly absent
 
-} data_sa_t;
+	~data_sa_t () {
+		delete [] Sensors;
+		delete [] Actuators;
+	};
+
+};
 
 typedef	struct {
 

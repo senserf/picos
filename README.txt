@@ -275,3 +275,8 @@ R080412A:
 		udaemon sheerness.cs.ualberta.ca:	(same thing)
 		udaemon 5533				(localhost)
 		udaemon :5533				(same thing)
+
+R080417A:
+
+    Fixed a bug in agent.cc causing that sensors initialized from <defaults>
+    were shared by all nodes.
