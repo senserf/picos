@@ -2008,3 +2008,10 @@ R081415A:
 	- generate 10 collectors ids 101 - 110:
 		genihex Image_tag.a43 BACADEAD BACA0065 10
 
+R080419A:
+
+	Updated eco_demo for the new OSSI. See oss_fmt.h.
+	Changed default sensor readings from 900 to 30s.
+	No hex levels (one level is multiplied 4 times).
+	Cleanup, cosmetics.
+
