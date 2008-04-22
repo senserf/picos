@@ -2015,3 +2015,11 @@ R080419A:
 	No hex levels (one level is multiplied 4 times).
 	Cleanup, cosmetics.
 
+
+R080421A:
+
+	SHTXX driver made (more) foolproof by applying a timeout when waiting
+	for the data signal to go down (to indicate the end of measurement). 
+	Subdirectory OSSI added to eco_demo with the OSSI stuff (not
+	documented yet).
+	

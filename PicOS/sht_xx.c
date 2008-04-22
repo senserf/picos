@@ -8,7 +8,7 @@
 //
 // Driver for SHTxx temperature/humidity sensors
 //
-static byte shtxx_status = 0;
+static byte sht_delcnt, sht_status = 0;
 
 #define	SHTXX_STAT_IDLE 	0
 #define	SHTXX_STAT_TEMP		1
@@ -106,12 +106,12 @@ static word shtxx_read (word st, word what) {
 //
 // Read the sensor
 //
-	if (shtxx_status == SHTXX_STAT_IDLE) {
+	if (sht_status == SHTXX_STAT_IDLE) {
 
-		shtxx_status = (byte) (what ? SHTXX_STAT_HUMID :
+		sht_status = (byte) (what ? SHTXX_STAT_HUMID :
 			SHTXX_STAT_TEMP);
 
-		if (shtxx_status == SHTXX_STAT_HUMID) {
+		if (sht_status == SHTXX_STAT_HUMID) {
 			shtxx_cmd (SHTXX_CMD_HUMID);
 			// Delay for at least 55 msec
 			what = 55;
@@ -124,22 +124,33 @@ static word shtxx_read (word st, word what) {
 		if (st == NONE) {
 			// We have to busy wait on data; this is highly
 			// discouraged!!
-			while (shtxx_data);
-			goto GetItNow;
+			for (sht_delcnt = 0; sht_delcnt != 255; sht_delcnt++) {
+				if (!shtxx_data)
+					goto GetItNow;
+				mdelay (3);
+			}
+SErr:
+			// Something wrong, abort
+			shtxx_init ();
+			return 0;
 		}
 
 		delay (what, st);
+		sht_delcnt = 0;
 		release;
 	}
 
 	if (shtxx_data) {
 		// Still not ready
+		if (sht_delcnt == 128)
+			goto SErr;
+		sht_delcnt++;
 		delay (4, st);
 		release;
 	}
 
 GetItNow:
-	shtxx_status = SHTXX_STAT_IDLE;
+	sht_status = SHTXX_STAT_IDLE;
 	// Get the bytes
 	what = shtxx_get (YES);
 	what = (what << 8) | shtxx_get (NO);
@@ -162,5 +173,5 @@ void shtxx_init () {
 	shtxx_ini_regs;
 	shtxx_cmd (SHTXX_CMD_RESET);
 	mdelay (12);
-	shtxx_status = 0;
+	sht_status = SHTXX_STAT_IDLE;
 }
