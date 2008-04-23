@@ -2023,3 +2023,13 @@ R080421A:
 	Subdirectory OSSI added to eco_demo with the OSSI stuff (not
 	documented yet).
 	
+R080423A:
+
+	DS18B20 driver fixed: delays adjusted, most notably: 1) the delay
+	after read pull was too long (on the boundary of tolerance, actually,
+	a bit beyond), 2) the conversion delay was too short, which resulted
+	in one sample lag, i.e., the sample actually acquired was from the
+	previous measurement. That may not have been such a bad idea,
+	considering that the conversion delay is about 800ms. This is how much
+	time it takes for read_sensor to unblock.
+	OSSI stuff for eco_demo updated.

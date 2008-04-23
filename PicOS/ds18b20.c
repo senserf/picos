@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -7,10 +7,10 @@
 
 #define	LONG_PULL	550	/* us */
 #define	SHORT_PULL	3	/* us */
-#define	RESPONSE_DELAY	17	/* us */
+#define	RESPONSE_DELAY	7	/* us */
 #define	SLOT_LENGTH	70	/* us */
 #define	SLOT_SPACE	2	/* us */
-#define	CONV_TIME	20	/* ms */
+#define	CONV_TIME	800	/* ms */
 
 #define	CMD_CONVERT	0x44
 #define	CMD_WRITE	0x4e
@@ -22,17 +22,21 @@
 //
 static void b_write_0 () {
 
+	cli;	// To make the timing accurate
 	ds18b20_pull_down;
 	udelay (SLOT_LENGTH);
 	ds18b20_release;
+	sti;
 	udelay (SLOT_SPACE);
 }
 
 static void b_write_1 () {
 
+	cli;
 	ds18b20_pull_down;
 	udelay (SHORT_PULL);
 	ds18b20_release;
+	sti;
 	udelay (SLOT_LENGTH+SLOT_SPACE-SHORT_PULL);
 }
 
@@ -40,11 +44,13 @@ static byte b_read () {
 
 	byte res;
 
+	cli;
 	ds18b20_pull_down;
 	udelay (SHORT_PULL);
 	ds18b20_release;
 	udelay (RESPONSE_DELAY);
 	res = ds18b20_value;
+	sti;
 	udelay (SLOT_LENGTH+SLOT_SPACE-SHORT_PULL-RESPONSE_DELAY);
 
 	return res;
@@ -56,18 +62,22 @@ static byte s_reset () {
 
 	ds18b20_pull_down;
 	udelay (LONG_PULL);
+
+	cli;
 	ds18b20_release;
 	udelay (SHORT_PULL);
-
 	for (i = 0; i < SLOT_LENGTH; i++) {
-		if (ds18b20_value == 0)
+		if (ds18b20_value == 0) {
+			sti;
 			goto OK;
+		}
 	}
+	sti;
 
 	// No response
 	return 0;
-
-OK:	for (i = 0; i < LONG_PULL; i++) {
+OK:
+	for (i = 0; i < LONG_PULL; i++) {
 		if (ds18b20_value) {
 			// OK, went up again
 			udelay (SLOT_SPACE);
@@ -112,8 +122,9 @@ void ds18b20_read (word st, word junk, address val) {
 
 Again:
 	if (s_state <= 0) {
+		// First time around or retrying
 		if (s_reset () == 0) {
-			// Initialization failure
+			// Initialization failure, retry up to 5 times
 			if (s_state < -5) {
 Failure:
 				*val = 0;
@@ -130,7 +141,6 @@ Retry:
 			delay (4, st);
 			release;
 		}
-		s_state = 0;
 		// Past init
 		write_byte (CMD_SKIP);
 		write_byte (CMD_CONVERT);
