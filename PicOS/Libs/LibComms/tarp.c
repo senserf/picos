@@ -55,6 +55,8 @@ __PUBLF (TNode, word, getSpdM) (word * hop) {
 
 #endif
 
+#define _TARP_T_RX	0
+
 // (h == master_host) should not get here
  // find the index
 __PRIVF (TNode, word, tarp_findInSpd) (nid_t host) {
@@ -192,13 +194,24 @@ __PRIVF (TNode, int, check_spd) (headerType * msg) {
 			(spdCache->m_hop >>8) +
 			((spdCache->m_hop & 0x00FF) >> tarp_rte_rec) +
 			tarp_slack;
-		if (i < 0 && tarp_rte_rec != 0)
+		if (i <= 0 && tarp_rte_rec != 0)
 			spdCache->m_hop++;
+
+#if _TARP_T_RX
+diag ("%u %u spdm %d %u %u", msg->msg_type, msg->snd,  i, msg->hco, msg->hoc);
+#endif
+
 		return i;
 	}
 
 	if ((i = tarp_findInSpd(msg->rcv)) >= spdCacheSize) {
-		return tarp_maxHops;
+
+#if _TARP_T_RX
+diag ("%u %u spdno %d %u %u", msg->msg_type, msg->snd, tarp_maxHops,
+msg->hco, msg->hoc);
+#endif
+
+		return msg->hco - (msg->hoc & 0x7F) + tarp_slack;
 	}
 
 	j = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
@@ -206,8 +219,13 @@ __PRIVF (TNode, int, check_spd) (headerType * msg) {
 		(spdCache->en[i].hop >>8) +
 		((spdCache->en[i].hop & 0x00FF) >> tarp_rte_rec) +
 		tarp_slack;
-	if (j < 0 && tarp_rte_rec != 0)
+	if (j <= 0 && tarp_rte_rec != 0)
 		spdCache->en[i].hop++; // failed routing attempts ++
+
+#if _TARP_T_RX
+diag ("%u %u spd %d %u %u", msg->msg_type, msg->snd, j, msg->hco, msg->hoc);
+#endif
+
 	return j;
 }
 
@@ -225,6 +243,12 @@ __PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 	tarp_ctrl.ssignal = ((buffer[(length >>1) -1] >> 8) >=
 			tarp_ctrl.rssi_th) ?  YES : NO;
 #endif
+
+#if _TARP_T_RX
+diag ("%u %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
+  tarp_ctrl.ssignal, tarp_drop_weak);
+#endif
+
 	if (!tarp_ctrl.ssignal) {
 		dbg_8 (0x0600 | msgBuf->hoc + 1);
 		if (tarp_drop_weak)
@@ -232,18 +256,33 @@ __PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 	}
 
 	tarp_ctrl.rcv++;
-	if (*buffer == 0) // from unbound node
+	if (*buffer == 0)  { // from unbound node
+
+#if _TARP_T_RX
+diag ("%u %u from unbound %s", msgBuf->msg_type,
+  msgBuf->snd, net_id == 0 || !msg_isNew(msgBuf->msg_type) ?  "drop" : "rcv");
+#endif
 		return net_id == 0 || !msg_isNew(msgBuf->msg_type) ?
 			TCV_DSP_DROP : TCV_DSP_RCV;
+	}
 
 	if (length == 0 || msgBuf->snd == local_host) {
 		// nothing in the recv buffer... can it happen?
 		// or my own echo -- drop it
+#if _TARP_T_RX
+diag ("%u %u drop %s", msgBuf->msg_type, msgBuf->snd,
+  length == 0 ? "empty" : "my own");
+#endif
 		return TCV_DSP_DROP;
 	}
 
-	if (net_id == 0 && !msg_isBind (msgBuf->msg_type))
+	if (net_id == 0 && !msg_isBind (msgBuf->msg_type)) {
+
+#if _TARP_T_RX
+diag ("%u %u drop no net_id", msgBuf->msg_type, msgBuf->snd);
+#endif
 		return TCV_DSP_DROP;
+	}
 
 	msgBuf->hoc++;
 
@@ -256,18 +295,32 @@ __PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 	}
 
 	if (tarp_level && !dd_fresh(msgBuf)) {  // check and update DD
+
+#if _TARP_T_RX
+diag ("%u %u drop dup", msgBuf->msg_type, msgBuf->snd);
+#endif
 		return TCV_DSP_DROP;    //duplicate
 	}
 
 	if (tarp_level > 1 && tarp_ctrl.ssignal)
 		upd_spd (msgBuf);
 
-	if (msgBuf->rcv == local_host)
+	if (msgBuf->rcv == local_host) {
+
+#if _TARP_T_RX
+diag ("%u %u rcv is me", msgBuf->msg_type, msgBuf->snd);
+#endif
 		return TCV_DSP_RCV;
+	}
 
 	if (msgBuf->rcv == 0) {
-		if (!tarp_fwd_on || (msgBuf->hoc & 0x7F) >= msgBuf->hco)
+		if (!tarp_fwd_on || (msgBuf->hoc & 0x7F) >= msgBuf->hco) {
+
+#if _TARP_T_RX
+diag ("%u %u bcast just rcv", msgBuf->msg_type, msgBuf->snd);
+#endif
 			return TCV_DSP_RCV;
+		}
 
 		if ((dup = tcvp_new (msg_isTrace (msgBuf->msg_type) ?
 		  length +sizeof(nid_t) : length, TCV_DSP_XMT, *ses)) == NULL) {
@@ -280,19 +333,33 @@ __PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 				(char *)&local_host, sizeof(nid_t));
 			tarp_ctrl.fwd++;
 		}
+#if _TARP_T_RX
+diag ("%u %u bcast cpy & rcv", msgBuf->msg_type, msgBuf->snd);
+#endif
 		return TCV_DSP_RCV; // the original
 	}
 
 	if ((msgBuf->hoc & 0x7F) >= tarp_maxHops) {
-		//diag ("Max %d %d", msgBuf->snd, msgBuf->seq_no);
+
+#if _TARP_T_RX
+diag ("%u %u Max drop %d", msgBuf->msg_type, msgBuf->snd, msgBuf->seq_no);
+#endif
+
 		return TCV_DSP_DROP;
 	}
 
 	if (tarp_fwd_on &&
-		(tarp_level < 2 || check_spd (msgBuf) >= 0)) {
+		(tarp_level < 2 || check_spd (msgBuf) > 0)) {
 		tarp_ctrl.fwd++;
-		if (!msg_isTrace (msgBuf->msg_type))
+		if (!msg_isTrace (msgBuf->msg_type)) {
+
+#if _TARP_T_RX
+diag ("%u %u xmit", msgBuf->msg_type, msgBuf->snd);
+#endif
+
 			return TCV_DSP_XMT;
+		}
+
 		if ((dup = tcvp_new (length +sizeof(nid_t), TCV_DSP_XMT, *ses))
 			== NULL) {
 			dbg_8 (0x3000); // Tarp dup2 failed
@@ -301,8 +368,16 @@ __PUBLF (TNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			memcpy ((char *)dup, (char *)buffer, length);
 			memcpy ((char *)dup + tr_offset (msgBuf),
 				(char *)&local_host, sizeof(nid_t));
+#if _TARP_T_RX
+diag ("%u %u cpy trace", msgBuf->msg_type, msgBuf->snd);
+#endif
 		}
 	}
+
+#if _TARP_T_RX
+diag ("%u %u (&) drop", msgBuf->msg_type, msgBuf->snd);
+#endif
+
 	return TCV_DSP_DROP;
 }
 
@@ -344,6 +419,7 @@ __PUBLF (TNode, int, tarp_tx) (address buffer) {
 	return rc;
 }
 
+#undef _TARP_T_RX
 #ifdef	__SMURPH__
 #include "stdattr_undef.h"
 #endif

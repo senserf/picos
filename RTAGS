@@ -2033,3 +2033,15 @@ R080423A:
 	considering that the conversion delay is about 800ms. This is how much
 	time it takes for read_sensor to unblock.
 	OSSI stuff for eco_demo updated.
+
+R080424A:
+
+	Routing:
+       	- instrumented tarp.c for testing
+	- no forwarding on hoc = hco (with usual spd adjustments)
+	- on no entry in spd, check_spd returns  hco - hoc + slack
+
+	VUEE/eco_net:
+	- SENS_COLL_TIME, lare_eco and eco_test to follow true sensors
+	- forwarding off on the Master
+
