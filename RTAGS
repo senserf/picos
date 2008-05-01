@@ -2045,7 +2045,7 @@ R080424A:
 	- SENS_COLL_TIME, lare_eco and eco_test to follow true sensors
 	- forwarding off on the Master
 
-R080501A:
+R080501B:
 
 	Reorganized UART stuff a bit, primarily to make PicOS compile for
 	MSP430FG461x CPUs. In a nutshell, it is possible to use the formally
