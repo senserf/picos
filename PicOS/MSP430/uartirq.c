@@ -7,10 +7,10 @@
 
 #ifdef	N_UARTS_TCV
 
-interrupt (UART0TX_VECTOR) uart0tx_int (void) {
+interrupt (UART_A_TX_VECTOR) uart0tx_int (void) {
 
 #define	UA	zz_uart
-#define	XBUF	TXBUF0
+#define	XBUF	TXBUF_A
 
 #include "irq_uart_x.h"
 
@@ -19,10 +19,10 @@ interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 #undef XBUF
 }
 
-interrupt (UART0RX_VECTOR) uart0rx_int (void) {
+interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
 
 #define	UA	zz_uart
-#define	RBUF	RXBUF0
+#define	RBUF	RXBUF_A
 
 #include "irq_uart_r.h"
 
@@ -33,10 +33,10 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 
 #if N_UARTS_TCV > 1
 
-interrupt (UART1TX_VECTOR) uart1tx_int (void) {
+interrupt (UART_B_TX_VECTOR) uart1tx_int (void) {
 
 #define	UA	(zz_uart + 1)
-#define	XBUF	TXBUF1
+#define	XBUF	TXBUF_B
 
 #include "irq_uart_x.h"
 
@@ -45,10 +45,10 @@ interrupt (UART1TX_VECTOR) uart1tx_int (void) {
 #undef XBUF
 }
 
-interrupt (UART1RX_VECTOR) uart1rx_int (void) {
+interrupt (UART_B_RX_VECTOR) uart1rx_int (void) {
 
 #define	UA	(zz_uart + 1)
-#define	RBUF	RXBUF1
+#define	RBUF	RXBUF_B
 
 #include "irq_uart_r.h"
 

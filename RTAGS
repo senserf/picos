@@ -2045,3 +2045,20 @@ R080424A:
 	- SENS_COLL_TIME, lare_eco and eco_test to follow true sensors
 	- forwarding off on the Master
 
+R080501A:
+
+	Reorganized UART stuff a bit, primarily to make PicOS compile for
+	MSP430FG461x CPUs. In a nutshell, it is possible to use the formally
+	second USART (i.e., USART1) as the (primary) UART. This is selected
+	automatically for MSP430FG461x CPUs, which have no USART0. At present,
+	there is no option to use USCI as a UART (we will add it as need 
+	arises). As a side effect, UART's performance should improve slightly
+	for systems with a single UART configured (i.e., most of them).
+
+	Also, reorganized and cleaned the code for setting system clocks.
+	It is still messy, but less so than it used to be.
+
+	OSSI software for eco_demo updated. The userver (UART-over-socket)
+	default port changed from 4442 to 4445. 4442 was used as the default
+	port for SIDE/SMURPH monitor, which caused confusing errors (on which
+	I wasted a whole day).

@@ -39,10 +39,6 @@ static void preinit_uart (void);
 #error	"flow control is only available when UART_DRIVER == 1"
 #endif
 
-#define	set_ready_to_receive	_BIS (P3OUT, 0x80)
-#define	clear_ready_to_receive	_BIC (P3OUT, 0x80)
-#define	peer_ready_to_receive	((P3IN & 0x40) != 0)
-
 #endif
 
 static void	devinit_uart (int);
@@ -146,43 +142,11 @@ void halt (void) {
 }
 
 #if	ADC_PRESENT
-// There is no general ADC interface at the moment.
-// ADC is used internally for Radio RSSI.
+// There is no general ADC interface at the moment. Well, not of the same
+// kind as there used to be for eCOG. There is an ADC sampler (see
+// ../adc_sampler.[ch]) as well as various board-specific hooks to the ADC.
+// Also, the ADC is used internally for Radio RSSI.
 #endif
-
-void udelay (register word n) {
-/* =================================== */
-/* n should be roughly in microseconds */
-/* =================================== */
-	__asm__ __volatile__ (
-
-#ifdef	__MSP430_449__
-		"1:\n"
-		" nop\n"
-		" nop\n"
-		" nop\n"
-		" nop\n"
-		" nop\n"
-		" dec %[n]\n"
-		" jne 1b\n"
-#endif
-#ifdef	__MSP430_1xx__
-		"1:\n"
-		" nop\n"
-		" nop\n"
-		" dec %[n]\n"
-		" jne 1b\n"
-#endif
-			: [n] "+r"(n));
-}
-
-void mdelay (word n) {
-/* ============ */
-/* milliseconds */
-/* ============ */
-	while (n--)
-		udelay (995);
-}
 
 int main (void) {
 
@@ -337,6 +301,63 @@ static void ssm_init () {
 #ifndef	PIN_DEFAULT_P6OUT
 #define	PIN_DEFAULT_P6OUT	0x00
 #endif
+
+#ifdef	__MSP430_HAS_PORT7__
+
+#ifndef	PIN_DEFAULT_P7SEL
+#define	PIN_DEFAULT_P7SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P7DIR
+#define	PIN_DEFAULT_P7DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P7OUT
+#define	PIN_DEFAULT_P7OUT	0x00
+#endif
+
+#endif
+
+#ifdef	__MSP430_HAS_PORT8__
+
+#ifndef	PIN_DEFAULT_P8SEL
+#define	PIN_DEFAULT_P8SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P8DIR
+#define	PIN_DEFAULT_P8DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P8OUT
+#define	PIN_DEFAULT_P8OUT	0x00
+#endif
+
+#endif
+
+#ifdef	__MSP430_HAS_PORT9__
+
+#ifndef	PIN_DEFAULT_P9SEL
+#define	PIN_DEFAULT_P9SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P9DIR
+#define	PIN_DEFAULT_P9DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P9OUT
+#define	PIN_DEFAULT_P9OUT	0x00
+#endif
+
+#endif
+
+#ifdef	__MSP430_HAS_PORT10__
+
+#ifndef	PIN_DEFAULT_P10SEL
+#define	PIN_DEFAULT_P10SEL	0x00
+#endif
+#ifndef	PIN_DEFAULT_P10DIR
+#define	PIN_DEFAULT_P10DIR	0xFF
+#endif
+#ifndef	PIN_DEFAULT_P10OUT
+#define	PIN_DEFAULT_P10OUT	0x00
+#endif
+
+#endif
+
 	// Pre-initialize pins
 	P1IE = P2IE = 0x00;
 	P1IES = P2IES = 0x00;
@@ -366,6 +387,28 @@ static void ssm_init () {
 	P6OUT = PIN_DEFAULT_P6OUT;
 	P6DIR = PIN_DEFAULT_P6DIR;
 
+
+#ifdef	__MSP430_HAS_PORT7__
+	P7SEL = PIN_DEFAULT_P7SEL;
+	P7OUT = PIN_DEFAULT_P7OUT;
+	P7DIR = PIN_DEFAULT_P7DIR;
+#endif
+#ifdef	__MSP430_HAS_PORT8__
+	P8SEL = PIN_DEFAULT_P8SEL;
+	P8OUT = PIN_DEFAULT_P8OUT;
+	P8DIR = PIN_DEFAULT_P8DIR;
+#endif
+#ifdef	__MSP430_HAS_PORT9__
+	P9SEL = PIN_DEFAULT_P9SEL;
+	P9OUT = PIN_DEFAULT_P9OUT;
+	P9DIR = PIN_DEFAULT_P9DIR;
+#endif
+#ifdef	__MSP430_HAS_PORT10__
+	P10SEL = PIN_DEFAULT_P10SEL;
+	P10OUT = PIN_DEFAULT_P10OUT;
+	P10DIR = PIN_DEFAULT_P10DIR;
+#endif
+
 // ======================
 // Monitor pins overrides
 // ======================
@@ -380,11 +423,9 @@ static void ssm_init () {
 #endif
 // ======================
 
-#ifdef	__MSP430_449__
-	// This one needs the capacitance setting
-	_BIS (FLL_CTL0, XCAP18PF);
-#endif
-	// Set up the CPU clock
+// ===========================================================================
+// Clock setup ===============================================================
+// ===========================================================================
 
 #ifdef	__MSP430_1xx__
 
@@ -403,6 +444,9 @@ static void ssm_init () {
 	;
 	// Measured MCLK is ca. 4.5 MHz
 
+// This is in kHz
+#define	CPU_CLOCK_RATE	4500
+
 #if 	CRYSTAL2_RATE
 	// Assign SMCLK to XTL2
 	BCSCTL2 = SELM_DCOCLK | SELS;
@@ -413,6 +457,7 @@ static void ssm_init () {
 // ===========================================================================
 
 #if MCLOCK_FROM_CRYSTAL	== 1
+
 #if CRYSTAL_RATE < 4000000
 #error "CRYSTAL_RATE must be >= 4000000 for MCLOCK_FROM_CRYSTAL == 1"
 #endif
@@ -432,11 +477,15 @@ static void ssm_init () {
 		+ SELS
 #endif
 	; 
+
+#define	CPU_CLOCK_RATE	(CRYSTAL_RATE / 1000)
+
 #endif	/* MCLOCK_FROM_CRYSTAL == 1 */
 
 // ===========================================================================
 
 #if MCLOCK_FROM_CRYSTAL == 2
+
 #if CRYSTAL2_RATE == 0
 #error "Need XT2 for MCLOCK_FROM_CRYSTAL == 2"
 #endif
@@ -454,21 +503,110 @@ static void ssm_init () {
 	// SELS is not needed, I think
 	BCSCTL2 = SELM1 | SELS; 
 
-#endif	/* MCLOCK_FROM_CRYSTAL == 2 */
+#define	CPU_CLOCK_RATE	(CRYSTAL2_RATE / 1000)
 
-/*
- * The clock mess:
- *
- * ACLK from 32768 Hz crystal: TB runs at 4096 Hz; in power-up mode, TB
- * is set to 32768/8192 - 1 == 3, which means that a timer interrupt is
- * generated 1024 times per second (4096/4).
- * In power-down mode, TB is set to 32768/(8 * 16) - 1, i.e., 256-1, which
- * means that the system clock runs 4096/256 = 16 times per second.
- */
+#endif	/* MCLOCK_FROM_CRYSTAL == 2 */
 
 #endif	/* 1xx */
 
-#ifdef	__MSP430_449__
+
+// ===========================================================================
+// ===========================================================================
+
+#ifdef	__MSP430_4xx__
+
+// The FLL variant
+
+#ifndef	XCAPACITY
+#define	XCAPACITY	XCAP10PF
+#endif
+
+#if CRYSTAL_RATE != 32768
+#define	__XTS	XTS_FLL
+#else
+#define	__XTS	0
+#endif
+
+#if MCLOCK_FROM_CRYSTAL == 0
+
+// MCLOCK from DCO driven by crystal 1
+
+#define	__scfqctl_set (8000000/CRYSTAL_RATE)
+
+#if __scfqctl_set > 128
+	FLL_CTL0 = DCOPLUS + XCAPACITY + __XTS;
+   	SCFQCTL = (__scfqctl_set/2) - 1;
+#define	CPU_CLOCK_RATE	(((__scfqctl_set/2) * 2 * CRYSTAL_RATE) / 1000)
+#else
+	FLL_CTL0 = XCAPACITY + __XTS;
+   	SCFQCTL = __scfqctl_set - 1;
+#define	CPU_CLOCK_RATE	(((__scfqctl_set) * 2 * CRYSTAL_RATE) / 1000)
+#endif
+
+// MCLK from DCO
+#define	__SELM	SELM0
+
+#endif	/* MCLOCK_FROM_CRYSTAL == 0 */
+
+// ===========================================================================
+
+#if MCLOCK_FROM_CRYSTAL == 1
+
+// MCLOCK driven directly by crystal 1
+
+#if CRYSTAL_RATE < 4000000
+#error "CRYSTAL_RATE must be >= 4000000 for MCLOCK_FROM_CRYSTAL == 1"
+#endif
+	FLL_CTL0 = XCAP0PF + __XTS;
+
+#define	CPU_CLOCK_RATE	(CRYSTAL_RATE / 1000)
+
+// This is the default
+
+// MCLK from crystal 1
+#define	__SELM	SELM3
+
+#endif /* MCLOCK_FROM_CRYSTAL == 1 */
+
+// ===========================================================================
+
+#if MCLOCK_FROM_CRYSTAL == 2
+
+// MCLOCK driven directly by crystal 2
+
+#if CRYSTAL2_RATE == 0
+#error "Need XT2 for MCLOCK_FROM_CRYSTAL == 2"
+#endif
+	FLL_CTL0 = XCAP0PF + __XTS;
+
+	// Disable DCO
+	_BIS_SR(SCG1);
+
+	_BIC (FLL_CTL1, XT2OFF);
+
+	do {
+		_BIC (IFG1, OFIFG);	// Clear fault flag
+		udelay (100);
+	} while ((IFG1 & OFIFG) != 0);
+
+#define	CPU_CLOCK_RATE	(CRYSTAL2_RATE / 1000)
+
+// MCLK from crystal 2
+#define	__SELM	(SELM2 + SELS)
+
+#endif /* MCLOCK_FROM_CRYSTAL == 2 */
+
+// ===========================================================================
+
+	FLL_CTL1 = __SELM
+
+#if CRYSTAL2_RATE == 0
+		+ XT2OFF
+#endif
+	;
+
+// ===========================================================================
+#if 0
 	//
 	// This is the best I could get through rather tedious experiments
 	//
@@ -477,10 +615,10 @@ static void ssm_init () {
 	// SCFI0 =	FLLD_4 | FN_3;	// ... * 4 = 8,388,608 Hz, (2 -- 17.9)
 	_BIS (FLL_CTL0, DCOPLUS);	// Mutiplier active
 	// This yields 4MHz + for the CPU clock
-#endif	/* 449 */
-	// Note: in all cases, SMLCK is set to run at DCO frequency
+#endif	/* 0 -- was 449 */
+// ===========================================================================
 
-	// Add here code for other CPU types
+#endif	/* 4xx */
 
 	// System timer
 	TBCTL = TBSSEL0 | TBCLR; 	// ACLK source
@@ -488,6 +626,7 @@ static void ssm_init () {
 
 	// Select power up and high clock rate
 	powerup ();
+
 #if HIGH_CRYSTAL_RATE
 	// Was set by powerup, we have to stop it until we actually start
 	// the clock
@@ -497,6 +636,43 @@ static void ssm_init () {
 	_BIS (TBCTL, MC0);
 }
 
+#define	mkmk_eval
+
+void udelay (register word n) {
+/* =================================== */
+/* n should be roughly in microseconds */
+/* =================================== */
+	__asm__ __volatile__ (
+		"1:\n"
+#if CPU_CLOCK_RATE > 2000
+		" nop\n"
+#endif
+#if CPU_CLOCK_RATE > 4000
+		" nop\n"
+#endif
+#if CPU_CLOCK_RATE > 6000
+		" nop\n"
+#endif
+#if CPU_CLOCK_RATE > 7000
+		" nop\n"
+#endif
+#if CPU_CLOCK_RATE > 8200
+		" nop\n"
+#endif
+		" dec %[n]\n"
+		" jne 1b\n"
+			: [n] "+r"(n));
+}
+
+#undef mkmk_eval
+
+void mdelay (word n) {
+/* ============ */
+/* milliseconds */
+/* ============ */
+	while (n--)
+		udelay (995);
+}
 /* =============== */
 /* Timer interrupt */
 /* =============== */
@@ -635,9 +811,9 @@ void freeze (word nsec) {
 	// And disable them
 	IE1 = 0;
 	IE2 = 0;
-	while ((UTCTL0 & TXEPT) == 0);
+	while ((UTCTL_A & TXEPT) == 0);
 #if N_UARTS > 1
-	while ((UTCTL1 & TXEPT) == 0);
+	while ((UTCTL_B & TXEPT) == 0);
 #endif
 #endif
 
@@ -662,11 +838,11 @@ void freeze (word nsec) {
 
 #if UART_DRIVER || UART_TCV || UARTP_TCV
 	// Reset the UART to get it back to normal
-	_BIS (UCTL0, SWRST);
-	_BIC (UCTL0, SWRST);
+	_BIS (UCTL_A, SWRST);
+	_BIC (UCTL_A, SWRST);
 #if N_UARTS > 1
-	_BIS (UCTL1, SWRST);
-	_BIC (UCTL1, SWRST);
+	_BIS (UCTL_B, SWRST);
+	_BIC (UCTL_B, SWRST);
 #endif
 	IE1 = saveIE1;
 	IE2 = saveIE2;
@@ -789,21 +965,25 @@ uart_t	zz_uart [N_UARTS];
 #if UART_RATE == 1200
 #define	ubr0		0x1B
 #define	umctl		0x03
+#define	UART_RATE_INDEX	0
 #endif
 
 #if UART_RATE == 2400
 #define	ubr0		0x0D
 #define	umctl		0x6B
+#define	UART_RATE_INDEX	1
 #endif
 
 #if UART_RATE == 4800
 #define	ubr0		0x06
 #define	umctl		0x6F
+#define	UART_RATE_INDEX	2
 #endif
 
 #if UART_RATE == 9600
 #define	ubr0		0x03
 #define	umctl		0x4A
+#define	UART_RATE_INDEX	3
 #endif
 
 #ifndef ubr0
@@ -880,23 +1060,20 @@ uart_t	zz_uart [N_UARTS];
 static void preinit_uart () {
 
 	// UART_A
-	_BIC (P3DIR, 0x26);
-	_BIS (P3DIR, 0x10);
-	_BIS (P3SEL, 0x30);	// 4, 5 special function
+	UART_PREINIT_A;
 #if UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
-	_BIC (P3SEL, 0xc0);	// Standard use P3.6, P3.7
-	_BIS (P3DIR, 0x80);	// P3.7 == CTS, goes out
+	UART_PREINIT_A_FC;
 #endif
-	_BIS (UCTL0, SWRST);
-	_BIC (UTCTL0, SSEL1 + SSEL0);
-	_BIS (UTCTL0, utctl);
-	UBR00 = ubr0;
-	UBR10 = ubr1;
-	UMCTL0 = umctl;
-	_BIS (IFG1, UTXIFG0);
-	_BIS (ME1, UTXE0 + URXE0);
-	_BIS (UCTL0, uctl_char | uctl_pena | uctl_pev);
-	_BIC (UCTL0, SWRST);
+	_BIS (UCTL_A, SWRST);
+	_BIC (UTCTL_A, SSEL1 + SSEL0);
+	_BIS (UTCTL_A, utctl);
+	UBR0_A = ubr0;
+	UBR1_A = ubr1;
+	UMCTL_A = umctl;
+	_BIS (IFG_A, UTXIFG_A);
+	_BIS (ME_A, UTXE_A + URXE_A);
+	_BIS (UCTL_A, uctl_char | uctl_pena | uctl_pev);
+	_BIC (UCTL_A, SWRST);
 #if UART_RATE_SETTABLE
 	zz_uart [0] . flags = UART_RATE_INDEX;
 #endif
@@ -908,19 +1085,17 @@ static void preinit_uart () {
  */
 #if N_UARTS > 1
 	// UART_B
-	_BIC (P3DIR, 0x89);
-	_BIS (P3DIR, 0x40);
-	_BIS (P3SEL, 0xc0);	// 6, 7 special function
-	_BIS (UCTL1, SWRST);
-	_BIC (UTCTL1, SSEL1 + SSEL0);
-	_BIS (UTCTL1, utctl);
-	UBR01 = ubr0;
-	UBR11 = ubr1;
-	UMCTL1 = umctl;
-	_BIS (IFG2, UTXIFG1);
-	_BIS (ME2, UTXE1 + URXE1);
-	_BIS (UCTL1, uctl_char | uctl_pena | uctl_pev);
-	_BIC (UCTL1, SWRST);
+	UART_PREINIT_B;
+	_BIS (UCTL_B, SWRST);
+	_BIC (UTCTL_B, SSEL1 + SSEL0);
+	_BIS (UTCTL_B, utctl);
+	UBR0_B = ubr0;
+	UBR1_B = ubr1;
+	UMCTL_B = umctl;
+	_BIS (IFG_B, UTXIFG_B);
+	_BIS (ME_B, UTXE_B + URXE_B);
+	_BIS (UCTL_B, uctl_char | uctl_pena | uctl_pev);
+	_BIC (UCTL_B, SWRST);
 #if UART_RATE_SETTABLE
 	zz_uart [1] . flags = UART_RATE_INDEX;
 #endif
@@ -972,23 +1147,23 @@ Boolean zz_uart_setrate (word rate, uart_t *ua) {
 #if N_UARTS > 1
 			if (ua != zz_uart) {
 				// UART_B
-				UBR01 = urates [j].A;
+				UBR0_B = urates [j].A;
 #if UART_CLOCK_RATE == 32768
-				UBR11 = 0;
-				UMCTL1 = urates [j].B;
+				UBR1_B = 0;
+				UMCTL_B = urates [j].B;
 #else
-				UBR11 = urates [j].B;
-				UMCTL1 = 0;
+				UBR1_B = urates [j].B;
+				UMCTL_B = 0;
 #endif
 			} else {
 #endif	/* N_UARTS */
-				UBR00 = urates [j].A;
+				UBR0_A = urates [j].A;
 #if UART_CLOCK_RATE == 32768
-				UBR10 = 0;
-				UMCTL0 = urates [j].B;
+				UBR1_A = 0;
+				UMCTL_A = urates [j].B;
 #else
-				UBR10 = urates [j].B;
-				UMCTL0 = 0;
+				UBR1_A = urates [j].B;
+				UMCTL_A = 0;
 #endif
 
 #if N_UARTS > 1
@@ -1018,56 +1193,28 @@ word zz_uart_getrate (uart_t *ua) {
 /* The UART */
 /* ======== */
 
-#define uart_xpending(u)	((u)->selector?(IFG2&UTXIFG1):(IFG1&UTXIFG0))
+#define uart_xpending(u)	__ualt(u, IFG_B&UTXIFG_B, IFG_A&UTXIFG_A)
 
-#define	uart_write8(u,w)	do { \
-					if ((u)->selector) \
-						TXBUF1 = (w); \
-					else \
-						TXBUF0 = (w); \
-				} while (0)
+#define	uart_write8(u,w)	__usel (u, TXBUF_B = (w), TXBUF_A = (w))
 
-#define uart_enable_write_int(u) \
-				do { \
-					if ((u)->selector) \
-						uart_b_enable_write_int; \
-					else \
-						uart_a_enable_write_int; \
-				} while (0)
+#define uart_enable_write_int(u) __usel (u, uart_b_enable_write_int, \
+						uart_a_enable_write_int)
 
-#define uart_disable_int(u)	do { \
-					if ((u)->selector) \
-						uart_b_disable_int; \
-					else \
-						uart_a_disable_int; \
-				} while (0)
+#define uart_disable_int(u)	__usel (u, uart_b_disable_int, \
+						uart_a_disable_int)
 
-#define uart_disable_read_int(u) \
-				do { \
-					if ((u)->selector) \
-						uart_b_disable_read_int; \
-					else \
-						uart_a_disable_read_int; \
-				} while (0)
+#define uart_disable_read_int(u) __usel (u, uart_b_disable_read_int, \
+						uart_a_disable_read_int)
 
-#define uart_disable_write_int(u) \
-				do { \
-					if ((u)->selector) \
-						uart_b_disable_write_int; \
-					else \
-						uart_a_disable_write_int; \
-				} while (0)
+#define uart_disable_write_int(u) __usel (u, uart_b_disable_write_int, \
+						uart_a_disable_write_int)
 
-#define uart_rpending(u)	((u)->selector?(IFG2&URXIFG1):(IFG1&URXIFG0))
+#define uart_rpending(u)       __ualt (u, IFG_B&URXIFG_B, IFG_A&URXIFG_A)
 
-#define	uart_read(u)		(((u)->selector)?RXBUF1:RXBUF0)
+#define	uart_read(u)		__ualt (u, RXBUF_B, RXBUF_A)
 
-#define uart_enable_read_int(u)	do { \
-					if ((u)->selector) \
-						uart_b_enable_read_int; \
-					else \
-						uart_a_enable_read_int; \
-				} while (0)
+#define uart_enable_read_int(u)	__usel (u, uart_b_enable_read_int, \
+						uart_a_enable_read_int)
 
 static void uart_lock (uart_t*), uart_unlock (uart_t*);
 
@@ -1110,7 +1257,7 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 #if UART_INPUT_FLOW_CONTROL
 					if (u->ib_count <=
 						UART_INPUT_BUFFER_LENGTH/2)
-							set_ready_to_receive;
+							UART_SET_RTR;
 #endif
 					*buf++ = u->in [u->ib_out];
 					if (++(u->ib_out) ==
@@ -1127,7 +1274,7 @@ R_redo:
 					_BIC (u->flags, UART_FLAGS_IN);
 					uart_enable_read_int (u);
 #if UART_INPUT_FLOW_CONTROL
-					set_ready_to_receive;
+					UART_SET_RTR;
 #endif
 					return 1;
 				}
@@ -1150,7 +1297,7 @@ R_redo:
 				return 0;
 			} else {
 #if UART_OUTPUT_FLOW_CONTROL
-				if (!peer_ready_to_receive) {
+				if (!UART_TST_RTR) {
 					return - 16 - 2
 				}
 #endif
@@ -1174,7 +1321,7 @@ X_redo:
 			if ((u->flags & UART_FLAGS_IN) == 0) {
 				uart_enable_read_int (u);
 #if UART_INPUT_FLOW_CONTROL
-				set_ready_to_receive;
+				UART_SET_RTR;
 #endif
 			}
 #else
@@ -1235,10 +1382,10 @@ static void uart_lock (uart_t *u) {
 /* ========================== */
 /* Interrupt service routines */
 /* ========================== */
-interrupt (UART0TX_VECTOR) uart0tx_int (void) {
+interrupt (UART_A_TX_VECTOR) uart_a_tx_int (void) {
 
 	// Disable until a character arrival
-	_BIC (IE1, UTXIE0);
+	_BIC (IE_A, UTXIE_A);
 
 #if NESTED_INTERRUPTS
 	// Enable other interrupts. Note: we do this only for UART0.
@@ -1248,20 +1395,20 @@ interrupt (UART0TX_VECTOR) uart0tx_int (void) {
 
 	if ((zz_uart [0] . flags & UART_FLAGS_OUT) == 0) {
 		// Keep the interrupt pending
-		_BIS (IFG1, UTXIFG0);
+		_BIS (IFG_A, UTXIFG_A);
 	} else {
 		_BIC (zz_uart [0] . flags, UART_FLAGS_OUT);
-		TXBUF0 = zz_uart [0] . out;
+		TXBUF_A = zz_uart [0] . out;
 	}
 	i_trigger (ETYPE_IO, devevent (UART_A, WRITE));
 	RTNI;
 }
 
-interrupt (UART0RX_VECTOR) uart0rx_int (void) {
+interrupt (UART_A_RX_VECTOR) uart_a_rx_int (void) {
 
 #define	ua	(zz_uart + 0)
 
-	_BIC (IE1, URXIE0);
+	_BIC (IE_A, URXIE_A);
 
 #if NESTED_INTERRUPTS
 	// Enable other interrupts (UART0 only)
@@ -1272,13 +1419,13 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 
 	if (ua->ib_count <= UART_INPUT_BUFFER_LENGTH) {
 		// Not full
-		ua->in [ua->ib_in] = RXBUF0;
+		ua->in [ua->ib_in] = RXBUF_A;
 		if (++(ua->ib_in) == UART_INPUT_BUFFER_LENGTH)
 			ua->ib_in = 0;
 		ua->ib_count++;
 #if UART_INPUT_FLOW_CONTROL
 		if (ua->ib_count > UART_INPUT_BUFFER_LENGTH/2)
-			clear_ready_to_receive;
+			UART_CLR_RTR;
 #endif
 	}
 
@@ -1290,21 +1437,21 @@ interrupt (UART0RX_VECTOR) uart0rx_int (void) {
 #if NESTED_INTERRUPTS
 	cli;
 #endif
-	_BIS (IE1, URXIE0);
+	_BIS (IE_A, URXIE_A);
 
 #else	/* UART_INPUT_BUFFER_LENGTH */
 
 #if UART_INPUT_FLOW_CONTROL
-	clear_ready_to_receive;
+	UART_CLR_RTR;
 #endif
 	RISE_N_SHINE;
 
 	if ((ua -> flags & UART_FLAGS_IN)) {
 		// Keep the interrupt pending
-		_BIS (IFG1, URXIFG0);
+		_BIS (IFG_A, URXIFG_A);
 	} else {
 		_BIS (ua -> flags, UART_FLAGS_IN);
-		ua -> in = RXBUF0;
+		ua -> in = RXBUF_A;
 	}
 	i_trigger (ETYPE_IO, devevent (UART_A, READ));
 #endif
@@ -1320,23 +1467,23 @@ static int ioreq_uart_a (int op, char *b, int len) {
 
 #if UART_DRIVER > 1
 
-interrupt (UART1TX_VECTOR) uart1tx_int (void) {
+interrupt (UART_B_TX_VECTOR) uart_b_tx_int (void) {
 	RISE_N_SHINE;
 
 	if ((zz_uart [1] . flags & UART_FLAGS_OUT) == 0) {
 		// Keep the interrupt pending
-		_BIS (IFG2, UTXIFG1);
+		_BIS (IFG_B, UTXIFG_B);
 	} else {
 		_BIC (zz_uart [1] . flags, UART_FLAGS_OUT);
-		TXBUF1 = zz_uart [1] . out;
+		TXBUF_B = zz_uart [1] . out;
 	}
 	// Disable until a character arrival
-	_BIC (IE2, UTXIE1);
+	_BIC (IE_B, UTXIE_B);
 	i_trigger (ETYPE_IO, devevent (UART_B, WRITE));
 	RTNI;
 }
 
-interrupt (UART1RX_VECTOR) uart1rx_int (void) {
+interrupt (UART_B_RX_VECTOR) uart_b_rx_int (void) {
 
 #define	ua	(zz_uart + 1)
 
@@ -1344,7 +1491,7 @@ interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 
 	if (ua->ib_count <= UART_INPUT_BUFFER_LENGTH) {
 		// Not full
-		ua->in [ua->ib_in] = RXBUF1;
+		ua->in [ua->ib_in] = RXBUF_B;
 		if (++(ua->ib_in) == UART_INPUT_BUFFER_LENGTH)
 			ua->ib_in = 0;
 		ua->ib_count++;
@@ -1358,12 +1505,12 @@ interrupt (UART1RX_VECTOR) uart1rx_int (void) {
 
 	if ((ua -> flags & UART_FLAGS_IN)) {
 		// Keep the interrupt pending
-		_BIS (IFG2, URXIFG1);
+		_BIS (IFG_B, URXIFG_B);
 	} else {
 		_BIS (ua -> flags, UART_FLAGS_IN);
-		ua -> in = RXBUF1;
+		ua -> in = RXBUF_B;
 	}
-	_BIC (IE2, URXIE1);
+	_BIC (IE_B, URXIE_B);
 	i_trigger (ETYPE_IO, devevent (UART_B, READ));
 #endif
 	RTNI;
@@ -1398,9 +1545,12 @@ static void devinit_uart (int devnum) {
 #endif
 
 #if UART_INPUT_FLOW_CONTROL
-	set_ready_to_receive;
+	UART_SET_RTR;
 #endif
+
+#if UART_DRIVER > 1
 	zz_uart [devnum] . selector = devnum;
+#endif
 	_BIS (zz_uart [devnum] . flags, UART_FLAGS_LOCK);
 	uart_unlock (zz_uart + devnum);
 }

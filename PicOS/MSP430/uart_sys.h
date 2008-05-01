@@ -23,10 +23,10 @@
 #define	UART_START_XMITTER	do { \
 					UA->x_istate = IRQ_X_STRT; \
 					if (UA == zz_uart) { \
-						_BIS (IFG1, UTXIFG0); \
+						_BIS (IFG_A, UTXIFG_A); \
 						uart_a_enable_write_int; \
 					} else { \
-						_BIS (IFG2, UTXIFG1); \
+						_BIS (IFG_B, UTXIFG_B); \
 						uart_b_enable_write_int; \
 					} \
 				} while (0)
@@ -61,7 +61,7 @@
 
 #define	UART_START_XMITTER	do { \
 					UA->x_istate = IRQ_X_STRT; \
-					_BIS (IFG1, UTXIFG0); \
+					_BIS (IFG_A, UTXIFG_A); \
 					uart_a_enable_write_int; \
 				} while (0)
 
