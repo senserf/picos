@@ -5804,7 +5804,8 @@ class ZZ_RF_ACTIVITY {
 				ro = Roster + i;
 				ro->INT.stop ();
 				if (ro->Destination->TracedActivity == ro)
-					// Make sure this never points nowhere
+					// Make sure this never points into
+					// garbage
 					ro->Destination->TracedActivity = NULL;
 				pool_out (ro);
 			}

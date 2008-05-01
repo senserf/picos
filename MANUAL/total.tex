@@ -6381,6 +6381,16 @@ which is assumed to contain the list of exceptions, i.e., the stations that
 are not to be included in the group.
 In such a case, the group will consist of
 all stations in the network, except those mentioned in {\tt sl}.
+
+\medskip
+
+\noindent
+{\bf Note:} The array of station {\tt Id}s pointed to by {\tt sl} can be
+deallocated after the station group has been created.
+The station group does not rely on its permanence.
+
+\medskip
+
 \begin{verbatim}
         (int ns, int n1, ...)
 \end{verbatim}
@@ -6560,6 +6570,16 @@ Note that receivers weights are not specified for a broadcast communication
 group.
 With the second configuration, the default weights (of 1/{\em n\/})
 are assigned to the senders.
+
+\medskip
+
+\noindent
+{\bf Note:} The station groups passed as arguments to {\tt create} must
+{\bf not}
+be deallocated for as long as the communication group is being used.
+
+\medskip
+
 
 \subsection{Defining traffic patterns}
 \label{rm_cl_dt}

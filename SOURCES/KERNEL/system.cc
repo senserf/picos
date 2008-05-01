@@ -257,6 +257,8 @@ static void signal_service () {
 
 #endif /* ZZ_DBG */
 
+signal (SIGPIPE, SIG_IGN);
+
 }
 
 static void outmes (ostream &fiptr, char *txt) {

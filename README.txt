@@ -959,3 +959,5 @@
 
  R080415B  Fixed a memory leak in radio.cc caused by wrong deallocation of
 	   RF_ACTIVITY objects. Any more memory leaks?
+
+ R080501A  Ignored SIGPIPE signals causing occasional problems on UNIX systems.
