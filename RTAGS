@@ -2062,3 +2062,14 @@ R080501B:
 	default port changed from 4442 to 4445. 4442 was used as the default
 	port for SIDE/SMURPH monitor, which caused confusing errors (on which
 	I wasted a whole day).
+
+R080506A:
+
+	eco_demo misc:
+	- corrected size of the agg. slot (34 -> 32) -- EEPROM clear is needed
+	  on AGG nodes (Pegs) with the data from previous versions
+	- put slots properly in [EE_SENS_MIN, EE_SENS_MAX] and
+	  [EE_AGG_MIN, EE_AGG_MAX] (const stay the same)
+	- no ee_write() into the last slot on EEPROM FULL
+	- reset on RAM depletion (after 'No mem reset' diag)
+
