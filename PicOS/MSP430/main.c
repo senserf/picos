@@ -900,6 +900,10 @@ static void ios_init () {
 	zz_lcd_init ();
 #endif
 
+#ifdef LCDG_PRESENT
+	zz_lcdg_init ();
+#endif
+
 #if INFO_FLASH
 	zz_if_init ();
 #endif

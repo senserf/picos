@@ -2073,3 +2073,11 @@ R080506A:
 	- no ee_write() into the last slot on EEPROM FULL
 	- reset on RAM depletion (after 'No mem reset' diag)
 
+
+R080516A:
+
+	Nokia LCD driver, version 0.1 ;-) - worked on all my tests today (but
+	the tests were not exactly exhaustive. The test program is in
+	Apps/SEAWOLF/TEST.
+	SEAWOLF reference praxis (SEAWOLF/LOADER). Almost complete, but not
+	tried yet (not even compiled). Have to tie up a few loose ends.

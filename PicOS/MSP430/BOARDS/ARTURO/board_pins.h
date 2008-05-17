@@ -4,7 +4,7 @@
 /* ==================================================================== */
 
 // Departures from default pre-initialization
-#define	PIN_DEFAULT_P1DIR	0x80	// P1.7 == DATA for the SHT sensor
+#define	PIN_DEFAULT_P1DIR	0x80	// P1.7 == CLK for the SHT sensor
 #define	PIN_DEFAULT_P2DIR	0x83	// 0,1 and 7 hang loose, 2 = DS18B20
 #define	PIN_DEFAULT_P3DIR	0xC9
 #define	PIN_DEFAULT_P5DIR	0xE0

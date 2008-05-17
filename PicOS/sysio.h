@@ -92,6 +92,15 @@
 //+++ lcd_st7036.c
 #endif
 
+#ifdef	LCDG_PRESENT
+#undef	LCDG_PRESENT
+#endif
+
+#if LCDG_N6100P
+#define	LCDG_PRESENT
+//+++ lcdg_n6100p.c
+#endif
+
 // BLUETOOTH through UART ====================================================
 
 #ifdef	BLUETOOTH_PRESENT
@@ -280,15 +289,33 @@ void	lcd_setp (word);
 
 #define	LCD_N_CHARS	(LCD_LINE_LENGTH * LCD_N_LINES)
 
-#else
+#else	/* LCD_PRESENT */
 
-#define	lcd_on(a)	do { } while (0)
-#define	lcd_off()	do { } while (0)
-#define	lcd_clear(a,b)	do { } while (0)
-#define	lcd_write(a,b)	do { } while (0)
-#define	lcd_putchar(a)	do { } while (0)
+#define	lcd_on(a)	CNOP
+#define	lcd_off()	CNOP
+#define	lcd_clear(a,b)	CNOP
+#define	lcd_write(a,b)	CNOP
+#define	lcd_putchar(a)	CNOP
 
-#endif
+#endif	/* LCD_PRESENT */
+
+#ifdef LCDG_PRESENT
+
+void	lcdg_on (byte);
+void	lcdg_off ();
+void	lcdg_set (byte, byte, byte, byte, byte);
+void	lcdg_clear (byte c);
+void	lcdg_render (byte, byte, byte*, word);
+
+#else	/* LCDG_PRESENT */
+
+#define	lcdg_on(a)		CNOP
+#define	lcdg_off()		CNOP
+#define	lcdg_set(a,b,c,d,e)	CNOP
+#define	lcdg_clear(a)		CNOP
+#define	lcdg_render(a,b,c,d)	CNOP
+
+#endif	/* LCDG_PRESENT */
 
 // ===========================================================================
 
