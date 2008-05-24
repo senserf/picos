@@ -32,7 +32,7 @@
 // 1, 2, 3 = LEDs, 0, 4-7 = unused or Nokia LCD
 #define PIN_DEFAULT_P4DIR	0xFF
 
-#if NOKIA_LCD
+#if LCDG_N6100P
 #define	PIN_DEFAULT_P4OUT	0x9E	// CS+RST up (off), LEDs off
 #else
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off (high) by default

@@ -306,6 +306,7 @@ void	lcdg_off ();
 void	lcdg_set (byte, byte, byte, byte, byte);
 void	lcdg_clear (byte c);
 void	lcdg_render (byte, byte, byte*, word);
+void	lcdg_cmd (byte, byte*, byte);
 
 #else	/* LCDG_PRESENT */
 
@@ -314,6 +315,7 @@ void	lcdg_render (byte, byte, byte*, word);
 #define	lcdg_set(a,b,c,d,e)	CNOP
 #define	lcdg_clear(a)		CNOP
 #define	lcdg_render(a,b,c,d)	CNOP
+#define	lcdg_cmd(a,b,c)		CNOP
 
 #endif	/* LCDG_PRESENT */
 

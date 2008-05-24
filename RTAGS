@@ -2077,7 +2077,12 @@ R080506A:
 R080516A:
 
 	Nokia LCD driver, version 0.1 ;-) - worked on all my tests today (but
-	the tests were not exactly exhaustive. The test program is in
+	the tests were not exactly exhaustive). The test program is in
 	Apps/SEAWOLF/TEST.
 	SEAWOLF reference praxis (SEAWOLF/LOADER). Almost complete, but not
 	tried yet (not even compiled). Have to tie up a few loose ends.
+
+R080524A:
+
+	Reference application for SEAWOLF started to work. We can load images
+	to the node and display them on the LCD.

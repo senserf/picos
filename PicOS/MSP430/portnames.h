@@ -1,7 +1,7 @@
 #ifndef __pg_portnames_h
 #define	__pg_portnames_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -62,7 +62,7 @@
 #define	P6_6		66
 #define	P6_7		67
 
-#ifdef	__MSP430_HAS_PORT7__
+#ifdef	P7DIR
 
 #define	P7_0		70
 #define	P7_1		71
@@ -73,9 +73,15 @@
 #define	P7_6		76
 #define	P7_7		77
 
+#else
+
+#define	P7DIR		P6DIR
+#define	P7OUT		P6OUT
+#define	P7IN		P6IN
+
 #endif
 
-#ifdef	__MSP430_HAS_PORT8__
+#ifdef	P8DIR
 
 #define	P8_0		80
 #define	P8_1		81
@@ -86,9 +92,15 @@
 #define	P8_6		86
 #define	P8_7		87
 
+#else
+
+#define	P8DIR		P6DIR
+#define	P8OUT		P6OUT
+#define	P8IN		P6IN
+
 #endif
 
-#ifdef	__MSP430_HAS_PORT9__
+#ifdef	P9DIR
 
 #define	P9_0		90
 #define	P9_1		91
@@ -99,9 +111,15 @@
 #define	P9_6		96
 #define	P9_7		97
 
+#else
+
+#define	P9DIR		P6DIR
+#define	P9OUT		P6OUT
+#define	P9IN		P6IN
+
 #endif
 
-#ifdef	__MSP430_HAS_PORT10__
+#ifdef	P10DIR
 
 #define	P10_0		100
 #define	P10_1		101
@@ -111,6 +129,12 @@
 #define	P10_5		105
 #define	P10_6		106
 #define	P10_7		107
+
+#else
+
+#define	P10DIR		P6DIR
+#define	P10OUT		P6OUT
+#define	P10IN		P6IN
 
 #endif
 

@@ -152,7 +152,7 @@ Drain:
 
 #ifdef BLUETOOTH_PRESENT
 /*
- * Do not send anything is the BlueTooth link is inactive
+ * Do not send anything if the BlueTooth link is inactive
  */
 #if BLUETOOTH_PRESENT == 1
 	// On the first UART
@@ -237,7 +237,7 @@ static void start_uart (word what) {
 void phys_uart (int phy, int mbs, int which) {
 /*
  * phy   - interface number
- * mbs   - maximum packet length (including checksum and statid)
+ * mbs   - maximum packet length (including statid, excluding checksum)
  * which - which uart (0 or 1)
  */
 
@@ -259,7 +259,8 @@ void phys_uart (int phy, int mbs, int which) {
 	else if (mbs == 0)
 		mbs = UART_DEF_BUF_LEN;
 
-	mbs = (((mbs + 1) >> 1) << 1);
+	// Make sure the checksum is extra
+	mbs = (((mbs + 3) >> 1) << 1);
 
 #ifdef BLUETOOTH_PRESENT
 	if (which == BLUETOOTH_PRESENT - 1) {

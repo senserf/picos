@@ -154,28 +154,19 @@ void sd (byte stuff) {
 
 // ============================================================================
 
-void zz_lcdg_init () {
+void lcdg_reset () {
 
 	word i;
 
-	nlcd_clk_down;
-	nlcd_cs_up;
-	mdelay (1);
-	nlcd_rst_down;
-	mdelay (20);
-	nlcd_rst_up;
-	mdelay (20);
 	nlcd_cs_down;
-
 	sc (SLEEPOUT);
-	sc (INVON); 	// inversion: seems to be required
 	// Color Interface Pixel Format (command 0x3A)
 	sc (COLMOD);
 	sd (0x03);	// 0x03 = 12 bits-per-pixel
 	sc (MADCTL);
-	sd (0xC8);	// 0xC0 = mirror x and y, reverse rgb
+	sd (0x88);	// Mirror y, rgb
 	sc (SETCON);	// Contrast
-	sd (0x30);
+	sd (0x37);
 	mdelay (10);
 	// Set up the RGB table for 8bpp display
 	sc (RGBSET);
@@ -184,18 +175,46 @@ void zz_lcdg_init () {
 	nlcd_cs_up;
 }
 
+void zz_lcdg_init () {
+
+	nlcd_clk_down;
+	nlcd_cs_up;
+	mdelay (1);
+	nlcd_rst_down;
+	mdelay (20);
+	nlcd_rst_up;
+	mdelay (20);
+
+	lcdg_reset ();
+}
+
+void lcdg_cmd (byte cmd, byte *arg, byte n) {
+//
+// Issue a raw command (debugging only)
+//
+	if (cmd == BNONE) {
+		lcdg_reset ();
+		return;
+	}
+	nlcd_cs_down;
+	sc (cmd);
+	while (n--)
+		sd (*arg++);
+	nlcd_cs_up;
+}
+
 void lcdg_on (byte con) {
 //
 	nlcd_cs_down;
 	sc (DISPOFF);
-	mdelay (10);
+	// mdelay (10);
 	if (con) {
 		sc (SETCON);	// Change contrast
 		sd (con);
-		mdelay (10);
+		// mdelay (10);
 	}
 	sc (DISPON);
-	mdelay (10);
+	// mdelay (10);
 	nlcd_cs_up;
 }
 
@@ -212,8 +231,15 @@ void lcdg_set (byte x0, byte y0, byte x, byte y, byte flags) {
 	X_org = x0 + LCDG_XOFF;
 	Y_org = y0 + LCDG_YOFF;
 
-	X_last = X_org + x - 1;
-	Y_last = Y_org + y - 1;
+	if (x == 0)
+		X_last = LCDG_MAXXP;
+	else
+		X_last = X_org + x - 1;
+
+	if (y == 0)
+		Y_last = LCDG_MAXYP;
+	else
+		Y_last = Y_org + y - 1;
 
 	if (X_last < X_org || Y_last < Y_org || X_last > LCDG_MAXXP ||
 		Y_last > LCDG_MAXYP)
