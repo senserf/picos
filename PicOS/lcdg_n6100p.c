@@ -206,7 +206,7 @@ void lcdg_cmd (byte cmd, byte *arg, byte n) {
 void lcdg_on (byte con) {
 //
 	nlcd_cs_down;
-	sc (DISPOFF);
+	// sc (DISPOFF);
 	// mdelay (10);
 	if (con) {
 		sc (SETCON);	// Change contrast
@@ -324,7 +324,6 @@ void lcdg_render (byte cs, byte rs, byte *pix, word n) {
 	pturn = 0;
 
 	nlcd_cs_down;
-	sc (DISPOFF);
 
 	// Special treatment for the first row
 	if (cs) {
@@ -436,6 +435,5 @@ void lcdg_render (byte cs, byte rs, byte *pix, word n) {
 	}
 			
 Done:
-	sc (DISPON);
 	nlcd_cs_up;
 }

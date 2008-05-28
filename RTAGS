@@ -2086,3 +2086,8 @@ R080524A:
 
 	Reference application for SEAWOLF started to work. We can load images
 	to the node and display them on the LCD.
+
+R080527A:
+
+	Reference application for SEAWOLF (Apps/SEAWOLF/LOADER) basically
+	completed.

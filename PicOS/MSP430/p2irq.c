@@ -8,30 +8,6 @@
  * This code handles all interrupts triggered by P2 pins
  */
 
-#if 0
-
-// Obsolete
-
-#if	DM2200
-#include	"dm2200.h"
-#endif
-
-interrupt (PORT2_VECTOR) p2irq () {
-
-#if	DM2200
-#include	"irq_dm2200_rcv.h"
-#endif
-
-#ifdef	MONITOR_PINS_SEND_INTERRUPTS
-#if	MONITOR_PINS_SEND_INTERRUPTS
-#include	"irq_pins.h"
-#endif
-#endif
-
-#endif	/* OBSOLETE */
-
-// ============================================================================
-
 interrupt (PORT2_VECTOR) p2irq () {
 
 #define	P2_INTERRUPT_SERVICE

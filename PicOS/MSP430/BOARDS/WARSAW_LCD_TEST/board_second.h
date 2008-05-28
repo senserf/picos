@@ -1,7 +1,7 @@
 #ifndef __board_second_h
 #define __board_second_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -9,6 +9,8 @@
  * Action to be performed every second. Preempts (replaces)
  * second_iflash.h and second_eeprom.h
  */
+
+#ifdef EEPROM_INIT_ON_KEY_PRESSED
 
 	if (EEPROM_INIT_ON_KEY_PRESSED) {
 
@@ -50,4 +52,6 @@
 		 while (EEPROM_INIT_ON_KEY_PRESSED) ;
 		 reset();
 	}
+#endif
+
 #endif

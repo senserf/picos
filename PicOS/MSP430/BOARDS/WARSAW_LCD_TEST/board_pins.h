@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -11,12 +11,12 @@
 // 3 = RF GDO2 unused, but must be input
 // 4 = RF GDO0 IN
 // 5 = RF CSN OUT
-// 6,7 General, unused by default
-#define	PIN_DEFAULT_P1DIR	0xE3
+// 6,7 Pushable buttons
+#define	PIN_DEFAULT_P1DIR	0x23
 
-// 0, 1, 7 hang loose, 4 = soft reset button, must be IN
-// 2, 3, 5, 6 general, unused by default
-#define	PIN_DEFAULT_P2DIR	0xEF
+// 0, 1, 7 hang loose
+// 2, 3, 4, 5, 6 = joystick
+#define	PIN_DEFAULT_P2DIR	0x83
 
 // 0 doubles with RXD1 (as CTS, and is in the way, so must be input)
 // 1 doubles with TXD0 (and is in the way, so must be input)
@@ -29,7 +29,7 @@
 #define	PIN_DEFAULT_P3DIR	0x50
 //#define	PIN_DEFAULT_P3DIR	0xC9
 
-// 1, 2, 3 = LEDs, 0, 4-7 = unused or Nokia LCD
+// 1, 2, 3 = LEDs, 0, 4-7 = unused by Nokia LCD
 #define PIN_DEFAULT_P4DIR	0xFF
 
 #if LCDG_N6100P
@@ -47,34 +47,21 @@
 //#define	PIN_DEFAULT_P5OUT	0x01	// Default CS is up
 #define	PIN_DEFAULT_P5OUT	0x0B	// Default CS is up
 
-#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+// #define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
 #if ADC_SAMPLER
 
 #define	PIN_DEFAULT_P6DIR	0x00
 
-#define	PIN_LIST	{	\
-	PIN_DEF	(P1, 6),	\
-	PIN_DEF	(P1, 7),	\
-	PIN_DEF	(P2, 2),	\
-	PIN_DEF	(P2, 3),	\
-	PIN_DEF	(P2, 4),	\
-	PIN_DEF	(P2, 5),	\
-	PIN_DEF	(P2, 6),	\
-	PIN_DEF	(P4, 0),	\
-	PIN_DEF	(P4, 4),	\
-	PIN_DEF	(P4, 5),	\
-	PIN_DEF	(P4, 6),	\
-	PIN_DEF	(P4, 7),	\
-	PIN_DEF	(P5, 4),	\
-}
+#define	PIN_LIST	{ }
 
-#define	PIN_MAX			13	// Number of pins
+#define	PIN_MAX			0	// Number of pins
 #define	PIN_MAX_ANALOG		0	// Number of available analog pins
 #define	PIN_DAC_PINS		0
 
 #else	/* NO SAMPLER */
 
+// P6.7 used for the buzzer
 #define	PIN_DEFAULT_P6DIR	0xFF
 
 #define	PIN_LIST	{	\
@@ -85,24 +72,48 @@
 	PIN_DEF	(P6, 4),	\
 	PIN_DEF	(P6, 5),	\
 	PIN_DEF	(P6, 6),	\
-	PIN_DEF	(P6, 7),	\
-	PIN_DEF	(P1, 6),	\
-	PIN_DEF	(P1, 7),	\
-	PIN_DEF	(P2, 2),	\
-	PIN_DEF	(P2, 3),	\
-	PIN_DEF	(P2, 4),	\
-	PIN_DEF	(P2, 5),	\
-	PIN_DEF	(P2, 6),	\
-	PIN_DEF	(P4, 0),	\
-	PIN_DEF	(P4, 4),	\
-	PIN_DEF	(P4, 5),	\
-	PIN_DEF	(P4, 6),	\
-	PIN_DEF	(P4, 7),	\
-	PIN_DEF	(P5, 4),	\
 }
 
-#define	PIN_MAX			21	// Number of pins
+#define	PIN_MAX			8	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
 #define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
+
+// Buttons and joystick
+
+#define	P1_PINS_INTERRUPT_MASK	0xc0
+#define	P2_PINS_INTERRUPT_MASK	0x7c
+
+#define	PRESSED_BUTTON0		((P1IN & 0x40) == 0)
+#define	PRESSED_BUTTON1		((P1IN & 0x80) == 0)
+#define	JOYSTICK_N		((P2IN & 0x40) == 0)
+#define	JOYSTICK_E		((P2IN & 0x10) == 0)
+#define	JOYSTICK_S		((P2IN & 0x08) == 0)
+#define	JOYSTICK_W		((P2IN & 0x20) == 0)
+#define	JOYSTICK_PUSH		((P2IN & 0x04) == 0)
+
+#define	buttons_init()		do { \
+					_BIS (P1IES, P1_PINS_INTERRUPT_MASK); \
+					_BIS (P1IE, P1_PINS_INTERRUPT_MASK); \
+					_BIS (P2IES, P2_PINS_INTERRUPT_MASK); \
+					_BIS (P2IE, P2_PINS_INTERRUPT_MASK); \
+				} while (0)
+
+#define	BUTTON_PRESSED_EVENT	((word)(&P1IES))
+
+//+++ "p2irq.c"
+REQUEST_EXTERNAL (p2irq);
+
+#define	buzzer_signal_up	_BIS (P6OUT, 0x80)
+#define	buzzer_signal_down	_BIC (P6OUT, 0x80)
+
+#define	buzz(a)			do { \
+					byte cnt = (a); \
+					while (cnt--) { \
+						buzzer_signal_up; \
+						udelay (3000); \
+						buzzer_signal_down; \
+						udelay (3000); \
+					} \
+				} while (0)
 
 #endif /* SAMPLER or no SAMPLER */
