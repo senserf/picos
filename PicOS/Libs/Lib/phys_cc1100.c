@@ -1039,6 +1039,22 @@ static int option (int opt, address val) {
 
 		vrate = (val == NULL) ? RADIO_BITRATE_INDEX :
 			(*val >= CC1100_NRATES ? CC1100_NRATES - 1 : *val);
+
+		// Fall through: SETRATE requires RESET
+
+	    case PHYSOPT_RESET:
+
+		chip_reset ();
+
+		// Check if should bring it up
+
+		if (RxOFF == 0 || (TxOFF & 1) == 0) {
+			// Bring it up
+			enter_rx ();
+		} else {
+			power_down ();
+		}
+
 		break;
 
 	    case PHYSOPT_GETRATE:

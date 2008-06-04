@@ -2,7 +2,7 @@
 #define	__pg_sysio_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -844,6 +844,8 @@ void	dbb (word);
 
 #define	PHYSOPT_SETRATE		22
 #define	PHYSOPT_GETRATE		23
+
+#define	PHYSOPT_RESET		24	/* Reset the radio */
 
 typedef	struct {
 /*

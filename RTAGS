@@ -2091,3 +2091,12 @@ R080527A:
 
 	Reference application for SEAWOLF (Apps/SEAWOLF/LOADER) basically
 	completed.
+
+R080604A:
+
+	Added PHYSOPT_RESET, for now to CC1100 only. Rate change/channel
+	change verified to work. Directory Doc in Apps/SEAWOLF/LOADER contains
+	the seed of a document I am going to write explaining the file
+	exchange protocol and the reference praxis (+ the oss script).
+	File README.txt contains instruction for quickly testing prototype
+	boards.
