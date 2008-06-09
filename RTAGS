@@ -2100,3 +2100,9 @@ R080604A:
 	exchange protocol and the reference praxis (+ the oss script).
 	File README.txt contains instruction for quickly testing prototype
 	boards.
+
+R080608A:
+
+	Completed the document for SEAWOLF/LOADER (lame as it is).
+	Added Apps/ECOPROJECT/POWER_TEST.
+	The LOCATION stuff included in the tree (added to Linux).
