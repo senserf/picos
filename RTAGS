@@ -2106,3 +2106,37 @@ R080608A:
 	Completed the document for SEAWOLF/LOADER (lame as it is).
 	Added Apps/ECOPROJECT/POWER_TEST.
 	The LOCATION stuff included in the tree (added to Linux).
+
+R080704A:
+
+	Added crunning as per Wlodek's request. This is the related manual
+	excerpt:
+
+	---
+
+	int running (code_t code)
+	int crunning (code_t code)
+
+	The arguments is a code function pointer. If an instance of a process
+	using the specified code function is currently active, running returns
+	the pid of one (any) such instance. Otherwise, the function returns
+	zero. A zombie is considered "active" by this function. The second
+	variant (crunning) returns the number of active processes (including
+	zombies) using the specified code function. 
+
+	If code is NULL, then running will return the pid of the current
+	process (the one that has invoked the function), and crunning will
+	count the number of unused process slots, i.e., the maximum number of
+	processes that can still be created.
+
+	---
+
+	Added a new board: MSP430/ARTURO_PMTH (Par, Moisture, Temp, Humid) with
+	four sensors (numbered in this order). See board_pins.h in the board's
+	directory.
+
+	The handling of SHTxx improved to quicker detect a disconnected sensor
+	(in which case zero is returned).
+
+	Docs directory cleaned up. Version numbers removed from the manual file
+	names to make it easy to update them for new versions.

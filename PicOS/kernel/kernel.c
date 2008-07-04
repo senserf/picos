@@ -722,6 +722,18 @@ int running (code_t fun) {
 	return 0;
 }
 
+int crunning (code_t fun) {
+
+	pcb_t *i;
+	int c;
+
+	c = 0;
+	for_all_tasks (i)
+		if (i->code == fun)
+			c++;
+	return c;
+}
+
 int zzz_find (code_t fun, address dat) {
 
 	pcb_t *i;

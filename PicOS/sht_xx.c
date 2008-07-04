@@ -14,66 +14,54 @@ static byte sht_delcnt, sht_status = 0;
 #define	SHTXX_STAT_TEMP		1
 #define	SHTXX_STAT_HUMID	2
 
-static void shtxx_cmd (byte cmd) {
+static Boolean shtxx_cmd (byte cmd) {
 
-	word ec, i;
+	word i;
 
-	ec = 0;
-
-	do {
-		// Reset serial interface - just in case
-		shtxx_ckdown;
-		shtxx_dtout;
-		shtxx_dtup;
-		for (i = 0; i < 10; i++) {
-			shtxx_ckup;
-			shtxx_ckdown;
-		}
-
-		// Starting sequence for the command
+	// Reset serial interface - just in case
+	shtxx_ckdown;
+	shtxx_dtout;
+	shtxx_dtup;
+	for (i = 0; i < 10; i++) {
 		shtxx_ckup;
-		shtxx_dtdown;
 		shtxx_ckdown;
+	}
+
+	// Starting sequence for the command
+	shtxx_ckup;
+	shtxx_dtdown;
+	shtxx_ckdown;
+	shtxx_ckup;
+	shtxx_dtup;
+	shtxx_ckdown;
+
+	// The opening sequence of 3 zeros
+	shtxx_dtdown;
+
+	for (i = 0; i < 3; i++) {
 		shtxx_ckup;
-		shtxx_dtup;
 		shtxx_ckdown;
+	}
 
-		// The opening sequence of 3 zeros
-		shtxx_dtdown;
+	// Now for the five least significant bits of cmd
 
-		for (i = 0; i < 3; i++) {
-			shtxx_ckup;
-			shtxx_ckdown;
-		}
-
-		// Now for the five least significant bits of cmd
-
-		for (i = 5; i != 0; ) {
-			i--;
-			if ((cmd >> i) & 1)
-				shtxx_dtup;
-			else
-				shtxx_dtdown;
-			shtxx_ckup;
-			shtxx_ckdown;
-		}
-
-		// ACK ?
-		shtxx_dtin;
+	for (i = 5; i != 0; ) {
+		i--;
+		if ((cmd >> i) & 1)
+			shtxx_dtup;
+		else
+			shtxx_dtdown;
 		shtxx_ckup;
-		i = shtxx_data;
 		shtxx_ckdown;
+	}
 
-		if (i == 0)
-			return;
+	// ACK ?
+	shtxx_dtin;
+	shtxx_ckup;
+	i = shtxx_data;
+	shtxx_ckdown;
 
-		udelay (10);
-		ec++;
-
-	} while (ec < 8);
-
-	// Ignore absent sensor
-	// syserror (EHARDWARE, "shtxx_cmd");
+	return (i != 0);
 }
 
 static byte shtxx_get (Boolean ack) {
@@ -112,11 +100,13 @@ static word shtxx_read (word st, word what) {
 			SHTXX_STAT_TEMP);
 
 		if (sht_status == SHTXX_STAT_HUMID) {
-			shtxx_cmd (SHTXX_CMD_HUMID);
+			if (shtxx_cmd (SHTXX_CMD_HUMID))
+				return 0;
 			// Delay for at least 55 msec
 			what = 55;
 		} else {
-			shtxx_cmd (SHTXX_CMD_TEMP);
+			if (shtxx_cmd (SHTXX_CMD_TEMP))
+				return 0;
 			// Delay for at least 210 msec
 			what = 210;
 		}

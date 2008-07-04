@@ -6,8 +6,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	SYSVERSION		"2.00"
-#define SYSVER_B		0x0200
+#define	SYSVERSION		"2.02"
+#define SYSVER_B		0x0202
 
 /* ================================================= */
 /* Options are now settable on per-application basis */
@@ -672,7 +672,7 @@ int	join (int, word);
 /* Wait for any process running this code */
 void	joinall (code_t, word);
 /* Locate a process by code */
-int	running (code_t);
+int	running (code_t), crunning (code_t);
 /* Locate a process by code and data */
 int	zzz_find (code_t, address);
 /* Locate a zombie by code */
