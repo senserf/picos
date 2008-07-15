@@ -116,4 +116,6 @@ void initNodes (Long, Long);
 void initChannel (Long&, Long&);
 void printStatistics ();
 
+extern Long BitRate;
+
 #endif

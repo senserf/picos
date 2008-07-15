@@ -33,14 +33,14 @@ rfchannel ShadowingChannel {
 		Long mpr		// Minimum received preamble length
 	);
 
-	double RFC_att (double, double, Transceiver*, Transceiver*);
-	Boolean RFC_act (double, double);
-	Boolean RFC_bot (RATE, double, double, const IHist*);
-	Boolean RFC_eot (RATE, double, double, const IHist*);
+	double RFC_att (const SLEntry*, double, Transceiver*, Transceiver*);
+	Boolean RFC_act (double, const SLEntry*);
+	Boolean RFC_bot (RATE, const SLEntry*, const SLEntry*, const IHist*);
+	Boolean RFC_eot (RATE, const SLEntry*, const SLEntry*, const IHist*);
 	double RFC_cut (double, double);
+	Long RFC_erb (RATE, const SLEntry*, const SLEntry*, double, Long);
+	Long RFC_erd (RATE, const SLEntry*, const SLEntry*, double, Long);
 	virtual TIME RFC_xmt (RATE, Long);
-	Long RFC_erb (RATE, double, double, double, Long);
-	Long RFC_erd (RATE, double, double, double, Long);
 };
 
 #endif

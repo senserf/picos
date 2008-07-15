@@ -579,4 +579,6 @@ void initNodes (Long, Long);
 void initMobility ();
 void initChannel (Long&, Long&);
 
+extern Long BitRate;
+
 #endif

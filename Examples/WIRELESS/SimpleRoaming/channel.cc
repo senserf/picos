@@ -1,14 +1,18 @@
 #include "types.h"
 #include "wchansh.cc"
 
+Long BitRate;
+
 void initChannel (Long &NS, Long &PRE) {
 
 // Read channel parameters from the input data
 
-	Long BR, BPB, EFB, MPR, STBL;
+	Long BPB, EFB, MPR, STBL;
 	double g, psir, pber, BN, AL, Beta, RD, Sigma, LossRD, COFF;
 	sir_to_ber_t *STB;
 	int i;
+	IVMapper *ivc [4];
+	unsigned short rix;
 
 	// Grid: the granularity of position data.
 	readIn (g);
@@ -34,7 +38,7 @@ void initChannel (Long &NS, Long &PRE) {
 	// RP(d)/XP [dB] = -10 x 3.0 x log(d/1.0m) + X(1.0) - 38.0
 
 	// This is supposed to be 10 and will be ignored
-	readIn (BR);
+	readIn (BitRate);
 
 	// The loss exponent
 	readIn (Beta);
@@ -49,7 +53,7 @@ void initChannel (Long &NS, Long &PRE) {
 	readIn (LossRD);
 
 	// Transmission rate
-	readIn (BR);
+	readIn (BitRate);
 
 	// Bits per physical byte
 	readIn (BPB);
@@ -94,7 +98,12 @@ void initChannel (Long &NS, Long &PRE) {
 	// Activity level at receiver gain 0dB - to tell the channel is busy
 	readIn (AL);
 
+	rix = 0;
+	g = (double) BitRate;
+	ivc [0] = new IVMapper (1, &rix, &g);
+	ivc [1] = ivc [2] = ivc [3] = NULL;
+
 	// This sets SEther
 	create RFShadow (NS, STB, STBL, RD, LossRD, Beta, Sigma, BN, AL, COFF,
-		MPR, BR, BPB, EFB, NULL, NULL, NULL);
+		MPR, BPB, EFB, ivc, NULL, NULL);
 }

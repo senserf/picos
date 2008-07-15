@@ -50,7 +50,7 @@ class   ObserverService : public ZZ_SProcess {
 		// Initialize state name list
 
 		zz_ns = 2;
-		zz_sl = new char* [ObsTimeout + 1];
+		zz_sl = new const char* [ObsTimeout + 1];
 		zz_sl [0] = "Start";
 		zz_sl [1] = "ObsTimeout";
 	};
@@ -283,7 +283,7 @@ void    zz_timeout_rq (TIME t, int a) {
 #endif
 }
 
-char    *ZZ_INSPECT::getptype () {
+const char *ZZ_INSPECT::getptype () {
 
 #if     ZZ_OBS
 
@@ -293,7 +293,7 @@ char    *ZZ_INSPECT::getptype () {
 /* ---------------------------------------------------------- */
 
 	ZZ_Object  *o;
-	char       *res;
+	const char *res;
 	int        i;
 
 	if (typeidn == (void*)(ANY)) return ("ANY");
@@ -323,7 +323,7 @@ char    *ZZ_INSPECT::getptype () {
 
 }
 
-char    *ZZ_INSPECT::pttrav (ZZ_Object *o) {
+const char *ZZ_INSPECT::pttrav (ZZ_Object *o) {
 
 #if     ZZ_OBS
 

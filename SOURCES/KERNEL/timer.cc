@@ -193,7 +193,23 @@ void    zz_timer::zz_proceed (int pstate) {
 
 	if_from_observer ("proceed: called from an observer");
 
+#if ZZ_REA || ZZ_RSY
+// =================
+	// Make sure the proceed request is the only one
+
+	if (!zz_c_first_wait) {
+		// Remove the requests issued so far
+		zz_c_wait_event->cancel ();
+		delete zz_c_wait_event;
+	}
+
+#else
+
 	if (zz_c_first_wait) {
+#endif
+
+	// For ZZ_REA or ZZ_RSY, this is done unconditionally, as proceed
+	// nullifies any requests issued so far
 
 		zz_c_other = NULL;    // No requests so far
 
@@ -231,6 +247,9 @@ void    zz_timer::zz_proceed (int pstate) {
 
 		zz_c_first_wait = NO;
 		zz_c_wait_event->enqueue ();
+
+#if ZZ_REA == 0 && ZZ_RSY == 0
+// ===========================
 
 	} else {
 
@@ -287,6 +306,7 @@ void    zz_timer::zz_proceed (int pstate) {
 		zz_c_other -> event = zz_c_wait_event;
 		zz_c_other -> other = zz_c_whead;
 	}
+#endif	/* ZZ_REA == 0 && ZZ_RSY == 0 */
 }
 
 #if  ZZ_TAG

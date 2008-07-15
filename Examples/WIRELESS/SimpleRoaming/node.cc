@@ -105,9 +105,11 @@ void initNodes (Long N, Long P) {
 	// Number of ITUs in one second
 	d = (double) etuToItu (1.0);
 	// Number of ITUs per bit
-	XmitRate = (RATE) round (d / SEther->BitRate);
+	XmitRate = (RATE) round (d / BitRate);
 
 	print ("Parameters shared by all nodes: \n\n");
+
+	print (BitRate,		"  Bit rate:", 10, 26);
 
 	readIn (XP);		// Transmission power
 	readIn (LBTH);		// LBT threshold

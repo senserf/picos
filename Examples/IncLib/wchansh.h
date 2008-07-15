@@ -30,13 +30,26 @@ rfchannel RFShadow : RadioChannel {
 	double (*gain) (Transceiver*, Transceiver*);
 
 	// Assessment methods
-	double RFC_att (double, double, Transceiver*, Transceiver*);
-	Boolean RFC_act (double, double);
-	Boolean RFC_bot (RATE, double, double, const IHist*);
-	Boolean RFC_eot (RATE, double, double, const IHist*);
+	double RFC_att (const SLEntry*, double, Transceiver*, Transceiver*);
+	Boolean RFC_act (double, const SLEntry*);
+	Boolean RFC_bot (RATE, const SLEntry*, const SLEntry*, const IHist*);
+	Boolean RFC_eot (RATE, const SLEntry*, const SLEntry*, const IHist*);
 	double RFC_cut (double, double);
-	Long RFC_erb (RATE, double, double, double, Long);
-	Long RFC_erd (RATE, double, double, double, Long);
+	Long RFC_erb (RATE, const SLEntry*, const SLEntry*, double, Long);
+	Long RFC_erd (RATE, const SLEntry*, const SLEntry*, double, Long);
+
+	inline unsigned short tagToCh (IPointer tag) {
+		return (unsigned short) (tag & 0xffff);
+	};
+
+	inline unsigned short tagToRI (IPointer tag) {
+		return (unsigned short) ((tag >> 16) & 0xffff);
+	};
+
+	inline double rateBoost (IPointer tag) {
+		return RBoost == NULL ? 1.0 :
+			RBoost->setvalue ((unsigned short) (tag >> 16));
+	};
 
 	void setup (
 		Long,			// The number of transceivers
@@ -50,12 +63,11 @@ rfchannel RFShadow : RadioChannel {
 		double,			// Channel busy signal threshold dBm
 		double,			// Cut off signal level
 		Long,			// Minimum received preamble length
-		Long,			// Bit rate
 		int,			// Bits per byte
 		int,			// Packet frame (extra physical bits)
-		double (*g) (Transceiver*, Transceiver*) = NULL,
-		RSSICalc *rsc = NULL,	// RSSI calculator
-		PowerSetter *ps = NULL	// Power setting converter
+		IVMapper **ivcc, 	// Value converters
+		MXChannels *mxc = NULL,	// Channels
+		double (*g) (Transceiver*, Transceiver*) = NULL
 	);
 };
 

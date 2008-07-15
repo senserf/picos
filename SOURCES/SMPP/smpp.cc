@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-2007   P. Gburzynski */
+/* Copyright (C) 1991-2008   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -103,7 +103,8 @@ Signature::Signature () {
 /* Unpacks the signature list to memory */
 /* ------------------------------------ */
 
-        char name [MAXKWDLEN], *s, ***cl, **tl, **ttl;
+        char name [MAXKWDLEN], ***cl, **tl, **ttl;
+	const char *s;
         int c, i, j, maxcom;
 
 	debug ("Unpacking signature");
@@ -209,7 +210,7 @@ Signature::Signature () {
 	debug ("Signature unpacked");
 };
 
-int Signature::update (char *sym) {
+int Signature::update (const char *sym) {
 
 /* --------------------------------------------------------------------- */
 /* Adds a new symbol to the signature, returns YES if the symbol must be */
@@ -288,7 +289,7 @@ void    Signature::close () {
 	debug ("End close");
 };
 	
-static INLINE int hash (char *s) {
+static INLINE int hash (const char *s) {
 
 /* -------------------------------------------- */
 /* Calculates the hash code of a symbol/keyword */
@@ -329,7 +330,8 @@ void    excptn (char *t) {
 	exit (3);
 }
 
-SymDesc::SymDesc (char *sym, int hsh, int qual, int stts, int mode, int estat) {
+SymDesc::SymDesc (const char *sym, int hsh, int qual, int stts, int mode,
+	int estat) {
 
 /* ----------------------------------------- */
 /* Constructor for a symbol dictionary entry */
@@ -349,7 +351,7 @@ SymDesc::SymDesc (char *sym, int hsh, int qual, int stts, int mode, int estat) {
 	Parent = NULL;
 }
 
-SymDesc *addSym (char *sym, int qual, int stts, int mode, int estat) {
+SymDesc *addSym (const char *sym, int qual, int stts, int mode, int estat) {
 
 /* --------------------------------- */
 /* Adds a symbol to the symbol table */
@@ -394,7 +396,7 @@ SymDesc *addSym (char *sym, int qual, int stts, int mode, int estat) {
 	return new SymDesc (sym, h, qual, stts, mode, estat);
 }
 
-INLINE SymDesc *getSym (char *sym) {
+INLINE SymDesc *getSym (const char *sym) {
 
 /* ------------------------------------------------- */
 /* Gets the symbol description from the symbol table */
@@ -418,7 +420,7 @@ inline  int     isDefined (SymDesc *ob, int qual, int stts) {
 		stts == ANNOUNCED));
 }
 
-KeyDesc::KeyDesc (char *s, KFUNC f, int arr) {
+KeyDesc::KeyDesc (const char *s, KFUNC f, int arr) {
 
 /* ---------------------------------------------------------- */
 /* Adds   a  new  keyword  to  the  keyword  table  (used  at */
@@ -1136,7 +1138,7 @@ Endfile:
 
 	Identified = YES;
 
-	putC ("char *ProtocolId = \"");
+	putC ("const char *ProtocolId = \"");
 	if (lc == '(') {
 		pc = 1;
 	} else {
@@ -1402,7 +1404,7 @@ int     processStates (int del) {
 	putC ("static const int zz_ns");
 	putC (SPref);
 	putC ("; ");
-	putC ("static char *zz_sl");
+	putC ("static const char *zz_sl");
 	putC (SPref);
 	putC (form ("[%1d];", ns));
 	putC ("virtual const char *zz_sn (int n) { return ((n > zz_ns");
@@ -1728,7 +1730,7 @@ int     process_nt (
 	//
 	// class A : symlist {          // public added to each symbol
 	//              public:
-	//              virtual char *getTName () {
+	//              virtual const char *getTName () {
 	//                  return ("A");
 	//              };
 
@@ -1878,7 +1880,7 @@ Assumereal:
 	if (mode != VIRTUAL) {
 		if (es == EXPOSABLE) {
 			// This won't hurt abstract types, will it?
-			putC ("virtual char *getTName () { return (\"");
+			putC ("virtual const char *getTName () { return (\"");
 			putC (arg);
 			putC ("\"); }; ");
 		} else {
@@ -1992,7 +1994,7 @@ int     processProcess (int del) {
 	//      F=(PR*)TheProcess;      // Only if PR specified
 	//      zz_typeid = (void*) (&zz_A_prcs);
 	//   };
-	//   virtual char *getTName () {
+	//   virtual const char *getTName () {
 	//      return ("A");
 	//   };
 
@@ -2213,7 +2215,7 @@ Assumereal:
 			putC ("_prcs); ");
 		}
 
-		putC (" }; virtual char *getTName () { return (\"");
+		putC (" }; virtual const char *getTName () { return (\"");
 		putC (arg);
 		putC ("\"); };");
 	} else {
@@ -2251,7 +2253,7 @@ int     processMailbox (int del) {
 	//	inline int put (TYPE a) { return zz_put ((void*) a); };
 	//	inline int putP (TYPE a) { return zz_putP ((void*) a); };
 	//	inline int erase () { return zz_erase (); };
-	//	virtual char *getTName () { return ("A"); };
+	//	virtual const char *getTName () { return ("A"); };
 
 	if (CodeType) {
 		xerror ("mailbox declaration within a code method");
@@ -2426,7 +2428,7 @@ Assumereal:
 	}
 
 	if (mode != VIRTUAL) {
-		putC ("virtual char *getTName () { return (\"");
+		putC ("virtual const char *getTName () { return (\"");
 		putC (arg);
 		putC ("\"); };");
 	}
@@ -2759,9 +2761,9 @@ Synerror:
 	return (YES);
 }
 
-char	*pfmtype;
+const char *pfmtype;
 
-void	pxerror (char *s) {
+void	pxerror (const char *s) {
 
 	xerror ("%s %s", pfmtype, s);
 }
@@ -2925,7 +2927,7 @@ int     processTraffic (int del) {
 	//              return (p);
 	//      };      // defaults: P = Packet, M = Message
 	//      public:
-	//      virtual char *getTName () { return ("A"); };
+	//      virtual const char *getTName () { return ("A"); };
 
 	lc = del;
 	empty = NO;
@@ -3106,7 +3108,7 @@ Assumereal:
 		putC (")); }; virtual Packet *zz_mkp () {Packet *p; p = new ");
 		putC (*par != '\0' ? par : "Packet");
 		putC ("; zz_mkpclean (); return (p); }; public: ");
-		putC ("virtual char *getTName () { return (\"");
+		putC ("virtual const char *getTName () { return (\"");
 		putC (arg);
 		putC ("\"); };");
 		co->States = new char* [2];
@@ -3625,7 +3627,7 @@ void    emitBuilder (SymDesc *co) {
 		cp = co->States;
 		for (nn = 0; *cp != NULL; cp++) nn++;
 		putC (form (" = %1d; ", nn));
-		putC ("char *");
+		putC ("const char *");
 		putC (co->Name);
 		putC ("::zz_sl");
 		putC (SPref);

@@ -31,9 +31,9 @@
 // output file.
 #define	TRACE_HELLO		0
 #define	TRACE_DATA		0
-#define	TRACE_ROUTING		1
+#define	TRACE_ROUTING		0
 #define	TRACE_RTABLES		0
-#define	TRACE_ANGLES		1
+#define	TRACE_ANGLES		0
 
 #if TRACE_HELLO
 #define	trc_h(p,a)	do { \
@@ -315,5 +315,7 @@ process PositionReporter {
 
 void initNodes (Long);
 void initMobility ();
+
+extern Long BitRate;
 
 #endif

@@ -2,7 +2,9 @@
 #include "channel.h"
 
 // The library channel module
-#include "wchansh.cc"
+#include "wchanshs.cc"
+
+Long BitRate;
 
 static double dir_gain (Transceiver *src, Transceiver *dst) {
 
@@ -70,10 +72,12 @@ Long initChannel () {
 
 // Read channel parameters from the input data
 
-	Long NS, BR, BPB, EFB, MPR, STBL;
+	Long NS, BPB, EFB, MPR, STBL;
 	double g, psir, pber, BN, Beta, RD, Sigma, LossRD, COFF;
 	sir_to_ber_t *STB;
 	int i;
+	IVMapper *ivc [4];
+	unsigned short rix;
 
 	// Relate the numbers read here to the input data set
 
@@ -101,7 +105,7 @@ Long initChannel () {
 	// RP(d)/XP [dB] = -10 x 3.0 x log(d/1.0m) + X(1.0) - 38.0
 
 	// This is supposed to be 10 and will be ignored
-	readIn (BR);
+	readIn (BitRate);
 
 	// The loss exponent
 	readIn (Beta);
@@ -116,7 +120,7 @@ Long initChannel () {
 	readIn (LossRD);
 
 	// Transmission rate
-	readIn (BR);
+	readIn (BitRate);
 
 	// Bits per physical byte
 	readIn (BPB);
@@ -155,9 +159,14 @@ Long initChannel () {
 	// Cutoff threshold in dBm
 	readIn (COFF);
 
+	rix = 0;
+	g = (double) BitRate;
+	ivc [0] = new IVMapper (1, &rix, &g);
+	ivc [1] = ivc [2] = ivc [3] = NULL;
+
 	// This sets SEther
 	create RFShadow (NS, STB, STBL, RD, LossRD, Beta, Sigma, BN, BN, COFF,
-		MPR, BR, BPB, EFB, dir_gain, NULL, NULL);
+		MPR, BPB, EFB, ivc, NULL, dir_gain);
 
 	return NS;
 }

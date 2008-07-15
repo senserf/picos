@@ -33,7 +33,7 @@ void ShadowingChannel::setup (
 		ber = stb;
 }
 
-double ShadowingChannel::RFC_att (double xp, double d,
+double ShadowingChannel::RFC_att (const SLEntry *xp, double d,
 					Transceiver *src, Transceiver *dst) {
 
 	if (d < RDist)
@@ -41,13 +41,13 @@ double ShadowingChannel::RFC_att (double xp, double d,
 
 	// Note: for illustration, this formula is not optimized:
 	// Received power = xp * LORD * Gauss (0.0, Sigma) * (d/RDist) ^ -Beta
-	return (xp * dBToLin (dRndGauss (0.0, Sigma))) /
+	return (xp->Level * dBToLin (dRndGauss (0.0, Sigma))) /
 		(LORD * pow (d / RDist, Beta));
 }
 
-Boolean ShadowingChannel::RFC_act (double sl, double rs) {
+Boolean ShadowingChannel::RFC_act (double sl, const SLEntry *rs) {
 
-	return sl * rs >= AThrs;
+	return sl * rs->Level >= AThrs;
 }
 
 TIME ShadowingChannel::RFC_xmt (RATE r, Long tl) {
@@ -60,34 +60,33 @@ TIME ShadowingChannel::RFC_xmt (RATE r, Long tl) {
 
 double ShadowingChannel::RFC_cut (double xp, double rp) {
 
-pow ((rp * xp) / (COSL * LORD), 1.0 / Beta) * RDist;
-
-	return pow ((rp * xp) / (COSL * LORD), 1.0 / Beta) * RDist;
+	return pow ((rp * xp)/(COSL * LORD), 1.0 / Beta) * RDist;
 }
 
-Boolean ShadowingChannel::RFC_bot (RATE r, double sl, double rs,
+Boolean ShadowingChannel::RFC_bot (RATE r, const SLEntry *sl, const SLEntry *rs,
 							const IHist *h) {
 
 	return (h->bits (r) >= MinPr) && !error (r, sl, rs, h, -1, MinPr);
 		return NO;
 }
 
-Boolean ShadowingChannel::RFC_eot (RATE r, double sl, double rs,
+Boolean ShadowingChannel::RFC_eot (RATE r, const SLEntry *sl, const SLEntry *rs,
 							const IHist *h) {
 
 	return TheTransceiver->isFollowed (ThePacket);
 }
 
-Long ShadowingChannel::RFC_erb (RATE tr, double sl, double rs, double ir,
-								Long nb) {
-	return lRndBinomial (ber (sl/(ir + BNoise)), nb);
+Long ShadowingChannel::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
+	double ir, Long nb) {
+	return lRndBinomial (ber ((sl->Level * rs->Level)/(ir + BNoise)), nb);
 }
 
-Long ShadowingChannel::RFC_erd (RATE tr, double sl, double rs, double ir,
-								Long nb) {
+Long ShadowingChannel::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
+	double ir, Long nb) {
+
 	double er;
 
-	er = dRndPoisson (1.0 / ber ((sl * rs) / (ir + BNoise)));
+	er = dRndPoisson (1.0 / ber ((sl->Level * rs->Level) / (ir + BNoise)));
 	return (er > (double) MAX_Long) ? MAX_Long : (Long) er;
 }
 

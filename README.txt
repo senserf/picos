@@ -22,7 +22,7 @@
 
 
 
-                               VERSION 3.0
+                               VERSION 3.2
 
         By:
                     Pawel Gburzynski
@@ -961,3 +961,14 @@
 	   RF_ACTIVITY objects. Any more memory leaks?
 
  R080501A  Ignored SIGPIPE signals causing occasional problems on UNIX systems.
+
+ R080714A  Reduced SOCKCHKINT to speed up socket (Mailbox) processing under
+	   Cygwin (where select doesn't work).
+	   When compiled with ZZ_REA or ZZ_RSY (like in VUEE), proceed makes
+	   sure that no other events are awaited. This is consistent with PicOS.
+	   Assessment methods for RFChannel have been redone. The idea is to
+	   extend the role of Tags and make it easier to program tricky things
+	   like multiple channels (with nonzero crosstalk) and different
+	   transmission rates (with different propagation properties).
+	   SIDE now compiles without warnings with g++ 4.2.3.
+	   Version changed to 3.2, manual updated.

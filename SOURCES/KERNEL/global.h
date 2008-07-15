@@ -697,11 +697,11 @@ double	getTolerance (int *q = NULL);
 /* -------------------- */
 /* Exception processing */
 /* -------------------- */
-int     excptn (char*, ...);            // Aborts the simulation
+int     excptn (const char*, ...);      // Aborts the simulation
 #if     ZZ_AER
-int     zz_aerror (char*);              // Same, but after arithmetic error
+int     zz_aerror (const char*);        // Same, but after arithmetic error
 #endif
-void    zz_ierror (char*);              // Fatal error before starting
+void    zz_ierror (const char*);        // Fatal error before starting
 
 #if	ZZ_NFP
 
@@ -2301,10 +2301,10 @@ class   ZZ_Object  {
 	virtual void zz_expose (int, const char *h = NULL, Long s = NONE);
 
 	// Returns the object type identifier
-	virtual char    *getTName () { return ("object"); };
+	virtual const char *getTName () { return ("object"); };
 	
 	// Returns the user-assigned nickname of the object
-	char    *getNName ();
+	const char *getNName ();
 
 	// This is to change the object's nickname
         void setNName (const char*);
@@ -2312,18 +2312,18 @@ class   ZZ_Object  {
 	// Returns the standard name of the object. This name consists of the
 	// object's type name combined with the Id, provided that the Id is not
 	// NONE.
-	char    *getSName ();
+	const char *getSName ();
 
 	// Returns a printable name of an object, i.e. the object's nickname, if
 	// one is defined, or the standard name, otherwise.
-	char    *getOName ();
+	const char *getOName ();
 
 	// Returns the base standard name of the object. This name is built
 	// similarly to the regular standard name with exception that the
 	// base type name is used instead of the actual type name. For
 	// instance, the base standard name of any station (of a possibly
 	// derived type) is "Station nn".
-	char    *getBName ();
+	const char *getBName ();
 
 	inline  void    printOut (int mode, const char *hdr = NULL,
                                                              Long sid = NONE) {
@@ -2350,7 +2350,7 @@ class   EObject : public ZZ_Object  {
 
 	public:
 	void zz_start ();                       // Nonstandard constructor
-	virtual char *getTName () { return ("EObject"); };
+	virtual const char *getTName () { return ("EObject"); };
 	virtual ~EObject ();
 };
 
@@ -2386,7 +2386,7 @@ class   RVariable : public ZZ_Object {
 	// Exposable
 	virtual void zz_expose (int, const char *h = NULL, Long s = NONE);
 
-	char    *getTName () {
+	const char    *getTName () {
 		return ("RVariable");
 	};
 
@@ -2989,7 +2989,7 @@ class	zz_monitor : public AI {
 	int signal (void*);
 	int signalP (void*);
 
-	char	*getTName () { return ("Monitor"); };
+	const char	*getTName () { return ("Monitor"); };
 
 	inline  void    printRqs (const char *hd = NULL, Long s = NONE) {
 		// Print full request list
@@ -3059,7 +3059,7 @@ class   zz_timer : public AI {
 	void wait (LONG, int);
 #endif
 #endif
-	char    *getTName () { return ("Timer"); };
+	const char    *getTName () { return ("Timer"); };
 
 	inline  void    printRqs (const char *hd = NULL, Long s = NONE) {
 		// Print full request list
@@ -3214,7 +3214,7 @@ class   Mailbox : public AI {
 	void wait (Long, int);
 #endif
 
-	virtual char *getTName () { return ("Mailbox"); };
+	virtual const char *getTName () { return ("Mailbox"); };
 
 	inline  void    printRqs (const char *hd = NULL, Long s = NONE) {
 		// Print full request list
@@ -3531,7 +3531,7 @@ class   Port : public AI {
 
 	~Port ();
 
-	char    *getTName () { return ("Port"); };
+	const char    *getTName () { return ("Port"); };
 	int	getSID (), getYID ();
 
 	// Setup functions
@@ -3682,7 +3682,7 @@ class   Link : public AI {
 			getId ());
 	};
 
-	virtual char* getTName () { return ("Link"); };
+	virtual const char* getTName () { return ("Link"); };
 
 	inline  void    printRqs (const char *hd = NULL, Long s = NONE) {
 		// Print request list
@@ -3810,7 +3810,7 @@ inline  void    zz_bld_Link (char *nn = NULL) {
 /* -------------------------- */
 class   BLink : public Link {
 	public:
-	virtual char *getTName () { return ("BLink"); };
+	virtual const char *getTName () { return ("BLink"); };
 };
 
 inline  void    zz_bld_BLink (char *nn = NULL) {
@@ -3828,7 +3828,7 @@ inline  void    zz_bld_BLink (char *nn = NULL) {
 /* --------------------- */
 class   ULink : public Link {
 	public:
-	virtual char *getTName () { return ("ULink"); };
+	virtual const char *getTName () { return ("ULink"); };
 	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
 		Type = LT_unidirectional;
 		Link::setup (np, at, spf);
@@ -3850,7 +3850,7 @@ inline  void    zz_bld_ULink (char *nn = NULL) {
 /* ------------------------------------ */
 class   PLink : public Link {
 	public:
-	virtual char *getTName () { return ("PLink"); };
+	virtual const char *getTName () { return ("PLink"); };
 	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
 		Type = LT_pointtopoint;
 		Link::setup (np, at, spf);
@@ -3872,7 +3872,7 @@ inline  void    zz_bld_PLink (char *nn = NULL) {
 /* ---------------------------------------------- */
 class   CLink : public Link {
 	public:
-	virtual char *getTName () { return ("CLink"); };
+	virtual const char *getTName () { return ("CLink"); };
 	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
 		Type = LT_cpropagate;
 		Link::setup (np, at, spf);
@@ -3896,6 +3896,8 @@ inline  void    zz_bld_CLink (char *nn = NULL) {
 /* RF Channel stuff */
 /* ================ */
 
+#include "rftagtype.h"
+
 typedef	struct {
 /* ============================ */
 /* Interference histogram entry */
@@ -3909,7 +3911,7 @@ typedef	struct {
 /* Received signal description */
 /* =========================== */
 	double		Level;
-	IPointer	Tag;
+	RF_TAG_TYPE	Tag;
 } SLEntry;
 
 class	IHist {
@@ -4182,17 +4184,20 @@ class ZZ_RSCHED {
 
 	// Activity pointer
 	ZZ_RF_ACTIVITY	*RFA;
+
+	// Received signal strength along with the copy of the Transceiver
+	// tag at the moment of transmission. They are often used as a pair.
+	SLEntry		RSS;
+
 	Boolean		Killed,
 			Done;
 	unsigned char	Stage;
 
-	// Received signal strength
-	double		LVL_RSI,
 	// Original transmitted power; needed in those rare cases when some
 	// attribute of receiver (used by RFC_att) changes half way through
 	// packet perception, and we have to re-assess the signal level using
 	// its original transmitted power.
-			LVL_XPower;
+	double		OXPower;
 
 	/*
 	 * This one is for calculating interference statistics
@@ -4201,7 +4206,7 @@ class ZZ_RSCHED {
 
 	// No constructor, don't we need an empty one?
 
-	inline void initAct (double), initSS ();
+	inline void initAct (), initSS ();
 
 	inline Boolean in_packet (), within_packet ();
 
@@ -4260,23 +4265,36 @@ class	RFChannel : public AI {
 	 * and deciding on whether certain packet events are perceptible
 	 * by the receiver.
 	 */
-	virtual double RFC_att (double, double, Transceiver*, Transceiver*);
+	virtual double RFC_att (
+			const SLEntry*,	// Source power + source Tag
+			double, 	// Distance
+			Transceiver*,	// Source
+			Transceiver*	// Destination
+		);
 		// This one determines how the perceived signal level depends
-		// on the xpower, distance, source, destination
+		// on the xpower, distance, source, destination. Note: although
+		// in principle the Tag in the first argument can be recovered
+		// from Source, it may change when RFC_att is invoked to
+		// "reassess".
 
-	virtual double RFC_add (int, int, const SLEntry*, const SLEntry*);
+	virtual double RFC_add (int, int, const SLEntry**, const SLEntry*);
 		// This one determines how the levels of multiple received
 		// signals combine. It can be called to find the interference
 		// affecting a selected signal or to calculate the global
 		// signal level, e.g., busy/idle. The first argument is the
 		// number of entries in the second array (listing the levels
-		// of individual signals perceived at the transceiver). If
-		// the transmitter is currently active, the last argument
-		// gives its power level, otherwise it is 0.0.
+		// of individual signals perceived at the transceiver). 
+		// If the second argument is >= 0, it gives the index of
+		// the activity to be ignored (e.g., when we are calculating
+		// the interference for one selected activity.
+		// The last argument contains the receiver's Tag and the
+		// power level of own activity, if present (i.e., XPower).
+		// If the transceiver is not transmitting, this power level
+		// is 0.0.
 
 	virtual Boolean RFC_act (
-			double,	// combined signal level
-			double	// receiver sensitivity
+			double,		// Combined signal level
+			const SLEntry*	// Receiver sensitivity + Tag
 		);
 		// This one determines whether the receiver senses an activity
 		// based on the combined signal level and receiver sensitivity.
@@ -4284,8 +4302,8 @@ class	RFChannel : public AI {
 
 	virtual Boolean RFC_bot (
 			RATE,		// Transmission rate
-			double,		// received signal level
-			double,		// receiver sensitivity
+			const SLEntry*,	// Received signal level
+			const SLEntry*,	// Receiver sensitivity (+Tag)
 			const IHist*	// interference histogram
 		);
 		// This one determines whether the beginning of packet is
@@ -4293,8 +4311,8 @@ class	RFChannel : public AI {
 
 	virtual Boolean RFC_eot (
 			RATE,		// Transmission rate
-			double,		// received signal level
-			double,		// receiver sensitivity
+			const SLEntry*,	// Received signal level
+			const SLEntry*,	// Receiver sensitivity
 			const IHist*	// interference histogram
 		);
 		// This one determines whether the end of packet is
@@ -4302,8 +4320,8 @@ class	RFChannel : public AI {
 
 	virtual	Long RFC_erb (
 			RATE,		// Transmission rate
-			double,		// received signal level
-			double,		// receiver sensitivity
+			const SLEntry*,	// Received signal level
+			const SLEntry*,	// receiver sensitivity
 			double,		// interference level
 			Long		// signal length (number of bits)
 		);
@@ -4314,8 +4332,8 @@ class	RFChannel : public AI {
 
 	virtual	Long RFC_erd (
 			RATE,		// Transmission rate
-			double,		// received signal level
-			double,		// receiver sensitivity
+			const SLEntry*,	// received signal level
+			const SLEntry*,	// receiver sensitivity
 			double,		// interference level
 			Long		// run length (number of bits)
 		);
@@ -4327,8 +4345,8 @@ class	RFChannel : public AI {
 		// bits until the first run of that many incorrect bits.
 
 	virtual double RFC_cut (
-			double,	// Transmitter power
-			double	// Receiver sensitivity
+			double,		// Transmitter power
+			double		// Receiver sensitivity
 		);
 		// This one determines the cut-off distance, i.e., the "range"
 		// based on the transmitter power and receiver sensitivity.
@@ -4366,7 +4384,7 @@ class	RFChannel : public AI {
 			"destroyed", getId ());
 	};
 
-	virtual char* getTName () { return ("RFC"); };
+	virtual const char* getTName () { return ("RFC"); };
 
 	inline void printRqs (const char *hd = NULL, Long s = NONE) {
 		printOut (0, hd, s);
@@ -4405,18 +4423,22 @@ class	RFChannel : public AI {
 	void	setPacketCleaner (void (*)(Packet*));
 
 	// If the histogram contains a bit error
-	Boolean error (RATE, double, double, const IHist*);
-	Boolean error (RATE, double, double, const IHist*, Long, Long nb = -1);
+	Boolean error (RATE, const SLEntry*, const SLEntry*, const IHist*);
+	Boolean error (RATE, const SLEntry*, const SLEntry*, const IHist*,
+		Long, Long nb = -1);
 	// How many bit errors in the histogram
-	Long errors (RATE, double, double, const IHist*);
-	Long errors (RATE, double, double, const IHist*, Long, Long nb = -1);
-
+	Long errors (RATE, const SLEntry*, const SLEntry*, const IHist*);
+	Long errors (RATE, const SLEntry*, const SLEntry*, const IHist*,
+		Long, Long nb = -1);
 #if ZZ_R3D
 	double	getRange (double&, double&, double&, double&, double&, double&);
 #else
 	double	getRange (double&, double&, double&, double&);
 #endif
 	private:
+
+	// A wrapper for RFC_cut accepting two Transceivers
+	inline double rfc_cut (const Transceiver*, const Transceiver*);
 
 	// Extend the transceiver's neighborhood. Called, e.g., when the
 	// transceiver increases its transmit power.
@@ -4532,15 +4554,19 @@ class	Transceiver : public AI {
 #if	ZZ_R3D
 	DISTANCE	Z;
 #endif
-	RATE		TRate;
-	TIME		Preamble;
+	Long		Preamble;	// In bits
+	RATE		TRate;		// In ITUs
 
 	/*
-	 * These two describe the transmitter power and receiver sensitivity.
-	 * They will be used by the RFChannel's assessment method to determine
-	 * whether a packet has been received.
+	 * This is the receiver sensitivity combined with the transceiver's
+	 * Tag. We keep them together because they are often used as a pair.
 	 */
-	double		XPower, RPower;
+	SLEntry		SenTag;
+
+	/*
+	 * Transmitter power
+	 */
+	double		XPower;
 
 	/*
 	 * Threshold for signal-level events
@@ -4577,12 +4603,6 @@ class	Transceiver : public AI {
 	int		NActivities;
 
 	/*
-	 * Signal Tag - to be submitted along with the signal for interference
-	 * assessment.
-	 */
-	IPointer	Tag;
-
-	/*
 	 * Error run: the number of consecutive error bits for triggering the
 	 * BERROR event.
 	 */
@@ -4599,6 +4619,7 @@ class	Transceiver : public AI {
 	Boolean		RxOn,
 			Mark,		// Used for searching
 			AevMode;	// ANYEVENT occurs within this ITU
+
 	// Here we have room for one more flag
 
 	// Exposures:
@@ -4707,19 +4728,19 @@ class	Transceiver : public AI {
 	Boolean dead (const Packet *p = NULL);
 	IHist *iHist (const Packet *p = NULL);
 
-	inline Boolean error (double sl, IHist *h) {
-		return RFC->error (TRate, sl, RPower, h);
+	inline Boolean error (const SLEntry *sl, IHist *h) {
+		return RFC->error (TRate, sl, &SenTag, h);
 	};
 
-	inline Long errors (double sl, IHist *h) {
-		return RFC->errors (TRate, sl, RPower, h);
+	inline Long errors (const SLEntry *sl, IHist *h) {
+		return RFC->errors (TRate, sl, &SenTag, h);
 	};
 
 	Boolean error (Packet *p = NULL);
 	Long errors (Packet *p = NULL);
 
 	inline Boolean busy () {
-		return RxOn ? RFC->RFC_act (sigLevel (), RPower) : 0;
+		return RxOn ? RFC->RFC_act (sigLevel (), &SenTag) : 0;
 	};
 
 	inline Boolean idle () {
@@ -4740,7 +4761,7 @@ class	Transceiver : public AI {
 	void	zz_start ();
 	~Transceiver ();
 
-	char	*getTName () { return ("Tcv"); };
+	const char	*getTName () { return ("Tcv"); };
 	int	getSID (), getYID ();
 
 	RATE	setTRate (RATE);
@@ -4792,11 +4813,13 @@ class	Transceiver : public AI {
 #endif	/* ZZ_R3D */
 
 	inline	RATE	getTRate () { return TRate; };
-	Long	getPreamble ();
-	TIME	getPreambleTime () { return Preamble; };
+	inline	Long	getPreamble () { return Preamble; };
+	inline  TIME	getPreambleTime () {
+		return (TIME) TRate * (LONG) Preamble;
+	};
 	inline	double	getXPower () { return XPower; };
-	inline	double	getRPower () { return RPower; };
-	inline	IPointer getTag () { return Tag; };
+	inline	double	getRPower () { return SenTag.Level; };
+	inline	IPointer getTag () { return SenTag.Tag; };
 	inline	Long	getErrorRun () { return ErrorRun; };
 	inline  double  getSigThreshold () { return SigThreshold; };
 	inline	double  getMinDistance () { return ituToDu (MinDistance); };
@@ -4875,7 +4898,7 @@ class   zz_client : public AI {
 
 	zz_client ();           // Constructor
 
-	char    *getTName () { return ("Client"); };
+	const char    *getTName () { return ("Client"); };
 
 #if  ZZ_TAG
 	void wait (int, int, LONG tag = 0L);
@@ -5398,7 +5421,7 @@ class   Traffic : public AI {
 		printOut (3, hd);
 	};
 
-	virtual char   *getTName () {
+	virtual const char   *getTName () {
 		return ("Traffic");
 	};
 
@@ -5776,8 +5799,6 @@ class ZZ_RF_ACTIVITY {
 
 	Boolean		Aborted;	// Preamble only
 
-	double		XPower;
-	IPointer	Tag;		// Signal tag
 	/*
 	 * The usage of this is exactly as for ZZ_LINK_ACTIVITY. No data must
 	 * be declared below this point.
@@ -5995,7 +6016,7 @@ class   ZZ_INSPECT      {
 	int             pstate,         // Process state
 			ostate;         // Observer's state
 
-	char            *getptype (),   // Return process type name
+	const char      *getptype (),   // Return process type name
 			*pttrav (ZZ_Object*); // A recursive helper for getptype
 	public:
 
@@ -6173,7 +6194,7 @@ class ZZ_SYSTEM : public Station {
 
 	public:
 
-	virtual char *getTName () {
+	virtual const char *getTName () {
 		return ("SYSTEM");
 	};
 
@@ -6227,7 +6248,7 @@ class ZZ_SYSTEM : public Station {
 class   ZZ_SProcess : public Process {
 
 	public:
-	char    **zz_sl;
+	const char **zz_sl;
 	int     zz_ns;
 	const   char *zz_sn (int);
 };
@@ -6244,7 +6265,7 @@ class   ZZ_KERNEL : public ZZ_SProcess {
 
 	public:
 
-	virtual char *getTName () {
+	virtual const char *getTName () {
 		return ("KERNEL");
 	};
 
@@ -6274,7 +6295,7 @@ class   ZZ_KERNEL : public ZZ_SProcess {
 		sernum = 0;
 		// Only one dummy state
 		zz_ns = 1;
-		zz_sl = new char* [Start + 1];
+		zz_sl = new const char* [Start + 1];
 		zz_sl [0] = "Start";
 	};
 
@@ -6429,19 +6450,21 @@ inline void Transceiver::transmit (Packet *p, int s, LONG tag) {
 
 	// TRate verified by startTransfer
 	startTransfer (p);
-	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + Preamble, s, tag);
+	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + getPreambleTime (),
+		s, tag);
 };
 
 inline void Transceiver::transmit (Packet &p, int s, LONG tag) {
 
 	startTransfer (&p);
-	Timer->wait (RFC->RFC_xmt (TRate, p.TLength) + Preamble, s, tag);
+	Timer->wait (RFC->RFC_xmt (TRate, p.TLength) + getPreambleTime (),
+		s, tag);
 };
 #else
 inline void Transceiver::transmit (Packet *p, int s) {
 
 	startTransfer (p);
-	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + Preamble, s);
+	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + getPreambleTime (), s);
 };
 
 inline void Transceiver::transmit (Packet &p, int s) {
@@ -6451,7 +6474,7 @@ inline void Transceiver::transmit (Packet &p, int s) {
 #endif
 
 inline TIME Transceiver::getXTime (Long bits) {
-	return RFC->RFC_xmt (TRate, bits) + Preamble;
+	return RFC->RFC_xmt (TRate, bits) + getPreambleTime ();
 };
 
 inline Boolean Transceiver::isFollowed (Packet *p) {

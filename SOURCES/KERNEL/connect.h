@@ -1,3 +1,7 @@
+/* ooooooooooooooooooooooooooooooooooooo */
+/* Copyright (C) 1991-08   P. Gburzynski */
+/* ooooooooooooooooooooooooooooooooooooo */
+
 #include <sys/ioctl.h>
 #include <termios.h>
 #include "../LIB/socklib.h"

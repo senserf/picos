@@ -95,7 +95,7 @@ class   ClientService : public ZZ_SProcess {
 		// Initialize state name list
 
 		zz_ns = 3;
-		zz_sl = new char* [GenBurst + 1];
+		zz_sl = new const char* [GenBurst + 1];
 		zz_sl [0] = "Start";
 		zz_sl [1] = "GenMessage";
 		zz_sl [2] = "GenBurst";

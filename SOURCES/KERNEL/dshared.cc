@@ -46,7 +46,7 @@ istream *zz_openIStream (const char *fn) {
 
 static int TemplateNo, LineNo;
 
-static void  abrt (char *msg) {
+static void  abrt (const char *msg) {
 /* ------------------------ */
 /* Processes template error */
 /* ------------------------ */

@@ -53,13 +53,13 @@ using std::ostream;
 using std::ifstream;
 using std::ofstream;
 
-ostream	*openOStream (char *fn) {
+ostream	*openOStream (const char *fn) {
 
 	return (new ofstream (fn));
 
 }
 
-istream	*openIStream (char *fn) {
+istream	*openIStream (const char *fn) {
 
 	return (new ifstream (fn));
 }

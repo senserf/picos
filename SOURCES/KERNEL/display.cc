@@ -881,7 +881,7 @@ void zz_sendObjectMenu (ZZ_Object *o) {
 /* Sends to the server the list of objects owned by the indicated object */
 /* --------------------------------------------------------------------- */
   ZZ_Object  *clist;
-  char *sn, *bn, *nn;
+  const char *sn, *bn, *nn;
   // Get to the child list. Unfortunately, this depends on object type.
   switch (o->Class) {
     case    OBJ_station:

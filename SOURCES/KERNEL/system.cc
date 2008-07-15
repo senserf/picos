@@ -287,7 +287,7 @@ static void outmes (ostream &fiptr, char *txt) {
 	zz_print_event_info (fiptr);
 }
 
-void    zz_ierror (char *t) {
+void    zz_ierror (const char *t) {
 
 /* ---------------------------------------------------------- */
 /* Signals  a  fatal  error (that makes it impossible to even */
@@ -673,7 +673,7 @@ void    zz_done () {
 	exit (0);
 }
 
-int excptn  (char *sig, ...) {
+int excptn  (const char *sig, ...) {
 
 /* ---------------- */
 /* Abort simulation */
@@ -745,7 +745,7 @@ static  void    sigill () {             // Service illegal instruction
 
 #if     ZZ_AER
 
-int zz_aerror (char *t) {
+int zz_aerror (const char *t) {
 
 /* ------------------------------------ */
 /* Print out arithmetic error diagnosis */

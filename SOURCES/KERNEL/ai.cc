@@ -355,7 +355,7 @@ void    ZZ_Object::zz_start () {
 		"of this class", Id, Class);
 }
 
-char *ZZ_Object::getNName () {
+const char *ZZ_Object::getNName () {
 
 /* ----------------------------- */
 /* Returns the object's nickname */
@@ -375,13 +375,13 @@ void ZZ_Object::setNName (const char *nn) {
 	strcpy (zz_nickname, nn);
 };
 
-char *ZZ_Object::getOName () {
+const char *ZZ_Object::getOName () {
 
 /* ----------------------------------- */
 /* Returns the object's printable name */
 /* ----------------------------------- */
 
-	char    *s;
+	const char *s;
 
 	if ((s = getNName ()) != NULL)
 		return (s);
@@ -389,13 +389,13 @@ char *ZZ_Object::getOName () {
 		return (getSName());
 }
 
-char *ZZ_Object::getSName () {
+const char *ZZ_Object::getSName () {
 
 /* ---------------------------------- */
 /* Returns the object's standard name */
 /* ---------------------------------- */
 
-	char    *sn;
+	const char *sn;
 	Long    sid;
 	
 	if (Id == NONE) return (getTName ());
@@ -423,14 +423,14 @@ char *ZZ_Object::getSName () {
 		return (form ("%s %1d", getTName (), Id));
 }
 
-char *ZZ_Object::getBName () {
+const char *ZZ_Object::getBName () {
 
 /* --------------------------------------- */
 /* Returns the object's base standard name */
 /* --------------------------------------- */
 
-	char    *sn;
-	Long    sid;
+	const char *sn;
+	Long sid;
 	
 	switch (Class) {
 

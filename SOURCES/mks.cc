@@ -177,7 +177,7 @@ void debug (char *t) {
 
 #define fnamecomp(s1,s2)  strcmp (s1, s2)
 
-ostream	*openOStream (char *fn) {
+ostream	*openOStream (const char *fn) {
 
 	ostream *str = new std::ofstream (fn);
 
@@ -188,7 +188,7 @@ ostream	*openOStream (char *fn) {
 	return NULL;
 }
 
-istream	*openIStream (char *fn) {
+istream	*openIStream (const char *fn) {
 
 	istream *str = new std::ifstream (fn);
 
@@ -243,7 +243,7 @@ void    sigint () {
 	exit (1);
 }
 
-int	excptn (char *t) {
+int	excptn (const char *t) {
 
 	cerr << pname << ": " << t << '\n';
 	sigint ();

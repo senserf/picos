@@ -2878,7 +2878,7 @@ configurations of stations interconnected by them.
 Also, radio channels are more open-ended: they come with hooks whereby users
 can describe (program)
 their favorite characteristics related to
-transmission power, reception sensitivity, transmission
+transmission power, receiver gain (sensitivity), transmission
 range, signal attenuation, interference, i.e., all the interesting attributes
 of real-life radio channels relevant from the viewpoint of modeling signal
 propagation and packet reception.
@@ -3613,7 +3613,7 @@ A natural way to model node mobility is to have a special process
 (e.g., stochastic) pattern.
 Even though the coordinates of nodes (or rather transceivers) are discrete
 (expressed in {\em ITU\/}s interpreted as distance units---\sect{rm_mp_ti}),
-the {\em ITU\/} can always be chosen to represent an arbitrarily fine unit of
+the {\em ITU\/} can be chosen to represent an arbitrarily fine unit of
 distance.
 This is important because the coordinate change is always instantaneous:
 a node is simply teleported from one location to another.
@@ -3680,44 +3680,86 @@ Similar to a link, the actual geometry of a radio channel is determined by
 the configuration of its transceivers.
 In particular, those transceivers are assigned positions represented by
 pairs (or triplets) of coordinates (\sect{rm_to_tr}).
-The distance between a pair of ports is determined as the Euclidean distance
+The distance between a pair of transceivers
+is determined as the Euclidean distance
 in two or three dimensions and expressed in {\em DU\/}s (\sect{rm_mp_ti}).
 
 The primary reason for extending the base type {\tt RFChannel} is to define
-a collection of virtual functions describing the channel's properties, viz.\ the
+the so-called {\em assessment methods}, i.e.,
+virtual functions describing the channel's properties, viz.\ the
 conditions for packet reception.
-Below we list those methods and briefly describe their roles.
+Some of the assessment
+methods accept signal levels, which are typically accompanied by
+so-called {\em tags}.
+The latter can be used to associate generic user-defined
+properties with the signals, e.g., codes for CDMA-type channels, which will
+provide additional input driving the decisions taken by the assessment
+methods.
+
+Thus, the representation of a single signal (typically representing a
+transmitted packet) arriving at a transceiver is captured by the
+following structure:
+\begin{verbatim}
+        typedef struct {
+            double Level;
+            IPointer Tag;
+        } SLEntry;
+\end{verbatim}
+\noindent
+where {\tt IPointer} is the smallest integer type capable of accommodating
+a pointer (see \sect{rm_mp_si}).
+This way, {\tt Tag\/} can point to an arbitrary structure, if the complexity
+of the channel model calls for that.
+The tag attribute of the signal associated with a transmitted packet is
+automatically inherited from the current value of the tag attribute
+associated with the originating transceiver (see \sect{rm_to_tr_cr}).
+
+The same {\tt SLEntry} structure can also be used to describe the parameters
+of a perceiving transceiver, i.e., one carrying out an assessment.
+In such a case, the {\tt Tag} attribute of that structure refers to the
+current setting of the transceiver's own tag.
+The {\tt Level} attribute may then refer to the signal level of the
+transceiver's own transmission (as in {\tt RFC\_add} below), or to its
+{\em gain\/} (as in {\tt RFC\_act}, {\tt RFC\_bot}, {\tt RFC\_eot},
+{\tt RFC\_erb}, and {\tt RFC\_erd}).
+The latter is yet another settable parameter of a transceiver that may
+affect signal perception.
+
+Below we list the assesment methods and briefly describe their roles.
 The exact explanation of the way those methods are used to determine the
 fate of packets is given in \sect{rm_tr_ra_ea}.
 
 \medskip
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_att (double sl, double d, Transceiver *src, Transceiver *dst);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_att (const SLEntry *sl, double d, Transceiver *src, Transceiver *dst);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
-This method describes signal attenuation depending on the distance and possibly
-other attributes that can be extracted from the source and destination
-transceivers.
-The first argument is the original (transmitted) signal level, the second
+This method calculates signal attenuation depending on the distance and possibly
+other attributes that can be extracted from the signal tag as well as the
+source and destination transceivers.
+The first argument is the original (transmitted) signal level (along with its
+tag), the second
 argument is the distance in {\em DU\/}s separating the source and destination
 transceivers ({\tt src} and {\tt dst}).
 The function is expected to return
-the attenuated level of the original signal {\tt sl}, i.e., the level being
-perceived by the destination transceiver.
+the attenuated level of the original signal {\tt sl->Level},
+i.e., its level being actually perceived by the destination transceiver.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_add (int n, int ex, const SLEntry *sl, const SLEntry *xm);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_add (int n, int ex, const SLEntry **sl, const SLEntry *xm);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method provides the prescription for calculating the aggregation of
 multiple signals arriving at the receiver at the same time.
 The first argument ({\tt n})
-specifies the number of entries in {\tt sl}, which is a
-an array of simple structures storing the signal levels of all individual
+specifies the number of entries in {\tt sl}, which is
+an array of signal levels representing all the individual
 activities perceivable by the transceiver.
-Additionally, if the transceiver is transmitting a packet of its own,
-{\tt xm} is not NULL and describes the level of
-the transmitted signal.
+The last argument ({\tt xm}) pertains to the present transceiver.
+If the transceiver is currently transmitting, then the {\tt Level} attribute
+of {\tt xm} is nonzero and represents the transmitted signal level.
+In all circumstances, the {\tt Tag} attribute of {\tt xm} indicates the current
+value of the transceiver's {\tt Tag}.
 If {\tt ex} is not {\tt NONE} ($-1$), it gives the index of one entry
 in {\tt sl} that should be ignored.
 This operation is also used in calculating the total level of interference
@@ -3726,20 +3768,21 @@ excluded from the calculation.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt Boolean RFC\_act (double sl, double s);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt Boolean RFC\_act (double sl, const SLEntry *s);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method is used to tell whether the transceiver senses any signal at
 all (carrier sense)
 based on the total combined signal level {\tt sl} arriving at it at the moment.
-The second parameters specifies the receiver sensitivity, which is one of
-settable parameters of a transceiver (\sect{rm_to_tr}).
-The sole purpose of this method is to determine when the channel is perceived
+The second parameters contains the receiver's {\tt Tag} as well as its
+gain (sensitivity) presented in the {\tt Level} component of {\tt s}.
+
+The purpose of this method is to determine when the channel is perceived
 {\em busy\/} or {\em idle\/} (and when to trigger the events {\tt ACTIVITY} and
 {\tt SILENCE}---\sect{rm_tr_pp_wr}).
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt Boolean RFC\_bot (RATE r, double sl, double rs, const IHist *ih);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt Boolean RFC\_bot (RATE r, const SLEntry *sl, const SLEntry *rs, const IHist *ih);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 The responsibility of
 this method is to assess whether the beginning of a packet arriving at a
@@ -3749,7 +3792,8 @@ The first argument is the transmission rate (at which the packet was
 transmitted---in {\em ITU\/}s), {\tt sl} gives the received signal
 level\footnote{In technical terminology, this is called RSSI, which
 stands for Received Signal Strength Indication.}
-of the packet, {\tt rs} is the current setting of receiver sensitivity,
+of the packet along with its tag,
+{\tt rs} describes the receiver's tag along with its gain (sensitivity),
 and {\tt ih} points to a special data structure called the {\em interference
 histogram}, which stores the history of interference
 suffered by the packet's preamble.
@@ -3758,7 +3802,7 @@ The layout and interpretation of interference histograms are described in
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt Boolean RFC\_eot (RATE r, double sl, double rs, const IHist *ih);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt Boolean RFC\_eot (RATE r, const SLEntry *sl, const SLEntry *rs, const IHist *ih);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method determines whether the end of a packet arriving at a transceiver
 may trigger a successful reception of the packet.
@@ -3767,16 +3811,21 @@ interference histogram applies to the packet rather than the preamble.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_cut (double x, double s);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_cut (double sn, double rc);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method returns the {\em cut off\/} distance (in {\em DU\/}s), i.e., the
 distance after which a signal ceases to be noticeable (causes no perceptible
 interference).
-The two arguments specify the transmission power and the receiver sensitivity.
+The two arguments specify the transmitted signal level
+and the receiver's gain.
 The method is used to keep track of node neighborhoods, i.e., groups of nodes
 being affected by other nodes.
-Conservative values returned by this method are safe, but they may increase
+Note that it does not take tags into consideration and bases its estimate
+solely on numerical signal levels.
+Conservative values returned by {\tt RFC\_cut} are formally
+safe, but they may increase
 the simulation time owing to unnecessarily large neighborhoods.
+
 \end{quote}
 
 \begin{quote}
@@ -3793,16 +3842,17 @@ Note, however, that the preamble is a separate issue.
 It is considered a {\tt Transceiver} attribute (see \sect{rm_to_tr_cr}),
 which means that different transceivers may use
 different preamble length, is always expressed directly in physical bits,
-and is included separately in the transmission time of every packet.
+and is included implicitly and
+separately in the transmission time of every packet.
 This is explained in detail in \sect{rm_tr_ac_st}.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt Long RFC\_erb (RATE r, double sl, double rs, double il, Long nb);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt Long RFC\_erb (RATE r, const SLEntry *sl, const SLEntry *rs, double il, Long nb);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 The method returns the randomized number of error bits within the sequence of
-{\tt nb} bits received at rate {\tt r}, with the received signal level
-{\tt sl}, receiver sensitivity {\tt rs}, and at the interference
+{\tt nb} bits received at rate {\tt r}, for the received signal described by
+{\tt sl}, with receiver parameters {\tt rs}, and at the interference
 level {\tt il}.
 Its role is to describe the distribution of bit errors as a function of the
 signal to interference (SIR) ratio.
@@ -3814,13 +3864,12 @@ are ``physical'' (see \sect{rm_tr_ra_ps}).
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt Long RFC\_erd (RATE r, double sl, double rs, double il, Long nb);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt Long RFC\_erd (RATE r, const SLEntry *sl, const SLEntry *rs, double il, Long nb);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 The first four arguments are as for {\tt RFC\_erb}.
 The method returns the randomized number of received
 bits (under the conditions described by the first four arguments)
-preceding the occurrence of
-a user-definable ``special''
+preceding the occurrence of a user-definable ``special''
 configuration of bits described by the last argument.
 Typically, that configuration
 (the timing of its occurrence described as a bit interval)
@@ -3844,36 +3893,38 @@ For illustration, here are the built-in versions of {\tt RFChannel}'s
 virtual methods:
 
 {\small\begin{verbatim}
-  virtual double RFC_att (double sl, double d, Transceiver *src,
+  virtual double RFC_att (const SLEntry *sl, double d, Transceiver *src,
                                                               Transceiver *dst) {
-      // No attenuation, distance, source, destination ignored
-      return sl;
+      // No attenuation, tag, distance, source, destination ignored
+      return sl->Level;
   };
 
-  virtual double RFC_add (int n, int ex, const SLEntry *sl, const SLEntry *xmt) {
+  virtual double RFC_add (int n, int ex, const SLEntry **sl, const SLEntry *xm) {
       // Straightforward additive combination of signals,
       // including the interference of own transmitter
       double total;
-      total = (xmt == NULL) ? 0.0 : xmt->Level;
+      total = xm->Level;
       while (n--)
           if (n != ex)
-              total += sl [n].Level;
+              total += sl [n] -> Level;
       return total;
   };
 
-  virtual Boolean RFC_act (double sl, double rs) {
+  virtual Boolean RFC_act (double sl, const SLEntry *rs) {
       // Any nonzero signal means "activity"
       return (sl > 0);
   };
 
-  virtual Boolean RFC_bot (RATE r, double sl, double rs, const IHist *ih) {
+  virtual Boolean RFC_bot (RATE r, const SLEntry *sl, const SLEntry *rs,
+                                                               const IHist *ih) {
       // At least 8 trailing bits of the preamble with zero
       // interference (rs ignored)
       Long nbits;
       return ((nbits = ih->bits (r)) >= 8 && ih->max (r, nbits - 8, 8) == 0.0);
   };
 
-  virtual Boolean RFC_eot (RATE r, double sl, double rs, const IHist *ih) {
+  virtual Boolean RFC_eot (RATE r, const SLEntry *sl, const SLEntry *rs,
+                                                               const IHist *ih) {
       // Zero interference throughout the entire packet
       return ih->max () == 0.0;
   };
@@ -3899,21 +3950,13 @@ The configuration of the redefinable methods of {\tt RFChannel} has been
 chosen in such a way as to offer the user high flexibility in specifying
 the exact behavior of the channel, while being relatively simple to 
 understand and program.
-As we explain in \sect{rm_tr_ra_ca}, the structure describing a signal level
-({\tt SLEntry}, see {\tt RFC\_add})
-includes a tag, which can be used to associate user-defined
-properties with the signals, e.g., codes for CDMA-type channels.
-Signal tags can be interpreted by {\tt RFC\_add} and they can affect
-the way the multiple signals are combined,
-e.g., taking into account more properties than the sheer signal
-strength at the receiver.
-Also note that the decisions (i.e., the values returned by the {\tt Boolean}
+Note that the decisions (i.e., the values returned by the {\tt Boolean}
 methods) can (and often should) be randomized,
 e.g., to fit specific distributions of bit
 error rates parameterized by detailed interference profiles.
 
 The interpretation of the signal levels and their role in determining the fate
-of bits and packets is up to the user-defined assessment functions. 
+of bits and packets is up to the assessment functions. 
 For example, the default variant of {\tt RFC\_add} assumes the linear
 interpretation of the signals, which is internally preferred,
 as it simplifies signal combination at the receivers.
@@ -3988,8 +4031,8 @@ transmitter's interference level (argument {\tt xmt} of {\tt RFC\_add}).
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt rs}}\\ \hspace{0in}
-Receiver sensitivity.
-This number is used as the respective argument
+Receiver gain (sensitivity).
+This number is used as the argument
 in {\tt RFC\_act}, {\tt RFC\_bot} and {\tt RFC\_eot}.
 \end{quote}
 
@@ -4119,11 +4162,11 @@ on the indications of {\tt RFC\_cut} (\sect{rm_to_rf_cr}), may become
 neighbors and perceive each other's signals.
 The neighborhoods maintained by the radio channel are dynamic: they are updated
 whenever a node moves or changes its transmission power or receiver
-sensitivity.
+gain.
 
 Note that the the relation of neighborhood need not be symmetric.
 First of all, different transceivers may use different transmission power
-and receiver sensitivity.
+and receiver gain.
 Then, the cut-off method ({\tt RFC\_cut}---\sect{rm_to_rf_cr}) can do whatever
 it pleases to decide when a receiving node qualifies as a transmitter's
 neighbor.
@@ -4168,12 +4211,12 @@ returning the previous value.
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt double setRPower (double xp);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
-This method sets (or re-sets) the receiver sensitivity
+This method sets (or re-sets) the receiver gain
 returning the previous value.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt Long setTag (Long tag);}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\bf {\tt IPointer setTag (IPointer tag);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method sets (or re-sets) the tag associated with the port, which will be
 used to tag all signals of subsequently transmitted packets.
@@ -4186,7 +4229,8 @@ The method returns the previous value of the tag.
 
 \noindent
 The default value of a transceiver's tag is zero.
-If the protocol needs no tags, the user can safely ignore this feature.
+If the channel model
+needs no tags, the user can ignore this feature.
 \end{quote}
 
 \begin{quote}
@@ -4251,10 +4295,8 @@ In addition to {\tt getPreamble}, this {\tt Transceiver} method:
 \end{verbatim}
 provides a fast shortcut producing the amount of time (in {\em ITU\/}s) taken
 by the transmitted preamble.
-This is faster than multiplying the value returned by
-{\tt getPreamble} by the transceiver's transmission rate, because the
-preamble length is stored internally in {\em ITU\/}s; thus,
-{\tt getPreambleTime} is trivial (while {\tt getPreamble} is not).
+This is equivalent to multiplying the value returned by
+{\tt getPreamble} by the transceiver's transmission rate.
 
 To determine the total amount of time it would take to transmit a given number
 of (logical) bits, use this {\tt Transceiver} method:
@@ -9074,7 +9116,7 @@ explicit {\tt delete}.
 \section{Radio channels and the {\tt Transceiver} {\em AI\/}}
 \label{rm_tr}
 
-The role of transceivers is conceptually identical to that of ports: thus,
+The role of transceivers is similar to that of ports; thus,
 transceivers share many methods with ports and trigger similar events.
 The kinds od operations available on transceivers cover:
 \begin{itemize}
@@ -9146,7 +9188,7 @@ determined by the transceiver's transmission rate ({\tt TRate}) and the lengths
 of the corresponding packet components.
 If stage {\em P\/} occurs at time $t$, then stage {\em T\/} will take place
 at $t$ + {\tt tcv->TRate * tcv->Preamble}, where {\tt tcv} is the transmitting
-transceiver and {\tt Preamble} is its assumed preamble length.
+transceiver and {\tt Preamble} is its currently defined preamble length.
 Then, stage {\em E\/} will occur {\tt RFC\_xmt (tcv->TRate, pkt->TLength)}
 {\em ITU\/}s after stage {\em T}, where
 {\tt pkt} points to the packet being transmitted.
@@ -9224,13 +9266,14 @@ This is a {\tt double} attribute of the transmitting transceiver, which can be
 set with {\tt setXPower} (see~\sect{rm_to_tr_if}).
 
 \noindent
-{\bf The receiver sensitivity.}
+{\bf The receiver gain.}
 This is a {\tt double} attribute of the perceiving transceiver, which can be
 set with {\tt setRPower} (see~\sect{rm_to_tr_if}).
 
 \noindent
 {\bf The tag.}
-This is a {\tt Long} attribute of the transmitting transceiver, which can be
+This is an {\tt IPointer}-type (\sect{rm_mp_si})
+attribute of the transmitting transceiver, which can be
 set with {\tt setTag} (see~\sect{rm_to_tr_if}).
 Its role is that of a general-purpose discerning feature for packet
 transmissions, whose interpretation is entirely up to the user.
@@ -9261,8 +9304,6 @@ tricky events whose timing depends on the distribution of bit errors in
 received packets.
 Note that the {\em bits\/} referred to above are physical bits
 (see \sect{rm_tr_ra_ps}).
-It is natural to express bit error rates and conditions caused by bit errors
-in terms of the physical signals actually transmitted over the channel.
 
 Owing to the fact that the assessment methods are (easily) exchangeable by the
 user, the radio channel model provided by \smurph\ is truly open-ended.
@@ -9295,8 +9336,8 @@ A transceiver changes its transmission power (attribute {\tt XPower}).
 If the power increases, the neighborhood of the transceiver may include more
 transceivers; if it decreases, the neighborhood may have to be trimmed down.
 \item
-A transceiver changes it reception sensitivity (attribute {\tt RPower}).
-If the sensitivity increases, the transceiver may have to be included in some
+A transceiver changes it reception gain (attribute {\tt RPower}).
+If the gain increases, the transceiver may have to be included in some
 new neighborhoods; if it decreases, the transceiver may have to be removed
 from some neighborhoods.
 \end{enumerate}
@@ -9306,7 +9347,7 @@ neighborhood of a given transceiver are made by invoking {\tt RFC\_cut}
 (\sect{rm_to_rf_cr}).
 The method returns the maximum distance in {\em DU\/}s on which a signal
 transmitted at a given power (the first argument) will be perceived by
-a receiver operating at a given reception sensitivity (the second argument).
+a receiver operating at a given gain (the second argument).
 Note that the method can be conservative, i.e., the model should remain 
 formally correct if the neighborhoods are larger than they absolutely have
 to be.
@@ -9317,6 +9358,21 @@ The primary advantage of trimmed neighborhoods is the reduced simulation time
 and, possibly, reduced memory requirements of the simulator.
 This advantage is generally quite relevant, especially for networks consisting
 of hundreds and thousands of transceivers.
+
+Note that one more circumstance (ignored in the above list) potentially
+affecting the neighborhood status of a pair of transceivers is a tag change
+(in one or both of them).
+This, however, has been intentionally eliminated from the scope of
+{\tt RFC\_cut} (see \sect{rm_to_rf_cr}), which method deals with the
+pure signal level (plus ``pure'' receiver gain) ignoring the tags of
+the assessed parties.
+This is because otherwise any change in a tag would require a complete
+reconstruction of the neighborhoods, which would be a rather drastic and time
+consuming action.
+Consequently, if tags are used by the channel model,
+{\tt RFC\_cut} should assume that their configuration is always
+most favorable from the viewpoint of signal propagation, i.e., the returned
+neighborhood distance should be the maximum over all possible values of tags.
 
 \subsubsection{Event assessment}
 \label{rm_tr_ra_ea}
@@ -9330,19 +9386,37 @@ amount to its reception.
 The decisions are arrived at by the collective interaction of the
 user-exchangeable {\em assessment methods\/} listed in~\sect{rm_to_rf_cr}.
 
-First, {\tt RFC\_att} determines the signal level of the packet at the
+First, {\tt RFC\_att} is called to
+determine the signal level of the packet at the
 perceiving port.
-Its first argument specifies the transmission power at which
-the packet was transmitted at the sender,
+Its first argument describes the transmission power at which
+the packet was originally transmitted at the sending transceivers,
+as well as the tag of that transmission,
 the second argument gives the distance between
-the sender and the perceiving transceiver.
-These two arguments may be sufficient to determine the packet's received
-power---in those propagation models in which attenuation depends solely on
-distance.
-The method receives two more arguments pointing to the source and destination
-transceivers.
-Based on their identity, the user is able to implement arbitrary attenuation
-criteria, including ones that have nothing to do with distance.
+the sender and the perceiving transceiver, and the last two arguments
+directly point to the two transceivers.
+If all transmissions are homogeneous, then the tags are not needed.
+In a distance-based propagation model, the method may use a (randomized)
+function of the original power level and the distance to produce the
+attenuated signal level.
+For one example of a scenario involving tags, consider multiple channels
+with nonzero crosstalk.
+With the tags representing the different channels, {\tt RF\_att} may apply an
+additional factor to the signal depending on the difference
+between the channel numbers.
+
+Note that, although the sender transceiver is directly available
+to {\tt RFC\_att} (via the third argument), the method
+should avoid consulting its attributes unless absolutely necessary.
+In particular, instead of using the {\tt Tag} value from the
+first {\tt SLEntry*} argument, the method may be tempted to invoke
+{\tt getTag} for the sender's transceiver.
+However,
+these two values can be legitimately different, as the tag of the perceived
+signal was associated with it in the past (when the packet was transmitted),
+and the current tag setting of the sender's transceiver need not be the same.
+On the other hand, the attributes of the receiving transceiver are up to date
+and they apply directly to the assessed situation.
 
 The signal level returned by {\tt RFC\_att} is associated with the packet
 at its perceiving transceiver.
@@ -9355,19 +9429,15 @@ a combination of all signals of the remaining packets.
 Method {\tt RFC\_add} is responsible for calculating this combination.
 Generally, the method takes a collection of signal levels and returns
 their combined signal level.
-A single signal is described by the following structure:
-\begin{verbatim}
-        typedef struct {
-            double Level;
-            Long Tag;
-        } SLEntry;
-\end{verbatim}
-\noindent
-where {\tt Level} is the received level of the signal as calculated by
-{\tt RFC\_att}, and {\tt Tag} is the {\tt Tag} attribute used by
-the transmitter when the packet was transmitted.
-The third argument of {\tt RFC\_add} is an array of such records; its size
-is determined by the first argument.
+
+One should remember that the signals presented to {\tt RFC\_add} (in
+the array passed in the third argument) have been already attenuated,
+i.e., they are outputs of {\tt RFC\_att}.
+Consequently, although the tags of those signals
+are available to {\tt RFC\_add}, the
+method should not apply to them the same kind of ``factoring''
+as prescribed for {\tt RFC\_att}, although, of course, it may implement any
+idosyncratic way of adding those signals required by the model.
 
 If the second argument of {\tt RFC\_add} is nonnegative, it should be viewed
 as the index of one entry in the signal array that must be ignored.
@@ -9381,41 +9451,27 @@ Sometimes {\tt RFC\_add} is invoked to calculate the global signal level
 caused by all perceived packets with no exception.
 In such a case, the second argument is {\tt NONE}, i.e., --1.
 
-It may happen that the perceiving transceiver is transmitting a
-packet of its own at the moment when some external packets are being perceived.
-In such a case, the method should take into account the interference
-caused by the transmitter (in many realistic cases it will make any reception
-impossible).
-The last argument of {\tt RFC\_add}, if not NULL, points to a signal record
-({\tt SLEntry}) describing the transmission of the transceiver's own
-transmitter.
-If this argument is NULL, it means that the transmitter is silent.
-The {\tt Level} attribute of that entry is just the transmission power
-level ({\tt XPower}), and the {\tt Tag} reflects the current setting of the
-transceiver's {\tt Tag}.
-
-The standard version of {\tt RFC\_add} built into {\tt RFChannel}
-(see~\sect{rm_to_rf_cr}) performs simple addition of all the signal levels
-and ignores the tags.
-This should be OK for simple wireless channels; however, some channels
-(notably CDMA) may want to diversify the impact of different signals on
-the total level of interference suffered by a packet, e.g., based on the
-code (which can be represented by the tag).
+In all cases, the {\tt Tag} element of the last argument of {\tt RFC\_add}
+refers to the current value of {\tt Tag} at the perceiving transceiver.
+The {\tt Level} component of that argument is zero, unless the transceiver is
+currently transmitting a packet of its own, in which case it contains the
+transceiver's transmission power.
 
 The actual decision regarding a packet's reception is made by
 {\tt RFC\_bot} and {\tt RFC\_eot}.
 Their meaning is similar, but they are called at different stages of the
 packet's perception.
-{\tt RFC\_bot} is invoked at stage {\em T}, i.e., at the end or preamble and
+{\tt RFC\_bot} is invoked at stage {\em T}, i.e., at the end of preamble and
 before the first bit of the actual packet.
 It receives the following arguments:
 \begin{itemize}
 \item
 the transmission rate {\tt r} at which the packet was transmitted
 \item
-the perceived signal level of the packet {\tt sl}
+the perceived signal level of the packet along with the tag {\tt sl}
 \item
-the reception sensitivity of the perceiving transceiver {\tt rs}
+the reception gain of the perceiving transceiver combined with the
+transceiver's tag {\tt rs}
 \item
 the interference histogram of the preamble {\tt ih}
 \end{itemize}
@@ -9434,10 +9490,10 @@ If the method returns {\tt YES}, the packet will undergo another
 assessment at stage {\em E\/}---regarding the successful
 reception of its last bit.
 This second assessment will be handled by {\tt RFC\_eot}.
-In any case, also following a negative assessment by {\tt RFC\_bot},
+In any case (also following a negative assessment by {\tt RFC\_bot})
 the packet will continue contributing its signal to the population of
 activities perceived by the transceiver until stage {\em E}, i.e., until
-is heard no more.
+the packet is no more heard at the transceiver.
 
 Note that {\tt RFC\_eot} has exactly
 the same header as {\tt RFC\_bot}.
@@ -9458,7 +9514,8 @@ On the other hand, the histogram passed to
 applies to the packet proper, excluding the preamble.
 In both cases, the histogram describes the complete interference
 history of the respective component as a list of different interference
-levels suffered by it within specific intervals.
+levels suffered by it along with the intervals during which it remained
+the same.
 
 The interference histogram is 
 a class comprising several useful methods and two public attributes:
@@ -9603,7 +9660,7 @@ In all realistic mobility scenarios, the amount of distance change during
 the reception of a single packet is completely negligible.
 
 For an example of what we have in mind in this section,
-suppose the receiver uses a
+suppose that the receiver uses a
 directional antenna that can be reset instantaneously at will.
 The right way of implementing this operation in the channel model is to
 use a dynamic gain factor in
@@ -9612,7 +9669,7 @@ depending on the antenna angle and the location of the transmitter and the
 receiver.
 When the antenna setting changes, the transceiver must re-evaluate all
 signals reaching it at the moment based on the new setting.
-This is accomplished with the following {\tt Transceiver} method:
+This is accomplished with this {\tt Transceiver} method:
 \begin{verbatim}
         void reassess ();
 \end{verbatim}
@@ -9667,8 +9724,7 @@ Additionally, for
 {\tt ThePacket} points to the assessed packet.
 These variables can be viewed as extra arguments to the respective
 assessment methods.
-In most cases, those methods can be programmed without taking them into
-account.
+In most cases, those methods can be programmed without referencing them.
 
 \subsubsection{Starting and terminating packet transmission}
 \label{rm_tr_ac_st}
@@ -9737,13 +9793,7 @@ transceiver {\tt tcv} is equal to
 \end{verbatim}
 \noindent
 and this is the amount of time after which the process will wake up
-in state {\tt done}.\footnote{For efficiency, the {\tt Preamble} attribute
-is stored internally as a {\tt TIME} value (having been already multiplied by
-{\tt TRate}).
-This is one more argument for viewing it as a timing attribute rather
-than a sequence of bits.
-Thus, the real formula used by {\tt transmit} is
-{\tt RFC\_xmt (tcv->TRate, buf->TLength) + tcv->Preamble}.}
+in state {\tt done}.
 
 A started transmission has to be terminated explicitly.
 Thus, the following sample code illustrates the full incantation:
@@ -9826,7 +9876,7 @@ A switched off receiver is incapable of sensing any activities,
 and, in particular, it will not trigger any events related to packet reception.
 This feature is essential from the viewpoint of modeling the
 behavior of real-life transceivers, whose receivers may often remain in
-the off state for some periods of time, e.g., when transiting from transmit
+the off state for some periods, e.g., when transiting from transmit
 to receive mode.
 For example, if the receiver is switched on after the arrival of a packet
 preamble, but before the arrival of the first bit of the actual packet,
@@ -9835,7 +9885,7 @@ preamble to let it receive the packet.
 The preamble interference histogram passed to {\tt RFC\_bot}
 (sections~\ref{rm_tr_ra_ea} and \ref{rm_tr_ra_ih}) accounts only for the
 portion of the preamble that was in fact perceived by the transceiver
-while it has been switched on.
+while it was switched on.
 Thus, the protocol program is able to realistically model the deaf
 periods of the transceiver by appropriately switching its receiver on and
 off.
@@ -9879,10 +9929,10 @@ In addition to determining the values returned by the above two methods,
 The first one gives the combined level of all signals currently perceived
 on the transceiver, as determined by {\tt RFC\_add} with the second argument
 equal {\tt NONE} (\sect{rm_tr_ra_ea}).
-The second argument of {\tt RFC\_act} is the reception sensitivity of the
-transceiver (attribute {\tt RPower}).
+The second argument of {\tt RFC\_act} is the reception gain of the
+transceiver (attribute {\tt RPower} combined with its {\tt Tag}).
 Intentionally, the method implements a threshold on the perceived signal
-level based on the current setting of the reception sensitivity.
+level based on the current setting of the receiver gain.
 
 \subsubsection{Wait requests}
 \label{rm_tr_pp_wr}
@@ -9927,7 +9977,7 @@ same {\em ITU}.
 Note that this event is not assessed (\sect{rm_tr_ra_ea}) and is not a
 realistic event to be perceived by any physical hardware.
 For example, the beginning of any preamble, no matter how much
-drowned by other activities will trigger the event.
+drowned in other activities will trigger the event.
 Its role is to enable exotic assessment schemes and other tricks that the
 user may want to play with the simulator.
 
@@ -10086,7 +10136,7 @@ transceiver, this {\tt Transceiver} method:
 \end{verbatim}
 returns {\tt YES}, if and only if the packet pointed to by {\tt p} is the one
 being ``followed,''
-i.e., it was previously tagged with {\tt follow}.
+i.e., it was previously marked with {\tt follow}.
 
 The threshold interference level is set by {\tt setSigThreshold}---as for
 {\tt SIGLOW} and {\tt SIGHIGH}.
@@ -10162,8 +10212,8 @@ when the protocol program wants to discern several conditions that may
 be present within the same {\em ITU}.
 Similar to the port case (\sect{rm_po_wr}), {\tt ANYEVENT} directly returns
 information about a single event, and if
-two (or more) of them occur within the same {\em ITU}, the one presented
-is chosen at random.
+two (or more) of them occur within the same {\em ITU}, the one actually
+presented is chosen at random.
 The awakened process can learn about all of them
 by calling {\tt events} (\sect{rm_tr_pp_ti}).
 
@@ -10272,7 +10322,7 @@ been correctly received.
 
 Suppose that you know how to calculate the bit
 error rate based on the received signal strength ({\tt sl}),
-receiver sensitivity ({\tt rs}), and the interference level ({\tt il}).
+receiver gain ({\tt rs}), and the interference level ({\tt il}).
 This part of your channel model can be captured by a function, say
 \begin{verbatim}
         double ber (double sl, double rs, double il);
@@ -10295,13 +10345,15 @@ formula from a formal model.
 With a function like {\tt ber} in place, {\tt RFC\_eot} may look like this:
 
 \begin{verbatim}
-        Boolean RFC_eot (RATE r, double sl, double sn, const IHist *h) {
+        Boolean RFC_eot (RATE r, const SLEntry *sl, const SLEntry *sn,
+                                                         const IHist *h) {
             int i;
             Long nb;
             double intf;
             for (i = 0; i < h->NEntries; i++) {
-                entry (i, r, nb, intf);
-                if (rnd (SEED_toss) > pow (1.0 - ber (sl, sn, intf), nb))
+                h->entry (i, r, nb, intf);
+                if (rnd (SEED_toss) >
+                  pow (1.0 - ber (sl->Level, sn->Level, intf), nb))
                     return NO;
             }
             return YES;
@@ -10309,6 +10361,7 @@ With a function like {\tt ber} in place, {\tt RFC\_eot} may look like this:
 \end{verbatim}
 
 \noindent
+For simplicity, we assume homogeneous signals (tags are not used).
 The method goes through all chunks of the packet that have experienced a fixed
 level of interference.
 For each chunk of length {\tt nb} bits that has suffered interference
@@ -10322,8 +10375,8 @@ which yields a positive assessment of the entire packet.
 
 \medskip
 
-Of course, the above example is just an illustration, i.e., the actual
-scheme for transforming the reception parameters of a packet
+The above example is merely an illustration.
+An actual scheme for transforming the reception parameters of a packet
 into its stochastic assessment decision need not be based on the notion
 of bit error rate or signal-to-noise ratio.
 However, this view is a rather standard component of all serious channel
@@ -10346,24 +10399,26 @@ complicated configurations of bit errors.
 
 The two methods have identical headers:
 \begin{verbatim}
-        Long RFC_erb (RATE r, double sl, double rs, double il, Long nb);
-        Long RFC_erd (RATE r, double sl, double rs, double il, Long nb);
+        Long RFC_erb (RATE r, const SLEntry *sl, const SLEntry *rs,
+                                                      double il, Long nb);
+        Long RFC_erd (RATE r, const SLEntry *sl, const SLEntry *rs,
+                                                      double il, Long nb);
 \end{verbatim}
 \noindent
 {\tt RFC\_erb}
 is expected to return a randomized number of error bits within a
 sequence of {\tt nb} bits received at rate {\tt r},
-signal level {\tt sl},
-receiver sensitivity {\tt rs}, and interference level {\tt il}.
+signal parameters {\tt sl} (level and tag),
+receiver parameters (gain and tag) {\tt rs}, and interference level {\tt il}.
 For example, supposing that the function {\tt ber} from the previous example
-transforms the reception parameters {\tt sl}, {\tt rs}, {\tt il}
-into the probability of a
+transforms the reception parameters into the probability of a
 bit error, and that bit errors are independent, here is one possible
 variant of the method:
 
 \begin{verbatim}
-        Long RFC_erb (RATE r, double sl, double rs, double il, Long nb) {
-            return lRndBinomial (ber (sl, rs, il), nb);
+        Long RFC_erb (RATE r, const SLEntry *sl, const SLEntry *rs,
+                                                     double il, Long nb) {
+            return lRndBinomial (ber (sl->Level, rs->Level, il), nb);
         };
 \end{verbatim}
 \noindent
@@ -10371,22 +10426,22 @@ Once {\tt RFC\_erb} is defined, the following methods of {\tt RFChannel} become
 available:
 
 \begin{verbatim}
-        Long errors (RATE r, double sl, double rs, const IHist *h,
-            Long sb = -1, Long nb = -1);
-        Boolean error (RATE r, double sl, double rs, const IHist *h,
-            Long sb = -1, Long nb = -1);
+        Long errors (RATE r, const SLEntry *sl, const SLEntry *rs,
+                              const IHist *h, Long sb = -1, Long nb = -1);
+        Boolean error (RATE r, const SLEntry *sl, const SLEntry *rs,
+                              const IHist *h, Long sb = -1, Long nb = -1);
 \end{verbatim}
 \noindent
-Suppose that the last two arguments are not specified.
+Suppose first that the last two arguments are not specified.
 Then, the first method calculates (by calling {\tt RFC\_erb})
 a randomized number of error bits in the histogram {\tt h}.
 The second method returns {\tt YES}, if the histogram contains one or more
 bit errors, and {\tt NO} otherwise.
-Formally, it is equivalent to {\tt errors (r, sl, rs, h) != 0}, but it
+Formally, it is equivalent to {\tt errors (r, sl, rs, h) != 0}, but
 executes slightly faster.
 
 The last two arguments allow you to narrow down the error lookup to a
-proper fragment of the histogram.
+fragment of the histogram.
 If both {\tt sb} and {\tt nb} are nonnegative, then {\tt sb} specifies
 the starting bit position (remember that bits in a histogram
 are numbered from 0), and {\tt nb} gives the number of bits to be looked at.
@@ -10399,7 +10454,8 @@ the last {\tt nb} bits of the activity.
 
 With these tools in place, {\tt RFC\_eot} can be simplified as follows:
 \begin{verbatim}
-        Boolean RFC_eot (RATE r, double sl, double sn, const IHist *h) {
+        Boolean RFC_eot (RATE r, const SLEntry *sl, const SLEntry *sn,
+                                                         const IHist *h) {
             return !error (r, sl, sn, h);
         }
 \end{verbatim}
@@ -10407,12 +10463,13 @@ With these tools in place, {\tt RFC\_eot} can be simplified as follows:
 The two {\tt RFChannel} methods are also available as transceiver
 methods, in the following variants:
 \begin{verbatim}
-        Long errors (double sl, const IHist *h);
-        Boolean error (double sl, const IHist *h);
+        Long errors (SLEntry *sl, const IHist *h);
+        Boolean error (SLEntry *sl, const IHist *h);
 \end{verbatim}
 \noindent
-The missing arguments, i.e., the reception rate and receiver sensitivity,
-are taken from the current settings of the transceiver.
+The missing arguments, i.e., the reception rate, receiver gain, and
+receiver tag,
+are taken from the current settings of this transceiver.
 Note that the packet's 
 reception rate is assumed to be equal to the transceiver's current
 transmission rate, which need not be always correct.
@@ -10485,8 +10542,10 @@ returns the current setting of the option.
 The following method:
 
 \begin{verbatim}
-        Long RFC_erd (RATE r, double sl, double rs, double il, Long nb) {
-            return (Long) dRndPoisson (1.0/pow (ber (sl, rs, il), nb));
+        Long RFC_erd (RATE r, const SLEntry *sl, const SLEntry *rs,
+                                                     double il, Long nb) {
+            return (Long)
+               dRndPoisson (1.0/pow (ber (sl->Level, rs->Level, il), nb));
         };
 \end{verbatim}
 returns a randomized number of bits preceding the first occurrence of {\tt nb}
@@ -10510,7 +10569,7 @@ Now consider this code fragment:
 
 Having recognized the beginning of a packet, the process awaits one of three
 events: its successful reception, three consecutive error bits, or a low
-signal indicating that the packet is no more.
+signal indicating that the packet has disappeared.
 The second event may be synonymous with an incorrect symbol, which will
 abort the reception before the last bit of the packet arrives at the
 transceiver.
@@ -16479,7 +16538,7 @@ The transceiver's transmission rate, i.e., attribute {\tt TRate}
 \item
 The current setting of the transmission power (attribute {\tt XPower}).
 \item
-The current setting of the receiver sensitivity (attribute {\tt RPower}).
+The current setting of the receiver gain (attribute {\tt RPower}).
 \item
 The number of neighbors, as determined by {\tt RFC\_cut} (\sect{rm_to_tr_if}).
 \item

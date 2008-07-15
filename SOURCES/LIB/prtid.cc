@@ -1,1 +1,1 @@
-char *ProtocolId = "Unidentified protocol";
+const char *ProtocolId = "Unidentified protocol";

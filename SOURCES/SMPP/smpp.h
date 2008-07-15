@@ -119,9 +119,9 @@ char    CFName [MFNLEN],                // The current file name
 
 class   SymDesc {                       // A symbol description
 
-	friend	SymDesc *addSym (char*, int, int stts=ANNOUNCED, int mode=FREE,
-				int estat = EXPOSABLE);
-	friend  SymDesc *getSym (char*);
+	friend	SymDesc *addSym (const char*, int, int stts=ANNOUNCED,
+					int mode=FREE, int estat = EXPOSABLE);
+	friend  SymDesc *getSym (const char*);
 
 	private:
 	SymDesc *next;                  // Rehash list pointer
@@ -137,7 +137,7 @@ class   SymDesc {                       // A symbol description
 
 	char	**States;		// State list (process only)
 
-	SymDesc (char*, int, int, int, int, int estat); // Constructor
+	SymDesc (const char*, int, int, int, int, int estat); // Constructor
 };
 
 typedef	int (*KFUNC)(int);		// Pointer to a key processing functn
@@ -154,7 +154,7 @@ class	KeyDesc {			// A keyword descriptor
 	int	Arrow;			// True if expected after '->'
 	KFUNC	PFunct;			// Processing function
 
-	KeyDesc (char*, KFUNC, int arr = NO); // The constructor
+	KeyDesc (const char*, KFUNC, int arr = NO); // The constructor
 };
 
 SymDesc *SymTab [HASHTS];		// Symbol table
@@ -177,7 +177,7 @@ class   Signature {
 
         Signature ();
         int empty () { return CL == NULL; };
-        int update (char*);
+        int update (const char*);
         int pkc (), chr (), nbl ();
 	void outsig (char*), outsig (char), flsig (), close ();
 };

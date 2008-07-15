@@ -1,44 +1,70 @@
-SMURPH Version 2.90-OC      Very Simple Wireless Network    Sat Mar 31 12:02:38 2007
-Call arguments: data.txt junk
+SMURPH Version 3.00-OA      Very Simple Wireless Network    Fri Jul 11 11:08:17 2008
+Call arguments: data.txt junko
 
-Time:  21585062943527     (Client) Global performance measures:
+RFChannel parameters:
+
+  Number of xceivers:             16
+  Background noise (dBm):       -110
+  Phys bits per byte:             12
+  Phys header length:              0
+  -------SIR to -------BER ---table:
+          50         1e-07
+          40         2e-07
+          30         5e-07
+          20         1e-06
+          10         1e-05
+           5        0.0001
+           2          0.01
+           0           0.2
+          -2           0.5
+          -5          0.99
+  ----------------------------------
+  Minimum preamble:                8
+  Activity threshold:           -110
+  Cutoff threshold:             -115
+  Fading fromula:
+    RP(d)/XP = -10 x 4.0 x log(d/1.0m) + X(4.0) - 38.0dB
+
+Bit rate (same for all nodes): 115000 bps
+
+Time: 21585063579210 [7200.002203] (Client) Global performance measures:
 
 AMD - Absolute message delay:
 
-      Number of samples:                750
-      Minimum value:         0.006391546715
-      Maximum value:            1.377080546
-      Mean value:              0.2653626685
-      Variance:               0.05770804376
-      Standard deviation:      0.2402249857
-      Confidence int @95%:    0.06478937493
-      Confidence int @99%:    0.08511869411
+      Number of samples:                934
+      Minimum value:         0.006809192978
+      Maximum value:             1.72619199
+      Mean value:              0.2345739749
+      Variance:               0.04437766857
+      Standard deviation:      0.2106600783
+      Confidence int @95%:    0.05759503511
+      Confidence int @99%:    0.07566694663
 
 APD - Absolute packet delay:
 
-      Number of samples:                750
-      Minimum value:         0.006391546715
-      Maximum value:            1.377080546
-      Mean value:              0.2653626685
-      Variance:               0.05770804376
-      Standard deviation:      0.2402249857
-      Confidence int @95%:    0.06478937493
-      Confidence int @99%:    0.08511869411
+      Number of samples:                934
+      Minimum value:         0.006809192978
+      Maximum value:             1.72619199
+      Mean value:              0.2345739749
+      Variance:               0.04437766857
+      Standard deviation:      0.2106600783
+      Confidence int @95%:    0.05759503511
+      Confidence int @99%:    0.07566694663
 
 WMD - Weighted message delay:
 
-      Number of samples:            5950576
-      Minimum value:         0.006391546715
-      Maximum value:            1.377080546
-      Mean value:              0.3547749349
-      Variance:               0.06775123498
-      Standard deviation:       0.260290674
-      Confidence int @95%:  0.0005894978794
-      Confidence int @99%:  0.0007744678773
+      Number of samples:            7427792
+      Minimum value:         0.006809192978
+      Maximum value:             1.72619199
+      Mean value:              0.3144374384
+      Variance:               0.05310719305
+      Standard deviation:      0.2304499795
+      Confidence int @95%:   0.000527070402
+      Confidence int @99%:  0.0006924521863
 
 MAT - Message access time:
 
-      Number of samples:               1725
+      Number of samples:               1667
       Minimum value:                      0
       Maximum value:                      0
       Mean value:                         0
@@ -49,7 +75,7 @@ MAT - Message access time:
 
 PAT - Packet access time:
 
-      Number of samples:               1725
+      Number of samples:               1667
       Minimum value:                      0
       Maximum value:                      0
       Mean value:                         0
@@ -60,26 +86,26 @@ PAT - Packet access time:
 
 MLS - Message length distribution:
 
-      Number of samples:               1725
+      Number of samples:               1667
       Minimum value:                    256
-      Maximum value:                  16352
-      Mean value:               8436.735072
-      Variance:                 21301505.36
-      Standard deviation:       4615.355388
-      Confidence int @95%:    0.02581619649
-      Confidence int @99%:    0.03391668671
+      Maximum value:                  16384
+      Mean value:               8246.445111
+      Variance:                  21566457.9
+      Standard deviation:       4643.970058
+      Confidence int @95%:    0.02703403737
+      Confidence int @99%:    0.03551665624
 
-    Number of generated messages:              1725
+    Number of generated messages:              1667
     Number of queued messages:                    0
-    Number of transmitted messages:            1725
-    Number of received messages:                750
-    Number of transmitted packets:             1725
-    Number of received packets:                 750
+    Number of transmitted messages:            1667
+    Number of received messages:                934
+    Number of transmitted packets:             1667
+    Number of received packets:                 934
     Number of queued bits:                        0
-    Number of transmitted bits:            14553368
-    Number of received bits:                5950576
+    Number of transmitted bits:            13746824
+    Number of received bits:                7427792
     Measurement start time:                       0
-    Throughput:                         826.4686604
+    Throughput:                         1031.637462
 
 (Client) End of list
 

@@ -1,11 +1,10 @@
-SMURPH Version 3.00-OA      Very Simple Wireless Network    Tue Feb 26 21:41:08 2008
+SMURPH Version 3.00-OA      Very Simple Wireless Network    Fri Jul 11 10:20:13 2008
 Call arguments: data_smp.txt junko
 
 RFChannel parameters:
 
   Number of xceivers:             30
   Background noise (dBm):       -110
-  Bit rate (bps):           10000000
   Phys bits per byte:             16
   Phys header length:             16
   -------SIR to -------BER ---table:
@@ -36,6 +35,8 @@ DCF parameters:
   Max retr count (long):          12
   CW min:                          4
   CW max:                         32
+
+Bit rate (same for all nodes): 10000000 bps
 
   Preamble time:          6.4044e-06
   RTS length:                    160

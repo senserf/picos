@@ -393,7 +393,7 @@ void zz_wait_for_sockets (Long ms) {
     }
   }
   if (nws || zz_msock_stat (mwr) >= 0) {
-    usleep (SOCKCHKINT * 1000);
+    	usleep (SOCKCHKINT);
   } else {
     // Just a straightforward delay without waiting for anything
     while (ms > 1000000) {
@@ -679,6 +679,7 @@ inline void zz_advance_real_time () {
 	t = zz_eq -> waketime;
 #endif
 	if (t < NextResync)
+		// No delay
 		return;
 
     	// Resync to real time
@@ -1620,6 +1621,7 @@ void unwait () {
 
 	zz_c_first_wait = YES;
 	zz_c_wait_event->cancel ();
+	delete zz_c_wait_event;
 }
 
 /* ----------------------------------- */

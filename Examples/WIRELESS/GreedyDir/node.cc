@@ -801,7 +801,9 @@ void initNodes (Long N, Long P) {
 	// Number of ITUs in one second
 	d = (double) etuToItu (1.0);
 	// Number of ITUs per bit
-	XmitRate = (RATE) round (d / SEther->BitRate);
+	XmitRate = (RATE) round (d / BitRate);
+
+	print (form ("Bit rate (same for all nodes): %1d bps\n\n", BitRate));
 
 	for (n = 0; n < N; n++) {
 		TN = create Node (XmitRate, P);

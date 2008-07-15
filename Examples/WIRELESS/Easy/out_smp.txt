@@ -1,5 +1,5 @@
-SMURPH Version 3.00-OA      Very Simple Wireless Network    Tue Feb 26 20:56:53 2008
-Call arguments: data.txt junko
+SMURPH Version 3.00-OA      Very Simple Wireless Network    Thu Jul 10 20:53:03 2008
+Call arguments: data_smp.txt junko
 
 Parameters of shadowing channel:
 

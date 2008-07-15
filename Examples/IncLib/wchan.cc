@@ -15,11 +15,10 @@ void RadioChannel::setup (
 	double no,		// Background noise
 	const sir_to_ber_t *st,	// SIR to BER conversion table
 	int sl,			// Length of the conversion table
-	Long br,		// Bit rate
 	int bpb,		// Bits per byte
 	int frm,		// Packet frame (extra bits)
-	RSSICalc *rsc,		// RSSI calculator
-	PowerSetter *ps
+	IVMapper **ivcc,	// Value converters
+	MXChannels *mxc		// Channels
 ) {
 	int i;
 	sir_to_ber_t *stb;
@@ -34,11 +33,16 @@ void RadioChannel::setup (
 	BNoise = dBToLin (no);
 	STB = st;
 	STBL = sl;
-	BitRate = br;
 	BitsPerByte = bpb;
 	PacketFrameLength = frm;
-	RSSIC = rsc;
-	PS = ps;
+	
+	// This must match the order in which ivcc is filled in board.cc
+	Rates = ivcc [0];
+	RBoost = ivcc [1];
+	RSSIC = ivcc [2];
+	PS = ivcc [3];
+
+	Channels = mxc;
 	Ether = this;
 
 	// Preprocess the BER table
@@ -49,7 +53,6 @@ void RadioChannel::setup (
 
 	print (nt, "  Number of xceivers:", 10, 26);
 	print (no, "  Background noise (dBm):", 10, 26);
-	print (BitRate, "  Bit rate (bps):", 10, 26);
 	print (BitsPerByte, "  Phys bits per byte:", 10, 26);
 	print (PacketFrameLength, "  Phys header length:", 10, 26);
 	print ("  -------SIR to -------BER ---table:\n");
@@ -72,14 +75,17 @@ double RadioChannel::ber (double sir) {
  * Converts (linear) SIR to BER by interpolating entries in
  * STB.
  */
-	int i;
 //	double res;
+	int i;
 #if 1
+	int a, b;
 	// The bisection version
 
-	i = STBL >> 1;
+	a = 0; b = STBL;
 
 	do {
+		i = (a + b) >> 1;
+
 		if (sir > STB [i] . sir) {
 			if (i == 0) {
 				// Return the lowest ber in the table
@@ -89,7 +95,7 @@ double RadioChannel::ber (double sir) {
 			}
 			if (sir > STB [i-1] . sir) {
 				// go to left
-				i >>= 1;
+				b = i;
 				continue;
 			}
 			// Interpolate
@@ -114,7 +120,7 @@ double RadioChannel::ber (double sir) {
 		}
 
 		// Go to right
-		i = (i + 1 + STBL) >> 1;
+		a = i + 1;
 	} while (1);
 
 // trace ("SIR: %f, BER %g", linTodB (sir), res);
@@ -149,279 +155,173 @@ double RadioChannel::ber (double sir) {
 
 }
 
-RSSICalc::RSSICalc (unsigned short n, unsigned short m, unsigned short *wt,
-								double *dt) {
+IVMapper::IVMapper (unsigned short n, unsigned short *wt, double *dt,
+								Boolean lg) {
 
 	int i;
 
 	NL = n;
-	Mode = m;
 	VLV = wt;
+
+	Dec = (dt [1] < dt [0]);
+	Log = lg;
+
+	// Interpolation
 	SLV = dt;
-
-	if (Mode >= 2) {
-		// Interpolation
+	if (NL > 1) {
 		FAC = new double [NL - 1];
-		for (i = 0; i < NL-1; i++) {
-			FAC [i] = (double) (VLV [i+1] - VLV [i]) /
-				(SLV [i+1] - SLV [i]);
-		}
-	} else {
-		FAC = NULL;
-		SLV [2] = (double) (VLV [1] - VLV [0]);
-		SLV [1] = SLV [2] / (SLV [1] - SLV [0]);
-	}
-}
-	
-unsigned short RSSICalc::calculate (double sl) {
-
-	int ix;
-
-	switch (Mode) {
-
-	    case 0:
-
-		sl = linTodB (sl);
-
-	    case 1:
-
-		// Transformation
-
-		sl = ((sl - SLV [0]) * SLV [1]);
-
-		if (sl < 0)
-			return VLV [0];
-
-		if (sl > SLV [2])
-			return VLV [1];
-
-		return (unsigned short) sl + VLV [0];
-
-	    case 2:
-
-		sl = linTodB (sl);
-
-	    case 3:
-
-		// Interpolation linear
-
-		ix = NL >> 1;
-
-		do {
-			if (SLV [ix] <= sl) {
-				if (ix+1 == NL)
-					// At the end
-					return VLV [ix];
-				if (SLV [ix+1] <= sl) {
-					// Go to right
-					ix = (ix + NL + 1) >> 1;
-					continue;
-				}
-				// Interpolate and return
-				return (unsigned short) ((sl - SLV [ix]) *
-					FAC [ix]) + VLV [ix];
-			}
-
-			if (ix == 0)
-				// At the beginning
-				return VLV [0];
-
-			if (SLV [ix-1] > sl) {
-				// Go to left
-				ix >>= 1;
-				continue;
-			}
-
-			// Interpolate and return
-			return (unsigned short) ((sl - SLV [ix-1]) *
-				FAC [ix-1]) + VLV [ix-1];
-		} while (1);
-
-	    default:
-
-		excptn ("RSSICalc->calculate: illegal mode %d", Mode);
-	
-	}
-}
-	
-PowerSetter::PowerSetter (unsigned short n, unsigned short m,
-					unsigned short *wt, double *dt) {
-
-	int i;
-
-	NL = n;
-	Mode = m;
-	VLV = wt;
-	SLV = dt;
-
-	if (Mode >= 2) {
-		// Interpolation
-		FAC = new double [NL - 1];
-		for (i = 0; i < NL-1; i++) {
+		for (i = 0; i < NL-1; i++)
 			FAC [i] = (double) (SLV [i+1] - SLV [i]) /
 				(VLV [i+1] - VLV [i]);
-		}
 	} else {
 		FAC = NULL;
-		SLV [2] = (SLV [1] - SLV [0]);
-		SLV [3] = SLV [2] / (VLV [1] - VLV [0]);
-		SLV [4] = (double) (VLV [1] - VLV [0]);
 	}
 }
 	
-double PowerSetter::setvalue (unsigned short w) {
+double IVMapper::setvalue (unsigned short w) {
 
-	int ix;
 	double d;
+	int a, b, ix;
 
-	switch (Mode) {
+	a = 0; b = NL;
 
-	    case 0:
-	    case 1:
+	do {
+		ix = (a + b) >> 1;
 
-		d = (double)(w - VLV [0]) * SLV [3];
+		if (VLV [ix] <= w) {
 
-		if (d < 0.0) {
+			if (ix+1 == NL) {
+				d = SLV [ix];
+				goto Ret;
+			}
+
+			if (VLV [ix+1] <= w) {
+				// Go to right
+				a = ix+1;
+				continue;
+			}
+			// Interpolate and return
+			break;
+		}
+
+		if (ix == 0) {
+			// At the beginning
 			d = SLV [0];
-		} else if (d > SLV [2]) {
-			d = SLV [1];
-		} else {
-			d += SLV [0];
+			goto Ret;
 		}
 
-		if (Mode == 0)
-			d = dBToLin (d);
+		if (VLV [ix-1] > w) {
+			// Go to left
+			b = ix;
+			continue;
+		}
 
-		return d;
+		// Interpolate and return
+		ix--;
+		break;
 
-	    case 2:
-	    case 3:
+	} while (1);
 
-		ix = NL >> 1;
-
-		do {
-			if (VLV [ix] <= w) {
-				if (ix+1 == NL) {
-					// At the end
-					d = SLV [ix];
-					break;
-				}
-				if (VLV [ix+1] <= w) {
-					// Go to right
-					ix = (ix + NL + 1) >> 1;
-					continue;
-				}
-				// Interpolate and return
-				d = ((w - VLV [ix]) * FAC [ix]) + SLV [ix];
-				break;
-			}
-
-			if (ix == 0) {
-				// At the beginning
-				d = SLV [0];
-				break;
-			}
-
-			if (VLV [ix-1] > w) {
-				// Go to left
-				ix >>= 1;
-				continue;
-			}
-
-			// Interpolate and return
-			d = ((w - VLV [ix-1]) * FAC [ix-1]) + SLV [ix-1];
-			break;
-
-		} while (1);
-
-		if (Mode == 2)
-			d = dBToLin (d);
-
-		return d;
-
-	    default:
-
-		excptn ("PowerSetter->setvalue: illegal mode %d", Mode);
-	
-	}
+	// Interpolate
+	d = ((w - VLV [ix]) * FAC [ix]) + SLV [ix];
+Ret:
+	return Log ? dBToLin (d) : d;
 }
 
-unsigned short PowerSetter::getvalue (double v) {
+unsigned short IVMapper::getvalue (double v) {
 
-	int ix;
-	double d;
-	unsigned short w;
+	int a, b, ix;
 
-	switch (Mode) {
+	a = 0; b = NL;
 
-	    case 0:
-
-		v = linTodB (v);
-		
-	    case 1:
-
-		d = (double)(v - SLV [0]) / SLV [3];
-
-		if (d < 0.0) {
-			w = VLV [0];
-		} else if (d > SLV [4]) {
-			w = VLV [1];
-		} else {
-			w = (unsigned short) d + VLV [0];
-		}
-
-		return w;
-
-	    case 2:
-
+	if (Log)
 		v = linTodB (v);
 
-	    case 3:
+	do {
+		ix = (a + b) >> 1;
 
-		ix = NL >> 1;
+		if (vtor (SLV [ix], v)) {
+			if (ix+1 == NL)
+				// At the end
+				return VLV [ix];
 
-		do {
-			if (SLV [ix] <= v) {
-				if (ix+1 == NL) {
-					// At the end
-					w = VLV [ix];
-					break;
-				}
-				if (SLV [ix+1] <= v) {
-					// Go to right
-					ix = (ix + NL + 1) >> 1;
-					continue;
-				}
-				// Interpolate and return
-				w = (unsigned short) ((v - SLV [ix]) /
-					FAC [ix]) + VLV [ix];
-				break;
-			}
-
-			if (ix == 0) {
-				// At the beginning
-				w = VLV [0];
-				break;
-			}
-
-			if (SLV [ix-1] > v) {
-				// Go to left
-				ix >>= 1;
+			if (vtor (SLV [ix+1], v)) {
+				// Go to right
+				a = ix+1;
 				continue;
 			}
-
 			// Interpolate and return
-			w = (unsigned short) ((v - SLV [ix-1]) / FAC [ix-1]) +
-				VLV [ix-1];
 			break;
+		}
 
-		} while (1);
+		if (ix == 0)
+			// At the beginning
+			return VLV [0];
 
-		return w;
+		if (!vtor (SLV [ix-1], v)) {
+			// Go to left
+			b = ix;
+			continue;
+		}
 
-	    default:
+		// Interpolate and return
+		ix--;
+		break;
 
-		excptn ("PowerSetter->getvalue: illegal mode %d", Mode);
+	} while (1);
+
+	return (unsigned short) ((v - SLV [ix]) / FAC [ix]) + VLV [ix];
+}
+
+Boolean IVMapper::exact (unsigned short w) {
+
+	int a, b, ix;
+
+	a = 0; b = NL;
+
+	do {
+		ix = (a + b) >> 1;
+
+		if (VLV [ix] == w)
+			return YES;
+
+		if (VLV [ix] < w) {
+			// Go to the right
+			if (ix + 1 == NL || VLV [ix + 1] > w)
+				return NO;
+
+			a = ix + 1;
+			continue;
+		}
+
+		// Go to the left
+		if (ix == 0 || VLV [ix - 1] < w)
+			return NO;
+
+		b = ix;
+
+	} while (1);
+}
+
+Boolean IVMapper::inrange (unsigned short w) {
+
+	if (NL == 1)
+		return (w == VLV [0]);
+
+	return (w >= VLV [0] && w <= VLV [1]);
+}
+
+MXChannels::MXChannels (unsigned short nc, int nsep, double *sep) {
+
+	int i;
+
+	NC = nc;
+
+	if ((NSEP = nsep) > 0) {
+		SEP = sep;
+		// Turn them into reverse linear factors
+		for (i = 0; i < NSEP; i++)
+			SEP [i] = dBToLin (-SEP [i]);
 	}
 }
 
