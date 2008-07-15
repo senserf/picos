@@ -13,13 +13,19 @@
 
 typedef	struct {
 
-// RF module
+// General (mostly RF module)
 
-	double	XP, RP;		// Xmit power, receiver sensitivity
-	double	LBTThs;		// LBT threshold
-	word	BCMin, BCMax,	// Minimum and maximum backoff
+	double	Boost,		// Receiver boost
+		LBTThs;		// LBT threshold
+	word	Rate,		// Rate select
+		Power,		// Power select
+		Channel,	// Channel number
+		BCMin, BCMax,	// Minimum and maximum backoff
 		LBTDel,		// LBT delay
 		Pre;		// Preamble length
+
+	word	PLimit;		// Process table size
+
 } data_rf_t;
 
 #define	EP_N_BOUNDS		6

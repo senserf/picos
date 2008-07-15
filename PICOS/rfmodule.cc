@@ -22,7 +22,7 @@ byte Receiver::get_rssi (byte &qual) {
 		// No RSSI calculator present
 		return 0;
 
-	wr = Ether->RSSIC->calculate (RFInterface->sigLevel (ThePckt,
+	wr = Ether->RSSIC->getvalue (RFInterface->sigLevel (ThePckt,
 		SIGL_OWN));
 
 	if (wr > 255)
@@ -295,6 +295,7 @@ static int option (int opt, address val) {
  * Option processing
  */
 	int ret = 0;
+	word w, v;
 
 	switch (opt) {
 
@@ -393,18 +394,60 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETPOWER:
 
-		if (Ether->PS != NULL)
-			RFInterface->setXPower ((val == NULL) ? 
-				DefXPower : Ether->PS->setvalue (*val));
+		// Make sure the argument is decent
+		if (val != NULL) {
+			v = *val;
+			if (v > (w = Ether->PS->upper ()))
+				v = w;
+			else if (v < (w = Ether->PS->lower ()))
+				v = w;
+		} else
+			v = DefXPower;
+		setrfpowr (v);
 		break;
 
 	    case PHYSOPT_GETPOWER:
 
-		if (Ether->PS == NULL)
-			excptn ("PHYSOPT_GETPOWER unimplemented");
+		ret = (word) (Ether->PS->getvalue (RFInterface->getXPower ()));
+		if (val != NULL)
+			*val = ret;
+		break;
 
-		ret = Ether->PS->getvalue (RFInterface->getXPower ());
+	    case PHYSOPT_SETRATE:
 
+		if (val != NULL) {
+			v = *val;
+			if (v > (w = Ether->Rates->upper ()))
+				v = w;
+			else if (v < (w = Ether->Rates->lower ()))
+				v = w;
+		} else
+			v = DefRate;
+		setrfrate (v);
+		break;
+
+	    case PHYSOPT_GETRATE:
+
+		ret = SEther->tagToRI (RFInterface->getTag ());
+		if (val != NULL)
+			*val = ret;
+		break;
+
+	    case PHYSOPT_SETCHANNEL:
+
+		if (val != NULL) {
+			v = *val;
+			if (v > (w = Ether->Channels->max ()))
+				v = w;
+		} else
+			v = DefChannel;
+
+		setrfchan (v);
+		break;
+
+	    case PHYSOPT_GETCHANNEL:
+
+		ret = SEther->tagToCh (RFInterface->getTag ());
 		if (val != NULL)
 			*val = ret;
 		break;

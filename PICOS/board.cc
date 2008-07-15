@@ -10,12 +10,16 @@
 #include "nvram.cc"
 #include "agent.h"
 
+//
+// Size of the number table for extracting table contents:
+// make it divisible by 2 and 3
+//
+#define	NPTABLE_SIZE	66
+
 const char	zz_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
-
-static	RATE	XmitRate;	// This one is common for all nodes
 
 struct strpool_s {
 
@@ -186,8 +190,13 @@ void PicOSNode::initParams () {
 
 	// Reset the transceiver to defaults
 	_da (RFInterface)->rcvOn ();
-	_da (RFInterface)->setXPower (_da (DefXPower));
+
+	_da (setrfpowr) (_da (DefXPower));
+
 	_da (RFInterface)->setRPower (_da (DefRPower));
+
+	_da (setrfrate) (_da (DefRate));
+	_da (setrfchan) (_da (DefChannel));
 
 	_da (entropy) = 0;
 	_da (statid) = 0;
@@ -196,6 +205,9 @@ void PicOSNode::initParams () {
 	_da (TXOFF) = _da (RXOFF) = YES;
 
 	_da (OBuffer).fill (NONE, NONE, 0, 0, 0);
+
+	// Process tally
+	NPcss = 0;
 
 	// This will do the dynamic initialization of the static stuff in TCV
 	_da (tcv_init) ();
@@ -255,15 +267,22 @@ void PicOSNode::setup (data_no_t *nd) {
 		ledsm = new LEDSM (nd->le);
 	}
 
-	_da (DefXPower) = dBToLin (nd->rf->XP);
-	_da (DefRPower) = dBToLin (nd->rf->RP);
+	_da (DefXPower)  = nd->rf->Power;		// Index
+	_da (DefRPower)  = dBToLin (nd->rf->Boost);	// Value in dB
+	_da (DefRate)    = nd->rf->Rate;		// Index
+	_da (DefChannel) = nd->rf->Channel;
+
+	NPcLim = nd->rf->PLimit;
 
 	_da (RFInterface) = create Transceiver (
-			XmitRate,
+			1,			// Dummy
 			(Long)(nd->rf->Pre),
-			_da (DefXPower),
-			_da (DefRPower),
+			1.0,			// Dummy
+			1.0,			// Dummy
 			nd->X, nd->Y );
+
+	_da (setrfrate) (_da (DefRate));
+	_da (setrfchan) (_da (DefChannel));
 
 	Ether->connect (_da (RFInterface));
 
@@ -295,8 +314,57 @@ void PicOSNode::setup (data_no_t *nd) {
 	// This is TIME_0
 	LastResetTime = Time;
 	init ();
-};
+}
 
+void _dad (PicOSNode, setrfpowr) (word ix) {
+//
+// Set XPower
+//
+	IVMapper *m;
+
+	m = SEther -> PS;
+
+	assert (m->exact (ix), "PicOSNode->setrfpowr: illegal power index %1d",
+		ix);
+
+	_da (RFInterface) -> setXPower (m->setvalue (ix));
+}
+
+void _dad (PicOSNode, setrfrate) (word ix) {
+//
+// Set RF rate
+//
+	double rate;
+	Transceiver *r;
+	IVMapper *m;
+
+	m = SEther -> Rates;
+	r = _da (RFInterface);
+
+	assert (m->exact (ix), "PicOSNode->setrfrate: illegal rate index %1d",
+		ix);
+
+	rate = m->setvalue (ix);
+	r->setTRate ((RATE) round ((double)etuToItu (1.0) / rate));
+	r->setTag ((r->getTag () & 0xffff) | (ix << 16));
+}
+
+void _dad (PicOSNode, setrfchan) (word ch) {
+//
+// Set RF channel
+//
+	Transceiver *r;
+	MXChannels *m;
+
+	m = SEther -> Channels;
+	r = _da (RFInterface);
+
+	assert (ch <= m->max (),
+		"PicOSNode->setrfchan: illegal channel %1d", ch);
+
+	r->setTag ((r->getTag () & ~0xffff) | ch);
+}
+	
 lword _dad (PicOSNode, seconds) () {
 
 	// FIXME: make those different at different stations
@@ -726,14 +794,18 @@ int _dad (PicOSNode, ser_in) (word st, char *buf, int len) {
 
 	int prcs;
 
-	assert (st != WNONE, "PicOSNode->ser_in: NONE state unimplemented");
-
-	if (buf == NULL || len == 0)
+	if (len == 0)
 		return 0;
 
 	if (uart->__inpline == NULL) {
-		if (uart->pcsInserial == NULL)
-			create Inserial;
+		if (uart->pcsInserial == NULL) {
+			if (tally_in_pcs ()) {
+				create Inserial;
+			} else {
+				npwait (st);
+				sleep;
+			}
+		}
 		uart->pcsInserial->wait (DEATH, st);
 		sleep;
 	}
@@ -762,11 +834,6 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 	int prcs;
 	char *buf;
 
-	assert (st != WNONE, "PicOSNode->ser_out: NONE state unimplemented");
-
-	if (m == NULL)
-		return 0;
-
 	if (uart->pcsOutserial != NULL) {
 		uart->pcsOutserial->wait (DEATH, st);
 		sleep;
@@ -790,7 +857,13 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 	else
 		memcpy (buf, m, prcs);
 
-	create Outserial (buf);
+	if (tally_in_pcs ()) {
+		create Outserial (buf);
+	} else {
+		ufree (buf);
+		npwait (st);
+		sleep;
+	}
 
 	return 0;
 }
@@ -809,7 +882,14 @@ int _dad (PicOSNode, ser_outb) (word st, const char *m) {
 		uart->pcsOutserial->wait (DEATH, st);
 		sleep;
 	}
-	create Outserial (m);
+	if (tally_in_pcs ()) {
+		create Outserial (m);
+	} else {
+		ufree (buf);
+		npwait (st);
+		sleep;
+	}
+
 	return 0;
 }
 
@@ -821,14 +901,18 @@ int _dad (PicOSNode, ser_inf) (word st, const char *fmt, ...) {
 	int prcs;
 	va_list	ap;
 
-	assert (st != WNONE, "PicOSNode->ser_inf: NONE state unimplemented");
-
 	if (fmt == NULL)
 		return 0;
 
 	if (uart->__inpline == NULL) {
-		if (uart->pcsInserial == NULL)
-			create Inserial;
+		if (uart->pcsInserial == NULL) {
+			if (tally_in_pcs ()) {
+				create Inserial;
+			} else {
+				npwait (st);
+				sleep;
+			}
+		}
 		uart->pcsInserial->wait (DEATH, st);
 		sleep;
 	}
@@ -870,7 +954,14 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 		sleep;
 	}
 
-	create Outserial (buf);
+	if (tally_in_pcs ()) {
+		create Outserial (buf);
+	} else {
+		ufree (buf);
+		npwait (st);
+		sleep;
+	}
+
 	return 0;
 }
 
@@ -982,6 +1073,67 @@ static void xeai (const char *s, const char *w, const char *v) {
 
 static void xevi (const char *s, const char *w, const char *v) {
 	excptn ("Root: illegal %s value in %s: %s", s, w, v);
+}
+
+static void xeni (const char *s) {
+	excptn ("Root: %s table too large, increase NPTABLE_SIZE", s);
+}
+
+static void xesi (const char *s, const char *w) {
+	excptn ("Root: a single integer number required in %s in %s", s, w);
+}
+
+static void xefi (const char *s, const char *w) {
+	excptn ("Root: a single FP number required in %s in %s", s, w);
+}
+
+static void xmon (int nr, const word *wt, const double *dta, const char *s) {
+//
+// Validates the monotonicity of data to be put into an IVMapper
+//
+	int j;
+	Boolean dec;
+
+	if (nr < 2)
+		return;
+
+	for (j = 1; j < nr; j++) {
+		if (wt [j] <= wt [j-1])
+			excptn ("Root: representation entries in mapper %s "
+				"are not strictly increasing", s);
+	}
+
+	dec = dta [1] < dta [0];
+	for (j = 1; j < nr; j++) {
+		if (( dec && dta [j] >= dta [j-1]) ||
+	            (!dec && dta [j] <= dta [j-1])  )
+			excptn ("Root: value entries in mapper %s are not "
+				"strictly monotonic", s);
+	}
+}
+
+static void xpos (int nr, const double *dta, const char *s, Boolean nz = NO) {
+
+	int i;
+
+	for (i = 1; i < nr; i++) {
+		if (dta [i] <= 0.0) {
+			if (nz == NO && dta [i] == 0.0)
+				continue;
+			excptn ("Root: illegal value in mapper %s", s);
+		}
+	}
+}
+
+static void oadj (const char *s, int n) {
+//
+// Tabulate output to the specified position
+//
+	n -= strlen (s);
+	while (n > 0) {
+		Ouf << ' ';
+		n--;
+	}
 }
 
 BoardRoot::perform {
@@ -1122,20 +1274,17 @@ static void packetCleaner (Packet *p) {
 
 void BoardRoot::initChannel (sxml_t data, int NT) {
 
-#define	NPTABLE_SIZE	64
-
-	const char *att;
+	const char *att, *xnam;
 	double bn_db, beta, dref, sigm, loss_db, psir, pber, cutoff;
 	nparse_t np [NPTABLE_SIZE];
-	int nb, nr, ns, i, syncbits, bpb, frml;
-	Long brate;
+	int nb, nr, i, j, syncbits, bpb, frml;
 	sxml_t cur;
 	sir_to_ber_t	*STB;
-	RSSICalc	*RSC;
-	PowerSetter	*PS;
-	word *wt, *vt;
-	word rmo, smo;
-	double *dta, *eta;
+	IVMapper	*ivc [4];
+	MXChannels	*mxc;
+	word wn, *wt;
+	Boolean rmo;
+	double *dta, *dtb;
 
 	if ((data = sxml_child (data, "channel")) == NULL)
 		xenf ("<channel>", "<network>");
@@ -1231,161 +1380,276 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 	if ((cur = sxml_child (data, "frame")) == NULL)
 		xenf ("<frame>", "<channel>");
 	att = sxml_txt (cur);
-	np [0] . type = np [1] . type = np [2] . type = TYPE_LONG;
-	if (parseNumbers (att, 3, np) != 3)
+	np [0] . type = np [1] . type = TYPE_LONG;
+	if (parseNumbers (att, 2, np) != 2)
 		xevi ("<frame>", "<channel>", att);
 
-	brate = (Long) (np [0].LVal);
-	bpb = (int) (np [1].LVal);
-	frml = (int) (np [2].LVal);
-	if (brate <= 0 || bpb <= 0 || frml < 0)
+	bpb = (int) (np [0].LVal);
+
+	frml = (int) (np [1].LVal);
+	if (bpb <= 0 || frml < 0)
 		xevi ("<frame>", "<channel>", att);
 
-	// Prepare np for reading interpolation tables (RSSICalc & PowerSetter)
+	// Prepare np for reading value mappers
 	for (i = 0; i < NPTABLE_SIZE; i += 2) {
-		np [i  ] . type = TYPE_double;
-		np [i+1] . type = TYPE_int;
+		np [i  ] . type = TYPE_int;
+		np [i+1] . type = TYPE_double;
 	}
 
 	print ("Channel:\n");
 	print (form ("  RP(d)/XP [dB] = -10 x %g x log(d/%gm) + X(%g) - %g\n",
 			beta, dref, sigm, loss_db));
-	print ("  BER Table:           SIR         BER\n");
+	print ("\n  BER table:           SIR         BER\n");
 	for (i = 0; i < nb; i++) {
  		print (form ("             %11gdB %11g\n",
 			linTodB (STB[i].sir), STB[i].ber));
 	}
 
-	if ((cur = sxml_child (data, "rssi")) == NULL) {
-		// No RSSI calculator
-		RSC = NULL;
-		nr = 0;
-	} else {
-		// Decode the mode
-		rmo = 0;
-		// The default is transformation, logarithmic
-		if ((att = sxml_attr (cur, "mode")) != NULL) {
-			if (strstr (att, "lin") != NULL)
-				// Linear (log is the default)
-				rmo |= 1;
-			if (strstr (att, "int") != NULL)
-				rmo |= 2;
+	bzero (ivc, sizeof (ivc));
+
+	if ((cur = sxml_child (data, "rates")) == NULL)
+		xenf ("<rates>", "<network>");
+
+	// This tells us whether we should expect boost factors
+	rmo = (att = sxml_attr (cur, "boost")) != NULL && strcmp (att, "no");
+	att = sxml_txt (cur);
+
+	if (rmo) {
+		// Expect sets of triplets: int int doubls
+		for (i = 0; i < NPTABLE_SIZE; i += 3) {
+			np [i  ] . type = np [i+1] . type = TYPE_int;
+			np [i+2] . type = TYPE_double;
 		}
-		att = sxml_txt (cur);
 		nr = parseNumbers (att, NPTABLE_SIZE, np);
 		if (nr > NPTABLE_SIZE)
-			excptn ("Root: <rssi> table too large, increase "
-				"NPTABLE_SIZE");
+			xeni ("<rates>");
 
-		if (rmo < 2) {
-			if (nr != 4)
-				excptn ("Root: <rssi> table needs exactly 4 "
-					"items, has %1d", nr);
-		} else {
-			if ((nr & 1) || nr < 4)
-				excptn ("Root: <rssi> table needs at least 4 "
-					"items and their number must be even, "
-						"is %1d", nr);
-		}
-
-		nr /= 2;
-
-		// Need one extra element for transformation
-		dta = new double [nr + (rmo < 2)];
+		if ((nr < 3) || (nr % 3) != 0)
+			excptn ("Root: number of items in <rates> must be a"
+				" nonzero multiple of 3");
+		nr /= 3;
 		wt = new word [nr];
+		dta = new double [nr];
+		dtb = new double [nr];
 
-		for (i = 0; i < nr; i++) {
-			dta [i] = np [i + i] . DVal;
-			wt [i] = (word) (np [i + i + 1] . IVal);
-			if (i) {
-				if (dta [i] <= dta [i-1] || wt [i] <= wt [i-1])
-					excptn ("Root: entries in <rssi> table "
-						"are not monotonic");
+		for (j = 0; j < nr; j++) {
+			wt [j] = (word) (np [3*j] . IVal);
+			// Actual rates go first (stored as double)
+			dta [j] = (double) (np [3*j + 1] . IVal);
+			// Boost
+			dtb [j] = np [3*j + 2] . DVal;
+		}
+
+		xmon (nr, wt, dta, "<rates>");
+		xmon (nr, wt, dtb, "<rates>");
+
+		att = form ("\n  Rates: ", xnam);
+		print (att);
+		oadj (att, 24);
+
+		print ("REP        RATE        BOOST\n");
+		for (j = 0; j < nr; j++)
+ 			print (form ("                %10d %11g %10gdB\n",
+				wt [j], dta [j], dtb [j]));
+
+		ivc [0] = new IVMapper (nr, wt, dta);
+		ivc [1] = new IVMapper (nr, wt, dtb, YES);
+
+	} else {
+
+		// No boost specified, the boost IVMapper is null, which
+		// translates into the boost of 1.0
+
+		for (i = 0; i < NPTABLE_SIZE; i++)
+			np [i] . type = TYPE_int;
+
+		nr = parseNumbers (att, NPTABLE_SIZE, np);
+		if (nr > NPTABLE_SIZE)
+			xeni ("<rates>");
+
+		if (nr < 2) {
+			if (nr < 1) {
+RVErr:
+				excptn ("Root: number of items in <rates> must "
+					"be either 1, or a nonzero multiple of "
+						"2");
 			}
+			// Single entry - a special case
+			wt = new word [1];
+			dta = new double [1];
+			wt [0] = 0;
+			dta [0] = (double) (np [0] . IVal);
+		} else {
+			if ((nr % 2) != 0)
+				goto RVErr;
+
+			nr /= 2;
+			wt = new word [nr];
+			dta = new double [nr];
+
+			for (j = 0; j < nr; j++) {
+				wt [j] = (word) (np [2*j] . IVal);
+				dta [j] = (double) (np [2*j + 1] . IVal);
+			}
+			xmon (nr, wt, dta, "<rates>");
 		}
 
-		print (form (
-		    "  RSSI Table:          SIG         VAL   [%s,%s]\n",
-			(rmo >= 2) ? "int," : "tra",
-			(rmo &  1) ? "lin"  : "log"));
-		for (i = 0; i < nr; i++) {
- 			print (form ("             %11g%s %5d\n",
-				dta [i],
-				(rmo & 1) ? "mW " : "dBm",
-				wt [i]));
-		}
+		att = form ("\n  Rates: ", xnam);
+		print (att);
+		oadj (att, 24);
 
-		RSC = new RSSICalc (nr, rmo, wt, dta);
+		print ("REP        RATE\n");
+		for (j = 0; j < nr; j++)
+ 			print (form ("                %10d %11g\n",
+				wt [j], dta [j]));
+
+		ivc [0] = new IVMapper (nr, wt, dta);
 	}
 
+	// Power
 
-	if ((cur = sxml_child (data, "power")) == NULL) {
-		// No power setter
-		PS = NULL;
-		ns = 0;
+	if ((cur = sxml_child (data, "power")) == NULL)
+		xenf ("<power>", "<network>");
+
+	att = sxml_txt (cur);
+
+	// Check for a single double value first
+	np [0] . type = TYPE_double;
+	if (parseNumbers (att, 2, np) == 1) {
+		// We have a single entry case
+		wt = new word [1];
+		dta = new double [1];
+		wt [0] = 0;
+		dta [0] = np [0] . DVal;
 	} else {
-		// Decode the mode
-		smo = 0;
-		// The default is transformation, logarithmic
-		if ((att = sxml_attr (cur, "mode")) != NULL) {
-			if (strstr (att, "lin") != NULL)
-				// Linear (log is the default)
-				smo |= 1;
-			if (strstr (att, "int") != NULL)
-				smo |= 2;
+		for (i = 0; i < NPTABLE_SIZE; i += 2) {
+			np [i ]  . type = TYPE_int;
+			np [i+1] . type = TYPE_double;
 		}
+		nr = parseNumbers (att, NPTABLE_SIZE, np);
+		if (nr > NPTABLE_SIZE)
+			xeni ("<power>");
+
+		if (nr < 2 || (nr % 2) != 0) 
+			excptn ("Root: number of items in <power> must "
+					"be either 1, or a nonzero multiple of "
+						"2");
+		nr /= 2;
+		wt = new word [nr];
+		dta = new double [nr];
+
+		for (j = 0; j < nr; j++) {
+			wt [j] = (word) (np [2*j] . IVal);
+			dta [j] = np [2*j + 1] . DVal;
+		}
+		xmon (nr, wt, dta, "<power>");
+	}
+
+	att = form ("\n  Power: ", xnam);
+	print (att);
+	oadj (att, 24);
+
+	print ("REP       POWER\n");
+	for (j = 0; j < nr; j++)
+ 		print (form ("                %10d %8gdBm\n",
+			wt [j], dta [j]));
+
+	ivc [3] = new IVMapper (nr, wt, dta, YES);
+
+	// RSSI map (optional)
+
+	if ((cur = sxml_child (data, "rssi")) != NULL) {
+
 		att = sxml_txt (cur);
-		ns = parseNumbers (att, NPTABLE_SIZE, np);
-		if (ns > NPTABLE_SIZE)
-			excptn ("Root: <power> table too large, increase "
-				"NPTABLE_SIZE");
 
-		if (smo < 2) {
-			if (ns != 4)
-				excptn ("Root: <power> table needs exactly 4 "
-					"items, has %1d", ns);
-		} else {
-			if ((ns & 1) || ns < 4)
-				excptn ("Root: <power> table needs at least 4 "
-					"items and their number must be even, "
-						"is %1d", ns);
+		for (i = 0; i < NPTABLE_SIZE; i += 2) {
+			np [i ]  . type = TYPE_int;
+			np [i+1] . type = TYPE_double;
 		}
 
-		ns /= 2;
+		nr = parseNumbers (att, NPTABLE_SIZE, np);
+		if (nr > NPTABLE_SIZE)
+			xeni ("<rssi>");
 
-		// Need three extra elements for transmormation
-		eta = new double [ns + (smo < 2) * 3];
-		vt = new word [ns];
+		if (nr < 2 || (nr % 2) != 0) 
+			excptn ("Root: number of items in <rssi> must "
+					"be a nonzero multiple of 2");
+		nr /= 2;
+		wt = new word [nr];
+		dta = new double [nr];
 
-		for (i = 0; i < ns; i++) {
-			eta [i] = np [i + i] . DVal;
-			vt [i] = (word) (np [i + i + 1] . IVal);
-			if (i) {
-				if (eta [i] <= eta [i-1] || vt [i] <= vt [i-1])
-					excptn ("Root: entries in <power> table"
-						" are not monotonic");
+		for (j = 0; j < nr; j++) {
+			wt [j] = (word) (np [2*j] . IVal);
+			dta [j] = np [2*j + 1] . DVal;
+		}
+		xmon (nr, wt, dta, "<rssi>");
+
+		att = form ("\n  RSSI: ", xnam);
+		print (att);
+		oadj (att, 24);
+
+		print ("REP      SIGNAL\n");
+		for (j = 0; j < nr; j++)
+ 			print (form ("                %10d %8gdBm\n",
+				wt [j], dta [j]));
+
+		ivc [2] = new IVMapper (nr, wt, dta, YES);
+	}
+
+	// Channels
+
+	if ((cur = sxml_child (data, "channels")) == NULL) {
+		mxc = new MXChannels (1, 0, NULL);
+	} else {
+		if ((att = sxml_attr (cur, "number")) != NULL ||
+		    (att = sxml_attr (cur, "n")) != NULL ||
+		    (att = sxml_attr (cur, "count")) != NULL) {
+			// Extract the number of channels
+			np [0] . type = TYPE_LONG;
+			if (parseNumbers (att, 1, np) != 1)
+				xevi ("<channels>", "<channel>", att);
+			if (np [0] . LVal < 1 || np [0] . LVal > MAX_UINT)
+				xevi ("<channels>", "<channel>", att);
+			wn = (word) (np [0] . LVal);
+			if (wn == 0)
+				xeai ("number", "<channels>", att);
+
+			att = sxml_txt (cur);
+
+			for (i = 0; i < NPTABLE_SIZE; i++)
+				np [i] . type = TYPE_double;
+
+			j = parseNumbers (att, NPTABLE_SIZE, np);
+
+			if (j > NPTABLE_SIZE)
+				excptn ("Root: <channels> separation table too"
+					" large, increase NPTABLE_SIZE");
+			if (j == 0) {
+				// No separations
+				dta = NULL;
+			} else {
+				dta = new double [j];
+				for (i = 0; i < j; i++)
+					dta [i] = np [i] . DVal;
 			}
-		}
 
-		print (form (
-		    "  Power Settings:      SIG         VAL   [%s,%s]\n",
-			(smo >= 2) ? "int," : "tra",
-			(smo &  1) ? "lin"  : "log"));
-		for (i = 0; i < ns; i++) {
- 			print (form ("             %11g%s %5d\n",
-				eta [i],
-				(rmo & 1) ? "mW " : "dBm",
-				vt [i]));
-		}
-
-		PS = new PowerSetter (ns, smo, vt, eta);
+			print (form ("\n  %1d channels", wn));
+			if (j) {
+				print (", separation: ");
+				for (i = 0; i < j; i++)
+					print (form (" %gdB", dta [i]));
+			}
+			print ("\n");
+			mxc = new MXChannels (wn, j, dta);
+		} else
+			xemi ("number", "<channels>");
 	}
 
 	print ("\n");
 
 	// Create the channel (this sets SEther)
 	create RFShadow (NT, STB, nb, dref, loss_db, beta, sigm, bn_db, bn_db,
-		cutoff, syncbits, brate, bpb, frml, NULL, RSC, PS);
+		cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 
 	// Packet cleaner
 	SEther->setPacketCleaner (packetCleaner);
@@ -1711,8 +1975,9 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 	// This one is always present (not optional)
 	RF = ND->rf = new data_rf_t;
-	RF->LBTThs = RF->XP = RF->RP = HUGE;
-	RF->Pre = RF->LBTDel = RF->BCMin = RF->BCMax = WNONE;
+	RF->LBTThs = RF->Boost = HUGE;
+	RF->PLimit = RF->Power = RF->Rate = RF->Channel = RF->Pre = RF->LBTDel =
+		RF->BCMin = RF->BCMax = WNONE;
 
 	// The optionals
 	ND->ua = NULL;
@@ -1761,25 +2026,60 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 /* RF MODULE */
 /* ========= */
 
+	np [0] . type = np [1] . type = TYPE_LONG;
+
+	// ====================================================================
+
+	/* PLIMIT */
+	if ((cur = sxml_child (data, "processes")) != NULL) {
+		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+			xesi ("<power>", xname (nn));
+		RF->PLimit = (word) (np [0] . LVal);
+		print (form ("  Processes:  %1d\n", RF->PLimit));
+		ppf = YES;
+	}
+
 	/* POWER */
 	if ((cur = sxml_child (data, "power")) != NULL) {
-		// Both are double
-		np [0].type = np [1].type = TYPE_double;
-		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
-			excptn ("Root: two double numbers required in <power> "
-				"in %s", xname (nn));
-		RF->XP = np [0].DVal;
-		RF->RP = np [1].DVal;
-		// This is in dBm/dB
-		print (form ("  Power:      X=%gdBm, R=%gdB\n", RF->XP,
-			RF->RP));
+		// This is the index
+		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+			xesi ("<power>", xname (nn));
+		RF->Power = (word) (np [0] . LVal);
+		if (!(Ether->PS->exact (RF->Power)))
+			excptn ("Root: power index %1d (in %s) does not occur "
+				"in <channel><power>", RF->Power, xname (nn));
+		print (form ("  Power idx:  %1d\n", RF->Power));
 		ppf = YES;
+	}
+
+	/* RATE */
+	if ((cur = sxml_child (data, "rate")) != NULL) {
+		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+			xesi ("<rate>", xname (nn));
+		RF->Rate = (word) (np [0].LVal);
+		// Check if the rate index is legit
+		if (!(Ether->Rates->exact (RF->Rate))) 
+			excptn ("Root: rate index %1d (in %s) does not occur in"
+				" <channel><rates>", RF->Rate, xname (nn));
+		print (form ("  Rate idx:   %1d\n", RF->Rate));
+	}
+
+	/* CHANNEL */
+	if ((cur = sxml_child (data, "channel")) != NULL) {
+		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+			xesi ("<channel>", xname (nn));
+		RF->Channel = (word) (np [0].LVal);
+		// Check if the channel number is legit
+		if (Ether->Channels->max () < RF->Channel) 
+			excptn ("Root: channel number %1d (in %s) is illegal"
+				" (see <channel><channels>)",
+					RF->Channel, xname (nn));
+		print (form ("  Channel:    %1d\n", RF->Channel));
 	}
 
 	/* BACKOFF */
 	if ((cur = sxml_child (data, "backoff")) != NULL) {
 		// Both are int
-		np [0].type = np [1].type = TYPE_LONG;
 		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
 			excptn ("Root: two int numbers required in <backoff> "
 				"in %s", xname (nn));
@@ -1794,10 +2094,22 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		ppf = YES;
 	}
 
+	/* PREAMBLE */
+	if ((cur = sxml_child (data, "preamble")) != NULL) {
+		// Both are int
+		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+			xevi ("<preamble>", xname (nn), sxml_txt (cur));
+		RF->Pre = (word) (np [0].LVal);
+		print (form ("  Preamble:   %1d bits\n", RF->Pre));
+		ppf = YES;
+	}
+
+	// ====================================================================
+
+	np [1] . type = TYPE_double;
+
 	/* LBT */
 	if ((cur = sxml_child (data, "lbt")) != NULL) {
-		np [0].type = TYPE_LONG;
-		np [1].type = TYPE_double;
 		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
 			xevi ("<lbt>", xname (nn), sxml_txt (cur));
 		RF->LBTDel = (word) (np [0].LVal);
@@ -1808,15 +2120,19 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		ppf = YES;
 	}
 
-	/* PREAMBLE */
-	if ((cur = sxml_child (data, "preamble")) != NULL) {
-		np [0].type = np [1].type = TYPE_LONG;
+	// ====================================================================
+
+	np [0] . type = TYPE_double;
+
+	if ((cur = sxml_child (data, "boost")) != NULL) {
 		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xevi ("<preamble>", xname (nn), sxml_txt (cur));
-		RF->Pre = (word) (np [0].LVal);
-		print (form ("  Preamble:   %1d bits\n", RF->Pre));
+			xefi ("<boost>", xname (nn));
+		RF->Boost = np [0] . DVal;
+		print (form ("  Boost:      %gdB\n", RF->Boost));
 		ppf = YES;
 	}
+
+	// ====================================================================
 
 	if (ppf)
 		print ("\n");
@@ -2993,7 +3309,6 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 
 void BoardRoot::initNodes (sxml_t data, int NT) {
 
-	double d;
 	data_no_t *DEF, *NOD;
 	const char *def_type, *nod_type, *att, *start;
 	sxml_t cno, cur, *xnodes;
@@ -3003,15 +3318,11 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 	data_rf_t *NRF, *DRF;
 	data_ep_t *NEP, *DEP;
 
-	d = (double) etuToItu (1.0);
-	XmitRate = (RATE) round (d / SEther->BitRate);
-
-	print ("Timing:\n");
-	print (d,  "  ETU (1s) = ", 11, 14);
+	print ("Timing:\n\n");
+	print ((double) etuToItu (1.0),
+		   "  ETU (1s) = ", 11, 14);
 	print ((double) duToItu (1.0),
 		   "  DU  (1m) = ", 11, 14);
-	print (XmitRate,
-		   "  RATE     = ", 11, 14);
 	print (getTolerance (&tq),
 	           "  TOL      = ", 11, 14);
 	print (tq, "  TOL QUAL = ", 11, 14);
@@ -3093,10 +3404,20 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		NRF = NOD->rf;
 		DRF = DEF->rf;
 
-		if (NRF->XP == HUGE) {
-			NRF->XP = DRF->XP;
-			NRF->RP = DRF->RP;
-		}
+		if (NRF->Boost == HUGE)
+			NRF->Boost = DRF->Boost;
+
+		if (NRF->PLimit == WNONE)
+			NRF->PLimit = DRF->PLimit;
+
+		if (NRF->Rate == WNONE)
+			NRF->Rate = DRF->Rate;
+
+		if (NRF->Power == WNONE)
+			NRF->Power = DRF->Power;
+
+		if (NRF->Channel == WNONE)
+			NRF->Channel = DRF->Channel;
 
 		if (NRF->BCMin == WNONE) {
 			NRF->BCMin = DRF->BCMin;
@@ -3196,20 +3517,36 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		// the respective constructors
 
 		if (NOD->Mem == 0)
-			  excptn ("Root: no memory for node %1d", i);
+			excptn ("Root: memory for node %1d is undefined", i);
 
-		if (NRF->XP == HUGE)
-			  excptn ("Root: power for node %1d is undefined", i);
+		if (NRF->Boost == HUGE)
+			// The default is no boost (0dB)
+			NRF->Boost = 0.0;
+
+		if (NRF->Rate == WNONE)
+			// This one has a reasonable default
+			NRF->Rate = Ether->Rates->lower ();
+
+		if (NRF->Power == WNONE)
+			// And so does this one
+			NRF->Power = Ether->PS->lower ();
+
+		if (NRF->Channel == WNONE)
+			// And so does this
+			NRF->Channel = 0;
+
+		if (NRF->PLimit == WNONE)
+			// And so does this
+			NRF->PLimit = 0;
 
 		if (NRF->BCMin == WNONE) 
-			  excptn ("Root: backoff for node %1d is undefined", i);
+			excptn ("Root: backoff for node %1d is undefined", i);
 
 		if (NRF->Pre == WNONE)
-			  excptn ("Root: preamble for node %1d is undefined",
-				i);
+			excptn ("Root: preamble for node %1d is undefined", i);
 
 		if (NRF->LBTDel == WNONE)
-			  excptn ("Root: LBT parameters for node %1d are "
+			excptn ("Root: LBT parameters for node %1d are "
 				"undefined", i);
 				
 		// Location
@@ -3341,6 +3678,7 @@ void Inserial::setup () {
 
 void Inserial::close () {
 	uart->pcsInserial = NULL;
+	S->tally_out_pcs ();
 	terminate ();
 	sleep;
 }
@@ -3423,6 +3761,7 @@ void Outserial::setup (const char *d) {
 
 void Outserial::close () {
 	uart->pcsOutserial = NULL;
+	S->tally_out_pcs ();
 	terminate ();
 	sleep;
 }
@@ -3467,14 +3806,39 @@ int zz_killall (void *tid) {
 	while (1) {
 		np = zz_getproclist (TheNode, tid, P, 16);
 		tot += np;
-		for (i = 0; i < np; i++)
+		for (i = 0; i < np; i++) {
 			P [i] -> terminate ();
+			TheNode->tally_out_pcs ();
+		}
 		if (np < 16)
 			return tot;
 	}
 }
 
+int zz_crunning (void *tid) {
 
+	Process **P;
+	int np;
+
+	if (TheNode->NPcLim == 0)
+		excptn ("crunning: function requires a limit on process "
+			"population size");
+
+	np = TheNode->NPcss;
+
+	if (tid == NULL)
+		return TheNode->NPcLim - np;
+
+	P = new Process* [np];
+
+	// FIXME: a special function would help to speed it up; we don't
+	// actually have to collect all those processes
+	np = zz_getproclist (TheNode, tid, P, np);
+	delete P;
+
+	return np;
+}
+	
 #include "stdattr_undef.h"
 
 #include "agent.cc"

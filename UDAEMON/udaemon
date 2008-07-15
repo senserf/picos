@@ -1,4 +1,6 @@
-#!/usr/bin/wish
+#!/usr/bin/tclsh
+
+package require Tk 8.4
 
 set Unique		0
 set MaxLineCount	1024
@@ -3241,7 +3243,7 @@ wm title . "VUEE udaemon"
 
 frame .top -borderwidth 10
 pack .top -side top -expand 0 -fill x
-button .top.quit -text "Quit" -command exit
+button .top.quit -text "Quit" -command { destroy .top }
 button .top.connect -text "Connect" -command doConnect
 
 tk_optionMenu .top.select Option \
@@ -3256,6 +3258,8 @@ pack .top.quit .top.connect .top.select -side right
 pack .top.l .top.stat -side left
 
 bind .top.stat <Return> doConnect
+bind .top <Destroy> { exit }
+bind . <Destroy> { exit }
 
 focus .top.stat
 

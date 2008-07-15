@@ -26,8 +26,9 @@ typedef	unsigned char	byte;
 #define	process(a,b)	a::perform {
 #define	endprocess(a)	}
 #define	nodata		CNOP
-#define	FORK(a,b)	create a
-#define fork(a,b)	(int) (create a (b))
+// #define	FORK(a,b)	create a
+#define	fork(a,b)	(((PicOSNode*)TheStation)->tally_in_pcs () ? \
+				(int) (create a (b)) : 0)
 #define	RELEASE		sleep
 #define	nodefun(t,n,s)	t Node::n
 

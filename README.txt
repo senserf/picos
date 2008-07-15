@@ -1,4 +1,4 @@
-Version 0.5
+Version 0.7
 
 ===============================================================================
 Quick start:
@@ -280,3 +280,12 @@ R080417A:
 
     Fixed a bug in agent.cc causing that sensors initialized from <defaults>
     were shared by all nodes.
+
+R080715A:
+
+    Added capability to have multiple channels and multiple rates with
+    different propagation properties.
+    Process number limit.
+    Note: the format of input file has changed slightly (old files won't work).
+    I have tried to modify all XML data sets. Look in Apps/VUEE/* for examples.
+    Requires SIDE R080714B.

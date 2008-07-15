@@ -91,7 +91,10 @@ station PicOSNode abstract {
 	/*
 	 * Defaults needed for reset
 	 */
-	double		_da (DefXPower), _da (DefRPower);
+	double		_da (DefRPower);	// Receiver boost
+	word		_da (DefXPower),	// These are indexes
+			_da (DefRate),
+			_da (DefChannel);
 
 	/*
 	 * Memory allocator
@@ -99,6 +102,12 @@ station PicOSNode abstract {
 	MemChunk	*MHead, *MTail;
 	word		MTotal, MFree,
 			NFree;		// Minimum free so far - for stats
+
+	// Current number of processes + limit; note: a single (countdown) 
+	// value could do theoretically, but then we would need a 'default"
+	// for reset
+	word		NPcss, NPcLim;
+
 	/*
 	 * RF interface
 	 */
@@ -155,6 +164,11 @@ station PicOSNode abstract {
 
 	void _da (diag) (const char*, ...);
 
+	// Low-level setrate/setchannel
+	void _da (setrfpowr) (word);
+	void _da (setrfrate) (word);
+	void _da (setrfchan) (word);
+
 	//
 	// Here comes the 'reset' mess:
 	//
@@ -185,9 +199,26 @@ station PicOSNode abstract {
 	inline void waitMem (int state) { TB.wait (N_MEMEVENT, state); };
 
 	word _da (memfree) (int, word*);
+
+	inline Boolean tally_in_pcs () {
+		if (NPcLim == 0)
+			return YES;
+		if (NPcss >= NPcLim)
+			return NO;
+		NPcss++;
+		return YES;
+	}
+
+	inline void tally_out_pcs () {
+		if (NPcss != 0)
+			NPcss--;
+		TB.signal (N_MEMEVENT);
+	};
+
 	inline void _da (delay) (word msec, int state) {
 		Timer->delay (msec * MILLISECOND, state);
 	};
+
 	inline void _da (when) (int ev, int state) { TB.wait (ev, state); };
 	inline void _da (gbackoff) () {
 		_da (backoff) = _da (min_backoff) + toss (_da (max_backoff));

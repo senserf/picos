@@ -142,6 +142,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	umalloc(s)	tmalloc (s)
 #define	ufree(s)	tfree (s)
 #define	umwait(s)	tmwait (s)
+#define	npwait(s)	tmwait (s)
 
 #define	SNONE		((int)NONE)
 #define	WNONE		((word)NONE)
@@ -225,8 +226,10 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	strandhdr(a,b)	threadhdr (a, b)
 
 #define	thread(a)	THREADNAME(a)::perform {
-#define	runthread(a)	create THREADNAME(a)
-#define	runstrand(a,b)	create THREADNAME(a) (b)
+#define	runthread(a)	(((PicOSNode*)TheStation)->tally_in_pcs () ? \
+				(int) create THREADNAME(a) : 0)
+#define	runstrand(a,b)	(((PicOSNode*)TheStation)->tally_in_pcs () ? \
+				(int) create THREADNAME(a) (b) : 0)
 
 #define	strand(a,b)	thread(a)
 #define	endthread	}

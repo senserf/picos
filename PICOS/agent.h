@@ -117,7 +117,7 @@ mailbox Dev (int) {
 		return OK;
 	}
 
-	inline int wi (int st, char *buf, int nc) {
+	inline int wi (int st, const char *buf, int nc) {
 		// This one is for writing short stuff (certainly not longer
 		// than the mailbox buffer)
 		assert (nc <= XTRN_MBX_BUFLEN, "Dev->w at %s: attempt to write"

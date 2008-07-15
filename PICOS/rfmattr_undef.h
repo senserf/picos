@@ -9,11 +9,16 @@
 #undef RXOFF
 #undef DefXPower
 #undef DefRPower
+#undef DefRate
+#undef DefChannel
 #undef Xmitting
 #undef tx_event
 #undef zzx_buffer
 #undef zzr_buffer
 #undef statid
 #undef gbackoff
+#undef setrfpowr
+#undef setrfrate
+#undef setrfchan
 #undef rx_event
 #endif

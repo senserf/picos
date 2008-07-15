@@ -8,7 +8,10 @@
 // ============================================================================
 
 #define	release		sleep
-#define	finish		terminate
+#define	finish		do { \
+				((PicOSNode*)TheStation)->tally_out_pcs (); \
+				terminate; \
+			} while (0)
 
 #define	entropy		_dac (PicOSNode, entropy)
 #define	min_backoff	_dac (PicOSNode, min_backoff)
