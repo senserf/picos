@@ -2117,7 +2117,7 @@ R080704A:
 	int running (code_t code)
 	int crunning (code_t code)
 
-	The arguments is a code function pointer. If an instance of a process
+	The argument is a code function pointer. If an instance of a process
 	using the specified code function is currently active, running returns
 	the pid of one (any) such instance. Otherwise, the function returns
 	zero. A zombie is considered "active" by this function. The second
@@ -2140,3 +2140,15 @@ R080704A:
 
 	Docs directory cleaned up. Version numbers removed from the manual file
 	names to make it easy to update them for new versions.
+
+R080714A:
+
+	Process kill now triggers a memory (pool 0) event, which can be awaited
+	by a process trying to fork and failing.
+	Operation npwait(s) defined (for this purpose) as waitmem (0, s).
+
+	A failed fork returns zero in all circumstances.
+
+	Removed the NONE state option for ser_in, ser_inf, ser_out, ser_outf,
+	ser_outb. Functions ser_out, ser_outf, ser_outb now wait for a process
+	slot (in addition to memory) if fork fails.

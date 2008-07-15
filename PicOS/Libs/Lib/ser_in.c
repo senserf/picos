@@ -16,15 +16,18 @@ int ser_in (word st, char *buf, int len) {
 /* ====== */
 	int prcs;
 
-	if (buf == NULL || len == 0)
-		// I am not sure if this one makes a lot of sense
+	if (len == 0)
+		// Just in case
 		return 0;
 
 	if (__inpline == NULL) {
-		if ((prcs = running (__inserial)) == 0)
+		if ((prcs = running (__inserial)) == 0) {
 			prcs = runthread (__inserial);
-		if (st == NONE)
-			return prcs;
+			if (prcs == 0) {
+				npwait (st);
+				release;
+			}
+		}
 		join (prcs, st);
 		release;
 	}
@@ -34,12 +37,14 @@ int ser_in (word st, char *buf, int len) {
 		prcs = __inpline[1] + 3; // 0x00, len, 0x04
 	else
 		prcs = strlen (__inpline);
+
 	if (prcs >= len)
 		prcs = len-1;
+
 	memcpy (buf, __inpline, prcs);
 	ufree (__inpline);
 	__inpline = NULL;
 	if (*buf) // if it's NULL, it's a bin cmd
 		buf [prcs] = '\0';
-	return (st == NONE) ? 0 : prcs;
+	return prcs;
 }

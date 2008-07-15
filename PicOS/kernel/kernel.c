@@ -62,6 +62,11 @@ const char	zz_hex_enc_table [] = {
 word	zz_seed = 30011;
 #endif
 
+static	address mevent;
+
+#define	MEV_NWAIT(np)	(*((byte*)(&(mevent [np])) + 0 ))
+#define	MEV_NFAIL(np)	(*((byte*)(&(mevent [np])) + 1 ))
+
 void zz_badstate (void) {
 	syserror (ESTATE, "no such state");
 }
@@ -223,7 +228,7 @@ int zzz_fork (code_t func, address data) {
 			break;
 
 	if (i == LAST_PCB)
-		return (int) NONE;
+		return /* (int) NONE */ 0;
 
 	i -> Timer = 0;
 	i -> code = func;
@@ -576,6 +581,10 @@ int kill (int pid) {
 		} else {
 			/* ... and this makes you dead */
 			zz_curr->code = NULL;
+			if (MEV_NWAIT (0)) {
+				trigger ((word)(&(mevent [0])));
+				MEV_NWAIT (0) --;
+			}
 		}
 		release;
 	}
@@ -586,6 +595,10 @@ int kill (int pid) {
 		killev ((int)i, (word)(i->code));
 		i->Status = 0;
 		i->code = NULL;
+		if (MEV_NWAIT (0)) {
+			trigger ((word)(&(mevent [0])));
+			MEV_NWAIT (0) --;
+		}
 		return pid;
 	}
 	return 0;
@@ -889,10 +902,6 @@ extern	word zzz_heap [];
 #endif
 
 static 	address *mpools;
-static	address mevent;
-
-#define	MEV_NWAIT(np)	(*((byte*)(&(mevent [np])) + 0 ))
-#define	MEV_NFAIL(np)	(*((byte*)(&(mevent [np])) + 1 ))
 
 #if	MALLOC_STATS
 static 	address mnfree, mcfree;

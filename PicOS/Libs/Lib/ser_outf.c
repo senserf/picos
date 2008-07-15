@@ -15,13 +15,8 @@ int ser_outf (word st, const char *m, ...) {
 	char *buf;
 	va_list ap;
 
-	if (m == NULL)
-		return 0;
-
 	if ((prcs = running (__outserial)) != 0) {
 		/* We have to wait */
-		if (st == NONE)
-			return prcs;
 		join (prcs, st);
 		release;
 	}
@@ -32,13 +27,15 @@ int ser_outf (word st, const char *m, ...) {
 		/*
 		 * This means that we are out of memory
 		 */
-		if (st == NONE)
-			return NONE;
 		umwait (st);
 		release;
 	}
 
-	runstrand (__outserial, buf);
-	/* No need to wait for anything */
+	if (runstrand (__outserial, buf) == 0) {
+		ufree (buf);
+		npwait (st);
+		release;
+	}
+
 	return 0;
 }

@@ -13,13 +13,8 @@ int ser_out (word st, const char *m) {
 	int prcs;
 	char *buf;
 
-	if (m == NULL)
-		return 0;
-
 	if ((prcs = running (__outserial)) != 0) {
 		/* We have to wait */
-		if (st == NONE)
-			return prcs;
 		join (prcs, st);
 		release;
 	}
@@ -27,25 +22,28 @@ int ser_out (word st, const char *m) {
 	if (*m)
 		prcs = strlen (m) +1;
 	else
-		prcs =  m[1] + 3;
+		prcs =  m [1] + 3;
 
 	if ((buf = (char*) umalloc (prcs)) == NULL) {
 		/*
 		 * We have to wait for memory
 		 */
-		if (st == NONE)
-			return NONE;
 		umwait (st);
 		release;
 	}
+
 	if (*m)
 		strcpy (buf, m);
 	else
 		memcpy (buf, m, prcs);
 
-	if (runstrand (__outserial, buf) == 0)
+	if (runstrand (__outserial, buf) == 0) {
 		// fork has failed, deallocate buf
 		ufree (buf);
+		// and wait for a process slot
+		npwait (st);
+		release;
+	}
 
 	return 0;
 }

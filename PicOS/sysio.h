@@ -727,6 +727,8 @@ int	rcvlast (void);
 #define	umalloc(s)	malloc (0, s)
 #define	ufree(p)	free (0, p)
 #define umwait(s)	waitmem (0, s)
+/* Availability of a free process table entry */
+#define	npwait(s)	waitmem (0, s)
 /* Actual size of an malloc'ed piece */
 #define	actsize(p)	(*(((word*)(p))-1) << 1)
 

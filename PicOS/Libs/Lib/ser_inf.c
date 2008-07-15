@@ -23,10 +23,13 @@ int ser_inf (word st, const char *fmt, ...) {
 		return 0;
 
 	if (__inpline == NULL) {
-		if ((prcs = running (__inserial)) == 0)
+		if ((prcs = running (__inserial)) == 0) {
 			prcs = runthread (__inserial);
-		if (st == NONE)
-			return prcs;
+			if (prcs == 0) {
+				npwait (st);
+				release;
+			}
+		}
 		join (prcs, st);
 		release;
 	}
@@ -39,5 +42,5 @@ int ser_inf (word st, const char *fmt, ...) {
 	ufree (__inpline);
 	__inpline = NULL;
 
-	return (st == NONE) ? 0 : prcs;
+	return prcs;
 }
