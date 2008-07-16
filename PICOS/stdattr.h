@@ -110,6 +110,7 @@
 
 #define net_opt(a,b)	(  ((TNode*)TheStation)->_na_net_opt (a,b)  )
 #define net_qera(a)	(  ((TNode*)TheStation)->_na_net_qera (a)  )
+#define net_qsize(a)	(  ((TNode*)TheStation)->_na_net_qsize (a) )
 #define net_init(a,b)	(  ((TNode*)TheStation)->_na_net_init (a,b)  )
 #define net_rx(a,b,c,d)	(  ((TNode*)TheStation)->_na_net_rx (a,b,c,d)  )
 #define net_tx(a,b,c,d)	(  ((TNode*)TheStation)->_na_net_tx (a,b,c,d)  )
