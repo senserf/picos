@@ -2152,3 +2152,10 @@ R080714A:
 	Removed the NONE state option for ser_in, ser_inf, ser_out, ser_outf,
 	ser_outb. Functions ser_out, ser_outf, ser_outb now wait for a process
 	slot (in addition to memory) if fork fails.
+
+R080716A:
+	- Added preliminary VUEE/survey. See survey.odt.
+	- In LibComms/net.c/h added net_qsize, and adjusted net_tx on TXOFF
+	  (VUEE/PICOS/stdattr.h is changed as well, without tagging VUEE).
+	- Changed WARSAW* boards' LEDs so RGB is 012.
+

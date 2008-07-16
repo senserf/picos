@@ -15,6 +15,7 @@
 
 int _da (net_opt)   (int opt, address arg);
 int _da (net_qera)  (int d);
+int _da (net_qsize) (int d);
 int _da (net_init)  (word phys, word plug);
 int _da (net_rx)    (word state, char ** buf_ptr, address rssi_ptr, byte encr);
 int _da (net_tx)    (word state, char * buf, int len, byte encr);

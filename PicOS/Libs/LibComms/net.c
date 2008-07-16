@@ -83,6 +83,12 @@ __PUBLF (TNode, int, net_qera) (int d) {
 	return tcv_erase (net_fd, d);
 }
 
+__PUBLF (TNode, int, net_qsize) (int d) {
+	if (net_fd < 0)
+		return -1;
+	return tcv_qsize (net_fd, d);
+}
+
 #ifndef __SMURPH__
 // These are not needed in the simulator as the functions
 // are all methods
@@ -504,9 +510,12 @@ __PUBLF (TNode, int, net_tx) (word state, char * buf, int len, byte encr) {
 	}
 
 	if (!(tcv_control (net_fd, PHYSOPT_STATUS, NULL) & 2)) {
+#if 0
+application should decide if this is an error...
 		dbg_8 (0x1000); // xmt off
 		diag ("xmt off");
-		return -1;
+#endif
+		return 1;
 	}
 
 	switch (net_phys) {
