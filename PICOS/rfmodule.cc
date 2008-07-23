@@ -476,7 +476,7 @@ static int option (int opt, address val) {
 
 	    default:
 
-		syserror (EREQPAR, "phys_dm2200 option");
+		syserror (EREQPAR, "RF option");
 
 	}
 	return ret;

@@ -289,3 +289,7 @@ R080715A:
     Note: the format of input file has changed slightly (old files won't work).
     I have tried to modify all XML data sets. Look in Apps/VUEE/* for examples.
     Requires SIDE R080714B.
+
+R080723A:
+
+    Added aliases: ptleft () for crunning (NULL), getcpid () for running (NULL).

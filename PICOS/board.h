@@ -29,7 +29,7 @@
 
 #define	MAX_LINE_LENGTH	63	// For Inserial
 
-int zz_running (void*);
+int zz_running (void*), zz_crunning (void*);
 int zz_killall (void*);
 void zz_panel_signal (Long);
 
