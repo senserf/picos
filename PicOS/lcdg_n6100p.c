@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -110,6 +110,8 @@ static byte X_org  = LCDG_XOFF,
 	    Y_org  = LCDG_YOFF,
 	    X_last = LCDG_MAXX,
 	    Y_last = LCDG_MAXY,
+	    ColF   = 1,		// Foreground color
+	    ColB   = 0,		// Background color
 	    D_mod  = 0;
 
 // ============================================================================
@@ -253,6 +255,18 @@ void lcdg_set (byte x0, byte y0, byte x, byte y, byte flags) {
 	nlcd_cs_up;
 }
 
+void lcdg_setc (byte bg, byte fg) {
+//
+// Set background and foreground color
+//
+	if (bg >= N_COLORS)
+		bg = COLOR_WHITE;
+	if (fg >= N_COLORS)
+		fg = COLOR_BLACK;
+	ColF = fg;
+	ColB = bg;
+}
+
 void lcdg_clear (byte col) {
 //
 // Clear the 'set' rectangle
@@ -261,7 +275,7 @@ void lcdg_clear (byte col) {
 	byte a, b, c;
 
 	if (col >= N_COLORS)
-		col = COLOR_BLACK;
+		col = ColB;
 
 	nlcd_cs_down;
 	// The row
@@ -298,9 +312,10 @@ void lcdg_render (byte cs, byte rs, byte *pix, word n) {
 //
 // Display pixels; note, we can do it faster if we know that the pixels
 // are coming in order. This version is supposed to work with individual
-// chunks, possibly containing holes, arriving from the network. We shall
-// need a second version of this function for displaying images directly
-// from EEPROM.
+// chunks, possibly containing holes, arriving from the network. I thought
+// we would need a second version of this function for displaying images
+// directly from EEPROM, but, as it turns out, images stored in EEPROM may
+// also arrive from the network, and their chunks need not be ordered.
 //
 	word ys, xs;
 	byte a, b, c, pturn;
@@ -437,3 +452,109 @@ void lcdg_render (byte cs, byte rs, byte *pix, word n) {
 Done:
 	nlcd_cs_up;
 }
+
+#ifdef EEPROM_PRESENT
+
+word lcdg_text (byte fn, const char *st) {
+//
+// Render text
+//
+	word fbase;
+	byte *fbuf, *cp;
+	byte fp [3], cx, cs, cm, rn, cn, a, b, c;
+
+	// This is the largest character block at present
+	if ((fbuf = (byte*)umalloc (32)) == NULL)
+		// Failure
+		return 1;
+
+	// Read the font block from page zero
+	fbuf [0] = 0;
+	ee_read ((lword)0, fbuf, 32);
+	if (((word*)fbuf) [0] != 0x7f01) {
+		// This is not a font page
+ERet:
+		ufree (fbuf);
+		return 2;
+	}
+
+	// Offset to our font
+	
+	if (((word*)fbuf) [1] <= fn)
+		// Not that many fonts
+		goto ERet;
+
+	fbase = ((word*)fbuf) [2 + fn];
+
+	// Read the font header
+	ee_read ((lword)fbase, fp, 3); // width, height, blocksize
+
+	// Skip the first block
+	fbase += fp [2];
+
+	// This can only be 8 or 16 (at least for now): prepare the
+	// shift count for block size
+	cs = (fp [2] == 8) ? 3 : 4;
+
+	cx = X_org;
+
+	while (*st != '\0') {
+
+		// Loop for next character
+
+		if (cx + fp [0] > X_last)
+			// No more
+			break;
+
+		rn = (byte)(*st);
+		if (rn < 0x20 || rn > 0x7f)
+			// blank
+			rn = 0;
+		else
+			rn -= 0x20;
+
+		// Read the block
+		ee_read ((lword)(fbase + ((word)rn << cs)), fbuf, fp [2]);
+		
+		nlcd_cs_down;
+		sc (PASET);
+		sd (Y_org);
+		sd (Y_org + fp [1] - 1);
+		sc (CASET);
+		sd (cx);
+		sd (cx + fp [0] - 1);
+		sc (RAMWR);
+
+		cp = fbuf + fp [1];
+		for (rn = 0; rn < fp [1]; rn++) {
+			cp--;
+			cm = 0x80;
+			if ((D_mod & LCDGF_8BPP)) {
+				for (cn = 0; cn < fp [0]; cn++) {
+					a = ctable8 [(*cp & cm) ? ColF : ColB];
+					sd (a);
+					cm >>= 1;
+				}
+			} else {
+				for (cn = 0; cn < fp [0]; cn += 2) {
+					b = (*cp & cm) ? ColF : ColB;
+					cm >>= 1;
+					c = (*cp & cm) ? ColF : ColB;
+					cm >>= 1;
+					a = (byte)(ctable12 [b] >> 4);
+					b = (byte)((ctable12 [b] << 4) |
+						(ctable12 [c] >> 8));
+					c = (byte) ctable12 [c];
+					sd (a); sd (b); sd (c);
+				}
+			}
+		}
+		nlcd_cs_up;
+		cx += fp [0];
+		st++;
+	}
+	ufree (fbuf);
+	return 0;
+}
+
+#endif

@@ -1,7 +1,7 @@
 #ifndef __pg_xcvcommon_h
 #define	__pg_xcvcommon_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -63,7 +63,6 @@ Finish:
 		 * by an RXOFF request
 		 */
 		hard_lock;
-		zzr_buffp = NULL;
 		if (receiver_active) {
 			zzv_status = 0;
 			zzv_istate = IRQ_OFF;
@@ -71,7 +70,7 @@ Finish:
 		}
 		hard_drop;
 	}
-
+	zzr_buffp = NULL;
 	end_rcv;
 #if DISABLE_CLOCK_INTERRUPT
 	ena_tim;
@@ -224,7 +223,7 @@ Drain:
 #if LBT_DELAY > 0
 	if (receiver_active) {
 		// LBT requires the receiver to be listening
-		adc_start;
+		adc_start_refon;
 		hard_drop;
 		delay (LBT_DELAY, XM_LBS);
 		release;

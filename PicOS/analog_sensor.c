@@ -97,8 +97,7 @@ Next:
 	}
 
 	EREF_OFF;
-	praa_count = 0;
 	adc_disable;
-
+	praa_count = 0;
 	*val = (word)(praa_avg / ASNS_NSA);
 }

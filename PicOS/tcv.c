@@ -396,7 +396,7 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 		plid < 0 || plid >= TCV_MAX_PLUGS || plugins [plid] == NULL)
 			syserror (ENODEVICE, "tcv_open");
 
-	pid = getpid ();
+	pid = getcpid ();
 	/* Prepare the attribute pattern word */
 	attp.value = 0;
 	attp.b.plugin = plid;
@@ -515,7 +515,7 @@ __PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 	}
 
 	/* We block */
-	s->pid = getpid ();	/* We may use it for something later */
+	s->pid = getcpid ();	/* We may use it for something later */
 	if (state != WNONE) {
 		when (eid, state);
 		release;

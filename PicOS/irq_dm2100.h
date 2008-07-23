@@ -298,7 +298,7 @@
 					RTNI;
 				}
 				// Begin collecting RSSI after the start vector
-				adc_start;
+				adc_start_refon;
 				LEDI (2, 1);
 				// Start the packet
 				*zzr_buffp = 0;

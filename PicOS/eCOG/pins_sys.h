@@ -68,6 +68,9 @@
 				0xF800 : 0x800))
 
 #define	adc_start	do { fd.ssm.cfg.adc_en = 1; } while (0)
+// Am not sure if these two should be the same. Are there powerr savings
+// possible?
+#define	adc_start_refon	adc_start
 
 #define adc_advance	do { \
 				if (fd.adc.sts.rdy != 0)  \

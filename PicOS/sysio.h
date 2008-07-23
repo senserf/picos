@@ -274,53 +274,6 @@
 #endif
 #endif
 
-// LCD =======================================================================
-
-#ifdef	LCD_PRESENT
-
-#define	LCD_CURSOR_ON		0x0001
-
-void	lcd_on (word);
-void	lcd_off ();
-void	lcd_clear (word, word);
-void	lcd_write (word, const char*);
-void	lcd_putchar (char);
-void	lcd_setp (word);
-
-#define	LCD_N_CHARS	(LCD_LINE_LENGTH * LCD_N_LINES)
-
-#else	/* LCD_PRESENT */
-
-#define	lcd_on(a)	CNOP
-#define	lcd_off()	CNOP
-#define	lcd_clear(a,b)	CNOP
-#define	lcd_write(a,b)	CNOP
-#define	lcd_putchar(a)	CNOP
-
-#endif	/* LCD_PRESENT */
-
-#ifdef LCDG_PRESENT
-
-void	lcdg_on (byte);
-void	lcdg_off ();
-void	lcdg_set (byte, byte, byte, byte, byte);
-void	lcdg_clear (byte c);
-void	lcdg_render (byte, byte, byte*, word);
-void	lcdg_cmd (byte, byte*, byte);
-
-#else	/* LCDG_PRESENT */
-
-#define	lcdg_on(a)		CNOP
-#define	lcdg_off()		CNOP
-#define	lcdg_set(a,b,c,d,e)	CNOP
-#define	lcdg_clear(a)		CNOP
-#define	lcdg_render(a,b,c,d)	CNOP
-#define	lcdg_cmd(a,b,c)		CNOP
-
-#endif	/* LCDG_PRESENT */
-
-// ===========================================================================
-
 // External storage ==========================================================
 
 #ifdef	EEPROM_PRESENT
@@ -359,6 +312,57 @@ lword	ee_size (Boolean*, lword*);
 #define	ee_size (b,w)		0
 
 #endif	/* EEPROM_PRESENT */
+
+// LCD =======================================================================
+
+#ifdef	LCD_PRESENT
+
+#define	LCD_CURSOR_ON		0x0001
+
+void	lcd_on (word);
+void	lcd_off ();
+void	lcd_clear (word, word);
+void	lcd_write (word, const char*);
+void	lcd_putchar (char);
+void	lcd_setp (word);
+
+#define	LCD_N_CHARS	(LCD_LINE_LENGTH * LCD_N_LINES)
+
+#else	/* LCD_PRESENT */
+
+#define	lcd_on(a)	CNOP
+#define	lcd_off()	CNOP
+#define	lcd_clear(a,b)	CNOP
+#define	lcd_write(a,b)	CNOP
+#define	lcd_putchar(a)	CNOP
+
+#endif	/* LCD_PRESENT */
+
+#ifdef LCDG_PRESENT
+
+void	lcdg_on (byte);
+void	lcdg_off ();
+void	lcdg_set (byte, byte, byte, byte, byte);
+void	lcdg_clear (byte);
+void	lcdg_setc (byte, byte);
+void	lcdg_render (byte, byte, byte*, word);
+void	lcdg_cmd (byte, byte*, byte);
+
+#ifdef	EEPROM_PRESENT
+word	lcdg_text (byte, const char*);
+#endif
+
+#else	/* LCDG_PRESENT */
+
+#define	lcdg_on(a)		CNOP
+#define	lcdg_off()		CNOP
+#define	lcdg_set(a,b,c,d,e)	CNOP
+#define	lcdg_clear(a)		CNOP
+#define	lcdg_setc(a)		CNOP
+#define	lcdg_render(a,b,c,d)	CNOP
+#define	lcdg_cmd(a,b,c)		CNOP
+
+#endif	/* LCDG_PRESENT */
 
 // ===========================================================================
 
@@ -710,7 +714,8 @@ int	rcvlast (void);
 #define	fork(p,d)	zzz_fork (p, (address)(d))
 #define	find(p,d)	zzz_find (p, (address)(d))
 #define	iszombie(p)	(status (p) == -1)
-#define	getpid()	running (NULL)
+#define	getcpid()	running (NULL)
+#define	ptleft()	crunning (NULL)
 
 #define	heapmem		const word zzz_heap [] =
 

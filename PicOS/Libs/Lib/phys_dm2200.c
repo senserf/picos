@@ -340,7 +340,7 @@ void phys_dm2200 (int phy, int mbs) {
 	/* Register the phy */
 	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2200);
 
-	/* Both parts are initially active */
+	/* Both parts are initially inactive */
 	zzv_rxoff = zzv_txoff = 1;
 	LEDI (0, 0);
 	LEDI (1, 0);
@@ -356,15 +356,14 @@ void phys_dm2200 (int phy, int mbs) {
 		/* Use the RSSI to initialize entropy */
 		hstat (HSTAT_RCV);
 		for (i = 0; i < 8; i++) {
-			adc_start;
+			adc_start_refon;
 			mdelay (8);
 			adc_stop;
 			adc_wait;
 			add_entropy (adc_value & 0x0f);
 			mdelay (1);
 		}
-		adc_disable;
-		rssi_off;
+		hstat (HSTAT_SLEEP);
 	}
 #endif
 #endif

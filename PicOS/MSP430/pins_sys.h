@@ -267,16 +267,27 @@ REQUEST_EXTERNAL (p2irq);
 // Off but possibly less than disable
 #define	adc_off		_BIC (ADC12CTL0, ENC)
 
-// Complete off
+// Complete off, including REF voltage
 #define	adc_disable	do { \
 				adc_off; \
-				_BIC (ADC12CTL0, ADC12ON); \
+				_BIC (ADC12CTL0, ADC12ON + REFON); \
 			} while (0)
 
-// Start meanurement
+// Start measurement
 #define	adc_start	do { \
 				_BIC (ADC12CTL0, ENC); \
 				_BIS (ADC12CTL0, ADC12ON); \
+				_BIS (ADC12CTL0, ADC12SC + ENC); \
+			} while (0)
+
+// Start measurement with RFON. This is a mess, but RFON takes current, so I
+// want to make sure that it is always off after adc_disable. This requires
+// whoever invokes adc_start to know. Otherwise, we would need a separate 
+// in-memory flag to tell what should be the case and, of course, we would
+// need conditions in all these macros.
+#define	adc_start_refon	do { \
+				_BIC (ADC12CTL0, ENC); \
+				_BIS (ADC12CTL0, ADC12ON + REFON); \
 				_BIS (ADC12CTL0, ADC12SC + ENC); \
 			} while (0)
 

@@ -44,7 +44,7 @@
 #define	QSO_PAR_NSA	6	// Number of samples, corresponds to 512
 #define	QSO_PAR_REF	3	// Voltage reference: Veref
 
-#define	MOI_ECO_PIN	2	// ECHO moisture sensor = P6.2
+#define	MOI_ECO_PIN	7	// ECHO moisture sensor = P6.7
 #define	MOI_ECO_SHT	4	// Sample hold time indicator
 #define	MOI_ECO_ISI	0	// Inter sample interval indicator
 #define	MOI_ECO_NSA	2	// Number of samples, corresponds to 16

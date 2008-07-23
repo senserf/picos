@@ -2159,3 +2159,27 @@ R080716A:
 	  (VUEE/PICOS/stdattr.h is changed as well, without tagging VUEE).
 	- Changed WARSAW* boards' LEDs so RGB is 012.
 
+R080721A:
+
+	Board ARTTURO_PMTH (representing the target for Panama/Mexico):
+	ECH20 sensor's red changed to P6.7 (as per Gerry's request).
+
+	REFON in ADC cleared when ADC is not used (required for power-efficient
+	operation). Affecting RF drivers for DM2100, DM2200, CC1000. Should be
+	re-tested.
+
+	Text capability for LCDG (Nokia display), preliminary version. To be
+	modified/extended (but it does work). Also the SEAWOLF praxis modified
+	to accommodate it. Document not updated as the changes will change ;-).
+
+	Fixed a bug in xcvcommon.h causing improper chip state setting (at
+	least for some modules, including DM2200) when receiver was switched
+	off first and transmitter second.
+
+	Fixed a bug in phys_dm2200.c causing that the chip was not idled
+	properly after initial entropy acquisition.
+
+	Alias getpid () (for running (NULL)) renamed to getcpid ().
+
+	Introduced alias ptleft () for crunning (NULL). This is primarily
+	required for compatibility with VUEE, but makes sense anyway.

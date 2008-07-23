@@ -134,7 +134,7 @@ Boolean adcs_get_sample (word st, word *b) {
 		if (b_in == b_out)
 			return NO;
 	} else {
-		consummer = getpid ();
+		consummer = getcpid ();
 		cli;
 		if (b_in == b_out) {
 			wait (consummer, st);

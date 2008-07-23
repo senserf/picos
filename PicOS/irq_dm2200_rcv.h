@@ -31,7 +31,7 @@
 		rcv_clrint;
 #endif
 		zzv_istate = IRQ_RP0;
-		adc_start;
+		adc_start_refon;
 		LEDI (2, 1);
 #if FCC_TEST_MODE
 		mdelay (10);

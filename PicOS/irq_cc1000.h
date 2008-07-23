@@ -109,7 +109,7 @@ if (cc1000_int) {
 			*zzr_buffp = 0;
 			LEDI (2, 1);
 			zzv_istate = IRQ_RCV;
-			adc_start;
+			adc_start_refon;
 		}
 		break;
 
