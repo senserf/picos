@@ -2183,3 +2183,8 @@ R080723A:
 
 	Introduced alias ptleft () for crunning (NULL). This is primarily
 	required for compatibility with VUEE, but makes sense anyway.
+
+R080726A:
+	- Updated VUEE/mm_demo with Seawolfie 0.4 with Noombuzz hooks.
+          See mm.odt/pdf.
+
