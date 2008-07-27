@@ -2188,3 +2188,16 @@ R080726A:
 	- Updated VUEE/mm_demo with Seawolfie 0.4 with Noombuzz hooks.
           See mm.odt/pdf.
 
+R080727A:
+
+	Fixed a problem with LEDs going on after freeze in VERSA2. The default
+	setting for P4OUT was missing from boards_pin.h. Thanks Nick!
+
+	Modified net.c to accept UART_TCV/UART_TCVP (in the new version). 
+	I think we have to do something about this feature that makes it
+	impossible for UART_TCV/UART_TCVP to coexist with a standard UART
+	device.
+
+	Re-done the text part of Nokia LCD driver for Seawolf. The LOADER
+	praxis will not work with this version (will fix it for next release).
+	The way to use the new interface is illustrated in Apps/SEAWOLF/TEST.

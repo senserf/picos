@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -13,6 +13,8 @@
 #define	PIN_DEFAULT_P4DIR	0xF0
 #define	PIN_DEFAULT_P5DIR	0xFC
 #define	PIN_DEFAULT_P6DIR	0x00
+
+#define PIN_DEFAULT_P4OUT 	0x0E /* LEDs off by default */ 
 
 
 /*

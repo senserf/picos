@@ -114,6 +114,18 @@ static byte X_org  = LCDG_XOFF,
 	    ColB   = 0,		// Background color
 	    D_mod  = 0;
 
+#ifdef LCDG_TEXT_CAPABILITY
+
+#ifndef	EEPROM_PRESENT
+#error "LCDG_TEXT_CAPABILITY requires EEPROM_PRESENT"
+#endif
+
+static byte fpar [4],		// Font parameters: cols, rows, bsize, bshift
+	    fbuf [32];		// Font buffer
+static word fbase;		// Font base in EEPROM
+
+#endif /* LCDG_TEXT_CAPABILITY */
+
 // ============================================================================
 
 static void sc (byte stuff) {
@@ -135,7 +147,7 @@ static void sc (byte stuff) {
 	}
 }
 
-void sd (byte stuff) {
+static void sd (byte stuff) {
 
 	int i;
 
@@ -166,7 +178,8 @@ void lcdg_reset () {
 	sc (COLMOD);
 	sd (0x03);	// 0x03 = 12 bits-per-pixel
 	sc (MADCTL);
-	sd (0x88);	// Mirror y, rgb
+	sd (0x08);	// Don't mirror y, rgb
+	// sd (0x88);	// Mirror y, rgb
 	sc (SETCON);	// Contrast
 	sd (0x37);
 	mdelay (10);
@@ -453,58 +466,191 @@ Done:
 	nlcd_cs_up;
 }
 
-#ifdef EEPROM_PRESENT
+#ifdef LCDG_TEXT_CAPABILITY
 
-word lcdg_text (byte fn, const char *st) {
+word lcdg_font (byte fn) {
 //
-// Render text
+// Set the font
 //
-	word fbase;
-	byte *fbuf, *cp;
-	byte fp [3], cx, cs, cm, rn, cn, a, b, c;
-
-	// This is the largest character block at present
-	if ((fbuf = (byte*)umalloc (32)) == NULL)
-		// Failure
-		return 1;
-
-	// Read the font block from page zero
-	fbuf [0] = 0;
+	fbuf [0] = fpar [0] = fpar [1] = 0;
+	// Read the header
 	ee_read ((lword)0, fbuf, 32);
-	if (((word*)fbuf) [0] != 0x7f01) {
+	if (((word*)fbuf) [0] != 0x7f01)
 		// This is not a font page
-ERet:
-		ufree (fbuf);
-		return 2;
-	}
+		return ERROR;
 
 	// Offset to our font
 	
 	if (((word*)fbuf) [1] <= fn)
-		// Not that many fonts
-		goto ERet;
+		return ERROR;
 
 	fbase = ((word*)fbuf) [2 + fn];
 
 	// Read the font header
-	ee_read ((lword)fbase, fp, 3); // width, height, blocksize
+	ee_read ((lword)fbase, fpar, 3); // width, height, blocksize
 
 	// Skip the first block
-	fbase += fp [2];
+	fbase += fpar [2];
 
-	// This can only be 8 or 16 (at least for now): prepare the
-	// shift count for block size
-	cs = (fp [2] == 8) ? 3 : 4;
+	// Shift count for font block
+	fpar [3] = fpar [2] == 8 ? 3 : 4;
 
-	cx = X_org;
+	return 0;
+}
+
+byte lcdg_cwidth () {
+//
+// Return character width (based on the current font)
+//
+	return fpar [0];
+}
+
+byte lcdg_cheight () {
+//
+// Character height
+//
+	return fpar [1];
+}
+
+word lcdg_sett (byte x, byte y, byte nc, byte nl) {
+//
+// Set text area: corner + number of columns, number of lines
+//
+	word x0, y0, x1, y1;
+
+	if (fpar [0] == 0 || fpar [1] == 0)
+		// No font
+		return ERROR;
+
+	x0 = (word) x + LCDG_XOFF;
+	x1 = x0 + (word) fpar [0] * nc - 1;
+	y0 = (word) y + LCDG_YOFF;
+	y1 = y0 + (word) fpar [1] * nl - 1;
+
+	if (x1 < x0 || y1 < y0 || x1 >= LCDG_MAXXP || y1 >= LCDG_MAXYP)
+		// Don't touch anything and return ERROR
+		return ERROR;
+
+	// Set the area
+	X_org = x0;
+	Y_org = y0;
+	X_last = x1;
+	Y_last = y1;
+
+	return 0;
+}
+
+void lcdg_ec (byte cx, byte cy, byte nc) {
+//
+// Erase nc character positions starting from column cx, row cy
+//
+	word ex;
+	byte a, b, c;
+
+	cx = X_org + cx * fpar [0];
+	if (cx > X_last)
+		return;
+	cy = Y_org + cy * fpar [1];
+	if (cy > Y_last)
+		return;
+
+	ex = cx + nc * fpar [0] - 1;
+	if (ex > X_last)
+		ex = X_last;
+
+	nlcd_cs_down;
+	sc (PASET);
+	sd (cy);
+	sd (cy + fpar [1] - 1);
+	sc (CASET);
+	sd (cx);
+	sd ((byte)ex);
+	sc (RAMWR);
+
+	ex = (word) (fpar [1]) * (ex - cx + 1);
+
+	if ((D_mod & LCDGF_8BPP)) {
+		a = ctable8 [ColB];
+		while (ex--)
+			sd (a);
+	} else {
+		a = (byte)(ctable12 [ColB] >> 4);
+		b = (byte)((ctable12 [ColB] << 4) | (ctable12 [ColB] >> 8));
+		c = (byte)(ctable12 [ColB]);
+		ex = (ex + 1) >> 1;
+		while (ex--) {
+			sd (a); sd (b); sd (c);
+		}
+	}
+	nlcd_cs_up;
+}
+	
+void lcdg_el (byte cy, byte nl) {
+//
+// Erase nl lines starting from line ro
+//
+	word ex;
+	byte a, b, c;
+
+	cy = Y_org + cy * fpar [1];
+	if (cy > Y_last)
+		return;
+
+	nlcd_cs_down;
+	sc (PASET);
+	sd (cy);
+	sd (Y_last);
+	sc (CASET);
+	sd (X_org);
+	sd (X_last);
+	sc (RAMWR);
+
+	ex = (word) (Y_last - cy + 1) * (X_last - X_org + 1);
+
+	if ((D_mod & LCDGF_8BPP)) {
+		a = ctable8 [ColB];
+		while (ex--)
+			sd (a);
+	} else {
+		a = (byte)(ctable12 [ColB] >> 4);
+		b = (byte)((ctable12 [ColB] << 4) | (ctable12 [ColB] >> 8));
+		c = (byte)(ctable12 [ColB]);
+		ex = (ex + 1) >> 1;
+		while (ex--) {
+			sd (a); sd (b); sd (c);
+		}
+	}
+	nlcd_cs_up;
+}
+
+void lcdg_wl (const char *st, word sh, byte cx, byte cy) {
+//
+// Write line in the text area starting from column cx, row cy; sh is
+// the shift, i.e., how many initial characters from the line should be
+// ignored.
+//
+	byte *cp, rn, cn, cm, a, b, c;
+	
+	// Starting coordinates
+	cx = X_org + cx * fpar [0];
+	if (cx >= X_last)
+		return;
+	cy = Y_org + cy * fpar [1];
+
+	// Ignore sh initial characters
+	while (sh) {
+		if (*st == '\0')
+			return;
+		st++;
+		sh--;
+	}
 
 	while (*st != '\0') {
 
-		// Loop for next character
-
-		if (cx + fp [0] > X_last)
-			// No more
-			break;
+		// More characters in this line
+		if (cx >= X_last)
+			// No more characters will fit
+			return;
 
 		rn = (byte)(*st);
 		if (rn < 0x20 || rn > 0x7f)
@@ -513,30 +659,31 @@ ERet:
 		else
 			rn -= 0x20;
 
-		// Read the block
-		ee_read ((lword)(fbase + ((word)rn << cs)), fbuf, fp [2]);
+		// Read the block from the font file
+		ee_read ((lword)(fbase+((word)rn << fpar [3])), fbuf, fpar [2]);
 		
 		nlcd_cs_down;
 		sc (PASET);
-		sd (Y_org);
-		sd (Y_org + fp [1] - 1);
+		sd (cy);
+		sd (cy + fpar [1] - 1);
 		sc (CASET);
 		sd (cx);
-		sd (cx + fp [0] - 1);
+		sd (cx + fpar [0] - 1);
 		sc (RAMWR);
 
-		cp = fbuf + fp [1];
-		for (rn = 0; rn < fp [1]; rn++) {
-			cp--;
+		// Render the character
+		cp = fbuf;
+		for (rn = 0; rn < fpar [1]; rn++) {
+			// Position mask
 			cm = 0x80;
 			if ((D_mod & LCDGF_8BPP)) {
-				for (cn = 0; cn < fp [0]; cn++) {
+				for (cn = 0; cn < fpar [0]; cn++) {
 					a = ctable8 [(*cp & cm) ? ColF : ColB];
 					sd (a);
 					cm >>= 1;
 				}
 			} else {
-				for (cn = 0; cn < fp [0]; cn += 2) {
+				for (cn = 0; cn < fpar [0]; cn += 2) {
 					b = (*cp & cm) ? ColF : ColB;
 					cm >>= 1;
 					c = (*cp & cm) ? ColF : ColB;
@@ -548,13 +695,11 @@ ERet:
 					sd (a); sd (b); sd (c);
 				}
 			}
+			cp++;
 		}
-		nlcd_cs_up;
-		cx += fp [0];
+		cx += fpar [0];
 		st++;
 	}
-	ufree (fbuf);
-	return 0;
 }
 
 #endif

@@ -297,14 +297,19 @@ __PRIVF (TNode, int, uartp_init) (word plug) {
 
 // #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
 // or
-#define NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
-#define NET_RATE			19200
+// What the @#$% was that (PG)
+// #define 	NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
+
+// They are in hundreds these days
+#define NET_RATE			192
+// Can be 0 or 1
+#define	WHICH_UART			0
 
 	int  fd;
 
-	uart_init_p [0] = (word) NET_RATE;
-	ion (UART_B, CONTROL, (char*)uart_init_p, UART_CNTRL_RATE);
-	phys_uartp (0, UART_B, NET_CHANNEL_MODE, NET_MAXPLEN);
+	// uart_init_p [0] = (word) NET_RATE;
+	// ion (UART_B, CONTROL, (char*)uart_init_p, UART_CNTRL_RATE);
+	phys_uartp (0, NET_MAXPLEN, WHICH_UART);
 
 	if (plug == INFO_PLUG_TARP)
 		tcv_plug (0, &plug_tarp);
@@ -315,6 +320,12 @@ __PRIVF (TNode, int, uartp_init) (word plug) {
 		diag ("%s: Cannot open tcv uart_b interface", myName);
 		return -1;
 	}
+#ifdef	NET_RATE
+	{ word rt; 
+		rt = NET_RATE;
+		tcv_control (fd, PHYSOPT_SETRATE, &rt);
+	}
+#endif
 	tcv_control (fd, PHYSOPT_TXON, NULL);
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;
@@ -329,14 +340,17 @@ __PRIVF (TNode, int, uart_init) (word plug) {
 
 // #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
 // or
-#define NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
-#define NET_RATE			19200
+// #define 	NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
+
+#define NET_RATE			192
+#define	WHICH_UART			0
 
 	int  fd;
 
-	uart_init_p [0] = (word) NET_RATE;
-	ion (UART_B, CONTROL, (char*)uart_init_p, UART_CNTRL_RATE);
-	phys_uart (0, UART_B, NET_CHANNEL_MODE, NET_MAXPLEN);
+	// uart_init_p [0] = (word) NET_RATE;
+	// ion (UART_B, CONTROL, (char*)uart_init_p, UART_CNTRL_RATE);
+	// Select the first uart (0)
+	phys_uart (0, NET_MAXPLEN, WHICH_UART);
 
 	if (plug == INFO_PLUG_TARP)
 		tcv_plug (0, &plug_tarp);
@@ -347,6 +361,12 @@ __PRIVF (TNode, int, uart_init) (word plug) {
 		diag ("%s: Cannot open tcv uart_b interface", myName);
 		return -1;
 	}
+#ifdef	NET_RATE
+	{ word rt; 
+		rt = NET_RATE;
+		tcv_control (fd, PHYSOPT_SETRATE, &rt);
+	}
+#endif
 	tcv_control (fd, PHYSOPT_TXON, NULL);
 	tcv_control (fd, PHYSOPT_RXON, NULL);
 	return fd;

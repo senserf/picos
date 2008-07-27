@@ -348,8 +348,14 @@ void	lcdg_setc (byte, byte);
 void	lcdg_render (byte, byte, byte*, word);
 void	lcdg_cmd (byte, byte*, byte);
 
-#ifdef	EEPROM_PRESENT
-word	lcdg_text (byte, const char*);
+#ifdef	LCDG_TEXT_CAPABILITY
+word	lcdg_font (byte);
+byte	lcdg_cwidth ();
+byte	lcdg_cheight ();
+word	lcdg_sett (byte, byte, byte, byte);
+word	lcdg_ec (byte, byte, byte);
+word	lcdg_el (byte, byte);
+word	lcdg_wl (const char*, word, byte, byte);
 #endif
 
 #else	/* LCDG_PRESENT */

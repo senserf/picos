@@ -14,3 +14,4 @@
 
 // This tells the low-level driver to use raw interface
 #define	NOKIA_LCD_RAW
+#define	LCDG_TEXT_CAPABILITY

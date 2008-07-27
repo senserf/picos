@@ -39,12 +39,4 @@ int net_plug = -1;
 
 #endif	/* __SMURPH__ */
 
-#if UART_DRIVER == 2
-// This used to be static in uart_init (and declared as word p [6]). We cannot
-// have such variables in the simulator, so we should transform them all to
-// globals.
-__STATIC word uart_init_p [6];
-// keep all 6? (does io write anything there?) ** check
-#endif
-
 #endif
