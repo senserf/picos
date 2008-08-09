@@ -2201,3 +2201,10 @@ R080727A:
 	Re-done the text part of Nokia LCD driver for Seawolf. The LOADER
 	praxis will not work with this version (will fix it for next release).
 	The way to use the new interface is illustrated in Apps/SEAWOLF/TEST.
+
+R080809A:
+
+	Buttons driver added (BUTTONS_DRIVER - intended for Seawolf). Nokia LCD
+	interface still to be revised (so the LOADER praxis doesn't work). I
+	just want to create a decent snapshot, as things are going to change,
+	possibly quite drastically.

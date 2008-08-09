@@ -395,6 +395,14 @@ word	adcs_overflow ();
 
 #endif	/* ADC_SAMPLER */
 
+#if	BUTTONS_DRIVER
+
+//+++ "buttons.c"
+
+void	buttons_action (void (*action)(word));
+
+#endif	/* BUTTONS_DRIVER */
+
 #define	MAX_INT			((int)0x7fff)
 #define	MAX_UINT		((word)0xffff)
 #define	MAX_WORD		MAX_UINT

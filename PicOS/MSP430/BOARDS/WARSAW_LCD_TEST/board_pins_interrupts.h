@@ -10,8 +10,9 @@
 #endif
 
 if (P1IFG & P1_PINS_INTERRUPT_MASK) {
-	_BIC (P1IFG, P1_PINS_INTERRUPT_MASK);
-	trigger (BUTTON_PRESSED_EVENT);
+	buttons_disable ();
+	i_trigger (ETYPE_USER, BUTTON_PRESSED_EVENT);
+	RISE_N_SHINE;
 }
 
 #endif
@@ -19,8 +20,9 @@ if (P1IFG & P1_PINS_INTERRUPT_MASK) {
 #ifdef	P2_INTERRUPT_SERVICE
 
 if (P2IFG & P2_PINS_INTERRUPT_MASK) {
-	_BIC (P2IFG, P2_PINS_INTERRUPT_MASK);
-	trigger (BUTTON_PRESSED_EVENT);
+	buttons_disable ();
+	i_trigger (ETYPE_USER, BUTTON_PRESSED_EVENT);
+	RISE_N_SHINE;
 }
 
 #endif

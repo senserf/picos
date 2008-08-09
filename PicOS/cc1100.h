@@ -1,7 +1,7 @@
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -151,6 +151,23 @@
 
 #ifdef	DEFINE_RF_SETTINGS
 
+// NOTE: PicOS's concepts of bitrate and frequency are deeply entangled.
+//       I hope that this can make it easier to use a custom frequency
+//       So these likely only work for the 200000 bitrate... TJS
+// setup defaults to use the 868MHz frequency range with no offset
+
+#ifndef CC1100_FREQ_FREQ2_VALUE
+	#define	CC1100_FREQ_FREQ2_VALUE	0x1E
+#endif
+
+#ifndef CC1100_FREQ_FREQ1_VALUE
+	#define	CC1100_FREQ_FREQ1_VALUE	0xC4
+#endif
+
+#ifndef CC1100_FREQ_FREQ0_VALUE
+	#define	CC1100_FREQ_FREQ0_VALUE	0xEC
+#endif
+
 // Define Register Contents ===================================================
 
 const	byte	cc1100_rfsettings [] = {
@@ -158,11 +175,9 @@ const	byte	cc1100_rfsettings [] = {
 // Common settings for all rates
 //
         CCxxx0_FSCTRL0, 0x00,   // FSCTRL0
-        CCxxx0_FREQ1,   0xC4,   // FREQ1	3B the base radio
-        CCxxx0_FREQ0,   0xEC,   // FREQ0	13 frequency
-
-
-        CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0	F8 channel spacing
+        CCxxx0_FREQ1,   CC1100_FREQ_FREQ1_VALUE,   // FREQ1 3B the base radio
+        CCxxx0_FREQ0,   CC1100_FREQ_FREQ0_VALUE,   // FREQ0 13 frequency
+        CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0	      F8 channel spacing
         CCxxx0_FREND1,  0x56,   // FREND1
         CCxxx0_BSCFG,   0x6C,   // BSCFG
 
@@ -277,9 +292,16 @@ static const	byte	zz_rate2 [] = {
 static const	byte	zz_rate3 [] = {
 
         CCxxx0_FSCTRL1, 0x0A,   // FSCTRL1	WAS 0C
-        CCxxx0_FREQ2,   0x1E,   // FREQ2
+        CCxxx0_FREQ2,   CC1100_FREQ_FREQ2_VALUE,   // FREQ2
+
+ #ifdef TRUE_200KBAUD
+       	CCxxx0_MDMCFG4, 0x5C,   // TJS was 0x8C,   // MDMCFG4	(200 kbps)
+	CCxxx0_MDMCFG3, 0xF8,   // TJS 0x22,   // MDMCFG3
+ #else
        	CCxxx0_MDMCFG4, 0x8C,   // MDMCFG4	(200 kbps)
 	CCxxx0_MDMCFG3, 0x22,   // MDMCFG3
+ #endif
+
         CCxxx0_MDMCFG2, 0x10 + 0x02,		// Single sync word
         CCxxx0_MDMCFG1, 0x22,   // MDMCFG1	22 FEC + 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x47,   // DEVIATN	47 -> 40 -> 34
@@ -293,7 +315,9 @@ const	byte	*cc1100_ratemenu [] = {
 			zz_rate0, zz_rate1, zz_rate2, zz_rate3
 };
 
-#define	PATABLE { 0x03, 0x1C, 0x67, 0x60, 0x85, 0xCC, 0xC6, 0xC3 }
+#ifndef PATABLE
+  #define	PATABLE { 0x03, 0x1C, 0x67, 0x60, 0x85, 0xCC, 0xC6, 0xC3 }
+#endif
 
 // ============================================================================
 

@@ -7,6 +7,10 @@
 
 #include "pins_sys.h"
 
+#if BUTTONS_DRIVER
+#include "buttons.h"
+#endif
+
 #ifdef	PULSE_MONITOR
 
 #define	PMON_STATE_NOT_RISING	0x01

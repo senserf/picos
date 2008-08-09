@@ -80,28 +80,34 @@
 
 // Buttons and joystick
 
+#define	BUTTON_LIST	{	\
+		BUTTON_DEF (1, 0x40, 0), \
+		BUTTON_DEF (1, 0x80, 0), \
+		BUTTON_DEF (2, 0x40, 1), \
+		BUTTON_DEF (2, 0x10, 1), \
+		BUTTON_DEF (2, 0x08, 1), \
+		BUTTON_DEF (2, 0x20, 1), \
+		BUTTON_DEF (2, 0x04, 0)  \
+	}
+//
+#define	BUTTON_0		0
+#define	BUTTON_1		1
+#define	JOYSTICK_N		2
+#define	JOYSTICK_E		3
+#define	JOYSTICK_S		4
+#define	JOYSTICK_W		5
+#define	JOYSTICK_PUSH		6
+
 #define	P1_PINS_INTERRUPT_MASK	0xc0
 #define	P2_PINS_INTERRUPT_MASK	0x7c
 
-#define	PRESSED_BUTTON0		((P1IN & 0x40) == 0)
-#define	PRESSED_BUTTON1		((P1IN & 0x80) == 0)
-#define	JOYSTICK_N		((P2IN & 0x40) == 0)
-#define	JOYSTICK_E		((P2IN & 0x10) == 0)
-#define	JOYSTICK_S		((P2IN & 0x08) == 0)
-#define	JOYSTICK_W		((P2IN & 0x20) == 0)
-#define	JOYSTICK_PUSH		((P2IN & 0x04) == 0)
+#define	BUTTON_DEBOUNCE_DELAY	64
+#define	BUTTON_REPEAT_DELAY	630
+#define	BUTTON_REPEAT_INTERVAL	256
 
-#define	buttons_init()		do { \
-					_BIS (P1IES, P1_PINS_INTERRUPT_MASK); \
-					_BIS (P1IE, P1_PINS_INTERRUPT_MASK); \
-					_BIS (P2IES, P2_PINS_INTERRUPT_MASK); \
-					_BIS (P2IE, P2_PINS_INTERRUPT_MASK); \
-				} while (0)
+#define	BUTTON_PRESSED_LOW	1
 
-#define	BUTTON_PRESSED_EVENT	((word)(&P1IES))
-
-//+++ "p2irq.c"
-REQUEST_EXTERNAL (p2irq);
+// ============================================================================
 
 #define	buzzer_signal_up	_BIS (P6OUT, 0x80)
 #define	buzzer_signal_down	_BIC (P6OUT, 0x80)

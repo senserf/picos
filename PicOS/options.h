@@ -317,6 +317,10 @@
 #define	ADC_SAMPLER			0
 #endif
 
+#ifndef	BUTTONS_DRIVER
+#define	BUTTONS_DRIVER			0
+#endif
+
 // ============================================================================
 // LCD drivers
 #ifndef	LCD_ST7036
