@@ -2208,3 +2208,7 @@ R080809A:
 	interface still to be revised (so the LOADER praxis doesn't work). I
 	just want to create a decent snapshot, as things are going to change,
 	possibly quite drastically.
+
+	A script added to Apps/VUEE/survey (subdirectory SCRIPT), which is the
+	thing I gave to Israat to illustrate how to extract data from the
+	survey praxis.
