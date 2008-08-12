@@ -98,6 +98,8 @@
 #define	JOYSTICK_W		5
 #define	JOYSTICK_PUSH		6
 
+#define	IS_JOYSTICK(b)		((b) >= JOYSTICK_N && (b) <= JOYSTICK_PUSH)
+
 #define	P1_PINS_INTERRUPT_MASK	0xc0
 #define	P2_PINS_INTERRUPT_MASK	0x7c
 

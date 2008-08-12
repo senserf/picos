@@ -28,6 +28,7 @@
 //+++ "kernel.c"
 
 #include "options.h"
+#include "mach.h"
 
 /* ================================== */
 /* Some hard configuration parameters */
@@ -99,6 +100,7 @@
 #if LCDG_N6100P
 #define	LCDG_PRESENT
 //+++ lcdg_n6100p.c
+#include "lcdg_n6100p.h"
 #endif
 
 // BLUETOOTH through UART ====================================================
@@ -137,8 +139,6 @@
 #endif	/* DIAG_MESSAGES */
 
 // ===========================================================================
-
-#include "mach.h"
 
 #include "dbgtrc.h"
 
@@ -337,38 +337,6 @@ void	lcd_setp (word);
 #define	lcd_putchar(a)	CNOP
 
 #endif	/* LCD_PRESENT */
-
-#ifdef LCDG_PRESENT
-
-void	lcdg_on (byte);
-void	lcdg_off ();
-void	lcdg_set (byte, byte, byte, byte, byte);
-void	lcdg_clear (byte);
-void	lcdg_setc (byte, byte);
-void	lcdg_render (byte, byte, byte*, word);
-void	lcdg_cmd (byte, byte*, byte);
-
-#ifdef	LCDG_TEXT_CAPABILITY
-word	lcdg_font (byte);
-byte	lcdg_cwidth ();
-byte	lcdg_cheight ();
-word	lcdg_sett (byte, byte, byte, byte);
-word	lcdg_ec (byte, byte, byte);
-word	lcdg_el (byte, byte);
-word	lcdg_wl (const char*, word, byte, byte);
-#endif
-
-#else	/* LCDG_PRESENT */
-
-#define	lcdg_on(a)		CNOP
-#define	lcdg_off()		CNOP
-#define	lcdg_set(a,b,c,d,e)	CNOP
-#define	lcdg_clear(a)		CNOP
-#define	lcdg_setc(a)		CNOP
-#define	lcdg_render(a,b,c,d)	CNOP
-#define	lcdg_cmd(a,b,c)		CNOP
-
-#endif	/* LCDG_PRESENT */
 
 // ===========================================================================
 

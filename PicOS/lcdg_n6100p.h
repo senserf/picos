@@ -5,10 +5,6 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "kernel.h"
-#include "lcd_sys.h"
-#include "pins.h"
-
 #define	COLOR_WHITE	0
 #define COLOR_BLACK	1
 #define COLOR_RED	2
@@ -21,15 +17,29 @@
 #define COLOR_ORANGE	9
 #define COLOR_PINK	10
 
-// Flag bits
-#define	LCDGF_8BPP	1
-
 // We ignore the boundary
 #define	LCDG_MAXX	129
 #define	LCDG_MAXY	129
-#define	LCDG_XOFF	1
-#define	LCDG_YOFF	1
-#define	LCDG_MAXXP	(LCDG_XOFF+LCDG_MAXX)
-#define	LCDG_MAXYP	(LCDG_YOFF+LCDG_MAXY)
+
+void lcdg_cmd (byte, const byte*, byte);
+void lcdg_on (byte);
+void lcdg_off (void);
+void lcdg_set (byte, byte, byte, byte);
+void lcdg_get (byte*, byte*, byte*, byte*);
+void lcdg_setc (byte, byte);
+void lcdg_clear ();
+void lcdg_render (byte, byte, const byte*, word);
+
+#ifdef	LCDG_FONT_BASE
+
+word lcdg_font (byte);
+byte lcdg_cwidth (void);
+byte lcdg_cheight (void);
+word lcdg_sett (byte, byte, byte, byte);
+void lcdg_ec (byte, byte, byte);
+void lcdg_el (byte, byte);
+void lcdg_wl (const char*, word, byte, byte);
+
+#endif	/* LCDG_FONT_BASE */
 
 #endif

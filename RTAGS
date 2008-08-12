@@ -2212,3 +2212,18 @@ R080809A:
 	A script added to Apps/VUEE/survey (subdirectory SCRIPT), which is the
 	thing I gave to Israat to illustrate how to extract data from the
 	survey praxis.
+
+R080812A:
+
+	LCD driver for Seawolf redone. Pictures must be Y-reversed (cbm.tcl has
+	been modified accordingly). 8 bpp image format no longer supported in
+	the driver (8 bpp images look lousy, and the option takes code space).
+
+	A set of functions for implementing simple stacks of displayable objects
+	on Nokia 6100 (and possibly other LCDs in the future) provided in
+	dispman.h/dispman.c (Libs/Lib). See Docs/LCDGint.pdf. Also see 
+	Apps/SEAWOLF/TEST for an elaborate example.
+
+	Apps/SEAWOLF/LOADER now compiles and runs with the new LCDG driver.
+	That clumsy praxis is still needed for loading fonts and images
+	into EEPROM.

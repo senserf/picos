@@ -3,7 +3,15 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "kernel.h"
+#include "lcd_sys.h"
+#include "pins.h"
 #include "lcdg_n6100p.h"
+
+#define	LCDG_XOFF	1
+#define	LCDG_YOFF	1
+#define	LCDG_MAXXP	(LCDG_XOFF+LCDG_MAXX)
+#define	LCDG_MAXYP	(LCDG_YOFF+LCDG_MAXY)
 
 // Controller commands
 #define	LNOP		0x00 // nop
@@ -56,28 +64,24 @@
 #define	RDID2		0xDB // read ID2
 #define	RDID3		0xDC // read ID3
 
-// A few standard colors (12-bit)
-#define	WHITE_12		0xFFF
-#define	BLACK_12		0x000
-#define	RED_12			0xF00
-#define	GREEN_12		0x0F0
-#define	BLUE_12			0x00F
-
-// And 8 bit versions
-#define	WHITE_8			0xFF
-#define	BLACK_8			0x00
-#define	RED_8			0xE0
-#define	GREEN_8			0x1C
-#define	BLUE_8			0x03
+// 12-bit color definitions 
+#define WHITE         0xFFF 
+#define BLACK         0x000 
+#define RED           0xF00 
+#define GREEN         0x0F0 
+#define BLUE          0x00F 
+#define CYAN          0x0FF 
+#define MAGENTA       0xF0F 
+#define YELLOW        0xFF0 
+#define BROWN         0xB22 
+#define ORANGE        0xFA0 
+#define PINK          0xF6A 
 
 static const word ctable12 [] = {
-    WHITE_12, BLACK_12, RED_12, GREEN_12, BLUE_12
+    WHITE, BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, BROWN, ORANGE, PINK
 };
 
-static const byte ctable8 [] = {
-    WHITE_8, BLACK_8, RED_8, GREEN_8, BLUE_8
-};
-
+#if 0
 static const byte rgbtable [] = {
 	// RGB table for 8bpp
 		0,	 // red 000 value
@@ -101,8 +105,9 @@ static const byte rgbtable [] = {
 		11,	 // blue 010 value
 		15	 // blue 011 value
 };
+#endif
 
-#define	N_COLORS	(sizeof (rgbtable) / sizeof (word))
+#define	N_COLORS	(sizeof (ctable12) / sizeof (word))
 
 // ============================================================================
 
@@ -110,21 +115,25 @@ static byte X_org  = LCDG_XOFF,
 	    Y_org  = LCDG_YOFF,
 	    X_last = LCDG_MAXX,
 	    Y_last = LCDG_MAXY,
-	    ColF   = 1,		// Foreground color
+	    ColF   = 0,		// Foreground color
 	    ColB   = 0,		// Background color
-	    D_mod  = 0;
 
-#ifdef LCDG_TEXT_CAPABILITY
+// Preassembled standard colors (BG, FG) + crossovers F-B and B-F
+
+	    KAB, KBB, KCB, KAF, KBF, KCF, KXF, KXB;
+
+#ifdef LCDG_FONT_BASE
 
 #ifndef	EEPROM_PRESENT
-#error "LCDG_TEXT_CAPABILITY requires EEPROM_PRESENT"
+#error "LCDG_FONT_BASE requires EEPROM_PRESENT"
 #endif
 
 static byte fpar [4],		// Font parameters: cols, rows, bsize, bshift
 	    fbuf [32];		// Font buffer
-static word fbase;		// Font base in EEPROM
 
-#endif /* LCDG_TEXT_CAPABILITY */
+static word fbase;		// Font base offset in EEPROM
+
+#endif /* LCDG_FONT_BASE */
 
 // ============================================================================
 
@@ -170,8 +179,6 @@ static void sd (byte stuff) {
 
 void lcdg_reset () {
 
-	word i;
-
 	nlcd_cs_down;
 	sc (SLEEPOUT);
 	// Color Interface Pixel Format (command 0x3A)
@@ -183,11 +190,14 @@ void lcdg_reset () {
 	sc (SETCON);	// Contrast
 	sd (0x37);
 	mdelay (10);
+#if 0
 	// Set up the RGB table for 8bpp display
 	sc (RGBSET);
-	for (i = 0; i < sizeof (rgbtable); i++)
+	for (word i = 0; i < sizeof (rgbtable); i++)
 		sd (rgbtable [i]);
+#endif
 	nlcd_cs_up;
+	lcdg_setc (COLOR_BLACK, COLOR_WHITE);
 }
 
 void zz_lcdg_init () {
@@ -199,11 +209,10 @@ void zz_lcdg_init () {
 	mdelay (20);
 	nlcd_rst_up;
 	mdelay (20);
-
 	lcdg_reset ();
 }
 
-void lcdg_cmd (byte cmd, byte *arg, byte n) {
+void lcdg_cmd (byte cmd, const byte *arg, byte n) {
 //
 // Issue a raw command (debugging only)
 //
@@ -239,56 +248,67 @@ void lcdg_off () {
 	nlcd_cs_up;
 }
 
-void lcdg_set (byte x0, byte y0, byte x, byte y, byte flags) {
+void lcdg_set (byte xl, byte yl, byte xh, byte yh) {
 //
 // Set up for rendering or filling
 //
-	X_org = x0 + LCDG_XOFF;
-	Y_org = y0 + LCDG_YOFF;
+	X_org = xl + LCDG_XOFF;
+	Y_org = yl + LCDG_YOFF;
 
-	if (x == 0)
-		X_last = LCDG_MAXXP;
-	else
-		X_last = X_org + x - 1;
-
-	if (y == 0)
-		Y_last = LCDG_MAXYP;
-	else
-		Y_last = Y_org + y - 1;
+	X_last = xh + LCDG_XOFF;
+	Y_last = yh + LCDG_XOFF;
 
 	if (X_last < X_org || Y_last < Y_org || X_last > LCDG_MAXXP ||
 		Y_last > LCDG_MAXYP)
 			syserror (EREQPAR, "lcdg_set");
+}
 
-	D_mod = flags;
-
-	nlcd_cs_down;
-	sc (COLMOD);
-	sd ((flags & LCDGF_8BPP) ? 0x02 : 0x03);
-	nlcd_cs_up;
+void lcdg_get (byte *XL, byte *YL, byte *XH, byte *YH) {
+//
+// Get the current bounding rectangle
+//
+	if (XL != NULL) *XL = X_org;
+	if (YL != NULL) *YL = Y_org;
+	if (XH != NULL) *XH = X_last;
+	if (YH != NULL) *YH = Y_last;
 }
 
 void lcdg_setc (byte bg, byte fg) {
 //
 // Set background and foreground color
 //
+	word k;
+	byte u, d;
+	
 	if (bg >= N_COLORS)
-		bg = COLOR_WHITE;
+		bg = ColB;
 	if (fg >= N_COLORS)
-		fg = COLOR_BLACK;
+		fg = ColF;
+
 	ColF = fg;
+	k = ctable12 [ColF];
+	KAF = (byte)( k >> 4 );
+	KXF = (byte)( k << 4 );
+	KXB = (byte)( k >> 8 );
+	KBF = (byte)( KXF | KXB);
+	KCF = (byte)  k;
+
 	ColB = bg;
+	k = ctable12 [ColB];
+	KAB = (byte)( k >> 4 );
+	u   = (byte)( k << 4 );
+	d   = (byte)( k >> 8 );
+	KBB = (u | d);
+	KXF |= d;
+	KXB |= u;
+	KCB = (byte)  k;
 }
 
-void lcdg_clear (byte col) {
+void lcdg_clear () {
 //
 // Clear the 'set' rectangle
 //
-	word w, h;
-	byte a, b, c;
-
-	if (col >= N_COLORS)
-		col = ColB;
+	word w;
 
 	nlcd_cs_down;
 	// The row
@@ -301,27 +321,17 @@ void lcdg_clear (byte col) {
 
 	sc (RAMWR);
 
-	w = (Y_last - Y_org + 1) * (X_last - X_org + 1);
+	// The number of pixels
+	w = ((Y_last - Y_org + 1) * (X_last - X_org + 1) + 1) >> 1;
 
-	if ((D_mod & LCDGF_8BPP)) {
-		a = ctable8 [col];
-		while (w--)
-			sd (a);
-	} else {
-		w = (w + 1) >> 1;
-		// 12 bit colors
-		a = (byte)(ctable12 [col] >> 4);
-		b = (byte)((ctable12 [col] << 4) | ((ctable12 [col] >> 8) &
-			0xf));
-		c = (byte)ctable12 [col];
-		while (w--) {
-			sd (a); sd (b); sd (c);
-		}
+	while (w--) {
+		sd (KAB); sd (KBB); sd (KCB);
 	}
+
 	nlcd_cs_up;
 }
 
-void lcdg_render (byte cs, byte rs, byte *pix, word n) {
+void lcdg_render (byte cs, byte rs, const byte *pix, word n) {
 //
 // Display pixels; note, we can do it faster if we know that the pixels
 // are coming in order. This version is supposed to work with individual
@@ -374,33 +384,27 @@ void lcdg_render (byte cs, byte rs, byte *pix, word n) {
 
 		n -= xs;
 
-		if (D_mod & LCDGF_8BPP) {
-			// The easy way
-			while (xs--)
-				sd (*pix++);
-		} else {
-			// 12bpp
-			while (xs--) {
-				if (pturn) {
-					// Write three bytes on even pixel
-					sd (*pix++); sd (*pix++); sd (*pix++);
-					pturn = 0;
-				} else {
-					// And skip the odd one
-					pturn++;
-				}
-			}
+		while (xs--) {
 			if (pturn) {
-				// We had an odd number of pixels
-				sd (*pix++);
-				// Only 1/2 of this one is used, which leaves
-				// us in a desperate state. Note: this will be
-				// avoided, if the row size is always even
-				// (note that the chunks is an even number of
-				// pixels)
-				sd (*pix);
+				// Write three bytes on even pixel
+				sd (*pix++); sd (*pix++); sd (*pix++);
+				pturn = 0;
+			} else {
+				// And skip the odd one
+				pturn++;
 			}
 		}
+		if (pturn) {
+			// We had an odd number of pixels
+			sd (*pix++);
+			// Only 1/2 of this one is used, which leaves
+			// us in a desperate state. Note: this will be
+			// avoided, if the row size is always even
+			// (note that the chunk is an even number of
+			// pixels)
+			sd (*pix);
+		}
+
 		// Next row
 		if (n == 0 || ++ys > Y_last)
 			goto Done;
@@ -416,7 +420,6 @@ void lcdg_render (byte cs, byte rs, byte *pix, word n) {
 	sc (RAMWR);
 
 	if (pturn) {
-		// The tricky way (12bpp only)
 		while (n--) {
 			if (pturn) {
 				// Skip even turns, we are out of phase
@@ -439,13 +442,8 @@ void lcdg_render (byte cs, byte rs, byte *pix, word n) {
 			b = (*pix) << 4; pix++;
 			sd (a); sd (b);
 		}
-
-	} else if (D_mod & LCDGF_8BPP) {
-		// The easiest of them all
-		while (n--)
-			sd (*pix++);
 	} else {
-		// Even 12 bpp case (we know pturn == 0)
+		// Even 12 bpp case (pturn == 0)
 		while (n--) {
 			if (pturn) {
 				// Write three bytes on even pixel
@@ -466,7 +464,7 @@ Done:
 	nlcd_cs_up;
 }
 
-#ifdef LCDG_TEXT_CAPABILITY
+#ifdef LCDG_FONT_BASE
 
 word lcdg_font (byte fn) {
 //
@@ -474,7 +472,7 @@ word lcdg_font (byte fn) {
 //
 	fbuf [0] = fpar [0] = fpar [1] = 0;
 	// Read the header
-	ee_read ((lword)0, fbuf, 32);
+	ee_read ((lword)LCDG_FONT_BASE, fbuf, 32);
 	if (((word*)fbuf) [0] != 0x7f01)
 		// This is not a font page
 		return ERROR;
@@ -486,8 +484,8 @@ word lcdg_font (byte fn) {
 
 	fbase = ((word*)fbuf) [2 + fn];
 
-	// Read the font header
-	ee_read ((lword)fbase, fpar, 3); // width, height, blocksize
+	// Read the font header: width, height, blocksize
+	ee_read ((lword)LCDG_FONT_BASE + fbase, fpar, 3);
 
 	// Skip the first block
 	fbase += fpar [2];
@@ -518,7 +516,7 @@ word lcdg_sett (byte x, byte y, byte nc, byte nl) {
 //
 	word x0, y0, x1, y1;
 
-	if (fpar [0] == 0 || fpar [1] == 0)
+	if (fpar [0] == 0)
 		// No font
 		return ERROR;
 
@@ -545,7 +543,9 @@ void lcdg_ec (byte cx, byte cy, byte nc) {
 // Erase nc character positions starting from column cx, row cy
 //
 	word ex;
-	byte a, b, c;
+
+	if (fpar [0] == 0)
+		return;
 
 	cx = X_org + cx * fpar [0];
 	if (cx > X_last)
@@ -559,6 +559,7 @@ void lcdg_ec (byte cx, byte cy, byte nc) {
 		ex = X_last;
 
 	nlcd_cs_down;
+
 	sc (PASET);
 	sd (cy);
 	sd (cy + fpar [1] - 1);
@@ -567,21 +568,12 @@ void lcdg_ec (byte cx, byte cy, byte nc) {
 	sd ((byte)ex);
 	sc (RAMWR);
 
-	ex = (word) (fpar [1]) * (ex - cx + 1);
+	ex = ((word) (fpar [1]) * (ex - cx + 1) + 1) >> 1;
 
-	if ((D_mod & LCDGF_8BPP)) {
-		a = ctable8 [ColB];
-		while (ex--)
-			sd (a);
-	} else {
-		a = (byte)(ctable12 [ColB] >> 4);
-		b = (byte)((ctable12 [ColB] << 4) | (ctable12 [ColB] >> 8));
-		c = (byte)(ctable12 [ColB]);
-		ex = (ex + 1) >> 1;
-		while (ex--) {
-			sd (a); sd (b); sd (c);
-		}
+	while (ex--) {
+		sd (KAB); sd (KBB); sd (KCB);
 	}
+
 	nlcd_cs_up;
 }
 	
@@ -590,7 +582,9 @@ void lcdg_el (byte cy, byte nl) {
 // Erase nl lines starting from line ro
 //
 	word ex;
-	byte a, b, c;
+
+	if (fpar [0] == 0)
+		return;
 
 	cy = Y_org + cy * fpar [1];
 	if (cy > Y_last)
@@ -605,21 +599,12 @@ void lcdg_el (byte cy, byte nl) {
 	sd (X_last);
 	sc (RAMWR);
 
-	ex = (word) (Y_last - cy + 1) * (X_last - X_org + 1);
+	ex = ((word) (Y_last - cy + 1) * (X_last - X_org + 1) + 1) >> 1;
 
-	if ((D_mod & LCDGF_8BPP)) {
-		a = ctable8 [ColB];
-		while (ex--)
-			sd (a);
-	} else {
-		a = (byte)(ctable12 [ColB] >> 4);
-		b = (byte)((ctable12 [ColB] << 4) | (ctable12 [ColB] >> 8));
-		c = (byte)(ctable12 [ColB]);
-		ex = (ex + 1) >> 1;
-		while (ex--) {
-			sd (a); sd (b); sd (c);
-		}
+	while (ex--) {
+		sd (KAB); sd (KBB); sd (KCB);
 	}
+
 	nlcd_cs_up;
 }
 
@@ -627,9 +612,12 @@ void lcdg_wl (const char *st, word sh, byte cx, byte cy) {
 //
 // Write line in the text area starting from column cx, row cy; sh is
 // the shift, i.e., how many initial characters from the line should be
-// ignored.
+// ignored (used for horizontal scrolling).
 //
-	byte *cp, rn, cn, cm, a, b, c;
+	byte *cp, rn, cn, cm;
+
+	if (fpar [0] == 0)
+		return;
 	
 	// Starting coordinates
 	cx = X_org + cx * fpar [0];
@@ -660,8 +648,8 @@ void lcdg_wl (const char *st, word sh, byte cx, byte cy) {
 			rn -= 0x20;
 
 		// Read the block from the font file
-		ee_read ((lword)(fbase+((word)rn << fpar [3])), fbuf, fpar [2]);
-		
+		ee_read ((lword)LCDG_FONT_BASE + fbase +
+			(((word)rn << fpar [3])), fbuf, fpar [2]);
 		nlcd_cs_down;
 		sc (PASET);
 		sd (cy);
@@ -675,31 +663,38 @@ void lcdg_wl (const char *st, word sh, byte cx, byte cy) {
 		cp = fbuf;
 		for (rn = 0; rn < fpar [1]; rn++) {
 			// Position mask
-			cm = 0x80;
-			if ((D_mod & LCDGF_8BPP)) {
-				for (cn = 0; cn < fpar [0]; cn++) {
-					a = ctable8 [(*cp & cm) ? ColF : ColB];
-					sd (a);
-					cm >>= 1;
+			cm = 6;
+			for (cn = 0; cn < fpar [0]; cn += 2) {
+
+				switch ((*cp >> cm) & 0x03) {
+
+					case 0:		// BB
+
+						sd (KAB); sd (KBB); sd (KCB);
+						break;
+	
+					case 1:		// BF
+
+						sd (KAB); sd (KXB); sd (KCF);
+						break;
+
+					case 2:		// FB
+
+						sd (KAF); sd (KXF); sd (KCB);
+						break;
+
+					default:	// FF
+						sd (KAF); sd (KBF); sd (KCF);
 				}
-			} else {
-				for (cn = 0; cn < fpar [0]; cn += 2) {
-					b = (*cp & cm) ? ColF : ColB;
-					cm >>= 1;
-					c = (*cp & cm) ? ColF : ColB;
-					cm >>= 1;
-					a = (byte)(ctable12 [b] >> 4);
-					b = (byte)((ctable12 [b] << 4) |
-						(ctable12 [c] >> 8));
-					c = (byte) ctable12 [c];
-					sd (a); sd (b); sd (c);
-				}
+
+				cm -= 2;
 			}
 			cp++;
 		}
 		cx += fpar [0];
 		st++;
 	}
+	return;
 }
 
 #endif

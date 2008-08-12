@@ -7,7 +7,8 @@
 // Sensor connections:
 //
 //	PAR = P6.0	(analog input)
-//	MOI = P6.2	(analog input)
+//	MOI = P6.7	(analog input)
+//	      P4.7	(excitation)
 //	SHT = P1.6 Data, P1.7 Clock
 //
 //	For reading PAR, set Veref to 1.2V by pulling P4.7 down and P5.4
@@ -26,7 +27,7 @@
 #define	PIN_DEFAULT_P5OUT	0x00
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P4DIR	0x8E	// P4.7 == Veref selector (PAR/MOI)
-#define	PIN_DEFAULT_P6DIR	0x00	// P6.0 PAR input, P6.2 MOI input
+#define	PIN_DEFAULT_P6DIR	0x00	// P6.0 PAR input, P6.7 MOI input
 
 //#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
