@@ -84,7 +84,7 @@ station PicOSNode abstract {
 	void		_da (phys_cc1100) (int, int);
 	void		phys_rfmodule_init (int, int);
 
-	TIME	LastResetTime;
+	long		SecondOffset;
 
 	Mailbox	TB;		// For trigger
 
@@ -191,6 +191,8 @@ station PicOSNode abstract {
 
 	int _da (getpid) () { return __cpint (TheProcess); };
 	lword _da (seconds) ();
+	void _da (setseconds) (lword);
+	word _da (sectomin) ();
 	address	memAlloc (int, word);
 	void memFree (address);
 	word _da (actsize) (address);

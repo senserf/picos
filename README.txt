@@ -293,3 +293,8 @@ R080715A:
 R080723A:
 
     Added aliases: ptleft () for crunning (NULL), getcpid () for running (NULL).
+
+R080820A:
+
+    Added methods setseconds and sectomin to make things compatible with
+    PicOS R080820A. sectomin is a stub the minute clock will probably go.

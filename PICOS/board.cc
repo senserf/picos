@@ -166,7 +166,7 @@ void PicOSNode::reset () {
 
 	NFree = MFree = MTotal;
 	MTail = NULL;
-	LastResetTime = Time;
+	SecondOffset = (long) ituToEtu (Time);
 
 	if (uart != NULL) {
 		uart->__inpline = NULL;
@@ -312,7 +312,7 @@ void PicOSNode::setup (data_no_t *nd) {
 
 	Halted = NO;
 	// This is TIME_0
-	LastResetTime = Time;
+	SecondOffset = (long) ituToEtu (Time);
 	init ();
 }
 
@@ -368,8 +368,21 @@ void _dad (PicOSNode, setrfchan) (word ch) {
 lword _dad (PicOSNode, seconds) () {
 
 	// FIXME: make those different at different stations
-	return (lword) ituToEtu (Time - LastResetTime);
+	return (lword)(((lword) ituToEtu (Time)) + SecondOffset);
 };
+
+void _dad (PicOSNode, setseconds) (lword nv) {
+
+	SecondOffset = (long)((long)nv - (lword)ituToEtu (Time));
+};
+
+word _dad (PicOSNode, sectomin) () {
+//
+// This is a stub. It makes no sense to try to do it right as the minute
+// clock will probably go
+//
+	return 1;
+}
 
 void _dad (PicOSNode, ldelay) (word d, int state) {
 /*

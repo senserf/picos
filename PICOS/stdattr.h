@@ -32,6 +32,8 @@
 #define	halt()		(  ((PicOSNode*)TheStation)->_na_halt ()  )
 #define	getpid()	(  ((PicOSNode*)TheStation)->_na_getpid ()  )
 #define	seconds()	(  ((PicOSNode*)TheStation)->_na_seconds ()  )
+#define	setseconds(a)	(  ((PicOSNode*)TheStation)->_na_setseconds (a)  )
+#define	sectomin()	(  ((PicOSNode*)TheStation)->_na_sectomin ()  )
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )
 #define	memfree(a,b)	(  ((PicOSNode*)TheStation)->_na_memfree (a,b)  )
 #define	delay(a,b)	(  ((PicOSNode*)TheStation)->_na_delay (a,b)  )

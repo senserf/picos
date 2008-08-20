@@ -18,6 +18,8 @@
 #undef halt
 #undef getpid
 #undef seconds
+#undef setseconds
+#undef sectomin
 #undef actsize
 #undef memfree
 #undef delay
@@ -71,6 +73,7 @@
 #undef net_rx
 #undef net_tx
 #undef net_close
+#undef net_qsize
 #undef getSpdCacheSize
 #undef getDdCacheSize
 #undef getDd
