@@ -9,13 +9,7 @@
 #include "tcvphys.h"
 #include "cc1100.h"
 
-#if GUARD_LONG_DELAY < 1000
-// In minutes
 #define	GDELAY(s) 	ldelay (GUARD_LONG_DELAY, s)
-#else
-// In millisecs
-#define	GDELAY(s)	delay (GUARD_LONG_DELAY, s)
-#endif
 
 static int option (int, address);
 static void chip_reset();

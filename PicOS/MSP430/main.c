@@ -816,7 +816,6 @@ void freeze (word nsec) {
 	while ((UTCTL_B & TXEPT) == 0);
 #endif
 #endif
-
 	// We should be OK now
 	WATCHDOG_RESUME;
 
@@ -824,10 +823,12 @@ void freeze (word nsec) {
 	// Save clock state
 	saveLostK = zz_lostk;
 
-	while (nsec) {
+	while (1) {
 		zz_lostk = 0;
 		_BIS_SR (LPM3_bits + GIE);
 		cli;
+		if (nsec == 0)
+			break;
 		nsec--;
 	}
 

@@ -17,6 +17,7 @@ heapmem {10, 90};
 #include "phys_cc1100.h"
 #include "plug_null.h"
 #include "pinopts.h"
+#include "lhold.h"
 
 #define	IBUFLEN		132
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
@@ -589,6 +590,62 @@ Done:
 
 endthread
 
+#define	DE_INIT		0
+#define	DE_RCMD		10
+#define	DE_FRE		20
+#define	DE_LHO		30
+
+thread (test_delay)
+
+  entry (DE_INIT)
+
+	ser_out (DE_INIT,
+		"\r\nRF Pin Test\r\n"
+		"Commands:\r\n"
+		"f s      -> freeze\r\n"
+		"l s      -> lhold\r\n"
+		"q        -> return to main test\r\n"
+	);
+
+  entry (DE_RCMD)
+
+	ser_in (DE_RCMD, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+		case 'f': proceed (DE_FRE);
+		case 'l': proceed (DE_LHO);
+		case 'q': { finish; };
+	}
+	
+  entry (DE_RCMD+1)
+
+	ser_out (DE_RCMD+1, "Illegal command or parameter\r\n");
+	proceed (DE_INIT);
+
+  entry (DE_FRE)
+
+	nt = 0;
+	scan (ibuf + 1, "%u", &nt);
+	diag ("Start %u", (word) seconds ());
+	freeze (nt);
+	diag ("Stop %u", (word) seconds ());
+	proceed (DE_RCMD);
+
+  entry (DE_LHO)
+
+	nt = 0;
+	scan (ibuf + 1, "%u", &nt);
+	val = (lword) nt;
+	diag ("Start %u", (word) seconds ());
+
+  entry (DE_LHO+1)
+
+	lhold (DE_LHO+1, &val);
+	diag ("Stop %u", (word) seconds ());
+	proceed (DE_RCMD);
+
+endthread
+
 #define	RS_INIT		00
 #define	RS_RCMD		10
 #define	RS_EPR		20
@@ -606,7 +663,7 @@ thread (root)
   entry (RS_INIT)
 
 	ibuf = (char*) umalloc (IBUFLEN);
-	ibuf [0] = 0xff;
+	ibuf [0] = 0;
 
 	phys_cc1100 (0, MAXPLEN);
 
@@ -640,6 +697,7 @@ thread (root)
 		"s v      -> sleep (low power) for v seconds\r\n"
 		"E        -> detailed EEPROM test\r\n"
 		"P        -> detailed pin test (including ADC)\r\n"
+		"D        -> delay test\r\n"
 	);
 
   entry (RS_RCMD-1)
@@ -654,6 +712,7 @@ thread (root)
 		delay (1024*30, RS_AUTOSTART);
   
 	ser_in (RS_RCMD, ibuf, IBUFLEN-1);
+	unwait (WNONE);
 
 	switch (ibuf [0]) {
 		case 'e' : proceed (RS_EPR);
@@ -672,6 +731,11 @@ thread (root)
 		case 'P' : {
 				runthread (test_pin);
 				joinall (test_pin, RS_RCMD-2);
+				release;
+		}
+		case 'D' : {
+				runthread (test_delay);
+				joinall (test_delay, RS_RCMD-2);
 				release;
 		}
 	}

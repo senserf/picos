@@ -2,7 +2,7 @@
 #define	__pg_options_h		1
 
 /* ======================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                        */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                        */
 /* All rights reserved.                                                     */
 /* ======================================================================== */
 

@@ -2227,3 +2227,49 @@ R080812A:
 	Apps/SEAWOLF/LOADER now compiles and runs with the new LCDG driver.
 	That clumsy praxis is still needed for loading fonts and images
 	into EEPROM.
+
+R080820A:
+
+	Long delays redone, i.e., ldelay and lhold. They still suck - I believe
+	that a more fundamental revision is needed. The primary difference is
+	that the seconds clock is now settable from the praxis, and long
+	delays are formally decoupled from the seconds clock (i.e., resetting
+	that clock will not confuse pending long delays).
+
+	The old function seconds () is now a macro (at least on MSP - eCOG SDK
+	does not allow you to have parameter-less macros with ()). It directly
+	returns zz_nseconds. Two operations have been added:
+
+	void setseconds (lword nv)	- sets zz_nseconds explicitly
+	word sectomin ()		- number of seconds until next minute
+
+	The seconds clock is advanced at fixed one second intervals. The 
+	invisible minute clock used to implement ldelay, which is also used
+	internally by lhold, is advanced at fixed "minute" intervals, where
+	1 minute = 64 seconds. Function sectomin returns the number of seconds
+	remaining to the nearest minute boundary (the returned values are
+	between 64 and 1 inclusively (never zero).
+
+	Formally, the 64-second minute can be redefined by resetting the
+	constant SECONDS_IN_MINUTE to practically anything (hey, how about
+	60?). I am leaving 64 for compatibility with previous versions.
+	The only place where it makes some difference is lhold, which may
+	become a bit less efficient (not a lot).
+
+	Freeze delay used to be one second shorter than specified. I think I
+	have fixed that. Note that freeze does not depend on the seconds/minute
+	clock. Neither the seconds clock nor the minute clock is advanced
+	during a freeze. This is the way it is supposed to be. You can
+	do setseconds after/before freeze, if you want, but it will not affect
+	long delays (which remain frozen during freeze, as they should).
+
+	I am contemplating eliminating the minute clock altogether. It is
+	confusing and obscure. For the purpose of measuring accurately long
+	delays, it may make sense to implement something like a seconds
+	event, i.e., an event triggered at every second boundary, which
+	processes can await and decrement countdown counters by themselves.
+	lhold can be trivially redone with this feature in place: it may
+	be a bit less efficient, although I doubt it really. This way,
+	ldelay would go. Is it needed at all? I believe that the only reason
+	for implementing lhold was that ldelay was practically useless because
+	of the minute boundary problem.

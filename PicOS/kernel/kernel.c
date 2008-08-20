@@ -44,9 +44,14 @@ pcb_t	*zz_curr;
 /* ========= */
 /* The clock */
 /* ========= */
-static 		word  	setticks, millisec;
+static 		word  	setticks,
+			millisec;
+
 		word 	zz_mintk;
 volatile	word 	zz_lostk;
+
+		byte	zz_mincd = SECONDS_IN_MINUTE;
+		// One byte for rent
 
 /* ================================ */
 /* User-defineable countdown timers */
@@ -124,15 +129,20 @@ int utimer (address ut, Boolean add) {
 	return i+1;
 }
 
-lword seconds () {
+#ifdef	__ECOG1__
 
-	return zz_nseconds;
-}
+// For MSP430, these are macros
+
+lword seconds () { return zz_nseconds; }
+word sectomin () { return (word) zz_mincd; }
+
+#endif
 
 void zzz_tservice () {
 
 	word nticks;
 	pcb_t *i;
+	int j;
 
 	cli_tim;
 	nticks = zz_lostk;
@@ -145,16 +155,27 @@ void zzz_tservice () {
 	/* Keep the seconds clock running */
 	millisec += nticks;
 	while (millisec >= JIFFIES) {
+
 		millisec -= JIFFIES;
 		zz_nseconds++;
 
 #include "second.h"
 
-#ifndef NO_LONG_DELAYS
-		if ((zz_nseconds & 63) == 0)
-			/* Do this every "minute" */
-			ldtrigger ((word) (zz_nseconds >> 6));
-#endif
+		if (--zz_mincd == 0) {
+			// A full minute: handle long delays
+			zz_mincd = SECONDS_IN_MINUTE;
+			for_all_tasks (i) {
+				if (i->code == NULL)
+					continue;
+				for (j = 0; j < nevents (i); j++) {
+					if (getetype (i->Events [j]) !=
+						ETYPE_LDELAY)
+							continue;
+			    		if (--(i->Events [j] . Event) == 0)
+						wakeupev (i, j);
+				}
+			}
+		}
 	}
 
 	do {
@@ -379,24 +400,24 @@ word dleft (int pid) {
 		i->Timer - (setticks - zz_mintk) : 0;
 }
 
-#ifndef	NO_LONG_DELAYS
-
 /* =========== */
 /* Minute wait */
 /* =========== */
 void ldelay (word d, word state) {
 
-	int j = nevents (zz_curr);
+	int j;
 
-	if (j == MAX_EVENTS_PER_TASK)
+	if (d == 0) {
+		// Special treatment for zero minutes
+		delay (0, state);
+		return;
+	}
+
+	if ((j = nevents (zz_curr)) == MAX_EVENTS_PER_TASK)
 		syserror (ENEVENTS, "ldelay");
 
-	if (d == 0)
-		// There is no way to wait for zero minutes, use delay for that
-		syserror (EREQPAR, "ldelay");
-
 	setestatus (zz_curr->Events [j], ETYPE_LDELAY, state);
-	zz_curr->Events [j] . Event = (word) ((zz_nseconds >> 6) + d);
+	zz_curr->Events [j] . Event = d;
 
 	incwait (zz_curr);
 }
@@ -415,20 +436,8 @@ word ldleft (int pid, word *s) {
 	if (i->code == NULL)
 		return MAX_UINT;
 
-	j = ((word) zz_nseconds & 0x3f);
 	if (s != NULL)
-		*s = j ? 64 - j : 0;
-
-	nmin = (word)(zz_nseconds >> 6);
-	if (s == NULL) {
-		// Round it to the nearest minute
-		if (j > 32)
-			nmin++;
-	} else {
-		// Keep it exact
-		if (j)
-			nmin++;
-	}
+		*s = (word) zz_mincd;
 
 	ldel = MAX_UINT;
 
@@ -437,10 +446,11 @@ word ldleft (int pid, word *s) {
 			if (i->Events [j] . Event - nmin < ldel)
 				ldel = i->Events [j] . Event - nmin;
 
+	if (s == NULL && zz_mincd > (SECONDS_IN_MINUTE/2) && ldel != MAX_UINT)
+		ldel++;
+
 	return ldel;
 }
-
-#endif	/* NO_LONG_DELAYS */
 
 /* =============================== */
 /* Continue interrupted timer wait */
@@ -469,9 +479,9 @@ int zz_strigger (int etype, word event) {
 
 	c = 0;
 	for_all_tasks (i) {
-		if (nevents (i) == 0)
-			continue;
 		if (i->code == NULL)
+			continue;
+		if (nevents (i) == 0)
 			continue;
 		for (j = 0; j < nevents (i); j++) {
 			if (i->Events [j] . Event == event &&

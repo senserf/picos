@@ -103,7 +103,6 @@ __STATIC int		physinfo [TCV_MAX_PHYS];
  * This is the timer queue, and the time when the timer was last set.
  */
 __STATIC thead_t tcv_q_tim;
-__STATIC unsigned long tcv_tim_set;
 
 #endif
 

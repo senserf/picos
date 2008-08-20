@@ -242,49 +242,27 @@ __PRIVF (PicOSNode, void, dispose) (hblock_t *p, int dv) {
 
 #if 	TCV_TIMERS
 
-__PRIVF (PicOSNode, word, runtq) () {
+__PRIVF (PicOSNode, void, runtq) () {
 /*
- * This function is called to run the timer queue. It returns the delay after
- * which it should be called again.
+ * This function is called every second to run the timer queue
  */
 	unsigned long cs, ts;
-	titem_t *t;
+	titem_t *t, *f;
 	hblock_t *p;
 
-	t = t_first;
-	if (t_end (t))
-		/* This means that the timer queue is empty */
-		return MAX_UINT;
-
-	if ((ts = (cs = seconds ()) - tcv_tim_set) >= t->value) {
-		/* We go off */
-		do {
+	for (t = t_first; !t_end (t); t = f) {
+		f = t->next;
+		if (t->value <= 1) {
+			// Last second
 			deqt (t);
-			/* Get hold of the actual buffer */
 			p = t_buffer (t);
 			/* Locate the plugin function to call */
 			verify_plg (p, tcv_tmt, "runtq");
 			dispose (p, plugins [p->attributes.b.plugin] ->
 				tcv_tmt ((address)(p + 1)));
-			t = t_first;
-		} while (!t_end (t) && t->value <= ts);
-
-		if (!t_end (t)) {
-			/* Reset the timer */
-			tcv_tim_set = cs;
-			do {
-				t->value -= (word) ts;
-				t = t_next (t);
-			} while (!t_end (t));
-			ts = 0;
-		} else {
-			return MAX_UINT;
-		}
+		} else
+			t->value--;
 	}
-
-	ts = (((unsigned long) (t_first->value)) - ts) * JIFFIES;
-
-	return (ts < MAX_UINT) ? (word) ts : MAX_UINT;
 }
 
 /* TCV_TIMERS */
@@ -977,34 +955,16 @@ __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 	titem_t *t;
 
 	t = &(header(p)->tqueue);
-	/* Remove from current location */
-	deqt (t);
-
-	if (t_empty) {
-		/* First entry */
-		t->value = del;
-		tcv_q_tim . next = tcv_q_tim . prev = t;
-		t -> next = t -> prev = (titem_t*)(&tcv_q_tim);
-		tcv_tim_set = seconds ();
-		trigger (&tcv_q_tim);
-	} else {
-		titem_t *tt;
-		/* Adjust the delay */
-		del += (word) (seconds () - tcv_tim_set);
-		t -> value = del;
-		tt = t_first;
-		if (tt->value >= del) {
-			/* Our delay is the smallest */
+	t -> value = del;
+	if (t->next == NULL) {
+		// Not queued
+		if (t_empty)
 			trigger (&tcv_q_tim);
-		} else {
-			for (tt = t_next (tt); !t_end (tt); tt = t_next (tt))
-				if (tt->value >= del)
-					break;
-		}
-		t->next = tt;
-		t->prev = tt->prev;
-		tt->prev->next = t;
-		tt->prev = t;
+
+		t->next = tcv_q_tim . next;
+		t->prev = (titem_t*)(&tcv_q_tim);
+		tcv_q_tim.next->prev = t;
+		tcv_q_tim.next = t;
 	}
 }
 
@@ -1170,10 +1130,11 @@ __STATIC __PROCESS (timersrv, void)
  */
     entry (__S0)
 
-	delay (runtq_na (), __S0);
+	if (tcv_q_tim_na.next != (titem_t*)(&tcv_q_tim_na))
+		// Timer queue nonempty
+		delay (1024, __S0);
 	when (&tcv_q_tim_na, __S0);
 	release;
-	
 	nodata;
 
 __ENDPROCESS (1)
@@ -1197,7 +1158,6 @@ __PUBLF (PicOSNode, void, tcv_init) () {
 
 #if	TCV_TIMERS
 	// These ones are always initialized dynamically
-	tcv_tim_set = 0;
 	tcv_q_tim . next = tcv_q_tim . prev = (titem_t*) &tcv_q_tim;
 	runthread (timersrv);
 #endif

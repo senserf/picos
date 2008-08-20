@@ -399,7 +399,9 @@ void	buttons_action (void (*action)(word));
 /* The number of clock interrupts per second */
 /* ========================================= */
 #define	JIFFIES			1024	/* Clock ticks in a second           */
-					/* FIXME: check how accurate this is */
+#define	SECONDS_IN_MINUTE	64
+
+
 #define	NULL			0
 #define	NONE			((word)(-1))
 #define	LNONE			((word)(-1))
@@ -628,11 +630,9 @@ int	io (int, int, int, char*, int);
 void	delay (word, word);
 word	dleft (int);
 
-#ifndef	NO_LONG_DELAYS
 /* Minute wait */
 void	ldelay (word, word);
 word	ldleft (int, address);
-#endif
 
 /* Continue timer wait */
 void	snooze (word);
@@ -673,8 +673,21 @@ void	proceed (word);
 void	powerup (void), powerdown (void), clockup (void), clockdown (void);
 /* User timers */
 int	utimer (address, Boolean);
+
 /* Second clock */
+#ifdef	__ECOG1__
 lword	seconds (void);
+word 	sectomin (void);
+#else
+#define	seconds()	zz_nseconds
+#define	sectomin()	((word)zz_mincd)
+extern	byte		zz_mincd;
+#endif
+
+extern	lword		zz_nseconds;
+
+#define	setseconds(a)	(zz_nseconds = (lword) (a));
+
 /* Spin delay */
 void	udelay (word);
 void	mdelay (word);

@@ -25,27 +25,24 @@ void lhold (word st, lword *nsec) {
 		return;
 
 	if (*nsec < 64 || (*nsec & 0x80000000) != 0) {
-		// Residual wait (seconds correction)
+		// Residual wait for seconds
 		delay (((word) *nsec) << 10, st);
 		*nsec = 0;
 		release;
 	}
 
-	// Note that nseconds is updated in tservice; thus, we need no lock
-	// to ensure its consistency between this reading and actual ldelay
+	// Elapsed seconds of this minute
+	ns = SECONDS_IN_MINUTE - sectomin () +
+	// Add residual seconds of the requested delay
+		(*nsec % SECONDS_IN_MINUTE);
+	// FIXME: check how this assembles for 64 spm
 
-	// Seconds of this minute already gone
-	ns = (word) seconds () & 0x3f;
+	// Turn the requested delay into full minutes
+	nm = (*nsec / SECONDS_IN_MINUTE);
 
-	// Add residual seconds from the requested delay, such that we are
-	// left with full minutes
-	ns += ((word) *nsec & 63);
-
-	// Make the actual delay in minutes
-	nm = *nsec >> 6;
-
-	if (ns >= 64) {
-		ns -= 64;
+	// Correction
+	if (ns >= SECONDS_IN_MINUTE) {
+		ns -= SECONDS_IN_MINUTE;
 		nm++;
 	}
 
@@ -81,7 +78,7 @@ lword lhleft (int pid, lword *nsec) {
 	if ((nm = ldleft (pid, &ns)) != MAX_UINT) {
 		if ((*nsec & 0x80000000) != 0)
 			ns += (word) *nsec;
-		return ((lword) nm << 6) + ns;
+		return ((lword) nm * SECONDS_IN_MINUTE) + ns;
 	} else {
 		if ((ns = dleft (pid)) != MAX_UINT)
 			return (lword) (ns >> 10);
