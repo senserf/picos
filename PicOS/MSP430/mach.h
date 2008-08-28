@@ -320,9 +320,11 @@ extern uart_t zz_uart [];
 #define	UART_FLAGS_IN		0x80
 #define	UART_FLAGS_OUT		0x40
 #define	UART_FLAGS_LOCK		0x20
-#define	UART_RATE_MASK		0x0F
 
 #endif	/* UART_DRIVER */
+
+// Also needed by UART_TCV (if UART_DRIVER is 0)
+#define	UART_RATE_MASK		0x0F
 
 
 #if	DIAG_MESSAGES || (dbg_level != 0)

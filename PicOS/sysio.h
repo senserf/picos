@@ -50,17 +50,17 @@
 /* ======================================================================== */
 #define MAX_UTIMERS		4
 
-#if	UART_TCV || UARTP_TCV
-#if	UART_TCV && UARTP_TCV
-#error	"UART_TCV and UARTP_TCV are incompatible"
-#endif
-#endif
+#if	UART_TCV
 
 #if	UART_DRIVER
-#if	UART_TCV || UARTP_TCV
-#error	"UART_DRIVER and UART_TCV/UARTP_TCV are incompatible"
+#error	"UART_DRIVER and UART_TCV are incompatible"
 #endif
-#endif
+
+#else	/* NO UART_TCV */
+
+#undef	UART_TCV_MODE
+
+#endif	/* UART_TCV */
 
 #if	UART_DRIVER > 2
 #error	"UART_DRIVER can be 0, 1, or 2"
@@ -121,21 +121,25 @@
 
 // DIAG MESSAGES =============================================================
 
+#if	UART_DRIVER
+#define	DIAG_AVAILABLE		1
+#else
+#if	UART_TCV
+#if	UART_TCV_MODE == UART_TCV_MODE_L
+#define	DIAG_AVAILABLE		1
+#endif
+#endif
+#endif
+
 #if	DIAG_MESSAGES
-
-#if	UART_DRIVER == 0
+#ifndef	DIAG_AVAILABLE
 #ifdef	LCD_PRESENT
-
 #define	DIAG_MESSAGES_TO_LCD	1	// Diag messages go to LCD
-
 #else	/* No UART, no LCD */
-
 #undef	DIAG_MESSAGES
 #define	DIAG_MESSAGES		0
-
 #endif	/* LCD_PRESENT */
-#endif	/* UART absent */
-
+#endif	/* DIAG_AVAILABLE */
 #endif	/* DIAG_MESSAGES */
 
 // ===========================================================================
@@ -978,6 +982,8 @@ void	adc_stop (void);
 #define	INFO_PHYS_UART    	0x0100	/* Non-persistent UART */
 #define	INFO_PHYS_UARTB    	0x1100	/* Non-persistent UART + BlueTooth */
 #define	INFO_PHYS_UARTP		0x4100	/* Persistent UART */
+#define	INFO_PHYS_UARTL		0x8100	/* Line-mode UART over TCV */
+#define	INFO_PHYS_UARTLB	0x9100	/* Line-mode UART + BlueTooth */
 #define	INFO_PHYS_ETHER    	0x0200	/* Raw Ethernet */
 #define	INFO_PHYS_RADIO		0x0300	/* Radio */
 #define INFO_PHYS_CC1000        0x0400  /* CC1000 radio */

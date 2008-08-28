@@ -1753,9 +1753,9 @@ proc sexpr { str } {
 				while { [info exists Symbols($a0)] } {
 					if [catch { expr $Symbols($a0) } v0] {
 						incr lc
+						set v0 ""
 						if { $Symbols($a0) == "" || \
 						    $lc  > 16 } {
-							set v0 ""
 							break
 						}
 						set a0 $Symbols($a0)
@@ -1771,9 +1771,9 @@ proc sexpr { str } {
 				while { [info exists Symbols($a1)] } {
 					if [catch { expr $Symbols($a1) } v1] {
 						incr lc
+						set v1 ""
 						if { $Symbols($a1) == "" || \
 						    $lc > 16 } {
-							set v1 ""
 							break
 						}
 						set a1 $Symbols($a1)
@@ -1787,6 +1787,7 @@ proc sexpr { str } {
 				dmp "EXPR COMP: '$v0' $op '$v1' (unrecognized)"
 				return -1
 			}
+
 			switch $op {
 		  	"==" { set v0 [expr $v0 == $v1] }
 		  	"<"  { set v0 [expr $v0 <  $v1] }

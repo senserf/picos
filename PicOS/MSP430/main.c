@@ -26,7 +26,7 @@ void	zz_malloc_init (void);
 /* Device driver initializers */
 /* ========================== */
 
-#if	UART_DRIVER || UART_TCV || UARTP_TCV
+#if	UART_DRIVER || UART_TCV
 
 static void preinit_uart (void);
 
@@ -45,15 +45,11 @@ static void	devinit_uart (int);
 
 #else	/* UART_DRIVER */
 
-#if UART_TCV
 #define	N_UARTS	UART_TCV
-#else
-#define	N_UARTS	UARTP_TCV
-#endif
 
 #endif	/* UART_DRIVER */
 
-#endif  /* UART_DRIVER || UART_TCV || UARTP_TCV */
+#endif  /* UART_DRIVER || UART_TCV */
 
 extern void	__bss_end;
 
@@ -783,7 +779,7 @@ void freeze (word nsec) {
  */
 	byte saveP1IE, saveP2IE;
 
-#if UART_DRIVER || UART_TCV || UARTP_TCV
+#if UART_DRIVER || UART_TCV
 	byte saveIE1, saveIE2;
 #endif
 	byte saveLEDs;
@@ -804,7 +800,7 @@ void freeze (word nsec) {
 	saveLEDs = leds_save ();
 	leds_off ();
 
-#if UART_DRIVER || UART_TCV || UARTP_TCV
+#if UART_DRIVER || UART_TCV
 	// Save UART interrupt configuration
 	saveIE1 = IE1;
 	saveIE2 = IE2;
@@ -837,7 +833,7 @@ void freeze (word nsec) {
 	P1IE = saveP1IE;
 	P2IE = saveP2IE;
 
-#if UART_DRIVER || UART_TCV || UARTP_TCV
+#if UART_DRIVER || UART_TCV
 	// Reset the UART to get it back to normal
 	_BIS (UCTL_A, SWRST);
 	_BIC (UCTL_A, SWRST);
@@ -909,7 +905,7 @@ static void ios_init () {
 	zz_if_init ();
 #endif
 
-#if	UART_DRIVER || UART_TCV || UARTP_TCV
+#if	UART_DRIVER || UART_TCV
 	// A UART is configured, initialize it beforehand without enabling
 	// anything, which is up to the driver plugin. We just want to be able
 	// to use diag.
@@ -949,7 +945,7 @@ static void ios_init () {
 /* ============================ DEVICE DRIVERS ============================ */
 /* ------------------------------------------------------------------------ */
 
-#if	UART_DRIVER || UART_TCV || UARTP_TCV
+#if	UART_DRIVER || UART_TCV
 
 uart_t	zz_uart [N_UARTS];
 
@@ -1191,7 +1187,7 @@ word zz_uart_getrate (uart_t *ua) {
 /* ------------------------------------------------------------------------ */
 /* ------------------------------------------------------------------------ */
 
-#endif	/* UART_DRIVER || UART_TCV || UARTP_TCV */
+#endif	/* UART_DRIVER || UART_TCV */
 
 #if	UART_DRIVER
 /* ======== */

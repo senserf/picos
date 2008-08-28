@@ -5,11 +5,6 @@
 
 #include "sysio.h"
 
-/* ================================================================== */
-/* To test boards with Nokia 6100 LCD display (and a few other things */
-/* along the way.                                                     */
-/* ================================================================== */
-
 /*
  * There is no TCV, so all dynamic memory goes to umalloc
  */

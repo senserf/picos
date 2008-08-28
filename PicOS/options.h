@@ -226,9 +226,13 @@
 #define	UART_TCV		0
 #endif
 
-#ifndef	UARTP_TCV
-#define	UARTP_TCV		0
+#ifndef	UART_TCV_MODE
+#define	UART_TCV_MODE		UART_TCV_MODE_N
 #endif
+
+#define	UART_TCV_MODE_N		0
+#define	UART_TCV_MODE_P		1
+#define	UART_TCV_MODE_L		2
 
 /* ========================================================================= */
 /* End of RF modules. Note that UART is an honorary RF module, if configured */

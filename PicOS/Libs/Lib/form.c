@@ -12,3 +12,7 @@ char *form (char *buf, const char *fm, ...) {
 	return vform (buf, fm, va_par (fm));
 }
 
+word fsize (const char *fm, ...) {
+
+	return vfsize (fm, va_par (fm));
+}

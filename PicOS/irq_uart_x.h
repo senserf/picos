@@ -1,11 +1,12 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#if UART_TCV
-
-    // The non-persistent variant
+#if UART_TCV_MODE == UART_TCV_MODE_N
+// ============================================================================
+// The non-persistent packet variant ==========================================
+// ============================================================================
 
     switch (UA->x_istate) {
 
@@ -50,9 +51,12 @@
 		RTNI;
     }
 
-#else
+#endif
 
-    // The non-persistent variant
+#if UART_TCV_MODE == UART_TCV_MODE_P
+// ============================================================================
+// The persistent packet variant ==============================================
+// ============================================================================
 
     switch (UA->x_istate) {
 
@@ -96,6 +100,61 @@
 
 	case IRQ_X_STOP:
 
+		RISE_N_SHINE;
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+		UART_STOP_XMITTER;
+		RTNI;
+    }
+
+#endif
+
+#if UART_TCV_MODE == UART_TCV_MODE_L
+// ============================================================================
+// The line variant ===========================================================
+// ============================================================================
+
+    byte b;   
+
+    switch (UA->x_istate) {
+
+	case IRQ_X_OFF:
+
+		// Stop the automaton
+		UART_STOP_XMITTER;
+		RTNI;
+
+	case IRQ_X_STRT:
+
+		// NetID field used for payload
+		UA->x_buffp = 0;
+		UA->x_istate = IRQ_X_LIN;
+
+	case IRQ_X_LIN:
+
+		if (UA->x_buffp == UA->x_buffl) {
+			// Transmit CRLF
+Eol:
+			XBUF = '\r';
+			UA->x_istate = IRQ_X_EOL;
+		} else {
+			b = ((byte*)(UA->x_buffer)) [UA->x_buffp++];
+			if (b == '\0')
+				// Null byte also terminates the string
+				goto Eol;
+			XBUF = b;
+		}
+		RTNI;
+
+	case IRQ_X_EOL:
+
+		XBUF = '\n';
+		UA->x_istate = IRQ_X_STOP;
+		RTNI;
+
+	case IRQ_X_STOP:
+
+		// All done
 		RISE_N_SHINE;
 		if (UA->x_prcs != 0)
 			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);

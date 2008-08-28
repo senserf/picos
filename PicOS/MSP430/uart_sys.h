@@ -5,10 +5,6 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#if UARTP_TCV
-#define	N_UARTS_TCV	UARTP_TCV
-#endif
-
 #if UART_TCV
 #define	N_UARTS_TCV	UART_TCV
 #endif

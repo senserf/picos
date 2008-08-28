@@ -8,10 +8,14 @@
 
 //+++ "form.c" "scan.c"
 
+word zz_vfparse (char*, word, const char*, va_list);
 char *vform (char*, const char*, va_list);
 int vscan (const char*, const char*, va_list);
 char *form (char*, const char*, ...);
+word fsize (const char*, ...);
 int scan (const char*, const char*, ...);
+
+#define vfsize(a,b)	zz_vfparse (NULL, 0, a, b)
 
 #define	isdigit(a)	((a) >= '0' && (a) <= '9')
 #define	isspace(a)	((a)==' ' || (a)=='\t' || (a)=='\n' || (a)=='\r')

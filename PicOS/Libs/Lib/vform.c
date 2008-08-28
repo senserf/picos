@@ -5,17 +5,20 @@
 #include "sysio.h"
 #include "form.h"
 
-char *vform (char *res, const char *fm, va_list aq) {
+word zz_vfparse (char *res, word n, const char *fm, va_list ap) {
 
-	word fml, s, d;
 	char c;
-	va_list ap;
+	word d;
 
-#define	outc(c)	do { \
-			if (d >= fml) \
-				goto ReAlloc; \
-			res [d++] = (char)(c); \
-		} while (0)
+	void outc (word c) {
+		if (res) {
+			// Fill in
+			if (d < n)
+				res [d] = (char) c;
+		}
+		// Count the bytes
+		d++;
+	};
 
 #define enci(b)	i = (b); \
 		while (1) { \
@@ -32,122 +35,135 @@ char *vform (char *res, const char *fm, va_list aq) {
 				break; \
 			c = (char) (val / i); \
 		}
-#define encx(s)	for (i = 0; i < (s); i += 4) { \
-			outc (zz_hex_enc_table [((val >> (((s)-4)-i)) & 0xf)]);\
-		}
 
-
-	if (res != NULL)
-		/* Fake huge maximum length */
-		fml = MAX_UINT;
-	else
-		/* Guess an initial length of the formatted string */
-		fml = strlen (fm) + 16;
+	d = 0;
 
 	while (1) {
-		if (fml != MAX_UINT) {
-			if ((res = (char*) umalloc (fml+1)) == NULL)
-				/* There is not much we can do */
-				return NULL;
-			/* This is how far we can go */
-			fml = actsize (res) - 1;
-		}
-		s = d = 0;
-		ap = aq;
 
-		while (1) {
-			c = fm [s++];
-			if (c == '\\') {
-				/* Escape the next character unless it is 0 */
-				if ((c = fm [s++]) == '\0') {
-					res [d] = '\0';
-					return res;
-				}
-				outc (c);
-				continue;
+		c = *fm++;
+
+		if (c == '\\') {
+			/* Escape the next character unless it is 0 */
+			if ((c = *fm++) == '\0') {
+				outc ('\\');
+				goto Eol;
 			}
-			if (c == '%') {
-				/* Something special */
-				c = fm [s++];
-				if (c == '\0') {
-					res [d] = '\0';
-					return res;
+			outc (c);
+			continue;
+		}
+
+		if (c == '%') {
+			/* Something special */
+			c = *fm++;
+			switch (c) {
+			    case 'x' : {
+				word val; int i;
+				val = va_arg (ap, word);
+				for (i = 12; ; i -= 4) {
+					outc (zz_hex_enc_table [(val>>i)&0xf]);
+					if (i == 0)
+						break;
 				}
-				switch (c) {
-				    case 'x' : {
-					word val; int i;
-					val = va_arg (ap, word);
-					encx (16);
-					break;
-				    }
-				    case 'd' :
-				    case 'u' : {
-					word val, i;
-					val = va_arg (ap, word);
-					if (c == 'd' && (val & 0x8000) != 0) {
+				break;
+			    }
+			    case 'd' :
+			    case 'u' : {
+				word val, i;
+				val = va_arg (ap, word);
+				if (c == 'd' && (val & 0x8000) != 0) {
+					/* Minus */
+					outc ('-');
+					val = (~val) + 1;
+				}
+				enci (10000);
+				break;
+			    }
+#if	CODE_LONG_INTS
+			    case 'l' :
+				c = *fm;
+				if (c == 'd' || c == 'u') {
+					lword val, i;
+					fm++;
+					val = va_arg (ap, lword);
+					if (c == 'd' &&
+					    (val & 0x80000000L) != 0) {
 						/* Minus */
 						outc ('-');
 						val = (~val) + 1;
 					}
-					enci (10000);
-					break;
-				    }
-#if	CODE_LONG_INTS
-				    case 'l' :
-					c = fm [s];
-					if (c == 'd' || c == 'u') {
-						lword val, i;
-						s++;
-						val = va_arg (ap, lword);
-						if (c == 'd' &&
-						    (val & 0x80000000L) != 0) {
-							/* Minus */
-							outc ('-');
-							val = (~val) + 1;
-						}
-						enci (1000000000L);
-					} else if (c == 'x') {
-						lword val;
-						int i;
-						s++;
-						val = va_arg (ap, lword);
-						encx (32);
-					} else {
-						outc ('%');
-						outc ('l');
+					enci (1000000000L);
+				} else if (c == 'x') {
+					lword val;
+					int i;
+					fm++;
+					val = va_arg (ap, lword);
+					for (i = 28; ; i -= 4) {
+						outc (zz_hex_enc_table
+							[(val>>i)&0xf]);
+						if (i == 0)
+							break;
 					}
-					break;
-#endif
-				    case 'c' : {
-					word val;
-					val = va_arg (ap, word);
-					outc (val);
-					break;
-				    }
-			  	    case 's' : {
-					char * st;
-					st = va_arg (ap, char*);
-					while (*st != '\0') {
-						outc (*st);
-						st++;
-					}
-					break;
-				    }
-			  	    default:
+				} else {
 					outc ('%');
-					outc (c);
+					outc ('l');
 				}
-			} else {
+				break;
+#endif
+			    case 'c' : {
+				word val;
+				val = va_arg (ap, word);
+				outc (val);
+				break;
+			    }
+
+		  	    case 's' : {
+				char *st;
+				st = va_arg (ap, char*);
+				while (*st != '\0') {
+					outc (*st);
+					st++;
+				}
+				break;
+			    }
+		  	    default:
+				outc ('%');
 				outc (c);
 				if (c == '\0')
-					return res;
+					goto Ret;
 			}
+		} else {
+			// Regular character
+Eol:
+			outc (c);
+			if (c == '\0')
+Ret:
+				return d;
 		}
-	ReAlloc:
-		if (fml == MAX_UINT)
-			/* Impossible */
-			return res;
+	}
+}
+
+char *vform (char *res, const char *fm, va_list aq) {
+
+	word fml, d;
+
+	if (res != NULL) {
+		// We trust the caller
+		zz_vfparse (res, MAX_UINT, fm, aq);
+		return res;
+	}
+
+	// Size unknown; guess a decent size
+	fml = strlen (fm) + 17;
+	// Sentinel included (it is counted by outc)
+Again:
+	if ((res = (char*) umalloc (fml)) == NULL)
+		/* There is not much we can do */
+		return NULL;
+
+	if ((d = zz_vfparse (res, fml, fm, aq)) > fml) {
+		// No luck, reallocate
 		ufree (res);
-		fml += 16;
+		fml = d;
+		goto Again;
 	}
 }

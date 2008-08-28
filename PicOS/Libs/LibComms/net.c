@@ -19,10 +19,6 @@
 #include "phys_ether.h"
 #endif
 
-#if UARTP_TCV
-#include "phys_uartp.h"
-#endif
-
 #if UART_TCV
 #include "phys_uart.h"
 #endif
@@ -97,10 +93,6 @@ __PUBLF (TNode, int, net_qsize) (int d) {
 static int ether_init (word);
 #endif
 
-#if UARTP_TCV
-static int uartp_init (word);
-#endif
-
 #if UART_TCV
 static int uart_init (word);
 #endif
@@ -166,10 +158,6 @@ __PUBLF (TNode, int, net_init) (word phys, word plug) {
 #if ETHERNET_DRIVER
 	case INFO_PHYS_ETHER:
 		return (net_fd = ether_init (plug));
-#endif
-#if UARTP_TCV
-	case INFO_PHYS_UARTP:
-		return (net_fd = uartp_init (plug));
 #endif
 #if UART_TCV
 	case INFO_PHYS_UART:
@@ -291,50 +279,6 @@ __PRIVF (TNode, int, ether_init) (word plug) {
 }
 #endif
 
-
-#if UARTP_TCV
-__PRIVF (TNode, int, uartp_init) (word plug) {
-
-// #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
-// or
-// What the @#$% was that (PG)
-// #define 	NET_CHANNEL_MODE	UART_PHYS_MODE_DIRECT
-
-// They are in hundreds these days
-#define NET_RATE			192
-// Can be 0 or 1
-#define	WHICH_UART			0
-
-	int  fd;
-
-	// uart_init_p [0] = (word) NET_RATE;
-	// ion (UART_B, CONTROL, (char*)uart_init_p, UART_CNTRL_RATE);
-	phys_uartp (0, NET_MAXPLEN, WHICH_UART);
-
-	if (plug == INFO_PLUG_TARP)
-		tcv_plug (0, &plug_tarp);
-	else
-		tcv_plug (0, &plug_null);
-
-	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
-		diag ("%s: Cannot open tcv uart_b interface", myName);
-		return -1;
-	}
-#ifdef	NET_RATE
-	{ word rt; 
-		rt = NET_RATE;
-		tcv_control (fd, PHYSOPT_SETRATE, &rt);
-	}
-#endif
-	tcv_control (fd, PHYSOPT_TXON, NULL);
-	tcv_control (fd, PHYSOPT_RXON, NULL);
-	return fd;
-
-#undef	NET_CHANNEL_MODE
-#undef	NET_RATE
-}
-#endif
-
 #if UART_TCV
 __PRIVF (TNode, int, uart_init) (word plug) {
 
@@ -420,15 +364,6 @@ __PUBLF (TNode, int, net_rx)
 		if (*buf_ptr == NULL)
 			*buf_ptr = (char *)umalloc(size);
 		memcpy(*buf_ptr, (char *)ether_offset(packet), size);
-		tcv_endp(packet);
-		return size;
-#endif
-
-#if UARTP_TCV
-	case INFO_PHYS_UARTP:
-		if (*buf_ptr == NULL)
-			*buf_ptr = (char *)umalloc(size);
-		memcpy(*buf_ptr, (char *)packet, size);
 		tcv_endp(packet);
 		return size;
 #endif

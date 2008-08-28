@@ -11,10 +11,6 @@
 
 #include "rfleds.h"
 
-#if UARTP_TCV
-#include "phys_uartp.h"
-#endif
-
 #if UART_TCV
 #include "phys_uart.h"
 #endif
@@ -22,8 +18,6 @@
 #include "uart_sys.h"
 
 #ifdef	N_UARTS_TCV				// Set in uart_sys.h
-
-#define	UART_DEF_BUF_LEN	64
 
 #define	UAFLG_OMAB		0x01		// Outgoing message AB
 #define	UAFLG_OAAB		0x02		// Outgoing ACK AB
@@ -53,19 +47,28 @@ typedef	struct	{
 	address r_buffer;
 
 	byte	x_buffl,  x_buffp,
-#if UARTP_TCV
+#if UART_TCV_MODE == UART_TCV_MODE_P
 		x_chk0,   x_chk1,
 #endif
 		r_buffl,  r_buffs,
 		r_buffp,  x_istate,
 		r_istate, v_flags;
-#if UART_TCV
+#if UART_TCV_MODE == UART_TCV_MODE_N
 	word	v_statid;
 #endif
 	word	v_physid, x_qevent;
 	word	r_prcs,   x_prcs;
 
+#if UART_RATE_SETTABLE
+	byte	flags;
+#endif
+
 } uart_t;
+
+#define	UART_DEF_BUF_LEN	82
+
+// Redefine to LEDI(a,b) if UART TCV wants to use leds
+#define	LEDIU(a,b)	CNOP
 
 extern	uart_t zz_uart [N_UARTS_TCV];
 
@@ -76,6 +79,7 @@ extern	uart_t zz_uart [N_UARTS_TCV];
 #define	IRQ_R_LEN	2
 #define	IRQ_R_PKT	3
 #define	IRQ_R_CHK1	4
+#define	IRQ_R_LIN	IRQ_R_LEN
 
 #define	IRQ_X_OFF	0
 #define	IRQ_X_STRT	1
@@ -83,6 +87,8 @@ extern	uart_t zz_uart [N_UARTS_TCV];
 #define	IRQ_X_PKT	3
 #define	IRQ_X_STOP	4
 #define	IRQ_X_CH1	5
+#define	IRQ_X_LIN	IRQ_X_LEN
+#define	IRQ_X_EOL	IRQ_X_PKT
 
 #endif	/* N_UARTS_TCV */
 

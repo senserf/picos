@@ -2275,6 +2275,7 @@ R080820A:
 	of the minute boundary problem.
 
 R080823A:
+
 	VUEE/eco_net for phase 2. Half-cooked, submitting for testing the new
 	HW in the greenhouse demo:
 
@@ -2288,3 +2289,18 @@ R080823A:
 	- Obviously missing on top of unfinished changes:
 	  - saving oper param in eprom of iflash!!
 	  - doc updates
+
+R080828A:
+
+	Added line mode to UART-over-VNETI (read Docs/Serial.pdf). Various
+	cleanups in TCV_UART, e.g., removed PicOS/Libs/Lib/phys_uartp.[ch] (all
+	three modes are now implemented in phys_uart.[ch]). 
+
+	Redone form/vform. Function fsize (const char *fmt, ...) returns
+	now the total size (including the NULL byte) of the formatted string.
+	You can use it before encoding to allocate exactly as much memory for
+	the buffer as you need. It has a companion, named vfsize, which takes
+	va_par for the second argument. See Apps/TESTS/RFPUTCV (this is RFPING
+	with UART over VNETI in line mode) for an illustration.
+
+	A minor fix to mkmk (crashing on some cases of udefined symbols).

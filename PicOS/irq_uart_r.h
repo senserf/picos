@@ -1,13 +1,14 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
     byte b;
 
-#if UART_TCV
-
-    // The non-persistent variant
+#if UART_TCV_MODE == UART_TCV_MODE_N
+// ============================================================================
+// The non-persistent packet variant ==========================================
+// ============================================================================
 
     switch (UA->r_istate) {
 
@@ -64,9 +65,12 @@
 		RTNI;
     }	
 
-#else
+#endif
 
-    // The persistent variant
+#if UART_TCV_MODE == UART_TCV_MODE_P
+// ============================================================================
+// The persistent packet variant ==============================================
+// ============================================================================
 
     switch (UA->r_istate) {
 
@@ -130,6 +134,52 @@
 			p_trigger (UA->r_prcs, ETYPE_USER, RXEVENT);
 		UA->r_istate = IRQ_R_OFF;
 		RTNI;
+    }	
+
+#endif
+
+#if UART_TCV_MODE == UART_TCV_MODE_L
+// ============================================================================
+// The line variant ===========================================================
+// ============================================================================
+
+    b = RBUF;
+
+    switch (UA->r_istate) {
+
+	case IRQ_R_STRT:
+
+		// Receive the first byte: ignore anything less than space
+		if (b < 0x20)
+			RTNI;
+
+		// Network ID field not used, i.e., usable for payload
+		UA->r_buffp = 1;
+		*((byte*)(UA->r_buffer)) = b;
+		UA->r_istate = IRQ_R_LIN;
+		LEDIU (2, 1);
+		RTNI;
+
+	case IRQ_R_LIN:
+
+		if (b == '\r' || b == '\n') {
+			// Either one terminates the line, the other one
+			// will be discarded at the beginning of next one
+			RISE_N_SHINE;
+			if (UA->r_prcs != 0)
+				p_trigger (UA->r_prcs, ETYPE_USER, RXEVENT);
+			UA->r_istate = IRQ_R_OFF;
+		} else {
+			if (UA->r_buffp < UA->r_buffl)
+				// This will truncate longer lines
+				((byte*)(UA->r_buffer)) [UA->r_buffp++] = b;
+		}
+
+	default:
+
+		RTNI;
+
+	
     }	
 
 #endif
