@@ -2290,7 +2290,7 @@ R080823A:
 	  - saving oper param in eprom of iflash!!
 	  - doc updates
 
-R080828A:
+R080828B:
 
 	Added line mode to UART-over-VNETI (read Docs/Serial.pdf). Various
 	cleanups in TCV_UART, e.g., removed PicOS/Libs/Lib/phys_uartp.[ch] (all
