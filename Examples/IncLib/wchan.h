@@ -77,6 +77,10 @@ class MXChannels {
 		if (c1 == 0)
 			return 1.0;
 
+		assert (this != NULL,
+			"MXChannels: attempt to use different channels while"
+			" no channels are defined");
+
 		if (--c1 > NSEP)
 			return 0.0;
 

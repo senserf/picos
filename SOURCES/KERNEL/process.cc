@@ -1742,7 +1742,7 @@ void    zz_print_debug_info () {
 /* ------------------------------------------------- */
 
 	Long    l;
-	char    *s;
+	const char *s;
 
 	if (zz_flg_nosysdisp && (zz_CE == NULL ||
 		TheStation == System || zz_CE->chain == NULL)) return;

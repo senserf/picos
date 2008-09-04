@@ -38,23 +38,6 @@ double RFShadow::RFC_att (const SLEntry *xp, double d,
 	return res;
 }
 
-double RFShadow::RFC_add (int n, int own, const SLEntry **sl,
-	const SLEntry *xcv) {
-/*
- * Straightforward addition
- */
-	double tsl;
-
-	tsl = xcv->Level;
-
-	while (n--)
-		if (n != own)
-			tsl += sl [n] -> Level;
-
-	trc ("RFC_add (sl) = [%1d %1d %g] -> %g", n, own, xcv->Level, tsl);
-	return tsl;
-}
-
 Boolean RFShadow::RFC_act (double sl, const SLEntry *sn) {
 
 /*

@@ -1367,6 +1367,20 @@ Bernoulli experiment involving tossing a possibly biased coin:
 where {\tt p} is the probability of success in a single experiment, and {\tt n}
 is the total number of trials.
 
+Various instances of practical Zipf-style distributions can be produced with
+this function:
+\begin{verbatim}
+        Long lRndZipf (double q, Long max = MAX_Long, Long v = 1);
+\end{verbatim}
+which generates integer random values between 0 and {\tt max}--1, inclusively,
+in such a way that the probability of value $k$ being selected is proportional
+to:
+\[
+P_k = \frac{1}{(v + k)^q}\;\;\;\;(k = 0, \ldots, \texttt{max}-1)
+\]
+Note that {\tt v} must be greater than zero, and {\tt q} must be greater
+than 1.
+
 The following function simulates tossing a multi-sided coin:
 \begin{verbatim}
         Long toss (Long n);

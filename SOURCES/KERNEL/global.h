@@ -2195,6 +2195,7 @@ INLINE LONG 	lRndTolerance (double, double, int);
 INLINE double	dRndTolerance (double, double, int);
 INLINE double 	dRndGauss (double, double);
 Long	lRndBinomial (double, Long);
+Long	lRndZipf (double s, Long max = MAX_Long, Long v = 1);
 TIME	tRndTolerance (TIME, TIME, int);
 
 INLINE TIME    tRndTolerance   (double, double, int);

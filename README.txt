@@ -974,3 +974,8 @@
 	   SOURCES/KERNEL, so it can be easily changed if desired.
 	   SIDE now compiles without warnings with g++ 4.2.3.
 	   Version changed to 3.2, manual updated.
+
+ R080904A  Fixed a bug in zz_print_debug_info (process.cc) introduced with
+	   R080714B causing compilation errors with -g/-G.
+	   
+	   Zipf random number generator included (see the manual).

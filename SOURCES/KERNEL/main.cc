@@ -1825,6 +1825,9 @@ Boolean zz_debug_tracing_on () {
  * ============================================================================
  */
 
+#if  ZZ_NFP
+#else
+
 #define SMALL_MEAN 	14
 #define BINV_CUTOFF	110
 #define FAR_FROM_MEAN 	20
@@ -1862,7 +1865,14 @@ double pow_int (double x, int n) {
   return value;
 }
 
+#endif	/* NFP */
+
 Long lRndBinomial (double p, Long n) {
+
+#if	ZZ_NFP
+	zz_nfp ("lRndBinomial");
+	return 0;
+#else
 
   int ix;                       /* return value */
   int flipped = 0;
@@ -2119,12 +2129,112 @@ Long lRndBinomial (double p, Long n) {
 Finish:
 
   return (flipped) ? (n - ix) : ix;
+#endif	/* NFP */
 }
 
 /* ============================================================================
  * End of borrowed part
  * ============================================================================
  */
+
+/* ============================================================================
+ * Zipf distribution based on W.Hormann, G.Derflinger, "Rejection-Inversion to
+ * Generate Variates from Monotone Discrete Distributions"
+ * http://eeyore.wu-wien.ac.at/papers/96-04-04.wh-der.ps.gz
+ * ============================================================================
+ */
+
+#if 	ZZ_NFP
+#else
+
+class ZipfGen {
+
+	double IM;
+	double V;
+	double Q, OMQ, OMQI, HXO, HXM, S;
+
+	double S_init;
+	Long IM_init, V_init;
+
+	double H (const double &x) const {
+		return (exp (OMQ * log (V + x)) * OMQI);
+	};
+
+	double Hinv (const double &x) const {
+		return exp (OMQI * log (OMQ * x)) - V;
+	};
+
+	public:
+
+	ZipfGen () {
+
+		S_init = -1.0;
+		IM_init = -1;
+		V_init = -1;
+	};
+
+	void set (double s, Long max, Long v) {
+
+		if (s == S_init && max == IM_init && v == V_init)
+			return;
+
+		S_init = s; IM_init = max; V_init = v;
+
+		IM = (double) (max - 1);
+		V = (double) v;
+		Q = s;
+
+		Assert (Q > 1.0 && V >= 1.0 && IM >= 1.0,
+			"lRndZipf: illegal parameters: %g, %d, %d",
+				s, max, v);
+
+		OMQ = 1.0 - Q;
+		OMQI = 1.0 / OMQ;
+		HXM = H (IM + 0.5);
+		HXO = H (0.5) - exp (log (V) * (-Q)) - HXM;
+		S = 1 - Hinv (H (1.5) - exp (-Q * log (V + 1.0)));
+	};
+		
+	Long next () {
+
+		while (true) {
+	
+			double ur = HXM + rnd (SEED_toss) * (HXO);
+			double x = Hinv (ur);
+
+			Long k = (Long)(x + 0.5);
+
+			if (k - x <= S) {
+				return k;
+			} else if (ur >= (H (k + 0.5) -
+						exp (-log (k + V) * Q))) {
+				return k;
+			}
+		}
+	};
+};
+
+static ZipfGen *zipfgen = NULL;
+
+#endif	/* NFP */
+
+Long lRndZipf (double s, Long max, Long v) {
+
+#if	ZZ_NFP
+	zz_nfp ("lRndZipf");
+	return 0;
+#else
+	if (zipfgen == NULL)
+		zipfgen = new ZipfGen;
+
+	zipfgen->set (s, max, v);
+
+	return zipfgen->next ();
+}
+
+#endif 	/* NFP */
+
+// ============================================================================
 
 #if 	ZZ_NFP
 void zz_nfp (const char *em) {
