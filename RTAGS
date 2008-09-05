@@ -2304,3 +2304,10 @@ R080828B:
 	with UART over VNETI in line mode) for an illustration.
 
 	A minor fix to mkmk (crashing on some cases of udefined symbols).
+
+R080905A:
+
+	tcv_plug returns an int value. ERROR means failure, i.e., occupied
+	slot or index too big.
+
+	Misc updates to scripts in eco_demo/OSSI.

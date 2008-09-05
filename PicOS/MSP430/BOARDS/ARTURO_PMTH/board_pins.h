@@ -51,6 +51,64 @@
 #define	MOI_ECO_NSA	2	// Number of samples, corresponds to 16
 #define	MOI_ECO_REF	3	// Voltage reference: Veref
 
+// Notes re ECHO sensor reference:
+//
+// Tests regarding stability in the face of varying Vcc were rather
+// disappointing.
+//
+// Forward Zener fed from excitation voltage (4.7K to ground):
+//	3.12V	->	449
+//	2.91V	->	427   5.02% / 0.21V = 23.9%/V
+//	2.59V	->	390   9.06% / 0.32V = 28.3%/V
+//
+// Both pins high:
+//	3.12V	->	335  
+//	2.90V	->	311   7.43% / 0.22V = 33.8%/V
+//	2.59V	->	274  12.65% / 0.31V = 40.8%/V
+//
+// Vcc ref:
+//	3.12V	->	331
+//	2.90V	->	307   7.52% / 0.22V = 34.2%/V
+//	2.60V	->	273  11.72% / 0.30V = 39.1%/V
+//
+// ===========================================================================
+// The moral: use the Zener to ground (option 1).
+//
+// Let us calibrate at 3.05V Vcc. This is very rough, as I am using the
+// oscilloscope to determine the excitation voltage on the pin and the
+// reference voltage on the Zener.
+//
+// EC-5:
+//
+// The excitation voltage taken from the pin turns out 2.8V, while the
+// reference (after the Zener) is 2.2V.
+//
+// The formula from ECHO manual (for ECHO-5):
+//
+// F = 11.9 * 0.0001 * V - 0.401
+//
+// assumes that V is in mV in response to 2500mV excitation. We have ADC
+// indications r between 0 an 4095. Thus, we should replace V with
+//
+// 2500 * (r / 4095) * 2.8/2.2.
+//
+// which yields:
+//
+// F = 0.0007265 * V_exc/V_ref * r - 0.401, and for V_exc/V_ref = 2.8/2.2:
+//
+// F = (0.0009246 * r - 0.401) * 100%
+//
+// EC-20:
+//
+// V_exc = 2.95, V_ref = 2.35 (fixed drop on the Zener)
+//
+// The formula:
+//
+// F = 0.000695 * V - 0.29, i.e.,
+// F = 0.000424 * V_exc/V_ref * r - 0.26, i.e.,
+// F = 0.000532 * r - 0.26
+// ============================================================================
+
 // This is referenced in analog_senor.c
 #define	EREF_ON		do { \
 				if (ASNS_PNO == QSO_PAR_PIN) { \

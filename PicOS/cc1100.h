@@ -18,7 +18,7 @@
  *     2 = software
  */
 #ifndef	RADIO_CRC_MODE
-#define	RADIO_CRC_MODE		2
+#define	RADIO_CRC_MODE		2	/* FIXME: this should be 0 */
 #endif
 
 #ifndef	RADIO_BITRATE
@@ -56,7 +56,7 @@
 #define	GUARD_SHORT_DELAY	5000	/* 5 seconds */
 #define	TRACE_DRIVER		0	/* Debugging diags */
 
-#define	CC1100_MAXPLEN		60	/* Including checksum */
+#define	CC1100_MAXPLEN		60	/* Excluding checksum */
 
 // Register Numbers ===========================================================
 

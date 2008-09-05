@@ -502,15 +502,16 @@ __PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 	return (int)BLOCKED;
 }
 
-__PUBLF (PicOSNode, void, tcv_plug) (int ord, const tcvplug_t *pl) {
+__PUBLF (PicOSNode, int, tcv_plug) (int ord, const tcvplug_t *pl) {
 /*
  * This is one way now. Later we may implement switching plugs on the fly.
  */
 	if (ord < 0 || ord >= TCV_MAX_PLUGS ||
 	    (plugins [ord] != NULL && plugins [ord] != pl))
-		syserror (EREQPAR, "tcv_plug");
+		return ERROR;
 
 	plugins [ord] = pl;
+	return 0;
 }
 
 __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {

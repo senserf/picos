@@ -881,7 +881,7 @@ typedef struct {
 #if	TCV_PRESENT
 
 /* Functions, we declare them only if the device is present */
-void	tcv_plug (int, const tcvplug_t*);
+int	tcv_plug (int, const tcvplug_t*);
 int	tcv_open (word, int, int, ...);
 int	tcv_close (word, int);
 address	tcv_rnp (word, int);

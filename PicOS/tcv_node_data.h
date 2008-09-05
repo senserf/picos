@@ -55,7 +55,7 @@ __STATIC int		physinfo [TCV_MAX_PHYS];
 	void    	_da (tcv_endp) (address p);
 	int  		_da (tcv_open) (word state, int phy, int plid, ... );
 	int 		_da (tcv_close) (word state, int fd);
-	void 		_da (tcv_plug) (int ord, const tcvplug_t *pl);
+	int 		_da (tcv_plug) (int ord, const tcvplug_t *pl);
 	address 	_da (tcv_rnp) (word state, int fd);
 	int 		_da (tcv_qsize) (int fd, int disp);
 	int 		_da (tcv_erase) (int fd, int disp);
