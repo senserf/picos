@@ -2311,3 +2311,16 @@ R080905A:
 	slot or index too big.
 
 	Misc updates to scripts in eco_demo/OSSI.
+
+R080917A:
+	EcoNet updates, see ecoossi ver.1.1 for details:
+	- Powerdown: CRYSTAL2_RATE 0: collectors MUST be on UART_RATE 9600,
+          aggregators may be recompiled with CRYSTAL2 and higher UART speeds.
+	- Selective EEPROM writes (c_flags, a_flags) changed EEPROM writes
+          dynamics.
+	- If msg_setTag is pending, pongAck is embedded in it (1 msg sent).
+	- Fixed a glitch with eeprom slot sizes.
+
+	IT IS NECESSARY TO REFLASH ALL NODES IN THE NETWORK AND
+       	CLEAR THEIR EEPROMS.
+
