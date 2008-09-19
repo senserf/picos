@@ -108,19 +108,8 @@ static void waitnb () {
 
 // Wait while busy
 
-	byte st;
-
-	while (1) {
-		ee_start;
-		put_byte (EE_STAT);
-		ee_clkh;
-		st = ee_inp;
-		ee_clkl;
-		ee_stop;
-		if (st)
-			return;
-		udelay (100);
-	}
+	while (busy ())
+		udelay (50);
 }
 
 static void saddr (word a) {
@@ -252,7 +241,7 @@ static void wwait (word st) {
 	if (st == WNONE) {
 		waitnb ();
 	} else if (busy ()) {
-		delay (2, st);
+		delay (1, st);
 		release;
 	}
 }
@@ -391,14 +380,14 @@ word ee_write (word st, lword a, const byte *s, word len) {
 Found:
 			wwait (st);
 			nb = (word) EE_PAGE_SIZE - wpageo;
-			if (nb > len)
-				nb = len;
+			if (nb > wrsize)
+				nb = wrsize;
 
 			// Write to the block
 			bwrite (bi, wpageo, wbuffp, nb);
 
-			len -= nb;
-			if (len == 0) {
+			wrsize -= nb;
+			if (wrsize == 0) {
 				wstate = WS_DONE;
 				return 0;
 			}

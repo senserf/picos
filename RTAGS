@@ -2329,7 +2329,7 @@ R080918A:
 
 	VUEE/survey: Version 0.2: 'all out' flag added. See survey.odt.
 
-R080919A:
+R080919B:
 
 	OEP (Object Exchange Protocol) module included: see PicOS/Libs/Lib/oep*
 	and also Docs/PICOS/oep.odt.
