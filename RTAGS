@@ -2324,3 +2324,6 @@ R080917A:
 	IT IS NECESSARY TO REFLASH ALL NODES IN THE NETWORK AND
        	CLEAR THEIR EEPROMS.
 
+R080918A:
+	VUEE/survey: Version 0.2: 'all out' flag added. See survey.odt.
+
