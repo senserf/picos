@@ -429,7 +429,7 @@ void ldelay (word d, word state) {
 word ldleft (int pid, word *s) {
 
 	pcb_t	*i;
-	word	j, nmin, ldel;
+	word	j, ldel;
 
 	ver_pid (i, pid);
 
@@ -443,12 +443,15 @@ word ldleft (int pid, word *s) {
 
 	for (j = 0; j < nevents (i); j++)
 		if (getetype (i->Events [j]) == ETYPE_LDELAY)
-			if (i->Events [j] . Event - nmin < ldel)
-				ldel = i->Events [j] . Event - nmin;
+			if (i->Events [j] . Event < ldel)
+				ldel = i->Events [j] . Event;
 
-	if (s == NULL && zz_mincd > (SECONDS_IN_MINUTE/2) && ldel != MAX_UINT)
-		ldel++;
-
+	if (ldel != MAX_UINT && ldel) {
+		// ldel is the ceiling on minutes
+		if (s != NULL || zz_mincd <= (SECONDS_IN_MINUTE/2))
+			// Round it down
+			ldel--;
+	}
 	return ldel;
 }
 

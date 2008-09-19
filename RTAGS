@@ -2313,6 +2313,7 @@ R080905A:
 	Misc updates to scripts in eco_demo/OSSI.
 
 R080917A:
+
 	EcoNet updates, see ecoossi ver.1.1 for details:
 	- Powerdown: CRYSTAL2_RATE 0: collectors MUST be on UART_RATE 9600,
           aggregators may be recompiled with CRYSTAL2 and higher UART speeds.
@@ -2325,5 +2326,17 @@ R080917A:
        	CLEAR THEIR EEPROMS.
 
 R080918A:
+
 	VUEE/survey: Version 0.2: 'all out' flag added. See survey.odt.
 
+R080919A:
+
+	OEP (Object Exchange Protocol) module included: see PicOS/Libs/Lib/oep*
+	and also Docs/PICOS/oep.odt.
+
+	Fixed a bug in storage_at45xxx.c causing occasional garbage to be
+	written to EEPROM when writing at random and using the retry state
+	at ee_write.
+
+	Fixed a bug in ldleft in kernel.c (forgot to update that function after
+	the last modifications to handling long delays).
