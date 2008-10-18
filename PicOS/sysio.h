@@ -436,11 +436,21 @@ void	buttons_action (void (*action)(word));
 				(((w)>>8)&0xff00)|(((w)>>24)&0xff))
 #define	ntowl(w)	((((w) & 0xffff) << 16) | (((w) >> 16) & 0xffff))
 
+// Access to word fragments by pointers byte in word, word in long, byte in long
+#define	bytepw(n,w)	(((byte*)(&(w)))+(n))
+#define	wordpl(n,w)	(((word*)(&(w)))+(n))
+#define	bytepl(n,w)	(((byte*)(&(w)))+(n))
+
 #else
 
 #define	ntohs(w)	(w)
 #define ntohl(w)	(w)
 #define ntowl(w)	(w)
+
+// Access to word fragments by pointers (for constant n, it will compile out)
+#define	bytepw(n,w)	(((byte*)(&(w)))+(1-(n)))
+#define	wordpl(n,w)	(((word*)(&(w)))+(1-(n)))
+#define	bytepl(n,w)	(((byte*)(&(w)))+(3-(n)))
 
 #endif	/* LITTLE_ENDIAN */
 

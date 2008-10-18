@@ -78,17 +78,23 @@ strand (rcvuart, uart_t)
 
 	when (OFFEVENT, RC_LOOP);
 	when (RSEVENT, RC_START);
-
 	UART_START_RECEIVER;
 	release;
 
     entry (RC_START)
 
+	// This state must be interrupt safe
 	LEDIU (2, 1);
 	// We are past the length byte
 	delay (RXTIME, RC_RESET);
-	when (RXEVENT, RC_END);
 	when (OFFEVENT, RC_LOOP);
+	// The ordering of these requests does matter, as interrupt can occur
+	// to unblock the last one. We need not be obsessive, as the
+	// likelihood of missing a reception is not very high (the packet is
+	// probably broken then), and we are timing out to reset, but if the
+	// interrupt found this event pending before other events in this
+	// state have been issued, things would become messy
+	when (RXEVENT, RC_END);
 	release;
 
     entry (RC_RESET)
@@ -103,9 +109,9 @@ strand (rcvuart, uart_t)
 
 	if (UA->r_buffer [0] == 0xffff) {
 		// Length field error, reset the thing
-			delay (RCVSPACE, RC_LOOP);
-			when (OFFEVENT, RC_LOOP);
-			release;
+		delay (RCVSPACE, RC_LOOP);
+		when (OFFEVENT, RC_LOOP);
+		release;
 	}
 
 	// Check network ID

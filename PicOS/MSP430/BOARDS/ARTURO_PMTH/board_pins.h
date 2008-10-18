@@ -138,6 +138,13 @@
 			(MOI_ECO_REF << ASNS_REF_SH)) \
 	}
 
+// ============================================================================
+// Tentative - for testing the presence of PAR/EC-5 sensors; assumes resisitors
+// across P6.3-P6.0 and P6.4-P6.7
+#define	SENSOR_TEST	do { _BIS (P6DIR, 0x18); _BIS (P6OUT, 0x18); } while (0)
+#define	SENSOR_TEST_END	_BIC (P6DIR, 0x18)
+// ============================================================================
+
 #define	SENSOR_PAR	0
 #define	SENSOR_TEMP	1
 #define	SENSOR_HUMID	2

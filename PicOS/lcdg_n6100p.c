@@ -65,17 +65,17 @@
 #define	RDID3		0xDC // read ID3
 
 // 12-bit color definitions 
-#define WHITE         0xFFF 
-#define BLACK         0x000 
-#define RED           0xF00 
-#define GREEN         0x0F0 
-#define BLUE          0x00F 
-#define CYAN          0x0FF 
-#define MAGENTA       0xF0F 
-#define YELLOW        0xFF0 
-#define BROWN         0xB22 
-#define ORANGE        0xFA0 
-#define PINK          0xF6A 
+#define WHITE         /* 0x000*/	0xFFF 
+#define BLACK         /* 0xFFF*/	0x000 
+#define RED           /* 0x0FF*/	0xF00 
+#define GREEN         /* 0xF0F*/	0x0F0 
+#define BLUE          /* 0xFF0*/	0x00F 
+#define CYAN          /* 0xF00*/	0x0FF 
+#define MAGENTA       /* 0x0F0*/	0xF0F 
+#define YELLOW        /* 0x00F*/	0xFF0 
+#define BROWN         /* 0x8DD*/	0xB22 
+#define ORANGE        /* 0x05F*/	0xFA0 
+#define PINK          /* 0x095*/	0xF6A 
 
 static const word ctable12 [] = {
     WHITE, BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, BROWN, ORANGE, PINK
@@ -349,7 +349,7 @@ void lcdg_render (byte cs, byte rs, const byte *pix, word n) {
 	// Actual first row of the chunk
 	ys = (word) Y_org + rs;
 	if (ys > Y_last)
-		// Out of screen, illegal
+		// Off screen, illegal
 		return;
 
 	// This is where the first pixel goes
@@ -525,7 +525,7 @@ word lcdg_sett (byte x, byte y, byte nc, byte nl) {
 	y0 = (word) y + LCDG_YOFF;
 	y1 = y0 + (word) fpar [1] * nl - 1;
 
-	if (x1 < x0 || y1 < y0 || x1 >= LCDG_MAXXP || y1 >= LCDG_MAXYP)
+	if (x1 < x0 || y1 < y0 || x1 > LCDG_MAXXP || y1 > LCDG_MAXYP)
 		// Don't touch anything and return ERROR
 		return ERROR;
 

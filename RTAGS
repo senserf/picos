@@ -1841,7 +1841,7 @@ R080228A:
 
 	Summary of options (following boardname):
 
-	-l	= create Makefile for bilding a library (in current directory);
+	-l	= create Makefile for building a library (in current directory);
 		  note that a list of files is required in params.sys (in the
 		  board's directory)
 	-m	= create Makefile for a full compilation (traditional use)
@@ -2340,3 +2340,70 @@ R080919B:
 
 	Fixed a bug in ldleft in kernel.c (forgot to update that function after
 	the last modifications to handling long delays).
+
+R081017A:
+
+	Create PicOS/Libs/LibLCDG containing modules for handling Nokia LCD
+	images and menus. Directory Apps/SEAWOLF/TEST superseded previous
+	LOADER and contains a sample praxis and oss.tcl illustrating:
+
+	- OEP coexisting with other protocol/plugin
+
+	- reliable communication over UART using a combination of phys_uart
+	  and alternating-bit protocol (see PicOS/Libs/Lib/ab.[ch])
+
+	- creating EEPROM images for Seawolf and uploading them into the node
+	  (see image.xml, mkeeprom.tcl)
+
+	- using menus, images, and so on; files sealists.[ch] contain functions
+	  for accessing Seawolf EEPROM and building menus from Seawolf records
+
+	All this will be documented later. Note that the praxis in SEAWOLF/TEST
+	doesn't use the radio. However, it illustrates how to incorporate OEP
+	into any interface.
+
+	The module in Lib/ab.[ch], in addition to implementing a reliable link
+	over UART, contains replacements for the ser_in/_out interface (as
+	illustrated by the sample praxis).
+
+	Some standard functions used by multiple scrpts in Tcl have been
+	encapsulated into packages and moved to the Scripts directory. Each
+	of the scripts referencing any of those packages has been equipped
+	with a header that tries to look them up in the directory tree and
+	source them from there. Theoretically, those packages could be
+	incorporated into standard Tcl libraries, but that would create
+	administrative burden and, e.g., on UNIX systems, require root access.
+	A special script has been provided (isource in Scripts), which, if
+	needed, generates stand alone versions of dependent scripts by
+	inserting into them their requisite packages.  
+
+	For example, these packages are required for reliable (AB) UART
+	interface with the praxis: oss_u.tcl, oss_u_ab.tcl. Package oep.tcl
+	implements OEP over UART. All these packages are included by the
+	oss.tcl script in SEAWOLF/TEST.
+
+	Fixed dleft to allow it to be called from the current process to
+	determine the residual waiting time after a timer wait has been
+	preempted by another event.
+
+	Modified the OSS script in eco_demo for the new version of the
+	praxis.
+
+	Modified mkmk to work with the new version of mspgcc, which uses
+	Windows native file paths. The problem is that make doesn't like
+	those paths for dependencies, which means that both version have
+	to appear in the Makefile.
+
+	PATABLE for CC1100 modified according to the recommended settings in
+	the new manual.
+
+	Operation (macros): bytepw, wordpl, bytepl added to sysio.h. These
+	operations generate pointers to word fragments in an endian-transparent
+	way. For example, if w is a word, bytepw (0, w) is of type (byte*) and
+	points to the less significant byte of w, while bytepw (1, w) points
+	to the more significant byte. Similarly, wordpl (0, lw) is of type
+	(word*) and points to the less significant word of lw (which should
+	be a lword). Also, bytepl (2, lw) is a pointer to the third significant
+	byte of the lword lw. 
+
+	New/updated documents (PICOS/Docs): LCDGint.pdf, OEP.pdf.

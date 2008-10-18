@@ -72,6 +72,49 @@ static	address mevent;
 #define	MEV_NWAIT(np)	(*((byte*)(&(mevent [np])) + 0 ))
 #define	MEV_NFAIL(np)	(*((byte*)(&(mevent [np])) + 1 ))
 
+// PID verifier ===============================================================
+
+#ifndef	PID_VER_TYPE
+#define	PID_VER_TYPE	2
+#endif
+
+// None =======================================================================
+
+#if PID_VER_TYPE == 0
+#define	ver_pid(i,pid)	((i) = (pcb_t*)(pid))
+#endif
+
+// Function ===================================================================
+
+#if PID_VER_TYPE == 1
+static pcb_t *pidver (int pid) {
+
+	register pcb_t *i;
+
+	for_all_tasks (i)
+		if ((int)(i) == pid)
+			return i;
+	syserror (EREQPAR, "pid");
+}
+
+#define	ver_pid(i,pid)	((i) = pidver (pid))
+#endif
+
+// Macro ======================================================================
+
+#if PID_VER_TYPE == 2
+#define ver_pid(i,pid)	do { \
+				for_all_tasks (i) \
+					if ((int)(i) == pid) \
+						break; \
+				if ((i) == LAST_PCB) \
+					syserror (EREQPAR, "pid"); \
+			} while (0)
+#endif
+
+// ============================================================================
+// ============================================================================
+
 void zz_badstate (void) {
 	syserror (ESTATE, "no such state");
 }
@@ -392,9 +435,13 @@ word dleft (int pid) {
 
 	pcb_t *i;
 
-	ver_pid (i, pid);
-	if (i->code == NULL || !twaiting (i))
-		return MAX_UINT;
+	if (pid == 0)
+		i = zz_curr;
+	else {
+		ver_pid (i, pid);
+		if (i->code == NULL || !twaiting (i))
+			return MAX_UINT;
+	}
 
 	return (i->Timer > (setticks - zz_mintk)) ?
 		i->Timer - (setticks - zz_mintk) : 0;

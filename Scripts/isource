@@ -1,0 +1,125 @@
+#!/bin/sh
+##########################\
+exec tclsh "$0" "$@"
+
+############################################################################
+# Explicitly includes sourced Tcl files in the script                      #
+#                                                                          #
+# Copyright (C) Olsonet Communications, 2008 All Rights Reserved           #
+############################################################################
+
+proc abt { m } {
+
+	puts stderr $m
+	exit 99
+}
+
+proc bad_usage { } {
+
+	global argv0
+
+	abt "Usage: $argv0 script \[outscript\]"
+}
+
+proc mlocate { f } {
+
+	if ![catch { open $f "r" } fd] {
+		return $fd
+	}
+
+	set dir "Scripts"
+	set lst ""
+
+	for { set i 0 } { $i < 10 } { incr i } {
+		set dir "../$dir"
+		set dno [file normalize $dir]
+		if { $dno == $lst } {
+			# no progress
+			break
+		}
+		if ![catch { open [file join $dir $f] "r" } fd] {
+			# found it
+			return $fd
+		}
+	}
+
+	# failed
+	abt "cannot locate file $f"
+}
+
+set sname [lindex $argv 0]
+
+if { $sname == "" } {
+	bad_usage
+}
+
+set tname [lindex $argv 1]
+
+if { $tname == "" } {
+	set tname "[file rootname $sname]_expanded[file extension $sname]"
+} else {
+	if { [file normalize $sname] == [file normalize $tname] } {
+		abt "source and target cannot be the same file"
+	}
+}
+
+if [catch { open $sname "r" } sfd] {
+	abt "cannot open ${sname}: $sfd"
+}
+
+if [catch { read $sfd } scr] {
+	abt "cannot read ${sname}: $scr"
+}
+
+catch { close $sfd }
+
+if ![regexp "\n\[ \n\t\]*proc\[ \t\]+msource\[ \t\]" $scr mat] {
+	abt "script does not source any PicOS specific includes"
+}
+
+set outf [string range $scr 0 [string first $mat $scr]]
+
+set nfn 1
+
+while 1 {
+
+	if ![regexp "\n\[ \n\t\]*msource\[ \t\]+(\[^\n\]+)(.*)"\
+	     $scr mat f scr] {
+		break
+	}
+
+	set f [string trim $f]
+	regexp "^\"(.*)\"$" $f junk f
+
+	if { $f == "" } {
+		abt "file name argument missing for msource"
+	}
+
+	set sfd [mlocate $f]
+
+	if [catch { read $sfd } inc] {
+		abt "cannot read sourced file $f"
+	}
+
+	catch { close $sfd }
+
+	append outf "\n### INCLUDED FROM $f\n\n"
+	append outf $inc
+
+	set nfn 0
+}
+
+if $nfn {
+	abt "script does not source any PicOS specific includes"
+}
+
+append outf $scr
+unset scr
+
+if [catch { open $tname "w" } sfd] {
+	abt "cannot open target file ${tname}: $sfd"
+}
+
+if [catch { puts -nonewline $sfd $outf } err] {
+	abt "cannot write to target file ${tname}: $err"
+}

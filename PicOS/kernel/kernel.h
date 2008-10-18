@@ -134,15 +134,6 @@ void adddevfunc (devreqfun_t, int);
 #define	ATTENTION 	0xf
 #define	REQUEST		0xe
 
-/* Check whether PID is legitimate */
-#define ver_pid(i,pid)	do { \
-				for_all_tasks (i) \
-					if ((int)(i) == pid) \
-						break; \
-				if ((i) == LAST_PCB) \
-					syserror (EREQPAR, "pid"); \
-			} while (0)
-
 /* =============================================== */
 /* Event trigger code for interrupt mode functions */
 /* =============================================== */

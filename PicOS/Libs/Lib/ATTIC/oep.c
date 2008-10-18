@@ -123,7 +123,8 @@ static byte	SDesc [TCV_MAX_PHYS];
 
 byte		OEP_Status = OEP_STATUS_NOINIT,
 		OEP_RQN = 1,
-		OEP_PHY = 0;
+		OEP_PHY = 0,
+		OEP_LastOp = 0;		// OEP_STATUS_SND/OEP_STATUS_RCV
 
 // ============================================================================
 // The plugin =================================================================
@@ -265,7 +266,7 @@ word ctally_fill (ctally_t *ct, address p) {
 
 Boolean ctally_add (ctally_t *ct, word cn) {
 
-	byte b;
+	word b;
 
 	if (cn >= ct->n)
 		// Sanity test: make it appear as present, so it won't
@@ -276,7 +277,7 @@ Boolean ctally_add (ctally_t *ct, word cn) {
 	cn >>= 3;
 	if ((ct->cstat [cn] & b))
 		return YES;
-	ct->cstat [cn] |= b;
+	ct->cstat [cn] |= (byte) b;
 	return NO;
 }
 
@@ -688,7 +689,7 @@ Quit:
 	OLD_SID = swaplid (0xFFFF);
 	RD_fun = fun;
 	ctally_init (&RD_cta, nch);
-	OEP_Status = OEP_STATUS_RCV;
+	OEP_LastOp = OEP_Status = OEP_STATUS_RCV;
 	// Success
 	return 0;
 }
@@ -724,7 +725,7 @@ Quit:
 	// check)
 	SD_nch  = nch;
 	SD_fun = fun;
-	OEP_Status = OEP_STATUS_SND;
+	OEP_LastOp = OEP_Status = OEP_STATUS_SND;
 	return 0;
 }
 

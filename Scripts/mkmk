@@ -948,8 +948,8 @@ proc outmkf { def cpu } {
 	puts $mfd "TD=./KTMP"
 
 	if [islibrun] {
-		puts $mfd "LD=-L$Run(library) -lpicos"
 		puts $mfd "LI=-I[file join $Run(library) include]"
+		puts $mfd "LD=-L$Run(library) -lpicos"
 	} else {
 		puts $mfd "LD="
 		puts $mfd "LI="
@@ -963,7 +963,13 @@ proc outmkf { def cpu } {
 	}
 	set idirs [lsort -index 1 $idirs]
 	foreach dir $idirs {
-		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		if $Run(DNM) {
+			# canonical names are DOS-style
+			puts $mfd "${tag}U=[uxname $fna]"
+		}
 	}
 	puts $mfd "# source directories"
 
@@ -973,7 +979,13 @@ proc outmkf { def cpu } {
 	}
 	set sdirs [lsort -index 1 $sdirs]
 	foreach dir $sdirs {
-		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		if $Run(DNM) {
+			# canonical names are DOS-style
+			puts $mfd "${tag}U=[uxname $fna]"
+		}
 	}
 	puts $mfd "#"
 
@@ -1010,6 +1022,13 @@ proc outmkf { def cpu } {
 
 	array unset tgts
 
+	# the discriminator between UNIX and DOS path names
+	if $Run(DNM) {
+		set U "U"
+	} else {
+		set U ""
+	}
+
 	foreach tar $tnames {
 		# we do this for every target
 		puts $mfd "# target: \"$tar\""
@@ -1045,14 +1064,15 @@ proc outmkf { def cpu } {
 			set ofn "${rna}.o"
 			set dir [file dirname $sf]
 			set dsh $DirShort($dir)
-			puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh)/$rfn"
+
+			puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh$U)/$rfn"
 			# dependencies
 			if [info exists Depend($sf)] {
 				foreach df $Depend($sf) {
 					set rfd [file tail $df]
 					set did [file dirname $df]
 					puts -nonewline $mfd \
-						" \$($IncShort($did))/$rfd"
+						" \$($IncShort($did)$U)/$rfd"
 				}
 			}
 			puts $mfd ""
@@ -1060,7 +1080,7 @@ proc outmkf { def cpu } {
 			if { $suf == ".cc" } {
 				# this is a VUEE source, copy it to plain C
 				set rfn "${rna}.c"
-				puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+				puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfn"
 				set spfx "\$(TD)"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
@@ -1101,7 +1121,7 @@ proc outmkf_lib { def cpu } {
 #	Depend:		array of dependency lists (can be global)
 #	SrcLists:	per-target array of files to compile (ToCompile)
 #
-	global DirShort IncShort SrcLists Depend CWD NotFound LIncludes
+	global DirShort IncShort SrcLists Depend CWD NotFound LIncludes Run
 
 	# build a trimmed list of relevant directories
 	trimdir
@@ -1134,7 +1154,13 @@ proc outmkf_lib { def cpu } {
 	}
 	set idirs [lsort -index 1 $idirs]
 	foreach dir $idirs {
-		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		if $Run(DNM) {
+			# canonical names are DOS-style
+			puts $mfd "${tag}U=[uxname $fna]"
+		}
 	}
 	puts $mfd "# source directories"
 
@@ -1144,7 +1170,13 @@ proc outmkf_lib { def cpu } {
 	}
 	set sdirs [lsort -index 1 $sdirs]
 	foreach dir $sdirs {
-		puts $mfd "[lindex $dir 1]=[lindex $dir 0]"
+		set fna [lindex $dir 0]
+		set tag [lindex $dir 1]
+		puts $mfd "$tag=$fna"
+		if $Run(DNM) {
+			# canonical names are DOS-style
+			puts $mfd "${tag}U=[uxname $fna]"
+		}
 	}
 	puts $mfd "#"
 
@@ -1170,6 +1202,13 @@ proc outmkf_lib { def cpu } {
 	puts $mfd "\t\$(AR) q \$(TR) \$(BF)"
 	puts $mfd "\t\$(RL) \$(TR)"
 
+	# the discriminator between UNIX and DOS path names
+	if $Run(DNM) {
+		set U "U"
+	} else {
+		set U ""
+	}
+
 	# the list of compileable sources
 	foreach sf $SrcLists() {
 		set rfn [file tail $sf]
@@ -1178,13 +1217,14 @@ proc outmkf_lib { def cpu } {
 		set ofn "${rna}.o"
 		set dir [file dirname $sf]
 		set dsh $DirShort($dir)
-		puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh)/$rfn"
+		puts -nonewline $mfd "\$(TD)/$ofn : \$($dsh$U)/$rfn"
 		# dependencies
 		if [info exists Depend($sf)] {
 			foreach df $Depend($sf) {
 				set rfd [file tail $df]
 				set did [file dirname $df]
-				puts -nonewline $mfd " \$($IncShort($did))/$rfd"
+				puts -nonewline $mfd \
+					" \$($IncShort($did)$U)/$rfd"
 			}
 		}
 		puts $mfd ""
@@ -1192,7 +1232,7 @@ proc outmkf_lib { def cpu } {
 		if { $suf == ".cc" } {
 			# this is a VUEE source, copy it to plain C
 			set rfn "${rna}.c"
-			puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+			puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfn"
 			set spfx "\$(TD)"
 			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
 		} else {
@@ -1251,7 +1291,8 @@ proc canon { fnf } {
 	if [catch { file normalize $fnf } fn] {
 		set fn $fnf
 	}
-	if { $Run(mode) != "E" } {
+	if { $Run(mode) != "E" && !$Run(DNM) } {
+		# canonical names are UNIX style
 		set fn [uxname $fn]
 	}
 	return $fn
@@ -2074,6 +2115,35 @@ proc getflag { fg } {
 	return [string trim $par]
 }
 
+proc ifnotcygwin { } {
+#
+# Checks if mspgcc operates in the cygwin environment, i.e., using cygwin DLLs.
+# This tells us whether the compiler accepts UNIX-like file names or not.
+#
+	if [catch { exec which msp430-gcc } p] {
+	    	puts stdout "Warning: cannot determine mspgcc installation\
+			type, assuming DOS-type file paths"
+		return 1
+	}
+
+	set p [file dirname $p]
+
+	if [catch { exec ls $p } p] {
+		puts stdout "Warning: cannot inspect mspgcc installation,\
+			assuming DOS-type file paths"
+		return 1
+	}
+
+	if { [lsearch -glob $p "cyg*"] >= 0 } {
+		puts stdout "Detected cygwin environment for mspgcc"
+		return 0
+	}
+
+	puts stdout "Detected native environment for mspgcc"
+
+	return 1
+}
+
 proc main { } {
 
 	global argv ToCompile NotFound CWD Run Symbols Scanned CFName SrcLists
@@ -2106,6 +2176,13 @@ proc main { } {
 		set argv [lrange $argv 1 end]
 		incr ll -1
 		lboard TGT
+	}
+
+	if { $Run(mode) == "E" } {
+		set Run(DNM) 1
+	} else {
+		# DOS-name mode if not cygwin
+		set Run(DNM) [ifnotcygwin]
 	}
 
 	set mcpu [getflag "c"]

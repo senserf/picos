@@ -5,7 +5,7 @@
 
 typedef	void (*oep_chf_t) (word, address, word);
 
-extern byte OEP_Status;
+extern byte OEP_Status, OEP_LastOp;
 
 #define	OEP_MAXRAWPL	60	// Maximum raw packet length, excluding checksum
 #define	OEP_PKHDRLEN	4	// RLID2 + CMD1 + RQN1
@@ -47,6 +47,7 @@ byte oep_wait (word);
 #define	oep_getrqn()	OEP_RQN
 #define	oep_setphy(a)	(OEP_PHY = (byte)(a))
 #define	oep_getphy()	((int)OEP_PHY)
+#define oep_lastop()	OEP_LastOp
 
 void *oep_bookdata (word size);
 
