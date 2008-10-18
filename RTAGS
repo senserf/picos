@@ -2341,7 +2341,7 @@ R080919B:
 	Fixed a bug in ldleft in kernel.c (forgot to update that function after
 	the last modifications to handling long delays).
 
-R081017A:
+R081017B:
 
 	Create PicOS/Libs/LibLCDG containing modules for handling Nokia LCD
 	images and menus. Directory Apps/SEAWOLF/TEST superseded previous
@@ -2406,4 +2406,10 @@ R081017A:
 	be a lword). Also, bytepl (2, lw) is a pointer to the third significant
 	byte of the lword lw. 
 
+	PID verification in those kernel functions that do this can now be
+	optionally removed (it takes some code and time), see constant
+	PID_VER_TYPE in kernel.c.
+
 	New/updated documents (PICOS/Docs): LCDGint.pdf, OEP.pdf.
+
+
