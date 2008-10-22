@@ -861,7 +861,9 @@ void	dbb (word);
 #define	PHYSOPT_SETRATE		22
 #define	PHYSOPT_GETRATE		23
 
-#define	PHYSOPT_RESET		24	/* Reset the radio */
+#define	PHYSOPT_GETMAXPL	24	/* Get the maximum packet length */
+
+#define	PHYSOPT_RESET		25	/* Reset the radio */
 
 typedef	struct {
 /*

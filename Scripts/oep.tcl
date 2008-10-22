@@ -26,7 +26,7 @@ set IV(CSP)	32
 set PM(RET)	8
 
 # maximum packet length - CRC; equals the length of a complete non-empty
-# preamble packet
+# preamble packet (this must be the same as OEP_MAXRAWPL in oep.h): 60
 set PM(CPL)	[expr 4 + 2 + 54]
 
 # chunk (body) length
@@ -192,7 +192,7 @@ proc oep_rcv { lid rqn nc } {
 	ini_rcv $nc
 
 	# install OEP interceptor to receive chunks
-	u_setif ::OEP::oep_rcv_chunk
+	u_setif ::OEP::oep_rcv_chunk $PM(CPL)
 
 	# wait for an empty chunk
 	set ST(CBA) [after $IV(ECH) ::OEP::ptmout]
@@ -401,7 +401,7 @@ proc oep_snd { lid rqn blk {lpr 0.0} } {
 		set ST(MSG) $ecf
 
 		# install OEP interceptor to receive GO packets
-		u_setif ::OEP::oep_rcv_go
+		u_setif ::OEP::oep_rcv_go $PM(CPL)
 
 		retrans $IV(RET) $PM(RET)
 
@@ -416,7 +416,7 @@ proc oep_snd { lid rqn blk {lpr 0.0} } {
 			break
 		}
 
-		u_setif ::OEP::oep_rcv_null
+		u_setif ::OEP::oep_rcv_null $PM(CPL)
 
 		set cp 0
 		while { $cp < $ST(RCK) } {

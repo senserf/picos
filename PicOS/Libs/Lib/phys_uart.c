@@ -419,6 +419,11 @@ static int option (int opt, address val) {
 		ret = zz_uart_getrate (UA);
 		break;
 #endif
+	    case PHYSOPT_GETMAXPL:
+
+		ret = UA->r_buffl - 2;
+		break;
+
 	    default:
 
 		syserror (EREQPAR, "phys_uart option");
@@ -742,7 +747,7 @@ static void start_uart () {
 void phys_uart (int phy, int mbs, int which) {
 /*
  * phy   - interface number
- * mbs   - maximum packet length (including checksum and header)
+ * mbs   - maximum packet length (excluding checksum and header)
  * which - which uart (0 or 1)
  */
 
@@ -861,6 +866,12 @@ static int option (int opt, address val) {
 		ret = zz_uart_getrate (UA);
 		break;
 #endif
+
+	    case PHYSOPT_GETMAXPL:
+
+		ret = UA->r_buffl - 4;
+		break;
+
 	    default:
 
 		syserror (EREQPAR, "phys_uart option");
@@ -1187,6 +1198,11 @@ static int option (int opt, address val) {
 		ret = zz_uart_getrate (UA);
 		break;
 #endif
+	    case PHYSOPT_GETMAXPL:
+
+		ret = UA->r_buffl;
+		break;
+
 	    default:
 
 		syserror (EREQPAR, "phys_uart option");

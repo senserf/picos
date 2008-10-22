@@ -14,7 +14,7 @@
 	}
 	if (zzv_rxoff == 0)
 		ret++;
-
+ORet:
 	if (val != NULL)
 		*val = ret;
 	break;
@@ -103,7 +103,10 @@
     case PHYSOPT_GETSID:
 
 	ret = (int) zzv_statid;
-	if (val != NULL)
-		*val = ret;
-	break;
+	goto ORet;
+
+    case PHYSOPT_GETMAXPL:
+
+	ret = (int) ((zzr_buffl - zzr_buffer - 1) << 1);
+	goto ORet;
 #endif

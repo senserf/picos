@@ -12,6 +12,7 @@ variable AB
 
 set AB(EXP)	0
 set AB(CUR)	0
+set AB(MAG)	[expr 0xAB]
 
 # long retransmission delay
 set IV(long)	2000
@@ -27,7 +28,7 @@ set ST(DFN)	""
 # maximum packet length
 set PM(MPL)	56
 
-proc u_ab_setif { { dfun "" } } {
+proc u_ab_setif { { dfun "" } { mpl "" } } {
 #
 # Start/resume the protocol
 #
@@ -41,9 +42,16 @@ proc u_ab_setif { { dfun "" } } {
 
 	if { $dfun != "" } {
 		# install our input interceptor
-		::OSSU::u_setif ::OSSUAB::u_ab_rcv
+		::OSSU::u_setif ::OSSUAB::u_ab_rcv $mpl
 		# start the sender callback
 		sendit
+		if { $mpl != "" } {
+			variable PM
+			# the specified value is the same as for the PHY,
+			# so it excludes the CRC, but includes everything
+			# else
+			set PM(MPL) [expr $mpl - 4]
+		}
 	} else {
 		# remove the input interceptor
 		::OSSU::u_setif
@@ -67,11 +75,11 @@ proc u_ab_rcv { msg } {
 	# extract the header
 	binary scan $msg cccc cu ex ma le
 
-	if { $ma != 0 } {
+	if { [expr $ma & 0xff] != $AB(MAG) } {
 		# wrong magic
 		return
 	}
-	set ex [expr $ex & 0x00ff]
+	set ex [expr $ex & 0xff]
 
 	if { $ST(OUT) != "" } {
 		# we have an outgoing message
@@ -144,7 +152,7 @@ proc sendit { } {
 	set len [string length $ST(OUT)]
 
 	::OSSU::u_fnwrite \
-		"[binary format cccc $AB(CUR) $AB(EXP) 0 $len]$ST(OUT)"
+		"[binary format cccc $AB(CUR) $AB(EXP) $AB(MAG) $len]$ST(OUT)"
 
 	set ST(SCB) [after $IV(long) ::OSSUAB::sendit]
 }
@@ -161,10 +169,8 @@ proc u_ab_write { msg } {
 
 	variable PM
 
-	set len [string length $msg]
-	if { $len > $PM(MPL) } {
-		incr len -1
-		set msg [string range $msg 0 $len]
+	if { [string length $msg] > $PM(MPL) } {
+		set msg [string range $msg 0 [expr $PM(MPL) - 1]]
 	}
 
 	set ST(OUT) $msg

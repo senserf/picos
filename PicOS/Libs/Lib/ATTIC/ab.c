@@ -23,7 +23,7 @@
 #endif
 
 #ifndef	AB_PMAGIC
-#define	AB_PMAGIC	0
+#define	AB_PMAGIC	0xAB
 #endif
 
 #define	AB_PF_CUR	(((byte*)packet)[AB_PL_CUR])
@@ -36,10 +36,6 @@
 #define	AB_MINPL	(4+2)	// Header + checksum
 #endif
 
-#ifndef	AB_MAXPL
-#define	AB_MAXPL	62
-#endif
-
 #ifndef	AB_DELAY_SHORT
 #define	AB_DELAY_SHORT	512
 #endif
@@ -48,14 +44,12 @@
 #define	AB_DELAY_LONG	2048
 #endif
 
-#define	AB_MAXPAY	(AB_MAXPL - AB_MINPL)
-
 static Boolean ab_new = NO, ab_running = NO;
 static byte ab_cur = 0, ab_exp = 0;
 static char *ab_cout = NULL, *ab_cin = NULL;
 
 static int ab_handler = 0;
-static word ab_delay = AB_DELAY_SHORT, ab_left = MAX_UINT;
+static word ab_delay = AB_DELAY_SHORT, ab_left = MAX_UINT, ab_maxpay = 0;
 static address packet;
 
 #define	AB_EVENT_IN	((void*)(&ab_cin))
@@ -70,8 +64,8 @@ static Boolean ab_send (int sid) {
 
 	if (ab_cout) {
 		// There is an outgoing message
-		if ((ln = strlen (ab_cout)) > AB_MAXPAY)
-			ln = AB_MAXPAY;
+		if ((ln = strlen (ab_cout)) > ab_maxpay)
+			ln = ab_maxpay;
 	} else
 		ln = 0;
 
@@ -200,6 +194,8 @@ void ab_init (int sid) {
 	if ((ab_handler = runstrand (ab_driver, (void*)sid)) == 0)
 		syserror (ERESOURCE, "ab_driver");
 
+	// Maximum payload length 
+	ab_maxpay = tcv_control (sid, PHYSOPT_GETMAXPL, NULL) - AB_MINPL + 2;
 	ab_running = YES;
 }
 
@@ -241,6 +237,20 @@ void ab_outf (word st, const char *fm, ...) {
 	ptrigger (ab_handler, AB_EVENT_RUN);
 }
 
+void ab_out (word st, char *str) {
+//
+// Send a formatted message; the string is assumed to have been malloc'ed
+//
+	if (ab_cout || !ab_running) {
+		when (AB_EVENT_OUT, st);
+		release;
+	}
+
+	ab_cout = str;
+	ab_new = YES;
+	ptrigger (ab_handler, AB_EVENT_RUN);
+}
+
 int ab_inf (word st, const char *fm, ...) {
 //
 // Receive a message
@@ -251,7 +261,7 @@ int ab_inf (word st, const char *fm, ...) {
 
 	lin = ab_in (st);
 	va_start (ap, fm);
-	res = vscan (ab_cin, fm, ap);
+	res = vscan (lin, fm, ap);
 	ufree (lin);
 	return res;
 }

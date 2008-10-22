@@ -838,7 +838,7 @@ endthread
 
 void phys_cc1100 (int phy, int mbs) {
 /*
- * mbs includes two bytes for the checksum
+ * mbs does not cover the checksum
  */
 	if (rbuff != NULL)
 		/* We are allowed to do it only once */
@@ -851,7 +851,7 @@ void phys_cc1100 (int phy, int mbs) {
 			syserror (EREQPAR, "phys_cc1100 mbs");
 	}
 
-	rbuffl = (byte) mbs;	// buffer length in bytes, including checksum
+	rbuffl = (byte) mbs;	// buffer length in bytes, excluding checksum
 #if RADIO_CRC_MODE > 1
 	rbuffl += 2;
 #endif
@@ -1061,6 +1061,14 @@ static int option (int opt, address val) {
 		ret = cc1100_setparam ((byte*)val);
 		break;
 
+	    case PHYSOPT_GETMAXPL:
+
+		ret = rbuffl
+#if RADIO_CRC_MODE > 1
+			- 2
+#endif
+				;
+		break;
 	    default:
 
 		syserror (EREQPAR, "phys_cc1100 option");

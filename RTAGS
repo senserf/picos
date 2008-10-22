@@ -2413,3 +2413,26 @@ R081017B:
 	New/updated documents (PICOS/Docs): LCDGint.pdf, OEP.pdf.
 
 
+R081021A:
+
+	Fixes and refinements to ab.[ch], now dubbed XRS (External Reliable
+	Scheme). In particular, the maximum packet length is now determined
+	from the PHY (instead of being fixed at OEP length, which was too
+	short for UART, and for no good reason). For that, I need a new
+	tcv_control request, PHYSOPT_GETMAXPL, which is now implemented for
+	UART and most radios.
+
+	Apps/TESTS/ToySimpleAB added to illustrate XRS (used to call it AB,
+	for alternating bit, but XRS sounds better, as per Frank's advice
+	to use X in important names).
+
+	Argument -i added to mkeeprom.tcl to indicate the directory with
+	pictures.
+
+	Polished out Apps/SEAWOLF/TESTS, documented XRS in Serial.pdf, written
+	Seawolf.pdf (in Apps/SEAWOLF).
+
+	Fixed oss_u_ab.tcl / oss_u.tcl (in Scripts) such that the maximum
+	packet length can now be specified as a call argument. Perhaps these
+	scripts (packages) should be documented some day? Added ufront.tcl,
+	which is a simple front to XRS emulating a terminal.

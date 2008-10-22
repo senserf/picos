@@ -19,7 +19,7 @@ set IV(packet)		80
 
 # Maximum packet length (the part from LID (inclusively) to checksum
 # (exclusively))
-set PM(PL)		60
+set PM(MPL)		60
 
 # ISO 3309 CRC table
 variable CRCTAB	{
@@ -57,33 +57,30 @@ variable CRCTAB	{
     0x6e17  0x7e36  0x4e55  0x5e74  0x2e93  0x3eb2  0x0ed1  0x1ef0
 }
 
-proc u_start { udev speed dfun } {
+proc u_start { udev speed dfun { mpl "" } } {
 #
 # Initialize UART
 #
 	variable ST
 
 	if { $udev == "" } {
-		# take the device from argv
 		global argv
-
+		# take from arguments
 		set udev [lindex $argv 0]
-		if { $udev == "" } {
-			# should be zero if on UNIX (how to tell easily?)
-			set udev 1
-		}
+	}
 
-		if [catch { expr $udev } cn] {
-			# must be a complete device
-			set devlist [list $udev ${udev}: "/dev/$udev" \
-				"/dev/tty$udev"]
-		} else {
-			# com number or tty number
-			set devlist [list "COM${udev}:" "/dev/ttyUSB$udev" \
-				"/dev/tty$udev"]
-		}
+	if { $udev == "" } {
+		# should be zero if on UNIX (how to tell easily?)
+		set udev 1
+	}
+
+	if [catch { expr $udev } cn] {
+		# must be a complete device
+		set devlist [list $udev ${udev}: "/dev/$udev" "/dev/tty$udev"]
 	} else {
-		set devlist [list $udev]
+		# com number or tty number
+		set devlist [list "COM${udev}:" "/dev/ttyUSB$udev" \
+			"/dev/tty$udev"]
 	}
 
 	set fail 1
@@ -107,23 +104,28 @@ proc u_start { udev speed dfun } {
 	# reception automaton state
 	set ST(STA) -1
 	# input interceptor function
-	u_setif $dfun
+	u_setif $dfun $mpl
 	# input buffer
 	set ST(BUF) ""
 
 	fileevent $ST(SFD) readable ::OSSU::rawread
 }
 
-proc u_setif { { dfun "" } } {
+proc u_setif { { dfun "" } { mpl "" } } {
 #
 # Reset the input function
 #
 	variable ST
 
-	if { $dfun != "" && [string range $dfun 0 1] != "::" } {
-		set dfun "::$dfun"
+	if { $dfun != "" } {
+		if { $mpl != "" } {
+			variable PM
+			set PM(MPL) $mpl
+		}
+		if { [string range $dfun 0 1] != "::" } {
+			set dfun "::$dfun"
+		}
 	}
-
 	set ST(DFN) $dfun
 }
 
@@ -167,8 +169,8 @@ proc u_frame { m } {
 
 	if { $ln < 2 } {
 		error "u_frame: message too short ($ln)"
-	} elseif { $ln > $PM(PL) } {
-		set ln $PM(PL)
+	} elseif { $ln > $PM(MPL) } {
+		set ln $PM(MPL)
 		set msg [string range $msg 0 [expr $ln - 1]]
 	}
 

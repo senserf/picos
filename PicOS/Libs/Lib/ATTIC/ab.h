@@ -8,6 +8,7 @@ void ab_init (int);
 void ab_on ();
 void ab_off ();
 void ab_outf (word, const char*, ...);
+void ab_out (word, char*);
 int ab_inf (word, const char*, ...);
 char *ab_in (word);
 
