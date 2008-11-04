@@ -17,6 +17,8 @@
 #error "this must be compiled with mspgcc!!!"
 #endif
 
+#define	INTERNAL_FUNCTIONS_ALLOWED	1
+
 #ifdef		__MSP430_148__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048

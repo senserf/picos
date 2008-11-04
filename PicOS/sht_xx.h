@@ -22,6 +22,6 @@
 
 void shtxx_temp (word, word, address);
 void shtxx_humid (word, word, address);
-void shtxx_init ();
+void shtxx_init (void);
 
 #endif

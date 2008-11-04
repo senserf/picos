@@ -2436,3 +2436,16 @@ R081021A:
 	packet length can now be specified as a call argument. Perhaps these
 	scripts (packages) should be documented some day? Added ufront.tcl,
 	which is a simple front to XRS emulating a terminal.
+
+R081104A:
+
+	Slightly updated versions of some Seawolf documents.
+
+	Had to fix vform.c to compile for eCOG (eCOG compiler does not allow
+	functions declared within functions).
+
+	Sensors (including analog ones and SHT) can be now configured with
+	eCOG praxes.
+
+	Board GEORGE_ECO (in PicOS/eCOG) illustrates how to attach SHT and PAR
+	to an eCOG board.

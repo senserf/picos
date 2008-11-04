@@ -13,9 +13,8 @@
 
 #if UART_TCV
 #include "phys_uart.h"
-#endif
-
 #include "uart_sys.h"
+#endif
 
 #ifdef	N_UARTS_TCV				// Set in uart_sys.h
 
