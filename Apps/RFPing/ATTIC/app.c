@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -159,7 +159,7 @@ thread (receiver)
 
 #if     CC1000 || DM2100 || CC1100 || DM2200
 
-	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %d), pow = %d qua = %d\r\n",
+	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %u), pow = %u qua = %u\r\n",
 		packet [1],
 		last_rcv, tcv_left (packet) - 2,
 #if LITTLE_ENDIAN
@@ -171,7 +171,7 @@ thread (receiver)
 #endif
 	);
 #else
-	ser_outf (RC_DATA, "RCV: %lu (len = %d)\r\n", last_rcv,
+	ser_outf (RC_DATA, "RCV: %lu (len = %u)\r\n", last_rcv,
 		tcv_left (packet) - 2);
 #endif
 #endif
@@ -199,7 +199,7 @@ thread (receiver)
   entry (RC_ACK)
 
 #if UART_DRIVER
-	ser_outf (RC_ACK, "ACK: %lu (len = %d)\r\n", last_ack,
+	ser_outf (RC_ACK, "ACK: %lu (len = %u)\r\n", last_ack,
 		tcv_left (packet));
 #endif
 
@@ -308,7 +308,7 @@ thread (sender)
   entry (SN_NEXT+1)
 
 #if UART_DRIVER
-	ser_outf (SN_NEXT+1, "SND %lu, len = %d\r\n", last_snt, packet_length);
+	ser_outf (SN_NEXT+1, "SND %lu, len = %u\r\n", last_snt, packet_length);
 #endif
 	lcd_update ();
 	proceed (SN_SEND);
@@ -370,6 +370,7 @@ int snd_stop (void) {
 #define	RS_URG		130
 #define	RS_SDRAM	140
 #define	RS_BTS		150
+#define	RS_LPM		160
 #define	RS_AUTOSTART	200
 
 #if CC1000 || CC1100
@@ -383,8 +384,9 @@ thread (root)
 	static int k, n1;
 	static char *fmt, obuf [32];
 	static word p [2];
+	static word n;
 #if SDRAM_PRESENT
-	static word *mbuf, n, m, bp;
+	static word *mbuf, m, bp;
 	static lword nw, i, j;
 #endif
 #endif
@@ -489,6 +491,7 @@ thread (root)
 #ifdef	BATTERY_TEST
 		"B        -> battery test\r\n"
 #endif
+		"L n      -> enter PD mode for n secs\r\n"
 		);
 #endif
 
@@ -510,43 +513,35 @@ thread (root)
   
 	k = ser_in (RS_RCMD, ibuf, IBUFLEN-1);
 
-	if (ibuf [0] == 's')
-		proceed (RS_SND);
-	if (ibuf [0] == 'r')
-		proceed (RS_RCV);
-	if (ibuf [0] == 'd')
-		proceed (RS_PAR);
+	switch (ibuf [0]) {
+
+		case 's': proceed (RS_SND);
+		case 'r': proceed (RS_RCV);
+		case 'd': proceed (RS_PAR);
 #ifdef PIN_TEST
-	if (ibuf [0] == 'x')
-		proceed (RS_GADC);
-	if (ibuf [0] == 'y')
-		proceed (RS_SPIN);
-	if (ibuf [0] == 'z')
-		proceed (RS_GPIN);
+		case 'x': proceed (RS_GADC);
+		case 'y': proceed (RS_SPIN);
+		case 'z': proceed (RS_GPIN);
 #endif
 
 #if SDRAM_PRESENT
-	if (ibuf [0] == 'M')
-		proceed (RS_SDRAM);
+		case 'M': proceed (RS_SDRAM);
 #endif
 
 #if STACK_GUARD
-	if (ibuf [0] == 'v')
-		proceed (RS_STK);
+		case 'v': proceed (RS_STK);
 #endif
 
 #if UART_RATE_SETTABLE
-	if (ibuf [0] == 'S')
-		proceed (RS_URS);
-	if (ibuf [0] == 'G')
-		proceed (RS_URG);
+		case 'S': proceed (RS_URS);
+		case 'G': proceed (RS_URG);
 #endif
 
 #ifdef BATTERY_TEST
-	if (ibuf [0] == 'B')
-		proceed (RS_BTS);
+		case 'B': proceed (RS_BTS);
 #endif
-
+		case 'L': proceed (RS_LPM);
+	}
 #else
 	delay (1024, RS_AUTOSTART);
 	release;
@@ -585,14 +580,14 @@ thread (root)
 
 	/* Default */
 	n1 = 2048;
-	scan (ibuf + 1, "%d", &n1);
+	scan (ibuf + 1, "%u", &n1);
 	if (n1 < 16)
 		n1 = 16;
 	snd_start (n1);
 
   entry (RS_SND+1)
 
-	ser_outf (RS_SND+1, "Sender rate: %d\r\n", n1);
+	ser_outf (RS_SND+1, "Sender rate: %u\r\n", n1);
 	proceed (RS_RCMD);
 
   entry (RS_RCV)
@@ -605,9 +600,9 @@ thread (root)
 
 	/* Default */
 	n1 = 0;
-	scan (ibuf + 1, "%d", &n1);
+	scan (ibuf + 1, "%u", &n1);
 
-#if CC1000 == 0
+#if CC1000 == 0 && CC1100 == 0
 	io (NONE, RADIO, CONTROL, (char*) &n1, RADIO_CNTRL_SETPOWER);
 #else
 	// There's no RADIO device, SETPOWER is available via
@@ -618,14 +613,14 @@ thread (root)
   entry (RS_POW+1)
 
 	ser_outf (RS_POW+1,
-		"Transmitter power set to %d\r\n", n1);
+		"Transmitter power set to %u\r\n", n1);
 
 	proceed (RS_RCMD);
 #endif /* ~DM 2100 */
 
   entry (RS_RCP)
 
-#if CC1000 == 0 && DM2100 == 0
+#if CC1000 == 0 && DM2100 == 0 && CC1100 == 0
 	n1 = io (NONE, RADIO, CONTROL, NULL, RADIO_CNTRL_READPOWER);
 #else
 	// No RADIO device for CC1000 & DM2100
@@ -635,7 +630,7 @@ thread (root)
   entry (RS_RCP+1)
 
 	ser_outf (RS_RCP+1,
-		"Received power is %d\r\n", n1);
+		"Received power is %u\r\n", n1);
 
 	proceed (RS_RCMD);
 
@@ -689,17 +684,17 @@ thread (root)
   entry (RS_SSID)
 
 	n1 = 0;
-	scan (ibuf + 1, "%d", &n1);
+	scan (ibuf + 1, "%u", &n1);
 	tcv_control (sfd, PHYSOPT_SETSID, (address) &n1);
 	proceed (RS_RCMD);
 
-#if CC1000 == 0 && DM2100 == 0
+#if CC1000 == 0 && DM2100 == 0 && CC1100 == 0
 
   entry (RS_CAL)
 
 	/* The default */
 	n1 = 19200;
-	scan (ibuf + 1, "%d", &n1);
+	scan (ibuf + 1, "%u", &n1);
 	io (NONE, RADIO, CONTROL, (char*) &n1, RADIO_CNTRL_CALIBRATE);
 
   entry (RS_CAL+1)
@@ -714,7 +709,7 @@ thread (root)
 
   entry (RS_STK)
 
-	ser_outf (RS_STK, "Free stack space = %d words\r\n", stackfree ());
+	ser_outf (RS_STK, "Free stack space = %u words\r\n", stackfree ());
 	proceed (RS_RCMD);
 #endif
 
@@ -760,7 +755,7 @@ thread (root)
 
   entry (RS_URS)
 
-	scan (ibuf + 1, "%d", &p [0]);
+	scan (ibuf + 1, "%u", &p [0]);
 	ion (UART, CONTROL, (char*) p, UART_CNTRL_SETRATE);
 	proceed (RS_RCMD);
 
@@ -861,9 +856,31 @@ thread (root)
 
   entry (RS_BTS+1)
 
-	ser_outf (RS_BTS+1, "Battery status: %d\r\n", k);
+	ser_outf (RS_BTS+1, "Battery status: %u\r\n", k);
 	proceed (RS_RCMD);
 #endif
+
+  entry (RS_LPM)
+
+	n = 0;
+	scan (ibuf + 1, "%u", &n);
+	if (n == 0)
+		n = 1;
+	else if (n1 > 63)
+		n = 63;
+
+	powerdown ();
+	delay (n * 1024, RS_LPM+1);
+	release;
+
+  entry (RS_LPM+1)
+
+	powerup ();
+
+  entry (RS_LPM+2)
+
+	ser_out (RS_LPM+2, "Done\r\n");
+	proceed (RS_RCMD);
 
 #endif	/* UART_DRIVER */
 

@@ -966,7 +966,7 @@ proc outmkf { def cpu } {
 		set fna [lindex $dir 0]
 		set tag [lindex $dir 1]
 		puts $mfd "$tag=$fna"
-		if $Run(DNM) {
+		if { $Run(DNM) == 1 } {
 			# canonical names are DOS-style
 			puts $mfd "${tag}U=[uxname $fna]"
 		}
@@ -982,7 +982,7 @@ proc outmkf { def cpu } {
 		set fna [lindex $dir 0]
 		set tag [lindex $dir 1]
 		puts $mfd "$tag=$fna"
-		if $Run(DNM) {
+		if { $Run(DNM) == 1 } {
 			# canonical names are DOS-style
 			puts $mfd "${tag}U=[uxname $fna]"
 		}
@@ -1023,7 +1023,7 @@ proc outmkf { def cpu } {
 	array unset tgts
 
 	# the discriminator between UNIX and DOS path names
-	if $Run(DNM) {
+	if { $Run(DNM) == 1 } {
 		set U "U"
 	} else {
 		set U ""
@@ -1157,7 +1157,7 @@ proc outmkf_lib { def cpu } {
 		set fna [lindex $dir 0]
 		set tag [lindex $dir 1]
 		puts $mfd "$tag=$fna"
-		if $Run(DNM) {
+		if { $Run(DNM) == 1 } {
 			# canonical names are DOS-style
 			puts $mfd "${tag}U=[uxname $fna]"
 		}
@@ -1173,7 +1173,7 @@ proc outmkf_lib { def cpu } {
 		set fna [lindex $dir 0]
 		set tag [lindex $dir 1]
 		puts $mfd "$tag=$fna"
-		if $Run(DNM) {
+		if { $Run(DNM) == 1 } {
 			# canonical names are DOS-style
 			puts $mfd "${tag}U=[uxname $fna]"
 		}
@@ -1203,7 +1203,7 @@ proc outmkf_lib { def cpu } {
 	puts $mfd "\t\$(RL) \$(TR)"
 
 	# the discriminator between UNIX and DOS path names
-	if $Run(DNM) {
+	if { $Run(DNM) == 1 } {
 		set U "U"
 	} else {
 		set U ""
@@ -1272,12 +1272,17 @@ proc uxname { fn } {
 #
 # Convert Windows file name to UNIX
 #
-	set cn [string first "/home/" $fn]
-	if { $cn > 0 } {
-		set fn [string range $fn $cn end]
-	} else {
-		# we are under a directory not rooted at cygwin
-		regsub -nocase "^(\[A-Z\]):" $fn "/cygdrive/\\1" fn
+	global Run
+
+	if [regexp -nocase "^(\[A-Z\]):" $fn junk DP] {
+		# DOS filename prefix
+		set cn [string first "/home/" $fn]
+		if { $cn > 0 } {
+			# this is inside our Cygwin home
+			set fn [string range $fn $cn end]
+		} else {
+			set fn "/cygdrive/$DP[string range $fn 2 end]"
+		}
 	}
 	return $fn
 }
@@ -2139,9 +2144,13 @@ proc ifnotcygwin { } {
 		return 0
 	}
 
-	puts stdout "Detected native environment for mspgcc"
+	if { [lsearch $p "msp430-gcc.exe"] >= 0 } {
+		puts stdout "Detected Windows native environment for mspgcc"
+		return 1
+	}
 
-	return 1
+	puts stdout "Detected Linux environment for mspgcc"
+	return 2
 }
 
 proc main { } {
@@ -2179,6 +2188,7 @@ proc main { } {
 	}
 
 	if { $Run(mode) == "E" } {
+		# this can only be on Windows
 		set Run(DNM) 1
 	} else {
 		# DOS-name mode if not cygwin

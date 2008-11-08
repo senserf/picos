@@ -2449,3 +2449,11 @@ R081104A:
 
 	Board GEORGE_ECO (in PicOS/eCOG) illustrates how to attach SHT and PAR
 	to an eCOG board.
+
+R081107A:
+
+	Minor modifications to eCOG/main.c aimed at implementing a power saving
+	mode (clock rate in powerdown mode still has to be fixed).
+
+	mkmk modified to work under Linux version of mspgcc.
+

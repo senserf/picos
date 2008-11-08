@@ -3,51 +3,73 @@
 exec tclsh "$0" "$@"
 
 #
-# UART front for XRS protocol
+# UART front for straightforward communication
 #
-
-proc msource { f } {
-#
-# Intelligent 'source'
-#
-	if ![catch { uplevel #0 source $f } ] {
-		# found it right here
-		return
-	}
-
-	set dir "Scripts"
-	set lst ""
-
-	for { set i 0 } { $i < 10 } { incr i } {
-		set dir "../$dir"
-		set dno [file normalize $dir]
-		if { $dno == $lst } {
-			# no progress
-			break
-		}
-		if ![catch { uplevel #0 source [file join $dir $f] } ] {
-			# found it
-			return
-		}
-	}
-
-	# failed
-	puts stderr "Cannot locate file $f 'sourced' by the script."
-	exit 99
-}
-
-msource oss_u.tcl
-msource oss_u_ab.tcl
-
-package require oss_u_ab 1.0
 
 ###############################################################################
 
-proc uget { msg } {
+proc u_start { udev speed dfun } {
 #
-# Receive a normal command response line from the board
+# Initialize UART
 #
-	puts $msg
+	global ST
+
+	if { $udev == "" } {
+		global argv
+		# take from arguments
+		set udev [lindex $argv 0]
+	}
+
+	if { $udev == "" } {
+		set devlist ""
+		for { set udev 0 } { $udev < 8 } { incr udev } {
+			lappend devlist "COM${udev}:"
+			lappend devlist "/dev/ttyUSB$udev"
+			lappend devlist "/dev/tty$udev"
+		}
+	} else {
+		if [catch { expr $udev } cn] {
+			# must be a complete device
+			set devlist \
+			    [list $udev ${udev}: "/dev/$udev" "/dev/tty$udev"]
+		} else {
+			# com number or tty number
+			set devlist [list "COM${udev}:" "/dev/ttyUSB$udev" \
+				"/dev/tty$udev"]
+		}
+	}
+
+	set fail 1
+	foreach udev $devlist {
+		if ![catch { open $udev "r+" } ST(SFD)] {
+			set fail 0
+			break
+		}
+
+	}
+
+	if $fail {
+		error "u_start: cannot open UART, device(s) $devlist"
+	}
+
+	fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
+		-buffering line -blocking 0
+
+	fileevent $ST(SFD) readable u_rdline
+}
+
+proc u_rdline { } {
+
+	global ST
+
+	if [catch { gets $ST(SFD) line } nc] {
+		error "device has been closed"
+	}
+
+	if { $nc >= 0 } {
+		puts $line
+		flush stdout
+	}
 }
 
 proc sget { } {
@@ -66,49 +88,10 @@ proc sget { } {
 		exit 0
 	}
 
-	set line [string trim $line]
-
-	if { $line == "" } {
-		# always quietly ignore empty lines
-		return
-	}
-
-	if { $line == "!!" } {
-		# previous command
-		if { $ST(PCM) == "" } {
-			puts "no previous rejected command"
-			return
-		}
-		set line $ST(PCM)
-		set ST(PCM) ""
-	}
-
-	if ![u_ab_ready] {
-		puts "board busy"
-		set ST(PCM) $line
-		return
-	}
-
-	if { [string index $line 0] == "!" } {
-		# not for the board
-		if [icmd [string trimleft \
-		    [string range $line 1 end]]] {
-			# failed
-			set ST(PCM) $line
-		}
-		return
-	}
-
 	# send it to the board
-	u_ab_write $line
-}
-
-proc icmd { cmd } {
-#
-# A command addressed to us
-#
-	puts "ICMD commands not implemented"
-	return 0
+	if [catch { puts $ST(SFD) $line } ] {
+		error "deice has been closed"
+	}
 }
 
 ######### COM port ############################################################
@@ -122,15 +105,13 @@ if [catch { expr $spd } spd] {
 }
 
 if [catch { expr $mpl } mpl] {
-	set mpl 62
+	set mpl 256
 }
 
 if [catch { u_start $prt $spd "" } err] {
 	puts $err
 	exit 99
 }
-
-u_ab_setif uget $mpl
 
 fconfigure stdin -buffering line -blocking 0
 fileevent stdin readable sget

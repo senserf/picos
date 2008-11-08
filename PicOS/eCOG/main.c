@@ -94,6 +94,9 @@ void powerdown (void) {
 	}
 	rg.ssm.clk_dis =
 		SSM_CLK_DIS_HIGH_OSC_MASK |
+#ifdef EMI_USED
+		SSM_CLK_DIS_EMI_MASK |
+#endif
 		SSM_CLK_DIS_HIGH_PLL_MASK;
 }
 
@@ -101,6 +104,9 @@ void powerup (void) {
 
 	rg.ssm.clk_en =
 		SSM_CLK_EN_HIGH_OSC_MASK |
+#ifdef EMI_USED
+		SSM_CLK_EN_EMI_MASK |
+#endif
 		SSM_CLK_EN_HIGH_PLL_MASK;
 
 	/* Assert high reference as source until it is accepted. */
@@ -442,43 +448,43 @@ static void cnf_init () {
 #endif
 
 #ifndef	PORT_A_SELECT
-#define	PORT_A_SELECT	do { } while (0)
+#define	PORT_A_SELECT	CNOP
 #endif
 #ifndef	PORT_B_SELECT
-#define	PORT_B_SELECT	do { } while (0)
+#define	PORT_B_SELECT	CNOP
 #endif
 #ifndef	PORT_C_SELECT
-#define	PORT_C_SELECT	do { } while (0)
+#define	PORT_C_SELECT	CNOP
 #endif
 #ifndef	PORT_D_SELECT
-#define	PORT_D_SELECT	do { } while (0)
+#define	PORT_D_SELECT	CNOP
 #endif
 #ifndef	PORT_E_SELECT
-#define	PORT_E_SELECT	do { } while (0)
+#define	PORT_E_SELECT	CNOP
 #endif
 #ifndef	PORT_F_SELECT
-#define	PORT_F_SELECT	do { } while (0)
+#define	PORT_F_SELECT	CNOP
 #endif
 #ifndef	PORT_G_SELECT
-#define	PORT_G_SELECT	do { } while (0)
+#define	PORT_G_SELECT	CNOP
 #endif
 #ifndef	PORT_H_SELECT
-#define	PORT_H_SELECT	do { } while (0)
+#define	PORT_H_SELECT	CNOP
 #endif
 #ifndef	PORT_I_SELECT
-#define	PORT_I_SELECT	do { } while (0)
+#define	PORT_I_SELECT	CNOP
 #endif
 #ifndef	PORT_J_SELECT
-#define	PORT_J_SELECT	do { } while (0)
+#define	PORT_J_SELECT	CNOP
 #endif
 #ifndef	PORT_K_SELECT
-#define	PORT_K_SELECT	do { } while (0)
+#define	PORT_K_SELECT	CNOP
 #endif
 #ifndef	PORT_L_SELECT
-#define	PORT_L_SELECT	do { } while (0)
+#define	PORT_L_SELECT	CNOP
 #endif
 #ifndef	SWITCHES_ENABLE
-#define	SWITCHES_ENABLE	do { } while (0)
+#define	SWITCHES_ENABLE	CNOP
 #endif
 
 /* ========================================================================== */
