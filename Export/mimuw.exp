@@ -1,0 +1,46 @@
+Apps
+	cleanall
+	ECOPROJECT
+		SENSOR_TEST
+	LIB*
+	RFPing
+	Toy
+	TESTS
+		Toy*
+		WARSAW
+	VUEE
+		EETest
+		ILL*
+		RFPING
+		tnp_demo
+		eco_demo
+		survey
+Docs
+	*.pdf
+	*.doc
+Linux
+	LOCATION
+PicOS
+	*.c
+	*.h
+	kernel
+	MSP430
+		*.c
+		*.h
+		BOARDS
+			WARSAW
+			WARSAW_LCD_TEST
+			ARTURO
+			ARTURO_PMTH
+			GENERIC_MSP430
+	Libs
+		Lib
+		LibComms
+		LibLCDG
+RTAGS
+Scripts
+	*.tcl
+	mkmk
+	genihex
+	isource
+	cleanapp

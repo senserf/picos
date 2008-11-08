@@ -1,0 +1,119 @@
+#!/bin/sh
+##########################\
+exec tclsh "$0" "$@"
+
+############################################################################
+# Exports PicOS sources                                                    #
+#                                                                          #
+# Copyright (C) Olsonet Communications, 2008 All Rights Reserved           #
+############################################################################
+
+proc abt { m } {
+	puts stderr $m
+	exit 99
+}
+
+proc bad_usage { } {
+	global argv0
+	abt "Usage: $argv0 sfile SDIR TDIR"
+}
+
+proc advance { lv } {
+
+	global RC SF LN
+
+	set RES ""
+
+	while { [llength $RC] } {
+		set ln [lindex $RC 0]
+		set nt 0
+		while { [string index $ln 0] == "\t" } {
+			incr nt
+			set ln [string range $ln 1 end]
+		}
+		set ln [string trim $ln]
+		if { $ln == "" || [string index $ln 0] == "#" } {
+			# ignore empty lines and comments
+			set RC [lrange $RC 1 end]
+			continue
+		}
+		if { $nt < $lv } {
+			return $RES
+		}
+		# remove the element from the list
+		set RC [lrange $RC 1 end]
+		incr LN
+		
+		if { $nt == $lv } {
+			# same level
+			lappend RES [list $ln [advance [expr $lv + 1]]]
+			continue
+		}
+
+		abt "illegal nesting in $SF, line $LN"
+	}
+
+	return $RES
+}
+
+proc do_copy { rc PA } {
+
+	global SD TD
+
+	foreach f $rc {
+
+		set rt [lindex $f 0]
+		set ag [lindex $f 1]
+
+		if [llength $ag] {
+			# not the end of path
+			set NP [file join $PA $rt]
+			set ND [file join $TD $NP]
+			if [catch { file mkdir $ND } er] {
+				abt "cannot create directory $ND, $er"
+			}
+			do_copy $ag $NP
+		} else {
+			# the end of path - just copy
+			set SR [file join $SD $PA $rt]
+			set TR [file join $TD $PA]
+			if [catch { exec cp -r $SR $TR } er] {
+				abt "cannot copy $SR -> $TR, $er"
+			}
+		}
+	}
+}
+
+proc rmfiles { n } {
+
+	global TD
+
+	catch { exec find $TD -name $n -type d -exec rm -rf "{}" "\;" }
+}
+
+###############################################################################
+
+if { [llength $argv] != 3 } {
+	bad_usage
+}
+
+set SF [lindex $argv 0]
+set SD [lindex $argv 1]
+set TD [lindex $argv 2]
+
+if [catch { open $SF "r" } sfd] {
+	abt "cannot open file $SF: $sfd"
+}
+
+if [catch { read $sfd } RC] {
+	abt "cannot read file $SF: $RC"
+}
+
+catch { close $sfd }
+
+set RC [split $RC "\n"]
+set LN 0
+set RC [advance 0]
+do_copy $RC ""
+rmfiles CVS
+rmfiles ATTIC

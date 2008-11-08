@@ -2455,5 +2455,6 @@ R081107A:
 	Minor modifications to eCOG/main.c aimed at implementing a power saving
 	mode (clock rate in powerdown mode still has to be fixed).
 
-	mkmk modified to work under Linux version of mspgcc.
-
+	Script mkmk modified to work under Linux version of mspgcc.
+	Script pxport added to generate "exported" versions of PICOS.
+	Directory Exports added to store "export" patterns.
