@@ -299,6 +299,6 @@ R080820A:
     Added methods setseconds and sectomin to make things compatible with
     PicOS R080820A. sectomin is a stub the minute clock will probably go.
 
-R081111A:
+R081110A:
 
     Cosmetic changes to agent.cc to appease new gcc on Linux.
