@@ -3032,7 +3032,7 @@ MoveHandler::perform {
 				pn -> _da (RFInterface)->getLocation (xx, yy);
 				// This one is safe as we do not include the
 				// standard name in an update
-				sprintf (RBuf, "U %1d %1f %1f\n", NN, xx, yy);
+				sprintf (RBuf, "U %1ld %1f %1f\n", NN, xx, yy);
 				BP = &(RBuf [0]);
 				Left = strlen (RBuf);
 				proceed Reply;
@@ -3127,7 +3127,7 @@ Illegal_nid:
 			pn -> _da (RFInterface)->getLocation (xx, yy);
 
 			while ((rc = snprintf (RBuf, RBSize,
-			   "P %1d %1d %1f %1f %s\n", NN, NStations, xx, yy,
+			   "P %1ld %1ld %1f %1f %s\n", NN, NStations, xx, yy,
 			      pn->getTName ())) >= RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
@@ -3377,7 +3377,7 @@ PanelHandler::perform {
 			// a socket; thus PUP must be present
 			if (!PUP->empty ()) {
 				NN = PUP->get ();
-				sprintf (RBuf, "%1d %c\n", NN,
+				sprintf (RBuf, "%1ld %c\n", NN,
 					((PicOSNode*)idToStation (NN))->Halted ?
 						'F' : 'O');
 				BP = &(RBuf [0]);
@@ -3469,7 +3469,8 @@ Illegal_nid:
 
 			pn = (PicOSNode*)idToStation (NN);
 
-			while ((rc = snprintf (RBuf, RBSize, "%1d %c %1d %s\n",
+			while ((rc = snprintf (RBuf, RBSize,
+			    "%1ld %c %1ld %s\n",
 			    NN,
 			    pn->Halted ?  'F' : 'O',
 			    NStations,
