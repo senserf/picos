@@ -43,3 +43,7 @@ char *vform (const char*, va_list);
 #define		SOL_COAX_SLOW		197340000.0
 #define		SOL_COAX_FAST		235210000.0
 #define		SOL_COAX		((SOL_COAX_SLOW + SOL_COAX_FAST) / 2.0)
+
+#ifndef	PATH_MAX
+#define	PATH_MAX	2048		/* A safe bet */
+#endif

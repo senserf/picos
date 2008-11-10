@@ -25,9 +25,9 @@ void    debug (char *t) {
 
 	char    *s;
 
-	write (STDERR, CFName, strlen (CFName));
+	(void) write (STDERR, CFName, strlen (CFName));
 	s = form (":%1d: %s\n", LineNumber, t);
-	write (STDERR, s, strlen (s));
+	(void) write (STDERR, s, strlen (s));
 }
 #else
 #define debug(t)
@@ -187,7 +187,7 @@ Signature::Signature () {
             if (strcmp (CL [i][0], SFName) == 0) break;
           if (i < NSFiles) {
 	    s = "Corrupted signature file\n";
-	    write (STDERR, s, strlen (s));
+	    (void) write (STDERR, s, strlen (s));
 	    exit (4);
 	  }
 	  debug ("Making room for new entry");
@@ -326,7 +326,7 @@ void    excptn (char *t) {
 	char    *s;
 
 	s = form ("Memory allocation error: %s\n", t);
-	write (STDERR, s, strlen (s));
+	(void) write (STDERR, s, strlen (s));
 	exit (3);
 }
 
@@ -536,18 +536,18 @@ void    xerror (const char *t, ...) {
 	va_start (ap, t);
 
 	ErrorsFound++;
-	write (STDERR, CFName, strlen (CFName));
+	(void) write (STDERR, CFName, strlen (CFName));
 	s = form (":%1d: ", LineNumber);
-	write (STDERR, s, strlen (s));
+	(void) write (STDERR, s, strlen (s));
 	s = vform (t, ap);
-	write (STDERR, s, strlen (s));
-	write (STDERR, "\n", 1);
+	(void) write (STDERR, s, strlen (s));
+	(void) write (STDERR, "\n", 1);
 
 	if (ErrorsFound < MAXERRCNT) return;
 	// That's it: ignore the rest of the program
-	write (STDERR, CFName, strlen (CFName));
+	(void) write (STDERR, CFName, strlen (CFName));
 	s = form (":%1d: too many errors\n", LineNumber);
-	write (STDERR, s, strlen (s));
+	(void) write (STDERR, s, strlen (s));
 	while (getC () != END);
 	exit (1);
 }

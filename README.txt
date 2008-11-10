@@ -979,3 +979,6 @@
 	   R080714B causing compilation errors with -g/-G.
 	   
 	   Zipf random number generator included (see the manual).
+
+ R081110A  Cosmetics required to appease the new compiler under Linux, which
+	   these days complains about ridiculous things.

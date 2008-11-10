@@ -66,8 +66,8 @@ typedef		unsigned long long	U_LONG;
 typedef		int			IPointer;
 typedef		LONG			LPointer;
 typedef		long			Long;
-#define		MAX_LONG	((LONG)(((LONG)1<<(LONGBITS+LONGBITS-1))-1))
-#define		MIN_LONG	((LONG)( (LONG)1<<(LONGBITS+LONGBITS-1))   )
+#define		MAX_LONG	((LONG)(((U_LONG)1<<(LONGBITS+LONGBITS-1))-1))
+#define		MIN_LONG	((LONG)( (U_LONG)1<<(LONGBITS+LONGBITS-1))   )
 #define         MAX_Long                MAX_long
 #define		MIN_Long		MIN_long
 #define		ZZ_XLong		"long"     /* For SMPP */
