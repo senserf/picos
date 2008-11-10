@@ -98,14 +98,9 @@ proc sget { } {
 
 set prt [lindex $argv 0]
 set spd [lindex $argv 1]
-set mpl [lindex $argv 2]
 
 if [catch { expr $spd } spd] {
 	set spd 9600
-}
-
-if [catch { expr $mpl } mpl] {
-	set mpl 256
 }
 
 if [catch { u_start $prt $spd "" } err] {

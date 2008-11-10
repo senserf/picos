@@ -2458,3 +2458,13 @@ R081107A:
 	Script mkmk modified to work under Linux version of mspgcc.
 	Script pxport added to generate "exported" versions of PICOS.
 	Directory Exports added to store "export" patterns.
+
+R081110A:
+
+	This is the version sent to MIMUW (according to Exports/mimuw.exp).
+	Added: Installation.odt/pdf.
+	Minor updates to PicOS.odt/pdf.
+	A few cosmetic changes, e.g., added "const" in front of some functions
+	returning char* in Apps/VUEE/tnp_demo, because the new gcc compiler
+	under Linux complained about some irrelevant nonsense.
+	Version bumped to 2.03.
