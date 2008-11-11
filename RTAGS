@@ -2469,7 +2469,7 @@ R081110A:
 	under Linux complained about some irrelevant nonsense.
 	Version bumped to 2.03.
 
-R081112A:
+R081111A:
 
 	LNONE/LWNONE were incorrectly defined in sysio.h. Fortunately, they were
 	(practically) never used.
