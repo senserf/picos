@@ -364,6 +364,7 @@ int snd_stop (void) {
 #define	RS_CAL		80
 #define	RS_STK		85
 #define	RS_GADC		90
+#define	RS_LED		95
 #define	RS_SPIN		100
 #define	RS_GPIN		110
 #define	RS_URS		120
@@ -371,6 +372,7 @@ int snd_stop (void) {
 #define	RS_SDRAM	140
 #define	RS_BTS		150
 #define	RS_LPM		160
+#define	RS_FRE		165
 #define	RS_AUTOSTART	200
 
 #if CC1000 || CC1100
@@ -469,6 +471,7 @@ thread (root)
 		"t        -> stop transmitter\r\n"
 		"q        -> stop both\r\n"
 		"i        -> set station Id\r\n"
+		"l n s    -> led n [012]\r\n"
 #ifdef PIN_TEST
 		"x p r    -> read ADC pin 'p' with reference r (0/1 1.5V/2.5V)\r\n"
 		"y p v    -> set pin 'p' to v (0/1)\r\n"
@@ -492,6 +495,7 @@ thread (root)
 		"B        -> battery test\r\n"
 #endif
 		"L n      -> enter PD mode for n secs\r\n"
+		"F n      -> freeze for n secs\r\n"
 		);
 #endif
 
@@ -518,6 +522,7 @@ thread (root)
 		case 's': proceed (RS_SND);
 		case 'r': proceed (RS_RCV);
 		case 'd': proceed (RS_PAR);
+		case 'l': proceed (RS_LED);
 #ifdef PIN_TEST
 		case 'x': proceed (RS_GADC);
 		case 'y': proceed (RS_SPIN);
@@ -541,6 +546,7 @@ thread (root)
 		case 'B': proceed (RS_BTS);
 #endif
 		case 'L': proceed (RS_LPM);
+		case 'F': proceed (RS_FRE);
 	}
 #else
 	delay (1024, RS_AUTOSTART);
@@ -713,6 +719,14 @@ thread (root)
 	proceed (RS_RCMD);
 #endif
 
+  entry (RS_LED)
+
+	p [0] = 0;
+	p [1] = 0;
+	scan (ibuf + 1, "%u %u", p+0, p+1);
+	leds (p [0], p [1]);
+	proceed (RS_RCMD);
+
 #ifdef PIN_TEST
 
   entry (RS_GADC)
@@ -881,6 +895,16 @@ thread (root)
 
 	ser_out (RS_LPM+2, "Done\r\n");
 	proceed (RS_RCMD);
+
+  entry (RS_FRE)
+
+	n = 0;
+	scan (ibuf + 1, "%u", &n);
+	if (n == 0)
+		n = 1;
+
+	freeze (n);
+	proceed (RS_LPM+2);
 
 #endif	/* UART_DRIVER */
 

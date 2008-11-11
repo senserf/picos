@@ -408,7 +408,7 @@ void	buttons_action (void (*action)(word));
 
 #define	NULL			0
 #define	NONE			((word)(-1))
-#define	LNONE			((word)(-1))
+#define	LNONE			((lword)(0xffffffff))
 #define	LWNONE			LNONE
 #define	SNONE			((int)(-1))
 #define	WNONE			NONE

@@ -11,10 +11,9 @@
 /* PORT A */
 /* ====== */
 	/*
-	 * Port A as GPIO 0-7, needed for the LEDs on A0-A3, side effect:
-	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip). The LEDs ports
-	 * (configured as output) are used to drive some pins on the
-	 * XEMICS.
+	 * Port A as GPIO 0-7, needed for the LEDs on A3-4. Why is A5
+	 * pulled up through a 3.3K resistor? A6 triggers battery test.
+	 * A1,2,7 disconnected (unfortunately).
 	 */
 #define	PORT_A_ENABLE		PORT_EN_A_MASK
 #define	PORT_A_SELECT		fd.port.sel1.a = 11
@@ -24,6 +23,8 @@
 	 * USART (DATA_IN, DATA_OUT); B3-B5 needed by LCD (see also Port J)
 	 * CC1000 doesn't want to work without it, although it doesn't
 	 * need Port B. Strange.
+	 * Note that B3-B5 are usable, unfortunately, the whole port B is
+	 * disconnected.
 	 */
 #define	PORT_B_ENABLE		PORT_EN_B_MASK
 #define	PORT_B_SELECT		fd.port.sel1.b = 3
@@ -32,6 +33,8 @@
 	/*
 	 * Port C (4 signals) as GPIO13-16. Conflicts with Port L, except
 	 * for C3 (GPIO16).
+	 * Disabled. Perhaps we can use sel 3 to reclaim C3 -> GPIO16
+	 * without conflicts?
 	 */
 #define	PORT_C_ENABLE		PORT_EN_C_MASK
 #define PORT_C_SELECT		fd.port.sel1.c = 7
@@ -47,6 +50,7 @@
  * D_1 unusable (the router setting of 3 conflicts with port L needed by RF)
  * GPIO21 -> D_2 -> DIO_2
  * GPIO22 -> D_3 -> DIO_3
+ * D2-3 could be used as UART B
  */
 #define	PORT_D_ENABLE		PORT_EN_D_MASK
 #define	PORT_D_SELECT		fd.port.sel1.d = 1;
@@ -87,6 +91,7 @@
 	 * Port J as a DUART A (J0-J1), side effect: J2-J5 -> GPIO 17-20, with
 	 * GPIO 17-20 being used by the LCD.
 	 * J6-J7 -> PWM 1-2
+	 * J2-5 could be used but are disconnected.
 	 */
 #define	PORT_J_ENABLE		PORT_EN_J_MASK
 #define	PORT_J_SELECT		fd.port.sel2.j = 3

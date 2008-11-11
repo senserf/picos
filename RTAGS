@@ -2468,3 +2468,9 @@ R081110A:
 	returning char* in Apps/VUEE/tnp_demo, because the new gcc compiler
 	under Linux complained about some irrelevant nonsense.
 	Version bumped to 2.03.
+
+R081112A:
+
+	LNONE/LWNONE were incorrectly defined in sysio.h. Fortunately, they were
+	(practically) never used.
+	LEDs definitions fixed for WARSAW, ARTURO, and ARTURO_PMTH
