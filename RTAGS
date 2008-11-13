@@ -2474,3 +2474,15 @@ R081111A:
 	LNONE/LWNONE were incorrectly defined in sysio.h. Fortunately, they were
 	(practically) never used.
 	LEDs definitions fixed for WARSAW, ARTURO, and ARTURO_PMTH
+
+R081112A:
+
+	VUEE/eco_demo ver 1.1 changes, see ecoossi docs:
+	- fixed permanent reports of gone and unconfirmed if master changed
+	  ('gone' reporting seizes at 4 times the heartbeat)
+	- ID, SAVE, SYNCHRONIZE commands
+	- timings and triggering of collections rewritten
+	- negative scks added from agg. with  full eeproms
+	- lightly tested, only in VUEE - expect 'adjustments'
+	- 5 s. blinking at startup (green - good; red - maintenance mode)
+
