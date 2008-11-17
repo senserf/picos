@@ -16,27 +16,6 @@
 // will go berserk if the praxis starts a second write before the first one
 // completes.
 
-static	word buf_page [2];	// page in buffer
-static	byte buf_flags [2];	// buffer state
-
-static	byte wstate,		// current state of the write operation
-	     cbsel;		// Alternating buffer selector
-
-static  word wpageo,		// page offset for write
-	     wpagen,		// page number
-	     wrsize;		// residual length
-
-static 	const byte *wbuffp;	// write buffer pointer
-
-#define	EE_BiW(i)	((i) == 0 ? EE_B1W : EE_B2W)
-#define	EE_BiR(i)	((i) == 0 ? EE_B1R : EE_B2R)
-#define	EE_BiMMP(i)	((i) == 0 ? EE_B1MMP : EE_B2MMP)
-#define	EE_BiMMPE(i)	((i) == 0 ? EE_B1MMPE : EE_B2MMPE)
-#define	EE_MMPBiR(i)	((i) == 0 ? EE_MMPB1R : EE_MMPB2R)
-
-#define	BF_DIRTY	0x01
-#define	BF_ERASED	0x02
-
 #define	WS_DONE		0
 #define	WS_NEXT		1
 #define	WS_GETPAGE	2
@@ -46,6 +25,58 @@ static 	const byte *wbuffp;	// write buffer pointer
 #define	WS_SYNC		6
 #define	WS_LAST		7
 #define	WS_GETLAST	8
+
+#define	EE_BiW(i)	((i) == 0 ? EE_B1W : EE_B2W)
+#define	EE_BiR(i)	((i) == 0 ? EE_B1R : EE_B2R)
+#define	EE_BiMMP(i)	((i) == 0 ? EE_B1MMP : EE_B2MMP)
+#define	EE_BiMMPE(i)	((i) == 0 ? EE_B1MMPE : EE_B2MMPE)
+#define	EE_MMPBiR(i)	((i) == 0 ? EE_MMPB1R : EE_MMPB2R)
+
+typedef struct {
+		word 	page;
+		byte	dirty,
+			wcmd;
+} at45_bstat;
+
+#ifdef	EE_NO_ERASE_BEFORE_WRITE
+
+// Assume that EEPROM is pre-erased, and writes never overlap
+// ==========================================================
+
+#define	EE_B1WCMD	EE_B1MMP
+#define	EE_B2WCMD	EE_B2MMP
+
+#else
+
+// The default is to play it safe
+// ==============================
+
+#define	EE_B1WCMD	EE_B1MMPE
+#define	EE_B2WCMD	EE_B2MMPE
+
+#endif
+
+static at45_bstat buf_stat [2] = {
+					{ WNONE, 0, EE_B1WCMD },
+					{ WNONE, 0, EE_B2WCMD }
+				 };
+
+static byte wstate = WS_DONE,	// Automaton state
+	    cbsel = 0;		// Buffer toggle
+
+
+
+
+
+static	word buf_page [2];	// page in buffer
+static	byte buf_flags [2];	// buffer state
+
+
+static  word wpageo,		// page offset for write
+	     wpagen,		// page number
+	     wrsize;		// residual length
+
+static 	const byte *wbuffp;	// write buffer pointer
 
 static byte get_byte () {
 
@@ -80,9 +111,9 @@ static void put_byte (byte b) {
 
 static byte blook (word page) {
 
-	if (buf_page [0] == page)
+	if (buf_stat [0] . page == page)
 		return 0;
-	if (buf_page [1] == page)
+	if (buf_stat [1] . page == page)
 		return 1;
 	return BNONE;
 }
@@ -163,12 +194,6 @@ static void sdc (byte nb) {
 void zz_ee_init () {
 
 	ee_ini_regs;
-
-	buf_page [0] = buf_page [1] = WNONE;
-	buf_flags [0] = buf_flags [1] = 0;
-	wstate = WS_DONE;
-	cbsel = 0;
-
 	ee_postinit;
 }
 
@@ -253,18 +278,8 @@ static byte bfree () {
 	for (i = 0; i < 2; i++) {
 		k = cbsel;
 		cbsel = (byte) (1 - cbsel);
-		if (buf_page [k] == WNONE) {
+		if (buf_stat [k] . page == WNONE || !(buf_stat [k] . dirty))
 			return k;
-		}
-	}
-
-	for (i = 0; i < 2; i++) {
-		k = cbsel;
-		cbsel = (byte) (1 - cbsel);
-		if ((buf_flags [k] & BF_DIRTY) == 0) {
-			buf_page [k] = WNONE;
-			return k;
-		}
 	}
 
 	return BNONE;
@@ -272,24 +287,18 @@ static byte bfree () {
 
 static byte bflush () {
 
-	byte i, k;
+	byte k;
 
-	for (i = 0; i < 2; i++) {
-		k = cbsel;
-		cbsel = (byte) (1 - cbsel);
-		if ((buf_flags [k] & BF_ERASED))
-			break;
-	}
+	k = cbsel;
+	cbsel = (byte) (1 - cbsel);
 
 	ee_start;
-	put_byte (i < 2 ? EE_BiMMP (k) : EE_BiMMPE (k));
-	saddr (buf_page [k]);
+	put_byte (buf_stat [k] . wcmd);
+	saddr (buf_stat [k] . page);
 	sdc (EE_POFFS_BITS);
 	ee_stop;
 
-	buf_page [k] = WNONE;
-	buf_flags [k] = 0;
-
+	buf_stat [k] . page = WNONE;
 	return k;
 }
 
@@ -301,9 +310,8 @@ static void bfetch (word pn, byte bi) {
 	sdc (EE_POFFS_BITS);
 	ee_stop;
 
-	buf_page [bi] = pn;
-	buf_flags [bi] = 0;
-	// FIXME: no erased flag is available yet
+	buf_stat [bi] . page = pn;
+	buf_stat [bi] . dirty = 0;
 }
 
 static void bwrite (byte bi, word po, const char *buf, word nb) {
@@ -322,7 +330,7 @@ static void bwrite (byte bi, word po, const char *buf, word nb) {
 			put_byte (0xFF);
 	}
 
-	buf_flags [bi] |= BF_DIRTY;
+	buf_stat [bi] . dirty = YES;
 
 	ee_stop;
 }
@@ -332,17 +340,16 @@ static void sync (word st) {
 	byte i;
 
 	for (i = 0; i < 2; i++) {
-		if (buf_page [i] != WNONE) {
-			if ((buf_flags [i] & BF_DIRTY)) {
+		if (buf_stat [i] . page != WNONE) {
+			if ((buf_stat [i] . dirty)) {
 				wwait (st);
 				ee_start;
-				put_byte ((buf_flags [i] & BF_ERASED) ? 
-					EE_BiMMP (i) : EE_BiMMPE (i));
-				saddr (buf_page [i]);
+				put_byte (buf_stat [i] . wcmd);
+				saddr (buf_stat [i] . page);
 				sdc (EE_POFFS_BITS);
 				ee_stop;
+				buf_stat [i] . dirty = NO;
 			}
-			buf_flags [i] &= ~BF_DIRTY;
 		}
 	}
 
@@ -463,10 +470,10 @@ WS_pcheck:
 
 		// Flush wrsize entire pages from wpagen 
 		sync (st);
-		buf_page [0] = buf_page [1] = WNONE;
+		buf_stat [0] . page = buf_stat [1] . page = WNONE;
 
 		// We get here when we have been synced, i.e., the buffers
-		// are clean; hopefully, sync is stateless and idempotent
+		// are clean; note that sync is stateless and idempotent
 
 		// bwrite (0, 0, NULL, EE_PAGE_SIZE);
 		wstate = WS_NPAGE;
@@ -525,7 +532,6 @@ WS_last:
 	    case WS_SYNC:
 WS_sync:
 		sync (st);
-		buf_page [0] = buf_page [1] = WNONE;
 		wstate = WS_DONE;
 		return 0;
 

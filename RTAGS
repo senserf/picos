@@ -2486,3 +2486,23 @@ R081112A:
 	- lightly tested, only in VUEE - expect 'adjustments'
 	- 5 s. blinking at startup (green - good; red - maintenance mode)
 
+
+R081117A:
+
+	LEDs 0 and 2 swapped in BOARDS/WARSAW (did I get it right this time?),
+	also in ARTURO and ARTURO_PMTH.
+	Improved storage_at45xxx.c (EEPROM for WARSAW board). The buffers are
+	now properly cycled through. If this constant in defined (e.g., in
+	options.sys):
+
+		EE_NO_ERASE_BEFORE_WRITE
+
+	then the driver will not be erasing blocks before writing them. This
+	assumes that the EEPROM is pre-erased before use, and writes never
+	overlap. The gain is that ee_sync can be used ad lib (without burning
+	out the EEPROM) and there are no redundant erases (in case the EEPROM
+	has been in fact pre-erased).
+
+	Fixed the praxis in SEAWOLF/TEST. When searching for images the handle
+	was unnecessarily incremented causing small images (<= 1 page) to be
+	skipped.

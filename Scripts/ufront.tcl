@@ -63,7 +63,8 @@ proc u_rdline { } {
 	global ST
 
 	if [catch { gets $ST(SFD) line } nc] {
-		error "device has been closed"
+		puts "UART read error"
+		return
 	}
 
 	if { $nc >= 0 } {
@@ -90,7 +91,7 @@ proc sget { } {
 
 	# send it to the board
 	if [catch { puts $ST(SFD) $line } ] {
-		error "deice has been closed"
+		puts "UART write error"
 	}
 }
 
