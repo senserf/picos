@@ -5,7 +5,6 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "pins.h"
 #include "irq_timer_headers.h"
 
 #ifndef	MCLOCK_FROM_CRYSTAL

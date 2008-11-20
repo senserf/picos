@@ -267,6 +267,8 @@ proc mkfname { ofn s } {
 	}
 	set rfn "[file rootname $ofn]"
 
+	append t "_[format %05u [expr 0x$t & 0x0000ffff]]"
+
 	if { $rfn == $ofn } {
 		return "${rfn}_$t"
 	}

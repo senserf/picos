@@ -5,7 +5,7 @@
 #include <ecog.h>
 #include <ecog1.h>
 #include "kernel.h"
-#include "pins_sys.h"
+// #include "pins_sys.h"
 
 #include "irq_timer_headers.h"
 
@@ -931,6 +931,10 @@ static void ios_init () {
 
 #ifdef EEPROM_PRESENT
 	zz_ee_init ();
+#endif
+
+#ifdef SENSOR_LIST
+	zz_init_sensors ();
 #endif
 
 }

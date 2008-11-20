@@ -30,8 +30,8 @@
 #define	ASNS_NSA	(asns_nsa [(param >> ASNS_NSA_SH) & 0x7])
 #define	ASNS_REF	((param >> ASNS_REF_SH) & 0x03)
 
-static const asns_isi [] = { 0, 1, 4, 16 };
-static const asns_nsa [] = { 1, 4, 16, 64, 128, 256, 512, 1024 };
+static const word asns_isi [] = { 0, 1, 4, 16 };
+static const word asns_nsa [] = { 1, 4, 16, 64, 128, 256, 512, 1024 };
 
 #ifndef	EREF_ON
 #define	EREF_ON		CNOP

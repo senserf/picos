@@ -13,12 +13,17 @@
 
 #include "sysio.h"
 #include "uart.h"
+#include "pins.h"
 
 void	zzz_set_release (void);
 void	zzz_tservice (void);
 
 #ifdef EEPROM_PRESENT
 void 	zz_ee_init (void);
+#endif
+
+#ifdef SENSOR_LIST
+void	zz_init_sensors ();
 #endif
 
 #ifdef LCD_PRESENT

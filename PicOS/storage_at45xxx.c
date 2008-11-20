@@ -38,7 +38,11 @@ typedef struct {
 			wcmd;
 } at45_bstat;
 
-#ifdef	EE_NO_ERASE_BEFORE_WRITE
+#ifndef	EE_NO_ERASE_BEFORE_WRITE
+#define	EE_NO_ERASE_BEFORE_WRITE	0
+#endif
+
+#if	EE_NO_ERASE_BEFORE_WRITE
 
 // Assume that EEPROM is pre-erased, and writes never overlap
 // ==========================================================
@@ -63,14 +67,6 @@ static at45_bstat buf_stat [2] = {
 
 static byte wstate = WS_DONE,	// Automaton state
 	    cbsel = 0;		// Buffer toggle
-
-
-
-
-
-static	word buf_page [2];	// page in buffer
-static	byte buf_flags [2];	// buffer state
-
 
 static  word wpageo,		// page offset for write
 	     wpagen,		// page number
@@ -366,7 +362,8 @@ word ee_write (word st, lword a, const byte *s, word len) {
 	    case WS_DONE:
 
 		if (a >= EE_SIZE || (a + len) > EE_SIZE)
-			return 1;
+			// return 1
+			break;
 
 		if (len == 0)
 			// Basic sanity check
@@ -426,6 +423,8 @@ Found:
 		wstate = WS_NEXT;
 		goto Found;
 	}
+
+	return 1;
 }
 
 word ee_erase (word st, lword from, lword upto) {
@@ -434,12 +433,12 @@ word ee_erase (word st, lword from, lword upto) {
 	byte bi;
 
 	if (from >= EE_SIZE)
-		return 1;
+		goto ERet;
 
 	if (upto >= EE_SIZE || upto == 0)
 		upto = EE_SIZE - 1;
 	else if (upto < from)
-		return 1;
+		goto ERet;
 
 	// Make it LWA+1
 	upto++;
@@ -578,6 +577,8 @@ WS_first:
 		wstate = WS_FIRST;
 		goto WS_first;
 	}
+ERet:
+	return 1;
 }
 
 word ee_sync (word st) { 
