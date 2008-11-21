@@ -2522,3 +2522,31 @@ R081120A:
 	bare eyes some screwup with the constants in arch.h supposed to
 	determine memory bounds, but have to commit this because Wlodek needs
 	SEAWOLF/TEST ASAP.
+
+R081121A:
+	VUEE/eco_demo ver 1.1.1:
+	- Negative ack is sent on full eeprom only if the option to write
+	  confirmed readings is set on the responding aggregator.
+	- Simple grouping is introduced: aggregators filter out collectors
+	  with ids not in the same thousand as their own, i.e. if
+	  coll_id / 1000 != agg_id / 1000, the pong is dropped. Together with
+	  ID and SAVE commands, it allows in-the-field multi-agg. extensions
+	  without duplicate sensor reports.
+	- Remote cmds explicitly banned from Maintenance mode where RF
+          is not operational. [In te field, when dumping eeprom content, M mode
+	  should be entered to avoid collecting and writing eeprom and reading
+	  (other parts of) eeprom at the same time.]
+	- changed default audit freq. from 13 to 59. Assuming default sensing
+	  freq. 60 s.; it makes more sense, especially on a single agg.
+	  setup.
+	- Removed LED signalling but the initial 5s blinking - it doesn't make
+	  sense with closed boxes and invisible LEDs. 
+	- In options.sys set EE_NO_ERASE_BEFORE_WRITE and
+	  EE_ERASE_ON_NEW_FLASH (auto eeprom erase on virgin flash).
+	- On purpose feature: on power failure, up to latest 32 eeprom writes
+	  on the agg. and up to 64 on the coll. (i.e. up to 2 volatile pages)
+	  may disappear. Proper procedures include node reset, which preserves
+	  all writes.
+	- Enabled D (eprom dumps) in Maintenance mode. (They're 5 lines / sec.)
+	- In WARSAW, ARTURO, ARTURO_MPTH leds 0,1,2 are R,G,B.
+

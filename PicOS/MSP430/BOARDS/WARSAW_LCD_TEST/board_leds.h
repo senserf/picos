@@ -15,7 +15,7 @@
 
 #define	LED0_OFF	ZZ_LEDOFF (P4, 0x08)
 #define	LED1_OFF	ZZ_LEDOFF (P4, 0x02)
-#define	LED2_OFF	ZZ_LEDOFF (P4, 0x02)
+#define	LED2_OFF	ZZ_LEDOFF (P4, 0x04)
 
 #define	leds_save()	((~P4OUT) & (0x02+0x04+0x08))
 #define	leds_off()	ZZ_LEDOFF (P4, 0x02+0x04+0x08)
