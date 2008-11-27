@@ -2577,3 +2577,9 @@ R081126A:
 	Removed Apps/SEAWOLF/EEDUMPER and Apps/SEAWOLF/LOADER.
 
         In ope.c, OEP_STOPDELAY and OEP_CHKDELAY changed from 48 / 2 to 24 / 1.
+
+R081127A:
+
+	The script for Arturo upgraded: Apps/VUEE/eco_demo/OSSI/front.* . Also,
+	DEF_APP_FLAGS in app_peg.h changed to 0x2C (to store all samples in
+	EEPROM by default).
