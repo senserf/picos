@@ -163,6 +163,9 @@
 	#define	CC1100_FREQ_FREQ0_VALUE	0xEC
 #endif
 
+// The default base frequency is 800 MHz, the default channel spacing (see
+// MDMCFG0) is 200 kHz
+
 // Define Register Contents ===================================================
 
 const	byte	cc1100_rfsettings [] = {

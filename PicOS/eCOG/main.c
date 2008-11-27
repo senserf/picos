@@ -78,6 +78,28 @@ const static devinit_t devinit [MAX_DEVICES] = 	{
 static void ssm_init (void), cnf_init (void), rtc_init (void),
 	    mem_init (void), ios_init (void);
 
+void clockdown (void) {
+
+	cli_tim;
+	rg.ssm.clk_dis = SSM_CLK_DIS_TMR_MASK;
+	rg.tim.tmr_ld = 4095;
+	fd.tim.cmd.tmr_ld = 1;
+	rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
+	zz_systat.cdmode = 1;
+	sti_tim;
+}
+	
+void clockup (void) {
+
+	cli_tim;
+	rg.ssm.clk_dis = SSM_CLK_DIS_TMR_MASK;
+	rg.tim.tmr_ld = 3;
+	fd.tim.cmd.tmr_ld = 1;
+	rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
+	zz_systat.cdmode = 0;
+	sti_tim;
+}
+	
 void powerdown (void) {
 /* =================================================================== */
 /* Note: I don't think I can do that while I am waiting for UART input */
@@ -88,6 +110,7 @@ void powerdown (void) {
 /* to do it, so it will be done some day.                              */
 /* =================================================================== */
 
+	clockdown ();
 	/* Assert low reference as source until it is accepted. */
 	while (fd.ssm.cpu.sts != SSM_CPU_STS_LOW_REF_CLK) {
 		fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_LOW_REF_CLK;
@@ -113,10 +136,8 @@ void powerup (void) {
 	while (fd.ssm.cpu.sts != SSM_CPU_STS_HIGH_PLL_CLK) {
 		fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_HIGH_PLL_CLK;
 	}
+	clockup ();
 }
-
-void clockdown (void) { /* Stub */ }
-void clockup (void) { /* Stub */ }
 
 void reset (void) {
 
@@ -531,7 +552,10 @@ static void cnf_init () {
 static void rtc_init () {
 
 	/* Configure the clock input source. */
-	fd.ssm.tap_sel3.tmr = 1; /* 32 */
+
+	// This divides the basic slow crystal rate by 8 (2^3) yielding
+	// 4096
+	fd.ssm.tap_sel3.tmr = 1;
 	fd.ssm.div_sel.tmr = 0;
 	fd.ssm.div_sel.low_clk_timer = 1;
 
@@ -545,15 +569,13 @@ static void rtc_init () {
 	zz_lostk = zz_mintk = 0;
 
 	/* Enable the clock input. */
-	rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
+	// rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
 
 	rg.tim.ctrl_en =
 		TIM_CTRL_EN_TMR_CNT_MASK |
 		TIM_CTRL_EN_TMR_AUTO_RE_LD_MASK;
 
-	rg.tim.tmr_ld = 3;
-	fd.tim.cmd.tmr_ld = 1;
-	sti_tim;
+	clockup ();
 	/* ========================================== */
 	/* System clock runs at 1024 ticks per second */
 	/* ========================================== */
@@ -576,52 +598,73 @@ void __irq_entry timer_int () {
 			SLEEP;
 	}
 #endif
-	/* This code assumes that MAX_UTIMERS is 4 */
-	if (zz_utims [0]) {
-		if (*(zz_utims [0]))
-			(*(zz_utims [0]))--;
-		if (zz_utims [1]) {
-			if (*(zz_utims [1]))
-				(*(zz_utims [1]))--;
-			if (zz_utims [2]) {
-				if (*(zz_utims [2]))
-					(*(zz_utims [2]))--;
-				if (zz_utims [3]) {
-					if (*(zz_utims [3]))
-						(*(zz_utims [3]))--;
-				}
-			}
-		}
-	}
 
-	zz_lostk++;
+	if (zz_systat.cdmode == 0) {
+
+		// Clock is up
+
+#define	UTIMS_CASCADE(x) 	if (zz_utims [x]) {\
+					 if (*(zz_utims [x]))\
+						 (*(zz_utims [x]))--
+
+		UTIMS_CASCADE(0);
+		UTIMS_CASCADE(1);
+		UTIMS_CASCADE(2);
+		UTIMS_CASCADE(3);
+		}}}}
+
+#undef UTIMS_CASCADE
+
+		zz_lostk++;
 
 #if	ADC_PRESENT
-	if (adc_ticks && (--adc_ticks == 0)) {
-		adc_ticks = adc_delay;
-		adc_values [adc_cmode] =
-			fd.adc.sts.data;
-		if (adc_nmodes > 1) {
-			if (++adc_cmode >= adc_nmodes)
-				adc_cmode = 0;
-			rg.adc.cfg = adc_modelist [adc_cmode];
+		// I don't think this will be used any more
+		if (adc_ticks && (--adc_ticks == 0)) {
+			adc_ticks = adc_delay;
+			adc_values [adc_cmode] =
+				fd.adc.sts.data;
+			if (adc_nmodes > 1) {
+				if (++adc_cmode >= adc_nmodes)
+					adc_cmode = 0;
+				rg.adc.cfg = adc_modelist [adc_cmode];
+			}
 		}
-	}
 #endif
 
-	// For extras
+		// For extras
 #include "irq_timer.h"
 
-	if (zz_lostk & 1024) {
-		// Run the scheduler at least once every second - to keep the
-		// second clock up to date
-		RISE_N_SHINE;
+		if (zz_lostk & 1024) {
+			RISE_N_SHINE;
+			RTNI;
+		}
+
+		if (zz_mintk && zz_mintk <= zz_lostk) {
+			RISE_N_SHINE;
+		}
+
 		RTNI;
 	}
 
-	if (zz_mintk && zz_mintk <= zz_lostk) {
-		RISE_N_SHINE;
-	}
+	// Clock down - slow mode
+
+#define	UTIMS_CASCADE(x) \
+		if (zz_utims [x]) { \
+		  if (*(zz_utims [x])) \
+		    *(zz_utims [x]) = *(zz_utims [x]) > JIFFIES ? \
+		      *(zz_utims [x]) - JIFFIES : 0
+
+	UTIMS_CASCADE(0);
+	UTIMS_CASCADE(1);
+	UTIMS_CASCADE(2);
+	UTIMS_CASCADE(3);
+	}}}}
+
+#undef UTIMS_CASCADE
+
+	zz_lostk += JIFFIES;
+
+	RISE_N_SHINE;
 
 	RTNI;
 }

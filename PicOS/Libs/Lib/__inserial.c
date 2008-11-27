@@ -27,11 +27,12 @@ static int __cport;
 
 #define	MAX_LINE_LENGTH	63
 
-#define	IM_INIT		00
-#define	IM_READ		10
-#define IM_BIN		20
+#define	IM_INIT		0
+#define	IM_READ		1
+#define IM_BIN		2
+#define IM_BINL		3
 
-strand (__inserial, char)
+strand (__inserial, word)
 /* ============================== */
 /* Inputs a line from serial port */
 /* ============================== */
@@ -46,7 +47,8 @@ strand (__inserial, char)
 		/* Never overwrite previous unclaimed stuff */
 		finish;
 
-	if ((data = ptr = (char*) umalloc (MAX_LINE_LENGTH + 1)) == NULL) {
+	// On eCOG char* is non-trivially upgraded from 'address'
+	if ((ptr = (char*) (data = umalloc (MAX_LINE_LENGTH + 1))) == NULL) {
 		/*
 		 * We have to wait for memory
 		 */
@@ -61,10 +63,9 @@ strand (__inserial, char)
   entry (IM_READ)
 
 	io (IM_READ, __cport, READ, ptr, 1);
-	if (ptr == data) { // new line
-		if (*ptr == NULL) { // bin cmd
+	if (ptr == (char*) data) { // new line
+		if (*ptr == '\0') { // bin cmd
 			ptr++;
-			len--;
 			proceed (IM_BIN);
 		}
 
@@ -74,7 +75,7 @@ strand (__inserial, char)
 	}
 	if (*ptr == '\n' || *ptr == '\r') {
 		*ptr = '\0';
-		__inpline = data;
+		__inpline = (char*)data;
 		finish;
 	}
 
@@ -86,24 +87,28 @@ strand (__inserial, char)
 	proceed (IM_READ);
 
   entry (IM_BIN)
+
 	io (IM_BIN, __cport, READ, ptr, 1);
-	if (--len > *ptr +1) // 1 for 0x04
-		len = *ptr +1;
+	len -= 2;
+	if (len > *ptr + 1) // 1 for 0x04
+		len = *ptr + 1;
 	ptr++;
 
-  entry (IM_BIN +1)
-	quant = io (IM_BIN +1, __cport, READ, ptr, len);
+  entry (IM_BINL)
+
+	quant = io (IM_BINL, __cport, READ, ptr, len);
 	len -= quant;
 	if (len == 0) {
-		__inpline = data;
+		__inpline = (char*)data;
 		finish;
 	}
 	ptr += quant;
-	proceed (IM_BIN +1);
+	proceed (IM_BINL);
 
 endprocess (1)
 
 #undef	IM_INIT
 #undef	IM_READ
 #undef  IM_BIN
+#undef  IM_BINL
 

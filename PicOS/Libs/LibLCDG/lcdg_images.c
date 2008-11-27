@@ -146,7 +146,9 @@ word lcdg_im_find (const byte *lbl, byte len, word pn) {
 		if ((lab = (byte*) umalloc (len)) == NULL)
 			// FIXME: there is no way to tell this from not found
 			return WNONE;
-	}
+	} else
+		// Not needed, but ... just in case
+		lab = NULL;
 
 	if (pn == WNONE)
 		pn = img_first_page;

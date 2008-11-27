@@ -4,7 +4,6 @@
 /* ==================================================================== */
 
 #include "kernel.h"
-#include "lcd_sys.h"
 #include "pins.h"
 #include "lcdg_n6100p.h"
 
@@ -26,8 +25,8 @@
 #define	NORON		0x13 // display normal mode
 #define	INVOFF		0x20 // inversion OFF
 #define	INVON		0x21 // inversion ON
-#define	DALO		0x22 // all pixel OFF
-#define	DAL		0x23 // all pixel ON
+#define	DALO		0x22 // all pixels OFF
+#define	DAL		0x23 // all pixels ON
 #define	SETCON		0x25 // write contrast
 #define	DISPOFF		0x28 // display OFF
 #define	DISPON		0x29 // display ON

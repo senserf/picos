@@ -53,7 +53,7 @@ typedef	address		va_list;
 
 typedef struct {
 
-	word	pdmode:1,	// Power down flag (unused on eCOG)
+	word	cdmode:1,	// Clock down flag
 		evntpn:1,	// Scheduler event pending
 		fstblk:1,	// Fast blink flag
 		ledblk:1,	// Blink flag

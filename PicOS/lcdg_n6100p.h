@@ -5,6 +5,9 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "pins.h"
+#include "lcd_sys.h"
+
 #define	COLOR_WHITE	0
 #define COLOR_BLACK	1
 #define COLOR_RED	2

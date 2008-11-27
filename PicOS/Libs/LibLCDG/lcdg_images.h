@@ -2,6 +2,7 @@
 #define __pg_lcdg_imahes_h__
 
 #include "sysio.h"
+#include "lcdg_n6100p.h"
 #include "oep.h"
 
 //+++ "lcdg_images.c"

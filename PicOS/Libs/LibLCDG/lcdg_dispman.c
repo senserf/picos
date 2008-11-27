@@ -12,6 +12,8 @@ lcdg_dm_obj_t	*LCDG_DM_TOP = NULL,	// The top object displayed
 
 byte		LCDG_DM_STATUS = 0;	// Error status
 
+static word	wp_handle = 0;		// Wallpaper image handle
+
 Boolean lcdg_dm_shown (const lcdg_dm_obj_t *o) {
 //
 // Check if an object occurs on the list
@@ -46,9 +48,19 @@ static lcdg_dm_obj_t *dm_prev (lcdg_dm_obj_t *q) {
 
 static void dm_clear () {
 
-	lcdg_set (0, 0, LCDG_MAXX, LCDG_MAXY);
-	lcdg_setc (COLOR_BLACK, BNONE);
-	lcdg_clear ();
+	if (wp_handle == 0) {
+		// Look up the wallpaper image
+		wp_handle = lcdg_im_find ((const byte*)"wallpaper", 10, WNONE);
+	}
+
+	if (wp_handle != WNONE) {
+		lcdg_im_disp (wp_handle, 0, 0);
+	} else {
+		// Just erase to background
+		lcdg_set (0, 0, LCDG_MAXX, LCDG_MAXY);
+		lcdg_setc (COLOR_BLACK, BNONE);
+		lcdg_clear ();
+	}
 }
 
 static byte dm_mell (lcdg_dm_men_t *m, word ln) {
@@ -437,7 +449,6 @@ byte lcdg_dm_newtop (lcdg_dm_obj_t *o) {
 //
 // Display a new object as top
 //
-	lcdg_dm_obj_t *c;
 	byte st;
 
 	if ((st = lcdg_dm_display (o)) != 0)
@@ -477,7 +488,6 @@ lcdg_dm_obj_t *lcdg_dm_newmenu (
 // Create a new menu
 //
 	lcdg_dm_men_t *dm;
-	word i;
 
 	if (lcdg_font (fn)) {
 		// No font
@@ -611,7 +621,6 @@ Mem:
 	}
 
 	if ((LCDG_DM_STATUS = lcdg_im_hdr (pn, sig)) != 0) {
-FErr:
 		ufree (sig);
 		return NULL;
 	}

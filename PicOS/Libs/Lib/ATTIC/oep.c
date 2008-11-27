@@ -16,8 +16,8 @@
 #define	OEP_LONGTRIES	12
 #define	OEP_REPDELAY	1024
 #define	OEP_NSTOPS	3
-#define	OEP_STOPDELAY	48
-#define	OEP_CHKDELAY	2
+#define	OEP_STOPDELAY	24
+#define	OEP_CHKDELAY	1
 
 // FIXME: make (some of) them settable?
 
@@ -140,7 +140,6 @@ static int tcv_xmt_oep (address);
 const tcvplug_t plug_oep =
 		{ tcv_ope_oep, tcv_clo_oep, tcv_rcv_oep, tcv_frm_oep,
 			tcv_out_oep, tcv_xmt_oep, NULL, 0x0085 /* Id */ };
-static int* desc = NULL;
 
 static int tcv_ope_oep (int phy, int fd, va_list plid) {
 /*
@@ -426,8 +425,6 @@ thread (oep_handler)
 #define	OEP_SEND_EOR_LP		12
 #define	OEP_SEND_EOR_EC		13
 #define	OEP_SEND_EOR_WG		14
-
-    Boolean cnd;
 
     entry (OEP_START)
 

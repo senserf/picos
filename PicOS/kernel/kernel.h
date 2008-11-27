@@ -23,11 +23,15 @@ void 	zz_ee_init (void);
 #endif
 
 #ifdef SENSOR_LIST
-void	zz_init_sensors ();
+void	zz_init_sensors (void);
 #endif
 
 #ifdef LCD_PRESENT
 void 	zz_lcd_init (void);
+#endif
+
+#ifdef LCDG_PRESENT
+void	zz_lcdg_init (void);
 #endif
 
 #if INFO_FLASH

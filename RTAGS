@@ -2524,6 +2524,7 @@ R081120A:
 	SEAWOLF/TEST ASAP.
 
 R081121A:
+
 	VUEE/eco_demo ver 1.1.1:
 	- Negative ack is sent on full eeprom only if the option to write
 	  confirmed readings is set on the responding aggregator.
@@ -2550,3 +2551,24 @@ R081121A:
 	- Enabled D (eprom dumps) in Maintenance mode. (They're 5 lines / sec.)
 	- In WARSAW, ARTURO, ARTURO_MPTH leds 0,1,2 are R,G,B.
 
+R081126A:
+
+	Power down mode for eCOG. Still have to implement freeze, which must be
+	done carefully as any serious operation in PD mode is out of the
+	question (the CPU is just too slow). Even at 1 sec intervals the clock
+	generates too much activity. When I freeze everything in the power down
+	mode, I get about 5uA current at 3.3V, but with the clock running (at 1
+	sec rate) the current jumps to ca. 400uA DC / 1mA RMS.
+
+	Apps/SEAWOLF/TEST/mkeeprom.tcl: if the picture directory contains an
+	image file named wallpaper.nok, this picture will be included in the
+	EEPROM file (at the very beginning of the Image area). The label of
+	that picture should look like the ASCII string "wallpaper" terminated
+	with a NULL byte. Such a picture will be used as the background by the
+	LCDG display manager (Libs/LibLCDG).
+	Apps/SEAWOLF/TEST/cbm.tcl: if no -l is specified, the image receives
+	a default label equal to the target file name in lower case minus any
+	directory prefix and any suffix. For example /home/pawel/Wallpaper.nok
+	becomes wallpaper.
+
+	Removed Apps/SEAWOLF/EEDUMPER and Apps/SEAWOLF/LOADER.

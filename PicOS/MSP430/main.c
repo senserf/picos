@@ -735,6 +735,7 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 
 	// Here we are running in the SLOW mode: one tick ==
 	// JIFFIES/TIMER_B_LOW_PER_SEC
+
 #define	UTIMS_CASCADE(x) \
 		if (zz_utims [x]) { \
 		  if (*(zz_utims [x])) \
@@ -747,6 +748,7 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 	UTIMS_CASCADE(2);
 	UTIMS_CASCADE(3);
 	}}}}
+#undef UTIMS_CASCADE
 
 	zz_lostk += JIFFIES/TIMER_B_LOW_PER_SEC;
 
@@ -877,8 +879,11 @@ word zzz_stackfree (void) {
 
 static void ios_init () {
 
-	int i;
 	pcb_t *p;
+
+#if MAX_DEVICES
+	int i;
+#endif
 
 #ifdef EEPROM_PRESENT
 	zz_ee_init ();

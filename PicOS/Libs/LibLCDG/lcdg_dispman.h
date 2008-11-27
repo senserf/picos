@@ -1,8 +1,9 @@
 #ifndef	__lcdg_dispman_h__
 #define	__lcdg_dispman_h__
 
-#include "oep.h"
 #include "lcdg_images.h"
+#include "lcdg_n6100p.h"
+#include "oep.h"
 
 //+++ "lcdg_dispman.c"
 

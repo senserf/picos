@@ -472,6 +472,7 @@ int		zzz_utrigger (word), zzz_ptrigger (int, word);
 int		zzz_fork (code_t func, address data);
 void		reset (void);
 void		halt (void);
+
 void		savedata (void*);
 
 int		zzz_strlen (const char*);

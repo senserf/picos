@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -15,11 +15,12 @@
 strand (output, char)
 
     static int nc;
+    static char *ptr;
     int k;
 
     entry (OU_INIT)
 
-	nc = strlen (data);
+	nc = strlen (ptr = data);
 
     entry (OU_WRITE)
 
@@ -28,10 +29,9 @@ strand (output, char)
 
     entry (OU_RETRY)
 
-        k = io (OU_RETRY, UART, WRITE, data, nc);
+        k = io (OU_RETRY, UART, WRITE, ptr, nc);
 	nc -= k;
-	data += k;
-	savedata (data);
+	ptr += k;
 	proceed (OU_WRITE);
 
 endstrand
@@ -42,19 +42,21 @@ endstrand
 strand (input, char)
 
     static int nc;
+    static char *ptr;
     int k;
 
     entry (IN_INIT)
 
 	nc = IBUF_SIZE;
+	ptr = data;
 
     entry (IN_READ)
 
-    	k = io (IN_READ, UART, READ, data, nc);
+    	k = io (IN_READ, UART, READ, ptr, nc);
 
-	if (*(data+k-1) == '\n') {
+	if (*(ptr+k-1) == '\n') {
 		// End of line
-		*(data+k-2) = '\0';
+		*(ptr+k-2) = '\0';
 		finish;
 	}
 
@@ -62,8 +64,7 @@ strand (input, char)
 		k = nc - 2;
 
 	nc -= k;
-	data += k;
-	savedata (data);
+	ptr += k;
 
 	proceed (IN_READ);
 
@@ -75,6 +76,10 @@ endstrand
 #define	RS_CMND		3
 #define	RS_FORMAT	4
 #define	RS_SHOWMEM	5
+#define	RS_DELAY	6
+#define	RS_DUP		7
+#define	RS_PSAVE	8
+#define	RS_PUP		9
 
 thread (root)
 /* =========================================== */
@@ -92,10 +97,12 @@ thread (root)
 	call (output, "\r\n"
 		"Welcome to PicOS!\r\n"
 		"Commands:\r\n"
-		"          'f %d %u %x %c %s %ld %lu %lx' (format test)\r\n"
-		"          'v' (show free memory)\r\n"
-		"          'h' (HALT)\r\n"
-		"          'r' (RESET)\r\n",
+		" 'f %d %u %x %c %s %ld %lu %lx' (format test)\r\n"
+		" 'v' (mem)\r\n"
+		" 'd n' (sleep n secs)\r\n"
+		" 'p n' (PD mode n secs)\r\n"
+		" 'h' (HALT)\r\n"
+		" 'r' (RESET)\r\n",
 			RS_READ);
 
   entry (RS_READ)
@@ -107,6 +114,8 @@ thread (root)
 	switch (ibuf [0]) {
 		case 'f' : proceed (RS_FORMAT);
 		case 'v' : proceed (RS_SHOWMEM);
+		case 'd' : proceed (RS_DELAY);
+		case 'p' : proceed (RS_PSAVE);
 		case 'r' : reset ();
 	 	case 'h' : halt ();
 	}
@@ -142,5 +151,47 @@ thread (root)
 		stackfree (), staticsize (), memfree (0, 0));
 
 	call (output, ibuf, RS_READ);
+
+  entry (RS_DELAY)
+
+	{
+	    word d;
+
+	    d = 1;
+	    scan (ibuf + 1, "%u", &d);
+	    if (d > 60)
+		d = 60;
+
+diag ("DEL %u", d * 1024);
+	    delay (d * 1024, RS_DUP);
+        }
+
+	release;
+
+  entry (RS_PSAVE)
+
+	{
+	    word d;
+
+	    d = 1;
+	    scan (ibuf + 1, "%u", &d);
+	    if (d > 60)
+		d = 60;
+
+	    clockdown ();
+	    powerdown ();
+
+	    delay (d * 1024, RS_PUP);
+        }
+	release;
+
+  entry (RS_PUP)
+
+	powerup ();
+	clockup ();
+
+  entry (RS_DUP)
+
+	call (output, "done\r\n", RS_READ);
 
 endthread

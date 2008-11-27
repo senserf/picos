@@ -20,7 +20,7 @@ set IV(RET)	500
 set IV(CHK)	1000
 
 # packet space for outgoing chunks
-set IV(CSP)	32
+set IV(CSP)	16
 
 # number of retransmission before declaring failure
 set PM(RET)	8
