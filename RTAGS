@@ -2560,6 +2560,9 @@ R081126A:
 	mode, I get about 5uA current at 3.3V, but with the clock running (at 1
 	sec rate) the current jumps to ca. 400uA DC / 1mA RMS.
 
+	Modified __inserial.c to make it compatible with eCOG (the notorious
+	char* problem).
+
 	Apps/SEAWOLF/TEST/mkeeprom.tcl: if the picture directory contains an
 	image file named wallpaper.nok, this picture will be included in the
 	EEPROM file (at the very beginning of the Image area). The label of
@@ -2572,3 +2575,5 @@ R081126A:
 	becomes wallpaper.
 
 	Removed Apps/SEAWOLF/EEDUMPER and Apps/SEAWOLF/LOADER.
+
+        In ope.c, OEP_STOPDELAY and OEP_CHKDELAY changed from 48 / 2 to 24 / 1.
