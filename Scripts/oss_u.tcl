@@ -12,7 +12,12 @@ variable PM
 set DB(SFD)	""
 set DB(LEV)	0
 
+# packet preamble
 set CH(PRE)		[format %c [expr 0x55]]
+# diag preamble
+set CH(PRD)		[format %c [expr 0x54]]
+# character zero
+set CH(ZER)		[format %c [expr 0x00]]
 
 # Packet timeout, once reception has started
 set IV(packet)		80
@@ -102,7 +107,8 @@ proc u_start { udev speed dfun { mpl "" } } {
 	# initialize status
 	set ST(TIM)  ""
 	# reception automaton state
-	set ST(STA) -1
+	set ST(STA) 0
+	set ST(CNT) 0
 	# input interceptor function
 	u_setif $dfun $mpl
 	# input buffer
@@ -275,9 +281,12 @@ proc rawread { } {
 #
 	variable ST
 #
-#  STA = -1  == Waiting for preamble
-#  STA >  0  == Waiting for STA bytes to end of packet
-#  STA =  0  == Waiting for the length byte
+#  STA = 0  -> Waiting for preamble
+#        1  -> Waiting for the length byte
+#        2  -> Waiting for (CNT) bytes until the end of packet
+#        3  -> Waiting for end of DIAG preamble
+#        4  -> Waiting for EOL until end of DIAG
+#        5  -> Waiting for (CNT) bytes until the end of binary diag
 #
 	set chunk ""
 
@@ -286,29 +295,31 @@ proc rawread { } {
 		if { $chunk == "" } {
 
 			if [catch { read $ST(SFD) } chunk] {
-				# ignore errors
+				# nonblocking read, ignore errors
 				set chunk ""
 			}
-				
+
 			if { $chunk == "" } {
-				# check if the timeout flag is set
+				# check for timeout
 				if { $ST(TIM) != "" } {
 					variable DB
 					if { $DB(LEV) > 2 } {
-						trc "packet timeout $ST(STA)"
+						trc "packet timeout $ST(STA),
+							$ST(CNT)"
 					}
 					# reset
 					catch { after cancel $ST(TIM) }
 					set ST(TIM) ""
-					set ST(STA) -1
-				} elseif { $ST(STA) > -1 } {
-					# packet started, set timeout
+					set ST(STA) 0
+				} elseif { $ST(STA) != 0 } {
+					# something has started, set up timer
 					variable IV
 					set ST(TIM) \
 					     [after $IV(packet) ::OSSU::rawread]
 				}
 				return
 			}
+			# there is something to process, cancel timeout
 			if { $ST(TIM) != "" } {
 				catch { after cancel $ST(TIM) }
 				set ST(TIM) ""
@@ -317,69 +328,138 @@ proc rawread { } {
 
 		set bl [string length $chunk]
 
-		if { $ST(STA) > 0 } {
+		switch $ST(STA) {
 
-			# waiting for the balance
-			if { $bl < $ST(STA) } {
+		0 {
+			# waiting for packet preamble
+			variable CH
+			for { set i 0 } { $i < $bl } { incr i } {
+				set c [string index $chunk $i]
+				if { $c == $CH(PRE) } {
+					# preamble found
+					set ST(STA) 1
+					break
+				} elseif { $c == $CH(PRD) } {
+					# diag preamble
+					set ST(STA) 3
+					break
+				}
+			}
+			if { $i == $bl } {
+				# not found, keep waiting
+				set chunk ""
+				continue
+			}
+			# found, remove the parsed portion and keep going
+			set chunk [string range $chunk [expr $i + 1] end]
+		}
+
+		1 {
+			# expecting the length byte for a packet
+			binary scan [string index $chunk 0] c bl
+			set chunk [string range $chunk 1 end]
+			if { $bl <= 0 || [expr $bl & 0x01] } {
+				# illegal
+				variable DB
+				if { $DB(LEV) > 2 } {
+					trc "illegal packet length $bl"
+				}
+				# reset
+				set ST(STA) 0
+				continue
+			}
+			# found
+			set ST(STA) 2
+			set ST(CNT) [expr $bl + 4]
+			set ST(BUF) ""
+		}
+
+		2 {
+			# packet reception, filling the buffer
+			if { $bl < $ST(CNT) } {
 				append ST(BUF) $chunk
 				set chunk ""
-				incr ST(STA) -$bl
+				incr ST(CNT) -$bl
 				continue
 			}
 
-			if { $bl == $ST(STA) } {
+			# end of packet, reset
+			set ST(STA) 0
+
+			if { $bl == $ST(CNT) } {
 				append ST(BUF) $chunk
 				set chunk ""
 				# we have a complete buffer
 				runit
-				set ST(STA) -1
 				continue
 			}
 
 			# merged packets
 			append ST(BUF) [string range $chunk 0 \
-				[expr $ST(STA) - 1]]
-			set chunk [string range $chunk $ST(STA) end]
+				[expr $ST(CNT) - 1]]
+			set chunk [string range $chunk $ST(CNT) end]
 			runit
-			set ST(STA) -1
-			continue
 		}
 
-		if { $ST(STA) == -1 } {
-			# waiting for preamble
+		3 {
+			# waiting for the end of a diag header
 			variable CH
-			for { set i 0 } { $i < $bl } { incr i } {
-				if { [string index $chunk $i] == $CH(PRE) } {
-					# preamble found
-					break
+			set chunk [string trimleft $chunk $CH(PRD)]
+			if { $chunk != "" } {
+				set ST(BUF) ""
+				# look at the first byte of diag
+				if { [string index $chunk 0] == $CH(ZER) } {
+					# a binary diag, length == 7
+					set ST(CNT) 7
+					set ST(STA) 5
+				} else {
+					# ASCII -> wait for NL
+					set ST(STA) 4
 				}
 			}
-			if { $i == $bl } {
-				# not found
+		}
+
+		4 {
+			# waiting for NL ending a diag
+			set c [string first "\n" $chunk]
+			if { $c < 0 } {
+				append ST(BUF) $chunk
 				set chunk ""
 				continue
 			}
+
+			append ST(BUF) [string range $chunk 0 $c]
+			set chunk [string range $chunk [expr $c + 1] end]
+			# reset
 			set ST(STA) 0
-			incr i
-			set chunk [string range $chunk $i end]
-			continue
+			outdiag
 		}
 
-		# now for the length byte
-		binary scan [string index $chunk 0] c bl
-		set chunk [string range $chunk 1 end]
-		if { $bl <= 0 || [expr $bl & 0x01] } {
-			# illegal
-			variable DB
-			if { $DB(LEV) > 2 } {
-				trc "illegal packet length $bl"
+		5 {
+			# waiting for CNT bytes of binary diag
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
 			}
-			set ST(STA) -1
-			continue
+			# reset
+			set ST(STA) 0
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+
+			set chunk [string range $chunk $ST(CNT) end]
+			outdiag
 		}
 
-		set ST(STA) [expr $bl + 4]
-		set ST(BUF) ""
+		default {
+			variable DB
+			if { $DB(LEV) > 0 } {
+				trc "illegal state in rawread: $ST(STA)"
+			}
+			set ST(STA) 0
+		}
+		}
 	}
 }
 
@@ -408,6 +488,25 @@ proc runit { } {
 	if { $ST(DFN) != "" } {
 		$ST(DFN) $ST(BUF)
 	}
+}
+
+proc outdiag { } {
+
+	variable ST
+	variable CH
+
+	if { [string index $ST(BUF) 0] == $CH(ZER) } {
+		# binary
+		set ln [string range $ST(BUF) 3 5]
+		binary scan $ln cs lv code
+		set cs [expr $cs & 0xff]
+		set lv [expr $lv & 0xffff]
+		puts "DIAG: \[[format %02x $cs] -> [format %04x $lv]\]"
+	} else {
+		# ASCII
+		puts "DIAG: [string trim $ST(BUF)]"
+	}
+	flush stdout
 }
 
 namespace export u_*

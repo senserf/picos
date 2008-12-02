@@ -230,9 +230,9 @@
 #define	UART_TCV_MODE		UART_TCV_MODE_N
 #endif
 
-#define	UART_TCV_MODE_N		0
-#define	UART_TCV_MODE_P		1
-#define	UART_TCV_MODE_L		2
+#define	UART_TCV_MODE_N		0	// Non-persisitent packets
+#define	UART_TCV_MODE_P		1	// Built-in ACKs
+#define	UART_TCV_MODE_L		2	// Lines
 
 /* ========================================================================= */
 /* End of RF modules. Note that UART is an honorary RF module, if configured */

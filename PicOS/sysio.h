@@ -121,31 +121,65 @@
 
 // DIAG MESSAGES =============================================================
 
-#if	UART_DRIVER
-#define	DIAG_AVAILABLE		1
-#else
-#if	UART_TCV
-#if	UART_TCV_MODE == UART_TCV_MODE_L
-#define	DIAG_AVAILABLE		1
-#endif
-#endif
+// If DIAG_MESSAGES is not set, there is no need to worry; otherwise, we have
+// to figure out how diag is going to work
+
+#if	DIAG_MESSAGES || (dbg_level != 0)
+
+// We go through a number of options
+
+// UART ======================================================================
+#ifndef	DIAG_IMPLEMENTATION
+
+#if UART_DRIVER
+#define	DIAG_IMPLEMENTATION	0
 #endif
 
-#if	DIAG_MESSAGES
-#ifndef	DIAG_AVAILABLE
+#endif
+// ===========================================================================
+
+// UART over TCV =============================================================
+#ifndef	DIAG_IMPLEMENTATION
+
+#if	UART_TCV
+#if	UART_TCV_MODE == UART_TCV_MODE_L
+// This looks almost like direct UART; we can do diag this way
+#define	DIAG_IMPLEMENTATION	0
+#else
+#if	UART_TCV_MODE == UART_TCV_MODE_N
+// Non-persistent packets; we have a mode for that
+#define	DIAG_IMPLEMENTATION	1
+#endif
+#endif
+// Room for UART_TCV_MODE_P [later - this UART mode is likely to go]
+#endif
+#endif
+// ===========================================================================
+
+// LCD =======================================================================
+#ifndef	DIAG_IMPLEMENTATION
+
 #ifdef	LCD_PRESENT
-#define	DIAG_MESSAGES_TO_LCD	1	// Diag messages go to LCD
-#else	/* No UART, no LCD */
+#define	DIAG_IMPLEMENTATION	2
+#endif
+
+#endif
+// ===========================================================================
+
+#ifndef	DIAG_IMPLEMENTATION
+// We haven't been able to find an implementation for diag, deactivate it
 #undef	DIAG_MESSAGES
+#undef	dbg_level
 #define	DIAG_MESSAGES		0
-#endif	/* LCD_PRESENT */
-#endif	/* DIAG_AVAILABLE */
+#define	dbg_level		0
+#endif
+
 #endif	/* DIAG_MESSAGES */
 
 // ===========================================================================
 
+#include "diag_sys.h"
 #include "dbgtrc.h"
-
 #include "board_headers.h"
 
 #if SIM_NET==0

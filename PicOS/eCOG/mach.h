@@ -103,34 +103,6 @@ typedef struct	{
 #define	uart_b_enable_write_int	rg.duart.b_int_en |= \
          		DUART_B_INT_EN_TX_RDY_MASK
 
-#ifndef	dbg_level
-#define	dbg_level	0
-#endif
-
-#if	DIAG_MESSAGES || (dbg_level != 0)
-/* ==================================================================== */
-/* This is supposed to be useful for debugging,  so  it circumvents the */
-/* UART driver and uses no interrupts. Unfortunately, it isn't going to */
-/* work until the driver's init function has been called.               */
-/* ==================================================================== */
-#define DUART_a_STS_TX_RDY_MASK DUART_A_STS_TX_RDY_MASK
-#define DUART_b_STS_TX_RDY_MASK DUART_B_STS_TX_RDY_MASK
-
-#define	diag_wchar(c,a)		rg.duart. ## a ## _tx8 = (word)(c)
-#define	diag_wait(a)		while ((rg.duart. ## a ## _sts & \
-			        DUART_ ## a ## _STS_TX_RDY_MASK) \
-					== 0);
-
-#define	diag_disable_int(a,u)	uart_ ## a ## _disable_int
-
-#define	diag_enable_int(a,u)	do { \
-					if (zz_uart [0].lock == 0) { \
-					    uart_ ## a ## _enable_read_int; \
-					    uart_ ## a ## _enable_write_int; \
-					} \
-				} while (0)
-#endif
-
 #define	SLEEP		do { evening; sleep (); } while (0)
 #define	RISE_N_SHINE	morning
 #define	RTNI		return

@@ -330,6 +330,64 @@ void phys_uart (int phy, int mbs, int which) {
 #undef	UA
 }
 
+#if DIAG_MESSAGES
+
+// Hooks for DIAG
+
+#if UART_TCV < 2
+#define	UA zz_uart
+#define	DIAG_WAIT	diag_wait (a)
+#define	DIAG_WCHAR(c)	diag_wchar (c, a)
+#else
+
+#define UA (zz_uart + ua)
+
+#define	DIAG_WAIT	do { \
+				if (ua) \
+					diag_wait (b); \
+				else \
+					diag_wait (a); \
+			} while (0)
+
+#define	DIAG_WCHAR(c)	do { \
+				if (ua) \
+					diag_wchar (c, b); \
+				else \
+					diag_wchar (c, a); \
+			} while (0)
+#endif
+
+void zz_diag_init (int ua) {
+//
+// Preempt the UART for a diag message
+//
+	word bc;
+
+	if (UA->x_istate != IRQ_X_OFF) {
+		// Transmitter running, abort it
+		UART_STOP_XMITTER;
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+		bc = UA->x_buffl + 6;
+	} else
+		// Transmitter stopped
+		bc = 4;
+
+	// Send that many 0x54's
+	while (bc--) {
+		DIAG_WCHAR (0x54);
+		DIAG_WAIT;
+	}
+}
+
+void zz_diag_stop (int ua) { }
+
+#undef	UA
+#undef	DIAG_WAIT
+#undef	DIAH_WCHAR
+		
+#endif	/* DIAG_MESSAGES */
+
 #if UART_TCV > 1
 static int option0 (int opt, address val) {
 	return option (opt, val, zz_uart + 0);
@@ -433,6 +491,14 @@ static int option (int opt, address val) {
 }
 
 #endif /* UART_TCV_MODE_N */
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+
+
+
 
 #if UART_TCV_MODE == UART_TCV_MODE_P
 

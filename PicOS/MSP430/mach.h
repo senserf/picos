@@ -328,45 +328,6 @@ extern uart_t zz_uart [];
 // Also needed by UART_TCV (if UART_DRIVER is 0)
 #define	UART_RATE_MASK		0x0F
 
-
-#if	DIAG_MESSAGES || (dbg_level != 0)
-
-#ifdef	DIAG_MESSAGES_TO_LCD
-
-#define	diag_disable_int(a,u)	lcd_clear (0, 0)
-#define	diag_wchar(c,a)		lcd_putchar (c)
-#define	diag_wait(a)		do { } while (0)
-#define	diag_enable_int(a,u)	do { } while (0)
-
-#else	/* DIAG MESSAGES TO UART */
-
-#define	diag_wchar(c,a)		TXBUF_A = (byte)(c)
-#define	diag_wait(a)		while ((IFG_A & UTXIFG_A) == 0)
-
-#define	diag_disable_int(a,u)	do { \
-					(u) = IE_A & (URXIE_A + UTXIE_A); \
-					(u) |= (READ_SR & GIE); \
-					cli; \
-					_BIC (IE_A, URXIE_A + UTXIE_A); \
-					if ((u) & GIE) \
-						sti; \
-					(u) &= ~GIE; \
-				} while (0)
-					
-#define	diag_enable_int(a,u)	do { \
-					(u) |= (READ_SR & GIE); \
-					cli; \
-					_BIS (IE_A, (u) & (URXIE_A + UTXIE_A));\
-					if ((u) & GIE) \
-						sti; \
-				} while (0)
-
-
-
-#endif	/* DIAG MESSAGES TO UART */
-
-#endif	/* DIAG MESSAGES */
-
 #define	sti	_EINT ()
 #define	cli	_DINT ()
 
@@ -419,8 +380,8 @@ extern uart_t zz_uart [];
 
 #else
 
-#define	CPU_MARK_IDLE	do { } while (0)
-#define	CPU_MARK_BUSY	do { } while (0)
+#define	CPU_MARK_IDLE	CNOP
+#define	CPU_MARK_BUSY	CNOP
 
 #endif
 
