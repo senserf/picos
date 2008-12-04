@@ -52,7 +52,7 @@ typedef struct {
 
 	byte Font;		// Font ID
 	byte BG, FG;		// Colors
-	const char **Lines;	// This must be allocated by the praxis
+	char **Lines;		// This must be allocated by the praxis
 	word NL;		// Number of lines
 	byte Width, Height;	// In characters
 	word FL,		// First line displayed
@@ -69,7 +69,7 @@ typedef struct {
 
 	byte Font;
 	byte BG, FG;		// Colors
-	const char *Line;	// This must be allocated by the praxis
+	char *Line;		// This must be allocated by the praxis
 	byte Width, Height;	// In characters
 	
 
@@ -88,9 +88,9 @@ byte lcdg_dm_dtop (void);
 lcdg_dm_obj_t *lcdg_dm_remove (lcdg_dm_obj_t*);
 byte lcdg_dm_refresh (void);
 byte lcdg_dm_newtop (lcdg_dm_obj_t*);
-lcdg_dm_obj_t *lcdg_dm_newmenu (const char**,
+lcdg_dm_obj_t *lcdg_dm_newmenu (char**,
 			word, byte, byte, byte, byte, byte, byte, byte);
-lcdg_dm_obj_t *lcdg_dm_newtext (const char*,
+lcdg_dm_obj_t *lcdg_dm_newtext (char*,
 			byte, byte, byte, byte, byte, byte);
 lcdg_dm_obj_t *lcdg_dm_newimage (word, byte, byte);
 char **lcdg_dm_asa (word);

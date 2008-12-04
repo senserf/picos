@@ -2605,5 +2605,16 @@ R081202A:
 
 	The oss_u package in Scripts has been modified to intercept diag
 	packets and diplay them directly to stdout. In particular, this means
-	that the oss.tcl script in SEAWOLF/TEST will propelry handle
+	that the oss.tcl script in SEAWOLF/TEST will properly handle
 	diag messages.
+
+R081204A:
+
+	Removed the restrictive "const" qualifier from lines in
+	lcdg_dispman.[ch].
+
+	Implemented freeze for eCOG (achieving below 5uA on bare-bones board).
+
+	Moved "evening" after "sleep" (in eCOG's mach.h). This makes better
+	sense and prevents races between interrupts and processes waiting for
+	interrupt-triggered events.

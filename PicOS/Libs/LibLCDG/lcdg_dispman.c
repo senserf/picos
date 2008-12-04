@@ -474,7 +474,7 @@ byte lcdg_dm_newtop (lcdg_dm_obj_t *o) {
 }
 
 lcdg_dm_obj_t *lcdg_dm_newmenu (
-			const char **ls,	// The array of lines
+			char **ls,		// The array of lines
 			word nl,		// The number of lines
 			byte fn,		// Font number
 			byte bg,		// Background color
@@ -556,7 +556,7 @@ void lcdg_dm_csa (char **lines, word n) {
 	ufree (lines);
 }
 
-lcdg_dm_obj_t *lcdg_dm_newtext (const char *ln, byte fn, byte bg, byte fg,
+lcdg_dm_obj_t *lcdg_dm_newtext (char *ln, byte fn, byte bg, byte fg,
 						byte x, byte y, byte w) {
 //
 // Create a text object

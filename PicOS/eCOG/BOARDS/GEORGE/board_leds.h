@@ -10,13 +10,16 @@
 
 /* Positive polarity, two leds only */
 
-#define	LED0_ON		ZZ_LEDS47 (0x0001)
-#define	LED1_ON		ZZ_LEDS03 (0x1000)
+#define	LED0_GPIO_BIT	0x0001
+#define	LED1_GPIO_BIT	0x1000
+
+#define	LED0_ON		ZZ_LEDS47 (LED0_GPIO_BIT)
+#define	LED1_ON		ZZ_LEDS03 (LED1_GPIO_BIT)
 #define	LED2_ON		do { } while (0)
 #define	LED3_ON		do { } while (0)
 
-#define	LED0_OFF	ZZ_LEDS47 (0x0002)
-#define	LED1_OFF	ZZ_LEDS03 (0x2000)
+#define	LED0_OFF	ZZ_LEDS47 (LED0_GPIO_BIT << 1)
+#define	LED1_OFF	ZZ_LEDS03 (LED1_GPIO_BIT << 1)
 #define	LED2_OFF	do { } while (0)
 #define	LED3_OFF	do { } while (0)
 
@@ -25,4 +28,14 @@
 			    IO_GP0_3_OUT_EN3_MASK | IO_GP0_3_OUT_CLR3_MASK; \
 			  rg.io.gp4_7_out = \
 			    IO_GP4_7_OUT_EN4_MASK | IO_GP4_7_OUT_CLR4_MASK; \
+			} while (0)
+
+#define	leds_save	((rg.io.gp4_7_out & LED0_GPIO_BIT) | \
+			 (rg.io.gp0_3_out & LED0_GPIO_BIT))
+
+#define leds_off	do { LED0_OFF; LED1_OFF; } while (0)
+
+#define	leds_restore(w)	do { \
+				if ((w & LED0_GPIO_BIT)) LED0_ON; \
+				if ((w & LED1_GPIO_BIT)) LED1_ON; \
 			} while (0)

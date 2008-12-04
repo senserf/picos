@@ -1,5 +1,5 @@
-#ifdef	MALLOC_STATS
 #undef	MALLOC_STATS
-#endif
+#undef	GLACIER
 
 #define	MALLOC_STATS	1
+#define	GLACIER		1

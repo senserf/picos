@@ -100,7 +100,7 @@
                   DC       $zzz_minimal_handler
 
 ;;$interrupt_tim_lit_undeflow_vector:
-                  DC       $zzz_minimal_handler
+                  DC       $timer_long_int??
 
 ;;$interrupt_intact_cpu_channel_rx_ready_vector:
                   DC       $zzz_minimal_handler

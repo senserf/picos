@@ -103,7 +103,7 @@ typedef struct	{
 #define	uart_b_enable_write_int	rg.duart.b_int_en |= \
          		DUART_B_INT_EN_TX_RDY_MASK
 
-#define	SLEEP		do { evening; sleep (); } while (0)
+#define	SLEEP		do { sleep (); evening; } while (0)
 #define	RISE_N_SHINE	morning
 #define	RTNI		return
 

@@ -1,7 +1,7 @@
 ;
 ; ============================================================================ 
 ;                                                                              
-; Copyright (C) Olsonet Communications Corporation, 2002, 2005                 
+; Copyright (C) Olsonet Communications Corporation, 2002-2008                 
 ; All rights reserved.
 ;                                                                              
 ; ============================================================================ 

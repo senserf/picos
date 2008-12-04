@@ -79,7 +79,8 @@ endstrand
 #define	RS_DELAY	6
 #define	RS_DUP		7
 #define	RS_PSAVE	8
-#define	RS_PUP		9
+#define	RS_FREEZE	9
+#define	RS_PUP		10
 
 thread (root)
 /* =========================================== */
@@ -101,6 +102,7 @@ thread (root)
 		" 'v' (mem)\r\n"
 		" 'd n' (sleep n secs)\r\n"
 		" 'p n' (PD mode n secs)\r\n"
+		" 'g n' (freeze n secs)\r\n"
 		" 'h' (HALT)\r\n"
 		" 'r' (RESET)\r\n",
 			RS_READ);
@@ -116,6 +118,7 @@ thread (root)
 		case 'v' : proceed (RS_SHOWMEM);
 		case 'd' : proceed (RS_DELAY);
 		case 'p' : proceed (RS_PSAVE);
+		case 'g' : proceed (RS_FREEZE);
 		case 'r' : reset ();
 	 	case 'h' : halt ();
 	}
@@ -193,5 +196,17 @@ diag ("DEL %u", d * 1024);
   entry (RS_DUP)
 
 	call (output, "done\r\n", RS_READ);
+
+  entry (RS_FREEZE)
+
+	{
+	    word d;
+
+	    d = 1;
+	    scan (ibuf + 1, "%u", &d);
+	    freeze (d);
+
+	}
+	proceed (RS_DUP);
 
 endthread

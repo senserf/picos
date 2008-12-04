@@ -79,7 +79,9 @@ static void ssm_init (void), cnf_init (void), rtc_init (void),
 	    mem_init (void), ios_init (void);
 
 void clockdown (void) {
-
+//
+// Slow down the clock
+//
 	cli_tim;
 	rg.ssm.clk_dis = SSM_CLK_DIS_TMR_MASK;
 	rg.tim.tmr_ld = 4095;
@@ -88,7 +90,7 @@ void clockdown (void) {
 	zz_systat.cdmode = 1;
 	sti_tim;
 }
-	
+
 void clockup (void) {
 
 	cli_tim;
@@ -100,17 +102,8 @@ void clockup (void) {
 	sti_tim;
 }
 	
-void powerdown (void) {
-/* =================================================================== */
-/* Note: I don't think I can do that while I am waiting for UART input */
-/* because it will mess up the UART's clock. I may try later to drive  */
-/* the UART from a low REF source.                                     */
-/*                                                                     */
-/* OK, low-power operation still doesn't work,  but I think I know how */
-/* to do it, so it will be done some day.                              */
-/* =================================================================== */
+static void lowpower () {
 
-	clockdown ();
 	/* Assert low reference as source until it is accepted. */
 	while (fd.ssm.cpu.sts != SSM_CPU_STS_LOW_REF_CLK) {
 		fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_LOW_REF_CLK;
@@ -123,7 +116,7 @@ void powerdown (void) {
 		SSM_CLK_DIS_HIGH_PLL_MASK;
 }
 
-void powerup (void) {
+static void highpower (void) {
 
 	rg.ssm.clk_en =
 		SSM_CLK_EN_HIGH_OSC_MASK |
@@ -136,8 +129,104 @@ void powerup (void) {
 	while (fd.ssm.cpu.sts != SSM_CPU_STS_HIGH_PLL_CLK) {
 		fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_HIGH_PLL_CLK;
 	}
-	clockup ();
 }
+
+void powerdown (void) { clockdown (); lowpower (); }
+void powerup (void) { highpower (); clockup (); }
+
+
+// ============================================================================
+#if GLACIER
+void freeze (word nsec) {
+/*
+ * Freezes the system in power-down mode for the specified number of seconds.
+ */
+	word saveCK, saveLD;
+
+	// Save the running clocks (except LTMR, EMI, PLL, OSC); LTMR will not
+	// be re-enabled when we are done, the remaining ones are taken care
+	// of by powerup
+	saveCK = rg.ssm.sts & (
+		     SSM_CLK_EN_UARTA_MASK 
+                   | SSM_CLK_EN_UARTB_MASK 
+                   | SSM_CLK_EN_DUSART_MASK 
+                   | SSM_CLK_EN_CNT1_MASK 
+                   | SSM_CLK_EN_CNT2_MASK 
+                   | SSM_CLK_EN_PWM1_MASK 
+                   | SSM_CLK_EN_PWM2_MASK 
+                   | SSM_CLK_EN_CAP_MASK 
+                   | SSM_CLK_EN_WDOG_MASK 
+                   | SSM_CLK_EN_TMR_MASK);
+
+	// Disable all clocks except the ones taken care of by powerdown
+	// (below); note that LTMR is also disabled - just in case
+	rg.ssm.clk_dis = 
+		     SSM_CLK_DIS_UARTA_MASK 
+                   | SSM_CLK_DIS_UARTB_MASK 
+                   | SSM_CLK_DIS_DUSART_MASK 
+                   | SSM_CLK_DIS_CNT1_MASK 
+                   | SSM_CLK_DIS_CNT2_MASK 
+                   | SSM_CLK_DIS_PWM1_MASK 
+                   | SSM_CLK_DIS_PWM2_MASK 
+                   | SSM_CLK_DIS_CAP_MASK 
+                   | SSM_CLK_DIS_WDOG_MASK 
+                   | SSM_CLK_DIS_LTMR_MASK 
+                   | SSM_CLK_DIS_TMR_MASK;
+
+	// The UARTs are now necessarily stopped; also the system clock is now
+	// killed (TMR being disabled)
+
+	saveLD = leds_save;
+	leds_off;
+
+	// Enable LTMR; note: there is no LD_MASK, as we want to run this timer
+	// exactly once
+	rg.tim.ctrl_en = TIM_CTRL_EN_LTMR_CNT_MASK;
+
+	// The load value == interval in seconds (I thought it would be - 1)
+	rg.tim.ltmr_ld = nsec;
+
+	// Load the timer
+	fd.tim.cmd.ltmr_ld = 1;
+
+	// And enable it
+	rg.ssm.clk_en = SSM_CLK_EN_LTMR_MASK;
+
+	// Make sure there is no pending event that would render SLEEP void
+	evening;
+
+	// Enable interrupts from LTMR
+	rg.tim.int_en1 = TIM_INT_EN1_LTMR_EXP_MASK;
+
+	// Time to enter the low power mode; it is really slow, so we do it
+	// at the last moment; I wonder if this cannot trigger an interrupt
+	lowpower ();
+
+	// Wait for any interrupt; as we have disabled all clocks except LTMR,
+	// this can only be an LTMR interrupt, or something peripheral; in
+	// contrast to MSP430, there is no easy way to 1) mask/block all such
+	// interrupts at once, or 2) easily collect those that are disabled
+	// and re-enable them when we are done with the waiting; let us assume
+	// for now some cooperation from the praxis and, possiby, try to fix
+	// it later
+	SLEEP;
+
+	highpower ();
+
+	// Done with LTMR, disable it solid
+	rg.ssm.clk_dis = SSM_CLK_DIS_LTMR_MASK;
+	rg.tim.ctrl_dis = TIM_CTRL_DIS_LTMR_CNT_MASK;
+	rg.tim.int_dis1 = TIM_INT_DIS1_LTMR_EXP_MASK;
+
+	// Restore LEDs
+	leds_restore (saveLD);
+
+	// ... and the running clocks
+	rg.ssm.clk_en = saveCK;
+}
+
+#endif /* GLACIER */
+// ============================================================================
 
 void reset (void) {
 
@@ -415,15 +504,33 @@ static void ssm_init () {
 
 	/* Configure operation of clocks during sleep and wakeup modes. */
 	rg.ssm.clk_sleep_dis =
-		SSM_CLK_SLEEP_DIS_UARTA_MASK |
-		SSM_CLK_SLEEP_DIS_UARTB_MASK |
-		SSM_CLK_SLEEP_DIS_TIMEOUT_MASK;
+		// All that can be disabled are disabled
+		       SSM_CLK_SLEEP_DIS_UARTA_MASK 
+                     | SSM_CLK_SLEEP_DIS_UARTB_MASK 
+                     | SSM_CLK_SLEEP_DIS_DUSART_MASK 
+                     | SSM_CLK_SLEEP_DIS_CNT1_MASK 
+                     | SSM_CLK_SLEEP_DIS_CNT2_MASK 
+                     | SSM_CLK_SLEEP_DIS_PWM1_MASK 
+                     | SSM_CLK_SLEEP_DIS_PWM2_MASK 
+                     | SSM_CLK_SLEEP_DIS_CAP_MASK 
+                     | SSM_CLK_SLEEP_DIS_WDOG_MASK 
+#if GLACIER == 0
+	// Disabled here just in case (costs nothing); with CLACIER == 0, the
+	// LTMR clock is never enabled to begin with
+                     | SSM_CLK_SLEEP_DIS_LTMR_MASK 
+#endif
+                     | SSM_CLK_SLEEP_DIS_TIMEOUT_MASK;
+
 	rg.ssm.clk_wake_en =
 		SSM_CLK_WAKE_EN_UARTA_MASK |
 		SSM_CLK_WAKE_EN_UARTB_MASK;
 
 	/* Remove the reset. */
-	rg.ssm.rst_clr = SSM_RST_CLR_TMR_MASK;
+	rg.ssm.rst_clr = 
+#if GLACIER
+		SSM_RST_CLR_LTMR_MASK |
+#endif
+		SSM_RST_CLR_TMR_MASK;
 }
 
 static void cnf_init () {
@@ -556,8 +663,23 @@ static void rtc_init () {
 	// This divides the basic slow crystal rate by 8 (2^3) yielding
 	// 4096
 	fd.ssm.tap_sel3.tmr = 1;
-	fd.ssm.div_sel.tmr = 0;
+
+	// Low frequency clock for all timer clocks
 	fd.ssm.div_sel.low_clk_timer = 1;
+
+	// This selects reference (rather than PLL) for TMR; this is low
+	// reference (see above)
+	fd.ssm.div_sel.tmr = 0;
+
+#if	GLACIER
+	// This is supposed to mean 2^(2+5) = 128, yielding 32768/128 = 256
+	// ticks per seconds, i.e., the range of the lowest byte of LTMR; this
+	// way the upper (settable) word of LTMR should be directly in seconds
+	fd.ssm.tap_sel3.ltmr = 5;
+
+	// Not that for LTMR, there is no reference/PLL option - it is always
+	// reference
+#endif
 
 	/* =========================================================== */
 	/* PG: this selects the low frequency clock source as the RTC, */
@@ -568,7 +690,7 @@ static void rtc_init () {
 	/* Flag no processes waiting for timer */
 	zz_lostk = zz_mintk = 0;
 
-	/* Enable the clock input. */
+	// This has been moved to clockup
 	// rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
 
 	rg.tim.ctrl_en =
@@ -666,6 +788,16 @@ void __irq_entry timer_int () {
 
 	RISE_N_SHINE;
 
+	RTNI;
+}
+
+void __irq_entry timer_long_int () {
+//
+// This one is trivial
+//
+	// Clear the condition
+	fd.tim.int_clr1.ltmr_exp = 1;
+	RISE_N_SHINE;
 	RTNI;
 }
 
