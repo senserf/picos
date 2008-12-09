@@ -9,7 +9,7 @@
  *  SCK				P5.3 UCLK1
  */
 
-#define	STORAGE_AT45_TYPE	41	// Select the actual model used
+#define	STORAGE_AT45_TYPE	410	// Select the actual model (variant 'D')
 
 #include "board_pins.h"
 #include "storage_at45xxx.h"

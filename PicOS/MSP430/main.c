@@ -770,6 +770,10 @@ interrupt (TIMERB0_VECTOR) timer_int () {
 
 		RISE_N_SHINE;
 	}
+
+#ifdef	MONITOR_PIN_CLOCK
+	_PVS (MONITOR_PIN_CLOCK, 0);
+#endif
 	RTNI;
 }
 
@@ -800,6 +804,10 @@ void freeze (word nsec) {
 	// Save leds status and turn them off
 	saveLEDs = leds_save ();
 	leds_off ();
+
+#ifdef EEPROM_PDMODE_AVAILABLE
+	zz_ee_pdown ();
+#endif
 
 #if UART_DRIVER || UART_TCV
 	// Save UART interrupt configuration
@@ -852,6 +860,10 @@ void freeze (word nsec) {
 	P2IFG = (P2IE & (P2IES ^ P2IN));
 
 	zz_lostk = saveLostK;
+
+#ifdef EEPROM_PDMODE_AVAILABLE
+	zz_ee_pup ();
+#endif
 	leds_restore (saveLEDs);
 
 	WATCHDOG_START;

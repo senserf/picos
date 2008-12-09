@@ -25,3 +25,7 @@
 			  IO_GP0_3_OUT_EN1_MASK | IO_GP0_3_OUT_SET1_MASK | \
 			  IO_GP0_3_OUT_EN2_MASK | IO_GP0_3_OUT_SET2_MASK | \
 			  IO_GP0_3_OUT_EN3_MASK | IO_GP0_3_OUT_SET3_MASK )
+
+#define leds_save	rg.io.gp0_3_out
+#define	leds_off	rg.io.gp0_3_out = 0x1111
+#define	leds_restore(w)	rg.io.gp0_3_out = (w)

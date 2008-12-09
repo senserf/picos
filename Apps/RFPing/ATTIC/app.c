@@ -6,8 +6,14 @@
 #include "sysio.h"
 #include "tcvphys.h"
 
-#ifdef	PIN_TEST
+#define	PIN_RAW_TEST	1
+
+#ifdef	PIN_OPS_TEST
 #include "pinopts.h"
+#endif
+
+#ifdef	PIN_RAW_TEST
+#include "portnames.h"
 #endif
 
 #define	ENCRYPT	0
@@ -367,6 +373,8 @@ int snd_stop (void) {
 #define	RS_LED		95
 #define	RS_SPIN		100
 #define	RS_GPIN		110
+#define	RS_RPIS		113
+#define	RS_RPIP		117
 #define	RS_URS		120
 #define	RS_URG		130
 #define	RS_SDRAM	140
@@ -385,7 +393,7 @@ thread (root)
 	static char *ibuf;
 	static int k, n1;
 	static char *fmt, obuf [32];
-	static word p [2];
+	static word p [4];
 	static word n;
 #if SDRAM_PRESENT
 	static word *mbuf, m, bp;
@@ -472,10 +480,15 @@ thread (root)
 		"q        -> stop both\r\n"
 		"i        -> set station Id\r\n"
 		"l n s    -> led n [012]\r\n"
-#ifdef PIN_TEST
-		"x p r    -> read ADC pin 'p' with reference r (0/1 1.5V/2.5V)\r\n"
-		"y p v    -> set pin 'p' to v (0/1)\r\n"
-		"z p      -> show the value of pin 'p'\r\n"
+#ifdef PIN_OPS_TEST
+		"x p r    -> read ADC p ref r\r\n"
+		"y p v    -> set p to v\r\n"
+		"z p      -> show p\r\n"
+#endif
+
+#ifdef PIN_RAW_TEST
+		"Y p v    -> set p [0,1,2 = in, 3 = special]\r\n"
+		"Z p      -> show p\r\n"
 #endif
 
 #if SDRAM_PRESENT
@@ -523,10 +536,15 @@ thread (root)
 		case 'r': proceed (RS_RCV);
 		case 'd': proceed (RS_PAR);
 		case 'l': proceed (RS_LED);
-#ifdef PIN_TEST
+#ifdef PIN_OPS_TEST
 		case 'x': proceed (RS_GADC);
 		case 'y': proceed (RS_SPIN);
 		case 'z': proceed (RS_GPIN);
+#endif
+
+#ifdef PIN_RAW_TEST
+		case 'Y': proceed (RS_RPIS);
+		case 'Z': proceed (RS_RPIP);
 #endif
 
 #if SDRAM_PRESENT
@@ -727,7 +745,7 @@ thread (root)
 	leds (p [0], p [1]);
 	proceed (RS_RCMD);
 
-#ifdef PIN_TEST
+#ifdef PIN_OPS_TEST
 
   entry (RS_GADC)
 
@@ -764,6 +782,49 @@ thread (root)
 	proceed (RS_RCMD);
 
 #endif
+
+#ifdef PIN_RAW_TEST
+
+  entry (RS_RPIS)
+
+	p [0] = WNONE;
+	p [1] = 0;
+	scan (ibuf + 1, "%u %u", p+0, p+1);
+	if (p [0] >= PORTNAMES_NPINS)
+		proceed (RS_RCMD+1);
+
+	if (p [1] < 2) {
+		_PFS (p [0], 0);
+		_PDS (p [0], 1);
+		_PVS (p [0], p [1]);
+	} else if (p [1] == 2) {
+		// Set input
+		_PFS (p [0], 0);
+		_PDS (p [0], 0);
+	} else {
+		// Special function
+		_PFS (p [0], 1);
+	}
+	proceed (RS_LPM+2);
+
+  entry (RS_RPIP)
+
+	p [0] = WNONE;
+	scan (ibuf + 1, "%u", p+0);
+	if (p [0] >= PORTNAMES_NPINS)
+		proceed (RS_RCMD+1);
+
+	p [1] = _PV (p [0]);
+	p [2] = _PD (p [0]);
+	p [3] = _PF (p [0]);
+
+  entry (RS_RPIP+1)
+
+	ser_outf (RS_RPIP+1, "Pin %u = val %u, dir %u, fun %u\r\n",
+		p [0], p [1], p [2], p [3]);
+	proceed (RS_RCMD);
+
+#endif	/* PIN_RAW_TEST */
 
 #if UART_RATE_SETTABLE
 
@@ -878,12 +939,15 @@ thread (root)
 
 	n = 0;
 	scan (ibuf + 1, "%u", &n);
-	if (n == 0)
-		n = 1;
-	else if (n1 > 63)
+
+	if (n > 63)
 		n = 63;
 
 	powerdown ();
+
+	if (n == 0)
+		proceed (RS_LPM+2);
+
 	delay (n * 1024, RS_LPM+1);
 	release;
 

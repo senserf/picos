@@ -71,3 +71,5 @@
  */
 #define	PORT_L_ENABLE		PORT_EN_L_MASK
 #define	PORT_L_SELECT		fd.port.sel2.l = 2
+
+#define	ECOG_BROKEN_ADC	1	// On the old evaluation board, the ADC locks

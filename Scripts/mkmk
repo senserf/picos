@@ -397,7 +397,7 @@ proc outprf { def cpu } {
 			}
 		}
 
-		foreach dep [array names Locdep] {
+		foreach fn [array names Locdep] {
 			if { [file extension $fn] == ".h" } {
 				puts $mfd "<file path=\"$fn\"/>"
 			}

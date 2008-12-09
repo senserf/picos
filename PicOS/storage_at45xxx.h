@@ -13,6 +13,7 @@
 #define	STORAGE_AT45_TYPE	41	// This is what we started from
 #endif
 
+// ============================================================================
 #if STORAGE_AT45_TYPE == 41
 
 #define	EE_MMPR		0x52		// Main memory page read (direct)
@@ -31,6 +32,38 @@
 
 #endif	/* 41 */
 
+// ============================================================================
+#if STORAGE_AT45_TYPE == 410
+//
+// This is the 'D' variant of 41
+//
+#define	EE_MMPR		0xD2		// Main memory page read (direct)
+
+// Use lower frequency reads (it is still up to 33 MHz, i.e., more than we
+// can handle), while giving us a slightly better power budget
+
+#define	EE_B1R		0xD4		// Buffer 1 read
+#define	EE_B2R		0xD6		// Buffer 2 read
+
+#define	EE_STAT		0xD7		// Status
+
+#define	EE_PADDR_BITS	15		// Page address bits
+#define	EE_POFFS_BITS	9		// Including extra zero bit
+
+#define	EE_PAGE_SIZE	256			// bytes used by the praxis
+#define	EE_PAGE_SIZE_T	(EE_PAGE_SIZE + 8)	// including the extra 8 bytes
+#define	EE_PAGE_SHIFT	8
+
+#define	EE_NBLOCKS	2048
+
+#define	EE_PDN		0xB9		// Enter PD mode
+#define	EE_PUP		0xAB		// Return to standby
+
+#define	EEPROM_PDMODE_AVAILABLE	1
+
+#endif	/* 41 D */
+
+// ============================================================================
 #if STORAGE_AT45_TYPE == 321
 
 #define	EE_MMPR		0xD2		// Main memory page read (direct)

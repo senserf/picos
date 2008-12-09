@@ -102,38 +102,148 @@ void clockup (void) {
 	sti_tim;
 }
 	
-static void lowpower () {
+void cpupower (word mode) {
+//
+// CPU power modes
+//
+	switch (mode) {
 
-	/* Assert low reference as source until it is accepted. */
-	while (fd.ssm.cpu.sts != SSM_CPU_STS_LOW_REF_CLK) {
-		fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_LOW_REF_CLK;
-	}
-	rg.ssm.clk_dis =
-		SSM_CLK_DIS_HIGH_OSC_MASK |
+// ============================================================================
+// Low Ref, absolute bottom, CPU @ 16kHz, unusable for execution (freeze only)
+// ============================================================================
+#if GLACIER
+	    case 0:
+
+		while (fd.ssm.cpu.sts != SSM_CPU_STS_LOW_REF_CLK)
+			fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_LOW_REF_CLK; 
+
+		// Clock not divided
+		fd.ssm.cpu.cpu_clk_div = 7;
+
+		rg.ssm.clk_dis =
+			SSM_CLK_DIS_HIGH_OSC_MASK |
 #ifdef EMI_USED
-		SSM_CLK_DIS_EMI_MASK |
+			SSM_CLK_DIS_EMI_MASK |
 #endif
-		SSM_CLK_DIS_HIGH_PLL_MASK;
+			SSM_CLK_DIS_LOW_PLL_MASK |
+			SSM_CLK_DIS_HIGH_PLL_MASK;
+
+		// No wait states needed
+		fd.mmu.flash_ctrl.wait_states = 0;
+		return;
+
+#endif	/* GLACIER */
+
+// ============================================================================
+// Low ref PLL, CPU @ 2.46 MHz, pretty much useless, no power savings compared
+// to mode 2
+// ============================================================================
+#if 0
+	    case 1:
+
+		rg.ssm.clk_en = SSM_CLK_EN_LOW_PLL_MASK;
+
+		while (fd.ssm.cpu.sts != SSM_CPU_STS_LOW_PLL_CLK)
+			fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_LOW_PLL_CLK; 
+
+		// Clock not divided
+		fd.ssm.cpu.cpu_clk_div = 7;
+
+		rg.ssm.clk_dis =
+			SSM_CLK_DIS_HIGH_OSC_MASK |
+#ifdef EMI_USED
+			SSM_CLK_DIS_EMI_MASK |
+#endif
+			SSM_CLK_DIS_HIGH_PLL_MASK;
+
+		// No wait states needed
+		fd.mmu.flash_ctrl.wait_states = 0;
+		return;
+#endif	/* DISABLED */
+
+// ============================================================================
+// High ref, no PLL, CPU @ 2.5 MHz, used for low-power executable mode, perhaps
+// with clockdown
+// ============================================================================
+
+	    case 2:
+
+		rg.ssm.clk_en =
+#ifdef EMI_USED
+			SSM_CLK_EN_EMI_MASK |
+#endif
+			SSM_CLK_EN_HIGH_OSC_MASK;
+
+		while (fd.ssm.cpu.sts != SSM_CPU_STS_HIGH_REF_CLK)
+			fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_HIGH_REF_CLK; 
+
+		// Clock not divided
+		fd.ssm.cpu.cpu_clk_div = 7;
+
+		rg.ssm.clk_dis =
+			SSM_CLK_DIS_LOW_PLL_MASK |
+			SSM_CLK_DIS_HIGH_PLL_MASK;
+
+		// No wait states needed
+		fd.mmu.flash_ctrl.wait_states = 0;
+		return;
+
+// ============================================================================
+// Stepup PLL from low ref, CPU @ 24.6 MHz, useless, no savings compared to 4
+// ============================================================================
+#if 0
+	    case 3:
+
+		rg.ssm.clk_en = SSM_CLK_EN_LOW_PLL_MASK |
+#ifdef EMI_USED
+			SSM_CLK_EN_EMI_MASK
+#endif
+				SSM_CLK_EN_HIGH_PLL_MASK;
+
+		// Need wait states
+		fd.mmu.flash_ctrl.wait_states = 1;
+
+		// Divide clock by 2
+		fd.ssm.cpu.cpu_clk_div = 6;
+
+		while (fd.ssm.cpu.sts != SSM_CPU_STS_HIGH_PLL_CLK)
+			fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_LOW_PLL_CLK |
+				SSM_CFG_PLL_STEPUP_MASK; 
+
+		rg.ssm.clk_dis = SSM_CLK_DIS_HIGH_OSC_MASK;
+		return;
+#endif	/* DISABLED */
+
+// ============================================================================
+// Default high speed, high ref PLL, CPU @ 25 MHz
+// ============================================================================
+
+	    default:
+
+		rg.ssm.clk_en =
+			SSM_CLK_EN_HIGH_OSC_MASK |
+#ifdef EMI_USED
+			SSM_CLK_EN_EMI_MASK |
+#endif
+			SSM_CLK_EN_HIGH_PLL_MASK;
+
+		// Need wait states as CPU clock > 10 MHz
+		fd.mmu.flash_ctrl.wait_states = 1;
+
+		// Memory clock divided by 2
+		fd.ssm.cpu.cpu_clk_div = 6;
+
+		while (fd.ssm.cpu.sts != SSM_CPU_STS_HIGH_PLL_CLK)
+			fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_HIGH_PLL_CLK;
+
+		rg.ssm.clk_dis = SSM_CLK_DIS_LOW_PLL_MASK;
+	}
 }
 
-static void highpower (void) {
+// ============================================================================
 
-	rg.ssm.clk_en =
-		SSM_CLK_EN_HIGH_OSC_MASK |
-#ifdef EMI_USED
-		SSM_CLK_EN_EMI_MASK |
-#endif
-		SSM_CLK_EN_HIGH_PLL_MASK;
-
-	/* Assert high reference as source until it is accepted. */
-	while (fd.ssm.cpu.sts != SSM_CPU_STS_HIGH_PLL_CLK) {
-		fd.ssm.cfg.clk_sel = SSM_CFG_CLK_SEL_HIGH_PLL_CLK;
-	}
-}
-
-void powerdown (void) { clockdown (); lowpower (); }
-void powerup (void) { highpower (); clockup (); }
-
+void powerdown (void) { clockdown (); cpupower (2); }
+void powerup (void) { cpupower (4); clockup (); }
 
 // ============================================================================
 #if GLACIER
@@ -141,7 +251,7 @@ void freeze (word nsec) {
 /*
  * Freezes the system in power-down mode for the specified number of seconds.
  */
-	word saveCK, saveLD;
+	word saveCK, saveLD, saveUA, saveUB;
 
 	// Save the running clocks (except LTMR, EMI, PLL, OSC); LTMR will not
 	// be re-enabled when we are done, the remaining ones are taken care
@@ -175,7 +285,14 @@ void freeze (word nsec) {
 
 	// The UARTs are now necessarily stopped; also the system clock is now
 	// killed (TMR being disabled)
+	saveUA = rg.duart.a_int_en;
+	saveUB = rg.duart.b_int_en;
+	uart_a_disable_int;
+	uart_b_disable_int;
 
+#ifdef EEPROM_PDMODE_AVAILABLE
+	zz_ee_pdown ();
+#endif
 	saveLD = leds_save;
 	leds_off;
 
@@ -200,18 +317,18 @@ void freeze (word nsec) {
 
 	// Time to enter the low power mode; it is really slow, so we do it
 	// at the last moment; I wonder if this cannot trigger an interrupt
-	lowpower ();
+	cpupower (0);
 
 	// Wait for any interrupt; as we have disabled all clocks except LTMR,
 	// this can only be an LTMR interrupt, or something peripheral; in
 	// contrast to MSP430, there is no easy way to 1) mask/block all such
 	// interrupts at once, or 2) easily collect those that are disabled
 	// and re-enable them when we are done with the waiting; let us assume
-	// for now some cooperation from the praxis and, possiby, try to fix
+	// for now some cooperation from the praxis and, possibly, try to fix
 	// it later
 	SLEEP;
 
-	highpower ();
+	cpupower (4);
 
 	// Done with LTMR, disable it solid
 	rg.ssm.clk_dis = SSM_CLK_DIS_LTMR_MASK;
@@ -221,8 +338,15 @@ void freeze (word nsec) {
 	// Restore LEDs
 	leds_restore (saveLD);
 
-	// ... and the running clocks
+	// ... the running clocks
 	rg.ssm.clk_en = saveCK;
+
+#ifdef EEPROM_PDMODE_AVAILABLE
+	zz_ee_pup ();
+#endif
+	// ... and UART interrupts
+	rg.duart.a_int_en = saveUA;
+	rg.duart.b_int_en = saveUB;
 }
 
 #endif /* GLACIER */
@@ -462,46 +586,20 @@ static void ssm_init () {
 #ifdef EMI_USED
 		| SSM_RST_CLR_EMI_MASK
 #endif
-		| SSM_RST_CLR_LOW_REF_DIV_CHN_MASK
+			| SSM_RST_CLR_LOW_REF_DIV_CHN_MASK
+				| SSM_RST_CLR_LOW_PLL_DIV_CHN_MASK
 
 		;
 
-	/* Enable high reference and high PLL. */
-	rg.ssm.clk_en =
-		SSM_CLK_EN_HIGH_OSC_MASK |
-#ifdef EMI_USED
-		SSM_CLK_EN_EMI_MASK |
-#endif
-		SSM_CLK_EN_HIGH_PLL_MASK;
-	/* ============================================================== */
-	/* PG: this enables the HF crystal clock and HF PLL (phase locked */
-	/* loop).  According to the docs,  there are two crystals:  5 MHz */
-	/* and 32.768 kHz.   PLL is used to obtain  high  frequency  (the */
-	/* manual is a piece of crap - I couldn't find a word about this) */
-	/* reference clocks that are then divided to obtain all the other */
-	/* clocks needed by the CPU.                                      */
-	/* ============================================================== */
-
-	/* Add a wait state because the CPU frequency is above 10 MHz. */
-	fd.mmu.flash_ctrl.wait_states = 1;
-
-	/* Set CPU divider for maximum frequency. (High PLL/ 4) */
+	// Set CPU divider for maximum frequency; this one never changes
+	// across the various clock settings
 	fd.ssm.cpu.prescaler = 7;
-	/* ============================================== */
-	/* The 7 means 'divide by 2'. This yields 50 MHz. */
-	/* ============================================== */
-	fd.ssm.cpu.cpu_clk_div = 6;
-	/* Divide by 2 to produce 25MHz CPU clock */
 
-	/* Assert high PLL as source until it is accepted. */
-	while (fd.ssm.cpu.sts != SSM_CPU_STS_HIGH_PLL_CLK)
-	{
-		fd.ssm.cfg.clk_sel =
-			SSM_CFG_CLK_SEL_HIGH_PLL_CLK
-				| SSM_CFG_PLL_STEPUP_MASK
-				;
-	}
+	// Max CPU power
+	cpupower (4);
 
+// ============================================================================
+#if 1
 	/* Configure operation of clocks during sleep and wakeup modes. */
 	rg.ssm.clk_sleep_dis =
 		// All that can be disabled are disabled
@@ -524,6 +622,8 @@ static void ssm_init () {
 	rg.ssm.clk_wake_en =
 		SSM_CLK_WAKE_EN_UARTA_MASK |
 		SSM_CLK_WAKE_EN_UARTB_MASK;
+#endif /* 1 */
+// ============================================================================
 
 	/* Remove the reset. */
 	rg.ssm.rst_clr = 
@@ -654,6 +754,18 @@ static void cnf_init () {
 
 #endif
 
+// ============================================================================
+#ifdef	MONITOR_PIN_SCHED
+	_PDS (MONITOR_PIN_SCHED, 1);
+#endif
+#ifdef	MONITOR_PIN_CLOCK
+	_PDS (MONITOR_PIN_CLOCK, 1);
+#endif
+#ifdef	MONITOR_PIN_CPU
+	_PDS (MONITOR_PIN_CPU, 1);
+#endif
+// ============================================================================
+
 }
 
 static void rtc_init () {
@@ -712,6 +824,10 @@ void __irq_entry timer_int () {
 	/* Clear the interrupt condition */
 	fd.tim.int_clr1.tmr_exp = 1;
 
+#ifdef	MONITOR_PIN_CLOCK
+	_PVS (MONITOR_PIN_CLOCK, 1);
+#endif
+
 #if	STACK_GUARD
 	if (*((word*)estk_) != STACK_SENTINEL) {
 		/* We cannot call a function here */
@@ -765,6 +881,9 @@ void __irq_entry timer_int () {
 			RISE_N_SHINE;
 		}
 
+#ifdef	MONITOR_PIN_CLOCK
+	_PVS (MONITOR_PIN_CLOCK, 0);
+#endif
 		RTNI;
 	}
 
@@ -786,6 +905,9 @@ void __irq_entry timer_int () {
 
 	zz_lostk += JIFFIES;
 
+#ifdef	MONITOR_PIN_CLOCK
+	_PVS (MONITOR_PIN_CLOCK, 0);
+#endif
 	RISE_N_SHINE;
 
 	RTNI;

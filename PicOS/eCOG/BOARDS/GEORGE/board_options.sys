@@ -32,8 +32,11 @@
 #define	RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
 
+#define	GLACIER			1
+
 //+++ "battery.c"
 
 #define	BATTERY_TEST	(battery ())
 
 int battery (void);
+

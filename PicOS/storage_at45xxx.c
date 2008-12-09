@@ -187,11 +187,31 @@ static void sdc (byte nb) {
 	}
 }
 
-void zz_ee_init () {
+void zz_ee_init (void) {
 
 	ee_ini_regs;
 	ee_postinit;
 }
+
+#ifdef	EEPROM_PDMODE_AVAILABLE
+
+void zz_ee_pdown (void) {
+
+	waitnb ();
+	ee_start;
+	put_byte (EE_PDN);
+	ee_stop;
+}
+
+void zz_ee_pup (void) {
+
+	ee_start;
+	put_byte (EE_PUP);
+	ee_stop;
+	waitnb ();
+}
+
+#endif
 
 word ee_read (lword a, byte *s, word len) {
 

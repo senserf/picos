@@ -2618,3 +2618,41 @@ R081204A:
 	Moved "evening" after "sleep" (in eCOG's mach.h). This makes better
 	sense and prevents races between interrupts and processes waiting for
 	interrupt-triggered events.
+
+R081209A:
+
+	Fixed mkmk: dependent *.h files would not appear as part of Cyan
+	projects, although the project would compile OK.
+
+	Further improvements to low power operation on eCOG (freeze should
+	block UART interrupts after all - on top of disabling the UART clocks).
+	Implemented three (potentially 5) CPU power modes. Mode 4 (full power)
+	is used by default, with powerdown switching to mode 2 (high ref, no
+	PLL) with system clock running at 1 sec intervals. This slows down the
+	CPU speed 10 times (25 MHz -> 2.5 MHz), while still making it possible
+	to run things. Mode 0 is the absolute bottom used by freeze.
+
+	Slight adjustments to phys_cc1000.c & co. to make sure that the
+	default state of the variable direction pins is OUT, which helps the
+	eCOG maintain low current usage.
+
+	Wlodek's request: function lcdg_dm_update for Seawolf.
+
+	Revised portnames.h, i.e., a mechanism to reference I/O ports as a
+	continuous range of numbers, possibly parameterized with costants.
+	I needed that on eCOG to test which ports are in fact accessible under
+	particular port router settings, as well as how the port settings
+	affect power usage. To do it right, I had to clean it up on MSP430 as
+	well. Shouldn't we rename the file to dupa.h (for Direct Uniform Port
+	Access).
+
+	Driver for the AT45DB041 flash upgraded to properly handle the new
+	features of the 'D' chip (version AT45DB041D), including the deep
+	power down mode. To select these features, declare:
+
+	#define STORAGE_AT45_TYPE 410	// == 41D
+
+	in board_storage.h (for now added only to ARTURO_PMTH). No need to
+	change anything in the praxis. The deep power down mode for the flash
+	is automatically entered upon freeze. This brings about further
+	savings (ca. 40%) in freeze current.

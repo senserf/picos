@@ -292,7 +292,7 @@ static byte chp_rconf (byte reg) {
 		chp_pclkup;
 	}
 
-	// Reset data direction to output (not really needed)
+	// Reset data direction to output (this should be the default state)
 	chp_outpbit (0);
 	chp_pdirout;
 
@@ -519,10 +519,12 @@ static void hstat (word status) {
 
 		case HSTAT_SLEEP:
 			pins_rf_disable;
+			chp_pdioout;
 			xcv_disable ();
 			break;
 		case HSTAT_RCV:
 			pins_rf_enable_rcv;
+			chp_pdioin;
 			if (zzv_hstat == HSTAT_SLEEP)
 				rcv_enable_cold ();
 			else
@@ -530,6 +532,7 @@ static void hstat (word status) {
 			break;
 		default:
 			pins_rf_enable_xmt;
+			chp_pdioout;
 			if (zzv_hstat == HSTAT_SLEEP)
 				xmt_enable_cold ();
 			else

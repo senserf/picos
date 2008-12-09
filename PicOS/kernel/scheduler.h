@@ -7,15 +7,15 @@
 	static int       maxprio;
 	static pcb_t	*maxpriocurrent;
 #endif
-
-#ifdef	MONITOR_PIN_SCHED
-	_PVS (MONITOR_PIN_SCHED, 1);
-#endif
 	/* Set the return context for release */
 	SET_RELEASE_POINT;
 Redo:
 	/* Timer service */
 	zzz_tservice ();
+
+#ifdef	MONITOR_PIN_SCHED
+	_PVS (MONITOR_PIN_SCHED, 1);
+#endif
 
 #if SCHED_PRIO
 

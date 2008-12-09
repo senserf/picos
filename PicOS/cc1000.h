@@ -103,7 +103,6 @@
 #endif
 
 #define	start_rcv	do { \
-				chp_pdioin; \
 				zzv_prmble = 0; \
 				zzv_curbit = 0; \
 				zzr_length = 0; \
@@ -113,14 +112,13 @@
 
 #define	start_xmt	do { \
 				LEDI (1, 1); \
-				chp_pdioout; \
 				zzv_curbit = 0; \
 				zzv_prmble = PREAMBLE_LENGTH; \
 				zzv_istate = IRQ_XPR; \
 				zzv_status = GP_INT_XMT; \
 			} while (0)
 
-#define	end_rcv		do { } while (0)
+#define	end_rcv		CNOP
 
 #define receiver_busy	(zzv_istate == IRQ_RCV || zzv_istate == IRQ_RTR)
 #define	receiver_active	(zzv_status == GP_INT_RCV)

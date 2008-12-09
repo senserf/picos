@@ -85,6 +85,8 @@ void lcdg_dm_menu_l (lcdg_dm_men_t*);
 void lcdg_dm_menu_r (lcdg_dm_men_t*);
 byte lcdg_dm_display (lcdg_dm_obj_t*);
 byte lcdg_dm_dtop (void);
+// Update i-th line of the top menu
+byte lcdg_dm_update (lcdg_dm_men_t*, word);
 lcdg_dm_obj_t *lcdg_dm_remove (lcdg_dm_obj_t*);
 byte lcdg_dm_refresh (void);
 byte lcdg_dm_newtop (lcdg_dm_obj_t*);

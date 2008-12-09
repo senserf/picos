@@ -26,6 +26,13 @@
 #define	UART_BUF_SIZE	8	/* Size of the circular buffer */
 #define	UART_TIMEOUT	1024	/* For lost interrupts - one second */
 
+// OUT register base (for portnames)
+#define _PDS_base_	((word*)0xFFAD)
+// STS register base
+#define _PDV_base_	((word*)0xFFB5)
+
+#include "portnames.h"
+
 typedef struct	{
 /* ============================== */
 /* UART with two circular buffers */
@@ -103,7 +110,18 @@ typedef struct	{
 #define	uart_b_enable_write_int	rg.duart.b_int_en |= \
          		DUART_B_INT_EN_TX_RDY_MASK
 
+// ============================================================================
+#ifdef	MONITOR_PIN_CPU
+#define	SLEEP		do { \
+				_PVS (MONITOR_PIN_CPU, 0); \
+				sleep (); evening; \
+				_PVS (MONITOR_PIN_CPU, 1); \
+			} while (0)
+#else
 #define	SLEEP		do { sleep (); evening; } while (0)
+#endif	/* MONITOR_PIN_CPU */
+// ============================================================================
+
 #define	RISE_N_SHINE	morning
 #define	RTNI		return
 

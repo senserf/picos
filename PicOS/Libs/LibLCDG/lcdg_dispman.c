@@ -151,6 +151,37 @@ static byte dm_dmenu (lcdg_dm_men_t *dm) {
 	return (LCDG_DM_STATUS = 0);
 }
 
+byte lcdg_dm_update (lcdg_dm_men_t *dm, word ln) {
+//
+// Update (re-display) line ln in menu dm
+//
+	word i, a;
+
+	// Check if anything to do
+	if (ln < dm->FL || (i = ln - dm->FL) >= dm->Height)
+		goto Done;
+
+	if (lcdg_font (dm->Font))
+		return (LCDG_DM_STATUS = LCDG_DMERR_NOFONT);
+
+	lcdg_setc (dm->BG, dm->FG);
+	lcdg_set (dm->XL, dm->YL, dm->XH, dm->YH);
+
+	if (ln == dm->SE)
+		// The cursor
+		lcdg_wl (CCHAR, 0, 0, i);
+	else
+		lcdg_ec (0, i, 1);
+
+	lcdg_wl (dm->Lines [ln], dm->SH, 1, i);
+
+	if ((a = dm_mell (dm, ln)) < dm->Width)
+		// Need to clear to the end of line
+		lcdg_ec (a, i, dm->Width - a);
+Done:
+	return (LCDG_DM_STATUS = 0);
+}
+
 void lcdg_dm_menu_d (lcdg_dm_men_t *m) {
 //
 // Select next item down the list

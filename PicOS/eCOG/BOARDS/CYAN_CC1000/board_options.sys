@@ -15,3 +15,4 @@
 #define	MALLOC_STATS		1
 #define	LBT_DELAY		0
 #define	LBT_THRESHOLD		2
+#define	GLACIER			1

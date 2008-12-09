@@ -42,9 +42,15 @@
 
 #endif	/* ADC RSSI */
 
-// Result not available
+#ifdef ECOG_BROKEN_ADC
+// The ADC locks, so you cannot blindly wait on the rdy bit
+#define	adc_busy	((fd.adc.sts.rdy == 1) && \
+			    (zz_systat.adcval = (word)(fd.adc.sts.data), 0))
+#else
+// Healthy ADC: wait for rdy and grab the sample when it shows up
 #define	adc_busy	((fd.adc.sts.rdy == 0) || \
 			    (zz_systat.adcval = (word)(fd.adc.sts.data), 0))
+#endif /* ECOG_BROKEN_ADC */
 
 // Wait for result
 #define	adc_wait	do { } while (adc_busy)
@@ -68,7 +74,7 @@
 				0xF800 : 0x800))
 
 #define	adc_start	do { fd.ssm.cfg.adc_en = 1; } while (0)
-// Am not sure if these two should be the same. Are there powerr savings
+// Am not sure if these two should be the same. Are there power savings
 // possible?
 #define	adc_start_refon	adc_start
 
