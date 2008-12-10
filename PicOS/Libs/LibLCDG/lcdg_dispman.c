@@ -158,8 +158,9 @@ byte lcdg_dm_update (lcdg_dm_men_t *dm, word ln) {
 	word i, a;
 
 	// Check if anything to do
-	if (ln < dm->FL || (i = ln - dm->FL) >= dm->Height)
-		goto Done;
+	if ((lcdg_dm_obj_t*)dm != LCDG_DM_TOP ||
+		ln < dm->FL || (i = ln - dm->FL) >= dm->Height)
+			goto Done;
 
 	if (lcdg_font (dm->Font))
 		return (LCDG_DM_STATUS = LCDG_DMERR_NOFONT);

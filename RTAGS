@@ -2619,7 +2619,7 @@ R081204A:
 	sense and prevents races between interrupts and processes waiting for
 	interrupt-triggered events.
 
-R081209A:
+R081209B:
 
 	Fixed mkmk: dependent *.h files would not appear as part of Cyan
 	projects, although the project would compile OK.
@@ -2629,8 +2629,8 @@ R081209A:
 	Implemented three (potentially 5) CPU power modes. Mode 4 (full power)
 	is used by default, with powerdown switching to mode 2 (high ref, no
 	PLL) with system clock running at 1 sec intervals. This slows down the
-	CPU speed 10 times (25 MHz -> 2.5 MHz), while still making it possible
-	to run things. Mode 0 is the absolute bottom used by freeze.
+	CPU 10 times (25 MHz -> 2.5 MHz), while still making it possible to run
+	things. Mode 0 is the absolute bottom used by freeze.
 
 	Slight adjustments to phys_cc1000.c & co. to make sure that the
 	default state of the variable direction pins is OUT, which helps the
