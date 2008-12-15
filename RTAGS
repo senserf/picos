@@ -2656,3 +2656,11 @@ R081209B:
 	change anything in the praxis. The deep power down mode for the flash
 	is automatically entered upon freeze. This brings about further
 	savings (ca. 40%) in freeze current.
+
+R081214A:
+	SEAWOLF/YEP for the Dec. '08 demo. This is modified SEAWOLF/TEST, with
+	add-ons from mm_demo. It'll be documented if confirmed as the
+	functionality to be implemented at YEP target devices. Another short
+	iteration is expected before the YEP 'final' version, with adjustments
+	to the LCDG and SEAWOLF libraries.
+
