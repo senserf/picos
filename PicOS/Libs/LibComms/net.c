@@ -338,7 +338,8 @@ __PUBLF (TNode, int, net_rx)
 	}
 
 	packet = tcv_rnp (state, net_fd);
-	if ((size = tcv_left (packet)) == 0) // only if state is NONE (?)
+	if (!packet || (size = tcv_left (packet)) == 0)
+	       	// only if state is NONE (non-blocking)
 		return 0;
 
 	if (rssi_ptr) {

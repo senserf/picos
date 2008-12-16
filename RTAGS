@@ -2664,3 +2664,7 @@ R081214A:
 	iteration is expected before the YEP 'final' version, with adjustments
 	to the LCDG and SEAWOLF libraries.
 
+R081216A:
+	SEAWOLF/YEP: Added selected categories display (disp_cats()).
+	Fixed the bug Nick found in nonblocking net_rx.
+
