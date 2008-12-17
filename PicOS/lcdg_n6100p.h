@@ -33,6 +33,12 @@ void lcdg_setc (byte, byte);
 void lcdg_clear ();
 void lcdg_render (byte, byte, const byte*, word);
 
+#ifdef	LCDG_SETTABLE_CTABLE
+void lcdg_setct (byte, word);
+#else
+#define	lcdg_setct(a,b)	CNOP
+#endif
+
 #ifdef	LCDG_FONT_BASE
 
 word lcdg_font (byte);

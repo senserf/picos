@@ -2658,6 +2658,7 @@ R081209B:
 	savings (ca. 40%) in freeze current.
 
 R081214A:
+
 	SEAWOLF/YEP for the Dec. '08 demo. This is modified SEAWOLF/TEST, with
 	add-ons from mm_demo. It'll be documented if confirmed as the
 	functionality to be implemented at YEP target devices. Another short
@@ -2665,6 +2666,30 @@ R081214A:
 	to the LCDG and SEAWOLF libraries.
 
 R081216A:
+
 	SEAWOLF/YEP: Added selected categories display (disp_cats()).
 	Fixed the bug Nick found in nonblocking net_rx.
 
+R081217A:
+
+	The fixed 10 colors for Nokia LCDG redefined (it appears that read was
+	swapped with blue). Added command to SEAWOLF/TEST/oss.tcl to test RGB
+	colors.
+
+	If LCDG_SETTABLE_CTABLE is defined, the driver makes the fixed color
+	table settable, and this function becomes available to the praxis:
+
+	void lcdg_setct (byte co, word val);
+
+	where co is the color number (0-10) and val is the RGB value (12 bits,
+	e.g., 0x345 means red = 5, green = 4, blue = 3).
+
+	The oss.tcl command for testing colors looks like this:
+
+	!ctest bg fg
+
+	where bg is the background color and fg is the optional foreground
+	color (previous color is used if absent). The command writes a line of
+	text to the screen (remeber to turn it on - the 'on' command) with
+	the specified background and foreground colors. It resets colors 9
+	and 10.

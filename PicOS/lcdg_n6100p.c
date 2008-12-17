@@ -66,17 +66,21 @@
 // 12-bit color definitions 
 #define WHITE         /* 0x000*/	0xFFF 
 #define BLACK         /* 0xFFF*/	0x000 
-#define RED           /* 0x0FF*/	0xF00 
+#define RED           /* 0x0FF*/	0x00F 
 #define GREEN         /* 0xF0F*/	0x0F0 
-#define BLUE          /* 0xFF0*/	0x00F 
-#define CYAN          /* 0xF00*/	0x0FF 
+#define BLUE          /* 0xFF0*/	0xF00 
+#define CYAN          /* 0xF00*/	0xFF0 
 #define MAGENTA       /* 0x0F0*/	0xF0F 
-#define YELLOW        /* 0x00F*/	0xFF0 
-#define BROWN         /* 0x8DD*/	0xB22 
-#define ORANGE        /* 0x05F*/	0xFA0 
-#define PINK          /* 0x095*/	0xF6A 
+#define YELLOW        /* 0x00F*/	0x0FF 
+#define BROWN         /* 0x8DD*/	0x22B 
+#define ORANGE        /* 0x05F*/	0x0AF 
+#define PINK          /* 0x095*/	0xA6F 
 
-static const word ctable12 [] = {
+static
+#ifndef	LCDG_SETTABLE_CTABLE
+const
+#endif
+word ctable12 [] = {
     WHITE, BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, BROWN, ORANGE, PINK
 };
 
@@ -271,6 +275,16 @@ void lcdg_get (byte *XL, byte *YL, byte *XH, byte *YH) {
 	if (XH != NULL) *XH = X_last;
 	if (YH != NULL) *YH = Y_last;
 }
+
+#ifdef LCDG_SETTABLE_CTABLE
+
+void lcdg_setct (byte co, word val) {
+
+	if (co < N_COLORS)
+		ctable12 [co] = val;
+}
+
+#endif
 
 void lcdg_setc (byte bg, byte fg) {
 //
