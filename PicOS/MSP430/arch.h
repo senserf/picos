@@ -67,9 +67,6 @@ void		zz_restart_entry () __attribute__ ((noreturn));
 
 #define	hard_reset	__asm__ __volatile__("br #_reset_vector__"::)
 
-#define	_BIS(a,b)	(a) |= (b)
-#define	_BIC(a,b)	(a) &= ~(b)
-
 #define	nodata		do { } while (0)
 
 #define	INLINE		inline

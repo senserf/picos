@@ -2700,3 +2700,8 @@ R081229A:
 	Pins in WARSAW_LCD_TEST configured for SD card, as agreed with Gerry.
 	I will test whether we should move to true SPI, possibly sharing the
 	pins between EEPROM and SD.
+
+R081230A:
+
+	Automatic/optional idle mode added to the SD card driver to conserve
+	power. See Storage.pdf in PicOS/Docs/.

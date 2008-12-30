@@ -608,6 +608,7 @@ endthread
 #define	SD_ETS_J	290
 #define	SD_ETS_K	300
 #define	SD_ETS_L	310
+#define	SD_IDL		320
 
 thread (test_sdram)
 
@@ -640,6 +641,7 @@ thread (test_sdram)
 		"h adr n b t  -> read n blks of b starting at adr t times\r\n"
 		"s            -> sync sdram\r\n"
 		"w fr ln pat  -> write-read test\r\n"
+		"i            -> set idle state\r\n"
 		"q            -> return to main test\r\n"
 	);
 
@@ -659,6 +661,7 @@ thread (test_sdram)
 		case 'h': proceed (SD_REA);
 		case 's': proceed (SD_SYN);
 		case 'w': proceed (SD_ETS);
+		case 'i': proceed (SD_IDL);
 		case 'q': { sd_close (); finish; };
 	}
 	
@@ -884,6 +887,11 @@ Done:
 
 	ser_outf (SD_ETS_L, "READ %lu (%lx)\r\n", adr, adr);
 	proceed (SD_ETS_N);
+
+  entry (SD_IDL)
+
+	sd_idle ();
+	goto Done;
 
 endthread
 

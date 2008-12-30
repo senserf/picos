@@ -368,6 +368,7 @@ word	sd_write (lword, const byte*, word);
 word	sd_sync ();
 void	sd_close ();
 lword	sd_size ();
+void	sd_idle ();
 
 #else
 
@@ -483,6 +484,9 @@ void	buttons_action (void (*action)(word));
 #define	YES	((Boolean)1)
 
 #define	CNOP	do { } while (0)
+
+#define	_BIS(a,b)	(a) |= (b)
+#define	_BIC(a,b)	(a) &= ~(b)
 
 /* ============ */
 /* Tricky casts */
