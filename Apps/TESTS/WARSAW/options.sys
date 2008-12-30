@@ -1,5 +1,5 @@
 // Insert here applications-specific options
-#undef TCV_TIMERS
-#define	TCV_TIMERS	1
+// #undef TCV_TIMERS
+// #define	TCV_TIMERS	1
 
 // #define	EE_NO_ERASE_BEFORE_WRITE	1

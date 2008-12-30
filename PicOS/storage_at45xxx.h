@@ -104,8 +104,15 @@
 
 #define	EE_SIZE		(((lword)EE_NPAGES) * EE_PAGE_SIZE)
 
+#ifndef	EE_NO_ERASE_BEFORE_WRITE
+#define	EE_NO_ERASE_BEFORE_WRITE	0
+#endif
+
 #define	EE_ERASE_UNIT		1
-#define	EE_ERASE_BEFORE_WRITE	0
+// I know this is confusing; this constant indicates whether the storage MUST
+// be erased by hand before write, whereas the previous one tells whether the
+// driver should force erasure when flushing a block
+#define	EE_ERASE_BEFORE_WRITE	EE_NO_ERASE_BEFORE_WRITE
 #define	EE_RANDOM_WRITE		1
 
 #endif

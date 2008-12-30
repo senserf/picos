@@ -124,6 +124,9 @@ void reset (void) {
 #ifdef	EEPROM_PRESENT
 	ee_sync (WNONE);
 #endif
+#ifdef	SDRAM_PRESENT
+	sd_sync ();
+#endif
 	hard_reset;
 }
 
@@ -218,6 +221,9 @@ void zzz_syserror (int ec) {
 
 #ifdef	EEPROM_PRESENT
 	ee_sync (WNONE);
+#endif
+#ifdef	SDRAM_PRESENT
+	sd_sync ();
 #endif
 	while (1) {
 #if LEDS_DRIVER
@@ -899,6 +905,10 @@ static void ios_init () {
 
 #ifdef EEPROM_PRESENT
 	zz_ee_init ();
+#endif
+
+#ifdef SDCARD_PRESENT
+	sd_ini_regs;
 #endif
 
 #ifdef SENSOR_LIST

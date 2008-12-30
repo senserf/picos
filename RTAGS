@@ -2693,3 +2693,10 @@ R081217A:
 	text to the screen (remeber to turn it on - the 'on' command) with
 	the specified background and foreground colors. It resets colors 9
 	and 10.
+
+R081229A:
+
+	SD card driver. Read Storage.pdf in PicOS/Docs/.
+	Pins in WARSAW_LCD_TEST configured for SD card, as agreed with Gerry.
+	I will test whether we should move to true SPI, possibly sharing the
+	pins between EEPROM and SD.

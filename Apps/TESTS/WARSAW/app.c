@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -128,6 +128,8 @@ void radio_stop () {
 	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
 }
 
+// ============================================================================
+
 #define	PI_INIT		0
 #define	PI_RCMD		10
 #define	PI_ADC		20
@@ -198,6 +200,8 @@ thread (test_pin)
 
 endthread
 
+// ============================================================================
+
 #define	EP_INIT		0
 #define	EP_RCMD		10
 #define	EP_SWO		20
@@ -216,8 +220,6 @@ endthread
 #define	EP_FLR		150
 #define	EP_FLW		160
 #define	EP_FLE		170
-#define	EP_SYS		180
-#define	EP_MAL		190
 #define	EP_ETS		200
 #define	EP_ETS_O	210
 #define	EP_ETS_E	220
@@ -466,15 +468,6 @@ Done:
 	if_erase (b);
 	goto Done;
 
-  entry (EP_SYS)
-
-	syserror (111, "error");
-
-  entry (EP_MAL)
-
-	umalloc (16);
-	delay (100, EP_MAL);
-
   entry (EP_ETS)
 
 	// ERASE-WRITE-READ
@@ -590,6 +583,312 @@ Done:
 
 endthread
 
+// ============================================================================
+
+#define	SD_INIT		0
+#define	SD_OK		1
+#define	SD_IFAIL	2
+#define	SD_START	5
+#define	SD_RCMD		10
+#define	SD_SWO		20
+#define	SD_SLW		30
+#define	SD_SST		40
+#define	SD_RWO		50
+#define	SD_RLW		60
+#define	SD_RST		70
+#define	SD_WRI		80
+#define	SD_REA		90
+#define	SD_SYN		110
+#define	SD_ETS		200
+#define	SD_ETS_G	240
+#define	SD_ETS_M	250
+#define	SD_ETS_H	260
+#define	SD_ETS_I	270
+#define	SD_ETS_N	280
+#define	SD_ETS_J	290
+#define	SD_ETS_K	300
+#define	SD_ETS_L	310
+
+thread (test_sdram)
+
+  entry (SD_INIT)
+
+	if ((err = sd_open ()) == 0) 
+		proceed (SD_OK);
+
+  entry (SD_IFAIL)
+
+	ser_outf (SD_IFAIL, "Failed to open SD card: %u\r\n", err);
+	finish;
+
+  entry (SD_OK)
+
+	ser_outf (SD_OK, "SD card size: %lu\r\n", sd_size ());
+
+  entry (SD_START)
+
+	ser_out (SD_START,
+		"\r\nSD Test\r\n"
+		"Commands:\r\n"
+		"a adr int    -> store a word\r\n"
+		"b adr lint   -> store a lword\r\n"
+		"c adr str    -> store a string\r\n"
+		"d adr        -> read word\r\n"
+		"e adr        -> read lword\r\n"
+		"f adr n      -> read string\r\n"
+		"g adr n p    -> write n longwords with p starting at adr\r\n"
+		"h adr n b t  -> read n blks of b starting at adr t times\r\n"
+		"s            -> sync sdram\r\n"
+		"w fr ln pat  -> write-read test\r\n"
+		"q            -> return to main test\r\n"
+	);
+
+  entry (SD_RCMD)
+
+	err = 0;
+	ser_in (SD_RCMD, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+		case 'a': proceed (SD_SWO);
+		case 'b': proceed (SD_SLW);
+		case 'c': proceed (SD_SST);
+		case 'd': proceed (SD_RWO);
+		case 'e': proceed (SD_RLW);
+		case 'f': proceed (SD_RST);
+		case 'g': proceed (SD_WRI);
+		case 'h': proceed (SD_REA);
+		case 's': proceed (SD_SYN);
+		case 'w': proceed (SD_ETS);
+		case 'q': { sd_close (); finish; };
+	}
+	
+  entry (SD_RCMD+1)
+
+	ser_out (SD_RCMD+1, "Illegal command or parameter\r\n");
+	proceed (SD_START);
+
+  entry (SD_SWO)
+
+	scan (ibuf + 1, "%lu %u", &adr, &w);
+	err = sd_write (adr, (byte*)(&w), 2);
+
+  entry (SD_SWO+1)
+
+	ser_outf (SD_SWO+1, "[%d] Stored %u at %lu\r\n", err, w, adr);
+	proceed (SD_RCMD);
+
+  entry (SD_SLW)
+
+	scan (ibuf + 1, "%lu %lu", &adr, &val);
+	err = sd_write (adr, (byte*)(&val), 4);
+
+  entry (SD_SLW+1)
+
+	ser_outf (SD_SLW+1, "[%d] Stored %lu at %lu\r\n", err, val, adr);
+	proceed (SD_RCMD);
+
+  entry (SD_SST)
+
+	scan (ibuf + 1, "%lu %s", &adr, str);
+	len = strlen (str);
+	if (len == 0)
+		proceed (SD_RCMD+1);
+
+	err = sd_write (adr, str, len);
+
+  entry (SD_SST+1)
+
+	ser_outf (SD_SST+1, "[%d] Stored %s (%u) at %lu\r\n", err, str, len,
+		adr);
+	proceed (SD_RCMD);
+
+  entry (SD_RWO)
+
+	scan (ibuf + 1, "%lu", &adr);
+	err = sd_read (adr, (byte*)(&w), 2);
+
+  entry (SD_RWO+1)
+
+	ser_outf (SD_RWO+1, "[%d] Read %u (%x) from %lu\r\n", err, w, w, adr);
+	proceed (SD_RCMD);
+
+  entry (SD_RLW)
+
+	scan (ibuf + 1, "%u", &adr);
+	err = sd_read (adr, (byte*)(&val), 4);
+
+  entry (SD_RLW+1)
+
+	ser_outf (SD_RLW+1, "[%d] Read %lu (%lx) from %lu\r\n",
+		err, val, val, adr);
+	proceed (SD_RCMD);
+
+  entry (SD_RST)
+
+	scan (ibuf + 1, "%lu %u", &adr, &len);
+	if (len == 0)
+		proceed (SD_RCMD+1);
+
+	str [0] = '\0';
+	err = sd_read (adr, str, len);
+	str [len] = '\0';
+
+  entry (SD_RST+1)
+
+	ser_outf (SD_RST+1, "[%d] Read %s (%u) from %lu\r\n",
+		err, str, len, adr);
+	proceed (SD_RCMD);
+
+  entry (SD_WRI)
+
+	len = 0;
+	scan (ibuf + 1, "%lu %u %lu", &adr, &len, &val);
+	if (len == 0)
+		proceed (SD_RCMD+1);
+	while (len--) {
+		err += (sd_write (adr, (byte*)(&val), 4) != 0);
+		adr += 4;
+	}
+
+  entry(SD_WRI+1)
+
+Done:
+	ser_outf (SD_WRI+1, "Done %d\r\n", err);
+	proceed (SD_RCMD);
+
+  entry (SD_REA)
+
+	len = 0;
+	bs = 0;
+	nt = 0;
+	scan (ibuf + 1, "%lu %u %u %u", &adr, &len, &bs, &nt);
+	if (len == 0)
+		proceed (SD_RCMD+1);
+	if (bs == 0)
+		bs = 4;
+
+	if (nt == 0)
+		nt = 1;
+
+	blk = (byte*) umalloc (bs);
+
+	while (nt--) {
+
+		sl = len;
+		ss = adr;
+		while (sl--) {
+			err += (sd_read (ss, blk, bs) != 0);
+			ss += bs;
+		}
+
+	}
+
+	ufree (blk);
+
+	goto Done;
+
+  entry (SD_SYN)
+
+	err = sd_sync ();
+	goto Done;
+
+  entry (SD_ETS)
+
+	// WRITE-READ
+
+	s = 1;
+	u = 0;
+	pat = LWNONE;
+	scan (ibuf + 1, "%lu %lu %lx", &s, &u, &pat);
+
+	// Truncate to longword boundaries
+	s = s & 0xfffffffc;
+	u = u & 0xfffffffc;
+	if (u != 0)
+		u += s;
+	else
+		// Everything
+		s = 0;
+
+	adr = s;
+	w = 0;
+
+  entry (SD_ETS_G)
+
+	if (pat == LWNONE)
+		val = adr;
+	else
+		val = pat;
+
+	w += (sd_write (adr, (byte*)(&val), 4) != 0);
+
+	if ((adr & 0xFFF) == 0)
+		proceed (SD_ETS_K);
+
+  entry (SD_ETS_M)
+
+	adr += 4;
+	if (adr < u)
+		proceed (SD_ETS_G);
+
+  entry (SD_ETS_H)
+
+	w += (sd_sync () != 0);
+	ser_outf (SD_ETS_H, "WRITE COMPLETE, %u ERRORS\r\n", w);
+
+	// Start reading
+	adr = s;
+	w = 0;
+	err = 0;
+
+  entry (SD_ETS_I)
+
+	w += (sd_read (adr, (byte*)(&val), 4) != 0);
+
+	if (pat != LWNONE) {
+		if (val != pat) {
+			diag ("MISREAD (PATTERN): %x %x",
+				(word)(val >> 16), (word) val);
+			err++;
+		}
+	} else {
+		if (val != adr) {
+			diag ("MISREAD (ADDRESS): %x %x != %x %x",
+				(word)(val >> 16), (word) val,
+				(word)(adr  >> 16), (word) adr );
+			err++;
+		}
+	}
+	if ((adr & 0xFFF) == 0)
+		proceed (SD_ETS_L);
+
+  entry (SD_ETS_N)
+
+	adr += 4;
+	if (adr < u)
+		proceed (SD_ETS_I);
+
+  entry (SD_ETS_J)
+
+	ser_outf (SD_ETS_J, "READ COMPLETE, %u ERRORS, %u MISREADS\r\n",
+		w, err);
+
+	proceed (SD_RCMD);
+
+  entry (SD_ETS_K)
+
+	ser_outf (SD_ETS_K, "WRITTEN %lu (%lx)\r\n", adr, adr);
+	proceed (SD_ETS_M);
+
+  entry (SD_ETS_L)
+
+	ser_outf (SD_ETS_L, "READ %lu (%lx)\r\n", adr, adr);
+	proceed (SD_ETS_N);
+
+endthread
+
+// ============================================================================
+
 #define	DE_INIT		0
 #define	DE_RCMD		10
 #define	DE_FRE		20
@@ -696,6 +995,7 @@ thread (root)
 		"u v      -> set uart rate [def = 96]\r\n"
 		"s v      -> sleep (low power) for v seconds\r\n"
 		"E        -> detailed EEPROM test\r\n"
+		"S        -> detailed SD test\r\n"
 		"P        -> detailed pin test (including ADC)\r\n"
 		"D        -> delay test\r\n"
 	);
@@ -726,6 +1026,11 @@ thread (root)
 		case 'E' : {
 				runthread (test_epr);
 				joinall (test_epr, RS_RCMD-2);
+				release;
+		}
+		case 'S' : {
+				runthread (test_sdram);
+				joinall (test_sdram, RS_RCMD-2);
 				release;
 		}
 		case 'P' : {

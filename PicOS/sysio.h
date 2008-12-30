@@ -318,6 +318,10 @@
 #undef	EEPROM_PRESENT
 #endif
 
+#ifdef	SDCARD_PRESENT
+#undef	SDCARD_PRESENT
+#endif
+
 #if STORAGE_M95XXX
 #define	EEPROM_PRESENT	1
 //+++ "storage_m95xxx.c"
@@ -333,6 +337,11 @@
 //+++ "storage_mt29xxx.c"
 #endif
 
+#if STORAGE_SDCARD
+#define	SDCARD_PRESENT	1
+//+++ "sdcard.c"
+#endif
+
 #ifdef	EEPROM_PRESENT
 
 word 	ee_read  (lword, byte*, word);
@@ -344,12 +353,32 @@ lword	ee_size (Boolean*, lword*);
 #else
 
 #define	ee_read(a,b,c)		1
-#define	ee_write (a,b,c,d)	1
-#define	ee_erase (a,b,c)	1
-#define	ee_sync (a)		1
-#define	ee_size (b,w)		0
+#define	ee_write(a,b,c,d)	1
+#define	ee_erase(a,b,c)		1
+#define	ee_sync(a)		1
+#define	ee_size(b,w)		0
 
 #endif	/* EEPROM_PRESENT */
+
+#ifdef	SDCARD_PRESENT
+
+word	sd_open ();
+word	sd_read (lword, byte*, word);
+word	sd_write (lword, const byte*, word);
+word	sd_sync ();
+void	sd_close ();
+lword	sd_size ();
+
+#else
+
+#define	sd_open()		1
+#define	sd_read(a,b,c)		1
+#define	sd_write(a,b,c)		1
+#define	sd_sync()		1
+#define	sd_close()		CNOP
+#define	sd_size()		0
+
+#endif	/* SDCARD_PRESENT */
 
 // LCD =======================================================================
 

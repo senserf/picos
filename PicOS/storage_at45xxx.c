@@ -38,10 +38,6 @@ typedef struct {
 			wcmd;
 } at45_bstat;
 
-#ifndef	EE_NO_ERASE_BEFORE_WRITE
-#define	EE_NO_ERASE_BEFORE_WRITE	0
-#endif
-
 #if	EE_NO_ERASE_BEFORE_WRITE
 
 // Assume that EEPROM is pre-erased, and writes never overlap
