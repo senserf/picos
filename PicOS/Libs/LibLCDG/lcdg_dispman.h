@@ -25,6 +25,13 @@ struct lcdg_dm_obj_s;
 	address			Extras; \
 	byte			Type
 
+#define	LCDG_DMTYPE_MASK	0x03
+
+// Flag == free data on deallocation
+#define	LCDG_DMTYPE_FDATA	0x80
+
+#define	LCDG_TYP
+
 struct lcdg_dm_obj_s {
 //
 // Displayable object: this is the minimum that every object must have
@@ -90,11 +97,41 @@ byte lcdg_dm_update (lcdg_dm_men_t*, word);
 lcdg_dm_obj_t *lcdg_dm_remove (lcdg_dm_obj_t*);
 byte lcdg_dm_refresh (void);
 byte lcdg_dm_newtop (lcdg_dm_obj_t*);
+void lcdg_dm_free (lcdg_dm_obj_t*);
+
+#ifndef	LCDG_DM_SHORT_ARGS
+#define	LCDG_DM_SHORT_ARGS	0
+#endif
+
+#ifndef	LCDG_DM_SOFT_CREATORS
+#define	LCDG_DM_SOFT_CREATORS	2
+#endif
+
+#ifndef LCDG_DM_EE_CREATORS
+#define	LCDG_DM_EE_CREATORS	1
+#endif
+
+#if LCDG_DM_EE_CREATORS
+#include "ee_ol.h"
+lcdg_dm_obj_t *lcdg_dm_newmenu_e (lword);
+lcdg_dm_obj_t *lcdg_dm_newtext_e (lword);
+lcdg_dm_obj_t *lcdg_dm_newimage_e (lword);
+#endif
+
+#if LCDG_DM_SOFT_CREATORS
+#if LCDG_DM_SOFT_CREATORS == 1
+lcdg_dm_obj_t *lcdg_dm_newmenu (char**, word, byte*);
+lcdg_dm_obj_t *lcdg_dm_newtext (char*, byte*);
+lcdg_dm_obj_t *lcdg_dm_newimage (word, byte*);
+#else
 lcdg_dm_obj_t *lcdg_dm_newmenu (char**,
 			word, byte, byte, byte, byte, byte, byte, byte);
 lcdg_dm_obj_t *lcdg_dm_newtext (char*,
 			byte, byte, byte, byte, byte, byte);
 lcdg_dm_obj_t *lcdg_dm_newimage (word, byte, byte);
+#endif /* LCDG_DM_SOFT_CREATORS */
+#endif /* LCDG_DM_SOFT_CREATORS */
+
 char **lcdg_dm_asa (word);
 void lcdg_dm_csa (char**, word);
 

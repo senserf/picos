@@ -2705,3 +2705,10 @@ R081230A:
 
 	Automatic/optional idle mode added to the SD card driver to conserve
 	power. See Storage.pdf in PicOS/Docs/.
+
+R090110A:
+
+	A new version of Seawolf stuff, read LCDGint.pdf, Seawolf.pdf, EOL.pdf.
+	I have removed the TEST directory from Apps/SEAWOLF. My old TEST praxis
+	is in Apps/SEAWOLF/YEP/app.c_test.
+	I think I have fixed Wlodek's YEP praxis to work with the new setup.

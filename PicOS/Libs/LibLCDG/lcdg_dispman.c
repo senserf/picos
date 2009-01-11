@@ -377,7 +377,7 @@ byte lcdg_dm_display (lcdg_dm_obj_t *o) {
 //
 // Display an object
 //
-	switch (o->Type) {
+	switch (o->Type & LCDG_DMTYPE_MASK) {
 
 		case LCDG_DMTYPE_IMAGE:
 
@@ -505,16 +505,100 @@ byte lcdg_dm_newtop (lcdg_dm_obj_t *o) {
 	return 0;
 }
 
+char **lcdg_dm_asa (word n) {
+//
+// Allocates an array of strings
+//
+	char **res;
+
+	if ((res = (char**) umalloc (sizeof (char*) * n)) == NULL) {
+		// No memory
+		LCDG_DM_STATUS = LCDG_DMERR_NOMEM;
+		return NULL;
+	}
+
+	while (n)
+		// This is needed in case we have an emergency cleanup
+		res [--n] = NULL;
+
+	return res;
+}
+
+void lcdg_dm_csa (char **lines, word n) {
+//
+// Cleans up a string array
+//
+	while (n) {
+		n--;
+		if (lines [n] != NULL)
+			ufree (lines [n]);
+	}
+
+	ufree (lines);
+}
+
+void lcdg_dm_free (lcdg_dm_obj_t *co) {
+
+#define	COI	((lcdg_dm_img_t*)co)
+#define	COM	((lcdg_dm_men_t*)co)
+#define	COT	((lcdg_dm_tex_t*)co)
+
+	if ((co->Type & LCDG_DMTYPE_FDATA)) {
+		// Free the data
+		switch (co->Type & LCDG_DMTYPE_MASK) {
+
+			case LCDG_DMTYPE_MENU:
+
+				// Deallocate the text
+				lcdg_dm_csa ((char**)(COM->Lines), COM->NL);
+				break;
+
+			case LCDG_DMTYPE_TEXT:
+
+				ufree (COT->Line);
+				break;
+		}
+
+		if (co->Extras != NULL)
+			ufree (co->Extras);
+	}
+
+	ufree (co);
+
+#undef	COI
+#undef	COM
+#undef	COT
+}
+
+#if LCDG_DM_SOFT_CREATORS
+
+// ============================================================================
+// ============================================================================
+
 lcdg_dm_obj_t *lcdg_dm_newmenu (
 			char **ls,		// The array of lines
 			word nl,		// The number of lines
+
+#if LCDG_DM_SOFT_CREATORS == 1
+			byte *args) {
+
+#define	x	(args [0])
+#define	y	(args [1])
+#define	fn	(args [2])
+#define	bg	(args [3])
+#define	fg	(args [4])
+#define	w	(args [5])
+#define	h	(args [6])
+
+#else
+			byte x,			// Coordinates: left top corner
+			byte y,
 			byte fn,		// Font number
 			byte bg,		// Background color
 			byte fg,		// Foreground color
-			byte x,			// Coordinates: left top corner
-			byte y,
 			byte w,			// Width (characters)
 			byte h			// Height (characters)
+#endif
 									) {
 //
 // Create a new menu
@@ -549,47 +633,37 @@ lcdg_dm_obj_t *lcdg_dm_newmenu (
 	dm->Width = w;
 	dm->Height = h;
 	dm->FL = dm->SH = dm->SE = 0;
-	dm->Type = LCDG_DMTYPE_MENU;
-
+	dm->Type = LCDG_DMTYPE_MENU | LCDG_DMTYPE_FDATA;
 	lcdg_get (NULL, NULL, &(dm->XH), &(dm->YH));
 	LCDG_DM_STATUS = 0;
 	return (lcdg_dm_obj_t*) dm;
+
+#if LCDG_DM_SOFT_CREATORS == 1
+#undef	x
+#undef	y
+#undef	fn
+#undef	bg
+#undef	fg
+#undef	w
+#undef	h
+#endif
 }
 
-char **lcdg_dm_asa (word n) {
-//
-// Allocates an array of strings
-//
-	char **res;
+lcdg_dm_obj_t *lcdg_dm_newtext (char *ln,
 
-	if ((res = (char**) umalloc (sizeof (char*) * n)) == NULL) {
-		// No memory
-		LCDG_DM_STATUS = LCDG_DMERR_NOMEM;
-		return NULL;
-	}
+#if LCDG_DM_SOFT_CREATORS == 1
+				byte *args) {
 
-	while (n)
-		// This is needed in case we have an emergency cleanup
-		res [--n] = NULL;
+#define	x	(args [0])
+#define	y	(args [1])
+#define	fn	(args [2])
+#define	bg	(args [3])
+#define	fg	(args [4])
+#define	w	(args [5])
 
-	return res;
-}
-
-void lcdg_dm_csa (char **lines, word n) {
-//
-// Cleans up a string array
-//
-	while (n) {
-		n--;
-		if (lines [n] != NULL)
-			ufree (lines [n]);
-	}
-
-	ufree (lines);
-}
-
-lcdg_dm_obj_t *lcdg_dm_newtext (char *ln, byte fn, byte bg, byte fg,
-						byte x, byte y, byte w) {
+#else
+			byte x, byte y, byte fn, byte bg, byte fg, byte w) {
+#endif
 //
 // Create a text object
 //
@@ -626,25 +700,45 @@ lcdg_dm_obj_t *lcdg_dm_newtext (char *ln, byte fn, byte bg, byte fg,
 	dt->YL = y;
 	dt->Width = w;
 	dt->Height = h;
-	dt->Type = LCDG_DMTYPE_TEXT;
+	dt->Type = LCDG_DMTYPE_TEXT | LCDG_DMTYPE_FDATA;
 	dt->Line = ln;
 
 	lcdg_get (NULL, NULL, &(dt->XH), &(dt->YH));
 	LCDG_DM_STATUS = 0;
 	return (lcdg_dm_obj_t*) dt;
+
+#if LCDG_DM_SOFT_CREATORS == 1
+#undef	x
+#undef	y
+#undef	fn
+#undef	bg
+#undef	fg
+#undef	w
+#undef	h
+#endif
 }
 
-lcdg_dm_obj_t *lcdg_dm_newimage (word pn, byte x, byte y) {
+lcdg_dm_obj_t *lcdg_dm_newimage (word pn,
+
+#if LCDG_DM_SOFT_CREATORS == 1
+						byte *args) {
+#define	x	(args [0])
+#define	y	(args [0])
+
+#else
+						byte x, byte y) {
+#endif
 //
 // New image object: the first argument is the image handle (EEPROM page
 // number)
 //
-	word cz;
 	byte xh, yh;
 	void *ptr;
 
 #define	sig	((lcdg_im_hdr_t*)ptr)
 #define	dip	((lcdg_dm_img_t*)ptr)
+
+	word cz;
 
 	if ((sig = (lcdg_im_hdr_t*) umalloc (sizeof (lcdg_im_hdr_t))) == NULL) {
 Mem:
@@ -678,7 +772,7 @@ Mem:
 	dip->XH = xh;
 	dip->YH = yh;
 
-	dip->Type = LCDG_DMTYPE_IMAGE;
+	dip->Type = LCDG_DMTYPE_IMAGE | LCDG_DMTYPE_FDATA;
 
 	dip->EPointer = pn;
 
@@ -687,4 +781,57 @@ Mem:
 
 #undef sig
 #undef dip
+#if LCDG_DM_SOFT_CREATORS == 1
+#undef	x
+#undef	y
+#endif
 }
+
+// ============================================================================
+// ============================================================================
+
+#endif /* LCDG_MENU_SOFT_CREATORS */
+
+#if LCDG_DM_EE_CREATORS
+
+// ============================================================================
+// ============================================================================
+
+lcdg_dm_obj_t *lcdg_dm_newmenu_e (lword ep) {
+//
+// Create a new menu from EEPROM
+//
+	lcdg_dm_men_t *dm;
+
+	if ((LCDG_DM_STATUS = ee_load (ep, (void**)&dm)) != 0)
+		return NULL;
+
+	// I think we need some sanity checks to avoid crashing on EEPROM
+	// error -> later
+	return (lcdg_dm_obj_t*)dm;
+}
+
+lcdg_dm_obj_t *lcdg_dm_newtext_e (lword ep) {
+
+	lcdg_dm_tex_t *dt;
+
+	if ((LCDG_DM_STATUS = ee_load (ep, (void**)&dt)) != 0)
+		return NULL;
+	// Sanity checks?
+	return (lcdg_dm_obj_t*)dt;
+}
+
+lcdg_dm_obj_t *lcdg_dm_newimage_e (lword ep) {
+
+	lcdg_dm_img_t *dip;
+
+	if ((LCDG_DM_STATUS = ee_load (ep, (void**)&dip)) != 0)
+		return NULL;
+	// Sanity checks?
+	return (lcdg_dm_obj_t*)dip;
+}
+
+// ============================================================================
+// ============================================================================
+
+#endif /* LCDG_MENU_EE_CREATORS */
