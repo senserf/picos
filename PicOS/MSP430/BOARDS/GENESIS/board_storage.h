@@ -22,20 +22,16 @@
 #define	EE_USE_UART	0
 #endif
 
+#if EE_USE_UART
+
 #if	UART_DRIVER > 1 || UART_TCV > 1
 #error	"Cannot use two UARTs with SPI (needed for EEPROM)"
 #endif
 
-
-#if EE_USE_UART
-
+#ifndef	SPI_BAUD_RATE
 #define	SPI_BAUD_RATE	4	// 8MHz/4 = 2MHz
+#endif
 
-#define	ee_ini_regs	do { \
-				_BIS (P5OUT, 0x01); \
-				_BIS (P5DIR, 0x01); \
-				_BIS (P5SEL, 0x0E); \
-			} while (0)
 
 #define	ee_ini_spi	do { \
 				_BIS (UCTL1, SWRST); \
@@ -46,6 +42,13 @@
 				UMCTL1 = 0; \
 				_BIS (ME2, USPIE1); \
 				_BIC (UCTL1, SWRST); \
+			} while (0)
+
+#define	ee_ini_regs	do { \
+				_BIS (P5OUT, 0x01); \
+				_BIS (P5DIR, 0x01); \
+				_BIS (P5SEL, 0x0E); \
+				ee_ini_spi; \
 			} while (0)
 
 #define	ee_rx_ready	(IFG2 & URXIFG1)
@@ -70,7 +73,7 @@
 #define	ee_clkh		_BIS (P5OUT, 0x08)
 #define	ee_clkl		_BIC (P5OUT, 0x08)
 
-#define	ee_ini_spi	do { } while (0)
+#define	ee_ini_spi	CNOP
 
 #endif	/* EE_USE_UART */
 

@@ -116,7 +116,7 @@ proc openser { n } {
 
 	set UART [open COM$n: RDWR]
 	fconfigure $UART -mode 9600,n,8,1 -handshake none -translation binary \
-		-blocking 0
+		-blocking 0 -eofchar ""
 }
 
 proc rdb { sec } {
@@ -153,7 +153,7 @@ proc send { msg } {
 
 	global OUAB EXAB UART
 
-	fconfigure $UART -blocking 1
+	fconfigure $UART -blocking 1 -eofchar ""
 
 	set len [string length $msg]
 	if { $len == 0 } {
@@ -178,7 +178,7 @@ proc send { msg } {
 		snb [string index $out $i]
 	}
 
-	fconfigure $UART -blocking 0
+	fconfigure $UART -blocking 0 -eofchar ""
 }
 
 proc tmout { mes } {

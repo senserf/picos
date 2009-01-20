@@ -102,7 +102,7 @@ proc u_start { udev speed dfun { mpl "" } } {
 	}
 
 	fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
-		-buffering full -translation binary -blocking 0
+		-buffering full -translation binary -blocking 0 -eofchar ""
 
 	# initialize status
 	set ST(TIM)  ""

@@ -132,7 +132,7 @@ if [catch { u_start $prt $spd "" } err] {
 
 u_ab_setif uget $mpl
 
-fconfigure stdin -buffering line -blocking 0
+fconfigure stdin -buffering line -blocking 0 -eofchar ""
 fileevent stdin readable sget
 
 # u_settrace 7 dump.txt

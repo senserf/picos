@@ -70,6 +70,67 @@ static  word wpageo,		// page offset for write
 
 static 	const byte *wbuffp;	// write buffer pointer
 
+#if	EE_USE_UART
+// ===========================================================================
+// SPI mode ==================================================================
+// ===========================================================================
+
+static byte get_byte () {
+
+	// Send a dummy byte of zeros; we are the master so we have to
+	// keep the clock ticking
+	ee_put (0);
+	while (!ee_tx_ready);
+	while (!ee_rx_ready);
+	return ee_get;
+}
+
+static void put_byte (byte b) {
+
+	byte s;
+	ee_put (b);
+	while (!ee_tx_ready);
+	while (!ee_rx_ready);
+	s = ee_get;
+}
+
+static Boolean busy () {
+
+// Check if busy
+
+	byte c;
+
+	ee_start;
+	put_byte (EE_STAT);
+	c = get_byte ();
+	ee_stop;
+
+	return (c & 0x80) == 0;
+}
+
+static void saddr (word pn, word po) {
+//
+// Issue the address part of a command
+//
+	// Assumes EE_PADDR_BITS >= 8 and 24 bits complete address size, i.e.,
+	// EE_PADDR_BITS + EE_POFFS_BITS == 24
+	put_byte ((byte) (pn >> (EE_PADDR_BITS - 8)));
+	put_byte ((byte) ((pn << (16 - EE_PADDR_BITS)) | (po >> 8)));
+	put_byte ((byte) po);
+}
+
+static void dummies (word n) {
+
+	while (n--)
+		put_byte (0);
+}
+
+#else 	/* EE_USE_UART */
+
+// ===========================================================================
+// Direct mode ===============================================================
+// ===========================================================================
+
 static byte get_byte () {
 
 	register int i;
@@ -101,15 +162,6 @@ static void put_byte (byte b) {
 	}
 }
 
-static byte blook (word page) {
-
-	if (buf_stat [0] . page == page)
-		return 0;
-	if (buf_stat [1] . page == page)
-		return 1;
-	return BNONE;
-}
-
 static Boolean busy () {
 
 // Check if busy
@@ -125,14 +177,6 @@ static Boolean busy () {
 	ee_stop;
 
 	return (c == 0);
-}
-
-static void waitnb () {
-
-// Wait while busy
-
-	while (busy ())
-		udelay (50);
 }
 
 static void saddr (word a) {
@@ -181,6 +225,31 @@ static void sdc (byte nb) {
 		ee_clkh;
 		ee_clkl;
 	}
+}
+
+#define	dummies(n)	sdc ((byte)((n) << 3))
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+
+#endif 	/* EE_USE_UART */
+
+static byte blook (word page) {
+
+	if (buf_stat [0] . page == page)
+		return 0;
+	if (buf_stat [1] . page == page)
+		return 1;
+	return BNONE;
+}
+
+static void waitnb () {
+
+// Wait while busy
+
+	while (busy ())
+		udelay (50);
 }
 
 void zz_ee_init (void) {
@@ -235,20 +304,28 @@ word ee_read (lword a, byte *s, word len) {
 		if ((bi = blook (pn)) == BNONE) {
 			ee_start;
 			put_byte (EE_MMPR);
+#if EE_USE_UART
+			saddr (pn, po);
+#else
 			// Page number
 			saddr (pn);
 			// Page offset
 			soffs (po);
+#endif
 			// Needed to initialize the transfer
-			sdc (32);
+			dummies (4);
 		} else {
 			ee_start;
 			put_byte (EE_BiR (bi));
+#if EE_USE_UART
+			saddr (0, po);
+#else
 			sdc (EE_PADDR_BITS);
 			// Page offset
 			soffs (po);
+#endif
 			// 8 don't care bits
-			sdc (8);
+			dummies (1);
 		}
 
 		// Now we are going to extract the data - until the end of
@@ -305,9 +382,14 @@ static byte bflush () {
 	cbsel = (byte) (1 - cbsel);
 
 	ee_start;
+
 	put_byte (buf_stat [k] . wcmd);
+#if EE_USE_UART
+	saddr (buf_stat [k] . page, 0);
+#else
 	saddr (buf_stat [k] . page);
 	sdc (EE_POFFS_BITS);
+#endif
 	ee_stop;
 
 	buf_stat [k] . page = WNONE;
@@ -317,9 +399,14 @@ static byte bflush () {
 static void bfetch (word pn, byte bi) {
 
 	ee_start;
+
 	put_byte (EE_MMPBiR(bi));
+#if EE_USE_UART
+	saddr (pn, 0);
+#else
 	saddr (pn);
 	sdc (EE_POFFS_BITS);
+#endif
 	ee_stop;
 
 	buf_stat [bi] . page = pn;
@@ -331,8 +418,12 @@ static void bwrite (byte bi, word po, const char *buf, word nb) {
 	ee_start;
 	put_byte (EE_BiW (bi));
 
+#if EE_USE_UART
+	saddr (0, po);
+#else
 	sdc (EE_PADDR_BITS);
 	soffs (po);
+#endif
 
 	if (buf != NULL) {
 		while (nb--)
@@ -357,8 +448,12 @@ static void sync (word st) {
 				wwait (st);
 				ee_start;
 				put_byte (buf_stat [i] . wcmd);
+#if EE_USE_UART
+				saddr (buf_stat [i] . page, 0);
+#else
 				saddr (buf_stat [i] . page);
 				sdc (EE_POFFS_BITS);
+#endif
 				ee_stop;
 				buf_stat [i] . dirty = NO;
 			}
@@ -499,8 +594,12 @@ WS_pcheck:
 			wwait (st);
 			ee_start;
 			put_byte (EE_ERASE);
+#if EE_USE_UART
+			saddr (wpagen, 0);
+#else
 			saddr (wpagen);
 			sdc (EE_POFFS_BITS);
+#endif
 			ee_stop;
 			wpagen++;
 			wrsize--;

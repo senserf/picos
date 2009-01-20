@@ -64,7 +64,6 @@ static void put_byte (byte b) {
 void zz_ee_init () {
 
 	ee_ini_regs;
-	ee_ini_spi;
 
 	ee_start;
 	put_byte (EE_WRSR);

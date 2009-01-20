@@ -378,6 +378,7 @@ void	sd_idle ();
 #define	sd_sync()		1
 #define	sd_close()		CNOP
 #define	sd_size()		0
+#define	sd_idle()		CNOP
 
 #endif	/* SDCARD_PRESENT */
 

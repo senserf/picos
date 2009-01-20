@@ -48,15 +48,15 @@
 // Initialized statically in board_pins.h
 #define sd_ini_regs	CNOP
 
-#define	sd_csh		do { _BIS (P6OUT, 0x40); SD_DELAY; } while (0)
-#define	sd_csl		do { _BIC (P6OUT, 0x40); SD_DELAY; } while (0)
+#define	sd_stop		do { _BIS (P6OUT, 0x40); SD_DELAY; } while (0)
+#define	sd_start	do { _BIC (P6OUT, 0x40); SD_DELAY; } while (0)
 
 #define	sd_clkh		do { _BIS (P6OUT, 0x10); SD_DELAY; } while (0)
 #define	sd_clkl		do { _BIC (P6OUT, 0x10); SD_DELAY; } while (0)
 
-#define	sd_doh		_BIS (P6OUT, 0x20)
-#define	sd_dol		_BIC (P6OUT, 0x20)
+#define	sd_outh		_BIS (P6OUT, 0x20)
+#define	sd_outl		_BIC (P6OUT, 0x20)
 
-#define	sd_di		(P6IN & 0x08)
+#define	sd_inp		(P6IN & 0x08)
 
 // ============================================================================

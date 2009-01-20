@@ -1,6 +1,8 @@
 #include "kernel.h"
 #include "sdcard.h"
 
+#define	SD_DEBUG	0
+
 #define	SD_CMD_GOIDLE	(0x00 + 0x40)
 #define SD_CMD_SOPCND	(0x01 + 0x40)
 #define	SD_CMD_SNDCSD	(0x09 + 0x40)
@@ -48,24 +50,39 @@ static byte sd_act = NO;
 static lword sd_bkn = LWNONE;	// Block number stored in the buffer
 static lword sd_siz;		// Size
 
-static void sd_put (byte b) {
+#if SD_USE_UART
 
-	register int i;
+// ============================================================================
+// SPI mode ===================================================================
+// ============================================================================
 
-	for (i = 0; i < 8; i++) {
-		if (b & 0x80)
-			sd_doh;
-		else
-			sd_dol;
-		sd_clkh;
-		sd_clkl;
-		b <<= 1;
-	}
-	// This is the default state of DO
-	sd_doh;
+static byte get_byte () {
+
+	// Send a dummy byte of zeros; we are the master so we have to
+	// keep the clock ticking
+
+	while (!sd_tx_ready);
+	sd_put (0xff);
+	while (!sd_rx_ready);
+	return sd_get;
 }
 
-static byte sd_get () {
+static void put_byte (byte b) {
+
+	byte s;
+	while (!sd_tx_ready);
+	sd_put (b);
+	while (!sd_rx_ready);
+	s = sd_get;
+}
+
+#else
+
+// ============================================================================
+// Direct (pin) mode ==========================================================
+// ============================================================================
+
+static byte get_byte () {
 
 	register int i;
 	register byte b;
@@ -73,13 +90,36 @@ static byte sd_get () {
 	for (b = 0, i = 0; i < 8; i++) {
 		b <<= 1;
 		sd_clkh;
-		if (sd_di)
+		if (sd_inp)
 			b |= 1;
 		sd_clkl;
 	}
 
 	return b;
 }
+
+static void put_byte (byte b) {
+
+	register int i;
+
+	for (i = 0; i < 8; i++) {
+		if (b & 0x80)
+			sd_outh;
+		else
+			sd_outl;
+		sd_clkh;
+		sd_clkl;
+		b <<= 1;
+	}
+	// This is the default state of DO
+	sd_outh;
+}
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+
+#endif
 
 static byte sd_skn (word tm) {
 //
@@ -89,7 +129,7 @@ static byte sd_skn (word tm) {
 	byte r;
 
 	for (i = 0; i < tm; i++)
-		if ((r = sd_get ()) != 0xff)
+		if ((r = get_byte ()) != 0xff)
 			break;
 
 	return r;
@@ -101,7 +141,7 @@ static byte sd_skp (word n) {
 //
 	byte r;
 	while (n--)
-		r = sd_get ();
+		r = get_byte ();
 	return r;
 }
 
@@ -109,24 +149,32 @@ static byte sd_cmd (byte cmd, lword par) {
 //
 // Send a short-response command
 //
+#if SD_DEBUG
+	byte rc;
+#endif
 	// A delay to "warm up" the clock
-	sd_put (0xff);
-	// sd_put (0xff);
-	// sd_put (0xff);
+	put_byte (0xff);
+	// put_byte (0xff);
+	// put_byte (0xff);
 
 	// cmd has 0x40 or'red into it
-	sd_put (cmd);
-	sd_put ((byte)(par >> 24));
-	sd_put ((byte)(par >> 16));
-	sd_put ((byte)(par >>  8));
-	sd_put ((byte)(par      ));
+	put_byte (cmd);
+	put_byte ((byte)(par >> 24));
+	put_byte ((byte)(par >> 16));
+	put_byte ((byte)(par >>  8));
+	put_byte ((byte)(par      ));
 	// There is one command that always requires a checksum; luckily it
 	// is static
 	if (cmd == SD_CMD_GOIDLE)
-		sd_put (0x95);
-
+		put_byte (0x95);
+#if SD_DEBUG
+	rc = sd_skn (12);
+	diag ("C = %x R %x", cmd, rc);
+	return rc;
+#else
 	// Response
 	return sd_skn (12);
+#endif
 }
 
 static void sd_getsize () {
@@ -150,16 +198,16 @@ static void sd_getsize () {
 			// ... here it is
 			c &= 0xf;
 
-			w = (word) (sd_get () & 0x3) << 10;
-			w |= ((word) sd_get ()) << 2;
-			w |= (sd_get () & 0xc0) >> 6;
+			w = (word) (get_byte () & 0x3) << 10;
+			w |= ((word) get_byte ()) << 2;
+			w |= (get_byte () & 0xc0) >> 6;
 			// First multiplier
 			w++;
 			s = w;
 
 			// The second multiplier
-			b = (sd_get () & 0x3) << 1;
-			b |= (sd_get () & 0x80) >> 7;
+			b = (get_byte () & 0x3) << 1;
+			b |= (get_byte () & 0x80) >> 7;
 			w = 4 << b;
 
 			// Get the remaining 4 bytes + CRC
@@ -197,10 +245,8 @@ static word sd_sleep () {
 	word i;
 
 	for (i = 0; ; i++) {
-
 		if (sd_cmd (SD_CMD_GOIDLE, 0) == SD_REP_IDLE)
 			break;
-
 		if (i == 128)
 			return SDERR_NOCARD;
 	}
@@ -210,7 +256,7 @@ static word sd_sleep () {
 	for (i = 0; ; i++) {
 		if ((sd_cmd (SD_CMD_SOPCND, 0) & SD_REP_IDLE) == 0)
 			break;
-		if (i == 1024)
+		if (i == 8192)
 			return SDERR_TIME;
 	}
 	return 0;
@@ -233,19 +279,19 @@ static word sd_synk () {
 		return SDERR_NOBLK;
 
 	// Start byte
-	sd_put (0xfe);
+	put_byte (0xfe);
 
 	for (wc = 0; wc < SD_BKSIZE; wc++)
-		sd_put (sd_buf [wc]);
+		put_byte (sd_buf [wc]);
 
 	// Dummy CRC for now
-	sd_put (0xff); sd_put (0xff);
+	put_byte (0xff); put_byte (0xff);
 
 	MARK_CLEAN;
 
 	for (wc = 0; wc != 0x7fff; wc++) {
 		// Wait while busy
-		if (sd_get () == 0xff)
+		if (get_byte () == 0xff)
 			return 0;
 	}
 	return SDERR_TIME;
@@ -257,7 +303,8 @@ word sd_open () {
 
 	// This makes CS output for card detection; note that in principle we
 	// can detect the card present by checking the 50K pullup on CS
-	// sd_ini_regs;
+
+	sd_ini_regs;
 
 	sd_bkn = LWNONE;
 
@@ -271,11 +318,11 @@ word sd_open () {
 	sd_skp (32);
 
 	// Select
-	sd_csl;
+	sd_start;
 
 	if ((i = sd_sleep ()) != 0) {
 Err:
-		sd_csh;
+		sd_stop;
 		ufree (sd_buf);
 		sd_buf = NULL;
 		return i;
@@ -288,7 +335,7 @@ Err:
 	}
 
 	sd_getsize ();
-	sd_csh;
+	sd_stop;
 
 	if (sd_siz == 0)
 		return SDERR_UNSUP;
@@ -321,14 +368,14 @@ word sd_read (lword offset, byte *buffer, word length) {
 			if (ba >= sd_siz)
 				return SDERR_RANGE;
 
-			sd_csl;
+			sd_start;
 
 			if ((wc = sd_synk ()) != 0) {
 ERet:
 				if (IS_ACTIVE)
 					DEACTIVATE;
 
-				sd_csh;
+				sd_stop;
 				return wc;
 			}
 
@@ -342,7 +389,7 @@ ERet:
 
 			// Wait for the block
 			for (wc = 0; ; wc++) {
-				if (sd_get () == 0xfe)
+				if (get_byte () == 0xfe)
 					break;
 				if (wc == 0x7fff) {
 					wc = SDERR_TIME;
@@ -352,16 +399,16 @@ ERet:
 
 			// Cache the block
 			for (wc = 0; wc < SD_BKSIZE; wc++)
-				sd_buf [wc] = sd_get ();
+				sd_buf [wc] = get_byte ();
 
 			// Read (and ignore for now) the CRC
-			sd_get (); sd_get ();
+			get_byte (); get_byte ();
 
 			// Most reads will be much shorter than 512 bytes
 			DEACTIVATE;
 
 			// Deselect
-			sd_csh;
+			sd_stop;
 
 			sd_bkn = ba;
 			MARK_CLEAN;
@@ -397,12 +444,12 @@ word sd_write (lword offset, const byte *buffer, word length) {
 			if (ba >= sd_siz)
 				return SDERR_RANGE;
 
-			sd_csl;
+			sd_start;
 			if ((wc = sd_synk ()) != 0) {
 ERet:
 				if (IS_ACTIVE)
 					DEACTIVATE;
-				sd_csh;
+				sd_stop;
 				return wc;
 			}
 
@@ -410,7 +457,7 @@ ERet:
 
 			if (bo == 0) {
 				// New block - no reread, just zero it out
-				sd_csh;
+				sd_stop;
 				bzero (sd_buf, SD_BKSIZE);
 			} else
 #endif
@@ -426,7 +473,7 @@ ERet:
 
 				// Wait for the block
 				for (wc = 0; ; wc++) {
-					if (sd_get () == 0xfe)
+					if (get_byte () == 0xfe)
 						break;
 					if (wc == 0x7fff) {
 						wc = SDERR_TIME;
@@ -434,15 +481,15 @@ ERet:
 					}
 				}
 				for (wc = 0; wc < SD_BKSIZE; wc++)
-					sd_buf [wc] = sd_get ();
+					sd_buf [wc] = get_byte ();
 
 				// Read (and ignore for now) the CRC
-				sd_get (); sd_get ();
+				get_byte (); get_byte ();
 
 				DEACTIVATE;
 
 				// Deselect
-				sd_csh;
+				sd_stop;
 			}
 			sd_bkn = ba;
 			MARK_DIRTY;
@@ -477,11 +524,11 @@ void sd_idle () {
 	sd_skp (32);
 
 	// Select
-	sd_csl;
+	sd_start;
 
 	sd_sleep ();
 
-	sd_csh;
+	sd_stop;
 }
 
 word sd_sync () {
@@ -493,11 +540,11 @@ word sd_sync () {
 	if (sd_buf == NULL)
 		return 0;
 
-	sd_csl;
+	sd_start;
 	wc = sd_synk ();
 	if (IS_ACTIVE)
 		DEACTIVATE;
-	sd_csh;
+	sd_stop;
 
 	return wc;
 }

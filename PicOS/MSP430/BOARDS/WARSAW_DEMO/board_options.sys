@@ -1,4 +1,7 @@
-#define	EE_USE_UART		1
+//
+// This is Gerry's board DOG LCD + buttons
+//
+#define	EE_USE_UART		0
 #define	MALLOC_SINGLEPOOL	1
 #define DIAG_MESSAGES		2
 #define	TCV_PRESENT		1
@@ -9,11 +12,13 @@
 #define	MALLOC_STATS		1
 #define STACK_GUARD		1
 #define ENTROPY_COLLECTION	1
-#define	GLACIER			1
 #define	RANDOM_NUMBER_GENERATOR	2
+#define	GLACIER			1
 
 #define LEDS_DRIVER		1
 #define LEDS_BLINKING		1
+
+#define	BUTTONS_DRIVER		1
 
 #define UART_DRIVER		1
 #define	RADIO_USE_LEDS		7
@@ -32,12 +37,10 @@
 #define LBT_THRESHOLD		2
 
 #define STORAGE_AT45XXX		1
-#define	STORAGE_SDCARD		1
 #define	INFO_FLASH		1
+#define	LCD_ST7036		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
 #define UART_INPUT_BUFFER_LENGTH 32
 #define MSK_BACKOFF		0xFF
-
-#define	ADC_SAMPLER		0

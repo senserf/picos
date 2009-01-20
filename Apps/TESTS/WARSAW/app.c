@@ -14,8 +14,12 @@ heapmem {10, 90};
 #include "ser.h"
 #include "serf.h"
 #include "form.h"
+
+#if CC1100
 #include "phys_cc1100.h"
 #include "plug_null.h"
+#endif
+
 #include "pinopts.h"
 #include "lhold.h"
 
@@ -25,7 +29,7 @@ heapmem {10, 90};
 #define	EEPROM_INCR	255
 #define	SEND_INTERVAL	1024
 
-static int 	sfd, off, packet_length, rcvl, b;
+static int 	sfd = -1, off, packet_length, rcvl, b;
 static word	rssi, err, w, len, bs, nt, sl, ss, dcnt;
 static lword	adr, max, val, last_snt, last_rcv, s, u, pat;
 static byte	str [129], *blk;
@@ -109,6 +113,9 @@ endthread;
 
 void radio_start () {
 
+	if (sfd < 0)
+		return;
+
 	tcv_control (sfd, PHYSOPT_RXON, NULL);
 	tcv_control (sfd, PHYSOPT_TXON, NULL);
 
@@ -120,6 +127,9 @@ void radio_start () {
 }
 
 void radio_stop () {
+
+	if (sfd < 0)
+		return;
 
 	killall (sender);
 	killall (receiver);
@@ -901,6 +911,9 @@ endthread
 #define	DE_RCMD		10
 #define	DE_FRE		20
 #define	DE_LHO		30
+#define DE_PDM		40
+#define	DE_PUM		50
+#define	DE_SPN		60
 
 thread (test_delay)
 
@@ -911,6 +924,9 @@ thread (test_delay)
 		"Commands:\r\n"
 		"f s      -> freeze\r\n"
 		"l s      -> lhold\r\n"
+		"d        -> PD mode (unsafe)\r\n"
+		"u        -> PU mode\r\n"
+		"s n      -> spin test for n sec\r\n"
 		"q        -> return to main test\r\n"
 	);
 
@@ -921,6 +937,9 @@ thread (test_delay)
 	switch (ibuf [0]) {
 		case 'f': proceed (DE_FRE);
 		case 'l': proceed (DE_LHO);
+		case 'd': proceed (DE_PDM);
+		case 'u': proceed (DE_PUM);
+		case 's': proceed (DE_SPN);
 		case 'q': { finish; };
 	}
 	
@@ -932,10 +951,9 @@ thread (test_delay)
   entry (DE_FRE)
 
 	nt = 0;
-	scan (ibuf + 1, "%u", &nt);
-	diag ("Start %u", (word) seconds ());
+	diag ("Start");
 	freeze (nt);
-	diag ("Stop %u", (word) seconds ());
+	diag ("Stop");
 	proceed (DE_RCMD);
 
   entry (DE_LHO)
@@ -951,6 +969,46 @@ thread (test_delay)
 	diag ("Stop %u", (word) seconds ());
 	proceed (DE_RCMD);
 
+  entry (DE_PDM)
+
+	diag ("Entering PD mode");
+	powerdown ();
+	proceed (DE_RCMD);
+
+  entry (DE_PUM)
+
+	diag ("Entering PU mode");
+	powerup ();
+	proceed (DE_RCMD);
+
+  entry (DE_SPN)
+
+	nt = 0;
+	scan (ibuf + 1, "%u", &nt);
+
+	// Wait for the nearest round second
+	s = seconds ();
+
+  entry (DE_SPN+1)
+
+	if ((u = seconds ()) == s)
+		proceed (DE_SPN+1);
+
+	u += nt;
+	s = 0;
+
+  entry (DE_SPN+2)
+
+	if (seconds () != u) {
+		s++;
+		proceed (DE_SPN+2);
+	}
+
+  entry (DE_SPN+3)
+
+	ser_outf (DE_SPN+2, "Done: %lu cycles\r\n", s);
+	proceed (DE_RCMD);
+
 endthread
 
 #define	RS_INIT		00
@@ -962,7 +1020,6 @@ endthread
 #define	RS_SID		60
 #define	RS_SCH		70
 #define	RS_UAR		80
-#define	RS_FRE		90
 #define	RS_AUTOSTART	200
 
 thread (root)
@@ -972,6 +1029,7 @@ thread (root)
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
 
+#if CC1100
 	phys_cc1100 (0, MAXPLEN);
 
 	tcv_plug (0, &plug_null);
@@ -987,6 +1045,7 @@ thread (root)
 	tcv_control (sfd, PHYSOPT_SETCHANNEL, (address)&off);
 	off = 0;
 	tcv_control (sfd, PHYSOPT_SETSID, (address)&off);
+#endif
 
   entry (RS_RCMD-2)
 
@@ -1001,11 +1060,10 @@ thread (root)
 		"n        -> reset\r\n"
 		"i v      -> set SID [def = 0]\r\n"
 		"u v      -> set uart rate [def = 96]\r\n"
-		"s v      -> sleep (low power) for v seconds\r\n"
 		"E        -> detailed EEPROM test\r\n"
 		"S        -> detailed SD test\r\n"
 		"P        -> detailed pin test (including ADC)\r\n"
-		"D        -> delay test\r\n"
+		"D        -> delay/freeze/spin test\r\n"
 	);
 
   entry (RS_RCMD-1)
@@ -1029,7 +1087,6 @@ thread (root)
 		case 'c' : proceed (RS_SCH);
 		case 'q' : proceed (RS_QRA);
 		case 'u' : proceed (RS_UAR);
-		case 's' : proceed (RS_FRE);
 		case 'n' : reset ();
 		case 'E' : {
 				runthread (test_epr);
@@ -1146,17 +1203,6 @@ E_more:
 	off = 0;
 	scan (ibuf + 1, "%d", &off);
 	ion (UART, CONTROL, (char*) &off, UART_CNTRL_SETRATE);
-	proceed (RS_RCMD);
-
-  entry (RS_FRE)
-
-	off = 1;
-	scan (ibuf + 1, "%d", &off);
-	freeze (off);
-
-  entry (RS_FRE+1)
-
-	ser_out (RS_FRE+1, "Wake up\r\n");
 	proceed (RS_RCMD);
 
   entry (RS_AUTOSTART)

@@ -33,16 +33,18 @@
 #define PIN_DEFAULT_P4DIR	0xFF
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off (high) by default
 
-// 0 = STORAGE CS OUT
+// 0 = EEPROM CS OUT
 // 1 = STORAGE SI OUT
 // 2 = STORAGE SO IN
 // 3 = STORAGE SCK OUT
-// 4 = general and unused by default, 5, 6, 7 hang loose
+// 4 = SD card CS OUT
+// 5, 6, 7 hang loose
 #define	PIN_DEFAULT_P5DIR	0xFB
 //#define	PIN_DEFAULT_P5OUT	0x01	// Default CS is up
-#define	PIN_DEFAULT_P5OUT	0x0B	// Default CS is up
+#define	PIN_DEFAULT_P5OUT	0x1B	// Default both CS are up; clk down
 
-#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+#define	EEPROM_INIT_ON_KEY_PRESSED	0
+//#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
 #if ADC_SAMPLER
 
@@ -93,10 +95,9 @@
 	PIN_DEF	(P4, 5),	\
 	PIN_DEF	(P4, 6),	\
 	PIN_DEF	(P4, 7),	\
-	PIN_DEF	(P5, 4),	\
 }
 
-#define	PIN_MAX			21	// Number of pins
+#define	PIN_MAX			20	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
 #define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
 

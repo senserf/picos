@@ -2712,3 +2712,20 @@ R090110A:
 	I have removed the TEST directory from Apps/SEAWOLF. My old TEST praxis
 	is in Apps/SEAWOLF/YEP/app.c_test.
 	I think I have fixed Wlodek's YEP praxis to work with the new setup.
+
+R090119A:
+
+	Added -eofchar "" in all Tcl scripts in Scripts. On Windows, at least 
+	for non-binary files, Ctrl-Z would cause stupid problems. 
+
+	SPI mode (an option) implemented form AT45 EEPROM (Warsaw board) as
+	well as the SD card driver. Verified that SD can share pins (except
+	for CS, of course) with EEPROM. Measured current consumption for
+	AT45 as well as SD (thanks to Gerry's breakboard) - see the comments
+	in PicOS/MSP430/BOARDS/WARSAW/board_storage.h. Tried a 4GB SD card, but
+	it didn't work immediately (2GB is the max). There may be some rather
+	fundamental differences. Will try again when/if needed.
+
+	#define EE_USE_UART 1 selects the SPI mode for EEPROM/SD for those
+	boards in which the modules are connected the right way (this is now
+	the default for WARSAW and ARTURO_PMTH).

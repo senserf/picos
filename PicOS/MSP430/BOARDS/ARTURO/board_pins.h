@@ -7,8 +7,11 @@
 #define	PIN_DEFAULT_P1DIR	0x80	// P1.7 == CLK for the SHT sensor
 #define	PIN_DEFAULT_P2DIR	0x83	// 0,1 and 7 hang loose, 2 = DS18B20
 #define	PIN_DEFAULT_P3DIR	0xC9
-#define	PIN_DEFAULT_P5DIR	0xE0
-#define	PIN_DEFAULT_P5OUT	0x10	// P5.4 == reference voltage for PAR
+
+// P5.4 == reference voltage for PAR, EEPROM: 0-CS, 1-SI, 2-SO, 3-SCK
+#define	PIN_DEFAULT_P5DIR	0xEB
+#define	PIN_DEFAULT_P5OUT	0x19
+
 #define	PIN_DEFAULT_P4DIR	0x0E
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P6DIR	0x00	// P6.0 input from PAR

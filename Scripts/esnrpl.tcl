@@ -8,9 +8,9 @@ proc main { } {
 		exit 99
 	}
 
-	fconfigure $fd -translation binary
-	fconfigure stdout -buffering none
-	fconfigure stderr -buffering none
+	fconfigure $fd -translation binary -eofchar ""
+	fconfigure stdout -buffering none -eofchar ""
+	fconfigure stderr -buffering none -eofchar ""
 
 	set BIN [read -nonewline $fd]
 
@@ -86,7 +86,7 @@ proc main { } {
 			exit 99
 		}
 
-		fconfigure $fd -translation binary
+		fconfigure $fd -translation binary -eofchar ""
 
 		puts -nonewline $fd $BEFORE
 		puts -nonewline $fd [binary format i $line]

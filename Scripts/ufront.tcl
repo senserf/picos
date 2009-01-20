@@ -53,7 +53,7 @@ proc u_start { udev speed dfun } {
 	}
 
 	fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
-		-buffering line -blocking 0
+		-buffering line -blocking 0 -eofchar ""
 
 	fileevent $ST(SFD) readable u_rdline
 }
@@ -109,7 +109,7 @@ if [catch { u_start $prt $spd "" } err] {
 	exit 99
 }
 
-fconfigure stdin -buffering line -blocking 0
+fconfigure stdin -buffering line -blocking 0 -eofchar ""
 fileevent stdin readable sget
 
 # u_settrace 7 dump.txt

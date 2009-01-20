@@ -2,7 +2,7 @@
 
 proc openser { n } {
 	set ser [open COM$n: RDWR]
-	fconfigure $ser -mode 19200,e,7,1 -handshake none -translation binary
+	fconfigure $ser -mode 19200,e,7,1 -handshake none -translation binary -eofchar ""
 		# -blocking 0
 	return $ser
 }
