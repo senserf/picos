@@ -2729,3 +2729,10 @@ R090119A:
 	#define EE_USE_UART 1 selects the SPI mode for EEPROM/SD for those
 	boards in which the modules are connected the right way (this is now
 	the default for WARSAW and ARTURO_PMTH).
+
+R090120A
+	EcoNet 1.1.2: New node type (_cus), 1st attempt at the sat. link i/f.
+	***See satnotes.odt.
+	FOR TESTINF ONLY: sanity of the existing functionality not fully
+	verified yet.
+
