@@ -7,11 +7,14 @@
 // Sensor connections:
 //
 //	PAR = P6.0	(analog input)
+//	      P6.3
+//	PYR = P6.4
+//	      P6.5
 //	MOI = P6.7	(analog input)
 //	      P4.7	(excitation)
 //	SHT = P1.6 Data, P1.7 Clock
 //
-//	For reading PAR, set Veref to 1.2V by pulling P4.7 down and P5.4
+//	For reading PAR/PYR, set Veref to 1.2V by pulling P4.7 down and P5.4
 //	up to Vcc
 //	For reading MOI, set Veref to excitation voltage (minus constant
 //	forward Zener drop) by setting P5.4 to ground and P4.7 to Vcc
@@ -42,11 +45,32 @@
 #include "analog_sensor.h"
 #include "sensors.h"
 
-#define	QSO_PAR_PIN	0	// PAR sensor = P6.0
-#define	QSO_PAR_SHT	4	// Sample hold time indicator
-#define	QSO_PAR_ISI	1	// Inter sample interval indicator
-#define	QSO_PAR_NSA	6	// Number of samples, corresponds to 512
-#define	QSO_PAR_REF	3	// Voltage reference: Veref
+#define	QSO_PAR0_PIN	0	// PAR sensor = P6.0
+#define	QSO_PAR0_SHT	4	// Sample hold time indicator
+#define	QSO_PAR0_ISI	1	// Inter sample interval indicator
+#define	QSO_PAR0_NSA	6	// Number of samples, corresponds to 512
+#define	QSO_PAR0_REF	3	// Voltage reference: Veref
+
+#define	QSO_PAR1_PIN	3
+#define	QSO_PAR1_SHT	QSO_PAR0_SHT
+#define	QSO_PAR1_ISI	QSO_PAR0_ISI
+#define	QSO_PAR1_NSA	QSO_PAR0_NSA
+#define	QSO_PAR1_REF	QSO_PAR0_REF
+
+#define	QSO_PYR0_PIN	4
+#define	QSO_PYR0_SHT	QSO_PAR0_SHT
+#define	QSO_PYR0_ISI	QSO_PAR0_ISI
+#define	QSO_PYR0_NSA	QSO_PAR0_NSA
+#define	QSO_PYR0_REF	QSO_PAR0_REF
+
+#define	QSO_PYR1_PIN	5
+#define	QSO_PYR1_SHT	QSO_PAR0_SHT
+#define	QSO_PYR1_ISI	QSO_PAR0_ISI
+#define	QSO_PYR1_NSA	QSO_PAR0_NSA
+#define	QSO_PYR1_REF	QSO_PAR0_REF
+
+#define	QSO_ZENER_PINS	((1 << QSO_PAR0_PIN) | (1 << QSO_PAR1_PIN) | \
+			 (1 << QSO_PYR0_PIN) | (1 << QSO_PYR1_PIN) )
 
 #define	MOI_ECO_PIN	7	// ECHO moisture sensor = P6.7
 #define	MOI_ECO_SHT	4	// Sample hold time indicator
@@ -114,7 +138,7 @@
 
 // This is referenced in analog_senor.c
 #define	EREF_ON		do { \
-				if (ASNS_PNO == QSO_PAR_PIN) { \
+				if (((1 << ASNS_PNO) & QSO_ZENER_PINS)) { \
 					_BIS (P5OUT, 0x10); \
 				} else { \
 					_BIS (P4OUT, 0x80); \
@@ -126,11 +150,29 @@
 
 #define	SENSOR_LIST	{ \
 		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PAR_PIN | \
-			(QSO_PAR_SHT << ASNS_SHT_SH) | \
-			(QSO_PAR_ISI << ASNS_ISI_SH) | \
-			(QSO_PAR_NSA << ASNS_NSA_SH) | \
-			(QSO_PAR_REF << ASNS_REF_SH)), \
+			 QSO_PAR0_PIN | \
+			(QSO_PAR0_SHT << ASNS_SHT_SH) | \
+			(QSO_PAR0_ISI << ASNS_ISI_SH) | \
+			(QSO_PAR0_NSA << ASNS_NSA_SH) | \
+			(QSO_PAR0_REF << ASNS_REF_SH)), \
+		SENSOR_DEF (NULL, analog_sensor_read, \
+			 QSO_PAR1_PIN | \
+			(QSO_PAR1_SHT << ASNS_SHT_SH) | \
+			(QSO_PAR1_ISI << ASNS_ISI_SH) | \
+			(QSO_PAR1_NSA << ASNS_NSA_SH) | \
+			(QSO_PAR1_REF << ASNS_REF_SH)), \
+		SENSOR_DEF (NULL, analog_sensor_read, \
+			 QSO_PYR0_PIN | \
+			(QSO_PYR0_SHT << ASNS_SHT_SH) | \
+			(QSO_PYR0_ISI << ASNS_ISI_SH) | \
+			(QSO_PYR0_NSA << ASNS_NSA_SH) | \
+			(QSO_PYR0_REF << ASNS_REF_SH)), \
+		SENSOR_DEF (NULL, analog_sensor_read, \
+			 QSO_PYR1_PIN | \
+			(QSO_PYR1_SHT << ASNS_SHT_SH) | \
+			(QSO_PYR1_ISI << ASNS_ISI_SH) | \
+			(QSO_PYR1_NSA << ASNS_NSA_SH) | \
+			(QSO_PYR1_REF << ASNS_REF_SH)), \
 		SENSOR_DEF (shtxx_init, shtxx_temp, 0), \
 		SENSOR_DEF (NULL, shtxx_humid, 0), \
 		SENSOR_DEF (NULL, analog_sensor_read, \
@@ -148,10 +190,13 @@
 #define	SENSOR_TEST_END	_BIC (P6DIR, 0x18)
 // ============================================================================
 
-#define	SENSOR_PAR	0
-#define	SENSOR_TEMP	1
-#define	SENSOR_HUMID	2
-#define	SENSOR_MOI	3
+#define	SENSOR_PAR0	0
+#define	SENSOR_PAR1	1
+#define	SENSOR_PYR0	2
+#define	SENSOR_PYR1	3
+#define	SENSOR_TEMP	4
+#define	SENSOR_HUMID	5
+#define	SENSOR_MOI	6
 
 // Pin definitions for the SHT sensor
 

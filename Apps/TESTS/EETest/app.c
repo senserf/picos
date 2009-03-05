@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -56,6 +56,8 @@ char	ibuf [132];
 process (root, int)
 
   entry (RS_INIT)
+
+	ee_open ();
 
   entry (RS_RCMD-2)
 

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -61,17 +61,20 @@ static void put_byte (byte b) {
 
 #endif
 
-void zz_ee_init () {
+word ee_open () {
 
-	ee_ini_regs;
-
+	ee_bring_up;
 	ee_start;
 	put_byte (EE_WRSR);
 	put_byte (STAT_INI);
 	ee_stop;
 	udelay (10);
+	return 0;
+}
 
-	ee_postinit;
+void ee_close () {
+
+	ee_bring_down;
 }
 
 word ee_read (lword a, byte *s, word len) {
@@ -227,4 +230,4 @@ word ee_sync (word st) {
 	return 0;
 }
 
-#include "storage.c"
+#include "storage_eeprom.h"

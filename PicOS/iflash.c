@@ -4,18 +4,17 @@
 /* ==================================================================== */
 
 #include "sysio.h"
-#include "iflash.h"
+#include "storage.h"
 
-static void if_erase_block (int i) {
-
-	int j;
+static void if_erase_block (address a, word bsize) {
 
 	// Check if the block needs to be erased
-	for (j = 0; j < IF_PAGE_SIZE; j++)
-		if (IFLASH [i + j] != 0xffff)
-				break;
-	if (j != IF_PAGE_SIZE)
-		if_erase_sys ((int)(&(IFLASH [i])));
+	while (bsize--) {
+		if (a [bsize] != 0xffff) {
+			if_erase_sys ((int)a);
+			return;
+		}
+	}
 }
 
 int if_write (word a, word w) {
@@ -29,7 +28,7 @@ int if_write (word a, word w) {
 	if (IFLASH [a] != 0xffff)
 		return ERROR;
 #endif
-	if_write_sys (w, a);
+	if_write_sys (w, IFLASH + a);
 
 	return (IFLASH [a] == w) ? 0 : ERROR;
 #if 0
@@ -51,29 +50,24 @@ void if_erase (int a) {
 		if (a >= IFLASH_SIZE)
 			syserror (EFLASH, "if_erase");
 		a &= ~(IF_PAGE_SIZE - 1);
-		if_erase_block (a);
+		if_erase_block (IFLASH + a, IF_PAGE_SIZE);
 		return;
 	}
 
 	for (a = 0; a < IFLASH_SIZE; a += IF_PAGE_SIZE)
-		if_erase_block (a);
+		if_erase_block (IFLASH + a, IF_PAGE_SIZE);
 }
 
-void zz_if_init () {
+#if INFO_FLASH > 1
 
-#ifdef IFLASH_INIT_ON_KEY_PRESSED
+// General access to code flash
 
-	int i;
+void cf_write (address a, word w) { if_write_sys (w, a); }
 
-	if (IFLASH_INIT_ON_KEY_PRESSED) {
-		for (i = 0; i < 4; i++) {
-			leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
-			mdelay (256);
-			leds (0, 0); leds (1, 1); leds (2, 0); leds (3, 0);
-			mdelay (256);
-		}
-		if_erase (-1);
-		while (IFLASH_INIT_ON_KEY_PRESSED);
-	}
-#endif
+void cf_erase (address a) {
+
+	if_erase_block ((address)((word)a & ~((CF_PAGE_SIZE << 1) - 1)),
+		CF_PAGE_SIZE);
 }
+
+#endif	/* INFO_FLASH > 1 */

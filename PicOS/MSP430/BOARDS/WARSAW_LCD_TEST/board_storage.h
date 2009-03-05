@@ -14,7 +14,7 @@
 #include "board_pins.h"
 #include "storage_at45xxx.h"
 
-#define	ee_ini_regs	do { \
+#define	ee_bring_up	do { \
 				_BIS (P5OUT, 0x01); \
 				_BIS (P5DIR, 0x0b); \
 			} while (0)
@@ -29,3 +29,5 @@
 
 #define	ee_start	do { _BIC (P5OUT, 0x01); ee_clkl; } while (0)
 #define	ee_stop		do { _BIS (P5OUT, 0x01); ee_clkh; } while (0)
+
+#define	ee_bring_down	CNOP

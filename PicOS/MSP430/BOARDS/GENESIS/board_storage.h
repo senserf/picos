@@ -44,7 +44,7 @@
 				_BIC (UCTL1, SWRST); \
 			} while (0)
 
-#define	ee_ini_regs	do { \
+#define	ee_bring_up	do { \
 				_BIS (P5OUT, 0x01); \
 				_BIS (P5DIR, 0x01); \
 				_BIS (P5SEL, 0x0E); \
@@ -59,7 +59,7 @@
 
 #else	/* EE_USE_UART */
 
-#define	ee_ini_regs	do { \
+#define	ee_bring_up	do { \
 				_BIS (P5OUT, 0x01); \
 				_BIS (P5DIR, 0x0b); \
 				_BIS (P5OUT, 0x01); \
@@ -73,9 +73,9 @@
 #define	ee_clkh		_BIS (P5OUT, 0x08)
 #define	ee_clkl		_BIC (P5OUT, 0x08)
 
-#define	ee_ini_spi	CNOP
-
 #endif	/* EE_USE_UART */
 
 #define	ee_start	_BIC (P5OUT, 0x01)
 #define	ee_stop		_BIS (P5OUT, 0x01)
+
+#define	ee_bring_down	CNOP

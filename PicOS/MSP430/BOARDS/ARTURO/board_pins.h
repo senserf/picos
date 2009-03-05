@@ -16,7 +16,7 @@
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P6DIR	0x00	// P6.0 input from PAR
 
-//#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+//#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
 #define	PIN_MAX 		0
 #define	PIN_MAX_ANALOG		0

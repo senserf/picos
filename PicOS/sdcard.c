@@ -304,14 +304,16 @@ word sd_open () {
 	// This makes CS output for card detection; note that in principle we
 	// can detect the card present by checking the 50K pullup on CS
 
-	sd_ini_regs;
+	sd_bring_up;
 
 	sd_bkn = LWNONE;
 
 	if (sd_buf == NULL) {
 		// Allocate buffer
-		if ((sd_buf = (byte*) umalloc (SD_BKSIZE)) == NULL)
-			return SDERR_NOMEM;
+		if ((sd_buf = (byte*) umalloc (SD_BKSIZE)) == NULL) {
+			i = SDERR_NOMEM;
+			goto ErrM;
+		}
 	}
 
 	// Clock warmup with select up (a bit of black magic)
@@ -325,6 +327,8 @@ Err:
 		sd_stop;
 		ufree (sd_buf);
 		sd_buf = NULL;
+ErrM:
+		sd_bring_down;
 		return i;
 	}
 
@@ -337,8 +341,10 @@ Err:
 	sd_getsize ();
 	sd_stop;
 
-	if (sd_siz == 0)
-		return SDERR_UNSUP;
+	if (sd_siz == 0) {
+		i = SDERR_UNSUP;
+		goto Err;
+	}
 
 	return 0;
 }
@@ -514,6 +520,7 @@ void sd_close () {
 		MARK_CLEAN;
 		sd_bkn = LWNONE;
 	}
+	sd_bring_down;
 }
 
 void sd_idle () {
@@ -548,3 +555,14 @@ word sd_sync () {
 
 	return wc;
 }
+
+#ifdef	RESET_ON_KEY_PRESSED
+
+void sd_init_erase () {
+//
+// Not implemented yet; requires some creative considerations
+//
+
+}
+
+#endif

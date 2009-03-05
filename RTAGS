@@ -2730,9 +2730,73 @@ R090119A:
 	boards in which the modules are connected the right way (this is now
 	the default for WARSAW and ARTURO_PMTH).
 
-R090120A
+R090120A:
+
 	EcoNet 1.1.2: New node type (_cus), 1st attempt at the sat. link i/f.
 	***See satnotes.odt.
 	FOR TESTINF ONLY: sanity of the existing functionality not fully
 	verified yet.
 
+R090304A:
+
+	Added optional (INFO_FLASH > 1) access to code flash:
+
+		void cf_write (address, word);	// write word at address
+		void cf_erase (address);	// erase segment at address
+
+	A minor bug fixed in script.tcl in Apps/VUEE/survey/SCRIPTS/ .
+
+	Storage operations (EEPROM) must be preceded by ee_open () - see
+	Storage.pdf. The primary role of ee_open is to power the module up.
+	Needless to say, there is also ee_close (). Note that ee_open IS NOW
+	REQUIRED even on those boards that do not allow you to power the
+	module down. Even if EEPEORM happens to work on some boards without
+	ee_open, it is accidental, so don't bet on it. I have gone through
+	all praxes using EEPROM (or so I think) blindly inserting ee_open
+	at the beginning of root. Note that you may want to use ee_open
+	(and also ee_close) dynamically.
+
+	Wlodek: please check eco_demo. I inserted ee_close/ee_open in those
+	places where (I thought) the node was going to sleep.
+
+	Definition for the new Warsaw board added. Drivers for GPS and RTC
+	are still needed.
+
+	Initially, I was going to make the power switch (for EEPROM, SD, GPS
+	and LCD) visible to the praxis as something that it could use
+	explicitly, thus possibly avoiding the need for ee_open. The issue
+	is complicated, however, by the need to reset some pins when powering
+	a module down (for example CS for EEPROM should go down and, preferably,
+	the pin direction should change to input, i.e., high Z). This is
+	something that must be handled on a per module basis, and the action
+	of powering something down cannot be reduced to flipping the switch.
+	Then, as SD requires an explicit open operation anyway, why not EEPROM?
+
+	Miscellaneous cleanups. I have removed the weird cross-connection of
+	UART pins inherited from RFM boards. This is the old definition
+	from mach.h:
+
+	#define	UART_PREINIT_A	do { \
+		_BIC (P3DIR, 0x26); \
+		_BIS (P3DIR, 0x10); \
+		_BIS (P3SEL, 0x30); \
+	} while (0)
+
+	and this is the new one:
+
+	#define	UART_PREINIT_A	do { \
+		_BIC (P3DIR, 0x20); \
+		_BIS (P3DIR, 0x10); \
+		_BIS (P3SEL, 0x30); \
+	} while (0)
+
+	This is because we need the second UART pins in the new Warsaw board.
+	I already had this problem at SFU.
+
+	Note that the boards on which this weird wiring is present can set the
+	respective pins in their board_pins.h files. I think I have fixed this
+	for VERSA2, but GENESIS may have to be fixed (if we still need it for
+	anything). This, of course, applies to the old Warsaw board (and has
+	been fixed in board_pins.h).
+
+	Board ARTURO_PYR added to BOARDS (the special one with 6 sensors).

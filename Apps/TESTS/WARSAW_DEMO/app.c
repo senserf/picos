@@ -13,6 +13,8 @@
 #define	IBUFLEN	80
 
 #define	RS_INIT		0
+#define	RS_INIT1	1
+#define	RS_INIT2	2
 #define	FS_LOOP	0
 
 char *Flash;
@@ -79,6 +81,21 @@ thread (root)
 	static word a, b, c;
 
   entry (RS_INIT)
+
+	delay (10240, RS_INIT1);
+	release;
+
+  entry (RS_INIT1)
+
+	lcd_on (0);
+	lcd_clear (0, 0);
+	lcd_write (0, "Wait 10 sec!!");
+	mdelay (500);
+	lcd_off ();
+	delay (10240, RS_INIT2);
+	release;
+
+  entry (RS_INIT2);
 
 	lcd_on (0);
 	Flash = "OLSONET";

@@ -10,6 +10,7 @@
 
 #define	PIN_DEFAULT_P1DIR	0xF0
 #define	PIN_DEFAULT_P2DIR	0x02
+#define	PIN_DEFAULT_P3DIR	0x00
 #define	PIN_DEFAULT_P4DIR	0xF0
 #define	PIN_DEFAULT_P5DIR	0xFC
 #define	PIN_DEFAULT_P6DIR	0x00
@@ -28,7 +29,7 @@
 
 // Reset on CFG3 low (must be pulled up for normal operation)
 
-#define	IFLASH_INIT_ON_KEY_PRESSED	((P1IN & 0x08) == 0)
+#define	RESET_ON_KEY_PRESSED	((P1IN & 0x08) == 0)
 
 #define	PIN_LIST	{ 	\
 	PIN_RESERVED,		\

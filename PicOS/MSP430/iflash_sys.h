@@ -7,7 +7,8 @@
 
 #include "sysio.h"
 
-#define	IF_PAGE_SIZE	64	// in words
+#define	IF_PAGE_SIZE	64	// INFO flash (in words)
+#define	CF_PAGE_SIZE	256	// code flash (in words)
 
 /*
  * MOV #FWKEY+FSSEL1+FN0,&FCTL2 ; SMCLK/12 (assumes 4.7MHz SMCLK)
@@ -30,7 +31,7 @@
 				"i"((int)(FWKEY+FSSEL1+11)), "m"(FCTL2), \
 				"i"((int)(FWKEY)), "m"(FCTL3), \
 				"i"((int)(FWKEY+WRT)), "m"(FCTL1), \
-				"m"((int)(w)),"m"((IFLASH[a])), \
+				"m"((int)(w)),"m"((*((word*)(a)))), \
 				"i"((int)(FWKEY+LOCK)) ); \
 				sti; \
 				WATCHDOG_RESUME; \

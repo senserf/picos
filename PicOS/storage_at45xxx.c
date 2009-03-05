@@ -252,32 +252,6 @@ static void waitnb () {
 		udelay (50);
 }
 
-void zz_ee_init (void) {
-
-	ee_ini_regs;
-	ee_postinit;
-}
-
-#ifdef	EEPROM_PDMODE_AVAILABLE
-
-void zz_ee_pdown (void) {
-
-	waitnb ();
-	ee_start;
-	put_byte (EE_PDN);
-	ee_stop;
-}
-
-void zz_ee_pup (void) {
-
-	ee_start;
-	put_byte (EE_PUP);
-	ee_stop;
-	waitnb ();
-}
-
-#endif
-
 word ee_read (lword a, byte *s, word len) {
 
 	word pn, nb;
@@ -702,4 +676,46 @@ word ee_sync (word st) {
 	return 0;
 }
 
-#include "storage.c"
+word ee_open () {
+//
+// Open the EEPROM
+//
+	word cnt;
+
+	ee_bring_up;
+
+	for (cnt = 100; busy () && cnt; cnt--);
+	if (cnt == 0) {
+Err:		ee_bring_down;
+		return 1;
+	}
+		
+#ifdef	EEPROM_PDMODE_AVAILABLE
+	ee_start;
+	put_byte (EE_PUP);
+	ee_stop;
+
+	for (cnt = 100; busy () && cnt; cnt--);
+	if (cnt == 0)
+		goto Err;
+#endif
+	return 0;
+}
+
+void ee_close () {
+
+	word cnt;
+
+	sync (WNONE);
+
+	for (cnt = 100; busy () && cnt; cnt--);
+
+#ifdef	EEPROM_PDMODE_AVAILABLE
+	ee_start;
+	put_byte (EE_PDN);
+	ee_stop;
+#endif
+	ee_bring_down;
+}
+
+#include "storage_eeprom.h"

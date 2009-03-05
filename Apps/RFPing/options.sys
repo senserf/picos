@@ -24,15 +24,3 @@
 
 #undef	SPIN_WHEN_HALTED
 #define	SPIN_WHEN_HALTED	0
-
-//#define	RADIO_BITRATE		200000
-
-#undef 	STORAGE_AT45XXX
-#undef	LCD_ST7036
-
-//#undef CRYSTAL2_RATE
-//#define	CRYSTAL2_RATE	0
-
-#define	MONITOR_PIN_CLOCK	0
-#define	MONITOR_PIN_CPU		1
-#define	MONITOR_PIN_SCHED	2

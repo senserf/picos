@@ -5,6 +5,7 @@
 
 #include "sysio.h"
 #include "tcvphys.h"
+#include "iflash_sys.h"
 
 #define	MIN_PACKET_LENGTH	24
 #define	MAX_PACKET_LENGTH	42
@@ -14,6 +15,7 @@ heapmem {10, 90};
 #include "ser.h"
 #include "serf.h"
 #include "form.h"
+#include "storage.h"
 
 #if CC1100
 #include "phys_cc1100.h"
@@ -23,11 +25,18 @@ heapmem {10, 90};
 #include "pinopts.h"
 #include "lhold.h"
 
+#ifndef cswitch_on
+#define	cswitch_on(a)	CNOP
+#define	cswitch_off(a)	CNOP
+#endif
+
 #define	IBUFLEN		132
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
 
 #define	EEPROM_INCR	255
 #define	SEND_INTERVAL	1024
+
+extern void* _etext;
 
 static int 	sfd = -1, off, packet_length, rcvl, b;
 static word	rssi, err, w, len, bs, nt, sl, ss, dcnt;
@@ -145,6 +154,8 @@ void radio_stop () {
 #define	PI_ADC		20
 #define	PI_SET		30
 #define	PI_VIE		40
+#define	PI_SRAW		50
+#define	PI_VRAW		60
 
 thread (test_pin)
 
@@ -157,6 +168,8 @@ thread (test_pin)
 		"                 0-1.5V, 1-2.5V, 2-Vcc, 3-Eref\r\n"
 		"s p v    -> set pin 'p' to digital v (0/1)\r\n"
 		"v p      -> show the value of pin 'p'\r\n"
+		"S p v    -> set raw pin'p' [0,1-out, 2-in, 3-sp]\r\n"
+		"V p      -> show\r\n"
 		"q        -> return to main test\r\n"
 	);
 
@@ -168,6 +181,8 @@ thread (test_pin)
 		case 'r': proceed (PI_ADC);
 		case 's': proceed (PI_SET);
 		case 'v': proceed (PI_VIE);
+		case 'S': proceed (PI_SRAW);
+		case 'V': proceed (PI_VRAW);
 		case 'q': { finish; };
 	}
 	
@@ -208,11 +223,51 @@ thread (test_pin)
 	ser_outf (PI_VIE+1, "Value: %u\r\n", nt);
 	proceed (PI_RCMD);
 
+  entry (PI_SRAW)
+
+	w = WNONE;
+	ss = 0;
+
+	scan (ibuf + 1, "%u %u", &w, &ss);
+	if (w >= PORTNAMES_NPINS)
+		proceed (PI_RCMD+1);
+
+	if (ss < 2) {
+		_PFS (w, 0);
+		_PDS (w, 1);
+		_PVS (w, ss);
+	} else if (ss == 2) {
+		// Set input
+		_PFS (w, 0);
+		_PDS (w, 0);
+	} else {
+		// Special function
+		_PFS (w, 1);
+	}
+	proceed (PI_RCMD);
+
+  entry (PI_VRAW)
+
+	w = WNONE;
+	scan (ibuf + 1, "%u", &w);
+	if (w >= PORTNAMES_NPINS)
+		proceed (PI_RCMD+1);
+
+	nt = _PV (w);
+	sl = _PD (w);
+	ss = _PF (w);
+
+  entry (PI_VRAW+1)
+
+	ser_outf (PI_VRAW+1, "Pin %u = val %u, dir %u, fun %u\r\n", nt, sl, ss);
+	proceed (PI_RCMD);
+
 endthread
 
 // ============================================================================
 
-#define	EP_INIT		0
+#define	EP_START	0
+#define	EP_INIT		5
 #define	EP_RCMD		10
 #define	EP_SWO		20
 #define	EP_SLW		30
@@ -230,6 +285,10 @@ endthread
 #define	EP_FLR		150
 #define	EP_FLW		160
 #define	EP_FLE		170
+#define	EP_CLR		175
+#define	EP_CLW		180
+#define	EP_CLE		190
+#define	EP_COT		195
 #define	EP_ETS		200
 #define	EP_ETS_O	210
 #define	EP_ETS_E	220
@@ -244,6 +303,16 @@ endthread
 #define	EP_ETS_L	310
 
 thread (test_epr)
+
+  entry (EP_START)
+
+	if (ee_open () == 0)
+		proceed (EP_INIT);
+
+  entry (EP_START+1)
+
+	ser_out (EP_START+1, "Failed to open EEPROM\r\n");
+	finish;
 
   entry (EP_INIT)
 
@@ -267,6 +336,10 @@ thread (test_epr)
 		"m adr w      -> write word to info flash\r\n"
 		"n adr        -> read word from info flash\r\n"
 		"o adr        -> erase info flash\r\n"
+		"M adr w      -> write word to code flash\r\n"
+		"N adr        -> read word from code flash\r\n"
+		"O adr        -> erase code flash\r\n"
+		"T adr        -> flash overwrite test\r\n"
 		"q            -> return to main test\r\n"
 	);
 
@@ -293,7 +366,11 @@ thread (test_epr)
 		case 'm': proceed (EP_FLW);
 		case 'n': proceed (EP_FLR);
 		case 'o': proceed (EP_FLE);
-		case 'q': { finish; };
+		case 'M': proceed (EP_CLW);
+		case 'N': proceed (EP_CLR);
+		case 'O': proceed (EP_CLE);
+		case 'T': proceed (EP_COT);
+		case 'q': { ee_close (); finish; };
 	}
 	
   entry (EP_RCMD+1)
@@ -454,18 +531,18 @@ Done:
 
   entry (EP_FLR)
 
-	scan (ibuf + 1, "%u", &adr);
-	if (adr >= IFLASH_SIZE)
+	scan (ibuf + 1, "%u", &w);
+	if (w >= IFLASH_SIZE)
 		proceed (EP_RCMD+1);
-	diag ("IF [%u] = %x", adr, if_read (adr));
+	diag ("IF [%u] = %x", w, IFLASH [w]);
 	proceed (EP_RCMD);
 
   entry (EP_FLW)
 
-	scan (ibuf + 1, "%u %u", &adr, &bs);
-	if (adr >= IFLASH_SIZE)
+	scan (ibuf + 1, "%u %u", &w, &bs);
+	if (w >= IFLASH_SIZE)
 		proceed (EP_RCMD+1);
-	if (if_write (adr, bs))
+	if (if_write (w, bs))
 		diag ("FAILED");
 	else
 		diag ("OK");
@@ -476,6 +553,44 @@ Done:
 	b = -1;
 	scan (ibuf + 1, "%d", &b);
 	if_erase (b);
+	goto Done;
+
+  entry (EP_CLR)
+
+	scan (ibuf + 1, "%u", &w);
+	diag ("CF [%u] = %x, et = %x", w, *((address)w), (word)(&_etext));
+	proceed (EP_RCMD);
+
+  entry (EP_CLW)
+
+	scan (ibuf + 1, "%u %u", &w, &bs);
+	cf_write ((address)w, bs);
+	diag ("OK");
+	goto Done;
+
+  entry (EP_CLE)
+
+	b = 0;
+	scan (ibuf + 1, "%d", &b);
+	cf_erase ((address)b);
+	goto Done;
+
+  entry (EP_COT)
+
+	w = 0;
+	scan (ibuf + 1, "%u", &w);
+
+	if (*((address)w) != 0xffff) {
+		diag ("Word not erased: %x", *((address)w));
+		proceed (EP_RCMD);
+	}
+
+	for (b = 1; b <= 16; b++) {
+		nt = 0xffff << b;
+		cf_write ((address)w, nt);
+		sl = *((address)w);
+		diag ("Written %x, read %x", nt, sl);
+	}
 	goto Done;
 
   entry (EP_ETS)
@@ -951,6 +1066,7 @@ thread (test_delay)
   entry (DE_FRE)
 
 	nt = 0;
+	scan (ibuf + 1, "%u", &nt);
 	diag ("Start");
 	freeze (nt);
 	diag ("Stop");
@@ -1011,6 +1127,30 @@ thread (test_delay)
 
 endthread
 
+// ============================================================================
+
+#define	UA_LOOP		00
+#define	UA_BACK		10
+
+thread (test_uart)
+
+    entry (UA_LOOP)
+
+	ser_in (UA_LOOP, ibuf, IBUFLEN-1);
+
+    entry (UA_BACK)
+
+	ser_outf (UA_BACK, "%s\r\n", ibuf);
+
+	if (ibuf [0] == 'q' && ibuf [1] == '\0')
+		// Done
+		finish;
+	proceed (UA_LOOP);
+
+endthread
+
+// ============================================================================
+
 #define	RS_INIT		00
 #define	RS_RCMD		10
 #define	RS_EPR		20
@@ -1020,6 +1160,8 @@ endthread
 #define	RS_SID		60
 #define	RS_SCH		70
 #define	RS_UAR		80
+#define	RS_CON		90
+#define RS_COF		100
 #define	RS_AUTOSTART	200
 
 thread (root)
@@ -1060,10 +1202,13 @@ thread (root)
 		"n        -> reset\r\n"
 		"i v      -> set SID [def = 0]\r\n"
 		"u v      -> set uart rate [def = 96]\r\n"
+		"o c      -> cswitch on\r\n"
+		"f c      -> cswitch off\r\n"
 		"E        -> detailed EEPROM test\r\n"
 		"S        -> detailed SD test\r\n"
 		"P        -> detailed pin test (including ADC)\r\n"
 		"D        -> delay/freeze/spin test\r\n"
+		"U        -> UART echo test\r\n"
 	);
 
   entry (RS_RCMD-1)
@@ -1087,6 +1232,8 @@ thread (root)
 		case 'c' : proceed (RS_SCH);
 		case 'q' : proceed (RS_QRA);
 		case 'u' : proceed (RS_UAR);
+		case 'o' : proceed (RS_CON);
+		case 'f' : proceed (RS_COF);
 		case 'n' : reset ();
 		case 'E' : {
 				runthread (test_epr);
@@ -1108,6 +1255,11 @@ thread (root)
 				joinall (test_delay, RS_RCMD-2);
 				release;
 		}
+		case 'U' : {
+				runthread (test_uart);
+				joinall (test_uart, RS_RCMD-2);
+				release;
+		}
 	}
 
   entry (RS_RCMD+1)
@@ -1118,7 +1270,9 @@ thread (root)
   entry (RS_EPR)
 
 	// EEPROM test
-	ser_out (RS_EPR, "Erasing ...\r\n");
+	err = ee_open ();
+	ser_outf (RS_EPR, "Open status: %s, erasing ...\r\n", err ? "ERROR" :
+		"OK");
 
   entry (RS_EPR+1)
 
@@ -1163,6 +1317,7 @@ E_more:
   entry (RS_EPR+6)
 
 	ser_outf (RS_EPR+6, "Done (%s)\r\n", err ? "ERROR" : "OK");
+	ee_close ();
 	proceed (RS_RCMD);
 
   entry (RS_SPO)
@@ -1203,6 +1358,24 @@ E_more:
 	off = 0;
 	scan (ibuf + 1, "%d", &off);
 	ion (UART, CONTROL, (char*) &off, UART_CNTRL_SETRATE);
+	proceed (RS_RCMD);
+
+  entry (RS_CON)
+
+	w = 0;
+	scan (ibuf + 1, "%u", &w);
+	if (w == 0)
+		proceed (RS_RCMD+1);
+	cswitch_on (w);
+	proceed (RS_RCMD);
+
+  entry (RS_COF)
+
+	w = 0;
+	scan (ibuf + 1, "%u", &w);
+	if (w == 0)
+		proceed (RS_RCMD+1);
+	cswitch_off (w);
 	proceed (RS_RCMD);
 
   entry (RS_AUTOSTART)

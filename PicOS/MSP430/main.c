@@ -1,7 +1,7 @@
 #include "kernel.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -121,12 +121,21 @@ void powerup (void) {
 void reset (void) {
 
 	cli_tim;
+
+// ========== DISABLED ========================================================
+#if 0
+	// Sorry, we cannot do it any more; probably it was a bad idea to
+	// begin with
 #ifdef	EEPROM_PRESENT
 	ee_sync (WNONE);
 #endif
-#ifdef	SDRAM_PRESENT
+#ifdef	SDCARD_PRESENT
 	sd_sync ();
 #endif
+
+#endif
+// ============================================================================
+
 	hard_reset;
 }
 
@@ -219,12 +228,17 @@ void zzz_syserror (int ec) {
 
 #else	/* RESET_ON_SYSERR */
 
+// ========== DISABLED ========================================================
+#if 0
 #ifdef	EEPROM_PRESENT
 	ee_sync (WNONE);
 #endif
 #ifdef	SDRAM_PRESENT
 	sd_sync ();
 #endif
+#endif
+// ============================================================================
+
 	while (1) {
 #if LEDS_DRIVER
 		leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
@@ -811,10 +825,6 @@ void freeze (word nsec) {
 	saveLEDs = leds_save ();
 	leds_off ();
 
-#ifdef EEPROM_PDMODE_AVAILABLE
-	zz_ee_pdown ();
-#endif
-
 #if UART_DRIVER || UART_TCV
 	// Save UART interrupt configuration
 	saveIE1 = IE1;
@@ -867,9 +877,6 @@ void freeze (word nsec) {
 
 	zz_lostk = saveLostK;
 
-#ifdef EEPROM_PDMODE_AVAILABLE
-	zz_ee_pup ();
-#endif
 	leds_restore (saveLEDs);
 
 	WATCHDOG_START;
@@ -898,17 +905,22 @@ word zzz_stackfree (void) {
 static void ios_init () {
 
 	pcb_t *p;
-
-#if MAX_DEVICES
 	int i;
-#endif
 
-#ifdef EEPROM_PRESENT
-	zz_ee_init ();
-#endif
+#ifdef	RESET_ON_KEY_PRESSED
 
-#ifdef SDCARD_PRESENT
-	sd_ini_regs;
+	if (RESET_ON_KEY_PRESSED) {
+		for (i = 0; i < 4; i++) {
+			leds (0,1); leds (1,1); leds (2,1); leds (3,1);
+			mdelay (256);
+			leds (0,0); leds (1,0); leds (2,0); leds (3,0);
+			mdelay (256);
+		}
+#ifdef	board_key_erase_action
+		board_key_erase_action;
+#endif
+		while (RESET_ON_KEY_PRESSED);
+	}
 #endif
 
 #ifdef SENSOR_LIST
@@ -925,10 +937,6 @@ static void ios_init () {
 
 #ifdef LCDG_PRESENT
 	zz_lcdg_init ();
-#endif
-
-#if INFO_FLASH
-	zz_if_init ();
 #endif
 
 #if	UART_DRIVER || UART_TCV

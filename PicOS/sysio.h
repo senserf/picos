@@ -2,7 +2,7 @@
 #define	__pg_sysio_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -342,46 +342,6 @@
 //+++ "sdcard.c"
 #endif
 
-#ifdef	EEPROM_PRESENT
-
-word 	ee_read  (lword, byte*, word);
-word 	ee_write (word, lword, const byte*, word);
-word	ee_erase (word, lword, lword);
-word	ee_sync (word);
-lword	ee_size (Boolean*, lword*);
-
-#else
-
-#define	ee_read(a,b,c)		1
-#define	ee_write(a,b,c,d)	1
-#define	ee_erase(a,b,c)		1
-#define	ee_sync(a)		1
-#define	ee_size(b,w)		0
-
-#endif	/* EEPROM_PRESENT */
-
-#ifdef	SDCARD_PRESENT
-
-word	sd_open ();
-word	sd_read (lword, byte*, word);
-word	sd_write (lword, const byte*, word);
-word	sd_sync ();
-void	sd_close ();
-lword	sd_size ();
-void	sd_idle ();
-
-#else
-
-#define	sd_open()		1
-#define	sd_read(a,b,c)		1
-#define	sd_write(a,b,c)		1
-#define	sd_sync()		1
-#define	sd_close()		CNOP
-#define	sd_size()		0
-#define	sd_idle()		CNOP
-
-#endif	/* SDCARD_PRESENT */
-
 // LCD =======================================================================
 
 #ifdef	LCD_PRESENT
@@ -410,16 +370,8 @@ void	lcd_setp (word);
 // ===========================================================================
 
 #if	INFO_FLASH
-
 //+++ "iflash.c"
-
-// Operations on the internal "information" flash (also dubbed FIM)
-int	if_write (word, word);
-void	if_erase (int);
-#define	IFLASH		IFLASH_HARD_ADDRESS
-#define	if_read(a)	(IFLASH [a])
-
-#endif
+#endif	/* INFO_FLASH */
 
 #if	ADC_SAMPLER
 

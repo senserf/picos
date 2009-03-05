@@ -15,18 +15,6 @@
 #include "uart.h"
 #include "pins.h"
 
-
-#ifdef EEPROM_PRESENT
-
-#include "board_storage.h"
-
-void 	zz_ee_init (void);
-#ifdef EEPROM_PDMODE_AVAILABLE
-void	zz_ee_pdown (void);
-void	zz_ee_pup (void);
-#endif
-#endif	/* EEPROM_PRESENT */
-
 void	zzz_set_release (void);
 void	zzz_tservice (void);
 
@@ -40,10 +28,6 @@ void 	zz_lcd_init (void);
 
 #ifdef LCDG_PRESENT
 void	zz_lcdg_init (void);
-#endif
-
-#if INFO_FLASH
-void	zz_if_init (void);
 #endif
 
 typedef struct	{

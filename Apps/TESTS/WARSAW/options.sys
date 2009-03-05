@@ -1,17 +1,8 @@
-// Insert here applications-specific options
-// #undef TCV_TIMERS
-// #define	TCV_TIMERS	1
+#undef	DIAG_MESSAGES
+#define	DIAG_MESSAGES	2
 
-// #define	EE_NO_ERASE_BEFORE_WRITE	1
+#undef	INFO_FLASH
+#define	INFO_FLASH	2
 
-//#undef CC1100
-//#define	CC1100	0
-
-#undef CRYSTAL2_RATE
-#define CRYSTAL2_RATE	0
-
-//#undef STORAGE_AT45XXX
-//#define	STORAGE_AT45XXX	0
-
-// For tests - slow, 2 is the default minimum
-// #define SPI_BAUD_RATE	32
+#undef	UART_RATE
+#define	UART_RATE	115200

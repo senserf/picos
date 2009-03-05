@@ -14,10 +14,12 @@
 #include "board_pins.h"
 #include "storage_at45xxx.h"
 
-#define	ee_ini_regs	do { \
+#define	ee_bring_up	do { \
 				_BIS (P5OUT, 0x09); \
 				_BIS (P5DIR, 0x0b); \
 			} while (0)
+
+#define	ee_bring_down	CNOP
 
 #define	ee_inp		(P5IN & 0x04)
 

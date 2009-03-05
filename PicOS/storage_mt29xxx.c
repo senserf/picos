@@ -271,11 +271,17 @@ word ee_sync (word st) {
 	return es;
 }
 
-void zz_ee_init () {
-	ee_ini_regs;
-	// Reset
+word ee_open () {
+
+	ee_bring_up;
 	ee_reset;
-	ee_postinit;
+	return 0;
+}
+
+void ee_close () {
+
+	ee_sync (WNONE);
+	ee_bring_down;
 }
 
 word ee_read (lword a, byte *s, word len) {
@@ -484,4 +490,4 @@ word ee_write (word st, lword a, const byte *s, word len) {
 	}
 }
 
-#include "storage.c"
+#include "storage_eeprom.h"

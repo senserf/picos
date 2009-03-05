@@ -36,7 +36,7 @@
 #endif
 
 // This is the same for both EE and SD
-#define	spi_init	do { \
+#define	spi_up		do { \
 				_BIS (P5SEL, 0x0E); \
 				_BIS (UCTL1, SWRST); \
 				_BIS (UCTL1, SYNC + MM + CHAR); \
@@ -47,6 +47,9 @@
 				_BIS (ME2, USPIE1); \
 				_BIC (UCTL1, SWRST); \
 			} while (0)
+
+// When switching off power, we have to set those pins to high Z
+#define	spi_down	_BIC (P5SEL, 0x0E)
 
 // Timing measurements:
 //
@@ -86,7 +89,24 @@
 //  Note: SPI/direct has no impact on power consumption, including PD mode,
 //
 
-#define	ee_bring_up	spi_init
+
+
+########here: replace GLOBALLY with bring_up/bring_down
+
+#define	ee_bring_up	do { \
+				spi_up; \
+				_BIS (P5OUT, 0x01); \
+				_BIS (P5DIR, 0x01); \
+				cswitch_on (CSWITCH_EE); \
+				mdelay (10); \
+			} while (0)
+
+#define	ee_bring_down	do { \
+				mdelay (10); \
+				cswitch_off (CSWITCH_EE); \
+				_BIC (P5DIR, 0x0F); \
+				spi_down; \
+			} while (0)
 
 #define	ee_rx_ready	(IFG2 & URXIFG1)
 #define	ee_tx_ready	(IFG2 & UTXIFG1)
@@ -99,7 +119,20 @@
 
 // SD =========================================================================
 
-#define	sd_bring_up	spi_init
+#define	sd_bring_up	do { \
+				spi_up; \
+				_BIS (P5OUT, 0x20); \
+				_BIS (P5DIR, 0x20); \
+				cswitch_on (CSWITCH_SD); \
+				mdelay (10); \
+			} while (0)
+
+#define	sd_bring_down	do { \
+				mdelay (10); \
+				cswitch_off (CSWITCH_SD); \
+				_BIC (P5DIR, 0x2E); \
+				spi_down; \
+			} while (0)
 
 #define	sd_rx_ready	ee_rx_ready
 #define	sd_tx_ready	ee_tx_ready
@@ -115,8 +148,18 @@
 // Direct mode ================================================================
 // ============================================================================
 
-// Preinitialized in board_pins.h
-#define	ee_bring_up	CNOP
+#define	ee_bring_up	do { \
+				_BIS (P5OUT, 0x09); \
+				_BIS (P5DIR, 0x0B); \
+				cswitch_on (CSWITCH_EE); \
+				mdelay (10); \
+			} while (0)
+
+#define	ee_bring_down	do { \
+				mdelay (10); \
+				cswitch_off (CSWITCH_EE); \
+				_BIC (P5DIR, 0x0B); \
+			} while (0)
 
 #define	ee_inp		(P5IN & 0x04)
 
@@ -129,9 +172,21 @@
 #define	ee_start	do { _BIC (P5OUT, 0x01); ee_clkl; } while (0)
 #define	ee_stop		do { _BIS (P5OUT, 0x01); ee_clkh; } while (0)
 
+
 // SD =========================================================================
 
-#define sd_bring_up	CNOP
+#define	sd_bring_up	do { \
+				_BIS (P5OUT, 0x2A); \
+				_BIS (P5DIR, 0x2A); \
+				cswitch_on (CSWITCH_SD); \
+				mdelay (10); \
+			} while (0)
+
+#define	sd_bring_down	do { \
+				mdelay (10); \
+				cswitch_off (CSWITCH_SD); \
+				_BIC (P5DIR, 0x2A); \
+			} while (0)
 
 #define	sd_clkh		ee_clkh
 #define	sd_clkl		ee_clkl
@@ -147,9 +202,6 @@
 // ============================================================================
 // ============================================================================
 
-#define	ee_bring_down	CNOP
-#define	sd_bring_down	CNOP
-
 // CS signal is different, though
-#define	sd_start	_BIC (P5OUT, 0x10)
-#define	sd_stop		_BIS (P5OUT, 0x10)
+#define	sd_start	_BIC (P5OUT, 0x20)
+#define	sd_stop		_BIS (P5OUT, 0x20)

@@ -90,7 +90,7 @@
 // Pin setting for pre-initialization of UARTs
 
 #define	UART_PREINIT_A	do { \
-		_BIC (P3DIR, 0x26); \
+		_BIC (P3DIR, 0x20); \
 		_BIS (P3DIR, 0x10); \
 		_BIS (P3SEL, 0x30); \
 	} while (0)
@@ -110,7 +110,7 @@
 #define	UART_TST_RTR	((P3IN & 0x40) != 0)
 
 #define	UART_PREINIT_B	do { \
-		_BIC (P3DIR, 0x89); \
+		_BIC (P3DIR, 0x80); \
 		_BIS (P3DIR, 0x40); \
 		_BIS (P3SEL, 0xc0); \
 	} while (0)

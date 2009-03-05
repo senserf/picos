@@ -1,10 +1,15 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 // Departures from default pre-initialization
 
+#if CC1100
+
+// ============================================================================
+// Radio is on P1
+// ============================================================================
 // 0 = RF SI OUT
 // 1 = RF CLK OUT
 // 2 = RF SO IN
@@ -14,9 +19,28 @@
 // 6,7 General, unused by default
 #define	PIN_DEFAULT_P1DIR	0xE3
 
+#else
+
+#define	PIN_DEFAULT_P1DIR	0xFF
+
+#endif
+
+// ============================================================================
+
 // 0, 1, 7 hang loose, 4 = soft reset button, must be IN
 // 2, 3, 5, 6 general, unused by default
 #define	PIN_DEFAULT_P2DIR	0xEF
+
+// ============================================================================
+
+#if UART_DRIVER > 1
+// ============================================================================
+// This also means that CTS/RTS are disconnected from RXD1/TXD1, as they should
+// be
+// ============================================================================
+#define	PIN_DEFAULT_P3DIR	0x5F
+
+#else
 
 // 0 doubles with RXD1 (as CTS, and is in the way, so must be input)
 // 1 doubles with TXD0 (and is in the way, so must be input)
@@ -28,23 +52,24 @@
 // 7 is RXD1
 #define	PIN_DEFAULT_P3DIR	0x50
 //#define	PIN_DEFAULT_P3DIR	0xC9
+// ============================================================================
+#endif
 
 // 1, 2, 3 = LEDs, 0, 4-7 = general unused by default
 #define PIN_DEFAULT_P4DIR	0xFF
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off (high) by default
 
+// ============================================================================
+// P5 used by EEPROM/SDCARD
+// ============================================================================
 // 0 = EEPROM CS OUT
 // 1 = STORAGE SI OUT
 // 2 = STORAGE SO IN
 // 3 = STORAGE SCK OUT
 // 4 = SD card CS OUT
-// 5, 6, 7 hang loose
 #define	PIN_DEFAULT_P5DIR	0xFB
 //#define	PIN_DEFAULT_P5OUT	0x01	// Default CS is up
-#define	PIN_DEFAULT_P5OUT	0x1B	// Default both CS are up; clk down
-
-#define	EEPROM_INIT_ON_KEY_PRESSED	0
-//#define	EEPROM_INIT_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+#define	PIN_DEFAULT_P5OUT	0x1B	// Default both CS, CLK are up
 
 #if ADC_SAMPLER
 

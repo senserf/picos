@@ -10,48 +10,28 @@
  * second_iflash.h and second_eeprom.h
  */
 
-#ifdef EEPROM_INIT_ON_KEY_PRESSED
+#ifdef	RESET_ON_KEY_PRESSED
 
-	if (EEPROM_INIT_ON_KEY_PRESSED) {
+#define	board_key_erase_action	do { bkea_ee; bkea_sd; bkea_if; } while (0)
 
-#if WATCHDOG_ENABLED
-		 WATCHDOG_STOP;
-#endif
-		 // Disable all interrupts, we are going down
-		 cli;
-		 leds (0, 1); leds (1, 1); leds (2, 1);
-		 mdelay (512);
-		 leds (0, 0); leds (1, 0); leds (2, 0);
-
-		 for (zz_lostk = 0; zz_lostk < 4; zz_lostk++) {
-			 mdelay (1024);
-			 if (!EEPROM_INIT_ON_KEY_PRESSED) {
-#if INFO_FLASH
-		// This may be convenient to switch between functional
-		// node types, e.g. router / leaf, with no UI available.
-		// This here is specific for BoardTest praxis.
-				 if (if_read (IFLASH_SIZE -1) == 0xFFFE)
-					 if_write (IFLASH_SIZE -1, 0xFFFC);
-#endif
-				 reset();
-			 }
-		 }
-#if INFO_FLASH
-		 // erase fim, eeprom
-		 if_erase (-1);
-#endif
 #ifdef	EEPROM_PRESENT
-		 ee_erase (WNONE, 0, 0);
+#define	bkea_ee	ee_init_erase ()
+#else
+#define	bkea_ee	CNOP
 #endif
-		 for (zz_lostk = 0; zz_lostk < 8; zz_lostk++) {
-			 leds (0,1); leds (1,1); leds (2,1);
-			 mdelay (200);
-			 leds (0,0); leds (1,0); leds (2,0);
-			 mdelay (200);
-		 }
-		 while (EEPROM_INIT_ON_KEY_PRESSED) ;
-		 reset();
-	}
+
+#ifdef	SDCARD_PRESENT
+#define	bkea_sd	sd_init_erase ()
+#else
+#define	bkea_sd	CNOP
 #endif
+
+#if	INFO_FLASH
+#define	bkea_if	if_erase (-1)
+#else
+#define	bkea_if	CNOP
+#endif
+
+#endif	/* RESET_ON_KEY_PRESSED */
 
 #endif
