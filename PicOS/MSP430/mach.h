@@ -328,6 +328,121 @@ extern uart_t zz_uart [];
 // Also needed by UART_TCV (if UART_DRIVER is 0)
 #define	UART_RATE_MASK		0x0F
 
+// ============================================================================
+// UART rate calculation ======================================================
+// ============================================================================
+
+#if CRYSTAL2_RATE
+// SMCLK
+#define	UART_UTCTL	SSEL1
+#define	UART_CLOCK_RATE	CRYSTAL2_RATE
+#else
+// ACLK
+#define	UART_UTCTL	SSEL0
+#define	UART_CLOCK_RATE	CRYSTAL_RATE
+#endif
+
+#if	UART_CLOCK_RATE == 32768
+// This is the standard (or perhaps not any more?)
+#define	UART_UBR1		0
+
+#if UART_RATE == 1200
+#define	UART_UBR0		0x1B
+#define	UART_UMCTL		0x03
+#define	UART_RATE_INDEX	0
+#endif
+
+#if UART_RATE == 2400
+#define	UART_UBR0		0x0D
+#define	UART_UMCTL		0x6B
+#define	UART_RATE_INDEX	1
+#endif
+
+#if UART_RATE == 4800
+#define	UART_UBR0		0x06
+#define	UART_UMCTL		0x6F
+#define	UART_RATE_INDEX	2
+#endif
+
+#if UART_RATE == 9600
+#define	UART_UBR0		0x03
+#define	UART_UMCTL		0x4A
+#define	UART_RATE_INDEX	3
+#endif
+
+#ifndef UART_UBR0
+#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
+#endif
+
+#else	/* UART_CLOCK_RATE > 32768 */
+
+#if UART_RATE == 1200
+#define	UART_RATE_INDEX	0
+#endif
+#if UART_RATE == 2400
+#define	UART_RATE_INDEX	1
+#endif
+#if UART_RATE == 4800
+#define	UART_RATE_INDEX	2
+#endif
+#if UART_RATE == 9600
+#define	UART_RATE_INDEX	3
+#endif
+#if UART_RATE == 14400
+#define	UART_RATE_INDEX	4
+#endif
+#if UART_RATE == 19200
+#define	UART_RATE_INDEX	5
+#endif
+#if UART_RATE == 28800
+#define	UART_RATE_INDEX	6
+#endif
+#if UART_RATE == 38400
+#define	UART_RATE_INDEX	7
+#endif
+#if UART_RATE == 76800
+#define	UART_RATE_INDEX	8
+#endif
+#if UART_RATE == 115200
+#define	UART_RATE_INDEX	9
+#endif
+#if UART_RATE == 256000
+#define	UART_RATE_INDEX	10
+#endif
+
+#ifndef	UART_RATE_INDEX
+#error "Illegal UART_RATE"
+#endif
+
+// No need to use corrections for high-speed crystals. FIXME: may need 
+// correction for 115200 and more.
+#define	UART_UMCTL		0
+#define	UART_UBR0		((UART_CLOCK_RATE/UART_RATE) % 256)
+#define	UART_UBR1		((UART_CLOCK_RATE/UART_RATE) / 256)
+
+#endif	/* UART_CLOCK_RATE */
+
+#if UART_BITS == 8
+
+#define	UART_UCTL_CHAR	CHAR
+#define	UART_UCTL_PENA	0
+#define	UART_UCTL_PEV	0
+
+#else	/* UART_BITS == 7 */
+
+#define	UART_UCTL_CHAR	0
+#define	UART_UCTL_PENA	PENA
+
+#if UART_PARITY == 0
+#define	UART_UCTL_PEV	PEV
+#else
+#define	UART_UCTL_PEV	0
+#endif
+
+#endif	/* UART_BITS */
+
+// ============================================================================
+
 #define	sti	_EINT ()
 #define	cli	_DINT ()
 

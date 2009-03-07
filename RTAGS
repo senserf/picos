@@ -2800,3 +2800,46 @@ R090304A:
 	been fixed in board_pins.h).
 
 	Board ARTURO_PYR added to BOARDS (the special one with 6 sensors).
+
+R090308A:
+
+	Second UART can be configured and unconfigured dynamically (while
+	being visible as a standard UART device). We need this for the new
+	Warsaw board, where the same UART is used for SPI (EEPROM, SD) and GPS.
+
+	RTC (S35390) driver works. For now, you can only set time and read
+	it (enhancements will be added as they are needed). 
+
+	Configuration: #define RTC_S35390 1 (see BOARDS/WARSAW_NEW and
+	Apps/TESTS/WARSAW).
+
+	Include rtc.h in the praxis. It defines this:
+
+		typedef	struct {
+			byte	year, month, day, dow, hour, minute, second;
+		} rtc_time_t;
+
+		word rtc_set (const rtc_time_t*);
+		word rtc_get (rtc_time_t*);
+
+	year = last two digits
+	dow  = day of week (0-6), e.g., 0-Monday [it doesn't matter, really]
+	hour = 24h format for now (12h AM/PM possible if needed)
+
+	Note: unitialized RTC drains current (about 150uA)!!. Thus, the
+	praxis should check it and set to anything (see code at the beginning
+	of root in app.c in Apps/TESTS/WARSAW. I added initialization code to
+	the kernel, but then decided to remove it: the praxis may want to be
+	smart about this (note that the clock ticks if power is up, even if the
+	system is down).
+
+	GPS works (it is ASCII over second UART, so there is no specific
+	driver). We will have a library function (and thread) taking care of
+	it.
+
+	LCD configured into the new Warsaw board (see BOARDS/WARSAW_NEW).
+	LCD driver redone a bit. "Static" initialization moved from the
+	kernel to lcd_on, as now the module can be powered up and down.
+	Fixed other boards using it, but keep your eyes open. Also, shortened
+	(drastically) some delays (in lcd_st7036.c). They can be increased if
+	the LCD exhibits problems.

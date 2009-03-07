@@ -25,9 +25,8 @@ heapmem {10, 90};
 #include "pinopts.h"
 #include "lhold.h"
 
-#ifndef cswitch_on
-#define	cswitch_on(a)	CNOP
-#define	cswitch_off(a)	CNOP
+#ifdef	RTC_PRESENT
+#include "rtc.h"
 #endif
 
 #define	IBUFLEN		132
@@ -44,6 +43,10 @@ static lword	adr, max, val, last_snt, last_rcv, s, u, pat;
 static byte	str [129], *blk;
 static char	*ibuf;
 static address	packet;
+
+#ifdef RTC_PRESENT
+rtc_time_t dtime;
+#endif
 
 static word gen_packet_length (void) {
 
@@ -1055,7 +1058,7 @@ thread (test_delay)
 		case 'd': proceed (DE_PDM);
 		case 'u': proceed (DE_PUM);
 		case 's': proceed (DE_SPN);
-		case 'q': { finish; };
+		case 'q': { finish; }
 	}
 	
   entry (DE_RCMD+1)
@@ -1151,6 +1154,290 @@ endthread
 
 // ============================================================================
 
+#ifdef gps_bring_up
+
+#define	MI_READ		0
+#define	MI_WRITE	1
+
+thread (minput)
+
+  static char c;
+
+  entry (MI_READ)
+
+	io (MI_READ, UART_B, READ, &c, 1);
+
+  entry (MI_WRITE)
+
+	io (MI_WRITE, UART_A, WRITE, &c, 1);
+	proceed (MI_READ);
+
+endthread
+
+#define	GP_INI	0
+#define	GP_MEN	1
+#define	GP_RCM	2
+#define	GP_WRI	3
+#define	GP_ENA	5
+#define	GP_DIS	6
+#define	GP_WRL	9
+#define	GP_ERR	10
+
+thread (test_gps) 
+
+  entry (GP_INI)
+
+  entry (GP_MEN)
+
+	ser_out (GP_MEN,
+		"\r\nGPS Test\r\n"
+		"Commands:\r\n"
+		"w string    -> write line to module\r\n"
+		"e           -> enable\r\n"
+		"d           -> disable\r\n"
+		"q           -> quit\r\n"
+	);
+
+  entry (GP_RCM)
+
+	ser_in (GP_RCM, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+
+	    case 'w': proceed (GP_WRI);
+	    case 'e': proceed (GP_ENA);
+	    case 'd': proceed (GP_DIS);
+	    case 'q': {
+			gps_bring_down;
+			killall (minput);
+			finish;
+	    }
+
+	}
+
+  entry (GP_ERR)
+
+	ser_out (GP_ERR, "Illegal command or parameter\r\n");
+	proceed (GP_MEN);
+
+  entry (GP_WRI)
+
+	for (b = 1; ibuf [b] == ' '; b++);
+	off = strlen (ibuf + b);
+
+	ibuf [b + off    ] = '\r';
+	ibuf [b + off + 1] = '\n';
+	off += 2;
+	ibuf [b + off    ] = '\0';
+
+  entry (GP_WRL)
+
+	while (off) {
+		rcvl = io (GP_WRL, UART_B, WRITE, ibuf + b, off);
+		off -= rcvl;
+		b += rcvl;
+	}
+
+	proceed (GP_RCM);
+
+  entry (GP_ENA)
+
+	gps_bring_up;
+	killall (minput);
+	runthread (minput);
+	proceed (GP_RCM);
+
+  entry (GP_DIS)
+
+	gps_bring_down;
+	killall (minput);
+	proceed (GP_RCM);
+
+endthread
+
+#endif /* gps_bring_up */
+
+// ============================================================================
+
+#ifdef RTC_PRESENT
+
+#define	RT_MEN	0
+#define	RT_RCM	10
+#define	RT_ERR	20
+#define	RT_SET	30
+#define	RT_GET	40
+
+thread (test_rtc) 
+
+  entry (RT_MEN)
+
+	ser_out (RT_MEN,
+		"\r\nRTC Test\r\n"
+		"Commands:\r\n"
+		"s y m d dw h m s -> set the clock\r\n"
+		"r                -> read the clock\r\n"
+		"q                -> quit\r\n"
+	);
+
+  entry (RT_RCM)
+
+	ser_in (RT_RCM, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+
+	    case 's': proceed (RT_SET);
+	    case 'r': proceed (RT_GET);
+	    case 'q': {
+			finish;
+	    }
+
+	}
+
+  entry (RT_ERR)
+
+	ser_out (RT_ERR, "Illegal command or parameter\r\n");
+	proceed (RT_MEN);
+
+  entry (RT_SET)
+
+	sl = WNONE;
+	scan (ibuf + 1, "%u %u %u %u %u %u %u",
+		&rssi, &err, &w, &len, &bs, &nt, &sl);
+
+	if (sl == WNONE)
+		proceed (RT_ERR);
+
+	dtime.year = rssi;
+	dtime.month = err;
+	dtime.day = w;
+	dtime.dow = len;
+	dtime.hour = bs;
+	dtime.minute = nt;
+	dtime.second = sl;
+
+	err = rtc_set (&dtime);
+
+  entry (RT_SET+1)
+
+	ser_outf (RT_SET+1, "Status = %u\r\n", err);
+	proceed (RT_RCM);
+
+  entry (RT_GET)
+
+	bzero (&dtime, sizeof (dtime));
+	err = rtc_get (&dtime);
+
+  entry (RT_GET+1)
+
+	ser_outf (RT_GET+1, "Status = %u // %u %u %u %u %u %u %u\r\n", err,
+				dtime.year,
+				dtime.month,
+				dtime.day,
+				dtime.dow,
+				dtime.hour,
+				dtime.minute,
+				dtime.second);
+	proceed (RT_RCM);
+
+endthread
+
+#endif /* RTC_PRESENT */
+
+// ============================================================================
+
+#if LCD_ST7036
+
+#define	LT_MEN	0
+#define	LT_RCM	10
+#define	LT_ERR	20
+#define	LT_ON	30
+#define	LT_OFF	40
+#define	LT_DIS	50
+#define	LT_CLE	60
+
+thread (test_lcd) 
+
+  char *t;
+
+  entry (LT_MEN)
+
+	ser_out (LT_MEN,
+		"\r\nLCD Test\r\n"
+		"Commands:\r\n"
+		"o n   -> on (1 = cursor shown)\r\n"
+		"f     -> off\r\n"
+		"d n t -> display text at pos n\r\n"
+		"c     -> clear\r\n"
+		"q     -> quit\r\n"
+	);
+
+  entry (LT_RCM)
+
+	ser_in (LT_RCM, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+
+	    case 'o': proceed (LT_ON);
+	    case 'f': proceed (LT_OFF);
+	    case 'd': proceed (LT_DIS);
+	    case 'c': proceed (LT_CLE);
+	    case 'q': {
+			lcd_off ();
+			finish;
+	    }
+
+	}
+
+  entry (LT_ERR)
+
+	ser_out (LT_ERR, "Illegal command or parameter\r\n");
+	proceed (LT_MEN);
+
+  entry (LT_ON)
+
+	sl = 0;
+	scan (ibuf + 1, "%u", &sl);
+
+	if (sl)
+		sl = 1;
+
+	lcd_on (sl);
+	proceed (LT_RCM);
+
+  entry (LT_OFF)
+
+	lcd_off ();
+	proceed (LT_RCM);
+
+  entry (LT_DIS)
+
+	sl = 0;
+	scan (ibuf + 1, "%u", &sl);
+
+	if (sl > 31)
+		proceed (LT_ERR);
+
+	for (t = ibuf + 1; *t != '\0'; t++)
+		if (*t != ' ' && *t != '\t' && !isdigit (*t))
+			break;
+
+	if (*t == '\0')
+		proceed (LT_ERR);
+
+	lcd_write (sl, t);
+	proceed (LT_RCM);
+
+  entry (LT_CLE)
+
+	lcd_clear (0, 0);
+	proceed (LT_RCM);
+
+endthread
+
+#endif /* RTC_PRESENT */
+
+// ============================================================================
+
 #define	RS_INIT		00
 #define	RS_RCMD		10
 #define	RS_EPR		20
@@ -1170,6 +1457,19 @@ thread (root)
 
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
+
+#ifdef RTC_PRESENT
+
+	// Check if the clock is running; if not, set it to anything as
+	// otherwise it drains current
+
+	if (rtc_get (&dtime) == 0) {
+		if (dtime.year == 0) {
+			dtime.year = 9;
+			rtc_set (&dtime);
+		}
+	}
+#endif
 
 #if CC1100
 	phys_cc1100 (0, MAXPLEN);
@@ -1202,12 +1502,23 @@ thread (root)
 		"n        -> reset\r\n"
 		"i v      -> set SID [def = 0]\r\n"
 		"u v      -> set uart rate [def = 96]\r\n"
+#ifdef cswitch_on
 		"o c      -> cswitch on\r\n"
 		"f c      -> cswitch off\r\n"
+#endif
 		"E        -> detailed EEPROM test\r\n"
 		"S        -> detailed SD test\r\n"
 		"P        -> detailed pin test (including ADC)\r\n"
 		"D        -> delay/freeze/spin test\r\n"
+#ifdef	gps_bring_up
+		"G        -> GPS test\r\n"
+#endif
+#ifdef RTC_PRESENT
+		"T        -> RTC test\r\n"
+#endif
+#if LCD_ST7036
+		"L        -> LCD test\r\n"
+#endif
 		"U        -> UART echo test\r\n"
 	);
 
@@ -1232,8 +1543,10 @@ thread (root)
 		case 'c' : proceed (RS_SCH);
 		case 'q' : proceed (RS_QRA);
 		case 'u' : proceed (RS_UAR);
+#ifdef cswitch_on
 		case 'o' : proceed (RS_CON);
 		case 'f' : proceed (RS_COF);
+#endif
 		case 'n' : reset ();
 		case 'E' : {
 				runthread (test_epr);
@@ -1260,6 +1573,28 @@ thread (root)
 				joinall (test_uart, RS_RCMD-2);
 				release;
 		}
+#ifdef gps_bring_up
+		case 'G' : {
+				runthread (test_gps);
+				joinall (test_gps, RS_RCMD-2);
+				release;
+		}
+#endif
+
+#ifdef RTC_PRESENT
+		case 'T' : {
+				runthread (test_rtc);
+				joinall (test_rtc, RS_RCMD-2);
+				release;
+		}
+#endif
+#if LCD_ST7036
+		case 'L' : {
+				runthread (test_lcd);
+				joinall (test_lcd, RS_RCMD-2);
+				release;
+		}
+#endif
 	}
 
   entry (RS_RCMD+1)
@@ -1360,6 +1695,8 @@ E_more:
 	ion (UART, CONTROL, (char*) &off, UART_CNTRL_SETRATE);
 	proceed (RS_RCMD);
 
+#ifdef cswitch_on
+
   entry (RS_CON)
 
 	w = 0;
@@ -1377,6 +1714,7 @@ E_more:
 		proceed (RS_RCMD+1);
 	cswitch_off (w);
 	proceed (RS_RCMD);
+#endif
 
   entry (RS_AUTOSTART)
 

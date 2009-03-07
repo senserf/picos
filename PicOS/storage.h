@@ -12,8 +12,6 @@
 
 #ifdef	EEPROM_PRESENT
 
-// These are actual functions
-
 word 	ee_read  (lword, byte*, word);
 word 	ee_write (word, lword, const byte*, word);
 word	ee_erase (word, lword, lword);

@@ -14,10 +14,12 @@
 #define	LCD_LINE_LENGTH		16
 #define	LCD_N_LINES		2
 
-#define	lcd_ini_regs	do { \
+#define	lcd_bring_up	do { \
 				_BIS (P6OUT, 0x30); \
 				_BIS (P6DIR, 0x78); \
 			} while (0)
+
+#define	lcd_bring_down	CNOP
 
 #define	lcd_start	_BIC (P6OUT, 0x10)
 #define	lcd_stop	_BIS (P6OUT, 0x10)

@@ -5,7 +5,10 @@
 
 #include "lcd_st7036.h"
 
-static byte Cursor;
+#define	LCD_SDELAY	udelay (27);
+#define	LCD_MDELAY	mdelay (20);
+
+static byte Cursor = 0;
 
 static byte put_byte (byte b) {
 
@@ -26,7 +29,7 @@ static void put_cmd (byte b) {
 
 	lcd_select_cmd;
 	put_byte (b);
-	udelay (27);
+	LCD_SDELAY;
 }
 
 #define	set_addr(pos)	put_cmd ((byte)((pos) | 0x80))
@@ -35,9 +38,12 @@ static void put_data (byte b) {
 
 	lcd_select_data;
 	put_byte (b);
-	udelay (27);
+	LCD_SDELAY;
 }
 
+#if 0
+// This is now part of lcd_on; required for boards where LCD can be powered on
+// and off
 void zz_lcd_init () {
 
 	Cursor = 0;
@@ -61,10 +67,31 @@ void zz_lcd_init () {
 
 	lcd_off ();
 }
+#endif
 
 void lcd_on (word params) {
 
+	lcd_bring_up;
+
 	lcd_start;
+	//mdelay (100);
+	LCD_MDELAY;
+	put_cmd (0x39);
+	put_cmd (0x14);
+	put_cmd (0x55);
+	put_cmd (0x6d);
+	
+	//mdelay (200);
+	LCD_MDELAY;
+	put_cmd (0x78);
+	put_cmd (0x0f);
+	put_cmd (0x01);
+	//mdelay (10);
+	put_cmd (0x06);
+	//mdelay (10);
+	// lcd_stop;
+	// lcd_start;
+	LCD_SDELAY;
 	put_cmd ((params & LCD_CURSOR_ON) ? 0x0f : 0x0c);
 	lcd_stop;
 }
@@ -75,6 +102,8 @@ void lcd_off () {
 	put_cmd (0x08);
 	lcd_stop;
 
+	lcd_bring_down;
+
 }
 
 void lcd_clear (word from, word n) {
@@ -83,9 +112,11 @@ void lcd_clear (word from, word n) {
 		Cursor = 0;
 		lcd_start;
 		put_cmd (0x01);
-		mdelay (2);
+		// mdelay (2);
+		LCD_SDELAY;
 		put_cmd (0x02);
-		mdelay (2);
+		// mdelay (2);
+		LCD_SDELAY;
 		lcd_stop;
 	} else if (from < LCD_N_CHARS) {
 		lcd_start;

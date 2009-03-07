@@ -66,6 +66,7 @@
 // Power measurements using MSP-TS430PM64 socket board
 //
 //	freeze current = 7.7uA DC, 11.22uA RMS
+//	it is about 10uA with RTC included
 //	active current (CPU idling, components switched off) = 284uA DC/RMS
 //	EEPROM on but idle = 361uA
 //	EEPROM writing = 7.5mA, reading = 5mA
@@ -73,7 +74,13 @@
 //	
 // Tested resistor in UARTs RX/DX - to avoid parasite powering of the board
 // when Vcc goes down. 2.2K on both is OK (at 1152000), but 22K is too much
-// for TX (seems OK for RX). Anyway, 2.2K appears to solve the problem.
+// for TX (seems OK for RX).
+// Use 2.2K for RX.
+//
+// Note: unitialized RTC drains about 150uA!!!!
+//
+// Note: delays in lcd_st7036.c may have to be adjusted if the display doesn't
+// work (I have reduced them drastically)
 //
 
 #if CC1100
@@ -93,8 +100,10 @@
 #define	PIN_DEFAULT_P1DIR	0x00
 #endif
 
-// RTC on P2 unimplemented yet
-#define	PIN_DEFAULT_P2DIR	0x02
+// RTC on P2: all pins input (grounded when set to OUT) as we operate in open
+// drain mode
+#define	PIN_DEFAULT_P2DIR	0x00
+#define	PIN_DEFAULT_P2OUT	0x00
 
 // Soft reset
 #define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
@@ -103,17 +112,70 @@
 #define PIN_DEFAULT_P3DIR	0x5f
 #define	PIN_DEFAULT_P3OUT	0x00
 
-#if LCD_ST7036
-#define	PIN_DEFAULT_P4DIR	0x7f
+// ============================================================================
+// Second UART (for GPS) is initially OFF; we cannot initialize it at the
+// beginning and keep it this way because it is shared with SPI (for SD and
+// EEPROM)
+//
+// This will make sure the second UART is not pre-inited
+//
+#undef	UART_PREINIT_B
+
+// I am not sure if we need a "driver" for the GPS module, which simply appears
+// as a dynamically configurable UART with (basically) ASCII output. What we
+// seem to be needing, though, is a nice way to dynamically configure the
+// UART
+
+// 4800 bps
+#if UART_CLOCK_RATE == 32768
+#define	GPS_UBR0	0x06
+#define	GPS_UBR1	0
+#define	GPS_UMCTL	0x6f
 #else
-#define	PIN_DEFAULT_P4DIR	0x0e
+#define	GPS_UMCTL		0
+#define	GPS_UBR0		((UART_CLOCK_RATE/4800) % 256)
+#define	GPS_UBR1		((UART_CLOCK_RATE/4800) / 256)
 #endif
+
+#define	gps_bring_up	do { \
+				_BIC (P5OUT, 0x40); \
+				cswitch_on (CSWITCH_GPS); \
+				_BIS (P3SEL, 0xc0); \
+				_BIS (UCTL1, SWRST); \
+				UTCTL1 = UART_UTCTL; \
+				UBR01 = GPS_UBR0; \
+				UBR11 = GPS_UBR1; \
+				UMCTL1 = GPS_UMCTL; \
+				_BIS (IFG2, UTXIFG1); \
+				_BIS (ME2, UTXE1 + URXE1); \
+				_BIS (UCTL1, CHAR); \
+				_BIC (UCTL1, SWRST); \
+				mdelay (10); \
+				_BIS (P5OUT, 0x40); \
+				zz_uart [1] . flags = 0; \
+			} while (0)
+
+#define	gps_bring_down	do { \
+				_BIC (P5OUT, 0x40); \
+				mdelay (10); \
+				_BIS (UCTL1, SWRST); \
+				cswitch_off (CSWITCH_GPS); \
+				_BIC (IFG2, UTXIFG1); \
+				_BIC (ME2, UTXE1 + URXE1); \
+				_BIC (P3SEL, 0xc0); \
+				_BIC (UCTL1, SWRST); \
+			} while (0)
+
+// ============================================================================
+
+#define	PIN_DEFAULT_P4DIR	0x0e
 
 // LEDs initially OFF
 #define	PIN_DEFAULT_P4OUT	0x0e
 
-// P5 = EEPROM/SD; default is input (high Z) for power down
-#define	PIN_DEFAULT_P5DIR	0x00
+// P5 = EEPROM/SD; default is input (high Z) for power down; P5.6 GPS
+#define	PIN_DEFAULT_P5DIR	0x40
+#define	PIN_DEFAULT_P5OUT	0x00
 
 #define	PIN_DEFAULT_P6DIR	0x00
 

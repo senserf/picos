@@ -48,6 +48,21 @@ static void	devinit_uart (int);
 
 #endif	/* UART_DRIVER */
 
+// ============================================================================
+// This is clumsy. We need a way to make the second UART configurable
+// dynamically, as it can be shared with SPI, so we need it as a formal
+// device, but we don't want the preinit, freeze auto enable/disable, etc.
+// ============================================================================
+
+#if N_UARTS < 2
+// This is defined in mach.h, but can be undef'ed, e.g., from options.sys
+#ifdef	UART_PREINIT_B
+#undef	UART_PREINIT_B
+#endif
+#endif
+
+// ============================================================================
+
 #endif  /* UART_DRIVER || UART_TCV */
 
 extern void	__bss_end;
@@ -833,7 +848,7 @@ void freeze (word nsec) {
 	IE1 = 0;
 	IE2 = 0;
 	while ((UTCTL_A & TXEPT) == 0);
-#if N_UARTS > 1
+#ifdef UART_PREINIT_B
 	while ((UTCTL_B & TXEPT) == 0);
 #endif
 #endif
@@ -862,7 +877,7 @@ void freeze (word nsec) {
 	// Reset the UART to get it back to normal
 	_BIS (UCTL_A, SWRST);
 	_BIC (UCTL_A, SWRST);
-#if N_UARTS > 1
+#ifdef 	UART_PREINIT_B
 	_BIS (UCTL_B, SWRST);
 	_BIC (UCTL_B, SWRST);
 #endif
@@ -931,10 +946,6 @@ static void ios_init () {
 	zz_init_actuators ();
 #endif
 
-#ifdef LCD_PRESENT
-	zz_lcd_init ();
-#endif
-
 #ifdef LCDG_PRESENT
 	zz_lcdg_init ();
 #endif
@@ -983,159 +994,51 @@ static void ios_init () {
 
 uart_t	zz_uart [N_UARTS];
 
-#if CRYSTAL2_RATE
-// SMCLK
-#define	utctl		SSEL1
-#define	UART_CLOCK_RATE	CRYSTAL2_RATE
-#else
-// ACLK
-#define	utctl		SSEL0
-#define	UART_CLOCK_RATE	CRYSTAL_RATE
-#endif
-
-#if	UART_CLOCK_RATE == 32768
-// This is the standard (or perhaps not any more?)
-#define	ubr1		0
-
-#if UART_RATE == 1200
-#define	ubr0		0x1B
-#define	umctl		0x03
-#define	UART_RATE_INDEX	0
-#endif
-
-#if UART_RATE == 2400
-#define	ubr0		0x0D
-#define	umctl		0x6B
-#define	UART_RATE_INDEX	1
-#endif
-
-#if UART_RATE == 4800
-#define	ubr0		0x06
-#define	umctl		0x6F
-#define	UART_RATE_INDEX	2
-#endif
-
-#if UART_RATE == 9600
-#define	ubr0		0x03
-#define	umctl		0x4A
-#define	UART_RATE_INDEX	3
-#endif
-
-#ifndef ubr0
-#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
-#endif
-
-#else	/* UART_CLOCK_RATE > 32768 */
-
-#if UART_RATE == 1200
-#define	UART_RATE_INDEX	0
-#endif
-#if UART_RATE == 2400
-#define	UART_RATE_INDEX	1
-#endif
-#if UART_RATE == 4800
-#define	UART_RATE_INDEX	2
-#endif
-#if UART_RATE == 9600
-#define	UART_RATE_INDEX	3
-#endif
-#if UART_RATE == 14400
-#define	UART_RATE_INDEX	4
-#endif
-#if UART_RATE == 19200
-#define	UART_RATE_INDEX	5
-#endif
-#if UART_RATE == 28800
-#define	UART_RATE_INDEX	6
-#endif
-#if UART_RATE == 38400
-#define	UART_RATE_INDEX	7
-#endif
-#if UART_RATE == 76800
-#define	UART_RATE_INDEX	8
-#endif
-#if UART_RATE == 115200
-#define	UART_RATE_INDEX	9
-#endif
-#if UART_RATE == 256000
-#define	UART_RATE_INDEX	10
-#endif
-
-#ifndef	UART_RATE_INDEX
-#error "Illegal UART_RATE"
-#endif
-
-// No need to use corrections for high-speed crystals. FIXME: may need 
-// correction for 115200 and more.
-#define	umctl		0
-#define	ubr0		((UART_CLOCK_RATE/UART_RATE) % 256)
-#define	ubr1		((UART_CLOCK_RATE/UART_RATE) / 256)
-
-#endif	/* UART_CLOCK_RATE */
-
-#if UART_BITS == 8
-
-#define	uctl_char	CHAR
-#define	uctl_pena	0
-#define	uctl_pev	0
-
-#else	/* UART_BITS == 7 */
-
-#define	uctl_char	0
-#define	uctl_pena	PENA
-
-#if UART_PARITY == 0
-#define	uctl_pev	PEV
-#else
-#define	uctl_pev	0
-#endif
-
-#endif	/* UART_BITS */
-
 static void preinit_uart () {
 
+#ifdef	UART_PREINIT_A
 	// UART_A
 	UART_PREINIT_A;
 #if UART_INPUT_FLOW_CONTROL || UART_OUTPUT_FLOW_CONTROL
 	UART_PREINIT_A_FC;
 #endif
 	_BIS (UCTL_A, SWRST);
-	_BIC (UTCTL_A, SSEL1 + SSEL0);
-	_BIS (UTCTL_A, utctl);
-	UBR0_A = ubr0;
-	UBR1_A = ubr1;
-	UMCTL_A = umctl;
+	UTCTL_A = UART_UTCTL;
+	UBR0_A = UART_UBR0;
+	UBR1_A = UART_UBR1;
+	UMCTL_A = UART_UMCTL;
 	_BIS (IFG_A, UTXIFG_A);
 	_BIS (ME_A, UTXE_A + URXE_A);
-	_BIS (UCTL_A, uctl_char | uctl_pena | uctl_pev);
+	_BIS (UCTL_A, UART_UCTL_CHAR | UART_UCTL_PENA | UART_UCTL_PEV);
 	_BIC (UCTL_A, SWRST);
 #if UART_RATE_SETTABLE
 	zz_uart [0] . flags = UART_RATE_INDEX;
 #endif
+
+#endif	/* UART_PREINIT_A */
 
 /*
  * Note: the second UART doesn't want to work at 9600 with the standard slow
  * crystal. The xmitter is OK, but the receiver gets garbage. 4800 is fine. 
  * Also, things seem to work fine (up to 115200) with a high speed crystal.
  */
-#if N_UARTS > 1
+#ifdef	UART_PREINIT_B
 	// UART_B
 	UART_PREINIT_B;
 	_BIS (UCTL_B, SWRST);
-	_BIC (UTCTL_B, SSEL1 + SSEL0);
-	_BIS (UTCTL_B, utctl);
-	UBR0_B = ubr0;
-	UBR1_B = ubr1;
-	UMCTL_B = umctl;
+	UTCTL_B = UART_UTCTL;
+	UBR0_B = UART_UBR0;
+	UBR1_B = UART_UBR1;
+	UMCTL_B = UART_UMCTL;
 	_BIS (IFG_B, UTXIFG_B);
 	_BIS (ME_B, UTXE_B + URXE_B);
-	_BIS (UCTL_B, uctl_char | uctl_pena | uctl_pev);
+	_BIS (UCTL_B, UART_UCTL_CHAR | UART_UCTL_PENA | UART_UCTL_PEV);
 	_BIC (UCTL_B, SWRST);
 #if UART_RATE_SETTABLE
 	zz_uart [1] . flags = UART_RATE_INDEX;
 #endif
 
-#endif	/* N_UARTS */
+#endif	/* UART_PREINIT_B */
 }
 
 #if UART_RATE_SETTABLE

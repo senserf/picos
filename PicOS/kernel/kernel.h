@@ -22,10 +22,6 @@ void	zzz_tservice (void);
 void	zz_init_sensors (void);
 #endif
 
-#ifdef LCD_PRESENT
-void 	zz_lcd_init (void);
-#endif
-
 #ifdef LCDG_PRESENT
 void	zz_lcdg_init (void);
 #endif

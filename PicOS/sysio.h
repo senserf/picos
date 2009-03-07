@@ -103,6 +103,18 @@
 #include "lcdg_n6100p.h"
 #endif
 
+// RTC =======================================================================
+
+#ifdef	RTC_PRESENT
+#undef	RTC_PRESENT
+#endif
+
+#if RTC_S35390
+#define	RTC_PRESENT
+//+++ rtc_s35390.c
+#include "rtc.h"
+#endif
+
 // BLUETOOTH through UART ====================================================
 
 #ifdef	BLUETOOTH_PRESENT
