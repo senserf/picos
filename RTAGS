@@ -2848,3 +2848,5 @@ R090312A:
 
 	Fixed storage_at45xxx.c (there was a bug in ee_open/ee_close; now they
 	are made idempotent).
+
+	Further adjustments to BOARDS/WARSAW_NEW.
