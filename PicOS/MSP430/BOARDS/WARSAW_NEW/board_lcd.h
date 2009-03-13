@@ -9,7 +9,7 @@
  *  SI				P4.6 		->
  */
 
-#include "board_pins.h"
+#include "pins.h"
 
 #define	LCD_LINE_LENGTH		16
 #define	LCD_N_LINES		2

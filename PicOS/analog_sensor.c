@@ -49,7 +49,7 @@ void analog_sensor_read (word state, word param, address val) {
 			// Do not interfere
 			if (state == NONE)
 				// No way out
-				syserror (ENOTNOW, "qso_par_read");
+				syserror (ENOTNOW, "ana_sen");
 			delay (2, state);
 			release;
 		}

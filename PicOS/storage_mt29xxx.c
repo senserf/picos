@@ -11,6 +11,7 @@
 #define	WS_ERASING	1
 #define	WS_ERWAIT	2
 #define	WS_WLOOP	3
+#define	WS_CLOSED	BNONE
 
 #define	AS_IDLE		0
 #define	AS_READ		1
@@ -19,7 +20,7 @@
 
 static lword 		current_page = LWNONE;
 static word 		wleft;
-static byte 		wstate = WS_DONE, 
+static byte 		wstate = WS_CLOSED, 
 			astate = 0;		// Memory state
 
 #define	waitnb		while (!ee_ready)
@@ -273,15 +274,21 @@ word ee_sync (word st) {
 
 word ee_open () {
 
-	ee_bring_up;
-	ee_reset;
+	if (wstate == WS_CLOSED) {
+		ee_bring_up;
+		ee_reset;
+		wstate = WS_DONE;
+	}
 	return 0;
 }
 
 void ee_close () {
 
-	ee_sync (WNONE);
-	ee_bring_down;
+	if (wstate != WS_CLOSED) {
+		ee_sync (WNONE);
+		ee_bring_down;
+		wstate = WS_CLOSED;
+	}
 }
 
 word ee_read (lword a, byte *s, word len) {
@@ -294,7 +301,7 @@ word ee_read (lword a, byte *s, word len) {
 
 	if ((astate != AS_IDLE && astate != AS_READ) || wstate != WS_DONE)
 		// write/erase in progress
-		syserror (ENOTNOW, "ee_read");
+		return 1;
 
 	if (a >= EE_SIZE || (a + len) > EE_SIZE)
 		return 1;
@@ -409,7 +416,7 @@ ELoop:
 
 	}
 
-	syserror (ENOTNOW, "ee_erase");
+	return 1;
 }
 
 word ee_write (word st, lword a, const byte *s, word len) {
@@ -425,7 +432,7 @@ word ee_write (word st, lword a, const byte *s, word len) {
 			if (astate == AS_READ)
 				ee_sync (st);
 			else
-				syserror (ENOTNOW, "ee_write");
+				return 1;
 		}
 
 		if (len == 0)
@@ -440,7 +447,7 @@ word ee_write (word st, lword a, const byte *s, word len) {
 
 	} else if (wstate != WS_WLOOP) {
 
-		syserror (ENOTNOW, "ee_write");
+		return 1;
 
 	}
 

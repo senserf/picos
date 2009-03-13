@@ -11,7 +11,7 @@
 
 #define	STORAGE_AT45_TYPE	41	// Select the actual model used
 
-#include "board_pins.h"
+#include "pins.h"
 #include "storage_at45xxx.h"
 
 #define	ee_bring_up	do { \

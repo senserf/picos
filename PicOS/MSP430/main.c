@@ -962,7 +962,7 @@ static void ios_init () {
 	diag (BANNER);
 #else
 	diag ("PicOS v" SYSVERSION ", "
-        	"Copyright (C) Olsonet Communications, 2002-2008");
+        	"Copyright (C) Olsonet Communications, 2002-2009");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
 	dbg_1 (0x1000 | SYSVER_B);

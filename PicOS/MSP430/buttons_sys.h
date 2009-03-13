@@ -1,7 +1,7 @@
 #ifndef	__pg_buttons_sys_h
 #define	__pg_buttons_sys_h
 
-#include "board_pins.h"
+#include "pins.h"
 
 #ifndef	BUTTON_PRESSED_LOW
 #define	BUTTON_PRESSED_LOW	0

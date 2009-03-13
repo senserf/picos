@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include <ecog.h>
@@ -1167,7 +1167,7 @@ static void ios_init () {
 	diag (BANNER);
 #else
 	diag ("\r\nPicOS v" SYSVERSION ", "
-        	"Copyright (C) Olsonet Communications, 2002-2008");
+        	"Copyright (C) Olsonet Communications, 2002-2009");
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);
 #endif
 #if	SDRAM_PRESENT

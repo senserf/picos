@@ -1,4 +1,4 @@
-#include "board_pins.h"
+#include "pins.h"
 //
 // Basic pin access for Nokia LCD. Note: on this board we cannot take
 // advantage of the SPI as the respective pins are not available

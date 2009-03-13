@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 #include "sysio.h"
-#include "board_pins.h"
+#include "pins.h"
 #include "board_storage.h"
 #include "iflash.h"
 

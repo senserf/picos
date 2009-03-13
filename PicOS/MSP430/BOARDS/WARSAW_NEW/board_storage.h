@@ -12,7 +12,7 @@
 #define	STORAGE_AT45_TYPE	410	// Select the actual model used (D)
 #define	EEPROM_PDMODE_AVAILABLE	1
 
-#include "board_pins.h"
+#include "pins.h"
 #include "storage_at45xxx.h"
 
 #ifndef	EE_USE_UART
@@ -88,10 +88,6 @@
 //
 //  Note: SPI/direct has no impact on power consumption, including PD mode,
 //
-
-
-
-########here: replace GLOBALLY with bring_up/bring_down
 
 #define	ee_bring_up	do { \
 				spi_up; \

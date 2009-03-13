@@ -26,6 +26,8 @@
 #define	WS_LAST		7
 #define	WS_GETLAST	8
 
+#define	WS_CLOSED	BNONE
+
 #define	EE_BiW(i)	((i) == 0 ? EE_B1W : EE_B2W)
 #define	EE_BiR(i)	((i) == 0 ? EE_B1R : EE_B2R)
 #define	EE_BiMMP(i)	((i) == 0 ? EE_B1MMP : EE_B2MMP)
@@ -61,7 +63,7 @@ static at45_bstat buf_stat [2] = {
 					{ WNONE, 0, EE_B2WCMD }
 				 };
 
-static byte wstate = WS_DONE,	// Automaton state
+static byte wstate = WS_CLOSED,	// Automaton state
 	    cbsel = 0;		// Buffer toggle
 
 static  word wpageo,		// page offset for write
@@ -257,11 +259,11 @@ word ee_read (lword a, byte *s, word len) {
 	word pn, nb;
 	word bi, po;
 
+	if (wstate != WS_DONE || a >= EE_SIZE || (a + len) > EE_SIZE)
+		return 1;
+
 	if (len == 0)
 		return 0;
-
-	if (a >= EE_SIZE || (a + len) > EE_SIZE)
-		return 1;
 
 	// Page offset
 	po = (word)(a & (EE_PAGE_SIZE - 1));
@@ -672,7 +674,8 @@ ERet:
 
 word ee_sync (word st) { 
 
-	sync (st);
+	if (wstate == WS_DONE)
+		sync (st);
 	return 0;
 }
 
@@ -682,23 +685,24 @@ word ee_open () {
 //
 	word cnt;
 
+	if (wstate != WS_CLOSED)
+		return 0;
+
 	ee_bring_up;
 
-	for (cnt = 100; busy () && cnt; cnt--);
-	if (cnt == 0) {
-Err:		ee_bring_down;
-		return 1;
-	}
-		
 #ifdef	EEPROM_PDMODE_AVAILABLE
 	ee_start;
 	put_byte (EE_PUP);
 	ee_stop;
-
-	for (cnt = 100; busy () && cnt; cnt--);
-	if (cnt == 0)
-		goto Err;
 #endif
+	for (cnt = 1000; busy () && cnt; cnt--);
+
+	if (cnt == 0) {
+		ee_bring_down;
+		return 1;
+	}
+
+	wstate = WS_DONE;
 	return 0;
 }
 
@@ -706,9 +710,12 @@ void ee_close () {
 
 	word cnt;
 
+	if (wstate == WS_CLOSED)
+		return;
+
 	sync (WNONE);
 
-	for (cnt = 100; busy () && cnt; cnt--);
+	for (cnt = 1000; busy () && cnt; cnt--);
 
 #ifdef	EEPROM_PDMODE_AVAILABLE
 	ee_start;
@@ -716,6 +723,7 @@ void ee_close () {
 	ee_stop;
 #endif
 	ee_bring_down;
+	wstate = WS_CLOSED;
 }
 
 #include "storage_eeprom.h"

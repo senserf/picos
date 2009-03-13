@@ -713,6 +713,8 @@ endthread
 
 // ============================================================================
 
+#ifdef	SDCARD_PRESENT
+
 #define	SD_INIT		0
 #define	SD_OK		1
 #define	SD_IFAIL	2
@@ -738,7 +740,7 @@ endthread
 #define	SD_ETS_L	310
 #define	SD_IDL		320
 
-thread (test_sdram)
+thread (test_sdcard)
 
   entry (SD_INIT)
 
@@ -1022,6 +1024,8 @@ Done:
 	goto Done;
 
 endthread
+
+#endif
 
 // ============================================================================
 
@@ -1438,6 +1442,85 @@ endthread
 
 // ============================================================================
 
+#ifdef	SENSOR_LIST
+
+#define	SE_INIT		00
+#define	SE_RCMD		10
+#define	SE_GSEN		20
+#define	SE_CSEN		30
+
+thread (test_sensors)
+
+  entry (SE_INIT)
+
+	ser_out (SE_INIT,
+		"\r\nSensor Test\r\n"
+		"Commands:\r\n"
+		"r s      -> read sensor s\r\n"
+		"c s d n  -> read sensor s continually at d ms, n times\r\n"
+		"q        -> quit\r\n"
+		);
+
+  entry (SE_RCMD)
+
+	ser_in (SE_RCMD, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+		case 'r' : proceed (SE_GSEN);
+		case 'c' : proceed (SE_CSEN);
+	    	case 'q': { finish; };
+	}
+
+  entry (SE_RCMD+1)
+
+	ser_out (SE_RCMD+1, "Illegal command or parameter\r\n");
+	proceed (SE_INIT);
+
+  entry (SE_GSEN)
+
+	w = 0;
+	scan (ibuf + 1, "%u", &w);
+
+  entry (SE_GSEN+1)
+
+	read_sensor (SE_GSEN+1, w, &ss);
+
+  entry (SE_GSEN+2)
+
+	ser_outf (SE_GSEN+2, "Value: %u\r\n", ss);
+	proceed (SE_RCMD);
+
+  entry (SE_CSEN)
+
+	w = 0;
+	bs = 0;
+	nt = 0;
+
+	scan (ibuf + 1, "%u %u %u", &w, &bs, &nt);
+	if (nt == 0)
+		nt = 1;
+
+  entry (SE_CSEN+1)
+
+	read_sensor (SE_CSEN+1, w, &ss);
+	nt--;
+
+  entry (SE_CSEN+2)
+
+	ser_outf (SE_GSEN+2, "Value: %u (%u left)\r\n", ss, nt);
+
+	if (nt == 0)
+		proceed (SE_RCMD);
+	
+	delay (bs, SE_CSEN+1);
+	release;
+
+endthread
+
+#endif
+
+// ============================================================================
+
 #define	RS_INIT		00
 #define	RS_RCMD		10
 #define	RS_EPR		20
@@ -1494,32 +1577,37 @@ thread (root)
 	ser_out (RS_RCMD-2,
 		"\r\nWarsaw board test (GENERAL)\r\n"
 		"Commands:\r\n"
-		"e        -> EEPROM test\r\n"
-		"r        -> start radio test (xmit/receive)\r\n"
-		"p v      -> set xmit power [def = max]\r\n"
-		"c v      -> set channel [def = 0]\r\n"
-		"q        -> stop radio test\r\n"
-		"n        -> reset\r\n"
-		"i v      -> set SID [def = 0]\r\n"
-		"u v      -> set uart rate [def = 96]\r\n"
+		"e    -> EEPROM test\r\n"
+		"r    -> start radio test (xmit/receive)\r\n"
+		"p v  -> set xmit power [def = max]\r\n"
+		"c v  -> set channel [def = 0]\r\n"
+		"q    -> stop radio test\r\n"
+		"n    -> reset\r\n"
+		"i v  -> set SID [def = 0]\r\n"
+		"u v  -> set uart rate [def = 96]\r\n"
 #ifdef cswitch_on
-		"o c      -> cswitch on\r\n"
-		"f c      -> cswitch off\r\n"
+		"o c  -> cswitch on\r\n"
+		"f c  -> cswitch off\r\n"
 #endif
-		"E        -> detailed EEPROM test\r\n"
-		"S        -> detailed SD test\r\n"
-		"P        -> detailed pin test (including ADC)\r\n"
-		"D        -> delay/freeze/spin test\r\n"
+		"E    -> detailed EEPROM test\r\n"
+#ifdef SDCARD_PRESENT
+		"S    -> detailed SD test\r\n"
+#endif
+		"P    -> detailed pin test (including ADC)\r\n"
+		"D    -> delay/freeze/spin test\r\n"
 #ifdef	gps_bring_up
-		"G        -> GPS test\r\n"
+		"G    -> GPS test\r\n"
+#endif
+#ifdef SENSOR_LIST
+		"V    -> sensors\r\n"
 #endif
 #ifdef RTC_PRESENT
-		"T        -> RTC test\r\n"
+		"T    -> RTC test\r\n"
 #endif
 #if LCD_ST7036
-		"L        -> LCD test\r\n"
+		"L    -> LCD test\r\n"
 #endif
-		"U        -> UART echo test\r\n"
+		"U    -> UART echo test\r\n"
 	);
 
   entry (RS_RCMD-1)
@@ -1553,11 +1641,13 @@ thread (root)
 				joinall (test_epr, RS_RCMD-2);
 				release;
 		}
+#ifdef SDCARD_PRESENT
 		case 'S' : {
-				runthread (test_sdram);
-				joinall (test_sdram, RS_RCMD-2);
+				runthread (test_sdcard);
+				joinall (test_sdcard, RS_RCMD-2);
 				release;
 		}
+#endif
 		case 'P' : {
 				runthread (test_pin);
 				joinall (test_pin, RS_RCMD-2);
@@ -1577,6 +1667,14 @@ thread (root)
 		case 'G' : {
 				runthread (test_gps);
 				joinall (test_gps, RS_RCMD-2);
+				release;
+		}
+#endif
+
+#ifdef SENSOR_LIST
+		case 'V' : {
+				runthread (test_sensors);
+				joinall (test_sensors, RS_RCMD-2);
 				release;
 		}
 #endif

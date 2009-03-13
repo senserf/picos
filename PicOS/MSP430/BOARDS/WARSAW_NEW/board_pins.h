@@ -53,12 +53,12 @@
 // P5.7 SENS's (Detection) 
 // ------------------------------------
 // P6.0 SEN PAR#1
-// P6.1 SEN SHT      (Detection)
-// P6.2 SEN PAR#1  (Detection)
+// P6.1 SEN PAR#2 / PYR#2 (Detection)
+// P6.2 SEN ECHxx (Detection)
 // P6.3 SEN PAR#2
 // P6.4 SEN PYR#1
-// P6.5 SEN PYR#1 
-// P6.6 SEN ECHxx (Detection)
+// P6.5 SEN PYR#2 
+// P6.6 SEN PAR#1 / PYR#1 (Detection)                                           
 // P6.7 SEN ECHxx
 // ============================================================================
 
@@ -83,8 +83,6 @@
 // work (I have reduced them drastically)
 //
 
-#if CC1100
-
 // ============================================================================
 // Radio is on P1
 // ============================================================================
@@ -96,21 +94,16 @@
 // 5 = RF CSN OUT
 
 #define	PIN_DEFAULT_P1DIR	0x23
-#else
-#define	PIN_DEFAULT_P1DIR	0x00
-#endif
 
 // RTC on P2: all pins input (grounded when set to OUT) as we operate in open
 // drain mode
 #define	PIN_DEFAULT_P2DIR	0x00
-#define	PIN_DEFAULT_P2OUT	0x00
 
 // Soft reset
 #define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
 // All four switches start off
 #define PIN_DEFAULT_P3DIR	0x5f
-#define	PIN_DEFAULT_P3OUT	0x00
 
 // ============================================================================
 // Second UART (for GPS) is initially OFF; we cannot initialize it at the
@@ -173,9 +166,8 @@
 // LEDs initially OFF
 #define	PIN_DEFAULT_P4OUT	0x0e
 
-// P5 = EEPROM/SD; default is input (high Z) for power down; P5.6 GPS
+// P5 = EEPROM/SD; default is input (high Z) for power down; P5.6 GPS;
 #define	PIN_DEFAULT_P5DIR	0x40
-#define	PIN_DEFAULT_P5OUT	0x00
 
 #define	PIN_DEFAULT_P6DIR	0x00
 
@@ -207,3 +199,5 @@
 #define	cswitch_off(p)		_BIC (P3OUT, (p) & 0x0f)
 
 #define	CSWITCH_ALL	(CSWITCH_LCD + CSWITCH_EE + CSWITCH_SD + CSWITCH_GPS)
+
+#include "board_sensors.h"

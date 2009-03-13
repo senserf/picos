@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 #include "sysio.h"
-#include "board_pins.h"
+#include "pins.h"
 
 // In case we included this accidentally
 #ifdef	RTC_PRESENT

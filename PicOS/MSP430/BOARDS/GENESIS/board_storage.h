@@ -13,7 +13,7 @@
  *  C				P5.3 UCLK1
  */
 
-#include "board_pins.h"
+#include "pins.h"
 #include "storage_m95xxx.h"
 
 #define	EE_NBLOCKS	256	// 8K
