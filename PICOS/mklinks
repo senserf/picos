@@ -30,3 +30,4 @@ ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.c encrypt.cc
 ####################################### for completeness (PicOS side)
 ln -sf board.h form.h
 ln -sf board.h ser.h
+ln -sf board.h storage.h

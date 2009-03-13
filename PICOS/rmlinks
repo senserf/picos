@@ -1,6 +1,7 @@
 #!/bin/sh
 rm -f form.h
 rm -f ser.h
+rm -f storage.h
 #################################
 rm -f tcv.cc
 rm -f tcv.h

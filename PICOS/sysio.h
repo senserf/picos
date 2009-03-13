@@ -258,4 +258,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	ptleft()	zz_crunning (NULL)
 #define	killall(pt)	zz_killall (&zz_!!THREADNAME(pt)!!_prcs)
 
+#define	ee_open()	0
+#define	ee_close()	CNOP
+
 #endif

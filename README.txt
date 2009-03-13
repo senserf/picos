@@ -302,3 +302,8 @@ R080820A:
 R081110A:
 
     Cosmetic changes to agent.cc to appease new gcc on Linux.
+
+R090312A:
+
+    Cosmetics required to accommodate modifications to EEPROM driver in
+    PicOS (ee_open, ee_close - they are void in VUEE).
