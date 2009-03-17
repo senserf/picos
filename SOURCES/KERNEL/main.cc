@@ -1740,9 +1740,9 @@ void trace (const char *s, ...) {
 	va_start (ap, s);
 
 	if (zz_trace_options & TRACE_OPTION_TIME) {
-		Ouf << "Time: " << Time;
+		Ouf << "Time: " << Time << ' ';
 		if (zz_trace_options & TRACE_OPTION_ETIME)
-			Ouf << ::form (" [%8.6f] ", ituToEtu (Time));
+			Ouf << ::form ("[%8.6f] ", ituToEtu (Time));
 	} else if (zz_trace_options & TRACE_OPTION_ETIME) {
 		Ouf << ::form ("Time: %8.6f ", ituToEtu (Time));
 	}

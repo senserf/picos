@@ -788,7 +788,7 @@ Process::~Process () {
 	ev = zz_eq;
 	while (1) {
 #if ZZ_TAG
-		t = (ev->waketime).get (t);
+		(ev->waketime).get (t);
 		if (t > Time ||
 #else
 		if (ev->waketime > Time ||
