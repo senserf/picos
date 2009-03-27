@@ -22,7 +22,10 @@
 //
 static void b_write_0 () {
 
-	cli;	// To make the timing accurate
+	// Note: we stop the clock to make the timing more accurate, but
+	// we won't be losing any ticks, as these delays are well below
+	// 1ms
+	cli;
 	ds18b20_pull_down;
 	udelay (SLOT_LENGTH);
 	ds18b20_release;

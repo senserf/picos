@@ -2850,3 +2850,10 @@ R090312A:
 	are made idempotent).
 
 	Further adjustments to BOARDS/WARSAW_NEW.
+
+R090326A:
+
+	Desperate fixes to Arturo's front.tcl (it has been painfully broken all
+	this time). Hopefuly, now at least the extraction works well.
+
+	Board ARTURO_SD added: SD card connected as requested by Gerry.
