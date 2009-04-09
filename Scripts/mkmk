@@ -1311,6 +1311,8 @@ proc rootpf { } {
 	global CWD RPREF
 
 	set RPREF $CWD
+	set dlist ""
+
 	while { [file tail $RPREF] != "Apps" } {
 		set tmp [file dirname $RPREF]
 		if { $tmp == $RPREF } {
@@ -1319,6 +1321,39 @@ proc rootpf { } {
 		set RPREF $tmp
 	}
 	set RPREF [file dirname $RPREF]
+
+	# get the last release tag
+
+	if [catch { open [file join $RPREF "RTAGS"] "r" } fd] {
+		puts "cannot open RTAGS"
+		return "uknown"
+	}
+
+	if [catch { read $fd } rtf] {
+		puts "cannot read RTAGS"
+		catch { close $fd }
+		return "unknown"
+	}
+
+	catch { close $fd }
+
+	# the last RTAG
+	if ![regexp -nocase ".*\n(R\[0-9A-Z\]+):" $rtf fd rtag] {
+		set rtag "unknown"
+	}
+
+	# version number
+	if ![regexp -nocase \
+	    ".*\nR\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)" $rtf fd \
+		maj min] {
+
+		set maj 0
+		set min 0
+	}
+
+	puts "PicOS version ${maj}.${min}, release $rtag"
+
+	return [list "SYSVER_U=$maj" "SYSVER_L=$min" "SYSVER_T=$rtag"]
 }
 
 proc lboard { tgt } {
@@ -2163,7 +2198,7 @@ proc main { } {
 	set CWD [pwd]
 
 	# locate the root directory prefix
-	rootpf
+	set deflist [rootpf]
 
 	# make type: default = makefile
 	set Run(type) "m"
@@ -2251,6 +2286,8 @@ proc main { } {
 	set rootsuff ".c"
 	set NotFound ""
 
+	lappend deflist "BOARD_$Run(board)"
+
 	if { $Run(type) == "l" } {
 		# library run
 		set iflist [getflag "l"]
@@ -2326,9 +2363,11 @@ proc main { } {
 		catch { file mkdir "LIBRARY/include" }
 
 		if { $Run(mode) == "M" } {
-			outmkf_lib [list "__MSP430__" "BOARD_$Run(board)"] $mcpu
+			lappend deflist "__MSP430__"
+			outmkf_lib $deflist $mcpu
 		} else {
-			outmkfc_lib [list "__ECOG__" "BOARD_$Run(board)"]
+			lappend deflist "__ECOG__"
+			outmkfc_lib $deflist
 		}
 
 	} else {
@@ -2420,14 +2459,15 @@ proc main { } {
 
 		if { $Run(mode) == "M" } {
 			# MSP430: no project
-			outmkf	[list "__MSP430__" "BOARD_$Run(board)"] $mcpu
+			lappend deflist "__MSP430__"
+			outmkf $deflist $mcpu
 		} else {
 			# project file
-			set marg [list "__ECOG__" "BOARD_$Run(board)"]
+			lappend deflist "__ECOG__"
 			if { $Run(type) == "p" || $Run(type) == "P" } {
-				outprf	$marg $mcpu
+				outprf	$deflist $mcpu
 			} else {
-				outmkfc $marg
+				outmkfc $deflist
 			}
 		}
 	}

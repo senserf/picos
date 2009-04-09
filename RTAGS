@@ -2857,3 +2857,24 @@ R090326A:
 	this time). Hopefuly, now at least the extraction works well.
 
 	Board ARTURO_SD added: SD card connected as requested by Gerry.
+
+R090408A: 2 4
+
+	System version number as well as the release tag are now automatically
+	provided by mkmk. The only place where they are defined is this file,
+	i.e., RTAGS. To start things off, I am defining the current system
+	version with this release tag. As of now, such a definition must be
+	present in this file (the last one is authoritative). The two numbers
+	following the colon are the major and minor version numbers.
+
+	The initial diag message produced by PicOS after boot includes the
+	version number as well as the release tag. The latter is simply the
+	last RTAG found in this file.
+
+	Here is the list of symbols available to the praxis:
+
+	SYSVER_U - major version number (currently 2)
+	SYSVER_L - minor version number (currently 4)
+	SYSVER_S - the version string (currently "2.4")
+	SYSVER_B - the "binary" version number == major * 256 + minor
+	SYSVER_R - release string (currently "R090408A")

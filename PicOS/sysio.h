@@ -6,8 +6,28 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	SYSVERSION		"2.03"
-#define SYSVER_B		0x0203
+// These are set by mkmk ======================================================
+
+#ifndef	SYSVER_U
+#define	SYSVER_U	0	// Upper (major) version number
+#endif
+
+#ifndef	SYSVER_L
+#define	SYSVER_L	0	// Lower (minor) version number
+#endif
+
+#ifndef	SYSVER_T
+#define	SYSVER_T	unknown	// Release tag
+#endif
+
+#define	SYSVER_B		((word)(SYSVER_U * 256 + SYSVER_L))
+#define	SYSVER_S		stringify (SYSVER_U) "." stringify (SYSVER_L)
+#define	SYSVER_R		stringify (SYSVER_T)
+
+#define	__sgfy(a)		#a
+#define	stringify(a)		__sgfy(a)
+
+// ============================================================================
 
 /* ================================================= */
 /* Options are now settable on per-application basis */
