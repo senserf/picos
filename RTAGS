@@ -2892,13 +2892,12 @@ R090409A:
 
 	The role of the last two is to be called upon reset. The issue has
 	become a bit more complicated than it used to be, mostly because the
-	non-trivial "open" action for SD and the possibility of this very
-	action to be non-trivial for EEPROM as well (e.g., if we have a power
-	switch for it). Thus, we cannot get away by simply calling sync
-	unconditionally on reset, as this may hang the whole thing. Calling
-	close might do the trick in most cases, but close may be unnecessarily
-	complicated for this action, which is assumed to require no cleanup,
-	power down, etc.
+	"open" action for SD is nontrivial (and now it can be also nontrivial
+	for EEPROM, e.g., with the power switch). Thus, we cannot blindly call
+	sync on reset, as this may hang the micro. Calling close might do the
+	trick in most cases, but close may be unnecessarily complicated for
+	this simple action, which requires no cleanup, no power down, etc.
+	(while expected to be foolproof).
 
 	SD and EEPROM are automatically panicked on soft reset.
 
@@ -2906,14 +2905,15 @@ R090409A:
 	operations). The timing varies from card to card (I only tested two,
 	so this isn't very authoritative). Lexar erases itself completely
 	in a fraction of a second, while Verbatim takes close to 10s. 
-	Assuming that global erase is drastic and infrequent, I don't feel
-	like complicating things unnecessarily.
+	Assuming that global erase is drastic and infrequent, there should be
+	no problem with that.
 
-	Oh, one more thing: while erased Lexar contains all zeros, Verbatim
+	Oh, one more thing: erased Lexar contains all zeros, but Verbatim
 	erases to all ones. Is it safe to assume that no card erases to
 	something weird (like 0101010 ... for example)?
 
-	Fixed (somewhat defunct) ARTURO board to allow for SPI EEPROM/SD.
+	Fixed the (somewhat defunct) ARTURO board to allow for SPI EEPROM/SD
+	(EE_USE_UART).
 
 	Note that ARTURO_SD has the SD card connected to P6 (as Gerry wanted
 	it) - together with EEPROM (connected the standard way). It does
