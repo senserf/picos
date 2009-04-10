@@ -726,4 +726,10 @@ void ee_close () {
 	wstate = WS_CLOSED;
 }
 
+void ee_panic () {
+
+	if (wstate != WS_CLOSED)
+		sync (WNONE);
+}
+
 #include "storage_eeprom.h"

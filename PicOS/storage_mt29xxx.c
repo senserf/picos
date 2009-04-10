@@ -291,6 +291,8 @@ void ee_close () {
 	}
 }
 
+void ee_panic () { ee_close () }
+
 word ee_read (lword a, byte *s, word len) {
 
 	lword pn;

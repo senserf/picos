@@ -19,6 +19,7 @@ word	ee_sync (word);
 lword	ee_size (Boolean*, lword*);
 word	ee_open ();
 void	ee_close ();
+void	ee_panic ();
 
 #ifdef	RESET_ON_KEY_PRESSED
 void	ee_init_erase ();
@@ -31,8 +32,10 @@ void	ee_init_erase ();
 word	sd_open ();
 word	sd_read (lword, byte*, word);
 word	sd_write (lword, const byte*, word);
+word	sd_erase (lword, lword);
 word	sd_sync ();
 void	sd_close ();
+void	sd_panic ();
 lword	sd_size ();
 void	sd_idle ();
 

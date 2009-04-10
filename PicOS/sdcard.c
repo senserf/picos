@@ -2,6 +2,7 @@
 #include "sdcard.h"
 
 #define	SD_DEBUG	0
+#define	SD_CSD_DUMP	0
 
 #define	SD_CMD_GOIDLE	(0x00 + 0x40)
 #define SD_CMD_SOPCND	(0x01 + 0x40)
@@ -9,12 +10,16 @@
 #define	SD_CMD_BLKLEN	(0x10 + 0x40)
 #define SD_CMD_RSBLCK	(0x11 + 0x40)
 #define SD_CMD_WSBLCK	(0x18 + 0x40)
+#define	SD_CMD_EFBLCK	(0x20 + 0x40)	// First block for erase
+#define	SD_CMD_ELBLCK	(0x21 + 0x40)	// Last block for erase
+#define	SD_CMD_ERASEB	(0x26 + 0x40)	// Erase blocks
 
 #define SD_REP_IDLE	0x01
 
+// This is our "logical" block size
 #define	SD_BKSIZE	512
 #define	SD_BNMASK	0xfffffe00
-#define	SD_BOMASK	0x000001ff
+#define	SD_BOMASK	0x01ff
 
 #ifndef	SD_NO_REREAD_ON_NEW_BLOCK_WRITE
 #define	SD_NO_REREAD_ON_NEW_BLOCK_WRITE	0
@@ -177,45 +182,64 @@ static byte sd_cmd (byte cmd, lword par) {
 #endif
 }
 
+// ============================================================================
+#if	SD_CSD_DUMP
+
+void static sd_outcsd () {
+
+	int i;
+
+	for (i = 0; i < 16; i += 2)
+		diag ("%x <- %d-%d", ((word)sd_buf [i]) << 8 | sd_buf [i+1],
+			127 - (i << 3), 112 - (i << 3));
+}
+#endif
+// ============================================================================
+
+
+
 static void sd_getsize () {
 //
 // Read card size
 //
 	lword s;
 	word i, cnt, w;
-	byte b, c;
+	byte c;
 
 	// Now for some black magic. I am not sure if this is going to work for
 	// all possible card types. Apparently, there is no way to determine
 	// the actual size, but to go through these incantations
 	for (sd_siz = 0, i = 0; ; i++) {
 		// Try to get two identical values in a row
-		if ((b = sd_cmd (SD_CMD_SNDCSD, 0)) == 0) {
+		if (sd_cmd (SD_CMD_SNDCSD, 0) == 0) {
 			if (sd_skn (32) == 0xff)
 				goto Bad;
+			// Read the CSD into the buffer
+			for (w = 0; w < 17; w++)
+				sd_buf [w] = get_byte ();
+#if	SD_CSD_DUMP
+			sd_outcsd ();
+#endif
 			// The sixth byte contains "block" size exponent ...
-			c = sd_skp (6);
-			// ... here it is
-			c &= 0xf;
-
-			w = (word) (get_byte () & 0x3) << 10;
-			w |= ((word) get_byte ()) << 2;
-			w |= (get_byte () & 0xc0) >> 6;
-			// First multiplier
-			w++;
-			s = w;
-
-			// The second multiplier
-			b = (get_byte () & 0x3) << 1;
-			b |= (get_byte () & 0x80) >> 7;
-			w = 4 << b;
-
-			// Get the remaining 4 bytes + CRC
-			sd_skp (6);
-
-			if (c > 11)
+			if ((c = sd_buf [5] & 0xf) > 11)
 				// Max block size is 2K
 				goto Bad;
+
+			// First multiplier
+			s =  ((word)(sd_buf [6] & 0x3) << 10) |
+			    (((word)(sd_buf [7])) << 2) |
+			           ((sd_buf [8] & 0xc0) >> 6) + 1;
+
+
+			// Second multiplier
+			w = 4 << ( ((sd_buf  [9] & 0x3 ) << 1) |
+				   ((sd_buf [10] & 0x80) >> 7) );
+
+			// My understanding of the documentation is that this
+			// "block" has nothing to do with the "sector/block"
+			// size used to define the semantics of subsequent
+			// operations, e.g., the erase sector size is always
+			// 512 bytes
 
 			s *= w;
 
@@ -362,7 +386,7 @@ word sd_read (lword offset, byte *buffer, word length) {
 	while (length) {
 
 		ba = offset & SD_BNMASK;		// Block address
-		bo = (word) (offset & SD_BOMASK);	// Block offset
+		bo = ((word)offset) & SD_BOMASK;	// Block offset
 
 		if ((ln = SD_BKSIZE - bo) > length)
 			// To read in this turn
@@ -439,7 +463,7 @@ word sd_write (lword offset, const byte *buffer, word length) {
 	while (length) {
 
 		ba = offset & SD_BNMASK;		// Block address
-		bo = (word) (offset & SD_BOMASK);	// Block offset
+		bo = ((word)offset) & SD_BOMASK;	// Block offset
 		if ((ln = SD_BKSIZE - bo) > length)
 			// To read in this turn
 			ln = length;
@@ -498,9 +522,8 @@ ERet:
 				sd_stop;
 			}
 			sd_bkn = ba;
-			MARK_DIRTY;
 		}
-
+		MARK_DIRTY;
             	memcpy (sd_buf + bo, buffer, ln);
 		length -= ln;
 		offset += ln;
@@ -510,17 +533,125 @@ ERet:
 	return 0;
 }
 
+word sd_erase (lword from, lword upto) {
+
+	lword ba;
+	word wc;
+
+	if (upto == 0)
+		// This is LWA+1
+		upto = sd_siz;
+	else
+		upto++;
+
+	if (upto > sd_siz) {
+ERange:
+		wc = SDERR_RANGE;
+		goto ERet;
+	}
+
+	if (from >= upto)
+		goto ERange;
+
+	sd_start;
+
+	if ((wc = sd_synk ()))
+		// Empty the buffers
+		goto ERet;
+
+	// Invalidate the cache
+	sd_bkn = LWNONE;
+
+	// This would be the first block number
+	ba = from & SD_BNMASK;
+	if ((wc = ((word)from) & (word)SD_BOMASK))
+		// ... if it weren't partial
+		ba++;
+
+
+	// Any full blocks at all?
+	if (ba < (upto & SD_BNMASK)) {
+
+		// OK, erase blocks ... from:
+		MARK_ACTIVE;
+		if (sd_cmd (SD_CMD_EFBLCK, ba)) {
+ESBad:
+			wc = SDERR_NOBLK;
+			goto ERet;
+		}
+
+		// ... to:
+		if (sd_cmd (SD_CMD_ELBLCK, (upto & SD_BNMASK) - 1))
+			goto ESBad;
+
+		// ... do it
+		if (sd_cmd (SD_CMD_ERASEB, 0))
+			goto ESBad;
+
+		// Wait until done (perhaps we need a state for this); not
+		// really, it works amazingly fast, even for the entire card
+		while (get_byte () != 0xff);
+		// Need a timeout !!!! Let's check how long it takes in the
+		// worst case, probably eons! Nah, next to nothing (a short
+		// timeout will do).
+		// Hold on: some cards take more than others, e.g., while
+		// Lexar erases itself completely in a fraction of a second,
+		// Verbatim takes ca. 10 seconds.
+	}
+
+	if (IS_ACTIVE)
+		DEACTIVATE;
+	sd_stop;
+
+	// Now the marginals (handled as write); they are just in case and
+	// should be discouraged
+	wc = 0;
+	while ((((word)from) & SD_BOMASK)) {
+		if ((wc = sd_write (from, (const byte*)(&wc), 1)))
+			return wc;
+		from++;
+	}
+
+	while ((((word)upto) & SD_BOMASK)) {
+		if ((wc = sd_write (upto - 1, (const byte*)(&wc), 1)))
+			return wc;
+		upto--;
+	}
+
+	return 0;
+
+ERet:
+	if (IS_ACTIVE)
+		DEACTIVATE;
+
+	sd_stop;
+	return wc;
+}
+	
 void sd_close () {
 
 	if (sd_buf != NULL) {
+		sd_start;
 		sd_synk ();
 		sd_sleep ();
+		sd_stop;
 		ufree (sd_buf);
 		sd_buf = NULL;
 		MARK_CLEAN;
 		sd_bkn = LWNONE;
 	}
 	sd_bring_down;
+}
+
+void sd_panic () {
+//
+// For emergency shutdown
+//
+	if (sd_buf != NULL) {
+		sd_start;
+		sd_synk ();
+		sd_stop;
+	}
 }
 
 void sd_idle () {
@@ -559,10 +690,10 @@ word sd_sync () {
 #ifdef	RESET_ON_KEY_PRESSED
 
 void sd_init_erase () {
-//
-// Not implemented yet; requires some creative considerations
-//
 
+	if (sd_open () == 0)
+		sd_erase (0, 0);
+	sd_close ();
 }
 
 #endif

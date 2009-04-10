@@ -137,18 +137,15 @@ void reset (void) {
 
 	cli_tim;
 
-// ========== DISABLED ========================================================
-#if 0
-	// Sorry, we cannot do it any more; probably it was a bad idea to
-	// begin with
+// EEPROM/SD panic ============================================================
+
 #ifdef	EEPROM_PRESENT
-	ee_sync (WNONE);
+	ee_panic ();
 #endif
 #ifdef	SDCARD_PRESENT
-	sd_sync ();
+	sd_panic ();
 #endif
 
-#endif
 // ============================================================================
 
 	hard_reset;

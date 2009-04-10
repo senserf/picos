@@ -428,7 +428,7 @@ thread (test_epr)
 
   entry (EP_RLW)
 
-	scan (ibuf + 1, "%u", &adr);
+	scan (ibuf + 1, "%lu", &adr);
 	err = ee_read (adr, (byte*)(&val), 4);
 
   entry (EP_RLW+1)
@@ -671,7 +671,8 @@ Done:
 
 	if (pat != LWNONE) {
 		if (val != pat) {
-			diag ("MISREAD (PATTERN): %x %x",
+			diag ("MISREAD (PATTERN): %x %x => %x %x",
+				(word)(adr >> 16), (word) adr,
 				(word)(val >> 16), (word) val);
 			err++;
 		}
@@ -728,6 +729,7 @@ endthread
 #define	SD_RST		70
 #define	SD_WRI		80
 #define	SD_REA		90
+#define	SD_ERA		100
 #define	SD_SYN		110
 #define	SD_ETS		200
 #define	SD_ETS_G	240
@@ -769,7 +771,8 @@ thread (test_sdcard)
 		"f adr n      -> read string\r\n"
 		"g adr n p    -> write n longwords with p starting at adr\r\n"
 		"h adr n b t  -> read n blks of b starting at adr t times\r\n"
-		"s            -> sync sdram\r\n"
+		"x frm upt    -> erase from upto\r\n"
+		"s            -> sync card\r\n"
 		"w fr ln pat  -> write-read test\r\n"
 		"i            -> set idle state\r\n"
 		"q            -> return to main test\r\n"
@@ -789,6 +792,7 @@ thread (test_sdcard)
 		case 'f': proceed (SD_RST);
 		case 'g': proceed (SD_WRI);
 		case 'h': proceed (SD_REA);
+		case 'x': proceed (SD_ERA);
 		case 's': proceed (SD_SYN);
 		case 'w': proceed (SD_ETS);
 		case 'i': proceed (SD_IDL);
@@ -847,7 +851,7 @@ thread (test_sdcard)
 
   entry (SD_RLW)
 
-	scan (ibuf + 1, "%u", &adr);
+	scan (ibuf + 1, "%lu", &adr);
 	err = sd_read (adr, (byte*)(&val), 4);
 
   entry (SD_RLW+1)
@@ -920,6 +924,13 @@ Done:
 
 	goto Done;
 
+  entry (SD_ERA)
+
+	s = u = 0;
+	scan (ibuf + 1, "%lu %lu", &s, &u);
+	err = sd_erase (s, u);
+	goto Done;
+
   entry (SD_SYN)
 
 	err = sd_sync ();
@@ -980,7 +991,8 @@ Done:
 
 	if (pat != LWNONE) {
 		if (val != pat) {
-			diag ("MISREAD (PATTERN): %x %x",
+			diag ("MISREAD (PATTERN): %x %x => %x %x",
+				(word)(adr >> 16), (word) adr,
 				(word)(val >> 16), (word) val);
 			err++;
 		}

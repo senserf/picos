@@ -2878,3 +2878,48 @@ R090408A: 2 4
 	SYSVER_S - the version string (currently "2.4")
 	SYSVER_B - the "binary" version number == major * 256 + minor
 	SYSVER_R - release string (currently "R090408A")
+
+R090409A:
+
+	Fixed a bug in sdcard.c causing occasional misinterpretation of the
+	cached block number on write after read.
+
+	Added these operations:
+
+	sd_erase (lword, lword);	 // Note: no state argument
+	sd_panic ();
+	ee_panic ();
+
+	The role of the last two is to be called upon reset. The issue has
+	become a bit more complicated than it used to be, mostly because the
+	non-trivial "open" action for SD and the possibility of this very
+	action to be non-trivial for EEPROM as well (e.g., if we have a power
+	switch for it). Thus, we cannot get away by simply calling sync
+	unconditionally on reset, as this may hang the whole thing. Calling
+	close might do the trick in most cases, but close may be unnecessarily
+	complicated for this action, which is assumed to require no cleanup,
+	power down, etc.
+
+	SD and EEPROM are automatically panicked on soft reset.
+
+	Note that sd_erase has no state (in the spirit of the remaining SD
+	operations). The timing varies from card to card (I only tested two,
+	so this isn't very authoritative). Lexar erases itself completely
+	in a fraction of a second, while Verbatim takes close to 10s. 
+	Assuming that global erase is drastic and infrequent, I don't feel
+	like complicating things unnecessarily.
+
+	Oh, one more thing: while erased Lexar contains all zeros, Verbatim
+	erases to all ones. Is it safe to assume that no card erases to
+	something weird (like 0101010 ... for example)?
+
+	Fixed (somewhat defunct) ARTURO board to allow for SPI EEPROM/SD.
+
+	Note that ARTURO_SD has the SD card connected to P6 (as Gerry wanted
+	it) - together with EEPROM (connected the standard way). It does
+	compile with eco_demo, AFAICS.
+
+	Note: SD_KEEP_IDLE is OFF by default, not ON (as it was erroneously
+	stated in the last version of Storage.pdf). The manual has been fixed,
+	and the new operations have been documented. The option still remains
+	to be thoroughly tested, so be careful.

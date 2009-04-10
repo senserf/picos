@@ -230,4 +230,6 @@ word ee_sync (word st) {
 	return 0;
 }
 
+void ee_panic () { }
+
 #include "storage_eeprom.h"
