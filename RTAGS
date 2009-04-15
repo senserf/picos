@@ -2923,3 +2923,28 @@ R090409A:
 	stated in the last version of Storage.pdf). The manual has been fixed,
 	and the new operations have been documented. The option still remains
 	to be thoroughly tested, so be careful.
+
+R090414A:
+
+        EcoNet (eco_demo) 1.2 (msgs, ossi have changed):
+        - Changed time / date storage, propagation and format; see ossi.odt.
+        - Rpc msg reappeared, for now hacked in just for sat. tests (_cus).
+        - More with sat. tests: 9600 uart, text config; see satnotes.odt.
+        - Event markers stored in NVM; see ossi.odt.
+        - New 'marker' plot_id; see ossi.odt.
+        - SD support on pegs (aggregators). In this half baked version, SD
+          and EEPROM are either or.
+        - New parameters in options.sys; see ossi.odt, satnotes.odt.
+	- sint vs. int diminishes vuee - fixed some on the praxis level.
+
+        I'm submitting the code with lots of #if 0 -- sat. hw is still under
+        development, and users' needs still not clear. Obvious misses:
+        - When we know the sat. terminal's reliable functionality, we'll
+          be able to build a suitable i/f without duplication of the PDT's
+          functionality.
+        - Ever changing users' requirements don't yet allow optimization of
+          storage, config. parameters, OSS formatting, etc. It ma be that
+          EcoNet should be treated as a meta-blueprint, customizable into
+          blueprints for clesses of deployment intentions.
+        No doubt this is a yet another temporary version.
+
