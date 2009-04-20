@@ -2948,3 +2948,18 @@ R090414A:
           blueprints for clesses of deployment intentions.
         No doubt this is a yet another temporary version.
 
+R090420A:
+	EcoNet 1.2 (no ver. change):
+	- failed ee / sd reads don't put the node in Maintenance mode. They
+	  reset the node if DIAGS are OFF (e.g. if in satmode), or report the 
+	  failure if DIAGS are ON. If ee / sd fails to open, red (yellow on 
+	  some nodes) LED blinks and retries every few seconds.
+	- In satmode, the node auto-corrects with PushMsgHex=0 when it sees
+	  a hex msg (the 1st push from the server may fail).
+	- If msg slots are full on the PDT, we soft-reset it (with ATZ).
+	- "Sn: " removed from reports and dumps.
+	- SD in options.satpeg. In general: be very careful with options,
+	  especially so when dealing with SD cards (EMPTY_STORAGE_FF).
+	  The intention is to satpegs on 19200 (with APPROPRIATE SD or ee),
+	  and the rest on 9600 with DIAGS 2, with SD or EE.
+
