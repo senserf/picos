@@ -86,7 +86,7 @@ proc rotate { } {
 
 proc outlm { m } {
 
-	global Log
+	variable Log
 
 	catch {
 		puts $Log(FD) $m
@@ -103,7 +103,7 @@ proc outlm { m } {
 
 proc log { m } {
 
-	global Log 
+	variable Log 
 
 	if ![info exists Log(FD)] {
 		# no log filr

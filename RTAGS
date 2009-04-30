@@ -2949,6 +2949,7 @@ R090414A:
         No doubt this is a yet another temporary version.
 
 R090420A:
+
 	EcoNet 1.2 (no ver. change):
 	- failed ee / sd reads don't put the node in Maintenance mode. They
 	  reset the node if DIAGS are OFF (e.g. if in satmode), or report the 
@@ -2962,4 +2963,20 @@ R090420A:
 	  especially so when dealing with SD cards (EMPTY_STORAGE_FF).
 	  The intention is to satpegs on 19200 (with APPROPRIATE SD or ee),
 	  and the rest on 9600 with DIAGS 2, with SD or EE.
+
+R090430A:
+
+	Fixed a bug in Scripts/log.tcl (did it ever work?).
+
+	Modified satnode in eco_demo to echo a few things over the radio to
+	make the new front script happy.
+
+	A new front script + document for Arturo.
+
+	Tentative puller application together with a simple database and web
+	site to store sensor data pulled off the EMD web site (and allow for
+	simple non-destructive) retrieval (eco_demo/OSSI/PULLER).
+
+	Started a program to retrieve sensor data from an SD card by connecting
+	it directly to a PC (eco_demo/OSSI/SDReader)
 

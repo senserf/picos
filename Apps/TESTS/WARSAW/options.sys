@@ -4,6 +4,8 @@
 #undef	INFO_FLASH
 #define	INFO_FLASH	2
 
+#define	SD_KEEP_IDLE	1
+
 #define	EE_NO_ERASE_BEFORE_WRITE	1
 
 // #undef 	UART_RATE
