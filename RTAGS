@@ -2980,3 +2980,5 @@ R090430A:
 	Started a program to retrieve sensor data from an SD card by connecting
 	it directly to a PC (eco_demo/OSSI/SDReader)
 
+	Started a GUI version of front (eco_demo/OSSI/econnect.tcl).
+
