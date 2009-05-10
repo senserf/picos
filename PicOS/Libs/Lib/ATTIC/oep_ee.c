@@ -1,6 +1,7 @@
 #include "sysio.h"
 #include "oep.h"
 #include "oep_ee.h"
+#include "storage.h"
 
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2008                    */

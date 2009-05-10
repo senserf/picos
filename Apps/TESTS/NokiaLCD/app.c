@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -10,72 +10,39 @@
  */
 heapmem {100};
 
-#if	LEDS_DRIVER
-#include "led.h"
-#endif
+#define RS_INIT	0
 
-#include "ser.h"
-#include "serf.h"
+#define	MIN_CON	30
+#define	MAX_CON 70
 
-#define	RS_INIT		00
-#define	RS_RCMD		10
-#define	RS_ERR		11
-#define	RS_DELC		20	// Calibrates delay loops
-
-#define	IBUFSIZE	128
+byte con = MIN_CON;
 
 process (root, void)
 /* =========================================== */
 /* This is the main program of the application */
 /* =========================================== */
 
-	static char *ibuf = NULL;
-	word n, m;
-
   entry (RS_INIT)
 
-	if (ibuf == NULL)
-		ibuf = (char*) umalloc (IBUFSIZE);
+	lcdg_on (con);
 
-	ser_out (RS_RCMD-1, "\r\n"
-		"Commands:\r\n"
- 		"  d n m        : run n times m-msec delay\r\n"
-		"  r            : reset)\r\n");
+	lcdg_set (0, 0, 129, 129);
 
-  entry (RS_RCMD)
+	lcdg_setc (COLOR_BLACK, COLOR_WHITE);
 
-	ser_in (RS_RCMD, ibuf, IBUFSIZE);
+	lcdg_clear ();
 
-	switch (ibuf [0]) {
+	lcdg_set (32, 32, 97, 97);
 
-		case 'd' : proceed (RS_DELC);
-		case 'r' : reset ();
+	lcdg_setc (COLOR_RED, COLOR_YELLOW);
 
-	}
+	lcdg_clear ();
 
-  entry (RS_ERR)
+	if (con == MAX_CON)
+		con = MIN_CON;
+	else
+		con++;
 
-	ser_out (RS_ERR, "Illegal command or parameter\r\n");
-	proceed (RS_INIT);
-
-  entry (RS_DELC)
-
-	n = m = 0;
-	scan (ibuf + 1, "%u %u", &n, &m);
-
-	if (n == 0 || m == 0)
-		proceed (RS_ERR);
-
-	diag ("%u times %u msec delay starting %u", n, m, (word) seconds ());
-
-	while (n--)
-		mdelay (m);
-
-	proceed (RS_DELC+1);
-
-  entry (RS_DELC+1)
-
-	ser_outf (RS_DELC+1, "Done at %u\r\n", (word) seconds ());
-	proceed (RS_RCMD);
+	delay (2048, RS_INIT);
 
 endprocess (1)

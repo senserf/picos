@@ -2982,3 +2982,16 @@ R090430A:
 
 	Started a GUI version of front (eco_demo/OSSI/econnect.tcl).
 
+R090510A:
+
+	LCDG Nokia driver can now be used with the Epson controller. Philips is
+	selected by default. To select the Epson controller, include this
+	setting:
+
+		#define LCDG_N6100P_EPSON 1 
+
+	in board_lcd.h or in options.sys. This setting only affects the
+	low-level driver (file lcdg_n6100p.c).
+
+	econnect.tcl snapshot. Still a few things to do (should be ready in a
+	couple of days).

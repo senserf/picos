@@ -1,5 +1,6 @@
 #include "sysio.h"
 #include "ee_ol.h"
+#include "storage.h"
 
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2008                    */

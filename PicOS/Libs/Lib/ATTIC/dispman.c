@@ -1,5 +1,6 @@
 #include "sysio.h"
 #include "dispman.h"
+#include "storage.h"
 
 //
 // Display manager

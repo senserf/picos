@@ -1,6 +1,7 @@
 #include "sysio.h"
 #include "lcdg_images.h"
 #include "oep.h"
+#include "storage.h"
 
 #define	IMG_PAGE_SHIFT	13		// 2^13 = 8192
 #define	IMG_PAGE_MASK	((1<<IMG_PAGE_SHIFT)-1)

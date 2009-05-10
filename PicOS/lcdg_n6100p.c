@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -7,12 +7,63 @@
 #include "pins.h"
 #include "lcdg_n6100p.h"
 
+#ifdef LCDG_FONT_BASE
+// Need to access EEPROM
+#include "storage.h"
+#endif
+
+#ifndef	LCDG_N6100P_EPSON
+#define	LCDG_N6100P_EPSON	0
+#endif
+
+#if LCDG_N6100P_EPSON
+
+// Line/column offsets
+#define	LCDG_XOFF	0
+#define	LCDG_YOFF	2
+
+// ============================================================================
+#define DISON     	0xAF // Display on 
+#define DISOFF    	0xAE // Display off 
+#define DISNOR    	0xA6 // Normal display 
+#define DISINV    	0xA7 // Inverse display 
+#define COMSCN    	0xBB // Common scan direction 
+#define DISCTL    	0xCA // Display control 
+#define SLPIN     	0x95 // Sleep in 
+#define SLPOUT    	0x94 // Sleep out 
+#define PASET     	0x75 // Page address set 
+#define CASET     	0x15 // Column address set 
+#define DATCTL    	0xBC // Data scan direction, etc. 
+#define RGBSET8   	0xCE // 256-color position set 
+#define RAMWR     	0x5C // Writing to memory 
+#define RAMRD     	0x5D // Reading from memory 
+#define PTLIN     	0xA8 // Partial display in 
+#define PTLOUT    	0xA9 // Partial display out 
+#define RMWIN     	0xE0 // Read and modify write 
+#define RMWOUT    	0xEE // End 
+#define ASCSET    	0xAA // Area scroll set 
+#define SCSTART   	0xAB // Scroll start set 
+#define OSCON     	0xD1 // Internal oscillation on 
+#define OSCFF    	0xD2 // Internal oscillation off 
+#define PWRCTR    	0x20 // Power control 
+#define VOLCTR    	0x81 // Electronic volume control 
+#define VOLUP     	0xD6 // Increment electronic control by 1 
+#define VOLDOWN   	0xD7 // Decrement electronic control by 1 
+#define TMPGRD    	0x82 // Temperature gradient set 
+#define EPCTIN    	0xCD // Control EEPROM 
+#define EPCOUT    	0xCC // Cancel EEPROM control 
+#define EPMWR     	0xFC // Write into EEPROM 
+#define EPMRD     	0xFD // Read from EEPROM 
+#define EPSRRD1   	0x7C // Read register 1 
+#define EPSRRD2   	0x7D // Read register 2 
+#define NOP       	0x25 // NOP instruction 
+
+#else	/* PHILIPS */
+// ============================================================================
+
 #define	LCDG_XOFF	1
 #define	LCDG_YOFF	1
-#define	LCDG_MAXXP	(LCDG_XOFF+LCDG_MAXX)
-#define	LCDG_MAXYP	(LCDG_YOFF+LCDG_MAXY)
 
-// Controller commands
 #define	LNOP		0x00 // nop
 #define	SWRESET		0x01 // software reset
 #define	BSTROFF		0x02 // booster voltage OFF
@@ -63,18 +114,24 @@
 #define	RDID2		0xDB // read ID2
 #define	RDID3		0xDC // read ID3
 
+#endif	/* PHILIPS or EPSON */
+// ============================================================================
+
+#define	LCDG_MAXXP	(LCDG_XOFF+LCDG_MAXX)
+#define	LCDG_MAXYP	(LCDG_YOFF+LCDG_MAXY)
+
 // 12-bit color definitions 
 #define WHITE         /* 0x000*/	0xFFF 
 #define BLACK         /* 0xFFF*/	0x000 
-#define RED           /* 0x0FF*/	0x00F 
+#define RED           /* 0x0FF*/	0xF00 
 #define GREEN         /* 0xF0F*/	0x0F0 
-#define BLUE          /* 0xFF0*/	0xF00 
-#define CYAN          /* 0xF00*/	0xFF0 
+#define BLUE          /* 0xFF0*/	0x00F 
+#define CYAN          /* 0xF00*/	0x0FF 
 #define MAGENTA       /* 0x0F0*/	0xF0F 
-#define YELLOW        /* 0x00F*/	0x0FF 
-#define BROWN         /* 0x8DD*/	0x22B 
-#define ORANGE        /* 0x05F*/	0x0AF 
-#define PINK          /* 0x095*/	0xA6F 
+#define YELLOW        /* 0x00F*/	0xFF0 
+#define BROWN         /* 0x8DD*/	0xB22 
+#define ORANGE        /* 0x05F*/	0xFA0 
+#define PINK          /* 0x095*/	0xF6A 
 
 static
 #ifndef	LCDG_SETTABLE_CTABLE
@@ -183,22 +240,62 @@ static void sd (byte stuff) {
 void lcdg_reset () {
 
 	nlcd_cs_down;
+
+#if LCDG_N6100P_EPSON
+// ==================
+
+#if 0
+	// This seems to be the default, so why wasting code
+
+        sc (DISCTL); 
+        sd (0x00); // P1: 0x00 = 2 divisions, switching period=8 (default) 
+        sd (0x20); // P2: 0x20 = nlines/4 - 1 = 132/4 - 1 = 32) 
+        sd (0x00); // P3: 0x00 = no inversely highlighted lines 
+ 
+        // COM scan 
+        sc (COMSCN); 
+        sd (1);    // P1: 0x01 = Scan 1->80, 160<-81 
+        // Internal oscilator ON 
+        sc (OSCON); 
+
+#endif
+ 
+        // Sleep out 
+        sc (SLPOUT); 
+ 
+        // Power control 
+        sc (PWRCTR); 
+        sd (0x0f);   // reference voltage regulator on,
+ 
+        // Inverse display (does nothing, not needed)
+        // sc (DISINV); 
+        // Data control 
+        sc (DATCTL); 
+        sd (0x00); // Do not invert anything, column address normal
+        sd (0x00); // RGB sequence (default value) 
+        sd (0x02); // Grayscale -> 16 (selects 12-bit color, type A) 
+ 
+        // Voltage control (contrast setting) 
+        sc (VOLCTR); 
+        sd (37);   // Looks like a decent default
+        sd (3);    // Resistance ratio - whatever that is
+
+#else	/* PHILIPS */
+// ==================
+
 	sc (SLEEPOUT);
 	// Color Interface Pixel Format (command 0x3A)
 	sc (COLMOD);
 	sd (0x03);	// 0x03 = 12 bits-per-pixel
 	sc (MADCTL);
-	sd (0x08);	// Don't mirror y, rgb
-	// sd (0x88);	// Mirror y, rgb
+	sd (0x00);	// Don't mirror y, rgb
 	sc (SETCON);	// Contrast
 	sd (0x37);
 	mdelay (10);
-#if 0
-	// Set up the RGB table for 8bpp display
-	sc (RGBSET);
-	for (word i = 0; i < sizeof (rgbtable); i++)
-		sd (rgbtable [i]);
+
 #endif
+// ==================
+
 	nlcd_cs_up;
 	lcdg_setc (COLOR_BLACK, COLOR_WHITE);
 }
@@ -233,6 +330,23 @@ void lcdg_cmd (byte cmd, const byte *arg, byte n) {
 void lcdg_on (byte con) {
 //
 	nlcd_cs_down;
+
+#if LCDG_N6100P_EPSON
+// ==================
+
+	if (con) {
+		sc (VOLCTR);	// Change contrast
+		sd (con);
+		sd (3);
+		// mdelay (10);
+	}
+	// Tune it later
+	mdelay (10);
+	sc (DISON);
+
+#else	/* PHILIPS */
+// =====================
+
 	// sc (DISPOFF);
 	// mdelay (10);
 	if (con) {
@@ -242,12 +356,20 @@ void lcdg_on (byte con) {
 	}
 	sc (DISPON);
 	// mdelay (10);
+#endif
+// =====================
+
 	nlcd_cs_up;
 }
 
 void lcdg_off () {
 	nlcd_cs_down;
+
+#if LCDG_N6100P_EPSON
+	sc (DISOFF);
+#else
 	sc (DISPOFF);
+#endif
 	nlcd_cs_up;
 }
 
@@ -259,7 +381,7 @@ void lcdg_set (byte xl, byte yl, byte xh, byte yh) {
 	Y_org = yl + LCDG_YOFF;
 
 	X_last = xh + LCDG_XOFF;
-	Y_last = yh + LCDG_XOFF;
+	Y_last = yh + LCDG_YOFF;
 
 	if (X_last < X_org || Y_last < Y_org || X_last > LCDG_MAXXP ||
 		Y_last > LCDG_MAXYP)
