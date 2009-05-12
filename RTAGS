@@ -2995,3 +2995,17 @@ R090510A:
 
 	econnect.tcl snapshot. Still a few things to do (should be ready in a
 	couple of days).
+
+R090512A:
+
+	See eco_demo/OSSI/ECONNECT for a Tk GUI to Arturo's network. There is
+	no manual, but this is how you start:
+
+	- create directory C:\econnect\ and copy there the file snippets.dat;
+	  these are the sensor value conversion snippets for standard eco nodes
+
+	- connect whatever nodes you want to handle to COM ports
+
+	- executue econnect.tcl (version 8.5 of Tcl/Tk prefered, but it should
+	  work with 8.4, the only problem being limited validation of snippets,
+	  i.e., no loop detection)

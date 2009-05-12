@@ -244,22 +244,19 @@ void lcdg_reset () {
 #if LCDG_N6100P_EPSON
 // ==================
 
-#if 0
 	// This seems to be the default, so why wasting code
-
+#if 0
         sc (DISCTL); 
         sd (0x00); // P1: 0x00 = 2 divisions, switching period=8 (default) 
         sd (0x20); // P2: 0x20 = nlines/4 - 1 = 132/4 - 1 = 32) 
         sd (0x00); // P3: 0x00 = no inversely highlighted lines 
- 
+
         // COM scan 
         sc (COMSCN); 
         sd (1);    // P1: 0x01 = Scan 1->80, 160<-81 
         // Internal oscilator ON 
         sc (OSCON); 
-
 #endif
- 
         // Sleep out 
         sc (SLPOUT); 
  
