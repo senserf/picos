@@ -41,7 +41,7 @@ static double berfun (double sir) {
 
 Long Root::initChannel () {
 
-	Long NS, BPB, EFB, MPR, STBL;
+	Long NS, BPB, EFB, MPR;
 	double g, d, BN, AL, Beta, RD, Sigma, LossRD, COFF;
 	int i;
 
@@ -108,7 +108,7 @@ Long Root::initChannel () {
 	readIn (NSTB);
 	print (NSTB,		" Ber table length:", 10, 26);
 
-	STBT = new STB_e [STBL];
+	STBT = new STB_e [NSTB];
 
 	for (i = 0; i < NSTB; i++) {
 		readIn (d);

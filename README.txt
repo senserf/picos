@@ -987,3 +987,5 @@
 	   -p.
 	   Added examples to Examples/REALTIME illustrating how to drive UARTs
 	   asynchronously via mailboxes.
+
+ R090517A  Fixed a bug in Examples/WIRELESS/Easy.
