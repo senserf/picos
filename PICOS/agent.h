@@ -190,6 +190,8 @@ class	UART {
 	word	B_ilen, B_olen;
 	TIME	ByteTime;
 
+	word	Rate;		// Misalignment
+
 	byte	*IBuf;
 	word	IB_in, IB_out;
 

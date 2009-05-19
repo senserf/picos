@@ -307,3 +307,16 @@ R090312A:
 
     Cosmetics required to accommodate modifications to EEPROM driver in
     PicOS (ee_open, ee_close - they are void in VUEE).
+
+R090519A:
+
+    The UART rate specified in the data file is now stored as a UART attribute
+    and sent to UDAEMON upon connection. The user-specified rate is verified by
+    VUEE against the standard set of values acceptable by PicOS.
+
+    The UDAEMON protocol has been modified a bit, such that the status code
+    returned by VUEE agent after a connection is now one word, instead of one
+    byte (as it used to be). This way, more info can be returned by the agent,
+    notably the bit rate for UART, which is needed by the U-U feature of
+    UDAEMON's UART window. This feature is described in the updated document.
+    See also R090519A in PICOS.

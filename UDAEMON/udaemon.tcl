@@ -1,6 +1,6 @@
 #!/usr/bin/wish
 
-#package require Tk 8.4
+#package require Tk 8.5
 
 set Unique		0
 set MaxLineCount	1024
@@ -133,12 +133,11 @@ array set LCDOFFITEMS {
 
 array set LCDCOLORS 	{ ONE #ff8080 ONI #ff0000 OFE #000000 OFI #0F0F0F }
 
-set MAXSVAL	[expr pow (2.0, 32.0) - 1.0]
+set MAXSVAL     [expr pow (2.0, 32.0) - 1.0]
 
-proc dbg { mess } {
+proc alert { msg } {
 
-	puts $mess
-	flush stdout
+	tk_dialog .alert "Attention!" $msg "" 0 "OK"
 }
 
 proc stName { Sok } {
@@ -150,6 +149,30 @@ proc stName { Sok } {
 	}
 
 	return ""
+}
+
+proc uuName { Sok } {
+
+	global Stat
+
+	if [info exists Stat($Sok,Q)] {
+		return " $Stat($Sok,Q)"
+	} else {
+		return ""
+	}
+}
+
+proc uuStop { Sok } {
+
+	global Stat
+
+	if [info exists Stat($Sok,FD,U)] {
+		if { $Stat($Sok,FD,U) != "" } {
+			catch { close $Stat($Sok,FD,U) }
+			set Stat($Sok,FD,U) ""
+		}
+		set Stat($Sok,Q) ""
+	}
 }
 
 proc stimeout { Sok } {
@@ -257,9 +280,15 @@ proc dealloc { Sok } {
 		unset Wins($Sok)
 	}
 
-	foreach it [array names Stat "$Sok,*"] {
+	foreach it [array names Stat "$Sok,FD,*"] {
+		# any file descriptors to close??
+		if { $Stat($it) != "" } {
+			catch { close $Stat($it) }
+		}
 		unset Stat($it)
-	}
+	} 
+
+	array unset Stat "$Sok,*"
 
 	catch { close $Sok }
 }
@@ -269,9 +298,11 @@ proc uartHandler { stid mode } {
 	global PortNumber HostName Wins Stat
 
 	if { $mode == "h" } {
-		set HexM 1
+		# HEX
+		set umo 1
 	} else {
-		set HexM 0
+		# straight ASCII
+		set umo 0
 	}
 
 	# try to locate the window, if it already exists
@@ -300,7 +331,7 @@ proc uartHandler { stid mode } {
 	# until we actually get it up (or otherwise)
 	set Wins($Sok) "x"
 	set Stat($Sok,S) $stid
-	set Stat($Sok,M) $HexM
+	set Stat($Sok,M) $umo
 
 	# send the request when the socket becomes writeable
 	fileevent $Sok writable "sendReq $Sok 1"
@@ -340,8 +371,8 @@ proc uartIni { Sok } {
 	# we are reading the initial OK response
 	ctimeout $Sok
 
-	# exactly one byte expected
-	if [catch { read $Sok 1 } res] {
+	# four bytes expected
+	if [catch { read $Sok 4 } res] {
 		# disconenction
 		log "connection failed: $res"
 		dealloc $Sok
@@ -354,12 +385,18 @@ proc uartIni { Sok } {
 		return
 	}
 
-	set code [dbinB res]
-	if { $code != $ECONN_OK } {
-		log "connection rejected by SIDE: [conerror $code]"
+	set code [dbinI res]
+
+	set cc [expr $code & 0xff]
+
+	if { $cc != $ECONN_OK } {
+		log "connection rejected by SIDE: [conerror $cc]"
 		dealloc $Sok
 		return
 	}
+
+	# the rate
+	set Stat($Sok,R) [expr (($code >> 8) & 0x0ffff) * 100]
 
 	# create the window
 
@@ -376,7 +413,7 @@ proc uartIni { Sok } {
 	# reset the input script
 	fileevent $Sok readable "uartRead $Sok"
 
-	log "connected"
+	log "connected at $Stat($Sok,R)"
 }
 
 proc uartRead { Sok } {
@@ -401,14 +438,19 @@ proc uartRead { Sok } {
 		return
 	}
 
+	if { $Stat($Sok,FD,U) != "" } {
+		# send it to the C-0-C UART
+		catch { puts -nonewline $Stat($Sok,FD,U) $chunk }
+	}
+
 	set Wn $Wins($Sok)
 
-	if $Stat($Sok,M) {
+	if $Stat($Sok,H) {
 		# handle the HEX case
-		if !$Stat($Sok,H) {
+		if !$Stat($Sok,M) {
 			# just entered
 			endLine $Wn.t
-			set Stat($Sok,H) 1
+			set Stat($Sok,M) 1
 			set Stat($Sok,F) 0
 		}
 
@@ -429,9 +471,9 @@ proc uartRead { Sok } {
 			}
 		}
 	} else {
-		if $Stat($Sok,H) {
+		if $Stat($Sok,M) {
 			# just exited
-			set Stat($Sok,H) 0
+			set Stat($Sok,M) 0
 			set Stat($Sok,F) 0
 			endLine $Wn.t
 		}
@@ -486,6 +528,126 @@ proc uartRead { Sok } {
 	}
 }
 
+proc uuRead { Sok } {
+#
+# U-U input
+#
+	global Stat
+
+	set sok $Stat($Sok,FD,U)
+
+	if [catch { read $sok } chunk] {
+		# assume disconnection
+		log "connection to U-U device[uuName $Sok] terminated: $chunk"
+		uuStop $Sok
+		return
+	}
+
+	if [eof $sok] {
+		# closed
+		log "connection to U-U device[uuName $Sok] closed"
+		uuStop $Sok
+		return
+	}
+
+	if { $chunk == "" } {
+		# nothing read
+		return
+	}
+
+	catch { puts -nonewline $Sok $chunk }
+}
+
+proc uartEvnt { Sok } {
+#
+# We need this nonsense because button release in tk_optionMenu returns the
+# old value of the option
+#
+	after 10 "connUart $Sok"
+}
+
+proc u_cdevl { pi } {
+#
+# Returns the candidate list of devices to open based on the port identifier
+#
+	if { [regexp "^\[0-9\]+$" $pi] && ![catch { expr $pi } pn] } {
+		# looks like a number
+		if { $pn < 10 } {
+			# use internal Tcl COM id, which is faster
+			set wd "COM${pn}:"
+		} else {
+			set wd "\\\\.\\COM$pn"
+		}
+		return [list $wd "/dev/ttyUSB$pn" "/dev/tty$pn"]
+	}
+
+	# not a number
+	return [list $pi "\\\\.\\$pi" "/dev/$pi" "/dev/tty$pi"]
+}
+
+proc connUart { Sok } {
+#
+# U-U connection/re-connection/drop
+#
+	global Stat
+
+	if ![info exists Stat($Sok,U)] {
+		# we are delayed, so let us check for sure
+		return
+	}
+
+	set opt $Stat($Sok,U)
+
+	if { $opt == "Off" && $Stat($Sok,Q) == "" } {
+		# nothing
+		return
+	}
+
+	if { $opt == $Stat($Sok,Q) } {
+		# nothing again
+		return
+	}
+
+	# stop any previous connection
+	uuStop $Sok
+
+	if { $opt == "Off" } {
+		# that's it
+		log "U-U connection terminated"
+		return
+	}
+
+	set devlist [u_cdevl $opt]
+
+	set fail 1
+
+	foreach dev $devlist {
+		if ![catch { open $dev "r+" } fd] {
+			set fail 0
+			break
+		}
+	}
+
+	if $fail {
+		log "cannot open U-U device $opt: $fd"
+		set Stat($Sok,U) "Off"
+		return
+	}
+
+	# we shall ignore bit rate issues (at least for now), but make it large
+	# just in case
+	set mode "$Stat($Sok,R),n,8,1"
+	fconfigure $fd -mode $mode -handshake none \
+		-buffering none -translation binary -encoding binary \
+			-blocking 0 -eofchar ""
+
+	fileevent $fd readable "uuRead $Sok"
+	set Stat($Sok,FD,U) $fd
+	set Stat($Sok,Q) $opt
+
+	log "U-U connection successful"
+}
+
 proc mkTerm { Sok tt hex } {
 #
 # Creates a new terminal
@@ -495,9 +657,11 @@ proc mkTerm { Sok tt hex } {
 	set w $Wins($Sok)
 
 	toplevel $w
-	text $w.t
 
 	wm title $w $tt
+
+	text $w.t
+
 
 	#	-xscrollcommand "$w.scrolx set" 
 
@@ -534,9 +698,32 @@ proc mkTerm { Sok tt hex } {
 	pack $w.stat.hsel.lab -side left
 
 	set Stat($Sok,H) $hex
+	# U-U file descriptor
+	set Stat($Sok,FD,U) ""
 
 	checkbutton $w.stat.hsel.but -state normal -variable Stat($Sok,H)
 	pack $w.stat.hsel.but -side left
+
+	frame $w.stat.usel -borderwidth 2
+	pack $w.stat.usel -side right -expand no
+
+	label $w.stat.usel.lab -text "U-U"
+	pack $w.stat.usel.lab -side left
+
+	set pl "Off CNCB0 CNCB1 CNCB2 CNCB3"
+	for { set i 0 } { $i <= 20 } { incr i } {
+		append pl " $i"
+	}
+
+	eval "tk_optionMenu $w.stat.usel.men Stat($Sok,U) $pl"
+
+	set Stat($Sok,U) "Off"
+	# U-U UART device name for diagnostics
+	set Stat($Sok,Q) ""
+
+	pack $w.stat.usel.men -side left
+
+	bind $w.stat.usel.men <B1-ButtonRelease> "uartEvnt $Sok"
 
 	$w.t configure -state disabled
 
@@ -679,8 +866,8 @@ proc clockIni { Sok } {
 	# we are reading the initial OK response
 	ctimeout $Sok
 
-	# exactly one byte expected
-	if [catch { read $Sok 1 } res] {
+	# connection code
+	if [catch { read $Sok 4 } res] {
 		# disconenction
 		dealloc $Sok
 		log "connection failed: $res"
@@ -693,7 +880,8 @@ proc clockIni { Sok } {
 		return
 	}
 
-	set code [dbinB res]
+	set code [dbinI res]
+
 	if { $code != $ECONN_OK } {
 		dealloc $Sok
 		log "connection rejected by SIDE: [conerror $code]"
@@ -875,8 +1063,8 @@ proc ledsIni { Sok } {
 	# we are reading the initial OK response
 	ctimeout $Sok
 
-	# exactly one byte expected
-	if [catch { read $Sok 1 } res] {
+	# connection code
+	if [catch { read $Sok 4 } res] {
 		# disconenction
 		dealloc $Sok
 		log "connection failed: $res"
@@ -889,7 +1077,7 @@ proc ledsIni { Sok } {
 		return
 	}
 
-	set code [dbinB res]
+	set code [dbinI res]
 	if { $code != $ECONN_OK } {
 		dealloc $Sok
 		log "connection rejected by SIDE: [conerror $code]"
@@ -1162,8 +1350,8 @@ proc pinsIni { Sok } {
 
 	ctimeout $Sok
 
-	# exactly one byte expected
-	if [catch { read $Sok 1 } res] {
+	# connection code
+	if [catch { read $Sok 4 } res] {
 		# disconenction
 		dealloc $Sok
 		log "connection failed: $res"
@@ -1177,7 +1365,7 @@ proc pinsIni { Sok } {
 		return
 	}
 
-	set code [dbinB res]
+	set code [dbinI res]
 	if { $code != $ECONN_OK } {
 		log "connection rejected by SIDE: [conerror $code]"
 		dealloc $Sok
@@ -1550,7 +1738,7 @@ proc sensorsIni { Sok } {
 
 	ctimeout $Sok
 
-	if [catch { read $Sok 1 } res] {
+	if [catch { read $Sok 4 } res] {
 		# disconenction
 		dealloc $Sok
 		log "connection failed: $res"
@@ -1564,7 +1752,7 @@ proc sensorsIni { Sok } {
 		return
 	}
 
-	set code [dbinB res]
+	set code [dbinI res]
 	if { $code != $ECONN_OK } {
 		log "connection rejected by SIDE: [conerror $code]"
 		dealloc $Sok
@@ -1886,8 +2074,8 @@ proc panelIni { Sok } {
 
 	ctimeout $Sok
 
-	# exactly one byte expected
-	if [catch { read $Sok 1 } res] {
+	# connection code
+	if [catch { read $Sok 4 } res] {
 		# disconenction
 		dealloc $Sok
 		log "connection failed: $res"
@@ -1901,7 +2089,7 @@ proc panelIni { Sok } {
 		return
 	}
 
-	set code [dbinB res]
+	set code [dbinI res]
 	if { $code != $ECONN_OK } {
 		log "connection rejected by SIDE: [conerror $code]"
 		dealloc $Sok
@@ -2181,8 +2369,8 @@ proc moveIni { Sok } {
 
 	ctimeout $Sok
 
-	# exactly one byte expected
-	if [catch { read $Sok 1 } res] {
+	# connection code
+	if [catch { read $Sok 4 } res] {
 		# disconenction
 		dealloc $Sok
 		log "connection failed: $res"
@@ -2196,7 +2384,7 @@ proc moveIni { Sok } {
 		return
 	}
 
-	set code [dbinB res]
+	set code [dbinI res]
 	if { $code != $ECONN_OK } {
 		log "connection rejected by SIDE: [conerror $code]"
 		dealloc $Sok
@@ -3044,7 +3232,7 @@ proc conerror { code } {
        12 { return "invalid request" }
     }
 
-    return "error code $code (unnown)"
+    return "error code $code (unknown)"
 }
 
 ## binary encoding/decoding ###################################################
@@ -3287,5 +3475,15 @@ $Logger delete 1.0 end
 $Logger configure -state disabled
 
 bind . <Destroy> { exit }
+
+if { [info tclversion] < 8.5 } {
+
+	alert "This program requires Tcl/Tk version 8.5 or higher!"
+	exit 99
+}
+
+catch { close stdin }
+catch { close stdout }
+catch { close stderr }
 
 vwait forever

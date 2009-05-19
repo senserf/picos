@@ -55,6 +55,7 @@ typedef struct {
 // UART
 
 	FLAGS	UMode;		// Mode bits
+
 	word 	UIBSize,	// Buffer size
 		UOBSize,
 		URate;		// Rate

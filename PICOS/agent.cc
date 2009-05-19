@@ -80,11 +80,11 @@ process	AgentConnector {
 process Disconnector {
 
 	Dev	*Agent;
-	byte	code;
+	lword	code;
 
 	states { Send, Wait, Kill };
 
-	void setup (Dev *a, char c) { Agent = a; code = c; };
+	void setup (Dev *a, lword c) { Agent = a; code = htonl (c); };
 
 	perform;
 };
@@ -137,7 +137,7 @@ process PinsHandler {
 
 	void setup (PINS*, Dev*);
 
-	void goaway (byte);
+	void goaway (lword);
 
 	perform;
 };
@@ -194,7 +194,7 @@ process SensorsHandler {
 
 	void setup (SNSRS*, Dev*);
 
-	void goaway (byte);
+	void goaway (lword);
 
 	perform;
 };
@@ -273,7 +273,10 @@ UART::UART (data_ua_t *UAD) {
 
 	// Account for start / stop bits, assuming there is no parity and one
 	// stop bit, which is the case in all our setups
-	ByteTime = (TIME) ((Second / UAD->URate) * 10.0);
+	Rate = UAD->URate;
+	// Note: Rate has been divided by 100, so this amounts to multiplying
+	// seconds/truerate by 10.0
+	ByteTime = (TIME) ((Second / Rate) / 10.0);
 
 	if (imode (Flags) == XTRN_IMODE_SOCKET ||
 					omode (Flags) == XTRN_OMODE_SOCKET) {
@@ -825,7 +828,7 @@ int UART::ioop (int state, int ope, char *buf, int len) {
 
 void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 
-	byte c;
+	lword c;
 
 	Agent = a;
 	UA = tpn->uart->U;
@@ -857,12 +860,13 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 UartHandler::perform {
 
 	int	nc;
-	byte 	c;
+	lword 	c;
 
 	state AckUart:
 
-		c = ECONN_OK;
-		if (Agent->wi (AckUart, (char*)(&c), 1) == ERROR) {
+		c = htonl (ECONN_OK | (((lword)(UA->Rate)) << 8));
+trace ("SENDING: %1d, %1d, %08x", ECONN_OK, UA->Rate, c);
+		if (Agent->wi (AckUart, (char*)(&c), 4) == ERROR) {
 			// We are disconnected
 Term:
 			delete Agent;
@@ -907,12 +911,12 @@ void ClockHandler::setup (Dev *a) {
 ClockHandler::perform {
 
 	lword netf;
-	char c;
+	lword c;
 
 	state AckClk:
 
-		c = ECONN_OK;
-		if (Agent->wi (AckClk, (char*)(&c), 1) == ERROR) {
+		c = htonl (ECONN_OK);
+		if (Agent->wi (AckClk, (char*)(&c), 4) == ERROR) {
 			// We are disconnected
 Term:
 			delete Agent;
@@ -1877,7 +1881,7 @@ int PINS::pinup_update (char *rb) {
 	
 void PinsHandler::setup (PINS *pn, Dev *a) {
 
-	byte c;
+	lword c;
 
 	PN = pn;
 
@@ -1925,7 +1929,7 @@ void PinsHandler::setup (PINS *pn, Dev *a) {
 	}
 }
 
-void PinsHandler::goaway (byte c) {
+void PinsHandler::goaway (lword c) {
 /*
  * Can also be called by the input thread to kill the output end, but only
  * for a socket connection. It will also terminate the input thread itself,
@@ -1957,14 +1961,14 @@ PinsHandler::perform {
  * long as the agent is connected and handle pin output. The input is covered
  * by a child process.
  */
-	byte c;
+	lword c;
 
 	state AckPins:
 
 		if (Agent != NULL) {
 			// Socket connection: acknowledge
-			c = ECONN_OK;
-			if (Agent->wi (AckPins, (char*)(&c), 1) == ERROR) {
+			c = htonl (ECONN_OK);
+			if (Agent->wi (AckPins, (char*)(&c), 4) == ERROR) {
 				// We are disconnected
 				goaway (ECONN_DISCONN);
 				// This means 'terminate'
@@ -2441,7 +2445,7 @@ void SNSRS::qupd_all () {
 	
 void SensorsHandler::setup (SNSRS *sn, Dev *a) {
 
-	byte c;
+	lword c;
 
 	SN = sn;
 
@@ -2490,7 +2494,7 @@ void SensorsHandler::setup (SNSRS *sn, Dev *a) {
 	}
 }
 
-void SensorsHandler::goaway (byte c) {
+void SensorsHandler::goaway (lword c) {
 /*
  * Can also be called by the input thread to kill the output end, but only
  * for a socket connection. It will also terminate the input thread itself,
@@ -2520,15 +2524,16 @@ SensorsHandler::perform {
  * This is a close cousin of PinsDriver. We will have to combine them into
  * one set.
  */
-	byte c, sid;
+	byte tp, sid;
+	lword c;
 	Boolean lm;
 
 	state AckSens:
 
 		if (Agent != NULL) {
 			// Socket connection: acknowledge
-			c = ECONN_OK;
-			if (Agent->wi (AckSens, (char*)(&c), 1) == ERROR) {
+			c = htonl (ECONN_OK);
+			if (Agent->wi (AckSens, (char*)(&c), 4) == ERROR) {
 				// We are disconnected
 				goaway (ECONN_DISCONN);
 				// This means 'terminate'
@@ -2545,8 +2550,8 @@ SensorsHandler::perform {
 			sleep;
 		}
 
-		lm = SN->Upd->retrieve (c, sid);
-		Length = SN->act_status (c, sid, lm);
+		lm = SN->Upd->retrieve (tp, sid);
+		Length = SN->act_status (tp, sid, lm);
 		Buf = SN->UBuf;
 
 	transient Send:
@@ -2821,7 +2826,7 @@ int LEDSM::ledup_status () {
 
 void LedsHandler::setup (PicOSNode *tpn, LEDSM *le, Dev *a) {
 
-	byte c;
+	lword c;
 
 	TPN = tpn;
 
@@ -2867,14 +2872,14 @@ LedsHandler::perform {
  * we will be able to detect disconnection (with only one end of the socket)
  * without some feedback in the opposite direction. Will check it out.
  */
-	byte c;
+	lword c;
 
 	state AckLeds:
 
 		if (Agent != NULL) {
 			// Socket connection: acknowledge
-			c = ECONN_OK;
-			if (Agent->wi (AckLeds, (char*)(&c), 1) == ERROR) {
+			c = htonl (ECONN_OK);
+			if (Agent->wi (AckLeds, (char*)(&c), 4) == ERROR) {
 				// We are disconnected
 Disconnect:
 				delete Agent;
@@ -2974,7 +2979,7 @@ MoveHandler::perform {
 	char *re;
 	PicOSNode *pn;
 	Transceiver *TR;
-	byte c;
+	lword c;
 	char cc;
 	Boolean off;
 
@@ -2982,8 +2987,8 @@ MoveHandler::perform {
 
 		if (imode (Flags) == XTRN_IMODE_SOCKET) {
 			// Need to acknowledge
-			c = ECONN_OK;
-			if (Agent->wi (AckMove, (char*)(&c), 1) == ERROR) {
+			c = htonl (ECONN_OK);
+			if (Agent->wi (AckMove, (char*)(&c), 4) == ERROR) {
 				// Disconnected
 				delete Agent;
 				terminate;
@@ -3324,7 +3329,7 @@ PanelHandler::perform {
 	char *re;
 	Long NN;
 	int rc;
-	byte c;
+	lword c;
 	char cc;
 	Boolean off;
 
@@ -3334,8 +3339,8 @@ PanelHandler::perform {
 
 		if (imode (Flags) == XTRN_IMODE_SOCKET) {
 			// Need to acknowledge
-			c = ECONN_OK;
-			if (Agent->wi (AckPanel, (char*)(&c), 1) == ERROR) {
+			c = htonl (ECONN_OK);
+			if (Agent->wi (AckPanel, (char*)(&c), 4) == ERROR) {
 				// Disconnected
 				delete Agent;
 				terminate;
@@ -3699,7 +3704,7 @@ Disconnector::perform {
 		// other party, if only possible. But never hang around
 		// indefinitely.
 		Timer->delay (MILLISECOND * SHORT_TIMEOUT, Kill);
-		if (Agent->wi (Send, (char*)(&code), 1) == ERROR)
+		if (Agent->wi (Send, (char*)(&code), 4) == ERROR)
 			goto Term;
 
 	transient Wait:

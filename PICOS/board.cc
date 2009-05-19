@@ -21,6 +21,10 @@ const char	zz_hex_enc_table [] = {
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
 
+// Legitimate UART rates ( / 100)
+static const word urates [] = { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152,
+    				2560 };
+
 struct strpool_s {
 
 	const byte *STR;
@@ -2328,7 +2332,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	char *str, *sts;
 	char es [48];
 	data_ua_t *UA;
-	int len;
+	int i, len;
 
 	if ((data = sxml_child (data, "uart")) == NULL)
 		return NULL;
@@ -2345,7 +2349,19 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	if ((att = sxml_attr (data, "rate")) != NULL) {
 		if (parseNumbers (att, 1, np) != 1 || np [0].LVal <= 0)
 			xeai ("rate", es, att);
-		UA->URate = (word) (np [0].LVal);
+		len = (int) (np [0].LVal);
+		// Make sure it is decent
+		if (len < 0 || (len % 100) != 0)
+			xeai ("rate", es, att);
+		// We store it in hundreds
+		len /= 100;
+		for (i = 0; i < sizeof (urates)/sizeof (word); i++)
+			if (urates [i] == (word) len)
+				break;
+		if (i >= sizeof (urates)/sizeof (word))
+			xeai ("rate", es, att);
+
+		UA->URate = (word) len;
 	}
 
 	/* Buffer size */
@@ -2363,7 +2379,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 		}
 	}
 	print (form ("  UART [rate = %1d bps, bsize i = %1d, o = %d bytes]:\n",
-		UA->URate, UA->UIBSize, UA->UOBSize));
+		(int)(UA->URate) * 100, UA->UIBSize, UA->UOBSize));
 
 	UA->UMode = 0;
 	UA->UIDev = UA->UODev = NULL;
