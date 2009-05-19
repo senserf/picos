@@ -9,7 +9,7 @@
 // things up, such that the drivers (also for the non-phys version) will be
 // machine independent.
 
-#include "rfleds.h"
+#include "ualeds.h"
 
 #if UART_TCV
 #include "phys_uart.h"
@@ -65,9 +65,6 @@ typedef	struct	{
 } uart_t;
 
 #define	UART_DEF_BUF_LEN	82
-
-// Redefine to LEDI(a,b) if UART TCV wants to use leds
-#define	LEDIU(a,b)	CNOP
 
 extern	uart_t zz_uart [N_UARTS_TCV];
 

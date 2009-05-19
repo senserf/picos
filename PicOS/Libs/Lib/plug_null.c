@@ -36,7 +36,7 @@ const tcvplug_t plug_null =
 #include "plug_null_node_data.h"
 #endif
 
-#define	desc	_dac (NNode, desc)
+#define	ndsc	_dac (NNode, ndsc)
 
 static int tcv_ope_null (int phy, int fd, va_list plid) {
 /*
@@ -44,19 +44,19 @@ static int tcv_ope_null (int phy, int fd, va_list plid) {
  */
 	int i;
 
-	if (desc == NULL) {
-		desc = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
-		if (desc == NULL)
+	if (ndsc == NULL) {
+		ndsc = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
+		if (ndsc == NULL)
 			syserror (EMALLOC, "plug_null tcv_ope_null");
 		for (i = 0; i < TCV_MAX_PHYS; i++)
-			desc [i] = NONE;
+			ndsc [i] = NONE;
 	}
 
 	/* phy has been verified by TCV */
-	if (desc [phy] != NONE)
+	if (ndsc [phy] != NONE)
 		return ERROR;
 
-	desc [phy] = fd;
+	ndsc [phy] = fd;
 	return 0;
 }
 
@@ -64,17 +64,17 @@ static int tcv_clo_null (int phy, int fd) {
 
 	/* phy/fd has been verified */
 
-	if (desc == NULL || desc [phy] != fd)
+	if (ndsc == NULL || ndsc [phy] != fd)
 		return ERROR;
 
-	desc [phy] = NONE;
+	ndsc [phy] = NONE;
 	return 0;
 }
 
 static int tcv_rcv_null (int phy, address p, int len, int *ses,
 							     tcvadp_t *bounds) {
 
-	if (desc == NULL || (*ses = desc [phy]) == NONE)
+	if (ndsc == NULL || (*ses = ndsc [phy]) == NONE)
 		return TCV_DSP_PASS;
 
 	bounds->head = bounds->tail = 0;
@@ -102,4 +102,4 @@ static int tcv_xmt_null (address p) {
 #include "stdattr_undef.h"
 #endif
 
-#undef desc
+#undef ndsc

@@ -3009,3 +3009,109 @@ R090512A:
 	- executue econnect.tcl (version 8.5 of Tcl/Tk prefered, but it should
 	  work with 8.4, the only problem being limited validation of snippets,
 	  i.e., no loop detection)
+
+R090519A:
+
+	A self-contained version of econnect can now be built using freewrap
+	(version 6.4.2), see http://freewrap.sourceforge.net/ . This is very
+	straightforward. 
+
+	Here is what you should do to create a self-contained version of
+	econnect.tcl (this also applies to udaemon in VUEE/UDAEMON). This
+	should be the prefered way of using those scripts (at least on
+	Windows), as otherwise we run into messy compatibility problems with
+	all the different versions of Tcl/Tk.
+
+	1. Download freewrap (e.g., from http://freewrap.sourceforge.net/). I
+	am using version 642 which I have made available from our repository
+	at http://www.adremnetworks.com/olsonet/freewrap642.zip .
+
+	2. Unpack the thing (it doesn't install - the program executes
+	directly). Wherever you unpack freewrap, put a link to freewrap.exe
+	into you BIN directory, such that you can conveniently execute the
+	program wherever you are.
+
+	3. Move to Apps/VUEE/eco_demo/OSSI/ECONNECT/ and execute ./mkexe.sh.
+	This will create econnect.exe (Note: I don't think it makes sense to
+	store those versions in the CVS repository, as they take 3.7MB each
+	and can be trivially built).
+
+	4. Do the same in udaemon's directory VUEE/UDAEMON.
+
+	In principle, Tcl-only scripts (like Arturo's front or YEP's oss) can
+	be transformed this way as well; however, the resulting executable is
+	going to be a "wish" application, which means that it will want to open
+	a (dummy and empty) GUI window. Thus, it doesn't make a lot of sense.
+	Those scripts will be eventually retired in favor of their GUI versions.
+
+	---
+
+	Scripts/ufront.tcl and oss_u.tcl (and also Arturo's front.tcl as well
+	as econnect.tcl) have been modified to provide for a better way of
+	handling COM ports on Windows (devices like "COMx:" only work from Tcl
+	for x between 1 and 9). Also, we are now accommodating devices named
+	CNCAx/CNCBx (introduce by com0com - see below).
+
+	A few cosmetic changes to match forthcoming modifications to VUEE.
+
+	As requested by Wlodek, board ID now shows up in the banner diag
+	message after system boot, along with the system release version
+	(see R090408A).
+
+	---
+	com0com
+
+	This belongs to VUEE (udaemon), but relates to econnect and other
+	(future) OSS scripts.
+	You can now use OSS scripts to talk to praxes running under VUEE.
+	At present, this applies to econnect and Arturo's front.
+
+	Perhaps we need a separate document for this, but the setup is in
+	fact very simple, so this note may do for now. Here is a quick start
+	of sorts:
+
+	1. Download com0com (e.g., from http://com0com.sourceforge.net/). I am
+	using version 2.2.0.0, which I have made available from our repository
+	at http://www.adremnetworks.com/olsonet/ . You will find there these
+	files:
+
+		com0com-2.2.0.0-i386-fre.zip	(for 32-bit systems)
+		com0com-2.2.0.0-x64-fre.zip	(for 64-bit systems)
+		com0com-2.2.0.0.zip		(the source)
+
+	2. Unpack the driver and install it following the simple instructions
+	(there were no suprises - at least in my case - on both XP and Vista).
+	You will get by default two devices named CNCA0 and CNCB0 appearing as
+	two UARTs connected by a NULL modem. There is a simple GUI utility
+	(called setupg) for adding/deleting device pairs and changing their
+	parameters. Use it and check these options for both ends of the pair:
+
+		emulate baud rate
+		enable buffer overrun
+
+	Without the second one, the device may occasionally get into a stall
+	if one party disconnects and then connects again, with the other party
+	constantly writing to the UART. The first one is probably optional.
+
+	3. Go to eco_demo and compile the praxis for VUEE. Note: you need to
+	upgrade your VUEE to R090519A!!!! Run the praxis, e.g., using
+	large_eco.xml as tge data file.
+
+	4. Invoke udaemon, preferably in its stand-alone version (see above).
+	If not, make sure that you are using Tcl/Tk version 8.5 or higher.
+	Connect to UART (preferably to an aggeragator, e.g., node 0). At the
+	bottom of the UART window you will see a new button labeled U-U whose
+	intial (default) state is Off. Click on it and select CNCB0 from the
+	list (note that you can connect to a regular UART as well, e.g., if
+	you have a true modem connecting you to OSSI on another computer).
+	The log window should say "U-U connection successful", which means
+	that your com0com installation went without problems.
+
+	5. Invoke econnect. Select CNCA0 (the matching end of the NULL modem)
+	from the "Port" menu. No need to change any other (default) selections.
+	Then click "Connect". You should see Aggregator window.
+
+	This also works for front.tcl (you can specify CNCA0 instead of COM
+	port number as the first argument of "connect").
+
+	I have updated the VUEE doc commenting a bit on the U-U feature. 

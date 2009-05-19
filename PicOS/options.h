@@ -273,6 +273,11 @@
 #define	RADIO_USE_LEDS		0
 #endif
 
+// LEDs for UART over TCV
+#ifndef	UART_USE_LEDS
+#define	UART_USE_LEDS		0
+#endif
+
 // Entropy collection enabled, if possible
 #ifndef	ENTROPY_COLLECTION
 #define	ENTROPY_COLLECTION	0

@@ -1166,8 +1166,11 @@ static void ios_init () {
 #ifdef	BANNER
 	diag (BANNER);
 #else
-	diag ("\r\nPicOS v" SYSVER_S "/" SYSVER_R ", "
-        	"(C) Olsonet Communications, 2002-2009");
+	diag ("\r\nPicOS v" SYSVER_S "/" SYSVER_R
+#ifdef	SYSVER_B
+		"-" SYSVER_B
+#endif
+        	", (C) Olsonet Communications, 2002-2009");
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);
 #endif
 #if	SDRAM_PRESENT

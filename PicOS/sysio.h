@@ -20,9 +20,13 @@
 #define	SYSVER_T	unknown	// Release tag
 #endif
 
-#define	SYSVER_B		((word)(SYSVER_U * 256 + SYSVER_L))
+#define	SYSVER_X		((word)(SYSVER_U * 256 + SYSVER_L))
 #define	SYSVER_S		stringify (SYSVER_U) "." stringify (SYSVER_L)
 #define	SYSVER_R		stringify (SYSVER_T)
+
+#ifdef	BOARD_TYPE
+#define	SYSVER_B		stringify (BOARD_TYPE)
+#endif
 
 #define	__sgfy(a)		#a
 #define	stringify(a)		__sgfy(a)
@@ -54,6 +58,9 @@
 /* Some hard configuration parameters */
 /* ================================== */
 #ifdef	__MSP430__
+// The io interface is not very popular in this version; we do not use io
+// unless the old-fashioned UART interface is present (i.e., io is only ever
+// used for the UART)
 #define	MAX_DEVICES		UART_DRIVER
 #else
 #define	MAX_DEVICES		6

@@ -2287,6 +2287,7 @@ proc main { } {
 	set NotFound ""
 
 	lappend deflist "BOARD_$Run(board)"
+	lappend deflist "BOARD_TYPE=$Run(board)"
 
 	if { $Run(type) == "l" } {
 		# library run

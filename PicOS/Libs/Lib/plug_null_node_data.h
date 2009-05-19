@@ -1,7 +1,7 @@
 #ifndef __plug_null_node_data_h
 #define __plug_null_node_data_h
 
-__STATIC int* _da (desc)
+__STATIC int* _da (ndsc)
 
 #ifndef	__SMURPH__
 			= NULL

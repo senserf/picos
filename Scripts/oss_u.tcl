@@ -62,6 +62,25 @@ variable CRCTAB	{
     0x6e17  0x7e36  0x4e55  0x5e74  0x2e93  0x3eb2  0x0ed1  0x1ef0
 }
 
+proc u_cdevl { pi } {
+#
+# Returns the candidate list of devices to open based on the port identifier
+#
+	if { [regexp "^\[0-9\]+$" $pi] && ![catch { expr $pi } pn] } {
+		# looks like a number
+		if { $pn < 10 } {
+			# use internal Tcl COM id, which is faster
+			set wd "COM${pn}:"
+		} else {
+			set wd "\\\\.\\COM$pn"
+		}
+		return [list $wd "/dev/ttyUSB$pn" "/dev/tty$pn"]
+	}
+
+	# not a number
+	return [list $pi "\\\\.\\$pi" "/dev/$pi" "/dev/tty$pi"]
+}
+
 proc u_start { udev speed dfun { mpl "" } } {
 #
 # Initialize UART
@@ -79,14 +98,7 @@ proc u_start { udev speed dfun { mpl "" } } {
 		set udev 1
 	}
 
-	if [catch { expr $udev } cn] {
-		# must be a complete device
-		set devlist [list $udev ${udev}: "/dev/$udev" "/dev/tty$udev"]
-	} else {
-		# com number or tty number
-		set devlist [list "COM${udev}:" "/dev/ttyUSB$udev" \
-			"/dev/tty$udev"]
-	}
+	set devlist [u_cdevl $udev]
 
 	set fail 1
 	foreach udev $devlist {

@@ -8,11 +8,32 @@ exec tclsh "$0" "$@"
 
 ###############################################################################
 
+proc u_cdevl { pi } {
+#
+# Returns the candidate list of devices to open based on the port identifier
+#
+	if { [regexp "^\[0-9\]+$" $pi] && ![catch { expr $pi } pn] } {
+		# looks like a number
+		if { $pn < 10 } {
+			# use internal Tcl COM id, which is faster
+			set wd "COM${pn}:"
+		} else {
+			set wd "\\\\.\\COM$pn"
+		}
+		return [list $wd "/dev/ttyUSB$pn" "/dev/tty$pn"]
+	}
+
+	# not a number
+	return [list $pi "\\\\.\\$pi" "/dev/$pi" "/dev/tty$pi"]
+}
+
 proc u_start { udev speed dfun } {
 #
 # Initialize UART
 #
 	global ST
+
+	set wfp "\\\\.\\"
 
 	if { $udev == "" } {
 		global argv
@@ -22,21 +43,14 @@ proc u_start { udev speed dfun } {
 
 	if { $udev == "" } {
 		set devlist ""
-		for { set udev 0 } { $udev < 8 } { incr udev } {
-			lappend devlist "COM${udev}:"
-			lappend devlist "/dev/ttyUSB$udev"
-			lappend devlist "/dev/tty$udev"
+		for { set udev 0 } { $udev < 10 } { incr udev } {
+			# On Windows, this is limited to COM1-COM9 (i.e.,
+			# the ports hardwired into Tcl); using a full device
+			# path takes a lot of time
+			set devlist [concat $devlist [u_cdevl $udev]]
 		}
 	} else {
-		if [catch { expr $udev } cn] {
-			# must be a complete device
-			set devlist \
-			    [list $udev ${udev}: "/dev/$udev" "/dev/tty$udev"]
-		} else {
-			# com number or tty number
-			set devlist [list "COM${udev}:" "/dev/ttyUSB$udev" \
-				"/dev/tty$udev"]
-		}
+		set devlist [u_cdevl $udev]
 	}
 
 	set fail 1

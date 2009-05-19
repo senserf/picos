@@ -1,4 +1,4 @@
 // Note: this can be included multiple times. No harm and sometimes needed.
 
-	_da (desc) = NULL;
+	_da (ndsc) = NULL;
 
