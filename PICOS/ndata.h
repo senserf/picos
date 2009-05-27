@@ -13,7 +13,7 @@
 
 typedef	struct {
 
-// General (mostly RF module)
+// RF module
 
 	double	Boost,		// Receiver boost
 		LBTThs;		// LBT threshold
@@ -24,7 +24,7 @@ typedef	struct {
 		LBTDel,		// LBT delay
 		Pre;		// Preamble length
 
-	word	PLimit;		// Process table size
+	Boolean absent;		// Explicitly absent
 
 } data_rf_t;
 
@@ -47,7 +47,8 @@ typedef struct {
 	word	IFLSS,		// IFLASH size
 		IFLPS;		// IFLASH page size
 
-	Boolean	absent;		// Flag == explicitly absent
+	Boolean	absent;		// Explicitly absent
+
 } data_ep_t;
 
 typedef struct {
@@ -62,6 +63,7 @@ typedef struct {
 
 	char	*UIDev,
 		*UODev;		// Input/output devices
+	byte	iface;		// Praxis-level interface type
 	Boolean	absent;		// Flag == explicitly absent
 } data_ua_t;
 
@@ -181,6 +183,7 @@ typedef struct {
  * in one place, we can simplify constructor headers and avoid some mess
  * during network construction stage.
  */
+	word	PLimit;		// Process table size
 	word	Mem;		// Memory
 	word	On;		// Initially on
 	double X, Y;		// Coordinates

@@ -320,3 +320,26 @@ R090519A:
     notably the bit rate for UART, which is needed by the U-U feature of
     UDAEMON's UART window. This feature is described in the updated document.
     See also R090519A in PICOS.
+
+R090526A:
+
+    It is now possible to have radio-less nodes (see the document). The format
+    of input data has changed slightly (I have modified all the relevant data
+    files in PicOS praxes) by including a new <radio> element encapsulating
+    all the radio related parameters of a node.
+
+    By the same token the <channel> specification in the data set is now
+    optional, e.g., you can set up the model of a single node not interfaced
+    to a radio channel.
+
+    PHY interface for UART added (mode 'N' described in Serial.pdf in PicOS).
+    This interface is selected by using the mode attribute of <uart>, e.g.,
+    <uart rate="9600" bsize="12" mode="packet"> (see Apps/VUEE/XRSTest for
+    an illustration).
+
+    XRS (aka AB) protocol included. You can use it with any PHY, e.g., with
+    the packet mode of UART (see Serial.pdf in PicOS).
+
+    Lots of cosmetics. Not everything has been tested yet. I am planning to
+    add LCDG, OEP, and the functions operating on images (libLCDG), so this
+    is just a snapshot.

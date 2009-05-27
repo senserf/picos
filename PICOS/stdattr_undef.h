@@ -5,13 +5,9 @@
 #undef release
 #undef finish
 #undef entropy
-#undef min_backoff
-#undef max_backoff
-#undef backoff
-#undef lbt_delay
-#undef lbt_threshold
 #undef phys_dm2200
 #undef phys_cc1100
+#undef phys_uart
 #undef rnd
 #undef diag
 #undef reset
@@ -42,6 +38,12 @@
 #undef ser_in
 #undef ser_outf
 #undef ser_inf
+#undef ab_init
+#undef ab_mode
+#undef ab_outf
+#undef ab_out
+#undef ab_inf
+#undef ab_in
 #undef pin_read
 #undef pin_write
 #undef pin_read_adc

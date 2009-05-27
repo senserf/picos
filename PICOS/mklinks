@@ -5,6 +5,7 @@ ln -sf ../../PICOS/PicOS/tcv_node_data.h .
 ln -sf ../../PICOS/PicOS/tcvphys.h .
 ln -sf ../../PICOS/PicOS/tcvplug.h .
 ln -sf ../../PICOS/PicOS/rfleds.h .
+ln -sf ../../PICOS/PicOS/ualeds.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null.c plug_null.cc
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null_node_data.h .
@@ -27,6 +28,7 @@ ln -sf ../../PICOS/PicOS/Libs/LibComms/tarp_node_data_init.h .
 
 ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.c encrypt.cc
+ln -sf ../../PICOS/PicOS/Libs/Lib/checksum.c checksum.cc
 ####################################### for completeness (PicOS side)
 ln -sf board.h form.h
 ln -sf board.h ser.h

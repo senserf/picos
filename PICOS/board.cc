@@ -23,8 +23,7 @@ const char	zz_hex_enc_table [] = {
 
 // Legitimate UART rates ( / 100)
 static const word urates [] = { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152,
-    				2560 };
-
+                              2560 };
 struct strpool_s {
 
 	const byte *STR;
@@ -109,6 +108,11 @@ void _dad (PicOSNode, diag) (const char *s, ...) {
 	trace ("DIAG: %s", ::vform (s, ap));
 }
 
+void zz_dbg (int x, word v) {
+
+	trace ("DBG: %1d == %04x / %1u", x, v, v);
+}
+
 void syserror (int p, const char *s) {
 
 	excptn (::form ("SYSERROR [%1d]: %1d, %s", TheStation->getId (), p, s));
@@ -122,6 +126,8 @@ void PicOSNode::stopall () {
 
 	terminate ();
 
+	uart_abort ();
+
 	// Clean up memory
 	while (MHead != NULL) {
 		delete [] (byte*)(MHead->PTR);
@@ -130,11 +136,8 @@ void PicOSNode::stopall () {
 		MHead = mc;
 	}
 
-	// Abort the transceiver if transmitting
-	if (_da (RFInterface)->transmitting ())
-		_da (RFInterface)->abort ();
-
-	_da (RFInterface)->rcvOff ();
+	if (RFInt != NULL)
+		RFInt->abort ();
 
 	Halted = YES;
 }
@@ -162,6 +165,66 @@ void _dad (PicOSNode, halt) () {
 	sleep;
 }
 
+void PicOSNode::uart_reset () {
+//
+// Reset the UART based on its interface mode
+//
+	uart_dir_int_t *f;
+
+	if (uart == NULL)
+		// Nothing to do
+		return;
+
+	switch (uart->IMode) {
+
+		case UART_IMODE_D:
+
+			UART_INTF_D (uart) -> init ();
+			break;
+
+		case UART_IMODE_P:
+
+			UART_INTF_P (uart) -> init ();
+			break;
+
+		default:
+
+			excptn ("PicOSNode->uart_reset: illegal mode");
+	}
+
+	uart->U->rst ();
+}
+
+void PicOSNode::uart_abort () {
+//
+// Stops the UART based on its interface mode (for halt)
+//
+	uart_dir_int_t *f;
+
+	if (uart == NULL)
+		// Nothing to do
+		return;
+
+	switch (uart->IMode) {
+
+		case UART_IMODE_D:
+
+			UART_INTF_D (uart) -> abort ();
+			break;
+
+		case UART_IMODE_P:
+
+			UART_INTF_P (uart) -> abort ();
+			break;
+
+		default:
+
+			excptn ("PicOSNode->uart_abort: illegal mode");
+	}
+	// If there is a need to abort the low-level (common) UART interface,
+	// the code should go here
+}
+
 void PicOSNode::reset () {
 
 	assert (Halted, "reset at %s: should be Halted", getSName ());
@@ -172,11 +235,7 @@ void PicOSNode::reset () {
 	MTail = NULL;
 	SecondOffset = (long) ituToEtu (Time);
 
-	if (uart != NULL) {
-		uart->__inpline = NULL;
-		uart->pcsInserial = uart->pcsOutserial = NULL;
-		uart->U->rst ();
-	}
+	uart_reset ();
 
 	if (pins != NULL)
 		pins->rst ();
@@ -192,31 +251,145 @@ void PicOSNode::reset () {
 
 void PicOSNode::initParams () {
 
-	// Reset the transceiver to defaults
-	_da (RFInterface)->rcvOn ();
-
-	_da (setrfpowr) (_da (DefXPower));
-
-	_da (RFInterface)->setRPower (_da (DefRPower));
-
-	_da (setrfrate) (_da (DefRate));
-	_da (setrfchan) (_da (DefChannel));
-
-	_da (entropy) = 0;
-	_da (statid) = 0;
-
-	_da (Receiving) = _da (Xmitting) = NO;
-	_da (TXOFF) = _da (RXOFF) = YES;
-
-	_da (OBuffer).fill (NONE, NONE, 0, 0, 0);
-
 	// Process tally
 	NPcss = 0;
+	// Entropy source
+	_da (entropy) = 0;
+
+	// Initialize the transceiver
+	if (RFInt != NULL)
+		RFInt->init ();
 
 	// This will do the dynamic initialization of the static stuff in TCV
 	_da (tcv_init) ();
 }
 
+// === rfm_intd_t =============================================================
+
+rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
+
+	const data_rf_t *rf = nd->rf;
+
+	// These two survive reset. We assume that they are never
+	// changed by the praxis.
+	min_backoff = (word) (rf->BCMin);
+
+	// This is turned into the argument for 'toss' to generate the
+	// proper offset. The consistency has been verified by
+	// readNodeParams.
+	max_backoff = (word) (rf->BCMax) - min_backoff + 1;
+
+	// Same about these two
+	if (rf->LBTDel == 0) {
+		// Disable it
+		lbt_threshold = HUGE;
+		lbt_delay = 0;
+	} else {
+		lbt_threshold = dBToLin (rf->LBTThs);
+		lbt_delay = (word) (rf->LBTDel);
+	}
+
+	DefXPower   = rf->Power;		// Index
+	DefRPower   = dBToLin (rf->Boost);	// Value in dB
+	DefRate     = rf->Rate;			// Index
+	DefChannel  = rf->Channel;
+
+	RFInterface = create Transceiver (
+				1,			// Dummy
+				(Long)(rf->Pre),
+				1.0,			// Dummy
+				1.0,			// Dummy
+				nd->X, nd->Y );
+	setrfrate (DefRate);
+	setrfchan (DefChannel);
+
+	Ether->connect (RFInterface);
+
+}
+
+void rfm_intd_t::init () {
+//
+// After reset
+//
+
+	RFInterface->rcvOn ();
+	setrfpowr (DefXPower);
+	RFInterface->setRPower (DefRPower);
+
+	setrfrate (DefRate);
+	setrfchan (DefChannel);
+	
+	statid = 0;
+
+	Receiving = Xmitting = NO;
+	TXOFF = RXOFF = YES;
+
+	OBuffer.fill (NONE, NONE, 0, 0, 0);
+}
+
+void rfm_intd_t::setrfpowr (word ix) {
+//
+// Set X power
+//
+	IVMapper *m;
+
+	m = SEther -> PS;
+
+	assert (m->exact (ix), "RFInt->setrfpowr: illegal power index %1d", ix);
+
+	RFInterface -> setXPower (m->setvalue (ix));
+}
+
+void rfm_intd_t::setrfrate (word ix) {
+//
+// Set RF rate
+//
+	double rate;
+	IVMapper *m;
+
+	m = SEther -> Rates;
+
+	assert (m->exact (ix), "RFInt->setrfrate: illegal rate index %1d", ix);
+
+	rate = m->setvalue (ix);
+	RFInterface->setTRate ((RATE) round ((double)etuToItu (1.0) / rate));
+	RFInterface->setTag ((RFInterface->getTag () & 0xffff) | (ix << 16));
+}
+
+void rfm_intd_t::setrfchan (word ch) {
+//
+// Set RF channel
+//
+	MXChannels *m;
+
+	m = SEther -> Channels;
+
+	assert (ch <= m->max (), "RFInt->setrfchan: illegal channel %1d", ch);
+
+	RFInterface->setTag ((RFInterface->getTag () & ~0xffff) | ch);
+}
+
+void rfm_intd_t::abort () {
+//
+// For reset
+//
+	// Abort the transceiver if transmitting
+	if (RFInterface->transmitting ())
+		RFInterface->abort ();
+
+	RFInterface->rcvOff ();
+}
+
+// ============================================================================
+
+void uart_tcv_int_t::abort () {
+
+	// This is an indication that the driver isn't running; note that
+	// memory allocated to r_buffer is returned by stopall (as it is
+	// taken from the node's pool)
+	r_buffer = NULL;
+}
+	
 void PicOSNode::setup (data_no_t *nd) {
 
 	// Turn this into a trigger mailbox
@@ -225,21 +398,17 @@ void PicOSNode::setup (data_no_t *nd) {
 	NFree = MFree = MTotal = (nd->Mem + 3) / 4; // This is in full words
 	MHead = MTail = NULL;
 
-	// These two survive reset. We assume that they are never changed
-	// by the application.
-	_da (min_backoff) = (word) (nd->rf->BCMin);
-	// This is the argument for 'toss' to generate the proper
-	// offset. The consistency has been verified by readNodeParams.
-	_da (max_backoff) = (word) (nd->rf->BCMax) - _da (min_backoff) + 1;
+	// Radio
 
-	// Same about these two
-	if (nd->rf->LBTDel == 0) {
-		// Disable it
-		_da (lbt_threshold) = HUGE;
-		_da (lbt_delay) = 0;
+	if (nd->rf == NULL) {
+		// No radio
+		RFInt = NULL;
 	} else {
-		_da (lbt_threshold) = dBToLin (nd->rf->LBTThs);
-		_da (lbt_delay) = (word) (nd->rf->LBTDel);
+
+		// Impossible
+		assert (Ether != NULL, "Root: RF interface without RF channel");
+
+		RFInt = new rfm_intd_t (nd);
 	}
 
 	if (nd->ua == NULL) {
@@ -247,8 +416,11 @@ void PicOSNode::setup (data_no_t *nd) {
 		uart = NULL;
 	} else {
 		uart = new uart_t;
-		bzero (uart, sizeof (*uart));
 		uart->U = new UART (nd->ua);
+		uart->IMode = nd->ua->iface;
+		uart->Int = uart->IMode == UART_IMODE_P ?
+			(void*) new uart_tcv_int_t :
+			(void*) new uart_dir_int_t ;
 	}
 
 	if (nd->pn == NULL) {
@@ -271,24 +443,7 @@ void PicOSNode::setup (data_no_t *nd) {
 		ledsm = new LEDSM (nd->le);
 	}
 
-	_da (DefXPower)  = nd->rf->Power;		// Index
-	_da (DefRPower)  = dBToLin (nd->rf->Boost);	// Value in dB
-	_da (DefRate)    = nd->rf->Rate;		// Index
-	_da (DefChannel) = nd->rf->Channel;
-
-	NPcLim = nd->rf->PLimit;
-
-	_da (RFInterface) = create Transceiver (
-			1,			// Dummy
-			(Long)(nd->rf->Pre),
-			1.0,			// Dummy
-			1.0,			// Dummy
-			nd->X, nd->Y );
-
-	_da (setrfrate) (_da (DefRate));
-	_da (setrfchan) (_da (DefChannel));
-
-	Ether->connect (_da (RFInterface));
+	NPcLim = nd->PLimit;
 
 	// EEPROM and IFLASH: note that they are not resettable
 	eeprom = NULL;
@@ -320,55 +475,6 @@ void PicOSNode::setup (data_no_t *nd) {
 	init ();
 }
 
-void _dad (PicOSNode, setrfpowr) (word ix) {
-//
-// Set XPower
-//
-	IVMapper *m;
-
-	m = SEther -> PS;
-
-	assert (m->exact (ix), "PicOSNode->setrfpowr: illegal power index %1d",
-		ix);
-
-	_da (RFInterface) -> setXPower (m->setvalue (ix));
-}
-
-void _dad (PicOSNode, setrfrate) (word ix) {
-//
-// Set RF rate
-//
-	double rate;
-	Transceiver *r;
-	IVMapper *m;
-
-	m = SEther -> Rates;
-	r = _da (RFInterface);
-
-	assert (m->exact (ix), "PicOSNode->setrfrate: illegal rate index %1d",
-		ix);
-
-	rate = m->setvalue (ix);
-	r->setTRate ((RATE) round ((double)etuToItu (1.0) / rate));
-	r->setTag ((r->getTag () & 0xffff) | (ix << 16));
-}
-
-void _dad (PicOSNode, setrfchan) (word ch) {
-//
-// Set RF channel
-//
-	Transceiver *r;
-	MXChannels *m;
-
-	m = SEther -> Channels;
-	r = _da (RFInterface);
-
-	assert (ch <= m->max (),
-		"PicOSNode->setrfchan: illegal channel %1d", ch);
-
-	r->setTag ((r->getTag () & ~0xffff) | ch);
-}
-	
 lword _dad (PicOSNode, seconds) () {
 
 	// FIXME: make those different at different stations
@@ -810,35 +916,41 @@ int _dad (PicOSNode, vscan) (const char *buf, const char *fmt, va_list ap) {
 int _dad (PicOSNode, ser_in) (word st, char *buf, int len) {
 
 	int prcs;
+	uart_dir_int_t *f;
+
+	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_in: not allowed "
+		"in mode %1d", uart->IMode);
 
 	if (len == 0)
 		return 0;
 
-	if (uart->__inpline == NULL) {
-		if (uart->pcsInserial == NULL) {
+	f = UART_INTF_D (uart);
+
+	if (f->__inpline == NULL) {
+		if (f->pcsInserial == NULL) {
 			if (tally_in_pcs ()) {
-				create Inserial;
+				create d_uart_inp_p;
 			} else {
 				npwait (st);
 				sleep;
 			}
 		}
-		uart->pcsInserial->wait (DEATH, st);
+		f->pcsInserial->wait (DEATH, st);
 		sleep;
 	}
 
 	/* Input available */
-	if (*(uart->__inpline) == 0) // bin cmd
-		prcs = uart->__inpline [1] + 3; // 0x00, len, 0x04
+	if (*(f->__inpline) == 0) // bin cmd
+		prcs = f->__inpline [1] + 3; // 0x00, len, 0x04
 	else
-		prcs = strlen (uart->__inpline);
+		prcs = strlen (f->__inpline);
 	if (prcs >= len)
 		prcs = len-1;
 
-	memcpy (buf, uart->__inpline, prcs);
+	memcpy (buf, f->__inpline, prcs);
 
-	ufree (uart->__inpline);
-	uart->__inpline = NULL;
+	ufree (f->__inpline);
+	f->__inpline = NULL;
 
 	if (*buf) // if it's NULL, it's a bin cmd
 		buf [prcs] = '\0';
@@ -850,9 +962,15 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 
 	int prcs;
 	char *buf;
+	uart_dir_int_t *f;
 
-	if (uart->pcsOutserial != NULL) {
-		uart->pcsOutserial->wait (DEATH, st);
+	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_out: not allowed "
+		"in mode %1d", uart->IMode);
+
+	f = UART_INTF_D (uart);
+
+	if (f->pcsOutserial != NULL) {
+		f->pcsOutserial->wait (DEATH, st);
 		sleep;
 	}
 	
@@ -875,7 +993,7 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 		memcpy (buf, m, prcs);
 
 	if (tally_in_pcs ()) {
-		create Outserial (buf);
+		create d_uart_out_p (buf);
 	} else {
 		ufree (buf);
 		npwait (st);
@@ -889,18 +1007,24 @@ int _dad (PicOSNode, ser_outb) (word st, const char *m) {
 
 	int prcs;
 	char *buf;
+	uart_dir_int_t *f;
+
+	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_outb: not allowed "
+		"in mode %1d", uart->IMode);
 
 	assert (st != WNONE, "PicOSNode->ser_outb: NONE state unimplemented");
+
+	f = UART_INTF_D (uart);
 
 	if (m == NULL)
 		return 0;
 
-	if (uart->pcsOutserial != NULL) {
-		uart->pcsOutserial->wait (DEATH, st);
+	if (f->pcsOutserial != NULL) {
+		f->pcsOutserial->wait (DEATH, st);
 		sleep;
 	}
 	if (tally_in_pcs ()) {
-		create Outserial (m);
+		create d_uart_out_p (m);
 	} else {
 		ufree (buf);
 		npwait (st);
@@ -917,30 +1041,36 @@ int _dad (PicOSNode, ser_inf) (word st, const char *fmt, ...) {
 
 	int prcs;
 	va_list	ap;
+	uart_dir_int_t *f;
+
+	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_inf: not allowed "
+		"in mode %1d", uart->IMode);
 
 	if (fmt == NULL)
 		return 0;
 
-	if (uart->__inpline == NULL) {
-		if (uart->pcsInserial == NULL) {
+	f = UART_INTF_D (uart);
+
+	if (f->__inpline == NULL) {
+		if (f->pcsInserial == NULL) {
 			if (tally_in_pcs ()) {
-				create Inserial;
+				create d_uart_inp_p;
 			} else {
 				npwait (st);
 				sleep;
 			}
 		}
-		uart->pcsInserial->wait (DEATH, st);
+		f->pcsInserial->wait (DEATH, st);
 		sleep;
 	}
 
 	/* Input available */
 	va_start (ap, fmt);
 
-	prcs = _da (vscan) (uart->__inpline, fmt, ap);
+	prcs = _da (vscan) (f->__inpline, fmt, ap);
 
-	ufree (uart->__inpline);
-	uart->__inpline = NULL;
+	ufree (f->__inpline);
+	f->__inpline = NULL;
 
 	return 0;
 }
@@ -950,14 +1080,20 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 	int prcs;
 	char *buf;
 	va_list ap;
+	uart_dir_int_t *f;
+
+	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_outf: not allowed "
+		"in mode %1d", uart->IMode);
 
 	assert (st != WNONE, "PicOSNode->ser_outf: NONE state unimplemented");
 
 	if (m == NULL)
 		return 0;
 
-	if (uart->pcsOutserial != NULL) {
-		uart->pcsOutserial->wait (DEATH, st);
+	f = UART_INTF_D (uart);
+
+	if (f->pcsOutserial != NULL) {
+		f->pcsOutserial->wait (DEATH, st);
 		sleep;
 	}
 	
@@ -972,7 +1108,7 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 	}
 
 	if (tally_in_pcs ()) {
-		create Outserial (buf);
+		create d_uart_out_p (buf);
 	} else {
 		ufree (buf);
 		npwait (st);
@@ -1057,6 +1193,7 @@ void NNode::reset () {
 void TNode::setup () {
 
 #include "net_node_data_init.h"
+#include "plug_null_node_data_init.h"
 #include "plug_tarp_node_data_init.h"
 #include "tarp_node_data_init.h"
 
@@ -1067,6 +1204,7 @@ void TNode::reset () {
 	PicOSNode::reset ();
 
 #include "net_node_data_init.h"
+#include "plug_null_node_data_init.h"
 #include "plug_tarp_node_data_init.h"
 #include "tarp_node_data_init.h"
 
@@ -1289,7 +1427,7 @@ static void packetCleaner (Packet *p) {
 
 }
 
-void BoardRoot::initChannel (sxml_t data, int NT) {
+int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 
 	const char *att, *xnam;
 	double bn_db, beta, dref, sigm, loss_db, psir, pber, cutoff;
@@ -1303,8 +1441,21 @@ void BoardRoot::initChannel (sxml_t data, int NT) {
 	Boolean rmo;
 	double *dta, *dtb;
 
-	if ((data = sxml_child (data, "channel")) == NULL)
-		xenf ("<channel>", "<network>");
+	Ether = NULL;
+
+	if (NN == 0)
+		// Ignore the channel, no stations have radio
+		return NN;
+
+	if ((data = sxml_child (data, "channel")) == NULL) {
+		if (nc)
+			// We are allowed to force NN to zero
+			return 0;
+		// This is an error
+		excptn ("Root: no <channel> element with %1d wireless nodes",
+			NN);
+		// No continuation
+	}
 
 	// At the moment, we handle shadowing models only
 	if ((cur = sxml_child (data, "shadowing")) == NULL)
@@ -1665,11 +1816,13 @@ RVErr:
 	print ("\n");
 
 	// Create the channel (this sets SEther)
-	create RFShadow (NT, STB, nb, dref, loss_db, beta, sigm, bn_db, bn_db,
+	create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db, bn_db,
 		cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 
 	// Packet cleaner
 	SEther->setPacketCleaner (packetCleaner);
+
+	return NN;
 }
 
 void BoardRoot::initPanels (sxml_t data) {
@@ -1966,7 +2119,7 @@ IPointer PicOSNode::preinit (const char *tag) {
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 	nparse_t np [2 + EP_N_BOUNDS];
-	sxml_t cur;
+	sxml_t cur, mai;
 	const char *att;
 	char *str, *as;
 	int i, len;
@@ -1990,13 +2143,10 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	else
 		xeai ("start", "node or defaults", ion);
 
-	// This one is always present (not optional)
-	RF = ND->rf = new data_rf_t;
-	RF->LBTThs = RF->Boost = HUGE;
-	RF->PLimit = RF->Power = RF->Rate = RF->Channel = RF->Pre = RF->LBTDel =
-		RF->BCMin = RF->BCMax = WNONE;
+	ND->PLimit = WNONE;
 
 	// The optionals
+	ND->rf = NULL;
 	ND->ua = NULL;
 	ND->ep = NULL;
 	ND->pn = NULL;
@@ -2039,117 +2189,142 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		ppf = YES;
 	}
 
-/* ========= */
-/* RF MODULE */
-/* ========= */
-
 	np [0] . type = np [1] . type = TYPE_LONG;
-
-	// ====================================================================
 
 	/* PLIMIT */
 	if ((cur = sxml_child (data, "processes")) != NULL) {
 		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
 			xesi ("<power>", xname (nn));
-		RF->PLimit = (word) (np [0] . LVal);
-		print (form ("  Processes:  %1d\n", RF->PLimit));
+		ND->PLimit = (word) (np [0] . LVal);
+		print (form ("  Processes:  %1d\n", ND->PLimit));
 		ppf = YES;
 	}
 
-	/* POWER */
-	if ((cur = sxml_child (data, "power")) != NULL) {
-		// This is the index
-		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xesi ("<power>", xname (nn));
-		RF->Power = (word) (np [0] . LVal);
-		if (!(Ether->PS->exact (RF->Power)))
-			excptn ("Root: power index %1d (in %s) does not occur "
-				"in <channel><power>", RF->Power, xname (nn));
-		print (form ("  Power idx:  %1d\n", RF->Power));
-		ppf = YES;
-	}
-
-	/* RATE */
-	if ((cur = sxml_child (data, "rate")) != NULL) {
-		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xesi ("<rate>", xname (nn));
-		RF->Rate = (word) (np [0].LVal);
-		// Check if the rate index is legit
-		if (!(Ether->Rates->exact (RF->Rate))) 
-			excptn ("Root: rate index %1d (in %s) does not occur in"
-				" <channel><rates>", RF->Rate, xname (nn));
-		print (form ("  Rate idx:   %1d\n", RF->Rate));
-	}
-
-	/* CHANNEL */
-	if ((cur = sxml_child (data, "channel")) != NULL) {
-		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xesi ("<channel>", xname (nn));
-		RF->Channel = (word) (np [0].LVal);
-		// Check if the channel number is legit
-		if (Ether->Channels->max () < RF->Channel) 
-			excptn ("Root: channel number %1d (in %s) is illegal"
-				" (see <channel><channels>)",
-					RF->Channel, xname (nn));
-		print (form ("  Channel:    %1d\n", RF->Channel));
-	}
-
-	/* BACKOFF */
-	if ((cur = sxml_child (data, "backoff")) != NULL) {
-		// Both are int
-		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
-			excptn ("Root: two int numbers required in <backoff> "
-				"in %s", xname (nn));
-		RF->BCMin = (word) (np [0].LVal);
-		RF->BCMax = (word) (np [1].LVal);
-
-		if (RF->BCMax < RF->BCMin)
-			xevi ("<backoff>", xname (nn), sxml_txt (cur));
-
-		print (form ("  Backoff:    min=%1d, max=%1d\n", RF->BCMin,
-			RF->BCMax));
-		ppf = YES;
-	}
-
-	/* PREAMBLE */
-	if ((cur = sxml_child (data, "preamble")) != NULL) {
-		// Both are int
-		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xevi ("<preamble>", xname (nn), sxml_txt (cur));
-		RF->Pre = (word) (np [0].LVal);
-		print (form ("  Preamble:   %1d bits\n", RF->Pre));
-		ppf = YES;
-	}
+/* ========= */
+/* RF MODULE */
+/* ========= */
 
 	// ====================================================================
 
-	np [1] . type = TYPE_double;
+	if ((mai = sxml_child (data, "radio")) != NULL) {
 
-	/* LBT */
-	if ((cur = sxml_child (data, "lbt")) != NULL) {
-		if (parseNumbers (sxml_txt (cur), 2, np) != 2)
-			xevi ("<lbt>", xname (nn), sxml_txt (cur));
-		RF->LBTDel = (word) (np [0].LVal);
-		RF->LBTThs = np [1].DVal;
+		// The node has a radio interface
 
-		print (form ("  LBT:        del=%1d, ths=%g\n", RF->LBTDel,
-			RF->LBTThs));
-		ppf = YES;
+		assert (Ether != NULL, "Root: <radio> (in %s) illegal if there"
+			" is no RF <channel>", xname (nn));
+
+		RF = ND->rf = new data_rf_t;
+		RF->LBTThs = RF->Boost = HUGE;
+		RF->Power = RF->Rate = RF->Channel = RF->Pre = RF->LBTDel =
+			RF->BCMin = RF->BCMax = WNONE;
+
+		RF->absent = YES;
+
+		/* POWER */
+		if ((cur = sxml_child (mai, "power")) != NULL) {
+			// This is the index
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xesi ("<power>", xname (nn));
+			RF->Power = (word) (np [0] . LVal);
+			if (!(Ether->PS->exact (RF->Power)))
+				excptn ("Root: power index %1d (in %s) does not"
+					" occur in <channel><power>",
+						RF->Power, xname (nn));
+			print (form ("  Power idx:  %1d\n", RF->Power));
+			ppf = YES;
+			RF->absent = NO;
+		}
+	
+		/* RATE */
+		if ((cur = sxml_child (mai, "rate")) != NULL) {
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xesi ("<rate>", xname (nn));
+			RF->Rate = (word) (np [0].LVal);
+			// Check if the rate index is legit
+			if (!(Ether->Rates->exact (RF->Rate))) 
+				excptn ("Root: rate index %1d (in %s) does not"
+					" occur in <channel><rates>",
+						RF->Rate, xname (nn));
+			print (form ("  Rate idx:   %1d\n", RF->Rate));
+			RF->absent = NO;
+		}
+	
+		/* CHANNEL */
+		if ((cur = sxml_child (mai, "channel")) != NULL) {
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xesi ("<channel>", xname (nn));
+			RF->Channel = (word) (np [0].LVal);
+			// Check if the channel number is legit
+			if (Ether->Channels->max () < RF->Channel) 
+				excptn ("Root: channel number %1d (in %s) is "
+					"illegal (see <channel><channels>)",
+						RF->Channel, xname (nn));
+			print (form ("  Channel:    %1d\n", RF->Channel));
+			RF->absent = NO;
+		}
+	
+		/* BACKOFF */
+		if ((cur = sxml_child (mai, "backoff")) != NULL) {
+			// Both are int
+			if (parseNumbers (sxml_txt (cur), 2, np) != 2)
+				excptn ("Root: two int numbers required in "
+					"<backoff> in %s", xname (nn));
+			RF->BCMin = (word) (np [0].LVal);
+			RF->BCMax = (word) (np [1].LVal);
+	
+			if (RF->BCMax < RF->BCMin)
+				xevi ("<backoff>", xname (nn), sxml_txt (cur));
+	
+			print (form ("  Backoff:    min=%1d, max=%1d\n",
+				RF->BCMin, RF->BCMax));
+			ppf = YES;
+			RF->absent = NO;
+		}
+	
+		/* PREAMBLE */
+		if ((cur = sxml_child (mai, "preamble")) != NULL) {
+			// Both are int
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xevi ("<preamble>", xname (nn), sxml_txt (cur));
+			RF->Pre = (word) (np [0].LVal);
+			print (form ("  Preamble:   %1d bits\n", RF->Pre));
+			ppf = YES;
+			RF->absent = NO;
+		}
+	
+		// ============================================================
+	
+		np [1] . type = TYPE_double;
+	
+		/* LBT */
+		if ((cur = sxml_child (mai, "lbt")) != NULL) {
+			if (parseNumbers (sxml_txt (cur), 2, np) != 2)
+				xevi ("<lbt>", xname (nn), sxml_txt (cur));
+			RF->LBTDel = (word) (np [0].LVal);
+			RF->LBTThs = np [1].DVal;
+	
+			print (form ("  LBT:        del=%1d, ths=%g\n",
+				RF->LBTDel, RF->LBTThs));
+			ppf = YES;
+			RF->absent = NO;
+		}
+	
+		// ============================================================
+	
+		np [0] . type = TYPE_double;
+	
+		if ((cur = sxml_child (mai, "boost")) != NULL) {
+			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
+				xefi ("<boost>", xname (nn));
+			RF->Boost = np [0] . DVal;
+			print (form ("  Boost:      %gdB\n", RF->Boost));
+			ppf = YES;
+			RF->absent = NO;
+		}
+	
+		// ============================================================
+
 	}
-
-	// ====================================================================
-
-	np [0] . type = TYPE_double;
-
-	if ((cur = sxml_child (data, "boost")) != NULL) {
-		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xefi ("<boost>", xname (nn));
-		RF->Boost = np [0] . DVal;
-		print (form ("  Boost:      %gdB\n", RF->Boost));
-		ppf = YES;
-	}
-
-	// ====================================================================
 
 	if (ppf)
 		print ("\n");
@@ -2168,11 +2343,9 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 		lword pgsz;
 
-		if (EP == NULL) {
-			EP = ND->ep = new data_ep_t;
-			// Flag: FIM still inheritable from defaults
-			EP->IFLSS = WNONE;
-		}
+		EP = ND->ep = new data_ep_t;
+		// Flag: FIM still inheritable from defaults
+		EP->IFLSS = WNONE;
 
 		EP->EFLGS = 0;
 
@@ -2322,6 +2495,17 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	return ND;
 }
 
+Boolean zz_validate_uart_rate (word rate) {
+
+	int i;
+
+	for (i = 0; i < sizeof (urates)/sizeof (word); i++)
+		if (urates [i] == rate)
+			return YES;
+
+	return NO;
+}
+
 data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 /*
  * Decodes UART parameters
@@ -2332,7 +2516,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	char *str, *sts;
 	char es [48];
 	data_ua_t *UA;
-	int i, len;
+	int len;
 
 	if ((data = sxml_child (data, "uart")) == NULL)
 		return NULL;
@@ -2354,14 +2538,20 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 		if (len < 0 || (len % 100) != 0)
 			xeai ("rate", es, att);
 		// We store it in hundreds
-		len /= 100;
-		for (i = 0; i < sizeof (urates)/sizeof (word); i++)
-			if (urates [i] == (word) len)
-				break;
-		if (i >= sizeof (urates)/sizeof (word))
+		UA->URate = (word) (len / 100);
+		if (!zz_validate_uart_rate (UA->URate))
 			xeai ("rate", es, att);
+	}
 
-		UA->URate = (word) len;
+	// The default is "direct"
+	UA->iface = UART_IMODE_D;
+	if ((att = sxml_attr (data, "mode")) != NULL) {
+		if (*att == 'p')
+			// Packet
+			UA->iface = UART_IMODE_P;
+		else if (*att != 'd')
+			// For now, it can only be "direct" or "packet"
+			xeai ("mode", es, att);
 	}
 
 	/* Buffer size */
@@ -3336,7 +3526,7 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 	return LE;
 }
 
-void BoardRoot::initNodes (sxml_t data, int NT) {
+void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 	data_no_t *DEF, *NOD;
 	const char *def_type, *nod_type, *att, *start;
@@ -3414,7 +3604,7 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		excptn ("Root: some nodes undefined, first is %1d", i);
 	}
 
-	for (i = 0; i < NT; i++) {
+	for (tq = i = 0; i < NT; i++) {
 		cno = xnodes [i];
 		start = sxml_attr (cno, "start");
 		NOD = readNodeParams (cno, i, start);
@@ -3429,39 +3619,55 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		if (NOD->On == WNONE)
 			NOD->On = DEF->On;
 
-		// Neither of these is ever NULL
+		if (NOD->PLimit == WNONE)
+			NOD->PLimit = DEF->PLimit;
+
+		// === radio ==================================================
+
 		NRF = NOD->rf;
 		DRF = DEF->rf;
 
-		if (NRF->Boost == HUGE)
-			NRF->Boost = DRF->Boost;
+		if (NRF == NULL) {
+			// Inherit the defaults
+			if (DRF != NULL && !(DRF->absent)) {
+				NRF = NOD->rf = DRF;
+			}
+		} else if (NRF->absent)  {
+			// Explicit absent
+			delete NRF;
+			NRF = NOD->rf = NULL;
+		} else if (DRF != NULL && !(DRF->absent)) {
 
-		if (NRF->PLimit == WNONE)
-			NRF->PLimit = DRF->PLimit;
+			// Partial defaults
 
-		if (NRF->Rate == WNONE)
-			NRF->Rate = DRF->Rate;
+			if (NRF->Boost == HUGE)
+				NRF->Boost = DRF->Boost;
 
-		if (NRF->Power == WNONE)
-			NRF->Power = DRF->Power;
+			if (NRF->Rate == WNONE)
+				NRF->Rate = DRF->Rate;
 
-		if (NRF->Channel == WNONE)
-			NRF->Channel = DRF->Channel;
+			if (NRF->Power == WNONE)
+				NRF->Power = DRF->Power;
 
-		if (NRF->BCMin == WNONE) {
-			NRF->BCMin = DRF->BCMin;
-			NRF->BCMax = DRF->BCMax;
+			if (NRF->Channel == WNONE)
+				NRF->Channel = DRF->Channel;
+
+			if (NRF->BCMin == WNONE) {
+				NRF->BCMin = DRF->BCMin;
+				NRF->BCMax = DRF->BCMax;
+			}
+
+			if (NRF->Pre == WNONE)
+				NRF->Pre = DRF->Pre;
+
+			if (NRF->LBTDel == WNONE) {
+				NRF->LBTDel = DRF->LBTDel;
+				NRF->LBTThs = DRF->LBTThs;
+			}
 		}
 
-		if (NRF->Pre == WNONE)
-			NRF->Pre = DRF->Pre;
+		// === EEPROM =================================================
 
-		if (NRF->LBTDel == WNONE) {
-			NRF->LBTDel = DRF->LBTDel;
-			NRF->LBTThs = DRF->LBTThs;
-		}
-
-		// EEPROM
 		NEP = NOD->ep;
 		DEP = DEF->ep;
 		if (NEP == NULL) {
@@ -3498,7 +3704,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 				NEP->IFLSS = 0;
 		}
 
-		// UART
+		// === UART ===================================================
+
 		if (NOD->ua == NULL) {
 			// Inherit the defaults
 			if (DEF->ua != NULL && !(DEF->ua->absent))
@@ -3509,7 +3716,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			NOD->ua = NULL;
 		}
 
-		// PINS
+		// === PINS ===================================================
+
 		if (NOD->pn == NULL) {
 			// Inherit the defaults
 			if (DEF->pn != NULL && !(DEF->pn->absent))
@@ -3520,7 +3728,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			NOD->pn = NULL;
 		}
 
-		// Sensors/Actuators
+		// === Sensors/Actuators ======================================
+
 		if (NOD->sa == NULL) {
 			// Inherit the defaults
 			if (DEF->sa != NULL && !(DEF->sa->absent))
@@ -3531,7 +3740,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 			NOD->sa = NULL;
 		}
 
-		// LEDs
+		// === LED ====================================================
+
 		if (NOD->le == NULL) {
 			// Inherit the defaults
 			if (DEF->le != NULL && !(DEF->le->absent))
@@ -3548,48 +3758,65 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		if (NOD->Mem == 0)
 			excptn ("Root: memory for node %1d is undefined", i);
 
-		if (NRF->Boost == HUGE)
-			// The default is no boost (0dB)
-			NRF->Boost = 0.0;
+		if (NOD->PLimit == WNONE)
+			NOD->PLimit = 0;
 
-		if (NRF->Rate == WNONE)
-			// This one has a reasonable default
-			NRF->Rate = Ether->Rates->lower ();
+		if (NRF != NULL) {
 
-		if (NRF->Power == WNONE)
-			// And so does this one
-			NRF->Power = Ether->PS->lower ();
+			// Count those with RF interface
+			tq++;
+			if (tq > NN)
+				excptn ("Root: too many nodes with RF interface"
+					", %1d expected", NN);
 
-		if (NRF->Channel == WNONE)
-			// And so does this
-			NRF->Channel = 0;
+			if (NRF->Boost == HUGE)
+				// The default is no boost (0dB)
+				NRF->Boost = 0.0;
 
-		if (NRF->PLimit == WNONE)
-			// And so does this
-			NRF->PLimit = 0;
+			if (NRF->Rate == WNONE)
+				// This one has a reasonable default
+				NRF->Rate = Ether->Rates->lower ();
 
-		if (NRF->BCMin == WNONE) 
-			excptn ("Root: backoff for node %1d is undefined", i);
+			if (NRF->Power == WNONE)
+				// And so does this one
+				NRF->Power = Ether->PS->lower ();
 
-		if (NRF->Pre == WNONE)
-			excptn ("Root: preamble for node %1d is undefined", i);
+			if (NRF->Channel == WNONE)
+				// And so does this
+				NRF->Channel = 0;
 
-		if (NRF->LBTDel == WNONE)
-			excptn ("Root: LBT parameters for node %1d are "
-				"undefined", i);
+			if (NRF->BCMin == WNONE) 
+				excptn ("Root: backoff for node %1d is "
+					"undefined", i);
+
+			if (NRF->Pre == WNONE)
+				excptn ("Root: preamble for node %1d is "
+					"undefined", i);
+
+			if (NRF->LBTDel == WNONE)
+				excptn ("Root: LBT parameters for node %1d are "
+					"undefined", i);
+		}
 				
-		// Location
-		if ((cur = sxml_child (cno, "location")) == NULL)
-			  excptn ("Root: no location for node %1d", i);
+		// Location: there is no definable default for it, but it
+		// defaults to <0, 0> if no radif
+		if ((cur = sxml_child (cno, "location")) == NULL) {
 
-		att = sxml_txt (cur);
-		np [0].type = np [1].type = TYPE_double;
-		if (parseNumbers (att, 2, np) != 2 ||
-		    np [0].DVal < 0.0 || np [1].DVal < 0.0)
-			excptn ("Root: illegal location (%s) for node %1d",
-				att, i);
-		NOD->X = np [0].DVal;
-		NOD->Y = np [1].DVal;
+			if (NRF != NULL)
+			  	excptn ("Root: no location for node %1d (which"
+					"is equipped with radio)", i);
+
+			NOD->X = NOD->Y = 0.0;
+		} else {
+			att = sxml_txt (cur);
+			np [0].type = np [1].type = TYPE_double;
+			if (parseNumbers (att, 2, np) != 2 ||
+			    np [0].DVal < 0.0 || np [1].DVal < 0.0)
+				excptn ("Root: illegal location (%s) for node "
+					"%1d", att, i);
+			NOD->X = np [0].DVal;
+			NOD->Y = np [1].DVal;
+		}
 
 		buildNode (nod_type, NOD);
 
@@ -3599,7 +3826,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		// is deallocated elsewhere, or intentionally copied (constant)
 		// strings that have been linked to by the respective objects.
 
-		delete NOD->rf;		// This is always private and easy
+		if (NOD->rf != NULL && NOD->rf != DEF->rf)
+			delete NOD->rf;
 		if (NOD->ep != NULL && NOD->ep != DEF->ep)
 			delete NOD->ep;
 		if (NOD->ua != NULL && NOD->ua != DEF->ua)
@@ -3617,7 +3845,8 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 	delete [] xnodes;
 
 	// Delete the default data block
-	delete DEF->rf;
+	if (DEF->rf != NULL)
+		delete DEF->rf;
 	if (DEF->ep != NULL)
 		delete DEF->ep;
 	if (DEF->ua != NULL)
@@ -3628,12 +3857,19 @@ void BoardRoot::initNodes (sxml_t data, int NT) {
 		delete DEF->sa;
 	if (DEF->le != NULL)
 		delete DEF->le;
+
 	delete DEF;
 
-	// Minimum distance
-	SEther->setMinDistance (SEther->RDist);
-	// We need this for ANYEVENT
-	SEther->setAevMode (NO);
+	if (tq < NN)
+		excptn ("Root: too few (%1d) nodes with RF interface, %1d"
+			" expected", tq, NN);
+
+	if (SEther != NULL) {
+		// Minimum distance
+		SEther->setMinDistance (SEther->RDist);
+		// We need this for ANYEVENT
+		SEther->setAevMode (NO);
+	}
 }
 
 void BoardRoot::initAll () {
@@ -3641,7 +3877,8 @@ void BoardRoot::initAll () {
 	sxml_t xml;
 	const char *att;
 	nparse_t np [1];
-	int NN;
+	Boolean nc;
+	int NN, NT;
 
 	settraceFlags (	TRACE_OPTION_TIME +
 			TRACE_OPTION_ETIME +
@@ -3655,19 +3892,35 @@ void BoardRoot::initAll () {
 	if (strcmp (sxml_name (xml), "network"))
 		excptn ("Root: <network> data expected");
 
+	np [0] . type = TYPE_LONG;
+
 	// Decode the number of stations
 	if ((att = sxml_attr (xml, "nodes")) == NULL)
 		xemi ("nodes", "<network>");
 
-	np [0] . type = TYPE_LONG;
 	if (parseNumbers (att, 1, np) != 1)
 		xeai ("nodes", "<network>", att);
 
-	NN = (int) (np [0] . LVal);
-	if (NN <= 0)
+	NT = (int) (np [0] . LVal);
+	if (NT <= 0)
 		excptn ("Root: 'nodes' in <network> must be strictly positive, "
-			"is %1d", NN);
+			"is %1d", NT);
 
+	// How many interfaced to radio?
+	if ((att = sxml_attr (xml, "radio")) == NULL) {
+		// All of them by default
+		NN = NT;
+		nc = YES;
+	} else {
+		if (parseNumbers (att, 1, np) != 1)
+			xeai ("radio", "<network>", att);
+
+		NN = (int) (np [0] . LVal);
+		if (NN < 0 || NN > NT)
+			excptn ("Root: the 'radio' attribute in <network> must "
+				"be >= 0 <= 'nodes', " "is %1d", NN);
+		nc = NO;
+	}
 	// Check for the non-standard port
 	if ((att = sxml_attr (xml, "port")) != NULL) {
 		if (parseNumbers (att, 1, np) != 1 || np [0] . LVal < 1 ||
@@ -3677,8 +3930,12 @@ void BoardRoot::initAll () {
 	}
 
 	initTiming (xml);
-	initChannel (xml, NN);
-	initNodes (xml, NN);
+	// The third argument tells whether NN is a default copy of NT or not;
+	// in the former case, we can force it to zero, if there is no channel
+	// definition in the input data set
+	NN = initChannel (xml, NN, nc);
+
+	initNodes (xml, NT, NN);
 	initPanels (xml);
 	initRoamers (xml);
 
@@ -3697,28 +3954,32 @@ void BoardRoot::initAll () {
 
 #include "stdattr.h"
 
-void Inserial::setup () {
+// === UART direct ============================================================
 
-	uart = S->uart;
-	assert (uart->pcsInserial == NULL,
-		"Inserial->setup: duplicated process");
-	uart->pcsInserial = this;
+void d_uart_inp_p::setup () {
+
+	assert (S->uart->IMode == UART_IMODE_D,
+		"d_uart_inp_p->setup: illegal mode");
+	f = UART_INTF_D (S->uart);
+	assert (f->pcsInserial == NULL,
+		"d_uart_inp_p->setup: duplicated process");
+	f->pcsInserial = this;
 }
 
-void Inserial::close () {
-	uart->pcsInserial = NULL;
+void d_uart_inp_p::close () {
+	f->pcsInserial = NULL;
 	S->tally_out_pcs ();
 	terminate ();
 	sleep;
 }
 
-Inserial::perform {
+d_uart_inp_p::perform {
 
     int quant;
 
     state IM_INIT:
 
-	if (uart->__inpline != NULL)
+	if (f->__inpline != NULL)
 		/* Never overwrite previous unclaimed stuff */
 		close ();
 
@@ -3747,7 +4008,7 @@ Inserial::perform {
 	}
 	if (*ptr == '\n' || *ptr == '\r') {
 		*ptr = '\0';
-		uart->__inpline = tmp;
+		f->__inpline = tmp;
 		close ();
 	}
 
@@ -3770,7 +4031,7 @@ Inserial::perform {
 	quant = io (IM_BIN1, 0, READ, ptr, len);
 	len -= quant;
 	if (len == 0) {
-		uart->__inpline = tmp;
+		f->__inpline = tmp;
 		close ();
 	}
 	ptr += quant;
@@ -3778,24 +4039,26 @@ Inserial::perform {
 
 }
 
-void Outserial::setup (const char *d) {
+void d_uart_out_p::setup (const char *d) {
 
-	uart = S->uart;
-	assert (uart->pcsOutserial == NULL,
-		"Outserial->setup: duplicated process");
-	assert (d != NULL, "Outserial->setup: string pointer is NULL");
-	uart->pcsOutserial = this;
+	assert (S->uart->IMode == UART_IMODE_D,
+		"d_uart_out_p->setup: illegal mode");
+	f = UART_INTF_D (S->uart);
+	assert (f->pcsOutserial == NULL,
+		"d_uart_out_p->setup: duplicated process");
+	assert (d != NULL, "d_uart_out_p->setup: string pointer is NULL");
+	f->pcsOutserial = this;
 	ptr = data = d;
 }
 
-void Outserial::close () {
-	uart->pcsOutserial = NULL;
+void d_uart_out_p::close () {
+	f->pcsOutserial = NULL;
 	S->tally_out_pcs ();
 	terminate ();
 	sleep;
 }
 
-Outserial::perform {
+d_uart_out_p::perform {
 
     int quant;
 
@@ -3876,5 +4139,7 @@ int zz_crunning (void *tid) {
 #include "plug_null.cc"
 #include "plug_tarp.cc"
 #include "tarp.cc"
+#include "uart_phys.cc"
+#include "xrs.cc"
 
 #endif

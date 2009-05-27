@@ -24,14 +24,18 @@
 #define	PMON_STATE_CMP_ON	0x40
 #define	PMON_STATE_CMP_PENDING	0x80
 
+#define	UART_IMODE_D		0	// Direct UART mode
+#define	UART_IMODE_P		1	// PHY (TCV) mode
+
 #define	TheNode		((PicOSNode*)TheStation)
 #define	ThePckt		((PKT*)ThePacket)
 
-#define	MAX_LINE_LENGTH	63	// For Inserial
+#define	MAX_LINE_LENGTH	63	// For d_uart_inp_p
 
 int zz_running (void*), zz_crunning (void*);
 int zz_killall (void*);
 void zz_panel_signal (Long);
+Boolean zz_validate_uart_rate (word);
 
 extern	const char zz_hex_enc_table [];
 
@@ -47,16 +51,89 @@ struct mem_chunk_struct	{
 
 typedef	struct mem_chunk_struct	MemChunk;
 
+class uart_dir_int_t {
+//
+// UART interface in direct mode
+//
+	public:
+
+	char	*__inpline;
+	Process	*pcsInserial, *pcsOutserial;
+
+	// After reset
+	void init () {
+		__inpline = NULL;
+		pcsInserial = pcsOutserial = NULL;
+	};
+
+	// Before halt; note: this is unused at present (no action is
+	// needed to halt the UART, other than killing the driver processes,
+	// but we may want to do something in the future
+	void abort () { };
+
+	uart_dir_int_t () { init (); };
+
+};
+
+class uart_tcv_int_t {
+//
+// UART interface for TCV PHY mode
+//
+	public:
+
+	// === low level packet driver ========================================
+
+	TIME	r_rstime;	// Time to wait until if resetting receiver
+	int	x_qevent;	// Queue event id returned by TCV
+	byte	rx_off, tx_off;	// On/off flags
+	word	v_statid,	// station ID
+		v_physid,	// PHY Id
+		r_buffs,	// Number of bytes remaining to read
+		r_buffl,	// Input buffer length
+		x_buffl;	// Output buffer length
+	address	r_buffer,	// Input buffer
+		x_buffer;	// Output buffer
+	byte	*r_buffp,	// Input buffer pointer
+		*x_buffp;	// Output buffer pointer
+
+	// === XRS ============================================================
+
+	// This part accommodates a portion of AB (i.e., XRS), namely, the
+	// bits that are not so local to the driver process. Tchnically,
+	// this should be kept separate from the packet UART driver. It may
+	// be OK, though, as XRS is a natural next layer to be used by the
+	// praxis on top of packet UART. The dilemma is this: should be put
+	// OEP into the same basket? Probably I will do it for now.
+
+	Boolean	ab_new;
+	byte	ab_md;
+	char	*ab_cout, *ab_cin;
+
+	void init () {
+		// At reset
+		bzero (this, sizeof (uart_tcv_int_t));
+	};
+
+	void abort ();
+
+	uart_tcv_int_t () { init (); };
+};
+
 typedef	struct {
 /*
  * The UART stuff. Instead of having all these as individual node attributes,
  * we create a structure encapsulating them. This is because most nodes will
  * have no UARTs, and the attributes would be mostly wasted.
  */
-	UART	*U;
-	char	*__inpline;
-	Process	*pcsInserial, *pcsOutserial;
+
+	byte	IMode;	// Interface mode
+
+	UART	*U;	// Low-level (mode-independent) UART
+	void	*Int;	// Interface
 } uart_t;
+
+#define	UART_INTF_D(u)	((uart_dir_int_t*)((u)->Int))
+#define	UART_INTF_P(u)	((uart_tcv_int_t*)((u)->Int))
 
 packet	PKT {
 
@@ -78,23 +155,58 @@ packet	PKT {
 	};
 };
 
+class rfm_intd_t {
+//
+// RF interface
+//
+	public: // ============================================================
+
+	// Defaults needed for reset
+	double		DefRPower;	// Receiver boost
+
+	word		DefXPower,	// These are indexes
+			DefRate,
+			DefChannel;
+
+	word		statid;
+
+	Transceiver	*RFInterface;
+	PKT		OBuffer;
+	Boolean		Receiving, Xmitting, TXOFF, RXOFF;
+	address		zzx_buffer, zzr_buffer;
+	int		tx_event;
+
+	double		lbt_threshold;
+
+	word		min_backoff, max_backoff, backoff;
+	word		lbt_delay;
+	word		phys_id;
+
+	rfm_intd_t (const data_no_t*);
+
+	// Low-level setrate/setchannel
+	void setrfpowr (word);
+	void setrfrate (word);
+	void setrfchan (word);
+
+	// After reset
+	void init ();
+
+	// Before halt
+	void abort ();
+
+};
+
 station PicOSNode abstract {
 
 	void		_da (phys_dm2200) (int, int);
 	void		_da (phys_cc1100) (int, int);
 	void		phys_rfmodule_init (int, int);
+	void		_da (phys_uart) (int, int, int);
 
 	long		SecondOffset;
 
 	Mailbox	TB;		// For trigger
-
-	/*
-	 * Defaults needed for reset
-	 */
-	double		_da (DefRPower);	// Receiver boost
-	word		_da (DefXPower),	// These are indexes
-			_da (DefRate),
-			_da (DefChannel);
 
 	/*
 	 * Memory allocator
@@ -111,15 +223,10 @@ station PicOSNode abstract {
 	/*
 	 * RF interface
 	 */
-	PKT		_da (OBuffer);	// Output buffer
-	Transceiver	*_da (RFInterface);
+	rfm_intd_t	*RFInt;
 
-	/*
-	 * RF interface component. We may want to modify it later, if it turns
-	 * out to be dependent on RFModule.
-	 */
-	Boolean		_da (Receiving), _da (Xmitting),
-			_da (TXOFF), _da (RXOFF);
+	lword		_da (entropy);
+
 	/*
 	 * One more Boolean flag - to tell if the node is halted; we may want
 	 * to reorganize this a bit later (like into a bunch of binary flags
@@ -128,15 +235,6 @@ station PicOSNode abstract {
 	 */
 	Boolean		Halted;
 
-	int		_da (tx_event);
-	address		_da (zzx_buffer);
-	address		_da (zzr_buffer);
-	lword		_da (entropy);
-	word		_da (statid);		// Station/network ID
-	word		_da (min_backoff), _da (max_backoff), _da (backoff);
-	word		_da (lbt_delay);
-	double		_da (lbt_threshold);
-	
 	/*
 	 * This is NULL if the node has no UART
 	 */
@@ -164,14 +262,25 @@ station PicOSNode abstract {
 
 	void _da (diag) (const char*, ...);
 
-	// Low-level setrate/setchannel
-	void _da (setrfpowr) (word);
-	void _da (setrfrate) (word);
-	void _da (setrfchan) (word);
-
 	//
 	// Here comes the 'reset' mess:
 	//
+
+	// Internal, resets the UART
+	void uart_reset (), uart_abort ();
+
+	// Location
+	inline void get_location (double &xx, double &yy) {
+		if (RFInt != NULL)
+			RFInt->RFInterface->getLocation (xx, yy);
+		else
+			xx = yy = 0.0;
+	};
+
+	inline void set_location (double xx, double yy) {
+		if (RFInt != NULL)
+			RFInt->RFInterface->setLocation (xx, yy);
+	};
 
 	// This one is called by the praxis to reset the node
 	void _da (reset) ();
@@ -222,9 +331,6 @@ station PicOSNode abstract {
 	};
 
 	inline void _da (when) (int ev, int state) { TB.wait (ev, state); };
-	inline void _da (gbackoff) () {
-		_da (backoff) = _da (min_backoff) + toss (_da (max_backoff));
-	};
 
 	inline void _da (leds) (word led, word op) {
 		if (ledsm != NULL)
@@ -239,7 +345,7 @@ station PicOSNode abstract {
 
 	inline int _da (io) (int state, int dev, int ope, char *buf, int len) {
 		// Note: 'dev' is ignored: it exists for compatibility with
-		// PicOS; io only works for the (single) UART.
+		// PicOS; io only works for the (single) UART (in direct mode)
 		assert (uart != NULL, "PicOSNode->io: node %s has no UART",
 			getSName ());
 		return uart->U->ioop (state, ope, buf, len);
@@ -260,6 +366,16 @@ station PicOSNode abstract {
 	int    _da (ser_in) (word, char*, int);
 	int    _da (ser_outf) (word, const char*, ...);
 	int    _da (ser_inf) (word, const char*, ...);
+
+	/*
+	 * XRS operations
+	 */
+	void   _da (ab_init) (int);
+	void   _da (ab_mode) (byte);
+	void   _da (ab_outf) (word, const char*, ...);
+	void   _da (ab_out) (word, char*);
+	int    _da (ab_inf) (word, const char*, ...);
+	char * _da (ab_in) (word);
 
 	/*
 	 * Operations on pins
@@ -407,9 +523,11 @@ station PicOSNode abstract {
 	IPointer preinit (const char*);
 };
 
-process Inserial (PicOSNode) {
+// === UART direct ============================================================
 
-	uart_t *uart;
+process d_uart_inp_p (PicOSNode) {
+
+	uart_dir_int_t *f;
 	char *tmp, *ptr;
 	int len;
 
@@ -421,9 +539,9 @@ process Inserial (PicOSNode) {
 	perform;
 };
 
-process Outserial (PicOSNode) {
+process d_uart_out_p (PicOSNode) {
 
-	uart_t	*uart;
+	uart_dir_int_t *f;
 	const char *data, *ptr;
 	int len;
 
@@ -434,6 +552,60 @@ process Outserial (PicOSNode) {
 
 	perform;
 };
+
+// === UART packet ============================================================
+
+process p_uart_rcv_p (PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	states { RC_LOOP, RC_WLEN, RC_FILL, RC_OFFSTATE, RC_WOFF, RC_RESET,
+		RC_WRST };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+
+	byte getbyte (int, int);
+	void rdbuff (int, int, int);
+	void ignore (int, int);
+	void rreset (int, int);
+};
+
+process p_uart_xmt_p (PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	states { XM_LOOP, XM_PRE, XM_LEN, XM_SEND };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+};
+
+// === XRS ====================================================================
+
+process ab_driver_p (PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	int	SID;			// Session ID
+
+	address	packet;
+
+	byte	ab_cur, ab_exp;
+
+	states { AB_LOOP, AB_RCV };
+
+	perform;
+
+	void setup (uart_tcv_int_t*, int);
+
+	Boolean ab_send (int);
+	void ab_receive ();
+};
+
+// ============================================================================
 
 station NNode abstract : PicOSNode {
 /*
@@ -450,6 +622,16 @@ station TNode abstract : PicOSNode {
  * A node equipped with TARP stuff
  */
 
+// I have added the NULL plug, which costs nothing (one integer variable) in
+// terms of attributes, such that we can use it together with TARP, if desired;
+// this will be needed, say, for XRS; clumsy, clumsy, clumsy ... what about
+// the OEP plugin? Wouldn't it be better to have a separate node type? Yes,
+// I guess it would ... later. 
+// Note: don't modify PicOS includes for multiple inclusion (this can only
+// result in a mess); use #undefs, like the one below
+
+#undef __plug_null_node_data_h
+#include "plug_null_node_data.h"
 #include "net_node_data.h"
 #include "plug_tarp_node_data.h"
 #include "tarp_node_data.h"
@@ -467,8 +649,8 @@ process	BoardRoot {
 	data_le_t *readLedsParams (sxml_t, const char*);
 
 	void initTiming (sxml_t);
-	void initChannel (sxml_t, int);
-	void initNodes (sxml_t, int);
+	int initChannel (sxml_t, int, Boolean);
+	void initNodes (sxml_t, int, int);
 	void initPanels (sxml_t);
 	void initRoamers (sxml_t);
 	void initAll ();

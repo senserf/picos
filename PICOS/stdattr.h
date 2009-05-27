@@ -14,14 +14,10 @@
 			} while (0)
 
 #define	entropy		_dac (PicOSNode, entropy)
-#define	min_backoff	_dac (PicOSNode, min_backoff)
-#define	max_backoff	_dac (PicOSNode, max_backoff)
-#define	backoff		_dac (PicOSNode, backoff)
-#define	lbt_delay	_dac (PicOSNode, lbt_delay)
-#define	lbt_threshold	_dac (PicOSNode, lbt_threshold)
 
 #define	phys_dm2200	_dac (PicOSNode, phys_dm2200)
 #define	phys_cc1100	_dac (PicOSNode, phys_cc1100)
+#define	phys_uart	_dac (PicOSNode, phys_uart)
 
 #define	rnd()		toss (65536)
 #define	diag(...)	(  ((PicOSNode*)TheStation)->_na_diag ( __VA_ARGS__)  )
@@ -67,6 +63,17 @@
 	(  ((PicOSNode*)TheStation)->_na_ser_outf (a, ## __VA_ARGS__)  )
 #define ser_inf(a, ...) \
 	(  ((PicOSNode*)TheStation)->_na_ser_inf (a, ## __VA_ARGS__)  )
+
+// ============================================================================
+
+#define ab_init(a)	(  ((PicOSNode*)TheStation)->_na_ab_init (a)  )
+#define ab_mode(a)	(  ((PicOSNode*)TheStation)->_na_ab_mode (a)  )
+#define ab_outf(a, ...)	\
+	(  ((PicOSNode*)TheStation)->_na_ab_outf (a, ## __VA_ARGS__)  )
+#define ab_out(a,b)	(  ((PicOSNode*)TheStation)->_na_ab_out (a,b)  )
+#define ab_inf(a, ...)	\
+	(  ((PicOSNode*)TheStation)->_na_ab_inf (a, ## __VA_ARGS__)  )
+#define ab_in(a)	(  ((PicOSNode*)TheStation)->_na_ab_in (a)  )
 
 // ============================================================================
 

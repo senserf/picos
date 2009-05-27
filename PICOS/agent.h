@@ -190,7 +190,7 @@ class	UART {
 	word	B_ilen, B_olen;
 	TIME	ByteTime;
 
-	word	Rate;		// Misalignment
+	word	DefRate, Rate;	// Default and current rate /100
 
 	byte	*IBuf;
 	word	IB_in, IB_out;
@@ -255,6 +255,10 @@ class	UART {
 	void getTimed (int, char*);
 
 	int ioop (int st, int op, char*, int len);
+
+	void setRate (word);
+
+	word getRate () { return Rate; };
 
 	void rst ();
 

@@ -3,13 +3,12 @@
 
 #include "board.h"
 #include "stdattr.h"
-#include "rfmattr.h"
 #include "rfmodule.h"
 #include "tcvphys.h"
 #include "tcv.cc"
 #include "rfleds.h"
 
-static int option (int, address);
+static int rfm_option (int, address);
 
 byte Receiver::get_rssi (byte &qual) {
 
@@ -22,8 +21,7 @@ byte Receiver::get_rssi (byte &qual) {
 		// No RSSI calculator present
 		return 0;
 
-	wr = Ether->RSSIC->getvalue (RFInterface->sigLevel (ThePckt,
-		SIGL_OWN));
+	wr = Ether->RSSIC->getvalue (rfi->sigLevel (ThePckt, SIGL_OWN));
 
 	if (wr > 255)
 		wr = 255;
@@ -35,92 +33,92 @@ Xmitter::perform {
 
     state XM_LOOP:
 
-	if (zzx_buffer == NULL) {
-		if (TXOFF) {
-			if (TXOFF == 3) {
+	if (xbf == NULL) {
+		if (txoff) {
+			if (txoff == 3) {
 Drain:
-				tcvphy_erase (PHYSID);
-				when (tx_event, XM_LOOP);
+				tcvphy_erase (physid);
+				when (txe, XM_LOOP);
 				release;
-			} else if (TXOFF == 1) {
-				backoff = 0;
-				when (tx_event, XM_LOOP);
+			} else if (txoff == 1) {
+				bkf = 0;
+				when (txe, XM_LOOP);
 				release;
 			}
 		}
 
-		if ((zzx_buffer = tcvphy_get (PHYSID, &buflen)) != NULL) {
+		if ((xbf = tcvphy_get (physid, &buflen)) != NULL) {
 			assert (buflen >= 4 && (buflen & 1) == 0,
 				"Xmitter: illegal packet length %1d", buflen);
-			if (statid != 0xffff)
+			if (sid != 0xffff)
 				// otherwise, honor the packet's statid
-				zzx_buffer [0] = statid;
+				xbf [0] = sid;
 		} else {
 			// Nothing to transmit
-			if (TXOFF == 2) {
+			if (txoff == 2) {
 				// Draining, stop if the queue is empty
-				TXOFF = 3;
+				txoff = 3;
 				goto Drain;
 			}
-			when (tx_event, XM_LOOP);
+			when (txe, XM_LOOP);
 			release;
 		}
 	}
 
-	if (backoff && !tcv_isurgent (zzx_buffer)) {
+	if (bkf && !tcv_isurgent (xbf)) {
 		// backing off and the packet is not urgent
-		delay (backoff, XM_LOOP);
-		backoff = 0;
-		when (tx_event, XM_LOOP);
+		delay (bkf, XM_LOOP);
+		bkf = 0;
+		when (txe, XM_LOOP);
 		release;
 	}
 
-	if (Receiving) {
-		delay (min_backoff, XM_LOOP);
-		when (tx_event, XM_LOOP);
+	if (rcvg) {
+		delay (minbkf, XM_LOOP);
+		when (txe, XM_LOOP);
 		release;
 	}
 
-	if (lbt_delay && !RXOFF) {
+	if (lbtdl && !rxoff) {
 		// Start the ADC
 		RSSI->signal ((void*)YES);
-		delay (lbt_delay, XM_LBS);
+		delay (lbtdl, XM_LBS);
 		release;
 	}
 
 Xmit:
-	OBuffer.load (zzx_buffer, buflen);
-	Xmitting = YES;
+	obf.load (xbf, buflen);
+	xmtg = YES;
 	LEDI (1, 1);
-	RFInterface->transmit (&OBuffer, XM_TXDONE);
+	rfi->transmit (&obf, XM_TXDONE);
 
     state XM_TXDONE:
 
-	RFInterface->stop ();
+	rfi->stop ();
 	LEDI (1, 0);
-	if (lbt_delay == 0)
+	if (lbtdl == 0)
 		// To reduce the risk of livelocks; not needed with LBT
 		gbackoff ();
 
-	tcvphy_end (zzx_buffer);
-	zzx_buffer = NULL;
-	Xmitting = NO;
-	trigger (rx_event);
-	delay (min_backoff, XM_LOOP);
+	tcvphy_end (xbf);
+	xbf = NULL;
+	xmtg = NO;
+	trigger (rxe);
+	delay (minbkf, XM_LOOP);
 
     state XM_LBS:
 
 	RSSI->signal ((void*)NO);
-	if (Receiving) {
-		delay (min_backoff, XM_LOOP);
-		when (tx_event, XM_LOOP);
+	if (rcvg) {
+		delay (minbkf, XM_LOOP);
+		when (txe, XM_LOOP);
 		release;
 	}
 
-	if (RXOFF)
+	if (rxoff)
 		goto Xmit;
 
-	if (RSSI->sigLevel () < lbt_threshold)
+	if (RSSI->sigLevel () < lbtth)
 		goto Xmit;
 
 	gbackoff ();
@@ -143,10 +141,10 @@ ADC::perform {
 	ATime = 0.0;
 	Average = 0.0;
 	Last = Time;
-	CLevel = RFInterface->sigLevel ();
+	CLevel = rfi->sigLevel ();
 
 	// In case something is already pending
-	RFInterface->wait (ANYEVENT, ADC_UPDATE);
+	rfi->wait (ANYEVENT, ADC_UPDATE);
 	this->wait (SIGNAL, ADC_STOP);
 
     state ADC_UPDATE:
@@ -157,11 +155,11 @@ ADC::perform {
 	DT = (double)(Time - Last);	// Time increment
 	NA = ATime + DT;		// New total sampling time
 	Average = ((Average * ATime) / NA) + (CLevel * DT) / NA;
-	CLevel = RFInterface->sigLevel ();
+	CLevel = rfi->sigLevel ();
 	Last = Time;
 	ATime = NA;
 	// Only new events, no looping!
-	RFInterface->wait (ANYEVENT, ADC_UPDATE);
+	rfi->wait (ANYEVENT, ADC_UPDATE);
 	this->wait (SIGNAL, ADC_STOP);
 
     state ADC_STOP:
@@ -179,34 +177,34 @@ Receiver::perform {
 
     state RCV_GETIT:
 
-	Receiving = NO;
+	rcvg = NO;
 	LEDI (2, 0);
 
-	if (RXOFF) {
+	if (rxoff) {
 Finidh:
-		when (rx_event, RCV_GETIT);
+		when (rxe, RCV_GETIT);
 		release;
 	}
 	this->signal ((void*)NONE);
-	RFInterface->wait (BOT, RCV_START);
-	when (rx_event, RCV_GETIT);
+	rfi->wait (BOT, RCV_START);
+	when (rxe, RCV_GETIT);
 
     state RCV_START:
 
-	if (Xmitting) {
-		when (rx_event, RCV_GETIT);
+	if (xmtg) {
+		when (rxe, RCV_GETIT);
 		release;
 	}
 	LEDI (2, 1);
-	Receiving = YES;
-	RFInterface->follow (ThePckt);
+	rcvg = YES;
+	rfi->follow (ThePckt);
 	skipto RCV_RECEIVE;
 
     state RCV_RECEIVE:
 
-	RFInterface->wait (EOT, RCV_GOTIT);
-	RFInterface->wait (BERROR, RCV_GETIT);
-	RFInterface->wait (BOT, RCV_START);
+	rfi->wait (EOT, RCV_GOTIT);
+	rfi->wait (BERROR, RCV_GETIT);
+	rfi->wait (BOT, RCV_START);
 
     state RCV_GOTIT:
 
@@ -218,19 +216,19 @@ Finidh:
 	assert (pktlen > MINIMUM_PACKET_LENGTH, "Receiver: packet too short");
 	assert (pktlen <= RBS, "Receiver: packet too long");
 
-	if (statid != 0 && statid != 0xffff) {
+	if (sid != 0 && sid != 0xffff) {
 		// Admit only packets with agreeable statid
-		if (packet [0] != 0 && packet [0] != statid)
+		if (packet [0] != 0 && packet [0] != sid)
 			// Ignore
 			proceed RCV_GETIT;
 	}
 
-	memcpy (zzr_buffer, packet, pktlen);
+	memcpy (rbf, packet, pktlen);
 		
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
-	zzr_buffer [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
+	rbf [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 
-	tcvphy_rcv (PHYSID, zzr_buffer, pktlen);
+	tcvphy_rcv (physid, rbf, pktlen);
 	proceed RCV_GETIT;
 }
 
@@ -239,6 +237,10 @@ __PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
  * phy  - interface number
  * mbs  - maximum packet length (including checksum, must be divisible by 4)
  */
+	rfm_intd_t *rf;
+
+	rf = TheNode->RFInt;
+
 	if (mbs < 6 || mbs > CC1100_MAXPLEN) {
 		if (mbs == 0)
 			mbs = CC1100_MAXPLEN;
@@ -246,8 +248,8 @@ __PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
 			syserror (EREQPAR, "phys_cc1100");
 	}
 
-	zzr_buffer = (address) memAlloc (mbs + 2, (word) (mbs + 2));
-	if (zzr_buffer == NULL)
+	rbf = (address) memAlloc (mbs + 2, (word) (mbs + 2));
+	if (rbf == NULL)
 		syserror (EMALLOC, "phys_cc1100");
 
 	phys_rfmodule_init (phy, mbs+2);
@@ -258,6 +260,10 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
  * phy  - interface number
  * mbs  - maximum packet length (including checksum, must be divisible by 4)
  */
+	rfm_intd_t *rf;
+
+	rf = TheNode->RFInt;
+
 	if (mbs < 8 || mbs & 0x3) {
 		if (mbs == 0)
 			mbs = RADIO_DEF_BUF_LEN;
@@ -265,8 +271,8 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 			syserror (EREQPAR, "phys_dm2200 mbs");
 	}
 
-	zzr_buffer = (address) memAlloc (mbs, (word) mbs);
-	if (zzr_buffer == NULL)
+	rbf = (address) memAlloc (mbs, (word) mbs);
+	if (rbf == NULL)
 		syserror (EMALLOC, "phys_dm2200");
 
 	phys_rfmodule_init (phy, mbs);
@@ -274,41 +280,53 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 
 void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 
-	statid = 0;
-	backoff = 0;
+	rfm_intd_t *rf;
+
+	rf = TheNode->RFInt;
+
+	sid = 0;
+	bkf = 0;
+
+	physid = phy;
 
 	/* Register the phy */
-	tx_event = tcvphy_reg (phy, option, INFO_PHYS_DM2200);
+	txe = tcvphy_reg (phy, rfm_option, INFO_PHYS_DM2200);
 
 	/* Both parts are initially active */
-	RXOFF = TXOFF = 1;
+	rxoff = txoff = 1;
 	LEDI (0, 2);
 	LEDI (1, 0);
 	LEDI (2, 0);
 
+	if (!tally_in_pcs () || !tally_in_pcs ())
+		// Need two process slots
+		syserror (ERESOURCE, "phys_rf");
 	create Xmitter;
 	create Receiver (rbs);
 }
 
-static int option (int opt, address val) {
+static int rfm_option (int opt, address val) {
 /*
  * Option processing
  */
 	int ret = 0;
 	word w, v;
+	rfm_intd_t *rf;
+
+	rf = TheNode->RFInt;
 
 	switch (opt) {
 
 	    case PHYSOPT_STATUS:
 
-		if (TXOFF == 0)
+		if (txoff == 0)
 			ret = 2;
-		if ((TXOFF & 1) == 0) {
+		if ((txoff & 1) == 0) {
 			// On or draining
-			if (zzx_buffer != NULL || tcvphy_top (PHYSID) != NULL)
+			if (xbf != NULL || tcvphy_top (physid) != NULL)
 				ret |= 4;
 		}
-		if (RXOFF == 0)
+		if (rxoff == 0)
 			ret++;
 	
 		if (val != NULL)
@@ -317,12 +335,12 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_TXON:
 
-		if (TXOFF) {
-			TXOFF = NO;
-			trigger (tx_event);
+		if (txoff) {
+			txoff = NO;
+			trigger (txe);
 		}
 
-		if (RXOFF)
+		if (rxoff)
 			LEDI (0, 1);
 		else
 			LEDI (0, 2);
@@ -331,12 +349,12 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_RXON:
 
-		if (RXOFF) {
-			RXOFF = NO;
-			trigger (rx_event);
+		if (rxoff) {
+			rxoff = NO;
+			trigger (rxe);
 		}
 
-		if (TXOFF)
+		if (txoff)
 			LEDI (0, 1);
 		else
 			LEDI (0, 2);
@@ -346,10 +364,10 @@ static int option (int opt, address val) {
 	    case PHYSOPT_TXOFF:
 
 		/* Drain */
-		TXOFF = 2;
-		trigger (tx_event);
+		txoff = 2;
+		trigger (txe);
 
-		if (RXOFF)
+		if (rxoff)
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
@@ -357,10 +375,10 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_TXHOLD:
 
-		TXOFF = 1;
-		trigger (tx_event);
+		txoff = 1;
+		trigger (txe);
 
-		if (TXOFF)
+		if (txoff)
 			LEDI (0, 1);
 		else
 			LEDI (0, 2);
@@ -368,10 +386,10 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_RXOFF:
 
-		RXOFF = 1;
-		trigger (rx_event);
+		rxoff = 1;
+		trigger (rxe);
 
-		if (TXOFF)
+		if (txoff)
 			LEDI (0, 1);
 		else
 			LEDI (0, 2);
@@ -381,10 +399,10 @@ static int option (int opt, address val) {
 
 		/* Force an explicit backoff */
 		if (val == NULL)
-			backoff = 0;
+			bkf = 0;
 		else
-			backoff = *val;
-		trigger (tx_event);
+			bkf = *val;
+		trigger (txe);
 		break;
 
 	    case PHYSOPT_SENSE:
@@ -402,13 +420,13 @@ static int option (int opt, address val) {
 			else if (v < (w = Ether->PS->lower ()))
 				v = w;
 		} else
-			v = DefXPower;
-		setrfpowr (v);
+			v = defxp;
+		rf->setrfpowr (v);
 		break;
 
 	    case PHYSOPT_GETPOWER:
 
-		ret = (word) (Ether->PS->getvalue (RFInterface->getXPower ()));
+		ret = (word) (Ether->PS->getvalue (rfi->getXPower ()));
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -422,13 +440,13 @@ static int option (int opt, address val) {
 			else if (v < (w = Ether->Rates->lower ()))
 				v = w;
 		} else
-			v = DefRate;
-		setrfrate (v);
+			v = defrt;
+		rf->setrfrate (v);
 		break;
 
 	    case PHYSOPT_GETRATE:
 
-		ret = SEther->tagToRI (RFInterface->getTag ());
+		ret = SEther->tagToRI (rfi->getTag ());
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -440,26 +458,26 @@ static int option (int opt, address val) {
 			if (v > (w = Ether->Channels->max ()))
 				v = w;
 		} else
-			v = DefChannel;
+			v = defch;
 
-		setrfchan (v);
+		rf->setrfchan (v);
 		break;
 
 	    case PHYSOPT_GETCHANNEL:
 
-		ret = SEther->tagToCh (RFInterface->getTag ());
+		ret = SEther->tagToCh (rfi->getTag ());
 		if (val != NULL)
 			*val = ret;
 		break;
 
 	    case PHYSOPT_SETSID:
 
-		statid = (val == NULL) ? 0 : *val;
+		sid = (val == NULL) ? 0 : *val;
 		break;
 
             case PHYSOPT_GETSID:
 
-		ret = (int) statid;
+		ret = (int) sid;
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -482,7 +500,26 @@ static int option (int opt, address val) {
 	return ret;
 }
 
-#include "rfmattr_undef.h"
+#undef	rfi
+#undef	xbf
+#undef	rbf
+#undef	obf
+#undef	bkf
+#undef	txe
+#undef	rxe
+#undef	txoff
+#undef	rxoff
+#undef	sid
+#undef	minbkf
+#undef	maxbkf
+#undef	lbtth	
+#undef	lbtdl
+#undef	xmtg
+#undef	rcvg
+#undef	defxp
+#undef	defrt
+#undef	defch
+
 #include "stdattr_undef.h"
 
 #endif

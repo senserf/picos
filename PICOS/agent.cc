@@ -273,10 +273,9 @@ UART::UART (data_ua_t *UAD) {
 
 	// Account for start / stop bits, assuming there is no parity and one
 	// stop bit, which is the case in all our setups
-	Rate = UAD->URate;
-	// Note: Rate has been divided by 100, so this amounts to multiplying
-	// seconds/truerate by 10.0
-	ByteTime = (TIME) ((Second / Rate) / 10.0);
+
+ 	DefRate = Rate = UAD->URate;
+	// Will be actually set by rst
 
 	if (imode (Flags) == XTRN_IMODE_SOCKET ||
 					omode (Flags) == XTRN_OMODE_SOCKET) {
@@ -342,6 +341,20 @@ UART::UART (data_ua_t *UAD) {
 	rst ();
 }
 
+void UART::setRate (word rate) {
+//
+// Sets the current rate
+//
+	if (!zz_validate_uart_rate (rate))
+		syserror (EREQPAR, "phys_uart rate");
+
+	Rate = rate;
+
+ 	// Note: Rate has been divided by 100, so this amounts to multiplying
+ 	// seconds/truerate by 10.0
+ 	ByteTime = (TIME) ((Second / Rate) / 10.0);
+}
+
 void UART::rst () {
 
 	// When a node is reset, SMURPH kills all its processes, including
@@ -358,6 +371,8 @@ void UART::rst () {
 
 	OB_in = OB_out = 0;
 	PO = create UART_out (this);
+
+	setRate (DefRate);
 }
 
 void UART_in::setup (UART *u) {
@@ -864,9 +879,9 @@ UartHandler::perform {
 
 	state AckUart:
 
-		c = htonl (ECONN_OK | (((lword)(UA->Rate)) << 8));
-trace ("SENDING: %1d, %1d, %08x", ECONN_OK, UA->Rate, c);
-		if (Agent->wi (AckUart, (char*)(&c), 4) == ERROR) {
+ 		c = htonl (ECONN_OK | (((lword)(UA->Rate)) << 8));
+ 		if (Agent->wi (AckUart, (char*)(&c), 4) == ERROR) {
+
 			// We are disconnected
 Term:
 			delete Agent;
@@ -910,8 +925,7 @@ void ClockHandler::setup (Dev *a) {
 
 ClockHandler::perform {
 
-	lword netf;
-	lword c;
+	lword netf, c;
 
 	state AckClk:
 
@@ -2550,8 +2564,9 @@ SensorsHandler::perform {
 			sleep;
 		}
 
-		lm = SN->Upd->retrieve (tp, sid);
-		Length = SN->act_status (tp, sid, lm);
+
+ 		lm = SN->Upd->retrieve (tp, sid);
+ 		Length = SN->act_status (tp, sid, lm);
 		Buf = SN->UBuf;
 
 	transient Send:
@@ -2878,8 +2893,8 @@ LedsHandler::perform {
 
 		if (Agent != NULL) {
 			// Socket connection: acknowledge
-			c = htonl (ECONN_OK);
-			if (Agent->wi (AckLeds, (char*)(&c), 4) == ERROR) {
+ 			c = htonl (ECONN_OK);
+ 			if (Agent->wi (AckLeds, (char*)(&c), 4) == ERROR) {
 				// We are disconnected
 Disconnect:
 				delete Agent;
@@ -2987,8 +3002,8 @@ MoveHandler::perform {
 
 		if (imode (Flags) == XTRN_IMODE_SOCKET) {
 			// Need to acknowledge
-			c = htonl (ECONN_OK);
-			if (Agent->wi (AckMove, (char*)(&c), 4) == ERROR) {
+ 			c = htonl (ECONN_OK);
+ 			if (Agent->wi (AckMove, (char*)(&c), 4) == ERROR) {
 				// Disconnected
 				delete Agent;
 				terminate;
@@ -3034,7 +3049,7 @@ MoveHandler::perform {
 			if (!MUP->empty ()) {
 				NN = MUP->get ();
 				pn = (PicOSNode*) idToStation (NN);
-				pn -> _da (RFInterface)->getLocation (xx, yy);
+				pn -> get_location (xx, yy);
 				// This one is safe as we do not include the
 				// standard name in an update
 				sprintf (RBuf, "U %1ld %1f %1f\n", NN, xx, yy);
@@ -3129,7 +3144,7 @@ Illegal_nid:
 			}
 
 			pn = (PicOSNode*)idToStation (NN);
-			pn -> _da (RFInterface)->getLocation (xx, yy);
+			pn -> get_location (xx, yy);
 
 			while ((rc = snprintf (RBuf, RBSize,
 			   "P %1ld %1ld %1f %1f %s\n", NN, NStations, xx, yy,
@@ -3171,14 +3186,15 @@ Illegal_crd:
 				terminate;
 			}
 
-			TR = ((PicOSNode*)idToStation (NN))-> _da (RFInterface);
-
-			// Cancel any present movement
-			rwpmmStop (TR);
-
-			TR -> setLocation (NP [0].DVal, NP [1].DVal);
-
-			// Send the update
+			pn = (PicOSNode*)idToStation (NN);
+			if (pn->RFInt != NULL) {
+				TR = pn->RFInt->RFInterface;
+				// Cancel any present movement
+				rwpmmStop (TR);
+				TR -> setLocation (NP [0].DVal, NP [1].DVal);
+			}
+			// Send the update regardless, you will get 0,0 for a
+			// transceiver-less node
 			if (MUP != NULL)
 				MUP->queue (NN);
 
@@ -3238,14 +3254,17 @@ Illegal_crd:
 			// The time can be negative, which (including zero)
 			// means that we roam forever
 
-			rwpmmStart (NN,
-			  ((PicOSNode*) idToStation (NN)) -> _da (RFInterface),
-				NP [0].DVal, NP [1].DVal,
-				NP [2].DVal, NP [3].DVal,
-				NP [4].DVal, NP [5].DVal,
-				NP [6].DVal, NP [7].DVal,
-				NP [8].DVal);
+			// Do not roam stations devoid of RF interface
+			pn = (PicOSNode*) idToStation (NN);
+			if (pn->RFInt != NULL)
+				rwpmmStart (NN, pn->RFInt->RFInterface,
+					NP [0].DVal, NP [1].DVal,
+					NP [2].DVal, NP [3].DVal,
+					NP [4].DVal, NP [5].DVal,
+					NP [6].DVal, NP [7].DVal,
+					NP [8].DVal);
 
+			// Just ignore otherwise
 			proceed Loop;
 
 		    case '\0':
@@ -3339,8 +3358,8 @@ PanelHandler::perform {
 
 		if (imode (Flags) == XTRN_IMODE_SOCKET) {
 			// Need to acknowledge
-			c = htonl (ECONN_OK);
-			if (Agent->wi (AckPanel, (char*)(&c), 4) == ERROR) {
+ 			c = htonl (ECONN_OK);
+ 			if (Agent->wi (AckPanel, (char*)(&c), 4) == ERROR) {
 				// Disconnected
 				delete Agent;
 				terminate;

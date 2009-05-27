@@ -2,11 +2,32 @@
 #define	__rfmodule_dm2200_h__
 
 #include "board.h"
-#include "rfmattr.h"
+
+#define	rfi	(rf->RFInterface)
+#define	xbf	(rf->zzx_buffer)
+#define	rbf	(rf->zzr_buffer)
+#define	obf	(rf->OBuffer)
+#define	bkf	(rf->backoff)
+#define	txe	(rf->tx_event)
+#define	rxe	rf
+#define	txoff	(rf->TXOFF)
+#define	rxoff	(rf->RXOFF)
+#define	sid	(rf->statid)
+#define	minbkf	(rf->min_backoff)
+#define	maxbkf	(rf->max_backoff)
+#define	lbtth	(rf->lbt_threshold)
+#define	lbtdl	(rf->lbt_delay)
+#define	xmtg	(rf->Xmitting)
+#define	rcvg	(rf->Receiving)
+#define	defxp	(rf->DefXPower)
+#define	defrt	(rf->DefRate)
+#define	defch	(rf->DefChannel)
+#define	physid	(rf->phys_id)
 
 process Receiver (PicOSNode) {
 
 	int RBS;			// Receive buffer size
+	rfm_intd_t *rf;
 
 	states { RCV_GETIT, RCV_START, RCV_RECEIVE, RCV_GOTIT };
 
@@ -16,6 +37,7 @@ process Receiver (PicOSNode) {
 
 	void setup (int s) {
 		RBS = s;
+		rf = TheNode->RFInt;
 	};
 };
 
@@ -25,6 +47,7 @@ process	ADC (PicOSNode) {
 			Average,	// Average signal so far
 			CLevel;		// Current (last) signal level
 	TIME		Last;		// Last sample time
+	rfm_intd_t 	*rf;
 
 	double sigLevel () {
 
@@ -40,20 +63,30 @@ process	ADC (PicOSNode) {
 	states { ADC_WAIT, ADC_RESUME, ADC_UPDATE, ADC_STOP };
 
 	perform;
+
+	void setup () {
+		rf = TheNode->RFInt;
+	};
 };
 
 process Xmitter (PicOSNode) {
 
 	int		buflen;
 	ADC		*RSSI;
+	rfm_intd_t	*rf;
 
 	states { XM_LOOP, XM_TXDONE, XM_LBS };
 
 	perform;
 
 	void setup () {
-		zzx_buffer = NULL;
+		rf = TheNode->RFInt;
+		xbf = NULL;
 		RSSI = create ADC;
+	};
+
+	inline void gbackoff () {
+		bkf = minbkf + toss (maxbkf);
 	};
 };
 
