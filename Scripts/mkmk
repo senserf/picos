@@ -2120,6 +2120,14 @@ proc scanfile { fname } {
 				dmp "INCLUDE: $fn not found"
 			}
 		}
+
+		if { $cm == "error" } {
+			set ar [string trim $ar " \t\""]
+			if { [string first "S:" $ar] != 0 } {
+				puts stderr "#error in <$fname>:\n$ar"
+				exit 1
+			}
+		}
 	}
 	catch { close $fd }
 }

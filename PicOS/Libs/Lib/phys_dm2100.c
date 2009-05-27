@@ -258,6 +258,9 @@ void phys_dm2100 (int phy, int mbs) {
 
 	/* Initialize the device */
 	ini_dm2100 ();
+
+	if (run_rf_driver () == 0)
+		syserror (ERESOURCE, "phys_dm2100");
 }
 
 static int option (int opt, address val) {

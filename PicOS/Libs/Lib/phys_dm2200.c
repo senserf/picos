@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -367,6 +367,8 @@ void phys_dm2200 (int phy, int mbs) {
 	}
 #endif
 #endif
+	if (run_rf_driver () == 0)
+		syserror (ERESOURCE, "phys_dm2200");
 }
 
 static int option (int opt, address val) {

@@ -3,6 +3,10 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#ifndef __pg_checksum_c
+// Can be included by VUEE
+#define	__pg_checksum_c
+
 #include "sysio.h"
 
 #if	CRC_ISO3309
@@ -67,5 +71,7 @@ word w_chk (const word *wa, int nw, word chs) {
 	}
 	return -chs;
 }
+
+#endif
 
 #endif

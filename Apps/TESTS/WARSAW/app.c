@@ -118,7 +118,7 @@ thread (receiver)
 
   entry (RC_MESS)
 
-	ser_outf (SN_MESS, "Rcv: %lu [%d], RSSI = %d, QUA = %d\r\n",
+	ser_outf (RC_MESS, "Rcv: %lu [%d], RSSI = %d, QUA = %d\r\n",
 		last_rcv, rcvl, (rssi >> 8) & 0x00ff, rssi & 0x00ff);
 	proceed (RC_TRY);
 

@@ -3050,7 +3050,7 @@ R090519A:
 	as econnect.tcl) have been modified to provide for a better way of
 	handling COM ports on Windows (devices like "COMx:" only work from Tcl
 	for x between 1 and 9). Also, we are now accommodating devices named
-	CNCAx/CNCBx (introduce by com0com - see below).
+	CNCAx/CNCBx (introduced by com0com - see below).
 
 	A few cosmetic changes to match forthcoming modifications to VUEE.
 
@@ -3115,3 +3115,43 @@ R090519A:
 	port number as the first argument of "connect").
 
 	I have updated the VUEE doc commenting a bit on the U-U feature. 
+
+R090526A:
+
+	Fixed a minor problem with the WARSAW_NEW board making it impossible
+	to use GPS together with the SPI mode of SD/EEPROM. Well, you still
+	cannot use the two together (which is physically impossible), but at
+	least you can switch.
+
+	A minor modification to mkmk allowing it to intercept "#error's". If
+	you have an "#error" which mkmk should not be able to intercept, put
+	"S:" as the first two characters of the message. For example (see
+	mach.h):
+
+	#error	"S: untried yet CPU type: check MSP430/mach.h"
+
+	This error would be false (when detected by mkmk) as the requisite
+	symbol for the condition is declared in a file that mkmk doesn't see.
+
+	Sensor detection for WARSAW_NEW implemented as three extra analog
+	sensors.
+
+	Popular PHY drivers, including DM2x00, CC1000, PHYS_UART modified to
+	never kill the driver processes (once they have been created at
+	startup). If a driver process is killed and then resurected, it may
+	not find a free slot and (quietly) fail (quietly, because driver
+	processes are not started in a persistent manner). Now they won't
+	fail quietly, but if they fail, it will only happen at startup, as
+	opposed to at random due to process congestion. There is no penalty
+	for keeping a driver process formally alive, even if the device is
+	temporarily off, while this prevents its process slot form being
+	stolen. Note that CC1100 was OK (so don't panic). I realized this
+	problem while playing with phys_uart, notably its VUEE model.
+
+	AB (aka XRS) has been modified slightly. There are two modes: the
+	passive (default) mode is non-persistent, in the sense that the
+	responsibility for any losses is delegated to the other party. I will
+	document it shortly, as soon as I see that this is what I wanted.
+
+	XML data sets for VUEE praxes modified to account for the new <radio>
+	element required by VUEE in <node>.

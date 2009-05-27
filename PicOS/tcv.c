@@ -2,6 +2,10 @@
 /* Copyright (C) Olsonet Communications, 2002 - 2008                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
+
+#ifndef	__tcv_cc__
+#define	__tcv_cc__
+
 #include "tcv.h"
 #include "tcvphys.h"
 #include "tcvplug.h"
@@ -1165,4 +1169,6 @@ __PUBLF (PicOSNode, void, tcv_init) () {
 }
 
 /* TCV_PRESENT */
+#endif
+
 #endif

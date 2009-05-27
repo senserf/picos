@@ -26,8 +26,6 @@ ORet:
 		LEDI (0, 1);
 	else
 		LEDI (0, 2);
-	if (!running (xmtradio))
-		runthread (xmtradio);
 	trigger (zzv_qevent);
 	break;
 
@@ -38,8 +36,6 @@ ORet:
 		LEDI (0, 1);
 	else
 		LEDI (0, 2);
-	if (!running (rcvradio))
-		runthread (rcvradio);
 	trigger (rxevent);
 	break;
 

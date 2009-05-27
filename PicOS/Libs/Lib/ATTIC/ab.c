@@ -44,17 +44,21 @@
 #define	AB_DELAY_LONG	2048
 #endif
 
-static Boolean ab_new = NO, ab_running = NO;
+#ifndef	AB_XTRIES
+#define	AB_XTRIES	3
+#endif
+
+static byte ab_new = 0, ab_md = 1;
 static byte ab_cur = 0, ab_exp = 0;
 static char *ab_cout = NULL, *ab_cin = NULL;
 
 static int ab_handler = 0;
-static word ab_delay = AB_DELAY_SHORT, ab_left = MAX_UINT, ab_maxpay = 0;
+static word ab_maxpay = 0;
 static address packet;
 
 #define	AB_EVENT_IN	((void*)(&ab_cin))
 #define	AB_EVENT_OUT	((void*)(&ab_cout))
-#define	AB_EVENT_RUN	((void*)(&ab_running))
+#define	AB_EVENT_RUN	((void*)(&ab_new))
 
 // ============================================================================
 
@@ -88,8 +92,11 @@ static void ab_receive () {
 
 	word ln, fl;
 
-	if (AB_PF_MAG != AB_PMAGIC)
-		goto Done;
+	if (AB_PF_MAG != AB_PMAGIC) {
+		// Not for us
+		tcv_endp (packet);
+		return;
+	}
 
 	if (ab_cout) {
 		// We do have an outgoing message
@@ -98,23 +105,34 @@ static void ab_receive () {
 			// message
 			ufree (ab_cout);
 			ab_cout = NULL;
+			ab_new = 0;
 			trigger (AB_EVENT_OUT);
 			ab_cur = AB_PF_EXP;
-		} else
-			ab_delay = AB_DELAY_SHORT;
-	} else
+		} else {
+			// Expecting our current
+			if (ab_new == 0)
+				ab_new = 1;
+			trigger (AB_EVENT_RUN);
+		}
+	} else {
+		// This is what they expect
 		ab_cur = AB_PF_EXP;
+	}
 
 	// Should we receive
 	if ((ln = tcv_left (packet)) <= AB_MINPL)
-		// No message
+		// No message, pure ACK
 		goto Done;
 
-	if (AB_PF_CUR != ab_exp) {
+	if (ab_new == 0)
+		// Send immediately an ACK or NACK
+		ab_new = 1;
+
+	trigger (AB_EVENT_RUN);
+
+	if (AB_PF_CUR != ab_exp)
 		// Ignore
-		ab_delay = AB_DELAY_SHORT;
 		goto Done;
-	}
 
 	fl = AB_PF_LEN;
 	if (fl == 0 || fl > (ln - AB_MINPL))
@@ -132,9 +150,8 @@ static void ab_receive () {
 	memcpy (ab_cin, AB_PF_PAY, fl);
 	ab_cin [fl] = '\0';
 	ab_exp++;
+
 	trigger (AB_EVENT_IN);
-	// Force an ACK
-	ab_new = YES;
 Done:
 	tcv_endp (packet);
 }
@@ -144,45 +161,59 @@ Done:
 strand (ab_driver, void)
 
 #define	AB_LOOP		0
-#define	AB_TIMER	1
+#define	AB_RCV		1
 
 #define	SID	((int)data)
 
 	entry (AB_LOOP)
 
-		if (ab_running) {
-			// Try to send
-			ab_left = dleft (0);
-			if (ab_new) {
-				// New outgoing message
-Send:
-				if (!ab_send (SID))
-					// Failed
-					ab_delay = AB_DELAY_SHORT;
-				ab_new = NO;
-			}
-			// Timer
-			if (ab_left < ab_delay)
-				ab_delay = ab_left;
-			delay (ab_delay, AB_TIMER);
-			ab_delay = AB_DELAY_LONG;
+		switch (ab_md) {
+
+			case AB_MODE_PASSIVE:
+
+				// Do not send unless have something to send
+				if (ab_new) {
+					if (ab_send (SID)) {
+						if (--ab_new)
+							delay (AB_DELAY_LONG,
+								AB_LOOP);
+					} else 
+						// Send failed, keep retrying
+						delay (AB_DELAY_SHORT, AB_LOOP);
+				}
+
+				break;
+
+			case AB_MODE_ACTIVE:
+
+				// Keep polling 
+				if (ab_send (SID))
+					delay (AB_DELAY_LONG, AB_LOOP);
+				else
+					delay (AB_DELAY_SHORT, AB_LOOP);
+
+				if (ab_new)
+					ab_new--;
+
+				break;
+
+			// The default is OFF meaning be quiet
 		}
-Off:
-		// Wait for RUN events
+
+		// Wait for run events
+GetIt:
 		when (AB_EVENT_RUN, AB_LOOP);
-		// Receive (also if we are off)
-		packet = tcv_rnp (AB_LOOP, SID);
+		// Try to receive
+		packet = tcv_rnp (AB_RCV, SID);
 		ab_receive ();
 		proceed (AB_LOOP);
 
-	entry (AB_TIMER)
 
-		// Actual timer going off
-		ab_left = MAX_UINT;
-		if (ab_running)
-			goto Send;
+	entry (AB_RCV)
 
-		goto Off;
+		// In case we get hung
+		delay (AB_DELAY_SHORT, AB_LOOP);
+		goto GetIt;
 endstrand
 
 // ============================================================================
@@ -196,20 +227,15 @@ void ab_init (int sid) {
 
 	// Maximum payload length 
 	ab_maxpay = tcv_control (sid, PHYSOPT_GETMAXPL, NULL) - AB_MINPL + 2;
-	ab_running = YES;
 }
 
-void ab_on () {
-
-	ab_running = YES;
+void ab_mode (byte mode) {
+//
+// Set the mode
+//
+	ab_md = (mode > 2) ? 2 : mode;
 	ptrigger (ab_handler, AB_EVENT_RUN);
 	trigger (AB_EVENT_OUT);
-}
-
-void ab_off () {
-
-	ab_running = NO;
-	ptrigger (ab_handler, AB_EVENT_RUN);
 }
 
 // ============================================================================
@@ -220,7 +246,7 @@ void ab_outf (word st, const char *fm, ...) {
 //
 	va_list ap;
 
-	if (ab_cout || !ab_running) {
+	if (ab_cout || ab_md == 0) {
 		// Off or busy
 		when (AB_EVENT_OUT, st);
 		release;
@@ -233,7 +259,7 @@ void ab_outf (word st, const char *fm, ...) {
 		umwait (st);
 		release;
 	}
-	ab_new = YES;
+	ab_new = AB_XTRIES;
 	ptrigger (ab_handler, AB_EVENT_RUN);
 }
 
@@ -241,13 +267,13 @@ void ab_out (word st, char *str) {
 //
 // Send a formatted message; the string is assumed to have been malloc'ed
 //
-	if (ab_cout || !ab_running) {
+	if (ab_cout || ab_md == 0) {
 		when (AB_EVENT_OUT, st);
 		release;
 	}
 
 	ab_cout = str;
-	ab_new = YES;
+	ab_new = AB_XTRIES;
 	ptrigger (ab_handler, AB_EVENT_RUN);
 }
 

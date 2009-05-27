@@ -880,12 +880,12 @@ void phys_cc1100 (int phy, int mbs) {
 	bckf_timer = 0;
 
 	/* Start the processes */
-	zzv_drvprcs = runthread (cc1100_driver);
-
+	if ((zzv_drvprcs = runthread (cc1100_driver)) == 0
 #if RADIO_GUARD
-	runthread (cc1100_guard);
+		|| runthread (cc1100_guard) == 0
 #endif
-
+								)
+		syserror (ERESOURCE, "phys_cc1100");
 }
 
 static int option (int opt, address val) {

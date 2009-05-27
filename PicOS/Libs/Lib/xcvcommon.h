@@ -1,7 +1,7 @@
 #ifndef __pg_xcvcommon_h
 #define	__pg_xcvcommon_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -28,7 +28,8 @@ Finish:
 				hstat (HSTAT_SLEEP);
 			hard_drop;
 		}
-		finish;
+		wait (rxevent, RCV_GETIT);
+		release;
 	}
 	/*
 	 * Initialize things for reception. Note that the transmitter may be
@@ -162,14 +163,13 @@ static thread (xmtradio)
 			if (zzv_txoff == 3) {
 Drain:
 				tcvphy_erase (zzv_physid);
-				wait (zzv_qevent, XM_LOOP);
-				release;
 			} else if (zzv_txoff == 1) {
 				/* Queue held, transmitter off */
 				xmt_down ();
 				zzx_backoff = 0;
-				finish;
 			}
+			wait (zzv_qevent, XM_LOOP);
+			release;
 		}
 
 		// Now, as of 060523, tcvphy_get dequeues the buffer
@@ -343,5 +343,10 @@ Xmit:
 #endif
 
 endthread
+
+static int run_rf_driver () {
+
+	return runthread (rcvradio) && runthread (xmtradio);
+}
 
 #endif

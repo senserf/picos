@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -70,15 +70,16 @@ strand (rcvuart, uart_t)
     entry (RC_LOOP)
 
 	LEDIU (2, 0);
-	if (UA->v_flags & UAFLG_ROFF) {
-		UA->r_prcs = 0;
-		// Terminate
-		finish;
-	}
 
 	when (OFFEVENT, RC_LOOP);
-	when (RSEVENT, RC_START);
-	UART_START_RECEIVER;
+	if ((UA->v_flags & UAFLG_ROFF) == 0) {
+		// Do not terminate (as it used to be)! We should keep the
+		// process slot in case there is a congestion; it doesn't
+		// cost much, and we are always ready; note that we do not
+		// fork the process persistently
+		when (RSEVENT, RC_START);
+		UART_START_RECEIVER;
+	}
 	release;
 
     entry (RC_START)
@@ -155,14 +156,12 @@ strand (xmtuart, uart_t)
 		if ((UA->v_flags & UAFLG_DRAI)) {
 			// Draining
 Drain:
-			UART_STOP_XMITTER;
 			tcvphy_erase (UA->v_physid);
-			when (UA->x_qevent, XM_LOOP);
-			release;
 		}
-		// Queue held
-		UA->x_prcs = 0;
-		finish;
+		// Queue held: do not "finish", keep the process slot
+		UART_STOP_XMITTER;
+		when (UA->x_qevent, XM_LOOP);
+		release;
 	}
 
 	if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
@@ -244,16 +243,20 @@ static void start_uart (word what) {
 
 	if (what & 0x1) {
 		// Transmitter
-		if (UA->x_prcs == 0)
-			UA->x_prcs = runstrand (xmtuart, UA);
+		if (UA->x_prcs == 0) {
+			if ((UA->x_prcs = runstrand (xmtuart, UA)) == 0)
+				syserror (ERESOURCE, "phys_uart");
+		}
 		UA->v_flags &= ~(UAFLG_HOLD + UAFLG_DRAI);
 		trigger (UA->x_qevent);
 	}
 
 	if (what & 0x2) {
 		// Receiver
-		if (UA->r_prcs == 0)
-			UA->r_prcs = runstrand (rcvuart, UA);
+		if (UA->r_prcs == 0) {
+			if ((UA->r_prcs = runstrand (rcvuart, UA)) == 0)
+				syserror (ERESOURCE, "phys_uart");
+		}
 		UA->v_flags &= ~UAFLG_ROFF;
 		trigger (OFFEVENT);
 	}
@@ -497,9 +500,6 @@ static int option (int opt, address val) {
 // ============================================================================
 // ============================================================================
 
-
-
-
 #if UART_TCV_MODE == UART_TCV_MODE_P
 
 // ============================================================================
@@ -541,14 +541,12 @@ strand (xmtuart, uart_t)
 		}
 		if ((UA->v_flags & UAFLG_DRAI)) {
 			// Draining
-			UART_STOP_XMITTER;
 			tcvphy_erase (UA->v_physid);
-			wait (UA->x_qevent, XM_LOOP);
-			release;
 		}
+		UART_STOP_XMITTER;
 		// UAFLG_HOLD: queue held, no activity
-		UA->x_prcs = 0;
-		finish;
+		wait (UA->x_qevent, XM_LOOP);
+		release;
 	}
 
 	UA->x_buffp = 0;
@@ -700,16 +698,15 @@ strand (rcvuart, uart_t)
 
     entry (RC_LOOP)
 
+	wait (OFFEVENT, RC_LOOP);
+
 	if ((UA->v_flags & 0xc0)) {
 		UART_STOP_RECEIVER;
 		// Off
-		UA->r_prcs = 0;
-		finish;
+	} else {
+		wait (RSEVENT, RC_START);
+		UART_START_RECEIVER;
 	}
-
-	wait (OFFEVENT, RC_LOOP);
-	wait (RSEVENT, RC_START);
-	UART_START_RECEIVER;
 	release;
 
     entry (RC_START)
@@ -806,7 +803,10 @@ static void start_uart () {
 	if (UA->x_prcs == 0) {
 		UA->x_prcs = runstrand (xmtuart, UA);
 	}
-	trigger (UA->x_qevent);
+
+	if (UA->r_prcs == 0 || UA->x_prcs == 0)
+		syserror (ERESOURCE, "phys_uart");
+
 #undef	UA
 }
 
@@ -896,6 +896,10 @@ static int option (int opt, address val) {
 	    case PHYSOPT_ON:
 
 		START_UART (UA);
+Wake:
+		trigger (UA->x_qevent);
+		trigger (OFFEVENT);
+
 		break;
 
 	    case PHYSOPT_OFF:
@@ -905,8 +909,7 @@ static int option (int opt, address val) {
 			break;
 
 		UA->v_flags |= UAFLG_DRAI;
-		trigger (OFFEVENT);
-		break;
+		goto Wake;
 
 	    case PHYSOPT_HOLD:
 
@@ -914,8 +917,7 @@ static int option (int opt, address val) {
 			break;
 
 		UA->v_flags |= UAFLG_HOLD;
-		trigger (OFFEVENT);
-		break;
+		goto Wake;
 
 #if UART_RATE_SETTABLE
 
@@ -974,15 +976,14 @@ strand (rcvuart, uart_t)
     entry (RC_LOOP)
 
 	LEDIU (2, 0);
-	if (UA->v_flags & UAFLG_ROFF) {
-		UA->r_prcs = 0;
-		// Terminate
-		finish;
-	}
 
 	when (OFFEVENT, RC_LOOP);
-	when (RXEVENT, RC_END);
-	UART_START_RECEIVER;
+
+	if ((UA->v_flags & UAFLG_ROFF) == 0) {
+		// If not off
+		when (RXEVENT, RC_END);
+		UART_START_RECEIVER;
+	}
 	release;
 
     entry (RC_END)
@@ -1020,14 +1021,12 @@ strand (xmtuart, uart_t)
 		if ((UA->v_flags & UAFLG_DRAI)) {
 			// Draining
 Drain:
-			UART_STOP_XMITTER;
 			tcvphy_erase (UA->v_physid);
-			when (UA->x_qevent, XM_LOOP);
-			release;
 		}
-		// Queue held
-		UA->x_prcs = 0;
-		finish;
+		// Otherwise, the queue is being held
+		UART_STOP_XMITTER;
+		when (UA->x_qevent, XM_LOOP);
+		release;
 	}
 
 	if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
@@ -1103,16 +1102,20 @@ static void start_uart (word what) {
 
 	if (what & 0x1) {
 		// Transmitter
-		if (UA->x_prcs == 0)
-			UA->x_prcs = runstrand (xmtuart, UA);
+		if (UA->x_prcs == 0) {
+			if ((UA->x_prcs = runstrand (xmtuart, UA)) == 0)
+				syserror (ERESOURCE, "phys_uart");
+		}
 		UA->v_flags &= ~(UAFLG_HOLD + UAFLG_DRAI);
 		trigger (UA->x_qevent);
 	}
 
 	if (what & 0x2) {
 		// Receiver
-		if (UA->r_prcs == 0)
-			UA->r_prcs = runstrand (rcvuart, UA);
+		if (UA->r_prcs == 0) {
+			if ((UA->r_prcs = runstrand (rcvuart, UA)) == 0)
+				syserror (ERESOURCE, "phys_uart");
+		}
 		UA->v_flags &= ~UAFLG_ROFF;
 		trigger (OFFEVENT);
 	}

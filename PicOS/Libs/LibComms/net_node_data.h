@@ -21,7 +21,7 @@ int dm2200_init (word plug);
 #if ETHERNET_DRIVER
 int ether_init (word plug);
 #endif
-#if UART_DRIVER == 2
+#if UART_TCV
 int uart_init (word plug);
 #endif
 

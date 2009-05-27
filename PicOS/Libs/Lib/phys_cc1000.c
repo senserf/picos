@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -647,6 +647,9 @@ void phys_cc1000 (int phy, int mbs, int bau) {
 	ini_cc1000 (bau);
 
 	zzv_hstat = HSTAT_SLEEP;
+
+	if (run_rf_driver () == 0)
+		syserror (ERESOURCE, "phys_cc1000");
 }
 
 static int option (int opt, address val) {

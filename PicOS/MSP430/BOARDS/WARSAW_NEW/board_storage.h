@@ -27,9 +27,12 @@
 // SPI mode ===================================================================
 // ============================================================================
 
-#if	UART_DRIVER > 1 || UART_TCV > 1
+#if	UART_TCV > 1
 #error	"Cannot use two UARTs with SPI (needed for EEPROM)"
 #endif
+
+// Note: second UART is not pre-inited for this board; we will try to use
+// it together with SPI
 
 #ifndef	SPI_BAUD_RATE
 #define	SPI_BAUD_RATE	2	// the fastest

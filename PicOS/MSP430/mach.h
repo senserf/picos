@@ -65,7 +65,7 @@
 #endif
 
 #ifndef		RAM_SIZE
-#error	"untried yet CPU type: check MSP430/mach.h"
+#error	"S: untried yet CPU type: check MSP430/mach.h"
 #endif
 
 // ============================================================================

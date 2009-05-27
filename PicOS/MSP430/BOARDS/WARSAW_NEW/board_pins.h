@@ -130,6 +130,7 @@
 #define	GPS_UBR1		((UART_CLOCK_RATE/4800) / 256)
 #endif
 
+#if 0
 #define	gps_bring_up	do { \
 				_BIC (P5OUT, 0x40); \
 				cswitch_on (CSWITCH_GPS); \
@@ -142,7 +143,27 @@
 				_BIS (IFG2, UTXIFG1); \
 				_BIS (ME2, UTXE1 + URXE1); \
 				_BIS (UCTL1, CHAR); \
+				_BIC (UCTL1, SYNC + MM); \
 				_BIC (UCTL1, SWRST); \
+				mdelay (10); \
+				_BIS (P5OUT, 0x40); \
+				zz_uart [1] . flags = 0; \
+			} while (0)
+#endif
+
+#define	gps_bring_up	do { \
+				_BIC (P5OUT, 0x40); \
+				cswitch_on (CSWITCH_GPS); \
+				_BIS (P3SEL, 0xc0); \
+				_BIS (UCTL1, SWRST); \
+				UTCTL1 = UART_UTCTL; \
+				UBR01 = GPS_UBR0; \
+				UBR11 = GPS_UBR1; \
+				UMCTL1 = GPS_UMCTL; \
+				_BIS (IFG2, UTXIFG1); \
+				_BIS (ME2, UTXE1 + URXE1); \
+				_BIS (UCTL1, CHAR); \
+				_BIC (UCTL1, SYNC + MM + SWRST); \
 				mdelay (10); \
 				_BIS (P5OUT, 0x40); \
 				zz_uart [1] . flags = 0; \

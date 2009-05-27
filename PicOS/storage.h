@@ -7,10 +7,10 @@
 
 #include "sysio.h"
 #include "pins.h"
-#include "board_storage.h"
-#include "iflash.h"
 
 #ifdef	EEPROM_PRESENT
+
+#include "board_storage.h"
 
 word 	ee_read  (lword, byte*, word);
 word 	ee_write (word, lword, const byte*, word);
@@ -29,6 +29,8 @@ void	ee_init_erase ();
 
 #ifdef	SDCARD_PRESENT
 
+#include "board_storage.h"
+
 word	sd_open ();
 word	sd_read (lword, byte*, word);
 word	sd_write (lword, const byte*, word);
@@ -46,6 +48,8 @@ void	sd_init_erase ();
 #endif	/* SDCARD_PRESENT */
 
 #if	INFO_FLASH
+
+#include "iflash.h"
 
 // Operations on the internal "information" flash (also dubbed FIM)
 int	if_write (word, word);
