@@ -343,3 +343,18 @@ R090526A:
     Lots of cosmetics. Not everything has been tested yet. I am planning to
     add LCDG, OEP, and the functions operating on images (libLCDG), so this
     is just a snapshot.
+
+R090528A:
+
+    EEPROM/IFLASH model redone and greatly enhanced. Main features:
+
+	- preinitialization from the data set and from files
+	- backing files (i.e., the storage can be directly mirrored to/from
+	  a file)
+	- it is possible to change the default "erase byte" (from 0xFF) to
+	  anything
+
+    Read the red parts from VUE_doc.pdf.
+
+
+

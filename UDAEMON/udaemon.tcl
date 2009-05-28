@@ -563,7 +563,7 @@ proc uartEvnt { Sok } {
 # We need this nonsense because button release in tk_optionMenu returns the
 # old value of the option
 #
-	after 10 "connUart $Sok"
+	after 100 "connUart $Sok"
 }
 
 proc u_cdevl { pi } {

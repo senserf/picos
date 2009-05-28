@@ -21,8 +21,11 @@ void NVRAM::dump () {
 }
 #endif
 
-NVRAM::NVRAM (lword size, lword psize, FLAGS tp, double *bounds) {
+NVRAM::NVRAM (lword size, lword psize, FLAGS tp, byte cl, double *bounds,
+		const data_epini_t *init, const char *imf) {
 
+	off_t pos;
+	int fd;
 	lword k;
 
 	tsize = size;
@@ -58,14 +61,158 @@ NVRAM::NVRAM (lword size, lword psize, FLAGS tp, double *bounds) {
 				EP_N_BOUNDS * sizeof (double));
 		}
 	}
+
+	clean = cl;
+
+	if (imf) {
+		// We have an image file
+		TP |= NVRAM_FLAG_FIMAGE;
+		if ((fd = open (imf, O_CREAT | O_RDWR, 0660)) < 0)
+			excptn ("Root: failed to open NVRAM image file %s",
+				imf);
+		// This will be used as the file reference
+		esize = fd;
+
+		if ((pos = lseek (esize, 0, SEEK_END)) < 0)
+			excptn ("Root: problems accessing the image "
+				"file $fname");
+
+		if (pos > tsize)
+			// Truncate
+			ftruncate (esize, (off_t) tsize);
+		else if (pos < tsize)
+			empty (tsize - pos);
+	}
+
+	// Go through the inits
+	preset (init);
+
+	TP &= ~NVRAM_FLAG_UNSNCD;
 };
 
+void NVRAM::preset (const data_epini_t *ilist) {
+//
+// Pre-initialize the EEPROM
+//
+	lword adr, len;
+	int fd, k;
+	byte *buf;
+
+	buf = NULL;
+
+	while (ilist) {
+		adr = ilist->Address;
+		if ((len = ilist->Size) == 0) {
+			// This is a file
+			fd = open ((const char*)(ilist->chunk), O_RDONLY);
+			if (fd < 0)
+				excptn ("Root: cannot open nvram init file %s",
+					(const char*)(ilist->chunk));
+			if (buf == NULL)
+				buf = new byte [32768];
+			while (1) {
+				k = read (fd, buf, 32768);
+				if (k == 0)
+					// Done with this one
+					break;
+				if (k < 0)
+					excptn ("Root: cannot read nvram init "
+						"file %s", (const char*)
+							(ilist->chunk));
+				if (k + adr > tsize)
+					excptn ("Root: nvram init file %s"
+						" extends beyond the end of "
+						"storage", (const char*)
+							(ilist->chunk));
+
+				if (put (WNONE, adr, buf, k)) {
+Err:
+					excptn ("Root: cannot initialize nvram"
+						" (internal error)");
+				}
+				adr += k;
+			}
+			close (fd);
+		} else {
+			// Block
+			if (adr + len > tsize)
+				excptn ("Root: nvram init chunk for node %1d "
+					"extend %1d bytes beyond end of "
+					"storage", TheNode->getId (),
+						adr + len - tsize);
+			if (put (WNONE, adr, ilist->chunk, len))
+				goto Err;
+		}
+		ilist = ilist->Next;
+	}
+
+	if (buf)
+		delete buf;
+}
+				
 NVRAM::~NVRAM () {
 
-	erase (WNONE, 0, 0);
+	if ((TP & NVRAM_FLAG_FIMAGE) == 0) {
+		erase (WNONE, 0, 0);
+	} else {
+		close (esize);
+	}
 	if (ftimes)
 		delete ftimes;
 };
+
+void NVRAM::flush (const byte *buf, lword len) {
+//
+// Write len bytes to the image file at current location
+//
+	int k;
+
+	while (len) {
+		k = write (esize, buf, len);
+		if (k <= 0)
+			syserror (EHARDWARE, "nvram flush");
+		len -= k;
+		buf += k;
+	}
+}
+
+void NVRAM::fetch (byte *buf, lword len) {
+//
+// Read len bytes from the image file at current location
+//
+	int k;
+
+	while (len) {
+		k = read (esize, buf, len);
+		if (k <= 0)
+			syserror (EHARDWARE, "nvram fetch");
+		len -= k;
+		buf += k;
+	}
+}
+
+void NVRAM::empty (lword len) {
+//
+// Erase a chunk
+//
+	lword tl, i;
+	byte *buf;
+
+	if ((tl = len) > 32768)
+		tl = 32768;
+
+	buf = new byte [tl];
+	memset (buf, clean, tl);
+
+	while (len) {
+		if ((tl = len) > 32768)
+			tl = 32768;
+		flush (buf, tl);
+		len -= tl;
+	}
+
+	delete buf;
+}
 
 void NVRAM::merge (byte *target, const byte *source, lword length) {
 
@@ -87,6 +234,8 @@ void NVRAM::grow () {
 		chunks = (nvram_chunk_t*) ((chunks == NULL) ?
 		  malloc (esize * sizeof (nvram_chunk_t)) :
 		    realloc (chunks, esize * sizeof (nvram_chunk_t)));
+		if (chunks == NULL)
+			excptn ("NVRAM->grow: out of memory");
 	}
 }
 
@@ -119,6 +268,14 @@ word NVRAM::get (lword adr, byte *buf, lword len) {
 
 	TP &= ~NVRAM_FLAG_UNSNCD;
 
+	if ((TP & NVRAM_FLAG_FIMAGE) != 0) {
+		// From file
+		if (lseek (esize, (off_t) adr, SEEK_SET) < 0)
+			syserror (EHARDWARE, "nvram read");
+		fetch (buf, len);
+		return 0;
+	}
+
 	while (len && cur < asize) {
 
 		if (chunks [cur] . start <= adr) {
@@ -140,12 +297,12 @@ word NVRAM::get (lword adr, byte *buf, lword len) {
 			len -= n;
 
 			while (n--)
-				*buf++ = 0xff;
+				*buf++ = clean;
 		}
 	}
 
 	while (len--)
-		*buf++ = 0xff;
+		*buf++ = clean;
 #if 0
 	dump ();
 #endif
@@ -186,6 +343,14 @@ word NVRAM::put (word st, lword adr, const byte *buf, lword len) {
 				sleep;
 			}
 		}
+	}
+
+	if ((TP & NVRAM_FLAG_FIMAGE) != 0) {
+		// Into image file
+		if (lseek (esize, (off_t) adr, SEEK_SET) < 0)
+			syserror (EHARDWARE, "nvram read");
+		flush (buf, len);
+		return 0;
 	}
 
 	for (cur = 0; cur < asize; cur++) {
@@ -310,6 +475,13 @@ word NVRAM::erase (word st, lword adrf, lword len) {
 				sleep;
 			}
 		}
+	}
+
+	if ((TP & NVRAM_FLAG_FIMAGE) != 0) {
+		if (lseek (esize, (off_t) adrf, SEEK_SET) < 0)
+			syserror (EHARDWARE, "nvram erase");
+		empty (len);
+		return 0;
 	}
 
 	cur = 0;

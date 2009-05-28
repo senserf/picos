@@ -264,6 +264,18 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	ee_open()	0
 #define	ee_close()	CNOP
+#define	ee_panic()	CNOP
+
+#define	sd_open()	0
+#define	sd_close()	CNOP
+#define	sd_panic()	CNOP
+
+#define	sd_read(a,b,c)	ee_read (a, b, c)
+#define sd_write(a,b,c)	ee_write (WNONE, a, b, c)
+#define	sd_erase(a,b)	ee_erase (WNONE, a, b)
+#define	sd_sync()	ee_sync (WNONE)
+#define	sd_size()	ee_size (NULL, NULL)
+#define	sd_idle()	CNOP
 
 void zz_dbg (int, word);
 

@@ -30,9 +30,23 @@ typedef	struct {
 
 #define	EP_N_BOUNDS		6
 
+struct data_epini_struct {
+
+// EEPROM/IFLASH initializer
+
+	struct data_epini_struct *Next;	// They can be linked
+
+	byte	*chunk;		// Data or filename
+	lword	Size;		// Chunk size (if zero == filename)
+	lword	Address;	// Starting address
+
+};
+
+typedef	struct data_epini_struct data_epini_t;
+
 typedef struct {
 
-// EEPROM + IFLASH (FIM)
+// EEPROM + IFLASH (FIM); perhaps they should be separate
 
 	lword	EEPRS,		// EEPROM size in bytes
 		EEPPS;		// EEPROM page size
@@ -44,8 +58,18 @@ typedef struct {
 	// (min, max)
 	double	bounds [EP_N_BOUNDS];
 
+	// File names of "image"
+	char	*EPIF,
+		*IFIF;
+
 	word	IFLSS,		// IFLASH size
 		IFLPS;		// IFLASH page size
+
+	byte	EECL,		// Empty byte content (typically 00 or FF)
+		IFCL;	
+
+	// Initializer lists
+	data_epini_t *EPINI, *IFINI;
 
 	Boolean	absent;		// Explicitly absent
 

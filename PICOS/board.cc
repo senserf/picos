@@ -450,12 +450,15 @@ void PicOSNode::setup (data_no_t *nd) {
 	iflash = NULL;
 	if (nd->ep != NULL) {
 		data_ep_t *EP = nd->ep;
-		if (EP->EEPRS)
+		if (EP->EEPRS) {
 			eeprom = new NVRAM (EP->EEPRS, EP->EEPPS, EP->EFLGS,
-				EP->bounds);
-		if (EP->IFLSS)
+				EP->EECL, EP->bounds, EP->EPINI, EP->EPIF);
+		}
+		if (EP->IFLSS) {
 			iflash = new NVRAM (EP->IFLSS, EP->IFLPS, 
-				NVRAM_TYPE_NOOVER | NVRAM_TYPE_ERPAGE, NULL);
+				NVRAM_TYPE_NOOVER | NVRAM_TYPE_ERPAGE,
+					EP->EECL, NULL, EP->IFINI, EP->IFIF);
+		}
 	}
 
 	initParams ();
@@ -1882,11 +1885,7 @@ void BoardRoot::initPanels (sxml_t data) {
 			sts = (char*) find_strpool ((const byte*) str, len + 1,
 				YES);
 
-			print (form ("string '%c%c%c%c ...'\n",
-				sts [0],
-				sts [1],
-				sts [2],
-				sts [3] ));
+			print (form ("string '%4s ...'\n", sts));
 
 			create PanelHandler ((Dev*)sts, XTRN_IMODE_STRING|len);
 			continue;
@@ -1959,11 +1958,7 @@ void BoardRoot::initRoamers (sxml_t data) {
 			sts = (char*) find_strpool ((const byte*) str, len + 1,
 				YES);
 
-			print (form ("string '%c%c%c%c ...'\n",
-				sts [0],
-				sts [1],
-				sts [2],
-				sts [3] ));
+			print (form ("string '%4s ...'\n", sts));
 
 			create MoveHandler ((Dev*)sts, XTRN_IMODE_STRING | len);
 			continue;
@@ -2115,7 +2110,158 @@ IPointer PicOSNode::preinit (const char *tag) {
 
 	return 0;
 }
-	
+
+static data_epini_t *get_nv_inits (sxml_t nvs, const char *w, const char *esn) {
+//
+// Extract the list of initializers for NVRAM
+//
+	char es [64];
+	data_epini_t *hd, *cc, *ta;
+	sxml_t cur;
+	const char *att;
+	nparse_t np [1];
+	int len;
+	const char *sp, *ep;
+
+	strcpy (es, "<chunk> for ");
+	strcat (es, w);
+	strcat (es, " at ");
+	strcat (es, esn);
+
+
+	hd = NULL;
+	for (cur = sxml_child (nvs, "chunk"); cur != NULL;
+							cur = sxml_next (cur)) {
+		if ((att = sxml_attr (cur, "address")) == NULL)
+			att = sxml_attr (cur, "at");
+
+		if (att == NULL)
+			xemi ("address", es);
+
+		np [0].type = TYPE_LONG;
+		if (parseNumbers (att, 1, np) != 1)
+			xeai ("address", es, att);
+
+		ta = new data_epini_t;
+
+		ta->Address = (lword) (np [0].LVal);
+		ta->chunk = NULL;
+		ta->Size = 0;
+		ta->Next = NULL;
+
+		if ((att = sxml_attr (cur, "file")) != NULL) {
+			// The file name
+			len = strlen (att);
+			// No need to do this via a string pool, as the
+			// name will be deallocated after initialization
+			ta->chunk = (byte*) (new char [len + 1]);
+			strcpy ((char*)(ta->chunk), att);
+		} else {
+			// Count the bytes
+			att = sxml_txt (cur);
+			for (len = 0, sp = att; *sp != '\0'; len++) {
+				while (isspace (*sp)) sp++;
+				for (ep = sp; isxdigit (*ep) || *ep == 'x' ||
+					*ep == 'X'; ep++);
+				if (ep == sp)
+					// Something weird
+					break;
+				sp = ep;
+				while (isspace (*sp)) sp++;
+				if (*sp == ',')
+					sp++;
+			}
+
+			if (*sp != '\0')
+				excptn ("Root: a %s contains "
+					"an illegal character '%c'",
+						es, *sp);
+			if (len == 0)
+				excptn ("Root: a %s is empty", es);
+			// Allocate that many bytes
+			ta->chunk = new byte [ta->Size = len];
+
+			// And go through the second round of actually decoding
+			// the stuff
+			len = 0;
+			while (len < ta->Size) {
+				ta->chunk [len] = (byte) strtol (att,
+					(char**)&ep, 16);
+				if (ep == att) {
+					excptn ("Root: a %s contains garbage: "
+						"%16s", es, att);
+				}
+				while (isspace (*ep)) ep++;
+				if (*ep == ',')
+					ep++;
+				att = ep;
+				len++;
+			}
+		}
+
+		// Append at the end of current list
+		if (hd == NULL)
+			hd = cc = ta;
+		else {
+			cc->Next = ta;
+			cc = ta;
+		}
+	}
+
+	return hd;
+}
+
+static void print_nv_inits (const data_epini_t *in) {
+//
+// Print info regarding EEPROM/IFLASH initializers
+//
+	while (in != NULL) {
+		print (in->Size ?
+			form ("              Init: @%1d, chunk size %1d\n",
+				in->Address, in->Size)
+			:
+			form ("              Init: @%1d, file %s\n",
+				in->Address, (char*)(in->chunk))
+			);
+		in = in->Next;
+	}
+}
+
+static void deallocate_ep_def (data_ep_t *ep) {
+//
+// Deallocate EEPROM definition
+//
+	data_epini_t *c, *q;
+	int i;
+
+	for (i = 0; i < 2; i++) {
+		// Two initializer lists
+		if (i == 0) {
+			c = ep->EPINI;
+			if ((ep->EFLGS & NVRAM_NOFR_EPINIT))
+				continue;
+		} else {
+			c = ep->IFINI;
+			if ((ep->EFLGS & NVRAM_NOFR_IFINIT))
+				continue;
+		}
+		while (c != NULL) {
+			c = (q = c)->Next;
+			delete q->chunk;
+			delete q;
+		}
+	}
+
+	// Image file names
+	if (ep->EPIF)
+		delete ep->EPIF;
+
+	if (ep->IFIF)
+		delete ep->IFIF;
+
+	delete ep;
+}
+		 
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 	nparse_t np [2 + EP_N_BOUNDS];
@@ -2344,73 +2490,101 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		lword pgsz;
 
 		EP = ND->ep = new data_ep_t;
+		bzero (EP, sizeof (data_ep_t));
+
 		// Flag: FIM still inheritable from defaults
 		EP->IFLSS = WNONE;
 
-		EP->EFLGS = 0;
-
-		if ((att = sxml_attr (cur, "erase")) != NULL) {
-			if (strcmp (att, "block") == 0 || strcmp (att, "page")
-			    == 0)
-				EP->EFLGS |= NVRAM_TYPE_ERPAGE;
-			else if (strcmp (att, "byte") != 0)
-				xeai ("erase", "eeprom", att);
-		}
-
-		if ((att = sxml_attr (cur, "overwrite")) != NULL) {
-			if (strcmp (att, "no") == 0)
-				EP->EFLGS |= NVRAM_TYPE_NOOVER;
-			else if (strcmp (att, "yes") != 0)
-				xeai ("overwrite", "eeprom", att);
-		}
-
-		len = parseNumbers (sxml_txt (cur), EP_N_BOUNDS + 2, np);
-		if (len == 0)
-			excptn ("Root: at least one int number required in "
-				"<eeprom> in %s", xname (nn));
-
-		EP->EEPRS = (lword) (np [0] . LVal);
 		EP->EEPPS = 0;
-		for (i = 0; i < EP_N_BOUNDS; i++)
-			EP->bounds [i] = 0.0;
+		att = sxml_attr (cur, "size");
+		len = parseNumbers (att, 2, np);
+		// No size or size=0 means no EEPROM
+		EP->EEPRS = (len == 0) ? 0 : (lword) (np [0] . LVal);
 
-		// Check for pagesize and timing params
-		if (EP->EEPRS && len > 1) {
-			pgsz = (lword) (np [1] . LVal);
-			if (pgsz) {
-				// This is the number of pages, so turn it into
-				// a page size
-				if (pgsz > EP->EEPRS || (EP->EEPRS % pgsz) != 0)
-					excptn ("Root: number of eeprom pages, "
-						"%1d, is illegal in %s",
-							pgsz, xname (nn));
-				pgsz = EP->EEPRS / pgsz;
-			}
-			EP->EEPPS = pgsz;
-			for (i = 0; i < EP_N_BOUNDS; i++) {
-				if (i + 2 >= len)
-					break;
-				EP->bounds [i] =
-					np [i + 2] . DVal;
-			}
-		} 
-
-		for (i = 0; i < EP_N_BOUNDS; i += 2) {
-			if (EP->bounds [i] != 0.0 && EP->bounds [i+1] == 0.0)
-				EP->bounds [i+1] = EP->bounds [i];
-			if (EP->bounds [i] < 0.0 || EP->bounds [i+1] <
-			    EP->bounds [i] )
-				excptn ("Root: timing distribution parameters "
-					"for eeprom: %1g %1g are illegal in %s",
-						EP->bounds [i],
-						EP->bounds [i+1],
-						xname (nn));
-		}
-
+		// Number of pages
 		if (EP->EEPRS) {
+			// EEPRS == 0 means no EEPROM, no inheritance from
+			// defaults
+
+			if ((att = sxml_attr (cur, "erase")) != NULL) {
+				if (strcmp (att, "block") == 0 ||
+				    strcmp (att, "page") == 0)
+					EP->EFLGS |= NVRAM_TYPE_ERPAGE;
+				else if (strcmp (att, "byte") != 0)
+					xeai ("erase", "eeprom", att);
+			}
+
+			if ((att = sxml_attr (cur, "overwrite")) != NULL) {
+				if (strcmp (att, "no") == 0)
+					EP->EFLGS |= NVRAM_TYPE_NOOVER;
+				else if (strcmp (att, "yes") != 0)
+					xeai ("overwrite", "eeprom", att);
+			}
+
+			if (len > 1) {
+				pgsz = (lword) (np [1] . LVal);
+				if (pgsz) {
+					// This is the number of pages, so turn
+					// it into a page size
+					if (pgsz > EP->EEPRS ||
+					    (EP->EEPRS % pgsz) != 0)
+						excptn ("Root: number of eeprom"
+ 						    " pages, %1d, is illegal "
+						    "in %s", pgsz, xname (nn));
+					pgsz = EP->EEPRS / pgsz;
+				}
+				EP->EEPPS = pgsz;
+			} 
+
+			if ((att = sxml_attr (cur, "clean")) != NULL) {
+				if (parseNumbers (att, 1, np) != 1)
+					xeai ("clean", "eeprom", att);
+				EP->EECL = (byte) (np [0] . LVal);
+			} else 
+				// The default
+				EP->EECL = 0xff;
+
+			// Timing bounds
+			for (i = 0; i < EP_N_BOUNDS; i++)
+				EP->bounds [i] = 0.0;
+
+			if ((att = sxml_attr (cur, "timing")) != NULL) {
+				len = parseNumbers (att, EP_N_BOUNDS, np + 2);
+				for (i = 0; i < len; i++) {
+					EP->bounds [i] = np [i + 2] . DVal;
+				}
+			} 
+		
+			for (i = 0; i < EP_N_BOUNDS; i += 2) {
+
+				if (EP->bounds [i] != 0.0 &&
+				    EP->bounds [i+1] == 0.0)
+					EP->bounds [i+1] = EP->bounds [i];
+
+				if (EP->bounds [i] < 0.0 ||
+				    EP->bounds [i+1] < EP->bounds [i] )
+					excptn ("Root: timing distribution "
+						"parameters for eeprom: %1g %1g"
+						" are illegal in %s",
+							EP->bounds [i],
+							EP->bounds [i+1],
+							xname (nn));
+			}
+
+			if ((att = sxml_attr (cur, "image")) != NULL) {
+				// Image file
+				EP->EPIF = new char [strlen (att) + 1];
+				strcpy (EP->EPIF, att);
+			}
+
+			EP->EPINI = get_nv_inits (cur, "EEPROM", xname (nn));
+
 		   	print (form (
-				"  EEPROM:     %1d bytes, page size: %1d\n",
-					EP->EEPRS, EP->EEPPS));
+		"  EEPROM:     %1d bytes, page size: %1d, clean: %02x\n",
+					EP->EEPRS, EP->EEPPS, EP->EECL));
+			if (EP->EPIF)
+				print (form (
+				"              Image file: %s\n", EP->EPIF));
 			print (form (
 				"              W: [%1g,%1g], E: [%1g,%1g], "
 							"S: [%1g,%1g]\n",
@@ -2421,6 +2595,9 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 					EP->bounds [4],
 					EP->bounds [5],
 					EP->bounds [6]));
+
+			print_nv_inits (EP->EPINI);
+
 		} else
 			      print ("  EEPROM:     none\n");
 	}
@@ -2431,11 +2608,15 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 		if (EP == NULL) {
 			EP = ND->ep = new data_ep_t;
+			bzero (EP, sizeof (data_ep_t));
 			// Flag: EEPROM still inheritable from defaults
 			EP->EEPRS = LWNONE;
 		}
 
-		len = parseNumbers (sxml_txt (cur), 2, np);
+		// Get the size (as for EEPROM)
+		ifsz = 0;
+		att = sxml_attr (cur, "size");
+		len = parseNumbers (att, 2, np);
 		if (len != 1 && len != 2)
 			xevi ("<iflash>", xname (nn), sxml_txt (cur));
 		ifsz = (Long) (np [0].LVal);
@@ -2454,14 +2635,36 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		}
 		EP->IFLSS = (word) ifsz;
 		EP->IFLPS = (word) ifps;
-		if (ifsz) 
-		    	print (form (
-				"  IFLASH:     %1d bytes, page size: %1d\n",
-					ifsz, ifps));
-		else
-			 print ("  IFLASH:     none\n");
-	}
 
+		if (ifsz) {
+			// There is an IFLASH
+			EP->IFINI = get_nv_inits (cur, "IFLASH", xname (nn));
+
+			if ((att = sxml_attr (cur, "clean")) != NULL) {
+				if (parseNumbers (att, 1, np) != 1)
+					xeai ("clean", "iflash", att);
+				EP->IFCL = (byte) (np [0] . LVal);
+			} else 
+				// The default
+				EP->IFCL = 0xff;
+
+			if ((att = sxml_attr (cur, "image")) != NULL) {
+				// Image file
+				EP->IFIF = new char [strlen (att) + 1];
+				strcpy (EP->IFIF, att);
+			}
+
+		    	print (form (
+		"  IFLASH:     %1d bytes, page size: %1d, clean: %02x\n",
+					ifsz, ifps, EP->IFCL));
+			if (EP->IFIF)
+				print (form (
+				"              Image file: %s\n", EP->IFIF));
+			print_nv_inits (EP->IFINI);
+		} else
+			print ("  IFLASH:     none\n");
+	}
+		
 	if (EP != NULL) {
 		// Make this flag consistent
 		EP->absent = (EP->EEPRS == 0 && EP->IFLSS == 0);
@@ -2568,8 +2771,10 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 			UA->UOBSize = (word) (np [1].LVal);
 		}
 	}
-	print (form ("  UART [rate = %1d bps, bsize i = %1d, o = %d bytes]:\n",
-		(int)(UA->URate) * 100, UA->UIBSize, UA->UOBSize));
+	print (form ("  UART [rate = %1d bps, mode = %s, bsize i = %1d, "
+		"o = %d bytes]:\n", (int)(UA->URate) * 100,
+			UA->iface == UART_IMODE_P ? "packet" : "direct",
+				UA->UIBSize, UA->UOBSize));
 
 	UA->UMode = 0;
 	UA->UIDev = UA->UODev = NULL;
@@ -3670,6 +3875,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		NEP = NOD->ep;
 		DEP = DEF->ep;
+		if (DEP->EPIF != NULL || DEP->IFIF != NULL)
+			excptn ("Root: default <eeprom> or <iflash> cannot "
+				"specify an image file");
 		if (NEP == NULL) {
 			// Inherit the defaults
 			if (DEP != NULL && !(DEP->absent)) {
@@ -3685,7 +3893,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 				// FIXME: provide a function to copy this
 				NEP->EEPRS = DEP->EEPRS;
 				NEP->EEPPS = DEP->EEPPS;
-				NEP->EFLGS = DEP->EFLGS;
+				// Do not deallocate EPINI-ts
+				NEP->EFLGS = DEP->EFLGS | NVRAM_NOFR_EPINIT;
+				NEP->EPINI = DEP->EPINI;
 				for (j = 0; j < EP_N_BOUNDS; j++)
 					NEP->bounds [j] =
 						DEP->bounds [j];
@@ -3693,6 +3903,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 			if (NEP->IFLSS == WNONE) {
 				NEP->IFLSS = DEP->IFLSS;
 				NEP->IFLPS = DEP->IFLPS;
+				// Do not deallocate IFINI-ts
+				NEP->EFLGS |= NVRAM_NOFR_IFINIT;
+				NEP->IFINI = DEP->IFINI;
 			}
 		}
 
@@ -3829,7 +4042,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 		if (NOD->rf != NULL && NOD->rf != DEF->rf)
 			delete NOD->rf;
 		if (NOD->ep != NULL && NOD->ep != DEF->ep)
-			delete NOD->ep;
+			deallocate_ep_def (NOD->ep);
 		if (NOD->ua != NULL && NOD->ua != DEF->ua)
 			delete NOD->ua;
 		if (NOD->pn != NULL && NOD->pn != DEF->pn)
@@ -3848,7 +4061,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 	if (DEF->rf != NULL)
 		delete DEF->rf;
 	if (DEF->ep != NULL)
-		delete DEF->ep;
+		deallocate_ep_def (DEF->ep);
 	if (DEF->ua != NULL)
 		delete DEF->ua;
 	if (DEF->pn != NULL)
@@ -4132,14 +4345,15 @@ int zz_crunning (void *tid) {
 }
 	
 #include "stdattr_undef.h"
-
 #include "agent.cc"
 #include "rfmodule.cc"
 #include "net.cc"
 #include "plug_null.cc"
 #include "plug_tarp.cc"
 #include "tarp.cc"
+
 #include "uart_phys.cc"
+
 #include "xrs.cc"
 
 #endif
