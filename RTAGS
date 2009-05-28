@@ -3155,3 +3155,7 @@ R090526A:
 
 	XML data sets for VUEE praxes modified to account for the new <radio>
 	element required by VUEE in <node>.
+
+R090528A:
+
+	Praxis Apps/VUEE/XRSTest redone to test new EEPROM features of VUEE.
