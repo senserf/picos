@@ -558,14 +558,6 @@ proc uuRead { Sok } {
 	catch { puts -nonewline $Sok $chunk }
 }
 
-proc uartEvnt { Sok } {
-#
-# We need this nonsense because button release in tk_optionMenu returns the
-# old value of the option
-#
-	after 100 "connUart $Sok"
-}
-
 proc u_cdevl { pi } {
 #
 # Returns the candidate list of devices to open based on the port identifier
@@ -715,15 +707,20 @@ proc mkTerm { Sok tt hex } {
 		append pl " $i"
 	}
 
-	eval "tk_optionMenu $w.stat.usel.men Stat($Sok,U) $pl"
-
+	set dmn $w.stat.usel.men
+	eval "set mmn \[tk_optionMenu $dmn Stat($Sok,U) $pl\]"
 	set Stat($Sok,U) "Off"
+
+	foreach op $pl {
+		# button release in the menu doesn't work (the event
+		# is triggered before the change), but this does
+		$mmn entryconfigure $op -command "connUart $Sok"
+	}
+
 	# U-U UART device name for diagnostics
 	set Stat($Sok,Q) ""
 
-	pack $w.stat.usel.men -side left
-
-	bind $w.stat.usel.men <B1-ButtonRelease> "uartEvnt $Sok"
+	pack $dmn -side left
 
 	$w.t configure -state disabled
 
@@ -3483,7 +3480,7 @@ if { [info tclversion] < 8.5 } {
 }
 
 catch { close stdin }
-catch { close stdout }
-catch { close stderr }
+# catch { close stdout }
+# catch { close stderr }
 
 vwait forever

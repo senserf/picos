@@ -356,5 +356,10 @@ R090528A:
 
     Read the red parts from VUE_doc.pdf.
 
+R090529A:
 
+    Fixed a problem with UDAEMON's UART U-U connection. The selection didn't
+    work sometimes (you needed a second click) because "button release" in
+    tk_optionMenu (which I originally used) is not the right even for the
+    occasion.
 
