@@ -1577,32 +1577,41 @@ When found, it will be stored in {\tt DVal}.
 \noindent\hspace{-0.35in}{\bf {\tt TYPE\_LONG}}\\ \hspace{0in}
 The expected number is {\tt LONG}.
 When found, it will be stored in {\tt LVal}.
+If the number begins with {\tt 0x} or {\tt 0X}, possibly preceded by a
+sign, it will be decoded as hexadecimal.
 \end{quote}
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt TYPE\_int}}\\ \hspace{0in}
 The expected number is {\tt int}.
 When found, it will be stored in {\tt IVal}.
+If the number begins with {\tt 0x} or {\tt 0X}, possibly preceded by a
+sign, it will be decoded as hexadecimal.
 \end{quote}
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt TYPE\_hex}}\\ \hspace{0in}
-The expected number is a hexadecimally encoded {\tt int} value.
+The expected number is an integer-sized value
+coded in hex, regardless of whether it begins with {\tt 0x} or {\tt 0X}.
 When found, it will be stored in {\tt IVal}.
 \end{quote}
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt ANY}}\\ \hspace{0in}
 If the actual number is {\tt double}, but not {\tt LONG}, i.e., it has a decimal
-point or/and exponent, it will be stored in {\tt DVal}, and {\tt type}
+point or/and an exponent, it will be stored in {\tt DVal}, and {\tt type}
 will be set to {\tt TYPE\_double}.
 Otherwise, the number will be decoded as {\tt LONG} and stored in {\tt LVal},
 while {\tt type} will be set to {\tt TYPE\_LONG}.
+In the latter case, the number can also have the hex prefix ({\tt 0x} or
+{\tt 0X}) possibly preceded by a sign.
 \end{quote}
 
 The function value tells how many numbers have been located in the string.
 This can be more than {\tt n}, which means that some numbers were ignored
 because the {\tt res} array was too short.
+If any of the numbers encountered by the function overflows the limitations
+of its format, the function returns {\tt ERROR} (-127).
 
 \medskip
 

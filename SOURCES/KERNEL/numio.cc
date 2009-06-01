@@ -35,6 +35,19 @@ static  int             ni_counter = 0,         // Pending count for readInteger
 
 #ifdef	FLOATING_POINT
 
+static Boolean is_hex_prefix (const char *txt) {
+
+	if (*txt == '-' || *txt =='+')
+		txt++;
+
+	if (*txt != '0')
+		return NO;
+
+	txt++;
+
+	return (*txt == 'x' || *txt == 'X');
+}
+
 int parseNumbers (const char *txt, int max, nparse_t *res) {
 
 	int count = 0;
@@ -45,6 +58,7 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 	Boolean FPE, INE;
 
 	while (1) {
+
 		while (	*txt != '\0' &&
 				*txt != '+' &&
 					*txt != '-' &&
@@ -60,13 +74,16 @@ int parseNumbers (const char *txt, int max, nparse_t *res) {
 			switch (res->type) {
 
 			    case TYPE_hex:
-
+TryHex:
 				iv = (int) strtoll (txt, &en, 16);
 				goto Hex;
 
 			    case TYPE_int:
 
 				// Expect int
+				if (is_hex_prefix (txt))
+					goto TryHex;
+
 				iv = strtol (txt, &en, 10);
 Hex:
 				if (en == txt) {
@@ -90,12 +107,15 @@ Hex:
 			    case TYPE_LONG:
 
 				// Expect LONG
-				lv = strtoll (txt, &en, 10);
+				lv = strtoll (txt, &en,
+					is_hex_prefix (txt) ? 16 : 10);
+
 				if (en == txt) {
 					// No number
 					txt++;
 					continue;
 				}
+DecLong:
 				if (errno == ERANGE)
 					return ERROR;
 				res->LVal = lv;
@@ -119,20 +139,38 @@ Hex:
 
 			    default:
 
-			      if (res->type < 0) {
+				if (res->type >= 0)
+					excptn ("parseNumbers: illegal item "
+						"type: %1d", res->type);
+
+				// === no return ==============================
+
 				// Any type, determine based on number format
+				if (is_hex_prefix (txt)) {
+					lv = strtoll (txt, &en, 16);
+					if (en == txt) {
+						txt++;
+						continue;
+					}
+					res->type = TYPE_LONG;
+					goto DecLong;
+				}
+
+				// Try double
 				dv = strtod (txt, &en);
-				// Try double first
 				if (en == txt) {
 					// Failure
 					txt++;
 					continue;
 				}
+
 				// Check for error
 				FPE = (errno == ERANGE);
+
 				// Try LONG
 				lv = strtoll (txt, &em, 10);
 				INE = (errno == ERANGE);
+
 				if (INE && FPE)
 					// Error
 					return ERROR;
@@ -146,18 +184,22 @@ Hex:
 					res->DVal = dv;
 					txt = en;
 				}
-			      } else
-				excptn ("parseNumbers: illegal item type: %1d",
-					res->type);
 			}
 
 			res++;
 
 		} else {
-
-			// Skip a double (who cares)
-			strtod (txt, &en);
-			txt = (en == txt) ? txt + 1 : en;
+			// Skip the number
+			if (is_hex_prefix (txt)) {
+				// Hex?
+				txt += (*txt == '0' ? 2 : 3);
+				while (isxdigit (*txt))
+					txt++;
+			} else {
+				// Skip a double
+				strtod (txt, &en);
+				txt = (en == txt) ? txt + 1 : en;
+			}
 		}
 		count++;
 	}

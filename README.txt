@@ -989,3 +989,6 @@
 	   asynchronously via mailboxes.
 
  R090517A  Fixed a bug in Examples/WIRELESS/Easy.
+
+ R090601A  Function parseNumbers improved to recognize and properly handle hex
+	   prefixes (0x or 0X) in all integer numbers.
