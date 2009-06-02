@@ -29,6 +29,11 @@ __STATIC qhead_t	*oqueues [TCV_MAX_PHYS];
  */
 __STATIC int		physinfo [TCV_MAX_PHYS];
 
+/*
+ * Plugin registration table
+ */
+__STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
+
 
 #ifdef	__SMURPH__
 /*

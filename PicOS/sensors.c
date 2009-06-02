@@ -25,18 +25,22 @@ void zz_init_sensors () {
 
 #endif	/* SENSOR_LIST */
 
-void read_sensor (word st, word sn, address val) {
+word read_sensor (word st, word sn, address val) {
 
 #ifdef	SENSOR_LIST
 
 	sensdesc_t *s;
 
-	if (sn >= N_SENSORS)
-		syserror (EREQPAR, "read_sensor");
+	if (sn >= N_SENSORS) {
+		// Commissioned by Wlodek
+		(*val)++;
+		return ERROR;
+	}
 
 	s = sensmap + sn;
 
 	(*(s->fun_val)) (st, s->param, val);
+	return 0;
 #else
 	syserror (EREQPAR, "read_sensor");
 #endif

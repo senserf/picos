@@ -54,15 +54,6 @@ static void rlp (hblock_t*);
 
 #endif
 
-/*
- * Plugins. Again, plugins register into this table and are identified by
- * their indexes. This table is normally very small. 
- * Note: for __SMURPH__, we assume that the plugin is static, i.e., the same
- * for all nodes.
- */
-static const tcvplug_t	*plugins [TCV_MAX_PLUGS];
-
-
 __PRIVF (PicOSNode, void, dmpq) (qhead_t *q) {
 
 #if DUMP_MEMORY
@@ -1159,6 +1150,8 @@ __PUBLF (PicOSNode, void, tcv_init) () {
 		oqueues [i] = NULL;
 		physinfo [i] = 0;
 	}
+	for (i = 0; i < TCV_MAX_PLUGS; i++)
+		plugins [i] = NULL;
 #endif
 
 #if	TCV_TIMERS

@@ -3159,3 +3159,21 @@ R090526A:
 R090528A:
 
 	Praxis Apps/VUEE/XRSTest redone to test new EEPROM features of VUEE.
+
+R090602A:
+
+	Removed the restriction on TCV plugins in VUEE requiring their
+	configuration to be identical for all node types in the praxis. Note
+	that this fix is only relevant for VUEE, even though it belongs in
+	PicOS.
+
+	read_sensor now returns a value: 0 == OK, WNONE == no such sensor.
+	Additionally, in the latter case, it does (*val)++ (as a way of
+	implementing virtual/illusory sensors of any number).
+
+	Sensor definitions in data file large_eco.xml (in Apps/VUEE/eco_demo)
+	now roughly correspond (as far as timing and value ranges) to the
+	configuration of board ARTURO_PYR.
+
+	Hopefully, all sample data sets for VUEE models fixed according to the
+	new format of <eeprom>, <flash>, and <radio>.

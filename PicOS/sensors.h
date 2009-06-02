@@ -21,6 +21,6 @@ typedef	struct {
 
 } sensdesc_t;
 
-void read_sensor (word, word, address);
+word read_sensor (word, word, address);
 
 #endif
