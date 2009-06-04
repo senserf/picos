@@ -3177,3 +3177,19 @@ R090602A:
 
 	Hopefully, all sample data sets for VUEE models fixed according to the
 	new format of <eeprom>, <flash>, and <radio>.
+
+R090604A:
+
+        EcoNet (eco_demo) 1.3:
+        - changed the ver. in front.tcl and econnect.tcl
+        - 6 sensors (for phenology stations). Note that the 'satellite i/f'
+          stays with 3 values - variable number of sensors and its reporting
+          wait for a good design and rewrite.
+        - Storage is 'empty' with 0s or 0xFFs; EMPTY_STORAGE_FF removed.
+        - Storage writes not aligned with page lengths; EE_ERASE_ON_NEW_FLASH
+          set in options.*.
+        - Removed 'empty' flag & associated code once prepared for 'cricular'
+          storage.
+        - Shortened some insignificant strings (we're hitting the MSP's cap
+          with DIAG_MESSAGES at 2).
+
