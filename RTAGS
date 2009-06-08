@@ -3193,3 +3193,15 @@ R090604A:
         - Shortened some insignificant strings (we're hitting the MSP's cap
           with DIAG_MESSAGES at 2).
 
+R090607A:
+	EcoNet: if ee_open fails, red and blue (yellow) leds go ON. For SD,
+	retries happen, for eeprom the system is halted with the leds ON. On
+	present PhS hardware, ee_open fails a lot, so that is needed to clearly
+	mark the condition. The nodes do not go into maintenance mode, so power
+	cycling can put collector nodes in operation without the need to clear
+	special condition (exit the maintenance mode).
+
+	Seemingly, the failures happen when the power is supplied via USB, so
+	this is less alarming for normal field operations.
+
+
