@@ -3222,7 +3222,7 @@ R090609A:
 	up the obsession about transforming all your non-trivial functions
 	into node methods, it all becomes a bit more straightforward and less
 	messy. Note that those functions do not have to be methods, unless
-	you have multipl praxes in the same model and they use the same
+	you have multiple praxes in the same model and they use the same
 	names for their specific functions. And even then, those names will
 	only collide if the functions are global (i.e., for some reason you
 	cannot keep then static within their files). This is because node
@@ -3274,3 +3274,10 @@ R090609A:
 
 	ARTURO_PYR still doesn't compile with SD. Will fix that in the next
 	couple of days.
+
+R090609B:
+
+	Fixed all those VUEE-compatible praxes that compiled with the previous
+	version of VUEE to compile with the new one. Note: TNP and mm_demo do
+	not compile, but I don't think they should. Perhaps we should remove
+	them (after all, they can be easily found in the archive, if needed)?
