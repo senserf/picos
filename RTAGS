@@ -3247,7 +3247,7 @@ R090609A:
 	PicOSNode, whose structure is shared). I could not envision a
 	situation where that would make a difference. Note that not all
 	praxes have to use all features present in the node, and, in any
-	case, the reachest used set of features must be compiled in, anyway.
+	case, the richest used set of features must be compiled in, anyway.
 
 	The way you specify library components in options.sys is by defining
 	some of these symbols (note that they need not values):
