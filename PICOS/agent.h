@@ -28,6 +28,7 @@
 #define	SRQS_INPUT_BUFLEN	64		// SENSOR request buffer size
 #define	ARQS_INPUT_BUFLEN	64		// PANEL request buffer size
 #define	AUPD_OUTPUT_BUFLEN	64		// Actuator update buffer size
+#define	LCDG_OUTPUT_BUFLEN	1024		// LCDG output buffer size (bts)
 
 #define	XTRN_IMODE_NONE		(0<<29)
 #define	XTRN_IMODE_DEVICE	(1<<29)
@@ -63,6 +64,7 @@
 #define	AGENT_RQ_PANEL		5
 #define	AGENT_RQ_CLOCK		6
 #define	AGENT_RQ_SENSORS	7
+#define	AGENT_RQ_LCDG		8
 
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */
@@ -77,6 +79,7 @@
 #define	ECONN_DISCONN		10		/* This is in fact a dummy */
 #define	ECONN_LONG		11
 #define	ECONN_INVALID		12		/* Invalid request */
+#define	ECONN_NOLCDG		14		/* Code 13 unused */
 #define	ECONN_OK		129		/* Positive ack */
 
 #define	ThePicOSNode	((PicOSNode*)TheStation)
@@ -96,78 +99,26 @@ typedef	struct {
 			stnum:32;	// Station ID
 } rqhdr_t;
 
+struct lcdg_update_struct {
+//
+// LCDG update
+//
+	struct lcdg_update_struct *Next;
+
+	word Size;
+
+	// The size of this will vary
+	word Buf [0];
+};
+
+typedef struct lcdg_update_struct lcdg_update_t;
+
 mailbox Dev (int) {
 
-	inline int wl (int st, char *&buf, int &left) {
-		// This is for writing stuff potentially longer than the
-		// mailbox buffer
-		int nc;
-
-		while (left > 0) {
-			nc = (left > XTRN_MBX_BUFLEN) ? XTRN_MBX_BUFLEN : left;
-			if (this->write (buf, nc) != ACCEPTED) {
-				if (!isActive ())
-					return ERROR;
-				this->wait (OUTPUT, st);
-				sleep;
-			}
-			left -= nc;
-			buf += nc;
-		}
-		return OK;
-	}
-
-	inline int wi (int st, const char *buf, int nc) {
-		// This one is for writing short stuff (certainly not longer
-		// than the mailbox buffer)
-		assert (nc <= XTRN_MBX_BUFLEN, "Dev->w at %s: attempt to write"
-			" %1d bytes, which is more than %1d", nc,
-				XTRN_MBX_BUFLEN);
-		if (this->write (buf, nc) != ACCEPTED) {
-			if (!isActive ())
-				return ERROR;
-			this->wait (OUTPUT, st);
-			sleep;
-		}
-		return OK;
-	};
-
-	inline int ri (int st, char *buf, int nc) {
-		if (this->read (buf, nc) != ACCEPTED) {
-			if (!isActive ())
-				return ERROR;
-			this->wait (NEWITEM, st);
-			sleep;
-		}
-		return OK;
-	};
-
-	inline int rs (int st, char *&buf, int &left) {
-
-		int nk;
-
-		while (1) {
-			if ((nk = readToSentinel (buf, left)) == ERROR)
-				return ERROR;
-
-			if (nk == 0) {
-				this->wait (SENTINEL, st);
-				sleep;
-			}
-
-			left -= nk;
-			buf += nk;
-
-			// Check if the sentinel has been read
-			if (TheEvent)
-				// An alias for Info01, means that the
-				// sentinel was found
-				return OK;
-
-			if (left == 0)
-				return REJECTED;
-		} 
-	};
+	int wl (int, char*&, int&);
+	int wi (int, const char*, int);
+	int ri (int, char*, int);
+	int rs (int, char*&, int&);
 };
 
 process	UART_in;
@@ -405,6 +356,29 @@ mailbox MUpdates (Long) {
 };
 
 station PicOSNode;
+class PINS;
+
+class ButtonPin {
+
+	friend class PINS;
+	friend class ButtonRepeater;
+
+	TIME	LastUpdate;
+	Process	*Repeater;
+	PINS	*Pins;
+	byte	Polarity, Pin, State;
+
+	public:
+
+	// Pin number, polarity
+	ButtonPin (PINS*, byte, byte);
+
+	Boolean pinon ();
+
+	void update (word);
+
+	void reset ();
+};
 
 class PINS {
 /*
@@ -413,6 +387,8 @@ class PINS {
 	friend class PinsHandler;
 	friend class PinsInput;
 	friend class PulseMonitor;
+	friend class ButtonPin;
+	friend class ButtonRepeater;
 
 	TIME	TimedRequestTime;	// For timed updates
 
@@ -420,6 +396,8 @@ class PINS {
 		pmon_cmp;		// And comparator
 
 	PicOSNode	*TPN;		// Node backpointer
+
+	ButtonPin	**Buts;		// The buttons
 
 	byte	PIN_MAX,		// Number of pins (0 ... MAX - 1)
 		PIN_MAX_ANALOG,		// Analog capable pin range from 0
@@ -430,9 +408,19 @@ class PINS {
 		AASIZE,			// Analog pin array size
 		NASIZE,			// PASIZE in nibbles
 		MonPolarity,		// Trigger value of monitor pin
-		NotPolarity;		// Trigger value of notifier pin
+		NotPolarity,		// Trigger value of notifier pin
+		NButs;			// Number of buttons
 
-	Long	*Debouncers;		// Optional debouncers
+	Long	*Debouncers;		// Optional debouncers (7 entries)
+
+		// Debouncers:
+		//	- CNT on
+		//	- CNT off
+		//	- NOT on
+		//	- NOT off
+		//	- Button status change
+		//	- Button repeat delay
+		//	- Button repeat interval
 
 	Boolean	adc_inuse,		// Pending ADC cpnversion
 		pmon_cnt_on,		// Counter is ON
@@ -442,6 +430,7 @@ class PINS {
 		pmon_not_pending;	// Pending notifier event
 
 	const byte *DefIVa,		// Default (input) values
+		   *Buttons,		// Button mapping
 		   *Status;		// Which pins from the range are there
 
 	byte 	*Direction,		// Current direction of the pin
@@ -469,7 +458,12 @@ class PINS {
 
 	PUpdates *Upd;
 
-	Process	*InputThread, *OutputThread, *MonitorThread, *NotifierThread;
+	void (*ButtonsAction)(word);	// Function to call on button pressed
+
+	Process	*InputThread,
+		*OutputThread,
+		*MonitorThread,
+		*NotifierThread;
 
 	public:
 
@@ -487,6 +481,8 @@ class PINS {
 		// Clear n-th bit
 		b [n >> 3] &= ~(1 << (n & 7));
 	};
+
+	void reset_buttons ();
 
 	byte pin_gstat (word p);
 
@@ -585,6 +581,7 @@ class PINS {
 	// sense?
 	~PINS ();
 
+	void buttons_action (void (*)(word));
 	word pin_read (word);
 	int pin_write (word, word);
 	int pin_read_adc (word, word, word, word);
@@ -602,6 +599,45 @@ class PINS {
 	void pmon_dec_cnt ();
 	void pmon_sub_cnt (long);
 	void pmon_add_cmp (long);
+};
+
+process ButtonRepeater {
+
+	ButtonPin *BP;
+	PINS *PS;
+
+	Boolean done () {
+
+		return !BP->pinon () || PS->ButtonsAction == NULL;
+	};
+
+	void doaction () {
+
+		Station *sp;
+
+		sp = TheStation;
+		TheStation = (Station*)(PS->TPN);
+		(*(PS->ButtonsAction)) (PS->Buttons [BP->Pin]);
+		TheStation = sp;
+	};
+
+	Long debounce (int i) {
+		if (PS->Debouncers == NULL)
+			return 0;
+		return PS->Debouncers [i];
+	}
+
+	states { BRP_START, BRP_CHECK, BRP_REPEAT };
+
+	perform;
+
+	void setup (ButtonPin *bp) {
+		PS = (BP = bp)->Pins;
+	};
+
+	~ButtonRepeater () {
+		BP->Repeater = NULL;
+	};
 };
 
 class SNSRS {

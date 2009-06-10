@@ -34,6 +34,8 @@ typedef	unsigned char	byte;
 
 #define	heapmem		const static byte zz_heapmem [] =
 
+#define	join(p,s)	do { ((Process*)(p))->wait (DEATH, s); } while (0)
+
 /* ========================================================================== */
 
 #define	PHYSID			0

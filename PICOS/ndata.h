@@ -101,16 +101,19 @@ typedef struct {
 		MPIN,		// Pulse monitor pin
 		NPIN,		// Notifier pin
 		D0PIN,		// DAC pin 0
-		D1PIN;		// DAC pin 1
+		D1PIN,		// DAC pin 1
+		BPol;		// Polarity of buttons
 
 	const byte	*ST,	// Status
-			*IV;	// Default input values
+			*IV,	// Default input values
+			*BN;	// Button function number
 	const short	*VO;	// Default input voltage
 
 	const char	*PIDev,	// Input device
 			*PODev;	// Output device
 
-	Long		DEB[4];	// Debouncers for pin monitor
+	// Debouncers: 2 for CNT, 2 for NOT, 3 for Buttons
+	Long		DEB[7];	// Debouncers
 
 	Boolean	absent;		// Flag == explicitly absent
 
@@ -210,6 +213,7 @@ typedef struct {
 	word	PLimit;		// Process table size
 	word	Mem;		// Memory
 	word	On;		// Initially on
+	word	Lcdg;		// This will do for now as a flag
 	double X, Y;		// Coordinates
 	data_rf_t *rf;		// RF module data parameters
 	data_ep_t *ep;		// EEPROM parameters

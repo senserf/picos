@@ -34,7 +34,9 @@ static void mup_update (Long n) {
 }
 
 static int dechex (char *&bp) {
-
+//
+// Made global as being useful outside this file
+//
 	int res;
 
 	skipblk (bp);
@@ -60,6 +62,85 @@ static int dechex (char *&bp) {
 	}
 
 	return res;
+}
+
+int Dev::wl (int st, char *&buf, int &left) {
+	// This is for writing stuff potentially longer than the
+	// mailbox buffer
+	int nc;
+	Long bs;
+
+	if ((bs = getLimit ()) == 0)
+		// Disconnection
+		return ERROR;
+
+	while (left > 0) {
+		nc = (left > bs) ? (int) bs : left;
+		if (this->write (buf, nc) != ACCEPTED) {
+			if (!isActive ())
+				return ERROR;
+			this->wait (OUTPUT, st);
+			sleep;
+		}
+		left -= nc;
+		buf += nc;
+	}
+	return OK;
+}
+
+int Dev::wi (int st, const char *buf, int nc) {
+	// This one is for writing short stuff (certainly not longer
+	// than the mailbox buffer)
+	Long bs;
+	if ((bs = getLimit ()) == 0)
+		// Disconnection
+		return ERROR;
+	assert (nc <= bs, "Dev->w at %s: attempt to write %1d bytes, which is "
+		"more than %1d", TheStation->getSName (), nc, bs);
+	if (this->write (buf, nc) != ACCEPTED) {
+		if (!isActive ())
+			return ERROR;
+		this->wait (OUTPUT, st);
+		sleep;
+	}
+	return OK;
+}
+
+int Dev::ri (int st, char *buf, int nc) {
+	if (this->read (buf, nc) != ACCEPTED) {
+		if (!isActive ())
+			return ERROR;
+		this->wait (NEWITEM, st);
+		sleep;
+	}
+	return OK;
+}
+
+int Dev::rs (int st, char *&buf, int &left) {
+
+	int nk;
+
+	while (1) {
+		if ((nk = readToSentinel (buf, left)) == ERROR)
+			return ERROR;
+
+		if (nk == 0) {
+			this->wait (SENTINEL, st);
+			sleep;
+		}
+
+		left -= nk;
+		buf += nk;
+
+		// Check if the sentinel has been read
+		if (TheEvent)
+			// An alias for Info01, means that the
+			// sentinel was found
+			return OK;
+
+		if (left == 0)
+			return REJECTED;
+	} 
 }
 
 process	AgentConnector {
@@ -229,6 +310,22 @@ process LedsHandler {
 	void setup (PicOSNode*, LEDSM*, Dev*);
 
 	perform;
+};
+
+process LcdgHandler {
+
+	PicOSNode *TPN;
+	Dev *Agent;
+	LCDG *LC;
+	word *Buf, WNOP;
+	int Length;
+
+	states { AckLcdg, Loop, Send, SendNop };
+
+	void setup (PicOSNode*, Dev*);
+
+	perform;
+
 };
 
 UART::UART (data_ua_t *UAD) {
@@ -992,9 +1089,113 @@ short PINS::dac (word v, int ref) {
 	return (short) res;
 }
 
-PINS::PINS (data_pn_t *PID) {
+ButtonPin::ButtonPin (PINS *ps, byte pn, byte pol) {
+
+	Repeater = NULL;
+	Polarity = pol;
+	Pin = pn;
+	Pins = ps;
+	State = 0;	// Off
+}
+
+void ButtonPin::reset () {
+
+	if (Repeater != NULL) {
+		Repeater->terminate ();
+		// This is redundant
+		Repeater = NULL;
+	}
+
+	State = 0;
+	LastUpdate = TIME_0;
+}
+
+Boolean ButtonPin::pinon () {
+//
+// Tells if the current pin status is "on"
+//
+	int pv;
+
+	pv = PINS::gbit (Pins->IValues, Pin);
+	return (Polarity && pv) || (!Polarity && !pv);
+}
+
+void ButtonPin::update (word val) {
+
+	byte on;
+
+	// The current pin status
+	on = Polarity ? (val != 0) : (val == 0);
+
+	if (on) {
+		// The requested state is on
+		if (!Repeater)
+			Repeater = create (System) ButtonRepeater (this);
+	} else {
+		// The pin is OFF
+		if (Repeater)
+			Repeater->signal (0);
+	}
+}
+
+ButtonRepeater::perform {
+
+	Long di;
+
+	state BRP_START:
+
+		if (done ())
+			terminate;
+
+		doaction ();
+
+		// Check if should debounce
+		if ((di = debounce (4)) != 0) {
+			// Yes, wait for this much and check the status again
+			Timer->delay (MILLISECOND * di, BRP_CHECK);
+			sleep;
+		}
+
+	transient BRP_CHECK:
+
+		if (done ())
+			terminate;
+
+		this->wait (SIGNAL, BRP_CHECK);
+
+		if ((di = debounce (5)) != 0) {
+			// Wait for repeat
+			Timer->delay (MILLISECOND * di, BRP_REPEAT);
+			sleep;
+		}
+
+	state BRP_REPEAT:
+
+		if (done ())
+			terminate;
+
+		doaction ();
+
+		this->wait (SIGNAL, BRP_REPEAT);
+
+		if ((di = debounce (6)) == 0) 
+			di = debounce (5);
+		// Wait for repeat
+		Timer->delay (MILLISECOND * di, BRP_REPEAT);
+}
+		
+void PINS::reset_buttons () {
 
 	int i;
+
+	ButtonsAction = NULL;
+	for (i = 0; i < NButs; i++)
+		Buts [i] -> reset ();
+}
+
+PINS::PINS (data_pn_t *PID) {
+
+	int i, k;
 	byte *taken;
 
 	I = O = NULL;
@@ -1045,22 +1246,48 @@ PINS::PINS (data_pn_t *PID) {
 	DefAVo = PID->VO;
 	Status = PID->ST;
 
-	Debouncers = NULL;
+	// Debouncers: we need them for CNT and NOT, as well as the buttons
+	for (i = 0; i < 7; i++)
+		// We set them up, unless all entries in DEB are zero
+		if (PID->DEB [i] != 0)
+			break;
+	if (i < 7) {
+		Debouncers = new Long [7];
+		for (i = 0; i < 7; i++)
+			Debouncers [i] = PID->DEB [i];
+	} else {
+		Debouncers = NULL;
+	}
+	
+	// The buttons
+	NButs = 0;
+	if ((Buttons = PID->BN) != NULL) {
+		// Yes, it is a bit messy; we use two structures for pins;
+		// Buttons gives us a mapping from pin number to button number;
+		// Debouncing (timing) parameters are global for now (and so is
+		// the polarity), but this can be easily changed later
+		for (i = 0; i < PIN_MAX; i++) {
+			if (Buttons [i] != BNONE)
+				NButs++;
+		}
+		Buts = new ButtonPin* [NButs];
+		for (i = k = 0; i < PIN_MAX; i++) {
+			if (Buttons [i] != BNONE) {
+				Buts [k] = new ButtonPin (this, (byte)i,
+					PID->BPol);
+				k++;
+			}
+		}
+	} else {
+		Buts = NULL;
+	}
+			
 	PIN_MONITOR [0] = PIN_MONITOR [1] = BNONE;
 
 	if (PID->MPIN != BNONE || PID->NPIN != BNONE) {
 		// At least one of the monitor pins is defined; check for
 		// debouncers
-		for (i = 0; i < 4; i++)
-			if (PID->DEB [i] != 0)
-				break;
-		if (i < 4) {
-			// Allocate the debouncers array
-			Debouncers = new Long [4];
-			for (i = 0; i < 4; i++)
-				Debouncers [i] = PID->DEB [i];
-		}
-		if (PID->MPIN != BNONE) {
+	if (PID->MPIN != BNONE) {
 			Assert (PID->MPIN < PIN_MAX && gbit (taken, PID->MPIN)
 				== 0,
 		    	"PINS: illegal counter pin number %1d at %s", PID->MPIN,
@@ -1227,6 +1454,8 @@ void PINS::rst () {
 		NotifierThread->terminate ();
 		NotifierThread = NULL;
 	}
+
+	reset_buttons ();
 }
 
 PINS::~PINS () {
@@ -1310,9 +1539,18 @@ PulseMonitor::perform {
 
 		Timer->delay (MILLISECOND, WNewCyc);
 }
+
+void PINS::buttons_action (void (*act)(word)) {
+//
+// Declare a pin action function
+//
+	reset_buttons ();
+	ButtonsAction = act;
+}
 			
 void PINS::pin_new_value (word pin, word val) {
 
+	int i;
 	byte prev;
 
 	if (pin == PIN_MONITOR [0]) {
@@ -1387,6 +1625,15 @@ void PINS::pin_new_value (word pin, word val) {
 
 	// A regular pin, including those assigned to Pulse Monitor and
 	// Notifier, if not being used as such
+
+	if (Buttons != NULL && Buttons [pin] != BNONE) {
+		for (i = 0; i < NButs; i++) {
+			if (Buts [i] -> Pin == pin) {
+				Buts [i] -> update (val);
+				break;
+			}
+		}
+	}
 
 	if (val) {
 		sbit (IValues, pin);
@@ -2941,6 +3188,100 @@ Error:
 		proceed Loop;
 }
 
+// ============================================================================
+
+void LcdgHandler::setup (PicOSNode *tpn, Dev *a) {
+
+	lword c;
+
+	TPN = tpn;
+
+	// Note: we are never called with a == NULL, as a device (file)
+	// connection is handled separately (and can in fact coexist with
+	// a socket connection)
+
+	Agent = a;
+	LC = tpn->lcdg;
+	c = ECONN_OK;
+	if (LC == NULL)
+		c = ECONN_NOLCDG;
+	else if (LC->OutputThread != NULL)
+		c = ECONN_ALREADY;
+	if (c != ECONN_OK) {
+		create Disconnector (Agent, c);
+		terminate ();
+	} else {
+		Agent->resize (LCDG_OUTPUT_BUFLEN);
+		LC->init_connection (this);
+	}
+	// The NOP command
+	WNOP = htons (0x1000);
+}
+
+LcdgHandler::perform {
+//
+// We only handle socket output
+//
+	lword c;
+	lcdg_update_t *cu;
+
+	state AckLcdg:
+
+		c = htonl (ECONN_OK);
+ 		if (Agent->wi (AckLcdg, (char*)(&c), 4) == ERROR) {
+			// We are disconnected
+Disconnect:
+			delete Agent;
+			LC->close_connection ();
+			terminate;
+		}
+
+	transient Loop:
+
+		// This is the main loop
+		if (LC->UHead == NULL) {
+			// Periodic NOPs
+			Timer->delay (10.0, SendNop);
+			this->wait (SIGNAL, Loop);
+			sleep;
+		}
+
+		// This is in words
+		Length = LC->UHead->Size;
+		Buf = LC->UHead->Buf;
+
+		// Convert to network format
+#if BYTE_ORDER == LITTLE_ENDIAN
+		{
+			int i;
+			for (i = 0; i < Length; i++)
+				Buf [i] = htons (Buf [i]);
+		}
+#endif
+		// Make it bytes
+		Length <<= 1;
+
+	transient Send:
+
+		// Can we get away with wi instead of wl? Yep, we can.
+		if (Agent->wi (Send, (const char*)Buf, Length) == ERROR)
+			// Assume disconnection
+			goto Disconnect;
+
+		// Deallocate the head
+		LC->UHead = (cu = LC->UHead)->Next;
+		delete [] (byte*) cu;
+		proceed Loop;
+
+	state SendNop:
+
+		if (Agent->wi (SendNop, (const char*)(&WNOP), 2) == ERROR)
+			goto Disconnect;
+
+		proceed Loop;
+}
+// ============================================================================
+
 void MoveHandler::setup (Dev *a, FLAGS f) {
 
 	int i;
@@ -3701,6 +4042,13 @@ AgentConnector::perform {
 			case AGENT_RQ_PANEL:
 
 				create PanelHandler (Agent, XTRN_IMODE_SOCKET);
+				terminate;
+
+			case AGENT_RQ_LCDG:
+
+				// Note: the write-to-file option will be
+				// handled separately
+				create LcdgHandler (TPN, Agent);
 				terminate;
 
 			// More options will come later

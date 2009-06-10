@@ -11,6 +11,9 @@
 #include "tarp.h"
 #include "plug_tarp.h"
 #include "plug_null.h"
+#include "lcdg_n6100p_driver.h"
+
+#include "lib_params.h"
 
 #define	N_MEMEVENT	0xFFFF0001
 #define	PMON_CNTEVENT	0xFFFF0002
@@ -96,22 +99,9 @@ class uart_tcv_int_t {
 	byte	*r_buffp,	// Input buffer pointer
 		*x_buffp;	// Output buffer pointer
 
-	// === XRS ============================================================
-
-	// This part accommodates a portion of AB (i.e., XRS), namely, the
-	// bits that are not so local to the driver process. Tchnically,
-	// this should be kept separate from the packet UART driver. It may
-	// be OK, though, as XRS is a natural next layer to be used by the
-	// praxis on top of packet UART. The dilemma is this: should be put
-	// OEP into the same basket? Probably I will do it for now.
-
-	Boolean	ab_new;
-	byte	ab_md;
-	char	*ab_cout, *ab_cin;
-
 	void init () {
 		// At reset
-		bzero (this, sizeof (uart_tcv_int_t));
+		memset (this, 0, sizeof (uart_tcv_int_t));
 	};
 
 	void abort ();
@@ -260,6 +250,102 @@ station PicOSNode abstract {
 	 */
 	NVRAM		*eeprom, *iflash;
 
+	// ====================================================================
+
+	/*
+	 * Graphic LCD display
+	 */
+	LCDG		*lcdg;
+
+	void no_lcdg_module (const char*);
+
+	inline void _da (lcdg_on) (byte cn) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_on");
+		lcdg->m_lcdg_on (cn);
+	};
+
+	inline void _da (lcdg_off) () {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_off");
+		lcdg->m_lcdg_off ();
+	};
+
+	inline void _da (lcdg_set) (byte a, byte b, byte c, byte d) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_set");
+		lcdg->m_lcdg_set (a, b, c, d);
+	};
+
+	inline void _da (lcdg_get) (byte *a, byte *b, byte *c, byte *d) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_get");
+		lcdg->m_lcdg_get (a, b, c, d);
+	};
+
+	inline void _da (lcdg_setc) (byte a, byte b) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_setc");
+		lcdg->m_lcdg_setc (a, b);
+	};
+
+	inline void _da (lcdg_clear) () {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_clear");
+		lcdg->m_lcdg_clear ();
+	};
+
+	inline void _da (lcdg_render) (byte a, byte b, const byte *c, word d) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_render");
+		lcdg->m_lcdg_render (a, b, c, d);
+	};
+
+	inline word _da (lcdg_font) (byte a) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_font");
+		return lcdg->m_lcdg_font (a);
+	};
+
+	inline byte _da (lcdg_cwidth) () {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_cwidth");
+		return lcdg->m_lcdg_cwidth ();
+	};
+
+	inline byte _da (lcdg_cheight) () {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_cheight");
+		return lcdg->m_lcdg_cheight ();
+	};
+
+	inline word _da (lcdg_sett) (byte a, byte b, byte c, byte d) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_sett");
+		return lcdg->m_lcdg_sett (a, b, c, d);
+	};
+
+	inline void _da (lcdg_ec) (byte a, byte b, byte c) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_ec");
+		lcdg->m_lcdg_ec (a, b, c);
+	};
+
+	inline void _da (lcdg_el) (byte a, byte b) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_el");
+		lcdg->m_lcdg_el (a, b);
+	};
+
+	inline void _da (lcdg_wl) (const char *a, word b, byte c, byte d) {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_wl");
+		lcdg->m_lcdg_wl (a, b, c, d);
+	};
+
+	// ====================================================================
+
+
 	void _da (diag) (const char*, ...);
 
 	//
@@ -368,19 +454,17 @@ station PicOSNode abstract {
 	int    _da (ser_inf) (word, const char*, ...);
 
 	/*
-	 * XRS operations
-	 */
-	void   _da (ab_init) (int);
-	void   _da (ab_mode) (byte);
-	void   _da (ab_outf) (word, const char*, ...);
-	void   _da (ab_out) (word, char*);
-	int    _da (ab_inf) (word, const char*, ...);
-	char * _da (ab_in) (word);
-
-	/*
 	 * Operations on pins
 	 */
 	void no_pin_module (const char*);
+
+
+	inline void _da (buttons_action) (void (*act)(word)) {
+		if (pins == NULL)
+			no_pin_module ("buttons_action");
+		pins->buttons_action (act);
+	};
+
 
 	inline word  _da (pin_read) (word pn) {
 		if (pins == NULL)
@@ -518,6 +602,10 @@ station PicOSNode abstract {
 	// Note: static TCV data is initialized in tcv_init.
 #include "tcv_node_data.h"
 
+#include "lib_attributes.h"
+
+	// Praxis requested attributes (intended for libraries)
+
 	void setup (data_no_t*);
 
 	IPointer preinit (const char*);
@@ -583,62 +671,7 @@ process p_uart_xmt_p (PicOSNode) {
 	perform;
 };
 
-// === XRS ====================================================================
-
-process ab_driver_p (PicOSNode) {
-
-	uart_tcv_int_t *UA;
-
-	int	SID;			// Session ID
-
-	address	packet;
-
-	byte	ab_cur, ab_exp;
-
-	states { AB_LOOP, AB_RCV };
-
-	perform;
-
-	void setup (uart_tcv_int_t*, int);
-
-	Boolean ab_send (int);
-	void ab_receive ();
-};
-
 // ============================================================================
-
-station NNode abstract : PicOSNode {
-/*
- * A node equipped with NULL plugin
- */
-#include "plug_null_node_data.h"
-
-	void setup ();
-	virtual void reset ();
-};
-
-station TNode abstract : PicOSNode {
-/*
- * A node equipped with TARP stuff
- */
-
-// I have added the NULL plug, which costs nothing (one integer variable) in
-// terms of attributes, such that we can use it together with TARP, if desired;
-// this will be needed, say, for XRS; clumsy, clumsy, clumsy ... what about
-// the OEP plugin? Wouldn't it be better to have a separate node type? Yes,
-// I guess it would ... later. 
-// Note: don't modify PicOS includes for multiple inclusion (this can only
-// result in a mess); use #undefs, like the one below
-
-#undef __plug_null_node_data_h
-#include "plug_null_node_data.h"
-#include "net_node_data.h"
-#include "plug_tarp_node_data.h"
-#include "tarp_node_data.h"
-
-	void setup ();
-	virtual void reset ();
-};
 
 process	BoardRoot {
 

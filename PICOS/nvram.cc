@@ -147,7 +147,7 @@ Err:
 	}
 
 	if (buf)
-		delete buf;
+		delete [] buf;
 }
 				
 NVRAM::~NVRAM () {
@@ -211,7 +211,7 @@ void NVRAM::empty (lword len) {
 		len -= tl;
 	}
 
-	delete buf;
+	delete [] buf;
 }
 
 void NVRAM::merge (byte *target, const byte *source, lword length) {

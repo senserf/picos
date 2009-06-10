@@ -6,15 +6,20 @@ ln -sf ../../PICOS/PicOS/tcvphys.h .
 ln -sf ../../PICOS/PicOS/tcvplug.h .
 ln -sf ../../PICOS/PicOS/rfleds.h .
 ln -sf ../../PICOS/PicOS/ualeds.h .
+ln -sf ../../PICOS/PicOS/lcdg_n6100p.c lcdg_n6100p.cc
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null.c plug_null.cc
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null_node_data.h .
 ln -sf ../../PICOS/PicOS/Libs/Lib/plug_null_node_data_init.h .
+ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.h .
+ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.c encrypt.cc
+ln -sf ../../PICOS/PicOS/Libs/Lib/checksum.c checksum.cc
+ln -sf ../../PICOS/PicOS/Libs/Lib/ee_ol.c ee_ol.cc
+ln -sf ../../PICOS/PicOS/Libs/Lib/ee_ol.h ee_ol.h
 ####################################### LibComms
 ln -sf ../../PICOS/PicOS/Libs/LibComms/msg_tarp.h .
 ln -sf ../../PICOS/PicOS/Libs/LibComms/net.c net.cc
 ln -sf ../../PICOS/PicOS/Libs/LibComms/net_node_data.h .
-ln -sf ../../PICOS/PicOS/Libs/LibComms/net.h .
 ln -sf ../../PICOS/PicOS/Libs/LibComms/net_node_data_init.h .
 ln -sf ../../PICOS/PicOS/Libs/LibComms/plug_tarp.c plug_tarp.cc
 ln -sf ../../PICOS/PicOS/Libs/LibComms/plug_tarp.h .
@@ -25,11 +30,41 @@ ln -sf ../../PICOS/PicOS/Libs/LibComms/tarp.h .
 ln -sf ../../PICOS/PicOS/Libs/LibComms/tarp_hooks.h .
 ln -sf ../../PICOS/PicOS/Libs/LibComms/tarp_node_data.h .
 ln -sf ../../PICOS/PicOS/Libs/LibComms/tarp_node_data_init.h .
-
-ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.h .
-ln -sf ../../PICOS/PicOS/Libs/Lib/encrypt.c encrypt.cc
-ln -sf ../../PICOS/PicOS/Libs/Lib/checksum.c checksum.cc
+####################################### OEP
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep.c oep.cc
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep.h oep.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_node_data.h oep_node_data.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_node_data_init.h oep_node_data_init.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_params.h oep_params.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_types.h oep_types.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee_types.h oep_ee_types.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee_node_data.h oep_ee_node_data.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee_node_data_init.h oep_ee_node_data_init.h
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee.c oep_ee.cc
+ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee.h oep_ee.h
+####################################### LibXRS
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_node_data.h ab_node_data.h
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_node_data_init.h ab_node_data_init.h
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab.c ab.cc
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab.h ab.h
+####################################### LibLCDG
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman.c lcdg_dispman.cc
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman.h lcdg_dispman.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman_node_data.h lcdg_dispman_node_data.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman_node_data_init.h lcdg_dispman_node_data_init.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman_params.h lcdg_dispman_params.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman_types.h lcdg_dispman_types.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_images.c lcdg_images.cc
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_images.h lcdg_images.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_images_node_data.h lcdg_images_node_data.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_images_node_data_init.h lcdg_images_node_data_init.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_images_params.h lcdg_images_params.h
+ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_images_types.h lcdg_images_types.h
 ####################################### for completeness (PicOS side)
 ln -sf board.h form.h
 ln -sf board.h ser.h
 ln -sf board.h storage.h
+ln -sf board.h net.h
+ln -sf board.h lcdg_n6100p.h
+ln -sf board.h phys_uart.h
+ln -sf board.h pins.h

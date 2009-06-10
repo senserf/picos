@@ -2,9 +2,7 @@
 #define __picos_board_c__
 
 #include "board.h"
-
 #include "rwpmm.cc"
-
 #include "wchansh.cc"
 #include "encrypt.cc"
 #include "nvram.cc"
@@ -247,6 +245,9 @@ void PicOSNode::reset () {
 		ledsm->rst ();
 
 	initParams ();
+
+#include "lib_attributes_init.h"
+
 }
 
 void PicOSNode::initParams () {
@@ -461,6 +462,11 @@ void PicOSNode::setup (data_no_t *nd) {
 		}
 	}
 
+	if (nd->Lcdg)
+		lcdg = new LCDG;
+	else
+		lcdg = NULL;
+
 	initParams ();
 
 	// This can be optional based on whether the node is supposed to be
@@ -476,6 +482,9 @@ void PicOSNode::setup (data_no_t *nd) {
 	// This is TIME_0
 	SecondOffset = (long) ituToEtu (Time);
 	init ();
+
+#include "lib_attributes_init.h"
+
 }
 
 lword _dad (PicOSNode, seconds) () {
@@ -529,6 +538,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 
 	lsize = (lsize + 3) / 4;		// Convert to 4-tuples
 	if (lsize > MFree) {
+		//trace ("MEMALLOC OOM");
 		return NULL;
 	}
 
@@ -546,6 +556,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 	else
 		MTail->Next = mc;
 	MTail = mc;
+	//trace ("MEMALLOC %x [%1d, %1d]", mc->PTR, size, lsize);
 
 	return mc->PTR;
 }
@@ -573,6 +584,7 @@ void PicOSNode::memFree (address p) {
 			MFree += mc -> Size;
 			assert (MFree <= MTotal,
 				"PicOSNode->memFree: corrupted memory");
+			//trace ("MEMFREE OK: %x %1d", p, mc->Size);
 			delete mc;
 			TB.signal (N_MEMEVENT);
 			return;
@@ -580,7 +592,7 @@ void PicOSNode::memFree (address p) {
 
 	}
 
-	excptn ("PicOSNode->memFree: chunk not found");
+	excptn ("PicOSNode->memFree: chunk %x not found", p);
 }
 
 word _dad (PicOSNode, memfree) (int pool, word *res) {
@@ -1179,40 +1191,6 @@ void _dad (PicOSNode, if_erase) (int a) {
 	}
 };
 
-void NNode::setup () {
-
-#include "plug_null_node_data_init.h"
-
-}
-
-void NNode::reset () {
-
-	PicOSNode::reset ();
-
-#include "plug_null_node_data_init.h"
-
-}
-
-void TNode::setup () {
-
-#include "net_node_data_init.h"
-#include "plug_null_node_data_init.h"
-#include "plug_tarp_node_data_init.h"
-#include "tarp_node_data_init.h"
-
-}
-
-void TNode::reset () {
-
-	PicOSNode::reset ();
-
-#include "net_node_data_init.h"
-#include "plug_null_node_data_init.h"
-#include "plug_tarp_node_data_init.h"
-#include "tarp_node_data_init.h"
-
-}
-
 // =====================================
 // Root stuff: input data interpretation
 // =====================================
@@ -1486,9 +1464,13 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	att = sxml_txt (cur);
 	for (i = 0; i < NPTABLE_SIZE; i++)
 		np [i].type = TYPE_double;
-	if ((nb = parseNumbers (att, 5, np)) != 5)
-		excptn ("Root: expected 5 numbers in <shadowing>, found %1d",
-			nb);
+	if ((nb = parseNumbers (att, 5, np)) != 5) {
+		if (nb < 0)
+			excptn ("Root: illegal number in <shadowing>");
+		else
+			excptn ("Root: expected 5 numbers in <shadowing>,"
+				" found %1d", nb);
+	}
 
 	if (np [0].DVal != -10.0)
 		excptn ("Root: the factor in <shadowing> must be -10, is %f",
@@ -1508,9 +1490,14 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	if (nb > NPTABLE_SIZE)
 		excptn ("Root: <ber> table too large, increase NPTABLE_SIZE");
 
-	if (nb < 4 || (nb & 1) != 0)
-		excptn ("Root: illegal size of <ber> table (%1d), must be "
-			"an even number >= 4", np);
+	if (nb < 4 || (nb & 1) != 0) {
+		if (nb < 0)
+			excptn ("Root: illegal numerical value in <ber> table");
+		else
+			excptn ("Root: illegal size of <ber> table (%1d), "
+				"must be an even number >= 4", nb);
+	}
+
 	psir = HUGE;
 	pber = -1.0;
 	// This is the size of BER table
@@ -1576,7 +1563,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 			linTodB (STB[i].sir), STB[i].ber));
 	}
 
-	bzero (ivc, sizeof (ivc));
+	memset (ivc, 0, sizeof (ivc));
 
 	if ((cur = sxml_child (data, "rates")) == NULL)
 		xenf ("<rates>", "<network>");
@@ -1795,6 +1782,11 @@ RVErr:
 			if (j > NPTABLE_SIZE)
 				excptn ("Root: <channels> separation table too"
 					" large, increase NPTABLE_SIZE");
+
+			if (j < 0)
+				excptn ("Root: illegal numerical value in the "
+					"<channels> separation table");
+
 			if (j == 0) {
 				// No separations
 				dta = NULL;
@@ -2291,6 +2283,9 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 	ND->PLimit = WNONE;
 
+	// This is just a flag for now
+	ND->Lcdg = WNONE;
+
 	// The optionals
 	ND->rf = NULL;
 	ND->ua = NULL;
@@ -2344,6 +2339,20 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		ND->PLimit = (word) (np [0] . LVal);
 		print (form ("  Processes:  %1d\n", ND->PLimit));
 		ppf = YES;
+	}
+
+	/* LCDG */
+	if ((cur = sxml_child (data, "lcdg")) != NULL) {
+		att = sxml_attr (cur, "type");
+		if (att == NULL)
+			ND->Lcdg = 0;
+		else if (strcmp (att, "n6100p") == 0)
+			ND->Lcdg = 1;
+		else
+			excptn ("Root: 'type' for <lcdg> (%s) in %s can only "
+				"be 'n6100p' at present", att, xname (nn));
+		if (ND->Lcdg)
+			print (form ("  LCDG display: %s\n", att));
 	}
 
 /* ========= */
@@ -2490,14 +2499,18 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		lword pgsz;
 
 		EP = ND->ep = new data_ep_t;
-		bzero (EP, sizeof (data_ep_t));
+		memset (EP, 0, sizeof (data_ep_t));
 
 		// Flag: FIM still inheritable from defaults
 		EP->IFLSS = WNONE;
 
 		EP->EEPPS = 0;
 		att = sxml_attr (cur, "size");
-		len = parseNumbers (att, 2, np);
+
+		if ((len = parseNumbers (att, 2, np)) < 0)
+			excptn ("Root: illegal value in <eeprom> size for %s",
+				xname (nn));
+
 		// No size or size=0 means no EEPROM
 		EP->EEPRS = (len == 0) ? 0 : (lword) (np [0] . LVal);
 
@@ -2539,7 +2552,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 			if ((att = sxml_attr (cur, "clean")) != NULL) {
 				if (parseNumbers (att, 1, np) != 1)
 					xeai ("clean", "eeprom", att);
-				EP->EECL = (byte) (np [0] . LVal);
+				EP->EECL = (byte) (np [0]. LVal);
 			} else 
 				// The default
 				EP->EECL = 0xff;
@@ -2549,7 +2562,12 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 				EP->bounds [i] = 0.0;
 
 			if ((att = sxml_attr (cur, "timing")) != NULL) {
-				len = parseNumbers (att, EP_N_BOUNDS, np + 2);
+				if ((len = parseNumbers (att, EP_N_BOUNDS,
+					np + 2)) < 0)
+						excptn ("Root: illegal timing "
+							"value in <eeprom> for "
+							"%s", xname (nn));
+
 				for (i = 0; i < len; i++) {
 					EP->bounds [i] = np [i + 2] . DVal;
 				}
@@ -2608,7 +2626,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 		if (EP == NULL) {
 			EP = ND->ep = new data_ep_t;
-			bzero (EP, sizeof (data_ep_t));
+			memset (EP, 0, sizeof (data_ep_t));
 			// Flag: EEPROM still inheritable from defaults
 			EP->EEPRS = LWNONE;
 		}
@@ -2950,7 +2968,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 	PN->PMode = 0;
 	PN->NA = 0;
 	PN->MPIN = PN->NPIN = PN->D0PIN = PN->D1PIN = BNONE;
-	PN->ST = PN->IV = NULL;
+	PN->ST = PN->IV = PN->BN = NULL;
 	PN->VO = NULL;
 	PN->PIDev = PN->PODev = NULL;
 	PN->absent = NO;
@@ -2964,7 +2982,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 
 	np [0].type = np [1].type = np [2].type = TYPE_LONG;
 
-	for (len = 0; len < 4; len++)
+	for (len = 0; len < 7; len++)
 		PN->DEB [len] = 0;
 	
 	if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
@@ -3185,6 +3203,7 @@ NoPInput:
 				PINS::sbit (BS, pn);
 			else if (*sts != '0')
 				xevi ("<status>", es, str);
+			sts++;
 		}
 		print ("    STATUS: ");
 		for (pn = 0; pn < PN->NP; pn++)
@@ -3196,10 +3215,82 @@ NoPInput:
 			delete [] BS;
 	}
 
+	/* Buttons */
+	if ((cur = sxml_child (data, "buttons")) != NULL) {
+
+		// Polarity: default == high
+		PN->BPol = 1;
+		if ((att = sxml_attr (cur, "polarity")) != NULL &&
+			(*att == '0' || strcmp (att, "low") == 0))
+				PN->BPol = 0;
+
+		// Debounce/repeat
+		nj = 0;
+		if ((att = sxml_attr (cur, "timing")) != NULL) {
+			len = parseNumbers (att, 3, np);
+			if (len < 1 || len > 3)
+				xeai ("timing", es, att);
+			for (pn = 0; pn < len; pn++) {
+				if (np [pn].LVal < 0 || np [pn].LVal > MAX_UINT)
+					xeai ("timing", es, att);
+				PN->DEB [4 + pn] = (Long)(np [pn].LVal);
+			}
+			nj = 1;
+		}
+		// We expect at most NP integer (byte-sized) values
+		// identifying button numbers
+		BS = new byte [PN->NP];
+		npp = new nparse_t [PN->NP];
+		for (pn = 0; pn < PN->NP; pn++) {
+			// This means "not assigned to a button"
+			BS [pn] = BNONE;
+			npp [pn] . type = TYPE_int;
+		}
+		str = (char*) sxml_txt (cur);
+		if ((len = parseNumbers (str, PN->NP, npp)) < 0)
+			excptn ("Root: illegal int value in <buttons> for %s",
+				es);
+		if (len > PN->NP)
+			excptn ("Root: too many values in <buttons> for %s",
+				es);
+		for (pn = 0; pn < len; pn++) {
+			if ((ni = npp [pn] . IVal) < 0)
+				// This means skip
+				continue;
+			// Check if not taken
+			if (PN->ST != NULL && PINS::gbit (PN->ST, pn) == 0)
+				// Absent
+				excptn ("Root: pin %1d in <buttons> for %s is "
+					"declared as absent", pn, es);
+			if (ni > 254)
+				excptn ("Root: button number %1d in <buttons> "
+					"for %s is too big (254 is the max)",
+						ni, es);
+			BS [pn] = (byte) ni;
+		}
+
+		delete [] npp;
+
+		print ("    BUTTONS: ");
+		for (pn = 0; pn < PN->NP; pn++)
+			print (BS [pn] == BNONE ? "- " :
+				form ("%1d ", BS [pn]));
+		print ("\n");
+		if (nj)
+			// Timing
+			print (form ("      Timing: %1d, %1d, %1d\n",
+				PN->DEB [4], PN->DEB [5], PN->DEB [6]));
+
+		PN->BN = find_strpool ((const byte*)BS, PN->NP, NO);
+		if (PN->BN != BS)
+			// Recycled
+			delete [] BS;
+	}
+
 	/* Default (initial) pin values */
 	if ((cur = sxml_child (data, "values")) != NULL) {
 		BS = new byte [len = ((PN->NP + 7) >> 3)];
-		bzero (BS, len);
+		memset (BS, 0, len);
 		str = (char*)sxml_txt (cur);
 		if (sanitize_string (str) == 0)
 			xevi ("<values> string", es, "-empty-");
@@ -3215,6 +3306,7 @@ NoPInput:
 				PINS::sbit (BS, pn);
 			else if (*sts != '0')
 				xevi ("<values>", es, str);
+			sts++;
 		}
 		print ("    VALUES: ");
 		for (pn = 0; pn < PN->NP; pn++)
@@ -3230,7 +3322,7 @@ NoPInput:
 	if (PN->NA != 0 && ((cur = sxml_child (data, "voltages")) != NULL ||
 				(cur = sxml_child (data, "voltage")) != NULL)) {
 		SS = new short [PN->NA];
-		bzero (SS, PN->NA * sizeof (short));
+		memset (SS, 0, PN->NA * sizeof (short));
 		npp = new nparse_t [PN->NA];
 		for (pn = 0; pn < PN->NA; pn++)
 			npp [pn] . type = TYPE_double;
@@ -3238,6 +3330,9 @@ NoPInput:
 		len = parseNumbers (str, PN->NA, npp);
 		if (len > PN->NA)
 			excptn ("Root: too many FP values in <voltages> for %s",
+				es);
+		if (len < 0)
+			excptn ("Root: illegal FP value in <voltages> for %s",
 				es);
 		for (pn = 0; pn < len; pn++) {
 			d = (npp [pn] . DVal * 32767.0) / 3.3;
@@ -3390,7 +3485,7 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 	Type = strcmp (what, "sensor") ? SEN_TYPE_ACTUATOR : SEN_TYPE_SENSOR;
 	
 	res = new SensActDesc [n];
-	bzero (res, sizeof (SensActDesc) * n);
+	memset (res, 0, sizeof (SensActDesc) * n);
 	np [0].type = TYPE_LONG;
 	np [1].type = TYPE_LONG;
 
@@ -3425,6 +3520,9 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 		if (i == 0) {
 			// Assume unsigned full size
 			res [last] . Max = 0xffffffff;
+		} else if (i < 0) {
+			excptn ("Root: illegal numerical value for %s in %s",
+				what, erc);
 		} else {
 			if (np [0] . LVal <= 0)
 			   excptn ("Root: max value for %s in %s: is <= 0 (%s)",
@@ -3827,6 +3925,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 		if (NOD->PLimit == WNONE)
 			NOD->PLimit = DEF->PLimit;
 
+		if (NOD->Lcdg == WNONE)
+			NOD->Lcdg = DEF->Lcdg;
+
 		// === radio ==================================================
 
 		NRF = NOD->rf;
@@ -3973,6 +4074,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		if (NOD->PLimit == WNONE)
 			NOD->PLimit = 0;
+
+		if (NOD->Lcdg == WNONE)
+			NOD->Lcdg = 0;
 
 		if (NRF != NULL) {
 
@@ -4343,17 +4447,15 @@ int zz_crunning (void *tid) {
 
 	return np;
 }
-	
+
+#include "lcdg_n6100p.cc"
+
+#include "lib_modules.h"
+
 #include "stdattr_undef.h"
+
 #include "agent.cc"
 #include "rfmodule.cc"
-#include "net.cc"
-#include "plug_null.cc"
-#include "plug_tarp.cc"
-#include "tarp.cc"
-
 #include "uart_phys.cc"
-
-#include "xrs.cc"
 
 #endif

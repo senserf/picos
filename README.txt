@@ -360,6 +360,11 @@ R090529A:
 
     Fixed a problem with UDAEMON's UART U-U connection. The selection didn't
     work sometimes (you needed a second click) because "button release" in
-    tk_optionMenu (which I originally used) is not the right even for the
+    tk_optionMenu (which I originally used) is not the right event for the
     occasion.
 
+R090609A:
+
+    Removed node type NNode and TNode. Added a model for Nokia LCDG.
+    Lots of cosmetics and re-shuffling. Read RTAGS from PICOS for details.
+    Changes to the document are forthcoming.

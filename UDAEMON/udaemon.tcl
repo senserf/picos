@@ -270,6 +270,7 @@ proc dealloc { Sok } {
 	global Wins Stat Unique
 
 	ctimeout $Sok
+
 	if [info exists Wins($Sok)] {
 		set w $Wins($Sok)
 		if [winfo exists $w] {
@@ -380,7 +381,7 @@ proc uartIni { Sok } {
 	}
 
 	if { $res == "" } {
-		log "connection closed by peer"
+		log "connection closed by VUEE"
 		dealloc $Sok
 		return
 	}
@@ -583,8 +584,7 @@ proc connUart { Sok } {
 #
 	global Stat
 
-	if ![info exists Stat($Sok,U)] {
-		# we are delayed, so let us check for sure
+	if ![info exists Stat($Sok,Q)] {
 		return
 	}
 
@@ -872,7 +872,7 @@ proc clockIni { Sok } {
 	}
 
 	if { $res == "" } {
-		log "connection closed by peer"
+		log "connection closed by VUEE"
 		dealloc $Sok
 		return
 	}
@@ -1069,7 +1069,7 @@ proc ledsIni { Sok } {
 	}
 
 	if { $res == "" } {
-		log "connection closed by peer"
+		log "connection closed by VUEE"
 		dealloc $Sok
 		return
 	}
@@ -1101,7 +1101,7 @@ proc ledsFirst { Sok } {
 		}
 		if { $ch == "" } {
 			if [eof $Sok] {
-				log "connection closed by peer"
+				log "connection closed by VUEE"
 				dealloc $Sok
 			}
 			# wait for more
@@ -1309,6 +1309,302 @@ proc ledsBlinker { Sok } {
 	set Stat($Sok,G) [after $Stat($Sok,J) ledsBlinker $Sok]
 }
 
+proc lcdgHandler { stid } {
+
+	global PortNumber HostName Wins Stat
+
+	if [winlocate "g" $stid] {
+		return
+	}
+
+	set Wn ""
+	
+	log "connecting to LCDG at node $stid ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	set Wins($Sok) "x"
+	set Stat($Sok,S) $stid
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 8"
+	fileevent $Sok readable "lcdgIni $Sok"
+}
+
+proc lcdgIni { Sok } {
+
+	global Wins Stat ECONN_OK Unique
+
+	ctimeout $Sok
+
+	# connection code
+	if [catch { read $Sok 4 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		log "connection closed by VUEE"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinI res]
+	if { $code != $ECONN_OK } {
+		dealloc $Sok
+		log "connection rejected by SIDE: [conerror $code]"
+		return
+	}
+
+	# Create the window and image data
+	set Wn ".wg$Unique"
+	incr Unique
+
+	set Wins($Sok) $Wn
+	toplevel $Wn
+	wm title $Wn "LCDG: $Stat($Sok,S)"
+	set im [image create photo -width 130 -height 130]
+	set Stat($Sok,IM) $im
+	set w [label $Wn.im -image $im]
+	pack $w
+	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <B1-ButtonRelease> "lcdgRefresh $Sok"
+
+	# The default rectangle: full image
+	set Stat($Sok,X0) 0
+	set Stat($Sok,X1) 129
+	set Stat($Sok,Y0) 0
+	set Stat($Sok,Y1) 129
+
+	# last pixel (for a stray repeat)
+	set Stat($Sok,LP) 0
+
+	for { set y 0 } { $y <= 129 } { incr y } {
+		# create the row
+		set Stat($Sok,RA,$y) [lrepeat 130 "#FFFFFF"]
+	}
+
+	# Current x, y for pixel fill
+	set Stat($Sok,XC) 0
+	set Stat($Sok,YC) 0
+
+	# Status is on, so "off" request will be effective
+	set Stat($Sok,IS) 1
+	# And turn it off (blanking it out)
+	lcdgUPDI $Sok off
+
+	# wait for the updates
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "lcdgRead $Sok"
+	log "connection established"
+}
+
+proc lcdgRefresh { Sok } {
+
+	global Stat
+
+	if ![info exists Stat($Sok,IS)] {
+		# we are a zombie
+		return
+	}
+
+	set st $Stat($Sok,IS)
+
+	set Stat($Sok,IS) 0
+	lcdgUPDI $Sok "on"
+
+	set Stat($Sok,IS) $st
+}
+
+proc lcdgUPDI { Sok { on "" } } {
+#
+# Update the image
+#
+	global Stat
+
+	set im $Stat($Sok,IM)
+
+	set rows ""
+
+	if { $Stat($Sok,IS) == 0 } {
+		# display is off
+		if { $on != "on" } {
+			# do nothing
+			return
+		}
+		# turn on
+		set Stat($Sok,IS) 1
+		# display the whole image
+	} else {
+
+		# display is on
+		if { $on == "off" } {
+			# turn off
+			set Stat($Sok,IS) 0
+			$im blank
+			return
+		}
+	}
+
+	for { set y 0 } { $y <= 129 } { incr y } {
+		lappend rows $Stat($Sok,RA,$y)
+	}
+
+	$im put $rows
+}
+
+proc lcdgUPDP { Sok v } {
+#
+# Update a single pixel
+#
+	global Stat
+
+	# current position
+	set x $Stat($Sok,XC)
+	set y $Stat($Sok,YC)
+
+	set r [expr int(255.0 * (($v >> 8) & 0xF) / 15.0)]
+	set g [expr int(255.0 * (($v >> 4) & 0xF) / 15.0)]
+	set b [expr int(255.0 * (($v     ) & 0xF) / 15.0)]
+	# puts "PIXEL [format %04x $v] $r $g $b"
+
+	lset Stat($Sok,RA,$y) $x [format #%02X%02X%02X $r $g $b]
+
+	# advance
+	incr x
+	if { $x > $Stat($Sok,X1) } {
+		set x $Stat($Sok,X0)
+		incr y
+		if { $y > $Stat($Sok,Y1) } {
+			set y $Stat($Sok,Y0)
+		}
+		set Stat($Sok,YC) $y
+	}
+	set Stat($Sok,XC) $x
+}
+
+proc lcdgRead { Sok } {
+
+	global Wins Stat
+
+	while 1 {
+		if [catch { read $Sok } ch] {
+			# disconnection
+			dealloc $Sok
+			log "connection terminated: $ch"
+			return
+		}
+		if { $ch == "" } {
+			if [eof $Sok] {
+				log "connection closed by VUEE"
+				dealloc $Sok
+			}
+			return
+		}
+		if { $Stat($Sok,B) != "" } {
+			# there was a previous bit
+			set ch "$Stat($Sok,B)$ch"
+		}
+
+		# process the chunk
+		while { [string length $ch] > 1 } {
+
+			binary scan $ch S val
+
+			# word type
+			set tp [expr $val & 0x0F000]
+
+			if { $tp == 0 } {
+				# this is a pixel
+				lcdgUPDP $Sok $val
+				set Stat($Sok,LP) $val
+			} elseif { $tp == 0x1000 } {
+				# a command
+				set cmd [expr $val & 0x00F00]
+				if { $cmd == 0x300 } {
+					# set, requires 8 more bytes
+					if { [string length $ch] < 10 } {
+						# wait for more
+						break
+					}
+					set pm [string range $ch 2 9]
+					binary scan $pm SSSS x0 x1 y0 y1
+					# sanity check
+					if { $x0 < 0 || $x1 > 129 ||
+					     $y0 < 0 || $y1 > 129 ||
+					     $x0 > $x1 || $y0 > $y1 } {
+						log "illegal rectangle: $x0 $x1\
+							$y0 $y1, ignored"
+					} else {
+						set Stat($Sok,X0) $x0
+						set Stat($Sok,X1) $x1
+						set Stat($Sok,Y0) $y0
+						set Stat($Sok,Y1) $y1
+						set Stat($Sok,XC) $x0
+						set Stat($Sok,YC) $y0
+					}
+					set ch [string range $ch 10 end]
+					# puts "SET: $x0 $x1 $y0 $y1"
+					continue
+				}
+				if { $cmd == 0x400 } {
+					# update
+					if $Stat($Sok,IS) {
+						lcdgUPDI $Sok
+					}
+					# puts "UPDATE: $Stat($Sok,IS) [format %04X $val]"
+				} elseif { $cmd == 0x100 } {
+					# ON
+					if { $Stat($Sok,IS) == 0 } {
+						lcdgUPDI $Sok "on"
+					}
+					# puts "ON: $Stat($Sok,IS)"
+				} elseif { $cmd == 0x200 } {
+					# OFF
+					if { $Stat($Sok,IS) != 0 } {
+						lcdgUPDI $Sok "off"
+					}
+					# puts "OFF: $Stat($Sok,IS)"
+				} else {
+					if { $cmd != 0x000 } {
+						log "illegal LCDG command\
+						    [format %04X $val], ignored"
+					}
+					# puts "NOP: $Stat($Sok,IS) [format %04X $val]"
+				}
+
+			} elseif { [expr $val & 0x8000] != 0 } {
+
+				# last pixel repeat
+				set val [expr $val & 0x7fff]
+				set lp $Stat($Sok,LP)
+				# puts "REPEAT: [format %04x $lp] $val"
+				while { $val >= 0 } {
+					lcdgUPDP $Sok $lp
+					incr val -1
+				}
+			}
+
+			set ch [string range $ch 2 end]
+		}
+		# the leftover
+		set Stat($Sok,B) $ch
+	}
+		
+}
+				
 proc pinsHandler { stid } {
 
 	global PortNumber HostName Wins Stat
@@ -1357,7 +1653,7 @@ proc pinsIni { Sok } {
 
 	if { $res == "" } {
 		# closed
-		log "connection closed by peer"
+		log "connection closed by VUEE"
 		dealloc $Sok
 		return
 	}
@@ -1388,7 +1684,7 @@ proc pinsFirst { Sok } {
 		}
 		if { $ch == "" } {
 			if [eof $Sok] {
-				log "connection closed by peer"
+				log "connection closed by VUEE"
 				dealloc $Sok
 			}
 			# wait for more
@@ -1487,12 +1783,17 @@ proc pinsInput { Sok pin } {
 
 	set w [stwin $Sok]
 
+	if { $Stat($Sok,XC$pin) != "" } {
+		# temporarily disabled
+		return
+	}
+
 	set b $w.dig.i$pin
 	# the previous value
 	set ov $Stat($Sok,J$pin)
 	if { $ov == "-" } {
 		log "pin input ignored, pin $pin is not input"
-		return
+		return 0
 	}
 
 	if $ov {
@@ -1504,13 +1805,14 @@ proc pinsInput { Sok pin } {
 	if [catch { puts -nonewline $Sok "P $pin $ov\n" } ] {
 		log "connection to PINS[stName $Sok] terminated"
 		dealloc $Sok
-		return
+		return 0
 	}
 
 	$b configure -text $ov -activebackground $PIN_COLORS(A) \
 		-bg $PIN_COLORS(I,$ov)
 
 	set Stat($Sok,J$pin) $ov
+	return 1
 }
 
 proc setPinDac { Sok pin v } {
@@ -1572,9 +1874,11 @@ proc mkPins { Sok np na tt } {
 	for { set i 0 } { $i < $np } { incr i } {
 		grid rowconfigure $w.dig.d$i 0 -weight 1
 		grid rowconfigure $w.dig.o$i 0 -weight 1
-		grid rowconfigure $w.dig.i$i 0 -weight 1
+		set v $w.dig.i$i
+		grid rowconfigure $v 0 -weight 1
+		bind $v <B3-ButtonRelease> "pinsButt $Sok $i"
+		set Stat($Sok,XC$i) ""
 	}
-
 
 	# Analog input
 	if { $na > 0 } {
@@ -1610,6 +1914,38 @@ proc mkPins { Sok np na tt } {
 	}
 
 	bind $w <Destroy> "destroyWindow $Sok"
+}
+
+proc pinsButt { Sok pin } {
+
+	global Wins Stat
+
+	set w [stwin $Sok]
+
+	if { $Stat($Sok,XC$pin) != "" } {
+		# delay in progress
+		return
+	}
+
+	if [pinsInput $Sok $pin] {
+		# succeeded
+		set Stat($Sok,XC$pin) [after 300 pinsUnButt $Sok $pin]
+	}
+}
+
+proc pinsUnButt { Sok pin } {
+
+	global Wins Stat
+
+	set w [stwin $Sok]
+
+	if ![info exists Stat($Sok,XC$pin)] {
+		return
+	}
+
+	set Stat($Sok,XC$pin) ""
+
+	pinsInput $Sok $pin
 }
 
 proc toVoltage { v } {
@@ -1744,7 +2080,7 @@ proc sensorsIni { Sok } {
 
 	if { $res == "" } {
 		# closed
-		log "connection closed by peer"
+		log "connection closed by VUEE"
 		dealloc $Sok
 		return
 	}
@@ -1775,7 +2111,7 @@ proc sensorsFirst { Sok } {
 		}
 		if { $ch == "" } {
 			if [eof $Sok] {
-				log "connection closed by peer"
+				log "connection closed by VUEE"
 				dealloc $Sok
 			}
 			# wait for more
@@ -2081,7 +2417,7 @@ proc panelIni { Sok } {
 
 	if { $res == "" } {
 		# closed
-		log "connection closed by peer"
+		log "connection closed by VUEE"
 		dealloc $Sok
 		return
 	}
@@ -2131,7 +2467,7 @@ proc panelZero { Sok } {
 
 		if { $ch == "" } {
 			if [eof $Sok] {
-				log "connection closed by peer"
+				log "connection closed by VUEE"
 				dealloc $Sok
 			}
 			# wait for more
@@ -2376,7 +2712,7 @@ proc moveIni { Sok } {
 
 	if { $res == "" } {
 		# closed
-		log "connection closed by peer"
+		log "connection closed by VUEE"
 		dealloc $Sok
 		return
 	}
@@ -2428,7 +2764,7 @@ proc moveGNP { Sok } {
 		}
 		if { $ch == "" } {
 			if [eof $Sok] {
-				log "connection closed by peer"
+				log "connection closed by VUEE"
 				dealloc $Sok
 			}
 			# wait for more
@@ -3227,6 +3563,7 @@ proc conerror { code } {
        10 { return "unexpected disconnection" }
        11 { return "request line too long" }
        12 { return "invalid request" }
+       14 { return "no LCDG module at this node" }
     }
 
     return "error code $code (unknown)"
@@ -3389,6 +3726,11 @@ proc doConnect { } {
 			ledsHandler $StatId
 		}
 
+		"LCDG"	{ 
+			if [valsid] { return }
+			lcdgHandler $StatId
+		}
+
 		"ROAMER" {
 
 			moveHandler
@@ -3432,8 +3774,15 @@ button .top.quit -text "Quit" -command { destroy .top }
 button .top.connect -text "Connect" -command doConnect
 
 tk_optionMenu .top.select Option \
-	"UART (ascii)" "UART (hex)" "SENSORS" "PINS" "LEDS" "ROAMER" "PANEL" \
-		"CLOCK"
+	"UART (ascii)" \
+	"UART (hex)" \
+	"SENSORS" \
+	"PINS" \
+	"LEDS" \
+	"LCDG" \
+	"ROAMER" \
+	"PANEL" \
+	"CLOCK"
 
 label .top.l -text "Node Id:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \
@@ -3480,7 +3829,7 @@ if { [info tclversion] < 8.5 } {
 }
 
 catch { close stdin }
-# catch { close stdout }
-# catch { close stderr }
+catch { close stdout }
+catch { close stderr }
 
 vwait forever

@@ -66,17 +66,8 @@
 
 // ============================================================================
 
-#define ab_init(a)	(  ((PicOSNode*)TheStation)->_na_ab_init (a)  )
-#define ab_mode(a)	(  ((PicOSNode*)TheStation)->_na_ab_mode (a)  )
-#define ab_outf(a, ...)	\
-	(  ((PicOSNode*)TheStation)->_na_ab_outf (a, ## __VA_ARGS__)  )
-#define ab_out(a,b)	(  ((PicOSNode*)TheStation)->_na_ab_out (a,b)  )
-#define ab_inf(a, ...)	\
-	(  ((PicOSNode*)TheStation)->_na_ab_inf (a, ## __VA_ARGS__)  )
-#define ab_in(a)	(  ((PicOSNode*)TheStation)->_na_ab_in (a)  )
-
-// ============================================================================
-
+#define buttons_action(a) \
+			(  ((PicOSNode*)TheStation)->_na_buttons_action (a)  )
 #define pin_read(a)	(  ((PicOSNode*)TheStation)->_na_pin_read (a)  )
 #define pin_write(a,b)	(  ((PicOSNode*)TheStation)->_na_pin_write (a,b)  )
 #define pin_read_adc(a,b,c,d) \
@@ -117,28 +108,50 @@
 
 // ============================================================================
 
-#define net_opt(a,b)	(  ((TNode*)TheStation)->_na_net_opt (a,b)  )
-#define net_qera(a)	(  ((TNode*)TheStation)->_na_net_qera (a)  )
-#define net_qsize(a)	(  ((TNode*)TheStation)->_na_net_qsize (a) )
-#define net_init(a,b)	(  ((TNode*)TheStation)->_na_net_init (a,b)  )
-#define net_rx(a,b,c,d)	(  ((TNode*)TheStation)->_na_net_rx (a,b,c,d)  )
-#define net_tx(a,b,c,d)	(  ((TNode*)TheStation)->_na_net_tx (a,b,c,d)  )
-#define net_close(a)	(  ((TNode*)TheStation)->_na_net_close (a)  )
+#define lcdg_on(a)	(  ((PicOSNode*)TheStation)->_na_lcdg_on (a)  )
+#define lcdg_off()	(  ((PicOSNode*)TheStation)->_na_lcdg_off ()  )
+#define lcdg_set(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_lcdg_set (a, b, c, d)  )
+#define lcdg_get(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_lcdg_get (a, b, c, d)  )
+#define lcdg_setc(a,b)	(  ((PicOSNode*)TheStation)->_na_lcdg_setc (a, b)  )
+#define lcdg_clear()	(  ((PicOSNode*)TheStation)->_na_lcdg_clear ()  )
+#define lcdg_render(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_lcdg_render (a, b, c, d)  )
+#define lcdg_font(a)	(  ((PicOSNode*)TheStation)->_na_lcdg_font (a)  )
+#define lcdg_cwidth()	(  ((PicOSNode*)TheStation)->_na_lcdg_cwidth ()  )
+#define lcdg_cheight()	(  ((PicOSNode*)TheStation)->_na_lcdg_cheight ()  )
+#define lcdg_sett(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_lcdg_sett (a, b, c, d)  )
+#define lcdg_ec(a,b,c)	(  ((PicOSNode*)TheStation)->_na_lcdg_ec (a, b, c)  )
+#define lcdg_el(a,b)	(  ((PicOSNode*)TheStation)->_na_lcdg_el (a, b)  )
+#define lcdg_wl(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_lcdg_wl (a, b, c, d)  )
+
+// ============================================================================
+
+#define net_opt(a,b)	(  ((PicOSNode*)TheStation)->_na_net_opt (a,b)  )
+#define net_qera(a)	(  ((PicOSNode*)TheStation)->_na_net_qera (a)  )
+#define net_qsize(a)	(  ((PicOSNode*)TheStation)->_na_net_qsize (a) )
+#define net_init(a,b)	(  ((PicOSNode*)TheStation)->_na_net_init (a,b)  )
+#define net_rx(a,b,c,d)	(  ((PicOSNode*)TheStation)->_na_net_rx (a,b,c,d)  )
+#define net_tx(a,b,c,d)	(  ((PicOSNode*)TheStation)->_na_net_tx (a,b,c,d)  )
+#define net_close(a)	(  ((PicOSNode*)TheStation)->_na_net_close (a)  )
 
 // ============================================================================
 
 #define	getSpdCacheSize() \
-	(  ((TNode*)TheStation)->_na_getSpdCacheSize ()  )
+	(  ((PicOSNode*)TheStation)->_na_getSpdCacheSize ()  )
 #define	getDdCacheSize() \
-	(  ((TNode*)TheStation)->_na_getDdCacheSize ()  )
+	(  ((PicOSNode*)TheStation)->_na_getDdCacheSize ()  )
 #define	getDd(a,b,c) \
-	(  ((TNode*)TheStation)->_na_getDd (a,b,c)  )
+	(  ((PicOSNode*)TheStation)->_na_getDd (a,b,c)  )
 #define	getSpd(a,b,c) \
-	(  ((TNode*)TheStation)->_na_getSpd (a,b,c)  )
+	(  ((PicOSNode*)TheStation)->_na_getSpd (a,b,c)  )
 #define	getDdM(a) \
-	(  ((TNode*)TheStation)->_na_getDdM (a)  )
+	(  ((PicOSNode*)TheStation)->_na_getDdM (a)  )
 #define	getSpdM(a) \
-	(  ((TNode*)TheStation)->_na_getSpdM (a)  )
+	(  ((PicOSNode*)TheStation)->_na_getSpdM (a)  )
 
 // ============================================================================
 
@@ -217,17 +230,18 @@
 
 // ============================================================================
 
-#define	net_id			_dac (TNode, net_id)
-#define	local_host		_dac (TNode, local_host)
-#define	master_host		_dac (TNode, master_host)
-#define	tarp_ctrl		_dac (TNode, tarp_ctrl)
+#define	net_id			_dac (PicOSNode, net_id)
+#define	local_host		_dac (PicOSNode, local_host)
+#define	master_host		_dac (PicOSNode, master_host)
+#define	tarp_ctrl		_dac (PicOSNode, tarp_ctrl)
 
-#define	tr_offset(a) 		(  ((TNode*)TheStation)->_na_tr_offset (a)  )
-#define	msg_isBind(a) 		(  ((TNode*)TheStation)->_na_msg_isBind (a)  )
-#define	msg_isTrace(a) 		(  ((TNode*)TheStation)->_na_msg_isTrace (a)  )
-#define	msg_isMaster(a)		(  ((TNode*)TheStation)->_na_msg_isMaster (a)  )
-#define	msg_isNew(a) 		(  ((TNode*)TheStation)->_na_msg_isNew (a)  )
-#define	msg_isClear(a) 		(  ((TNode*)TheStation)->_na_msg_isClear (a)  )
-#define	set_master_chg()	(  ((TNode*)TheStation)->_na_set_master_chg ()  )
+#define	tr_offset(a) 	(  ((PicOSNode*)TheStation)->_na_tr_offset (a)  )
+#define	msg_isBind(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isBind (a)  )
+#define	msg_isTrace(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isTrace (a)  )
+#define	msg_isMaster(a)	(  ((PicOSNode*)TheStation)->_na_msg_isMaster (a)  )
+#define	msg_isNew(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isNew (a)  )
+#define	msg_isClear(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isClear (a)  )
+#define	set_master_chg() \
+			(  ((PicOSNode*)TheStation)->_na_set_master_chg ()  )
 
 #endif

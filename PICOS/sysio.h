@@ -9,6 +9,10 @@
 #undef	TCV_PRESENT
 #endif
 
+#ifndef	CODE_LONG_INTS
+#define	CODE_LONG_INTS	1
+#endif
+
 #define	CRC_ISO3309	1
 
 // This must be overriden because TCV is always compiled in
@@ -20,7 +24,7 @@
 
 #define	TCV_MAX_DESC	4
 #define	TCV_MAX_PHYS	2
-#define	TCV_MAX_PLUGS	2
+#define	TCV_MAX_PLUGS	3
 #define	TCV_LIMIT_RCV	0
 #define	TCV_LIMIT_XMT	0
 
@@ -132,6 +136,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	tfree(s)	(TheNode->memFree ((address)(s)))
 #define tmwait(s)	(TheNode->waitMem((int)(s)))
 
+#define	stackfree()	256
+
 #ifndef	NULL
 #define	NULL		0
 
@@ -155,6 +161,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	BLOCKED		(-2)
 
 #define	trigger(a)	(((PicOSNode*)TheStation)->TB.signal (__cpint(a)))
+#define	ptrigger(a,b)	trigger(b)
 
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
 	    ((a) - 'a' + 10) : (((a)>='A'&&(a)<='F') ? ((a) - 'A' + 10) : 0) ) )
@@ -178,11 +185,20 @@ typedef	int (*ctrlfun_t) (int option, address);
 #if	BYTE_ORDER == LITTLE_ENDIAN
 
 #define	ntowl(w)	((((w) & 0xffff) << 16) | (((w) >> 16) & 0xffff))
+#define	re_endian_w(w)	CNOP
+#define	re_endian_lw(w)	CNOP
 
 #else
 
 #define ntowl(w)	(w)
-
+#define	re_endian_w(w)	do { (w) = (((word)(w)) >> 8) | (((word)(w)) << 8); }\
+				while (0)
+#define	re_endian_lw(w)	do { (w) = ((((lword)(w)) >> 24)          ) | \
+				   ((((lword)(w)) >>  8) &  0xff00) | \
+				   ((((lword)(w)) <<  8) & 0xff000) | \
+				   ((((lword)(w)) << 24)          ) \
+			} while (0)
+				   
 #endif	/* LITTLE_ENDIAN */
 
 #define	wtonl(w)	ntowl (w)
@@ -211,6 +227,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	_da(a)				_na_ ## a
 #define	_dac(a,b)			(((a *)TheStation)-> _na_ ## b)
 #define	_dad(t,a)			t::_na_ ## a
+#define	_dap(b)				_dac (PicOSNode, b)
 
 #define	__PRIVF(ot,tp,nam)		tp ot::nam
 #define	__PUBLS(ot,tp,nam)		__PUBLF (ot, tp, nam)
@@ -221,6 +238,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	__CONST
 #define	__VIRTUAL	virtual
 #define	__ABSTRACT	= 0
+#define	__sinit(a)	
 
 #ifndef	THREADNAME
 #define	THREADNAME(a)	a

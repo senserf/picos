@@ -1,4 +1,8 @@
 #!/bin/sh
+rm -f phys_uart.h
+rm -f net.h
+rm -f pins.h
+rm -f lcdg_n6100p.h
 rm -f form.h
 rm -f ser.h
 rm -f storage.h
@@ -10,6 +14,7 @@ rm -f tcvphys.h
 rm -f tcvplug.h
 rm -f rfleds.h
 rm -f ualeds.h
+rm -f lcdg_n6100p.cc
 rm -f plug_null.h
 rm -f plug_null.cc
 rm -f plug_null_node_data.h
@@ -17,7 +22,6 @@ rm -f plug_null_node_data_init.h
 #################################
 rm -f msg_tarp.h
 rm -f net.cc
-rm -f net.h
 rm -f net_node_data.h
 rm -f net_node_data_init.h
 rm -f plug_tarp.cc
@@ -33,3 +37,36 @@ rm -f tarp_node_data_init.h
 rm -f encrypt.h
 rm -f encrypt.cc
 rm -f checksum.cc
+
+rm -f ab_node_data.h
+rm -f ab_node_data_init.h
+rm -f ab.cc
+rm -f ab.h
+
+rm -f oep.cc
+rm -f oep.h
+rm -f oep_node_data.h
+rm -f oep_node_data_init.h
+rm -f oep_params.h
+rm -f oep_types.h
+rm -f oep_ee_types.h
+rm -f oep_ee_node_data.h
+rm -f oep_ee_node_data_init.h
+rm -f oep_ee.cc
+rm -f oep_ee.h
+
+rm -f ee_ol.cc
+rm -f ee_ol.h
+
+rm -f lcdg_dispman.cc
+rm -f lcdg_dispman.h
+rm -f lcdg_dispman_node_data.h
+rm -f lcdg_dispman_node_data_init.h
+rm -f lcdg_dispman_params.h
+rm -f lcdg_dispman_types.h
+rm -f lcdg_images.cc
+rm -f lcdg_images.h
+rm -f lcdg_images_node_data.h
+rm -f lcdg_images_node_data_init.h
+rm -f lcdg_images_params.h
+rm -f lcdg_images_types.h
