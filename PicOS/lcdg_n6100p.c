@@ -3,119 +3,10 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "kernel.h"
-#include "pins.h"
-#include "lcdg_n6100p.h"
+#ifndef __lcdg_n6100p_c__
+#define __lcdg_n6100p_c__
 
-#ifdef LCDG_FONT_BASE
-// Need to access EEPROM
-#include "storage.h"
-#endif
-
-#ifndef	LCDG_N6100P_EPSON
-#define	LCDG_N6100P_EPSON	0
-#endif
-
-#if LCDG_N6100P_EPSON
-
-// Line/column offsets
-#define	LCDG_XOFF	0
-#define	LCDG_YOFF	2
-
-// ============================================================================
-#define DISON     	0xAF // Display on 
-#define DISOFF    	0xAE // Display off 
-#define DISNOR    	0xA6 // Normal display 
-#define DISINV    	0xA7 // Inverse display 
-#define COMSCN    	0xBB // Common scan direction 
-#define DISCTL    	0xCA // Display control 
-#define SLPIN     	0x95 // Sleep in 
-#define SLPOUT    	0x94 // Sleep out 
-#define PASET     	0x75 // Page address set 
-#define CASET     	0x15 // Column address set 
-#define DATCTL    	0xBC // Data scan direction, etc. 
-#define RGBSET8   	0xCE // 256-color position set 
-#define RAMWR     	0x5C // Writing to memory 
-#define RAMRD     	0x5D // Reading from memory 
-#define PTLIN     	0xA8 // Partial display in 
-#define PTLOUT    	0xA9 // Partial display out 
-#define RMWIN     	0xE0 // Read and modify write 
-#define RMWOUT    	0xEE // End 
-#define ASCSET    	0xAA // Area scroll set 
-#define SCSTART   	0xAB // Scroll start set 
-#define OSCON     	0xD1 // Internal oscillation on 
-#define OSCFF    	0xD2 // Internal oscillation off 
-#define PWRCTR    	0x20 // Power control 
-#define VOLCTR    	0x81 // Electronic volume control 
-#define VOLUP     	0xD6 // Increment electronic control by 1 
-#define VOLDOWN   	0xD7 // Decrement electronic control by 1 
-#define TMPGRD    	0x82 // Temperature gradient set 
-#define EPCTIN    	0xCD // Control EEPROM 
-#define EPCOUT    	0xCC // Cancel EEPROM control 
-#define EPMWR     	0xFC // Write into EEPROM 
-#define EPMRD     	0xFD // Read from EEPROM 
-#define EPSRRD1   	0x7C // Read register 1 
-#define EPSRRD2   	0x7D // Read register 2 
-#define NOP       	0x25 // NOP instruction 
-
-#else	/* PHILIPS */
-// ============================================================================
-
-#define	LCDG_XOFF	1
-#define	LCDG_YOFF	1
-
-#define	LNOP		0x00 // nop
-#define	SWRESET		0x01 // software reset
-#define	BSTROFF		0x02 // booster voltage OFF
-#define	BSTRON		0x03 // booster voltage ON
-#define	RDDIDIF		0x04 // read display identification
-#define	RDDST		0x09 // read display status
-#define	SLEEPIN		0x10 // sleep in
-#define	SLEEPOUT	0x11 // sleep out
-#define	PTLON		0x12 // partial display mode
-#define	NORON		0x13 // display normal mode
-#define	INVOFF		0x20 // inversion OFF
-#define	INVON		0x21 // inversion ON
-#define	DALO		0x22 // all pixels OFF
-#define	DAL		0x23 // all pixels ON
-#define	SETCON		0x25 // write contrast
-#define	DISPOFF		0x28 // display OFF
-#define	DISPON		0x29 // display ON
-#define	CASET		0x2A // column address set
-#define	PASET		0x2B // page address set
-#define	RAMWR		0x2C // memory write
-#define	RGBSET		0x2D // colour set
-#define	PTLAR		0x30 // partial area
-#define	VSCRDEF		0x33 // vertical scrolling definition
-#define	TEOFF		0x34 // test mode
-#define	TEON		0x35 // test mode
-#define	MADCTL		0x36 // memory access control
-#define	SEP		0x37 // vertical scrolling start address
-#define	IDMOFF		0x38 // idle mode OFF
-#define	IDMON		0x39 // idle mode ON
-#define	COLMOD		0x3A // interface pixel format
-#define	SETVOP		0xB0 // set Vop
-#define	BRS		0xB4 // bottom row swap
-#define	TRS		0xB6 // top row swap
-#define	DISCTR		0xB9 // display control
-#define	DOR		0xBA // data order
-#define	TCDFE		0xBD // enable/disable DF temperature compensation
-#define	TCVOPE		0xBF // enable/disable Vop temp comp
-#define	EC		0xC0 // internal or external oscillator
-#define	SETMUL		0xC2 // set multiplication factor
-#define	TCVOPAB		0xC3 // set TCVOP slopes A and B
-#define	TCVOPCD		0xC4 // set TCVOP slopes c and d
-#define	TCDF		0xC5 // set divider frequency
-#define	DF8COLOR	0xC6 // set divider frequency 8-color mode
-#define	SETBS		0xC7 // set bias system
-#define	RDTEMP		0xC8 // temperature read back
-#define	NLI		0xC9 // n-line inversion
-#define	RDID1		0xDA // read ID1
-#define	RDID2		0xDB // read ID2
-#define	RDID3		0xDC // read ID3
-
-#endif	/* PHILIPS or EPSON */
-// ============================================================================
+#include "lcdg_n6100p_driver.h"
 
 #define	LCDG_MAXXP	(LCDG_XOFF+LCDG_MAXX)
 #define	LCDG_MAXYP	(LCDG_YOFF+LCDG_MAXY)
@@ -133,11 +24,7 @@
 #define ORANGE        /* 0x05F*/	0xFA0 
 #define PINK          /* 0x095*/	0xF6A 
 
-static
-#ifndef	LCDG_SETTABLE_CTABLE
-const
-#endif
-word ctable12 [] = {
+static const word ctable12 [] = {
     WHITE, BLACK, RED, GREEN, BLUE, CYAN, MAGENTA, YELLOW, BROWN, ORANGE, PINK
 };
 
@@ -169,6 +56,244 @@ static const byte rgbtable [] = {
 
 #define	N_COLORS	(sizeof (ctable12) / sizeof (word))
 
+#ifdef	__SMURPH__
+
+// ============================================================================
+// === VUEE ===================================================================
+// ============================================================================
+
+#define	nlcd_cs_down	CNOP
+
+// Use this to flush pixel updates; also, use a special update to tell
+// UDAEMON that that's the end
+#define	nlcd_cs_up	update_flush ()
+#define	_lcdgm_(a)	LCDG::m_ ## a
+
+void PicOSNode::no_lcdg_module (const char *fn) {
+
+	excptn ("%s: no LCDG module at %s", fn, getSName ());
+}
+
+LCDG::LCDG () {
+
+	memset (canvas, 0, sizeof (canvas));
+
+	ONStat = NO;
+
+	X_org = LCDG_XOFF;
+	Y_org = LCDG_YOFF;
+	X_last = LCDG_MAXX;
+	Y_last = LCDG_MAXY;
+
+	ColF = 0;
+	ColB = 0;
+
+	OutputThread = NULL;
+	UHead = NULL;
+
+	// This is the default contrast for Philips
+	Contrast = 0x37;
+
+	// No updates
+	updp = 0;
+
+	SPC = 0;
+	LP = WNONE;
+}
+
+void LCDG::queue () {
+
+	lcdg_update_t *cu;
+	int nb;
+
+	if (updp == 0)
+		return;
+
+	nb = (updp << 1);
+	cu = (lcdg_update_t*) new byte [(sizeof (lcdg_update_t) + nb)];
+
+	cu->Next = NULL;
+	cu->Size = updp;
+
+	memcpy (cu->Buf, updbuf, nb);
+
+	if (UHead == NULL) {
+		UHead = UTail = cu;
+		OutputThread->signal (NULL);
+	} else
+		UTail = (UTail->Next = cu);
+
+	updp = 0;
+}
+
+void LCDG::set_to_render (byte y0, byte y1, byte x0, byte x1) {
+
+	if (OutputThread) {
+		update_fpx ();
+		update (LCDG_NOT_SET);
+		update (x0);
+		update (x1);
+		update (y0);
+		update (y1);
+	}
+
+	XC = X0 = x0;
+	YC = Y0 = y0;
+	X1 = x1;
+	Y1 = y1;
+	PC = 0;
+}
+
+void LCDG::update_fpx () {
+//
+// Flush any pending pixel repeat
+//
+	if (SPC) {
+		// Pixel count pending
+		if (updp == LCDG_OUTPUT_BUFSIZE)
+			queue ();
+
+		updbuf [updp++] = (0x8000 | (SPC - 1));
+		SPC = 0;
+	}
+
+	LP = WNONE;
+}
+
+void LCDG::update_flush () {
+
+	if (OutputThread == NULL)
+		// Have to check because we can be called via the
+		// nlcd_cs_up hack
+		return;
+
+	update_fpx ();
+
+	// Insert an UPD command
+
+	if (updp == LCDG_OUTPUT_BUFSIZE)
+		queue ();
+
+	updbuf [updp++] = LCDG_NOT_UPD;
+	queue ();
+}
+
+void LCDG::init_connection (Process *h) {
+
+	assert (OutputThread == NULL, "LCDG->init_connection: second thread");
+	assert (UHead == NULL, "LCDG->init_connection: queue nonempty");
+
+	OutputThread = h;
+	updbuf = new word [LCDG_OUTPUT_BUFSIZE];
+	updp = 0;
+
+	dump_screen ();
+}
+
+void LCDG::close_connection () {
+
+	lcdg_update_t *c;
+
+	assert (OutputThread != NULL, "LCDG->close_connection: stale thread");
+	OutputThread = NULL;
+	delete [] updbuf;
+	// Deallocate any pending updates
+	while (UHead != NULL) {
+		UHead = (c = UHead)->Next;
+		free (c);
+	}
+}
+
+void LCDG::update (word val) {
+//
+// A non-pixel item
+//
+	if (updp == LCDG_OUTPUT_BUFSIZE)
+		queue ();
+	updbuf [updp++] = val;
+}
+
+void LCDG::dump_screen () {
+//
+// Sends the entire screen as an update
+//
+	int i;
+
+	if (OutputThread == NULL)
+		return;
+
+	update_fpx ();
+
+	update (LCDG_NOT_SET);
+	update (0);
+	update (LCDG_MAXX);
+	update (0);
+	update (LCDG_MAXY);
+
+	for (i = 0; i < LCDG_CANVAS_SIZE; i++)
+		send_pix (canvas [i]);
+
+	if (ONStat) {
+		update_fpx ();
+		update (LCDG_NOT_ON | Contrast);
+	}
+	update_flush ();
+}
+
+void LCDG::m_lcdg_on (byte con) {
+//
+// Switch it on
+//
+	if (con)
+		Contrast = con;
+
+	ONStat = YES;
+
+	if (OutputThread) {
+		update_fpx ();
+		update (LCDG_NOT_ON | Contrast);
+		update_flush ();
+	}
+}
+
+void LCDG::m_lcdg_off () {
+//
+// Switch it on
+//
+	ONStat = NO;
+
+	if (OutputThread) {
+		update_fpx ();
+		update (LCDG_NOT_OFF);
+		update_flush ();
+	}
+}
+
+void LCDG::sd (byte hp) {
+//
+// One third of a two-pixel update
+//
+	if (PC == 0) {
+		// The first byte - just store it
+		SB = hp;
+		PC = 1;
+		return;
+	}
+	if (PC == 1) {
+		// Assemble the first pixel
+		update_pix ((SB << 4) | (hp >> 4));
+		SB = ((word)hp << 8) & 0x0F00;
+		PC = 2;
+		return;
+	}
+	update_pix (SB | hp);
+	PC = 0;
+}
+
+#else
+
+// ============================================================================
+// === PICOS ==================================================================
 // ============================================================================
 
 static byte X_org  = LCDG_XOFF,
@@ -370,7 +495,26 @@ void lcdg_off () {
 	nlcd_cs_up;
 }
 
-void lcdg_set (byte xl, byte yl, byte xh, byte yh) {
+#define	set_to_render(y0,y1,x0,x1)	do { \
+						sc (PASET); \
+						sd (y0); \
+						sd (y1); \
+						sc (CASET); \
+						sd (x0); \
+						sd (x1); \
+						sc (RAMWR); \
+					} while (0)
+
+// Used to turn functions into methods in VUEE
+#define	_lcdgm_(a)	a
+
+#endif	/* VUEE or PICOS */
+
+// ============================================================================
+// === COMMON =================================================================
+// ============================================================================
+
+void _lcdgm_(lcdg_set) (byte xl, byte yl, byte xh, byte yh) {
 //
 // Set up for rendering or filling
 //
@@ -385,7 +529,7 @@ void lcdg_set (byte xl, byte yl, byte xh, byte yh) {
 			syserror (EREQPAR, "lcdg_set");
 }
 
-void lcdg_get (byte *XL, byte *YL, byte *XH, byte *YH) {
+void _lcdgm_(lcdg_get) (byte *XL, byte *YL, byte *XH, byte *YH) {
 //
 // Get the current bounding rectangle
 //
@@ -395,17 +539,7 @@ void lcdg_get (byte *XL, byte *YL, byte *XH, byte *YH) {
 	if (YH != NULL) *YH = Y_last;
 }
 
-#ifdef LCDG_SETTABLE_CTABLE
-
-void lcdg_setct (byte co, word val) {
-
-	if (co < N_COLORS)
-		ctable12 [co] = val;
-}
-
-#endif
-
-void lcdg_setc (byte bg, byte fg) {
+void _lcdgm_(lcdg_setc) (byte bg, byte fg) {
 //
 // Set background and foreground color
 //
@@ -436,7 +570,7 @@ void lcdg_setc (byte bg, byte fg) {
 	KCB = (byte)  k;
 }
 
-void lcdg_clear () {
+void _lcdgm_(lcdg_clear) () {
 //
 // Clear the 'set' rectangle
 //
@@ -444,14 +578,7 @@ void lcdg_clear () {
 
 	nlcd_cs_down;
 	// The row
-	sc (PASET);
-	sd (Y_org);
-	sd (Y_last);
-	sc (CASET);
-	sd (X_org);
-	sd (X_last);
-
-	sc (RAMWR);
+	set_to_render (Y_org, Y_last, X_org, X_last);
 
 	// The number of pixels
 	w = ((Y_last - Y_org + 1) * (X_last - X_org + 1) + 1) >> 1;
@@ -463,7 +590,7 @@ void lcdg_clear () {
 	nlcd_cs_up;
 }
 
-void lcdg_render (byte cs, byte rs, const byte *pix, word n) {
+void _lcdgm_(lcdg_render) (byte cs, byte rs, const byte *pix, word n) {
 //
 // Display pixels; note, we can do it faster if we know that the pixels
 // are coming in order. This version is supposed to work with individual
@@ -499,13 +626,7 @@ void lcdg_render (byte cs, byte rs, const byte *pix, word n) {
 	if (cs) {
 
 		// Row
-		sc (PASET);
-		sd ((byte)ys);	// Single row only
-		sd ((byte)ys);
-		sc (CASET);
-		sd ((byte)xs);
-		sd (X_last);
-		sc (RAMWR);
+		set_to_render ((byte)ys, (byte)ys, (byte)xs, X_last);
 
 		// The max number of pixels to be written to device in this row
 		xs = X_last - xs + 1;
@@ -543,13 +664,7 @@ void lcdg_render (byte cs, byte rs, const byte *pix, word n) {
 	}
 
 	// Continue with the remaining pixels
-	sc (PASET);
-	sd ((byte)ys);
-	sd (Y_last);
-	sc (CASET);
-	sd (X_org);
-	sd (X_last);
-	sc (RAMWR);
+	set_to_render ((byte)ys, Y_last, X_org, X_last);
 
 	if (pturn) {
 		while (n--) {
@@ -598,7 +713,7 @@ Done:
 
 #ifdef LCDG_FONT_BASE
 
-word lcdg_font (byte fn) {
+word _lcdgm_(lcdg_font) (byte fn) {
 //
 // Set the font
 //
@@ -607,12 +722,12 @@ word lcdg_font (byte fn) {
 	ee_read ((lword)LCDG_FONT_BASE, fbuf, 32);
 	if (((word*)fbuf) [0] != 0x7f01)
 		// This is not a font page
-		return ERROR;
+		return (word) ERROR;
 
 	// Offset to our font
 	
 	if (((word*)fbuf) [1] <= fn)
-		return ERROR;
+		return (word) ERROR;
 
 	fbase = ((word*)fbuf) [2 + fn];
 
@@ -628,21 +743,21 @@ word lcdg_font (byte fn) {
 	return 0;
 }
 
-byte lcdg_cwidth () {
+byte _lcdgm_(lcdg_cwidth) () {
 //
 // Return character width (based on the current font)
 //
 	return fpar [0];
 }
 
-byte lcdg_cheight () {
+byte _lcdgm_(lcdg_cheight) () {
 //
 // Character height
 //
 	return fpar [1];
 }
 
-word lcdg_sett (byte x, byte y, byte nc, byte nl) {
+word _lcdgm_(lcdg_sett) (byte x, byte y, byte nc, byte nl) {
 //
 // Set text area: corner + number of columns, number of lines
 //
@@ -650,7 +765,7 @@ word lcdg_sett (byte x, byte y, byte nc, byte nl) {
 
 	if (fpar [0] == 0)
 		// No font
-		return ERROR;
+		return (word) ERROR;
 
 	x0 = (word) x + LCDG_XOFF;
 	x1 = x0 + (word) fpar [0] * nc - 1;
@@ -659,7 +774,7 @@ word lcdg_sett (byte x, byte y, byte nc, byte nl) {
 
 	if (x1 < x0 || y1 < y0 || x1 > LCDG_MAXXP || y1 > LCDG_MAXYP)
 		// Don't touch anything and return ERROR
-		return ERROR;
+		return (word) ERROR;
 
 	// Set the area
 	X_org = x0;
@@ -670,7 +785,7 @@ word lcdg_sett (byte x, byte y, byte nc, byte nl) {
 	return 0;
 }
 
-void lcdg_ec (byte cx, byte cy, byte nc) {
+void _lcdgm_(lcdg_ec) (byte cx, byte cy, byte nc) {
 //
 // Erase nc character positions starting from column cx, row cy
 //
@@ -692,13 +807,7 @@ void lcdg_ec (byte cx, byte cy, byte nc) {
 
 	nlcd_cs_down;
 
-	sc (PASET);
-	sd (cy);
-	sd (cy + fpar [1] - 1);
-	sc (CASET);
-	sd (cx);
-	sd ((byte)ex);
-	sc (RAMWR);
+	set_to_render (cy, cy + fpar [1] - 1, cx, (byte)ex);
 
 	ex = ((word) (fpar [1]) * (ex - cx + 1) + 1) >> 1;
 
@@ -709,7 +818,7 @@ void lcdg_ec (byte cx, byte cy, byte nc) {
 	nlcd_cs_up;
 }
 	
-void lcdg_el (byte cy, byte nl) {
+void _lcdgm_(lcdg_el) (byte cy, byte nl) {
 //
 // Erase nl lines starting from line ro
 //
@@ -723,13 +832,8 @@ void lcdg_el (byte cy, byte nl) {
 		return;
 
 	nlcd_cs_down;
-	sc (PASET);
-	sd (cy);
-	sd (Y_last);
-	sc (CASET);
-	sd (X_org);
-	sd (X_last);
-	sc (RAMWR);
+
+	set_to_render (cy, Y_last, X_org, X_last);
 
 	ex = ((word) (Y_last - cy + 1) * (X_last - X_org + 1) + 1) >> 1;
 
@@ -740,7 +844,7 @@ void lcdg_el (byte cy, byte nl) {
 	nlcd_cs_up;
 }
 
-void lcdg_wl (const char *st, word sh, byte cx, byte cy) {
+void _lcdgm_(lcdg_wl) (const char *st, word sh, byte cx, byte cy) {
 //
 // Write line in the text area starting from column cx, row cy; sh is
 // the shift, i.e., how many initial characters from the line should be
@@ -783,13 +887,8 @@ void lcdg_wl (const char *st, word sh, byte cx, byte cy) {
 		ee_read ((lword)LCDG_FONT_BASE + fbase +
 			(((word)rn << fpar [3])), fbuf, fpar [2]);
 		nlcd_cs_down;
-		sc (PASET);
-		sd (cy);
-		sd (cy + fpar [1] - 1);
-		sc (CASET);
-		sd (cx);
-		sd (cx + fpar [0] - 1);
-		sc (RAMWR);
+
+		set_to_render (cy, cy + fpar [1] - 1, cx, cx + fpar [0] - 1);
 
 		// Render the character
 		cp = fbuf;
@@ -826,7 +925,9 @@ void lcdg_wl (const char *st, word sh, byte cx, byte cy) {
 		cx += fpar [0];
 		st++;
 	}
-	return;
+	nlcd_cs_up;
 }
 
-#endif
+#endif	/* LCDG_FONT_BASE */
+
+#endif	/* This file inclusion */

@@ -7,83 +7,24 @@
 
 //+++ "lcdg_dispman.c"
 
-struct lcdg_dm_obj_s;
+#include "lcdg_dispman_params.h"
+#include "lcdg_dispman_types.h"
 
-#define	LCDG_DMTYPE_IMAGE	0
-#define	LCDG_DMTYPE_MENU	1
-#define	LCDG_DMTYPE_TEXT	2
+#ifdef __SMURPH__
+// ============================================================================
 
-// Errors (compatible with OEP)
-#define	LCDG_DMERR_NOMEM	OEP_STATUS_NOMEM
-#define	LCDG_DMERR_GARBAGE	LCDG_IMGERR_GARBAGE
-#define	LCDG_DMERR_NOFONT	40
-#define	LCDG_DMERR_RECT		41
+#define	LCDG_DM_TOP	_dap (LCDG_DM_TOP)
+#define	LCDG_DM_HEAD	_dap (LCDG_DM_HEAD)
+#define	LCDG_DM_STATUS	_dap (LCDG_DM_STATUS)
 
-#define	LCDG_DOBJECT_STUFF	\
-	byte			XL, YL, XH, YH; \
-	struct lcdg_dm_obj_s	*next; \
-	address			Extras; \
-	byte			Type
-
-#define	LCDG_DMTYPE_MASK	0x03
-
-// Flag == free data on deallocation
-#define	LCDG_DMTYPE_FDATA	0x80
-
-#define	LCDG_TYP
-
-struct lcdg_dm_obj_s {
-//
-// Displayable object: this is the minimum that every object must have
-//
-	LCDG_DOBJECT_STUFF;
-
-};
-
-typedef	struct lcdg_dm_obj_s lcdg_dm_obj_t;
-
-typedef struct {
-//
-// Image
-//
-	LCDG_DOBJECT_STUFF;
-	word	EPointer;	// Pointer to EEPROM page
-
-} lcdg_dm_img_t;
-
-typedef struct {
-//
-// Menu
-//
-	LCDG_DOBJECT_STUFF;
-
-	byte Font;		// Font ID
-	byte BG, FG;		// Colors
-	char **Lines;		// This must be allocated by the praxis
-	word NL;		// Number of lines
-	byte Width, Height;	// In characters
-	word FL,		// First line displayed
-	     SH,                // Shift (horizontal scroll)
-	     SE;		// Selected line
-
-} lcdg_dm_men_t;
-
-typedef struct {
-//
-// Static text
-//
-	LCDG_DOBJECT_STUFF;
-
-	byte Font;
-	byte BG, FG;		// Colors
-	char *Line;		// This must be allocated by the praxis
-	byte Width, Height;	// In characters
-	
-
-} lcdg_dm_tex_t;
+#else
+// ============================================================================
 
 extern lcdg_dm_obj_t	*LCDG_DM_TOP, *LCDG_DM_HEAD;
 extern byte		LCDG_DM_STATUS;
+
+#endif
+// ============================================================================
 
 Boolean lcdg_dm_shown (const lcdg_dm_obj_t*);
 void lcdg_dm_menu_d (lcdg_dm_men_t*);
@@ -98,18 +39,6 @@ lcdg_dm_obj_t *lcdg_dm_remove (lcdg_dm_obj_t*);
 byte lcdg_dm_refresh (void);
 byte lcdg_dm_newtop (lcdg_dm_obj_t*);
 void lcdg_dm_free (lcdg_dm_obj_t*);
-
-#ifndef	LCDG_DM_SHORT_ARGS
-#define	LCDG_DM_SHORT_ARGS	0
-#endif
-
-#ifndef	LCDG_DM_SOFT_CREATORS
-#define	LCDG_DM_SOFT_CREATORS	2
-#endif
-
-#ifndef LCDG_DM_EE_CREATORS
-#define	LCDG_DM_EE_CREATORS	1
-#endif
 
 #if LCDG_DM_EE_CREATORS
 #include "ee_ol.h"

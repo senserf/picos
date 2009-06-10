@@ -1,5 +1,5 @@
-#ifndef __pg_lcdg_imahes_h__
-#define __pg_lcdg_imahes_h__
+#ifndef __pg_lcdg_images_h__
+#define __pg_lcdg_images_h__
 
 #include "sysio.h"
 #include "lcdg_n6100p.h"
@@ -7,28 +7,8 @@
 
 //+++ "lcdg_images.c"
 
-#define	LCDG_IM_PAGESIZE	8192
-// Max chunks per image
-#define	LCDG_IM_MAXCHUNKS	720
-// Image chunk length (includes the chunk number, which has to be stored)
-#define	LCDG_IM_CHUNKLEN	(OEP_CHUNKLEN + 2)
-// Chunks per page (they never cross page boundaries)
-#define	LCDG_IM_CHUNKSPP	(LCDG_IM_PAGESIZE / LCDG_IM_CHUNKLEN)
-// Label length
-#define	LCDG_IM_LABLEN		(LCDG_IM_CHUNKLEN - 18)
-
-// Errors (kind of compatible with OEP status values)
-#define	LCDG_IMGERR_HANDLE	32
-#define	LCDG_IMGERR_NOMEM	OEP_STATUS_NOMEM
-#define	LCDG_IMGERR_GARBAGE	33
-#define	LCDG_IMGERR_NOSPACE	34
-#define	LCDG_IMGERR_FAIL	35
-
-typedef	struct {
-	byte X, Y;
-	// These are arbitrarily bytes of fixed length
-	byte Label [LCDG_IM_LABLEN];
-}  lcdg_im_hdr_t;
+#include "lcdg_images_params.h"
+#include "lcdg_images_types.h"
 
 void	lcdg_im_init (word, word);
 word	lcdg_im_find (const byte*, byte, word);

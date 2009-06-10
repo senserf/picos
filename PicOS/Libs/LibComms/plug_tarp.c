@@ -3,12 +3,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#ifdef	__SMURPH__
-
-#include "board.h"
-#include "stdattr.h"
-
-#else
+#ifndef	__SMURPH__
 
 #include "tcvplug.h"
 extern void tarp_init(void);
@@ -45,10 +40,10 @@ const tcvplug_t plug_tarp =
 
 #define myName "pl_tarp"
 
-#define	desc		_dac (TNode, desc)
-#define	tarp_init	_dac (TNode, tarp_init)
-#define	tarp_rx		_dac (TNode, tarp_rx)
-#define	tarp_tx		_dac (TNode, tarp_tx)
+#define	desc		_dac (PicOSNode, desc)
+#define	tarp_init	_dac (PicOSNode, tarp_init)
+#define	tarp_rx		_dac (PicOSNode, tarp_rx)
+#define	tarp_tx		_dac (PicOSNode, tarp_tx)
 
 static int tcv_ope_tarp (int phy, int fd, va_list plid) {
 
@@ -126,9 +121,6 @@ static int tcv_xmt_tarp (address p) {
 	return TCV_DSP_DROP;
 }
 
-#ifdef	__SMURPH__
-#include "stdattr_undef.h"
-#endif
 
 #undef	desc
 #undef	tarp_init

@@ -1083,6 +1083,7 @@ void	adc_stop (void);
 #define	__EXTERN	extern
 #define	__VIRTUAL
 #define	__ABSTRACT
+#define	__sinit(a)	= (a)
 
 #define	__PRIVF(ot,tp,nam)	static tp nam
 #define	__PUBLF(ot,tp,nam)	tp nam

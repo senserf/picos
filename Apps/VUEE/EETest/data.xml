@@ -33,15 +33,17 @@
     <nodes>
 	<defaults>
 	    <memory>2048 bytes</memory>
-	    <preamble>32 bits</preamble>
-	    <lbt>
-		delay			8msec
-		threshold		-109.0dBm
-	    </lbt>
-	    <backoff>
-		min			8msec
-		max			303msec
-	    </backoff>
+	    <radio>
+	    	<preamble>32 bits</preamble>
+	    	<lbt>
+			delay			8msec
+			threshold		-109.0dBm
+	    	</lbt>
+	    	<backoff>
+			min			8msec
+			max			303msec
+	    	</backoff>
+	    </radio>
 	    <eeprom erase="byte" overwrite="no" size="33554432,32" timing="0.0001 0.0002 0.0004 0.0008 0.0009 0.0009">
 	    </eeprom>
 	    <iflash size="256,2"></iflash>

@@ -3,12 +3,7 @@
 /* All rights reserved.							*/
 /* ==================================================================== */
 
-#ifdef __SMURPH__
-
-#include "board.h"
-#include "stdattr.h"
-
-#else	/* if not the simulator */
+#ifndef __SMURPH__
 
 #include "sysio.h"
 #include "tcvphys.h"
@@ -60,7 +55,7 @@ static const lword enkeys [12] = {
 #include "net_node_data.h"
 #endif
 
-__PUBLF (TNode, int, net_opt) (int opt, address arg) {
+__PUBLF (PicOSNode, int, net_opt) (int opt, address arg) {
 	if (opt == PHYSOPT_PHYSINFO)
 		return net_phys;
 
@@ -73,13 +68,13 @@ __PUBLF (TNode, int, net_opt) (int opt, address arg) {
 	return tcv_control (net_fd, opt, arg);
 }
 
-__PUBLF (TNode, int, net_qera) (int d) {
+__PUBLF (PicOSNode, int, net_qera) (int d) {
 	if (net_fd < 0)
 		return -1;
 	return tcv_erase (net_fd, d);
 }
 
-__PUBLF (TNode, int, net_qsize) (int d) {
+__PUBLF (PicOSNode, int, net_qsize) (int d) {
 	if (net_fd < 0)
 		return -1;
 	return tcv_qsize (net_fd, d);
@@ -127,7 +122,7 @@ static int dm2200_init (word);
 
 #define	myName "net.c"
 
-__PUBLF (TNode, int, net_init) (word phys, word plug) {
+__PUBLF (PicOSNode, int, net_init) (word phys, word plug) {
 
 	if (net_fd >= 0) {
 		dbg_2 (0x1000); // net busy
@@ -171,7 +166,7 @@ __PUBLF (TNode, int, net_init) (word phys, word plug) {
 }
 
 #if RADIO_DRIVER
-__PRIVF (TNode, int, radio_init) (word plug) {
+__PRIVF (PicOSNode, int, radio_init) (word plug) {
 	int fd;
 
 	phys_radio (0, 0, NET_MAXPLEN);
@@ -193,7 +188,7 @@ __PRIVF (TNode, int, radio_init) (word plug) {
 #endif
 
 #if CC1000
-__PRIVF (TNode, int, cc1000_init) (word plug) {
+__PRIVF (PicOSNode, int, cc1000_init) (word plug) {
 	int fd;
 	// opts removed word opts[2] = {4, 2}; // checksum + power
 	phys_cc1000 (0, NET_MAXPLEN, 192);
@@ -215,7 +210,7 @@ __PRIVF (TNode, int, cc1000_init) (word plug) {
 #endif
 
 #if CC1100
-__PRIVF (TNode, int, cc1100_init) (word plug) {
+__PRIVF (PicOSNode, int, cc1100_init) (word plug) {
 	int fd;
 	phys_cc1100 (0, NET_MAXPLEN);
 	if (plug == INFO_PLUG_TARP)
@@ -234,7 +229,7 @@ __PRIVF (TNode, int, cc1100_init) (word plug) {
 #endif
 
 #if DM2200
-__PRIVF (TNode, int, dm2200_init) (word plug) {
+__PRIVF (PicOSNode, int, dm2200_init) (word plug) {
 	int fd;
 	phys_dm2200 (0, NET_MAXPLEN);
 
@@ -255,7 +250,7 @@ __PRIVF (TNode, int, dm2200_init) (word plug) {
 #endif
 
 #if ETHERNET_DRIVER
-__PRIVF (TNode, int, ether_init) (word plug) {
+__PRIVF (PicOSNode, int, ether_init) (word plug) {
 	char c;
 	int  fd;
 
@@ -280,7 +275,7 @@ __PRIVF (TNode, int, ether_init) (word plug) {
 #endif
 
 #if UART_TCV
-__PRIVF (TNode, int, uart_init) (word plug) {
+__PRIVF (PicOSNode, int, uart_init) (word plug) {
 
 // #define	NET_CHANNEL_MODE	UART_PHYS_MODE_EMU
 // or
@@ -325,7 +320,7 @@ __PRIVF (TNode, int, uart_init) (word plug) {
 #define ether_offset(len)	((len) + 7)
 #define ether_ptype		0x6007
 
-__PUBLF (TNode, int, net_rx)
+__PUBLF (PicOSNode, int, net_rx)
 		(word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 	address packet;
 	word size;
@@ -447,7 +442,7 @@ __PUBLF (TNode, int, net_rx)
 #define radio_len(len)		(((len) + 2+ 4 + 3) & 0xfffc)
 #endif
 
-__PUBLF (TNode, int, net_tx) (word state, char * buf, int len, byte encr) {
+__PUBLF (PicOSNode, int, net_tx) (word state, char * buf, int len, byte encr) {
 #if ETHERNET_DRIVER
 	static const word ether_maddr [3] = { 0xe1aa, 0xbbcc, 0xddee};
 #endif
@@ -530,7 +525,7 @@ application should decide if this is an error...
 	return 0;
 }
 
-__PUBLF (TNode, int, net_close) (word state) {
+__PUBLF (PicOSNode, int, net_close) (word state) {
 	int rc;
 	if (net_fd < 0) {
 		dbg_2 (0x7000); // net_close: not opened
@@ -549,6 +544,3 @@ __PUBLF (TNode, int, net_close) (word state) {
 	return rc;
 }
 
-#ifdef __SMURPH__
-#include "stdattr_undef.h"
-#endif

@@ -3194,6 +3194,7 @@ R090604A:
           with DIAG_MESSAGES at 2).
 
 R090607A:
+
 	EcoNet: if ee_open fails, red and blue (yellow) leds go ON. For SD,
 	retries happen, for eeprom the system is halted with the leds ON. On
 	present PhS hardware, ee_open fails a lot, so that is needed to clearly
@@ -3204,4 +3205,72 @@ R090607A:
 	Seemingly, the failures happen when the power is supplied via USB, so
 	this is less alarming for normal field operations.
 
+R090609A:
 
+	VUEE extended by including: XRS, OEP, LCDG + library. A few things
+	cleaned up. A few stray bugs found and hopefully eliminated along
+	the way.
+
+	SEAWOLF and YEP moved to Apps/VUEE.
+
+	Some files moved from PicOS to separate libraries (LibOEP, LibXRS)
+	and turned into VUEE-compatible modules. 
+
+	The new version of YEP (being a rather trivially moved previous
+	version, with a couple of bugs spotted and eliminated) illustrates
+	an alternative (simpler) way to convert praxes to VUEE. Once you give
+	up the obsession about transforming all your non-trivial functions
+	into node methods, it all becomes a bit more straightforward and less
+	messy. Note that those functions do not have to be methods, unless
+	you have multipl praxes in the same model and they use the same
+	names for their specific functions. And even then, those names will
+	only collide if the functions are global (i.e., for some reason you
+	cannot keep then static within their files). This is because node
+	attributes are referenced via an explicit pointer to the current node
+	(this is needed by SMURPH processes), so a function need not be a
+	method to reference them correctly.
+
+	I will write about this in the new (forthcoming) version of the
+	VUEE document. For now, read README.txt in Apps/SEAWOFL/YEP and try
+	the praxis.
+
+	The configuration of VUEE's node types has been simplified. I have
+	removed types NNode and TNode (representing nodes equipped with the
+	NULL plugin and TARP, respectively). Now, you have to specify in
+	options.sys which plugins (and other library components) should be
+	compiled in. When compiled in, they are all available as attributes
+	and methods of PicOSNode, which is the only standard node type used
+	to derive praxis-specific node types. At first sight, this may appear
+	more restrictive than the previous concept, because, for example, if
+	you have multiple praxes in the same model, they all have to share
+	the same base node type (as their node types must all descend from
+	PicOSNode, whose structure is shared). I could not envision a
+	situation where that would make a difference. Note that not all
+	praxes have to use all features present in the node, and, in any
+	case, the reachest used set of features must be compiled in, anyway.
+
+	The way you specify library components in options.sys is by defining
+	some of these symbols (note that they need not values):
+
+	VUEE_LIB_PLUG_NULL
+	VUEE_LIB_PLUG_TARP	(this brings in the "net" suite)
+	VUEE_LIB_XRS
+	VUEE_LIB_OEP
+	VUEE_LIB_OL		(EEPROM object loader)
+	VUEE_LIB_LCDG		(LCDG library)
+
+	New modules added to VUEE in the future will be configurable the same
+	way. Generally, these symbols do no harm when seen by the PicOS
+	compiler, but you may want to encapsulate them into #ifdef __SMURPH__,
+	especially if the options file naturally contains other VUEE-specific
+	definitions.
+
+	I think I have fixed eco_demo to compile under new VUEE. Note that the
+	old way of organizing praxes still works (assuming the requisite
+	modules are configured by defining a subset of the above symbols in
+	options.sys).
+
+	Haven't yet touched the problem of failing ee_open. Stay tuned.
+
+	ARTURO_PYR still doesn't compile with SD. Will fix that in the next
+	couple of days.

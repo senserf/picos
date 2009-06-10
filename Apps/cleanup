@@ -18,6 +18,12 @@ if [ -d VUEE ]
 then
 	cd VUEE
 	../../Scripts/cleanapp
+if [ -d SEAWOLF ]
+then
+	cd SEAWOLF
+	../../../Scripts/cleanapp
+	cd ..
+fi
 	cd ..
 fi
 

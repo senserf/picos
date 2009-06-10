@@ -2,11 +2,7 @@
 /* Copyright (C) Olsonet Communications, 2002 - 2006                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
-#ifdef	__SMURPH__
-// The simulator
-#include "board.h"
-#include "stdattr.h"
-#else
+#ifndef	__SMURPH__
 // The real world
 #include "tcvplug.h"
 #endif
@@ -36,7 +32,7 @@ const tcvplug_t plug_null =
 #include "plug_null_node_data.h"
 #endif
 
-#define	ndsc	_dac (NNode, ndsc)
+#define	ndsc	_dac (PicOSNode, ndsc)
 
 static int tcv_ope_null (int phy, int fd, va_list plid) {
 /*
@@ -97,9 +93,5 @@ static int tcv_xmt_null (address p) {
 
 	return TCV_DSP_DROP;
 }
-
-#ifdef	__SMURPH__
-#include "stdattr_undef.h"
-#endif
 
 #undef ndsc

@@ -1,3 +1,6 @@
+#ifndef	__lcdg_dispman_c__
+#define	__lcdg_dispman_c__
+
 #include "sysio.h"
 #include "lcdg_dispman.h"
 
@@ -7,12 +10,15 @@
 
 #define	CCHAR	">"			// Menu pointer character
 
-lcdg_dm_obj_t	*LCDG_DM_TOP = NULL,	// The top object displayed
-		*LCDG_DM_HEAD = NULL;	// The front of list
+#ifdef	__SMURPH__
 
-byte		LCDG_DM_STATUS = 0;	// Error status
+#define	lcdg_dm_wph	_dap (lcdg_dm_wph)
 
-static word	wp_handle = 0;		// Wallpaper image handle
+#else
+
+#include "lcdg_dispman_node_data.h"
+
+#endif
 
 Boolean lcdg_dm_shown (const lcdg_dm_obj_t *o) {
 //
@@ -48,13 +54,14 @@ static lcdg_dm_obj_t *dm_prev (lcdg_dm_obj_t *q) {
 
 static void dm_clear () {
 
-	if (wp_handle == 0) {
+	if (lcdg_dm_wph == 0) {
 		// Look up the wallpaper image
-		wp_handle = lcdg_im_find ((const byte*)"wallpaper", 10, WNONE);
+		lcdg_dm_wph = lcdg_im_find ((const byte*)"wallpaper", 10,
+			WNONE);
 	}
 
-	if (wp_handle != WNONE) {
-		lcdg_im_disp (wp_handle, 0, 0);
+	if (lcdg_dm_wph != WNONE) {
+		lcdg_im_disp (lcdg_dm_wph, 0, 0);
 	} else {
 		// Just erase to background
 		lcdg_set (0, 0, LCDG_MAXX, LCDG_MAXY);
@@ -740,7 +747,7 @@ lcdg_dm_obj_t *lcdg_dm_newimage (word pn,
 
 	word cz;
 
-	if ((sig = (lcdg_im_hdr_t*) umalloc (sizeof (lcdg_im_hdr_t))) == NULL) {
+	if ((ptr = (void*) umalloc (sizeof (lcdg_im_hdr_t))) == NULL) {
 Mem:
 		LCDG_DM_STATUS = LCDG_DMERR_NOMEM;
 		return NULL;
@@ -762,7 +769,7 @@ Mem:
 
 	ufree (sig);
 
-	dip = (lcdg_dm_img_t*) umalloc (sizeof (lcdg_dm_img_t));
+	ptr = (void*) umalloc (sizeof (lcdg_dm_img_t));
 	if (dip == NULL)
 		goto Mem;
 
@@ -805,6 +812,7 @@ lcdg_dm_obj_t *lcdg_dm_newmenu_e (lword ep) {
 
 	if ((LCDG_DM_STATUS = ee_load (ep, (void**)&dm)) != 0)
 		return NULL;
+	dm->Extras = NULL;
 
 	// I think we need some sanity checks to avoid crashing on EEPROM
 	// error -> later
@@ -817,6 +825,7 @@ lcdg_dm_obj_t *lcdg_dm_newtext_e (lword ep) {
 
 	if ((LCDG_DM_STATUS = ee_load (ep, (void**)&dt)) != 0)
 		return NULL;
+	dt->Extras = NULL;
 	// Sanity checks?
 	return (lcdg_dm_obj_t*)dt;
 }
@@ -827,6 +836,7 @@ lcdg_dm_obj_t *lcdg_dm_newimage_e (lword ep) {
 
 	if ((LCDG_DM_STATUS = ee_load (ep, (void**)&dip)) != 0)
 		return NULL;
+	dip->Extras = NULL;
 	// Sanity checks?
 	return (lcdg_dm_obj_t*)dip;
 }
@@ -835,3 +845,5 @@ lcdg_dm_obj_t *lcdg_dm_newimage_e (lword ep) {
 // ============================================================================
 
 #endif /* LCDG_MENU_EE_CREATORS */
+
+#endif
