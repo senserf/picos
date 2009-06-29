@@ -87,23 +87,23 @@
 //	Lexar (2G):                    60uA,       18mA,              16-20mA
 //
 //  Note: a 4GB card didn't want to work (perhaps will try again some other
-//  time); we should be covered with 2GB cards for a while
+//  time); we should be OK with 2GB cards for a while
 //
 //  Note: SPI/direct has no impact on power consumption, including PD mode,
 //
 
 #define	ee_bring_up	do { \
 				spi_up; \
-				_BIS (P5OUT, 0x01); \
-				_BIS (P5DIR, 0x01); \
-				cswitch_on (CSWITCH_EE); \
+				_BIS (P5OUT, 0x21); \
+				_BIS (P5DIR, 0x21); \
+				cswitch_on (CSWITCH_EE+CSWITCH_SD); \
 				mdelay (10); \
 			} while (0)
 
 #define	ee_bring_down	do { \
 				mdelay (10); \
-				cswitch_off (CSWITCH_EE); \
-				_BIC (P5DIR, 0x0F); \
+				cswitch_off (CSWITCH_EE+CSWITCH_SD); \
+				_BIC (P5DIR, 0x2F); \
 				spi_down; \
 			} while (0)
 
@@ -120,16 +120,16 @@
 
 #define	sd_bring_up	do { \
 				spi_up; \
-				_BIS (P5OUT, 0x20); \
-				_BIS (P5DIR, 0x20); \
-				cswitch_on (CSWITCH_SD); \
+				_BIS (P5OUT, 0x21); \
+				_BIS (P5DIR, 0x21); \
+				cswitch_on (CSWITCH_SD+CSWITCH_EE); \
 				mdelay (10); \
 			} while (0)
 
 #define	sd_bring_down	do { \
 				mdelay (10); \
-				cswitch_off (CSWITCH_SD); \
-				_BIC (P5DIR, 0x2E); \
+				cswitch_off (CSWITCH_SD+CSWITCH_EE); \
+				_BIC (P5DIR, 0x2F); \
 				spi_down; \
 			} while (0)
 
@@ -148,16 +148,16 @@
 // ============================================================================
 
 #define	ee_bring_up	do { \
-				_BIS (P5OUT, 0x09); \
-				_BIS (P5DIR, 0x0B); \
-				cswitch_on (CSWITCH_EE); \
+				_BIS (P5OUT, 0x29); \
+				_BIS (P5DIR, 0x2B); \
+				cswitch_on (CSWITCH_EE+CSWITCH_SD); \
 				mdelay (10); \
 			} while (0)
 
 #define	ee_bring_down	do { \
 				mdelay (10); \
-				cswitch_off (CSWITCH_EE); \
-				_BIC (P5DIR, 0x0B); \
+				cswitch_off (CSWITCH_EE+CSWITCH_SD); \
+				_BIC (P5DIR, 0x2B); \
 			} while (0)
 
 #define	ee_inp		(P5IN & 0x04)
@@ -175,16 +175,16 @@
 // SD =========================================================================
 
 #define	sd_bring_up	do { \
-				_BIS (P5OUT, 0x2A); \
-				_BIS (P5DIR, 0x2A); \
-				cswitch_on (CSWITCH_SD); \
+				_BIS (P5OUT, 0x2B); \
+				_BIS (P5DIR, 0x2B); \
+				cswitch_on (CSWITCH_EE+CSWITCH_SD); \
 				mdelay (10); \
 			} while (0)
 
 #define	sd_bring_down	do { \
 				mdelay (10); \
-				cswitch_off (CSWITCH_SD); \
-				_BIC (P5DIR, 0x2A); \
+				cswitch_off (CSWITCH_EE+CSWITCH_SD); \
+				_BIC (P5DIR, 0x2B); \
 			} while (0)
 
 #define	sd_clkh		ee_clkh

@@ -246,8 +246,9 @@ diag ("%u %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
 
 	if (!tarp_ctrl.ssignal) {
 		dbg_8 (0x0600 | msgBuf->hoc + 1);
-		if (tarp_drop_weak)
+		if (tarp_drop_weak) {
 			return TCV_DSP_DROP;
+		}
 	}
 
 	tarp_ctrl.rcv++;
@@ -339,7 +340,6 @@ diag ("%u %u bcast cpy & rcv", msgBuf->msg_type, msgBuf->snd);
 #if _TARP_T_RX
 diag ("%u %u Max drop %d", msgBuf->msg_type, msgBuf->snd, msgBuf->seq_no);
 #endif
-
 		return TCV_DSP_DROP;
 	}
 
@@ -351,7 +351,6 @@ diag ("%u %u Max drop %d", msgBuf->msg_type, msgBuf->snd, msgBuf->seq_no);
 #if _TARP_T_RX
 diag ("%u %u xmit", msgBuf->msg_type, msgBuf->snd);
 #endif
-
 			return TCV_DSP_XMT;
 		}
 
@@ -372,7 +371,6 @@ diag ("%u %u cpy trace", msgBuf->msg_type, msgBuf->snd);
 #if _TARP_T_RX
 diag ("%u %u (&) drop", msgBuf->msg_type, msgBuf->snd);
 #endif
-
 	return TCV_DSP_DROP;
 }
 

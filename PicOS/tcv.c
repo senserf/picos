@@ -1039,12 +1039,13 @@ __PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {
 				break;
 	}
 
-	if (dsp == NONE || dsp == TCV_DSP_DROP)
+	if (dsp == NONE || dsp == TCV_DSP_DROP) {
 		/*
 		 * Either no one is claiming the packet or the claimant says
 		 * we should drop it.
 		 */
 		return 0;
+	}
 
 	len -= (ap.head + ap.tail);
 

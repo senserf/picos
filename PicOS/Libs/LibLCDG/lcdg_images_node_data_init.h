@@ -1,3 +1,3 @@
 
-_da (lcdg_im_dhk) = NULL;
+lcdg_im_dhk = NULL;
 

@@ -1,19 +1,21 @@
 #ifndef __oep_node_data_h__
 #define	__oep_node_data_h__
 
-byte 	_da (OEP_Status) 	__sinit (OEP_STATUS_NOINIT),
-	_da (OEP_LastOp) 	__sinit (0),
-	_da (OEP_RQN) 		__sinit (1),
-	_da (OEP_PHY) 		__sinit (0);
+byte 	OEP_Status 		__sinit (OEP_STATUS_NOINIT),
+	OEP_LastOp 		__sinit (0),
+	OEP_RQN 		__sinit (1),
+	OEP_PHY 		__sinit (0);
 
-word	_da (OEP_MLID);
+word	OEP_MLID;
 
-__STATIC void 	*_da (oep_pdata)	__sinit (NULL);
-__STATIC address _da (oep_pkt);
+__STATIC void 	*oep_pdata	__sinit (NULL);
 
-__STATIC int 	_da (oep_sid)	__sinit (-1);
+__STATIC address oep_pkt;
 
-__STATIC byte	_da (oep_retries), _da (oep_plug);
-__STATIC byte	_da (oep_sdesc) [TCV_MAX_PHYS];
+__STATIC int 	oep_sid	__sinit (-1);
+
+__STATIC byte	oep_retries,
+		oep_plug;
+__STATIC byte	oep_sdesc [TCV_MAX_PHYS];
 
 #endif

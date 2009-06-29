@@ -874,7 +874,7 @@ void _lcdgm_(lcdg_wl) (const char *st, word sh, byte cx, byte cy) {
 		// More characters in this line
 		if (cx >= X_last)
 			// No more characters will fit
-			return;
+			break;
 
 		rn = (byte)(*st);
 		if (rn < 0x20 || rn > 0x7f)

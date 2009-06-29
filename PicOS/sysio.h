@@ -48,6 +48,13 @@
 
 #endif
 
+#if	RADIO_USE_LEDS
+#undef	LEDS_DRIVER
+#undef	LEDS_BLINKING
+#define	LEDS_DRIVER	1
+#define	LEDS_BLINKING	1
+#endif
+
 //+++ "main.c"
 //+++ "kernel.c"
 
@@ -95,13 +102,6 @@
 
 #if 	UART_BITS < 7 || UART_BITS > 8
 #error "UART_BITS can be 7 or 8"
-#endif
-
-#if	RADIO_USE_LEDS
-#undef	LEDS_DRIVER
-#undef	LEDS_BLINKING
-#define	LEDS_DRIVER	1
-#define	LEDS_BLINKING	1
 #endif
 
 #if	LEDS_DRIVER == 0

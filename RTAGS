@@ -3281,3 +3281,28 @@ R090609B:
 	version of VUEE to compile with the new one. Note: TNP and mm_demo do
 	not compile, but I don't think they should. Perhaps we should remove
 	them (after all, they can be easily found in the archive, if needed)?
+
+R090629A:
+
+	Fixed the test for RADIO_USE_LEDS in sysio.h to make sure that, when
+	set, it forces LEDS_DRIVER before the decision to include "leds_sys.h"
+	is made. Oh, well, forget it!
+
+	Seawolf YEP: now mkeeprom.tcl allows you to select the position of an
+	image object, if its size is less than the full screen size.
+
+	In BOARDS/WARSAW_NEW, EEPROM and SD are now switched on and off
+	simultaneously, as my previous idea to keep one of them powered down,
+	while the other was up didn't quite work. The proper way is to power
+	them both up, and keep the CS high for the one supposed to be inactive.
+
+	Fixed a small bug in lcdg_n6100p.c causing a missing update in the
+	VUEE variant after calling lcdg_wl.
+
+	Changed the cleanup procedure for the tree. Now, when you execute
+	./cleanup in Apps, the script will traverse all directories and
+	wherever it finds a file name .mop, it will execute that file. If that
+	file starts with #! then it is assumed to be a script. Otherwise,
+	the file should containg a single command name from Scripts.
+
+	Completely redone ILLUSTRATION in Apps/VUEE (see also the VUEE doc).

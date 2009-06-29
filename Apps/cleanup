@@ -1,48 +1,130 @@
 #!/bin/sh
-../Scripts/cleanapp
-if [ -d TESTS ]
-then
-	cd TESTS
-	../../Scripts/cleanapp
-	cd ..
-fi
+##########################\
+exec tclsh "$0" "$@"
 
-if [ -d SFU ]
-then
-	cd SFU
-	../../Scripts/cleanapp
-	cd ..
-fi
+#
+# Looks up .mop files in the tree and cleans the directories containing them
+#
 
-if [ -d VUEE ]
-then
-	cd VUEE
-	../../Scripts/cleanapp
-if [ -d SEAWOLF ]
-then
-	cd SEAWOLF
-	../../../Scripts/cleanapp
-	cd ..
-fi
-	cd ..
-fi
+proc do_it { } {
+#
+# Cleans the current directory
+#
+	if ![catch { open ".mop" "r" } mfd] {
+		if [catch { read $mfd } mop] {
+			catch { close $mfd }
+		} else {
+			catch { close $mfd }
+			run_mop $mop
+		}
+	}
 
-if [ -d ECOPROJECT ]
-then
-	cd ECOPROJECT
-	../../Scripts/cleanapp
-	cd ..
-fi
+	# traverse subdirectories
+	foreach d [exec ls] {
+		if ![file isdirectory $d] {
+			continue
+		}
+		if [catch { file lstat $d vv } ] {
+			continue
+		}
+		if { $vv(type) != "directory" } {
+			continue
+		}
+		array unset vv
+		set c [pwd]
+		if ![catch { cd [file join $c $d] } ] {
+			# dout $c
+			do_it
+			cd $c
+		}
+	}
+}
 
-if [ -d LIB_EXAMPLE ]
-then
-	cd LIB_EXAMPLE
-	../../Scripts/cleanapp
-	cd ..
-fi
-if [ -d SEAWOLF ]
-then
-	cd SEAWOLF
-	../../Scripts/cleanapp
-	cd ..
-fi
+proc dout { dn } {
+
+	global SL CL
+
+	set dn [string range $dn $CL end]
+	set dl [string length $dn]
+
+	puts -nonewline "\r$dn"
+	flush stdout
+
+	while { $SL > $dl } {
+		puts -nonewline " "
+		incr SL -1
+	}
+
+	set SL $dl
+}
+		
+proc run_mop { m } {
+
+	global SDN
+
+	if [regexp "^#!" $m] {
+		# looks like a script
+		if [catch { exec sh ".mop" } err] {
+			puts "Warning: .mop <script> failed in '[pwd]': $err"
+			return
+		}
+	} else {
+		# assume this is command name in Scripts
+		set m [string trim $m]
+
+		if { $m == "" } {
+			set m "cleanapp"
+		} elseif [regexp "\[\n\r \t\]" $m] {
+			puts "Warning: .mop <cmd> in '[pwd]' doesn't look right"
+			return
+		}
+
+		if [catch { exec sh [file join $SDN $m] } err] {
+			puts "Warning: .mop <cmd = $m> failed in '[pwd]': $err"
+		}
+	}
+}
+
+proc locate_scripts { } {
+#
+# Locate the path to Scripts from where you have been called
+#
+	global SDN env
+
+	set dir "."
+	set SDN ""
+	set pdn ""
+
+	for { set i 0 } { $i < 32 } { incr i } {
+		set dn [file normalize [file join $dir "Scripts"]]
+		if { $dn == $pdn } {
+			# no change
+			break
+		}
+		set pdn $dn
+		if [file isdirectory $dn] {
+			# got it
+			set SDN $dn
+			if [regexp -nocase "^(\[a-z\]):" $SDN jnk dl] {
+				set sdn "/cygdrive/[string tolower $dl]"
+				append sdn [string range $SDN 2 end]
+			} else {
+				set sdn $SDN
+			}
+			set env(PATH) "$env(PATH):$sdn"
+			return
+		}
+		# go up
+		set dir "../$dir"
+	}
+
+	puts stderr "couldn't locate Scripts directory, sorry!"
+	exit 1
+}
+
+locate_scripts
+set SL 0
+set CL [string length [pwd]]
+incr CL
+
+do_it

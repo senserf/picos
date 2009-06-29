@@ -1,4 +1,4 @@
-#define	EE_USE_UART		0
+#define	EE_USE_UART		1
 #define	MALLOC_SINGLEPOOL	1
 #define DIAG_MESSAGES		2
 #define	TCV_PRESENT		1

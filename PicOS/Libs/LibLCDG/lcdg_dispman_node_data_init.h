@@ -1,6 +1,6 @@
 
-	_da (LCDG_DM_TOP) 	= NULL;
-	_da (LCDG_DM_HEAD)	= NULL;
-	_da (LCDG_DM_STATUS)	= 0;
-	_da (lcdg_dm_wph)	= 0;
+	LCDG_DM_TOP 	= NULL;
+	LCDG_DM_HEAD	= NULL;
+	LCDG_DM_STATUS	= 0;
+	lcdg_dm_wph	= 0;
 
