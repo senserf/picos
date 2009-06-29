@@ -1,6 +1,8 @@
 #ifndef __picos_board_c__
 #define __picos_board_c__
 
+#include "stdattr_undef.h"
+
 #include "board.h"
 #include "rwpmm.cc"
 #include "wchansh.cc"
@@ -2224,33 +2226,30 @@ static void deallocate_ep_def (data_ep_t *ep) {
 // Deallocate EEPROM definition
 //
 	data_epini_t *c, *q;
-	int i;
 
-	for (i = 0; i < 2; i++) {
-		// Two initializer lists
-		if (i == 0) {
-			c = ep->EPINI;
-			if ((ep->EFLGS & NVRAM_NOFR_EPINIT))
-				continue;
-		} else {
-			c = ep->IFINI;
-			if ((ep->EFLGS & NVRAM_NOFR_IFINIT))
-				continue;
-		}
+	if ((ep->EFLGS & NVRAM_NOFR_EPINIT) == 0) {
+		// Deallocate arrays
+		c = ep->EPINI;
 		while (c != NULL) {
 			c = (q = c)->Next;
 			delete q->chunk;
 			delete q;
 		}
+		if (ep->EPIF)
+			delete ep->EPIF;
 	}
 
-	// Image file names
-	if (ep->EPIF)
-		delete ep->EPIF;
-
-	if (ep->IFIF)
-		delete ep->IFIF;
-
+	if ((ep->EFLGS & NVRAM_NOFR_IFINIT) == 0) {
+		c = ep->IFINI;
+		while (c != NULL) {
+			c = (q = c)->Next;
+			delete q->chunk;
+			delete q;
+		}
+		if (ep->IFIF)
+			delete ep->IFIF;
+	}
+	
 	delete ep;
 }
 		 
@@ -3976,9 +3975,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		NEP = NOD->ep;
 		DEP = DEF->ep;
-		if (DEP->EPIF != NULL || DEP->IFIF != NULL)
-			excptn ("Root: default <eeprom> or <iflash> cannot "
-				"specify an image file");
+
 		if (NEP == NULL) {
 			// Inherit the defaults
 			if (DEP != NULL && !(DEP->absent)) {
@@ -3994,17 +3991,21 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 				// FIXME: provide a function to copy this
 				NEP->EEPRS = DEP->EEPRS;
 				NEP->EEPPS = DEP->EEPPS;
-				// Do not deallocate EPINI-ts
+				NEP->EPIF = DEP->EPIF;
+				// Do not deallocate arrays
 				NEP->EFLGS = DEP->EFLGS | NVRAM_NOFR_EPINIT;
 				NEP->EPINI = DEP->EPINI;
 				for (j = 0; j < EP_N_BOUNDS; j++)
 					NEP->bounds [j] =
 						DEP->bounds [j];
+				if (NEP->EPIF != NULL) {
+				}
 			}
 			if (NEP->IFLSS == WNONE) {
 				NEP->IFLSS = DEP->IFLSS;
 				NEP->IFLPS = DEP->IFLPS;
-				// Do not deallocate IFINI-ts
+				NEP->IFIF = DEP->IFIF;
+				// Do not deallocate arrays
 				NEP->EFLGS |= NVRAM_NOFR_IFINIT;
 				NEP->IFINI = DEP->IFINI;
 			}

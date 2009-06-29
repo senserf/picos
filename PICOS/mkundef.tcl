@@ -4,6 +4,10 @@
 #
 	set fn [lindex $argv 0]
 
+	if { $fn == "" } {
+		set fn "stdattr.h"
+	}
+
 	if ![regexp "^(.+)\\.h$" $fn junk fr] {
 		abt "input file name must look like 'xxxx.h'"
 	}
@@ -13,10 +17,10 @@
 	set sfd [open $fn "r"]
 	set tfd [open $tfn "w"]
 
-	puts $tfd "\#ifndef __picos_${fr}_undef_h__"
-	puts $tfd "\#define __picos_${fr}_undef_h__"
-
 	puts $tfd "// Created automatically, do not edit!!!"
+
+	puts $tfd "\#ifdef __picos_${fr}_h__"
+	puts $tfd "\#undef __picos_${fr}_h__"
 
 	while { [gets $sfd line] >= 0 } {
 		set line [string trim $line]

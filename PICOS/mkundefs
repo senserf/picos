@@ -1,3 +1,0 @@
-#!/bin/sh
-./mkundef.tcl stdattr.h
-./mkundef.tcl rfmattr.h

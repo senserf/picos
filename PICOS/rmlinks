@@ -5,7 +5,9 @@ rm -f pins.h
 rm -f lcdg_n6100p.h
 rm -f form.h
 rm -f ser.h
+rm -f serf.h
 rm -f storage.h
+rm -f phys_cc1100.h
 #################################
 rm -f tcv.cc
 rm -f tcv.h

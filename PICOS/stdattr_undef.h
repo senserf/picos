@@ -1,6 +1,6 @@
-#ifndef __picos_stdattr_undef_h__
-#define __picos_stdattr_undef_h__
 // Created automatically, do not edit!!!
+#ifdef __picos_stdattr_h__
+#undef __picos_stdattr_h__
 #undef __picos_stdattr_h__
 #undef release
 #undef finish
@@ -61,6 +61,9 @@
 #undef ee_write
 #undef ee_erase
 #undef ee_sync
+#undef if_write
+#undef if_read
+#undef if_erase
 #undef lcdg_on
 #undef lcdg_off
 #undef lcdg_set
@@ -75,16 +78,13 @@
 #undef lcdg_ec
 #undef lcdg_el
 #undef lcdg_wl
-#undef if_write
-#undef if_read
-#undef if_erase
 #undef net_opt
 #undef net_qera
+#undef net_qsize
 #undef net_init
 #undef net_rx
 #undef net_tx
 #undef net_close
-#undef net_qsize
 #undef getSpdCacheSize
 #undef getDdCacheSize
 #undef getDd

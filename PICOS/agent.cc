@@ -3468,6 +3468,7 @@ Illegal:
 			// Position query
 			if ((NN = dechex (BP)) == ERROR)
 				goto Illegal;
+			// trace ("QQQ: %1d", NN);
 
 			if (imode (Flags) != XTRN_IMODE_SOCKET)
 				excptn ("MoveHandler: coordinate query '%s; "
@@ -3526,6 +3527,7 @@ Illegal_crd:
 				create Disconnector (Agent, ECONN_INVALID);
 				terminate;
 			}
+			// trace ("MMM: %1d %f %f", NN, NP [0].DVal, NP [1].DVal);
 
 			pn = (PicOSNode*)idToStation (NN);
 			if (pn->RFInt != NULL) {

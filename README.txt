@@ -368,3 +368,11 @@ R090609A:
     Removed node type NNode and TNode. Added a model for Nokia LCDG.
     Lots of cosmetics and re-shuffling. Read RTAGS from PICOS for details.
     Changes to the document are forthcoming.
+
+R090629A:
+
+    Fixed a bug in board.cc causing segmentation faults when the data file
+    didn't include <eeprom> at all.
+
+    Manual updated, the recommended conversion procedure significantly
+    simplified. Requires PICOS R090629A.

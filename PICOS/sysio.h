@@ -226,8 +226,9 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	_da(a)				_na_ ## a
 #define	_dac(a,b)			(((a *)TheStation)-> _na_ ## b)
+#define	_dan(a,b)			(((a *)TheStation)-> b)
 #define	_dad(t,a)			t::_na_ ## a
-#define	_dap(b)				_dac (PicOSNode, b)
+#define	_dap(b)				_dan (PicOSNode, b)
 
 #define	__PRIVF(ot,tp,nam)		tp ot::nam
 #define	__PUBLS(ot,tp,nam)		__PUBLF (ot, tp, nam)

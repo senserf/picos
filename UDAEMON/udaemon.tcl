@@ -2779,6 +2779,7 @@ proc moveGNP { Sok } {
 			      $cmd junk nod tot x y tn] {
 				continue
 			}
+			# puts "INI: '$cmd'"
 
 			if [catch {
 				set nod [expr $nod]
@@ -3424,8 +3425,11 @@ proc moveUpd { Sok } {
 
 			if ![regexp "^U $HPA(D) $HPA(F) $HPA(F)" \
 			      $cmd junk nod x y] {
+				# puts "UNS: '$cmd'"
 				continue
 			}
+			# puts "UPD: '$cmd'"
+
 
 			if { [catch {
 				set nod [expr $nod]
