@@ -3306,3 +3306,9 @@ R090629A:
 	the file should containg a single command name from Scripts.
 
 	Completely redone ILLUSTRATION in Apps/VUEE (see also the VUEE doc).
+
+R090706A
+	New SEAWOLF/YEP as for demo reqs from Combat (see YEP.odt).
+	Current YEP preserved in SEAWOLF/YEP_090706A.zip (expands to
+	YEP_090706A for easy diffs with the new YEP).
+
