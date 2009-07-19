@@ -3307,13 +3307,13 @@ R090629A:
 
 	Completely redone ILLUSTRATION in Apps/VUEE (see also the VUEE doc).
 
-R090706A
+R090706A:
 
 	New SEAWOLF/YEP as for demo reqs from Combat (see YEP.odt).
 	Current YEP preserved in SEAWOLF/YEP_090706A.zip (expands to
 	YEP_090706A for easy diffs with the new YEP).
 
-R090719A
+R090719B:
 
 	Added lcdg_end () to the library of LCDG driver functions to indicate
 	the end of image rendering (the end of an lcdg_render sequence). This
