@@ -1,5 +1,5 @@
 Apps
-	cleanall
+	cleanup
 	ECOPROJECT
 		SENSOR_TEST
 	LIB*
@@ -15,6 +15,7 @@ Apps
 		tnp_demo
 		eco_demo
 		survey
+		SEAWOLF
 Docs
 	*.pdf
 	*.doc
@@ -32,11 +33,15 @@ PicOS
 			WARSAW_LCD_TEST
 			ARTURO
 			ARTURO_PMTH
-			GENERIC_MSP430
+			ARTURO_SD
+			ARTURO_PYR
+			GENERIC_148
 	Libs
 		Lib
 		LibComms
 		LibLCDG
+		LibXRS
+		LibOEP
 RTAGS
 Scripts
 	*.tcl

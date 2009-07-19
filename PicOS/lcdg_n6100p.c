@@ -707,8 +707,11 @@ void _lcdgm_(lcdg_render) (byte cs, byte rs, const byte *pix, word n) {
 		}
 	}
 			
-Done:
+Done:	CNOP;
+#ifndef __SMURPH__
+// To speed up VUEE emulation of this, we only flush on lcdg_end
 	nlcd_cs_up;
+#endif
 }
 
 #ifdef LCDG_FONT_BASE

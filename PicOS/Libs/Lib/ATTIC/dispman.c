@@ -3,7 +3,7 @@
 #include "storage.h"
 
 //
-// Display manager
+// Display manager OBSOLETE to be removed
 //
 
 #define	CCHAR	">"			// Menu pointer character
@@ -207,6 +207,7 @@ Ignore:
 	}
 	// Done
 	ufree (sig);
+	lcdg_end ();
 	return (DM_STATUS = 0);
 }
 

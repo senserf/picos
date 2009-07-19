@@ -33,6 +33,8 @@ void lcdg_setc (byte, byte);
 void lcdg_clear ();
 void lcdg_render (byte, byte, const byte*, word);
 
+#define lcdg_end()	CNOP
+
 #ifdef	LCDG_SETTABLE_CTABLE
 void lcdg_setct (byte, word);
 #else

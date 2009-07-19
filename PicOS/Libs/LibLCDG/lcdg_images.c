@@ -211,6 +211,7 @@ byte lcdg_im_disp (word pn, byte x, byte y) {
 	}
 
 	ufree (sig);
+	lcdg_end ();
 	return 0;
 }
 
@@ -508,6 +509,13 @@ void oep_im_cleanup () {
 					+ LCDG_IM_PO_MAGIC,
 						(byte*)(&lcdg_im_eraw), 2);
 		}
+#ifdef __SMURPH__
+		// This should be optimized out anyway (in PicOS), but can we
+		// be sure?
+		else if (imrd_shw) {
+			lcdg_end ();
+		}
+#endif
 		ee_sync (WNONE);
 	}
 	ufree (lcdg_im_dhk);
