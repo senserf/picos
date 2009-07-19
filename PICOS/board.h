@@ -301,6 +301,12 @@ station PicOSNode abstract {
 		lcdg->m_lcdg_render (a, b, c, d);
 	};
 
+	inline void _da (lcdg_end) () {
+		if (lcdg == NULL)
+			no_lcdg_module ("lcdg_end");
+			lcdg->m_lcdg_end ();
+	};
+
 	inline word _da (lcdg_font) (byte a) {
 		if (lcdg == NULL)
 			no_lcdg_module ("lcdg_font");

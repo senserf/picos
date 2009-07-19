@@ -118,6 +118,7 @@
 #define lcdg_clear()	(  ((PicOSNode*)TheStation)->_na_lcdg_clear ()  )
 #define lcdg_render(a,b,c,d) \
 	(  ((PicOSNode*)TheStation)->_na_lcdg_render (a, b, c, d)  )
+#define lcdg_end() 	(  ((PicOSNode*)TheStation)->_na_lcdg_end ()  )
 #define lcdg_font(a)	(  ((PicOSNode*)TheStation)->_na_lcdg_font (a)  )
 #define lcdg_cwidth()	(  ((PicOSNode*)TheStation)->_na_lcdg_cwidth ()  )
 #define lcdg_cheight()	(  ((PicOSNode*)TheStation)->_na_lcdg_cheight ()  )

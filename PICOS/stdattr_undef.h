@@ -71,6 +71,7 @@
 #undef lcdg_setc
 #undef lcdg_clear
 #undef lcdg_render
+#undef lcdg_end
 #undef lcdg_font
 #undef lcdg_cwidth
 #undef lcdg_cheight

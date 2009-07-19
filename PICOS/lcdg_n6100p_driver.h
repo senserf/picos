@@ -144,6 +144,7 @@ class LCDG {
 	void m_lcdg_setc (byte, byte);
 	void m_lcdg_clear ();
 	void m_lcdg_render (byte, byte, const byte*, word);
+	void m_lcdg_end () { update_flush (); }
 
 	word m_lcdg_font (byte);
 	byte m_lcdg_cwidth (void);

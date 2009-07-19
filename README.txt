@@ -376,3 +376,11 @@ R090629A:
 
     Manual updated, the recommended conversion procedure significantly
     simplified. Requires PICOS R090629A.
+
+R090719A:
+
+    Added lcdg_end () to the library of LCDG driver functions to indicate
+    the end of image rendering (the end of an lcdg_render sequence). This
+    operation is void in PicOS, but in VUEE it reduces the update overhead.
+    Requires PicOS R090719B.
+
