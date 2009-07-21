@@ -1,38 +1,301 @@
 #!/usr/bin/wish
 
-#package require Tk 8.5
+###############################################################################
+
+package provide xml 1.0
+#
+# Mini XML parser
+#
+
+namespace eval XML {
+
+proc xstring { s } {
+#
+# Extract a possibly quoted string
+#
+	upvar $s str
+
+	if { [xspace str] != "" } {
+		error "illegal white space"
+	}
+
+	set c [string index $str 0]
+	if { $c == "" } {
+		error "empty string illegal"
+	}
+
+	if { $c != "\"" } {
+		# no quote; this is formally illegal in XML, but let's be
+		# pragmatic
+		regexp "^\[^ \t\n\r\>\]+" $str val
+		set str [string range $str [string length $val] end]
+		return [xunesc $val]
+	}
+
+	# the tricky way
+	if ![regexp "^.(\[^\"\]*)\"" $str match val] {
+		error "missing \" in string"
+	}
+	set str [string range $str [string length $match] end]
+
+	return [xunesc $val]
+}
+
+proc xunesc { str } {
+#
+# Remove escapes from text
+#
+	regsub -all "&amp;" $str "\\&" str
+	regsub -all "&quot;" $str "\"" str
+	regsub -all "&lt;" $str "<" str
+	regsub -all "&gt;" $str ">" str
+	regsub -all "&nbsp;" $str " " str
+
+	return $str
+}
+
+proc xspace { s } {
+#
+# Skip white space
+#
+	upvar $s str
+
+	if [regexp -indices "^\[ \t\r\n\]+" $str ix] {
+		set ix [lindex $ix 1]
+		set match [string range $str 0 $ix]
+		set str [string range $str [expr $ix + 1] end]
+		return $match
+	}
+
+	return ""
+}
+
+proc xftag { s } {
+#
+# Find and extract the first tag in the string
+#
+	upvar $s str
+
+	set front ""
+
+	while 1 {
+		# locate the first tag
+		set ix [string first "<" $str]
+		if { $ix < 0 } {
+			set str "$front$str"
+			return ""
+		}
+		append front [string range $str 0 [expr $ix - 1]]
+		set str [string range $str $ix end]
+		# check for a comment
+		if { [string range $str 0 3] == "<!--" } {
+			# skip it
+			set ix [string first "-->" $str]
+			if { $ix < 0 } {
+				error "unterminated comment: [string range \
+					$str 0 15]"
+			}
+			incr ix 3
+			set str [string range $str $ix end]
+			continue
+		}
+		set et ""
+		if [regexp -nocase "^<(/)?\[a-z_\]" $str ix et] {
+			# this is a tag
+			break
+		}
+		# skip the thing and keep going
+		append front "<"
+		set str [string range $str 1 end]
+	}
+
+
+	if { $et != "" } {
+		set tm 1
+	} else {
+		set tm 0
+	}
+
+	if { $et != "" } {
+		# terminator, skip the '/', so the text is positioned at the
+		# beginning of keyword
+		set ix 2
+	} else {
+		set ix 1
+	}
+
+	# starting at the keyword
+	set str [string range $str $ix end]
+
+	if ![regexp -nocase "^(\[a-z0-9_\]+)(.*)" $str ix kwd str] {
+		# error
+		error "illegal tag: [string range $str 0 15]"
+	}
+
+	set kwd [string tolower $kwd]
+
+	# decode any attributes
+	set attr ""
+	array unset atts
+
+	while 1 {
+		xspace str
+		if { $str == "" } {
+			error "unterminated tag: <$et$kwd"
+		}
+		set c [string index $str 0]
+		if { $c == ">" } {
+			# done
+			set str [string range $str 1 end]
+			# term preceding_text keyword attributes
+			return [list $tm $front $kwd $attr]
+		}
+		# this must be a keyword
+		if ![regexp -nocase "^(\[a-z\]\[a-z0-9_\]*)=" $str match atr] {
+			error "illegal attribute: <$et$kwd ... [string range \
+				$str 0 15]"
+		}
+		set atr [string tolower $atr]
+		if [info exists atts($attr)] {
+			error "duplicate attribute: <$et$kwd ... $atr"
+		}
+		set atts($atr) ""
+		set str [string range $str [string length $match] end]
+		if [catch { xstring str } val] {
+			error "illegal attribute value: \
+				<$et$kwd ... $atr=[string range $str 0 15]"
+		}
+		lappend attr [list $atr $val]
+	}
+}
+
+proc xadv { s kwd } {
+#
+# Returns the text + the list of children for the current tag
+#
+	upvar $s str
+
+	set txt ""
+	set chd ""
+
+	while 1 {
+		# locate the nearest tag
+		set tag [xftag str]
+		if { $tag == "" } {
+			# no more
+			if { $kwd != "" } {
+				error "unterminated tag: <$kwd ...>"
+			}
+			return [list "$txt$str" $chd]
+		}
+
+		set md [lindex $tag 0]
+		set fr [lindex $tag 1]
+		set kw [lindex $tag 2]
+		set at [lindex $tag 3]
+
+		append txt $fr
+
+		if { $md == 0 } {
+			# opening
+			set cl [xadv str $kw]
+			set tc [list $kw [lindex $cl 0] $at [lindex $cl 1]]
+			lappend chd $tc
+		} else {
+			# closing (must be ours)
+			if { $kw != $kwd } {
+				error "mismatched tag: <$kwd ...> </$kw>"
+			}
+			# we are done
+			return [list $txt $chd]
+		}
+	}
+}
+
+proc sxml_parse { s } {
+#
+# Builds the XML tree from the provided string
+#
+	upvar $s str
+
+	set v [xadv str ""]
+
+	return [list root [lindex $v 0] "" [lindex $v 1]]
+}
+
+proc sxml_name { s } {
+
+	return [lindex $s 0]
+}
+
+proc sxml_txt { s } {
+
+	return [string trim [lindex $s 1]]
+}
+
+proc sxml_attr { s n } {
+
+	set al [lindex $s 2]
+	set n [string tolower $n]
+	foreach a $al {
+		if { [lindex $a 0] == $n } {
+			return [lindex $a 1]
+		}
+	}
+	return ""
+}
+
+proc sxml_children { s { n "" } } {
+
+	set cl [lindex $s 3]
+
+	if { $n == "" } {
+		return $cl
+	}
+
+	set res ""
+
+	foreach c $cl {
+		if { [lindex $c 0] == $n } {
+			lappend res $c
+		}
+	}
+
+	return $res
+}
+
+proc sxml_child { s n } {
+
+	set cl [lindex $s 3]
+
+	foreach c $cl {
+		if { [lindex $c 0] == $n } {
+			return $c
+		}
+	}
+
+	return ""
+}
+
+namespace export sxml_*
+
+### end of XML namespace ######################################################
+
+}
+
+namespace import ::XML::*
+
+###############################################################################
+
+###############################################################################
 
 set Unique		0
 set MaxLineCount	1024
 set HostName		"localhost"
 set AGENT_MAGIC		0xBAB4
 set ECONN_OK		129
-set PortNumber		4443
-
-if { [lindex $argv 0] != "" } {
-	set h ""
-	set p ""
-	set j [lindex $argv 0]
-	if ![regexp "(.*):(.*)" $j j h p] {
-		if [catch { expr $j } p] {
-			set p ""
-			set h $j
-		} else {
-			set h ""
-		}
-	}
-	if { $p != "" } {
-		set PortNumber $p
-	}
-	if { $h != "" } {
-		set HostName $h
-	}
-
-	if { [catch { set PortNumber [expr $PortNumber ] }] ||
-	    $PortNumber < 1 || $PortNumber > 65535 } {
-		puts "Error: illegal port number: $PortNumber"
-	}
-}
+set PortNumber		""
+set GFile		""
 
 array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 
@@ -652,6 +915,8 @@ proc mkTerm { Sok tt hex } {
 
 	wm title $w $tt
 
+	do_geometry $w "uart" $Stat($Sok,S)
+
 	text $w.t
 
 
@@ -1015,6 +1280,7 @@ proc mkClock { Sok } {
 	toplevel $w
 
 	wm title $w "CLOCK"
+	do_geometry $w "clock"
 
 	canvas $w.c -width 170 -height 45 -bg black
 	pack $w.c -expand y
@@ -1208,6 +1474,8 @@ proc mkLeds { Sok nleds tt } {
 
 	wm title $w $tt
 
+	do_geometry $w "leds" $Stat($Sok,S)
+
 	canvas $w.c -width [expr 32 + $nleds * 24] -height 28
 
 	# blinker callback
@@ -1375,6 +1643,7 @@ proc lcdgIni { Sok } {
 	set Wins($Sok) $Wn
 	toplevel $Wn
 	wm title $Wn "LCDG: $Stat($Sok,S)"
+	do_geometry $Wn "lcdg" $Stat($Sok,S)
 	set im [image create photo -width 130 -height 130]
 	set Stat($Sok,IM) $im
 	set w [label $Wn.im -image $im]
@@ -1840,6 +2109,8 @@ proc mkPins { Sok np na tt } {
 
 	wm title $w $tt
 
+	do_geometry $w "pins" $Stat($Sok,S)
+
 	frame $w.dig -borderwidth 4
 	pack $w.dig -side top -expand 1 -fill x
 
@@ -2166,6 +2437,8 @@ proc mkSensors { Sok ns na tt } {
 
 	wm title $w $tt
 
+	do_geometry $w "sensors" $Stat($Sok,S)
+
 	set Stat($Sok,NS) $ns
 	set Stat($Sok,NA) $na
 
@@ -2431,6 +2704,8 @@ proc panelIni { Sok } {
 
 	# issue a request for node 0, which is the default display
 	set Stat($Sok,NN) -1
+	# init flags
+	set Stat($Sok,IN) 1
 
 	log "receiving status info ..."
 
@@ -2490,37 +2765,75 @@ proc panelZero { Sok } {
 				continue
 			}
 
-			if { $Stat($Sok,NN) < 0 } {
-				# waiting for the number of nodes to display
-				# the window for the first time
+			if { $Stat($Sok,IN) } {
+			    # initializing
+			    if ![regexp "(\[0-9\]+) (.*)" $nnm junk tot nnm] {
+				# only long messages expected
+				continue
+			    }
+			    if { $Stat($Sok,NN) < 0 } {
+				# waiting for the total number of nodes
 				if { $nod != 0 } {
-					continue
-				}
-				if ![regexp "(\[0-9\]+) (.*)" $nnm junk tot \
-				    nnm] {
-					continue
+				    continue
 				}
 				if [catch { set tot [expr $tot] } ] {
-					continue
+				    continue
 				}
 				if { $tot < 0 } {
-					continue
+				    continue
 				}
-				# start the window
-				ctimeout $Sok
 				set Stat($Sok,NN) $tot
+				# how many more to ask for
+				if { $tot > 16 } {
+				    set tot 16
+				}
 				set nnm [string trim $nnm]
 				# current node list
 				set Stat($Sok,SL) [list [list 0 $sta $nnm]]
-				# current displayed list
-				set Stat($Sok,DL) ""
-				# asked for (waiting to be included)
 				set Stat($Sok,EL) ""
-				set Wins($Sok) ".wa$Unique"
-				incr Unique
-				log "connection established"
-				updPanel $Sok
-				continue
+
+				if { $tot > 1 } {
+				    # ask for the remaining nodes
+				    for { set n 1 } { $n < $tot } { incr n } {
+					if [catch {
+					    puts -nonewline $Sok "Q $n\n" 
+					} res] {
+					    log "connection aborted: $res"
+					    dealloc $Sok
+					    return
+					}
+					lappend Stat($Sok,EL) $n
+				    }
+				    # keep going
+				    continue
+				}
+				# fall through, if $tot == 1
+			    } else {
+				# waiting for more
+				set ix [lsearch -exact $Stat($Sok,EL) $nod]
+				if { $ix < 0 } {
+				    continue
+				}
+				set Stat($Sok,EL) \
+					[lreplace $Stat($Sok,EL) $ix $ix]
+				set nnm [string trim $nnm]
+				lappend Stat($Sok,SL) [list $nod $sta $nnm]
+				if { [llength $Stat($Sok,EL)] } {
+				    # more
+				    continue
+				}
+			    }
+			    # ready to display
+			    set Stat($Sok,IN) 0
+			    # start the window
+			    ctimeout $Sok
+			    # current displayed list
+			    set Stat($Sok,DL) ""
+			    set Wins($Sok) ".wa$Unique"
+			    incr Unique
+			    log "connection established"
+			    updPanel $Sok
+			    continue
 			}
 
 			# the window is up and running, so this must be an
@@ -3031,6 +3344,8 @@ proc updPanel { Sok } {
 			# preserve previous location
 			regexp "\\+.*\\+.*" $ge ge
 			wm geometry $w $ge
+		} else {
+			do_geometry $w "panel"
 		}
 
 		frame $w.stat -borderwidth 1
@@ -3101,6 +3416,7 @@ proc mkMove { Sok } {
 	toplevel $w
 
 	wm title $w "ROAMER"
+	do_geometry $w "roamer"
 	wm minsize $w $CMARGIN(MW) $CMARGIN(MH)
 
 	# initial canvas size
@@ -3770,7 +4086,265 @@ proc validSid { v } {
 	return [regexp "^\[1-9\]\[0-9\]*$" $v]
 }
 
+# parse arguments
+
+proc bad_usage { } {
+
+	global argv0
+
+	alert "Usage: $argv0 \[host:port\] \[-G gfile\]!"
+	exit 99
+}
+
+proc parse_args { } {
+
+	global argv GFile PortNumber HostName
+
+	while { [llength $argv] } {
+
+		set j [lindex $argv 0]
+		set argv [lrange $argv 1 end]
+
+		if { $j == "-G" } {
+			# geometry
+			set h [lindex $argv 0]
+			set argv [lrange $argv 1 end]
+			if { $GFile != "" || $h == "" } {
+				bad_usage
+			}
+			set GFile $h
+			continue
+		}
+
+		# port
+		if { $PortNumber != "" } {
+			bad_usage
+		}
+		if ![regexp "(.*):(.*)" $j j h p] {
+			if [catch { expr $j } p] {
+				set p ""
+				set h $j
+			} else {
+				set h ""
+			}
+		}
+		if { $p == "" } {
+			set PortNumber 4443
+		} else {
+			set PortNumber $p
+		}
+		if { $h != "" } {
+			set HostName $h
+		}
+
+		if { [catch { set PortNumber [expr $PortNumber ] }] ||
+	    	    $PortNumber < 1 || $PortNumber > 65535 } {
+			alert "Illegal port number: $PortNumber!"
+			exit 99
+		}
+	}
+
+	if { $PortNumber == "" } {
+		set PortNumber 4443
+	}
+}
+
+proc n_parse { ln } {
+#
+# Parse a number
+#
+	upvar $ln line
+
+	# no negative numbers in this case, so we stop on a - which means
+	# a range
+	if ![regexp "^\[^ ,\t\n\r\-]+" $line code] {
+		return ""
+	}
+
+	if [catch { expr $code } num] {
+		return ""
+	}
+
+	# integer expected
+	if { [catch { expr int($num) } iv] || $iv != $num } {
+		return ""
+	}
+
+	set num $iv
+
+	if { $num < 0 } {
+		# just in case
+		return ""
+	}
+
+	set line \
+		[string trimleft [string range $line [string length $code] end]]
+
+	return $num
+}
+
+proc do_geometry { win kwd { num "" } } {
+
+	global Geometry
+
+	if [info exists Geometry($kwd)] {
+		foreach ml $Geometry($kwd) {
+			set exp [lindex $ml 0]
+			set geo [lindex $ml 1]
+			if [numexp $exp $num] {
+				wm geometry $win $geo
+				return
+			}
+		}
+	}
+}
+
+proc numexp { exp num } {
+#
+# This is a kind of "number expression" match, whereby we have a list of values
+# with possible ranges and want to check if the specified number qualifies,
+# i.e., is either listed there explicitly or falls into a range
+#
+	if [catch { expr $num } num] {
+		return 1
+	}
+
+	set exp [string trim $exp]
+	if { $exp == "" } {
+		return 1
+	}
+
+	while 1 {
+
+		set exp [string trimleft $exp " \t,"]
+		set a [n_parse exp]
+		if { $a == "" } {
+			return 0
+		}
+		if { $a == $num } {
+			return 1
+		}
+
+		if { [string index $exp 0] == "-" } {
+			# a range
+			set exp [string range $exp 1 end]
+			set b [n_parse exp]
+			if { $b == "" || $a > $b } {
+				return 2
+			}
+			if { $a < $num && $num <= $b } {
+				return 1
+			}
+		}
+	}
+}
+
+proc parse_g { geo } {
+#
+# Parse the geometry specification
+#
+	set g ""
+	foreach u { 0 1 } {
+		# twice
+		set geo [string trimleft $geo]
+		if { [string index $geo 0] == "-" } {
+			set sg "-"
+			set geo [string range $geo 1 end]
+		} else {
+			set sg "+"
+		}
+		set n [n_parse geo]
+		if { $n == "" } {
+			return ""
+		}
+		append g $sg$n
+		set geo [string trimleft $geo " \t,"]
+	}
+	return $g
+}
+		
+proc parse_geometry { } {
+
+	global GFile Geometry
+
+	if { $GFile == "" } {
+		# try to open the default geometry file
+		set GFile "geometry.xml"
+		if [catch { open $GFile "r" } h] {
+			# failure is OK
+			return
+		}
+	} else {
+		if [catch { open $GFile "r" } h] {
+			alert "Cannot open geometry file $GFile: $h!"
+			exit 99
+		}
+	}
+
+	# parse the geometry file
+	if [catch { read $h } p] {
+		alert "Cannot read geometry file $GFile: $p!"
+		exit 99
+	}
+	catch { close $h }
+
+	if [catch { sxml_parse p } p] {
+		alert "XML error in geometry file $GFile: $p!"
+		exit 99
+	}
+
+	set p [sxml_child $p "geometry"]
+
+	if { $p == "" } {
+		alert "There is no <geometry> element in $GFile!"
+	}
+
+	foreach j [sxml_children $p] {
+
+		set n [string tolower [sxml_name $j]]
+		set t [sxml_txt $j]
+		set torg $t
+	
+		set ml ""
+
+		while 1 {
+			if { $t == "" } {
+				break
+			}
+			if ![regexp \
+				"^(\[^=\]*)\[ \t\]*=\[ \t\]*\\((\[^)\]+)\\)" \
+				$t mat pfx geo] {
+					bad_geo $t
+			}
+			# validate the pattern
+			if { [numexp $pfx 999888] > 1 } {
+				alert "Illegal number pattern in $GFile ($pfx)!"
+				exit 99
+			}
+			set geo [parse_g $geo]
+			if { $geo == "" } {
+				alert "Illegal geometry specification in\
+					$GFile ($torg)!"
+				exit 99
+			}
+			lappend ml [list $pfx $geo]
+			set ls [string length $mat]
+			set t [string trimleft [string range $t $ls end] " \t,"]
+		}
+
+		if { $ml != "" } {
+			set Geometry($n) $ml
+		}
+	}
+}
+
+parse_args
+
+parse_geometry
+			
 wm title . "VUEE udaemon"
+
+do_geometry . "root"
 
 frame .top -borderwidth 10
 pack .top -side top -expand 0 -fill x

@@ -139,6 +139,9 @@ void PicOSNode::stopall () {
 	if (RFInt != NULL)
 		RFInt->abort ();
 
+	if (lcdg != NULL)
+		lcdg->m_lcdg_off ();
+
 	Halted = YES;
 }
 

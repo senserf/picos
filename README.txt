@@ -384,3 +384,19 @@ R090719A:
     operation is void in PicOS, but in VUEE it reduces the update overhead.
     Requires PicOS R090719B.
 
+R090720A:
+
+    udaemon now accepts a geometry file specifying locations for its windows.
+    By default, the file is assumed to be geometry.xml and sought in the
+    directory in which udaemon is called. You can say:
+
+	udaemon -G filename
+
+    to point to it explicitly. If no geometry file is provided, the script
+    will position windows as before.
+
+    A sample geometry.xml file is provided in PICOS/Apps/VUE/SEAWOLF/YEP.
+    I will document it soon.
+
+    When LCDG is displayed and the node goes off, the display is cleared, i.e.,
+    forced into the off state.
