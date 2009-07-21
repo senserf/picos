@@ -3338,3 +3338,12 @@ R090721A:
        YEP cosmetics: don't halt on bad eprom data, lower deepest user info
        to stay below the status bar.
 
+
+R090721B:
+
+	Added files to Apps/VUEE/eco_demo/OSSI/ECONNECT (and modified
+	econnect.tcl a bit) to be able to create a Windows installer file
+	(msi) for econnect. The program now uses the proper directories,
+	i.e., it gets installed into Program Files/Olsonet/EConnect and uses
+	AppData/econnet for its home directory. Also, it can be uninstalled
+	the standard way.
