@@ -3327,3 +3327,8 @@ R090719B:
 	be trivial.
 
 	A slight modification to satellite puller.
+
+R090720A:
+
+	Nothing really. Sample geometry.xml file for new udaemon added to
+	Apps/VUEE/SEAWOLF/YEP.
