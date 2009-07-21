@@ -3332,3 +3332,9 @@ R090720A:
 
 	Nothing really. Sample geometry.xml file for new udaemon added to
 	Apps/VUEE/SEAWOLF/YEP.
+
+R090721A:
+
+       YEP cosmetics: don't halt on bad eprom data, lower deepest user info
+       to stay below the status bar.
+
