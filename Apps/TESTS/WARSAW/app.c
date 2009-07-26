@@ -1534,6 +1534,90 @@ endthread
 
 // ============================================================================
 
+#define	AD_INIT		00
+#define	AD_RCMD		01
+#define	AD_CONF		03
+#define	AD_OK		04
+#define AD_STOP		05
+
+thread (test_adc)
+
+  entry (AD_INIT)
+
+	ser_out (AD_INIT,
+		"\r\nADC Test\r\n"
+		"Commands:\r\n"
+		"c pin ref sht -> configure\r\n"
+		"s             -> start\r\n"
+		"h             -> stop & read\r\n"
+		"f             -> off\r\n"
+		"d             -> disable\r\n"
+		"q             -> quit\r\n"
+		);
+
+  entry (AD_RCMD)
+
+	ser_in (AD_RCMD, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+		case 'c' : proceed (AD_CONF);
+		case 's' : { adc_start;    proceed (AD_OK); }
+		case 'f' : { adc_off;      proceed (AD_OK); }
+		case 'd' : { adc_disable;  proceed (AD_OK); }
+		case 'h' : proceed (AD_STOP);
+	    	case 'q' : { adc_disable;  finish; };
+	}
+
+  entry (AD_RCMD+1)
+
+	ser_out (AD_RCMD+1, "Illegal command or parameter\r\n");
+	proceed (AD_INIT);
+
+  entry (AD_CONF)
+
+	nt = 0;
+	sl = 0;
+	ss = 0;
+
+	scan (ibuf + 1, "%u %u %u", &nt, &sl, &ss);
+
+	if (nt > 7 || sl > 3 || ss > 15)
+		proceed (AD_RCMD+1);
+
+	adc_config_read (nt, sl, ss);
+
+  entry (AD_OK)
+
+	ser_out (AD_OK, "OK\r\n");
+	proceed (AD_RCMD);
+
+  entry (AD_STOP)
+
+	adc_stop;
+	if (adc_busy)
+		proceed (AD_STOP+1);
+Value:
+	nt = adc_value;
+
+  entry (AD_STOP+3)
+
+	ser_outf (AD_STOP+3, "Value = %u [%x]\r\n", nt, nt);
+	proceed (AD_RCMD);
+
+  entry (AD_STOP+1)
+
+	ser_out (AD_STOP+1, "Waiting for ADC to become idle ...\r\n");
+	while (adc_busy);
+
+  entry (AD_STOP+2)
+
+	ser_out (AD_STOP+2, "Idle\r\n");
+	goto Value;
+
+endthread
+
+// ============================================================================
+
 #define	RS_INIT		00
 #define	RS_RCMD		10
 #define	RS_EPR		20
@@ -1614,6 +1698,7 @@ thread (root)
 #ifdef SENSOR_LIST
 		"V    -> sensors\r\n"
 #endif
+		"A    -> ADC\r\n"
 #ifdef RTC_PRESENT
 		"T    -> RTC test\r\n"
 #endif
@@ -1691,6 +1776,11 @@ thread (root)
 				release;
 		}
 #endif
+		case 'A' : {
+				runthread (test_adc);
+				joinall (test_adc, RS_RCMD-2);
+				release;
+		}
 
 #ifdef RTC_PRESENT
 		case 'T' : {

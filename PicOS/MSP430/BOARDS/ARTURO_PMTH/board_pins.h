@@ -54,6 +54,13 @@
 #define	MOI_ECO_NSA	2	// Number of samples, corresponds to 16
 #define	MOI_ECO_REF	3	// Voltage reference: Veref
 
+//
+// May want to try these (more stable sampling time), but will have to
+// redefine SHT
+// ===
+// #define	ADC_CLOCK_SOURCE	ADC12SSEL_ACLK
+// #define	ADC_CLOCK_DIVIDER	ADC12DIV_0
+
 // Notes re ECHO sensor reference:
 //
 // Tests regarding stability in the face of varying Vcc were rather

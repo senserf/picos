@@ -11,24 +11,6 @@
 #define PIN_RESERVED	{ 0xff, 0 }
 
 /*
- * ADC configuration for polled sample collection
- */
-#define	adc_config_read(p,r,t)	do { \
-				  _BIC (ADC12CTL0, ENC); \
-				  _BIC (P6DIR, 1 << (p)); \
-				  _BIS (P6SEL, 1 << (p)); \
-				  ADC12CTL1 = ADC12DIV_7 + ADC12SSEL_0 + \
-				  ((t) != 0 ? SHP : 0); \
-				  ADC12MCTL0 = EOS + \
-				  ((r) > 2 ? SREF_VEREF_AVSS : ((r) == 2 ? \
-				    SREF_AVCC_AVSS : SREF_VREF_AVSS)) + (p); \
-				  ADC12CTL0 = ADC12ON + \
-				   ((r) == 1 ? REF2_5V : 0) + \
-				   ((r) < 2 ? REFON : 0) + \
-				   (((t) & 0xf) << 12) + (((t) & 0xf) << 8); \
-				} while (0)
-
-/*
  * Defines internal functions for pin monitor with interrupts:
  *
  *    This assumes that the pins are on P2
@@ -227,6 +209,49 @@
 REQUEST_EXTERNAL (p2irq);
 #endif
 
+// === GP ADC =================================================================
+//
+// The defaults are:
+//
+//	Internal oscillator (lousy stability: 3.7-6.3 MHz with 5MHz target)
+//	divided by 8, yielding about 1.6us sampling unit
+//
+
+#ifndef	ADC_CLOCK_SOURCE
+#define	ADC_CLOCK_SOURCE	ADC12SSEL_ADC12OSC
+#endif
+
+#ifndef	ADC_CLOCK_DIVIDER
+#define	ADC_CLOCK_DIVIDER	ADC12DIV_7
+#endif
+
+/*
+ * ADC configuration for polled sample collection:
+ *
+ *	- internal oscillator (3.7-6.3MHz with 5MHz target) divided by 8
+ *      - t == 0 -> sample and hold, otherwise timed by t
+ *	- r == 0 -> int 1.5, 1 -> int 2.5, 2 -> Vcc, 3 -> Veref
+ *
+ *	Note: the unit of sampling time is (average) 200ns * 8 = 1.6us
+ */
+#define	adc_config_read(p,r,t)	do { \
+				  _BIC (ADC12CTL0, ENC); \
+				  _BIC (P6DIR, 1 << (p)); \
+				  _BIS (P6SEL, 1 << (p)); \
+				  ADC12CTL1 = ADC_CLOCK_DIVIDER + \
+							ADC_CLOCK_SOURCE + \
+				  ((t) != 0 ? SHP : 0); \
+				  ADC12MCTL0 = EOS + \
+				  ((r) > 2 ? SREF_VEREF_AVSS : ((r) == 2 ? \
+				    SREF_AVCC_AVSS : SREF_VREF_AVSS)) + (p); \
+				  ADC12CTL0 = ADC12ON + \
+				   ((r) == 1 ? REF2_5V : 0) + \
+				   ((r) < 2 ? REFON : 0) + \
+				   (((t) & 0xf) << 12) + (((t) & 0xf) << 8); \
+				} while (0)
+
+// ============================================================================
+
 #ifdef	PIN_ADC_RSSI
 
 #define	adc_config_rssi		do { \
@@ -244,6 +269,8 @@ REQUEST_EXTERNAL (p2irq);
 
 #endif	/* PIN_ADC_RSSI */
 
+// ============================================================================
+
 // Result not available
 #define	adc_busy	(ADC12CTL1 & ADC12BUSY)
 
@@ -256,10 +283,13 @@ REQUEST_EXTERNAL (p2irq);
 // ADC reading
 #define	adc_value	ADC12MEM0
 
+#if 0
 // ADC operating for the RF receiver; this is heuristic, and perhaps
 // not needed (used in pin_read.c to save a status bit that would have to be
 // stored somewhere)
 #define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
+// I am removing this ugly hack
+#endif
 
 // Explicit end of sample indication
 #define	adc_stop	_BIC (ADC12CTL0, ADC12SC)

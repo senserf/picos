@@ -32,7 +32,7 @@
 				fd.adc.ctrl.int_dis = 1; \
 			} while (0)
 
-// Used by the RF module
+// Used by the RF module (not needed any more, PG 090724)
 #define	adc_rcvmode	(rg.adc.cfg == PIN_ADC_RSSI)
 
 #else	/* NO ADC RSSI */

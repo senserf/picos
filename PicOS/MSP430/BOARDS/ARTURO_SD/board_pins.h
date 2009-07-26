@@ -17,14 +17,14 @@
 #define	PIN_DEFAULT_P2DIR	0x83	// 0,1 and 7 hang loose, 2-6 nc
 #define	PIN_DEFAULT_P3DIR	0xC9
 
-// P5.4 == reference voltage for PAR; EEPROM: 0-CS, 1-SI, 2-SO, 3-SCK
+// EEPROM/SD: 0-CS, 1-SI, 2-SO, 3-SCK
 #define	PIN_DEFAULT_P5DIR	0xFB
 #define	PIN_DEFAULT_P5OUT	0x09
 
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
-#define	PIN_DEFAULT_P4DIR	0x0E	// P4.7 == Veref selector (PAR/MOI)
-#define	PIN_DEFAULT_P6DIR	0xD0	// For the SD card
-#define	PIN_DEFAULT_P6OUT	0xD0
+#define	PIN_DEFAULT_P4DIR	0x0E	// Veref selector (PAR/MOI)
+#define	PIN_DEFAULT_P6DIR	0x00
+#define	PIN_DEFAULT_P6OUT	0x00
 
 //#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 

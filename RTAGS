@@ -3347,3 +3347,16 @@ R090721B:
 	i.e., it gets installed into Program Files/Olsonet/EConnect and uses
 	AppData/econnet for its home directory. Also, it can be uninstalled
 	the standard way.
+
+R090725A:
+
+	Added new board MSP430/ARTURO_AGGREGATOR intended for aggregators and
+	satnodes. The board is equipped with one analog sensor number zero
+	which returns a value proportional to the voltage on the external
+	power source (feeding into the voltage regulator). The board should
+	be modified by connecting two resistors in series: 47K + 4.7K from
+	the external voltage source (connected to the "USB voltage" pin to
+	the ground, with the smaller (4.7K) resistor closer to the ground.
+	Then the other end of the 4.7K resistor should be soldered to P6.0.
+	The voltage on P6.0 is going to be 1/11 of the external voltage,
+	e.g., 1.09V at 12V.

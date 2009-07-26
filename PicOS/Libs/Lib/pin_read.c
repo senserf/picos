@@ -87,9 +87,11 @@ int pin_read_adc (word state, word pin, word ref, word smpt) {
 	zz_clear_dac (pin);
 
 	if (adc_inuse) {
+#if 0
 		if (adc_rcvmode)
 			// We never interfere with the receiver using ADC
 			return -1;
+#endif
 		// This means that we are in the middle of conversion and
 		// we have been restarted to terminate it
 		goto End;
