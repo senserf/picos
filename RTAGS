@@ -3360,3 +3360,10 @@ R090725A:
 	Then the other end of the 4.7K resistor should be soldered to P6.0.
 	The voltage on P6.0 is going to be 1/11 of the external voltage,
 	e.g., 1.09V at 12V.
+
+R090726A:
+
+	Added a new program, genimage, to the econnect set. The installation
+	procedure has been improved and, for example, now allows for upgrading
+	(or so I think).
+	
