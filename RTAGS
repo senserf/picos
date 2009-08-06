@@ -3366,4 +3366,17 @@ R090726A:
 	Added a new program, genimage, to the econnect set. The installation
 	procedure has been improved and, for example, now allows for upgrading
 	(or so I think).
-	
+
+R090806A:
+
+	eco_demo (no ver. change):
+	- patched in the 'power in' sensor on aggregators (see R090725A)
+          - only ARTURO_AGGREGATOR is legal for aggregators
+	  - updated VUEE models (.xml files)
+	  - 'a' returns additional (tailing) 'inp' entry with its reading
+	  - it is collected at Masters at const 64 * 'tag audit interval' s.
+	    (#define POW_FREQ_SHIFT 6) ('tag audit interval' defaults to 59 s.)
+	  - slightly changed stats_str (unlikely to affect econnect, other than
+	    the add-on).
+
+
