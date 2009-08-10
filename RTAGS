@@ -3379,7 +3379,7 @@ R090806A:
 	  - slightly changed stats_str (unlikely to affect econnect, other than
 	    the add-on).
 
-R090809A:
+R090809B:
 
 	Fixed genimage to avoid looking into the programs installation
 	directory for its input.
@@ -3390,3 +3390,6 @@ R090809A:
 
 	XML data to VUEE can now have includes (see large_eco.xml). This
 	requires new SIDE.
+
+	Power tracker in VUEE: you don't have to comment out powerdown and
+	powerup any more.
