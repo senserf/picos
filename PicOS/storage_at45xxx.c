@@ -96,7 +96,7 @@ static void put_byte (byte b) {
 	s = ee_get;
 }
 
-static Boolean busy () {
+static byte nonbusy () {
 
 // Check if busy
 
@@ -107,7 +107,7 @@ static Boolean busy () {
 	c = get_byte ();
 	ee_stop;
 
-	return (c & 0x80) == 0;
+	return c & 0x80;
 }
 
 static void saddr (word pn, word po) {
@@ -164,7 +164,7 @@ static void put_byte (byte b) {
 	}
 }
 
-static Boolean busy () {
+static byte nonbusy () {
 
 // Check if busy
 
@@ -178,7 +178,7 @@ static Boolean busy () {
 	ee_clkl;
 	ee_stop;
 
-	return (c == 0);
+	return c;
 }
 
 static void saddr (word a) {
@@ -250,8 +250,7 @@ static void waitnb () {
 
 // Wait while busy
 
-	while (busy ())
-		udelay (50);
+	while (!nonbusy ());
 }
 
 word ee_read (lword a, byte *s, word len) {
@@ -330,7 +329,7 @@ static void wwait (word st) {
 
 	if (st == WNONE) {
 		waitnb ();
-	} else if (busy ()) {
+	} else if (!nonbusy ()) {
 		delay (1, st);
 		release;
 	}
@@ -695,7 +694,7 @@ word ee_open () {
 	put_byte (EE_PUP);
 	ee_stop;
 #endif
-	for (cnt = 1000; busy () && cnt; cnt--);
+	for (cnt = 10000; !nonbusy () && cnt; cnt--);
 
 	if (cnt == 0) {
 		ee_bring_down;
@@ -715,7 +714,7 @@ void ee_close () {
 
 	sync (WNONE);
 
-	for (cnt = 1000; busy () && cnt; cnt--);
+	for (cnt = 1000; !nonbusy () && cnt; cnt--);
 
 #ifdef	EEPROM_PDMODE_AVAILABLE
 	ee_start;

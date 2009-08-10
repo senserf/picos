@@ -48,18 +48,18 @@
 
 #endif
 
+//+++ "main.c"
+//+++ "kernel.c"
+
+#include "options.h"
+#include "mach.h"
+
 #if	RADIO_USE_LEDS
 #undef	LEDS_DRIVER
 #undef	LEDS_BLINKING
 #define	LEDS_DRIVER	1
 #define	LEDS_BLINKING	1
 #endif
-
-//+++ "main.c"
-//+++ "kernel.c"
-
-#include "options.h"
-#include "mach.h"
 
 /* ================================== */
 /* Some hard configuration parameters */

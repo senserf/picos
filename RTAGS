@@ -3379,4 +3379,14 @@ R090806A:
 	  - slightly changed stats_str (unlikely to affect econnect, other than
 	    the add-on).
 
+R090809A:
 
+	Fixed genimage to avoid looking into the programs installation
+	directory for its input.
+
+	Minor cleanups in atorage_at45xxx.c.
+
+	xml.tcl now admits self-closing tags and <include>s.
+
+	XML data to VUEE can now have includes (see large_eco.xml). This
+	requires new SIDE.

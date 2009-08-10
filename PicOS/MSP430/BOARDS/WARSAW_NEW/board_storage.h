@@ -38,6 +38,11 @@
 #define	SPI_BAUD_RATE	2	// the fastest
 #endif
 
+//
+// Note: with SPI_BAUD_RATE == 2, we get 1/2 of the 6MHz SMCLK, which is
+// 3 mbits/sec, i.e., 375000 bytes/sec
+//
+
 // This is the same for both EE and SD
 #define	spi_up		do { \
 				_BIS (P5SEL, 0x0E); \
