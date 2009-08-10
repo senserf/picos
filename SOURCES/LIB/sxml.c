@@ -473,8 +473,12 @@ sxml_t sxml_parse_str(char *s, size_t len)
     char q, e, *d, **attr, **a = NULL; // initialize a to avoid compile warning
     int l, i, j;
 
+    // PG - to pass errors from a preparser
+    if (len == 0)
+	return sxml_err (root, NULL, s);
+
     root->m = s;
-    if (! len) return sxml_err(root, NULL, "root tag missing");
+    // if (! len) return sxml_err(root, NULL, "root tag missing");
     root->u = sxml_str2utf8(&s, &len); // convert utf-16 to utf-8
     root->e = (root->s = s) + len; // record start and end of work area
     
@@ -494,7 +498,7 @@ sxml_t sxml_parse_str(char *s, size_t len)
 
             s += strcspn(s, EZXML_WS "/>");
             while (isspace(*s)) *(s++) = '\0'; // null terminate tag name
-  
+
             if (*s && *s != '/' && *s != '>') // find tag in default attr list
                 for (i = 0; (a = root->attr[i]) && strcmp(a[0], d); i++);
 

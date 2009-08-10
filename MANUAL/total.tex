@@ -1918,6 +1918,34 @@ If the argument is not {\tt '{\char092}0'}, its occurrence as the first
 character of a line will terminate the interpretation of the input file.
 \end{quote}
 
+The last function is the only one that interprets {\em includes\/} in the parsed
+file, i.e., tags of these forms:
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\> {\tt <xi:include href="}{\em filename\/}{\tt ">...</xi:include>}\\
+\> {\tt <xi:include href="}{\em filename\/}{\tt "/>}
+\end{tabbing}}
+\noindent
+where {\em filename\/} gives the name of the file whose contents are to be
+inserted into the current place of the processed XML data, replacing the entire
+{\tt <xi:include>} tag.
+The tag may have a text content, which will be ignored, but is not allowed to
+have sub-tags.
+This feature implements a trivial subset of the full capabilities of the
+official XML {\tt <xi:include>} tag, in particular,
+{\tt href} is the only expected and parsed attribute.
+The included file is interpreted as XML data (being a straightforward
+continuation of the source file), which is allowed to contain other
+{\tt <xi:include>} tags.
+In the \smurph\ variant, the tag's keyword can be abbreviated as {\tt include},
+e.g., these two constructs:
+\begin{verbatim}
+        <xi:include href="somefile.xml"/>
+        <include href="somefile.xml"></include>
+\end{verbatim}
+\noindent
+are equivalent.
+
 \subsection{Operations on flags}
 \label{rm_au_fl}
 

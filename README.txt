@@ -992,3 +992,9 @@
 
  R090601A  Function parseNumbers improved to recognize and properly handle hex
 	   prefixes (0x or 0X) in all integer numbers.
+
+ R090809A  Fixed a minor bug in the RSY mode causing that the wall clock was
+	   not set properly on startup.
+
+	   Added the file include capability (a trivial subset of xi:include)
+	   to sxml_parse_input in numio.c.

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-08   P. Gburzynski */
+/* Copyright (C) 1991-09   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -738,6 +738,173 @@ void    zz_ptime (TIME &t, int s) {
 /* Wrappers for sxml functions */
 /* =========================== */
 
+static char *sxml_handle_includes (char *IF, int *MS, char **err) {
+/*
+ * Searches (heuristically and inefficiently) for included files and reads
+ * them in. Note: I tried to do it in sxml.c, but that would require a rather
+ * drastic reprogramming of the whole thing because the package uses pointers
+ * to the original string. That means, in particular, that the string cannot
+ * be re-alloc'ed half way through, which makes it impossible to include files
+ * as we go. Consequently, I have to pre-include them before invoking the
+ * parser.
+ */
+	int sk, tl, nc, nr, ms;
+	char *e, *s, *t, *u, *v, *w, *f;
+
+	e = (s = IF) + *MS;
+	*err = NULL;
+
+	while (1) {
+		// Find a tag
+		while (s < e && *s != '<')
+			s++;
+		if (s >= e)
+			// All done
+			return IF;
+		// Will be deleting from s; u == keyword pointer
+		v = u = s + 1;
+		// This must be "xi:include" or just "include" (our shortcut)
+		if (strncmp (v, "xi:include", 10) == 0) {
+			sk = 10;
+		} else if (strncmp (v, "include", 7) == 0) {
+			sk = 7;
+		} else {
+			sk = 0;
+		}
+		if (!sk) {
+			// Not an include tag
+			s = v;
+			continue;
+		}
+		// Skip the keyword
+		v += sk;
+		if (v >= e || !isspace (*v)) {
+NoHref:
+			*err = "include tag requires an href attribute";
+Error:
+			free (IF);
+			return NULL;
+		}
+
+		// Find the end of this tag; v points to the starting point
+		// for locating href
+		for (t = v; t < e && *t !='>'; t++);
+		if (t == e) {
+Broken:
+			*err = "include tag format error";
+			goto Error;
+		}
+		// Last point for locating href
+		w = t;
+		if (*(t-1) != '/') {
+			// This is not a self-closing tag
+			while (t < e && *t != '<')
+				t++;
+			if (t >= e || *++t != '/') {
+Unmatched:
+				*err = "unmatched include tag";
+				goto Error;
+			}
+			// Keywords must match
+			t++;
+			if (strncmp (u, t, sk))
+				goto Unmatched;
+			while (t < e && *t !='>')
+				t++;
+			if (t == e)
+				goto Unmatched;
+		}
+		// Will remove upto this
+		t++;
+
+		// Locate href
+		do {
+			if (v > w - 8)
+				goto NoHref;
+		} while (strncmp ("href=\"", v++, 6));
+
+		// Skip to filename
+		v += 5;
+
+		while (v < e && isspace (*v))
+			v++;
+
+		if (v == e || *v == '\"') {
+			*err = "file name missing for include href";
+			goto Error;
+		}
+
+		for (w = v + 1; !isspace (*w) && *w != '\"'; w++)
+			if (w >= t)
+				goto Broken;
+		// Can do it safely as that part will be removed
+		*w = '\0';
+
+		if ((sk = open (v, O_RDONLY)) < 0) {
+			*err = "cannot open include file";
+			goto Error;
+		}
+
+		if ((f = (char*) malloc (ms = 1024)) == NULL) {
+Mem:
+			excptn ("sxml_handle_includes: out of memory");
+		}
+		nc = 0;
+
+		while (1) {
+
+			if (nc == ms) {
+				// Realloc
+				if ((w = (char*) malloc (ms = ms + ms)) == NULL)
+					goto Mem;
+				memcpy (w, f, nc);
+				free (f);
+				f = w;
+			}
+				
+			nr = read (sk, f + nc, ms - nc);
+
+			if (nr < 0) {
+				close (sk);
+				free (w);
+				*err = "cannot read from include file";
+				goto Error;
+			}
+
+			if (nr == 0)
+				break;
+
+			nc += nr;
+		}
+
+		close (sk);
+
+		// Offset from the beginning of how far we are
+		ms = (s - IF);
+
+		// Old tail to be appended
+		tl = *MS - (t - IF);
+		
+		// New total length
+		nr = ms + nc + tl;
+
+		if ((w = (char*) malloc (nr)) == NULL)
+			goto Mem;
+
+		strncpy (w, IF, ms);
+		strncpy (w + ms, f, nc);
+		strncpy (w + ms + nc, t, tl);
+
+		*MS = ms + nc + tl;
+
+		free (IF);
+		free (f);
+		IF = w;
+		s = IF + ms;
+		e = IF + *MS;
+	}
+}
+
 sxml_t	sxml_parse_input (char del) {
 /*
  * Parse the input data. The optional character (if not 0) gives the delimiter
@@ -782,10 +949,13 @@ sxml_t	sxml_parse_input (char del) {
 		EOL == (c == '\n');
 	}
 
-	xml = sxml_parse_str1 (IF, CSize);
+	if ((IF = sxml_handle_includes (IF, &CSize, &SF)) == NULL)
+		// IF has been freed by sxml_handle_includes
+		return sxml_parse_str (SF, 0);
+	
+	return sxml_parse_str1 (IF, CSize);
 	// No need to delete IF; it is being recycled by sxml_parse_str1 and
 	// will be deallocated along with the entire structure by sxml_free
-	return xml;
 }
 
 void 	zz_outth () {

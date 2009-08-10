@@ -819,12 +819,16 @@ int main (int argc, char *argv []) {
         openTracingJournals ();
 #endif
 
-#if  ZZ_REA
+#if  ZZ_REA || ZZ_RSY
 	mark_real_time ();
-	Ouf << "SIDE Version " << VERSION << "      ";
-#else
-	Ouf << "SMURPH Version " << VERSION << "      ";
 #endif
+
+#if  ZZ_REA
+	Ouf << "SIDE Version "
+#else
+	Ouf << "SMURPH Version "
+#endif
+					<< VERSION << "      ";
 
 	if (ProtocolId != NULL)
 		Ouf << ProtocolId << "    ";
