@@ -198,6 +198,18 @@ station PicOSNode abstract {
 
 	Mailbox	TB;		// For trigger
 
+	pwr_tracker_t	*pwr_tracker;
+
+	void pwrt_change (word m, word l) {
+		if (pwr_tracker)
+			pwr_tracker->pwrt_change (m, l);
+	};
+
+	void pwrt_add (word m, word l, double tm) {
+		if (pwr_tracker)
+			pwr_tracker->pwrt_add (m, l, tm);
+	};
+
 	/*
 	 * Memory allocator
 	 */
@@ -378,6 +390,9 @@ station PicOSNode abstract {
 	void _da (reset) ();
 	// This one halts the node (from the praxis)
 	void _da (halt) ();
+	// Power management
+	void _da (powerdown) ();
+	void _da (powerup) ();
 	// This one stops the node (from outside the praxis)
 	void stopall ();
 	// This is type specific reset; also called by the agent to halt the
@@ -596,6 +611,8 @@ station PicOSNode abstract {
 	 * EEPROM + FIM (IFLASH)
 	 */
 	lword _da (ee_size) (Boolean*, lword*);
+	word _da (ee_open) ();
+	void _da (ee_close) ();
 	word _da (ee_read)  (lword, byte*, word);
 	word _da (ee_erase) (word, lword, lword);
 	word _da (ee_write) (word, lword, const byte*, word);
@@ -686,6 +703,7 @@ process	BoardRoot {
 	data_pn_t *readPinsParams (sxml_t, const char*);
 	data_sa_t *readSensParams (sxml_t, const char*);
 	data_le_t *readLedsParams (sxml_t, const char*);
+	data_pt_t *readPwtrParams (sxml_t, const char*);
 
 	void initTiming (sxml_t);
 	int initChannel (sxml_t, int, Boolean);

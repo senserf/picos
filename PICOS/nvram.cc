@@ -253,8 +253,20 @@ lword NVRAM::size (Boolean *er, lword *eru) {
 	return tsize;
 }
 
+word NVRAM::nvopen () {
+
+	ThePicOSNode->pwrt_change (PWRT_STORAGE, PWRT_STORAGE_ON);
+	return 0;
+}
+
+void NVRAM::nvclose () {
+
+	ThePicOSNode->pwrt_change (PWRT_STORAGE, PWRT_STORAGE_OFF);
+}
+	
 word NVRAM::get (lword adr, byte *buf, lword len) {
 
+	double ot;
 	lword cur, n;
 	int off;
 
@@ -267,6 +279,10 @@ word NVRAM::get (lword adr, byte *buf, lword len) {
 		return 0;
 
 	TP &= ~NVRAM_FLAG_UNSNCD;
+
+	// Energy usage
+	if ((ot = otime (NVRAM_FTIME_READ, len)) > 0.0)
+		ThePicOSNode->pwrt_add (PWRT_STORAGE, PWRT_STORAGE_READ, ot);
 
 	if ((TP & NVRAM_FLAG_FIMAGE) != 0) {
 		// From file
@@ -309,8 +325,45 @@ word NVRAM::get (lword adr, byte *buf, lword len) {
 	return 0;
 }
 
+void NVRAM::timed (word st, lword len, int tp, word en) {
+
+	double ot;
+	TIME del;
+
+	if (st != WNONE && ftimes != NULL) {
+		// Try the timed variant
+		if ((TP & NVRAM_FLAG_WEHANG) == 0) {
+			// Starting up
+			if ((ot = otime (tp, len)) <= 0.0)
+				// Untimed after all (no energy addition)
+				return;
+			// Add the energy now, i.e., at startup
+			TheNode->pwrt_add (PWRT_STORAGE, en, ot);
+			
+			TP |= NVRAM_FLAG_WEHANG;
+
+			del = etuToItu (ot);
+			ftimes -> UnHang = Time + del;
+			Timer->wait (del, st);
+			sleep;
+		}
+		// Timed completion
+		if (ftimes->UnHang <= Time) {
+			TP &= ~NVRAM_FLAG_WEHANG;
+			return;
+		} else {
+			Timer->wait (ftimes->UnHang - Time, st);
+			sleep;
+		}
+	}
+
+	if ((ot = otime (tp, len)) <= 0.0)
+		TheNode->pwrt_add (PWRT_STORAGE, en, ot);
+}
+
 word NVRAM::put (word st, lword adr, const byte *buf, lword len) {
 
+	double ot;
 	TIME del;
 	lword cur, nlm, olm, cus, nad, nle;
 	byte *nc;
@@ -323,27 +376,8 @@ word NVRAM::put (word st, lword adr, const byte *buf, lword len) {
 
 	TP |= NVRAM_FLAG_UNSNCD;
 
-	if (st != WNONE && ftimes != NULL) {
-		// This is a somewhat crude model of timing
-		if ((TP & NVRAM_FLAG_WEHANG) == 0) {
-			// Set up the timer
-			del = etuToItu ((double) len *
-			  dRndUniform (ftimes->Bounds [0], ftimes->Bounds [1]));
-			if (del != TIME_0) {
-				TP |= NVRAM_FLAG_WEHANG;
-				ftimes -> UnHang = Time + del;
-				Timer->wait (del, st);
-				sleep;
-			}
-		} else {
-			if (ftimes->UnHang <= Time) {
-				TP &= ~NVRAM_FLAG_WEHANG;
-			} else {
-				Timer->wait (ftimes->UnHang - Time, st);
-				sleep;
-			}
-		}
-	}
+	// Timing + energy
+	timed (st, len, NVRAM_FTIME_WRITE, PWRT_STORAGE_WRITE);
 
 	if ((TP & NVRAM_FLAG_FIMAGE) != 0) {
 		// Into image file
@@ -456,26 +490,7 @@ word NVRAM::erase (word st, lword adrf, lword len) {
 	// Turn this into actual length
 	len = len - adrf + 1;
 
-	if (st != WNONE && ftimes != NULL) {
-		if ((TP & NVRAM_FLAG_WEHANG) == 0) {
-			// Set up the timer
-			del = etuToItu ((double) len *
-			  dRndUniform (ftimes->Bounds [2], ftimes->Bounds [3]));
-			if (del != TIME_0) {
-				TP |= NVRAM_FLAG_WEHANG;
-				ftimes -> UnHang = Time + del;
-				Timer->wait (del, st);
-				sleep;
-			}
-		} else {
-			if (ftimes->UnHang <= Time) {
-				TP &= ~NVRAM_FLAG_WEHANG;
-			} else {
-				Timer->wait (ftimes->UnHang - Time, st);
-				sleep;
-			}
-		}
-	}
+	timed (st, len, NVRAM_FTIME_ERASE, PWRT_STORAGE_ERASE);
 
 	if ((TP & NVRAM_FLAG_FIMAGE) != 0) {
 		if (lseek (esize, (off_t) adrf, SEEK_SET) < 0)
@@ -572,24 +587,7 @@ word NVRAM::sync (word st) {
 	if (st == WNONE || ftimes == NULL || (TP & NVRAM_FLAG_UNSNCD) == 0)
 		return 0;
 
-	if ((TP & NVRAM_FLAG_WEHANG) == 0) {
-		// Set up the timer
-		del = etuToItu (dRndUniform (ftimes->Bounds [4],
-			ftimes->Bounds [5]));
-		if (del != TIME_0) {
-			TP |= NVRAM_FLAG_WEHANG;
-			ftimes -> UnHang = Time + del;
-			Timer->wait (del, st);
-			sleep;
-		}
-	} else {
-		if (ftimes->UnHang <= Time) {
-			TP &= ~NVRAM_FLAG_WEHANG;
-		} else {
-			Timer->wait (ftimes->UnHang - Time, st);
-			sleep;
-		}
-	}
+	timed (st, 1, NVRAM_FTIME_SYNC, PWRT_STORAGE_SYNC);
 
 	return 0;
 }

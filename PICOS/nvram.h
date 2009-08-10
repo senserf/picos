@@ -20,6 +20,11 @@ typedef	struct {
 #define	NVRAM_NOFR_EPINIT	0x10		// Do not deallocate inits
 #define	NVRAM_NOFR_IFINIT	0x20
 
+#define	NVRAM_FTIME_READ	0		// Indices of timing params
+#define	NVRAM_FTIME_WRITE	2
+#define	NVRAM_FTIME_ERASE	4
+#define	NVRAM_FTIME_SYNC	6
+
 class NVRAM {
 	
 	lword tsize;		// Total size in bytes
@@ -41,6 +46,15 @@ class NVRAM {
 	void empty (lword len);
 	void preset (const data_epini_t*);
 	void grow ();
+	void timed (word, lword, int, word);
+
+	inline double otime (int tp, lword len) {
+		// Operation timing
+		return (ftimes == NULL) ? 0.0 :
+			dRndUniform (ftimes->Bounds [tp],
+				     ftimes->Bounds [tp + 1])
+			* (double) len;
+	};
 
 	public:
 
@@ -48,6 +62,8 @@ class NVRAM {
 	void dump ();
 #endif
 	lword size (Boolean*, lword*);
+	word nvopen ();
+	void nvclose ();
 	word get (lword, byte*, lword);
 	word put (word, lword, const byte*, lword);
 	word erase (word, lword, lword);

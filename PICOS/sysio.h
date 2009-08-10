@@ -281,14 +281,11 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	ptleft()	zz_crunning (NULL)
 #define	killall(pt)	zz_killall (&zz_!!THREADNAME(pt)!!_prcs)
 
-#define	ee_open()	0
-#define	ee_close()	CNOP
 #define	ee_panic()	CNOP
 
-#define	sd_open()	0
-#define	sd_close()	CNOP
-#define	sd_panic()	CNOP
-
+#define	sd_open()	ee_open ()
+#define	sd_close()	ee_close ()
+#define	sd_panic()	ee_panic ()
 #define	sd_read(a,b,c)	ee_read (a, b, c)
 #define sd_write(a,b,c)	ee_write (WNONE, a, b, c)
 #define	sd_erase(a,b)	ee_erase (WNONE, a, b)

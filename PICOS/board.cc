@@ -168,6 +168,16 @@ void _dad (PicOSNode, halt) () {
 	sleep;
 }
 
+void _dad (PicOSNode, powerdown) () {
+
+	pwrt_change (PWRT_CPU, PWRT_CPU_LP);
+}
+
+void _dad (PicOSNode, powerup) () {
+
+	pwrt_change (PWRT_CPU, PWRT_CPU_FP);
+}
+
 void PicOSNode::uart_reset () {
 //
 // Reset the UART based on its interface mode
@@ -248,6 +258,9 @@ void PicOSNode::reset () {
 
 	if (ledsm != NULL)
 		ledsm->rst ();
+
+	if (pwr_tracker != NULL)
+		pwr_tracker->rst ();
 
 	initParams ();
 
@@ -447,6 +460,12 @@ void PicOSNode::setup (data_no_t *nd) {
 		ledsm = NULL;
 	} else {
 		ledsm = new LEDSM (nd->le);
+	}
+
+	if (nd->pt == NULL) {
+		pwr_tracker = NULL;
+	} else {
+		pwr_tracker = new pwr_tracker_t (nd->pt);
 	}
 
 	NPcLim = nd->PLimit;
@@ -1137,6 +1156,18 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 
 	return 0;
 }
+
+word _dad (PicOSNode, ee_open) () {
+
+	sysassert (eeprom != NULL, "ee_open no eeprom");
+	return eeprom->nvopen ();
+};
+
+void _dad (PicOSNode, ee_close) () {
+
+	sysassert (eeprom != NULL, "ee_close no eeprom");
+	eeprom->nvclose ();
+};
 
 lword _dad (PicOSNode, ee_size) (Boolean *er, lword *rt) {
 
@@ -2295,6 +2326,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	ND->pn = NULL;
 	ND->sa = NULL;
 	ND->le = NULL;
+	ND->pt = NULL;
 
 	if (data == NULL)
 		// This is how we stand so far
@@ -2606,15 +2638,16 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 				print (form (
 				"              Image file: %s\n", EP->EPIF));
 			print (form (
-				"              W: [%1g,%1g], E: [%1g,%1g], "
-							"S: [%1g,%1g]\n",
+				"              R: [%1g,%1g], W: [%1g,%1g], "
+					     " E: [%1g,%1g], S: [%1g,%1g]\n",
 					EP->bounds [0],
 					EP->bounds [1],
 					EP->bounds [2],
 					EP->bounds [3],
 					EP->bounds [4],
 					EP->bounds [5],
-					EP->bounds [6]));
+					EP->bounds [6],
+					EP->bounds [7]));
 
 			print_nv_inits (EP->EPINI);
 
@@ -2696,6 +2729,12 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 /* ==== */
 
 	ND->le = readLedsParams (data, xname (nn));
+
+/* ======== */
+/* PTRACKER */
+/* ======== */
+
+	ND->pt = readPwtrParams (data, xname (nn));
 
 /* ==== */
 /* UART */
@@ -3831,6 +3870,142 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 	return LE;
 }
 
+data_pt_t *BoardRoot::readPwtrParams (sxml_t data, const char *esn) {
+/*
+ * Decodes power tracker parameters
+ */
+	sxml_t cur;
+	nparse_t np [16];
+	double lv [16];
+	data_pt_t *PT;
+	pwr_mod_t *md;
+	int i, nm, cm;
+	const char *att;
+	char *str;
+	char es [48];
+
+	const char *mids [] = { "cpu", "radio", "storage", "sensors", "rf",
+				"eeprom", "sd", "sensor" };
+
+	strcpy (es, "<ptracker> for ");
+	strcat (es, esn);
+
+	if ((data = sxml_child (data, "ptracker")) == NULL)
+		return NULL;
+
+	PT = new data_pt_t;
+	PT->PODev = NULL;
+	PT->absent = YES;
+
+	for (i = 0; i < PWRT_N_MODULES; i++)
+		PT->Modules [i] = NULL;
+
+	for (i = 0; i < 16; i++)
+		np [i].type = TYPE_double;
+
+	for (cur = sxml_child (data, "module"); cur != NULL;
+							cur = sxml_next (cur)) {
+
+		if ((att = sxml_attr (cur, "id")) == NULL)
+			xemi ("id", es);
+
+		for (cm = 0; cm < 8; cm++)
+			if (strcmp (att, mids [cm]) == 0)
+				break;
+		if (cm == 8)
+			xeai ("id of <module>", es, att);
+
+		switch (cm) {
+
+			case 0:
+			case 1:
+			case 2:
+			case 3:
+				break;
+			case 4:
+				cm = 1;
+				break;
+			case 5:
+			case 6:
+				cm = 2;
+				break;
+			default:
+				cm = 3;
+		}
+
+		if (PT->Modules [cm] != NULL)
+			excptn ("Root: duplicate module id: %s in %s", att, es);
+		
+		PT->Modules [cm] = md = new pwr_mod_t;
+
+		// Levels
+		str = (char*) sxml_txt (cur);
+		sanitize_string (str);
+		if ((nm = parseNumbers (str, 16, np)) > 16)
+			excptn ("Root: too many levels (%1d) in module %s in"
+				"%s, max is 16", nm, att, es);
+		if (nm < 2)
+			excptn ("Root: less than two levels in module %s in %s",
+				att, es);
+
+		for (i = 0; i < nm; i++)
+			lv [i] = np [i].DVal;
+
+		md->Levels = (double*) find_strpool ((const byte*)lv, 
+			nm * sizeof (double), YES);
+
+		md->NStates = nm;
+		PT->absent = NO;
+	}
+
+	if (PT->absent) {
+		// Explicitly absent
+		return PT;
+	}
+
+	print ("  PTRACKER:\n");
+
+	// Output mode
+	if ((cur = sxml_child (data, "output")) == NULL) {
+		xenf ("<output>", es);
+	}
+
+	if ((att = sxml_attr (cur, "target")) == NULL)
+		xemi ("target", es);
+
+	if (strcmp (att, "none") == 0) {
+		xevi ("target", es, "none");
+	} 
+
+	print ("    OUTPUT: ");
+
+	if (strcmp (att, "device") == 0) {
+		str = (char*) sxml_txt (cur);
+		cm = sanitize_string (str);
+		if (cm == 0)
+			xevi ("<output> device string", es, "-empty-");
+		// This is a device name
+		str [cm] = '\0';
+		PT->PODev = str;
+		print (form ("device '%s'\n\n", str));
+	} else if (strcmp (att, "socket") == 0) {
+		print (form ("socket\n", str));
+	} else
+		xeai ("target", es, att);
+
+	for (cm = 0; cm < PWRT_N_MODULES; cm++) {
+		if ((md = PT->Modules [cm]) == NULL)
+			continue;
+		print (form ("    MODULE %s, Levels:", mids [cm]));
+		for (i = 0; i < md->NStates; i++)
+			print (form (" %g", md->Levels [i]));
+		print ("\n");
+	}
+	print ("\n");
+
+	return PT;
+}
+
 void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 	data_no_t *DEF, *NOD;
@@ -4070,6 +4245,18 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 			NOD->le = NULL;
 		}
 
+		// === PTRACKER ===============================================
+
+		if (NOD->pt == NULL) {
+			// Inherit the defaults
+			if (DEF->pt != NULL && !(DEF->pt->absent))
+				NOD->pt = DEF->pt;
+		} else if (NOD->pt->absent) {
+			// Explicit "no", ignore the default
+			delete NOD->pt;
+			NOD->pt = NULL;
+		}
+
 		// A few checks; some of this stuff is checked (additionally) at
 		// the respective constructors
 
@@ -4159,6 +4346,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 			delete NOD->sa;
 		if (NOD->le != NULL && NOD->le != DEF->le)
 			delete NOD->le;
+		if (NOD->pt != NULL && NOD->pt != DEF->pt)
+			delete NOD->pt;
 		delete NOD;
 	}
 
@@ -4176,8 +4365,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 		delete DEF->pn;
 	if (DEF->sa != NULL)
 		delete DEF->sa;
-	if (DEF->le != NULL)
-		delete DEF->le;
+	if (DEF->pt != NULL)
+		delete DEF->pt;
 
 	delete DEF;
 

@@ -12,6 +12,8 @@
 #undef diag
 #undef reset
 #undef halt
+#undef powerdown
+#undef powerup
 #undef getpid
 #undef seconds
 #undef setseconds
@@ -56,6 +58,8 @@
 #undef pmon_dec_cnt
 #undef pmon_sub_cnt
 #undef pmon_add_cmp
+#undef ee_open
+#undef ee_close
 #undef ee_size
 #undef ee_read
 #undef ee_write

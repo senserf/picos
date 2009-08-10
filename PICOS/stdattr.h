@@ -26,6 +26,8 @@
 
 #define	reset()		(  ((PicOSNode*)TheStation)->_na_reset ()  )
 #define	halt()		(  ((PicOSNode*)TheStation)->_na_halt ()  )
+#define	powerdown()	(  ((PicOSNode*)TheStation)->_na_powerdown ()  )
+#define	powerup()	(  ((PicOSNode*)TheStation)->_na_powerup ()  )
 #define	getpid()	(  ((PicOSNode*)TheStation)->_na_getpid ()  )
 #define	seconds()	(  ((PicOSNode*)TheStation)->_na_seconds ()  )
 #define	setseconds(a)	(  ((PicOSNode*)TheStation)->_na_setseconds (a)  )
@@ -95,6 +97,8 @@
 
 // ============================================================================
 
+#define ee_open()	(  ((PicOSNode*)TheStation)->_na_ee_open ()  )
+#define ee_close()	(  ((PicOSNode*)TheStation)->_na_ee_close ()  )
 #define ee_size(a,b)	(  ((PicOSNode*)TheStation)->_na_ee_size (a,b)  )
 #define ee_read(a,b,c)	(  ((PicOSNode*)TheStation)->_na_ee_read (a,b,c)  )
 #define ee_write(a,b,c,d) \

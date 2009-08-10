@@ -20,6 +20,27 @@
 #define	SCHMITT_UPL	((word)(1.5 * 0x7fff))	// Going up low
 #define	SCHMITT_UPH	((word)(1.9 * 0x7fff))	// Going up high
 
+#define	PWRT_CPU		0		// Power up
+#define	PWRT_CPU_FP		0		// Full power state
+#define	PWRT_CPU_LP		1		// Low power state
+
+#define	PWRT_RADIO		1
+#define	PWRT_RADIO_OFF		0
+#define	PWRT_RADIO_RCV		1
+#define	PWRT_RADIO_XMT		2
+#define	PWRT_RADIO_XCV		3
+
+#define	PWRT_STORAGE		2
+#define	PWRT_STORAGE_OFF	0
+#define	PWRT_STORAGE_ON		1
+#define	PWRT_STORAGE_READ	2
+#define	PWRT_STORAGE_WRITE	3
+#define	PWRT_STORAGE_ERASE	4
+#define	PWRT_STORAGE_SYNC	5
+
+#define	PWRT_SENSOR		3
+#define	PWRT_SENSOR_OFF		0
+#define	PWRT_SENSOR_ON		1
 
 #define	XTRN_MBX_BUFLEN		64		// Mailbox buffer size
 #define	PRQS_INPUT_BUFLEN	82		// PIN request buffer size
@@ -65,6 +86,7 @@
 #define	AGENT_RQ_CLOCK		6
 #define	AGENT_RQ_SENSORS	7
 #define	AGENT_RQ_LCDG		8
+#define	AGENT_RQ_PWRT		9
 
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */
@@ -80,6 +102,7 @@
 #define	ECONN_LONG		11
 #define	ECONN_INVALID		12		/* Invalid request */
 #define	ECONN_NOLCDG		14		/* Code 13 unused */
+#define	ECONN_NOPWRT		15
 #define	ECONN_OK		129		/* Positive ack */
 
 #define	ThePicOSNode	((PicOSNode*)TheStation)
@@ -688,6 +711,40 @@ class SNSRS {
 	void rst ();			// Called on reset
 
 	~SNSRS ();
+};
+
+class pwr_tracker_t {
+
+	friend class PwrtHandler;
+
+	double	last_tim, last_val, average;
+
+	pwr_mod_t	*Modules [PWRT_N_MODULES];
+	word		States [PWRT_N_MODULES];	// Current states
+
+	Dev		*O;
+	Process		*OutputThread;
+	char		*UBuf;
+
+	Boolean		Device, Changed;
+
+	void upd () {
+		Changed = YES;
+		if (OutputThread != NULL)
+			OutputThread->signal (NULL);
+	};
+
+	int pwrt_status ();
+
+	public:
+
+	void rst ();
+
+	pwr_tracker_t (data_pt_t*);
+
+	// New power setting
+	void pwrt_change (word md, word st);
+	void pwrt_add (word md, word st, double tm);
 };
 
 process	AgentInterface {

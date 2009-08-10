@@ -67,6 +67,7 @@ process	ADC (PicOSNode) {
 	void setup () {
 		rf = TheNode->RFInt;
 	};
+
 };
 
 process Xmitter (PicOSNode) {
@@ -87,6 +88,16 @@ process Xmitter (PicOSNode) {
 
 	inline void gbackoff () {
 		bkf = minbkf + toss (maxbkf);
+	};
+
+	inline void pwr_on () {
+		TheNode->pwrt_change (PWRT_RADIO, 
+			rxoff ? PWRT_RADIO_XMT : PWRT_RADIO_XCV);
+	};
+
+	inline void pwr_off () {
+		TheNode->pwrt_change (PWRT_RADIO, 
+			rxoff ? PWRT_RADIO_OFF : PWRT_RADIO_RCV);
 	};
 };
 

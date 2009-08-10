@@ -89,6 +89,7 @@ Drain:
 Xmit:
 	obf.load (xbf, buflen);
 	xmtg = YES;
+	pwr_on ();
 	LEDI (1, 1);
 	rfi->transmit (&obf, XM_TXDONE);
 
@@ -103,6 +104,7 @@ Xmit:
 	tcvphy_end (xbf);
 	xbf = NULL;
 	xmtg = NO;
+	pwr_off ();
 	trigger (rxe);
 	delay (minbkf, XM_LOOP);
 
@@ -181,7 +183,6 @@ Receiver::perform {
 	LEDI (2, 0);
 
 	if (rxoff) {
-Finidh:
 		when (rxe, RCV_GETIT);
 		release;
 	}
@@ -294,7 +295,8 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 
 	/* Both parts are initially active */
 	rxoff = txoff = 1;
-	LEDI (0, 2);
+	pwrt_change (PWRT_RADIO, PWRT_RADIO_OFF);
+	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
 
@@ -351,6 +353,8 @@ static int rfm_option (int opt, address val) {
 
 		if (rxoff) {
 			rxoff = NO;
+			if (!xmtg)
+			    TheNode->pwrt_change (PWRT_RADIO, PWRT_RADIO_RCV);
 			trigger (rxe);
 		}
 
@@ -378,21 +382,25 @@ static int rfm_option (int opt, address val) {
 		txoff = 1;
 		trigger (txe);
 
-		if (txoff)
-			LEDI (0, 1);
+		if (rxoff)
+			LEDI (0, 0);
 		else
-			LEDI (0, 2);
+			LEDI (0, 1);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
-		rxoff = 1;
+		if (!rxoff) {
+			rxoff = 1;
+			if (!xmtg)
+			    TheNode->pwrt_change (PWRT_RADIO, PWRT_RADIO_OFF);
+		}
 		trigger (rxe);
 
 		if (txoff)
-			LEDI (0, 1);
+			LEDI (0, 0);
 		else
-			LEDI (0, 2);
+			LEDI (0, 1);
 		break;
 
 	    case PHYSOPT_CAV:

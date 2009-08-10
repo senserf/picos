@@ -28,7 +28,7 @@ typedef	struct {
 
 } data_rf_t;
 
-#define	EP_N_BOUNDS		6
+#define	EP_N_BOUNDS		8
 
 struct data_epini_struct {
 
@@ -53,9 +53,13 @@ typedef struct {
 
 	FLAGS	EFLGS;
 
-	// Write/erase/sync timing bounds, 6 numbers:
-	// byte write time (min, max), byte erase time (min, max), sync time
-	// (min, max)
+	// Read/write/erase/sync timing bounds, 8 numbers:
+	//
+	// 	byte read time (min, max)
+	//	byte write time (min, max)
+	//	byte erase time (min, max)
+	//	sync time (min, max)
+	//
 	double	bounds [EP_N_BOUNDS];
 
 	// File names of "image"
@@ -204,6 +208,23 @@ typedef	struct {
 
 } data_le_t;
 
+#define	PWRT_N_MODULES	4
+
+typedef struct {
+	word	NStates;
+	double	*Levels;
+} pwr_mod_t;
+
+typedef struct {
+
+// Power tracker
+
+	const char	*PODev;		// Output file selector (as for LEDs)
+	Boolean		absent;		// Flag == explicitly absent
+	pwr_mod_t	*Modules [PWRT_N_MODULES];
+
+} data_pt_t;
+
 typedef struct {
 /*
  * This is a set of parameters describing a node. By keeping everything
@@ -221,6 +242,7 @@ typedef struct {
 	data_pn_t *pn; 		// PINS module parameters
 	data_sa_t *sa;
 	data_le_t *le;		// LEDs module
+	data_pt_t *pt;		// Power tracker
 
 } data_no_t;
 

@@ -70,6 +70,36 @@ proc xspace { s } {
 	return ""
 }
 
+proc xcmnt { s } {
+#
+# Skip a comment
+#
+	upvar $s str
+
+	set sav $str
+
+	set str [string range $str 4 end]
+	set cnt 1
+
+	while 1 {
+		set ix [string first "-->" $str]
+		set iy [string first "<!--" $str]
+		if { $ix < 0 } {
+			error "unterminated comment: [string range $sav 0 15]"
+		}
+		if { $iy > 0 && $iy < $ix } {
+			incr cnt
+			set str [string range $str [expr $iy + 4] end]
+		} else {
+			set str [string range $str [expr $ix + 3] end]
+			incr cnt -1
+			if { $cnt == 0 } {
+				return
+			}
+		}
+	}
+}
+
 proc xftag { s } {
 #
 # Find and extract the first tag in the string
@@ -89,18 +119,12 @@ proc xftag { s } {
 		set str [string range $str $ix end]
 		# check for a comment
 		if { [string range $str 0 3] == "<!--" } {
-			# skip it
-			set ix [string first "-->" $str]
-			if { $ix < 0 } {
-				error "unterminated comment: [string range \
-					$str 0 15]"
-			}
-			incr ix 3
-			set str [string range $str $ix end]
+			# skip the comment
+			xcmnt str
 			continue
 		}
 		set et ""
-		if [regexp -nocase "^<(/)?\[a-z_\]" $str ix et] {
+		if [regexp -nocase "^<(/)?\[a-z:_\]" $str ix et] {
 			# this is a tag
 			break
 		}
@@ -108,7 +132,6 @@ proc xftag { s } {
 		append front "<"
 		set str [string range $str 1 end]
 	}
-
 
 	if { $et != "" } {
 		set tm 1
@@ -127,7 +150,7 @@ proc xftag { s } {
 	# starting at the keyword
 	set str [string range $str $ix end]
 
-	if ![regexp -nocase "^(\[a-z0-9_\]+)(.*)" $str ix kwd str] {
+	if ![regexp -nocase "^(\[a-z0-9:_\]+)(.*)" $str ix kwd str] {
 		# error
 		error "illegal tag: [string range $str 0 15]"
 	}
@@ -144,6 +167,15 @@ proc xftag { s } {
 			error "unterminated tag: <$et$kwd"
 		}
 		set c [string index $str 0]
+		if { $c == "/" } {
+			# self-terminating
+			if { $tm != 0 || [string index $str 1] != ">" } {
+				error "broken self-terminating tag:\
+					<$et$kwd ... [string range $str 0 15]"
+			}
+			set str [string range $str 2 end]
+			return [list 2 $front $kwd $attr]
+		}
 		if { $c == ">" } {
 			# done
 			set str [string range $str 1 end]
@@ -197,19 +229,62 @@ proc xadv { s kwd } {
 		append txt $fr
 
 		if { $md == 0 } {
-			# opening
+			# opening, not self-closing
 			set cl [xadv str $kw]
+			# inclusion ?
 			set tc [list $kw [lindex $cl 0] $at [lindex $cl 1]]
-			lappend chd $tc
+			if ![xincl str $tc] {
+				lappend chd $tc
+			}
+		} elseif { $md == 2 } {
+			# opening, self-closing
+			set tc [list $kw "" $at ""]
+			if ![xincl str $tc] {
+				lappend chd $tc
+			}
 		} else {
-			# closing (must be ours)
+			# closing
 			if { $kw != $kwd } {
 				error "mismatched tag: <$kwd ...> </$kw>"
 			}
-			# we are done
+			# we are done with the tag - check for file
+			# inclusion
 			return [list $txt $chd]
 		}
 	}
+}
+
+proc xincl { s tag } {
+#
+# Process an include tag
+#
+	set kw [lindex $tag 0]
+
+	if { $kw != "include" && $kw != "xi:include" } {
+		return 0
+	}
+
+	set fn [sxml_attr $tag "href"]
+
+	if { $fn == "" } {
+		error "href attribute of <$kw ...> is empty"
+	}
+
+	if [catch { open $fn "r" } fd] {
+		error "cannot open include file $fn: $fd"
+	}
+
+	if [catch { read $fd } fi] {
+		catch { close $fd }
+		error "cannot read include file $fn: $fi"
+	}
+
+	# merge it
+	upvar $s str
+
+	set str $fi$str
+
+	return 1
 }
 
 proc sxml_parse { s } {
@@ -287,8 +362,6 @@ namespace import ::XML::*
 
 ###############################################################################
 
-###############################################################################
-
 set Unique		0
 set MaxLineCount	1024
 set HostName		"localhost"
@@ -336,7 +409,7 @@ array set HPA		{ 1 "(\[0-9a-f\])"
 			}
 
 #
-# Canvas margins for ROAMER:
+# Canvas parameters for ROAMER:
 #
 # NR     = node radius
 # ND     = node diameter
@@ -347,6 +420,11 @@ array set HPA		{ 1 "(\[0-9a-f\])"
 #
 array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 ND 10 TO 10 RX 10 RY 10
 			  MW 200 MH 200 DW 400 DH 400 }
+
+#
+# Canvas parameters for PTRACKER:
+#
+array set PMARGIN	{ L 12 R 12 T 25 B 30 MW 200 MH 65 DW 400 DH 80 }
 
 #
 # Stuff for the "LCD" clock
@@ -654,7 +732,7 @@ proc uartIni { Sok } {
 	set cc [expr $code & 0xff]
 
 	if { $cc != $ECONN_OK } {
-		log "connection rejected by SIDE: [conerror $cc]"
+		log "connection rejected by VUEE: [conerror $cc]"
 		dealloc $Sok
 		return
 	}
@@ -1146,7 +1224,7 @@ proc clockIni { Sok } {
 
 	if { $code != $ECONN_OK } {
 		dealloc $Sok
-		log "connection rejected by SIDE: [conerror $code]"
+		log "connection rejected by VUEE: [conerror $code]"
 		return
 	}
 
@@ -1343,7 +1421,7 @@ proc ledsIni { Sok } {
 	set code [dbinI res]
 	if { $code != $ECONN_OK } {
 		dealloc $Sok
-		log "connection rejected by SIDE: [conerror $code]"
+		log "connection rejected by VUEE: [conerror $code]"
 		return
 	}
 
@@ -1632,7 +1710,7 @@ proc lcdgIni { Sok } {
 	set code [dbinI res]
 	if { $code != $ECONN_OK } {
 		dealloc $Sok
-		log "connection rejected by SIDE: [conerror $code]"
+		log "connection rejected by VUEE: [conerror $code]"
 		return
 	}
 
@@ -1929,7 +2007,7 @@ proc pinsIni { Sok } {
 
 	set code [dbinI res]
 	if { $code != $ECONN_OK } {
-		log "connection rejected by SIDE: [conerror $code]"
+		log "connection rejected by VUEE: [conerror $code]"
 		dealloc $Sok
 		return
 	}
@@ -2262,7 +2340,7 @@ proc newPinStatus { Sok upd } {
 		# input
 		if $val {
 			# make sure this is zero or 1
-			set $val 1
+			set val 1
 		}
 		$w.dig.i$pin configure -activebackground $PIN_COLORS(A) \
 			-bg $PIN_COLORS(I,$val) -text $val -state normal
@@ -2277,7 +2355,7 @@ proc newPinStatus { Sok upd } {
 		#output
 		if $val {
 			# make sure this is zero or 1
-			set $val 1
+			set val 1
 		}
 		$w.dig.o$pin configure -bg $PIN_COLORS(O,$val) -text $val
 	} else {
@@ -2358,7 +2436,7 @@ proc sensorsIni { Sok } {
 
 	set code [dbinI res]
 	if { $code != $ECONN_OK } {
-		log "connection rejected by SIDE: [conerror $code]"
+		log "connection rejected by VUEE: [conerror $code]"
 		dealloc $Sok
 		return
 	}
@@ -2697,7 +2775,7 @@ proc panelIni { Sok } {
 
 	set code [dbinI res]
 	if { $code != $ECONN_OK } {
-		log "connection rejected by SIDE: [conerror $code]"
+		log "connection rejected by VUEE: [conerror $code]"
 		dealloc $Sok
 		return
 	}
@@ -2975,14 +3053,391 @@ proc delPanel { Sok ix } {
 	updPanel $Sok
 }
 
-proc moveHandler { } {
+proc pwrtHandler { stid } {
 
 	global PortNumber HostName Wins Stat
 
-	# FIXME: I don't want to implement too much at this moment as we are
-	# going to revise the whole concept of network geometry by admitting
-	# explicit loss matrices among node pairs. The proper implementation
-	# of this part will wait until we figure out how to do that.
+	if [winlocate "w" $stid] {
+		return
+	}
+
+	log "connecting to PTRACKER at node $stid ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	set Wins($Sok) "x"
+	set Stat($Sok,S) $stid
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 9"
+	fileevent $Sok readable "pwrtIni $Sok"
+}
+
+proc pwrtIni { Sok } {
+
+	global Wins Stat Unique ECONN_OK
+
+	ctimeout $Sok
+
+	# connection code
+	if [catch { read $Sok 4 } res] {
+		# disconenction
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		log "connection closed by VUEE"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinI res]
+	if { $code != $ECONN_OK } {
+		dealloc $Sok
+		log "connection rejected by VUEE: [conerror $code]"
+		return
+	}
+
+	log "connection established"
+
+	# create the window
+	set Wn ".ww$Unique"
+	incr Unique
+
+	set Wins($Sok) $Wn
+	set Stat($Sok,D) 80
+	# current val, avg, min, max
+	set Stat($Sok,VL) [list 0.0 0.0 0.0 0.0 0 1]
+
+	mkPwrt $Sok "PTracker at node $Stat($Sok,S)"
+
+	# wait for updates
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "pwrtUpd $Sok"
+}
+
+proc mkPwrt { Sok tt } {
+
+	global Wins Stat PMARGIN
+
+	set w $Wins($Sok)
+
+	toplevel $w
+
+	wm title $w $tt
+	do_geometry $w "ptracker"
+	wm minsize $w $PMARGIN(MW) $PMARGIN(MH)
+
+	set Stat($Sok,NC) [list $PMARGIN(DW) $PMARGIN(DH)]
+
+	canvas $w.c -width $PMARGIN(DW) -height $PMARGIN(DH)
+	pack $w.c -expand 1 -fill both
+
+	set Stat($Sok,WW) $PMARGIN(DW)
+	set Stat($Sok,WH) $PMARGIN(DH)
+
+	pwrtRedraw $Sok
+
+	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w.c <Configure> "pwrtResize $Sok %w %h"
+}
+
+proc pwrtResize { Sok nw nh } {
+
+	global Stat
+
+	stwin $Sok
+
+	if ![info exists Stat($Sok,RM)] {
+		# this is a dummy first time after startup; we use it to
+		# determine the window margin size, i.e., the difference
+		# between the resized width and height and the actual
+		# canvas parameters
+		set aw $Stat($Sok,WW)
+		set ah $Stat($Sok,WH)
+		set Stat($Sok,RM) [list [expr $nw - $aw] [expr $nh - $ah]]
+		return
+	}
+
+	if [info exists Stat($Sok,T)] {
+		# update timer running, kill it
+		after cancel $Stat($Sok,T)
+	}
+
+	set Stat($Sok,WW) $nw
+	set Stat($Sok,WH) $nh
+
+	# delay the actual action until we have stabilized
+	set Stat($Sok,T) [after 1000 pwrtDoResize $Sok]
+}
+
+proc pwrtDoResize { Sok } {
+
+	global Stat
+
+	stwin $Sok
+
+	if [info exists Stat($Sok,T)] {
+		unset Stat($Sok,T)
+	}
+
+	# correct for the window boundary
+	set aw $Stat($Sok,WW)
+	set ah $Stat($Sok,WH)
+	foreach { dw dh } $Stat($Sok,RM) { }
+
+	set aw [expr $aw - $dw]
+	set ah [expr $ah - $dh]
+
+	set Stat($Sok,WW) $aw
+	set Stat($Sok,WH) $ah
+
+	pwrtRedraw $Sok
+}
+
+proc pwrtRedraw { Sok } {
+
+	global Stat PMARGIN
+
+	set w [stwin $Sok]
+
+	foreach { vv av sv bv tf tl } $Stat($Sok,VL) { }
+
+	set W $Stat($Sok,WW)
+	set H $Stat($Sok,WH)
+
+	# width and height for the gauge
+	set gw [expr $W - $PMARGIN(L) - $PMARGIN(R)]
+	set gh [expr $H - $PMARGIN(T) - $PMARGIN(B)]
+
+	$w.c delete all
+
+	set go [$w.c create rectangle \
+			$PMARGIN(L) $PMARGIN(T) \
+			[expr $W - $PMARGIN(R)] [expr $H - $PMARGIN(B)] \
+			-fill gray]
+
+	# draw the scales
+	set nx [expr $tl - $tf]
+
+	set i 0
+	for { set tk $tf } { $tk <= $tl } { incr tk } {
+		# labeled ticks
+		set x [expr (($gw * $i) / $nx) + $PMARGIN(L)]
+		$w.c create line $x [expr $PMARGIN(T) - 5] \
+				 $x [expr $PMARGIN(T) + 5]
+		# the label
+		$w.c create text $x [expr $PMARGIN(T) - 7] \
+			-anchor s -text "1e$tk" -state disabled
+
+		# unlabeled ticks
+		set db [expr pow(10,$tk)]
+
+		incr i
+
+		if { $tk == $tl } {
+			continue
+		}
+
+		for { set j 2 } { $j <= 9 } { incr j } {
+			set dc [expr $db * $j]
+			set x [expr [pwrt_eval $gw $tf $tl $dc] + $PMARGIN(L)]
+			$w.c create line $x [expr $PMARGIN(T) - 3] \
+				 $x [expr $PMARGIN(T) + 3]
+		}
+	}
+
+	# coordinates of marks
+
+	set xv [pwrt_eval $gw $tf $tl $vv]
+	set xa [pwrt_eval $gw $tf $tl $av]
+
+	set x [expr $xv + $PMARGIN(L) - 3]
+	set y0 [expr $PMARGIN(T) - 1]
+	set y1 [expr $PMARGIN(T) + $gh + 1]
+	set Stat($Sok,MC) [$w.c create rectangle $x $y0 [expr $x + 6] $y1 \
+		-fill red]
+	set x [expr $xa + $PMARGIN(L) - 3]
+	set Stat($Sok,MA) [$w.c create rectangle $x $y0 [expr $x + 6] $y1 \
+		-fill green]
+
+	# textual values
+	set Stat($Sok,TC) [$w.c create text $PMARGIN(L) [expr $H - 4] \
+		-anchor sw -text "Cur: $vv" -state disabled]
+	set Stat($Sok,TA) [$w.c create text [expr $W / 2] [expr $H - 4] \
+		-anchor s -text "Avg: $av" -state disabled]
+	set Stat($Sok,TM) [$w.c create text [expr $W - $PMARGIN(R)] \
+		[expr $H - 4] \
+		-anchor se -text "Max: $bv" -state disabled]
+}
+
+proc pwrtUpd { Sok } {
+
+	global Stat
+
+	while 1 {
+		if [catch { read $Sok 1 } ch] {
+			# disconnection
+			log "connection to PTRACKER[stName $Sok] terminated"
+			dealloc $Sok
+			return
+		}
+		if { $ch == "" } {
+			# wait for more
+			if [eof $Sok] {
+				log "connection to PTRACKER[stName $Sok]\
+					terminated"
+				dealloc $Sok
+				return
+			}
+			# damping
+			set Stat($Sok,D) 80
+			fileevent $Sok readable "pwrtUpd $Sok"
+			return
+		}
+		if { $ch == "\n" } {
+			# end of line
+			set nd [expr $Stat($Sok,D) - 10]
+			if { $nd < 0 } {
+				set nd 0
+			}
+			set Stat($Sok,D) $nd
+			pwrtParse $Sok
+			set Stat($Sok,B) ""
+			if { $nd > 0 } {
+				fileevent $Sok readable ""
+				after $nd pwrtUpd $Sok
+				return
+			}
+			continue
+		}
+		append Stat($Sok,B) $ch
+	}
+}
+
+proc pwrtLex { d } {
+	return [expr int(floor(log10($d)))]
+}
+
+proc pwrtHex { d } {
+	return [expr int(ceil(log10($d)))]
+}
+
+proc pwrt_eval { w tf tl v } {
+
+	if { $v < 0.0000000001 } {
+		return 0
+	}
+
+	return [expr int(((log10($v) - $tf) / ($tl - $tf)) * $w)]
+}
+
+proc pwrtParse { Sok } {
+
+	global Stat PMARGIN
+
+	set w [stwin $Sok]
+
+	if ![regexp ": +(\[^ \]+) +(\[^ \]+)" $Stat($Sok,B) jnk avg lst] {
+		return
+	}
+
+	if { [catch { expr $avg } avg] || [catch { expr $lst } lst] ||
+		$avg <= 0.0 || $lst <= 0.0 } {
+			return
+	}
+
+	foreach { vv av sv bv tf tl } $Stat($Sok,VL) { }
+
+	if { $bv == 0.0 } {
+		# the first time around
+		if { $avg > $lst } {
+			set bv $avg
+			set sv $lst
+		} else {
+			set bv $lst
+			set sv $avg
+		}
+		set tf [pwrtLex $sv]
+		set tl [pwrtHex $bv]
+		set Stat($Sok,VL) [list $lst $avg $sv $bv $tf $tl]
+		pwrtRedraw $Sok
+		return
+	}
+
+	if { $avg < $lst } {
+		set mn $avg
+		set mx $lst
+	} else {
+		set mn $lst
+		set mx $avg
+	}
+
+	set redr 0
+	if { $mn < $sv } {
+		set sv $mn
+		set xp [pwrtLex $mn]
+		if { $xp < $tf } {
+			set tf $xp
+			set redr 1
+		}
+	}
+	if { $mx > $bv } {
+		set bv $mx
+		set xp [pwrtHex $mx]
+		if { $xp > $tl } {
+			set tl $xp
+			set redr 1
+		}
+	}
+	set Stat($Sok,VL) [list $lst $avg $sv $bv $tf $tl]
+
+	if $redr {
+		pwrtRedraw $Sok
+		return
+	}
+
+	# just update
+
+	set W $Stat($Sok,WW)
+	set H $Stat($Sok,WH)
+
+	# width and height for the gauge
+	set gw [expr $W - $PMARGIN(L) - $PMARGIN(R)]
+	set gh [expr $H - $PMARGIN(T) - $PMARGIN(B)]
+
+	set xv [pwrt_eval $gw $tf $tl $lst]
+	set xa [pwrt_eval $gw $tf $tl $avg]
+
+	set y0 [expr $PMARGIN(T) - 1]
+	set y1 [expr $PMARGIN(T) + $gh + 1]
+
+	set x [expr $xv + $PMARGIN(L) - 3]
+	$w.c coords $Stat($Sok,MC) $x $y0 [expr $x + 6] $y1
+
+	set x [expr $xa + $PMARGIN(L) - 3]
+	$w.c coords $Stat($Sok,MA) $x $y0 [expr $x + 6] $y1
+
+	$w.c itemconfigure $Stat($Sok,TC) -text "Cur: $lst"
+	$w.c itemconfigure $Stat($Sok,TA) -text "Avg: $avg"
+	$w.c itemconfigure $Stat($Sok,TM) -text "Max: $bv"
+}
+
+proc moveHandler { } {
+
+	global PortNumber HostName Wins Stat
 
 	if [winlocate "m" ""] {
 		return
@@ -3032,7 +3487,7 @@ proc moveIni { Sok } {
 
 	set code [dbinI res]
 	if { $code != $ECONN_OK } {
-		log "connection rejected by SIDE: [conerror $code]"
+		log "connection rejected by VUEE: [conerror $code]"
 		dealloc $Sok
 		return
 	}
@@ -4051,6 +4506,11 @@ proc doConnect { } {
 			lcdgHandler $StatId
 		}
 
+		"PTRACKER" {
+			if [valsid] { return }
+			pwrtHandler $StatId
+		}
+
 		"ROAMER" {
 
 			moveHandler
@@ -4358,6 +4818,7 @@ tk_optionMenu .top.select Option \
 	"PINS" \
 	"LEDS" \
 	"LCDG" \
+	"PTRACKER" \
 	"ROAMER" \
 	"PANEL" \
 	"CLOCK"
@@ -4406,8 +4867,8 @@ if { [info tclversion] < 8.5 } {
 	exit 99
 }
 
-catch { close stdin }
-catch { close stdout }
-catch { close stderr }
+#catch { close stdin }
+#catch { close stdout }
+#catch { close stderr }
 
 vwait forever

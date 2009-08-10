@@ -312,6 +312,21 @@ process LedsHandler {
 	perform;
 };
 
+process PwrtHandler {
+
+	PicOSNode *TPN;
+	Dev *Agent;
+	pwr_tracker_t *PT;
+	int Length;
+	char *Buf;
+
+	states { AckPTR, Loop, Update, Send };
+
+	void setup (PicOSNode*, pwr_tracker_t*, Dev*);
+
+	perform;
+};
+
 process LcdgHandler {
 
 	PicOSNode *TPN;
@@ -712,6 +727,11 @@ ReDo:
 		if (TI_aux == NULL) {
 			TI_aux = (char*) malloc (1024);
 			// The first word of TI_aux stores the limit
+TI_nomem:
+			if (TI_aux == NULL)
+				excptn (
+				    "UART at %s: no memory for saved output",
+					TheStation->getSName ());
 			*((int*)TI_aux) = 1024;
 			TI_ptr = sizeof (int);
 		}
@@ -720,6 +740,8 @@ ReDo:
 			// We have to grow the buffer
 			TI_aux = (char*) realloc (TI_aux, 
 				*((int*)TI_aux) += 1024);
+			if (TI_aux == NULL)
+				goto TI_nomem;
 		}
 
 		memcpy (TI_aux + TI_ptr, buf, nc);
@@ -2548,13 +2570,14 @@ void SNSRS::read (int state, word sn, address vp) {
 		syserror (EREQPAR, "read_sensor");
 
 	if (s->MaxTime == 0.0) {
-		// return immediately
+		// return immediately, no energy usage
 		s->get (vp);
 		return;
 	}
 
 	if (undef (s->ReadyTime)) {
 		// Starting up
+		TPN->pwrt_change (PWRT_SENSOR, PWRT_SENSOR_ON + sn);
 		s->ReadyTime = Time + (del = s->action_time ());
 		Timer->wait (del, state);
 		sleep;
@@ -2563,6 +2586,7 @@ void SNSRS::read (int state, word sn, address vp) {
 	if (Time >= s->ReadyTime) {
 		s->ReadyTime = TIME_inf;
 		s->get (vp);
+		TPN->pwrt_change (PWRT_SENSOR, PWRT_SENSOR_OFF);
 		return;
 	}
 	Timer->wait (s->ReadyTime - Time, state);
@@ -2980,8 +3004,6 @@ Error:
 
 LEDSM::LEDSM (data_le_t *le) {
 
-	PicOSNode *ThisNode;
-
 	NLeds = le->NLeds;
 
 	Assert (NLeds > 0 && NLeds <= 32,
@@ -3014,8 +3036,7 @@ LEDSM::LEDSM (data_le_t *le) {
 	LStat = new byte [(NLeds+1)/2];
 
 	if (O != NULL) {
-		ThisNode = ThePicOSNode;
-		OutputThread = create (System) LedsHandler (ThisNode, this,
+		OutputThread = create (System) LedsHandler (ThePicOSNode, this,
 			NULL);
 	} else
 		OutputThread = NULL;
@@ -3113,7 +3134,6 @@ void LedsHandler::setup (PicOSNode *tpn, LEDSM *le, Dev *a) {
 		else if (LE->OutputThread != NULL)
 			c = ECONN_ALREADY;
 
-
 		if (c != ECONN_OK) {
 			create Disconnector (Agent, c);
 			terminate ();
@@ -3184,6 +3204,266 @@ Error:
 		if (LE->O->wi (SendNop, "\n", 1) == ERROR)
 			// FIXME: check if this actually detects disconnections
 			goto Error;
+
+		proceed Loop;
+}
+
+// ============================================================================
+
+pwr_tracker_t::pwr_tracker_t (data_pt_t *pt) {
+
+	int i;
+
+	for (i = 0; i < PWRT_N_MODULES; i++)
+		Modules [i] = pt->Modules [i];
+
+	average = 0.0;
+	last_val = 0.0;
+	last_tim = ituToEtu (Time);
+
+	UBuf = new char [PUPD_OUTPUT_BUFLEN];
+
+	if (pt->PODev != NULL) {
+		// Device output
+		Device = YES;
+		O = create Dev;
+		if (O->connect (DEVICE+WRITE, pt->PODev, 0, PUPD_OUTPUT_BUFLEN)
+		    == ERROR)
+			excptn ("Power tracker at %s: cannot open device %s",
+			    TheStation->getSName (), pt->PODev);
+		OutputThread =
+			create (System) PwrtHandler (ThePicOSNode, this, NULL);
+	} else {
+		// Socket
+		Device = NO;
+		O = NULL;
+		OutputThread = NULL;
+	}
+
+	// Initializes States for one thing
+	rst ();
+}
+
+void pwr_tracker_t::rst () {
+
+	double T;
+	int i;
+
+	T = ituToEtu (Time);
+	if (T > 0.0)
+		average =
+		    average * (last_tim / T) + (last_val * (T - last_tim)) / T;
+
+	for (last_val = 0.0, i = 0; i < PWRT_N_MODULES; i++) {
+		States [i] = 0;
+		if (Modules [i] != NULL)
+			last_val += Modules [i] -> Levels [0];
+	}
+
+	last_tim = T;
+	upd ();
+}
+
+int pwr_tracker_t::pwrt_status () {
+//
+// Issue an update message
+//
+	double T;
+
+	T = ituToEtu (Time);
+
+	sprintf (UBuf, "U %08.3f: %1.7g %1.7g\n", ituToEtu (Time), 
+		(T > 0.0) ?
+		    average * (last_tim / T) + (last_val * (T - last_tim)) / T
+			: 0.0,
+		last_val);
+
+	return strlen (UBuf);
+}
+
+void pwr_tracker_t::pwrt_change (word md, word lv) {
+//
+// Something goes on
+//
+	double T;
+	pwr_mod_t *ms;
+
+	// trace ("PWRT_CHG: %1u %1u", md, lv);
+
+	Assert (md < PWRT_N_MODULES, "Power tracker at %s: pwrt_change, "
+		"illegal module %1d", md);
+
+	if ((ms = Modules [md]) == NULL)
+		return;
+
+	if (lv >= ms->NStates)
+		lv = ms->NStates - 1;
+
+	if (lv == States [md])
+		// No change
+		return;
+
+	T = ituToEtu (Time);
+
+	// trace ("OLD T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
+	if (T > 0.0)
+		average =
+		    average * (last_tim / T) + (last_val * (T - last_tim)) / T;
+
+	last_tim = T;
+
+	last_val -= ms->Levels [States [md]];
+	last_val += ms->Levels [States [md] = lv];
+
+	// trace ("NEW T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
+
+	upd ();
+}
+
+void pwr_tracker_t::pwrt_add (word md, word lv, double tm) {
+//
+// Timeless addition
+//
+	double T, TT, nv;
+	pwr_mod_t *ms;
+
+	// trace ("PWRT_ADD: %1u %1u %010.6f", md, lv, tm);
+
+	Assert (md < PWRT_N_MODULES, "Power tracker at %s: pwrt_add, "
+		"illegal module %1d", md);
+
+	if ((ms = Modules [md]) == NULL)
+		return;
+
+	if (lv >= ms->NStates)
+		lv = ms->NStates - 1;
+
+	if (lv == States [md])
+		// No change
+		return;
+
+	if ((T = ituToEtu (Time)) <= 0.0)
+		// Pathology
+		return;
+
+	// trace ("OLD T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
+
+	// Extended current time
+	TT = T + tm;
+	// Momentary new value
+	nv = last_val + ms->Levels [lv] - ms->Levels [States [md]];
+
+	// Now we combine these two:
+	//
+	// Standard average until now:
+	//
+	// average = average * (last_tim / T) + (last_val * (T - last_tim)) / T;
+	//
+	// ... and incorporate the surge:
+	// 
+	// average = average * (T/TT) + (nv * tm) / TT;
+	//
+	// This yields:
+	//
+
+	average = average * (last_tim / TT) +
+		(last_val * (T - last_tim) + nv * tm) / TT;
+
+	// And we leave last_val as if nothing happens, but the time is now
+
+	last_tim = T;
+
+	// trace ("NEW T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
+
+	upd ();
+}
+
+void PwrtHandler::setup (PicOSNode *tpn, pwr_tracker_t *pt, Dev *a) {
+
+	lword c;
+
+	TPN = tpn;
+
+	if ((Agent = a) == NULL) {
+		// We are handling file output
+		PT = pt;
+		assert (PT->O != NULL,
+			"PwrtHandler at %s: the mailbox is missing",
+				TPN->getSName ());
+		assert (PT->OutputThread == NULL,
+			"PwrtHandler at %s: agent thread already running",
+				TPN->getSName ());
+		PT->OutputThread = this;
+	} else {
+		// This is a socket connection
+		PT = tpn->pwr_tracker;
+		c = ECONN_OK;
+		if (PT == NULL)
+			c = ECONN_NOPWRT;
+		else if (PT->Device)
+			c = ECONN_ITYPE;
+		else if (PT->OutputThread != NULL)
+			c = ECONN_ALREADY;
+
+		if (c != ECONN_OK) {
+			create Disconnector (Agent, c);
+			terminate ();
+		} else {
+			// Make sure the buffer size will allow us to
+			// accommodate requests and updates
+			Agent->resize (PUPD_OUTPUT_BUFLEN);
+			PT->O = Agent;
+			PT->OutputThread = this;
+			PT->Changed = YES;
+		}
+	}
+}
+
+PwrtHandler::perform {
+
+	lword c;
+
+	state AckPTR:
+
+		if (Agent != NULL) {
+			// Socket connection: acknowledge
+ 			c = htonl (ECONN_OK);
+ 			if (Agent->wi (AckPTR, (char*)(&c), 4) == ERROR) {
+				// We are disconnected
+Disconnect:
+				delete Agent;
+				PT->O = NULL;
+				PT->OutputThread = NULL;
+				terminate;
+			}
+		}
+
+	transient Loop:
+
+		if (!(PT->Changed)) {
+			if (Agent != NULL)
+				// Periodic updates, if socket
+				Timer->delay (1.0, Update);
+			this->wait (SIGNAL, Loop);
+			sleep;
+		}
+
+	transient Update:
+
+		PT->Changed = NO;
+		Length = PT->pwrt_status ();
+		Buf = PT->UBuf;
+
+	transient Send:
+
+		if (PT->O->wl (Send, Buf, Length) == ERROR) {
+Error:
+			if (Agent == NULL)
+				excptn ("PwrtHandler at %s: error writing to "
+					"device", TPN->getSName ());
+			// Disconnection
+			goto Disconnect;
+		}
 
 		proceed Loop;
 }
@@ -4029,6 +4309,15 @@ AgentConnector::perform {
 						ECONN_STATION);
 				else
 					create LedsHandler (TPN, NULL, Agent);
+				terminate;
+
+			case AGENT_RQ_PWRT:
+
+				if (TPN == NULL)
+					create Disconnector (Agent,
+						ECONN_STATION);
+				else
+					create PwrtHandler (TPN, NULL, Agent);
 				terminate;
 
 			case AGENT_RQ_MOVE:
