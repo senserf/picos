@@ -3393,3 +3393,16 @@ R090809B:
 
 	Power tracker in VUEE: you don't have to comment out powerdown and
 	powerup any more.
+
+R090810A:
+
+	Abominable commas removed from various output lines (sensor values)
+	in eco_demo.
+
+	Fixed econnect to conform to new output formats and to accommodate
+	the battery voltage indicator from satnode (still remains to be
+	thoroughly tested).
+
+	The puller for satellite data fixed. It now uses the same snippets.dat
+	file as econnect. The Tcl functions handling those snippets have been
+	turned into a package (and put into Scripts).
