@@ -401,7 +401,7 @@ R090720A:
     When LCDG is displayed and the node goes off, the display is cleared, i.e.,
     forced into the off state.
 
-R090809A:
+R090809B:
 
     Power tracker added. XML data files now accept <include>s (this really
     belongs to SIDE).

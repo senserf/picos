@@ -4867,8 +4867,8 @@ if { [info tclversion] < 8.5 } {
 	exit 99
 }
 
-#catch { close stdin }
-#catch { close stdout }
-#catch { close stderr }
+catch { close stdin }
+catch { close stdout }
+catch { close stderr }
 
 vwait forever
