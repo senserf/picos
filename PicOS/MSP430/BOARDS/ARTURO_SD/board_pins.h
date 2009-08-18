@@ -23,8 +23,8 @@
 
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P4DIR	0x0E	// Veref selector (PAR/MOI)
-#define	PIN_DEFAULT_P6DIR	0x00
-#define	PIN_DEFAULT_P6OUT	0x00
+#define	PIN_DEFAULT_P6DIR	0xD0	// For the SD card
+#define	PIN_DEFAULT_P6OUT	0xD0
 
 //#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 

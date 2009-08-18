@@ -3,6 +3,16 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+
+// Things to test in the auto mode:
+//
+//	Pins:
+//		Left connector: P1.7, P1.6, P4.7, P6.7, P6.0, P6.4, P6.3, P6.5
+//		P5.7 goes high, P6.1,2,6 pulled up by 47K
+//
+//		Right connector: P4.6, P4.5, P4.4, P4.0, P2.6, P2.5, P5.6,
+//				 P3.6, P3.7
+
 #include "sysio.h"
 #include "tcvphys.h"
 #include "iflash_sys.h"
@@ -48,6 +58,222 @@ static address	packet;
 #ifdef RTC_PRESENT
 rtc_time_t dtime;
 #endif
+
+// ============================================================================
+
+static void radio_start ();
+static void radio_stop ();
+
+#define	AU_INIT		0
+#define	AU_EE		10
+#define	AU_RF		20
+#define	AU_RC		30
+#define	AU_LC		40
+#define	AU_PN		50
+#define	AU_FAIL		100
+
+thread (test_auto)
+
+  entry (AU_INIT)
+
+	ser_out (AU_INIT, "EEPROM ...\r\n");
+
+	// Delay for a short while to clean the UART
+	delay (750, AU_EE);
+	release;
+
+  entry (AU_EE)
+
+	if (ee_open ()) {
+		strcpy (ibuf, "Cannot open EEPROM!\r\n");
+		proceed (AU_FAIL);
+	}
+
+  entry (AU_EE+1)
+
+	if (ee_erase (AU_EE+1, 0, 0)) {
+		strcpy (ibuf, "Failed to erase EEPROM!\r\n");
+		proceed (AU_FAIL);
+	}
+
+	rssi = pin_read_adc (WNONE, 0, 3, 4);
+	adr = 0;
+
+  entry (AU_EE+2)
+
+	if (adr >= ee_size (NULL, NULL))
+		proceed (AU_EE+3);
+	val = adr + rssi;
+	if (ee_write (AU_EE+2, adr, (byte*)&val, 4)) {
+		form (ibuf, "EEPROM write failed at %lx!\r\n", adr);
+		proceed (AU_FAIL);
+	}
+	adr += 1024;
+	proceed  (AU_EE+2);
+
+  entry (AU_EE+3)
+
+	adr = 0;
+
+  entry (AU_EE+4)
+
+	if (adr >= ee_size (NULL, NULL))
+		proceed (AU_EE+5);
+	if (ee_read (adr, (byte*)&val, 4)) {
+		form (ibuf, "EEPROM read failed at %lx!\r\n", adr);
+		proceed (AU_FAIL);
+	}
+	if (val != adr + rssi) {
+		form (ibuf, "EEPROM misread at %lx!\r\n", adr);
+		proceed (AU_FAIL);
+	}
+	adr += 1024;
+	proceed  (AU_EE+4);
+
+  entry (AU_EE+5)
+
+	ee_close ();
+	ser_out (AU_EE+5, "EEPROM OK\r\n");
+
+#ifdef RTC_PRESENT
+
+  entry (AU_RC)
+
+	ser_out (AU_RC, "RTC ...\r\n");
+	delay (750, AU_RC+1);
+	release;
+
+  entry (AU_RC+1)
+	
+	dtime.year = 9;
+	dtime.month = 8;
+	dtime.day = 11;
+	dtime.dow = 2;
+	dtime.hour = 9;
+	dtime.minute = 9;
+	dtime.second = 9;
+
+	if (rtc_set (&dtime)) {
+		strcpy (ibuf, "Cannot set RTC!\r\n");
+		proceed (AU_FAIL);
+	}
+
+	delay (2048, AU_RC+2);
+	release;
+
+  entry (AU_RC+2)
+
+	bzero (&dtime, sizeof (dtime));
+	if (rtc_get (&dtime)) {
+		strcpy (ibuf, "Cannot read RTC!\r\n");
+		proceed (AU_FAIL);
+	}
+
+	if (dtime.second < 10) {
+		strcpy (ibuf, "RTC doesn't tick!\r\n");
+		proceed (AU_FAIL);
+	}
+
+  entry (AU_RC+3)
+
+	ser_out (AU_RC+3, "RTC OK\r\n");
+
+#endif
+
+#if LCD_ST7036
+
+  entry (AU_LC)
+
+	ser_out (AU_LC, "LCD (see the display) ...\r\n");
+	delay (1024, AU_LC+1);
+	release;
+
+  entry (AU_LC+1)
+
+	lcd_on (0);
+	lcd_write (0, "This will stay  for 5 seconds!");
+	delay (5*1024, AU_LC+2);
+	release;
+
+  entry (AU_LC+2)
+
+	lcd_off ();
+	ser_out (AU_LC+2, "LCD done\r\n");
+
+#endif
+
+  entry (AU_PN)
+
+	ser_out (AU_PN, "Checking P5.7 pull for P6.1,2,6 ...\r\n");
+
+	pin_write (11, 0);
+	mdelay (1);
+	if (pin_read (2) || pin_read (5) || pin_read (6)) {
+		strcpy (ibuf, "P5.7 doesn't pull down!\r\n");
+		proceed (AU_FAIL);
+	}
+	pin_write (11, 1);
+	mdelay (1);
+	if (!pin_read (2) || !pin_read (5) || !pin_read (6)) {
+		strcpy (ibuf, "P5.7 doesn't pull down!\r\n");
+		proceed (AU_FAIL);
+	}
+
+  entry (AU_PN+1)
+
+	ser_out (AU_PN+1, "Yep, it works\r\n");
+
+  entry (AU_PN+2)
+
+	ser_out (AU_PN+2,
+	    "Lighting J3:12-4, then J5:1,4-6,8-10,12,14,16,18 ... forever\r\n");
+	delay (750, AU_RF);
+	release;
+
+  entry (AU_RF)
+
+	ser_out (AU_RF, "... and starting radio ...\r\n");
+	radio_start ();
+
+	w = PIN_MAX - 1;
+
+	for (w = 0; w < PIN_MAX; w++)
+		pin_write (w, 0);
+
+  entry (AU_PN+3)
+
+	if (w == 0)
+		w = PIN_MAX - 1;
+	else
+		w--;
+
+	if (w == 11)
+		w = 10;
+
+	pin_write (w, 1);
+	delay (750, AU_PN+4);
+	release;
+
+  entry (AU_PN+4)
+
+	pin_write (w, 0);
+	proceed (AU_PN+3);
+
+  entry (AU_FAIL)
+
+	radio_stop ();
+	leds (0, 2);
+	leds (1, 2);
+	leds (2, 2);
+
+  entry (AU_FAIL+1)
+
+	ser_outf (AU_FAIL, ibuf);
+	delay (1024, AU_FAIL+1);
+
+endthread
+
+// ============================================================================
 
 static word gen_packet_length (void) {
 
@@ -124,7 +350,7 @@ thread (receiver)
 
 endthread;
 
-void radio_start () {
+static void radio_start () {
 
 	if (sfd < 0)
 		return;
@@ -139,7 +365,7 @@ void radio_start () {
 		runthread (receiver);
 }
 
-void radio_stop () {
+static void radio_stop () {
 
 	if (sfd < 0)
 		return;
@@ -168,13 +394,13 @@ thread (test_pin)
 	ser_out (PI_INIT,
 		"\r\nRF Pin Test\r\n"
 		"Commands:\r\n"
-		"r p r    -> read ADC pin 'p' with reference r:\r\n"
-		"                 0-1.5V, 1-2.5V, 2-Vcc, 3-Eref\r\n"
-		"s p v    -> set pin 'p' to digital v (0/1)\r\n"
-		"v p      -> show the value of pin 'p'\r\n"
-		"S p v    -> set raw pin'p' [0,1-out, 2-in, 3-sp]\r\n"
-		"V p      -> show\r\n"
-		"q        -> return to main test\r\n"
+		"r p r -> read ADC pin 'p' with reference r:\r\n"
+		"           0-1.5V, 1-2.5V, 2-Vcc, 3-Eref\r\n"
+		"s p v -> set pin 'p' to digital v (0/1)\r\n"
+		"v p   -> show the value of pin 'p'\r\n"
+		"S p v -> set raw pin'p' [0,1-out, 2-in, 3-sp]\r\n"
+		"V p   -> show\r\n"
+		"q     -> return to main test\r\n"
 	);
 
   entry (PI_RCMD)
@@ -192,7 +418,7 @@ thread (test_pin)
 	
   entry (PI_RCMD+1)
 
-	ser_out (PI_RCMD+1, "Illegal command or parameter\r\n");
+	ser_out (PI_RCMD+1, "Illegal\r\n");
 	proceed (PI_INIT);
 
   entry (PI_ADC)
@@ -315,7 +541,7 @@ thread (test_epr)
 
   entry (EP_START+1)
 
-	ser_out (EP_START+1, "Failed to open EEPROM\r\n");
+	ser_out (EP_START+1, "Failed to open\r\n");
 	finish;
 
   entry (EP_INIT)
@@ -323,28 +549,28 @@ thread (test_epr)
 	ser_out (EP_INIT,
 		"\r\nEEPROM Test\r\n"
 		"Commands:\r\n"
-		"a adr int    -> store a word\r\n"
-		"b adr lint   -> store a lword\r\n"
-		"c adr str    -> store a string\r\n"
-		"d adr        -> read word\r\n"
-		"e adr        -> read lword\r\n"
-		"f adr n      -> read string\r\n"
-		"g adr n p    -> write n longwords with p starting at adr\r\n"
-		"h adr n b t  -> read n blks of b starting at adr t times\r\n"
-		"x frm upt    -> erase eeprom from upto\r\n"
-		"s            -> sync eeprom\r\n"
-		"w fr ln pat  -> erase-write-read test\r\n"
-		"i led w      -> led status [w = 0, 1, 2]\r\n"
-		"j w          -> blinkrate 0-low, 1-high\r\n"
-		"k m          -> write a diag message\r\n"
-		"m adr w      -> write word to info flash\r\n"
-		"n adr        -> read word from info flash\r\n"
-		"o adr        -> erase info flash\r\n"
-		"M adr w      -> write word to code flash\r\n"
-		"N adr        -> read word from code flash\r\n"
-		"O adr        -> erase code flash\r\n"
-		"T adr        -> flash overwrite test\r\n"
-		"q            -> return to main test\r\n"
+		"a adr int   -> store word\r\n"
+		"b adr lint  -> store lword\r\n"
+		"c adr str   -> store string\r\n"
+		"d adr       -> read word\r\n"
+		"e adr       -> read lword\r\n"
+		"f adr n     -> read string\r\n"
+		"g adr n p   -> write n longwords with p at adr\r\n"
+		"h adr n b t -> read n blks of b at adr t times\r\n"
+		"x frm upt   -> erase eeprom from upto\r\n"
+		"s           -> sync eeprom\r\n"
+		"w fr ln pat -> erase-write-read test\r\n"
+		"i led w     -> led status [w = 0, 1, 2]\r\n"
+		"j w         -> blinkrate 0-low, 1-high\r\n"
+		"k m         -> write a diag message\r\n"
+		"m adr w     -> write word to info flash\r\n"
+		"n adr       -> read word from info flash\r\n"
+		"o adr       -> erase info flash\r\n"
+		"M adr w     -> write word to code flash\r\n"
+		"N adr       -> read word from code flash\r\n"
+		"O adr       -> erase code flash\r\n"
+		"T adr       -> flash overwrite test\r\n"
+		"q           -> return to main test\r\n"
 	);
 
   entry (EP_RCMD)
@@ -379,7 +605,7 @@ thread (test_epr)
 	
   entry (EP_RCMD+1)
 
-	ser_out (EP_RCMD+1, "Illegal command or parameter\r\n");
+	ser_out (EP_RCMD+1, "Illegal\r\n");
 	proceed (EP_INIT);
 
   entry (EP_SWO)
@@ -752,31 +978,31 @@ thread (test_sdcard)
 
   entry (SD_IFAIL)
 
-	ser_outf (SD_IFAIL, "Failed to open SD card: %u\r\n", err);
+	ser_outf (SD_IFAIL, "Failed to open: %u\r\n", err);
 	finish;
 
   entry (SD_OK)
 
-	ser_outf (SD_OK, "SD card size: %lu\r\n", sd_size ());
+	ser_outf (SD_OK, "Card size: %lu\r\n", sd_size ());
 
   entry (SD_START)
 
 	ser_out (SD_START,
 		"\r\nSD Test\r\n"
 		"Commands:\r\n"
-		"a adr int    -> store a word\r\n"
-		"b adr lint   -> store a lword\r\n"
-		"c adr str    -> store a string\r\n"
-		"d adr        -> read word\r\n"
-		"e adr        -> read lword\r\n"
-		"f adr n      -> read string\r\n"
-		"g adr n p    -> write n longwords with p starting at adr\r\n"
-		"h adr n b t  -> read n blks of b starting at adr t times\r\n"
-		"x frm upt    -> erase from upto\r\n"
-		"s            -> sync card\r\n"
-		"w fr ln pat  -> write-read test\r\n"
-		"i            -> set idle state\r\n"
-		"q            -> return to main test\r\n"
+		"a adr int   -> store a word\r\n"
+		"b adr lint  -> store a lword\r\n"
+		"c adr str   -> store a string\r\n"
+		"d adr       -> read word\r\n"
+		"e adr       -> read lword\r\n"
+		"f adr n     -> read string\r\n"
+		"g adr n p   -> write n longwords with p at adr\r\n"
+		"h adr n b t -> read n blks of b at adr t times\r\n"
+		"x frm upt   -> erase from upto\r\n"
+		"s           -> sync card\r\n"
+		"w fr ln pat -> write-read test\r\n"
+		"i           -> set idle state\r\n"
+		"q           -> return to main test\r\n"
 	);
 
   entry (SD_RCMD)
@@ -802,7 +1028,7 @@ thread (test_sdcard)
 	
   entry (SD_RCMD+1)
 
-	ser_out (SD_RCMD+1, "Illegal command or parameter\r\n");
+	ser_out (SD_RCMD+1, "Illegal\r\n");
 	proceed (SD_START);
 
   entry (SD_SWO)
@@ -1057,12 +1283,12 @@ thread (test_delay)
 	ser_out (DE_INIT,
 		"\r\nRF Pin Test\r\n"
 		"Commands:\r\n"
-		"f s      -> freeze\r\n"
-		"l s      -> lhold\r\n"
-		"d        -> PD mode (unsafe)\r\n"
-		"u        -> PU mode\r\n"
-		"s n      -> spin test for n sec\r\n"
-		"q        -> return to main test\r\n"
+		"f s  -> freeze\r\n"
+		"l s  -> lhold\r\n"
+		"d    -> PD mode (unsafe)\r\n"
+		"u    -> PU mode\r\n"
+		"s n  -> spin test for n sec\r\n"
+		"q    -> return to main test\r\n"
 	);
 
   entry (DE_RCMD)
@@ -1080,7 +1306,7 @@ thread (test_delay)
 	
   entry (DE_RCMD+1)
 
-	ser_out (DE_RCMD+1, "Illegal command or parameter\r\n");
+	ser_out (DE_RCMD+1, "Illegal\r\n");
 	proceed (DE_INIT);
 
   entry (DE_FRE)
@@ -1234,7 +1460,7 @@ thread (test_gps)
 
   entry (GP_ERR)
 
-	ser_out (GP_ERR, "Illegal command or parameter\r\n");
+	ser_out (GP_ERR, "Illegal\r\n");
 	proceed (GP_MEN);
 
   entry (GP_WRI)
@@ -1312,7 +1538,7 @@ thread (test_rtc)
 
   entry (RT_ERR)
 
-	ser_out (RT_ERR, "Illegal command or parameter\r\n");
+	ser_out (RT_ERR, "Illegal\r\n");
 	proceed (RT_MEN);
 
   entry (RT_SET)
@@ -1407,7 +1633,7 @@ thread (test_lcd)
 
   entry (LT_ERR)
 
-	ser_out (LT_ERR, "Illegal command or parameter\r\n");
+	ser_out (LT_ERR, "Illegal\r\n");
 	proceed (LT_MEN);
 
   entry (LT_ON)
@@ -1470,7 +1696,7 @@ thread (test_sensors)
 		"\r\nSensor Test\r\n"
 		"Commands:\r\n"
 		"r s      -> read sensor s\r\n"
-		"c s d n  -> read sensor s continually at d ms, n times\r\n"
+		"c s d n  -> read continually at d ms, n times\r\n"
 		"q        -> quit\r\n"
 		);
 
@@ -1486,7 +1712,7 @@ thread (test_sensors)
 
   entry (SE_RCMD+1)
 
-	ser_out (SE_RCMD+1, "Illegal command or parameter\r\n");
+	ser_out (SE_RCMD+1, "Illegal\r\n");
 	proceed (SE_INIT);
 
   entry (SE_GSEN)
@@ -1500,7 +1726,7 @@ thread (test_sensors)
 
   entry (SE_GSEN+2)
 
-	ser_outf (SE_GSEN+2, "Value: %u\r\n", ss);
+	ser_outf (SE_GSEN+2, "Val: %u\r\n", ss);
 	proceed (SE_RCMD);
 
   entry (SE_CSEN)
@@ -1520,7 +1746,7 @@ thread (test_sensors)
 
   entry (SE_CSEN+2)
 
-	ser_outf (SE_GSEN+2, "Value: %u (%u left)\r\n", ss, nt);
+	ser_outf (SE_GSEN+2, "Val: %u (%u left)\r\n", ss, nt);
 
 	if (nt == 0)
 		proceed (SE_RCMD);
@@ -1547,12 +1773,12 @@ thread (test_adc)
 	ser_out (AD_INIT,
 		"\r\nADC Test\r\n"
 		"Commands:\r\n"
-		"c pin ref sht -> configure\r\n"
-		"s             -> start\r\n"
-		"h             -> stop & read\r\n"
-		"f             -> off\r\n"
-		"d             -> disable\r\n"
-		"q             -> quit\r\n"
+		"c p rf st -> configure\r\n"
+		"s         -> start\r\n"
+		"h         -> stop & read\r\n"
+		"f         -> off\r\n"
+		"d         -> disable\r\n"
+		"q         -> quit\r\n"
 		);
 
   entry (AD_RCMD)
@@ -1570,7 +1796,7 @@ thread (test_adc)
 
   entry (AD_RCMD+1)
 
-	ser_out (AD_RCMD+1, "Illegal command or parameter\r\n");
+	ser_out (AD_RCMD+1, "Illegal\r\n");
 	proceed (AD_INIT);
 
   entry (AD_CONF)
@@ -1606,7 +1832,7 @@ Value:
 
   entry (AD_STOP+1)
 
-	ser_out (AD_STOP+1, "Waiting for ADC to become idle ...\r\n");
+	ser_out (AD_STOP+1, "Waiting for idle ...\r\n");
 	while (adc_busy);
 
   entry (AD_STOP+2)
@@ -1620,7 +1846,7 @@ endthread
 
 #define	RS_INIT		00
 #define	RS_RCMD		10
-#define	RS_EPR		20
+#define	RS_AUTO		20
 #define RS_SPO		30
 #define	RS_RAD		40
 #define	RS_QRA		50
@@ -1672,47 +1898,47 @@ thread (root)
   entry (RS_RCMD-2)
 
 	ser_out (RS_RCMD-2,
-		"\r\nWarsaw board test (GENERAL)\r\n"
+		"\r\nCommands\r\n"
 		"Commands:\r\n"
-		"e    -> EEPROM test\r\n"
-		"r    -> start radio test (xmit/receive)\r\n"
-		"p v  -> set xmit power [def = max]\r\n"
-		"c v  -> set channel [def = 0]\r\n"
-		"q    -> stop radio test\r\n"
+		"a    -> auto\r\n"
+		"r    -> start radio\r\n"
+		"p v  -> xmit pwr\r\n"
+		"c v  -> channel\r\n"
+		"q    -> stop radio\r\n"
 		"n    -> reset\r\n"
-		"i v  -> set SID [def = 0]\r\n"
+		"i v  -> set SID\r\n"
 		"u v  -> set uart rate [def = 96]\r\n"
 #ifdef cswitch_on
 		"o c  -> cswitch on\r\n"
 		"f c  -> cswitch off\r\n"
 #endif
-		"E    -> detailed EEPROM test\r\n"
+		"E    -> EEPROM test\r\n"
 #ifdef SDCARD_PRESENT
-		"S    -> detailed SD test\r\n"
+		"S    -> SD test\r\n"
 #endif
-		"P    -> detailed pin test (including ADC)\r\n"
-		"D    -> delay/freeze/spin test\r\n"
+		"P    -> pin test\r\n"
+		"D    -> power\r\n"
 #ifdef	gps_bring_up
-		"G    -> GPS test\r\n"
+		"G    -> GPS\r\n"
 #endif
 #ifdef SENSOR_LIST
 		"V    -> sensors\r\n"
 #endif
 		"A    -> ADC\r\n"
 #ifdef RTC_PRESENT
-		"T    -> RTC test\r\n"
+		"T    -> RTC\r\n"
 #endif
 #if LCD_ST7036
-		"L    -> LCD test\r\n"
+		"L    -> LCD\r\n"
 #endif
-		"U    -> UART echo test\r\n"
+		"U    -> UART echo\r\n"
 	);
 
   entry (RS_RCMD-1)
 
 	if ((unsigned char) ibuf [0] == 0xff)
 		ser_out (RS_RCMD-1,
-			"No command in 30 seconds -> start radio test\r\n"
+			"No cmd in 30 sec -> start radio\r\n"
 			);
   entry (RS_RCMD)
 
@@ -1723,7 +1949,8 @@ thread (root)
 	unwait (WNONE);
 
 	switch (ibuf [0]) {
-		case 'e' : proceed (RS_EPR);
+
+		case 'a' : proceed (RS_AUTO);
 		case 'r' : proceed (RS_RAD);
 		case 'p' : proceed (RS_SPO);
 		case 'c' : proceed (RS_SCH);
@@ -1800,61 +2027,18 @@ thread (root)
 
   entry (RS_RCMD+1)
 
-	ser_out (RS_RCMD+1, "Illegal command or parameter\r\n");
+	ser_out (RS_RCMD+1, "Illegal\r\n");
 	proceed (RS_RCMD-2);
 
-  entry (RS_EPR)
+  entry (RS_AUTO)
 
-	// EEPROM test
-	err = ee_open ();
-	ser_outf (RS_EPR, "Open status: %s, erasing ...\r\n", err ? "ERROR" :
-		"OK");
+	ser_out (RS_AUTO, "Auto test, q to stop ...\r\n");
+	runthread (test_auto);
 
-  entry (RS_EPR+1)
+  entry (RS_AUTO+1)
 
-	err = ee_erase (RS_EPR+1, 0, 0);
-
-  entry (RS_EPR+2)
-
-	ser_outf (RS_EPR+2, "Done (%s)\r\n", err ? "ERROR" : "OK");
-
-  entry (RS_EPR+3)
-
-	ser_outf (RS_EPR+3, "Writing ...\r\n");
-	adr = 0;
-	max = ee_size (NO, NULL);
-	err = 0;
-	off = rnd ();
-
-  entry (RS_EPR+4)
-
-E_more:
-	val = adr + off;
-	err += ee_write (RS_EPR+4, adr, (byte*)(&val), 4);
-
-	if ((adr += EEPROM_INCR) < max)
-		goto E_more;
-
-  entry (RS_EPR+5)
-
-	ser_outf (RS_EPR+5, "Done (%s), now reading ...\r\n",
-		err ? "ERROR" : "OK");
-	adr = 0;
-	err = 0;
-
-	while (adr < max) {
-		val = (lword)(-1);
-		ee_read (adr, (byte*)(&val), 4);
-		if (val != (adr + off))
-			err++;
-		adr += EEPROM_INCR;
-	}
-
-  entry (RS_EPR+6)
-
-	ser_outf (RS_EPR+6, "Done (%s)\r\n", err ? "ERROR" : "OK");
-	ee_close ();
-	proceed (RS_RCMD);
+	ser_in (RS_AUTO+1, ibuf, IBUFLEN-1);
+	reset ();
 
   entry (RS_SPO)
 

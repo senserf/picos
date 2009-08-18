@@ -203,7 +203,7 @@ static void sd_getsize () {
 // Read card size
 //
 	lword s;
-	word i, cnt, w;
+	word i, w;
 	byte c;
 
 	// Now for some black magic. I am not sure if this is going to work for
@@ -226,10 +226,10 @@ static void sd_getsize () {
 				goto Bad;
 
 			// First multiplier
-			s =  ((word)(sd_buf [6] & 0x3) << 10) |
-			    (((word)(sd_buf [7])) << 2) |
-			           ((sd_buf [8] & 0xc0) >> 6) + 1;
-
+			s = ( ((word)(sd_buf [6] & 0x3) << 10) |
+			     (((word)(sd_buf [7])) << 2) |
+			           ((sd_buf [8] & 0xc0) >> 6) )  + 1;
+			// diag ("SP: %x %x %x", sd_buf [6], sd_buf [7], sd_buf [8]);
 
 			// Second multiplier
 			w = 4 << ( ((sd_buf  [9] & 0x3 ) << 1) |

@@ -1,4 +1,5 @@
 #include "kernel.h"
+#include "storage.h"
 
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2009                    */
@@ -1077,7 +1078,7 @@ static const uart_rate_t urates [] = {
 
 Boolean zz_uart_setrate (word rate, uart_t *ua) {
 
-	byte j, saveIE;
+	byte j;
 
 	for (j = 0; j < N_RATES; j++) {
 		if (rate == urates [j] . rate) {

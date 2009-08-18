@@ -149,7 +149,7 @@ proc ucs { cl } {
 			return ""
 		}
 
-		set a [vnum $a 100 65536]
+		set a [vnum $a 1 65536]
 		if { $a == "" } {
 			return ""
 		}
@@ -158,7 +158,7 @@ proc ucs { cl } {
 			# single value
 			lappend v $a
 		} else {
-			set b [vnum $b 100 65536]
+			set b [vnum $b 1 65536]
 			if { $b == "" || $b < $a } {
 				return ""
 			}
@@ -298,7 +298,7 @@ proc snip_set { nm scr asl } {
 		set cli [ucs [lindex $as 1]]
 		incr i
 		if { $cli == "" } {
-			return "collector set number $i is broken"
+			return "node set number $i is broken"
 		}
 		lappend ssl [list $asg $cli]
 	}
@@ -433,7 +433,7 @@ proc snip_parse { cf } {
 			set sv [ucs $ss]
 
 			if { $sv == "" } {
-				return "illegal collector range '$ss' in\
+				return "illegal node range '$ss' in\
 					 assignment $iy of snippet '$nm'"
 			}
 			if { $sv == "all" } {

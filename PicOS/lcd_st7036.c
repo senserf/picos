@@ -88,12 +88,12 @@ void lcd_on (word params) {
 	put_cmd (0x01);
 	//mdelay (10);
 	put_cmd (0x06);
-	//mdelay (10);
 	// lcd_stop;
 	// lcd_start;
 	LCD_SDELAY;
 	put_cmd ((params & LCD_CURSOR_ON) ? 0x0f : 0x0c);
 	lcd_stop;
+	mdelay (10);
 }
 	
 void lcd_off () {

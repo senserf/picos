@@ -1654,7 +1654,6 @@ word eecnt;
   entry (AT_RESET)
 
 	eebase = pin_read_adc (AT_RESET, 0, 3, 4);
-	eeptr = 0;
 	if (ee_open () == 0)
 		proceed (AT_EETST);
 
@@ -1700,19 +1699,19 @@ word eecnt;
 
   entry (AT_EEWER)
 
-	ser_outf (AT_EEWER, "EEPROM write error at %xl\r\n", eeptr);
+	ser_outf (AT_EEWER, "EEPROM write error at %lx\r\n", eeptr);
 	auto_stop ();
 	release;
 
   entry (AT_EERER)
 
-	ser_outf (AT_EERER, "EEPROM read error at %xl\r\n", eeptr);
+	ser_outf (AT_EERER, "EEPROM read error at %lx\r\n", eeptr);
 	auto_stop ();
 	release;
 
   entry (AT_EEMIS)
 
-	ser_outf (AT_EEMIS, "EEPROM misread at %xl\r\n", eeptr);
+	ser_outf (AT_EEMIS, "EEPROM misread at %lx\r\n", eeptr);
 	auto_stop ();
 	release;
 

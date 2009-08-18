@@ -3335,9 +3335,8 @@ R090720A:
 
 R090721A:
 
-       YEP cosmetics: don't halt on bad eprom data, lower deepest user info
-       to stay below the status bar.
-
+        YEP cosmetics: don't halt on bad eprom data, lower deepest user info
+        to stay below the status bar.
 
 R090721B:
 
@@ -3406,3 +3405,41 @@ R090810A:
 	The puller for satellite data fixed. It now uses the same snippets.dat
 	file as econnect. The Tcl functions handling those snippets have been
 	turned into a package (and put into Scripts).
+
+R090818A:
+
+	Fixed a problem with the pins module (pin_read and stuff) causing that
+	ports P3 and P4 were not handled correctly. This thing has always been
+	broken!
+
+	Added a delay to lcd_open in lcd_st7036 needed to make sure that the
+	device is in fact ready to accept stuff. Previously, the first two or
+	three characters displayed immediately after lcd_open would not show.
+
+	Battery voltage indicator in econnect is now treated as a standard
+	sensor number 0 whose conversion requires a snippet (determined by the
+	node number, as for a collector). You should remove the old snippets
+	(from AppData...econnect) before reinstalling.
+
+	Time stamps produced by econnect modified to include the full year,
+	rather its last two digits (Gilberto says that Excel likes them better
+	this way).
+
+	Initial directory for saving extracted files in econnect changed to
+	Desktop (by default, it was the AppData directory, which was useless).
+
+	Fixed a bug in esdreader.c (econnect's helper) occasionally causing
+	incorrect time stamps in extracted samples.
+
+	Progress indication added to the SD card extraction message (the 
+	operation takes a while).
+	
+	Added a prefix field to genimage options, so genimage can generate
+	images for satellite nodes (with the first four digits of node number
+	!= BACA).
+
+	Fixed a bug in sdcard.c causing a slight underestimation of the card
+	size (by a few K).
+
+	Added a new example to VUEE/ILLUSTRATION showing the "data context"
+	approach.

@@ -35,7 +35,7 @@
 // it together with SPI
 
 #ifndef	SPI_BAUD_RATE
-#define	SPI_BAUD_RATE	2	// the fastest
+#define	SPI_BAUD_RATE	15	// the fastest
 #endif
 
 //

@@ -7,7 +7,7 @@
 
 #include "sysio.h"
 
-#define	PIN_DEF(p,n)	{ p ## IN_ - P1IN_ , n }
+#define	PIN_DEF(p,n)	{ p ## IN_ - P3IN_ , n }
 #define PIN_RESERVED	{ 0xff, 0 }
 
 /*
@@ -355,8 +355,8 @@ typedef struct {
 
 
 #define	PSEL_off	(P3SEL_ - P3IN_)
-#define	PDIR_off	(P1DIR_ - P1IN_)
-#define	POUT_off	(P1OUT_ - P1IN_)
+#define	PDIR_off	(P3DIR_ - P3IN_)
+#define	POUT_off	(P3OUT_ - P3IN_)
 
 /*
  * GP pin operations

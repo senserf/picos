@@ -69,7 +69,7 @@
 // 4 = SD card CS OUT
 #define	PIN_DEFAULT_P5DIR	0xFB
 //#define	PIN_DEFAULT_P5OUT	0x01	// Default CS is up
-#define	PIN_DEFAULT_P5OUT	0x1B	// Default both CS, CLK are up
+#define	PIN_DEFAULT_P5OUT	0x0B	// Default both CS, CLK are up
 
 #if ADC_SAMPLER
 
@@ -120,9 +120,10 @@
 	PIN_DEF	(P4, 5),	\
 	PIN_DEF	(P4, 6),	\
 	PIN_DEF	(P4, 7),	\
+	PIN_DEF (P5, 4)		\
 }
 
-#define	PIN_MAX			20	// Number of pins
+#define	PIN_MAX			21	// Number of pins
 #define	PIN_MAX_ANALOG		8	// Number of available analog pins
 #define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
 
