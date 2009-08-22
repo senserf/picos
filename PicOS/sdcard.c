@@ -126,60 +126,61 @@ static void put_byte (byte b) {
 
 #endif
 
-static byte sd_skn (word tm) {
+static byte sd_skn () {
 //
 // Skip NULL bytes
 //
 	word i;
 	byte r;
 
-	for (i = 0; i < tm; i++)
+	for (i = 32; i--; )
 		if ((r = get_byte ()) != 0xff)
 			break;
-
 	return r;
 }
 
-static byte sd_skp (word n) {
+static void sd_skp () {
 //
-// Skip n bytes
+// Skip a few bytes to warm up the clock
 //
-	byte r;
-	while (n--)
-		r = get_byte ();
-	return r;
+	word i;
+
+	for (i = 32; i--; )
+		get_byte ();
 }
 
 static byte sd_cmd (byte cmd, lword par) {
 //
 // Send a short-response command
 //
-#if SD_DEBUG
-	byte rc;
-#endif
-	// A delay to "warm up" the clock
-	put_byte (0xff);
-	// put_byte (0xff);
-	// put_byte (0xff);
+	word rep;
 
-	// cmd has 0x40 or'red into it
-	put_byte (cmd);
-	put_byte ((byte)(par >> 24));
-	put_byte ((byte)(par >> 16));
-	put_byte ((byte)(par >>  8));
-	put_byte ((byte)(par      ));
-	// There is one command that always requires a checksum; luckily it
-	// is static
-	if (cmd == SD_CMD_GOIDLE)
-		put_byte (0x95);
-#if SD_DEBUG
-	rc = sd_skn (12);
-	diag ("C = %x R %x", cmd, rc);
-	return rc;
-#else
-	// Response
-	return sd_skn (12);
-#endif
+	for (rep = 128; rep; rep--) {
+		// A delay to "warm up" the clock
+		put_byte (0xff);
+		// cmd has 0x40 or'red into it
+		put_byte (cmd);
+		put_byte ((byte)(par >> 24));
+		put_byte ((byte)(par >> 16));
+		put_byte ((byte)(par >>  8));
+		put_byte ((byte)(par      ));
+
+		// There is one command that always requires a checksum;
+		// luckily it is static
+		if (cmd == SD_CMD_GOIDLE) {
+			// This one is special:
+			put_byte (0x95); // 1. requires a checksum
+			if (sd_skn () == SD_REP_IDLE)
+				return 0;
+		} else {
+			if (sd_skn () == 0)
+				return 0;
+		}
+		// Retry
+		put_byte (0xff);
+		put_byte (0xff);
+	}
+	return 1;
 }
 
 // ============================================================================
@@ -196,8 +197,6 @@ void static sd_outcsd () {
 #endif
 // ============================================================================
 
-
-
 static void sd_getsize () {
 //
 // Read card size
@@ -212,7 +211,7 @@ static void sd_getsize () {
 	for (sd_siz = 0, i = 0; ; i++) {
 		// Try to get two identical values in a row
 		if (sd_cmd (SD_CMD_SNDCSD, 0) == 0) {
-			if (sd_skn (32) == 0xff)
+			if (sd_skn () == 0xff)
 				goto Bad;
 			// Read the CSD into the buffer
 			for (w = 0; w < 17; w++)
@@ -252,7 +251,7 @@ static void sd_getsize () {
 				break;
 		}
 Bad:
-		if (i == 16) {
+		if (i == 32) {
 			sd_siz = 0;
 			return;
 		}
@@ -266,24 +265,12 @@ static word sd_sleep () {
 //
 // Assume idle state
 //
-	word i;
-
-	for (i = 0; ; i++) {
-		if (sd_cmd (SD_CMD_GOIDLE, 0) == SD_REP_IDLE)
-			break;
-		if (i == 128)
-			return SDERR_NOCARD;
-	}
+	if (sd_cmd (SD_CMD_GOIDLE, 0))
+		return SDERR_NOCARD;
 
 	MARK_IDLE;
 
-	for (i = 0; ; i++) {
-		if ((sd_cmd (SD_CMD_SOPCND, 0) & SD_REP_IDLE) == 0)
-			break;
-		if (i == 8192)
-			return SDERR_TIME;
-	}
-	return 0;
+	return sd_cmd (SD_CMD_SOPCND, 0) ? SDERR_TIME : 0;
 }
 
 static word sd_synk () {
@@ -341,7 +328,7 @@ word sd_open () {
 	}
 
 	// Clock warmup with select up (a bit of black magic)
-	sd_skp (32);
+	sd_skp ();
 
 	// Select
 	sd_start;
@@ -659,7 +646,7 @@ void sd_idle () {
 // Assume idle state (user level)
 //
 	// Clock warmup (a bit of black magic)
-	sd_skp (32);
+	sd_skp ();
 
 	// Select
 	sd_start;

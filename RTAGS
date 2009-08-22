@@ -3422,8 +3422,8 @@ R090818A:
 	(from AppData...econnect) before reinstalling.
 
 	Time stamps produced by econnect modified to include the full year,
-	rather its last two digits (Gilberto says that Excel likes them better
-	this way).
+	rather than its last two digits (Gilberto says that Excel likes them
+	better this way).
 
 	Initial directory for saving extracted files in econnect changed to
 	Desktop (by default, it was the AppData directory, which was useless).
@@ -3443,3 +3443,10 @@ R090818A:
 
 	Added a new example to VUEE/ILLUSTRATION showing the "data context"
 	approach.
+
+R090822A:
+
+	SD card driver made more resilient (or so I think).
+
+	A slight modification to econnect to properly recognize the maintenance
+	mode of aggregator (the string has changed again).
