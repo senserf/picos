@@ -10830,6 +10830,20 @@ applies to the activity carrying the indicated packet, if the activity is
 currently perceived by the transceiver.
 If the method cannot locate the ``current'' activity (this applies to the
 last two variants of {\tt sigLevel}), it returns a negative value ($-1.0$).
+Note that a packet triggering {\tt EOT} is eligible for this kind of
+inquiry: its activity is still available.
+
+Similar circumstances apply to this method of {\tt Transceiver}:
+\begin{verbatim}
+        IHist iHist (const Packet *pkt);
+\end{verbatim}
+\noindent
+which returns a pointer to the packet's interference histogram 
+(section \ref{rm_tr_ra_ih}).
+This histogram can be used in tricky scenarios
+(see section~\ref{rm_tr_ac_be} for an illustration),
+e.g., to affect the contents of a received packet in a manner depending on the
+interference that its particular fragments have suffered.
 
 IF {\tt RFC\_erb} is present among the assessment methods of the underlying
 radio channel (\sect{rm_tr_ac_be}), these two transceiver methods

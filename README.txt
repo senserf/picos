@@ -998,3 +998,6 @@
 
 	   Added the file include capability (a trivial subset of xi:include)
 	   to sxml_parse_input in numio.c.
+
+ R090825A  Added a few lines on the iHist (Transceiver) method to the manual
+	   (which turned out to be unintentionally undocumentd).
