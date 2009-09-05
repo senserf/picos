@@ -1,6 +1,8 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
+#define	VUEE_VERSION	0.82
+
 #include "picos.h"
 #include "ndata.h"
 #include "agent.h"
@@ -28,7 +30,8 @@
 #define	PMON_STATE_CMP_PENDING	0x80
 
 #define	UART_IMODE_D		0	// Direct UART mode
-#define	UART_IMODE_P		1	// PHY (TCV) mode
+#define	UART_IMODE_P		1	// PHY (TCV) mode (packet)
+#define	UART_IMODE_L		2	// PHY (TCV) mode (line)
 
 #define	TheNode		((PicOSNode*)TheStation)
 #define	ThePckt		((PKT*)ThePacket)
@@ -80,11 +83,9 @@ class uart_dir_int_t {
 
 class uart_tcv_int_t {
 //
-// UART interface for TCV PHY mode
+// UART interface for TCV PHY packet and line modes
 //
 	public:
-
-	// === low level packet driver ========================================
 
 	TIME	r_rstime;	// Time to wait until if resetting receiver
 	int	x_qevent;	// Queue event id returned by TCV
@@ -465,6 +466,8 @@ station PicOSNode abstract {
 	 * I/O formatting
 	 */
 	char * _da (vform) (char*, const char*, va_list);
+	word _da (vfsize) (const char*, va_list);
+	word _da (fsize) (const char*, ...);
 	int    _da (vscan) (const char*, const char*, va_list);
 	char * _da (form) (char*, const char*, ...);
 	int    _da (scan) (const char*, const char*, ...);
@@ -670,8 +673,8 @@ process p_uart_rcv_p (PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
-	states { RC_LOOP, RC_WLEN, RC_FILL, RC_OFFSTATE, RC_WOFF, RC_RESET,
-		RC_WRST };
+	states { RC_LOOP, RC_PREAMBLE, RC_WLEN, RC_FILL, RC_OFFSTATE, RC_WOFF,
+		RC_RESET, RC_WRST };
 
 	void setup () { UA = UART_INTF_P (TheNode->uart); };
 
@@ -688,6 +691,34 @@ process p_uart_xmt_p (PicOSNode) {
 	uart_tcv_int_t *UA;
 
 	states { XM_LOOP, XM_PRE, XM_LEN, XM_SEND };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+};
+
+// === UART line --============================================================
+
+process p_uart_rcv_l (PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	states { RC_LOOP, RC_FIRST, RC_MORE, RC_OFFSTATE, RC_WOFF };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+
+	byte getbyte (int, int);
+	void rdbuff (int, int);
+	void ignore (int, int);
+};
+
+process p_uart_xmt_l (PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	states { XM_LOOP, XM_SEND, XM_EOL1, XM_EOL2 };
 
 	void setup () { UA = UART_INTF_P (TheNode->uart); };
 

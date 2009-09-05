@@ -405,3 +405,12 @@ R090809B:
 
     Power tracker added. XML data files now accept <include>s (this really
     belongs to SIDE).
+
+R090905A:
+
+    Line mode (UART_TCV_MODE_L) for UART added. See Apps/VUEE/XRSTest for a
+    clumsy example (this is all very simple, so a trivial example will do).
+
+    VUEE version shows up in the header of SMURPH output.
+
+    The document updated (look for text in blue).

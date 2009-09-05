@@ -18,6 +18,18 @@
 // This must be overriden because TCV is always compiled in
 #define	TCV_PRESENT	1
 
+#ifndef	UART_TCV
+#define	UART_TCV		0
+#endif
+
+#ifndef	UART_TCV_MODE
+#define	UART_TCV_MODE		UART_TCV_MODE_N
+#endif
+
+#define	UART_TCV_MODE_N		0	// Non-persisitent packets
+#define	UART_TCV_MODE_P		1	// Built-in ACKs
+#define	UART_TCV_MODE_L		2	// Lines
+
 // ----------------------------------------------------------------------- //
 // NOTE: this will be replaced in PicOS as an isolated fragment of sysio.h //
 // ----------------------------------------------------------------------- //

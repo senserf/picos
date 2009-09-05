@@ -53,6 +53,9 @@
 // ============================================================================
 
 #define vform(a,b,c)	(  ((PicOSNode*)TheStation)->_na_vform (a,b,c)  )
+#define fsize(a, ...) \
+	(  ((PicOSNode*)TheStation)->_na_fsize (a, ## __VA_ARGS__)  )
+#define vfsize(a,b) 	(  ((PicOSNode*)TheStation)->_na_vfsize (a, b)  )
 #define vscan(a,b,c)	(  ((PicOSNode*)TheStation)->_na_vscan (a,b,c)  )
 #define form(a, ...) \
 	(  ((PicOSNode*)TheStation)->_na_form (a, ## __VA_ARGS__)  )

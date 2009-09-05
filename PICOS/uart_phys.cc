@@ -10,12 +10,12 @@
 
 static int unp_option (int, address);
 
-// ============================================================================
-// Non-persistent packet mode (this is the only option implemented in VUEE) ===
-// ============================================================================
-
 #define	UART_EVP_RCV	UA		// Receiver event
 #define	UART_EVP_XMT	(UA->x_qevent)	// Transmitter event
+
+// ============================================================================
+// Non-persistent packet mode
+// ============================================================================
 
 byte p_uart_rcv_p::getbyte (int redo, int off) {
 //
@@ -100,10 +100,12 @@ p_uart_rcv_p::perform {
 
 	LEDIU (2, 0);
 
-	b = getbyte (RC_LOOP, RC_OFFSTATE);
+    transient RC_PREAMBLE:
+
+	b = getbyte (RC_PREAMBLE, RC_OFFSTATE);
 
 	if (b != 0x55)
-		proceed RC_LOOP;
+		proceed RC_PREAMBLE;
 
     transient RC_WLEN:
 
@@ -142,7 +144,7 @@ p_uart_rcv_p::perform {
 
 	// Receive the packet
 	tcvphy_rcv (UA->v_physid, UA->r_buffer, len);
-	proceed (RC_LOOP);
+	proceed RC_LOOP;
 
     state RC_OFFSTATE:
 
@@ -236,6 +238,179 @@ p_uart_xmt_p::perform {
 }
 
 // ============================================================================
+// Line mode
+// ============================================================================
+
+byte p_uart_rcv_l::getbyte (int redo, int off) {
+//
+// Get one byte from UART
+//
+	byte b;
+
+	if (UA->rx_off) {
+		// If switched off
+		Timer->wait (0, off);
+		sleep;
+	}
+
+	when (UART_EVP_RCV, redo);
+	io (redo, 0, READ, (char*)(&b), 1);
+	unwait ();
+	return b;
+}
+
+void p_uart_rcv_l::ignore (int redo, int on) {
+//
+// Ignore UART input until switched on
+//
+	int k;
+
+	while (1) {
+		if (UA->rx_off == 0) {
+			// Back to ON
+			Timer->wait (0, on);
+			sleep;
+		}
+		when (UART_EVP_RCV, redo);
+		io (redo, 0, READ, (char*)(UA->r_buffer), UA->r_buffl);
+	}
+}
+
+void p_uart_rcv_l::rdbuff (int redo, int off) {
+//
+// Fill the buffer
+//
+	char c;
+
+	while (UA->r_buffs) {
+		if (UA->rx_off) {
+			Timer->wait (0, off);
+			sleep;
+		}
+		when (UART_EVP_RCV, redo);
+		io (redo, 0, READ, &c, 1);
+		unwait ();
+		if (c == '\r' || c == '\n')
+			return;
+		if (UA->r_buffs) {
+			UA->r_buffs--;
+			*(UA->r_buffp)++ = (byte) c;
+		}
+	}
+}
+
+p_uart_rcv_l::perform {
+
+    byte b;
+
+    state RC_LOOP:
+
+	LEDIU (2, 0);
+
+    transient RC_FIRST:
+
+	b = getbyte (RC_FIRST, RC_OFFSTATE);
+	// First character: ignore everything < space
+	LEDIU (2, 1);
+	if (b < 0x20)
+		proceed (RC_FIRST);
+
+	((byte*)(UA->r_buffer)) [0] = b;
+	UA->r_buffp = (byte*)(UA->r_buffer) + 1;
+	UA->r_buffs = UA->r_buffl - 1;
+
+    transient RC_MORE:
+
+	rdbuff (RC_MORE, RC_OFFSTATE);
+	// The sentinel, there is always room for it
+	*(UA->r_buffp)++ = '\0';
+	tcvphy_rcv (UA->v_physid, UA->r_buffer,
+		UA->r_buffp - (byte*)(UA->r_buffer));
+	proceed RC_LOOP;
+
+    state RC_OFFSTATE:
+
+	LEDIU (2, 0);
+
+    transient RC_WOFF:
+
+	ignore (RC_WOFF, RC_LOOP);
+
+endstrand
+
+// ============================================================================
+
+p_uart_xmt_l::perform {
+
+    int n, stln;
+    char c;
+
+    state XM_LOOP:
+
+	LEDIU (1, 0);
+
+	if ((UA->tx_off & 1)) {
+		// The HOLD flag == OFF solid
+		if (UA->tx_off > 1) {
+			// Bit 1 set == draining
+			tcvphy_erase (UA->v_physid);
+		}
+		// Queue held
+		when (UART_EVP_XMT, XM_LOOP);
+		sleep;
+	}
+
+	if ((UA->x_buffer = tcvphy_get ((int)(UA->v_physid), &stln)) == NULL) {
+		// Nothing to transmit
+		if (UA->tx_off > 1) {
+			// Draining
+			UA->tx_off = 3;	// OFF
+			proceed XM_LOOP;
+		}
+		when (UART_EVP_XMT, XM_LOOP);
+		sleep;
+	}
+
+	// Empty line allowed here, even though an empty line cannot be received
+
+	LEDIU (1, 1);
+
+	// Look up a NULL byte; if present, the first NULL byte will terminate
+	// the string
+	for (n = 0; n < stln; n++) {
+		if (((char*)(UA->x_buffer)) [n] == '\0') {
+			stln = n;
+			break;
+		}
+	}
+	
+	UA->x_buffl = (word) stln;
+	UA->x_buffp = (byte*)(UA->x_buffer);
+
+    transient XM_SEND:
+
+	stln = io (XM_SEND, 0, WRITE, (char*)(UA->x_buffp), UA->x_buffl);
+	if ((UA->x_buffl -= stln) != 0) {
+		UA->x_buffp += stln;
+		proceed XM_SEND;
+	}
+
+    transient XM_EOL1:
+
+	c = '\r';
+	io (XM_EOL1, 0, WRITE, &c, 1);
+
+    transient XM_EOL2:
+
+	c = '\n';
+	io (XM_EOL2, 0, WRITE, &c, 1);
+
+	// Done
+	tcvphy_end (UA->x_buffer);
+		proceed (XM_LOOP);
+}
+
+// ============================================================================
 
 __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 /*
@@ -243,11 +418,16 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
  * mbs   - maximum packet length (including statid, excluding checksum)
  * which - which uart (0 or 1) (must be zero in this version)
  */
+
+
 	uart_tcv_int_t *UA;
+	byte IMode;
 
 	if (which != 0)
 		// UART0 only
 		syserror (EREQPAR, "phys_uart");
+
+	IMode = uart->IMode;
 
 	UA = UART_INTF_P (uart);
 
@@ -255,19 +435,30 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_uart");
 
-	if ((mbs & 1) || (word)mbs > 252)
-		syserror (EREQPAR, "phys_uart mbs");
-	else if (mbs == 0)
+	if (mbs < 4)
 		mbs = UART_DEF_BUF_LEN;
 
-	// Make sure the checksum is extra
-	mbs += 2;
+	if (IMode == UART_IMODE_L) {
+		// Line mode
+		if (mbs < 0 || mbs > 255) {
+MBS:
+			syserror (EREQPAR, "phys_uart mbs");
+		}
+		// Sentinel
+		UA->r_buffl = mbs - 1;
+	} else {
+		// Packet mode
+		if ((mbs & 1) || (word)mbs > 252)
+			goto MBS;
+		// Make sure the checksum is extra
+		mbs += 2;
+		// Length in bytes
+		UA->r_buffl = mbs;
+	}
+
 
 	if ((UA->r_buffer = (address) memAlloc (mbs, (word) mbs)) == NULL)
 		syserror (EMALLOC, "phys_uart");
-
-	// Length in bytes
-	UA->r_buffl = mbs;
 
 	UA->v_physid = phy;
 
@@ -283,8 +474,13 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 		syserror (ERESOURCE, "phys_uart");
 
 	// They are never killed, once started
-	create p_uart_rcv_p;
-	create p_uart_xmt_p;
+	if (IMode == UART_IMODE_L) {
+		create p_uart_rcv_l;
+		create p_uart_xmt_l;
+	} else {
+		create p_uart_rcv_p;
+		create p_uart_xmt_p;
+	}
 }
 
 static int unp_option (int opt, address val) {
@@ -293,7 +489,9 @@ static int unp_option (int opt, address val) {
  */
 	uart_tcv_int_t *UA;
 	int ret;
+	byte IMode;
 
+	IMode = TheNode->uart->IMode;
 	UA = UART_INTF_P (TheNode->uart);
 	ret = 0;
 
@@ -360,11 +558,15 @@ static int unp_option (int opt, address val) {
 
 	    case PHYSOPT_SETSID:
 
+		if (IMode == UART_IMODE_L)
+			goto Bad;
 		UA->v_statid = (val == NULL) ? 0 : *val;
 		break;
 
             case PHYSOPT_GETSID:
 
+		if (IMode == UART_IMODE_L)
+			goto Bad;
 		ret = (int) (UA->v_statid);
 		if (val != NULL)
 			*val = ret;
@@ -376,7 +578,7 @@ static int unp_option (int opt, address val) {
 		break;
 
 	    default:
-
+Bad:
 		syserror (EREQPAR, "phys_uart option");
 
 	}

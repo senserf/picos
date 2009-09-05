@@ -32,6 +32,8 @@
 #undef read_sensor
 #undef write_actuator
 #undef vform
+#undef fsize
+#undef vfsize
 #undef vscan
 #undef form
 #undef scan

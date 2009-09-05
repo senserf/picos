@@ -196,13 +196,15 @@ void PicOSNode::uart_reset () {
 			break;
 
 		case UART_IMODE_P:
+		case UART_IMODE_L:
 
 			UART_INTF_P (uart) -> init ();
 			break;
 
 		default:
 
-			excptn ("PicOSNode->uart_reset: illegal mode");
+			excptn ("PicOSNode->uart_reset: illegal mode %1d",
+				uart->IMode);
 	}
 
 	uart->U->rst ();
@@ -226,13 +228,15 @@ void PicOSNode::uart_abort () {
 			break;
 
 		case UART_IMODE_P:
+		case UART_IMODE_L:
 
 			UART_INTF_P (uart) -> abort ();
 			break;
 
 		default:
 
-			excptn ("PicOSNode->uart_abort: illegal mode");
+			excptn ("PicOSNode->uart_abort: illegal mode %1d",
+				uart->IMode);
 	}
 	// If there is a need to abort the low-level (common) UART interface,
 	// the code should go here
@@ -437,9 +441,14 @@ void PicOSNode::setup (data_no_t *nd) {
 		uart = new uart_t;
 		uart->U = new UART (nd->ua);
 		uart->IMode = nd->ua->iface;
-		uart->Int = uart->IMode == UART_IMODE_P ?
-			(void*) new uart_tcv_int_t :
-			(void*) new uart_dir_int_t ;
+		switch (uart->IMode) {
+			case UART_IMODE_P:
+			case UART_IMODE_L:
+				uart->Int = (void*) new uart_tcv_int_t;
+				break;
+			default:
+				uart->Int = (void*) new uart_dir_int_t;
+		}
 	}
 
 	if (nd->pn == NULL) {
@@ -689,17 +698,12 @@ int _dad (PicOSNode, scan) (const char *buf, const char *fmt, ...) {
 	return _da (vscan) (buf, fmt, ap);
 }
 
-char* _dad (PicOSNode, vform) (char *res, const char *fm, va_list aq) {
+static word vfparse (char *res, word n, const char *fm, va_list ap) {
 
-	word fml, s, d;
 	char c;
-	va_list ap;
+	word d;
 
-#define	outc(c)	do { \
-			if (d >= fml) \
-				goto ReAlloc; \
-			res [d++] = (char)(c); \
-		} while (0)
+#define	outc(c)	do { if (res && (d < n)) res [d] = (char)(c); d++; } while (0)
 
 #define enci(b)	i = (b); \
 		while (1) { \
@@ -717,124 +721,150 @@ char* _dad (PicOSNode, vform) (char *res, const char *fm, va_list aq) {
 			c = (char) (val / i); \
 		}
 
-#define encx(s)	for (i = 0; i < (s); i += 4) { \
-			outc (zz_hex_enc_table [((val >> (((s)-4)-i)) & 0xf)]);\
-		}
-
-	if (res != NULL)
-		/* Fake huge maximum length */
-		fml = MAX_UINT;
-	else
-		/* Guess an initial length of the formatted string */
-		fml = strlen (fm) + 16;
+	d = 0;
 
 	while (1) {
-		if (fml != MAX_UINT) {
-			if ((res = (char*) umalloc (fml+1)) == NULL)
-				/* There is not much we can do */
-				return NULL;
-			/* This is how far we can go */
-			fml = _da (actsize) ((address)res) - 1;
-		}
-		s = d = 0;
 
-		va_copy (ap, aq);
+		c = *fm++;
 
-		while (1) {
-			c = fm [s++];
-			if (c == '\\') {
-				/* Escape the next character unless it is 0 */
-				if ((c = fm [s++]) == '\0') {
-					res [d] = '\0';
-					return res;
-				}
-				outc (c);
-				continue;
+		if (c == '\\') {
+			/* Escape the next character unless it is 0 */
+			if ((c = *fm++) == '\0') {
+				outc ('\\');
+				goto Eol;
 			}
-			if (c == '%') {
-				/* Something special */
-				c = fm [s++];
-				if (c == '\0') {
-					res [d] = '\0';
-					return res;
+			outc (c);
+			continue;
+		}
+
+		if (c == '%') {
+			/* Something special */
+			c = *fm++;
+			switch (c) {
+			    case 'x' : {
+				word val; int i;
+				val = va_arg (ap, int);
+				for (i = 12; ; i -= 4) {
+					outc (zz_hex_enc_table [(val>>i)&0xf]);
+					if (i == 0)
+						break;
 				}
-				switch (c) {
-				    case 'x' : {
-					word val; int i;
-					val = va_arg (ap, int);
-					encx (16);
-					break;
-				    }
-				    case 'd' :
-				    case 'u' : {
-					word val, i;
-					val = va_arg (ap, int);
-					if (c == 'd' && (val & 0x8000) != 0) {
+				break;
+			    }
+			    case 'd' :
+			    case 'u' : {
+				word val, i;
+				val = va_arg (ap, int);
+				if (c == 'd' && (val & 0x8000) != 0) {
+					/* Minus */
+					outc ('-');
+					val = (~val) + 1;
+				}
+				enci (10000);
+				break;
+			    }
+#if	CODE_LONG_INTS
+			    case 'l' :
+				c = *fm;
+				if (c == 'd' || c == 'u') {
+					lword val, i;
+					fm++;
+					val = va_arg (ap, lword);
+					if (c == 'd' &&
+					    (val & 0x80000000L) != 0) {
 						/* Minus */
 						outc ('-');
 						val = (~val) + 1;
 					}
-					enci (10000);
-					break;
-				    }
-#if	CODE_LONG_INTS
-				    case 'l' :
-					c = fm [s];
-					if (c == 'd' || c == 'u') {
-						lword val, i;
-						s++;
-						val = va_arg (ap, lword);
-						if (c == 'd' &&
-						    (val & 0x80000000L) != 0) {
-							/* Minus */
-							outc ('-');
-							val = (~val) + 1;
-						}
-						enci (1000000000L);
-					} else if (c == 'x') {
-						lword val;
-						int i;
-						s++;
-						val = va_arg (ap, lword);
-						encx (32);
-					} else {
-						outc ('%');
-						outc ('l');
+					enci (1000000000L);
+				} else if (c == 'x') {
+					lword val;
+					int i;
+					fm++;
+					val = va_arg (ap, lword);
+					for (i = 28; ; i -= 4) {
+						outc (zz_hex_enc_table
+							[(val>>i)&0xf]);
+						if (i == 0)
+							break;
 					}
-					break;
-#endif
-				    case 'c' : {
-					word val;
-					val = va_arg (ap, int);
-					outc (val);
-					break;
-				    }
-			  	    case 's' : {
-					char * st;
-					st = va_arg (ap, char*);
-					while (*st != '\0') {
-						outc (*st);
-						st++;
-					}
-					break;
-				    }
-			  	    default:
+				} else {
 					outc ('%');
-					outc (c);
+					outc ('l');
 				}
-			} else {
+				break;
+#endif
+			    case 'c' : {
+				word val;
+				val = va_arg (ap, int);
+				outc (val);
+				break;
+			    }
+
+		  	    case 's' : {
+				char *st;
+				st = va_arg (ap, char*);
+				while (*st != '\0') {
+					outc (*st);
+					st++;
+				}
+				break;
+			    }
+		  	    default:
+				outc ('%');
 				outc (c);
 				if (c == '\0')
-					return res;
+					goto Ret;
 			}
+		} else {
+			// Regular character
+Eol:
+			outc (c);
+			if (c == '\0')
+Ret:
+				return d;
 		}
-	ReAlloc:
-		if (fml == MAX_UINT)
-			/* Impossible */
-			return res;
-		ufree (res);
-		fml += 16;
 	}
+}
+
+char* _dad (PicOSNode, vform) (char *res, const char *fm, va_list aq) {
+
+	word fml, d;
+
+	if (res != NULL) {
+		// We trust the caller
+		vfparse (res, MAX_UINT, fm, aq);
+		return res;
+	}
+
+	// Size unknown; guess a decent size
+	fml = strlen (fm) + 17;
+	// Sentinel included (it is counted by outc)
+Again:
+	if ((res = (char*) umalloc (fml)) == NULL)
+		/* There is not much we can do */
+		return NULL;
+
+	if ((d = vfparse (res, fml, fm, aq)) > fml) {
+		// No luck, reallocate
+		ufree (res);
+		fml = d;
+		goto Again;
+	}
+	return res;
+}
+
+word _dad (PicOSNode, vfsize) (const char *fm, va_list aq) {
+
+	return vfparse (NULL, 0, fm, aq);
+}
+
+word _dad (PicOSNode, fsize) (const char *fm, ...) {
+
+	va_list	ap;
+	va_start (ap, fm);
+
+	return _da (vfsize) (fm, ap);
 }
 
 int _dad (PicOSNode, vscan) (const char *buf, const char *fmt, va_list ap) {
@@ -2808,11 +2838,14 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	// The default is "direct"
 	UA->iface = UART_IMODE_D;
 	if ((att = sxml_attr (data, "mode")) != NULL) {
-		if (*att == 'p')
-			// Packet
+		if (*att == 'p' || *att == 'n')
+			// Packet (the 'n' means non-persistent)
 			UA->iface = UART_IMODE_P;
+		else if (*att == 'l')
+			// Line packet
+			UA->iface = UART_IMODE_L;
 		else if (*att != 'd')
-			// For now, it can only be "direct" or "packet"
+			// For now, it can only be "direct", "packet", "line"
 			xeai ("mode", es, att);
 	}
 
@@ -4640,6 +4673,8 @@ int zz_crunning (void *tid) {
 
 	return np;
 }
+
+identify (VUEE VUEE_VERSION);
 
 #include "lcdg_n6100p.cc"
 
