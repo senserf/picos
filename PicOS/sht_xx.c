@@ -111,20 +111,6 @@ static word shtxx_read (word st, word what) {
 			what = 210;
 		}
 
-		if (st == NONE) {
-			// We have to busy wait on data; this is highly
-			// discouraged!!
-			for (sht_delcnt = 0; sht_delcnt != 255; sht_delcnt++) {
-				if (!shtxx_data)
-					goto GetItNow;
-				mdelay (3);
-			}
-SErr:
-			// Something wrong, abort
-			shtxx_init ();
-			return 0;
-		}
-
 		delay (what, st);
 		sht_delcnt = 0;
 		release;
@@ -132,8 +118,11 @@ SErr:
 
 	if (shtxx_data) {
 		// Still not ready
-		if (sht_delcnt == 128)
-			goto SErr;
+		if (sht_delcnt == 128) {
+			// Something wrong, abort
+			shtxx_init ();
+			return 0;
+		}
 		sht_delcnt++;
 		delay (4, st);
 		release;
@@ -148,11 +137,11 @@ GetItNow:
 	return what;
 }
 
-void shtxx_temp (word st, word junk, address val) {
+void shtxx_temp (word st, const byte *junk, address val) {
 	*val = shtxx_read (st, 0);
 }
 
-void shtxx_humid (word st, word junk, address val) {
+void shtxx_humid (word st, const byte *junk, address val) {
 	*val = shtxx_read (st, 1);
 }
 

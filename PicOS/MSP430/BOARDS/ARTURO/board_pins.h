@@ -14,7 +14,8 @@
 
 #define	PIN_DEFAULT_P4DIR	0x0E
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
-#define	PIN_DEFAULT_P6DIR	0x00	// P6.0 input from PAR
+#define	PIN_DEFAULT_P6DIR	0x00
+#define	PIN_DEFAULT_P6SEL	0x03	// The two analog sensors
 
 //#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
@@ -30,35 +31,37 @@
 #define	QSO_PAR_PIN	0	// PAR sensor = P6.0
 #define	QSO_PAR_SHT	4	// Sample hold time indicator
 #define	QSO_PAR_ISI	1	// Inter sample interval indicator
-#define	QSO_PAR_NSA	6	// Number of samples, corresponds to 512
-#define	QSO_PAR_REF	3	// Voltage reference: Veref (Zener)
+#define	QSO_PAR_NSA	512	// Number of samples
+#define	QSO_PAR_URE	SREF_VEREF_AVSS	// Voltage reference: Veref (Zener)
+#define	QSO_PAR_ERE	0	// Exported reference (none)
 
 #define	PHT_DIO_PIN	1	// Photodiode = P6.1
 #define	PHT_DIO_SHT	4	// Sample hold time indicator
 #define	PHT_DIO_ISI	1	// Inter sample interval indicator
-#define	PHT_DIO_NSA	6	// Number of samples, corresponds to 512
-#define	PHT_DIO_REF	3	// Veref as well
+#define	PHT_DIO_NSA	512	// Number of samples
+#define	PHT_DIO_URE	SREF)VEREF_AVSS
+#define	PHT_DIO_ERE	0
 
-#define	EREF_ON		_BIS (P5DIR, 0x10)	// Eref is switchable
-#define	EREF_OFF	_BIC (P5DIR, 0x10)
-
-#define	SENSOR_LIST	{ \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PAR_PIN | \
-			(QSO_PAR_SHT << ASNS_SHT_SH) | \
-			(QSO_PAR_ISI << ASNS_ISI_SH) | \
-			(QSO_PAR_NSA << ASNS_NSA_SH) | \
-			(QSO_PAR_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (shtxx_init, shtxx_temp, 0), \
-		SENSOR_DEF (NULL, shtxx_humid, 0), \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 PHT_DIO_PIN | \
-			(PHT_DIO_SHT << ASNS_SHT_SH) | \
-			(PHT_DIO_ISI << ASNS_ISI_SH) | \
-			(PHT_DIO_NSA << ASNS_NSA_SH) | \
-			(PHT_DIO_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (ds18b20_init, ds18b20_read, 0) \
+#define	SENSOR_LIST { \
+		ANALOG_SENSOR (   QSO_PAR_ISI,  \
+				  QSO_PAR_NSA,  \
+				  QSO_PAR_PIN,  \
+				  QSO_PAR_URE,  \
+				  QSO_PAR_SHT,  \
+				  QSO_PAR_ERE), \
+		DIGITAL_SENSOR (   0, shtxx_init, shtxx_temp), \
+		DIGITAL_SENSOR (   0, NULL, shtxx_humid), \
+		ANALOG_SENSOR (   PHT_DIO_ISI,  \
+				  PHT_DIO_NSA,  \
+				  PHT_DIO_PIN,  \
+				  PHT_DIO_URE,  \
+				  PHT_DIO_SHT,  \
+				  PHT_DIO_ERE), \
+		DIGITAL_SENSOR (   0, ds18b20_init, ds18b20_read) \
 	}
+
+#define	sensor_adc_prelude(p) 	_BIS (P5DIR, 0x10)	// Eref is switchable
+#define	sensor_adc_postlude(p) 	_BIC (P5DIR, 0x10)	// Eref is switchable
 
 #define	SENSOR_PAR	0
 #define	SENSOR_TEMP	1

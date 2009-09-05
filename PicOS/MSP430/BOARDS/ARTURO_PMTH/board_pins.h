@@ -31,6 +31,7 @@
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P4DIR	0x8E	// P4.7 == Veref selector (PAR/MOI)
 #define	PIN_DEFAULT_P6DIR	0x00	// P6.0 PAR input, P6.7 MOI input
+#define	PIN_DEFAULT_P6SEL	0x81	// Select the ADC pins
 
 //#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
@@ -44,15 +45,17 @@
 
 #define	QSO_PAR_PIN	0	// PAR sensor = P6.0
 #define	QSO_PAR_SHT	4	// Sample hold time indicator
-#define	QSO_PAR_ISI	1	// Inter sample interval indicator
-#define	QSO_PAR_NSA	6	// Number of samples, corresponds to 512
-#define	QSO_PAR_REF	3	// Voltage reference: Veref
+#define	QSO_PAR_ISI	1	// Inter sample interval in ms
+#define	QSO_PAR_NSA	512	// Number of samples to average
+#define	QSO_PAR_URE	SREF_VEREF_AVSS	// Used reference
+#define	QSO_PAR_ERE	0	// Exported reference (none)
 
 #define	MOI_ECO_PIN	7	// ECHO moisture sensor = P6.7
 #define	MOI_ECO_SHT	4	// Sample hold time indicator
 #define	MOI_ECO_ISI	0	// Inter sample interval indicator
-#define	MOI_ECO_NSA	2	// Number of samples, corresponds to 16
-#define	MOI_ECO_REF	3	// Voltage reference: Veref
+#define	MOI_ECO_NSA	16	// Number of samples to average
+#define	MOI_ECO_URE	SREF_VEREF_AVSS	// Voltage reference: Veref
+#define	MOI_ECO_ERE	REFON	// Exported reference (none)
 
 //
 // May want to try these (more stable sampling time), but will have to
@@ -119,40 +122,44 @@
 // F = 0.000532 * r - 0.26
 // ============================================================================
 
-// This is referenced in analog_senor.c
-#define	EREF_ON		do { \
-				if (ASNS_PNO == QSO_PAR_PIN) { \
-					_BIS (P5OUT, 0x10); \
-				} else { \
-					_BIS (P4OUT, 0x80); \
-					mdelay (20); \
-				} \
-			} while (0)
+// ============================================================================
 
-#define	EREF_OFF	do { _BIC (P5OUT, 0x10); _BIC (P4OUT, 0x80); } while (0)
-
-#define	SENSOR_LIST	{ \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PAR_PIN | \
-			(QSO_PAR_SHT << ASNS_SHT_SH) | \
-			(QSO_PAR_ISI << ASNS_ISI_SH) | \
-			(QSO_PAR_NSA << ASNS_NSA_SH) | \
-			(QSO_PAR_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (shtxx_init, shtxx_temp, 0), \
-		SENSOR_DEF (NULL, shtxx_humid, 0), \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			MOI_ECO_PIN | \
-			(MOI_ECO_SHT << ASNS_SHT_SH) | \
-			(MOI_ECO_ISI << ASNS_ISI_SH) | \
-			(MOI_ECO_NSA << ASNS_NSA_SH) | \
-			(MOI_ECO_REF << ASNS_REF_SH)) \
+#define	SENSOR_LIST { \
+		ANALOG_SENSOR ( QSO_PAR_ISI,  \
+				QSO_PAR_NSA,  \
+				QSO_PAR_PIN,  \
+				QSO_PAR_URE,  \
+				QSO_PAR_SHT,  \
+				QSO_PAR_ERE), \
+		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp), \
+		DIGITAL_SENSOR (0, NULL, shtxx_humid), \
+		ANALOG_SENSOR ( MOI_ECO_ISI,  \
+				MOI_ECO_NSA,  \
+				MOI_ECO_PIN,  \
+				MOI_ECO_URE,  \
+				MOI_ECO_SHT,  \
+				MOI_ECO_ERE)  \
 	}
 
-// ============================================================================
-// Tentative - for testing the presence of PAR/EC-5 sensors; assumes resisitors
-// across P6.3-P6.0 and P6.4-P6.7
-#define	SENSOR_TEST	do { _BIS (P6DIR, 0x18); _BIS (P6OUT, 0x18); } while (0)
-#define	SENSOR_TEST_END	_BIC (P6DIR, 0x18)
+// Set the external reference; for PAR -> voltage through the Zener,
+//			       for ECO -> excitation via P4.7 & delay a bit
+#define	sensor_adc_prelude(p) \
+		do { \
+			if (ANALOG_SENSOR_PIN(p) == QSO_PAR_PIN) { \
+				_BIS (P5OUT, 0x10); \
+			} else { \
+				_BIS (P4OUT, 0x80); \
+			} \
+			mdelay (20); \
+		} while (0);
+
+// Remove the external reference and/or excitation
+#define	sensor_adc_postlude(p) \
+		do { \
+			_BIC (P5OUT, 0x10); \
+			_BIC (P4OUT, 0x80); \
+		} while (0)
+
 // ============================================================================
 
 #define	SENSOR_PAR	0

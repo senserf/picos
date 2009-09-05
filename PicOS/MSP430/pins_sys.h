@@ -228,7 +228,6 @@ REQUEST_EXTERNAL (p2irq);
 /*
  * ADC configuration for polled sample collection:
  *
- *	- internal oscillator (3.7-6.3MHz with 5MHz target) divided by 8
  *      - t == 0 -> sample and hold, otherwise timed by t
  *	- r == 0 -> int 1.5, 1 -> int 2.5, 2 -> Vcc, 3 -> Veref
  *

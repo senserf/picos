@@ -8,18 +8,38 @@
 #include "sysio.h"
 //+++ "sensors.c"
 
-#define	SENSOR_DEF(inf,vlf,par)	{ vlf, inf, par }
-//
-// Init function (or NULL), action function, parameter (to be interpreted
-// by the action function)
-//
+#if LITTLE_ENDIAN
+#define	_bb2w(a,b)	((word)(a) | ((word)(b) << 8))
+#else
+#define	_bb2w(a,b)	((word)(b) | ((word)(a) << 8))
+#endif
+
+// Six bytes per sensor
+#define	__ANALOG_SENSOR(isi,ns,a,b,c) \
+	_bb2w (isi, a), _bb2w (b, c), ns
+
+#define	__DIGITAL_SENSOR(par,ini,pro) \
+	_bb2w (0x80, par), (word)(pro), (word)(ini)
+
+// Note: ANALOG_SENSOR is arch-dependent, as the interpretation of ADC
+// parameters is idiosyncratic - see analog_sensor_sys.h
+#define	DIGITAL_SENSOR(par,ini,pro) __DIGITAL_SENSOR (par, ini, pro)
+
 typedef	struct {
 
-	void (*fun_val) (word, word, address);
-	void (*fun_ini) (void);
-	word param;
+	byte	tp, adcpars [3];
+	word	nsamples;
 
-} sensdesc_t;
+} a_sensdesc_t;
+
+typedef struct {
+
+	byte tp, num;
+								// Processor
+	void (*fun_val) (word, const byte*, address);
+	void (*fun_ini) (void);					// Initializer
+
+} d_sensdesc_t;
 
 word read_sensor (word, word, address);
 

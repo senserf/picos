@@ -3450,3 +3450,22 @@ R090822A:
 
 	A slight modification to econnect to properly recognize the maintenance
 	mode of aggregator (the string has changed again).
+
+R090905A:
+
+	Sensor description in BOARDS redone, sensor.c cleaned up. State is now
+	mandatory in sensor ops (Wlodek has never used them with state==WNONE).
+	The new description allows for independent setting of the reference
+	generator and the actual reference. I though we could use this feature
+	to generate reference < 1.2V, but this is impossible as the ADC
+	requires it to be at least 1.4V, so the 1.2V coming off the Zener is
+	already lower than the spec.
+
+	Added BOARDS/WARSAW_NEW_REVISED/ for playing with the revised version
+	of the new Warsaw board.
+
+	Serial.pdf updated a bit.
+
+	Wlodek's example for converting multiple praxes to VUEE made official
+	(replacing old ILLUSTRATION/SIMPLE_TWO. VUEE doc (separate update)
+	modified accordingly.

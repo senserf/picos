@@ -14,6 +14,8 @@
 #define	CMD_WSTA2	0x46	// Write status reg 2
 #define	CMD_WTIME	0x26	// Write RTC data
 #define	CMD_GTIME	0xA6	// Get RTC data
+#define	CMD_WREG	0x76	// Write register
+#define	CMD_GREG	0xF6	// Get register
 
 #define	STA1		0x03	// Status 1: reset + 24h
 #define	STA2		0x00	// Status 2: interrupts disabled
@@ -23,6 +25,7 @@ static void rtc_start () {
 // Start condition (when we are called, the clock is high, the data is open
 // drain)
 //
+	rtc_open;
 	// Transit to low
 	rtc_outl;
 	rtc_clkl;
@@ -30,7 +33,7 @@ static void rtc_start () {
 
 static void rtc_stop () {
 //
-// Stop condition (the clock is low)
+// Send stop condition (the clock is low)
 //
 	rtc_outl;
 	rtc_clkh;
@@ -42,6 +45,7 @@ static void rtc_stop () {
 	// Both lines open
 	rtc_clkh;
 	rtc_set_input;
+	rtc_close;
 }
 
 static word rtc_wbyte (byte cmd) {
@@ -182,7 +186,46 @@ word rtc_get (rtc_time_t *d) {
 	if (d->hour >= 40)
 		d->hour -= 40;
 		
+	rtc_clkh;
+	rtc_close;
+	return 0;
+}
+
+word rtc_getr (byte *r) {
+
+	rtc_start ();
+
+	if (rtc_wbyte (CMD_GREG)) {
+		// Error
+		rtc_stop ();
+		return 1;
+	}
+
+	rtc_set_input;
+
+	*r = rtc_rbyte (1);
 
 	rtc_clkh;
+	rtc_close;
+	return 0;
+}
+
+word rtc_setr (byte r) {
+
+	word i, w;
+
+	rtc_start ();
+
+	if (rtc_wbyte (CMD_WREG)) {
+		// Error
+Err:
+		rtc_stop ();
+		return 1;
+	}
+
+	if (rtc_wbyte (r))
+		goto Err;
+
+	rtc_stop ();
 	return 0;
 }

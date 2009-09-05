@@ -33,7 +33,8 @@
 
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P4DIR	0x8E	// P4.7 == Veref selector (PAR/MOI)
-#define	PIN_DEFAULT_P6DIR	0x00	// P6.0 PAR input, P6.7 MOI input
+#define	PIN_DEFAULT_P6DIR	0x00
+#define PIN_DEFAULT_P6SEL	0xB9	// Five sensors
 
 //#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
@@ -48,26 +49,30 @@
 #define	QSO_PAR0_PIN	0	// PAR sensor = P6.0
 #define	QSO_PAR0_SHT	4	// Sample hold time indicator
 #define	QSO_PAR0_ISI	1	// Inter sample interval indicator
-#define	QSO_PAR0_NSA	6	// Number of samples, corresponds to 512
-#define	QSO_PAR0_REF	3	// Voltage reference: Veref
+#define	QSO_PAR0_NSA	512	// Number of samples
+#define	QSO_PAR0_URE	SREF_VEREF_AVSS	// Used reference
+#define	QSO_PAR0_ERE	0	// Exported reference
 
 #define	QSO_PAR1_PIN	3
 #define	QSO_PAR1_SHT	QSO_PAR0_SHT
 #define	QSO_PAR1_ISI	QSO_PAR0_ISI
 #define	QSO_PAR1_NSA	QSO_PAR0_NSA
-#define	QSO_PAR1_REF	QSO_PAR0_REF
+#define	QSO_PAR1_URE	QSO_PAR0_URE
+#define	QSO_PAR1_ERE	0
 
 #define	QSO_PYR0_PIN	4
 #define	QSO_PYR0_SHT	QSO_PAR0_SHT
 #define	QSO_PYR0_ISI	QSO_PAR0_ISI
 #define	QSO_PYR0_NSA	QSO_PAR0_NSA
-#define	QSO_PYR0_REF	QSO_PAR0_REF
+#define	QSO_PYR0_URE	QSO_PAR0_URE
+#define	QSO_PYR0_ERE	0
 
 #define	QSO_PYR1_PIN	5
 #define	QSO_PYR1_SHT	QSO_PAR0_SHT
 #define	QSO_PYR1_ISI	QSO_PAR0_ISI
 #define	QSO_PYR1_NSA	QSO_PAR0_NSA
-#define	QSO_PYR1_REF	QSO_PAR0_REF
+#define	QSO_PYR1_URE	QSO_PAR0_URE
+#define	QSO_PYR1_ERE	0
 
 #define	QSO_ZENER_PINS	((1 << QSO_PAR0_PIN) | (1 << QSO_PAR1_PIN) | \
 			 (1 << QSO_PYR0_PIN) | (1 << QSO_PYR1_PIN) )
@@ -75,8 +80,9 @@
 #define	MOI_ECO_PIN	7	// ECHO moisture sensor = P6.7
 #define	MOI_ECO_SHT	4	// Sample hold time indicator
 #define	MOI_ECO_ISI	0	// Inter sample interval indicator
-#define	MOI_ECO_NSA	2	// Number of samples, corresponds to 16
-#define	MOI_ECO_REF	3	// Voltage reference: Veref
+#define	MOI_ECO_NSA	16
+#define	MOI_ECO_URE	SREF_VEREF_AVSS
+#define	MOI_ECO_ERE	SREF_VEREF_AVSS
 
 // Notes re ECHO sensor reference:
 //
@@ -136,59 +142,55 @@
 // F = 0.000532 * r - 0.26
 // ============================================================================
 
-// This is referenced in analog_senor.c
-#define	EREF_ON		do { \
-				if (((1 << ASNS_PNO) & QSO_ZENER_PINS)) { \
+
+#define	SENSOR_LIST { \
+		ANALOG_SENSOR ( QSO_PAR0_ISI,  \
+				QSO_PAR0_NSA,  \
+				QSO_PAR0_PIN,  \
+				QSO_PAR0_URE,  \
+				QSO_PAR0_SHT,  \
+				QSO_PAR0_ERE), \
+		ANALOG_SENSOR ( QSO_PAR1_ISI,  \
+				QSO_PAR1_NSA,  \
+				QSO_PAR1_PIN,  \
+				QSO_PAR1_URE,  \
+				QSO_PAR1_SHT,  \
+				QSO_PAR1_ERE), \
+		ANALOG_SENSOR ( QSO_PYR0_ISI,  \
+				QSO_PYR0_NSA,  \
+				QSO_PYR0_PIN,  \
+				QSO_PYR0_URE,  \
+				QSO_PYR0_SHT,  \
+				QSO_PYR0_ERE), \
+		ANALOG_SENSOR ( QSO_PYR1_ISI,  \
+				QSO_PYR1_NSA,  \
+				QSO_PYR1_PIN,  \
+				QSO_PYR1_URE,  \
+				QSO_PYR1_SHT,  \
+				QSO_PYR1_ERE), \
+		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp), \
+		DIGITAL_SENSOR (0, NULL, shtxx_humid), \
+		ANALOG_SENSOR ( MOI_ECO_ISI,  \
+				MOI_ECO_NSA,  \
+				MOI_ECO_PIN,  \
+				MOI_ECO_URE,  \
+				MOI_ECO_SHT,  \
+				MOI_ECO_ERE)  \
+	}
+
+#define	sensor_adc_prelude(p) \
+			do { \
+				if (((1 << ANALOG_SENSOR_PIN (p)) & \
+				    QSO_ZENER_PINS)) { \
 					_BIS (P5OUT, 0x10); \
 				} else { \
 					_BIS (P4OUT, 0x80); \
-					mdelay (20); \
 				} \
+				mdelay (20); \
 			} while (0)
 
-#define	EREF_OFF	do { _BIC (P5OUT, 0x10); _BIC (P4OUT, 0x80); } while (0)
-
-#define	SENSOR_LIST	{ \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PAR0_PIN | \
-			(QSO_PAR0_SHT << ASNS_SHT_SH) | \
-			(QSO_PAR0_ISI << ASNS_ISI_SH) | \
-			(QSO_PAR0_NSA << ASNS_NSA_SH) | \
-			(QSO_PAR0_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PAR1_PIN | \
-			(QSO_PAR1_SHT << ASNS_SHT_SH) | \
-			(QSO_PAR1_ISI << ASNS_ISI_SH) | \
-			(QSO_PAR1_NSA << ASNS_NSA_SH) | \
-			(QSO_PAR1_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PYR0_PIN | \
-			(QSO_PYR0_SHT << ASNS_SHT_SH) | \
-			(QSO_PYR0_ISI << ASNS_ISI_SH) | \
-			(QSO_PYR0_NSA << ASNS_NSA_SH) | \
-			(QSO_PYR0_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PYR1_PIN | \
-			(QSO_PYR1_SHT << ASNS_SHT_SH) | \
-			(QSO_PYR1_ISI << ASNS_ISI_SH) | \
-			(QSO_PYR1_NSA << ASNS_NSA_SH) | \
-			(QSO_PYR1_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (shtxx_init, shtxx_temp, 0), \
-		SENSOR_DEF (NULL, shtxx_humid, 0), \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			MOI_ECO_PIN | \
-			(MOI_ECO_SHT << ASNS_SHT_SH) | \
-			(MOI_ECO_ISI << ASNS_ISI_SH) | \
-			(MOI_ECO_NSA << ASNS_NSA_SH) | \
-			(MOI_ECO_REF << ASNS_REF_SH)) \
-	}
-
-// ============================================================================
-// Tentative - for testing the presence of PAR/EC-5 sensors; assumes resisitors
-// across P6.3-P6.0 and P6.4-P6.7
-#define	SENSOR_TEST	do { _BIS (P6DIR, 0x18); _BIS (P6OUT, 0x18); } while (0)
-#define	SENSOR_TEST_END	_BIC (P6DIR, 0x18)
-// ============================================================================
+#define	sensor_adc_postlude(p) \
+			do { _BIC (P5OUT, 0x10); _BIC (P4OUT, 0x80); } while (0)
 
 #define	SENSOR_PAR0	0
 #define	SENSOR_PAR1	1

@@ -1,17 +1,13 @@
-#ifndef	__pg_analog_sensor_h
-#define	__pg_analog_sensor_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "sensors.h"
+#ifdef	P1_INTERRUPT_SERVICE
 
-#include "analog_sensor_sys.h"
-//+++ "analog_sensor.c"
+#if CC1100
 
-#define	ANALOG_SENSORS_PRESENT
+#include "irq_cc1100.h"
 
-void analog_sensor_read (word, const a_sensdesc_t*, address);
-
+#endif
 #endif

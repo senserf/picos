@@ -21,6 +21,8 @@ typedef	struct {
 
 word	rtc_set (const rtc_time_t*);
 word	rtc_get (rtc_time_t*);
+word	rtc_setr (byte);
+word	rtc_getr (byte*);
 
 #endif	/* RTC_PRESENT */
 #endif

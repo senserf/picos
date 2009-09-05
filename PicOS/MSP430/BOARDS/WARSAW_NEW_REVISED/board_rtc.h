@@ -10,14 +10,9 @@
 #define	rtc_inp		(P2IN & 0x80)
 // In case special actions are required before we start talking
 
-#define	rtc_open	CNOP
-#define	rtc_close	CNOP
+// Note: for battery backup, use a pin to drive the pull-up resistors
+#define	rtc_open	do { _BIS (P2OUT, 0x04); udelay (100); } while (0)
+#define	rtc_close	_BIC (P2OUT, 0x04)
 
-// Note: for battery backup, use a pin to drive the pull-up resistors, and do 
-// something like this:
-// #define	rtc_open	do { _BIS (P2DIR, 0x20); _BIS (P2OUT, 0x20); mdelay (1); } while (0)
-// #define	rtc_close	do { _BIS (P2DIR, 0x20); _BIC (P2OUT, 0x20); } while (0)
-// Of course, the direction can be preset in board_pins.h
-
-// Note: if the clock is not uninitialized, then the chip drains about 150uA,
+// Note: if the clock is not initialized, then the chip drains about 150uA,
 // but the roblem goes away if the pull-ups are driven by a pin.

@@ -155,7 +155,7 @@ static byte sd_cmd (byte cmd, lword par) {
 //
 	word rep;
 
-	for (rep = 128; rep; rep--) {
+	for (rep = 1024; rep; rep--) {
 		// A delay to "warm up" the clock
 		put_byte (0xff);
 		// cmd has 0x40 or'red into it

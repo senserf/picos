@@ -137,10 +137,6 @@ Failure:
 			// Try again
 			s_state -= 1;
 Retry:
-			if (st == NONE) {
-				mdelay (4);
-				goto Again;
-			}
 			delay (4, st);
 			release;
 		}
@@ -148,10 +144,6 @@ Retry:
 		write_byte (CMD_SKIP);
 		write_byte (CMD_CONVERT);
 		s_state = 1;
-		if (st == NONE) {
-			mdelay (CONV_TIME);
-			goto Again;
-		}
 		delay (CONV_TIME, st);
 		release;
 	}

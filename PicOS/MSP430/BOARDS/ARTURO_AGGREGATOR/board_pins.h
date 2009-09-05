@@ -24,7 +24,8 @@
 #define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off by default
 #define	PIN_DEFAULT_P4DIR	0x0E
 #define	PIN_DEFAULT_P6DIR	0xD0	// For the SD card
-#define	PIN_DEFAULT_P6OUT	0xD0	// P6.0 - power source sensor
+#define	PIN_DEFAULT_P6OUT	0xD0
+#define	PIN_DEFAULT_P6SEL	0x01	// P6.0 - power source sensor
 
 //#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
 
@@ -47,14 +48,18 @@
 #define	SEN_POWER_PIN	0	// P6.0
 #define	SEN_POWER_SHT	1	// 8 cycles = 490us
 #define	SEN_POWER_ISI	0	// Inter-sample interval
-#define	SEN_POWER_NSA	2	// 16 samples
-#define	SEN_POWER_REF	0	// Reference == internal 1.5V
+#define	SEN_POWER_NSA	16	// Samples to average
+#define	SEN_POWER_URE	SREF_VREF_AVSS	// Internal
+#define	SEN_POWER_ERE	REFON		// 1.5V
 
-#define	SENSOR_LIST	{ \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 SEN_POWER_PIN | \
-			(SEN_POWER_SHT << ASNS_SHT_SH) | \
-			(SEN_POWER_ISI << ASNS_ISI_SH) | \
-			(SEN_POWER_NSA << ASNS_NSA_SH) | \
-			(SEN_POWER_REF << ASNS_REF_SH))  \
+#define	SENSOR_LIST { \
+		ANALOG_SENSOR ( SEN_POWER_ISI,  \
+				SEN_POWER_NSA,  \
+				SEN_POWER_PIN,  \
+				SEN_POWER_URE,  \
+				SEN_POWER_SHT,  \
+				SEN_POWER_ERE) \
 	}
+
+// Simplifies a bit the code in sensors.c
+#define	NO_DIGITAL_SENSORS

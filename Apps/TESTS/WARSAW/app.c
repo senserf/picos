@@ -395,12 +395,12 @@ thread (test_pin)
 		"\r\nRF Pin Test\r\n"
 		"Commands:\r\n"
 		"r p r -> read ADC pin 'p' with reference r:\r\n"
-		"           0-1.5V, 1-2.5V, 2-Vcc, 3-Eref\r\n"
+		" 0-1.5V, 1-2.5V, 2-Vcc, 3-Eref\r\n"
 		"s p v -> set pin 'p' to digital v (0/1)\r\n"
-		"v p   -> show the value of pin 'p'\r\n"
+		"v p -> show the value of pin 'p'\r\n"
 		"S p v -> set raw pin'p' [0,1-out, 2-in, 3-sp]\r\n"
-		"V p   -> show\r\n"
-		"q     -> return to main test\r\n"
+		"V p -> show\r\n"
+		"q -> return to main test\r\n"
 	);
 
   entry (PI_RCMD)
@@ -549,28 +549,28 @@ thread (test_epr)
 	ser_out (EP_INIT,
 		"\r\nEEPROM Test\r\n"
 		"Commands:\r\n"
-		"a adr int   -> store word\r\n"
-		"b adr lint  -> store lword\r\n"
-		"c adr str   -> store string\r\n"
-		"d adr       -> read word\r\n"
-		"e adr       -> read lword\r\n"
-		"f adr n     -> read string\r\n"
-		"g adr n p   -> write n longwords with p at adr\r\n"
+		"a adr int -> store word\r\n"
+		"b adr lint -> store lword\r\n"
+		"c adr str -> store string\r\n"
+		"d adr -> read word\r\n"
+		"e adr -> read lword\r\n"
+		"f adr n -> read string\r\n"
+		"g adr n p -> write n longwords with p at adr\r\n"
 		"h adr n b t -> read n blks of b at adr t times\r\n"
-		"x frm upt   -> erase eeprom from upto\r\n"
-		"s           -> sync eeprom\r\n"
+		"x frm upt -> erase eeprom from upto\r\n"
+		"s -> sync eeprom\r\n"
 		"w fr ln pat -> erase-write-read test\r\n"
-		"i led w     -> led status [w = 0, 1, 2]\r\n"
-		"j w         -> blinkrate 0-low, 1-high\r\n"
-		"k m         -> write a diag message\r\n"
-		"m adr w     -> write word to info flash\r\n"
-		"n adr       -> read word from info flash\r\n"
-		"o adr       -> erase info flash\r\n"
-		"M adr w     -> write word to code flash\r\n"
-		"N adr       -> read word from code flash\r\n"
-		"O adr       -> erase code flash\r\n"
-		"T adr       -> flash overwrite test\r\n"
-		"q           -> return to main test\r\n"
+		"i led w -> led status [w = 0, 1, 2]\r\n"
+		"j w -> blinkrate 0-low, 1-high\r\n"
+		"k m -> write a diag message\r\n"
+		"m adr w -> write word to info flash\r\n"
+		"n adr -> read word from info flash\r\n"
+		"o adr -> erase info flash\r\n"
+		"M adr w -> write word to code flash\r\n"
+		"N adr -> read word from code flash\r\n"
+		"O adr -> erase code flash\r\n"
+		"T adr -> flash overwrite test\r\n"
+		"q -> return to main test\r\n"
 	);
 
   entry (EP_RCMD)
@@ -990,19 +990,19 @@ thread (test_sdcard)
 	ser_out (SD_START,
 		"\r\nSD Test\r\n"
 		"Commands:\r\n"
-		"a adr int   -> store a word\r\n"
-		"b adr lint  -> store a lword\r\n"
-		"c adr str   -> store a string\r\n"
-		"d adr       -> read word\r\n"
-		"e adr       -> read lword\r\n"
-		"f adr n     -> read string\r\n"
-		"g adr n p   -> write n longwords with p at adr\r\n"
+		"a adr int -> store a word\r\n"
+		"b adr lint -> store a lword\r\n"
+		"c adr str -> store a string\r\n"
+		"d adr -> read word\r\n"
+		"e adr -> read lword\r\n"
+		"f adr n -> read string\r\n"
+		"g adr n p -> write n longwords with p at adr\r\n"
 		"h adr n b t -> read n blks of b at adr t times\r\n"
-		"x frm upt   -> erase from upto\r\n"
-		"s           -> sync card\r\n"
+		"x frm upt -> erase from upto\r\n"
+		"s -> sync card\r\n"
 		"w fr ln pat -> write-read test\r\n"
-		"i           -> set idle state\r\n"
-		"q           -> return to main test\r\n"
+		"i -> set idle state\r\n"
+		"q -> return to main test\r\n"
 	);
 
   entry (SD_RCMD)
@@ -1283,12 +1283,12 @@ thread (test_delay)
 	ser_out (DE_INIT,
 		"\r\nRF Pin Test\r\n"
 		"Commands:\r\n"
-		"f s  -> freeze\r\n"
-		"l s  -> lhold\r\n"
-		"d    -> PD mode (unsafe)\r\n"
-		"u    -> PU mode\r\n"
-		"s n  -> spin test for n sec\r\n"
-		"q    -> return to main test\r\n"
+		"f s -> freeze\r\n"
+		"l s -> lhold\r\n"
+		"d -> PD mode (unsafe)\r\n"
+		"u -> PU mode\r\n"
+		"s n -> spin test for n sec\r\n"
+		"q -> return to main test\r\n"
 	);
 
   entry (DE_RCMD)
@@ -1435,10 +1435,10 @@ thread (test_gps)
 	ser_out (GP_MEN,
 		"\r\nGPS Test\r\n"
 		"Commands:\r\n"
-		"w string    -> write line to module\r\n"
-		"e           -> enable\r\n"
-		"d           -> disable\r\n"
-		"q           -> quit\r\n"
+		"w string -> write line to module\r\n"
+		"e -> enable\r\n"
+		"d -> disable\r\n"
+		"q -> quit\r\n"
 	);
 
   entry (GP_RCM)
@@ -1509,6 +1509,8 @@ endthread
 #define	RT_ERR	20
 #define	RT_SET	30
 #define	RT_GET	40
+#define	RT_SETR	50
+#define	RT_GETR	60
 
 thread (test_rtc) 
 
@@ -1518,8 +1520,10 @@ thread (test_rtc)
 		"\r\nRTC Test\r\n"
 		"Commands:\r\n"
 		"s y m d dw h m s -> set the clock\r\n"
-		"r                -> read the clock\r\n"
-		"q                -> quit\r\n"
+		"r -> read the clock\r\n"
+		"w b -> write reg\r\n"
+		"g -> read reg\r\n"
+		"q -> quit\r\n"
 	);
 
   entry (RT_RCM)
@@ -1530,6 +1534,8 @@ thread (test_rtc)
 
 	    case 's': proceed (RT_SET);
 	    case 'r': proceed (RT_GET);
+	    case 'w': proceed (RT_SETR);
+	    case 'g': proceed (RT_GETR);
 	    case 'q': {
 			finish;
 	    }
@@ -1582,6 +1588,24 @@ thread (test_rtc)
 				dtime.second);
 	proceed (RT_RCM);
 
+  entry (RT_SETR)
+
+	sl = 0;
+	scan (ibuf + 1, "%u", &sl);
+	err = rtc_setr ((byte) sl);
+	proceed (RT_SET+1);
+
+  entry (RT_GETR)
+
+	str [0] = 0xff;
+	err = rtc_getr (str);
+
+  entry (RT_GETR+1)
+
+	ser_outf (RT_GETR+1, "Status = %u // %u\r\n", err, (word) (str [0]));
+	proceed (RT_RCM);
+	
+
 endthread
 
 #endif /* RTC_PRESENT */
@@ -1607,11 +1631,11 @@ thread (test_lcd)
 	ser_out (LT_MEN,
 		"\r\nLCD Test\r\n"
 		"Commands:\r\n"
-		"o n   -> on (1 = cursor shown)\r\n"
-		"f     -> off\r\n"
+		"o n -> on (1 = cursor shown)\r\n"
+		"f -> off\r\n"
 		"d n t -> display text at pos n\r\n"
-		"c     -> clear\r\n"
-		"q     -> quit\r\n"
+		"c -> clear\r\n"
+		"q -> quit\r\n"
 	);
 
   entry (LT_RCM)
@@ -1695,9 +1719,9 @@ thread (test_sensors)
 	ser_out (SE_INIT,
 		"\r\nSensor Test\r\n"
 		"Commands:\r\n"
-		"r s      -> read sensor s\r\n"
-		"c s d n  -> read continually at d ms, n times\r\n"
-		"q        -> quit\r\n"
+		"r s -> read sensor s\r\n"
+		"c s d n -> read continually at d ms, n times\r\n"
+		"q -> quit\r\n"
 		);
 
   entry (SE_RCMD)
@@ -1774,11 +1798,11 @@ thread (test_adc)
 		"\r\nADC Test\r\n"
 		"Commands:\r\n"
 		"c p rf st -> configure\r\n"
-		"s         -> start\r\n"
-		"h         -> stop & read\r\n"
-		"f         -> off\r\n"
-		"d         -> disable\r\n"
-		"q         -> quit\r\n"
+		"s -> start\r\n"
+		"h -> stop & read\r\n"
+		"f -> off\r\n"
+		"d -> disable\r\n"
+		"q -> quit\r\n"
 		);
 
   entry (AD_RCMD)
@@ -1864,10 +1888,13 @@ thread (root)
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
 
+#if 0
 #ifdef RTC_PRESENT
 
 	// Check if the clock is running; if not, set it to anything as
-	// otherwise it drains current
+	// otherwise it drains current;
+	// Note: the problem disappears if the pull-up resisitors are driven
+	// from a pin (which is only on when required for communication)
 
 	if (rtc_get (&dtime) == 0) {
 		if (dtime.year == 0) {
@@ -1875,6 +1902,7 @@ thread (root)
 			rtc_set (&dtime);
 		}
 	}
+#endif
 #endif
 
 #if CC1100
@@ -1900,38 +1928,38 @@ thread (root)
 	ser_out (RS_RCMD-2,
 		"\r\nCommands\r\n"
 		"Commands:\r\n"
-		"a    -> auto\r\n"
-		"r    -> start radio\r\n"
+		"a -> auto\r\n"
+		"r -> start radio\r\n"
 		"p v  -> xmit pwr\r\n"
 		"c v  -> channel\r\n"
-		"q    -> stop radio\r\n"
-		"n    -> reset\r\n"
+		"q -> stop radio\r\n"
+		"n -> reset\r\n"
 		"i v  -> set SID\r\n"
 		"u v  -> set uart rate [def = 96]\r\n"
 #ifdef cswitch_on
 		"o c  -> cswitch on\r\n"
 		"f c  -> cswitch off\r\n"
 #endif
-		"E    -> EEPROM test\r\n"
+		"E -> EEPROM test\r\n"
 #ifdef SDCARD_PRESENT
-		"S    -> SD test\r\n"
+		"S -> SD test\r\n"
 #endif
-		"P    -> pin test\r\n"
-		"D    -> power\r\n"
+		"P -> pin test\r\n"
+		"D -> power\r\n"
 #ifdef	gps_bring_up
-		"G    -> GPS\r\n"
+		"G -> GPS\r\n"
 #endif
 #ifdef SENSOR_LIST
-		"V    -> sensors\r\n"
+		"V -> sensors\r\n"
 #endif
-		"A    -> ADC\r\n"
+		"A -> ADC\r\n"
 #ifdef RTC_PRESENT
-		"T    -> RTC\r\n"
+		"T -> RTC\r\n"
 #endif
 #if LCD_ST7036
-		"L    -> LCD\r\n"
+		"L -> LCD\r\n"
 #endif
-		"U    -> UART echo\r\n"
+		"U -> UART echo\r\n"
 	);
 
   entry (RS_RCMD-1)
@@ -2032,7 +2060,7 @@ thread (root)
 
   entry (RS_AUTO)
 
-	ser_out (RS_AUTO, "Auto test, q to stop ...\r\n");
+	ser_out (RS_AUTO, "Auto, q to stop ...\r\n");
 	runthread (test_auto);
 
   entry (RS_AUTO+1)
