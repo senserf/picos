@@ -11,6 +11,7 @@
  */
 
 #define	STORAGE_AT45_TYPE	321	// Select the actual model used
+#define	EE_USE_UART		0
 
 #include "pins.h"
 #include "storage_at45xxx.h"

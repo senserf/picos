@@ -124,7 +124,8 @@ thread (test_auto)
 		proceed (AU_FAIL);
 	}
 	if (val != adr + rssi) {
-		form (ibuf, "EEPROM misread at %lx!\r\n", adr);
+		form (ibuf, "EEPROM misread at %lx (%lx != %lx)!\r\n", adr,
+			val, adr + rssi);
 		proceed (AU_FAIL);
 	}
 	adr += 1024;
@@ -204,60 +205,34 @@ thread (test_auto)
 
   entry (AU_PN)
 
-	ser_out (AU_PN, "Checking P5.7 pull for P6.1,2,6 ...\r\n");
-
-	pin_write (11, 0);
-	mdelay (1);
-	if (pin_read (2) || pin_read (5) || pin_read (6)) {
-		strcpy (ibuf, "P5.7 doesn't pull down!\r\n");
-		proceed (AU_FAIL);
-	}
-	pin_write (11, 1);
-	mdelay (1);
-	if (!pin_read (2) || !pin_read (5) || !pin_read (6)) {
-		strcpy (ibuf, "P5.7 doesn't pull down!\r\n");
-		proceed (AU_FAIL);
-	}
-
-  entry (AU_PN+1)
-
-	ser_out (AU_PN+1, "Yep, it works\r\n");
-
-  entry (AU_PN+2)
-
-	ser_out (AU_PN+2,
-	    "Lighting J3:12-4, then J5:1,4-6,8-10,12,14,16,18 ... forever\r\n");
+	ser_out (AU_PN,
+	"Light up order: P6.0/3-7, P1.6-7, P2.6, P3.6-7, P4.0/4-7, P5.6-7\r\n");
 	delay (750, AU_RF);
 	release;
 
   entry (AU_RF)
 
-	ser_out (AU_RF, "... and starting radio ...\r\n");
+	ser_out (AU_RF, "Starting radio ... (this will go forever)\r\n");
 	radio_start ();
-
-	w = PIN_MAX - 1;
 
 	for (w = 0; w < PIN_MAX; w++)
 		pin_write (w, 0);
 
-  entry (AU_PN+3)
+  entry (AU_PN+1)
 
-	if (w == 0)
-		w = PIN_MAX - 1;
+	if (w == PIN_MAX)
+		w = 0;
 	else
-		w--;
-
-	if (w == 11)
-		w = 10;
+		w++;
 
 	pin_write (w, 1);
-	delay (750, AU_PN+4);
+	delay (500, AU_PN+2);
 	release;
 
-  entry (AU_PN+4)
+  entry (AU_PN+2)
 
 	pin_write (w, 0);
-	proceed (AU_PN+3);
+	proceed (AU_PN+1);
 
   entry (AU_FAIL)
 
@@ -1926,8 +1901,7 @@ thread (root)
   entry (RS_RCMD-2)
 
 	ser_out (RS_RCMD-2,
-		"\r\nCommands\r\n"
-		"Commands:\r\n"
+		"\r\nCommands:\r\n"
 		"a -> auto\r\n"
 		"r -> start radio\r\n"
 		"p v  -> xmit pwr\r\n"

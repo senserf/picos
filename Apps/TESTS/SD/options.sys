@@ -1,14 +1,13 @@
 #undef	DIAG_MESSAGES
 #define	DIAG_MESSAGES	2
 
-#undef	INFO_FLASH
-#define	INFO_FLASH	2
-
-//#define	SD_KEEP_IDLE	1
 
 #define	EE_NO_ERASE_BEFORE_WRITE	1
 
 #undef 	UART_RATE
 #define	UART_RATE	115200
+#define STORAGE_SDCARD	 	1
+#define	SD_KEEP_IDLE		1
+
 //#undef	EE_USE_UART
 //#define	EE_USE_UART	1

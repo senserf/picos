@@ -39,9 +39,9 @@
 #define	VSN_INT_ERE	(REFON + REF2_5V)
 
 #define	VSN_EXT_PIN	1
-#define	VSN_EXT_SHT	8
+#define	VSN_EXT_SHT	15
 #define	VSN_EXT_ISI	0
-#define	VSN_EXT_NSA	8
+#define	VSN_EXT_NSA	32
 #define	VSN_EXT_URE	SREF_VREF_AVSS
 #define	VSN_EXT_ERE	REFON
 
@@ -50,7 +50,6 @@
 #define	QSO_PYR2_PIN	4
 #define	QSO_PYR3_PIN	5
 #define	MOI_ECO_PIN	7	// ECHO moisture sensor
-
 
 #define	SENSOR_LIST { \
 		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp), \
@@ -125,13 +124,18 @@
 				Del__:  mdelay (40); \
 					break; \
 				case VSN_INT_PIN: \
+				case VSN_EXT_PIN: \
 					_BIS (P2DIR, 0x20); \
-					mdelay (10); \
+					mdelay (100); \
 			    } \
 			} while (0)
 
 // Note: the ramp on Vref (internal reference 2.5V) is ca. 4.5ms, for 1.5V,
-// the ramp is 2.1ms, so 10ms pretty much covers it
+// the ramp is 2.1ms, so 10ms would cover it, except that when sensing VSN_EXT
+// shortly after VSN_INT, I see low indications, probably resulting from the
+// slow discharge of the Vref capacitor. The long delays should probably be
+// used solely for EXT. Also, we may want to use the same 2.5V reference for
+// it.
 
 #define	sensor_adc_postlude(p) \
 			do { \

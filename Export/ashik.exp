@@ -1,0 +1,57 @@
+Apps
+	cleanup
+	ECOPROJECT
+		SENSOR_TEST
+	LIB*
+	RFPing
+	Toy
+	SFU
+	TESTS
+		Toy*
+		WARSAW
+	VUEE
+		EETest
+		ILL*
+		RFPING
+		tnp_demo
+		eco_demo
+			*.cc
+			*.h
+			options.*
+			*.odt
+		survey
+Docs
+	*.pdf
+	*.doc
+Linux
+	LOCATION
+PicOS
+	*.c
+	*.h
+	kernel
+	MSP430
+		*.c
+		*.h
+		BOARDS
+			WARSAW
+			WARSAW_LCD_TEST
+			ARTURO
+			ARTURO_PMTH
+			ARTURO_SD
+			ARTURO_PYR
+			GENERIC_148
+			SFU_HEART
+			SFU_PROTOTYPE
+	Libs
+		Lib
+		LibComms
+		LibLCDG
+		LibXRS
+		LibOEP
+RTAGS
+Scripts
+	*.tcl
+	mkmk
+	genihex
+	isource
+	cleanapp

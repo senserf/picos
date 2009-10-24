@@ -59,7 +59,7 @@ Wait:
 		goto Next;
 	}
 
-	adc_stop;
+	// adc_stop;
 	// Wait for the end of sampling
 	if (adc_busy)
 		goto Wait;

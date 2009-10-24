@@ -3469,3 +3469,9 @@ R090905A:
 	Wlodek's example for converting multiple praxes to VUEE made official
 	(replacing old ILLUSTRATION/SIMPLE_TWO. VUEE doc (separate update)
 	modified accordingly.
+
+R091023A:
+
+	A few minor pending items: SD endurance test (Apps/TESTS/SD), cleanups
+	in the revised new WARSAW (WARSAW_NEW_REVISED) board, esdreader.c
+	(ECONNECT).
