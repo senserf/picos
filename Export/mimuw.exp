@@ -44,6 +44,7 @@ PicOS
 		LibOEP
 RTAGS
 Scripts
+	UTILS.zip
 	*.tcl
 	mkmk
 	genihex

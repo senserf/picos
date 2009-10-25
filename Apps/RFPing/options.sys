@@ -12,6 +12,12 @@
 #undef	CODE_LONG_INTS
 #endif
 
+#ifdef	GLACIER
+#undef	GLACIER
+#endif
+
+#define	GLACIER			1
+
 #define	LEDS_DRIVER	1
 #define	RADIO_USE_LEDS	7
 #define	CODE_LONG_INTS	1

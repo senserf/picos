@@ -19,6 +19,9 @@ Apps
 			*.h
 			options.*
 			*.odt
+			*.xml
+			*.ch
+			.mop
 		survey
 Docs
 	*.pdf
@@ -50,6 +53,7 @@ PicOS
 		LibOEP
 RTAGS
 Scripts
+	UTILS.zip
 	*.tcl
 	mkmk
 	genihex
