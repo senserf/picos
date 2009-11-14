@@ -3,7 +3,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-//    Make sure P1 interrupts are coming
+//    Make sure P1 interrupts are coming in
 //+++ "p1irq.c"
 
 REQUEST_EXTERNAL (p1irq);

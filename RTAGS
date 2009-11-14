@@ -3482,3 +3482,11 @@ R091025A:
 	econnect.tcl. This version makes it possible to scan for SD cards and
 	open forcibly those whose headers are damaged. Probably an overkill,
 	but I want to make sure that Gilberto is wrong.
+
+R091114A:
+
+	Board WAR_ERT added to MSP430/BOARDS for the Savi demo. Apps/VMesh2
+	compiles with VERSA2 as well as WAR_ERT. Note that the praxis calls
+	the hstat function of the DM2200 driver, which I have made conditional.
+	Wlodek: you may want to check if the freeze code makes sense now.
+

@@ -1,0 +1,103 @@
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
+
+// ============================================================================
+// CC1100 on P1
+//
+// 0 = RF SI OUT
+// 1 = RF CLK OUT
+// 2 = RF SO IN
+// 3 = RF GDO2 unused, but must be input
+// 4 = RF GDO0 IN
+// 5 = RF CSN OUT
+// ============================================================================
+
+#define	PIN_DEFAULT_P1DIR	0xE3	// 6,7 general access
+
+// 0, 1, 7 NC, 4 = soft reset button, must be IN
+// 2, 3 = counter/notifier, must be IN
+// 5, 6 general access
+#define	PIN_DEFAULT_P2DIR	0xE3
+
+#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+
+#if UART_DRIVER > 1
+// ============================================================================
+// This also means that CTS/RTS are disconnected from RXD1/TXD1, as they should
+// be
+// ============================================================================
+#define	PIN_DEFAULT_P3DIR	0x5F
+
+#else
+
+// 0 doubles with RXD1 (as CTS, and is in the way, so must be input)
+// 1 doubles with TXD0 (and is in the way, so must be input)
+// 2 doubles with RXD0 (and is in the way, so must be input)
+// 3 doubles with TXD1 ....
+// 4 is TXD0 (output)
+// 5 is RXD0 (input)
+// 6 is TXD1
+// 7 is RXD1
+// ============================================================================
+#define	PIN_DEFAULT_P3DIR	0x50
+
+#endif
+
+// 1, 2, 3 = LEDs, 0, 4-7 = general access
+#define PIN_DEFAULT_P4DIR	0xFF
+#define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off (high) by default
+
+// ============================================================================
+// P5 used by EEPROM/SDCARD
+// 
+// 0 = EEPROM CS OUT
+// 1 = STORAGE SI OUT
+// 2 = STORAGE SO IN
+// 3 = STORAGE SCK OUT
+// ============================================================================
+
+#define	PIN_DEFAULT_P5DIR	0xFB	// 4 general access, 5, 6, 7 NC
+#define	PIN_DEFAULT_P5OUT	0x0B	// Default both CS, CLK are up
+
+// ============================================================================
+// General access ports
+//
+
+#define	PIN_DEFAULT_P6DIR	0xFF
+
+#define	PIN_LIST	{	\
+	PIN_DEF	(P6, 0),	\
+	PIN_DEF	(P6, 1),	\
+	PIN_DEF	(P6, 2),	\
+	PIN_DEF	(P6, 3),	\
+	PIN_DEF	(P6, 4),	\
+	PIN_DEF	(P6, 5),	\
+	PIN_DEF	(P6, 6),	\
+	PIN_DEF	(P6, 7),	\
+	PIN_DEF	(P1, 6),	\
+	PIN_DEF	(P1, 7),	\
+	PIN_DEF	(P2, 5),	\
+	PIN_DEF	(P2, 6),	\
+	PIN_DEF	(P4, 0),	\
+	PIN_DEF	(P4, 4),	\
+	PIN_DEF	(P4, 5),	\
+	PIN_DEF	(P4, 6),	\
+	PIN_DEF	(P4, 7),	\
+	PIN_DEF (P5, 4)		\
+}
+
+#define	PIN_MAX			18	// Number of pins
+#define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
+
+// ============================================================================
+
+// ============================================================================
+// Pulse monitor: P2.2 is counter, P2.3 is notifier
+//
+#define	PULSE_MONITOR			PINS_MONITOR_INT (2, 3);
+#define	MONITOR_PINS_SEND_INTERRUPTS	1
+
+// ============================================================================
