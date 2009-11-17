@@ -3490,3 +3490,7 @@ R091114A:
 	the hstat function of the DM2200 driver, which I have made conditional.
 	Wlodek: you may want to check if the freeze code makes sense now.
 
+R091116A:
+
+	Added option to esdreader (eco_demo/OSSI/ECONNECT) to read SD cards
+	recorded on aggregators from version 1.2 of EcoNet.
