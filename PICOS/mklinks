@@ -70,3 +70,4 @@ ln -sf board.h lcdg_n6100p.h
 ln -sf board.h phys_uart.h
 ln -sf board.h pins.h
 ln -sf board.h phys_cc1100.h
+ln -sf board.h pinopts.h

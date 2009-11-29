@@ -1,4 +1,5 @@
 #!/bin/sh
+rm -f pinopts.h
 rm -f phys_uart.h
 rm -f net.h
 rm -f pins.h

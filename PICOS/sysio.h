@@ -308,52 +308,52 @@ typedef	int (*ctrlfun_t) (int option, address);
 void zz_dbg (int, word);
 
 #ifndef	dbg_0
-#define	dbg_0(a)	zz_dbg (0, (word)(a));
+#define	dbg_0(a)	zz_dbg (0, (word)(a))
 #endif
 #ifndef	dbg_1
-#define	dbg_1(a)	zz_dbg (1, (word)(a));
+#define	dbg_1(a)	zz_dbg (1, (word)(a))
 #endif
 #ifndef	dbg_2
-#define	dbg_2(a)	zz_dbg (2, (word)(a));
+#define	dbg_2(a)	zz_dbg (2, (word)(a))
 #endif
 #ifndef	dbg_3
-#define	dbg_3(a)	zz_dbg (3, (word)(a));
+#define	dbg_3(a)	zz_dbg (3, (word)(a))
 #endif
 #ifndef	dbg_4
-#define	dbg_4(a)	zz_dbg (4, (word)(a));
+#define	dbg_4(a)	zz_dbg (4, (word)(a))
 #endif
 #ifndef	dbg_5
-#define	dbg_5(a)	zz_dbg (5, (word)(a));
+#define	dbg_5(a)	zz_dbg (5, (word)(a))
 #endif
 #ifndef	dbg_6
-#define	dbg_6(a)	zz_dbg (6, (word)(a));
+#define	dbg_6(a)	zz_dbg (6, (word)(a))
 #endif
 #ifndef	dbg_7
-#define	dbg_7(a)	zz_dbg (7, (word)(a));
+#define	dbg_7(a)	zz_dbg (7, (word)(a))
 #endif
 #ifndef	dbg_8
-#define	dbg_8(a)	zz_dbg (8, (word)(a));
+#define	dbg_8(a)	zz_dbg (8, (word)(a))
 #endif
 #ifndef	dbg_9
-#define	dbg_9(a)	zz_dbg (9, (word)(a));
+#define	dbg_9(a)	zz_dbg (9, (word)(a))
 #endif
 #ifndef	dbg_a
-#define	dbg_a(a)	zz_dbg (10, (word)(a));
+#define	dbg_a(a)	zz_dbg (10, (word)(a))
 #endif
 #ifndef	dbg_b
-#define	dbg_b(a)	zz_dbg (11, (word)(a));
+#define	dbg_b(a)	zz_dbg (11, (word)(a))
 #endif
 #ifndef	dbg_c
-#define	dbg_c(a)	zz_dbg (12, (word)(a));
+#define	dbg_c(a)	zz_dbg (12, (word)(a))
 #endif
 #ifndef	dbg_d
-#define	dbg_d(a)	zz_dbg (13, (word)(a));
+#define	dbg_d(a)	zz_dbg (13, (word)(a))
 #endif
 #ifndef	dbg_e
-#define	dbg_e(a)	zz_dbg (14, (word)(a));
+#define	dbg_e(a)	zz_dbg (14, (word)(a))
 #endif
 #ifndef	dbg_f
-#define	dbg_f(a)	zz_dbg (15, (word)(a));
+#define	dbg_f(a)	zz_dbg (15, (word)(a))
 #endif
 
 #define	AB_MODE_OFF	0

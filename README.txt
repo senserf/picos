@@ -414,3 +414,7 @@ R090905A:
     VUEE version shows up in the header of SMURPH output.
 
     The document updated (look for text in blue).
+
+R091128A:
+
+    Fixed the definitions of dbg_x macros; pinopts.h link added.
