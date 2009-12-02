@@ -43,10 +43,14 @@ ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee_node_data_init.h oep_ee_node_data_in
 ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee.c oep_ee.cc
 ln -sf ../../PICOS/PicOS/Libs/LibOEP/oep_ee.h oep_ee.h
 ####################################### LibXRS
-ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_node_data.h ab_node_data.h
-ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_node_data_init.h ab_node_data_init.h
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_data.h ab_data.h
 ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab.c ab.cc
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/abb.c abb.cc
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_common.c ab_common.cc
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_params.h ab_params.h
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_modes.h ab_modes.h
 ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab.h ab.h
+ln -sf ../../PICOS/PicOS/Libs/LibXRS/abb.h abb.h
 ####################################### LibLCDG
 ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman.c lcdg_dispman.cc
 ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman.h lcdg_dispman.h

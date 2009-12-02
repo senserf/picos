@@ -41,10 +41,14 @@ rm -f encrypt.h
 rm -f encrypt.cc
 rm -f checksum.cc
 
-rm -f ab_node_data.h
-rm -f ab_node_data_init.h
+rm -f ab_data.h
 rm -f ab.cc
+rm -f abb.cc
+rm -f ab_common.cc
+rm -f ab_params.h
+rm -f ab_modes.h
 rm -f ab.h
+rm -f abb.h
 
 rm -f oep.cc
 rm -f oep.h

@@ -418,3 +418,7 @@ R090905A:
 R091128A:
 
     Fixed the definitions of dbg_x macros; pinopts.h link added.
+
+R091202A:
+
+    Binary variant of XRS incorporated.

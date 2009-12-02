@@ -12,7 +12,9 @@
 #endif
 
 #ifdef	VUEE_LIB_XRS
+#include "ab_common.cc"
 #include "ab.cc"
+#include "abb.cc"
 #endif
 
 #ifdef VUEE_LIB_OEP
