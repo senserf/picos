@@ -44,7 +44,7 @@ heapmem {10, 90};
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
 
 #define	EEPROM_INCR	255
-#define	SEND_INTERVAL	1024
+#define	SEND_INTERVAL	512
 
 extern void* _etext;
 
@@ -61,7 +61,7 @@ rtc_time_t dtime;
 
 // ============================================================================
 
-static void radio_start ();
+static void radio_start (word);
 static void radio_stop ();
 
 #define	AU_INIT		0
@@ -213,7 +213,7 @@ thread (test_auto)
   entry (AU_RF)
 
 	ser_out (AU_RF, "Starting radio ... (this will go forever)\r\n");
-	radio_start ();
+	radio_start (3);
 
 	for (w = 0; w < PIN_MAX; w++)
 		pin_write (w, 0);
@@ -325,19 +325,21 @@ thread (receiver)
 
 endthread;
 
-static void radio_start () {
+static void radio_start (word d) {
 
 	if (sfd < 0)
 		return;
 
-	tcv_control (sfd, PHYSOPT_RXON, NULL);
-	tcv_control (sfd, PHYSOPT_TXON, NULL);
-
-	if (!running (sender))
-		runthread (sender);
-
-	if (!running (receiver))
-		runthread (receiver);
+	if (d & 1) {
+		tcv_control (sfd, PHYSOPT_RXON, NULL);
+		if (!running (receiver))
+			runthread (receiver);
+	}
+	if (d & 2) {
+		tcv_control (sfd, PHYSOPT_TXON, NULL);
+		if (!running (sender))
+			runthread (sender);
+	}
 }
 
 static void radio_stop () {
@@ -1846,14 +1848,6 @@ endthread
 #define	RS_INIT		00
 #define	RS_RCMD		10
 #define	RS_AUTO		20
-#define RS_SPO		30
-#define	RS_RAD		40
-#define	RS_QRA		50
-#define	RS_SID		60
-#define	RS_SCH		70
-#define	RS_UAR		80
-#define	RS_CON		90
-#define RS_COF		100
 #define	RS_AUTOSTART	200
 
 thread (root)
@@ -1881,7 +1875,9 @@ thread (root)
 #endif
 
 #if CC1100
+diag ("Radio ...");
 	phys_cc1100 (0, MAXPLEN);
+diag ("OK");
 
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);
@@ -1908,8 +1904,8 @@ thread (root)
 		"c v  -> channel\r\n"
 		"q -> stop radio\r\n"
 		"n -> reset\r\n"
-		"i v  -> set SID\r\n"
 		"u v  -> set uart rate [def = 96]\r\n"
+		"d -> pwr: 0-d, 1-u\r\n"
 #ifdef cswitch_on
 		"o c  -> cswitch on\r\n"
 		"f c  -> cswitch off\r\n"
@@ -1938,6 +1934,8 @@ thread (root)
 
   entry (RS_RCMD-1)
 
+RS_Err:
+
 	if ((unsigned char) ibuf [0] == 0xff)
 		ser_out (RS_RCMD-1,
 			"No cmd in 30 sec -> start radio\r\n"
@@ -1953,14 +1951,71 @@ thread (root)
 	switch (ibuf [0]) {
 
 		case 'a' : proceed (RS_AUTO);
-		case 'r' : proceed (RS_RAD);
-		case 'p' : proceed (RS_SPO);
-		case 'c' : proceed (RS_SCH);
-		case 'q' : proceed (RS_QRA);
-		case 'u' : proceed (RS_UAR);
+
+		case 'r' : {
+				w = 0;
+				scan (ibuf + 1, "%u", &w);
+				if ((w & 3) == 0)
+					w = 3;
+				radio_start (w);
+RS_Loop:			proceed (RS_RCMD);
+		}
+	
+		case 'p' : {
+			// Setpower, default = max
+			off = 255;
+			scan (ibuf + 1, "%d", &off);
+			tcv_control (sfd, PHYSOPT_SETPOWER, (address)&off);
+			goto RS_Loop;
+		}
+
+		case 'c' : {
+			off = 0;
+			scan (ibuf + 1, "%d", &off);
+			tcv_control (sfd, PHYSOPT_SETCHANNEL, (address)&off);
+			goto RS_Loop;
+		}
+
+		case 'q' : {
+			radio_stop ();
+			goto RS_Loop;
+		}
+
+		case 'u' : {
+			off = 0;
+			scan (ibuf + 1, "%d", &off);
+			ion (UART, CONTROL, (char*) &off, UART_CNTRL_SETRATE);
+			goto RS_Loop;
+		}
+
+		case 'd' : {
+			off = 0;
+			scan (ibuf + 1, "%d", &off);
+			if (off)
+				powerup ();
+			else
+				powerdown ();
+			goto RS_Loop;
+		}
+
 #ifdef cswitch_on
-		case 'o' : proceed (RS_CON);
-		case 'f' : proceed (RS_COF);
+		case 'o' : {
+			w = 0;
+			scan (ibuf + 1, "%u", &w);
+			if (w == 0)
+				goto RS_Err;
+			cswitch_on (w);
+			goto RS_Loop;
+		}
+
+		case 'f' : {
+			w = 0;
+			scan (ibuf + 1, "%u", &w);
+			if (w == 0)
+				goto RS_Err;
+			cswitch_off (w);
+			goto RS_Loop;
+		}
 #endif
 		case 'n' : reset ();
 		case 'E' : {
@@ -2042,71 +2097,10 @@ thread (root)
 	ser_in (RS_AUTO+1, ibuf, IBUFLEN-1);
 	reset ();
 
-  entry (RS_SPO)
-
-	// Setpower, default = max
-	off = 255;
-	scan (ibuf + 1, "%d", &off);
-	tcv_control (sfd, PHYSOPT_SETPOWER, (address)&off);
-	proceed (RS_RCMD);
-
-  entry (RS_SCH)
-
-	// Setpower, default = max
-	off = 0;
-	scan (ibuf + 1, "%d", &off);
-	tcv_control (sfd, PHYSOPT_SETCHANNEL, (address)&off);
-	proceed (RS_RCMD);
-
-  entry (RS_RAD)
-
-	radio_start ();
-	proceed (RS_RCMD);
-
-  entry (RS_QRA)
-
-	radio_stop ();
-	proceed (RS_RCMD);
-
-  entry (RS_SID)
-
-	off = 0;
-	scan (ibuf + 1, "%d", &off);
-	tcv_control (sfd, PHYSOPT_SETSID, (address)&off);
-	proceed (RS_RCMD);
-
-  entry (RS_UAR)
-
-	off = 0;
-	scan (ibuf + 1, "%d", &off);
-	ion (UART, CONTROL, (char*) &off, UART_CNTRL_SETRATE);
-	proceed (RS_RCMD);
-
-#ifdef cswitch_on
-
-  entry (RS_CON)
-
-	w = 0;
-	scan (ibuf + 1, "%u", &w);
-	if (w == 0)
-		proceed (RS_RCMD+1);
-	cswitch_on (w);
-	proceed (RS_RCMD);
-
-  entry (RS_COF)
-
-	w = 0;
-	scan (ibuf + 1, "%u", &w);
-	if (w == 0)
-		proceed (RS_RCMD+1);
-	cswitch_off (w);
-	proceed (RS_RCMD);
-#endif
-
   entry (RS_AUTOSTART)
 
 	ibuf [0] = 0;
-	radio_start ();
+	radio_start (3);
 	proceed (RS_RCMD);
 
 endthread
