@@ -3495,7 +3495,7 @@ R091116A:
 	Added option to esdreader (eco_demo/OSSI/ECONNECT) to read SD cards
 	recorded on aggregators from version 1.2 of EcoNet.
 
-R091202A:
+R091202B:
 
 	Binary variant for XRS API implemented, XRS redone (see Serial.pdf).
 	This also works with VUEE of the same version number.
