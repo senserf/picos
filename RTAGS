@@ -3501,3 +3501,13 @@ R091202B:
 	This also works with VUEE of the same version number.
 
 	TESTS/WARSAW made to work with GENESIS (a modification to options.sys).
+
+R091203A:
+
+	eco_demo: Faster dumps (D): 13 entries /s on coll. (9600),
+	13 /s on agg. SD, 15 /s on agg. no SD.
+
+	In options.* no SD / EE erase on new flash; if coll / agg with
+	massive data are available, it is desirable to reflash them
+	and test data extraction (of course, nodes with the current data
+	format).
