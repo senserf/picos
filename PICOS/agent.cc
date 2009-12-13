@@ -3080,7 +3080,7 @@ void LEDSM::leds_op (word led, word op) {
 	}
 }
 
-void LEDSM::fastblink (Boolean on) {
+void LEDSM::setfast (Boolean on) {
 
 	if (on != Fast) {
 		Fast = on;

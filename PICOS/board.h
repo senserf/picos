@@ -14,11 +14,13 @@
 #include "plug_tarp.h"
 #include "plug_null.h"
 #include "lcdg_n6100p_driver.h"
+#include "encrypt.h"
 
 #include "lib_params.h"
 
 #define	N_MEMEVENT	0xFFFF0001
 #define	PMON_CNTEVENT	0xFFFF0002
+#define	PMON_CMPEVENT	PMON_CNTEVENT
 #define	PMON_NOTEVENT	0xFFFF0003
 
 #define	PMON_STATE_NOT_RISING	0x01
@@ -35,11 +37,14 @@
 
 #define	TheNode		((PicOSNode*)TheStation)
 #define	ThePckt		((PKT*)ThePacket)
+#define	ThePPcs		((_PP_*)TheProcess)
 
 #define	MAX_LINE_LENGTH	63	// For d_uart_inp_p
 
-int zz_running (void*), zz_crunning (void*);
-int zz_killall (void*);
+typedef	void *code_t;
+
+// ============================================================================
+
 void zz_panel_signal (Long);
 Boolean zz_validate_uart_rate (word);
 
@@ -188,6 +193,39 @@ class rfm_intd_t {
 
 };
 
+process	_PP_ {
+//
+// This is a standard prefix for a PicOS process
+//
+	TIME	WaitingUntil;	// Target time (if waiting)
+	_PP_	*HNext, *HPrev;	// For hash collisions
+	int	ID;		// The int identifier (as required by PicOS)
+	FLAGS	Flags;		// GP flags for grabs
+
+// Note ... in preparation for a compiler: we will put there a data pointer
+// but for now it would create more mess than good; this is because while a
+// simple macro pre-processing would go a long way towards simplicity and
+// uniformity, cpp is a bit insufficient
+
+#define	_PP_flag_zombie	0	// The process is a PicOS-style zombie
+#define	_PP_flag_wtimer 1	// The process is waiting on a timer
+
+	int	_pp_apid_ ();	// Allocates process ID
+
+	void 	_pp_hashin_ (), _pp_unhash_ ();
+
+	void	inline _pp_enter_ () {
+
+		// This method is transparently called whenever the
+		// thread/strand wakes up, no matter in which state;
+		// for now, we need it to implement the proper semantics
+		// of operations like ldelay, ldleft, but we may need it
+		// later for more
+
+		clearFlag (Flags, _PP_flag_wtimer);
+	};
+};
+	
 station PicOSNode abstract {
 
 	void		_da (phys_dm2200) (int, int);
@@ -195,6 +233,7 @@ station PicOSNode abstract {
 	void		phys_rfmodule_init (int, int);
 	void		_da (phys_uart) (int, int, int);
 
+	// Used to implement second clock (as starting from zero)
 	long		SecondOffset;
 
 	Mailbox	TB;		// For trigger
@@ -270,98 +309,6 @@ station PicOSNode abstract {
 	 */
 	LCDG		*lcdg;
 
-	void no_lcdg_module (const char*);
-
-	inline void _da (lcdg_on) (byte cn) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_on");
-		lcdg->m_lcdg_on (cn);
-	};
-
-	inline void _da (lcdg_off) () {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_off");
-		lcdg->m_lcdg_off ();
-	};
-
-	inline void _da (lcdg_set) (byte a, byte b, byte c, byte d) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_set");
-		lcdg->m_lcdg_set (a, b, c, d);
-	};
-
-	inline void _da (lcdg_get) (byte *a, byte *b, byte *c, byte *d) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_get");
-		lcdg->m_lcdg_get (a, b, c, d);
-	};
-
-	inline void _da (lcdg_setc) (byte a, byte b) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_setc");
-		lcdg->m_lcdg_setc (a, b);
-	};
-
-	inline void _da (lcdg_clear) () {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_clear");
-		lcdg->m_lcdg_clear ();
-	};
-
-	inline void _da (lcdg_render) (byte a, byte b, const byte *c, word d) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_render");
-		lcdg->m_lcdg_render (a, b, c, d);
-	};
-
-	inline void _da (lcdg_end) () {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_end");
-			lcdg->m_lcdg_end ();
-	};
-
-	inline word _da (lcdg_font) (byte a) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_font");
-		return lcdg->m_lcdg_font (a);
-	};
-
-	inline byte _da (lcdg_cwidth) () {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_cwidth");
-		return lcdg->m_lcdg_cwidth ();
-	};
-
-	inline byte _da (lcdg_cheight) () {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_cheight");
-		return lcdg->m_lcdg_cheight ();
-	};
-
-	inline word _da (lcdg_sett) (byte a, byte b, byte c, byte d) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_sett");
-		return lcdg->m_lcdg_sett (a, b, c, d);
-	};
-
-	inline void _da (lcdg_ec) (byte a, byte b, byte c) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_ec");
-		lcdg->m_lcdg_ec (a, b, c);
-	};
-
-	inline void _da (lcdg_el) (byte a, byte b) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_el");
-		lcdg->m_lcdg_el (a, b);
-	};
-
-	inline void _da (lcdg_wl) (const char *a, word b, byte c, byte d) {
-		if (lcdg == NULL)
-			no_lcdg_module ("lcdg_wl");
-		lcdg->m_lcdg_wl (a, b, c, d);
-	};
-
 	// ====================================================================
 
 
@@ -391,9 +338,6 @@ station PicOSNode abstract {
 	void _da (reset) ();
 	// This one halts the node (from the praxis)
 	void _da (halt) ();
-	// Power management
-	void _da (powerdown) ();
-	void _da (powerup) ();
 	// This one stops the node (from outside the praxis)
 	void stopall ();
 	// This is type specific reset; also called by the agent to halt the
@@ -406,10 +350,6 @@ station PicOSNode abstract {
 
 	void initParams ();
 
-	int _da (getpid) () { return __cpint (TheProcess); };
-	lword _da (seconds) ();
-	void _da (setseconds) (lword);
-	word _da (sectomin) ();
 	address	memAlloc (int, word);
 	void memFree (address);
 	word _da (actsize) (address);
@@ -434,21 +374,8 @@ station PicOSNode abstract {
 		TB.signal (N_MEMEVENT);
 	};
 
-	inline void _da (delay) (word msec, int state) {
-		Timer->delay (msec * MILLISECOND, state);
-	};
-
-	inline void _da (when) (int ev, int state) { TB.wait (ev, state); };
-
-	inline void _da (leds) (word led, word op) {
-		if (ledsm != NULL)
-			// Ignore otherwise
-			ledsm->leds_op (led, op);
-	};
-
-	inline void _da (fastblink) (Boolean a) {
-		if (ledsm != NULL)
-			ledsm->fastblink (a);
+	inline int tally_left () {
+		return (NPcLim == 0) ? 999 : (NPcLim - NPcss);
 	};
 
 	inline int _da (io) (int state, int dev, int ope, char *buf, int len) {
@@ -458,9 +385,6 @@ station PicOSNode abstract {
 			getSName ());
 		return uart->U->ioop (state, ope, buf, len);
 	};
-
-	void _da (ldelay) (word, int);
-	void _da (lhold) (int, lword*);
 
 	/*
 	 * I/O formatting
@@ -624,7 +548,6 @@ station PicOSNode abstract {
 	word _da (if_read)  (word);
 	void _da (if_erase) (int);
 
-#include "encrypt.h"
 	// Note: static TCV data is initialized in tcv_init.
 #include "tcv_node_data.h"
 
@@ -639,7 +562,7 @@ station PicOSNode abstract {
 
 // === UART direct ============================================================
 
-process d_uart_inp_p (PicOSNode) {
+threadhdr (d_uart_inp_p, PicOSNode) {
 
 	uart_dir_int_t *f;
 	char *tmp, *ptr;
@@ -653,7 +576,7 @@ process d_uart_inp_p (PicOSNode) {
 	perform;
 };
 
-process d_uart_out_p (PicOSNode) {
+threadhdr (d_uart_out_p, PicOSNode) {
 
 	uart_dir_int_t *f;
 	const char *data, *ptr;
@@ -669,7 +592,7 @@ process d_uart_out_p (PicOSNode) {
 
 // === UART packet ============================================================
 
-process p_uart_rcv_p (PicOSNode) {
+threadhdr (p_uart_rcv_p, PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -686,7 +609,7 @@ process p_uart_rcv_p (PicOSNode) {
 	void rreset (int, int);
 };
 
-process p_uart_xmt_p (PicOSNode) {
+threadhdr (p_uart_xmt_p, PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -699,7 +622,7 @@ process p_uart_xmt_p (PicOSNode) {
 
 // === UART line --============================================================
 
-process p_uart_rcv_l (PicOSNode) {
+threadhdr (p_uart_rcv_l, PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -714,7 +637,7 @@ process p_uart_rcv_l (PicOSNode) {
 	void ignore (int, int);
 };
 
-process p_uart_xmt_l (PicOSNode) {
+threadhdr (p_uart_xmt_l, PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -801,5 +724,35 @@ process PanelHandler {
 
 	perform;
 };
+
+// ============================================================================
+
+void ldelay (word, int);
+word ldleft (int, word*);
+void lhold (int, lword*);
+lword lhleft (int, lword*);
+void delay (word, int);
+word dleft (int);
+void snooze (word);
+
+inline void zz_when (int ev, int state) { TheNode->TB.wait (ev, state); }
+
+// ============================================================================
+
+int zz_status (int);
+int zz_join (int, word);
+void zz_joinall (code_t, word);
+int zz_kill (int);
+int zz_running (code_t), zz_crunning (code_t);
+int zz_killall (code_t);
+int zz_getcpid ();
+
+// ============================================================================
+
+void powerdown (), powerup ();
+
+// ============================================================================
+
+int _no_module_ (const char*, const char*);
 
 #endif

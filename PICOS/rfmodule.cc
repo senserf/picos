@@ -300,11 +300,8 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 	LEDI (1, 0);
 	LEDI (2, 0);
 
-	if (!tally_in_pcs () || !tally_in_pcs ())
-		// Need two process slots
+	if (runthread (Xmitter) == 0 || runstrand (Receiver, rbs) == 0)
 		syserror (ERESOURCE, "phys_rf");
-	create Xmitter;
-	create Receiver (rbs);
 }
 
 static int rfm_option (int opt, address val) {

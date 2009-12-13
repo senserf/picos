@@ -5,7 +5,8 @@
 
 /* ========================================================================== */
 
-#define	MILLISECOND	0.0009765625	// 1/1024 s
+#define	MSCINSECOND	1024.0			// Milliseconds in a second
+#define	MILLISECOND	(1.0/MSCINSECOND)	// Seconds in a millisecond
 
 typedef	unsigned short	word;
 typedef	word		*address;
@@ -28,13 +29,11 @@ typedef	unsigned char	byte;
 #define	nodata		CNOP
 // #define	FORK(a,b)	create a
 #define	fork(a,b)	(((PicOSNode*)TheStation)->tally_in_pcs () ? \
-				(int) (create a (b)) : 0)
+				(create a (b)) -> _pp_apid_ () : 0)
 #define	RELEASE		sleep
 #define	nodefun(t,n,s)	t Node::n
 
 #define	heapmem		const static byte zz_heapmem [] =
-
-#define	join(p,s)	do { ((Process*)(p))->wait (DEATH, s); } while (0)
 
 /* ========================================================================== */
 

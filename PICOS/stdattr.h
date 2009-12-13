@@ -8,10 +8,8 @@
 // ============================================================================
 
 #define	release		sleep
-#define	finish		do { \
-				((PicOSNode*)TheStation)->tally_out_pcs (); \
-				terminate; \
-			} while (0)
+#define	finish		kill (0)
+#define	hang		kill (-1)
 
 #define	entropy		_dac (PicOSNode, entropy)
 
@@ -26,25 +24,9 @@
 
 #define	reset()		(  ((PicOSNode*)TheStation)->_na_reset ()  )
 #define	halt()		(  ((PicOSNode*)TheStation)->_na_halt ()  )
-#define	powerdown()	(  ((PicOSNode*)TheStation)->_na_powerdown ()  )
-#define	powerup()	(  ((PicOSNode*)TheStation)->_na_powerup ()  )
-#define	getpid()	(  ((PicOSNode*)TheStation)->_na_getpid ()  )
-#define	seconds()	(  ((PicOSNode*)TheStation)->_na_seconds ()  )
-#define	setseconds(a)	(  ((PicOSNode*)TheStation)->_na_setseconds (a)  )
-#define	sectomin()	(  ((PicOSNode*)TheStation)->_na_sectomin ()  )
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )
 #define	memfree(a,b)	(  ((PicOSNode*)TheStation)->_na_memfree (a,b)  )
-#define	delay(a,b)	(  ((PicOSNode*)TheStation)->_na_delay (a,b)  )
-#define	when(a,b)	(  ((PicOSNode*)TheStation)->_na_when (__cpint (a),b)  )
 #define io(a,b,c,d,e)	(  ((PicOSNode*)TheStation)->_na_io (a,b,c,d,e)  )
-#define encrypt(a,b,c)	(  ((PicOSNode*)TheStation)->_na_encrypt (a,b,c)  )
-#define decrypt(a,b,c)	(  ((PicOSNode*)TheStation)->_na_decrypt (a,b,c)  )
-#define leds(a,b) \
-	(  ((PicOSNode*)TheStation)->_na_leds ((word)(a),(word)(b))  )
-#define fastblink(a) \
-	(  ((PicOSNode*)TheStation)->_na_fastblink ((Boolean)(a))  )
-#define	ldelay(a,b)	(  ((PicOSNode*)TheStation)->_na_ldelay (a,b)  )
-#define	lhold(a,b)	(  ((PicOSNode*)TheStation)->_na_lhold (a,b)  )
 #define	read_sensor(a,b,c) \
 		(  ((PicOSNode*)TheStation)->_na_read_sensor (a,b,c)  )
 #define	write_actuator(a,b,c) \
@@ -112,29 +94,6 @@
 #define	if_write(a,b)	(  ((PicOSNode*)TheStation)->_na_if_write (a,b)  )
 #define	if_read(a)	(  ((PicOSNode*)TheStation)->_na_if_read (a)  )
 #define	if_erase(a)	(  ((PicOSNode*)TheStation)->_na_if_erase (a)  )
-
-// ============================================================================
-
-#define lcdg_on(a)	(  ((PicOSNode*)TheStation)->_na_lcdg_on (a)  )
-#define lcdg_off()	(  ((PicOSNode*)TheStation)->_na_lcdg_off ()  )
-#define lcdg_set(a,b,c,d) \
-	(  ((PicOSNode*)TheStation)->_na_lcdg_set (a, b, c, d)  )
-#define lcdg_get(a,b,c,d) \
-	(  ((PicOSNode*)TheStation)->_na_lcdg_get (a, b, c, d)  )
-#define lcdg_setc(a,b)	(  ((PicOSNode*)TheStation)->_na_lcdg_setc (a, b)  )
-#define lcdg_clear()	(  ((PicOSNode*)TheStation)->_na_lcdg_clear ()  )
-#define lcdg_render(a,b,c,d) \
-	(  ((PicOSNode*)TheStation)->_na_lcdg_render (a, b, c, d)  )
-#define lcdg_end() 	(  ((PicOSNode*)TheStation)->_na_lcdg_end ()  )
-#define lcdg_font(a)	(  ((PicOSNode*)TheStation)->_na_lcdg_font (a)  )
-#define lcdg_cwidth()	(  ((PicOSNode*)TheStation)->_na_lcdg_cwidth ()  )
-#define lcdg_cheight()	(  ((PicOSNode*)TheStation)->_na_lcdg_cheight ()  )
-#define lcdg_sett(a,b,c,d) \
-	(  ((PicOSNode*)TheStation)->_na_lcdg_sett (a, b, c, d)  )
-#define lcdg_ec(a,b,c)	(  ((PicOSNode*)TheStation)->_na_lcdg_ec (a, b, c)  )
-#define lcdg_el(a,b)	(  ((PicOSNode*)TheStation)->_na_lcdg_el (a, b)  )
-#define lcdg_wl(a,b,c,d) \
-	(  ((PicOSNode*)TheStation)->_na_lcdg_wl (a, b, c, d)  )
 
 // ============================================================================
 

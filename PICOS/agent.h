@@ -298,8 +298,9 @@ class LEDSM {
 	public:
 
 	int ledup_status ();
-	void fastblink (Boolean);
-
+	void setfast (Boolean);
+	Boolean isfast () { return Fast; };
+	
 	void leds_op (word, word);
 
 	LEDSM (data_le_t*);

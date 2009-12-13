@@ -16,6 +16,11 @@
 //
 #define	NPTABLE_SIZE	66
 
+//
+// Size of the hash table for keeping track of process IDs
+//
+#define PPHASH_SIZE	4096
+
 const char	zz_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
@@ -24,6 +29,7 @@ const char	zz_hex_enc_table [] = {
 // Legitimate UART rates ( / 100)
 static const word urates [] = { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152,
                               2560 };
+
 struct strpool_s {
 
 	const byte *STR;
@@ -93,6 +99,91 @@ static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
 
 	return p->STR;
 }
+
+// ============================================================================
+
+static _PP_ *pptable [PPHASH_SIZE];
+static int lcpid = 0;
+
+#define PPHMASK	(PPHASH_SIZE - 1)
+
+void _PP_::_pp_hashin_ () {
+//
+// Inserts the process into the hash table
+//
+	_PP_ **ht = pptable + (ID & PPHMASK);	// The hash table entry
+
+	if (*ht == NULL) {
+		*ht = HNext = HPrev = this;
+	} else {
+		HNext = (*ht) -> HNext;
+		HPrev = *ht;
+		HNext->HPrev = HPrev->HNext = this;
+	}
+}
+
+void _PP_::_pp_unhash_ () {
+//
+// Removes the process from hash table
+//
+	if (HPrev == this) {
+		// A singleton
+		pptable [ID & PPHMASK] = NULL;
+	} else {
+		HNext->HPrev = HPrev;
+		pptable [ID & PPHMASK] = HPrev->HNext = HNext;
+	}
+	// This will be triggered upon termination of any "PicOS" process
+	// with the intention of waking up those willing to "joinall"
+	TheNode->TB.signal ((IPointer) getTypeId ());
+}
+
+static _PP_ *find_pcs_by_id (int id) {
+//
+// Finds the process with the given id owned by this station
+//
+	_PP_ *tp, *tq;
+
+	tp = pptable [id & PPHMASK];
+
+	if (tp == NULL)
+		return NULL;
+
+	tq = tp;
+
+	do {
+		if (tp->ID == id && tp->getOwner () == TheStation)
+			return tp;
+
+		tp = tp->HNext;
+
+	} while (tp != tq);
+
+	return NULL;
+}
+
+int _PP_::_pp_apid_ () {
+//
+// Allocate process ID
+//
+	// Initialize
+	Flags = 0;
+	WaitingUntil = TIME_0;
+
+	while (1) {
+		if (++lcpid == 0 || lcpid == -1)
+			// In case we ever wrap around
+			lcpid = 1;
+		if (find_pcs_by_id (lcpid) == NULL) {
+			// OK, allocate this one
+			ID = lcpid;
+			_pp_hashin_ ();
+			return ID;
+		}
+	}
+}
+	
+// ============================================================================
 
 static const char *xname (int nn) {
 
@@ -166,16 +257,6 @@ void _dad (PicOSNode, halt) () {
 	// agents
 	zz_panel_signal (getId ());
 	sleep;
-}
-
-void _dad (PicOSNode, powerdown) () {
-
-	pwrt_change (PWRT_CPU, PWRT_CPU_LP);
-}
-
-void _dad (PicOSNode, powerup) () {
-
-	pwrt_change (PWRT_CPU, PWRT_CPU_FP);
 }
 
 void PicOSNode::uart_reset () {
@@ -519,47 +600,6 @@ void PicOSNode::setup (data_no_t *nd) {
 #include "lib_attributes_init.h"
 
 }
-
-lword _dad (PicOSNode, seconds) () {
-
-	// FIXME: make those different at different stations
-	return (lword)(((lword) ituToEtu (Time)) + SecondOffset);
-};
-
-void _dad (PicOSNode, setseconds) (lword nv) {
-
-	SecondOffset = (long)((long)nv - (lword)ituToEtu (Time));
-};
-
-word _dad (PicOSNode, sectomin) () {
-//
-// This is a stub. It makes no sense to try to do it right as the minute
-// clock will probably go
-//
-	return 1;
-}
-
-void _dad (PicOSNode, ldelay) (word d, int state) {
-/*
- * Minute wait
- */
-	if (d == 0)
-		syserror (ENEVENTS, "ldelay");
-
-	Timer->delay (64.0 * d, state);
-}
-
-void _dad (PicOSNode, lhold) (int st, lword *nsec) {
-/*
- * Long second wait:
- */
-	if (*nsec == 0)
-		return;
-
-	Timer->delay ((double)(*nsec), st);
-	*nsec = 0;
-	sleep;
-};
 
 address PicOSNode::memAlloc (int size, word lsize) {
 /*
@@ -4625,14 +4665,265 @@ d_uart_out_p::perform {
 	proceed OM_WRITE;
 }
 
-int zz_running (void *tid) {
+// ============================================================================
 
-	Process *P [1];
+void delay (word msec, int state) {
 
-	return zz_getproclist (TheNode, tid, P, 1) ? __cpint (P [0]) : 0;
+	TIME delta;
+
+	delta = etuToItu (msec * MILLISECOND);
+	ThePPcs->WaitingUntil = Time + delta;
+	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
+	Timer->wait (delta, state);
 }
 
-int zz_killall (void *tid) {
+word dleft (int pid) {
+//
+// Left-to 'delay' (we are trying to approximate what you can see in
+// PicOS/kernel/kernel.c)
+//
+	_PP_ *p;
+	double d;
+
+	if (pid == 0) {
+		// This process
+		p = ThePPcs;
+	} else {
+		p = find_pcs_by_id (pid);
+		if (p == NULL || flagCleared (p->Flags, _PP_flag_wtimer))
+			return MAX_UINT;
+	}
+	if (p->WaitingUntil <= Time)
+		return 0;
+
+	// To milliseconds
+	d = ituToEtu (p->WaitingUntil - Time) * MSCINSECOND;
+	return d > (double)(MAX_UINT-1) ? MAX_UINT-1 : (word) d;
+}
+
+void snooze (word state) {
+
+	TIME delta;
+
+	if (ThePPcs->WaitingUntil <= Time) {
+		return;
+	}
+
+	Timer->wait (ThePPcs->WaitingUntil - Time, state);
+	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
+	sleep;
+}
+
+void ldelay (word d, int state) {
+/*
+ * Minute wait
+ */
+	if (d == 0) {
+		delay (0, state);
+		return;
+	}
+
+	TIME delta = etuToItu (64.0 * d);
+
+	ThePPcs->WaitingUntil = Time + delta;
+	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
+	Timer->wait (delta, state);
+}
+
+word ldleft (int pid, word *s) {
+//
+// Left to long delay (in minutes)
+//
+	_PP_ *p;
+	Long d;
+
+	p = find_pcs_by_id (pid);
+	if (p == NULL || flagCleared (p->Flags, _PP_flag_wtimer)) {
+		if (s != NULL)
+			*s = 0;
+		return MAX_UINT;
+	}
+
+	if (p->WaitingUntil <= Time) {
+		if (s != NULL)
+			*s = 0;
+		return 0;
+	}
+
+	// These are seconds, so we are safe with Long
+	d = (Long) ituToEtu (p->WaitingUntil - Time);
+
+	if (s != NULL)
+		*s = d % 64;
+
+	// Make it ceiling in minutes
+	d = (d + 63) / 64;
+
+	if (s != NULL && *s <= 32)
+		d--;
+
+	return (d > MAX_UINT-1) ? MAX_UINT-1 : (word) d;
+}
+
+void lhold (int st, lword *nsec) {
+/*
+ * Long second wait:
+ */
+	TIME delta;
+
+	if (*nsec == 0)
+		return;
+
+	delta = etuToItu ((double)(*nsec));
+	ThePPcs->WaitingUntil = Time + delta;
+	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
+	Timer->wait (delta, st);
+	*nsec = 0;
+	sleep;
+};
+
+lword lhleft (int pid, lword *s) {
+//
+// Left to long delay (seconds)
+//
+	_PP_ *p;
+
+	p = find_pcs_by_id (pid);
+	if (p == NULL || flagCleared (p->Flags, _PP_flag_wtimer))
+		return *s & 0x7fffffff;
+
+	return (lword) ituToEtu (p->WaitingUntil - Time);
+}
+
+int zz_getcpid () {
+
+	return ThePPcs->ID;
+}
+
+int zz_join (int pid, word st) {
+
+	Process *p;
+
+	if ((p = find_pcs_by_id (pid)) == NULL)
+		return 0;
+
+	p->wait (DEATH, st);
+}
+
+int zz_kill (int pid) {
+//
+// PicOS's variant of kill
+//
+	_PP_ *p;
+
+	if (pid == 0) {
+		// This process, equivalent to finish
+		TheNode->tally_out_pcs ();
+		// This will trigger the event for joinall, direct events
+		// are awaited directly
+		ThePPcs->_pp_unhash_ ();
+		terminate (ThePPcs);
+		sleep;
+		// Unreachable
+	}
+
+	if (pid == -1) {
+		// Become a PicOS zombie; note that zombies are not tallied
+		// out until actually terminated
+		unwait ();
+		setFlag (ThePPcs->Flags, _PP_flag_zombie);
+		// Some event that you will never see
+		ThePPcs->wait (DEATH, 0);
+		sleep;
+	}
+
+	// Locate the process
+	if ((p = find_pcs_by_id (pid)) == NULL)
+		// Not found
+		return 0;
+
+	TheNode->tally_out_pcs ();
+	p->_pp_unhash_ ();
+	p->terminate ();
+
+	return pid;
+}
+
+int zz_status (int pid) {
+//
+// PicOS's process status
+//
+	_PP_ *p;
+
+	if (pid == 0) {
+		pid = ThePPcs->ID;
+		p = ThePPcs;
+	} else {
+		p = find_pcs_by_id (pid);
+		if (p == NULL)
+			// A precaution
+			return 0;
+	}
+
+	if (flagSet (p->Flags, _PP_flag_zombie))
+		return -1;
+
+	return p->nwait ();
+}
+
+// ============================================================================
+// These are inefficient; may redo them some day; would require another pair of
+// links in _PP_.
+// ============================================================================
+
+int zz_running (code_t tid) {
+//
+// Return the ID of ANY running process of the given type
+//
+	Process *P [1];
+
+	if (zz_getproclist (TheNode, tid, P, 1) ? __cpint (P [0]) : 0)
+		// There is at least one (all we ask for)
+		return ((_PP_*)(P [0])) -> ID;
+
+	return 0;
+}
+
+void zz_joinall (code_t pt, word st) {
+//
+// Wait for any process of the set
+//
+	TheNode->TB . wait ((IPointer) pt, st);
+}
+
+int zz_zombie (code_t tid) {
+//
+// Locate a zombie
+//
+	Process **P;
+	_PP_ *p;
+	int np, sz;
+
+	for (sz = 256; ; sz *= 2) {
+		P = new Process* [sz];
+		np = zz_getproclist (TheNode, tid, P, sz);
+		delete P;
+		if (np < sz)
+			break;
+	}
+
+	while (np) {
+
+		p = (_PP_*)(P [--np]);
+
+		if (flagSet (p->Flags, _PP_flag_zombie))
+			return p->ID;
+	}
+
+	return 0;
+}
+
+int zz_killall (code_t tid) {
 
 	Process *P [16];
 	Long np, i, tot;
@@ -4642,7 +4933,8 @@ int zz_killall (void *tid) {
 		np = zz_getproclist (TheNode, tid, P, 16);
 		tot += np;
 		for (i = 0; i < np; i++) {
-			P [i] -> terminate ();
+			((_PP_*)(P [i])) -> _pp_unhash_ ();
+			terminate (P [i]);
 			TheNode->tally_out_pcs ();
 		}
 		if (np < 16)
@@ -4650,29 +4942,46 @@ int zz_killall (void *tid) {
 	}
 }
 
-int zz_crunning (void *tid) {
-
+int zz_crunning (code_t tid) {
+//
+// Count all running processes of the given type
+//
 	Process **P;
-	int np;
+	int np, sz;
 
-	if (TheNode->NPcLim == 0)
-		excptn ("crunning: function requires a limit on process "
-			"population size");
-
-	np = TheNode->NPcss;
-
-	if (tid == NULL)
-		return TheNode->NPcLim - np;
-
-	P = new Process* [np];
-
-	// FIXME: a special function would help to speed it up; we don't
-	// actually have to collect all those processes
-	np = zz_getproclist (TheNode, tid, P, np);
-	delete P;
+	for (sz = 256; ; sz *= 2) {
+		P = new Process* [sz];
+		np = zz_getproclist (TheNode, tid, P, sz);
+		delete P;
+		if (np < sz)
+			break;
+	}
 
 	return np;
 }
+
+// ============================================================================
+
+void powerdown () {
+
+	TheNode->pwrt_change (PWRT_CPU, PWRT_CPU_LP);
+}
+
+void powerup () {
+
+	TheNode->pwrt_change (PWRT_CPU, PWRT_CPU_FP);
+}
+
+// ============================================================================
+
+int _no_module_ (const char *t, const char *f) {
+
+	excptn ("Function %s: no %s module at %s", f, t, TheNode->getSName ());
+	// No way
+	return 0;
+}
+
+// ============================================================================
 
 identify (VUEE VUEE_VERSION);
 

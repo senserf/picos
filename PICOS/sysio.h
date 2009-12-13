@@ -172,7 +172,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	BNONE		0xff
 #define	BLOCKED		(-2)
 
-#define	trigger(a)	(((PicOSNode*)TheStation)->TB.signal (__cpint(a)))
+#define	trigger(a)	(TheNode->TB.signal (__cpint(a)))
 #define	ptrigger(a,b)	trigger(b)
 
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
@@ -257,21 +257,28 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	THREADNAME(a)	a
 #endif
 
-#define	threadhdr(a,b)	process THREADNAME(a) (b)
+#define	threadhdr(a,b)	process THREADNAME(a) : _PP_ (b)
 #define	strandhdr(a,b)	threadhdr (a, b)
 
-#define	thread(a)	THREADNAME(a)::perform {
-#define	runthread(a)	(((PicOSNode*)TheStation)->tally_in_pcs () ? \
-				(int) create THREADNAME(a) : 0)
-#define	runstrand(a,b)	(((PicOSNode*)TheStation)->tally_in_pcs () ? \
-				(int) create THREADNAME(a) (b) : 0)
+#define	thread(a)	THREADNAME(a)::perform { _pp_enter_ ();
+#define	runthread(a)	(TheNode->tally_in_pcs () ? \
+				(create THREADNAME(a)) -> _pp_apid_ () : 0)
+
+#define	runstrand(a,b)	(TheNode->tally_in_pcs () ? \
+				(create THREADNAME(a) (b)) -> _pp_apid_ () : 0)
 
 #define	strand(a,b)	thread(a)
 #define	endthread	}
 #define	endstrand	endthread
 
+//
+// This is a stub. It makes no sense to try to do it right as the minute
+// clock will probably go
+//
+#define	sectomin()	1
+
 #define	praxis_starter(nt) \
-		void nt::appStart () { create THREADNAME(root); }
+		void nt::appStart () { runthread (root); }
 
 // FIXME: cleanup this
 
@@ -279,19 +286,38 @@ typedef	int (*ctrlfun_t) (int option, address);
 		states { __S0, __S1, __S2, __S3, __S4 }; perform {
 #define	__ENDPROCESS(a)	}};
 
-#define	__NA(a,b)		(((a*)TheNode)->b)
+#define	__NA(a,b)		((a*)TheNode->b)
 
 /* running + killall */
 
-#ifdef getpid
-#undef getpid
+#ifdef getcpid
+#undef getcpid
 #endif
 
-#define	running(pt)	zz_running (&zz_!!THREADNAME(pt)!!_prcs)
-#define	getcpid()	zz_running (NULL)
-#define	crunning(pt)	zz_crunning (&zz_!!THREADNAME(pt)!!_prcs)
-#define	ptleft()	zz_crunning (NULL)
-#define	killall(pt)	zz_killall (&zz_!!THREADNAME(pt)!!_prcs)
+// Some of them are prefixed by zz_ ... because their names are popular, so
+// they may collide with some library functions
+
+#define	_pt_id_(pt)	(&zz_!!THREADNAME(pt)!!_prcs)
+
+
+
+#define	running(pt)	zz_running (_pt_id_ (pt))
+#define	crunning(pt)	zz_crunning (_pt_id_ (pt))
+#define	ptleft()	(TheNode->tally_left ())
+#define	killall(pt)	zz_killall (_pt_id_ (pt))
+#define	kill(p)		zz_kill (p)
+#define	joinall(pt,st)	zz_joinall (_pt_id_ (pt), st)
+#define	join(p,st)	zz_join (p, st)
+#define	status(p)	zz_status (p)
+#define	zombie(pt)	zz_zombie (_pt_id_ (pt))
+#define	getcpid()	zz_getcpid ()
+
+#define	seconds()	((lword)(((lword) ituToEtu (Time)) - \
+							TheNode->SecondOffset))
+#define	setseconds(a)	(TheNode->SecondOffset = (long)((long)(a) - \
+				(lword)ituToEtu (Time)))
+
+#define	when(e,st)	zz_when (__cpint (e), st)
 
 #define	ee_panic()	CNOP
 
@@ -304,6 +330,111 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	sd_sync()	ee_sync (WNONE)
 #define	sd_size()	ee_size (NULL, NULL)
 #define	sd_idle()	CNOP
+
+// ============================================================================
+
+#define	_no_m_(m,t,f)	( (TheNode->m == NULL) ? _no_module_ (t, f) : 1 )
+
+// ============================================================================
+
+#define	leds(le,op)	do { \
+				_no_m_ (ledsm, "LEDS", "leds"); \
+				TheNode->ledsm->leds_op (le, op); \
+			} while (0)
+
+#define	fastblink(a)	do { \
+				_no_m_ (ledsm, "LEDS", "fastblink"); \
+				TheNode->ledsm->setfast (a); \
+			} while (0)
+
+#define	is_fastblink	( \
+				_no_m_ (ledsm, "LEDS", "is_fastblink"), \
+				TheNode->ledsm->isfast () \
+			)
+
+// ============================================================================
+
+#define	lcdg_on(cn)	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_on"); \
+				TheNode->lcdg->m_lcdg_on (cn); \
+			} while (0)
+
+#define	lcdg_off()	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_off"); \
+				TheNode->lcdg->m_lcdg_off (); \
+			} while (0)
+
+#define	lcdg_set(a,b,c,d) \
+			do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_set"); \
+				TheNode->lcdg->m_lcdg_set (a, b, c, d); \
+			} while (0)
+
+#define	lcdg_get(a,b,c,d) \
+			do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_get"); \
+				TheNode->lcdg->m_lcdg_get (a, b, c, d); \
+			} while (0)
+
+#define	lcdg_setc(a,b)  do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_setc"); \
+				TheNode->lcdg->m_lcdg_setc (a, b); \
+			} while (0)
+
+#define	lcdg_clear() 	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_clear"); \
+				TheNode->lcdg->m_lcdg_clear (); \
+			} while (0)
+
+#define	lcdg_render(a,b,c,d) \
+		 	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_render"); \
+				TheNode->lcdg->m_lcdg_render (a, b, c, d); \
+			} while (0)
+
+#define	lcdg_end() 	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_end"); \
+				TheNode->lcdg->m_lcdg_end (); \
+			} while (0)
+
+#define lcdg_font(a)	( \
+				_no_m_ (lcdg, "LCGD", "lcdg_font"), \
+				TheNode->lcdg->m_lcdg_font (a) \
+			)
+			
+#define lcdg_cwidth()	( \
+				_no_m_ (lcdg, "LCGD", "lcdg_cwidth"), \
+				TheNode->lcdg->m_lcdg_cwidth () \
+			)
+			
+#define lcdg_cheight()	( \
+				_no_m_ (lcdg, "LCGD", "lcdg_cheight"), \
+				TheNode->lcdg->m_lcdg_cheight () \
+			)
+			
+#define lcdg_sett(a,b,c,d) \
+			( \
+				_no_m_ (lcdg, "LCGD", "lcdg_sett"), \
+				TheNode->lcdg->m_lcdg_sett (a, b, c, d) \
+			)
+			
+#define	lcdg_ec(a,b,c) 	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_ec"); \
+				TheNode->lcdg->m_lcdg_ec (a, b, c); \
+			} while (0)
+
+#define	lcdg_el(a,b) 	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_el"); \
+				TheNode->lcdg->m_lcdg_el (a, b); \
+			} while (0)
+
+#define	lcdg_wl(a,b,c,d) \
+		 	do { \
+				_no_m_ (lcdg, "LCGD", "lcdg_wl"); \
+				TheNode->lcdg->m_lcdg_wl (a, b, c, d); \
+			} while (0)
+
+// ============================================================================
 
 void zz_dbg (int, word);
 

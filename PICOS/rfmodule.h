@@ -24,7 +24,7 @@
 #define	defch	(rf->DefChannel)
 #define	physid	(rf->phys_id)
 
-process Receiver (PicOSNode) {
+strandhdr (Receiver, PicOSNode) {
 
 	int RBS;			// Receive buffer size
 	rfm_intd_t *rf;
@@ -41,7 +41,7 @@ process Receiver (PicOSNode) {
 	};
 };
 
-process	ADC (PicOSNode) {
+threadhdr (ADC, PicOSNode) {
 
 	double		ATime,		// Accumulated sampling time
 			Average,	// Average signal so far
@@ -70,7 +70,7 @@ process	ADC (PicOSNode) {
 
 };
 
-process Xmitter (PicOSNode) {
+threadhdr (Xmitter, PicOSNode) {
 
 	int		buflen;
 	ADC		*RSSI;

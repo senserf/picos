@@ -421,6 +421,7 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 
 
 	uart_tcv_int_t *UA;
+	int ok;
 	byte IMode;
 
 	if (which != 0)
@@ -469,18 +470,14 @@ MBS:
 	UA->rx_off = 1;
 	UA->tx_off = 3;
 
-	// Start the processes
-	if (!tally_in_pcs () || !tally_in_pcs ())
-		syserror (ERESOURCE, "phys_uart");
-
 	// They are never killed, once started
-	if (IMode == UART_IMODE_L) {
-		create p_uart_rcv_l;
-		create p_uart_xmt_l;
-	} else {
-		create p_uart_rcv_p;
-		create p_uart_xmt_p;
-	}
+	if (IMode == UART_IMODE_L)
+		ok = runthread (p_uart_rcv_l) && runthread (p_uart_xmt_l);
+	else
+		ok = runthread (p_uart_rcv_p) && runthread (p_uart_xmt_p);
+
+	if (!ok)
+		syserror (ERESOURCE, "phys_uart");
 }
 
 static int unp_option (int opt, address val) {

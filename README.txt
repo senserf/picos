@@ -422,3 +422,23 @@ R091128A:
 R091202A:
 
     Binary variant of XRS incorporated.
+
+R091212A:
+
+    Lots of things redone (use with care). Note that from now on, a PicOS
+    process model MUST be declared with threadhdr or strandhdr (this is how
+    we have been doing it recently, so no big deal). Old declarations, like:
+
+	process something (Node) {
+
+    will not work any more. One important thing that has been redone is the
+    handling of PicOS process IDs. That was needed to properly implement such
+    operations as dleft, ldleft, lhold, join, joinall, etc.
+
+    I have an old comment that says that ldelay/ldleft will go. Do we need
+    those operations?
+
+    I have checked (all?) old examples and made sure they compile and work
+    (or so I think).
+
+    Fixed a few missing items signaled by Wlodek. Any more?
