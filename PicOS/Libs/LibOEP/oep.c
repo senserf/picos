@@ -64,7 +64,7 @@
 #define	oep_sdesc	_dap (oep_sdesc)
 #define	oep_plug	_dap (oep_plug)
 
-process oep_handler {
+threadhdr (oep_handler, PicOSNode) {
 
 	states { 
 			OEP_START,

@@ -69,11 +69,6 @@ static const byte rgbtable [] = {
 #define	nlcd_cs_up	update_flush ()
 #define	_lcdgm_(a)	LCDG::m_ ## a
 
-void PicOSNode::no_lcdg_module (const char *fn) {
-
-	excptn ("%s: no LCDG module at %s", fn, getSName ());
-}
-
 LCDG::LCDG () {
 
 	memset (canvas, 0, sizeof (canvas));

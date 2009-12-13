@@ -11,7 +11,7 @@
 
 //+++ "encrypt.c"
 
-void _da (encrypt) (word*, int, const lword*);
-void _da (decrypt) (word*, int, const lword*);
+void encrypt (word*, int, const lword*);
+void decrypt (word*, int, const lword*);
 
 #endif

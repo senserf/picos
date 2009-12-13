@@ -3511,3 +3511,8 @@ R091203A:
 	massive data are available, it is desirable to reflash them
 	and test data extraction (of course, nodes with the current data
 	format).
+
+R091212A:
+
+	A few cosmetics related to VUEE: you need this version of PicOS for
+	the same version of VUEE (otherwise, things will not work).

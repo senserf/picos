@@ -24,7 +24,7 @@
 #define zcr_delta 	0x9E3779B9
 #define	zcr_gamma 	0xC6EF3720
 
-__PUBLF (PicOSNode, void, encrypt) (word *str, int nw, const lword *key) {
+void encrypt (word *str, int nw, const lword *key) {
 /*
  * TEA encryption of the string of words in place using a 128-bit key.
  * The string is encrypted from the end, which assumes that the IV is
@@ -80,7 +80,7 @@ __PUBLF (PicOSNode, void, encrypt) (word *str, int nw, const lword *key) {
 	str [nw] ^= (word) y;
 }
 
-__PUBLF (PicOSNode, void, decrypt) (word *str, int nw, const lword *key) {
+void decrypt (word *str, int nw, const lword *key) {
 
 	int	n;
 	lword	y, z, sum;

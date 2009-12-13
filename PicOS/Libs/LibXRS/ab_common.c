@@ -7,7 +7,7 @@
 
 #ifdef	__SMURPH__
 
-process ab_xrs_drvr (PicOSNode) {
+threadhdr (ab_xrs_drvr, PicOSNode) {
 
 	void *data;
 

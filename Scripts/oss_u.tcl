@@ -510,10 +510,10 @@ proc outdiag { } {
 	if { [string index $ST(BUF) 0] == $CH(ZER) } {
 		# binary
 		set ln [string range $ST(BUF) 3 5]
-		binary scan $ln cs lv code
-		set cs [expr $cs & 0xff]
-		set lv [expr $lv & 0xffff]
-		puts "DIAG: \[[format %02x $cs] -> [format %04x $lv]\]"
+		binary scan $ln cS lv code
+		set lv [expr $lv & 0xff]
+		set code [expr $code & 0xffff]
+		puts "DIAG: \[[format %02x $lv] -> [format %04x $code]\]"
 	} else {
 		# ASCII
 		puts "DIAG: [string trim $ST(BUF)]"
