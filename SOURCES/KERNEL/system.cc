@@ -814,10 +814,10 @@ char    *tDate () {
 /* ------------------------------------ */
 
 	char    *ct, *wt;
-        Long    atime;
+        time_t  atime;
 
 	atime = getEffectiveTimeOfDay ();
-	for (wt = ct = ctime ((time_t*)(&atime)); *ct != '\0'; ct++)
+	for (wt = ct = ctime (&atime); *ct != '\0'; ct++)
 		if (*ct == '\n') {
 			*ct = '\0';
 			break;

@@ -47,7 +47,8 @@ void    zz_monitor::wait (void *ev, int pstate) {
 	}
 
 	// Info01 is TheSignal
-	new ZZ_REQUEST (&(WList [hash (ev)]), this, (int) ev, pstate, NONE, ev);
+	new ZZ_REQUEST (&(WList [hash (ev)]), this, (LPointer) ev, pstate,
+		NONE, ev);
 
 	assert (zz_c_other != NULL,
 		"Monitor->wait: internal error -- null request");
@@ -55,7 +56,7 @@ void    zz_monitor::wait (void *ev, int pstate) {
 	if (zz_c_first_wait) {
 		zz_c_wait_event -> pstate = pstate;
 		zz_c_wait_event -> ai = this;
-		zz_c_wait_event -> event_id = (int) ev;
+		zz_c_wait_event -> event_id = (LPointer) ev;
 #if  ZZ_TAG
 		zz_c_wait_tmin . set (TIME_inf, tag);
 		zz_c_wait_event -> waketime = zz_c_wait_tmin;
@@ -89,7 +90,7 @@ int zz_monitor::signal (void *ev) {
 #endif
 
 	for (na = 0, rq = WList [hash (ev)]; rq != NULL; rq = rq->next) {
-		if (rq->event_id == (int) ev) {
+		if (rq->event_id == (LPointer) ev) {
 			na++;
 			// TheSender
 			rq->Info02 = (void*) TheProcess;
@@ -116,7 +117,7 @@ int zz_monitor::signalP (void *ev) {
 
 	// The other party must be waiting
 	for (rq = WList [hash (ev)]; rq != NULL; rq = rq -> next) {
-	    if (rq -> event_id == (int) ev) {
+	    if (rq -> event_id == (LPointer) ev) {
 		Assert (rs == NULL,
 		    "Monitor->signalP: more than one wait request");
 		rs = rq;

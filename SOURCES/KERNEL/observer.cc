@@ -64,7 +64,7 @@ class   ObserverService : public ZZ_SProcess {
 	  break; case ObsTimeout:
 
 		zz_current_observer = (Observer*) Info01;
-		TheObserverState = (int) Info02;
+		TheObserverState = ptrToInt (Info02);
 
 		// Erase the inspects
 		
@@ -236,7 +236,7 @@ void zz_inspect_rq (Station *s, void *p, char *n, int pstate, int os) {
 	// Note: the following instructions assume that words are (at least)
 	//       32 bits long.
 
-	if ((int) s == ANY)
+	if ((LPointer)(s) == ANY)
 		zz_current_observer->smask = FxMASK;
 	else
 		zz_current_observer->smask |= SH_1 << ((s->Id) & SHF);
@@ -245,9 +245,10 @@ void zz_inspect_rq (Station *s, void *p, char *n, int pstate, int os) {
 		p = (void*) ANY;
 		zz_current_observer->pmask = FxMASK;
 	} else
-		zz_current_observer->pmask |= SH_1 << ((((int) p) >> 2) & SHF);
+		zz_current_observer->pmask |= SH_1 << (((ptrToInt (p)) >> 2) &
+			SHF);
 
-	if ((int)n == ANY)
+	if ((LPointer)(n) == ANY)
 		zz_current_observer->nmask = FxMASK;
 	else
 		zz_current_observer->nmask |= SH_1 << ((*n) & SHF);
@@ -401,7 +402,7 @@ void    Observer::exPrint0 (const char *hdr) {
 			else
 				Ouf << "                    ";
 			Ouf << ' ';
-			if ((int)(in->station) == ANY)
+			if ((LPointer)(in->station) == ANY)
 				print ("ANY", 5);
 			else
 				print (zz_trunc (ident (in->station), 5), 5);
@@ -411,7 +412,7 @@ void    Observer::exPrint0 (const char *hdr) {
 			print (in->getptype (), 10);
 
 			Ouf << ' ';
-			if ((int)(in->nickname) == ANY)
+			if ((LPointer)(in->nickname) == ANY)
 				print ("ANY", 10);
 			else
 				print (in->nickname, 10);
@@ -463,7 +464,7 @@ void    Observer::exPrint1 (const char *hdr) {
 
 	for (in = inlistHead; in != NULL; in = in -> next) {
 
-		if ((int)(in->station) == ANY)
+		if ((LPointer)(in->station) == ANY)
 			print ("ANY", 5);
 		else
 			print (zz_trunc (ident (in->station), 5), 5);
@@ -473,7 +474,7 @@ void    Observer::exPrint1 (const char *hdr) {
 		print (in->getptype (), 10);
 
 		Ouf << ' ';
-		if ((int)(in->nickname) == ANY)
+		if ((LPointer)(in->nickname) == ANY)
 			print ("ANY", 10);
 		else
 			print (in->nickname, 10);
@@ -521,7 +522,7 @@ void    Observer::exDisplay0 () {
 			else
 				display (' ');
 
-			if ((int)(in->station) == ANY)
+			if ((LPointer)(in->station) == ANY)
 				display ("ANY");
 			else
 				display (ident (in->station));
@@ -529,7 +530,7 @@ void    Observer::exDisplay0 () {
 			PFound = NULL;
 			display (in->getptype ());
 
-			if ((int)(in->nickname) == ANY)
+			if ((LPointer)(in->nickname) == ANY)
 				display ("ANY");
 			else
 				display (in->nickname);
@@ -572,7 +573,7 @@ void    Observer::exDisplay1 () {
 
 	for (in = inlistHead; in != NULL; in = in -> next) {
 
-		if ((int)(in->station) == ANY)
+		if ((LPointer)(in->station) == ANY)
 			display ("ANY");
 		else
 			display (ident (in->station));
@@ -580,7 +581,7 @@ void    Observer::exDisplay1 () {
 		PFound = NULL;
 		display (in->getptype ());
 
-		if ((int)(in->nickname) == ANY)
+		if ((LPointer)(in->nickname) == ANY)
 			display ("ANY");
 		else
 			display (in->nickname);

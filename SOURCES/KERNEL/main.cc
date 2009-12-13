@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-08   P. Gburzynski */
+/* Copyright (C) 1991-09   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -1432,8 +1432,8 @@ LoRet:
 			/* -------------------------------------------- */
 
 			smask = SH_1 << ((TheStation->Id) & SHF);
-			pmask = SH_1 << ((((int)(TheProcess->zz_typeid)) >> 2) &
-				SHF);
+			pmask = SH_1 << (((ptrToInt (TheProcess->zz_typeid)) >>
+				2) & SHF);
 			if (TheProcess->zz_nickname != NULL)
 			   nmask = SH_1 << ((*(TheProcess->zz_nickname)) & SHF);
 			else
@@ -1461,10 +1461,10 @@ LoRet:
 	// <------
 
 	if (((ins->pstate == ANY) || (ins->pstate == TheState)) &&
-	   (((int)(ins->typeidn) == ANY) || (ins->typeidn ==
-	   TheProcess->zz_typeid)) && (((int)(ins->station) == ANY) ||
-	   (ins->station == TheStation)) && (((int)(ins->nickname) == ANY) ||
-	   smatch(ins->nickname, TheProcess->zz_nickname))) {
+	   (((IPointer)(ins->typeidn) == ANY) || (ins->typeidn ==
+	   TheProcess->zz_typeid)) && (((IPointer)(ins->station) == ANY) ||
+	   (ins->station == TheStation)) && (((LPointer)(ins->nickname) == ANY)
+	   || smatch(ins->nickname, TheProcess->zz_nickname))) {
 		
 		TheObserverState = ins->ostate;
 		

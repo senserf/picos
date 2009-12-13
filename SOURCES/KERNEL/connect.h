@@ -12,12 +12,13 @@
 #define TGET    TCGETA
 #define TSET    TCSETAF
 
-static void setTTYRaw (int desc, int speed, int parity, int stopb) {
+static int setTTYRaw (int desc, int speed, int parity, int stopb) {
 
 	TTYB    NewTTYStat;
 
 	if (tcgetattr (desc, &NewTTYStat) < 0)
-		excptn ("Mailbox->connect: cannot get tty status (tcgetattr)");
+		// Cannot get tty status
+		return -1;
 
 	cdebug ("SysV RAW");
 
@@ -127,7 +128,8 @@ static void setTTYRaw (int desc, int speed, int parity, int stopb) {
   	    excptn ("Mailbox->connect: illegal port speed %d", speed);
         }
 	if (tcsetattr (desc, TCSANOW, &NewTTYStat) < 0)
-		excptn ("Mailbox->connect: cannot set raw tty status (ioctl)");
+		return -1;
+	return 0;
 };
 
 void	Mailbox::destroy_bound () {
@@ -227,7 +229,7 @@ int    Mailbox::connect (int st, const char *hostname, int port, int bsize,
     Assert (m->isConnected () && ((m->skt) & MASTER),
        "Mailbox->connect: %s, argument mailbox is not a connected MASTER "
 	   "mailbox", getSName ());
-    if ((csd = sfd = (int) (m->obuf)) == NONE) return REJECTED;
+    if ((csd = sfd = ptrToInt (m->obuf)) == NONE) return REJECTED;
     m->obuf = (char*) NONE;
     skt = m->skt & ~(MASTER | SERVER);
 
@@ -286,7 +288,11 @@ int    Mailbox::connect (int st, const char *hostname, int port, int bsize,
 
     if (skt & RAW) {
       // This is going to be a raw serial device
-      setTTYRaw (sfd, speed, parity, stopb);
+      if (setTTYRaw (sfd, speed, parity, stopb)) {
+	close (sfd);
+	sfd = NONE;
+	return ERROR;
+      }
     }
     csd = sfd;
     setUnblocking ();

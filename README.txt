@@ -1000,4 +1000,11 @@
 	   to sxml_parse_input in numio.c.
 
  R090825A  Added a few lines on the iHist (Transceiver) method to the manual
-	   (which turned out to be unintentionally undocumentd).
+	   (which turned out to be unintentionally undocumented).
+
+ R091212A  Added getTypeId () to Process (needed for the new version of VUEE).
+	   The type of first argument to Mailbox->wait changed to IPointer
+	   (from Long); this way we can wait on barrier mailboxes for pointers,
+	   which will make a difference on 64-bit machines. There is new
+	   Process method: nwait returns the number of events the process is
+	   waiting for (was needed for VUEE and may be generally useful).

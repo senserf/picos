@@ -374,8 +374,8 @@ class		ZZ_RF_ACTIVITY;
 /* --------- */
 /* Wildcards */
 /* --------- */
-#define         NONE            (-1)    // Dummy parameter
-#define         ANY             (-1)    // For observers
+#define         NONE            (-1)    		// Dummy parameter
+#define         ANY             ((IPointer)(-1))    	// For observers
 
 /* -------------------------------- */
 /* Integer (and TIME) type ordinals */
@@ -3210,9 +3210,9 @@ class   Mailbox : public AI {
 	virtual void zz_expose (int, const char *h = NULL, Long s = NONE);
 
 #if  ZZ_TAG
-	void wait (Long, int, LONG tag = 0L);
+	void wait (IPointer, int, LONG tag = 0L);
 #else
-	void wait (Long, int);
+	void wait (IPointer, int);
 #endif
 
 	virtual const char *getTName () { return ("Mailbox"); };
@@ -5944,6 +5944,7 @@ class   Process : public AI {
 #else
 	void    wait (int, int);
 #endif
+	int	nwait ();
 	friend void terminate (Process *p);
 
 	inline void terminate () {
@@ -5969,6 +5970,7 @@ class   Process : public AI {
 	virtual	~Process ();
 
         inline Station *getOwner () { return Owner; };
+	inline void *getTypeId () { return zz_typeid; };
 
 	inline  void    printRqs (const char *hd = NULL, Long sid = NONE) {
 		// Print request list

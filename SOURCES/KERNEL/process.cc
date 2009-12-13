@@ -317,6 +317,42 @@ void    Process::wait (int ev, int pstate) {
 	zz_c_other -> other = zz_c_whead;
 }
 
+int Process::nwait () {
+//
+// The number of events awaited by the process
+//
+	ZZ_REQUEST *rq, *re;
+	ZZ_EVENT *ev;
+	int n;
+
+	if (TheProcess == this) {
+		// Self query
+		if (zz_c_first_wait)
+			return 0;
+		rq = zz_c_whead;
+	} else {
+		// have to look up the event
+		for (ev = zz_eq; ev != zz_sentinel_event; ev = ev -> next) {
+			if (ev->process == this) {
+				rq = ev->chain;
+				break;
+			}
+		}
+		if (ev == zz_sentinel_event)
+			// Impossible
+			return 0;
+	}
+
+	re = rq;
+
+	do {
+		n++;
+
+	} while ((rq = rq->other) != re);
+
+	return n;
+}
+
 int Process::signal (void *spec) {
 
 /* ------------------------------------- */
@@ -452,7 +488,6 @@ int     zz_noevents () {
         return 1;
 #else
         ZZ_REQUEST *cw;
-        ZZ_EVENT *ev;
         int found;
         // Check if somebody has been waiting for this
         for (found = 0, cw = Kernel->TWList; cw != NULL; cw = cw->next) {
@@ -674,6 +709,8 @@ void zz_pcslook (ZZ_Object *o) {
 		}
 		clist = ((Process*)o)->ChList;
 	} else if (o->Class == OBJ_station) {
+		// I don't think this is possible: aren't processes linked to
+		// processes only? can they link stations?
 		clist = ((Station*)o)->ChList;
 	} else {
 		return;
@@ -739,6 +776,9 @@ Process::~Process () {
 	int q;
 	TIME t;
 #endif
+	int dpc;
+
+
 	// This will be used to replace the process pointer in those
 	// places where this process pointer used to be present, and
 	// which must linger beyond its termination
@@ -770,8 +810,9 @@ Process::~Process () {
 		}
 	}
 	
-	for (ev = zz_eq; ev != zz_sentinel_event; ) {
-		// Remove all events owned by this process
+	for (dpc = 0, ev = zz_eq; ev != zz_sentinel_event; ) {
+		// Remove all events owned by this process; well, normally there
+		// should be one
 		if (ev -> process != this) {
 			ev = ev -> next;
 			continue;
@@ -779,8 +820,13 @@ Process::~Process () {
 		eh = ev -> next;
 		ev -> cancel ();
 		delete ev;
+		dpc++;
 		ev = eh;
 	}
+
+	// If you remove this test, delete the variable (dpc) as well
+	Assert (dpc < 2, "Process->terminate: multiple events %1d for this "
+			"process", dpc);
 
 	// Check if there is a signal reception pending from this process.
 	// Note: it is enough to check events scheduled at this Time.

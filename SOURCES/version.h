@@ -12,6 +12,8 @@
 #define		MAXLONG			((long)MAXINT)
 #define		MINLONG			((long)MININT)
 #define		LONGBITS		32
+#define		INTBITS			32
+#define		PTRBITS			32
 
 #endif	/* i386 Cygwin */
 
@@ -25,6 +27,8 @@
 #define		MAXLONG			((long)MAXINT)
 #define		MINLONG			((long)MININT)
 #define		LONGBITS		32
+#define		INTBITS			32
+#define		PTRBITS			32
 
 #endif	/* i386 Linux */
 
@@ -38,6 +42,7 @@
 #define		MAXLONG			((long)0x7fffffffffffffff)
 #define		MINLONG			((long)0x8000000000000000)
 #define		LONGBITS		64
+#define		INTBITS			32
 #define		PTRBITS			64
 
 #endif	/* 64 bit */
@@ -46,7 +51,6 @@
 #include	<stdio.h>
 #include	<values.h>
 #endif
-
 
 /* --------------------------------------------------- */
 /* Constants  of  standard  types  (machine-dependent) */
@@ -94,7 +98,7 @@ typedef		LONG			IPointer;
 #else
 ERROR: unsupported pointer size
 #endif
-#endif
+#endif	/* PTRBITS == INTBITS */
 
 /* A type capable of storing both pointers and LONG numbers */
 #if LONGBITS > PTRBITS
@@ -103,7 +107,18 @@ typedef		LONG			LPointer;
 typedef		IPointer		LPointer;
 #endif
 
+#endif	/* LONGBITS <= 32 */
+
+// ============================================================================
+#if PTRBITS == LONGBITS
+// A single cast to Long/int causes a compilation error on 64-bit systems
+#define	ptrToLong(a)			((Long)(LONG)(a))
+#define	ptrToInt(a)			((int)(LONG)(a))
+#else
+#define	ptrToLong(a)			((Long)(a))
+#define	ptrToInt(a)			((int)(a))
 #endif
+// ============================================================================
 
 #ifndef	BCPCASTS	
 #ifdef	ZZ_CYW

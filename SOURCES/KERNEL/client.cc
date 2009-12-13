@@ -457,7 +457,8 @@ void    Traffic::suspend () {
   if (zz_flg_stdClient) {
     for (ev = zz_eq; ev != zz_sentinel_event; ) {
       // System events only
-      if (ev -> ai != Client || ev -> chain != NULL || (int)(ev->Info02) != Id){
+      if (ev -> ai != Client || ev -> chain != NULL ||
+       ptrToLong (ev->Info02) != Id){
         ev = ev -> next;
         continue;
       }
@@ -1714,7 +1715,7 @@ void    Traffic::preprocess_weights () {
 		}
 
 		// Take care of receivers
-		if ((int) (cg->RWeights) == -1 || cg->RWeights == NULL)
+		if (ptrToLong (cg->RWeights) == -1 || cg->RWeights == NULL)
 			continue;
 		sg = cg->Receivers;
 		for (w = 0.0, k = 0; k < sg->NStations; k++)
@@ -3981,7 +3982,7 @@ void    Traffic::exPrint0 (const char *hdr, int sid) {
 		if ((r = e->chain) == NULL) {
 			// Generation event (system)
 			if (zz_flg_nosysdisp || e->ai->Class != AIC_client ||
-					(int)(e->Info02) != Id) continue;
+					ptrToLong (e->Info02) != Id) continue;
 
 			if (!isStationId (sid))
 				ptime (e->waketime, 11);
@@ -4404,7 +4405,7 @@ void    Traffic::exDisplay0 (int sid) {
 		if ((r = e->chain) == NULL) {
 			// Generation event (system)
 			if (zz_flg_nosysdisp || e->ai->Class != AIC_client ||
-					(int)(e->Info02) != Id) continue;
+					ptrToLong (e->Info02) != Id) continue;
 
 			dtime (e->waketime);
 			display ('*');

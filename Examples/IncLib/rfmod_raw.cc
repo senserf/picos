@@ -54,7 +54,7 @@ Collector::perform {
 
     state SSN_RESUME:
 
-	assert ((int)TheSignal == YES, "Collector: illegal ON signal");
+	assert (ptrToLong (TheSignal) == YES, "Collector: illegal ON signal");
 	
 	ATime = 0.0;
 	Average = 0.0;
@@ -76,7 +76,7 @@ Collector::perform {
 
     state SSN_STOP:
 
-	Assert ((int)TheSignal == NO, "Collector: illegal OFF signal");
+	Assert (ptrToLong (TheSignal) == NO, "Collector: illegal OFF signal");
 	// Done: wait for another request
 	proceed SSN_WAIT;
 }

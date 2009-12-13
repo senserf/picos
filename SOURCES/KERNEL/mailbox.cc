@@ -248,10 +248,10 @@ inline int Mailbox::checkImmediate (Long ev) {
 }
 
 #if  ZZ_TAG
-void    Mailbox::wait (Long ev, int pstate, LONG tag) {
+void    Mailbox::wait (IPointer ev, int pstate, LONG tag) {
 	int q;
 #else
-void    Mailbox::wait (Long ev, int pstate) {
+void    Mailbox::wait (IPointer ev, int pstate) {
 #endif
 /* -------------------- */
 /* Mailbox wait request */
@@ -748,7 +748,7 @@ int     Mailbox::zz_put (void *it) {
 	if (limit < 0) {
 		// Trigger mailbox
 		for (na = 0, rq = WList; rq != NULL; rq = rq -> next) {
-	    		if ((int)it == rq->event_id) {
+	    		if ((LPointer)it == rq->event_id) {
 				rq -> Info01 = it;
 				na++;
 #if     ZZ_TAG
@@ -823,8 +823,8 @@ int     Mailbox::zz_putP (void *it) {
 		}
 	} else {
 		for (rq = WList; rq != NULL; rq = rq -> next) {
-		    if ((limit < 0 && rq->event_id == (int)it) || (limit == 0 &&
-		      rq->event_id == NEWITEM)) {
+		    if ((limit < 0 && rq->event_id == (LPointer)it) ||
+		      (limit == 0 && rq->event_id == NEWITEM)) {
 			Assert (rs == NULL,
 			    "Mailbox->putP: %s, more than one recipient",
 				getSName ());
