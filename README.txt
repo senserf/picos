@@ -1,4 +1,4 @@
-Version 0.7
+Version 0.83
 
 ===============================================================================
 Quick start:
@@ -442,3 +442,23 @@ R091212A:
     (or so I think).
 
     Fixed a few missing items signaled by Wlodek. Any more?
+
+R091222A:
+
+    The range of PicOS process ID's restricted to PicOS's int range.
+    The type of process ID changed to sint to improve PicOS-VUEE compatibility.
+    Udaemon fixed to work correctly under Linux. In particular, it can set up
+    null modem links (to real OSS) using pseudo tty's. A simple program to set
+    up such links is in nullmodem.c in PICOS/Linux. This program is briefly
+    documented in VUE_doc.pdf.
+
+    The persistent mode of packet UART incorporated into VUEE. Description of
+    UART modes in XML data has changed (see VUE_doc.pdf). What matters is the
+    first letter of the mode specifier:
+
+	mode="n"   N (required for XRS, previous "packet")
+	mode="p"   P (persistent, previous "packet" selects this incorrectly!)
+	mode="l"   L (line mode)
+	mode="d"   Direct, i.e., traditional (the default)
+
+    Wlodek, make sure to fix it in your data sets!

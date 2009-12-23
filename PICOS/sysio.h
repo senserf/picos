@@ -45,13 +45,13 @@
 
 #define	PHYSOPT_STATUS		0	/* Get device status */
 #define	PHYSOPT_TXON		1	/* Transmitter on */
-#define	PHYSOPT_ON		1	/* General on */
 #define	PHYSOPT_TXOFF		2	/* Transmitter off */
-#define	PHYSOPT_OFF		2	/* General off */
 #define	PHYSOPT_TXHOLD		3	/* OFF + queue */
 #define	PHYSOPT_HOLD		3	/* General hold */
 #define	PHYSOPT_RXON		4	/* Receiver on */
+#define	PHYSOPT_ON		4	/* General on */
 #define	PHYSOPT_RXOFF		5	/* Receiver off */
+#define	PHYSOPT_OFF		5	/* General off */
 #define	PHYSOPT_CAV		6	/* Set collision avoidance 'vector' */
 #define	PHYSOPT_SETPOWER 	7	/* Transmission power */
 #define	PHYSOPT_GETPOWER	8	/* Last reception power */

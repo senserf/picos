@@ -32,8 +32,9 @@
 #define	PMON_STATE_CMP_PENDING	0x80
 
 #define	UART_IMODE_D		0	// Direct UART mode
-#define	UART_IMODE_P		1	// PHY (TCV) mode (packet)
-#define	UART_IMODE_L		2	// PHY (TCV) mode (line)
+#define	UART_IMODE_N		1	// PHY (TCV) N-mode (packet)
+#define	UART_IMODE_P		2	// PHY (TCV) P-mode (packet, persistent)
+#define	UART_IMODE_L		3	// PHY (TCV) mode (line)
 
 #define	TheNode		((PicOSNode*)TheStation)
 #define	ThePckt		((PKT*)ThePacket)
@@ -94,8 +95,8 @@ class uart_tcv_int_t {
 
 	TIME	r_rstime;	// Time to wait until if resetting receiver
 	int	x_qevent;	// Queue event id returned by TCV
-	byte	rx_off, tx_off;	// On/off flags
-	word	v_statid,	// station ID
+	word	v_flags,
+		v_statid,	// station ID (used as spare length in P mode)
 		v_physid,	// PHY Id
 		r_buffs,	// Number of bytes remaining to read
 		r_buffl,	// Input buffer length
@@ -199,8 +200,8 @@ process	_PP_ {
 //
 	TIME	WaitingUntil;	// Target time (if waiting)
 	_PP_	*HNext, *HPrev;	// For hash collisions
-	int	ID;		// The int identifier (as required by PicOS)
-	FLAGS	Flags;		// GP flags for grabs
+	sint	ID;		// The int identifier (as required by PicOS)
+	word	Flags;		// GP flags for grabs
 
 // Note ... in preparation for a compiler: we will put there a data pointer
 // but for now it would create more mess than good; this is because while a
@@ -210,7 +211,7 @@ process	_PP_ {
 #define	_PP_flag_zombie	0	// The process is a PicOS-style zombie
 #define	_PP_flag_wtimer 1	// The process is waiting on a timer
 
-	int	_pp_apid_ ();	// Allocates process ID
+	sint	_pp_apid_ ();	// Allocates process ID
 
 	void 	_pp_hashin_ (), _pp_unhash_ ();
 
@@ -590,7 +591,32 @@ threadhdr (d_uart_out_p, PicOSNode) {
 	perform;
 };
 
-// === UART packet ============================================================
+// === UART N-mode ============================================================
+
+threadhdr (p_uart_rcv_n, PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	states { RC_LOOP, RC_PREAMBLE, RC_WLEN, RC_FILL, RC_OFFSTATE, RC_WOFF,
+		RC_RESET, RC_WRST };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+};
+
+threadhdr (p_uart_xmt_n, PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	states { XM_LOOP, XM_PRE, XM_LEN, XM_SEND };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+};
+
+// === UART P-mode ============================================================
 
 threadhdr (p_uart_rcv_p, PicOSNode) {
 
@@ -602,25 +628,23 @@ threadhdr (p_uart_rcv_p, PicOSNode) {
 	void setup () { UA = UART_INTF_P (TheNode->uart); };
 
 	perform;
-
-	byte getbyte (int, int);
-	void rdbuff (int, int, int);
-	void ignore (int, int);
-	void rreset (int, int);
 };
 
 threadhdr (p_uart_xmt_p, PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
-	states { XM_LOOP, XM_PRE, XM_LEN, XM_SEND };
+	byte Hdr [2], Chk [2];
+
+	states { XM_LOOP, XM_HDR, XM_LEN, XM_SEND, XM_CHK, XM_CHL, XM_END,
+		XM_NEXT, XM_SACK, XM_SACL, XM_SACM, XM_SACN };
 
 	void setup () { UA = UART_INTF_P (TheNode->uart); };
 
 	perform;
 };
 
-// === UART line --============================================================
+// === UART L-mode ============================================================
 
 threadhdr (p_uart_rcv_l, PicOSNode) {
 
@@ -632,9 +656,7 @@ threadhdr (p_uart_rcv_l, PicOSNode) {
 
 	perform;
 
-	byte getbyte (int, int);
 	void rdbuff (int, int);
-	void ignore (int, int);
 };
 
 threadhdr (p_uart_xmt_l, PicOSNode) {
@@ -728,24 +750,26 @@ process PanelHandler {
 // ============================================================================
 
 void ldelay (word, int);
-word ldleft (int, word*);
+word ldleft (sint, word*);
 void lhold (int, lword*);
-lword lhleft (int, lword*);
+lword lhleft (sint, lword*);
 void delay (word, int);
-word dleft (int);
+word dleft (sint);
 void snooze (word);
 
 inline void zz_when (int ev, int state) { TheNode->TB.wait (ev, state); }
 
 // ============================================================================
 
-int zz_status (int);
-int zz_join (int, word);
+int zz_status (sint);
+sint zz_join (sint, word);
 void zz_joinall (code_t, word);
-int zz_kill (int);
-int zz_running (code_t), zz_crunning (code_t);
+sint zz_kill (sint);
+sint zz_running (code_t);
+sint zz_zombie (code_t);
+int zz_crunning (code_t);
 int zz_killall (code_t);
-int zz_getcpid ();
+sint zz_getcpid ();
 
 // ============================================================================
 

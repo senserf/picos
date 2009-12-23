@@ -103,7 +103,7 @@ static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
 // ============================================================================
 
 static _PP_ *pptable [PPHASH_SIZE];
-static int lcpid = 0;
+static sint lcpid = 0;
 
 #define PPHMASK	(PPHASH_SIZE - 1)
 
@@ -138,7 +138,7 @@ void _PP_::_pp_unhash_ () {
 	TheNode->TB.signal ((IPointer) getTypeId ());
 }
 
-static _PP_ *find_pcs_by_id (int id) {
+static _PP_ *find_pcs_by_id (sint id) {
 //
 // Finds the process with the given id owned by this station
 //
@@ -162,7 +162,7 @@ static _PP_ *find_pcs_by_id (int id) {
 	return NULL;
 }
 
-int _PP_::_pp_apid_ () {
+sint _PP_::_pp_apid_ () {
 //
 // Allocate process ID
 //
@@ -171,9 +171,13 @@ int _PP_::_pp_apid_ () {
 	WaitingUntil = TIME_0;
 
 	while (1) {
-		if (++lcpid == 0 || lcpid == -1)
-			// In case we ever wrap around
+
+		if (lcpid == MAX_INT)
+			// Make sure you don't exceed PicOS's range of int
 			lcpid = 1;
+		else
+			lcpid++;
+
 		if (find_pcs_by_id (lcpid) == NULL) {
 			// OK, allocate this one
 			ID = lcpid;
@@ -276,6 +280,7 @@ void PicOSNode::uart_reset () {
 			UART_INTF_D (uart) -> init ();
 			break;
 
+		case UART_IMODE_N:
 		case UART_IMODE_P:
 		case UART_IMODE_L:
 
@@ -308,6 +313,7 @@ void PicOSNode::uart_abort () {
 			UART_INTF_D (uart) -> abort ();
 			break;
 
+		case UART_IMODE_N:
 		case UART_IMODE_P:
 		case UART_IMODE_L:
 
@@ -523,6 +529,7 @@ void PicOSNode::setup (data_no_t *nd) {
 		uart->U = new UART (nd->ua);
 		uart->IMode = nd->ua->iface;
 		switch (uart->IMode) {
+			case UART_IMODE_N:
 			case UART_IMODE_P:
 			case UART_IMODE_L:
 				uart->Int = (void*) new uart_tcv_int_t;
@@ -2846,7 +2853,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	nparse_t np [2];
 	const char *att;
 	char *str, *sts;
-	char es [48];
+	char es [48], um;
 	data_ua_t *UA;
 	int len;
 
@@ -2877,15 +2884,23 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 
 	// The default is "direct"
 	UA->iface = UART_IMODE_D;
+	um = 'd';
 	if ((att = sxml_attr (data, "mode")) != NULL) {
-		if (*att == 'p' || *att == 'n')
-			// Packet (the 'n' means non-persistent)
+		if (*att == 'p') {
+			// Packet P-mode
 			UA->iface = UART_IMODE_P;
-		else if (*att == 'l')
+			um = 'p';
+		} else if (*att == 'n') {
+			// Packet N-mode
+			UA->iface = UART_IMODE_N;
+			um = 'n';
+		} else if (*att == 'l') {
 			// Line packet
 			UA->iface = UART_IMODE_L;
-		else if (*att != 'd')
-			// For now, it can only be "direct", "packet", "line"
+			um = 'l';
+		} else if (*att != 'd')
+			// It can only be "direct", "n-packet", "p-packet",
+			// "l-packet"
 			xeai ("mode", es, att);
 	}
 
@@ -2903,10 +2918,9 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 			UA->UOBSize = (word) (np [1].LVal);
 		}
 	}
-	print (form ("  UART [rate = %1d bps, mode = %s, bsize i = %1d, "
-		"o = %d bytes]:\n", (int)(UA->URate) * 100,
-			UA->iface == UART_IMODE_P ? "packet" : "direct",
-				UA->UIBSize, UA->UOBSize));
+	print (form ("  UART [rate = %1d bps, mode = %c, bsize i = %1d, "
+		"o = %d bytes]:\n", (int)(UA->URate) * 100, um,
+			UA->UIBSize, UA->UOBSize));
 
 	UA->UMode = 0;
 	UA->UIDev = UA->UODev = NULL;
@@ -4677,7 +4691,7 @@ void delay (word msec, int state) {
 	Timer->wait (delta, state);
 }
 
-word dleft (int pid) {
+word dleft (sint pid) {
 //
 // Left-to 'delay' (we are trying to approximate what you can see in
 // PicOS/kernel/kernel.c)
@@ -4730,7 +4744,7 @@ void ldelay (word d, int state) {
 	Timer->wait (delta, state);
 }
 
-word ldleft (int pid, word *s) {
+word ldleft (sint pid, word *s) {
 //
 // Left to long delay (in minutes)
 //
@@ -4782,7 +4796,7 @@ void lhold (int st, lword *nsec) {
 	sleep;
 };
 
-lword lhleft (int pid, lword *s) {
+lword lhleft (sint pid, lword *s) {
 //
 // Left to long delay (seconds)
 //
@@ -4795,12 +4809,12 @@ lword lhleft (int pid, lword *s) {
 	return (lword) ituToEtu (p->WaitingUntil - Time);
 }
 
-int zz_getcpid () {
+sint zz_getcpid () {
 
 	return ThePPcs->ID;
 }
 
-int zz_join (int pid, word st) {
+sint zz_join (sint pid, word st) {
 
 	Process *p;
 
@@ -4808,9 +4822,10 @@ int zz_join (int pid, word st) {
 		return 0;
 
 	p->wait (DEATH, st);
+	return pid;
 }
 
-int zz_kill (int pid) {
+sint zz_kill (sint pid) {
 //
 // PicOS's variant of kill
 //
@@ -4849,14 +4864,13 @@ int zz_kill (int pid) {
 	return pid;
 }
 
-int zz_status (int pid) {
+int zz_status (sint pid) {
 //
 // PicOS's process status
 //
 	_PP_ *p;
 
 	if (pid == 0) {
-		pid = ThePPcs->ID;
 		p = ThePPcs;
 	} else {
 		p = find_pcs_by_id (pid);
@@ -4876,7 +4890,7 @@ int zz_status (int pid) {
 // links in _PP_.
 // ============================================================================
 
-int zz_running (code_t tid) {
+sint zz_running (code_t tid) {
 //
 // Return the ID of ANY running process of the given type
 //
@@ -4896,7 +4910,7 @@ void zz_joinall (code_t pt, word st) {
 	TheNode->TB . wait ((IPointer) pt, st);
 }
 
-int zz_zombie (code_t tid) {
+sint zz_zombie (code_t tid) {
 //
 // Locate a zombie
 //

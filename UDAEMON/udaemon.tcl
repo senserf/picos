@@ -904,19 +904,37 @@ proc u_cdevl { pi } {
 #
 # Returns the candidate list of devices to open based on the port identifier
 #
-	if { [regexp "^\[0-9\]+$" $pi] && ![catch { expr $pi } pn] } {
-		# looks like a number
-		if { $pn < 10 } {
-			# use internal Tcl COM id, which is faster
-			set wd "COM${pn}:"
-		} else {
-			set wd "\\\\.\\COM$pn"
+	global Stat
+
+	if { $Stat(S) == "L" } {
+		# Linux
+		if ![regexp "\[0-9\]$" $pi dn] {
+			return [list $pi]
 		}
-		return [list $wd "/dev/ttyUSB$pn" "/dev/tty$pn"]
+		if { [string first "pts" $pi] >= 0 } {
+			# a PTY
+			return [list $pi]
+		}
+		return [list "/dev/tty$dn" "/dev/ttyUSB$dn"]
 	}
 
-	# not a number
-	return [list $pi "\\\\.\\$pi" "/dev/$pi" "/dev/tty$pi"]
+	# Windows
+	if { [string first "COM" $pi] < 0 } {
+		return [list $pi "\\\\.\\$pi"]
+	}
+
+	if { ![regexp "\[0-9\]$" $pi dn] || [catch { expr $pi } dn] } {
+		return [list $pi]
+	}
+
+	if { $dn < 10 } {
+		# use internal Tcl COM id, which is faster
+		set wd "COM${pn}:"
+	} else {
+		set wd "\\\\.\\COM$pn"
+	}
+
+	return [list $wd]
 }
 
 proc connUart { Sok } {
@@ -1045,9 +1063,22 @@ proc mkTerm { Sok tt hex } {
 	label $w.stat.usel.lab -text "U-U"
 	pack $w.stat.usel.lab -side left
 
-	set pl "Off CNCB0 CNCB1 CNCB2 CNCB3"
-	for { set i 0 } { $i <= 20 } { incr i } {
-		append pl " $i"
+	set pl "Off"
+
+	if { $Stat(S) == "L" } {
+		# Linux (possibly other Unices)
+		for { set op 0 } { $op < 9 } { incr op } {
+			append pl " /dev/pts/$op"
+		}
+		for { set op 0 } { $op < 20 } { incr op } {
+			append pl " /dev/tty(USB)$op"
+		}
+	} else {
+		# Windows
+		append pl " CNCB0 CNCB1 CNCB2 CNCB3"
+		for { set op 1 } { $op < 33 } { incr op } {
+			append pl " COM$op"
+		}
 	}
 
 	set dmn $w.stat.usel.men
@@ -4798,6 +4829,30 @@ proc parse_geometry { } {
 	}
 }
 
+# heuristics to determine system version
+if [catch { exec uname } Stat(S)] {
+
+	set Stat(S) "W"
+
+} elseif [regexp -nocase "linux" $Stat(S)] {
+
+	set Stat(S) "L"
+
+} elseif [regexp -nocase "cygwin" $Stat(S)] {
+
+	set Stat(S) "C"
+
+} else {
+
+	set Stat(S) "W"
+}
+
+proc terminate { } {
+
+	catch { destroy . }
+
+}
+
 parse_args
 
 parse_geometry
@@ -4808,7 +4863,7 @@ do_geometry . "root"
 
 frame .top -borderwidth 10
 pack .top -side top -expand 0 -fill x
-button .top.quit -text "Quit" -command { destroy .top }
+button .top.quit -text "Quit" -command { terminate }
 button .top.connect -text "Connect" -command doConnect
 
 tk_optionMenu .top.select Option \
@@ -4859,7 +4914,7 @@ pack .logger -side top -fill both -expand true
 $Logger delete 1.0 end
 $Logger configure -state disabled
 
-bind . <Destroy> { exit }
+bind . <Destroy> { terminate }
 
 if { [info tclversion] < 8.5 } {
 

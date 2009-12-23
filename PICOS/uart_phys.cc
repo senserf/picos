@@ -12,18 +12,33 @@ static int unp_option (int, address);
 
 #define	UART_EVP_RCV	UA		// Receiver event
 #define	UART_EVP_XMT	(UA->x_qevent)	// Transmitter event
+#define	UART_EVP_ACK	(UA->v_statid)	// ACK event (for P mode)
+
+//
+// UART flags
+//
+#define	UAFLG_SMAB		0x01		// AB to send
+#define	UAFLG_EMAB		0x02		// Expected message AB
+#define	UAFLG_PERS		0x04		// Persisted mode
+#define	UAFLG_ROFF		0x08		// Receiver OFF
+#define	UAFLG_UNAC		0x10		// Last out message unacked
+#define	UAFLG_SACK		0x20		// Send ACK ASAP
+#define	UAFLG_HOLD		0x40
+#define	UAFLG_DRAI		0x80
+
+#define	UART_PKT_RETRTIME	1024
 
 // ============================================================================
 // Non-persistent packet mode
 // ============================================================================
 
-byte p_uart_rcv_p::getbyte (int redo, int off) {
+static byte upkt_getbyte (uart_tcv_int_t *UA, int redo, int off) {
 //
 // Get one byte from UART
 //
 	byte b;
 
-	if (UA->rx_off) {
+	if ((UA->v_flags & UAFLG_ROFF)) {
 		// If switched off
 		Timer->wait (0, off);
 		sleep;
@@ -35,14 +50,14 @@ byte p_uart_rcv_p::getbyte (int redo, int off) {
 	return b;
 }
 
-void p_uart_rcv_p::rdbuff (int redo, int brk, int off) {
+static void pkt_rdbuff (uart_tcv_int_t *UA, int redo, int brk, int off) {
 //
 // Fill the buffer
 //
 	int k;
 
 	while (UA->r_buffs) {
-		if (UA->rx_off) {
+		if ((UA->v_flags & UAFLG_ROFF)) {
 			Timer->wait (0, off);
 			sleep;
 		}
@@ -55,14 +70,14 @@ void p_uart_rcv_p::rdbuff (int redo, int brk, int off) {
 	}
 }
 
-void p_uart_rcv_p::ignore (int redo, int on) {
+static void pkt_ignore (uart_tcv_int_t *UA, int redo, int on) {
 //
 // Ignore UART input until switched on
 //
 	int k;
 
 	while (1) {
-		if (UA->rx_off == 0) {
+		if ((UA->v_flags & UAFLG_ROFF) == 0) {
 			// Back to ON
 			Timer->wait (0, on);
 			sleep;
@@ -72,14 +87,14 @@ void p_uart_rcv_p::ignore (int redo, int on) {
 	}
 }
 
-void p_uart_rcv_p::rreset (int redo, int done) {
+static void pkt_rreset (uart_tcv_int_t *UA, int redo, int done) {
 //
 // Ignore UART input until reset time
 //
 	int k;
 
 	while (Time < UA->r_rstime) {
-		if (UA->rx_off) {
+		if ((UA->v_flags & UAFLG_ROFF)) {
 			Timer->wait (0, done);
 			sleep;
 		}
@@ -91,7 +106,7 @@ void p_uart_rcv_p::rreset (int redo, int done) {
 
 // ============================================================================
 
-p_uart_rcv_p::perform {
+p_uart_rcv_n::perform {
 
     byte b;
     word len;
@@ -102,7 +117,7 @@ p_uart_rcv_p::perform {
 
     transient RC_PREAMBLE:
 
-	b = getbyte (RC_PREAMBLE, RC_OFFSTATE);
+	b = upkt_getbyte (UA, RC_PREAMBLE, RC_OFFSTATE);
 
 	if (b != 0x55)
 		proceed RC_PREAMBLE;
@@ -111,12 +126,11 @@ p_uart_rcv_p::perform {
 
 	LEDIU (2, 1);
 	// Wait for the length byte
-	b = getbyte (RC_WLEN, RC_OFFSTATE);
+	b = upkt_getbyte (UA, RC_WLEN, RC_OFFSTATE);
 
 	if ((b & 1) != 0 || b > UA->r_buffl - 4) {
 		// Length field error, ignore everything for a few msec
-		UA->r_rstime = Time +
-			etuToItu ((40 + toss (32)) * MILLISECOND);
+		UA->r_rstime = Time + etuToItu (50 * MILLISECOND);
 		proceed RC_RESET;
 	}
 
@@ -125,7 +139,7 @@ p_uart_rcv_p::perform {
 
     transient RC_FILL:
 
-	rdbuff (RC_FILL, RC_LOOP, RC_OFFSTATE);
+	pkt_rdbuff (UA, RC_FILL, RC_LOOP, RC_OFFSTATE);
 
 	if (UA->v_statid != 0 && UA->v_statid != 0xffff) {
 		// Admit only packets with agreeable statid
@@ -153,7 +167,7 @@ p_uart_rcv_p::perform {
     transient RC_WOFF:
 
 	// Ignore everything waiting for on
-	ignore (RC_WOFF, RC_LOOP);
+	pkt_ignore (UA, RC_WOFF, RC_LOOP);
 	// No return from this
 
     state RC_RESET:
@@ -162,12 +176,12 @@ p_uart_rcv_p::perform {
 
     transient RC_WRST:
 
-	rreset (RC_WRST, RC_LOOP);
+	pkt_rreset (UA, RC_WRST, RC_LOOP);
 }
 
 // ============================================================================
 
-p_uart_xmt_p::perform {
+p_uart_xmt_n::perform {
 
     int stln;
     byte b;
@@ -176,10 +190,11 @@ p_uart_xmt_p::perform {
 
 	LEDIU (1, 0);
 
-	if ((UA->tx_off & 1)) {
+	if ((UA->v_flags & UAFLG_HOLD)) {
 		// The HOLD flag == OFF solid
-		if (UA->tx_off > 1) {
-			// Bit 1 set == draining
+		if ((UA->v_flags & UAFLG_DRAI)) {
+			// Draining
+Drain:
 			tcvphy_erase (UA->v_physid);
 		}
 		// Queue held
@@ -189,10 +204,9 @@ p_uart_xmt_p::perform {
 
 	if ((UA->x_buffer = tcvphy_get ((int)(UA->v_physid), &stln)) == NULL) {
 		// Nothing to transmit
-		if (UA->tx_off > 1) {
-			// Draining
-			UA->tx_off = 3;	// OFF
-			proceed XM_LOOP;
+		if ((UA->v_flags & UAFLG_DRAI)) {
+			UA->v_flags |= UAFLG_HOLD;
+			goto Drain;
 		}
 		when (UART_EVP_XMT, XM_LOOP);
 		sleep;
@@ -238,43 +252,264 @@ p_uart_xmt_p::perform {
 }
 
 // ============================================================================
-// Line mode
+// P mode
 // ============================================================================
 
-byte p_uart_rcv_l::getbyte (int redo, int off) {
-//
-// Get one byte from UART
-//
-	byte b;
+p_uart_rcv_p::perform {
 
-	if (UA->rx_off) {
-		// If switched off
-		Timer->wait (0, off);
+    word len;
+    byte b, hdr;
+
+    state RC_LOOP:
+
+	LEDIU (2, 0);
+
+    transient RC_PREAMBLE:
+
+	b = upkt_getbyte (UA, RC_PREAMBLE, RC_OFFSTATE);
+
+	if ((b & 0xfc) != 0)
+		// Keep waiting
+		proceed RC_PREAMBLE;
+
+	UA->r_buffp = (byte*)(UA->r_buffer);
+	// First the preamble
+	*(UA->r_buffp)++ = b;
+
+    transient RC_WLEN:
+
+	LEDIU (2, 1);
+	// Wait for the length byte
+	b = upkt_getbyte (UA, RC_WLEN, RC_OFFSTATE);
+
+	if (b > UA->r_buffl - 4) {
+		// Length error, ignore everything for a short while
+		UA->r_rstime = Time + etuToItu (50 * MILLISECOND);
+		proceed RC_RESET;
+	}
+
+	// How many more bytes: the payload + CRC
+	UA->r_buffs = b + 2;
+	if ((b & 1))
+		// Accept odd length, but make sure the packet is word-aligned
+		(UA->r_buffs)++;
+
+	*(UA->r_buffp)++ = b;
+
+    transient RC_FILL:
+
+	pkt_rdbuff (UA, RC_FILL, RC_LOOP, RC_OFFSTATE);
+
+	// Validate checksum
+	if (w_chk (UA->r_buffer, (address)(UA->r_buffp) - UA->r_buffer,
+	    0)) {
+		// Bad checksum
+		proceed (RC_LOOP);
+	}
+
+	// Protocol header
+	hdr = ((byte*)(UA->r_buffer)) [0];
+	// Actual length
+	len = ((byte*)(UA->r_buffer)) [1];
+
+	if (len == 0 & (hdr & 1) == 0)
+		// ACK with MAB == 0 is illegal
+		proceed (RC_LOOP);
+
+	if ((((hdr >> 1) ^ UA->v_flags) & UAFLG_SMAB)) {
+		// Expected != current
+		if ((UA->v_flags & UAFLG_UNAC)) {
+			// Xmitter waiting just for that
+			UA->v_flags &= ~UAFLG_UNAC;
+			trigger (UART_EVP_ACK);
+		}
+		// Flip the outgoing bit
+		UA->v_flags ^= UAFLG_SMAB;
+	}
+
+	// Now for the message
+	if (len == 0)
+		// No message, just ACK
+		proceed (RC_LOOP);
+
+	// Check if the message is expected
+	if ((((hdr << 1) ^ UA->v_flags) & UAFLG_EMAB) == 0) {
+		// Yup, it is, pass it up
+		if (tcvphy_rcv (UA->v_physid, UA->r_buffer + 1, len))
+			// Message has been accepted, flip EMAB
+			UA->v_flags ^= UAFLG_EMAB;
+	}
+	// Send ACK (for this or previous message)
+	UA->v_flags |= UAFLG_SACK;
+	trigger (UART_EVP_ACK);
+	proceed (RC_LOOP);
+
+    state RC_OFFSTATE:
+
+	LEDIU (2, 0);
+
+    transient RC_WOFF:
+
+	pkt_ignore (UA, RC_WOFF, RC_LOOP);
+	// No return
+
+    state RC_RESET:
+
+	LEDIU (2, 0);
+
+    transient RC_WRST:
+
+	pkt_rreset (UA, RC_WRST, RC_LOOP);
+}
+
+//
+// Two variants of pure acknowledgments
+//
+static const byte upk_ack0 [] = { 0x01, 0x00, 0x21, 0x10 };
+static const byte upk_ack1 [] = { 0x03, 0x00, 0x63, 0x30 };
+
+p_uart_xmt_p::perform {
+
+    int stln;
+    word chs;
+    byte b;
+
+    state XM_LOOP:
+
+	LEDIU (1, 0);
+	if ((UA->v_flags & UAFLG_ROFF)) {
+		when (UART_EVP_XMT, XM_LOOP);
 		sleep;
 	}
 
-	when (UART_EVP_RCV, redo);
-	io (redo, 0, READ, (char*)(&b), 1);
-	unwait ();
-	return b;
-}
-
-void p_uart_rcv_l::ignore (int redo, int on) {
-//
-// Ignore UART input until switched on
-//
-	int k;
-
-	while (1) {
-		if (UA->rx_off == 0) {
-			// Back to ON
-			Timer->wait (0, on);
-			sleep;
+	if ((UA->v_flags & UAFLG_UNAC) == 0) {
+		// No previous unacked message
+		if (UA->x_buffer != NULL)
+			// Release previous buffer, if any
+			tcvphy_end (UA->x_buffer);
+		if ((UA->x_buffer = tcvphy_get ((int)(UA->v_physid), &stln)) ==
+		    NULL) {
+			// Send ACK
+			UA->x_buffp = (byte*) (((UA->v_flags & UAFLG_EMAB)) ?
+				upk_ack1 : upk_ack0);
+			sameas (XM_SACK);
 		}
-		when (UART_EVP_RCV, redo);
-		io (redo, 0, READ, (char*)(UA->r_buffer), UA->r_buffl);
+
+		Hdr [0] = (UA->v_flags & (UAFLG_EMAB | UAFLG_SMAB));
+		Hdr [1] = (byte) stln;
+		if ((stln & 1))
+			// Even out the length
+			stln++;
+		UA->x_buffl = (word) stln;
+		chs = w_chk ((address)Hdr, 1, 0);
+		*((word*)Chk) = w_chk (UA->x_buffer, UA->x_buffl >> 1, chs);
+		UA->v_flags |= UAFLG_UNAC;
+	} else {
+		// There is a previous unacknowledged message: header/trailer
+		// are ready ...
+		if (((UA->v_flags ^ Hdr [0]) & UAFLG_EMAB)) {
+			// ... unless the expected AB has changed ...
+			Hdr [0] ^= UAFLG_EMAB;
+			// ... so must recalculate checksum
+			chs = w_chk ((address)Hdr, 1, 0);
+			*((word*)Chk) = w_chk (UA->x_buffer, UA->x_buffl >> 1,
+				chs);
+		}
 	}
+
+	// Acknowledgement will be sent (one way or the other), clear the flag
+	UA->v_flags &= ~UAFLG_SACK;
+
+    transient XM_HDR:
+
+	io (XM_HDR, 0, WRITE, (char*) Hdr, 1);
+
+    transient XM_LEN:
+
+	io (XM_LEN, 0, WRITE, (char*) Hdr + 1, 1);
+	UA->x_buffp = (byte*)(UA->x_buffer);
+	// Cannot touch the original length as the packet may have to be
+	// retransmitted
+	UA->v_statid = UA->x_buffl;
+
+    transient XM_SEND:
+
+	stln = io (XM_SEND, 0, WRITE, (char*)(UA->x_buffp), UA->v_statid);
+	if ((UA->v_statid -= stln) != 0) {
+		UA->x_buffp += stln;
+		proceed XM_SEND;
+	}
+
+    transient XM_CHK:
+
+	io (XM_CHK, 0, WRITE, (char*) Chk, 1);
+
+    transient XM_CHL:
+
+	io (XM_CHL, 0, WRITE, (char*) Chk + 1, 1);
+
+    transient XM_END:
+
+	// End of transmission
+	if ((UA->v_flags & UAFLG_ROFF))
+		// Switched off
+		proceed (XM_LOOP);
+
+    transient XM_NEXT:
+
+	if ((UA->v_flags & UAFLG_SACK))
+		// Sending ACK
+		proceed (XM_LOOP);
+
+	if ((UA->v_flags & UAFLG_UNAC)) {
+		// Don't look at another message until this one ACK-ed
+		delay (UART_PKT_RETRTIME, XM_LOOP);
+		when (UART_EVP_XMT, XM_END);
+		when (UART_EVP_ACK, XM_NEXT);
+		sleep;
+	}
+
+	if (UA->x_buffer != NULL) {
+		// Release any previous buffer
+		tcvphy_end (UA->x_buffer);
+		UA->x_buffer = NULL;
+	}
+
+	if (tcvphy_top ((int)(UA->v_physid)) != NULL)
+		proceed (XM_LOOP);
+
+	when (UART_EVP_XMT, XM_LOOP);
+	// This will come from the receiver
+	when (UART_EVP_ACK, XM_NEXT);
+	// Send periodic ACKs in active mode
+	if ((UA->v_flags & UAFLG_PERS))
+		delay (UART_PKT_RETRTIME, XM_LOOP);
+
+    state XM_SACK:
+
+	io (XM_SACK, 0, WRITE, (char*)(UA->x_buffp), 1);
+	(UA->x_buffp)++;
+
+    transient XM_SACL:
+
+	io (XM_SACL, 0, WRITE, (char*)(UA->x_buffp), 1);
+	(UA->x_buffp)++;
+
+    transient XM_SACM:
+
+	io (XM_SACM, 0, WRITE, (char*)(UA->x_buffp), 1);
+	(UA->x_buffp)++;
+
+    transient XM_SACN:
+
+	io (XM_SACN, 0, WRITE, (char*)(UA->x_buffp), 1);
+
+	sameas (XM_END);
 }
+
+// ============================================================================
+// Line mode
+// ============================================================================
 
 void p_uart_rcv_l::rdbuff (int redo, int off) {
 //
@@ -283,7 +518,7 @@ void p_uart_rcv_l::rdbuff (int redo, int off) {
 	char c;
 
 	while (UA->r_buffs) {
-		if (UA->rx_off) {
+		if ((UA->v_flags & UAFLG_ROFF)) {
 			Timer->wait (0, off);
 			sleep;
 		}
@@ -309,7 +544,7 @@ p_uart_rcv_l::perform {
 
     transient RC_FIRST:
 
-	b = getbyte (RC_FIRST, RC_OFFSTATE);
+	b = upkt_getbyte (UA, RC_FIRST, RC_OFFSTATE);
 	// First character: ignore everything < space
 	LEDIU (2, 1);
 	if (b < 0x20)
@@ -334,7 +569,7 @@ p_uart_rcv_l::perform {
 
     transient RC_WOFF:
 
-	ignore (RC_WOFF, RC_LOOP);
+	pkt_ignore (UA, RC_WOFF, RC_LOOP);
 
 endstrand
 
@@ -349,10 +584,11 @@ p_uart_xmt_l::perform {
 
 	LEDIU (1, 0);
 
-	if ((UA->tx_off & 1)) {
+	if ((UA->v_flags & UAFLG_HOLD)) {
 		// The HOLD flag == OFF solid
-		if (UA->tx_off > 1) {
+		if ((UA->v_flags & UAFLG_DRAI)) {
 			// Bit 1 set == draining
+Drain:
 			tcvphy_erase (UA->v_physid);
 		}
 		// Queue held
@@ -362,10 +598,10 @@ p_uart_xmt_l::perform {
 
 	if ((UA->x_buffer = tcvphy_get ((int)(UA->v_physid), &stln)) == NULL) {
 		// Nothing to transmit
-		if (UA->tx_off > 1) {
+		if ((UA->v_flags & UAFLG_DRAI)) {
 			// Draining
-			UA->tx_off = 3;	// OFF
-			proceed XM_LOOP;
+			UA->v_flags |= UAFLG_HOLD;
+			goto Drain;
 		}
 		when (UART_EVP_XMT, XM_LOOP);
 		sleep;
@@ -418,8 +654,6 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
  * mbs   - maximum packet length (including statid, excluding checksum)
  * which - which uart (0 or 1) (must be zero in this version)
  */
-
-
 	uart_tcv_int_t *UA;
 	int ok;
 	byte IMode;
@@ -439,24 +673,45 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 	if (mbs < 4)
 		mbs = UART_DEF_BUF_LEN;
 
+	UA->v_flags = 0;
+
 	if (IMode == UART_IMODE_L) {
 		// Line mode
 		if (mbs < 0 || mbs > 255) {
 MBS:
 			syserror (EREQPAR, "phys_uart mbs");
 		}
+
 		// Sentinel
-		UA->r_buffl = mbs - 1;
-	} else {
-		// Packet mode
+		mbs--;
+
+	} else if (IMode == UART_IMODE_N) {
+
+		// N-packet mode
 		if ((mbs & 1) || (word)mbs > 252)
 			goto MBS;
 		// Make sure the checksum is extra
 		mbs += 2;
-		// Length in bytes
-		UA->r_buffl = mbs;
+
+	} else {
+
+		// P-packet mode
+		if ((word)mbs > 254 - 4)
+			syserror (EREQPAR, "phys_uart mbs");
+		else if (mbs == 0)
+			mbs = UART_DEF_BUF_LEN;
+		if ((mbs & 1))
+			mbs++;
+
+		// Two bytes for header + two bytes for checksum
+		mbs += 4;
+
+		// If not NULL, the buffer must be released to TCV
+		UA->x_buffer = NULL;
+		UA->v_flags = 0;
 	}
 
+	UA->r_buffl = mbs;
 
 	if ((UA->r_buffer = (address) memAlloc (mbs, (word) mbs)) == NULL)
 		syserror (EMALLOC, "phys_uart");
@@ -466,13 +721,11 @@ MBS:
 	/* Register the phy */
 	UA->x_qevent = tcvphy_reg (phy, unp_option, INFO_PHYS_UART);
 
-	// Start in the OFF state
-	UA->rx_off = 1;
-	UA->tx_off = 3;
-
 	// They are never killed, once started
 	if (IMode == UART_IMODE_L)
 		ok = runthread (p_uart_rcv_l) && runthread (p_uart_xmt_l);
+	else if (IMode == UART_IMODE_N)
+		ok = runthread (p_uart_rcv_n) && runthread (p_uart_xmt_n);
 	else
 		ok = runthread (p_uart_rcv_p) && runthread (p_uart_xmt_p);
 
@@ -496,7 +749,11 @@ static int unp_option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = ((UA->tx_off != 0) << 1) | (UA->rx_off != 0);
+		if (IMode == UART_IMODE_P)
+			ret = (UA->v_flags & UAFLG_ROFF) >> 3;
+		else
+			ret = (((UA->v_flags & (UAFLG_HOLD + UAFLG_DRAI)) != 0)
+				<< 1) | ((UA->v_flags &  UAFLG_ROFF) != 0);
 
 		if (val != NULL)
 			*val = ret;
@@ -504,44 +761,64 @@ static int unp_option (int opt, address val) {
 
 	    case PHYSOPT_TXON:
 
-		if (UA->tx_off) {
-			UA->tx_off = 0;
-			trigger (UART_EVP_XMT);
-		}
+		if (IMode == UART_IMODE_P)
+			// This is used for active (persistent) mode
+			UA->v_flags |= UAFLG_PERS;
+		else
+			UA->v_flags &= ~(UAFLG_HOLD + UAFLG_DRAI);
+
+		trigger (UART_EVP_XMT);
 		break;
 
 	    case PHYSOPT_RXON:
 
-		if (UA->rx_off) {
-			UA->rx_off = 0;
-			trigger (UART_EVP_RCV);
-		}
+		// Used as global ON for P-mode
+		UA->v_flags &= ~UAFLG_ROFF;
+		if (IMode == UART_IMODE_P)
+			trigger (UART_EVP_XMT);
+		trigger (UART_EVP_RCV);
 		break;
 
 	    case PHYSOPT_TXOFF:
 
-		if (UA->tx_off == 0) {
-			// Drain
-			UA->tx_off = 2;
-			trigger (UART_EVP_XMT);
+		if (IMode == UART_IMODE_P) {
+			// This is used for active (persistent) mode
+			UA->v_flags &= ~UAFLG_PERS;
+		} else {
+			if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
+				break;
+
+			UA->v_flags |= UAFLG_DRAI;
 		}
+		trigger (UART_EVP_XMT);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
-		if (UA->tx_off == 0) {
-			// Hold
-			UA->tx_off = 1;
-			trigger (UART_EVP_XMT);
-		}
+		if (IMode == UART_IMODE_P)
+			goto RxOff;
+
+		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
+			break;
+
+		UA->v_flags |= UAFLG_HOLD;
+		trigger (UART_EVP_XMT);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
-		if (UA->rx_off == 0) {
-			UA->rx_off = 1;
-			trigger (UART_EVP_RCV);
+		if (IMode == UART_IMODE_P) {
+RxOff:
+			if ((UA->v_flags & UAFLG_ROFF))
+				break;
+
+			UA->v_flags |= UAFLG_ROFF;
+			trigger (UART_EVP_XMT);
+		} else {
+			UA->v_flags |= UAFLG_ROFF;
 		}
+		trigger (UART_EVP_RCV);
+		break;
 
 	    case PHYSOPT_SETRATE:
 
@@ -572,6 +849,12 @@ static int unp_option (int opt, address val) {
 	    case PHYSOPT_GETMAXPL:
 
 		ret = UA->r_buffl;
+		if (IMode == UART_IMODE_L)
+			ret += 1;
+		else if (IMode == UART_IMODE_P)
+			ret -= 4;
+		else
+			ret -= 2;
 		break;
 
 	    default:

@@ -14,6 +14,7 @@ typedef	short int	sint;
 typedef	unsigned int	lword;
 typedef	unsigned char	byte;
 
+#define	MAX_INT		((int)0x7FFF)		// This is the PicOS int !!
 #define	MAX_UINT	((word)0xFFFF)
 #define	MAX_ULONG	((lword)0xFFFFFFFF)
 
