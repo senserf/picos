@@ -1,5 +1,8 @@
 package provide oss_u 1.0
 
+#
+# UART interface for packet protocols: N and P
+#
 namespace eval OSSU {
 
 variable ST
@@ -12,19 +15,20 @@ variable PM
 set DB(SFD)	""
 set DB(LEV)	0
 
-# packet preamble
-set CH(PRE)		[format %c [expr 0x55]]
+# packet preamble (in "P" mode, it is a string, i.e., multiple characters)
+set CH(IPR)		""
+
 # diag preamble
-set CH(PRD)		[format %c [expr 0x54]]
+set CH(DPR)		[format %c [expr 0x54]]
+
 # character zero
 set CH(ZER)		[format %c [expr 0x00]]
 
 # Packet timeout, once reception has started
-set IV(packet)		80
+set IV(PKT)		80
 
-# Maximum packet length (the part from LID (inclusively) to checksum
-# (exclusively))
-set PM(MPL)		60
+# Maximum packet/line length (this one always related to pure payload)
+set PM(MPL)		80
 
 # ISO 3309 CRC table
 variable CRCTAB	{
@@ -81,21 +85,16 @@ proc u_cdevl { pi } {
 	return [list $pi "\\\\.\\$pi" "/dev/$pi" "/dev/tty$pi"]
 }
 
-proc u_start { udev speed dfun { mpl "" } } {
+proc u_start { udev speed mod { mpl $PM(MPL) } } {
 #
 # Initialize UART
 #
 	variable ST
+	variable CH
+	variable PM
 
 	if { $udev == "" } {
-		global argv
-		# take from arguments
-		set udev [lindex $argv 0]
-	}
-
-	if { $udev == "" } {
-		# should be zero if on UNIX (how to tell easily?)
-		set udev 1
+		error "u_start: UART device must be specified"
 	}
 
 	set devlist [u_cdevl $udev]
@@ -113,20 +112,51 @@ proc u_start { udev speed dfun { mpl "" } } {
 		error "u_start: cannot open UART, device(s) $devlist"
 	}
 
-	fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
-		-buffering full -translation binary -blocking 0 -eofchar ""
-
 	# initialize status
 	set ST(TIM)  ""
 	# reception automaton state
 	set ST(STA) 0
 	set ST(CNT) 0
-	# input interceptor function
-	u_setif $dfun $mpl
 	# input buffer
 	set ST(BUF) ""
 
-	fileevent $ST(SFD) readable ::OSSU::rawread
+	# set the mode
+	set mod [string toupper [string index $mod 0]]
+
+	set bf "full"
+	set tr "binary"
+
+	if { $mod == "P" } {
+		# persistent UART mode: four preambles
+		set CH(IPR) ""
+		append CH(IPR) [format %c [expr 0x00]]
+		append CH(IPR) [format %c [expr 0x01]]
+		append CH(IPR) [format %c [expr 0x02]]
+		append CH(IPR) [format %c [expr 0x03]]
+		set ST(MOD) "P"
+		set rf "rawread_p"
+	} elseif { $mod == "N" } {
+		# Non-persistent UART, e.g., XRS
+		set CH(IPR) [format %c [expr 0x55]]
+		set rf "rawread_n"
+	} else {
+		# Direct/line
+		set CH(IPR) ""
+		set mod "D"
+		set bf "line"
+		set tr "{ auto crlf }"
+		set rf "rawread_d"
+	}
+	
+	set ST(MOD) $mod
+	set PM(MPL) $mpl
+
+	if [catch { fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
+	    -buffering $bf -translation $tr -blocking 0 -eofchar "" } err] {
+		error "u_start: cannot configure UART: $err"
+	}
+
+	fileevent $ST(SFD) readable ::OSSU::$rf
 }
 
 proc u_setif { { dfun "" } { mpl "" } } {
@@ -134,16 +164,18 @@ proc u_setif { { dfun "" } { mpl "" } } {
 # Reset the input function
 #
 	variable ST
+	variable CH
 
 	if { $dfun != "" } {
-		if { $mpl != "" } {
-			variable PM
-			set PM(MPL) $mpl
-		}
 		if { [string range $dfun 0 1] != "::" } {
 			set dfun "::$dfun"
 		}
+		if { $mpl != "" } {
+			set PM(MPL) $mpl
+		}
 	}
+
+	# null dfun disables
 	set ST(DFN) $dfun
 }
 
@@ -175,21 +207,39 @@ proc u_settrace { lev { file "" } } {
 	}
 }
 			
-proc u_frame { m } {
+proc u_frame { m { ou 0 } { ex 0 } } {
 #
 # Frame the message in place
 #
 	upvar $m msg
 	variable CH
 	variable PM
+	variable ST
 
 	set ln [string length $msg]
+	if { $ln > $PM(MPL) } {
+		error "u_frame: message too long: $ln > $PM(MPL)"
+	}
 
+	if { $ST(MOD) == "D" } {
+		return
+	}
+
+	if { $ST(MOD) == "P" } {
+		# persistent UART mode
+		if [expr $ln & 1] {
+			# odd length, append a dummy byte, but leave the				# length as it was
+			append msg \x00
+		}
+		# checksum coverage
+		set msg "[binary format cc [expr ($ex << 1) | $ou] $ln]$msg"
+		set msg "$msg[binary format s [chks $msg]]"
+		return
+	}
+
+	# N mode
 	if { $ln < 2 } {
 		error "u_frame: message too short ($ln)"
-	} elseif { $ln > $PM(MPL) } {
-		set ln $PM(MPL)
-		set msg [string range $msg 0 [expr $ln - 1]]
 	}
 
 	if [expr $ln & 1] {
@@ -201,7 +251,7 @@ proc u_frame { m } {
 		incr ln -2
 	}
 
-	set msg "$CH(PRE)[binary format c $ln]$msg[binary format s [chks $msg]]"
+	set msg "$CH(IPR)[binary format c $ln]$msg[binary format s [chks $msg]]"
 }
 
 proc u_write { msg } {
@@ -212,21 +262,25 @@ proc u_write { msg } {
 	variable DB
 
 	if { $DB(LEV) > 1 } {
-		dump "W" [string range $msg 2 end]
+		dump "W" $msg
 	}
 
-	puts -nonewline $ST(SFD) $msg
-	flush $ST(SFD)
+	if { $ST(MOD) == "D" } {
+		puts $ST(SFD) $msg
+	} else {
+		puts -nonewline $ST(SFD) $msg
+		flush $ST(SFD)
+	}
 }
 
-proc u_fnwrite { msg } {
+proc u_fnwrite { msg { ou 0 } { ex 0 } } {
 #
 # Frame and write in one step
 #
 	variable ST
 	variable CH
 
-	u_frame msg
+	u_frame msg $ou $ex
 	u_write $msg
 }
 
@@ -242,8 +296,8 @@ proc chks { wa } {
 
 	while { $nb > 0 } {
 
-		binary scan $wa s waw
-		set waw [expr $waw & 0x0000ffff]
+		binary scan $wa su waw
+		#set waw [expr $waw & 0x0000ffff]
 
 		set wa [string range $wa 2 end]
 		incr nb -2
@@ -279,19 +333,20 @@ proc dump { hdr buf } {
 
 	set code ""
 	set nb [string length $buf]
-	binary scan $buf c$nb code
+	binary scan $buf cu$nb code
 	set ol ""
 	foreach co $code {
-		append ol [format " %02x" [expr $co & 0xff]]
+		append ol [format " %02x" $co]
 	}
 	trc "$hdr:$ol"
 }
 	
-proc rawread { } {
+proc rawread_n { } {
 #
-# Called whenever data is available on the UART
+# Called whenever data is available on the UART (mode N)
 #
 	variable ST
+	variable PM
 #
 #  STA = 0  -> Waiting for preamble
 #        1  -> Waiting for the length byte
@@ -327,7 +382,7 @@ proc rawread { } {
 					# something has started, set up timer
 					variable IV
 					set ST(TIM) \
-					     [after $IV(packet) ::OSSU::rawread]
+					     [after $IV(PKT) ::OSSU::rawread_n]
 				}
 				return
 			}
@@ -345,13 +400,15 @@ proc rawread { } {
 		0 {
 			# waiting for packet preamble
 			variable CH
+			# Look up the preamble byte in the received string
 			for { set i 0 } { $i < $bl } { incr i } {
 				set c [string index $chunk $i]
-				if { $c == $CH(PRE) } {
+				if { $c == $CH(IPR) } {
 					# preamble found
 					set ST(STA) 1
 					break
-				} elseif { $c == $CH(PRD) } {
+				}
+				if { $c == $CH(DPR) } {
 					# diag preamble
 					set ST(STA) 3
 					break
@@ -367,11 +424,10 @@ proc rawread { } {
 		}
 
 		1 {
-			# expecting the length byte for a packet
-			binary scan [string index $chunk 0] c bl
+			# expecting the length byte
+			binary scan [string index $chunk 0] cu bl
 			set chunk [string range $chunk 1 end]
-			if { $bl <= 0 || [expr $bl & 0x01] } {
-				# illegal
+			if { [expr $bl & 1] || $bl > $PM(MPL) } {
 				variable DB
 				if { $DB(LEV) > 2 } {
 					trc "illegal packet length $bl"
@@ -380,10 +436,11 @@ proc rawread { } {
 				set ST(STA) 0
 				continue
 			}
-			# found
-			set ST(STA) 2
+			# how many bytes to expect
 			set ST(CNT) [expr $bl + 4]
 			set ST(BUF) ""
+			# found
+			set ST(STA) 2
 		}
 
 		2 {
@@ -416,7 +473,7 @@ proc rawread { } {
 		3 {
 			# waiting for the end of a diag header
 			variable CH
-			set chunk [string trimleft $chunk $CH(PRD)]
+			set chunk [string trimleft $chunk $CH(DPR)]
 			if { $chunk != "" } {
 				set ST(BUF) ""
 				# look at the first byte of diag
@@ -475,6 +532,229 @@ proc rawread { } {
 	}
 }
 
+proc rawread_p { } {
+#
+# Called whenever data is available on the UART (mode P)
+#
+	variable ST
+	variable PM
+#
+#  STA = 0  -> Waiting for preamble
+#        1  -> Waiting for the length byte
+#        2  -> Waiting for (CNT) bytes until the end of packet
+#        3  -> Waiting for end of DIAG preamble
+#        4  -> Waiting for EOL until end of DIAG
+#        5  -> Waiting for (CNT) bytes until the end of binary diag
+#
+	set chunk ""
+
+	while 1 {
+
+		if { $chunk == "" } {
+
+			if [catch { read $ST(SFD) } chunk] {
+				# nonblocking read, ignore errors
+				set chunk ""
+			}
+
+			if { $chunk == "" } {
+				# check for timeout
+				if { $ST(TIM) != "" } {
+					variable DB
+					if { $DB(LEV) > 2 } {
+						trc "packet timeout $ST(STA),
+							$ST(CNT)"
+					}
+					# reset
+					catch { after cancel $ST(TIM) }
+					set ST(TIM) ""
+					set ST(STA) 0
+				} elseif { $ST(STA) != 0 } {
+					# something has started, set up timer
+					variable IV
+					set ST(TIM) \
+					     [after $IV(PKT) ::OSSU::rawread_p]
+				}
+				return
+			}
+			# there is something to process, cancel timeout
+			if { $ST(TIM) != "" } {
+				catch { after cancel $ST(TIM) }
+				set ST(TIM) ""
+			}
+		}
+
+		set bl [string length $chunk]
+
+		switch $ST(STA) {
+
+		0 {
+			# waiting for packet preamble
+			variable CH
+			# P-mode
+			for { set i 0 } { $i < $bl } { incr i } {
+				set c [string index $chunk $i]
+				# there are four preambles to choose from
+				if { [string first $c $CH(IPR)] >= 0 } {
+					# preamble found
+					set ST(STA) 1
+					# needed for checksum
+					set ST(BUF) $c
+					break
+				}
+				if { $c == $CH(DPR) } {
+					# diag preamble
+					set ST(STA) 3
+					break
+				}
+			}
+			if { $i == $bl } {
+				# not found, keep waiting
+				set chunk ""
+				continue
+			}
+			# found, remove the parsed portion and keep going
+			set chunk [string range $chunk [expr $i + 1] end]
+		}
+
+		1 {
+			# expecting the length byte
+			set c [string index $chunk 0]
+			binary scan $c cu bl
+			set chunk [string range $chunk 1 end]
+			# P-mode UART
+			if { $bl > $PM(MPL) } {
+				variable DB
+				if { $DB(LEV) > 2 } {
+					trc "illegal packet length $bl"
+				}
+				# reset
+				set ST(STA) 0
+				continue
+			}
+			# include in message for checksum evaluation
+			append ST(BUF) $c
+			# adjust on odd length, but do not change formal length
+			if [expr $bl & 1] {
+				set ST(CNT) [expr $bl + 3]
+				# flag == odd length
+				set ST(RPL) 3
+			} else {
+				set ST(CNT) [expr $bl + 2]
+				# flag == even length
+				set ST(RPL) 2
+			}
+			# found
+			set ST(STA) 2
+		}
+
+		2 {
+			# packet reception, filling the buffer
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
+			}
+
+			# end of packet, reset
+			set ST(STA) 0
+
+			if { $bl == $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				# we have a complete buffer
+				runit
+				continue
+			}
+
+			# merged packets
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+			set chunk [string range $chunk $ST(CNT) end]
+			runit
+		}
+
+		3 {
+			# waiting for the end of a diag header
+			variable CH
+			set chunk [string trimleft $chunk $CH(DPR)]
+			if { $chunk != "" } {
+				set ST(BUF) ""
+				# look at the first byte of diag
+				if { [string index $chunk 0] == $CH(ZER) } {
+					# a binary diag, length == 7
+					set ST(CNT) 7
+					set ST(STA) 5
+				} else {
+					# ASCII -> wait for NL
+					set ST(STA) 4
+				}
+			}
+		}
+
+		4 {
+			# waiting for NL ending a diag
+			set c [string first "\n" $chunk]
+			if { $c < 0 } {
+				append ST(BUF) $chunk
+				set chunk ""
+				continue
+			}
+
+			append ST(BUF) [string range $chunk 0 $c]
+			set chunk [string range $chunk [expr $c + 1] end]
+			# reset
+			set ST(STA) 0
+			outdiag
+		}
+
+		5 {
+			# waiting for CNT bytes of binary diag
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
+			}
+			# reset
+			set ST(STA) 0
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+
+			set chunk [string range $chunk $ST(CNT) end]
+			outdiag
+		}
+
+		default {
+			variable DB
+			if { $DB(LEV) > 0 } {
+				trc "illegal state in rawread: $ST(STA)"
+			}
+			set ST(STA) 0
+		}
+		}
+	}
+}
+
+proc rawread_d { } {
+#
+# Called whenever data is available on the UART (mode D)
+#
+	variable ST
+	variable PM
+#
+# We are line-buffered, so we can read one line at a time
+#
+	if { [catch { gets $ST(SFD) chunk } sta] || $sta < 0 } {
+		return
+	}
+
+	if { $ST(DFN) != "" } {
+		$ST(DFN) $chunk
+	}
+}
+
 proc runit { } {
 
 	variable ST
@@ -492,12 +772,21 @@ proc runit { } {
 		}
 		return
 	}
-	
-	# strip off the checksum
-	set ST(BUF) [string range $ST(BUF) 0 end-2]
 
-	# execute the user handler
-	if { $ST(DFN) != "" } {
+	# user handler present?
+	if { $ST(DFN) == "" } {
+		# no, nothing else to do
+		return
+	}
+
+	if { $ST(MOD) == "P" } {
+		# extract the preamble
+		binary scan [lindex $ST(BUF) 0] cu pre
+		set ST(BUF) [string range $ST(BUF) 2 end-$ST(RPL)]
+		$ST(DFN) $ST(BUF) [expr $pre & 1] [expr ($pre & 2) >> 1]
+	} else {
+		# strip off the checksum
+		set ST(BUF) [string range $ST(BUF) 0 end-2]
 		$ST(DFN) $ST(BUF)
 	}
 }
@@ -510,9 +799,9 @@ proc outdiag { } {
 	if { [string index $ST(BUF) 0] == $CH(ZER) } {
 		# binary
 		set ln [string range $ST(BUF) 3 5]
-		binary scan $ln cS lv code
-		set lv [expr $lv & 0xff]
-		set code [expr $code & 0xffff]
+		binary scan $ln cuSu lv code
+		#set lv [expr $lv & 0xff]
+		#set code [expr $code & 0xffff]
 		puts "DIAG: \[[format %02x $lv] -> [format %04x $code]\]"
 	} else {
 		# ASCII

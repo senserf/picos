@@ -53,7 +53,7 @@ int ab_out (word st, char *str) {
 		release;
 	}
 
-	if ((ln = strlen (ab_xrs_cou) + 1) > ab_xrs_max) {
+	if ((ln = strlen (str) + 1) > ab_xrs_max) {
 		// Should we rather keep it?
 		ufree (str);
 		return ERROR;

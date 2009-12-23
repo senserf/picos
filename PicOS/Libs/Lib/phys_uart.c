@@ -228,7 +228,7 @@ static void ini_uart () {
  */
 	diag ("UART %d initialized, rate: %d00, bits: %d, parity: %s",
 		WHICH,
-		UART_RATE/100, UART_BITS, (UART_BITS == 8) ? "none" :
+		(int)(UART_RATE/100), UART_BITS, (UART_BITS == 8) ? "none" :
 		(UART_PARITY ? "odd" : "even"));
 #undef	WHICH
 }
@@ -327,69 +327,12 @@ void phys_uart (int phy, int mbs, int which) {
 
 	INI_UART (UA);
 	START_UART (UA, 0x3);
-	// Start in the OFF state
-	UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
+	// Start in the OFF state? No, I don't think it makes much sense
+	// for a UART
+	// UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
 
 #undef	UA
 }
-
-#if DIAG_MESSAGES
-
-// Hooks for DIAG
-
-#if UART_TCV < 2
-#define	UA zz_uart
-#define	DIAG_WAIT	diag_wait (a)
-#define	DIAG_WCHAR(c)	diag_wchar (c, a)
-#else
-
-#define UA (zz_uart + ua)
-
-#define	DIAG_WAIT	do { \
-				if (ua) \
-					diag_wait (b); \
-				else \
-					diag_wait (a); \
-			} while (0)
-
-#define	DIAG_WCHAR(c)	do { \
-				if (ua) \
-					diag_wchar (c, b); \
-				else \
-					diag_wchar (c, a); \
-			} while (0)
-#endif
-
-void zz_diag_init (int ua) {
-//
-// Preempt the UART for a diag message
-//
-	word bc;
-
-	if (UA->x_istate != IRQ_X_OFF) {
-		// Transmitter running, abort it
-		UART_STOP_XMITTER;
-		if (UA->x_prcs != 0)
-			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
-		bc = UA->x_buffl + 6;
-	} else
-		// Transmitter stopped
-		bc = 4;
-
-	// Send that many 0x54's
-	while (bc--) {
-		DIAG_WCHAR (0x54);
-		DIAG_WAIT;
-	}
-}
-
-void zz_diag_stop (int ua) { }
-
-#undef	UA
-#undef	DIAG_WAIT
-#undef	DIAH_WCHAR
-		
-#endif	/* DIAG_MESSAGES */
 
 #if UART_TCV > 1
 static int option0 (int opt, address val) {
@@ -503,7 +446,7 @@ static int option (int opt, address val) {
 #if UART_TCV_MODE == UART_TCV_MODE_P
 
 // ============================================================================
-// Persistent packet mode (with built-in ACKs =================================
+// Persistent packet mode (with built-in ACKs) ================================
 // ============================================================================
 
 // Note: this one doesn't accept BLUETOOTH at the moment, at least not in the
@@ -533,22 +476,15 @@ strand (xmtuart, uart_t)
 
     entry (XM_LOOP)
 
-	if ((UA->v_flags & 0xc0)) {
-		// Closing
-		if (UA->x_buffer != NULL) {
-			tcvphy_end (UA->x_buffer);
-			UA->x_buffer = NULL;
-		}
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			// Draining
-			tcvphy_erase (UA->v_physid);
-		}
+	LEDIU (1, 0);
+	// Hold (never drain)
+	if ((UA->v_flags & UAFLG_ROFF)) {
 		UART_STOP_XMITTER;
-		// UAFLG_HOLD: queue held, no activity
-		wait (UA->x_qevent, XM_LOOP);
+		when (UA->x_qevent, XM_LOOP);
 		release;
 	}
 
+	// Needed for the interrupt handler
 	UA->x_buffp = 0;
 	if ((UA->v_flags & UAFLG_UNAC) == 0) {
 		// No previous unacked message
@@ -557,73 +493,41 @@ strand (xmtuart, uart_t)
 			tcvphy_end (UA->x_buffer);
 		if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
 			// Send ACK
+			UA->x_buffh = (UA->v_flags & UAFLG_EMAB) | UAFLG_SMAB;
 			if ((UA->v_flags & UAFLG_EMAB)) {
-				// Set the outgoing ACK AB to expected AB
-				UA->v_flags |= UAFLG_OAAB;
-				// Precalculated checksum
 				UA->x_chk0 = ackc [1][0];
 				UA->x_chk1 = ackc [1][1];
 			} else {
-				UA->v_flags &= ~UAFLG_OAAB;
 				UA->x_chk0 = ackc [0][0];
 				UA->x_chk1 = ackc [0][1];
 			}
-			// Outgoing message AB is always 1 for an ACK
-			UA->v_flags |= UAFLG_OMAB;
 			// The message is empty
-			UA->x_buffl = 0;
+			UA->x_buffl = UA->x_buffc = 0;
 		} else {
-			// This is a new message; flip the outgoing AB
-			if ((UA->v_flags & UAFLG_SMAB))
-				UA->v_flags &= ~(UAFLG_SMAB | UAFLG_OMAB);
-			else
-				UA->v_flags |=  (UAFLG_SMAB | UAFLG_OMAB);
+			UA->x_buffh = (UA->v_flags & (UAFLG_EMAB | UAFLG_SMAB));
+			UA->x_buffc = stln;
+			if ((stln & 1)) 
+				// The transmitted length will be even anyway
+				stln++;
 			UA->x_buffl = (byte) stln;
-			if ((stln & 1)) {
-				// We know that the buffer consists of an
-				// entire number of words, so there is room
-				// for one extra byte
-				((byte*)(UA->x_buffer)) [stln] = 0xff;
-			}
-			// Set the outgoing ACK AB
-			if ((UA->v_flags & UAFLG_EMAB))
-				UA->v_flags |= UAFLG_OAAB;
-			else
-				UA->v_flags &= ~UAFLG_OAAB;
-			// Calculate the checksum
-			((byte*)(&stln)) [0] = (UA->v_flags & 0x03);
-			((byte*)(&stln)) [1] = UA->x_buffl;
-			stln = w_chk (&stln, 1, 0);
-			stln = w_chk (UA->x_buffer, (UA->x_buffl + 1) >> 1,
-				stln);
+			// Calculate checksum; note that this assumes a
+			// particular layout of uart_t!!!
+			stln = w_chk ((address)(&(UA->x_buffh)), 1, 0);
+			stln = w_chk (UA->x_buffer, UA->x_buffl >> 1, stln);
 			UA->x_chk0 = ((byte*)(&stln)) [0];
 			UA->x_chk1 = ((byte*)(&stln)) [1];
 			// Mark it as unacknowledged
 			UA->v_flags |= UAFLG_UNAC;
 		}
 	} else {
-		// Previous unacknowledged message
-		stln = 0;
-		if ((UA->v_flags & UAFLG_EMAB)) {
-			if ((UA->v_flags & UAFLG_OAAB) == 0) {
-				// The expected AB has changed
-				UA->v_flags |= UAFLG_OAAB;
-				stln = 1;
-			}
-		} else {
-			if ((UA->v_flags & UAFLG_OAAB)) {
-				// The expected AB has changed
-				UA->v_flags &= ~UAFLG_OAAB;
-				stln = 1;
-			}
-		}
-		if (stln) {
-			// Must recalculate checksum
-			((byte*)(&stln)) [0] = (UA->v_flags & 0x03);
-			((byte*)(&stln)) [1] = UA->x_buffl;
-			stln = w_chk (&stln, 1, 0);
-			stln = w_chk (UA->x_buffer, (UA->x_buffl + 1) >> 1,
-				stln);
+		// There is a previous unacknowledged message: header/trailer
+		// are ready ...
+		if (((UA->v_flags ^ UA->x_buffh) & UAFLG_EMAB)) {
+			// ... unless the expected AB has changed ...
+			UA->x_buffh ^= UAFLG_EMAB;
+			// ... so must recalculate checksum
+			stln = w_chk ((address)(&(UA->x_buffh)), 1, 0);
+			stln = w_chk (UA->x_buffer, UA->x_buffl >> 1, stln);
 			UA->x_chk0 = ((byte*)(&stln)) [0];
 			UA->x_chk1 = ((byte*)(&stln)) [1];
 		}
@@ -632,35 +536,29 @@ strand (xmtuart, uart_t)
 	// Acknowledgement sent (one way or the other), clear the flag
 	UA->v_flags &= ~UAFLG_SACK;
 			
-	wait (TXEVENT, XM_END);
+	when (TXEVENT, XM_END);
 	// Transmit
+	LEDIU (1, 1);
 	UART_START_XMITTER;
 	release;
 
     entry (XM_END)
 
-	if ((UA->v_flags & 0xc0))
+	if ((UA->v_flags & UAFLG_ROFF))
 		// Switched off
 		proceed (XM_LOOP);
 
-	delay (XMTSPACE, XM_NEXT);
-	wait (OFFEVENT, XM_END);
-
-	release;
-
     entry (XM_NEXT)
 
-	if ((UA->v_flags & UAFLG_SACK)) {
-		// Sending ACK, delay a bit
-		delay (XMTSPACE, XM_LOOP);
-		release;
-	}
+	if ((UA->v_flags & UAFLG_SACK))
+		// Sending ACK
+		proceed (XM_LOOP);
 
-	if ((UA->v_flags & UAFLG_UNAC)) {
-		// Don't look at the next message until this one is acked
+	if (UA->v_flags & UAFLG_UNAC) {
+		// Don't look at another message until this one is ACK-ed
 		delay (RETRTIME, XM_LOOP);
-		wait (OFFEVENT, XM_END);
-		wait (ACKEVENT, XM_NEXT);
+		when (OFFEVENT, XM_END);
+		when (ACKEVENT, XM_NEXT);
 		release;
 	}
 
@@ -673,9 +571,12 @@ strand (xmtuart, uart_t)
 	if (tcvphy_top (UA->v_physid) != NULL)
 		proceed (XM_LOOP);
 
-	wait (UA->x_qevent, XM_LOOP);
-	wait (ACKEVENT, XM_NEXT);
-
+	when (UA->x_qevent, XM_LOOP);
+	// This will come from the receiver
+	when (ACKEVENT, XM_NEXT);
+	// Send periodic ACKs in active mode
+	if ((UA->v_flags & UAFLG_PERS))
+		delay (RETRTIME, XM_LOOP);
 #undef	UA
 
 endstrand
@@ -698,22 +599,24 @@ strand (rcvuart, uart_t)
 
     entry (RC_LOOP)
 
-	wait (OFFEVENT, RC_LOOP);
+	LEDIU (2, 0);
+	when (OFFEVENT, RC_LOOP);
 
-	if ((UA->v_flags & 0xc0)) {
+	if ((UA->v_flags & UAFLG_ROFF)) {
 		UART_STOP_RECEIVER;
 		// Off
 	} else {
-		wait (RSEVENT, RC_START);
+		when (RSEVENT, RC_START);
 		UART_START_RECEIVER;
 	}
 	release;
 
     entry (RC_START)
 
+	LEDIU (2, 1);
 	delay (RXTIME, RC_RESET);
-	wait (RXEVENT, RC_END);
-	wait (OFFEVENT, RC_LOOP);
+	when (RXEVENT, RC_END);
+	when (OFFEVENT, RC_LOOP);
 	release;
 
     entry (RC_RESET)
@@ -724,9 +627,10 @@ strand (rcvuart, uart_t)
     entry (RC_END)
 
 	if (UA->r_buffer [0] == 0xffff) {
+		// Length field error
 		UART_STOP_RECEIVER;
 		delay (RCVSPACE, RC_LOOP);
-		wait (OFFEVENT, RC_LOOP);
+		when (OFFEVENT, RC_LOOP);
 		release;
 	}
 	// Validate checksum
@@ -740,15 +644,15 @@ strand (rcvuart, uart_t)
 		// Ack with MAB == 0 is illegal
 		proceed (RC_LOOP);
 
-	if ((UA->v_flags & UAFLG_UNAC)) {
-		// Look at the ACK bit
-		if (((b & UAFLG_OAAB) && (UA->v_flags & UAFLG_OMAB) == 0) ||
-		    ((b & UAFLG_OAAB) == 0 && (UA->v_flags & UAFLG_OMAB))) {
-			// We are acked
+	if ((((b >> 1) ^ UA->v_flags) & UAFLG_SMAB)) {
+		// Expected != current
+		if ((UA->v_flags & UAFLG_UNAC)) {
+			// Xmitter waiting just for that
 			UA->v_flags &= ~UAFLG_UNAC;
-			// Play the transmitter part and release the buffer
 			trigger (ACKEVENT);
 		}
+		// Flip the outgoing bit
+		UA->v_flags ^= UAFLG_SMAB;
 	}
 
 	// Now for the message
@@ -757,9 +661,8 @@ strand (rcvuart, uart_t)
 		proceed (RC_LOOP);
 
 	// Check if the message is expected
-	if (((b & UAFLG_OMAB) && (UA->v_flags & UAFLG_EMAB)) ||
-	    ((b & UAFLG_OMAB) == 0 && (UA->v_flags & UAFLG_EMAB) == 0)) {
-		// Yes, it is, pass it up
+	if ((((b << 1) ^ UA->v_flags) & UAFLG_EMAB) == 0) {
+		// Yup, it is, pass it up
 		if (tcvphy_rcv (UA->v_physid, UA->r_buffer + 1, stln))
 			// Message has been accepted, flip EMAB
 			UA->v_flags ^= UAFLG_EMAB;
@@ -767,7 +670,6 @@ strand (rcvuart, uart_t)
 	// Send ACK (for this or previous message)
 	UA->v_flags |= UAFLG_SACK;
 	trigger (ACKEVENT);
-
 	proceed (RC_LOOP);
 
 endstrand
@@ -784,7 +686,7 @@ static void ini_uart () {
  */
 	diag ("UART-P %d initialized, rate: %d00, bits: %d, parity: %s",
 		WHICH,
-		UART_RATE/100, UART_BITS, (UART_BITS == 8) ? "none" :
+		(int)(UART_RATE/100), UART_BITS, (UART_BITS == 8) ? "none" :
 		(UART_PARITY ? "odd" : "even"));
 	// Note: diag should be disabled if it gets in the way
 #undef	WHICH
@@ -797,7 +699,8 @@ static void start_uart (int which) {
 static void start_uart () {
 #define	UA zz_uart
 #endif
-	UA->v_flags &= ~(UAFLG_HOLD | UAFLG_DRAI);
+	// Note: ROFF is used as a global OFF flags
+	UA->v_flags &= ~UAFLG_ROFF;
 	if (UA->r_prcs == 0)
 		UA->r_prcs = runstrand (rcvuart, UA);
 	if (UA->x_prcs == 0) {
@@ -822,7 +725,7 @@ void phys_uart (int phy, int mbs, int which) {
 #else
 #define	UA	zz_uart
 #endif
-	if ((word_which >= UART_TCV)
+	if ((word)which >= UART_TCV)
 		syserror (EREQPAR, "phys_uart");
 
 	if (UA->r_buffer != NULL)
@@ -836,6 +739,7 @@ void phys_uart (int phy, int mbs, int which) {
 	if ((mbs & 1))
 		mbs++;
 
+	// Two bytes for header (preamble + length) + two bytes for checksum
 	mbs += 4;
 
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
@@ -844,7 +748,7 @@ void phys_uart (int phy, int mbs, int which) {
 	// If not NULL, the buffer must be released to TCV
 	UA->x_buffer = NULL;
 
-	// Length in bytes
+	// Length in bytes (total)
 	UA->r_buffl = mbs;
 
 	UA->v_physid = phy;
@@ -858,8 +762,7 @@ void phys_uart (int phy, int mbs, int which) {
 #endif
 			INFO_PHYS_UARTP + which);
 
-	// This is flipped before first send
-	UA->v_flags = UAFLG_SMAB;
+	UA->v_flags = 0;
 
 	INI_UART (which);
 	START_UART (which);
@@ -888,7 +791,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = (UA->v_flags & 0xc0) >> 6;
+		ret = (UA->v_flags & UAFLG_ROFF) >> 3;
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -902,21 +805,24 @@ Wake:
 
 		break;
 
+	    case PHYSOPT_HOLD:
 	    case PHYSOPT_OFF:
 
-		/* Drain */
-		if ((UA->v_flags & (UAFLG_DRAI | UAFLG_HOLD)))
+		if ((UA->v_flags & UAFLG_ROFF))
 			break;
 
-		UA->v_flags |= UAFLG_DRAI;
+		UA->v_flags |= UAFLG_ROFF;
 		goto Wake;
 
-	    case PHYSOPT_HOLD:
+	    case PHYSOPT_TXON:
 
-		if ((UA->v_flags & (UAFLG_DRAI | UAFLG_HOLD)))
-			break;
+		// This is used here for active mode
+		UA->v_flags |= UAFLG_PERS;
+		goto Wake;
 
-		UA->v_flags |= UAFLG_HOLD;
+	    case PHYSOPT_TXOFF:
+
+		UA->v_flags &= ~UAFLG_PERS;
 		goto Wake;
 
 #if UART_RATE_SETTABLE
@@ -1087,7 +993,7 @@ static void ini_uart () {
  */
 	diag ("UART %d initialized, rate: %d00, bits: %d, parity: %s",
 		WHICH,
-		UART_RATE/100, UART_BITS, (UART_BITS == 8) ? "none" :
+		(int)(UART_RATE/100), UART_BITS, (UART_BITS == 8) ? "none" :
 		(UART_PARITY ? "odd" : "even"));
 #undef	WHICH
 }
@@ -1184,8 +1090,8 @@ void phys_uart (int phy, int mbs, int which) {
 
 	INI_UART (UA);
 	START_UART (UA, 0x3);
-	// Start in the OFF state
-	UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
+	// Start in the OFF state? No, let them start running!
+	// UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
 
 #undef	UA
 }
@@ -1269,7 +1175,7 @@ static int option (int opt, address val) {
 #endif
 	    case PHYSOPT_GETMAXPL:
 
-		ret = UA->r_buffl;
+		ret = UA->r_buffl + 1;
 		break;
 
 	    default:
@@ -1281,3 +1187,79 @@ static int option (int opt, address val) {
 }
 
 #endif /* UART_TCV_MODE_L */
+
+#if DIAG_MESSAGES
+#if DIAG_IMPLEMENTATION == 1
+
+// Hooks for DIAG
+
+#if UART_TCV < 2
+#define	UA zz_uart
+#define	DIAG_WAIT	diag_wait (a)
+#define	DIAG_WCHAR(c)	diag_wchar (c, a)
+#else
+
+#define UA (zz_uart + ua)
+
+#define	DIAG_WAIT	do { \
+				if (ua) \
+					diag_wait (b); \
+				else \
+					diag_wait (a); \
+			} while (0)
+
+#define	DIAG_WCHAR(c)	do { \
+				if (ua) \
+					diag_wchar (c, b); \
+				else \
+					diag_wchar (c, a); \
+			} while (0)
+#endif
+
+void zz_diag_init (int ua) {
+//
+// Preempt the UART for a diag message
+//
+
+#if UART_TCV_MODE == UART_TCV_MODE_L
+
+	if (UA->x_istate != IRQ_X_OFF) {
+		// Transmitter running, abort it
+		UART_STOP_XMITTER;
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+	}
+
+	DIAG_WCHAR ('\r'); DIAG_WAIT;
+
+#else
+	word bc;
+
+	if (UA->x_istate != IRQ_X_OFF) {
+		// Transmitter running, abort it
+		UART_STOP_XMITTER;
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+		bc = UA->x_buffl + 6;
+	} else
+		// Transmitter stopped
+		bc = 4;
+
+	// Send that many 0x54's
+	while (bc--) {
+		DIAG_WCHAR (0x54);
+		DIAG_WAIT;
+	}
+#endif
+
+}
+
+void zz_diag_stop (int ua) { }
+
+#undef	UA
+#undef	DIAG_WAIT
+#undef	DIAH_WCHAR
+		
+#endif	/* DIAG_MESSAGES */
+
+#endif	/* MODE_N or MODE_P */

@@ -181,17 +181,9 @@
 #ifndef	DIAG_IMPLEMENTATION
 
 #if	UART_TCV
-#if	UART_TCV_MODE == UART_TCV_MODE_L
-// This looks almost like direct UART; we can do diag this way
-#define	DIAG_IMPLEMENTATION	0
-#else
-#if	UART_TCV_MODE == UART_TCV_MODE_N
-// Non-persistent packets; we have a mode for that
 #define	DIAG_IMPLEMENTATION	1
 #endif
-#endif
-// Room for UART_TCV_MODE_P [later - this UART mode is likely to go]
-#endif
+
 #endif
 // ===========================================================================
 
@@ -528,8 +520,8 @@ int	root (word state, address data);
 typedef	int (*code_t)(word, address);
 
 void		zzz_uwait (word, word);
-int		zzz_utrigger (word), zzz_ptrigger (int, word);
-int		zzz_fork (code_t func, address data);
+int		zzz_utrigger (word), zzz_ptrigger (sint, word);
+sint		zzz_fork (code_t func, address data);
 void		reset (void);
 void		halt (void);
 
@@ -703,11 +695,11 @@ int	io (int, int, int, char*, int);
 
 /* Timer wait */
 void	delay (word, word);
-word	dleft (int);
+word	dleft (sint);
 
 /* Minute wait */
 void	ldelay (word, word);
-word	ldleft (int, address);
+word	ldleft (sint, address);
 
 /* Continue timer wait */
 void	snooze (word);
@@ -715,33 +707,34 @@ void	snooze (word);
 #define	trigger(a)	zzz_utrigger ((word)(a))
 #define	ptrigger(a,b)	zzz_ptrigger (a, (word)(b))
 /* Kill the indicated process */
-int	kill (int);
+sint	kill (sint);
 /* Kill all processes running this code */
 int	killall (code_t);
 
 #if SCHED_PRIO
 /* Prioritize for scheduling */
 int     prioritizeall (code_t, int);
-int     prioritize (int, int);
+int     prioritize (sint, int);
 #else
 #define	prioritizeall(a,b)	0
 #define	prioritizel(a,b)	0
 #endif
 
 /* Wait for a process */
-int	join (int, word);
+sint	join (sint, word);
 /* Wait for any process running this code */
 void	joinall (code_t, word);
 /* Locate a process by code */
-int	running (code_t), crunning (code_t);
+sint	running (code_t);
+int	crunning (code_t);
 /* Locate a process by code and data */
-int	zzz_find (code_t, address);
+sint	zzz_find (code_t, address);
 /* Locate a zombie by code */
-int	zombie (code_t);
+sint	zombie (code_t);
 /* Check for waiting or being a zombie */
-int	status (int);
+int	status (sint);
 /* Transform pid into code pointer */
-code_t	getcode (int);
+code_t	getcode (sint);
 /* Proceed to another state */
 void	proceed (word);
 /* Power up/down functions */
@@ -891,13 +884,13 @@ void	dbb (word);
 
 #define	PHYSOPT_STATUS		0	/* Get device status */
 #define	PHYSOPT_TXON		1	/* Transmitter on */
-#define	PHYSOPT_ON		1	/* General on */
 #define	PHYSOPT_TXOFF		2	/* Transmitter off */
-#define	PHYSOPT_OFF		2	/* General off */
 #define	PHYSOPT_TXHOLD		3	/* OFF + queue */
 #define	PHYSOPT_HOLD		3	/* General hold */
 #define	PHYSOPT_RXON		4	/* Receiver on */
+#define	PHYSOPT_ON		4	/* General on */
 #define	PHYSOPT_RXOFF		5	/* Receiver off */
+#define	PHYSOPT_OFF		5	/* General off */
 #define	PHYSOPT_CAV		6	/* Set collision avoidance 'vector' */
 #define	PHYSOPT_SETPOWER 	7	/* Transmission power */
 #define	PHYSOPT_GETPOWER	8	/* Last reception power */

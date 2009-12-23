@@ -1,6 +1,10 @@
 package require oss_u 1.0
 
-package provide oss_u_ab 1.0
+package provide oss_u_xrs 1.0
+
+#
+# XRS
+#
 
 namespace eval OSSUAB {
 

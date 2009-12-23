@@ -18,16 +18,15 @@
 
 #ifdef	N_UARTS_TCV				// Set in uart_sys.h
 
-#define	UAFLG_OMAB		0x01		// Outgoing message AB
-#define	UAFLG_OAAB		0x02		// Outgoing ACK AB
-#define	UAFLG_SMAB		0x04		// AB to send
-#define	UAFLG_EMAB		0x08		// Expected message AB
+#define	UAFLG_SMAB		0x01		// AB to send
+#define	UAFLG_EMAB		0x02		// Expected message AB
+#define	UAFLG_PERS		0x04		// Persisted mode
+#define	UAFLG_ROFF		0x08		// RCV off
 #define	UAFLG_UNAC		0x10		// Last out message unacked
 #define	UAFLG_SACK		0x20		// Send ACK ASAP
 #define	UAFLG_HOLD		0x40
 #define	UAFLG_DRAI		0x80
 
-#define	UAFLG_ROFF		0x20		// RCV off (non-persistent only)
 
 #define	TXEVENT			((word)(&(UA->x_buffer)))
 #define	RXEVENT			((word)(&(UA->r_buffer)))
@@ -35,10 +34,9 @@
 #define	OFFEVENT		((word)(&(UA->r_buffs)))
 #define	ACKEVENT		((word)(&(UA->r_buffp)))
 
-#define	XMTSPACE		(   20 + (rnd () &   0xf))
-#define	RCVSPACE		(   40 + (rnd () &  0x1f))
+#define	RCVSPACE		50
 #define	RXTIME			1024
-#define	RETRTIME		( 1024 + (rnd () & 0x1ff))
+#define	RETRTIME		1024
 
 typedef	struct	{
 
@@ -47,7 +45,8 @@ typedef	struct	{
 
 	byte	x_buffl,  x_buffp,
 #if UART_TCV_MODE == UART_TCV_MODE_P
-		x_chk0,   x_chk1,
+		x_buffh,  x_buffc,	// First two bytes (the order matters)
+		x_chk0,   x_chk1,	// Checksum
 #endif
 		r_buffl,  r_buffs,
 		r_buffp,  x_istate,

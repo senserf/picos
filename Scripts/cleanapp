@@ -1,2 +1,2 @@
 #!/bin/sh
-rm -rf KTMP Image* *.cyp *.cyw cstartup.* qqpack.asm *.lif irq.* internal.map out temp Makefile .gdbinit gdb.ini *.o side.* */side */LIBRARY
+rm -rf KTMP Image* *.cyp *.cyw cstartup.* qqpack.asm *.lif irq.* internal.map out temp Makefile .gdbinit gdb.ini *.o side.* side */LIBRARY

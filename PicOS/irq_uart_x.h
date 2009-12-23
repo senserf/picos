@@ -69,21 +69,21 @@
 	case IRQ_X_STRT:
 
 	    	// Transmitting header byte
-		XBUF = (UA->v_flags & 0x3);
+		XBUF = UA->x_buffh;
 		UA->x_istate = IRQ_X_LEN;
 		RTNI;
 
 	case IRQ_X_LEN:
 
 		// Transmitting the length
-		XBUF = (UA->x_buffl);
+		XBUF = UA->x_buffc;
 		UA->x_istate = IRQ_X_PKT;
 		RTNI;
 
 	case IRQ_X_PKT:
 
 		// Transmitting the message
-		if ((UA->x_buffp < UA->x_buffl) || ((UA->x_buffp & 1))) {
+		if (UA->x_buffp < UA->x_buffl) {
 			XBUF = ((byte*)(UA->x_buffer)) [UA->x_buffp++];
 			RTNI;
 		}

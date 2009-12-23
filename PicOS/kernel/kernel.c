@@ -87,7 +87,7 @@ static	address mevent;
 // Function ===================================================================
 
 #if PID_VER_TYPE == 1
-static pcb_t *pidver (int pid) {
+static pcb_t *pidver (sint pid) {
 
 	register pcb_t *i;
 
@@ -273,7 +273,7 @@ void zzz_tservice () {
 /* ==================== */
 /* Launch a new process */
 /* ==================== */
-int zzz_fork (code_t func, address data) {
+sint zzz_fork (code_t func, address data) {
 
 	pcb_t *i;
 	int pc;
@@ -431,7 +431,7 @@ void unwait (word state) {
 /* Return the number of milliseconds that the indicated process is going to */
 /* sleep for                                                                */
 /* ======================================================================== */
-word dleft (int pid) {
+word dleft (sint pid) {
 
 	pcb_t *i;
 
@@ -473,7 +473,7 @@ void ldelay (word d, word state) {
 /* Return the number of minutes (and optionally seconds) remaining for the */
 /* process to long-sleep                                                   */
 /* ======================================================================= */
-word ldleft (int pid, word *s) {
+word ldleft (sint pid, word *s) {
 
 	pcb_t	*i;
 	word	j, ldel;
@@ -578,7 +578,7 @@ int zzz_utrigger (word event) {
 /* ================================= */
 /* Trigger when the process is known */
 /* ================================= */
-int zzz_ptrigger (int pid, word event) {
+int zzz_ptrigger (sint pid, word event) {
 
 	pcb_t	*i;
 	int 	j;
@@ -602,7 +602,7 @@ int zzz_ptrigger (int pid, word event) {
 	return 0;
 }
 
-static void killev (int pid, word wfun) {
+static void killev (sint pid, word wfun) {
 	word etp;
 	int j;
 	pcb_t *i;
@@ -623,7 +623,7 @@ static void killev (int pid, word wfun) {
 	}
 }
 
-int kill (int pid) {
+sint kill (sint pid) {
 /* =========================== */
 /* Terminate process execution */
 /* =========================== */
@@ -706,7 +706,7 @@ int prioritizeall (code_t fun, int pr) {
 	return np;
 }
 
-int prioritize (int pid, int pr) {
+int prioritize (sint pid, int pr) {
 
 	pcb_t *i;
 
@@ -723,7 +723,7 @@ int prioritize (int pid, int pr) {
 
 #endif
 
-int status (int pid) {
+int status (sint pid) {
 
 	pcb_t *i;
 	int res;
@@ -746,7 +746,7 @@ int status (int pid) {
 	return res;
 }
 
-code_t getcode (int pid) {
+code_t getcode (sint pid) {
 
 	pcb_t *i;
 
@@ -758,7 +758,7 @@ code_t getcode (int pid) {
 	return i->code;
 }
 
-int join (int pid, word state) {
+sint join (sint pid, word state) {
 	pcb_t *i;
 
 	/* Check if pid is legit */
@@ -781,7 +781,7 @@ void joinall (code_t fun, word state) {
 	swait (ETYPE_TERMANY, (word)fun, state);
 }
 
-int running (code_t fun) {
+sint running (code_t fun) {
 
 	pcb_t *i;
 
@@ -807,7 +807,7 @@ int crunning (code_t fun) {
 	return c;
 }
 
-int zzz_find (code_t fun, address dat) {
+sint zzz_find (code_t fun, address dat) {
 
 	pcb_t *i;
 
@@ -818,7 +818,7 @@ int zzz_find (code_t fun, address dat) {
 	return 0;
 }
 
-int zombie (code_t fun) {
+sint zombie (code_t fun) {
 
 	pcb_t *i;
 
@@ -1426,6 +1426,16 @@ void zz_sdram_test (void) {
 }
 #endif
 
+#if	dbg_level != 0 || DIAG_MESSAGES
+
+static void dgout (word c) {
+
+	diag_wait (a);
+	diag_wchar (c, a);
+}
+
+#endif
+
 #if	dbg_level != 0
 
 void zz_dbg (const word lvl, word code) {
@@ -1436,26 +1446,25 @@ void zz_dbg (const word lvl, word code) {
 
 	diag_disable_int (a, is);
 
-	diag_wait (a); 	diag_wchar (0         , a);
-	diag_wait (a); 	diag_wchar (4         , a);
-	diag_wait (a); 	diag_wchar (0xFD      , a);
-	diag_wait (a); 	diag_wchar (lvl       , a);
-	diag_wait (a); 	diag_wchar (code >> 8 , a);
-	diag_wait (a); 	diag_wchar (code      , a);
-	diag_wait (a); 	diag_wchar (4         , a);
+	dgout (0         );
+	dgout (4         );
+	dgout (0xFD      );
+	dgout (lvl       );
+	dgout (code >> 8 );
+	dgout (code      );
+	dgout (4         );
 #else
 	int i; word v;
 
 	diag_disable_int (a, is);
-	diag_wait (a); 	diag_wchar ('+'       , a);
-	diag_wait (a); 	diag_wchar ('+'       , a);
-	diag_wait (a);
+	dgout ('+'       );
+	dgout ('+'       );
 	if (lvl < 10) {
-			diag_wchar ('0' + lvl , a);
+			dgout ('0' + lvl);
 	} else {
-			diag_wchar ('a' + lvl - 10, a);
+			dgout ('a' + lvl - 10);
 	}
-	diag_wait (a); 	diag_wchar ('.'       , a);
+	dgout ('.');
 
 	for (i = 0; i < 16; i += 4) {
 		v = (code >> 12 - i) & 0xf;
@@ -1463,12 +1472,11 @@ void zz_dbg (const word lvl, word code) {
 			v = (word)'a' + v - 10;
 		else
 			v = (word)'0' + v;
-		diag_wait (a);
-		diag_wchar (v, a);
+		dgout (v);
 	}
 	
-	diag_wait (a); diag_wchar ('\r'       , a);
-	diag_wait (a); diag_wchar ('\n'       , a);
+	dgout ('\r');
+	dgout ('\n');
 #endif
 	diag_wait (a);
 	diag_enable_int (a, is);
@@ -1477,6 +1485,7 @@ void zz_dbg (const word lvl, word code) {
 #endif	/* dbg_level */
 
 #if	DIAG_MESSAGES
+
 
 void diag (const char *mess, ...) {
 /* ================================ */
@@ -1501,15 +1510,13 @@ void diag (const char *mess, ...) {
 					v = (word) zz_hex_enc_table [
 							(val >> (12 - i)) & 0xf
 								    ];
-					diag_wait (a);
-					diag_wchar (v, a);
+					dgout (v);
 				}
 				break;
 			  case 'd' :
 				val = va_arg (ap, word);
 				if (val & 0x8000) {
-					diag_wait (a);
-					diag_wchar ('-', a);
+					dgout ('-');
 					val = (~val) + 1;
 				}
 			    DI_SIG:
@@ -1520,8 +1527,7 @@ void diag (const char *mess, ...) {
 					i /= 10;
 				}
 				while (1) {
-					diag_wait (a);
-					diag_wchar (v + '0', a);
+					dgout (v + '0');
 					val = val - (v * i);
 					i /= 10;
 					if (i == 0) break;
@@ -1534,30 +1540,23 @@ void diag (const char *mess, ...) {
 			  case 's' :
 				s = va_arg (ap, char*);
 				while (*s != '\0') {
-					diag_wait (a);
-					diag_wchar (*s, a);
+					dgout (*s);
 					s++;
 				}
 				break;
 			  default:
-				diag_wait (a);
-				diag_wchar ('%', a);
-				diag_wait (a);
-				diag_wchar (*mess, a);
+				dgout ('%');
+				dgout (*mess);
 			}
 			mess++;
 		} else {
-			diag_wait (a);
-			diag_wchar (*mess++, a);
+			dgout (*mess++);
 		}
 	}
 
+	dgout ('\r');
+	dgout ('\n');
 	diag_wait (a);
-	diag_wchar ('\r', a);
-	diag_wait (a);
-	diag_wchar ('\n', a);
-	diag_wait (a);
-
 	diag_enable_int (a, is);
 }
 

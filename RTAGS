@@ -3516,3 +3516,58 @@ R091212A:
 
 	A few cosmetics related to VUEE: you need this version of PicOS for
 	the same version of VUEE (otherwise, things will not work).
+
+R091222A:
+
+	A simple NULL modem program (using pseudo TTYs) added to PICOS/Linux
+	(file nullmodem.c - compiles gcc -o nullmodem nullmodem.c). Described
+	briefly in VUE_doc.pdf. Of course, it only works under Linux. 
+
+	You simply call it and then it shows you two pseudo-ttys, e.g.,
+
+		TTY name: /dev/pts/7
+		TTY name: /dev/pts/6
+
+	and then acts as a forwarder between them. You give one of them to
+	the udaemon (select it from the U-U menu), while the OSS program (e.g.,
+	uf.tcl) uses the other one. The formal speeds need not match.
+
+	Type of process ID changed to sint. This isn't really a change as far
+	as PicOS, but ... you know ... for clarity and compatibility with VUEE.
+
+	The persistent packet mode for UART (UART_TCV_MODE_P) redone and fixed.
+	It is a suggested alternative way to implement reliable binary
+	communication over UART. Read the blue stuff in Serial.pdf.
+
+	Binary XRS (aka ABB) modified. The buffer type is now byte* (Wlodek
+	preferred it this way). Also, abb_out does the umalloc (i.e., acquires
+	the output buffer). Here is how the functions now look:
+
+		byte *abb_out (word, word);
+		byte *abb_in (word, word*);
+
+	The new version of abb_out returns the buffer that has to be filled by
+	the calling process before it completes the current state. See
+	Serial.pdf. Wlodek, is it better than the previous version?
+
+	OSS scripts in PICOS/Scripts redone. There is a single script named
+	uf.tcl implementing fronts for: simple (direct) UART, XRS, P-mode,
+	including binary variants. I have retained some previous "library"
+	versions of interfaces (e.g., OEP, XRS) which are needed, e.g., by
+	SEAWOLF's YEP script (they have been fixed a bit). This new UART front
+	script is roughly documented in Serial.pdf.
+
+	Fixed a rather serious bug in ab.c (introduced with abb).
+
+	Operations related to diag (in kernel.c) redone a bit. There was a
+	weirdness causing hung diag with UART_TCV_MODE_L (the line mode of
+	packet UART). I didn't quite understand it, but decided to make diag
+	handling in that mode similar to the other packet modes of UART (which
+	makes better sense, anyway), and the problem disappeared.
+
+	Added simple tests (Apps/VUEE/PIDS) intended to test process operations
+	under VUEE, but also the three packet modes of UART interface.
+
+	A minor fix in the cleanapp script: while it correctly removed the
+	executable side.exe on cygwin, it failed to remove side (no .exe) on
+	Linux.
