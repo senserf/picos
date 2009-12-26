@@ -66,6 +66,29 @@ variable CRCTAB	{
     0x6e17  0x7e36  0x4e55  0x5e74  0x2e93  0x3eb2  0x0ed1  0x1ef0
 }
 
+proc u_systype { } {
+#
+# Return the system type, like in Linux, Windows ...
+#
+	variable SysType
+
+	if [info exists SysType] {
+		return $SysType
+	}
+
+	if [catch { exec uname } un] {
+		set SysType "W"
+	} elseif [regexp -nocase "linux" $un] {
+		set SysType "L"
+	} elseif [regexp -nocase "cygwin" $un] {
+		set SysType "C"
+	} else {
+		set SysType "W"
+	}
+
+	return $SysType
+}
+
 proc u_cdevl { pi } {
 #
 # Returns the candidate list of devices to open based on the port identifier
@@ -100,8 +123,15 @@ proc u_start { udev speed mod { mpl $PM(MPL) } } {
 	set devlist [u_cdevl $udev]
 
 	set fail 1
+
+	if { [u_systype] == "L" } {
+		set accs { RDWR NOCTTY NONBLOCK }
+	} else {
+		set accs "r+"
+	}
+
 	foreach udev $devlist {
-		if ![catch { open $udev "r+" } ST(SFD)] {
+		if ![catch { open $udev $accs } ST(SFD)] {
 			set fail 0
 			break
 		}

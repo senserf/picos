@@ -3571,3 +3571,15 @@ R091222A:
 	A minor fix in the cleanapp script: while it correctly removed the
 	executable side.exe on cygwin, it failed to remove side (no .exe) on
 	Linux.
+
+R091225A:
+
+	Fixed uf.tcl and oss_u.tcl to properly open the tty in nonblocking
+	mode on Linux. There is some weird bug, probably in the FTDI USB
+	driver, which renders the the tty dumb unless it is opened in (UNIX)
+	nonblocking mode (with explicit NONBLOCK flag in Tcl).
+
+	XRS functions redone as requested by Wlodek. Read the red stuff in
+	the XRS section in Serial.pdf. Note that the equivalent of the previous
+	abb_out is now called abb_outf, and the "new" version of abb_out does
+	more or less what its old (the very first) version did.

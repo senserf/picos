@@ -186,7 +186,7 @@ proc u_cdevl { pi } {
 		if [regexp "^\[0-9\]+$" $pi] {
 			# a number
 			return \
-			    [list "/dev/ttyUSB$pn" "/dev/tty$pn" "/dev/pts/$pi]
+			    [list "/dev/ttyUSB$pi" "/dev/tty$pi" "/dev/pts/$pi"]
 		}
 		if ![regexp "^/dev" $pi] {
 			set pi "/dev/$pi"
@@ -219,8 +219,19 @@ proc u_start { udev speed mpl plug ifun } {
 	set devlist [u_cdevl $udev]
 
 	set fail 1
+
+	# Note: apparently, the driver of FTDI USB is broken on Linux, so I
+	# have to resort to these tricks (the discovery of which took me two
+	# @##$$% days)
+
+	if { $ST(SYS) == "L" } {
+		set accs { RDWR NOCTTY NONBLOCK }
+	} else {
+		set accs "r+"
+	}
+
 	foreach udev $devlist {
-		if ![catch { open $udev "r+" } ST(SFD)] {
+		if ![catch { open $udev $accs } ST(SFD)] {
 			set fail 0
 			break
 		}
@@ -1148,7 +1159,7 @@ proc p_init_d { } {
 
 	set ST(MOD) "D"
 
-	fconfigure $ST(SFD) -buffering line -translation { lf crlf }
+	fconfigure $ST(SFD) -buffering none -translation { lf crlf }
 
 	set PM(UPL) $PM(MPL)
 }

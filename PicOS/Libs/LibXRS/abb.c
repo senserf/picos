@@ -7,24 +7,56 @@
 
 // ============================================================================
 
-byte *abb_out (word st, word ln) {
+byte *abb_outf (word st, word ln) {
 //
-// Send a binary message
+// Send a binary message with internally allocated buffer
 //
-	if (ln > ab_xrs_max)
-		syserror (EREQPAR, "abb_out");
-
 	if (ab_xrs_sln != 0 || ab_xrs_mod == 0) {
 		// Off or busy
+		if (st == WNONE)
+			return NULL;
 		when (AB_EVENT_OUT, st);
 		release;
 	}
 
+	if (ln > ab_xrs_max) {
+		if (st == WNONE)
+			return NULL;
+		syserror (EREQPAR, "abb_outf");
+	}
+
 	if ((ab_xrs_cou = (char*) umalloc (ln)) == NULL) {
+		if (st == WNONE)
+			return NULL;
 		umwait (st);
 		release;
 	}
 
+	ab_xrs_sln = (byte) ln;
+	ab_xrs_new = AB_XTRIES;
+	ptrigger (ab_xrs_han, AB_EVENT_RUN);
+	return (byte*) ab_xrs_cou;
+}
+
+byte *abb_out (word st, byte *buf, word ln) {
+//
+// Send a binary message with user-allocated buffer
+//
+	if (ln > ab_xrs_max || buf == NULL) {
+		if (st == WNONE)
+			return NULL;
+		syserror (EREQPAR, "abb_out");
+	}
+
+	if (ab_xrs_sln != 0 || ab_xrs_mod == 0) {
+		// Off or busy
+		if (st == WNONE)
+			return NULL;
+		when (AB_EVENT_OUT, st);
+		release;
+	}
+
+	ab_xrs_cou = (char*) buf;
 	ab_xrs_sln = (byte) ln;
 	ab_xrs_new = AB_XTRIES;
 	ptrigger (ab_xrs_han, AB_EVENT_RUN);
@@ -38,6 +70,8 @@ byte *abb_in (word st, word *ln) {
 	byte *res;
 
 	if (ab_xrs_cin == NULL) {
+		if (st == WNONE)
+			return NULL;
 		when (AB_EVENT_IN, st);
 		release;
 	}

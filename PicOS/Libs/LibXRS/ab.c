@@ -7,7 +7,7 @@
 
 // ============================================================================
 
-int ab_outf (word st, const char *fm, ...) {
+char *ab_outf (word st, const char *fm, ...) {
 //
 // Send a message
 //
@@ -16,6 +16,8 @@ int ab_outf (word st, const char *fm, ...) {
 
 	if (ab_xrs_sln != 0 || ab_xrs_mod == 0) {
 		// Off or busy
+		if (st == WNONE)
+			return NULL;
 		when (AB_EVENT_OUT, st);
 		release;
 	}
@@ -24,6 +26,8 @@ int ab_outf (word st, const char *fm, ...) {
 
 	if ((ab_xrs_cou = vform (NULL, fm, ap)) == NULL) {
 		// Out of memory
+		if (st == WNONE)
+			return NULL;
 		umwait (st);
 		release;
 	}
@@ -32,16 +36,18 @@ int ab_outf (word st, const char *fm, ...) {
 	if ((ln = strlen (ab_xrs_cou) + 1) > ab_xrs_max) {
 		// Too long
 		ufree (ab_xrs_cou);
-		return ERROR;
+		if (st == WNONE)
+			return NULL;
+		syserror (EREQPAR, "ab_outf");
 	}
 
 	ab_xrs_sln = (byte) ln;
 	ab_xrs_new = AB_XTRIES;
 	ptrigger (ab_xrs_han, AB_EVENT_RUN);
-	return 0;
+	return ab_xrs_cou;
 }
 
-int ab_out (word st, char *str) {
+char *ab_out (word st, char *str) {
 //
 // Send a formatted message; the string is assumed to have been malloc'ed
 //
@@ -49,21 +55,23 @@ int ab_out (word st, char *str) {
 
 	if (ab_xrs_sln != 0 || ab_xrs_mod == 0) {
 		// Off or busy
+		if (st == WNONE)
+			return NULL;
 		when (AB_EVENT_OUT, st);
 		release;
 	}
 
 	if ((ln = strlen (str) + 1) > ab_xrs_max) {
 		// Should we rather keep it?
-		ufree (str);
-		return ERROR;
+		if (st == WNONE)
+			return NULL;
+		syserror (EREQPAR, "ab_out");
 	}
 
 	ab_xrs_sln = (byte) ln;
-	ab_xrs_cou = str;
 	ab_xrs_new = AB_XTRIES;
 	ptrigger (ab_xrs_han, AB_EVENT_RUN);
-	return 0;
+	return ab_xrs_cou = str;
 }
 
 int ab_inf (word st, const char *fm, ...) {
@@ -74,7 +82,9 @@ int ab_inf (word st, const char *fm, ...) {
 	char *lin;
 	int res;
 
-	lin = ab_in (st);
+	if ((lin = ab_in (st)) == NULL)
+		return 0;
+
 	va_start (ap, fm);
 	res = vscan (lin, fm, ap);
 	ufree (lin);
@@ -88,6 +98,8 @@ char *ab_in (word st) {
 	char *res;
 
 	if (ab_xrs_cin == NULL) {
+		if (st == WNONE)
+			return NULL;
 		when (AB_EVENT_IN, st);
 		release;
 	}
