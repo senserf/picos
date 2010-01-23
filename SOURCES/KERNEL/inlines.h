@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-10   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -394,6 +394,19 @@ INLINE TIME Transceiver::bitsToTime (Long b) {
 
 	return RFC->RFC_xmt (TRate, b);
 };
+
+#if	ZZ_R3D
+INLINE void Station::getLocation (double &x, double &y, double &z) {
+	Assert (Transceivers != NULL, "Station->getLocation: no transceivers");
+	Transceivers->getLocation (x, y, z);
+};
+#else
+INLINE void Station::getLocation (double &x, double &y) {
+	Assert (Transceivers != NULL, "Station->getLocation: no transceivers");
+	Transceivers->getLocation (x, y);
+};
+#endif
+
 #endif	/* NOR */
 
 INLINE Mailbox *Station::idToMailbox (int id) {

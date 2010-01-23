@@ -4,7 +4,7 @@
 
 // ---------------------------------------------------------------------
 // This is the polling version of the monitor that assumes no select and
-// doesn't fork. It is to be used with Windows/DOS.
+// doesn't fork. To be used with Windows/DOS.
 // ---------------------------------------------------------------------
 
 /* --- */
@@ -389,7 +389,7 @@ void Thread::sendInt (LONG val) {
   flushDescriptor ();
 };
 
-void excptn (char *t) {
+void excptn (const char *t) {
   char *s;
   write (2, t, strlen (t));
   write (2, "\n", 1);
@@ -1164,7 +1164,7 @@ main (int argc, char *argv []) {
   // There is no use for stdin and stdout. We are going to operate as a
   // a daemon.
 
-  char *st;
+  const char *st;
 
   signalService ();
 

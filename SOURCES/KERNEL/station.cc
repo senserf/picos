@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-08   P. Gburzynski */
+/* Copyright (C) 1991-10   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -212,6 +212,25 @@ Long Station::getMQSize (int tp) {
 }
 
 #endif	/* NOC */
+
+#if	ZZ_NOR
+
+void	Station::setLocation (double x, double y
+#if	ZZ_R3D
+						, double z
+#endif
+							   ) {
+	Transceiver *p;
+
+	for (p = Transceivers; p != NULL; p = p->nextp)
+		p->setLocation (x, y
+#if	ZZ_R3D
+				    , z
+#endif
+					);
+}
+
+#endif	/* NOR */
 
 void	ZZ_SYSTEM::makeTopology () {
 

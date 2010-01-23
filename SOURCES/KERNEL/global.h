@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-09   P. Gburzynski */
+/* Copyright (C) 1991-10   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 //#define	ZZ_RF_DEBUG
@@ -757,8 +757,9 @@ inline void combineRV (RVariable &a, RVariable &b) { combineRV (&a, &b, &b); };
 /* Binary flags (e.g. packet attributes) */
 /* ------------------------------------- */
 typedef         Long            FLAGS;
-typedef         char            Boolean;
-typedef         char            boolean;
+typedef         unsigned char   Boolean;
+typedef         unsigned char   boolean;
+typedef		unsigned char	byte;
 
 // Macros telling whether we are being traced =================================
 
@@ -2604,8 +2605,16 @@ class   Station : public ZZ_Object {
 #endif	/* NOL */
 
 #if	ZZ_NOR
+
 	INLINE	Transceiver *idToTransceiver (int);
 
+#if	ZZ_R3D
+	void	setLocation (double, double, double);
+	INLINE	void getLocation (double &x, double &y, double &z);
+#else
+	void	setLocation (double, double);
+	INLINE	void getLocation (double &x, double &y);
+#endif
 	inline  void    printRAct (const char *hd = NULL) {
 		// Print radio activities
 		printOut (5, hd);
@@ -2615,7 +2624,9 @@ class   Station : public ZZ_Object {
 		// Print transceiver status
 		printOut (6, hd);
 	};
-#endif	
+
+#endif	/* NOR */
+
 	INLINE  Mailbox *idToMailbox (int);
 
 	inline  void    printPrc (const char *hd = NULL) {
@@ -4269,14 +4280,13 @@ class	RFChannel : public AI {
 	virtual double RFC_att (
 			const SLEntry*,	// Source power + source Tag
 			double, 	// Distance
-			Transceiver*,	// Source
-			Transceiver*	// Destination
+			Transceiver* 	// Source
 		);
 		// This one determines how the perceived signal level depends
 		// on the xpower, distance, source, destination. Note: although
 		// in principle the Tag in the first argument can be recovered
 		// from Source, it may change when RFC_att is invoked to
-		// "reassess".
+		// "reassess". Also, destination is available as TheTransceiver.
 
 	virtual double RFC_add (int, int, const SLEntry**, const SLEntry*);
 		// This one determines how the levels of multiple received
@@ -4355,13 +4365,13 @@ class	RFChannel : public AI {
 		// neighbors, i.e., they cannot hear each other.
 
 	virtual TIME RFC_xmt (
-			RATE,	// Transmission rate (from the Transceiver)
+			RATE,
 			Long	// Total packet length (TLength)
 		);
 		// This one isn't really an assessment method. It calculates
 		// the transmission time of a packet with a given total
 		// length excluding the preamble time. The default variant
-		// returns rate * tlength
+		// returns rate * tlength.
 
 	char		FlgSPF;
 
@@ -4674,8 +4684,6 @@ class	Transceiver : public AI {
 		return sqrt (A*A + B*B);
 #endif
 	};
-
-	void rebuildNeighborhood ();
 
 	public:
 
@@ -6459,9 +6467,7 @@ inline void Transceiver::transmit (Packet *p, int s, LONG tag) {
 
 inline void Transceiver::transmit (Packet &p, int s, LONG tag) {
 
-	startTransfer (&p);
-	Timer->wait (RFC->RFC_xmt (TRate, p.TLength) + getPreambleTime (),
-		s, tag);
+	transmit (&p, s, tag);
 };
 #else
 inline void Transceiver::transmit (Packet *p, int s) {

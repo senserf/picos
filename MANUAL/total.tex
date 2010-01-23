@@ -3713,7 +3713,7 @@ corresponding link parameter (\sect{rm_to_li_cr}).
 Similar to links,
 the {\tt Id} attributes of radio channels (and also their standard names---see
 \sect{rm_st_on}) reflect the order in which the channels have been created
-(the first channel gets number 0, and so on).
+(the first channel is assigned number 0, and so on).
 In those few cases when a radio channel has to be specified as an argument of
 a function/method, it is possible to use either
 a pointer to the {\tt RFChannel} object or the channel's {\tt Id} attribute.
@@ -3747,7 +3747,7 @@ properties with the signals, e.g., codes for CDMA-type channels, which will
 provide additional input driving the decisions taken by the assessment
 methods.
 
-Thus, the representation of a single signal (typically representing a
+Thus, the representation of a single signal (typically corresponding to a
 transmitted packet) arriving at a transceiver is captured by the
 following structure:
 \begin{verbatim}
@@ -3759,7 +3759,8 @@ following structure:
 \noindent
 where {\tt IPointer} is the smallest integer type capable of accommodating
 a pointer (see \sect{rm_mp_si}).
-This way, {\tt Tag\/} can point to an arbitrary structure, if the complexity
+This way, {\tt Tag\/} can be a simple (integer) value, but it may also
+point to an arbitrary structure, if the complexity
 of the channel model calls for that.
 The tag attribute of the signal associated with a transmitted packet is
 automatically inherited from the current value of the tag attribute
@@ -3771,6 +3772,7 @@ In such a case, the {\tt Tag} attribute of that structure refers to the
 current setting of the transceiver's own tag.
 The {\tt Level} attribute may then refer to the signal level of the
 transceiver's own transmission (as in {\tt RFC\_add} below), or to its
+reception
 {\em gain\/} (as in {\tt RFC\_act}, {\tt RFC\_bot}, {\tt RFC\_eot},
 {\tt RFC\_erb}, and {\tt RFC\_erd}).
 The latter is yet another settable parameter of a transceiver that may
@@ -3783,15 +3785,18 @@ fate of packets is given in \sect{rm_tr_ra_ea}.
 \medskip
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_att (const SLEntry *sl, double d, Transceiver *src, Transceiver *dst);}}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\small {\bf {\tt double RFC\_att (const SLEntry *sl, double d, Transceiver *src);}}} \hspace{0in}\vspace{0.05in}\\
 \noindent
-This method calculates signal attenuation depending on the distance and possibly
-other attributes that can be extracted from the signal tag as well as the
-source and destination transceivers.
+This method calculates signal attenuation depending on the distance and
+possibly other attributes that can be extracted from the signal tag as well as
+the source and destination transceivers.
 The first argument is the original (transmitted) signal level (along with its
 tag), the second
 argument is the distance in {\em DU\/}s separating the source and destination
-transceivers ({\tt src} and {\tt dst}).
+transceivers.
+The source transceiver is pointed to by
+{\tt src}; the destination transceiver can be referenced via the environment
+variable {\tt TheTransceiver} ({\tt Info02}).
 The function is expected to return
 the attenuated level of the original signal {\tt sl->Level},
 i.e., its level being actually perceived by the destination transceiver.
@@ -3944,8 +3949,7 @@ For illustration, here are the built-in versions of {\tt RFChannel}'s
 virtual methods:
 
 {\small\begin{verbatim}
-  virtual double RFC_att (const SLEntry *sl, double d, Transceiver *src,
-                                                              Transceiver *dst) {
+  virtual double RFC_att (const SLEntry *sl, double d, Transceiver *src) {
       // No attenuation, tag, distance, source, destination ignored
       return sl->Level;
   };
@@ -4059,7 +4063,7 @@ All arguments are optional and have the following meaning:
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt r}}\\ \hspace{0in}
 This is the transmission rate in {\em ITU\/}s per bit,
-similar to the corresponding {\tt Port} attribute.
+analogous to the corresponding {\tt Port} attribute.
 The default setting of 0 makes it impossible to use the transceiver
 for transmission (it can still be used for reception).
 \end{quote}
@@ -4091,8 +4095,11 @@ in {\tt RFC\_act}, {\tt RFC\_bot} and {\tt RFC\_eot}.
 \noindent\hspace{-0.35in}{\bf {\tt x} and {\tt y}}\\ \hspace{0in}
 These are the (initial) planar coordinates of the transceiver expressed
 in {\em DU\/}s.
-By default, all nodes initially pile up at the same location with
+By default, all transceivers initially pile up at the same location with
 coordinates $<0,0>$.
+Note that locations apply to transceivers rather than to stations.
+Thus, it is possible to have multiple transceivers of the same station appear
+at different geographical locations.
 \end{quote}
 
 \medskip
@@ -4287,7 +4294,7 @@ needs no tags, the user can ignore this feature.
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt void setLocation (double x, double y);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
-This method moves the node to a new location, with the specified
+This method moves the transceiver to a new location, with the specified
 Cartesian coordinates expressed in {\em DU\/}s.
 The move is instantaneous (a teleportation).
 While teleporting nodes over long distances to their initial locations
@@ -4298,6 +4305,15 @@ should be short and combined (over pertinent delays) into a reasonably smooth
 trajectory covered within a reasonable time.
 
 \noindent
+Note that locations apply to transceivers, not stations; thus, it is
+possible for multiple transceivers of the same station to be positioned at
+different locations.
+This seldom makes sense.
+If you have stations with multiple transceivers, you can make sure that they
+are being moved consistently by using the {\tt Station} variant of
+{\tt setLocation} (whose header is identical to the {\tt Transceiver} variant).
+
+\noindent
 If the simulator has been created with the {\tt -3} option (selecting the
 3-D geometry of node deployment---\sect{rm_un_cr}), the method is
 declared as
@@ -4306,6 +4322,8 @@ declared as
 \end{verbatim}
 \noindent
 with the last argument needed to pass the value of the third coordinate.
+This applies to both variants of the method, i.e.,
+{\tt Transceiver} as well as {\tt Station}.
 \end{quote}
 
 \begin{quote}
@@ -4339,6 +4357,10 @@ or
 depending on the selected dimensionality of the node deployment space.
 The method returns the two or three coordinates of the transceiver
 (in {\em DU\/}s) via the arguments.
+There exists a {\tt Station} variant of the method (with the same header)
+which returns the location of the first transceiver of the station.
+Note that normally all transceivers of the same station are at the same
+location, although this is not formally required.
 
 In addition to {\tt getPreamble}, this {\tt Transceiver} method:
 \begin{verbatim}
@@ -9444,8 +9466,11 @@ Its first argument describes the transmission power at which
 the packet was originally transmitted at the sending transceivers,
 as well as the tag of that transmission,
 the second argument gives the distance between
-the sender and the perceiving transceiver, and the last two arguments
-directly point to the two transceivers.
+the sender and the perceiving transceiver, and the last argument
+points to the sending transceiver.
+The receiving (destination) transceiver can be accessed through the
+environment variable {\tt TheTransceiver} ({\tt Info02}).
+
 If all transmissions are homogeneous, then the tags are not needed.
 In a distance-based propagation model, the method may use a (randomized)
 function of the original power level and the distance to produce the
@@ -9466,7 +9491,9 @@ However,
 these two values can be legitimately different, as the tag of the perceived
 signal was associated with it in the past (when the packet was transmitted),
 and the current tag setting of the sender's transceiver need not be the same.
-On the other hand, the attributes of the receiving transceiver are up to date
+On the other hand, the attributes of the receiving transceiver 
+(its pointer is available via the environment variable
+{\tt TheTransceiver}) are up to date
 and they apply directly to the assessed situation.
 
 The signal level returned by {\tt RFC\_att} is associated with the packet
@@ -9488,7 +9515,7 @@ Consequently, although the tags of those signals
 are available to {\tt RFC\_add}, the
 method should not apply to them the same kind of ``factoring''
 as prescribed for {\tt RFC\_att}, although, of course, it may implement any
-idosyncratic way of adding those signals required by the model.
+idiosyncratic way of adding those signals required by the model.
 
 If the second argument of {\tt RFC\_add} is nonnegative, it should be viewed
 as the index of one entry in the signal array that must be ignored.
@@ -9773,9 +9800,9 @@ Additionally, for
 {\tt RFC\_bot},
 {\tt RFC\_eot},
 {\tt ThePacket} points to the assessed packet.
+For {\tt RFC\_xmt}, {\tt TheTransceiver} identifies the sending transceiver.
 These variables can be viewed as extra arguments to the respective
 assessment methods.
-In most cases, those methods can be programmed without referencing them.
 
 \subsubsection{Starting and terminating packet transmission}
 \label{rm_tr_ac_st}
@@ -9793,9 +9820,13 @@ a new activity in the underlying radio channel---to be propagated to the
 neighbors of the transmitting transceiver.
 The pointer to this packet copy is returned via the environment
 variable {\tt ThePacket} ({\tt Info01}) of type {\tt Packet*}.
-Another environment variable, {\tt TheTraffic} ({\tt Info02}) of type
-{\tt int}, returns the {\tt Id} attribute of the traffic pattern that was
-used to generate the packet.
+Another environment variable, {\tt TheTransceiver} ({\tt Info02}) of type
+{\tt Transceiver*}, returns a pointer to the transceiver executing the
+operation.
+Note that this is different from the {\tt Port} variant of {\tt startTransfer};
+this departure is useful for the {\em assessment methods\/} of
+{\tt RFChannel}, notably {\tt RFC\_xmt}, which may want to reference the
+transceiver.
 
 A packet transmission in progress can be terminated in two ways.
 The following transceiver method:

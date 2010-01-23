@@ -12,8 +12,7 @@
 #define	trc(a, ...)
 #endif
 
-double RFShadow::RFC_att (const SLEntry *xp, double d,
-					   Transceiver *src, Transceiver *des) {
+double RFShadow::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 /*
  * Attenuation formula according to the shadowing model:
  *
@@ -30,10 +29,10 @@ double RFShadow::RFC_att (const SLEntry *xp, double d,
 		pow (d, NBeta);
 
 	if (gain)
-		res *= gain (src, des);
+		res *= gain (src, TheTransceiver);
 
 	trc ("RFC_att (sl) = [%g,%g,%d,%d] -> %g [%g dBm]",
-		xp->Level, d, src->getSID (), des->getSID (), res,
+		xp->Level, d, src->getSID (), TheTransceiver->getSID (), res,
 			linTodB (res));
 	return res;
 }

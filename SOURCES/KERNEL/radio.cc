@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-09   P. Gburzynski */
+/* Copyright (C) 1991-10   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -161,7 +161,7 @@ inline void ZZ_RSCHED::initAct () {
 
 	// And transform it into perceived signal level
 	RSS.Level = Destination->RFC->RFC_att (&RSS, ituToDu (Distance),
-		RFA->Tcv, Destination);
+		RFA->Tcv);
 
 	pool_in (this, Destination->Activities);
 
@@ -327,7 +327,7 @@ void Transceiver::reassess () {
 		xm.Level = a->OXPower;
 		xm.Tag = a->RSS.Tag;
 		a->RSS.Level = RFC->RFC_att (&xm, ituToDu (a->Distance),
-			a->RFA->Tcv, this);
+			a->RFA->Tcv);
 	}
 	updateIF ();
 
@@ -339,92 +339,6 @@ void Transceiver::reassess () {
 		reschedule_thl ();
 		reschedule_sil ();
 	}
-}
-
-inline ZZ_RF_ACTIVITY *Transceiver::gen_rfa (Packet *p) {
-/*
- * Generates a packet activity
- */
-	int i;
-	ZZ_RF_ACTIVITY *a;
-	ZZ_RSCHED *ro;
-	ZZ_NEIGHBOR *ne;
-
-	a = (ZZ_RF_ACTIVITY*) new char [sizeof (ZZ_RF_ACTIVITY) -
-		sizeof (Packet) +
-			p->frameSize ()];
-		a->Pkt = *p;
-
-	Assert (TRate != RATE_0,
-		"Transceiver->startTransfer: %s, TRate undefined",
-			getSName ());
-	Assert (Preamble != 0, "Transceiver->startTransfer: %s, preamble "
-		"length is zero", getSName ());
-
-	a->TRate = (a->Tcv = this)->TRate;
-
-	a->BOTTime = a->EOTTime = TIME_inf;	// EOT not known yet
-	a->Aborted = NO;
-	/*
-	 * Create the schedule roster
-	 */
-	if ((a->NNeighbors = NNeighbors) == 0) {
-		// Note that the set of neighbors can be empty. In such a case,
-		// the roster is NULL. The activity is formally created, so 
-		// things are consistent from the transmitter's point of view.
-		a->RE = a->RF = NULL;
-		a->Roster = NULL;
-		return a;
-	}
-	a->Roster = new ZZ_RSCHED [NNeighbors];
-	// Start from the last neighbor, so the list is sorted in the increasing
-	// order of distance (it is constructed in reverse order)
-	a->SchBOP = a->SchBOT = a->SchEOT = NULL;
-	for (i = NNeighbors; i > 0; ) {
-		i--;
-		ne = Neighbors + i;
-		ro = a->Roster + i;
-		ro->RFA = a;
-		ro->INT.start ();
-		ro->Destination = ne->Neighbor;
-		if ((ro->Distance = ne->Distance) < MinDistance)
-			ro->Distance = MinDistance;
-		ro->Schedule = Time + ne->Distance;
-		ro->LastEvent = TIME_inf;
-		ro->Killed = ro->Done = NO;
-		ro->Stage = RFA_STAGE_BOP;
-		ro->Next = a->SchBOP;
-		ro->RSS.Tag = SenTag.Tag;
-		// This will be adjusted by initAct to represent the
-		// perceived signal level at the receiver
-		ro->RSS.Level = XPower;
-		a->SchBOP = ro;
-	}
-	// Schedule the initial event to advance the roster
-	a->RE = new ZZ_EVENT (
-		a->SchBOP->Schedule,
-		System,		// Station
-		(void*)a,	// Info01
-		NULL,		// Info02
-		rshandle,	// Process
-		this->RFC,	// AI - the channel
-		DO_ROSTER,	// Event
-		HandleRosterSchedule,	// State
-		NULL		// No request chain
-	);
-	// Schedule the end of preamble event to start the packet
-	a->RF = new ZZ_EVENT (
-		Time + getPreambleTime (),
-		System,		// Station
-		(void*)a,	// Info01
-		NULL,		// Info02
-		rshandle,	// Process
-		this->RFC,	// AI
-		BOT_TRIGGER,	// Event
-		TriggerBOT,	// State
-		NULL		// No request chain
-	);
-	return a;
 }
 
 inline int ZZ_RSCHED::any_event () {
@@ -1774,7 +1688,11 @@ void Transceiver::rcvOff () {
 	reschedule_sil ();
 }
 
-void Transceiver::startTransfer (Packet *packet) {
+void Transceiver::startTransfer (Packet *p) {
+
+	int i;
+	ZZ_RSCHED *ro;
+	ZZ_NEIGHBOR *ne;
 
 	if_from_observer ("Transceiver->startTransfer: called from an "
 			  "observer");
@@ -1783,14 +1701,97 @@ void Transceiver::startTransfer (Packet *packet) {
 		"Transceiver->startTransfer: %s, multiple transmissions",
 			getSName ());
 
-	assert (packet->TLength > 0,
+	assert (p->TLength > 0,
 		"Transceiver->startTransfer: %s, illegal packet length %1d",
-			getSName (), packet->TLength);
+			getSName (), p->TLength);
 
 	if (RFC->FlgSPF == ON)
 		RFC->NTAttempts++;
 
-	Activity = gen_rfa (packet);
+	// ====================================================================
+
+	Activity = (ZZ_RF_ACTIVITY*) new char [sizeof (ZZ_RF_ACTIVITY) -
+		sizeof (Packet) +
+			p->frameSize ()];
+	Activity->Pkt = *p;
+
+	Assert (TRate != RATE_0,
+		"Transceiver->startTransfer: %s, TRate undefined",
+			getSName ());
+	Assert (Preamble != 0, "Transceiver->startTransfer: %s, preamble "
+		"length is zero", getSName ());
+
+	Activity->TRate = (Activity->Tcv = this)->TRate;
+
+	Activity->BOTTime = Activity->EOTTime = TIME_inf;  // EOT not known yet
+	Activity->Aborted = NO;
+	/*
+	 * Create the schedule roster
+	 */
+	if ((Activity->NNeighbors = NNeighbors) == 0) {
+		// Note that the set of neighbors can be empty. In such a case,
+		// the roster is NULL. The activity is formally created
+		// nonetheless, so things are always consistent from the
+		// transmitter's point of view.
+		Activity->RE = Activity->RF = NULL;
+		Activity->Roster = NULL;
+
+	} else {
+
+		Activity->Roster = new ZZ_RSCHED [NNeighbors];
+		// Start from the last neighbor, so the list is sorted in the
+		// increasing order of distance (it is constructed in reverse
+		// order)
+		Activity->SchBOP = Activity->SchBOT = Activity->SchEOT = NULL;
+		for (i = NNeighbors; i > 0; ) {
+			i--;
+			ne = Neighbors + i;
+			ro = Activity->Roster + i;
+			ro->RFA = Activity;
+			ro->INT.start ();
+			ro->Destination = ne->Neighbor;
+			if ((ro->Distance = ne->Distance) < MinDistance)
+				ro->Distance = MinDistance;
+			ro->Schedule = Time + ne->Distance;
+			ro->LastEvent = TIME_inf;
+			ro->Killed = ro->Done = NO;
+			ro->Stage = RFA_STAGE_BOP;
+			ro->Next = Activity->SchBOP;
+			ro->RSS.Tag = SenTag.Tag;
+			// This will be adjusted by initAct to represent the
+			// perceived signal level at the receiver
+			ro->RSS.Level = XPower;
+			Activity->SchBOP = ro;
+		}
+		// Schedule the initial event to advance the roster
+		Activity->RE = new ZZ_EVENT (
+			Activity->SchBOP->Schedule,
+			System,			// Station
+			(void*)Activity,	// Info01
+			NULL,			// Info02
+			rshandle,		// Process
+			this->RFC,		// AI - the channel
+			DO_ROSTER,		// Event
+			HandleRosterSchedule,	// State
+			NULL			// No request chain
+		);
+		// Schedule the end of preamble event to start the packet
+		Activity->RF = new ZZ_EVENT (
+			Time + getPreambleTime (),
+			System,			// Station
+			(void*)Activity,	// Info01
+			NULL,			// Info02
+			rshandle,		// Process
+			this->RFC,		// AI
+			BOT_TRIGGER,		// Event
+			TriggerBOT,		// State
+			NULL			// No request chain
+		);
+
+	}
+
+	// ====================================================================
+
 	// Include transmitter's interference
 	if (RxOn) {
 		updateIF ();
@@ -1799,7 +1800,7 @@ void Transceiver::startTransfer (Packet *packet) {
 	}
 
 	tpckt = &(Activity -> Pkt);      		// ThePacket (Info01)
-	Info02 = (void*) (IPointer) (tpckt -> TP); 	// TheTraffic
+	txcvr = this;
 }
 
 void Transceiver::term_xfer (int evnt) {
@@ -3486,6 +3487,8 @@ void Transceiver::dspEvnt (int *elist) {
 	for (ev = 0; ev < 11; ev++)
 		elist [ev] = 0;
 
+	txcvr = this;
+
 	if (Activity)
 		elist [10] = def (Activity->BOTTime) ? 2 : 1;
 
@@ -4615,8 +4618,7 @@ void    Transceiver::exDisplay2 () {
 /* Default reception assessment methods of RFChannel */
 /* ================================================= */
 
-double RFChannel::RFC_att (const SLEntry *sl, double dst, Transceiver *s,
-							Transceiver *d) {
+double RFChannel::RFC_att (const SLEntry *sl, double dst, Transceiver *s) {
 /* =========== */
 /* Attenuation */
 /* =========== */

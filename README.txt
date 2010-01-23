@@ -1008,3 +1008,23 @@
 	   which will make a difference on 64-bit machines. There is new
 	   Process method: nwait returns the number of events the process is
 	   waiting for (was needed for VUEE and may be generally useful).
+
+ R100123A  The special name of mks (to select VUEE options) changed to anything
+	   starting from "vue". Previously, that name had to be either vuee or
+	   vue2 (exactly).
+
+	   Cosmetics in LIB/sxml.c and MONITOR/monpol.cc to shut up the
+	   compiler, which becomes more and more obsessive (and annoying) with
+	   every new version.
+
+	   Added station methods setLocation and getLocation.
+
+	   The Transceiver variant of startTransfer returns the transceiver
+	   pointer in Info2. This is different from the Port variant and may
+	   be useful for RFC_xmt.
+
+	   RFC_att simplified by removing the last argument (dst) which is
+	   available via TheTransceiver. For RFC_xmt, TheTransceiver points
+	   to the sending transceiver.
+
+	   Version bumped to 3.2

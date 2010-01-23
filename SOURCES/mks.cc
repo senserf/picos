@@ -894,8 +894,7 @@ main    (int argc, char *argv[]) {
 	// LONG is always at least 64 bits
 	strcpy (PRC, "-DBIG_precision=1");      options [LIBX_PRC] = PRC;
 
-	if (strcmp (pname, "vuee") == 0 ||
-	    strcmp (pname, "vue2") == 0  ) {
+	if (strncmp (pname, "vue", 3) == 0) {
 		// VUEE options selection
         	strcpy (RSY, "-DZZ_RSY=1");
         	strcpy (NOL, "-DZZ_NOL=0");

@@ -34,8 +34,7 @@ void ShadowingChannel::setup (
 }
 
 double ShadowingChannel::RFC_att (const SLEntry *xp, double d,
-					Transceiver *src, Transceiver *dst) {
-
+					Transceiver *src) {
 	if (d < RDist)
 		d = RDist;
 
@@ -67,7 +66,6 @@ Boolean ShadowingChannel::RFC_bot (RATE r, const SLEntry *sl, const SLEntry *rs,
 							const IHist *h) {
 
 	return (h->bits (r) >= MinPr) && !error (r, sl, rs, h, -1, MinPr);
-		return NO;
 }
 
 Boolean ShadowingChannel::RFC_eot (RATE r, const SLEntry *sl, const SLEntry *rs,

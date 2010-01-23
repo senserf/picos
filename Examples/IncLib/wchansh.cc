@@ -13,8 +13,7 @@
 #define	trc(a, ...)
 #endif
 
-double RFShadow::RFC_att (const SLEntry *xp, double d,
-					   Transceiver *src, Transceiver *des) {
+double RFShadow::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 /*
  * Attenuation formula according to the shadowing model:
  *
@@ -25,8 +24,10 @@ double RFShadow::RFC_att (const SLEntry *xp, double d,
 	double res;
 
 	// Channel crosstalk
-	res = Channels->ifactor (tagToCh (xp->Tag), tagToCh (des->getTag ()));
-	trc ("RFC_att (ct) = %g [%08x %08x]", res, xp->Tag, des->getTag ());
+	res = Channels->ifactor (tagToCh (xp->Tag),
+		tagToCh (TheTransceiver->getTag ()));
+	trc ("RFC_att (ct) = %g [%08x %08x]", res, xp->Tag,
+		TheTransceiver->getTag ());
 
 	if (res == 0.0)
 		// No need to worry
@@ -39,10 +40,10 @@ double RFShadow::RFC_att (const SLEntry *xp, double d,
 		pow (d, NBeta);
 
 	if (gain)
-		res *= gain (src, des);
+		res *= gain (src, TheTransceiver);
 
 	trc ("RFC_att (sl) = [%g,%g,%d,%d] -> %g [%g dBm]",
-		xp->Level, d, src->getSID (), des->getSID (), res,
+		xp->Level, d, src->getSID (), TheTransceiver->getSID (), res,
 			linTodB (res));
 	return res;
 }
