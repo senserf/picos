@@ -60,14 +60,44 @@ proc dout { dn } {
 		
 proc run_mop { m } {
 
-	global SDN
+	global SDN SDC TFN SLIST
 
 	if [regexp "^#!" $m] {
 		# looks like a script
-		if [catch { exec sh ".mop" } err] {
+		set m [split $m "\n"]
+		if [catch { open $TFN "w" } tfd] {
+			puts "couldn't open tmp file $TFN: $tfd"
+			catch { file delete -force $TFN }
+			exit 99
+		}
+
+		fconfigure $tfd -translation lf
+
+		foreach l $m {
+			set l [string trimleft $l]
+			if [regexp "^(\[^ \t\]+)" $l kwd] {
+				# check if match in Scripts
+				if { [lsearch -exact $SLIST $kwd] >= 0 } {
+					# prepend the path
+					set len [string length $kwd]
+					set kwd "$SDC/$kwd"
+					set l $kwd[string range $l $len end]
+				}
+			}
+			if [catch { puts $tfd $l } err] {
+				puts "couldn't write to tmp file: $err"
+				catch { close $tfd }
+				catch { file delete -force $TFN }
+			}
+		}
+		catch { close $tfd }
+		catch { exec chmod +x $TFN }
+		if [catch { exec sh $TFN } err] {
 			puts "Warning: .mop <script> failed in '[pwd]': $err"
+			catch { file delete -force $TFN }
 			return
 		}
+		catch { file delete -force $TFN }
 	} else {
 		# assume this is command name in Scripts
 		set m [string trim $m]
@@ -89,7 +119,7 @@ proc locate_scripts { } {
 #
 # Locate the path to Scripts from where you have been called
 #
-	global SDN env
+	global SDN SDC SLIST TFN
 
 	set dir "."
 	set SDN ""
@@ -106,12 +136,16 @@ proc locate_scripts { } {
 			# got it
 			set SDN $dn
 			if [regexp -nocase "^(\[a-z\]):" $SDN jnk dl] {
-				set sdn "/cygdrive/[string tolower $dl]"
-				append sdn [string range $SDN 2 end]
+				set SDC "/cygdrive/[string tolower $dl]"
+				append SDC [string range $SDN 2 end]
 			} else {
-				set sdn $SDN
+				set SDC $SDN
 			}
-			set env(PATH) "$env(PATH):$sdn"
+			if [catch { exec ls $SDC } SLIST] {
+				puts stderr "couldn't list Scripts directory,\
+					sorry!"
+			}
+			set TFN "/tmp/pic_mop_[pid]"
 			return
 		}
 		# go up

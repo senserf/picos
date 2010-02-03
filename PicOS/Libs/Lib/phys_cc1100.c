@@ -53,7 +53,112 @@ static byte	RxOFF,			// Transmitter on/off flags
 
 /* ========================================= */
 
-static byte patable [] = PATABLE;
+static byte patable [] = CC1100_PATABLE;
+
+#ifdef	__CC430__
+
+// ============================================================================
+// CC430 (internal MSP430) ====================================================
+// ============================================================================
+
+static void cc1100_set_reg (byte addr, byte val) {
+
+	// volatile word i;
+
+	// Wait for ready
+	while (!(RF1AIFCTL1 & RFINSTRIFG));
+
+	// Address + instruction
+	RF1AINSTRB = (addr | RF_REGWR);
+	RF1ADINB = val;
+
+	// Wait until complete
+	// while (!(RF1AIFCTL1 & RFDINIFG));
+
+	// Must read this
+	// i = RF1ADOUTB;  
+}
+
+static byte cc1100_get_reg (byte addr) {
+
+	byte val;
+
+	RF1AINSTR1B = (addr | 0x80); 
+	// A simple return should do (check later)
+  	while (!(RF1AIFCTL1 & RFDOUTIFG));
+	val = RF1ADOUT1B;
+	return val;
+}
+
+static void cc1100_set_reg_burst (byte addr, byte *buffer, word count) {
+//
+// Note: this works word-wise, not bytewise (a known bug)
+//
+	volatile word i;                             
+
+	// Wait for ready for next instruction
+	while (!(RF1AIFCTL1 & RFINSTRIFG));
+
+	// Address + instruction
+	RF1AINSTRW = (((word)(addr | RF_REGWR)) << 8 ) + *buffer;
+
+	for (i = 1; i < count; i++) {
+		// Next byte
+		buffer++;
+    		RF1ADINB = *buffer;
+		// Wait until complete
+		while (!(RF1AIFCTL1 & RFDINIFG));
+	} 
+
+	i = RF1ADOUTB;
+}
+
+static void cc1100_get_reg_burst (byte addr, byte *buffer, word count) {
+
+	word i;
+
+	// Wait for ready
+	while (!(RF1AIFCTL1 & RFINSTRIFG));
+
+	// Address + instruction
+	RF1AINSTR1B = (addr | RF_REGRD);
+
+	for (i = 1; i < count; i++) {
+		// Wait for the byte
+		while (!(RF1AIFCTL1 & RFDOUTIFG));
+                // Read DOUT + clear RFDOUTIFG, initialize auto-read for next
+		*buffer++ = RF1ADOUT1B;
+	}
+
+	// The last one
+	*buffer = RF1ADOUT0B;
+}
+
+static byte cc1100_strobe (byte b) {
+
+	volatile byte sb;
+
+	// Clear the status-read flag 
+	RF1AIFCTL1 &= ~(RFSTATIFG);
+	  
+	// Wait until ready for next instruction
+	while(!(RF1AIFCTL1 & RFINSTRIFG));
+
+	// Issue the command
+	RF1AINSTRB = b; 
+
+	while (b != CCxxx0_SRES && (RF1AIFCTL1 & RFSTATIFG) == 0);
+
+	sb = RF1ASTATB;
+
+	return (sb & CC1100_STATE_MASK);
+}
+
+#else
+
+// ============================================================================
+// SPI BASED (external chip) ==================================================
+// ============================================================================
 
 static void cc1100_spi_out (byte b) {
 
@@ -155,9 +260,15 @@ static void cc1100_strobe (byte cmd) {
 	SPI_END;
 }
 
+#endif
+
+// ============================================================================
+// SPI or CC430 ===============================================================
+// ============================================================================
+
 static void cc1100_set_power () {
 
-	cc1100_set_reg (CCxxx0_FREND0, FREND0 | xpower);
+	cc1100_set_reg (CCxxx0_FREND0, FREND0_SET | xpower);
 }
 
 static byte cc1100_setchannel (byte ch) {
@@ -194,35 +305,22 @@ static void init_cc_regs () {
 
 	const byte *cur;
 
-	for (cur = cc1100_rfsettings; *cur != 255; cur += 2)
+	for (cur = cc1100_rfsettings; *cur != 255; cur += 2) {
 		cc1100_set_reg (cur [0], cur [1]);
+	}
 
 	// Rate-specific registers
-	for (cur = cc1100_ratemenu [vrate]; *cur != 255; cur += 2)
+	for (cur = cc1100_ratemenu [vrate]; *cur != 255; cur += 2) {
 		cc1100_set_reg (cur [0], cur [1]);
+	}
 
 	// Power setting is handled separately
-	cc1100_set_reg_burst (CCxxx0_PATABLE, patable, sizeof(patable));
+	cc1100_set_reg_burst (CCxxx0_PATABLE, patable, sizeof (patable));
+
 	cc1100_set_power ();
 	// And so is the channel number
-	cc1100_set_reg (CCxxx0_CHANNR, channr);
+	cc1100_setchannel (channr);
 }
-
-#if 1
-static void validate_cc_regs (const byte *cur) {
-
-	byte		val;
-
-	for (; *cur != 255; cur += 2) {
-		val = cc1100_get_reg (cur [0]);
-		if (val != cur [1]) {
-			diag ("Register check failed: [%d] == %x != %x",
-					cur [0], val, cur [1]);
-				syserror (EHARDWARE, "CC1100 reg");
-		}
-	}
-}
-#endif
 
 static byte cc1100_status () {
 
@@ -233,10 +331,15 @@ ReTry:
 
 		i--;
 
+#ifdef	__CC430__
+
+		val = cc1100_strobe (CCxxx0_SNOP);
+#else
+
 		SPI_START;
 		val = cc1100_spi_out_stat (CCxxx0_SNOP | 0x80);
 		SPI_END;
-
+#endif
 		switch (val) {
 
 			// Clean up hanging overflow/underflow states
@@ -263,7 +366,7 @@ ReTry:
 				return val;
 		}
 	}
-#if 1
+#if 0
 	diag ("cc1100_status hung!!");
 #endif
 	mdelay (1);
@@ -282,7 +385,7 @@ ReTry:
 		cc1100_strobe (CCxxx0_SIDLE);
 		if (i < 16) {
 			if (i == 0) {
-#if 1
+#if 0
 				diag ("cc1100_enter_idle hung!!");
 #endif
 				mdelay (1);
@@ -306,7 +409,7 @@ ReTry:
 		cc1100_strobe (CCxxx0_SRX);
 		if (i < 16) {
 			if (i == 0) {
-#if 1
+#if 0
 				diag ("cc1100_enter_rx hung!!");
 #endif
 				mdelay (1);
@@ -321,6 +424,14 @@ ReTry:
 
 int cc1100_rx_status () {
 
+#ifdef	__CC430__
+
+	if (cc1100_strobe (CCxxx0_SNOP) == CC1100_STATE_IDLE) {
+
+		// The state is right, check RXBYTES
+		return cc1100_get_reg (CCxxx0_RXBYTES) & 0x7f;
+	}
+#else
 	register byte b, val;
 
 	SPI_START;
@@ -338,6 +449,8 @@ int cc1100_rx_status () {
 #if TRACE_DRIVER
 	diag ("%u TRC RX ILL = %x/%x", (word) seconds (), val, b);
 #endif
+
+#endif
 	return -1;
 }
 
@@ -353,7 +466,7 @@ ReTry:
 		i--;
 		if (i < 16) {
 			if (i == 0) {
-#if 1
+#if 0
 				diag ("cc1100_rx_flush hung!!");
 #endif
 				mdelay (1);
@@ -445,10 +558,6 @@ static void ini_cc1100 () {
 			cc1100_get_reg (CCxxx0_SYNC0));
 	dbg_1 ((cc1100_get_reg (CCxxx0_VERSION) << 8) |
 			cc1100_get_reg (CCxxx0_MCSM1));
-#if 1
-	validate_cc_regs (cc1100_rfsettings);
-	validate_cc_regs (cc1100_ratemenu [vrate]);
-#endif
 }
 
 #if RADIO_CRC_MODE > 1

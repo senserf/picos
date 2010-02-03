@@ -1,0 +1,99 @@
+#!/bin/sh
+##########################\
+exec tclsh "$0" "$@"
+
+#
+# Traverse the file tree and fix permissions, so that everything looks nice,
+# e.g., after pushing the set back and forth through different incompatible
+# filesystems.
+#
+
+set Extensions { ".exe" ".out" ".tcl" ".sh" }
+
+set Headers ""
+
+lappend Headers [binary format cccc 0x4d 0x5a 0x90 0x00]
+lappend Headers [binary format cccc 0x7f 0x45 0x4c 0x46]
+lappend Headers [binary format cccc 0x23 0x21 0x2f 0x62]
+
+proc calc_mode { fn } {
+#
+# Determine mode
+#
+	global Extensions Headers
+
+	set ext [string tolower [file extension $fn]]
+
+	foreach pat $Extensions {
+
+		if { $pat == $ext } {
+			return 755
+		}
+	}
+
+	# content
+	if [catch { open $fn "r" } fd] {
+		# cannot open, ignore
+		return 644
+	}
+
+	fconfigure $fd -encoding binary
+
+	set hdr [read $fd 4]
+
+	foreach pat $Headers {
+		if { $pat == $hdr } {
+			return 755
+		}
+	}
+
+	return 644
+}
+
+proc do_it { } {
+#
+# Cleans the current directory
+#
+	if [catch { exec ls -a } flist] {
+		puts stderr "cannot list directory"
+		exit 99
+	}
+
+	foreach d $flist {
+		if { $d == "." || $d == ".." } {
+			continue
+		}
+		if [file isdirectory $d] {
+			# change permissions
+			if [catch { exec chmod 755 $d } err] {
+				puts stderr "cannot chmod 775 $d"
+				exit 99
+			}
+			# traverse
+			if [catch { file lstat $d vv } ] {
+				puts stderr "cannot stat $d"
+				exit 99
+			}
+			if { $vv(type) != "directory" } {
+				continue
+			}
+			array unset vv
+			set c [pwd]
+			if ![catch { cd [file join $c $d] } ] {
+				# dout $c
+				do_it
+				cd $c
+			}
+			continue
+		}
+
+		# a regular file
+		set md [calc_mode $d]
+		if [catch { exec chmod $md $d } err] {
+			puts stderr "cannot chmod $md $d"
+			exit 99
+		}
+	}
+}	
+
+do_it

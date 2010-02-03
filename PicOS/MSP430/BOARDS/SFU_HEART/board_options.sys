@@ -1,5 +1,8 @@
 #define	MALLOC_SINGLEPOOL	1
-#define DIAG_MESSAGES		0
+#define DIAG_MESSAGES		1
+
+//#define	DIAG_IMPLEMENTATION	2
+
 #define	TCV_PRESENT		1
 #define	TCV_TIMERS		0
 #define	TCV_HOOKS		0
@@ -35,7 +38,6 @@
 #define LBT_THRESHOLD		2
 
 #define STORAGE_AT45XXX		1
-#define	LCD_ST7036		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1

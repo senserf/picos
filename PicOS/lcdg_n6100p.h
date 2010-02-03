@@ -1,12 +1,14 @@
 #ifndef	__pg_lcdg_n6100p_h__
 #define	__pg_lcdg_n6100p_h__
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 #include "pins.h"
 #include "lcd_sys.h"
+
+//+++ lcdg_n6100p.c
 
 #define	COLOR_WHITE	0
 #define COLOR_BLACK	1

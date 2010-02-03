@@ -19,21 +19,21 @@
 	case IRQ_X_STRT:
 
 	    	// Transmitting the "preamble"
-		XBUF = 0x55;
+		XBUF_STORE (0x55);
 		UA->x_istate = IRQ_X_LEN;
 		RTNI;
 
 	case IRQ_X_LEN:
 
 		// Transmitting the length
-		XBUF = (UA->x_buffl - 4);
+		XBUF_STORE (UA->x_buffl - 4);
 		UA->x_buffp = 0;
 		UA->x_istate = IRQ_X_PKT;
 		RTNI;
 
 	case IRQ_X_PKT:
 
-		XBUF = ((byte*)(UA->x_buffer)) [UA->x_buffp++];
+		XBUF_STORE (((byte*)(UA->x_buffer)) [UA->x_buffp++]);
 
 		if (UA->x_buffp == UA->x_buffl)
 			// Last byte - wait for the last interrupt, which will
@@ -69,14 +69,14 @@
 	case IRQ_X_STRT:
 
 	    	// Transmitting header byte
-		XBUF = UA->x_buffh;
+		XBUF_STORE (UA->x_buffh);
 		UA->x_istate = IRQ_X_LEN;
 		RTNI;
 
 	case IRQ_X_LEN:
 
 		// Transmitting the length
-		XBUF = UA->x_buffc;
+		XBUF_STORE (UA->x_buffc);
 		UA->x_istate = IRQ_X_PKT;
 		RTNI;
 
@@ -84,17 +84,17 @@
 
 		// Transmitting the message
 		if (UA->x_buffp < UA->x_buffl) {
-			XBUF = ((byte*)(UA->x_buffer)) [UA->x_buffp++];
+			XBUF_STORE (((byte*)(UA->x_buffer)) [UA->x_buffp++]);
 			RTNI;
 		}
 
-		XBUF = UA->x_chk0;
+		XBUF_STORE (UA->x_chk0);
 		UA->x_istate = IRQ_X_CH1;
 		RTNI;
 
 	case IRQ_X_CH1:
 
-		XBUF = UA->x_chk1;
+		XBUF_STORE (UA->x_chk1);
 		UA->x_istate = IRQ_X_STOP;
 		RTNI;
 
@@ -135,20 +135,20 @@
 		if (UA->x_buffp == UA->x_buffl) {
 			// Transmit CRLF
 Eol:
-			XBUF = '\r';
+			XBUF_STORE ('\r');
 			UA->x_istate = IRQ_X_EOL;
 		} else {
 			b = ((byte*)(UA->x_buffer)) [UA->x_buffp++];
 			if (b == '\0')
 				// Null byte also terminates the string
 				goto Eol;
-			XBUF = b;
+			XBUF_STORE (b);
 		}
 		RTNI;
 
 	case IRQ_X_EOL:
 
-		XBUF = '\n';
+		XBUF_STORE ('\n');
 		UA->x_istate = IRQ_X_STOP;
 		RTNI;
 

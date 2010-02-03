@@ -3583,3 +3583,33 @@ R091225A:
 	the XRS section in Serial.pdf. Note that the equivalent of the previous
 	abb_out is now called abb_outf, and the "new" version of abb_out does
 	more or less what its old (the very first) version did.
+
+R100203A:
+
+	Lots of things adapting PicOS to CC430:
+
+	- portnames (new names of ports, flexible configurations)
+	- port initialization redone to account for internal pullup/down
+	  resistors and drive strength, as well as new ports (like J)
+	- deleted code for UART flow control (has never been used and it sucked,
+	  especially in the context of CPU compatibility)
+	- cleaned up and separated UART code (a big pain in the ass); note that
+	  CC430/6xxx/5xxx UART is still not implemented; I need a board for
+	  that, and once I have it, it should be fast
+	- mkmk fixed to define the CPU id label properly without waiting for
+	  gcc; we need those definitions in the precompilation stage
+	- clock + basic definitions for CC430, so we can start the CPU in the
+	  proper mode, with the proper clock settings; ez-chronos runs at 12MHz
+	- ez430_lcd driver for ez-chronos
+	- painfully fixed Apps/cleanup; the standard Tcl under Cygwin is broken
+	  in a completely new and highly creative way
+	- CC1100 PHY driver now works with CC430 (ez-chronos); some
+	  optimizations are possible, but they will wait until we have handled
+	  other items
+	- Apps/TESTS/CHRONOS contains two trivial praxes; the one in RFTEST
+	  illustrates radio; it is compatible with TEST/WARSAW (on a Warsaw
+	  board); run 'r' on the Warsaw board; load RFTEST into the watch,
+	  wait until it initializes, then press the left upper (M1) button to
+	  start radio, and the left bottom button to stop
+	- both praxes in Apps/TEST/CHRONOS illustrate the LCD driver
+	- many little and invisible things

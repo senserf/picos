@@ -31,7 +31,6 @@
 #define	CRYSTAL2_RATE			6000000
 
 #define STORAGE_AT45XXX			1
-#define	LCD_ST7036			1
 
 #define RESET_ON_SYSERR			1
 #define RESET_ON_MALLOC			1

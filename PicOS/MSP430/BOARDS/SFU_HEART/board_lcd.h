@@ -29,3 +29,11 @@
 #define	lcd_outl	_BIC (P5OUT, 0x02)
 #define	lcd_clkh	_BIS (P5OUT, 0x08)
 #define	lcd_clkl	_BIC (P5OUT, 0x08)
+
+// Needed for DIAG_IMPLEMENTATION == 2
+#include "lcd_st7036.h"
+
+#define	lcd_diag_start		lcd_clear (0, 0)
+#define	lcd_diag_wchar(c)	lcd_putchar (c)
+#define	lcd_diag_wait		CNOP
+#define	lcd_diag_stop		CNOP

@@ -9,20 +9,20 @@
 
 interrupt (UART_A_TX_VECTOR) uart0tx_int (void) {
 
-#define	UA	zz_uart
-#define	XBUF	TXBUF_A
+#define	UA		zz_uart
+#define	XBUF_STORE(a)	uart_a_write (a)
 
 #include "irq_uart_x.h"
 
 	RTNI;
 #undef UA
-#undef XBUF
+#undef XBUF_STORE
 }
 
 interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
 
 #define	UA	zz_uart
-#define	RBUF	RXBUF_A
+#define	RBUF	uart_a_read
 
 #include "irq_uart_r.h"
 
@@ -35,20 +35,20 @@ interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
 
 interrupt (UART_B_TX_VECTOR) uart1tx_int (void) {
 
-#define	UA	(zz_uart + 1)
-#define	XBUF	TXBUF_B
+#define	UA		(zz_uart + 1)
+#define	XBUF_STORE(a)	uart_b_write (a)
 
 #include "irq_uart_x.h"
 
 	RTNI;
 #undef UA
-#undef XBUF
+#undef XBUF_STORE
 }
 
 interrupt (UART_B_RX_VECTOR) uart1rx_int (void) {
 
 #define	UA	(zz_uart + 1)
-#define	RBUF	RXBUF_B
+#define	RBUF	uart_b_read
 
 #include "irq_uart_r.h"
 

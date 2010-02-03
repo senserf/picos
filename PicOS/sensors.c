@@ -7,18 +7,27 @@
 #include "sensors.h"
 #include "pins.h"
 
+// ============================================================================
+
 #ifdef	SENSOR_LIST
+
+#ifndef	SENSOR_DIGITAL
+#ifndef	SENSOR_ANALOG
+#error "S: SENSOR_LIST defined, but neither SENSOR_DIGITAL, nor SENSOR_ANALOG!"
+#endif
+#endif
 
 static const word sensor_list [] = SENSOR_LIST;
 
-#define	N_SENSORS \
-		(sizeof (sensor_list) / sizeof (d_sensdesc_t))
+#define	N_SENSORS 	(sizeof (sensor_list) / sizeof (d_sensdesc_t))
 
 #define	sensors	((d_sensdesc_t*) sensor_list)
 
-void zz_init_sensors () {
+#ifdef	SENSOR_INITIALIZERS
 
-#ifndef	NO_DIGITAL_SENSORS
+// Some sensors have to be initialized
+
+void zz_init_sensors () {
 
 	int i;
 	void (*f) (void);
@@ -26,10 +35,13 @@ void zz_init_sensors () {
 	for (i = 0; i < N_SENSORS; i++)
 		if ((sensors [i] . tp & 0x80) &&
 		    (f = sensors [i] . fun_ini) != NULL)
+			// Note: the arg is either nothing (no controllers) or
+			// WNONE (selecting the initializer function)
 			(*f) ();
-#endif
 
 }
+
+#endif	/* SENSOR_INITIALIZERS */
 
 #endif	/* SENSOR_LIST */
 
@@ -49,12 +61,12 @@ word read_sensor (word st, word sn, address val) {
 
 	s = sensors + sn;
 
-#ifdef	NO_DIGITAL_SENSORS
+#ifndef	SENSOR_DIGITAL
 
 	analog_sensor_read (st, ((const a_sensdesc_t*)s), val);
 
 #else
-#ifdef	NO_ANALOG_SENSORS
+#ifndef	SENSOR_ANALOG
 
 	(*(s->fun_val)) (st, (const byte*)s, val);
 #else

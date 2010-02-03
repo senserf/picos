@@ -1,7 +1,7 @@
 #ifndef	__pg_sensors_h
-#define	__pg_sensors_h	1
+#define	__pg_sensors_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -37,7 +37,7 @@ typedef struct {
 	byte tp, num;
 								// Processor
 	void (*fun_val) (word, const byte*, address);
-	void (*fun_ini) (void);					// Initializer
+	void (*fun_ini) ();
 
 } d_sensdesc_t;
 

@@ -302,22 +302,6 @@
 #define	UART_RATE_SETTABLE	0
 #endif
 
-#ifndef	UART_PARITY
-#define	UART_PARITY		0	// 0-even, 1-odd
-#endif
-
-#ifndef	UART_BITS
-#define	UART_BITS		8
-#endif
-
-#ifndef	UART_INPUT_FLOW_CONTROL
-#define	UART_INPUT_FLOW_CONTROL		0
-#endif
-
-#ifndef	UART_OUTPUT_FLOW_CONTROL
-#define	UART_OUTPUT_FLOW_CONTROL	0
-#endif
-
 #ifndef UART_INPUT_BUFFER_LENGTH
 #define	UART_INPUT_BUFFER_LENGTH	0
 #endif
@@ -328,15 +312,6 @@
 
 #ifndef	BUTTONS_DRIVER
 #define	BUTTONS_DRIVER			0
-#endif
-
-// LCD drivers ================================================================
-#ifndef	LCD_ST7036
-#define	LCD_ST7036		0
-#endif
-
-#ifndef	LCDG_N6100P
-#define	LCDG_N6100P		0
 #endif
 // ============================================================================
 
@@ -390,6 +365,11 @@
 // Enables dmp_mem (). Dump memory to UART on system error.
 #ifndef	DUMP_MEMORY
 #define	DUMP_MEMORY		0
+#endif
+
+// PPM level (for MSP430x61xx)
+#ifndef	PPM_LEVEL
+#define	PPM_LEVEL		0
 #endif
 
 #ifndef	dbg_level

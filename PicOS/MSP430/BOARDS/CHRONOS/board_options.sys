@@ -1,0 +1,43 @@
+#define	MALLOC_SINGLEPOOL	1
+
+#define DIAG_MESSAGES		0	// Disabled for now
+#define	DIAG_IMPLEMENTATION	0	// We will be creative in the praxis
+
+#define	TCV_PRESENT		1
+#define	TCV_TIMERS		0
+#define	TCV_HOOKS		0
+#define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
+#define	MALLOC_SAFE		1
+#define	MALLOC_STATS		1
+#define STACK_GUARD		1
+#define ENTROPY_COLLECTION	1
+#define	GLACIER			1
+#define	RANDOM_NUMBER_GENERATOR	2
+
+#define	BUTTONS_DRIVER		1
+
+#define	PPM_LEVEL		3	// Power management level
+
+// LEDs defined through LCD, but this must be set as it still selects them
+// as a global option
+#define LEDS_DRIVER		1
+
+// This must be zero, even though we have blinking capability, as the
+// capability does not depend on the system clock
+#define LEDS_BLINKING		0
+
+#define UART_DRIVER		0
+#define	RADIO_USE_LEDS		0
+
+#define CC1100			1
+
+#define CRYSTAL_RATE		32768
+
+#define LBT_DELAY		0
+#define LBT_THRESHOLD		2
+
+#define	INFO_FLASH		2
+
+#define RESET_ON_SYSERR		0
+#define RESET_ON_MALLOC		1
+#define MSK_BACKOFF		0xFF

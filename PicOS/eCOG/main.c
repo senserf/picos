@@ -1609,17 +1609,9 @@ static void devinit_uart (int devnum) {
 #error "Illegal UART_RATE"
 #endif
 
-#if UART_BITS == 8
+// 8 bits, no parity (no other options)
 #define	uctl_char	0
 #define	uctl_pena	0
-#else
-#define	uctl_char	1
-#if UART_PARITY == 0
-#define	uctl_pena	0x4
-#else
-#define	uctl_pena	0xc
-#endif
-#endif
 
 		rg.duart.a_baud = uart_baud;
 		rg.duart.frame_cfg |= (uctl_char | uctl_pena);

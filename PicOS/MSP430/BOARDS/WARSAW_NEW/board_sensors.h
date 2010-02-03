@@ -150,3 +150,7 @@
 
 #define	sensor_adc_postlude(p) \
 			do { _BIC (P5OUT, 0x90); _BIC (P4OUT, 0x80); } while (0)
+
+#define	SENSOR_INITIALIZERS	// To make sure global init function gets called
+#define	SENSOR_ANALOG		// To make sure analog sensors are processed
+#define	SENSOR_DIGITAL		// To make sure digital sensors are processed

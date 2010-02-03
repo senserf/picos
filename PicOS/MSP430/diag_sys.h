@@ -11,14 +11,14 @@
 
 #if	DIAG_IMPLEMENTATION == 0
 // Direct UART
-#define	diag_wchar(c,a)		TXBUF_A = (byte)(c)
-#define	diag_wait(a)		while ((IFG_A & UTXIFG_A) == 0)
+#define	diag_wchar(c,a)		uart_a_write ((byte)(c))
+#define	diag_wait(a)		while (uart_a_get_write_int == 0)
 
 #define	diag_disable_int(a,u)	do { \
-					(u) = IE_A & (URXIE_A + UTXIE_A); \
+					(u) = uart_a_get_int_stat; \
 					(u) |= (READ_SR & GIE); \
 					cli; \
-					_BIC (IE_A, URXIE_A + UTXIE_A); \
+					uart_a_disable_int; \
 					if ((u) & GIE) \
 						sti; \
 					(u) &= ~GIE; \
@@ -27,7 +27,7 @@
 #define	diag_enable_int(a,u)	do { \
 					(u) |= (READ_SR & GIE); \
 					cli; \
-					_BIS (IE_A, (u) & (URXIE_A + UTXIE_A));\
+					uart_a_set_int_stat (u); \
 					if ((u) & GIE) \
 						sti; \
 				} while (0)
@@ -35,8 +35,8 @@
 
 #if	DIAG_IMPLEMENTATION == 1
 // UART requiring driver-specific functions (these two stay the same)
-#define	diag_wchar(c,a)		TXBUF_A = (byte)(c)
-#define	diag_wait(a)		while ((IFG_A & UTXIFG_A) == 0)
+#define	diag_wchar(c,a)		uart_a_write ((byte)(c))
+#define	diag_wait(a)		while (uart_a_get_write_int == 0)
 
 #define	ZZ_DIAG_UNUMBER_a	0
 #define	ZZ_DIAG_UNUMBER_b	1
@@ -50,11 +50,18 @@ void zz_diag_init (int), zz_diag_stop (int);
 #endif	/* DIAG_IMPLEMENTATION == 1 */
 
 #if	DIAG_IMPLEMENTATION == 2
-// LCD
-#define	diag_disable_int(a,u)	lcd_clear (0, 0)
-#define	diag_wchar(c,a)		lcd_putchar (c)
-#define	diag_wait(a)		CNOP
-#define	diag_enable_int(a,u)	CNOP
+
+#include "board_lcd.h"
+
+#ifndef	lcd_diag_start
+#error	"S: DIAG_IMPLEMENTATION == 2 required lcd_diag_start ... in board_lcd.h"
+#endif
+
+// LCD for diag
+#define	diag_disable_int(a,u)	lcd_diag_start
+#define	diag_wchar(c,a)		lcd_diag_wchar (c)
+#define	diag_wait(a)		lcd_diag_wait
+#define	diag_enable_int(a,u)	lcd_diag_stop
 
 #endif	/* DIAG_IMPLEMENTATION == 2 */
 

@@ -226,10 +226,7 @@ static void ini_uart () {
 /*
  * Initialize the device
  */
-	diag ("UART %d initialized, rate: %d00, bits: %d, parity: %s",
-		WHICH,
-		(int)(UART_RATE/100), UART_BITS, (UART_BITS == 8) ? "none" :
-		(UART_PARITY ? "odd" : "even"));
+	diag ("UART %d initialized, rate: %d00", WHICH, (int)(UART_RATE/100));
 #undef	WHICH
 }
 
@@ -684,10 +681,7 @@ static void ini_uart () {
 /*
  * Initialize the device
  */
-	diag ("UART-P %d initialized, rate: %d00, bits: %d, parity: %s",
-		WHICH,
-		(int)(UART_RATE/100), UART_BITS, (UART_BITS == 8) ? "none" :
-		(UART_PARITY ? "odd" : "even"));
+	diag ("UART-P %d initialized, rate: %d00", WHICH, (int)(UART_RATE/100));
 	// Note: diag should be disabled if it gets in the way
 #undef	WHICH
 }
@@ -991,10 +985,7 @@ static void ini_uart () {
 /*
  * Initialize the device
  */
-	diag ("UART %d initialized, rate: %d00, bits: %d, parity: %s",
-		WHICH,
-		(int)(UART_RATE/100), UART_BITS, (UART_BITS == 8) ? "none" :
-		(UART_PARITY ? "odd" : "even"));
+	diag ("UART %d initialized, rate: %d00", WHICH, (int)(UART_RATE/100));
 #undef	WHICH
 }
 

@@ -1,9 +1,13 @@
 #ifndef	__pg_uart_sys_h
 #define	__pg_uart_sys_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
+
+//
+// This is for UART over TCV/VNETI
+//
 
 #if UART_TCV
 #define	N_UARTS_TCV	UART_TCV
@@ -19,10 +23,10 @@
 #define	UART_START_XMITTER	do { \
 					UA->x_istate = IRQ_X_STRT; \
 					if (UA == zz_uart) { \
-						_BIS (IFG_A, UTXIFG_A); \
+						uart_a_set_write_int; \
 						uart_a_enable_write_int; \
 					} else { \
-						_BIS (IFG_B, UTXIFG_B); \
+						uart_b_set_write_int; \
 						uart_b_enable_write_int; \
 					} \
 				} while (0)
@@ -57,7 +61,7 @@
 
 #define	UART_START_XMITTER	do { \
 					UA->x_istate = IRQ_X_STRT; \
-					_BIS (IFG_A, UTXIFG_A); \
+					uart_a_set_write_int; \
 					uart_a_enable_write_int; \
 				} while (0)
 
@@ -77,7 +81,6 @@
 				} while (0)
 
 #endif	/* N_UARTS_TCV > 1 */
-
 
 #endif	/* defined N_UARTS_TCV */
 

@@ -15,8 +15,6 @@
 
 #define	BUTTONS_DRIVER		1
 
-#define	LCDG_N6100P		1
-
 #define LEDS_DRIVER		1
 #define LEDS_BLINKING		1
 

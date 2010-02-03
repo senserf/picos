@@ -148,3 +148,7 @@
 // at the reference voltage ramp across the 10uF/100nF capacitors connected
 // to Veref. The ramp takes about 25ms to reach stable voltage, to the 40ms
 // include some safety margin.
+
+#define	SENSOR_INITIALIZERS	// To make sure global init function gets called
+#define	SENSOR_ANALOG		// To make sure analog sensors are processed
+#define	SENSOR_DIGITAL		// To make sure digital sensors are processed

@@ -42,6 +42,10 @@
 #define	PHT_DIO_URE	SREF)VEREF_AVSS
 #define	PHT_DIO_ERE	0
 
+#define	SENSOR_INITIALIZERS	// To make sure global init function gets called
+#define	SENSOR_ANALOG		// To make sure analog sensors are processed
+#define	SENSOR_DIGITAL		// To make sure digital sensors are processed
+
 #define	SENSOR_LIST { \
 		ANALOG_SENSOR (   QSO_PAR_ISI,  \
 				  QSO_PAR_NSA,  \

@@ -1,0 +1,2 @@
+-c cc430x6137
+-l main.c sysio.h plug_tarp.c tarp.c net.c phys_cc430.c plug_null.c

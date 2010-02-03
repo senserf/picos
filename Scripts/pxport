@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 ############################################################################
 # Exports PicOS sources                                                    #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2008 All Rights Reserved           #
+# Copyright (C) Olsonet Communications, 2008-2010 All Rights Reserved      #
 ############################################################################
 
 proc abt { m } {
@@ -77,7 +77,7 @@ proc do_copy { rc PA } {
 			# the end of path - just copy
 			set SR [file join $SD $PA $rt]
 			set TR [file join $TD $PA]
-			if [catch { exec cp -r $SR $TR } er] {
+			if [catch { exec bash -c "cp -r $SR $TR" } er] {
 				abt "cannot copy $SR -> $TR, $er"
 			}
 		}

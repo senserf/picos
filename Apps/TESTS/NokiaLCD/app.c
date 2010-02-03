@@ -4,6 +4,7 @@
 /* ==================================================================== */
 
 #include "sysio.h"
+#include "lcdg_n6100p.h"
 
 /*
  * There is no TCV, so all dynamic memory goes to umalloc

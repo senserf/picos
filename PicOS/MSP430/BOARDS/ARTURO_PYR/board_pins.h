@@ -212,3 +212,7 @@
 
 #define	shtxx_ckup	_BIS (P1OUT, 0x80)
 #define	shtxx_ckdown	_BIC (P1OUT, 0x80)
+
+#define	SENSOR_INITIALIZERS	// To make sure global init function gets called
+#define	SENSOR_ANALOG		// To make sure analog sensors are processed
+#define	SENSOR_DIGITAL		// To make sure digital sensors are processed

@@ -3,6 +3,9 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "kernel.h"
+#include "lcd_sys.h"
+#include "pins.h"
 #include "lcd_st7036.h"
 
 #define	LCD_SDELAY	udelay (27);

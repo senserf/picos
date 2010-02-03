@@ -13,10 +13,16 @@
 //		Right connector: P4.6, P4.5, P4.4, P4.0, P2.6, P2.5, P5.6,
 //				 P3.6, P3.7
 
+#define	LCD_TEST	0
+#define	RTC_TEST	0
+
 #include "sysio.h"
 #include "tcvphys.h"
 #include "iflash_sys.h"
 #include "storage.h"
+#if 	LCD_TEST
+#include "lcd_st7036.h"
+#endif
 
 #define	MIN_PACKET_LENGTH	24
 #define	MAX_PACKET_LENGTH	42
@@ -36,8 +42,8 @@ heapmem {10, 90};
 #include "pinopts.h"
 #include "lhold.h"
 
-#ifdef	RTC_PRESENT
-#include "rtc.h"
+#if	RTC_TEST
+#include "rtc_s35390.h"
 #endif
 
 #define	IBUFLEN		132
@@ -55,7 +61,7 @@ static byte	str [129], *blk;
 static char	*ibuf;
 static address	packet;
 
-#ifdef RTC_PRESENT
+#if	RTC_TEST
 rtc_time_t dtime;
 #endif
 
@@ -136,7 +142,7 @@ thread (test_auto)
 	ee_close ();
 	ser_out (AU_EE+5, "EEPROM OK\r\n");
 
-#ifdef RTC_PRESENT
+#if	RTC_TEST
 
   entry (AU_RC)
 
@@ -181,7 +187,7 @@ thread (test_auto)
 
 #endif
 
-#if LCD_ST7036
+#if 	LCD_TEST
 
   entry (AU_LC)
 
@@ -1479,7 +1485,7 @@ endthread
 
 // ============================================================================
 
-#ifdef RTC_PRESENT
+#if	RTC_TEST
 
 #define	RT_MEN	0
 #define	RT_RCM	10
@@ -1585,11 +1591,11 @@ thread (test_rtc)
 
 endthread
 
-#endif /* RTC_PRESENT */
+#endif /* RTC_TEST */
 
 // ============================================================================
 
-#if LCD_ST7036
+#if 	LCD_TEST
 
 #define	LT_MEN	0
 #define	LT_RCM	10
@@ -1678,7 +1684,7 @@ thread (test_lcd)
 
 endthread
 
-#endif /* RTC_PRESENT */
+#endif /* RTC_TEST */
 
 // ============================================================================
 
@@ -1858,7 +1864,7 @@ thread (root)
 	ibuf [0] = 0;
 
 #if 0
-#ifdef RTC_PRESENT
+#if	RTC_TEST
 
 	// Check if the clock is running; if not, set it to anything as
 	// otherwise it drains current;
@@ -1923,10 +1929,10 @@ diag ("OK");
 		"V -> sensors\r\n"
 #endif
 		"A -> ADC\r\n"
-#ifdef RTC_PRESENT
+#if	RTC_TEST
 		"T -> RTC\r\n"
 #endif
-#if LCD_ST7036
+#if 	LCD_TEST
 		"L -> LCD\r\n"
 #endif
 		"U -> UART echo\r\n"
@@ -2066,14 +2072,14 @@ RS_Loop:			proceed (RS_RCMD);
 				release;
 		}
 
-#ifdef RTC_PRESENT
+#if	RTC_TEST
 		case 'T' : {
 				runthread (test_rtc);
 				joinall (test_rtc, RS_RCMD-2);
 				release;
 		}
 #endif
-#if LCD_ST7036
+#if 	LCD_TEST
 		case 'L' : {
 				runthread (test_lcd);
 				joinall (test_lcd, RS_RCMD-2);

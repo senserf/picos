@@ -32,11 +32,7 @@
 // 1, 2, 3 = LEDs, 0, 4-7 = unused by Nokia LCD
 #define PIN_DEFAULT_P4DIR	0xFF
 
-#if LCDG_N6100P
 #define	PIN_DEFAULT_P4OUT	0x9E	// CS+RST up (off), LEDs off
-#else
-#define	PIN_DEFAULT_P4OUT	0x0E	// LEDs off (high) by default
-#endif
 
 // 0 = STORAGE CS OUT
 // 1 = STORAGE SI OUT
@@ -65,6 +61,11 @@
 #define	PIN_DAC_PINS		0x0
 
 // Buttons and joystick
+
+// +++ "p1irq.c" "p2irq.c"
+
+REQUEST_EXTERNAL (p1irq);
+REQUEST_EXTERNAL (p2irq);
 
 #define	BUTTON_LIST	{	\
 		BUTTON_DEF (1, 0x40, 0), \
@@ -109,3 +110,7 @@
 						udelay (3000); \
 					} \
 				} while (0)
+
+// ============================================================================
+
+#define	EXTRA_INITIALIZERS	zz_lcdg_init ()

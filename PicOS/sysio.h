@@ -56,9 +56,7 @@
 
 #if	RADIO_USE_LEDS
 #undef	LEDS_DRIVER
-#undef	LEDS_BLINKING
 #define	LEDS_DRIVER	1
-#define	LEDS_BLINKING	1
 #endif
 
 /* ================================== */
@@ -100,46 +98,9 @@
 #error	"UART_DRIVER can be 0, 1, or 2"
 #endif
 
-#if 	UART_BITS < 7 || UART_BITS > 8
-#error "UART_BITS can be 7 or 8"
-#endif
-
 #if	LEDS_DRIVER == 0
 #undef	LEDS_BLINKING
 #define	LEDS_BLINKING	0
-#endif
-
-// LCD =======================================================================
-
-#ifdef	LCD_PRESENT
-#undef	LCD_PRESENT
-#endif
-
-#if LCD_ST7036
-#define	LCD_PRESENT	1
-//+++ lcd_st7036.c
-#endif
-
-#ifdef	LCDG_PRESENT
-#undef	LCDG_PRESENT
-#endif
-
-#if LCDG_N6100P
-#define	LCDG_PRESENT
-//+++ lcdg_n6100p.c
-#include "lcdg_n6100p.h"
-#endif
-
-// RTC =======================================================================
-
-#ifdef	RTC_PRESENT
-#undef	RTC_PRESENT
-#endif
-
-#if RTC_S35390
-#define	RTC_PRESENT
-//+++ rtc_s35390.c
-#include "rtc.h"
 #endif
 
 // BLUETOOTH through UART ====================================================
@@ -186,15 +147,8 @@
 
 #endif
 // ===========================================================================
-
-// LCD =======================================================================
-#ifndef	DIAG_IMPLEMENTATION
-
-#ifdef	LCD_PRESENT
-#define	DIAG_IMPLEMENTATION	2
-#endif
-
-#endif
+// DIAG_IMPLEMENTATION == 2 must be explicit (requires definitions of
+// lcd_diag_start, lcd_diag_wchar(c), lcd_diag_wait, lcd_diag_stop
 // ===========================================================================
 
 #ifndef	DIAG_IMPLEMENTATION
@@ -372,33 +326,6 @@
 #define	SDCARD_PRESENT	1
 //+++ "sdcard.c"
 #endif
-
-// LCD =======================================================================
-
-#ifdef	LCD_PRESENT
-
-#define	LCD_CURSOR_ON		0x0001
-
-void	lcd_on (word);
-void	lcd_off ();
-void	lcd_clear (word, word);
-void	lcd_write (word, const char*);
-void	lcd_putchar (char);
-void	lcd_setp (word);
-
-#define	LCD_N_CHARS	(LCD_LINE_LENGTH * LCD_N_LINES)
-
-#else	/* LCD_PRESENT */
-
-#define	lcd_on(a)	CNOP
-#define	lcd_off()	CNOP
-#define	lcd_clear(a,b)	CNOP
-#define	lcd_write(a,b)	CNOP
-#define	lcd_putchar(a)	CNOP
-
-#endif	/* LCD_PRESENT */
-
-// ===========================================================================
 
 #if	INFO_FLASH
 //+++ "iflash.c"
@@ -609,11 +536,19 @@ void		ramput (lword, address, int);
 void		dmp_mem (void);
 #endif
 
+// ============================================================================
+
 #if	LEDS_DRIVER
 
 #define	LED_OFF		0
 #define	LED_ON		1
 #define	LED_BLINK	2
+
+// ============================================================================
+
+#ifndef	leds
+
+// Board files can override the operation
 
 #define	leds(a,b)	do { \
 				if ((b) == 0) { \
@@ -664,13 +599,31 @@ void		dmp_mem (void);
 #define	fastblink(a)	(zz_systat.fstblk = ((a) != 0))
 #define is_fastblink    (zz_systat.fstblk != 0)
 
-#else
+#endif	/* leds [overriden from BOARD files */
+
+// ============================================================================
+
+#else	/* No LEDS_DRIVER */
+
+#ifdef	leds
+#undef	leds
+#endif
+
+#ifdef	fastblink
+#undef	fastblink
+#endif
+
+#ifdef	is_fastblink
+#undef	is_fastblink
+#endif
 
 #define	leds(a,b)	do { } while (0)
 #define	fastblink(a)	do { } while (0)
 #define is_fastblink	0
 	
 #endif 	/* LEDS_DRIVER */
+
+// ============================================================================
 
 void	diag (const char *, ...);
 

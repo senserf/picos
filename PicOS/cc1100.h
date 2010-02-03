@@ -142,7 +142,7 @@
 #define CCxxx0_RXFIFO       0x3F
 
 // This one is for power control; we set it up separately
-#define FREND0		    0x10
+#define FREND0_SET	    0x10
 
 #ifdef	DEFINE_RF_SETTINGS
 
@@ -185,9 +185,9 @@ const	byte	cc1100_rfsettings [] = {
 
 #define	RSSI_AGC	(((CC_THRESHOLD-8) & 0xf) | (CC_THRESHOLD_REL << 4))
 
-#define	AGCCTRL1	(0x40 | RSSI_AGC)
+#define	AGCCTRL1_VAL	(0x40 | RSSI_AGC)
 
-	CCxxx0_AGCCTRL1,AGCCTRL1,
+	CCxxx0_AGCCTRL1,AGCCTRL1_VAL,
 
         CCxxx0_AGCCTRL0,0x91,   // AGCCTRL0
         CCxxx0_FSCAL3,  0xA9,   // FSCAL3
@@ -228,7 +228,11 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_SYNC1,	((RADIO_SYSTEM_IDENT >> 8) & 0xff),
 	CCxxx0_SYNC0,	((RADIO_SYSTEM_IDENT     ) & 0xff),
 
+#ifdef	__CC430__
+        CCxxx0_MCSM0,   0x10,   // Recalibrate on exiting IDLE state, full SLEEP
+#else
         CCxxx0_MCSM0,   0x14,   // Recalibrate on exiting IDLE state, full SLEEP
+#endif
 
 #define	MCSM1_TRANS_MODE	0x03	// RX->IDLE, TX->RX
 #define	MCSM1_CCA		(CC_INDICATION << 4)
@@ -313,8 +317,8 @@ const	byte	*cc1100_ratemenu [] = {
 			zz_rate0, zz_rate1, zz_rate2, zz_rate3
 };
 
-#ifndef PATABLE
-  #define	PATABLE { 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xC6, 0xC3 }
+#ifndef CC1100_PATABLE
+#define	CC1100_PATABLE { 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xC6, 0xC3 }
 //  #define	PATABLE { 0x03, 0x1C, 0x67, 0x60, 0x85, 0xCC, 0xC6, 0xC3 }
 #endif
 
@@ -379,6 +383,22 @@ extern const byte *cc1100_ratemenu [];
 #define	CC1100_STATE_CALIBRATE			0x40
 #define	CC1100_STATE_SETTLING			0x50
 
+#ifdef __CC430__
+
+// ============================================================================
+
+#define	SPI_START	CNOP
+#define	SPI_END		CNOP
+
+#define	full_reset	do { \
+				cc1100_strobe (CCxxx0_SRES); \
+				cc1100_strobe (CCxxx0_SNOP); \
+			} while (0)
+
+#else
+
+// ============================================================================
+
 #define	SPI_START	do { \
 				csn_down; \
 				while (so_val); \
@@ -394,15 +414,15 @@ extern const byte *cc1100_ratemenu [];
 				UWAIT1; \
 				csn_up; \
 				UWAIT41; \
-				warm_reset; \
-			} while (0)
-
-#define	warm_reset	do { \
 				SPI_START; \
 				cc1100_spi_out (CCxxx0_SRES); \
 				while (so_val); \
 				SPI_END; \
 			} while (0)
+
+#endif
+
+// ============================================================================
 
 #define	gbackoff	(bckf_timer = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 // REMOVEME

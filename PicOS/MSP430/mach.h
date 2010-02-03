@@ -1,7 +1,7 @@
 #ifndef __pg_mach_h
 #define	__pg_mach_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -17,51 +17,84 @@
 #error "this must be compiled with mspgcc!!!"
 #endif
 
+// Meaning we are gcc
 #define	INTERNAL_FUNCTIONS_ALLOWED	1
 
 #ifdef		__MSP430_148__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_1xx__
+#define		__UART_CONFIG__	1
+#define		__TCI_CONFIG__	1
 #endif
 
 #ifdef		__MSP430_149__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_1xx__
+#define		__UART_CONFIG__	1
+#define		__TCI_CONFIG__	1
 #endif
 
 #ifdef		__MSP430_1611__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x2800	// 10240
 #define       	__MSP430_1xx__
+#define		__UART_CONFIG__	1
+#define		__TCI_CONFIG__	1
 #endif
 
 #ifdef		__MSP430_449__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_4xx__
+#define		__UART_CONFIG__	1
+#define		__TCI_CONFIG__	1
 #endif
 
 #ifdef		__MSP430_G4617__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x2000	// 8K
 #define       	__MSP430_4xx__
-#define		UART_for_4xx	1
+#define		__UART_CONFIG__	1
+#define		__TCI_CONFIG__	1
+// Different pins
+#define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
+#define		UART_PREINIT_B	CNOP
+#define		__SWAPPED_UARTS__
 #endif
 
 #ifdef		__MSP430_G4618__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x2000	// 8K
 #define       	__MSP430_4xx__
-#define		UART_for_4xx	1
+#define		__UART_CONFIG__	1
+#define		__TCI_CONFIG__	1
+#define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
+#define		UART_PREINIT_B	CNOP
+#define		__SWAPPED_UARTS__
 #endif
 
 #ifdef		__MSP430_G4619__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x1000	// 4K
 #define       	__MSP430_4xx__
-#define		UART_for_4xx	1
+#define		__UART_CONFIG__	1
+#define		__TCI_CONFIG__	1
+#define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
+#define		UART_PREINIT_B	CNOP
+#define		__SWAPPED_UARTS__
+#endif
+
+#ifdef		__CC430_6137__
+#define		RAM_START	0x1C00
+#define		RAM_SIZE	0x1000	// 4K
+#define       	__MSP430_6xx__
+#define       	__CC430_6xx__
+#define		__CC430__
+#define		__PORTMAPPER__
+#define		__UART_CONFIG__	2
+#define		__TCI_CONFIG__	2
 #endif
 
 #ifndef		RAM_SIZE
@@ -69,159 +102,6 @@
 #endif
 
 // ============================================================================
-
-#ifdef	UART_for_4xx
-
-// UART definition for 4xx boards: we assume that there is only one UART driven
-// by USART1: TX = P4.0, RX = P4.1
-
-#define		UART_1_IS_A	1
-
-#define	UART_PREINIT_A	do { \
-		_BIS (P4SEL, 0x03); \
-	} while (0)
-
-#endif	/* UART_for_4xx */
-
-// ============================================================================
-
-#ifndef	UART_PREINIT_A
-
-// Pin setting for pre-initialization of UARTs
-
-#define	UART_PREINIT_A	do { \
-		_BIC (P3DIR, 0x20); \
-		_BIS (P3DIR, 0x10); \
-		_BIS (P3SEL, 0x30); \
-	} while (0)
-
-// Flow control add on (UART0 only)
-
-#define	UART_PREINIT_A_FC do { \
-		_BIC (P3SEL, 0xc0); \
-		_BIS (P3DIR, 0x80); \
-	} while (0)
-
-// Set ready to receive
-#define	UART_SET_RTR	_BIS (P3OUT, 0x80)
-// Clear ready to receive
-#define	UART_CLR_RTR	_BIC (P3OUT, 0x80)
-// Test peer ready to receive
-#define	UART_TST_RTR	((P3IN & 0x40) != 0)
-
-#define	UART_PREINIT_B	do { \
-		_BIC (P3DIR, 0x80); \
-		_BIS (P3DIR, 0x40); \
-		_BIS (P3SEL, 0xc0); \
-	} while (0)
-
-#endif	/* UART_PREINIT_A */
-
-// ============================================================================
-
-#ifdef	UART_1_IS_A
-
-// Swapped UARTs, master is USART1
-
-#define	UCTL_B		UCTL0
-#define	UCTL_A		UCTL1
-#define	UBR0_B		UBR00
-#define	UBR0_A		UBR01
-#define	UBR1_B		UBR10
-#define	UBR1_A		UBR11
-#define	UMCTL_B		UMCTL0
-#define	UMCTL_A		UMCTL1
-#define	UTCTL_B		UTCTL0
-#define	UTCTL_A		UTCTL1
-#define ME_B		ME1
-#define	ME_A		ME2
-#define	UTXIFG_B	UTXIFG0
-#define	UTXIFG_A 	UTXIFG1
-#define	IFG_B		IFG1
-#define	IFG_A		IFG2
-#define	TXBUF_B		TXBUF0
-#define	TXBUF_A		TXBUF1
-#define	RXBUF_B		RXBUF0
-#define	RXBUF_A		RXBUF1
-#define	URXIE_B		URXIE0
-#define	UTXIE_B		UTXIE0
-#define	URXIFG_A	URXIFG1
-#define	UTXIFG_A	UTXIFG1
-#define	URXIFG_B	URXIFG0
-#define	UTXIFG_B	UTXIFG0
-#define	URXIE_A		URXIE1
-#define	UTXIE_A		UTXIE1
-#define	UTXE_A		UTXE1
-#define	URXE_A		URXE1
-#define	UTXE_B		UTXE0
-#define	URXE_B		URXE0
-#define	IE_B		IE1
-#define	IE_A		IE2
-
-#define	UART_B_TX_VECTOR	UART0TX_VECTOR
-#define	UART_B_RX_VECTOR	UART0RX_VECTOR
-#define	UART_A_TX_VECTOR	UART1TX_VECTOR
-#define	UART_A_RX_VECTOR	UART1RX_VECTOR
-
-#else	/* swapped uarts */
-
-// Assume the master uart is USART0, second uart is USART1
-
-#define	UCTL_A		UCTL0
-#define	UCTL_B		UCTL1
-#define	UBR0_A		UBR00
-#define	UBR0_B		UBR01
-#define	UBR1_A		UBR10
-#define	UBR1_B		UBR11
-#define	UMCTL_A		UMCTL0
-#define	UMCTL_B		UMCTL1
-#define	UTCTL_A		UTCTL0
-#define	UTCTL_B		UTCTL1
-#define ME_A		ME1
-#define	ME_B		ME2
-#define	UTXIFG_A	UTXIFG0
-#define	UTXIFG_B 	UTXIFG1
-#define	IFG_A		IFG1
-#define	IFG_B		IFG2
-#define	TXBUF_A		TXBUF0
-#define	TXBUF_B		TXBUF1
-#define	RXBUF_A		RXBUF0
-#define	RXBUF_B		RXBUF1
-#define	URXIE_A		URXIE0
-#define	UTXIE_A		UTXIE0
-#define	URXIFG_A	URXIFG0
-#define	UTXIFG_A	UTXIFG0
-#define	URXIFG_B	URXIFG1
-#define	UTXIFG_B	UTXIFG1
-#define	URXIE_B		URXIE1
-#define	UTXIE_B		UTXIE1
-#define	UTXE_A		UTXE0
-#define	URXE_A		URXE0
-#define	UTXE_B		UTXE1
-#define	URXE_B		URXE1
-#define	IE_A		IE1
-#define	IE_B		IE2
-
-#define	UART_A_TX_VECTOR	UART0TX_VECTOR
-#define	UART_A_RX_VECTOR	UART0RX_VECTOR
-#define	UART_B_TX_VECTOR	UART1TX_VECTOR
-#define	UART_B_RX_VECTOR	UART1RX_VECTOR
-
-#endif	/* swapped uarts */
-
-#ifndef	UART0TX_VECTOR
-#define	UART0TX_VECTOR	USART0TX_VECTOR
-#endif
-#ifndef	UART1TX_VECTOR
-#define	UART1TX_VECTOR	USART1TX_VECTOR
-#endif
-#ifndef	UART0RX_VECTOR
-#define	UART0RX_VECTOR	USART0RX_VECTOR
-#endif
-#ifndef	UART1RX_VECTOR
-#define	UART1RX_VECTOR	USART1RX_VECTOR
-#endif
-
 // ============================================================================
 
 #include "arch.h"
@@ -249,7 +129,7 @@
 #endif
 
 // The number of slow ticks per second
-#define	TIMER_B_LOW_PER_SEC	16
+#define	TCI_LOW_PER_SEC		16
 #define	HIGH_CRYSTAL_RATE 	1
 
 #else	/* Low crystal rate */
@@ -262,17 +142,51 @@
 // then) because at, say, 8MHz ACLK rate, the watchdog will go off after
 // ca. 1/250 s. Well, we could slow down ACLK, but the whole point of having
 // a high speed crystal for ACLK is to run it at a high rate.
-#define	TIMER_B_LOW_PER_SEC	2
+#define	TCI_LOW_PER_SEC		2
 #else
-#define	TIMER_B_LOW_PER_SEC	1
+#define	TCI_LOW_PER_SEC		1
 #endif
 
 #define	HIGH_CRYSTAL_RATE	0
 
 #endif	/* CRYSTAL_RATE != 32768 */
 
-#define	TIMER_B_INIT_HIGH	((CRYSTAL_RATE/8192) - 1)
-#define	TIMER_B_INIT_LOW  	((CRYSTAL_RATE/(8*TIMER_B_LOW_PER_SEC)) - 1)
+// ============================================================================
+
+#if	__TCI_CONFIG__ == 1
+
+// Timer for clock configuration 1 = TIMER_B
+
+#define	TCI_CCR		TBCCR0
+#define	TCI_CTL		TBCTL
+#define	TCI_VECTOR	TIMERB0_VECTOR
+
+#define sti_tim	_BIS (TBCCTL0, CCIE)
+#define cli_tim	_BIC (TBCCTL0, CCIE)
+#define	dis_tim _BIC (TBCTL, MC0 + MC1)
+#define	ena_tim _BIS (TBCTL, MC0      )
+
+#endif
+
+#if	__TCI_CONFIG__ == 2
+
+// Timer for clock configuration 2 = TIMER A0
+
+#define	TCI_CCR		TA0CCR0
+#define	TCI_CTL		TA0CTL
+#define	TCI_VECTOR	TIMER0_A0_VECTOR
+
+#define sti_tim	_BIS (TA0CCTL0, CCIE)
+#define cli_tim	_BIC (TA0CCTL0, CCIE)
+#define	dis_tim _BIC (TA0CTL, MC0 + MC1)
+#define	ena_tim _BIS (TA0CTL, MC0      )
+
+#endif
+
+// ============================================================================
+
+#define	TCI_INIT_HIGH	((CRYSTAL_RATE/8192) - 1)
+#define	TCI_INIT_LOW  	((CRYSTAL_RATE/(8*TCI_LOW_PER_SEC)) - 1)
 
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
@@ -287,6 +201,23 @@
 #define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
 
+#ifdef	__PORTMAPPER__
+
+typedef	struct {
+
+	byte *pm_base;
+	const byte map [8];
+
+} portmap_t;
+
+#define	portmap_entry(a,b,c,d,e,f,g,h,i) \
+		{ (byte*) (&(a)), \
+			(byte) (b), (byte) (c), (byte) (d), (byte) (e), \
+			(byte) (f), (byte) (g), (byte) (h), (byte) (i)  }
+
+#endif	/* __PORTMAPPER__ */
+
+#include "uart_def.h"
 						// LWA of stack
 #if	UART_DRIVER
 
@@ -329,119 +260,6 @@ extern uart_t zz_uart [];
 #define	UART_RATE_MASK		0x0F
 
 // ============================================================================
-// UART rate calculation ======================================================
-// ============================================================================
-
-#if CRYSTAL2_RATE
-// SMCLK
-#define	UART_UTCTL	SSEL1
-#define	UART_CLOCK_RATE	CRYSTAL2_RATE
-#else
-// ACLK
-#define	UART_UTCTL	SSEL0
-#define	UART_CLOCK_RATE	CRYSTAL_RATE
-#endif
-
-#if	UART_CLOCK_RATE == 32768
-// This is the standard (or perhaps not any more?)
-#define	UART_UBR1		0
-
-#if UART_RATE == 1200
-#define	UART_UBR0		0x1B
-#define	UART_UMCTL		0x03
-#define	UART_RATE_INDEX	0
-#endif
-
-#if UART_RATE == 2400
-#define	UART_UBR0		0x0D
-#define	UART_UMCTL		0x6B
-#define	UART_RATE_INDEX	1
-#endif
-
-#if UART_RATE == 4800
-#define	UART_UBR0		0x06
-#define	UART_UMCTL		0x6F
-#define	UART_RATE_INDEX	2
-#endif
-
-#if UART_RATE == 9600
-#define	UART_UBR0		0x03
-#define	UART_UMCTL		0x4A
-#define	UART_RATE_INDEX	3
-#endif
-
-#ifndef UART_UBR0
-#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
-#endif
-
-#else	/* UART_CLOCK_RATE > 32768 */
-
-#if UART_RATE == 1200
-#define	UART_RATE_INDEX	0
-#endif
-#if UART_RATE == 2400
-#define	UART_RATE_INDEX	1
-#endif
-#if UART_RATE == 4800
-#define	UART_RATE_INDEX	2
-#endif
-#if UART_RATE == 9600
-#define	UART_RATE_INDEX	3
-#endif
-#if UART_RATE == 14400
-#define	UART_RATE_INDEX	4
-#endif
-#if UART_RATE == 19200
-#define	UART_RATE_INDEX	5
-#endif
-#if UART_RATE == 28800
-#define	UART_RATE_INDEX	6
-#endif
-#if UART_RATE == 38400
-#define	UART_RATE_INDEX	7
-#endif
-#if UART_RATE == 76800
-#define	UART_RATE_INDEX	8
-#endif
-#if UART_RATE == 115200
-#define	UART_RATE_INDEX	9
-#endif
-#if UART_RATE == 256000
-#define	UART_RATE_INDEX	10
-#endif
-
-#ifndef	UART_RATE_INDEX
-#error "Illegal UART_RATE"
-#endif
-
-// No need to use corrections for high-speed crystals. FIXME: may need 
-// correction for 115200 and more.
-#define	UART_UMCTL		0
-#define	UART_UBR0		((UART_CLOCK_RATE/UART_RATE) % 256)
-#define	UART_UBR1		((UART_CLOCK_RATE/UART_RATE) / 256)
-
-#endif	/* UART_CLOCK_RATE */
-
-#if UART_BITS == 8
-
-#define	UART_UCTL_CHAR	CHAR
-#define	UART_UCTL_PENA	0
-#define	UART_UCTL_PEV	0
-
-#else	/* UART_BITS == 7 */
-
-#define	UART_UCTL_CHAR	0
-#define	UART_UCTL_PENA	PENA
-
-#if UART_PARITY == 0
-#define	UART_UCTL_PEV	PEV
-#else
-#define	UART_UCTL_PEV	0
-#endif
-
-#endif	/* UART_BITS */
-
-// ============================================================================
 
 #define	sti	_EINT ()
 #define	cli	_DINT ()
@@ -455,7 +273,9 @@ extern uart_t zz_uart [];
 #if WATCHDOG_ENABLED
 
 #define	WATCHDOG_HOLD		WATCHDOG_STOP
-#define	WATCHDOG_START		WDTCTL = WDTPW + WDTCNTCL + WDTSSEL
+// 1 second at 32kHz
+#define	WATCHDOG_START		WDTCTL = WDTPW + WDTCNTCL + WDTIS_4 + \
+								WDTSSEL__ACLK
 #define	WATCHDOG_CLEAR		WDTCTL = WDTPW + WDTCNTCL
 
 #else
@@ -467,26 +287,6 @@ extern uart_t zz_uart [];
 #endif
 
 #define	WATCHDOG_RESUME		WATCHDOG_START
-
-/* =============================== */
-/* Enable/disable clock interrupts */
-/* =============================== */
-#define sti_tim	_BIS (TBCCTL0, CCIE)
-#define cli_tim	_BIC (TBCCTL0, CCIE)
-#define	dis_tim _BIC (TBCTL, MC0 + MC1)
-#define	ena_tim _BIS (TBCTL, MC0      )
-
-
-#define	uart_a_disable_int		_BIC (IE_A, URXIE_A + UTXIE_A)
-#define	uart_b_disable_int		_BIC (IE_B, URXIE_B + UTXIE_B)
-#define	uart_a_disable_read_int		_BIC (IE_A, URXIE_A)
-#define	uart_a_disable_write_int	_BIC (IE_A, UTXIE_A)
-#define	uart_b_disable_read_int		_BIC (IE_B, URXIE_B)
-#define	uart_b_disable_write_int	_BIC (IE_B, UTXIE_B)
-#define	uart_a_enable_read_int		_BIS (IE_A, URXIE_A)
-#define	uart_a_enable_write_int		_BIS (IE_A, UTXIE_A)
-#define	uart_b_enable_read_int		_BIS (IE_B, URXIE_B)
-#define	uart_b_enable_write_int		_BIS (IE_B, UTXIE_B)
 
 #ifdef	MONITOR_PIN_CPU
 

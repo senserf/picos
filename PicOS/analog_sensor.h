@@ -10,8 +10,6 @@
 #include "analog_sensor_sys.h"
 //+++ "analog_sensor.c"
 
-#define	ANALOG_SENSORS_PRESENT
-
 void analog_sensor_read (word, const a_sensdesc_t*, address);
 
 #endif

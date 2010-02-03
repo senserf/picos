@@ -61,5 +61,7 @@
 				SEN_POWER_ERE) \
 	}
 
-// Simplifies a bit the code in sensors.c
-#define	NO_DIGITAL_SENSORS
+// Simplifies a bit the code in sensors.c; also - no call to zz_init_sensors
+// is required, nor digital (SENSOR_DIGITAL) processing has to be compiled in
+
+#define	SENSOR_ANALOG		// To make sure analog sensors are processed

@@ -22,6 +22,6 @@
 
 void shtxx_temp (word, const byte*, address);
 void shtxx_humid (word, const byte*, address);
-void shtxx_init (void);
+void shtxx_init ();
 
 #endif
