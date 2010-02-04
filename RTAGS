@@ -3613,3 +3613,7 @@ R100203A:
 	  start radio, and the left bottom button to stop
 	- both praxes in Apps/TEST/CHRONOS illustrate the LCD driver
 	- many little and invisible things
+
+R100204A:
+	Initial E-RTags in VUEE/ert. See file 'notes' in there.
+
