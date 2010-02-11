@@ -1,0 +1,7 @@
+//#define	SD_KEEP_IDLE	1
+
+#undef	CODE_LONG_INTS
+#define	CODE_LONG_INTS	1
+
+#undef 	UART_RATE
+#define	UART_RATE	9600

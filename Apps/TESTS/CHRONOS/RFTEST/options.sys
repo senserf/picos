@@ -1,8 +1,1 @@
 // Insert here applications-specific options
-
-// Temporary
-void msg_hi (const char*);
-void msg_lo (const char*);
-void msg_er (char, unsigned int);
-void msg_hx (char, unsigned int);
-// =========

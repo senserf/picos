@@ -6,13 +6,18 @@
 #define	TCV_PRESENT		1
 #define	TCV_TIMERS		0
 #define	TCV_HOOKS		0
-#define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
+
+// Long multiplication doesn't work!!!!
+#define	CODE_LONG_INTS		0	/* 'ld' 'lu' 'lx' in formats */
+
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
 #define STACK_GUARD		1
-#define ENTROPY_COLLECTION	1
 #define	GLACIER			1
-#define	RANDOM_NUMBER_GENERATOR	2
+
+// RNG must be simple as long multiplacation doesn't work
+#define	RANDOM_NUMBER_GENERATOR	1
+#define ENTROPY_COLLECTION	0
 
 #define	BUTTONS_DRIVER		1
 
@@ -27,7 +32,7 @@
 #define LEDS_BLINKING		0
 
 #define UART_DRIVER		0
-#define	RADIO_USE_LEDS		0
+#define	RADIO_USE_LEDS		7
 
 #define CC1100			1
 

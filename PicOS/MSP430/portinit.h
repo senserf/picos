@@ -519,7 +519,7 @@
 
 // ============================================================================
 
-#ifdef	PJSEL_
+#ifdef	PJDIR_
 
 #ifndef	PIN_DEFAULT_PJSEL
 #define	PIN_DEFAULT_PJSEL	0x00

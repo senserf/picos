@@ -52,7 +52,7 @@ proc calc_mode { fn } {
 
 proc do_it { } {
 #
-# Cleans the current directory
+# Handles the current directory
 #
 	if [catch { exec ls -a } flist] {
 		puts stderr "cannot list directory"

@@ -32,18 +32,22 @@
 #define	PIN_DEFAULT_P5SEL	0xE3
 #define	PIN_DEFAULT_P5DIR	0xE0
 
-// For buzzer and buttons
+// For buzzer and buttons (P2.6 is RDY for SCP1000)
 #define	PIN_DEFAULT_P2OUT	0x00
-#define	PIN_DEFAULT_P2DIR	0x80
+#define	PIN_DEFAULT_P2DIR	0xA0
 // Pull-downs for the buttons
 #define	PIN_DEFAULT_P2REN	0x1F
 
-#define	PIN_DEFAULT_P1DIR	0x1F
+// 5-7 == ACC SDI, SDO, Clock (all initially out, set to zero, ACC switched off)
+#define	PIN_DEFAULT_P1DIR	0xFF
 #define	PIN_DEFAULT_P1OUT	0x1F
+// Pulldown for acc SDI (when switched to input)
+#define	PIN_DEFAULT_P1REN	0x20
 
-// J0, J1 are power switches for ACC i PRE, J2 is In/Out for PRE
+// J0, J1 control the ACC, J2 is In/Out for PRE, J3 is SCK for PRE; J2 is used
+// in open drain mode, with the default setting to IN, output set low
 #define	PIN_DEFAULT_PJDIR	0xFB
-#define	PIN_DEFAULT_PJOUT	0xF8
+#define	PIN_DEFAULT_PJOUT	0xFA
 
 // Portmapper
 #define	PIN_PORTMAP	{ 	portmap_entry (P2MAP0, \
@@ -68,9 +72,8 @@
 
 // ============================================================================
 
-//+++ "p1irq.c"
-
-REQUEST_EXTERNAL (p1irq);
+//+++ "p2irq.c"
+REQUEST_EXTERNAL (p2irq);
 
 #define	BUTTON_LIST 	{ \
 				BUTTON_DEF (2, 0x04, 0), \
@@ -89,7 +92,10 @@ REQUEST_EXTERNAL (p1irq);
 #define	P2_PINS_INTERRUPT_MASK	0x1F
 #define	BUTTON_DEBOUNCE_DELAY	64
 
-
 // ============================================================================
+
+#include "board_rtc.h"
+
+#define	EXTRA_INITIALIZERS	zz_rtc_init ()
 
 #include "board_sensors.h"

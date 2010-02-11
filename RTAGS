@@ -3615,5 +3615,20 @@ R100203A:
 	- many little and invisible things
 
 R100204A:
+
 	Initial E-RTags in VUEE/ert. See file 'notes' in there.
 
+R100211A:
+
+	The first complete set of drivers for ez-chronos.
+	See Apps/TESTS/CHRONOS/RFTEST (together with Apps/TESTS/CHRONOS/AP)
+	for illustration. I may write a detailed manual of the LCD, although
+	things should be straightforward when you confront the contents of
+	ez430_lcd.h (in PicOS/MSP430) with the watch's manual from TI.
+
+	Note that the present version of mspgcc incorrectly multiplies lwords
+	on cc430, so don't use long encoding of numbers-strings and vice versa
+	or RANDOM_NUMBER_GENERATOR == 2.
+
+	I have updated UTILS in Scripts. Having second thoughts about including
+	there mspgcc, which is not unlikely to become customized to our needs.
