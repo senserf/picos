@@ -462,3 +462,14 @@ R091222A:
 	mode="d"   Direct, i.e., traditional (the default)
 
     Wlodek, make sure to fix it in your data sets!
+
+R100217A:
+
+    Included a simple generic model of RTC (no udaemon interface required).
+
+    Added ion as a shortcut for io.
+
+    UART_SETRATE/UART_GETRATE io CONTROL requests are now implemented.
+
+    Macro __sinit modified to allow for structure initialization (this requires
+    a corresponding change in PicOS).

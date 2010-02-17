@@ -87,6 +87,8 @@ class uart_dir_int_t {
 
 };
 
+// ============================================================================
+
 class uart_tcv_int_t {
 //
 // UART interface for TCV PHY packet and line modes
@@ -125,12 +127,14 @@ typedef	struct {
 
 	byte	IMode;	// Interface mode
 
-	UART	*U;	// Low-level (mode-independent) UART
+	UARTDV	*U;	// Low-level (mode-independent) UART
 	void	*Int;	// Interface
 } uart_t;
 
 #define	UART_INTF_D(u)	((uart_dir_int_t*)((u)->Int))
 #define	UART_INTF_P(u)	((uart_tcv_int_t*)((u)->Int))
+
+// ============================================================================
 
 packet	PKT {
 
@@ -193,6 +197,35 @@ class rfm_intd_t {
 	void abort ();
 
 };
+
+// ============================================================================
+
+typedef	struct {
+//
+// This structure is shared by all PicOS's RTC interfaces
+//
+	byte	year, month, day, dow, hour, minute, second;
+
+} rtc_time_t;
+
+class rtc_module_t {
+//
+// Generic Real Time Clock interface
+//
+	time_t	SecOffset;
+
+	public:
+
+	rtc_module_t () { SecOffset = 0; };
+
+	void set (const rtc_time_t*);
+	void get (rtc_time_t*);
+};
+
+// ============================================================================
+
+
+// ============================================================================
 
 process	_PP_ {
 //
@@ -311,6 +344,12 @@ station PicOSNode abstract {
 	LCDG		*lcdg;
 
 	// ====================================================================
+
+	/*
+	 * RTC: this one is built-in and not optional, as it is simple, so we
+	 * need not specify it in the data set
+	 */
+	rtc_module_t	rtc_module;
 
 
 	void _da (diag) (const char*, ...);
@@ -774,6 +813,11 @@ sint zz_getcpid ();
 // ============================================================================
 
 void powerdown (), powerup ();
+
+// ============================================================================
+
+void rtc_set (const rtc_time_t*);
+void rtc_get (rtc_time_t*);
 
 // ============================================================================
 

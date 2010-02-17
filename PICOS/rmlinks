@@ -1,4 +1,6 @@
 #!/bin/sh
+rm -f rtc_cc430.h
+rm -f rtc_s35390.h
 rm -f pinopts.h
 rm -f phys_uart.h
 rm -f net.h

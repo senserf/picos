@@ -175,7 +175,7 @@ process	UartHandler {
  * Handles a UART connection
  */
 	Dev 		*Agent;
-	UART		*UA;
+	UARTDV		*UA;
 	char		*Buf;
 	int		Left;
 
@@ -343,7 +343,7 @@ process LcdgHandler {
 
 };
 
-UART::UART (data_ua_t *UAD) {
+UARTDV::UARTDV (data_ua_t *UAD) {
 /*
  * Initialize the UART model. mode is sum of
  *
@@ -453,7 +453,7 @@ UART::UART (data_ua_t *UAD) {
 	rst ();
 }
 
-void UART::setRate (word rate) {
+void UARTDV::setRate (word rate) {
 //
 // Sets the current rate
 //
@@ -467,7 +467,7 @@ void UART::setRate (word rate) {
  	ByteTime = (TIME) ((Second / Rate) / 10.0);
 }
 
-void UART::rst () {
+void UARTDV::rst () {
 
 	// When a node is reset, SMURPH kills all its processes, including
 	// UART drivers. 
@@ -487,13 +487,13 @@ void UART::rst () {
 	setRate (DefRate);
 }
 
-void UART_in::setup (UART *u) {
+void UART_in::setup (UARTDV *u) {
 
 	U = u;
 	TimeLastRead = TIME_0;
 }
 
-void UART_out::setup (UART *u) {
+void UART_out::setup (UARTDV *u) {
 
 	U = u;
 	TimeLastWritten = TIME_0;
@@ -504,7 +504,7 @@ static void ti_err () {
 		TheStation->getSName ());
 };
 
-char UART::getOneByte (int st) {
+char UARTDV::getOneByte (int st) {
 /*
  * Fetches one byte (from the mailbox or string)
  */
@@ -565,7 +565,7 @@ char UART::getOneByte (int st) {
 
 #define	TI_ASS_LEN  32	// Maximum length of time string
 
-void UART::getTimed (int state, char *res) {
+void UARTDV::getTimed (int state, char *res) {
 /*
  * We have to maintain state information as we may be called several times for
  * partial processing
@@ -703,7 +703,7 @@ Redo:
 	}
 }
 
-void UART::sendStuff (int st, char *buf, int nc) {
+void UARTDV::sendStuff (int st, char *buf, int nc) {
 
 	if (O == NULL) {
 ReDo:
@@ -860,7 +860,7 @@ UART_out::perform {
 	proceed Put;
 }
 
-UART::~UART () {
+UARTDV::~UARTDV () {
 
 	excptn ("UART at %s: cannot delete UARTs", TheStation->getSName ());
 
@@ -897,7 +897,7 @@ UART::~UART () {
 
 }
 
-int UART::ioop (int state, int ope, char *buf, int len) {
+int UARTDV::ioop (int state, int ope, char *buf, int len) {
 /*
  * Note: there is no 'dev' parameter from the PicOS version. Nodes will want
  * to wrap this method anyway.
@@ -954,9 +954,27 @@ int UART::ioop (int state, int ope, char *buf, int len) {
 			Monitor->signal (&OB_in);
 			return len - bc;
 
+		case CONTROL:
+
+			// We only implement setrate and getrate, ignoring
+			// lock and calibrate
+
+			if (len == UART_CNTRL_SETRATE) {
+				setRate (*((word*)buf));
+				return 1;
+			}
+
+			if (len == UART_CNTRL_GETRATE) {
+				*((word*)buf) = getRate ();
+				return 1;
+			}
+
+			if (len == UART_CNTRL_LCK ||
+				len == UART_CNTRL_CALIBRATE)
+					return 1;
 		default:
 
-			excptn ("UART->ioop: illegal operation");
+			excptn ("UART->ioop: illegal operation %1d", ope);
 	}
 }
 

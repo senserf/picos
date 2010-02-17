@@ -34,11 +34,24 @@
 // NOTE: this will be replaced in PicOS as an isolated fragment of sysio.h //
 // ----------------------------------------------------------------------- //
 
-#define	TCV_MAX_DESC	4
-#define	TCV_MAX_PHYS	2
-#define	TCV_MAX_PLUGS	3
-#define	TCV_LIMIT_RCV	0
-#define	TCV_LIMIT_XMT	0
+#define	UART_A			0
+#define	UART_B			1
+#define	UART			UART_A
+
+// Note: READ/WRITE are defined in SMURPH (their values are different than in
+// PicOS, but they can be used for 'io'); here's one more
+#define	CONTROL			2
+
+#define	UART_CNTRL_LCK		1	/* UART lock/unlock */
+#define	UART_CNTRL_SETRATE	2
+#define	UART_CNTRL_GETRATE	3
+#define	UART_CNTRL_CALIBRATE	4	/* For UARTs driven by flimsy clocks */
+
+#define	TCV_MAX_DESC		4
+#define	TCV_MAX_PHYS		2
+#define	TCV_MAX_PLUGS		3
+#define	TCV_LIMIT_RCV		0
+#define	TCV_LIMIT_XMT		0
 
 #define	PHYSOPT_PLUGINFO	(-1)	/* These two are kind of special */
 #define	PHYSOPT_PHYSINFO	(-2)
@@ -251,7 +264,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	__CONST
 #define	__VIRTUAL	virtual
 #define	__ABSTRACT	= 0
-#define	__sinit(a)	
+#define	__sinit(...)	
 
 #ifndef	THREADNAME
 #define	THREADNAME(a)	a

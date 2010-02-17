@@ -147,7 +147,7 @@ mailbox Dev (int) {
 process	UART_in;
 process	UART_out;
 
-class	UART {
+class	UARTDV {
 
 	friend  class UART_in;
 	friend  class UART_out;
@@ -236,27 +236,27 @@ class	UART {
 
 	void rst ();
 
-	UART (data_ua_t*);
-	~UART ();
+	UARTDV (data_ua_t*);
+	~UARTDV ();
 };
 
 process	UART_in {
 
-	UART	*U;
+	UARTDV	*U;
 	TIME	TimeLastRead;
 
 	states { Get, GetH1 };
-	void setup (UART*);
+	void setup (UARTDV*);
 	perform;
 };
 
 process	UART_out {
 
-	UART	*U;
+	UARTDV	*U;
 	TIME	TimeLastWritten;
 
 	states { Put };
-	void setup (UART*);
+	void setup (UARTDV*);
 	perform;
 };
 

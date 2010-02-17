@@ -27,6 +27,7 @@
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )
 #define	memfree(a,b)	(  ((PicOSNode*)TheStation)->_na_memfree (a,b)  )
 #define io(a,b,c,d,e)	(  ((PicOSNode*)TheStation)->_na_io (a,b,c,d,e)  )
+#define	ion(a,b,c,d)	io (NONE, a, b, c, d)
 #define	read_sensor(a,b,c) \
 		(  ((PicOSNode*)TheStation)->_na_read_sensor (a,b,c)  )
 #define	write_actuator(a,b,c) \

@@ -526,7 +526,7 @@ void PicOSNode::setup (data_no_t *nd) {
 		uart = NULL;
 	} else {
 		uart = new uart_t;
-		uart->U = new UART (nd->ua);
+		uart->U = new UARTDV (nd->ua);
 		uart->IMode = nd->ua->iface;
 		switch (uart->IMode) {
 			case UART_IMODE_N:
@@ -4984,6 +4984,60 @@ void powerdown () {
 void powerup () {
 
 	TheNode->pwrt_change (PWRT_CPU, PWRT_CPU_FP);
+}
+
+// ============================================================================
+
+void rtc_module_t::set (const rtc_time_t *rtd) {
+
+	struct tm lct;
+	time_t tim;
+
+	memset (&lct, 0, sizeof (lct));
+	// Convert the specified time to seconds
+	lct.tm_sec = rtd->second;
+	lct.tm_min = rtd->minute;
+	lct.tm_hour = rtd->hour;
+	lct.tm_mday = rtd->day;
+	if ((lct.tm_mon = rtd->month))
+		// This is stored as a number sarting from 0 not from 1
+		lct.tm_mon--;
+	// This is since 1900
+	lct.tm_year = (int)(rtd->year) + 100;
+
+	if ((tim = mktime (&lct)) < 0)
+		// Just in case: we do not detect/signal errors also in PicOS
+		SecOffset = 0;
+	else
+		SecOffset = time (NULL) - tim;
+}
+	
+void rtc_module_t::get (rtc_time_t *rtd) {
+
+	time_t tim;
+	struct tm *lct;
+
+	tim = time (NULL) - SecOffset;
+	lct = localtime(&tim);
+
+	rtd->year = (byte) (lct->tm_year - 100);
+	// This is from 0 rather than 1
+	rtd->month = (byte) (lct->tm_mon) + 1;
+	rtd->day = (byte) (lct->tm_mday);
+	rtd->hour = (byte) (lct->tm_hour);
+	rtd->minute = (byte) (lct->tm_min);
+	rtd->second = (byte) (lct->tm_sec);
+	rtd->dow = (byte) (lct->tm_wday);
+}
+
+void rtc_set (const rtc_time_t *rtct) {
+
+	TheNode->rtc_module.set (rtct);
+}
+
+void rtc_get (rtc_time_t *rtct) {
+
+	TheNode->rtc_module.get (rtct);
 }
 
 // ============================================================================

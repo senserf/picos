@@ -75,3 +75,5 @@ ln -sf board.h phys_uart.h
 ln -sf board.h pins.h
 ln -sf board.h phys_cc1100.h
 ln -sf board.h pinopts.h
+ln -sf board.h rtc_s35390.h
+ln -sf board.h rtc_cc430.h

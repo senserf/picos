@@ -1,7 +1,6 @@
 // Created automatically, do not edit!!!
 #ifdef __picos_stdattr_h__
 #undef __picos_stdattr_h__
-#undef __picos_stdattr_h__
 #undef release
 #undef finish
 #undef entropy
@@ -15,6 +14,7 @@
 #undef actsize
 #undef memfree
 #undef io
+#undef ion
 #undef read_sensor
 #undef write_actuator
 #undef vform
