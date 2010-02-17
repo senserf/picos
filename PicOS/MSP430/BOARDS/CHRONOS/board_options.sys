@@ -8,7 +8,7 @@
 #define	TCV_HOOKS		0
 
 // Long multiplication doesn't work!!!!
-#define	CODE_LONG_INTS		0	/* 'ld' 'lu' 'lx' in formats */
+#define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
 
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
@@ -16,8 +16,8 @@
 #define	GLACIER			1
 
 // RNG must be simple as long multiplacation doesn't work
-#define	RANDOM_NUMBER_GENERATOR	1
-#define ENTROPY_COLLECTION	0
+#define	RANDOM_NUMBER_GENERATOR	2
+#define ENTROPY_COLLECTION	1
 
 #define	BUTTONS_DRIVER		1
 

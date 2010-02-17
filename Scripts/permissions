@@ -41,6 +41,8 @@ proc calc_mode { fn } {
 
 	set hdr [read $fd 4]
 
+	catch { close $fd }
+
 	foreach pat $Headers {
 		if { $pat == $hdr } {
 			return 755
@@ -55,7 +57,7 @@ proc do_it { } {
 # Handles the current directory
 #
 	if [catch { exec ls -a } flist] {
-		puts stderr "cannot list directory"
+		puts stderr "cannot list directory: $flist"
 		exit 99
 	}
 
@@ -65,13 +67,13 @@ proc do_it { } {
 		}
 		if [file isdirectory $d] {
 			# change permissions
-			if [catch { exec chmod 755 $d } err] {
-				puts stderr "cannot chmod 775 $d"
+			if [catch { exec chmod -f 755 $d } err] {
+				puts stderr "cannot chmod 775 $d: $err"
 				exit 99
 			}
 			# traverse
-			if [catch { file lstat $d vv } ] {
-				puts stderr "cannot stat $d"
+			if [catch { file lstat $d vv } err] {
+				puts stderr "cannot stat $d: $err"
 				exit 99
 			}
 			if { $vv(type) != "directory" } {
@@ -89,8 +91,8 @@ proc do_it { } {
 
 		# a regular file
 		set md [calc_mode $d]
-		if [catch { exec chmod $md $d } err] {
-			puts stderr "cannot chmod $md $d"
+		if [catch { exec chmod -f $md $d } err] {
+			puts stderr "cannot chmod $md $d: $err"
 			exit 99
 		}
 	}

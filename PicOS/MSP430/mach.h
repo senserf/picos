@@ -273,9 +273,19 @@ extern uart_t zz_uart [];
 #if WATCHDOG_ENABLED
 
 #define	WATCHDOG_HOLD		WATCHDOG_STOP
+
 // 1 second at 32kHz
+
+// ============================================================================
+#ifdef	WDTIS_4
+// x54xx WDT
 #define	WATCHDOG_START		WDTCTL = WDTPW + WDTCNTCL + WDTIS_4 + \
 								WDTSSEL__ACLK
+#else
+#define	WATCHDOG_START		WDTCTL = WDTPW + WDTCNTCL + WDTSSEL
+#endif
+// ============================================================================
+
 #define	WATCHDOG_CLEAR		WDTCTL = WDTPW + WDTCNTCL
 
 #else

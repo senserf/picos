@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include <ecog.h>
@@ -1170,7 +1170,7 @@ static void ios_init () {
 #ifdef	SYSVER_B
 		"-" SYSVER_B
 #endif
-        	", (C) Olsonet Communications, 2002-2009");
+        	", (C) Olsonet Communications, 2002-2010");
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);
 #endif
 #if	SDRAM_PRESENT
@@ -1245,7 +1245,7 @@ static void ios_init () {
 	}
 #endif
 
-#ifdef SENSOR_LIST
+#ifdef SENSOR_INITIALIZERS
 	zz_init_sensors ();
 #endif
 

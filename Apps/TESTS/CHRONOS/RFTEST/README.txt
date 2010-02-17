@@ -23,23 +23,18 @@ Commands:
 
 Sensor value reports:
 
-	MO: DDDD EEEE, PR: PPPP QQQQ TTTT
+	MO: D E, PR: P T
 
-All values: DDDD, EEEE, PPPP, QQQQ, TTTT are hex numbers:
+All values: D, E, P, T are unsigned decimals, P is long (i.e., a lword).
 
-	DDDD   is the timestamp of the last movement event as the number of
-	       seconds ago
+	D  is the timestamp of the last movement event as the number of
+	   seconds ago
 
-	EEEE   is the number of movement events observed since last time the
-	       sensor was read (note that DDDD is zero if EEEE is zero)
+	E  is the number of movement events observed since last time the
+	   sensor was read (note that D is zero if E is zero)
 
-	PPPP   is the more significant part of the pressure readout
+	P  is the pressure readout; the actual pressure in Pascals is equal
+	   to P divided by 4
 
-	QQQQ   is the less significant part of the pressure readout; the
-	       actual pressure in Pascals is equal to the combined number
-	       divided by 4
-
-	TTTT   is the temperature; the value in degrees Celsius is equal to
-	       that number divided by 20
-
-	
+	T  is the temperature; the value in degrees Celsius is equal to
+	   T divided by 20

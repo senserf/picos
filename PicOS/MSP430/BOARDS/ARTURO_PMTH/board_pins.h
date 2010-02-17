@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -41,7 +41,6 @@
 
 #include "sht_xx.h"
 #include "analog_sensor.h"
-#include "sensors.h"
 
 #define	QSO_PAR_PIN	0	// PAR sensor = P6.0
 #define	QSO_PAR_SHT	4	// Sample hold time indicator

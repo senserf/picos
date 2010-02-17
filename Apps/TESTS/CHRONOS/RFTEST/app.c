@@ -138,8 +138,8 @@ thread (sensor_server)
   entry (AS_SEND)
 
 	// Note: cannot use long formats as long multiplication doesn't work
-	ab_outf (AS_SEND, "MO: %x %x, PR: %x %x, TM: %x",
-		aval [0], aval [1], pval [1], pval [0], pval [2]);
+	ab_outf (AS_SEND, "MO: %u %u, PR: %lu, TM: %u",
+		aval [0], aval [1], ((lword*)pval) [0], pval [2]);
 
 	msg_nn (1, omess++);
 

@@ -128,7 +128,6 @@ static word shtxx_read (word st, word what) {
 		release;
 	}
 
-GetItNow:
 	sht_status = SHTXX_STAT_IDLE;
 	// Get the bytes
 	what = shtxx_get (YES);
@@ -145,7 +144,7 @@ void shtxx_humid (word st, const byte *junk, address val) {
 	*val = shtxx_read (st, 1);
 }
 
-void shtxx_init () {
+void shtxx_init (void) {
 /*
  * Init and reset
  */

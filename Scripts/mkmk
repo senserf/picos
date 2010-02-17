@@ -1,5 +1,5 @@
 #!/bin/sh
-##########################\
+###################\
 exec tclsh "$0" "$@"
 
 ############################################################################
@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #                                                                          #
 # See: proc bad_usage for usage                                            #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005 - 2008 All Rights Reserved    #
+# Copyright (C) Olsonet Communications, 2005 - 2010 All Rights Reserved    #
 ############################################################################
 
 set DEBUG 0
@@ -31,7 +31,7 @@ set Targets {
 
 #
 # Directories to be searched (in this order). This also reflects the order of
-# search.
+# search. Local directories must be at the end, following ".".
 #
 set DirList {
 		"PicOS/@TARGET@"
@@ -132,7 +132,7 @@ proc trimdir { } {
 #
 # Trim the directories
 #
-	global DirList DirShort IncShort Depend SrcLists
+	global DirList DirShort IncShort Depend SrcLists ExtraIncDirs
 
 	set dc 0
 	set ic 0
@@ -148,17 +148,22 @@ proc trimdir { } {
 	}
 
 	foreach dep [array names Depend] {
+		dmp "TRIM DEP \[$dep\]: $Depend($dep)"
 		foreach fn $Depend($dep) {
 			set dir [file dirname $fn]
 			set ishort($dir) ""
 		}
 	}
 
+	# handle the extra include directories forced by prefixed files
+	dmp "TRIM EXT: $ExtraIncDirs"
+	foreach dir $ExtraIncDirs {
+		set ishort($dir) ""
+	}
+
 	# sort the include directories
-	set idl ""
-	foreach dir $DirList {
+	foreach dir [concat $DirList $ExtraIncDirs] {
 		if [info exists ishort($dir)] {
-			lappend idl $dir
 			unset ishort($dir)
 			set IncShort($dir) [format "I%02d" $ic]
 			incr ic
@@ -282,6 +287,15 @@ proc outprf { def cpu } {
 #
 	global IncShort SrcLists Depend CWD Locdep Run
 
+	set Tfn "temp"
+	set Ofn "out"
+	set Kfn "KTMP"
+	if { $Run(praxis) != "" } {
+		append Tfn "_$Run(praxis)"
+		append Ofn "_$Run(praxis)"
+		append Kfn "_$Run(praxis)"
+	}
+
 	# build a trimmed list of relevant directories
 	trimdir
 
@@ -318,7 +332,7 @@ proc outprf { def cpu } {
 		set pname "[file tail $CWD]${tarn}.cyp"
 
 		if [catch { open $pname "w" } mfd] {
-			errab "cannot open $pname for writing: $mfd"
+			errab "Cannot open $pname for writing: $mfd"
 		}
 
 		puts $mfd "<project buildenvironment=\"{5bb3321d-c620-467d-8787-1a268e2edf63}\" executionenvironment=\"{ab5780d6-ed62-47a1-a50c-bc70aee3b715}\" executionenvironmentname=\"eCOG1 Eval Board\" version=\"1.00.0003\" buildenvironmentname=\"eCOG1\" >\n"
@@ -354,18 +368,18 @@ proc outprf { def cpu } {
 			if { $fex == ".cc" } {
 				# must copy to .c (we shouldn't trust links as
 				# this will be ultimately handled by Windows)
-				set tfn [file join $CWD "KTMP"]
+				set tfn [file join $CWD "$Kfn"]
 				# create KTMP
 				if [catch { exec mkdir -p $tfn } err] {
 					errab \
-					    "cannot mkdir '$tfn': $err"
+					    "Cannot mkdir '$tfn': $err"
 				}
 				set tfn [file join $tfn \
 					 "[file rootname [file tail $fn]].c"]
 			
 				if [catch { exec cp $fn $tfn } err] {
 					errab \
-					   "cannot copy '$fn' to 'xxx.c': $err"
+					   "Cannot copy '$fn' to 'xxx.c': $err"
 				}
 				set fn $tfn
 			} elseif { $fex != ".c" } {
@@ -436,9 +450,9 @@ proc outprf { def cpu } {
    			puts $mfd \
 				"<property key=\"brkInstallAddr\" >0</property>"
 			puts $mfd \
-				    "<property key=\"outputDir\">out</property>"
+			           "<property key=\"outputDir\">$Ofn</property>"
 			puts $mfd \
-			     "<property key=\"intermediateDir\">temp</property>"
+			     "<property key=\"intermediateDir\">$Tfn</property>"
 
 			if [islibrun] {
 				puts $mfd \
@@ -488,7 +502,7 @@ proc outprf { def cpu } {
 	}
 
 	foreach ef { "internal.map" "cstartup.asm" "irq.asm" } {
-		set fn [lookup $ef ""]
+		set fn [flookg $ef 1 ""]
 		if { $fn == "" } {
 			lappend NotFound $ef
 		} else {
@@ -512,8 +526,17 @@ proc outmkfc { def } {
 	# build a trimmed list of relevant directories
 	trimdir
 
-	if [catch { open "Makefile" "w" } mfd] {
-		error "cannot open Makefile for writing: $mfd"
+	set Mfn "Makefile"
+	set Tfn "temp"
+	set Ofn "out"
+	if { $Run(praxis) != "" } {
+		append Mfn "_$Run(praxis)"
+		append Tfn "_$Run(praxis)"
+		append Ofn "_$Run(praxis)"
+	}
+
+	if [catch { open $Mfn "w" } mfd] {
+		errab "Cannot open $Mfn for writing: $mfd"
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
@@ -527,15 +550,15 @@ proc outmkfc { def } {
 
 	puts $mfd ""
 	puts $mfd "OF=-g -DNDEBUG"
-	puts $mfd "TD=temp"
-	puts $mfd "OD=out"
+	puts $mfd "TD=$Tfn"
+	puts $mfd "OD=$Ofn"
 
 	if [islibrun] {
 		# using a library
 		set lid [file join $Run(library) asm]
 		puts $mfd "LD=$lid"
 		puts $mfd "LDU=[uxname $lid]"
-		puts $mfd "LI=-I[file join $Run(library) include]"
+		puts $mfd "LI=-I[file join $Run(library) include] -I."
 		puts $mfd "LS=-lib [file join $Run(library) stubs]"
 		# prepare the list of ASM files in the library
 		if [catch { exec ls [uxname [file join $Run(library) ASM]] }\
@@ -607,7 +630,7 @@ proc outmkfc { def } {
 		foreach tar $tnames {
 			if { $tar == "" } {
 				# this will not happen
-				errab "illegal default target"
+				errab "Illegal default target"
 			}
 			puts -nonewline $mfd "$tar "
 		}
@@ -705,7 +728,7 @@ proc outmkfc { def } {
 					puts -nonewline $mfd \
 					  "\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
 				} else {
-					errab "illegal source suffix '$sf'"
+					errab "Illegal source suffix '$sf'"
 				}
 			}
 			puts $mfd " $spfx/$rfn -o \$(TD)/$ofn\n"
@@ -719,11 +742,11 @@ proc outmkfc { def } {
 	if ![islibrun] {
 		# fetch the auxiliary files
 		foreach ef { "internal.map" "cstartup.asm" "irq.asm" } {
-			set fn [lookup $ef ""]
+			set fn [flookg $ef 1 ""]
 			if { $fn == "" } {
 				lappend NotFound $ef
 			} else {
-				exec cp $fn $CWD/temp/
+				exec cp $fn $CWD/$Tfn/
 			}
 		}
 	}
@@ -745,7 +768,7 @@ proc outmkfc_lib { def } {
 	trimdir
 
 	if [catch { open "Makefile" "w" } mfd] {
-		error "cannot open Makefile for writing: $mfd"
+		errab "Cannot open Makefile for writing: $mfd"
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
@@ -866,7 +889,7 @@ proc outmkfc_lib { def } {
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 			} else {
-				errab "illegal source suffix '$sf'"
+				errab "Illegal source suffix '$sf'"
 			}
 		}
 		puts $mfd " $spfx/$rfn -o \$(TD)/$ofn\n"
@@ -892,7 +915,7 @@ proc outmkfc_lib { def } {
 	catch { file mkdir "LIBRARY/stubs" }
 
 	foreach ef { "internal.map" "cstartup.asm" "irq.asm" } {
-		set fn [lookup $ef ""]
+		set fn [flookg $ef 1 ""]
 		if { $fn == "" } {
 			lappend NotFound $ef
 		} else {
@@ -909,9 +932,24 @@ proc outmkfc_lib { def } {
 
 	foreach fn $LIncludes {
 		if [catch { exec cp $fn LIBRARY/include/ } ] {
-			errab "cannot copy include file: $fn"
+			errab "Cannot copy include file: $fn"
 		}
 	}
+
+	# copy params.sys, if present
+	libsig 1
+}
+
+proc libsig { tar } {
+#
+# Write to the library directory params.sys + target signature
+#
+	global Targets Run
+
+	catch { exec cp $Run(bdir)/params.sys LIBRARY/ }
+	set tar [lindex $Targets $tar]
+
+	catch { exec echo "$tar" > LIBRARY/target }
 }
 
 proc mkcpulabel { mcpu } {
@@ -938,8 +976,15 @@ proc outmkf { def cpu } {
 	# build a trimmed list of relevant directories
 	trimdir
 
-	if [catch { open "Makefile" "w" } mfd] {
-		error "cannot open Makefile for writing: $mfd"
+	set Mfn "Makefile"
+	set Kfn "KTMP"
+	if { $Run(praxis) != "" } {
+		append Mfn "_$Run(praxis)"
+		append Kfn "_$Run(praxis)"
+	}
+
+	if [catch { open $Mfn "w" } mfd] {
+		errab "Cannot open $Mfn for writing: $mfd"
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
@@ -955,10 +1000,10 @@ proc outmkf { def cpu } {
 	puts $mfd "AF=-mmcu=$cpu"
 	puts $mfd "OF=-O2 -g -Wundef"
 	puts $mfd "TR=Image"
-	puts $mfd "TD=./KTMP"
+	puts $mfd "TD=./$Kfn"
 
 	if [islibrun] {
-		puts $mfd "LI=-I[file join $Run(library) include]"
+		puts $mfd "LI=-I[file join $Run(library) include] -I."
 		puts $mfd "LD=-L$Run(library) -lpicos"
 	} else {
 		puts $mfd "LD="
@@ -1018,7 +1063,7 @@ proc outmkf { def cpu } {
 		foreach tar $tnames {
 			if { $tar == "" } {
 				# this will not happen
-				errab "illegal default target"
+				errab "Illegal default target"
 			}
 			puts -nonewline $mfd "$tar "
 		}
@@ -1103,7 +1148,7 @@ proc outmkf { def cpu } {
 					puts -nonewline $mfd \
 						"\t\$(AS) \$(AF) \$(LI) \$(IN)"
 				} else {
-					errab "illegal source suffix '$sf'"
+					errab "Illegal source suffix '$sf'"
 				}
 			}
 			puts $mfd " -c $spfx/$rfn -o \$(TD)/$ofn\n"
@@ -1137,7 +1182,7 @@ proc outmkf_lib { def cpu } {
 	trimdir
 
 	if [catch { open "Makefile" "w" } mfd] {
-		error "cannot open Makefile for writing: $mfd"
+		errab "Cannot open Makefile for writing: $mfd"
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
@@ -1254,7 +1299,7 @@ proc outmkf_lib { def cpu } {
 				puts -nonewline $mfd \
 					"\t\$(AS) \$(AF) \$(IN)"
 			} else {
-				errab "illegal source suffix '$sf'"
+				errab "Illegal source suffix '$sf'"
 			}
 		}
 		puts $mfd " -c $spfx/$rfn -o \$(TD)/$ofn\n"
@@ -1273,9 +1318,12 @@ proc outmkf_lib { def cpu } {
 
 	foreach fn $LIncludes {
 		if [catch { exec cp $fn LIBRARY/include/ } ] {
-			errab "cannot copy include file: $fn"
+			errab "Cannot copy include file: $fn"
 		}
 	}
+
+	# copy target, params.sys, if present
+	libsig 0
 }
 
 proc uxname { fn } {
@@ -1316,7 +1364,7 @@ proc canon { fnf } {
 proc rootpf { } {
 #
 # Find the root prefix for all directories, i.e., PICOS, as the one containing
-# "Apps"
+# "Apps"; also extract the current release tag from RTAGS
 #
 	global CWD RPREF
 
@@ -1326,7 +1374,7 @@ proc rootpf { } {
 	while { [file tail $RPREF] != "Apps" } {
 		set tmp [file dirname $RPREF]
 		if { $tmp == $RPREF } {
-			errab "path to current directory contains no \"Apps\""
+			errab "Path to current directory contains no \"Apps\""
 		}
 		set RPREF $tmp
 	}
@@ -1335,30 +1383,31 @@ proc rootpf { } {
 	# get the last release tag
 
 	if [catch { open [file join $RPREF "RTAGS"] "r" } fd] {
-		puts "cannot open RTAGS"
-		return "uknown"
+		errab "RTAGS not found"
 	}
 
 	if [catch { read $fd } rtf] {
-		puts "cannot read RTAGS"
-		catch { close $fd }
-		return "unknown"
+		errab "Cannot read RTAGS"
 	}
 
 	catch { close $fd }
 
 	# the last RTAG
-	if ![regexp -nocase ".*\n(R\[0-9A-Z\]+):" $rtf fd rtag] {
-		set rtag "unknown"
+	set pat "(R\[0-9A-Z\]+):"
+	if ![regexp -nocase ".*\n$pat" $rtf fd rtag] {
+		if ![regexp -nocase "^$pat" $rtf fd rtag] {
+			set rtag "unknown"
+		}
 	}
 
 	# version number
-	if ![regexp -nocase \
-	    ".*\nR\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)" $rtf fd \
+	set pat "R\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
+	if ![regexp -nocase ".*\n$pat" $rtf fd \
 		maj min] {
-
-		set maj 0
-		set min 0
+		if ![regexp -nocase "^$pat" $rtf fd maj min] {
+			set maj 0
+			set min 0
+		}
 	}
 
 	puts "PicOS version ${maj}.${min}, release $rtag"
@@ -1373,154 +1422,92 @@ proc lboard { tgt } {
 	global RPREF Run DirList Targets Flags
 	upvar $tgt target
 
-	set nof 1
-	foreach dir $DirList {
-		if [regexp "/BOARDS$" $dir] {
-			set nof 0
-			break
-		}
-	}
+	if [islibrun] {
 
-	if $nof {
-		errab "DirList is broken: BOARDS not found"
-	}
+		# no board directory for library run, the library must be
+		# specified instead
 
-	foreach tar $Targets {
-		set target [lindex $tar 0]
-		# try each in turn until you find the right board
-		regsub "@TARGET@" $dir $target tdir
-		set pard [file join $RPREF $tdir $Run(board)]
+		set pard $Run(library)
 		set uprd [uxname $pard]
 		if ![file isdirectory $uprd] {
-			continue
+			errab "The library directory $pard doesn't exist"
 		}
-		# we have found the target
-		set Run(bdir) $pard
-		set uprd [file join $uprd "params.sys"]
-		set Run(mode) [lindex $tar 1]
-		if [catch { open $uprd "r" } pfd] {
-			# no parameters, use defaults
-			set Flags [lindex $tar 2]
-			return
+
+		# this will do as the board name
+		set Run(board) [file tail $uprd]
+
+		# determine the target
+		set nof [file join $uprd "target"]
+		if [catch { open $nof "r" } tfd] {
+			errab "No 'target' file in $pard"
 		}
-		# params file present, read it
-		if [catch { read $pfd } Flags] {
-			catch { close $pfd }
-			error "cannot read '$uprd'"
+		if [catch { read $tfd } tar] {
+			errab "Cannot read 'target' file from $pard"
 		}
-		catch { close $pfd }
-		#
-		# this consists of lines in the format:
-		#	-x param
-		# exceptionally, the CPU ID may appear without -c
-		#
-		set Flags [string trim $Flags]
-		if { $Flags == "" } {
-			set Flags [lindex $tar 2]
-		}
-		set Flags [split $Flags "\n"]
-		return
-	}
 
-	errab "board '$Run(board)' not found"
-}
+		catch { close $tfd }
 
-proc dboard { tgt } {
-#
-# Locate the default board
-#
-	global RPREF Run DirList Targets Flags
-	upvar $tgt TGT
-
-	set nof 1
-	foreach dir $DirList {
-		if [regexp "/BOARDS$" $dir] {
-			set nof 0
-			break
-		}
-	}
-
-	if $nof {
-		errab "DirList is broken: BOARDS not found"
-	}
-
-	set bfi ""
-
-	foreach tar $Targets {
 		set target [lindex $tar 0]
-		regsub "@TARGET@" $dir $target tdir
-		set pard [file join $RPREF $tdir]
-		set uprd [uxname $pard]
-		if ![file isdirectory $uprd] {
-			continue
-		}
-		if [catch { exec ls $uprd } bli] {
-			continue
-		}
 
-		set ble [lsearch -exact $bli "CVS"]
-		if { $ble >= 0 } {
-			set bli [lreplace $bli $ble $ble]
-		}
-
-		set ble [llength $bli]
-		if { $ble == 0 } {
-			continue
-		}
-
-		if { $bfi != "" || $ble > 1 } {
-			# too much
-			errab "More than one board to choose from, board name\
-				required"
-		}
-
-		set bfi [lindex $bli 0]
-		set bta $tar
-		set btd $tdir
-	}
-
-	if { $bfi == "" } {
-		errab "No boards configured"
-	}
-
-	set Run(board) $bfi
-	set pard [file join $RPREF $btd $Run(board)]
-	set uprd [uxname $pard]
-	if ![file isdirectory $uprd] {
-		errab "Cannot access board directory $bfi ($pard)"
-	}
-
-	if [file isdirectory [file join $uprd LIBRARY]] {
-		# library present
-		set lif 1
 	} else {
-		set lif 0
+
+		set nof 1
+		foreach dir $DirList {
+			if [regexp "/BOARDS$" $dir] {
+				set nof 0
+				break
+			}
+		}
+
+		if $nof {
+			errab "DirList is broken: BOARDS not found"
+		}
+
+		set nof 1
+		foreach tar $Targets {
+			set target [lindex $tar 0]
+			# try each in turn until you find the right board
+			regsub "@TARGET@" $dir $target tdir
+			set pard [file join $RPREF $tdir $Run(board)]
+			set uprd [uxname $pard]
+			if [file isdirectory $uprd] {
+				set nof 0
+				break
+			}
+		}
+
+		if $nof {
+			errab "Board '$Run(board)' not found"
+		}
 	}
 
-	set TGT [lindex $bta 0]
-	# board directory
+	# we have found the target
 	set Run(bdir) $pard
 	set uprd [file join $uprd "params.sys"]
-	set Run(mode) [lindex $bta 1]
+	set Run(mode) [lindex $tar 1]
 	if [catch { open $uprd "r" } pfd] {
 		# no parameters, use defaults
-		set Flags [lindex $bta 2]
-		return $lif
+		set Flags [lindex $tar 2]
+		return
 	}
 	# params file present, read it
 	if [catch { read $pfd } Flags] {
 		catch { close $pfd }
-		error "cannot read '$pard'"
+		errab "Cannot read '$uprd'"
 	}
 	catch { close $pfd }
+	#
+	# this consists of lines in the format:
+	#	-x param
+	# exceptionally, the CPU ID may appear without -c
+	#
 	set Flags [string trim $Flags]
 	if { $Flags == "" } {
-		set Flags [lindex $bta 2]
+		set Flags [lindex $tar 2]
 	}
 	set Flags [split $Flags "\n"]
-	return $lif
 }
-		
+
 proc mkdlist { cpu } {
 #
 # Create the complete canonical list of directories to be searched
@@ -1533,7 +1520,7 @@ proc mkdlist { cpu } {
 
 	foreach p $DirList {
 		set target [regsub -all "@TARGET@" $p $cpu p]
-		if [regexp "/BOARDS$" $p] {
+		if { [regexp "/BOARDS$" $p] && ![islibrun] } {
 			# insert the proper board directory
 			set p "${p}/$Run(board)"
 		} elseif [regexp {/\*$} $p] {
@@ -1544,8 +1531,14 @@ proc mkdlist { cpu } {
 			}
 			set p [canon $p]
 			mkdrec $p
-			foreach p [lsort [array names MKRECV]] {
+			set dl [lsort [array names MKRECV]]
+			foreach p $dl {
 				lappend_unique DLIST $p
+			}
+			if { $PDirList != "" } {
+				foreach p $dl {
+					lappend_unique PDirList $p
+				}
 			}
 			array unset MKRECV
 			continue
@@ -1569,6 +1562,7 @@ proc mkdlist { cpu } {
 	# Replace the original patterns
 	set DirList $DLIST
 	dmp "DLIST: $DirList"
+	dmp "PDLIST: $PDirList"
 	unset DLIST
 }
 
@@ -1586,6 +1580,9 @@ proc mkdrec { dname } {
 	foreach f [exec ls $dname] {
 		if [regexp -nocase "attic|junk" $f] {
 			# ignore oldies and garbage
+			continue
+		}
+		if { $f == "CVS" } {
 			continue
 		}
 		if [regexp "\\~\\$" $f] {
@@ -1658,32 +1655,117 @@ proc needlist { ar fname } {
 	return $fl
 }
 
-proc lookup { fn prefdir } {
+proc flook { fn mode prefdir dirs } {
 #
-# Lookup the given file, prefdir is prefered directory, returns the
-# complete path
+# Lookup the given file; modes are:
 #
-	global DirList
+#	0 - include lookup, if a partial path precedes the file name, make sure
+#	    to add the prefix to this path to include directories
+#
+#	1 - sourced (//+++) addition; this cannot be a header, but a source
+#	    file; partial path processing still applies, but there is no need
+#	    to add the prefix to include directories
+#
+# prefdir - preferred directory, i.e., the directory to be tried first (the one
+#	    containing the includer)
+#
+# dirs    - the package directory list to search
+#
+	global ExtraIncDirs CWD CWDL
 
-	foreach dir [concat [list $prefdir] $DirList] {
+	if { $prefdir != "" } {
+		set dirs [concat [list $prefdir] $dirs]
+	}
+
+	set dir [file dirname $fn]
+
+	if { $dir != "." && $dir != "" } {
+		# the file name has a directory prefix
+		set fil [file tail $fn]
+		set dir [canon $dir]
+		if { [string first $CWD $dir] != 0 } {
+			# something wrong (this cannot happen)
+			errab "Cannot determine path for file $fn"
+		}
+		# this is the normalized tail
+		set dir [string range $dir $CWDL end]
+		set dl [string length $dir]
+		# now we are searching for a directory whose tail matches dir
+		# and which contains $fn
+		set ffn ""
+		foreach d $dirs {
+			set pos [string last $dir $d]
+			if { $pos < 0 } {
+				continue
+			}
+			if { [expr $pos + $dl] != [string length $d] } {
+				continue
+			}
+			# we have a match on directory name
+			set ff [canon [file join $d $fil]]
+			if [file isfile $ff] {
+				# check for a duplicate
+				if { $ffn != "" && $ffn != $ff } {
+					puts stdout "Warning: multiple\
+					    occurrences of file $fn (at\
+						$ffn and $ff)"
+					break
+				} else {
+					set ffn $ff
+					set ddn [string range $d 0 \
+						[expr $pos - 1]]
+				}
+			}
+		}
+
+		if { $ffn == "" } {
+			# this is an error
+			errab "Cannot locate path-prefixed file $fn"
+		}
+
+		if { $mode == 0 } {
+			# should add the prefix to the list
+			lappend_unique ExtraIncDirs $ddn]
+		}
+		return $ffn
+	}
+
+	# a regular file
+	set ffn ""
+	foreach d $dirs {
 		if { $dir == "" } {
 			continue
 		}
-		set ffn [canon [file join $dir $fn]]
-		if [file isfile $ffn] {
-			return $ffn
+		set ff [canon [file join $d $fn]]
+		if [file isfile $ff] {
+			if { $ffn != "" && $ffn != $ff } {
+				puts stdout "Warning: multiple occurrences of\
+					file $fn (at $ffn and $ff)"
+				break
+			} else {
+				set ffn $ff
+			}
 		}
 	}
 
-	return ""
+	return $ffn
 }
 
-proc llookup { fn prefdir } {
+proc flookg { fn mode prefdir } {
 #
-# Lookup the given file in local directory or globally, depending whether
-# we are in library mode or not
+# Lookup file globally
 #
-	global DirList PDirList Run
+	global DirList
+
+	return [flook $fn $mode $prefdir $DirList]
+}
+
+proc flookl { fn mode prefdir } {
+#
+# Lookup file globally or in praxis dirs, depending on whether this is a
+# library run or not
+#
+	global DirList PDirList
 
 	if [islibrun] {
 		set pd $PDirList
@@ -1691,17 +1773,7 @@ proc llookup { fn prefdir } {
 		set pd $DirList
 	}
 
-	foreach dir [concat [list $prefdir] $pd] {
-		if { $dir == "" } {
-			continue
-		}
-		set ffn [canon [file join $dir $fn]]
-		if [file isfile $ffn] {
-			return $ffn
-		}
-	}
-
-	return ""
+	return [flook $fn $mode $prefdir $pd]
 }
 
 proc scrloc { fn } {
@@ -1712,7 +1784,7 @@ proc scrloc { fn } {
 
 	set fn [file join $RPREF "Scripts" $fn]
 	if ![file exists $fn] {
-		errab "cannot locate $fn script"
+		errab "Cannot locate $fn script"
 	}
 
 	return [uxname $fn]
@@ -1914,7 +1986,7 @@ proc sexpr { str } {
 
 proc setsymbols { dl } {
 #
-# Preset symbols for parsing a files
+# Preset symbols for parsing files
 #
 	global Symbols Run
 
@@ -1940,7 +2012,7 @@ proc scanfile { fname } {
 	set Scanned($fname) ""
 
 	if [catch { open $fname "r" } fd] {
-		error "cannot open file '$fname': $fd"
+		errab "Cannot open file '$fname': $fd"
 	}
 
 	set ifnest 0
@@ -1973,12 +2045,12 @@ proc scanfile { fname } {
 			set ar [needlist $ar $fname]
 			foreach nfn $ar {
 				set dnn [file dirname $fname]
-				set fn [llookup $nfn $dnn]
+				set fn [flookl $nfn 1 $dnn]
 				if { $fn == "" &&
 				    [file extension $nfn] == ".c" } {
 					# try ".cc"
-					set fn [llookup \
-					  "[file rootname $nfn].cc" $dnn]
+					set fn [flookl \
+					  "[file rootname $nfn].cc" 1 $dnn]
 				}
 
 				dmp "NEEDED: $nfn"
@@ -2136,7 +2208,7 @@ proc scanfile { fname } {
 				continue
 			}
 			dmp "INCLUDE: $fn '$line'"
-			set fn [llookup $fn [file dirname $fname]]
+			set fn [flookl $fn 0 [file dirname $fname]]
 			if { $fn != "" } {
 				scanfile $fn
 				lappend_unique Depend($CFName) $fn
@@ -2159,8 +2231,9 @@ proc scanfile { fname } {
 
 proc bad_usage { } {
 
-	puts stderr "Usage: mkmk \[boardname \[-m|-l|-p]]"
-	puts stderr "       mkmk boardname \[-M|-P \[libdir]]"
+	puts stderr "Usage: mkmk boardname \[-m|-p\] \[tag\]"
+	puts stderr "       mkmk boardname -l"
+	puts stderr "       mkmk -M|-P \[libdir\] \[tag\]"
 	exit 1
 }
 
@@ -2208,7 +2281,7 @@ proc ifnotcygwin { } {
 	}
 
 	if { [lsearch -glob $p "cyg*"] >= 0 } {
-		puts stdout "Detected cygwin environment for mspgcc"
+		puts stdout "Detected Cygwin environment for mspgcc"
 		return 0
 	}
 
@@ -2221,112 +2294,216 @@ proc ifnotcygwin { } {
 	return 2
 }
 
+proc getoptfile { suff } {
+#
+# Determine if and which options.sys file should be included
+#
+	if { $suff != "" } {
+		set of "options_$suff.sys"
+		if [file isfile $of] {
+			return "__OPTIONS_SYS__=\"<$of>\""
+		}
+	}
+	set of "options.sys"
+	if [file isfile $of] {
+		return "__OPTIONS_SYS__=\"<$of>\""
+	}
+
+	return ""
+}
+
+proc getarg { } {
+
+	global argv
+
+	set arg [lindex $argv 0]
+	set argv [lrange $argv 1 end]
+
+	return $arg
+}
+
 proc main { } {
 
 	global argv ToCompile NotFound CWD Run Symbols Scanned CFName SrcLists
-	global LIncludes
+	global LIncludes CWDL ExtraIncDirs
 
-	set ll [llength $argv]
+	set Run(type) "m"
+	# the board (this must not be null)
+	set Run(board) ""
+	# the praxis (null means all)
+	set Run(praxis) ""
+	# for a library run
+	set Run(library) ""
+	
+	# parse the arguments #################################################
+
+	# forced path type preference
+	set Run(DNM) ""
+	set f [lsearch -regexp $argv "^-\[LUCW\]$"]
+	if { $f >= 0 } {
+		set arg [lindex $argv $f]
+		set argv [lreplace $argv $f $f]
+		if { $arg == "-C" } {
+			set Run(DNM) 0
+		} elseif { $arg == "-W" } {
+			set Run(DNM) 1
+		} else {
+			set Run(DNM) 2
+		}
+	}
+
+	set arg [getarg]
+
+	if { $arg == "" } {
+		bad_usage
+	}
+
+	if { $arg == "-M" || $arg == "-P" } {
+		# library mode
+		set Run(type) [string index $arg 1]
+		# library path required
+		set arg [getarg]
+		if { $arg == "" } {
+			bad_usage
+		}
+		set Run(library) $arg
+		set arg [getarg]
+	} else {
+		# this must be a board name
+		if { [string index $arg 0] == "-" } {
+			# just in case
+			bad_usage
+		}
+		set Run(board) $arg
+		set arg [getarg]
+		# this is an optional -l, -m, or -p
+		if { [string index $arg 0] == "-" } {
+			set Run(type) [string range $arg 1 end]
+			if ![regexp "\[mpl\]" $Run(type)] {
+				bad_usage
+			}
+			set arg [getarg]
+		}
+	}
+	# optional tag
+	if { $arg != "" } {
+		if { [string index $arg 0] == "-" } {
+			bad_usage
+		}
+		set Run(praxis) $arg
+		if { [getarg] != "" } {
+			bad_usage
+		}
+	}
+			
+	#######################################################################
 
 	set CWD [pwd]
 
 	# locate the root directory prefix
 	set deflist [rootpf]
 
-	# make type: default = makefile
-	set Run(type) "m"
+	# locate the board
+	lboard TGT
 
-	if { $ll == 0 || [string index [lindex $argv 0] 0] == "-" } {
-		# no board name; figure out if there is a single board
-		# if we return, things are OK: Run(board) has been set
-		if [dboard TGT] {
-			# forced library flag (LIBRARY present)
-			if { $ll == 0 } {
-				set ll 1
-				set argv "-M"
-			}
+	if { $Run(DNM) != "" } {
+		if { $Run(DNM) == 0 } {
+			set nf "Cygwin"
+		} elseif { $Run(DNM) == 1 } {
+			set nf "Windows"
+		} else {
+			set nf "Linux"
 		}
-	} else {
-		# get the board
-		set Run(board) [lindex $argv 0]
-		# and move it out of the way
-		set argv [lrange $argv 1 end]
-		incr ll -1
-		lboard TGT
 	}
 
 	if { $Run(mode) == "E" } {
 		# this can only be on Windows
+		if { $Run(DNM) != "" && $Run(DNM) != 1 } {
+			puts stdout "Warning: explicit $nf-type path preference\
+				for CyanIDE ignored"
+		}
 		set Run(DNM) 1
 	} else {
-		# DOS-name mode if not cygwin
-		set Run(DNM) [ifnotcygwin]
+		if { $Run(type) == "P" || $Run(type) == "p" } {
+			errab "Parameter -$Run(type) is only applicable to\
+				Cyan SDK (an eCOG board)"
+		}
+		if { $Run(DNM) == "" } {
+			# DOS-name mode if not cygwin
+			set Run(DNM) [ifnotcygwin]
+		} else {
+			puts stdout "Forced $nf environment for mspgcc"
+		}
 	}
 
 	set mcpu [getflag "c"]
 	set RPREF [canon RPREF]
 	set CWD [canon $CWD]
+	set CWDL [string length $CWD]
 	set Run(bdir) [canon $Run(bdir)]
 
-	if $ll {
-		# mode flag
-		set lf [lindex $argv 0]
-		incr ll -1
-		set argv [lrange $argv 1 end]
+	if { $Run(type) == "M" || $Run(type) == "P" } {
 
-		# library, makefile, project
-		if ![regexp "^-\[lmpMP\]" $lf] {
-			bad_usage
-		}
-
-		if { $lf == "-M" || $lf == "-P" } {
-			# generate a makefile or project with library
-			if $ll {
-				set Run(library) [lindex $argv 0]
-				set argv [lrange $argv 1 end]
-				incr ll -1
-			} else {
-				# look it up in the board directory
-				set mf [file join $Run(bdir) LIBRARY]
-				if ![file isdirectory [uxname $mf]] {
-					errab "No LIBRARY found in $Run(bdir)"
-				}
-				set Run(library) $mf
+		# need an input library
+		if { $Run(library) == "" } {
+			# look it up in the board directory
+			set mf [file join $Run(bdir) LIBRARY]
+			if ![file isdirectory [uxname $mf]] {
+				errab "No LIBRARY found in $Run(bdir)"
+			}
+			set Run(library) $mf
+		} else {
+			# check if it exists
+			if ![file isdirectory $Run(library)] {
+				errab \
+				    "Library directory $Run(library) not found"
 			}
 		}
-		set Run(type) [string index $lf 1]
 	}
 
-	if $ll {
-		bad_usage
-	}
+	set Ofn "out"
+	set Tfn "temp"
+	set Kfn "KTMP"
 
 	# cleanup
 	catch { exec rm -rf "*.cyp" "*.cyw" "*.lif" "Makefile" "KTMP" \
 			"out" "temp" "internal.map" "cstartup.asm" "irq.asm" \
 				"LIBRARY" ".gdbinit" "gdb.ini" }
 
-	if { $Run(mode) == "E" } {
-		catch { file mkdir "out" "temp" }
+	if { $Run(praxis) == "" } {
+
+		# remove praxis-specific makefiles; otherwise (if we are
+		# generating single-praxis makefiles, the makefiles for other
+		# praxes are left intact
+		catch { exec rm -rf "Makefile_*" "out_*" "temp_*" "KTMP_*" }
 	} else {
-		catch { file mkdir "KTMP" }
+		append Ofn "_$Run(praxis)"
+		append Tfn "_$Run(praxis)"
+		append Kfn "_$Run(praxis)"
 	}
 
 	mkdlist $TGT
 
+	if { $Run(mode) == "E" } {
+		catch { file mkdir $Ofn $Tfn }
+	} else {
+		catch { file mkdir $Kfn }
+	}
+
 	set sufflist ""
-	set empsuff 0
-	set rootsuff ".c"
 	set NotFound ""
 
 	lappend deflist "BOARD_$Run(board)"
 	lappend deflist "BOARD_TYPE=$Run(board)"
 
+	set ExtraIncDirs ""
+
 	if { $Run(type) == "l" } {
 		# library run
+
 		set iflist [getflag "l"]
 		if { $iflist == "" } {
-			errab "board defines no files for library run"
+			errab "Board defines no files for library run"
 		}
 		set ToCompile ""
 		set LIncludes ""
@@ -2336,7 +2513,7 @@ proc main { } {
 				break
 			}
 
-			set nf [lookup $f ""]
+			set nf [flookg $f 1 ""]
 			if { $nf == "" } {
 				# not found
 				lappend_unique NotFound $f
@@ -2361,7 +2538,7 @@ proc main { } {
 
 		if { $ToCompile == "" } {
 			errab \
-			    "no library files to compile, check board's params"
+			    "No library files to compile, check board's params"
 		}
 
 		set suffix ""
@@ -2374,6 +2551,11 @@ proc main { } {
 			lappend deflist [mkcpulabel $mcpu]
 		} else {
 			lappend deflist "__ECOG__"
+		}
+
+		set optfile [getoptfile ""]
+		if { $optfile != "" } {
+			lappend deflist $optfile
 		}
 
 		while { $ToCompile != "" } {
@@ -2394,7 +2576,7 @@ proc main { } {
 		array unset ToCompile
 		array unset Symbols
 
-		dmp "TO COMPILE \[$suffix\]: '$SrcLists($suffix)'"
+		dmp "TO COMPILE SRC: '$SrcLists($suffix)'"
 
 		catch { file mkdir "LIBRARY" }
 		catch { file mkdir "LIBRARY/include" }
@@ -2407,45 +2589,61 @@ proc main { } {
 
 	} else {
 		# -m, -p, -M, -P
-		# We expect to find app.c in the current directory
-		set fn [canon [file join $CWD "app.c"]]
-		if ![file isfile $fn] {
-			dmp "app.c not found, trying app_xxx.cc"
-			# try to locate all files that look like "app_xxx.cc",
-			# where xxx has no _. This will mean that we have
-			# possibly multiple VUEE-like setups.
-			if [catch { exec ls $CWD } flist] {
-				errab "cannot scan current directory: $flist"
+		# Scan current directory for eligible app... files
+		if [catch { exec ls $CWD } flist] {
+			errab "Cannot scan current directory: $flist"
+		}
+		set empsuff 0
+		set sufflist ""
+		foreach fn $flist {
+			if { $fn == "app.c" } {
+				set rootsuff ".c"
+				incr empsuff
+				continue
 			}
-			foreach fn $flist {
-	
-				if { $fn == "app.cc" } {
-					# there should be only one file like
-					# this, i.e., no app_xxx.cc files, but
-					# keep looking for consistency
-					set empsuff 1
-				} elseif [regexp "^app_(\[^_.\]+)\\.cc$" $fn \
-				    jnk suff] {
-					lappend sufflist $suff
-				}
+			if { $fn == "app.cc" } {
+				set rootsuff ".cc"
+				incr empsuff
+				continue
 			}
-	
-			if { $empsuff && $sufflist != "" } {
-				errab \
-				   "app.cc cannot coexist with app_xxx.cc files"
+
+			if [regexp "^app_(\[a-zA-Z0-9\]+)\\.cc$" $fn jnk suff] {
+				lappend sufflist $suff
+				set rootsuff ".cc"
+				continue
 			}
-	
-			if { $empsuff == 0 && $sufflist == "" } {
-				errab "no app.c, app.cc or app_xxx.cc found in\
+		}
+
+		if { $empsuff > 1 || ($empsuff && $sufflist != "") } {
+			errab "app.c cannot coexist with app.cc or with\
+				app_xxx.c files"
+		}
+
+		if { $empsuff == 0 && $sufflist == "" } {
+			errab "No app.c, app.cc or app_xxx.cc found in current\
+				directory"
+		}
+
+		if { $Run(praxis) != "" } {
+
+			# request to create a single-praxis makefile in
+			# multiple-praxis VUEE-compatible setup
+
+			if { [lsearch -exact $sufflist $Run(praxis)] < 0 } {
+				errab "File app_$Run(praxis).cc not found in\
 					current directory"
 			}
-			set rootsuff ".cc"
+			set sufflist [list $Run(praxis)]
+
+			set optfile [getoptfile $Run(praxis)]
+
 		} else {
-			dmp "app.c found, traditional mode"
-		}
-	
-		if { $sufflist == "" } {
-			set sufflist [list ""]
+
+			set optfile [getoptfile ""]
+
+			if { $sufflist == "" } {
+				set sufflist [list ""]
+			}
 		}
 
 		if { $Run(mode) == "M" } {
@@ -2455,6 +2653,10 @@ proc main { } {
 		} else {
 			# project file
 			lappend deflist "__ECOG__"
+		}
+
+		if { $optfile != "" } {
+			lappend deflist $optfile
 		}
 
 		foreach suffix $sufflist {
@@ -2475,6 +2677,7 @@ proc main { } {
 
 			set SrcLists($suffix) ""
 
+
 			while { $ToCompile != "" } {
 				set CFName [lindex $ToCompile 0]
 				set ToCompile [lrange $ToCompile 1 end]
@@ -2492,7 +2695,7 @@ proc main { } {
 			array unset Processed
 			array unset ToCompile
 			array unset Symbols
-			dmp "TO COMPILE \[$suffix\]: '$SrcLists($suffix)'"
+			dmp "TO COMPILE SRC \[$suffix\]: '$SrcLists($suffix)'"
 		}
 
 		if { $Run(mode) == "M" } {

@@ -2,7 +2,7 @@
 #define	__pg_sysio_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -44,7 +44,10 @@
 #if SIM_NET==0
 
 #include "board_options.sys"
-#include "options.sys"
+
+#ifdef	__OPTIONS_SYS__
+#include __OPTIONS_SYS__
+#endif
 
 #endif
 
@@ -767,7 +770,7 @@ void zz_badstate (void);
 
 #define	endprocess(n)			break; \
 				    default: \
-					if (zz_st == 0xffff) return (n); \
+					if (zz_st == WNONE) return (n); \
 					zz_badstate (); \
 				} return 1; }
 
@@ -1030,7 +1033,14 @@ void	adc_stop (void);
 #define	__EXTERN	extern
 #define	__VIRTUAL
 #define	__ABSTRACT
+
+#ifdef	__ECOG1__
+// Cannot have variadic argument lists with that compiler
 #define	__sinit(a)	= (a)
+#else
+// This allows us to initialize structures
+#define	__sinit(...)	= { __VA_ARGS__ }
+#endif
 
 #define	__PRIVF(ot,tp,nam)	static tp nam
 #define	__PUBLF(ot,tp,nam)	tp nam

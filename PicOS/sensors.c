@@ -17,7 +17,7 @@
 #endif
 #endif
 
-static const word sensor_list [] = SENSOR_LIST;
+static const i_sensdesc_t sensor_list [] = SENSOR_LIST;
 
 #define	N_SENSORS 	(sizeof (sensor_list) / sizeof (d_sensdesc_t))
 

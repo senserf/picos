@@ -609,6 +609,7 @@ void powerup (void) {
 	zz_systat.pdmode = 0;
 }
 
+#define	mkmk_eval
 void udelay (register word n) {
 /* =================================== */
 /* n should be roughly in microseconds */
@@ -643,6 +644,7 @@ void udelay (register word n) {
 		" jne 1b\n"
 			: [n] "+r"(n));
 }
+#undef	mkmk_eval
 
 void mdelay (word n) {
 /* ============ */
@@ -910,7 +912,7 @@ static void ios_init () {
 #ifdef	SYSVER_B
 		"-" SYSVER_B
 #endif
-        	", (C) Olsonet Communications, 2002-2009");
+        	", (C) Olsonet Communications, 2002-2010");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
 	dbg_1 (0x1000 | SYSVER_X);

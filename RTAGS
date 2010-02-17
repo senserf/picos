@@ -3632,3 +3632,51 @@ R100211A:
 
 	I have updated UTILS in Scripts. Having second thoughts about including
 	there mspgcc, which is not unlikely to become customized to our needs.
+
+R100217A:
+
+	Fixed a bug in Scripts/permissions causing descriptor table overflow
+	(forgot to close files). I forgot to announce that script earlier, but
+	its importance is tertiary. Here is what it does:
+
+	When invoked in a directory (like PICOS), it traverses all files and
+	subdirectories recursively and sets their permission bits (mostly x)
+	based on educated guesses. Its role is to clean up those bits after
+	they have been messed up by Cygwin/Windows interactions or by moving
+	the directory tree across difference filesystems (e.g., NTFS->Linux
+	and/or vice versa). It works under Cygwin as well as Linux. The
+	recommended usage is:
+
+	cd PICOS
+	Scripts/permissions
+
+	Note that I have fixed mspgcc (at this time we have our customized
+	version) to eliminate the long multiplication problem for cc430 and
+	other related CPUs. So feel free to ignore the note from R100211A if
+	you are using the appropriate version of mspgcc. I have just received
+	a note from the maintenance team of mspgcc that my modifications will
+	be incorporated into the next official release (not exactly in my
+	form).
+
+	Macro __sinit (in sysio.h) redefined to make it possible to initialize
+	structures. This macro is used in connection with VUEE. As it depends
+	on variadic argument lists to macros, this isn't going to work for
+	Cyan SDK. For that case, the macro is defined the old way.
+
+	Modifications to mkmk:
+
+	- selective makefiles for multiprogram praxes
+	- options.sys is now optional
+	- options_xxx.sys takes precedence over options.sys
+	- -W/-C/-L/-U to force the format of paths (the last two are equivalent)
+	- lots of cosmetics and (mostly unnecessary) "enhancements"
+
+	Document mkmk.pdf (it sucks but may be worth reading).
+
+	.mop added to Apps/VUEE/ert.
+
+	Fixed a problem with watchdog settings (introduced with CC430) causing
+	compilation errors for x148 and x149.
+
+	Reorganized sensors-related files in PicOS and PicOS/MSP430 to make
+	them compatible with eCOG.

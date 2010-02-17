@@ -102,9 +102,6 @@
 #include "analog_sensor.h"
 #include "sensors.h"
 
-#define	EREF_ON			CNOP
-#define	EREF_OFF		CNOP
-
 //
 // I am not sure if this is going to work for PAR. The "standard" setting
 // (QSO_PAR_PIN = 0x1) may use a better calibrated reference, but the minimum
@@ -116,22 +113,24 @@
 //
 // See page 23-4 of the manual
 //
+
 #define	QSO_PAR_PIN	0x9	// 1 = Vin2 - VRef, 9 = Vin2 - Vin4
 #define	QSO_PAR_SHT	1	// High-ref clock
-#define	QSO_PAR_REF	0	// This is ignored on eCOG
 #define	QSO_PAR_ISI	1	// Inter sample interval indicator
 #define	QSO_PAR_NSA	6	// Number of samples, corresponds to 512
 
 #define	SENSOR_LIST	{ \
-		SENSOR_DEF (NULL, analog_sensor_read, \
-			 QSO_PAR_PIN | \
-			(QSO_PAR_SHT << ASNS_SHT_SH) | \
-			(QSO_PAR_ISI << ASNS_ISI_SH) | \
-			(QSO_PAR_NSA << ASNS_NSA_SH) | \
-			(QSO_PAR_REF << ASNS_REF_SH)), \
-		SENSOR_DEF (shtxx_init, shtxx_temp, 0), \
-		SENSOR_DEF (NULL, shtxx_humid, 0) \
+		ANALOG_SENSOR ( QSO_PAR_ISI,  \
+				QSO_PAR_NSA,  \
+				QSO_PAR_PIN,  \
+				QSO_PAR_SHT), \
+		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp), \
+		DIGITAL_SENSOR (0, NULL, shtxx_humid) \
 	}
+
+#define	SENSOR_DIGITAL
+#define	SENSOR_ANALOG
+#define	SENSOR_INITIALIZERS
 
 #define	SENSOR_PAR	0
 #define	SENSOR_TEMP	1
