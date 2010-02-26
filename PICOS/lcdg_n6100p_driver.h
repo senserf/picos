@@ -39,9 +39,9 @@ class LCDG {
 //
 	friend	class LcdgHandler;
 
-	lcdg_update_t *UHead, *UTail;
+	ag_interface_t	IN;
 
-	Process *OutputThread;
+	lcdg_update_t *UHead, *UTail;
 
 	word canvas [LCDG_CANVAS_SIZE];
 
@@ -121,7 +121,7 @@ class LCDG {
 		} else
 			XC++;
 
-		if (OutputThread != NULL)
+		if (IN.OT != NULL)
 			send_pix (pix);
 	};
 
@@ -132,7 +132,7 @@ class LCDG {
 	void update (word);
 	void dump_screen ();
 	void sd (byte b);	// Handle one element of a triplet
-	void init_connection (Process*);
+	void init_connection ();
 	void close_connection ();
 
 	public:

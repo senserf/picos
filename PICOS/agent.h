@@ -262,10 +262,12 @@ process	UART_out {
 
 station PicOSNode;
 
-typedef struct {
+class ag_interface_t {
 //
 // Agent's output interface
 //
+	public:
+
 	FLAGS		Flags;
 
 	PicOSNode	*TPN;
@@ -279,7 +281,8 @@ typedef struct {
 
 	Process	*OT, *IT;		// Output and input threads
 
-} ag_interface_t;
+	void init (FLAGS);
+};
 
 // ============================================================================
 

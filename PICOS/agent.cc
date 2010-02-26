@@ -215,7 +215,7 @@ process AgentOutput abstract {
 	int		Length;
 	char		*Buf;
 
-	states { Ack, Loop, Send, Nop };
+	states { Ack, Loop, Send, Nop, SNop };
 
 	void goaway (lword);
 
@@ -382,7 +382,18 @@ AgentOutput::perform {
 	state Nop:
 
 		nopmess ();
-		proceed Send;
+
+	transient SNop:
+
+		if (IN->O->wi (SNop, Buf, Length) == ERROR) {
+			if (Agent == NULL)
+				excptn ("%s at %s: error writing to device",
+					getSName (), IN->TPN->getSName ());
+			goaway (ECONN_DISCONN);
+			sleep;
+		}
+
+		proceed Loop;
 }
 
 AgentInput::perform {
@@ -515,14 +526,13 @@ Error:
 		proceed Loop;
 }
 
-static void init_ag_int (ag_interface_t &in, FLAGS fg) {
+void ag_interface_t::init (FLAGS fg) {
 
-	in.TPN = ThePicOSNode;
-	in.Flags = fg;
+	TPN = ThePicOSNode;
+	Flags = fg;
 
-	in.O = in.I = NULL;
-
-	in.OT = in.IT = NULL;
+	O = I = NULL;
+	OT = IT = NULL;
 }
 
 static void init_module_io (FLAGS Flags, int bufl, const char *es,
@@ -826,6 +836,11 @@ process	LcdgHandler : AgentOutput {
 	};
 
 	void setup (LCDG*, Dev*);
+
+	~LcdgHandler () {
+		// Note that delete NULL is fine
+		LC->close_connection ();
+	};
 };
 
 void LcdgHandler::setup (LCDG *lc, Dev *a) {
@@ -833,7 +848,7 @@ void LcdgHandler::setup (LCDG *lc, Dev *a) {
 	LC = lc;
 
 	if (AgentOutput::start (LC, a, LCDG_OUTPUT_BUFLEN) != ERROR) {
-		LC->init_connection (this);
+		LC->init_connection ();
 	}
 	WNOP = htons (0x1000);
 }
@@ -844,7 +859,7 @@ void LcdgHandler::nextupd (int lp, int nop) {
 
 	if (LC->UHead == NULL) {
 		// Periodic NOPs
-		Timer->delay (10.0, nop);
+		Timer->delay (2.0, nop);
 		this->wait (SIGNAL, Loop);
 		sleep;
 	}
@@ -857,7 +872,7 @@ void LcdgHandler::nextupd (int lp, int nop) {
 	{
 		int i;
 		for (i = 0; i < Length; i++)
-			WB [i] = htons (Buf [i]);
+			WB [i] = htons (WB [i]);
 	}
 #endif
 	// Make it bytes
@@ -1732,7 +1747,7 @@ PINS::PINS (data_pn_t *PID) {
 	int i, k;
 	byte *taken;
 
-	init_ag_int (IN, PID->PMode);
+	IN.init (PID->PMode);
 
 	Upd = NULL;
 	MonitorThread = NotifierThread = NULL;
@@ -2646,7 +2661,7 @@ void SNSRS::rst () {
 
 SNSRS::SNSRS (data_sa_t *SID) {
 
-	init_ag_int (IN, SID->SMode);
+	IN.init (SID->SMode);
 
 	Upd = NULL;
 
@@ -2865,8 +2880,7 @@ void SNSRS::qupd_all () {
 	
 LEDSM::LEDSM (data_le_t *le) {
 
-	init_ag_int (IN, le->LODev != NULL ? XTRN_OMODE_DEVICE :
-		XTRN_OMODE_SOCKET);
+	IN.init (le->LODev != NULL ? XTRN_OMODE_DEVICE : XTRN_OMODE_SOCKET);
 
 	NLeds = le->NLeds;
 
@@ -2992,7 +3006,7 @@ pwr_tracker_t::pwr_tracker_t (data_pt_t *pt) {
 
 	int i;
 
-	init_ag_int (IN, pt->PMode);
+	IN.init (pt->PMode);
 
 	for (i = 0; i < PWRT_N_MODULES; i++) {
 		States [i] = 0;

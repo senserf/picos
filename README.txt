@@ -474,7 +474,7 @@ R100217A:
     Macro __sinit modified to allow for structure initialization (this requires
     a corresponding change in PicOS).
 
-R100226A:
+R100226B:
 
     Significant parts of "Board" and "Agent" interfaces redone, as to simplify
     things and (possibly) facilitate adding new node "modules".
