@@ -13,8 +13,8 @@
 //		Right connector: P4.6, P4.5, P4.4, P4.0, P2.6, P2.5, P5.6,
 //				 P3.6, P3.7
 
-#define	LCD_TEST	0
-#define	RTC_TEST	0
+#define	LCD_TEST	1
+#define	RTC_TEST	1
 
 #include "sysio.h"
 #include "tcvphys.h"

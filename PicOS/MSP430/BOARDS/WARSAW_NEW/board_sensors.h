@@ -16,6 +16,8 @@
 
 // Vref generator (Zener): P5.4; Probe on: P5.7, GPS on P5.6
 #define	PIN_DEFAULT_P5DIR	0xD0
+// P5.7 = voltage sensor switch (active low)
+#define	PIN_DEFAULT_P5OUT	0x80
 
 #define	PIN_DEFAULT_P6SEL	0xFF	// The sensors
 
@@ -137,8 +139,9 @@
 			    case MOI_ECO_PIN: \
 				_BIS (P4OUT, 0x80); \
 				break; \
-			    default: \
-				_BIS (P5OUT, 0x80); \
+			    case SENSOR_PROBE0_PIN: \
+			    case SENSOR_PROBE1_PIN: \
+				_BIC (P5OUT, 0x80); \
 			  } \
 			  mdelay (40); \
 			} while (0)
@@ -149,7 +152,7 @@
 // include some safety margin.
 
 #define	sensor_adc_postlude(p) \
-			do { _BIC (P5OUT, 0x90); _BIC (P4OUT, 0x80); } while (0)
+    do { _BIC (P5OUT, 0x10); _BIS (P5OUT, 0x80); _BIC (P4OUT, 0x80); } while (0)
 
 #define	SENSOR_INITIALIZERS	// To make sure global init function gets called
 #define	SENSOR_ANALOG		// To make sure analog sensors are processed

@@ -3643,7 +3643,7 @@ R100217A:
 	subdirectories recursively and sets their permission bits (mostly x)
 	based on educated guesses. Its role is to clean up those bits after
 	they have been messed up by Cygwin/Windows interactions or by moving
-	the directory tree across difference filesystems (e.g., NTFS->Linux
+	the directory tree across different filesystems (e.g., NTFS->Linux
 	and/or vice versa). It works under Cygwin as well as Linux. The
 	recommended usage is:
 
@@ -3680,3 +3680,11 @@ R100217A:
 
 	Reorganized sensors-related files in PicOS and PicOS/MSP430 to make
 	them compatible with eCOG.
+
+R100226A:
+
+	Added vuee_control macro expanding into CNOP for VUEE compatibility.
+
+	Included tests for infrared motion sensors.
+
+	Fixed a few things to be compatible with new VUEE.

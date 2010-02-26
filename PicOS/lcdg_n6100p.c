@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -71,6 +71,9 @@ static const byte rgbtable [] = {
 
 LCDG::LCDG () {
 
+	// Socket only
+	IN.init (XTRN_OMODE_SOCKET);
+
 	memset (canvas, 0, sizeof (canvas));
 
 	ONStat = NO;
@@ -83,7 +86,6 @@ LCDG::LCDG () {
 	ColF = 0;
 	ColB = 0;
 
-	OutputThread = NULL;
 	UHead = NULL;
 
 	// This is the default contrast for Philips
@@ -114,7 +116,7 @@ void LCDG::queue () {
 
 	if (UHead == NULL) {
 		UHead = UTail = cu;
-		OutputThread->signal (NULL);
+		IN.OT->signal (NULL);
 	} else
 		UTail = (UTail->Next = cu);
 
@@ -123,7 +125,7 @@ void LCDG::queue () {
 
 void LCDG::set_to_render (byte y0, byte y1, byte x0, byte x1) {
 
-	if (OutputThread) {
+	if (IN.OT) {
 		update_fpx ();
 		update (LCDG_NOT_SET);
 		update (x0);
@@ -157,7 +159,7 @@ void LCDG::update_fpx () {
 
 void LCDG::update_flush () {
 
-	if (OutputThread == NULL)
+	if (IN.OT == NULL)
 		// Have to check because we can be called via the
 		// nlcd_cs_up hack
 		return;
@@ -173,15 +175,12 @@ void LCDG::update_flush () {
 	queue ();
 }
 
-void LCDG::init_connection (Process *h) {
+void LCDG::init_connection () {
 
-	assert (OutputThread == NULL, "LCDG->init_connection: second thread");
 	assert (UHead == NULL, "LCDG->init_connection: queue nonempty");
 
-	OutputThread = h;
 	updbuf = new word [LCDG_OUTPUT_BUFSIZE];
 	updp = 0;
-
 	dump_screen ();
 }
 
@@ -189,8 +188,6 @@ void LCDG::close_connection () {
 
 	lcdg_update_t *c;
 
-	assert (OutputThread != NULL, "LCDG->close_connection: stale thread");
-	OutputThread = NULL;
 	delete [] updbuf;
 	// Deallocate any pending updates
 	while (UHead != NULL) {
@@ -214,7 +211,7 @@ void LCDG::dump_screen () {
 //
 	int i;
 
-	if (OutputThread == NULL)
+	if (IN.OT == NULL)
 		return;
 
 	update_fpx ();
@@ -244,7 +241,7 @@ void LCDG::m_lcdg_on (byte con) {
 
 	ONStat = YES;
 
-	if (OutputThread) {
+	if (IN.OT) {
 		update_fpx ();
 		update (LCDG_NOT_ON | Contrast);
 		update_flush ();
@@ -257,7 +254,7 @@ void LCDG::m_lcdg_off () {
 //
 	ONStat = NO;
 
-	if (OutputThread) {
+	if (IN.OT) {
 		update_fpx ();
 		update (LCDG_NOT_OFF);
 		update_flush ();

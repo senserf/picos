@@ -1034,13 +1034,8 @@ void	adc_stop (void);
 #define	__VIRTUAL
 #define	__ABSTRACT
 
-#ifdef	__ECOG1__
-// Cannot have variadic argument lists with that compiler
-#define	__sinit(a)	= (a)
-#else
-// This allows us to initialize structures
+#define	vuee_control(a,...)	CNOP
 #define	__sinit(...)	= { __VA_ARGS__ }
-#endif
 
 #define	__PRIVF(ot,tp,nam)	static tp nam
 #define	__PUBLF(ot,tp,nam)	tp nam

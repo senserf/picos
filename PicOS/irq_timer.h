@@ -25,4 +25,8 @@
 #include "irq_timer_leds.h"
 #endif
 
+#ifdef BOARD_TIMER_SERVICE
+#include "board_timer.h"
+#endif
+
 #endif
