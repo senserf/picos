@@ -1,13 +1,15 @@
 #ifndef __agent_c__
 #define __agent_c__
 
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2010.       */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
+
 // External agent interface
 
 #include "board.h"
 #include "agent.h"
-//#include "stdattr.h"
-
-//#undef	rnd
 
 #define	imode(f)	((f) & XTRN_IMODE_MASK)
 #define	omode(f)	((f) & XTRN_OMODE_MASK)
@@ -34,9 +36,7 @@ static void mup_update (Long n) {
 }
 
 static int dechex (char *&bp) {
-//
-// Made global as being useful outside this file
-//
+
 	int res;
 
 	skipblk (bp);
@@ -133,7 +133,7 @@ int Dev::rs (int st, char *&buf, int &left) {
 		buf += nk;
 
 		// Check if the sentinel has been read
-		if (TheEvent)
+		if (TheEnd)
 			// An alias for Info01, means that the
 			// sentinel was found
 			return OK;
@@ -204,41 +204,676 @@ process ClockHandler {
 	perform;
 };
 
-process PinsHandler {
-/*
- * Handles a PINS module connection and acts as the driver
- */
-	PicOSNode *TPN;
-	Dev	  *Agent;
-	PINS	  *PN;
-	int	  Length;
-	char	  *Buf;
+// ============================================================================
 
-	states { AckPins, Loop, Send };
+process AgentOutput abstract {
+//
+// This is a generic output handler
+//	
+	ag_interface_t	*IN;
+	Dev		*Agent;	// Socket
+	int		Length;
+	char		*Buf;
 
-	void setup (PINS*, Dev*);
+	states { Ack, Loop, Send, Nop };
 
 	void goaway (lword);
 
+	virtual void nextupd (int rdy, int nop) {
+		excptn ("%s: nextupd unimplemented", getSName ());
+	};
+	virtual void remove () { };
+	virtual void nopmess () {
+		Buf = (char*) "\n";
+		Length = 1;
+	};
+
+	int start (void*, Dev*, int);
+
 	perform;
 };
 
-process PinsInput {
-/*
- * A sidekick tp PinsHandler: handles the input end of the connection
- * (or device)
- */
-	PINS      *PN;
-	char      *BP;
-	int       Left;
-	char      RBuf [PRQS_INPUT_BUFLEN];
+process AgentInput abstract {
+//
+// The second (input) leg for those connections that go both ways
+//
+	TIME		TimedRequestTime;
+	ag_interface_t	*IN;
+	char      	*BP;
+	int       	Length, Left;
+	char      	*RBuf;
 
 	states { Loop, ReadRq, Delay };
 
-	void setup (PINS*);
+	virtual	int update (char*) { 
+		excptn ("%s: update unimplemented", getSName ());
+	};
+
+	void start (ag_interface_t*, int);
+
+	~AgentInput () { delete [] RBuf; };
 
 	perform;
 };
+
+void AgentOutput::goaway (lword c) {
+//
+// Can also be called by the collaborating input thread to kill the output end
+// upon detecting an error
+//
+	if (Agent == NULL)
+		excptn ("%s at %s: error writing to device", getSName (),
+			IN->TPN->getSName ());
+
+	// This is a socket, so clean up and continue
+	if (Agent->isActive ())
+		create Disconnector (Agent, c);
+	else
+		delete Agent;
+
+	IN->I = IN->O = NULL;
+
+	if (IN->IT != NULL)
+		IN->IT->terminate ();
+
+	IN->IT = IN->OT = NULL;
+	this->terminate ();
+}
+
+int AgentOutput::start (void *in, Dev *a, int bufl) {
+
+	lword c;
+
+	// This assumes that the ag_interface_t structure is allocated at the
+	// beginning of module object!!!
+	IN = (ag_interface_t*) in;
+
+	if ((Agent = a) == NULL) {
+		assert (IN != NULL, "%s: no such module at %s", getSName (),
+			ThePicOSNode->getSName ());
+		assert (IN->OT == NULL,
+			"%s at %s: agent thread already running", getSName (),
+				IN->TPN->getSName ());
+		IN->OT = this;
+	} else {
+		c = ECONN_OK;
+		if (IN == NULL)
+			c = ECONN_NOMODULE;
+		else if (omode (IN->Flags) != XTRN_OMODE_SOCKET)
+			c = ECONN_ITYPE;
+		else if (IN->OT != NULL)
+			c = ECONN_ALREADY;
+
+		if (c != ECONN_OK) {
+			create Disconnector (Agent, c);
+			terminate ();
+			return ERROR;
+		} else {
+			// Make sure the buffer size will allow us to
+			// accommodate requests and updates
+			Agent->resize (XTRN_MBX_BUFLEN > bufl ?
+				XTRN_MBX_BUFLEN : bufl);
+
+			IN->I = IN->O = Agent;
+			IN->OT = this;
+			// We are started before the (optional) input thread
+			IN->IT = NULL;
+		}
+	}
+	return OK;
+}
+
+void AgentInput::start (ag_interface_t *in, int bufl) {
+
+	IN = in;
+
+	assert (IN->IT == NULL, "%s at %d: duplicate thread", getSName (),
+		IN->TPN->getSName ());
+
+	IN->IT = this;
+
+	if (imode (IN->Flags) != XTRN_IMODE_STRING)
+		// When reading from string, this is not a mailbox!
+		IN->I->setSentinel ('\n');
+
+	// Allocate the buffer
+	RBuf = new char [Length = bufl];
+
+	// For delayed requests
+	TimedRequestTime = Time;
+}
+
+AgentOutput::perform {
+
+	lword c;
+
+	state Ack:
+
+		if (Agent != NULL) {
+			// Socket connection: acknowledge
+			c = htonl (ECONN_OK);
+			if (Agent->wi (Ack, (char*)(&c), 4) == ERROR) {
+				// We are disconnected
+				goaway (ECONN_DISCONN);
+				// This means 'terminate'
+				sleep;
+			}
+		}
+
+	transient Loop:
+
+		nextupd (Loop, Nop);
+		// No return if no update available
+
+	transient Send:
+
+		if (IN->O->wl (Send, Buf, Length) == ERROR) {
+			// Got disconnected
+			if (Agent == NULL)
+				excptn ("%s at %s: error writing to device",
+					getSName (), IN->TPN->getSName ());
+			goaway (ECONN_DISCONN);
+			sleep;
+		}
+
+		remove ();
+		proceed Loop;
+
+	state Nop:
+
+		nopmess ();
+		proceed Send;
+}
+
+AgentInput::perform {
+
+	TIME st;
+	double del;
+	int rc;
+	char *re;
+	Boolean off, err;
+	char cc;
+
+	state Loop:
+
+		BP = RBuf;
+		Left = Length;
+
+		if (imode (IN->Flags) == XTRN_IMODE_STRING) {
+			// This is simple
+			while ((IN->Flags & XTRN_IMODE_STRLEN) != 0) {
+				IN->Flags--;
+				cc = *(IN->S)++;
+				if (cc == '\n' || cc == '\0') {
+					*BP = '\0';
+					goto HandleInput;
+				}
+				if (Left > 1) {
+					*BP++ = cc;
+					Left--;
+				}
+			}
+			if (Left == Length) {
+				// End of string
+				IN->IT = NULL;
+				terminate;
+			}
+			*BP = '\0';
+			goto HandleInput;
+		}
+
+	transient ReadRq:
+
+		if ((rc = IN->I->rs (ReadRq, BP, Left)) == ERROR) {
+			// We know this is not string
+			if ((IN->Flags & XTRN_IMODE_SOCKET) == 0) {
+				// A device, EOF, close this part of the shop
+				IN->IT = NULL;
+				terminate;
+			}
+			// Socket disconnection
+			Assert (IN->OT != NULL,
+			    	"%s at %s: sibling thread is gone", getSName (),
+					IN->TPN->getSName ());
+			((AgentOutput*)(IN->OT))->goaway (ECONN_DISCONN);
+			// We are dead now
+			sleep;
+		}
+
+		if (rc == REJECTED) {
+			// Line too long
+			if ((IN->Flags & XTRN_IMODE_SOCKET) == 0) {
+				// A device
+				excptn ("%s at %s: request "
+				    "line too long, %1d is the max",
+					getSName (), IN->TPN->getSName (),
+					    Length);
+			}
+
+			((AgentOutput*)(IN->OT))->goaway (ECONN_LONG);
+			sleep;
+		}
+
+		// Fine: this is the length excluding the newline
+		RBuf [Length - 1 - Left] = '\0';
+HandleInput:
+		BP = RBuf;
+		skipblk (BP);
+		if (*BP == 'T') {
+			// This is a delay request, which we handle locally
+			BP++;
+			skipblk (BP);
+			if (*BP == '+') {
+				// Offset
+				off = YES;
+				BP++;
+			} else
+				off = NO;
+
+			del = strtod (BP, &re);
+			if (BP == re || del < 0.0) {
+Error:
+				// This is an error
+				if ((IN->Flags & XTRN_IMODE_SOCKET) == 0) {
+				    excptn ("%s at %s: illegal " "request '%s'",
+					getSName (), IN->TPN->getSName (),
+					    RBuf);
+				} else {
+				    // This may be temporary (FIXME)
+				    trace ("%s at %s: illegal " "request '%s'",
+					getSName (), IN->TPN->getSName (),
+					    RBuf);
+				    ((AgentOutput*)(IN->OT))->
+					goaway (ECONN_INVALID);
+				    sleep;
+				}
+			}
+			st = etuToItu (del);
+			if (off)
+				TimedRequestTime += st;
+			else
+				TimedRequestTime = st;
+
+			proceed Delay;
+		}
+
+		if (update (BP) == ERROR)
+			goto Error;
+			
+		proceed Loop;
+
+	state Delay:
+
+		if (TimedRequestTime > Time) {
+			// FIXME: shouldn't we put in here some mailbox
+			// monitoring code ???
+			Timer->wait (TimedRequestTime - Time, Delay);
+			sleep;
+		} else
+			TimedRequestTime = Time;
+
+		proceed Loop;
+}
+
+static void init_ag_int (ag_interface_t &in, FLAGS fg) {
+
+	in.TPN = ThePicOSNode;
+	in.Flags = fg;
+
+	in.O = in.I = NULL;
+
+	in.OT = in.IT = NULL;
+}
+
+static void init_module_io (FLAGS Flags, int bufl, const char *es,
+	const char *ID,
+	const char *OD,
+	Dev  *&I,
+	Dev  *&O,
+	char *&S							    ) {
+//
+// Does the standard I/O startup for a module
+//
+	int i;
+
+	if (imode (Flags) == XTRN_IMODE_SOCKET ||
+				omode (Flags) == XTRN_OMODE_SOCKET) {
+		Assert (imode (Flags) == XTRN_IMODE_SOCKET &&
+		    omode (Flags) == XTRN_OMODE_SOCKET, 
+			"%s at %s: confilcting modes %x", es,
+			    TheStation->getSName (), Flags);
+		// That's it, the devices will be created upon connection
+	
+	} else if (imode (Flags) == XTRN_IMODE_DEVICE) {
+		// Need a mailbox for the input end
+		Assert (ID != NULL,
+			"%s at %s: input device cannot be NULL", es,
+				TheStation->getSName ());
+		I = create Dev;
+		// Check if the output end uses the same device
+		if (omode (Flags) == XTRN_OMODE_DEVICE &&
+		    strcmp (ID, OD) == 0) {
+			// Yep, a single mailbox will do
+			i = I->connect (DEVICE+READ+WRITE, ID, 0,
+				(XTRN_MBX_BUFLEN > bufl) ?
+					XTRN_MBX_BUFLEN : bufl);
+			O = I;
+		} else {
+			i = I->connect (DEVICE+READ, ID, 0,
+				XTRN_MBX_BUFLEN);
+		}
+		if (i == ERROR)
+			excptn ("%s at %s: cannot open device %s", es, 
+				TheStation->getSName (), ID);
+	} else if (imode (Flags) == XTRN_IMODE_STRING) {
+		Assert (ID != NULL,
+			"%s at %s: the input string is empty", es,
+				TheStation->getSName ());
+		S = (char*) ID;
+	}
+
+	// We are done with the input end
+	if (O == NULL && omode (Flags) == XTRN_OMODE_DEVICE) {
+		// A separate DEVICE 
+		Assert (OD != NULL, "%s at %s: no output device name",
+			es, TheStation->getSName ());
+		O = create Dev;
+		if (O->connect (DEVICE+WRITE, OD, 0, bufl))
+			excptn ("%s at %s: cannot open device %s", es,
+				TheStation->getSName (), OD);
+	}
+}
+
+// ============================================================================
+
+process	PinsHandler : AgentOutput {
+//
+// Handles PINS connections
+//
+	PINS	*PN;
+
+	void nextupd (int, int);
+
+	void	setup (PINS*, Dev*);
+
+	~PinsHandler () {
+		// Note that delete NULL is fine
+		if (PN != NULL) {
+			delete PN->Upd;
+			PN->Upd = NULL;
+		}
+	};
+};
+
+process PinsInput : AgentInput {
+
+	PINS 	*PN;
+
+	int 	update (char *buf) { return PN->pinup_update (buf); };
+	void	setup (PINS*);
+};
+
+void PinsHandler::setup (PINS *pn, Dev *a) {
+
+	PN = pn;
+
+	if (AgentOutput::start (PN, a, PUPD_OUTPUT_BUFLEN) != ERROR) {
+		PN->Upd = create PUpdates (MAX_Long);
+		if (a != NULL) {
+			// This is not needed for device (file) output, as it
+			// will be forced by rst
+			PN->qupd_all ();
+			// And this is done explicitly for a device
+			PN->IN.IT = create PinsInput (PN);
+		}
+	}
+}
+
+void PinsInput::setup (PINS *p) {
+
+	PN = p;
+
+	AgentInput::start (&(p->IN), PRQS_INPUT_BUFLEN);
+}
+
+void PinsHandler::nextupd (int lp, int nop) {
+
+	if (PN->Upd->empty ()) {
+		PN->Upd->wait (NONEMPTY, lp);
+		sleep;
+	}
+
+	Length = PN->pinup_status (PN->Upd->retrieve ());
+	Buf = PN->UBuf;
+	// nop state unused
+}
+
+// ============================================================================
+
+process	SensorsHandler : AgentOutput {
+//
+// Handles Sensors connections
+//
+	SNSRS	*SN;
+
+	void nextupd (int, int);
+
+	void	setup (SNSRS*, Dev*);
+
+	~SensorsHandler () {
+		// Note that delete NULL is fine
+		if (SN != NULL) {
+			delete SN->Upd;
+			SN->Upd = NULL;
+		}
+	};
+};
+
+process SensorsInput : AgentInput {
+
+	SNSRS	*SN;
+
+	int 	update (char *buf) { return SN->sensor_update (buf); };
+	void	setup (SNSRS*);
+};
+
+void SensorsHandler::setup (SNSRS *sn, Dev *a) {
+
+	SN = sn;
+
+	if (AgentOutput::start (SN, a, AUPD_OUTPUT_BUFLEN) != ERROR) {
+		SN->Upd = create SUpdates (MAX_Long);
+		if (a != NULL) {
+			// This is not needed for device (file) output, as it
+			// will be forced by rst
+			SN->qupd_all ();
+			// And this is done explicitly for a device
+			SN->IN.IT = create SensorsInput (SN);
+		}
+	}
+}
+
+void SensorsInput::setup (SNSRS *s) {
+
+	SN = s;
+	AgentInput::start (&(s->IN), SRQS_INPUT_BUFLEN);
+}
+
+void SensorsHandler::nextupd (int lp, int nop) {
+
+	Boolean lm;
+	byte	tp, sid;
+
+	if (SN->Upd->empty ()) {
+		SN->Upd->wait (NONEMPTY, lp);
+		sleep;
+	}
+
+	lm = SN->Upd->retrieve (tp, sid);
+	Length = SN->act_status (tp, sid, lm);
+	Buf = SN->UBuf;
+	// nop state unused
+}
+
+// ============================================================================
+
+process	LedsHandler : AgentOutput {
+//
+// Handles LEDS connections
+//
+	LEDSM *LE;
+
+	void nextupd (int, int);
+	void setup (LEDSM*, Dev*);
+};
+
+void LedsHandler::setup (LEDSM *le, Dev *a) {
+
+	LE = le;
+
+	if (AgentOutput::start (LE, a, LE->OUpdSize) != ERROR) {
+		LE->Changed = YES;
+	}
+}
+
+void LedsHandler::nextupd (int lp, int nop) {
+
+	if (!(LE->Changed)) {
+		if (Agent != NULL)
+			Timer->delay (10.0, nop);
+		this->wait (SIGNAL, lp);
+		sleep;
+	}
+
+	LE->Changed = NO;
+	Length = LE->ledup_status ();
+	Buf = LE->UBuf;
+}
+
+// ============================================================================
+
+process	PwrtHandler : AgentOutput {
+//
+// Handles Power Tracker connections
+//
+	pwr_tracker_t *PT;
+
+	void nextupd (int, int);
+
+	void setup (pwr_tracker_t*, Dev*);
+
+	void nopmess () {
+		Length = PT->pwrt_status ();
+		Buf = PT->UBuf;
+	};
+};
+
+process PwrtInput : AgentInput {
+
+	pwr_tracker_t *PT;
+
+	int  update (char *buf) { return PT->pwrt_request (buf); };
+	void setup (pwr_tracker_t*);
+};
+
+void PwrtHandler::setup (pwr_tracker_t *pt, Dev *a) {
+
+	PT = pt;
+
+	if (AgentOutput::start (PT, a, PUPD_OUTPUT_BUFLEN) != ERROR) {
+		PT->Changed = YES;
+		if (a != NULL) {
+			// The input leg is only needed for a socket connection
+			PT->IN.IT = create PwrtInput (PT);
+		}
+	}
+}
+
+void PwrtInput::setup (pwr_tracker_t *pt) {
+
+	PT = pt;
+	AgentInput::start (&(pt->IN), SRQS_INPUT_BUFLEN);
+}
+
+void PwrtHandler::nextupd (int lp, int nop) {
+
+	if (!(PT->Changed)) {
+		if (Agent != NULL)
+			Timer->delay (1.0, nop);
+		this->wait (SIGNAL, lp);
+		sleep;
+	}
+
+	PT->Changed = NO;
+	Length = PT->pwrt_status ();
+	Buf = PT->UBuf;
+}
+
+// ============================================================================
+
+process	LcdgHandler : AgentOutput {
+//
+// Handles LCDG connections
+//
+	LCDG *LC;
+	word WNOP;
+
+	void nextupd (int, int);
+	void remove ();
+	void nopmess () {
+		Length = 2;
+		Buf = (char*)(&WNOP);
+	};
+
+	void setup (LCDG*, Dev*);
+};
+
+void LcdgHandler::setup (LCDG *lc, Dev *a) {
+
+	LC = lc;
+
+	if (AgentOutput::start (LC, a, LCDG_OUTPUT_BUFLEN) != ERROR) {
+		LC->init_connection (this);
+	}
+	WNOP = htons (0x1000);
+}
+
+void LcdgHandler::nextupd (int lp, int nop) {
+
+	word *WB;
+
+	if (LC->UHead == NULL) {
+		// Periodic NOPs
+		Timer->delay (10.0, nop);
+		this->wait (SIGNAL, Loop);
+		sleep;
+	}
+
+	// This is in words
+	Length = LC->UHead->Size;
+	WB = LC->UHead->Buf;
+
+#if BYTE_ORDER == LITTLE_ENDIAN
+	{
+		int i;
+		for (i = 0; i < Length; i++)
+			WB [i] = htons (Buf [i]);
+	}
+#endif
+	// Make it bytes
+	Length <<= 1;
+	Buf = (char*) WB;
+}
+
+void LcdgHandler::remove () {
+
+	lcdg_update_t *cu;
+
+	LC->UHead = (cu = LC->UHead)->Next;
+	delete [] (byte*) cu;
+}
+
+// ============================================================================
 
 process PulseMonitor {
 
@@ -259,88 +894,6 @@ process PulseMonitor {
 	);
 
 	perform;
-};
-
-process SensorsHandler {
-/*
- * Handles a SNSRS module connection and acts as the driver
- */
-	PicOSNode *TPN;
-	Dev	  *Agent;
-	SNSRS	  *SN;
-	int	  Length;
-	char	  *Buf;
-
-	states { AckSens, Loop, Send };
-
-	void setup (SNSRS*, Dev*);
-
-	void goaway (lword);
-
-	perform;
-};
-
-process SensorsInput {
-/*
- * A sidekick tp SensorsHandler: handles the input end of the connection
- * (or device)
- */
-	SNSRS	  *SN;
-	char      *BP;
-	int       Left;
-	char      RBuf [SRQS_INPUT_BUFLEN];
-
-	states { Loop, ReadRq, Delay };
-
-	void setup (SNSRS*);
-
-	perform;
-};
-
-process LedsHandler {
-
-	PicOSNode *TPN;
-	Dev *Agent;
-	LEDSM *LE;
-	int Length;
-	char *Buf;
-
-	states { AckLeds, Loop, Send, SendNop };
-
-	void setup (PicOSNode*, LEDSM*, Dev*);
-
-	perform;
-};
-
-process PwrtHandler {
-
-	PicOSNode *TPN;
-	Dev *Agent;
-	pwr_tracker_t *PT;
-	int Length;
-	char *Buf;
-
-	states { AckPTR, Loop, Update, Send };
-
-	void setup (PicOSNode*, pwr_tracker_t*, Dev*);
-
-	perform;
-};
-
-process LcdgHandler {
-
-	PicOSNode *TPN;
-	Dev *Agent;
-	LCDG *LC;
-	word *Buf, WNOP;
-	int Length;
-
-	states { AckLcdg, Loop, Send, SendNop };
-
-	void setup (PicOSNode*, Dev*);
-
-	perform;
-
 };
 
 UARTDV::UARTDV (data_ua_t *UAD) {
@@ -366,7 +919,6 @@ UARTDV::UARTDV (data_ua_t *UAD) {
  *  _TIMED (input only) [+]Time { ... } (Time is in ITUs)
  */
 	char *sp, *fn;
-	int st;
 
 	I = O = NULL;
 	Flags = UAD->UMode;
@@ -389,66 +941,8 @@ UARTDV::UARTDV (data_ua_t *UAD) {
  	DefRate = Rate = UAD->URate;
 	// Will be actually set by rst
 
-	if (imode (Flags) == XTRN_IMODE_SOCKET ||
-					omode (Flags) == XTRN_OMODE_SOCKET) {
-		// The socket case: both ends must use the same socket
-		Assert (imode (Flags) == XTRN_IMODE_SOCKET &&
-		    omode (Flags) == XTRN_OMODE_SOCKET, 
-			"UART at %s: confilcting modes %x",
-			    TheStation->getSName (),
-			        Flags);
-		// Don't create the device now; it will be created upon
-		// connection. That's it for now.
-	} else if (imode (Flags) == XTRN_IMODE_DEVICE) {
-		// Need a mailbox for the input end
-		Assert (UAD->UIDev != NULL,
-			"UART at %s: input device cannot be NULL",
-				TheStation->getSName ());
-		I = create Dev;
-		// Check if the output end uses the same device
-		if (omode (Flags) == XTRN_OMODE_DEVICE &&
-		    strcmp (UAD->UIDev, UAD->UODev) == 0) {
-			// Yep, single mailbox will do
-			st = I->connect (DEVICE+READ+WRITE, UAD->UIDev, 0,
-					XTRN_MBX_BUFLEN);
-			O = I;
-		} else {
-			st = I->connect (DEVICE+READ, UAD->UIDev, 0,
-				XTRN_MBX_BUFLEN);
-		}
-		if (st == ERROR)
-			excptn ("UART at %s: cannot open device %s",
-				TheStation->getSName (), UAD->UIDev);
-	} else if (imode (Flags) == XTRN_IMODE_STRING) {
-		// String
-		Assert (UAD->UIDev != NULL,
-			"UART at %s: the input string is empty",
-				TheStation->getSName ());
-#if 0
-		// SLen is part of Flags
-		SLen = (Flags & XTRN_IMODE_STRLEN);
-		if (SLen == 0)
-			// Use strlen
-			SLen = strlen (UAD->UIDev);
-		if (SLen == 0)
-			excptn ("UART at %s: input string length is 0",
-				TheStation->getSName ());
-#endif
-		// No need to copy the string; it has been allocated as
-		// shared by readNodeParams
-		S = UAD->UIDev;
-	}
-
-	// We are done with the input end
-	if (O == NULL && omode (Flags) == XTRN_OMODE_DEVICE) {
-		// This can only mean a separate DEVICE 
-		Assert (UAD->UODev != NULL, "UART at %s: no output device name",
-			TheStation->getSName ());
-		O = create Dev;
-		if (O->connect (DEVICE+WRITE, UAD->UODev, 0, XTRN_MBX_BUFLEN))
-			excptn ("UART at %s: cannot open device %s",
-			    	TheStation->getSName (), UAD->UODev);
-	}
+	init_module_io (Flags, XTRN_MBX_BUFLEN, "UART", UAD->UIDev, UAD->UODev,
+		I, O, S);
 
 	rst ();
 }
@@ -992,7 +1486,7 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 
 	if (UA == NULL) {
 		// No UART for this station
-		c = ECONN_NOUART;
+		c = ECONN_NOMODULE;
 	} else if (imode (UA->Flags) != XTRN_IMODE_SOCKET) {
 		c = ECONN_ITYPE;
 	} else if (UA->I != NULL || UA->O != NULL) {
@@ -1238,15 +1732,10 @@ PINS::PINS (data_pn_t *PID) {
 	int i, k;
 	byte *taken;
 
-	I = O = NULL;
+	init_ag_int (IN, PID->PMode);
+
 	Upd = NULL;
-	InputThread = OutputThread = MonitorThread = NotifierThread = NULL;
-
-	TimedRequestTime = TIME_0;
-
-	TPN = ThePicOSNode;
-
-	Flags = PID->PMode;
+	MonitorThread = NotifierThread = NULL;
 
 	// This has been checked already
 	assert (PID->NP != 0, "PINS: the number of pins at %s is zero",
@@ -1376,67 +1865,21 @@ PINS::PINS (data_pn_t *PID) {
 		VADC = NULL;
 	}
 
-	if (imode (Flags) == XTRN_IMODE_SOCKET ||
-					omode (Flags) == XTRN_OMODE_SOCKET) {
-		Assert (imode (Flags) == XTRN_IMODE_SOCKET &&
-		    omode (Flags) == XTRN_OMODE_SOCKET, 
-			"PINS at %s: confilcting modes %x",
-			    TheStation->getSName (),
-			        Flags);
-		// That's it, the devices will be created upon connection
-	
-	} else if (imode (Flags) == XTRN_IMODE_DEVICE) {
-		// Need a mailbox for the input end
-		Assert (PID->PIDev != NULL,
-			"PINS at %s: input device cannot be NULL",
-				TheStation->getSName ());
-		I = create Dev;
-		// Check if the output end uses the same device
-		if (omode (Flags) == XTRN_OMODE_DEVICE && strcmp (PID->PIDev,
-		    PID->PODev) == 0) {
-			// Yep, single mailbox will do
-			i = I->connect (DEVICE+READ+WRITE, PID->PIDev, 0,
-				(XTRN_MBX_BUFLEN > PUPD_OUTPUT_BUFLEN) ?
-					XTRN_MBX_BUFLEN : PUPD_OUTPUT_BUFLEN);
-			O = I;
-		} else {
-			i = I->connect (DEVICE+READ, PID->PIDev, 0,
-				XTRN_MBX_BUFLEN);
-		}
-		if (i == ERROR)
-			excptn ("PINS at %s: cannot open device %s",
-				TheStation->getSName (), PID->PIDev);
-	} else if (imode (Flags) == XTRN_IMODE_STRING) {
-		Assert (PID->PIDev != NULL,
-			"PINS at %s: the input string is empty",
-				TheStation->getSName ());
-		S = PID->PIDev;
-	}
-
-	// We are done with the input end
-	if (O == NULL && omode (Flags) == XTRN_OMODE_DEVICE) {
-		// A separate DEVICE 
-		Assert (PID->PODev != NULL, "PINS at %s: no output device name",
-			TheStation->getSName ());
-		O = create Dev;
-		if (O->connect (DEVICE+WRITE, PID->PODev, 0,
-		    PUPD_OUTPUT_BUFLEN))
-			excptn ("PINS at %s: cannot open device %s",
-				TheStation->getSName (), PID->PODev);
-	}
+	init_module_io (IN.Flags, PUPD_OUTPUT_BUFLEN, "PINS", PID->PIDev,
+		PID->PODev, IN.I, IN.O, IN.S);
 
 	// Allocate buffer for updates
 	UBuf = new char [PUPD_OUTPUT_BUFLEN];
 
 	// Note that I shares location with S
-	if (I != NULL) {
+	if (IN.I != NULL) {
 		// The input end
 		create (System) PinsInput (this);
 	}
 
-	if (O != NULL) {
+	if (IN.O != NULL) {
 		// Note that this one will be indestructible
-		Upd = create PUpdates (MAX_Long);
+		// Upd = create PUpdates (MAX_Long);
 		// Signal initial (full) update; not needed, rst does it
 		// qupd_all ();
 		create (System) PinsHandler (this, NULL);
@@ -1512,7 +1955,7 @@ void PulseMonitor::setup (PINS *pins, Process **p, byte pin, byte onv,
 	OFFTime = offtime;
 	PIN = PN->PIN_MONITOR [pin];
 	assert (*TH == NULL, "PulseMonitor at %s: previous monitor thread is "
-		"alive", PN->TPN->getSName ());
+		"alive", PN->IN.TPN->getSName ());
 	*TH = this;
 }
 
@@ -1728,14 +2171,14 @@ void PINS::pmon_update (byte pin) {
 			pmon_cnt = 0;
 		if (pmon_cmp_on && pmon_cnt == pmon_cmp) {
 			pmon_cmp_pending = YES;
-			TPN->TB.signal (PMON_CNTEVENT);
+			IN.TPN->TB.signal (PMON_CNTEVENT);
 		}
 	} else {
 		assert (pin == PIN_MONITOR [1],
 			"pmon_update at %s: illegal monitor pin %1d",
-				TPN->getSName (), pin);
+				IN.TPN->getSName (), pin);
 		pmon_not_pending = YES;
-		TPN->TB.signal (PMON_NOTEVENT);
+		IN.TPN->TB.signal (PMON_NOTEVENT);
 	}
 }
 
@@ -1775,7 +2218,7 @@ void PINS::qupd_pin (word pn) {
 	word val;
 	byte st;
 
-	if (OutputThread == NULL)
+	if (IN.OT == NULL)
 		// Forget it
 		return;
 
@@ -2020,7 +2463,7 @@ void PINS::pmon_set_cmp (long count) {
 
 	if (pmon_cmp == pmon_cnt) {
 		pmon_cmp_pending = YES;
-		TPN->TB.signal (PMON_CNTEVENT);
+		IN.TPN->TB.signal (PMON_CNTEVENT);
 	}
 }
 
@@ -2180,277 +2623,6 @@ int PINS::pinup_update (char *rb) {
 	}
 }
 	
-void PinsHandler::setup (PINS *pn, Dev *a) {
-
-	lword c;
-
-	PN = pn;
-
-	if ((Agent = a) == NULL) {
-		assert (PN != NULL, "PinsHandler: no PINS to handle");
-		// We have been called to handle device IO
-		assert (PN->O != NULL,
-			"PinsHandler at %s: the mailbox is missing",
-				PN->TPN->getSName ());
-		assert (PN->OutputThread == NULL,
-			"PinsHandler at %s: agent thread already running",
-				PN->TPN->getSName ());
-		PN->OutputThread = this;
-
-	} else {
-		// This is a socket connection, so we know for a fact that
-		// both ends are active; thus, we are responsible for creating
-		// the other thread
-		c = ECONN_OK;
-		if (PN == NULL)
-			c = ECONN_NOPINS;
-		else if (imode (PN->Flags) != XTRN_IMODE_SOCKET)
-			c = ECONN_ITYPE;
-		else if (PN->OutputThread != NULL)
-			c = ECONN_ALREADY;
-
-		// Make sure the buffer size will allow us to accommodate
-		// requests and updates
-		Agent->resize (XTRN_MBX_BUFLEN > PUPD_OUTPUT_BUFLEN ?
-			XTRN_MBX_BUFLEN : PUPD_OUTPUT_BUFLEN);
-
-		if (c != ECONN_OK) {
-			create Disconnector (Agent, c);
-			terminate ();
-		} else {
-			Assert (PN->Upd == NULL,
-				"PinsHandler at %s: Upd not NULL",
-					PN->TPN->getSName ());
-			PN->Upd = create PUpdates (MAX_Long);
-			PN->I = PN->O = Agent;
-			PN->OutputThread = this;
-			PN->InputThread = create PinsInput (PN);
-			PN->qupd_all ();
-		}
-	}
-}
-
-void PinsHandler::goaway (lword c) {
-/*
- * Can also be called by the input thread to kill the output end, but only
- * for a socket connection. It will also terminate the input thread itself,
- * so be careful.
- */
-
-	if (Agent == NULL)
-		excptn ("PinsHandler at %s: error writing to device",
-			PN->TPN->getSName ());
-
-	// This is a socket, so clean up and continue
-	if (Agent->isActive ())
-		create Disconnector (Agent, c);
-	else
-		delete Agent;
-
-	PN->I = PN->O = NULL;
-	if (PN->InputThread != NULL)
-		PN->InputThread->terminate ();
-	delete PN->Upd;
-	PN->Upd = NULL;
-	PN->OutputThread = PN->InputThread = NULL;
-	this->terminate ();
-}
-
-PinsHandler::perform {
-/*
- * Unlike the UartHandler, we are also the driver, i.e., we stay alive for as
- * long as the agent is connected and handle pin output. The input is covered
- * by a child process.
- */
-	lword c;
-
-	state AckPins:
-
-		if (Agent != NULL) {
-			// Socket connection: acknowledge
-			c = htonl (ECONN_OK);
-			if (Agent->wi (AckPins, (char*)(&c), 4) == ERROR) {
-				// We are disconnected
-				goaway (ECONN_DISCONN);
-				// This means 'terminate'
-				sleep;
-			}
-		}
-
-	transient Loop:
-
-		// This is the main loop
-		if (PN->Upd->empty ()) {
-			// No updates
-			PN->Upd->wait (NONEMPTY, Loop);
-			sleep;
-		}
-
-		Length = PN->pinup_status (PN->Upd->retrieve ());
-		Buf = PN->UBuf;
-
-	transient Send:
-
-		if (PN->O->wl (Send, Buf, Length) == ERROR) {
-			// Got disconnected
-			goaway (ECONN_DISCONN);
-			sleep;
-		}
-
-		proceed Loop;
-}
-
-void PinsInput::setup (PINS *p) {
-
-	PN = p;
-	assert (PN->InputThread == NULL, "PinsInput at %d: duplicate thread",
-		PN->TPN->getSName ());
-	PN->InputThread = this;
-
-	if (imode (PN->Flags) != XTRN_IMODE_STRING)
-		// Otherwise, the mailbox is not a mailbox at all
-		PN->I->setSentinel ('\n');
-}
-
-PinsInput::perform {
-/*
- * Request formats:
- *
- *      T [+]delay (double)  [24]
- *      P pin val [0,1]	     [7]
- *      D pin voltage        [10]
- */
-	TIME st;
-	double del;
-	int rc;
-	char *re;
-	Boolean off, err;
-	char cc;
-
-	state Loop:
-
-		BP = &(RBuf [0]);
-		Left = PRQS_INPUT_BUFLEN;
-
-		if (imode (PN->Flags) == XTRN_IMODE_STRING) {
-			// This is simple
-			while ((PN->Flags & XTRN_IMODE_STRLEN) != 0) {
-				PN->Flags--;
-				cc = *(PN->S)++;
-				if (cc == '\n' || cc == '\0') {
-					*BP = '\0';
-					goto HandleInput;
-				}
-				if (Left > 1) {
-					*BP++ = cc;
-					Left--;
-				}
-			}
-			if (Left == PRQS_INPUT_BUFLEN) {
-				// End of string
-				PN->InputThread = NULL;
-				terminate;
-			}
-			*BP = '\0';
-			goto HandleInput;
-		}
-
-	transient ReadRq:
-
-		if ((rc = PN->I->rs (ReadRq, BP, Left)) == ERROR) {
-			// Here we know this is not string
-			if ((PN->Flags & XTRN_IMODE_SOCKET) == 0) {
-				// A device,  EOF, close this part of the shop
-				PN->InputThread = NULL;
-				terminate;
-			}
-			// This is a socket disconnection
-			Assert (PN->OutputThread != NULL,
-			    	"PinsInput at %s: sibling thread is gone",
-					PN->TPN->getSName ());
-			((PinsHandler*)(PN->OutputThread))->
-				goaway (ECONN_DISCONN);
-			// That has got us killed
-			sleep;
-		}
-
-		if (rc == REJECTED) {
-			// Line too long
-			if ((PN->Flags & XTRN_IMODE_SOCKET) == 0) {
-				// A device
-				excptn ("PinsHandler at %s: request "
-				    "line too long, %1d is the max",
-					PN->TPN->getSName (),
-					    PRQS_INPUT_BUFLEN);
-			}
-
-			((PinsHandler*)(PN->OutputThread))->
-				goaway (ECONN_LONG);
-			sleep;
-		}
-
-		// Fine: this is the length excluding the newline
-		RBuf [PRQS_INPUT_BUFLEN - 1 - Left] = '\0';
-HandleInput:
-		BP = &(RBuf [0]);
-
-		skipblk (BP);
-		if (*BP == 'T') {
-			// This is a delay request, which we handle locally
-			BP++;
-			skipblk (BP);
-			if (*BP == '+') {
-				// Offset
-				off = YES;
-				BP++;
-			} else
-				off = NO;
-
-			del = strtod (BP, &re);
-			if (BP == re || del < 0.0) {
-Error:
-				// This is an error
-				if ((PN->Flags & XTRN_IMODE_SOCKET) == 0) {
-				    excptn ("PinsHandler at %s: illegal request"
-					      " '%s'", PN->TPN->getSName (),
-						RBuf);
-				} else {
-				    // This may be temporary (FIXME)
-				    trace ("PinsHandler at %s: illegal request"
-					      " '%s'", PN->TPN->getSName (),
-						RBuf);
-				    ((PinsHandler*)(PN->OutputThread))->
-					goaway (ECONN_INVALID);
-				    sleep;
-				}
-			}
-			st = etuToItu (del);
-			if (off)
-				PN->TimedRequestTime += st;
-			else
-				PN->TimedRequestTime = st;
-
-			proceed Delay;
-		}
-
-		if (PN->pinup_update (BP) == ERROR)
-			goto Error;
-			
-		proceed Loop;
-
-	state Delay:
-
-		if (PN->TimedRequestTime > Time) {
-			// May put in here some mailbox monitoring
-			// code ???
-			Timer->wait (PN->TimedRequestTime - Time, Delay);
-			sleep;
-		} else
-			PN->TimedRequestTime = Time;
-
-		proceed Loop;
-}
-
 void SNSRS::rst () {
 /*
  * Sensor/actuator reset
@@ -2474,17 +2646,9 @@ void SNSRS::rst () {
 
 SNSRS::SNSRS (data_sa_t *SID) {
 
-	int i;
+	init_ag_int (IN, SID->SMode);
 
-	I = O = NULL;
 	Upd = NULL;
-	InputThread = OutputThread = NULL;
-
-	TimedRequestTime = TIME_0;
-
-	TPN = ThePicOSNode;
-
-	Flags = SID->SMode;
 
 	if ((NSensors = SID->NS) != 0) {
 		Sensors = new SensActDesc [NSensors];
@@ -2504,66 +2668,19 @@ SNSRS::SNSRS (data_sa_t *SID) {
 		"SENSORS: the number of sensors and actuators at %s is zero",
 			TheStation->getSName ());
 
-	if (imode (Flags) == XTRN_IMODE_SOCKET ||
-					omode (Flags) == XTRN_OMODE_SOCKET) {
-		Assert (imode (Flags) == XTRN_IMODE_SOCKET &&
-		    omode (Flags) == XTRN_OMODE_SOCKET, 
-			"SENSORS at %s: confilcting modes %x",
-			    TheStation->getSName (),
-			        Flags);
-		// That's it, the devices will be created upon connection
-	
-	} else if (imode (Flags) == XTRN_IMODE_DEVICE) {
-		// Need a mailbox for the input end
-		Assert (SID->SIDev != NULL,
-			"SENSORS at %s: input device cannot be NULL",
-				TheStation->getSName ());
-		I = create Dev;
-		// Check if the output end uses the same device
-		if (omode (Flags) == XTRN_OMODE_DEVICE && strcmp (SID->SIDev,
-		    SID->SODev) == 0) {
-			// Yep, single mailbox will do
-			i = I->connect (DEVICE+READ+WRITE, SID->SIDev, 0,
-				(XTRN_MBX_BUFLEN > AUPD_OUTPUT_BUFLEN) ?
-					XTRN_MBX_BUFLEN : AUPD_OUTPUT_BUFLEN);
-			O = I;
-		} else {
-			i = I->connect (DEVICE+READ, SID->SIDev, 0,
-				XTRN_MBX_BUFLEN);
-		}
-		if (i == ERROR)
-			excptn ("SENSORS at %s: cannot open device %s",
-				TheStation->getSName (), SID->SIDev);
-	} else if (imode (Flags) == XTRN_IMODE_STRING) {
-		Assert (SID->SIDev != NULL,
-			"SENSORS at %s: the input string is empty",
-				TheStation->getSName ());
-		S = SID->SIDev;
-	}
-
-	// We are done with the input end
-	if (O == NULL && omode (Flags) == XTRN_OMODE_DEVICE) {
-		// A separate DEVICE 
-		Assert (SID->SODev != NULL,
-			"SENSORS at %s: no output device name",
-			TheStation->getSName ());
-		O = create Dev;
-		if (O->connect (DEVICE+WRITE, SID->SODev, 0,
-		    AUPD_OUTPUT_BUFLEN))
-			excptn ("SENSORS at %s: cannot open device %s",
-				TheStation->getSName (), SID->SODev);
-	}
+	init_module_io (IN.Flags, AUPD_OUTPUT_BUFLEN, "SENSORS", SID->SIDev,
+		SID->SODev, IN.I, IN.O, IN.S);
 
 	// Allocate buffer for updates
 	UBuf = new char [AUPD_OUTPUT_BUFLEN];
 
 	// Note that I shares location with S
-	if (I != NULL) {
+	if (IN.I != NULL) {
 		// The input end
 		create (System) SensorsInput (this);
 	}
 
-	if (O != NULL) {
+	if (IN.O != NULL) {
 		// Note that this one will be indestructible
 		Upd = create SUpdates (MAX_Long);
 		// Signal initial (full) update; no, let rst do that
@@ -2595,7 +2712,7 @@ void SNSRS::read (int state, word sn, address vp) {
 
 	if (undef (s->ReadyTime)) {
 		// Starting up
-		TPN->pwrt_change (PWRT_SENSOR, PWRT_SENSOR_ON + sn);
+		IN.TPN->pwrt_change (PWRT_SENSOR, PWRT_SENSOR_ON + sn);
 		s->ReadyTime = Time + (del = s->action_time ());
 		Timer->wait (del, state);
 		sleep;
@@ -2604,7 +2721,7 @@ void SNSRS::read (int state, word sn, address vp) {
 	if (Time >= s->ReadyTime) {
 		s->ReadyTime = TIME_inf;
 		s->get (vp);
-		TPN->pwrt_change (PWRT_SENSOR, PWRT_SENSOR_OFF);
+		IN.TPN->pwrt_change (PWRT_SENSOR, PWRT_SENSOR_OFF);
 		return;
 	}
 	Timer->wait (s->ReadyTime - Time, state);
@@ -2703,7 +2820,7 @@ int SNSRS::sensor_update (char *rb) {
 		// This sensor does not exist
 		return ERROR;
 
-	if (s->set (sv) && omode (Flags) == XTRN_OMODE_SOCKET) {
+	if (s->set (sv) && omode (IN.Flags) == XTRN_OMODE_SOCKET) {
 		// The value has changed and this is a socket
 		qupd_act (SEN_TYPE_SENSOR, sn);
 	}
@@ -2715,7 +2832,7 @@ void SNSRS::qupd_act (byte tp, byte sn, Boolean lm) {
 /*
  * Queue a value update for output
  */
-	if (OutputThread == NULL)
+	if (IN.OT == NULL)
 		return;
 
 	Upd->queue (tp, sn, lm);
@@ -2736,7 +2853,7 @@ void SNSRS::qupd_all () {
 			qupd_act (SEN_TYPE_ACTUATOR, (byte) i, YES);
 	}
 
-	if (omode (Flags) != XTRN_OMODE_SOCKET)
+	if (omode (IN.Flags) != XTRN_OMODE_SOCKET)
 		// Do not send sensor values unless this is a socket
 		return;
 
@@ -2746,281 +2863,10 @@ void SNSRS::qupd_all () {
 	}
 }
 	
-void SensorsHandler::setup (SNSRS *sn, Dev *a) {
-
-	lword c;
-
-	SN = sn;
-
-
-	if ((Agent = a) == NULL) {
-		assert (SN != NULL, "SensorsHandler: no Sensors to handle");
-		// We have been called to handle device IO
-		assert (SN->O != NULL,
-			"SensorsHandler at %s: the mailbox is missing",
-				SN->TPN->getSName ());
-		assert (SN->OutputThread == NULL,
-			"SensorsHandler at %s: agent thread already running",
-				SN->TPN->getSName ());
-		SN->OutputThread = this;
-
-	} else {
-		// This is a socket connection, so we know for a fact that
-		// both ends are active; thus, we are responsible for creating
-		// the other thread
-		c = ECONN_OK;
-		if (SN == NULL)
-			c = ECONN_NOSENSORS;
-		else if (imode (SN->Flags) != XTRN_IMODE_SOCKET)
-			c = ECONN_ITYPE;
-		else if (SN->OutputThread != NULL)
-			c = ECONN_ALREADY;
-
-		// Make sure the buffer size will allow us to accommodate
-		// requests and updates
-		Agent->resize (XTRN_MBX_BUFLEN > AUPD_OUTPUT_BUFLEN ?
-			XTRN_MBX_BUFLEN : AUPD_OUTPUT_BUFLEN);
-
-		if (c != ECONN_OK) {
-			create Disconnector (Agent, c);
-			terminate ();
-		} else {
-			Assert (SN->Upd == NULL,
-				"SensorsHandler at %s: Upd not NULL",
-					SN->TPN->getSName ());
-			SN->Upd = create SUpdates (MAX_Long);
-			SN->I = SN->O = Agent;
-			SN->OutputThread = this;
-			SN->InputThread = create SensorsInput (SN);
-			SN->qupd_all ();
-		}
-	}
-}
-
-void SensorsHandler::goaway (lword c) {
-/*
- * Can also be called by the input thread to kill the output end, but only
- * for a socket connection. It will also terminate the input thread itself,
- * so be careful.
- */
-	if (Agent == NULL)
-		excptn ("SensorsHandler at %s: error writing to device",
-			SN->TPN->getSName ());
-
-	// This is a socket, so clean up and continue
-	if (Agent->isActive ())
-		create Disconnector (Agent, c);
-	else
-		delete Agent;
-
-	SN->I = SN->O = NULL;
-	if (SN->InputThread != NULL)
-		SN->InputThread->terminate ();
-	delete SN->Upd;
-	SN->Upd = NULL;
-	SN->OutputThread = SN->InputThread = NULL;
-	this->terminate ();
-}
-
-SensorsHandler::perform {
-/*
- * This is a close cousin of PinsDriver. We will have to combine them into
- * one set.
- */
-	byte tp, sid;
-	lword c;
-	Boolean lm;
-
-	state AckSens:
-
-		if (Agent != NULL) {
-			// Socket connection: acknowledge
-			c = htonl (ECONN_OK);
-			if (Agent->wi (AckSens, (char*)(&c), 4) == ERROR) {
-				// We are disconnected
-				goaway (ECONN_DISCONN);
-				// This means 'terminate'
-				sleep;
-			}
-		}
-
-	transient Loop:
-
-		// This is the main loop
-		if (SN->Upd->empty ()) {
-			// No updates
-			SN->Upd->wait (NONEMPTY, Loop);
-			sleep;
-		}
-
-
- 		lm = SN->Upd->retrieve (tp, sid);
- 		Length = SN->act_status (tp, sid, lm);
-		Buf = SN->UBuf;
-
-	transient Send:
-
-		if (SN->O->wl (Send, Buf, Length) == ERROR) {
-			// Got disconnected
-			goaway (ECONN_DISCONN);
-			sleep;
-		}
-
-		proceed Loop;
-}
-
-void SensorsInput::setup (SNSRS *s) {
-
-	SN = s;
-	assert (SN->InputThread == NULL, "SensorsInput at %d: duplicate thread",
-		SN->TPN->getSName ());
-	SN->InputThread = this;
-
-	if (imode (SN->Flags) != XTRN_IMODE_STRING)
-		// Otherwise, the mailbox is not a mailbox at all
-		SN->I->setSentinel ('\n');
-}
-
-SensorsInput::perform {
-/*
- * Request formats
- *
- *      T [+]delay (double)  [24]
- *      S num val
- *      FIXME: this MUST be merged with PinsInput
- */
-	TIME st;
-	double del;
-	int rc;
-	char *re;
-	Boolean off, err;
-	char cc;
-
-	state Loop:
-
-		BP = &(RBuf [0]);
-		Left = SRQS_INPUT_BUFLEN;
-
-		if (imode (SN->Flags) == XTRN_IMODE_STRING) {
-			// This is simple
-			while ((SN->Flags & XTRN_IMODE_STRLEN) != 0) {
-				SN->Flags--;
-				cc = *(SN->S)++;
-				if (cc == '\n' || cc == '\0') {
-					*BP = '\0';
-					goto HandleInput;
-				}
-				if (Left > 1) {
-					*BP++ = cc;
-					Left--;
-				}
-			}
-			if (Left == SRQS_INPUT_BUFLEN) {
-				// End of string
-				SN->InputThread = NULL;
-				terminate;
-			}
-			*BP = '\0';
-			goto HandleInput;
-		}
-
-	transient ReadRq:
-
-		if ((rc = SN->I->rs (ReadRq, BP, Left)) == ERROR) {
-			// We know this is not string
-			if ((SN->Flags & XTRN_IMODE_SOCKET) == 0) {
-				// A device,  EOF, close this part of the shop
-				SN->InputThread = NULL;
-				terminate;
-			}
-			// This is a socket disconnection
-			Assert (SN->OutputThread != NULL,
-			    	"SensorsInput at %s: sibling thread is gone",
-					SN->TPN->getSName ());
-			((SensorsHandler*)(SN->OutputThread))->
-				goaway (ECONN_DISCONN);
-			// We are dead now
-			sleep;
-		}
-
-		if (rc == REJECTED) {
-			// Line too long
-			if ((SN->Flags & XTRN_IMODE_SOCKET) == 0) {
-				// A device
-				excptn ("SensorsHandler at %s: request "
-				    "line too long, %1d is the max",
-					SN->TPN->getSName (),
-					    SRQS_INPUT_BUFLEN);
-			}
-
-			((SensorsHandler*)(SN->OutputThread))->
-				goaway (ECONN_LONG);
-			sleep;
-		}
-
-		// Fine: this is the length excluding the newline
-		RBuf [SRQS_INPUT_BUFLEN - 1 - Left] = '\0';
-HandleInput:
-		BP = &(RBuf [0]);
-
-		skipblk (BP);
-		if (*BP == 'T') {
-			// This is a delay request, which we handle locally
-			BP++;
-			skipblk (BP);
-			if (*BP == '+') {
-				// Offset
-				off = YES;
-				BP++;
-			} else
-				off = NO;
-
-			del = strtod (BP, &re);
-			if (BP == re || del < 0.0) {
-Error:
-				// This is an error
-				if ((SN->Flags & XTRN_IMODE_SOCKET) == 0) {
-				    excptn ("SensorsHandler at %s: illegal "
-					"request '%s'", SN->TPN->getSName (),
-						RBuf);
-				} else {
-				    // This may be temporary (FIXME)
-				    trace ("SensorsHandler at %s: illegal "
-					"request '%s'", SN->TPN->getSName (),
-						RBuf);
-				    ((SensorsHandler*)(SN->OutputThread))->
-					goaway (ECONN_INVALID);
-				    sleep;
-				}
-			}
-			st = etuToItu (del);
-			if (off)
-				SN->TimedRequestTime += st;
-			else
-				SN->TimedRequestTime = st;
-
-			proceed Delay;
-		}
-
-		if (SN->sensor_update (BP) == ERROR)
-			goto Error;
-			
-		proceed Loop;
-
-	state Delay:
-
-		if (SN->TimedRequestTime > Time) {
-			// May put in here some mailbox monitoring
-			// code ???
-			Timer->wait (SN->TimedRequestTime - Time, Delay);
-			sleep;
-		} else
-			SN->TimedRequestTime = Time;
-
-		proceed Loop;
-}
-
 LEDSM::LEDSM (data_le_t *le) {
+
+	init_ag_int (IN, le->LODev != NULL ? XTRN_OMODE_DEVICE :
+		XTRN_OMODE_SOCKET);
 
 	NLeds = le->NLeds;
 
@@ -3040,24 +2886,18 @@ LEDSM::LEDSM (data_le_t *le) {
 
 	if (le->LODev != NULL) {
 		// Device output
-		Device = YES;
-		O = create Dev;
-		if (O->connect (DEVICE+WRITE, le->LODev, 0, OUpdSize) == ERROR)
+		IN.O = create Dev;
+		if (IN.O->connect (DEVICE+WRITE, le->LODev, 0, OUpdSize) ==
+		    ERROR)
 			excptn ("LEDSM at %s: cannot open device %s",
 			    TheStation->getSName (), le->LODev);
-	} else {
-		// Socket
-		Device = NO;
-		O = NULL;
 	}
 
 	LStat = new byte [(NLeds+1)/2];
 
-	if (O != NULL) {
-		OutputThread = create (System) LedsHandler (ThePicOSNode, this,
-			NULL);
-	} else
-		OutputThread = NULL;
+	if (IN.O != NULL)
+		create (System) LedsHandler (this, NULL);
+
 	rst ();
 }
 
@@ -3071,8 +2911,8 @@ void LEDSM::rst () {
 	Changed = YES;
 	Fast = NO;
 
-	if (OutputThread != NULL)
-		OutputThread->signal (NULL);
+	if (IN.OT != NULL)
+		IN.OT->signal (NULL);
 }
 
 LEDSM::~LEDSM () {
@@ -3093,8 +2933,8 @@ void LEDSM::leds_op (word led, word op) {
 	if (getstat (led) != op) {
 		setstat (led, op);
 		Changed = YES;
-		if (OutputThread != NULL)
-			OutputThread->signal (NULL);
+		if (IN.OT != NULL)
+			IN.OT->signal (NULL);
 	}
 }
 
@@ -3103,8 +2943,8 @@ void LEDSM::setfast (Boolean on) {
 	if (on != Fast) {
 		Fast = on;
 		Changed = YES;
-		if (OutputThread != NULL)
-			OutputThread->signal (NULL);
+		if (IN.OT != NULL)
+			IN.OT->signal (NULL);
 	}
 }
 
@@ -3125,141 +2965,53 @@ int LEDSM::ledup_status () {
 	return len;
 }
 
-void LedsHandler::setup (PicOSNode *tpn, LEDSM *le, Dev *a) {
-
-	lword c;
-
-	TPN = tpn;
-
-	if ((Agent = a) == NULL) {
-		// We are handling file output: sanity checks
-		LE = le;
-		assert (LE->O != NULL,
-			"LedsHandler at %s: the mailbox is missing",
-				TPN->getSName ());
-		assert (LE->OutputThread == NULL,
-			"LedsHandler at %s: agent thread already running",
-				TPN->getSName ());
-		LE->OutputThread = this;
-	} else {
-		// This is a socket connection, Node structure already present
-		LE = tpn->ledsm;
-		c = ECONN_OK;
-		if (LE == NULL)
-			c = ECONN_NOLEDS;
-		else if (LE->Device)
-			c = ECONN_ITYPE;
-		else if (LE->OutputThread != NULL)
-			c = ECONN_ALREADY;
-
-		if (c != ECONN_OK) {
-			create Disconnector (Agent, c);
-			terminate ();
-		} else {
-			// Make sure the buffer size will allow us to
-			// accommodate requests and updates
-			Agent->resize (LE->OUpdSize);
-			LE->O = Agent;
-			LE->OutputThread = this;
-			LE->Changed = YES;
-		}
-	}
-}
-
-LedsHandler::perform {
-/*
- * We handle both file output and socket output. FIXME: I am not sure whether
- * we will be able to detect disconnection (with only one end of the socket)
- * without some feedback in the opposite direction. Will check it out.
- */
-	lword c;
-
-	state AckLeds:
-
-		if (Agent != NULL) {
-			// Socket connection: acknowledge
- 			c = htonl (ECONN_OK);
- 			if (Agent->wi (AckLeds, (char*)(&c), 4) == ERROR) {
-				// We are disconnected
-Disconnect:
-				delete Agent;
-				LE->O = NULL;
-				LE->OutputThread = NULL;
-				terminate;
-			}
-		}
-
-	transient Loop:
-
-		// This is the main loop
-		if (!(LE->Changed)) {
-			if (Agent != NULL)
-				// Periodic NOPs, if socket
-				Timer->delay (10.0, SendNop);
-			this->wait (SIGNAL, Loop);
-			sleep;
-		}
-
-		LE->Changed = NO;
-		Length = LE->ledup_status ();
-		Buf = LE->UBuf;
-
-	transient Send:
-
-		if (LE->O->wl (Send, Buf, Length) == ERROR) {
-Error:
-			if (Agent == NULL)
-				excptn ("LedsHandler at %s: error writing to "
-					"device", TPN->getSName ());
-			// Disconnection
-			goto Disconnect;
-		}
-
-		proceed Loop;
-
-	state SendNop:
-
-		if (LE->O->wi (SendNop, "\n", 1) == ERROR)
-			// FIXME: check if this actually detects disconnections
-			goto Error;
-
-		proceed Loop;
-}
-
 // ============================================================================
+
+void pwr_tracker_t::pwrt_clear () {
+
+	int i;
+
+	average = 0.0;
+	last_val = 0.0;
+
+	// Starting time for the average
+	strt_tim = ituToEtu (Time);
+
+	// This is relative to strt_tim
+	last_tim = 0.0;
+
+	for (last_val = 0.0, i = 0; i < PWRT_N_MODULES; i++) {
+		if (Modules [i] != NULL)
+			last_val += Modules [i] -> Levels [States [i]];
+	}
+
+	upd ();
+}
 
 pwr_tracker_t::pwr_tracker_t (data_pt_t *pt) {
 
 	int i;
 
-	for (i = 0; i < PWRT_N_MODULES; i++)
-		Modules [i] = pt->Modules [i];
+	init_ag_int (IN, pt->PMode);
 
-	average = 0.0;
-	last_val = 0.0;
-	last_tim = ituToEtu (Time);
+	for (i = 0; i < PWRT_N_MODULES; i++) {
+		States [i] = 0;
+		Modules [i] = pt->Modules [i];
+	}
+
+	init_module_io (IN.Flags, PUPD_OUTPUT_BUFLEN, "PTRACKER", pt->PIDev,
+		pt->PODev, IN.I, IN.O, IN.S);
 
 	UBuf = new char [PUPD_OUTPUT_BUFLEN];
 
-	if (pt->PODev != NULL) {
-		// Device output
-		Device = YES;
-		O = create Dev;
-		if (O->connect (DEVICE+WRITE, pt->PODev, 0, PUPD_OUTPUT_BUFLEN)
-		    == ERROR)
-			excptn ("Power tracker at %s: cannot open device %s",
-			    TheStation->getSName (), pt->PODev);
-		OutputThread =
-			create (System) PwrtHandler (ThePicOSNode, this, NULL);
-	} else {
-		// Socket
-		Device = NO;
-		O = NULL;
-		OutputThread = NULL;
-	}
+	if (IN.I != NULL)
+		// The input end
+		create (System) PwrtInput (this);
 
-	// Initializes States for one thing
-	rst ();
+	if (IN.O != NULL)
+		create (System) PwrtHandler (this, NULL);
+
+	pwrt_clear ();
 }
 
 void pwr_tracker_t::rst () {
@@ -3267,7 +3019,7 @@ void pwr_tracker_t::rst () {
 	double T;
 	int i;
 
-	T = ituToEtu (Time);
+	T = ituToEtu (Time) - strt_tim;
 	if (T > 0.0)
 		average =
 		    average * (last_tim / T) + (last_val * (T - last_tim)) / T;
@@ -3286,11 +3038,15 @@ int pwr_tracker_t::pwrt_status () {
 //
 // Issue an update message
 //
-	double T;
+	double t, T;
 
-	T = ituToEtu (Time);
+	// Absolute time
+	t = ituToEtu (Time);
 
-	sprintf (UBuf, "U %08.3f: %1.7g %1.7g\n", ituToEtu (Time), 
+	// Elapsed time
+	T = t - strt_tim;
+
+	sprintf (UBuf, "U %08.3f [%08.3f]: %1.7g %1.7g\n", t, T,
 		(T > 0.0) ?
 		    average * (last_tim / T) + (last_val * (T - last_tim)) / T
 			: 0.0,
@@ -3321,7 +3077,7 @@ void pwr_tracker_t::pwrt_change (word md, word lv) {
 		// No change
 		return;
 
-	T = ituToEtu (Time);
+	T = ituToEtu (Time) - strt_tim;
 
 	// trace ("OLD T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
 	if (T > 0.0)
@@ -3360,7 +3116,7 @@ void pwr_tracker_t::pwrt_add (word md, word lv, double tm) {
 		// No change
 		return;
 
-	if ((T = ituToEtu (Time)) <= 0.0)
+	if ((T = ituToEtu (Time) - strt_tim) <= 0.0)
 		// Pathology
 		return;
 
@@ -3387,7 +3143,7 @@ void pwr_tracker_t::pwrt_add (word md, word lv, double tm) {
 	average = average * (last_tim / TT) +
 		(last_val * (T - last_tim) + nv * tm) / TT;
 
-	// And we leave last_val as if nothing happens, but the time is now
+	// And we leave last_val as if nothing happened, but the time is now
 
 	last_tim = T;
 
@@ -3396,188 +3152,20 @@ void pwr_tracker_t::pwrt_add (word md, word lv, double tm) {
 	upd ();
 }
 
-void PwrtHandler::setup (PicOSNode *tpn, pwr_tracker_t *pt, Dev *a) {
-
-	lword c;
-
-	TPN = tpn;
-
-	if ((Agent = a) == NULL) {
-		// We are handling file output
-		PT = pt;
-		assert (PT->O != NULL,
-			"PwrtHandler at %s: the mailbox is missing",
-				TPN->getSName ());
-		assert (PT->OutputThread == NULL,
-			"PwrtHandler at %s: agent thread already running",
-				TPN->getSName ());
-		PT->OutputThread = this;
-	} else {
-		// This is a socket connection
-		PT = tpn->pwr_tracker;
-		c = ECONN_OK;
-		if (PT == NULL)
-			c = ECONN_NOPWRT;
-		else if (PT->Device)
-			c = ECONN_ITYPE;
-		else if (PT->OutputThread != NULL)
-			c = ECONN_ALREADY;
-
-		if (c != ECONN_OK) {
-			create Disconnector (Agent, c);
-			terminate ();
-		} else {
-			// Make sure the buffer size will allow us to
-			// accommodate requests and updates
-			Agent->resize (PUPD_OUTPUT_BUFLEN);
-			PT->O = Agent;
-			PT->OutputThread = this;
-			PT->Changed = YES;
-		}
-	}
-}
-
-PwrtHandler::perform {
-
-	lword c;
-
-	state AckPTR:
-
-		if (Agent != NULL) {
-			// Socket connection: acknowledge
- 			c = htonl (ECONN_OK);
- 			if (Agent->wi (AckPTR, (char*)(&c), 4) == ERROR) {
-				// We are disconnected
-Disconnect:
-				delete Agent;
-				PT->O = NULL;
-				PT->OutputThread = NULL;
-				terminate;
-			}
-		}
-
-	transient Loop:
-
-		if (!(PT->Changed)) {
-			if (Agent != NULL)
-				// Periodic updates, if socket
-				Timer->delay (1.0, Update);
-			this->wait (SIGNAL, Loop);
-			sleep;
-		}
-
-	transient Update:
-
-		PT->Changed = NO;
-		Length = PT->pwrt_status ();
-		Buf = PT->UBuf;
-
-	transient Send:
-
-		if (PT->O->wl (Send, Buf, Length) == ERROR) {
-Error:
-			if (Agent == NULL)
-				excptn ("PwrtHandler at %s: error writing to "
-					"device", TPN->getSName ());
-			// Disconnection
-			goto Disconnect;
-		}
-
-		proceed Loop;
-}
-
-// ============================================================================
-
-void LcdgHandler::setup (PicOSNode *tpn, Dev *a) {
-
-	lword c;
-
-	TPN = tpn;
-
-	// Note: we are never called with a == NULL, as a device (file)
-	// connection is handled separately (and can in fact coexist with
-	// a socket connection)
-
-	Agent = a;
-	LC = tpn->lcdg;
-	c = ECONN_OK;
-	if (LC == NULL)
-		c = ECONN_NOLCDG;
-	else if (LC->OutputThread != NULL)
-		c = ECONN_ALREADY;
-	if (c != ECONN_OK) {
-		create Disconnector (Agent, c);
-		terminate ();
-	} else {
-		Agent->resize (LCDG_OUTPUT_BUFLEN);
-		LC->init_connection (this);
-	}
-	// The NOP command
-	WNOP = htons (0x1000);
-}
-
-LcdgHandler::perform {
+int pwr_tracker_t::pwrt_request (const char *buf) {
 //
-// We only handle socket output
+// Incoming request from an external agent
 //
-	lword c;
-	lcdg_update_t *cu;
+	if (*buf == 'C') {
+		// For now, there is a single "clear" request to zero out the
+		// tracker
+		pwrt_clear ();
+		return OK;
+	}
 
-	state AckLcdg:
-
-		c = htonl (ECONN_OK);
- 		if (Agent->wi (AckLcdg, (char*)(&c), 4) == ERROR) {
-			// We are disconnected
-Disconnect:
-			delete Agent;
-			LC->close_connection ();
-			terminate;
-		}
-
-	transient Loop:
-
-		// This is the main loop
-		if (LC->UHead == NULL) {
-			// Periodic NOPs
-			Timer->delay (10.0, SendNop);
-			this->wait (SIGNAL, Loop);
-			sleep;
-		}
-
-		// This is in words
-		Length = LC->UHead->Size;
-		Buf = LC->UHead->Buf;
-
-		// Convert to network format
-#if BYTE_ORDER == LITTLE_ENDIAN
-		{
-			int i;
-			for (i = 0; i < Length; i++)
-				Buf [i] = htons (Buf [i]);
-		}
-#endif
-		// Make it bytes
-		Length <<= 1;
-
-	transient Send:
-
-		// Can we get away with wi instead of wl? Yep, we can.
-		if (Agent->wi (Send, (const char*)Buf, Length) == ERROR)
-			// Assume disconnection
-			goto Disconnect;
-
-		// Deallocate the head
-		LC->UHead = (cu = LC->UHead)->Next;
-		delete [] (byte*) cu;
-		proceed Loop;
-
-	state SendNop:
-
-		if (Agent->wi (SendNop, (const char*)(&WNOP), 2) == ERROR)
-			goto Disconnect;
-
-		proceed Loop;
+	return ERROR;
 }
+	
 // ============================================================================
 
 void MoveHandler::setup (Dev *a, FLAGS f) {
@@ -4326,7 +3914,7 @@ AgentConnector::perform {
 					create Disconnector (Agent,
 						ECONN_STATION);
 				else
-					create LedsHandler (TPN, NULL, Agent);
+					create LedsHandler (TPN->ledsm, Agent);
 				terminate;
 
 			case AGENT_RQ_PWRT:
@@ -4335,7 +3923,8 @@ AgentConnector::perform {
 					create Disconnector (Agent,
 						ECONN_STATION);
 				else
-					create PwrtHandler (TPN, NULL, Agent);
+					create PwrtHandler (TPN->pwr_tracker,
+						Agent);
 				terminate;
 
 			case AGENT_RQ_MOVE:
@@ -4357,7 +3946,7 @@ AgentConnector::perform {
 
 				// Note: the write-to-file option will be
 				// handled separately
-				create LcdgHandler (TPN, Agent);
+				create LcdgHandler (TPN->lcdg, Agent);
 				terminate;
 
 			// More options will come later

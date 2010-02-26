@@ -284,6 +284,11 @@ station PicOSNode abstract {
 			pwr_tracker->pwrt_add (m, l, tm);
 	};
 
+	void pwrt_clear () {
+		if (pwr_tracker)
+			pwr_tracker->pwrt_clear ();
+	};
+
 	/*
 	 * Memory allocator
 	 */
@@ -822,5 +827,11 @@ void rtc_get (rtc_time_t*);
 // ============================================================================
 
 int _no_module_ (const char*, const char*);
+
+// ============================================================================
+
+#define	VCTRL_PTRCK_CLEAR	0
+
+void vuee_control (int, ...);
 
 #endif

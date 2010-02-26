@@ -424,7 +424,7 @@ array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 ND 10 TO 10 RX 10 RY 10
 #
 # Canvas parameters for PTRACKER:
 #
-array set PMARGIN	{ L 12 R 12 T 25 B 30 MW 200 MH 65 DW 400 DH 80 }
+array set PMARGIN	{ L 12 R 12 T 25 B 30 MW 200 MH 65 DW 500 DH 60 }
 
 #
 # Stuff for the "LCD" clock
@@ -3150,7 +3150,7 @@ proc pwrtIni { Sok } {
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 	# current val, avg, min, max
-	set Stat($Sok,VL) [list 0.0 0.0 0.0 0.0 0 1]
+	set Stat($Sok,VL) [list 0.0 0.0 0.0 0.0 0.0 0 1]
 
 	mkPwrt $Sok "PTracker at node $Stat($Sok,S)"
 
@@ -3174,7 +3174,10 @@ proc mkPwrt { Sok tt } {
 	set Stat($Sok,NC) [list $PMARGIN(DW) $PMARGIN(DH)]
 
 	canvas $w.c -width $PMARGIN(DW) -height $PMARGIN(DH)
-	pack $w.c -expand 1 -fill both
+	pack $w.c -side left -expand 1 -fill both
+
+	button $w.z -text "x" -command "pwrtZero $Sok"
+	pack $w.z -side right -fill x
 
 	set Stat($Sok,WW) $PMARGIN(DW)
 	set Stat($Sok,WH) $PMARGIN(DH)
@@ -3183,6 +3186,14 @@ proc mkPwrt { Sok tt } {
 
 	bind $w <Destroy> "destroyWindow $Sok"
 	bind $w.c <Configure> "pwrtResize $Sok %w %h"
+}
+
+proc pwrtZero { Sok } {
+
+	if [catch { puts -nonewline $Sok "C\n" } ] {
+		log "connection to PTracker[stName $Sok] terminated"
+		dealloc $Sok
+	}
 }
 
 proc pwrtResize { Sok nw nh } {
@@ -3244,7 +3255,7 @@ proc pwrtRedraw { Sok } {
 
 	set w [stwin $Sok]
 
-	foreach { vv av sv bv tf tl } $Stat($Sok,VL) { }
+	foreach { tm vv av sv bv tf tl } $Stat($Sok,VL) { }
 
 	set W $Stat($Sok,WW)
 	set H $Stat($Sok,WH)
@@ -3305,10 +3316,12 @@ proc pwrtRedraw { Sok } {
 		-fill green]
 
 	# textual values
-	set Stat($Sok,TC) [$w.c create text $PMARGIN(L) [expr $H - 4] \
-		-anchor sw -text "Cur: $vv" -state disabled]
-	set Stat($Sok,TA) [$w.c create text [expr $W / 2] [expr $H - 4] \
-		-anchor s -text "Avg: $av" -state disabled]
+	set Stat($Sok,TS) [$w.c create text $PMARGIN(L) [expr $H - 4] \
+		-anchor sw -text "Tim: $tm" -state disabled]
+	set Stat($Sok,TC) [$w.c create text [expr $W / 3] [expr $H - 4] \
+		-anchor s -text "Cur: $vv" -state disabled]
+	set Stat($Sok,TA) [$w.c create text [expr int(1.8 * $W / 3.0)] \
+		[expr $H - 4] -anchor s -text "Avg: $av" -state disabled]
 	set Stat($Sok,TM) [$w.c create text [expr $W - $PMARGIN(R)] \
 		[expr $H - 4] \
 		-anchor se -text "Max: $bv" -state disabled]
@@ -3381,16 +3394,19 @@ proc pwrtParse { Sok } {
 
 	set w [stwin $Sok]
 
-	if ![regexp ": +(\[^ \]+) +(\[^ \]+)" $Stat($Sok,B) jnk avg lst] {
+	if ![regexp "(\[^ \]+): +(\[^ \]+) +(\[^ \]+)" \
+	    $Stat($Sok,B) jnk tim avg lst] {
 		return
 	}
+
+	regexp "^.0*(.*).$" $tim jnk tim
 
 	if { [catch { expr $avg } avg] || [catch { expr $lst } lst] ||
 		$avg <= 0.0 || $lst <= 0.0 } {
 			return
 	}
 
-	foreach { vv av sv bv tf tl } $Stat($Sok,VL) { }
+	foreach { tm vv av sv bv tf tl } $Stat($Sok,VL) { }
 
 	if { $bv == 0.0 } {
 		# the first time around
@@ -3403,7 +3419,7 @@ proc pwrtParse { Sok } {
 		}
 		set tf [pwrtLex $sv]
 		set tl [pwrtHex $bv]
-		set Stat($Sok,VL) [list $lst $avg $sv $bv $tf $tl]
+		set Stat($Sok,VL) [list $tim $lst $avg $sv $bv $tf $tl]
 		pwrtRedraw $Sok
 		return
 	}
@@ -3433,7 +3449,7 @@ proc pwrtParse { Sok } {
 			set redr 1
 		}
 	}
-	set Stat($Sok,VL) [list $lst $avg $sv $bv $tf $tl]
+	set Stat($Sok,VL) [list $tim $lst $avg $sv $bv $tf $tl]
 
 	if $redr {
 		pwrtRedraw $Sok
@@ -3461,6 +3477,7 @@ proc pwrtParse { Sok } {
 	set x [expr $xa + $PMARGIN(L) - 3]
 	$w.c coords $Stat($Sok,MA) $x $y0 [expr $x + 6] $y1
 
+	$w.c itemconfigure $Stat($Sok,TS) -text "Tim: $tim"
 	$w.c itemconfigure $Stat($Sok,TC) -text "Cur: $lst"
 	$w.c itemconfigure $Stat($Sok,TA) -text "Avg: $avg"
 	$w.c itemconfigure $Stat($Sok,TM) -text "Max: $bv"
@@ -4356,20 +4373,16 @@ proc conerror { code } {
 
     switch -- $code {
 
-	0 { return "protocol violation" }
+	0 { return "llegal magic code" }
 	1 { return "node number out of range" }
 	2 { return "unimplelented function" }
-	3 { return "node has no UART" }
-	4 { return "already connected to this component" }
-	5 { return "node has no PINS module" }
-	6 { return "node has no SENSORS module" }
-	7 { return "server-side timeout" }
-	8 { return "module has a non-socket interface" }
-	9 { return "no leds module at this node" }
-       10 { return "unexpected disconnection" }
-       11 { return "request line too long" }
-       12 { return "invalid request" }
-       14 { return "no LCDG module at this node" }
+	3 { return "already connected to this module" }
+	4 { return "timeout" }
+	5 { return "module has a non-socket interface" }
+        6 { return "unexpected disconnection" }
+        7 { return "request line too long" }
+        8 { return "invalid request" }
+      128 { return "node has no such module" }
     }
 
     return "error code $code (unknown)"

@@ -91,18 +91,14 @@
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */
 #define	ECONN_UNIMPL		2		/* Function unimplemented */
-#define	ECONN_NOUART		3		/* Station has no UART */
-#define	ECONN_ALREADY		4		/* Already connected to this */
-#define	ECONN_NOPINS		5		/* No pin module */
-#define	ECONN_NOSENSORS		6
-#define	ECONN_TIMEOUT		7
-#define	ECONN_ITYPE		8		/* Non-socket interface */
-#define	ECONN_NOLEDS		9
-#define	ECONN_DISCONN		10		/* This is in fact a dummy */
-#define	ECONN_LONG		11
-#define	ECONN_INVALID		12		/* Invalid request */
-#define	ECONN_NOLCDG		14		/* Code 13 unused */
-#define	ECONN_NOPWRT		15
+#define	ECONN_ALREADY		3		/* Already connected to this */
+#define	ECONN_TIMEOUT		4
+#define	ECONN_ITYPE		5		/* Non-socket interface */
+#define	ECONN_DISCONN		6		/* This is in fact a dummy */
+#define	ECONN_LONG		7
+#define	ECONN_INVALID		8		/* Invalid request */
+
+#define	ECONN_NOMODULE		128
 #define	ECONN_OK		129		/* Positive ack */
 
 #define	ThePicOSNode	((PicOSNode*)TheStation)
@@ -144,6 +140,8 @@ mailbox Dev (int) {
 	int rs (int, char*&, int&);
 };
 
+// ============================================================================
+
 process	UART_in;
 process	UART_out;
 
@@ -155,7 +153,7 @@ class	UARTDV {
 
 	union	{
 		Dev 	    *I;	// Input mailbox (shared with string)
-		const char  *S;
+		char  	    *S;
 	};
 
 	Dev	*O;		// Output mailbox
@@ -260,25 +258,48 @@ process	UART_out {
 	perform;
 };
 
+// ============================================================================
+
+station PicOSNode;
+
+typedef struct {
+//
+// Agent's output interface
+//
+	FLAGS		Flags;
+
+	PicOSNode	*TPN;
+
+	Dev	*O;			// Output mailbox
+	union {
+					// Input mailbox or string
+		Dev		*I;	// If from device (socket/file)
+		char 		*S;	// If from string
+	};
+
+	Process	*OT, *IT;		// Output and input threads
+
+} ag_interface_t;
+
+// ============================================================================
+
 class LEDSM {
 /*
  * The LEDs module
  */
 	friend	class	LedsHandler;
 
+	ag_interface_t	IN;
+
 	word 	NLeds;			// Number of leds (<= 64)
 	byte	OUpdSize;		// Update buffer size
-	Boolean	Device,			// Device flag (as opposed to socket)
-		Changed,		// Change flag
+
+	Boolean	Changed,		// Change flag
 		Fast;			// Fast blink rate
 
 	byte	*LStat;			// Led status, one nibble per LED
 
-	Dev	*O;
-
 	char	*UBuf;			// Buffer for updates
-
-	Process	*OutputThread;
 
 	inline word getstat (word led) {
 		word t = LStat [led >> 1];
@@ -379,7 +400,6 @@ mailbox MUpdates (Long) {
 	};
 };
 
-station PicOSNode;
 class PINS;
 
 class ButtonPin {
@@ -414,12 +434,10 @@ class PINS {
 	friend class ButtonPin;
 	friend class ButtonRepeater;
 
-	TIME	TimedRequestTime;	// For timed updates
+	ag_interface_t	IN;
 
 	lword	pmon_cnt,		// Pulse monitor counter
 		pmon_cmp;		// And comparator
-
-	PicOSNode	*TPN;		// Node backpointer
 
 	ButtonPin	**Buts;		// The buttons
 
@@ -467,26 +485,13 @@ class PINS {
 
 	const short *DefAVo;		// Default (inout) voltage
 
-	FLAGS	Flags;
-
-	int 	SLen;			// String length for string input
-
-	union {
-		Dev	   *I;
-		const char *S;
-	};
-
-	Dev	*O;
-
 	char	*UBuf;			// Buffer for updates
 
 	PUpdates *Upd;
 
 	void (*ButtonsAction)(word);	// Function to call on button pressed
 
-	Process	*InputThread,
-		*OutputThread,
-		*MonitorThread,
+	Process *MonitorThread,
 		*NotifierThread;
 
 	public:
@@ -640,7 +645,7 @@ process ButtonRepeater {
 		Station *sp;
 
 		sp = TheStation;
-		TheStation = (Station*)(PS->TPN);
+		TheStation = (Station*)(PS->IN.TPN);
 		(*(PS->ButtonsAction)) (PS->Buttons [BP->Pin]);
 		TheStation = sp;
 	};
@@ -671,31 +676,16 @@ class SNSRS {
 	friend class SensorsHandler;
 	friend class SensorsInput;
 
-	TIME	TimedRequestTime;
-
-	PicOSNode	*TPN;		// Node backpointer
+	ag_interface_t	IN;
 
 	SensActDesc	*Sensors,	// The actual objects
 			*Actuators;
 
 	byte		NSensors, NActuators;
 
-	FLAGS		Flags;
-
-	int		SLen;		// String length for string input
-
-	union {
-		Dev *I;			// If input from device
-		const char *S;		// If input from string
-	};
-
-	Dev		*O;		// Output device
-
 	char		*UBuf;		// Buffer for updates
 
 	SUpdates	*Upd;
-
-	Process		*InputThread, *OutputThread;
 
 	public:
 
@@ -717,22 +707,23 @@ class SNSRS {
 class pwr_tracker_t {
 
 	friend class PwrtHandler;
+	friend class PwrtInput;
 
-	double	last_tim, last_val, average;
+	ag_interface_t	IN;
+
+	double	strt_tim, last_tim, last_val, average;
 
 	pwr_mod_t	*Modules [PWRT_N_MODULES];
 	word		States [PWRT_N_MODULES];	// Current states
 
-	Dev		*O;
-	Process		*OutputThread;
 	char		*UBuf;
 
-	Boolean		Device, Changed;
+	Boolean		Changed;
 
 	void upd () {
 		Changed = YES;
-		if (OutputThread != NULL)
-			OutputThread->signal (NULL);
+		if (IN.OT != NULL)
+			IN.OT->signal (NULL);
 	};
 
 	int pwrt_status ();
@@ -746,6 +737,9 @@ class pwr_tracker_t {
 	// New power setting
 	void pwrt_change (word md, word st);
 	void pwrt_add (word md, word st, double tm);
+	void pwrt_clear ();
+	// Incoming requests from external agents
+	int pwrt_request (const char*);
 };
 
 process	AgentInterface {

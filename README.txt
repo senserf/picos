@@ -473,3 +473,24 @@ R100217A:
 
     Macro __sinit modified to allow for structure initialization (this requires
     a corresponding change in PicOS).
+
+R100226A:
+
+    Significant parts of "Board" and "Agent" interfaces redone, as to simplify
+    things and (possibly) facilitate adding new node "modules".
+
+    Power Tracker can now be zeroed from the praxis. The generic tool looks
+    like this:
+
+	void vuee_control (int what, ...);
+
+    At present, a single usage for this function has been implemented, namely:
+
+	vuee_control (VCTRL_PTRCK_CLEAR);
+
+    with the obvious meaning. Note that Power Tracker can also be zeroed from
+    its udaemon window.
+
+    Also note that PicOS (as of R100226A) is aware of vuee_control calls, which
+    are ignored (expanded into CNOPs).
+

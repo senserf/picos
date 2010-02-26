@@ -1933,14 +1933,133 @@ RVErr:
 	return NN;
 }
 
+static FLAGS get_io_desc (sxml_t data, const char *es, const char **ID, const char **OD) {
+//
+// Parse the standard part of the I/O specification of a module
+//
+	sxml_t cur;
+	char *str, ostr [6];
+	const char *att;
+	int i, len;
+	FLAGS Mode;
+
+	Mode = 0;
+	if (ID != NULL)
+		*ID = NULL;
+	if (OD != NULL)
+		*OD = NULL;
+
+	if ((cur = sxml_child (data, "input")) != NULL) {
+		str = (char*) sxml_txt (cur);
+		if ((att = sxml_attr (cur, "source")) == NULL)
+			xemi ("source", es);
+		if (strcmp (att, "none") == 0)
+			// No input spec
+			goto NoInput;
+
+		print ("    INPUT:  ");
+
+		if (strcmp (att, "device") == 0) {
+			// Preprocess the string (in place, as it can only
+			// shrink). Unfortunately, we cannot have exotic
+			// characters in it because 0 is the sentinel.
+			len = sanitize_string (str);
+			if (len == 0)
+				xevi ("<input> device string", es, "-empty-");
+			// This is a device name
+			str [len] = '\0';
+			Mode |= XTRN_IMODE_DEVICE;
+			if (ID == NULL) {
+InpIll:
+				excptn ("Root: illegal <input> specification "
+					"in %s ", es);
+			}
+			*ID = str;
+			print (form ("device '%s'", str));
+		} else if (strcmp (att, "socket") == 0) {
+			// Both modes
+			Mode |= XTRN_IMODE_SOCKET | XTRN_OMODE_SOCKET;
+			print ("socket");
+		} else if (strcmp (att, "string") == 0) {
+			len = sanitize_string (str);
+			if (len == 0)
+				excptn ("Root: empty <input> string in %s", es);
+			// We copy the string, as it has to survive the
+			// initialization
+			str = (char*) find_strpool ((const byte*) str, len + 1,
+				YES);
+			if (ID == NULL)
+				goto InpIll;
+			*ID = str;
+			Mode |= (XTRN_IMODE_STRING | len);
+			for (i = 0; i < 5 && i < len; i++)
+				ostr [i] = str [i];
+			ostr [i] = '\0';
+			print (form ("string '%s ...'", ostr));
+		} else {
+			xeai ("source", es, att);
+		}
+
+		print ("\n");
+	}
+NoInput:
+	if ((cur = sxml_child (data, "output")) != NULL) {
+		str = (char*) sxml_txt (cur);
+		if ((att = sxml_attr (cur, "target")) == NULL)
+			xemi ("target", es);
+		if ((Mode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
+			// This must be a socket
+			if (strcmp (att, "socket"))
+				// but isn't
+				excptn ("Root: 'target' in <output> in %s must"
+					"be 'socket', but is %s",
+						es, att);
+			print ("    OUTPUT: ");
+			print ("socket (forced by INPUT)\n");
+			return Mode;
+		} else if (strcmp (att, "none") == 0) {
+			// Equivalent to 'no output spec'
+			return Mode;
+		}
+
+		print ("    OUTPUT: ");
+
+		if (strcmp (att, "device") == 0) {
+			len = sanitize_string (str);
+			if (len == 0)
+				xevi ("<output> device string", es, "-empty-");
+			// This is a device name
+			str [len] = '\0';
+			Mode |= XTRN_OMODE_DEVICE;
+			if (OD == NULL) {
+				excptn ("Root: illegal <output> specification "
+					"in %s ", es);
+			}
+			*OD = str;
+			print (form ("device '%s'", str));
+		} else if (strcmp (att, "socket") == 0) {
+			if ((Mode & XTRN_IMODE_MASK) != XTRN_IMODE_NONE)
+				excptn ("Root: 'target' in <output> in %s (%s)"
+					" conflicts with <input> spec",
+						es, att);
+			Mode |= (XTRN_OMODE_SOCKET | XTRN_IMODE_SOCKET);
+			print ("socket");
+		} else {
+			xeai ("target", es, att);
+		}
+		print ("\n");
+	}
+	return Mode;
+}
+
 void BoardRoot::initPanels (sxml_t data) {
 
-	sxml_t cur;
-	const char *att;
-	char *str, *sts;
+	char es [32];
+	char *str;
 	int CNT, len;
 	Dev *d;
 	Boolean lf;
+	FLAGS mode;
 
 	TheStation = System;
 
@@ -1952,26 +2071,16 @@ void BoardRoot::initPanels (sxml_t data) {
 			lf = NO;
 		}
 
-		print (form ("Panel %1d: source = ", CNT));
+		sprintf (es, "Panel %1d", CNT);
 
-		if ((cur = sxml_child (data, "input")) == NULL)
-			excptn ("Root: <input> missing for panel %1d", CNT);
+		print (es); print (":\n");
 
-		str = (char*) sxml_txt (cur);
-		len = sanitize_string (str);
+		mode = get_io_desc (data, es, (const char**)(&str), NULL);
 
-		if ((att = sxml_attr (cur, "source")) == NULL)
-			// Shouldn't we have a default?
-			excptn ("Root: <source> missing from <input> in panel "
-				"%1d", CNT);
+		len = (mode & XTRN_IMODE_STRLEN);
+		mode &= XTRN_IMODE_MASK;
 
-		if (strcmp (att, "device") == 0) {
-			if (len == 0)
-				excptn ("Root: device name missing in panel "
-					"%1d", CNT);
-			str [len] = '\0';
-
-			print (form ("device '%s'\n", str));
+		if (mode == XTRN_IMODE_DEVICE) {
 
 			d = create Dev;
 
@@ -1983,37 +2092,26 @@ void BoardRoot::initPanels (sxml_t data) {
 			continue;
 		}
 
-		if (strcmp (att, "string") == 0) {
-			if (len == 0)
-				excptn ("Root: empty input string in panel "
-					"%1d", CNT);
-			sts = (char*) find_strpool ((const byte*) str, len + 1,
-				YES);
+		if (mode == XTRN_IMODE_STRING) {
 
-			print (form ("string '%4s ...'\n", sts));
-
-			create PanelHandler ((Dev*)sts, XTRN_IMODE_STRING|len);
+			create PanelHandler ((Dev*)str, XTRN_IMODE_STRING|len);
 			continue;
 		}
 
-		if (strcmp (att, "socket") == 0) {
-			print ("socket (redundant)\n");
-			continue;
-		}
-
-		excptn ("Root: illegal input type '%s' in panel %1d", att,
-			CNT);
+		if (mode != XTRN_IMODE_SOCKET)
+			excptn ("Root: <input> spec missing in %s", es);
 	}
+	print ("\n");
 }
 
 void BoardRoot::initRoamers (sxml_t data) {
 
-	sxml_t cur;
-	const char *att;
-	char *str, *sts;
+	char es [32];
+	char *str;
 	int CNT, len;
 	Dev *d;
 	Boolean lf;
+	FLAGS mode;
 
 	TheStation = System;
 
@@ -2025,26 +2123,16 @@ void BoardRoot::initRoamers (sxml_t data) {
 			lf = NO;
 		}
 
-		print (form ("Roamer %1d: source = ", CNT));
+		sprintf (es, "Roamer %1d", CNT);
 
-		if ((cur = sxml_child (data, "input")) == NULL)
-			excptn ("Root: <input> missing for roamer %1d", CNT);
+		print (es); print (":\n");
 
-		str = (char*) sxml_txt (cur);
-		len = sanitize_string (str);
+		mode = get_io_desc (data, es, (const char**)(&str), NULL);
 
-		if ((att = sxml_attr (cur, "source")) == NULL)
-			// Shouldn't we have a default?
-			excptn ("Root: <source> missing from <input> in roamer "
-				"%1d", CNT);
+		len = (mode & XTRN_IMODE_STRLEN);
+		mode &= XTRN_IMODE_MASK;
 
-		if (strcmp (att, "device") == 0) {
-			if (len == 0)
-				excptn ("Root: device name missing in roamer "
-					"%1d", CNT);
-			str [len] = '\0';
-
-			print (form ("device '%s'\n", str));
+		if (mode == XTRN_IMODE_DEVICE) {
 
 			d = create Dev;
 
@@ -2056,27 +2144,17 @@ void BoardRoot::initRoamers (sxml_t data) {
 			continue;
 		}
 
-		if (strcmp (att, "string") == 0) {
-			if (len == 0)
-				excptn ("Root: empty input string in roamer "
-					"%1d", CNT);
-			sts = (char*) find_strpool ((const byte*) str, len + 1,
-				YES);
+		if (mode == XTRN_IMODE_STRING) {
 
-			print (form ("string '%4s ...'\n", sts));
-
-			create MoveHandler ((Dev*)sts, XTRN_IMODE_STRING | len);
+			create MoveHandler ((Dev*)str, XTRN_IMODE_STRING | len);
 			continue;
 		}
 
-		if (strcmp (att, "socket") == 0) {
-			print ("socket (redundant)\n");
-			continue;
-		}
-
-		excptn ("Root: illegal input type '%s' in roamer %1d", att,
-			CNT);
+		if (mode != XTRN_IMODE_SOCKET)
+			excptn ("Root: <input> spec missing in %s", es);
 	}
+
+	print ("\n");
 }
 
 void BoardRoot::readPreinits (sxml_t data, int nn) {
@@ -2852,7 +2930,6 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 	sxml_t cur;
 	nparse_t np [2];
 	const char *att;
-	char *str, *sts;
 	char es [48], um;
 	data_ua_t *UA;
 	int len;
@@ -2922,143 +2999,73 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 		"o = %d bytes]:\n", (int)(UA->URate) * 100, um,
 			UA->UIBSize, UA->UOBSize));
 
-	UA->UMode = 0;
-	UA->UIDev = UA->UODev = NULL;
+	UA->UMode = get_io_desc (data, es, (const char**)(&(UA->UIDev)),
+		(const char**)(&(UA->UODev)));
 
-	/* The INPUT spec */
-	if ((cur = sxml_child (data, "input")) != NULL) {
-		str = (char*) sxml_txt (cur);
-		if ((att = sxml_attr (cur, "source")) == NULL)
-			xemi ("source", es);
-		if (strcmp (att, "none") == 0) {
-			// Equivalent to 'no uart input spec'
-			goto NoUInput;
-		}
-
-		print ("    INPUT:  ");
-
-		if (strcmp (att, "device") == 0) {
-			// Preprocess the string (in place, as it can only
-			// shrink). Unfortunately, we cannot have exotic
-			// characters in it because 0 is the sentinel.
-			len = sanitize_string (str);
-			if (len == 0)
-				xevi ("<input> device string", es, "-empty-");
-			// This is a device name
-			str [len] = '\0';
-			UA->UMode |= XTRN_IMODE_DEVICE;
-			UA->UIDev = str;
-			print (form ("device '%s'", str));
-		} else if (strcmp (att, "socket") == 0) {
-			// No string
-			UA->UMode |= XTRN_IMODE_SOCKET | XTRN_OMODE_SOCKET;
-			print ("socket");
-		} else if (strcmp (att, "string") == 0) {
-			len = sanitize_string (str);
-			// We shall copy the string, such that the UART
-			// constructor won't have to. This should be more
-			// economical.
-			sts = (char*) find_strpool ((const byte*) str, len + 1,
-				YES);
-			UA->UIDev = sts;
-			UA->UMode |= (XTRN_IMODE_STRING | len);
-			print (form ("string '%c%c%c%c ...'",
-				sts [0],
-				sts [1],
-				sts [2],
-				sts [3] ));
-		} else {
-			xeai ("source", es, att);
-		}
-
-		// Now for the 'type'
+	if ((UA->UMode & XTRN_IMODE_MASK) != XTRN_IMODE_NONE) {
+		// The 'type'
+		cur = sxml_child (data, "input");
 		if ((att = sxml_attr (cur, "type")) != NULL) {
 			if (strcmp (att, "timed") == 0) {
 				UA->UMode |= XTRN_IMODE_TIMED;
-				print (", TIMED");
 			} else if (strcmp (att, "untimed"))
 				xeai ("type", es, att);
 		}
 		// And the coding
 		if ((att = sxml_attr (cur, "coding")) != NULL) {
 			if (strcmp (att, "hex") == 0) {
-				print (", HEX");
 				UA->UMode |= XTRN_IMODE_HEX;
 			} else if (strcmp (att, "ascii"))
 				xeai ("coding", es, att);
 		}
-			
-		print ("\n");
 	}
 
-NoUInput:
-
-	// The OUTPUT spec
-	if ((cur = sxml_child (data, "output")) != NULL) {
-		str = (char*) sxml_txt (cur);
-		if ((att = sxml_attr (cur, "target")) == NULL)
-			xemi ("target", es);
-		if ((UA->UMode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
-			// This must be a socket
-			if (strcmp (att, "socket"))
-				// but isn't
-				excptn ("Root: 'target' for <uart> <output> "
-					"(%s) in %s must be 'socket'",
-						att, es);
-			print ("    OUTPUT: ");
-			print ("socket (see INPUT)");
-			goto CheckOType;
-		} else if (strcmp (att, "none") == 0)
-			// Equivalent to 'no uart output spec'
-			goto NoUOutput;
-
-		print ("    OUTPUT: ");
-
-		if (strcmp (att, "device") == 0) {
-			len = sanitize_string (str);
-			if (len == 0)
-				xevi ("<output> device string", es, "-empty-");
-			// This is a device name
-			str [len] = '\0';
-			UA->UMode |= XTRN_OMODE_DEVICE;
-			UA->UODev = str;
-			print (form ("device '%s'", str));
-		} else if (strcmp (att, "socket") == 0) {
-			if ((UA->UMode & XTRN_IMODE_MASK) != XTRN_IMODE_NONE)
-				excptn ("Root: 'target' in <uart> <output> (%s)"
-					" for %s conflicts with <input> source",
-						att, es);
-			UA->UMode |= (XTRN_OMODE_SOCKET | XTRN_IMODE_SOCKET);
-			print ("socket");
-CheckOType:
-			// Check the type attribute
-			if ((att = sxml_attr (cur, "type")) != NULL) {
-				if (strcmp (att, "held") == 0 ||
-				    strcmp (att, "hold") == 0 ||
-				    strcmp (att, "wait") == 0 ) {
-					print (", HELD");
-					// Hold output until connected
-					UA->UMode |= XTRN_OMODE_HOLD;
-				}
-				// Ignore other types for now; we may need more
-				// later
+	if ((UA->UMode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
+		// This also applies to input: check for the type attribute
+		cur = sxml_child (data, "output");
+		if ((att = sxml_attr (cur, "type")) != NULL) {
+			if (strcmp (att, "held") == 0 ||
+			    strcmp (att, "hold") == 0 ||
+			    strcmp (att, "wait") == 0 ) {
+				// Hold output until connected
+				UA->UMode |= XTRN_OMODE_HOLD;
 			}
-		} else {
-			xeai ("target", es, att);
+			// Ignore other types for now; we may need more
+			// later
 		}
+	}
 
+	if ((UA->UMode & XTRN_OMODE_MASK) == XTRN_OMODE_NONE) {
 		// The coding
 		if ((att = sxml_attr (cur, "coding")) != NULL) {
 			if (strcmp (att, "hex") == 0) {
 				UA->UMode |= XTRN_OMODE_HEX;
-				print (", HEX");
 			} else if (strcmp (att, "ascii"))
 				xeai ("coding", es, att);
 		}
-		print ("\n\n");
 	}
 
-NoUOutput:
+	// The missing pieces of listing
+
+	if ((UA->UMode & (XTRN_IMODE_TIMED | XTRN_IMODE_HEX))) {
+		print ("    INPUT:");
+		if ((UA->UMode & XTRN_IMODE_TIMED))
+			print (" TIMED");
+		if ((UA->UMode & XTRN_IMODE_HEX))
+			print (" HEX");
+		print ("\n");
+	}
+
+	if ((UA->UMode & (XTRN_OMODE_HOLD | XTRN_OMODE_HEX))) {
+		print ("    OUTPUT:");
+		if ((UA->UMode & XTRN_OMODE_HOLD))
+			print (" HELD");
+		if ((UA->UMode & XTRN_OMODE_HEX))
+			print (" HEX");
+		print ("\n");
+	}
+
+	print ("\n");
 
 	// Check if the UART is there after all this parsing
 	UA->absent = ((UA->UMode & (XTRN_OMODE_MASK | XTRN_IMODE_MASK)) == 0);
@@ -3093,12 +3100,10 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 
 	PN = new data_pn_t;
 
-	PN->PMode = 0;
 	PN->NA = 0;
 	PN->MPIN = PN->NPIN = PN->D0PIN = PN->D1PIN = BNONE;
 	PN->ST = PN->IV = PN->BN = NULL;
 	PN->VO = NULL;
-	PN->PIDev = PN->PODev = NULL;
 	PN->absent = NO;
 
 	/* Total number of pins */
@@ -3213,104 +3218,8 @@ NotErr:
 	print ("]:\n");
 
 	/* I/O */
+	PN->PMode = get_io_desc (data, es, &(PN->PIDev), &(PN->PODev));
 			  
-	/* The INPUT spec */
-	if ((cur = sxml_child (data, "input")) != NULL) {
-		str = (char*) sxml_txt (cur);
-		if ((att = sxml_attr (cur, "source")) == NULL)
-			xemi ("source", es);
-		if (strcmp (att, "none") == 0) {
-			// No input
-			goto NoPInput;
-		}
-
-		print ("    INPUT:  ");
-
-		if (strcmp (att, "device") == 0) {
-			// Preprocess the string (in place, as it can only
-			// shrink). Unfortunately, we cannot have exotic
-			// characters in it because 0 is the sentinel.
-			len = sanitize_string (str);
-			if (len == 0)
-				xevi ("<input> device string", es, "-empty-");
-			// This is a device name
-			str [len] = '\0';
-			PN->PMode |= XTRN_IMODE_DEVICE;
-			PN->PIDev = str;
-			print (form ("device '%s'", str));
-		} else if (strcmp (att, "socket") == 0) {
-			// No string
-			PN->PMode |= XTRN_IMODE_SOCKET | XTRN_OMODE_SOCKET;
-			print ("socket");
-		} else if (strcmp (att, "string") == 0) {
-			len = sanitize_string (str);
-			sts = (char*) find_strpool ((const byte*) str, len + 1,
-				YES);
-			PN->PIDev = sts;
-			PN->PMode |= XTRN_IMODE_STRING | len;
-			print (form ("string '%c%c%c%c ...'",
-				sts [0],
-				sts [1],
-				sts [2],
-				sts [3] ));
-		} else {
-			xeai ("source", es, att);
-		}
-
-		print ("\n");
-	}
-
-NoPInput:
-
-	// The OUTPUT spec
-	if ((cur = sxml_child (data, "output")) != NULL) {
-		str = (char*) sxml_txt (cur);
-		if ((att = sxml_attr (cur, "target")) == NULL)
-			xemi ("target", es);
-		if ((PN->PMode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
-			// This must be a socket
-			if (strcmp (att, "socket"))
-				// but isn't
-				excptn ("Root: 'target' for <pins> <output> "
-					"(%s) in %s must be 'socket'",
-						att, es);
-			print ("    OUTPUT: socket (see INPUT)\n");
-		} else {
-
-			print ("    OUTPUT: ");
-
-			if (strcmp (att, "device") == 0) {
-
-				len = sanitize_string (str);
-				if (len == 0)
-					xevi ("<output> device string", es,
-						"-empty-");
-				// This is a device name
-				str [len] = '\0';
-				PN->PMode |= XTRN_OMODE_DEVICE;
-				PN->PODev = str;
-				print (form ("device '%s'", str));
-
-			} else if (strcmp (att, "socket") == 0) {
-
-				if ((PN->PMode & XTRN_IMODE_MASK) !=
-				    XTRN_IMODE_NONE)
-					excptn ("Root: 'target' in <pins> "
-					    "<output> (%s) for %s conflicts "
-						"with <input> source", att, es);
-
-				PN->PMode |= (XTRN_OMODE_SOCKET |
-					XTRN_IMODE_SOCKET);
-				print ("socket");
-	
-			} else if (strcmp (att, "none") != 0) {
-	
-				xeai ("target", es, att);
-			}
-			print ("\n");
-		}
-	}
-
 	/* Pin status */
 	if ((cur = sxml_child (data, "status")) != NULL) {
 		BS = new byte [len = ((PN->NP + 7) >> 3)];
@@ -3741,11 +3650,7 @@ data_sa_t *BoardRoot::readSensParams (sxml_t data, const char *esn) {
  * Decodes Sensors/Actuators
  */
 	data_sa_t *SA;
-	sxml_t cur;
-	int len;
-	const char *att;
 	char es [48];
-	char *str, *sts;
 
 	if ((data = sxml_child (data, "sensors")) == NULL)
 		return NULL;
@@ -3756,9 +3661,7 @@ data_sa_t *BoardRoot::readSensParams (sxml_t data, const char *esn) {
 	SA = new data_sa_t;
 
 	SA->Sensors = SA->Actuators = NULL;
-	SA->SIDev = SA->SODev = NULL;
 	SA->absent = NO;
-	SA->SMode = 0;
 
 	SA->NS = (byte) sa_smax ("sensor", es, data);
 	SA->NA = (byte) sa_smax ("actuator", es, data);
@@ -3774,104 +3677,9 @@ data_sa_t *BoardRoot::readSensParams (sxml_t data, const char *esn) {
 	if (SA->NA != 0)
 		SA->Actuators = sa_doit ("actuator", es, data, SA->NA);
 
-	/*
-	 * I/O FIXME: these operations look similar to PINS, perhaps we
-	 * encapsulate them out. Note that this also applies to the Agent
-	 * interface.
-	 */
-			  
-	/* The INPUT spec */
-	if ((cur = sxml_child (data, "input")) != NULL) {
-		str = (char*) sxml_txt (cur);
-		if ((att = sxml_attr (cur, "source")) == NULL)
-			xemi ("source", es);
-		if (strcmp (att, "none") == 0) {
-			// No input
-			goto NoSInput;
-		}
 
-		print ("    INPUT:  ");
-
-		if (strcmp (att, "device") == 0) {
-			len = sanitize_string (str);
-			if (len == 0)
-				xevi ("<input> device string", es, "-empty-");
-			// This is a device name
-			str [len] = '\0';
-			SA->SMode |= XTRN_IMODE_DEVICE;
-			SA->SIDev = str;
-			print (form ("device '%s'", str));
-		} else if (strcmp (att, "socket") == 0) {
-			// No string
-			SA->SMode |= XTRN_IMODE_SOCKET | XTRN_OMODE_SOCKET;
-			print ("socket");
-		} else if (strcmp (att, "string") == 0) {
-			len = sanitize_string (str);
-			sts = (char*) find_strpool ((const byte*) str, len + 1,
-				YES);
-			SA->SIDev = sts;
-			SA->SMode |= XTRN_IMODE_STRING | len;
-			print (form ("string '%c%c%c%c ...'",
-				sts [0],
-				sts [1],
-				sts [2],
-				sts [3] ));
-		} else {
-			xeai ("source", es, att);
-		}
-
-		print ("\n");
-	}
-
-NoSInput:
-
-	// The OUTPUT spec
-	if ((cur = sxml_child (data, "output")) != NULL) {
-		str = (char*) sxml_txt (cur);
-		if ((att = sxml_attr (cur, "target")) == NULL)
-			xemi ("target", es);
-		if ((SA->SMode & XTRN_OMODE_MASK) == XTRN_OMODE_SOCKET) {
-			// This must be a socket
-			if (strcmp (att, "socket"))
-				// but isn't
-				excptn ("Root: 'target' for <sensors> <output> "
-					"(%s) in %s must be 'socket'",
-						att, es);
-			print ("    OUTPUT: socket (see INPUT)\n");
-		} else {
-			print ("    OUTPUT: ");
-			if (strcmp (att, "device") == 0) {
-
-				len = sanitize_string (str);
-				if (len == 0)
-					xevi ("<output> device string", es,
-						"-empty-");
-				// This is a device name
-				str [len] = '\0';
-				SA->SMode |= XTRN_OMODE_DEVICE;
-				SA->SODev = str;
-				print (form ("device '%s'", str));
-
-			} else if (strcmp (att, "socket") == 0) {
-
-				if ((SA->SMode & XTRN_IMODE_MASK) !=
-				    XTRN_IMODE_NONE)
-					excptn ("Root: 'target' in <sensors> "
-					    "<output> (%s) for %s conflicts "
-						"with <input> source", att, es);
-
-				SA->SMode |= (XTRN_OMODE_SOCKET |
-					XTRN_IMODE_SOCKET);
-				print ("socket");
+	SA->SMode = get_io_desc (data, es, &(SA->SIDev), &(SA->SODev));
 	
-			} else if (strcmp (att, "none") != 0) {
-	
-				xeai ("target", es, att);
-			}
-			print ("\n");
-		}
-	}
-
 	print ("\n");
 
 	return SA;
@@ -3881,13 +3689,9 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 /*
  * Decodes LEDs parameters
  */
-	sxml_t cur;
 	nparse_t np [1];
 	data_le_t *LE;
 	const char *att;
-	char *str;
-	int len;
-	
 	char es [48];
 
 	strcpy (es, "<leds> for ");
@@ -3922,37 +3726,9 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 	print (form ("  LEDS: %1d\n", LE->NLeds));
 
 	// Output mode
+	get_io_desc (data, es, NULL, &(LE->LODev));
 
-	if ((cur = sxml_child (data, "output")) == NULL) {
-		print ("    OUTPUT: none\n\n");
-		LE->absent = YES;
-		return LE;
-	}
-
-	if ((att = sxml_attr (cur, "target")) == NULL)
-		xemi ("target", es);
-	if (strcmp (att, "none") == 0) {
-		// Equivalent to no leds
-		LE->absent = YES;
-		print ("    OUTPUT: none\n\n");
-		return LE;
-	} 
-
-	print ("    OUTPUT: ");
-
-	if (strcmp (att, "device") == 0) {
-		str = (char*) sxml_txt (cur);
-		len = sanitize_string (str);
-		if (len == 0)
-			xevi ("<output> device string", es, "-empty-");
-		// This is a device name
-		str [len] = '\0';
-		LE->LODev = str;
-		print (form ("device '%s'\n\n", str));
-	} else if (strcmp (att, "socket") == 0) {
-		print (form ("socket\n\n", str));
-	} else
-		xeai ("target", es, att);
+	print ("\n");
 
 	return LE;
 }
@@ -3981,7 +3757,6 @@ data_pt_t *BoardRoot::readPwtrParams (sxml_t data, const char *esn) {
 		return NULL;
 
 	PT = new data_pt_t;
-	PT->PODev = NULL;
 	PT->absent = YES;
 
 	for (i = 0; i < PWRT_N_MODULES; i++)
@@ -4052,38 +3827,12 @@ data_pt_t *BoardRoot::readPwtrParams (sxml_t data, const char *esn) {
 
 	print ("  PTRACKER:\n");
 
-	// Output mode
-	if ((cur = sxml_child (data, "output")) == NULL) {
-		xenf ("<output>", es);
-	}
-
-	if ((att = sxml_attr (cur, "target")) == NULL)
-		xemi ("target", es);
-
-	if (strcmp (att, "none") == 0) {
-		xevi ("target", es, "none");
-	} 
-
-	print ("    OUTPUT: ");
-
-	if (strcmp (att, "device") == 0) {
-		str = (char*) sxml_txt (cur);
-		cm = sanitize_string (str);
-		if (cm == 0)
-			xevi ("<output> device string", es, "-empty-");
-		// This is a device name
-		str [cm] = '\0';
-		PT->PODev = str;
-		print (form ("device '%s'\n\n", str));
-	} else if (strcmp (att, "socket") == 0) {
-		print (form ("socket\n", str));
-	} else
-		xeai ("target", es, att);
+	PT->PMode = get_io_desc (data, es, &(PT->PIDev), &(PT->PODev));
 
 	for (cm = 0; cm < PWRT_N_MODULES; cm++) {
 		if ((md = PT->Modules [cm]) == NULL)
 			continue;
-		print (form ("    MODULE %s, Levels:", mids [cm]));
+		print (form ("    MODULE: %s, Levels:", mids [cm]));
 		for (i = 0; i < md->NStates; i++)
 			print (form (" %g", md->Levels [i]));
 		print ("\n");
@@ -4454,6 +4203,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 		delete DEF->sa;
 	if (DEF->pt != NULL)
 		delete DEF->pt;
+	if (DEF->le != NULL)
+		delete DEF->le;
 
 	delete DEF;
 
@@ -5038,6 +4789,25 @@ void rtc_set (const rtc_time_t *rtct) {
 void rtc_get (rtc_time_t *rtct) {
 
 	TheNode->rtc_module.get (rtct);
+}
+
+// ============================================================================
+
+void vuee_control (int what, ...) {
+//
+// This will grow; for now, we need it to clear the power tracker from the
+// praxis
+//
+	va_list ap;
+	va_start (ap, what);
+
+	switch (what) {
+
+		case VCTRL_PTRCK_CLEAR:
+
+			TheNode->pwrt_clear ();
+			return;
+	}
 }
 
 // ============================================================================

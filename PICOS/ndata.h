@@ -219,7 +219,8 @@ typedef struct {
 
 // Power tracker
 
-	const char	*PODev;		// Output file selector (as for LEDs)
+	FLAGS		PMode;
+	const char	*PIDev, *PODev;	// Input/output file selector
 	Boolean		absent;		// Flag == explicitly absent
 	pwr_mod_t	*Modules [PWRT_N_MODULES];
 
