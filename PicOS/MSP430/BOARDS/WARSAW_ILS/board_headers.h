@@ -3,6 +3,4 @@
 
 // Extra headers for the praxis and, possibly, board specific system inserts
 
-extern	word MotionCounter;
-
 #endif

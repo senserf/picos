@@ -3688,3 +3688,33 @@ R100226A:
 	Included tests for infrared motion sensors.
 
 	Fixed a few things to be compatible with new VUEE.
+
+R100301A:
+
+	Added BOARD/WARSAW_ILS for the ILS project (derived from WARSAW).
+
+	Sensors:
+
+	0 - battery voltage, actual voltage is equal to 0.00122 * v; assumes
+	    50/50 divider across Vcc and P5.4 (used as the switch) to P6.6
+
+	1 - light (analog, some value proportional to luminescence depending
+	    on the diode); uses P6.5
+
+	2 - motion (digital); gives the number of PicOS milliseconds during
+	    which the value was high (indicating motion) since the previous
+	    measurement (stops at 0xffff); note that in the power-down (or
+	    rather clock-down) mode the counter is incremented at second
+	    intervals; the sensor is powered from P2.2 and drives P1.6; it is
+	    possible (although not required) to power the sensor up and down:
+
+		irmtn_on ()
+		irmtn_off ()
+
+	    (it is on initially); the sensor drains ca. 50uA when on
+
+	3 - motion (analog); this is just a placeholder (not clear whether
+	    we will be using it at all); at this time, it is just an analog
+	    sensor measuring voltage on P6.7 with 2.5V reference
+
+	Removed the previous board MOTION_TEST, as well as Apps/TEST/MOTION.

@@ -25,8 +25,8 @@
 #include "irq_timer_leds.h"
 #endif
 
-#ifdef BOARD_TIMER_SERVICE
-#include "board_timer.h"
+#ifdef irmtn_signal
+#include "ir_motion_signal.h"
 #endif
 
 #endif

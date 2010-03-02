@@ -1,7 +1,7 @@
 #ifndef __board_second_h
 #define __board_second_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -12,18 +12,12 @@
 
 #ifdef	RESET_ON_KEY_PRESSED
 
-#define	board_key_erase_action	do { bkea_ee; bkea_sd; bkea_if; } while (0)
+#define	board_key_erase_action	do { bkea_ee; bkea_if; } while (0)
 
 #ifdef	EEPROM_PRESENT
 #define	bkea_ee	ee_init_erase ()
 #else
 #define	bkea_ee	CNOP
-#endif
-
-#ifdef	SDCARD_PRESENT
-#define	bkea_sd	sd_init_erase ()
-#else
-#define	bkea_sd	CNOP
 #endif
 
 #if	INFO_FLASH
