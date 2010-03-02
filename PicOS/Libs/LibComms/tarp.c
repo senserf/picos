@@ -178,6 +178,16 @@ __PRIVF (PicOSNode, void, upd_spd) (headerType * msg) {
 	return;
 }
 
+/* check_spd assesses deviation from an shortest route (so far):
+   > 0 -- shortcut by so many hops
+   0   -- on an optimal route
+   < 0 -- detour by so many hops
+
+   If there is no entry present, the assessment is based on the packet data,
+   adjusted with TARP settings. Roughly, it is number of hops 'to go' -1.
+
+   The packet should not be forwarded if the function returns a negative value.
+*/
 __PRIVF (PicOSNode, int, check_spd) (headerType * msg) {
 	int i, j;
 
@@ -189,11 +199,12 @@ __PRIVF (PicOSNode, int, check_spd) (headerType * msg) {
 			(spdCache->m_hop >>8) +
 			((spdCache->m_hop & 0x00FF) >> tarp_rte_rec) +
 			tarp_slack;
-		if (i <= 0 && tarp_rte_rec != 0)
+		if (i < 0 && tarp_rte_rec != 0)
 			spdCache->m_hop++;
 
 #if _TARP_T_RX
-diag ("%u %u spdm %d %u %u", msg->msg_type, msg->snd,  i, msg->hco, msg->hoc);
+		diag ("%u %u spdm %d %u %u %u %u", msg->msg_type, msg->snd, i,
+		      msg->hco, msg->hoc, spdCache->m_hop, msg->seq_no);
 #endif
 
 		return i;
@@ -202,11 +213,12 @@ diag ("%u %u spdm %d %u %u", msg->msg_type, msg->snd,  i, msg->hco, msg->hoc);
 	if ((i = tarp_findInSpd(msg->rcv)) >= spdCacheSize) {
 
 #if _TARP_T_RX
-diag ("%u %u spdno %d %u %u", msg->msg_type, msg->snd, tarp_maxHops,
-msg->hco, msg->hoc);
+		diag ("%u %u spdno %d %u %u %u", msg->msg_type, msg->snd,
+			msg->hco - (msg->hoc & 0x7F) + tarp_slack -1,
+			msg->hco, msg->hoc, msg->seq_no);
 #endif
 
-		return msg->hco - (msg->hoc & 0x7F) + tarp_slack;
+		return msg->hco - (msg->hoc & 0x7F) + tarp_slack -1;
 	}
 
 	j = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
@@ -214,11 +226,12 @@ msg->hco, msg->hoc);
 		(spdCache->en[i].hop >>8) +
 		((spdCache->en[i].hop & 0x00FF) >> tarp_rte_rec) +
 		tarp_slack;
-	if (j <= 0 && tarp_rte_rec != 0)
+	if (j < 0 && tarp_rte_rec != 0)
 		spdCache->en[i].hop++; // failed routing attempts ++
 
 #if _TARP_T_RX
-diag ("%u %u spd %d %u %u", msg->msg_type, msg->snd, j, msg->hco, msg->hoc);
+	diag ("%u %u spd %d %u %u %u %u", msg->msg_type, msg->snd, j, msg->hco,
+	       	msg->hoc, spdCache->en[i].hop, msg->seq_no);
 #endif
 
 	return j;
@@ -240,8 +253,8 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 #endif
 
 #if _TARP_T_RX
-diag ("%u %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
-  tarp_ctrl.ssignal, tarp_drop_weak);
+	diag ("%u %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
+		tarp_ctrl.ssignal, tarp_drop_weak);
 #endif
 
 	if (!tarp_ctrl.ssignal) {
@@ -255,8 +268,9 @@ diag ("%u %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
 	if (*buffer == 0)  { // from unbound node
 
 #if _TARP_T_RX
-diag ("%u %u from unbound %s", msgBuf->msg_type,
-  msgBuf->snd, net_id == 0 || !msg_isNew(msgBuf->msg_type) ?  "drop" : "rcv");
+		diag ("%u %u from unbound %s", msgBuf->msg_type, msgBuf->snd,
+			net_id == 0 || !msg_isNew(msgBuf->msg_type) ?  
+				"drop" : "rcv");
 #endif
 		return net_id == 0 || !msg_isNew(msgBuf->msg_type) ?
 			TCV_DSP_DROP : TCV_DSP_RCV;
@@ -266,8 +280,8 @@ diag ("%u %u from unbound %s", msgBuf->msg_type,
 		// nothing in the recv buffer... can it happen?
 		// or my own echo -- drop it
 #if _TARP_T_RX
-diag ("%u %u drop %s", msgBuf->msg_type, msgBuf->snd,
-  length == 0 ? "empty" : "my own");
+		diag ("%u %u drop %s", msgBuf->msg_type, msgBuf->snd,
+			length == 0 ? "empty" : "my own");
 #endif
 		return TCV_DSP_DROP;
 	}
@@ -275,7 +289,7 @@ diag ("%u %u drop %s", msgBuf->msg_type, msgBuf->snd,
 	if (net_id == 0 && !msg_isBind (msgBuf->msg_type)) {
 
 #if _TARP_T_RX
-diag ("%u %u drop no net_id", msgBuf->msg_type, msgBuf->snd);
+		diag ("%u %u drop no net_id", msgBuf->msg_type, msgBuf->snd);
 #endif
 		return TCV_DSP_DROP;
 	}
@@ -293,7 +307,8 @@ diag ("%u %u drop no net_id", msgBuf->msg_type, msgBuf->snd);
 	if (tarp_level && !dd_fresh(msgBuf)) {  // check and update DD
 
 #if _TARP_T_RX
-diag ("%u %u drop dup", msgBuf->msg_type, msgBuf->snd);
+		diag ("%u %u drop dup %u", msgBuf->msg_type, msgBuf->snd,
+			msgBuf->seq_no);
 #endif
 		return TCV_DSP_DROP;    //duplicate
 	}
@@ -304,7 +319,8 @@ diag ("%u %u drop dup", msgBuf->msg_type, msgBuf->snd);
 	if (msgBuf->rcv == local_host) {
 
 #if _TARP_T_RX
-diag ("%u %u rcv is me", msgBuf->msg_type, msgBuf->snd);
+		diag ("%u %u rcv is me %u", msgBuf->msg_type, msgBuf->snd, 
+			msgBuf->seq_no);
 #endif
 		return TCV_DSP_RCV;
 	}
@@ -313,7 +329,8 @@ diag ("%u %u rcv is me", msgBuf->msg_type, msgBuf->snd);
 		if (!tarp_fwd_on || (msgBuf->hoc & 0x7F) >= msgBuf->hco) {
 
 #if _TARP_T_RX
-diag ("%u %u bcast just rcv", msgBuf->msg_type, msgBuf->snd);
+		diag ("%u %u bcast just rcv %u", msgBuf->msg_type, msgBuf->snd, 
+			msgBuf->seq_no);
 #endif
 			return TCV_DSP_RCV;
 		}
@@ -330,7 +347,8 @@ diag ("%u %u bcast just rcv", msgBuf->msg_type, msgBuf->snd);
 			tarp_ctrl.fwd++;
 		}
 #if _TARP_T_RX
-diag ("%u %u bcast cpy & rcv", msgBuf->msg_type, msgBuf->snd);
+		diag ("%u %u bcast cpy & rcv %u", msgBuf->msg_type, 
+			msgBuf->snd, msgBuf->seq_no);
 #endif
 		return TCV_DSP_RCV; // the original
 	}
@@ -338,18 +356,20 @@ diag ("%u %u bcast cpy & rcv", msgBuf->msg_type, msgBuf->snd);
 	if ((msgBuf->hoc & 0x7F) >= tarp_maxHops) {
 
 #if _TARP_T_RX
-diag ("%u %u Max drop %d", msgBuf->msg_type, msgBuf->snd, msgBuf->seq_no);
+		diag ("%u %u Max drop %d", msgBuf->msg_type, msgBuf->snd, 
+			msgBuf->seq_no);
 #endif
 		return TCV_DSP_DROP;
 	}
 
 	if (tarp_fwd_on &&
-		(tarp_level < 2 || check_spd (msgBuf) > 0)) {
+		(tarp_level < 2 || check_spd (msgBuf) >= 0)) {
 		tarp_ctrl.fwd++;
 		if (!msg_isTrace (msgBuf->msg_type)) {
 
 #if _TARP_T_RX
-diag ("%u %u xmit", msgBuf->msg_type, msgBuf->snd);
+			diag ("%u %u xmit %u", msgBuf->msg_type, msgBuf->snd, 
+				msgBuf->seq_no);
 #endif
 			return TCV_DSP_XMT;
 		}
@@ -363,13 +383,14 @@ diag ("%u %u xmit", msgBuf->msg_type, msgBuf->snd);
 			memcpy ((char *)dup + tr_offset (msgBuf),
 				(char *)&local_host, sizeof(nid_t));
 #if _TARP_T_RX
-diag ("%u %u cpy trace", msgBuf->msg_type, msgBuf->snd);
+			diag ("%u %u cpy trace", msgBuf->msg_type, msgBuf->snd);
 #endif
 		}
 	}
 
 #if _TARP_T_RX
-diag ("%u %u (&) drop", msgBuf->msg_type, msgBuf->snd);
+	diag ("%u %u (&) drop %u", msgBuf->msg_type, msgBuf->snd, 
+		msgBuf->seq_no);
 #endif
 	return TCV_DSP_DROP;
 }
@@ -409,6 +430,10 @@ __PUBLF (PicOSNode, int, tarp_tx) (address buffer) {
 	msgBuf->snd = local_host;
 	// clear flags (meant: exceptions) every time tarp_tx is called
 	tarp_ctrl.flags = 0;
+#if _TARP_T_RX
+	diag ("%u %u tx %u %u %u", msgBuf->msg_type, msgBuf->snd,
+			msgBuf->rcv, msgBuf->hco, msgBuf->seq_no);
+#endif
 	return rc;
 }
 

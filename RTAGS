@@ -3718,3 +3718,12 @@ R100301A:
 	    sensor measuring voltage on P6.7 with 2.5V reference
 
 	Removed the previous board MOTION_TEST, as well as Apps/TEST/MOTION.
+
+R100302A:
+
+	First draft of il_demo. See 'notes' in Apps/VUEE/il_demo.
+
+	Corrected spd in tarp.c - optimal routes were being rejcted.
+
+	Corrected eco_demo - tarp's hco was not always initialized.
+
