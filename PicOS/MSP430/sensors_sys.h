@@ -47,12 +47,12 @@ typedef struct {
 			} while (0)
 
 #define	DIGITAL_SENSOR(par,ini,pro) \
-	       { ((word) 0x80 | ((word)(par)) << 8), (word)(pro), (word)(ini) }
+	{ { ((word) 0x80 | ((word)(par)) << 8), (word)(pro), (word)(ini) } }
 
 #define	ANALOG_SENSOR(isi,ns,pn,uref,sht,eref) \
-	   { (word)(isi) | (((word)((uref) | (pn) | EOS)) << 8), \
+	{ { (word)(isi) | (((word)((uref) | (pn) | EOS)) << 8), \
 	     (word)(ADC12ON | (eref)) | (((word)(((sht) << 4) | (sht))) << 8), \
-	     (word)(ns) }
+	     (word)(ns) } }
 
 // This one we need to identify sensors from the ADC parameters (by pin number)
 // in macros defined in BOARD-specific files, e.g., to implement conditional

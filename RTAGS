@@ -3718,12 +3718,36 @@ R100301A:
 	    sensor measuring voltage on P6.7 with 2.5V reference
 
 	Removed the previous board MOTION_TEST, as well as Apps/TEST/MOTION.
+	The motion sensor can now be tested from ECOPROJECT/SENSOR_TEST.
 
 R100302A:
 
 	First draft of il_demo. See 'notes' in Apps/VUEE/il_demo.
 
-	Corrected spd in tarp.c - optimal routes were being rejcted.
+	Corrected spd in tarp.c - optimal routes were being rejected.
 
 	Corrected eco_demo - tarp's hco was not always initialized.
 
+R100302B:
+
+	IR motion sesnor driver modified.
+
+	Redefined WARSAW_ILS to include one more sensor, which gives the
+	interrupt count for the IR motion detector. The description at
+	R100301A should be modified as follows:
+
+	...
+
+	3 - motion (digital) - second view of the same sensor; gives the number
+	    of transitions from low to high since the previous measurement
+	    (stops at 0xffff); if the value is found high and the interrupt
+	    count is zero, the returned value is 1
+
+	4 - motion (analog); ...
+
+	...
+
+	Fixed a minor glitch in PicOS/MS430/sensors_sys.h causing compiler
+	warnings with -Wall.
+
+	Added .mop to Apps/VUEE/il_demo (that Wlodek forgot to add).

@@ -16,6 +16,7 @@
 // 7 = UNUSED, open
 
 #define	PIN_DEFAULT_P1DIR	0xA3
+#define	PIN_DEFAULT_P1IE	0x40
 
 // ============================================================================
 
@@ -103,9 +104,15 @@
 #define	SENSOR_LIGHT_PIN	5
 #define	SENSOR_IRMTN_PIN	7
 
-#define	irmtn_signal		(P1IN & 0x40)
+#define	irmtn_active		(P1IN & 0x40)
+#define	irmtn_signal		(P1IFG & 0x40)
+#define	irmtn_clear		_BIC (P1IFG, 0x40)
+//+++ "p1irq.c"
+
 #define	irmtn_on()		_BIS (P2OUT, 0x04)
 #define	irmtn_off()		_BIC (P2OUT, 0x04)
+
+#include "irq_timer_headers_irmtn.h"
 
 #define	SENSOR_LIST { \
 		ANALOG_SENSOR (	ANA_SEN_ISI, 		\
@@ -121,6 +128,7 @@
 				ANA_SEN_SHT,		\
 				ANA_SEN_ERE), 		\
 		DIGITAL_SENSOR (0, NULL, irmtn_count),	\
+		DIGITAL_SENSOR (1, NULL, irmtn_count),	\
 		ANALOG_SENSOR (	ANA_SEN_ISI, 		\
 				ANA_SEN_NSA, 		\
 				SENSOR_IRMTN_PIN,	\
