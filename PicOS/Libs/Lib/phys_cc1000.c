@@ -179,7 +179,7 @@ static const byte chp_defcA [] = {
 #endif
 
 #ifndef	TX_CURRENT
-#error	ILLEGAL CC1000 FREQUENCY, MUST BE 433 OR 868
+#error	"S: Illegal CC1000 frequency, must be 433 or 868"
 #endif
 
 static const byte chp_defcB [7] = {

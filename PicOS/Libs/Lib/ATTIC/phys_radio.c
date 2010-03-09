@@ -17,7 +17,7 @@
  */
 
 #if 	RADIO_INTERRUPTS == 0
-#error	"THIS VERSION OF phys_radio REQUIRES RADIO_INTERRUPTS > 0"
+#error	"S: THIS VERSION OF phys_radio REQUIRES RADIO_INTERRUPTS > 0"
 #endif
 
 typedef	struct {

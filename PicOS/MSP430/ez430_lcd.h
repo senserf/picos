@@ -83,8 +83,8 @@ void ezlcd_brate (byte);
 void ezlcd_item (word, word);
 void ezlcd_init ();
 
-#define	ezlcd_on()	LCDBCTL0 |= LCDON
-#define	ezlcd_off()	LCDBCTL0 &= ^LCDON
+#define	ezlcd_on()	_BIS (LCDBCTL0, LCDON)
+#define	ezlcd_off()	_BIC (LCDBCTL0, LCDON)
 
 
 #endif

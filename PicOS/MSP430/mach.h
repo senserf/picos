@@ -14,7 +14,7 @@
 /*                                                                            */
 
 #ifndef	__MSP430__
-#error "this must be compiled with mspgcc!!!"
+#error "S: this must be compiled with mspgcc!!!"
 #endif
 
 // Meaning we are gcc
@@ -118,14 +118,14 @@
 
 #if	CRYSTAL2_RATE != 0
 #if	CRYSTAL2_RATE < 1000000
-#error "CRYSTAL2_RATE must be >= 1000000"
+#error "S: CRYSTAL2_RATE must be >= 1000000"
 #endif
 #endif
 
 #if	CRYSTAL_RATE != 32768
 
 #if	CRYSTAL_RATE < 1000000
-#error "CRYSTAL_RATE can be 32768 or >= 1000000"
+#error "S: CRYSTAL_RATE can be 32768 or >= 1000000"
 #endif
 
 // The number of slow ticks per second

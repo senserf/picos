@@ -302,7 +302,7 @@ static byte X_org  = LCDG_XOFF,
 #ifdef LCDG_FONT_BASE
 
 #ifndef	EEPROM_PRESENT
-#error "LCDG_FONT_BASE requires EEPROM_PRESENT"
+#error "S: LCDG_FONT_BASE requires EEPROM_PRESENT"
 #endif
 
 static byte fpar [4],		// Font parameters: cols, rows, bsize, bshift

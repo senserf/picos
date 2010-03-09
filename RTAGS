@@ -3730,7 +3730,7 @@ R100302A:
 
 R100302B:
 
-	IR motion sesnor driver modified.
+	IR motion sensor driver modified.
 
 	Redefined WARSAW_ILS to include one more sensor, which gives the
 	interrupt count for the IR motion detector. The description at
@@ -3751,3 +3751,25 @@ R100302B:
 	warnings with -Wall.
 
 	Added .mop to Apps/VUEE/il_demo (that Wlodek forgot to add).
+
+R100309A:
+
+	Fixed a problem with pin definitions for BOARDS/CHRONOS causing large
+	current drain with the CMA3000 sensor off. Measured current usage (see
+	board_pins.h).
+
+	CMA3000 doesn't work on one of my (two) watches. Have to check with one
+	more watch whether this is a (subtle) driver problem or faulty hardware.
+
+	Added a (simple) buzzer driver to BOARDS/CHRONOS (TESTS/CHRONOS/RFTEST
+	updated to test it). Note: there is a bug in mspgcc includes
+	(msp430/include/msp430/pmcontrol.h) which must be fixed before the
+	buzzer can work. I have put a new version of mspgcc into
+	http://sheerness.cs.ualberta.ca/~pawel/OLSONET/
+	mspgcc_pg_cyg_100309.tar.gz (this is for Cygwin only). Notified the
+	maintainers as well.
+
+	Note that the buzzer is physically located on the watch's back cover,
+	which means that you will hear nothing, unless you assemble the watch
+	(or at least connect the buzzer properly with wires).
+

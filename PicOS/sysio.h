@@ -88,7 +88,7 @@
 #if	UART_TCV
 
 #if	UART_DRIVER
-#error	"UART_DRIVER and UART_TCV are incompatible"
+#error	"S: UART_DRIVER and UART_TCV are incompatible"
 #endif
 
 #else	/* NO UART_TCV */
@@ -98,7 +98,7 @@
 #endif	/* UART_TCV */
 
 #if	UART_DRIVER > 2
-#error	"UART_DRIVER can be 0, 1, or 2"
+#error	"S: UART_DRIVER can be 0, 1, or 2"
 #endif
 
 #if	LEDS_DRIVER == 0
@@ -118,7 +118,7 @@
 
 #ifdef BLUETOOTH_PRESENT
 #if BLUETOOTH_PRESENT > UART_TCV
-#error "Bluetooth on serial requires UART_TCV >= BLUETOOTH_PRESENT"
+#error "S: Bluetooth on serial requires UART_TCV >= BLUETOOTH_PRESENT"
 #endif
 #endif
 
@@ -175,7 +175,7 @@
 #if	CC1000
 
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"CC1000 cannot coexist with any other radio driver"
+#error	"S: CC1000 cannot coexist with any other radio driver"
 #else
 #define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
@@ -189,7 +189,7 @@
 #if	CC1100
 
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"CC1100 cannot coexist with any other radio driver"
+#error	"S: CC1100 cannot coexist with any other radio driver"
 #else
 #define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
@@ -203,7 +203,7 @@
 #if	RF24L01
 
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"RF24L01 cannot coexist with any other radio driver"
+#error	"S: RF24L01 cannot coexist with any other radio driver"
 #else
 #define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
@@ -218,7 +218,7 @@
 #if	DM2100
 
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"DM2100 cannot coexist with any other radio driver"
+#error	"S: DM2100 cannot coexist with any other radio driver"
 #else
 #define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
@@ -232,7 +232,7 @@
 #if	DM2200
 
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"DM2200 cannot coexist with any other radio driver"
+#error	"S: DM2200 cannot coexist with any other radio driver"
 #else
 #define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
@@ -246,7 +246,7 @@
 #if	RF24G
 
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"RF24G cannot coexist with any other radio driver"
+#error	"S: RF24G cannot coexist with any other radio driver"
 #else
 #define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
@@ -261,7 +261,7 @@
 #if	RADIO_DRIVER
 
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"RADIO_DRIVER cannot coexist with any TCV-dependent radio device"
+#error	"S: RADIO_DRIVER cannot coexist with any TCV-dependent radio device"
 #else
 #define	ZZ_RADIO_DRIVER_PRESENT	1
 #endif
@@ -289,14 +289,14 @@
 #undef	RADIO_INTERRUPTS
 #define	RADIO_INTERRUPTS	1
 #if	LEDS_DRIVER
-#error	LEDS and XEMICS radio cannot be configured together
+#error	"S: LEDS and XEMICS radio cannot be configured together"
 #endif
 //+++ "radio.c"
 #endif /* XEMICS */
 
 #ifdef	ZZ_TCV_REQUIRED
 #if	TCV_PRESENT == 0
-#error	"TCV is required but has been explicitly removed from configuration"
+#error	"S: TCV is required but has been explicitly removed from configuration"
 #endif
 #endif
 
@@ -978,7 +978,7 @@ extern	word zz_seed;
 
 #if	ADC_PRESENT
 #if     CC1000
-#error  "CC1000 and ADC_PRESENT are incompatible"
+#error  "S: CC1000 and ADC_PRESENT are incompatible"
 #endif
 /* === */
 /* ADC */

@@ -20,9 +20,7 @@
 // P1.7 -> Clock
 
 #define	zz_cma_3000_bring_down	do { \
-					_BIS (PJOUT, 0x02); \
-					_BIC (PJOUT, 0x01); \
-					_BIS (P2DIR, 0x20); \
+					_BIC (PJOUT, 0x03); \
 					_BIC (P1OUT, 0xE0); \
 					_BIS (P1DIR, 0xE0); \
 					_BIC (P1SEL, 0xE0); \
@@ -44,7 +42,6 @@
 					UCA0BR0 = 30; \
 					UCA0BR1 = 0; \
 					UCA0CTL1 &= ~UCSWRST; \
-					_BIC (P2DIR, 0x20); \
 					_BIC (P1DIR, 0x20); \
 					_BIS (P1SEL, 0xE0); \
 					_BIS (PJOUT, 0x01); \

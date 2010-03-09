@@ -28,7 +28,7 @@
 // ============================================================================
 
 #if	UART_TCV > 1
-#error	"Cannot use two UARTs with SPI (needed for EEPROM)"
+#error	"S: Cannot use two UARTs with SPI (needed for EEPROM)"
 #endif
 
 // Note: second UART is not pre-inited for this board; we will try to use

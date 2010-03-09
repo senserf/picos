@@ -8,10 +8,6 @@
 
 #include "irq_timer_headers.h"
 
-#ifndef	MCLOCK_FROM_CRYSTAL
-#define	MCLOCK_FROM_CRYSTAL	0
-#endif
-
 extern 			pcb_t		*zz_curr;
 extern 			address	zz_utims [MAX_UTIMERS];
 extern	void		_reset_vector__;
@@ -63,6 +59,9 @@ extern void	__bss_end;
 
 #if MAX_DEVICES
 
+// As it happens, on MSP430, UART is the only "device" (a good reason to get
+// rid of the concept)
+
 const static devinit_t devinit [MAX_DEVICES] = {
 /* === */
 #if	UART_DRIVER
@@ -77,7 +76,7 @@ const static devinit_t devinit [MAX_DEVICES] = {
 #else
 		{ NULL, 0 }
 #endif
-#endif	/* MAX_DEVICES */
+#endif	/* MAX_DEVICES > 1 */
 	 };
 
 #endif	/* MAX_DEVICES */
@@ -112,6 +111,7 @@ void halt (void) {
 }
 
 #if	ADC_PRESENT
+#error "S: ADC_PRESENT on MSP430 is illegal"
 // There is no general ADC interface at the moment. Well, not of the same
 // kind as there used to be for eCOG. There is an ADC sampler (see
 // ../adc_sampler.[ch]) as well as various board-specific hooks to the ADC.
@@ -138,20 +138,22 @@ int main (void) {
 #if	TCV_PRESENT
 	tcv_init ();
 #endif
-	/* The event loop */
+	// Assume root process identity
 	zz_curr = (pcb_t*) fork (root, NULL);
-	/* Delay root startup until the drivers have been initialized */
+	// Delay root startup for 16 msec to give the drivers a chance to
+	// go first, regardless where they are
 	delay (16, 0);
-	// Start the clock
-	sti_tim;
-	_EINT ();
 
 	// We run at the longest possible interval, which means 1 sec for
 	// the standard 32768Hz crystal, but may mean as little as 1/250 sec
 	// for the 8MHz crystal.
 	WATCHDOG_START;
 
-	// Run the scheduler
+	// Start the clock
+	sti_tim;
+	_EINT ();
+
+	// Fall through to scheduler
 
 #include "scheduler.h"
 
@@ -253,6 +255,10 @@ static void ssm_init () {
 // Clock setup ===============================================================
 // ===========================================================================
 
+#ifndef	MCLOCK_FROM_CRYSTAL
+#define	MCLOCK_FROM_CRYSTAL	0
+#endif
+
 #ifdef	__MSP430_1xx__
 
 // ===========================================================================
@@ -285,7 +291,7 @@ static void ssm_init () {
 #if MCLOCK_FROM_CRYSTAL	== 1
 
 #if CRYSTAL_RATE < 4000000
-#error "CRYSTAL_RATE must be >= 4000000 for MCLOCK_FROM_CRYSTAL == 1"
+#error "S: CRYSTAL_RATE must be >= 4000000 for MCLOCK_FROM_CRYSTAL == 1"
 #endif
 
 // Clock from crystal 1
@@ -313,7 +319,7 @@ static void ssm_init () {
 #if MCLOCK_FROM_CRYSTAL == 2
 
 #if CRYSTAL2_RATE == 0
-#error "Need XT2 for MCLOCK_FROM_CRYSTAL == 2"
+#error "S: Need XT2 for MCLOCK_FROM_CRYSTAL == 2"
 #endif
 	// Clock from crystal 2: make sure the second oscillator is running
 	_BIC_SR (LPM4_bits);
@@ -381,7 +387,7 @@ static void ssm_init () {
 // MCLOCK driven directly by crystal 1
 
 #if CRYSTAL_RATE < 4000000
-#error "CRYSTAL_RATE must be >= 4000000 for MCLOCK_FROM_CRYSTAL == 1"
+#error "S: CRYSTAL_RATE must be >= 4000000 for MCLOCK_FROM_CRYSTAL == 1"
 #endif
 	FLL_CTL0 = XCAP0PF + __XTS;
 
@@ -401,7 +407,7 @@ static void ssm_init () {
 // MCLOCK driven directly by crystal 2
 
 #if CRYSTAL2_RATE == 0
-#error "Need XT2 for MCLOCK_FROM_CRYSTAL == 2"
+#error "S: Need XT2 for MCLOCK_FROM_CRYSTAL == 2"
 #endif
 	FLL_CTL0 = XCAP0PF + __XTS;
 
@@ -489,8 +495,7 @@ static void ssm_init () {
 
 #endif	/* PPM_LEVEL */
 
-	// I am copying this from the SportsWatch program; there is no doc
-	// at present describing the exact capabilities of this particular CPU
+	// I am copying this from the SportsWatch program
 
 	// High power request from module enable
 	PMMCTL0_H  = PMMPW_H;
@@ -552,8 +557,8 @@ static void ssm_init () {
 // ===========================================================================
 
 	// System timer (assumes TASSEL0/TACLR is same as TBSSEL0/TBCLR)
-	TCI_CTL = TASSEL0 | TACLR; 	// ACLK source
-	_BIS (TCI_CTL, ID0 | ID1);	// divided by 8 = 4096 ticks/sec
+	// Source is ACLK, divided by 8 (4096 ticks/sec), up mode
+	TCI_CTL = TASSEL0 | TACLR | ID0 | ID1 | MC0;
 
 	// Select power up and high clock rate
 	powerup ();
@@ -563,8 +568,7 @@ static void ssm_init () {
 	// the clock
 	WATCHDOG_HOLD;
 #endif
-	// Start it in up mode, interrupts still disabled
-	_BIS (TCI_CTL, MC0);
+
 }
 
 void clockdown (void) {
@@ -668,7 +672,7 @@ interrupt (TCI_VECTOR) timer_int () {
 #endif
 
 	// Clear hardware watchdog. Its sole purpose is to guard clock
-	// interrupts, while clock interrupts implement a software watchdog.
+	// interrupts, with clock interrupts acting as software watchdog.
 	WATCHDOG_CLEAR;
 
 	if (TCI_CCR == TCI_INIT_HIGH) {

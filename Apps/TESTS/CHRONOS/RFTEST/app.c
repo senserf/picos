@@ -137,7 +137,6 @@ thread (sensor_server)
 
   entry (AS_SEND)
 
-	// Note: cannot use long formats as long multiplication doesn't work
 	ab_outf (AS_SEND, "MO: %u %u, PR: %lu, TM: %u",
 		aval [0], aval [1], ((lword*)pval) [0], pval [2]);
 
@@ -181,15 +180,19 @@ endthread
 #define	RS_LOOP		1
 #define	RS_READ		2
 #define	RS_BAD		3
-#define	RS_PDOWN	4
-#define	RS_HOLD		5
-#define	RS_ON		6
-#define	RS_TICK		7
-#define	RS_ASON		8
-#define	RS_ASOFF	9
-#define	RS_DONE		10
-#define	RS_RTC		11
-#define	RS_SHOW		12
+#define	RS_DDOWN	4
+#define	RS_DLOOP	5
+#define	RS_PDOWN	6
+#define	RS_HOLD		7
+#define	RS_ON		8
+#define	RS_TICK		9
+#define	RS_ASON		10
+#define	RS_ASOFF	11
+#define	RS_DONE		12
+#define	RS_RTC		13
+#define	RS_SHOW		14
+#define	RS_BUZZ		15
+#define	RS_BUZZF	16
 
 static char *ibuf = NULL;
 static word pddelay, pdcount;
@@ -216,6 +219,7 @@ thread (root)
 	tcv_control (sfd, PHYSOPT_SETSID, &pddelay);
 	tcv_control (sfd, PHYSOPT_TXON, NULL);
 	tcv_control (sfd, PHYSOPT_RXON, NULL);
+
 	ab_init (sfd);
 	ab_mode (AB_MODE_PASSIVE);
 	buttons_action (buttons);
@@ -240,7 +244,9 @@ thread (root)
 		case 's' : proceed (RS_ASON);	// Start acceleration reports
 		case 'q' : proceed (RS_ASOFF);	// Stop acceleration reports
 		case 'd' : proceed (RS_PDOWN);	// Power down mode
+		case 'D' : proceed (RS_DDOWN);	// Dumb power down
 		case 'r' : proceed (RS_RTC);	// Set or get RTC
+		case 'b' : proceed (RS_BUZZ);
 	}
 
   entry (RS_BAD)
@@ -250,6 +256,32 @@ thread (root)
 
   // ==========================================================================
 
+  entry (RS_DDOWN)
+
+	pddelay = 0;
+	scan (ibuf + 1, "%u", &pddelay);
+	if (pddelay == 0)
+		proceed (RS_BAD);
+
+	ezlcd_off ();
+	powerdown ();
+	tcv_control (sfd, PHYSOPT_RXOFF, NULL);
+	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
+
+  entry (RS_DLOOP)
+
+	if (pddelay) {
+		pddelay--;
+		delay (1024, RS_DLOOP);
+		release;
+	}
+
+	powerup ();
+	ezlcd_on ();
+	tcv_control (sfd, PHYSOPT_RXON, NULL);
+	tcv_control (sfd, PHYSOPT_TXON, NULL);
+	proceed (RS_DONE);
+
   entry (RS_PDOWN)
 
 	pdcount = pddelay = 0;
@@ -258,13 +290,11 @@ thread (root)
 	if (pddelay == 0 || pdcount == 0)
 		proceed (RS_BAD);
 
-	powerdown ();
-
   entry (RS_HOLD)
 
+	powerdown ();
 	tcv_control (sfd, PHYSOPT_RXOFF, NULL);
 	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
-
 	delay (pddelay, RS_ON);
 	release;
 
@@ -282,7 +312,7 @@ thread (root)
 		powerup ();
 		proceed (RS_DONE);
 	}
-	pdcount --;
+	pdcount--;
 	delay (1000, RS_HOLD);
 	release;
 
@@ -345,5 +375,21 @@ STrig:
 		r.second);
 
 	proceed (RS_LOOP);
+
+  entry (RS_BUZZ)
+
+	pddelay = 0;
+	scan (ibuf + 1, "%u", &pddelay);
+	if (pddelay == 0)
+		proceed (RS_BAD);
+
+	buzzer_on ();
+	delay (pddelay, RS_BUZZF);
+	release;
+
+  entry (RS_BUZZF)
+
+	buzzer_off ();
+	proceed (RS_DONE);
 
 endthread

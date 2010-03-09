@@ -34,7 +34,7 @@
 
 // For buzzer and buttons (P2.6 is RDY for SCP1000)
 #define	PIN_DEFAULT_P2OUT	0x00
-#define	PIN_DEFAULT_P2DIR	0xA0
+#define	PIN_DEFAULT_P2DIR	0x80	// CMA3000 INT forced down on power down
 // Pull-downs for the buttons
 #define	PIN_DEFAULT_P2REN	0x1F
 
@@ -47,7 +47,7 @@
 // J0, J1 control the ACC, J2 is In/Out for PRE, J3 is SCK for PRE; J2 is used
 // in open drain mode, with the default setting to IN, output set low
 #define	PIN_DEFAULT_PJDIR	0xFB
-#define	PIN_DEFAULT_PJOUT	0xFA
+#define	PIN_DEFAULT_PJOUT	0xF8	// CMA3000 CSB down on power down
 
 // Portmapper
 #define	PIN_PORTMAP	{ 	portmap_entry (P2MAP0, \
@@ -94,8 +94,23 @@ REQUEST_EXTERNAL (p2irq);
 
 // ============================================================================
 
+#include "board_sensors.h"
+
+#include "board_buzzer.h"
+
 #include "board_rtc.h"
 
-#define	EXTRA_INITIALIZERS	zz_rtc_init ()
+#define	EXTRA_INITIALIZERS	do { zz_rtc_init (); buzzer_init (); } while (0)
 
-#include "board_sensors.h"
+// Current measurements:
+//
+//				This is supposedly RMS, looks bogus ----|
+//									V
+//
+// Radio OFF, sensors OFF, display ON, PD mode, 1 sec wakeup: 8.6uA / 16.6uA
+// ------------------------------- OFF ---------------------: 3.4uA / 18.5uA
+// Radio OFF, display on, CPU idle:			      433uA / 433uA
+// ---------------------- CPU loop:			      3.2mA / 3.2mA
+// ------ ON ---------------------:			      16.5mA / 64mA ?
+//
+

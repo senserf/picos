@@ -21,7 +21,7 @@
 // ============================================================================
 
 #if	UART_DRIVER > 1 || UART_TCV > 1
-#error	"Cannot use two UARTs with SPI (needed for EEPROM)"
+#error	"S: Cannot use two UARTs with SPI (needed for EEPROM)"
 #endif
 
 #ifndef	SPI_BAUD_RATE

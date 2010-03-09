@@ -11,7 +11,7 @@
 #endif
 
 #if UART_TCV == 0
-#error "phys_uart.c can only be compiled when UART_TCV > 0"
+#error "S: phys_uart.c can only be compiled when UART_TCV > 0"
 #endif
 
 #ifdef BLUETOOTH_PRESENT

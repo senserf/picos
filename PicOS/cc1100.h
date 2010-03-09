@@ -363,7 +363,7 @@ extern const byte *cc1100_ratemenu [];
 #endif
 
 #ifndef	RADIO_BITRATE_INDEX
-#error	"unknown bit rate, legal rates are 5000, 10000, 38400, 200000"
+#error	"S: Unknown bit rate, legal rates are 5000, 10000, 38400, 200000"
 #endif
 
 // ============================================================================

@@ -88,7 +88,7 @@ typedef struct	{
 #endif
 
 #ifndef UART_UBR0
-#error "Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
+#error "S: Illegal UART_RATE, can be 1200, 2400, 4800, 9600"
 #endif
 
 #define	UART_RATE_TABLE		{ \
@@ -147,7 +147,7 @@ typedef struct	{
 #endif
 
 #ifndef	UART_RATE_INDEX
-#error "Illegal UART_RATE"
+#error "S: Illegal UART_RATE"
 #endif
 
 // No need to use corrections for high-speed crystals. FIXME: may need 
