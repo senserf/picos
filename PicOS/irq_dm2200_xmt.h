@@ -5,6 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "dm2200.h"
+
 /*
  * This code handles signal strobes for transmission. Reception is driven by
  * the data clock recovered from the signal.

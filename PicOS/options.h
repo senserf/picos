@@ -357,11 +357,6 @@
 #define	RESET_ON_MALLOC		0
 #endif
 
-// Selects FCC test mode (continuous transmission) of RF modules. Don't set it!
-#ifndef	FCC_TEST_MODE
-#define	FCC_TEST_MODE		0
-#endif
-
 // Enables dmp_mem (). Dump memory to UART on system error.
 #ifndef	DUMP_MEMORY
 #define	DUMP_MEMORY		0

@@ -1,7 +1,7 @@
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -25,8 +25,27 @@
 #define	RADIO_BITRATE		10000	/* This is the default */
 #endif
 
+#ifndef	RADIO_TRACK_ERRORS
+#define RADIO_TRACK_ERRORS	0
+#endif
+
+//
+// RADIO_GUARD:
+//
+//	0x01 - guard process present
+//	0x02 - extra consistency checks
+//	0x03 - both
+
 #ifndef	RADIO_GUARD
-#define	RADIO_GUARD		1	/* Guard process present */
+#define	RADIO_GUARD		0
+#endif
+
+#ifndef	RADIO_TRACE
+#define RADIO_TRACE		0
+#endif
+
+#ifndef	RADIO_DEBUG
+#define RADIO_DEBUG		0
 #endif
 
 #ifndef	RADIO_SYSTEM_IDENT
@@ -54,7 +73,8 @@
 
 #define	GUARD_LONG_DELAY	2	/* Minutes */
 #define	GUARD_SHORT_DELAY	5000	/* 5 seconds */
-#define	TRACE_DRIVER		0	/* Debugging diags */
+
+// ============================================================================
 
 #define	CC1100_MAXPLEN		60	/* Excluding checksum */
 
@@ -429,6 +449,5 @@ extern const byte *cc1100_ratemenu [];
 // #define		gbackoff	9
 
 extern word		zzv_drvprcs, zzv_qevent;
-extern byte		zzv_iack, zzv_gwch;
 
 #endif

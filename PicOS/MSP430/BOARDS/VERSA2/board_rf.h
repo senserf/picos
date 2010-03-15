@@ -19,6 +19,11 @@ REQUEST_EXTERNAL (p2irq);
 
 #define	ini_regs	do { CFG_P1; CFG_P2; CFG_P3; CFG_P4; CFG_P5; CFG_P6; } \
 			while (0)
+
+#ifndef	FCC_TEST_MODE
+#define	FCC_TEST_MODE	0
+#endif
+
 #if FCC_TEST_MODE
 #define	fcc_test_send		((P1IN & 0x01) != 0)
 #endif

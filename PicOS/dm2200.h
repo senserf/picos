@@ -20,6 +20,10 @@
 
 #define	DISABLE_CLOCK_INTERRUPT	0	/* DEBUG ONLY !!!! */
 
+#ifndef	FCC_TEST_MODE
+#define	FCC_TEST_MODE		0
+#endif
+
 /*
  * Maximum mode setting. The mode (as per SETMODE) refers to the receiver
  * mode as described by bits 1 and 2 of CFG0. For example, with mode 3, both

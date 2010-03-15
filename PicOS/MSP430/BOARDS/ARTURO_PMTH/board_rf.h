@@ -25,9 +25,8 @@ REQUEST_EXTERNAL (p1irq);
 #define	RX_FIFO_READY		(P1IN & 0x10)
 
 #define rcv_enable_int		do { \
-					zzv_iack = 1; \
 					_BIS (P1IE, 0x10); \
-					if (RX_FIFO_READY && zzv_iack) \
+					if (RX_FIFO_READY) \
 						_BIS (P1IFG, 0x10); \
 				} while (0)
 						

@@ -22,3 +22,6 @@
 
 //#undef	EE_USE_UART
 //#define	EE_USE_UART	1
+
+#define	RADIO_GUARD	0
+#define	RADIO_DEBUG	0

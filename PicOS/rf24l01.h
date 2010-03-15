@@ -109,7 +109,7 @@
 					// These are reversed: LSB -> MSB
 #define	MAX_PAYLOAD_LENGTH	32
 
-#define	BACKOFF_AFTER_RECEIVE	1
+#define	backoff_after_receive	1
 #define	XMIT_SPACE		10	/* Inter packet space for xmit */
 
 #define	BUSY_WAIT_ETX		1	/* Busy-wait for end of transmission */

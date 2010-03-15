@@ -16,9 +16,6 @@ if (cc1100_int) {
     p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
 
     RISE_N_SHINE;
-
-    zzv_iack = 0;	// Acknowledge
-
 }
 
 #endif

@@ -18,9 +18,8 @@
 #define	RX_FIFO_READY		(RF1AIN & 0x01)
 
 #define rcv_enable_int		do { \
-					zzv_iack = 1; \
 					_BIS (RF1AIE, 0x01); \
-					if (RX_FIFO_READY && zzv_iack) \
+					if (RX_FIFO_READY) \
 						_BIS (RF1AIFG, 0x01); \
 				} while (0)
 						

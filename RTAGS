@@ -3773,3 +3773,64 @@ R100309A:
 	which means that you will hear nothing, unless you assemble the watch
 	(or at least connect the buzzer properly with wires).
 
+R100315A:
+
+	LEDs for WARSAW_ILS renumbered: 0, 1, 2 = RGB.
+
+	CC1100 driver cleaned up a bit. Here is the list of symbols (whose
+	meaning or default settings have been affected by this commit) that can
+	be sensibly set in options.sys (or board_options.sys):
+
+	RADIO_TRACK_ERRORS (default 0):
+	==================
+
+	If 1, enables PHYSOPT_ERROR, which returns (in the arg) four words:
+
+		- total number of reception attempts (something has arrived)
+		- number of checksum errors
+		- number of formal errors (illegal packet length)
+		- number of illegal network ID cases (may be checksum errors)
+
+	The value of tcv_control for PHYSOPT_ERROR returns the first value
+	minus the sum of remaining three, which should be equal to the number
+	of packets actually received (passed to the praxis).
+
+	RADIO_GUARD (default 0):
+	===========
+
+	Provides extra consistency checks and resets on abnormal conditions
+	that should not occur, if the hardware (including SPI communication)
+	is healthy. The value is an OR of 0x01 (which adds a special GUARD
+	process detecting hang-ups and doing periodic recalibration, and 0x02
+	(which makes some operations more persistent control with chip resets
+	on detectable failures). These are switched off by default, unlike in
+	the previous driver version.
+
+	RADIO_TRACE (default 0):
+	===========
+
+	If 1, select diags for some normal actions on the chip. Not very 
+	interesting.
+
+	RADIO_DEBUG (default 0):
+	===========
+
+	If 1, select diags for abnormal conditions detected by the driver,
+	including checksum errors, incorrect packet length, as well as chip
+	hangups (when (RADIO_GUARD & 0x02) != 0).
+
+	A few more potentially interesting symbols can be found in
+	PicOS/cc1100.h, e.g.,
+
+	RADIO_CRC_MODE	(default 2):
+	==============
+
+	0 - built in hardware CRC calculation
+	1 - built in CC2400-compatible hardware CRC
+	2 - software CRC (calculated by the driver, not compatible with 0, 1)
+
+	RADIO_BITRATE (default 10000), legal options:
+	=============
+
+	5000, 10000, 38400, 200000
+

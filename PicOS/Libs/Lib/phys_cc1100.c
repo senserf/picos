@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -21,9 +21,15 @@ static word	*rbuff = NULL,
 		physid,
 		statid = 0;
 
+#if (RADIO_GUARD & 0x01)
+static byte	gwch;			// Guard watch
+#endif
+
+#if RADIO_TRACK_ERRORS
+static word	rerror [4];
+#endif
+
 word		zzv_drvprcs, zzv_qevent;
-byte		zzv_iack,		// To resolve interrupt race
-		zzv_gwch;		// Guard watch
 
 static byte	RxOFF,			// Transmitter on/off flags
 		TxOFF,
@@ -32,24 +38,26 @@ static byte	RxOFF,			// Transmitter on/off flags
 		vrate = RADIO_BITRATE_INDEX,	// Rate select
 		channr = 0;
 
-#if RADIO_GUARD
+#if (RADIO_GUARD & 0x01)
+// Guard process present ======================================================
 
 #define	WATCH_RCV	0x01
 #define WATCH_XMT	0x02
 #define	WATCH_PRG	0x80
 #define	WATCH_HNG	0x0F
 
-#define		guard_start(f)	_BIS (zzv_gwch, (f))
-#define		guard_stop(f)	_BIC (zzv_gwch, (f))
-#define		guard_hung	zzv_gwch
-#define		guard_clear	(zzv_gwch = 0)
+#define		guard_start(f)	_BIS (gwch, (f))
+#define		guard_stop(f)	_BIC (gwch, (f))
+#define		guard_hung	gwch
+#define		guard_clear	(gwch = 0)
 
 #else
 
 #define		guard_start(f)	do { } while (0)
 #define		guard_stop(f)	do { } while (0)
 
-#endif	/* RADIO_GUARD */
+#endif
+// ============================================================================
 
 /* ========================================= */
 
@@ -347,8 +355,7 @@ ReTry:
 			case CC1100_STATE_TX_UNDERFLOW:
 
 				cc1100_strobe (CCxxx0_SFTX);
-				mdelay (1);
-				continue;
+				break;
 
 			case CC1100_STATE_RX_OVERFLOW:
 
@@ -359,49 +366,63 @@ ReTry:
 			case CC1100_STATE_CALIBRATE:
 			case CC1100_STATE_SETTLING:
 
-				mdelay (1);
-				continue;
+				break;
 
 			default:
 				return val;
 		}
+		mdelay (1);
 	}
-#if 0
-	diag ("cc1100_status hung!!");
+#if RADIO_DEBUG
+	diag ("CC1100: %u STATUS HUNG!!", (word) seconds ());
 #endif
-	mdelay (1);
 	chip_reset ();
-	mdelay (1);
 	goto ReTry;
 }
 
 static void enter_idle () {
 
 	int i;
+
+#if (RADIO_GUARD & 0x02)
+// ============================================================================
+
 ReTry:
 	i = 32;
+
 	while (cc1100_status () != CC1100_STATE_IDLE) {
 		i--;
 		cc1100_strobe (CCxxx0_SIDLE);
 		if (i < 16) {
 			if (i == 0) {
-#if 0
-				diag ("cc1100_enter_idle hung!!");
+#if RADIO_DEBUG
+				diag ("CC1100: %u IDLE HUNG!!",
+					(word) seconds ());
 #endif
-				mdelay (1);
 				chip_reset ();
-				mdelay (1);
 				goto ReTry;
 
 			}
 			mdelay (2);
 		}
 	}
+#else
+// ============================================================================
+	for (i = 0; i < 16; i++) {
+		if (cc1100_status () == CC1100_STATE_IDLE)
+			return;
+		cc1100_strobe (CCxxx0_SIDLE);
+	}
+#endif
+// ============================================================================
 }
 
 static void enter_rx () {
 
 	int i;
+
+#if (RADIO_GUARD & 0x02)
+// ============================================================================
 ReTry:
 	i = 32;
 	while (cc1100_status () != CC1100_STATE_RX) {
@@ -409,17 +430,25 @@ ReTry:
 		cc1100_strobe (CCxxx0_SRX);
 		if (i < 16) {
 			if (i == 0) {
-#if 0
-				diag ("cc1100_enter_rx hung!!");
+#if RADIO_DEBUG
+				diag ("CC1100: %u ENTER RX HUNG!!",
+					(word) seconds ());
 #endif
-				mdelay (1);
 				chip_reset ();
-				mdelay (1);
 				goto ReTry;
 			}
 			mdelay (2);
 		}
 	}
+#else
+// ============================================================================
+	for (i = 0; i < 16; i++) {
+		if (cc1100_status () == CC1100_STATE_RX)
+			return;
+		cc1100_strobe (CCxxx0_SRX);
+	}
+#endif
+// ============================================================================
 }
 
 int cc1100_rx_status () {
@@ -446,8 +475,8 @@ int cc1100_rx_status () {
 	if (val == CC1100_STATE_IDLE)
 		// The status is right, return #bytes in RX FIFO
 		return (b & 0x7f);
-#if TRACE_DRIVER
-	diag ("%u TRC RX ILL = %x/%x", (word) seconds (), val, b);
+#if RADIO_DEBUG
+	diag ("CC1100: %u RXST = %x/%x", (word) seconds (), val, b);
 #endif
 
 #endif
@@ -457,6 +486,9 @@ int cc1100_rx_status () {
 void cc1100_rx_flush () {
 
 	int i;
+
+#if (RADIO_GUARD & 0x02)
+// ============================================================================
 ReTry:
 	i = 32;
 	while (1) {
@@ -466,8 +498,9 @@ ReTry:
 		i--;
 		if (i < 16) {
 			if (i == 0) {
-#if 0
-				diag ("cc1100_rx_flush hung!!");
+#if RADIO_DEBUG
+				diag ("CC1100: %u FLUSH HUNG!!",
+					(word) seconds ());
 #endif
 				mdelay (1);
 				chip_reset ();
@@ -477,7 +510,16 @@ ReTry:
 			mdelay (2);
 		}
 	}
-	enter_rx ();
+#else
+// ============================================================================
+
+	for (i = 0; i < 16; i++) {
+		cc1100_strobe (CCxxx0_SFRX);
+		if (cc1100_get_reg (CCxxx0_RXBYTES) == 0)
+			return;
+	}
+#endif
+// ============================================================================
 }
 
 void cc1100_rx_reset () {
@@ -488,31 +530,17 @@ void cc1100_rx_reset () {
 
 static word clear_to_send () {
 
-#if 0
-	byte stat;
-
-	stat = cc1100_status ();
-	diag ("OLD STATUS: %x", stat);
-#else
 	// Make sure our status is sane (FIXME: try removing this)
 	cc1100_status ();
-#endif
 	cc1100_strobe (CCxxx0_STX);
-#if 0
-	stat = cc1100_status ();
-	diag ("NEW STATUS: %x", stat);
-	return (stat == CC1100_STATE_TX);
-#else
 	// We succeed if we have entered TX
 	return (cc1100_status () == CC1100_STATE_TX);
-#endif
-
 }
 
 static void power_down () {
 
-#if TRACE_DRIVER
-	diag ("%u RC POWER DOWN", (word) seconds ());
+#if RADIO_TRACE
+	diag ("CC1100: %u POWER DOWN", (word) seconds ());
 #endif
 	enter_idle ();
 	cc1100_strobe (CCxxx0_SPWD);
@@ -524,8 +552,8 @@ static void chip_reset () {
 
 	full_reset;
 	init_cc_regs ();
-#if TRACE_DRIVER
-	diag ("%u RC CHIP RESET", (word) seconds ());
+#if RADIO_TRACE
+	diag ("CC1100: %u CHIP RESET", (word) seconds ());
 #endif
 }
 
@@ -547,10 +575,6 @@ static void ini_cc1100 () {
 		 cc1100_get_reg (CCxxx0_SYNC0)		,
 		(cc1100_get_reg (CCxxx0_VERSION) << 8) |
 		 cc1100_get_reg (CCxxx0_MCSM1)		);
-#if FCC_TEST_MODE
-	diag ("FCC test mode ...");
-#endif
-
 #endif
 
 	dbg_1 (0x2000); // CC1100 initialized
@@ -568,6 +592,7 @@ static void do_rx_fifo () {
 
 	int len, paylen;
 	byte *eptr;
+
 #if RADIO_CRC_MODE <= 1
 	byte b;
 #endif
@@ -576,8 +601,8 @@ static void do_rx_fifo () {
 
 	if (RxOFF) {
 		// If we are switched off, just clean the FIFO and return
-#if TRACE_DRIVER
-		diag ("Rx OFF Cleanup");
+#if RADIO_TRACE
+		diag ("CC1100: %u RX OFF CLEANUP", (word) seconds ());
 #endif
 		cc1100_rx_flush ();
 		goto Rtn;
@@ -585,18 +610,27 @@ static void do_rx_fifo () {
 
 	if ((len = cc1100_rx_status ()) < 0) {
 		// Error: normally FIFO overrun (shouldn't happen)
-#if TRACE_DRIVER
-		diag ("%u RC RX BAD STATUS", (word) seconds ());
+#if RADIO_DEBUG
+		diag ("CC1100: %u RX BAD STATUS", (word) seconds ());
 #endif
 		cc1100_rx_reset ();
 		// Skip reception
 		goto Rtn;
 	}
 
+#if RADIO_TRACK_ERRORS
+	if (rerror [0] == MAX_WORD)
+		memset (rerror, 0, sizeof (rerror));
+	rerror [0] ++;
+#endif
+
 	if ((len & 1) == 0 || len < 7) {
 		// Actual payload length must be even
-#if TRACE_DRIVER
-		diag ("%u RC RX BAD PL: %d", (word) seconds (), len);
+#if RADIO_TRACK_ERRORS
+		rerror [2] ++;
+#endif
+#if RADIO_DEBUG
+		diag ("CC1100: %u RX BAD PL: %d", (word) seconds (), len);
 #endif
 		cc1100_rx_reset ();
 		goto Rtn;
@@ -604,8 +638,11 @@ static void do_rx_fifo () {
 
 	paylen = cc1100_get_reg (CCxxx0_RXFIFO);
 	if ((paylen & 1) || paylen != len - 3) {
-#if TRACE_DRIVER
-		diag ("%u RC RX PL MISMATCH: %d/%d", (word) seconds (), len,
+#if RADIO_TRACK_ERRORS
+		rerror [2] ++;
+#endif
+#if RADIO_DEBUG
+		diag ("CC1100: %u RX PL MIS: %d/%d", (word) seconds (), len,
 			paylen);
 #endif
 		cc1100_rx_reset ();
@@ -613,9 +650,11 @@ static void do_rx_fifo () {
 	}
 
 	if (paylen > rbuffl) {
-#if TRACE_DRIVER
-		diag ("%u RC RX PACKET TOO LONG: %d", (word) seconds (),
-			paylen);
+#if RADIO_TRACK_ERRORS
+		rerror [2] ++;
+#endif
+#if RADIO_DEBUG
+		diag ("CC1100: %u RX LONG: %d", (word) seconds (), paylen);
 #endif
 		cc1100_rx_reset ();
 		goto Rtn;
@@ -626,14 +665,15 @@ static void do_rx_fifo () {
 
 	// We have extracted the packet, so we can start RCV for another one
 
+#if 0
 	// A precaution: make sure the FIFO is truly empty
 	while (RX_FIFO_READY) {
-#if TRACE_DRIVER
-		diag ("%u RC RX FIFO SHOULD BE EMPTY", (word) seconds ());
+#if RADIO_DEBUG
+		diag ("CC1100: %u RX FIFO NONEMPTY", (word) seconds ());
 #endif
 		cc1100_rx_reset ();
-		mdelay (1);
 	}
+#endif
 
 	enter_rx ();
 
@@ -641,12 +681,13 @@ static void do_rx_fifo () {
 		// Admit only packets with agreeable statid
 		if (rbuff [0] != 0 && rbuff [0] != statid) {
 			// Drop
-#if TRACE_DRIVER
-			diag ("%u RC RX BAD STATID: %x", (word) seconds (),
+#if RADIO_TRACK_ERRORS
+			rerror [3] ++;
+#endif
+#if RADIO_DEBUG
+			diag ("CC1100: %u RX BAD STID: %x", (word) seconds (),
 				rbuff [0]);
 #endif
-			// FIXME: what the hell is this?
-			add_entropy (rbuff [3]);
 			goto Rtn;
 		}
 	}
@@ -656,8 +697,11 @@ static void do_rx_fifo () {
 	len = paylen >> 1;
 	if (w_chk (rbuff, len, 0)) {
 		// Bad checksum
-#if TRACE_DRIVER
-		diag ("%u RC BAD CHECKSUM (S) %x %x %x", (word) seconds (),
+#if RADIO_TRACK_ERRORS
+		rerror [1] ++;
+#endif
+#if RADIO_DEBUG
+		diag ("CC1100: %u RX CKS (S) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
 			(word*)(rbuff) [1],
 			(word*)(rbuff) [2]);
@@ -679,7 +723,7 @@ static void do_rx_fifo () {
 	// Status bytes
 	eptr = (byte*)rbuff + paylen;
 	b = *(eptr+1);
-	add_entropy (*eptr ^ b);
+	add_entropy (rbuff [len]);
 	paylen += 2;
 
 	if (b & 0x80) {
@@ -689,8 +733,11 @@ static void do_rx_fifo () {
 		*eptr = (b & 0x7f);
 	} else {
 		// Bad checksum
-#if TRACE_DRIVER
-		diag ("%u RC BAD CHECKSUM (H) %x %x %x", (word) seconds (),
+#if RADIO_TRACK_ERRORS
+		rerror [1] ++;
+#endif
+#if RADIO_DEBUG
+		diag ("CC1100: %u RX CKS (H) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
 			(word*)(rbuff) [1],
 			(word*)(rbuff) [2]);
@@ -700,8 +747,8 @@ static void do_rx_fifo () {
 	}
 #endif	/* RADIO_CRC_MODE */
 
-#if TRACE_DRIVER
-	diag ("%u RC OK %x %x %x", (word) seconds (),
+#if RADIO_TRACE
+	diag ("CC1100: %u RX OK %x %x %x", (word) seconds (),
 		(word*)(rbuff) [0],
 		(word*)(rbuff) [1],
 		(word*)(rbuff) [2]);
@@ -738,7 +785,7 @@ thread (cc1100_driver)
 			do_rx_fifo ();
 			LEDI (2, 0);
 		}
-
+XRcv:
 		wait (zzv_qevent, DR_LOOP);
 		if (RxOFF == 0)
 			rcv_enable_int;
@@ -751,16 +798,11 @@ thread (cc1100_driver)
 		LEDI (2, 0);
 	}
 
-	// We want to transmit
-#if FCC_TEST_MODE == 0
 	if (bckf_timer) {
 		delay (bckf_timer, DR_LOOP);
-		wait (zzv_qevent, DR_LOOP);
-		if (RxOFF == 0)
-			rcv_enable_int;
-		release;
+		goto XRcv;
 	}
-#endif
+	
 	if (tcvphy_top (physid) == NULL) {
 		// Nothing to transmit
 		if (TxOFF) {
@@ -769,28 +811,19 @@ thread (cc1100_driver)
 			proceed (DR_LOOP);
 		}
 		// Wait
-		wait (zzv_qevent, DR_LOOP);
-		if (RxOFF == 0)
-			rcv_enable_int;
-		release;
+		goto XRcv;
 	}
-#if 0
-	while (RX_FIFO_READY) {
-		// We are about to take over, so let us give it one more try
-		LEDI (2, 1);
-		do_rx_fifo ();
-		LEDI (2, 0);
-	}
-#endif
+
 	// Try to grab the chip for TX
 	if (clear_to_send () == NO) {
 		// We have to wait
 		if (aggressive_transmitter) {
 			delay (1, DR_LOOP);
 			release;
+		} else {
+			gbackoff;
+			proceed (DR_LOOP);
 		}
-		gbackoff;
-		proceed (DR_LOOP);
 	}
 
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
@@ -852,7 +885,8 @@ thread (cc1100_driver)
 
 endthread
 
-#if	RADIO_GUARD
+#if (RADIO_GUARD & 0x01)
+// ============================================================================
 
 #define	GU_ACTION	0
 
@@ -862,13 +896,12 @@ thread (cc1100_guard)
 
   entry (GU_ACTION)
 
-#if TRACE_DRIVER
-	diag ("%u RC GUARD ...", (word) seconds ());
+#if RADIO_TRACE
+	diag ("CC1100: %u GUARD ...", (word) seconds ());
 #endif
 	if (guard_hung) {
-#if TRACE_DRIVER
-		diag ("%u RC GUARD WATCH RESET: %x", (word) seconds (),
-			zzv_gwch);
+#if RADIO_DEBUG
+		diag ("CC1100: %u GUARD RESET: %x", (word) seconds (), gwch);
 #endif
 Reset:
 		guard_clear;
@@ -907,8 +940,8 @@ Reset:
 	if (stat != CC1100_STATE_RX) {
 		// Something is wrong: note that stat == IDLE implies
 		// RX_FIFO_READY
-#if TRACE_DRIVER
-		diag ("%u RC GUARD BAD STATE: %d", (word) seconds (), stat);
+#if RADIO_DEBUG
+		diag ("CC1100: %u GUARD BAD ST: %d", (word) seconds (), stat);
 #endif
 		goto Reset;
 	}
@@ -918,16 +951,16 @@ Reset:
 
 	if (stat & 0x80) {
 		// Overflow
-#if TRACE_DRIVER
-		diag ("%u RC GUARD HUNG FIFO OVERFLOW", (word) seconds ());
+#if RADIO_DEBUG
+		diag ("CC1100: %u GUARD FIFO", (word) seconds ());
 #endif
 		goto Reset;
 	}
 
 	if (stat == 0) {
 		// Recalibrate
-#if TRACE_DRIVER
-		diag ("%u RC GUARD RECAL", (word) (word) seconds ());
+#if RADIO_TRACE
+		diag ("CC1100: %u GUARD RECAL", (word) (word) seconds ());
 #endif
 		enter_idle ();
 		enter_rx ();
@@ -990,7 +1023,7 @@ void phys_cc1100 (int phy, int mbs) {
 
 	/* Start the processes */
 	if ((zzv_drvprcs = runthread (cc1100_driver)) == 0
-#if RADIO_GUARD
+#if (RADIO_GUARD & 0x01)
 		|| runthread (cc1100_guard) == 0
 #endif
 								)
@@ -1016,7 +1049,7 @@ static int option (int opt, address val) {
 				ret |= 4;
 		}
 		if (RxOFF == 0)
-			ret++;
+			ret |= 1;
 
 		goto RVal;
 
@@ -1178,6 +1211,14 @@ static int option (int opt, address val) {
 #endif
 				;
 		break;
+
+#if RADIO_TRACK_ERRORS
+	    case PHYSOPT_ERROR:
+
+		if (val != NULL)
+			memcpy (val, rerror, sizeof (rerror));
+		return (int) rerror [0] - rerror [1] - rerror [2] - rerror [3];
+#endif
 	    default:
 
 		syserror (EREQPAR, "phys_cc1100 option");

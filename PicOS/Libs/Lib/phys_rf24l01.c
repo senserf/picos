@@ -407,7 +407,7 @@ static void do_rx_fifo () {
 	rbuff [len << 1] = 0;
 	tcvphy_rcv (physid, rbuff, len + 2);
 Rtn:
-#if BACKOFF_AFTER_RECEIVE
+#if backoff_after_receive
 	gbackoff;
 #else
 	NOP;
