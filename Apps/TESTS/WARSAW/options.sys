@@ -25,3 +25,4 @@
 
 #define	RADIO_GUARD	0
 #define	RADIO_DEBUG	0
+#define	RADIO_SPDIFIDLE	1

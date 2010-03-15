@@ -3773,13 +3773,19 @@ R100309A:
 	which means that you will hear nothing, unless you assemble the watch
 	(or at least connect the buzzer properly with wires).
 
-R100315A:
+R100315B:
 
 	LEDs for WARSAW_ILS renumbered: 0, 1, 2 = RGB.
 
 	CC1100 driver cleaned up a bit. Here is the list of symbols (whose
 	meaning or default settings have been affected by this commit) that can
 	be sensibly set in options.sys (or board_options.sys):
+
+	RADIO_SPDIFIDLE (default 0):
+	===============
+
+	If 1, the system will be set to power down mode (powerdown ()) when
+	the radio turns itself off (e.g., after emptying the transmit queue).
 
 	RADIO_TRACK_ERRORS (default 0):
 	==================

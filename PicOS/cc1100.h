@@ -48,6 +48,13 @@
 #define RADIO_DEBUG		0
 #endif
 
+//
+// Set the system to PD mode (powerdown) when radio becomes idle
+//
+#ifndef	RADIO_SPDIFIDLE	
+#define	RADIO_SPDIFIDLE		0
+#endif
+
 #ifndef	RADIO_SYSTEM_IDENT
 #define	RADIO_SYSTEM_IDENT	0xAB35	/* Sync word */
 #endif

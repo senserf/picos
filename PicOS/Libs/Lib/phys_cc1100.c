@@ -421,6 +421,10 @@ static void enter_rx () {
 
 	int i;
 
+#if RADIO_SPDIFIDLE
+	powerup ();
+#endif
+
 #if (RADIO_GUARD & 0x02)
 // ============================================================================
 ReTry:
@@ -546,6 +550,9 @@ static void power_down () {
 	cc1100_strobe (CCxxx0_SPWD);
 	STROBE_WAIT;
 	cc1100_strobe (CCxxx0_SPWD);
+#if RADIO_SPDIFIDLE
+	powerdown ();
+#endif
 }
 
 static void chip_reset () {
