@@ -497,6 +497,12 @@ static int rfm_option (int opt, address val) {
 		excptn ("PHYSOPT_GETMODE unimplemented");
 		break;
 
+	    case PHYSOPT_ERROR:
+
+		if (val != NULL)
+			memset (val, 0, 8);
+		return 0;
+
 	    default:
 
 		syserror (EREQPAR, "RF option");

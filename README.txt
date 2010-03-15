@@ -494,3 +494,8 @@ R100226B:
     Also note that PicOS (as of R100226A) is aware of vuee_control calls, which
     are ignored (expanded into CNOPs).
 
+R100315A:
+
+    Added a stub for PHYSOPT_ERROR to match the respective modification to
+    PICOS, such that a praxis using PHYSOPT_ERROR will compile. This stub
+    zeroes out the argument (if not NULL) and returns zero.
