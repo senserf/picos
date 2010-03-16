@@ -172,6 +172,16 @@ int utimer (address ut, Boolean add) {
 	return i+1;
 }
 
+#if AUTO_CLOCK_DOWN
+
+void zz_utimer_set (address t, word v) {
+
+	if ((*t = v) != 0 && power_down_mode && clock_down_mode)
+		clockup ();
+}
+
+#endif
+
 #ifdef	__ECOG1__
 
 // For MSP430, these are macros
@@ -195,41 +205,16 @@ void zzz_tservice () {
 	if (nticks == 0)
 		return;
 
-	/* Keep the seconds clock running */
-	millisec += nticks;
-	while (millisec >= JIFFIES) {
-
-		millisec -= JIFFIES;
-		zz_nseconds++;
-
-#include "second.h"
-
-		if (--zz_mincd == 0) {
-			// A full minute: handle long delays
-			zz_mincd = SECONDS_IN_MINUTE;
-			for_all_tasks (i) {
-				if (i->code == NULL)
-					continue;
-				for (j = 0; j < nevents (i); j++) {
-					if (getetype (i->Events [j]) !=
-						ETYPE_LDELAY)
-							continue;
-			    		if (--(i->Events [j] . Event) == 0)
-						wakeupev (i, j);
-				}
-			}
-		}
-	}
-
 	do {
 		if (zz_mintk == 0)
 			// Minimum ticks to a wakeup
-			return;
+			break;
+
 		if (zz_mintk > nticks) {
 			// More than elapsed to this run: just decrement the
 			// count
 			zz_mintk -= nticks;
-			return;
+			break;
 		}
 
 		// nticks >= zz_mintk; normally, we will have
@@ -264,10 +249,63 @@ void zzz_tservice () {
 					zz_mintk = i->Timer;
 			}
 		}
+
 		// This is the new minimum
 		setticks = zz_mintk;
 		// Keep going in case we are experiencing a lag
+
 	} while (nticks);
+
+	/* Keep the seconds clock running */
+	millisec += nticks;
+	while (millisec >= JIFFIES) {
+
+		millisec -= JIFFIES;
+		zz_nseconds++;
+
+#include "second.h"
+
+		if (--zz_mincd == 0) {
+			// A full minute: handle long delays
+			zz_mincd = SECONDS_IN_MINUTE;
+			for_all_tasks (i) {
+				if (i->code == NULL)
+					continue;
+				for (j = 0; j < nevents (i); j++) {
+					if (getetype (i->Events [j]) !=
+						ETYPE_LDELAY)
+							continue;
+			    		if (--(i->Events [j] . Event) == 0)
+						wakeupev (i, j);
+				}
+			}
+		}
+		// Note: even though this is a loop, it is "always" executed
+		// once; the while is just in case
+#if AUTO_CLOCK_DOWN
+		if (power_down_mode) {
+			if (clock_down_mode) {
+				// We are in clock down, so no utimer can
+				// possibly be active, just check for delay
+				if (zz_mintk && zz_mintk < JIFFIES)
+					clockup ();
+			} else {
+				// We are in clock up
+				if (zz_mintk == 0 || zz_mintk >= JIFFIES) {
+					// Check utimers
+					for (j = 0; j < MAX_UTIMERS; j++) {
+						if (zz_utims [j] == NULL)
+							break;
+						if (*zz_utims [j] != 0)
+						   	goto CUp;
+					}
+					clockdown ();
+				}
+CUp:				CNOP;
+			}
+		}
+#endif
+	}
 }
 
 /* ==================== */
@@ -411,6 +449,11 @@ HardWay:
 			zz_curr->Timer = setticks = t;
 			zz_mintk = d;
 		}
+#if AUTO_CLOCK_DOWN
+		if (zz_mintk && power_down_mode && clock_down_mode &&
+			zz_mintk < JIFFIES)
+				clockup ();
+#endif
 	} else {
 		zz_curr->Timer = 0;
 	}

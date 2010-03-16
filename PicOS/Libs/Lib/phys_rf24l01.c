@@ -563,7 +563,7 @@ thread (rf24l01_driver)
 	put_reg (REG_STATUS, REG_STATUS_TX_DS);
 
 	LEDI (1, 0);
-	bckf_timer = XMIT_SPACE;
+	utimer_set (bckf_timer, XMIT_SPACE);
 	proceed (DR_LOOP);
 #else
 	// This much will do, it is an overkill actually
@@ -581,7 +581,7 @@ thread (rf24l01_driver)
 	// Done
 	put_reg (REG_STATUS, REG_STATUS_TX_DS);
 	LEDI (1, 0);
-	bckf_timer = XMIT_SPACE;
+	utimer_set (bckf_timer, XMIT_SPACE);
 	proceed (DR_LOOP);
 #endif
 
@@ -623,7 +623,7 @@ void phys_rf24l01 (int phy, int mbs) {
 
 	/* Install the backoff timer */
 	utimer (&bckf_timer, YES);
-	bckf_timer = 0;
+	utimer_set (bckf_timer, 0);
 
 	/* Start the driver process */
 	zzv_drvprcs = runthread (rf24l01_driver);
@@ -705,7 +705,7 @@ static int option (int opt, address val) {
 			// Random backoff
 			gbackoff;
 		else
-			bckf_timer = *val;
+			utimer_set (bckf_timer, *val);
 		trigger (zzv_qevent);
 		break;
 

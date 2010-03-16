@@ -596,7 +596,9 @@ void clockup (void) {
 void powerdown (void) {
 
 	zz_systat.pdmode = 1;
+#if AUTO_CLOCK_DOWN == 0
 	clockdown ();
+#endif
 #if CRYSTAL2_RATE
 	// Disable XTL2
 	_BIS (BCSCTL1, XT2OFF);

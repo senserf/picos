@@ -3840,3 +3840,17 @@ R100315B:
 
 	5000, 10000, 38400, 200000
 
+R100315C:
+
+	Constant AUTO_CLOCK_DOWN. If set to 1, then powerdown doesn't
+	automatically force clockdown (although powerup forces clockup).
+	clockdown is triggered by the scheduler when it discovers, that
+	nothing will happen for more than 1 sec. When a process issues a
+	short delay or sets up a utimer, clockup is automatically forced.
+	One tricky problem with this is that utimer assignments have to be
+	intercepted (formally it is just an assignment), so I have introduced
+	this operation: utimer_set (a, v), which expands into an assignment
+	when AUTO_CLOCK_DOWN == 0, and into a function call, otherwise. From
+	now on, utimers should be set using this operation only.
+
+	

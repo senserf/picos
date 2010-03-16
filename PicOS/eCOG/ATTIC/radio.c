@@ -549,15 +549,15 @@ static void tx_pkt (const char *buf, int len) {
 
 #if ! ECOG_SIM
 #define	gbit(l)	do { \
-		    timcnt = 4; \
+		    utimer_set (timcnt, 4); \
 		    do { if (timcnt == 0) goto l; } while ( xem_getdclk); \
-		    timcnt = 4; \
+		    utimer_set (timcnt, 4); \
 		    do { if (timcnt == 0) goto l; } while (!xem_getdclk); \
 		} while (0)
 
 #else
 #define	gbit(l)	do { \
-    timcnt = 4; \
+    utimer_set (timcnt, 4); \
     do { if (timcnt == 0) goto l; } while (!xem_getdclk); \
     rg.io.gp12_15_out |= IO_GP12_15_OUT_SET14_MASK; /*removeone from FIFO*/ \
 } while (0)

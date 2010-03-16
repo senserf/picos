@@ -920,6 +920,15 @@ void	tcv_urgent (address);
 Boolean	tcv_isurgent (address);
 int	tcv_control (int, int, address);
 
+// ============================================================================
+#if AUTO_CLOCK_DOWN
+void zz_utimer_set (address, word);
+#define	utimer_set(a,v)	zz_utimer_set (&(a), v)
+#else
+#define	utimer_set(a,v)	((a) = (v))
+#endif
+// ============================================================================
+
 /* TCV malloc shortcut */
 #define	tmalloc(s)	malloc (1, s)
 #define	tfree(s)	free (1, s)

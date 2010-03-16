@@ -32,6 +32,11 @@
 #define	WATCHDOG_ENABLED	0
 #endif
 
+// Auto clock down in power down
+#ifndef	AUTO_CLOCK_DOWN
+#define	AUTO_CLOCK_DOWN		0
+#endif
+
 // Prioritizing scheduler
 #ifndef	SCHED_PRIO
 #define	SCHED_PRIO		0

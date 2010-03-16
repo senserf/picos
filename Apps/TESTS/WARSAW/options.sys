@@ -11,8 +11,8 @@
 #undef	GLACIER
 #define	GLACIER	1
 
-//#undef	CRYSTAL2_RATE
-//#define	CRYSTAL2_RATE		0
+#undef	CRYSTAL2_RATE
+#define	CRYSTAL2_RATE		0
 
 #undef	CODE_LONG_INTS
 #define	CODE_LONG_INTS	1
@@ -25,4 +25,7 @@
 
 #define	RADIO_GUARD	0
 #define	RADIO_DEBUG	0
-#define	RADIO_SPDIFIDLE	1
+#define	RADIO_SPDIFIDLE	0
+#define	AUTO_CLOCK_DOWN	0
+
+// #define	MONITOR_PIN_CLOCK	P2_5

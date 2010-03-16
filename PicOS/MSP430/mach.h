@@ -310,9 +310,12 @@ extern uart_t zz_uart [];
 
 #endif
 
+#define	power_down_mode	(zz_systat.pdmode)
+#define	clock_down_mode (TCI_CCR == TCI_INIT_LOW)
+
 #define	SLEEP	do { \
 			CPU_MARK_IDLE; \
-			if (zz_systat.pdmode) { \
+			if (power_down_mode) { \
 				cli; \
 				if (zz_systat.evntpn) { \
 					sti; \

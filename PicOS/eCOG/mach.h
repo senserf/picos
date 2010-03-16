@@ -2,7 +2,7 @@
 #define	__pg_mach_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -121,6 +121,9 @@ typedef struct	{
 #define	SLEEP		do { sleep (); evening; } while (0)
 #endif	/* MONITOR_PIN_CPU */
 // ============================================================================
+
+#define	power_down_mode	(fd.ssm.cpu.cpu_clk_div == 6)
+#define	clock_down_mode (rg.tim.tmr_ld == 4095)
 
 #define	RISE_N_SHINE	morning
 #define	RTNI		return

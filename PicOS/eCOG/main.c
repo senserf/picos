@@ -242,7 +242,13 @@ void cpupower (word mode) {
 
 // ============================================================================
 
-void powerdown (void) { clockdown (); cpupower (2); }
+void powerdown (void) {
+#if AUTO_CLOCK_DOWN == 0
+	clockdown ();
+#endif
+	cpupower (2);
+}
+
 void powerup (void) { cpupower (4); clockup (); }
 
 // ============================================================================

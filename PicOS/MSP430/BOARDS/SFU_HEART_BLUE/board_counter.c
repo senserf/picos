@@ -16,8 +16,8 @@ void hrc_start () {
 
 	HRINext = 0;
 	enable_heart_rate_counter;
-	HRTimer = 0xffff;
 	utimer (&HRTimer, YES);
+	utimer_set (HRTimer, 0xffff);
 }
 
 void hrc_stop () {

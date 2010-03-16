@@ -887,7 +887,7 @@ XRcv:
 #endif
 	guard_stop (WATCH_XMT | WATCH_PRG);
 	LEDI (1, 0);
-	bckf_timer = XMIT_SPACE;
+	utimer_set (bckf_timer, XMIT_SPACE);
 	proceed (DR_LOOP);
 
 endthread
@@ -1026,7 +1026,7 @@ void phys_cc1100 (int phy, int mbs) {
 
 	/* Install the backoff timer */
 	utimer (&bckf_timer, YES);
-	bckf_timer = 0;
+	utimer_set (bckf_timer, 0);
 
 	/* Start the processes */
 	if ((zzv_drvprcs = runthread (cc1100_driver)) == 0
