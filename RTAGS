@@ -3853,4 +3853,7 @@ R100315C:
 	when AUTO_CLOCK_DOWN == 0, and into a function call, otherwise. From
 	now on, utimers should be set using this operation only.
 
-	
+R100316A:
+	il_demo update, including test instrumentation. See '100316' tail in
+	il_demo/notes.
+

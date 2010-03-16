@@ -50,7 +50,13 @@ __PUBLF (PicOSNode, word, getSpdM) (word * hop) {
 
 #endif
 
+#ifndef _TARP_T_RX
 #define _TARP_T_RX	0
+#endif
+
+#ifndef _TARP_T_LIGHT
+#define _TARP_T_LIGHT	0
+#endif
 
 // (h == master_host) should not get here
  // find the index
@@ -252,6 +258,11 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			tarp_ctrl.rssi_th) ?  YES : NO;
 #endif
 
+#if _TARP_T_LIGHT
+	diag ("%u %u %u rcv %u", msgBuf->msg_type, msgBuf->snd,
+			msgBuf->seq_no, (word)seconds());
+#endif
+
 #if _TARP_T_RX
 	diag ("%u %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
 		tarp_ctrl.ssignal, tarp_drop_weak);
@@ -430,6 +441,12 @@ __PUBLF (PicOSNode, int, tarp_tx) (address buffer) {
 	msgBuf->snd = local_host;
 	// clear flags (meant: exceptions) every time tarp_tx is called
 	tarp_ctrl.flags = 0;
+
+#if _TARP_T_LIGHT
+	diag ("%u %u %u snd %u", msgBuf->msg_type, msgBuf->rcv,
+		msgBuf->seq_no, (word)seconds());
+#endif
+
 #if _TARP_T_RX
 	diag ("%u %u tx %u %u %u", msgBuf->msg_type, msgBuf->snd,
 			msgBuf->rcv, msgBuf->hco, msgBuf->seq_no);
@@ -438,3 +455,4 @@ __PUBLF (PicOSNode, int, tarp_tx) (address buffer) {
 }
 
 #undef _TARP_T_RX
+#undef _TARP_T_LIGHT
