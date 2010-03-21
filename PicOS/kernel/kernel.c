@@ -205,6 +205,8 @@ void zzz_tservice () {
 	if (nticks == 0)
 		return;
 
+	millisec += nticks;
+
 	do {
 		if (zz_mintk == 0)
 			// Minimum ticks to a wakeup
@@ -257,7 +259,6 @@ void zzz_tservice () {
 	} while (nticks);
 
 	/* Keep the seconds clock running */
-	millisec += nticks;
 	while (millisec >= JIFFIES) {
 
 		millisec -= JIFFIES;

@@ -70,7 +70,7 @@
  * Level 2 is the smallest recommended.
  *
  */
-#define	CC_INDICATION		3	/* If not receiving a packet */
+#define	CC_INDICATION		3
 
 // RSSI threshold (for LBT), previous values: 8, 0
 #define	CC_THRESHOLD		6	/* 1 lowest, 15 highest, 0 disable */
