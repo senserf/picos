@@ -16,10 +16,6 @@ extern 			word  	zz_mintk;
 extern 	volatile 	word 	zz_lostk;
 extern 			address	zz_utims [MAX_UTIMERS];
 
-// This must be the same as the stack fill pattern used in cstartup.asm
-#define	STACK_SENTINEL	0xB779
-#define	ISTACK_SENTINEL	0xB77A
-
 void	zz_malloc_init (void);
 
 /* ========================== */
@@ -619,7 +615,7 @@ static void ssm_init () {
                      | SSM_CLK_SLEEP_DIS_CAP_MASK 
                      | SSM_CLK_SLEEP_DIS_WDOG_MASK 
 #if GLACIER == 0
-	// Disabled here just in case (costs nothing); with CLACIER == 0, the
+	// Disabled here just in case (costs nothing); with GLACIER == 0, the
 	// LTMR clock is never enabled to begin with
                      | SSM_CLK_SLEEP_DIS_LTMR_MASK 
 #endif
@@ -795,7 +791,7 @@ static void rtc_init () {
 	// way the upper (settable) word of LTMR should be directly in seconds
 	fd.ssm.tap_sel3.ltmr = 5;
 
-	// Not that for LTMR, there is no reference/PLL option - it is always
+	// Note that for LTMR, there is no reference/PLL option - it is always
 	// reference
 #endif
 
@@ -833,16 +829,6 @@ void __irq_entry timer_int () {
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 1);
 #endif
-
-#if	STACK_GUARD
-	if (*((word*)estk_) != STACK_SENTINEL) {
-		/* We cannot call a function here */
-		print_al (0);
-		while (1)
-			SLEEP;
-	}
-#endif
-
 	if (zz_systat.cdmode == 0) {
 
 		// Clock is up

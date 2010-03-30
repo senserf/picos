@@ -122,6 +122,18 @@
 #endif
 #endif
 
+// ============================================================================
+
+// This is the target rate of the delay clock, i.e., 1024 ticks per second
+#define	TCI_HIGH_PER_SEC	1024
+
+// Clock timer subdivision for high clock rate (clockup); the timer is going
+// to be pre-divided by 8, so this subdivision yields the clock rate of 1024
+// (TCT_HIGH_PER_SEC) ticks per second
+#define	TCI_HIGH_DIV	(CRYSTAL_RATE/(8*TCI_HIGH_PER_SEC))
+
+// ============================================================================
+
 #if	CRYSTAL_RATE != 32768
 
 #if	CRYSTAL_RATE < 1000000
@@ -130,7 +142,19 @@
 
 // The number of slow ticks per second
 #define	TCI_LOW_PER_SEC		16
+
 #define	HIGH_CRYSTAL_RATE 	1
+
+#if SEPARATE_SECONDS_CLOCK
+#error "S: SEPARATE_SECONDS_CLOCK is incompatible with HIGH_CRYSTAL_RATE"
+#endif
+
+// No clockdown/clockup modes with HIGH_CRYSTAL_RATE (power savings are not
+// possible, anyway)
+#define	clockup()	CNOP
+#define	clockdown()	CNOP
+
+#define	TCI_LOW_DIV	TCI_HIGH_DIV
 
 #else	/* Low crystal rate */
 
@@ -149,6 +173,27 @@
 
 #define	HIGH_CRYSTAL_RATE	0
 
+// ============================================================================
+// clockdown/clockup is enabled only if HIGH_CRYSTAL_RATE == 0
+// ============================================================================
+
+#if SEPARATE_SECONDS_CLOCK
+
+// They are functions
+void clockup (void), clockdown (void);
+
+#else
+
+// They are macros
+#define	clockup()	(TCI_CCR = TCI_INIT_HIGH)
+#define	clockdown()	(TCI_CCR = TCI_INIT_LOW)
+
+#endif
+
+// ============================================================================
+
+#define	TCI_LOW_DIV		(CRYSTAL_RATE/(8*TCI_LOW_PER_SEC))
+
 #endif	/* CRYSTAL_RATE != 32768 */
 
 // ============================================================================
@@ -157,14 +202,30 @@
 
 // Timer for clock configuration 1 = TIMER_B
 
+// Delay interrupt counter
 #define	TCI_CCR		TBCCR0
+// Seconds interrupt counter (if separate)
+#define	TCI_CCS		TBCCR1
+#define	TCI_VAL		TBR
 #define	TCI_CTL		TBCTL
 #define	TCI_VECTOR	TIMERB0_VECTOR
+#define	TCI_VECTOR_S	TIMERB1_VECTOR
 
+// To acknowledge seconds interrupts (any access to TBIV will do)
+#define	ack_sec	(TBIV = 0)
+#define	sti_sec	_BIS (TBCCTL1, CCIE)
+#define	cli_sec	_BIC (TBCCTL1, CCIE)
 #define sti_tim	_BIS (TBCCTL0, CCIE)
 #define cli_tim	_BIC (TBCCTL0, CCIE)
 #define	dis_tim _BIC (TBCTL, MC0 + MC1)
+
+#if SEPARATE_SECONDS_CLOCK
+// Timer running in continuous mode
+#define	ena_tim _BIS (TBCTL, MC1      )
+#else
+// Timer running in "up" mode
 #define	ena_tim _BIS (TBCTL, MC0      )
+#endif
 
 #endif
 
@@ -173,20 +234,38 @@
 // Timer for clock configuration 2 = TIMER A0
 
 #define	TCI_CCR		TA0CCR0
+#define	TCI_CCS		TA0CCR1
+#define	TCI_VAL		TA0R
 #define	TCI_CTL		TA0CTL
 #define	TCI_VECTOR	TIMER0_A0_VECTOR
+#define	TCI_VECTOR_S	TIMER0_A1_VECTOR
 
+#define	ack_sec	(TA0IV = 0)
+#define	sti_sec	_BIS (TA0CCTL1, CCIE)
+#define	cli_sec	_BIC (TA0CCTL1, CCIE)
 #define sti_tim	_BIS (TA0CCTL0, CCIE)
 #define cli_tim	_BIC (TA0CCTL0, CCIE)
 #define	dis_tim _BIC (TA0CTL, MC0 + MC1)
+
+#if SEPARATE_SECONDS_CLOCK
+#define	ena_tim _BIS (TA0CTL, MC1      )
+#else
 #define	ena_tim _BIS (TA0CTL, MC0      )
+#endif
 
 #endif
 
 // ============================================================================
 
-#define	TCI_INIT_HIGH	((CRYSTAL_RATE/8192) - 1)
-#define	TCI_INIT_LOW  	((CRYSTAL_RATE/(8*TCI_LOW_PER_SEC)) - 1)
+// Subdivision of the seconds clock timer (exactly one tick per second)
+#define	TCI_SEC_DIV	(CRYSTAL_RATE/8)
+
+// Initializers for the timer in "up" mode, i.e., when there is no
+// separate seconds clock
+#define	TCI_INIT_HIGH	(TCI_HIGH_DIV - 1)
+#define	TCI_INIT_LOW  	(TCI_LOW_DIV - 1)
+
+// ============================================================================
 
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
@@ -200,6 +279,18 @@
 #define	STACK_SIZE	256			// Bytes
 #define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
+
+#define	STACK_SENTINEL	0xB779
+
+#if STACK_GUARD
+#define	check_stack_overflow \
+			 do { \
+				if (*(((word*)STACK_END)-1) != STACK_SENTINEL) \
+					syserror (ESTACK, "st"); \
+			} while (0)
+#else
+#define	check_stack_overflow	CNOP
+#endif
 
 #ifdef	__PORTMAPPER__
 

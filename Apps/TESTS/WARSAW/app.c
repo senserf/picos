@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -40,7 +40,7 @@ heapmem {10, 90};
 #endif
 
 #include "pinopts.h"
-#include "lhold.h"
+#include "hold.h"
 
 #if	RTC_TEST
 #include "rtc_s35390.h"
@@ -1267,7 +1267,7 @@ thread (test_delay)
 		"\r\nRF Pin Test\r\n"
 		"Commands:\r\n"
 		"f s -> freeze\r\n"
-		"l s -> lhold\r\n"
+		"l s -> hold\r\n"
 		"d -> PD mode (unsafe)\r\n"
 		"u -> PU mode\r\n"
 		"s n -> spin test for n sec\r\n"
@@ -1305,12 +1305,12 @@ thread (test_delay)
 
 	nt = 0;
 	scan (ibuf + 1, "%u", &nt);
-	val = (lword) nt;
+	val = (lword) nt + seconds ();
 	diag ("Start %u", (word) seconds ());
 
   entry (DE_LHO+1)
 
-	lhold (DE_LHO+1, &val);
+	hold (DE_LHO+1, val);
 	diag ("Stop %u", (word) seconds ());
 	proceed (DE_RCMD);
 
@@ -1881,9 +1881,8 @@ thread (root)
 #endif
 
 #if CC1100
-diag ("Radio ...");
+	diag ("Radio ...");
 	phys_cc1100 (0, MAXPLEN);
-diag ("OK");
 
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);

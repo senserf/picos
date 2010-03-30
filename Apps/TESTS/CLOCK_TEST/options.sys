@@ -1,0 +1,40 @@
+// Insert here applications-specific options
+
+#ifdef	LEDS_DRIVER
+#undef	LEDS_DRIVER
+#endif
+
+#ifdef	RADIO_USE_LEDS
+#undef	RADIO_USE_LEDS
+#endif
+
+#ifdef	CODE_LONG_INTS
+#undef	CODE_LONG_INTS
+#endif
+
+#ifdef	GLACIER
+#undef	GLACIER
+#endif
+
+#define	GLACIER			1
+
+#define	LEDS_DRIVER	0
+#define	RADIO_USE_LEDS	0
+#define	CODE_LONG_INTS	1
+
+#undef	UART_RATE_SETTABLE
+#define	UART_RATE_SETTABLE	0
+
+#undef	DIAG_MESSAGES
+#define	DIAG_MESSAGES		2
+
+#undef	SPIN_WHEN_HALTED
+#define	SPIN_WHEN_HALTED	0
+
+#undef	AUTO_CLOCK_DOWN
+#define	AUTO_CLOCK_DOWN		1
+
+#undef	CRYSTAL2_RATE
+#define	CRYSTAL2_RATE		0
+
+#define	SEPARATE_SECONDS_CLOCK	1

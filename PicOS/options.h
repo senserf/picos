@@ -2,7 +2,7 @@
 #define	__pg_options_h		1
 
 /* ======================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                        */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                        */
 /* All rights reserved.                                                     */
 /* ======================================================================== */
 
@@ -35,6 +35,10 @@
 // Auto clock down in power down
 #ifndef	AUTO_CLOCK_DOWN
 #define	AUTO_CLOCK_DOWN		0
+#endif
+
+#ifndef	SEPARATE_SECONDS_CLOCK
+#define	SEPARATE_SECONDS_CLOCK	0
 #endif
 
 // Prioritizing scheduler

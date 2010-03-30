@@ -9,7 +9,7 @@
 #include "tcvphys.h"
 #include "cc1100.h"
 
-#define	GDELAY(s) 	ldelay (GUARD_LONG_DELAY, s)
+#define	GDELAY(s) 	delay (GUARD_LONG_DELAY, s)
 
 static int option (int, address);
 static void chip_reset();
@@ -842,10 +842,10 @@ XRcv:
 
 #if RADIO_CRC_MODE > 1
 	sysassert (paylen <  rbuffl && paylen >= 6 && (paylen & 1) == 0,
-		"phys_cc1100 xmt pktl");
+		"cc1100 xmt pktl");
 #else
 	sysassert (paylen <= rbuffl && paylen >= 6 && (paylen & 1) == 0,
-		"phys_cc1100 xmt pktl");
+		"cc1100 xmt pktl");
 #endif
 	LEDI (1, 1);
 
@@ -991,21 +991,35 @@ void phys_cc1100 (int phy, int mbs) {
  */
 	if (rbuff != NULL)
 		/* We are allowed to do it only once */
-		syserror (ETOOMANY, "phys_cc1100");
+		syserror (ETOOMANY, "cc1100");
 
 	if (mbs < 6 || mbs > CC1100_MAXPLEN) {
 		if (mbs == 0)
 			mbs = CC1100_MAXPLEN;
 		else
-			syserror (EREQPAR, "phys_cc1100 mbs");
+			syserror (EREQPAR, "cc1100 mbs");
 	}
+
+#ifndef	__CC430__
+#if 	RADIO_PRECHECKS
+	csn_down;
+	mdelay (2);
+	if (so_val) {
+		// This precludes hangups that would have been caused by stuck
+		// so_val on our first attempt to talk to the chip
+		syserror (EHARDWARE, "cc1100 chip");
+	}
+	// csn_up
+	SPI_END;
+#endif
+#endif
 
 	rbuffl = (byte) mbs;	// buffer length in bytes, excluding checksum
 #if RADIO_CRC_MODE > 1
 	rbuffl += 2;
 #endif
 	if ((rbuff = umalloc (rbuffl)) == NULL)
-		syserror (EMALLOC, "phys_cc1100");
+		syserror (EMALLOC, "cc1100");
 
 	statid = 0;
 	physid = phy;
@@ -1034,7 +1048,7 @@ void phys_cc1100 (int phy, int mbs) {
 		|| runthread (cc1100_guard) == 0
 #endif
 								)
-		syserror (ERESOURCE, "phys_cc1100");
+		syserror (ERESOURCE, "cc1100");
 }
 
 static int option (int opt, address val) {
@@ -1228,7 +1242,7 @@ static int option (int opt, address val) {
 #endif
 	    default:
 
-		syserror (EREQPAR, "phys_cc1100 option");
+		syserror (EREQPAR, "cc1100 option");
 
 	}
 	return ret;

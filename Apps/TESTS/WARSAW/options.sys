@@ -26,6 +26,7 @@
 #define	RADIO_GUARD	0
 #define	RADIO_DEBUG	0
 #define	RADIO_SPDIFIDLE	0
-#define	AUTO_CLOCK_DOWN	0
+#define	AUTO_CLOCK_DOWN	1
+#define	RADIO_PRECHECKS	1
 
 // #define	MONITOR_PIN_CLOCK	P2_5

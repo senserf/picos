@@ -3862,3 +3862,47 @@ R100321A:
 
 	Fixed a nasty bug introduced in R100315C causing the seconds clock not
 	to advance properly under some circumstances.
+
+R100323A:
+
+	Option RADIO_PRECHECKS (set to 1) tells the cc1100 driver to check
+	before trying to talk to the chip whether the chip pulls down SO in
+	response to CS going down. This avoids later (undiagnosed) hungups on
+	SPI communication (the driver generates a syserror right away). Note
+	that this option is void for CC430 CPUs.
+
+R100329A:
+
+	These operations have been removed: ldelay, ldleft, sectomin, lhold,
+	lhleft. They were messy and ugly. This operation has been added:
+
+	void hold (word state, lword sec);
+
+	It waits (possibly retrying at state) until the wall clock reaches the
+	indicated second (precisely, i.e., the thread will wake up on the
+	second boundary). Note that sec is not a pointer; however, the variable
+	still must be global, as the function may retry.
+
+	There are a few praxes using the old functions. They will not work
+	until they are fixed to use hold instead. In particular, it is
+	recommended to replace ldelay by lhold and get rid of ldleft. Replacing
+	lhold with hold should be trivial. I have fixed eco_demo for tests,
+	but, probably, my fix can be improved (Wlodek, please have a look and
+	do it right).
+
+	We have a new compilation constant: SEPARATE_SECONDS_CLOCK. If set to
+	1, it will produce a version of the kernel with a separate
+	implementation of the seconds timer (i.e., separate from the delay
+	timer), which will remain stable in the face of frequent
+	clockdown/clockup switching. In particular, this is recommended with
+	AUTO_CLOCK_DOWN (in global powerdown mode), if the seconds clock has to
+	be provably accurate. This option won't work on eCOG. If needed, I can
+	come up with a similar solution for eCOG as well.
+
+	Operations clockdown/clockup are now void with HIGH_CRYSTAL_RATE. There
+	is no point in trying to save uAmps when the high-speed crystal 
+	oscillator cannot be switched off. The previous implementation of
+	clockdown for a high-speed crystal was messy and it would be even
+	messier with SEPARATE_SECONDS_CLOCK.
+
+	PicOD document updated.

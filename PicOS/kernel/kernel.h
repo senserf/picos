@@ -46,7 +46,6 @@ typedef struct	{
 #define	ETYPE_IO	3	/* I/O */
 #define	ETYPE_TERM	4	/* Process termination */
 #define	ETYPE_TERMANY	5	/* Termination of any process (joinall) */
-#define	ETYPE_LDELAY	6	/* Minute delay */
 
 #define	efree(e)		((e).Status == 0)
 #define	setestatus(e,t,s)	((e).Status = ((s) << 4) | (t))

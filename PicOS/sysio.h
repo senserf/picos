@@ -653,10 +653,6 @@ int	io (int, int, int, char*, int);
 void	delay (word, word);
 word	dleft (sint);
 
-/* Minute wait */
-void	ldelay (word, word);
-word	ldleft (sint, address);
-
 /* Continue timer wait */
 void	snooze (word);
 /* Signal trigger: returns the number of awakened processes */
@@ -694,17 +690,18 @@ code_t	getcode (sint);
 /* Proceed to another state */
 void	proceed (word);
 /* Power up/down functions */
-void	powerup (void), powerdown (void), clockup (void), clockdown (void);
+void	powerup (void), powerdown (void);
 /* User timers */
 int	utimer (address, Boolean);
 
 /* Second clock */
 #ifdef	__ECOG1__
+void	clockup (void), clockdown (void);
 lword	seconds (void);
-word 	sectomin (void);
 #else
+// On MSP430, these are defined (conditionally) in mach.h
+// void	clockup (void), clockdown (void);
 #define	seconds()	zz_nseconds
-#define	sectomin()	((word)zz_mincd)
 extern	byte		zz_mincd;
 #endif
 

@@ -22,6 +22,21 @@
 #define	RAM_START	(word*)(0xE800)
 #define	RAM_END		(RAM_START+2048)
 
+// ==========================================================================
+// This must be the same as the stack fill pattern used in cstartup.asm
+// ==========================================================================
+#define	STACK_SENTINEL	0xB779
+#define	ISTACK_SENTINEL	0xB77A
+#if STACK_GUARD
+#define	check_stack_overflow	do { \
+				    if (*((word*)estk_) != STACK_SENTINEL) \
+					syserror (ESTACK, "st"); \
+				} while (0)
+#else
+#define	check_stack_overflow	CNOP
+#endif
+// ==========================================================================
+
 #define	UART_BASE	UART_A	/* Device number of the firt UART */
 #define	UART_BUF_SIZE	8	/* Size of the circular buffer */
 #define	UART_TIMEOUT	1024	/* For lost interrupts - one second */

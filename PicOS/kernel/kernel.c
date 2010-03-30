@@ -44,14 +44,14 @@ pcb_t	*zz_curr;
 /* ========= */
 /* The clock */
 /* ========= */
-static 		word  	setticks,
-			millisec;
+static 		word  	setticks;
+
+#if SEPARATE_SECONDS_CLOCK == 0
+static		word	millisec;
+#endif
 
 		word 	zz_mintk;
 volatile	word 	zz_lostk;
-
-		byte	zz_mincd = SECONDS_IN_MINUTE;
-		// One byte for rent
 
 /* ================================ */
 /* User-defineable countdown timers */
@@ -116,7 +116,7 @@ static pcb_t *pidver (sint pid) {
 // ============================================================================
 
 void zz_badstate (void) {
-	syserror (ESTATE, "no such state");
+	syserror (ESTATE, "state");
 }
 
 int utimer (address ut, Boolean add) {
@@ -176,18 +176,19 @@ int utimer (address ut, Boolean add) {
 
 void zz_utimer_set (address t, word v) {
 
-	if ((*t = v) != 0 && power_down_mode && clock_down_mode)
+	if ((*t = v) != 0 && power_down_mode && clock_down_mode) {
+		// diag ("CU T");
 		clockup ();
+	}
 }
 
 #endif
 
 #ifdef	__ECOG1__
 
-// For MSP430, these are macros
+// For MSP430, this is a macro
 
 lword seconds () { return zz_nseconds; }
-word sectomin () { return (word) zz_mincd; }
 
 #endif
 
@@ -205,8 +206,9 @@ void zzz_tservice () {
 	if (nticks == 0)
 		return;
 
+#if SEPARATE_SECONDS_CLOCK == 0
 	millisec += nticks;
-
+#endif
 	do {
 		if (zz_mintk == 0)
 			// Minimum ticks to a wakeup
@@ -258,38 +260,31 @@ void zzz_tservice () {
 
 	} while (nticks);
 
+#if SEPARATE_SECONDS_CLOCK == 0
+
 	/* Keep the seconds clock running */
 	while (millisec >= JIFFIES) {
 
 		millisec -= JIFFIES;
 		zz_nseconds++;
 
+		check_stack_overflow;
+
 #include "second.h"
 
-		if (--zz_mincd == 0) {
-			// A full minute: handle long delays
-			zz_mincd = SECONDS_IN_MINUTE;
-			for_all_tasks (i) {
-				if (i->code == NULL)
-					continue;
-				for (j = 0; j < nevents (i); j++) {
-					if (getetype (i->Events [j]) !=
-						ETYPE_LDELAY)
-							continue;
-			    		if (--(i->Events [j] . Event) == 0)
-						wakeupev (i, j);
-				}
-			}
-		}
 		// Note: even though this is a loop, it is "always" executed
 		// once; the while is just in case
+#endif
+
 #if AUTO_CLOCK_DOWN
 		if (power_down_mode) {
 			if (clock_down_mode) {
 				// We are in clock down, so no utimer can
 				// possibly be active, just check for delay
-				if (zz_mintk && zz_mintk < JIFFIES)
+				if (zz_mintk && zz_mintk < JIFFIES) {
+					// diag ("CU R");
 					clockup ();
+				}
 			} else {
 				// We are in clock up
 				if (zz_mintk == 0 || zz_mintk >= JIFFIES) {
@@ -300,13 +295,17 @@ void zzz_tservice () {
 						if (*zz_utims [j] != 0)
 						   	goto CUp;
 					}
+					// diag ("CD");
 					clockdown ();
 				}
 CUp:				CNOP;
 			}
 		}
 #endif
+
+#if SEPARATE_SECONDS_CLOCK == 0
 	}
+#endif
 }
 
 /* ==================== */
@@ -452,8 +451,10 @@ HardWay:
 		}
 #if AUTO_CLOCK_DOWN
 		if (zz_mintk && power_down_mode && clock_down_mode &&
-			zz_mintk < JIFFIES)
+			zz_mintk < JIFFIES) {
+				// diag ("CU D");
 				clockup ();
+		}
 #endif
 	} else {
 		zz_curr->Timer = 0;
@@ -489,61 +490,6 @@ word dleft (sint pid) {
 
 	return (i->Timer > (setticks - zz_mintk)) ?
 		i->Timer - (setticks - zz_mintk) : 0;
-}
-
-/* =========== */
-/* Minute wait */
-/* =========== */
-void ldelay (word d, word state) {
-
-	int j;
-
-	if (d == 0) {
-		// Special treatment for zero minutes
-		delay (0, state);
-		return;
-	}
-
-	if ((j = nevents (zz_curr)) == MAX_EVENTS_PER_TASK)
-		syserror (ENEVENTS, "ldelay");
-
-	setestatus (zz_curr->Events [j], ETYPE_LDELAY, state);
-	zz_curr->Events [j] . Event = d;
-
-	incwait (zz_curr);
-}
-
-/* ======================================================================= */
-/* Return the number of minutes (and optionally seconds) remaining for the */
-/* process to long-sleep                                                   */
-/* ======================================================================= */
-word ldleft (sint pid, word *s) {
-
-	pcb_t	*i;
-	word	j, ldel;
-
-	ver_pid (i, pid);
-
-	if (i->code == NULL)
-		return MAX_UINT;
-
-	if (s != NULL)
-		*s = (word) zz_mincd;
-
-	ldel = MAX_UINT;
-
-	for (j = 0; j < nevents (i); j++)
-		if (getetype (i->Events [j]) == ETYPE_LDELAY)
-			if (i->Events [j] . Event < ldel)
-				ldel = i->Events [j] . Event;
-
-	if (ldel != MAX_UINT && ldel) {
-		// ldel is the ceiling on minutes
-		if (s != NULL || zz_mincd <= (SECONDS_IN_MINUTE/2))
-			// Round it down
-			ldel--;
-	}
-	return ldel;
 }
 
 /* =============================== */

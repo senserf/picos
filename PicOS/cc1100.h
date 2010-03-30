@@ -55,6 +55,14 @@
 #define	RADIO_SPDIFIDLE		0
 #endif
 
+//
+// Pre-checks for radio chip presence - to avoid hangups and diagnose the
+// problem; this does not apply to CC430 [where the radio is built-in]
+//
+#ifndef	RADIO_PRECHECKS
+#define	RADIO_PRECHECKS		0
+#endif
+
 #ifndef	RADIO_SYSTEM_IDENT
 #define	RADIO_SYSTEM_IDENT	0xAB35	/* Sync word */
 #endif
@@ -78,7 +86,7 @@
 
 // ============================================================================
 
-#define	GUARD_LONG_DELAY	2	/* Minutes */
+#define	GUARD_LONG_DELAY	65367	/* Max == 64 seconds minus 1 tick */
 #define	GUARD_SHORT_DELAY	5000	/* 5 seconds */
 
 // ============================================================================

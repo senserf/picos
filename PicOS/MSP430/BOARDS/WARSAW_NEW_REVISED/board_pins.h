@@ -63,7 +63,7 @@
 // ============================================================================
 
 //
-// Power measurements using MSP-TS430PM64 socket board
+// Current measurements using MSP-TS430PM64 socket board for the CPU
 //
 //	freeze current = 7.7uA DC, 11.22uA RMS
 //	it is about 10uA with RTC included
@@ -81,6 +81,12 @@
 //
 // Note: delays in lcd_st7036.c may have to be adjusted if the display doesn't
 // work (I have reduced them drastically)
+//
+//
+// Current measurements on the prototype from Warsaw are consistent.
+//
+// Powerdown without clockdown takes about 58uA vs. 12-13uA with clockdown
+// (AUTO_CLOCK_DOWN); freeze yields ca. 11uA.
 //
 
 // ============================================================================
