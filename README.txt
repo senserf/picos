@@ -499,3 +499,8 @@ R100315A:
     Added a stub for PHYSOPT_ERROR to match the respective modification to
     PICOS, such that a praxis using PHYSOPT_ERROR will compile. This stub
     zeroes out the argument (if not NULL) and returns zero.
+
+R100329A:
+
+    Matching modifications to PICOS R100329A: removed sectomin, ldelay, ldleft,
+    lhold; added hold.

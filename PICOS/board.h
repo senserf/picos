@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.82
+#define	VUEE_VERSION	0.85
 
 #include "picos.h"
 #include "ndata.h"
@@ -253,8 +253,8 @@ process	_PP_ {
 		// This method is transparently called whenever the
 		// thread/strand wakes up, no matter in which state;
 		// for now, we need it to implement the proper semantics
-		// of operations like ldelay, ldleft, but we may need it
-		// later for more
+		// of operations like snooze, but we may need it later
+		// for more
 
 		clearFlag (Flags, _PP_flag_wtimer);
 	};
@@ -793,10 +793,7 @@ process PanelHandler {
 
 // ============================================================================
 
-void ldelay (word, int);
-word ldleft (sint, word*);
-void lhold (int, lword*);
-lword lhleft (sint, lword*);
+void hold (int, lword);
 void delay (word, int);
 word dleft (sint);
 void snooze (word);

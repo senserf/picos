@@ -284,12 +284,6 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	endthread	}
 #define	endstrand	endthread
 
-//
-// This is a stub. It makes no sense to try to do it right as the minute
-// clock will probably go
-//
-#define	sectomin()	1
-
 #define	praxis_starter(nt) \
 		void nt::appStart () { runthread (root); }
 

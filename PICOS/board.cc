@@ -4479,86 +4479,31 @@ void snooze (word state) {
 	sleep;
 }
 
-void ldelay (word d, int state) {
+void hold (int st, lword sec) {
 /*
- * Minute wait
- */
-	if (d == 0) {
-		delay (0, state);
-		return;
-	}
-
-	TIME delta = etuToItu (64.0 * d);
-
-	ThePPcs->WaitingUntil = Time + delta;
-	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
-	Timer->wait (delta, state);
-}
-
-word ldleft (sint pid, word *s) {
-//
-// Left to long delay (in minutes)
-//
-	_PP_ *p;
-	Long d;
-
-	p = find_pcs_by_id (pid);
-	if (p == NULL || flagCleared (p->Flags, _PP_flag_wtimer)) {
-		if (s != NULL)
-			*s = 0;
-		return MAX_UINT;
-	}
-
-	if (p->WaitingUntil <= Time) {
-		if (s != NULL)
-			*s = 0;
-		return 0;
-	}
-
-	// These are seconds, so we are safe with Long
-	d = (Long) ituToEtu (p->WaitingUntil - Time);
-
-	if (s != NULL)
-		*s = d % 64;
-
-	// Make it ceiling in minutes
-	d = (d + 63) / 64;
-
-	if (s != NULL && *s <= 32)
-		d--;
-
-	return (d > MAX_UINT-1) ? MAX_UINT-1 : (word) d;
-}
-
-void lhold (int st, lword *nsec) {
-/*
- * Long second wait:
+ * Wait until the beginning of next full second
  */
 	TIME delta;
+	double d, s;
 
-	if (*nsec == 0)
+	// Fractional current second
+	d = (ituToEtu (Time) - (double)(TheNode->SecondOffset));
+
+	// Target second
+	s = (double) sec;
+
+	if (s <= d)
 		return;
 
-	delta = etuToItu ((double)(*nsec));
+	delta = etuToItu (s - d);
+	if (delta == TIME_0)
+		return;
+
 	ThePPcs->WaitingUntil = Time + delta;
 	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
 	Timer->wait (delta, st);
-	*nsec = 0;
 	sleep;
 };
-
-lword lhleft (sint pid, lword *s) {
-//
-// Left to long delay (seconds)
-//
-	_PP_ *p;
-
-	p = find_pcs_by_id (pid);
-	if (p == NULL || flagCleared (p->Flags, _PP_flag_wtimer))
-		return *s & 0x7fffffff;
-
-	return (lword) ituToEtu (p->WaitingUntil - Time);
-}
 
 sint zz_getcpid () {
 
