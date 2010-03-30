@@ -3871,7 +3871,7 @@ R100323A:
 	SPI communication (the driver generates a syserror right away). Note
 	that this option is void for CC430 CPUs.
 
-R100329A:
+R100329B:
 
 	These operations have been removed: ldelay, ldleft, sectomin, lhold,
 	lhleft. They were messy and ugly. This operation has been added:
@@ -3905,4 +3905,4 @@ R100329A:
 	clockdown for a high-speed crystal was messy and it would be even
 	messier with SEPARATE_SECONDS_CLOCK.
 
-	PicOD document updated.
+	PicOS document updated.

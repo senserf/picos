@@ -722,13 +722,13 @@ interrupt (TCI_VECTOR) timer_int () {
 // Extras
 #include "irq_timer.h"
 
-#if WATCHDOG_ENABLED
-// ============================================================================
-
-		// Make sure to run the scheduler every 5 seconds
+		// Make sure to empty the counter every 10 seconds to avoid
+		// overrun
 		zz_lostk++;
-		if ((zz_lostk >= 5 * JIFFIES) ||
+		if ((zz_lostk >= 10 * JIFFIES) ||
 			(zz_mintk && zz_mintk <= zz_lostk)) {
+
+#if WATCHDOG_ENABLED
 
 			if (zz_lostk >= 20 * JIFFIES) {
 				// Software watchdog reset: 20 seconds
@@ -737,20 +737,9 @@ interrupt (TCI_VECTOR) timer_int () {
 #endif
 				reset ();
 			}
+#endif
 			RISE_N_SHINE;
 		}
-
-#else
-// WATCHDOG DISABLED ==========================================================
-
-		if (zz_mintk) {
-			// Advance process timers
-			if (++zz_lostk >= zz_mintk)
-				// Only wake up when the timer goes off
-				RISE_N_SHINE;
-		}
-#endif
-// WATCHDOG ENABLED or DISABLED ===============================================
 
 #ifdef	MONITOR_PIN_CLOCK
 		_PVS (MONITOR_PIN_CLOCK, 0);
@@ -775,34 +764,20 @@ interrupt (TCI_VECTOR) timer_int () {
 	}}}}
 #undef UTIMS_CASCADE
 
+	zz_lostk += JIFFIES/TCI_LOW_PER_SEC;
+	if ((zz_lostk >= 10 * JIFFIES) ||
+		(zz_mintk && zz_mintk <= zz_lostk)) {
 #if WATCHDOG_ENABLED
-// ============================================================================
-
-		zz_lostk += JIFFIES/TCI_LOW_PER_SEC;
-		if ((zz_lostk >= 5 * JIFFIES) ||
-			(zz_mintk && zz_mintk <= zz_lostk)) {
-
-			if (zz_lostk >= 20 * JIFFIES) {
-				// Software watchdog reset: 20 seconds
+		if (zz_lostk >= 20 * JIFFIES) {
+			// Software watchdog reset: 20 seconds
 #ifdef WATCHDOG_SAVER
-				WATCHDOG_SAVER ();
+			WATCHDOG_SAVER ();
 #endif
-				reset ();
-			}
-			RISE_N_SHINE;
+			reset ();
 		}
-
-#else
-// WATCHDOG DISABLED ==========================================================
-
-		if (zz_mintk) {
-			// Advance process timers
-			if ((zz_lostk += JIFFIES/TCI_LOW_PER_SEC) >= zz_mintk)
-				RISE_N_SHINE;
-		}
-
 #endif
-// WATCHDOG ENABLED or DISABLED ===============================================
+		RISE_N_SHINE;
+	}
 
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 0);
