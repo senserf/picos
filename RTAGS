@@ -3906,3 +3906,16 @@ R100329B:
 	messier with SEPARATE_SECONDS_CLOCK.
 
 	PicOS document updated.
+
+R100402A:
+
+	Reverted to the timer interrupt version from R100329A (which I overrode 
+	with R100039B thinking it was bad). It was actually OK and slightly
+	better than my "improvement".
+
+	Added a new board: MSP430/BOARDS/XCC430. This is the development board
+	with CC430F6137 from TI. Added UART configuration options for CC430
+	CPUs (into MSP430/uart_def.h). Reorganized ADC to be parameterizable by
+	CPU types (the ADC on CC430F6xx is slightly different).
+	RFPing compiles and the radio seems to communicate with CC1100 on
+	WARSAW boards.

@@ -722,13 +722,13 @@ interrupt (TCI_VECTOR) timer_int () {
 // Extras
 #include "irq_timer.h"
 
-		// Make sure to empty the counter every 10 seconds to avoid
-		// overrun
-		zz_lostk++;
-		if ((zz_lostk >= 10 * JIFFIES) ||
-			(zz_mintk && zz_mintk <= zz_lostk)) {
-
 #if WATCHDOG_ENABLED
+// ============================================================================
+
+		// Make sure to run the scheduler every 5 seconds
+		zz_lostk++;
+		if ((zz_lostk >= 5 * JIFFIES) ||
+			(zz_mintk && zz_mintk <= zz_lostk)) {
 
 			if (zz_lostk >= 20 * JIFFIES) {
 				// Software watchdog reset: 20 seconds
@@ -737,9 +737,20 @@ interrupt (TCI_VECTOR) timer_int () {
 #endif
 				reset ();
 			}
-#endif
 			RISE_N_SHINE;
 		}
+
+#else
+// WATCHDOG DISABLED ==========================================================
+
+		if (zz_mintk) {
+			// Advance process timers
+			if (++zz_lostk >= zz_mintk)
+				// Only wake up when the timer goes off
+				RISE_N_SHINE;
+		}
+#endif
+// WATCHDOG ENABLED or DISABLED ===============================================
 
 #ifdef	MONITOR_PIN_CLOCK
 		_PVS (MONITOR_PIN_CLOCK, 0);
@@ -764,20 +775,34 @@ interrupt (TCI_VECTOR) timer_int () {
 	}}}}
 #undef UTIMS_CASCADE
 
-	zz_lostk += JIFFIES/TCI_LOW_PER_SEC;
-	if ((zz_lostk >= 10 * JIFFIES) ||
-		(zz_mintk && zz_mintk <= zz_lostk)) {
 #if WATCHDOG_ENABLED
-		if (zz_lostk >= 20 * JIFFIES) {
-			// Software watchdog reset: 20 seconds
+// ============================================================================
+
+		zz_lostk += JIFFIES/TCI_LOW_PER_SEC;
+		if ((zz_lostk >= 5 * JIFFIES) ||
+			(zz_mintk && zz_mintk <= zz_lostk)) {
+
+			if (zz_lostk >= 20 * JIFFIES) {
+				// Software watchdog reset: 20 seconds
 #ifdef WATCHDOG_SAVER
-			WATCHDOG_SAVER ();
+				WATCHDOG_SAVER ();
 #endif
-			reset ();
+				reset ();
+			}
+			RISE_N_SHINE;
 		}
+
+#else
+// WATCHDOG DISABLED ==========================================================
+
+		if (zz_mintk) {
+			// Advance process timers
+			if ((zz_lostk += JIFFIES/TCI_LOW_PER_SEC) >= zz_mintk)
+				RISE_N_SHINE;
+		}
+
 #endif
-		RISE_N_SHINE;
-	}
+// WATCHDOG ENABLED or DISABLED ===============================================
 
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 0);
@@ -1346,7 +1371,28 @@ static void uart_lock (uart_t *u) {
 /* ========================== */
 /* Interrupt service routines */
 /* ========================== */
+
+#ifdef	UART_A_TX_RX_VECTOR
+//
+// This means that there is a single vector for both RX and TX, as in CC430
+//
+interrupt (UART_A_TX_RX_VECTOR) uart_a_tx_rx_int (void) {
+
+	if (uart_a_tx_interrupt) {
+
+// ============================================================================
+
+#else
+
 interrupt (UART_A_TX_VECTOR) uart_a_tx_int (void) {
+
+// ============================================================================
+
+#endif
+
+// ============================================================================
+// TX interrupt service =======================================================
+// ============================================================================
 
 	// Disable until a character arrival
 	uart_a_disable_write_int;
@@ -1368,7 +1414,19 @@ interrupt (UART_A_TX_VECTOR) uart_a_tx_int (void) {
 	RTNI;
 }
 
+#ifdef UART_A_TX_RX_VECTOR
+
+	else {
+
+#else
+
 interrupt (UART_A_RX_VECTOR) uart_a_rx_int (void) {
+
+#endif
+
+// ============================================================================
+// RX interrupt service =======================================================
+// ============================================================================
 
 #define	ua	(zz_uart + 0)
 
@@ -1415,6 +1473,12 @@ interrupt (UART_A_RX_VECTOR) uart_a_rx_int (void) {
 	RTNI;
 
 }
+
+#ifdef UART_A_TX_RX_VECTOR
+}
+#endif
+
+// ============================================================================
 
 static int ioreq_uart_a (int op, char *b, int len) {
 	return ioreq_uart (ua, op, b, len);

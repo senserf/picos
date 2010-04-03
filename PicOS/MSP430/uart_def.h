@@ -18,13 +18,6 @@
 
 #include "mach.h"
 
-
-#if __UART_CONFIG__ == 1
-
-// ============================================================================
-// Standard MSP430F1xx: two UARTs [shared part] ===============================
-// ============================================================================
-
 //
 // Clock and rate calculation
 //
@@ -33,6 +26,12 @@ typedef struct	{
 	word rate;
 	byte A, B;
 } uart_rate_table_entry_t;
+
+#if __UART_CONFIG__ == 1
+
+// ============================================================================
+// Standard MSP430F1xx: two UARTs [shared part] ===============================
+// ============================================================================
 
 // ============================================================================
 
@@ -47,7 +46,7 @@ typedef struct	{
 #endif
 
 #define	uart_0_set_clock	UTCTL0 = UART_UTCTL;
-#define	uart_1_set_clock	UTCTL0 = UART_UTCTL;
+#define	uart_1_set_clock	UTCTL1 = UART_UTCTL;
 
 #define	uart_0_enable		do { \
 					_BIS (ME1, UTXE0 + URXE0); \
@@ -394,6 +393,210 @@ typedef struct	{
 
 
 #endif	/* __UART_CONFIG__ == 1 */
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+
+#if __UART_CONFIG__ == 2
+
+// CC430 single UART on P1.5, P1.6
+
+#if CRYSTAL2_RATE
+// SMCLK
+#define	UART_UTCTL	UCSSEL1
+#define	UART_CLOCK_RATE	CRYSTAL2_RATE
+#else
+// ACLK
+#define	UART_UTCTL	UCSSEL0
+#define	UART_CLOCK_RATE	CRYSTAL_RATE
+#endif
+
+
+
+#define	uart_a_set_rate(t)	do { \
+					UCA0BR0 = (t) . A; \
+					UCA0BR1 = 0; \
+					UCA0MCTL = (t) . B; \
+				} while (0)
+
+#define	uart_a_set_rate_def	do { \
+					UCA0BR0 = UART_UCBR; \
+					UCA0BR1 = 0; \
+					UCA0MCTL = UART_UCBRS; \
+				} while (0)
+
+#define	uart_a_disable_int		_BIC (UCA0IE, UCTXIE + UCRXIE)
+#define	uart_a_disable_read_int		_BIC (UCA0IE, UCRXIE)
+#define	uart_a_disable_write_int	_BIC (UCA0IE, UCTXIE)
+#define	uart_a_enable_read_int		_BIS (UCA0IE, UCRXIE)
+#define	uart_a_enable_write_int		_BIS (UCA0IE, UCTXIE)
+#define	uart_a_set_read_int		_BIS (UCA0IFG, UCRXIFG)
+#define	uart_a_set_write_int		_BIS (UCA0IFG, UCTXIFG)
+#define	uart_a_get_read_int		(UCA0IFG & UCRXIFG)
+#define	uart_a_get_write_int		(UCA0IFG & UCTXIFG)
+#define	uart_a_get_int_stat		(UCA0IE & (UCTXIE + UCRXIE))
+#define	uart_a_set_int_stat(w)		_BIS (UCA0IE, (w) & (UCTXIE + UCRXIE))
+#define	uart_a_reset_on			_BIS (UCA0CTL1, UCSWRST)
+#define	uart_a_reset_off		_BIC (UCA0CTL1, UCSWRST)
+#define	uart_a_wait_tx			while (!uart_a_get_write_int)
+#define	uart_a_set_clock 		UCA0CTL1 = (UART_UTCTL | UCSWRST)
+
+// Note: the default (reset) setting of UCAxCTL0 is fine
+
+#define	uart_a_enable 			_BIS (UCA0IE, UCTXIE + UCRXIE)
+
+#define	uart_a_write(b)			UCA0TXBUF = (b)
+#define	uart_a_read			UCA0RXBUF
+
+// A single vector for both TX and RX
+#define	UART_A_TX_RX_VECTOR	USCI_A0_VECTOR
+
+#define	uart_a_tx_interrupt	(UCA0IV == 4)
+
+#ifndef	UART_PREINIT_A
+
+#define	UART_PREINIT_A	do { \
+				_BIC (P1DIR, 0x20); \
+				_BIS (P1DIR, 0x40); \
+				_BIS (P1SEL, 0x60); \
+			} while (0)
+#endif
+
+#define	uart_save_ie_flags(s)		do { \
+						(s) = UCA0IE; \
+						UCA0IE = 0; \
+					} while (0)
+
+#define	uart_restore_ie_flags(s)	UCA0IE = (s)
+
+// ============================================================================
+// Macros to transform bit rates into prescaler and modulator
+// ============================================================================
+
+// Calculate rnd [ (clock / r - int (clock / r)) * 8 ]
+#define	_uu_rnd8_x(r)	((((UART_CLOCK_RATE*16)/(r) & 0xF) + 1) >> 1)
+
+// Calculate rnd [ (clock / r / 16 - int (clock / r / 16)) * 16]
+#define	_uu_rndF_x(r)	((((UART_CLOCK_RATE*2)/(r) & 0x1F) + 1) >> 1)
+
+// Modulus for non-versampling mode (shifted << 1)
+#define	_uu_modu_n(r)	((_uu_rnd8_x (r) < 8 ? _uu_rnd8_x (r) : \
+				_uu_rnd8_x (r) - 1) << 1)
+
+// Modulus for oversampling mode ( << 1 | 1 )
+#define _uu_modu_o(r)	(((_uu_rndF_x (r) < 16 ? _uu_rndF_x (r) : \
+				_uu_rndF_x (r) - 1) << 8) | 1)
+
+// Prescaler non-oversampling
+#define _uu_pres_n(r)	(UART_CLOCK_RATE/(r))
+
+// Prescaler oversampling
+#define	_uu_pres_o(r)	((UART_CLOCK_RATE/(r)) / 16)
+
+// Modulus general
+#define	_uu_modu(r)	(((UART_CLOCK_RATE/(r)) >= 16) ? \
+				_uu_modu_o (r) : _uu_modu_n (r))
+
+// Prescaler general
+#define	_uu_pres(r)	(((UART_CLOCK_RATE/(r)) >= 16) ? \
+				_uu_pres_o (r) : _uu_pres_n (r))
+
+#if	UART_CLOCK_RATE == 32768
+// We go up to 9600
+
+// Make sure the rate is standard
+
+#if UART_RATE == 1200
+#define	UART_RATE_INDEX	0
+#endif
+
+#if UART_RATE == 2400
+#define	UART_RATE_INDEX	1
+#endif
+
+#if UART_RATE == 4800
+#define	UART_RATE_INDEX	2
+#endif
+
+#if UART_RATE == 9600
+#define	UART_RATE_INDEX	3
+#endif
+
+#ifndef	UART_RATE_INDEX
+#error "S: illegal UART_RATE, can be 1200, 2400, 4800, 9600"
+#endif
+
+#define UART_UCBR	_uu_pres_n (UART_RATE)
+#define	UART_UCBRS	_uu_modu_n (UART_RATE)
+
+#define	UART_RATE_TABLE	{\
+				{ 12, _uu_pres_n (1200), _uu_modu_n (1200) }, \
+				{ 24, _uu_pres_n (2400), _uu_modu_n (2400) }, \
+				{ 48, _uu_pres_n (4800), _uu_modu_n (4800) }, \
+				{ 96, _uu_pres_n (9600), _uu_modu_n (9600) }  \
+			}
+
+#else	/* UART_CLOCK_RATE > 32768 */
+
+#if UART_RATE == 1200
+#define	UART_RATE_INDEX	0
+#endif
+#if UART_RATE == 2400
+#define	UART_RATE_INDEX	1
+#endif
+#if UART_RATE == 4800
+#define	UART_RATE_INDEX	2
+#endif
+#if UART_RATE == 9600
+#define	UART_RATE_INDEX	3
+#endif
+#if UART_RATE == 14400
+#define	UART_RATE_INDEX	4
+#endif
+#if UART_RATE == 19200
+#define	UART_RATE_INDEX	5
+#endif
+#if UART_RATE == 28800
+#define	UART_RATE_INDEX	6
+#endif
+#if UART_RATE == 38400
+#define	UART_RATE_INDEX	7
+#endif
+#if UART_RATE == 76800
+#define	UART_RATE_INDEX	8
+#endif
+#if UART_RATE == 115200
+#define	UART_RATE_INDEX	9
+#endif
+#if UART_RATE == 256000
+#define	UART_RATE_INDEX	10
+#endif
+
+#ifndef	UART_RATE_INDEX
+#error "S: Illegal UART_RATE, see MSP430/uart_def.h"
+#endif
+
+#define	UART_UCBR	_uu_pres (UART_RATE)
+#define	UART_UCBRS	_uu_modu (UART_RATE)
+
+#define	UART_RATE_TABLE	{ \
+    {	12, _uu_pres (  1200), _uu_modu (  1200) }, \
+    {	24, _uu_pres (  2400), _uu_modu (  2400) }, \
+    {	48, _uu_pres (  4800), _uu_modu (  4800) }, \
+    {	96, _uu_pres (  9600), _uu_modu (  9600) }, \
+    {  144, _uu_pres ( 14400), _uu_modu ( 14400) }, \
+    {  192, _uu_pres ( 19200), _uu_modu ( 19200) }, \
+    {  288, _uu_pres ( 28800), _uu_modu ( 28800) }, \
+    {  384, _uu_pres ( 38400), _uu_modu ( 38400) }, \
+    {  768, _uu_pres ( 76800), _uu_modu ( 76800) }, \
+    { 1152, _uu_pres (115200), _uu_modu (115200) }, \
+    { 2560, _uu_pres (256000), _uu_modu (256000) }  \
+}
+
+#endif	/* UART_CLOCK_RATE > 32768 */
+
+#endif	/* __UART_CONFIG__ == 2 */
 
 // ============================================================================
 // ============================================================================

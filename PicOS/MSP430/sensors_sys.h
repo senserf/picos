@@ -39,9 +39,10 @@ typedef struct {
 //                  (exported) reference, sample & hold time
 //
 #define	sensor_adc_config(a)	do { \
-			  _BIC (ADC12CTL0, ENC); \
+			  _BIC (ADC12CTL0, ADC_FLG_ENC); \
+			  ADC_CTL2_SET; \
 			  ADC12CTL1 = ADC_CLOCK_DIVIDER + \
-						ADC_CLOCK_SOURCE + SHP; \
+					ADC_CLOCK_SOURCE + ADC_FLG_SHP; \
 			  ADC12MCTL0 = *(a); \
 			  ADC12CTL0 = *((word*)(a+1)); \
 			} while (0)
@@ -50,7 +51,7 @@ typedef struct {
 	{ { ((word) 0x80 | ((word)(par)) << 8), (word)(pro), (word)(ini) } }
 
 #define	ANALOG_SENSOR(isi,ns,pn,uref,sht,eref) \
-	{ { (word)(isi) | (((word)((uref) | (pn) | EOS)) << 8), \
+	{ { (word)(isi) | (((word)((uref) | (pn) | ADC_FLG_EOS)) << 8), \
 	     (word)(ADC12ON | (eref)) | (((word)(((sht) << 4) | (sht))) << 8), \
 	     (word)(ns) } }
 

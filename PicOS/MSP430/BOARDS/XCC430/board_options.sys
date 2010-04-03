@@ -1,6 +1,6 @@
 #define	MALLOC_SINGLEPOOL	1
 
-#define DIAG_MESSAGES		0	// Disabled for now
+#define DIAG_MESSAGES		2	// Disabled for now
 #define	DIAG_IMPLEMENTATION	0	// We will be creative in the praxis
 
 #define	TCV_PRESENT		1
@@ -21,16 +21,12 @@
 
 #define	PPM_LEVEL		3	// Power management level
 
-// LEDs defined through LCD, but this must be set as it still selects them
-// as a global option
 #define LEDS_DRIVER		1
+#define	LEDS_BLINKING		1
 
-// This must be zero, even though we have blinking capability, as the
-// capability does not depend on the system clock
-#define LEDS_BLINKING		0
-
-#define UART_DRIVER		0
-#define	RADIO_USE_LEDS		7
+#define UART_DRIVER		1
+#define	UART_PREINIT		CNOP	// Pins defined statically
+#define	RADIO_USE_LEDS		3
 
 #define CC1100			1
 
@@ -41,6 +37,6 @@
 
 #define	INFO_FLASH		2
 
-#define RESET_ON_SYSERR		0
+#define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
 #define MSK_BACKOFF		0xFF

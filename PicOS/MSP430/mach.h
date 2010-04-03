@@ -17,15 +17,24 @@
 #error "S: this must be compiled with mspgcc!!!"
 #endif
 
+#define	LITTLE_ENDIAN	1
+#define	BIG_ENDIAN	0
+
 // Meaning we are gcc
 #define	INTERNAL_FUNCTIONS_ALLOWED	1
+
+// ============================================================================
+// CPU type dependencies ======================================================
+// ============================================================================
 
 #ifdef		__MSP430_148__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_1xx__
 #define		__UART_CONFIG__	1
+#define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
+#define		__PORT_FBASE__	P3IN_	// Lowest-address port register
 #endif
 
 #ifdef		__MSP430_149__
@@ -33,7 +42,9 @@
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_1xx__
 #define		__UART_CONFIG__	1
+#define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
+#define		__PORT_FBASE__	P3IN_
 #endif
 
 #ifdef		__MSP430_1611__
@@ -41,7 +52,9 @@
 #define		RAM_SIZE	0x2800	// 10240
 #define       	__MSP430_1xx__
 #define		__UART_CONFIG__	1
+#define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
+#define		__PORT_FBASE__	P3IN_
 #endif
 
 #ifdef		__MSP430_449__
@@ -49,7 +62,9 @@
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_4xx__
 #define		__UART_CONFIG__	1
+#define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
+#define		__PORT_FBASE__	P3IN_
 #endif
 
 #ifdef		__MSP430_G4617__
@@ -57,7 +72,9 @@
 #define		RAM_SIZE	0x2000	// 8K
 #define       	__MSP430_4xx__
 #define		__UART_CONFIG__	1
+#define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
+#define		__PORT_FBASE__	P3IN_
 // Different pins
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
@@ -69,7 +86,9 @@
 #define		RAM_SIZE	0x2000	// 8K
 #define       	__MSP430_4xx__
 #define		__UART_CONFIG__	1
+#define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
+#define		__PORT_FBASE__	P10IN_
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
 #define		__SWAPPED_UARTS__
@@ -80,7 +99,9 @@
 #define		RAM_SIZE	0x1000	// 4K
 #define       	__MSP430_4xx__
 #define		__UART_CONFIG__	1
+#define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
+#define		__PORT_FBASE__	P10IN_
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
 #define		__SWAPPED_UARTS__
@@ -93,7 +114,9 @@
 #define       	__CC430_6xx__
 #define		__CC430__
 #define		__PORTMAPPER__
+#define		__PORT_FBASE__	P1IN_	// Won't cover port J!!!
 #define		__UART_CONFIG__	2
+#define		__ADC_CONFIG__	2
 #define		__TCI_CONFIG__	2
 #endif
 
@@ -101,10 +124,51 @@
 #error	"S: untried yet CPU type: check MSP430/mach.h"
 #endif
 
-// ============================================================================
+#include "arch.h"
+
 // ============================================================================
 
-#include "arch.h"
+#if	INFO_FLASH
+#define	IFLASH_SIZE	128			// This is in words
+#define	IFLASH_HARD_ADDRESS	((word*)0x1000)
+#endif
+
+#define	RAM_END		(RAM_START + RAM_SIZE)
+#define	STACK_SIZE	256			// Bytes
+#define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
+#define	STACK_END	(STACK_START - STACK_SIZE)
+
+#define	STACK_SENTINEL	0xB779
+
+#if STACK_GUARD
+#define	check_stack_overflow \
+			 do { \
+				if (*(((word*)STACK_END)-1) != STACK_SENTINEL) \
+					syserror (ESTACK, "st"); \
+			} while (0)
+#else
+#define	check_stack_overflow	CNOP
+#endif
+
+#ifdef	__PORTMAPPER__
+
+typedef	struct {
+
+	byte *pm_base;
+	const byte map [8];
+
+} portmap_t;
+
+#define	portmap_entry(a,b,c,d,e,f,g,h,i) \
+		{ (byte*) (&(a)), \
+			(byte) (b), (byte) (c), (byte) (d), (byte) (e), \
+			(byte) (f), (byte) (g), (byte) (h), (byte) (i)  }
+
+#endif	/* __PORTMAPPER__ */
+
+// ============================================================================
+// Crystals and timers ========================================================
+// ============================================================================
 
 // ACLK crystal parameters
 
@@ -266,50 +330,11 @@ void clockup (void), clockdown (void);
 #define	TCI_INIT_LOW  	(TCI_LOW_DIV - 1)
 
 // ============================================================================
-
-#define	LITTLE_ENDIAN	1
-#define	BIG_ENDIAN	0
-
-#if	INFO_FLASH
-#define	IFLASH_SIZE	128			// This is in words
-#define	IFLASH_HARD_ADDRESS	((word*)0x1000)
-#endif
-
-#define	RAM_END		(RAM_START + RAM_SIZE)
-#define	STACK_SIZE	256			// Bytes
-#define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
-#define	STACK_END	(STACK_START - STACK_SIZE)
-
-#define	STACK_SENTINEL	0xB779
-
-#if STACK_GUARD
-#define	check_stack_overflow \
-			 do { \
-				if (*(((word*)STACK_END)-1) != STACK_SENTINEL) \
-					syserror (ESTACK, "st"); \
-			} while (0)
-#else
-#define	check_stack_overflow	CNOP
-#endif
-
-#ifdef	__PORTMAPPER__
-
-typedef	struct {
-
-	byte *pm_base;
-	const byte map [8];
-
-} portmap_t;
-
-#define	portmap_entry(a,b,c,d,e,f,g,h,i) \
-		{ (byte*) (&(a)), \
-			(byte) (b), (byte) (c), (byte) (d), (byte) (e), \
-			(byte) (f), (byte) (g), (byte) (h), (byte) (i)  }
-
-#endif	/* __PORTMAPPER__ */
+// UART(s) ====================================================================
+// ============================================================================
 
 #include "uart_def.h"
-						// LWA of stack
+
 #if	UART_DRIVER
 
 typedef struct	{
@@ -351,13 +376,206 @@ extern uart_t zz_uart [];
 #define	UART_RATE_MASK		0x0F
 
 // ============================================================================
+// ADC ========================================================================
+// ============================================================================
 
-#define	sti	_EINT ()
-#define	cli	_DINT ()
+#if __ADC_CONFIG__ == 1
 
-/* =================== */
-/* Watchdog operations */
-/* =================== */
+// MSP430F1xx, MSP430F4xx ...
+
+#define	ADC_DEF_CSOURCE		ADC12SSEL_ADC12OSC
+#define	ADC_DEF_DIV		ADC12DIV_7
+#define	ADC_FLG_ENC		ENC
+#define	ADC_FLG_EOS		EOS
+#define	ADC_FLG_SHP		SHP
+#define	ADC_FLG_REFON		REFON
+#define	ADC_FLG_REF25		REF2_5V
+#define	ADC_PRT_DIR		P6DIR
+#define	ADC_PRT_SEL		P6SEL
+#define	ADC_SREF_EVSS		SREF_VEREF_AVSS
+#define	ADC_SREF_VVSS		SREF_AVCC_AVSS
+#define	ADC_SREF_RVSS		SREF_VREF_AVSS
+
+#define	ADC_CTL2_SET		CNOP
+
+#endif
+
+// ============================================================================
+
+#if __ADC_CONFIG__ == 2
+
+// CC430F6xx (some fields have different names: this is an "extended ADC")
+
+#define	ADC_DEF_CSOURCE		ADC12SSEL_0
+#define	ADC_DEF_DIV		ADC12DIV_7
+#define	ADC_FLG_ENC		ADC12ENC
+#define	ADC_FLG_EOS		ADC12EOS
+#define	ADC_FLG_SHP		ADC12SHP
+#define	ADC_FLG_REFON		ADC12REFON
+#define	ADC_FLG_REF25		ADC12REF2_5V
+#define	ADC_PRT_DIR		P2DIR
+#define	ADC_PRT_SEL		P2SEL
+#define	ADC_SREF_EVSS		ADC12SREF_2
+#define	ADC_SREF_VVSS		ADC12SREF_0
+#define	ADC_SREF_RVSS		ADC12SREF_1
+
+// We have a third control register: resolution = 12 bits, slower rate,
+// reference out; we may still want to set the burst mode, but, as we
+// switch the reference off after measurement, the savings wouldn't be
+// terrific
+#define	ADC_CTL2_SET		ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC12REFOUT
+
+#endif
+
+// ============================================================================
+
+//
+// The defaults are:
+//
+//	Internal oscillator (lousy stability: 3.7-6.3 MHz with 5MHz target)
+//	divided by 8, yielding about 1.6us sampling unit
+//
+
+#ifndef	ADC_CLOCK_SOURCE
+#define	ADC_CLOCK_SOURCE	ADC_DEF_CSOURCE
+#endif
+
+#ifndef	ADC_CLOCK_DIVIDER
+#define	ADC_CLOCK_DIVIDER	ADC_DEF_DIV
+#endif
+
+//
+// Configuration for polled sample collection:
+//
+//      - t == 0 -> sample and hold, otherwise timed by t
+//	- r == 0 -> int 1.5, 1 -> int 2.5, 2 -> Vcc, 3 -> Veref
+//
+//	Note: the unit of sampling time is (average) 200ns * 8 = 1.6us
+//
+#define	adc_config_read(p,r,t)	do { \
+				  _BIC (ADC12CTL0, ADC_FLG_ENC); \
+				  _BIC (ADC_PRT_DIR, 1 << (p)); \
+				  _BIS (ADC_PRT_SEL, 1 << (p)); \
+				  ADC_CTL2_SET; \
+				  ADC12CTL1 = ADC_CLOCK_DIVIDER + \
+							ADC_CLOCK_SOURCE + \
+				  ((t) != 0 ? ADC_FLG_SHP : 0); \
+				  ADC12MCTL0 = ADC_FLG_EOS + \
+				  ((r) > 2 ? ADC_SREF_EVSS : ((r) == 2 ? \
+				    ADC_SREF_VVSS : ADC_SREF_RVSS)) + (p); \
+				  ADC12CTL0 = ADC12ON + \
+				   ((r) == 1 ? ADC_FLG_REF25 : 0) + \
+				   ((r) < 2 ? ADC_FLG_REFON : 0) + \
+				   (((t) & 0xf) << 12) + (((t) & 0xf) << 8); \
+				} while (0)
+
+#ifdef	PIN_ADC_RSSI
+//
+// ADC configuration for collecting RSSI
+//
+#define	adc_config_rssi		do { \
+					_BIC (ADC12CTL0, ADC_FLG_ENC); \
+					_BIC (ADC_PRT_DIR, 1 << PIN_ADC_RSSI); \
+					_BIS (ADC_PRT_SEL, 1 << PIN_ADC_RSSI); \
+				        ADC_CTL2_SET; \
+					ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
+					ADC12MCTL0 = ADC_FLG_EOS + \
+						ADC_SREF_RVSS + INCH_0; \
+					ADC12CTL0 = ADC_FLG_REF25 + ADC12ON + \
+						ADC_FLG_REFON; \
+				} while (0)
+
+#else	/* NO ADC RSSI */
+
+#define	adc_config_rssi		adc_disable
+
+#endif	/* PIN_ADC_RSSI */
+
+// ============================================================================
+// Operations =================================================================
+// ============================================================================
+
+// Result not available
+#define	adc_busy	(ADC12CTL1 & ADC12BUSY)
+
+// Wait for result
+#define	adc_wait	do { } while (adc_busy)
+
+// ADC is on
+#define	adc_inuse	(ADC12CTL0 & ADC12ON)
+
+// ADC reading
+#define	adc_value	ADC12MEM0
+
+#if 0
+// ADC operating for the RF receiver; this is heuristic, and perhaps
+// not needed (used in pin_read.c to save on a status bit that would have to be
+// stored somewhere)
+#define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
+// I am removing this ugly hack
+#endif
+
+// Explicit end of sample indication
+#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
+
+// Off but possibly less than disable
+#define	adc_off		_BIC (ADC12CTL0, ADC_FLG_ENC)
+
+// Complete off, including REF voltage
+#define	adc_disable	do { \
+				adc_off; \
+				_BIC (ADC12CTL0, ADC12ON + ADC_FLG_REFON); \
+			} while (0)
+
+// Start measurement
+#define	adc_start	do { \
+				_BIC (ADC12CTL0, ADC_FLG_ENC); \
+				_BIS (ADC12CTL0, ADC12ON); \
+				_BIS (ADC12CTL0, ADC12SC + ADC_FLG_ENC); \
+			} while (0)
+
+// Start measurement with RFON. This is a mess, but RFON takes current, so I
+// want to make sure that it is always off after adc_disable. This requires
+// whoever invokes adc_start to know. Otherwise, we would need a separate 
+// in-memory flag to tell what should be the case and, of course, we would
+// need conditions in all these macros.
+#define	adc_start_refon	do { \
+				_BIC (ADC12CTL0, ADC_FLG_ENC); \
+				_BIS (ADC12CTL0, ADC12ON + ADC_FLG_REFON); \
+				_BIS (ADC12CTL0, ADC12SC + ADC_FLG_ENC); \
+			} while (0)
+
+// Anything needed to keep it happy (like skipping samples on eCOG)
+#define	adc_advance	CNOP
+
+/*
+ * DAC configuration for direct voltage setup
+ */
+#define dac_config_write(p,v,r)	do { \
+				  if ((p) == 0) { \
+				    _BIC (DAC12_0CTL,DAC12ENC); \
+				    DAC12_0CTL = DAC12SREF_0 + \
+					((r) ? 0 : DAC12IR) + \
+					DAC12AMP_5; \
+				    DAC12_0DAT = (v); \
+				  } else { \
+				    _BIC (DAC12_1CTL,DAC12ENC); \
+				    DAC12_1CTL = DAC12SREF_0 + \
+					((r) ? 0 : DAC12IR) + \
+					DAC12AMP_5; \
+				    DAC12_1DAT = (v); \
+				  } \
+				} while (0)
+
+// ============================================================================
+
+#define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
+#define	RSSI_MAX	0x0fff
+#define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
+
+// ============================================================================
+// Watchdog ===================================================================
+// ============================================================================
 
 #define	WATCHDOG_STOP		WDTCTL = WDTPW + WDTHOLD
 
@@ -389,6 +607,8 @@ extern uart_t zz_uart [];
 
 #define	WATCHDOG_RESUME		WATCHDOG_START
 
+// ============================================================================
+
 #ifdef	MONITOR_PIN_CPU
 
 #define	CPU_MARK_IDLE	_PVS (MONITOR_PIN_CPU, 0)
@@ -403,6 +623,9 @@ extern uart_t zz_uart [];
 
 #define	power_down_mode	(zz_systat.pdmode)
 #define	clock_down_mode (TCI_CCR == TCI_INIT_LOW)
+
+#define	sti	_EINT ()
+#define	cli	_DINT ()
 
 #define	SLEEP	do { \
 			CPU_MARK_IDLE; \

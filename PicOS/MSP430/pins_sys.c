@@ -42,15 +42,17 @@ word zz_pin_ivalue (word p) {
 
 	if (p >= PIN_MAX)
 		return 0;
-	return (*(byte*)(P3IN_ + pinmap[p].poff) >> pinmap[p].pnum) & 1;
+	return (*(byte*)
+		(__PORT_FBASE__ + pinmap[p].poff) >> pinmap[p].pnum) & 1;
 }
 
 word zz_pin_ovalue (word p) {
 
 	if (p >= PIN_MAX)
 		return 0;
-	return (*(byte*)(P3IN_ + pinmap[p].poff + POUT_off) >> pinmap[p].pnum)
-		& 1;
+	return (*(byte*)
+		(__PORT_FBASE__ + pinmap[p].poff + POUT_off) >> pinmap[p].pnum)
+			& 1;
 }
 
 #if PIN_DAC_PINS != 0
@@ -117,42 +119,48 @@ Boolean zz_pin_adc (word p) {
 	if (p >= PIN_MAX_ANALOG)
 		return 0;
 
-	return (*(byte*)(P3IN_ + pinmap[p].poff + PSEL_off) >> pinmap[p].pnum)
-		& 1;
+	return (*(byte*)
+		(__PORT_FBASE__ + pinmap[p].poff + PSEL_off) >> pinmap[p].pnum)
+			& 1;
 }
 
 Boolean zz_pin_output (word p) {
 
-	return (*(byte*)(P3IN_ + pinmap[p].poff + PDIR_off) >> pinmap[p].pnum)
-		& 1;
+	return (*(byte*)
+		(__PORT_FBASE__ + pinmap[p].poff + PDIR_off) >> pinmap[p].pnum)
+			& 1;
 }
 
 void zz_pin_set (word p) {
 
-	_BIS (*(byte*)(P3IN_ + pinmap[p].poff + POUT_off), 1 << pinmap[p].pnum);
+	_BIS (*(byte*)
+	    (__PORT_FBASE__ + pinmap[p].poff + POUT_off), 1 << pinmap[p].pnum);
 }
 
 void zz_pin_clear (word p) {
 
-	_BIC (*(byte*)(P3IN_ + pinmap[p].poff + POUT_off), 1 << pinmap[p].pnum);
+	_BIC (*(byte*)
+	    (__PORT_FBASE__ + pinmap[p].poff + POUT_off), 1 << pinmap[p].pnum);
 }
 
 void zz_pin_set_input (word p) {
 
 	zz_clear_dac (p);
 	if (p < PIN_MAX_ANALOG)
-		_BIC (*(byte*)(P3IN_ + pinmap[p].poff + PSEL_off),
+		_BIC (*(byte*)(__PORT_FBASE__ + pinmap[p].poff + PSEL_off),
 			1 << pinmap[p].pnum);
-	_BIC (*(byte*)(P3IN_ + pinmap[p].poff + PDIR_off), 1 << pinmap[p].pnum);
+	_BIC (*(byte*)
+	    (__PORT_FBASE__ + pinmap[p].poff + PDIR_off), 1 << pinmap[p].pnum);
 }
 
 void zz_pin_set_output (word p) {
 
 	zz_clear_dac (p);
 	if (p < PIN_MAX_ANALOG)
-		_BIC (*(byte*)(P3IN_ + pinmap[p].poff + PSEL_off),
+		_BIC (*(byte*)(__PORT_FBASE__ + pinmap[p].poff + PSEL_off),
 			1 << pinmap[p].pnum);
-	_BIS (*(byte*)(P3IN_ + pinmap[p].poff + PDIR_off), 1 << pinmap[p].pnum);
+	_BIS (*(byte*)
+	    (__PORT_FBASE__ + pinmap[p].poff + PDIR_off), 1 << pinmap[p].pnum);
 }
 
 void zz_pin_set_adc (word p) {
@@ -160,9 +168,9 @@ void zz_pin_set_adc (word p) {
 	zz_clear_dac (p);
 
 	if (p < PIN_MAX_ANALOG) {
-	    _BIC (*(byte*)(P3IN_ + pinmap[p].poff + PDIR_off),
+	    _BIC (*(byte*)(__PORT_FBASE__ + pinmap[p].poff + PDIR_off),
 		1 << pinmap[p].pnum);
-	    _BIS (*(byte*)(P3IN_ + pinmap[p].poff + PSEL_off),
+	    _BIS (*(byte*)(__PORT_FBASE__ + pinmap[p].poff + PSEL_off),
 		1 << pinmap[p].pnum);
 	}
 }

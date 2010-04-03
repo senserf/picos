@@ -79,6 +79,29 @@
 #define	P5_6		(32+6)
 #define	P5_7		(32+7)
 
+#define	PORTNAMES_NPINS	40
+
+#ifdef	P6DIR
+
+#undef	PORTNAMES_NPINS
+#define	PORTNAMES_NPINS	(40+8)
+
+#define	_PDS_s_06(p)	case 5: _BIS (P6DIR, 1 << ((p) & 7)); break;
+#define	_PDS_c_06(p)	case 5: _BIC (P6DIR, 1 << ((p) & 7)); break;
+#define	_PFS_s_06(p)	case 5: _BIS (P6SEL, 1 << ((p) & 7)); break;
+#define	_PFS_c_06(p)	case 5: _BIC (P6SEL, 1 << ((p) & 7)); break;
+#define	_PVS_s_06(p)	case 5: _BIS (P6OUT, 1 << ((p) & 7)); break;
+#define	_PVS_c_06(p)	case 5: _BIC (P6OUT, 1 << ((p) & 7)); break;
+#define	_PHS_s_06(p)	case 5: _BIS (P6DS,  1 << ((p) & 7)); break;
+#define	_PHS_c_06(p)	case 5: _BIC (P6DS,  1 << ((p) & 7)); break;
+#define	_PPS_s_06(p)	case 5: _BIS (P6REN, 1 << ((p) & 7)); break;
+#define	_PPS_c_06(p)	case 5: _BIC (P6REN, 1 << ((p) & 7)); break;
+#define	_PV____06(p)	((p) >> 3) == 5 ? P6IN
+#define	_PF____06(p)	((p) >> 3) == 5 ? P6SEL
+#define	_PD____06(p)	((p) >> 3) == 5 ? P6DIR
+#define	_PH____06(p)	((p) >> 3) == 5 ? P6DS
+#define	_PP____06(p)	((p) >> 3) == 5 ? P6REN
+
 #define	P6_0		(40+0)
 #define	P6_1		(40+1)
 #define	P6_2		(40+2)
@@ -88,7 +111,25 @@
 #define	P6_6		(40+6)
 #define	P6_7		(40+7)
 
-#define	PORTNAMES_NPINS	48
+#else
+
+#define	_PDS_s_06(p)
+#define	_PDS_c_06(p)
+#define	_PFS_s_06(p)
+#define	_PFS_c_06(p)
+#define	_PVS_s_06(p)
+#define	_PVS_c_06(p)
+#define	_PHS_s_06(p)
+#define	_PHS_c_06(p)
+#define	_PPS_s_06(p)
+#define	_PPS_c_06(p)
+#define	_PV____06(p)	0 ? 0
+#define	_PF____06(p)	0 ? 0
+#define	_PD____06(p)	0 ? 0
+#define	_PH____06(p)	0 ? 0
+#define	_PP____06(p)	0 ? 0
+
+#endif	/* P6 present */
 
 #ifdef	P7DIR
 
@@ -404,7 +445,7 @@
 					_PDS_s___ ( 3, p) \
 					_PDS_s___ ( 4, p) \
 					_PDS_s___ ( 5, p) \
-					_PDS_s___ ( 6, p) \
+					_PDS_s_06 (    p) \
 					_PDS_s_07 (    p) \
 					_PDS_s_08 (    p) \
 					_PDS_s_09 (    p) \
@@ -420,7 +461,7 @@
 					_PDS_c___ ( 3, p) \
 					_PDS_c___ ( 4, p) \
 					_PDS_c___ ( 5, p) \
-					_PDS_c___ ( 6, p) \
+					_PDS_c_06 (    p) \
 					_PDS_c_07 (    p) \
 					_PDS_c_08 (    p) \
 					_PDS_c_09 (    p) \
@@ -440,7 +481,7 @@
 					_PFS_s___ ( 3, p) \
 					_PFS_s___ ( 4, p) \
 					_PFS_s___ ( 5, p) \
-					_PFS_s___ ( 6, p) \
+					_PFS_s_06 (    p) \
 					_PFS_s_07 (    p) \
 					_PFS_s_08 (    p) \
 					_PFS_s_09 (    p) \
@@ -456,7 +497,7 @@
 					_PFS_c___ ( 3, p) \
 					_PFS_c___ ( 4, p) \
 					_PFS_c___ ( 5, p) \
-					_PFS_c___ ( 6, p) \
+					_PFS_c_06 (    p) \
 					_PFS_c_07 (    p) \
 					_PFS_c_08 (    p) \
 					_PFS_c_09 (    p) \
@@ -476,7 +517,7 @@
 					_PVS_s___ ( 3, p) \
 					_PVS_s___ ( 4, p) \
 					_PVS_s___ ( 5, p) \
-					_PVS_s___ ( 6, p) \
+					_PVS_s_06 (    p) \
 					_PVS_s_07 (    p) \
 					_PVS_s_08 (    p) \
 					_PVS_s_09 (    p) \
@@ -492,7 +533,7 @@
 					_PVS_c___ ( 3, p) \
 					_PVS_c___ ( 4, p) \
 					_PVS_c___ ( 5, p) \
-					_PVS_c___ ( 6, p) \
+					_PVS_c_06 (    p) \
 					_PVS_c_07 (    p) \
 					_PVS_c_08 (    p) \
 					_PVS_c_09 (    p) \
@@ -510,7 +551,7 @@
 				(_PV______ (3, p) : \
 				(_PV______ (4, p) : \
 				(_PV______ (5, p) : \
-				(_PV______ (6, p) : \
+				(_PV____06 (   p) : \
 				(_PV____07 (   p) : \
 				(_PV____08 (   p) : \
 				(_PV____09 (   p) : \
@@ -524,7 +565,7 @@
 				(_PF______ (3, p) : \
 				(_PF______ (4, p) : \
 				(_PF______ (5, p) : \
-				(_PF______ (6, p) : \
+				(_PF____06 (   p) : \
 				(_PF____07 (   p) : \
 				(_PF____08 (   p) : \
 				(_PF____09 (   p) : \
@@ -538,7 +579,7 @@
 				(_PD______ (3, p) : \
 				(_PD______ (4, p) : \
 				(_PD______ (5, p) : \
-				(_PD______ (6, p) : \
+				(_PD____06 (   p) : \
 				(_PD____07 (   p) : \
 				(_PD____08 (   p) : \
 				(_PD____09 (   p) : \
@@ -559,7 +600,7 @@
 					_PHS_s___ ( 3, p) \
 					_PHS_s___ ( 4, p) \
 					_PHS_s___ ( 5, p) \
-					_PHS_s___ ( 6, p) \
+					_PHS_s_06 (    p) \
 					_PHS_s_07 (    p) \
 					_PHS_s_08 (    p) \
 					_PHS_s_09 (    p) \
@@ -575,7 +616,7 @@
 					_PHS_c___ ( 3, p) \
 					_PHS_c___ ( 4, p) \
 					_PHS_c___ ( 5, p) \
-					_PHS_c___ ( 6, p) \
+					_PHS_c_06 (    p) \
 					_PHS_c_07 (    p) \
 					_PHS_c_08 (    p) \
 					_PHS_c_09 (    p) \
@@ -595,7 +636,7 @@
 					_PPS_s___ ( 3, p) \
 					_PPS_s___ ( 4, p) \
 					_PPS_s___ ( 5, p) \
-					_PPS_s___ ( 6, p) \
+					_PPS_s_06 (    p) \
 					_PPS_s_07 (    p) \
 					_PPS_s_08 (    p) \
 					_PPS_s_09 (    p) \
@@ -611,7 +652,7 @@
 					_PPS_c___ ( 3, p) \
 					_PPS_c___ ( 4, p) \
 					_PPS_c___ ( 5, p) \
-					_PPS_c___ ( 6, p) \
+					_PPS_c_06 (    p) \
 					_PPS_c_07 (    p) \
 					_PPS_c_08 (    p) \
 					_PPS_c_09 (    p) \
@@ -629,7 +670,7 @@
 				(_PH______ (3, p) : \
 				(_PH______ (4, p) : \
 				(_PH______ (5, p) : \
-				(_PH______ (6, p) : \
+				(_PH____06 (   p) : \
 				(_PH____07 (   p) : \
 				(_PH____08 (   p) : \
 				(_PH____09 (   p) : \
@@ -644,7 +685,7 @@
 				(_PP______ (3, p) : \
 				(_PP______ (4, p) : \
 				(_PP______ (5, p) : \
-				(_PP______ (6, p) : \
+				(_PP____06 (   p) : \
 				(_PP____07 (   p) : \
 				(_PP____08 (   p) : \
 				(_PP____09 (   p) : \

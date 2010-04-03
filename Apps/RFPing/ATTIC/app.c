@@ -7,6 +7,7 @@
 #include "tcvphys.h"
 
 #define	PIN_RAW_TEST	1
+#define	PIN_OPS_TEST	1
 
 #ifdef	PIN_OPS_TEST
 #include "pinopts.h"

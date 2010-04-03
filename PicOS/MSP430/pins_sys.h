@@ -7,7 +7,7 @@
 
 #include "sysio.h"
 
-#define	PIN_DEF(p,n)	{ p ## IN_ - P3IN_ , n }
+#define	PIN_DEF(p,n)	{ p ## IN_ - __PORT_FBASE__ , n }
 #define PIN_RESERVED	{ 0xff, 0 }
 
 /*
@@ -209,143 +209,6 @@
 REQUEST_EXTERNAL (p2irq);
 #endif
 
-// === GP ADC =================================================================
-//
-// The defaults are:
-//
-//	Internal oscillator (lousy stability: 3.7-6.3 MHz with 5MHz target)
-//	divided by 8, yielding about 1.6us sampling unit
-//
-
-#ifndef	ADC_CLOCK_SOURCE
-#define	ADC_CLOCK_SOURCE	ADC12SSEL_ADC12OSC
-#endif
-
-#ifndef	ADC_CLOCK_DIVIDER
-#define	ADC_CLOCK_DIVIDER	ADC12DIV_7
-#endif
-
-/*
- * ADC configuration for polled sample collection:
- *
- *      - t == 0 -> sample and hold, otherwise timed by t
- *	- r == 0 -> int 1.5, 1 -> int 2.5, 2 -> Vcc, 3 -> Veref
- *
- *	Note: the unit of sampling time is (average) 200ns * 8 = 1.6us
- */
-#define	adc_config_read(p,r,t)	do { \
-				  _BIC (ADC12CTL0, ENC); \
-				  _BIC (P6DIR, 1 << (p)); \
-				  _BIS (P6SEL, 1 << (p)); \
-				  ADC12CTL1 = ADC_CLOCK_DIVIDER + \
-							ADC_CLOCK_SOURCE + \
-				  ((t) != 0 ? SHP : 0); \
-				  ADC12MCTL0 = EOS + \
-				  ((r) > 2 ? SREF_VEREF_AVSS : ((r) == 2 ? \
-				    SREF_AVCC_AVSS : SREF_VREF_AVSS)) + (p); \
-				  ADC12CTL0 = ADC12ON + \
-				   ((r) == 1 ? REF2_5V : 0) + \
-				   ((r) < 2 ? REFON : 0) + \
-				   (((t) & 0xf) << 12) + (((t) & 0xf) << 8); \
-				} while (0)
-
-// ============================================================================
-
-#ifdef	PIN_ADC_RSSI
-
-#define	adc_config_rssi		do { \
-					_BIC (ADC12CTL0, ENC); \
-					_BIC (P6DIR, 1 << PIN_ADC_RSSI); \
-					_BIS (P6SEL, 1 << PIN_ADC_RSSI); \
-					ADC12CTL1 = ADC12DIV_6 + ADC12SSEL_3; \
-					ADC12MCTL0 = EOS + SREF_1 + INCH_0; \
-					ADC12CTL0 = REF2_5V + ADC12ON + REFON; \
-				} while (0)
-
-#else	/* NO ADC RSSI */
-
-#define	adc_config_rssi		adc_disable
-
-#endif	/* PIN_ADC_RSSI */
-
-// ============================================================================
-
-// Result not available
-#define	adc_busy	(ADC12CTL1 & ADC12BUSY)
-
-// Wait for result
-#define	adc_wait	do { } while (adc_busy)
-
-// ADC is on
-#define	adc_inuse	(ADC12CTL0 & ADC12ON)
-
-// ADC reading
-#define	adc_value	ADC12MEM0
-
-#if 0
-// ADC operating for the RF receiver; this is heuristic, and perhaps
-// not needed (used in pin_read.c to save a status bit that would have to be
-// stored somewhere)
-#define	adc_rcvmode	((ADC12CTL1 & ADC12DIV_1) == 0)
-// I am removing this ugly hack
-#endif
-
-// Explicit end of sample indication
-#define	adc_stop	_BIC (ADC12CTL0, ADC12SC)
-
-// Off but possibly less than disable
-#define	adc_off		_BIC (ADC12CTL0, ENC)
-
-// Complete off, including REF voltage
-#define	adc_disable	do { \
-				adc_off; \
-				_BIC (ADC12CTL0, ADC12ON + REFON); \
-			} while (0)
-
-// Start measurement
-#define	adc_start	do { \
-				_BIC (ADC12CTL0, ENC); \
-				_BIS (ADC12CTL0, ADC12ON); \
-				_BIS (ADC12CTL0, ADC12SC + ENC); \
-			} while (0)
-
-// Start measurement with RFON. This is a mess, but RFON takes current, so I
-// want to make sure that it is always off after adc_disable. This requires
-// whoever invokes adc_start to know. Otherwise, we would need a separate 
-// in-memory flag to tell what should be the case and, of course, we would
-// need conditions in all these macros.
-#define	adc_start_refon	do { \
-				_BIC (ADC12CTL0, ENC); \
-				_BIS (ADC12CTL0, ADC12ON + REFON); \
-				_BIS (ADC12CTL0, ADC12SC + ENC); \
-			} while (0)
-
-// Anything needed to keep it happy (like skipping samples on eCOG)
-#define	adc_advance	CNOP
-
-#define	RSSI_MIN	0x0000	// Minimum and maximum RSSI values (for scaling)
-#define	RSSI_MAX	0x0fff
-#define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
-
-/*
- * DAC configuration for immediate voltage setup
- */
-#define dac_config_write(p,v,r)	do { \
-				  if ((p) == 0) { \
-				    _BIC (DAC12_0CTL,DAC12ENC); \
-				    DAC12_0CTL = DAC12SREF_0 + \
-					((r) ? 0 : DAC12IR) + \
-					DAC12AMP_5; \
-				    DAC12_0DAT = (v); \
-				  } else { \
-				    _BIC (DAC12_1CTL,DAC12ENC); \
-				    DAC12_1CTL = DAC12SREF_0 + \
-					((r) ? 0 : DAC12IR) + \
-					DAC12AMP_5; \
-				    DAC12_1DAT = (v); \
-				  } \
-				} while (0)
-
 #if PIN_MAX
 
 typedef struct {
@@ -353,6 +216,7 @@ typedef struct {
 } pind_t;
 
 
+// Assumes that these offsets are the same for all ports
 #define	PSEL_off	(P3SEL_ - P3IN_)
 #define	PDIR_off	(P3DIR_ - P3IN_)
 #define	POUT_off	(P3OUT_ - P3IN_)
