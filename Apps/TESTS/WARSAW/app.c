@@ -3,26 +3,15 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+// ============================================================================
 
-// Things to test in the auto mode:
-//
-//	Pins:
-//		Left connector: P1.7, P1.6, P4.7, P6.7, P6.0, P6.4, P6.3, P6.5
-//		P5.7 goes high, P6.1,2,6 pulled up by 47K
-//
-//		Right connector: P4.6, P4.5, P4.4, P4.0, P2.6, P2.5, P5.6,
-//				 P3.6, P3.7
+#include "boards.h"
 
-#define	LCD_TEST	0
-#define	RTC_TEST	0
 
+// ============================================================================
 #include "sysio.h"
 #include "tcvphys.h"
 #include "iflash_sys.h"
-#include "storage.h"
-#if 	LCD_TEST
-#include "lcd_st7036.h"
-#endif
 
 #define	MIN_PACKET_LENGTH	24
 #define	MAX_PACKET_LENGTH	42
@@ -34,17 +23,11 @@ heapmem {10, 90};
 #include "form.h"
 #include "storage.h"
 
-#if CC1100
 #include "phys_cc1100.h"
 #include "plug_null.h"
-#endif
 
 #include "pinopts.h"
 #include "hold.h"
-
-#if	RTC_TEST
-#include "rtc_s35390.h"
-#endif
 
 #define	IBUFLEN		132
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
@@ -61,7 +44,7 @@ static byte	str [129], *blk;
 static char	*ibuf;
 static address	packet;
 
-#if	RTC_TEST
+#ifdef RTC_TEST
 rtc_time_t dtime;
 #endif
 
@@ -82,13 +65,17 @@ thread (test_auto)
 
   entry (AU_INIT)
 
+#ifdef EPR_TEST
 	ser_out (AU_INIT, "EEPROM ...\r\n");
-
+#endif
 	// Delay for a short while to clean the UART
 	delay (750, AU_EE);
 	release;
 
   entry (AU_EE)
+
+// ============================================================================
+#ifdef EPR_TEST
 
 	if (ee_open ()) {
 		strcpy (ibuf, "Cannot open EEPROM!\r\n");
@@ -141,8 +128,10 @@ thread (test_auto)
 
 	ee_close ();
 	ser_out (AU_EE+5, "EEPROM OK\r\n");
+#endif
 
-#if	RTC_TEST
+// ============================================================================
+#ifdef RTC_TEST
 
   entry (AU_RC)
 
@@ -160,22 +149,14 @@ thread (test_auto)
 	dtime.minute = 9;
 	dtime.second = 9;
 
-	if (rtc_set (&dtime)) {
-		strcpy (ibuf, "Cannot set RTC!\r\n");
-		proceed (AU_FAIL);
-	}
-
+	rtc_set (&dtime);
 	delay (2048, AU_RC+2);
 	release;
 
   entry (AU_RC+2)
 
 	bzero (&dtime, sizeof (dtime));
-	if (rtc_get (&dtime)) {
-		strcpy (ibuf, "Cannot read RTC!\r\n");
-		proceed (AU_FAIL);
-	}
-
+	rtc_get (&dtime);
 	if (dtime.second < 10) {
 		strcpy (ibuf, "RTC doesn't tick!\r\n");
 		proceed (AU_FAIL);
@@ -187,7 +168,8 @@ thread (test_auto)
 
 #endif
 
-#if 	LCD_TEST
+// ============================================================================
+#ifdef LCD_TEST
 
   entry (AU_LC)
 
@@ -212,7 +194,7 @@ thread (test_auto)
   entry (AU_PN)
 
 	ser_out (AU_PN,
-	"Light up order: P6.0/3-7, P1.6-7, P2.6, P3.6-7, P4.0/4-7, P5.6-7\r\n");
+		"Pins will light up in the order of defs in board_pins.h\r\n");
 	delay (750, AU_RF);
 	release;
 
@@ -479,6 +461,151 @@ endthread
 
 // ============================================================================
 
+#define	IF_START	0
+#define	IF_RCMD		10
+#define	IF_LED		20
+#define	IF_BLI		30
+#define	IF_DIA		40
+#define	IF_FLR		50
+#define	IF_FLW		60
+#define	IF_FLE		70
+#define	IF_CLR		80
+#define	IF_CLW		90
+#define	IF_CLE		100
+#define	IF_COT		110
+
+thread (test_ifl)
+
+  entry (IF_START)
+
+	ser_out (IF_START,
+		"\r\nFLASH Test\r\n"
+		"Commands:\r\n"
+		"l led w -> led status [w = 0, 1, 2]\r\n"
+		"b w -> blinkrate 0-low, 1-high\r\n"
+		"d m -> write a diag message\r\n"
+		"w adr w -> write word to info flash\r\n"
+		"r adr -> read word from info flash\r\n"
+		"e adr -> erase info flash\r\n"
+		"W adr w -> write word to code flash\r\n"
+		"R adr -> read word from code flash\r\n"
+		"E adr -> erase code flash\r\n"
+		"T adr -> flash overwrite test\r\n"
+		"q -> return to main test\r\n"
+	);
+
+  entry (IF_RCMD)
+
+	err = 0;
+	ser_in (IF_RCMD, ibuf, IBUFLEN-1);
+
+	switch (ibuf [0]) {
+		case 'l': proceed (IF_LED);
+		case 'b': proceed (IF_BLI);
+		case 'd': proceed (IF_DIA);
+		case 'w': proceed (IF_FLW);
+		case 'r': proceed (IF_FLR);
+		case 'e': proceed (IF_FLE);
+		case 'W': proceed (IF_CLW);
+		case 'R': proceed (IF_CLR);
+		case 'E': proceed (IF_CLE);
+		case 'T': proceed (IF_COT);
+		case 'q': { finish; };
+	}
+	
+  entry (IF_RCMD+1)
+
+	ser_out (IF_RCMD+1, "Illegal\r\n");
+	proceed (IF_START);
+
+  entry (IF_LED)
+
+	scan (ibuf + 1, "%u %u", &bs, &nt);
+	leds (bs, nt);
+	proceed (IF_RCMD);
+
+  entry (IF_BLI)
+
+	scan (ibuf + 1, "%u", &bs);
+	fastblink (bs);
+	proceed (IF_RCMD);
+
+  entry (IF_DIA)
+
+	diag ("MSG %d (%x) %u: %s", dcnt, dcnt, dcnt, ibuf+1);
+	dcnt++;
+	proceed (IF_RCMD);
+
+  entry (IF_FLR)
+
+	scan (ibuf + 1, "%u", &w);
+	if (w >= IFLASH_SIZE)
+		proceed (IF_RCMD+1);
+	diag ("IF [%u] = %x", w, IFLASH [w]);
+	proceed (IF_RCMD);
+
+  entry (IF_FLW)
+
+	scan (ibuf + 1, "%u %u", &w, &bs);
+	if (w >= IFLASH_SIZE)
+		proceed (IF_RCMD+1);
+	if (if_write (w, bs))
+		diag ("FAILED");
+	else
+		diag ("OK");
+	goto Done;
+
+  entry (IF_FLE)
+
+	b = -1;
+	scan (ibuf + 1, "%d", &b);
+	if_erase (b);
+	goto Done;
+
+  entry (IF_CLR)
+
+	scan (ibuf + 1, "%u", &w);
+	diag ("CF [%u] = %x, et = %x", w, *((address)w), (word)(&_etext));
+	proceed (IF_RCMD);
+
+  entry (IF_CLW)
+
+	scan (ibuf + 1, "%u %u", &w, &bs);
+	cf_write ((address)w, bs);
+Done:
+	diag ("OK");
+	proceed (IF_RCMD);
+
+  entry (IF_CLE)
+
+	b = 0;
+	scan (ibuf + 1, "%d", &b);
+	cf_erase ((address)b);
+	goto Done;
+
+  entry (IF_COT)
+
+	w = 0;
+	scan (ibuf + 1, "%u", &w);
+
+	if (*((address)w) != 0xffff) {
+		diag ("Word not erased: %x", *((address)w));
+		proceed (IF_RCMD);
+	}
+
+	for (b = 1; b <= 16; b++) {
+		nt = 0xffff << b;
+		cf_write ((address)w, nt);
+		sl = *((address)w);
+		diag ("Written %x, read %x", nt, sl);
+	}
+	goto Done;
+
+endthread
+// ============================================================================
+
+#ifdef EPR_TEST
+
 #define	EP_START	0
 #define	EP_INIT		5
 #define	EP_RCMD		10
@@ -492,16 +619,6 @@ endthread
 #define	EP_REA		90
 #define	EP_ERA		100
 #define	EP_SYN		110
-#define	EP_LED		120
-#define	EP_BLI		130
-#define	EP_DIA		140
-#define	EP_FLR		150
-#define	EP_FLW		160
-#define	EP_FLE		170
-#define	EP_CLR		175
-#define	EP_CLW		180
-#define	EP_CLE		190
-#define	EP_COT		195
 #define	EP_ETS		200
 #define	EP_ETS_O	210
 #define	EP_ETS_E	220
@@ -543,16 +660,6 @@ thread (test_epr)
 		"x frm upt -> erase eeprom from upto\r\n"
 		"s -> sync eeprom\r\n"
 		"w fr ln pat -> erase-write-read test\r\n"
-		"i led w -> led status [w = 0, 1, 2]\r\n"
-		"j w -> blinkrate 0-low, 1-high\r\n"
-		"k m -> write a diag message\r\n"
-		"m adr w -> write word to info flash\r\n"
-		"n adr -> read word from info flash\r\n"
-		"o adr -> erase info flash\r\n"
-		"M adr w -> write word to code flash\r\n"
-		"N adr -> read word from code flash\r\n"
-		"O adr -> erase code flash\r\n"
-		"T adr -> flash overwrite test\r\n"
 		"q -> return to main test\r\n"
 	);
 
@@ -573,16 +680,6 @@ thread (test_epr)
 		case 'x': proceed (EP_ERA);
 		case 's': proceed (EP_SYN);
 		case 'w': proceed (EP_ETS);
-		case 'i': proceed (EP_LED);
-		case 'j': proceed (EP_BLI);
-		case 'k': proceed (EP_DIA);
-		case 'm': proceed (EP_FLW);
-		case 'n': proceed (EP_FLR);
-		case 'o': proceed (EP_FLE);
-		case 'M': proceed (EP_CLW);
-		case 'N': proceed (EP_CLR);
-		case 'O': proceed (EP_CLE);
-		case 'T': proceed (EP_COT);
 		case 'q': { ee_close (); finish; };
 	}
 	
@@ -724,88 +821,6 @@ Done:
 	err = ee_sync (WNONE);
 	goto Done;
 
-  entry (EP_LED)
-
-	scan (ibuf + 1, "%u %u", &bs, &nt);
-	leds (bs, nt);
-	proceed (EP_RCMD);
-
-  entry (EP_BLI)
-
-	scan (ibuf + 1, "%u", &bs);
-	fastblink (bs);
-	proceed (EP_RCMD);
-
-  entry (EP_DIA)
-
-	diag ("MSG %d (%x) %u: %s", dcnt, dcnt, dcnt, ibuf+1);
-	dcnt++;
-	proceed (EP_RCMD);
-
-  entry (EP_FLR)
-
-	scan (ibuf + 1, "%u", &w);
-	if (w >= IFLASH_SIZE)
-		proceed (EP_RCMD+1);
-	diag ("IF [%u] = %x", w, IFLASH [w]);
-	proceed (EP_RCMD);
-
-  entry (EP_FLW)
-
-	scan (ibuf + 1, "%u %u", &w, &bs);
-	if (w >= IFLASH_SIZE)
-		proceed (EP_RCMD+1);
-	if (if_write (w, bs))
-		diag ("FAILED");
-	else
-		diag ("OK");
-	goto Done;
-
-  entry (EP_FLE)
-
-	b = -1;
-	scan (ibuf + 1, "%d", &b);
-	if_erase (b);
-	goto Done;
-
-  entry (EP_CLR)
-
-	scan (ibuf + 1, "%u", &w);
-	diag ("CF [%u] = %x, et = %x", w, *((address)w), (word)(&_etext));
-	proceed (EP_RCMD);
-
-  entry (EP_CLW)
-
-	scan (ibuf + 1, "%u %u", &w, &bs);
-	cf_write ((address)w, bs);
-	diag ("OK");
-	goto Done;
-
-  entry (EP_CLE)
-
-	b = 0;
-	scan (ibuf + 1, "%d", &b);
-	cf_erase ((address)b);
-	goto Done;
-
-  entry (EP_COT)
-
-	w = 0;
-	scan (ibuf + 1, "%u", &w);
-
-	if (*((address)w) != 0xffff) {
-		diag ("Word not erased: %x", *((address)w));
-		proceed (EP_RCMD);
-	}
-
-	for (b = 1; b <= 16; b++) {
-		nt = 0xffff << b;
-		cf_write ((address)w, nt);
-		sl = *((address)w);
-		diag ("Written %x, read %x", nt, sl);
-	}
-	goto Done;
-
   entry (EP_ETS)
 
 	// ERASE-WRITE-READ
@@ -922,9 +937,11 @@ Done:
 
 endthread
 
+#endif
+
 // ============================================================================
 
-#ifdef	SDCARD_PRESENT
+#ifdef SDC_TEST
 
 #define	SD_INIT		0
 #define	SD_OK		1
@@ -1485,7 +1502,7 @@ endthread
 
 // ============================================================================
 
-#if	RTC_TEST
+#ifdef RTC_TEST
 
 #define	RT_MEN	0
 #define	RT_RCM	10
@@ -1504,8 +1521,10 @@ thread (test_rtc)
 		"Commands:\r\n"
 		"s y m d dw h m s -> set the clock\r\n"
 		"r -> read the clock\r\n"
+#ifdef RTC_REG
 		"w b -> write reg\r\n"
 		"g -> read reg\r\n"
+#endif
 		"q -> quit\r\n"
 	);
 
@@ -1517,8 +1536,10 @@ thread (test_rtc)
 
 	    case 's': proceed (RT_SET);
 	    case 'r': proceed (RT_GET);
+#ifdef RTC_REG
 	    case 'w': proceed (RT_SETR);
 	    case 'g': proceed (RT_GETR);
+#endif
 	    case 'q': {
 			finish;
 	    }
@@ -1547,21 +1568,21 @@ thread (test_rtc)
 	dtime.minute = nt;
 	dtime.second = sl;
 
-	err = rtc_set (&dtime);
+	rtc_set (&dtime);
 
   entry (RT_SET+1)
 
-	ser_outf (RT_SET+1, "Status = %u\r\n", err);
+	ser_out (RT_SET+1, "Done\r\n");
 	proceed (RT_RCM);
 
   entry (RT_GET)
 
 	bzero (&dtime, sizeof (dtime));
-	err = rtc_get (&dtime);
+	rtc_get (&dtime);
 
   entry (RT_GET+1)
 
-	ser_outf (RT_GET+1, "Status = %u // %u %u %u %u %u %u %u\r\n", err,
+	ser_outf (RT_GET+1, "Date = %u %u %u %u %u %u %u\r\n",
 				dtime.year,
 				dtime.month,
 				dtime.day,
@@ -1570,6 +1591,8 @@ thread (test_rtc)
 				dtime.minute,
 				dtime.second);
 	proceed (RT_RCM);
+
+#ifdef RTC_REG
 
   entry (RT_SETR)
 
@@ -1587,7 +1610,8 @@ thread (test_rtc)
 
 	ser_outf (RT_GETR+1, "Status = %u // %u\r\n", err, (word) (str [0]));
 	proceed (RT_RCM);
-	
+
+#endif
 
 endthread
 
@@ -1595,7 +1619,7 @@ endthread
 
 // ============================================================================
 
-#if 	LCD_TEST
+#ifdef LCD_TEST
 
 #define	LT_MEN	0
 #define	LT_RCM	10
@@ -1684,7 +1708,7 @@ thread (test_lcd)
 
 endthread
 
-#endif /* RTC_TEST */
+#endif /* LCD_TEST */
 
 // ============================================================================
 
@@ -1864,7 +1888,7 @@ thread (root)
 	ibuf [0] = 0;
 
 #if 0
-#if	RTC_TEST
+#ifdef RTC_TEST
 
 	// Check if the clock is running; if not, set it to anything as
 	// otherwise it drains current;
@@ -1915,25 +1939,36 @@ thread (root)
 		"o c  -> cswitch on\r\n"
 		"f c  -> cswitch off\r\n"
 #endif
+		"F -> flash test\r\n"
+
+#ifdef EPR_TEST
 		"E -> EEPROM test\r\n"
-#ifdef SDCARD_PRESENT
+#endif
+
+#ifdef SDC_TEST
 		"S -> SD test\r\n"
 #endif
 		"P -> pin test\r\n"
 		"D -> power\r\n"
+
 #ifdef	gps_bring_up
 		"G -> GPS\r\n"
 #endif
+
 #ifdef SENSOR_LIST
 		"V -> sensors\r\n"
 #endif
+
 		"A -> ADC\r\n"
-#if	RTC_TEST
+
+#ifdef RTC_TEST
 		"T -> RTC\r\n"
 #endif
-#if 	LCD_TEST
+
+#ifdef LCD_TEST
 		"L -> LCD\r\n"
 #endif
+
 		"U -> UART echo\r\n"
 	);
 
@@ -2023,18 +2058,29 @@ RS_Loop:			proceed (RS_RCMD);
 		}
 #endif
 		case 'n' : reset ();
+
+		case 'F' : {
+				runthread (test_ifl);
+				joinall (test_ifl, RS_RCMD-2);
+				release;
+		}
+
+#ifdef EPR_TEST
 		case 'E' : {
 				runthread (test_epr);
 				joinall (test_epr, RS_RCMD-2);
 				release;
 		}
-#ifdef SDCARD_PRESENT
+#endif
+
+#ifdef SDC_TEST
 		case 'S' : {
 				runthread (test_sdcard);
 				joinall (test_sdcard, RS_RCMD-2);
 				release;
 		}
 #endif
+
 		case 'P' : {
 				runthread (test_pin);
 				joinall (test_pin, RS_RCMD-2);
@@ -2071,14 +2117,14 @@ RS_Loop:			proceed (RS_RCMD);
 				release;
 		}
 
-#if	RTC_TEST
+#ifdef RTC_TEST
 		case 'T' : {
 				runthread (test_rtc);
 				joinall (test_rtc, RS_RCMD-2);
 				release;
 		}
 #endif
-#if 	LCD_TEST
+#ifdef LCD_TEST
 		case 'L' : {
 				runthread (test_lcd);
 				joinall (test_lcd, RS_RCMD-2);

@@ -3919,3 +3919,17 @@ R100402A:
 	CPU types (the ADC on CC430F6xx is slightly different).
 	RFPing compiles and the radio seems to communicate with CC1100 on
 	WARSAW boards.
+
+R100403A:
+
+	Fixed ADC on CC430F6xx (internal reference 1.5V and 2.5V didn't work
+	correctly). This is because the CPU has a separate REF module for
+	providing reference voltages and, by default, the old ways of
+	selecting internal reference for ADC don't work. For now, we are
+	disabling the REF module (which basically gets us back to how things
+	are done on the old CPUs), but we may want to consider using it in the
+	future. For one advantage, it offers one more reference of 2.0V, which
+	may be useful.
+
+	Apps/TESTS/WARSAW redone to be compatible with all the diverse boards
+	derived from the old WARSAW blueprint.

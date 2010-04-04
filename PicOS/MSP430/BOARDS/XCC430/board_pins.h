@@ -78,3 +78,20 @@
 #define	PIN_DAC_PINS	0x00
 
 // ============================================================================
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SEN_POWER_SRC	11	// Vcc/2
+#define	SEN_POWER_SHT	4	// 8 cycles = 490us
+#define	SEN_POWER_ISI	0	// Inter-sample interval
+#define	SEN_POWER_NSA	16	// Samples to average
+#define	SEN_POWER_URE	ADC_SREF_RVSS	// Internal
+#define	SEN_POWER_ERE	(ADC_FLG_REFON + ADC_FLG_REF25)
+
+#define	SENSOR_LIST { \
+	ANALOG_SENSOR (SEN_POWER_ISI, SEN_POWER_NSA, SEN_POWER_SRC, \
+		       SEN_POWER_URE, SEN_POWER_SHT, SEN_POWER_ERE) \
+	}
+
+#define	SENSOR_ANALOG

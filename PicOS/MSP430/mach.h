@@ -116,7 +116,7 @@
 #define		__PORTMAPPER__
 #define		__PORT_FBASE__	P1IN_	// Won't cover port J!!!
 #define		__UART_CONFIG__	2
-#define		__ADC_CONFIG__	2
+#define		__ADC_CONFIG__	3	// Extended ADC with REF module
 #define		__TCI_CONFIG__	2
 #endif
 
@@ -402,9 +402,9 @@ extern uart_t zz_uart [];
 
 // ============================================================================
 
-#if __ADC_CONFIG__ == 2
+#if __ADC_CONFIG__ == 2 || __ADC_CONFIG__ == 3
 
-// CC430F6xx (some fields have different names: this is an "extended ADC")
+// CC430F[56]xx (some fields have different names: this is an "extended ADC")
 
 #define	ADC_DEF_CSOURCE		ADC12SSEL_0
 #define	ADC_DEF_DIV		ADC12DIV_7
@@ -422,8 +422,17 @@ extern uart_t zz_uart [];
 // We have a third control register: resolution = 12 bits, slower rate,
 // reference out; we may still want to set the burst mode, but, as we
 // switch the reference off after measurement, the savings wouldn't be
-// terrific
-#define	ADC_CTL2_SET		ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC12REFOUT
+// terrific; on F6xx, there is also a separate REF module for generating
+// reference voltages, which we disable for now (that way the reference
+// is controlled the old-fashioned way)
+#if __ADC_CONFIG__ == 3
+#define	ADC_CTL2_SET	do { \
+			    REFCTL0 = 0; \
+			    ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC12REFOUT; \
+			} while (0)
+#else
+#define	ADC_CTL2_SET	ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC12REFOUT
+#endif
 
 #endif
 

@@ -38,6 +38,8 @@
 #define	VSN_INT_URE	SREF_VREF_AVSS
 #define	VSN_INT_ERE	(REFON + REF2_5V)
 
+#define	VSN_INT_SRC	11	// Source select for internal-internal voltage
+				// sensor
 #define	VSN_EXT_PIN	1
 #define	VSN_EXT_SHT	15
 #define	VSN_EXT_ISI	0
@@ -90,6 +92,12 @@
 				  VSN_INT_URE,  \
 				  VSN_INT_SHT,  \
 				  VSN_INT_ERE), \
+		ANALOG_SENSOR (   VSN_INT_ISI,  \
+				  VSN_INT_NSA,  \
+				  VSN_INT_SRC,  \
+				  VSN_INT_URE,  \
+				  VSN_INT_SHT,  \
+				  VSN_INT_ERE), \
 		ANALOG_SENSOR (   VSN_EXT_ISI,  \
 				  VSN_EXT_NSA,  \
 				  VSN_EXT_PIN,  \
@@ -107,8 +115,9 @@
 //	4 - PXR 1
 //	5 - PXR 2
 //	6 - PXR 3
-//	7 - Voltage int
-//	8 - Voltage ext
+//	7 - Voltage int (external)
+//	8 - Voltage int (internal, i.e., on chip)
+//	9 - Voltage ext
 
 #define	sensor_adc_prelude(p) \
 			do { \
