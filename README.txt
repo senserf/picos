@@ -504,3 +504,8 @@ R100329A:
 
     Matching modifications to PICOS R100329A: removed sectomin, ldelay, ldleft,
     lhold; added hold.
+
+R100405A:
+
+    An option to specify a background image for ROAMER added to udaemon (see
+    the last section of the Doc).

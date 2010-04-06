@@ -2,6 +2,8 @@
 
 ###############################################################################
 
+package require Img
+
 package provide xml 1.0
 #
 # Mini XML parser
@@ -3084,6 +3086,104 @@ proc delPanel { Sok ix } {
 	updPanel $Sok
 }
 
+proc updPanel { Sok } {
+#
+# Make or re-make, e.g., after adding/deleting a node
+#
+	global Wins Stat PANEL_COLORS
+
+	set w $Wins($Sok)
+
+	if { $Stat($Sok,SL) == $Stat($Sok,DL) } {
+		# no need to update
+		return
+	}
+
+	set ne [llength $Stat($Sok,SL)]
+
+	if { $ne != [llength $Stat($Sok,DL)] } {
+
+		# redo the whole window
+		if [catch { wm geometry $w } ge] {
+			# window absent
+			set ge ""
+		} else {
+			set Wins($Sok,NODESTROY) 1
+			destroy $w
+			unset Wins($Sok,NODESTROY)
+		}
+
+		toplevel $w
+		wm title $w "PANEL"
+		bind $w <Destroy> "destroyWindow $Sok"
+		if { $ge != "" } {
+			# preserve previous location
+			regexp "\\+.*\\+.*" $ge ge
+			wm geometry $w $ge
+		} else {
+			do_geometry $w "panel"
+		}
+
+		frame $w.stat -borderwidth 1
+		pack $w.stat -side top -expand 1 -fill x
+
+		for { set ix 0 } { $ix < $ne } { incr ix } {
+			# create placeholders for the node descriptors
+			set fr [frame $w.stat.pa$ix]
+			pack $fr -side top -expand 1 -fill x
+			label $fr.ide -text ""
+			pack $fr.ide -side left
+			button $fr.del -text "Delete" -state normal \
+				-command "delPanel $Sok $ix" \
+				-bg $PANEL_COLORS(DEL)
+			button $fr.res -text "Reset" -state normal \
+				-command "reqPanel $Sok $ix R" \
+				-bg $PANEL_COLORS(ACTIVE)
+			button $fr.off -text "Off" \
+				-command "reqPanel $Sok $ix F"
+			button $fr.on -text "On" \
+				-command "reqPanel $Sok $ix O"
+			pack $fr.del $fr.res $fr.off $fr.on -side right
+		}
+
+		frame $w.add -borderwidth 1
+		pack $w.add -side top -expand 1 -fill x
+		entry $w.add.non -width 6 -relief sunken \
+			-textvariable Stat($Sok,NA) -validate key \
+				-vcmd {validSid %P} -invcmd bell
+		button $w.add.but -text "Add" -command "addPanel $Sok"
+		pack $w.add.non $w.add.but -side left
+	}
+
+	# update labels and buttons
+	set ix 0
+	foreach no $Stat($Sok,SL) {
+		set non [lindex $no 0]
+		set nos [lindex $no 1]
+		set not [lindex $no 2]
+		set fr $w.stat.pa$ix
+		$fr.ide configure -text [format "%4d: %s" $non $not]
+		if { $nos == "F" } {
+			# node is down: ON active, OFF disabled
+			$fr.ide configure -bg $PANEL_COLORS(OFFLABEL)
+			$fr.on configure -state normal -bg \
+				$PANEL_COLORS(ACTIVE)
+			$fr.off configure -state disabled -bg \
+				$PANEL_COLORS(DISABLED)
+		} else {
+			# node is up: OFF active, ON disabled
+			$fr.ide configure -bg $PANEL_COLORS(ONLABEL)
+			$fr.on configure -state disabled -bg \
+				$PANEL_COLORS(DISABLED)
+			$fr.off configure -state normal -bg \
+				$PANEL_COLORS(ACTIVE)
+		}
+		incr ix
+	}
+		
+	set Stat($Sok,DL) $Stat($Sok,SL)
+}
+
 proc pwrtHandler { stid } {
 
 	global PortNumber HostName Wins Stat
@@ -3666,7 +3766,9 @@ proc moveGNP { Sok } {
 				set Wins($Sok) ".wm$Unique"
 				incr Unique
 				log "connection established"
-				mkMove $Sok
+				if [mkMove $Sok] {
+					dealloc $Sok
+				}
 				return
 			}
 			if [catch {
@@ -3719,7 +3821,76 @@ proc yfromcv { Sok ny } {
 			$Stat($Sok,M,YL)]
 }
 
-proc cvcalc { Sok { cre 0 }} {
+proc cvcalc_static { Sok wi hi } {
+#
+# Calculate static canvas parameters for a non-resizable variant with a
+# background image
+#
+	global Stat CMARGIN
+
+	# the canvas size
+	foreach { aw ah } $Stat($Sok,NC) { }
+
+	set cw [expr $aw - $CMARGIN(L) - $CMARGIN(R)]
+	set ch [expr $ah - $CMARGIN(U) - $CMARGIN(D)]
+
+	if { $cw < 10 || $ch < 10 } {
+		log "Background image too small"
+		return 1
+	}
+
+	# effective mapped area of the image after subtracting margins
+	set XL [expr (double($CMARGIN(L)) * $wi) / $aw]
+	set XH [expr double($wi) - (double($CMARGIN(R)) * $wi) / $aw]
+	set YL [expr (double($CMARGIN(U)) * $hi) / $ah]
+	set YH [expr double($hi) - (double($CMARGIN(D)) * $hi) / $ah]
+
+	set Stat($Sok,M,XL) $XL
+	set Stat($Sok,M,XH) $XH
+	set Stat($Sok,M,YL) $YL
+	set Stat($Sok,M,YH) $YH
+	
+	# network width and height
+	set Stat($Sok,M,W) [expr $XH - $XL]
+	set Stat($Sok,M,H) [expr $YH - $YL]
+
+	# active canvas width and height
+	set Stat($Sok,M,w) $cw
+	set Stat($Sok,M,h) $ch
+
+	# fix node coordinates
+
+	for { set n 0 } { $n < $Stat($Sok,NN) } { incr n } {
+		set p $Stat($Sok,NL,$n)
+		set x [lindex $p 0]
+		set y [lindex $p 1]
+		set b 0
+		if { $XL > $x } {
+			log "Node $n, coordinates <$x,$y>: $x < left margin"
+			set x $XL
+			set b 1
+		} elseif { $x > $XH } {
+			log "Node $n, coordinates <$x,$y>: $x > right margin"
+			set x $XH
+			set b 1
+		}
+		if { $YL > $y } {
+			log "Node $n, coordinates <$x,$y>: $y < upper margin"
+			set y $YL
+			set b 1
+		} elseif { $y > $YH } {
+			log "Node $n, coordinates <$x,$y>: $y > bottom margin"
+			set y $YH
+			set b 1
+		}
+		if $b {
+			set Stat($Sok,NL,$n) [lreplace $p 0 1 $x $y]
+		}
+	}
+	return 0
+}
+
+proc cvcalc_dynamic { Sok { cre 0 }} {
 #
 # Recalculate canvas parameters based on current network bounds
 #
@@ -3813,130 +3984,68 @@ proc cvcalc { Sok { cre 0 }} {
 	set Stat($Sok,M,h) $ch
 }
 
-proc updPanel { Sok } {
-#
-# Make or re-make, e.g., after adding/deleting a node
-#
-	global Wins Stat PANEL_COLORS
-
-	set w $Wins($Sok)
-
-	if { $Stat($Sok,SL) == $Stat($Sok,DL) } {
-		# no need to update
-		return
-	}
-
-	set ne [llength $Stat($Sok,SL)]
-
-	if { $ne != [llength $Stat($Sok,DL)] } {
-
-		# redo the whole window
-		if [catch { wm geometry $w } ge] {
-			# window absent
-			set ge ""
-		} else {
-			set Wins($Sok,NODESTROY) 1
-			destroy $w
-			unset Wins($Sok,NODESTROY)
-		}
-
-		toplevel $w
-		wm title $w "PANEL"
-		bind $w <Destroy> "destroyWindow $Sok"
-		if { $ge != "" } {
-			# preserve previous location
-			regexp "\\+.*\\+.*" $ge ge
-			wm geometry $w $ge
-		} else {
-			do_geometry $w "panel"
-		}
-
-		frame $w.stat -borderwidth 1
-		pack $w.stat -side top -expand 1 -fill x
-
-		for { set ix 0 } { $ix < $ne } { incr ix } {
-			# create placeholders for the node descriptors
-			set fr [frame $w.stat.pa$ix]
-			pack $fr -side top -expand 1 -fill x
-			label $fr.ide -text ""
-			pack $fr.ide -side left
-			button $fr.del -text "Delete" -state normal \
-				-command "delPanel $Sok $ix" \
-				-bg $PANEL_COLORS(DEL)
-			button $fr.res -text "Reset" -state normal \
-				-command "reqPanel $Sok $ix R" \
-				-bg $PANEL_COLORS(ACTIVE)
-			button $fr.off -text "Off" \
-				-command "reqPanel $Sok $ix F"
-			button $fr.on -text "On" \
-				-command "reqPanel $Sok $ix O"
-			pack $fr.del $fr.res $fr.off $fr.on -side right
-		}
-
-		frame $w.add -borderwidth 1
-		pack $w.add -side top -expand 1 -fill x
-		entry $w.add.non -width 6 -relief sunken \
-			-textvariable Stat($Sok,NA) -validate key \
-				-vcmd {validSid %P} -invcmd bell
-		button $w.add.but -text "Add" -command "addPanel $Sok"
-		pack $w.add.non $w.add.but -side left
-	}
-
-	# update labels and buttons
-	set ix 0
-	foreach no $Stat($Sok,SL) {
-		set non [lindex $no 0]
-		set nos [lindex $no 1]
-		set not [lindex $no 2]
-		set fr $w.stat.pa$ix
-		$fr.ide configure -text [format "%4d: %s" $non $not]
-		if { $nos == "F" } {
-			# node is down: ON active, OFF disabled
-			$fr.ide configure -bg $PANEL_COLORS(OFFLABEL)
-			$fr.on configure -state normal -bg \
-				$PANEL_COLORS(ACTIVE)
-			$fr.off configure -state disabled -bg \
-				$PANEL_COLORS(DISABLED)
-		} else {
-			# node is up: OFF active, ON disabled
-			$fr.ide configure -bg $PANEL_COLORS(ONLABEL)
-			$fr.on configure -state disabled -bg \
-				$PANEL_COLORS(DISABLED)
-			$fr.off configure -state normal -bg \
-				$PANEL_COLORS(ACTIVE)
-		}
-		incr ix
-	}
-		
-	set Stat($Sok,DL) $Stat($Sok,SL)
-}
-
 proc mkMove { Sok } {
 
-	global Wins Stat CMARGIN
+	global Wins Stat CMARGIN Geometry
 
 	set w $Wins($Sok)
 	toplevel $w
 
 	wm title $w "ROAMER"
 	do_geometry $w "roamer"
-	wm minsize $w $CMARGIN(MW) $CMARGIN(MH)
 
-	# initial canvas size
-	set Stat($Sok,NC) [list $CMARGIN(DW) $CMARGIN(DH)]
-
-	# compute the canvas
-	cvcalc $Sok 1
-
-	foreach { aw ah } $Stat($Sok,NC) { }
-
-	canvas $w.c -width $aw -height $ah
-	pack $w.c -expand 1 -fill both
+	if [info exists Geometry(roamer,i)] {
+		# we have a background image
+		set imf $Geometry(roamer,i)
+		if [catch { image create photo -file $imf } bgr] {
+			log "Cannot open the background file $imf"
+			return 1
+		}
+		set aw [image width $bgr]
+		set ah [image height $bgr]
+		# not resizable
+		wm minsize $w $aw $ah
+		wm maxsize $w $aw $ah
+		wm resizable $w 0 0
+		set Stat($Sok,NC) [list $aw $ah]
+		set Stat($Sok,RE) 0
+		set wi 0.0
+		set hi 0.0
+		if [info exists Geometry(roamer,w)] {
+			set wi $Geometry(roamer,w)
+		}
+		if [info exists Geometry(roamer,h)] {
+			set hi $Geometry(roamer,h)
+		}
+		if { $wi != 0 && $hi == 0 } {
+			set hi [expr (double($wi) * $ah) / $aw]
+		}
+		if { $hi != 0 && $wi == 0 } {
+			set wi [expr (double ($wi) * $aw) / $ah]
+		}
+		if [cvcalc_static $Sok $wi $hi] {
+			return 1
+		}
+		foreach { aw ah } $Stat($Sok,NC) { }
+		canvas $w.c -width $aw -height $ah
+		pack $w.c -expand 1 -fill both
+		$w.c create image 0 0 -anchor nw -image $bgr
+	} else {
+		wm minsize $w $CMARGIN(MW) $CMARGIN(MH)
+		set Stat($Sok,NC) [list $CMARGIN(DW) $CMARGIN(DH)]
+		# resizable
+		set Stat($Sok,RE) 1
+		cvcalc_dynamic $Sok 1
+		foreach { aw ah } $Stat($Sok,NC) { }
+		canvas $w.c -width $aw -height $ah
+		pack $w.c -expand 1 -fill both
+	}
 
 	moveRedraw $Sok
 
 	bind $w <Destroy> "destroyWindow $Sok"
 	bind $w.c <Configure> "moveResize $Sok %w %h"
+	return 0
 }
 
 proc moveRedraw { Sok } {
@@ -4032,19 +4141,37 @@ proc moveMove { Sok n nx ny } {
 
 	foreach { x y z o t } $Stat($Sok,NL,$n) { }
 
-	# update the actual coordinates
+	# the actual coordinates
 	set x [xfromcv $Sok $nx]
 	set y [yfromcv $Sok $ny]
 
-	# make sure the network coordinates never get below zero
-	if { $x < 0.0 } {
-		set x 0.0
-		set nx [xtocv $Sok 0.0]
-	}
+	if { $Stat($Sok,RE) == 0 } {
+		# not resizable
+		if { $x < $Stat($Sok,M,XL) } {
+			set x $Stat($Sok,M,XL)
+			set nx [xtocv $Sok $x]
+		} elseif { $x > $Stat($Sok,M,XH) } {
+			set x $Stat($Sok,M,XH)
+			set nx [xtocv $Sok $x]
+		}
+		if { $y < $Stat($Sok,M,YL) } {
+			set y $Stat($Sok,M,YL)
+			set ny [xtocv $Sok $y]
+		} elseif { $y > $Stat($Sok,M,YH) } {
+			set y $Stat($Sok,M,YH)
+			set ny [xtocv $Sok $y]
+		}
+	} else {
+		# make sure the network coordinates never get below zero
+		if { $x < 0.0 } {
+			set x 0.0
+			set nx [xtocv $Sok 0.0]
+		}
 
-	if { $y < 0.0 } {
-		set y 0.0
-		set ny [ytocv $Sok 0.0]
+		if { $y < 0.0 } {
+			set y 0.0
+			set ny [ytocv $Sok 0.0]
+		}
 	}
 
 	# update the canvas coordinates
@@ -4160,7 +4287,7 @@ proc moveUpButton { Sok n } {
 
 	foreach { x y z o t } $Stat($Sok,NL,$n) { }
 
-	moveRedim $Sok $x $y
+	moveRedim $Sok x y
 }
 
 proc moveResize { Sok nw nh } {
@@ -4176,6 +4303,11 @@ proc moveResize { Sok nw nh } {
 		# canvas parameters
 		foreach { aw ah } $Stat($Sok,NC) { }
 		set Stat($Sok,RM) [list [expr $nw - $aw] [expr $nh - $ah]]
+		return
+	}
+
+	if { $Stat($Sok,RE) == 0 } {
+		# just a precaution
 		return
 	}
 
@@ -4211,7 +4343,7 @@ proc moveDoResize { Sok } {
 
 	set Stat($Sok,NC) [list $aw $ah]
 
-	cvcalc $Sok
+	cvcalc_dynamic $Sok
 
 	moveRedraw $Sok
 }
@@ -4249,7 +4381,6 @@ proc moveUpd { Sok } {
 			}
 			# puts "UPD: '$cmd'"
 
-
 			if { [catch {
 				set nod [expr $nod]
 				set x [expr $x]
@@ -4266,20 +4397,39 @@ proc moveUpd { Sok } {
 	}
 }
 
-proc moveRedim { Sok nx ny } {
+proc moveRedim { Sok nxx nyy } {
 #
 # Checks if the location is out of present canvas bounds and optionally
 # redimensions the canvas
 #
 	global Stat
 
+	upvar $nxx nx
+	upvar $nyy ny
+
 	set XL $Stat($Sok,M,XL)
 	set XH $Stat($Sok,M,XH)
 	set YL $Stat($Sok,M,YL)
 	set YH $Stat($Sok,M,YH)
 
+	if { $Stat($Sok,RE) == 0 } {
+		# do nothing if not resizable, but make sure the nodes
+		# do show up in the window
+		if { $nx < $XL } {
+			set nx $XL
+		} elseif { $nx > $XH } {
+			set nx $XH
+		}
+		if { $ny < $YL } {
+			set ny $YL
+		} elseif { $ny > $YH } {
+			set ny $YH
+		}
+		return 0
+	}
+
 	if { $nx < $XL || $nx > $XH || $ny < $YL || $ny > $YH } {
-		cvcalc $Sok
+		cvcalc_dynamic $Sok
 		moveRedraw $Sok
 		return 1
 	}
@@ -4302,7 +4452,7 @@ proc moveNewLocation { Sok nod nx ny } {
 
 	set Stat($Sok,NL,$nod) [list $nx $ny $z $o $t]
 
-	if [moveRedim $Sok $nx $ny] {
+	if [moveRedim $Sok nx ny] {
 		# done - the canvas has been redrawn
 		return
 	}
@@ -4838,6 +4988,43 @@ proc parse_geometry { } {
 
 		if { $ml != "" } {
 			set Geometry($n) $ml
+		}
+
+		if { $n == "roamer" } {
+			# we may have a background image for the roamer, which
+			# will also fix the dimensions
+			set img [sxml_attr $j "image"]
+			if { $img != "" } {
+				set dim [sxml_attr $j "width"]
+				if { $dim != "" } {
+					if { [catch { expr $dim } dim] || \
+					    $dim <= 0.0 } {
+						alert "Illegal number in width\
+							in roamer spec in\
+								$GFile!"
+						exit 99
+					}
+					set Geometry(roamer,w) $dim
+				}
+				set dim [sxml_attr $j "height"]
+				if { $dim != "" } {
+					if { [catch { expr $dim } dim] || \
+					    $dim <= 0.0 } {
+						alert "Illegal number in height\
+							in roamer spec in\
+								$GFile!"
+						exit 99
+					}
+					set Geometry(roamer,h) $w
+				}
+				if { ![info exists Geometry(roamer,w)] && \
+				     ![info exists Geometry(roamer,h)]     } {
+					alert "Image in roamer spec requires at\
+						least one of 'width', 'height'!"
+					exit 99
+				}
+			}
+			set Geometry(roamer,i) [sxml_attr $j "image"]
 		}
 	}
 }
