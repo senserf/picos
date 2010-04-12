@@ -112,8 +112,6 @@
 #define	irmtn_on()		_BIS (P2OUT, 0x04)
 #define	irmtn_off()		_BIC (P2OUT, 0x04)
 
-#include "irq_timer_headers_irmtn.h"
-
 #define	SENSOR_LIST { \
 		ANALOG_SENSOR (	ANA_SEN_ISI, 		\
 				ANA_SEN_NSA, 		\
@@ -128,7 +126,6 @@
 				ANA_SEN_SHT,		\
 				ANA_SEN_ERE), 		\
 		DIGITAL_SENSOR (0, NULL, irmtn_count),	\
-		DIGITAL_SENSOR (1, NULL, irmtn_count),	\
 		ANALOG_SENSOR (	ANA_SEN_ISI, 		\
 				ANA_SEN_NSA, 		\
 				SENSOR_IRMTN_PIN,	\

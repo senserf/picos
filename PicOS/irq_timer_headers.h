@@ -13,9 +13,4 @@
 #include "irq_timer_headers_pins.h"
 #endif
 
-// The board defines IR motion sensor
-#ifdef irmtn_active
-#include "irq_timer_headers_irmtn.h"
-#endif
-
 #endif

@@ -3951,8 +3951,8 @@ R100411A: 3 0
 	the residual number of (PicOS) milliseconds to wait. Initially, when
 	the process issued the delay request, that value was set to the
 	requested delay. The (implict) queue of of waiting processes was
-	(conceptually) sorted in the increasing order of the residual time
-	(which was updated at relevant moments, with the current minimum known
+	(conceptually) sorted in the increasing order of the residual time,
+	which was updated at relevant moments, with the current minimum known
 	to the system (stored in variable mintk). On every clock interrupt
 	(occurring every millisecond), one tick was added to variable lostk
 	(the number of accumulated clock ticks). When that number reached
@@ -4055,8 +4055,8 @@ R100411A: 3 0
 
 	2. The strober/debouncer. This clock is used for strobing things that
 	   temporary require a millisecond timer, e.g., utimers, leds,
-	   debouncers, etc. It only ticks, if there is a demand for it, i.e.,
-	   (i.a nonzero utimer, a blinking led).
+	   debouncers, etc. It only ticks, if there is a demand for it, e.g.,
+	   a nonzero utimer, a blinking led.
 
 	3. The delay clock. This clock is set for specific intervals required
 	   to service the delay queue. For example, if the first process to
@@ -4097,13 +4097,13 @@ R100411A: 3 0
 	it?). Wlodek, should we change that and just stick to transitions
 	(interrupts)?
 
-	Removed snooze. It wasn't really needed (I think I needed it once, but
+	Removed snooze. It wasn't really needed. I think I needed it once, but
 	there is no praxis (or a library module) at the moment using it. It was
 	in the way a bit. A proper implementation of snooze would require an
 	extra global word variable.
 
-	Utimer operations redone and also renamed. Instead of single utimer
-	with two arguments, we now have:
+	Utimer operations redone and also renamed. Instead of the single old
+	utimer operation with two arguments, we now have:
 
 		utimer_add (word *utp);
 		utimer_delete (word *utp);
@@ -4111,9 +4111,9 @@ R100411A: 3 0
 	Also, setting a utimer is now an operation (you cannot just assign the
 	value as before), i.e.,
 
-		utimer_set (word utp);
+		utimer_set (word utp, word val);
 
-	Note that it takes the utimer variable as the argument, not its
+	Note that it takes the utimer variable as the first argument, not its
 	pointer (the operation is a macro).
 
 	Removed watchdog from the kernel. It didn't make sense (and was only
@@ -4133,3 +4133,10 @@ R100411A: 3 0
 	that TRIPLE_CLOCK is not available there (yet).
 
 	Document updated.
+
+R100412A:
+
+	Infrared motion sensor (ir_motion_detector) now returns only the number
+	of transitions, i.e., it doesn't require the millisecond clock. For
+	WARSAW_ILS, we now have 4 sensors, not 5 as before, (in this order):
+	voltage, light, motion, motion analog.

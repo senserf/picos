@@ -165,14 +165,14 @@ void zzz_syserror (int ec, const char *m) {
 #if	DUMP_MEMORY
 	dmp_mem ();
 #endif
-	diag ("SYSTEM ERROR: %x, %s", ec, m);
+	diag ("SYSERR: %x, %s", ec, m);
 #else
 void zzz_syserror (int ec) {
 
 	WATCHDOG_STOP;
 
 	dbg_0 (ec); // SYSTEM ERROR
-	diag ("SYSTEM ERROR: %x", ec);
+	diag ("SYSERR: %x", ec);
 #endif
 	cli;
 
@@ -1157,10 +1157,9 @@ word zz_uart_getrate (uart_t *ua) {
 
 #endif 	/* UART_RATE_SETTABLE */
 
-/* ------------------------------------------------------------------------ */
-/* ------------------------------------------------------------------------ */
-
 #endif	/* UART_DRIVER || UART_TCV */
+
+// ============================================================================
 
 #if	UART_DRIVER
 /* ======== */
@@ -1306,7 +1305,7 @@ X_redo:
 			if (len == UART_CNTRL_SETRATE) {
 				if (zz_uart_setrate (*((word*)buf), u))
 						return 1;
-				syserror (EREQPAR, "uart rate");
+				syserror (EREQPAR, "uar");
 			}
 			if (len == UART_CNTRL_GETRATE) {
 				*((word*)buf) = zz_uart_getrate (u);
@@ -1315,7 +1314,7 @@ X_redo:
 #endif
 			/* Fall through */
 		default:
-			syserror (ENOOPER, "ioreq_uart");
+			syserror (ENOOPER, "uai");
 			/* No return */
 			return 0;
 	}

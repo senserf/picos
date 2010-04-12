@@ -511,7 +511,7 @@ thread (root)
   entry (RS_RCMD-2)
 
 	ser_out (RS_RCMD-2,
-		"\r\nRF Ping Test\r\n"
+		"\r\nRF Ping/Clock Test\r\n"
 		"Commands:\r\n"
 		"c val    -> set seconds clock to val\r\n"
 		"s intvl  -> start/reset sending interval (2 secs default)\r\n"

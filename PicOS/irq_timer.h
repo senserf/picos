@@ -17,9 +17,4 @@
 #include "irq_timer_leds.h"
 #endif
 
-// The board declares an IR motion sensor
-#ifdef irmtn_active
-#include "ir_motion_counter.h"
-#endif
-
 #endif

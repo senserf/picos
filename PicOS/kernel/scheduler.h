@@ -3,33 +3,33 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 {
-	/* Set the return context for release */
+	// Set the return context for release
 	SET_RELEASE_POINT;
 Redo:
 
 #ifdef	MONITOR_PIN_SCHED
 	_PVS (MONITOR_PIN_SCHED, 1);
 #endif
-	/* Timer service */
+	// Catch up with time
 	update_n_wake (MAX_UINT);
 
+	// Run the first ready process
 	for_all_tasks (zz_curr) {
-		if (zz_curr->code == NULL)
-			// PCB unused
-			continue;
-		if (!waiting (zz_curr)) {
+		if (zz_curr->code != NULL && !waiting (zz_curr)) {
+			// Entry used and process ready
 			(zz_curr->code) (tstate (zz_curr), zz_curr->data);
 			goto Redo;
 		}
 	}
 
+	// No process is ready
+
 #ifdef	MONITOR_PIN_SCHED
-			_PVS (MONITOR_PIN_SCHED, 0);
+	_PVS (MONITOR_PIN_SCHED, 0);
 #endif
-	/* No process to run */
 
 #if SPIN_WHEN_HALTED
-	/* Keep spinning the CPU */
+	// Keep spinning the CPU (this exotic feature was requested for GENESIS)
 #if ENTROPY_COLLECTION
 	entropy++;
 #endif

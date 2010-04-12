@@ -121,7 +121,7 @@ void utimer_add (address ut) {
 #if	SDRAM_PRESENT
 	if (ut >= (address)SDRAM_ADDR && ut < (address)
 		((word)SDRAM_ADDR + ((word)1 << SDRAM_SIZE)))
-		syserror (EREQPAR, "utimer in sdram");
+		syserror (EREQPAR, "ut a");
 #endif
 
 	for (i = 0; i < MAX_UTIMERS; i++)
@@ -129,7 +129,7 @@ void utimer_add (address ut) {
 			break;
 
 	if (i == MAX_UTIMERS)
-		syserror (ERESOURCE, "ut");
+		syserror (ERESOURCE, "ut a");
 
 	zz_utims [i] = ut;
 }
@@ -142,7 +142,7 @@ void utimer_delete (address ut) {
 
 	for (i = 0; i < MAX_UTIMERS; i++) {
 		if (zz_utims [i] == 0)
-			syserror (EREQPAR, "ut");
+			syserror (EREQPAR, "ut d");
 		if (zz_utims [i] == ut)
 			break;
 	}
@@ -184,7 +184,9 @@ void update_n_wake (word min) {
 // every millisecond), or at longer intervals (in TRIPLE_CLOCK mode). The old
 // pointer is only advanced by this function. The idea is that old represents
 // the moment we last looked at the timer. The difference (accounting for the
-// wraparound) between the two pointers is the lag.
+// wraparound) between the two pointers is the lag that we are supposed to
+// cover in the current step. Any delay requests falling into the lag interval
+// are fired.
 //
 	pcb_t *i;
 	word d;
@@ -192,18 +194,23 @@ void update_n_wake (word min) {
 // ============================================================================
 #if TRIPLE_CLOCK == 0
 	// Delay timer interrupts are asynchronous, i.e., they are not blocked
-	// while we are doing this, unlike in the TRIPLE_CLOCK mode
+	// while we are doing this, unlike in the TRIPLE_CLOCK mode. We copy
+	// the current new (to make sure it stays put why we are handling it),
+	// but there is no need to block interrupts. The inturrup advances
+	// new (we only read it), we advance old (the interrupt only reads it).
 	word znew;
 	znew = zz_new;
 #else
 
 #define	znew zz_new
-	// This will make sure the delay timer is stopped
+	// This will collect any ticks accumulated since the timer was started
+	// (i.e., bring new up to date) and make sure the timer is stopped now
 	TCI_UPDATE_DELAY_TICKS;
 #endif
 // ============================================================================
 
-	// See kernel.h for the wake condition
+	// See kernel.h for the wake condition; it basically says that mintk
+	// falls within the lag interval
 	if (twakecnd (zz_old, znew, zz_mintk)) {
 
 		// As now all zz_mintk values are legit (e.g., 0 cannot be
@@ -231,8 +238,7 @@ void update_n_wake (word min) {
 	} else {
 		// Nobody is eligible for wakeup, old minimum holds, unless
 		// the requested one is less
-		d = zz_mintk - znew;
-		if (d < min) 
+		if (zz_mintk - znew < min) 
 			goto MOK;
 	}
 
@@ -241,7 +247,8 @@ void update_n_wake (word min) {
 MOK:
 
 #if TRIPLE_CLOCK == 0
-	// Handle the seconds clock
+	// Handle the seconds clock; note that with TRIPLE_CLOCK == 1, the
+	// seconds clock is handled by an interrupt
 	millisec += (znew - zz_old);
 	while (millisec >= JIFFIES) {
 		millisec -= JIFFIES;
@@ -252,6 +259,8 @@ MOK:
 #endif
 	zz_old = znew;
 
+	// This is void with TRIPLE_CLOCK == 0 (the hardware timer never stops
+	// running); otherwise, it starts the hardware timer
 	TCI_RUN_DELAY_TIMER;
 
 #if TRIPLE_CLOCK == 0
@@ -312,7 +321,7 @@ void zz_swait (word etype, word event, word state) {
 	int j = nevents (zz_curr);
 
 	if (j == MAX_EVENTS_PER_TASK)
-		syserror (ENEVENTS, "swait");
+		syserror (ENEVENTS, "sw");
 
 	setestatus (zz_curr->Events [j], etype, state);
 	zz_curr->Events [j] . Event = event;
@@ -327,7 +336,7 @@ void zzz_uwait (word event, word state) {
 	int j = nevents (zz_curr);
 
 	if (j == MAX_EVENTS_PER_TASK)
-		syserror (ENEVENTS, "wait");
+		syserror (ENEVENTS, "wa");
 
 	setestatus (zz_curr->Events [j], ETYPE_USER, state);
 	zz_curr->Events [j] . Event = event;
@@ -708,10 +717,10 @@ void zzz_memset (char *dest, char c, int n) {
 void adddevfunc (devreqfun_t rf, int loc) {
 
 	if (loc < 0 || loc >= MAX_DEVICES)
-		syserror (EREQPAR, "addevfunc");
+		syserror (EREQPAR, "addv");
 
 	if (ioreq [loc] != NULL)
-		syserror (ERESOURCE, "addevfunc");
+		syserror (ERESOURCE, "addv");
 
 	ioreq [loc] = rf;
 }
@@ -853,7 +862,7 @@ void zz_malloc_init () {
 
 	if (MALLOC_LENGTH < 256 + MA_NP)
 		/* Make sure we do have some memory available */
-		syserror (ERESOURCE, "malloc_init (1)");
+		syserror (ERESOURCE, "mal1");
 
 	/* Set aside the free list table for the pools */
 	mpools = (address*) MALLOC_START;
@@ -944,7 +953,7 @@ void zz_malloc_init () {
 #endif	/* MALOC_ALIGN4 */
 
 		if (chunk < 128)
-			syserror (ERESOURCE, "malloc_init (2)");
+			syserror (ERESOURCE, "mal2");
 
 		m_size (freelist) =
 #if	MALLOC_STATS
@@ -1026,7 +1035,7 @@ void zzz_free (int np, address ch) {
 
 #if	MALLOC_SAFE
 	if ((m_size (ch) & 0x8000) == 0)
-		syserror (EMALLOC, "freeing garbage");
+		syserror (EMALLOC, "malg");
 
 	m_size (ch) &= 0x7fff;
 #endif
@@ -1060,7 +1069,7 @@ address zzz_malloc (int np, word size) {
 
 	/* Put a limit on how many bytes you can formally request */
 	if (size > 0x8000)
-		syserror (EREQPAR, "malloc");
+		syserror (EREQPAR, "mal");
 
 #if	MALLOC_ALIGN4
 	if (size < 6) {
@@ -1087,7 +1096,7 @@ address zzz_malloc (int np, word size) {
 		chunk = m_nextp (chunk)) {
 #if	MALLOC_SAFE
 			if (m_magic (chunk) != 0xdeaf)
-				syserror (EMALLOC, "inconsistency");
+				syserror (EMALLOC, "malc");
 #endif
 			if (m_size (chunk) >= size)
 				break;
@@ -1122,9 +1131,9 @@ address zzz_malloc (int np, word size) {
 #if	RESET_ON_MALLOC
 		else {
 #if	RESET_ON_SYSERR
-			syserror (EWATCH, "malloc watch");
+			syserror (EWATCH, "malw");
 #else
-			diag ("MALLOC STALL, RESETTING");
+			diag ("MALW");
 			reset ();
 #endif	/* RESET_ON_SYSERR */
 		}
