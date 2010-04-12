@@ -128,9 +128,9 @@ int main (void) {
 #endif
 	/* Initialization */
 	ssm_init ();
-	mdelay (1);
+	// mdelay (1);
 	mem_init ();
-	mdelay (1);
+	// mdelay (1);
 	ios_init ();
 
 #if	TCV_PRESENT
@@ -142,15 +142,13 @@ int main (void) {
 	// go first, regardless where they are
 	delay (16, 0);
 
-	// We run at the longest possible interval, which means 1 sec for
-	// the standard 32768Hz crystal, but may mean as little as 1/250 sec
-	// for the 8MHz crystal.
-	WATCHDOG_START;
-
 	powerup ();
 
-	// Start the clock
+#if TRIPLE_CLOCK == 0
+	// Start the clock; no need to do that in TRIPLE_CLOCK mode where the
+	// clock is started explicitly by delay requests
 	sti_tim;
+#endif
 	_EINT ();
 
 	// Fall through to scheduler
@@ -162,7 +160,7 @@ int main (void) {
 #if DIAG_MESSAGES > 1
 void zzz_syserror (int ec, const char *m) {
 
-	WATCHDOG_HOLD;
+	WATCHDOG_STOP;
 
 #if	DUMP_MEMORY
 	dmp_mem ();
@@ -171,7 +169,7 @@ void zzz_syserror (int ec, const char *m) {
 #else
 void zzz_syserror (int ec) {
 
-	WATCHDOG_HOLD;
+	WATCHDOG_STOP;
 
 	dbg_0 (ec); // SYSTEM ERROR
 	diag ("SYSTEM ERROR: %x", ec);
@@ -181,7 +179,7 @@ void zzz_syserror (int ec) {
 #if RESET_ON_SYSERR
 
 #if LEDS_DRIVER
-	for (zz_lostk = 0; zz_lostk < 32; zz_lostk++) {
+	for (zz_mintk = 0; zz_mintk < 32; zz_mintk++) {
 		leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
 		mdelay (100);
 		leds (0, 0); leds (1, 0); leds (2, 0); leds (3, 0);
@@ -246,6 +244,12 @@ static void ssm_init () {
 #endif
 #ifdef	MONITOR_PIN_CLOCK
 	_PDS (MONITOR_PIN_CLOCK, 1);
+#endif
+#ifdef	MONITOR_PIN_CLOCKA
+	_PDS (MONITOR_PIN_CLOCKA, 1);
+#endif
+#ifdef	MONITOR_PIN_CLOCKS
+	_PDS (MONITOR_PIN_CLOCKS, 1);
 #endif
 #ifdef	MONITOR_PIN_SCHED
 	_PDS (MONITOR_PIN_SCHED, 1);
@@ -559,11 +563,12 @@ static void ssm_init () {
 	// System timer (assumes TASSEL0/TACLR is same as TBSSEL0/TBCLR)
 	// Source is ACLK, divided by 8 (4096 ticks/sec)
 
-#if SEPARATE_SECONDS_CLOCK
+#if TRIPLE_CLOCK
 	// Continuous mode
 	TCI_CTL = TASSEL0 | TACLR | ID0 | ID1 | MC1;
 	TCI_CCS = TCI_SEC_DIV;
 	sti_sec;
+	sti_aux;
 #else
 	// Up mode
 	TCI_CTL = TASSEL0 | TACLR | ID0 | ID1 | MC0;
@@ -574,9 +579,7 @@ static void ssm_init () {
 void powerdown (void) {
 
 	zz_systat.pdmode = 1;
-#if AUTO_CLOCK_DOWN == 0
 	clockdown ();
-#endif
 #if CRYSTAL2_RATE
 	// Disable XTL2
 	_BIS (BCSCTL1, XT2OFF);
@@ -638,58 +641,150 @@ void mdelay (word n) {
 		udelay (995);
 }
 
-#if SEPARATE_SECONDS_CLOCK
+// ============================================================================
+
+#if TRIPLE_CLOCK
+
 // ============================================================================
 // Version with two clocks and circular timer counter; note that
 // HIGH_CRYSTAL_RATE == 0, as the two cannot be set together
 // ============================================================================
 
-static word clk_incr = 0;	// Force proper setting on first clockup
+static word setdel = 0;		// Interval for which the delay timer was set
 
-void clockup (void) {
+static word gettav () {
+//
+// Majority vote read for the timer value (which we are not supposed to read)
+//
+	word del;
 
-	word tb;
-
-	if (clk_incr != TCI_HIGH_DIV) {
-		// Switching from low to high; make sure we don't miss the
-		// counter
-		clk_incr = TCI_HIGH_DIV;
-		while (1) {
-			// Our approximation of majority vote
-			tb = TCI_VAL;
-			if (TCI_VAL == tb && TCI_VAL == tb && TCI_VAL == tb)
-				break;
-		}
-		TCI_CCR = tb + TCI_HIGH_DIV;
+	while (1) {
+		// Majority vote
+		del = TCI_VAL;
+		if (TCI_VAL == del && TCI_VAL == del && TCI_VAL == del)
+			return del;
 	}
 }
 
-void clockdown (void) {
+void tci_run_delay_timer () {
+//
+// Set the delay timer according to zz_mintk
+//
+	word d;
 
-	if (clk_incr != TCI_LOW_DIV)
-		// Note that in this case (high->low) we are not as exacting;
-		// the clock need not be perfect for as long as we are not
-		// overtaken by the timer
-		TCI_CCR += (clk_incr = TCI_LOW_DIV);
+	cli_tim;	// This should be redundant
+
+	// Time to elapse in msecs
+	d = zz_mintk - zz_old;
+
+	// Don't exceed the maximum
+	setdel = (d > TCI_MAXDEL) ? TCI_MAXDEL : d;
+
+	TCI_CCR = gettav () + TCI_DELTOTICKS (setdel);
+	sti_tim;
 }
 
+void tci_run_auxiliary_timer () {
+//
+// Start the auxiliary timer
+//
+	cli_aux;	// In case we are only resetting
+	TCI_CCA = gettav () + TCI_HIGH_DIV;
+	sti_aux;
+}
+
+void tci_update_delay_ticks () {
+//
+// Called to stop the timer, if running, and tally up the ticks
+//
+	cli_tim;
+	if (setdel) {
+		// The timer has been running, otherwise we don't have to
+		// bother; the role of the 3 is to round it up, such that
+		// the estimate will tend to err on the low side, which will
+		// make sure that the measured delay is never less than asked
+		// for
+		zz_new += setdel - TCI_TICKSTODEL (TCI_CCR - gettav () + 3);
+		// Use it only once
+		setdel = 0;
+	}
+}
+		
 // ============================================================================
-// Timer interrupts for the two-clock version =================================
+// Timer interrupts for the triple-clock version ==============================
 // ============================================================================
 
-interrupt (TCI_VECTOR_S) timer_seconds () {
+interrupt (TCI_VECTOR_S) timer_auxiliary () {
 //
-// This one counts seconds at a constant stable rate independent of the
-// delay clock's ups and downs
+// Two in one: one of them runs exactly every second and is used to maintain
+// a precise seconds clock; the other is used for utimers, debouncing,
+// blinking leds, and other stuff registered in irq_timer.h.
 //
-	zz_nseconds++;
+	word aux_timer_inactive;
+
+	// This test also removes the interrupt status
+	if (TCI_AUXILIARY_TIMER_INTERRUPT) {
+
+#ifdef	MONITOR_PIN_CLOCKA
+	_PVS (MONITOR_PIN_CLOCKA, 1);
+#endif
+		// Set for the next tick - as quickly as possible
+		TCI_CCA += TCI_HIGH_DIV;
+		// Flag == should we continue?
+		aux_timer_inactive = 1;
+		// Take care of utimers
+		if (zz_utims [0] == 0)
+			goto EUT;
+		if (*(zz_utims [0])) {
+			(*(zz_utims [0]))--;
+			aux_timer_inactive = 0;
+		}
+		if (zz_utims [1] == 0)
+			goto EUT;
+		if (*(zz_utims [1])) {
+			(*(zz_utims [1]))--;
+			aux_timer_inactive = 0;
+		}
+		if (zz_utims [2] == 0)
+			goto EUT;
+		if (*(zz_utims [2])) {
+			(*(zz_utims [2]))--;
+			aux_timer_inactive = 0;
+		}
+		if (zz_utims [3] != 0) {
+			if (*(zz_utims [3])) {
+				(*(zz_utims [3]))--;
+				aux_timer_inactive = 0;
+			}
+		}
+EUT:
+// ============================================================================
+#include "irq_timer.h"
+// ============================================================================
+		if (aux_timer_inactive)
+			// Nobody wants us
+			cli_aux;
+
+#ifdef	MONITOR_PIN_CLOCKA
+	_PVS (MONITOR_PIN_CLOCKA, 0);
+#endif
+		RTNI;
+	}
+
+#ifdef	MONITOR_PIN_CLOCKS
+	_PVS (MONITOR_PIN_CLOCKS, 1);
+#endif
+	// Seconds clock
 	TCI_CCS += TCI_SEC_DIV;
-	// Remove the interrupt status
-	ack_sec;
-
+	zz_nseconds++;
 	check_stack_overflow;
-
+// ============================================================================
 #include "second.h"
+// ============================================================================
+
+#ifdef	MONITOR_PIN_CLOCKS
+	_PVS (MONITOR_PIN_CLOCKS, 0);
+#endif
 
 	RTNI;
 }
@@ -699,110 +794,13 @@ interrupt (TCI_VECTOR) timer_int () {
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 1);
 #endif
-	// Clear hardware watchdog. Its sole purpose is to guard clock
-	// interrupts, with clock interrupts acting as a software watchdog.
-	WATCHDOG_CLEAR;
+	// This one serves only delays; utimers are handled by the debounce
+	// timer
 
-	TCI_CCR += clk_incr;
-
-	// Note that HIGH_CRYSTAL_RATE == 0, so clockdown/clockup is active
-	if (clk_incr == TCI_HIGH_DIV) {
-		// Power up: one tick == 1 JIFFIE
-		// This code assumes that MAX_UTIMERS is 4
-#define	UTIMS_CASCADE(x) 	if (zz_utims [x]) {\
-					 if (*(zz_utims [x]))\
-						 (*(zz_utims [x]))--
-		UTIMS_CASCADE(0);
-		UTIMS_CASCADE(1);
-		UTIMS_CASCADE(2);
-		UTIMS_CASCADE(3);
-		}}}}
-#undef UTIMS_CASCADE
-
-// Extras
-#include "irq_timer.h"
-
-#if WATCHDOG_ENABLED
-// ============================================================================
-
-		// Make sure to run the scheduler every 5 seconds
-		zz_lostk++;
-		if ((zz_lostk >= 5 * JIFFIES) ||
-			(zz_mintk && zz_mintk <= zz_lostk)) {
-
-			if (zz_lostk >= 20 * JIFFIES) {
-				// Software watchdog reset: 20 seconds
-#ifdef WATCHDOG_SAVER
-				WATCHDOG_SAVER ();
-#endif
-				reset ();
-			}
-			RISE_N_SHINE;
-		}
-
-#else
-// WATCHDOG DISABLED ==========================================================
-
-		if (zz_mintk) {
-			// Advance process timers
-			if (++zz_lostk >= zz_mintk)
-				// Only wake up when the timer goes off
-				RISE_N_SHINE;
-		}
-#endif
-// WATCHDOG ENABLED or DISABLED ===============================================
-
-#ifdef	MONITOR_PIN_CLOCK
-		_PVS (MONITOR_PIN_CLOCK, 0);
-#endif
-		RTNI;
-	}
-
-	// Here we are running in the SLOW mode: one tick ==
-	// JIFFIES/TCI_LOW_PER_SEC
-
-#define	UTIMS_CASCADE(x) \
-		if (zz_utims [x]) { \
-		  if (*(zz_utims [x])) \
-		    *(zz_utims [x]) = *(zz_utims [x]) > \
-		      (JIFFIES/TCI_LOW_PER_SEC) ? \
-			*(zz_utims [x]) - (JIFFIES/TCI_LOW_PER_SEC) : 0
-
-	UTIMS_CASCADE(0);
-	UTIMS_CASCADE(1);
-	UTIMS_CASCADE(2);
-	UTIMS_CASCADE(3);
-	}}}}
-#undef UTIMS_CASCADE
-
-#if WATCHDOG_ENABLED
-// ============================================================================
-
-		zz_lostk += JIFFIES/TCI_LOW_PER_SEC;
-		if ((zz_lostk >= 5 * JIFFIES) ||
-			(zz_mintk && zz_mintk <= zz_lostk)) {
-
-			if (zz_lostk >= 20 * JIFFIES) {
-				// Software watchdog reset: 20 seconds
-#ifdef WATCHDOG_SAVER
-				WATCHDOG_SAVER ();
-#endif
-				reset ();
-			}
-			RISE_N_SHINE;
-		}
-
-#else
-// WATCHDOG DISABLED ==========================================================
-
-		if (zz_mintk) {
-			// Advance process timers
-			if ((zz_lostk += JIFFIES/TCI_LOW_PER_SEC) >= zz_mintk)
-				RISE_N_SHINE;
-		}
-
-#endif
-// WATCHDOG ENABLED or DISABLED ===============================================
+	cli_tim;
+	zz_new += setdel;
+	setdel = 0;	// Mark that the counting has been accomplished
+	RISE_N_SHINE;
 
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 0);
@@ -810,7 +808,7 @@ interrupt (TCI_VECTOR) timer_int () {
 	RTNI;
 }
 
-#else	/* SEPARATE_SECONDS_CLOCK */
+#else	/* TRIPLE_CLOCK */
 
 // ============================================================================
 // Timer interrupt and clock modes for the single clock case ==================
@@ -820,13 +818,14 @@ interrupt (TCI_VECTOR) timer_int () {
 
 interrupt (TCI_VECTOR) timer_int () {
 
+	word d;
+
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 1);
 #endif
 
 	// Clear hardware watchdog. Its sole purpose is to guard clock
 	// interrupts, with clock interrupts acting as software watchdog.
-	WATCHDOG_CLEAR;
 
 #if HIGH_CRYSTAL_RATE == 0
 	// We have two distinct modes for the clock
@@ -843,7 +842,6 @@ interrupt (TCI_VECTOR) timer_int () {
 		UTIMS_CASCADE(3);
 		}}}}
 #undef UTIMS_CASCADE
-		zz_lostk++;
 
 #if	ADC_PRESENT
 		// Stub
@@ -852,25 +850,12 @@ interrupt (TCI_VECTOR) timer_int () {
 		// Extras
 #include "irq_timer.h"
 
-		// Run the scheduler at least once every second - to
-		// keep the second clock up to date
-		if ((zz_lostk >= JIFFIES) ||
-		    (zz_mintk && zz_mintk <= zz_lostk)) {
+		zz_new++;
 
-#if WATCHDOG_ENABLED
-			if (zz_lostk >= 16 * JIFFIES ) {
-				// Software watchdog reset: 16 seconds
-#ifdef	WATCHDOG_SAVER
-				WATCHDOG_CLEAR;
-				WATCHDOG_SAVER ();
-#endif
-				reset ();
-			}
-			
-#endif	/* WATCHDOG_ENABLED */
+		d = zz_new - zz_old;
 
+		if (d >= JIFFIES || twakecnd (zz_old, zz_new, zz_mintk))
 			RISE_N_SHINE;
-		}
 
 #ifdef	MONITOR_PIN_CLOCK
 		_PVS (MONITOR_PIN_CLOCK, 0);
@@ -898,26 +883,14 @@ interrupt (TCI_VECTOR) timer_int () {
 	}}}}
 #undef UTIMS_CASCADE
 
-	zz_lostk += JIFFIES/TCI_LOW_PER_SEC;
+	zz_new += JIFFIES/TCI_LOW_PER_SEC;
+
+	d = zz_new - zz_old;
 
 #if TCI_LOW_PER_SEC > 1
-	if ((zz_lostk >= JIFFIES) || (zz_mintk && zz_mintk <= zz_lostk))
+	if (d >= JIFFIES || twakecnd (zz_old, zz_new, zz_mintk))
 #endif
-	{
-
-#if WATCHDOG_ENABLED
-		if (zz_lostk >= 16 * JIFFIES) {
-			// Software watchdog reset (16 sec)
-#ifdef	WATCHDOG_SAVER
-			WATCHDOG_CLEAR;
-			WATCHDOG_SAVER ();
-#endif
-			reset ();
-		}
-#endif	/* WATCHDOG_ENABLED */
-
 		RISE_N_SHINE;
-	}
 
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 0);
@@ -926,9 +899,22 @@ interrupt (TCI_VECTOR) timer_int () {
 #endif	/* HIGH_CRYSTAL_RATE == 0 */
 }
 
-#endif	/* SEPARATE_SECONDS_CLOCK */
+#endif	/* TRIPLE_CLOCK */
 
 #if GLACIER
+
+// ============================================================================
+
+#if TRIPLE_CLOCK
+#error "S: GLACIER is not compatible (and not needed) with TRIPLE_CLOCK"
+#endif
+
+#if HIGH_CRYSTAL_RATE
+#error "S: GLACIER is not compatible with HIGH_CRYSTAL_RATE!!"
+#endif
+
+// ============================================================================
+
 void freeze (word nsec) {
 /*
  * Freezes the system in power-down mode for the specified number of seconds.
@@ -939,11 +925,8 @@ void freeze (word nsec) {
 	word saveUIE;
 #endif
 	byte saveLEDs;
-	word saveLostK;
 
 	// In case some of these take too long for the clock guard
-	WATCHDOG_HOLD;
-
 	cli;
 
 	// Save I/O pin interrupt configuration
@@ -967,23 +950,16 @@ void freeze (word nsec) {
 	uart_b_wait_tx;
 #endif
 #endif
-	// We should be OK now
-	WATCHDOG_RESUME;
-
 	powerdown ();
 	// Save clock state
-	saveLostK = zz_lostk;
 
 	while (1) {
-		zz_lostk = 0;
 		_BIS_SR (LPM3_bits + GIE);
 		cli;
 		if (nsec == 0)
 			break;
 		nsec--;
 	}
-
-	WATCHDOG_HOLD;
 
 	P1IE = saveP1IE;
 	P2IE = saveP2IE;
@@ -1004,13 +980,9 @@ void freeze (word nsec) {
 	P1IFG = (P1IE & (P1IES ^ P1IN));
 	P2IFG = (P2IE & (P2IES ^ P2IN));
 
-	zz_lostk = saveLostK;
-
 #if LEDS_DRIVER
 	leds_restore (saveLEDs);
 #endif
-
-	WATCHDOG_START;
 	sti;
 }
 

@@ -67,23 +67,17 @@ extern	word 	zz_pmonevent [0];
  * Used by pin interrupts and timer assists
  * ----------------------------------------
  */
-#define	wait_cnt(st,deb,on) \
-	do { \
-		pmon.deb_cnt = (deb); \
-		if (deb) \
-			pmon.deb_mas = PMON_DEBOUNCE_UNIT; \
-		if (on) \
-			pin_setedge_cnt (); \
-		else \
-			pin_revedge_cnt (); \
-		pmon.state_cnt = (st); \
-		pin_clrint_cnt (); \
-		if (pin_vedge_cnt ()) \
-			pin_trigger_cnt (); \
-	} while (0)
+void pins_int_wait_cnt (byte, byte, byte);
 
-#define	wait_cnt_on(st,deb)	wait_cnt (st, deb, 1)
-#define	wait_cnt_off(st,deb)	wait_cnt (st, deb, 0)
+#define	wait_cnt_on(st,deb)	pins_int_wait_cnt (st, deb, 1)
+#define	wait_cnt_off(st,deb)	pins_int_wait_cnt (st, deb, 0)
+
+#if MONITOR_PINS_SENT_INTERRUPTS
+#define	activate_deb_timer	ACTIVATE_DEB_TIMER
+#else
+// In this case, the timer never stops
+#define	activate_deb_timer	CNOP
+#endif
 
 #define	update_cnt \
 	do { \
@@ -102,28 +96,17 @@ extern	word 	zz_pmonevent [0];
 		if ((pmon.stat & PMON_CMP_PENDING)) { \
 			RISE_N_SHINE; \
 			i_trigger (ETYPE_USER, PMON_CNTEVENT); \
-			if (pmon.deb_mas == 0) \
+			if (pmon.deb_mas == 0) { \
+				activate_deb_timer; \
 				pmon.deb_mas = PMON_RETRY_DELAY; \
+			} \
 		} \
 	} while (0)
 
-#define	wait_not(st,deb,on) \
-	do { \
-		pmon.deb_not = (deb); \
-		if (deb) \
-			pmon.deb_mas = PMON_DEBOUNCE_UNIT; \
-		if (on) \
-			pin_setedge_not (); \
-		else \
-			pin_revedge_not (); \
-		pmon.state_not = (st); \
-		pin_clrint_not (); \
-		if (pin_vedge_not ()) \
-			pin_trigger_not (); \
-	} while (0)
+void pins_int_wait_not (byte, byte, byte);
 
-#define	wait_not_on(st,deb)	wait_not (st, deb, 1)
-#define	wait_not_off(st,deb)	wait_not (st, deb, 0)
+#define	wait_not_on(st,deb)	pins_int_wait_not (st, deb, 1)
+#define	wait_not_off(st,deb)	pins_int_wait_not (st, deb, 0)
 
 #define	update_not \
 	do { \
@@ -134,8 +117,10 @@ extern	word 	zz_pmonevent [0];
 
 #define update_pnt \
 	do { \
-		if (pmon.deb_mas == 0) \
+		if (pmon.deb_mas == 0) { \
+			activate_deb_timer; \
 			pmon.deb_mas = PMON_RETRY_DELAY; \
+		} \
 	} while (0)
 
 PULSE_MONITOR;

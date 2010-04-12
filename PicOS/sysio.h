@@ -76,9 +76,6 @@
 
 #define	MAX_MALLOC_WASTE	12
 
-// Only needed if SCHED_PRIO != 0
-#define MAX_PRIO                (MAX_TASKS * 10)
-
 /* ======================================================================== */
 /* This one is not easy to change because the loop in timer_int is unwound. */
 /* So changing this will require you to modify timer_int by hand.           */
@@ -257,17 +254,6 @@
 
 #endif	/* RF24G */
 
-
-#if	RADIO_DRIVER
-
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
-#error	"S: RADIO_DRIVER cannot coexist with any TCV-dependent radio device"
-#else
-#define	ZZ_RADIO_DRIVER_PRESENT	1
-#endif
-
-#endif	/* RADIO_DRIVER */
-
 #ifdef	ZZ_RADIO_DRIVER_PRESENT
 
 #if	RANDOM_NUMBER_GENERATOR == 0
@@ -276,23 +262,6 @@
 #endif
 
 #endif	/* ZZ_RADIO_DRIVER_PRESENT */
-
-#if	RADIO_DRIVER == 0
-#undef	RADIO_INTERRUPTS
-#undef	RADIO_TYPE
-#define	RADIO_INTERRUPTS	0
-#define	RADIO_TYPE		0
-#endif
-
-
-#if	RADIO_TYPE == RADIO_XEMICS
-#undef	RADIO_INTERRUPTS
-#define	RADIO_INTERRUPTS	1
-#if	LEDS_DRIVER
-#error	"S: LEDS and XEMICS radio cannot be configured together"
-#endif
-//+++ "radio.c"
-#endif /* XEMICS */
 
 #ifdef	ZZ_TCV_REQUIRED
 #if	TCV_PRESENT == 0
@@ -596,6 +565,7 @@ void		dmp_mem (void);
 						zz_systat.ledsts |= 0x8; \
 						LED3_ON; \
 					} \
+					TCI_RUN_AUXILIARY_TIMER; \
 				} \
 			} while (0)
 
@@ -653,8 +623,6 @@ int	io (int, int, int, char*, int);
 void	delay (word, word);
 word	dleft (sint);
 
-/* Continue timer wait */
-void	snooze (word);
 /* Signal trigger: returns the number of awakened processes */
 #define	trigger(a)	zzz_utrigger ((word)(a))
 #define	ptrigger(a,b)	zzz_ptrigger (a, (word)(b))
@@ -662,15 +630,6 @@ void	snooze (word);
 sint	kill (sint);
 /* Kill all processes running this code */
 int	killall (code_t);
-
-#if SCHED_PRIO
-/* Prioritize for scheduling */
-int     prioritizeall (code_t, int);
-int     prioritize (sint, int);
-#else
-#define	prioritizeall(a,b)	0
-#define	prioritizel(a,b)	0
-#endif
 
 /* Wait for a process */
 sint	join (sint, word);
@@ -692,7 +651,14 @@ void	proceed (word);
 /* Power up/down functions */
 void	powerup (void), powerdown (void);
 /* User timers */
-int	utimer (address, Boolean);
+void	utimer_add (address), utimer_delete (address);
+
+#if TRIPLE_CLOCK
+void zz_utimer_set (address, word);
+#define	utimer_set(a,v)	zz_utimer_set (&(a), v)
+#else
+#define	utimer_set(a,v)	((a) = v)
+#endif
 
 /* Second clock */
 #ifdef	__ECOG1__
@@ -715,12 +681,6 @@ void	mdelay (word);
 
 #if	GLACIER
 void	freeze (word);
-#endif
-
-#if	RADIO_INTERRUPTS
-Boolean	rcvwait (word);
-void	rcvcancel (void);
-int	rcvlast (void);
 #endif
 
 #define	call(p,d,s)	do { join (fork (p, d), s); release; } while (0)
@@ -917,15 +877,6 @@ void	tcv_urgent (address);
 Boolean	tcv_isurgent (address);
 int	tcv_control (int, int, address);
 
-// ============================================================================
-#if AUTO_CLOCK_DOWN
-void zz_utimer_set (address, word);
-#define	utimer_set(a,v)	zz_utimer_set (&(a), v)
-#else
-#define	utimer_set(a,v)	((a) = (v))
-#endif
-// ============================================================================
-
 /* TCV malloc shortcut */
 #define	tmalloc(s)	malloc (1, s)
 #define	tfree(s)	free (1, s)
@@ -937,9 +888,8 @@ void zz_utimer_set (address, word);
 #endif
 
 #if	ENTROPY_COLLECTION
-extern	lword zzz_ent_acc;
-#define	add_entropy(w)	do { zzz_ent_acc = (zzz_ent_acc << 4) ^ (w); } while (0)
-#define	entropy		zzz_ent_acc
+extern	lword entropy;
+#define	add_entropy(w)	do { entropy = (entropy << 4) ^ (w); } while (0)
 #else
 #define	add_entropy(w)	do { } while (0)
 #define	entropy		0
@@ -1013,7 +963,6 @@ void	adc_stop (void);
 #define	INFO_PHYS_UARTL		0x8100	/* Line-mode UART over TCV */
 #define	INFO_PHYS_UARTLB	0x9100	/* Line-mode UART + BlueTooth */
 #define	INFO_PHYS_ETHER    	0x0200	/* Raw Ethernet */
-#define	INFO_PHYS_RADIO		0x0300	/* Radio */
 #define INFO_PHYS_CC1000        0x0400  /* CC1000 radio */
 #define	INFO_PHYS_DM2100	0x0500	/* DM2100 */
 #define	INFO_PHYS_CC1100	0x0600	/* CC1100 */

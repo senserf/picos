@@ -1039,7 +1039,7 @@ void phys_cc1100 (int phy, int mbs) {
 	ini_cc1100 ();
 
 	/* Install the backoff timer */
-	utimer (&bckf_timer, YES);
+	utimer_add (&bckf_timer);
 	utimer_set (bckf_timer, 0);
 
 	/* Start the processes */
@@ -1146,7 +1146,7 @@ static int option (int opt, address val) {
 			// Random backoff
 			gbackoff;
 		else
-			bckf_timer = *val;
+			utimer_set (bckf_timer, *val);
 		trigger (zzv_qevent);
 		break;
 

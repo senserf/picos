@@ -16,9 +16,6 @@ int _da (net_close) (word state);
 // This one to be provided by the praxis
 __VIRTUAL Boolean _da (msg_isClear) (byte) __ABSTRACT;
 
-#if RADIO_DRIVER
-int radio_init (word plug);
-#endif
 #if CC1000
 int cc1000_init (word plug);
 #endif

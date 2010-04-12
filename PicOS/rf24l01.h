@@ -176,7 +176,8 @@
     255 \
 }
 	
-#define	gbackoff	(bckf_timer = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+#define	gbackoff	utimer_set (bckf_timer, MIN_BACKOFF + \
+				(rnd () & MSK_BACKOFF))
 
 extern word		zzv_drvprcs, zzv_qevent;
 

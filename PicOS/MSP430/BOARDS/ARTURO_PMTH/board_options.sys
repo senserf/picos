@@ -9,7 +9,7 @@
 #define	MALLOC_STATS		1
 #define STACK_GUARD		1
 #define ENTROPY_COLLECTION	1
-#define	GLACIER			1
+#define	GLACIER			0
 
 #define LEDS_DRIVER		1
 #define LEDS_BLINKING		1

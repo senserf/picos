@@ -9,14 +9,6 @@
  * Room for headers for intrinsic extra code for timer interrupt
  */
 
-#if RADIO_INTERRUPTS
-#include "irq_timer_headers_radio.h"
-#endif
-
-#if CC1100
-#include "irq_timer_headers_cc1100.h"
-#endif
-
 #ifdef PULSE_MONITOR
 #include "irq_timer_headers_pins.h"
 #endif

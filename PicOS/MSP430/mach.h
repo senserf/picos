@@ -209,9 +209,21 @@ typedef	struct {
 
 #define	HIGH_CRYSTAL_RATE 	1
 
-#if SEPARATE_SECONDS_CLOCK
-#error "S: SEPARATE_SECONDS_CLOCK is incompatible with HIGH_CRYSTAL_RATE"
+// ============================================================================
+
+#ifdef	TRIPLE_CLOCK
+
+#if TRIPLE_CLOCK
+#error "S: TRIPLE_CLOCK is incompatible with HIGH_CRYSTAL_RATE"
 #endif
+
+#else
+
+#define	TRIPLE_CLOCK		0
+
+#endif
+
+// ============================================================================
 
 // No clockdown/clockup modes with HIGH_CRYSTAL_RATE (power savings are not
 // possible, anyway)
@@ -222,35 +234,56 @@ typedef	struct {
 
 #else	/* Low crystal rate */
 
-#if	WATCHDOG_ENABLED
-// If we want to take advantage of the watchdog in power-down mode, the clock
-// must run at least 2 times per second to clear the watchdog, which, at its
-// slowest, goes off after 1 second. Note that with HIGH_CRYSTAL_RATE,
-// watchdog is impossible in power down mode (hopefully, it won't be entered
-// then) because at, say, 8MHz ACLK rate, the watchdog will go off after
-// ca. 1/250 s. Well, we could slow down ACLK, but the whole point of having
-// a high speed crystal for ACLK is to run it at a high rate.
-#define	TCI_LOW_PER_SEC		2
-#else
+// We used this with old WATCHDOG_ENABLED
+// #define	TCI_LOW_PER_SEC		2
+
 #define	TCI_LOW_PER_SEC		1
-#endif
 
 #define	HIGH_CRYSTAL_RATE	0
+
+// ============================================================================
+// This is the default with a standard 32768 Hz crystal =======================
+// ============================================================================
+
+#ifndef	TRIPLE_CLOCK
+#define	TRIPLE_CLOCK		1
+#endif
 
 // ============================================================================
 // clockdown/clockup is enabled only if HIGH_CRYSTAL_RATE == 0
 // ============================================================================
 
-#if SEPARATE_SECONDS_CLOCK
+#if TRIPLE_CLOCK
 
-// They are functions
-void clockup (void), clockdown (void);
+#define	clockup()	CNOP
+#define	clockdown()	CNOP
+
+// To be invoked from snippets in irq_timer.h
+#define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	aux_timer_inactive = 0
+#define	TCI_RUN_DELAY_TIMER		tci_run_delay_timer ()
+#define	TCI_RUN_AUXILIARY_TIMER		tci_run_auxiliary_timer ()
+#define	TCI_UPDATE_DELAY_TICKS 		tci_update_delay_ticks ()
+
+void tci_run_delay_timer ();
+void tci_run_auxiliary_timer ();
+void tci_update_delay_ticks ();
+
+#define	cli_utims	cli_aux
+#define	sti_utims	sti_aux
 
 #else
 
 // They are macros
 #define	clockup()	(TCI_CCR = TCI_INIT_HIGH)
 #define	clockdown()	(TCI_CCR = TCI_INIT_LOW)
+
+#define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	CNOP
+#define	TCI_RUN_DELAY_TIMER		CNOP
+#define	TCI_RUN_AUXILIARY_TIMER		CNOP
+#define	TCI_UPDATE_DELAY_TICKS		CNOP
+
+#define	cli_utims	cli_tim
+#define	sti_utims	sti_tim
 
 #endif
 
@@ -270,20 +303,24 @@ void clockup (void), clockdown (void);
 #define	TCI_CCR		TBCCR0
 // Seconds interrupt counter (if separate)
 #define	TCI_CCS		TBCCR1
+#define	TCI_CCA		TBCCR2
 #define	TCI_VAL		TBR
 #define	TCI_CTL		TBCTL
 #define	TCI_VECTOR	TIMERB0_VECTOR
 #define	TCI_VECTOR_S	TIMERB1_VECTOR
+// Tells debouncer interrupt from seconds clock
+#define	TCI_AUXILIARY_TIMER_INTERRUPT	(TBIV == 4)
 
 // To acknowledge seconds interrupts (any access to TBIV will do)
-#define	ack_sec	(TBIV = 0)
+#define	sti_aux	_BIS (TBCCTL2, CCIE)
+#define cli_aux	_BIC (TBCCTL2, CCIE)
 #define	sti_sec	_BIS (TBCCTL1, CCIE)
 #define	cli_sec	_BIC (TBCCTL1, CCIE)
 #define sti_tim	_BIS (TBCCTL0, CCIE)
 #define cli_tim	_BIC (TBCCTL0, CCIE)
 #define	dis_tim _BIC (TBCTL, MC0 + MC1)
 
-#if SEPARATE_SECONDS_CLOCK
+#if TRIPLE_CLOCK
 // Timer running in continuous mode
 #define	ena_tim _BIS (TBCTL, MC1      )
 #else
@@ -299,19 +336,22 @@ void clockup (void), clockdown (void);
 
 #define	TCI_CCR		TA0CCR0
 #define	TCI_CCS		TA0CCR1
+#define	TCI_CCA		TA0CCR2
 #define	TCI_VAL		TA0R
 #define	TCI_CTL		TA0CTL
 #define	TCI_VECTOR	TIMER0_A0_VECTOR
 #define	TCI_VECTOR_S	TIMER0_A1_VECTOR
+#define	TCI_AUXILIARY_TIMER_INTERRUPT	(TA0IV == 4)
 
-#define	ack_sec	(TA0IV = 0)
+#define	sti_aux	_BIS (TA0CCTL2, CCIE)
+#define	cli_aux	_BIC (TA0CCTL2, CCIE)
 #define	sti_sec	_BIS (TA0CCTL1, CCIE)
 #define	cli_sec	_BIC (TA0CCTL1, CCIE)
 #define sti_tim	_BIS (TA0CCTL0, CCIE)
 #define cli_tim	_BIC (TA0CCTL0, CCIE)
 #define	dis_tim _BIC (TA0CTL, MC0 + MC1)
 
-#if SEPARATE_SECONDS_CLOCK
+#if TRIPLE_CLOCK
 #define	ena_tim _BIS (TA0CTL, MC1      )
 #else
 #define	ena_tim _BIS (TA0CTL, MC0      )
@@ -328,6 +368,13 @@ void clockup (void), clockdown (void);
 // separate seconds clock
 #define	TCI_INIT_HIGH	(TCI_HIGH_DIV - 1)
 #define	TCI_INIT_LOW  	(TCI_LOW_DIV - 1)
+
+// Maximum value for which the delay timer can be set
+#define	TCI_MAXDEL		(((word)(65535)) >> 2)
+
+// Conversion from delay (ms) to ticks (only valid for the 32K crystal)
+#define	TCI_DELTOTICKS(d)	((word)(d) << 2)
+#define	TCI_TICKSTODEL(d)	((word)(d) >> 2)
 
 // ============================================================================
 // UART(s) ====================================================================
@@ -587,9 +634,6 @@ extern uart_t zz_uart [];
 // ============================================================================
 
 #define	WATCHDOG_STOP		WDTCTL = WDTPW + WDTHOLD
-
-#if WATCHDOG_ENABLED
-
 #define	WATCHDOG_HOLD		WATCHDOG_STOP
 
 // 1 second at 32kHz
@@ -604,17 +648,14 @@ extern uart_t zz_uart [];
 #endif
 // ============================================================================
 
-#define	WATCHDOG_CLEAR		WDTCTL = WDTPW + WDTCNTCL
-
-#else
-
-#define	WATCHDOG_HOLD		CNOP
-#define	WATCHDOG_START		CNOP
-#define	WATCHDOG_CLEAR		CNOP
-
-#endif
-
+#define	WATCHDOG_CLEAR		WATCHDOG_START
 #define	WATCHDOG_RESUME		WATCHDOG_START
+
+// ============================================================================
+
+#define	watchdog_start()	WATCHDOG_START
+#define	watchdog_stop()		WATCHDOG_STOP
+#define	watchdog_clear()	WATCHDOG_CLEAR
 
 // ============================================================================
 

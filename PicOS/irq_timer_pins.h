@@ -40,6 +40,7 @@
 						pmon.deb_mas = PMON_RETRY_DELAY;
 			}
 		}
+		TCI_MARK_AUXILIARY_TIMER_ACTIVE;
 	}
 #else	/* MONITOR_PINS_SEND_INTERRUPTS */
 
@@ -117,6 +118,9 @@
 	} else {
 		--(pmon.deb_mas);
 	}
+
+	// Must be kept active constantly if monitor pins send no interrupts
+	TCI_MARK_AUXILIARY_TIMER_ACTIVE;
 
 #endif	/* MONITOR_PINS_SEND_INTERRUPTS */
 

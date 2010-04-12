@@ -18,10 +18,6 @@
 #include "phys_uart.h"
 #endif
 
-#if RADIO_DRIVER
-#include "phys_radio.h"
-#endif
-
 #if CC1000
 #include "phys_cc1000.h"
 #endif
@@ -92,10 +88,6 @@ static int ether_init (word);
 static int uart_init (word);
 #endif
 
-#if RADIO_DRIVER
-static int radio_init (word);
-#endif
-
 #if CC1000
 static int cc1000_init (word);
 #endif
@@ -134,10 +126,6 @@ __PUBLF (PicOSNode, int, net_init) (word phys, word plug) {
 	net_plug = plug;
 
 	switch (phys) {
-#if RADIO_DRIVER
-	case INFO_PHYS_RADIO:
-		return (net_fd = radio_init (plug));
-#endif
 #if CC1000
 	case INFO_PHYS_CC1000:
 		return (net_fd = cc1000_init (plug));
@@ -164,28 +152,6 @@ __PUBLF (PicOSNode, int, net_init) (word phys, word plug) {
 		return (net_fd = -1);
 	}
 }
-
-#if RADIO_DRIVER
-__PRIVF (PicOSNode, int, radio_init) (word plug) {
-	int fd;
-
-	phys_radio (0, 0, NET_MAXPLEN);
-
-	if (plug == INFO_PLUG_TARP)
-		tcv_plug (0, &plug_tarp);
-	else
-		tcv_plug (0, &plug_null);
-
-	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
-		diag ("%s: Cannot open tcv radio interface", myName);
-		return -1;
-	}
-
-	tcv_control (fd, PHYSOPT_TXON, NULL); // just for now
-	tcv_control (fd, PHYSOPT_RXON, NULL);
-	return fd;
-}
-#endif
 
 #if CC1000
 __PRIVF (PicOSNode, int, cc1000_init) (word plug) {
@@ -373,7 +339,6 @@ __PUBLF (PicOSNode, int, net_rx)
 		return size;
 #endif
 
-	case INFO_PHYS_RADIO:
 	case INFO_PHYS_CC1000:
 	case INFO_PHYS_CC1100: // sid, entropy, rssi
 	case INFO_PHYS_DM2200:
@@ -484,7 +449,6 @@ application should decide if this is an error...
 		memcpy ((char*)ether_offset(packet), buf, len);
 		break;
 #endif
-	  case INFO_PHYS_RADIO:
 	  case INFO_PHYS_CC1000:
 	  case INFO_PHYS_CC1100:
 	  case INFO_PHYS_DM2200:

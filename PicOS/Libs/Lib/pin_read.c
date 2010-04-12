@@ -144,6 +144,52 @@ int pin_write_dac (word pin, word val, word ref) {
 
 #ifdef	PULSE_MONITOR
 
+// ============================================================================
+// Internal functions =========================================================
+// ============================================================================
+
+// Note: this is incompatible with eCOG, as these functions are invoked in
+// interrupts. This is OK. The whole idea of PULSE_MONITOR (in its present
+// complicated version) is broken and will be replaced if this thing is ever
+// needed again.
+
+void pins_int_wait_cnt (byte st, byte deb, byte on) {
+
+	pmon.deb_cnt = deb;
+	if (deb) {
+		pmon.deb_mas = PMON_DEBOUNCE_UNIT;
+		// If dynamic (3-timer) version
+		ACTIVATE_DEB_TIMER;
+	}
+	if (on) 
+		pin_setedge_cnt ();
+	else
+		pin_revedge_cnt ();
+	pmon.state_cnt = st;
+	pin_clrint_cnt ();
+	if (pin_vedge_cnt ())
+		pin_trigger_cnt ();
+}
+
+void pins_int_wait_not (byte st, byte deb, byte on) {
+
+	pmon.deb_not = (deb);
+	if (deb) {
+		pmon.deb_mas = PMON_DEBOUNCE_UNIT;
+		ACTIVATE_DEB_TIMER;
+	}
+	if (on)
+		pin_setedge_not ();
+	else
+		pin_revedge_not ();
+	pmon.state_not = (st);
+	pin_clrint_not ();
+	if (pin_vedge_not ())
+		pin_trigger_not ();
+}
+
+// ============================================================================
+
 void pmon_start_cnt (long count, Boolean edge) {
 
 	pin_disable_cnt ();
@@ -171,6 +217,10 @@ void pmon_start_cnt (long count, Boolean edge) {
 	pin_setedge_cnt ();
 
 	pmon.deb_mas = PMON_RETRY_DELAY;
+
+#if MONITOR_PINS_SEND_INTERRUPTS
+	ACTIVATE_DEB_TIMER;
+#endif
 
 	_BIS (pmon.stat, PMON_CNT_ON);
 

@@ -9,7 +9,7 @@
 #define	EE_NO_ERASE_BEFORE_WRITE	1
 
 #undef	GLACIER
-#define	GLACIER	1
+#define	GLACIER		0
 
 #undef	CRYSTAL2_RATE
 #define	CRYSTAL2_RATE		0
@@ -26,7 +26,18 @@
 #define	RADIO_GUARD	0
 #define	RADIO_DEBUG	0
 #define	RADIO_SPDIFIDLE	0
-#define	AUTO_CLOCK_DOWN	1
 #define	RADIO_PRECHECKS	1
 
-// #define	MONITOR_PIN_CLOCK	P2_5
+#ifdef BOARD_WARSAW_NEW
+#define	MONITOR_PIN_CLOCK	P4_5
+#define	MONITOR_PIN_CLOCKA	P4_0
+#define	MONITOR_PIN_CLOCKS	P2_5
+#define	MONITOR_PIN_SCHED	P3_6
+#endif
+
+#ifdef BOARD_XCC430
+//#define	MONITOR_PIN_CLOCK	P4_0
+//#define	MONITOR_PIN_CLOCKA	P4_1
+//#define	MONITOR_PIN_CLOCKS	P4_2
+//#define	MONITOR_PIN_SCHED	P4_3
+#endif

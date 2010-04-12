@@ -27,25 +27,6 @@
 #define	SPIN_WHEN_HALTED	0
 #endif
 
-// Watchdog
-#ifndef	WATCHDOG_ENABLED
-#define	WATCHDOG_ENABLED	0
-#endif
-
-// Auto clock down in power down
-#ifndef	AUTO_CLOCK_DOWN
-#define	AUTO_CLOCK_DOWN		0
-#endif
-
-#ifndef	SEPARATE_SECONDS_CLOCK
-#define	SEPARATE_SECONDS_CLOCK	0
-#endif
-
-// Prioritizing scheduler
-#ifndef	SCHED_PRIO
-#define	SCHED_PRIO		0
-#endif
-
 // The maximum number of tasks in the system: size of the PCB table
 #ifndef	MAX_TASKS
 #define	MAX_TASKS		16
@@ -93,28 +74,6 @@
 #ifndef	LCD_DRIVER
 #define	LCD_DRIVER		0
 #endif
-
-/* ====================================================================== */
-/* These are old and unsupported.  They were used in the old days when RF */
-/* modules were formal devices. We don't do this any more. RF modules are */
-/* handled by TCV (VNETI) these days.                                     */
-/* ====================================================================== */
-
-// RADIO driver present (0/1)
-#ifndef	RADIO_DRIVER
-#define	RADIO_DRIVER		0
-#endif
-// radio options
-#define	RADIO_NONE              0
-#define	RADIO_RFMI		2
-#define	RADIO_XEMICS		3
-// Select the radio type in options.sys if present
-#ifndef RADIO_TYPE
-#define RADIO_TYPE              RADIO_NONE
-#endif
-// If this is nonzero, the radio driver is assisted by a helper simulating
-// interrupts (triggering events) when an activity is sensed
-#define	RADIO_INTERRUPTS	4
 
 /* ======================================================================= */
 
@@ -199,13 +158,6 @@
 #ifndef	MALLOC_ALIGN4
 #define	MALLOC_ALIGN4		0
 #endif
-
-/* ========================================================================= */
-/* Radio module selection: note that XEMICS and RFMI are not here. They have */
-/* not been attached to MSP430 yet, and they operate as "devices", which way */
-/* is considered deprecated. They still do work with eCOG, and we will do it */
-/* when (and if) we interface them to MSP430.                                */
-/* ========================================================================= */
 
 #ifndef CC1000
 #define CC1000                 	0

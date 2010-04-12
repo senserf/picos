@@ -13,13 +13,13 @@ void hrc_start () {
 
 	HRINext = 0;
 	enable_heart_rate_counter;
-	utimer (&HRTimer, YES);
+	utimer_add (&HRTimer);
 	utimer_set (HRTimer, 0xffff);
 }
 
 void hrc_stop () {
 
-	utimer (&HRTimer, NO);
+	utimer_delete (&HRTimer);
 	disable_heart_rate_counter;
 }
 

@@ -16,7 +16,7 @@
 #include "pins.h"
 
 void	zzz_set_release (void);
-void	zzz_tservice (void);
+void	update_n_wake (word);
 
 #ifdef SENSOR_LIST
 void	zz_init_sensors (void);
@@ -65,23 +65,12 @@ typedef struct	{
 	code_t	code;		/* Code function pointer */
 	address	data;		/* Data pointer */
 	event_t	Events [MAX_EVENTS_PER_TASK];
-
-#if SCHED_PRIO
-        int prio;
-#endif
-
 } pcb_t;
 
 extern	pcb_t	__PCB [];
 
 extern 			word  		zz_mintk;
-extern 	volatile 	word 		zz_lostk;
-
-#if WATCHDOG_ENABLED
-#ifdef	WATCHDOG_SAVER
-void	WATCHDOG_SAVER ();
-#endif
-#endif
+extern 	volatile 	word 		zz_old, zz_new;
 
 extern	void tcv_init (void);
 
@@ -91,7 +80,6 @@ extern	void tcv_init (void);
 #define tasknum(p)		((p) - FIRST_PCB)
 
 #define	incwait(p)	((p)->Status++)
-#define	cnclwait(p)	((p)->Status &= 0xfff0)
 #define	inctimer(p)	((p)->Status |= 0x8)
 #define	waiting(p)	((p)->Status & 0xf)
 #define	twaiting(p)	((p)->Status & 0x8)
@@ -101,7 +89,17 @@ extern	void tcv_init (void);
 #define	prcdstate(p,t)	((p)->Status = (t) << 4)
 
 #define wakeupev(p,j)	((p)->Status = (p)->Events [j].Status & 0xfff0)
-#define wakeuptm(p)	do { (p)->Status &= 0xfff0; (p)->Timer = 0; } while (0)
+#define wakeuptm(p)	(p)->Status &= 0xfff0
+#define cltmwait(p)	(p)->Status &= 0xfff7
+
+// The best compilation of the timer wakeup condition, which says that m
+// (describing the target timer value for the first-to-be-awakened delay)
+// is between o(ld) and n(ew), effectively qualifying for a wakeup. This
+// accounts for a wraparound, i.e., if n >= o, the first && must hold (m
+// must be between the two (inclusively). Otherwise, we have a wraparound
+// and the second or must hold.
+#define	twakecnd(o,n,m)	( ( (m) <= (n) && (m) >= (o) ) || \
+			  ( ((n) < (o)) && ( ((m) <= (n)) || ((m) >= (o)) ) ) )
 
 typedef	void (*devinitfun_t)(int param);
 typedef int (*devreqfun_t)(int, char*, int);

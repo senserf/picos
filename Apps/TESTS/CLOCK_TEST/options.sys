@@ -16,9 +16,9 @@
 #undef	GLACIER
 #endif
 
-#define	GLACIER			1
+#define	GLACIER			0
 
-#define	LEDS_DRIVER	0
+#define	LEDS_DRIVER	1
 #define	RADIO_USE_LEDS	0
 #define	CODE_LONG_INTS	1
 
@@ -31,10 +31,19 @@
 #undef	SPIN_WHEN_HALTED
 #define	SPIN_WHEN_HALTED	0
 
-#undef	AUTO_CLOCK_DOWN
-#define	AUTO_CLOCK_DOWN		1
-
 #undef	CRYSTAL2_RATE
 #define	CRYSTAL2_RATE		0
 
-#define	SEPARATE_SECONDS_CLOCK	1
+#ifdef BOARD_WARSAW_NEW
+#define	MONITOR_PIN_CLOCK	P4_5
+#define	MONITOR_PIN_CLOCKA	P4_0
+#define	MONITOR_PIN_CLOCKS	P2_5
+#define	MONITOR_PIN_SCHED	P3_6
+#endif
+
+#ifdef BOARD_XCC430
+#define	MONITOR_PIN_CLOCK	P4_0
+#define	MONITOR_PIN_CLOCKA	P4_1
+#define	MONITOR_PIN_CLOCKS	P4_2
+#define	MONITOR_PIN_SCHED	P4_3
+#endif

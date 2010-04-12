@@ -43,8 +43,6 @@
 #define	ENTROPY_COLLECTION	1
 #define CC1000_FREQ 		868
 
-#define	RADIO_DRIVER		0
-
 #define	STACK_GUARD		1
 
 #define	UART_RATE		9600

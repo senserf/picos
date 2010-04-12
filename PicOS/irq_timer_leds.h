@@ -32,5 +32,6 @@
 			if (zz_systat.fstblk)
 				zz_systat.ledblc = 200;
 		}
+		TCI_MARK_AUXILIARY_TIMER_ACTIVE;
 	}
 #endif

@@ -459,7 +459,8 @@ extern const byte *cc1100_ratemenu [];
 
 // ============================================================================
 
-#define	gbackoff	(bckf_timer = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+#define	gbackoff	utimer_set (bckf_timer, MIN_BACKOFF + \
+				(rnd () & MSK_BACKOFF))
 // REMOVEME
 // #define		gbackoff	9
 

@@ -36,8 +36,7 @@
 
 #if	UART_DRIVER == 2
 	/*
-	 * Port D as DUART B (D0-D1), side effect: D2-D3 -> GPIO 21-22. D2 is
-	 * used by XEMICS.
+	 * Port D as DUART B (D0-D1), side effect: D2-D3 -> GPIO 21-22.
 	 */
 #define	PORT_D_ENABLE		PORT_EN_D_MASK
 #define	PORT_D_SELECT		fd.port.sel1.d = 1

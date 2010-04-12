@@ -4,19 +4,13 @@
 /* ==================================================================== */
 #include "kernel.h"
 
-/* ========================================================================== */
-/*                     PicOS                                                  */
-/*                                                                            */
-/* The kernel                                                                 */
-/* ========================================================================== */
-
-/*
- * Put all lword variables here to avoid losing memory on alignment
- */
+//
+// Put all lword variables here to avoid losing memory on alignment
+//
 lword 	zz_nseconds;
 
 #if	ENTROPY_COLLECTION
-lword	zzz_ent_acc;
+lword	entropy;
 #endif
 
 #if	RANDOM_NUMBER_GENERATOR > 1
@@ -44,14 +38,12 @@ pcb_t	*zz_curr;
 /* ========= */
 /* The clock */
 /* ========= */
-static 		word  	setticks;
-
-#if SEPARATE_SECONDS_CLOCK == 0
+#if TRIPLE_CLOCK == 0
 static		word	millisec;
 #endif
 
-		word 	zz_mintk;
-volatile	word 	zz_lostk;
+word		zz_mintk;
+volatile word	zz_old, zz_new;
 
 /* ================================ */
 /* User-defineable countdown timers */
@@ -75,7 +67,7 @@ static	address mevent;
 // PID verifier ===============================================================
 
 #ifndef	PID_VER_TYPE
-#define	PID_VER_TYPE	2
+#define	PID_VER_TYPE	1
 #endif
 
 // None =======================================================================
@@ -119,10 +111,10 @@ void zz_badstate (void) {
 	syserror (ESTATE, "state");
 }
 
-int utimer (address ut, Boolean add) {
-/* ================= */
-/* Add/clear utimers */
-/* ================= */
+void utimer_add (address ut) {
+//
+// Add a utimer
+//
 	int i;
 
 	/* Check if the timer is not in SDRAM */
@@ -136,50 +128,40 @@ int utimer (address ut, Boolean add) {
 		if (zz_utims [i] == NULL)
 			break;
 
-	if (add) {
-		/* Install a new timer */
-		if (i == MAX_UTIMERS)
-			/* The pool is full */
-			return 0;
-		zz_utims [i] = ut;
-		/* Return the number of all utimers */
-		return i+1;
-	}
+	if (i == MAX_UTIMERS)
+		syserror (ERESOURCE, "ut");
 
-	/* Delete */
-	if (ut == NULL) {
-		/* Clear all utimers */
-		zz_utims [0] = NULL;
-		return i;
-	}
+	zz_utims [i] = ut;
+}
 
-	/* Delete a single specific timer */
+void utimer_delete (address ut) {
+//
+// Remove a utimer
+//
+	int i;
+
 	for (i = 0; i < MAX_UTIMERS; i++) {
 		if (zz_utims [i] == 0)
-			/* Not found */
-			return 0;
+			syserror (EREQPAR, "ut");
 		if (zz_utims [i] == ut)
 			break;
 	}
-	cli_tim;
+	cli_utims;
 	while (i < MAX_UTIMERS-1) {
 		zz_utims [i] = zz_utims [i+1];
 		if (zz_utims [i] == NULL)
 			break;
 		i++;
 	}
-	sti_tim;
-	return i+1;
+	sti_utims;
 }
 
-#if AUTO_CLOCK_DOWN
+#if TRIPLE_CLOCK
 
 void zz_utimer_set (address t, word v) {
 
-	if ((*t = v) != 0 && power_down_mode && clock_down_mode) {
-		// diag ("CU T");
-		clockup ();
-	}
+	if ((*t = v) != 0)
+		TCI_RUN_AUXILIARY_TIMER;
 }
 
 #endif
@@ -192,120 +174,90 @@ lword seconds () { return zz_nseconds; }
 
 #endif
 
-void zzz_tservice () {
-
-	word nticks;
+void update_n_wake (word min) {
+//
+// The idea is this. There are two circular clock pointers wrapping around at
+// 64K (PicOS) milliseconds, i.e., at 64 seconds. One of them is called new
+// (or zz_new), the other is old (zz_old). The new pointer is updated by the
+// timer (interrupt) by the number of milliseconds elapsed. Depending on the
+// clock mode, this update can happen at regular intervals (typically by one
+// every millisecond), or at longer intervals (in TRIPLE_CLOCK mode). The old
+// pointer is only advanced by this function. The idea is that old represents
+// the moment we last looked at the timer. The difference (accounting for the
+// wraparound) between the two pointers is the lag.
+//
 	pcb_t *i;
-	int j;
+	word d;
 
-	cli_tim;
-	nticks = zz_lostk;
-	zz_lostk = 0;
-	sti_tim;
+// ============================================================================
+#if TRIPLE_CLOCK == 0
+	// Delay timer interrupts are asynchronous, i.e., they are not blocked
+	// while we are doing this, unlike in the TRIPLE_CLOCK mode
+	word znew;
+	znew = zz_new;
+#else
 
-	if (nticks == 0)
-		return;
-
-#if SEPARATE_SECONDS_CLOCK == 0
-	millisec += nticks;
+#define	znew zz_new
+	// This will make sure the delay timer is stopped
+	TCI_UPDATE_DELAY_TICKS;
 #endif
-	do {
-		if (zz_mintk == 0)
-			// Minimum ticks to a wakeup
-			break;
+// ============================================================================
 
-		if (zz_mintk > nticks) {
-			// More than elapsed to this run: just decrement the
-			// count
-			zz_mintk -= nticks;
-			break;
-		}
+	// See kernel.h for the wake condition
+	if (twakecnd (zz_old, znew, zz_mintk)) {
 
-		// nticks >= zz_mintk; normally, we will have
-		// nticks == zz_mintk, but lets us play it safe (in case we have
-		// lost a tick
-
-		nticks -= zz_mintk;
-		zz_mintk = 0;
+		// As now all zz_mintk values are legit (e.g., 0 cannot be
+		// special), the condition will occasionally force us to do
+		// an idle scan through the list of processes. This will do no
+		// harm, or at least less harm than having an extra flags.
 
 		for_all_tasks (i) {
-			if (i->Timer == 0)
-				// Not waiting for Timer
+
+			if (!twaiting (i))
 				continue;
-			if (!twaiting (i)) {
-				// Not waiting either; this test is more costly,
-				// so fix it to speed up future checks
-				i->Timer = 0;
-				continue;
-			}
-			if (i->Timer <= setticks) {
-				// setticks is the number of ticks for which the
-				// timer was last set; thus, this means that
-				// this particular process must be awakened
-				i->Timer = 0;
+
+			if (twakecnd (zz_old, znew, i->Timer)) {
+				// Wake up
 				wakeuptm (i);
 			} else {
-				// Reset the timer
-				i->Timer -= setticks;
-				if (zz_mintk == 0 || i->Timer < zz_mintk)
-					// And calculate new setticks as the
-					// minimum of them all
-					zz_mintk = i->Timer;
+				// Waiting on the timer but not for wakeup yet,
+				// calculate new minimum
+				d = i->Timer - znew;
+				if (d < min)
+					min = d;
 			}
 		}
 
-		// This is the new minimum
-		setticks = zz_mintk;
-		// Keep going in case we are experiencing a lag
+	} else {
+		// Nobody is eligible for wakeup, old minimum holds, unless
+		// the requested one is less
+		d = zz_mintk - znew;
+		if (d < min) 
+			goto MOK;
+	}
 
-	} while (nticks);
+	zz_mintk = znew + min;
 
-#if SEPARATE_SECONDS_CLOCK == 0
+MOK:
 
-	/* Keep the seconds clock running */
+#if TRIPLE_CLOCK == 0
+	// Handle the seconds clock
+	millisec += (znew - zz_old);
 	while (millisec >= JIFFIES) {
-
 		millisec -= JIFFIES;
 		zz_nseconds++;
-
 		check_stack_overflow;
-
 #include "second.h"
-
-		// Note: even though this is a loop, it is "always" executed
-		// once; the while is just in case
-#endif
-
-#if AUTO_CLOCK_DOWN
-		if (power_down_mode) {
-			if (clock_down_mode) {
-				// We are in clock down, so no utimer can
-				// possibly be active, just check for delay
-				if (zz_mintk && zz_mintk < JIFFIES) {
-					// diag ("CU R");
-					clockup ();
-				}
-			} else {
-				// We are in clock up
-				if (zz_mintk == 0 || zz_mintk >= JIFFIES) {
-					// Check utimers
-					for (j = 0; j < MAX_UTIMERS; j++) {
-						if (zz_utims [j] == NULL)
-							break;
-						if (*zz_utims [j] != 0)
-						   	goto CUp;
-					}
-					// diag ("CD");
-					clockdown ();
-				}
-CUp:				CNOP;
-			}
-		}
-#endif
-
-#if SEPARATE_SECONDS_CLOCK == 0
 	}
 #endif
+	zz_old = znew;
+
+	TCI_RUN_DELAY_TIMER;
+
+#if TRIPLE_CLOCK == 0
+#undef	znew
+#endif
+
 }
 
 /* ==================== */
@@ -332,13 +284,9 @@ sint zzz_fork (code_t func, address data) {
 	if (i == LAST_PCB)
 		return /* (int) NONE */ 0;
 
-	i -> Timer = 0;
 	i -> code = func;
 	i -> data = (address) data;
 	i -> Status = 0;
-#if SCHED_PRIO
-	i -> prio = tasknum (i) << 3;
-#endif
 	return (int) i;
 }
 
@@ -392,74 +340,16 @@ void zzz_uwait (word event, word state) {
 /* ========== */
 void delay (word d, word state) {
 
-	word t;
-	pcb_t *i;
-
 	settstate (zz_curr, state);
-	if (d != 0) {
-		if (zz_mintk == 0) {
-			// Alarm not set, we are alone, this case is easy. Note
-			// that setticks tells the last setting of the timer,
-			// while zz_mintk runs down at the clock rate to zero.
-			zz_curr->Timer = zz_mintk = setticks = d;
-		} else if (zz_mintk <= d) {
-			// The alarm clock will go off earlier than required
-			// to wake us up. Thus, we have to increase our
-			// requested delay by the time elapsed since the
-			// last setting.
-			if ((t = d + (setticks - zz_mintk)) < d) {
-HardWay:
-				// We have run out of precision, use the 
-				// precision-safe version that involves no
-				// incrementation
-				sysassert (setticks >= zz_mintk, "delay mintk");
-				setticks -= zz_mintk;
-				zz_mintk = 0;
-				for_all_tasks (i) {
-					if (i->Timer == 0)
-						// Not waiting
-						continue;
-					if (!twaiting (i)) {
-						i->Timer = 0;
-						continue;
-					}
-					sysassert (i->Timer > setticks,
-						"delay setticks");
-					i->Timer -= setticks;
-					if (zz_mintk == 0 || i->Timer <
-					    zz_mintk)
-						zz_mintk = i->Timer;
-				}
-				sysassert (zz_mintk > 0, "delay minwait");
-				zz_curr->Timer = d;
-				if (zz_mintk > d)
-					zz_mintk = d;
-				setticks = zz_mintk;
 
-			} else {
-				zz_curr->Timer = t;
-			}
-		} else {
-			// The alarm clock would go off later than required, so
-			// we have to reset it.
-			if ((t = d + (setticks - zz_mintk)) < d) {
-				// Out of precision
-				goto HardWay;
-			}
-			zz_curr->Timer = setticks = t;
-			zz_mintk = d;
-		}
-#if AUTO_CLOCK_DOWN
-		if (zz_mintk && power_down_mode && clock_down_mode &&
-			zz_mintk < JIFFIES) {
-				// diag ("CU D");
-				clockup ();
-		}
-#endif
-	} else {
-		zz_curr->Timer = 0;
-	}
-	/* Indicate that we are waiting for the Timer */
+	// Remove any previous delay (so update_n_wake doesn't look at us)
+	cltmwait (zz_curr);
+
+	// Catch up with time
+	update_n_wake (d);
+
+	zz_curr->Timer = zz_old + d;
+
 	inctimer (zz_curr);
 }
 
@@ -469,7 +359,7 @@ void unwait (word state) {
 /* =========================================== */
 	if (state != WNONE)
 		settstate (zz_curr, state);
-	cnclwait (zz_curr);
+	wakeuptm (zz_curr);
 }
 
 /* ======================================================================== */
@@ -480,6 +370,8 @@ word dleft (sint pid) {
 
 	pcb_t *i;
 
+	update_n_wake (MAX_UINT);
+
 	if (pid == 0)
 		i = zz_curr;
 	else {
@@ -488,25 +380,7 @@ word dleft (sint pid) {
 			return MAX_UINT;
 	}
 
-	return (i->Timer > (setticks - zz_mintk)) ?
-		i->Timer - (setticks - zz_mintk) : 0;
-}
-
-/* =============================== */
-/* Continue interrupted timer wait */
-/* =============================== */
-void snooze (word state) {
-
-	settstate (zz_curr, state);
-	if (zz_mintk == 0 || zz_mintk > zz_curr->Timer) {
-		/*
-		 * This is a bit heuristic, but at least avoids problems
-		 * resulting from a possible misuse.
-		 */
-		delay (zz_curr->Timer, state);
-		return;
-	}
-	inctimer (zz_curr);
+	return i->Timer - zz_old;
 }
 
 /* ============== */
@@ -624,7 +498,6 @@ sint kill (sint pid) {
 		/* Self */
 		killev ((int)zz_curr, (word)(zz_curr->code));
 		zz_curr->Status = 0;
-		zz_curr->Timer = 0;
 		if (pid == -1) {
 			/* This makes you a zombie ... */
 			swait (ETYPE_TERM, 0, 0);
@@ -676,42 +549,6 @@ int killall (code_t fun) {
 		release;
 	return nk;
 }
-
-#if SCHED_PRIO
-
-int prioritizeall (code_t fun, int pr) {
-
-	pcb_t *i;
-	int np = 0;
-
-	sysassert (((pr >= 0) && (pr < MAX_PRIO)), "priority");
-
-	for_all_tasks (i){
-		if (i->code == fun) {
-			i -> prio = pr;
-			np++;
-		}
-	}
-
-	return np;
-}
-
-int prioritize (sint pid, int pr) {
-
-	pcb_t *i;
-
-	if (pid == 0)
-	        i = zz_curr;
-	else
-	        ver_pid (i, pid);
-
-	if ((pr >= 0) && (pr < MAX_PRIO))
-	        i -> prio = pr;
-
-	return i -> prio ;
-}
-
-#endif
 
 int status (sint pid) {
 

@@ -6,8 +6,8 @@
 #include "sysio.h"
 #include "tcvphys.h"
 
-#define	PIN_RAW_TEST	1
-#define	PIN_OPS_TEST	1
+//#define	PIN_RAW_TEST
+//#define	PIN_OPS_TEST
 
 #ifdef	PIN_OPS_TEST
 #include "pinopts.h"
@@ -74,10 +74,6 @@ heapmem {10, 90};
 
 #if RF24L01
 #include "phys_rf24l01.h"
-#endif
-
-#if RADIO_DRIVER
-#include "phys_radio.h"
 #endif
 
 #include "plug_null.h"
@@ -368,7 +364,6 @@ int snd_stop (void) {
 #define	RS_QXMT		66
 #define	RS_QUIT		70
 #define	RS_SSID		75
-#define	RS_CAL		80
 #define	RS_STK		85
 #define	RS_GADC		90
 #define	RS_LED		95
@@ -442,11 +437,6 @@ thread (root)
 	phys_rf24l01 (0, MAXPLEN);
 #endif
 
-#if RADIO_DRIVER
-	// Generic
-	phys_radio (0, 0, MAXPLEN);
-#endif
-
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);
 	if (sfd < 0) {
@@ -467,11 +457,6 @@ thread (root)
 		"s intvl  -> start/reset sending interval (2 secs default)\r\n"
 		"r        -> start receiver\r\n"
 		"d i v    -> change phys parameter i to v\r\n"
-#if CC1000 == 0 && DM2100 == 0
-		// Not available
-		"c btime  -> recalibrate the transceiver\r\n"
-#endif
-
 #if DM2100 == 0
 		"p v      -> set transmit power\r\n"
 #endif
@@ -575,11 +560,6 @@ thread (root)
 #if UART_DRIVER
 /* ========= */
 
-#if CC1000 == 0 && DM2100 == 0
-	if (ibuf [0] == 'c')
-		proceed (RS_CAL);
-#endif
-
 #if DM2100 == 0
 	if (ibuf [0] == 'p')
 		proceed (RS_POW);
@@ -626,14 +606,7 @@ thread (root)
 	/* Default */
 	n1 = 0;
 	scan (ibuf + 1, "%u", &n1);
-
-#if CC1000 == 0 && CC1100 == 0
-	io (NONE, RADIO, CONTROL, (char*) &n1, RADIO_CNTRL_SETPOWER);
-#else
-	// There's no RADIO device, SETPOWER is available via
-	// tcv_control
 	tcv_control (sfd, PHYSOPT_SETPOWER, (address)&n1);
-#endif
 
   entry (RS_POW+1)
 
@@ -645,12 +618,7 @@ thread (root)
 
   entry (RS_RCP)
 
-#if CC1000 == 0 && DM2100 == 0 && CC1100 == 0
-	n1 = io (NONE, RADIO, CONTROL, NULL, RADIO_CNTRL_READPOWER);
-#else
-	// No RADIO device for CC1000 & DM2100
 	n1 = tcv_control (sfd, PHYSOPT_GETPOWER, NULL);
-#endif
 
   entry (RS_RCP+1)
 
@@ -712,23 +680,6 @@ thread (root)
 	scan (ibuf + 1, "%u", &n1);
 	tcv_control (sfd, PHYSOPT_SETSID, (address) &n1);
 	proceed (RS_RCMD);
-
-#if CC1000 == 0 && DM2100 == 0 && CC1100 == 0
-
-  entry (RS_CAL)
-
-	/* The default */
-	n1 = 19200;
-	scan (ibuf + 1, "%u", &n1);
-	io (NONE, RADIO, CONTROL, (char*) &n1, RADIO_CNTRL_CALIBRATE);
-
-  entry (RS_CAL+1)
-
-	ser_outf (RS_CAL+1,
-		"Transceiver recalibrated to bit rate = %u bps\r\n", n1);
-
-	proceed (RS_RCMD);
-#endif
 
 #if STACK_GUARD
 

@@ -33,9 +33,6 @@
 #define	PIN_MAX_ANALOG		0
 #define	PIN_DAC_PINS		0
 
-#define	ADC_CLOCK_SOURCE	ADC12SSEL_ACLK
-#define	ADC_CLOCK_DIVIDER	ADC12DIV_1
-
 // This makes the SHT unit for ADC equal to ca. 61us. The typical power source
 // is a 12V battery, which we will divide through 4.7K + 47K. With this
 // impedance, a safe SHT is calculated as 20us. We shall overkill it, thrice or

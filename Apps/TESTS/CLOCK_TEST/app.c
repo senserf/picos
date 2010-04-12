@@ -13,6 +13,7 @@
 #include "serf.h"
 #include "form.h"
 #include "plug_null.h"
+#include "hold.h"
 
 #include "phys_cc1100.h"
 
@@ -310,6 +311,148 @@ int snd_stop (void) {
 /* End packet sender */
 /* ================= */
 
+// ============================================================================
+
+#define	N_DMONS		4
+#define	DREP_INT	300
+
+typedef struct {
+
+	lword	millisec, lastsec, count;
+	word	lastdel;
+	word	elapsed;
+
+} dmon_data_t;
+
+dmon_data_t dmond [N_DMONS];
+
+int dmons [N_DMONS];
+
+// ============================================================================
+
+#define	DM_START	0
+#define	DM_DONE		1
+#define	DM_UNDER	2
+#define	DM_OVER		3
+
+extern word zz_old, zz_new, zz_mintk;
+
+strand (delay_monitor, dmon_data_t)
+
+	word d;
+
+	entry (DM_START)
+
+		data->lastdel = rnd ();
+		data->lastsec = seconds ();
+		if (data->lastdel > 1200) 
+		delay (data->lastdel, DM_DONE);
+		release;
+
+	entry (DM_DONE)
+
+		data->count++;
+		data->millisec += data->lastdel;
+
+		// Requested delay truncated to seconds
+		d = data->lastdel >> 10;
+
+		// Elapsed delay in seconds
+		data->elapsed = (word) (seconds () - data->lastsec);
+
+		if (data->elapsed < d)
+			proceed (DM_UNDER);
+
+		if (data->elapsed > d + 2)
+			proceed (DM_OVER);
+
+		proceed (DM_START);
+
+	entry (DM_UNDER)
+
+		ser_outf (DM_UNDER, "UNDERDELAY%u: %u %u %u %u %u\r\n",
+			data - dmond,
+			data->lastdel, data->elapsed, zz_old, zz_new, zz_mintk);
+
+		proceed (DM_START);
+
+	entry (DM_OVER)
+
+		ser_outf (DM_OVER, "OVERDELAY%u: %u %u %u %u %u\r\n",
+			data - dmond,
+			data->lastdel, data->elapsed, zz_old, zz_new, zz_mintk);
+
+		proceed (DM_START);
+			
+endstrand
+
+// ============================================================================
+
+#define	DR_START	0
+#define	DR_LOOP		1
+#define	DR_WAIT		2
+#define	DR_REPORT	3
+#define	DR_OUT		4
+
+thread (delay_reporter)
+
+	static lword reptime = 0;
+	static word dm;
+
+	entry (DR_START)
+
+		// Create the processes
+		for (dm = 0; dm < N_DMONS; dm++)
+			dmons [dm] = runstrand (delay_monitor, dmond + dm);
+
+	entry (DR_LOOP)
+
+		reptime += DREP_INT;
+
+	entry (DR_WAIT)
+
+		hold (DR_WAIT, reptime);
+		dm = 0;
+
+	entry (DR_REPORT)
+
+		if (dm == N_DMONS)
+			proceed (DR_LOOP);
+
+	entry (DR_OUT)
+
+		ser_outf (DR_OUT,
+			"DM%u, s = %lu, ms = %lu, dl = %lu, cn = %lu\r\n",
+			dm,
+			dmond [dm] . lastsec,
+			dmond [dm] . lastsec * 1024,
+			dmond [dm] . millisec,
+			dmond [dm] . count);
+
+		dm++;
+		proceed (DR_REPORT);
+endthread
+
+// ============================================================================
+
+#define	WA_START 	0
+#define	WA_WAKE		1
+
+thread (watchdog)
+
+  entry (WA_START)
+
+	watchdog_start ();
+
+  entry (WA_WAKE)
+
+	watchdog_clear ();
+	delay (300, WA_WAKE);
+
+endthread
+
+// ============================================================================
+
 #define	RS_INIT		00
 #define	RS_RCMD		10
 #define	RS_SEC		20
@@ -329,7 +472,9 @@ int snd_stop (void) {
 #define	RS_LPM		160
 #define	RS_HPM		170
 #define	RS_DST		180
-#define	RS_AUTOSTART	200
+#define	RS_LOP		190
+#define	RS_DON		200
+#define	RS_AUTOSTART	300
 
 const static word parm_power = 255;
 
@@ -347,10 +492,12 @@ thread (root)
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
 
+	phys_cc1100 (0, MAXPLEN);
+
+	// runthread (watchdog);
 	runthread (bursty);
 	runthread (delayer);
-
-	phys_cc1100 (0, MAXPLEN);
+	runthread (delay_reporter);
 
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);
@@ -388,6 +535,7 @@ thread (root)
 #endif
 		"D        -> power down mode\r\n"
 		"U        -> power up mode\r\n"
+		"L n      -> loop for n msec\r\n"
 		"M mis mas mii mai mid mad\r\n"
 		);
 
@@ -423,6 +571,8 @@ thread (root)
 		case 'D': proceed (RS_LPM);
 		case 'U': proceed (RS_HPM);
 		case 'M': proceed (RS_DST);
+		case 'L': proceed (RS_LOP);
+				
 	}
 
 	if (ibuf [0] == 'p')
@@ -642,6 +792,17 @@ DST_err:
 		min_inter_spin_delay, max_inter_spin_delay,
 		min_delay, max_delay);
 
+	proceed (RS_RCMD);
+
+  entry (RS_LOP)
+
+	n1 = 1;
+	scan (ibuf + 1, "%u", &n1);
+	mdelay (n1);
+
+  entry (RS_DON)
+
+	ser_out (RS_DON, "Done\r\n");
 	proceed (RS_RCMD);
 
   entry (RS_AUTOSTART)

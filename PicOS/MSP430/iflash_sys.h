@@ -19,7 +19,7 @@
  * MOV #FWKEY+LOCK,&FCTL3 ; Set LOCK
  */
 #define	if_write_sys(w,a) do { \
-				WATCHDOG_HOLD; \
+				WATCHDOG_STOP; \
 				cli; \
 				__asm__ __volatile__ ( \
 				"mov %0,%1\n\t" \
@@ -34,11 +34,10 @@
 				"m"((int)(w)),"m"((*((word*)(a)))), \
 				"i"((int)(FWKEY+LOCK)) ); \
 				sti; \
-				WATCHDOG_RESUME; \
 			  } while (0)
 
 #define	if_erase_sys(a)	do { \
-				WATCHDOG_HOLD; \
+				WATCHDOG_STOP; \
 				cli; \
 				__asm__ __volatile__ ( \
 				"mov %0,%1\n\t" \
@@ -52,6 +51,5 @@
 				"r"((int)(a)), \
 				"i"((int)(FWKEY+LOCK)) ); \
 				sti; \
-				WATCHDOG_RESUME; \
 			} while (0)
 #endif

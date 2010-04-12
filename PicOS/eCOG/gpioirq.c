@@ -14,10 +14,6 @@
 #include "ethernet.h"
 #endif
 
-#if	RADIO_TYPE == RADIO_XEMICS
-#include "radio.h"
-#endif
-
 void __irq_entry gpio_int (void) {
 
 /*
@@ -33,10 +29,6 @@ void __irq_entry gpio_int (void) {
 
 #if	ETHERNET_DRIVER
 #include "irq_ethernet.h"
-#endif
-
-#if	RADIO_TYPE == RADIO_XEMICS
-#include "irq_xemics.h"
 #endif
 
 	RTNI;

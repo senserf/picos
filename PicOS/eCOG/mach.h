@@ -147,4 +147,20 @@ typedef struct	{
 #include "leds_sys.h"
 #endif
 
+#ifndef	TRIPLE_CLOCK
+#define	TRIPLE_CLOCK	0
+#endif
+
+#if TRIPLE_CLOCK
+#error "S: TRIPLE_CLOCK is incompatible (yet) with eCOG!!"
+#endif
+
+#define	cli_utims	cli_tim
+#define	sti_utims	sti_tim
+
+#define	TCI_RUN_DELAY_TIMER		CNOP
+#define	TCI_RUN_AUXILIARY_TIMER		CNOP
+#define	TCI_MARK_AUXLIARY_TIMER_ACTIVE	CNOP
+#define	TCI_UPDATE_DELAY_TICKS		CNOP
+
 #endif

@@ -1283,7 +1283,9 @@ thread (test_delay)
 	ser_out (DE_INIT,
 		"\r\nRF Pin Test\r\n"
 		"Commands:\r\n"
+#if GLACIER
 		"f s -> freeze\r\n"
+#endif
 		"l s -> hold\r\n"
 		"d -> PD mode (unsafe)\r\n"
 		"u -> PU mode\r\n"
@@ -1296,7 +1298,9 @@ thread (test_delay)
 	ser_in (DE_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
+#if GLACIER
 		case 'f': proceed (DE_FRE);
+#endif
 		case 'l': proceed (DE_LHO);
 		case 'd': proceed (DE_PDM);
 		case 'u': proceed (DE_PUM);
@@ -1309,6 +1313,7 @@ thread (test_delay)
 	ser_out (DE_RCMD+1, "Illegal\r\n");
 	proceed (DE_INIT);
 
+#if GLACIER
   entry (DE_FRE)
 
 	nt = 0;
@@ -1317,6 +1322,7 @@ thread (test_delay)
 	freeze (nt);
 	diag ("Stop");
 	proceed (DE_RCMD);
+#endif
 
   entry (DE_LHO)
 

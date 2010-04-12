@@ -7,9 +7,7 @@
 /* ====== */
 	/*
 	 * Port A as GPIO 0-7, needed for the LEDs on A0-A3, side effect:
-	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip). The LEDs ports
-	 * (configured as output) are used to drive some pins on the
-	 * XEMICS.
+	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip).
 	 */
 #define	PORT_A_ENABLE		PORT_EN_A_MASK
 #define	PORT_A_SELECT		fd.port.sel1.a = 11

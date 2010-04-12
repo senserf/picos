@@ -9,17 +9,14 @@
 
 	// This is the dynamic condition evaluated every second
 	if (RESET_ON_KEY_PRESSED) {
-
-#if WATCHDOG_ENABLED
 		 WATCHDOG_STOP;
-#endif
 		 // Disable all interrupts, we are going down
 		 cli;
 		 leds (0, 1); leds (1, 1); leds (2, 1);
 		 mdelay (512);
 		 leds (0, 0); leds (1, 0); leds (2, 0);
 
-		 for (zz_lostk = 0; zz_lostk < 4; zz_lostk++) {
+		 for (zz_mintk = 0; zz_mintk < 4; zz_mintk++) {
 
 			 mdelay (1024);
 
@@ -37,7 +34,7 @@
 #ifdef	board_key_erase_action
 		board_key_erase_action;
 #endif
-		for (zz_lostk = 0; zz_lostk < 8; zz_lostk++) {
+		for (zz_mintk = 0; zz_mintk < 8; zz_mintk++) {
 			leds (0,1); leds (1,1); leds (2,1);
 			mdelay (200);
 			leds (0,0); leds (1,0); leds (2,0);

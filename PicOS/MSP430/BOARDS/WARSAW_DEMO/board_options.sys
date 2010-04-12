@@ -13,7 +13,7 @@
 #define STACK_GUARD		1
 #define ENTROPY_COLLECTION	1
 #define	RANDOM_NUMBER_GENERATOR	2
-#define	GLACIER			1
+#define	GLACIER			0
 
 #define LEDS_DRIVER		1
 #define LEDS_BLINKING		1

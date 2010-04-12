@@ -622,7 +622,7 @@ void phys_rf24l01 (int phy, int mbs) {
 	ini_rf24l01 ();
 
 	/* Install the backoff timer */
-	utimer (&bckf_timer, YES);
+	utimer_add (&bckf_timer);
 	utimer_set (bckf_timer, 0);
 
 	/* Start the driver process */

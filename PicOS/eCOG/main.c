@@ -13,7 +13,7 @@
 
 extern 			pcb_t	*zz_curr;
 extern 			word  	zz_mintk;
-extern 	volatile 	word 	zz_lostk;
+extern 	volatile 	word 	zz_old, zz_new;
 extern 			address	zz_utims [MAX_UTIMERS];
 
 void	zz_malloc_init (void);
@@ -29,9 +29,6 @@ static void	devinit_lcd (int);
 #endif
 #if	ETHERNET_DRIVER
 void		devinit_ethernet (int);
-#endif
-#if	RADIO_DRIVER
-void		devinit_radio (int);
 #endif
 
 #if MAX_DEVICES
@@ -62,11 +59,6 @@ const static devinit_t devinit [MAX_DEVICES] = 	{
 		{ NULL, 0 },
 #endif
 /* === */
-#if	RADIO_DRIVER
-		{ devinit_radio,   0 },
-#else
-		{ NULL, 0 },
-#endif
 	 };
 
 #endif	/* MAX_DEVICES */
@@ -239,9 +231,7 @@ void cpupower (word mode) {
 // ============================================================================
 
 void powerdown (void) {
-#if AUTO_CLOCK_DOWN == 0
 	clockdown ();
-#endif
 	cpupower (2);
 }
 
@@ -801,9 +791,6 @@ static void rtc_init () {
 	/* to PLL counter.                                             */
 	/* =========================================================== */
 
-	/* Flag no processes waiting for timer */
-	zz_lostk = zz_mintk = 0;
-
 	// This has been moved to clockup
 	// rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
 
@@ -822,6 +809,8 @@ static void rtc_init () {
 /* =============== */
 
 void __irq_entry timer_int () {
+
+	word d;
 
 	/* Clear the interrupt condition */
 	fd.tim.int_clr1.tmr_exp = 1;
@@ -845,8 +834,6 @@ void __irq_entry timer_int () {
 
 #undef UTIMS_CASCADE
 
-		zz_lostk++;
-
 #if	ADC_PRESENT
 		// I don't think this will be used any more
 		if (adc_ticks && (--adc_ticks == 0)) {
@@ -864,12 +851,17 @@ void __irq_entry timer_int () {
 		// For extras
 #include "irq_timer.h"
 
-		if (zz_lostk & 1024) {
+		zz_new++;
+		d = zz_new - zz_old;
+
+		if (d & 1024) {
 			RISE_N_SHINE;
 			RTNI;
 		}
 
-		if (zz_mintk && zz_mintk <= zz_lostk) {
+		if ((zz_mintk <= zz_new && zz_mintk >= zz_old) ||
+	    	    (zz_new < zz_old &&
+		      (zz_mintk <= zz_new || zz_mintk >= zz_old))) {
 			RISE_N_SHINE;
 		}
 
@@ -895,7 +887,7 @@ void __irq_entry timer_int () {
 
 #undef UTIMS_CASCADE
 
-	zz_lostk += JIFFIES;
+	zz_new += JIFFIES;
 
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 0);

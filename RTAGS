@@ -3933,3 +3933,203 @@ R100403A:
 
 	Apps/TESTS/WARSAW redone to be compatible with all the diverse boards
 	derived from the old WARSAW blueprint.
+
+R100411A: 3 0
+
+	Note PicOS version change -> 3.0.
+
+	Timers completely redone. The algorithm for maintaining the delay queue
+	changed, improved, and largely simplified. That was a prerequisite for
+	implementing reliable delays in a way that wouldn't require a fine
+	granularity clock generating interrupts at millisecond rate.
+
+	Read section 10 from the PicOS document for a brief user-level
+	description.
+
+	Previously, the delay mechanism worked like this. Each process waiting
+	on the timer (delay), had a word value (stored in the PCB) specifiying
+	the residual number of (PicOS) milliseconds to wait. Initially, when
+	the process issued the delay request, that value was set to the
+	requested delay. The (implict) queue of of waiting processes was
+	(conceptually) sorted in the increasing order of the residual time
+	(which was updated at relevant moments, with the current minimum known
+	to the system (stored in variable mintk). On every clock interrupt
+	(occurring every millisecond), one tick was added to variable lostk
+	(the number of accumulated clock ticks). When that number reached
+	mintk, the scheduler was run. That would also happen when lostk reached
+	1024, because the scheduler was also responsible for advancing the wall
+	(seconds) clock.
+
+	The handling of wakeups, and also the advancement of the seconds clock,
+	was done outside interrupts, i.e., in the scheduler, before running
+	processes. There was a special function, called tservice, invoked
+	before looking up a process to run, which would look at lostk, compare
+	it to mintk, add it to the number of milliseconds accummulated towards
+	a new second, and so on. The primary advantage of that solution was 
+	that a single timer interrupt was used to implement all clocks needed
+	by the kernel. That interrupt also handled utimers, low-level
+	debouncers (for monitor and counter pins), as well as flashing leds.
+	The solution was minimalistic in terms of resources required (a single
+	timer + a single timer capture/compare register) and assumed the lowest
+	common denominator for the CPU architecture (available both on eCOG and
+	all MSP430 processors).
+
+	Simple as it was, that solution had two disadvantages (with the first
+	one being rather serious):
+
+	1. It required clock interrupts to occur regularly at 1ms intervals.
+	   That was incompatible with low-power operation. Powerwise, the CPU
+	   couldn't get the full benefits of LPM3 with clock interrupts
+	   waking the CPU 1024 times per second.
+
+	   That forced us to play ugly tricks resulting in such operations
+	   as freeze, clockdown, and clockup. None of those tricks worked too
+	   well. For example, by doing clockdown (or powerdown with implicit
+	   clockdown), the praxis never knew whether it wasn't disturbing the
+	   RF driver, which would need full clock speed for the completion of
+	   the transmit queue (the praxis wouldn't know when the driver would
+	   be truly done). Our later attempts to fix such problems with
+	   more tricks, like AUTO_CLOCK_DOWN, introduced other problems, like
+	   the drifting seconds clock. Besides, the semantics of delay in
+	   clockdown mode was messy to the point of being unexplainable.
+	   Sometimes, a delay for a few milliseconds could take a full second,
+	   sometimes, it would actually work as desired. Sometimes a longer
+	   delay would be rounded to full seconds, sometimes not.
+
+	2. Some operations were unnecessarily costly (at least under some
+	   circumstances). The way of representing the delay queue required
+	   recalculations of the delays of all waiting processes after some
+	   operations (delay requests) or events.
+
+	The new version fixes these problems:
+
+	1. Instead of representing the wakeup time for a process as the
+	   residual delay since last event, we use the target millisecond time
+	   modulo 64K. This way there is no need to recalculate anything
+	   until the process is actually awakened. This has complicated a few
+	   conditions and made the algorithms more intellectually challenging,
+	   but it has also made the code shorter and faster.
+
+	2. Clock interrupts do not occur if nothing is happening in the system.
+	   This means that there is no need to do anything to the clock when
+	   putting the system into powerdown mode. Any delays following that
+	   transition will evaluate properly, and the timing of processes will
+	   be correct for as long as they remain active. This also means that
+	   the praxis can execute normally (permanently) in powerdown mode
+	   without having to worry about the clock.
+
+	This solution is still an option (TRIPLE_CLOCK == 1) because:
+
+	1. It is only available when the primary crystal is low speed (32KHz).
+	   In other words, it is incompatible with HIGH_CRYSTAL_RATE.
+
+	2. It doesn't work with eCOG (but I may implement it there as well, if
+	   a need arises).
+
+	Note that with HIGH_CRYSTAL_RATE == 1 (when the primary crystal is
+	high-speed), the kind of power savings that would require reducing the
+	clock interrupt rate are not available as a matter of principle.
+	Consequently, nothing is lost by doing things the old way. As clockdown
+	is disabled in that case (the operation is void), the clock is never
+	messed up and the semantics of delay is clear.
+
+	Also note that even when TRIPLE_CLOCK == 0, we are still using the new
+	implementation of the delay queue, which is much better than the old
+	one.
+
+	Also note that the default setting of TRIPLE_CLOCK (for MSP430) is 1,
+	except on those boards where HIGH_CRYSTAL_RATE == 1. Thus, the new
+	solution takes over automatically by default in all those circumstances
+	where it makes sense.
+
+	Now, why is it called TRIPLE_CLOCK? In essence, there are three
+	different clock interrupts driven by the same timer using three
+	different compare/capture registers. The idea is to have the timer run
+	in the so called continuous mode (counting indefinitely with
+	wrap-around), with the three CCR registers being chased by the timer
+	and dynamically reset on interrupts. Each CCR register represents one
+	of three logically separate clocks:
+
+	1. The seconds clock. This clock ticks exactly once every 1024 PicOS
+	   milliseconds and counts seconds in a reliable fashion.
+
+	2. The strober/debouncer. This clock is used for strobing things that
+	   temporary require a millisecond timer, e.g., utimers, leds,
+	   debouncers, etc. It only ticks, if there is a demand for it, i.e.,
+	   (i.a nonzero utimer, a blinking led).
+
+	3. The delay clock. This clock is set for specific intervals required
+	   to service the delay queue. For example, if the first process to
+	   be awakened has to wait for 10 seconds, the clock will generate a
+	   (single) interrupt 10 seconds from now.
+
+	For all practical purposes, the rate of the delay clock is solely
+	determined by the configuration of pending delays. In fact, the clock
+	may occassionally make an additional tick accounting for the fact that
+	the range of the timer register is 4 times narrower than the range of
+	delays. For example, if there is a single process delaying for, say,
+	65535 milliseconds (the maximum possible delay), the clock will make
+	three extra ticks spaced at 16 seconds. Note that this is way sparser
+	than the previous clockdown mode with the clock ticking every second.
+	That rate was required because the seconds clock was advanced in the
+	scheduler, which had to be kicked at least once per second. Now, as
+	seconds are counted in a (separate) interrupt, there is no need to
+	bother the scheduler with that.
+
+	I have removed from the main trunk some legacy components that were
+	getting in the way of the new implementation of clocks, the most
+	prominent of them being the old RADIO_DRIVER for RADIO device, along
+	with some "features" like RADIO_INTERRUPTS. I have also removed a few
+	ATTICs (they are in the repository, and they are probably completely
+	useless for the present main trunk, so why keep them there?).
+
+	The concept of debouncing for "special" pins (notifier, counter) calls
+	for a revision. For now, I have left it "as was" incorporating it into
+	the new mechanism. Note that if MONITOR_PINS_SEND_INTERRUPTS == 0, and
+	the special pin service is compiled in, the strober/debouncer clock
+	will be constantly running at millisecond rate. This will also happen
+	when a led happens to be blinking (but not when it is solid on).
+
+	The present implementation of the infrared sensor for the ILS board
+	suffers from the same problem. This means that a board incorporating
+	the sensor will force the strober clock to run constantly at
+	millisecond rate (well, this is the semantics of that sensor, isn't
+	it?). Wlodek, should we change that and just stick to transitions
+	(interrupts)?
+
+	Removed snooze. It wasn't really needed (I think I needed it once, but
+	there is no praxis (or a library module) at the moment using it. It was
+	in the way a bit. A proper implementation of snooze would require an
+	extra global word variable.
+
+	Utimer operations redone and also renamed. Instead of single utimer
+	with two arguments, we now have:
+
+		utimer_add (word *utp);
+		utimer_delete (word *utp);
+
+	Also, setting a utimer is now an operation (you cannot just assign the
+	value as before), i.e.,
+
+		utimer_set (word utp);
+
+	Note that it takes the utimer variable as the argument, not its
+	pointer (the operation is a macro).
+
+	Removed watchdog from the kernel. It didn't make sense (and was only
+	used in GENESIS). I have made these operations available to the praxis
+	(which may want to implement its own watchdogs):
+
+		watchdog_start ();
+		watchdog_stop ();
+		watchdog_clear ();
+
+	Once the watchdog is started (and until it is stopped), the praxis
+	must make sure to execute watchdog_clear at least every second.
+	A failure to do so will trigger a reset.
+
+	I have made sure that eCOG praxes still compile, but had no means of
+	testing them. This will wait until we need something from eCOG. Note
+	that TRIPLE_CLOCK is not available there (yet).
+
+	Document updated.

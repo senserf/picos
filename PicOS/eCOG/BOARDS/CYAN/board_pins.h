@@ -7,7 +7,7 @@
 /*
  * GPIO assignment:
  *
- *            00-07     PortA (LEDs 0-3 + XEMICS 0-3 + Ethernet 6-7 + SW1-2 4-5
+ *            00-07     PortA (LEDs 0-3 + Ethernet 6-7 + SW1-2 4-5
  *                      4-5 available if switch is OFF -> piggy radio?)
  *            08-10     PortB (LCD 3-5)
  *            11-15     PortL (RADIO 3-7)
@@ -24,12 +24,10 @@
 /* ====== */
 /* PORT A */
 /* ====== */
-#if	SWITCHES || LEDS_DRIVER || ETHERNET_DRIVER || RADIO_TYPE == RADIO_XEMICS || CC1000
+#if	SWITCHES || LEDS_DRIVER || ETHERNET_DRIVER || CC1000
 	/*
 	 * Port A as GPIO 0-7, needed for the LEDs on A0-A3, side effect:
-	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip). The LEDs ports
-	 * (configured as output) are used to drive some pins on the
-	 * XEMICS.
+	 * A4-A7 -> GPIO 4-7 (used by the Ethernet chip).
 	 */
 #define	PORT_A_ENABLE		PORT_EN_A_MASK
 #define	PORT_A_SELECT		fd.port.sel1.a = 11
@@ -64,10 +62,9 @@
 				} while (0)
 #endif
 
-#if	UART_DRIVER == 2 || RADIO_TYPE == RADIO_XEMICS
+#if	UART_DRIVER == 2
 	/*
-	 * Port D as DUART B (D0-D1), side effect: D2-D3 -> GPIO 21-22. D2 is
-	 * used by XEMICS.
+	 * Port D as DUART B (D0-D1), side effect: D2-D3 -> GPIO 21-22.
 	 */
 #define	PORT_D_ENABLE		PORT_EN_D_MASK
 #define	PORT_D_SELECT		fd.port.sel1.d = 1
@@ -123,7 +120,7 @@
 #define	PORT_K_SELECT		fd.port.sel2.k = 1
 #endif
 
-#if 	RADIO_DRIVER || CC1000
+#if 	CC1000
 /*
  * L3-7 on GPIO_11-15 (not used by anything else) L0-2 on GPIO8-10 conflict
  * with Port B.
