@@ -509,3 +509,9 @@ R100405A:
 
     An option to specify a background image for ROAMER added to udaemon (see
     the last section of the Doc).
+
+R100411A:
+
+    PicOS compatibility mods: snooze removed, watchdog operations added. Note
+    that VUEE's watchdog model won't detect a hard CPU loop in the praxis. May
+    try to do something about it later.

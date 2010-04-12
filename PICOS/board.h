@@ -252,9 +252,11 @@ process	_PP_ {
 
 		// This method is transparently called whenever the
 		// thread/strand wakes up, no matter in which state;
-		// for now, we need it to implement the proper semantics
-		// of operations like snooze, but we may need it later
-		// for more
+		// we needed it to implement the proper semantics
+		// of operations like snooze (which have been removed
+		// from PicOS and VUEE - so much for creativity); we
+		// may still need it for something later, so let it
+		// linger for a while
 
 		clearFlag (Flags, _PP_flag_wtimer);
 	};
@@ -288,6 +290,11 @@ station PicOSNode abstract {
 		if (pwr_tracker)
 			pwr_tracker->pwrt_clear ();
 	};
+
+	/*
+	 * The watchdog process
+	 */
+	Process		*Watchdog;
 
 	/*
 	 * Memory allocator
@@ -796,7 +803,6 @@ process PanelHandler {
 void hold (int, lword);
 void delay (word, int);
 word dleft (sint);
-void snooze (word);
 
 inline void zz_when (int ev, int state) { TheNode->TB.wait (ev, state); }
 
@@ -815,6 +821,12 @@ sint zz_getcpid ();
 // ============================================================================
 
 void powerdown (), powerup ();
+
+// ============================================================================
+
+void watchdog_start (), watchdog_stop ();
+
+#define	watchdog_clear()	watchdog_start ()
 
 // ============================================================================
 

@@ -508,6 +508,9 @@ void PicOSNode::setup (data_no_t *nd) {
 	NFree = MFree = MTotal = (nd->Mem + 3) / 4; // This is in full words
 	MHead = MTail = NULL;
 
+	// Watchdog
+	Watchdog = NULL;
+
 	// Radio
 
 	if (nd->rf == NULL) {
@@ -4466,19 +4469,6 @@ word dleft (sint pid) {
 	return d > (double)(MAX_UINT-1) ? MAX_UINT-1 : (word) d;
 }
 
-void snooze (word state) {
-
-	TIME delta;
-
-	if (ThePPcs->WaitingUntil <= Time) {
-		return;
-	}
-
-	Timer->wait (ThePPcs->WaitingUntil - Time, state);
-	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
-	sleep;
-}
-
 void hold (int st, lword sec) {
 /*
  * Wait until the beginning of next full second
@@ -4680,6 +4670,45 @@ void powerdown () {
 void powerup () {
 
 	TheNode->pwrt_change (PWRT_CPU, PWRT_CPU_FP);
+}
+
+// ============================================================================
+
+process WatchDog (PicOSNode) {
+
+	states { Start, Alert };
+
+	perform {
+
+		state Start:
+
+			Timer->delay (1.0, Alert);
+			this->wait (SIGNAL, Start);
+
+		state Alert:
+
+			trace ("WATCHDOG RESET");
+			reset ();
+	};
+};
+
+void watchdog_start () {
+
+	if (TheNode->Watchdog != NULL) {
+		// Just reset
+		TheNode->Watchdog->signal (0);
+		return;
+	}
+
+	TheNode->Watchdog = create WatchDog;
+}
+
+void watchdog_stop () {
+
+	if (TheNode->Watchdog != NULL) {
+		TheNode->Watchdog->terminate ();
+		TheNode->Watchdog = NULL;
+	}
 }
 
 // ============================================================================
