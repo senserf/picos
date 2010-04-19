@@ -4140,3 +4140,31 @@ R100412A:
 	of transitions, i.e., it doesn't require the millisecond clock. For
 	WARSAW_ILS, we now have 4 sensors, not 5 as before, (in this order):
 	voltage, light, motion, motion analog.
+
+R100418A:
+
+	I have started to write a chapter in the PicOS doc about the internals
+	(look at the end). In case I get run over by a bus (or whatever else),
+	Wlodek will have something to chew on.
+
+	Conditional definitions of clockup, clockdown in MSP430/mach.h didn't
+	work correctly for boards with HIGH_CRYSTAL_RATE == 1 (GENESIS). Does
+	anybody care?
+
+	Macro SET_RELEASE_POINT (marking the front of the scheduler loop) for
+	MSP430 simplified. The release stack pointer is now set to the fixed
+	value STACK_START (as it should be), instead of being pre-saved and
+	restored from memory. I believe there was some problem with that in
+	the past (perhaps with old mspgcc the stack pointer in main didn't
+	actually start at the ground level). It appears to be OK now. This has
+	freed one word location in RAM.
+
+	A few cosmetic changes inspired by the "documentation project". Once
+	you are forced to describe a piece of code, you are likely to discover
+	ways of improving this and that.
+
+	LEDs operations redone.
+
+	Soft reset buttons redone. The code is now more flexible and, in
+	particular, allows you to have general "reset conditions" being
+	evaluated once per second.

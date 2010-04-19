@@ -16,15 +16,11 @@ lword ee_size (Boolean *er, lword *eru) {
 	return EE_SIZE;
 }
 
-#ifdef	RESET_ON_KEY_PRESSED
-
 void ee_init_erase () {
 
 	ee_open ();
 	ee_erase (WNONE, 0, 0);
 	ee_close ();
 }
-
-#endif
 
 #endif

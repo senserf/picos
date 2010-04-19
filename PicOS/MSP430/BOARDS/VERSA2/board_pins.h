@@ -31,7 +31,7 @@
 
 // Reset on CFG3 low (must be pulled up for normal operation)
 
-#define	RESET_ON_KEY_PRESSED	((P1IN & 0x08) == 0)
+#define	SOFT_RESET_BUTTON_PRESSED	((P1IN & 0x08) == 0)
 
 #define	PIN_LIST	{ 	\
 	PIN_RESERVED,		\

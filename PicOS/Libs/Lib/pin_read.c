@@ -159,7 +159,7 @@ void pins_int_wait_cnt (byte st, byte deb, byte on) {
 	if (deb) {
 		pmon.deb_mas = PMON_DEBOUNCE_UNIT;
 		// If dynamic (3-timer) version
-		ACTIVATE_DEB_TIMER;
+		TCI_RUN_AUXILIARY_TIMER;
 	}
 	if (on) 
 		pin_setedge_cnt ();
@@ -176,7 +176,7 @@ void pins_int_wait_not (byte st, byte deb, byte on) {
 	pmon.deb_not = (deb);
 	if (deb) {
 		pmon.deb_mas = PMON_DEBOUNCE_UNIT;
-		ACTIVATE_DEB_TIMER;
+		TCI_RUN_AUXILIARY_TIMER;
 	}
 	if (on)
 		pin_setedge_not ();
@@ -219,7 +219,7 @@ void pmon_start_cnt (long count, Boolean edge) {
 	pmon.deb_mas = PMON_RETRY_DELAY;
 
 #if MONITOR_PINS_SEND_INTERRUPTS
-	ACTIVATE_DEB_TIMER;
+	TCI_RUN_AUXILIARY_TIMER;
 #endif
 
 	_BIS (pmon.stat, PMON_CNT_ON);

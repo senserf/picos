@@ -61,7 +61,7 @@ typedef struct	{
 	/* ready to go, those bits encode the process's current state.    */
 	/* ============================================================== */
 	word	Status;
-	word	Timer;		/* Timer delay in ticks */
+	word	Timer;		/* Timer wakeup tick */
 	code_t	code;		/* Code function pointer */
 	address	data;		/* Data pointer */
 	event_t	Events [MAX_EVENTS_PER_TASK];
@@ -77,7 +77,6 @@ extern	void tcv_init (void);
 #define FIRST_PCB		(&(__PCB [0]))
 #define	LAST_PCB		(FIRST_PCB + MAX_TASKS)
 #define for_all_tasks(i)	for (i = FIRST_PCB; i != LAST_PCB; i++)
-#define tasknum(p)		((p) - FIRST_PCB)
 
 #define	incwait(p)	((p)->Status++)
 #define	inctimer(p)	((p)->Status |= 0x8)

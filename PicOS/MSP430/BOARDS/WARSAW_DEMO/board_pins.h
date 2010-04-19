@@ -43,7 +43,7 @@
 
 // P6.3-6 used by the LCD: intialization in board_lcd.h
 
-#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+#define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x10) == 0)
 
 #define	PIN_DEFAULT_P6DIR	0xFF
 

@@ -27,8 +27,6 @@
 #define	PIN_DEFAULT_P6OUT	0xD0
 #define	PIN_DEFAULT_P6SEL	0x01	// P6.0 - power source sensor
 
-//#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
-
 #define	PIN_MAX 		0
 #define	PIN_MAX_ANALOG		0
 #define	PIN_DAC_PINS		0

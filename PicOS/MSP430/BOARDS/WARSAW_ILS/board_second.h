@@ -5,14 +5,26 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-/*
- * Action to be performed every second. Preempts (replaces)
- * second_iflash.h and second_eeprom.h
- */
+#define	EMERGENCY_RESET_CONDITION	SOFT_RESET_BUTTON_PRESSED
 
-#ifdef	RESET_ON_KEY_PRESSED
+// Blink all LEDs, wait for 2 sec, if key still pressed, blink LEDs 8 times,
+// erase EEPROM, and blink once; finally reset
+#define	EMERGENCY_RESET_ACTION	do { \
+		all_leds_blink; \
+		mdelay (2048); \
+		if (SOFT_RESET_BUTTON_PRESSED) { \
+			for (zz_mintk = 0; zz_mintk < 8; zz_mintk++) \
+				all_leds_blink; \
+			MEMORY_ERASE_ACTION; \
+			all_leds_blink; \
+			while (SOFT_RESET_BUTTON_PRESSED); \
+		} \
+	} while (0)
 
-#define	board_key_erase_action	do { bkea_ee; bkea_if; } while (0)
+#define	MEMORY_ERASE_ACTION	do { bkea_ee; bkea_sd; bkea_if; } while (0)
+
+#define	EMERGENCY_STARTUP_CONDITION	SOFT_RESET_BUTTON_PRESSED
+#define	EMERGENCY_STARTUP_ACTION	EMERGENCY_RESET_ACTION
 
 #ifdef	EEPROM_PRESENT
 #define	bkea_ee	ee_init_erase ()
@@ -20,12 +32,16 @@
 #define	bkea_ee	CNOP
 #endif
 
+#ifdef	SDCARD_PRESENT
+#define	bkea_sd	sd_init_erase ()
+#else
+#define	bkea_sd	CNOP
+#endif
+
 #if	INFO_FLASH
 #define	bkea_if	if_erase (-1)
 #else
 #define	bkea_if	CNOP
 #endif
-
-#endif	/* RESET_ON_KEY_PRESSED */
 
 #endif

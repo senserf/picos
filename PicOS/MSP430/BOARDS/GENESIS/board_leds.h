@@ -1,25 +1,16 @@
-/* ========================================================================== */
-/*                               G E N E S I S                                */
-/* ========================================================================== */
+// ============================================================================
+// 3 leds on P6, polarity 1 ===================================================
+// ============================================================================
 
-#undef	LED0_ON
-#undef	LED1_ON
-#undef	LED2_ON
-#undef	LED0_OFF
-#undef	LED1_OFF
-#undef	LED2_OFF
-#undef	leds_save
-#undef	leds_off
-#undef	leds_restore
+#define	LED0_ON		_BIS (P6OUT, 0x02)
+#define	LED1_ON		_BIS (P6OUT, 0x04)
+#define	LED2_ON		_BIS (P6OUT, 0x08)
+#define	LEDS_ON		_BIS (P6OUT, 0x0E)
 
-#define	LED0_ON		ZZ_LEDON (P6, 0x02)
-#define	LED1_ON		ZZ_LEDON (P6, 0x04)
-#define	LED2_ON		ZZ_LEDON (P6, 0x08)
+#define	LED0_OFF	_BIC (P6OUT, 0x02)
+#define	LED1_OFF	_BIC (P6OUT, 0x04)
+#define	LED2_OFF	_BIC (P6OUT, 0x08)
+#define	LEDS_OFF	_BIC (P6OUT, 0x0E)
 
-#define	LED0_OFF	ZZ_LEDOFF (P6, 0x02)
-#define	LED1_OFF	ZZ_LEDOFF (P6, 0x04)
-#define	LED2_OFF	ZZ_LEDOFF (P6, 0x08)
-
-#define	leds_save()	(P6OUT & (0x02+0x04+0x08))
-#define	leds_off()	ZZ_LEDOFF (P6, 0x02+0x04+0x08)
-#define	leds_restore(w)	ZZ_LEDON (P6, (w) & (0x02+0x04+0x08))
+#define	LEDS_SAVE(a)	(a) = P6OUT & 0xE
+#define	LEDS_RESTORE(a)	P6OUT = (P6OUT & ~0xE) | (a)

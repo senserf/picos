@@ -21,7 +21,7 @@
 // 5, 6 general access
 #define	PIN_DEFAULT_P2DIR	0xE3
 
-#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+#define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x10) == 0)
 
 #if UART_DRIVER > 1
 // ============================================================================

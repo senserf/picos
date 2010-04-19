@@ -1,13 +1,3 @@
-
-#undef	LED0_ON
-#undef	LED1_ON
-#undef	LED2_ON
-#undef	LED3_ON
-#undef	LED0_OFF
-#undef	LED1_OFF
-#undef	LED2_OFF
-#undef	LED3_OFF
-
 /* Negative polarity */
 
 #define	LED0_ON		ZZ_LEDS03 (0x0002)
@@ -25,3 +15,7 @@
 			  IO_GP0_3_OUT_EN1_MASK | IO_GP0_3_OUT_SET1_MASK | \
 			  IO_GP0_3_OUT_EN2_MASK | IO_GP0_3_OUT_SET2_MASK | \
 			  IO_GP0_3_OUT_EN3_MASK | IO_GP0_3_OUT_SET3_MASK )
+
+#define	LEDS_SAVE(a)	(a) = (rg.io.gp0_3_out & 0x2222)
+
+#define LEDS_RESTORE(w)	( rg.io.gp0_3_out = (w) >> 1 )

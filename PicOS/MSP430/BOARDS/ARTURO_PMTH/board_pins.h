@@ -33,8 +33,6 @@
 #define	PIN_DEFAULT_P6DIR	0x00	// P6.0 PAR input, P6.7 MOI input
 #define	PIN_DEFAULT_P6SEL	0x81	// Select the ADC pins
 
-//#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
-
 #define	PIN_MAX 		0
 #define	PIN_MAX_ANALOG		0
 #define	PIN_DAC_PINS		0

@@ -21,9 +21,7 @@ word	ee_open ();
 void	ee_close ();
 void	ee_panic ();
 
-#ifdef	RESET_ON_KEY_PRESSED
 void	ee_init_erase ();
-#endif
 
 #endif	/* EEPROM_PRESENT */
 
@@ -41,9 +39,7 @@ void	sd_panic ();
 lword	sd_size ();
 void	sd_idle ();
 
-#ifdef	RESET_ON_KEY_PRESSED
 void	sd_init_erase ();
-#endif
 
 #endif	/* SDCARD_PRESENT */
 

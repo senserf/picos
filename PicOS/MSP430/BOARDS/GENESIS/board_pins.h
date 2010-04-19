@@ -13,7 +13,7 @@
 #define	PIN_DEFAULT_P5DIR	0xE0
 #define	PIN_DEFAULT_P6DIR	0x00
 
-#define	RESET_ON_KEY_PRESSED	((P6IN & 0x01) == 0)
+#define	SOFT_RESET_BUTTON_PRESSED	((P6IN & 0x01) == 0)
 
 #if LEDS_DRIVER
 // If selected by the application (for experiment), some pins have

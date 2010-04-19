@@ -12,8 +12,6 @@ extern 			pcb_t		*zz_curr;
 extern 			address	zz_utims [MAX_UTIMERS];
 extern	void		_reset_vector__;
 
-word			zz_restart_sp;
-
 void	zz_malloc_init (void);
 
 /* ========================== */
@@ -96,7 +94,8 @@ void reset (void) {
 
 // ============================================================================
 
-	hard_reset;
+	while (1) 
+		hard_reset;
 }
 
 void halt (void) {
@@ -179,15 +178,10 @@ void zzz_syserror (int ec) {
 #if RESET_ON_SYSERR
 
 #if LEDS_DRIVER
-	for (zz_mintk = 0; zz_mintk < 32; zz_mintk++) {
-		leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
-		mdelay (100);
-		leds (0, 0); leds (1, 0); leds (2, 0); leds (3, 0);
-		mdelay (100);
-	}
+	for (zz_mintk = 0; zz_mintk < 32; zz_mintk++)
+		all_leds_blink;
 #endif
-	while (1) 
-		reset ();
+	reset ();
 
 #else	/* RESET_ON_SYSERR */
 
@@ -204,10 +198,7 @@ void zzz_syserror (int ec) {
 
 	while (1) {
 #if LEDS_DRIVER
-		leds (0, 1); leds (1, 1); leds (2, 1); leds (3, 1);
-		mdelay (100);
-		leds (0, 0); leds (1, 0); leds (2, 0); leds (3, 0);
-		mdelay (100);
+		all_leds_blink;
 #else
 		_BIS_SR (LPM4_bits);
 #endif
@@ -774,7 +765,32 @@ EUT:
 #ifdef	MONITOR_PIN_CLOCKS
 	_PVS (MONITOR_PIN_CLOCKS, 1);
 #endif
-	// Seconds clock
+	// This is the seconds clock. I thought about reducing its rate even
+	// further. Note that theoretically, the clock can tick once per 16
+	// seconds (the wraparound of the timer, with TCI_CCS being fixed).
+	// The actual number of seconds within the last 16th could be derived
+	// from the difference between the timer and TCI_CCS. There is,
+	// however, a nasty race that gets in the way. Namely, we may have
+	// a situation when the timer == TCI_CCS and we don't know whether
+	// zz_nseconds has been updated or not. Note that this problem is
+	// avoided in the delay timer where setdel makes it clear which is
+	// the case.
+	//
+	// Perhaps this would work:
+	//
+	//	cli_aux;
+	//	gettav ->
+	//	timer != TCI_CCS -> easy, calculate the difference
+	//	timer == TCI_CCS -> delay for 1 us and check TBIF
+	//		TBIF == 1 -> zz_nseconds not updated
+	//		TBIF == 0 -> zz_nseconds updated
+	//
+	// This looks complicated and, perhaps, does not warrant the
+	// modification, especially that there are arguments for having the
+	// tick every second (or so), e.g., for diagnosing stack overflow,
+	// or handling the stuff in "second.h".
+	//
+
 	TCI_CCS += TCI_SEC_DIV;
 	zz_nseconds++;
 	check_stack_overflow;
@@ -924,7 +940,7 @@ void freeze (word nsec) {
 #if UART_DRIVER || UART_TCV
 	word saveUIE;
 #endif
-	byte saveLEDs;
+	byte saveLEDsV, saveLEDsB;
 
 	// In case some of these take too long for the clock guard
 	cli;
@@ -937,8 +953,7 @@ void freeze (word nsec) {
 
 #if LEDS_DRIVER
 	// Save leds status and turn them off
-	saveLEDs = leds_save ();
-	leds_off ();
+	leds_save (saveLEDsV, saveLEDsB);
 #endif
 
 #if UART_DRIVER || UART_TCV
@@ -981,7 +996,7 @@ void freeze (word nsec) {
 	P2IFG = (P2IE & (P2IES ^ P2IN));
 
 #if LEDS_DRIVER
-	leds_restore (saveLEDs);
+	leds_restore (saveLEDsV, saveLEDsB);
 #endif
 	sti;
 }
@@ -1010,19 +1025,10 @@ static void ios_init () {
 	pcb_t *p;
 	int i;
 
-#ifdef	RESET_ON_KEY_PRESSED
+#ifdef	EMERGENCY_STARTUP_CONDITION
 
-	if (RESET_ON_KEY_PRESSED) {
-		for (i = 0; i < 4; i++) {
-			leds (0,1); leds (1,1); leds (2,1); leds (3,1);
-			mdelay (256);
-			leds (0,0); leds (1,0); leds (2,0); leds (3,0);
-			mdelay (256);
-		}
-#ifdef	board_key_erase_action
-		board_key_erase_action;
-#endif
-		while (RESET_ON_KEY_PRESSED);
+	if (EMERGENCY_STARTUP_CONDITION) {
+		EMERGENCY_STARTUP_ACTION;
 	}
 #endif
 

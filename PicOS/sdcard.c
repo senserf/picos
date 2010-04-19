@@ -674,13 +674,9 @@ word sd_sync () {
 	return wc;
 }
 
-#ifdef	RESET_ON_KEY_PRESSED
-
 void sd_init_erase () {
 
 	if (sd_open () == 0)
 		sd_erase (0, 0);
 	sd_close ();
 }
-
-#endif

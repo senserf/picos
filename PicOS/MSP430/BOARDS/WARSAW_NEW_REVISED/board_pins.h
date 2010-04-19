@@ -112,7 +112,7 @@
 #define	PIN_DEFAULT_P2DIR	0x04
 
 // Soft reset
-#define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
+#define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x10) == 0)
 
 // All four switches start off
 #define PIN_DEFAULT_P3DIR	0x5f

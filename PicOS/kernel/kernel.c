@@ -402,9 +402,7 @@ int zz_strigger (int etype, word event) {
 
 	c = 0;
 	for_all_tasks (i) {
-		if (i->code == NULL)
-			continue;
-		if (nevents (i) == 0)
+		if (i->code == NULL || nevents (i) == 0)
 			continue;
 		for (j = 0; j < nevents (i); j++) {
 			if (i->Events [j] . Event == event &&
@@ -430,9 +428,7 @@ int zzz_utrigger (word event) {
 
 	c = 0;
 	for_all_tasks (i) {
-		if (nevents (i) == 0)
-			continue;
-		if (i->code == NULL)
+		if (i->code == NULL || nevents (i) == 0)
 			continue;
 		for (j = 0; j < nevents (i); j++) {
 			if (i->Events [j] . Event == event &&

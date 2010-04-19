@@ -57,11 +57,11 @@ extern void	__bss_end;
 
 #define	STATIC_LENGTH		(((word)&__bss_end - (word)RAM_START + 1)/2)
 
-extern	word	zz_restart_sp;
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\
-		"mov r1, zz_restart_sp\n"\
 		".global zz_restart_entry\n"\
-		"zz_restart_entry: mov zz_restart_sp, r1")
+		"zz_restart_entry: mov %0, r1"\
+			:: "i"(STACK_START): "r1")
+
 void		zz_restart_entry () __attribute__ ((noreturn));
 #define	release	zz_restart_entry ()
 

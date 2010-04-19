@@ -494,7 +494,9 @@ thread (root)
 		"B        -> battery test\r\n"
 #endif
 		"L n      -> enter PD mode for n secs\r\n"
+#if GLACIER
 		"F n      -> freeze for n secs\r\n"
+#endif
 		);
 #endif
 
@@ -550,7 +552,9 @@ thread (root)
 		case 'B': proceed (RS_BTS);
 #endif
 		case 'L': proceed (RS_LPM);
+#if GLACIER
 		case 'F': proceed (RS_FRE);
+#endif
 	}
 #else
 	delay (1024, RS_AUTOSTART);
@@ -912,6 +916,7 @@ thread (root)
 	ser_out (RS_LPM+2, "Done\r\n");
 	proceed (RS_RCMD);
 
+#if GLACIER
   entry (RS_FRE)
 
 	n = 0;
@@ -921,6 +926,7 @@ thread (root)
 
 	freeze (n);
 	proceed (RS_LPM+2);
+#endif
 
 #endif	/* UART_DRIVER */
 

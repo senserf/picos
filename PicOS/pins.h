@@ -72,8 +72,8 @@ void pins_int_wait_cnt (byte, byte, byte);
 #define	wait_cnt_on(st,deb)	pins_int_wait_cnt (st, deb, 1)
 #define	wait_cnt_off(st,deb)	pins_int_wait_cnt (st, deb, 0)
 
-#if MONITOR_PINS_SENT_INTERRUPTS
-#define	activate_deb_timer	ACTIVATE_DEB_TIMER
+#if MONITOR_PINS_SEND_INTERRUPTS
+#define	activate_deb_timer	TCI_RUN_AUXILIARY_TIMER
 #else
 // In this case, the timer never stops
 #define	activate_deb_timer	CNOP
@@ -104,6 +104,7 @@ void pins_int_wait_cnt (byte, byte, byte);
 	} while (0)
 
 void pins_int_wait_not (byte, byte, byte);
+//+++ "pin_read.c"
 
 #define	wait_not_on(st,deb)	pins_int_wait_not (st, deb, 1)
 #define	wait_not_off(st,deb)	pins_int_wait_not (st, deb, 0)

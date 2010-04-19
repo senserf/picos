@@ -29,6 +29,8 @@
 // IR sensor turned on by default
 #define	PIN_DEFAULT_P2OUT	0x04
 
+#define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x10) == 0)
+
 // ============================================================================
 
 // P3:

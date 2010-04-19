@@ -43,8 +43,6 @@
 //#define	PIN_DEFAULT_P5OUT	0x01	// Default CS is up
 #define	PIN_DEFAULT_P5OUT	0x0B	// Default CS is up
 
-// #define	RESET_ON_KEY_PRESSED	((P2IN & 0x10) == 0)
-
 // SD card on P6.3-P6.6
 // P6.7 used for the buzzer
 #define	PIN_DEFAULT_P6DIR	0xF7

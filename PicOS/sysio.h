@@ -20,16 +20,16 @@
 #define	SYSVER_T	unknown	// Release tag
 #endif
 
-#define	SYSVER_X		((word)(SYSVER_U * 256 + SYSVER_L))
-#define	SYSVER_S		stringify (SYSVER_U) "." stringify (SYSVER_L)
-#define	SYSVER_R		stringify (SYSVER_T)
+#define	SYSVER_X	((word)(SYSVER_U * 256 + SYSVER_L))
+#define	SYSVER_S	stringify (SYSVER_U) "." stringify (SYSVER_L)
+#define	SYSVER_R	stringify (SYSVER_T)
 
 #ifdef	BOARD_TYPE
-#define	SYSVER_B		stringify (BOARD_TYPE)
+#define	SYSVER_B	stringify (BOARD_TYPE)
 #endif
 
-#define	__sgfy(a)		#a
-#define	stringify(a)		__sgfy(a)
+#define	__sgfy(a)	#a
+#define	stringify(a)	__sgfy(a)
 
 // ============================================================================
 
@@ -70,8 +70,10 @@
 // unless the old-fashioned UART interface is present (i.e., io is only ever
 // used for the UART)
 #define	MAX_DEVICES		UART_DRIVER
+#define	__NORETURN__		__attribute__ ((noreturn))
 #else
 #define	MAX_DEVICES		6
+#define	__NORETURN__
 #endif
 
 #define	MAX_MALLOC_WASTE	12
@@ -421,8 +423,8 @@ typedef	int (*code_t)(word, address);
 void		zzz_uwait (word, word);
 int		zzz_utrigger (word), zzz_ptrigger (sint, word);
 sint		zzz_fork (code_t func, address data);
-void		reset (void);
-void		halt (void);
+void		reset (void) __NORETURN__ ;
+void		halt (void) __NORETURN__ ;
 
 void		savedata (void*);
 
@@ -479,22 +481,15 @@ word			zzz_stackfree (void);
 #define	staticsize()	STATIC_LENGTH
 
 #if	DIAG_MESSAGES > 1
-void		zzz_syserror (int, const char*)
-#ifdef	__MSP430__
-		__attribute__ ((noreturn))
-#endif
-;
 
+void		zzz_syserror (int, const char*) __NORETURN__ ;
 #define		syserror(a,b)	zzz_syserror (a, b)
 #define		sysassert(a,b)	do { \
 					if (!(a)) syserror (EASSERT, b); \
 				} while (0)
 #else
-void		zzz_syserror (int)
-#ifdef	__MSP430__
-		__attribute__ ((noreturn))
-#endif
-;
+
+void		zzz_syserror (int) __NORETURN__ ;
 #define		syserror(a,b)	zzz_syserror (a)
 #define		sysassert(a,b)
 #endif
@@ -525,54 +520,56 @@ void		dmp_mem (void);
 #define	leds(a,b)	do { \
 				if ((b) == 0) { \
 					if ((a) == 0) { \
-						zz_systat.ledsts &= 0xe; \
-						LED0_OFF; \
+						led0_off; \
 					} else if ((a) == 1) { \
-						zz_systat.ledsts &= 0xd; \
-						LED1_OFF; \
+						led1_off; \
 					} else if ((a) == 2) { \
-						zz_systat.ledsts &= 0xb; \
-						LED2_OFF; \
+						led2_off; \
 					} else if ((a) == 3) { \
-						zz_systat.ledsts &= 0x7; \
-						LED3_OFF; \
+						led3_off; \
 					} \
 				} else if ((b) == 1) { \
 					if ((a) == 0) { \
-						zz_systat.ledsts &= 0xe; \
-						LED0_ON; \
+						led0_on; \
 					} else if ((a) == 1) { \
-						zz_systat.ledsts &= 0xd; \
-						LED1_ON; \
+						led1_on; \
 					} else if ((a) == 2) { \
-						zz_systat.ledsts &= 0xb; \
-						LED2_ON; \
+						led2_on; \
 					} else if ((a) == 3) { \
-						zz_systat.ledsts &= 0x7; \
-						LED3_ON; \
+						led3_on; \
 					} \
 				} else { \
 					if ((a) == 0) { \
-						zz_systat.ledsts |= 0x1; \
-						LED0_ON; \
+						led0_blk; \
 					} else if ((a) == 1) { \
-						zz_systat.ledsts |= 0x2; \
-						LED1_ON; \
+						led1_blk; \
 					} else if ((a) == 2) { \
-						zz_systat.ledsts |= 0x4; \
-						LED2_ON; \
+						led2_blk; \
 					} else if ((a) == 3) { \
-						zz_systat.ledsts |= 0x8; \
-						LED3_ON; \
+						led3_blk; \
 					} \
 					TCI_RUN_AUXILIARY_TIMER; \
 				} \
 			} while (0)
 
+#define	leds_all(b)	do { \
+				if ((b) == 0) { \
+					leds_off; \
+				} else if ((b) == 1) { \
+					leds_on; \
+				} else { \
+					leds_blk; \
+					TCI_RUN_AUXILIARY_TIMER; \
+				} \
+			} while (0)
+						
 #define	fastblink(a)	(zz_systat.fstblk = ((a) != 0))
 #define is_fastblink    (zz_systat.fstblk != 0)
 
-#endif	/* leds [overriden from BOARD files */
+#define	all_leds_blink	do { leds_on; mdelay (200); leds_off; mdelay (200); } \
+				while (0)
+
+#endif	/* leds [overriden from BOARD files] */
 
 // ============================================================================
 
@@ -580,6 +577,10 @@ void		dmp_mem (void);
 
 #ifdef	leds
 #undef	leds
+#endif
+
+#ifdef	leds_all
+#undef	leds_all
 #endif
 
 #ifdef	fastblink
@@ -590,9 +591,12 @@ void		dmp_mem (void);
 #undef	is_fastblink
 #endif
 
-#define	leds(a,b)	do { } while (0)
-#define	fastblink(a)	do { } while (0)
+#define	leds(a,b)	CNOP
+#define leds_all(b)	CNOP
+#define	fastblink(a)	CNOP
 #define is_fastblink	0
+
+#define	all_leds_blink	CNOP
 	
 #endif 	/* LEDS_DRIVER */
 

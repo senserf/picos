@@ -137,14 +137,11 @@ typedef struct	{
 #endif	/* MONITOR_PIN_CPU */
 // ============================================================================
 
-#define	power_down_mode	(fd.ssm.cpu.cpu_clk_div == 6)
-#define	clock_down_mode (rg.tim.tmr_ld == 4095)
-
 #define	RISE_N_SHINE	morning
 #define	RTNI		return
 
 #if LEDS_DRIVER
-#include "leds_sys.h"
+#include "leds.h"
 #endif
 
 #ifndef	TRIPLE_CLOCK

@@ -250,44 +250,6 @@ typedef	struct {
 #endif
 
 // ============================================================================
-// clockdown/clockup is enabled only if HIGH_CRYSTAL_RATE == 0
-// ============================================================================
-
-#if TRIPLE_CLOCK
-
-#define	clockup()	CNOP
-#define	clockdown()	CNOP
-
-// To be invoked from snippets in irq_timer.h
-#define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	aux_timer_inactive = 0
-#define	TCI_RUN_DELAY_TIMER		tci_run_delay_timer ()
-#define	TCI_RUN_AUXILIARY_TIMER		tci_run_auxiliary_timer ()
-#define	TCI_UPDATE_DELAY_TICKS 		tci_update_delay_ticks ()
-
-void tci_run_delay_timer ();
-void tci_run_auxiliary_timer ();
-void tci_update_delay_ticks ();
-
-#define	cli_utims	cli_aux
-#define	sti_utims	sti_aux
-
-#else
-
-// They are macros
-#define	clockup()	(TCI_CCR = TCI_INIT_HIGH)
-#define	clockdown()	(TCI_CCR = TCI_INIT_LOW)
-
-#define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	CNOP
-#define	TCI_RUN_DELAY_TIMER		CNOP
-#define	TCI_RUN_AUXILIARY_TIMER		CNOP
-#define	TCI_UPDATE_DELAY_TICKS		CNOP
-
-#define	cli_utims	cli_tim
-#define	sti_utims	sti_tim
-
-#endif
-
-// ============================================================================
 
 #define	TCI_LOW_DIV		(CRYSTAL_RATE/(8*TCI_LOW_PER_SEC))
 
@@ -311,7 +273,6 @@ void tci_update_delay_ticks ();
 // Tells debouncer interrupt from seconds clock
 #define	TCI_AUXILIARY_TIMER_INTERRUPT	(TBIV == 4)
 
-// To acknowledge seconds interrupts (any access to TBIV will do)
 #define	sti_aux	_BIS (TBCCTL2, CCIE)
 #define cli_aux	_BIC (TBCCTL2, CCIE)
 #define	sti_sec	_BIS (TBCCTL1, CCIE)
@@ -373,8 +334,52 @@ void tci_update_delay_ticks ();
 #define	TCI_MAXDEL		(((word)(65535)) >> 2)
 
 // Conversion from delay (ms) to ticks (only valid for the 32K crystal)
-#define	TCI_DELTOTICKS(d)	((word)(d) << 2)
-#define	TCI_TICKSTODEL(d)	((word)(d) >> 2)
+#define	TCI_DELTOTICKS(d)	 ((word)(d) << 2)
+#define	TCI_TICKSTODEL(d)	 ((word)(d) >> 2)
+
+// ============================================================================
+
+#if TRIPLE_CLOCK || HIGH_CRYSTAL_RATE
+
+#define	clockup()	CNOP
+#define	clockdown()	CNOP
+
+#else
+
+// They are macros
+#define	clockup()	(TCI_CCR = TCI_INIT_HIGH)
+#define	clockdown()	(TCI_CCR = TCI_INIT_LOW)
+
+#endif
+
+// ============================================================================
+
+#if TRIPLE_CLOCK
+
+// To be invoked from snippets in irq_timer.h
+#define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	aux_timer_inactive = 0
+#define	TCI_RUN_DELAY_TIMER		tci_run_delay_timer ()
+#define	TCI_RUN_AUXILIARY_TIMER		tci_run_auxiliary_timer ()
+#define	TCI_UPDATE_DELAY_TICKS 		tci_update_delay_ticks ()
+
+void tci_run_delay_timer ();
+void tci_run_auxiliary_timer ();
+void tci_update_delay_ticks ();
+
+#define	cli_utims	cli_aux
+#define	sti_utims	sti_aux
+
+#else
+
+#define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	CNOP
+#define	TCI_RUN_DELAY_TIMER		CNOP
+#define	TCI_RUN_AUXILIARY_TIMER		CNOP
+#define	TCI_UPDATE_DELAY_TICKS		CNOP
+
+#define	cli_utims	cli_tim
+#define	sti_utims	sti_tim
+
+#endif
 
 // ============================================================================
 // UART(s) ====================================================================
@@ -671,15 +676,12 @@ extern uart_t zz_uart [];
 
 #endif
 
-#define	power_down_mode	(zz_systat.pdmode)
-#define	clock_down_mode (TCI_CCR == TCI_INIT_LOW)
-
 #define	sti	_EINT ()
 #define	cli	_DINT ()
 
 #define	SLEEP	do { \
 			CPU_MARK_IDLE; \
-			if (power_down_mode) { \
+			if (zz_systat.pdmode) { \
 				cli; \
 				if (zz_systat.evntpn) { \
 					sti; \
@@ -728,7 +730,7 @@ extern uart_t zz_uart [];
 
 
 #if LEDS_DRIVER
-#include "leds_sys.h"
+#include "leds.h"
 #endif
 
 #endif

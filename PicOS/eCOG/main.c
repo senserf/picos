@@ -244,6 +244,7 @@ void freeze (word nsec) {
  * Freezes the system in power-down mode for the specified number of seconds.
  */
 	word saveCK, saveLD, saveUA, saveUB;
+	byte saveLDB;
 
 	// Save the running clocks (except LTMR, EMI, PLL, OSC); LTMR will not
 	// be re-enabled when we are done, the remaining ones are taken care
@@ -285,8 +286,7 @@ void freeze (word nsec) {
 #ifdef EEPROM_PDMODE_AVAILABLE
 	zz_ee_pdown ();
 #endif
-	saveLD = leds_save;
-	leds_off;
+	leds_save (saveLD, saveLDB);
 
 	// Enable LTMR; note: there is no LD_MASK, as we want to run this timer
 	// exactly once
@@ -328,7 +328,7 @@ void freeze (word nsec) {
 	rg.tim.int_dis1 = TIM_INT_DIS1_LTMR_EXP_MASK;
 
 	// Restore LEDs
-	leds_restore (saveLD);
+	leds_restore (saveLD, saveLDB);
 
 	// ... the running clocks
 	rg.ssm.clk_en = saveCK;

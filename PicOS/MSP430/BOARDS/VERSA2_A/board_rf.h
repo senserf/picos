@@ -1,6 +1,10 @@
 //+++ "dm2200irq.c"
 //+++ "p2irq.c"
 
+#ifndef	FCC_TEST_MODE
+#define	FCC_TEST_MODE	0
+#endif
+
 REQUEST_EXTERNAL (p2irq);
 
 #define	CFG_P1		CNOP

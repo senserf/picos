@@ -1,20 +1,14 @@
+// ============================================================================
+// 2 leds on P3, polarity 0 ===================================================
+// ============================================================================
 
-#undef	LED1_ON
-#undef	LED2_ON
-#undef	LED1_OFF
-#undef	LED2_OFF
-#undef	leds_save
-#undef	leds_off
-#undef	leds_restore
+#define	LED1_ON		_BIC (P3OUT, 0x04)
+#define	LED2_ON		_BIC (P3OUT, 0x08)
+#define	LEDS_ON		_BIC (P3OUT, 0x0C)
 
-#define	LED1_ON		ZZ_LEDON (P3, 0x04)
-#define	LED2_ON		ZZ_LEDON (P3, 0x08)
+#define	LED1_OFF	_BIS (P3OUT, 0x04)
+#define	LED2_OFF	_BIS (P3OUT, 0x08)
+#define	LEDS_OFF	_BIS (P3OUT, 0x0C)
 
-#define	LED1_OFF	ZZ_LEDOFF (P3, 0x04)
-#define	LED2_OFF	ZZ_LEDOFF (P3, 0x08)
-
-#define	leds_save()	(P3OUT & (0x04+0x08))
-#define	leds_off()	ZZ_LEDOFF (P3, 0x04+0x08)
-#define	leds_restore(w)	ZZ_LEDON (P3, (w) & (0x04+0x08))
-
-#define	LEDS_HIGH_ON	0
+#define	LEDS_SAVE(a)	(a) = P3OUT & 0xC
+#define	LEDS_RESTORE(a)	P3OUT = (P3OUT & ~0xC) | (a)
