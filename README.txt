@@ -515,3 +515,10 @@ R100411A:
     PicOS compatibility mods: snooze removed, watchdog operations added. Note
     that VUEE's watchdog model won't detect a hard CPU loop in the praxis. May
     try to do something about it later.
+
+R100423A:
+
+    The capabilities of "geometry" description for udaemon extended by
+    making it possible to specify windows that should be displayed
+    automatically when the script starts (see the last section of the
+    document).

@@ -4021,7 +4021,7 @@ proc mkMove { Sok } {
 			set hi [expr (double($wi) * $ah) / $aw]
 		}
 		if { $hi != 0 && $wi == 0 } {
-			set wi [expr (double ($wi) * $aw) / $ah]
+			set wi [expr (double ($hi) * $aw) / $ah]
 		}
 		if [cvcalc_static $Sok $wi $hi] {
 			return 1
@@ -4917,6 +4917,24 @@ proc parse_g { geo } {
 	return $g
 }
 		
+proc lappendunique { ls it } {
+#
+#  Append a new item, if it doesn't already exists on the list
+#
+	upvar $ls lst
+
+	if ![info exists lst] {
+		lappend lst $it
+		return 1
+	}
+
+	if { [lsearch -exact $lst $it] < 0 } {
+		lappend lst $it
+		return 1
+	}
+	return 0
+}
+
 proc parse_geometry { } {
 
 	global GFile Geometry
@@ -4959,6 +4977,13 @@ proc parse_geometry { } {
 		set t [sxml_txt $j]
 		set torg $t
 	
+		set dsp [string tolower [sxml_attr $j "display"]]
+		if { $dsp == "1" || $dsp == "y" || $dsp == "yes" } {
+			set dsp 1
+		} else {
+			set dsp 0
+		}
+
 		set ml ""
 
 		while 1 {
@@ -4966,9 +4991,11 @@ proc parse_geometry { } {
 				break
 			}
 			if ![regexp \
-				"^(\[^=\]*)\[ \t\]*=\[ \t\]*\\((\[^)\]+)\\)" \
-				$t mat pfx geo] {
-					bad_geo $t
+			    "^(\[^=\]*)\[ \t\]*=\[ \t\]*\\((\[^)\]+)\\)" \
+			    $t mat pfx geo] {
+				alert "Illegal geometry specification in\
+					$GFile: $t!"
+				exit 99
 			}
 			# validate the pattern
 			if { [numexp $pfx 999888] > 1 } {
@@ -4984,10 +5011,21 @@ proc parse_geometry { } {
 			lappend ml [list $pfx $geo]
 			set ls [string length $mat]
 			set t [string trimleft [string range $t $ls end] " \t,"]
+
+			if { $dsp && \
+			    ($pfx == "" || ![catch { expr $pfx } nod]) } {
+				# a single number, add it to the auto display
+				# list
+				lappendunique Geometry(=$n) $pfx
+			}
 		}
 
 		if { $ml != "" } {
-			set Geometry($n) $ml
+			if [info exists Geometry($n)] {
+				set Geometry($n) [concat $Geometry($n) $ml]
+			} else {
+				set Geometry($n) $ml
+			}
 		}
 
 		if { $n == "roamer" } {
@@ -5015,7 +5053,7 @@ proc parse_geometry { } {
 								$GFile!"
 						exit 99
 					}
-					set Geometry(roamer,h) $w
+					set Geometry(roamer,h) $dim
 				}
 				if { ![info exists Geometry(roamer,w)] && \
 				     ![info exists Geometry(roamer,h)]     } {
@@ -5023,11 +5061,73 @@ proc parse_geometry { } {
 						least one of 'width', 'height'!"
 					exit 99
 				}
+				set Geometry(roamer,i) [sxml_attr $j "image"]
 			}
-			set Geometry(roamer,i) [sxml_attr $j "image"]
 		}
 	}
 }
+
+###############################################################################
+
+proc predisplay { } {
+#
+# Predisplay requested windows
+#
+	global Geometry
+
+	foreach p [array names Geometry "=*"] {
+		set wn [string range $p 1 end]
+		set pl $Geometry($p)
+		switch -- $wn {
+			"uart" {
+				predisplay_nodes "uartHandler %n a" $pl
+			}
+			"sensors" {
+				predisplay_nodes "sensorsHandler %n" $pl
+			}
+			"pins" {
+				predisplay_nodes "pinsHandler %n" $pl
+			}
+			"leds" {
+				predisplay_nodes "ledsHandler %n" $pl
+			}
+			"lcdg" {
+				predisplay_nodes "lcdgHandler %n" $pl
+			}
+			"ptracker" {
+				predisplay_nodes "pwrtHandler %n" $pl
+			}
+			"roamer" {
+				predisplay_single "moveHandler"
+			}
+			"panel" {
+				predisplay_single "panelHandler"
+			}
+			"clock" {
+				predisplay_single "clockHandler"
+			}
+		}
+	}
+}
+
+proc predisplay_nodes { fun nl } {
+#
+# Predisplay node-relative windows
+#
+	foreach n $nl {
+		if { $n != "" } {
+			regsub "%n" $fun $n f
+			after 500 $f
+		}
+	}
+}
+
+proc predisplay_single { fun } {
+
+	after 500 $fun
+}
+
+###############################################################################
 
 # heuristics to determine system version
 if [catch { exec uname } Stat(S)] {
@@ -5125,5 +5225,7 @@ if { [info tclversion] < 8.5 } {
 catch { close stdin }
 catch { close stdout }
 catch { close stderr }
+
+predisplay
 
 vwait forever
