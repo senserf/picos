@@ -4984,6 +4984,8 @@ proc parse_geometry { } {
 			set dsp 0
 		}
 
+		regsub -all "\[ \t\r\n\]+" $t " " t
+
 		set ml ""
 
 		while 1 {
@@ -4991,7 +4993,7 @@ proc parse_geometry { } {
 				break
 			}
 			if ![regexp \
-			    "^(\[^=\]*)\[ \t\]*=\[ \t\]*\\((\[^)\]+)\\)" \
+			    "^(\[^=\]*) *= *\\((\[^)\]+)\\)" \
 			    $t mat pfx geo] {
 				alert "Illegal geometry specification in\
 					$GFile: $t!"
@@ -5075,6 +5077,8 @@ proc predisplay { } {
 #
 	global Geometry
 
+	set Geometry(+D) 200
+
 	foreach p [array names Geometry "=*"] {
 		set wn [string range $p 1 end]
 		set pl $Geometry($p)
@@ -5114,17 +5118,23 @@ proc predisplay_nodes { fun nl } {
 #
 # Predisplay node-relative windows
 #
+	global Geometry
+
 	foreach n $nl {
 		if { $n != "" } {
 			regsub "%n" $fun $n f
-			after 500 $f
+			after $Geometry(+D) $f
+			incr Geometry(+D) 200
 		}
 	}
 }
 
 proc predisplay_single { fun } {
 
-	after 500 $fun
+	global Geometry
+
+	after $Geometry(+D) $fun
+	incr Geometry(+D) 200
 }
 
 ###############################################################################

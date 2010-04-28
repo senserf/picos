@@ -522,3 +522,8 @@ R100423A:
     making it possible to specify windows that should be displayed
     automatically when the script starts (see the last section of the
     document).
+
+R100427A:
+
+    Fixed a bug in udaemon causing misparsing of geometry specifications
+    containing newlines.
