@@ -4168,3 +4168,9 @@ R100418A:
 	Soft reset buttons redone. The code is now more flexible and, in
 	particular, allows you to have general "reset conditions" being
 	evaluated once per second.
+
+R100428A:
+
+	Alarms added to il_demo. Preparations for IL demo in VUEE.
+	See .../VUEE/il_demo/notes: tailing part under ---100428--- marker.
+
