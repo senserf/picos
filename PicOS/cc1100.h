@@ -91,7 +91,11 @@
 
 // ============================================================================
 
-#define	CC1100_MAXPLEN		60	/* Excluding checksum */
+#if RADIO_CRC_MODE < 2
+#define	CC1100_MAXPLEN		62
+#else
+#define	CC1100_MAXPLEN		60	/* Including checksum */
+#endif
 
 // Register Numbers ===========================================================
 

@@ -3,29 +3,39 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+// This one is intepreted in cc1100.h and indicates that this inclusion of the
+// file should declare the static arrays with settings
 #define	DEFINE_RF_SETTINGS	1
 
 #include "kernel.h"
 #include "tcvphys.h"
 #include "cc1100.h"
 
-#define	GDELAY(s) 	delay (GUARD_LONG_DELAY, s)
-
 static int option (int, address);
 static void chip_reset();
 
 		// Pointer to the static reception buffer
 static word	*rbuff = NULL,
+		// How many ticks (msecs) to delay before transmission (this is
+		// a utimer)
 		bckf_timer = 0,
-
+		// PHY ID
 		physid,
+		// Network ID
 		statid = 0;
 
 #if (RADIO_GUARD & 0x01)
-static byte	gwch;			// Guard watch
+static byte	gwch;			// Guard watch flags
 #endif
 
 #if RADIO_TRACK_ERRORS
+// Counts events:
+//
+//	0 - receptions (all events when receiver is awakened to check for a pkt)
+//	1 - bad checksum (verified after length/netid check)
+//	2 - formally incorrect packet length
+//	3 - wrong network ID
+//
 static word	rerror [4];
 #endif
 
@@ -631,11 +641,23 @@ static void do_rx_fifo () {
 	rerror [0] ++;
 #endif
 
+	// len is the physical payload, i.e., the number of bytes in the pipe
+
+#if RADIO_CRC_MODE < 2
+	// There is no software CRC at the end, so the minimum includes:
+	// paylen + 2 bytes of SID + 2 status bytes
+	if ((len & 1) == 0 || len < 5) {
+#else
+	// There is software CRC at the end, two bytes extra
 	if ((len & 1) == 0 || len < 7) {
-		// Actual payload length must be even
+#endif
+		// Physical payload length must be even, so the extra byte
+		// for payload length will make it odd
+
 #if RADIO_TRACK_ERRORS
 		rerror [2] ++;
 #endif
+
 #if RADIO_DEBUG
 		diag ("CC1100: %u RX BAD PL: %d", (word) seconds (), len);
 #endif
@@ -643,8 +665,15 @@ static void do_rx_fifo () {
 		goto Rtn;
 	}
 
+	// This is the logical payload length, i.e., the first byte of whatever
+	// has arrived; note that it covers software checksum if RADIO_CRC_MODE
+	// > 1
 	paylen = cc1100_get_reg (CCxxx0_RXFIFO);
-	if ((paylen & 1) || paylen != len - 3) {
+
+	// Note that paylen must equal len - 3, regardless of RADIO_CRC_MODE,
+	// because of the two status bytes appended at the end by the chip
+	if (paylen != len - 3) {
+
 #if RADIO_TRACK_ERRORS
 		rerror [2] ++;
 #endif
@@ -656,7 +685,10 @@ static void do_rx_fifo () {
 		goto Rtn;
 	}
 
-	if (paylen > rbuffl) {
+	// We shall copy --len bytes, i.e., paylen + 2 (or, put differently,
+	// whatever is present in the FIFO), because we need the status bytes
+	// as well
+	if (--len > rbuffl) {
 #if RADIO_TRACK_ERRORS
 		rerror [2] ++;
 #endif
@@ -667,21 +699,10 @@ static void do_rx_fifo () {
 		goto Rtn;
 	}
 
-	// Include the status bytes
-	cc1100_get_reg_burst (CCxxx0_RXFIFO, (byte*)rbuff, (byte) paylen + 2);
+	// Copy the FIFO contents
+	cc1100_get_reg_burst (CCxxx0_RXFIFO, (byte*)rbuff, (byte) len);
 
-	// We have extracted the packet, so we can start RCV for another one
-
-#if 0
-	// A precaution: make sure the FIFO is truly empty
-	while (RX_FIFO_READY) {
-#if RADIO_DEBUG
-		diag ("CC1100: %u RX FIFO NONEMPTY", (word) seconds ());
-#endif
-		cc1100_rx_reset ();
-	}
-#endif
-
+	// We have emptied the FIFO, so we can start RCV for another one
 	enter_rx ();
 
 	if (statid != 0 && statid != 0xffff) {
@@ -700,7 +721,7 @@ static void do_rx_fifo () {
 	}
 
 #if RADIO_CRC_MODE > 1
-	// Verify CRC
+	// Verify software CRC (at this point len = paylen + 2)
 	len = paylen >> 1;
 	if (w_chk (rbuff, len, 0)) {
 		// Bad checksum
@@ -717,20 +738,22 @@ static void do_rx_fifo () {
 		goto Rtn;
 	}
 
+	// Move the extra two bytes from after paylen over CRC (tweaking them
+	// properly)
 	eptr = (byte*)rbuff + paylen;
-
 	((byte*)rbuff) [paylen - 2] = (*(eptr + 1) & 0x7f);
 	// This number is signed and starts negative, so we have
 	// to bias it properly
 	((byte*)rbuff) [paylen - 1] = *((char*)eptr) + 128;
-	add_entropy (rbuff [len-1]);
+	add_entropy (rbuff [len - 1]);
 
-#else	/* RADIO_CRC_MODE (the hardware case) */
+#else	/* RADIO_CRC_MODE (hardware checksum) */
 
-	// Status bytes
+	// Status bytes (now in place)
 	eptr = (byte*)rbuff + paylen;
 	b = *(eptr+1);
 	add_entropy (rbuff [len]);
+	// Add the two status byte to the payload
 	paylen += 2;
 
 	if (b & 0x80) {
@@ -840,11 +863,19 @@ XRcv:
 		proceed (DR_LOOP);
 	}
 
+	// A packet arriving from TCV always contains CRC slots, even if
+	// we are into hardware CRC; its minimum legit length is SID + CRC
+
 #if RADIO_CRC_MODE > 1
-	sysassert (paylen <  rbuffl && paylen >= 6 && (paylen & 1) == 0,
+	// In this case, rbuff is 2 bytes larger than the largest transmittable
+	// packet, as (on top of CRC) it must accommodate two extra (status)
+	// bytes
+	sysassert (paylen <  rbuffl && paylen >= 4 && (paylen & 1) == 0,
 		"cc1100 xmt pktl");
 #else
-	sysassert (paylen <= rbuffl && paylen >= 6 && (paylen & 1) == 0,
+	// Here, there is no software CRC, so the two status bytes take the
+	// place of CRC (which is not used)
+	sysassert (paylen <= rbuffl && paylen >= 4 && (paylen & 1) == 0,
 		"cc1100 xmt pktl");
 #endif
 	LEDI (1, 1);
@@ -858,7 +889,7 @@ XRcv:
 	len = (paylen >> 1) - 1;
 	((word*)xbuff) [len] = w_chk ((word*)xbuff, len, 0);
 #else
-	paylen -= 2;		// Ignore the checksum bytes
+	paylen -= 2;		// Ignore the CRC bytes
 #endif
 	// Send the length byte ...
 	cc1100_set_reg (CCxxx0_TXFIFO, paylen);
@@ -915,13 +946,13 @@ Reset:
 		chip_reset ();
 		enter_rx ();
 		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
-		GDELAY (GU_ACTION);
+		delay (GUARD_LONG_DELAY, GU_ACTION);
 		release;
 	}
 
 	if ((TxOFF & 1) && RxOFF) {
 		// The chip is powered down, so don't bother
-		GDELAY (GU_ACTION);
+		delay (GUARD_LONG_DELAY, GU_ACTION);
 		release;
 	}
 
@@ -974,7 +1005,7 @@ Reset:
 		// Will reset the chip periodically on LONG_DELAY if nothing
 		// happens in between
 		guard_start (WATCH_PRG);
-		GDELAY (GU_ACTION);
+		delay (GUARD_LONG_DELAY, GU_ACTION);
 	} else {
 		guard_start (WATCH_RCV);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
@@ -986,9 +1017,33 @@ endthread
 #endif	/* RADIO_GUARD */
 
 void phys_cc1100 (int phy, int mbs) {
-/*
- * mbs does not cover the checksum
- */
+//
+// Note that mbs DOES COVER the checksum. Put this into your stupid head once
+// for all (just a strong "mental" note to myself). 
+//
+// A packet sent over the radio starts with a length byte (called the payload
+// length) and its full length is in fact odd. What follows the length byte is
+// the TCV packet to be actually received (the payload). The maximum payload
+// length is 60 bytes, because the FIFO size is 64 bytes, and one of them is
+// used for the payload length byte, and two status bytes are appended at the
+// end upon reception. Those status bytes have nothing to do with the CRC:
+// they are the Link Quality and RSSI bytes calculated by the chip.
+// 
+// When we operate with software checksum (RADIO_CRC_MODE == 2), the checksum
+// calculated by the driver arrives as the last two bytes of the payload. In
+// this mode, the "useful" packet length is limited to 58 bytes. The maximum
+// legit value for mbs is then 60.
+//
+// With hardware checksum (RADIO_CRC_MODE < 2), the useful packet length is
+// limited to 60 bytes (because there is no need for software checksum to
+// be received. he PHY will accept 62 as the value of mbs.
+//
+// Note that, regardless of the value of RADIO_CRC_MODE, the driver appends at
+// the end of the useful payload two bytes (RSSI and link quality) for which it
+// expects room in the buffer. Thus, in both cases, the amount of memory
+// reserved for the reception buffer is exactly mbs, even though its useful
+// length is mbs - 2.
+//
 	if (rbuff != NULL)
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "cc1100");
@@ -1014,9 +1069,9 @@ void phys_cc1100 (int phy, int mbs) {
 #endif
 #endif
 
-	rbuffl = (byte) mbs;	// buffer length in bytes, excluding checksum
+	rbuffl = (byte) mbs;	// buffer length in bytes, including checksum
 #if RADIO_CRC_MODE > 1
-	rbuffl += 2;
+	rbuffl += 2;		// add room for two status bytes
 #endif
 	if ((rbuff = umalloc (rbuffl)) == NULL)
 		syserror (EMALLOC, "cc1100");
@@ -1238,7 +1293,10 @@ static int option (int opt, address val) {
 
 		if (val != NULL)
 			memcpy (val, rerror, sizeof (rerror));
-		return (int) rerror [0] - rerror [1] - rerror [2] - rerror [3];
+		else
+			memset (rerror, 0, sizeof (rerror));
+
+		break;
 #endif
 	    default:
 

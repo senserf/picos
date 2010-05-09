@@ -4174,3 +4174,19 @@ R100428A:
 	Alarms added to il_demo. Preparations for IL demo in VUEE.
 	See .../VUEE/il_demo/notes: tailing part under ---100428--- marker.
 
+R100508A:
+
+	Shortened diags in TCV/VNETI (for DIAG_MESSAGES > 0). TCV has been very
+	stable, and I do not recall a single case of a sysassert/syserror from
+	there. To reduce code size, I have trcuncated the unnecessarily
+	elaborate messages to numbers (tcvXX) which can be easily looked up in
+	the source code in an emergency.
+
+	A few cleanups in CC1100 driver.
+
+	Praxis RFTEST (see Apps/VUEE/RFTEST) with its own document (see
+	doc.odt). Intended for testing the reliability/quality of
+	transmitters/receivers in groups of nodes.
+
+	
+

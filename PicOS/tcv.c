@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -91,36 +91,36 @@ __PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
 #if DIAG_MESSAGES > 1
 /* FIXME: check if everything works with DIAG_MESSAGES == 1 and 0 */
 #define	verify_ses(p,m)	do { \
-			if ((p)->attributes.b.session >= TCV_MAX_DESC || \
-			descriptors [(p)->attributes.b.session] == NULL) \
-			syserror (EASSERT, m); \
+			  if ((p)->attributes.b.session >= TCV_MAX_DESC || \
+			    descriptors [(p)->attributes.b.session] == NULL) \
+			      syserror (EASSERT, m); \
 			} while (0)
 #define	verify_fds(d,m)	do { \
-			if ((d) < 0 || (d) > TCV_MAX_DESC || \
-			descriptors [d] == NULL) \
-			syserror (EASSERT, m); \
+			  if ((d) < 0 || (d) > TCV_MAX_DESC || \
+			    descriptors [d] == NULL) \
+			      syserror (EASSERT, m); \
 			} while (0)
 #define	verify_fph(d,m)	do { \
-			if ((d) < 0 || (d) > TCV_MAX_PHYS || \
-			physical [d] == NULL) \
-			syserror (EASSERT, m); \
+			  if ((d) < 0 || (d) > TCV_MAX_PHYS || \
+			    physical [d] == NULL) \
+			      syserror (EASSERT, m); \
 			} while (0)
 #define	verify_phy(p,m)	do { \
-			if ((p)->attributes.b.phys >= TCV_MAX_PHYS || \
-			physical [(p)->attributes.b.phys] == NULL) \
-			syserror (EASSERT, m); \
+			  if ((p)->attributes.b.phys >= TCV_MAX_PHYS || \
+			    physical [(p)->attributes.b.phys] == NULL) \
+			      syserror (EASSERT, m); \
 			} while (0)
 #define	verify_plg(p,f,m) do { \
-			if ((p)->attributes.b.plugin >= TCV_MAX_PLUGS || \
-			plugins [(p)->attributes.b.plugin] == NULL || \
-			plugins [(p)->attributes.b.plugin] -> f == NULL) \
-			syserror (EASSERT, m); \
+			    if ((p)->attributes.b.plugin >= TCV_MAX_PLUGS || \
+			      plugins [(p)->attributes.b.plugin] == NULL || \
+			      plugins [(p)->attributes.b.plugin] -> f == NULL) \
+			        syserror (EASSERT, m); \
 			} while (0)
 #define	verify_pld(p,f,m) do { \
-			if ((p)->attpattern.b.plugin >= TCV_MAX_PLUGS || \
-			plugins [(p)->attpattern.b.plugin] == NULL || \
-			plugins [(p)->attpattern.b.plugin] -> f == NULL) \
-			syserror (EASSERT, m); \
+			    if ((p)->attpattern.b.plugin >= TCV_MAX_PLUGS || \
+			      plugins [(p)->attpattern.b.plugin] == NULL || \
+			      plugins [(p)->attpattern.b.plugin] -> f == NULL) \
+			        syserror (EASSERT, m); \
 			} while (0)
 #else
 #define	verify_ses(p,m)
@@ -146,7 +146,7 @@ __PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
 /*
  * Inserts a buffer into a queue
  */
-	sysassert (p->attributes.b.queued == 0, "tcv enq item already queued");
+	sysassert (p->attributes.b.queued == 0, "tcv01");
 	if (p->attributes.b.urgent) {
 		/* At the front. This always triggers a queue event. */
 		trigger (q);
@@ -337,10 +337,10 @@ __PUBLF (PicOSNode, void, tcv_endp) (address p) {
 	sesdesc_t *d;
 
 	b = header (p);
-	verify_ses (b, "tcv_endp ses");
+	verify_ses (b, "tcv02");
 	d = descriptors [b->attributes.b.session];
 	if (b->attributes.b.outgoing) {
-		verify_plg (b, tcv_out, "tcv_endp plg");
+		verify_plg (b, tcv_out, "tcv03");
 		dispose (b, plugins [b->attributes.b.plugin] -> tcv_out (p));
 	} else
 		/* This is a received packet - just drop it */
@@ -367,7 +367,7 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	/* Check if we have the plugin and the phys */
 	if (phy < 0 || phy >= TCV_MAX_PHYS || oqueues [phy] == NULL ||
 		plid < 0 || plid >= TCV_MAX_PLUGS || plugins [plid] == NULL)
-			syserror (ENODEVICE, "tcv_open");
+			syserror (ENODEVICE, "tcv04");
 
 	pid = getcpid ();
 	/* Prepare the attribute pattern word */
@@ -418,14 +418,14 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 		/* We have to create the session */
 		s = (sesdesc_t*) s_malloc (sizeof (sesdesc_t));
 		if (s == NULL)
-			syserror (EMALLOC, "tcv_open");
+			syserror (EMALLOC, "tcv05");
 		descriptors [fd] = s;
 		q_init (&(s->rqueue));
 		s->attpattern = attp;
 		s->attpattern.b.session = fd;
 		s->pid = pid;
 	}
-	sysassert (plugins [plid] -> tcv_ope != NULL, "tcv_open/tcv_ope");
+	sysassert (plugins [plid] -> tcv_ope != NULL, "tcv06");
 	eid = (word) (plugins [plid] -> tcv_ope (phy, fd, va_par (plid)));
 
 	/*
@@ -463,12 +463,12 @@ __PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 	word eid;
 	hblock_t *b;
 
-	verify_fds (fd, "tcv_close fd");
+	verify_fds (fd, "tcv07");
 	if ((s = descriptors [fd]) == NULL || s->attpattern.b.queued)
 		/* Also if the session hasn't opened yet */
-		syserror (EREQPAR, "tcv_close");
+		syserror (EREQPAR, "tcv08");
 
-	verify_pld (s, tcv_clo, "tcv_close/tcv_clo");
+	verify_pld (s, tcv_clo, "tcv09");
 	eid = (word) (plugins [s->attpattern.b.plugin]->
 					tcv_clo (s->attpattern.b.phys, fd));
 
@@ -520,7 +520,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 	hblock_t *b;
 	qhead_t *rq;
 
-	verify_fds (fd, "tcv_rnp fd");
+	verify_fds (fd, "tcv10");
 
 	rq = &(descriptors [fd] -> rqueue);
 	b = q_first (rq);
@@ -537,7 +537,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 	/* Packet pointer */
 	p = ((address)(b + 1));
 	/* Set the pointers to application data */
-	verify_plg (b, tcv_frm, "tcv_rnp/tcv_frm");
+	verify_plg (b, tcv_frm, "tcv11");
 	plugins [b->attributes.b.plugin]->tcv_frm (p, b->attributes.b.phys,
 		&(b->u.pointers));
 	/* Adjust the second pointer to look like the length */
@@ -556,7 +556,7 @@ __PUBLF (PicOSNode, int, tcv_qsize) (int fd, int disp) {
 	qhead_t *rq;
 	hblock_t *b;
 
-	verify_fds (fd, "tcv_qsize fd");
+	verify_fds (fd, "tcv12");
 
 	s = descriptors [fd];
 
@@ -565,7 +565,7 @@ __PUBLF (PicOSNode, int, tcv_qsize) (int fd, int disp) {
 	} else if (disp == TCV_DSP_XMT || disp == TCV_DSP_XMTU) {
 		rq = oqueues [s->attpattern.b.phys];
 	} else {
-		syserror (EREQPAR, "tcv_qsize");
+		syserror (EREQPAR, "tcv13");
 	}
 
 	nq = 0;
@@ -595,7 +595,7 @@ __PUBLF (PicOSNode, int, tcv_erase) (int fd, int disp) {
 	qhead_t *rq;
 	hblock_t *b;
 
-	verify_fds (fd, "tcv_erase fd");
+	verify_fds (fd, "tcv14");
 
 	s = descriptors [fd];
 
@@ -604,7 +604,7 @@ __PUBLF (PicOSNode, int, tcv_erase) (int fd, int disp) {
 	} else if (disp == TCV_DSP_XMT || disp == TCV_DSP_XMTU) {
 		rq = oqueues [s->attpattern.b.phys];
 	} else {
-		syserror (EREQPAR, "tcv_erase");
+		syserror (EREQPAR, "tcv15");
 	}
 
 	if (disp == TCV_DSP_RCVU || disp == TCV_DSP_XMTU) {
@@ -638,17 +638,17 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 	tcvadp_t ptrs;
 	sesdesc_t *s;
 
-	verify_fds (fd, "tcv_wnpu fd");
+	verify_fds (fd, "tcv16");
 
 	s = descriptors [fd];
 
 	/* Obtain framing parameters */
-	verify_pld (s, tcv_frm, "tcv_wnp/tcv_frm");
+	verify_pld (s, tcv_frm, "tcv17");
 
 	plugins [s->attpattern.b.plugin]->tcv_frm (NULL, s->attpattern.b.phys,
 		&ptrs);
 
-	sysassert (s->attpattern.b.queued == 0, "tcv_wnpu partially opened");
+	sysassert (s->attpattern.b.queued == 0, "tcv18");
 
 	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT+1)) {
 		if (state != WNONE) {
@@ -699,16 +699,16 @@ __PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 	tcvadp_t ptrs;
 	sesdesc_t *s;
 
-	verify_fds (fd, "tcv_wnp fd");
+	verify_fds (fd, "tcv19");
 
 	s = descriptors [fd];
 
 	/* Obtain framing parameters */
-	verify_pld (s, tcv_frm, "tcv_wnp/tcv_frm");
+	verify_pld (s, tcv_frm, "tcv20");
 	plugins [s->attpattern.b.plugin]->tcv_frm (NULL, s->attpattern.b.phys,
 		&ptrs);
 
-	sysassert (s->attpattern.b.queued == 0, "tcv_wnp partially opened");
+	sysassert (s->attpattern.b.queued == 0, "tcv21");
 
 	/* Total length of the packet */
 
@@ -819,7 +819,7 @@ __PUBLF (PicOSNode, int, tcv_control) (int fd, int opt, address arg) {
 			return 0;
 		return physinfo [fd];
 	}
-	verify_fds (fd, "tcv_control fd");
+	verify_fds (fd, "tcv22");
 	return tcvp_control (descriptors [fd] -> attpattern.b.phys, opt, arg);
 }
 
@@ -833,7 +833,7 @@ __PUBLF (PicOSNode, int, tcvp_control) (int phy, int opt, address arg) {
 /*
  * Plugin version of interface control
  */
-	verify_fph (phy, "tcvp_control phy");
+	verify_fph (phy, "tcv23");
 	return (physical [phy]) (opt, arg);
 }
 
@@ -841,7 +841,7 @@ __PUBLF (PicOSNode, void, tcvp_assign) (address p, int ses) {
 /*
  * Assigns the packet buffer to a specific session.
  */
-	verify_fds (ses, "tcvp_assign fd");
+	verify_fds (ses, "tcv24");
 	header (p) -> attributes.b.session = ses;
 	header (p) -> attributes.b.phys = descriptors [ses]->attpattern.b.phys;
 }
@@ -850,7 +850,7 @@ __PUBLF (PicOSNode, void, tcvp_attach) (address p, int phy) {
 /*
  * Attaches the packet to a specific physical interface.
  */
-	verify_fph (phy, "tcvp_attach phy");
+	verify_fph (phy, "tcv25");
 	header (p) -> attributes.b.phys = phy;
 }
 
@@ -891,8 +891,8 @@ __PUBLF (PicOSNode, address, tcvp_new) (int size, int dsp, int ses) {
 
 		/* Session must be defined for that */
 		if (ses == NONE)
-			syserror (EREQPAR, "tcvp_new");
-		verify_fds (ses, "tcvp_new fd");
+			syserror (EREQPAR, "tcv26");
+		verify_fds (ses, "tcv27");
 
 #if	TCV_LIMIT_RCV
 
@@ -992,14 +992,14 @@ __PUBLF (PicOSNode, int, tcvphy_reg) (int phy, ctrlfun_t ps, int info) {
 	qhead_t *q;
 
 	if (phy < 0 || phy >= TCV_MAX_PHYS || physical [phy] != NULL)
-		syserror (EREQPAR, "tcvphy_reg");
+		syserror (EREQPAR, "tcv28");
 
 	physical [phy] = ps;
 	physinfo [phy] = info;
 
 	oqueues [phy] = q = (qhead_t*) q_malloc (sizeof (qhead_t));
 	if (q == NULL)
-		syserror (EMALLOC, "tcvphy_reg");
+		syserror (EMALLOC, "tcv29");
 	q_init (q);
 
 	/*
@@ -1018,7 +1018,7 @@ __PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {
 	tcvadp_t ap;
 	address c;
 
-	verify_fph (phy, "tcvphy_rcv phy");
+	verify_fph (phy, "tcv30");
 
 	dsp = NONE;
 	for (plg = TCV_MAX_PLUGS-1; plg >= 0; plg--) {
@@ -1031,8 +1031,7 @@ __PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {
 		 */
 		if (plugins [plg] == NULL)
 			continue;
-		sysassert (plugins [plg] -> tcv_rcv != NULL,
-			"tcvphy_rcv/tcv_rcv");
+		sysassert (plugins [plg] -> tcv_rcv != NULL, "tcv31");
 		if ((dsp = plugins [plg] -> tcv_rcv (phy, p, len, &ses, &ap)) !=
 			TCV_DSP_PASS)
 				/* This plugin claims it */
@@ -1067,7 +1066,7 @@ __PUBLF (PicOSNode, address, tcvphy_get) (int phy, int *len) {
 	qhead_t	*oq;
 	hblock_t *b;
 
-	verify_fph (phy, "tcvphy_get phy");
+	verify_fph (phy, "tcv32");
 
 	oq = oqueues [phy];
 	b = q_first (oq);
@@ -1088,7 +1087,7 @@ __PUBLF (PicOSNode, address, tcvphy_top) (int phy) {
 	qhead_t *oq;
 	hblock_t *b;
 
-	verify_fph (phy, "tcvphy_top phy");
+	verify_fph (phy, "tcv33");
 
 	oq = oqueues [phy];
 	b = q_first (oq);
@@ -1104,7 +1103,7 @@ __PUBLF (PicOSNode, void, tcvphy_end) (address pkt) {
  */
 	hblock_t *b = header (pkt);
 
-	verify_plg (b, tcv_xmt, "tcvphy_end/tcv_xmt");
+	verify_plg (b, tcv_xmt, "tcv34");
 	dispose (b, plugins [b->attributes.b.plugin]->tcv_xmt (pkt));
 }
 
@@ -1112,7 +1111,7 @@ __PUBLF (PicOSNode, int, tcvphy_erase) (int phy) {
 /*
  * Erases the output queue
  */
-	verify_fph (phy, "tcvphy_erase phy");
+	verify_fph (phy, "tcv35");
 	return empty (oqueues [phy]);
 }
 
