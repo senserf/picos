@@ -214,8 +214,11 @@ Receiver::perform {
 	packet = ThePckt -> Payload;
 	pktlen = ThePckt -> PaySize;
 
-	assert (pktlen > MINIMUM_PACKET_LENGTH, "Receiver: packet too short");
-	assert (pktlen <= RBS, "Receiver: packet too long");
+	assert (pktlen >= MINIMUM_PACKET_LENGTH,
+		"Receiver: packet too short: %d < %d", pktlen,
+			MINIMUM_PACKET_LENGTH);
+	assert (pktlen <= RBS, "Receiver: packet too long: %d > %d",
+		pktlen, RBS);
 
 	if (sid != 0 && sid != 0xffff) {
 		// Admit only packets with agreeable statid

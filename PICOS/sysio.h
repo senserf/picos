@@ -228,6 +228,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	wtonl(w)	ntowl (w)
 
+#define	HEX_TO_ASCII(p)		(zz_hex_enc_table [(p) & 0xf])
+
 #define	add_entropy(w)	(TheNode->entropy = (TheNode->entropy << 4) ^ (w))
 
 /* ========================================== */

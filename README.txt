@@ -527,3 +527,9 @@ R100427A:
 
     Fixed a bug in udaemon causing misparsing of geometry specifications
     containing newlines.
+
+R100508A:
+
+    Fixed the overrestrictive limit for packet length in the RF PHY model.
+    A few cleanups (minor, but required by RFTEST, so you should be using
+    this version with PICOS R100508A).

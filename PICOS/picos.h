@@ -39,7 +39,7 @@ typedef	unsigned char	byte;
 /* ========================================================================== */
 
 #define	PHYSID			0
-#define	MINIMUM_PACKET_LENGTH	8
+#define	MINIMUM_PACKET_LENGTH	4
 #define	RADIO_DEF_BUF_LEN	48
 #define	UART_DEF_BUF_LEN	82
 #define	CC1100_MAXPLEN		60
