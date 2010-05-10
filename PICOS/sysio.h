@@ -90,6 +90,7 @@
 #define	PHYSOPT_GETRATE		23
 
 #define	PHYSOPT_GETMAXPL	24	/* Get the maximum packet length */
+#define	PHYSOPT_RESET		25
 
 typedef	struct {
 /*

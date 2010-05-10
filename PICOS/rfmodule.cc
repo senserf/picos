@@ -504,6 +504,10 @@ static int rfm_option (int opt, address val) {
 
 		if (val != NULL)
 			memset (val, 0, 8);
+
+	    case PHYSOPT_RESET:
+		// Void
+
 		return 0;
 
 	    default:

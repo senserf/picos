@@ -533,3 +533,8 @@ R100508A:
     Fixed the overrestrictive limit for packet length in the RF PHY model.
     A few cleanups (minor, but required by RFTEST, so you should be using
     this version with PICOS R100508A).
+
+R100509A:
+
+    Added PHYSOPT_RESET to rfmodule.cc (with void action) for compatibility
+    with the cleaned-up CC1100 driver.
