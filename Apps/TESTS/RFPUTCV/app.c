@@ -339,7 +339,6 @@ int snd_stop (void) {
 #define	RS_RCMD		10
 #define	RS_SND		20
 #define RS_RCV		30
-#define	RS_PAR		40
 #define	RS_POW		50
 #define	RS_RCP		60
 #define	RS_QRCV		63
@@ -440,8 +439,6 @@ thread (root)
 		proceed (RS_SND);
 	if (ibuf [0] == 'r')
 		proceed (RS_RCV);
-	if (ibuf [0] == 'd')
-		proceed (RS_PAR);
 #ifdef PIN_TEST
 	if (ibuf [0] == 'x')
 		proceed (RS_GADC);
@@ -562,22 +559,6 @@ thread (root)
   entry (RS_QUIT+1)
 
 	wuart (RS_QUIT+1, fmt, obuf);
-
-	proceed (RS_RCMD);
-
-  entry (RS_PAR)
-
-	if (scan (ibuf + 1, "%u %u", p+0, p+1) < 2)
-		proceed (RS_RCMD+1);
-
-	if (p [0] > 5)
-		proceed (RS_RCMD+1);
-
-	tcv_control (sfd, PHYSOPT_SETPARAM, p);
-
-  entry (RS_PAR+1)
-
-	wuart (RS_PAR+1, "Parameter %u set to %u", p [0], p [1]);
 
 	proceed (RS_RCMD);
 

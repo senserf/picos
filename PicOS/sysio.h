@@ -815,7 +815,6 @@ void	dbb (word);
 #define	PHYSOPT_SETSID		10	/* Set station (network) ID */
 #define	PHYSOPT_GETSID		11	/* Return station Id */
 #define	PHYSOPT_SENSE		12	/* Return channel status */
-#define	PHYSOPT_SETPARAM	13	/* Set channel parameter */
 
 #define	PHYSOPT_SETPAYLEN	14	/* Set payload length */
 #define	PHYSOPT_GETPAYLEN	15

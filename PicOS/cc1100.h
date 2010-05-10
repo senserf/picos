@@ -25,43 +25,25 @@
 #define	RADIO_BITRATE		10000	/* This is the default */
 #endif
 
-#ifndef	RADIO_TRACK_ERRORS
-#define RADIO_TRACK_ERRORS	0
+#ifndef	RADIO_OPTIONS
+#define	RADIO_OPTIONS		0
 #endif
-
+// ============================================================================
+// OPTIONS, EXTENSIONS:
 //
-// RADIO_GUARD:
-//
-//	0x01 - guard process present
-//	0x02 - extra consistency checks
-//	0x03 - both
-
-#ifndef	RADIO_GUARD
-#define	RADIO_GUARD		0
-#endif
-
-#ifndef	RADIO_TRACE
-#define RADIO_TRACE		0
-#endif
-
-#ifndef	RADIO_DEBUG
-#define RADIO_DEBUG		0
-#endif
-
-//
-// Set the system to PD mode (powerdown) when radio becomes idle
-//
-#ifndef	RADIO_SPDIFIDLE	
-#define	RADIO_SPDIFIDLE		0
-#endif
-
-//
-// Pre-checks for radio chip presence - to avoid hangups and diagnose the
-// problem; this does not apply to CC430 [where the radio is built-in]
-//
-#ifndef	RADIO_PRECHECKS
-#define	RADIO_PRECHECKS		0
-#endif
+//	0x01 debug: diag messages on various abnormal conditions)
+//	0x02 trace: diag messages on important events)
+//	0x04 track packets: 4 counters + PHYSOPT_ERROR, in this order:
+//		- reception attempts
+//		- CRC errors
+//		- incorrect packet length
+//		- wrong NetID
+//	0x08 prechecks: initial check for RF chip present (to prevent hangups)
+//  	0x10 guard process present
+//	0x20 extra consistency checks
+//	0x40 PHYSOPT_RESET admits a parameter pointing to a substitution table
+//	     for selected register values
+// ============================================================================
 
 #ifndef	RADIO_SYSTEM_IDENT
 #define	RADIO_SYSTEM_IDENT	0xAB35	/* Sync word */

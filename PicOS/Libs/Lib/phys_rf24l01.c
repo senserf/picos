@@ -16,6 +16,7 @@ static word	*rbuff = NULL,
 
 word		zzv_drvprcs, zzv_qevent;
 
+static byte	*supplement = NULL;
 
 static byte	RxOFF,			// Transmitter on/off flags
 		TxOFF;
@@ -128,6 +129,14 @@ static byte chip_config () {
 		diag ("REG %d -> %x", config [i], config [i+1]);
 #endif
 		i += 2;
+	}
+
+	if (supplement) {
+		i = 0;
+		while (supplement [i] != 255) {
+			put_reg (supplement [i], supplement [i+1]);
+			i += 2;
+		}
 	}
 
 	// Addresses
@@ -297,23 +306,16 @@ static byte getchannel () {
 	return get_reg (REG_RF_CH);
 }
 
-static void setparam (byte *pa) {
+static void setparam () {
 
-	if (pa == NULL) {
-		// Reset the chip completely
-		mdelay (1);
-		ce_down;
-		mdelay (1);
-		tx_flush ();	
-		chip_config ();
-		// Kick the process; hopefully, it will sort things out
-		trigger (zzv_qevent);
-	}
-
-	while (*pa != 255) {
-		put_reg (*pa, *(pa+1));
-		pa += 2;
-	}
+	// Reset the chip completely
+	mdelay (1);
+	ce_down;
+	mdelay (1);
+	tx_flush ();	
+	chip_config ();
+	// Kick the process; hopefully, it will sort things out
+	trigger (zzv_qevent);
 }
 
 static void ini_rf24l01 () {
@@ -753,9 +755,10 @@ static int option (int opt, address val) {
 			*val = ret;
 		break;
 
-	    case PHYSOPT_SETPARAM:
+	    case PHYSOPT_RESET:
 
-		setparam ((byte*)val);
+		supplement = (byte*)val;
+		setparam ();
 		break;
 
 	    default:

@@ -252,7 +252,6 @@ int snd_stop (void) {
 #define	RS_RCMD		10
 #define	RS_SND		20
 #define RS_RCV		30
-#define	RS_PAR		40
 #define	RS_POW		50
 #define	RS_RCP		60
 #define	RS_QRCV		63
@@ -272,7 +271,6 @@ thread (root)
 	static int k, n1;
 	static char *fmt, obuf [32];
 	static word p [2];
-	static byte b [3];
 
   entry (RS_INIT)
 
@@ -299,7 +297,6 @@ thread (root)
 		"Commands:\r\n"
 		"s intvl  -> start/reset sending interval (2 secs default)\r\n"
 		"r        -> start receiver\r\n"
-		"d i v    -> change phys parameter i to v\r\n"
 		"p v      -> set transmit power\r\n"
 		"g        -> get received power\r\n"
 		"o        -> stop receiver\r\n"
@@ -331,8 +328,6 @@ thread (root)
 		proceed (RS_SND);
 	if (ibuf [0] == 'r')
 		proceed (RS_RCV);
-	if (ibuf [0] == 'd')
-		proceed (RS_PAR);
 #if UART_RATE_SETTABLE
 	if (ibuf [0] == 'S')
 		proceed (RS_URS);
@@ -431,26 +426,6 @@ thread (root)
   entry (RS_QUIT+1)
 
 	ser_outf (RS_QUIT+1, fmt, obuf);
-
-	proceed (RS_RCMD);
-
-  entry (RS_PAR)
-
-	if (scan (ibuf + 1, "%u %u", p+0, p+1) < 2)
-		proceed (RS_RCMD+1);
-
-	if (p [0] > 255 || p [1] > 255)
-		proceed (RS_RCMD+1);
-
-	b [0] = (byte) (p [0]);
-	b [1] = (byte) (p [1]);
-	b [2] = 255;
-
-	tcv_control (sfd, PHYSOPT_SETPARAM, (address)b);
-
-  entry (RS_PAR+1)
-
-	ser_outf (RS_PAR+1, "Parameter %u set to %u\r\n", p [0], p [1]);
 
 	proceed (RS_RCMD);
 

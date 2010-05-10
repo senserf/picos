@@ -357,11 +357,10 @@ int snd_stop (void) {
 #define	RS_RCMD		10
 #define	RS_SND		20
 #define RS_RCV		30
-#define	RS_PAR		40
-#define	RS_POW		50
-#define	RS_RCP		60
-#define	RS_QRCV		63
-#define	RS_QXMT		66
+#define	RS_POW		40
+#define	RS_RCP		50
+#define	RS_QRCV		60
+#define	RS_QXMT		65
 #define	RS_QUIT		70
 #define	RS_SSID		75
 #define	RS_STK		85
@@ -456,7 +455,6 @@ thread (root)
 		"Commands:\r\n"
 		"s intvl  -> start/reset sending interval (2 secs default)\r\n"
 		"r        -> start receiver\r\n"
-		"d i v    -> change phys parameter i to v\r\n"
 #if DM2100 == 0
 		"p v      -> set transmit power\r\n"
 #endif
@@ -522,7 +520,6 @@ thread (root)
 
 		case 's': proceed (RS_SND);
 		case 'r': proceed (RS_RCV);
-		case 'd': proceed (RS_PAR);
 		case 'l': proceed (RS_LED);
 #ifdef PIN_OPS_TEST
 		case 'x': proceed (RS_GADC);
@@ -659,22 +656,6 @@ thread (root)
   entry (RS_QUIT+1)
 
 	ser_outf (RS_QUIT+1, fmt, obuf);
-
-	proceed (RS_RCMD);
-
-  entry (RS_PAR)
-
-	if (scan (ibuf + 1, "%u %u", p+0, p+1) < 2)
-		proceed (RS_RCMD+1);
-
-	if (p [0] > 5)
-		proceed (RS_RCMD+1);
-
-	tcv_control (sfd, PHYSOPT_SETPARAM, p);
-
-  entry (RS_PAR+1)
-
-	ser_outf (RS_PAR+1, "Parameter %u set to %u\r\n", p [0], p [1]);
 
 	proceed (RS_RCMD);
 

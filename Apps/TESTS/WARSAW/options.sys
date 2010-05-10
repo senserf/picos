@@ -23,10 +23,7 @@
 //#undef	EE_USE_UART
 //#define	EE_USE_UART	1
 
-#define	RADIO_GUARD	0
-#define	RADIO_DEBUG	0
-#define	RADIO_SPDIFIDLE	0
-#define	RADIO_PRECHECKS	1
+#define	RADIO_OPTIONS	(0x08+0x40)	// Precheck for chip present
 
 #ifdef BOARD_WARSAW_NEW
 #define	MONITOR_PIN_CLOCK	P4_5

@@ -463,7 +463,6 @@ endthread
 #define	RS_QRCV		70
 #define	RS_QXMT		80
 #define	RS_QUIT		90
-#define	RS_PAR		100
 #define	RS_SSID		110
 #define	RS_STK		120
 #define	RS_LED		130
@@ -484,7 +483,7 @@ thread (root)
 	static char *ibuf;
 	static int k, n1;
 	static char *fmt, obuf [32];
-	static word p [4];
+	static word p [2];
 	static word n;
 
   entry (RS_INIT)
@@ -557,7 +556,6 @@ thread (root)
 		case 'c': proceed (RS_SEC);
 		case 's': proceed (RS_SND);
 		case 'r': proceed (RS_RCV);
-		case 'd': proceed (RS_PAR);
 		case 'l': proceed (RS_LED);
 #if STACK_GUARD
 		case 'v': proceed (RS_STK);
@@ -684,22 +682,6 @@ thread (root)
   entry (RS_QUIT+1)
 
 	ser_outf (RS_QUIT+1, fmt, obuf);
-	proceed (RS_RCMD);
-
-  entry (RS_PAR)
-
-	if (scan (ibuf + 1, "%u %u", p+0, p+1) < 2)
-		proceed (RS_RCMD+1);
-
-	if (p [0] > 5)
-		proceed (RS_RCMD+1);
-
-	tcv_control (sfd, PHYSOPT_SETPARAM, p);
-
-  entry (RS_PAR+1)
-
-	ser_outf (RS_PAR+1, "Parameter %u set to %u\r\n", p [0], p [1]);
-
 	proceed (RS_RCMD);
 
   entry (RS_SSID)

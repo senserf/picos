@@ -4188,5 +4188,43 @@ R100508A:
 	doc.odt). Intended for testing the reliability/quality of
 	transmitters/receivers in groups of nodes.
 
-	
+R100509A:
+
+	Cleanups in phys_cc1100 continued:
+
+	- removed option RADIO_SPDIFIDLE (obsoleted by TRIPLE_CLOCK)
+
+	- options: RADIO_GUARD, RADIO_TRACE, RADIO_TRACK_ERRORS, RADIO_DEBUG,
+	  RADIO_PRECHECKS replaced with a single (bitmap) option RADIO_OPTIONS:
+
+		0x01 debug: diag messages on various abnormal conditions)
+
+		0x02 trace: diag messages on important events)
+
+		0x04 track packets: 4 counters + PHYSOPT_ERROR
+
+		0x08 prechecks: initial check for RF chip present (to prevent
+		     hangups)
+
+	  	0x10 guard process present
+
+		0x20 extra consistency checks
+
+		0x40 PHYSOPT_RESET admits a parameter pointing to a
+		     substitution table for selected register values
+
+	- old PHYSOPT_SETPARAM removed; it was confusing because any registers
+	  changed this way were reset to standard values after chip_reset which
+	  could happen internally and inadvertently; now PHYSOPT reset can
+	  declare a (permanent) table with supplementary values to be used on
+	  all resets, which makes more sense
+
+	I have modified the code of il_demo to use the new way of selecting the
+	respective options, but I haven't touched Wlodek's comments/notes.
+
+	Expression evaluation for #if's in mkmk greatly (I mean GREATLY)
+	improved.
+
+	A few cosmetic changes here and there.
+
 

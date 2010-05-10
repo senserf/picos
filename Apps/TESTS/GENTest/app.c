@@ -430,7 +430,6 @@ endprocess (1)
 #define	RS_SEC		80
 #define RS_SEP		83
 #define	RS_SMO		86
-#define	RS_SRE		87
 #define	RS_PDO		95
 #define	RS_FLW		100
 #define	RS_FLR		110
@@ -449,7 +448,6 @@ process (root, int)
 
 	static char *ibuf;
 	int n, v;
-	byte ba [4];
 	static word a, b, c;
 	long lw;
 
@@ -504,7 +502,6 @@ diag (
 #if CC1100
 	"k n      -> select channel n [%u]\r\n"
 	"n [0-7]  -> set xmit power [%u]\r\n"
-	"r n v    -> set CC1100 reg n to v\r\n"
 #endif
 	"u d      -> enter power-down mode for d seconds\r\n"
 
@@ -572,8 +569,6 @@ diag (
 		proceed (RS_SEC);
 	if (ibuf [0] == 'n')
 		proceed (RS_SEP);
-	if (ibuf [0] == 'r')
-		proceed (RS_SRE);
 #endif
 	if (ibuf [0] == 'u')
 		proceed (RS_PDO);
@@ -776,18 +771,6 @@ diag (
 	tcv_control (sfd, PHYSOPT_SETPOWER, (address)(&n));
 	proceed (RS_DON);
 
-  entry (RS_SRE)
-
-	v = -1;
-	scan (ibuf + 1, "%x %x", &n, &v);
-	if (v < 0)
-		proceed (RS_RCMD+1);
-	ba [0] = (byte) n;
-	ba [1] = (byte) v;
-	ba [2] = 255;
-
-	tcv_control (sfd, PHYSOPT_SETPARAM, (address)ba);
-	proceed (RS_DON);
 #endif
 
   entry (RS_PDO)
