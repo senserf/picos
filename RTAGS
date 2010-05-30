@@ -4227,4 +4227,9 @@ R100509A:
 
 	A few cosmetic changes here and there.
 
+R100530A:
+
+  il_demo minor update:
+  - analog power & light readings mutually exclusive in pesens, sens threads;
+  - added mlakes_27_1.xml, mlakes_27_2.xml for IL deployment in units 27-29.
 
