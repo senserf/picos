@@ -305,6 +305,8 @@ int AgentOutput::start (void *in, Dev *a, int bufl) {
 			c = ECONN_ALREADY;
 
 		if (c != ECONN_OK) {
+			// Flag == void exit (do not destroy things)
+			IN = NULL;
 			create Disconnector (Agent, c);
 			terminate ();
 			return ERROR;
@@ -608,7 +610,7 @@ process	PinsHandler : AgentOutput {
 
 	~PinsHandler () {
 		// Note that delete NULL is fine
-		if (PN != NULL) {
+		if (IN != NULL && PN != NULL) {
 			delete PN->Upd;
 			PN->Upd = NULL;
 		}
@@ -672,7 +674,10 @@ process	SensorsHandler : AgentOutput {
 
 	~SensorsHandler () {
 		// Note that delete NULL is fine
-		if (SN != NULL) {
+		if (IN != NULL && SN != NULL) {
+			// IN == NULL means destruction caused by another copy
+			// of the module already running, in which case we
+			// cannot destroy the mailbox
 			delete SN->Upd;
 			SN->Upd = NULL;
 		}
@@ -839,7 +844,9 @@ process	LcdgHandler : AgentOutput {
 
 	~LcdgHandler () {
 		// Note that delete NULL is fine
-		LC->close_connection ();
+		if (IN != NULL) {
+			LC->close_connection ();
+		}
 	};
 };
 

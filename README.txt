@@ -538,3 +538,8 @@ R100509A:
 
     Added PHYSOPT_RESET to rfmodule.cc (with void action) for compatibility
     with the cleaned-up CC1100 driver.
+
+R100602A:
+
+    Fixed a bug causing segmentation fault on udaemon's attempts to connect
+    to already active SENSORS and PINS modules.
