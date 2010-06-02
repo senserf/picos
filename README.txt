@@ -541,5 +541,5 @@ R100509A:
 
 R100602A:
 
-    Fixed a bug causing segmentation fault on udaemon's attempts to connect
+    Fixed a bug causing segmentation faults on udaemon's attempts to connect
     to already active SENSORS and PINS modules.
