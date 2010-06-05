@@ -4215,7 +4215,7 @@ R100509A:
 
 	- old PHYSOPT_SETPARAM removed; it was confusing because any registers
 	  changed this way were reset to standard values after chip_reset which
-	  could happen internally and inadvertently; now PHYSOPT reset can
+	  could happen internally and inadvertently; now PHYSOPT_RESET can
 	  declare a (permanent) table with supplementary values to be used on
 	  all resets, which makes more sense
 
@@ -4233,3 +4233,8 @@ R100530A:
   - analog power & light readings mutually exclusive in pesens, sens threads;
   - added mlakes_27_1.xml, mlakes_27_2.xml for IL deployment in units 27-29.
 
+
+R100605A:
+
+	PiComp teaser. Go to Apps/VUEE/TEASER, read README.txt, and do the
+	exercise.

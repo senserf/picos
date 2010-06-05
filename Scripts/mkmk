@@ -1133,10 +1133,17 @@ proc outmkf { def cpu } {
 			puts $mfd ""
 			puts $mfd "\tmkdir -p \$(TD)"
 			if { $suf == ".cc" } {
-				# this is a VUEE source, copy it to plain C
+				# this is a VUEE-compatible enhanced source to
+				# be preprocessed by picomp
 				set rfn "${rna}.c"
-				puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfn"
+				set rfm "___pcs___$rfn"
+				puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfm"
 				set spfx "\$(TD)"
+				puts -nonewline $mfd \
+					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+				puts $mfd \
+				    " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
+				puts $mfd "\trm $spfx/$rfm"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
 			} else {
@@ -1285,10 +1292,14 @@ proc outmkf_lib { def cpu } {
 		puts $mfd ""
 		puts $mfd "\tmkdir -p \$(TD)"
 		if { $suf == ".cc" } {
-			# this is a VUEE source, copy it to plain C
+			# this is "enhanced" source code to be precompiles
 			set rfn "${rna}.c"
-			puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfn"
+			set rfm "___pcs___$rfn"
+			puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfm"
 			set spfx "\$(TD)"
+			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
+			puts $mfd " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
+			puts $mfd "\trm $spfx/$rfm"
 			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
 		} else {
 			set spfx "\$($dsh)"
@@ -1577,8 +1588,8 @@ proc mkdrec { dname } {
 		return
 	}
 	
-	foreach f [exec ls $dname] {
-		if [regexp -nocase "attic|junk" $f] {
+	foreach f $sdl {
+		if [regexp -nocase "attic|junk|vuee_tmp" $f] {
 			# ignore oldies and garbage
 			continue
 		}
@@ -1872,7 +1883,6 @@ proc sexpr { str } {
 
 	if [catch { eval expr $str } val] {
 		dmp "EXPR FAILED: $str"
-exit 0
 		return -1
 	}
 
@@ -1889,7 +1899,7 @@ proc setsymbols { dl } {
 #
 # Preset symbols for parsing files
 #
-	global Symbols Run
+	global Symbols
 
 	array unset Symbols
 
@@ -2109,6 +2119,7 @@ proc scanfile { fname } {
 			} else {
 				dmp "INCLUDE: $fn not found"
 			}
+			continue
 		}
 
 		if { $cm == "error" } {
@@ -2586,7 +2597,7 @@ proc main { } {
 			}
 
 			array unset Processed
-			array unset ToCompile
+			unset ToCompile
 			array unset Symbols
 			dmp "TO COMPILE SRC \[$suffix\]: '$SrcLists($suffix)'"
 		}
