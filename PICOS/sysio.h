@@ -30,6 +30,22 @@
 #define	UART_TCV_MODE_P		1	// Built-in ACKs
 #define	UART_TCV_MODE_L		2	// Lines
 
+#ifndef	CC1000
+#define	CC1000 0
+#endif
+#ifndef	CC1100
+#define	CC1100 0
+#endif
+#ifndef	DM2200
+#define	DM2200 0
+#endif
+#ifndef	ETHERNET_DRIVER
+#define	ETHERNET_DRIVER 0
+#endif
+#ifndef	UART_TCV
+#define	UART_TCV 0
+#endif
+
 // ----------------------------------------------------------------------- //
 // NOTE: this will be replaced in PicOS as an isolated fragment of sysio.h //
 // ----------------------------------------------------------------------- //
@@ -272,6 +288,8 @@ typedef	int (*ctrlfun_t) (int option, address);
 #ifndef	THREADNAME
 #define	THREADNAME(a)	a
 #endif
+
+#define	PREINIT(a,b)	preinit (b)
 
 #define	threadhdr(a,b)	process THREADNAME(a) : _PP_ (b)
 #define	strandhdr(a,b)	threadhdr (a, b)

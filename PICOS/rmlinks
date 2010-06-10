@@ -11,6 +11,7 @@ rm -f sensors.h
 rm -f ser.h
 rm -f serf.h
 rm -f storage.h
+rm -f hold.h
 rm -f phys_cc1100.h
 #################################
 rm -f tcv.cc

@@ -78,3 +78,4 @@ ln -sf board.h pinopts.h
 ln -sf board.h rtc_s35390.h
 ln -sf board.h rtc_cc430.h
 ln -sf board.h sensors.h
+ln -sf board.h hold.h
