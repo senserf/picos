@@ -1626,28 +1626,24 @@ proc needlist { ar fname } {
 		if { $ar == "" } {
 			break
 		}
-		set del [string index $ar 0]
-		if { $del == "\"" } {
-			if ![regexp "\"(\[^ \t\"]+\\.(c|asm?))\"" $ar jk nfn] {
-				# we don't understand this
-				puts stdout \
-				"Warning: '//+++' syntax error: '$ar' in $fname"
-				break
-			}
-		} elseif { $del == "<" } {
-			if ![regexp "<(\[^ \t<>]+\\.(c|asm?))>" $ar jk nfn] {
-				puts stdout \
-				"Warning: '//+++' syntax error: '$ar' in $fname"
-				break
-			}
+
+		set d0 [string index $ar 0]
+		if { $d0 == "\"" } {
+			set d1 $d0
+		} elseif { $d0 == "<" } {
+			set d1 ">"
 		} else {
-			if ![regexp "\[^ \t]+\\.(c|asm?)" $ar jk] {
-				puts stdout \
+			set d0 ""
+			set d1 ""
+		}
+
+		set pat "$d0\[ \t\]*(\[^ \t$d1]+\\.(cc?|asm?))\[ \t\]*$d1"
+
+		if ![regexp $pat $ar jk nfn] {
+			# we don't understand this
+			puts stdout \
 				"Warning: '//+++' syntax error: '$ar' in $fname"
 				break
-			} else {
-				set nfn $jk
-			}
 		}
 
 		set cm [string first $jk $ar]

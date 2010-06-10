@@ -4238,3 +4238,11 @@ R100605B:
 
 	PiComp teaser. Go to Apps/VUEE/TEASER, read README.txt, and do the
 	exercise.
+
+R100609A:
+
+	A new version of PiComp (much improved). Praxis Apps/VUEE/new_il_demo
+	is the reorganized version of il_demo. Read Docs/PiComp.pdf. You may
+	also start with README.txt in Apps/VUEE/new_il_demo. The teaser from
+	R100605B should work, too. Requires SIDE and VUEE with the same
+	release number.

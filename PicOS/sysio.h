@@ -992,6 +992,11 @@ void	adc_stop (void);
 #define	__VIRTUAL
 #define	__ABSTRACT
 
+#define	trueconst	const
+#define	idiosyncratic
+
+#define	PREINIT(a,b)	(a)
+
 #define	vuee_control(a,...)	CNOP
 #define	__sinit(...)	= { __VA_ARGS__ }
 

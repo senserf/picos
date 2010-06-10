@@ -13,6 +13,8 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
+set Version 0.1
+
 proc dbg { m } {
 
 	puts stderr $m
@@ -67,13 +69,13 @@ proc iskwd { s } {
 
 proc xerror { msg { lnu "" } } {
 #
-# An error message
+# An error message (with line number)
 #
-	global PS
+	global PS ErrCnt
 
 	if { $lnu == "" } {
 		set ln $PS(LIN)
-		set fl $PS(LIF)
+		set lf $PS(LIF)
 	} else {
 		set ln [lindex $lnu 0]
 		set lf [lindex $lnu 1]
@@ -81,9 +83,13 @@ proc xerror { msg { lnu "" } } {
 
 	puts stderr "$lf:$ln: $msg"
 
+	# parser error count
 	incr PS(ERC)
 
-	if { $PS(ERC) > 15 } {
+	# global error count
+	incr ErrCnt
+
+	if { $ErrCnt > 15 } {
 		puts stderr "$lf:$ln: too many errors"
 		exit 99
 	}
@@ -91,7 +97,7 @@ proc xerror { msg { lnu "" } } {
 
 proc xsterr { { bra "" } } {
 #
-# Unexpected EOF
+# Unexpected EOF error
 #
 	if { $bra != "" } {
 		set t "unmatched "
@@ -154,7 +160,9 @@ proc output { } {
 }
 
 proc getC { } {
-
+#
+# Read next character from the parser's input
+#
 	global PS
 
 	set c [string index $PS(SRC) $PS(INX)]
@@ -180,14 +188,16 @@ proc getC { } {
 }
 
 proc peekC { } {
-
+#
+# Peek at next character
+#
 	global PS
 	return [string index $PS(SRC) $PS(INX)]
 }
 
 proc putC { c } {
 #
-# Single character put
+# Single character write to the parser's output
 #
 	global PS
 
@@ -208,7 +218,7 @@ proc putC { c } {
 
 proc putS { s } {
 #
-# Output a string
+# Append a string at the end of the parser's output
 #
 	global PS
 
@@ -218,7 +228,10 @@ proc putS { s } {
 }
 
 proc catchup { } {
-
+#
+# Catch up with line numbers, i.e., make sure that the effective line number
+# at the current place in the parser's output is the same as on input
+#
 	global PS
 
 	while 1 {
@@ -232,10 +245,11 @@ proc catchup { } {
 			return
 		}
 		if { $dif > 16 || $dif < 0 } {
-			# difference to big or negative
+			# difference to big or negative, must be forced by an
+			# explicit line number sequence
 			break
 		}
-		# loop eols
+		# just insert eols
 		while { $PS(LIN) > $PS(LON) } {
 			append PS(TAR) "\n"
 			incr PS(LON)
@@ -246,12 +260,18 @@ proc catchup { } {
 }
 
 proc lnumseq { lnu } {
-
+#
+# Convert a line number (number, file name) into a sequence to be inserted into
+# file
+#
 	return  "# [lindex $lnu 0] \"[lindex $lnu 1]\"\n"
 }
 
 proc setlnum { lnu } {
-
+#
+# Set the line number at the current point of the parser's output to an
+# explicit value
+#
 	global PS
 
 	set PS(LON) [lindex $lnu 0]
@@ -265,7 +285,9 @@ proc setlnum { lnu } {
 }
 
 proc parse_lnum { } {
-
+#
+# Parse a line number sequence in the parser's input
+#
 	global PS
 
 	set cmd ""
@@ -295,7 +317,7 @@ proc parse_lnum { } {
 		set PS(LIN) [expr $ln - 1]
 
 		if { [string first "/___pcs___" $fi] >= 0 } {
-			# change the name to sane for error reports
+			# clean up the name for error reports
 			regsub "___pcs___" $fi "" fi
 		}
 
@@ -310,14 +332,16 @@ proc parse_lnum { } {
 }
 
 proc brcnt { } {
-
+#
+# Return current bracket level on input
+#
 	global PS
 	return $PS(BRL)
 }
 
 proc getmark { } {
 #
-# Save the parser state
+# Produce a "mark" representing the parser's state, e.g., to be reverted to
 #
 	global PS
 
@@ -326,10 +350,24 @@ proc getmark { } {
 		$PS(LIF) ]
 }
 
+proc getmarq { } {
+#
+# Same as getmark, except that the input is backspaced by one character (needed
+# by ntoken, which grabs the mark after swallowing the first character of the
+# token
+#
+	global PS
+
+	set ix [expr $PS(INX) - 1]
+	return [list [string length $PS(TAR)] $PS(LON) $PS(LOF) \
+		$PS(BQL) $PS(BRL) $PS(BOP) $PS(BOL) $ix $PS(LIN) \
+		$PS(LIF) ]
+}
+
 proc truncate { mark } {
 #
 # Truncate the output to the mark, i.e., restore the output side of the parser
-# state
+# state as it was when the mark was taken
 #
 	global PS
 
@@ -344,9 +382,9 @@ proc truncate { mark } {
 	set PS(BQL) $bq
 }
 
-proc backtrack { mark } {
+proc backtrack { mk } {
 #
-# Restore the input to the mark, i.e., backtrack the parser
+# Restore the input to the mark
 #
 	global PS
 
@@ -360,7 +398,7 @@ proc backtrack { mark } {
 
 proc restore { mk } {
 #
-# Restore the complete parser state from a mark
+# Restore the complete parser state (both sides) to the mark
 #
 	global PS
 
@@ -370,7 +408,7 @@ proc restore { mk } {
 
 proc ilinenum { mk } {
 #
-# Extract the input line number from a mark
+# Extract the input line number from the mark
 #
 	global PS
 
@@ -379,7 +417,7 @@ proc ilinenum { mk } {
 
 proc olinenum { mk } {
 #
-# Extract the output line number from a marks
+# Extract the output line number from the mark
 #
 	global PS
 
@@ -388,7 +426,8 @@ proc olinenum { mk } {
 
 proc insert { mk ins } {
 #
-# Insert text into output at a mark
+# Insert text into output at the mark; anything following the mark will appear
+# after the insert
 #
 	global PS
 
@@ -402,7 +441,26 @@ proc insert { mk ins } {
 }
 
 proc ntoken { } {
-
+#
+# Returns the next token from the parser's input; the token is swallowed;
+# PAR_IT tells the type, which can be: "k" (keyword), "n" (numeric, i.e., like
+# a keyword starting from a digit), "d" (delimiter), "s" (string or a comment),
+# "e" (end of file), "f" (failed end of file, i.e., EOF within a string).
+#
+# Note that strings and comments are treated similarly, except that comments
+# are always returned as empty tokens, i.e., PAR_IT is "s", but the returned
+# value is "". This cannot happen for a string, even if it is empty, because
+# it includes the delimiters ("..." or ','). The idea is that the program can
+# be recombined by simply concatenating the tokens successively returned by
+# ntoken, as long as you make sure to insert one space between two conecutive
+# keywords/numwords.
+#
+# The function atomatically outputs the scanned characters to the parser's
+# output. If you want to replace something there, use marks, inserts, etc.
+#
+# PAR_MARK is automatically set to the mark immediately preceding the token
+# being returned.
+#
 	global PAR_IT PAR_MARK PS
 
 	set ws ""
@@ -477,7 +535,7 @@ proc ntoken { } {
 			return ""
 		}
 
-		set PAR_MARK [getmark]
+		set PAR_MARK [getmarq]
 
 		if [isalphanum $c] {
 
@@ -572,11 +630,62 @@ proc ntoken { } {
 
 ###############################################################################
 
+proc legcs { c } {
+#
+# Legitimate delimiters in structures
+#
+	return [regexp "\[;,\{\}\\\[\\\]:\\\*\\\(\\\)\]" $c]
+}
+
 proc parse_decl { tok } {
 #
-# Extracts a declaration, the argument is first token
+# Parse a declaration and return its description; the argument is the first
+# token of a suspected declaration, which must be a keyword.
 #
-	global PAR_MARK PAR_IT
+# The function returns a list of these items:
+#
+#	0 - the prefix, i.e., the list of "type" keywords, like
+#	    "volatile static int"
+#
+#	1 - the list of variables (more generally, elements), or type name
+#	    (for a type declaration)
+#
+#	2 - the line number (number, file name) of the declaration (this is
+#	    needed for consistent error reporting)
+#
+#	3 - the declaration type (a single letter):
+#
+#		T - type declaration, A - function announcements only,
+#		M - mixed (function announcements with variables)
+#		V - variables only, F - a function declaration
+#
+# For a non-type declaration, i.e., other than T, element 1 is a list of
+# variables. Each item is a 4-element list with this layout:
+#
+#	0 - preamble (for example ** or "(" - for a function pointer); this is
+#	    the part that belongs to the variable (rather than prefix), but is
+#	    not part of the variable name
+#
+#	1 - the actual name of the variable (a keyword)
+#
+#	2 - the postamble, i.e., whatever follows the name, but is not an
+#	    initializer, like in arr [3][5]
+#
+#	3 - the initializer, if present, i.e., the part after "=", or "" is
+#	    there's no initializer
+#
+# For a type declaration (T), element 1 is the type name string (e.g., for
+# detecting duplicates), while element 0 (the prefix) is the complete list of
+# tokens comprising the declaration.
+#
+# On exit:
+#
+# PAR_MARK is set to the beginning of the declaration. If the returned
+# value is "", it means that the token doesn't start a declaration. Note that
+# the thing, whatever it is, has been parsed through until some point, so if
+# you want to re-parse everything, you have to backtrack to PAR_MARK.
+#
+	global PAR_MARK PAR_IT PAR_DEL
 
 	set pfx [list $tok]
 	# variable list
@@ -587,25 +696,45 @@ proc parse_decl { tok } {
 	# line of the declaration
 	set vli [olinenum $dec_mark]
 
-	# to be reset after handling each variable:
-	# -----------------------------------------
+	# to be reset after handling each item: ###############################
+	# 
 	#	- variable name
 	set vnm ""
 	# 	- prefix in front of variable name, i.e., a sequence of *'s
 	set vnp ""
-	# 	- function flag (need a closing ")"
-	set fun 0
+	# 	- need a closing ")" - a function-pointer variable
+	set clo 0
 	#	- name tail, i.e., [] for array, ) for function pointer
 	set vnt ""
 	#	- initializer
 	set vni ""
+	#######################################################################
+
+	# number of variables
+	set nva 0
+	# number of function announcements
+	set nfa 0
+	# function flag, can only be zero or one
+	set nfd 0
+	#######################################################################
+
+	# tells whether we have a variable/function or type declaration; -1
+	# means unknown yet
+	set typedec -1
+
+	# type (for typedefs, unions, and structures)
+	set typ ""
 
 	# brace level
 	set blev [brcnt]
 
 	set more 1
 
-	set dstate "P"
+	if { $tok == "typedef" } {
+		set dstate "T"
+	} else {
+		set dstate "P"
+	}
 
 	while { $more } {
 
@@ -628,11 +757,34 @@ proc parse_decl { tok } {
 		  # collecting type prefix ####################################
 		  #############################################################
 			if { $PAR_IT == "k" } {
+				if { $tok == "typedef" } {
+					# the prefix must be empty for that
+					xerror "typedef preceded by garbage"
+					
+				}
+				if { $tok == "union" || $tok == "struct" } {
+					# if pfx is empty, this can be a type
+					# declaration, although id doesn't have
+					# to; otherwise, it must be a variable
+					# declaration
+					if { $pfx != "" } {
+						# this cannot be a type decl
+						# any more
+						set typedec 0
+					}
+					set typ $tok
+					set dstate "S"
+				}
+				# just a keyword
 				lappend pfx $tok
 				continue
 			}
 
-			# delimiter
+			# we have seen a sequence of keywords (none of them
+			# being typedef, struct, or union) followed by a
+			# delimiter; this means a straightforward non-type
+			# declaration
+
 			if { $tok == "*" } {
 				set vnp "*"
 				# collecting name prefix, i.e., *'s
@@ -641,11 +793,43 @@ proc parse_decl { tok } {
 			}
 
 			if { $tok == "(" } {
-				# function = prefix *...(*name) 
-				set vnp "("
-				set fun 1
-				# collecting name prefix
-				set dstate "M"
+
+				# if this is followed by *, we are looking at
+				# a function pointer declaration; otherwise,
+				# it is a function (declaration or
+				# announcement), and we are past the variable
+
+				set fp_mark [getmark]
+				set tok [ntoken]
+
+				if { $PAR_IT == "d" && $tok == "*" } {
+					# a function pointer declaration
+					set vnp "(*"
+					set clo 1
+					# collecting name prefix
+					set dstate "M"
+					continue
+				}
+
+				# wrong guess
+				restore $fp_mark
+
+				# the last keyword is the function name
+				set vix [llength $pfx]
+				if { $vix < 2 } {
+					return ""
+				}
+
+				incr vix -1
+
+				set vnm [lindex $pfx $vix]
+				set pfx [lrange $pfx 0 [expr $vix - 1]]
+
+				# looking for name delimiter
+				set tok "("
+				set PAR_IT "d"
+				set dstate "N"
+				set rep 1
 				continue
 			}
 
@@ -685,19 +869,11 @@ proc parse_decl { tok } {
 
 			if { $PAR_IT == "d" } {
 
-				if { $tok != "*" && $tok != "(" } {
-					# we may try to diagnose some errors
+				if { $tok != "*" } {
+					# we may try to diagnose some errors;
+					# better not here, as we may be stopped
+					# half-way through something
 					return ""
-				}
-
-				if { $tok == "(" } {
-					if $fun {
-						# like this one
-						xerror "function pointer\
-							declaration error"
-						return ""
-					}
-					set fun 1
 				}
 
 				append vnp $tok
@@ -724,11 +900,52 @@ proc parse_decl { tok } {
 				return ""
 			}
 
-			if { $fun == 1 && $tok != ")" } {
+			if { $clo == 1 } {
 				# must be a closing parenthesis
+				if { $tok != ")" } {
+					xerror "unrecognizable function\
+					pointer declaration, ) expected"
+				}
 				append vnt ")"
-				incr fun
+				incr clo
 				# keep going
+				continue
+			}
+
+			if { $clo == 2 } {
+				# expecting opening parenthesis for the args
+				if { $tok != "(" } {
+					xerror "unrecognizable function\
+						pointer declaration, ( expected"
+					return ""
+				}
+				set arg [parse_arg]
+				if { $PAR_DEL == "" } {
+					return ""
+				}
+				append vnt "($arg)"
+				# this no longer legal, but we stay in this
+				# state
+				incr clo
+				continue
+			}
+
+			if { $tok == "(" } {
+				if $clo {
+					xerror "unrecognizable function\
+						pointer declaration"
+					return ""
+				}
+				# function declaration
+				set arg [parse_arg]
+				if { $PAR_DEL == "" } {
+					# runaway argument diagnosed by
+					# parse_arg
+					return ""
+				}
+				append vnt "($arg)"
+				# expected comma, semi, or "\{"
+				set dstate "U"
 				continue
 			}
 
@@ -739,19 +956,24 @@ proc parse_decl { tok } {
 			}
 
 			if { $tok == "=" } {
-				# no append
-				set dstate "I"
-				continue
+				set vni [parse_ini]
+				if { $PAR_DEL != "," && $PAR_DEL != ";" } {
+					return ""
+				}
+				set PAR_IT "d"
+				set tok $PAR_DEL
+				# fall through
 			}
 
 			if { $tok == "," || $tok == ";" } {
 				# done with the variable
+				incr nva
 				lappend vrs [list $vnp $vnm $vnt $vni]
 				set vnp ""
 				set vnm ""
 				set vnt ""
 				set vni ""
-				set fun 0
+				set clo 0
 				if { $tok == ";" } {
 					set more 0
 				}
@@ -781,98 +1003,261 @@ proc parse_decl { tok } {
 			append vnt $tok
 		  }
 
-		  I {
+		  U {
 		  #############################################################
-		  # the initializer ###########################################
-		  #############################################################
-
-			append vni $tok
-			if { $PAR_IT == "d" && ($tok == "\{" || $tok == "(") } {
-				# need a match
-				if { $tok == "(" } {
-					set ibt ")"
-				} else {
-					set ibt "\}"
-				}
-				set ibo $tok
-				set ibc 1
-				set dstate "B"
-			} else {
-				set dstate "K"
-			}
-		  }
-
-		  B {
-		  #############################################################
-		  # looking for the end of a compound initializer #############
+		  # function declaration ######################################
 		  #############################################################
 
-			append vni $tok
-			if { $PAR_IT == "d" } {
-				if { $tok == $ibo } {
-					incr ibc
-				} elseif { $tok == $ibt } {
-					incr ibc -1
-					if { $ibc == 0 } {
-						set dstate "V"
-					}
-				} elseif { $tok == ";" } {
-					xerror "missing brace in variable \
-						initializer"
-					return ""
-				}
-			}
-		  }
-
-		  K {
-		  #############################################################
-		  # looking for the end of a simple initializer ###############
-		  #############################################################
-
-			if { $PAR_IT == "d" } {
-				if { $tok == "," || $tok == ";" } {
-					set rep 1
-					set dstate "N"
-					continue
-				}
-			}
-
-			append vni $tok
-		  }
-
-		  V {
-		  #############################################################
-		  # final delimiter expected ##################################
-		  #############################################################
-
-			if { $PAR_IT != "d" || ($tok != "," && $tok != ";") } {
-				xerror "expected , or ; after variable name"
+			if { $PAR_IT != "d" } {
+				xerror "illegal function declaration"
 				return ""
 			}
 
+			if { $tok == "\{" } {
+				# this is an actual function declaration, as
+				# opposed to an announcement
+				if { $vrs != "" } {
+					# must be alone
+					xerror "illegal declaration"
+					return ""
+				}
+
+				incr nfd
+
+				lappend vrs [list $vnp $vnm $vnt ""]
+
+				set vnp ""
+				set vnm ""
+				set vnt ""
+				set vni ""
+				set clo 0
+
+				set more 0
+
+				set dstate "M"
+				continue
+			}
+
+			# must be a comma or semi
+			if { $tok != "," && $tok != ";" } {
+				xerror "illegal declaration, ; or , expected"
+				return ""
+			}
+
+			lappend vrs [list $vnp $vnm $vnt ""]
+			incr nfa
+			set vnp ""
+			set vnm ""
+			set vnt ""
+			set vni ""
+			set clo 0
+			if { $tok == ";" } {
+				set more 0
+			}
+			set dstate "M"
+			continue
+		  }
+		
+		  T {
+		  #############################################################
+		  # typedef ###################################################
+		  #############################################################
+
+			set br [brcnt]
+
+			# skip until ; and grab the last keyword as the type
+			# name; return the full type declaration in the prefix
+
+			lappend pfx $tok
+
+			while 1 {
+				set tok [ntoken]
+				if { $PAR_IT == "k" } {
+					set typ $tok
+					lappend pfx $tok
+					continue
+				}
+
+				if { $PAR_IT == "d" } {
+					if { $tok == ";" && [brcnt] == $br } {
+						# the end
+						if { $typ == "" } {
+							xerror "typedef syntax\
+								error, type\
+								name missing"
+							return ""
+						}
+						break
+					}
+
+					if ![legcs $tok] {
+						xerror "illegal token $tok in\
+							typedef"
+						return ""
+					}
+				} elseif { $PAR_IT == "e" || $PAR_IT == "f" } {
+					xerror "incomplete declaration at end\
+						of file"
+					return ""
+				}
+
+				if { [brcnt] < $br } {
+					xerror "semicolon missing after typedef"
+					return ""
+				}
+
+				lappend pfx $tok
+			}
+
+			set more 0
+			set dstate "M"
+
+			continue
+		  }
+
+		  S {
+		  #############################################################
+		  # struct or union ###########################################
+		  #############################################################
+
+			# this is the only state out if we succeed -> to parse
+			# the struct's body
+			set dstate "W"
+
+			if { $PAR_IT == "k" } {
+				# this may look like a type declaration
+				if { $typedec == 0 } {
+					# except that it can't
+					xerror "illegal struct/union type\
+						declaration"
+					return ""
+				}
+				# construct a tentative type name; will clear
+				# typ, if this turns out to be a variable
+				# declaration after all
+				append typ " $tok"
+				lappend pfx $tok
+			} else {
+				# this cannot be a type declaration
+				set typedec 0
+				# do not read next token, have got it already
+				set rep 1
+			}
+		  }
+		
+		  W {
+		  #############################################################
+		  # struct or union body ######################################
+		  #############################################################
+
+			if { $PAR_IT != "d" || $tok != "\{" } {
+				xerror "illegal struct/union declaration"
+				return ""
+			}
+
+			lappend pfx $tok
+			set br [brcnt]
+
+			while 1 {
+				set tok [ntoken]
+				lappend pfx $tok
+				if { $PAR_IT == "d" } {
+					if { $tok == "\}" && [brcnt] < $br } {
+						# closing brace
+						break
+					}
+					if ![legcs $tok] {
+						xerror "illegal token $tok in\
+							union/struct"
+						return ""
+					}
+				}
+				if { $PAR_IT == "e" || $PAR_IT == "f" } {
+					xerror "incomplete declaration at end\
+						of file"
+					return ""
+				}
+			}
+
+			# this is the end of struct/union body; if this is
+			# followed by anything other than ;, parse it as a
+			# variable declaration, even if it says "type"
+
+			set tok [ntoken]
+
+			if { $tok == ";" } {
+				if { $typedec == 0 } {
+					# it cannot be a type declaration
+					xerror "illegal struct/union\
+						declaration, missing variable\
+						list"
+					return ""
+				}
+
+				# type declaration OK
+
+				set more 0
+				set dstate "M"
+				continue
+			}
+
 			set rep 1
-			set dstate "N"
+			# collecting variable name prefix
+			set dstate "M"
+			set typ ""
+
+			continue
 		  }
 
 		  default {
 
 			xerror "illegal state $dstate in parse_decl,\
 				internal error"
-			return ""
+			exit 99
 		  }
 		}
 	    }
 	}
 
 	set PAR_MARK $dec_mark
-	return [list $pfx $vrs $vli]
+
+	if { $typ != "" } {
+		# type declaration
+		set vrs $typ
+		set typ "T"
+	} elseif $nfd {
+		# function declaration (body)
+		set typ "F"
+	} elseif { $nva && !$nfa } {
+		# variables only
+		set typ "V"
+	} elseif { $nfa && !$nva } {
+		# function announcements only
+		set typ "A"
+	} else {
+		# mixed
+		set typ "M"
+	}
+
+	return [list $pfx $vrs $vli $typ]
+}
+
+proc isfundec { v } {
+#
+# Returns 1 if the declared item is a function announcement
+#
+	if { [string index [lindex $v 2] 0] == "(" } {
+		return 1
+	}
+	return 0
 }
 
 ###############################################################################
 
 proc parse_type { } {
 #
-# Extract a type declaration
+# Extract a type declaration, extremely heuristically, grabs a sequence of
+# keywords possibly with interspersed sequences of asterisks
 #
 	global PAR_IT PAR_DEL
 
@@ -901,7 +1286,9 @@ proc parse_type { } {
 
 proc outdecl { dec { init 1 } } {
 #
-# convert a declaration into a string; init == include the initializer
+# Convert a declaration description (e.g., returned by parse_decl) back into a
+# program string; init -> include the initializer. The string is terminated by
+# a semicolon.
 #
 	set pfx [lindex $dec 0]
 	set lin ""
@@ -910,53 +1297,106 @@ proc outdecl { dec { init 1 } } {
 		append lin "$w "
 	}
 
-	set vrs [lindex $dec 1]
+	if { [lindex $dec 3] != "T" } {
 
-	foreach v $vrs {
+		# for a type declaration, the prefix contains everything
 
-		append lin "[lindex $v 0][lindex $v 1][lindex $v 2]"
+		set vrs [lindex $dec 1]
 
-		if $init {
-			set vni [lindex $v 3]
-			if { $vni != "" } {
-				append lin "=[lindex $vni]"
+		foreach v $vrs {
+
+			append lin "[lindex $v 0][lindex $v 1][lindex $v 2]"
+
+			if $init {
+				set vni [lindex $v 3]
+				if { $vni != "" } {
+					append lin "=[lindex $vni]"
+				}
 			}
+	
+			append lin ","
 		}
 
-		append lin ","
+		set lin [string trimright $lin ","]
 	}
-
-	set lin [string trimright $lin ","]
 
 	return "$lin;\n"
 }
 
 proc outinit { dec } {
 #
-# generate initializers (naive version, to be changed)
+# Generate dynamic initializers. There is no way to do it right in all
+# circumstances without a semi-complete C parser, mostly because of the
+# possibly tricky initializers for structures. Thus, we assume that the
+# (hopefully rare) tricky cases will be handled by conditional compilation
+# for which we offer here some naive assistance. If the initializer starts
+# with a left brace, it is assumed to be a program. Instead of trying to
+# assign that stuff, we just run the part in braces as a program. This
+# assumes that a braced initializer cannot be possibly legally "assigned"
+# in C++, e.g.,
+#
+#		struct my_struct C =
+#		#ifdef __SMURPH__
+#					{ C.a = 1; C.b = 3; }
+#		#else
+#					{ 1, 3 }
+#		#endif
+#						;
+# Better ideas, anyone?
 #
 	set vrs [lindex $dec 1]
 	set lin ""
 
+	# flag == line rerefernce active
+	set ldp 0
+
 	foreach v $vrs {
 
-		append lin "[lindex $v 0][lindex $v 1][lindex $v 2]"
-
+		# the initializer
 		set vni [lindex $v 3]
-		if { $vni != "" } {
-			append lin "=[lindex $vni]"
+		if { $vni == "" } {
+			continue
 		}
 
-		append lin ";"
+		# effective name
+		set nnm [lindex $v 1]
+		# original name
+		set vnm [lindex $v 4]
+
+		if { [string index $vni 0] == "\{" } {
+			# under VUEE, this means a program
+			if { $lin != "" } {
+				append lin "\n"
+			}
+			append lin "#define $vnm $nnm\n"
+			append lin [lnumseq [lindex $dec 2]]
+			append lin $vni
+			append lin "\n"
+			append lin "#undef $vnm\n"
+			set ldp 0
+		} else {
+			if !$ldp {
+				# line reference
+				append lin [lnumseq [lindex $dec 2]]
+				set ldp 1
+			}
+			append lin \
+			    "[lindex $v 0]$nnm[lindex $v 2]=[lindex $vni];"
+		}
 	}
 
-	return "$lin\n"
+	if { $lin != "" } {
+		append lin "\n"
+	}
+
+	return "$lin"
 }
 
 proc parse_arg { } {
 #
-# Parses stuff in parentheses (past the opening "(")
-
+# Parses stuff in parentheses (past the opening "("), typically corresponding
+# to function arguments
+#
 	global PAR_DEL PAR_IT
 
 	set cnt 0
@@ -972,6 +1412,10 @@ proc parse_arg { } {
 				if { $cnt < 0 } {
 					break
 				}
+			} elseif { $tok == "\{" || $tok == "\}" ||
+				   $tok == ";" } {
+				xerror "runaway argument"
+				return ""
 			}
 		} elseif { $PAR_IT == "e" ||
 			   $PAR_IT == "f" } {
@@ -979,13 +1423,54 @@ proc parse_arg { } {
 			set PAR_DEL ""
 			return ""
 		}
-		append arg $tok
+		append arg "$tok "
 	}
 	set PAR_DEL ")"
 	return $arg
 }
 
+proc parse_ini { } {
+#
+# Parse a variable initializer, i.e., looking for , or ; while counting
+# brackets and parentheses
+#
+	global PAR_DEL PAR_IT
 
+	set br [brcnt]
+	set pr 0
+
+	set res ""
+	set PAR_DEL ""
+
+	while 1 {
+		set tok [ntoken]
+		set cb [brcnt]
+		if { $PAR_IT == "d" } {
+			if { $tok == "(" } {
+				incr pr
+			} elseif { $tok == ")" } {
+				incr pr -1
+				if { $pr < 0 } {
+					xerror "runaway initializer"
+					return ""
+				}
+			} elseif { ($tok == "," || $tok == ";") && $pr == 0 &&
+				    $cb == $br } {
+				set PAR_DEL $tok
+				return $res
+			}
+			if { $cb < $br } {
+				xerror "runaway initializer"
+				return ""
+			}
+		} elseif { $PAR_IT == "e" ||
+			   $PAR_IT == "f" } {
+			xerror "runaway initializer"
+			return ""
+		}
+		append res "$tok "
+	}
+}
 
 ###############################################################################
 ###############################################################################
@@ -1119,6 +1604,11 @@ K {
 			}
 
 			# a declaration inside an fsm
+			if { [lindex $d 3] != "V" } {
+				xerror "illegal declaration inside an fsm,\
+					only variables can be declared there"
+				continue
+			}
 
 			set pfx [lindex $d 0]
 
@@ -1131,6 +1621,7 @@ K {
 			set pfx [lreplace $pfx 0 0]
 			if { [llength $pfx] == 0 } {
 				xerror "type missing in shared declaration"
+				continue
 			}
 			# variable list
 			set vrs [lindex $d 1]
@@ -1301,9 +1792,40 @@ F {
 
 	set tok [ntoken]
 
-	if { $PAR_IT != "d" || ( $tok != "\{" && $tok != "(" ) } {
-		xerror "fsm declaration syntax error, ( or \{ expected"
+	if { $PAR_IT != "d" || ( $tok != "\{" && $tok != "(" && $tok != ";" &&
+	     $tok != ",") } {
+		xerror "fsm declaration syntax error, (, \{, or ; expected"
 		set fg_fsm -1
+		continue
+	}
+
+	if { $tok == "," || $tok == ";" } {
+		set ins "extern int"
+		while 1 {
+			append ins " $fsm_name (word, address)"
+			if { $tok == ";" } {
+				break
+			}
+			if { $tok != "," } {
+				xerror "fsm announcement syntax error, comma or\
+					; expected"
+				break
+			}
+			append ins ", "
+			set fsm_name [ntoken]
+			if { $PAR_IT != "k" } {
+				xerror "fsm announcement syntax error,\
+					fsm name expected"
+				break
+			}
+			set tok [ntoken]
+		}
+		append ins ";"
+		truncate $fsm_mark
+		putS $ins
+		catchup
+		set fstate "K"
+		set fg_fsm 0
 		continue
 	}
 
@@ -1503,13 +2025,15 @@ proc mkdrec { dname } {
 		# doesn't exist
 		return
 	}
+
+	set MKRECV($dname) ""
 	
 	foreach f $sdl {
 		if [regexp -nocase "attic|junk" $f] {
 			# ignore
 			continue
 		}
-		if { $f == "CVS" || $f == "VUEE_TMP" } {
+		if { $f == "CVS" || $f == "VUEE_TMP" || $f == "KTMP" } {
 			# ignore as well
 			continue
 		}
@@ -1532,35 +2056,125 @@ proc mkdrec { dname } {
 	}
 }
 
+proc finddir { name tail } {
+#
+# Try to find one of the extra include directoried, either from an evironment
+# variable, or by searching upward
+#
+	global env
+
+	set envar "${name}PATH"
+
+	set dir ""
+	if [info exists env($envar)] {
+		set dir $env($envar)
+		# check if present
+		if { $dir != "" || ![file isdirectory $dir] } {
+			puts "warning: environment variable $envar\
+				is defined, but it does not point to a valid\
+				directory"
+			set dir ""
+		}
+	}
+
+	if { $dir != "" } {
+		return [file normalize [file join $dir $tail]]
+	}
+
+	# try searching from here up stopping at the first directory named
+	# that contains name/tail
+
+	set ftail [file join $name $tail]
+
+	set tdi [pwd]
+	set lst ""
+
+	for { set i 0 } { $i < 32 } { incr i } {
+
+		set tdi [file normalize "$tdi/.."]
+
+		if { $tdi == $lst } {
+			# at root
+			break
+		}
+
+		set dir [file join $tdi $ftail]
+
+		if [file isdirectory $dir] {
+			return [file normalize $dir]
+		}
+
+		set lst $tdi
+	}
+
+	errab "cannot locate $name directory\
+		(set ${name}PATH in the environment)"
+}
+
+proc findexec { name } {
+#
+# Find an executable
+#
+	global env
+
+	if ![info exists env(PATH)] {
+		set dirs { "/bin" "/usr/bin" "/usr/local/bin" }
+	} else {
+		set dirs [split $env(PATH) ":"]
+	}
+
+	foreach d $dirs {
+		set p [file normalize [file join $d $name]]
+		if [file executable $p] {
+			return $p
+		}
+		append p ".exe"
+		if [file executable $p] {
+			return $p
+		}
+	}
+
+	return ""
+}
+
 proc mkdlist { } {
 #
-# Create the complete list of local subdirectories to search for include files
+# Create the list of local subdirectories to search for include files
 #
-	global MKRECV CWD
-
-	set CWD [file normalize [pwd]]
+	global MKRECV CWD DirList EDirList env
 
 	mkdrec $CWD
 
-	set res [lsort [array names MKRECV]]
+	set DirList [lsort [array names MKRECV]]
 
 	array unset MKRECV
 
-	return $res
-}
+	set vuee [finddir "VUEE" "PICOS"]
+	set side [finddir "SIDE" "Examples/IncLib"]
 
+	# check if the VUEE directory looks sane
+	foreach fn { "board.cc" "tarp.h" "pins.h" } {
+		set fn [file join $vuee $fn]
+		if ![file isfile $fn] {
+			errab "directory $vuee does not look complete; perhaps\
+				mklinks is needed?"
+		}
+	}
+	set EDirList [list $vuee $side]
+}
+	
 proc fprerr { } {
-	errab "app.c/app.cc cannot coexist with other praxes files in the same\
+	errab "app.c/app.cc cannot coexist with app_... files in the same\
 		directory"
 }
 
-proc find_praxes { } {
+proc find_pgms { } {
 #
-# Find all praxes in the current directory
+# Find all programs in the current directory
 #
-	global CWD PX PraxList
+	global CWD PG PgmList
 
-	set PraxList ""
+	set PgmList ""
 
 	if [catch { exec ls $CWD } flist] {
 		errab "cannot scan current directory: $flist"
@@ -1571,14 +2185,14 @@ proc find_praxes { } {
 	foreach fn $flist {
 
 		if { $fn == "app.c" || $fn == "app.cc" } {
-			if { $PraxList != "" } {
+			if { $PgmList != "" } {
 				fprerr
 			}
 			set empsuff 1
 			set pn ""
-			lappend PraxList $pn
-			set PX($pn,RF) $fn
-			set PX($pn,NT) "Node"
+			lappend PgmList $pn
+			set PG($pn,RF) $fn
+			set PG($pn,NT) "Node"
 			continue
 		}
 
@@ -1586,14 +2200,15 @@ proc find_praxes { } {
 			if $empsuff {
 				fprerr
 			}
-			lappend PraxList $pn
-			set PX($pn,RF) $fn
-			set PX($pn,NT) "Node_$pn"
+			lappend PgmList $pn
+			set PG($pn,RF) $fn
+			set PG($pn,NT) "Node_$pn"
 		}
 	}
 
-	if { $PraxList == "" } {
-		errab "no praxis file(s) found in current directory"
+	if { $PgmList == "" } {
+		errab\
+		    "no app\[_...\] program file(s) found in current directory"
 	}
 }
 
@@ -1601,11 +2216,11 @@ proc verify_externals { } {
 #
 # Checks if externals (transformed to node attributes) are satisfied
 #
-	global PX Praxis
+	global PG Pgm
 
-	foreach ex $PX($Praxis,EA) {
+	foreach ex $PG($Pgm,EA) {
 
-		if { [lsearch -exact $PX($Praxis,AN) [lindex $ex 0]] < 0 } {
+		if { [lsearch -exact $PG($Pgm,AN) [lindex $ex 0]] < 0 } {
 			xerror \
 			    "external symbol [lindex $ex 1] is never defined" \
 				[lindex $ex 2]
@@ -1613,9 +2228,39 @@ proc verify_externals { } {
 	}
 }
 
-proc compile_vuee { } {
+proc vuee_out { str } {
 
-	global TDIR
+	if ![regexp "^(.Compiling)\[ \t\]+(.*)" $str jnk cmp name] {
+		return $str
+	}
+
+	if [regexp "^P_(.+)_zzz_(.*)_\[0-9\]*.cc" $name jnk froot prog] {
+		set name ${froot}.cc
+		if { $prog != "" } {
+			append name " of $prog"
+		}
+	} elseif [regexp "^__vueehdr_(.*).h$" $name jnk prog] {
+		set name "vuee header"
+		if { $prog != "" } {
+			append name " for $prog"
+		}
+	} elseif [regexp "^__vueeini_(.*).cc$" $name jnk prog] {
+		set name "vuee initializer"
+		if { $prog != "" } {
+			append name " for $prog"
+		}
+	} elseif [regexp "^__vuee_root.cc" $name] {
+		set name "vuee root"
+	}
+
+	return "$cmp $name"
+}
+
+proc compile_vuee { } {
+#
+# Run the VUEE compiler on preprocessed target
+#
+	global TDIR FG EXEC
 
 	set cwd [pwd]
 
@@ -1624,39 +2269,120 @@ proc compile_vuee { } {
 		return "cd'ing to $TDIR: $err"
 	}
 
-	puts "running the vuee compiler ..."
+	puts "running vuee [join $FG(VA)]"
 
-	if [catch { exec vuee } err] {
+	set ef "__vuee_errors"
+
+	catch { file delete -force $ef }
+
+	set vnam "|[join [list $EXEC(vuee)] $FG(VA)] 2> $ef"
+	if [catch { open $vnam "r" } vfd] {
+		catch { file delete -force $ef }
 		cd $cwd
-		return "vuee: $err"
+		return "pipe: $vfd"
 	}
 
+	while 1 {
+		if [catch { gets $vfd line } err] {
+			catch { close $vfd }
+			catch { file delete -force $ef }
+			return "pipe: $err"
+		}
+		if { $err < 0 } {
+			break
+		}
+		puts [vuee_out $line]
+	}
+
+	set efd ""
+	if { ![catch { open $ef "r" } efd] && ![catch { read $efd } err] } {
+		# errors?
+		if { $err != "" } {
+			puts stderr $err
+		}
+	}
+
+	catch { close $efd }
+	catch { file delete -force $ef }
+
 	if [file exists "side"] {
-		set fn "side"
+		set ef "side"
 	} elseif [file exists "side.exe"] {
-		set fn "side.exe"
+		set ef "side.exe"
 	} else {
 		cd $cwd
 		return "side image not created"
 	}
 
-	if [catch { file rename -force $fn [file join $cwd $fn] } err] {
+	if [catch { file rename -force $ef [file join $cwd $ef] } err] {
 		cd $cwd
 		return $err
 	}
 	cd $cwd
 
-	puts "OK"
-
 	return ""
 }
 
+proc which_endian { } {
+#
+# We will learn this from vuee; Tcl8.4 doesn't know; Tcl8.5 is smarter
+#
+	global FG EXEC
+
+	if [catch { exec $EXEC(vuee) -Q } res] {
+		errab "cannot execute vuee: $res"
+	}
+
+	if { [string first "Lit" $res] >= 0 } {
+		# little
+		set FG(EN) 0
+	} elseif { [string first "Big" $res] >= 0 } {
+		# big
+		set FG(EN) 1
+	} else {
+		puts "warning: cannot get endianness from vuee,\
+			assumming 'little'"
+		set FG(EN) 0
+	}
+}
+
 proc parse_vuee { } {
+#
+# Compile all programs in current directory into VUEE
+#
+	global DirList Pgm PgmList CWD TDIR SFList FG EXEC ErrCnt
 
-	global DirList PraxList CWD TDIR SFList FG_C
+	# find the requisite executables
+	foreach p { "vuee" "vue2" "vue" } {
+		set e [findexec $p]
+		if { $e != "" } {
+			break
+		}
+	}
 
-	set DirList [mkdlist]
-	find_praxes
+	if { $e == "" } {
+		errab "cannot find vuee execuable (also tried vue2 and vue)"
+	}
+	set EXEC(vuee) $e
+
+	set e [findexec "cpp"]
+	if { $e == "" } {
+		errab "cannot find cpp executable"
+	}
+	set EXEC(cpp) $e
+
+	# determine machine endianness from vuee; we need this to set the
+	# only (AFAIK) system-dependent symbol required by VUEE
+
+	unset e
+
+	which_endian
+
+	set CWD [file normalize [pwd]]
+
+	find_pgms
+
+	mkdlist
 
 	set TDIR [file join $CWD "VUEE_TMP"]
 
@@ -1675,9 +2401,11 @@ proc parse_vuee { } {
 		errab "cannot copy options.sys to $TDIR, $err"
 	}
 
-	foreach p $PraxList {
+	foreach p $PgmList {
 
-		compile_praxis $p
+		set Pgm $p
+
+		compile_pgm
 		verify_externals
 		emit_vhdr
 		emit_vini
@@ -1685,7 +2413,7 @@ proc parse_vuee { } {
 
 	emit_glue
 
-	if $FG_C {
+	if { $FG(C) && $ErrCnt == 0 } {
 		set err [compile_vuee]
 		if { $err != "" } {
 			errab $err
@@ -1708,21 +2436,30 @@ proc setsymbols { dl } {
 	}
 }
 
-proc compile_praxis { px } {
-
-	global PX Praxis SFList ToCompile Processed NotFound TDIR
+proc compile_pgm { } {
+#
+# Compile one program
+#
+	global PG Pgm SFList ToCompile Processed NotFound TDIR EXEC FG
 
 	# list of handled files
 	set SFList ""
 
-	# current praxis tag
-	set Praxis $px
+	# current program tag
+	set pg $Pgm
 
 	# queue of files to compile
-	set ToCompile [file normalize [list $PX($px,RF)]]
+	set ToCompile [file normalize [list $PG($pg,RF)]]
 
 	# not found files that were explicitly requested to compile
 	set NotFound ""
+
+	# scratch file for cpp
+	set SCF [file join $TDIR "__cpp_tmp.c"]
+
+	if { $pg != "" } {
+		puts "compiling $pg"
+	}
 
 	while { $ToCompile != "" } {
 		set cfn [lindex $ToCompile 0]
@@ -1732,8 +2469,45 @@ proc compile_praxis { px } {
 			continue
 		}
 		set Processed($cfn) ""
-		setsymbols { __SMURPH__ }
-		set res [scanfile $cfn]
+
+		set exp { __SMURPH__ LITTLE_ENDIAN=0 BIG_ENDIAN=1 }
+
+		if { $FG(EN) == 0 } {
+			lappend exp "BYTE_ORDER=0"
+		} else {
+			lappend exp "BYTE_ORDER=1"
+		}
+
+		setsymbols $exp
+
+		set exp [scanfile $cfn 1 [split [emit_thrname] "\n"]]
+
+		if { $exp != "" } {
+
+			# we have to use a scratch file as cpp produces output
+			# together with errors
+			if [catch { exec $EXEC(cpp) << $exp > $SCF } res] {
+				catch { file delete -force $SCF }
+				unset exp
+				puts stderr $res
+				errab "compilation aborted"
+			}
+
+			unset exp
+
+			if [catch {
+				set exp [open $SCF "r"]
+				set res [read $exp]
+			} err] {
+				errab "cannot read scratch file $SCF: $err"
+				catch { close $exp }
+				catch { file delete -force $SCF }
+			}
+
+			catch { close $exp }
+			catch { file delete -force $SCF }
+		}
+
 		if { $res != "" } {
 			# note: the target file names can be arbitrarily
 			# changed, provided the line number sequencing works
@@ -1751,28 +2525,37 @@ proc compile_praxis { px } {
 	set res ""
 
 	# attribute list (declarations), must be global
-	set PX($px,AL) ""
+	set PG($pg,AL) ""
 	# attribute names (for easy detection of duplicates)
-	set PX($px,AN) ""
+	set PG($pg,AN) ""
 	# extern attribute list (for detecting the unsatisfied ones)
-	set PX($px,EA) ""
+	set PG($pg,EA) ""
+	# idiosyncratic functions
+	set PG($pg,ID) ""
 	# process list
-	set PX($px,PL) ""
+	set PG($pg,PL) ""
 	# process name list
-	set PX($px,PN) ""
+	set PG($pg,PN) ""
+	# type declarations
+	set PG($pg,TD) ""
+	# type name list (to prevent duplicates)
+	set PG($pg,TN) ""
 
 	set cnt 0
 	foreach cfn $SFList {
-		parse_ppgm $cnt [lindex $cfn 1]
+		set froot [file rootname [file tail [lindex $cfn 0]]]
+		parse_pfile $cnt [lindex $cfn 1]
 		# write the file
-		wtfile "P[pnfx]_${cnt}.cc" [output]
+		wtfile "P_${froot}_zzz[pnfx]_${cnt}.cc" [output]
 		close_parser
 		incr cnt
 	}
 }
 
 proc wtfile { fn out } {
-
+#
+# Write a file to VUEE_TMP
+#
 	global TDIR
 
 	set tf [file join $TDIR $fn]
@@ -1790,18 +2573,18 @@ proc swarn { m } {
 
 	global FLine CFName
 
-	puts stdout "$CFName:$FLine (warning): $m"
+	puts "$CFName:$FLine (warning): $m"
 }
 
 proc pwarn { m } {
 
-	global Praxis
+	global Pgm
 
-	if { $Praxis != "" } {
-		set m "praxis $Praxis, $m"
+	if { $Pgm != "" } {
+		set m "program $Pgm, $m"
 	}
 
-	puts stdout "warning: $m"
+	puts "warning: $m"
 }
 
 proc flook { fn prefdir dirs } {
@@ -1901,25 +2684,23 @@ proc needlist { ar fname } {
 		if { $ar == "" } {
 			break
 		}
-		set del [string index $ar 0]
-		if { $del == "\"" } {
-			if ![regexp "\"(\[^ \t\"]+\\.(c|asm?))\"" $ar jk nfn] {
-				# we don't understand this
-				swarn "'//+++' syntax error: '$ar'"
-				break
-			}
-		} elseif { $del == "<" } {
-			if ![regexp "<(\[^ \t<>]+\\.(c|asm?))>" $ar jk nfn] {
-				swarn "'//+++' syntax error: '$ar'"
-				break
-			}
+
+		set d0 [string index $ar 0]
+		if { $d0 == "\"" } {
+			set d1 $d0
+		} elseif { $d0 == "<" } {
+			set d1 ">"
 		} else {
-			if ![regexp "\[^ \t]+\\.(c|asm?)" $ar jk] {
-				swarn "'//+++' syntax error: '$ar'"
-				break
-			} else {
-				set nfn $jk
-			}
+			set d0 ""
+			set d1 ""
+		}
+
+		set pat "$d0\[ \t\]*(\[^ \t$d1]+\\.(cc?|asm?))\[ \t\]*$d1"
+
+		if ![regexp $pat $ar jk nfn] {
+			# we don't understand this
+			swarn "'//+++' syntax error: '$ar'"
+			break
 		}
 
 		set cm [string first $jk $ar]
@@ -1953,7 +2734,10 @@ proc needlist { ar fname } {
 }
 
 proc slineseq { } {
-
+#
+# Generate a line sequencing string for the currently expanded source file
+# (before it becomes a parser source)
+#
 	global CFName FLine
 
 	return [lnumseq [list $FLine $CFName]]
@@ -2030,9 +2814,15 @@ proc sexpr { str } {
 	return 0
 }
 
-proc scanfile { fname } {
-
-	global CFName FLine Symbols DirList
+proc scanfile { fname inner { prelude "" } } {
+#
+# Expand a source file explicitly including whatever possible. If inner is 0,
+# it means that the file is external, i.e., it belongs to VUEE (comes from
+# VUEE/PICOS). In that case, we do not actually include the file contents, only
+# go through its #ifs/#ifdefs, but also include #defines. Then, the entire file
+# is run through cpp to expand the macros and eliminate the defines.
+#
+	global CFName FLine Symbols DirList EDirList FG
 
 	set CFName $fname
 
@@ -2046,10 +2836,9 @@ proc scanfile { fname } {
 	#
 	# Note: this is different from mkmk in these respects:
 	#
-	# - we do not scan just for dependencies, but for contents
+	# - we do not scan just for dependencies, but for contents (or partial
+	#   contents, for the external files)
 	# - multiple legitimate inclusions are OK
-	# - if we cannot evaluate a condition, we expand the condition as well
-	#   as both part
 	# - we put line number sequences whenever an inclusion exits
 	#
 
@@ -2074,16 +2863,31 @@ proc scanfile { fname } {
 
 	while 1 {
 
-		if { [gets $fd line] < 0 } {
-			if { $ifnest > 0 } {
-				swarn "#endif missing in $fname"
+		if { $prelude == "" } {
+			if { [gets $fd line] < 0 } {
+				if { $ifnest > 0 } {
+					swarn "#endif missing"
+				}
+				break
 			}
-			break
+			incr FLine
+		} else {
+			# prelude lines are never escaped, so this doesn't
+			# interfere with subsequent gets; also, the prelude
+			# stays at line 0
+			set line [lindex $prelude 0]
+			set prelude [lrange $prelude 1 end]
+			if { $prelude == "" } {
+				# bring the line numbers back to order
+				set FLine 1
+				append res "[slineseq]"
+				set FLine 0
+			}
 		}
 
-		incr FLine
-
-		if { $ifstack($ifnest) <= 1 && \
+		# handle //+++ requests, but only in internal files; such
+		# requests will add files to be compiled in the program's set
+		if { $ifstack($ifnest) <= 1 && $inner && \
 		    [regexp "^\[ \t\]*//\\+\\+\\+(.*)" $line jk ar] } {
 			# needed files
 			needlist $ar $fname
@@ -2092,10 +2896,45 @@ proc scanfile { fname } {
 			continue
 		}
 
-		if ![regexp "^\[ \t\]*#(\[a-z\]+)\[ \t\]*(.*)" $line jk cm ar] {
-			# nothing special, output if accepting
-			if { $ifstack($ifnest) <= 1 } {
+		if ![regexp "^\[ \t\]*#" $line] {
+			# nothing special, keep going, output if necessary
+			if { $inner && $ifstack($ifnest) <= 1 } {
 				append res "$line\n"
+			}
+			continue
+		}
+
+		# if we have multiple lines terminated with \, we have to merge
+		# them together before interpreting the content
+		set lc 1
+		while { [regexp "(.*)\[\\\\\]\[ \t\]*$" $line jk newl] } {
+			# check if the new line has even number of \'s at the
+			# end
+			if { [regexp "\[\\\\\]+$" $newl bc] &&
+			     [expr [string length $bc] & 1] } {
+				# this isn't an escape
+				break;
+			}
+			# remove the escape sequence
+			set line $newl
+			if { [gets $fd newl] < 0 } {
+				swarn "continuation line missing at file end"
+				break
+			}
+			incr lc
+			incr FLine
+			append line $newl
+		}
+
+		if ![regexp "^\[ \t\]*#\[ \t\]*(\[a-z\]+)\[ \t\]*(.*)" \
+		    $line jk cm ar] {
+			# unrecognizable
+			swarn "unrecognized pp sequence $line, ignored"
+			if { $inner && $ifstack($ifnest) <= 1 } {
+				while { $lc } {
+					append res "\n"
+					incr lc -1
+				}
 			}
 			continue
 		}
@@ -2111,26 +2950,37 @@ proc scanfile { fname } {
 			# we have to evaluate this if
 			incr ifnest
 			if { $cm == "ifdef" || $cm == "ifndef" } {
-				# ifdef/ifndef is always expanded fully (both
-				# parts), because we cannot even try to resolve
-				# it authoritatively; later we shall check
-				# for potential conflicts
-				append res "$line\n"
 				if ![regexp -nocase "^\[a-z_0-9.\]+" $ar nam] {
 					# illegal
-					swarn "illegal argument of #$cm"
+					swarn "illegal argument of #$cm,\
+						assuming undefined"
+					# treat as a undefined symbol
+					if { $cm == "ifdef" } {
+						set ifstack($ifnest) 2
+					} else {
+						set ifstack($ifnest) 1
+					}
+				} elseif [info exists Symbols($nam)] {
+					if { $cm == "ifdef" } {
+						set ifstack($ifnest) 1
+					} else {
+						set ifstack($ifnest) 2
+					}
+				} else {
+					if { $cm == "ifdef" } {
+						set ifstack($ifnest) 2
+					} else {
+						set ifstack($ifnest) 1
+					}
 				}
-				set ifstack($ifnest) 0
 				continue
 			}
 			# if
 			set val [sexpr $ar]
 			if { $val < 0 } {
-				# failed to evaluate, so copy both parts; later
-				# we may add optional diagnostics
-				append res "$line\n"
-				set ifstack($ifnest) 0
-				continue
+				swarn "cannot evaluate #if condition,\
+						assuming zero"
+				set val 0
 			}
 			if $val {
 				set ifstack($ifnest) 1
@@ -2156,8 +3006,8 @@ proc scanfile { fname } {
 				append res "[slineseq]\n"
 				set ifstack($ifnest) 1
 			} elseif { $ifstack($ifnest) == 0 } {
-				# accepting both parts, including the #else
-				append res "$line\n"
+				# impossible
+				swarn "stray #else"
 			}
 				
 			continue
@@ -2168,11 +3018,15 @@ proc scanfile { fname } {
 				set s $ifstack($ifnest)
 				incr ifnest -1
 				if { $s == 0 } {
-					append res "$line\n"
+					# impossible
+					swarn "stray #endif"
 				} elseif { $s == 1 } {
 					# ignore #endif, but maintain correct
 					# line count
-					append res "\n"
+					while { $lc } {
+						append res "\n"
+						incr lc -1
+					}
 				} else {
 					# skipping (this part or both)
 					if { $ifstack($ifnest) <= 1 } {
@@ -2191,8 +3045,12 @@ proc scanfile { fname } {
 		}
 
 		if { $cm == "define" } {
-
 			append res "$line\n"
+			incr lc -1
+			while { $lc } {
+				append res "\n"
+				incr lc -1
+			}
 
 			set ar [remcmnt $ar]
 
@@ -2209,12 +3067,22 @@ proc scanfile { fname } {
 
 		if { $cm == "undef" } {
 
-			append res "$line\n"
-
 			if ![regexp -nocase "^\[a-z_0-9.\]+" $ar kwd] {
-				swarn "#undef syntax error"
+				swarn "#undef syntax error, ignored"
+				while { $lc } {
+					append res "\n"
+					incr lc -1
+				}
 				continue
 			}
+
+			append res "$line\n"
+			incr lc -1
+			while { $lc } {
+				append res "\n"
+				incr lc -1
+			}
+
 			if [info exists Symbols($kwd)] {
 				unset Symbols($kwd)
 			}
@@ -2228,14 +3096,22 @@ proc scanfile { fname } {
 				if ![regexp -nocase "^\[ \t\]*(\[a-z_0-9.\]+)" \
 				    $ar jk fn] {
 					# unrecognizable
-					append res "$line\n"
-					swarn "unrecognizable #include argument"
+					swarn "unrecognizable #include\
+						argument, ignored"
+					while { $lc } {
+						append res "\n"
+						incr lc -1
+					}
 					continue
 				}
 				# try the symbol
 				if ![info exists Symbols($fn)] {
 					append res "$line\n"
 					swarn "unrecognizable #include syntax"
+					while { $lc } {
+						append res "\n"
+						incr lc -1
+					}
 					continue
 				}
 				set fn [string trim $Symbols($fn) "\"<>"]
@@ -2245,14 +3121,27 @@ proc scanfile { fname } {
 				continue
 			}
 			# look it up locally
-			set fn [flook $fn [file dirname $fname] $DirList]
-			if { $fn != "" } {
-				append res [scanfile $fn]
-				append res "[slineseq]\n"
+			set fm [flook $fn "" $DirList]
+			if { $fm == "" } {
+				set fm [flook $fn "" $EDirList]
+				if { $fm == "" } {
+					swarn "included file $fn not found"
+					while { $lc } {
+						append res "\n"
+						incr lc -1
+					}
+					continue
+				}
+				set fn 0
 			} else {
-				# non-local
-				append res "$line\n"
+				set fn 1
 			}
+			set jk $CFName
+			set ar $FLine
+			append res [scanfile $fm $fn]
+			set CFName $jk
+			set FLine $ar
+			append res "[slineseq]"
 			continue
 		}
 	}
@@ -2262,19 +3151,21 @@ proc scanfile { fname } {
 
 proc pnfx { } {
 #
-# praxis name pre/suffix
+# Pgm name pre/suffix
 #
-	global Praxis
+	global Pgm
 
-	if { $Praxis == "" } {
+	if { $Pgm == "" } {
 		return ""
 	}
 
-	return "_$Praxis"
+	return "_$Pgm"
 }
 
 proc emit_create { pname { arg "" } } {
-
+#
+# Generate a sequence for creating a SMURPH process
+#
 	set ins "(TheNode->tally_in_pcs()?(create $pname"
 	if { $arg != "" } {
 		append ins "($arg)"
@@ -2284,9 +3175,23 @@ proc emit_create { pname { arg "" } } {
 	return $ins
 }
 
-proc emit_glue { } {
+proc emit_thrname { } {
+#
+	global Pgm
 
-	global PX PraxList Praxis
+	set res "#ifndef THREADNAME\n#define THREADNAME(a) a"
+	if { $Pgm != "" } {
+		append res " ## [pnfx]"
+	}
+	append res "\n#endif\n"
+	return $res
+}
+
+proc emit_glue { } {
+#
+# Create the "glue" file (SMURPH Root) for the praxis - one for the whole set
+#
+	global PG PgmList Pgm
 
 	set fn "__vuee_root.cc"
 
@@ -2294,22 +3199,22 @@ proc emit_glue { } {
 	append res "#include \"board.h\"\n"
 	append res "#include \"board.cc\"\n"
 
-	foreach Praxis $PraxList {
+	foreach Pgm $PgmList {
 		append res "void __build_[pnfx]node (data_no_t*);\n"
 	}
 
 	append res "process Root : BoardRoot \{\n"
 	append res "void buildNode (const char *tp, data_no_t *nddata) \{\n"
 
-	set np [llength $PraxList]
+	set np [llength $PgmList]
 
 	for { set ix 0 } { $ix < $np } { incr ix } {
-		set Praxis [lindex $PraxList $ix]
+		set Pgm [lindex $PgmList $ix]
 		if { $ix > 0 } {
 			append res "else "
 		}
 		if { $ix != [expr $np - 1] } {
-			append res "if (strcmp (tp, \"$Praxis\") == 0) "
+			append res "if (strcmp (tp, \"$Pgm\") == 0) "
 		}
 		append res "__build_[pnfx]node (nddata); "
 	}
@@ -2323,7 +3228,7 @@ proc emit_vini { } {
 #
 # Create __vueeini...h
 #
-	global PX Praxis
+	global PG Pgm
 
 	set fn "__vueeini[pnfx].cc"
 	set fh "__vueehdr[pnfx].h"
@@ -2335,10 +3240,11 @@ proc emit_vini { } {
 	append res "__attr_init_end - __attr_init_origin);\n"
 
 	# and the proper initializers
-	foreach d $PX($Praxis,AL) {
-
-		append res [lnumseq [lindex $d 2]]
-		append res [outinit $d]
+	foreach d $PG($Pgm,AL) {
+		set ini [outinit $d]
+		if { $ini != "" } {
+			append res $ini
+		}
 	}
 
 	append res "__praxis_starter ();\n\}\n"
@@ -2353,18 +3259,17 @@ proc emit_vhdr { } {
 #
 # Create __vueehdr...h
 #
-	global PX Praxis
+	global PG Pgm
 
 	set fn "__vueehdr[pnfx].h"
 	set ta "__vueehdr[pnfx]_h"
 
-	set res "#ifndef $ta\n#define $ta\n#define THREADNAME(a) a"
+	set res "#ifndef $ta\n[emit_thrname]#include \"board.h\"\n"
 
-	if { $Praxis != "" } {
-		append res " ## [pnfx]"
+	foreach d $PG($Pgm,TD) {
+		# type declarations
+		append res "[lnumseq [lindex $d 2]][outdecl $d 0]\n"
 	}
-
-	append res "\n#include \"board.h\"\n"
 
 	append res "\station __NT[pnfx] : PicOSNode \{ \n"
 
@@ -2372,7 +3277,7 @@ proc emit_vhdr { } {
 
 	append res "char __attr_init_origin \[0\];\n"
 
-	foreach d $PX($Praxis,AL) {
+	foreach d $PG($Pgm,AL) {
 
 		append res "[lnumseq [lindex $d 2]][outdecl $d 0]\n"
 	}
@@ -2387,7 +3292,7 @@ proc emit_vhdr { } {
 
 	# fsm's
 
-	foreach d $PX($Praxis,PL) {
+	foreach d $PG($Pgm,PL) {
 
 		set nam [lindex $d 0]
 		set stl [lindex $d 1]
@@ -2411,10 +3316,11 @@ proc emit_vhdr { } {
 	wtfile $fn $res
 }
 
-proc parse_ppgm { cnt src } {
+proc parse_pfile { cnt src } {
 #
+# Compile one source file into a VUEE-compilable format
 #
-	global PX Praxis PAR_IT PAR_MARK PAR_DEL
+	global PG Pgm PAR_IT PAR_MARK PAR_DEL
 
 	initialize_parser $src
 
@@ -2456,336 +3362,499 @@ K {
 ###############################################################################
 # keyword distributor #########################################################
 ###############################################################################
-	if { $PAR_IT == "k" } {
+  if { $PAR_IT == "k" } {
 
-		if { $bra == 0 } {
+    if { $bra == 0 } {
 
-			# level 0, be on a lookout for:
-			#	- fsm's
-			#	- declarations
+      # level 0, be on a lookout for:
+      # - fsm's
+      # - declarations
 
-			if { $fg_fsm == 0 && $tok == "fsm" } {
-				set fg_fsm 1
-				set fsm_mark $PAR_MARK
-				set fstate "F"
-				continue
-			}
+      if { $fg_fsm == 0 && $tok == "fsm" } {
+	set fg_fsm 1
+	set fsm_mark $PAR_MARK
+	set fstate "F"
+	continue
+      }
 
-			# try a declaration
-			set d [parse_decl $tok]
+      # try a declaration
+      set d [parse_decl $tok]
 
-			if { $d == "" } {
-				continue
-			}
+      if { $d == "" } {
+	continue
+      }
 
-			set pfx [lindex $d 0]
+      set pfx [lindex $d 0]
+      set dtp [lindex $d 3]
 
-			if { [lsearch -exact $pfx "shared"] >= 0 } {
-				xerror "shared illegal in global scope"
-				continue
-			}
+      if { [lsearch -exact $pfx "shared"] >= 0 } {
+	xerror "shared illegal in global scope"
+	continue
+      }
 
-			# the declaration will be removed for sure
-			truncate $PAR_MARK
+      # more sanity checks?
 
-			set ins [lsearch -exact $pfx "extern"]
-			if { $ins >= 0 } {
-				# externs are transformed into macros and
-				# stored for verification
-				set ins [lsearch -exact $pfx "static"]
-				if { $ins >= 0 } {
-					xerror "extern cannot be static"
-					continue
-				}
-				set vrs [lindex $d 1]
-				set ins ""
-				foreach v $vrs {
-					set vnm [lindex $v 1]
-					set nnm "__vattr_$vnm"
-					append ins \
-					     "#define $vnm (((__NT[pnfx]*)"
-					append ins "TheStation)->$nnm)\n"
-					lappend PX($Praxis,EA) [list $nnm $vnm \
-						[lindex $d 2]]
-				}
-				insert $PAR_MARK $ins
-				catchup
-				continue
-			}
+      set ins [lsearch -exact $pfx "idiosyncratic"]
 
-			set ins [lsearch -exact $pfx "const"]
-			if { $ins >= 0 } {
-				# turn const to var for now; we may want to do
-				# something about them later
-				set pfx [lreplace $pfx $ins $ins]
-			}
+      #########################################################################
+      # handle a function declaration or announcement #########################
+      #########################################################################
+      if { $dtp == "A" || $dtp == "F" } {
 
-			set ins [lsearch -exact $pfx "static"]
-			set suf "__vattr_"
-			if { $ins >= 0 } {
-				append suf "${cnt}_"
-				set pfx [lreplace $pfx $ins $ins]
-			}
+	if { $ins >= 0 } {
 
-			if { [llength $pfx] == 0 } {
-				xerror "missing type in declaration"
-				continue
-			}
+	  # remove the original declaration
+	  truncate $PAR_MARK
 
-			set vrs [lindex $d 1]
-			set ors ""
-			# insert
-			set ins ""
+	  if { $dtp == "A" } {
+	    # function announcement
+	    set vrs [lindex $d 1]
 
-			# rename the variables
-			foreach v $vrs {
-				set vnm [lindex $v 1]
-				set nnm "${suf}${vnm}"
-				if { [lsearch -exact $PX($Praxis,AN) $nnm] \
-				    >= 0 } {
-					xerror "variable $vnm declared \
-						(globally) more than once"
-					continue
-				}
-				append ins "#define $vnm (((__NT[pnfx]*)"
-				append ins "TheStation)->$nnm)\n"
-				set v [lreplace $v 1 1 $nnm]
-				# update global list of names
-				lappend PX($Praxis,AN) $nnm
-				lappend ors $v
-			}
-			# update global list of attributes
-			lappend PX($Praxis,AL) [lreplace $d 0 1 $pfx $ors]
+	    set ins "\n"
 
-			# insert the defines
-			insert $PAR_MARK $ins
-			catchup
-			continue
-		}
+	    foreach v $vrs {
 
-		# we are nested (bra > 0), no declarations expected
-		if { $tok == "runfsm" } {
+	      # original name
+	      set vnm [lindex $v 1]
 
-			set run_mark $PAR_MARK
+	      # mangled (method) name
+	      set nnm "_na_$vnm"
+	      append ins "#ifndef $vnm\n#define $vnm (((__NT[pnfx]*)"
+	      append ins "TheStation)->$nnm)\n#endif\n"
+	      lappend_unique PG($Pgm,ID) [list $nnm $vnm [lindex $d 2]]
+	    }
 
-			set tok [ntoken]
-			if { $PAR_IT != "k" } {
-				xerror "fsm name expected after runfsm"
-				continue
-			}
+	    insert $PAR_MARK $ins
+	    catchup
 
-			set fsm_sname $tok[pnfx]
+	    continue
+	  }
 
-			set tok [ntoken]
-			if { $PAR_IT != "d" } {
-				xerror "runfsm syntax error"
-				continue
-			}
+	  # function declaration
+	  set pfx [lreplace $pfx $ins $ins]
 
-			if { $tok == "(" } {
-				set arg [parse_arg]
-				if { $PAR_DEL == "" } {
-					# error
-					continue
-				}
-				# looking at the delimiter
-				set tok [ntoken]
-			} else {
-				set arg ""
-			}
+	  set ins " "
+	  foreach w $pfx {
+	    append ins "$w "
+	  }
 
-			truncate $run_mark
-			putS "[emit_create $fsm_sname $arg]$tok"
+	  set vrs [lindex $d 1]
+	  # there is just a single "variable"
+	  set v [lindex $vrs 0]
+	  set vnm [lindex $v 1]
+	  set vnt [lindex $v 2]
+	  set nnm "_na_$vnm"
 
-			continue
-		}
+	  append ins "__NT[pnfx]::$nnm $vnt \{"
 
-		# other non-declaration keywords? later we may want to get rid
-		# of the macros in sysio.h
+	  insert $PAR_MARK $ins
+	  catchup
 
-		if { $fg_fsm <= 0 } {
-			set fg_fsm -1
-			# illegal after keyword
-			continue
-		}
+	  if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
+	    xerror "idiosyncratic function $vnm declared more than once"
+	  } else {
+	    set v [lreplace $v 1 1 $nnm]
+	    # include the original name as fifth item
+	    lappend v $vnm
+	    lappend PG($Pgm,AN) $nnm
+	    lappend PG($Pgm,AL) [lreplace $d 0 1 $pfx [list $v]]
+	  }
 
-		if { $fg_fsm == 1 } {
-
-			# fsm declarations still legal
-
-			if { $bra != $fsm_blev || $tok == "state" ||
-			     $tok == "entry" || $tok == "initial" } {
-				# not any more; any of these
-				# renders declarations illegal
-				set fg_fsm 2
-				# have to redo the keyword
-				set rep 1
-				continue
-			}
-
-			# try the declaration
-			set d [parse_decl $tok]
-
-			if { $d == "" } {
-				# no more declarations; note that the first
-				# keyword has been swallowed
-				set fg_fsm 2
-				continue
-			}
-
-			# a declaration inside an fsm
-
-			set pfx [lindex $d 0]
-
-			if { [lindex $pfx 0] != "shared" } {
-				# we leave it alone
-				continue
-			}
-
-			# a shared declaration
-			set pfx [lreplace $pfx 0 0]
-			if { [llength $pfx] == 0 } {
-				xerror "type missing in shared declaration"
-			}
-			# variable list
-			set vrs [lindex $d 1]
-			set ors ""
-			# copy the variable list renaming the variables
-			foreach v $vrs {
-				set vnm [lindex $v 1]
-				set nnm "__vattr_${fsm_name}_$vnm"
-				if { [lsearch -exact $PX($Praxis,AN) $nnm] \
-				    >= 0 } {
-					xerror "shared variable $vnm conflicts \
-					    (globally) with another variable"
-					continue
-				}
-				# defines
-				set ins "(((__NT[pnfx]*)TheStation)->$nnm)"
-				lappend PS($Praxis,AN) $nnm
-				lappend dflist [list $vnm $ins]
-				set v [lreplace $v 1 1 $nnm]
-				lappend ors $v
-			}
-			lappend PX($Praxis,AL) [lreplace $d 0 1 $pfx $ors]
-			# remove the original declaration
-			truncate $PAR_MARK
-			continue
-		}
-
-		if { $fg_fsm > 0 } {
-
-			# within fsm, but past declarations
-
-			if { $bra == $fsm_blev && ($tok == "state" ||
-			     $tok == "entry" || $tok == "initial") } {
-				# state, including "initial"
-				set fsm_smark $PAR_MARK
-				if { $tok == "initial" } {
-					set fstate "I"
-					set fsm_ins 1
-				} else {
-					set fstate "S"
-					set fsm_ins 0
-				}
-				continue
-			}
-
-			# no need to handle proceed
-
-		} else {
-			# outside fsm; fsm is never legit after a keyword
-			set fg_fsm -1
-		}
-
-		continue
+	  continue
 	}
 
-	# not a keyword
-	if { $PAR_IT != "d" } {
-		# and not a delimiter
-		continue
+	# not idiosyncratic, stays put
+	continue
+      }
+
+      if { $ins >= 0 } {
+	xerror "only functions can be idiosyncratic"
+	continue
+      }
+
+      # the declaration will be removed (at least ignored)
+      truncate $PAR_MARK
+
+      if { $dtp == "T" } {
+	# this is a type declaration; save for the headers
+	set ins [lindex $d 1]
+	if { [lsearch -exact $PG($Pgm,TN) $ins] < 0 } {
+	  lappend PG($Pgm,TD) $d
+	  lappend PG($Pgm,TN) $ins
+	}
+	continue
+      }
+
+      #########################################################################
+      # trueconst #############################################################
+      #########################################################################
+      set ins [lsearch -exact $pfx "trueconst"]
+      if { $ins >= 0 } {
+	# this is left alone, with truconst replaced by const
+	set pfx [lreplace $pfx $ins $ins "const"]
+	putS [outdecl [lreplace $d 0 0 $pfx]]
+	catchup
+	continue
+      }
+
+      #########################################################################
+      # handle externs ########################################################
+      #########################################################################
+      set ins [lsearch -exact $pfx "extern"]
+      if { $ins >= 0 } {
+	# externs are transformed into macros and saved for verification
+
+	set ins [lsearch -exact $pfx "static"]
+	if { $ins >= 0 } {
+	  xerror "extern cannot be static"
+	  continue
 	}
 
-	if { $fg_fsm > 0 } {
-
-		# within fsm; looking for the closing brace
-		if { $tok != "\}" || $bra >= $fsm_blev } {
-			# nothing special, keep going
-			continue
-		}
-
-		# close the fsm; the mangled name
-		set fsn "$fsm_name[pnfx]"
-
-		foreach st $pslist {
-			# verify proceed states
-			if { [lsearch -exact $stlist $st] < 0 } {
-				xerror "state $st used in proceed not\
-					defined in fsm"
-			}
-		}
-
-		if { $stinit != "" } {
-			# an explicit initial state, must get number zero
-			set st [lsearch -exact $stlist $stinit]
-			if { $st < 0 } {
-				# impossible
-				set st 0
-			}
-			# move it to front
-			set stlist [linsert [lreplace $stlist $st $st] 0 \
-				$stinit]
-		}
-
-		set ins "\n[lnumseq [olinenum $fsm_mark]]"
-		# defines for shared variables
-		foreach d $dflist {
-			append ins "\n#define [lindex $d 0] [lindex $d 1]"
-		}
-		append ins "\n"
-
-		# code method
-		append ins "${fsn}::perform \{\n"
-
-		insert $fsm_mark $ins
-
-		if { $dflist != "" } {
-			putS "\n"
-			foreach d $dflist {
-				putS "#undef [lindex $d 0]\n"
-			}
-			catchup
-		}
-
-		set fg_fsm 0
-
-		if { [lsearch -exact $PX($Praxis,PN) $fsm_name] >= 0 } {
-			xerror "fsm $fsm_name defined more than once"
-		}
-
-		lappend PX($Praxis,PN) $fsm_name
-
-		if { $fsm_name == "root" } {
-			set rootp 1
-		}
-
-		# process description
-		lappend PX($Praxis,PL) [list $fsn $stlist $fsm_type]
-		continue
+	set vrs [lindex $d 1]
+	set ins "\n"
+	foreach v $vrs {
+	  if [isfundec $v] {
+	    # ignore function announcements altogether
+	    continue
+	  }
+	  set vnm [lindex $v 1]
+	  set nnm "__vattr_$vnm"
+	  append ins "#ifndef $vnm\n#define $vnm (((__NT[pnfx]*)"
+	  append ins "TheStation)->$nnm)\n#endif\n"
+	  lappend_unique PG($Pgm,EA) [list $nnm $vnm [lindex $d 2]]
 	}
 
-	if { $bra == 0 && ($tok == "\}" || $tok == ";") } {
+	putS $ins
+	catchup
+	continue
+      }
 
-		if { $fg_fsm == -1 } {
-			# fsm becomes legit
-			set fg_fsm 0
-		}
+      #########################################################################
+      # handle regular declarations ###########################################
+      #########################################################################
+      set ins [lsearch -exact $pfx "const"]
+      if { $ins >= 0 } {
+	# turn const to var for now; we may want to do something about them
+	# later
+	set pfx [lreplace $pfx $ins $ins]
+      }
 
-	} elseif { $fg_fsm == 0 } {
+      set suf "__vattr_"
 
-		set fg_fsm -1
+      set ins [lsearch -exact $pfx "static"]
+      if { $ins >= 0 } {
+	# static is additionally mangled with the file-specific counter
+	append suf "${cnt}_"
+	set pfx [lreplace $pfx $ins $ins]
+      }
+
+      if { [llength $pfx] == 0 } {
+	# check the prefix after all this trimming
+	xerror "missing type in declaration"
+	continue
+      }
+
+      set vrs [lindex $d 1]
+      set ors ""
+      # insert
+      set ins "\n"
+
+      # rename the variables
+      foreach v $vrs {
+
+	if [isfundec $v] {
+	  # ignore function announcements
+	  continue
 	}
+
+	set vnm [lindex $v 1]
+	set nnm "${suf}${vnm}"
+	if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
+	  xerror "variable $vnm declared (globally) more than once"
+	  continue
+	}
+
+	# don't use #ifdef here, may help discover some potential errors
+	append ins "#define $vnm (((__NT[pnfx]*)"
+	append ins "TheStation)->$nnm)\n"
+
+	set v [lreplace $v 1 1 $nnm]
+	# include the original variable name as a fifth item in the new list
+	lappend v $vnm
+	# update global list of names
+	lappend PG($Pgm,AN) $nnm
+	lappend ors $v
+      }
+
+      # has been verified for duplicates
+      lappend PG($Pgm,AL) [lreplace $d 0 1 $pfx $ors]
+
+      # insert the defines
+      insert $PAR_MARK $ins
+      catchup
+      continue
+    }
+
+    ###########################################################################
+    # we are nested (bra > 0) #################################################
+    ###########################################################################
+
+    if { $tok == "runfsm" } {
+
+      set run_mark $PAR_MARK
+
+      set tok [ntoken]
+      if { $PAR_IT != "k" } {
+	xerror "fsm name expected after runfsm"
+	continue
+      }
+
+      set fsm_sname $tok[pnfx]
+
+      set tok [ntoken]
+      # expected ( or some other delimiter, not necessarily ;
+      if { $PAR_IT != "d" } {
+	xerror "runfsm syntax error, delimiter expected after sfm name"
+	continue
+      }
+
+      if { $tok == "(" } {
+	set arg [parse_arg]
+	if { $PAR_DEL == "" } {
+	  # error (diagnosed by parse_arg)
+	  continue
+	}
+	# looking at the delimiter following the closing )
+	set tok [ntoken]
+      } else {
+	set arg ""
+      }
+
+      truncate $run_mark
+      putS "[emit_create $fsm_sname $arg]$tok"
+
+      continue
+    }
+
+    # other non-declaration keywords? later we may want to get rid of the
+    # macros in sysio.h
+
+    ###########################################################################
+    # handling fsm code #######################################################
+    ###########################################################################
+
+    if { $fg_fsm <= 0 } {
+      set fg_fsm -1
+      # illegal after keyword
+      continue
+    }
+
+    ###########################################################################
+    # within fsm, declarations allowed ########################################
+    ###########################################################################
+    if { $fg_fsm == 1 } {
+
+      # this means that we are within an fsm and declarations are still legal
+
+      if { $bra != $fsm_blev || $tok == "state" || $tok == "entry" ||
+	$tok == "initial" } {
+	# not any more; any of these renders declarations illegal
+	set fg_fsm 2
+	# have to redo the keyword
+	set rep 1
+	continue
+      }
+
+      # try the declaration
+      set d [parse_decl $tok]
+      set dtp [lindex $d 3]
+
+      if { $d == "" } {
+	# no more declarations; note that the first keyword has been swallowed
+	set fg_fsm 2
+	continue
+      }
+
+      if { $dtp != "V" } {
+	xerror "only variables can be declared within an fsm"
+      }
+
+      set pfx [lindex $d 0]
+
+      # just in case
+      if { [lsearch -exact $pfx "idiosyncratic"] >= 0 } {
+	xerror "variables cannot be idiosyncratic"
+	continue
+      }
+
+      if { [lindex $pfx 0] != "shared" } {
+	# we leave it alone; should we allow the keyword further down the list?
+	continue
+      }
+
+      # a shared declaration
+      set pfx [lreplace $pfx 0 0]
+      if { [llength $pfx] == 0 } {
+	xerror "type missing in shared declaration"
+      }
+
+      # variable list
+      set vrs [lindex $d 1]
+      set ors ""
+      # copy the variable list mangling the variables
+      foreach v $vrs {
+	set vnm [lindex $v 1]
+	set nnm "__vattr_${fsm_name}_$vnm"
+	if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
+	  xerror "shared variable $vnm conflicts (globally) with another\
+		variable"
+	  continue
+	}
+	# defines
+	set ins "(((__NT[pnfx]*)TheStation)->$nnm)"
+	lappend PS($Pgm,AN) $nnm
+	lappend dflist [list $vnm $ins]
+	set v [lreplace $v 1 1 $nnm]
+	lappend ors $v
+      }
+
+      lappend PG($Pgm,AL) [lreplace $d 0 1 $pfx $ors]
+      # remove the original declaration
+      truncate $PAR_MARK
+      continue
+    }
+
+    ###########################################################################
+    # within fsm, no more declarations ########################################
+    ###########################################################################
+    if { $fg_fsm > 0 } {
+
+      if { $bra == $fsm_blev && ($tok == "state" || $tok == "entry" ||
+	   $tok == "initial") } {
+	# state, including "initial"
+	set fsm_smark $PAR_MARK
+	if { $tok == "initial" } {
+	  set fstate "I"
+	  set fsm_ins 1
+	} else {
+	  set fstate "S"
+	  set fsm_ins 0
+	}
+	continue
+      }
+
+      # note: there's no need to handle proceed
+
+    } else {
+
+    ###########################################################################
+    # keyword outside fsm #####################################################
+    ###########################################################################
+
+      set fg_fsm -1
+    }
+
+    continue
+  }
+
+  #############################################################################
+  # not a keyword in ground state #############################################
+  #############################################################################
+
+  if { $PAR_IT != "d" } {
+    # and not a delimiter
+    continue
+  }
+
+  #############################################################################
+  # delimiter in ground state #################################################
+  #############################################################################
+
+  if { $fg_fsm > 0 } {
+
+    # within fsm; looking for the closing brace
+    if { $tok != "\}" || $bra >= $fsm_blev } {
+      # nothing special, keep going
+      continue
+    }
+
+    ###########################################################################
+    # closing the fsm #########################################################
+    ###########################################################################
+
+    # the name is mangled with program name
+    set fsn "$fsm_name[pnfx]"
+
+    foreach st $pslist {
+      # verify proceed states
+      if { [lsearch -exact $stlist $st] < 0 } {
+	xerror "state $st used in proceed not defined in fsm"
+      }
+    }
+
+    if { $stinit != "" } {
+      # an explicit initial state, must get number zero
+      set st [lsearch -exact $stlist $stinit]
+      if { $st < 0 } {
+	# impossible
+	set st 0
+      }
+      # move it to front
+      set stlist [linsert [lreplace $stlist $st $st] 0 $stinit]
+    }
+
+    set ins "\n[lnumseq [olinenum $fsm_mark]]"
+    # defines for shared variables
+    foreach d $dflist {
+      append ins "\n#define [lindex $d 0] [lindex $d 1]"
+    }
+    append ins "\n"
+
+    # the code method
+    append ins "${fsn}::perform \{\n"
+
+    insert $fsm_mark $ins
+
+    if { $dflist != "" } {
+      putS "\n"
+      foreach d $dflist {
+	putS "#undef [lindex $d 0]\n"
+      }
+      catchup
+    }
+
+    set fg_fsm 0
+
+    if { [lsearch -exact $PG($Pgm,PN) $fsm_name] >= 0 } {
+      xerror "fsm $fsm_name defined more than once"
+    } else {
+      lappend PG($Pgm,PN) $fsm_name
+    }
+
+    if { $fsm_name == "root" } {
+      # flag == need the starter
+      set rootp 1
+    }
+
+    # process description
+    lappend PG($Pgm,PL) [list $fsn $stlist $fsm_type]
+    continue
+  }
+
+  #############################################################################
+  # other delimiters ##########################################################
+  #############################################################################
+  if { $bra == 0 && ($tok == "\}" || $tok == ";") } {
+
+    if { $fg_fsm == -1 } {
+      # fsm becomes legit
+      set fg_fsm 0
+    }
+
+  } elseif { $fg_fsm == 0 } {
+
+    set fg_fsm -1
+  }
 }
 
 F {
@@ -2805,9 +3874,34 @@ F {
 
 	set tok [ntoken]
 
-	if { $PAR_IT != "d" || ( $tok != "\{" && $tok != "(" ) } {
+	if { $PAR_IT != "d" || ( $tok != "\{" && $tok != "(" && $tok != "," &&
+	     $tok != ";" ) } {
 		xerror "fsm declaration syntax error, ( or \{ expected"
 		set fg_fsm -1
+		continue
+	}
+
+	if { $tok == "," || $tok == ";" } {
+		# announcement - skip to ";" while doing some rudimentary
+		# verification
+		set fg_fsm 0
+		set fstate "K"
+		while 1 {
+			if { $PAR_IT == "d" } {
+				if { $tok == ";" } {
+					break
+				}
+				if { $tok != "," } {
+					set fg_fsm -1
+					xerror "illegal fsm announcement"
+					break
+				}
+			}
+			set tok [ntoken]
+		}
+
+		truncate $fsm_mark
+		catchup
 		continue
 	}
 
@@ -2939,27 +4033,43 @@ proc usage { } {
 }
 
 # default mode == vuee compiler
-set FG_V 1
+set FG(V) 1
 
-#default flag == compile unless errors
-set FG_C 1
+# default flag == compile unless errors
+set FG(C) 1
+
+#arguments for VUEE
+set FG(VA) ""
+
+set an 0
 
 foreach arg $argv {
 
+	incr an
+
 	if { $arg == "-p" } {
-		set FG_V 0
+		set FG(V) 0
 	} elseif { $arg == "-v" } {
-		set FG_V 1
+		set FG(V) 1
 	} elseif { $arg == "-n" } {
-		set FG_C 0
+		set FG(C) 0
+	} elseif { $arg == "--" } {
+		# arguments for the vuee compiler
+		if !$FG(V) {
+			errab "-- ... illegal with PicOS mode (-p)"
+		}
+		set FG(VA) [lrange $argv $an end]
+		break
 	} else {
 		usage
 	}
 }
 
-if $FG_V {
+set ErrCnt 0
 
-	puts "compiling picos to vuee ..."
+if $FG(V) {
+
+	puts "PiComp version $Version"
 	parse_vuee
 
 } else {
@@ -2985,11 +4095,3 @@ if $FG_V {
 }
 
 exit 0
-
-##
-## Things to do (known and doable things that do not work):
-##
-##	- function announcements mixed with declarations; at present a function
-##	  declaration inside a list of variable declarations renders the whole
-##	  thing a non-declaration
-##
