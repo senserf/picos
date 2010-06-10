@@ -1028,3 +1028,20 @@
 	   to the sending transceiver.
 
 	   Version bumped to 3.2
+
+ R100226A  Fixed a minor problem in Examples/IncLib/wchan.cc diagnosed by
+	   valgrind; not really an error.
+
+	   Fixed a typo in the manual.
+
+ R100609A  Modified mks to allow for (possibly multiple) arguments of the form:
+	   '-I path' specifying extra include directories (libraries), in
+	   addition to those declared with maker. Also, when mks is invoked as
+	   vue..., it checks the environment variable VUEEPATH and, if defined,
+	   uses its value as the first extra include library (searched after
+	   the ones specified with maker and before those specified with -I).
+
+	   mks/vuee with -Q returns version number + endianness (for picomp)
+	   and quits.
+
+	   The vuee part of mks is not documented in the manual, should it be?

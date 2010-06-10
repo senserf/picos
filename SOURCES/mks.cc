@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-10   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -132,10 +132,10 @@ char    PRC [24], OPT [16], ASR [16], OBS [16], AER [16], DST [16], BTC [16],
 	CLI [16], REA [16], RSY [16], JOU [16], DET [16], NOC [16], NOL [16],
 	NOR [16], NOS [16], NFP [16], FLK [16];
 
-char    *options [32],
+char    *options [32], *includes [8],
 	*ofname, libindex [LNAMESIZE], libfname [LNAMELENG], **cfiles, *pname;
 
-int     ncfiles = 0, cfsize = 16;
+int     ncfiles = 0, cfsize = 16, nincludes = 0;
 
 char    cd [PATH_MAX];
 
@@ -230,6 +230,7 @@ void    badArgs () {
 	cerr << "       -b n       precision of BIG numbers (default is 2)\n";
 	cerr << "       -o fname   direct binary simulator to 'fname'\n";
 	cerr << "       -t         'touch' the protocol source files\n";
+	cerr << "       -I path    add a library directory (up to 8)\n";
 	cerr << "      Default: '-b 2 -o side' (other flags cleared)\n";
         cerr << "      Incompatibilities: -F and -8, -R and -V, -b 0 and -F\n";
         cerr << "                         -G and -g\n";
@@ -724,7 +725,12 @@ void    makeSmurph () {
 	*out << "VER= " << VERSION << '\n';
 	*out << "SRC= " << ZZ_SOURCES << '\n';
 	*out << "LIB= " << ZZ_LIBPATH << '/' << libfname << '\n';
-	*out << "INC= " << ZZ_INCPATH << '\n';
+	*out << "INC= " << ZZ_INCPATH;
+
+	for (i = 0; i < nincludes; i++)
+		*out << " -I " << includes [i];
+
+	*out << '\n';
 
 	*out << "CMP= " << CCOMP;
 	if (BeVerbose) *out << " -v";
@@ -856,7 +862,7 @@ void    makeSmurph () {
 
 main    (int argc, char *argv[]) {
 
-	int     i, semfd, verfd;
+	int     i, nogo, semfd, verfd;
 	char	*str;
 
 	// Initialize things for argument processing
@@ -898,6 +904,11 @@ main    (int argc, char *argv[]) {
 		// VUEE options selection
         	strcpy (RSY, "-DZZ_RSY=1");
         	strcpy (NOL, "-DZZ_NOL=0");
+		// Check for VUEEPATH in the environment
+		if ((str = getenv ("VUEEPATH")) != NULL) {
+			// Add it as the first include directory
+			includes [nincludes++] = str;
+		}
 	} else {
         	strcpy (RSY, "-DZZ_RSY=0");
         	strcpy (NOL, "-DZZ_NOL=1");
@@ -911,6 +922,8 @@ main    (int argc, char *argv[]) {
 	strcpy (libindex, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
 	cfiles = new char* [cfsize];
+
+	nogo = 0;
 
 	while (argc > 0) {
 
@@ -1121,6 +1134,11 @@ main    (int argc, char *argv[]) {
 			if (PRC [16] == '-') badArgs ();
 			break;
 
+		  case 'Q' :
+
+			nogo = 1;
+			break;
+
 		  case 'b' :
 
 			if (argc < 2 || libindex [LIBX_PRC] != 'x') badArgs ();
@@ -1162,6 +1180,15 @@ main    (int argc, char *argv[]) {
 		  case 'V' :
 
 			BeVerbose = 1;
+			break;
+
+		  case 'I' :
+
+			// A new include path
+			if (argc < 2 || nincludes == 8) badArgs ();
+			argv++;
+			argc--;
+			includes [nincludes++] = *argv;
 			break;
 
 		  default :
@@ -1207,6 +1234,21 @@ main    (int argc, char *argv[]) {
 
         // Turn the index into a library name
         compressLibName ();
+
+	if (nogo) {
+		// Version number and quit; we will use it to pass to picomp
+		// the kind of system data that is difficult to acquire from
+		// Tcl
+		cout << pname << " version " << VERSION <<
+#if BYTE_ORDER == LITTLE_ENDIAN
+			" Lit"
+#else
+			" Big"
+#endif
+		// More may come later
+				<< '\n';
+		exit (0);
+	}
 
 	if (ncfiles == 0) getFNames ();
 

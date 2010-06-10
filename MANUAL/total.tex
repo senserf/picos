@@ -1667,7 +1667,7 @@ the second argument equal {\tt NULL} and {\tt hs} equal 0.
 To facilitate interfacing the simulator to external programs that may act as
 the suppliers of simulation data and, possibly, absorbers of the output, 
 \smurph\ has been equipped with a simple XML
-parser.\footnote{Adopted from the publicly available (MIT license)
+parser.\footnote{Adapted from the publicly available (MIT license)
 code by Aaron Voisine.}
 Being a rather independent add-on,
 the parser is a self-contained feature, which can be used
@@ -18999,6 +18999,16 @@ It only makes sense for the real mode of \smurph\ and automatically
 forces {\tt -R}, {\tt -S}, and {\tt -D}.
 One feature that does not work with {\tt -D} is the {\tt setEtu},
 {\tt setItu} pair (\sect{rm_mp_ti}).
+\end{quote}\medskip
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt -I}}\\ \hspace{0in}
+This argument must be followed by a path pointing to a directory which
+will be searched for {\tt include} files.
+Multiple arguments of this form are permitted (up to 8), and the order of their
+occurrence determines the search order.
+The {\tt include} directories specified this way are searched {\em after\/}
+those declared with {\tt maker} (\sect{rm_un_in}).
 \end{quote}\medskip
 
 In consequence of running {\tt mks}, all protocol files from the current

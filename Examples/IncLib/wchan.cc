@@ -163,7 +163,10 @@ IVMapper::IVMapper (unsigned short n, unsigned short *wt, double *dt,
 	NL = n;
 	VLV = wt;
 
-	Dec = (dt [1] < dt [0]);
+	if (n < 2)
+		Dec = 0;
+	else
+		Dec = (dt [1] < dt [0]);
 	Log = lg;
 
 	// Interpolation

@@ -1,12 +1,12 @@
-/* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
-/* ooooooooooooooooooooooooooooooooooooo */
+/* ooooooooooooooooooooooooooooooooooooooo */
+/* Copyright (C) 1991-2010   P. Gburzynski */
+/* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
 
-/* ------------------------------------------------------ */
-/* This is a simple interactive initializer of everything */
-/* ------------------------------------------------------ */
+/* ----------------------------------------------------- */
+/* This is a simple interactive setup program for SMURPH */
+/* ----------------------------------------------------- */
 
 #include        "version.h"
 
@@ -603,9 +603,9 @@ COVH:
         system ("rm -rf *.o *.a");
 
 	cout << "Creating the library ...\n";
-	strcpy (cb, "make COMP=");
+	strcpy (cb, "make COMP=\"");
 	strcat (cb, ccomp);
-        strcat (cb, " CCOMP=\"");
+        strcat (cb, "\" CCOMP=\"");
         strcat (cb, ckomp);
 	strcat (cb, "\"");
 	strcat (cb, " RANLIB=./ifranlib");
