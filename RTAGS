@@ -4246,3 +4246,12 @@ R100609A:
 	also start with README.txt in Apps/VUEE/new_il_demo. The teaser from
 	R100605B should work, too. Requires SIDE and VUEE with the same
 	release number.
+
+R100610A:
+
+	A few fixes to PiComp:
+
+	1. Parameters to vuee (after --) were passed incorrectly
+	2. Better recognition of tricky types (how about a pointer to function
+	   returning structure [pointers], possibly typedef-fed, and so on?)
+	3. Corrected line numbering for error diagnostics

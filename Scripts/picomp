@@ -71,7 +71,7 @@ proc xerror { msg { lnu "" } } {
 #
 # An error message (with line number)
 #
-	global PS ErrCnt
+	global PS ErrCnt RepErr
 
 	if { $lnu == "" } {
 		set ln $PS(LIN)
@@ -80,6 +80,13 @@ proc xerror { msg { lnu "" } } {
 		set ln [lindex $lnu 0]
 		set lf [lindex $lnu 1]
 	}
+
+	set erc "$lf:$ln"
+	if [info exists RepErr($erc)] {
+		# do not report more than one error per line per file
+		return
+	}
+	set RepErr($erc) ""
 
 	puts stderr "$lf:$ln: $msg"
 
@@ -730,8 +737,12 @@ proc parse_decl { tok } {
 
 	set more 1
 
-	if { $tok == "typedef" } {
-		set dstate "T"
+	if { $tok == "struct" || $tok == "union" || $tok == "enum" } {
+		# this can be a type declaration, because it starts with
+		# struct/union, but it doesn't have to be; typedec == -1
+		# says exactly that
+		set dstate "S"
+		set tname $tok
 	} else {
 		set dstate "P"
 	}
@@ -762,16 +773,16 @@ proc parse_decl { tok } {
 					xerror "typedef preceded by garbage"
 					
 				}
-				if { $tok == "union" || $tok == "struct" } {
-					# if pfx is empty, this can be a type
-					# declaration, although id doesn't have
-					# to; otherwise, it must be a variable
-					# declaration
-					if { $pfx != "" } {
-						# this cannot be a type decl
-						# any more
-						set typedec 0
-					}
+				if { $tok == "union" || $tok == "struct" ||
+				     $tok == "enum" } {
+					# pfx is nonempty, so this can't be a
+					# type declaration any more, unless
+					# there's typedef in front, which will
+					# be handled separately
+					set typedec 0
+					# which one it is (for diagnostics)
+					set tname $tok
+					# type name (for future use?)
 					set typ $tok
 					set dstate "S"
 				}
@@ -1058,63 +1069,6 @@ proc parse_decl { tok } {
 			continue
 		  }
 		
-		  T {
-		  #############################################################
-		  # typedef ###################################################
-		  #############################################################
-
-			set br [brcnt]
-
-			# skip until ; and grab the last keyword as the type
-			# name; return the full type declaration in the prefix
-
-			lappend pfx $tok
-
-			while 1 {
-				set tok [ntoken]
-				if { $PAR_IT == "k" } {
-					set typ $tok
-					lappend pfx $tok
-					continue
-				}
-
-				if { $PAR_IT == "d" } {
-					if { $tok == ";" && [brcnt] == $br } {
-						# the end
-						if { $typ == "" } {
-							xerror "typedef syntax\
-								error, type\
-								name missing"
-							return ""
-						}
-						break
-					}
-
-					if ![legcs $tok] {
-						xerror "illegal token $tok in\
-							typedef"
-						return ""
-					}
-				} elseif { $PAR_IT == "e" || $PAR_IT == "f" } {
-					xerror "incomplete declaration at end\
-						of file"
-					return ""
-				}
-
-				if { [brcnt] < $br } {
-					xerror "semicolon missing after typedef"
-					return ""
-				}
-
-				lappend pfx $tok
-			}
-
-			set more 0
-			set dstate "M"
-
-			continue
-		  }
-
 		  S {
 		  #############################################################
 		  # struct or union ###########################################
@@ -1126,22 +1080,21 @@ proc parse_decl { tok } {
 
 			if { $PAR_IT == "k" } {
 				# this may look like a type declaration
-				if { $typedec == 0 } {
-					# except that it can't
-					xerror "illegal struct/union type\
-						declaration"
-					return ""
+				if { $typedec != 0 } {
+					# the keyword counts to the type name
+					append typ " $tok"
 				}
-				# construct a tentative type name; will clear
-				# typ, if this turns out to be a variable
-				# declaration after all
-				append typ " $tok"
 				lappend pfx $tok
+				# flag == structure name present
+				set str_named 1
 			} else {
-				# this cannot be a type declaration
+				# this cannot be a type declaration (unless
+				# typedef shows up in front)
 				set typedec 0
 				# do not read next token, have got it already
 				set rep 1
+				# no name
+				set str_named 0
 			}
 		  }
 		
@@ -1151,7 +1104,14 @@ proc parse_decl { tok } {
 		  #############################################################
 
 			if { $PAR_IT != "d" || $tok != "\{" } {
-				xerror "illegal struct/union declaration"
+				if $str_named {
+					# this looks like a "struct name"
+					# reference in type prefix
+					set rep 1
+					set dstate "P"
+					continue
+				}
+				xerror "illegal $tname declaration"
 				return ""
 			}
 
@@ -1168,7 +1128,7 @@ proc parse_decl { tok } {
 					}
 					if ![legcs $tok] {
 						xerror "illegal token $tok in\
-							union/struct"
+							$tname"
 						return ""
 					}
 				}
@@ -1185,12 +1145,12 @@ proc parse_decl { tok } {
 
 			set tok [ntoken]
 
-			if { $tok == ";" } {
+			if { $PAR_IT == "d" && $tok == ";" } {
 				if { $typedec == 0 } {
 					# it cannot be a type declaration
-					xerror "illegal struct/union\
-						declaration, missing variable\
-						list"
+					xerror "illegal $tname declaration,\
+						missing variable list or type\
+						name"
 					return ""
 				}
 
@@ -1202,10 +1162,17 @@ proc parse_decl { tok } {
 			}
 
 			set rep 1
-			# collecting variable name prefix
-			set dstate "M"
 			set typ ""
 
+			if { $PAR_IT == "d" && $tok == "*" || $tok == "(" } {
+				set dstate "P"
+			} elseif { $PAR_IT == "k" } {
+				set dstate "M"
+			} else {
+				xerror "declaration syntax error, variable name\
+					expected"
+				return ""
+			}
 			continue
 		  }
 
@@ -1220,6 +1187,27 @@ proc parse_decl { tok } {
 	}
 
 	set PAR_MARK $dec_mark
+
+	# check for typedef; if the first pfx keyword is typedef, there must be
+	# a single "variable" (no initializer) which is the name of the defined
+	# type
+
+	if { [lindex $pfx 0] == "typedef" } {
+		if { [llength $vrs] != 1 } {
+			xerror "typedef syntax error, looks like multiple type\
+				names"
+			return ""
+		}
+		set br [lindex $vrs 0]
+		if { [lindex $br 3] != "" } {
+			xerror "typedef syntax error, illegal initializer"
+			return ""
+		}
+		# type = "variable" name
+		set typ [lindex $br 1]
+		# concatenate everything with the prefix
+		append pfx [lindex $br 0]$typ[lindex $br 2]
+	}
 
 	if { $typ != "" } {
 		# type declaration
@@ -2275,7 +2263,7 @@ proc compile_vuee { } {
 
 	catch { file delete -force $ef }
 
-	set vnam "|[join [list $EXEC(vuee)] $FG(VA)] 2> $ef"
+	set vnam "|[join [concat [list $EXEC(vuee)] $FG(VA)]] 2> $ef"
 	if [catch { open $vnam "r" } vfd] {
 		catch { file delete -force $ef }
 		cd $cwd
@@ -2480,6 +2468,8 @@ proc compile_pgm { } {
 
 		setsymbols $exp
 
+		# note that the last line of prelude is empty, as it
+		# should be
 		set exp [scanfile $cfn 1 [split [emit_thrname] "\n"]]
 
 		if { $exp != "" } {
@@ -2827,7 +2817,7 @@ proc scanfile { fname inner { prelude "" } } {
 	set CFName $fname
 
 	# line count
-	set FLine 0
+	set FLine 1
 
 	if [catch { open $fname "r" } fd] {
 		errab "cannot open file '$fname': $fd"
@@ -2876,13 +2866,14 @@ proc scanfile { fname inner { prelude "" } } {
 			# interfere with subsequent gets; also, the prelude
 			# stays at line 0
 			set line [lindex $prelude 0]
-			set prelude [lrange $prelude 1 end]
-			if { $prelude == "" } {
-				# bring the line numbers back to order
+			if { $line == "" } {
+				# a prelude ends with an empty line
+				set prelude ""
 				set FLine 1
 				append res "[slineseq]"
-				set FLine 0
+				continue
 			}
+			set prelude [lrange $prelude 1 end]
 		}
 
 		# handle //+++ requests, but only in internal files; such
