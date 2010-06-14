@@ -2347,8 +2347,9 @@ K {
 			continue
 		}
 
-		# close the fsm
-
+		# close the fsm; first remove the closing brace of switch
+		truncate $PAR_MARK
+		
 		foreach st $pslist {
 			# verify proceed states
 			if { [lsearch -exact $stlist $st] < 0 } {
@@ -2406,9 +2407,17 @@ K {
 
 		insert $fsm_mark $ins
 
-		# one extra brace at the end
-		putS "\}\n"
-	
+		# the old "default" sequence (FIXME: it should go!!!)
+		putS "break; default: if (zz_st == 0xffff) return ("
+		if { $fsm_type == "" } {
+			# thread (one copy allowed)
+			putS "1"
+		} else {
+			# strand (no limit)
+			putS "0"
+		}
+		putS "); zz_badstate (); \} return 1; \}\n"
+		
 		# followed by undefines
 		foreach d $dflist {
 			putS "#undef [lindex $d 0]\n"
@@ -3177,8 +3186,12 @@ proc compile_pgm { } {
 	}
 
 	if { $NotFound != "" } {
-		set NotFound [join $NotFound ", "]
-		pwarn "files not found: $NotFound"
+		if { [llength $NotFound] > 1 } {
+			set NotFound [join $NotFound ", "]
+			pwarn "files not found: $NotFound"
+		} else {
+			pwarn "file not found: [lindex $NotFound 0]"
+		}
 	}
 
 	array unset Processed

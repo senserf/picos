@@ -4267,3 +4267,14 @@ R100613A:
 	   something obvious)
 	4. Many other fixes and improvements.
 	5. new_il_demo updated (the conditional initializers removed)
+
+R100614A:
+
+	The PicOS-to-gcc part of PiComp would not generate the code for
+	detecting illegal process states and returning process count limits
+	(needed by the kernel). Not that it was extremely important. The
+	whole idea of that code must be revised, as PiComp makes it possible
+	to implement it in a much better way. But that will break the
+	downward compatibility, which we would prefer to maintain for a while.
+
+	The PiComp document updated a bit.
