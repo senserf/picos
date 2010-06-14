@@ -4255,3 +4255,15 @@ R100610A:
 	2. Better recognition of tricky types (how about a pointer to function
 	   returning structure [pointers], possibly typedef-fed, and so on?)
 	3. Corrected line numbering for error diagnostics
+
+R100613A:
+
+	More enhancements to PiComp (many parts redone):
+
+	1. Compound initializers now work!!! No need to use ugly conditional
+	   constructs.
+	2. Compound initializers work!!! Did I say that already?
+	3. Arguments menu to be shown after illegal arguments was broken (for
+	   something obvious)
+	4. Many other fixes and improvements.
+	5. new_il_demo updated (the conditional initializers removed)
