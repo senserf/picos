@@ -4278,3 +4278,12 @@ R100614A:
 	downward compatibility, which we would prefer to maintain for a while.
 
 	The PiComp document updated a bit.
+
+R100617A:
+
+	Defaults in cc1100.h changed to:
+
+	1. hardware CRC
+	2. base RF frequency of 904 MHz (as it was in Genesis)
+
+	Minor, cosmetic, and irrelevant changes to PiComp

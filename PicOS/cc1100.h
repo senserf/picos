@@ -18,7 +18,7 @@
  *     2 = software
  */
 #ifndef	RADIO_CRC_MODE
-#define	RADIO_CRC_MODE		2	/* FIXME: this should be 0 */
+#define	RADIO_CRC_MODE		0	/* Changed R100617 to 0 from 2 */
 #endif
 
 #ifndef	RADIO_BITRATE
@@ -172,8 +172,14 @@
 //       So these likely only work for the 200000 bitrate... TJS
 // setup defaults to use the 868MHz frequency range with no offset
 
+//
+// Changed R100617 from 0x1E to 0x22, yielding 904 MHz as the base frequency
+// (the same as in GENESIS). The formula is:
+//
+//	((FREQ2 << 16) + (FREQ1 << 8) + FREQ0) * 26MHz / 65536
+//
 #ifndef CC1100_FREQ_FREQ2_VALUE
-	#define	CC1100_FREQ_FREQ2_VALUE	0x1E
+	#define	CC1100_FREQ_FREQ2_VALUE	0x22
 #endif
 
 #ifndef CC1100_FREQ_FREQ1_VALUE
@@ -194,6 +200,7 @@ const	byte	cc1100_rfsettings [] = {
 // Common settings for all rates
 //
         CCxxx0_FSCTRL0, 0x00,   // FSCTRL0
+	CCxxx0_FREQ2,   CC1100_FREQ_FREQ2_VALUE,   // FREQ2
         CCxxx0_FREQ1,   CC1100_FREQ_FREQ1_VALUE,   // FREQ1 3B the base radio
         CCxxx0_FREQ0,   CC1100_FREQ_FREQ0_VALUE,   // FREQ0 13 frequency
         CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0	      F8 channel spacing
@@ -270,11 +277,10 @@ const	byte	cc1100_rfsettings [] = {
 static const	byte	zz_rate0 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-	CCxxx0_FREQ2,   0x22,   // FREQ2
        	CCxxx0_MDMCFG4, 0xC7,   // MDMCFG4 	(4.8 kbps)
        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x00 + 0x03,		// Double sync word
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
@@ -285,11 +291,10 @@ static const	byte	zz_rate0 [] = {
 static const	byte	zz_rate1 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-	CCxxx0_FREQ2,   0x22,   // FREQ2
        	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
        	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x00 + 0x03,
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
@@ -300,11 +305,10 @@ static const	byte	zz_rate1 [] = {
 static const	byte	zz_rate2 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-	CCxxx0_FREQ2,   0x22,   // FREQ2
        	CCxxx0_MDMCFG4, 0xCA,   // MDMCFG4 	(38.4 kbps)
        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x00 + 0x03,
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
@@ -315,7 +319,6 @@ static const	byte	zz_rate2 [] = {
 static const	byte	zz_rate3 [] = {
 
         CCxxx0_FSCTRL1, 0x0A,   // FSCTRL1	WAS 0C
-        CCxxx0_FREQ2,   CC1100_FREQ_FREQ2_VALUE,   // FREQ2
 
  #ifdef TRUE_200KBAUD
        	CCxxx0_MDMCFG4, 0x5C,   // TJS was 0x8C,   // MDMCFG4	(200 kbps)
@@ -326,7 +329,7 @@ static const	byte	zz_rate3 [] = {
  #endif
 
         CCxxx0_MDMCFG2, 0x10 + 0x02,		// Single sync word
-        CCxxx0_MDMCFG1, 0x22,   // MDMCFG1	22 FEC + 4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x22,   // MDMCFG1	4 pre + ch spacing
         CCxxx0_DEVIATN, 0x47,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x36,   // FOCCFG
         CCxxx0_FSCAL2,  0x0A,   // FSCAL2

@@ -441,7 +441,7 @@ proc getmark { } {
 
 proc getmarq { } {
 #
-# Same as getmark, except that the input is backspaced by one character (needed
+# Same as getmark, except that the input is backspaced one character (needed
 # by ntoken, which grabs the mark after swallowing the first character of the
 # token)
 #
@@ -547,8 +547,8 @@ proc ntoken { } {
 # The function atomatically outputs the scanned characters to the parser's
 # output. If you want to replace something there, use marks, inserts, etc.
 #
-# PAR_MARK is automatically set to the mark immediately preceding the token
-# being returned.
+# PAR_MARK is automatically set to the position immediately in front of the
+# token being returned.
 #
 	global PAR_IT PAR_MARK PS
 
@@ -851,8 +851,7 @@ proc parse_decl { { xp 0 } { bf 0 } } {
 
 	if { $TK == "struct" || $TK == "union" || $TK == "enum" } {
 		# this can be a type declaration, because it starts with
-		# struct/union, but it doesn't have to; typedec == -1
-		# says exactly that
+		# struct/union, but it doesn't have to
 		set dstate "S"
 		# start this tentatively; if there's no name to the thing,
 		# this will be cancelled
@@ -912,7 +911,8 @@ P {
 		}
 		# just a keyword
 		lappend pfx $TK
-		# mark the beginning in case have to backspace
+		# mark the beginning (last keyword mark) in case have to
+		# backspace if this turns out to be the variable name
 		set lkw_mark $PAR_MARK
 		continue
 	}
@@ -946,7 +946,7 @@ P {
 			# expecting a closing )
 			set fpf 1
 			set typ "p"
-			# start counting
+			# start counting asterisks
 			set fpt 1
 			# proceed at "M"
 			continue
@@ -984,7 +984,7 @@ M {
 ###############################################################################
 
 	if { $PAR_IT == "k" } {
-		# the variable name we have been waiting for
+		# the variable name
 		set nam $TK
 		set dstate "N"
 		continue
@@ -1003,7 +1003,7 @@ M {
 			# these count to the function pointer
 			incr fpt
 		} else {
-			# outer pointe
+			# the outer pointer
 			incr ptr
 		}
 		continue
@@ -1020,7 +1020,7 @@ M {
 			}
 			return ""
 		}
-		# function pointer declaration opened;
+		# function pointer declaration opened
 		set fpf 1
 		set typ "p"
 		continue
@@ -1038,7 +1038,7 @@ N {
 ###############################################################################
 
 	if { $PAR_IT != "d" } {
-		# it must be a delimiter, anyway
+		# it must be a delimiter, nothing else
 		if $xp {
 			xerror "illegal declaration syntax, delimiter expected"
 		}
@@ -1194,7 +1194,7 @@ N {
 			set len [lindex $ini 1]
 			# this is the length
 			if { $len == 0 } {
-				xerror "illegal initializer for this array"
+				xerror "illegal initializer for an array"
 				return ""
 			}
 			set arr "\[$len\]"
@@ -1305,7 +1305,7 @@ U {
 	lappend vrs $v
 
 	if $more {
-		# not a function decl, expect a comma or semi
+		# not a function declaration, expect a comma or semi
 		if { $TK != "," && $TK != ";" } {
 			xerror "illegal declaration, ; or , expected"
 			return ""
@@ -1336,6 +1336,8 @@ S {
 		set struct_named 0
 		# cannot be type-only, because it cannot be type
 		set tp_only_ok 0
+		# not a type declaration (unless typedef, which is a different
+		# story)
 		set tna ""
 		# do not read next token, have got it already
 		set rep 1
@@ -1351,7 +1353,8 @@ W {
 		# doesn't provide the body
 		if !$struct_named {
 			# illegal because there's no structure name reference
-			xerror "illegal reference to $tna, name required"
+			xerror "illegal reference to struct or union,\
+				name required"
 			# should we try to skip to a semi or something?
 			return ""
 		}
@@ -1375,7 +1378,7 @@ W {
 	if $FG(D) { dbg "parse_decl: <body> = $bod" }
 	# should be easy to find
 	if { $tna == "" } {
-		# no need to include the body, when tna is set, as it will be
+		# no need to include the body when tna is set, as it will be
 		# declared separately
 		lappend pfx $bod
 	}
@@ -1889,8 +1892,9 @@ proc get_dimensions { ast } {
 
 proc parse_type { } {
 #
-# Extract a type declaration, extremely heuristically, grabs a sequence of
-# keywords possibly with interspersed sequences of asterisks
+# Extract a type declaration from an fsm declaration, extremely heuristically:
+# grabs a sequence of keywords possibly with interspersed sequences of
+# asterisks; there is no need for a better accuracy here
 #
 	global PAR_IT TK
 
@@ -1917,7 +1921,7 @@ proc parse_type { } {
 
 proc outpref { pf } {
 #
-# output a type prefix
+# Outputs a type prefix
 #
 	set res ""
 
@@ -1930,7 +1934,7 @@ proc outpref { pf } {
 
 proc outvar { v { init 0 } } {
 #
-# output a single variable from a declaration list
+# Outputs a single variable from a declaration list
 #
 	set res ""
 
@@ -1986,7 +1990,7 @@ proc outvar { v { init 0 } } {
 	
 proc outdecl { dec { init 1 } } {
 #
-# Convert a declaration description (e.g., returned by parse_decl) back into a
+# Converts a variable declaration list (returned by parse_decl) back into a
 # program string; init -> include the initializer. The string is terminated by
 # a semicolon.
 #
@@ -2011,7 +2015,7 @@ proc outdecl { dec { init 1 } } {
 
 proc outtype { dec } {
 #
-# Output a type declaration
+# Outputs a type declaration
 #
 	set nm [g_tdec $dec tna]
 	set pf [g_tdec $dec bod]
@@ -3491,11 +3495,15 @@ proc sexpr { str } {
 
 proc scanfile { fname inner { prelude "" } } {
 #
-# Expand a source file explicitly including whatever possible. If inner is 0,
+# Expands a source file explicitly including whatever possible. If inner is 0,
 # it means that the file is external, i.e., it belongs to VUEE (comes from
 # VUEE/PICOS). In that case, we do not actually include the file contents, only
 # go through its #ifs/#ifdefs, but also include #defines. Then, the entire file
 # is run through cpp to expand the macros and eliminate the defines.
+#
+# The argument is an optional prelude to be inserted at the beginning of the
+# output file. If specified, it must be a list of lines (no terminating "\n")
+# ending with an empty item (i.e., empty line).
 #
 	global CFName FLine Symbols DirList EDirList FG
 
@@ -3840,7 +3848,7 @@ proc pnfx { } {
 
 proc emit_create { pname { arg "" } } {
 #
-# Generate a sequence for creating a SMURPH process
+# Generates a sequence for creating a SMURPH process
 #
 	set ins "(TheNode->tally_in_pcs()?(create $pname"
 	if { $arg != "" } {
@@ -3852,6 +3860,8 @@ proc emit_create { pname { arg "" } } {
 }
 
 proc emit_thrname { } {
+#
+# Generates the THREADNAME macro
 #
 	global Pgm
 
@@ -3865,7 +3875,7 @@ proc emit_thrname { } {
 
 proc emit_glue { } {
 #
-# Create the "glue" file (SMURPH Root) for the praxis - one for the whole set
+# Creates the "glue" file (SMURPH Root) for the praxis - one for the whole set
 #
 	global PG PgmList Pgm
 
@@ -3902,7 +3912,7 @@ proc emit_glue { } {
 	
 proc emit_vini { } {
 #
-# Create __vueeini...h
+# Creates __vueeini...h
 #
 	global PG Pgm FG
 
@@ -4018,7 +4028,7 @@ proc emit_vini { } {
 
 proc emit_vhdr { } {
 #
-# Create __vueehdr...h
+# Creates __vueehdr...h
 #
 	global PG Pgm
 
@@ -4079,7 +4089,7 @@ proc emit_vhdr { } {
 
 proc parse_pfile { cnt src } {
 #
-# Compile one source file into a VUEE-compilable format
+# Compiles one source file into a VUEE-compilable format
 #
 	global TK PG Pgm PAR_IT PAR_MARK PAR_TDEC
 
@@ -4917,3 +4927,11 @@ if $FG(V) {
 }
 
 exit 0
+###
+### To do:
+###
+###	All functions should be idiosyncratic and should be separated from
+###	FSMs (using different sets of demangling macros).
+###	On the other hand, static functions will be impossible this way, so
+###	perhaps the idiosyncratic option is not that bad, after all.
+###
