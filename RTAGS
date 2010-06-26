@@ -4287,3 +4287,25 @@ R100617A:
 	2. base RF frequency of 904 MHz (as it was in Genesis)
 
 	Minor, cosmetic, and irrelevant changes to PiComp
+
+R100617B:
+
+	CC1100 reports on startup:
+
+	- bit rate setting: 0-4.8k, 1-10k, 2-38.4k, 3-200k, 
+	- the base frequency (of channel 0) in MHz
+	- the default channel
+	- channel spacing in kHz
+	- the frequency of the default channel in MHz
+
+	For example:
+
+	CC1100 initialized: 1, 904.0MHz, 47/200kHz=913.4MHz
+
+	The values are calculated (statically) from register settings, so they
+	should be authoritative.
+
+	To change the default channel, set (e.g., in options.sys)
+	CC1100_DEFAULT_CHANNEL, e.g.,
+
+	#define CC1100_DEFAULT_CHANNEL 47

@@ -190,6 +190,37 @@
 	#define	CC1100_FREQ_FREQ0_VALUE	0xEC
 #endif
 
+#ifndef	CC1100_DEFAULT_CHANNEL
+	#define	CC1100_DEFAULT_CHANNEL	0
+#endif
+
+// Channel spacing exponent
+#define	CC1100_CHANSPC_E		0x02
+// Channel spacing mantissa
+#define	CC1100_CHANSPC_M		0xF8
+
+// Formula for calculating the base frequency * 10
+#define	CC1100_BFREQ_T10 \
+	(((((unsigned long) CC1100_FREQ_FREQ2_VALUE << 16) | \
+   	   ((unsigned long) CC1100_FREQ_FREQ1_VALUE <<  8) | \
+      	   ((unsigned long) CC1100_FREQ_FREQ0_VALUE      ) ) * 260 + \
+					32768L) / 65536L)
+#define	CC1100_BFREQ		((word)(CC1100_BFREQ_T10 / 10))
+#define	CC1100_BFREQ_10		((word)(CC1100_BFREQ_T10 - (CC1100_BFREQ *10)))
+
+// Channel spacing in kHz
+#define	CC1100_CHANSPC_T1000 \
+	((word)(((26000L * (256 + (unsigned long) CC1100_CHANSPC_M)) + \
+		((unsigned long) 1 << 17 - CC1100_CHANSPC_E)) / \
+		((unsigned long) 1 << (18 - CC1100_CHANSPC_E))))
+
+// Default channel frequency
+#define	CC1100_DFREQ_T10 (CC1100_BFREQ_T10 + \
+		(CC1100_DEFAULT_CHANNEL * CC1100_CHANSPC_T1000) / 100)
+#define	CC1100_DFREQ		((word)(CC1100_DFREQ_T10 / 10))
+#define	CC1100_DFREQ_10		((word)(CC1100_DFREQ_T10 - (CC1100_DFREQ *10)))
+
+
 // The default base frequency is 800 MHz, the default channel spacing (see
 // MDMCFG0) is 200 kHz
 
@@ -203,7 +234,7 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_FREQ2,   CC1100_FREQ_FREQ2_VALUE,   // FREQ2
         CCxxx0_FREQ1,   CC1100_FREQ_FREQ1_VALUE,   // FREQ1 3B the base radio
         CCxxx0_FREQ0,   CC1100_FREQ_FREQ0_VALUE,   // FREQ0 13 frequency
-        CCxxx0_MDMCFG0, 0xF8,   // MDMCFG0	      F8 channel spacing
+        CCxxx0_MDMCFG0, CC1100_CHANSPC_M,   	   // MDMCFG0 channel spacing
         CCxxx0_FREND1,  0x56,   // FREND1
         CCxxx0_BSCFG,   0x6C,   // BSCFG
 
@@ -280,7 +311,7 @@ static const	byte	zz_rate0 [] = {
        	CCxxx0_MDMCFG4, 0xC7,   // MDMCFG4 	(4.8 kbps)
        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x00 + 0x03,		// Double sync word
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x40 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
@@ -294,7 +325,7 @@ static const	byte	zz_rate1 [] = {
        	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
        	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x00 + 0x03,
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x40 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
@@ -308,7 +339,7 @@ static const	byte	zz_rate2 [] = {
        	CCxxx0_MDMCFG4, 0xCA,   // MDMCFG4 	(38.4 kbps)
        	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
         CCxxx0_MDMCFG2, 0x00 + 0x03,
-        CCxxx0_MDMCFG1, 0x42,   // MDMCFG1	4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x40 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x15,   // FOCCFG
         CCxxx0_FSCAL2,  0x2A,   // FSCAL2
@@ -329,7 +360,7 @@ static const	byte	zz_rate3 [] = {
  #endif
 
         CCxxx0_MDMCFG2, 0x10 + 0x02,		// Single sync word
-        CCxxx0_MDMCFG1, 0x22,   // MDMCFG1	4 pre + ch spacing
+        CCxxx0_MDMCFG1, 0x20 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
         CCxxx0_DEVIATN, 0x47,   // DEVIATN	47 -> 40 -> 34
         CCxxx0_FOCCFG,  0x36,   // FOCCFG
         CCxxx0_FSCAL2,  0x0A,   // FSCAL2

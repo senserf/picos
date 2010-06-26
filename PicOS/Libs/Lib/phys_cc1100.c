@@ -50,7 +50,7 @@ static byte	RxOFF,			// Transmitter on/off flags
 		xpower,			// Power select
 		rbuffl,
 		vrate = RADIO_BITRATE_INDEX,	// Rate select
-		channr = 0;
+		channr = CC1100_DEFAULT_CHANNEL;
 
 const byte *suppl;
 
@@ -573,15 +573,10 @@ static void ini_cc1100 () {
 	// Read the chip number reg and write a message to the UART
 
 #if DIAG_MESSAGES
-
-	diag ("CC1100 initialized: %d [%x] %x",
-		vrate,
-		(cc1100_get_reg (CCxxx0_SYNC1)   << 8) |
-		 cc1100_get_reg (CCxxx0_SYNC0)		,
-		(cc1100_get_reg (CCxxx0_VERSION) << 8) |
-		 cc1100_get_reg (CCxxx0_MCSM1)		);
+	diag ("CC1100 initialized: %d, %d.%dMHz, %d/%dkHz=%d.%dMHz", vrate,
+		CC1100_BFREQ, CC1100_BFREQ_10, CC1100_DEFAULT_CHANNEL,
+			CC1100_CHANSPC_T1000, CC1100_DFREQ, CC1100_DFREQ_10);
 #endif
-
 	dbg_1 (0x2000); // CC1100 initialized
 	dbg_1 ((cc1100_get_reg (CCxxx0_SYNC1) << 8) |
 			cc1100_get_reg (CCxxx0_SYNC0));
@@ -1024,7 +1019,7 @@ void phys_cc1100 (int phy, int mbs) {
 //
 // With hardware checksum (RADIO_CRC_MODE < 2), the useful packet length is
 // limited to 60 bytes (because there is no need for software checksum to
-// be received. he PHY will accept 62 as the value of mbs.
+// be received). The PHY will accept 62 as the value of mbs.
 //
 // Note that, regardless of the value of RADIO_CRC_MODE, the driver appends at
 // the end of the useful payload two bytes (RSSI and link quality) for which it
