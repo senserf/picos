@@ -4935,3 +4935,6 @@ exit 0
 ###	On the other hand, static functions will be impossible this way, so
 ###	perhaps the idiosyncratic option is not that bad, after all.
 ###
+###	CyanIDE makefiles may be OK, not projects, though. Different format
+###	of line numbers in preprocessor.
+###
