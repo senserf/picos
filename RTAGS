@@ -4309,3 +4309,21 @@ R100617B:
 	CC1100_DEFAULT_CHANNEL, e.g.,
 
 	#define CC1100_DEFAULT_CHANNEL 47
+
+R100623A:
+
+	RADIO_CRC_MODE redefined, AUTOFLUSH option added. Use:
+
+	 0 = standard built-in CRC
+	 1 = built-in CC2400-compatible
+	 2 = 0 + AUTOFLUSH (don't present packets with wrong CRC)
+	 3 = 1 + AUTOFLUSH
+	 4 = SOFTWARE
+
+	Note that SOFTWARE CRC is non 4, not 2, as it used to be
+
+	Fixed new_il_demo to properly set the host_id constant in the PicOS
+	version. When undoing the manual VUEE compliance I forgot that that
+	constant would be optimized out if not stored in a separate file (to
+	the one referencing it).
+

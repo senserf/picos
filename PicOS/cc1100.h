@@ -15,7 +15,9 @@
  *
  *     0 = standard built-in CRC
  *     1 = built-in CC2400-compatible
- *     2 = software
+ *     2 = 0 + AUTOFLUSH (don't present packets with wrong CRC)
+ *     3 = 1 + AUTOFLUSH
+ *     4 = SOFTWARE
  */
 #ifndef	RADIO_CRC_MODE
 #define	RADIO_CRC_MODE		0	/* Changed R100617 to 0 from 2 */
@@ -73,11 +75,33 @@
 
 // ============================================================================
 
-#if RADIO_CRC_MODE < 2
-#define	CC1100_MAXPLEN		62
-#else
+#if (RADIO_CRC_MODE & 4)
+// Software CRC
+#define	CRC_FLAGS		0x00
+#define	AUTOFLUSH_FLAG		0x00
+#define	SOFTWARE_CRC		1
 #define	CC1100_MAXPLEN		60	/* Including checksum */
+
+#else
+
+#define	SOFTWARE_CRC		0
+#define	CC1100_MAXPLEN		62
+
+#if (RADIO_CRC_MODE & 2)
+#define	AUTOFLUSH_FLAG		0x08
+#else
+#define	AUTOFLUSH_FLAG		0x00
 #endif
+
+#if (RADIO_CRC_MODE & 1)
+#define	CRC_FLAGS		0x0C
+#else
+#define	CRC_FLAGS		0x04
+#endif
+
+#endif	/* RADIO_CRC_MODE */
+
+#define	MAX_TOTAL_PL		62
 
 // Register Numbers ===========================================================
 
@@ -195,9 +219,12 @@
 #endif
 
 // Channel spacing exponent
-#define	CC1100_CHANSPC_E		0x02
+#define	CC1100_CHANSPC_E		0x02	// These values yield 200 kHz
 // Channel spacing mantissa
 #define	CC1100_CHANSPC_M		0xF8
+
+// ============================================================================
+// ============================================================================
 
 // Formula for calculating the base frequency * 10
 #define	CC1100_BFREQ_T10 \
@@ -220,11 +247,9 @@
 #define	CC1100_DFREQ		((word)(CC1100_DFREQ_T10 / 10))
 #define	CC1100_DFREQ_10		((word)(CC1100_DFREQ_T10 - (CC1100_DFREQ *10)))
 
-
-// The default base frequency is 800 MHz, the default channel spacing (see
-// MDMCFG0) is 200 kHz
-
+// ============================================================================
 // Define Register Contents ===================================================
+// ============================================================================
 
 const	byte	cc1100_rfsettings [] = {
 //
@@ -258,26 +283,11 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_IOCFG1,	0x2f,	// Unused and grounded
 	CCxxx0_IOCFG0,	0x01,	// Reception, EOP or threshold
 
-#if RADIO_CRC_MODE > 1
-#define	MAX_TOTAL_PL	(CC1100_MAXPLEN+2)
-#else
-#define	MAX_TOTAL_PL	CC1100_MAXPLEN
-#endif
         CCxxx0_PKTLEN,  MAX_TOTAL_PL,
 
-	CCxxx0_PKTCTRL1,0x0C,	// Autoflush + 2 status bytes on reception
+				// Autoflush + 2 status bytes on reception
+	CCxxx0_PKTCTRL1,(0x04 | AUTOFLUSH_FLAG),
 
-#if RADIO_CRC_MODE == 0
-#define	CRC_FLAGS	0x04
-#endif
-
-#if RADIO_CRC_MODE == 1
-#define	CRC_FLAGS	0x0C
-#endif
-
-#if RADIO_CRC_MODE > 1
-#define	CRC_FLAGS	0x00
-#endif
 	CCxxx0_PKTCTRL0,(0x41 | CRC_FLAGS), // Whitening, pkt lngth follows sync
 
         CCxxx0_ADDR,    0x00,   // ADDR      Device address.
@@ -290,7 +300,9 @@ const	byte	cc1100_rfsettings [] = {
 #ifdef	__CC430__
         CCxxx0_MCSM0,   0x10,   // Recalibrate on exiting IDLE state, full SLEEP
 #else
-        CCxxx0_MCSM0,   0x14,   // Recalibrate on exiting IDLE state, full SLEEP
+	// Changed from 0x14 to 0x18 (PG 100620), see page 78 PO_TIMEOUT
+	// (cc1101)
+        CCxxx0_MCSM0,   0x18,   // Recalibrate on exiting IDLE state, full SLEEP
 #endif
 
 #define	MCSM1_TRANS_MODE	0x03	// RX->IDLE, TX->RX

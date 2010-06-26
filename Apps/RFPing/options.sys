@@ -1,5 +1,7 @@
 // Insert here applications-specific options
 
+#define	CC1100_DEFAULT_CHANNEL	47
+
 #ifdef	LEDS_DRIVER
 #undef	LEDS_DRIVER
 #endif

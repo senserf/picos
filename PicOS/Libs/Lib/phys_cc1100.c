@@ -584,7 +584,7 @@ static void ini_cc1100 () {
 			cc1100_get_reg (CCxxx0_MCSM1));
 }
 
-#if RADIO_CRC_MODE > 1
+#if SOFTWARE_CRC
 #include "checksum.h"
 #endif
 
@@ -593,7 +593,7 @@ static void do_rx_fifo () {
 	int len, paylen;
 	byte *eptr;
 
-#if RADIO_CRC_MODE <= 1
+#if SOFTWARE_CRC == 0
 	byte b;
 #endif
 	// We are making progress as far as reception
@@ -626,7 +626,7 @@ static void do_rx_fifo () {
 
 	// len is the physical payload, i.e., the number of bytes in the pipe
 
-#if RADIO_CRC_MODE < 2
+#if SOFTWARE_CRC == 0
 	// There is no software CRC at the end, so the minimum includes:
 	// paylen + 2 bytes of SID + 2 status bytes
 	if ((len & 1) == 0 || len < 5) {
@@ -649,11 +649,10 @@ static void do_rx_fifo () {
 	}
 
 	// This is the logical payload length, i.e., the first byte of whatever
-	// has arrived; note that it covers software checksum if RADIO_CRC_MODE
-	// > 1
+	// has arrived; note that it covers software checksum, if SOFTWARE_CRC
 	paylen = cc1100_get_reg (CCxxx0_RXFIFO);
 
-	// Note that paylen must equal len - 3, regardless of RADIO_CRC_MODE,
+	// Note that paylen must equal len - 3, regardless of SOFTWARE_CRC,
 	// because of the two status bytes appended at the end by the chip
 	if (paylen != len - 3) {
 
@@ -703,7 +702,7 @@ static void do_rx_fifo () {
 		}
 	}
 
-#if RADIO_CRC_MODE > 1
+#if SOFTWARE_CRC
 	// Verify software CRC (at this point len = paylen + 2)
 	len = paylen >> 1;
 	if (w_chk (rbuff, len, 0)) {
@@ -730,7 +729,7 @@ static void do_rx_fifo () {
 	((byte*)rbuff) [paylen - 1] = *((char*)eptr) + 128;
 	add_entropy (rbuff [len - 1]);
 
-#else	/* RADIO_CRC_MODE (hardware checksum) */
+#else	/* SOFTWARE_CRC (now for the hardware option) */
 
 	// Status bytes (now in place)
 	eptr = (byte*)rbuff + paylen;
@@ -739,10 +738,14 @@ static void do_rx_fifo () {
 	// Add the two status byte to the payload
 	paylen += 2;
 
+#if AUTOFLUSH_FLAG
+	// No need to verify the checksum
+	*(eptr+1) = *((char*)eptr) + 128;
+	*eptr = (b & 0x7f);
+#else
 	if (b & 0x80) {
 		// CRC OK
 		*(eptr+1) = *((char*)eptr) + 128;
-		// Swap these two
 		*eptr = (b & 0x7f);
 	} else {
 		// Bad checksum
@@ -758,7 +761,8 @@ static void do_rx_fifo () {
 		// Ignore
 		goto Rtn;
 	}
-#endif	/* RADIO_CRC_MODE */
+#endif	/* AUTOFLUSH_FLAG */
+#endif	/* SOFTWARE_CRC */
 
 #if (RADIO_OPTIONS & 0x02)
 	diag ("CC1100: %u RX OK %x %x %x", (word) seconds (),
@@ -849,7 +853,7 @@ XRcv:
 	// A packet arriving from TCV always contains CRC slots, even if
 	// we are into hardware CRC; its minimum legit length is SID + CRC
 
-#if RADIO_CRC_MODE > 1
+#if SOFTWARE_CRC
 	// In this case, rbuff is 2 bytes larger than the largest transmittable
 	// packet, as (on top of CRC) it must accommodate two extra (status)
 	// bytes
@@ -867,7 +871,7 @@ XRcv:
 		// This means "honor the packet's statid
 		xbuff [0] = statid;
 
-#if RADIO_CRC_MODE > 1
+#if SOFTWARE_CRC
 	// Calculate CRC
 	len = (paylen >> 1) - 1;
 	((word*)xbuff) [len] = w_chk ((word*)xbuff, len, 0);
@@ -1012,16 +1016,16 @@ void phys_cc1100 (int phy, int mbs) {
 // end upon reception. Those status bytes have nothing to do with the CRC:
 // they are the Link Quality and RSSI bytes calculated by the chip.
 // 
-// When we operate with software checksum (RADIO_CRC_MODE == 2), the checksum
+// When we operate with software checksum (SOFTWARE_CRC), the checksum
 // calculated by the driver arrives as the last two bytes of the payload. In
 // this mode, the "useful" packet length is limited to 58 bytes. The maximum
 // legit value for mbs is then 60.
 //
-// With hardware checksum (RADIO_CRC_MODE < 2), the useful packet length is
+// With hardware checksum (SOFTWARE_CRC == 0), the useful packet length is
 // limited to 60 bytes (because there is no need for software checksum to
 // be received). The PHY will accept 62 as the value of mbs.
 //
-// Note that, regardless of the value of RADIO_CRC_MODE, the driver appends at
+// Note that, regardless of the value of SOFTWARE_CRC, the driver appends at
 // the end of the useful payload two bytes (RSSI and link quality) for which it
 // expects room in the buffer. Thus, in both cases, the amount of memory
 // reserved for the reception buffer is exactly mbs, even though its useful
@@ -1053,7 +1057,7 @@ void phys_cc1100 (int phy, int mbs) {
 #endif
 
 	rbuffl = (byte) mbs;	// buffer length in bytes, including checksum
-#if RADIO_CRC_MODE > 1
+#if SOFTWARE_CRC
 	rbuffl += 2;		// add room for two status bytes
 #endif
 	if ((rbuff = umalloc (rbuffl)) == NULL)
@@ -1263,7 +1267,7 @@ static int option (int opt, address val) {
 	    case PHYSOPT_GETMAXPL:
 
 		ret = rbuffl
-#if RADIO_CRC_MODE > 1
+#if SOFTWARE_CRC
 			- 2
 #endif
 				;
