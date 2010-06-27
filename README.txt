@@ -1052,3 +1052,4 @@
 			fetch = +refs/heads/*:refs/remotes/unfuddle/*
 
 
+ R100627B  Another git test (after clone from the central repo).
