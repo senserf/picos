@@ -1045,3 +1045,10 @@
 	   and quits.
 
 	   The vuee part of mks is not documented in the manual, should it be?
+
+ R100627A  Created (test) git repo:
+		[remote "unfuddle"]
+			url = git@pawel.unfuddle.com:pawel/side.git
+			fetch = +refs/heads/*:refs/remotes/unfuddle/*
+
+
