@@ -36,12 +36,43 @@ static byte	gwch;			// Guard watch flags
 // Counts events:
 //
 //	0 - receptions (all events when receiver is awakened to check for a pkt)
-//	1 - bad checksum (verified after length/netid check)
-//	2 - formally incorrect packet length
-//	3 - wrong network ID
-//
-static word	rerror [4];
-#endif
+//	1 - successfully received packets; note that with hardware CRC +
+//	    AUTOFLUSH, 0 and 1 will be equal
+//	2 - LBT/congestion indicator: EMA d(n) = 0.75 * d(n-1) + 0.25 * b, where
+//	    b is the backoff experienced when trying to access the channel for
+//	    TX; this is counted over all attempts to access the channel and
+//	    maxed at 0x0fff, i.e., 4095
+//	3 - the maximum accumulated backoff time suffered by a single packet so
+//	    far
+
+static word	rerror [5];
+
+static void set_congestion_indicator (word v) {
+
+	// EMA of waiting time
+	if ((rerror [2] = (rerror [2] * 3 + v) >> 2) > 0x0fff)
+		// Keeping the max at 0xfff will avoid overflow as the maximum
+		// value of increment is 255
+		rerror [2] = 0xfff;
+
+	if (v) {
+		// Accumulate in 4
+		if (rerror [4] + v < rerror [4])
+			// Overflow
+			rerror [4] = 0xffff;
+		else
+			rerror [4] += v;
+	} else {
+		// Update max
+		if (rerror [3] < rerror [4])
+			rerror [3] = rerror [4];
+		rerror [4] = 0;
+	}
+}
+
+#else
+#define	set_congestion_indicator(v)	CNOP
+#endif	/* RADIO_OPTIONS & 0x04 */
 
 word		zzv_drvprcs, zzv_qevent;
 
@@ -620,10 +651,10 @@ static void do_rx_fifo () {
 
 #if (RADIO_OPTIONS & 0x04)
 	if (rerror [0] == MAX_WORD)
-		memset (rerror, 0, sizeof (rerror));
+		// Zero out slots 0 and 1
+		memset (rerror, 0, sizeof (word) * 2);
 	rerror [0] ++;
 #endif
-
 	// len is the physical payload, i.e., the number of bytes in the pipe
 
 #if SOFTWARE_CRC == 0
@@ -636,10 +667,6 @@ static void do_rx_fifo () {
 #endif
 		// Physical payload length must be even, so the extra byte
 		// for payload length will make it odd
-
-#if (RADIO_OPTIONS & 0x04)
-		rerror [2] ++;
-#endif
 
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX BAD PL: %d", (word) seconds (), len);
@@ -656,9 +683,6 @@ static void do_rx_fifo () {
 	// because of the two status bytes appended at the end by the chip
 	if (paylen != len - 3) {
 
-#if (RADIO_OPTIONS & 0x04)
-		rerror [2] ++;
-#endif
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX PL MIS: %d/%d", (word) seconds (), len,
 			paylen);
@@ -671,9 +695,6 @@ static void do_rx_fifo () {
 	// whatever is present in the FIFO), because we need the status bytes
 	// as well
 	if (--len > rbuffl) {
-#if (RADIO_OPTIONS & 0x04)
-		rerror [2] ++;
-#endif
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX LONG: %d", (word) seconds (), paylen);
 #endif
@@ -691,9 +712,6 @@ static void do_rx_fifo () {
 		// Admit only packets with agreeable statid
 		if (rbuff [0] != 0 && rbuff [0] != statid) {
 			// Drop
-#if (RADIO_OPTIONS & 0x04)
-			rerror [3] ++;
-#endif
 #if (RADIO_OPTIONS & 0x01)
 			diag ("CC1100: %u RX BAD STID: %x", (word) seconds (),
 				rbuff [0]);
@@ -707,9 +725,6 @@ static void do_rx_fifo () {
 	len = paylen >> 1;
 	if (w_chk (rbuff, len, 0)) {
 		// Bad checksum
-#if (RADIO_OPTIONS & 0x04)
-		rerror [1] ++;
-#endif
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX CKS (S) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
@@ -749,9 +764,6 @@ static void do_rx_fifo () {
 		*eptr = (b & 0x7f);
 	} else {
 		// Bad checksum
-#if (RADIO_OPTIONS & 0x04)
-		rerror [1] ++;
-#endif
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX CKS (H) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
@@ -763,6 +775,10 @@ static void do_rx_fifo () {
 	}
 #endif	/* AUTOFLUSH_FLAG */
 #endif	/* SOFTWARE_CRC */
+
+#if (RADIO_OPTIONS & 0x04)
+	rerror [1] ++;
+#endif
 
 #if (RADIO_OPTIONS & 0x02)
 	diag ("CC1100: %u RX OK %x %x %x", (word) seconds (),
@@ -836,11 +852,19 @@ XRcv:
 		// We have to wait
 		if (aggressive_transmitter) {
 			delay (1, DR_LOOP);
+			set_congestion_indicator (1);
 			release;
 		} else {
 			gbackoff;
+			set_congestion_indicator (bckf_timer);
 			proceed (DR_LOOP);
 		}
+#if ((RADIO_OPTIONS & 0x05) == 0x05)
+		if (rerror [2] >= 0x0fff)
+				diag ("CC1100: LBT congestion!!");
+#endif
+	} else {
+		set_congestion_indicator (0);
 	}
 
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
@@ -1276,9 +1300,11 @@ static int option (int opt, address val) {
 #if (RADIO_OPTIONS & 0x04)
 	    case PHYSOPT_ERROR:
 
-		if (val != NULL)
-			memcpy (val, rerror, sizeof (rerror));
-		else
+		if (val != NULL) {
+			if (rerror [4] > rerror [3])
+				rerror [3] = rerror [4];
+			memcpy (val, rerror, sizeof (word) * 4);
+		} else
 			memset (rerror, 0, sizeof (rerror));
 
 		break;

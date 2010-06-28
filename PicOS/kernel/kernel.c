@@ -160,8 +160,8 @@ void utimer_delete (address ut) {
 
 void zz_utimer_set (address t, word v) {
 
-	if ((*t = v) != 0)
-		TCI_RUN_AUXILIARY_TIMER;
+	*t = v;
+	TCI_RUN_AUXILIARY_TIMER;
 }
 
 #endif

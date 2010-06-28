@@ -20,3 +20,39 @@ PG100628A:
 	   tagged - the last commit before a push) with previous CVS commits.
 	   Note that present commits are lighter weight than old CVS commits.
 
+	=======================================================================
+
+	The four values returned by PHYSOPT_ERROR for CC1100 redefined. Here is
+	the description from phys_cc1100.cc
+
+	0 - receptions (all events when receiver is awakened to check for a
+	    pkt)
+
+	1 - successfully received packets; note that with hardware CRC +
+	    AUTOFLUSH, 0 and 1 will be equal
+
+	2 - LBT/congestion indicator: EMA d(n) = 0.75 * d(n-1) + 0.25 * b,
+	    where b is the backoff experienced when trying to access the
+	    channel for TX; this is counted over all attempts to access the
+	    channel and maxed at 0x0fff, i.e., 4095
+
+	3 - the maximum accumulated backoff time suffered by a single packet so
+	    far
+
+	Also read doc.odt from Apps/VUEE/RFTEST.
+
+	The RFTEST Praxis, which I wrote for Gerry a few weeks ago, has been
+	brought to a PiComp-compatible form.
+
+	Simplified utimer_set in kernel.c (insignificantly). I have been 
+	searching there for weird reasons why a transmit queue might get
+	stuck on LBT. One of them would be a stuck utimer, but it doesn't
+	seem plausible at all.
+
+	I have done some tests with RFTEST. It seems that setting XMIT queue
+	size limit in TCV, say #define TCV_LIMIT_XMT 8 (in options.sys) may be
+	a good idea. I did see a few memory problems under the outgoing packet
+	rate of 4 pkts/sec (nodes becoming unresponsive to UART because of
+	choked up malloc) which diappeared after I introduced the limit. It
+	appears that the reception queue size is not a problem.
+
