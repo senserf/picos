@@ -4327,6 +4327,8 @@ R100623A:
 	constant would be optimized out if not stored in a separate file (to
 	the one referencing it).
 
-R100627A:
+R100627B:
 
-	Irrelevant (dummy) changes to test the new git setup.
+	Repo note added to Docs. This note explains how to access the new
+	git repositories and do basic work.
+
