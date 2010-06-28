@@ -1,0 +1,6 @@
+The original pre-git RTAGS file has been moved to RTAGS_cvs. This file now only
+holds version numbers used by mkmk.
+
+R090408A: 2 4
+
+R100411A: 3 0

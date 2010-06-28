@@ -1,0 +1,22 @@
+PG100628A:
+
+	First for some git-related cleanups:
+
+	1. I propose to use separate RTAG files for the different developers
+	   (all two of them ;-). This is RTAGS_PG. I am leaving the original
+	   RTAGS file as it was (for the record). I have also created a new
+	   file named Version holding the system version to be used by mkmk.
+
+	2. I have modified mkmk (see above), so grab the new version and copy
+	   it to your bin. The script fetches the system version from Version
+	   and then scans all RTAGS_... selecting the most recent release tag.
+	   Tags are expected to contain six digits (according to our tacit
+	   standard, e.g., 100628), but may also contain arbitrary other
+	   characters, e.g., WO100629A:
+
+	3. We should be using commit messages for meaningful comments. Also, we
+	   shouldn't shy away from many small commits (not all of them being
+	   necessarily tagged our way), equatting pushes (which should be
+	   tagged - the last commit before a push) with previous CVS commits.
+	   Note that present commits are lighter weight than old CVS commits.
+

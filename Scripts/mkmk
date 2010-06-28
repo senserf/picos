@@ -1375,7 +1375,7 @@ proc canon { fnf } {
 proc rootpf { } {
 #
 # Find the root prefix for all directories, i.e., PICOS, as the one containing
-# "Apps"; also extract the current release tag from RTAGS
+# "Apps"; also extract the current release tag from PicOS_version
 #
 	global CWD RPREF
 
@@ -1393,26 +1393,18 @@ proc rootpf { } {
 
 	# get the last release tag
 
-	if [catch { open [file join $RPREF "RTAGS"] "r" } fd] {
+	if [catch { open [file join $RPREF "Version"] "r" } fd] {
 		errab "RTAGS not found"
 	}
 
 	if [catch { read $fd } rtf] {
-		errab "Cannot read RTAGS"
+		errab "Cannot read Version"
 	}
 
 	catch { close $fd }
 
-	# the last RTAG
-	set pat "(R\[0-9A-Z\]+):"
-	if ![regexp -nocase ".*\n$pat" $rtf fd rtag] {
-		if ![regexp -nocase "^$pat" $rtf fd rtag] {
-			set rtag "unknown"
-		}
-	}
-
 	# version number
-	set pat "R\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
+	set pat "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
 	if ![regexp -nocase ".*\n$pat" $rtf fd \
 		maj min] {
 		if ![regexp -nocase "^$pat" $rtf fd maj min] {
@@ -1421,7 +1413,43 @@ proc rootpf { } {
 		}
 	}
 
-	puts "PicOS version ${maj}.${min}, release $rtag"
+	# find the last release tag
+
+	set fl [exec ls $RPREF]
+
+	set rel "unknown"
+	set rnu 0
+
+	foreach f $fl {
+		if ![regexp "^RTAGS_" $f] {
+			continue
+		}
+		if [catch { open [file join $RPREF $f] "r" } fd] {
+			errab "Cannot open $f"
+		}
+		if [catch { read $fd } rtf] {
+			errab "Cannot read $f"
+		}
+		catch { close $fd }
+		# the last RTAG
+		set pat "(\[0-9A-Z\]+):"
+		if ![regexp -nocase ".*\n$pat" $rtf fd rtag] {
+			if ![regexp -nocase "^$pat" $rtf fd rtag] {
+				continue
+			}
+		}
+		if ![regexp "\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]" $rtag \
+			num] {
+			continue
+		}
+		set num "1$num"
+		if { $num > $rnu } {
+			set rnu $num
+			set rel $rtag
+		}
+	}
+
+	puts "PicOS version ${maj}.${min}, release $rel"
 
 	return [list "SYSVER_U=$maj" "SYSVER_L=$min" "SYSVER_T=$rtag"]
 }
