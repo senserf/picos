@@ -56,3 +56,26 @@ PG100628A:
 	choked up malloc) which diappeared after I introduced the limit. It
 	appears that the reception queue size is not a problem.
 
+PG100629A:
+
+	Fixed file permissions. Cygwin creates a lot of mess with file
+	permissions (which get screwed up when copying, archiving, untarring,
+	etc.). Unfortunately (or rather fortunately, but not in this case),
+	when you change the permissions of a file, git recognizes the file as
+	modified, which occasionally becomes annoyoing.
+
+	The upshot:
+
+	There is script in Scripts, named permissions, which has been there
+	for a while (and I have been using it every now and then). I recommend
+	to run it:
+
+		cd PICOS
+		Scripts/permissions
+
+	whenever you suspect that file permissions may have been messed up
+	(git status shows modified files that haven't really been modified).
+	It runs through the tree and sets the right permissions of files (which
+	are mostly guessed, but mostly correctly and, most importantly,
+	deterministically). In particular, you should do it before checking the
+	status, adding, and/or committing.
