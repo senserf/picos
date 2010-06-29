@@ -1375,7 +1375,7 @@ proc canon { fnf } {
 proc rootpf { } {
 #
 # Find the root prefix for all directories, i.e., PICOS, as the one containing
-# "Apps"; also extract the current release tag from PicOS_version
+# "Apps"; also extract the current release tag from Version
 #
 	global CWD RPREF
 
