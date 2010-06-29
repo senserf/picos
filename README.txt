@@ -1053,3 +1053,5 @@
 
 
  R100627B  Another git test (after clone from the central repo).
+
+ R100629A  Fixed file permissions (using permissions from PICOS/Scripts).
