@@ -547,3 +547,7 @@ R100602A:
 R100609A:
 
     Minor tweaks for PiComp compatibility.
+
+PG100629A:
+
+    Fixed file permissions for git.
