@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.2
+set Version 0.21
 
 ###############################################################################
 ###############################################################################
@@ -1604,10 +1604,13 @@ proc get_init_simple { { brok 0 } } {
 				}
 				return ""
 			}
+			append res $TK
 		} elseif [endfile] {
 			return ""
+		} else {
+			# add a space after anything other than delimiter
+			append res "$TK "
 		}
-		append res "$TK "
 	}
 }
 
@@ -2061,6 +2064,18 @@ proc get_args { } {
 		append arg "$TK "
 	}
 	return $arg
+}
+
+proc fix_args { arg } {
+#
+# Removes nested parentheses around an argument
+#
+	while 1 {
+		set arg [string trim $arg]
+		if ![regexp "^\\((.*)\\)$" $arg jnk arg] {
+			return $arg
+		}
+	}
 }
 
 proc get_array { } {
@@ -4091,7 +4106,7 @@ proc parse_pfile { cnt src } {
 #
 # Compiles one source file into a VUEE-compilable format
 #
-	global TK PG Pgm PAR_IT PAR_MARK PAR_TDEC
+	global FG TK PG Pgm PAR_IT PAR_MARK PAR_TDEC
 
 	initialize_parser $src
 
@@ -4427,6 +4442,96 @@ K {
 
       truncate $run_mark
       putS "[emit_create $fsm_sname $arg]$TK"
+
+      continue
+    }
+
+    ####
+
+    if { $TK == "crunning" } {
+
+      # intercept crunning and convert its constant argument to the process
+      # id
+
+      set run_mark $PAR_MARK
+
+      set TK [ntoken]
+      if { $PAR_IT != "d" || $TK != "(" } {
+	xerror "crunning must be followed by a parenthesis"
+	continue
+      }
+
+      set arg [fix_args [get_args]]
+      if { $TK != ")" } {
+	# error
+	continue
+      }
+
+      # this must be a keyword or constant zero
+
+      if [iskwd $arg] {
+	# this is the argument expected by VUEE function
+	set arg "&zz_$arg[pnfx]_prcs"
+      } else {
+	if { [catch { expr $arg } arg] || $arg != 0 } {
+	  xerror "the argument of crunning must be either a process name or\
+		a constant expression evaluating to zero"
+	  continue
+	}
+	# doesn't hurt to make sure
+	set arg 0
+      }
+
+      # replace with a call to internal function
+      truncate $run_mark
+      putS "zz_crunning ($arg)"
+
+      continue
+    }
+
+    if { $TK == "zz_crunning" } {
+
+      # this one is a temporary fix for compatibility with the present mess of
+      # co-existing manually tweaked VUEE-compliant praxes; until we get rid
+      # of them (and the preceding chunk of code will kick in), there will be a
+      # macro converting crunning to zz_crunning, which will mess up things
+      # if the argument is a non-keyword
+
+      set run_mark $PAR_MARK
+
+      set TK [ntoken]
+      if { $PAR_IT != "d" || $TK != "(" } {
+	xerror "crunning must be followed by a parenthesis"
+	continue
+      }
+
+      set arg [fix_args [get_args]]
+      if { $TK != ")" } {
+	# error
+	continue
+      }
+
+      # this is either e keyword (meaning that the macro has succeeded), or
+      # something like &zz_!!..._xxx!!_prcs, in which case we have to dig up
+      # the ...
+
+      if [iskwd $arg] {
+	# OK, we let it go
+	continue
+      }
+      set arg [join $arg ""]
+      if $FG(D) { dbg "parse_pfile: zz_crunning = $arg" }
+      if { ![regexp -nocase "^.zz_!!(.*)_\[a-z0-9_\]+!!" $arg ins v] &&
+           ![regexp -nocase "^.zz_!!(.*)!!" $arg ins v] ||
+	    [catch { expr $v } v] || $v != 0 } {
+	xerror "the argument of crunning must be either a process name or\
+		a constant expression evaluating to zero"
+	continue
+      }
+
+      # replace 
+      truncate $run_mark
+      putS "zz_crunning (0)"
 
       continue
     }

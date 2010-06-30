@@ -79,3 +79,39 @@ PG100629A:
 	are mostly guessed, but mostly correctly and, most importantly,
 	deterministically). In particular, you should do it before checking the
 	status, adding, and/or committing.
+
+PG100630A:
+
+	Converted Apps/VUEE/survey to PiComp. Perhaps "converted" is not a good
+	word, as the job consists in undoing the previous VUEE hooks. Along the
+	way, detected (and fixed) one problem with PiComp: when tokenizing
+	initializers, PiComp would split constructs like << into < < (i.e.,
+	introducing a space between the two characters).
+
+	Also, PiComp now parses crunning. The case of crunning (NULL) was
+	impossible to handle in a macro (so it didn't work under VUEE), as the
+	(non-NULL) argument od crunning had to be converted to a SIDE process
+	type ID, i.e.,
+
+	#define	_pt_id_(pt)	(&zz_!!THREADNAME(pt)!!_prcs)
+	#define	crunning(pt)	zz_crunning (_pt_id_ (pt))
+
+	So when you said crunning (NULL), the macro would produce nonsense. To
+	do it right, I would have to remove the macro (crunning) and parse
+	crunning in PiComp into zz_crunning recognizing the special case of a
+	NULL (generally non-symbol) argument. That, however, would cause
+	problems for the old VUEE-compliant praxes (which are not handled by
+	PiComp and must rely on the macro).
+
+	As the macro is expanded before PiComp sees the code, I handle two
+	cases:
+
+	crunning -> zz_crunning (not used now, waiting for the macro to
+	disappear)
+
+	zz_crunning -> zz_crunning (fixing the problem introduced by the macro
+	for a non-symbol argument)
+
+	Note that this requires a modification in VUEE. Please use VUEE with
+	the same (or higher) release tag, if you want to have crunning working
+	correctly with the PiComp-compatible praxes.
