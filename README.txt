@@ -551,3 +551,7 @@ R100609A:
 PG100629A:
 
     Fixed file permissions for git.
+
+PG100630A:
+
+    Fixed crunning to accept and properly handle NULL as an argument.

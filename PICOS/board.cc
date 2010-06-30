@@ -4649,6 +4649,10 @@ int zz_crunning (code_t tid) {
 	Process **P;
 	int np, sz;
 
+	if (tid == NULL)
+		// Return the number of remaining process slots
+		return TheNode->tally_left ();
+
 	for (sz = 256; ; sz *= 2) {
 		P = new Process* [sz];
 		np = zz_getproclist (TheNode, tid, P, sz);
