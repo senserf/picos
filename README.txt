@@ -1055,3 +1055,6 @@
  R100627B  Another git test (after clone from the central repo).
 
  R100629A  Fixed file permissions (using permissions from PICOS/Scripts).
+
+ PG100605A Introduced a new internal type U_Long to be the unsigned counterpart
+	   of Long, as with LONG and U_LONG.
