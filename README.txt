@@ -555,3 +555,12 @@ PG100629A:
 PG100630A:
 
     Fixed crunning to accept and properly handle NULL as an argument.
+
+PG100705A:
+
+    Accommodated Nick's fixes to the problems he saw on his 64-bit system.
+    Introduced type lint (see PICOS, PG100705). Requires new SIDE (with the
+    same release number).
+
+    Note: I am not sure if Nick's second problem has been fixed (I don't have
+    a 64-bit machine handy). Nick, please let me know.

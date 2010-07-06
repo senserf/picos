@@ -11,7 +11,8 @@
 typedef	unsigned short	word;
 typedef	word		*address;
 typedef	short int	sint;
-typedef	unsigned int	lword;
+typedef Long		lint;
+typedef	U_Long		lword;
 typedef	unsigned char	byte;
 
 #define	MAX_INT		((int)0x7FFF)		// This is the PicOS int !!

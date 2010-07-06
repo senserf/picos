@@ -7,6 +7,7 @@ rm -f net.h
 rm -f pins.h
 rm -f lcdg_n6100p.h
 rm -f form.h
+rm -f actuators.h
 rm -f sensors.h
 rm -f ser.h
 rm -f serf.h

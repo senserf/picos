@@ -2,7 +2,6 @@
 #define	__sysio_h__
 
 #include "picos.h"
-
 #include "options.sys"
 
 #ifdef	TCV_PRESENT
@@ -304,6 +303,10 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	strand(a,b)	thread(a)
 #define	endthread	}
 #define	endstrand	endthread
+
+#define	call(p,d,s)	do { join (runstrand (p, d), s); sleep; } while (0)
+
+#define	staticsize()	0
 
 #define	praxis_starter(nt) \
 		void nt::appStart () { runthread (root); }

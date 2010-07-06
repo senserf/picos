@@ -2409,7 +2409,7 @@ int PINS::pin_write_dac (word pin, word val, word ref) {
 		qupd_pin (pin);
 }
 
-void PINS::pmon_start_cnt (long count, Boolean edge) {
+void PINS::pmon_start_cnt (lint count, Boolean edge) {
 
 	Assert (PIN_MONITOR [0] != BNONE,
 		"pmon_start_cnt at %s: this node has no pulse monitor",
@@ -2444,12 +2444,12 @@ void PINS::pmon_dec_cnt (void) {
 	pmon_cnt = (pmon_cnt - pmon_cmp) & 0x00ffffff;
 }
 
-void PINS::pmon_sub_cnt (long decr) {
+void PINS::pmon_sub_cnt (lint decr) {
 
 	pmon_cnt = (pmon_cnt - decr) & 0x00ffffff;
 }
 
-void PINS::pmon_add_cmp (long incr) {
+void PINS::pmon_add_cmp (lint incr) {
 
 	pmon_cmp = (pmon_cmp + incr) & 0x00ffffff;
 }
@@ -2469,7 +2469,7 @@ void PINS::pmon_stop_cnt () {
 		qupd_pin (PIN_MONITOR [0]);
 }
 
-void PINS::pmon_set_cmp (long count) {
+void PINS::pmon_set_cmp (lint count) {
 
 	pmon_cmp_pending = NO;
 
@@ -2589,7 +2589,7 @@ int PINS::pinup_status (pin_update_t upd) {
 	char *tb;
 	tb = UBuf;
 
-	if (*((long*)(&upd)) == -1) {
+	if (*((lint*)(&upd)) == -1) {
 		// This is a params update: two numbers only
 		sprintf (UBuf, "N %1u %1u\n", PIN_MAX, PIN_MAX_ANALOG);
 	} else {

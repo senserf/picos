@@ -18,10 +18,10 @@
 
 #include "lib_params.h"
 
-#define	N_MEMEVENT	0xFFFF0001
-#define	PMON_CNTEVENT	0xFFFF0002
+#define	N_MEMEVENT	((IPointer)(-65537))
+#define	PMON_CNTEVENT	((IPointer)(-65536))
 #define	PMON_CMPEVENT	PMON_CNTEVENT
-#define	PMON_NOTEVENT	0xFFFF0003
+#define	PMON_NOTEVENT	((IPointer)(-65535))
 
 #define	PMON_STATE_NOT_RISING	0x01
 #define	PMON_STATE_NOT_ON	0x02
@@ -46,7 +46,7 @@ typedef	void *code_t;
 
 // ============================================================================
 
-void zz_panel_signal (Long);
+void zz_panel_signal (lint);
 Boolean zz_validate_uart_rate (word);
 
 extern	const char zz_hex_enc_table [];
@@ -270,7 +270,7 @@ station PicOSNode abstract {
 	void		_da (phys_uart) (int, int, int);
 
 	// Used to implement second clock (as starting from zero)
-	long		SecondOffset;
+	lint		SecondOffset;
 
 	Mailbox	TB;		// For trigger
 
@@ -492,7 +492,7 @@ station PicOSNode abstract {
 
 	// The pulse monitor
 
-	inline void  _da (pmon_start_cnt) (long cnt, Boolean edge) {
+	inline void  _da (pmon_start_cnt) (lint cnt, Boolean edge) {
 		if (pins == NULL)
 			no_pin_module ("pmon_start_cnt");
 		pins->pmon_start_cnt (cnt, edge);
@@ -504,7 +504,7 @@ station PicOSNode abstract {
 		pins->pmon_stop_cnt ();
 	};
 
-	inline void  _da (pmon_set_cmp) (long cnt) {
+	inline void  _da (pmon_set_cmp) (lint cnt) {
 		if (pins == NULL)
 			no_pin_module ("pmon_set_cmp");
 		pins->pmon_set_cmp (cnt);
@@ -558,13 +558,13 @@ station PicOSNode abstract {
 		pins->pmon_dec_cnt ();
 	};
 
-	inline void  _da (pmon_sub_cnt) (long decr) {
+	inline void  _da (pmon_sub_cnt) (lint decr) {
 		if (pins == NULL)
 			no_pin_module ("pmon_sub_cnt");
 		pins->pmon_sub_cnt (decr);
 	};
 
-	inline void  _da (pmon_add_cmp) (long incr) {
+	inline void  _da (pmon_add_cmp) (lint incr) {
 		if (pins == NULL)
 			no_pin_module ("pmon_add_cmp");
 		pins->pmon_add_cmp (incr);

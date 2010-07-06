@@ -341,16 +341,16 @@ typedef	struct {
 
 } pin_update_t;
 
-mailbox PUpdates (long) {
+mailbox PUpdates (Long) {
 
 // Pin updates
 
 	inline void queue (pin_update_t u) {
-		this->put (*((long*)(&u)));
+		this->put (*((Long*)(&u)));
 	};
 
 	inline pin_update_t retrieve () {
-		long it = this->get ();
+		Long it = this->get ();
 		return *((pin_update_t*)(&it));
 	};
 };
@@ -367,7 +367,7 @@ typedef struct {
 
 } act_update_t;
 
-mailbox SUpdates (long) {
+mailbox SUpdates (Long) {
 
 // Sensor/actuator updates
 
@@ -379,14 +379,14 @@ mailbox SUpdates (long) {
 		p.tp = tp;
 		p.lm = lm;
 
-		this->put (*((long*)(&p)));
+		this->put (*((Long*)(&p)));
 	};
 
 	Boolean retrieve (byte &tp, byte &sn) {
 
 		act_update_t p;
 
-		*((long*)(&p)) = this->get ();
+		*((Long*)(&p)) = this->get ();
 
 		sn = p.sn;
 		tp = p.tp;
@@ -618,9 +618,9 @@ class PINS {
 	int pin_write (word, word);
 	int pin_read_adc (word, word, word, word);
 	int pin_write_dac (word, word, word);
-	void pmon_start_cnt (long, Boolean);
+	void pmon_start_cnt (lint, Boolean);
 	void pmon_stop_cnt ();
-	void pmon_set_cmp (long);
+	void pmon_set_cmp (lint);
 	lword pmon_get_cnt ();
 	lword pmon_get_cmp ();
 	void pmon_start_not (Boolean);
@@ -629,8 +629,8 @@ class PINS {
 	Boolean pmon_pending_not ();
 	Boolean pmon_pending_cmp ();
 	void pmon_dec_cnt ();
-	void pmon_sub_cnt (long);
-	void pmon_add_cmp (long);
+	void pmon_sub_cnt (lint);
+	void pmon_add_cmp (lint);
 };
 
 process ButtonRepeater {
