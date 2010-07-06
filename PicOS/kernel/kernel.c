@@ -471,18 +471,20 @@ int zzz_ptrigger (sint pid, word event) {
 	return 0;
 }
 
-static void killev (sint pid, word wfun) {
-	word etp;
+static void killev (pcb_t *pid) {
+
+	word etp, wfun;
 	int j;
 	pcb_t *i;
 
+	wfun = (word)(pid->code);
 	for_all_tasks (i) {
 		if (nevents (i) == 0 || i->code == NULL)
 			continue;
 		for (j = 0; j < nevents (i); j++) {
 			etp = getetype (i->Events [j]);
 			if ((etp == ETYPE_TERM &&
-				i->Events [j] . Event == pid) ||
+				i->Events [j] . Event == (word)pid) ||
 			    (etp == ETYPE_TERMANY &&
 				i->Events [j] . Event == wfun) ) {
 					wakeupev (i, j);
@@ -501,7 +503,7 @@ sint kill (sint pid) {
 
 	if (pid == 0 || pid == -1 || pid == (int) zz_curr) {
 		/* Self */
-		killev ((int)zz_curr, (word)(zz_curr->code));
+		killev (zz_curr);
 		zz_curr->Status = 0;
 		if (pid == -1) {
 			/* This makes you a zombie ... */
@@ -520,7 +522,7 @@ sint kill (sint pid) {
 	ver_pid (i, pid);
 
 	if (i->code != NULL) {
-		killev ((int)i, (word)(i->code));
+		killev (i);
 		i->Status = 0;
 		i->code = NULL;
 		if (MEV_NWAIT (0)) {
@@ -544,7 +546,7 @@ int killall (code_t fun) {
 		if (i->code == fun) {
 			if (i == zz_curr)
 				rel = YES;
-			killev ((int)i, (word)(i->code));
+			killev (i);
 			i->Status = 0;
 			i->code = NULL;
 			nk++;
@@ -936,7 +938,7 @@ void zz_malloc_init () {
 			chunk = (chunk * zzz_heap [np]) / 100;
 			chunk <<= fac;
 			// This required __div/__mul from the library:
-			// chunk = (word)((((long) zzz_heap [np]) * mtot) /100);
+			// chunk = (word)((((lint) zzz_heap [np]) * mtot) /100);
 		} else {
 			chunk = perc;
 		}

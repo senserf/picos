@@ -241,7 +241,6 @@ __PRIVF (PicOSNode, void, runtq) () {
 /*
  * This function is called every second to run the timer queue
  */
-	unsigned long cs, ts;
 	titem_t *t, *f;
 	hblock_t *p;
 

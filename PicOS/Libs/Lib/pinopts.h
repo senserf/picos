@@ -16,9 +16,9 @@ int pin_write_dac (word, word, word);
 
 #ifdef	PULSE_MONITOR
 
-void pmon_start_cnt (long, Boolean);
+void pmon_start_cnt (lint, Boolean);
 void pmon_stop_cnt ();
-void pmon_set_cmp (long);
+void pmon_set_cmp (lint);
 lword pmon_get_cnt ();
 lword pmon_get_cmp ();
 void pmon_start_not (Boolean);
@@ -27,8 +27,8 @@ word pmon_get_state ();
 Boolean pmon_pending_not ();
 Boolean pmon_pending_cmp ();
 void pmon_dec_cnt ();
-void pmon_sub_cnt (long);
-void pmon_add_cmp (long);
+void pmon_sub_cnt (lint);
+void pmon_add_cmp (lint);
 
 #endif	/* PULSE_MONITOR */
 

@@ -33,7 +33,7 @@ static int sfd;
 #define	RC_ACK		30
 
 static	int	rkillflag = 0;
-static	long	last_snt, last_rcv, last_ack;
+static	lint	last_snt, last_rcv, last_ack;
 static  char 	XMTon = 0, RCVon = 0;
 static	word	min_spin_delay       = 0,
 		max_spin_delay       = 0,

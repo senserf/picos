@@ -1,6 +1,4 @@
 #undef	MALLOC_STATS
-#undef	GLACIER
 
 #define	MALLOC_STATS	1
-#define	GLACIER		1
 

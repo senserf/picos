@@ -449,7 +449,7 @@ process (root, int)
 	static char *ibuf;
 	int n, v;
 	static word a, b, c;
-	long lw;
+	lint lw;
 
   entry (RS_INIT)
 

@@ -8,49 +8,41 @@
 
 #define	IBUF_SIZE	80
 
-#define	OU_INIT		0
-#define	OU_WRITE	1
-#define	OU_RETRY	2
+fsm output (char) {
 
-strand (output, char)
-
-    static int nc;
-    static char *ptr;
+    shared int nc;
+    shared char *ptr;
     int k;
 
-    entry (OU_INIT)
+    entry OU_INIT:
 
 	nc = strlen (ptr = data);
 
-    entry (OU_WRITE)
+    entry OU_WRITE:
 
 	if (nc == 0)
 		finish;
 
-    entry (OU_RETRY)
+    entry OU_RETRY:
 
         k = io (OU_RETRY, UART, WRITE, ptr, nc);
 	nc -= k;
 	ptr += k;
-	proceed (OU_WRITE);
+	proceed OU_WRITE;
+}
 
-endstrand
+fsm input (char) {
 
-#define	IN_INIT		0
-#define	IN_READ		1
-
-strand (input, char)
-
-    static int nc;
-    static char *ptr;
+    shared int nc;
+    shared char *ptr;
     int k;
 
-    entry (IN_INIT)
+    entry IN_INIT:
 
 	nc = IBUF_SIZE;
 	ptr = data;
 
-    entry (IN_READ)
+    entry IN_READ:
 
     	k = io (IN_READ, UART, READ, ptr, nc);
 
@@ -66,72 +58,58 @@ strand (input, char)
 	nc -= k;
 	ptr += k;
 
-	proceed (IN_READ);
+	proceed IN_READ;
+}
 
-endstrand
+fsm root {
 
-#define	RS_INIT		0
-#define	RS_SHOW		1
-#define	RS_READ		2
-#define	RS_CMND		3
-#define	RS_FORMAT	4
-#define	RS_SHOWMEM	5
-#define	RS_DELAY	6
-#define	RS_DUP		7
-#define	RS_PSAVE	8
-#define	RS_FREEZE	9
-#define	RS_PUP		10
-
-thread (root)
 /* =========================================== */
 /* This is the main program of the application */
 /* =========================================== */
 
-  static char *ibuf;
+  shared char *ibuf;
 
-  entry (RS_INIT)
+  entry RS_INIT:
 
 	ibuf = (char*) umalloc (IBUF_SIZE);
 
-  entry (RS_SHOW)
+  entry RS_SHOW:
 
-	call (output, "\r\n"
+	call (output, (char*)"\r\n"
 		"Welcome to PicOS!\r\n"
 		"Commands:\r\n"
 		" 'f %d %u %x %c %s %ld %lu %lx' (format test)\r\n"
 		" 'v' (mem)\r\n"
 		" 'd n' (sleep n secs)\r\n"
 		" 'p n' (PD mode n secs)\r\n"
-		" 'g n' (freeze n secs)\r\n"
 		" 'h' (HALT)\r\n"
 		" 'r' (RESET)\r\n",
 			RS_READ);
 
-  entry (RS_READ)
+  entry RS_READ:
 
 	call (input, ibuf, RS_CMND);
 
-  entry (RS_CMND)
+  entry RS_CMND:
 
 	switch (ibuf [0]) {
-		case 'f' : proceed (RS_FORMAT);
-		case 'v' : proceed (RS_SHOWMEM);
-		case 'd' : proceed (RS_DELAY);
-		case 'p' : proceed (RS_PSAVE);
-		case 'g' : proceed (RS_FREEZE);
+		case 'f' : proceed RS_FORMAT;
+		case 'v' : proceed RS_SHOWMEM;
+		case 'd' : proceed RS_DELAY;
+		case 'p' : proceed RS_PSAVE;
 		case 'r' : reset ();
 	 	case 'h' : halt ();
 	}
 
-	call (output, "Illegal command or parameter\r\n", RS_SHOW);
+	call (output, (char*) "Illegal command or parameter\r\n", RS_SHOW);
 
-  entry (RS_FORMAT)
+  entry RS_FORMAT:
 
 	{
 	    int vi, q;
 	    word vu, vx;
 	    char vc, vs [24];
-	    long vli;
+	    lint vli;
 	    lword vlu, vlx;
 
 	    vc = 'x';
@@ -148,14 +126,14 @@ thread (root)
 	    call (output, ibuf, RS_READ);
 	}
 
-  entry (RS_SHOWMEM)
+  entry RS_SHOWMEM:
 
         form (ibuf, "Stack %u wds, static data %u wds, heap %u wds\r\n",
 		stackfree (), staticsize (), memfree (0, 0));
 
 	call (output, ibuf, RS_READ);
 
-  entry (RS_DELAY)
+  entry RS_DELAY:
 
 	{
 	    word d;
@@ -171,7 +149,7 @@ diag ("DEL %u", d * 1024);
 
 	release;
 
-  entry (RS_PSAVE)
+  entry RS_PSAVE:
 
 	{
 	    word d;
@@ -181,32 +159,17 @@ diag ("DEL %u", d * 1024);
 	    if (d > 60)
 		d = 60;
 
-	    clockdown ();
 	    powerdown ();
 
 	    delay (d * 1024, RS_PUP);
         }
 	release;
 
-  entry (RS_PUP)
+  entry RS_PUP:
 
 	powerup ();
-	clockup ();
 
-  entry (RS_DUP)
+  entry RS_DUP:
 
-	call (output, "done\r\n", RS_READ);
-
-  entry (RS_FREEZE)
-
-	{
-	    word d;
-
-	    d = 1;
-	    scan (ibuf + 1, "%u", &d);
-	    freeze (d);
-
-	}
-	proceed (RS_DUP);
-
-endthread
+	call (output, (char*) "done\r\n", RS_READ);
+}

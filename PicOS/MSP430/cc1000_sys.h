@@ -97,6 +97,6 @@ REQUEST_EXTERNAL (p1irq);
 #define	RSSI_MAX	0x0fff
 #define	RSSI_SHF	4	// Shift bits to fit into a (unsigned) byte
 
-#define	lbt_ok(v)	((v) < (word)(((long)LBT_THRESHOLD * 4096) / 100))
+#define	lbt_ok(v)	((v) < (word)(((lint)LBT_THRESHOLD * 4096) / 100))
 
 #endif

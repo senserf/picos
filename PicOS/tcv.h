@@ -14,6 +14,14 @@
 
 #if	TCV_PRESENT
 
+#ifndef	TCV_HOOKS
+#define	TCV_HOOKS	0
+#endif
+
+#ifndef	TCV_TIMERS
+#define	TCV_TIMERS	0
+#endif
+
 struct qitem_struct {
 	struct qitem_struct	*next,
 				*prev;

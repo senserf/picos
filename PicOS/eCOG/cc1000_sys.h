@@ -18,7 +18,7 @@
 
 #if 0
 #define	lbt_ok(v)	((int)RSSI_MAX - (int)(v) < \
-			(word)(((long)LBT_THRESHOLD * (RSSI_MAX-RSSI_MIN))/100))
+			(word)(((lint)LBT_THRESHOLD * (RSSI_MAX-RSSI_MIN))/100))
 #endif	/* DISABLED */
 
 #endif

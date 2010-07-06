@@ -18,7 +18,7 @@ heapmem {10, 90};
 #define	MAX_PACKET_LENGTH	64
 #define	IBUFLEN			64
 
-static	long	CntRcvd = 0,	// Received packets
+static	lint	CntRcvd = 0,	// Received packets
 		CntLost = 0;	// Lost packets
 
 static	word	LastRcvd;	// Last received

@@ -190,7 +190,7 @@ void pins_int_wait_not (byte st, byte deb, byte on) {
 
 // ============================================================================
 
-void pmon_start_cnt (long count, Boolean edge) {
+void pmon_start_cnt (lint count, Boolean edge) {
 
 	pin_disable_cnt ();
 
@@ -240,7 +240,7 @@ void pmon_start_cnt (long count, Boolean edge) {
 
 void pmon_dec_cnt (void) {
 
-	long cnt;
+	lint cnt;
 
 	cli;
 
@@ -257,9 +257,9 @@ void pmon_dec_cnt (void) {
 	sti;
 }
 
-void pmon_sub_cnt (long decr) {
+void pmon_sub_cnt (lint decr) {
 
-	long cnt;
+	lint cnt;
 
 	cli;
 
@@ -275,7 +275,7 @@ void pmon_sub_cnt (long decr) {
 	sti;
 }
 
-void pmon_add_cmp (long incr) {
+void pmon_add_cmp (lint incr) {
 
 	cli;
 
@@ -296,7 +296,7 @@ void pmon_stop_cnt () {
 	_BIC (pmon.stat, PMON_CNT_ON);
 }
 
-void pmon_set_cmp (long count) {
+void pmon_set_cmp (lint count) {
 
 	if (count < 0) {
 		_BIC (pmon.stat, PMON_CMP_ON | PMON_CMP_PENDING);

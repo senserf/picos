@@ -96,7 +96,7 @@ static const lword secret [4] = { 0xbabadead,0x12345678,0x98765432,0x6754a6cd };
 static int sfd;
 
 static	int	rkillflag = 0;
-static	long	last_snt, last_rcv, last_ack;
+static	lint	last_snt, last_rcv, last_ack;
 static  char 	XMTon = 0, RCVon = 0;
 
 static word gen_packet_length (void) {

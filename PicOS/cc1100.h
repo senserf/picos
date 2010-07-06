@@ -228,18 +228,18 @@
 
 // Formula for calculating the base frequency * 10
 #define	CC1100_BFREQ_T10 \
-	(((((unsigned long) CC1100_FREQ_FREQ2_VALUE << 16) | \
-   	   ((unsigned long) CC1100_FREQ_FREQ1_VALUE <<  8) | \
-      	   ((unsigned long) CC1100_FREQ_FREQ0_VALUE      ) ) * 260 + \
+	(((((lword) CC1100_FREQ_FREQ2_VALUE << 16) | \
+   	   ((lword) CC1100_FREQ_FREQ1_VALUE <<  8) | \
+      	   ((lword) CC1100_FREQ_FREQ0_VALUE      ) ) * 260 + \
 					32768L) / 65536L)
 #define	CC1100_BFREQ		((word)(CC1100_BFREQ_T10 / 10))
 #define	CC1100_BFREQ_10		((word)(CC1100_BFREQ_T10 - (CC1100_BFREQ *10)))
 
 // Channel spacing in kHz
 #define	CC1100_CHANSPC_T1000 \
-	((word)(((26000L * (256 + (unsigned long) CC1100_CHANSPC_M)) + \
-		((unsigned long) 1 << 17 - CC1100_CHANSPC_E)) / \
-		((unsigned long) 1 << (18 - CC1100_CHANSPC_E))))
+	((word)(((26000L * (256 + (lword) CC1100_CHANSPC_M)) + \
+		((lword) 1 << 17 - CC1100_CHANSPC_E)) / \
+		((lword) 1 << (18 - CC1100_CHANSPC_E))))
 
 // Default channel frequency
 #define	CC1100_DFREQ_T10 (CC1100_BFREQ_T10 + \

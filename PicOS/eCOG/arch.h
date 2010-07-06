@@ -30,6 +30,7 @@ typedef unsigned char	bool;
 typedef unsigned char	Boolean;
 typedef	unsigned int	word;
 typedef	int		sint;
+typedef	long int	lint;
 typedef	unsigned char	byte;
 typedef	unsigned long	lword;
 typedef	unsigned int	field;
@@ -48,7 +49,7 @@ typedef	address		va_list;
 /* intended for.  When you cast a non-char pointer to char*, the compiler */
 /* will shift it for you.                                                 */
 /* ====================================================================== */
-//#define	byteaddr(p)	((char*)(((long)(p)) << 1))
+//#define	byteaddr(p)	((char*)(((lint)(p)) << 1))
 #define	byteaddr(p)	((char*)(p))
 
 typedef struct {

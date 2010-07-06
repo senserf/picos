@@ -9,7 +9,7 @@ int vscan (const char *buf, const char *fmt, va_list ap) {
 
 	int nc;
 
-#define	scani(at)	{ unsigned at *vap; Boolean mf; \
+#define	scani(at)	{ at *vap; Boolean mf; \
 			Retry_d_ ## at: \
 			while (!isdigit (*buf) && *buf != '-' && *buf != '+') \
 				if (*buf++ == '\0') \
@@ -22,35 +22,35 @@ int vscan (const char *buf, const char *fmt, va_list ap) {
 					goto Retry_d_ ## at; \
 			} \
 			nc++; \
-			vap = va_arg (ap, unsigned at *); \
+			vap = va_arg (ap, at *); \
 			*vap = 0; \
 			while (isdigit (*buf)) { \
 				*vap = (*vap) * 10 - \
-				     (unsigned at)(unsigned int)(*buf - '0'); \
+				     (at)(word)(*buf - '0'); \
 				buf++; \
 			} \
 			if (!mf) \
-				*vap = (unsigned at)(-((at)(*vap))); \
+				*vap = (at)(-((at)(*vap))); \
 			}
-#define scanu(at)	{ unsigned at *vap; \
+#define scanu(at)	{ at *vap; \
 			while (!isdigit (*buf)) \
 				if (*buf++ == '\0') \
 					return nc; \
 			nc++; \
-			vap = va_arg (ap, unsigned at *); \
+			vap = va_arg (ap, at *); \
 			*vap = 0; \
 			while (isdigit (*buf)) { \
 				*vap = (*vap) * 10 + \
-				     (unsigned at)(unsigned int)(*buf - '0'); \
+				     (at)(word)(*buf - '0'); \
 				buf++; \
 			} \
 			}
-#define	scanx(at)	{ unsigned at *vap; int dc; char c; \
+#define	scanx(at)	{ at *vap; int dc; char c; \
 			while (!isxdigit (*buf)) \
 				if (*buf++ == '\0') \
 					return nc; \
 			nc++; \
-			vap = va_arg (ap, unsigned at *); \
+			vap = va_arg (ap, at *); \
 			*vap = 0; \
 			dc = 0; \
 			while (isxdigit (*buf) && dc < 2 * sizeof (at)) { \
@@ -75,16 +75,16 @@ int vscan (const char *buf, const char *fmt, va_list ap) {
 			continue;
 		switch (*fmt++) {
 		    case '\0': return nc;
-		    case 'd': scani (int); break;
-		    case 'u': scanu (int); break;
-		    case 'x': scanx (int); break;
+		    case 'd': scani (word); break;
+		    case 'u': scanu (word); break;
+		    case 'x': scanx (word); break;
 #if	CODE_LONG_INTS
 		    case 'l':
 			switch (*fmt++) {
 			    case '\0':	return nc;
-		    	    case 'd': scani (long); break;
-		    	    case 'u': scanu (long); break;
-		    	    case 'x': scanx (long); break;
+		    	    case 'd': scani (lword); break;
+		    	    case 'u': scanu (lword); break;
+		    	    case 'x': scanx (lword); break;
 			}
 			break;
 #endif

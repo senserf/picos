@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.21
+set Version 0.22
 
 ###############################################################################
 ###############################################################################
@@ -65,6 +65,15 @@ proc isspace { c } {
 
 proc iskwd { s } {
 	return [regexp -nocase "^\[a-z_$\]\[a-z0-9_$\]*$" $s]
+}
+
+proc newlines { n } {
+	set res ""
+	while { $n } {
+		append res "\n"
+		incr n -1
+	}
+	return $res
 }
 
 ###############################################################################
@@ -147,7 +156,9 @@ proc xerror { msg { lnu "" } } {
 	}
 	set RepErr($erc) ""
 
-	puts stderr "$lf:$ln: $msg"
+	puts stderr "$erc: $msg"
+
+	if $FG(D) { dbg "$erc: $msg" }
 
 	if $FG(A) {
 		# abort on first error
@@ -162,7 +173,7 @@ proc xerror { msg { lnu "" } } {
 	incr ErrCnt
 
 	if { $ErrCnt > 15 } {
-		puts stderr "$lf:$ln: too many errors"
+		puts stderr "$erc: too many errors"
 		exit 99
 	}
 }
@@ -304,36 +315,140 @@ proc putS { s } {
 	set PS(BQL) [regexp "\n$" $s]
 }
 
-proc catchup { } {
+proc catchup { { lnu "" } } {
 #
 # Catch up with line numbers, i.e., make sure that the effective line number
-# at the current place in the parser's output is the same as on input
+# at the current place in the parser's output is the same as on input; if the
+# argument is missing, we mean the parser's input
 #
-	global PS
+	global PS FG
+
+	if { $lnu == "" } {
+		set lin $PS(LIN)
+		set lif $PS(LIF)
+	} else {
+		set lin [lindex $lnu 0]
+		set lif [lindex $lnu 1]
+	}
 
 	while 1 {
-		if { $PS(LIF) != $PS(LOF) } {
+
+		if { $lif != $PS(LOF) } {
 			# different files, need an explicit reset
+			if $FG(D) {
+				dbg "catchup: different files\
+					$lif != $PS(LOF)"
+			}
 			break
 		}
-		set dif [expr $PS(LIN) - $PS(LON)]
+
+		set dif [expr $lin - $PS(LON)]
+
 		if { $dif == 0 } {
 			# in perfect sync
 			return
 		}
+
+		if $FG(D) { dbg "catchup: diff = $dif, $lin, $PS(LON)" }
+
+		# here is a simple optimizer for the number of line
+		# resequencing inserts
+
+		if { $dif < 0 } {
+			# first try to remove empty lines from the output tail,
+			# but never remove the last one
+			set tl [string length $PS(TAR)]
+			set ll -1
+			set nc 0
+			while { $tl > 0 } {
+				incr tl -1
+				set c [string index $PS(TAR) $tl]
+				if ![isspace $c] {
+					# sorry
+					if $FG(D) {
+					    dbg "catchup: optA $dif, $nc, $ll"
+					}
+					if { $ll >= 0 } {
+						# the last one must be skipped
+						if { $nc < 0 } {
+							incr nc
+						}
+						# it has helped a bit, we have
+						# reduced the difference
+						set PS(TAR) [string range \
+							$PS(TAR) 0 $ll]
+						set PS(LON) \
+							[expr $PS(LON) + $nc]
+						set PS(BQL) 1
+						set dif [expr $dif - $nc]
+					}
+					break
+				}
+				if { $c == "\n" } {
+					if { $nc == $dif } {
+						# we are fine, this one stays
+						set PS(TAR) [string range \
+							$PS(TAR) 0 $tl]
+						set PS(LON) $lin
+						set PS(BQL) 1
+						if $FG(D) {
+							dbg "catchup: optA OK"
+						}
+						return
+					}
+					# remember location of the last one
+					set ll $tl
+					incr nc -1
+				}
+			}
+		}
+
+		if { $dif < 0 && $lnu == "" } {
+			# second stage optimization: look at the input and
+			# skip any empty lines from its front; note that we
+			# are invoked at token boundaries, so we should be
+			# safe
+			set tl $PS(INX)
+			while 1 {
+				set c [string index $PS(SRC) $tl]
+				if ![isspace $c] {
+					if $FG(D) {
+						dbg "catchup: optB $dif, $c"
+					}
+					break
+				}
+				incr tl
+				if { $c == "\n" } {
+					incr dif
+					if { $dif == 0 } {
+						# done, make it look advanced
+						# past the EOL
+						set PS(BOP) 0
+						set PS(BOL) 1
+						set PS(LIN) $PS(LON)
+						set PS(INX) $tl
+						if $FG(D) {
+						 dbg "catchup: optB OK $PS(LIN)"
+						}
+						return
+					}
+				}
+			}
+		}
+					
 		if { $dif > 16 || $dif < 0 } {
-			# difference to big or negative, must be forced by an
+			# difference too big or negative, must be forced by an
 			# explicit line number sequence
 			break
 		}
+
 		# just insert eols
-		while { $PS(LIN) > $PS(LON) } {
-			append PS(TAR) "\n"
-			incr PS(LON)
-		}
+		append PS(TAR) [newlines $dif]
+		set PS(LON) $lin
 		return
 	}
-	setlnum [list $PS(LIN) $PS(LIF)]
+
+	setlnum [list $lin $lif]
 }
 
 proc lnumseq { lnu } {
@@ -341,6 +456,9 @@ proc lnumseq { lnu } {
 # Convert a line number (number, file name) into a sequence to be inserted into
 # file
 #
+	global FG
+
+	if $FG(D) { dbg "lnumseq: [lindex $lnu 0]" }
 	return  "# [lindex $lnu 0] \"[lindex $lnu 1]\"\n"
 }
 
@@ -356,6 +474,7 @@ proc setlnum { lnu } {
 
 	if !$PS(BQL) {
 		append PS(TAR) "\n"
+		set PS(BQL) 1
 	}
 
 	append PS(TAR) [lnumseq $lnu]
@@ -518,7 +637,7 @@ proc insert { mk ins } {
 # Insert text into output at the mark; anything following the mark will appear
 # after the insert
 #
-	global PS
+	global PS FG
 
 	set sl [lindex $mk 0]
 	set txt [string range $PS(TAR) 0 [expr $sl - 1]]
@@ -807,7 +926,9 @@ proc parse_decl { { xp 0 } { bf 0 } } {
 	# last keyword mark
 	set lkw_mark $dec_mark
 	# line of the declaration
-	set vli [olinenum $dec_mark]
+	set vli [ilinenum $dec_mark]
+
+	if $FG(D) { dbg "parse_decl: line $vli" }
 
 	# to be reset on a per-variable basis:
 
@@ -2265,7 +2386,14 @@ K {
 			}
 
 			# try the declaration
-			set d [parse_decl]
+			if { $TK == "shared" } {
+				# force the "expected" status if it looks like
+				# our keyword
+				set d 1
+			} else {
+				set d 0
+			}
+			set d [parse_decl $d]
 
 			if { $d == "" } {
 				# no more declarations; note that the first
@@ -2920,17 +3048,17 @@ proc vuee_out { str } {
 		return $str
 	}
 
-	if [regexp "^P_(.+)_zzz_(.*)_\[0-9\]*.cc" $name jnk froot prog] {
+	if [regexp "^P_(.+)_zzz_?(.*)_\[0-9\]*.cc" $name jnk froot prog] {
 		set name ${froot}.cc
 		if { $prog != "" } {
 			append name " of $prog"
 		}
-	} elseif [regexp "^__vueehdr_(.*).h$" $name jnk prog] {
+	} elseif [regexp "^__vueehdr_?(.*).h$" $name jnk prog] {
 		set name "vuee header"
 		if { $prog != "" } {
 			append name " for $prog"
 		}
-	} elseif [regexp "^__vueeini_(.*).cc$" $name jnk prog] {
+	} elseif [regexp "^__vueeini_?(.*).cc$" $name jnk prog] {
 		set name "vuee initializer"
 		if { $prog != "" } {
 			append name " for $prog"
@@ -3145,8 +3273,12 @@ proc compile_pgm { } {
 	set SCF [file join $TDIR "__cpp_tmp.c"]
 
 	if { $pg != "" } {
-		puts "compiling $pg"
+		set px $pg
+	} else {
+		set px "the praxis"
 	}
+
+	puts "@Compiling $px"
 
 	while { $ToCompile != "" } {
 		set cfn [lindex $ToCompile 0]
@@ -3516,9 +3648,9 @@ proc scanfile { fname inner { prelude "" } } {
 # go through its #ifs/#ifdefs, but also include #defines. Then, the entire file
 # is run through cpp to expand the macros and eliminate the defines.
 #
-# The argument is an optional prelude to be inserted at the beginning of the
-# output file. If specified, it must be a list of lines (no terminating "\n")
-# ending with an empty item (i.e., empty line).
+# The last argument is an optional prelude to be inserted at the beginning of
+# the output file. If specified, it must be a list of lines (no terminating
+# "\n") ending with an empty item (i.e., an empty line).
 #
 	global CFName FLine Symbols DirList EDirList FG
 
@@ -3628,12 +3760,9 @@ proc scanfile { fname inner { prelude "" } } {
 		if ![regexp "^\[ \t\]*#\[ \t\]*(\[a-z\]+)\[ \t\]*(.*)" \
 		    $line jk cm ar] {
 			# unrecognizable
-			swarn "unrecognized pp sequence $line, ignored"
+			swarn "unrecognized cpp sequence $line, ignored"
 			if { $inner && $ifstack($ifnest) <= 1 } {
-				while { $lc } {
-					append res "\n"
-					incr lc -1
-				}
+				append res [newlines $lc]
 			}
 			continue
 		}
@@ -3683,6 +3812,9 @@ proc scanfile { fname inner { prelude "" } } {
 			}
 			if $val {
 				set ifstack($ifnest) 1
+				if $inner {
+					append res [newlines $lc]
+				}
 			} else {
 				set ifstack($ifnest) 2
 			}
@@ -3701,8 +3833,8 @@ proc scanfile { fname inner { prelude "" } } {
 				set ifstack($ifnest) 2
 			} elseif { $ifstack($ifnest) == 2 } {
 				# start accepting, but without the else; issue
-				# line sequence + one empty line (for the else)
-				append res "[slineseq]\n"
+				# line sequence (note that the else is already					# included in the count
+				append res "[slineseq]"
 				set ifstack($ifnest) 1
 			} elseif { $ifstack($ifnest) == 0 } {
 				# impossible
@@ -3722,14 +3854,13 @@ proc scanfile { fname inner { prelude "" } } {
 				} elseif { $s == 1 } {
 					# ignore #endif, but maintain correct
 					# line count
-					while { $lc } {
-						append res "\n"
-						incr lc -1
+					if $inner {
+						append res [newlines $lc]
 					}
 				} else {
 					# skipping (this part or both)
 					if { $ifstack($ifnest) <= 1 } {
-						append res "[slineseq]\n"
+						append res "[slineseq]"
 					}
 				}
 			} else {
@@ -3745,10 +3876,9 @@ proc scanfile { fname inner { prelude "" } } {
 
 		if { $cm == "define" } {
 			append res "$line\n"
-			incr lc -1
-			while { $lc } {
-				append res "\n"
+			if $inner {
 				incr lc -1
+				append res [newlines $lc]
 			}
 
 			set ar [remcmnt $ar]
@@ -3768,18 +3898,14 @@ proc scanfile { fname inner { prelude "" } } {
 
 			if ![regexp -nocase "^\[a-z_0-9.\]+" $ar kwd] {
 				swarn "#undef syntax error, ignored"
-				while { $lc } {
-					append res "\n"
-					incr lc -1
-				}
+				append res [newlines $lc]
 				continue
 			}
 
 			append res "$line\n"
-			incr lc -1
-			while { $lc } {
-				append res "\n"
+			if $inner {
 				incr lc -1
+				append res [newlines $lc]
 			}
 
 			if [info exists Symbols($kwd)] {
@@ -3797,20 +3923,14 @@ proc scanfile { fname inner { prelude "" } } {
 					# unrecognizable
 					swarn "unrecognizable #include\
 						argument, ignored"
-					while { $lc } {
-						append res "\n"
-						incr lc -1
-					}
+					append res [newlines $lc]
 					continue
 				}
 				# try the symbol
 				if ![info exists Symbols($fn)] {
 					append res "$line\n"
 					swarn "unrecognizable #include syntax"
-					while { $lc } {
-						append res "\n"
-						incr lc -1
-					}
+					append res [newlines $lc]
 					continue
 				}
 				set fn [string trim $Symbols($fn) "\"<>"]
@@ -3825,9 +3945,8 @@ proc scanfile { fname inner { prelude "" } } {
 				set fm [flook $fn "" $EDirList]
 				if { $fm == "" } {
 					swarn "included file $fn not found"
-					while { $lc } {
-						append res "\n"
-						incr lc -1
+					if $inner {
+						append res [newlines $lc]
 					}
 					continue
 				}
@@ -4150,6 +4269,8 @@ K {
 ###############################################################################
   if { $PAR_IT == "k" } {
 
+    if $FG(D) { dbg "pfile: fs = $fstate, kw = $TK, bl = $bra, fs = $fg_fsm" }
+
     if { $bra == 0 } {
 
       # level 0, be on a lookout for:
@@ -4157,6 +4278,7 @@ K {
       # - declarations
 
       if { $fg_fsm == 0 && $TK == "fsm" } {
+        if $FG(D) { dbg "fg_fsm: $fg_fsm -> 1 (f)" }
 	set fg_fsm 1
 	set fsm_mark $PAR_MARK
 	set fstate "F"
@@ -4174,6 +4296,7 @@ K {
 	  set PAR_TDEC [lrange $PAR_TDEC 1 end]
 	  # name ID
 	  set ins [g_tdec $td tna]
+	  if $FG(D) { dbg "pfile: tdec = $ins" }
 	  if { [lsearch -exact $PG($Pgm,TN) $ins] < 0 } {
 	    lappend PG($Pgm,TD) $td
 	    lappend PG($Pgm,TN) $ins
@@ -4213,6 +4336,9 @@ K {
 
 	  # remove the original declaration
 	  truncate $PAR_MARK
+	  # will be appending stuff
+          putS "\n"
+      	  catchup [ilinenum $PAR_MARK]
 
 	  if { $dtp == "A" } {
 
@@ -4221,7 +4347,7 @@ K {
 	    set vrs [g_vdl $d vrs]
 	    set lnu [g_vdl $d lnu]
 
-	    set ins "\n"
+	    set ins ""
 
 	    foreach v $vrs {
 
@@ -4238,44 +4364,40 @@ K {
 	      lappend_unique PG($Pgm,ID) [list $nnm $vnm $lnu]
 	    }
 
-	    insert $PAR_MARK $ins
-	    catchup
-
-	    continue
-	  }
-
-	  # function declaration
-	  set pfx [lreplace $pfx $ins $ins]
-
-	  set ins " [outpref $pfx]"
-
-	  # there is just a single "variable"
-	  set vrs [lindex [g_vdl $d vrs] 0]
-
-	  set vnm [g_vdec $vrs nam]
-	  set nnm "_na_$vnm"
-
-	  # updated variable description
-	  s_vdec vrs nam $nnm
-
-	  # include original name as "old"
-	  s_vdec vrs old $vnm
-
-	  s_vdl d pfx $pfx
-	  s_vdl d vrs [list $vrs]
-	
-	  append ins "__NT[pnfx]::[outvar $vrs] \{"
-
-	  insert $PAR_MARK $ins
-	  catchup
-
-	  if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
-	    xerror "idiosyncratic function $vnm declared more than once"
 	  } else {
-	    lappend PG($Pgm,AN) $nnm
-	    lappend PG($Pgm,AL) $d
+
+	    # function declaration
+	    set pfx [lreplace $pfx $ins $ins]
+
+	    set ins " [outpref $pfx]"
+
+	    # there is just a single "variable"
+	    set vrs [lindex [g_vdl $d vrs] 0]
+
+	    set vnm [g_vdec $vrs nam]
+	    set nnm "_na_$vnm"
+
+	    # updated variable description
+	    s_vdec vrs nam $nnm
+
+	    # include original name as "old"
+	    s_vdec vrs old $vnm
+
+	    s_vdl d pfx $pfx
+	    s_vdl d vrs [list $vrs]
+	
+	    append ins "__NT[pnfx]::[outvar $vrs] \{"
+
+	    if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
+	      xerror "idiosyncratic function $vnm declared more than once"
+	    } else {
+	      lappend PG($Pgm,AN) $nnm
+	      lappend PG($Pgm,AL) $d
+	    }
 	  }
 
+	  putS $ins
+	  catchup
 	  continue
 	}
 
@@ -4364,8 +4486,12 @@ K {
 
       set vrs [g_vdl $d vrs]
       set ors ""
-      # insert
-      set ins "\n"
+      set ins ""
+
+      # append a newline to make sure that the #define will start correctly
+      putS "\n"
+      # make sure the line numbers tally up
+      catchup [ilinenum $PAR_MARK]
 
       # rename the variables
       foreach v $vrs {
@@ -4376,6 +4502,10 @@ K {
 	}
 
 	set vnm [g_vdec $v nam]
+	if { $vnm == "heapmem" || $vnm == "zz_heapmem" } {
+		# ignore this, should we warn?
+		continue
+	}
 	set nnm "${suf}${vnm}"
 	if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
 	  xerror "variable $vnm declared (globally) more than once"
@@ -4394,13 +4524,16 @@ K {
 	lappend ors $v
       }
 
-      # has been verified for duplicates
-      s_vdl d pfx $pfx
-      s_vdl d vrs $ors
-      lappend PG($Pgm,AL) $d
+      if { $ors != "" } {
+        # has been verified for duplicates
+        s_vdl d pfx $pfx
+        s_vdl d vrs $ors
+        lappend PG($Pgm,AL) $d
 
-      # insert the defines
-      insert $PAR_MARK $ins
+        # insert the defines
+        putS $ins
+      }
+
       catchup
       continue
     }
@@ -4544,6 +4677,7 @@ K {
     ###########################################################################
 
     if { $fg_fsm <= 0 } {
+      if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (k)" }
       set fg_fsm -1
       # illegal after keyword
       continue
@@ -4559,6 +4693,7 @@ K {
       if { $bra != $fsm_blev || $TK == "state" || $TK == "entry" ||
 	$TK == "initial" } {
 	# not any more; any of these renders declarations illegal
+        if $FG(D) { dbg "fg_fsm: $fg_fsm -> 2 (i)" }
 	set fg_fsm 2
 	# have to redo the keyword
 	set rep 1
@@ -4566,10 +4701,16 @@ K {
       }
 
       # try the declaration
-      set d [parse_decl $TK]
+      if { $TK == "shared" } {
+	set d 1
+      } else {
+	set d 0
+      }
+      set d [parse_decl $d]
       if { $d == "" } {
 	# if there are type declarations, keep going
 	if { $PAR_TDEC == "" } {
+        	if $FG(D) { dbg "fg_fsm: $fg_fsm -> 2 (t)" }
 		set fg_fsm 2
 	}
 	continue
@@ -4656,6 +4797,7 @@ K {
     # keyword outside fsm #####################################################
     ###########################################################################
 
+      if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (k)" }
       set fg_fsm -1
     }
 
@@ -4728,6 +4870,7 @@ K {
       catchup
     }
 
+    if $FG(D) { dbg "fg_fsm: $fg_fsm -> 0 (c)" }
     set fg_fsm 0
 
     if { [lsearch -exact $PG($Pgm,PN) $fsm_name] >= 0 } {
@@ -4749,15 +4892,20 @@ K {
   #############################################################################
   # other delimiters ##########################################################
   #############################################################################
-  if { $bra == 0 && ($TK == "\}" || $TK == ";") } {
+  if { $bra == 0 && ($TK == "\}" || $TK == ";" || $TK == "#") } {
+
+    # FIXME: this is wrong; the true delimiter has been swallowed by the
+    # declaration, so we cannot really enter this chunk sensibly, except
+    # for a line number sequence (the "#" case)
 
     if { $fg_fsm == -1 } {
       # fsm becomes legit
+      if $FG(D) { dbg "fg_fsm: $fg_fsm -> 0 (l = $TK)" }
       set fg_fsm 0
     }
 
   } elseif { $fg_fsm == 0 } {
-
+    if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (d = $TK)" }
     set fg_fsm -1
   }
 }
@@ -4771,6 +4919,7 @@ F {
 
 	if { $PAR_IT != "k" } {
 		xerror "fsm name expected"
+    		if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (f)" }
 		set fg_fsm -1
 		continue
 	}
@@ -4782,6 +4931,7 @@ F {
 	if { $PAR_IT != "d" || ( $TK != "\{" && $TK != "(" && $TK != "," &&
 	     $TK != ";" ) } {
 		xerror "fsm declaration syntax error, ( or \{ expected"
+    		if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (e)" }
 		set fg_fsm -1
 		continue
 	}
@@ -4789,14 +4939,17 @@ F {
 	if { $TK == "," || $TK == ";" } {
 		# announcement - skip to ";" while doing some rudimentary
 		# verification
+    		if $FG(D) { dbg "fg_fsm: $fg_fsm -> 0 (a)" }
 		set fg_fsm 0
-		set fstate "K"
 		while 1 {
 			if { $PAR_IT == "d" } {
 				if { $TK == ";" } {
 					break
 				}
 				if { $TK != "," } {
+    					if $FG(D) {
+						dbg "fg_fsm: $fg_fsm -> -1 (b)"
+					}
 					set fg_fsm -1
 					xerror "illegal fsm announcement"
 					break
@@ -4816,6 +4969,7 @@ F {
 		if { $fsm_type == "" || $TK != ")" } {
 			xerror "strand fsm declaration syntax error,\
 				invalid data type"
+    			if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (s)" }
 			set fg_fsm -1
 			continue
 		}
@@ -4823,6 +4977,7 @@ F {
 		if { $PAR_IT != "d" || $TK != "\{" } {
 			xerror "strand fsm declaration syntax error,\
 				\} expected"
+    			if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (z)" }
 			set fg_fsm -1
 			continue
 		}

@@ -115,3 +115,39 @@ PG100630A:
 	Note that this requires a modification in VUEE. Please use VUEE with
 	the same (or higher) release tag, if you want to have crunning working
 	correctly with the PiComp-compatible praxes.
+
+PG100705A:
+
+	Introducing type lint (along the line of sint) intended to be PicOS's
+	replacement for long. While it is not absolutely required to use this
+	type (instead of long) in praxes, it is recommended in order to avoid
+	problems with VUEE, especially on 64-bit machines. This required a
+	modification in VUEE (PG100705A), which was directly inspired by the
+	recent problem signaled by Nick (and his fix). That in turn required
+	a (very slight) modification to SIDE. So you should get them all.
+
+	I am not sure if I have fixed Nick's second problem. Nick, please let
+	me know.
+
+	I have gone through the source, including most praxes, replacing
+	long with lint. Note that the problem of eliminating int and
+	replacing it with sint everywhere is a bit more complicated. One reason
+	why you have to be careful there is that PicOS (and consequently VUEE)
+	uses int for some handles, notably PIDs, which are in fact addresses
+	(using type word to store event numbers is another messy feature).
+	This may change in the future. Probably, we should have two more types
+	(or maybe just one) to take care of process and event handles. This
+	cannot be done quickly as a lot in VUEE depends on the assumption that
+	PID is an int derived from an address. Note that any problems caused by
+	this "overloading" of types will be amplified on 64-bit systems.
+
+	A minor cleanup in kernel.c (code for killing processes improved a
+	bit).
+
+	A few fixes to PiComp. Line count (for error diagnostics) would go off
+	after an #if(def) or #else, for one thing. For another, PiComp now
+	(when compiling for VUEE) recognizes and compiles out heapmem (it
+	could not be eliminated by a null macro because of the weird syntax).
+
+	Apps/VUEE/RFPING un-converted from manual VUEE to PiComp
+	Apps/TESTS/ToySimple made PiComp-compatible

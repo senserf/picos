@@ -56,7 +56,7 @@ process (root, void)
 	static word vu, vx;
 	static char vc;
 	static char vs [32];
-	static long int vli;
+	static lint vli;
 	static lword vlu, vlx;
 
 	nodata;
