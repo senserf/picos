@@ -46,7 +46,7 @@ typedef	void *code_t;
 
 // ============================================================================
 
-void zz_panel_signal (lint);
+void zz_panel_signal (Long);
 Boolean zz_validate_uart_rate (word);
 
 extern	const char zz_hex_enc_table [];
