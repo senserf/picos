@@ -1,0 +1,321 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# Consistently installs the complete set (PICOS, VUEE, SIDE) verifying version
+# dependencies
+#
+
+set PLIST { PICOS SIDE VUEE }
+
+proc errab { m } {
+
+	puts stderr $m
+	exit 99
+}
+
+###############################################################################
+
+proc install { pkg } {
+
+	global CWD HOME BIN VPATH
+
+	cd $CWD
+	cd ../$pkg
+	puts "Deploying $pkg ..."
+	if [catch { exec sh deploy $BIN $VPATH >@ stdout } err] {
+		errab "Failed to deploy $pkg: $err"
+	}
+
+	cd $CWD
+}
+
+proc cmp_tags { a b } {
+#
+# Compares two tags, returns "", -1, 0, 1
+#
+
+	set pat "(\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\])(\[A-Z\])?$"
+
+	set leta "a"
+	if ![regexp $pat $a jnk numa leta] {
+		# failed
+		return ""
+	}
+	set numa "1$numa"
+
+	set letb "a"
+	if ![regexp $pat $b jnk numb letb] {
+		return ""
+	}
+	set numb "1$numb"
+
+
+	if { $numa < $numb } {
+		return -1
+	}
+
+	if { $numa > $numb } {
+		return 1
+	}
+
+	# the tricky case, have to look at the letters
+
+	set leta [string tolower $leta]
+	set letb [string tolower $letb]
+
+	if { $leta == $letb } {
+		return 0
+	}
+
+	if { [lindex [lsort [list $leta $letb]] 0] == $leta } {
+		return -1
+	}
+
+	return 1
+}
+
+proc get_rtags { pkg } {
+#
+# Scans through RTAGS in the current directory extracting the most recent 
+# release tag and dependencies
+#
+	global CWD PLIST
+
+	cd $CWD
+	set dir [file normalize "../$pkg"]
+
+	if [catch { cd $dir } ] {
+		errab "Package $pkg is not present at $dir"
+	}
+
+	set fl [exec ls]
+	set rt "X000000A"
+
+	set dlist ""
+	foreach d $PLIST {
+		if { $d != $pkg } {
+			lappend dlist [list $d $rt]
+		}
+	}
+
+	set ptg "(\[0-9A-Z\]+):"
+	set ptd ">=\[ \t\]*(\[0-9A-Z\]+)"
+
+
+	foreach f $fl {
+
+		if ![regexp "^RTAGS" $f] {
+			continue
+		}
+
+		if [catch { open $f "r" } fd] {
+			errab "Cannot open $f in $pkg: $fd"
+		}
+
+		if [catch { read $fd } rtf] {
+			errab "Cannot read $f in $pkg: $rtf"
+		}
+		catch { close $fd }
+
+		# the last RTAG
+		if { ![regexp -nocase ".*\n$ptg" $rtf fd rtag] &&
+		     ![regexp -nocase "^$ptg" $rtf fd rtag] } {
+			continue
+		}
+		set cmp [cmp_tags $rt $rtag]
+		if { $cmp == "" } {
+			errab "Illegal tag '$rtag' in $f in $pkg"
+		} elseif { $cmp < 0 } {
+			set rt $rtag
+		}
+
+		# look for dependencies
+
+		set nl ""
+		foreach d $dlist {
+
+			set pac [lindex $d 0]
+			set tag [lindex $d 1]
+
+			if { [regexp -nocase ".*\n$ptg\[^\n\]$pac\[ \t\]*$ptd" \
+			       $rtf fd fd rtag] ||
+			     [regexp -nocase "^$ptg\[^\n\]$pac\[ \t\]*$ptd" \
+			       $rtf fd fd rtag] } {
+
+				set cmp [cmp_tags $tag $rtag]
+				if { $cmp == "" } {
+					errab "Illegal dependency tag\
+						'$rtag' in $f in $pkg"
+				} elseif { $cmp < 0 } {
+					set tag $rtag
+				}
+			}
+
+			lappend nl [list $pac $tag]
+		}
+		set dlist $nl
+	}
+
+	# get back where you started from
+	cd $CWD
+
+	return [list $rt $dlist]
+}
+
+proc anchor { } {
+#
+# Locate the root directory of PICOS (i.e., from where we should have been
+# called)
+#
+	global CWD RWD BIN env HOME VPATH
+
+	set CWD [pwd]
+	set lst ""
+
+	while 1 {
+		if { [file isdirectory "Apps"] && [file isdirectory "PicOS"] &&\
+		     [file isdirectory "Scripts"] } {
+			break
+		}
+		set CWD [file normalize "../$CWD"]
+		if { $CWD == $lst } {
+			errab "cannot locate root directory of the package"
+		}
+		cd $CWD
+	}
+
+	# determine the location of HOME/bin
+
+	if ![info exists env(HOME)] {
+		errab "Cannot determine HOME directory"
+	}
+
+	set HOME [file normalize $env(HOME)]
+
+	set BIN ""
+	foreach bc { bin BIN } {
+		if [file isdirectory [file join $HOME $bc]] {
+			set BIN $bc
+			break
+		}
+	}
+
+	if { $BIN == "" } {
+		puts "Warning: neither bin nor BIN found in HOME, will create\
+			bin"
+		set BIN "bin"
+	}
+
+	set VPATH [file normalize "../VUEE/PICOS"]
+	if { [string first $HOME $VPATH] != 0 } {
+		errab "Cannot locate VUEE path"
+	}
+
+	set VPATH [string trim [string range $VPATH [string length $HOME] end] \
+		"/"]
+}
+
+proc ver_dep { depl } {
+#
+# Verify version dependencies
+#
+
+	set out ""
+
+	foreach u $depl {
+
+		set p [lindex $u 0]
+		set d [lindex $u 1]
+		# package's own release tag
+		set r [lindex $d 0]
+
+		set REL($p) $r
+
+		if { $out != "" } {
+			append out ", "
+		}
+		if { $r == "X000000A" } {
+			puts "Warning: $p has no release tag"
+			set r "none"
+		}
+		append out "$p = $r"
+	}
+
+	puts "Release tags: $out"
+
+	set ok 1
+
+	foreach u $depl {
+
+		set p [lindex $u 0]
+		set d [lindex $u 1]
+		# dependencies
+		set d [lindex $d 1]
+		foreach m $d {
+			set pac [lindex $m 0]
+			set tag [lindex $m 1]
+			if { $tag == "X000000A" } {
+				continue
+			}
+			# puts "$p <- $pac release $REL($pac)"
+			set cmp [cmp_tags $REL($pac) $tag]
+			if { $cmp == "" } {
+				errab "Cannot compare tags $tag (of $p) and\
+					$REL($pac) of $pac"
+			}
+			if { $cmp < 0 } {
+				puts "$p requires release $tag (or higher)\
+					of $pac"
+				set ok 0
+			}
+		}
+	}
+
+	if !$ok {
+		exit 99
+	}
+}
+
+proc doit { } {
+
+	global CWD PLIST BIN HOME
+
+	anchor
+
+	# verify dependencies
+
+	set depl ""
+
+	foreach p $PLIST {
+		lappend depl [list $p [get_rtags $p]]
+	}
+
+	ver_dep $depl
+
+	foreach p $PLIST {
+
+		if { $p != "PICOS" } {
+			install $p
+		}
+	}
+
+	puts "Deploying PICOS ..."
+
+	set hd [file join $HOME $BIN]
+
+	if [catch { file mkdir $hd } err] {
+		errab "Cannot access $hd: $err"
+	}
+
+	if [catch { file copy -force -- Scripts/mkmk Scripts/picomp $hd } err] {
+		errab "Cannot copy to $hd: $err"
+	}
+
+	cd $hd
+	exec chmod +x mkmk picomp
+
+	puts "All done"
+}
+
+doit

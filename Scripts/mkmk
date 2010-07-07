@@ -1372,6 +1372,51 @@ proc canon { fnf } {
 	return $fn
 }
 
+proc cmp_tags { a b } {
+#
+# Compares two release tags, returns "", -1, 0, 1
+#
+
+	set pat "(\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\])(\[A-Z\])?$"
+
+	set leta "a"
+	if ![regexp $pat $a jnk numa leta] {
+		# failed
+		return ""
+	}
+	set numa "1$numa"
+
+	set letb "a"
+	if ![regexp $pat $b jnk numb letb] {
+		return ""
+	}
+	set numb "1$numb"
+
+
+	if { $numa < $numb } {
+		return -1
+	}
+
+	if { $numa > $numb } {
+		return 1
+	}
+
+	# the tricky case, have to look at the letters
+
+	set leta [string tolower $leta]
+	set letb [string tolower $letb]
+
+	if { $leta == $letb } {
+		return 0
+	}
+
+	if { [lindex [lsort [list $leta $letb]] 0] == $leta } {
+		return -1
+	}
+
+	return 1
+}
+
 proc rootpf { } {
 #
 # Find the root prefix for all directories, i.e., PICOS, as the one containing
@@ -1390,68 +1435,60 @@ proc rootpf { } {
 		set RPREF $tmp
 	}
 	set RPREF [file dirname $RPREF]
-
-	# get the last release tag
-
-	if [catch { open [file join $RPREF "Version"] "r" } fd] {
-		errab "RTAGS not found"
-	}
-
-	if [catch { read $fd } rtf] {
-		errab "Cannot read Version"
-	}
-
-	catch { close $fd }
-
-	# version number
-	set pat "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
-	if ![regexp -nocase ".*\n$pat" $rtf fd \
-		maj min] {
-		if ![regexp -nocase "^$pat" $rtf fd maj min] {
-			set maj 0
-			set min 0
-		}
-	}
-
-	# find the last release tag
-
+	set rt "X000000A"
+	set maj 0
+	set min 0
+	set ptg "(\[0-9A-Z\]+):"
+	set pve "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
 	set fl [exec ls $RPREF]
 
-	set rel "unknown"
-	set rnu 0
-
 	foreach f $fl {
-		if ![regexp "^RTAGS_" $f] {
+
+		if ![regexp "^RTAGS" $f] {
 			continue
 		}
+
 		if [catch { open [file join $RPREF $f] "r" } fd] {
-			errab "Cannot open $f"
+			errab "Cannot open $f: $fd"
 		}
+
 		if [catch { read $fd } rtf] {
-			errab "Cannot read $f"
+			errab "cannot read $f: $rtf"
 		}
 		catch { close $fd }
+
 		# the last RTAG
-		set pat "(\[0-9A-Z\]+):"
-		if ![regexp -nocase ".*\n$pat" $rtf fd rtag] {
-			if ![regexp -nocase "^$pat" $rtf fd rtag] {
-				continue
-			}
-		}
-		if ![regexp "\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]" $rtag \
-			num] {
+		if { ![regexp -nocase ".*\n$ptg" $rtf fd rtag] &&
+		     ![regexp -nocase "^$ptg" $rtf fd rtag] } {
 			continue
 		}
-		set num "1$num"
-		if { $num > $rnu } {
-			set rnu $num
-			set rel $rtag
+		set cmp [cmp_tags $rt $rtag]
+		if { $cmp == "" } {
+			errab "Illegal tag '$rtag' in $f"
+		} elseif { $cmp < 0 } {
+			set rt $rtag
+		}
+
+		# look for version
+
+		if { ![regexp -nocase ".*\n$pve" $rtf fd ma mi] &&
+		     ![regexp -nocase "^$pve" $rtf fd ma mi] } {
+			continue
+		}
+
+		if { [catch { expr $ma } mar] || [catch { expr $mi } mir] } {
+			errab "Illegal version numbers '$ma $mi' in $f"
+		}
+
+		if { $ma > $maj || ( $ma == $maj && $mi > $min ) } {
+			set maj $ma
+			set min $mi
 		}
 	}
+		
+	puts "PicOS version ${maj}.${min}, release $rt"
 
-	puts "PicOS version ${maj}.${min}, release $rel"
-
-	return [list "SYSVER_U=$maj" "SYSVER_L=$min" "SYSVER_T=$rtag"]
+	return [list "SYSVER_U=$maj" "SYSVER_L=$min" "SYSVER_T=$rt"]
 }
 
 proc lboard { tgt } {

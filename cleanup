@@ -1,0 +1,5 @@
+#!/bin/sh
+cd Apps
+./cleanup
+cd ..
+./Scripts/permissions

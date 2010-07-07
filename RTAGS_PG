@@ -116,7 +116,7 @@ PG100630A:
 	the same (or higher) release tag, if you want to have crunning working
 	correctly with the PiComp-compatible praxes.
 
-PG100705A:
+PG100705A:	VUEE >= PG100705A, SIDE >= PG100705A
 
 	Introducing type lint (along the line of sint) intended to be PicOS's
 	replacement for long. While it is not absolutely required to use this
@@ -151,3 +151,73 @@ PG100705A:
 
 	Apps/VUEE/RFPING un-converted from manual VUEE to PiComp
 	Apps/TESTS/ToySimple made PiComp-compatible
+
+PG100706A:	3 1	SIDE >= PG100706A, VUEE >= PG100706A
+
+	There is a new script, named deploy, located in this directory (i.e.,
+	PICOS). It takes no arguments. When called, it will:
+
+	1. verify wheather the versions of all three packages (PICOS, SIDE,
+	   VUEE) match,
+
+	2. install/setup all three packages; this includes compiling mks/vuee
+	   of SIDE, setting up links in VUEE/PICOS, and copying mkmk and picomp
+	   from PICOS/Scripts to bin or BIN
+
+	For 1, it is now possible to declare version (RTAG) dependencies, e.g.,
+	see the present tag (i.e., 13 lines up). This particular tag says (in
+	addition to providing a release number) that:
+
+	1. the PicOS official system version is now 3.1
+
+	2. PicOS requires SIDE and VUEE to be at least at the same RTAG level
+
+	Similar specifications can be inserted into RTAG files in SIDE and
+	VUEE, except that the version numbers in those packages are defined
+	differently (and you normally don't care about them). I have also
+	unified a couple of things:
+
+	1. In all packages, RTAGs are stored in files named RTAGS..., where ...
+	   is an arbitrary suffix (allowing for multiple files, e.g., used by
+	   different developers). ALL files with such names are examined and
+	   the LAST (most recent or highest-valued) RTAG is selected from
+	   amongst them all as the effective release tag. What counts to a
+	   tag's value is its number and the (optional) single letter following
+	   that number, e.g., WO100711A > WO100711B > PG100710C.
+
+	2. Not all tags must specify dependencies (or system version numbers
+	   for PicOS). The version dependency of a package is determined from
+	   the most recent tag that actually specifies a dependency. For
+	   example, suppose that we have this chronological sequence of most
+	   recent tags for PICOS:
+
+	   WO100706A:	SIDE >= PG100704A
+	   ...
+	   WO100711A:	VUEE >= PG100709A
+	   ...
+	   PG100712A:
+	   ...
+
+	   The system requires VUEE at 100709A (or newer) and SIDE at 100704A
+	   (or newer). Note that VUEE and SIDE may declare their own
+	   dependencies on the other packages, although SIDE normally does not
+	   depend on PICOS.
+
+ 	3. I have removed the (short-lived) Version file from PICOS. Its role
+	   is now assumed (or resumed) by RTAGS (mostly as it was before our
+	   move to git, except that then there was a single RTAGS file).
+
+	4. Each of the three packages now has two scripts at the top level:
+	   deploy (to deploy the particular package) and cleanup (to clean it
+	   up). They must be called from their respective directories.
+	   PICOS/cleanup invokes cleanup from the Apps directory followed by
+	   Scripts/permissions, while VUEE/cleanup removes the links from
+	   VUEE/PICOS (and executes permissions as well). SIDE/deploy accepts
+	   two arguments (defaulting to bin and SOFTWARE/VUEE/PICOS) specifying
+	   the destination directory of the mks/vuee compiler and the extra
+	   library containing VUEE stuff.
+
+	The PICOS's version of deploy is a bit different from the other two,
+	because it calls them to set up the whole thing. So normally you will
+	be only invoking deploy in PICOS. This is the recommended thing to do
+	after updating any of the packages.
