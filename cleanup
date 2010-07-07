@@ -1,0 +1,7 @@
+#!/bin/sh
+cd PICOS
+./rmlinks
+cd ../UDAEMON
+./cleanup.sh
+cd ..
+../PICOS/Scripts/permissions

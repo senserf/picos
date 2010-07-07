@@ -1,0 +1,4 @@
+#!/bin/sh
+cd PICOS
+./rmlinks
+./mklinks
