@@ -1,0 +1,48 @@
+#!/bin/sh
+if [ "x$1" = "x" ]; then
+	bin="bin"
+else
+	bin=$1
+fi
+if [ "x$2" = "x" ]; then
+	vpath=SOFTWARE/VUEE/PICOS
+else
+	vpath=$2
+fi
+cd SOURCES
+echo "Compiling maker ..."
+g++ -o maker maker.cc
+strip maker
+echo "Running maker for mks ..."
+./maker -b << m_end
+none
+
+
+25
+
+localhost
+4442
+mks
+$bin
+y
+n
+
+
+m_end
+echo "Running maker for vuee ..."
+./maker -b << v_end
+none
+
+
+25
+$vpath
+
+localhost
+4442
+vuee
+$bin
+y
+n
+
+
+v_end

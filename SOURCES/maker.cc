@@ -39,7 +39,7 @@ char    wd [MAXPATHLEN];
 
 char    *incdir [MAXINCDIRS], *ccomp, *ckomp, *jcomp, *srcdir, *libdir,
 	*monhost, *mkname, *mksdir, *sokdir;
-int     maxlib, monport;
+int     maxlib, monport, batch;
 
 #define	HOME getenv ("HOME")
 #define notabsolute(s)   ((s)[0] != '/')
@@ -118,52 +118,71 @@ void	encint (int v) {
 	code [15] = '\0';
 	strcpy (is, & (code [n]));
 }
+
+void bad_usage (const char *pn) {
+
+	fprintf (stderr, "Usage: %s [-b]\n", pn);
+	exit (99);
+}
 	
-main () {
+main (int argc, const char *argv []) {
 
 	char    c, *s;
 	istream *vfi;
 	ostream	*vfo;
 	int	i, m;
 
+	if (argc > 1) {
+		if (argc > 2 || strcmp (argv [1], "-b"))
+			bad_usage (argv [1]);
+		batch = 1;
+	}
+		
+if (!batch) {
 cout << "Hi, this is SMURPH/SIDE Version " << VERSION << '\n';
 cout << "You will be asked a few simple questions.  By  hitting  RETURN you\n";
 cout << "select the default answer indicated in the question.  Note that in\n";
 cout << "the vast majority of cases the default answers are fine.\n\n";
-
+}
 	ccomp = new char [strlen (DEFCCOMP) + 1];
 	ckomp = new char [strlen (DEFCKOMP) + 1];
 	strcpy (ccomp, DEFCCOMP);
 	strcpy (ckomp, DEFCKOMP);
 
+if (!batch) {
 cout << '\n';
 cout << "If you want to recompile the DSD applet,  please  specify  now the\n";
 cout << "name of your Java compiler.  If you accept the default (none), DSD\n";
 cout << "will not be recompiled.  This usually makes perfect sense, because\n";
 cout << "Java code is supposed to be platform-independent.\n\n";
 cout << "So what is the name of your Java compiler? (" << DEFJCOMP << "): ";
-
+}
 	getstring ();
 
 	if (is [0] == '\0') {
 		cout << "Assuming " << DEFJCOMP << '\n';
 		strcpy (is, DEFJCOMP);
 	} else
-		cout << "The name of your compiler is " << is << '\n';
+		cout << "The name of your Java compiler is " << is << '\n';
 
 	jcomp = new char [strlen (is) + 1];
 	strcpy (jcomp, is);
 
+if (!batch) {
 cout << '\n';
 cout << "Give me the path to  SMURPH/SIDE  sources (at least from your home\n";
 cout << "directory).  If the path starts with '/', it will be assumed to be\n";
 cout << "absolute;  otherwise, it will be interpreted relative to your home\n";
 cout << "directory. The default path is:\n\n";
+}
 
 	getwd (wd);
+
+if (!batch) {
 	cout << "        " << wd << "\n\n";
 
 cout << "which is the current working directory.\n";
+}
 
 SP_RETRY:
 
@@ -177,8 +196,14 @@ SP_RETRY:
 		if (notabsolute (is)) {
 			// Turn it into $HOME/is
 			if ((s = HOME) == NULL) {
-				cout << "Cannot determine your home directory;"
-					<< " please specify the full path\n";
+				if (batch) {
+NoHome:
+					cerr << "Cannot determine HOME\n";
+					exit (1);
+				}
+				cout << "Cannot determine your home"
+					    "directory;"
+					    " please specify the full path\n";
 				goto SP_RETRY;
 			}
 			strcpy (is+4096, is);
@@ -190,6 +215,12 @@ SP_RETRY:
 		// Execute a tentative chdir there
 
 		if (chdir (is) < 0) {
+			if (batch) {
+DirAcc:
+				cerr << "Directory " << is <<
+					" is inaccessible\n";
+				exit (1);
+			}
 			cout << "This directory is inaccessible;" <<
 				" please specify another path\n";
 			goto SP_RETRY;
@@ -201,17 +232,22 @@ SP_RETRY:
 	srcdir = new char [strlen (is) + 1];
 	strcpy (srcdir, is);
 
+if (!batch) {
 cout << '\n';
 cout << "Please give the path to the  directory  where  you  want  to  keep\n";
 cout << "binary libraries.  This directory need not exist at present; if it\n";
 cout << "exists, however, IT WILL BE CLEARED. The default path is:\n\n";
+}
 
 	for (s = wd + strlen (wd); s != wd && *(s-1) != '/'; s--);
 	*s = '\0';
 	strcat (wd, DEFLIBDR);
+
+if (!batch) {
 	cout << "        " << wd << "\n\n";
 
 cout << "which is equivalent to: ../" << DEFLIBDR << '\n';
+}
 
 LB_RETRY:
 
@@ -224,6 +260,8 @@ LB_RETRY:
 		if (notabsolute (is)) {
 			// Turn it into $HOME/is
 			if ((s = HOME) == NULL) {
+				if (batch)
+					goto NoHome;
 				cout << "Cannot determine your home directory;"
 					<< " please specify the full path\n";
 				goto LB_RETRY;
@@ -252,6 +290,8 @@ LB_CD:
 		}
 
 		if (mkdir (is, 0777) < 0) {
+			if (batch)
+				goto DirAcc;
 			cout << "I have problems accessing this";
 			cout << " directory; please speify another";
 			cout << " path\n";
@@ -270,6 +310,7 @@ LB_CD:
 	libdir = new char [strlen (is) + 1];
 	strcpy (libdir, is);
 
+if (!batch) {
 cout << '\n';
 cout << "Specify the maximum number of versions of the binary library to be\n";
 cout << "kept simultaneously.  Whenever the configuration of options of mks\n";
@@ -277,37 +318,47 @@ cout << "requests a new library version to  be  created,  and  the  current\n";
 cout << "number  of  library  versions  is  equal to the maximum, the least\n";
 cout << "recently used library will be removed. The default limit is " <<
 	DEFMAXLB << '\n';
+}
 
 ML_RETRY:
 
 	getstring ();
 
 	if (is [0] == '\0') {
-		cout << "Assuming " << (maxlib = DEFMAXLB) << '\n';
+		cout << "Assuming " << (maxlib = DEFMAXLB) << " libraries\n";
 	} else {
 		for (s = is; *s != '\0' && isdigit (*s); s++);
 		if (*s != '\0') {
+			if (batch) {
+IllNum:
+				cerr << "Illegal number " << is << "\n";
+				exit (1);
+			}
 			cout << "This is not a legal number; try again\n";
 			goto ML_RETRY;
 		}
 		maxlib = atoi (is);
-		cout << "The limit is " << maxlib << '\n';
+		cout << "The maximum number of library version is " <<
+			maxlib << '\n';
 	}
 
+if (!batch) {
 cout << '\n';
 cout << "Now, please enter the list of paths to 'include' libraries  (which\n";
 cout << "can be absolute or relative to your home directory),  each path in\n";
 cout << "a separate line. Enter an empty line when done. This path:\n\n";
+}
 
 	getwd (wd);
         for (s = wd + strlen (wd); s != wd && *(s-1) != '/'; s--);
         *s = '\0';
         strcat (wd, DEFINDIR);
+if (!batch) {
         cout << "        " << wd << "\n\n";
 
 cout << "is standard and need not be specified.  If you want to exclude the\n";
 cout << "standard path, enter '-' as the only character of an input line.\n";
-
+}
 	// Put in the default
 	incdir [0] = new char [strlen (wd) + 1];
 	strcpy (incdir [0], wd);
@@ -322,14 +373,13 @@ IN_RETRY:
 		i = m;
 		if (incdir [0] == NULL)
 			i--;
-		cout << "Done: ";
 		if (i) {
 			if (i == 1)
-				cout << "one";
+				cout << "One";
 			else
 				cout << i;
 		} else {
-			cout << "no";
+			cout << "No";
 		}
 		cout << " include librar";
 		cout << ((i == 1) ? "y" : "ies");
@@ -340,7 +390,8 @@ IN_RETRY:
 	if (is [0] == '-' && is [1] == '\0') {
 		// Exclude the standard library
 		if (incdir [0] == NULL) {
-			cout << "Standard library already excluded!\n";
+			if (!batch)
+				cout << "Standard library already excluded!\n";
 		} else {
 			cout << "Excluding standard library\n";
 			delete incdir [0];
@@ -350,6 +401,10 @@ IN_RETRY:
 	}
 
 	if (m == MAXINCDIRS) {
+		if (batch) {
+			cerr << "Too many libraries\n";
+			exit (1);
+		}
 		cout << "Too many libraries!\n";
 		goto IN_RETRY;
 	}
@@ -357,6 +412,8 @@ IN_RETRY:
 	if (notabsolute (is)) {
 		// Turn it into $HOME/is
 		if ((s = HOME) == NULL) {
+			if (batch)
+				goto NoHome;
 			cout << "Cannot determine your home directory;"
 				<< " please specify the full path\n";
 			goto IN_RETRY;
@@ -382,6 +439,8 @@ IN_CD:
 		}
 
 		if (mkdir (is, 0777) < 0) {
+			if (batch)
+				goto DirAcc;
 			cout << "I have problems accessing this";
 			cout << " directory; please specify another";
 			cout << " path\n";
@@ -399,11 +458,13 @@ IN_CD:
 
 IN_DONE:
 
+if (!batch) {
 cout << '\n';
 cout << "Specify the host to run the monitor. By default, there is no host,\n";
 cout << "which means that you don't  want to use the display applet.   Note\n";
 cout << "that if you want to run everything on a single machine,  you still\n";
 cout << "have to specify its Internet name here (localhost is fine).\n\n";
+}
 
 HS_RETRY:
 
@@ -412,6 +473,10 @@ HS_RETRY:
 	if (is [0] != '\0') {
 		// Check if the host is reachable
 		if (gethostbyname (is) == NULL) {
+			if (batch) {
+				cerr << "Host unreachable\n";
+				exit (1);
+			}
 			cout << "This host is unknown; please specify";
 			cout << " another host\n";
 			goto HS_RETRY;
@@ -421,11 +486,17 @@ HS_RETRY:
 	monhost = new char [strlen (is) + 1];
 	strcpy (monhost, is);
 
-cout << '\n';
+	if (!batch) {
+		cout << '\n';
+	}
+
     if (monhost [0] != '\0') {
+
+if (!batch) {
 cout << "Specify  the  number  of  the monitor socket port on the host that\n";
 cout << "will be running the monitor. The default port number is ";
 cout << DEFMONPT << '\n';
+}
 
 PN_RETRY:
 
@@ -436,6 +507,7 @@ PN_RETRY:
 	} else {
 		for (s = is; *s != '\0' && isdigit (*s); s++);
 		if (*s != '\0') {
+			goto IllNum;
 			cout << "This is not a legal number; try again\n";
 			goto PN_RETRY;
 		}
@@ -443,8 +515,10 @@ PN_RETRY:
 	}
     }
 
+if (!batch) {
 cout << '\n';
 cout << "Specify the name of the make program (" << DEFMKNAM << "): ";
+}
 
 	getstring ();
 
@@ -456,9 +530,11 @@ cout << "Specify the name of the make program (" << DEFMKNAM << "): ";
 	mkname = new char [strlen (is) + 1];
 	strcpy (mkname, is);
 
+if (!batch) {
 cout << '\n';
 cout << "Specify  the  path  to  the  directory that is to contain the make\n";
 cout << "program. The default path is:\n\n";
+}
 
 	if ((s = HOME) == NULL)
 		wd [0] = '\0';
@@ -468,7 +544,9 @@ cout << "program. The default path is:\n\n";
 		strcat (wd, "/");
 	strcat (wd, DEFMKDIR);
 
+if (!batch) {
 	cout << "        " << wd << "\n\n";
+}
 
 MD_RETRY:
 
@@ -481,6 +559,8 @@ MD_RETRY:
 		if (notabsolute (is)) {
 			// Turn it into $HOME/is
 			if ((s = HOME) == NULL) {
+				if (batch)
+					goto NoHome;
 				cout << "Cannot determine your home directory;"
 					<< " please specify the full path\n";
 				goto MD_RETRY;
@@ -497,15 +577,17 @@ MD_RETRY:
 	getwd (wd);
 MD_CD:
 	if (chdir (is) < 0) {
-		cout << "This directory does not exist;";
-		cout << " should I create it? (y): ";
-		strcpy (cb, is);
-		getstring ();
-		if (is [0] != 'y' && is [0] != 'Y' && is [0] != '\0') {
-			cout << "Try another path\n";
-			goto MD_RETRY;
+		if (!batch) {
+			cout << "This directory does not exist;";
+			cout << " should I create it? (y): ";
+			strcpy (cb, is);
+			getstring ();
+			if (is [0] != 'y' && is [0] != 'Y' && is [0] != '\0') {
+				cout << "Try another path\n";
+				goto MD_RETRY;
+			}
+			strcpy (is, cb);
 		}
-		strcpy (is, cb);
 
 		for (s = is+1; *s != '\0'; s++) {
 			if (*s == '/' && *(s+1) != '\0') {
@@ -517,6 +599,8 @@ MD_CD:
 		}
 
 		if (mkdir (is, 0777) < 0) {
+			if (batch)
+				goto DirAcc;
 			cout << "I have problems accessing this";
 			cout << " directory; please specify another";
 			cout << " path\n";
@@ -533,7 +617,7 @@ MD_CD:
 
 	if ((vfi = openIStream ("version.h")) == NULL) {
 COVH:
-		cout << "Sorry, I can't open version.h\n";
+		cerr << "Sorry, I can't open version.h\n";
 		exit (1);
 	}
 
@@ -543,8 +627,8 @@ COVH:
 	for (m = 0; m < BFFSIZE && !vfi->eof (); m++) vfi->get (cb[m]);
 
 	if (m >= BFFSIZE) {
-		cout << "Sorry, the version.h file seems too long. Recompile\n";
-		cout << "maker with increased BFFSIZE and try again.\n";
+		cerr << "Sorry, the version.h file seems too long. Recompile\n";
+		cerr << "maker with increased BFFSIZE and try again.\n";
 		exit (1);
 	}
 
@@ -611,8 +695,8 @@ COVH:
 	strcat (cb, " RANLIB=./ifranlib");
 
 	if (system (cb)) {
-		cout << "Problems creating the library,";
-		cout << " procedure aborted\n" FLUSH;
+		cerr << "Problems creating the library,";
+		cerr << " procedure aborted\n" FLUSH;
 		exit (1);
 	}
 
@@ -636,7 +720,7 @@ COVH:
 	encint (maxlib);
 	strcat (cb, is);
 	if (system (cb)) {
-		cout << "Problems installing 'mks', procedure aborted\n" FLUSH;
+		cerr << "Problems installing 'mks', procedure aborted\n" FLUSH;
 		exit (1);
 	}
 
@@ -662,8 +746,8 @@ COVH:
 	strcat (cb, " OPTI=-O");
 
 	if (system (cb)) {
-		cout << "Problems creating smpp,";
-		cout << " procedure aborted\n" FLUSH;
+		cerr << "Problems creating smpp,";
+		cerr << " procedure aborted\n" FLUSH;
 		exit (1);
 	}
 
@@ -677,8 +761,12 @@ COVH:
 
     	if (monhost [0] != '\0') {
 
-		cout << "Should I create the monitor ? (y): ";
+		if (!batch) {
+			cout << "Should I create the monitor ? (y): ";
+		}
+
 		getstring ();
+
 		if (is [0] == 'y' || is [0] == 'Y' || is [0] == '\0') {
 
 			getwd (wd);
@@ -694,8 +782,8 @@ COVH:
 			// strcat (cb, " OPTI=-w");
 
 			if (system (cb)) {
-				cout << "Problems creating monitor,";
-				cout << " procedure aborted\n" FLUSH;
+				cerr << "Problems creating monitor,";
+				cerr << " procedure aborted\n" FLUSH;
 				exit (1);
 			}
 #ifdef	ZZ_CYW
@@ -705,12 +793,14 @@ COVH:
 #endif
 			chdir (wd);
 
+if (!batch) {
 cout << '\n';
 cout << "The monitor is in file 'MONITOR/monitor'. If you want to run it on\n";
 cout << "this machine, move to directory MONITOR and execute:\n\n";
 cout << "                    monitor standard.t &\n\n";
 cout << "Make  sure  that  no other copy of the monitor is running already,\n";
 cout << "because otherwise the monitor will complain about occupied port.\n\n";
+}
 		}
 
 		getwd (wd);
@@ -730,26 +820,32 @@ cout << "because otherwise the monitor will complain about occupied port.\n\n";
 	                	m = system (cb);
 	                }
 			if (m) {
-				cout << "Problems creating DSD,";
-				cout << " procedure aborted\n" FLUSH;
+				cerr << "Problems creating DSD,";
+				cerr << " procedure aborted\n" FLUSH;
 				exit (1);
 			}
 	        }
 
-		cout << '\n';
-		cout << "The display applet is in directory 'DSD'.\n";
-		cout << "Should I move it elsewhere? (n): ";
+		if (!batch) {
+			cout << '\n';
+			cout << "The display applet is in directory 'DSD'.\n";
+			cout << "Should I move it elsewhere? (n): ";
+		}
 		getstring ();
 		if (is [0] == 'y' || is [0] == 'Y') {
 			cout << '\n';
 DS_RETRY:
+		if (!batch) {
 	   cout << "Specify the directory where the applet should be moved: ";
+		}
   	          	getstring ();
 	          	if (is [0] == '\0') goto DS_RETRY;
  		  	// Check if the directory is reachable
   		  	if (notabsolute (is)) {
 				// Turn it into $HOME/is
 				if ((s = HOME) == NULL) {
+				 if (batch)
+					goto NoHome;
 				 cout << "Cannot determine your home directory;"
 					<< " please specify the full path\n";
 				 goto DS_RETRY;
@@ -761,6 +857,8 @@ DS_RETRY:
 		   	}
 		   	// Execute a tentative chdir there
 		   	if (chdir (is) < 0) {
+				if (batch)
+					goto DirAcc;
 				cout << "This directory is inaccessible;" <<
 					" please specify another path\n";
 				goto DS_RETRY;
