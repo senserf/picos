@@ -1,0 +1,47 @@
+#define	EE_USE_UART		0	// Second UART needed for BlueTooth
+
+#define	MALLOC_SINGLEPOOL	1
+#define DIAG_MESSAGES		2
+#define	TCV_PRESENT		1
+#define	TCV_TIMERS		0
+#define	TCV_HOOKS		0
+#define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
+#define	MALLOC_SAFE		1
+#define	MALLOC_STATS		1
+#define STACK_GUARD		1
+#define ENTROPY_COLLECTION	1
+#define	RANDOM_NUMBER_GENERATOR	2
+
+#define LEDS_DRIVER		1
+#define LEDS_BLINKING		1
+
+#define	LCD_ST7036		1
+
+#define UART_DRIVER		2
+#define	RADIO_USE_LEDS		7
+#define UART_TCV		0
+#define UART_RATE		9600
+#define	UART_RATE_SETTABLE	1
+#define UART_BITS		8
+#define UART_PARITY		0
+
+#define	RTC_S35390		1
+
+#define CC1100			1
+
+#define CRYSTAL_RATE		32768
+#define	CRYSTAL2_RATE		6000000
+
+#define LBT_DELAY		0
+#define LBT_THRESHOLD		2
+
+#define STORAGE_AT45XXX		1
+#define	STORAGE_SDCARD		1
+#define	INFO_FLASH		2
+
+#define RESET_ON_SYSERR		1
+#define RESET_ON_MALLOC		1
+#define UART_INPUT_BUFFER_LENGTH 256
+#define MSK_BACKOFF		0xFF
+
+#define	ADC_SAMPLER		0

@@ -80,7 +80,7 @@ proc get_rtags { pkg } {
 # Scans through RTAGS in the current directory extracting the most recent 
 # release tag and dependencies
 #
-	global CWD PLIST
+	global CWD PLIST PVER
 
 	cd $CWD
 	set dir [file normalize "../$pkg"]
@@ -91,6 +91,8 @@ proc get_rtags { pkg } {
 
 	set fl [exec ls]
 	set rt "X000000A"
+	set maj 0
+	set min 0
 
 	set dlist ""
 	foreach d $PLIST {
@@ -101,6 +103,7 @@ proc get_rtags { pkg } {
 
 	set ptg "(\[0-9A-Z\]+):"
 	set ptd ">=\[ \t\]*(\[0-9A-Z\]+)"
+	set pve "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
 
 
 	foreach f $fl {
@@ -155,6 +158,28 @@ proc get_rtags { pkg } {
 			lappend nl [list $pac $tag]
 		}
 		set dlist $nl
+
+		if { $pkg == "PICOS" } {
+			# look for version
+			if { ![regexp -nocase ".*\n$pve" $rtf fd ma mi] &&
+		     	![regexp -nocase "^$pve" $rtf fd ma mi] } {
+				continue
+			}
+
+			if { [catch { expr $ma } mar] ||
+			     [catch { expr $mi } mir] } {
+				errab "Illegal version numbers '$ma $mi' in $f"
+			}
+
+			if { $ma > $maj || ( $ma == $maj && $mi > $min ) } {
+				set maj $ma
+				set min $mi
+			}
+		}
+	}
+
+	if { $maj != 0 } {
+		set PVER "$maj.$min"
 	}
 
 	# get back where you started from
@@ -220,6 +245,7 @@ proc ver_dep { depl } {
 #
 # Verify version dependencies
 #
+	global PVER
 
 	set out ""
 
@@ -240,6 +266,9 @@ proc ver_dep { depl } {
 			set r "none"
 		}
 		append out "$p = $r"
+		if { $p == "PICOS" && [info exists PVER] } {
+			append out " ($PVER)"
+		}
 	}
 
 	puts "Release tags: $out"

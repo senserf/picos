@@ -1,4 +1,18 @@
-#!/bin/sh
+#!/bin/bash
+if [ "x$1" = "xall" ] ||  [ "x$1" = "x-all" ]; then
+pushd ../VUEE
+echo "Cleaning VUEE"
+./cleanup
+popd
+pushd ../SIDE
+echo "Cleaning SIDE"
+./cleanup
+popd
+echo "Cleaning PICOS"
+elif [ "x$1" != "x" ]; then
+echo "Usage: cleanup [-all]"
+exit 99
+fi
 cd Apps
 ./cleanup
 cd ..

@@ -157,7 +157,7 @@ PG100706A:	3 1	SIDE >= PG100706A, VUEE >= PG100706A
 	There is a new script, named deploy, located in this directory (i.e.,
 	PICOS). It takes no arguments. When called, it will:
 
-	1. verify wheather the versions of all three packages (PICOS, SIDE,
+	1. verify whether the versions of all three packages (PICOS, SIDE,
 	   VUEE) match,
 
 	2. install/setup all three packages; this includes compiling mks/vuee
@@ -221,3 +221,17 @@ PG100706A:	3 1	SIDE >= PG100706A, VUEE >= PG100706A
 	because it calls them to set up the whole thing. So normally you will
 	be only invoking deploy in PICOS. This is the recommended thing to do
 	after updating any of the packages.
+
+PG100714A:
+
+	Board WARSAW_NEW_BLUE added (includes interface to LinkMatik 2.0 which
+	I used for testing Bluetooth connections with the Android). See also
+	Apps/TEST/BlueTest.
+
+	Minor cosmetics:
+
+	The deploy script now shows also the version number (not just the
+	RTAG release) of PICOS.
+
+	There is an -all option in the cleanup script that cleans up all
+	three packages.
