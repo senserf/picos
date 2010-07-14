@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -9,7 +9,7 @@
 
 interrupt (UART_A_TX_VECTOR) uart0tx_int (void) {
 
-#define	UA		zz_uart
+#define	UA		__pi_uart
 #define	XBUF_STORE(a)	uart_a_write (a)
 
 #include "irq_uart_x.h"
@@ -21,7 +21,7 @@ interrupt (UART_A_TX_VECTOR) uart0tx_int (void) {
 
 interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
 
-#define	UA	zz_uart
+#define	UA	__pi_uart
 #define	RBUF	uart_a_read
 
 #include "irq_uart_r.h"
@@ -35,7 +35,7 @@ interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
 
 interrupt (UART_B_TX_VECTOR) uart1tx_int (void) {
 
-#define	UA		(zz_uart + 1)
+#define	UA		(__pi_uart + 1)
 #define	XBUF_STORE(a)	uart_b_write (a)
 
 #include "irq_uart_x.h"
@@ -47,7 +47,7 @@ interrupt (UART_B_TX_VECTOR) uart1tx_int (void) {
 
 interrupt (UART_B_RX_VECTOR) uart1rx_int (void) {
 
-#define	UA	(zz_uart + 1)
+#define	UA	(__pi_uart + 1)
 #define	RBUF	uart_b_read
 
 #include "irq_uart_r.h"

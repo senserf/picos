@@ -230,7 +230,7 @@ ESTK		= ADDR
 ; handler for the DUART.
                   ORG      H'40
 
-$zzz_minimal_handler:
+$__pi_minimal_handler:
                   st flags,@(-33,y)    ; Store Flags
                   st al, @(-34,y)      ; Store AL
 
@@ -247,7 +247,7 @@ $zzz_minimal_handler:
 ; is put here to catch the exception.
 ;
 
-$zzz_address_error:
+$__pi_address_error:
                   st flags,@(-33,y)    ; Store Flags
                   st al, @(-34,y)      ; Store AL
 
@@ -265,14 +265,14 @@ $zzz_address_error:
 
 ; The release operation - to return from a process directly to the scheduler
 ; loop
-$zzz_set_release:
+$__pi_set_release:
 		st	Y,@release_sp
 		st	X,@release_rt
 ; this assumes that the release address is within the first 64K of memory,
 ; which, of course, is going to be the case, as we are talking about an
 ; address within the scheduler loop
 
-$zzz_release:
+$__pi_release:
 		ld	Y,@release_sp
 		ld	AL,#h'0
 		mov	XH,AL
@@ -425,7 +425,7 @@ $?cstart_code:
 
                   ld y, #$??STACK_HI
 
-		  bra $zzz_sched
+		  bra $__pi_sched
 ; No return from there
 
 		.SEG	VAR

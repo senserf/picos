@@ -1,7 +1,7 @@
 #ifndef __pg_diag_sys_h
 #define	__pg_diag_sys_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -38,14 +38,14 @@
 #define	diag_wchar(c,a)		uart_a_write ((byte)(c))
 #define	diag_wait(a)		while (uart_a_get_write_int == 0)
 
-#define	ZZ_DIAG_UNUMBER_a	0
-#define	ZZ_DIAG_UNUMBER_b	1
+#define	__pi_DIAG_UNUMBER_a	0
+#define	__pi_DIAG_UNUMBER_b	1
 
 // These two must be provided by the PHY
-void zz_diag_init (int), zz_diag_stop (int);
+void __pi_diag_init (int), __pi_diag_stop (int);
 
-#define	diag_disable_int(a,u)	zz_diag_init (ZZ_DIAG_UNUMBER_ ## a )
-#define	diag_enable_int(a,u)	zz_diag_stop (ZZ_DIAG_UNUMBER_ ## a )
+#define	diag_disable_int(a,u)	__pi_diag_init (__pi_DIAG_UNUMBER_ ## a )
+#define	diag_enable_int(a,u)	__pi_diag_stop (__pi_DIAG_UNUMBER_ ## a )
 
 #endif	/* DIAG_IMPLEMENTATION == 1 */
 

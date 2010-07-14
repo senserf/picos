@@ -12,7 +12,7 @@ static actudesc_t actumap [] = ACTUATOR_LIST;
 
 #define	N_ACTUATORS	(sizeof (actumap) / sizeof (actudesc_t))
 
-void zz_init_actuators () {
+void __pi_init_actuators () {
 
 	int i;
 	void (*f) (void);

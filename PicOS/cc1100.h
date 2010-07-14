@@ -317,7 +317,7 @@ const	byte	cc1100_rfsettings [] = {
         255
 };
 
-static const	byte	zz_rate0 [] = {
+static const	byte	__pi_rate0 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
        	CCxxx0_MDMCFG4, 0xC7,   // MDMCFG4 	(4.8 kbps)
@@ -331,7 +331,7 @@ static const	byte	zz_rate0 [] = {
 	255
 };
 
-static const	byte	zz_rate1 [] = {
+static const	byte	__pi_rate1 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
        	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
@@ -345,7 +345,7 @@ static const	byte	zz_rate1 [] = {
 	255
 };
 
-static const	byte	zz_rate2 [] = {
+static const	byte	__pi_rate2 [] = {
 
         CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
        	CCxxx0_MDMCFG4, 0xCA,   // MDMCFG4 	(38.4 kbps)
@@ -359,7 +359,7 @@ static const	byte	zz_rate2 [] = {
 	255
 };
 
-static const	byte	zz_rate3 [] = {
+static const	byte	__pi_rate3 [] = {
 
         CCxxx0_FSCTRL1, 0x0A,   // FSCTRL1	WAS 0C
 
@@ -381,7 +381,7 @@ static const	byte	zz_rate3 [] = {
 };
 
 const	byte	*cc1100_ratemenu [] = {
-			zz_rate0, zz_rate1, zz_rate2, zz_rate3
+			__pi_rate0, __pi_rate1, __pi_rate2, __pi_rate3
 };
 
 #ifndef CC1100_PATABLE
@@ -496,6 +496,6 @@ extern const byte *cc1100_ratemenu [];
 // REMOVEME
 // #define		gbackoff	9
 
-extern word		zzv_drvprcs, zzv_qevent;
+extern word		__pi_v_drvprcs, __pi_v_qevent;
 
 #endif

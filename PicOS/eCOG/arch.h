@@ -68,7 +68,7 @@ typedef struct {
 
 } systat_t;
 
-extern	volatile systat_t zz_systat;
+extern	volatile systat_t __pi_systat;
 
 #if	SDRAM_PRESENT
 /* malloc is using exclusively SDRAM */
@@ -90,10 +90,10 @@ extern	address evar_, estk_;
 
 
 /* Exit to scheduler */
-void 				zzz_set_release (void);
-#define	SET_RELEASE_POINT	zzz_set_release ();
-void				zzz_release (void);
-#define	release			zzz_release ()
+void 				__pi_set_release (void);
+#define	SET_RELEASE_POINT	__pi_set_release ();
+void				__pi_release (void);
+#define	release			__pi_release ()
 
 #define	nodata			CNOP
 

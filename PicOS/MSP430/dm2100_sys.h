@@ -1,7 +1,7 @@
 #ifndef	__pg_dm2100_sys_h
 #define	__pg_dm2100_sys_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -58,11 +58,11 @@
 					_BIS (TACTL, MC_2 | TACLR); \
 				} while (0)
 
-#define	set_signal_length(v)	TACCR0 = zzv_tmaux + (v)
+#define	set_signal_length(v)	TACCR0 = __pi_v_tmaux + (v)
 
 #define	toggle_signal		do { \
 					TACCTL0 ^= OUT; \
-					zzv_tmaux = TACCR0; \
+					__pi_v_tmaux = TACCR0; \
 				} while (0)
 					
 
@@ -88,7 +88,7 @@
  * transition and determined by the contents of CM.
  */
 #define	enable_rcv_timer	do { \
-					zzv_tmaux = 0; \
+					__pi_v_tmaux = 0; \
 					TACCTL0 = CM_1 | CCIS_1 | SCS | CAP \
 						| CCIE; \
 					_BIS (TACTL, MC_2 | TACLR); \
@@ -98,8 +98,8 @@
 #define	disable_rcv_timeout	do { TACCTL1 =    0; } while (0)
 
 #define get_signal_params(t,v)	do { \
-					(t) = ((word) TACCR0) - zzv_tmaux; \
-					zzv_tmaux = (word) TACCR0; \
+					(t) = ((word) TACCR0) - __pi_v_tmaux; \
+					__pi_v_tmaux = (word) TACCR0; \
 					if (((v) = (TACCTL0 & CM_1))) \
 						TACCTL0 += CM_1; \
 					else \
@@ -114,9 +114,9 @@
 				} while (0)
 
 #define	hard_drop		do { \
-					if (zzv_status) { \
+					if (__pi_v_status) { \
 						_BIS (TACCTL0, CCIE); \
-						if (zzv_status == HSTAT_RCV) \
+						if (__pi_v_status == HSTAT_RCV)\
 							_BIS (TACCTL1, CCIE); \
 					} \
 				} while (0)

@@ -1,7 +1,7 @@
 #ifndef __pg_kernel_h
 #define __pg_kernel_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -15,15 +15,15 @@
 #include "uart.h"
 #include "pins.h"
 
-void	zzz_set_release (void);
+void	__pi_set_release (void);
 void	update_n_wake (word);
 
 #ifdef SENSOR_LIST
-void	zz_init_sensors (void);
+void	__pi_init_sensors (void);
 #endif
 
 #ifdef LCDG_PRESENT
-void	zz_lcdg_init (void);
+void	__pi_lcdg_init (void);
 #endif
 
 typedef struct	{
@@ -69,8 +69,8 @@ typedef struct	{
 
 extern	pcb_t	__PCB [];
 
-extern 			word  		zz_mintk;
-extern 	volatile 	word 		zz_old, zz_new;
+extern 			word  		__pi_mintk;
+extern 	volatile 	word 		__pi_old, __pi_new;
 
 extern	void tcv_init (void);
 
@@ -111,15 +111,15 @@ typedef struct{
 	int		param;
 } devinit_t;
 
-void zz_swait (word, word, word);
-int zz_strigger (int, word);
+void __pi_swait (word, word, word);
+int __pi_strigger (int, word);
 void adddevfunc (devreqfun_t, int);
 
 /* Encoding device events */
 #define	devevent(dev,ope) ((dev) << 4 | (ope))
 
-#define	swait(a,b,c)		zz_swait (a, b, c)
-#define	strigger(a,b)		zz_strigger (a, b)
+#define	swait(a,b,c)		__pi_swait (a, b, c)
+#define	strigger(a,b)		__pi_strigger (a, b)
 #define	iowait(dev,eve,sta)	swait (ETYPE_IO, devevent (dev,eve), sta)
 #define	iotrigger(dev,eve)	strigger (ETYPE_IO, devevent (dev, eve))
 

@@ -1,8 +1,8 @@
 .DECLARED
-$zzz_minimal_handler
-$zzz_address_error
-$zzz_set_release
-$zzz_release
+$__pi_minimal_handler
+$__pi_address_error
+$__pi_set_release
+$__pi_release
 $?cstart_code
 $fd
 $rg
@@ -33,5 +33,5 @@ $??LO_ADDR
 $??HI_ADDR
 $?irq_scratchpad?
 .UNDECLARED
-$zzz_sched
+$__pi_sched
 .END

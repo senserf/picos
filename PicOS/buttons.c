@@ -25,7 +25,7 @@ const word button_list [] = BUTTON_LIST;
 #define	BUTTON_REPEAT_INTERVAL	256
 #endif
 
-thread (zz_buttons)
+thread (__pi_buttons)
 
   entry (BU_WAIT)
 
@@ -90,12 +90,12 @@ void buttons_action (void (*act)(word)) {
  * Initialize button action
  */
 	if ((baction = act) == NULL) {
-		killall (zz_buttons);
+		killall (__pi_buttons);
 		return;
 	}
 
-	if (!running (zz_buttons)) {
+	if (!running (__pi_buttons)) {
 		buttons_init ();
-		runthread (zz_buttons);
+		runthread (__pi_buttons);
 	}
 }

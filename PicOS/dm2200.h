@@ -1,7 +1,7 @@
 #ifndef	__pg_dm2200_h
 #define	__pg_dm2200_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -99,12 +99,12 @@
 #define	HSTAT_RCV	1
 #define	HSTAT_XMT	2
 
-#define	gbackoff	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+#define	gbackoff	(__pi_x_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
 #define	start_rcv	do { \
-				zzr_length = 0; \
-				zzv_istate = IRQ_RPR; \
-				zzv_status = HSTAT_RCV; \
+				__pi_r_length = 0; \
+				__pi_v_istate = IRQ_RPR; \
+				__pi_v_status = HSTAT_RCV; \
 				rcv_setedge; \
 				rcv_clrint; \
 			} while (0)
@@ -113,26 +113,27 @@
 				
 #define	start_xmt	do { \
 				LEDI (1, 1); \
-				zzv_prmble = PREAMBLE_LENGTH; \
-				zzv_istate = IRQ_XPR; \
-				zzv_status = HSTAT_XMT; \
+				__pi_v_prmble = PREAMBLE_LENGTH; \
+				__pi_v_istate = IRQ_XPR; \
+				__pi_v_status = HSTAT_XMT; \
 				enable_xmt_timer; \
 			} while (0)
 
-#define receiver_busy	(zzv_istate > IRQ_RPR)
-#define	receiver_active	(zzv_status == HSTAT_RCV)
-#define	xmitter_active	(zzv_status == HSTAT_XMT)
+#define receiver_busy	(__pi_v_istate > IRQ_RPR)
+#define	receiver_active	(__pi_v_status == HSTAT_RCV)
+#define	xmitter_active	(__pi_v_status == HSTAT_XMT)
 
-extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl,
-		*zzx_buffer, *zzx_buffp, *zzx_buffl,
-		zzv_qevent, zzv_physid, zzv_statid, zzx_backoff;
+extern word	*__pi_r_buffer, *__pi_r_buffp, *__pi_r_buffl,
+		*__pi_x_buffer, *__pi_x_buffp, *__pi_x_buffl,
+		__pi_v_qevent, __pi_v_physid, __pi_v_statid, __pi_x_backoff;
 
-extern byte	zzv_status, zzv_istate, zzv_prmble, zzv_curbit, zzr_length,
-		zzr_rcvmode, zzv_curnib, zzv_cursym, zzv_rxoff, zzv_txoff;
+extern byte	__pi_v_status, __pi_v_istate, __pi_v_prmble, __pi_v_curbit,
+		__pi_r_length, __pi_r_rcvmode, __pi_v_curnib, __pi_v_cursym,
+		__pi_v_rxoff, __pi_v_txoff;
 
-extern const byte zzv_symtable [], zzv_nibtable [], zzv_srntable [];
+extern const byte __pi_v_symtable [], __pi_v_nibtable [], __pi_v_srntable [];
 
-#define	rxevent	((word)&zzr_buffer)
-#define	txevent	((word)&zzx_buffer)
+#define	rxevent	((word)&__pi_r_buffer)
+#define	txevent	((word)&__pi_x_buffer)
 
 #endif

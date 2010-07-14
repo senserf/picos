@@ -1,7 +1,7 @@
 #ifndef	__pg_pins_h
 #define	__pg_pins_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -31,16 +31,16 @@ typedef	struct {
 		state_not,	// Interrupt state (notifier)
 		cnt [3],	// Counter
 		cmp [3];	// Comparator
-} zz_pmon_t;
+} __pi_pmon_t;
 
-extern	zz_pmon_t	zz_pmon;
+extern	__pi_pmon_t	__pi_pmon;
 
-#define	pmon		zz_pmon
+#define	pmon		__pi_pmon
 
-extern	word 	zz_pmonevent [0];
+extern	word 	__pi_pmonevent [0];
 
-#define	PMON_NOTEVENT	((word)&zz_pmonevent)
-#define	PMON_CNTEVENT	((word)&zz_pmonevent + 1)
+#define	PMON_NOTEVENT	((word)&__pi_pmonevent)
+#define	PMON_CNTEVENT	((word)&__pi_pmonevent + 1)
 #define	PMON_CMPEVENT	PMON_CNTEVENT
 
 #define	PMON_CNT_EDGE_UP	0x40	// Edge UP triggers counter

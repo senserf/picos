@@ -1,20 +1,20 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
 #include "pins.h"
 
 #ifdef PULSE_MONITOR
-word		zz_pmonevent [0];
-zz_pmon_t	zz_pmon;
+word		__pi_pmonevent [0];
+__pi_pmon_t	__pi_pmon;
 #endif
 
 #if PIN_MAX
 
 static const pind_t pinmap [] = PIN_LIST;
 
-Boolean zz_pin_available (word p) {
+Boolean __pi_pin_available (word p) {
 
 	if ((p >= PIN_MAX) || (pinmap[p].poff == 0xff))
 		return NO;
@@ -30,15 +30,15 @@ Boolean zz_pin_available (word p) {
 	return YES;
 }
 
-Boolean zz_pin_adc_available (word p) {
+Boolean __pi_pin_adc_available (word p) {
 
-	if (!zz_pin_available (p) || p >= PIN_MAX_ANALOG)
+	if (!__pi_pin_available (p) || p >= PIN_MAX_ANALOG)
 		return NO;
 
 	return YES;
 }
 
-word zz_pin_ivalue (word p) {
+word __pi_pin_ivalue (word p) {
 
 	if (p >= PIN_MAX)
 		return 0;
@@ -46,7 +46,7 @@ word zz_pin_ivalue (word p) {
 		(__PORT_FBASE__ + pinmap[p].poff) >> pinmap[p].pnum) & 1;
 }
 
-word zz_pin_ovalue (word p) {
+word __pi_pin_ovalue (word p) {
 
 	if (p >= PIN_MAX)
 		return 0;
@@ -57,7 +57,7 @@ word zz_pin_ovalue (word p) {
 
 #if PIN_DAC_PINS != 0
 
-Boolean zz_pin_dac_available (word p) {
+Boolean __pi_pin_dac_available (word p) {
 
 	if (p != (PIN_DAC_PINS & 0xf) && p != ((PIN_DAC_PINS >> 8) & 0xf))
 		return NO;
@@ -65,7 +65,7 @@ Boolean zz_pin_dac_available (word p) {
 	return YES;
 }
 
-Boolean zz_pin_dac (word p) {
+Boolean __pi_pin_dac (word p) {
 
 	if (p != (PIN_DAC_PINS & 0xf) && p != ((PIN_DAC_PINS >> 8) & 0xf))
 		// Up to two DAC pins are handled at the moment
@@ -79,7 +79,7 @@ Boolean zz_pin_dac (word p) {
 	return (DAC12_1CTL & DAC12AMP_7) != 0;
 }
 
-void zz_clear_dac (word p) {
+void __pi_clear_dac (word p) {
 
 	if (p == (PIN_DAC_PINS & 0xf)) {
 		// DAC0
@@ -90,7 +90,7 @@ void zz_clear_dac (word p) {
 	}
 }
 
-void zz_set_dac (word p) {
+void __pi_set_dac (word p) {
 
 	if (p == (PIN_DAC_PINS & 0xf)) {
 		// DAC0
@@ -101,7 +101,7 @@ void zz_set_dac (word p) {
 	}
 }
 
-void zz_write_dac (word p, word val, word ref) {
+void __pi_write_dac (word p, word val, word ref) {
 
 	if (p == (PIN_DAC_PINS & 0xf)) {
 		// DAC0
@@ -114,7 +114,7 @@ void zz_write_dac (word p, word val, word ref) {
 
 #endif	/* PIN_DAC_PINS */
 
-Boolean zz_pin_adc (word p) {
+Boolean __pi_pin_adc (word p) {
 
 	if (p >= PIN_MAX_ANALOG)
 		return 0;
@@ -124,28 +124,28 @@ Boolean zz_pin_adc (word p) {
 			& 1;
 }
 
-Boolean zz_pin_output (word p) {
+Boolean __pi_pin_output (word p) {
 
 	return (*(byte*)
 		(__PORT_FBASE__ + pinmap[p].poff + PDIR_off) >> pinmap[p].pnum)
 			& 1;
 }
 
-void zz_pin_set (word p) {
+void __pi_pin_set (word p) {
 
 	_BIS (*(byte*)
 	    (__PORT_FBASE__ + pinmap[p].poff + POUT_off), 1 << pinmap[p].pnum);
 }
 
-void zz_pin_clear (word p) {
+void __pi_pin_clear (word p) {
 
 	_BIC (*(byte*)
 	    (__PORT_FBASE__ + pinmap[p].poff + POUT_off), 1 << pinmap[p].pnum);
 }
 
-void zz_pin_set_input (word p) {
+void __pi_pin_set_input (word p) {
 
-	zz_clear_dac (p);
+	__pi_clear_dac (p);
 	if (p < PIN_MAX_ANALOG)
 		_BIC (*(byte*)(__PORT_FBASE__ + pinmap[p].poff + PSEL_off),
 			1 << pinmap[p].pnum);
@@ -153,9 +153,9 @@ void zz_pin_set_input (word p) {
 	    (__PORT_FBASE__ + pinmap[p].poff + PDIR_off), 1 << pinmap[p].pnum);
 }
 
-void zz_pin_set_output (word p) {
+void __pi_pin_set_output (word p) {
 
-	zz_clear_dac (p);
+	__pi_clear_dac (p);
 	if (p < PIN_MAX_ANALOG)
 		_BIC (*(byte*)(__PORT_FBASE__ + pinmap[p].poff + PSEL_off),
 			1 << pinmap[p].pnum);
@@ -163,9 +163,9 @@ void zz_pin_set_output (word p) {
 	    (__PORT_FBASE__ + pinmap[p].poff + PDIR_off), 1 << pinmap[p].pnum);
 }
 
-void zz_pin_set_adc (word p) {
+void __pi_pin_set_adc (word p) {
 
-	zz_clear_dac (p);
+	__pi_clear_dac (p);
 
 	if (p < PIN_MAX_ANALOG) {
 	    _BIC (*(byte*)(__PORT_FBASE__ + pinmap[p].poff + PDIR_off),

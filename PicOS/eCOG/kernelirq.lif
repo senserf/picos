@@ -1,8 +1,8 @@
 .DECLARED
 .UNDECLARED
 $?cstart_code
-$zzz_minimal_handler
-$zzz_address_error
+$__pi_minimal_handler
+$__pi_address_error
 $uart_a_int??
 $uart_b_int??
 $timer_int??

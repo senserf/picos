@@ -74,7 +74,7 @@ static void set_congestion_indicator (word v) {
 #define	set_congestion_indicator(v)	CNOP
 #endif	/* RADIO_OPTIONS & 0x04 */
 
-word		zzv_drvprcs, zzv_qevent;
+word		__pi_v_drvprcs, __pi_v_qevent;
 
 static byte	RxOFF,			// Transmitter on/off flags
 		TxOFF,
@@ -819,7 +819,7 @@ thread (cc1100_driver)
 			LEDI (2, 0);
 		}
 XRcv:
-		wait (zzv_qevent, DR_LOOP);
+		wait (__pi_v_qevent, DR_LOOP);
 		if (RxOFF == 0)
 			rcv_enable_int;
 		release;
@@ -956,7 +956,7 @@ Reset:
 		guard_clear;
 		chip_reset ();
 		enter_rx ();
-		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
+		p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
 		delay (GUARD_LONG_DELAY, GU_ACTION);
 		release;
 	}
@@ -972,7 +972,7 @@ Reset:
 		guard_start (WATCH_RCV);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
 		// Won't hurt
-		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
+		p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
 		release;
 	}
 
@@ -982,7 +982,7 @@ Reset:
 		// This one will go away eventually as well
 		guard_start (WATCH_XMT);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
-		p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
+		p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
 		release;
 	}
 
@@ -1021,7 +1021,7 @@ Reset:
 		guard_start (WATCH_RCV);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
 	}
-	p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
+	p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
 
 endthread
 
@@ -1091,7 +1091,7 @@ void phys_cc1100 (int phy, int mbs) {
 	physid = phy;
 
 	/* Register the phy */
-	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
+	__pi_v_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
 
 	LEDI (0, 0);
 	LEDI (1, 0);
@@ -1109,7 +1109,7 @@ void phys_cc1100 (int phy, int mbs) {
 	utimer_set (bckf_timer, 0);
 
 	/* Start the processes */
-	if ((zzv_drvprcs = runthread (cc1100_driver)) == 0
+	if ((__pi_v_drvprcs = runthread (cc1100_driver)) == 0
 #if (RADIO_OPTIONS & 0x10)
 		|| runthread (cc1100_guard) == 0
 #endif
@@ -1154,7 +1154,7 @@ static int option (int opt, address val) {
 			LEDI (0, 2);
 		}
 		TxOFF = 0;
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_RXON:
@@ -1171,7 +1171,7 @@ static int option (int opt, address val) {
 			LEDI (0, 1);
 		else
 			LEDI (0, 2);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_TXOFF:
@@ -1182,7 +1182,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_TXHOLD:
@@ -1192,7 +1192,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_RXOFF:
@@ -1202,7 +1202,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_CAV:
@@ -1213,7 +1213,7 @@ static int option (int opt, address val) {
 			gbackoff;
 		else
 			utimer_set (bckf_timer, *val);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_SETPOWER:

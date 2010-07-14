@@ -1,7 +1,7 @@
 #ifndef	__pg_uart_h
 #define	__pg_uart_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -65,7 +65,7 @@ typedef	struct	{
 
 #define	UART_DEF_BUF_LEN	82
 
-extern	uart_t zz_uart [N_UARTS_TCV];
+extern	uart_t __pi_uart [N_UARTS_TCV];
 
 // IRQ states
 

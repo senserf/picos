@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include <ecog.h>
@@ -9,7 +9,7 @@
 
 #if	ETHERNET_DRIVER
 
-ddata_t		*zzd_data = NULL;
+ddata_t		*__pi_d_data = NULL;
 
 static const word mcastaddr [3] = ETH_DEST;
 
@@ -282,7 +282,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 			plen = (int) inw (RXFIFO_REG);
 			if ((plen & RXFIFO_EMPTY) != 0) {
 				/* Nothing available */
-				zzd_data->flags |= FLG_ENRCV;
+				__pi_d_data->flags |= FLG_ENRCV;
 				return BLOCKED;
 			}
 
@@ -292,7 +292,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 			w = inw (DATA_REG);
 			w &= RS_ERRORS;
 			if (w) {
-				zzd_data->error = w;
+				__pi_d_data->error = w;
 				/* Ignore the packet */
 		ReIgnore:
 				waitmmu (w);
@@ -306,7 +306,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 			/* Subtract status and length */
 			plen = (plen & 0x07ff) - 4 /* status + length */;
 
-			switch (zzd_data->readmode) {
+			switch (__pi_d_data->readmode) {
 
 			    case ETHERNET_MODE_COOKED:
 				/*
@@ -334,10 +334,11 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 				w = inw (DATA_REG);
 				for (np = 0; np < 3; np++) {
 					w = inw (DATA_REG);
-					if ((zzd_data->flags & FLG_DSTOK) == 0) {
+					if ((__pi_d_data->flags & FLG_DSTOK) ==
+					    0) {
 						/* Save server address */
 						swab (w);
-						zzd_data->h_dest [np] = w;
+						__pi_d_data->h_dest [np] = w;
 					}
 				}
 				/* PROTO */
@@ -354,7 +355,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 					/* This is an uplink packet */
 					goto ReIgnore;
 				/* Indicate we have the server's MAC address */
-				zzd_data->flags |= (FLG_DSTOK | FLG_RCOOKED);
+				__pi_d_data->flags |= (FLG_DSTOK | FLG_RCOOKED);
 				/* Extract the actual packet type */
 				np = (w & PTYPE_PTP);
 				if (np != 0)
@@ -369,7 +370,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 				plen -= 14 + 2 + (np << 1) + 2;
 				if (plen < 0) {
 					/* Format error - too few bytes */
-					zzd_data->error = ERR_FORMAT;
+					__pi_d_data->error = ERR_FORMAT;
 					goto ReIgnore;
 				}
 				if (np) {
@@ -378,7 +379,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 						w = inw (DATA_REG);
 						swab (w);
 						np--;
-						if (w == zzd_data->cardid) {
+						if (w == __pi_d_data->cardid) {
 							while (np--)
 							    w = inw (DATA_REG);
 							break;
@@ -392,7 +393,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 				swab (w);
 				if (w > plen) {
 					/* Format error */
-					zzd_data->error = ERR_FORMAT;
+					__pi_d_data->error = ERR_FORMAT;
 					goto ReIgnore;
 				}
 				plen = (int) w;
@@ -459,7 +460,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 						*buf++ = s_byte (w);
 					}
 				}
-				zzd_data->flags &= ~FLG_RCOOKED;
+				__pi_d_data->flags &= ~FLG_RCOOKED;
 				break;
 
 			    default: /* ETHERNET_MODE_BOTH */
@@ -478,9 +479,10 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 						*buf++ = s_byte (w);
 					if (np >= 0 &&
 					    /* Source address */
-					    (zzd_data->flags & FLG_DSTOK) == 0) {
+					    (__pi_d_data->flags & FLG_DSTOK) ==
+					      0) {
 						swab (w);
-						zzd_data->h_dest [np] = w;
+						__pi_d_data->h_dest [np] = w;
 					}
 				}
 
@@ -523,7 +525,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 
 		case WRITE:
 
-			if (zzd_data->writemode) {
+			if (__pi_d_data->writemode) {
 				/*
 				 * This is the structure of an outgoing cooked
 				 * packet:
@@ -569,7 +571,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 
 			if (w == 0) {
 				/* Failure */
-				zzd_data->flags |= FLG_ENXMT;
+				__pi_d_data->flags |= FLG_ENXMT;
 				return BLOCKED;
 			}
 
@@ -582,12 +584,12 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 			outw (0, DATA_REG);
 			outw (plen+6, DATA_REG);
 
-			if (zzd_data->writemode) {
+			if (__pi_d_data->writemode) {
 				/* Cooked mode */
 				for (np = 0; np < 3; np++) {
-					w = (zzd_data->flags & FLG_DSTOK) ?
+					w = (__pi_d_data->flags & FLG_DSTOK) ?
 						/* We have server's address */
-						zzd_data->h_dest [np] :
+						__pi_d_data->h_dest [np] :
 						/* We don't, so we multicast */
 						mcastaddr [np];
 					swab (w);
@@ -605,7 +607,7 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 				w = PTYPE_UP;
 				swab (w);
 				outw (w, DATA_REG);
-				w = zzd_data->cardid;
+				w = __pi_d_data->cardid;
 				swab (w);
 				outw (w, DATA_REG);
 				w = len;
@@ -716,11 +718,11 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 
 				case ETHERNET_CNTRL_SETID:
 					/* Set card Id for cooked mode */
-					zzd_data->cardid = *((word*)buf);
+					__pi_d_data->cardid = *((word*)buf);
 					return 1;
 
 				case ETHERNET_CNTRL_RMODE:
-					if ((zzd_data->readmode = *buf) !=
+					if ((__pi_d_data->readmode = *buf) !=
 					    ETHERNET_MODE_RAW) {
 						/*
 						 * Make sure that ALMUL is set,
@@ -738,17 +740,18 @@ static int ioreq_ethernet (int ope, char *buf, int len) {
 					return 1;
 
 				case ETHERNET_CNTRL_WMODE:
-					zzd_data->writemode = *buf;
+					__pi_d_data->writemode = *buf;
 					return 1;
 
 				case ETHERNET_CNTRL_GMODE:
 					return
-					   ((zzd_data->flags & FLG_RCOOKED) != 0);
+					   ((__pi_d_data->flags & FLG_RCOOKED)
+						!= 0);
 
 				case ETHERNET_CNTRL_ERROR:
 					/* Return error status */
-					*((word*)buf) = zzd_data->error;
-					zzd_data->error = 0;
+					*((word*)buf) = __pi_d_data->error;
+					__pi_d_data->error = 0;
 					return 1;
 
 				case ETHERNET_CNTRL_SENSE:
@@ -792,7 +795,7 @@ void devinit_ethernet (int dummy) {
 	address	pmem;
 #endif
 
-	if (zzd_data != NULL)
+	if (__pi_d_data != NULL)
 		/* Initialized already */
 		return;
 
@@ -816,10 +819,10 @@ void devinit_ethernet (int dummy) {
 	tcv_hard_din;
 
 	/* Get a chunk of private memory */
-	zzd_data = (ddata_t*) umalloc (sizeof (ddata_t));
-	zzd_data -> flags = 0;
+	__pi_d_data = (ddata_t*) umalloc (sizeof (ddata_t));
+	__pi_d_data -> flags = 0;
 	/* Cardid == 0 means RAW mode */
-	zzd_data -> cardid = 0;
+	__pi_d_data -> cardid = 0;
 
 	mdelay (1);
 

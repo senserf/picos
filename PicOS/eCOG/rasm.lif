@@ -2,6 +2,6 @@
 $rc_ch
 $rc_setlev
 .UNDECLARED
-$zzz_rc_limit
-$zzz_rcl_thrshld
+$__pi_rc_limit
+$__pi_rcl_thrshld
 .END

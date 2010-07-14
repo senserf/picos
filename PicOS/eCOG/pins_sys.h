@@ -45,11 +45,11 @@
 #ifdef ECOG_BROKEN_ADC
 // The ADC locks, so you cannot blindly wait on the rdy bit
 #define	adc_busy	((fd.adc.sts.rdy == 1) && \
-			    (zz_systat.adcval = (word)(fd.adc.sts.data), 0))
+			    (__pi_systat.adcval = (word)(fd.adc.sts.data), 0))
 #else
 // Healthy ADC: wait for rdy and grab the sample when it shows up
 #define	adc_busy	((fd.adc.sts.rdy == 0) || \
-			    (zz_systat.adcval = (word)(fd.adc.sts.data), 0))
+			    (__pi_systat.adcval = (word)(fd.adc.sts.data), 0))
 #endif /* ECOG_BROKEN_ADC */
 
 // Wait for result
@@ -70,7 +70,7 @@
 // Same as off
 #define	adc_disable	adc_off
 
-#define	adc_value	(zz_systat.adcval+((zz_systat.adcval & 0x0800) ? \
+#define	adc_value	(__pi_systat.adcval+((__pi_systat.adcval & 0x0800) ? \
 				0xF800 : 0x800))
 
 #define	adc_start	do { fd.ssm.cfg.adc_en = 1; } while (0)
@@ -80,7 +80,7 @@
 
 #define adc_advance	do { \
 				if (fd.adc.sts.rdy != 0)  \
-			    		zz_systat.adcval = \
+			    		__pi_systat.adcval = \
 						(word)(fd.adc.sts.data); \
 			} while (0)
 

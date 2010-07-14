@@ -59,7 +59,7 @@ typedef struct	{
 	byte lock;
 } uart_t;
 
-extern uart_t zz_uart [];
+extern uart_t __pi_uart [];
 
 #define	LCD_BUF_SIZE		5
 

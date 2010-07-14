@@ -1,7 +1,7 @@
 #ifndef	__pg_dm2200_sys_h
 #define	__pg_dm2200_sys_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -93,14 +93,14 @@
 					TACCTL1 = 0; \
 					TACCTL0 = OUTMOD_TOGGLE | CCIE; \
 					_BIS (TACTL, MC_2 | TACLR); \
-					_BIC (zzr_rcvmode, 0x80); \
+					_BIC (__pi_r_rcvmode, 0x80); \
 				} while (0)
 
 #define	set_signal_length(v)	TACCR0 += (v)
 
-#define	toggle_signal		(zzr_rcvmode ^= 0x80)
+#define	toggle_signal		(__pi_r_rcvmode ^= 0x80)
 
-#define	current_signal_level	(zzr_rcvmode & 0x80)
+#define	current_signal_level	(__pi_r_rcvmode & 0x80)
 					
 /*
  * This stops the transmitter timer (and interrupts)
@@ -121,9 +121,9 @@
 				} while (0)
 
 #define	hard_drop		do { \
-					if (zzv_status == HSTAT_RCV) \
+					if (__pi_v_status == HSTAT_RCV) \
 						rcv_enable; \
-					else if (zzv_status == HSTAT_XMT) \
+					else if (__pi_v_status == HSTAT_XMT) \
 						_BIS (TACCTL0, CCIE); \
 				} while (0)
 

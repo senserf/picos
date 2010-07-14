@@ -414,7 +414,7 @@ void lcdg_reset () {
 	lcdg_setc (COLOR_BLACK, COLOR_WHITE);
 }
 
-void zz_lcdg_init () {
+void __pi_lcdg_init () {
 
 	nlcd_clk_down;
 	nlcd_cs_up;

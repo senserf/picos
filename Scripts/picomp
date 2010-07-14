@@ -2351,7 +2351,7 @@ K {
 				continue
 			}
 
-			set ins "zzz_fork ($fsm_sname, "
+			set ins "__pi_fork ($fsm_sname, "
 			if { $TK != "(" } {
 				# no arguments
 				append ins "0)$TK"
@@ -2541,21 +2541,21 @@ K {
 		append ins "\n"
 
 		# now goes the new function header
-		append ins "int $fsm_name (word zz_st, address zz_"
+		append ins "int $fsm_name (word __pi_st, address __pi_"
 
 		if { $fsm_type != "" } {
 			append ins "da) \{ $fsm_type *data = "
-			append ins "(${fsm_type}*) zz_da; "
+			append ins "(${fsm_type}*) __pi_da; "
 		} else {
 			append ins "dummy) \{ "
 		}
 
-		append ins "switch (zz_st) \{ "
+		append ins "switch (__pi_st) \{ "
 
 		insert $fsm_mark $ins
 
 		# the old "default" sequence (FIXME: it should go!!!)
-		putS "break; default: if (zz_st == 0xffff) return ("
+		putS "break; default: if (__pi_st == 0xffff) return ("
 		if { $fsm_type == "" } {
 			# thread (one copy allowed)
 			putS "1"
@@ -2563,7 +2563,7 @@ K {
 			# strand (no limit)
 			putS "0"
 		}
-		putS "); zz_badstate (); \} return 1; \}\n"
+		putS "); __pi_badstate (); \} return 1; \}\n"
 		
 		# followed by undefines
 		foreach d $dflist {
@@ -3048,7 +3048,7 @@ proc vuee_out { str } {
 		return $str
 	}
 
-	if [regexp "^P_(.+)_zzz_?(.*)_\[0-9\]*.cc" $name jnk froot prog] {
+	if [regexp "^P_(.+)_pcm_?(.*)_\[0-9\]*.cc" $name jnk froot prog] {
 		set name ${froot}.cc
 		if { $prog != "" } {
 			append name " of $prog"
@@ -3371,7 +3371,7 @@ proc compile_pgm { } {
 		set froot [file rootname [file tail [lindex $cfn 0]]]
 		parse_pfile $cnt [lindex $cfn 1]
 		# write the file
-		wtfile "P_${froot}_zzz[pnfx]_${cnt}.cc" [output]
+		wtfile "P_${froot}_pcm[pnfx]_${cnt}.cc" [output]
 		close_parser
 		incr cnt
 	}
@@ -4502,7 +4502,7 @@ K {
 	}
 
 	set vnm [g_vdec $v nam]
-	if { $vnm == "heapmem" || $vnm == "zz_heapmem" } {
+	if { $vnm == "heapmem" || $vnm == "__pi_heapmem" } {
 		# ignore this, should we warn?
 		continue
 	}
@@ -4617,17 +4617,17 @@ K {
 
       # replace with a call to internal function
       truncate $run_mark
-      putS "zz_crunning ($arg)"
+      putS "__pi_crunning ($arg)"
 
       continue
     }
 
-    if { $TK == "zz_crunning" } {
+    if { $TK == "__pi_crunning" } {
 
       # this one is a temporary fix for compatibility with the present mess of
       # co-existing manually tweaked VUEE-compliant praxes; until we get rid
       # of them (and the preceding chunk of code will kick in), there will be a
-      # macro converting crunning to zz_crunning, which will mess up things
+      # macro converting crunning to __pi_crunning, which will mess up things
       # if the argument is a non-keyword
 
       set run_mark $PAR_MARK
@@ -4653,7 +4653,7 @@ K {
 	continue
       }
       set arg [join $arg ""]
-      if $FG(D) { dbg "parse_pfile: zz_crunning = $arg" }
+      if $FG(D) { dbg "parse_pfile: __pi_crunning = $arg" }
       if { ![regexp -nocase "^.zz_!!(.*)_\[a-z0-9_\]+!!" $arg ins v] &&
            ![regexp -nocase "^.zz_!!(.*)!!" $arg ins v] ||
 	    [catch { expr $v } v] || $v != 0 } {
@@ -4664,7 +4664,7 @@ K {
 
       # replace 
       truncate $run_mark
-      putS "zz_crunning (0)"
+      putS "__pi_crunning (0)"
 
       continue
     }

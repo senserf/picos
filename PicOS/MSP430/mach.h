@@ -414,7 +414,7 @@ typedef struct	{
 #define	__ualt(u,a,b)	(b)
 #endif
 
-extern uart_t zz_uart [];
+extern uart_t __pi_uart [];
 
 #define	UART_BASE		UART_A
 
@@ -681,22 +681,22 @@ extern uart_t zz_uart [];
 
 #define	SLEEP	do { \
 			CPU_MARK_IDLE; \
-			if (zz_systat.pdmode) { \
+			if (__pi_systat.pdmode) { \
 				cli; \
-				if (zz_systat.evntpn) { \
+				if (__pi_systat.evntpn) { \
 					sti; \
 				} else { \
 					_BIS_SR (LPM3_bits + GIE); \
 				} \
 			} else { \
 				cli; \
-				if (zz_systat.evntpn) { \
+				if (__pi_systat.evntpn) { \
 					sti; \
 				} else { \
 					_BIS_SR (LPM0_bits + GIE); \
 				} \
 			} \
-			zz_systat.evntpn = 0; \
+			__pi_systat.evntpn = 0; \
 			CPU_MARK_BUSY; \
 		} while (0)
 
@@ -712,16 +712,16 @@ extern uart_t zz_uart [];
  * to the very bottom of the interrupt stack.
  *
  */
-#define	RISE_N_SHINE	do { zz_systat.evntpn = 1; } while (0)
+#define	RISE_N_SHINE	do { __pi_systat.evntpn = 1; } while (0)
 #define	RTNI		do { \
-				if (zz_systat.evntpn) \
+				if (__pi_systat.evntpn) \
 					_BIC_SR_IRQ (LPM4_bits); \
 				return; \
 			} while (0)
 #else	/* dead code */
 
 #define	RISE_N_SHINE	do { \
-				zz_systat.evntpn = 1; \
+				__pi_systat.evntpn = 1; \
 				_BIC_SR_IRQ (LPM4_bits); \
 			} while (0)
 #define	RTNI		return

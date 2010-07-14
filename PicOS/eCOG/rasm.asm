@@ -88,7 +88,7 @@ rc_loop:
 ;  Keep going
 ;
 	ld	X,@rc_cnt
-	cmp	X,@$zzz_rc_limit
+	cmp	X,@$__pi_rc_limit
 	beq	rc_exit		; limit reached
 	add	X,#1
 	st	X,@rc_cnt
@@ -99,18 +99,18 @@ rc_exit:
 	ld	XH,@(-2,Y)
 	ld	X,@rc_cnt
 ;
-	cmp	X,@$zzz_rcl_thrshld+0
+	cmp	X,@$__pi_rcl_thrshld+0
 	bcc	rc_ex1
 	ld	AL,#1
 	bra	@(-1,Y)
 ;
-rc_ex1:	cmp	X,@$zzz_rcl_thrshld+1
+rc_ex1:	cmp	X,@$__pi_rcl_thrshld+1
 	bcc	rc_ex2
 	ld	AL,#2
 	bra	@(-1,Y)
 
 ;
-rc_ex2:	cmp	X,@$zzz_rcl_thrshld+2
+rc_ex2:	cmp	X,@$__pi_rcl_thrshld+2
 	bcc	rc_ex3
 	ld	AL,#3
 	bra	@(-1,Y)

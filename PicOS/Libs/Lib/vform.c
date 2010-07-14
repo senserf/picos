@@ -1,11 +1,11 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "sysio.h"
 #include "form.h"
 
-word zz_vfparse (char *res, word n, const char *fm, va_list ap) {
+word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 
 	char c;
 	word d;
@@ -62,7 +62,8 @@ word zz_vfparse (char *res, word n, const char *fm, va_list ap) {
 				word val; int i;
 				val = va_arg (ap, word);
 				for (i = 12; ; i -= 4) {
-					outc (zz_hex_enc_table [(val>>i)&0xf]);
+					outc (__pi_hex_enc_table
+						[(val>>i)&0xf]);
 					if (i == 0)
 						break;
 				}
@@ -100,7 +101,7 @@ word zz_vfparse (char *res, word n, const char *fm, va_list ap) {
 					fm++;
 					val = va_arg (ap, lword);
 					for (i = 28; ; i -= 4) {
-						outc (zz_hex_enc_table
+						outc (__pi_hex_enc_table
 							[(val>>i)&0xf]);
 						if (i == 0)
 							break;
@@ -150,7 +151,7 @@ char *vform (char *res, const char *fm, va_list aq) {
 
 	if (res != NULL) {
 		// We trust the caller
-		zz_vfparse (res, MAX_UINT, fm, aq);
+		__pi_vfparse (res, MAX_UINT, fm, aq);
 		return res;
 	}
 
@@ -162,7 +163,7 @@ Again:
 		/* There is not much we can do */
 		return NULL;
 
-	if ((d = zz_vfparse (res, fml, fm, aq)) > fml) {
+	if ((d = __pi_vfparse (res, fml, fm, aq)) > fml) {
 		// No luck, reallocate
 		ufree (res);
 		fml = d;

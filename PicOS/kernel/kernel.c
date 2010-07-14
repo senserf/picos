@@ -7,14 +7,14 @@
 //
 // Put all lword variables here to avoid losing memory on alignment
 //
-lword 	zz_nseconds;
+lword 	__pi_nseconds;
 
 #if	ENTROPY_COLLECTION
 lword	entropy;
 #endif
 
 #if	RANDOM_NUMBER_GENERATOR > 1
-lword	zz_seed = 327672838L;
+lword	__pi_seed = 327672838L;
 #endif
 
 #include "pins.h"
@@ -28,12 +28,12 @@ static devreqfun_t ioreq [MAX_DEVICES];
 #endif
 
 /* System status word */
-volatile systat_t zz_systat;
+volatile systat_t __pi_systat;
 
 /* =============== */
 /* Current process */
 /* =============== */
-pcb_t	*zz_curr;
+pcb_t	*__pi_curr;
 
 /* ========= */
 /* The clock */
@@ -42,21 +42,21 @@ pcb_t	*zz_curr;
 static		word	millisec;
 #endif
 
-word		zz_mintk;
-volatile word	zz_old, zz_new;
+word		__pi_mintk;
+volatile word	__pi_old, __pi_new;
 
 /* ================================ */
 /* User-defineable countdown timers */
 /* ================================ */
-address		zz_utims [MAX_UTIMERS];
+address		__pi_utims [MAX_UTIMERS];
 
-const char	zz_hex_enc_table [] = {
+const char	__pi_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
 
 #if	RANDOM_NUMBER_GENERATOR == 1
-word	zz_seed = 30011;
+word	__pi_seed = 30011;
 #endif
 
 static	address mevent;
@@ -107,7 +107,7 @@ static pcb_t *pidver (sint pid) {
 // ============================================================================
 // ============================================================================
 
-void zz_badstate (void) {
+void __pi_badstate (void) {
 	syserror (ESTATE, "state");
 }
 
@@ -125,13 +125,13 @@ void utimer_add (address ut) {
 #endif
 
 	for (i = 0; i < MAX_UTIMERS; i++)
-		if (zz_utims [i] == NULL)
+		if (__pi_utims [i] == NULL)
 			break;
 
 	if (i == MAX_UTIMERS)
 		syserror (ERESOURCE, "ut a");
 
-	zz_utims [i] = ut;
+	__pi_utims [i] = ut;
 }
 
 void utimer_delete (address ut) {
@@ -141,15 +141,15 @@ void utimer_delete (address ut) {
 	int i;
 
 	for (i = 0; i < MAX_UTIMERS; i++) {
-		if (zz_utims [i] == 0)
+		if (__pi_utims [i] == 0)
 			syserror (EREQPAR, "ut d");
-		if (zz_utims [i] == ut)
+		if (__pi_utims [i] == ut)
 			break;
 	}
 	cli_utims;
 	while (i < MAX_UTIMERS-1) {
-		zz_utims [i] = zz_utims [i+1];
-		if (zz_utims [i] == NULL)
+		__pi_utims [i] = __pi_utims [i+1];
+		if (__pi_utims [i] == NULL)
 			break;
 		i++;
 	}
@@ -158,7 +158,7 @@ void utimer_delete (address ut) {
 
 #if TRIPLE_CLOCK
 
-void zz_utimer_set (address t, word v) {
+void __pi_utimer_set (address t, word v) {
 
 	*t = v;
 	TCI_RUN_AUXILIARY_TIMER;
@@ -170,7 +170,7 @@ void zz_utimer_set (address t, word v) {
 
 // For MSP430, this is a macro
 
-lword seconds () { return zz_nseconds; }
+lword seconds () { return __pi_nseconds; }
 
 #endif
 
@@ -178,15 +178,15 @@ void update_n_wake (word min) {
 //
 // The idea is this. There are two circular clock pointers wrapping around at
 // 64K (PicOS) milliseconds, i.e., at 64 seconds. One of them is called new
-// (or zz_new), the other is old (zz_old). The new pointer is updated by the
-// timer (interrupt) by the number of milliseconds elapsed. Depending on the
-// clock mode, this update can happen at regular intervals (typically by one
-// every millisecond), or at longer intervals (in TRIPLE_CLOCK mode). The old
-// pointer is only advanced by this function. The idea is that old represents
-// the moment we last looked at the timer. The difference (accounting for the
-// wraparound) between the two pointers is the lag that we are supposed to
-// cover in the current step. Any delay requests falling into the lag interval
-// are fired.
+// (or __pi_new), the other is old (__pi_old). The new pointer is updated by
+// the timer (interrupt) by the number of milliseconds elapsed. Depending on
+// the clock mode, this update can happen at regular intervals (typically by
+// one every millisecond), or at longer intervals (in TRIPLE_CLOCK mode). The
+// old pointer is only advanced by this function. The idea is that old
+// represents the moment we last looked at the timer. The difference
+// (accounting for the wraparound) between the two pointers is the lag that we
+// are supposed to cover in the current step. Any delay requests falling into
+// the lag interval are fired.
 //
 	pcb_t *i;
 	word d;
@@ -199,10 +199,10 @@ void update_n_wake (word min) {
 	// but there is no need to block interrupts. The inturrup advances
 	// new (we only read it), we advance old (the interrupt only reads it).
 	word znew;
-	znew = zz_new;
+	znew = __pi_new;
 #else
 
-#define	znew zz_new
+#define	znew __pi_new
 	// This will collect any ticks accumulated since the timer was started
 	// (i.e., bring new up to date) and make sure the timer is stopped now
 	TCI_UPDATE_DELAY_TICKS;
@@ -211,9 +211,9 @@ void update_n_wake (word min) {
 
 	// See kernel.h for the wake condition; it basically says that mintk
 	// falls within the lag interval
-	if (twakecnd (zz_old, znew, zz_mintk)) {
+	if (twakecnd (__pi_old, znew, __pi_mintk)) {
 
-		// As now all zz_mintk values are legit (e.g., 0 cannot be
+		// As now all __pi_mintk values are legit (e.g., 0 cannot be
 		// special), the condition will occasionally force us to do
 		// an idle scan through the list of processes. This will do no
 		// harm, or at least less harm than having an extra flags.
@@ -223,7 +223,7 @@ void update_n_wake (word min) {
 			if (!twaiting (i))
 				continue;
 
-			if (twakecnd (zz_old, znew, i->Timer)) {
+			if (twakecnd (__pi_old, znew, i->Timer)) {
 				// Wake up
 				wakeuptm (i);
 			} else {
@@ -238,26 +238,26 @@ void update_n_wake (word min) {
 	} else {
 		// Nobody is eligible for wakeup, old minimum holds, unless
 		// the requested one is less
-		if (zz_mintk - znew < min) 
+		if (__pi_mintk - znew < min) 
 			goto MOK;
 	}
 
-	zz_mintk = znew + min;
+	__pi_mintk = znew + min;
 
 MOK:
 
 #if TRIPLE_CLOCK == 0
 	// Handle the seconds clock; note that with TRIPLE_CLOCK == 1, the
 	// seconds clock is handled by an interrupt
-	millisec += (znew - zz_old);
+	millisec += (znew - __pi_old);
 	while (millisec >= JIFFIES) {
 		millisec -= JIFFIES;
-		zz_nseconds++;
+		__pi_nseconds++;
 		check_stack_overflow;
 #include "second.h"
 	}
 #endif
-	zz_old = znew;
+	__pi_old = znew;
 
 	// This is void with TRIPLE_CLOCK == 0 (the hardware timer never stops
 	// running); otherwise, it starts the hardware timer
@@ -272,7 +272,7 @@ MOK:
 /* ==================== */
 /* Launch a new process */
 /* ==================== */
-sint zzz_fork (code_t func, address data) {
+sint __pi_fork (code_t func, address data) {
 
 	pcb_t *i;
 	int pc;
@@ -301,7 +301,7 @@ sint zzz_fork (code_t func, address data) {
 
 void savedata (void *d) {
 
-	zz_curr -> data = (address) d;
+	__pi_curr -> data = (address) d;
 }
 
 /* ======================== */
@@ -309,39 +309,39 @@ void savedata (void *d) {
 /* ======================== */
 void proceed (word state) {
 
-	prcdstate (zz_curr, state);
+	prcdstate (__pi_curr, state);
 	release;
 }
 
 /* ============*/
 /* System wait */
 /* =========== */
-void zz_swait (word etype, word event, word state) {
+void __pi_swait (word etype, word event, word state) {
 
-	int j = nevents (zz_curr);
+	int j = nevents (__pi_curr);
 
 	if (j == MAX_EVENTS_PER_TASK)
 		syserror (ENEVENTS, "sw");
 
-	setestatus (zz_curr->Events [j], etype, state);
-	zz_curr->Events [j] . Event = event;
-	incwait (zz_curr);
+	setestatus (__pi_curr->Events [j], etype, state);
+	__pi_curr->Events [j] . Event = event;
+	incwait (__pi_curr);
 }
 
 /* ========= */
 /* User wait */
 /* ========= */
-void zzz_uwait (word event, word state) {
+void __pi_uwait (word event, word state) {
 
-	int j = nevents (zz_curr);
+	int j = nevents (__pi_curr);
 
 	if (j == MAX_EVENTS_PER_TASK)
 		syserror (ENEVENTS, "wa");
 
-	setestatus (zz_curr->Events [j], ETYPE_USER, state);
-	zz_curr->Events [j] . Event = event;
+	setestatus (__pi_curr->Events [j], ETYPE_USER, state);
+	__pi_curr->Events [j] . Event = event;
 
-	incwait (zz_curr);
+	incwait (__pi_curr);
 }
 
 /* ========== */
@@ -349,17 +349,17 @@ void zzz_uwait (word event, word state) {
 /* ========== */
 void delay (word d, word state) {
 
-	settstate (zz_curr, state);
+	settstate (__pi_curr, state);
 
 	// Remove any previous delay (so update_n_wake doesn't look at us)
-	cltmwait (zz_curr);
+	cltmwait (__pi_curr);
 
 	// Catch up with time
 	update_n_wake (d);
 
-	zz_curr->Timer = zz_old + d;
+	__pi_curr->Timer = __pi_old + d;
 
-	inctimer (zz_curr);
+	inctimer (__pi_curr);
 }
 
 void unwait (word state) {
@@ -367,8 +367,8 @@ void unwait (word state) {
 /* Cancels all wait requests including a delay */
 /* =========================================== */
 	if (state != WNONE)
-		settstate (zz_curr, state);
-	wakeuptm (zz_curr);
+		settstate (__pi_curr, state);
+	wakeuptm (__pi_curr);
 }
 
 /* ======================================================================== */
@@ -382,20 +382,20 @@ word dleft (sint pid) {
 	update_n_wake (MAX_UINT);
 
 	if (pid == 0)
-		i = zz_curr;
+		i = __pi_curr;
 	else {
 		ver_pid (i, pid);
 		if (i->code == NULL || !twaiting (i))
 			return MAX_UINT;
 	}
 
-	return i->Timer - zz_old;
+	return i->Timer - __pi_old;
 }
 
 /* ============== */
 /* System trigger */
 /* ============== */
-int zz_strigger (int etype, word event) {
+int __pi_strigger (int etype, word event) {
 
 	int j, c;
 	pcb_t *i;
@@ -421,7 +421,7 @@ int zz_strigger (int etype, word event) {
 /* ============ */
 /* User trigger */
 /* ============ */
-int zzz_utrigger (word event) {
+int __pi_utrigger (word event) {
 
 	int j, c;
 	pcb_t *i;
@@ -447,13 +447,13 @@ int zzz_utrigger (word event) {
 /* ================================= */
 /* Trigger when the process is known */
 /* ================================= */
-int zzz_ptrigger (sint pid, word event) {
+int __pi_ptrigger (sint pid, word event) {
 
 	pcb_t	*i;
 	int 	j;
 
 	if (pid == 0)
-		return zzz_utrigger (event);
+		return __pi_utrigger (event);
 
 	ver_pid (i, pid);
 
@@ -501,16 +501,16 @@ sint kill (sint pid) {
 
 	pcb_t *i;
 
-	if (pid == 0 || pid == -1 || pid == (int) zz_curr) {
+	if (pid == 0 || pid == -1 || pid == (int) __pi_curr) {
 		/* Self */
-		killev (zz_curr);
-		zz_curr->Status = 0;
+		killev (__pi_curr);
+		__pi_curr->Status = 0;
 		if (pid == -1) {
 			/* This makes you a zombie ... */
 			swait (ETYPE_TERM, 0, 0);
 		} else {
 			/* ... and this makes you dead */
-			zz_curr->code = NULL;
+			__pi_curr->code = NULL;
 			if (MEV_NWAIT (0)) {
 				trigger ((word)(&(mevent [0])));
 				MEV_NWAIT (0) --;
@@ -544,7 +544,7 @@ int killall (code_t fun) {
 	nk = 0;
 	for_all_tasks (i) {
 		if (i->code == fun) {
-			if (i == zz_curr)
+			if (i == __pi_curr)
 				rel = YES;
 			killev (i);
 			i->Status = 0;
@@ -563,7 +563,7 @@ int status (sint pid) {
 	int res;
 
 	if (pid == 0)
-		i = zz_curr;
+		i = __pi_curr;
 	else
 		ver_pid (i, pid);
 
@@ -585,7 +585,7 @@ code_t getcode (sint pid) {
 	pcb_t *i;
 
 	if (pid == 0)
-		i = zz_curr;
+		i = __pi_curr;
 	else
 		ver_pid (i, pid);
 
@@ -620,7 +620,7 @@ sint running (code_t fun) {
 	pcb_t *i;
 
 	if (fun == NULL)
-		return (int) zz_curr;
+		return (int) __pi_curr;
 
 	for_all_tasks (i)
 		if (i->code == fun)
@@ -641,7 +641,7 @@ int crunning (code_t fun) {
 	return c;
 }
 
-sint zzz_find (code_t fun, address dat) {
+sint __pi_find (code_t fun, address dat) {
 
 	pcb_t *i;
 
@@ -664,7 +664,7 @@ sint zombie (code_t fun) {
 	return 0;
 }
 
-int zzz_strlen (const char *s) {
+int __pi_strlen (const char *s) {
 
 	int i;
 
@@ -673,36 +673,36 @@ int zzz_strlen (const char *s) {
 	return i;
 }
 
-void zzz_strcpy (char *d, const char *s) {
+void __pi_strcpy (char *d, const char *s) {
 
 	while ((Boolean)(*d++ = *s++));
 }
 
-void zzz_strncpy (char *d, const char *s, int n) {
+void __pi_strncpy (char *d, const char *s, int n) {
 
 	while (n-- && (*s != '\0'))
 		*d++ = *s++;
 	*d = '\0';
 }
 
-void zzz_strcat (char *d, const char *s) {
+void __pi_strcat (char *d, const char *s) {
 
 	while (*d != '\0') d++;
 	strcpy (d, s);
 }
 
-void zzz_strncat (char *d, const char *s, int n) {
+void __pi_strncat (char *d, const char *s, int n) {
 
 	strcpy (d+n, s);
 }
 
-void zzz_memcpy (char *dest, const char *src, int n) {
+void __pi_memcpy (char *dest, const char *src, int n) {
 
 	while (n--)
 		*dest++ = *src++;
 }
 
-void zzz_memset (char *dest, char c, int n) {
+void __pi_memset (char *dest, char c, int n) {
 
 	while (n--)
 		*dest++ = c;
@@ -792,7 +792,7 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 /* --------------------------------------------------------------------- */
 
 #if	MALLOC_SINGLEPOOL == 0
-extern	word zzz_heap [];
+extern	word __pi_heap [];
 #endif
 
 static 	address *mpools;
@@ -841,7 +841,7 @@ void dump_malloc (const char *s) {
 
 #endif
 
-void zz_malloc_init () {
+void __pi_malloc_init () {
 /* =================================== */
 /* Initializes memory allocation pools */
 /* =================================== */
@@ -855,7 +855,7 @@ void zz_malloc_init () {
 
 	for (perc = np = 0; perc < 100; np++)
 		/* Calculate the number of pools */
-		perc += zzz_heap [np];
+		perc += __pi_heap [np];
 #endif	/* MALLOC_SINGLEPOOL */
 
 	if (MALLOC_LENGTH < 256 + MA_NP)
@@ -932,13 +932,13 @@ void zz_malloc_init () {
 		mpools [np] = freelist = morg + m_hdrlen;
 		if (np) {
 			/* Do it avoiding long division */
-			ceil = MAX_UINT / zzz_heap [np];
+			ceil = MAX_UINT / __pi_heap [np];
 			for (chunk = mtot, fac = 0; chunk > ceil;
 				chunk >>= 1, fac++);
-			chunk = (chunk * zzz_heap [np]) / 100;
+			chunk = (chunk * __pi_heap [np]) / 100;
 			chunk <<= fac;
 			// This required __div/__mul from the library:
-			// chunk = (word)((((lint) zzz_heap [np]) * mtot) /100);
+			// chunk = (word)((((lint) __pi_heap [np]) * mtot)/100);
 		} else {
 			chunk = perc;
 		}
@@ -1016,11 +1016,11 @@ static void qfree (int np, address ch) {
 }
 
 #if	MALLOC_SINGLEPOOL
-void zzz_free (address ch) {
+void __pi_free (address ch) {
 #define	MA_NP	0
 #define	QFREE	qfree (ch)
 #else
-void zzz_free (int np, address ch) {
+void __pi_free (int np, address ch) {
 #define	MA_NP	np
 #define	QFREE	qfree (np, ch)
 #endif
@@ -1054,11 +1054,11 @@ void zzz_free (int np, address ch) {
 }
 
 #if	MALLOC_SINGLEPOOL
-address zzz_malloc (word size) {
+address __pi_malloc (word size) {
 #define	MA_NP	0
 #define	QFREE	qfree (cc);
 #else
-address zzz_malloc (int np, word size) {
+address __pi_malloc (int np, word size) {
 #define	QFREE	qfree (np, cc);
 #define	MA_NP	np
 #endif
@@ -1150,10 +1150,10 @@ address zzz_malloc (int np, word size) {
 }
 
 #if	MALLOC_SINGLEPOOL
-void zzz_waitmem (word state) {
+void __pi_waitmem (word state) {
 #define	MA_NP	0
 #else
-void zzz_waitmem (int np, word state) {
+void __pi_waitmem (int np, word state) {
 #define	MA_NP	np
 #endif
 /*
@@ -1169,10 +1169,10 @@ void zzz_waitmem (int np, word state) {
 #if	MALLOC_STATS
 
 #if	MALLOC_SINGLEPOOL
-word	zzz_memfree (address min) {
+word	__pi_memfree (address min) {
 #define	MA_NP	0
 #else
-word	zzz_memfree (int np, address min) {
+word	__pi_memfree (int np, address min) {
 #define	MA_NP	np
 #endif
 /*
@@ -1185,10 +1185,10 @@ word	zzz_memfree (int np, address min) {
 }
 
 #if	MALLOC_SINGLEPOOL
-word	zzz_maxfree (address nc) {
+word	__pi_maxfree (address nc) {
 #define	MA_NP	0
 #else
-word	zzz_maxfree (int np, address nc) {
+word	__pi_maxfree (int np, address nc) {
 #define	MA_NP	np
 #endif
 /*
@@ -1212,7 +1212,7 @@ word	zzz_maxfree (int np, address nc) {
 
 #if	RESET_ON_MALLOC
 
-int zz_malloc_high_mark () {
+int __pi_malloc_high_mark () {
 /*
  * Checks if any of the pools has reached the failure limit
  */
@@ -1226,7 +1226,7 @@ int zz_malloc_high_mark () {
 	for (i = j = 0; i < 100; j++) {
 		if (MEV_NFAIL (j))
 			return 1;
-		i += zzz_heap [j];
+		i += __pi_heap [j];
 	}
 	return 0;
 
@@ -1236,7 +1236,7 @@ int zz_malloc_high_mark () {
 #endif	/* RESET_ON_MALLOC */
 	
 #if	SDRAM_PRESENT
-void zz_sdram_test (void) {
+void __pi_sdram_test (void) {
 
 	unsigned int loc, err;
 
@@ -1272,7 +1272,7 @@ static void dgout (word c) {
 
 #if	dbg_level != 0
 
-void zz_dbg (const word lvl, word code) {
+void __pi_dbg (const word lvl, word code) {
 
 	byte is;
 
@@ -1341,7 +1341,7 @@ void diag (const char *mess, ...) {
 			  case 'x' :
 				val = va_arg (ap, word);
 				for (i = 0; i < 16; i += 4) {
-					v = (word) zz_hex_enc_table [
+					v = (word) __pi_hex_enc_table [
 							(val >> (12 - i)) & 0xf
 								    ];
 					dgout (v);
@@ -1453,7 +1453,7 @@ void dmp_mem () {
 			diag_wait (a); diag_wchar ('\n', a);
 			for (i = 12; i >= 0; i -= 4) {
 				diag_wait (a);
-				diag_wchar (zz_hex_enc_table [(((word)addr) >>
+				diag_wchar (__pi_hex_enc_table [(((word)addr) >>
 					i) & 0xf], a);
 			}
 			diag_wait (a); diag_wchar (':', a);
@@ -1461,9 +1461,9 @@ void dmp_mem () {
 		diag_wait (a); diag_wchar (' ', a);
 		diag_wait (a); diag_wchar (' ', a);
 		diag_wait (a); diag_wchar (
-			zz_hex_enc_table [((*addr) >> 4) & 0xf], a);
+			__pi_hex_enc_table [((*addr) >> 4) & 0xf], a);
 		diag_wait (a); diag_wchar (
-			zz_hex_enc_table [((*addr)     ) & 0xf], a);
+			__pi_hex_enc_table [((*addr)     ) & 0xf], a);
 		addr++;
 	}
 	diag_wait (a); diag_wchar ('\r', a);

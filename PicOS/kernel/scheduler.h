@@ -14,10 +14,10 @@ Redo:
 	update_n_wake (MAX_UINT);
 
 	// Run the first ready process
-	for_all_tasks (zz_curr) {
-		if (zz_curr->code != NULL && !waiting (zz_curr)) {
+	for_all_tasks (__pi_curr) {
+		if (__pi_curr->code != NULL && !waiting (__pi_curr)) {
 			// Entry used and process ready
-			(zz_curr->code) (tstate (zz_curr), zz_curr->data);
+			(__pi_curr->code) (tstate (__pi_curr), __pi_curr->data);
 			goto Redo;
 		}
 	}

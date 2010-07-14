@@ -11,12 +11,12 @@
 
 //+++ "gpioirq.c"
 
-extern 			pcb_t	*zz_curr;
-extern 			word  	zz_mintk;
-extern 	volatile 	word 	zz_old, zz_new;
-extern 			address	zz_utims [MAX_UTIMERS];
+extern 			pcb_t	*__pi_curr;
+extern 			word  	__pi_mintk;
+extern 	volatile 	word 	__pi_old, __pi_new;
+extern 			address	__pi_utims [MAX_UTIMERS];
 
-void	zz_malloc_init (void);
+void	__pi_malloc_init (void);
 
 /* ========================== */
 /* Device driver initializers */
@@ -75,7 +75,7 @@ void clockdown (void) {
 	rg.tim.tmr_ld = 4095;
 	fd.tim.cmd.tmr_ld = 1;
 	rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
-	zz_systat.cdmode = 1;
+	__pi_systat.cdmode = 1;
 	sti_tim;
 }
 
@@ -86,7 +86,7 @@ void clockup (void) {
 	rg.tim.tmr_ld = 3;
 	fd.tim.cmd.tmr_ld = 1;
 	rg.ssm.clk_en = SSM_CLK_EN_TMR_MASK;
-	zz_systat.cdmode = 0;
+	__pi_systat.cdmode = 0;
 	sti_tim;
 }
 	
@@ -284,7 +284,7 @@ void freeze (word nsec) {
 	uart_b_disable_int;
 
 #ifdef EEPROM_PDMODE_AVAILABLE
-	zz_ee_pdown ();
+	__pi_ee_pdown ();
 #endif
 	leds_save (saveLD, saveLDB);
 
@@ -334,7 +334,7 @@ void freeze (word nsec) {
 	rg.ssm.clk_en = saveCK;
 
 #ifdef EEPROM_PDMODE_AVAILABLE
-	zz_ee_pup ();
+	__pi_ee_pup ();
 #endif
 	// ... and UART interrupts
 	rg.duart.a_int_en = saveUA;
@@ -502,7 +502,7 @@ void mdelay (word n) {
 		udelay (995);
 }
 
-void zzz_sched (void) {
+void __pi_sched (void) {
 
 	/* Initialization */
 	ssm_init ();
@@ -516,7 +516,7 @@ void zzz_sched (void) {
 	tcv_init ();
 #endif
 	/* The event loop */
-	zz_curr = (pcb_t*) fork (root, NULL);
+	__pi_curr = (pcb_t*) fork (root, NULL);
 	/* Delay root startup until the drivers have been initialized */
 #if ECOG_SIM ==0
 	delay (2048, 0);
@@ -540,14 +540,14 @@ word switches (void) {
 #endif
 
 #if DIAG_MESSAGES > 1
-void zzz_syserror (int ec, const char *m) {
+void __pi_syserror (int ec, const char *m) {
 
 #if	DUMP_MEMORY
 	dmp_mem ();
 #endif
 	diag ("SYSTEM ERROR: %x, %s", ec, m);
 #else
-void zzz_syserror (int ec) {
+void __pi_syserror (int ec) {
 
 #if	DUMP_MEMORY
 	dmp_mem ();
@@ -818,13 +818,13 @@ void __irq_entry timer_int () {
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 1);
 #endif
-	if (zz_systat.cdmode == 0) {
+	if (__pi_systat.cdmode == 0) {
 
 		// Clock is up
 
-#define	UTIMS_CASCADE(x) 	if (zz_utims [x]) {\
-					 if (*(zz_utims [x]))\
-						 (*(zz_utims [x]))--
+#define	UTIMS_CASCADE(x) 	if (__pi_utims [x]) {\
+					 if (*(__pi_utims [x]))\
+						 (*(__pi_utims [x]))--
 
 		UTIMS_CASCADE(0);
 		UTIMS_CASCADE(1);
@@ -851,17 +851,17 @@ void __irq_entry timer_int () {
 		// For extras
 #include "irq_timer.h"
 
-		zz_new++;
-		d = zz_new - zz_old;
+		__pi_new++;
+		d = __pi_new - __pi_old;
 
 		if (d & 1024) {
 			RISE_N_SHINE;
 			RTNI;
 		}
 
-		if ((zz_mintk <= zz_new && zz_mintk >= zz_old) ||
-	    	    (zz_new < zz_old &&
-		      (zz_mintk <= zz_new || zz_mintk >= zz_old))) {
+		if ((__pi_mintk <= __pi_new && __pi_mintk >= __pi_old) ||
+	    	    (__pi_new < __pi_old &&
+		      (__pi_mintk <= __pi_new || __pi_mintk >= __pi_old))) {
 			RISE_N_SHINE;
 		}
 
@@ -874,10 +874,10 @@ void __irq_entry timer_int () {
 	// Clock down - slow mode
 
 #define	UTIMS_CASCADE(x) \
-		if (zz_utims [x]) { \
-		  if (*(zz_utims [x])) \
-		    *(zz_utims [x]) = *(zz_utims [x]) > JIFFIES ? \
-		      *(zz_utims [x]) - JIFFIES : 0
+		if (__pi_utims [x]) { \
+		  if (*(__pi_utims [x])) \
+		    *(__pi_utims [x]) = *(__pi_utims [x]) > JIFFIES ? \
+		      *(__pi_utims [x]) - JIFFIES : 0
 
 	UTIMS_CASCADE(0);
 	UTIMS_CASCADE(1);
@@ -887,7 +887,7 @@ void __irq_entry timer_int () {
 
 #undef UTIMS_CASCADE
 
-	zz_new += JIFFIES;
+	__pi_new += JIFFIES;
 
 #ifdef	MONITOR_PIN_CLOCK
 	_PVS (MONITOR_PIN_CLOCK, 0);
@@ -909,7 +909,7 @@ void __irq_entry timer_long_int () {
 
 #if	SDRAM_PRESENT
 
-void zz_sdram_test (void);
+void __pi_sdram_test (void);
 
 #define	SDRAM_MBSIZE	((word)(1 << (SDRAM_SIZE - 9)))
 
@@ -1080,7 +1080,7 @@ void ramput (lword to, address from, int nw) {
 #if	STACK_GUARD
 extern	word STACK_SIZE;
 
-word zzz_stackfree () {
+word __pi_stackfree () {
 	
 	word p;
 
@@ -1158,7 +1158,7 @@ static void ios_init () {
 	diag ("Leftover RAM: %d words", (word)estk_ - (word)evar_);
 #endif
 #if	SDRAM_PRESENT
-	zz_sdram_test ();
+	__pi_sdram_test ();
 #endif
 #endif
 	/* ========================================================== */
@@ -1166,7 +1166,7 @@ static void ios_init () {
 	/* SDRAM requires rtc_init to work. Besides, SDRAM test would */
 	/* destroy it.                                                */
 	/* ========================================================== */
-	zz_malloc_init ();
+	__pi_malloc_init ();
 
 #if MAX_DEVICES
 	/* Initialize other devices and create their drivers */
@@ -1230,7 +1230,7 @@ static void ios_init () {
 #endif
 
 #ifdef SENSOR_INITIALIZERS
-	zz_init_sensors ();
+	__pi_init_sensors ();
 #endif
 
 }
@@ -1244,7 +1244,7 @@ static void ios_init () {
 /* The UARTs */
 /* ========= */
 
-uart_t	zz_uart [UART_DRIVER];
+uart_t	__pi_uart [UART_DRIVER];
 
 #define uart_canwrite(u) \
 	((u)->selector?(rg.duart.b_sts & \
@@ -1391,12 +1391,12 @@ static int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 /* Specific request functions */
 /* ========================== */
 static int ioreq_uart_a (int operation, char *buf, int len) {
-	return ioreq_uart (&(zz_uart [0]), operation, buf, len);
+	return ioreq_uart (&(__pi_uart [0]), operation, buf, len);
 }
 
 #if	UART_DRIVER > 1
 static int ioreq_uart_b (int operation, char *buf, int len) {
-	return ioreq_uart (&(zz_uart [1]), operation, buf, len);
+	return ioreq_uart (&(__pi_uart [1]), operation, buf, len);
 }
 #endif
 
@@ -1622,15 +1622,15 @@ static void devinit_uart (int devnum) {
 #endif
 	}
 	/* Assumes that buffer pointers are initialized to zero */
-	zz_uart [devnum] . selector = devnum;
-	zz_uart [devnum] . lock = 1;
+	__pi_uart [devnum] . selector = devnum;
+	__pi_uart [devnum] . lock = 1;
 	/* =============================================================== */
 	/* To do it right, I would have to store pointers to UART specific */
 	/* stuff,  but  in  the present circumstances,  and with the rigid */
 	/* organization of the reg structure,  it  makes more sense to use */
 	/* conditional code - for clarity and neatness.                    */
 	/* =============================================================== */
-	uart_unlock (zz_uart + devnum);
+	uart_unlock (__pi_uart + devnum);
 }
 
 #endif

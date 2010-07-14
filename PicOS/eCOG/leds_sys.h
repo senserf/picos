@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#define	ZZ_LEDS03(b)	(rg.io.gp0_3_out |= (b))
-#define	ZZ_LEDS47(b)	(rg.io.gp4_7_out |= (b))
+#define	__pi_LEDS03(b)	(rg.io.gp0_3_out |= (b))
+#define	__pi_LEDS47(b)	(rg.io.gp4_7_out |= (b))
 
 #endif

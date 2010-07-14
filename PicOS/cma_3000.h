@@ -8,7 +8,7 @@
 #include "cma_3000_sys.h"
 //+++ "cma_3000.c"
 
-extern int zz_cma_3000_event_thread;
+extern int __pi_cma_3000_event_thread;
 
 void cma_3000_on ();
 void cma_3000_off ();

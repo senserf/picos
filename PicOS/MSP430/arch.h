@@ -2,7 +2,7 @@
 #define	__pg_arch_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -45,7 +45,7 @@ typedef struct {
 
 } systat_t;
 		
-extern volatile systat_t zz_systat;
+extern volatile systat_t __pi_systat;
 
 extern void	__bss_end;
 #define	MALLOC_START		((address)&__bss_end)
@@ -59,12 +59,12 @@ extern void	__bss_end;
 #define	STATIC_LENGTH		(((word)&__bss_end - (word)RAM_START + 1)/2)
 
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\
-		".global zz_restart_entry\n"\
-		"zz_restart_entry: mov %0, r1"\
+		".global __pi_restart_entry\n"\
+		"__pi_restart_entry: mov %0, r1"\
 			:: "i"(STACK_START): "r1")
 
-void		zz_restart_entry () __attribute__ ((noreturn));
-#define	release	zz_restart_entry ()
+void		__pi_restart_entry () __attribute__ ((noreturn));
+#define	release	__pi_restart_entry ()
 
 #define	hard_reset	__asm__ __volatile__("br #_reset_vector__"::)
 

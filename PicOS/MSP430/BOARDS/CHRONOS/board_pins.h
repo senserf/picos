@@ -100,7 +100,10 @@ REQUEST_EXTERNAL (p2irq);
 
 #include "board_rtc.h"
 
-#define	EXTRA_INITIALIZERS	do { zz_rtc_init (); buzzer_init (); } while (0)
+#define	EXTRA_INITIALIZERS	do { \
+					__pi_rtc_init (); \
+					buzzer_init (); \
+				} while (0)
 
 // Current measurements:
 //

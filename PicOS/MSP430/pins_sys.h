@@ -1,7 +1,7 @@
 #ifndef	__pg_pins_sys_h
-#define	__pg_pins_sys_h	1
+#define	__pg_pins_sys_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -224,31 +224,31 @@ typedef struct {
 /*
  * GP pin operations
  */
-Boolean zz_pin_available (word);
-Boolean zz_pin_adc_available (word);
-word zz_pin_ivalue (word);
-word zz_pin_ovalue (word);
-Boolean zz_pin_adc (word);
-Boolean zz_pin_output (word);
-void zz_pin_set (word);
-void zz_pin_clear (word);
-void zz_pin_set_input (word);
-void zz_pin_set_output (word);
-void zz_pin_set_adc (word);
+Boolean __pi_pin_available (word);
+Boolean __pi_pin_adc_available (word);
+word __pi_pin_ivalue (word);
+word __pi_pin_ovalue (word);
+Boolean __pi_pin_adc (word);
+Boolean __pi_pin_output (word);
+void __pi_pin_set (word);
+void __pi_pin_clear (word);
+void __pi_pin_set_input (word);
+void __pi_pin_set_output (word);
+void __pi_pin_set_adc (word);
 
 #else	/* PIN_MAX == 0 */
 
-#define zz_pin_available(a)		0
-#define zz_pin_adc_available(a)		0
-#define zz_pin_ivalue(a)		0
-#define zz_pin_ovalue(a)		0
-#define zz_pin_adc(a)			0
-#define zz_pin_output(a)		0
-#define zz_pin_set(a)			CNOP
-#define zz_pin_clear(a)			CNOP
-#define zz_pin_set_input(a)		CNOP
-#define zz_pin_set_output(a)		CNOP
-#define zz_pin_set_adc(a)		CNOP
+#define __pi_pin_available(a)		0
+#define __pi_pin_adc_available(a)	0
+#define __pi_pin_ivalue(a)		0
+#define __pi_pin_ovalue(a)		0
+#define __pi_pin_adc(a)			0
+#define __pi_pin_output(a)		0
+#define __pi_pin_set(a)			CNOP
+#define __pi_pin_clear(a)		CNOP
+#define __pi_pin_set_input(a)		CNOP
+#define __pi_pin_set_output(a)		CNOP
+#define __pi_pin_set_adc(a)		CNOP
 
 #define	adc_config_rssi		adc_disable
 
@@ -260,19 +260,19 @@ void zz_pin_set_adc (word);
 
 #if PIN_DAC_PINS
 
-Boolean zz_pin_dac_available (word);
-Boolean zz_pin_dac (word);
-void zz_clear_dac (word);
-void zz_set_dac (word);
-void zz_write_dac (word, word, word);
+Boolean __pi_pin_dac_available (word);
+Boolean __pi_pin_dac (word);
+void __pi_clear_dac (word);
+void __pi_set_dac (word);
+void __pi_write_dac (word, word, word);
 
 #else
 
-#define	zz_pin_dac_available(a)	NO
-#define	zz_pin_dac(a)		NO
-#define	zz_clear_dac(a)		CNOP
-#define	zz_set_dac(a)		CNOP
-#define	zz_write_dac(a,b,c)	CNOP
+#define	__pi_pin_dac_available(a)	NO
+#define	__pi_pin_dac(a)			NO
+#define	__pi_clear_dac(a)		CNOP
+#define	__pi_set_dac(a)			CNOP
+#define	__pi_write_dac(a,b,c)		CNOP
 
 #endif	/* PIN_DAC_PINS */
 

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -14,7 +14,7 @@ static word	*rbuff = NULL,
 		physid,
 		statid;
 
-word		zzv_drvprcs, zzv_qevent;
+word		__pi_v_drvprcs, __pi_v_qevent;
 
 static byte	*supplement = NULL;
 
@@ -315,7 +315,7 @@ static void setparam () {
 	tx_flush ();	
 	chip_config ();
 	// Kick the process; hopefully, it will sort things out
-	trigger (zzv_qevent);
+	trigger (__pi_v_qevent);
 }
 
 static void ini_rf24l01 () {
@@ -464,14 +464,14 @@ thread (rf24l01_driver)
 			// We can suspend ourselves completely until something
 			// happens
 			power_down ();
-			wait (zzv_qevent, DR_LOOP);
+			wait (__pi_v_qevent, DR_LOOP);
 			release;
 		}
 
 		// Keep receiving
 		TRY_RECEIVE;
 
-		wait (zzv_qevent, DR_LOOP);
+		wait (__pi_v_qevent, DR_LOOP);
 		if (RxOFF == 0)
 			rcv_enable ();
 		release;
@@ -481,7 +481,7 @@ thread (rf24l01_driver)
 
 	if (bckf_timer) {
 		delay (bckf_timer, DR_LOOP);
-		wait (zzv_qevent, DR_LOOP);
+		wait (__pi_v_qevent, DR_LOOP);
 		if (RxOFF == 0)
 			rcv_enable ();
 		release;
@@ -498,7 +498,7 @@ thread (rf24l01_driver)
 			proceed (DR_LOOP);
 		}
 		// Wait
-		wait (zzv_qevent, DR_LOOP);
+		wait (__pi_v_qevent, DR_LOOP);
 		if (RxOFF == 0)
 			rcv_enable ();
 		release;
@@ -611,7 +611,7 @@ void phys_rf24l01 (int phy, int mbs) {
 	physid = phy;
 
 	/* Register the phy */
-	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_RF24L01);
+	__pi_v_qevent = tcvphy_reg (phy, option, INFO_PHYS_RF24L01);
 
 	/* Both parts are initially active */
 	LEDI (0, 0);
@@ -628,7 +628,7 @@ void phys_rf24l01 (int phy, int mbs) {
 	utimer_set (bckf_timer, 0);
 
 	/* Start the driver process */
-	zzv_drvprcs = runthread (rf24l01_driver);
+	__pi_v_drvprcs = runthread (rf24l01_driver);
 }
 
 static int option (int opt, address val) {
@@ -655,7 +655,7 @@ static int option (int opt, address val) {
 		else
 			LEDI (0, 2);
 
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_RXON:
@@ -666,7 +666,7 @@ static int option (int opt, address val) {
 			LEDI (0, 1);
 		else
 			LEDI (0, 2);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_TXOFF:
@@ -677,7 +677,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_TXHOLD:
@@ -687,7 +687,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_RXOFF:
@@ -697,7 +697,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_CAV:
@@ -708,7 +708,7 @@ static int option (int opt, address val) {
 			gbackoff;
 		else
 			utimer_set (bckf_timer, *val);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_SETPOWER:

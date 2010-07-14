@@ -8,11 +8,11 @@
 
 #include "irq_timer_headers.h"
 
-extern 			pcb_t		*zz_curr;
-extern 			address	zz_utims [MAX_UTIMERS];
+extern 			pcb_t		*__pi_curr;
+extern 			address	__pi_utims [MAX_UTIMERS];
 extern	void		_reset_vector__;
 
-void	zz_malloc_init (void);
+void	__pi_malloc_init (void);
 
 /* ========================== */
 /* Device driver initializers */
@@ -136,7 +136,7 @@ int main (void) {
 	tcv_init ();
 #endif
 	// Assume root process identity
-	zz_curr = (pcb_t*) fork (root, NULL);
+	__pi_curr = (pcb_t*) fork (root, NULL);
 	// Delay root startup for 16 msec to give the drivers a chance to
 	// go first, regardless where they are
 	delay (16, 0);
@@ -157,7 +157,7 @@ int main (void) {
 }
 
 #if DIAG_MESSAGES > 1
-void zzz_syserror (int ec, const char *m) {
+void __pi_syserror (int ec, const char *m) {
 
 	WATCHDOG_STOP;
 
@@ -166,7 +166,7 @@ void zzz_syserror (int ec, const char *m) {
 #endif
 	diag ("SYSERR: %x, %s", ec, m);
 #else
-void zzz_syserror (int ec) {
+void __pi_syserror (int ec) {
 
 	WATCHDOG_STOP;
 
@@ -178,7 +178,7 @@ void zzz_syserror (int ec) {
 #if RESET_ON_SYSERR
 
 #if LEDS_DRIVER
-	for (zz_mintk = 0; zz_mintk < 32; zz_mintk++)
+	for (__pi_mintk = 0; __pi_mintk < 32; __pi_mintk++)
 		all_leds_blink;
 #endif
 	reset ();
@@ -569,7 +569,7 @@ static void ssm_init () {
 
 void powerdown (void) {
 
-	zz_systat.pdmode = 1;
+	__pi_systat.pdmode = 1;
 	clockdown ();
 #if CRYSTAL2_RATE
 	// Disable XTL2
@@ -584,7 +584,7 @@ void powerup (void) {
 	_BIC (BCSCTL1, XT2OFF);
 #endif
 	clockup ();
-	zz_systat.pdmode = 0;
+	__pi_systat.pdmode = 0;
 }
 
 #define	mkmk_eval
@@ -659,14 +659,14 @@ static word gettav () {
 
 void tci_run_delay_timer () {
 //
-// Set the delay timer according to zz_mintk
+// Set the delay timer according to __pi_mintk
 //
 	word d;
 
 	cli_tim;	// This should be redundant
 
 	// Time to elapse in msecs
-	d = zz_mintk - zz_old;
+	d = __pi_mintk - __pi_old;
 
 	// Don't exceed the maximum
 	setdel = (d > TCI_MAXDEL) ? TCI_MAXDEL : d;
@@ -695,7 +695,7 @@ void tci_update_delay_ticks () {
 		// the estimate will tend to err on the low side, which will
 		// make sure that the measured delay is never less than asked
 		// for
-		zz_new += setdel - TCI_TICKSTODEL (TCI_CCR - gettav () + 3);
+		__pi_new += setdel - TCI_TICKSTODEL (TCI_CCR - gettav () + 3);
 		// Use it only once
 		setdel = 0;
 	}
@@ -724,27 +724,27 @@ interrupt (TCI_VECTOR_S) timer_auxiliary () {
 		// Flag == should we continue?
 		aux_timer_inactive = 1;
 		// Take care of utimers
-		if (zz_utims [0] == 0)
+		if (__pi_utims [0] == 0)
 			goto EUT;
-		if (*(zz_utims [0])) {
-			(*(zz_utims [0]))--;
+		if (*(__pi_utims [0])) {
+			(*(__pi_utims [0]))--;
 			aux_timer_inactive = 0;
 		}
-		if (zz_utims [1] == 0)
+		if (__pi_utims [1] == 0)
 			goto EUT;
-		if (*(zz_utims [1])) {
-			(*(zz_utims [1]))--;
+		if (*(__pi_utims [1])) {
+			(*(__pi_utims [1]))--;
 			aux_timer_inactive = 0;
 		}
-		if (zz_utims [2] == 0)
+		if (__pi_utims [2] == 0)
 			goto EUT;
-		if (*(zz_utims [2])) {
-			(*(zz_utims [2]))--;
+		if (*(__pi_utims [2])) {
+			(*(__pi_utims [2]))--;
 			aux_timer_inactive = 0;
 		}
-		if (zz_utims [3] != 0) {
-			if (*(zz_utims [3])) {
-				(*(zz_utims [3]))--;
+		if (__pi_utims [3] != 0) {
+			if (*(__pi_utims [3])) {
+				(*(__pi_utims [3]))--;
 				aux_timer_inactive = 0;
 			}
 		}
@@ -772,7 +772,7 @@ EUT:
 	// from the difference between the timer and TCI_CCS. There is,
 	// however, a nasty race that gets in the way. Namely, we may have
 	// a situation when the timer == TCI_CCS and we don't know whether
-	// zz_nseconds has been updated or not. Note that this problem is
+	// __pi_nseconds has been updated or not. Note that this problem is
 	// avoided in the delay timer where setdel makes it clear which is
 	// the case.
 	//
@@ -782,8 +782,8 @@ EUT:
 	//	gettav ->
 	//	timer != TCI_CCS -> easy, calculate the difference
 	//	timer == TCI_CCS -> delay for 1 us and check TBIF
-	//		TBIF == 1 -> zz_nseconds not updated
-	//		TBIF == 0 -> zz_nseconds updated
+	//		TBIF == 1 -> __pi_nseconds not updated
+	//		TBIF == 0 -> __pi_nseconds updated
 	//
 	// This looks complicated and, perhaps, does not warrant the
 	// modification, especially that there are arguments for having the
@@ -792,7 +792,7 @@ EUT:
 	//
 
 	TCI_CCS += TCI_SEC_DIV;
-	zz_nseconds++;
+	__pi_nseconds++;
 	check_stack_overflow;
 // ============================================================================
 #include "second.h"
@@ -814,7 +814,7 @@ interrupt (TCI_VECTOR) timer_int () {
 	// timer
 
 	cli_tim;
-	zz_new += setdel;
+	__pi_new += setdel;
 	setdel = 0;	// Mark that the counting has been accomplished
 	RISE_N_SHINE;
 
@@ -849,9 +849,9 @@ interrupt (TCI_VECTOR) timer_int () {
 #endif
 		// Power up: one tick == 1 JIFFIE
 		/* This code assumes that MAX_UTIMERS is 4 */
-#define	UTIMS_CASCADE(x) 	if (zz_utims [x]) {\
-					 if (*(zz_utims [x]))\
-						 (*(zz_utims [x]))--
+#define	UTIMS_CASCADE(x) 	if (__pi_utims [x]) {\
+					 if (*(__pi_utims [x]))\
+						 (*(__pi_utims [x]))--
 		UTIMS_CASCADE(0);
 		UTIMS_CASCADE(1);
 		UTIMS_CASCADE(2);
@@ -866,11 +866,11 @@ interrupt (TCI_VECTOR) timer_int () {
 		// Extras
 #include "irq_timer.h"
 
-		zz_new++;
+		__pi_new++;
 
-		d = zz_new - zz_old;
+		d = __pi_new - __pi_old;
 
-		if (d >= JIFFIES || twakecnd (zz_old, zz_new, zz_mintk))
+		if (d >= JIFFIES || twakecnd (__pi_old, __pi_new, __pi_mintk))
 			RISE_N_SHINE;
 
 #ifdef	MONITOR_PIN_CLOCK
@@ -886,11 +886,11 @@ interrupt (TCI_VECTOR) timer_int () {
 	// JIFFIES/TCI_LOW_PER_SEC
 
 #define	UTIMS_CASCADE(x) \
-		if (zz_utims [x]) { \
-		  if (*(zz_utims [x])) \
-		    *(zz_utims [x]) = *(zz_utims [x]) > \
+		if (__pi_utims [x]) { \
+		  if (*(__pi_utims [x])) \
+		    *(__pi_utims [x]) = *(__pi_utims [x]) > \
 		      (JIFFIES/TCI_LOW_PER_SEC) ? \
-			*(zz_utims [x]) - (JIFFIES/TCI_LOW_PER_SEC) : 0
+			*(__pi_utims [x]) - (JIFFIES/TCI_LOW_PER_SEC) : 0
 
 	UTIMS_CASCADE(0);
 	UTIMS_CASCADE(1);
@@ -899,12 +899,12 @@ interrupt (TCI_VECTOR) timer_int () {
 	}}}}
 #undef UTIMS_CASCADE
 
-	zz_new += JIFFIES/TCI_LOW_PER_SEC;
+	__pi_new += JIFFIES/TCI_LOW_PER_SEC;
 
-	d = zz_new - zz_old;
+	d = __pi_new - __pi_old;
 
 #if TCI_LOW_PER_SEC > 1
-	if (d >= JIFFIES || twakecnd (zz_old, zz_new, zz_mintk))
+	if (d >= JIFFIES || twakecnd (__pi_old, __pi_new, __pi_mintk))
 #endif
 		RISE_N_SHINE;
 
@@ -1005,11 +1005,11 @@ void freeze (word nsec) {
 
 static void mem_init () {
 
-	zz_malloc_init ();
+	__pi_malloc_init ();
 }
 
 #if	STACK_GUARD
-word zzz_stackfree (void) {
+word __pi_stackfree (void) {
 
 	word sc;
 	for (sc = 0; sc < STACK_SIZE / sizeof (word); sc++)
@@ -1037,7 +1037,7 @@ static void ios_init () {
 // ============================================================================
 
 #ifdef	SENSOR_INITIALIZERS
-	zz_init_sensors ();
+	__pi_init_sensors ();
 #endif
 
 #ifdef	EXTRA_INITIALIZERS
@@ -1090,7 +1090,7 @@ static void ios_init () {
 
 #if	UART_DRIVER || UART_TCV
 
-uart_t	zz_uart [N_UARTS];
+uart_t	__pi_uart [N_UARTS];
 
 static void preinit_uart () {
 
@@ -1104,7 +1104,7 @@ static void preinit_uart () {
 	uart_a_enable;
 	uart_a_reset_off;
 #if UART_RATE_SETTABLE
-	zz_uart [0] . flags = UART_RATE_INDEX;
+	__pi_uart [0] . flags = UART_RATE_INDEX;
 #endif
 
 #endif	/* UART_PREINIT_A */
@@ -1124,7 +1124,7 @@ static void preinit_uart () {
 	uart_b_enable;
 	uart_b_reset_off;
 #if UART_RATE_SETTABLE
-	zz_uart [1] . flags = UART_RATE_INDEX;
+	__pi_uart [1] . flags = UART_RATE_INDEX;
 #endif
 
 #endif	/* UART_PREINIT_B */
@@ -1136,7 +1136,7 @@ static const uart_rate_table_entry_t urates [] = UART_RATE_TABLE;
 
 #define	N_RATES		(sizeof(urates) / sizeof(uart_rate_table_entry_t))
 
-Boolean zz_uart_setrate (word rate, uart_t *ua) {
+Boolean __pi_uart_setrate (word rate, uart_t *ua) {
 
 	byte j;
 
@@ -1144,7 +1144,7 @@ Boolean zz_uart_setrate (word rate, uart_t *ua) {
 		if (rate == urates [j] . rate) {
 			// Found
 #if N_UARTS > 1
-			if (ua != zz_uart)
+			if (ua != __pi_uart)
 				uart_b_set_rate (urates [j]);
 			else
 #endif	/* N_UARTS */
@@ -1156,7 +1156,7 @@ Boolean zz_uart_setrate (word rate, uart_t *ua) {
 	return NO;
 }
 
-word zz_uart_getrate (uart_t *ua) {
+word __pi_uart_getrate (uart_t *ua) {
 
 	return urates [ua->flags & UART_RATE_MASK] . rate;
 }
@@ -1309,12 +1309,12 @@ X_redo:
 			}
 #if UART_RATE_SETTABLE
 			if (len == UART_CNTRL_SETRATE) {
-				if (zz_uart_setrate (*((word*)buf), u))
+				if (__pi_uart_setrate (*((word*)buf), u))
 						return 1;
 				syserror (EREQPAR, "uar");
 			}
 			if (len == UART_CNTRL_GETRATE) {
-				*((word*)buf) = zz_uart_getrate (u);
+				*((word*)buf) = __pi_uart_getrate (u);
 				return 1;
 			}
 #endif
@@ -1380,12 +1380,12 @@ interrupt (UART_A_TX_VECTOR) uart_a_tx_int (void) {
 #endif
 	RISE_N_SHINE;
 
-	if ((zz_uart [0] . flags & UART_FLAGS_OUT) == 0) {
+	if ((__pi_uart [0] . flags & UART_FLAGS_OUT) == 0) {
 		// Keep the interrupt pending
 		uart_a_set_write_int;
 	} else {
-		_BIC (zz_uart [0] . flags, UART_FLAGS_OUT);
-		uart_a_write (zz_uart [0] . out);
+		_BIC (__pi_uart [0] . flags, UART_FLAGS_OUT);
+		uart_a_write (__pi_uart [0] . out);
 	}
 	i_trigger (ETYPE_IO, devevent (UART_A, WRITE));
 	RTNI;
@@ -1405,7 +1405,7 @@ interrupt (UART_A_RX_VECTOR) uart_a_rx_int (void) {
 // RX interrupt service =======================================================
 // ============================================================================
 
-#define	ua	(zz_uart + 0)
+#define	ua	(__pi_uart + 0)
 
 	uart_a_disable_read_int;
 
@@ -1468,12 +1468,12 @@ static int ioreq_uart_a (int op, char *b, int len) {
 interrupt (UART_B_TX_VECTOR) uart_b_tx_int (void) {
 	RISE_N_SHINE;
 
-	if ((zz_uart [1] . flags & UART_FLAGS_OUT) == 0) {
+	if ((__pi_uart [1] . flags & UART_FLAGS_OUT) == 0) {
 		// Keep the interrupt pending
 		uart_b_set_write_int;
 	} else {
-		_BIC (zz_uart [1] . flags, UART_FLAGS_OUT);
-		uart_b_write (zz_uart [1] . out);
+		_BIC (__pi_uart [1] . flags, UART_FLAGS_OUT);
+		uart_b_write (__pi_uart [1] . out);
 	}
 	// Disable until a character arrival
 	uart_b_disable_write_int;
@@ -1483,7 +1483,7 @@ interrupt (UART_B_TX_VECTOR) uart_b_tx_int (void) {
 
 interrupt (UART_B_RX_VECTOR) uart_b_rx_int (void) {
 
-#define	ua	(zz_uart + 1)
+#define	ua	(__pi_uart + 1)
 
 #if UART_INPUT_BUFFER_LENGTH > 1
 
@@ -1538,15 +1538,15 @@ static void devinit_uart (int devnum) {
 #endif
 
 #if UART_INPUT_BUFFER_LENGTH > 1
-	zz_uart [devnum] . ib_count = zz_uart [devnum] . ib_in =
-		zz_uart [devnum] . ib_out = 0;
+	__pi_uart [devnum] . ib_count = __pi_uart [devnum] . ib_in =
+		__pi_uart [devnum] . ib_out = 0;
 #endif
 
 #if UART_DRIVER > 1
-	zz_uart [devnum] . selector = devnum;
+	__pi_uart [devnum] . selector = devnum;
 #endif
-	_BIS (zz_uart [devnum] . flags, UART_FLAGS_LOCK);
-	uart_unlock (zz_uart + devnum);
+	_BIS (__pi_uart [devnum] . flags, UART_FLAGS_LOCK);
+	uart_unlock (__pi_uart + devnum);
 }
 /* =========== */
 /* UART DRIVER */

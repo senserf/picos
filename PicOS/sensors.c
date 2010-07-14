@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -27,7 +27,7 @@ static const i_sensdesc_t sensor_list [] = SENSOR_LIST;
 
 // Some sensors have to be initialized
 
-void zz_init_sensors () {
+void __pi_init_sensors () {
 
 	int i;
 	void (*f) (void);

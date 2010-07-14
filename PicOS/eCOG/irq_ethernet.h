@@ -1,7 +1,7 @@
 #ifndef	__irq_ethernet_h
 #define	__irq_ethernet_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -15,11 +15,11 @@ if (tcv_interrupt) {
 	/* Clear allocation interrupt */
 	outw (IM_ALLOC_INT, INT_REG);
 	/* Trigger the device events */
-	if (zzd_data->flags & FLG_ENRCV)
+	if (__pi_d_data->flags & FLG_ENRCV)
 		i_trigger (ETYPE_IO, devevent (ETHERNET, READ));
-	if (zzd_data->flags & FLG_ENXMT)
+	if (__pi_d_data->flags & FLG_ENXMT)
 		i_trigger (ETYPE_IO, devevent (ETHERNET, WRITE));
-	zzd_data->flags = 0;
+	__pi_d_data->flags = 0;
 }
 
 #endif

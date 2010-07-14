@@ -1,7 +1,7 @@
 #ifndef	__pg_rf24l01_h
 #define	__pg_rf24l01h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -179,6 +179,6 @@
 #define	gbackoff	utimer_set (bckf_timer, MIN_BACKOFF + \
 				(rnd () & MSK_BACKOFF))
 
-extern word		zzv_drvprcs, zzv_qevent;
+extern word		__pi_v_drvprcs, __pi_v_qevent;
 
 #endif

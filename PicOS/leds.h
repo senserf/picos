@@ -110,12 +110,12 @@
 #else
 #define	leds_save(a,b)	do { \
 				LEDS_SAVE (a); \
-				(b) = zz_systat.ledsts; \
+				(b) = __pi_systat.ledsts; \
 				leds_off; \
 			} while (0)
 #define	leds_restore(a,b) do { \
 				LEDS_RESTORE (a); \
-				zz_systat.ledsts = (b); \
+				__pi_systat.ledsts = (b); \
 				if ((b)) \
 					TCI_RUN_AUXILIARY_TIMER; \
 			  } while (0)
@@ -123,7 +123,7 @@
 
 // ============================================================================
 
-#define	led_blink(a)	zz_systat.ledsts |= (a)
-#define	led_unblink(a)	zz_systat.ledsts &= ~(a)
+#define	led_blink(a)	__pi_systat.ledsts |= (a)
+#define	led_unblink(a)	__pi_systat.ledsts &= ~(a)
 
 #endif

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -47,7 +47,7 @@ static void put_data (byte b) {
 #if 0
 // This is now part of lcd_on; required for boards where LCD can be powered on
 // and off
-void zz_lcd_init () {
+void __pi_lcd_init () {
 
 	Cursor = 0;
 

@@ -19,13 +19,13 @@
 // P1.6 -> SDO (uC to sensor)
 // P1.7 -> Clock
 
-#define	zz_cma_3000_bring_down	do { \
-					_BIC (PJOUT, 0x03); \
-					_BIC (P1OUT, 0xE0); \
-					_BIS (P1DIR, 0xE0); \
-					_BIC (P1SEL, 0xE0); \
-					_BIC (P2IE, 0x20); \
-				} while (0)
+#define	__pi_cma_3000_bring_down	do { \
+						_BIC (PJOUT, 0x03); \
+						_BIC (P1OUT, 0xE0); \
+						_BIS (P1DIR, 0xE0); \
+						_BIC (P1SEL, 0xE0); \
+						_BIC (P2IE, 0x20); \
+					} while (0)
 //+++ "p2irq.c"
 
 // SPI master, 8 bits, MSB first, clock idle low, data output on
@@ -35,7 +35,7 @@
 // SPI
 // Power up
 // Delay for > 5ms
-#define	zz_cma_3000_bring_up	do { \
+#define	__pi_cma_3000_bring_up	do { \
 					UCA0CTL0 |= UCSYNC | UCMST | UCMSB | \
 						UCCKPH; \
 					UCA0CTL1 |= UCSSEL1; \
@@ -48,27 +48,27 @@
 					mdelay (50); \
 				} while (0)
 
-#define	zz_cma_3000_csel	do { \
+#define	__pi_cma_3000_csel	do { \
 					_BIC (P1REN, 0x20); \
 					_BIC (PJOUT, 0x02); \
 					mdelay (50); \
 				} while (0)
 
-#define	zz_cma_3000_cunsel	do { \
+#define	__pi_cma_3000_cunsel	do { \
 					_BIS (PJOUT, 0x02); \
 					_BIS (P1REN, 0x20); \
 				} while (0)
 
 // Rising edge, no need to change IES
-#define	zz_cma_3000_enable	_BIS (P2IE, 0x20)
-#define	zz_cma_3000_disable	_BIC (P2IE, 0x20)
-#define	zz_cma_3000_clear	_BIC (P2IFG, 0x20)
-#define	zz_cma_3000_int		(P2IFG & 0x20)
+#define	__pi_cma_3000_enable	_BIS (P2IE, 0x20)
+#define	__pi_cma_3000_disable	_BIC (P2IE, 0x20)
+#define	__pi_cma_3000_clear	_BIC (P2IFG, 0x20)
+#define	__pi_cma_3000_int	(P2IFG & 0x20)
 
-#define	zz_cma_3000_read	UCA0RXBUF
-#define	zz_cma_3000_write(b)	UCA0TXBUF = (b)
+#define	__pi_cma_3000_read	UCA0RXBUF
+#define	__pi_cma_3000_write(b)	UCA0TXBUF = (b)
 
-#define	zz_cma_3000_busy	((UCA0IFG & UCRXIFG) == 0)
+#define	__pi_cma_3000_busy	((UCA0IFG & UCRXIFG) == 0)
 
 #ifdef	CMA3000_MODE_MOTION
 // 0x20 = permanently stay in motion detection mode

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -8,31 +8,31 @@
 
 static int option (int, address);
 
-word		*zzr_buffer = NULL,
-		*zzr_buffp,	// Pointer to next buffer word; also used to
+word		*__pi_r_buffer = NULL,
+		*__pi_r_buffp,	// Pointer to next buffer word; also used to
 				// indicate that a reception is pending
-		*zzr_buffl,	// Pointer to LWA+1 of buffer area
-		*zzx_buffer = NULL, // Pointer to dynamic transmission buffer
-		*zzx_buffp,	// Next buffer word
-		*zzx_buffl,	// LWA+1 of xmit buffer
-		zzv_qevent,
-		zzv_physid,
-		zzv_statid,
-		zzx_backoff;	// Calculated backoff for xmitter
+		*__pi_r_buffl,	// Pointer to LWA+1 of buffer area
+		*__pi_x_buffer = NULL, // Pointer to dynamic transmission buffer
+		*__pi_x_buffp,	// Next buffer word
+		*__pi_x_buffl,	// LWA+1 of xmit buffer
+		__pi_v_qevent,
+		__pi_v_physid,
+		__pi_v_statid,
+		__pi_x_backoff;	// Calculated backoff for xmitter
 
-byte		zzv_curbit,	// Current bit index
-		zzv_prmble,	// Preamble counter
-		zzv_status,
-		zzr_length,	// Length of received packet in words; this
+byte		__pi_v_curbit,	// Current bit index
+		__pi_v_prmble,	// Preamble counter
+		__pi_v_status,
+		__pi_r_length,	// Length of received packet in words; this
 				// is set after a complete reception
-		zzv_curnib,	// Current nibble
-		zzv_cursym,	// Symbol buffer
-		zzv_rxoff,	// Transmitter on/off flags
-		zzv_txoff,
-		zzr_rcvmode = DM2200_DEF_RCVMODE,
- 		zzv_istate = IRQ_OFF;
+		__pi_v_curnib,	// Current nibble
+		__pi_v_cursym,	// Symbol buffer
+		__pi_v_rxoff,	// Transmitter on/off flags
+		__pi_v_txoff,
+		__pi_r_rcvmode = DM2200_DEF_RCVMODE,
+ 		__pi_v_istate = IRQ_OFF;
 
-const byte zzv_symtable [] = {
+const byte __pi_v_symtable [] = {
 		255,		//  000000
 		255,		//  000001
 		255,		//  000010
@@ -99,7 +99,7 @@ const byte zzv_symtable [] = {
 		255		//  111111
 	};
 
-const byte zzv_nibtable [] = {
+const byte __pi_v_nibtable [] = {
 		0x05,		// 001101 ->   1100 -> 000000000101
 		0x09,		// 001110 ->    120 -> 000000001001
 		0x50,		// 010011 ->   0011 -> 000001010000
@@ -118,7 +118,7 @@ const byte zzv_nibtable [] = {
 		0x41		// 110100 ->   1001 -> 000001000001
 	};
 
-const byte zzv_srntable [] = {
+const byte __pi_v_srntable [] = {
 		3, 2, 3, 5, 4, 3, 4, 2, 2, 4, 3, 4, 5, 3, 3, 3
 	};
 
@@ -244,7 +244,7 @@ static void ini_dm2200 (void) {
 		start_xmt;
 	} else {
 		diag ("DM2200 FCC test mode, listening .....");
-		zzv_rxoff = 0;
+		__pi_v_rxoff = 0;
 		runthread (rcvradio);
 		trigger (rxevent);
 		LEDI (1, 2);
@@ -273,7 +273,7 @@ void hstat (word status) {
 		case HSTAT_RCV:
 
 			rssi_on;
-			dm2200_wreg (0, zzr_rcvmode & 0x7f);
+			dm2200_wreg (0, __pi_r_rcvmode & 0x7f);
 			break;
 
 		default:
@@ -309,7 +309,7 @@ void phys_dm2200 (int phy, int mbs) {
  * phy  - interface number
  * mbs  - maximum packet length (including checksum, must be divisible by 4)
  */
-	if (zzr_buffer != NULL)
+	if (__pi_r_buffer != NULL)
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_dm2200");
 
@@ -323,25 +323,25 @@ void phys_dm2200 (int phy, int mbs) {
 	/* For reading RSSI */
 	adc_config_rssi;
 
-	if ((zzr_buffer = umalloc (mbs)) == NULL)
+	if ((__pi_r_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_dm2200");
 
 	/* This is static and will never change */
-	zzr_buffl = zzr_buffer + (mbs >> 1);
+	__pi_r_buffl = __pi_r_buffer + (mbs >> 1);
 	/* This also indicates that there's no pending reception */
-	zzr_buffp = 0;
+	__pi_r_buffp = 0;
 
-	zzv_status = 0;
+	__pi_v_status = 0;
 
-	zzv_statid = 0;
-	zzv_physid = phy;
-	zzx_backoff = 0;
+	__pi_v_statid = 0;
+	__pi_v_physid = phy;
+	__pi_x_backoff = 0;
 
 	/* Register the phy */
-	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2200);
+	__pi_v_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2200);
 
 	/* Both parts are initially inactive */
-	zzv_rxoff = zzv_txoff = 1;
+	__pi_v_rxoff = __pi_v_txoff = 1;
 	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
@@ -397,11 +397,11 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETMODE:
 
-		ret = (zzr_rcvmode & 0x0E) >> 1; 
+		ret = (__pi_r_rcvmode & 0x0E) >> 1; 
 		if (val == NULL)
-			zzr_rcvmode = DM2200_DEF_RCVMODE;
+			__pi_r_rcvmode = DM2200_DEF_RCVMODE;
 		else if (*val <= DM2200_N_RF_OPTIONS)
-			zzr_rcvmode = (zzr_rcvmode & 0xf1) |
+			__pi_r_rcvmode = (__pi_r_rcvmode & 0xf1) |
 				(((byte) (*val)) << 1);
 		else
 			syserror (EREQPAR, "phys_dm2200 option rfmode");
@@ -409,7 +409,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_GETMODE:
 
-		ret = (zzr_rcvmode & 0x0E) >> 1; 
+		ret = (__pi_r_rcvmode & 0x0E) >> 1; 
 		if (val != NULL)
 			*val = ret;
 		break;

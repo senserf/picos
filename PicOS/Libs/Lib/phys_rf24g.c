@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -13,18 +13,18 @@ static int option (int, address);
  * because interrupts will have to access this AFAP.
  */
 				// Pointer to static reception buffer
-word		*zzr_buffer = NULL,
-		zzv_qevent,
-		zzv_physid,
-		zzv_statid,
-		zzx_backoff;		// Calculated backoff for xmitter
+word		*__pi_r_buffer = NULL,
+		__pi_v_qevent,
+		__pi_v_physid,
+		__pi_v_statid,
+		__pi_x_backoff;		// Calculated backoff for xmitter
 
-byte		zzv_rxoff,		// Transmitter on/off flags
-		zzv_txoff,
-		zzv_paylen,		// Formal payload length in bytes
-		zzx_power,		// Transmit power (0-3)
-		zzv_group,
-		zzv_channel;		// Channel
+byte		__pi_v_rxoff,		// Transmitter on/off flags
+		__pi_v_txoff,
+		__pi_v_paylen,		// Formal payload length in bytes
+		__pi_x_power,		// Transmit power (0-3)
+		__pi_v_group,
+		__pi_v_channel;		// Channel
 
 /* ========================================= */
 
@@ -79,9 +79,9 @@ static void boot () {
 /*
  * Complete reset
  */
-#define	par	((byte*)zzr_buffer)
+#define	par	((byte*)__pi_r_buffer)
 
-	par [0] = (zzv_paylen + 3) << 3;	// Packet length in bits
+	par [0] = (__pi_v_paylen + 3) << 3;	// Packet length in bits
 
 	par  [1] = 0;	
 	par  [2] = 0;
@@ -93,13 +93,13 @@ static void boot () {
 	par  [7] = 0;
 	par  [8] = 0;
 	par  [9] = 0;
-	par [10] = zzv_group;			// Chan 1 address (group)
+	par [10] = __pi_v_group;		// Chan 1 address (group)
 
 	// par [11] = (8 << 2) | 3;		// Addr width + CRC
 	par [11] = (8 << 2) | 1;		// Addr width + CRC
 	// 1 channel, Burst, 256 kbps, 16MHz
-	par [12] = (1 << 6) | (3 << 2) | (zzx_power & 0x3);
-	par [13] = (zzv_channel << 1) | 0;	// XMT enable
+	par [12] = (1 << 6) | (3 << 2) | (__pi_x_power & 0x3);
+	par [13] = (__pi_v_channel << 1) | 0;	// XMT enable
 
 	cnfg (par, 14 * 8);
 
@@ -200,7 +200,7 @@ static thread (rcvradio)
 
     entry (RCV_GETIT)
 
-	if (zzv_rxoff) {
+	if (__pi_v_rxoff) {
 Finish:
 		rcv_disable ();
 		finish;
@@ -219,7 +219,7 @@ Finish:
 	ce_down;
 	stat_clr (FLG_RCVA);
 
-	if (zzv_rxoff)
+	if (__pi_v_rxoff)
 		goto Finish;
 
 	gbackoff;
@@ -230,27 +230,27 @@ Finish:
 	rcv (&nb, 1);
 
 	/* Receive the packet */
-	rcv ((byte*)zzr_buffer, zzv_paylen);
+	rcv ((byte*)__pi_r_buffer, __pi_v_paylen);
 #if 1
 	diag ("RCV: %d %x %x %x %x %x %x", nb,
-		zzr_buffer [0],
-		zzr_buffer [1],
-		zzr_buffer [2],
-		zzr_buffer [3],
-		zzr_buffer [4],
-		zzr_buffer [5]);
+		__pi_r_buffer [0],
+		__pi_r_buffer [1],
+		__pi_r_buffer [2],
+		__pi_r_buffer [3],
+		__pi_r_buffer [4],
+		__pi_r_buffer [5]);
 #endif
-	if (nb > zzv_paylen || nb == 0)
+	if (nb > __pi_v_paylen || nb == 0)
 		/* Ignore as garbage */
 		proceed (RCV_GETIT);
 
 	/* Check the station Id */
-	if (zzv_statid != 0 && zzr_buffer [0] != 0 &&
-	    zzr_buffer [0] != zzv_statid)
+	if (__pi_v_statid != 0 && __pi_r_buffer [0] != 0 &&
+	    __pi_r_buffer [0] != __pi_v_statid)
 		/* Wrong packet */
 		proceed (RCV_GETIT);
 
-	tcvphy_rcv (zzv_physid, zzr_buffer, nb);
+	tcvphy_rcv (__pi_v_physid, __pi_r_buffer, nb);
 
 	proceed (RCV_GETIT);
 
@@ -266,41 +266,41 @@ static thread (xmtradio)
 
     entry (XM_LOOP)
 
-	if (zzv_txoff) {
+	if (__pi_v_txoff) {
 		/* We are off */
-		if (zzv_txoff == 3) {
+		if (__pi_v_txoff == 3) {
 Drain:
-			tcvphy_erase (zzv_physid);
-			wait (zzv_qevent, XM_LOOP);
+			tcvphy_erase (__pi_v_physid);
+			wait (__pi_v_qevent, XM_LOOP);
 			release;
-		} else if (zzv_txoff == 1) {
+		} else if (__pi_v_txoff == 1) {
 			/* Queue held, transmitter off */
-			zzx_backoff = 0;
+			__pi_x_backoff = 0;
 			finish;
 		}
 	}
 
-	if ((stln = tcvphy_top (zzv_physid)) == 0) {
+	if ((stln = tcvphy_top (__pi_v_physid)) == 0) {
 		/* Packet queue is empty */
-		if (zzv_txoff == 2) {
+		if (__pi_v_txoff == 2) {
 			/* Draining; stop xmt if the output queue is empty */
-			zzv_txoff = 3;
+			__pi_v_txoff = 3;
 			/* Redo */
 			goto Drain;
 		}
-		wait (zzv_qevent, XM_LOOP);
+		wait (__pi_v_qevent, XM_LOOP);
 		release;
 	}
 
-	if (zzx_backoff && stln < 2) {
+	if (__pi_x_backoff && stln < 2) {
 		/* We have to wait and the packet is not urgent */
-		delay (zzx_backoff, XM_LOOP);
-		zzx_backoff = 0;
-		wait (zzv_qevent, XM_LOOP);
+		delay (__pi_x_backoff, XM_LOOP);
+		__pi_x_backoff = 0;
+		wait (__pi_v_qevent, XM_LOOP);
 		release;
 	}
 
-	if ((buffp = tcvphy_get (zzv_physid, &stln)) != NULL) {
+	if ((buffp = tcvphy_get (__pi_v_physid, &stln)) != NULL) {
 
 		LEDI (1, 1);
 
@@ -311,8 +311,8 @@ Drain:
 	
 		ce_up;
 
-		snd (&zzv_group, 1);
-		if (stln > zzv_paylen)
+		snd (&__pi_v_group, 1);
+		if (stln > __pi_v_paylen)
 			syserror (EREQPAR, "rxmt/tlength");
 
 		bb = (byte) stln;
@@ -320,7 +320,7 @@ Drain:
 		snd ((byte*) buffp, stln);
 
 		bb = 0xaa;
-		while (stln++ < zzv_paylen)
+		while (stln++ < __pi_v_paylen)
 			snd (&bb, 1);
 
 		ce_down;
@@ -348,7 +348,7 @@ void phys_rf24g (int phy, int grp, int chn) {
  * grp  - group (ipart of RF24G addressing scheme)
  * chn  - channel
  */
-	if (zzr_buffer != NULL)
+	if (__pi_r_buffer != NULL)
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_rf24g");
 
@@ -368,26 +368,26 @@ void phys_rf24g (int phy, int grp, int chn) {
 	 * bits long.
 	 */
 
-	if ((zzr_buffer = umalloc (28)) == NULL)
+	if ((__pi_r_buffer = umalloc (28)) == NULL)
 		syserror (EMALLOC, "phys_dm2100");
 
-	zzv_statid = 0;
-	zzv_physid = phy;
-	zzv_paylen = 28;
-	zzx_backoff = 0;
-	zzx_power = 3;			// Maximum power
-	zzv_group = (byte) grp;
-	zzv_channel = (byte) chn;
+	__pi_v_statid = 0;
+	__pi_v_physid = phy;
+	__pi_v_paylen = 28;
+	__pi_x_backoff = 0;
+	__pi_x_power = 3;			// Maximum power
+	__pi_v_group = (byte) grp;
+	__pi_v_channel = (byte) chn;
 
 	/* Register the phy */
-	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_DM2100);
+	__pi_v_qevent = tcvphy_reg (phy, option, INFO_PHYS_RF24L01);
 
 	/* Both parts are initially active */
 	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
 	LEDI (3, 0);
-	zzv_rxoff = zzv_txoff = 1;
+	__pi_v_rxoff = __pi_v_txoff = 1;
 	/* Initialize the device */
 	ini_regs;
 	boot ();
@@ -420,23 +420,23 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = ((zzv_txoff == 0) << 1) | (zzv_rxoff == 0);
+		ret = ((__pi_v_txoff == 0) << 1) | (__pi_v_rxoff == 0);
 		if (val != NULL)
 			*val = ret;
 		break;
 
 	    case PHYSOPT_TXON:
 
-		zzv_txoff = 0;
+		__pi_v_txoff = 0;
 		LEDI (0, 1);
 		if (!running (xmtradio))
 			runthread (xmtradio);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_RXON:
 
-		zzv_rxoff = 0;
+		__pi_v_rxoff = 0;
 		LEDI (3, 1);
 		if (!running (rcvradio))
 			runthread (rcvradio);
@@ -446,21 +446,21 @@ static int option (int opt, address val) {
 	    case PHYSOPT_TXOFF:
 
 		/* Drain */
-		zzv_txoff = 2;
+		__pi_v_txoff = 2;
 		LEDI (0, 0);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_TXHOLD:
 
-		zzv_txoff = 1;
+		__pi_v_txoff = 1;
 		LEDI (0, 0);
-		trigger (zzv_qevent);
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
-		zzv_rxoff = 1;
+		__pi_v_rxoff = 1;
 		LEDI (3, 0);
 		trigger (rxevent);
 		break;
@@ -469,30 +469,30 @@ static int option (int opt, address val) {
 
 		/* Force an explicit backoff */
 		if (val == NULL)
-			zzx_backoff = 0;
+			__pi_x_backoff = 0;
 		else
-			zzx_backoff = *val;
-		trigger (zzv_qevent);
+			__pi_x_backoff = *val;
+		trigger (__pi_v_qevent);
 		break;
 
 	    case PHYSOPT_SETPOWER:
 
-		zzx_power &= ~0x3;
+		__pi_x_power &= ~0x3;
 		if (val == NULL || *val >= (256/4)*3)
-			zzx_power |= 3;	// Max
+			__pi_x_power |= 3;	// Max
 		else if (*val >= (256/4)*2)
-			zzx_power |= 2;
+			__pi_x_power |= 2;
 		else if (*val >= (256/4)*1)
-			zzx_power |= 1;
+			__pi_x_power |= 1;
 		reboot ();
 		break;
 
 	    case PHYSOPT_SETPAYLEN:
 
 		if (val == NULL)
-			zzv_paylen = 28;	// Default and max
+			__pi_v_paylen = 28;	// Default and max
 		else if (*val > 0 && *val < 29)
-			zzv_paylen = (byte) *val;
+			__pi_v_paylen = (byte) *val;
 		else
 			syserror (EREQPAR, "phys_rf24g paylen");
 		reboot ();
@@ -501,29 +501,29 @@ static int option (int opt, address val) {
 	    case PHYSOPT_SETGROUP:
 
 		if (val == NULL)
-			zzv_group = 0;
+			__pi_v_group = 0;
 		else
-			zzv_group = (byte) *val;
+			__pi_v_group = (byte) *val;
 		reboot ();
 		break;
 
 	    case PHYSOPT_SETCHANNEL:
 
 		if (val == NULL)
-			zzv_channel = 0;
+			__pi_v_channel = 0;
 		else
-			zzv_channel = (byte) *val;
+			__pi_v_channel = (byte) *val;
 		reboot ();
 		break;
 
 	    case PHYSOPT_SETSID:
 
-		zzv_statid = (val == NULL) ? 0 : *val;
+		__pi_v_statid = (val == NULL) ? 0 : *val;
 		break;
 
             case PHYSOPT_GETSID:
 
-		ret = (int) zzv_statid;
+		ret = (int) __pi_v_statid;
 		if (val != NULL)
 			*val = ret;
 		break;

@@ -335,7 +335,7 @@ int dmons [N_DMONS];
 #define	DM_UNDER	2
 #define	DM_OVER		3
 
-extern word zz_old, zz_new, zz_mintk;
+extern word __pi_old, __pi_new, __pi_mintk;
 
 strand (delay_monitor, dmon_data_t)
 
@@ -372,7 +372,8 @@ strand (delay_monitor, dmon_data_t)
 
 		ser_outf (DM_UNDER, "UNDERDELAY%u: %u %u %u %u %u\r\n",
 			data - dmond,
-			data->lastdel, data->elapsed, zz_old, zz_new, zz_mintk);
+			data->lastdel, data->elapsed,
+			__pi_old, __pi_new, __pi_mintk);
 
 		proceed (DM_START);
 
@@ -380,7 +381,8 @@ strand (delay_monitor, dmon_data_t)
 
 		ser_outf (DM_OVER, "OVERDELAY%u: %u %u %u %u %u\r\n",
 			data - dmond,
-			data->lastdel, data->elapsed, zz_old, zz_new, zz_mintk);
+			data->lastdel, data->elapsed,
+			__pi_old, __pi_new, __pi_mintk);
 
 		proceed (DM_START);
 			

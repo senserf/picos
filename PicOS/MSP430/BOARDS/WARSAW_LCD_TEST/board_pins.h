@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -111,4 +111,4 @@ REQUEST_EXTERNAL (p2irq);
 
 // ============================================================================
 
-#define	EXTRA_INITIALIZERS	zz_lcdg_init ()
+#define	EXTRA_INITIALIZERS	__pi_lcdg_init ()

@@ -1,7 +1,7 @@
 #ifndef	__pg_cc1000_h
 #define	__pg_cc1000_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -85,7 +85,7 @@
 #define	IRQ_RCV		8	// Receiving packet
 #define	IRQ_RTR		9	// Receiving end-of-word trailer
 
-#define	gbackoff	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+#define	gbackoff	(__pi_x_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
 //
 // Any pin-actions required by the physical radio setup, e.g., antenna switching
@@ -103,36 +103,36 @@
 #endif
 
 #define	start_rcv	do { \
-				zzv_prmble = 0; \
-				zzv_curbit = 0; \
-				zzr_length = 0; \
-				zzv_istate = IRQ_RPR; \
-				zzv_status = GP_INT_RCV; \
+				__pi_v_prmble = 0; \
+				__pi_v_curbit = 0; \
+				__pi_r_length = 0; \
+				__pi_v_istate = IRQ_RPR; \
+				__pi_v_status = GP_INT_RCV; \
 			} while (0)
 
 #define	start_xmt	do { \
 				LEDI (1, 1); \
-				zzv_curbit = 0; \
-				zzv_prmble = PREAMBLE_LENGTH; \
-				zzv_istate = IRQ_XPR; \
-				zzv_status = GP_INT_XMT; \
+				__pi_v_curbit = 0; \
+				__pi_v_prmble = PREAMBLE_LENGTH; \
+				__pi_v_istate = IRQ_XPR; \
+				__pi_v_status = GP_INT_XMT; \
 			} while (0)
 
 #define	end_rcv		CNOP
 
-#define receiver_busy	(zzv_istate == IRQ_RCV || zzv_istate == IRQ_RTR)
-#define	receiver_active	(zzv_status == GP_INT_RCV)
-#define	xmitter_active	(zzv_status == GP_INT_XMT)
+#define receiver_busy	(__pi_v_istate == IRQ_RCV || __pi_v_istate == IRQ_RTR)
+#define	receiver_active	(__pi_v_status == GP_INT_RCV)
+#define	xmitter_active	(__pi_v_status == GP_INT_XMT)
 
-extern word	*zzr_buffer, *zzr_buffp, *zzr_buffl, zzr_length,
-		*zzx_buffer, *zzx_buffp, *zzx_buffl, zzv_curbit,
-		zzv_status, zzv_prmble,	zzv_istate,
-		zzv_qevent, zzv_physid, zzv_statid,
-		zzx_backoff;
+extern word	*__pi_r_buffer, *__pi_r_buffp, *__pi_r_buffl, __pi_r_length,
+		*__pi_x_buffer, *__pi_x_buffp, *__pi_x_buffl, __pi_v_curbit,
+		__pi_v_status, __pi_v_prmble, __pi_v_istate,
+		__pi_v_qevent, __pi_v_physid, __pi_v_statid,
+		__pi_x_backoff;
 
-extern byte 	zzv_rxoff, zzv_txoff, zzv_hstat, zzx_power;
+extern byte 	__pi_v_rxoff, __pi_v_txoff, __pi_v_hstat, __pi_x_power;
 
-#define	rxevent	((word)&zzr_buffer)
-#define	txevent	((word)&zzx_buffer)
+#define	rxevent	((word)&__pi_r_buffer)
+#define	txevent	((word)&__pi_x_buffer)
 
 #endif

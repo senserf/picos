@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -15,20 +15,20 @@ word pin_read (word pin) {
  * Bit 2 == pin is analog (bit 1 tells whether DAC (1) or ADC (0))
  * Bit 3 == pin is unavailable
  */
-	if (!zz_pin_available (pin))
+	if (!__pi_pin_available (pin))
 		return 8;
 
 	// Mind the order of testing
-	if (zz_pin_dac (pin))
+	if (__pi_pin_dac (pin))
 		return 6;			// Analog + output
 
-	if (zz_pin_adc (pin))
+	if (__pi_pin_adc (pin))
 		return 4;			// Analog + input
 
-	if (zz_pin_output (pin))
-		return zz_pin_ovalue (pin) | 2;	// Output
+	if (__pi_pin_output (pin))
+		return __pi_pin_ovalue (pin) | 2;	// Output
 
-	return zz_pin_ivalue (pin);		// Input
+	return __pi_pin_ivalue (pin);		// Input
 }
 
 int pin_write (word pin, word val) {
@@ -37,36 +37,36 @@ int pin_write (word pin, word val) {
  * Bit 1 == set pin to IN
  * Bit 2 == set pin to analog (bit 1 tells whether DAC (0) or ADC (1))
  */
-	if (!zz_pin_available (pin))
+	if (!__pi_pin_available (pin))
 		return ERROR;
 
 	if ((val & 4)) {
 #if PIN_DAC_PINS
 		if ((val & 2) == 0) {
-			if (!zz_pin_dac_available (pin))
+			if (!__pi_pin_dac_available (pin))
 				return ERROR;
-			zz_set_dac (pin);
+			__pi_set_dac (pin);
 		} else
 #endif
 		{
-			if (!zz_pin_adc_available (pin))
+			if (!__pi_pin_adc_available (pin))
 				return ERROR;
-			zz_pin_set_adc (pin);
+			__pi_pin_set_adc (pin);
 		}
 		return 0;
 	}
 
 	if ((val & 2)) {
 		// Set to digital IN
-		zz_pin_set_input (pin);
+		__pi_pin_set_input (pin);
 		return 0;
 	}
 
 	if (val)
-		zz_pin_set (pin);
+		__pi_pin_set (pin);
 	else
-		zz_pin_clear (pin);
-	zz_pin_set_output (pin);
+		__pi_pin_clear (pin);
+	__pi_pin_set_output (pin);
 	return 0;
 }
 
@@ -81,10 +81,10 @@ int pin_read_adc (word state, word pin, word ref, word smpt) {
 
 	int res;
 
-	if (!zz_pin_adc_available (pin))
+	if (!__pi_pin_adc_available (pin))
 		return -1;
 
-	zz_clear_dac (pin);
+	__pi_clear_dac (pin);
 
 	if (adc_inuse) {
 #if 0
@@ -133,9 +133,9 @@ int pin_write_dac (word pin, word val, word ref) {
  * ref = 1 -> 3x Vref
  */
 #if PIN_DAC_PINS
-	if (!zz_pin_dac_available (pin))
+	if (!__pi_pin_dac_available (pin))
 		return -1;
-	zz_write_dac (pin, val, ref);
+	__pi_write_dac (pin, val, ref);
 	return 0;
 #else
 	return -1;

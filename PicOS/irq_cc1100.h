@@ -1,7 +1,7 @@
 #ifndef __pg_irq_cc1100_h
 #define __pg_irq_cc1100_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -13,7 +13,7 @@ if (cc1100_int) {
 
     rcv_disable_int;
 
-    p_trigger (zzv_drvprcs, ETYPE_USER, zzv_qevent);
+    p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
 
     RISE_N_SHINE;
 }

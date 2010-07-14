@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -16,12 +16,13 @@ if (P2IFG & P2_PINS_INTERRUPT_MASK) {
 	RISE_N_SHINE;
 }
 
-if (zz_cma_3000_int) {
+if (__pi_cma_3000_int) {
 
-	zz_cma_3000_disable;
-	zz_cma_3000_clear;
-	if (zz_cma_3000_event_thread)
-		ptrigger (zz_cma_3000_event_thread, &zz_cma_3000_event_thread);
+	__pi_cma_3000_disable;
+	__pi_cma_3000_clear;
+	if (__pi_cma_3000_event_thread)
+		ptrigger (__pi_cma_3000_event_thread,
+			&__pi_cma_3000_event_thread);
 		
 }
 

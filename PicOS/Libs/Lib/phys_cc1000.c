@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -13,29 +13,29 @@ static int option (int, address);
  * because interrupts will have to access this at CC1000's data clock rate.
  */
 				// Pointer to static reception buffer
-word		*zzr_buffer = NULL,
-		*zzr_buffp,	// Pointer to next buffer word; also used to
+word		*__pi_r_buffer = NULL,
+		*__pi_r_buffp,	// Pointer to next buffer word; also used to
 				// indicate that a reception is pending
-		*zzr_buffl,	// Pointer to LWA+1 of buffer area
-		zzr_length,	// Length of received packet in words; this
+		*__pi_r_buffl,	// Pointer to LWA+1 of buffer area
+		__pi_r_length,	// Length of received packet in words; this
 				// is set after a complete reception
-		*zzx_buffer,	// Pointer to dynamic transmission buffer
-		*zzx_buffp,	// Next buffer word
-		*zzx_buffl,	// LWA+1 of xmit buffer
-		zzv_curbit,	// Current bit index
-		zzv_status,	// Current interrupt mode (rcv/xmt/off)
-		zzv_prmble,	// Preamble counter
-		zzv_qevent,
-		zzv_physid,
-		zzv_statid,
-		zzx_backoff;	// Calculated backoff for xmitter
+		*__pi_x_buffer,	// Pointer to dynamic transmission buffer
+		*__pi_x_buffp,	// Next buffer word
+		*__pi_x_buffl,	// LWA+1 of xmit buffer
+		__pi_v_curbit,	// Current bit index
+		__pi_v_status,	// Current interrupt mode (rcv/xmt/off)
+		__pi_v_prmble,	// Preamble counter
+		__pi_v_qevent,
+		__pi_v_physid,
+		__pi_v_statid,
+		__pi_x_backoff;	// Calculated backoff for xmitter
 
-word 		zzv_istate = IRQ_OFF;
+word 		__pi_v_istate = IRQ_OFF;
 
-byte 		zzv_rxoff,
-		zzv_txoff,
-		zzv_hstat,
-		zzx_power;
+byte 		__pi_v_rxoff,
+		__pi_v_txoff,
+		__pi_v_hstat,
+		__pi_x_power;
 
 #if CC1000_FREQ == 868
 
@@ -309,7 +309,7 @@ static void xmt_enable_warm (void) {
 	// Program VCO current for TX (why do we have to do it twice PG?)
 	chp_wconf (CC1000_CURRENT, TX_CURRENT);
 	// Set transmit power
-	chp_wconf (CC1000_PA_POW, zzx_power);
+	chp_wconf (CC1000_PA_POW, __pi_x_power);
 	// Switch the transmitter on
 	chp_wconf (CC1000_MAIN, 0xE1);
 }
@@ -512,7 +512,7 @@ static void hstat (word status) {
 /*
  * Change chip status: xmt, rcv, sleep
  */
-	if (zzv_hstat == status)
+	if (__pi_v_hstat == status)
 		return;
 
 	switch (status) {
@@ -525,7 +525,7 @@ static void hstat (word status) {
 		case HSTAT_RCV:
 			pins_rf_enable_rcv;
 			chp_pdioin;
-			if (zzv_hstat == HSTAT_SLEEP)
+			if (__pi_v_hstat == HSTAT_SLEEP)
 				rcv_enable_cold ();
 			else
 				rcv_enable_warm ();
@@ -533,14 +533,14 @@ static void hstat (word status) {
 		default:
 			pins_rf_enable_xmt;
 			chp_pdioout;
-			if (zzv_hstat == HSTAT_SLEEP)
+			if (__pi_v_hstat == HSTAT_SLEEP)
 				xmt_enable_cold ();
 			else
 				xmt_enable_warm ();
 			break;
 	}
 
-	zzv_hstat = status;
+	__pi_v_hstat = status;
 }
 
 /* ========================================= */
@@ -604,7 +604,7 @@ void phys_cc1000 (int phy, int mbs, int bau) {
  * mbs  - maximum packet length (excluding checksum, must be divisible by 4)
  * bau  - baud rate /100 (default assumed if zero)
  */
-	if (zzr_buffer != NULL)
+	if (__pi_r_buffer != NULL)
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "phys_cc1000");
 
@@ -618,27 +618,27 @@ void phys_cc1000 (int phy, int mbs, int bau) {
 	/* For reading RSSI */
 	adc_config_rssi;
 
-	if ((zzr_buffer = umalloc (mbs)) == NULL)
+	if ((__pi_r_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_cc1000 (b)");
 
 	/* This is static and will never change */
-	zzr_buffl = zzr_buffer + (mbs >> 1);
+	__pi_r_buffl = __pi_r_buffer + (mbs >> 1);
 	/* This also indicates that there's no pending reception */
-	zzr_buffp = 0;
+	__pi_r_buffp = 0;
 
-	zzv_status = 0;
+	__pi_v_status = 0;
 
-	zzx_power = RADIO_DEF_XPOWER;
+	__pi_x_power = RADIO_DEF_XPOWER;
 
-	zzv_statid = 0;
-	zzv_physid = phy;
-	zzx_backoff = 0;
+	__pi_v_statid = 0;
+	__pi_v_physid = phy;
+	__pi_x_backoff = 0;
 
 	/* Register the phy */
-	zzv_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1000);
+	__pi_v_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1000);
 
 	/* Both parts are initially inactive */
-	zzv_rxoff = zzv_txoff = 1;
+	__pi_v_rxoff = __pi_v_txoff = 1;
 	LEDI (0, 0);
 	LEDI (1, 0);
 	LEDI (2, 0);
@@ -646,7 +646,7 @@ void phys_cc1000 (int phy, int mbs, int bau) {
 	/* Start the device */
 	ini_cc1000 (bau);
 
-	zzv_hstat = HSTAT_SLEEP;
+	__pi_v_hstat = HSTAT_SLEEP;
 
 	if (run_rf_driver () == 0)
 		syserror (ERESOURCE, "phys_cc1000");
@@ -664,20 +664,20 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SENSE:
 
-		ret = (zzv_status != 0);
+		ret = (__pi_v_status != 0);
 		break;
 
 	    case PHYSOPT_SETPOWER:
 
 		if (val == NULL || *val == 0)
-			zzx_power = RADIO_DEF_XPOWER;
+			__pi_x_power = RADIO_DEF_XPOWER;
 		else
-			zzx_power = (*val) > 0xff ? 0xff : (byte) (*val);
+			__pi_x_power = (*val) > 0xff ? 0xff : (byte) (*val);
 		break;
 
 	    case PHYSOPT_GETPOWER:
 
-		ret = (int) zzx_power;
+		ret = (int) __pi_x_power;
 
 		if (val != NULL)
 			*val = ret;

@@ -1,7 +1,7 @@
 #ifndef	__pg_cc1000_sys_h
 #define	__pg_cc1000_sys_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -83,8 +83,8 @@ REQUEST_EXTERNAL (p1irq);
 #define	hard_lock	clr_xcv_int
 
 #define	hard_drop	do { \
-				if (zzv_status) { \
-					if ((zzv_status & 0x01)) \
+				if (__pi_v_status) { \
+					if ((__pi_v_status & 0x01)) \
 						set_xmt_int; \
 					else \
 						set_rcv_int; \

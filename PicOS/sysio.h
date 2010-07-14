@@ -173,13 +173,13 @@
 
 #if	CC1000
 
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#ifdef	__pi_RADIO_DRIVER_PRESENT
 #error	"S: CC1000 cannot coexist with any other radio driver"
 #else
-#define	ZZ_RADIO_DRIVER_PRESENT	1
+#define	__pi_RADIO_DRIVER_PRESENT	1
 #endif
 
-#define	ZZ_TCV_REQUIRED		1
+#define	__pi_TCV_REQUIRED		1
 
 //+++ "phys_cc1000.c"
 
@@ -187,13 +187,13 @@
 
 #if	CC1100
 
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#ifdef	__pi_RADIO_DRIVER_PRESENT
 #error	"S: CC1100 cannot coexist with any other radio driver"
 #else
-#define	ZZ_RADIO_DRIVER_PRESENT	1
+#define	__pi_RADIO_DRIVER_PRESENT	1
 #endif
 
-#define	ZZ_TCV_REQUIRED		1
+#define	__pi_TCV_REQUIRED		1
 
 //+++ "phys_cc1100.c"
 
@@ -201,13 +201,13 @@
 
 #if	RF24L01
 
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#ifdef	__pi_RADIO_DRIVER_PRESENT
 #error	"S: RF24L01 cannot coexist with any other radio driver"
 #else
-#define	ZZ_RADIO_DRIVER_PRESENT	1
+#define	__pi_RADIO_DRIVER_PRESENT	1
 #endif
 
-#define	ZZ_TCV_REQUIRED		1
+#define	__pi_TCV_REQUIRED		1
 
 //+++ "phys_rf24l01.c"
 
@@ -216,13 +216,13 @@
 
 #if	DM2100
 
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#ifdef	__pi_RADIO_DRIVER_PRESENT
 #error	"S: DM2100 cannot coexist with any other radio driver"
 #else
-#define	ZZ_RADIO_DRIVER_PRESENT	1
+#define	__pi_RADIO_DRIVER_PRESENT	1
 #endif
 
-#define	ZZ_TCV_REQUIRED		1
+#define	__pi_TCV_REQUIRED		1
 
 //+++ "phys_dm2100.c"
 
@@ -230,13 +230,13 @@
 
 #if	DM2200
 
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#ifdef	__pi_RADIO_DRIVER_PRESENT
 #error	"S: DM2200 cannot coexist with any other radio driver"
 #else
-#define	ZZ_RADIO_DRIVER_PRESENT	1
+#define	__pi_RADIO_DRIVER_PRESENT	1
 #endif
 
-#define	ZZ_TCV_REQUIRED		1
+#define	__pi_TCV_REQUIRED		1
 
 //+++ "phys_dm2200.c"
 
@@ -244,28 +244,28 @@
 
 #if	RF24G
 
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#ifdef	__pi_RADIO_DRIVER_PRESENT
 #error	"S: RF24G cannot coexist with any other radio driver"
 #else
-#define	ZZ_RADIO_DRIVER_PRESENT	1
+#define	__pi_RADIO_DRIVER_PRESENT	1
 #endif
 
-#define	ZZ_TCV_REQUIRED		1
+#define	__pi_TCV_REQUIRED		1
 
 //+++ "phys_rf24g.c"
 
 #endif	/* RF24G */
 
-#ifdef	ZZ_RADIO_DRIVER_PRESENT
+#ifdef	__pi_RADIO_DRIVER_PRESENT
 
 #if	RANDOM_NUMBER_GENERATOR == 0
 #undef	RANDOM_NUMBER_GENERATOR
 #define	RANDOM_NUMBER_GENERATOR	1
 #endif
 
-#endif	/* ZZ_RADIO_DRIVER_PRESENT */
+#endif	/* __pi_RADIO_DRIVER_PRESENT */
 
-#ifdef	ZZ_TCV_REQUIRED
+#ifdef	__pi_TCV_REQUIRED
 #if	TCV_PRESENT == 0
 #error	"S: TCV is required but has been explicitly removed from configuration"
 #endif
@@ -420,77 +420,77 @@ int	root (word state, address data);
 
 typedef	int (*code_t)(word, address);
 
-void		zzz_uwait (word, word);
-int		zzz_utrigger (word), zzz_ptrigger (sint, word);
-sint		zzz_fork (code_t func, address data);
+void		__pi_uwait (word, word);
+int		__pi_utrigger (word), __pi_ptrigger (sint, word);
+sint		__pi_fork (code_t func, address data);
 void		reset (void) __NORETURN__ ;
 void		halt (void) __NORETURN__ ;
 
 void		savedata (void*);
 
-int		zzz_strlen (const char*);
-void		zzz_strcpy (char*, const char*);
-void		zzz_strncpy (char*, const char*, int);
-void		zzz_strcat (char*, const char*);
-void		zzz_strncat (char*, const char*, int);
-void		zzz_memcpy (char *dest, const char *src, int);
-void		zzz_memset (char *dest, char c, int);
+int		__pi_strlen (const char*);
+void		__pi_strcpy (char*, const char*);
+void		__pi_strncpy (char*, const char*, int);
+void		__pi_strcat (char*, const char*);
+void		__pi_strncat (char*, const char*, int);
+void		__pi_memcpy (char *dest, const char *src, int);
+void		__pi_memset (char *dest, char c, int);
 
-extern 	const char	zz_hex_enc_table [];
-#define	HEX_TO_ASCII(p)		(zz_hex_enc_table [(p) & 0xf])
+extern 	const char	__pi_hex_enc_table [];
+#define	HEX_TO_ASCII(p)		(__pi_hex_enc_table [(p) & 0xf])
 
 #if	MALLOC_SINGLEPOOL
 
-address			zzz_malloc (word);
-void			zzz_free (address);
-void			zzz_waitmem (word);
+address			__pi_malloc (word);
+void			__pi_free (address);
+void			__pi_waitmem (word);
 
 #if	MALLOC_STATS
-word			zzz_memfree (address);
-word			zzz_maxfree (address);
-#define	memfree(p,s)	zzz_memfree (s)
-#define	maxfree(p,s)	zzz_maxfree (s)
+word			__pi_memfree (address);
+word			__pi_maxfree (address);
+#define	memfree(p,s)	__pi_memfree (s)
+#define	maxfree(p,s)	__pi_maxfree (s)
 #endif
 
-#define	free(p,s)	zzz_free ((address)(s))
-#define	malloc(p,s)	zzz_malloc (s)
-#define	waitmem(p,t)	zzz_waitmem (t)
+#define	free(p,s)	__pi_free ((address)(s))
+#define	malloc(p,s)	__pi_malloc (s)
+#define	waitmem(p,t)	__pi_waitmem (t)
 
 #else	/* MALLOC_SINGLEPOOL */
 
-address			zzz_malloc (int, word);
-void			zzz_free (int, address);
-void			zzz_waitmem (int, word);
+address			__pi_malloc (int, word);
+void			__pi_free (int, address);
+void			__pi_waitmem (int, word);
 #if	MALLOC_STATS
-word			zzz_memfree (int, address);
-word			zzz_maxfree (int, address);
-#define	memfree(p,s)	zzz_memfree (p, s)
-#define	maxfree(p,s)	zzz_maxfree (p, s)
+word			__pi_memfree (int, address);
+word			__pi_maxfree (int, address);
+#define	memfree(p,s)	__pi_memfree (p, s)
+#define	maxfree(p,s)	__pi_maxfree (p, s)
 #endif
-#define	free(p,s)	zzz_free (p, (address)(s))
-#define	malloc(p,s)	zzz_malloc (p,s)
-#define	waitmem(p,t)	zzz_waitmem (p, t)
+#define	free(p,s)	__pi_free (p, (address)(s))
+#define	malloc(p,s)	__pi_malloc (p,s)
+#define	waitmem(p,t)	__pi_waitmem (p, t)
 
 #endif	/* MALLOC_SINGLEPOOL */
 
 #if	STACK_GUARD
-word			zzz_stackfree (void);
-#define	stackfree()	zzz_stackfree ()
+word			__pi_stackfree (void);
+#define	stackfree()	__pi_stackfree ()
 #endif
 
 #define	staticsize()	STATIC_LENGTH
 
 #if	DIAG_MESSAGES > 1
 
-void		zzz_syserror (int, const char*) __NORETURN__ ;
-#define		syserror(a,b)	zzz_syserror (a, b)
+void		__pi_syserror (int, const char*) __NORETURN__ ;
+#define		syserror(a,b)	__pi_syserror (a, b)
 #define		sysassert(a,b)	do { \
 					if (!(a)) syserror (EASSERT, b); \
 				} while (0)
 #else
 
-void		zzz_syserror (int) __NORETURN__ ;
-#define		syserror(a,b)	zzz_syserror (a)
+void		__pi_syserror (int) __NORETURN__ ;
+#define		syserror(a,b)	__pi_syserror (a)
 #define		sysassert(a,b)
 #endif
 
@@ -563,8 +563,8 @@ void		dmp_mem (void);
 				} \
 			} while (0)
 						
-#define	fastblink(a)	(zz_systat.fstblk = ((a) != 0))
-#define is_fastblink    (zz_systat.fstblk != 0)
+#define	fastblink(a)	(__pi_systat.fstblk = ((a) != 0))
+#define is_fastblink    (__pi_systat.fstblk != 0)
 
 #define	all_leds_blink	do { leds_on; mdelay (200); leds_off; mdelay (200); } \
 				while (0)
@@ -619,7 +619,7 @@ int	io (int, int, int, char*, int);
 #endif	/* MAX_DEVICES */
 
 /* User wait */
-#define	wait(a,b)	zzz_uwait ((word)(a),b)
+#define	wait(a,b)	__pi_uwait ((word)(a),b)
 /* A prefered alias */
 #define	when(a,b)	wait (a,b)
 
@@ -628,8 +628,8 @@ void	delay (word, word);
 word	dleft (sint);
 
 /* Signal trigger: returns the number of awakened processes */
-#define	trigger(a)	zzz_utrigger ((word)(a))
-#define	ptrigger(a,b)	zzz_ptrigger (a, (word)(b))
+#define	trigger(a)	__pi_utrigger ((word)(a))
+#define	ptrigger(a,b)	__pi_ptrigger (a, (word)(b))
 /* Kill the indicated process */
 sint	kill (sint);
 /* Kill all processes running this code */
@@ -643,7 +643,7 @@ void	joinall (code_t, word);
 sint	running (code_t);
 int	crunning (code_t);
 /* Locate a process by code and data */
-sint	zzz_find (code_t, address);
+sint	__pi_find (code_t, address);
 /* Locate a zombie by code */
 sint	zombie (code_t);
 /* Check for waiting or being a zombie */
@@ -658,8 +658,8 @@ void	powerup (void), powerdown (void);
 void	utimer_add (address), utimer_delete (address);
 
 #if TRIPLE_CLOCK
-void zz_utimer_set (address, word);
-#define	utimer_set(a,v)	zz_utimer_set (&(a), v)
+void __pi_utimer_set (address, word);
+#define	utimer_set(a,v)	__pi_utimer_set (&(a), v)
 #else
 #define	utimer_set(a,v)	((a) = v)
 #endif
@@ -671,13 +671,13 @@ lword	seconds (void);
 #else
 // On MSP430, these are defined (conditionally) in mach.h
 // void	clockup (void), clockdown (void);
-#define	seconds()	zz_nseconds
-extern	byte		zz_mincd;
+#define	seconds()	__pi_nseconds
+extern	byte		__pi_mincd;
 #endif
 
-extern	lword		zz_nseconds;
+extern	lword		__pi_nseconds;
 
-#define	setseconds(a)	(zz_nseconds = (lword) (a));
+#define	setseconds(a)	(__pi_nseconds = (lword) (a));
 
 /* Spin delay */
 void	udelay (word);
@@ -691,21 +691,21 @@ void	freeze (word);
 
 #define	finish		kill (0)
 #define	hang		kill (-1)
-#define	fork(p,d)	zzz_fork (p, (address)(d))
-#define	find(p,d)	zzz_find (p, (address)(d))
+#define	fork(p,d)	__pi_fork (p, (address)(d))
+#define	find(p,d)	__pi_find (p, (address)(d))
 #define	iszombie(p)	(status (p) == -1)
 #define	getcpid()	running (NULL)
 #define	ptleft()	crunning (NULL)
 
-#define	heapmem		const word zzz_heap [] =
+#define	heapmem		const word __pi_heap [] =
 
-#define	strlen(s)	zzz_strlen (s)
-#define	strcpy(a,b)	zzz_strcpy (a, b)
-#define	strncpy(a,b,c)	zzz_strncpy (a, b, c)
-#define	strcat(a,b) 	zzz_strcat (a, b)
-#define	strncat(a,b,c)	zzz_strncat (a, b, c)
-#define	memcpy(a,b,c)	zzz_memcpy ((char*)(a), (const char*)(b), c)
-#define	memset(a,b,c)	zzz_memset ((char*)(a), (char)(b), c)
+#define	strlen(s)	__pi_strlen (s)
+#define	strcpy(a,b)	__pi_strcpy (a, b)
+#define	strncpy(a,b,c)	__pi_strncpy (a, b, c)
+#define	strcat(a,b) 	__pi_strcat (a, b)
+#define	strncat(a,b,c)	__pi_strncat (a, b, c)
+#define	memcpy(a,b,c)	__pi_memcpy ((char*)(a), (const char*)(b), c)
+#define	memset(a,b,c)	__pi_memset ((char*)(a), (char)(b), c)
 #define	bzero(a,c)	memset ((char*)(a), 0, c)
 
 /* User malloc shortcut */
@@ -717,22 +717,22 @@ void	freeze (word);
 /* Actual size of an malloc'ed piece */
 #define	actsize(p)	(*(((word*)(p))-1) << 1)
 
-void zz_badstate (void);
+void __pi_badstate (void);
 
 /* Process operations */
-#define	process(p,d)	int p (word zz_st, address zz_da) { \
-				d *data = (d*) zz_da; \
-				switch (zz_st) {
+#define	process(p,d)	int p (word __pi_st, address __pi_da) { \
+				d *data = (d*) __pi_da; \
+				switch (__pi_st) {
 
 #define	strand(a,b)	process (a, b)
 
-#define	thread(p)	int p (word zz_st, address zz_dummy) { \
-				switch (zz_st) {
+#define	thread(p)	int p (word __pi_st, address __pi_dummy) { \
+				switch (__pi_st) {
 
 #define	endprocess(n)			break; \
 				    default: \
-					if (zz_st == WNONE) return (n); \
-					zz_badstate (); \
+					if (__pi_st == WNONE) return (n); \
+					__pi_badstate (); \
 				} return 1; }
 
 #define	endthread	endprocess (1)
@@ -903,16 +903,17 @@ extern	lword entropy;
 
 #if	RANDOM_NUMBER_GENERATOR > 1
 /* High quality */
-extern	lword zz_seed;
+extern	lword __pi_seed;
 
-#define	rnd()	(zz_seed = (1103515245 * zz_seed + 12345 + entropy) & 0x7fffff,\
-			(word) zz_seed)
+#define	rnd()	(__pi_seed = (1103515245 * __pi_seed + 12345 + entropy) & \
+			0x7fffff, (word) __pi_seed)
 
 #else	/* RANDOM_NUMBER_GENERATOR == 1 */
 /* Low quality */
-extern	word zz_seed;
+extern	word __pi_seed;
 
-#define	rnd()	(zz_seed = (zz_seed + (word) entropy + 1) * 12345, zz_seed)
+#define	rnd()	(__pi_seed = (__pi_seed + (word) entropy + 1) * 12345, \
+			__pi_seed)
 
 #endif	/* RANDOM_NUMBER_GENERATOR == 1 */
 

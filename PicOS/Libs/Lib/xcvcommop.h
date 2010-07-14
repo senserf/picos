@@ -5,14 +5,14 @@
 //
     case PHYSOPT_STATUS:
 
-	if (zzv_txoff == 0)
+	if (__pi_v_txoff == 0)
 		ret = 2;
-	if ((zzv_txoff & 1) == 0) {
+	if ((__pi_v_txoff & 1) == 0) {
 		// On or draining
-		if (zzx_buffer != NULL || tcvphy_top (zzv_physid) != NULL)
+		if (__pi_x_buffer != NULL || tcvphy_top (__pi_v_physid) != NULL)
 			ret |= 4;
 	}
-	if (zzv_rxoff == 0)
+	if (__pi_v_rxoff == 0)
 		ret++;
 ORet:
 	if (val != NULL)
@@ -21,18 +21,18 @@ ORet:
 
     case PHYSOPT_TXON:
 
-	zzv_txoff = 0;
-	if (zzv_rxoff)
+	__pi_v_txoff = 0;
+	if (__pi_v_rxoff)
 		LEDI (0, 1);
 	else
 		LEDI (0, 2);
-	trigger (zzv_qevent);
+	trigger (__pi_v_qevent);
 	break;
 
     case PHYSOPT_RXON:
 
-	zzv_rxoff = 0;
-	if (zzv_txoff)
+	__pi_v_rxoff = 0;
+	if (__pi_v_txoff)
 		LEDI (0, 1);
 	else
 		LEDI (0, 2);
@@ -42,28 +42,28 @@ ORet:
     case PHYSOPT_TXOFF:
 
 	/* Drain */
-	zzv_txoff = 2;
-	if (zzv_rxoff)
+	__pi_v_txoff = 2;
+	if (__pi_v_rxoff)
 		LEDI (0, 0);
 	else
 		LEDI (0, 1);
-	trigger (zzv_qevent);
+	trigger (__pi_v_qevent);
 	break;
 
     case PHYSOPT_TXHOLD:
 
-	zzv_txoff = 1;
-	if (zzv_rxoff)
+	__pi_v_txoff = 1;
+	if (__pi_v_rxoff)
 		LEDI (0, 0);
 	else
 		LEDI (0, 1);
-	trigger (zzv_qevent);
+	trigger (__pi_v_qevent);
 	break;
 
     case PHYSOPT_RXOFF:
 
-	zzv_rxoff = 1;
-	if (zzv_txoff)
+	__pi_v_rxoff = 1;
+	if (__pi_v_txoff)
 		LEDI (0, 0);
 	else
 		LEDI (0, 1);
@@ -72,8 +72,8 @@ ORet:
 		LEDI (2, 0);
 		// Force RCV interrupt reset: the receiver process may
 		// not be given a chance to run
-		zzv_status = 0;
-		zzv_istate = IRQ_OFF;
+		__pi_v_status = 0;
+		__pi_v_istate = IRQ_OFF;
 		disable_xcv_timer;
 	}
 	hard_drop;
@@ -85,24 +85,24 @@ ORet:
 
 	/* Force an explicit backoff */
 	if (val == NULL)
-		zzx_backoff = 0;
+		__pi_x_backoff = 0;
 	else
-		zzx_backoff = *val;
-	trigger (zzv_qevent);
+		__pi_x_backoff = *val;
+	trigger (__pi_v_qevent);
 	break;
 
     case PHYSOPT_SETSID:
 
-	zzv_statid = (val == NULL) ? 0 : *val;
+	__pi_v_statid = (val == NULL) ? 0 : *val;
 	break;
 
     case PHYSOPT_GETSID:
 
-	ret = (int) zzv_statid;
+	ret = (int) __pi_v_statid;
 	goto ORet;
 
     case PHYSOPT_GETMAXPL:
 
-	ret = (int) ((zzr_buffl - zzr_buffer - 1) << 1);
+	ret = (int) ((__pi_r_buffl - __pi_r_buffer - 1) << 1);
 	goto ORet;
 #endif

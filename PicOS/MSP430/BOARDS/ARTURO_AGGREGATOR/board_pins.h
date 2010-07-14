@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -56,7 +56,7 @@
 				SEN_POWER_ERE) \
 	}
 
-// Simplifies a bit the code in sensors.c; also - no call to zz_init_sensors
+// Simplifies a bit the code in sensors.c; also - no call to __pi_init_sensors
 // is required, nor digital (SENSOR_DIGITAL) processing has to be compiled in
 
 #define	SENSOR_ANALOG		// To make sure analog sensors are processed

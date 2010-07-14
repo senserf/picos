@@ -13,7 +13,7 @@
 		all_leds_blink; \
 		mdelay (2048); \
 		if (SOFT_RESET_BUTTON_PRESSED) { \
-			for (zz_mintk = 0; zz_mintk < 8; zz_mintk++) \
+			for (__pi_mintk = 0; __pi_mintk < 8; __pi_mintk++) \
 				all_leds_blink; \
 			MEMORY_ERASE_ACTION; \
 			all_leds_blink; \

@@ -36,8 +36,8 @@ static int option (int, address);
 #endif	/* UART_TCV > 1 */
 
 #if UART_RATE_SETTABLE
-Boolean zz_uart_setrate (word, uart_t*);
-word zz_uart_getrate (uart_t*);
+Boolean __pi_uart_setrate (word, uart_t*);
+word __pi_uart_getrate (uart_t*);
 #endif
 
 // ============================================================================
@@ -64,7 +64,7 @@ strand (rcvuart, uart_t)
 #if UART_TCV > 1
 #define	UA data
 #else
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
     entry (RC_LOOP)
@@ -143,7 +143,7 @@ strand (xmtuart, uart_t)
 #if UART_TCV > 1
 #define	UA data
 #else
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
     word stln;
@@ -180,11 +180,11 @@ Drain:
  */
 #if BLUETOOTH_PRESENT == 1
 	// On the first UART
-	if (UA == zz_uart && !blue_ready)
+	if (UA == __pi_uart && !blue_ready)
 		goto Drop;
 #else
 	// On the second UART
-	if (UA != zz_uart && !blue_ready)
+	if (UA != __pi_uart && !blue_ready)
 		goto Drop;
 #endif
 #endif /* BLUETOOTH_PRESENT */
@@ -218,7 +218,7 @@ endstrand;
 
 #if UART_TCV > 1
 static void ini_uart (uart_t *ua) {
-#define	WHICH	(ua == zz_uart ? 0 : 1)
+#define	WHICH	(ua == __pi_uart ? 0 : 1)
 #else
 static void ini_uart () {
 #define	WHICH	0
@@ -235,7 +235,7 @@ static void start_uart (uart_t *ua, word what) {
 #define	UA ua
 #else
 static void start_uart (word what) {
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
 	if (what & 0x1) {
@@ -268,9 +268,9 @@ void phys_uart (int phy, int mbs, int which) {
  */
 
 #if UART_TCV > 1
-#define	UA	(zz_uart + which)
+#define	UA	(__pi_uart + which)
 #else
-#define	UA	zz_uart
+#define	UA	__pi_uart
 #endif
 
 	if ((word)which >= UART_TCV)
@@ -308,7 +308,7 @@ void phys_uart (int phy, int mbs, int which) {
 	/* Register the phy */
 	UA->x_qevent = tcvphy_reg (phy,
 #if UART_TCV > 1
-		UA == zz_uart ? option0 : option1,
+		UA == __pi_uart ? option0 : option1,
 #else
 		option,
 #endif
@@ -333,15 +333,15 @@ void phys_uart (int phy, int mbs, int which) {
 
 #if UART_TCV > 1
 static int option0 (int opt, address val) {
-	return option (opt, val, zz_uart + 0);
+	return option (opt, val, __pi_uart + 0);
 }
 static int option1 (int opt, address val) {
-	return option (opt, val, zz_uart + 1);
+	return option (opt, val, __pi_uart + 1);
 }
 static int option (int opt, address val, uart_t *UA) {
 #else
 static int option (int opt, address val) {
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif	/* UART_TCV > 1 */
 /*
  * Option processing
@@ -409,7 +409,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETRATE:
 
-		if (zz_uart_setrate (*val, UA)) {
+		if (__pi_uart_setrate (*val, UA)) {
 			ret = *val;
 			break;
 		}
@@ -417,7 +417,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_GETRATE:
 
-		ret = zz_uart_getrate (UA);
+		ret = __pi_uart_getrate (UA);
 		break;
 #endif
 	    case PHYSOPT_GETMAXPL:
@@ -466,7 +466,7 @@ strand (xmtuart, uart_t)
 #if UART_TCV > 1
 #define	UA data
 #else
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
     word stln;
@@ -588,7 +588,7 @@ strand (rcvuart, uart_t)
 #if UART_TCV > 1
 #define	UA data
 #else
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
     byte b;
@@ -688,10 +688,10 @@ static void ini_uart () {
 
 #if UART_TCV > 1
 static void start_uart (int which) {
-#define	UA zz_uart + which
+#define	UA __pi_uart + which
 #else
 static void start_uart () {
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 	// Note: ROFF is used as a global OFF flags
 	UA->v_flags &= ~UAFLG_ROFF;
@@ -715,9 +715,9 @@ void phys_uart (int phy, int mbs, int which) {
  */
 
 #if UART_TCV > 1
-#define	UA	zz_uart + which
+#define	UA	__pi_uart + which
 #else
-#define	UA	zz_uart
+#define	UA	__pi_uart
 #endif
 	if ((word)which >= UART_TCV)
 		syserror (EREQPAR, "phys_uart");
@@ -750,7 +750,7 @@ void phys_uart (int phy, int mbs, int which) {
 	/* Register the phy */
 	UA->x_qevent = tcvphy_reg (phy,
 #if UART_TCV > 1
-		UA == zz_uart ? option0 : option1,
+		UA == __pi_uart ? option0 : option1,
 #else
 		option,
 #endif
@@ -766,15 +766,15 @@ void phys_uart (int phy, int mbs, int which) {
 
 #if UART_TCV > 1
 static int option0 (int opt, address val) {
-	return option (opt, val, zz_uart + 0);
+	return option (opt, val, __pi_uart + 0);
 }
 static int option1 (int opt, address val) {
-	return option (opt, val, zz_uart + 1);
+	return option (opt, val, __pi_uart + 1);
 }
 static int option (int opt, address val, uart_t *UA) {
 #else
 static int option (int opt, address val) {
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif	/* UART_TCV > 1 */
 /*
  * Option processing
@@ -823,7 +823,7 @@ Wake:
 
 	    case PHYSOPT_SETRATE:
 
-		if (zz_uart_setrate (*val, UA)) {
+		if (__pi_uart_setrate (*val, UA)) {
 			ret = *val;
 			break;
 		}
@@ -831,7 +831,7 @@ Wake:
 
 	    case PHYSOPT_GETRATE:
 
-		ret = zz_uart_getrate (UA);
+		ret = __pi_uart_getrate (UA);
 		break;
 #endif
 
@@ -870,7 +870,7 @@ strand (rcvuart, uart_t)
 #if UART_TCV > 1
 #define	UA data
 #else
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
     entry (RC_LOOP)
@@ -908,7 +908,7 @@ strand (xmtuart, uart_t)
 #if UART_TCV > 1
 #define	UA data
 #else
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
     word stln;
@@ -945,11 +945,11 @@ Drain:
  */
 #if BLUETOOTH_PRESENT == 1
 	// On the first UART
-	if (UA == zz_uart && !blue_ready)
+	if (UA == __pi_uart && !blue_ready)
 		goto Drop;
 #else
 	// On the second UART
-	if (UA != zz_uart && !blue_ready)
+	if (UA != __pi_uart && !blue_ready)
 		goto Drop;
 #endif
 
@@ -977,7 +977,7 @@ endstrand;
 
 #if UART_TCV > 1
 static void ini_uart (uart_t *ua) {
-#define	WHICH	(ua == zz_uart ? 0 : 1)
+#define	WHICH	(ua == __pi_uart ? 0 : 1)
 #else
 static void ini_uart () {
 #define	WHICH	0
@@ -994,7 +994,7 @@ static void start_uart (uart_t *ua, word what) {
 #define	UA ua
 #else
 static void start_uart (word what) {
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif
 
 	if (what & 0x1) {
@@ -1027,9 +1027,9 @@ void phys_uart (int phy, int mbs, int which) {
  */
 
 #if UART_TCV > 1
-#define	UA	(zz_uart + which)
+#define	UA	(__pi_uart + which)
 #else
-#define	UA	zz_uart
+#define	UA	__pi_uart
 #endif
 
 	if ((word)which >= UART_TCV)
@@ -1065,7 +1065,7 @@ void phys_uart (int phy, int mbs, int which) {
 	/* Register the phy */
 	UA->x_qevent = tcvphy_reg (phy,
 #if UART_TCV > 1
-		UA == zz_uart ? option0 : option1,
+		UA == __pi_uart ? option0 : option1,
 #else
 		option,
 #endif
@@ -1089,15 +1089,15 @@ void phys_uart (int phy, int mbs, int which) {
 
 #if UART_TCV > 1
 static int option0 (int opt, address val) {
-	return option (opt, val, zz_uart + 0);
+	return option (opt, val, __pi_uart + 0);
 }
 static int option1 (int opt, address val) {
-	return option (opt, val, zz_uart + 1);
+	return option (opt, val, __pi_uart + 1);
 }
 static int option (int opt, address val, uart_t *UA) {
 #else
 static int option (int opt, address val) {
-#define	UA zz_uart
+#define	UA __pi_uart
 #endif	/* UART_TCV > 1 */
 /*
  * Option processing
@@ -1153,7 +1153,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_SETRATE:
 
-		if (zz_uart_setrate (*val, UA)) {
+		if (__pi_uart_setrate (*val, UA)) {
 			ret = *val;
 			break;
 		}
@@ -1161,7 +1161,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_GETRATE:
 
-		ret = zz_uart_getrate (UA);
+		ret = __pi_uart_getrate (UA);
 		break;
 #endif
 	    case PHYSOPT_GETMAXPL:
@@ -1185,12 +1185,12 @@ static int option (int opt, address val) {
 // Hooks for DIAG
 
 #if UART_TCV < 2
-#define	UA zz_uart
+#define	UA __pi_uart
 #define	DIAG_WAIT	diag_wait (a)
 #define	DIAG_WCHAR(c)	diag_wchar (c, a)
 #else
 
-#define UA (zz_uart + ua)
+#define UA (__pi_uart + ua)
 
 #define	DIAG_WAIT	do { \
 				if (ua) \
@@ -1207,7 +1207,7 @@ static int option (int opt, address val) {
 			} while (0)
 #endif
 
-void zz_diag_init (int ua) {
+void __pi_diag_init (int ua) {
 //
 // Preempt the UART for a diag message
 //
@@ -1245,7 +1245,7 @@ void zz_diag_init (int ua) {
 
 }
 
-void zz_diag_stop (int ua) { }
+void __pi_diag_stop (int ua) { }
 
 #undef	UA
 #undef	DIAG_WAIT

@@ -1,7 +1,7 @@
 #ifndef	__ethernet_h
 #define	__ethernet_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -175,7 +175,7 @@
 				((word*)ioaddr)) + (a)))
 #define	select(x)	outw (x, BANK_SELECT)
 
-#define	macaddr		(zzd_data->h_source)
+#define	macaddr		(__pi_d_data->h_source)
 
 #define	waitmmu(w)	do { w = inw (MMU_CMD_REG); } while ((w) & MC_BUSY)
 
@@ -236,11 +236,11 @@ typedef struct {
 	word	scratch [3];
 } ddata_t;
 
-extern ddata_t  *zzd_data;
+extern ddata_t  *__pi_d_data;
 
 #define soft_din	do { outw (0, INT_REG); tcv_hard_din; } while (0)
 #define soft_eni	do { \
 				tcv_hard_eni; \
-				outw (zzd_data->flags << 8, INT_REG); \
+				outw (__pi_d_data->flags << 8, INT_REG); \
 			} while (0)
 #endif

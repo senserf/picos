@@ -3,11 +3,11 @@
 #define	LED0_GPIO_BIT	0x0001
 #define	LED1_GPIO_BIT	0x1000
 
-#define	LED0_ON		ZZ_LEDS47 (LED0_GPIO_BIT)
-#define	LED1_ON		ZZ_LEDS03 (LED1_GPIO_BIT)
+#define	LED0_ON		__pi_LEDS47 (LED0_GPIO_BIT)
+#define	LED1_ON		__pi_LEDS03 (LED1_GPIO_BIT)
 
-#define	LED0_OFF	ZZ_LEDS47 (LED0_GPIO_BIT << 1)
-#define	LED1_OFF	ZZ_LEDS03 (LED1_GPIO_BIT << 1)
+#define	LED0_OFF	__pi_LEDS47 (LED0_GPIO_BIT << 1)
+#define	LED1_OFF	__pi_LEDS03 (LED1_GPIO_BIT << 1)
 
 #define	leds_enable	do { \
 			  rg.io.gp0_3_out = \

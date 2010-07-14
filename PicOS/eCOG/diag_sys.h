@@ -2,7 +2,7 @@
 #define	__pg_diag_sys_h
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -21,7 +21,7 @@
 #define	diag_disable_int(a,u)	uart_ ## a ## _disable_int
 
 #define	diag_enable_int(a,u)	do { \
-					if (zz_uart [0].lock == 0) { \
+					if (__pi_uart [0].lock == 0) { \
 					    uart_ ## a ## _enable_read_int; \
 					    uart_ ## a ## _enable_write_int; \
 					} \
@@ -35,14 +35,14 @@
 			        DUART_ ## a ## _STS_TX_RDY_MASK) \
 					== 0);
 
-#define	ZZ_DIAG_UNUMBER_a	0
-#define	ZZ_DIAG_UNUMBER_b	1
+#define	__pi_DIAG_UNUMBER_a	0
+#define	__pi_DIAG_UNUMBER_b	1
 
 // These two must be provided by the PHY
-void zz_diag_init (int), zz_diag_stop (int);
+void __pi_diag_init (int), __pi_diag_stop (int);
 
-#define	diag_disable_int(a,u)	zz_diag_init (ZZ_DIAG_UNUMBER_ ## a )
-#define	diag_enable_int(a,u)	zz_diag_stop (ZZ_DIAG_UNUMBER_ ## a )
+#define	diag_disable_int(a,u)	__pi_diag_init (__pi_DIAG_UNUMBER_ ## a )
+#define	diag_enable_int(a,u)	__pi_diag_stop (__pi_DIAG_UNUMBER_ ## a )
 
 #endif	/* DIAG_IMPLEMENTATION == 1 */
 

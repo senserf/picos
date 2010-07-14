@@ -1,7 +1,7 @@
 #ifndef	__pg_rf24g_h
 #define	__pg_rf24g_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -13,17 +13,18 @@
 #define	FLG_RCVI	0x40	/* Receiver interrupt enabled */
 #define	FLG_XMTE	0x20	/* Transmitter enabled */
 
-#define	stat_get(flg)	((zzx_power & flg) != 0)
-#define	stat_set(flg)	zzx_power |= (flg)
-#define	stat_clr(flg)	zzx_power &= ~(flg)
+#define	stat_get(flg)	((__pi_x_power & flg) != 0)
+#define	stat_set(flg)	__pi_x_power |= (flg)
+#define	stat_clr(flg)	__pi_x_power &= ~(flg)
 
-#define	gbackoff	(zzx_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+#define	gbackoff	(__pi_x_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
 
-extern word	*zzr_buffer, zzv_qevent, zzv_physid, zzv_statid, zzx_backoff;
+extern word	*__pi_r_buffer, __pi_v_qevent, __pi_v_physid, __pi_v_statid,
+		__pi_x_backoff;
 
-extern byte	zzv_paylen, zzx_power, zzv_group, zzv_channel, zzv_rxoff,
-		zzv_txoff;
+extern byte	__pi_v_paylen, __pi_x_power, __pi_v_group, __pi_v_channel,
+		__pi_v_rxoff, __pi_v_txoff;
 
-#define	rxevent	((word)&zzr_buffer)
+#define	rxevent	((word)&__pi_r_buffer)
 
 #endif

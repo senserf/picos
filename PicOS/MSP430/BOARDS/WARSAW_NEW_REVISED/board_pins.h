@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -159,7 +159,7 @@
 				_BIC (UCTL1, SWRST); \
 				mdelay (10); \
 				_BIS (P5OUT, 0x40); \
-				zz_uart [1] . flags = 0; \
+				__pi_uart [1] . flags = 0; \
 			} while (0)
 #endif
 
@@ -178,7 +178,7 @@
 				_BIC (UCTL1, SYNC + MM + SWRST); \
 				mdelay (10); \
 				_BIS (P5OUT, 0x40); \
-				zz_uart [1] . flags = 0; \
+				__pi_uart [1] . flags = 0; \
 			} while (0)
 
 #define	gps_bring_down	do { \

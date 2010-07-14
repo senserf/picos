@@ -67,7 +67,7 @@
 #define	chp_setdbit	(rg.io.gp12_15_out = IO_GP12_15_OUT_SET12_MASK)
 #define	chp_clrdbit	(rg.io.gp12_15_out = IO_GP12_15_OUT_CLR12_MASK)
 
-#define	hard_drop	rg.io.gp12_15_cfg |= zzv_status
+#define	hard_drop	rg.io.gp12_15_cfg |= __pi_v_status
 
 /*
  * ANA0 - VRef
