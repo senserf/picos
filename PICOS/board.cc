@@ -21,7 +21,7 @@
 //
 #define PPHASH_SIZE	4096
 
-const char	zz_hex_enc_table [] = {
+const char	__pi_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
@@ -203,7 +203,7 @@ void _dad (PicOSNode, diag) (const char *s, ...) {
 	trace ("DIAG: %s", ::vform (s, ap));
 }
 
-void zz_dbg (int x, word v) {
+void __pi_dbg (int x, word v) {
 
 	trace ("DBG: %1d == %04x / %1u", x, v, v);
 }
@@ -259,7 +259,7 @@ void _dad (PicOSNode, halt) () {
 	// Signal panel status change; note: no need to do that for reset
 	// because the status change is momentary and not perceptible by
 	// agents
-	zz_panel_signal (getId ());
+	__pi_panel_signal (getId ());
 	sleep;
 }
 
@@ -795,7 +795,8 @@ static word vfparse (char *res, word n, const char *fm, va_list ap) {
 				word val; int i;
 				val = va_arg (ap, int);
 				for (i = 12; ; i -= 4) {
-					outc (zz_hex_enc_table [(val>>i)&0xf]);
+					outc (__pi_hex_enc_table
+						[(val>>i)&0xf]);
 					if (i == 0)
 						break;
 				}
@@ -833,7 +834,7 @@ static word vfparse (char *res, word n, const char *fm, va_list ap) {
 					fm++;
 					val = va_arg (ap, lword);
 					for (i = 28; ; i -= 4) {
-						outc (zz_hex_enc_table
+						outc (__pi_hex_enc_table
 							[(val>>i)&0xf]);
 						if (i == 0)
 							break;
@@ -2915,7 +2916,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	return ND;
 }
 
-Boolean zz_validate_uart_rate (word rate) {
+Boolean __pi_validate_uart_rate (word rate) {
 
 	int i;
 
@@ -2958,7 +2959,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 			xeai ("rate", es, att);
 		// We store it in hundreds
 		UA->URate = (word) (len / 100);
-		if (!zz_validate_uart_rate (UA->URate))
+		if (!__pi_validate_uart_rate (UA->URate))
 			xeai ("rate", es, att);
 	}
 
@@ -4277,7 +4278,7 @@ void BoardRoot::initAll () {
 		if (parseNumbers (att, 1, np) != 1 || np [0] . LVal < 1 ||
 		    np [0] . LVal > 0x0000ffff)
 			xeai ("port", "<network>", att);
-		ZZ_Agent_Port = (word) (np [0] . LVal);
+		__pi_Agent_Port = (word) (np [0] . LVal);
 	}
 
 	initTiming (xml);
@@ -4495,12 +4496,12 @@ void hold (int st, lword sec) {
 	sleep;
 };
 
-sint zz_getcpid () {
+sint __pi_getcpid () {
 
 	return ThePPcs->ID;
 }
 
-sint zz_join (sint pid, word st) {
+sint __pi_join (sint pid, word st) {
 
 	Process *p;
 
@@ -4511,7 +4512,7 @@ sint zz_join (sint pid, word st) {
 	return pid;
 }
 
-sint zz_kill (sint pid) {
+sint __pi_kill (sint pid) {
 //
 // PicOS's variant of kill
 //
@@ -4550,7 +4551,7 @@ sint zz_kill (sint pid) {
 	return pid;
 }
 
-int zz_status (sint pid) {
+int __pi_status (sint pid) {
 //
 // PicOS's process status
 //
@@ -4576,7 +4577,7 @@ int zz_status (sint pid) {
 // links in _PP_.
 // ============================================================================
 
-sint zz_running (code_t tid) {
+sint __pi_running (code_t tid) {
 //
 // Return the ID of ANY running process of the given type
 //
@@ -4589,14 +4590,14 @@ sint zz_running (code_t tid) {
 	return 0;
 }
 
-void zz_joinall (code_t pt, word st) {
+void __pi_joinall (code_t pt, word st) {
 //
 // Wait for any process of the set
 //
 	TheNode->TB . wait ((IPointer) pt, st);
 }
 
-sint zz_zombie (code_t tid) {
+sint __pi_zombie (code_t tid) {
 //
 // Locate a zombie
 //
@@ -4623,7 +4624,7 @@ sint zz_zombie (code_t tid) {
 	return 0;
 }
 
-int zz_killall (code_t tid) {
+int __pi_killall (code_t tid) {
 
 	Process *P [16];
 	Long np, i, tot;
@@ -4642,7 +4643,7 @@ int zz_killall (code_t tid) {
 	}
 }
 
-int zz_crunning (code_t tid) {
+int __pi_crunning (code_t tid) {
 //
 // Count all running processes of the given type
 //

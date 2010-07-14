@@ -4,8 +4,8 @@
 #include "board.h"
 
 #define	rfi	(rf->RFInterface)
-#define	xbf	(rf->zzx_buffer)
-#define	rbf	(rf->zzr_buffer)
+#define	xbf	(rf->__pi_x_buffer)
+#define	rbf	(rf->__pi_r_buffer)
 #define	obf	(rf->OBuffer)
 #define	bkf	(rf->backoff)
 #define	txe	(rf->tx_event)

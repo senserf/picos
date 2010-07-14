@@ -244,7 +244,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	wtonl(w)	ntowl (w)
 
-#define	HEX_TO_ASCII(p)		(zz_hex_enc_table [(p) & 0xf])
+#define	HEX_TO_ASCII(p)		(__pi_hex_enc_table [(p) & 0xf])
 
 #define	add_entropy(w)	(TheNode->entropy = (TheNode->entropy << 4) ^ (w))
 
@@ -325,30 +325,31 @@ typedef	int (*ctrlfun_t) (int option, address);
 #undef getcpid
 #endif
 
-// Some of them are prefixed by zz_ ... because their names are popular, so
+// Some of them are prefixed by __pi_ ... because their names are popular, so
 // they may collide with some library functions
 
+// Note: this prefix (zz_) is required by SIDE
 #define	_pt_id_(pt)	(&zz_!!THREADNAME(pt)!!_prcs)
 
 
 
-#define	running(pt)	zz_running (_pt_id_ (pt))
-#define	crunning(pt)	zz_crunning (_pt_id_ (pt))
+#define	running(pt)	__pi_running (_pt_id_ (pt))
+#define	crunning(pt)	__pi_crunning (_pt_id_ (pt))
 #define	ptleft()	(TheNode->tally_left ())
-#define	killall(pt)	zz_killall (_pt_id_ (pt))
-#define	kill(p)		zz_kill (p)
-#define	joinall(pt,st)	zz_joinall (_pt_id_ (pt), st)
-#define	join(p,st)	zz_join (p, st)
-#define	status(p)	zz_status (p)
-#define	zombie(pt)	zz_zombie (_pt_id_ (pt))
-#define	getcpid()	zz_getcpid ()
+#define	killall(pt)	__pi_killall (_pt_id_ (pt))
+#define	kill(p)		__pi_kill (p)
+#define	joinall(pt,st)	__pi_joinall (_pt_id_ (pt), st)
+#define	join(p,st)	__pi_join (p, st)
+#define	status(p)	__pi_status (p)
+#define	zombie(pt)	__pi_zombie (_pt_id_ (pt))
+#define	getcpid()	__pi_getcpid ()
 
 #define	seconds()	((lword)(((lword) ituToEtu (Time)) - \
 							TheNode->SecondOffset))
 #define	setseconds(a)	(TheNode->SecondOffset = (long)((long)(a) - \
 				(lword)ituToEtu (Time)))
 
-#define	when(e,st)	zz_when (__cpint (e), st)
+#define	when(e,st)	__pi_when (__cpint (e), st)
 
 #define	ee_panic()	CNOP
 
@@ -467,55 +468,55 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 // ============================================================================
 
-void zz_dbg (int, word);
+void __pi_dbg (int, word);
 
 #ifndef	dbg_0
-#define	dbg_0(a)	zz_dbg (0, (word)(a))
+#define	dbg_0(a)	__pi_dbg (0, (word)(a))
 #endif
 #ifndef	dbg_1
-#define	dbg_1(a)	zz_dbg (1, (word)(a))
+#define	dbg_1(a)	__pi_dbg (1, (word)(a))
 #endif
 #ifndef	dbg_2
-#define	dbg_2(a)	zz_dbg (2, (word)(a))
+#define	dbg_2(a)	__pi_dbg (2, (word)(a))
 #endif
 #ifndef	dbg_3
-#define	dbg_3(a)	zz_dbg (3, (word)(a))
+#define	dbg_3(a)	__pi_dbg (3, (word)(a))
 #endif
 #ifndef	dbg_4
-#define	dbg_4(a)	zz_dbg (4, (word)(a))
+#define	dbg_4(a)	__pi_dbg (4, (word)(a))
 #endif
 #ifndef	dbg_5
-#define	dbg_5(a)	zz_dbg (5, (word)(a))
+#define	dbg_5(a)	__pi_dbg (5, (word)(a))
 #endif
 #ifndef	dbg_6
-#define	dbg_6(a)	zz_dbg (6, (word)(a))
+#define	dbg_6(a)	__pi_dbg (6, (word)(a))
 #endif
 #ifndef	dbg_7
-#define	dbg_7(a)	zz_dbg (7, (word)(a))
+#define	dbg_7(a)	__pi_dbg (7, (word)(a))
 #endif
 #ifndef	dbg_8
-#define	dbg_8(a)	zz_dbg (8, (word)(a))
+#define	dbg_8(a)	__pi_dbg (8, (word)(a))
 #endif
 #ifndef	dbg_9
-#define	dbg_9(a)	zz_dbg (9, (word)(a))
+#define	dbg_9(a)	__pi_dbg (9, (word)(a))
 #endif
 #ifndef	dbg_a
-#define	dbg_a(a)	zz_dbg (10, (word)(a))
+#define	dbg_a(a)	__pi_dbg (10, (word)(a))
 #endif
 #ifndef	dbg_b
-#define	dbg_b(a)	zz_dbg (11, (word)(a))
+#define	dbg_b(a)	__pi_dbg (11, (word)(a))
 #endif
 #ifndef	dbg_c
-#define	dbg_c(a)	zz_dbg (12, (word)(a))
+#define	dbg_c(a)	__pi_dbg (12, (word)(a))
 #endif
 #ifndef	dbg_d
-#define	dbg_d(a)	zz_dbg (13, (word)(a))
+#define	dbg_d(a)	__pi_dbg (13, (word)(a))
 #endif
 #ifndef	dbg_e
-#define	dbg_e(a)	zz_dbg (14, (word)(a))
+#define	dbg_e(a)	__pi_dbg (14, (word)(a))
 #endif
 #ifndef	dbg_f
-#define	dbg_f(a)	zz_dbg (15, (word)(a))
+#define	dbg_f(a)	__pi_dbg (15, (word)(a))
 #endif
 
 #define	AB_MODE_OFF	0

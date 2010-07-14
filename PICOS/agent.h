@@ -757,6 +757,6 @@ process	AgentInterface {
 	perform;
 };
 
-extern word ZZ_Agent_Port;
+extern word __pi_Agent_Port;
 
 #endif

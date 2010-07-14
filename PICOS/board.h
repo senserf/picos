@@ -46,10 +46,10 @@ typedef	void *code_t;
 
 // ============================================================================
 
-void zz_panel_signal (Long);
-Boolean zz_validate_uart_rate (word);
+void __pi_panel_signal (Long);
+Boolean __pi_validate_uart_rate (word);
 
-extern	const char zz_hex_enc_table [];
+extern	const char __pi_hex_enc_table [];
 
 void	syserror (int, const char*);
 
@@ -174,7 +174,7 @@ class rfm_intd_t {
 	Transceiver	*RFInterface;
 	PKT		OBuffer;
 	Boolean		Receiving, Xmitting, TXOFF, RXOFF;
-	address		zzx_buffer, zzr_buffer;
+	address		__pi_x_buffer, __pi_r_buffer;
 	int		tx_event;
 
 	double		lbt_threshold;
@@ -804,19 +804,19 @@ void hold (int, lword);
 void delay (word, int);
 word dleft (sint);
 
-inline void zz_when (int ev, int state) { TheNode->TB.wait (ev, state); }
+inline void __pi_when (int ev, int state) { TheNode->TB.wait (ev, state); }
 
 // ============================================================================
 
-int zz_status (sint);
-sint zz_join (sint, word);
-void zz_joinall (code_t, word);
-sint zz_kill (sint);
-sint zz_running (code_t);
-sint zz_zombie (code_t);
-int zz_crunning (code_t);
-int zz_killall (code_t);
-sint zz_getcpid ();
+int __pi_status (sint);
+sint __pi_join (sint, word);
+void __pi_joinall (code_t, word);
+sint __pi_kill (sint);
+sint __pi_running (code_t);
+sint __pi_zombie (code_t);
+int __pi_crunning (code_t);
+int __pi_killall (code_t);
+sint __pi_getcpid ();
 
 // ============================================================================
 

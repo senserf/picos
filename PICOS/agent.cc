@@ -14,12 +14,12 @@
 #define	imode(f)	((f) & XTRN_IMODE_MASK)
 #define	omode(f)	((f) & XTRN_OMODE_MASK)
 
-word	ZZ_Agent_Port	= AGENT_SOCKET;
+word	__pi_Agent_Port	= AGENT_SOCKET;
 
 static MUpdates *MUP = NULL,	// To signal mobility updates
 		*PUP = NULL;	// To signal panel updates
 
-void zz_panel_signal (Long sid) {
+void __pi_panel_signal (Long sid) {
 
 	if (PUP)
 		PUP->queue (sid);
@@ -973,7 +973,7 @@ void UARTDV::setRate (word rate) {
 //
 // Sets the current rate
 //
-	if (!zz_validate_uart_rate (rate))
+	if (!__pi_validate_uart_rate (rate))
 		syserror (EREQPAR, "phys_uart rate");
 
 	Rate = rate;
@@ -3777,7 +3777,7 @@ Init:
 				pn->reset ();
 				pn->init ();
 				pn->Halted = NO;
-				zz_panel_signal (NN);
+				__pi_panel_signal (NN);
 				TheStation = System;
 			}
 
@@ -3798,7 +3798,7 @@ Init:
 				TheStation = pn;
 				// This sets Halted
 				pn->stopall ();
-				zz_panel_signal (NN);
+				__pi_panel_signal (NN);
 				TheStation = System;
 			}
 
@@ -4011,7 +4011,7 @@ Term:
 void AgentInterface::setup () {
 
 	M = create Dev;
-	if (M->connect (INTERNET + SERVER + MASTER, ZZ_Agent_Port) != OK)
+	if (M->connect (INTERNET + SERVER + MASTER, __pi_Agent_Port) != OK)
 		excptn ("AgentInterface: cannot set up master socket");
 }
 
