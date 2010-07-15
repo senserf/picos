@@ -569,3 +569,8 @@ PG100706A:	SIDE >= PG100706A, PICOS >= PG100706A
 
     README replaced with RTAGS for uniformity, deploy/cleanup scripts added.
     Read RTAGS_PG at PICOS.
+
+PG100714A:
+
+    PHYSOPT_ERROR should now work with VUEE producing meaningful results. Just
+    make sure that RADIO_OPTIONS is properly set in options.sys.
