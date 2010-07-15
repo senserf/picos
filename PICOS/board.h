@@ -183,6 +183,9 @@ class rfm_intd_t {
 	word		lbt_delay;
 	word		phys_id;
 
+#if (RADIO_OPTIONS & 0x04)
+	word		rerror [5];
+#endif
 	rfm_intd_t (const data_no_t*);
 
 	// Low-level setrate/setchannel

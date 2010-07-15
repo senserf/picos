@@ -209,8 +209,7 @@ void zz_dbg (int x, word v) {
 }
 
 void syserror (int p, const char *s) {
-
-	excptn (::form ("SYSERROR [%1d]: %1d, %s", TheStation->getId (), p, s));
+	excptn ("SYSERROR [%1d]: %1d, %s", TheStation->getId (), p, s);
 }
 
 void PicOSNode::stopall () {
@@ -436,6 +435,9 @@ void rfm_intd_t::init () {
 	
 	statid = 0;
 
+#if (RADIO_OPTIONS & 0x04)
+	memset (rerror, 0, sizeof (rerror));
+#endif
 	Receiving = Xmitting = NO;
 	TXOFF = RXOFF = YES;
 

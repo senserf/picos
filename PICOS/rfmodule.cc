@@ -87,6 +87,7 @@ Drain:
 	}
 
 Xmit:
+	set_congestion_indicator (0);
 	obf.load (xbf, buflen);
 	xmtg = YES;
 	pwr_on ();
@@ -112,6 +113,7 @@ Xmit:
 
 	RSSI->signal ((void*)NO);
 	if (rcvg) {
+		set_congestion_indicator (minbkf);
 		delay (minbkf, XM_LOOP);
 		when (txe, XM_LOOP);
 		release;
@@ -123,7 +125,12 @@ Xmit:
 	if (RSSI->sigLevel () < lbtth)
 		goto Xmit;
 
+#if ((RADIO_OPTIONS & 0x05) == 0x05)
+	if (rerr [2] >= 0x0fff)
+		diag ("RF driver: LBT congestion!!");
+#endif
 	gbackoff ();
+	set_congestion_indicator (minbkf);
 	proceed XM_LOOP;
 
 }
@@ -203,6 +210,12 @@ Receiver::perform {
 
     state RCV_RECEIVE:
 
+#if (RADIO_OPTIONS & 0x04)
+	if (rerr [0] == MAX_WORD)
+		// Zero out slots 0 and 1
+		memset (rerr, 0, sizeof (word) * 2);
+	rerr [0] ++;
+#endif
 	rfi->wait (EOT, RCV_GOTIT);
 	rfi->wait (BERROR, RCV_GETIT);
 	rfi->wait (BOT, RCV_START);
@@ -232,6 +245,15 @@ Receiver::perform {
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
 	rbf [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 
+#if (RADIO_OPTIONS & 0x04)
+	rerr [1] ++;
+#endif
+#if (RADIO_OPTIONS & 0x02)
+	diag ("RF driver: %u RX OK %04x %04x %04x", (word) seconds (),
+		(word*)(rbf) [0],
+		(word*)(rbf) [1],
+		(word*)(rbf) [2]);
+#endif
 	tcvphy_rcv (physid, rbf, pktlen);
 	proceed RCV_GETIT;
 }
@@ -353,8 +375,13 @@ static int rfm_option (int opt, address val) {
 
 		if (rxoff) {
 			rxoff = NO;
-			if (!xmtg)
+			if (!xmtg) {
+#if (RADIO_OPTIONS & 0x02)
+			    diag ("RF driver: %u POWER DOWN",
+				(word) seconds ());
+#endif
 			    TheNode->pwrt_change (PWRT_RADIO, PWRT_RADIO_RCV);
+			}
 			trigger (rxe);
 		}
 
@@ -411,11 +438,6 @@ static int rfm_option (int opt, address val) {
 		else
 			bkf = *val;
 		trigger (txe);
-		break;
-
-	    case PHYSOPT_SENSE:
-
-		excptn ("PHYSOPT_SENSE unimplemented");
 		break;
 
 	    case PHYSOPT_SETPOWER:
@@ -490,29 +512,26 @@ static int rfm_option (int opt, address val) {
 			*val = ret;
 		break;
 
-	    case PHYSOPT_SETMODE:
-
-		excptn ("PHYSOPT_SETMODE unimplemented");
-		break;
-
-	    case PHYSOPT_GETMODE:
-
-		excptn ("PHYSOPT_GETMODE unimplemented");
-		break;
-
+#if (RADIO_OPTIONS & 0x04)
 	    case PHYSOPT_ERROR:
 
-		if (val != NULL)
-			memset (val, 0, 8);
+		if (val != NULL) {
+			if (rerr [4] > rerr [3])
+				rerr [3] = rerr [4];
+			memcpy (val, rerr, sizeof (word) * 4);
+		} else
+			memset (rerr, 0, sizeof (rerr));
 
+		break;
+#endif
 	    case PHYSOPT_RESET:
 		// Void
-
 		return 0;
 
 	    default:
 
-		syserror (EREQPAR, "RF option");
+		excptn ("SYSERROR [%1d]: %1d, unimplemented PHYSOPT %1d",
+			TheStation->getId (), EREQPAR, opt);
 
 	}
 	return ret;
@@ -537,6 +556,7 @@ static int rfm_option (int opt, address val) {
 #undef	defxp
 #undef	defrt
 #undef	defch
+#undef	rerr
 
 #include "stdattr_undef.h"
 

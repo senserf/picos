@@ -17,6 +17,7 @@ typedef	unsigned char	byte;
 
 #define	MAX_INT		((int)0x7FFF)		// This is the PicOS int !!
 #define	MAX_UINT	((word)0xFFFF)
+#define	MAX_WORD	MAX_UINT
 #define	MAX_ULONG	((lword)0xFFFFFFFF)
 
 #define	IFLASH_SIZE	128	// Words
@@ -38,13 +39,6 @@ typedef	unsigned char	byte;
 #define	heapmem		const static byte zz_heapmem [] =
 
 /* ========================================================================== */
-
-#define	PHYSID			0
-#define	MINIMUM_PACKET_LENGTH	4
-#define	RADIO_DEF_BUF_LEN	48
-#define	UART_DEF_BUF_LEN	82
-#define	CC1100_MAXPLEN		60
-#define	INFO_PHYS_DM2200	0x0700
 
 #include "sysio.h"
 

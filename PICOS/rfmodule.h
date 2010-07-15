@@ -23,6 +23,7 @@
 #define	defrt	(rf->DefRate)
 #define	defch	(rf->DefChannel)
 #define	physid	(rf->phys_id)
+#define	rerr	(rf->rerror)
 
 strandhdr (Receiver, PicOSNode) {
 
@@ -98,6 +99,30 @@ threadhdr (Xmitter, PicOSNode) {
 	inline void pwr_off () {
 		TheNode->pwrt_change (PWRT_RADIO, 
 			rxoff ? PWRT_RADIO_OFF : PWRT_RADIO_RCV);
+	};
+
+	// Copied almost directly from PICOS; will be optimized out if the body
+	// is empty
+	inline void set_congestion_indicator (word v) {
+
+#if (RADIO_OPTIONS & 0x04)
+
+		if ((rerr [2] = (rerr [2] * 3 + v) >> 2) > 0x0fff)
+			rerr [2] = 0xfff;
+
+		if (v) {
+			if (rerr [4] + v < rerr [4])
+				// Overflow
+				rerr [4] = 0xffff;
+			else
+				rerr [4] += v;
+		} else {
+			// Update max
+			if (rerr [3] < rerr [4])
+				rerr [3] = rerr [4];
+			rerr [4] = 0;
+		}
+#endif
 	};
 };
 
