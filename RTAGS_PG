@@ -570,7 +570,7 @@ PG100706A:	SIDE >= PG100706A, PICOS >= PG100706A
     README replaced with RTAGS for uniformity, deploy/cleanup scripts added.
     Read RTAGS_PG at PICOS.
 
-PG100714A:	PICOS >= PG100714B
+DPG100714A:	PICOS >= PG100714B
 
     Names of "hidden" variables and functions changed to begin with __pi_ in
     accord with similar changes in PICOS. This cleanup is in preparation for
