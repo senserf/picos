@@ -1,1 +1,13 @@
+WO100715A:
+
+  new_il_demo:
+  
+  - Changed stats format: all PHYSOPT_ERROR and memfree counters, instead of
+    host_id we see derived and current local_host. See new_id_demo/notes.
+  - Changed stats msgs to accomodate the above. Reflash all nodes in the net.
+  - All nodes go powerdown() in _APP_EXPERIMENT (used to be just odd ids).
+  - Default (in options.sys) RADIO_CRC_MODE is 4 (soft crc).
+  - No calls to empty (but defined in the board def.) read_sensor(). Including
+    power meter on aggregators. No output format change for sensor data.
+
 

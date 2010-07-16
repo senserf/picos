@@ -260,3 +260,8 @@ PG100714B:	VUEE >= PG100714A
 	Some process-related operations simplified by eleminating their
 	never-used features (e.g., some functions that used to return values
 	are now void).
+
+---------:
+
+	Fixed deploy to correctly handle locations outside the HOME directory
+	tree on cygwin.
