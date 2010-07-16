@@ -213,7 +213,7 @@
 		__pi_v_istate = IRQ_OFF;
 		disable_xcv_timer;
 		__pi_v_status = 0;
-		i_trigger (ETYPE_USER, txevent);
+		i_trigger (txevent);
 		LEDI (1, 0);
 		break;
 
@@ -394,7 +394,7 @@ REND:
 		__pi_r_length = __pi_r_buffp - __pi_r_buffer;
 		__pi_r_buffp = NULL;
 		__pi_v_istate = IRQ_OFF;
-		i_trigger (ETYPE_USER, rxevent);
+		i_trigger (rxevent);
 		gbackoff;
 		LEDI (2, 0);
 	    }

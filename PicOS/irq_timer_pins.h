@@ -31,11 +31,9 @@
 					RISE_N_SHINE;
 					pmon.deb_mas = PMON_RETRY_DELAY;
 					if ((pmon.stat & PMON_CMP_PENDING))
-						i_trigger (ETYPE_USER,
-							PMON_CNTEVENT);
+						i_trigger (PMON_CNTEVENT);
 					if ((pmon.stat & PMON_NOT_PENDING))
-						i_trigger (ETYPE_USER,
-							PMON_NOTEVENT);
+						i_trigger (PMON_NOTEVENT);
 					if (pmon.deb_mas == 0)
 						pmon.deb_mas = PMON_RETRY_DELAY;
 			}
@@ -111,9 +109,9 @@
 		if (pmon.stat & (PMON_CMP_PENDING | PMON_NOT_PENDING)) {
 			RISE_N_SHINE;
 			if ((pmon.stat & PMON_CMP_PENDING))
-				i_trigger (ETYPE_USER, PMON_CNTEVENT);
+				i_trigger (PMON_CNTEVENT);
 			if ((pmon.stat & PMON_NOT_PENDING))
-				i_trigger (ETYPE_USER, PMON_NOTEVENT);
+				i_trigger (PMON_NOTEVENT);
 		}
 	} else {
 		--(pmon.deb_mas);

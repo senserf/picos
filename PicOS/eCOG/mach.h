@@ -56,7 +56,6 @@ typedef struct	{
 	byte oin, oou, iin, iou;
 	/* 0 - UART_A, 1 - UART_B */
 	byte selector;
-	byte lock;
 } uart_t;
 
 extern uart_t __pi_uart [];

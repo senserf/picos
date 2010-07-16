@@ -13,7 +13,7 @@ if (cc1100_int) {
 
     rcv_disable_int;
 
-    p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
+    p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 
     RISE_N_SHINE;
 }

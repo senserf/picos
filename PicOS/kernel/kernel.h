@@ -30,26 +30,9 @@ typedef struct	{
 /* =================================== */
 /* A single event awaited by a process */
 /* =================================== */
-	word	Status;
-	/* =========================================================== */
-	/* Status = State << 4 | EType, where EType != 0 for an active */
-	/* event wait entry                                            */
-	/* =========================================================== */
+	word	State;
 	word	Event;
 } event_t;
-
-/* =========== */
-/* Event types */
-/* =========== */
-#define	ETYPE_USER	1	/* User signal */
-#define	ETYPE_SYSTEM	2	/* System signal */
-#define	ETYPE_IO	3	/* I/O */
-#define	ETYPE_TERM	4	/* Process termination */
-#define	ETYPE_TERMANY	5	/* Termination of any process (joinall) */
-
-#define	efree(e)		((e).Status == 0)
-#define	setestatus(e,t,s)	((e).Status = ((s) << 4) | (t))
-#define	getetype(e)		((e).Status & 0xf)
 
 typedef struct	{
 	/* ============================================================== */
@@ -78,6 +61,13 @@ extern	void tcv_init (void);
 #define	LAST_PCB		(FIRST_PCB + MAX_TASKS)
 #define for_all_tasks(i)	for (i = FIRST_PCB; i != LAST_PCB; i++)
 
+#define	setestate(e,s,v)	do { \
+					(e).State = (s) << 4; \
+					(e).Event = (v); \
+				} while (0)
+
+#define wakeupev(p,j)	((p)->Status = (p)->Events [j].State)
+
 #define	incwait(p)	((p)->Status++)
 #define	inctimer(p)	((p)->Status |= 0x8)
 #define	waiting(p)	((p)->Status & 0xf)
@@ -87,7 +77,6 @@ extern	void tcv_init (void);
 #define	settstate(p,t)	((p)->Status = ((p)->Status & 0x7) | ((t) << 4))
 #define	prcdstate(p,t)	((p)->Status = (t) << 4)
 
-#define wakeupev(p,j)	((p)->Status = (p)->Events [j].Status & 0xfff0)
 #define wakeuptm(p)	(p)->Status &= 0xfff0
 #define cltmwait(p)	(p)->Status &= 0xfff7
 
@@ -103,7 +92,7 @@ extern	void tcv_init (void);
 typedef	void (*devinitfun_t)(int param);
 typedef int (*devreqfun_t)(int, char*, int);
 
-typedef struct{
+typedef struct {
 /* ===================================== */
 /* This describes a single device driver */
 /* ===================================== */
@@ -111,53 +100,46 @@ typedef struct{
 	int		param;
 } devinit_t;
 
-void __pi_swait (word, word, word);
-int __pi_strigger (int, word);
 void adddevfunc (devreqfun_t, int);
 
-/* Encoding device events */
-#define	devevent(dev,ope) ((dev) << 4 | (ope))
+// Encoding device events: an address-derived value being different for
+// different devices/operations; note: this is obsolete and only used by
+// the old 'io' mechanism
+#define devevent(dev,ope) (((word)&io) + ((dev) << 3) + (ope))
 
-#define	swait(a,b,c)		__pi_swait (a, b, c)
-#define	strigger(a,b)		__pi_strigger (a, b)
-#define	iowait(dev,eve,sta)	swait (ETYPE_IO, devevent (dev,eve), sta)
-#define	iotrigger(dev,eve)	strigger (ETYPE_IO, devevent (dev, eve))
+#define	iowait(dev,eve,sta)	wait (devevent (dev,eve), sta)
+#define	iotrigger(dev,eve)	trigger (devevent (dev, eve))
 
 /* Special i/o 'operations': - attention events (interrupt + request) */
-#define	ATTENTION 	0xf
-#define	REQUEST		0xe
+#define	REQUEST		3
+#define	ATTENTION 	4
 
 /* =============================================== */
 /* Event trigger code for interrupt mode functions */
 /* =============================================== */
-#define	i_trigger(etype,evnt)	do {\
-	int j; pcb_t *i;\
-	for_all_tasks (i) {\
-		if (nevents (i) == 0)\
-			continue;\
-		if (i->code == NULL)\
-			continue;\
-		for (j = 0; j < nevents (i); j++) {\
-			if (i->Events [j] . Event == evnt &&\
-				getetype (i->Events [j]) == etype) {\
+#define	i_trigger(evnt)	do {\
+		int j; pcb_t *i;\
+		for_all_tasks (i) {\
+			if (i->code == NULL)\
+				continue;\
+			for (j = 0; j < nevents (i); j++) {\
+				if (i->Events [j] . Event == evnt) {\
 					wakeupev (i, j);\
 					break;\
+				}\
 			}\
 		}\
-	}\
 	} while (0)
 
 /* ==================================== */
 /* A shortcut when the process is known */
 /* ==================================== */
-#define	p_trigger(pcs,etype,evnt)	do {\
+#define	p_trigger(pcs,evnt) do {\
 		int j; \
 		for (j = 0; j < nevents ((pcb_t*)(pcs)); j++) { \
-			if (((pcb_t*)(pcs))->Events [j] . Event == evnt && \
-				getetype (((pcb_t*)(pcs))->Events [j]) == \
-				    etype) {\
-					wakeupev ((pcb_t*)(pcs), j);\
-					break;\
+			if (((pcb_t*)(pcs))->Events [j] . Event == evnt) {\
+				wakeupev ((pcb_t*)(pcs), j);\
+				break;\
 			} \
 		} \
 	} while (0)

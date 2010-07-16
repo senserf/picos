@@ -69,7 +69,7 @@ REND:
 				__pi_v_curbit = __pi_v_istate;
 #endif
 				__pi_v_istate = IRQ_OFF;
-				i_trigger (ETYPE_USER, rxevent);
+				i_trigger (rxevent);
 				gbackoff;
 				LEDI (2, 0);
 			} else {

@@ -95,7 +95,7 @@ void pins_int_wait_cnt (byte, byte, byte);
 	do { \
 		if ((pmon.stat & PMON_CMP_PENDING)) { \
 			RISE_N_SHINE; \
-			i_trigger (ETYPE_USER, PMON_CNTEVENT); \
+			i_trigger (PMON_CNTEVENT); \
 			if (pmon.deb_mas == 0) { \
 				activate_deb_timer; \
 				pmon.deb_mas = PMON_RETRY_DELAY; \
@@ -113,7 +113,7 @@ void pins_int_wait_not (byte, byte, byte);
 	do { \
 		_BIS (pmon.stat, PMON_NOT_PENDING); \
 		RISE_N_SHINE; \
-		i_trigger (ETYPE_USER, PMON_NOTEVENT); \
+		i_trigger (PMON_NOTEVENT); \
 	} while (0)
 
 #define update_pnt \

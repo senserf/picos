@@ -21,10 +21,8 @@
 #define	diag_disable_int(a,u)	uart_ ## a ## _disable_int
 
 #define	diag_enable_int(a,u)	do { \
-					if (__pi_uart [0].lock == 0) { \
-					    uart_ ## a ## _enable_read_int; \
-					    uart_ ## a ## _enable_write_int; \
-					} \
+				    uart_ ## a ## _enable_read_int; \
+				    uart_ ## a ## _enable_write_int; \
 				} while (0)
 #endif	/* DIAG_IMPLEMENTATION == 0 */
 

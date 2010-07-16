@@ -11,7 +11,7 @@
 
 if (P1IFG & P1_PINS_INTERRUPT_MASK) {
 	buttons_disable ();
-	i_trigger (ETYPE_USER, BUTTON_PRESSED_EVENT);
+	i_trigger (BUTTON_PRESSED_EVENT);
 	RISE_N_SHINE;
 }
 
@@ -21,7 +21,7 @@ if (P1IFG & P1_PINS_INTERRUPT_MASK) {
 
 if (P2IFG & P2_PINS_INTERRUPT_MASK) {
 	buttons_disable ();
-	i_trigger (ETYPE_USER, BUTTON_PRESSED_EVENT);
+	i_trigger (BUTTON_PRESSED_EVENT);
 	RISE_N_SHINE;
 }
 

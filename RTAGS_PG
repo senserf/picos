@@ -241,3 +241,22 @@ PG100714B:	VUEE >= PG100714A
 	Names of "hidden" variables and functions changed to begin with __pi_
 	in preparation for the upcoming revision of PICOS's implementation of
 	strands.
+
+---------:
+
+	Eliminated the distinction between system and user events (generally
+	the ETYPE_.... attribute of events has been removed). It is strongly
+	recommended to consistently use addresses as event identifiers - to
+	make sure that those identifiers are globally unique. Note that with
+	the standard paradigm of responding to events (i.e., recheck the
+	condition after receiving the event) occasional collisions are
+	practically inconsequential. The only exception is join (PID events)
+	[note that PIDs are addresses] and, possibly, joinall (in the latter
+	case, the event ID is the process function address.
+
+	I have spent some time contemplating this move. It does simplify a lot
+	of things and appears generally safe.
+
+	Some process-related operations simplified by eleminating their
+	never-used features (e.g., some functions that used to return values
+	are now void).

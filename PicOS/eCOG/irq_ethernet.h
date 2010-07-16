@@ -16,9 +16,9 @@ if (tcv_interrupt) {
 	outw (IM_ALLOC_INT, INT_REG);
 	/* Trigger the device events */
 	if (__pi_d_data->flags & FLG_ENRCV)
-		i_trigger (ETYPE_IO, devevent (ETHERNET, READ));
+		i_trigger (devevent (ETHERNET, READ));
 	if (__pi_d_data->flags & FLG_ENXMT)
-		i_trigger (ETYPE_IO, devevent (ETHERNET, WRITE));
+		i_trigger (devevent (ETHERNET, WRITE));
 	__pi_d_data->flags = 0;
 }
 

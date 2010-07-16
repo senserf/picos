@@ -1218,7 +1218,7 @@ void __pi_diag_init (int ua) {
 		// Transmitter running, abort it
 		UART_STOP_XMITTER;
 		if (UA->x_prcs != 0)
-			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+			p_trigger (UA->x_prcs, TXEVENT);
 	}
 
 	DIAG_WCHAR ('\r'); DIAG_WAIT;
@@ -1230,7 +1230,7 @@ void __pi_diag_init (int ua) {
 		// Transmitter running, abort it
 		UART_STOP_XMITTER;
 		if (UA->x_prcs != 0)
-			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+			p_trigger (UA->x_prcs, TXEVENT);
 		bc = UA->x_buffl + 6;
 	} else
 		// Transmitter stopped

@@ -234,6 +234,13 @@ proc anchor { } {
 
 	set VPATH [file normalize "../VUEE/PICOS"]
 	if { [string first $HOME $VPATH] != 0 } {
+		if [regexp -nocase "^(\[a-z\]):(/.*)" $VPATH jnk dr ta] {
+			# we are on Cygwin and this is a different drive
+			set VPATH "/cygdrive/[string tolower $dr]$ta"
+			if [file isdirectory $VPATH] {
+				return
+			}
+		}
 		errab "Cannot locate VUEE path"
 	}
 

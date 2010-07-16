@@ -87,7 +87,7 @@ Boolean adcs_new_sample () {
 		// The last block
 		b_blkptr = 0;
 		if ((b_in == b_out) && consummer) {
-			p_trigger (consummer, ETYPE_USER, consummer);
+			p_trigger (consummer, consummer);
 			b_in = (b_newin == b_limit) ? 0 : b_newin;
 			return YES;
 		}
@@ -115,7 +115,7 @@ Boolean adcs_new_sample () {
 	adcs_sample (buff + b_in);
 
 	if ((b_in == b_out) && consummer) {
-		p_trigger (consummer, ETYPE_USER, consummer);
+		p_trigger (consummer, consummer);
 		b_in = bp;
 		return YES;
 	}

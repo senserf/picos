@@ -8,7 +8,7 @@
 if (rf24g_int) {
 
     clear_rf24g_int;
-    i_trigger (ETYPE_USER, rxevent);
+    i_trigger (rxevent);
     RISE_N_SHINE;
 
 }

@@ -956,7 +956,7 @@ Reset:
 		guard_clear;
 		chip_reset ();
 		enter_rx ();
-		p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
+		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 		delay (GUARD_LONG_DELAY, GU_ACTION);
 		release;
 	}
@@ -972,7 +972,7 @@ Reset:
 		guard_start (WATCH_RCV);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
 		// Won't hurt
-		p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
+		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 		release;
 	}
 
@@ -982,7 +982,7 @@ Reset:
 		// This one will go away eventually as well
 		guard_start (WATCH_XMT);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
-		p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
+		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 		release;
 	}
 
@@ -1021,7 +1021,7 @@ Reset:
 		guard_start (WATCH_RCV);
 		delay (GUARD_SHORT_DELAY, GU_ACTION);
 	}
-	p_trigger (__pi_v_drvprcs, ETYPE_USER, __pi_v_qevent);
+	p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 
 endthread
 

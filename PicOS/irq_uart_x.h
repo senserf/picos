@@ -46,7 +46,7 @@
 		// All done
 		RISE_N_SHINE;
 		if (UA->x_prcs != 0)
-			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+			p_trigger (UA->x_prcs, TXEVENT);
 		UART_STOP_XMITTER;
 		RTNI;
     }
@@ -102,7 +102,7 @@
 
 		RISE_N_SHINE;
 		if (UA->x_prcs != 0)
-			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+			p_trigger (UA->x_prcs, TXEVENT);
 		UART_STOP_XMITTER;
 		RTNI;
     }
@@ -157,7 +157,7 @@ Eol:
 		// All done
 		RISE_N_SHINE;
 		if (UA->x_prcs != 0)
-			p_trigger (UA->x_prcs, ETYPE_USER, TXEVENT);
+			p_trigger (UA->x_prcs, TXEVENT);
 		UART_STOP_XMITTER;
 		RTNI;
     }

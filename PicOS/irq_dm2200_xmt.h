@@ -228,7 +228,7 @@
 		RISE_N_SHINE;
 		__pi_v_istate = IRQ_OFF;
 		__pi_v_status = 0;
-		i_trigger (ETYPE_USER, txevent);
+		i_trigger (txevent);
 		LEDI (1, 0);
 		break;
 

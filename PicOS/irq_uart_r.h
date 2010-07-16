@@ -28,7 +28,7 @@
 		// Trigger 'reception started' event (for timeouts)
 		RISE_N_SHINE;
 		if (UA->r_prcs != 0)
-			p_trigger (UA->r_prcs, ETYPE_USER, RSEVENT);
+			p_trigger (UA->r_prcs, RSEVENT);
 		UA->r_istate = IRQ_R_LEN;
 		RTNI;
 
@@ -42,7 +42,7 @@
 			// Wake up the process to reset things
 			RISE_N_SHINE;
 			if (UA->r_prcs != 0)
-				p_trigger (UA->r_prcs, ETYPE_USER, RXEVENT);
+				p_trigger (UA->r_prcs, RXEVENT);
 			UA->r_istate = IRQ_R_OFF;
 			RTNI;
 		}
@@ -59,7 +59,7 @@
 			// All done
 			RISE_N_SHINE;
 			if (UA->r_prcs != 0)
-				p_trigger (UA->r_prcs, ETYPE_USER, RXEVENT);
+				p_trigger (UA->r_prcs, RXEVENT);
 			UA->r_istate = IRQ_R_OFF;
 		}
 		RTNI;
@@ -91,7 +91,7 @@
 		// Trigger 'reception started' event
 		RISE_N_SHINE;
 		if (UA->r_prcs != 0)
-			p_trigger (UA->r_prcs, ETYPE_USER, RSEVENT);
+			p_trigger (UA->r_prcs, RSEVENT);
 		((byte*)(UA->r_buffer)) [0] = b;
 		UA->r_istate = IRQ_R_LEN;
 		RTNI;
@@ -106,7 +106,7 @@
 			// Wake up the process to reset things
 			RISE_N_SHINE;
 			if (UA->r_prcs != 0)
-				p_trigger (UA->r_prcs, ETYPE_USER, RXEVENT);
+				p_trigger (UA->r_prcs, RXEVENT);
 			UA->r_istate = IRQ_R_OFF;
 			RTNI;
 		}
@@ -131,7 +131,7 @@
 		// Complete packet
 		RISE_N_SHINE;
 		if (UA->r_prcs != 0)
-			p_trigger (UA->r_prcs, ETYPE_USER, RXEVENT);
+			p_trigger (UA->r_prcs, RXEVENT);
 		UA->r_istate = IRQ_R_OFF;
 		RTNI;
     }	
@@ -167,7 +167,7 @@
 			// will be discarded at the beginning of next one
 			RISE_N_SHINE;
 			if (UA->r_prcs != 0)
-				p_trigger (UA->r_prcs, ETYPE_USER, RXEVENT);
+				p_trigger (UA->r_prcs, RXEVENT);
 			UA->r_istate = IRQ_R_OFF;
 		} else {
 			if (UA->r_buffp < UA->r_buffl)

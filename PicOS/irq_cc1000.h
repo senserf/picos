@@ -91,7 +91,7 @@ if (cc1000_int) {
 		__pi_v_istate = IRQ_OFF;
 		__pi_v_status = 0;
 		clr_xcv_int;
-		i_trigger (ETYPE_USER, txevent);
+		i_trigger (txevent);
 		LEDI (1, 0);
 		break;
 
@@ -148,7 +148,7 @@ if (cc1000_int) {
 			__pi_r_length = __pi_r_buffp - __pi_r_buffer;
 			__pi_r_buffp = NULL;
 			__pi_v_istate = IRQ_OFF;
-			i_trigger (ETYPE_USER, rxevent);
+			i_trigger (rxevent);
 			gbackoff;
 			LEDI (2, 0);
 		}

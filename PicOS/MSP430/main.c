@@ -1172,9 +1172,6 @@ word __pi_uart_getrate (uart_t *ua) {
 /* The UART */
 /* ======== */
 
-#define uart_xpending(u) \
-	__ualt(u, uart_b_get_write_int, uart_a_get_write_int)
-
 #define	uart_write8(u,w) \
 	__usel (u, uart_b_write (w), uart_a_write (w))
 
@@ -1190,15 +1187,10 @@ word __pi_uart_getrate (uart_t *ua) {
 #define uart_disable_write_int(u) __usel (u, uart_b_disable_write_int, \
 						uart_a_disable_write_int)
 
-#define uart_rpending(u) \
-       __ualt (u, uart_b_get_read_int, uart_a_get_read_int)
-
 #define	uart_read(u)		__ualt (u, uart_b_read, uart_a_read)
 
 #define uart_enable_read_int(u)	__usel (u, uart_b_enable_read_int, \
 						uart_a_enable_read_int)
-
-static void uart_lock (uart_t*), uart_unlock (uart_t*);
 
 /* ======================= */
 /* Common request function */
@@ -1209,79 +1201,59 @@ static INLINE int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 
 		case READ:
 
-			if ((u->flags & UART_FLAGS_LOCK)) {
-				// Raw operation, interrupts disabled
-				if (len && uart_rpending (u)) {
-					*buf = uart_read (u);
-					return 1;
-				}
-				return 0;
-			} else {
-
 #if UART_INPUT_BUFFER_LENGTH > 1
+			uart_disable_read_int (u);
+			if (u->ib_count == 0) {
+				// The buffer is empty
+				_BIS (u->flags, UART_FLAGS_IN);
+				return -2;
+			}
+			_BIC (u->flags, UART_FLAGS_IN);
+			uart_enable_read_int (u);
+			operation = len;
+			while (len) {
 				uart_disable_read_int (u);
 				if (u->ib_count == 0) {
-					// The buffer is empty
-					_BIS (u->flags, UART_FLAGS_IN);
-					return -2;
+					uart_enable_read_int (u);
+					break;
 				}
+				u->ib_count--;
+				uart_enable_read_int (u);
+				*buf++ = u->in [u->ib_out];
+				if (++(u->ib_out) == UART_INPUT_BUFFER_LENGTH)
+					u->ib_out = 0;
+				len--;
+			}
+			return operation - len;
+#else
+			if ((u->flags & UART_FLAGS_IN)) {
+				// Receive interrupt is disabled
+R_redo:
+				*buf = u->in;
 				_BIC (u->flags, UART_FLAGS_IN);
 				uart_enable_read_int (u);
-				operation = len;
-				while (len) {
-					uart_disable_read_int (u);
-					if (u->ib_count == 0) {
-						uart_enable_read_int (u);
-						break;
-					}
-					u->ib_count--;
-					uart_enable_read_int (u);
-					*buf++ = u->in [u->ib_out];
-					if (++(u->ib_out) ==
-						UART_INPUT_BUFFER_LENGTH)
-							u->ib_out = 0;
-					len--;
-				}
-				return operation - len;
-#else
-				if ((u->flags & UART_FLAGS_IN)) {
-					// Receive interrupt is disabled
-R_redo:
-					*buf = u->in;
-					_BIC (u->flags, UART_FLAGS_IN);
-					uart_enable_read_int (u);
-					return 1;
-				}
-				uart_disable_read_int (u);
-				if ((u->flags & UART_FLAGS_IN))
-					// Account for the race
-					goto R_redo;
-				// The buffer is empty
-				return -2;
-#endif
+				return 1;
 			}
-				
+			uart_disable_read_int (u);
+			if ((u->flags & UART_FLAGS_IN))
+				// Account for the race
+				goto R_redo;
+			// The buffer is empty
+			return -2;
+#endif
 		case WRITE:
 
-			if ((u->flags & UART_FLAGS_LOCK)) {
-				if (len && uart_xpending (u)) {
-					uart_write8 (u, *buf);
-					return 1;
-				}
-				return 0;
-			} else {
-				if ((u->flags & UART_FLAGS_OUT) == 0) {
+			if ((u->flags & UART_FLAGS_OUT) == 0) {
 X_redo:
-					u->out = *buf;
-					_BIS (u->flags, UART_FLAGS_OUT);
-					uart_enable_write_int (u);
-					return 1;
-				}
-				uart_disable_write_int (u);
-				if ((u->flags & UART_FLAGS_OUT) == 0)
-					goto X_redo;
-				return -2;
+				u->out = *buf;
+				_BIS (u->flags, UART_FLAGS_OUT);
+				uart_enable_write_int (u);
+				return 1;
 			}
+			uart_disable_write_int (u);
+			if ((u->flags & UART_FLAGS_OUT) == 0)
+				goto X_redo;
+			return -2;
 					
 		case NONE:
 
@@ -1300,19 +1272,13 @@ X_redo:
 
 		case CONTROL:
 
-			if (len == UART_CNTRL_LCK) {
-				if (*buf)
-					uart_lock (u);
-				else
-					uart_unlock (u);
-				return 1;
-			}
 #if UART_RATE_SETTABLE
 			if (len == UART_CNTRL_SETRATE) {
 				if (__pi_uart_setrate (*((word*)buf), u))
 						return 1;
 				syserror (EREQPAR, "uar");
 			}
+
 			if (len == UART_CNTRL_GETRATE) {
 				*((word*)buf) = __pi_uart_getrate (u);
 				return 1;
@@ -1323,25 +1289,6 @@ X_redo:
 			syserror (ENOOPER, "uai");
 			/* No return */
 			return 0;
-	}
-}
-
-static void uart_unlock (uart_t *u) {
-/* ============================================ */
-/* Start up normal (interrupt-driven) operation */
-/* ============================================ */
-	u->flags &= UART_RATE_MASK;
-	uart_enable_read_int (u);
-	// uart_enable_write_int (u);
-}
-
-static void uart_lock (uart_t *u) {
-/* ================================= */
-/* Direct (interrupt-less) operation */
-/* ================================= */
-	if ((u->flags & UART_FLAGS_LOCK) == 0) {
-		uart_disable_int (u);
-		u->flags = UART_FLAGS_LOCK;
 	}
 }
 
@@ -1387,7 +1334,7 @@ interrupt (UART_A_TX_VECTOR) uart_a_tx_int (void) {
 		_BIC (__pi_uart [0] . flags, UART_FLAGS_OUT);
 		uart_a_write (__pi_uart [0] . out);
 	}
-	i_trigger (ETYPE_IO, devevent (UART_A, WRITE));
+	i_trigger (devevent (UART_A, WRITE));
 	RTNI;
 }
 
@@ -1426,7 +1373,7 @@ interrupt (UART_A_RX_VECTOR) uart_a_rx_int (void) {
 
 	if ((ua -> flags & UART_FLAGS_IN)) {
 		RISE_N_SHINE;
-		i_trigger (ETYPE_IO, devevent (UART_A, READ));
+		i_trigger (devevent (UART_A, READ));
 	}
 
 #if NESTED_INTERRUPTS
@@ -1445,7 +1392,7 @@ interrupt (UART_A_RX_VECTOR) uart_a_rx_int (void) {
 		_BIS (ua -> flags, UART_FLAGS_IN);
 		ua -> in = uart_a_read;
 	}
-	i_trigger (ETYPE_IO, devevent (UART_A, READ));
+	i_trigger (devevent (UART_A, READ));
 #endif
 	RTNI;
 
@@ -1477,7 +1424,7 @@ interrupt (UART_B_TX_VECTOR) uart_b_tx_int (void) {
 	}
 	// Disable until a character arrival
 	uart_b_disable_write_int;
-	i_trigger (ETYPE_IO, devevent (UART_B, WRITE));
+	i_trigger (devevent (UART_B, WRITE));
 	RTNI;
 }
 
@@ -1496,7 +1443,7 @@ interrupt (UART_B_RX_VECTOR) uart_b_rx_int (void) {
 	}
 	if ((ua -> flags & UART_FLAGS_IN)) {
 		RISE_N_SHINE;
-		i_trigger (ETYPE_IO, devevent (UART_B, READ));
+		i_trigger (devevent (UART_B, READ));
 	}
 #else
 	RISE_N_SHINE;
@@ -1509,7 +1456,7 @@ interrupt (UART_B_RX_VECTOR) uart_b_rx_int (void) {
 		ua -> in = uart_b_read;
 	}
 	uart_b_disable_read_int;
-	i_trigger (ETYPE_IO, devevent (UART_B, READ));
+	i_trigger (devevent (UART_B, READ));
 #endif
 	RTNI;
 }
@@ -1545,9 +1492,9 @@ static void devinit_uart (int devnum) {
 #if UART_DRIVER > 1
 	__pi_uart [devnum] . selector = devnum;
 #endif
-	_BIS (__pi_uart [devnum] . flags, UART_FLAGS_LOCK);
-	uart_unlock (__pi_uart + devnum);
+	uart_enable_read_int (__pi_uart + devnum);
 }
+
 /* =========== */
 /* UART DRIVER */
 /* =========== */

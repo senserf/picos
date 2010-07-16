@@ -1300,8 +1300,6 @@ uart_t	__pi_uart [UART_DRIVER];
 	if (++(p) == UART_BUF_SIZE) (p) = 0; \
 	} while (0)
 
-static void uart_lock (uart_t*), uart_unlock (uart_t*);
-
 /* ======================= */
 /* Common request function */
 /* ======================= */
@@ -1313,71 +1311,39 @@ static int ioreq_uart (uart_t *u, int operation, char *buf, int len) {
 
 		case READ:
 
-			if (u->lock) {
-				while (len && uart_canread (u)) {
-					buf [count++] = uart_read (u);
-					len--;
-				}
-				/* May return zero */
-			} else {
-				while (len > 0 && u->iou != u->iin) {
-					*buf++ = u->ibuf [u->iou];
-					inccbp (u->iou);
-					count++;
-					len--;
-				}
-				iotrigger (UART_BASE + u->selector, REQUEST);
-				if (count == 0)
-					/* Block */
-					return -1;
+			while (len > 0 && u->iou != u->iin) {
+				*buf++ = u->ibuf [u->iou];
+				inccbp (u->iou);
+				count++;
+				len--;
 			}
+			iotrigger (UART_BASE + u->selector, REQUEST);
+			if (count == 0)
+				/* Block */
+				return -1;
 			return count;
 
 		case WRITE:
 
-			if (u->lock) {
-				while (len && uart_canwrite (u)) {
-					uart_write8 (u, buf [count]);
-					count++;
-					len--;
-				}
-			} else {
-				while (len > 0) {
-					ii = u->oin + 1;
-					if (ii == UART_BUF_SIZE)
-						ii = 0;
-					if (ii == u->oou)
-						/* The buffer is full */
-						break;
-					u->obuf [u->oin] = *buf++;
-					u->oin = ii;
-					count++;
-					len--;
-				}
-				iotrigger (UART_BASE + u->selector, REQUEST);
-				if (count == 0)
-					return -1;
+			while (len > 0) {
+				ii = u->oin + 1;
+				if (ii == UART_BUF_SIZE)
+					ii = 0;
+				if (ii == u->oou)
+					/* The buffer is full */
+					break;
+				u->obuf [u->oin] = *buf++;
+				u->oin = ii;
+				count++;
+				len--;
 			}
+			iotrigger (UART_BASE + u->selector, REQUEST);
+			if (count == 0)
+				return -1;
 			return count;
 
 		case CONTROL:
 
-			switch (len) {
-
-				case UART_CNTRL_LCK:
-
-					if (*buf)
-						uart_lock (u);
-					else
-						uart_unlock (u);
-					return 1;
-
-				case UART_CNTRL_CALIBRATE:
-
-					// Void for eCOG
-					return 1;
-
-			}
 			/* Fall through */
 		default:
 
@@ -1484,30 +1450,6 @@ process (uart_driver, uart_t)
 
 endprocess (2)
 
-static void uart_unlock (uart_t *u) {
-/* ============================================ */
-/* Start up normal (interrupt-driven) operation */
-/* ============================================ */
-	if (u->lock) {
-		u->lock = 0;
-		fork (uart_driver, u);
-	}
-}
-
-static void uart_lock (uart_t *u) {
-/* ================================= */
-/* Direct (interrupt-less) operation */
-/* ================================= */
-	int pid;
-	if (u->lock == 0) {
-		u->lock = 1;
-		u->oin = u->oou = u->iin = u->iou = 0;
-		uart_disable_int (u);
-		pid = find (uart_driver, u);
-		if (pid)
-			kill (pid);
-	}
-}
 /* =========== */
 /* UART_DRIVER */
 /* =========== */
@@ -1528,7 +1470,7 @@ void __irq_entry uart_a_int (void) {
 	/* state.                                                     */
 	/* ========================================================== */
 	RISE_N_SHINE;
-	i_trigger (ETYPE_IO, devevent (UART_BASE, ATTENTION));
+	i_trigger (devevent (UART_BASE, ATTENTION));
 #endif
 	RTNI;
 }
@@ -1538,7 +1480,7 @@ void __irq_entry uart_b_int (void) {
 	rg.duart.b_int_clr = 0xffff;
 #if	UART_DRIVER > 1
 	RISE_N_SHINE;
-	i_trigger (ETYPE_IO, devevent (UART_BASE+1, ATTENTION));
+	i_trigger (devevent (UART_BASE+1, ATTENTION));
 #endif
 	RTNI;
 }
@@ -1623,14 +1565,13 @@ static void devinit_uart (int devnum) {
 	}
 	/* Assumes that buffer pointers are initialized to zero */
 	__pi_uart [devnum] . selector = devnum;
-	__pi_uart [devnum] . lock = 1;
+	fork (uart_driver, u);
 	/* =============================================================== */
 	/* To do it right, I would have to store pointers to UART specific */
 	/* stuff,  but  in  the present circumstances,  and with the rigid */
 	/* organization of the reg structure,  it  makes more sense to use */
 	/* conditional code - for clarity and neatness.                    */
 	/* =============================================================== */
-	uart_unlock (__pi_uart + devnum);
 }
 
 #endif

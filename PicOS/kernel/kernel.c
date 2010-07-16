@@ -313,35 +313,56 @@ void proceed (word state) {
 	release;
 }
 
-/* ============*/
-/* System wait */
-/* =========== */
-void __pi_swait (word etype, word event, word state) {
-
+void __pi_wait (word event, word state) {
+//
+// The unified wait operation
+//
 	int j = nevents (__pi_curr);
 
 	if (j == MAX_EVENTS_PER_TASK)
 		syserror (ENEVENTS, "sw");
 
-	setestatus (__pi_curr->Events [j], etype, state);
-	__pi_curr->Events [j] . Event = event;
+	setestate (__pi_curr->Events [j], state, event);
 	incwait (__pi_curr);
 }
 
-/* ========= */
-/* User wait */
-/* ========= */
-void __pi_uwait (word event, word state) {
+void __pi_trigger (word event) {
+//
+// The unified trigger operation
+//
+	int j;
+	pcb_t *i;
 
-	int j = nevents (__pi_curr);
+	for_all_tasks (i) {
+		if (i->code == NULL)
+			continue;
+		for (j = 0; j < nevents (i); j++) {
+			if (i->Events [j] . Event == event) {
+				/* Wake up */
+				wakeupev (i, j);
+				break;
+			}
+		}
+	}
+}
 
-	if (j == MAX_EVENTS_PER_TASK)
-		syserror (ENEVENTS, "wa");
+void __pi_ptrigger (sint pid, word event) {
+//
+// Trigger when the recipient process ID is known
+//
+	pcb_t	*i;
+	int 	j;
 
-	setestatus (__pi_curr->Events [j], ETYPE_USER, state);
-	__pi_curr->Events [j] . Event = event;
+	ver_pid (i, pid);
 
-	incwait (__pi_curr);
+	if (i->code == NULL)
+		return;
+
+	for (j = 0; j < nevents (i); j++) {
+		if (i->Events [j] . Event == event) {
+			wakeupev (i, j);
+		}
+	} 
 }
 
 /* ========== */
@@ -392,156 +413,61 @@ word dleft (sint pid) {
 	return i->Timer - __pi_old;
 }
 
-/* ============== */
-/* System trigger */
-/* ============== */
-int __pi_strigger (int etype, word event) {
-
-	int j, c;
-	pcb_t *i;
-
-	c = 0;
-	for_all_tasks (i) {
-		if (i->code == NULL || nevents (i) == 0)
-			continue;
-		for (j = 0; j < nevents (i); j++) {
-			if (i->Events [j] . Event == event &&
-				getetype (i->Events [j]) == etype) {
-					/* Wake up */
-					wakeupev (i, j);
-					c++;
-					break;
-			}
-		}
-	}
-
-	return c;
-}
-
-/* ============ */
-/* User trigger */
-/* ============ */
-int __pi_utrigger (word event) {
-
-	int j, c;
-	pcb_t *i;
-
-	c = 0;
-	for_all_tasks (i) {
-		if (i->code == NULL || nevents (i) == 0)
-			continue;
-		for (j = 0; j < nevents (i); j++) {
-			if (i->Events [j] . Event == event &&
-				getetype (i->Events [j]) == ETYPE_USER) {
-					/* Wake up */
-					wakeupev (i, j);
-					c++;
-					break;
-			}
-		}
-	}
-
-	return c;
-}
-
-/* ================================= */
-/* Trigger when the process is known */
-/* ================================= */
-int __pi_ptrigger (sint pid, word event) {
-
-	pcb_t	*i;
-	int 	j;
-
-	if (pid == 0)
-		return __pi_utrigger (event);
-
-	ver_pid (i, pid);
-
-	if (i->code == NULL)
-		return 0;
-
-	for (j = 0; j < nevents (i); j++) {
-		if (i->Events [j] . Event == event &&
-		    getetype (i->Events [j]) == ETYPE_USER) {
-			wakeupev (i, j);
-			return 1;
-		}
-	} 
-
-	return 0;
-}
-
 static void killev (pcb_t *pid) {
-
+//
+// Deliver events after killing a process
+//
 	word etp, wfun;
 	int j;
 	pcb_t *i;
 
 	wfun = (word)(pid->code);
 	for_all_tasks (i) {
-		if (nevents (i) == 0 || i->code == NULL)
+		if (i->code == NULL)
 			continue;
 		for (j = 0; j < nevents (i); j++) {
-			etp = getetype (i->Events [j]);
-			if ((etp == ETYPE_TERM &&
-				i->Events [j] . Event == (word)pid) ||
-			    (etp == ETYPE_TERMANY &&
-				i->Events [j] . Event == wfun) ) {
-					wakeupev (i, j);
-					break;
+			if (i->Events [j] . Event == (word)pid ||
+			    i->Events [j] . Event == wfun) {
+				wakeupev (i, j);
+				break;
 			}
 		}
 	}
 }
 
-sint kill (sint pid) {
-/* =========================== */
-/* Terminate process execution */
-/* =========================== */
-
+void kill (sint pid) {
+//
+// Terminate the process
+//
 	pcb_t *i;
 
-	if (pid == 0 || pid == -1 || pid == (int) __pi_curr) {
-		/* Self */
-		killev (__pi_curr);
-		__pi_curr->Status = 0;
-		if (pid == -1) {
-			/* This makes you a zombie ... */
-			swait (ETYPE_TERM, 0, 0);
-		} else {
-			/* ... and this makes you dead */
-			__pi_curr->code = NULL;
-			if (MEV_NWAIT (0)) {
-				trigger ((word)(&(mevent [0])));
-				MEV_NWAIT (0) --;
-			}
-		}
-		release;
-	}
-
-	ver_pid (i, pid);
+	if (pid == 0)
+		i = __pi_curr;
+	else
+		ver_pid (i, pid);
 
 	if (i->code != NULL) {
 		killev (i);
 		i->Status = 0;
 		i->code = NULL;
 		if (MEV_NWAIT (0)) {
-			trigger ((word)(&(mevent [0])));
+			trigger (&(mevent [0]));
 			MEV_NWAIT (0) --;
 		}
-		return pid;
 	}
-	return 0;
+
+	if (i == __pi_curr)
+		release;
 }
 
-int killall (code_t fun) {
-
+void killall (code_t fun) {
+//
+// Kill all processes running the given code
+//
 	pcb_t *i;
 	Boolean rel;
-	int nk;
 
 	rel = NO;
-	nk = 0;
 	for_all_tasks (i) {
 		if (i->code == fun) {
 			if (i == __pi_curr)
@@ -549,35 +475,10 @@ int killall (code_t fun) {
 			killev (i);
 			i->Status = 0;
 			i->code = NULL;
-			nk++;
 		}
 	}
 	if (rel)
 		release;
-	return nk;
-}
-
-int status (sint pid) {
-
-	pcb_t *i;
-	int res;
-
-	if (pid == 0)
-		i = __pi_curr;
-	else
-		ver_pid (i, pid);
-
-	res = nevents (i);
-
-	if (res == 1 && getetype (i->Events [0]) == ETYPE_TERM &&
-		i->Events [0] . Event == 0)
-			/* Zombie */
-			return -1;
-
-	if (twaiting (i))
-		res++;
-
-	return res;
 }
 
 code_t getcode (sint pid) {
@@ -592,7 +493,8 @@ code_t getcode (sint pid) {
 	return i->code;
 }
 
-sint join (sint pid, word state) {
+void join (sint pid, word state) {
+
 	pcb_t *i;
 
 	/* Check if pid is legit */
@@ -600,19 +502,9 @@ sint join (sint pid, word state) {
 	ver_pid (i, pid);
 
 	if (i->code == NULL)
-		return 0;
+		syserror (EREQPAR, "jo");
 
-	/* Do not wait for anything if the process is a zombie already */
-	if (nevents (i) != 1 || getetype (i->Events [0]) != ETYPE_TERM ||
-		i->Events [0] . Event != 0)
-			swait (ETYPE_TERM, pid, state);
-
-	return (int)i;
-}
-
-void joinall (code_t fun, word state) {
-
-	swait (ETYPE_TERMANY, (word)fun, state);
+	wait (pid, state);
 }
 
 sint running (code_t fun) {
@@ -639,29 +531,6 @@ int crunning (code_t fun) {
 		if (i->code == fun)
 			c++;
 	return c;
-}
-
-sint __pi_find (code_t fun, address dat) {
-
-	pcb_t *i;
-
-	for_all_tasks (i)
-		if (i->code == fun && i->data == dat)
-			return (int) i;
-
-	return 0;
-}
-
-sint zombie (code_t fun) {
-
-	pcb_t *i;
-
-	for_all_tasks (i)
-		if (i->code == fun && nevents (i) == 1 &&
-			getetype (i->Events [0]) == ETYPE_TERM &&
-				i->Events [0] . Event == 0)
-					return (int) i;
-	return 0;
 }
 
 int __pi_strlen (const char *s) {
@@ -780,7 +649,6 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 	release;
 
 #ifdef	__ECOG1__
-	/* Against stupidity ... */
 	return 0;
 #endif
 }
@@ -839,7 +707,7 @@ void dump_malloc (const char *s) {
 
 }
 
-#endif
+#endif	/* 0 */
 
 void __pi_malloc_init () {
 /* =================================== */
@@ -978,7 +846,6 @@ static void qfree (address ch) {
 static void qfree (int np, address ch) {
 #define	MA_NP	np
 #endif
-
 	address chunk, cc;
 
 	cc = (address)(mpools + MA_NP);
