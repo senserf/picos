@@ -235,3 +235,8 @@ PG100714A:
 
 	There is an -all option in the cleanup script that cleans up all
 	three packages.
+
+---------:
+
+	Fixed deploy to correctly handle locations outside the HOME directory
+	tree on cygwin.
