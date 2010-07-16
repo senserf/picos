@@ -44,6 +44,23 @@
 #ifndef	UART_TCV
 #define	UART_TCV 0
 #endif
+#ifndef	RADIO_OPTIONS
+#define RADIO_OPTIONS	0
+#endif
+#ifndef	RADIO_CRC_MODE
+#define	RADIO_CRC_MODE	0
+#endif
+
+#define	PHYSID			0
+#define	MINIMUM_PACKET_LENGTH	4
+#define	RADIO_DEF_BUF_LEN	48
+#define	UART_DEF_BUF_LEN	82
+
+#if RADIO_CRC_MODE < 4
+#define	CC1100_MAXPLEN		62
+#else
+#define	CC1100_MAXPLEN		60
+#endif
 
 // ----------------------------------------------------------------------- //
 // NOTE: this will be replaced in PicOS as an isolated fragment of sysio.h //
@@ -65,8 +82,14 @@
 #define	TCV_MAX_DESC		4
 #define	TCV_MAX_PHYS		2
 #define	TCV_MAX_PLUGS		3
+
+#ifndef	TCV_LIMIT_RCV
 #define	TCV_LIMIT_RCV		0
+#endif
+
+#ifndef	TCV_LIMIT_XMT
 #define	TCV_LIMIT_XMT		0
+#endif
 
 #define	PHYSOPT_PLUGINFO	(-1)	/* These two are kind of special */
 #define	PHYSOPT_PHYSINFO	(-2)
