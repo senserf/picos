@@ -749,8 +749,9 @@ void	dbb (word);
 #define	WRITE		1
 #define	CONTROL		2
 
-#define	UART_CNTRL_SETRATE	0
-#define	UART_CNTRL_GETRATE	1
+// None of these can be zero
+#define	UART_CNTRL_SETRATE	1
+#define	UART_CNTRL_GETRATE	2
 
 #define	LCD_CNTRL_POS		1	/* Position (SEEK) */
 #define	LCD_CNTRL_ERASE		2	/* Clear */
