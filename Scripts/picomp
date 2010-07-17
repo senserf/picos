@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.22
+set Version 0.23
 
 ###############################################################################
 ###############################################################################
@@ -156,14 +156,21 @@ proc xerror { msg { lnu "" } } {
 	}
 	set RepErr($erc) ""
 
-	puts stderr "$erc: $msg"
+	set msg "$erc: $msg"
+	puts stderr $msg
+	append_status $msg
 
-	if $FG(D) { dbg "$erc: $msg" }
+	if $FG(D) { dbg "$msg" }
 
 	if $FG(A) {
 		# abort on first error
-		puts stderr "aborting on first error"
-		exit 99
+		if ![all_warnings $msg] {
+			set msg "aborting on first error"
+			puts stderr $msg
+			append_status $msg
+			append_status_end
+			exit 99
+		}
 	}
 
 	# parser error count
@@ -173,7 +180,10 @@ proc xerror { msg { lnu "" } } {
 	incr ErrCnt
 
 	if { $ErrCnt > 15 } {
-		puts stderr "$erc: too many errors"
+		set msg "$erc: too many errors"
+		puts stderr $msg
+		append_status $msg
+		append_status_end
 		exit 99
 	}
 }
@@ -459,7 +469,7 @@ proc lnumseq { lnu } {
 	global FG
 
 	if $FG(D) { dbg "lnumseq: [lindex $lnu 0]" }
-	return  "# [lindex $lnu 0] \"[lindex $lnu 1]\"\n"
+	return  "#$FG(EC) [lindex $lnu 0] \"[lindex $lnu 1]\"\n"
 }
 
 proc setlnum { lnu } {
@@ -484,7 +494,7 @@ proc parse_lnum { } {
 #
 # Parse a line number sequence in the parser's input
 #
-	global PS
+	global PS FG
 
 	set cmd ""
 
@@ -507,14 +517,15 @@ proc parse_lnum { } {
 		append cmd $c
 	}
 
-	if [regexp "^ *(\[0-9\]+) +\"(.*)\"(.*)" $cmd jnk ln fi re] {
+	if [regexp "^(line)? *(\[0-9\]+) +\"(.*)\"" $cmd jnk FG(EC) ln fi] {
 
 		# will be bumped on BOP
 		set PS(LIN) [expr $ln - 1]
 
-		if { [string first "/___pcs___" $fi] >= 0 } {
+		if { [string first "___pcs___" $fi] >= 0 } {
 			# clean up the name for error reports
-			regsub "___pcs___" $fi "" fi
+			regsub ".*___pcs___" $fi "" fi
+			regsub "\\.c$" $fi ".cc" fi
 		}
 
 		set PS(LIF) $fi
@@ -3201,6 +3212,43 @@ proc parse_vuee { } {
 
 	set TDIR [file join $CWD "VUEE_TMP"]
 
+	if $FG(E) {
+		# we have been called to execute vuee on existing VUEE_TMP
+		if ![file isdirectory $TDIR] {
+			puts "VUEE_TMP doesn't exist"
+			exit 0
+		}
+		set p [comp_status out]
+		if { $p > 2 } {
+			puts "VUEE_TMP is incomplete, previous picomp\
+				run didn't terminate properly"
+			exit 0
+		}
+		if { $p > 1 } {
+			# errors
+			puts -nonewline $out
+			exit 0
+		}
+		if !$FG(C) {
+			# we don't want to compile
+			if $p {
+				puts -nonewline $out
+			} else {
+				puts "OK, no errors, no warnings"
+			}
+			exit 0
+		}
+		
+		set err [compile_vuee]
+		if { $err != "" } {
+			errab $err
+		}
+
+		exit 0
+	}
+
+	# actual compilation
+
 	file delete -force $TDIR
 
 	if [catch { file mkdir $TDIR } err] {
@@ -3228,7 +3276,17 @@ proc parse_vuee { } {
 
 	emit_glue
 
-	if { $FG(C) && $ErrCnt == 0 } {
+	append_status_end
+
+	if $FG(C) {
+		# vuee compilation required
+		set err [comp_status]
+		if { $err > 1 } {
+			if { $err == 3 } {
+				errab "cannot read status file, internal error"
+			}
+			return
+		}
 		set err [compile_vuee]
 		if { $err != "" } {
 			errab $err
@@ -3249,6 +3307,86 @@ proc setsymbols { dl } {
 		regexp "^(\[^=\]+)=(.*)" $d jnk d v
 		set Symbols($d) $v
 	}
+}
+
+proc append_status { out } {
+#
+# Appends the specified text (a sequence of lines) to the status file
+# (__status__) in VUEE_TMP. These are basically errors and warnings saved
+# for the user. This file can be used to assess whether the directory contains
+# something that can be compiled with vuee, as opposed to garbage.
+#
+	global FG
+
+	if $FG(V) {
+		set out "[string trimright $out]\n"
+		wtfile "__status__" $out "a"
+	}
+}
+
+proc append_status_end { } {
+
+	append_status "###END###"
+}
+
+proc all_warnings { out } {
+#
+# Checks if all the diagnostic lines in out are warnings, as opposed to
+# non-warnings interpreted as (fatal) errors
+#
+	foreach ln [split $out "\n"] {
+		set ln [string trim $ln]
+		if { $ln == "" } {
+			continue
+		}
+		if { [string first " warning: " $ln] < 0 } {
+			return 0
+		}
+	}
+
+	return 1
+}
+
+proc comp_status { { r "" } } {
+#
+# Examines the status of VUEE_TMP:
+#
+#	0 - complete, no errors, no warnings
+#	1 - complete, warnings, no errors
+#	2 - complete, errors
+#	3 - incomplete
+#
+# If r is not "", it is the name of an upvar variable to receive the printable
+# list of errors/warnings
+#
+	if { $r != "" } {
+		upvar $r res
+		set res ""
+	}
+
+	if [catch { rtfile "__status__" } out] {
+		return 3
+	}
+
+	set out [string trimright $out]
+
+	if ![regexp "(.*)###END###$" $out jnk out] {
+		return 3
+	}
+
+	if { $r != "" } {
+		set res $out
+	}
+
+	if { [string trim $out] == "" } {
+		return 0
+	}
+
+	if [all_warnings $out] {
+		return 1
+	}
+
+	return 2
 }
 
 proc compile_pgm { } {
@@ -3308,10 +3446,22 @@ proc compile_pgm { } {
 			# we have to use a scratch file as cpp produces output
 			# together with errors
 			if [catch { exec $EXEC(cpp) << $exp > $SCF } res] {
-				catch { file delete -force $SCF }
-				unset exp
-				puts stderr $res
-				errab "compilation aborted"
+
+				# check if all lines are warnings; in that
+				# case assume that everything went fine
+				# after all
+
+				if ![all_warnings $res] {
+					catch { file delete -force $SCF }
+					unset exp
+					puts stderr $res
+					append_status $res
+					append_status_end
+					errab "compilation aborted"
+				}
+
+				puts $res
+				append_status $res
 			}
 
 			unset exp
@@ -3377,14 +3527,17 @@ proc compile_pgm { } {
 	}
 }
 
-proc wtfile { fn out } {
+proc wtfile { fn out { ap "" } } {
 #
 # Write a file to VUEE_TMP
 #
 	global TDIR
 
+	if { $ap == "" } {
+		set ap "w"
+	}
 	set tf [file join $TDIR $fn]
-	if [catch { open $tf "w" } fd] {
+	if [catch { open $tf $ap } fd] {
 		errab "cannot open output file $tf, $fd"
 	}
 	if [catch { puts -nonewline $fd $out } err] {
@@ -3392,6 +3545,24 @@ proc wtfile { fn out } {
 	}
 
 	catch { close $fd }
+}
+
+proc rtfile { fn } {
+#
+# Read a file form VUEE_TMP
+#
+	global TDIR
+
+	set tf [file join $TDIR $fn]
+	if [catch { open $tf "r" } fd] {
+		error "cannot open file $tf, $fd"
+	}
+	if [catch { read $fd } res] {
+		catch { close $fd }
+		error "cannot read file $tf, $res"
+	}
+	catch { close $fd }
+	return $res
 }
 
 proc swarn { m } {
@@ -5090,14 +5261,16 @@ proc usage { } {
 
 	set pgname [file tail $argv0]
 
-	puts stderr "Usage: $pgname \[-p|-v\] \[-n\] \[-V\] \[-A\]\
+	puts stderr "Usage: $pgname \[-p|-v\] \[-n\] \[-e\] \[-V\] \[-A\]\
 		\[-- vuee args\]"
 	puts stderr "       -p  -> PicOS compiler (used as a filter)"
 	puts stderr "       -v  -> VUEE compiler (the default)"
 	puts stderr "       -n  -> do not call vuee automatically"
+	puts stderr "       -e  -> call vuee for existing VUEE_TMP"
 	puts stderr "       -V  -> debug info written to output (lots)"
 	puts stderr "       -A  -> stop on first compilation error"
 	puts stderr "       --  -> subsequent args passed to vuee"
+	puts stderr "       -n together with -e shows VUEE_TMP status"
 	exit 99
 }
 
@@ -5116,6 +5289,13 @@ set FG(D) 0
 # abort on first error
 set FG(A) 0
 
+# run vuee on existing VUEE_TMP
+set FG(E) 0
+
+# ecog flag (used to generate proper line numbering sequence for ecogcc);
+# will be empty or "line"
+set FG(EC) ""
+
 set an 0
 
 foreach arg $argv {
@@ -5132,6 +5312,8 @@ foreach arg $argv {
 		set FG(D) 1
 	} elseif { $arg == "-A" } {
 		set FG(A) 1
+	} elseif { $arg == "-e" } {
+		set FG(E) 1
 	} elseif { $arg == "--" } {
 		# arguments for the vuee compiler
 		if !$FG(V) {
@@ -5144,6 +5326,10 @@ foreach arg $argv {
 	}
 }
 
+if { $FG(E) && !$FG(V) } {
+	errab "-e illegal with PicOS mode (-p)"
+}
+	
 o_initialize
 
 set ErrCnt 0
@@ -5194,7 +5380,4 @@ exit 0
 ###	FSMs (using different sets of demangling macros).
 ###	On the other hand, static functions will be impossible this way, so
 ###	perhaps the idiosyncratic option is not that bad, after all.
-###
-###	CyanIDE makefiles may be OK, not projects, though. Different format
-###	of line numbers in preprocessor.
 ###

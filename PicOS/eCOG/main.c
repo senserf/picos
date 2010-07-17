@@ -1565,7 +1565,7 @@ static void devinit_uart (int devnum) {
 	}
 	/* Assumes that buffer pointers are initialized to zero */
 	__pi_uart [devnum] . selector = devnum;
-	fork (uart_driver, u);
+	fork (uart_driver, &(__pi_uart [devnum]));
 	/* =============================================================== */
 	/* To do it right, I would have to store pointers to UART specific */
 	/* stuff,  but  in  the present circumstances,  and with the rigid */

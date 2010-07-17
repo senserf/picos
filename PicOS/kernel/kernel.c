@@ -417,7 +417,7 @@ static void killev (pcb_t *pid) {
 //
 // Deliver events after killing a process
 //
-	word etp, wfun;
+	word wfun;
 	int j;
 	pcb_t *i;
 

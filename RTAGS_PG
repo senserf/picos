@@ -236,32 +236,72 @@ PG100714A:
 	There is an -all option in the cleanup script that cleans up all
 	three packages.
 
-PG100714B:	VUEE >= PG100714A
+PG100716A:	VUEE >= PG100716A
 
-	Names of "hidden" variables and functions changed to begin with __pi_
-	in preparation for the upcoming revision of PICOS's implementation of
-	strands.
+	Naming of "hidden" variables and functions cleaned up (such names now
+	begin with __pi_) in preparation for the upcoming revision of PICOS's
+	implementation of strands.
 
----------:
+	Eliminated the distinction between system and user events (the ETYPE
+	attribute of events has been removed from the kernel). I have spent
+	some time contemplating this step. It does simplify a lot of things in
+	the kernel and appears generally safe. The implication for a praxis
+	programmer is that event identifiers should be always derived from
+	addresses as to make them unique. Note that generally, even if those
+	identifiers are not abolutely unique, there should be no problem, as
+	long as we always follow the standard paradigm of re-checking the
+	respective condition after receiving an event. One exception (and a
+	potential source of problems) is process termination (for join and
+	joinall), because the events awaited for those operations are always
+	assumed to be authoritative.
 
-	Eliminated the distinction between system and user events (generally
-	the ETYPE_.... attribute of events has been removed). It is strongly
-	recommended to consistently use addresses as event identifiers - to
-	make sure that those identifiers are globally unique. Note that with
-	the standard paradigm of responding to events (i.e., recheck the
-	condition after receiving the event) occasional collisions are
-	practically inconsequential. The only exception is join (PID events)
-	[note that PIDs are addresses] and, possibly, joinall (in the latter
-	case, the event ID is the process function address.
+	I will explain all this in the new edition of the manual, which will
+	probably materialize later, after strands have been redone. You may
+	want to know, for example, that the event awaited by join is the PID
+	of the child process. Thus, the praxis shouldn't deliver (trigger)
+	such an event (unless it knows what it is doing). Note that PIDs are
+	basically addresses of data structures in the kernel, so they cannot
+	be confused for addresses in the praxis area. Similarly, the event
+	awaited by joinall is the address of the process's code function.
+	Previously, even though those events were represented in the same
+	way, they had an extra attribute differentiating them from user/praxis
+	events.
 
-	I have spent some time contemplating this move. It does simplify a lot
-	of things and appears generally safe.
+	OK, so the bottom line is this: use addresses for event identifiers,
+	pretty much as you have been doing so far. Those addresses may point
+	to your static data or code, except that the addresses of process code
+	functions trigger joinall. The standard practice of using the addresses
+	of global/static variables is always safe.
+	
+	I have simplified some operations (and even removed some of them)
+	eliminating those "features" that have never been used in praxes.
+	Again, it will be all described in detail in the new manual, but
+	here is an approximate list:
 
-	Some process-related operations simplified by eleminating their
-	never-used features (e.g., some functions that used to return values
-	are now void).
+	- Zombies have been eliminated. I introduced them originally in order
+	  to provide for foolproof handshakes whereby, say, strand A formally
+	  terminates (delivering a join/joinall event), but remains present
+	  for a while (as a zombie) until some other (joining) process B
+	  is given a chance to see it (or its data). Scenarios like this
+	  have never been used, and, if needed, they can be implemented using
+	  extra events.
 
----------:
+	- Operations kill, killall, join, joinall, trigger, ptrigger used to
+	  return values (which nobody ever used). Now they return nothing.
 
+	- Operation status has been eliminated.
+	  
 	Fixed deploy to correctly handle locations outside the HOME directory
 	tree on cygwin.
+
+	The new versions of mkmk and picomp can now handle eCOG compilation
+	(the makefile variant). I don't think Cyan SDK projects will ever be
+	compatible with picomp. Who cares!
+
+	There is a new option for picomp. With -e it will simply run vuee on
+	the existing VUEE_TMP (without recompiling the original sources).
+	Any errors from picomp are now stored in a special file in VUEE_TMP
+	(named __status__, if you are curious). Using both -e and -n you can
+	see those errors without running picomp again. Previously picomp would
+	refuse to run vuee after warnings from the C preprocessor. Now, it
+	can beter tell warnings from fatal errors.

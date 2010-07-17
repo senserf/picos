@@ -283,7 +283,8 @@ proc getstubs { srcs } {
 proc outprf { def cpu } {
 #
 # Output a project file for CyanIDE. The second argument (compilation params)
-# ignored for now, but may be useful later.
+# ignored for now, but may be useful later. Note that CyanIDE projects cannot
+# be made compatible with picomp.
 #
 	global IncShort SrcLists Depend CWD Locdep Run
 
@@ -716,10 +717,17 @@ proc outmkfc { def } {
 			puts $mfd ""
 			puts $mfd "\tmkdir -p \$(TD)"
 			if { $suf == ".cc" } {
-				# this is a VUEE source, copy it to plain C
+				# this is a VUEE source, preprocess
 				set rfn "${rna}.c"
-				puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+				set rfm "___pcs___$rfn"
 				set spfx "\$(TD)"
+				# copy to a scratch .c file
+				puts $mfd "\tcp \$($dsh)/${rfn}c $spfx/$rfm"
+				puts -nonewline $mfd \
+					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+				puts $mfd \
+				     " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
+				puts $mfd "\trm $spfx/$rfm"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
 			} else {
@@ -878,11 +886,19 @@ proc outmkfc_lib { def } {
 		puts $mfd ""
 		puts $mfd "\tmkdir -p \$(TD)"
 		if { $suf == ".cc" } {
-			# this is a VUEE source, copy it to plain C
+			# this is a VUEE/picomp source
 			set rfn "${rna}.c"
-			puts $mfd "\tcp \$($dsh)/${rfn}c \$(TD)/$rfn"
+			set rfm "___pcs___$rfn"
 			set spfx "\$(TD)"
-			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
+			# copy to a scratch .c file
+			puts $mfd "\tcp \$($dsh)/${rfn}c $spfx/$rfm"
+			puts -nonewline $mfd \
+				"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+			puts $mfd \
+			     " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
+			puts $mfd "\trm $spfx/$rfm"
+			puts -nonewline $mfd \
+				"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
 		} else {
 			set spfx "\$($dsh)"
 			if { $suf == ".c" } {
@@ -1137,8 +1153,8 @@ proc outmkf { def cpu } {
 				# be preprocessed by picomp
 				set rfn "${rna}.c"
 				set rfm "___pcs___$rfn"
-				puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfm"
 				set spfx "\$(TD)"
+				puts $mfd "\tcp \$($dsh$U)/${rfn}c $spfx/$rfm"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
 				puts $mfd \
@@ -1292,7 +1308,7 @@ proc outmkf_lib { def cpu } {
 		puts $mfd ""
 		puts $mfd "\tmkdir -p \$(TD)"
 		if { $suf == ".cc" } {
-			# this is "enhanced" source code to be precompiles
+			# this is "enhanced" source code to be precompiled
 			set rfn "${rna}.c"
 			set rfm "___pcs___$rfn"
 			puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfm"

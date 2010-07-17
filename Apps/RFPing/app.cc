@@ -777,14 +777,14 @@ fsm root {
 		/* The tail */
 		ramput (j, mbuf, bp);
 
-  entry RS_SDRAM+3:
+  entry RS_SDRAM_3:
 
-	ser_out (RS_SDRAM+3, "Writing complete\r\n");
+	ser_out (RS_SDRAM_3, "Writing complete\r\n");
 
-	delay (512, RS_SDRAM+4);
+	delay (512, RS_SDRAM_4);
 	release;
 
-  entry RS_SDRAM+4:
+  entry RS_SDRAM_4:
 
 	for (i = 0; i < nw; ) {
 		bp = (nw - i > m) ? m : (word) (nw - i);
@@ -793,21 +793,21 @@ fsm root {
 		bp = 0;
 		while (i < j) {
 			if (mbuf [bp] != (word) (i + 1))
-				proceed (RS_SDRAM+6);
+				proceed (RS_SDRAM_6);
 			bp++;
 			i++;
 		}
 	}
 
-  entry RS_SDRAM+5:
+  entry RS_SDRAM_5:
 
-	ser_outf (RS_SDRAM+5, "Test OK %x\r\n", mbuf [0]);
+	ser_outf (RS_SDRAM_5, "Test OK %x\r\n", mbuf [0]);
 	ufree (mbuf);
 	proceed (RS_RCMD);
 
-  entry RS_SDRAM+6:
+  entry RS_SDRAM_6:
 
-	ser_outf (RS_SDRAM+6, "Error: %x%x %x -> %x\r\n",
+	ser_outf (RS_SDRAM_6, "Error: %x%x %x -> %x\r\n",
 				(word)((i >> 16) & 0xffff),
 				(word)( i        & 0xffff),
 				mbuf [bp],
