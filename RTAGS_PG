@@ -570,15 +570,11 @@ PG100706A:	SIDE >= PG100706A, PICOS >= PG100706A
     README replaced with RTAGS for uniformity, deploy/cleanup scripts added.
     Read RTAGS_PG at PICOS.
 
----------:	PICOS >= PG100714B
-
-    Merge with master.
+PG100716A:	PICOS >= PG100716A
 
     Names of "hidden" variables and functions changed to begin with __pi_ in
     accord with similar changes in PICOS. This cleanup is in preparation for
     the upcoming revision of PICOS's implementation of strands.
 
-PG100714A:	PICOS >= PG100714B
-
-    PHYSOPT_ERROR should now work with VUEE producing meaningful results. Just
-    make sure that RADIO_OPTIONS is properly set in options.sys.
+    Removed some IPC tools and simplified some system calls (see
+    PICOS/RTAGS_PG).

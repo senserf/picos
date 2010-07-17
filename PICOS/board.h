@@ -237,15 +237,14 @@ process	_PP_ {
 	TIME	WaitingUntil;	// Target time (if waiting)
 	_PP_	*HNext, *HPrev;	// For hash collisions
 	sint	ID;		// The int identifier (as required by PicOS)
-	word	Flags;		// GP flags for grabs
+	word	Flags;		// GP flags mostly for grabs
 
 // Note ... in preparation for a compiler: we will put there a data pointer
 // but for now it would create more mess than good; this is because while a
 // simple macro pre-processing would go a long way towards simplicity and
 // uniformity, cpp is a bit insufficient
 
-#define	_PP_flag_zombie	0	// The process is a PicOS-style zombie
-#define	_PP_flag_wtimer 1	// The process is waiting on a timer
+#define	_PP_flag_wtimer 0	// The process is waiting on a timer
 
 	sint	_pp_apid_ ();	// Allocates process ID
 
@@ -811,14 +810,12 @@ inline void __pi_when (int ev, int state) { TheNode->TB.wait (ev, state); }
 
 // ============================================================================
 
-int __pi_status (sint);
 sint __pi_join (sint, word);
 void __pi_joinall (code_t, word);
-sint __pi_kill (sint);
+void __pi_kill (sint);
 sint __pi_running (code_t);
-sint __pi_zombie (code_t);
 int __pi_crunning (code_t);
-int __pi_killall (code_t);
+void __pi_killall (code_t);
 sint __pi_getcpid ();
 
 // ============================================================================

@@ -4514,7 +4514,7 @@ sint __pi_join (sint pid, word st) {
 	return pid;
 }
 
-sint __pi_kill (sint pid) {
+void __pi_kill (sint pid) {
 //
 // PicOS's variant of kill
 //
@@ -4531,47 +4531,12 @@ sint __pi_kill (sint pid) {
 		// Unreachable
 	}
 
-	if (pid == -1) {
-		// Become a PicOS zombie; note that zombies are not tallied
-		// out until actually terminated
-		unwait ();
-		setFlag (ThePPcs->Flags, _PP_flag_zombie);
-		// Some event that you will never see
-		ThePPcs->wait (DEATH, 0);
-		sleep;
-	}
-
 	// Locate the process
-	if ((p = find_pcs_by_id (pid)) == NULL)
-		// Not found
-		return 0;
-
-	TheNode->tally_out_pcs ();
-	p->_pp_unhash_ ();
-	p->terminate ();
-
-	return pid;
-}
-
-int __pi_status (sint pid) {
-//
-// PicOS's process status
-//
-	_PP_ *p;
-
-	if (pid == 0) {
-		p = ThePPcs;
-	} else {
-		p = find_pcs_by_id (pid);
-		if (p == NULL)
-			// A precaution
-			return 0;
+	if ((p = find_pcs_by_id (pid)) != NULL) {
+		TheNode->tally_out_pcs ();
+		p->_pp_unhash_ ();
+		p->terminate ();
 	}
-
-	if (flagSet (p->Flags, _PP_flag_zombie))
-		return -1;
-
-	return p->nwait ();
 }
 
 // ============================================================================
@@ -4599,49 +4564,20 @@ void __pi_joinall (code_t pt, word st) {
 	TheNode->TB . wait ((IPointer) pt, st);
 }
 
-sint __pi_zombie (code_t tid) {
-//
-// Locate a zombie
-//
-	Process **P;
-	_PP_ *p;
-	int np, sz;
-
-	for (sz = 256; ; sz *= 2) {
-		P = new Process* [sz];
-		np = zz_getproclist (TheNode, tid, P, sz);
-		delete P;
-		if (np < sz)
-			break;
-	}
-
-	while (np) {
-
-		p = (_PP_*)(P [--np]);
-
-		if (flagSet (p->Flags, _PP_flag_zombie))
-			return p->ID;
-	}
-
-	return 0;
-}
-
-int __pi_killall (code_t tid) {
+void __pi_killall (code_t tid) {
 
 	Process *P [16];
-	Long np, i, tot;
+	Long np, i;
 
-	tot = 0;
 	while (1) {
 		np = zz_getproclist (TheNode, tid, P, 16);
-		tot += np;
 		for (i = 0; i < np; i++) {
 			((_PP_*)(P [i])) -> _pp_unhash_ ();
 			terminate (P [i]);
 			TheNode->tally_out_pcs ();
 		}
 		if (np < 16)
-			return tot;
+			return;
 	}
 }
 

@@ -224,7 +224,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	BNONE		0xff
 #define	BLOCKED		(-2)
 
-#define	trigger(a)	(TheNode->TB.signal (__cpint(a)))
+#define	trigger(a)	((void)(TheNode->TB.signal (__cpint(a))))
 #define	ptrigger(a,b)	trigger(b)
 
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
@@ -363,8 +363,6 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	kill(p)		__pi_kill (p)
 #define	joinall(pt,st)	__pi_joinall (_pt_id_ (pt), st)
 #define	join(p,st)	__pi_join (p, st)
-#define	status(p)	__pi_status (p)
-#define	zombie(pt)	__pi_zombie (_pt_id_ (pt))
 #define	getcpid()	__pi_getcpid ()
 
 #define	seconds()	((lword)(((lword) ituToEtu (Time)) - \
