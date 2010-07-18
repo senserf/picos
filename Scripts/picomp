@@ -2679,7 +2679,7 @@ F {
 	# function
 	truncate $fsm_mark
 
-	# initialize collectors for the sfm
+	# initialize collectors for the fsm
 	set sdlist ""	;# shared declarations
 	set dflist ""	;# defines (states + shared declaration renames)
 	set stlist ""	;# states
@@ -5101,7 +5101,7 @@ F {
 
 	if { $PAR_IT != "d" || ( $TK != "\{" && $TK != "(" && $TK != "," &&
 	     $TK != ";" ) } {
-		xerror "fsm declaration syntax error, ( or \{ expected"
+		xerror "fsm declaration syntax error, (, \{, or ; expected"
     		if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (e)" }
 		set fg_fsm -1
 		continue
