@@ -305,3 +305,24 @@ PG100716A:	VUEE >= PG100716A
 	see those errors without running picomp again. Previously picomp would
 	refuse to run vuee after warnings from the C preprocessor. Now, it
 	can beter tell warnings from fatal errors.
+
+PG100718A:
+
+	As it turns out, hardware CRC on CC1100 shouldn't be used with the
+	AUTOFLUSH mode, as it hangs the chip. Apparently, the chip gets into
+	the "received" state (its status changes to IDLE) without properly
+	presenting the reception/FIFO status (FIFO is empty unless the CRC
+	is correct, which is probably the confusing factor). I have tried
+	several (three to be exact) events signaled on GDO0 (1, 7, 15) and
+	none of them really works as the correct indication of what has
+	happened.
+
+	For now, I am disabling that option, i.e., if you select RADIO_CRC_MODE
+	= 2 or 3, you will get compilation errors. I don't want to remove it
+	altogether, because there is a chance that the problem has been
+	eliminated in newer versions of the chip.
+
+	I have added a few sentences at the end of the document (doc.odt) in
+	Apps/VUEE/RFTEST explaining how you can use the praxis to determine
+	a good PATABLE setting (by trial and error). Coming up: a command to
+	do this automatically.

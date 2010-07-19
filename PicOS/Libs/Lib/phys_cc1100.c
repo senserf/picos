@@ -483,7 +483,12 @@ ReTry:
 			return;
 		cc1100_strobe (CCxxx0_SRX);
 	}
-#endif
+
+#if (RADIO_OPTIONS & 0x01)
+	diag ("CC1100: failed to enter RX");
+#endif	/* 0x01 */
+
+#endif	/* 0x20 */
 // ============================================================================
 }
 

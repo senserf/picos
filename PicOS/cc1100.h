@@ -101,6 +101,13 @@
 
 #endif	/* RADIO_CRC_MODE */
 
+#if AUTOFLUSH_FLAG
+#error "S: AUTOFLUSH mode doesn't work due to a bug in CC1100, don't use!!!"
+#define	IOCFG0_INT		0x0F	/* CRC OK */
+#else
+#define	IOCFG0_INT		0x01	/* FIFO nonempty, packet received */
+#endif
+
 #define	MAX_TOTAL_PL		62
 
 // Register Numbers ===========================================================
@@ -281,7 +288,7 @@ const	byte	cc1100_rfsettings [] = {
 
 	CCxxx0_IOCFG2,	0x2f,	// Unused and grounded
 	CCxxx0_IOCFG1,	0x2f,	// Unused and grounded
-	CCxxx0_IOCFG0,	0x01,	// Reception, EOP or threshold
+	CCxxx0_IOCFG0,	IOCFG0_INT,	// Reception interrupt condition
 
         CCxxx0_PKTLEN,  MAX_TOTAL_PL,
 
