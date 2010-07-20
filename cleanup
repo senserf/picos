@@ -1,5 +1,5 @@
 #!/bin/bash
-if [ "x$1" = "xall" ] ||  [ "x$1" = "x-all" ]; then
+if [ "x$1" = "xall" ] ||  [ "x$1" = "x-all" ] || [ "x$1" = "x--all" ]; then
 pushd ../VUEE
 echo "Cleaning VUEE"
 ./cleanup

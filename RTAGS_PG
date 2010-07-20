@@ -326,3 +326,9 @@ PG100718A:
 	Apps/VUEE/RFTEST explaining how you can use the praxis to determine
 	a good PATABLE setting (by trial and error). Coming up: a command to
 	do this automatically.
+
+PG100720A:
+
+	A new command added to praxis RFTEST (Apps/VUEE/RTFEST) allowing you
+	to collect statistics correlating PATABLE settings with perceived RSSI
+	(for CC1100). Read doc.odt in Apps/VUEE/RFTEST.
