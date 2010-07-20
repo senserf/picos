@@ -372,3 +372,8 @@ PG100706A:
 
 	   RTAGS file introduced, added scripts deploy and cleanup. Read PICOS
 	   RTAGS (PG100706A).
+
+PG100719A:
+
+	   Fixed a nasty bug in setXPower causing occasional heap screwups
+	   when the transmitter power was reduced.

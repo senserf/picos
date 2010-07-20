@@ -1371,8 +1371,10 @@ void RFChannel::nei_trm (Transceiver *T) {
 		i++;
 	}
 
-	if (i == 0)
+	if (i == 0) {
 		delete [] T->Neighbors;
+		T->Neighbors = NULL;
+	}
 
 	// We do not resize the array at this stage
 	T->NNeighbors = i;

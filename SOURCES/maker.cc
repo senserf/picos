@@ -338,7 +338,7 @@ IllNum:
 			goto ML_RETRY;
 		}
 		maxlib = atoi (is);
-		cout << "The maximum number of library version is " <<
+		cout << "The maximum number of library versions is " <<
 			maxlib << '\n';
 	}
 
