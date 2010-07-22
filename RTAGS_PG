@@ -344,3 +344,19 @@ PG100721A:	VUEE >= PG100721A
 	with it) illustrates how to use the hooks and timers.
 
 	Irrelevant cosmetics in PiComp.
+
+PG100722A:
+
+	Praxis Apps/VUEE/TIMERS is better than Apps/VUEE/HOOKS. I am removing
+	Apps/VUEE/HOOKS. TCV_HOOKS is probably redundant (as an option) and not
+	needed.
+
+	Fixed a serious bug in PiComp causing two 'shared' variables with the
+	same name in the same file (used by different processes) to be mapped
+	into one.
+
+	A minor fix to CC1100 driver. Admitting RX chip state after a
+	reception (nonempty FIFO), which may result from two packets being
+	received (almost) back to back. While the second packet will not
+	always succeed in such circumstances, it doesn't absolutely have to
+	fail.

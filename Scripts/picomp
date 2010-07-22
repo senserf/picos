@@ -2443,7 +2443,7 @@ K {
 			# copy the variable list renaming the variables
 			foreach v $vrs {
 				set vnm [g_vdec $v nam]
-				set nnm "__fsm_shared_$vnm"
+				set nnm "__fsm_${fsm_name}_shared_$vnm"
 				# defines
 				lappend dflist [list $vnm $nnm]
 				s_vdec v nam $nnm

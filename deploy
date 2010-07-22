@@ -236,7 +236,7 @@ proc anchor { } {
 	if { [string first $HOME $VPATH] != 0 } {
 		if [regexp -nocase "^(\[a-z\]):(/.*)" $VPATH jnk dr ta] {
 			# we are on Cygwin and this is a different drive
-			set VPATH "/cygdrive/[string tolower $dr]$ta"
+			set VPATH "/cygdrive/$dr$ta"
 			if [file isdirectory $VPATH] {
 				return
 			}

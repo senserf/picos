@@ -513,8 +513,10 @@ int cc1100_rx_status () {
 
 	SPI_END;
 
-	if (val == CC1100_STATE_IDLE)
-		// The status is right, return #bytes in RX FIFO
+	if (val == CC1100_STATE_IDLE || val == CC1100_STATE_RX)
+		// The status is right, return #bytes in RX FIFO; note that we
+		// also admit RX status which may result from two packets
+		// received back to back
 		return (b & 0x7f);
 #if (RADIO_OPTIONS & 0x01)
 	diag ("CC1100: %u RXST = %x/%x", (word) seconds (), val, b);
