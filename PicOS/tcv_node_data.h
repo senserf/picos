@@ -87,6 +87,8 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 #if TCV_TIMERS
 	void 		_da (tcvp_settimer) (address p, word del);
 	void 		_da (tcvp_cleartimer) (address p);
+	friend class	TCVTimerService;
+	TCVTimerService *tcv_tservice;
 #endif
 	int 		_da (tcvp_length) (address p);
 

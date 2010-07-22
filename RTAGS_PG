@@ -332,3 +332,15 @@ PG100720A:
 	A new command added to praxis RFTEST (Apps/VUEE/RTFEST) allowing you
 	to collect statistics correlating PATABLE settings with perceived RSSI
 	(for CC1100). Read doc.odt in Apps/VUEE/RFTEST.
+
+PG100721A:	VUEE >= PG100721A
+
+	Hooks and timers in TCV/VNETI (cleaned, redone, and tested). The delay
+	is now in (PicOS) milliseconds (not in seconds, as stated in the
+	manual). TCV timers have been integrated with the kernel delay
+	mechanism.
+
+	Praxis Apps/VUEE/HOOKS (or rather the acknowledging plugin that comes
+	with it) illustrates how to use the hooks and timers.
+
+	Irrelevant cosmetics in PiComp.

@@ -1,7 +1,7 @@
 #ifndef	__tcv_h
 #define __tcv_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2005                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "sysio.h"
@@ -33,6 +33,7 @@ typedef	struct qitem_struct	qhead_t;
 #define	TCV_QHEAD_LENGTH	4
 
 struct titem_struct {
+// Timer queue item
 	struct titem_struct	*next,
 				*prev;
 	word			value;
@@ -161,6 +162,17 @@ typedef	struct {
 } sesdesc_t;
 
 #define	TCV_SESDESC_LENGTH	(4+2+2)
+
+// Here is some mess required by the timers
+#ifdef	__SMURPH__
+
+process TCVTimerService;
+
+#else
+
+#include "kernel.h"
+void __pi_tcv_runqueue (word, word*);
+#endif	/* __SMURPH__ */
 
 #endif
 

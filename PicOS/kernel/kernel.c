@@ -3,6 +3,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
+#include "tcv.h"
 
 //
 // Put all lword variables here to avoid losing memory on alignment
@@ -234,7 +235,11 @@ void update_n_wake (word min) {
 					min = d;
 			}
 		}
-
+#if TCV_PRESENT
+#if TCV_TIMERS
+		__pi_tcv_runqueue (znew, &min);
+#endif
+#endif
 	} else {
 		// Nobody is eligible for wakeup, old minimum holds, unless
 		// the requested one is less

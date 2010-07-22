@@ -46,48 +46,6 @@
 #define	s_malloc(s)	UMALLOC (s, (s)-(sizeof (sesdesc_t)-TCV_SESDESC_LENGTH))
 #define	q_malloc(s)	UMALLOC (s, (s)-(sizeof (qhead_t)-TCV_QHEAD_LENGTH))
 
-#ifndef __SMURPH__
-
-#include "tcv_node_data.h"
-
-static void rlp (hblock_t*);
-
-#endif
-
-__PRIVF (PicOSNode, void, dmpq) (qhead_t *q) {
-
-#if DUMP_MEMORY
-	hblock_t *pp;
-	diag ("START Q DUMP %x", (word)q);
-	for (pp = q_first (q); !q_end (pp, q); pp = q_next (pp))
-		diag ("%d %x [%x %x %x]", pp->length, pp->attributes,
-			((word*)(payload (pp))) [0],
-			((word*)(payload (pp))) [1],
-			((word*)(payload (pp))) [2]
-		);
-	diag ("END Q DUMP %x", (word)q);
-#endif
-}
-
-__PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
-
-#if DUMP_MEMORY
-	int	i;
-	for (i = 0; i < TCV_MAX_DESC; i++) {
-		if (descriptors [i] != NULL) {
-			diag ("TCV QUEUE RCV [%d]", i);
-			dmpq (&(descriptors [i]->rqueue));
-		}
-	}
-	for (i = 0; i < TCV_MAX_PHYS; i++) {
-		if (oqueues [i] != NULL) {
-			diag ("TCV QUEUE XMT [%d]", i);
-			dmpq (oqueues [i]);
-		}
-	}
-#endif
-}
-
 #if DIAG_MESSAGES > 1
 /* FIXME: check if everything works with DIAG_MESSAGES == 1 and 0 */
 #define	verify_ses(p,m)	do { \
@@ -130,6 +88,48 @@ __PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
 #define	verify_plg(p,f,m)
 #define	verify_pld(p,f,m)
 #endif
+
+#ifndef __SMURPH__
+
+#include "tcv_node_data.h"
+
+static void rlp (hblock_t*);
+
+#endif
+
+__PRIVF (PicOSNode, void, dmpq) (qhead_t *q) {
+
+#if DUMP_MEMORY
+	hblock_t *pp;
+	diag ("START Q DUMP %x", (word)q);
+	for (pp = q_first (q); !q_end (pp, q); pp = q_next (pp))
+		diag ("%d %x [%x %x %x]", pp->length, pp->attributes,
+			((word*)(payload (pp))) [0],
+			((word*)(payload (pp))) [1],
+			((word*)(payload (pp))) [2]
+		);
+	diag ("END Q DUMP %x", (word)q);
+#endif
+}
+
+__PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
+
+#if DUMP_MEMORY
+	int	i;
+	for (i = 0; i < TCV_MAX_DESC; i++) {
+		if (descriptors [i] != NULL) {
+			diag ("TCV QUEUE RCV [%d]", i);
+			dmpq (&(descriptors [i]->rqueue));
+		}
+	}
+	for (i = 0; i < TCV_MAX_PHYS; i++) {
+		if (oqueues [i] != NULL) {
+			diag ("TCV QUEUE XMT [%d]", i);
+			dmpq (oqueues [i]);
+		}
+	}
+#endif
+}
 
 __PRIVF (PicOSNode, void, deq) (hblock_t *p) {
 /*
@@ -228,39 +228,11 @@ __PRIVF (PicOSNode, void, dispose) (hblock_t *p, int dv) {
 			break;
 		default:
 			/*
-			 * Do nothing. We assume that the plugin knows what it
-			 * is doing.
+			 * Do nothing. The plugin knows what it is doing.
 			 */
 			break;
 	}
 }
-
-#if 	TCV_TIMERS
-
-__PRIVF (PicOSNode, void, runtq) () {
-/*
- * This function is called every second to run the timer queue
- */
-	titem_t *t, *f;
-	hblock_t *p;
-
-	for (t = t_first; !t_end (t); t = f) {
-		f = t->next;
-		if (t->value <= 1) {
-			// Last second
-			deqt (t);
-			p = t_buffer (t);
-			/* Locate the plugin function to call */
-			verify_plg (p, tcv_tmt, "runtq");
-			dispose (p, plugins [p->attributes.b.plugin] ->
-				tcv_tmt ((address)(p + 1)));
-		} else
-			t->value--;
-	}
-}
-
-/* TCV_TIMERS */
-#endif
 
 __PRIVF (PicOSNode, void, rlp) (hblock_t *p) {
 /*
@@ -933,16 +905,133 @@ __PUBLF (PicOSNode, address, tcvp_new) (int size, int dsp, int ses) {
 __PUBLF (PicOSNode, void, tcvp_hook) (address p, address *h) {
 
 	header (p) -> hptr = h;
+	*h = p;
 }
 
 __PUBLF (PicOSNode, void, tcvp_unhook) (address p) {
 
-	header (p) -> hptr = NULL;
+	address *h;
+
+	if ((h = header (p) -> hptr) != NULL) {
+		*h = NULL;
+		header (p) -> hptr = NULL;
+	}
 }
 /* TCV_HOOKS */
 #endif
 
 #if	TCV_TIMERS
+
+//=============================================================================
+// VUEE mess needed to implement the timers right
+//=============================================================================
+
+#ifdef	__SMURPH__
+
+process TCVTimerService : _PP_ (PicOSNode) {
+
+	TIME started;
+	word current;
+
+	void wake ();
+	void newitem (word);
+
+	states { Start };
+	perform;
+};
+
+void TCVTimerService::wake () {
+
+	titem_t *t, *f;
+	hblock_t *p;
+	word min;
+
+	min = MAX_WORD;
+
+	for (t = S->tcv_q_tim.next; t != (titem_t*)&(S->tcv_q_tim); t = f) {
+		f = t->next;
+		if (t->value <= current) {
+			deqt (t);
+			p = t_buffer (t);
+			verify_plg (p, tcv_tmt, "runtq");
+			S->dispose (p, S->plugins [p->attributes.b.plugin] ->
+				tcv_tmt ((address)(p + 1)));
+		} else {
+			t->value -= current;
+			if (t->value < min)
+				min = t->value;
+		}
+	}
+	current = min;
+}
+
+void TCVTimerService::newitem (word del) {
+
+	word res;
+	double sof;
+
+	trigger (&(S->tcv_q_tim));
+
+	if (S->tcv_q_tim.next == (titem_t*)&(S->tcv_q_tim)) {
+		// Empty queue
+		current = 0;
+		return;
+	}
+
+	// Progress so far
+	sof = ituToEtu (Time - started) * MSCINSECOND;
+	if (sof < current)
+		current = (word) sof;
+
+	// Update all times to reflect the partial progress
+	wake ();
+	current = 0;
+}
+
+TCVTimerService::perform {
+
+	state Start:
+
+		wake ();
+		when (&(S->tcv_q_tim), Start);
+
+		if (S->tcv_q_tim.next == (titem_t*)&(S->tcv_q_tim)) {
+			// Empty queue
+			release;
+		}
+
+		started = Time;
+		delay (current, Start);
+}
+
+#else
+
+void __pi_tcv_runqueue (word new, word *min) {
+//
+// Invoked in one place (see kernel.c)
+//
+	titem_t *t, *f;
+	hblock_t *p;
+	word d;
+
+	for (t = t_first; !t_end (t); t = f) {
+		f = t->next;
+		if (twakecnd (__pi_old, new, t->value)) {
+			// Trigger this one
+			deqt (t);
+			p = t_buffer (t);
+			verify_plg (p, tcv_tmt, "runtq");
+			dispose (p, plugins [p->attributes.b.plugin] ->
+				tcv_tmt ((address)(p + 1)));
+		} else {
+			if ((d = t->value - new) < *min)
+				*min = d;
+		}
+	}
+}
+
+#endif	/* __SMURPH__ */
+
 __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 /*
  * Put the packet on the timer queue
@@ -950,12 +1039,16 @@ __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 	titem_t *t;
 
 	t = &(header(p)->tqueue);
+
+#ifdef __SMURPH__
+	TheNode->tcv_tservice->newitem (del);
 	t -> value = del;
+#else
+	update_n_wake (del);
+	t -> value = __pi_old + del;
+#endif
 	if (t->next == NULL) {
 		// Not queued
-		if (t_empty)
-			trigger (&tcv_q_tim);
-
 		t->next = tcv_q_tim . next;
 		t->prev = (titem_t*)(&tcv_q_tim);
 		tcv_q_tim.next->prev = t;
@@ -970,7 +1063,8 @@ __PUBLF (PicOSNode, void, tcvp_cleartimer) (address p) {
 	titem_t *t = &(header(p)->tqueue);
 	deqt (t);
 }
-#endif
+
+#endif	/* TIMERS */
 
 __PUBLF (PicOSNode, int, tcvp_length) (address p) {
 	return header (p) -> length;
@@ -1114,28 +1208,6 @@ __PUBLF (PicOSNode, int, tcvphy_erase) (int phy) {
 	return empty (oqueues [phy]);
 }
 
-#if	TCV_TIMERS
-
-#define	runtq_na 	__NA (PicOSNode, runtq)
-#define	tcv_q_tim_na	__NA (PicOSNode, tcv_q_tim)
-
-__STATIC __PROCESS (timersrv, void)
-/*
- * This simple process is needed to service the timer queue
- */
-    entry (__S0)
-
-	if (tcv_q_tim_na.next != (titem_t*)(&tcv_q_tim_na))
-		// Timer queue nonempty
-		delay (1024, __S0);
-	when (&tcv_q_tim_na, __S0);
-	release;
-	nodata;
-
-__ENDPROCESS (1)
-
-#endif
-
 __PUBLF (PicOSNode, void, tcv_init) () {
 
 #ifdef __SMURPH__
@@ -1156,8 +1228,12 @@ __PUBLF (PicOSNode, void, tcv_init) () {
 #if	TCV_TIMERS
 	// These ones are always initialized dynamically
 	tcv_q_tim . next = tcv_q_tim . prev = (titem_t*) &tcv_q_tim;
-	runthread (timersrv);
-#endif
+#ifdef __SMURPH__
+	tcv_tservice = create TCVTimerService;
+	tcv_tservice -> _pp_apid_ ();
+#endif	/* __SMURPH__ */
+
+#endif	/* TCV_TIMERS */
 }
 
 /* TCV_PRESENT */
