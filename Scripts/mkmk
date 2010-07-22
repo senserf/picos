@@ -2601,7 +2601,7 @@ proc main { } {
 		}
 
 		if { $empsuff == 0 && $sufflist == "" } {
-			errab "No app.c, app.cc or app_xxx.cc found in current\
+			errab "No app.c, app.cc, or app_xxx.cc found in current\
 				directory"
 		}
 
