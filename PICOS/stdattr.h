@@ -169,7 +169,7 @@
 #define	tcvp_new(a,b,c) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_new (a,b,c)  )
 #define	tcvp_hook(a,b) \
-	(  ((PicOSNode*)TheStation)->_na_tcvp_new (a,b)  )
+	(  ((PicOSNode*)TheStation)->_na_tcvp_hook (a,b)  )
 #define	tcvp_unhook(a) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_unhook (a)  )
 #define	tcvp_settimer(a,b) \

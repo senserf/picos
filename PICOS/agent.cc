@@ -2807,10 +2807,11 @@ int SNSRS::act_status (byte what, byte sid, Boolean lm) {
 		s += sid;
 		if (lm)
 			sprintf (UBuf, "%c %08.3f: %1u %08x %08x\n",
-				ct, tm, sid, s->Value, s->Max);
+				ct, tm, sid, (unsigned int)(s->Value), 
+					(unsigned int)(s->Max));
 		else
 			sprintf (UBuf, "%c %08.3f: %1u %08x\n", ct, tm, sid,
-				s->Value);
+				(unsigned int)(s->Value));
 	}
 	return strlen (UBuf);
 }

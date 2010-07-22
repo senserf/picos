@@ -81,7 +81,10 @@ Drain:
 
 	if (lbtdl && !rxoff) {
 		// Start the ADC
-		RSSI->signal ((void*)YES);
+		if (RSSI->signal ((void*)YES) == REJECTED)
+			// Race with ADC
+			proceed XM_LOOP;
+
 		delay (lbtdl, XM_LBS);
 		release;
 	}
@@ -111,7 +114,9 @@ Xmit:
 
     state XM_LBS:
 
-	RSSI->signal ((void*)NO);
+	if (RSSI->signal ((void*)NO) == REJECTED)
+		// Race with ADC
+		proceed XM_LBS;
 	if (rcvg) {
 		set_congestion_indicator (minbkf);
 		delay (minbkf, XM_LOOP);
@@ -274,11 +279,11 @@ __PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
 			syserror (EREQPAR, "phys_cc1100");
 	}
 
-	rbf = (address) memAlloc (mbs + 2, (word) (mbs + 2));
+	rbf = (address) memAlloc (mbs, (word) (mbs + 2));
 	if (rbf == NULL)
 		syserror (EMALLOC, "phys_cc1100");
 
-	phys_rfmodule_init (phy, mbs+2);
+	phys_rfmodule_init (phy, mbs);
 }
 
 __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {

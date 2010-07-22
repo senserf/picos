@@ -578,3 +578,8 @@ PG100716A:	PICOS >= PG100716A
 
     Removed some IPC tools and simplified some system calls (see
     PICOS/RTAGS_PG).
+
+PG100721A:	PICOS >= PG100721A
+
+    Requisite mods for hooks and timers in PICOS. Fixed a bug in rfmodule.cc
+    which might cause crashes under heavy (emulated) traffic.
