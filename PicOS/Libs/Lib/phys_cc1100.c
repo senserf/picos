@@ -604,8 +604,28 @@ static void ini_cc1100 () {
 
 	// Initialize the requisite pins
 	ini_regs;
-
 	chip_reset ();
+
+#if (RADIO_OPTIONS & 0x80)
+#if ENTROPY_COLLECTION
+
+	{	word i;
+
+		for (i = 0; i < 8; i++) {
+			enter_rx ();
+			// The worst case settling time for RSSI after RX is
+			// ca. 750 us
+			mdelay (1);
+			entropy = (entropy << 4) |
+				(cc1100_get_reg (CCxxx0_RSSI) & 0xF);
+			enter_idle ();
+		}
+#if (RADIO_OPTIONS & 0x02)
+		diag ("CC1100 ENTR: %x%x", (word)entropy, (word)(entropy>>16));
+#endif
+	}
+#endif
+#endif
 	power_down ();
 
 	// Read the chip number reg and write a message to the UART

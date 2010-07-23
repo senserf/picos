@@ -360,3 +360,21 @@ PG100722A:
 	received (almost) back to back. While the second packet will not
 	always succeed in such circumstances, it doesn't absolutely have to
 	fail.
+
+PG100723A:
+
+	RADIO_OPTIONS & 0x80 (together with ENTROPY_COLLECTION) initializes
+	entropy (for rnd) from the air when the node resets (CC1100 only).
+	The driver 1) enters RX mode, 2) delays for 1 msec, 3) collects RSSI,
+	4) appends four least significant bits of the RSSI to entropy,
+	5) enters IDLE. This procedure is repeated 8 times to collect 32 bits.
+	Optical inspection convinces me that the randomness of a thusly
+	collected value is very good.
+
+	Praxis Apps/VUEE/TIMERS modified slightly to facilitate some tests.
+	For example, I have added there a command to produce a sequence of
+	random numbers, which I am going to subject to formal conformance
+	tests.
+
+	A minor fix to tcvp_settimer (in tcv.c). Things should be a tiny bit
+	more efficient.

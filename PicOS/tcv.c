@@ -1040,6 +1040,10 @@ __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 
 	t = &(header(p)->tqueue);
 
+	// Remove from the queue (if present already) to avoid confusing
+	// update_n_wake
+	deqt (t);
+
 #ifdef __SMURPH__
 	TheNode->tcv_tservice->newitem (del);
 	t -> value = del;
@@ -1047,13 +1051,12 @@ __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 	update_n_wake (del);
 	t -> value = __pi_old + del;
 #endif
-	if (t->next == NULL) {
-		// Not queued
-		t->next = tcv_q_tim . next;
-		t->prev = (titem_t*)(&tcv_q_tim);
-		tcv_q_tim.next->prev = t;
-		tcv_q_tim.next = t;
-	}
+
+	// Queue back
+	t->next = tcv_q_tim . next;
+	t->prev = (titem_t*)(&tcv_q_tim);
+	tcv_q_tim.next->prev = t;
+	tcv_q_tim.next = t;
 }
 
 __PUBLF (PicOSNode, void, tcvp_cleartimer) (address p) {

@@ -45,6 +45,7 @@
 //	0x20 extra consistency checks
 //	0x40 PHYSOPT_RESET admits a parameter pointing to a substitution table
 //	     for selected register values
+//	0x80 collect entropy from the air on startup
 // ============================================================================
 
 #ifndef	RADIO_SYSTEM_IDENT
@@ -500,8 +501,6 @@ extern const byte *cc1100_ratemenu [];
 
 #define	gbackoff	utimer_set (bckf_timer, MIN_BACKOFF + \
 				(rnd () & MSK_BACKOFF))
-// REMOVEME
-// #define		gbackoff	9
 
 extern word		__pi_v_drvprcs, __pi_v_qevent;
 
