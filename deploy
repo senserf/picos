@@ -12,7 +12,12 @@ fi
 cd SOURCES
 echo "Compiling maker ..."
 g++ -o maker maker.cc
-strip maker
+if [ -e maker.exe ]; then
+	# on cygwin
+	strip maker.exe
+else
+	strip maker
+fi
 echo "Running maker for mks ..."
 ./maker -b << m_end
 none
