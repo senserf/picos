@@ -175,6 +175,33 @@ proc chks { wa } {
 # Plugin independent functions ################################################
 ###############################################################################
 
+proc t_out { ln } {
+#
+# Output a line to the terminal and optionally save it to file
+#
+	global ST
+
+	puts $ln
+
+	if { $ST(SFS) != "" } {
+		catch { puts $ST(SFS) $ln }
+	}
+}
+
+proc t_ouf { ln } {
+#
+# Output a line to the terminal and optionally save it to file, but the latter
+# only if we are saving input; used to save special lines, like error messages
+#
+	global ST
+
+	puts $ln
+
+	if $ST(SFB) {
+		catch { puts $ST(SFS) $ln }
+	}
+}
+
 proc u_cdevl { pi } {
 #
 # Returns the candidate list of devices to open based on the port identifier
@@ -271,10 +298,10 @@ proc u_outdiag { } {
 		binary scan $ln cuSu lv code
 		#set lv [expr $lv & 0xff]
 		#set code [expr $code & 0xffff]
-		puts "DIAG: \[[format %02x $lv] -> [format %04x $code]\]"
+		t_out "DIAG: \[[format %02x $lv] -> [format %04x $code]\]"
 	} else {
 		# ASCII
-		puts "DIAG: [string trim $ST(BUF)]"
+		t_out "DIAG: [string trim $ST(BUF)]"
 	}
 	flush stdout
 }
@@ -1258,13 +1285,18 @@ proc inline { } {
 	# any interpretation, because the user may actually want to send a
 	# bunch of blanks
 
+	if $ST(SFB) {
+		# writing input to a file
+		catch { puts $ST(SFS) "<- $line" }
+	}
+
 	# the trimmed version for special command check
 	set ltr [string trim $line]
 
 	if { $ltr == "!!" } {
 		# previous command
 		if { $ST(PCM) == "" } {
-			puts "No previous command!"
+			t_ouf "No previous command!"
 			return
 		}
 		set line $ST(PCM)
@@ -1278,7 +1310,7 @@ proc inline { } {
 	}
 
 	if ![u_ready] {
-		puts "Board busy!"
+		t_ouf "Board busy!"
 		return ""
 	}
 
@@ -1305,7 +1337,7 @@ proc sget { } {
 	set ln [expr [string length $line] + 1]
 
 	if { $ln > $PM(UPL) } {
-		puts "Error: line longer than max payload of $PM(UPL) chars"
+		t_ouf "Error: line longer than max payload of $PM(UPL) chars"
 		return
 	}
 
@@ -1324,11 +1356,21 @@ proc sget_bin { } {
 		return
 	}
 
-	if [catch { macsub $line } line] {
+	if [catch { macsub $line } mline] {
 		# macro substitutions
-		puts "Error: $line"
+		t_ouf "Error: $line"
 		return
 	}
+
+	if $ST(SFB) {
+		# saving in a file
+		if { [string trim $line] != [string trim $mline] } {
+			# the macro expansion is different
+			catch { puts $STD(SFS) "<M $mline" }
+		}
+	}
+
+	set line $mline
 
 	set out ""
 	set eco ""
@@ -1346,7 +1388,7 @@ proc sget_bin { } {
 		regexp "^(\[^ \t\]+)(.*)" $line mat val line
 
 		if [catch { eval "expr $val" } val] {
-			puts "Error: illegal expression: $val ...\
+			t_ouf "Error: illegal expression: $val ...\
 				[string range $line 0 5] ..."
 			return
 		}
@@ -1363,10 +1405,13 @@ proc sget_bin { } {
 
 	if $ST(ECO) {
 		puts "Sending: < $eco>"
+		if $ST(SFB) {
+			catch { puts $STD(SFS) "<S < $eco>" }
+		}
 	}
 
 	if { $oul > $PM(UPL) } {
-		puts "Error: block longer than max payload of $PM(UPL) bytes"
+		t_ouf "Error: block longer than max payload of $PM(UPL) bytes"
 		return
 	}
 
@@ -1377,7 +1422,7 @@ proc uget { msg } {
 #
 # Receive a line from the board (ASCII mode - just show it)
 #
-	puts $msg
+	t_out $msg
 }
 
 proc uget_bin { msg } {
@@ -1396,7 +1441,7 @@ proc uget_bin { msg } {
 
 	append enc ">"
 
-	puts $enc
+	t_out $enc
 }
 
 ###############################################################################
@@ -1410,7 +1455,7 @@ proc icmd { cmd } {
 	set par ""
 	if ![regexp "^(\[^ \t\]+)(.*)" $cmd jnk cmd par] {
 		# impossible
-		puts "Empty command!"
+		t_ouf "Empty command!"
 		return
 	}
 	set par [string trim $par]
@@ -1427,13 +1472,13 @@ proc icmd { cmd } {
 		}
 
 		if { $par == "on" } {
-			puts "Echo is now on"
+			t_ouf "Echo is now on"
 			set ST(ECO) 1
 		} elseif { $par == "off" } {
-			puts "Echo is now off"
+			t_ouf "Echo is now off"
 			set ST(ECO) 0
 		} else {
-			puts "Illegal parameter, must be empty, on, or off!
+			t_ouf "Illegal parameter, must be empty, on, or off!
 		}
 		return
 	}
@@ -1442,7 +1487,7 @@ proc icmd { cmd } {
 
 		set fnm ""
 		if ![regexp "^(\[0-9\])(.*)" $par jnk lev fnm] {
-			puts "Illegal parameters, must be level \[filename\]!"
+			t_ouf "Illegal parameters, must be level \[filename\]!"
 			return
 		}
 		set fnm [string trim $fnm]
@@ -1451,11 +1496,11 @@ proc icmd { cmd } {
 		if { $err == "" } {
 			set err "OK"
 		}
-		puts $err
+		t_ouf $err
 		return
 	}
 
-	puts "Unknown internal command $cmd!"
+	t_ouf "Unknown internal command $cmd!"
 }
 
 ###############################################################################
@@ -1652,13 +1697,15 @@ proc usage { } {
 
 	global argv0
 
-	puts stderr "Usage: $argv0 args   where args can be:"
+	puts stderr "Usage: $argv0 args, where args can be:"
 	puts stderr ""
 	puts stderr "       -p port/dev   UART dev or COM number, required"
 	puts stderr "       -s speed      UART speed, default is 9600"
 	puts stderr "       -m x|p|d      mode: XRS, P, direct, default is d"
 	puts stderr "       -l pktlen     max pkt len, default is 82"
 	puts stderr "       -b \[file\]     binary mode (optional macro file)"
+	puts stderr "       -f file       preserve the output in file"
+	puts stderr "       -F file       preserve the input as well"
 	puts stderr ""
 	puts stderr "Note that pktlen should be the same as the length used"
 	puts stderr "by the praxis in the respective argument of phys_uart."
@@ -1674,6 +1721,7 @@ proc initialize { } {
 	set spd ""
 	set mpl ""
 	set bin ""
+	set sfi ""
 	set mod ""
 
 	# parse command line arguments
@@ -1687,7 +1735,7 @@ proc initialize { } {
 			break
 		}
 
-		if ![regexp "^-(\[a-z\])$" $par jnk par] {
+		if ![regexp -nocase "^-(\[a-z\])$" $par jnk par] {
 			# must be a flag
 			usage
 		}
@@ -1697,7 +1745,7 @@ proc initialize { } {
 		# the following value
 		set val [lindex $argv 0]
 
-		if ![regexp "^-(\[a-z\])$" $val jnk par] {
+		if ![regexp -nocase "^-(\[a-z\])$" $val jnk par] {
 			# if it looks like a flag, assume the value is empty
 			set argv [lrange $argv 1 end]
 		} else {
@@ -1744,6 +1792,16 @@ proc initialize { } {
 			}
 			continue
 		}
+
+		if { ($par == "f" || $par == "F") && $sfi == "" &&
+		    $val != "" } {
+			set sfi $val
+			if { $par == "F" } {
+				set ST(SFB) 1
+			}
+			continue
+		}
+			
 		usage
 	}
 
@@ -1775,6 +1833,23 @@ proc initialize { } {
 		set ifu "uget"
 		set sfu "sget"
 		set ST(BIN) 0
+	}
+
+	if { $sfi != "" } {
+		set ST(SFI) $sfi
+		if ![info exists ST(SFB)] {
+			set ST(SFB) 0
+		}
+		if [catch { open $sfi "w" } std] {
+			abt "cannot open $sfi for writing, $std"
+		}
+		fconfigure $std -buffering line
+		set ST(SFS) $std
+	} else {
+		# for the record
+		set ST(SFS) ""
+		set ST(SFI) ""
+		set ST(SFB) 0
 	}
 
 	u_start $prt $spd $mpl $mod $ifu

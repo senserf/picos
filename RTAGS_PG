@@ -378,3 +378,23 @@ PG100723A:
 
 	A minor fix to tcvp_settimer (in tcv.c). Things should be a tiny bit
 	more efficient.
+
+PG100723B:
+
+	Sorry, sorry, sorry! PG100722A is crap. Mea culpa. The HOOKS are
+	required after all. The present version of Apps/VUEE/TIMERS contains
+	my last word (so far ;-). I forgot that TCV/VNETI can drop packets
+	silently (when TX goes off) in which case the plugin will not now that
+	its hooked packets are gone (unless it is using TCV_HOOKS).
+
+	By the same token, the plugin cannot have an internal tally of hooked
+	packets, so I have removed the variable NFreeHooks, along with the
+	event supposedly triggered when a hook becomes free. There can be no
+	such thing unless we add something (like an extra plugin function) to
+	convey the message. Do we need it? Probably not. So there's now a
+	function that you can call to get the number of free hooks, which are
+	counted explicitly on each request.
+
+	Upgraded uf.tcl (in Scripts) to make it possible to copy the UART
+	output to a file. This is much better than Terminal, especially that
+	I am now working with Linux.
