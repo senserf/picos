@@ -398,3 +398,13 @@ PG100723B:
 	Upgraded uf.tcl (in Scripts) to make it possible to copy the UART
 	output to a file. This is much better than Terminal, especially that
 	I am now working with Linux.
+
+PG100724A:
+
+	The random number generator improved. If entropy fails to collect, it
+	will fall back to a decent linear congruential 32-bit based generator
+	with a long cycle.
+
+	Cosmetics in phys_cc1100 to appease the compiler.
+
+	Fixed a problem in tcv.c causing a minor compilation error for VUEE.

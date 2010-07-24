@@ -345,8 +345,6 @@ static void set_reg_group (const byte *grp) {
 
 static void init_cc_regs () {
 
-	const byte *cur;
-
 	// General
 	set_reg_group (cc1100_rfsettings);
 
@@ -825,7 +823,10 @@ Rtn:
 thread (cc1100_driver)
 
   address xbuff;
-  int paylen, len;
+  int paylen;
+#if SOFTWARE_CRC
+  int len;
+#endif
 
   entry (DR_LOOP)
 

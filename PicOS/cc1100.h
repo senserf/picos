@@ -246,7 +246,7 @@
 // Channel spacing in kHz
 #define	CC1100_CHANSPC_T1000 \
 	((word)(((26000L * (256 + (lword) CC1100_CHANSPC_M)) + \
-		((lword) 1 << 17 - CC1100_CHANSPC_E)) / \
+		((lword) 1 << (17 - CC1100_CHANSPC_E))) / \
 		((lword) 1 << (18 - CC1100_CHANSPC_E))))
 
 // Default channel frequency

@@ -604,6 +604,10 @@ void		dmp_mem (void);
 
 void	diag (const char *, ...);
 
+#if RANDOM_NUMBER_GENERATOR
+word	rnd ();
+#endif
+
 #if	SWITCHES
 word	switches (void);
 #else
@@ -888,27 +892,6 @@ extern	lword entropy;
 #define	add_entropy(w)	do { } while (0)
 #define	entropy		0
 #endif
-
-
-#if	RANDOM_NUMBER_GENERATOR
-
-#if	RANDOM_NUMBER_GENERATOR > 1
-/* High quality */
-extern	lword __pi_seed;
-
-#define	rnd()	(__pi_seed = (1103515245 * __pi_seed + 12345 + entropy) & \
-			0x7fffff, (word) __pi_seed)
-
-#else	/* RANDOM_NUMBER_GENERATOR == 1 */
-/* Low quality */
-extern	word __pi_seed;
-
-#define	rnd()	(__pi_seed = (__pi_seed + (word) entropy + 1) * 12345, \
-			__pi_seed)
-
-#endif	/* RANDOM_NUMBER_GENERATOR == 1 */
-
-#endif	/* RANDOM_NUMBER_GENERATOR */
 
 /* Errors */
 #define	ENODEVICE	1	/* Illegal device */

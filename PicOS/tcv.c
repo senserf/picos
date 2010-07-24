@@ -946,6 +946,8 @@ void TCVTimerService::wake () {
 	hblock_t *p;
 	word min;
 
+#define plugins S->plugins
+
 	min = MAX_WORD;
 
 	for (t = S->tcv_q_tim.next; t != (titem_t*)&(S->tcv_q_tim); t = f) {
@@ -954,7 +956,7 @@ void TCVTimerService::wake () {
 			deqt (t);
 			p = t_buffer (t);
 			verify_plg (p, tcv_tmt, "runtq");
-			S->dispose (p, S->plugins [p->attributes.b.plugin] ->
+			S->dispose (p, plugins [p->attributes.b.plugin] ->
 				tcv_tmt ((address)(p + 1)));
 		} else {
 			t->value -= current;
@@ -963,6 +965,8 @@ void TCVTimerService::wake () {
 		}
 	}
 	current = min;
+
+#undef plugins
 }
 
 void TCVTimerService::newitem (word del) {

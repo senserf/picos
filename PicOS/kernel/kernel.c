@@ -16,6 +16,8 @@ lword	entropy;
 
 #if	RANDOM_NUMBER_GENERATOR > 1
 lword	__pi_seed = 327672838L;
+#else
+word	__pi_seed = 30011;
 #endif
 
 #include "pins.h"
@@ -55,10 +57,6 @@ const char	__pi_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
-
-#if	RANDOM_NUMBER_GENERATOR == 1
-word	__pi_seed = 30011;
-#endif
 
 static	address mevent;
 
@@ -1351,3 +1349,28 @@ void dmp_mem () {
 /* --------------------------------------------------------- */
 /* ====== end of MEMORY ALLOCATORS ========================= */
 /* --------------------------------------------------------- */
+
+#if RANDOM_NUMBER_GENERATOR
+
+word rnd () {
+
+#if RANDOM_NUMBER_GENERATOR > 1	/* high-quality RNG */
+	__pi_seed = __pi_seed * 1103515245 + 12345;
+	return *(((word*)&__pi_seed)
+#if LITTLE_ENDIAN
+			+1
+#endif
+	)
+#else	/* low quality RNG */
+	__pi_seed = __pi_seed * 17981 + 12345;
+	return __pi_seed
+#endif	/* RNG quality */
+
+#if ENTROPY_COLLECTION
+		^ *(((word*)&entropy)  )
+		^ *(((word*)&entropy)+1)
+#endif
+	;
+}
+
+#endif	/* RNG */
