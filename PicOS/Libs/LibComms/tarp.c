@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007.			*/
+/* Copyright (C) Olsonet Communications, 2002 - 2010 			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
 
@@ -60,7 +60,7 @@ __PUBLF (PicOSNode, word, getSpdM) (word * hop) {
 
 // (h == master_host) should not get here
  // find the index
-__PRIVF (PicOSNode, word, tarp_findInSpd) (nid_t host) {
+__PRIVF (PicOSNode, word, findInSpd) (nid_t host) {
 	int i;
 
 	if (host == 0)
@@ -81,6 +81,27 @@ __PRIVF (PicOSNode, word, tarp_findInSpd) (nid_t host) {
 	return spdCacheSize;
 }
 
+#if TARP_RTR
+__PRIVF (PicOSNode, word, findInRtr) (nid_t sndr, seq_t seqn) {
+
+	sint i;
+
+	if (rtrCache->head)
+		i = rtrCache->head;
+	else
+		i = rtrCacheSize;
+	--i;
+
+	while (i != rtrCache->head) {
+		if (sndr == rtrCache->sndr[i] && seqn == rtrCache->seqn[i]);
+			return i;
+		if (--i < 0)
+			i = rtrCacheSize -1;
+	}
+	return rtrCacheSize;
+}
+#endif
+
 __PUBLF (PicOSNode, void, tarp_init) (void) {
 #if TARP_CACHES_MALLOCED
 	ddCache = (ddcType *)
@@ -91,9 +112,18 @@ __PUBLF (PicOSNode, void, tarp_init) (void) {
 	spdCache = (spdcType *) umalloc (sizeof(spdcType));
 	if (spdCache == NULL)
 		syserror (EMALLOC, "spdCache");
+#if TARP_RTR
+	rtrCache = (rtrcType *) umalloc (sizeof(rtrcType));
+	if (rtrCache == NULL)
+		syserror (EMALLOC, "rtrCache");
+#endif
+
 #endif
 	memset (ddCache, 0,  sizeof(ddcType));
 	memset (spdCache, 0, sizeof(spdcType));
+#if TARP_RTR
+	memset (rtrCache, 0, sizeof(rtrcType));
+#endif
 	tarp_cyclingSeq = rnd() & 0xFF;
 }
 
@@ -173,7 +203,7 @@ __PRIVF (PicOSNode, void, upd_spd) (headerType * msg) {
 		spdCache->m_hop = (word)(msg->hoc & 0x7F) << 8;
 		return;
 	}
-	if ((i = tarp_findInSpd (msg->snd)) < spdCacheSize) {
+	if ((i = findInSpd (msg->snd)) < spdCacheSize) {
 		spdCache->en[i].hop = (word)(msg->hoc & 0x7F) << 8;
 		return;
 	}
@@ -216,7 +246,7 @@ __PRIVF (PicOSNode, int, check_spd) (headerType * msg) {
 		return i;
 	}
 
-	if ((i = tarp_findInSpd(msg->rcv)) >= spdCacheSize) {
+	if ((i = findInSpd(msg->rcv)) >= spdCacheSize) {
 
 #if _TARP_T_RX
 		diag ("%u %u spdno %d %u %u %u", msg->msg_type, msg->snd,
@@ -420,7 +450,7 @@ __PRIVF (PicOSNode, void, setHco) (headerType * msg) {
 		return;
 	}
 
-	if ((i = tarp_findInSpd(msg->rcv)) < spdCacheSize)
+	if ((i = findInSpd(msg->rcv)) < spdCacheSize)
 		msg->hco = (spdCache->en[i].hop >>8) +
 			(tarp_ctrl.flags & 0x0F);
 
@@ -453,6 +483,17 @@ __PUBLF (PicOSNode, int, tarp_tx) (address buffer) {
 #endif
 	return rc;
 }
+
+#if TARP_RTR
+__PUBLF (PicOSNode, int, tarp_xmt) (address buffer) {
+
+        headerType * msgBuf = (headerType *)(buffer+1);
+
+	if (msgBuf->msg_type == 0) // msg_null - ack at dst
+		return TCV_DSP_DROP;
+
+}
+#endif
 
 #undef _TARP_T_RX
 #undef _TARP_T_LIGHT

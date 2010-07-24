@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006.                   */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -9,6 +9,10 @@
 extern void tarp_init(void);
 extern int tarp_rx (address buffer, int length, int *ses);
 extern int tarp_tx (address buffer);
+
+#if TARP_RTR
+extern int tarp_xmt (address buffer);
+#endif
 
 #endif
 
@@ -25,9 +29,15 @@ static int tcv_frm_tarp (address, int, tcvadp_t*);
 static int tcv_out_tarp (address);
 static int tcv_xmt_tarp (address);
 
+#if TARP_RTR
+static int tcv_tmt_tarp (address);
+#else
+#define tcv_tmt_tarp NULL
+#endif
+
 const tcvplug_t plug_tarp =
 		{ tcv_ope_tarp, tcv_clo_tarp, tcv_rcv_tarp, tcv_frm_tarp,
-			tcv_out_tarp, tcv_xmt_tarp, NULL,
+			tcv_out_tarp, tcv_xmt_tarp, tcv_tmt_tarp,
 				INFO_PLUG_TARP };
 
 #ifndef	__SMURPH__
@@ -44,6 +54,10 @@ const tcvplug_t plug_tarp =
 #define	tarp_init	_dac (PicOSNode, tarp_init)
 #define	tarp_rx		_dac (PicOSNode, tarp_rx)
 #define	tarp_tx		_dac (PicOSNode, tarp_tx)
+
+#if TARP_RTR
+#define tarp_xmt	_dac (PicOSNode, tarp_xmt)
+#endif
 
 static int tcv_ope_tarp (int phy, int fd, va_list plid) {
 
@@ -118,11 +132,23 @@ static int tcv_out_tarp (address p) {
 }
 
 static int tcv_xmt_tarp (address p) {
+#if TARP_RTR
+	return tarp_xmt (p);
+#else
 	return TCV_DSP_DROP;
+#endif
 }
 
+static int tcv_tmt_tarp (address p) {
+	// tarp rtr monitoring is in tarp_xmt and tarp_rx, as they deal
+	// with tarp structs. Here, just re-xmt as urgent.
+	return TCV_DSP_XMTU;
+}
 
 #undef	desc
 #undef	tarp_init
 #undef	tarp_rx	
 #undef	tarp_tx
+#if TARP_RTR
+#undef  tarp_xmt
+#endif
