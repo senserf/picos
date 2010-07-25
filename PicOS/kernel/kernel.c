@@ -1350,27 +1350,30 @@ void dmp_mem () {
 /* ====== end of MEMORY ALLOCATORS ========================= */
 /* --------------------------------------------------------- */
 
-#if RANDOM_NUMBER_GENERATOR
-
-word rnd () {
-
-#if RANDOM_NUMBER_GENERATOR > 1	/* high-quality RNG */
+// ============================================================================
+// High-quality RNG (oh, well, as high as we can afford) ======================
+// ============================================================================
+#if RANDOM_NUMBER_GENERATOR > 1
+lword lrnd () {
 	__pi_seed = __pi_seed * 1103515245 + 12345;
-	return *(((word*)&__pi_seed)
-#if LITTLE_ENDIAN
-			+1
-#endif
-	)
-#else	/* low quality RNG */
-	__pi_seed = __pi_seed * 17981 + 12345;
 	return __pi_seed
-#endif	/* RNG quality */
-
 #if ENTROPY_COLLECTION
-		^ *(((word*)&entropy)  )
-		^ *(((word*)&entropy)+1)
+	^ entropy
 #endif
 	;
 }
+#endif
 
-#endif	/* RNG */
+// ============================================================================
+// Low-quality RNG ============================================================
+// ============================================================================
+#if RANDOM_NUMBER_GENERATOR == 1
+word rnd () {
+	__pi_seed = __pi_seed * 17981 + 12345;
+	return __pi_seed
+#if ENTROPY_COLLECTION
+		^ (word)entropy
+#endif
+	;
+}
+#endif

@@ -407,4 +407,34 @@ PG100724A:
 
 	Cosmetics in phys_cc1100 to appease the compiler.
 
-	Fixed a problem in tcv.c causing a minor compilation error for VUEE.
+	Fixed a problem in tcv.c causing a compilation error with VUEE.
+
+PG100724B:
+
+	tcvp_unhook(p) accepts p == NULL (and does nothing in such a case).
+
+	The random number generator improved even more. We now have two RNGs:
+
+		word rnd ()
+		lword lrnd ()
+
+	basically for the price of one. They are both available with options:
+
+		#define RANDOM_NUMBER_GENERATOR 1
+
+	as well as 
+	
+		#define RANDOM_NUMBER_GENERATOR 2
+
+	Recall that the second option selects a better quality generator (the
+	first option sucks, but is more efficient, and, probably, with entropy
+	collection:
+
+		#define	ENTROPY_COLLECTION 1
+
+	will not be perceptibly worse than 2.
+
+---------:
+
+	tcv_drop(p) accepts p == NULL (and does nothing in such a case). This
+	is a logical consequence of the last mod to tcvp_unhook.

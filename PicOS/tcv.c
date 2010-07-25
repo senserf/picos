@@ -747,7 +747,8 @@ __PUBLF (PicOSNode, void, tcv_drop) (address p) {
 /*
  * Drop the packet unconditionally
  */
-	rlp (header (p));
+	if (p != NULL)
+		rlp (header (p));
 }
 
 __PUBLF (PicOSNode, int, tcv_left) (address p) {
@@ -912,7 +913,7 @@ __PUBLF (PicOSNode, void, tcvp_unhook) (address p) {
 
 	address *h;
 
-	if ((h = header (p) -> hptr) != NULL) {
+	if (p != NULL && (h = header (p) -> hptr) != NULL) {
 		*h = NULL;
 		header (p) -> hptr = NULL;
 	}
