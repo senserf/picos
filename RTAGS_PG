@@ -434,7 +434,25 @@ PG100724B:
 
 	will not be perceptibly worse than 2.
 
----------:
+PG100725A:
 
 	tcv_drop(p) accepts p == NULL (and does nothing in such a case). This
 	is a logical consequence of the last mod to tcvp_unhook.
+
+	Fixed a problem in TCV/VNETI concerning packets that have been removed
+	from the buffer pool with their timers (and hooks) dangling.
+	This relates to two operations: tcv_rnp and tcvphys_get. Each of them
+	produces a packet that:
+
+	1. FAPP has been extracted (eliminated) from the buffer pool
+	2. has not been deallocated yet
+	3. it may have to remain available for processing beyond the state
+	   in which it has been acquired
+
+	Thus, if the packet has a timer set, and the timer goes off while the
+	packet is being handled after its extraction, we are likely to get into
+	a mess. Note that this also concerns hooks, which can also be handled
+	asynchronously (by other threads) yielding races.
+
+	The fix consists in making sure that a packet returned by tcv_rnd and
+	tcvphys_get has its timer cleared and its hook removed.

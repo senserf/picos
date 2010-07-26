@@ -142,6 +142,36 @@ __PRIVF (PicOSNode, void, deq) (hblock_t *p) {
 	}
 }
 
+// ============================================================================
+
+#if TCV_TIMERS || TCV_HOOKS
+__PRIVF (PicOSNode, void, deqth) (hblock_t *p) {
+/*
+ * Removes a packet from its queue, also clearing the timer and the hook
+ */
+#if TCV_TIMERS
+	titem_t *t = &(p->tqueue);
+	deqt (t);
+#endif
+	deq (p);
+
+#if	TCV_HOOKS
+	if (p->hptr) {
+		/* Zero out the hook */
+		*(p->hptr) = NULL;
+		p->hptr = NULL;
+	}
+#endif
+}
+
+#else	/* No timers, no hooks, deqth is equivalent to deq */
+
+#define	deqth(p)	deq (p)
+
+#endif
+
+// ============================================================================
+
 __PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
 /*
  * Inserts a buffer into a queue
@@ -207,7 +237,7 @@ __PRIVF (PicOSNode, void, dispose) (hblock_t *p, int dv) {
 	 * Dispose always dequeues first, so if it ends up doing nothing,
 	 * the packet will be left detached.
 	 */
-	deq (p);
+	deq (p);	// Soft dequeue, timer and hook left intact
 
 	switch (dv) {
 		case TCV_DSP_RCVU:
@@ -238,18 +268,8 @@ __PRIVF (PicOSNode, void, rlp) (hblock_t *p) {
 /*
  * Releases the packet buffer, frees its memory
  */
-
-#if	TCV_TIMERS
-	titem_t *t = &(p->tqueue);
-	deqt (t);
-#endif
-	deq (p);
-
-#if	TCV_HOOKS
-	if (p->hptr)
-		/* Zero out the hook */
-		*(p->hptr) = NULL;
-#endif
+	/* Remove from all queues and timers */
+	deqth (p);
 	/* Release memory */
 	tfree ((address)p);
 }
@@ -504,7 +524,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 		return NULL;
 	}
 	/* We have a packet */
-	deq (b);
+	deqth (b);	// Hard dequeue
 	/* Packet pointer */
 	p = ((address)(b + 1));
 	/* Set the pointers to application data */
@@ -1177,7 +1197,7 @@ __PUBLF (PicOSNode, address, tcvphy_get) (int phy, int *len) {
 	}
 
 	*len = b->length;
-	deq (b);
+	deqth (b);	// Hard dequeue, including timer and hook
 	return (address) (b + 1);
 }
 
@@ -1243,6 +1263,10 @@ __PUBLF (PicOSNode, void, tcv_init) () {
 
 #endif	/* TCV_TIMERS */
 }
+
+#ifdef	deqth
+#undef	deqth
+#endif
 
 /* TCV_PRESENT */
 #endif

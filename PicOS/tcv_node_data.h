@@ -42,6 +42,9 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
     private:
 
 	void deq (hblock_t *p);
+#if TCV_TIMERS || TCV_HOOKS
+	void deqth (hblock_t *p);
+#endif
 	void enq (qhead_t *q, hblock_t *p);
 #if TCV_LIMIT_RCV || TCV_LIMIT_XMT
 	Boolean qmore (qhead_t *q, word lim);
