@@ -25,7 +25,19 @@
 
 #define ddCacheSize		10
 #define spdCacheSize		20
+#define rtrCacheSize		10
 #define tarp_maxHops		10
+
+#ifndef TARP_RTR
+#define TARP_RTR	0
+#endif
+
+#if TARP_RTR
+#if TCV_TIMERS == 0 || TCV_HOOKS == 0
+#error missing TCV_TIMERS or TCV_HOOKS
+#endif
+#define TARP_RTR_TOUT	1024
+#endif
 
 #ifndef DEFAULT_RSSI_THOLD
 #define DEFAULT_RSSI_THOLD	80
@@ -66,6 +78,13 @@ typedef struct spdc {
 	word	m_hop; // check if it's really better with int instead word
 	struct	spde en[spdCacheSize];
 } spdcType;
+
+typedef struct rtrc {
+	byte	head;
+	byte	fecnt;
+	address pkt [rtrCacheSize];
+	byte	rcnt [rtrCacheSize];
+} rtrcType; // 1 + 1 + 10 * (2+1) bytes
 
 typedef struct tarpCtrlStruct {
 	word	rcv;

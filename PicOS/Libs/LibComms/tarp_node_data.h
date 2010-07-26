@@ -35,19 +35,37 @@ nid_t   _da (master_host) = 1;
 
 #ifdef __SMURPH__
 __STATIC ddcType	* ddCache;
-__STATIC spdcType * spdCache;
+__STATIC spdcType 	* spdCache;
+
+#if TARP_RTR
+__STATIC rtrcType	* rtrCache;
+#endif
+
 #else
 __STATIC ddcType	* ddCache = NULL;
-__STATIC spdcType * spdCache = NULL;
+__STATIC spdcType 	* spdCache = NULL;
+
+#if TARP_RTR
+__STATIC rtrcType 	* rtrCache = NULL;
+#endif
+
 #endif	/* __SMURPH__ */
 
 #else	/* not MALLOCED */
 
 __STATIC ddcType	_ddCache;
-__STATIC spdcType _spdCache;
+__STATIC spdcType 	_spdCache;
 
-#define ddCache (&_ddCache)
+#if TARP_RTR
+__STATIC rtrcType	_rtrCache;
+#endif
+
+#define ddCache  (&_ddCache)
 #define spdCache (&_spdCache)
+
+#if TARP_RTR
+#define rtrCache (&_rtrCache)
+#endif
 
 #endif	/* MALLOCED */
 
@@ -70,7 +88,13 @@ void _da (tarp_init) (void);
 int _da (tarp_rx) (address buffer, int length, int *ses);
 int _da (tarp_tx) (address buffer);
 
-word tarp_findInSpd (nid_t host);
+word findInSpd (nid_t host);
+
+#if TARP_RTR
+word findInRtr (nid_t sndr, seq_t seqn, address pkt);
+int _da (tarp_xmt) (address buffer);
+#endif
+
 Boolean dd_fresh (headerType * buffer);
 void upd_spd (headerType * msg);
 int check_spd (headerType * msg);
