@@ -115,5 +115,5 @@
 #undef msg_isNew
 #undef msg_isClear
 #undef set_master_chg
-#undef msg_isntRtr
+#undef guide_rtr
 #endif
