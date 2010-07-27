@@ -156,6 +156,8 @@ packet	PKT {
 	};
 };
 
+#define	RERR
+
 class rfm_intd_t {
 //
 // RF interface
@@ -184,7 +186,21 @@ class rfm_intd_t {
 	word		phys_id;
 
 #if (RADIO_OPTIONS & 0x04)
-	word		rerror [5];
+
+#define	RERR_RCPA	0
+#define	RERR_RCPS	1
+#define	RERR_XMEX	2
+#define	RERR_XMDR	3
+#define	RERR_CONG	4
+#define	RERR_MAXB	5
+#define	RERR_CURB	6
+#define	RERR_SIZE	(sizeof (word) * RERR_CURB)
+
+	word		rerror [RERR_CURB+1];
+#endif
+
+#if RADIO_LBT_RETRY_LIMIT
+	word		retrcnt;
 #endif
 	rfm_intd_t (const data_no_t*);
 

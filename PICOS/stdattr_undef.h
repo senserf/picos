@@ -1,8 +1,10 @@
 // Created automatically, do not edit!!!
 #ifdef __picos_stdattr_h__
 #undef __picos_stdattr_h__
+#undef __picos_stdattr_h__
 #undef release
 #undef finish
+#undef hang
 #undef entropy
 #undef phys_dm2200
 #undef phys_cc1100
@@ -90,10 +92,13 @@
 #undef tcvp_attach
 #undef tcvp_clone
 #undef tcvp_dispose
+#undef tcvp_isqueued
 #undef tcvp_new
 #undef tcvp_hook
+#undef tcvp_gethook
 #undef tcvp_unhook
 #undef tcvp_settimer
+#undef tcvp_issettimer
 #undef tcvp_cleartimer
 #undef tcvp_length
 #undef tcvphy_reg

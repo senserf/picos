@@ -24,6 +24,7 @@
 #define	defch	(rf->DefChannel)
 #define	physid	(rf->phys_id)
 #define	rerr	(rf->rerror)
+#define	retr	(rf->retrcnt)
 
 strandhdr (Receiver, PicOSNode) {
 
@@ -107,20 +108,21 @@ threadhdr (Xmitter, PicOSNode) {
 
 #if (RADIO_OPTIONS & 0x04)
 
-		if ((rerr [2] = (rerr [2] * 3 + v) >> 2) > 0x0fff)
-			rerr [2] = 0xfff;
+		if ((rerr [RERR_CONG] = (rerr [RERR_CONG] * 3 + v) >> 2) >
+		    0x0fff)
+			rerr [RERR_CONG] = 0xfff;
 
 		if (v) {
-			if (rerr [4] + v < rerr [4])
+			if (rerr [RERR_CURB] + v < rerr [RERR_CURB])
 				// Overflow
-				rerr [4] = 0xffff;
+				rerr [RERR_CURB] = 0xffff;
 			else
-				rerr [4] += v;
+				rerr [RERR_CURB] += v;
 		} else {
 			// Update max
-			if (rerr [3] < rerr [4])
-				rerr [3] = rerr [4];
-			rerr [4] = 0;
+			if (rerr [RERR_MAXB] < rerr [RERR_CURB])
+				rerr [RERR_MAXB] = rerr [RERR_CURB];
+			rerr [RERR_CURB] = 0;
 		}
 #endif
 	};

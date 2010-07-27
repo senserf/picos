@@ -583,3 +583,9 @@ PG100721A:	PICOS >= PG100721A
 
     Requisite mods for hooks and timers in PICOS. Fixed a bug in rfmodule.cc
     which might cause crashes under heavy (emulated) traffic.
+
+PG100727A:	PICOS >= PG100727A
+
+    Three new functions added to TCV/VNETI, see PICOS. Also, the size of the
+    array returned by PHYSOPT_ERROR increased (see the respective mod in
+    PICOS). The new entries are not used by VNETI yet, but they will be.

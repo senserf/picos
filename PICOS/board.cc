@@ -438,6 +438,9 @@ void rfm_intd_t::init () {
 #if (RADIO_OPTIONS & 0x04)
 	memset (rerror, 0, sizeof (rerror));
 #endif
+#if RADIO_LBT_RETRY_LIMIT
+	retrcnt = 0;
+#endif
 	Receiving = Xmitting = NO;
 	TXOFF = RXOFF = YES;
 

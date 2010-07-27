@@ -117,6 +117,7 @@ Xmit:
 	if (RSSI->signal ((void*)NO) == REJECTED)
 		// Race with ADC
 		proceed XM_LBS;
+
 	if (rcvg) {
 		set_congestion_indicator (minbkf);
 		delay (minbkf, XM_LOOP);
@@ -131,7 +132,7 @@ Xmit:
 		goto Xmit;
 
 #if ((RADIO_OPTIONS & 0x05) == 0x05)
-	if (rerr [2] >= 0x0fff)
+	if (rerr [RERR_CONG] >= 0x0fff)
 		diag ("RF driver: LBT congestion!!");
 #endif
 	gbackoff ();
@@ -216,10 +217,10 @@ Receiver::perform {
     state RCV_RECEIVE:
 
 #if (RADIO_OPTIONS & 0x04)
-	if (rerr [0] == MAX_WORD)
+	if (rerr [RERR_RCPA] == MAX_WORD)
 		// Zero out slots 0 and 1
-		memset (rerr, 0, sizeof (word) * 2);
-	rerr [0] ++;
+		memset (rerr + RERR_RCPA, 0, sizeof (word) * 2);
+	rerr [RERR_RCPA] ++;
 #endif
 	rfi->wait (EOT, RCV_GOTIT);
 	rfi->wait (BERROR, RCV_GETIT);
@@ -251,7 +252,7 @@ Receiver::perform {
 	rbf [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 
 #if (RADIO_OPTIONS & 0x04)
-	rerr [1] ++;
+	rerr [RERR_RCPS] ++;
 #endif
 #if (RADIO_OPTIONS & 0x02)
 	diag ("RF driver: %u RX OK %04x %04x %04x", (word) seconds (),
@@ -521,9 +522,9 @@ static int rfm_option (int opt, address val) {
 	    case PHYSOPT_ERROR:
 
 		if (val != NULL) {
-			if (rerr [4] > rerr [3])
-				rerr [3] = rerr [4];
-			memcpy (val, rerr, sizeof (word) * 4);
+			if (rerr [RERR_CURB] > rerr [3])
+				rerr [RERR_MAXB] = rerr [RERR_CURB];
+			memcpy (val, rerr, RERR_SIZE);
 		} else
 			memset (rerr, 0, sizeof (rerr));
 
@@ -562,6 +563,7 @@ static int rfm_option (int opt, address val) {
 #undef	defrt
 #undef	defch
 #undef	rerr
+#undef	retr
 
 #include "stdattr_undef.h"
 

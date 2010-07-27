@@ -166,14 +166,20 @@
 	(  ((PicOSNode*)TheStation)->_na_tcvp_clone (a,b)  )
 #define	tcvp_dispose(a,b) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_dispose (a,b)  )
+#define	tcvp_isqueued(a) \
+	(  ((PicOSNode*)TheStation)->_na_tcvp_isqueued (a)  )
 #define	tcvp_new(a,b,c) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_new (a,b,c)  )
 #define	tcvp_hook(a,b) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_hook (a,b)  )
+#define	tcvp_gethook(a) \
+	(  ((PicOSNode*)TheStation)->_na_tcvp_gethook (a)  )
 #define	tcvp_unhook(a) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_unhook (a)  )
 #define	tcvp_settimer(a,b) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_settimer (a,b)  )
+#define	tcvp_issettimer(a) \
+	(  ((PicOSNode*)TheStation)->_na_tcvp_issettimer (a)  )
 #define	tcvp_cleartimer(a) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_cleartimer (a)  )
 #define	tcvp_length(a) \
