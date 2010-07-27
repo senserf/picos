@@ -10,4 +10,6 @@ WO100715A:
   - No calls to empty (but defined in the board def.) read_sensor(). Including
     power meter on aggregators. No output format change for sensor data.
 
+WO100727A:	VUEE >= WO100727A
 
+  TARP retries. See new_il_demo for mandatory tarp routines and options.sys.
