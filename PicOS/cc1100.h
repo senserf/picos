@@ -68,7 +68,18 @@
 
 // Fixed space (in milliseconds) between two consecutively transmitted packets
 #ifndef	RADIO_LBT_XMIT_SPACE
-#define	RADIO_LBT_XMIT_SPACE	4
+#define	RADIO_LBT_XMIT_SPACE	2
+#endif
+
+// Retry limit (for the number of attempts to grab the channel)
+#ifndef	RADIO_LBT_RETRY_LIMIT
+#define	RADIO_LBT_RETRY_LIMIT	0	// Switched off
+#endif
+
+// Use different sensitivity for subsequent channel acquisition attempts (legit
+// values 0, 1, 2, 3)
+#ifndef	RADIO_LBT_RETRY_STAGED
+#define	RADIO_LBT_RETRY_STAGED	0
 #endif
 
 // ============================================================================
@@ -429,6 +440,69 @@ static const	byte	__pi_rate3 [] = {
 const	byte	*cc1100_ratemenu [] = {
 			__pi_rate0, __pi_rate1, __pi_rate2, __pi_rate3
 };
+
+// ============================================================================
+// ============================================================================
+#if RADIO_LBT_RETRY_LIMIT
+
+#if RADIO_LBT_RETRY_STAGED < 0 || RADIO_LBT_RETRY_STAGED > 3
+#error "S: RADIO_LBT_RETRY_STAGED must be between 0 and 3 inclusively!!"
+#endif
+
+// ============================================================================
+
+#if RADIO_LBT_RETRY_STAGED
+
+const	byte	cc1100_stage_table [] = {
+#if RADIO_LBT_RETRY_STAGED == 1
+	0x59, 0x6C, 0x7E, 0x48
+#define	CC1100_N_STAGES	4
+#endif
+#if RADIO_LBT_RETRY_STAGED == 2
+	0x59, 0x6B, 0x7D, 0x4F, 0x48
+#define	CC1100_N_STAGES	5
+#endif
+#if RADIO_LBT_RETRY_STAGED == 3
+	0x59, 0x5A, 0x6B, 0x6C, 0x7D, 0x4E, 0x4F, 0x48
+#define	CC1100_N_STAGES	8
+#endif
+	};
+
+#endif	/* RADIO_LBT_RETRY_STAGED */
+
+// ============================================================================
+
+#if RADIO_LBT_RETRY_LIMIT >= 255
+// This means no limit, but possible staging and counting
+#if RADIO_LBT_RETRY_STAGED == 0
+#error "S: RADIO_LBT_RETRY_LIMIT >= 255 requires RADIO_LBT_RETRY_STAGED!!"
+#endif
+
+#define	cc1100_retry_limit_reached(rc)	((rc) != CC1100_N_STAGES-1 ? (rc)++ : \
+					0, 0)
+
+#define	cc1100_rsindex(a)		(a)
+
+#else
+
+#define	cc1100_retry_limit_reached(rc)	((rc)++ == RADIO_LBT_RETRY_LIMIT-1)
+
+#if RADIO_LBT_RETRY_LIMIT > CC1100_N_STAGES
+#define	cc1100_rsindex(a)	(((a)<CC1100_N_STAGES)?(a):(CC1100_N_STAGES-1))
+#else
+#define	cc1100_rsindex(a)	(a)
+#endif
+
+#endif	/* RADIO_LBT_RETRY_LIMIT >= 255 */
+
+// ============================================================================
+
+#define	cc1100_retry_stage(rc)	cc1100_stage_table [cc1100_rsindex (rc)]
+
+#endif	/* RADIO_LBT_RETRY_LIMIT */
+
+// ============================================================================
+// ============================================================================
 
 #ifndef CC1100_PATABLE
 #define	CC1100_PATABLE { 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xC6, 0xC3 }

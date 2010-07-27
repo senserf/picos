@@ -32,41 +32,59 @@ static byte	*supplements = NULL;	// Register definition supplements
 static byte	gwch;			// Guard watch flags
 #endif
 
+#if RADIO_LBT_RETRY_LIMIT
+static byte	retr;
+#endif
+
 #if (RADIO_OPTIONS & 0x04)
 // Counts events:
 //
-//	0 - receptions (all events when receiver is awakened to check for a pkt)
+//	0 - receptions (all events when receiver was awakened by an incoming
+//	    packet, i.e., the start vector [SYSTEM_IDENT] was recognized)
 //	1 - successfully received packets; note that with hardware CRC +
 //	    AUTOFLUSH, 0 and 1 will be equal
-//	2 - LBT/congestion indicator: EMA d(n) = 0.75 * d(n-1) + 0.25 * b, where
+//	2 - the number of packets extracted from the transmit queue (ones the
+//	    driver tried to transmit)
+//	3 - the number of xmt packets dropped on RETRY_LIMIT
+//	4 - LBT/congestion indicator: EMA d(n) = 0.75 * d(n-1) + 0.25 * b, where
 //	    b is the backoff experienced when trying to access the channel for
 //	    TX; this is counted over all attempts to access the channel and
 //	    maxed at 0x0fff, i.e., 4095
-//	3 - the maximum accumulated backoff time suffered by a single packet so
+//	5 - the maximum accumulated backoff time suffered by a single packet so
 //	    far
+#define	RERR_RCPA	0
+#define	RERR_RCPS	1
+#define	RERR_XMEX	2
+#define	RERR_XMDR	3
+#define	RERR_CONG	4
+#define	RERR_MAXB	5
+#define	RERR_CURB	6
 
-static word	rerror [5];
+static word	rerror [RERR_CURB + 1];
+
+// The last entry is auxiliary
+#define	RERR_SIZE	(sizeof (word) * RERR_CURB)
 
 static void set_congestion_indicator (word v) {
 
 	// EMA of waiting time
-	if ((rerror [2] = (rerror [2] * 3 + v) >> 2) > 0x0fff)
+	if ((rerror [RERR_CONG] = (rerror [RERR_CONG] * 3 + v) >> 2) > 0x0fff)
 		// Keeping the max at 0xfff will avoid overflow as the maximum
 		// value of increment is 255
-		rerror [2] = 0xfff;
+		rerror [RERR_CONG] = 0xfff;
 
 	if (v) {
 		// Accumulate in 4
-		if (rerror [4] + v < rerror [4])
+		if (rerror [RERR_CURB] + v < rerror [RERR_CURB])
 			// Overflow
-			rerror [4] = 0xffff;
+			rerror [RERR_CURB] = 0xffff;
 		else
-			rerror [4] += v;
+			rerror [RERR_CURB] += v;
 	} else {
 		// Update max
-		if (rerror [3] < rerror [4])
-			rerror [3] = rerror [4];
-		rerror [4] = 0;
+		if (rerror [RERR_MAXB] < rerror [RERR_CURB])
+			rerror [RERR_MAXB] = rerror [RERR_CURB];
+		rerror [RERR_CURB] = 0;
 	}
 }
 
@@ -675,10 +693,10 @@ static void do_rx_fifo () {
 	}
 
 #if (RADIO_OPTIONS & 0x04)
-	if (rerror [0] == MAX_WORD)
+	if (rerror [RERR_RCPA] == MAX_WORD)
 		// Zero out slots 0 and 1
-		memset (rerror, 0, sizeof (word) * 2);
-	rerror [0] ++;
+		memset (rerror + RERR_RCPA, 0, sizeof (word) * 2);
+	rerror [RERR_RCPA] ++;
 #endif
 	// len is the physical payload, i.e., the number of bytes in the pipe
 
@@ -802,7 +820,7 @@ static void do_rx_fifo () {
 #endif	/* SOFTWARE_CRC */
 
 #if (RADIO_OPTIONS & 0x04)
-	rerror [1] ++;
+	rerror [RERR_RCPS] ++;
 #endif
 
 #if (RADIO_OPTIONS & 0x02)
@@ -875,12 +893,43 @@ XRcv:
 	}
 
 	// Try to grab the chip for TX
+
+#if	RADIO_LBT_RETRY_LIMIT
+
+#ifdef	RADIO_LBT_RETRY_STAGED
+	// We use different sensitivity settings for different attempts
+	cc1100_set_reg (CCxxx0_AGCCTRL1, cc1100_retry_stage (retr));
+#endif
+
+#if (RADIO_OPTIONS & 0x04)
+	if (retr == 0) {
+		// First time around
+		if (rerror [RERR_XMEX] != MAX_WORD)
+			rerror [RERR_XMEX] ++;
+	}
+#endif
+
+#endif
+
 	if (clear_to_send () == NO) {
 
-		// We have to wait
+#if RADIO_LBT_RETRY_LIMIT
+		// This also updates retr
+		if (cc1100_retry_limit_reached (retr)) {
+
+			// Drop the packet
+#if (RADIO_OPTIONS & 0x04)
+			if (rerror [RERR_XMDR] != MAX_WORD)
+				rerror [RERR_XMDR] ++;
+#endif
+			retr = 0;
+			// Pretend the packet has been transmitted
+			goto FEXmit;
+		}
+#endif
 
 #if ((RADIO_OPTIONS & 0x05) == 0x05)
-		if (rerror [2] >= 0x0fff)
+		if (rerror [RERR_CONG] >= 0x0fff)
 				diag ("CC1100: LBT congestion!!");
 #endif
 
@@ -899,6 +948,9 @@ XRcv:
 		set_congestion_indicator (0);
 	}
 
+#if RADIO_LBT_RETRY_LIMIT
+	retr = 0;
+#endif
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
 		// The last check: the packet may have been removed while
 		// waiting on LBT
@@ -924,7 +976,7 @@ XRcv:
 	LEDI (1, 1);
 
 	if (statid != 0xffff)
-		// This means "honor the packet's statid
+		// This means "honor the packet's statid"
 		xbuff [0] = statid;
 
 #if SOFTWARE_CRC
@@ -960,6 +1012,7 @@ XRcv:
 	}
 #endif
 	guard_stop (WATCH_XMT | WATCH_PRG);
+FEXmit:
 	LEDI (1, 0);
 #if RADIO_LBT_XMIT_SPACE
 	utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
@@ -1187,7 +1240,8 @@ static int option (int opt, address val) {
 			LEDI (0, 2);
 		}
 		TxOFF = 0;
-		trigger (__pi_v_qevent);
+OREvnt:
+		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 		break;
 
 	    case PHYSOPT_RXON:
@@ -1204,8 +1258,7 @@ static int option (int opt, address val) {
 			LEDI (0, 1);
 		else
 			LEDI (0, 2);
-		trigger (__pi_v_qevent);
-		break;
+		goto OREvnt;
 
 	    case PHYSOPT_TXOFF:
 
@@ -1215,8 +1268,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (__pi_v_qevent);
-		break;
+		goto OREvnt;
 
 	    case PHYSOPT_TXHOLD:
 
@@ -1225,8 +1277,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (__pi_v_qevent);
-		break;
+		goto OREvnt;
 
 	    case PHYSOPT_RXOFF:
 
@@ -1235,8 +1286,7 @@ static int option (int opt, address val) {
 			LEDI (0, 0);
 		else
 			LEDI (0, 1);
-		trigger (__pi_v_qevent);
-		break;
+		goto OREvnt;
 
 	    case PHYSOPT_CAV:
 
@@ -1246,8 +1296,7 @@ static int option (int opt, address val) {
 			gbackoff (RADIO_LBT_BACKOFF_EXP);
 		else
 			utimer_set (bckf_timer, *val);
-		trigger (__pi_v_qevent);
-		break;
+		goto OREvnt;
 
 	    case PHYSOPT_SETPOWER:
 
@@ -1334,9 +1383,9 @@ static int option (int opt, address val) {
 	    case PHYSOPT_ERROR:
 
 		if (val != NULL) {
-			if (rerror [4] > rerror [3])
-				rerror [3] = rerror [4];
-			memcpy (val, rerror, sizeof (word) * 4);
+			if (rerror [RERR_CURB] > rerror [RERR_MAXB])
+				rerror [RERR_MAXB] = rerror [RERR_CURB];
+			memcpy (val, rerror, RERR_SIZE);
 		} else
 			memset (rerror, 0, sizeof (rerror));
 

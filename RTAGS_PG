@@ -457,10 +457,20 @@ PG100725A:
 	The fix consists in making sure that a packet returned by tcv_rnd and
 	tcvphy_get has its timer cleared and its hook removed.
 
----------:
+PG100727A:	VUEE >= PG100727A
 
 	Correction: hooks are left intact with tcv_rnp and tcvphy_get (while
 	timers are cleared). This makes more sense.
+
+	New functions added to TCV/VNETI (to be documented, as lots of other
+	things):
+
+	Boolean tcvp_isqueued (address packet);
+	Boolean tcvp_issettimer (address packet);
+	address *tcvp_gethook (address packet);
+
+	I have introduced a tentative fix into Wlodek's LicComms/tarp.c (to be
+	revised and cleaned up by Wlodek).
 
 	Some prerequisite cleanups for improving the parameterization of LBT,
 	mostly for CC1100, but not only. Don't be concerned about the large
@@ -468,3 +478,10 @@ PG100725A:
 	constants with the same meaning, so they are consistent across all
 	drivers.
 
+	CC1100 driver augmented by options to better control LBT. This is still
+	half cooked. The size of the array returned by PHYSOPT_ERROR increased
+	to 6 words. See PicOS/cc1100.h for their description as well as for 
+	new driver options. Note that there will be more coming up shortly.
+
+	Praxis VUEE/RFTEST modified for the new version of PHYSOPT_ERROR, but
+	untested yet.

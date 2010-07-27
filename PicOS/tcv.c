@@ -925,11 +925,21 @@ __PUBLF (PicOSNode, address, tcvp_new) (int size, int dsp, int ses) {
 		return NULL;
 }
 
+__PUBLF (PicOSNode, Boolean, tcvp_isqueued) (address p) {
+
+	return header (p) -> attributes.b.queued;
+}
+
 #if	TCV_HOOKS
 __PUBLF (PicOSNode, void, tcvp_hook) (address p, address *h) {
 
 	header (p) -> hptr = h;
 	*h = p;
+}
+
+__PUBLF (PicOSNode, address*, tcvp_gethook) (address p) {
+
+	return header (p) -> hptr;
 }
 
 __PUBLF (PicOSNode, void, tcvp_unhook) (address p) {
@@ -1090,6 +1100,12 @@ __PUBLF (PicOSNode, void, tcvp_cleartimer) (address p) {
  * Plugin-callable function to remove a packet from the timer queue
  */
 	deqtm (header (p));
+}
+
+__PUBLF (PicOSNode, Boolean, tcvp_issettimer) (address p) {
+
+	return (header (p) -> tqueue) . next != NULL;
+
 }
 
 #endif	/* TIMERS */

@@ -86,12 +86,15 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 	address 	_da (tcvp_clone) (address p, int disp);
 	void 		_da (tcvp_dispose) (address p, int dsp);
 	address 	_da (tcvp_new) (int size, int dsp, int ses);
+	Boolean		_da (tcvp_isqueued) (address p);
 #if TCV_HOOKS
 	void 		_da (tcvp_hook) (address p, address *h);
+	address*	_da (tcvp_gethook) (address p);
 	void 		_da (tcvp_unhook) (address p);
 #endif
 #if TCV_TIMERS
 	void 		_da (tcvp_settimer) (address p, word del);
+	Boolean		_da (tcvp_issettimer) (address p);
 	void 		_da (tcvp_cleartimer) (address p);
 	friend class	TCVTimerService;
 	TCVTimerService *tcv_tservice;

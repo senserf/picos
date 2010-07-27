@@ -352,7 +352,20 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 					rtrCache->pkt[i],
                                         msgBuf->snd, msgBuf->seq_no,
                                         i, rtrCache->fecnt +1);
-			tcv_drop (rtrCache->pkt[i]);
+// PG =========================================================================
+// Should have a function for this ============================================
+// ============================================================================
+			if (tcvp_issettimer (rtrCache->pkt [i]) ||
+			    tcvp_isqueued (rtrCache->pkt [i])) {
+				// The timer is running or queued to transmit,
+				// feel free to kill
+				tcv_drop (rtrCache->pkt[i]);
+			} else {
+				// Being transmitted, make sure for the
+				// last time
+				rtrCache->rcnt[i] = TARP_RTR;
+			}
+// ============================================================================
 			rtrCache->fecnt++;
 		}
 #endif
@@ -363,11 +376,26 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 	if (guide_rtr (msgBuf)  == 2 && 
 		(i = findInRtr (msgBuf->snd, msgBuf->seq_no, NULL)) <
 			rtrCacheSize) {
-		dbug_rtr ("%x-%u.%u unhooked-ack at %u %u",
+		dbug_rtr ("%x-%u.%u unhooked-ack at %u %u (%x %u %u)",
                                         rtrCache->pkt[i], 
                                         msgBuf->snd, msgBuf->seq_no,
-                                        i, rtrCache->fecnt +1);
-		tcv_drop (rtrCache->pkt[i]);
+                                        i, rtrCache->fecnt +1,
+					tcvp_gethook (rtrCache->pkt [i]),
+					tcvp_isqueued (rtrCache->pkt [i]),
+					tcvp_issettimer (rtrCache->pkt [i])
+			);
+// PG =========================================================================
+			if (tcvp_issettimer (rtrCache->pkt [i]) ||
+			    tcvp_isqueued (rtrCache->pkt [i])) {
+				// The timer is running or queued to transmit,
+				// feel free to kill
+				tcv_drop (rtrCache->pkt[i]);
+			} else {
+				// Being transmitted, make sure for the
+				// last time
+				rtrCache->rcnt[i] = TARP_RTR;
+			}
+// ============================================================================
 		rtrCache->fecnt++;
 	}
 #endif
