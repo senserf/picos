@@ -606,13 +606,13 @@ void	diag (const char *, ...);
 
 #if RANDOM_NUMBER_GENERATOR > 1
 // High-quality rnd
-lword lrnd ();
+lword lrnd (void);
 #define	rnd()	((word)(lrnd () >> 16))
 #endif
 
 #if RANDOM_NUMBER_GENERATOR == 1
 // Low-quality rnd
-word rnd ();
+word rnd (void);
 #define lrnd()	(((lword)rnd ()) << 16 | rnd ())
 #endif
 

@@ -217,22 +217,22 @@ Drain:
 		// We are receiving. This means the start vector has been
 		// recognized. Do not interfere now.
 		hard_drop;
-		delay (MIN_BACKOFF, XM_LOOP);
+		delay (RADIO_LBT_MIN_BACKOFF, XM_LOOP);
 		wait (__pi_v_qevent, XM_LOOP);
 		release;
 	}
 
-#if LBT_DELAY > 0
+#if RADIO_LBT_DELAY > 0
 	if (receiver_active) {
 		// LBT requires the receiver to be listening
 		adc_start_refon;
 		hard_drop;
-		delay (LBT_DELAY, XM_LBS);
+		delay (RADIO_LBT_DELAY, XM_LBS);
 		release;
 	}
 #endif
 
-#if LBT_DELAY > 0
+#if RADIO_LBT_DELAY > 0
 Xmit:
 #endif
 	LEDI (1, 0);
@@ -272,10 +272,10 @@ Xmit:
 	diag ("SND: DONE (%x)", (word) __pi_x_buffp);
 #endif
 
-#if LBT_DELAY == 0
+#if RADIO_LBT_DELAY == 0
 	// This is to reduce the risk of multiple transmitters livelocks; not
 	// needed with LBS
-	gbackoff;
+	gbackoff (RADIO_LBT_BACKOFF_EXP);
 #endif
 	/* Restart a pending reception */
 	hard_lock;
@@ -299,23 +299,23 @@ Xmit:
 		__pi_x_buffer = NULL;
 		if (tcvphy_top (__pi_v_physid) != NULL) {
 			/* More to xmit: keep the transmitter up */
-			delay (MIN_BACKOFF, XM_LOOP);
+			delay (RADIO_LBT_MIN_BACKOFF, XM_LOOP);
 			release;
 		}
 		/* Shut down the transmitter */
 		hstat (HSTAT_SLEEP);
 	}
-	delay (MIN_BACKOFF, XM_LOOP);
+	delay (RADIO_LBT_MIN_BACKOFF, XM_LOOP);
 	release;
 
-#if LBT_DELAY > 0
+#if RADIO_LBT_DELAY > 0
 
     entry (XM_LBS)
 
 	hard_lock;
 	if (receiver_busy) {
 		hard_drop;
-		delay (MIN_BACKOFF, XM_LOOP);
+		delay (RADIO_LBT_MIN_BACKOFF, XM_LOOP);
 		wait (__pi_v_qevent, XM_LOOP);
 		release;
 	}
@@ -336,7 +336,7 @@ Xmit:
 
 	hard_drop;
 	// Backoff
-	gbackoff;
+	gbackoff (RADIO_LBT_BACKOFF_EXP);
 #if 0
 	diag ("D %u %u", adc_value, __pi_x_backoff);
 #endif

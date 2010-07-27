@@ -13,6 +13,6 @@
 #define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
-#define	LBT_DELAY		0
-#define	LBT_THRESHOLD		2
+#define	RADIO_LBT_DELAY		0
+#define	RADIO_LBT_THRESHOLD	2
 #define	GLACIER			1

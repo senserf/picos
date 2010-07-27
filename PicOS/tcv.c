@@ -144,30 +144,30 @@ __PRIVF (PicOSNode, void, deq) (hblock_t *p) {
 
 // ============================================================================
 
-#if TCV_TIMERS || TCV_HOOKS
-__PRIVF (PicOSNode, void, deqth) (hblock_t *p) {
-/*
- * Removes a packet from its queue, also clearing the timer and the hook
- */
 #if TCV_TIMERS
+__PRIVF (PicOSNode, void, deqtm) (hblock_t *p) {
+/*
+ * Removes a buffer from the timer queue
+ */
 	titem_t *t = &(p->tqueue);
 	deqt (t);
+}
+#else
+#define	deqtm(a)	CNOP
 #endif
-	deq (p);
 
-#if	TCV_HOOKS
-	if (p->hptr) {
-		/* Zero out the hook */
+#if TCV_HOOKS
+__PRIVF (PicOSNode, void, deqhk) (hblock_t *p) {
+/*
+ * Clears the buffer's hook
+ */
+	if (p->hptr != NULL) {
 		*(p->hptr) = NULL;
 		p->hptr = NULL;
 	}
-#endif
 }
-
-#else	/* No timers, no hooks, deqth is equivalent to deq */
-
-#define	deqth(p)	deq (p)
-
+#else
+#define	deqhk(a)	CNOP
 #endif
 
 // ============================================================================
@@ -268,8 +268,9 @@ __PRIVF (PicOSNode, void, rlp) (hblock_t *p) {
 /*
  * Releases the packet buffer, frees its memory
  */
-	/* Remove from all queues and timers */
-	deqth (p);
+	deq (p);	// Remove from queue
+	deqtm (p);	// Clear the timer ...
+	deqhk (p);	// ... and the hook
 	/* Release memory */
 	tfree ((address)p);
 }
@@ -523,8 +524,10 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 		}
 		return NULL;
 	}
-	/* We have a packet */
-	deqth (b);	// Hard dequeue
+
+	deq (b);	// Dequeue the packet ...
+	deqtm (b);	// ... and clear its timer
+
 	/* Packet pointer */
 	p = ((address)(b + 1));
 	/* Set the pointers to application data */
@@ -933,10 +936,8 @@ __PUBLF (PicOSNode, void, tcvp_unhook) (address p) {
 
 	address *h;
 
-	if (p != NULL && (h = header (p) -> hptr) != NULL) {
-		*h = NULL;
-		header (p) -> hptr = NULL;
-	}
+	if (p != NULL)
+		deqhk (header (p));
 }
 /* TCV_HOOKS */
 #endif
@@ -1088,8 +1089,7 @@ __PUBLF (PicOSNode, void, tcvp_cleartimer) (address p) {
 /*
  * Plugin-callable function to remove a packet from the timer queue
  */
-	titem_t *t = &(header(p)->tqueue);
-	deqt (t);
+	deqtm (header (p));
 }
 
 #endif	/* TIMERS */
@@ -1197,7 +1197,8 @@ __PUBLF (PicOSNode, address, tcvphy_get) (int phy, int *len) {
 	}
 
 	*len = b->length;
-	deqth (b);	// Hard dequeue, including timer and hook
+	deq (b);	// Dequeue the packet ...
+	deqtm (b);	// ... and clear its timer
 	return (address) (b + 1);
 }
 
@@ -1264,8 +1265,12 @@ __PUBLF (PicOSNode, void, tcv_init) () {
 #endif	/* TCV_TIMERS */
 }
 
-#ifdef	deqth
-#undef	deqth
+#ifdef	deqtm
+#undef	deqtm
+#endif
+
+#ifdef	deqhk
+#undef	deqhk
 #endif
 
 /* TCV_PRESENT */

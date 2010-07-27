@@ -9,6 +9,42 @@
 #include "rf24l01_sys.h"
 #include "rfleds.h"
 
+#ifndef	RADIO_LBT_MIN_BACKOFF
+#define	RADIO_LBT_MIN_BACKOFF	8
+#endif
+
+#ifndef	RADIO_LBT_BACKOFF_EXP
+#define	RADIO_LBT_BACKOFF_EXP	8
+#endif
+
+#ifndef	RADIO_LBT_BACKOFF_RX
+#define	RADIO_LBT_BACKOFF_RX	4
+#endif
+
+#ifndef	RADIO_DEFAULT_POWER
+#define	RADIO_DEFAULT_POWER	1
+#endif
+
+#ifndef	RADIO_LBT_XMIT_SPACE
+#define	RADIO_LBT_XMIT_SPACE	10
+#endif
+
+#ifndef	RADIO_DEFAULT_CHANNEL
+#define	RADIO_DEFAULT_CHANNEL	2
+#endif
+
+#define	RADIO_MAX_CHANNEL	127
+
+#if RADIO_DEFAULT_CHANNEL > RADIO_MAX_CHANNEL
+#error "S: RADIO_DEFAULT_CHANNEL > 127!!!"
+#endif
+
+#define	RADIO_MAX_POWER		3
+
+#if RADIO_DEFAULT_POWER > RADIO_MAX_POWER
+#error "S: RADIO_DEFAULT_POWER is bigger than the max of 3"
+#endif
+
 // Register addresses
 #define	REG_CONFIG		0	// Basic configuration
 #define	REG_CONFIG_MASK_RX_DR	0x40	// RX Data Ready mask
@@ -102,15 +138,7 @@
 #define	CMD_NOP			0xFF
 #define	CMD_READ_STATUS		CMD_NOP
 
-#define	RADIO_DEF_XPOWER	1	// Default transmit power
-#define	RADIO_MAX_POWER		3
-#define	RADIO_DEF_CHANNEL	2
-#define	RADIO_MAX_CHANNEL	127
-					// These are reversed: LSB -> MSB
 #define	MAX_PAYLOAD_LENGTH	32
-
-#define	backoff_after_receive	1
-#define	XMIT_SPACE		10	/* Inter packet space for xmit */
 
 #define	BUSY_WAIT_ETX		1	/* Busy-wait for end of transmission */
 #define	MULTIPLE_PIPES		1	/* Diff. pipes handle diff. PLength */
@@ -165,9 +193,10 @@
     REG_SETUP_RETR, \
 	(byte) (REG_SETUP_RETR_DISABLE), \
     REG_RF_CH, \
-  	(byte) (RADIO_DEF_CHANNEL), \
+  	(byte) (RADIO_DEFAULT_CHANNEL), \
     REG_RF_SETUP, \
-  	(byte) (REG_RF_SETUP_1MBPS + (RADIO_DEF_XPOWER << REG_RF_SETUP_PWR)), \
+  	(byte) (REG_RF_SETUP_1MBPS + \
+		(RADIO_DEFAULT_POWER << REG_RF_SETUP_PWR)), \
     REG_STATUS, \
 	(byte) (REG_STATUS_RX_DR + REG_STATUS_TX_DS + REG_STATUS_MAX_RT), \
     REG_OBSERVE_TX, \
@@ -176,8 +205,12 @@
     255 \
 }
 	
-#define	gbackoff	utimer_set (bckf_timer, MIN_BACKOFF + \
-				(rnd () & MSK_BACKOFF))
+#define	gbackoff(e)	do { \
+				if (e) \
+					utimer_set (bckf_timer, \
+						RADIO_LBT_MIN_BACKOFF + \
+						(rnd () & ((1 << (e)) - 1))); \
+			} while (0)
 
 extern word		__pi_v_drvprcs, __pi_v_qevent;
 

@@ -409,11 +409,7 @@ static void do_rx_fifo () {
 	rbuff [len << 1] = 0;
 	tcvphy_rcv (physid, rbuff, len + 2);
 Rtn:
-#if backoff_after_receive
-	gbackoff;
-#else
-	NOP;
-#endif
+	gbackoff (RADIO_LBT_BACKOFF_RX);
 }
 
 #define	DR_LOOP		0
@@ -565,7 +561,7 @@ thread (rf24l01_driver)
 	put_reg (REG_STATUS, REG_STATUS_TX_DS);
 
 	LEDI (1, 0);
-	utimer_set (bckf_timer, XMIT_SPACE);
+	utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
 	proceed (DR_LOOP);
 #else
 	// This much will do, it is an overkill actually
@@ -583,7 +579,7 @@ thread (rf24l01_driver)
 	// Done
 	put_reg (REG_STATUS, REG_STATUS_TX_DS);
 	LEDI (1, 0);
-	utimer_set (bckf_timer, XMIT_SPACE);
+	utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
 	proceed (DR_LOOP);
 #endif
 
@@ -705,7 +701,7 @@ static int option (int opt, address val) {
 		/* Force an explicit backoff */
 		if (val == NULL)
 			// Random backoff
-			gbackoff;
+			gbackoff (RADIO_LBT_BACKOFF_EXP);
 		else
 			utimer_set (bckf_timer, *val);
 		trigger (__pi_v_qevent);
@@ -715,7 +711,7 @@ static int option (int opt, address val) {
 
 		if (val == NULL)
 			// Default
-			setpower (RADIO_DEF_XPOWER);
+			setpower (RADIO_DEFAULT_POWER);
 		else
 			setpower ((byte)(*val));
 		break;
@@ -743,7 +739,7 @@ static int option (int opt, address val) {
 
 		if (val == NULL)
 			// Default, immediate
-			setchannel (RADIO_DEF_CHANNEL);
+			setchannel (RADIO_DEFAULT_CHANNEL);
 		else
 			setchannel ((byte) (*val));
 		break;

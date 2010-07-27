@@ -222,7 +222,7 @@ Finish:
 	if (__pi_v_rxoff)
 		goto Finish;
 
-	gbackoff;
+	gbackoff (RADIO_LBT_BACKOFF_EXP);
 
 	data_in;
 
@@ -335,7 +335,7 @@ Drain:
 				set_rcv_int;
 		}
 
-		delay (MIN_BACKOFF, XM_LOOP);
+		delay (RADIO_LBT_MIN_BACKOFF, XM_LOOP);
 	}
 
 	proceed (XM_LOOP);

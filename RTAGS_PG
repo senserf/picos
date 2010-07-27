@@ -441,7 +441,7 @@ PG100725A:
 
 	Fixed a problem in TCV/VNETI concerning packets that have been removed
 	from the buffer pool with their timers (and hooks) dangling.
-	This relates to two operations: tcv_rnp and tcvphys_get. Each of them
+	This relates to two operations: tcv_rnp and tcvphy_get. Each of them
 	produces a packet that:
 
 	1. FAPP has been extracted (eliminated) from the buffer pool
@@ -455,4 +455,16 @@ PG100725A:
 	asynchronously (by other threads) yielding races.
 
 	The fix consists in making sure that a packet returned by tcv_rnd and
-	tcvphys_get has its timer cleared and its hook removed.
+	tcvphy_get has its timer cleared and its hook removed.
+
+---------:
+
+	Correction: hooks are left intact with tcv_rnp and tcvphy_get (while
+	timers are cleared). This makes more sense.
+
+	Some prerequisite cleanups for improving the parameterization of LBT,
+	mostly for CC1100, but not only. Don't be concerned about the large
+	number of modified files. These are mostly renames of different
+	constants with the same meaning, so they are consistent across all
+	drivers.
+

@@ -81,7 +81,7 @@ static byte	RxOFF,			// Transmitter on/off flags
 		xpower,			// Power select
 		rbuffl,
 		vrate = RADIO_BITRATE_INDEX,	// Rate select
-		channr = CC1100_DEFAULT_CHANNEL;
+		channr = RADIO_DEFAULT_CHANNEL;
 
 const byte *suppl;
 
@@ -630,7 +630,7 @@ static void ini_cc1100 () {
 
 #if DIAG_MESSAGES
 	diag ("CC1100 initialized: %d, %d.%dMHz, %d/%dkHz=%d.%dMHz", vrate,
-		CC1100_BFREQ, CC1100_BFREQ_10, CC1100_DEFAULT_CHANNEL,
+		CC1100_BFREQ, CC1100_BFREQ_10, RADIO_DEFAULT_CHANNEL,
 			CC1100_CHANSPC_T1000, CC1100_DFREQ, CC1100_DFREQ_10);
 #endif
 	dbg_1 (0x2000); // CC1100 initialized
@@ -813,8 +813,7 @@ static void do_rx_fifo () {
 #endif
 	tcvphy_rcv (physid, rbuff, paylen);
 Rtn:
-	if (backoff_after_receive)
-		gbackoff;
+	gbackoff (RADIO_LBT_BACKOFF_RX);
 }
 
 #define	DR_LOOP		0
@@ -877,19 +876,24 @@ XRcv:
 
 	// Try to grab the chip for TX
 	if (clear_to_send () == NO) {
+
 		// We have to wait
-		if (aggressive_transmitter) {
-			delay (1, DR_LOOP);
-			set_congestion_indicator (1);
-			release;
-		} else {
-			gbackoff;
-			set_congestion_indicator (bckf_timer);
-			proceed (DR_LOOP);
-		}
+
 #if ((RADIO_OPTIONS & 0x05) == 0x05)
 		if (rerror [2] >= 0x0fff)
 				diag ("CC1100: LBT congestion!!");
+#endif
+
+#if RADIO_LBT_BACKOFF_EXP == 0
+		// Aggressive transmitter
+		delay (1, DR_LOOP);
+		set_congestion_indicator (1);
+		release;
+#else
+		// Backoff
+		gbackoff (RADIO_LBT_BACKOFF_EXP);
+		set_congestion_indicator (bckf_timer);
+		proceed (DR_LOOP);
 #endif
 	} else {
 		set_congestion_indicator (0);
@@ -957,7 +961,9 @@ XRcv:
 #endif
 	guard_stop (WATCH_XMT | WATCH_PRG);
 	LEDI (1, 0);
-	utimer_set (bckf_timer, XMIT_SPACE);
+#if RADIO_LBT_XMIT_SPACE
+	utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
+#endif
 	proceed (DR_LOOP);
 
 endthread
@@ -1127,8 +1133,7 @@ void phys_cc1100 (int phy, int mbs) {
 
 	// Things start in the off state
 	RxOFF = TxOFF = 1;
-	// Default power corresponds to the center == 0dBm
-	xpower = 2;
+	xpower = RADIO_DEFAULT_POWER;
 	/* Initialize the device */
 	ini_cc1100 ();
 
@@ -1238,7 +1243,7 @@ static int option (int opt, address val) {
 		/* Force an explicit backoff */
 		if (val == NULL)
 			// Random backoff
-			gbackoff;
+			gbackoff (RADIO_LBT_BACKOFF_EXP);
 		else
 			utimer_set (bckf_timer, *val);
 		trigger (__pi_v_qevent);
@@ -1248,7 +1253,7 @@ static int option (int opt, address val) {
 
 		if (val == NULL)
 			// Default
-			xpower = 2;
+			xpower = RADIO_DEFAULT_POWER;
 		else if (*val > 7)
 			xpower = 7;
 		else

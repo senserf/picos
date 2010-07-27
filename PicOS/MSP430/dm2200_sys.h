@@ -127,6 +127,6 @@
 						_BIS (TACCTL0, CCIE); \
 				} while (0)
 
-#define	lbt_ok(v)	((v) < (word)(((lint)LBT_THRESHOLD * 4096) / 100))
+#define	lbt_ok(v)	((v) < (word)(((lint)RADIO_LBT_THRESHOLD * 4096) / 100))
 
 #endif

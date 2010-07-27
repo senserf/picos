@@ -23,10 +23,6 @@
 #define	RADIO_CRC_MODE		0	/* Changed R100617 to 0 from 2 */
 #endif
 
-#ifndef	RADIO_BITRATE
-#define	RADIO_BITRATE		10000	/* This is the default */
-#endif
-
 #ifndef	RADIO_OPTIONS
 #define	RADIO_OPTIONS		0
 #endif
@@ -47,6 +43,52 @@
 //	     for selected register values
 //	0x80 collect entropy from the air on startup
 // ============================================================================
+
+// ============================================================================
+// LBT parameters =============================================================
+// ============================================================================
+
+// The randomized backoff after a failed channel assessment is determined as
+// MIN_BACKOFF + random [0 ... 2^BACKOFF_EXP - 1]
+#ifndef	RADIO_LBT_MIN_BACKOFF
+#define	RADIO_LBT_MIN_BACKOFF	2
+#endif
+
+// If this is zero, we have an "aggressive" transmitter (it tries to grab the
+// channel at 1 msec intervals)
+#ifndef	RADIO_LBT_BACKOFF_EXP
+#define	RADIO_LBT_BACKOFF_EXP	6
+#endif
+
+// If BACKOFF_RX is nonzero, then there is a backoff after packet reception
+// amounting to MIN_BACKOFF + random [0 ... 2^BACKOFF_RX - 1]
+#ifndef	RADIO_LBT_BACKOFF_RX
+#define	RADIO_LBT_BACKOFF_RX	3
+#endif
+
+// Fixed space (in milliseconds) between two consecutively transmitted packets
+#ifndef	RADIO_LBT_XMIT_SPACE
+#define	RADIO_LBT_XMIT_SPACE	4
+#endif
+
+// ============================================================================
+
+// Default power corresponds to the center == 0dBm
+#ifndef	RADIO_DEFAULT_POWER
+#define	RADIO_DEFAULT_POWER	2
+#endif
+
+#ifndef	RADIO_DEFAULT_BITRATE
+#define	RADIO_DEFAULT_BITRATE	10000
+#endif
+
+#ifndef RADIO_DEFAULT_CHANNEL
+#define	RADIO_DEFAULT_CHANNEL	0
+#endif
+
+#if RADIO_DEFAULT_CHANNEL > 255
+#error "S: RADIO_DEFAULT_CHANNEL > 255!!!"
+#endif
 
 #ifndef	RADIO_SYSTEM_IDENT
 #define	RADIO_SYSTEM_IDENT	0xAB35	/* Sync word */
@@ -222,10 +264,6 @@
 	#define	CC1100_FREQ_FREQ0_VALUE	0xEC
 #endif
 
-#ifndef	CC1100_DEFAULT_CHANNEL
-	#define	CC1100_DEFAULT_CHANNEL	0
-#endif
-
 // Channel spacing exponent
 #define	CC1100_CHANSPC_E		0x02	// These values yield 200 kHz
 // Channel spacing mantissa
@@ -251,7 +289,7 @@
 
 // Default channel frequency
 #define	CC1100_DFREQ_T10 (CC1100_BFREQ_T10 + \
-		(CC1100_DEFAULT_CHANNEL * CC1100_CHANSPC_T1000) / 100)
+		(RADIO_DEFAULT_CHANNEL * CC1100_CHANSPC_T1000) / 100)
 #define	CC1100_DFREQ		((word)(CC1100_DFREQ_T10 / 10))
 #define	CC1100_DFREQ_10		((word)(CC1100_DFREQ_T10 - (CC1100_DFREQ *10)))
 
@@ -410,30 +448,23 @@ extern const byte *cc1100_ratemenu [];
 
 #define	CC1100_NRATES	4
 
-#define	aggressive_transmitter	(vrate > 2)
-#define	backoff_after_receive	(vrate < 2)
-#define	default_xmit_space	(0x10 >> vrate)
 #define	approx_xmit_time(p)	(vrate < 2 ? (p) : 1)
 
 #define	TXEND_POLL_DELAY	1	/* Milliseconds */
 
-#ifndef	XMIT_SPACE
-#define	XMIT_SPACE		default_xmit_space
-#endif
-
-#if	RADIO_BITRATE == 5000
+#if	RADIO_DEFAULT_BITRATE == 5000
 #define	RADIO_BITRATE_INDEX	0
 #endif
 
-#if	RADIO_BITRATE == 10000
+#if	RADIO_DEFAULT_BITRATE == 10000
 #define	RADIO_BITRATE_INDEX	1
 #endif
 
-#if	RADIO_BITRATE == 38400
+#if	RADIO_DEFAULT_BITRATE == 38400
 #define	RADIO_BITRATE_INDEX	2
 #endif
 
-#if	RADIO_BITRATE == 200000
+#if	RADIO_DEFAULT_BITRATE == 200000
 #define	RADIO_BITRATE_INDEX	3
 #endif
 
@@ -499,8 +530,12 @@ extern const byte *cc1100_ratemenu [];
 
 // ============================================================================
 
-#define	gbackoff	utimer_set (bckf_timer, MIN_BACKOFF + \
-				(rnd () & MSK_BACKOFF))
+#define	gbackoff(e)	do { \
+				if (e) \
+					utimer_set (bckf_timer, \
+						RADIO_LBT_MIN_BACKOFF + \
+						(rnd () & ((1 << (e)) - 1))); \
+			} while (0)
 
 extern word		__pi_v_drvprcs, __pi_v_qevent;
 

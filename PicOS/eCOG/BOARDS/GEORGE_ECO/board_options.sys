@@ -26,8 +26,8 @@
 
 #define	STACK_GUARD		1
 
-#define	LBT_DELAY		2
-#define	LBT_THRESHOLD		60
+#define	RADIO_LBT_DELAY		2
+#define	RADIO_LBT_THRESHOLD	60
 
 #define	RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1

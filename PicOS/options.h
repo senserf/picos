@@ -207,28 +207,6 @@
 #define CRC_ISO3309		1
 #endif
 
-#ifndef	LBT_DELAY
-// Listen Before Transmit delay (0 disables)
-#define	LBT_DELAY		8
-#endif
-
-#ifndef	LBT_THRESHOLD
-// Listen Before Transmit RSSI threshold (percentage)
-#define	LBT_THRESHOLD		50
-#endif
-
-#ifndef	MIN_BACKOFF
-// Minimum backoff of the transmitter (whenever it concludes that a transmission
-// would not be appropriate at the moment)
-#define	MIN_BACKOFF		8
-#endif
-
-#ifndef	MSK_BACKOFF
-// Backoff mask for the randomized component. Random backoff is generated as
-// MIN_BACKOFF + (random & MSK_BACKOFF)
-#define	MSK_BACKOFF		0xff
-#endif
-
 // RF modules blink LEDs on transmission, reception, and so on ...
 #ifndef	RADIO_USE_LEDS
 #define	RADIO_USE_LEDS		0

@@ -462,7 +462,7 @@ static int w_calibrate (word rate) {
 	return res;
 }
 
-static void ini_cc1000 (int baud) {
+static void ini_cc1000 (word baud) {
 /*
  * Initialize the device
  */
@@ -485,8 +485,8 @@ static void ini_cc1000 (int baud) {
 		chp_wconf ((byte)i + 0x40, chp_defcB [i]);
 
 	// Run the calibration
-	if (baud <= 0)
-		baud = RADIO_DEF_BITRATE;
+	if (baud == 0)
+		baud = ((word)RADIO_DEFAULT_BITRATE/100);
 
 	// Found the proper discrete rate
 	for (i = 0; i < sizeof (chp_rates) - 1; i++)
@@ -578,7 +578,7 @@ static byte rssi_cnv (word v) {
 }
 
 #ifdef __ECOG1__
-#if LBT_DELAY > 0
+#if RADIO_LBT_DELAY > 0
 
 static Boolean lbt_ok (word v) {
 
@@ -590,10 +590,10 @@ static Boolean lbt_ok (word v) {
 #endif
 	return 
 		((((lword)RSSI_MAX - (lword)v) * 100) / (RSSI_MAX - RSSI_MIN))
-			< LBT_THRESHOLD;
+			< RADIO_LBT_THRESHOLD;
 }
 
-#endif	/* LBT_DELAY */
+#endif	/* RADIO_LBT_DELAY */
 #endif	/* __ECOG1__ */
 	
 #include "xcvcommon.h"
@@ -628,7 +628,7 @@ void phys_cc1000 (int phy, int mbs, int bau) {
 
 	__pi_v_status = 0;
 
-	__pi_x_power = RADIO_DEF_XPOWER;
+	__pi_x_power = RADIO_DEFAULT_POWER;
 
 	__pi_v_statid = 0;
 	__pi_v_physid = phy;
@@ -644,7 +644,7 @@ void phys_cc1000 (int phy, int mbs, int bau) {
 	LEDI (2, 0);
 
 	/* Start the device */
-	ini_cc1000 (bau);
+	ini_cc1000 ((word)bau);
 
 	__pi_v_hstat = HSTAT_SLEEP;
 
@@ -670,7 +670,7 @@ static int option (int opt, address val) {
 	    case PHYSOPT_SETPOWER:
 
 		if (val == NULL || *val == 0)
-			__pi_x_power = RADIO_DEF_XPOWER;
+			__pi_x_power = RADIO_DEFAULT_POWER;
 		else
 			__pi_x_power = (*val) > 0xff ? 0xff : (byte) (*val);
 		break;

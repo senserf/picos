@@ -32,11 +32,7 @@
 
 #define CRYSTAL_RATE		32768
 
-#define LBT_DELAY		0
-#define LBT_THRESHOLD		2
-
 #define	INFO_FLASH		2
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
-#define MSK_BACKOFF		0xFF

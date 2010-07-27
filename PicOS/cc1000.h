@@ -8,6 +8,34 @@
 #include "cc1000_sys.h"
 #include "rfleds.h"
 
+#ifndef	RADIO_LBT_DELAY
+#define	RADIO_LBT_DELAY		8
+#endif
+
+#ifndef	RADIO_LBT_MIN_BACKOFF
+#define	RADIO_LBT_MIN_BACKOFF	8
+#endif
+
+#ifndef	RADIO_LBT_BACKOFF_EXP
+#define	RADIO_LBT_BACKOFF_EXP	8
+#endif
+
+#ifndef	RADIO_LBT_BACKOFF_RX
+#define	RADIO_LBT_BACKOFF_RX	6
+#endif
+
+#ifndef	RADIO_DEFAULT_POWER
+#define	RADIO_DEFAULT_POWER	1
+#endif
+
+#ifndef	RADIO_DEFAULT_BITRATE
+#define	RADIO_DEFAULT_BITRATE	38400
+#endif
+
+#ifndef RADIO_LBT_THRESHOLD
+#define RADIO_LBT_THRESHOLD     50
+#endif
+
 #ifndef	CC1000_FREQ
 #define	CC1000_FREQ		433
 #endif
@@ -15,13 +43,6 @@
 #define	RADIO_DEF_BUF_LEN	48	/* Default buffer length */
 #define	PREAMBLE_LENGTH		48	/* Preamble bits */
 #define	MINIMUM_PACKET_LENGTH	8	/* Minimum legitimate packet length */
-/*
- * These values are merely defaults changeable with tcv_control
- */
-#define	RADIO_DEF_XMITSPACE	8	/* Space between xmitted packets */
-#define RADIO_DEF_CHECKSUM	1	/* Checksum present */
-#define	RADIO_DEF_BITRATE	384	/* This is /100 */
-#define	RADIO_DEF_XPOWER	1	/* Default transmit power */
 
 /*
  * Configuration registers
@@ -85,8 +106,9 @@
 #define	IRQ_RCV		8	// Receiving packet
 #define	IRQ_RTR		9	// Receiving end-of-word trailer
 
-#define	gbackoff	(__pi_x_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
-
+// Note: e is a constant, so the condition will be optimized out
+#define	gbackoff(e) 	do { if (e) __pi_x_backoff = RADIO_LBT_MIN_BACKOFF + \
+				(rnd () & ((1 << (e)) - 1)); } while (0)
 //
 // Any pin-actions required by the physical radio setup, e.g., antenna switching
 //

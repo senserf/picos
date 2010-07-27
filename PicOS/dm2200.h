@@ -9,6 +9,22 @@
 #include "dm2200_sys.h"
 #include "rfleds.h"
 
+#ifndef	RADIO_LBT_MIN_BACKOFF
+#define	RADIO_LBT_MIN_BACKOFF	8
+#endif
+
+#ifndef	RADIO_LBT_BACKOFF_EXP
+#define	RADIO_LBT_BACKOFF_EXP	8
+#endif
+
+#ifndef	RADIO_LBT_BACKOFF_RX
+#define	RADIO_LBT_BACKOFF_RX	6
+#endif
+
+#ifndef RADIO_LBT_THRESHOLD
+#define RADIO_LBT_THRESHOLD     50
+#endif
+
 /*
  * Some of these constants can be changed to taste
  */
@@ -99,7 +115,9 @@
 #define	HSTAT_RCV	1
 #define	HSTAT_XMT	2
 
-#define	gbackoff	(__pi_x_backoff = MIN_BACKOFF + (rnd () & MSK_BACKOFF))
+// Note: e is a constant, so the condition will be optimized out
+#define	gbackoff(e) 	do { if (e) __pi_x_backoff = RADIO_LBT_MIN_BACKOFF + \
+				(rnd () & ((1 << (e)) - 1)); } while (0)
 
 #define	start_rcv	do { \
 				__pi_r_length = 0; \

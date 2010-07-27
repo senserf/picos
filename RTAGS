@@ -180,6 +180,13 @@ R050903A:
 	and turned into compilation constants (see sysio.h). The only dynamic
 	option that can affect the backoff is PHYSOPT_CAV.
 
+	=====================================================================
+	NOTE: LBT_DELAY and LBT_THRESHOLD have been rendered obsolete (100726)
+	and replaced with RADIO_LBT_DELAY and RADIO_LBT_THRESHOLD. Their
+	default definitions have been moved from options.h to the respective
+	headers of RF module drivers (those that need them).
+	=====================================================================
+
 R050911A:
 
 	Crystal issues cleaned up. CRYSTAL_RATE defines the crystal rate and
@@ -513,6 +520,13 @@ R060201A:
 
 	Script esnrpl.tcl added to Scripts - for generating variants of
 	Image.a43 with different ESN.
+
+	=======================================================================
+	Note: MIN_BACKOFF/MSK_BACKOFF have been rendered obsolete (100726) and
+	replaced with RADIO_LBT_MIN_BACKOFF, RADIO_LBT_BACKOFF_EXP, and
+	RADIO_LBT_BACKOFF_RX. Their definitions have been moved from
+	options.sys to the headers of those RF module drivers that need them.
+	=======================================================================
 
 R060213A:
 

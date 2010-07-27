@@ -70,7 +70,11 @@ REND:
 #endif
 				__pi_v_istate = IRQ_OFF;
 				i_trigger (rxevent);
-				gbackoff;
+#ifndef __ECOG1__
+// Note: with Cyan SDK, you cannot call a regular function from an interrupt;
+// FIXME: (if ever needed)
+				gbackoff (RADIO_LBT_BACKOFF_RX);
+#endif
 				LEDI (2, 0);
 			} else {
 				__pi_v_cursym = 0;

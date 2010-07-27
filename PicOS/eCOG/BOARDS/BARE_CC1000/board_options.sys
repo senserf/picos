@@ -27,6 +27,6 @@
 #define	RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
 
-#define	LBT_DELAY		0
-#define	LBT_THRESHOLD		2
+#define	RADIO_LBT_DELAY		0
+#define	RADIO_LBT_THRESHOLD	2
 #define	GLACIER			1
