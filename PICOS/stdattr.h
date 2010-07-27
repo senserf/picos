@@ -211,5 +211,5 @@
 #define	msg_isClear(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isClear (a)  )
 #define	set_master_chg() \
 			(  ((PicOSNode*)TheStation)->_na_set_master_chg ()  )
-
+#define msg_isntRtr(a)	(  ((PicOSNode*)TheStation)->_na_msg_isntRtr (a)  )
 #endif
