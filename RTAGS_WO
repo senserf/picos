@@ -13,3 +13,36 @@ WO100715A:
 WO100727A:	VUEE >= WO100727A
 
   TARP retries. See new_il_demo for mandatory tarp routines and options.sys.
+
+WO100728A:
+
+ new_il_demo, options.sys:
+  - retries:
+      TARP_RTR N (number of retries (on 1s interval). 1 or 2.
+      TCV_TIMERS, TCV_HOOKS 1 (_TARP_T_RTR 1 for debugging RTRs
+  - PURE_FORWARDERS 1 will make all nodes with ids below 100 pure forwarders -
+      they will be ignoring collector data.
+
+  Moved annoying 'Unconfirmed ...' from INFO to DEBUG level. Note that tag's
+  'Not confirmed' stays - it is more important and should be rarer.
+
+  Added mhop.xml model for in-line multi-hopping.
+
+  All aggregators (with master_host set) send to it status report every
+  tag_auditFreq * 2^POW_FREQ_SHIFT seconds. Default: 23 * 64 ~= 25 minutes.
+
+ Minor adjustments in tarp.c, no early killing of retried packets
+ (commented out).
+
+ Retries:
+   Imperfect as they are, they seem to improve routing is some topologies
+   a lot. More studies needed. Try new_il_demo with the mhop.xml model.
+
+   Nest iteration: only packets with higher hoc (down the stream) should
+   clear retries. As it is now, a retry upstream will clear retries, which
+   is both common and unwanted. Thus, hoc must be added to the rtr cache.
+
+   It seems that with the link retries, PURE_FORWARDERS should be used.
+   Without, PURE_FORWARDERS have ambiguous impact: less msgs, but also
+   diminished redundancy in source data gathering.
+

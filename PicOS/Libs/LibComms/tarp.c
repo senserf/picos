@@ -360,13 +360,13 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 				// The timer is running or queued to transmit,
 				// feel free to kill
 				tcv_drop (rtrCache->pkt[i]);
+				rtrCache->fecnt++;
 			} else {
 				// Being transmitted, make sure for the
 				// last time
 				rtrCache->rcnt[i] = TARP_RTR;
 			}
 // ============================================================================
-			rtrCache->fecnt++;
 		}
 #endif
 		return TCV_DSP_DROP;
@@ -390,13 +390,13 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 				// The timer is running or queued to transmit,
 				// feel free to kill
 				tcv_drop (rtrCache->pkt[i]);
+				rtrCache->fecnt++;
 			} else {
 				// Being transmitted, make sure for the
 				// last time
 				rtrCache->rcnt[i] = TARP_RTR;
 			}
 // ============================================================================
-		rtrCache->fecnt++;
 	}
 #endif
 
@@ -640,7 +640,8 @@ CacheIt:
 
 		goto CacheIt;
 	}
-
+#if 0
+// we'll see if this early funeral is needed
 	// if the cache is full, drop if the oldest had no retry
 	if (rtrCache->rcnt[rtrCache->head] > 0) {
 		dbug_rtr ("%x used %u hook upd %x-%u.%u at %u %u",
@@ -659,6 +660,7 @@ CacheIt:
 
 		goto CacheIt;
         }
+#endif
 
 	dbug_rtr ("rtr full %u", rtrCache->rcnt[rtrCache->head]);
 	return TCV_DSP_DROP;
