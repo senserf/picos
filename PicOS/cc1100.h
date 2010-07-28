@@ -31,11 +31,7 @@
 //
 //	0x01 debug: diag messages on various abnormal conditions)
 //	0x02 trace: diag messages on important events)
-//	0x04 track packets: 4 counters + PHYSOPT_ERROR, in this order:
-//		- reception attempts
-//		- CRC errors
-//		- incorrect packet length
-//		- wrong NetID
+//	0x04 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
 //	0x08 prechecks: initial check for RF chip present (to prevent hangups)
 //  	0x10 guard process present
 //	0x20 extra consistency checks
@@ -335,7 +331,6 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_FSCAL1,	0x00,	// RFM
         CCxxx0_FSCAL0,  0x0D,   // FSCAL0
         CCxxx0_FSTEST,  0x59,   // FSTEST
-
 	CCxxx0_IOCFG2,	0x2f,	// Unused and grounded
 	CCxxx0_IOCFG1,	0x2f,	// Unused and grounded
 	CCxxx0_IOCFG0,	IOCFG0_INT,	// Reception interrupt condition
@@ -468,6 +463,12 @@ const	byte	cc1100_stage_table [] = {
 #endif
 	};
 
+#define	cc1100_retry_stage(rc)	cc1100_stage_table [cc1100_rsindex (rc)]
+
+#else
+
+#define	CC1100_N_STAGES	RADIO_LBT_RETRY_LIMIT
+
 #endif	/* RADIO_LBT_RETRY_STAGED */
 
 // ============================================================================
@@ -497,7 +498,6 @@ const	byte	cc1100_stage_table [] = {
 
 // ============================================================================
 
-#define	cc1100_retry_stage(rc)	cc1100_stage_table [cc1100_rsindex (rc)]
 
 #endif	/* RADIO_LBT_RETRY_LIMIT */
 

@@ -426,7 +426,7 @@ ReTry:
 		mdelay (1);
 	}
 #if (RADIO_OPTIONS & 0x01)
-	diag ("CC1100: %u STATUS HUNG!!", (word) seconds ());
+	diag ("CC1100: %u ST HNG!!", (word) seconds ());
 #endif
 	chip_reset ();
 	goto ReTry;
@@ -448,7 +448,7 @@ ReTry:
 		if (i < 16) {
 			if (i == 0) {
 #if (RADIO_OPTIONS & 0x01)
-				diag ("CC1100: %u IDLE HUNG!!",
+				diag ("CC1100: %u ID HNG!!",
 					(word) seconds ());
 #endif
 				chip_reset ();
@@ -483,7 +483,7 @@ ReTry:
 		if (i < 16) {
 			if (i == 0) {
 #if (RADIO_OPTIONS & 0x01)
-				diag ("CC1100: %u ENTER RX HUNG!!",
+				diag ("CC1100: %u RX HNG!!",
 					(word) seconds ());
 #endif
 				chip_reset ();
@@ -501,7 +501,7 @@ ReTry:
 	}
 
 #if (RADIO_OPTIONS & 0x01)
-	diag ("CC1100: failed to enter RX");
+	diag ("CC1100: CANT RX!!");
 #endif	/* 0x01 */
 
 #endif	/* 0x20 */
@@ -535,7 +535,7 @@ int cc1100_rx_status () {
 		// received back to back
 		return (b & 0x7f);
 #if (RADIO_OPTIONS & 0x01)
-	diag ("CC1100: %u RXST = %x/%x", (word) seconds (), val, b);
+	diag ("CC1100: %u RXST = %x/%x!!", (word) seconds (), val, b);
 #endif
 
 #endif
@@ -558,8 +558,7 @@ ReTry:
 		if (i < 16) {
 			if (i == 0) {
 #if (RADIO_OPTIONS & 0x01)
-				diag ("CC1100: %u FLUSH HUNG!!",
-					(word) seconds ());
+				diag ("CC1100: %u FL HNG!!", (word) seconds ());
 #endif
 				mdelay (1);
 				chip_reset ();
@@ -647,7 +646,7 @@ static void ini_cc1100 () {
 	// Read the chip number reg and write a message to the UART
 
 #if DIAG_MESSAGES
-	diag ("CC1100 initialized: %d, %d.%dMHz, %d/%dkHz=%d.%dMHz", vrate,
+	diag ("CC1100: %d, %d.%dMHz, %d/%dkHz=%d.%dMHz", vrate,
 		CC1100_BFREQ, CC1100_BFREQ_10, RADIO_DEFAULT_CHANNEL,
 			CC1100_CHANSPC_T1000, CC1100_DFREQ, CC1100_DFREQ_10);
 #endif
@@ -685,7 +684,7 @@ static void do_rx_fifo () {
 	if ((len = cc1100_rx_status ()) < 0) {
 		// Error: normally FIFO overrun (shouldn't happen)
 #if (RADIO_OPTIONS & 0x01)
-		diag ("CC1100: %u RX BAD STATUS", (word) seconds ());
+		diag ("CC1100: %u RX BAD STAT!!", (word) seconds ());
 #endif
 		cc1100_rx_reset ();
 		// Skip reception
@@ -893,10 +892,9 @@ XRcv:
 	}
 
 	// Try to grab the chip for TX
-
 #if	RADIO_LBT_RETRY_LIMIT
 
-#ifdef	RADIO_LBT_RETRY_STAGED
+#if	RADIO_LBT_RETRY_STAGED
 	// We use different sensitivity settings for different attempts
 	cc1100_set_reg (CCxxx0_AGCCTRL1, cc1100_retry_stage (retr));
 #endif
@@ -924,13 +922,14 @@ XRcv:
 #endif
 			retr = 0;
 			// Pretend the packet has been transmitted
+			set_congestion_indicator (0);
 			goto FEXmit;
 		}
 #endif
 
 #if ((RADIO_OPTIONS & 0x05) == 0x05)
 		if (rerror [RERR_CONG] >= 0x0fff)
-				diag ("CC1100: LBT congestion!!");
+				diag ("CC1100: LBT CNG");
 #endif
 
 #if RADIO_LBT_BACKOFF_EXP == 0
@@ -1033,11 +1032,11 @@ thread (cc1100_guard)
   entry (GU_ACTION)
 
 #if (RADIO_OPTIONS & 0x02)
-	diag ("CC1100: %u GUARD ...", (word) seconds ());
+	diag ("CC1100: %u GRD ...", (word) seconds ());
 #endif
 	if (guard_hung) {
 #if (RADIO_OPTIONS & 0x01)
-		diag ("CC1100: %u GUARD RESET: %x", (word) seconds (), gwch);
+		diag ("CC1100: %u GRD RST: %x!!", (word) seconds (), gwch);
 #endif
 Reset:
 		guard_clear;
@@ -1077,7 +1076,8 @@ Reset:
 		// Something is wrong: note that stat == IDLE implies
 		// RX_FIFO_READY
 #if (RADIO_OPTIONS & 0x01)
-		diag ("CC1100: %u GUARD BAD ST: %d", (word) seconds (), stat);
+		diag ("CC1100: %u GRD BAD ST: %d!!",
+			(word) seconds (), stat);
 #endif
 		goto Reset;
 	}
@@ -1088,7 +1088,7 @@ Reset:
 	if (stat & 0x80) {
 		// Overflow
 #if (RADIO_OPTIONS & 0x01)
-		diag ("CC1100: %u GUARD FIFO", (word) seconds ());
+		diag ("CC1100: %u GRD FIFO!!", (word) seconds ());
 #endif
 		goto Reset;
 	}
@@ -1096,7 +1096,7 @@ Reset:
 	if (stat == 0) {
 		// Recalibrate
 #if (RADIO_OPTIONS & 0x02)
-		diag ("CC1100: %u GUARD RECAL", (word) (word) seconds ());
+		diag ("CC1100: %u GRD RECAL", (word) (word) seconds ());
 #endif
 		enter_idle ();
 		enter_rx ();

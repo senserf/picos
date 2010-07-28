@@ -485,3 +485,11 @@ PG100727A:	VUEE >= PG100727A
 
 	Praxis VUEE/RFTEST modified for the new version of PHYSOPT_ERROR, but
 	untested yet.
+
+PG100727B:
+
+	A few minor (but essential) fixes to the CC1100 driver (I have tested
+	it [roughly] and it seems OK). I have started writing a doc explaining
+	its workings and parameters, but it will take me a couple of days
+	(being a low-priority task). If desperate, see PicOS/cc1100.h for
+	hints.
