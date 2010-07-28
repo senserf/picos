@@ -330,6 +330,8 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 
 	address dup;
 	headerType * msgBuf = (headerType *)(buffer+1);
+	byte rssi;
+
 #if TARP_RTR
 	word i;
 #endif
@@ -402,11 +404,11 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 
 #if DM2200
 	// RSSI on TR8100 is LSB, MSB is 0
-	tarp_ctrl.ssignal = (buffer[(length >>1) -1] >=
+	tarp_ctrl.ssignal = ((rssi = buffer[(length >>1) -1]) >=
 			tarp_ctrl.rssi_th) ?  YES : NO;
 #else
 	// assuming CC1100: RSSI is MSB
-	tarp_ctrl.ssignal = ((buffer[(length >>1) -1] >> 8) >=
+	tarp_ctrl.ssignal = ((rssi = (buffer[(length >>1) -1] >> 8)) >=
 			tarp_ctrl.rssi_th) ?  YES : NO;
 #endif
 
@@ -496,9 +498,15 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			diag ("Tarp dup failed");
 		} else {
 			memcpy ((char *)dup, (char *)buffer, length);
-			if (msg_isTrace (msgBuf->msg_type)) // crap kludge
+			if (msg_isTrace (msgBuf->msg_type)) { // crap kludge
+#if 0
 			  memcpy ((char *)dup + tr_offset (msgBuf),
 				(char *)&local_host, sizeof(nid_t));
+#endif
+			  *((char *)dup + tr_offset (msgBuf)) = 
+				  (byte)local_host;
+			  *((char *)dup + tr_offset (msgBuf) +1) = rssi;
+			}
 			tarp_ctrl.fwd++;
 		}
 		dbug_rx ("%u %u bcast cpy & rcv %u", msgBuf->msg_type, 
@@ -532,8 +540,12 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			diag ("Tarp dup2 failed");
 		} else {
 			memcpy ((char *)dup, (char *)buffer, length);
+#if 0
 			memcpy ((char *)dup + tr_offset (msgBuf),
 				(char *)&local_host, sizeof(nid_t));
+#endif
+			*((char *)dup + tr_offset (msgBuf)) = (byte)local_host;
+			*((char *)dup + tr_offset (msgBuf) +1) = rssi;
 			dbug_rx ("%u %u cpy trace", 
 					msgBuf->msg_type, msgBuf->snd);
 		}
