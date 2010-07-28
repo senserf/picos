@@ -84,7 +84,8 @@ typedef struct rtrc {
 	byte	fecnt;
 	address pkt [rtrCacheSize];
 	byte	rcnt [rtrCacheSize];
-} rtrcType; // 1 + 1 + 10 * (2+1) bytes
+	byte	hoc [rtrCacheSize];
+} rtrcType; // 1 + 1 + 10 * (2+1+1) bytes
 
 typedef struct tarpCtrlStruct {
 	word	rcv;

@@ -46,3 +46,43 @@ WO100728A:
    Without, PURE_FORWARDERS have ambiguous impact: less msgs, but also
    diminished redundancy in source data gathering.
 
+WO100729A
+  Traces in new_il_demo:
+    Command: t node_id [dir hop_limit]
+      node_id is the target, bcast allowed, but not recommended
+      dir: 0 (default): backward, 1: forward, 2: bidir
+      hop_limit: killed after so many hops
+
+    OSS should be careful, no input checks for now.
+
+    Trace output via diags, for now (this is a debug tool anyway):
+        tr 104 [0]
+	    trace(104) 18 3 3:
+	    trel 104 107
+	    trel 3 99
+	    trel 2 107
+
+	    18 - backward (this is a msg type)
+	    3 hops each way (not always equal)
+	    trace element (trel) 104 - node_id, 107 - rssi
+
+	tr 104 1
+	    trace(104) 16 3 3:
+	    trel 2 108
+	    trel 103 97
+	    trel 104 108
+
+	tr 104 2
+	    trace(104) 14 3 2:
+	    trel 2 107
+	    trel 3 106
+	    trel 104 97
+	    trel 3 98
+
+    Ligtly tested under VUEE - be careful.
+
+WO100801A:
+  new_il_demo:
+  - retry caches resist retries from upstream (better behaviour at least in
+		  the in-line topology)
+  - closing {local_host, rssi} reported in trace outputs.
