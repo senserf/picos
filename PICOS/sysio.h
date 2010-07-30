@@ -53,6 +53,9 @@
 #ifndef RADIO_LBT_RETRY_LIMIT
 #define	RADIO_LBT_RETRY_LIMIT	0
 #endif
+#ifndef DUMP_MEMORY
+#define	DUMP_MEMORY	0
+#endif
 
 #define	PHYSID			0
 #define	MINIMUM_PACKET_LENGTH	4
