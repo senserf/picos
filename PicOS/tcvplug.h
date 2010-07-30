@@ -14,6 +14,7 @@
 #if	TCV_TIMERS
 void	tcvp_settimer (address, word);
 void	tcvp_cleartimer (address);
+Boolean	tcvp_issettimer (address);
 #endif
 
 int	tcvp_length (address);
@@ -23,10 +24,12 @@ void	tcvp_attach (address, int);
 void	tcvp_dispose (address, int);
 address	tcvp_clone (address, int);
 address	tcvp_new (int, int, int);
+Boolean	tcvp_isqueued (address);
 
 #if	TCV_HOOKS
 void	tcvp_hook (address, address*);
 void	tcvp_unhook (address);
+address	*tcvp_gethook (address);
 #endif
 
 #endif	/* __SMURPH __ */

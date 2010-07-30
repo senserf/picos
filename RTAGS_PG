@@ -493,3 +493,12 @@ PG100727B:
 	its workings and parameters, but it will take me a couple of days
 	(being a low-priority task). If desperate, see PicOS/cc1100.h for
 	hints.
+
+PG100729A: VUEE >= PG100729A
+
+	Headers of the new functions added to tcv.c included in tcvplug.h
+	(I forgot to put them there).
+
+	A few cosmetic cleanups of little consequence. I am tagging because a
+	matching VUEE version is required (one extra constant must be defined
+	in VUEE's sysio.h).

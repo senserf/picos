@@ -54,7 +54,9 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 #endif
 	int empty (qhead_t *oq);
 	void dispose (hblock_t *p, int dv);
+#if DUMP_MEMORY
 	void dmpq (qhead_t *q);
+#endif
 	void rlp (hblock_t *p);
 	hblock_t *apb (word size);
 
@@ -110,7 +112,9 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 
 	void		_da (tcv_init) ();
 
+#if DUMP_MEMORY
 	void 		_da (tcv_dumpqueues) (void);
+#endif
 
 #endif	/* __SMURPH__ (method definitions) */
 

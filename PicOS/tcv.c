@@ -97,9 +97,9 @@ static void rlp (hblock_t*);
 
 #endif
 
+#if DUMP_MEMORY
 __PRIVF (PicOSNode, void, dmpq) (qhead_t *q) {
 
-#if DUMP_MEMORY
 	hblock_t *pp;
 	diag ("START Q DUMP %x", (word)q);
 	for (pp = q_first (q); !q_end (pp, q); pp = q_next (pp))
@@ -109,12 +109,10 @@ __PRIVF (PicOSNode, void, dmpq) (qhead_t *q) {
 			((word*)(payload (pp))) [2]
 		);
 	diag ("END Q DUMP %x", (word)q);
-#endif
 }
 
 __PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
 
-#if DUMP_MEMORY
 	int	i;
 	for (i = 0; i < TCV_MAX_DESC; i++) {
 		if (descriptors [i] != NULL) {
@@ -128,8 +126,8 @@ __PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
 			dmpq (oqueues [i]);
 		}
 	}
-#endif
 }
+#endif
 
 __PRIVF (PicOSNode, void, deq) (hblock_t *p) {
 /*
@@ -943,8 +941,6 @@ __PUBLF (PicOSNode, address*, tcvp_gethook) (address p) {
 }
 
 __PUBLF (PicOSNode, void, tcvp_unhook) (address p) {
-
-	address *h;
 
 	if (p != NULL)
 		deqhk (header (p));
