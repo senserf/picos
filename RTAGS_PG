@@ -502,3 +502,8 @@ PG100729A: VUEE >= PG100729A
 	A few cosmetic cleanups of little consequence. I am tagging because a
 	matching VUEE version is required (one extra constant must be defined
 	in VUEE's sysio.h).
+
+PG100730A:
+
+	A few cleanups in the CC1100 driver mostly related to option constants.
+	The options are described in Docs/PICOS/cc1100.odt.

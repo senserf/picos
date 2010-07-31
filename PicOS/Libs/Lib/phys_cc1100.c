@@ -32,7 +32,8 @@ static byte	*supplements = NULL;	// Register definition supplements
 static byte	gwch;			// Guard watch flags
 #endif
 
-#if RADIO_LBT_RETRY_LIMIT
+#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
+// We need a retry counter
 static byte	retr;
 #endif
 
@@ -892,13 +893,12 @@ XRcv:
 	}
 
 	// Try to grab the chip for TX
-#if	RADIO_LBT_RETRY_LIMIT
-
-#if	RADIO_LBT_RETRY_STAGED
+#if RADIO_LBT_RETRY_STAGED
 	// We use different sensitivity settings for different attempts
 	cc1100_set_reg (CCxxx0_AGCCTRL1, cc1100_retry_stage (retr));
 #endif
 
+#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
 #if (RADIO_OPTIONS & 0x04)
 	if (retr == 0) {
 		// First time around
@@ -906,18 +906,17 @@ XRcv:
 			rerror [RERR_XMEX] ++;
 	}
 #endif
-
 #endif
-
 	if (clear_to_send () == NO) {
 
-#if RADIO_LBT_RETRY_LIMIT
+#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
 		// This also updates retr
 		if (cc1100_retry_limit_reached (retr)) {
 
 			// Drop the packet
 #if (RADIO_OPTIONS & 0x04)
-			if (rerror [RERR_XMDR] != MAX_WORD)
+			if (rerror [RERR_XMEX] != MAX_WORD)
+				// This one is never bigger than RERR_XMEX
 				rerror [RERR_XMDR] ++;
 #endif
 			retr = 0;
@@ -947,7 +946,7 @@ XRcv:
 		set_congestion_indicator (0);
 	}
 
-#if RADIO_LBT_RETRY_LIMIT
+#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
 	retr = 0;
 #endif
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {

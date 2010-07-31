@@ -115,8 +115,13 @@
 #define	CC_INDICATION		3
 
 // RSSI threshold (for LBT), previous values: 8, 0
-#define	CC_THRESHOLD		6	/* 1 lowest, 15 highest, 0 disable */
-#define	CC_THRESHOLD_REL	0	/* 1 lowest, 3 highest, 0 disable */
+#ifndef	RADIO_CC_THRESHOLD
+#define	RADIO_CC_THRESHOLD	6	// 1 lowest, 15 highest, 0 off
+#endif
+
+#ifndef	RADIO_CC_THRESHOLD_REL
+#define	RADIO_CC_THRESHOLD_REL	0	// 1 1 lowest, 3 highest, 0 off
+#endif
 
 // ============================================================================
 
@@ -320,7 +325,8 @@ const	byte	cc1100_rfsettings [] = {
 // Changed Dec 31, 2006 PG
         CCxxx0_AGCCTRL2,0x03,   // AGCCTRL2
 
-#define	RSSI_AGC	(((CC_THRESHOLD-8) & 0xf) | (CC_THRESHOLD_REL << 4))
+#define	RSSI_AGC	(((RADIO_CC_THRESHOLD-8) & 0xf) | \
+				(RADIO_CC_THRESHOLD_REL << 4))
 
 #define	AGCCTRL1_VAL	(0x40 | RSSI_AGC)
 
@@ -438,15 +444,12 @@ const	byte	*cc1100_ratemenu [] = {
 
 // ============================================================================
 // ============================================================================
-#if RADIO_LBT_RETRY_LIMIT
+
+#if RADIO_LBT_RETRY_STAGED
 
 #if RADIO_LBT_RETRY_STAGED < 0 || RADIO_LBT_RETRY_STAGED > 3
 #error "S: RADIO_LBT_RETRY_STAGED must be between 0 and 3 inclusively!!"
 #endif
-
-// ============================================================================
-
-#if RADIO_LBT_RETRY_STAGED
 
 const	byte	cc1100_stage_table [] = {
 #if RADIO_LBT_RETRY_STAGED == 1
@@ -465,26 +468,29 @@ const	byte	cc1100_stage_table [] = {
 
 #define	cc1100_retry_stage(rc)	cc1100_stage_table [cc1100_rsindex (rc)]
 
-#else
+#if RADIO_LBT_RETRY_LIMIT == 0
+
+// The counter is used solely for indexing the stage table, not for limit
+#define	cc1100_retry_limit_reached(rc)	((rc) != CC1100_N_STAGES-1 ? (rc)++ : \
+					0, 0)
+
+#define	cc1100_rsindex(a)		(a)
+
+
+#endif	/* Unlimited staging */
+
+// ============================================================================
+
+#else	/* No staging */
 
 #define	CC1100_N_STAGES	RADIO_LBT_RETRY_LIMIT
 
 #endif	/* RADIO_LBT_RETRY_STAGED */
 
 // ============================================================================
+// ============================================================================
 
-#if RADIO_LBT_RETRY_LIMIT >= 255
-// This means no limit, but possible staging and counting
-#if RADIO_LBT_RETRY_STAGED == 0
-#error "S: RADIO_LBT_RETRY_LIMIT >= 255 requires RADIO_LBT_RETRY_STAGED!!"
-#endif
-
-#define	cc1100_retry_limit_reached(rc)	((rc) != CC1100_N_STAGES-1 ? (rc)++ : \
-					0, 0)
-
-#define	cc1100_rsindex(a)		(a)
-
-#else
+#if RADIO_LBT_RETRY_LIMIT
 
 #define	cc1100_retry_limit_reached(rc)	((rc)++ == RADIO_LBT_RETRY_LIMIT-1)
 
@@ -494,12 +500,7 @@ const	byte	cc1100_stage_table [] = {
 #define	cc1100_rsindex(a)	(a)
 #endif
 
-#endif	/* RADIO_LBT_RETRY_LIMIT >= 255 */
-
-// ============================================================================
-
-
-#endif	/* RADIO_LBT_RETRY_LIMIT */
+#endif
 
 // ============================================================================
 // ============================================================================
