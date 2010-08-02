@@ -378,7 +378,15 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 	if (guide_rtr (msgBuf)  == 2 && 
 		(i = findInRtr (msgBuf->snd, msgBuf->seq_no, NULL)) <
 			rtrCacheSize) {
-		dbug_rtr ("%x-%u.%u unhooked-ack at %u %u (%x %u %u)",
+		if (msgBuf->hoc < rtrCache->hoc[i]) {
+			// should we send back a dummy? Likely not, as our
+			// retry will have a chance to clear the upstream...
+			dbug_rtr ("%x-%u.%u resisted %u (%u) at %u",
+					rtrCache->pkt[i], msgBuf->snd, 
+					msgBuf->seq_no, msgBuf->hoc,
+					rtrCache->hoc[i], i);
+		} else {
+			dbug_rtr ("%x-%u.%u unhooked-ack at %u %u (%x %u %u)",
                                         rtrCache->pkt[i], 
                                         msgBuf->snd, msgBuf->seq_no,
                                         i, rtrCache->fecnt +1,
@@ -386,6 +394,7 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 					tcvp_isqueued (rtrCache->pkt [i]),
 					tcvp_issettimer (rtrCache->pkt [i])
 			);
+			
 // PG =========================================================================
 			if (tcvp_issettimer (rtrCache->pkt [i]) ||
 			    tcvp_isqueued (rtrCache->pkt [i])) {
@@ -399,6 +408,7 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 				rtrCache->rcnt[i] = TARP_RTR;
 			}
 // ============================================================================
+		}
 	}
 #endif
 
@@ -639,6 +649,7 @@ CacheIt:
 		if ((i = findInRtr (0, 0, 0)) < rtrCacheSize) {
 			tcvp_hook (buffer, &rtrCache->pkt[i]);
 			rtrCache->rcnt[i] = 0;
+			rtrCache->hoc[i] = in_header(buffer +1, hoc);
 			rtrCache->fecnt--;
 			dbug_rtr ("%x-%u.%u hooked at %u %u", buffer,
 					in_header(buffer +1, snd),

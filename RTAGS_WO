@@ -80,3 +80,9 @@ WO100729A
 	    trel 3 98
 
     Ligtly tested under VUEE - be careful.
+
+WO100801A:
+  new_il_demo:
+  - retry caches resist retries from upstream (better behaviour at least in
+		  the in-line topology)
+  - closing {local_host, rssi} reported in trace outputs.
