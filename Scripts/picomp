@@ -133,6 +133,101 @@ proc o_dump { v typ } {
 }
 
 ###############################################################################
+# Special (reserved) words and their attributes ###############################
+###############################################################################
+
+#
+# The meaning of bit flags (from left):
+#
+# 	- declaration (legal in declarations)
+#	- legal in outer (zero-level) declarations
+#	- legal in inner (auto) declarations
+#	- legal in function arguments declarations
+#	- type (specifies the type)
+#	- the next word forcibly belongs to type (struct, union, enum),
+#	  i.e., it cannot be a variable
+#
+
+set C_WORDS(auto)		{ 1 0 1 0 0 1 }
+set C_WORDS(const)		{ 1 1 1 1 0 1 }
+set C_WORDS(double)		{ 1 1 1 1 1 0 }
+set C_WORDS(float)		{ 1 1 1 1 1 0 }
+set C_WORDS(int)		{ 1 1 1 1 1 0 }
+set C_WORDS(short)		{ 1 1 1 1 1 0 }
+set C_WORDS(struct)		{ 1 1 1 1 0 1 }
+set C_WORDS(unsigned)		{ 1 1 1 1 1 0 }
+set C_WORDS(break)		{ 0 }
+set C_WORDS(continue)		{ 0 }
+set C_WORDS(else)		{ 0 }
+set C_WORDS(for)		{ 0 }
+set C_WORDS(long)		{ 1 1 1 1 1 0 }
+set C_WORDS(signed)		{ 1 1 1 1 1 0 }
+set C_WORDS(switch)		{ 0 }
+set C_WORDS(void)		{ 1 1 1 1 1 0 }
+set C_WORDS(case)		{ 0 }
+set C_WORDS(default)		{ 0 }
+set C_WORDS(enum)		{ 1 1 1 1 0 1 }
+set C_WORDS(goto)		{ 0 }
+set C_WORDS(register)		{ 1 1 1 1 0 1 }
+set C_WORDS(sizeof)		{ 0 }
+set C_WORDS(typedef)		{ 1 1 0 0 0 1 }
+set C_WORDS(volatile)		{ 1 1 1 1 0 1 }
+set C_WORDS(char)		{ 1 1 1 1 1 0 }
+set C_WORDS(do)			{ 0 }
+set C_WORDS(extern)		{ 1 1 0 0 0 1 }
+set C_WORDS(if)			{ 0 }
+set C_WORDS(return)		{ 0 }
+set C_WORDS(static)		{ 1 1 1 0 0 1 }
+set C_WORDS(union)		{ 1 1 1 1 0 1 }
+set C_WORDS(while)		{ 0 }
+## Our keywords
+set C_WORDS(shared)		{ 1 0 1 0 0 1 }
+set C_WORDS(idiosyncratic)	{ 1 1 0 0 0 1 }
+set C_WORDS(trueconst)		{ 1 1 0 0 0 1 }
+## C++ keywords (booked to avoid VUEE conflicts)
+set C_WORDS(asm)		{ 0 }
+set C_WORDS(dynamic_cast)	{ 0 }
+set C_WORDS(namespace)		{ 0 }
+set C_WORDS(reinterpret_cast)	{ 0 }
+set C_WORDS(try)		{ 0 }
+set C_WORDS(bool)		{ 0 }
+set C_WORDS(explicit)		{ 0 }
+set C_WORDS(new)		{ 0 }
+set C_WORDS(static_cast)	{ 0 }
+set C_WORDS(typeid)		{ 0 }
+set C_WORDS(catch)		{ 0 }
+set C_WORDS(false)		{ 0 }
+set C_WORDS(operator)		{ 0 }
+set C_WORDS(template)		{ 0 }
+set C_WORDS(typename)		{ 0 }
+set C_WORDS(class)		{ 0 }
+set C_WORDS(friend)		{ 0 }
+set C_WORDS(private)		{ 0 }
+set C_WORDS(this)		{ 0 }
+set C_WORDS(using)		{ 0 }
+set C_WORDS(const_cast)		{ 0 }
+set C_WORDS(inline)		{ 0 }
+set C_WORDS(public)		{ 0 }
+set C_WORDS(throw)		{ 0 }
+set C_WORDS(virtual)		{ 0 }
+set C_WORDS(delete)		{ 0 }
+set C_WORDS(mutable)		{ 0 }
+set C_WORDS(protected)		{ 0 }
+set C_WORDS(true)		{ 0 }
+set C_WORDS(wchar_t)		{ 0 }
+
+proc catt { k } {
+
+	global C_WORDS
+
+	if ![info exists C_WORDS($k)] {
+		return ""
+	}
+
+	return $C_WORDS($k)
+}
+
+###############################################################################
 ###############################################################################
 
 proc xerror { msg { lnu "" } } {
@@ -900,12 +995,20 @@ set ot_(tdec)	[list lnu tna bod var mod]
 
 ###############################################################################
 
-proc parse_decl { { xp 0 } { bf 0 } } {
+proc parse_decl { { af 1 } { xp 0 } { bf 0 } } {
+#
+# af -> context: 1 - outer level, 2 - inner level, 3 - arguments (of fsm);
+#       3 means that a comma terminates the declaration, as opposed to
+#	separating variables of the same type; also the variable can be empty
+#	(like in an announcement) - the last bit doesn't work yet
 #
 # xp -> expected, meaning the thing must be a declaration; otherwise, we have
 #	an error
 #
 # bf -> bit fields legal (parsing attribute list in a structure or union)
+#
+#
+# Called after the first token (which must be a symbol) has been already read
 #
 ####
 #
@@ -917,7 +1020,9 @@ proc parse_decl { { xp 0 } { bf 0 } } {
 # A type declaration is returned via PAR_TDEC. If both values are null, it is
 # either an error or a non-declaration construct.
 #
-	global TK PAR_MARK PAR_IT PAR_TDEC FG
+# After parsing an argument item, the delimiter is left in TK/PAR_IT.
+#
+	global TK PAR_MARK PAR_IT PAR_TDEC FG C_WORDS
 
 	if { $PAR_IT != "k" } {
 		if { $PAR_IT == "d" && $TK == "(" && $xp } {
@@ -934,8 +1039,6 @@ proc parse_decl { { xp 0 } { bf 0 } } {
 
 	# remember where it starts
 	set dec_mark $PAR_MARK
-	# last keyword mark
-	set lkw_mark $dec_mark
 	# line of the declaration
 	set vli [ilinenum $dec_mark]
 
@@ -974,6 +1077,26 @@ proc parse_decl { { xp 0 } { bf 0 } } {
 	# type name (not null means that we do have a type declaration)
 	set tna ""
 
+	#
+	# type completeness status:
+	#	0 - no type yet
+	#	1 - symbol expected to continue type declaration; if that
+	#	    symbol is not a special keyword, the type will become
+	#	    complete, unless we have a type declaration of the
+	#	    struct (union, enum) kind
+	#	2 - sufficient for type, the next keyword is a variable,
+	#	    unless it is a type keyword, like in long int
+	#	3 - complete type, the next keyword must be a variable
+	#
+
+	# default assuming user symbol; a non-special symbol opening a
+	# declaration must be a user (typedef-ed) type name
+	set tcs 3
+
+	# type only declaration OK, set for opening struct, union, enum, but
+	# not for typedef, which is handled like a variable declaration
+	set tp_only_ok 0
+
 	# brace level
 	set blev [brcnt]
 
@@ -981,29 +1104,63 @@ proc parse_decl { { xp 0 } { bf 0 } } {
 
 	if $FG(D) { dbg "parse_decl: token 0 = $TK" }
 
-	if { $TK == "struct" || $TK == "union" || $TK == "enum" } {
-		# this can be a type declaration, because it starts with
-		# struct/union, but it doesn't have to
-		set dstate "S"
-		# start this tentatively; if there's no name to the thing,
-		# this will be cancelled
-		set tna $TK
-		# type-only declaration legal; meaning that a variable at the
-		# end is not needed, but legit; does not apply to typedef,
-		# which is handled separately at the end; at this stage,
-		# typedef is viewed as an honorary variable declaration and
-		# processed as such to the very end
-		set tp_only_ok 1
-	} else {
-		if { $TK == "extern" } {
-			# the extern flag is presently used for admitting
-			# unsized arrays in extern declarations; such arrays
-			# cannot appear in variable declarations, unless there
-			# is an initializer providing the size
-			set exn 1
+	set kat [catt $TK]
+
+	if { $kat != "" } {
+		if { [lindex $kat 0] == 0 } {
+			if $xp {
+				xerror "illegal keyword $TK in declaration"
+			}
+			return ""
 		}
-		set dstate "P"
-		set tp_only_ok 0
+
+		if { [lindex $kat $af] == 0 } {
+			if $xp {
+				xerror "qualifier $TK illegal in this context"
+			}
+			return ""
+		}
+
+		if [lindex $kat 5] {
+			# type continuation expected
+			set tcs 1
+		}
+		if [lindex $kat 4] {
+			# defines a type
+			set tcs 2
+		} else {
+			set tcs 0
+		}
+
+		if { $TK == "struct" || $TK == "union" || $TK == "enum" } {
+			# this can be a type declaration, because it starts with
+			# struct/union, but it doesn't have to
+			set dstate "S"
+			# start this tentatively; if there's no name to the
+			# thing, this will be cancelled
+			set tna $TK
+			# type-only declaration legal; meaning that a variable
+			# at the end is not needed, but legit; does not apply
+			# to typedef, which is handled separately at the end;
+			# at this stage, typedef is viewed as an honorary
+			# variable declaration and processed as such to the
+			# very end
+			set tp_only_ok 1
+		} else {
+			if { $TK == "extern" } {
+				# the extern flag is presently used for
+				# admitting unsized arrays in extern
+				# declarations; such arrays cannot appear in
+				# variable declarations, unless there is an
+				# initializer providing the size
+				set exn 1
+			}
+			set dstate "P"
+		}
+	} else {
+		# user symbol opens the declaration; this is a complete type,
+		# so we should proceed at the "variable" state
+		set dstate "M"
 	}
 
 	while { $more } {
@@ -1029,33 +1186,96 @@ P {
 # collecting type prefix ######################################################
 ###############################################################################
 	if { $PAR_IT == "k" } {
+
+		set kat [catt $TK]
+
+		if { $kat == "" } {
+			if { $tcs >= 2 } {
+				# assume this is a variable
+				set rep 1
+				set dstate "M"
+				continue
+			}
+			# completes the type part
+			lappend pfx $TK
+			set tcs 3
+			# so the next one is a variable
+			set dstate "M"
+			continue
+		}
+
+		# a standard keyword
+		if { $tcs == 3 || [lindex $kat 0] == 0 } {
+			# type complete or a non-declaration keyword
+			if $xp {
+				xerror "illegal keyword $TK in declaration"
+			}
+			return ""
+		}
+
+		if { [lindex $kat $af] == 0 } {
+			if $xp {
+				xerror "keyword $TK illegal in this context"
+			}
+			return ""
+		}
+
+		# goes into the type part for sure
+		lappend pfx $TK
+
 		if { $TK == "typedef" } {
-			# the prefix must be empty for that (when we are here,
-			# what we are seeing is not the first keyword)
-			xerror "typedef preceded by garbage"
-		} elseif { $TK == "union" || $TK == "struct" ||
+			# a special case: the prefix must be empty for that
+			# (when we are here, what we are seeing is not the
+			# first symbol)
+			if $xp {
+				xerror "typedef preceded by garbage"
+			}
+		} elseif { [lindex $kat 5] != 0 } {
+			# continuation expected, covers struct, union, enum
+			if { $TK == "union" || $TK == "struct" ||
 			   $TK == "enum" } {
-			# type name
-			set tna $TK
-			set dstate "S"
+				if $tcs {
+					if $xp {
+						xerror "illegal prefix for $TK"
+					}
+					return ""
+				}
+				# type name
+				set tna $TK
+				set dstate "S"
+			}
+			set tcs 1
+		} elseif { [lindex $kat 4] != 0 } {
+			# sufficient for a complete type
+			set tcs 2
 		} elseif { $TK == "extern" } {
+			if $tcs {
+				if $xp {
+					xerror "misplaced extern"
+				}
+				return ""
+			}
 			set exn 1
 		}
-		# just a keyword
-		lappend pfx $TK
-		# mark the beginning (last keyword mark) in case have to
-		# backspace if this turns out to be the variable name
-		set lkw_mark $PAR_MARK
 		continue
 	}
 
 	if { $PAR_IT != "d" } {
 		if $xp {
-			xerror "illegal declaration syntax, keyword or\
+			xerror "illegal declaration syntax, name or\
 				delimiter expected"
 		}
 		return ""
 	}
+
+	if { $tcs < 2 } {
+		if $xp {
+			xerror "illegal delimiter $TK in this context"
+		}
+		return ""
+	}
+
+	set tcs 3
 
 	# delimiter: this is where we want to go whatever happens next, unless
 	# there is an error
@@ -1086,25 +1306,9 @@ P {
 		# fall through
 	}
 
-	if { $TK == "(" || $TK == "\[" || $TK == "="  || $TK == "," ||
-	     $TK == ";" || $TK == ":" } {
-		# this means that we are past the variable, so we have to
-		# backtrack and remove it from the prefix
-		set pfx [lrange $pfx 0 end-1]
-		if { $pfx == "" } {
-			if $xp {
-				xerror "illegal declaration, type name missing"
-			}
-			return ""
-		}
-		restore $lkw_mark
-		set dstate "M"
-		continue
-	}
-
 	# something wrong
 	if $xp {
-		xerror "illegal token '$TK' in declaration"
+		xerror "illegal delimiter $TK in declaration"
 	}
 
 	return ""
@@ -1118,13 +1322,20 @@ M {
 	if { $PAR_IT == "k" } {
 		# the variable name
 		set nam $TK
+		# check if not one of the reserved keywords
+		if { [catt $nam] != "" } {
+			if $xp {
+				xerror "illegal variable name $nam"
+			}
+			return ""
+		}
 		set dstate "N"
 		continue
 	}
 
 	if { $PAR_IT != "d" } {
 		if $xp {
-			xerror "illegal declaration syntax, expected keyword\
+			xerror "illegal declaration syntax, expected name\
 				or delimiter"
 		}
 		return ""
@@ -1143,7 +1354,7 @@ M {
 
 	if { $TK == "(" } {
 		# a function pointer; note that for a function announcement
-		# or declaration a keyword (name) must show up first (so that
+		# or declaration a symbol (name) must show up first (so that
 		# would be handled at "N")
 		if $fpf {
 			if $xp {
@@ -1268,11 +1479,12 @@ N {
 			set fpf 2
 			continue
 		}
-		xerror "illegal ) in declaration"
-		return ""
-	}
-
-	if { $TK == "=" } {
+		# or as a closing delimiter, if we are parsing arguments
+		if { $af == 3 } {
+			xerror "illegal ) in declaration"
+			return ""
+		}
+	} elseif { $TK == "=" } {
 		# an initializer
 		set ini [get_init]
 		if { $ini == "" } {
@@ -1293,7 +1505,10 @@ N {
 		return ""
 	}
 
-	if { $TK != "," && $TK != ";" } {
+	if { $TK != "," && $TK != ";" && $TK != ")" } {
+		# the last case is for parsing arguments, note that it can
+		# only happen here, if its legitimacy has been verified (see
+		# above)
 		xerror "illegal $TK in declaration"
 		return ""
 	}
@@ -1362,7 +1577,9 @@ N {
 
 	incr nva
 
-	if { $TK == ";" } {
+	if { $TK == ";" || $TK == ")" || $af == 3 } {
+		# with af == 2 (parsing arguments), we stop on any legit
+		# delimiter, which can be either , or )
 		set more 0
 	}
 
@@ -1462,6 +1679,13 @@ S {
 		# this may look like a type declaration
 		set struct_named 1
 		# this gives us the complete type name
+		if { [catt $TK] != "" } {
+			if $xp {
+				xerror "illegal name of struct, union, or enum:\
+					$TK"
+			}
+			return ""
+		}
 		append tna " $TK"
 		lappend pfx $TK
 	} else {
@@ -1566,7 +1790,7 @@ W {
 		lappend PAR_TDEC $v
 	}
 
-	# check for typedef; if the first pfx keyword is typedef, there must be
+	# check for typedef; if the first pfx symbol is typedef, there must be
 	# a single "variable" (no initializer) which is the name of the defined
 	# type
 
@@ -2404,7 +2628,7 @@ K {
 			} else {
 				set d 0
 			}
-			set d [parse_decl $d]
+			set d [parse_decl 2 $d]
 
 			if { $d == "" } {
 				# no more declarations; note that the first
@@ -4457,7 +4681,7 @@ K {
       }
 
       # try a declaration
-      set d [parse_decl 1]
+      set d [parse_decl 1 1]
 
       # check for a type declaration
       if { $PAR_TDEC != "" } {
@@ -4877,7 +5101,7 @@ K {
       } else {
 	set d 0
       }
-      set d [parse_decl $d]
+      set d [parse_decl 2 $d]
       if { $d == "" } {
 	# if there are type declarations, keep going
 	if { $PAR_TDEC == "" } {

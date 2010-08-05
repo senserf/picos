@@ -1080,31 +1080,6 @@ word	__pi_maxfree (int np, address nc) {
 
 #endif /* MALLOC_STATS */
 
-#if	RESET_ON_MALLOC
-
-int __pi_malloc_high_mark () {
-/*
- * Checks if any of the pools has reached the failure limit
- */
-
-#if	MALLOC_SINGLEPOOL
-
-	return (MEV_NFAIL (0) == 255);
-#else
-	word i, j;
-
-	for (i = j = 0; i < 100; j++) {
-		if (MEV_NFAIL (j))
-			return 1;
-		i += __pi_heap [j];
-	}
-	return 0;
-
-#endif	/* MALLOC_SINGLEPOOL */
-}
-
-#endif	/* RESET_ON_MALLOC */
-	
 #if	SDRAM_PRESENT
 void __pi_sdram_test (void) {
 

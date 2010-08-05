@@ -902,7 +902,9 @@ XRcv:
 #if (RADIO_OPTIONS & 0x04)
 	if (retr == 0) {
 		// First time around
-		if (rerror [RERR_XMEX] != MAX_WORD)
+		if (rerror [RERR_XMEX] == MAX_WORD)
+			memset (rerror + RERR_XMEX, 0, sizeof (word) * 2);
+		else
 			rerror [RERR_XMEX] ++;
 	}
 #endif
@@ -915,9 +917,8 @@ XRcv:
 
 			// Drop the packet
 #if (RADIO_OPTIONS & 0x04)
-			if (rerror [RERR_XMEX] != MAX_WORD)
-				// This one is never bigger than RERR_XMEX
-				rerror [RERR_XMDR] ++;
+			// This one is never bigger than RERR_XMEX
+			rerror [RERR_XMDR] ++;
 #endif
 			retr = 0;
 			// Pretend the packet has been transmitted

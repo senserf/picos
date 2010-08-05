@@ -610,6 +610,8 @@ extern const byte *cc1100_ratemenu [];
 					utimer_set (bckf_timer, \
 						RADIO_LBT_MIN_BACKOFF + \
 						(rnd () & ((1 << (e)) - 1))); \
+				else \
+					utimer_set (bckf_timer, 0); \
 			} while (0)
 
 extern word		__pi_v_drvprcs, __pi_v_qevent;

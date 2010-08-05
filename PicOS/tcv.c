@@ -36,9 +36,6 @@
 #define	TMALLOC(a,b)	tmalloc (a)
 #define	UMALLOC(a,b)	umalloc (a)
 
-// #define	RELEASE		release
-// #define	WNONE		NONE
-
 #endif	/* SMURPH or PicOS */
 
 // Memory allocators (good for all occasions)

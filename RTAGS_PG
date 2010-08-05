@@ -508,6 +508,20 @@ PG100730A:
 	A few cleanups in the CC1100 driver mostly related to option constants.
 	The options are described in Docs/PICOS/cc1100.odt.
 
----------:
+PG100804A:
 
-	A channel change command added to VUEE/RFTEST (see page 9 of the doc).
+	A minor correction to the counters (PHYSOPT_ERROR) in phys_cc1100.c.
+	Previously, the transmission counter (2) would stop on MAX; now, it
+	wraps around resetting the failure counter (3) to zero. This is the
+	same behavior as for counters 0 and 1.
+
+	New commands added to VUEE/RFTEST: C and P (see the doc).
+
+	The declaration of guide_rtr in Libs/LibcComms/tarp_hooks.h made
+	conditional on TARP_RTR (non-TARP_RTR praxes wouldn't compile for
+	VUEE without that).
+
+	Modified picomp: the declaration parser made a bit smarter in
+	preparation for the upcoming reimplementation of strands.
+
+	Irrelevant cosmetics here and there.
