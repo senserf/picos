@@ -90,4 +90,4 @@ thread (__display)
 	pos += cnt;
 	proceed (DS_WRITE);
 
-endprocess (1)
+endthread

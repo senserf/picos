@@ -32,7 +32,7 @@ static int __cport;
 #define IM_BIN		2
 #define IM_BINL		3
 
-strand (__inserial, word)
+strand (__inserial, address)
 /* ============================== */
 /* Inputs a line from serial port */
 /* ============================== */
@@ -105,7 +105,7 @@ strand (__inserial, word)
 	ptr += quant;
 	proceed (IM_BINL);
 
-endprocess (1)
+endstrand
 
 #undef	IM_INIT
 #undef	IM_READ

@@ -18,7 +18,7 @@ heapmem {100};
 
 byte con = MIN_CON;
 
-process (root, void)
+process (root, void*)
 /* =========================================== */
 /* This is the main program of the application */
 /* =========================================== */
@@ -46,4 +46,4 @@ process (root, void)
 
 	delay (2048, RS_INIT);
 
-endprocess (1)
+endprocess

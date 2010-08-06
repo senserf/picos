@@ -33,7 +33,7 @@ static int	rlength, rmode;
 #define	RC_RAW		10
 #define	RC_COOKED	20
 
-process (receiver, void)
+process (receiver, void*)
 
 	nodata;
 
@@ -63,7 +63,7 @@ process (receiver, void)
 
 	proceed (RC_TRY);
 
-endprocess (1)
+endprocess
 
 int rcv_start (int mode, int prom) {
 
@@ -118,7 +118,7 @@ static	char	*tpacket;
 
 #define	SN_SEND		00
 
-process (sender, void)
+process (sender, void*)
 
 	nodata;
 
@@ -142,7 +142,7 @@ process (sender, void)
 	tcntr++;
 	delay (tdel, SN_SEND);
 
-endprocess (1)
+endprocess
 
 int snd_start (int mode, int delay, word *da) {
 
@@ -320,7 +320,7 @@ process (root, int)
 
 	nodata;
 
-endprocess (1)
+endprocess
 
 #undef	RS_INIT
 #undef	RS_RCMD

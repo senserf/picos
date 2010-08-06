@@ -9,7 +9,7 @@
 #define	BP_INIT	0
 #define	BP_STOP	1
 
-strand (__beeper, word)
+strand (__beeper, address)
 /* ================ */
 /* Beeps the buzzer */
 /* ================ */
@@ -44,4 +44,4 @@ strand (__beeper, word)
 #undef	tone
 #undef	duration
 
-endprocess (1)
+endstrand

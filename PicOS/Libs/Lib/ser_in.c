@@ -8,7 +8,7 @@
 
 extern char *__inpline;
 
-int __inserial (word, address);
+procname (__inserial);
 
 int ser_in (word st, char *buf, int len) {
 /* ======= */

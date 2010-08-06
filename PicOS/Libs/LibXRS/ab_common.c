@@ -129,9 +129,9 @@ Done:
 
 // ============================================================================
 
-strand (ab_xrs_drvr, void)
+strand (ab_xrs_drvr, int)
 
-#define	SID ((int)data)
+#define	SID data
 
 	entry (AB_LOOP)
 
@@ -191,7 +191,7 @@ void ab_init (int sid) {
 //
 // Start the protocol
 //
-	if ((ab_xrs_han = runstrand (ab_xrs_drvr, (void*)sid)) == 0)
+	if ((ab_xrs_han = runstrand (ab_xrs_drvr, sid)) == 0)
 		syserror (ERESOURCE, "ab_xrs_drvr");
 
 	// Maximum payload length (note that AB_MINPL includes checksum)

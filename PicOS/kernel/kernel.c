@@ -37,6 +37,7 @@ volatile systat_t __pi_systat;
 /* Current process */
 /* =============== */
 pcb_t	*__pi_curr;
+address	__pi_da;
 
 /* ========= */
 /* The clock */
@@ -278,28 +279,16 @@ MOK:
 sint __pi_fork (code_t func, address data) {
 
 	pcb_t *i;
-	int pc;
-
-	/* Limit for the number of instances */
-	if ((pc = func (0xffff, NULL)) > 0) {
-		for_all_tasks (i)
-			if (i->code == func)
-				pc--;
-		if (pc <= 0)
-			return 0;
-	}
 
 	for_all_tasks (i)
-		if (i->code == NULL)
-			break;
+		if (i->code == NULL) {
+			i -> code = func;
+			i -> data = (address) data;
+			i -> Status = 0;
+			return (sint) i;
+		}
 
-	if (i == LAST_PCB)
-		return /* (int) NONE */ 0;
-
-	i -> code = func;
-	i -> data = (address) data;
-	i -> Status = 0;
-	return (int) i;
+	return 0;
 }
 
 void savedata (void *d) {

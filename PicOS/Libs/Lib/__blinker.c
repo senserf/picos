@@ -40,4 +40,4 @@ thread (__blinker)
 	leds (3, (chr >> 3) & 1);
 	delay (ntv, BL_NEXT);
 
-endprocess (1)
+endthread

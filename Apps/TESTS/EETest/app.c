@@ -427,4 +427,4 @@ Done:
 	ser_outf (RS_ETS_L, "READ %lu (%lx)\r\n", a, a);
 	proceed (RS_ETS_N);
 
-endprocess (1)
+endprocess

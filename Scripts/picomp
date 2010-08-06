@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.23
+set Version 0.24
 
 ###############################################################################
 ###############################################################################
@@ -2249,6 +2249,40 @@ proc get_dimensions { ast } {
 
 ###############################################################################
 
+proc pstype { pf ef { clear 0 } } {
+#
+# Extracts the PicOS storage type (shared, context, idiosyncratic, trueconst)
+# from a type prefix
+#
+	upvar $pf pfx
+	upvar $ef err
+
+	set f ""
+	set err 0
+
+	foreach k { "shared" "idiosyncratic" "trueconst" } {
+		set l [lsearch -exact $pfx $k]
+		if { $l >= 0 } {
+			if { $f != "" } {
+				set err 1
+				if { $f == $k } {
+					xerror "duplicate $k in type prefix"
+				} else {
+					xerror "$k and $f cannot occur together\
+						in type prefix"
+				}
+				return ""
+			}
+			set f $k
+			if $clear {
+				set pfx [lreplace $pfx $l $l]
+			}
+		}
+	}
+
+	return $f
+}
+
 proc parse_type { } {
 #
 # Extract a type declaration from an fsm declaration, extremely heuristically:
@@ -2276,6 +2310,41 @@ proc parse_type { } {
 			return [string trim $res]
 		}
 	}
+}
+
+proc parse_context { } {
+#
+# Parses the construct "context type varname"; invoked after seeing "context"
+#
+	global PART_IT PAR_MARK TK
+
+	# this must be a type name ending with a variable
+	set ctp [parse_type]
+	if { $TK != ";" } {
+		xerror "context syntax error, illegal delimiter"
+		return ""
+	}
+
+	set ctl [llength $ctp]
+	if { $ctl < 2 } {
+		xerror "context syntax error, type + symbol expected"
+		return ""
+	}
+
+	incr ctl -1
+	set var [lindex $ctp $ctl]
+	set ctp [lrange $ctp 0 [expr $ctl - 1]]
+	if ![iskwd $var] {
+		xerror "illegal name of context variable"
+		return ""
+	}
+
+	if ![iskwd [lindex $ctp 0]] {
+		xerror "context syntax error, illegal type $ctp"
+		return ""
+	}
+
+	return [list $var $ctp]
 }
 
 proc outpref { pf } {
@@ -2517,6 +2586,8 @@ proc parse_picos { str } {
 	set fg_fsm 0
 	# the state of the global automaton
 	set fstate "K"
+	# context level, 0 == no open context
+	set fsm_context 0
 
 	#######################################################################
 	while 1 {
@@ -2563,6 +2634,39 @@ K {
 			set fsm_mark $PAR_MARK
 			set fstate "F"
 			continue
+		}
+
+		if { $TK == "context" } {
+			if { $fg_fsm == 1 } {
+				xerror "context illegal inside an fsm"
+				continue
+			}
+			if { $bra == 0 } {
+				xerror "context not allowed here"
+				continue
+			}
+			if $fsm_context {
+				xerror "contexts cannot be nested"
+				continue
+			}
+
+			set run_mark $PAR_MARK
+			set ins [parse_context]
+
+			if { $ins == "" } {
+				# error, diagnosed
+				continue
+			}
+
+			truncate $run_mark
+
+			set fsm_contvar [lindex $ins 0]
+
+			putS \
+			   "\n#define $fsm_contvar (([lindex $ins 1])__pi_da)\n"
+			catchup
+
+			set fsm_context $bra
 		}
 
 		if { $bra > 0 && $TK == "runfsm" } {
@@ -2648,14 +2752,23 @@ K {
 
 			set pfx [g_vdl $d pfx]
 
-			set ins [lsearch -exact $pfx "shared"]
-			if { $ins < 0 } {
-				# we leave it alone
+			# special qualifier
+			set ins [pstype pfx err 1]
+
+			if $err {
+				# diagnosed
 				continue
 			}
 
-			# a shared declaration
-			set pfx [lreplace $pfx $ins $ins]
+			if { $ins != "shared" } {
+				if { $ins != "" } {
+					xerror "qualifier $ins illegal in this\
+						context"
+				}
+				continue
+			}
+
+			# pfx already cleaned
 			if { [llength $pfx] == 0 } {
 				xerror "type missing in shared declaration"
 				continue
@@ -2768,6 +2881,11 @@ K {
 			append ins "static [outdecl $d]"
 		}
 
+		if { $fsm_type != "" } {
+			# define the data hook
+			lappend dflist [list "data" "(($fsm_type)__pi_da)"]
+		}
+
 		# defines
 		foreach d $dflist {
 			append ins "\n#define [lindex $d 0] [lindex $d 1]"
@@ -2776,29 +2894,12 @@ K {
 		append ins "\n"
 
 		# now goes the new function header
-		append ins "int $fsm_name (word __pi_st, address __pi_"
-
-		if { $fsm_type != "" } {
-			append ins "da) \{ $fsm_type *data = "
-			append ins "(${fsm_type}*) __pi_da; "
-		} else {
-			append ins "dummy) \{ "
-		}
-
+		append ins "void $fsm_name (word __pi_st) \{ "
 		append ins "switch (__pi_st) \{ "
 
 		insert $fsm_mark $ins
 
-		# the old "default" sequence (FIXME: it should go!!!)
-		putS "break; default: if (__pi_st == 0xffff) return ("
-		if { $fsm_type == "" } {
-			# thread (one copy allowed)
-			putS "1"
-		} else {
-			# strand (no limit)
-			putS "0"
-		}
-		putS "); __pi_badstate (); \} return 1; \}\n"
+		putS "break; default: __pi_badstate (); \} \}\n"
 		
 		# followed by undefines
 		foreach d $dflist {
@@ -2808,6 +2909,13 @@ K {
 		set fg_fsm 0
 
 		continue
+	}
+
+	if { $fsm_context && $bra < $fsm_context } {
+		# remove the context
+		putS "\n#undef $fsm_contvar\n"
+		catchup
+		set fsm_context 0
 	}
 
 	if { $bra == 0 && ($TK == "\}" || $TK == ";") } {
@@ -2849,9 +2957,9 @@ F {
 	}
 
 	if { $TK == "," || $TK == ";" } {
-		set ins "extern int"
+		set ins "extern void"
 		while 1 {
-			append ins " $fsm_name (word, address)"
+			append ins " $fsm_name (word)"
 			if { $TK == ";" } {
 				break
 			}
@@ -4604,10 +4712,9 @@ proc emit_vhdr { } {
 		append res " \};\n"
 
 		if { $dty != "" } {
-			append res "$dty *data;\nvoid setup ($dty *d) \{ "
-			append res "data = d; \};\n"
+			append res "void setup ($dty d) \{ "
+			append res "Data = (IPointer) d; \};\n"
 		}
-
 		append res "perform;\n\};\n"
 	}
 
@@ -4629,6 +4736,7 @@ proc parse_pfile { cnt src } {
 	set fstate "K"
 	set fg_fsm 0
 	set rootp 0
+	set fsm_context 0
 
 	while 1 {
 
@@ -4680,6 +4788,11 @@ K {
 	continue
       }
 
+      if { $TK == "context" } {
+	xerror "context illegal at global level"
+	continue
+      }
+
       # try a declaration
       set d [parse_decl 1 1]
 
@@ -4713,24 +4826,34 @@ K {
       set pfx [g_vdl $d pfx]
       set dtp [g_vdl $d typ]
 
-      if { [lsearch -exact $pfx "shared"] >= 0 } {
-	xerror "shared illegal in global scope"
+      set ins [pstype pfx err 1]
+
+      if $err {
+	continue
+      }
+
+      if { $ins != "" && $ins != "idiosyncratic" && $ins != "trueconst" } {
+	xerror "$ins is illegal in global scope"
 	continue
       }
 
       # more sanity checks?
-
-      set ins [lsearch -exact $pfx "idiosyncratic"]
 
       #########################################################################
       # handle a function declaration or announcement #########################
       #########################################################################
       if { $dtp == "A" || $dtp == "F" } {
 
-	if { $ins >= 0 } {
+	if { $ins != "" } {
+
+	  if { $ins != "idiosyncratic" } {
+	    xerror "$ins is illegal in this context"
+	    continue
+	  }
 
 	  # remove the original declaration
 	  truncate $PAR_MARK
+
 	  # will be appending stuff
           putS "\n"
       	  catchup [ilinenum $PAR_MARK]
@@ -4761,9 +4884,7 @@ K {
 
 	  } else {
 
-	    # function declaration
-	    set pfx [lreplace $pfx $ins $ins]
-
+	    # function declaration, pfx cleaned up by pstype
 	    set ins " [outpref $pfx]"
 
 	    # there is just a single "variable"
@@ -4800,7 +4921,7 @@ K {
 	continue
       }
 
-      if { $ins >= 0 } {
+      if { $ins == "idiosyncratic" } {
 	xerror "only functions can be idiosyncratic"
 	continue
       }
@@ -4811,10 +4932,12 @@ K {
       #########################################################################
       # trueconst #############################################################
       #########################################################################
-      set ins [lsearch -exact $pfx "trueconst"]
-      if { $ins >= 0 } {
+      if { $ins == "trueconst" } {
 	# this is left alone, with truconst replaced by const
-	set pfx [lreplace $pfx $ins $ins "const"]
+	if { [lsearch -exact $pfx "const"] >= 0 } {
+	  xerror "trueconst and const cannot be mixed"
+	  continue
+	}
 	s_vdl d pfx $pfx
 	putS [outdecl $d]
 	catchup
@@ -5064,6 +5187,28 @@ K {
       continue
     }
 
+    if { $TK == "context" } {
+      if { $fg_fsm == 1 } {
+	xerror "context illegal inside an fsm"
+	continue
+      }
+      if $fsm_context {
+	xerror "contexts cannot be nested"
+	continue
+      }
+      set run_mark $PAR_MARK
+      set ins [parse_context]
+      if { $ins == "" } {
+	# error, diagnosed
+	continue
+      }
+      truncate $run_mark
+      set fsm_contvar [lindex $ins 0]
+      putS "\n#define $fsm_contvar (([lindex $ins 1])(ThePPcs->Data))\n"
+      catchup
+      set fsm_context $bra
+    }
+
     # other non-declaration keywords? later we may want to get rid of the
     # macros in sysio.h
 
@@ -5119,20 +5264,23 @@ K {
 
       set pfx [g_vdl $d pfx]
 
-      # just in case
-      if { [lsearch -exact $pfx "idiosyncratic"] >= 0 } {
-	xerror "variables cannot be idiosyncratic"
+      set ins [pstype pfx err 1]
+
+      if $err {
 	continue
       }
 
-      set ins [lsearch -exact $pfx "shared"]
-      if { $ins < 0 } {
-	# we leave it alone; should we allow the keyword further down the list?
+      if { $ins != "" && $ins != "shared" } {
+	xerror "$ins is illegal in this context"
+	continue
+      }
+
+      if { $ins == "" } {
+	# we leave it alone
 	continue
       }
 
       # a shared declaration
-      set pfx [lreplace $pfx $ins $ins]
       if { [llength $pfx] == 0 } {
 	xerror "type missing in shared declaration"
       }
@@ -5212,6 +5360,13 @@ K {
   # delimiter in ground state #################################################
   #############################################################################
 
+  if { $fsm_context && $bra < $fsm_context } {
+    # close the context
+    putS "\n#undef $fsm_contvar\n"
+    catchup
+    set fsm_context 0
+  }
+
   if { $fg_fsm > 0 } {
 
     # within fsm; looking for the closing brace
@@ -5243,6 +5398,10 @@ K {
       }
       # move it to front
       set stlist [linsert [lreplace $stlist $st $st] 0 $stinit]
+    }
+
+    if { $fsm_type != "" } {
+      lappend dflist [list "data" "(($fsm_type)Data)"]
     }
 
     set ins "\n[lnumseq [olinenum $fsm_mark]]"

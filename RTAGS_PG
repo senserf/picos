@@ -525,3 +525,92 @@ PG100804A:
 	preparation for the upcoming reimplementation of strands.
 
 	Irrelevant cosmetics here and there.
+
+PG100806A:	3 2 	VUEE >= PG100806A
+
+	I was going to introduce considerably more consequential modifications
+	to the implementation of strands (i.e., threads with private data), and
+	had them almost ready, but backed off. They sucked. Even though, from
+	some elevated methodological point of view, being able to declare
+	"context" variables in a strand might seem a nice idea, the implied
+	automatic memory allocation/deallocation in the kernel for strand
+	contexts would in fact get in the way of many simple solutions
+	(involving trivial private data areas) which are quite natural and
+	effective. 
+
+	So I was torn for a while between:
+
+	1. complicating the issue by introducing a de facto third process type;
+
+	2. putting up with the increased complexity of strands for the alleged
+	   high-level benefits (which I find difficult to appreciate in our
+	   practical setup);
+
+	before deciding to abandon the idea. In my rather trivial and pretty
+	much pathetic attempt to make the contexts a bit more friendly, I did
+	this:
+
+	1. The type argument for a strand, i.e., in "strand (fun, type)" or
+	   "fsm fsm_name (type)" now stands for itself, rather than for a
+	   pointer to whatever you've put in there. This means that when you
+	   say, e.g.,
+
+	   	fsm dowol (int) { ...
+
+	   the data variable available to the process function will be of type
+	   int, not int*. Then, if you want to have a char pointer, you should
+	   say:
+
+	   	fsm dowol (char*) { ...
+
+	   instead of:
+
+	   	fsm dowol (char) { ...
+
+	   as before. I have gone through all the relevant praxes and made the
+	   requisite changes occasionally simplifying things (like removing
+	   weird and clumsy casts).
+
+	2. There is now a system variable pointing to the current process's
+	   data which, for example, allows it to be referenced directly from a
+	   non-process function. I am not sure if this is useful at all.
+	   Here is an example:
+
+		typedef struct { ... } pcs_data_t;
+		...
+		fsm dowol (pcs_data_t*) {	// Note the '*'
+			...
+			...
+			val = fun ();
+			...
+		}
+		...
+		int fun () {
+			context pcs_data_t *data;
+			// data refers to the current process's data object
+			...
+			data->something = U;
+			...
+		}
+
+	   In other words, the data area of the currently running strand
+	   can be directly accessed by functions via the context construct
+	   (handled by picomp). This isn't extremely helpful, as you can
+	   always pass it through an argument, but it comes for free.
+
+	3. I have removed the limits on the number of process instances that,
+	   in old days, you could specify as an argment of endprocess, e.g.,
+			
+		endprocess (4)
+
+	   With the introduction of threads and strands, there was an implied
+	   limit of 1 for a thread, and no limit (0) for a strand. There are
+	   no limits now. I do not think any of our praxes has ever depended on
+	   those limits (except for some weird examples of mine), so this
+	   change shouldn't affect anything, but you may want to check to make
+	   sure.
+
+	You can pretty much ignore all these "revolutionary" enhancements and
+	just remember one thing: the type argument of a strand now stands for
+	itself, rather than a pointer to itself.  Before introducing any more
+	changes of any substance, I will try to catch up on the documentation.

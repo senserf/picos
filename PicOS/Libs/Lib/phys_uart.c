@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -59,7 +59,7 @@ word __pi_uart_getrate (uart_t*);
 #define	RC_RESET	2
 #define	RC_END		3
 
-strand (rcvuart, uart_t)
+strand (rcvuart, uart_t*)
 
 #if UART_TCV > 1
 #define	UA data
@@ -138,7 +138,7 @@ endstrand
 #define	XM_LOOP		0
 #define	XM_END		1
 
-strand (xmtuart, uart_t)
+strand (xmtuart, uart_t*)
 
 #if UART_TCV > 1
 #define	UA data
@@ -461,7 +461,7 @@ static const byte ackc [2][2] = { 0x21, 0x10, 0x63, 0x30 };
 #define	XM_END		1
 #define	XM_NEXT		2
 
-strand (xmtuart, uart_t)
+strand (xmtuart, uart_t*)
 
 #if UART_TCV > 1
 #define	UA data
@@ -583,7 +583,7 @@ endstrand
 #define	RC_RESET	2
 #define	RC_END		3
 
-strand (rcvuart, uart_t)
+strand (rcvuart, uart_t*)
 
 #if UART_TCV > 1
 #define	UA data
@@ -865,7 +865,7 @@ Wake:
 #define	RC_LOOP		0
 #define	RC_END		3
 
-strand (rcvuart, uart_t)
+strand (rcvuart, uart_t*)
 
 #if UART_TCV > 1
 #define	UA data
@@ -903,7 +903,7 @@ endstrand
 #define	XM_LOOP		0
 #define	XM_END		1
 
-strand (xmtuart, uart_t)
+strand (xmtuart, uart_t*)
 
 #if UART_TCV > 1
 #define	UA data

@@ -26,7 +26,7 @@ static int __cport;
 
 #endif	/* UART_DRIVER > 1 */
 
-strand (__outserial, const char)
+strand (__outserial, const char*)
 /* ===================== */
 /* Runs the output queue */
 /* ===================== */
@@ -54,7 +54,7 @@ strand (__outserial, const char)
 	}
 	proceed (OM_WRITE);
 
-endprocess (1)
+endstrand
 
 #undef 	OM_INIT
 #undef	OM_WRITE

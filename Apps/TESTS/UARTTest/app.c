@@ -16,7 +16,7 @@ heapmem {100};
 static	int 	sfd, i, len;
 static	address msg_in, msg_out;
 
-process (root, void)
+process (root, void*)
 
 	nodata;
 
@@ -43,4 +43,4 @@ process (root, void)
 	proceed (10);
 
 
-endprocess (1)
+endprocess

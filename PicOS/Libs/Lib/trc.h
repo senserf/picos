@@ -13,22 +13,15 @@ static	char	*__procname;
 #undef	thread
 #undef	entry
 
-#define	process(p,d)	int p (word __pi_st, address __pi_da) { \
+#define	process(p,d)	void p (word __pi_st) { \
 				d *data = (d*) __pi_da; \
-				if (__pi_st == 0xffff) \
-					diag ("PCS " #p " STARTED"); \
-				else \
-					__procname = #p; \
+				__procname = #p; \
 				switch (__pi_st) {
 
-#define	thread(p)	int p (word __pi_st, address __pi_dummy) { \
-				if (__pi_st == 0xffff) \
-					diag ("PCS " #p " STARTED"); \
-				else \
-					__procname = #p; \
+#define	thread(p)	void p (word __pi_st) { \
+				__procname = #p; \
 				switch (__pi_st) {
 
 #define	entry(s)	case s:  diag ("PCS %s at " #s, __procname);
 
 #endif
-

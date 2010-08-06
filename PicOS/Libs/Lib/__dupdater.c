@@ -75,4 +75,4 @@ thread (__dupdater)
 
 	proceed (UPD_INIT);
 
-endprocess (1)
+endthread

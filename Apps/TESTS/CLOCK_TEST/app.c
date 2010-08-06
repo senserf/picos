@@ -337,7 +337,7 @@ int dmons [N_DMONS];
 
 extern word __pi_old, __pi_new, __pi_mintk;
 
-strand (delay_monitor, dmon_data_t)
+strand (delay_monitor, dmon_data_t*)
 
 	word d;
 

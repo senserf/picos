@@ -202,7 +202,7 @@ static int tcv_xmt (address p) {
 #define	RC_WAIT		0
 #define	RC_DISP		1
 
-process (receiver, void)
+process (receiver, void*)
 
 	static address packet;
 	static word SerNum = 0;
@@ -249,12 +249,12 @@ process (receiver, void)
 	else
 		proceed (RC_WAIT);
 
-endprocess (1)
+endprocess
 
 #define	SN_SEND		00
 #define	SN_NEXT		10
 
-process (sender, void)
+process (sender, void*)
 
 	static word PLen, Sernum;
 	address packet;
@@ -287,12 +287,12 @@ process (sender, void)
 
 	delay (send_delay (), SN_SEND);
 
-endprocess (1)
+endprocess
 
 #define	BN_WAIT		0
 #define	BN_SEND		2
 
-process (bouncer, void)
+process (bouncer, void*)
 
 	static address packet;
 	address outpacket;
@@ -325,7 +325,7 @@ process (bouncer, void)
 	tcv_endp (outpacket);
 	proceed (BN_WAIT);
 
-endprocess (1)
+endprocess
 
 void do_start (int mode) {
 
@@ -379,7 +379,7 @@ void	out_pmon_state () {
 #define	PM_NOTIFIER	1
 #define	PM_COUNTER	2
 
-process (pulse_monitor, void)
+process (pulse_monitor, void*)
 
 	entry (PM_START)
 
@@ -406,7 +406,7 @@ process (pulse_monitor, void)
 		out_pmon_state ();
 		pmon_pending_cmp ();
 		proceed (PM_START);
-endprocess (1)
+endprocess
 
 #endif	/* PULSE_MONITOR */
 
@@ -900,4 +900,4 @@ diag (
 	proceed (RS_RCMD);
 #endif
 
-endprocess (1)
+endprocess

@@ -9,7 +9,7 @@
 
 extern char *__inpline;
 
-int __inserial (word, address);
+procname (__inserial);
 
 int ser_inf (word st, const char *fmt, ...) {
 /* ========= */

@@ -17,4 +17,4 @@ process (root, int)
   entry (1)
 	delay (4096, 1);
 
-endprocess (1)
+endprocess

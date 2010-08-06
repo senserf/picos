@@ -148,4 +148,4 @@ process (root, int)
 #endif
 	proceed (RS_RCMD);
 	
-endprocess (1)
+endprocess

@@ -8,7 +8,7 @@
 
 #define	IBUF_SIZE	80
 
-fsm output (char) {
+fsm output (char*) {
 
     shared int nc;
     shared char *ptr;
@@ -31,7 +31,7 @@ fsm output (char) {
 	proceed OU_WRITE;
 }
 
-fsm input (char) {
+fsm input (char*) {
 
     shared int nc;
     shared char *ptr;

@@ -6,7 +6,7 @@
 
 //+++ "__outserial.c"
 
-int __outserial (word, address);
+procname (__outserial);
 
 int ser_out (word st, const char *m) {
 

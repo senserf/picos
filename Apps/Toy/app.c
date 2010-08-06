@@ -42,7 +42,7 @@ heapmem {100};
 
 #define	IBUFSIZE	128
 
-process (root, void)
+process (root, void*)
 /* =========================================== */
 /* This is the main program of the application */
 /* =========================================== */
@@ -308,4 +308,4 @@ process (root, void)
 	proceed (RS_RCMD);
 #endif
 
-endprocess (1)
+endprocess

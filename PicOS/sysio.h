@@ -416,9 +416,9 @@ void	buttons_action (void (*action)(word));
 /* ============================================================ */
 /* The main program (process) to be provided by the application */
 /* ============================================================ */
-int	root (word state, address data);
+void	root (word state);
 
-typedef	int (*code_t)(word, address);
+typedef	void (*code_t)(word);
 
 void		__pi_wait (word, word);
 void		__pi_trigger (word), __pi_ptrigger (sint, word);
@@ -721,31 +721,29 @@ void	freeze (word);
 /* Actual size of an malloc'ed piece */
 #define	actsize(p)	(*(((word*)(p))-1) << 1)
 
+extern address __pi_da;	// Process data pointer
+
 void __pi_badstate (void);
 
-/* Process operations */
-#define	process(p,d)	int p (word __pi_st, address __pi_da) { \
-				d *data = (d*) __pi_da; \
+// Note: data in a picomp-issue thread will be a macro
+#define	process(p,d)	void p (word __pi_st) { \
+				d data = (d) __pi_da; \
 				switch (__pi_st) {
 
 #define	strand(a,b)	process (a, b)
 
-#define	thread(p)	int p (word __pi_st, address __pi_dummy) { \
+#define	thread(p)	void p (word __pi_st) { \
 				switch (__pi_st) {
 
-#define	endprocess(n)			break; \
-				    default: \
-					if (__pi_st == WNONE) return (n); \
-					__pi_badstate (); \
-				} return 1; }
+#define	endprocess	break; default: __pi_badstate (); } }
 
-#define	endthread	endprocess (1)
-#define	endstrand	endprocess (0)
+#define	endthread	endprocess
+#define	endstrand	endprocess
 
 #define	entry(s)	case s:
 
-#define	procname(p)	extern int p (word, address)
-#define	sprocname(p)	static int p (word, address)
+#define	procname(p)	void p (word)
+#define	sprocname(p)	void p (word)
 
 #define	runthread(a)	fork (a, NULL)
 #define	runstrand(a,b)	fork (a, b)
@@ -957,9 +955,7 @@ void	adc_stop (void);
 
 #endif //if SIM_NET==0
 
-/* ======================================== */
-/* Tools for isolating SMURPH-specific code */
-/* ======================================== */
+// Tools for isolating SMURPH-specific code from VUEE
 
 #define	_da(a)		a
 #define	_dac(a,b)	b
@@ -986,16 +982,5 @@ void	adc_stop (void);
 #define	__PRIVF(ot,tp,nam)	static tp nam
 #define	__PUBLF(ot,tp,nam)	tp nam
 #define	__PUBLS(ot,tp,nam)	__PRIVF (ot, tp, nam)
-
-#define	__PROCESS(a,b)	process (a, b)
-#define	__ENDPROCESS(a)	endprocess (a)
-#define	__NA(a,b)	(b)
-
-// A few symbolic state ordinals
-#define	__S0		0
-#define	__S1		1
-#define	__S2		2
-#define	__S3		3
-#define	__S4		4
 
 #endif 
