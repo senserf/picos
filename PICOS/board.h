@@ -250,10 +250,11 @@ process	_PP_ {
 //
 // This is a standard prefix for a PicOS process
 //
-	TIME	WaitingUntil;	// Target time (if waiting)
-	_PP_	*HNext, *HPrev;	// For hash collisions
-	sint	ID;		// The int identifier (as required by PicOS)
-	word	Flags;		// GP flags mostly for grabs
+	TIME		WaitingUntil;	// Target time (if waiting)
+	_PP_		*HNext, *HPrev;	// For hash collisions
+	sint		ID;		// The identifier (required by PicOS)
+	word		Flags;		// GP flags mostly for grabs
+	IPointer	Data;		// The data pointer
 
 // Note ... in preparation for a compiler: we will put there a data pointer
 // but for now it would create more mess than good; this is because while a

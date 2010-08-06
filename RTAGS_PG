@@ -593,3 +593,7 @@ PG100727A:	PICOS >= PG100727A
 PG100729A:
 
     Constant DUMP_MEMORY added to sysio.h.
+
+PG100806A:	PICOS >= PG100806A
+
+    Requisite modifications for the new version of PicOS. Not much.
