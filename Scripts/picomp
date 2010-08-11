@@ -997,7 +997,7 @@ set ot_(tdec)	[list lnu tna bod var mod]
 
 proc parse_decl { { af 1 } { xp 0 } { bf 0 } } {
 #
-# af -> context: 1 - outer level, 2 - inner level, 3 - arguments (of fsm);
+# af -> context: 1 - outer level, 2 - inner level, 3 - arguments;
 #       3 means that a comma terminates the declaration, as opposed to
 #	separating variables of the same type; also the variable can be empty
 #	(like in an announcement) - the last bit doesn't work yet
@@ -1369,6 +1369,12 @@ M {
 		continue
 	}
 
+	if { ($TK == ")" || $TK == ",") && $af == "3" } {
+		set dstate "N"
+		set rep 1
+		continue
+	}
+
 	if $xp {
 		xerror "illegal token '$TK' in declaration"
 	}
@@ -1480,7 +1486,7 @@ N {
 			continue
 		}
 		# or as a closing delimiter, if we are parsing arguments
-		if { $af == 3 } {
+		if { $af != 3 } {
 			xerror "illegal ) in declaration"
 			return ""
 		}
@@ -1533,7 +1539,7 @@ N {
 				return ""
 			}
 			# only allowed if initialized
-			if { $ini == "" } {
+			if { $ini == "" && $af != 3 } {
 				xerror "empty size only allowed with an\
 					initializer"
 				return ""
@@ -1831,6 +1837,9 @@ W {
 
 	if { $vrs == "" } {
 		# type only
+		if { $af == 3 } {
+			xerror "illegal type declaration"
+		}
 		return ""
 	}
 
@@ -2347,6 +2356,48 @@ proc parse_context { } {
 	return [list $var $ctp]
 }
 
+proc parse_fsmarg { } {
+#
+# Parses the type argument of an fsm; invoked after seeing the opening (
+#
+	set d [parse_decl 3 1 0]
+	if { $d == "" } {
+		# error, diagnosed?
+		return ""
+	}
+	set dtp [g_vdl $d typ]
+	if { $dtp != "V" } {
+		xerror "illegal declaration of fsm data type"
+		return ""
+	}
+	set pfx [g_vdl $d pfx]
+	set ins [pstype pfx err 0]
+	if { $err || $ins != "" } {
+		if !$err {
+			xerror "$ins illegal in this context"
+		}
+		return ""
+	}
+	# there is just one variable
+	set v [lindex [g_vdl $d vrs] 0]
+	set att [g_vdec $v att]
+	set var [g_vdec $v nam]
+	if { [g_atts $att arr] != "" || [g_atts $att typ] != "v" ||
+	     [g_atts $att bif] != "" } {
+		xerror "the data variable type must be simple, i.e., numerical\
+			or pointer"
+		return ""
+	}
+	set var [g_vdec [lindex [g_vdl $d vrs] 0] nam]
+	if { $var == "" } {
+		# default variable name
+		set var "data"
+	}
+	set pfx [outdecl $d -1]
+
+	return [list $var $pfx]
+}
+			
 proc outpref { pf } {
 #
 # Outputs a type prefix
@@ -2360,13 +2411,18 @@ proc outpref { pf } {
 	return $res
 }
 
-proc outvar { v { init 0 } } {
+proc outvar { v { var 0 } } {
 #
 # Outputs a single variable from a declaration list
 #
 	set res ""
 
-	set vnm [g_vdec $v nam]
+	if { $var < 0 } {
+		# don't output variable name
+		set vnm ""
+	} else {
+		set vnm [g_vdec $v nam]
+	}
 	set v   [g_vdec $v att]
 
 	set ptr [g_atts $v ptr]
@@ -2406,7 +2462,7 @@ proc outvar { v { init 0 } } {
 		append res $arr
 	}
 
-	if $init {
+	if { $var > 0 } {
 		set ini [g_atts $v ini]
 		if { $ini != "" } {
 			append res "=[lindex $ini 2]"
@@ -2416,11 +2472,11 @@ proc outvar { v { init 0 } } {
 	return $res
 }
 	
-proc outdecl { dec { init 1 } } {
+proc outdecl { dec { var 1 } } {
 #
 # Converts a variable declaration list (returned by parse_decl) back into a
-# program string; init -> include the initializer. The string is terminated by
-# a semicolon.
+# program string; var == 1 -> include the initializer. var == -1 -> don't
+# include the variable (type only) and don't terminate (no ;).
 #
 	set pf [g_vdl $dec pfx]
 	set vl [g_vdl $dec vrs]
@@ -2432,13 +2488,17 @@ proc outdecl { dec { init 1 } } {
 	foreach v $vl {
 
 		incr ll -1
-		append res [outvar $v $init]
+		append res [outvar $v $var]
 		if $ll {
 			append res ","
 		}
 	}
 
-	return "$res;\n"
+	if { $var >= 0 } {
+		append res ";\n"
+	}
+
+	return $res
 }
 
 proc outtype { dec } {
@@ -2738,6 +2798,7 @@ K {
 				# no more declarations; note that the first
 				# keyword has been swallowed
 				if { $PAR_TDEC == "" } {
+					xerror "state expected"
 					set fg_fsm 2
 				}
 				continue
@@ -2814,9 +2875,47 @@ K {
 				continue
 			}
 
-			if { $stappd && $TK == "proceed" } {
-				# the proceed kwd is copied to output
-				set fstate "P"
+			if { $TK == "proceed" || $TK == "sameas" } {
+				if { $TK == "sameas" } {
+					set ins 1
+				} else {
+					set ins 0
+				}
+				set fsm_smark $PAR_MARK
+				set TK [ntoken]
+				if { $PAR_IT == "k" } {
+					# followed directly by state name,
+					# expect ;
+					set fsm_sname $TK
+				} elseif { $TK == "(" } {
+					set TK [ntoken]
+					if { $PAR_IT != "k" } {
+						xerror "state name expected"
+						continue
+					}
+					set fsm_sname $TK
+					set TK [ntoken]
+					if { $TK != ")" } {
+						xerror ") expected"
+						continue
+					}
+				} else {
+					xerror "state name or ( expected after\
+						proceed"
+					continue
+				}
+				set TK [ntoken]
+				if { $TK != ";" } {
+					xerror "; expected"
+					continue
+				}
+				truncate $fsm_smark
+				if $ins {
+					putS "goto __stlab_$fsm_sname;"
+				} else {
+					putS "proceed ($fsm_sname);"
+				}
+				lappend_unique pslist $fsm_sname
 				continue
 			}
 
@@ -2848,8 +2947,7 @@ K {
 		foreach st $pslist {
 			# verify proceed states
 			if { [lsearch -exact $stlist $st] < 0 } {
-				xerror "state $st used in proceed not\
-					defined in fsm"
+				xerror "state $st not defined within the fsm"
 			}
 		}
 
@@ -2873,7 +2971,7 @@ K {
 		}
 
 		# prepare the insert to replace the fsm function header
-		set ins "\n[lnumseq [olinenum $fsm_mark]]"
+		set ins ""
 
 		# "shared" declarations
 		foreach d $sdlist {
@@ -2883,7 +2981,7 @@ K {
 
 		if { $fsm_type != "" } {
 			# define the data hook
-			lappend dflist [list "data" "(($fsm_type)__pi_da)"]
+			lappend dflist [list $fsm_datv "(($fsm_type)__pi_da)"]
 		}
 
 		# defines
@@ -2891,7 +2989,7 @@ K {
 			append ins "\n#define [lindex $d 0] [lindex $d 1]"
 		}
 
-		append ins "\n"
+		append ins "\n[lnumseq [olinenum $fsm_mark]]"
 
 		# now goes the new function header
 		append ins "void $fsm_name (word __pi_st) \{ "
@@ -2899,7 +2997,7 @@ K {
 
 		insert $fsm_mark $ins
 
-		putS "break; default: __pi_badstate (); \} \}\n"
+		putS "break; \} default: __pi_badstate (); \} \}\n"
 		
 		# followed by undefines
 		foreach d $dflist {
@@ -2986,24 +3084,36 @@ F {
 		continue
 	}
 
+	set fsm_type ""
+	set fsm_datv ""
 	if { $TK == "(" } {
-		# we have a strand, expect type followed by )
-		set fsm_type [parse_type]
-		if { $fsm_type == "" || $TK != ")" } {
-			xerror "strand fsm declaration syntax error,\
-				invalid data type"
-			set fg_fsm -1
-			continue
-		}
 		set TK [ntoken]
+		if { $PAR_IT == "d" & $TK == ")" } {
+			# empty after all
+			set TK [ntoken]
+		} else {
+			# expect a type + optional variable
+			set d [parse_fsmarg]
+			if { $d == "" } {
+				# error, diagnosed
+				set fg_fsm -1
+				continue
+			}
+			if { $TK != ")" } {
+				xerror ") expected"
+				set fg_fsm -1
+				continue
+			}
+			set TK [ntoken]
+			set fsm_datv [lindex $d 0]
+			set fsm_type [lindex $d 1]
+		}
 		if { $PAR_IT != "d" || $TK != "\{" } {
 			xerror "strand fsm declaration syntax error,\
 				\} expected"
 			set fg_fsm -1
 			continue
 		}
-	} else {
-		set fsm_type ""
 	}
 
 	# truncate the output to remove the fsm header (which has to be
@@ -3017,7 +3127,6 @@ F {
 	set stlist ""	;# states
 	set pslist ""	;# proceed states (for verification)
 	set stinit ""	;# initial state
-	set stappd 0 	;# flag == state command has appeared
 
 	# just in case, the level must be 1 at this point
 	set fsm_blev [brcnt]
@@ -3084,79 +3193,15 @@ T {
 	} else {
 		truncate $fsm_smark
 		catchup
-		putS "case $fsm_sname :"
-		set stappd 1
-	}
-	continue
-}
-				
-P {
-###############################################################################
-# after proceed ###############################################################
-###############################################################################
-	set fsm_smark $PAR_MARK
-
-	if { $PAR_IT == "k" } {
-		# followed directly by state name, expect ;
-		set fsm_ins 0
-		set rep 1
-		set fstate "Q"
-		continue
-	}
-
-	if { $PAR_IT == "d" && $TK == "(" } {
-		set fsm_ins 1
-		# expect state name
-		set fstate "Q"
-		continue
-	}
-
-	xerror "proceed syntax error"
-	set fstate "K"
-
-	continue
-}
-				
-Q {
-###############################################################################
-# after proceed (expecting state name) ########################################
-###############################################################################
-	set fstate "K"
-
-	if { $PAR_IT != "k" } {
-		xerror "state name expected"
-		continue
-	}
-
-	set fsm_sname $TK
-	set TK [ntoken]
-	if { $PAR_IT != "d" } {
-		xerror "delimiter expected after state name"
-		continue
-	}
-
-	if $fsm_ins {
-		# this must be a parenthesis (followed by a ;)
-		if { $TK != ")" } {
-			xerror ") expected after state name"
-			continue
+		if { [llength $stlist] > 1 } {
+			# skip this for the first state
+			set ins "\} "
+		} else {
+			set ins ""
 		}
-		set TK [ntoken]
-		if { $PAR_IT != "d" || $TK != ";" } {
-			xerror "; expected after )"
-			continue
-		}
-	} else {
-		# just the semi
-		if { $TK != ";" } {
-			xerror "; expected after state name"
-			continue
-		}
+		append ins "case $fsm_sname : __stlab_$fsm_sname: \{"
+		putS $ins
 	}
-
-	truncate $fsm_smark
-	putS "($fsm_sname);"
-
 	continue
 }
 				default {
@@ -5382,13 +5427,6 @@ K {
     # the name is mangled with program name
     set fsn "$fsm_name[pnfx]"
 
-    foreach st $pslist {
-      # verify proceed states
-      if { [lsearch -exact $stlist $st] < 0 } {
-	xerror "state $st used in proceed not defined in fsm"
-      }
-    }
-
     if { $stinit != "" } {
       # an explicit initial state, must get number zero
       set st [lsearch -exact $stlist $stinit]
@@ -5401,20 +5439,22 @@ K {
     }
 
     if { $fsm_type != "" } {
-      lappend dflist [list "data" "(($fsm_type)Data)"]
+      lappend dflist [list $fsm_datv "(($fsm_type)Data)"]
     }
 
-    set ins "\n[lnumseq [olinenum $fsm_mark]]"
+    set ins ""
     # defines for shared variables
     foreach d $dflist {
       append ins "\n#define [lindex $d 0] [lindex $d 1]"
     }
-    append ins "\n"
 
+    append ins "\n[lnumseq [olinenum $fsm_mark]]"
     # the code method
     append ins "${fsn}::perform \{\n"
 
     insert $fsm_mark $ins
+
+    putS "\}"
 
     if { $dflist != "" } {
       putS "\n"
@@ -5517,26 +5557,36 @@ F {
 		continue
 	}
 
+	set fsm_type ""
+	set fsm_datv ""
 	if { $TK == "(" } {
-		# we have a strand, expect type followed by )
-		set fsm_type [parse_type]
-		if { $fsm_type == "" || $TK != ")" } {
-			xerror "strand fsm declaration syntax error,\
-				invalid data type"
-    			if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (s)" }
-			set fg_fsm -1
-			continue
-		}
 		set TK [ntoken]
+		if { $PAR_IT == "d" & $TK == ")" } {
+			# empty after all
+			set TK [ntoken]
+		} else {
+			# expect a type + optional variable
+			set d [parse_fsmarg]
+			if { $d == "" } {
+				# error, diagnosed
+				set fg_fsm -1
+				continue
+			}
+			if { $TK != ")" } {
+				xerror ") expected"
+				set fg_fsm -1
+				continue
+			}
+			set TK [ntoken]
+			set fsm_datv [lindex $d 0]
+			set fsm_type [lindex $d 1]
+		}
 		if { $PAR_IT != "d" || $TK != "\{" } {
 			xerror "strand fsm declaration syntax error,\
 				\} expected"
-    			if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (z)" }
 			set fg_fsm -1
 			continue
 		}
-	} else {
-		set fsm_type ""
 	}
 
 	# truncate the output to remove the fsm header (which has to be
@@ -5547,7 +5597,6 @@ F {
 	# initialize collectors for the sfm
 	set dflist ""	;# defines (shared declaration renames)
 	set stlist ""	;# states
-	set pslist ""	;# proceed states (for verification)
 	set stinit ""	;# initial state
 
 	# just in case, the level must be 1 at this point
@@ -5615,7 +5664,13 @@ T {
 	} else {
 		truncate $fsm_smark
 		catchup
-		putS "transient ${fsm_sname}:"
+		if { [llength $stlist] > 1 } {
+			set ins "\} "
+		} else {
+			set ins ""
+		}
+		append ins "transient ${fsm_sname}: \{"
+		putS $ins
 	}
 	continue
 }

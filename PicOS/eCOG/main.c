@@ -1369,7 +1369,7 @@ static int ioreq_uart_b (int operation, char *buf, int len) {
 /* ================== */
 /* The driver process */
 /* ================== */
-process (uart_driver, uart_t)
+process (uart_driver, uart_t*)
 
 #define	dev data
 
@@ -1448,7 +1448,7 @@ process (uart_driver, uart_t)
 
 #undef dev
 
-endprocess (2)
+endprocess
 
 /* =========== */
 /* UART_DRIVER */
@@ -1617,7 +1617,7 @@ void lcd_send (int data) {
 		IO_GP8_11_OUT_CLR10_MASK;
 }
 
-process (lcd_out, byte)
+process (lcd_out, byte*)
 
   entry (0)
 	if (data [0]) {
@@ -1644,7 +1644,7 @@ process (lcd_out, byte)
   entry (2)
 	finish;
 
-endprocess (1)
+endprocess
 
 /* ==================== */
 /* The request function */
@@ -1719,7 +1719,7 @@ static int ioreq_lcd (int operation, char *buf, int len) {
 	}
 }
 
-process	(lcd_init, lcd_t)
+process	(lcd_init, lcd_t*)
 /* =================================================== */
 /* This one just initializes the device and terminates */
 /* =================================================== */
@@ -1755,9 +1755,9 @@ process	(lcd_init, lcd_t)
   entry (6)
 	finish;
 
-endprocess (1)
+endprocess
 
-process (lcd_seek, lcd_t)
+process (lcd_seek, lcd_t*)
 
   entry (0)
 	if (data->pos >= 16)
@@ -1775,9 +1775,9 @@ process (lcd_seek, lcd_t)
 	data->par [1] = 0x14;
 	call (lcd_out, data->par, 1);
 
-endprocess (1)
+endprocess
 
-process (lcd_driver, lcd_t)
+process (lcd_driver, lcd_t*)
 
   entry (0)
 	call (lcd_init, data, 1);
@@ -1844,7 +1844,7 @@ process (lcd_driver, lcd_t)
 		/* Keep going */
 		proceed (2);
 
-endprocess (1)
+endprocess
 
 static void devinit_lcd (int dummy) {
 

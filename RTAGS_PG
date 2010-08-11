@@ -614,3 +614,44 @@ PG100806A:	3 2 	VUEE >= PG100806A
 	just remember one thing: the type argument of a strand now stands for
 	itself, rather than a pointer to itself.  Before introducing any more
 	changes of any substance, I will try to catch up on the documentation.
+
+PG100811A:
+
+	The type name for fsm can now include a variable replacing the default
+	"data", e.g.,
+
+		fsm dowol (char *msg) {
+
+	Makes more sense, doesn't it. Except that this isn't compatible any
+	more with the old macro strand, i.e.,
+
+		strand dowol (char *msg) {
+
+	won't work (for pretty obvious reasons).
+
+	Fixed eCOG/main.c for the new fsm/process layout.
+
+	The way picomp generates code around states now makes it possible to
+	insert local declarations there, as in:
+
+		state STATE_1:
+			word a, b;
+			... some code ..
+
+	which practically obviates the need for having auto (non-shared
+	declaration at the fsm header. I am contemplating forcing all such
+	declarations to be shared, thus eliminating the need for the shared
+	type qualifier.
+
+	You can now use sameas (like in SIDE), instead of proceed, e.g.,
+
+		state STATE_1:
+			... do something ...
+		state STATE_2:
+			... do something else ...
+			sameas STATE_1;
+		...
+
+	which behaves like a goto, i.e., the scheduler is not involved. This
+	should only be used if you are worried that the possible preemption by
+	another process is harmful.
