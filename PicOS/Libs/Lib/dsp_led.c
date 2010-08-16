@@ -5,7 +5,7 @@
 #include "sysio.h"
 #include "form.h"
 
-int __blinker (word, address);
+procname (__blinker);
 
 extern address __blink_pmem;
 

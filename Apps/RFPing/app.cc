@@ -130,7 +130,7 @@ static void lcd_update (void) {
 
 fsm receiver {
 
-	shared address packet;
+  address packet;
 
   entry RC_TRY:
 
@@ -239,11 +239,8 @@ static	int	tdelay, tkillflag = 0;
 
 fsm sender {
 
-	shared address packet;
-	shared word packet_length = 12;
-
-	word pl;
-	int  pp;
+	address packet;
+	word packet_length = 12;
 
   entry SN_SEND:
 
@@ -270,6 +267,9 @@ fsm sender {
 	proceed (SN_NEXT);
 
   entry SN_NEXT:
+
+	word pl;
+	int  pp;
 
 	if (tkillflag) {
 		tkillflag = 0;
@@ -335,22 +335,23 @@ int snd_stop (void) {
 /* End packet sender */
 /* ================= */
 
-#if CC1000 || CC1100
-const static word parm_power = 255;
-#endif
 
 fsm root {
 
 #if UART_DRIVER
-	shared char *ibuf;
-	shared int k, n1;
-	shared char *fmt, obuf [32];
-	shared word p [4];
-	shared word n;
+	char *ibuf;
+	int k, n1;
+	char *fmt, obuf [32];
+	word p [4];
+	word n;
 #if SDRAM_PRESENT
-	shared word *mbuf, m, bp;
-	shared lword nw, i, j;
+	word *mbuf, m, bp;
+	lword nw, i, j;
 #endif
+#endif
+
+#if CC1000 || CC1100
+	const word parm_power = 255;
 #endif
 
   entry RS_INIT:

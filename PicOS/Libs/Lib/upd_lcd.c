@@ -11,7 +11,7 @@
 
 extern address __dupdater_pmem;
 
-int __dupdater (word, address);
+procname (__dupdater);
 
 #define	changed		(*((lword*)(__dupdater_pmem + 0)))
 #define	dupw		(*((lword*)(__dupdater_pmem + 2)))

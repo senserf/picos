@@ -10,9 +10,8 @@
 
 fsm output (char*) {
 
-    shared int nc;
-    shared char *ptr;
-    int k;
+    int nc;
+    char *ptr;
 
     entry OU_INIT:
 
@@ -25,6 +24,8 @@ fsm output (char*) {
 
     entry OU_RETRY:
 
+	int k;
+
         k = io (OU_RETRY, UART, WRITE, ptr, nc);
 	nc -= k;
 	ptr += k;
@@ -33,9 +34,8 @@ fsm output (char*) {
 
 fsm input (char*) {
 
-    shared int nc;
-    shared char *ptr;
-    int k;
+    int nc;
+    char *ptr;
 
     entry IN_INIT:
 
@@ -43,6 +43,8 @@ fsm input (char*) {
 	ptr = data;
 
     entry IN_READ:
+
+    	int k;
 
     	k = io (IN_READ, UART, READ, ptr, nc);
 
@@ -67,7 +69,7 @@ fsm root {
 /* This is the main program of the application */
 /* =========================================== */
 
-  shared char *ibuf;
+  char *ibuf;
 
   entry RS_INIT:
 
@@ -142,8 +144,6 @@ fsm root {
 	    scan (ibuf + 1, "%u", &d);
 	    if (d > 60)
 		d = 60;
-
-diag ("DEL %u", d * 1024);
 	    delay (d * 1024, RS_DUP);
         }
 

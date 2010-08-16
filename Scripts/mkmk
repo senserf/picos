@@ -2275,6 +2275,22 @@ proc ifnotcygwin { } {
 	return 2
 }
 
+proc outquote { s } {
+#
+# Returns the proper quoting of an include define depending on what we are
+# generating; needed to accommodate XML-style output, like for a CyanIDE
+# project
+#
+	global Run
+
+	if { $Run(mode) == "E" && ($Run(type) == "p" || $Run(type) == "P") } {
+		# a CyanIDE project, i.e., XML
+		return "&lt;$s&gt;"
+	}
+
+	return "\"<$s>\""
+}
+
 proc getoptfile { suff } {
 #
 # Determine if and which options.sys file should be included
@@ -2282,12 +2298,12 @@ proc getoptfile { suff } {
 	if { $suff != "" } {
 		set of "options_$suff.sys"
 		if [file isfile $of] {
-			return "__OPTIONS_SYS__=\"<$of>\""
+			return "__OPTIONS_SYS__=[outquote $of]"
 		}
 	}
 	set of "options.sys"
 	if [file isfile $of] {
-		return "__OPTIONS_SYS__=\"<$of>\""
+		return "__OPTIONS_SYS__=[outquote $of]"
 	}
 
 	return ""

@@ -12,7 +12,7 @@
 
 extern address __display_pmem;
 
-int __display (word, address);
+procname (__display);
 
 #define	cnt	(*((int*)(__display_pmem + 0)))
 #define	len	(*((int*)(__display_pmem + 1)))

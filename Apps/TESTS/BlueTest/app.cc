@@ -17,7 +17,7 @@ trueconst word	RATE115	= 1152,
 
 fsm minput {
 
-  shared char c;
+  char c;
 
   entry MI_READ:
 
@@ -32,8 +32,8 @@ fsm minput {
 
 fsm root {
 
-	shared char *ibuf;
-	shared int n, k, p;
+	char *ibuf;
+	int n, k, p;
 
   entry RS_INI:
 

@@ -181,7 +181,6 @@ set C_WORDS(static)		{ 1 1 1 0 0 1 }
 set C_WORDS(union)		{ 1 1 1 1 0 1 }
 set C_WORDS(while)		{ 0 }
 ## Our keywords
-set C_WORDS(shared)		{ 1 0 1 0 0 1 }
 set C_WORDS(idiosyncratic)	{ 1 1 0 0 0 1 }
 set C_WORDS(trueconst)		{ 1 1 0 0 0 1 }
 ## C++ keywords (booked to avoid VUEE conflicts)
@@ -303,7 +302,10 @@ proc xsterr { { bra "" } } {
 
 proc initialize_parser { src { lnu "" } } {
 
-	global PS
+	global PS TK PAR_IT
+
+	set TK ""
+	set PAR_IT "d"
 
 	# the input
 	set PS(SRC) $src
@@ -338,6 +340,9 @@ proc initialize_parser { src { lnu "" } } {
 
 	# error count
 	set PS(ERC) 0
+
+	# history
+	set PS(HIS) ""
 }
 
 proc close_parser { } {
@@ -380,12 +385,12 @@ proc getC { } {
 	return $c
 }
 
-proc peekC { } {
+proc peekC { { n 0 } } {
 #
 # Peek at next character
 #
 	global PS
-	return [string index $PS(SRC) $PS(INX)]
+	return [string index $PS(SRC) [expr $PS(INX) + $n]]
 }
 
 proc putC { c } {
@@ -526,11 +531,10 @@ proc catchup { { lnu "" } } {
 				if { $c == "\n" } {
 					incr dif
 					if { $dif == 0 } {
-						# done, make it look advanced
-						# past the EOL
-						set PS(BOP) 0
-						set PS(BOL) 1
-						set PS(LIN) $PS(LON)
+						set PS(BOP) 1
+						set PS(BOL) 0
+						# will be advanced on getC
+						set PS(LIN) [expr $PS(LON) - 1]
 						set PS(INX) $tl
 						if $FG(D) {
 						 dbg "catchup: optB OK $PS(LIN)"
@@ -612,7 +616,7 @@ proc parse_lnum { } {
 		append cmd $c
 	}
 
-	if [regexp "^(line)? *(\[0-9\]+) +\"(.*)\"" $cmd jnk FG(EC) ln fi] {
+	if [regexp "^( *line)? *(\[0-9\]+) +\"(.*)\"" $cmd jnk FG(EC) ln fi] {
 
 		# will be bumped on BOP
 		set PS(LIN) [expr $ln - 1]
@@ -657,11 +661,11 @@ proc getmark { } {
 #
 # Produce a "mark" representing the parser's state, e.g., to be reverted to
 #
-	global PS
+	global PS TK PAR_IT
 
 	return [list [string length $PS(TAR)] $PS(LON) $PS(LOF) \
 		$PS(BQL) $PS(BRL) $PS(BOP) $PS(BOL) $PS(INX) $PS(LIN) \
-		$PS(LIF) ]
+		$PS(LIF) $PS(HIS) ]
 }
 
 proc getmarq { } {
@@ -670,12 +674,12 @@ proc getmarq { } {
 # by ntoken, which grabs the mark after swallowing the first character of the
 # token)
 #
-	global PS
+	global PS TK PAR_IT
 
 	set ix [expr $PS(INX) - 1]
 	return [list [string length $PS(TAR)] $PS(LON) $PS(LOF) \
 		$PS(BQL) $PS(BRL) $PS(BOP) $PS(BOL) $ix $PS(LIN) \
-		$PS(LIF) ]
+		$PS(LIF) $TK $PAR_IT $PS(HIS)]
 }
 
 proc truncate { mark } {
@@ -708,6 +712,9 @@ proc backtrack { mk } {
 	set PS(INX) [lindex $mk 7]
 	set PS(LIN) [lindex $mk 8]
 	set PS(LIF) [lindex $mk 9]
+	set TK [lindex $mk 10]
+	set PAR_IT [lindex $mk 11]
+	set PS(HIS) [lindex $mk 12]
 }
 
 proc restore { mk } {
@@ -752,6 +759,30 @@ proc insert { mk ins } {
 	append txt [lnumseq [olinenum $mk]]
 	append txt [string range $PS(TAR) $sl end]
 	set PS(TAR) $txt
+}
+
+proc outtok { tok } {
+
+	global TK PAR_IT PS
+
+	if { [llength $PS(HIS)] >= 4 } {
+		set PS(HIS) [lrange $PS(HIS) 1 end]
+	}
+
+	lappend PS(HIS) [list $PAR_IT $TK]
+
+	set TK $tok
+	
+	return -code return
+}
+
+proc prevtok { n } {
+#
+# n-th previous token
+#
+	global PS
+
+	return [lindex $PS(HIS) [expr [llength $PS(HIS)] - $n]]
 }
 
 proc ntoken { } {
@@ -833,7 +864,7 @@ proc ntoken { } {
 					# terminate string
 					set PAR_IT "s"
 					set ws ""
-					return $as
+					outtok $as
 				}
 			}
 			continue
@@ -846,7 +877,17 @@ proc ntoken { } {
 
 		if { $c == "" } {
 			set PAR_IT "e"
-			return ""
+			outtok ""
+		}
+
+		if { $c == "!" } {
+			# detect double !, i.e., smpp token glue, and remove
+			# it altogether, so we have the same perception of
+			# symbols as the true compiler
+			if { [peekC] == "!" } {
+				getC
+				continue
+			}
 		}
 
 		set PAR_MARK [getmarq]
@@ -871,7 +912,16 @@ proc ntoken { } {
 				set c [peekC]
 
 				if ![isalphanum $c] {
-					return $as
+					if { $c == "!" } {
+						# smpp token glue?
+						if { [peekC 1] == "!" } {
+							# yes, keep going
+							getC
+							getC
+							continue
+						}
+					}
+					outtok $as
 				}
 
 				append as $c
@@ -893,7 +943,7 @@ proc ntoken { } {
 
 				# treat as a token
 				putC $c
-				return $c
+				outtok $c
 			}
 
 			"'" -
@@ -915,31 +965,31 @@ proc ntoken { } {
 					getC
 					continue
 				}
-				return "/"
+				outtok "/"
 			}
 
 			"\}" {
 				putC $c
 				incr PS(BRL) -1
-				return "\}"
+				outtok "\}"
 			}
 
 			"\{" {
 				putC $c
 				incr PS(BRL)
-				return "\{"
+				outtok "\{"
 			}
 
 		  	default {
 
 				putC $c
-				return $c
+				outtok $c
 			}
 		}
 	}
 
 	set PAR_IT "f"
-	return ""
+	outtok ""
 }
 
 ###############################################################################
@@ -1165,7 +1215,7 @@ proc parse_decl { { af 1 } { xp 0 } { bf 0 } } {
 
 	while { $more } {
 
-	    set TK [ntoken]
+	    ntoken
 	    set rep 1
 
 	    while { $rep } {
@@ -1291,8 +1341,8 @@ P {
 	if { $TK == "(" } {
 		# this can be a function pointer or a function (announcement
 		# or declaration)
-		set tol [ntoken]
-		if { $PAR_IT == "d" && $tol == "*" } {
+		ntoken
+		if { $PAR_IT == "d" && $TK == "*" } {
 			# a function pointer, variable name is behind; fpf is
 			# set to 1 which indicates an "open" function pointer
 			# expecting a closing )
@@ -1304,10 +1354,10 @@ P {
 			continue
 		}
 		# fall through
-	}
-
-	# something wrong
-	if $xp {
+		if $xp {
+			xerror "unexpected ( in declaration"
+		}
+	} elseif $xp {
 		xerror "illegal delimiter $TK in declaration"
 	}
 
@@ -1421,15 +1471,17 @@ N {
 
 	if { $TK == ":" } {
 		# bit field? checking is very superficial at this time
-		if { !$bf || $arr != "" || $fpf || $ptr } {
+		if { !$bf || $arr != "" || $fpf || $ptr || $bif != "" } {
 			xerror "bit fields are not legal in this context"
 			return ""
 		}
-		set bif [ntoken]
+		ntoken
 		if { $PAR_IP != "n" } {
 			xerror "illegal bit field"
 			return ""
 		}
+		set bif $TK
+		continue
 	}
 
 	if { $TK == "(" } {
@@ -1745,7 +1797,7 @@ W {
 		lappend pfx $bod
 	}
 	# now, check if this can be a sole type declaration
-	set TK [ntoken]
+	ntoken
 	if { $PAR_IT == "d" && $TK == ";" } {
 		# this looks like a type declaration
 		if !$tp_only_ok {
@@ -1951,7 +2003,7 @@ proc get_init_simple { { brok 0 } } {
 
 	set pr 0
 	while 1 {
-		set TK [ntoken]
+		ntoken
 		if { $PAR_IT == "d" } {
 			if { $TK == "(" } {
 				incr pr
@@ -2050,7 +2102,7 @@ proc get_init_compound { cnt } {
 				}
 				if { $blev == 0 } {
 					incr acnt
-					set TK [ntoken]
+					ntoken
 					return $res
 				}
 				incr blev -1
@@ -2077,7 +2129,7 @@ proc get_init_compound { cnt } {
 				}
 				# spurious, ignore
 				if { $blev == 0 } {
-					set TK [ntoken]
+					ntoken
 					return $res
 				}
 				incr blev -1
@@ -2101,7 +2153,7 @@ proc get_init_compound { cnt } {
 			if { $TK == "\}" } {
 				if { $blev == 0 } {
 					incr acnt
-					set TK [ntoken]
+					ntoken
 					return $res
 				}
 				incr blev -1
@@ -2136,7 +2188,7 @@ proc get_init { } {
 #
 	global TK PAR_IT PAR_MARK FG
 
-	set TK [ntoken]
+	ntoken
 
 	if [endfile] {
 		xerror "illegal initializer at end of input"
@@ -2166,7 +2218,7 @@ proc get_init { } {
 		set sl [list $TK]
 		# keep going for multiple segments
 		while 1 {
-			set TK [ntoken]
+			ntoken
 			if { $PAR_IT != "s" } {
 				if { $PAR_IT != "d" } {
 					xerror "delimiter expected after string\
@@ -2260,8 +2312,9 @@ proc get_dimensions { ast } {
 
 proc pstype { pf ef { clear 0 } } {
 #
-# Extracts the PicOS storage type (shared, context, idiosyncratic, trueconst)
-# from a type prefix
+# Extracts the PicOS storage type (idiosyncratic, trueconst)from a type prefix;
+# we used to have more; this function now appears redundant, but let's keep it
+# in case something else comes up
 #
 	upvar $pf pfx
 	upvar $ef err
@@ -2269,7 +2322,7 @@ proc pstype { pf ef { clear 0 } } {
 	set f ""
 	set err 0
 
-	foreach k { "shared" "idiosyncratic" "trueconst" } {
+	foreach k { "idiosyncratic" "trueconst" } {
 		set l [lsearch -exact $pfx $k]
 		if { $l >= 0 } {
 			if { $f != "" } {
@@ -2304,7 +2357,7 @@ proc parse_type { } {
 
 	while 1 {
 
-		set TK [ntoken]
+		ntoken
 
 		if { $PAR_IT == "k" } {
 
@@ -2397,7 +2450,7 @@ proc parse_fsmarg { } {
 
 	return [list $var $pfx]
 }
-			
+
 proc outpref { pf } {
 #
 # Outputs a type prefix
@@ -2528,7 +2581,7 @@ proc get_args { } {
 	set arg ""
 
 	while 1 {
-		set TK [ntoken]
+		ntoken
 		if { $PAR_IT == "d" } {
 			if { $TK == "(" } {
 				incr cnt
@@ -2574,7 +2627,7 @@ proc get_array { } {
 	set res "\["
 
 	while 1 {
-		set TK [ntoken]
+		ntoken
 		append res $TK
 		if { $PAR_IT == "d" } {
 			if { $TK == "\[" || $TK == "," || $TK == ";" ||
@@ -2582,7 +2635,7 @@ proc get_array { } {
 				return ""
 			}
 			if { $TK == "\]" } {
-				set TK [ntoken]
+				ntoken
 				if { $TK != "\[" } {
 					return $res
 				}
@@ -2605,7 +2658,7 @@ proc get_tbody { } {
 
 	while 1 {
 
-		set TK [ntoken]
+		ntoken
 		append res $TK
 
 		if { $PAR_IT == "d" } {
@@ -2638,8 +2691,7 @@ proc parse_picos { str } {
 	initialize_parser $str
 
 	#
-	# fg_fsm == -1 = no fsm expected
-	#            0 = fsm expected
+	# fg_fsm ==  0 = outside fsm
 	#	     1 = within fsm + declarations expected
 	#	     2 = within fsm + no more declarations
 	#
@@ -2652,7 +2704,7 @@ proc parse_picos { str } {
 	#######################################################################
 	while 1 {
 
-		set TK [ntoken]
+		ntoken
 		set bra [brcnt]
 		set rep 1
 		
@@ -2688,9 +2740,29 @@ K {
 ###############################################################################
 	if { $PAR_IT == "k" } {
 
-		if { $bra == 0 && $fg_fsm == 0 && $TK == "fsm" } {
-			# a legit fsm
-			set fg_fsm 1
+		set fsm_prev [lindex [prevtok 1] 1]
+
+		if { $fsm_prev == "." } {
+			# struct/union attribute reference, ignore
+			continue
+		}
+
+		if { $fsm_prev == ">" && [lindex [prevtok 2] 1] == "-" } {
+			# same via pointer
+			continue
+		}
+
+		if { $TK == "fsm" } {
+			if { $bra != 0 || $fg_fsm } {
+				xerror "an fsm declaration may only occur at\
+					global level"
+				continue
+			}
+			if { $fsm_prev != ";" && $fsm_prev != "\}" &&
+			     $fsm_prev != "" } {
+				xerror "fsm declaration illegal in this context"
+				continue
+			}
 			set fsm_mark $PAR_MARK
 			set fstate "F"
 			continue
@@ -2702,7 +2774,7 @@ K {
 				continue
 			}
 			if { $bra == 0 } {
-				xerror "context not allowed here"
+				xerror "context not allowed in global scope"
 				continue
 			}
 			if $fsm_context {
@@ -2729,14 +2801,16 @@ K {
 			set fsm_context $bra
 		}
 
-		if { $bra > 0 && $TK == "runfsm" } {
+		if { $TK == "runfsm" } {
 
-			# this can happen inside and outside of fsm, but not at
-			# level 0
+			if { $bra < 1 } {
+				xerror "runfsm illegal at global level"
+				continue
+			}
 
 			set run_mark $PAR_MARK
 
-			set TK [ntoken]
+			ntoken
 			if { $PAR_IT != "k" } {
 				xerror "fsm name expected after runfsm"
 				continue
@@ -2744,7 +2818,7 @@ K {
 
 			set fsm_sname $TK
 
-			set TK [ntoken]
+			ntoken
 			if { $PAR_IT != "d" } {
 				xerror "runfsm syntax error"
 				continue
@@ -2772,7 +2846,9 @@ K {
 
 		if { $fg_fsm == 1 } {
 
-			# declaration inside fsm is still legit
+			# declaration inside fsm is still legit (we must be
+			# behind a legit delimiter (like a ;) for this to
+			# hold
 
 			if { $bra != $fsm_blev || $TK == "state" ||
 			     $TK == "entry" || $TK == "initial" } {
@@ -2784,15 +2860,9 @@ K {
 				continue
 			}
 
-			# try the declaration
-			if { $TK == "shared" } {
-				# force the "expected" status if it looks like
-				# our keyword
-				set d 1
-			} else {
-				set d 0
-			}
-			set d [parse_decl 2 $d]
+			# declarations are expected until we hit the first
+			# state
+			set d [parse_decl 2 1]
 
 			if { $d == "" } {
 				# no more declarations; note that the first
@@ -2821,38 +2891,23 @@ K {
 				continue
 			}
 
-			if { $ins != "shared" } {
-				if { $ins != "" } {
-					xerror "qualifier $ins illegal in this\
-						context"
-				}
+			if { $ins != "" } {
+				xerror "qualifier $ins illegal in this context"
 				continue
 			}
 
-			# pfx already cleaned
-			if { [llength $pfx] == 0 } {
-				xerror "type missing in shared declaration"
+			# for PicOS, all we do is to insert "static" in
+			# front
+
+			if { [lsearch -exact $pfx "static"] >= 0 } {
+				xerror "static illegal in this context"
 				continue
 			}
 
-			# variable list
-			set vrs [g_vdl $d vrs]
-			set ors ""
-			# copy the variable list renaming the variables
-			foreach v $vrs {
-				set vnm [g_vdec $v nam]
-				set nnm "__fsm_${fsm_name}_shared_$vnm"
-				# defines
-				lappend dflist [list $vnm $nnm]
-				s_vdec v nam $nnm
-				lappend ors $v
-			}
-			s_vdl d pfx $pfx
-			s_vdl d vrs $ors
-			lappend sdlist $d
-			# remove the original declaration
+			# ... unless we insert it
 			truncate $PAR_MARK
-			# keep this continue even though it is superfluous
+			putS "static [outdecl $d]"
+			catchup
 			continue
 		}
 
@@ -2882,19 +2937,19 @@ K {
 					set ins 0
 				}
 				set fsm_smark $PAR_MARK
-				set TK [ntoken]
+				ntoken
 				if { $PAR_IT == "k" } {
 					# followed directly by state name,
 					# expect ;
 					set fsm_sname $TK
 				} elseif { $TK == "(" } {
-					set TK [ntoken]
+					ntoken
 					if { $PAR_IT != "k" } {
 						xerror "state name expected"
 						continue
 					}
 					set fsm_sname $TK
-					set TK [ntoken]
+					ntoken
 					if { $TK != ")" } {
 						xerror ") expected"
 						continue
@@ -2904,7 +2959,7 @@ K {
 						proceed"
 					continue
 				}
-				set TK [ntoken]
+				ntoken
 				if { $TK != ";" } {
 					xerror "; expected"
 					continue
@@ -2918,10 +2973,6 @@ K {
 				lappend_unique pslist $fsm_sname
 				continue
 			}
-
-		} else {
-			# outside fsm; fsm is never legit after a keyword
-			set fg_fsm -1
 		}
 
 		continue
@@ -2933,7 +2984,7 @@ K {
 		continue
 	}
 
-	if { $fg_fsm > 0 } {
+	if $fg_fsm {
 
 		# within fsm; looking for the closing brace
 		if { $TK != "\}" || $bra >= $fsm_blev } {
@@ -2973,12 +3024,6 @@ K {
 		# prepare the insert to replace the fsm function header
 		set ins ""
 
-		# "shared" declarations
-		foreach d $sdlist {
-			append ins "\n[lnumseq [g_vdl $d lnu]]"
-			append ins "static [outdecl $d]"
-		}
-
 		if { $fsm_type != "" } {
 			# define the data hook
 			lappend dflist [list $fsm_datv "(($fsm_type)__pi_da)"]
@@ -3015,18 +3060,6 @@ K {
 		catchup
 		set fsm_context 0
 	}
-
-	if { $bra == 0 && ($TK == "\}" || $TK == ";") } {
-
-		if { $fg_fsm == -1 } {
-			# fsm becomes legit
-			set fg_fsm 0
-		}
-
-	} elseif { $fg_fsm == 0 } {
-
-		set fg_fsm -1
-	}
 }
 
 F {
@@ -3039,82 +3072,125 @@ F {
 
 	if { $PAR_IT != "k" } {
 		xerror "fsm name expected"
-		set fg_fsm -1
 		continue
 	}
 
-	set fsm_name $TK
+	# announcement flags: unknown yet
+	set fsmann 0
 
-	set TK [ntoken]
+	while 1 {
 
-	if { $PAR_IT != "d" || ( $TK != "\{" && $TK != "(" && $TK != ";" &&
-	     $TK != ",") } {
-		xerror "fsm declaration syntax error, (, \{, or ; expected"
-		set fg_fsm -1
-		continue
-	}
+		# this loop is for the case of a list of announcements
 
-	if { $TK == "," || $TK == ";" } {
-		set ins "extern void"
-		while 1 {
-			append ins " $fsm_name (word)"
+		if { [catt $TK] != "" } {
+			xerror "illegal name for an fsm: $TK"
+			set fsmann -2
+			break
+		}
+
+		set fsm_name $TK
+
+		ntoken
+
+		if { $PAR_IT != "d" || ( $TK != "\{" && $TK != "(" && 
+		    $TK != ";" && $TK != ",") } {
+			xerror "fsm declaration syntax error, (, \{, or ;\
+				expected"
+			# error flag
+			set fsmann -2
+			break
+		}
+
+		# type
+		set fsm_type ""
+		# data variable
+		set fsm_datv ""
+
+		if { $TK == "(" } {
+			ntoken
+			if { $PAR_IT == "d" & $TK == ")" } {
+				# empty after all, get the delimiter
+				ntoken
+			} else {
+				# expect a type + optional variable
+				set d [parse_fsmarg]
+				if { $d == "" } {
+					# error, diagnosed
+					set fsmann -2
+					break
+				}
+				if { $TK != ")" } {
+					xerror ") expected"
+					set fsmann -2
+					break
+				}
+				ntoken
+				set fsm_datv [lindex $d 0]
+				set fsm_type [lindex $d 1]
+			}
+			# we are at the delimiter
+		}
+
+		if { $TK == "," || $TK == ";" } {
+			# this is an announcement
+			if !$fsmann {
+				# announcement flag
+				set fsmann 1
+				set ins "extern void "
+			} else {
+				if { $fsmann < 0 } {
+					# impossible
+					xerror "fsm declarations mixed with\
+						announcements"
+					set fsmann -2
+					break
+				}
+				append ins ", "
+			}
+			append ins "$fsm_name (word)"
 			if { $TK == ";" } {
 				break
 			}
-			if { $TK != "," } {
-				xerror "fsm announcement syntax error, comma or\
-					; expected"
-				break
-			}
-			append ins ", "
-			set fsm_name [ntoken]
+
+			# comma, keep going for multiple announcements
+			ntoken
 			if { $PAR_IT != "k" } {
-				xerror "fsm announcement syntax error,\
-					fsm name expected"
+				xerror "fsm name expected after a comma"
+				set fsmann -2
 				break
 			}
-			set TK [ntoken]
+			continue
 		}
+
+		if { $TK == "\{" } {
+			# an actual declaration
+			if $fsmann {
+				xerror "fsm declaration mixed with an\
+					announcement"
+				set fsmann -2
+				break
+			}
+			set fsmann -1
+			break
+		}
+	}
+
+	if { $fsmann == -2 } {
+		# an error, fstate == K
+		continue
+	}
+
+	if { $fsmann > 0 } {
+		# an announcement
 		append ins ";"
 		truncate $fsm_mark
 		putS $ins
 		catchup
-		set fstate "K"
-		set fg_fsm 0
 		continue
 	}
 
-	set fsm_type ""
-	set fsm_datv ""
-	if { $TK == "(" } {
-		set TK [ntoken]
-		if { $PAR_IT == "d" & $TK == ")" } {
-			# empty after all
-			set TK [ntoken]
-		} else {
-			# expect a type + optional variable
-			set d [parse_fsmarg]
-			if { $d == "" } {
-				# error, diagnosed
-				set fg_fsm -1
-				continue
-			}
-			if { $TK != ")" } {
-				xerror ") expected"
-				set fg_fsm -1
-				continue
-			}
-			set TK [ntoken]
-			set fsm_datv [lindex $d 0]
-			set fsm_type [lindex $d 1]
-		}
-		if { $PAR_IT != "d" || $TK != "\{" } {
-			xerror "strand fsm declaration syntax error,\
-				\} expected"
-			set fg_fsm -1
-			continue
-		}
-	}
+	# within fsm
+	set fg_fsm 1
 
 	# truncate the output to remove the fsm header (which has to be
 	# fixed; we are now positioned past the opening brace of the thread's
@@ -3122,7 +3198,6 @@ F {
 	truncate $fsm_mark
 
 	# initialize collectors for the fsm
-	set sdlist ""	;# shared declarations
 	set dflist ""	;# defines (states + shared declaration renames)
 	set stlist ""	;# states
 	set pslist ""	;# proceed states (for verification)
@@ -3624,7 +3699,8 @@ proc parse_vuee { } {
 		exit 0
 	}
 
-	# actual compilation
+	# for now, in case we need, e.g., pwarn
+	set Pgm ""
 
 	file delete -force $TDIR
 
@@ -3632,12 +3708,13 @@ proc parse_vuee { } {
 		errab "cannot create tmp directory $TDIR, $err"
 	}
 
+	set FG(NOS) 0
 	if ![file exists "options.sys"] {
-		errab "vuee requires a global options.sys file in the praxis\
-			directory"
-	}
-
-	if [catch { file copy -force "options.sys" $TDIR } err] {
+		pwarn "no options.sys, using an empty one"
+		wtfile "options.sys" ""
+		# flag, don't include
+		set FG(NOS) 1
+	} elseif [catch { file copy -force "options.sys" $TDIR } err] {
 		errab "cannot copy options.sys to $TDIR, $err"
 	}
 
@@ -3770,7 +3847,7 @@ proc compile_pgm { } {
 #
 # Compile one program
 #
-	global PG Pgm SFList ToCompile Processed NotFound TDIR EXEC FG
+	global PG PCN Pgm SFList ToCompile Processed NotFound TDIR EXEC FG
 
 	# list of handled files
 	set SFList ""
@@ -3884,9 +3961,7 @@ proc compile_pgm { } {
 	set PG($pg,EA) ""
 	# idiosyncratic functions
 	set PG($pg,ID) ""
-	# process list
-	set PG($pg,PL) ""
-	# process name list
+	# defined process name list
 	set PG($pg,PN) ""
 	# type declarations
 	set PG($pg,TD) ""
@@ -3896,6 +3971,8 @@ proc compile_pgm { } {
 	set cnt 0
 	foreach cfn $SFList {
 		set froot [file rootname [file tail [lindex $cfn 0]]]
+		# process names (local, possibly announced, for visibility)
+		array unset PCN
 		parse_pfile $cnt [lindex $cfn 1]
 		# write the file
 		wtfile "P_${froot}_pcm[pnfx]_${cnt}.cc" [output]
@@ -4487,6 +4564,10 @@ proc scanfile { fname inner { prelude "" } } {
 			if { $fn == "" } {
 				continue
 			}
+			if { $fn == "options.sys" && $FG(NOS) } {
+				# do not include "options.sys"
+				continue
+			}
 			# look it up locally
 			set fm [flook $fn "" $DirList]
 			if { $fm == "" } {
@@ -4772,7 +4853,7 @@ proc parse_pfile { cnt src } {
 #
 # Compiles one source file into a VUEE-compilable format
 #
-	global FG TK PG Pgm PAR_IT PAR_MARK PAR_TDEC
+	global FG TK PG Pgm PAR_IT PAR_MARK PAR_TDEC PCN
 
 	initialize_parser $src
 
@@ -4783,9 +4864,14 @@ proc parse_pfile { cnt src } {
 	set rootp 0
 	set fsm_context 0
 
+	# symbols illegal at level 0
+	array set ILZ { "context" "" "runfsm" "" "running" "" "crunning" ""
+		"state" "" "entry" "" "initial" "" "__pi_running" "running"
+		"__pi_crunning" "crunning" }
+
 	while 1 {
 
-		set TK [ntoken]
+		ntoken
 		set bra [brcnt]
 		set rep 1
 
@@ -4817,24 +4903,44 @@ K {
 ###############################################################################
   if { $PAR_IT == "k" } {
 
+    set fsm_prev [lindex [prevtok 1] 1]
+
+    if { $fsm_prev == "." } {
+      # struct/union attribute reference, ignore
+      continue
+    }
+
+    if { $fsm_prev == ">" && [lindex [prevtok 2] 1] == "-" } {
+      # same via pointer
+      continue
+    }
+
     if $FG(D) { dbg "pfile: fs = $fstate, kw = $TK, bl = $bra, fs = $fg_fsm" }
+
+    if { $TK == "fsm" } {
+      if { $bra != 0 || $fg_fsm } {
+        xerror "an fsm declaration may only occur at global level"
+	continue
+      }
+      if { $fsm_prev != ";" && $fsm_prev != "\}" && $fsm_prev != "" } {
+	xerror "fsm declaration illegal in this context <$fsm_prev>"
+	continue
+      }
+      set fsm_mark $PAR_MARK
+      set fstate "F"
+      continue
+    }
 
     if { $bra == 0 } {
 
-      # level 0, be on a lookout for:
-      # - fsm's
-      # - declarations
+      if [info exists ILZ($TK)] {
+	# illegal at level zero
+	set ins $ILZ($TK)
+	if { $ins == "" } {
+	  set ins $TK
+	}
 
-      if { $fg_fsm == 0 && $TK == "fsm" } {
-        if $FG(D) { dbg "fg_fsm: $fg_fsm -> 1 (f)" }
-	set fg_fsm 1
-	set fsm_mark $PAR_MARK
-	set fstate "F"
-	continue
-      }
-
-      if { $TK == "context" } {
-	xerror "context illegal at global level"
+	xerror "$ins is illegal at global level"
 	continue
       }
 
@@ -5109,7 +5215,7 @@ K {
 
       set run_mark $PAR_MARK
 
-      set TK [ntoken]
+      ntoken
       if { $PAR_IT != "k" } {
 	xerror "fsm name expected after runfsm"
 	continue
@@ -5117,7 +5223,7 @@ K {
 
       set fsm_sname $TK[pnfx]
 
-      set TK [ntoken]
+      ntoken
       # expected ( or some other delimiter, not necessarily ;
       if { $PAR_IT != "d" } {
 	xerror "runfsm syntax error, delimiter expected after sfm name"
@@ -5131,7 +5237,7 @@ K {
 	  continue
 	}
 	# looking at the delimiter following the closing )
-	set TK [ntoken]
+	ntoken
       } else {
 	set arg ""
       }
@@ -5144,16 +5250,17 @@ K {
 
     ####
 
-    if { $TK == "crunning" } {
+    if { $TK == "running" || $TK == "crunning" } {
 
       # intercept crunning and convert its constant argument to the process
       # id
 
       set run_mark $PAR_MARK
+      set d $TK
 
-      set TK [ntoken]
+      ntoken
       if { $PAR_IT != "d" || $TK != "(" } {
-	xerror "crunning must be followed by a parenthesis"
+	xerror "$d must be followed by a parenthesis"
 	continue
       }
 
@@ -5167,8 +5274,16 @@ K {
 
       if [iskwd $arg] {
 	# this is the argument expected by VUEE function
+	if ![info exists PCN($arg)] {
+	  xerror "$arg is not an FSM name"
+	  continue
+	}
 	set arg "&zz_$arg[pnfx]_prcs"
       } else {
+	if { $d == "running" } {
+	  xerror "the argument of running must be an FSM name"
+	  continue
+	}
 	if { [catch { expr $arg } arg] || $arg != 0 } {
 	  xerror "the argument of crunning must be either a process name or\
 		a constant expression evaluating to zero"
@@ -5185,19 +5300,22 @@ K {
       continue
     }
 
-    if { $TK == "__pi_crunning" } {
+    if { $TK == "__pi_running" || $TK == "__pi_crunning" } {
 
       # this one is a temporary fix for compatibility with the present mess of
       # co-existing manually tweaked VUEE-compliant praxes; until we get rid
-      # of them (and the preceding chunk of code will kick in), there will be a
-      # macro converting crunning to __pi_crunning, which will mess up things
-      # if the argument is a non-keyword
+      # of them (and the preceding chunk of code will kick in), there will be
+      # macros converting (c)running to __pi_(c)running, which will mess up
+      # things
 
       set run_mark $PAR_MARK
 
-      set TK [ntoken]
+      # running or crunning
+      set d [string range $TK 5 end]
+
+      ntoken
       if { $PAR_IT != "d" || $TK != "(" } {
-	xerror "crunning must be followed by a parenthesis"
+	xerror "$d is not followed by a parenthesis"
 	continue
       }
 
@@ -5207,28 +5325,47 @@ K {
 	continue
       }
 
-      # this is either e keyword (meaning that the macro has succeeded), or
-      # something like &zz_!!..._xxx!!_prcs, in which case we have to dig up
-      # the ...
+      set ins 0
+      if ![regexp "^& *(.*)" $arg jnk nam] {
+	set ins 1
+      } elseif ![regexp "^zz_(.*)_prcs$" $nam jnk nam] {
+	set ins 1
+      } else {
+	set v [pnfx]
+	if { $v != "" } {
+	  # remove the program name tag
+	  set v [expr [string length $nam] - [string length $v]]
+	  if { $v <= 0 } {
+	    set ins 1
+	  } else {
+            set nam [string range $nam 0 [expr $v - 1]]
+	  }
+	}
+	if { $ins == 0 } {
+	  if { $nam == "NULL" || $nam == "0" } {
+	    set nam "0"
+	  } elseif ![info exists PCN($nam)] {
+	    set ins 1
+	  }
+	}
+      }
 
-      if [iskwd $arg] {
-	# OK, we let it go
+      if $ins {
+	xerror "the argument of $d must be an FSM name"
 	continue
       }
-      set arg [join $arg ""]
-      if $FG(D) { dbg "parse_pfile: __pi_crunning = $arg" }
-      if { ![regexp -nocase "^.zz_!!(.*)_\[a-z0-9_\]+!!" $arg ins v] &&
-           ![regexp -nocase "^.zz_!!(.*)!!" $arg ins v] ||
-	    [catch { expr $v } v] || $v != 0 } {
-	xerror "the argument of crunning must be either a process name or\
-		a constant expression evaluating to zero"
-	continue
+
+      if { $nam == "0" } {
+	if { $d == "running" } {
+	  xerror "the argument of running cannot be zero or NULL"
+	  continue
+	}
+      } else {
+	set nam $arg
       }
 
-      # replace 
       truncate $run_mark
-      putS "__pi_crunning (0)"
-
+      putS "__pi_$d ($nam)"
       continue
     }
 
@@ -5256,6 +5393,14 @@ K {
 
     # other non-declaration keywords? later we may want to get rid of the
     # macros in sysio.h
+
+    if [info exists PCN($TK)] {
+      # it is a reference to an fsm address (like in an event); turn it into
+      # a reference to SIDE process type Id
+      truncate $PAR_MARK
+      putS "(&zz_$TK[pnfx]_prcs)"
+      continue
+    }
 
     ###########################################################################
     # handling fsm code #######################################################
@@ -5286,12 +5431,7 @@ K {
       }
 
       # try the declaration
-      if { $TK == "shared" } {
-	set d 1
-      } else {
-	set d 0
-      }
-      set d [parse_decl 2 $d]
+      set d [parse_decl 2 1]
       if { $d == "" } {
 	# if there are type declarations, keep going
 	if { $PAR_TDEC == "" } {
@@ -5315,19 +5455,14 @@ K {
 	continue
       }
 
-      if { $ins != "" && $ins != "shared" } {
+      if { $ins != "" } {
 	xerror "$ins is illegal in this context"
 	continue
       }
 
-      if { $ins == "" } {
-	# we leave it alone
+      if { [lsearch -exact $pfx "static"] >= 0 } {
+	xerror "static illegal in this context"
 	continue
-      }
-
-      # a shared declaration
-      if { [llength $pfx] == 0 } {
-	xerror "type missing in shared declaration"
       }
 
       # variable list
@@ -5513,89 +5648,130 @@ F {
 
 	if { $PAR_IT != "k" } {
 		xerror "fsm name expected"
-    		if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (f)" }
-		set fg_fsm -1
 		continue
 	}
 
-	set fsm_name $TK
+	# announcement flags: unknown yet
+	set fsmann 0
 
-	set TK [ntoken]
+	while 1 {
 
-	if { $PAR_IT != "d" || ( $TK != "\{" && $TK != "(" && $TK != "," &&
-	     $TK != ";" ) } {
-		xerror "fsm declaration syntax error, (, \{, or ; expected"
-    		if $FG(D) { dbg "fg_fsm: $fg_fsm -> -1 (e)" }
-		set fg_fsm -1
-		continue
-	}
+		# this loop is for the case of a list of announcements
 
-	if { $TK == "," || $TK == ";" } {
-		# announcement - skip to ";" while doing some rudimentary
-		# verification
-    		if $FG(D) { dbg "fg_fsm: $fg_fsm -> 0 (a)" }
-		set fg_fsm 0
-		while 1 {
-			if { $PAR_IT == "d" } {
-				if { $TK == ";" } {
+		if { [catt $TK] != "" } {
+			xerror "illegal name for an fsm: $TK"
+			set fsmann -2
+			break
+		}
+
+		set fsm_name $TK
+
+		# mark as defined, be it announcement or declaration
+		set PCN($fsm_name) ""
+
+		ntoken
+
+		if { $PAR_IT != "d" || ( $TK != "\{" && $TK != "(" && 
+		    $TK != ";" && $TK != ",") } {
+			xerror "fsm declaration syntax error, (, \{, or ;\
+				expected"
+			# error flag
+			set fsmann -2
+			break
+		}
+
+		# type
+		set fsm_type ""
+		# data variable
+		set fsm_datv ""
+
+		if { $TK == "(" } {
+			ntoken
+			if { $PAR_IT == "d" & $TK == ")" } {
+				# empty after all, get the delimiter
+				ntoken
+			} else {
+				# expect a type + optional variable
+				set d [parse_fsmarg]
+				if { $d == "" } {
+					# error, diagnosed
+					set fsmann -2
 					break
 				}
-				if { $TK != "," } {
-    					if $FG(D) {
-						dbg "fg_fsm: $fg_fsm -> -1 (b)"
-					}
-					set fg_fsm -1
-					xerror "illegal fsm announcement"
+				if { $TK != ")" } {
+					xerror ") expected"
+					set fsmann -2
+					break
+				}
+				ntoken
+				set fsm_datv [lindex $d 0]
+				set fsm_type [lindex $d 1]
+			}
+			# we are at the delimiter
+		}
+
+		if { $TK == "," || $TK == ";" } {
+			# this is an announcement
+			if !$fsmann {
+				# announcement flag
+				set fsmann 1
+			} else {
+				if { $fsmann < 0 } {
+					# impossible
+					xerror "fsm declarations mixed with\
+						announcements"
+					set fsmann -2
 					break
 				}
 			}
-			set TK [ntoken]
+			if { $TK == ";" } {
+				break
+			}
+
+			# comma, keep going for multiple announcements
+			ntoken
+			if { $PAR_IT != "k" } {
+				xerror "fsm name expected after a comma"
+				set fsmann -2
+				break
+			}
+			continue
 		}
 
+		if { $TK == "\{" } {
+			# an actual declaration
+			if $fsmann {
+				xerror "fsm declaration mixed with an\
+					announcement"
+				set fsmann -2
+				break
+			}
+			set fsmann -1
+			break
+		}
+	}
+
+	if { $fsmann == -2 } {
+		# an error, fstate == K
+		continue
+	}
+
+	if { $fsmann > 0 } {
+		# an announcement
 		truncate $fsm_mark
 		catchup
 		continue
 	}
 
-	set fsm_type ""
-	set fsm_datv ""
-	if { $TK == "(" } {
-		set TK [ntoken]
-		if { $PAR_IT == "d" & $TK == ")" } {
-			# empty after all
-			set TK [ntoken]
-		} else {
-			# expect a type + optional variable
-			set d [parse_fsmarg]
-			if { $d == "" } {
-				# error, diagnosed
-				set fg_fsm -1
-				continue
-			}
-			if { $TK != ")" } {
-				xerror ") expected"
-				set fg_fsm -1
-				continue
-			}
-			set TK [ntoken]
-			set fsm_datv [lindex $d 0]
-			set fsm_type [lindex $d 1]
-		}
-		if { $PAR_IT != "d" || $TK != "\{" } {
-			xerror "strand fsm declaration syntax error,\
-				\} expected"
-			set fg_fsm -1
-			continue
-		}
-	}
+	set fg_fsm 1
 
 	# truncate the output to remove the fsm header (which has to be
 	# fixed; we are now positioned past the opening brace of the thread's
 	# function
 	truncate $fsm_mark
 
-	# initialize collectors for the sfm
-	set dflist ""	;# defines (shared declaration renames)
+	# initialize collectors for the fsm
+	set dflist ""	;# defines (states + shared declaration renames)
 	set stlist ""	;# states
 	set stinit ""	;# initial state
 
@@ -5811,11 +5987,4 @@ if $FG(V) {
 }
 
 exit 0
-###
-### To do:
-###
-###	All functions should be idiosyncratic and should be separated from
-###	FSMs (using different sets of demangling macros).
-###	On the other hand, static functions will be impossible this way, so
-###	perhaps the idiosyncratic option is not that bad, after all.
 ###
