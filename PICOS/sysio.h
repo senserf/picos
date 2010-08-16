@@ -340,13 +340,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	praxis_starter(nt) \
 		void nt::appStart () { runthread (root); }
 
-// FIXME: cleanup this
-
-#define	__PROCESS(a,b)	process a (PicOSNode) { \
-		states { __S0, __S1, __S2, __S3, __S4 }; perform {
-#define	__ENDPROCESS(a)	}};
-
-#define	__NA(a,b)		((a*)TheNode->b)
+//#define	__NA(a,b)		((a*)TheNode->b)
 
 /* running + killall */
 
@@ -359,8 +353,6 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 // Note: this prefix (zz_) is required by SIDE
 #define	_pt_id_(pt)	(&zz_!!THREADNAME(pt)!!_prcs)
-
-
 
 #define	running(pt)	__pi_running (_pt_id_ (pt))
 #define	crunning(pt)	__pi_crunning (_pt_id_ (pt))
