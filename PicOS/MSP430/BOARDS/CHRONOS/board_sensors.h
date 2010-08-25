@@ -124,3 +124,4 @@
 #define	MOTION_SENSOR	0
 #define	PRESSURE_SENSOR	1
 
+//+++ "sensors.c"

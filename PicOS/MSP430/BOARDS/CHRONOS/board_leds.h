@@ -28,3 +28,9 @@
 			  ezlcd_item (LCD_ICON_RADIO0 + 2, LCD_MODE_BLINK); \
 			 } \
 			} while (0)
+
+#define	all_leds_blink	do { \
+			    ezlcd_item (LCD_ICON_RADIO0 + 0, LCD_MODE_BLINK); \
+			    ezlcd_item (LCD_ICON_RADIO0 + 1, LCD_MODE_BLINK); \
+			    ezlcd_item (LCD_ICON_RADIO0 + 2, LCD_MODE_BLINK); \
+			} while (0)
