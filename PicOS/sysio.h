@@ -418,15 +418,14 @@ void	buttons_action (void (*action)(word));
 /* ============================================================ */
 void	root (word state);
 
-typedef	void (*code_t)(word);
+typedef	void (*fsmcode)(word);
 
 void		__pi_wait (word, word);
 void		__pi_trigger (word), __pi_ptrigger (sint, word);
-sint		__pi_fork (code_t func, address data);
+sint		__pi_fork (fsmcode func, word data);
+void		__pi_fork_join_release (fsmcode func, word data, word st);
 void		reset (void) __NORETURN__ ;
 void		halt (void) __NORETURN__ ;
-
-void		savedata (void*);
 
 int		__pi_strlen (const char*);
 void		__pi_strcpy (char*, const char*);
@@ -491,7 +490,7 @@ void		__pi_syserror (int, const char*) __NORETURN__ ;
 
 void		__pi_syserror (int) __NORETURN__ ;
 #define		syserror(a,b)	__pi_syserror (a)
-#define		sysassert(a,b)
+#define		sysassert(a,b)	CNOP
 #endif
 
 #if	SDRAM_PRESENT
@@ -635,6 +634,8 @@ int	io (int, int, int, char*, int);
 /* A prefered alias */
 #define	when(a,b)	wait (a,b)
 
+void unwait (void);
+
 /* Timer wait */
 void	delay (word, word);
 word	dleft (sint);
@@ -645,17 +646,17 @@ word	dleft (sint);
 /* Kill the indicated process */
 void	kill (sint);
 /* Kill all processes running this code */
-void	killall (code_t);
+void	killall (fsmcode);
 
 /* Wait for a process */
-void	join (sint, word);
+#define	join(p,s)	when (p, s)
 /* Wait for any process running this code */
-#define	joinall(f,s)	wait (f, s)
+#define	joinall(f,s)	when (f, s)
 /* Locate a process by code */
-sint	running (code_t);
-int	crunning (code_t);
+sint	running (fsmcode);
+int	crunning (fsmcode);
 /* Transform pid into code pointer */
-code_t	getcode (sint);
+fsmcode getcode (sint);
 /* Proceed to another state */
 void	proceed (word);
 /* Power up/down functions */
@@ -697,9 +698,12 @@ void	freeze (word);
 #define	call(p,d,s)	do { join (fork (p, d), s); release; } while (0)
 
 #define	finish		kill (0)
-#define	fork(p,d)	__pi_fork (p, (address)(d))
+#define	fork(p,d)	__pi_fork (p, (word)(d))
+#define	forkjr(p,d,s)	__pi_fork_join_release (p, (word)(d), s)
 #define	getcpid()	running (NULL)
 #define	ptleft()	crunning (NULL)
+
+#define	release		__pi_release ()
 
 #define	heapmem		const word __pi_heap [] =
 
@@ -721,19 +725,18 @@ void	freeze (word);
 /* Actual size of an malloc'ed piece */
 #define	actsize(p)	(*(((word*)(p))-1) << 1)
 
-extern address __pi_da;	// Process data pointer
-
 void __pi_badstate (void);
 
 // Note: data in a picomp-issue thread will be a macro
 #define	process(p,d)	void p (word __pi_st) { \
-				d data = (d) __pi_da; \
+				d data = (d) __pi_curr->data; \
 				switch (__pi_st) {
+
+#define	savedata(a)	(__pi_curr->data = (word)(a))
 
 #define	strand(a,b)	process (a, b)
 
-#define	thread(p)	void p (word __pi_st) { \
-				switch (__pi_st) {
+#define	thread(p)	void p (word __pi_st) { switch (__pi_st) {
 
 #define	endprocess	break; default: __pi_badstate (); } }
 
@@ -982,5 +985,35 @@ void	adc_stop (void);
 #define	__PRIVF(ot,tp,nam)	static tp nam
 #define	__PUBLF(ot,tp,nam)	tp nam
 #define	__PUBLS(ot,tp,nam)	__PRIVF (ot, tp, nam)
+
+// ============================================================================
+// PCB layout =================================================================
+// ============================================================================
+
+typedef struct	{
+/* =================================== */
+/* A single event awaited by a process */
+/* =================================== */
+	word	State;
+	word	Event;
+} __pi_event_t;
+
+typedef struct	{
+	/* ============================================================== */
+	/* This is the PCB. Status consists of two parts. The three least */
+	/* significant bits store the number of awaited events except for */
+	/* the Timer delay, and the fourth bit is set if a Timer event is */
+	/* being awaited.  The remaining (upper 12) bits encode the state */
+	/* to be assumed when the Timer goes off. Also, if the process is */
+	/* ready to go, those bits encode the process's current state.    */
+	/* ============================================================== */
+	word		Status;
+	word		Timer;		/* Timer wakeup tick */
+	fsmcode		code;		/* Code function pointer */
+	word		data;		/* Data pointer */
+	__pi_event_t	Events [MAX_EVENTS_PER_TASK];
+} __pi_pcb_t;
+
+extern __pi_pcb_t *__pi_curr;
 
 #endif 

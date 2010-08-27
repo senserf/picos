@@ -9,11 +9,11 @@
 
 threadhdr (ab_xrs_drvr, PicOSNode) {
 
-	void *data;
+	int data;
 
 	states { AB_LOOP, AB_RCV };
 
-	void setup (void *d) { data = d; };
+	void setup (int d) { data = d; };
 
 	perform;
 };

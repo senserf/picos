@@ -134,7 +134,6 @@
 #endif
 
 #define	RAM_END		(RAM_START + RAM_SIZE)
-#define	STACK_SIZE	256			// Bytes
 #define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
 

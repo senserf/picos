@@ -8,9 +8,9 @@
 
 #include "irq_timer_headers.h"
 
-extern 			pcb_t		*__pi_curr;
-extern 			address	__pi_utims [MAX_UTIMERS];
-extern	void		_reset_vector__;
+extern 			__pi_pcb_t	*__pi_curr;
+extern 			address		__pi_utims [MAX_UTIMERS];
+extern	void				_reset_vector__;
 
 void	__pi_malloc_init (void);
 
@@ -136,7 +136,7 @@ int main (void) {
 	tcv_init ();
 #endif
 	// Assume root process identity
-	__pi_curr = (pcb_t*) fork (root, NULL);
+	__pi_curr = (__pi_pcb_t*) fork (root, 0);
 	// Delay root startup for 16 msec to give the drivers a chance to
 	// go first, regardless where they are
 	delay (16, 0);
@@ -1022,7 +1022,7 @@ word __pi_stackfree (void) {
 
 static void ios_init () {
 
-	pcb_t *p;
+	__pi_pcb_t *p;
 	int i;
 
 #ifdef	EMERGENCY_STARTUP_CONDITION

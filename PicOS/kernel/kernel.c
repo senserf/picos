@@ -23,7 +23,7 @@ word	__pi_seed = 30011;
 #include "pins.h"
 
 /* Task table */
-pcb_t __PCB [MAX_TASKS];
+__pi_pcb_t __PCB [MAX_TASKS];
 
 #if MAX_DEVICES
 /* Device table */
@@ -36,8 +36,7 @@ volatile systat_t __pi_systat;
 /* =============== */
 /* Current process */
 /* =============== */
-pcb_t	*__pi_curr;
-address	__pi_da;
+__pi_pcb_t	*__pi_curr;
 
 /* ========= */
 /* The clock */
@@ -73,15 +72,15 @@ static	address mevent;
 // None =======================================================================
 
 #if PID_VER_TYPE == 0
-#define	ver_pid(i,pid)	((i) = (pcb_t*)(pid))
+#define	ver_pid(i,pid)	((i) = (__pi_pcb_t*)(pid))
 #endif
 
 // Function ===================================================================
 
 #if PID_VER_TYPE == 1
-static pcb_t *pidver (sint pid) {
+static __pi_pcb_t *pidver (sint pid) {
 
-	register pcb_t *i;
+	register __pi_pcb_t *i;
 
 	for_all_tasks (i)
 		if ((int)(i) == pid)
@@ -188,7 +187,7 @@ void update_n_wake (word min) {
 // are supposed to cover in the current step. Any delay requests falling into
 // the lag interval are fired.
 //
-	pcb_t *i;
+	__pi_pcb_t *i;
 	word d;
 
 // ============================================================================
@@ -276,24 +275,19 @@ MOK:
 /* ==================== */
 /* Launch a new process */
 /* ==================== */
-sint __pi_fork (code_t func, address data) {
+sint __pi_fork (fsmcode func, word data) {
 
-	pcb_t *i;
+	__pi_pcb_t *i;
 
 	for_all_tasks (i)
 		if (i->code == NULL) {
 			i -> code = func;
-			i -> data = (address) data;
+			i -> data = data;
 			i -> Status = 0;
 			return (sint) i;
 		}
 
 	return 0;
-}
-
-void savedata (void *d) {
-
-	__pi_curr -> data = (address) d;
 }
 
 /* ======================== */
@@ -323,7 +317,7 @@ void __pi_trigger (word event) {
 // The unified trigger operation
 //
 	int j;
-	pcb_t *i;
+	__pi_pcb_t *i;
 
 	for_all_tasks (i) {
 		if (i->code == NULL)
@@ -342,7 +336,7 @@ void __pi_ptrigger (sint pid, word event) {
 //
 // Trigger when the recipient process ID is known
 //
-	pcb_t	*i;
+	__pi_pcb_t	*i;
 	int 	j;
 
 	ver_pid (i, pid);
@@ -355,6 +349,17 @@ void __pi_ptrigger (sint pid, word event) {
 			wakeupev (i, j);
 		}
 	} 
+}
+
+void __pi_fork_join_release (fsmcode func, word data, word st) {
+
+	sint pid;
+
+	if ((pid = __pi_fork (func, data)) == 0)
+		return;
+
+	__pi_wait ((word) pid, st);
+	release;
 }
 
 /* ========== */
@@ -375,12 +380,10 @@ void delay (word d, word state) {
 	inctimer (__pi_curr);
 }
 
-void unwait (word state) {
+void unwait (void) {
 /* =========================================== */
 /* Cancels all wait requests including a delay */
 /* =========================================== */
-	if (state != WNONE)
-		settstate (__pi_curr, state);
 	wakeuptm (__pi_curr);
 }
 
@@ -390,7 +393,7 @@ void unwait (word state) {
 /* ======================================================================== */
 word dleft (sint pid) {
 
-	pcb_t *i;
+	__pi_pcb_t *i;
 
 	update_n_wake (MAX_UINT);
 
@@ -405,13 +408,13 @@ word dleft (sint pid) {
 	return i->Timer - __pi_old;
 }
 
-static void killev (pcb_t *pid) {
+static void killev (__pi_pcb_t *pid) {
 //
 // Deliver events after killing a process
 //
 	word wfun;
 	int j;
-	pcb_t *i;
+	__pi_pcb_t *i;
 
 	wfun = (word)(pid->code);
 	for_all_tasks (i) {
@@ -431,7 +434,7 @@ void kill (sint pid) {
 //
 // Terminate the process
 //
-	pcb_t *i;
+	__pi_pcb_t *i;
 
 	if (pid == 0)
 		i = __pi_curr;
@@ -452,11 +455,11 @@ void kill (sint pid) {
 		release;
 }
 
-void killall (code_t fun) {
+void killall (fsmcode fun) {
 //
 // Kill all processes running the given code
 //
-	pcb_t *i;
+	__pi_pcb_t *i;
 	Boolean rel;
 
 	rel = NO;
@@ -473,9 +476,9 @@ void killall (code_t fun) {
 		release;
 }
 
-code_t getcode (sint pid) {
+fsmcode getcode (sint pid) {
 
-	pcb_t *i;
+	__pi_pcb_t *i;
 
 	if (pid == 0)
 		i = __pi_curr;
@@ -485,23 +488,9 @@ code_t getcode (sint pid) {
 	return i->code;
 }
 
-void join (sint pid, word state) {
+sint running (fsmcode fun) {
 
-	pcb_t *i;
-
-	/* Check if pid is legit */
-
-	ver_pid (i, pid);
-
-	if (i->code == NULL)
-		syserror (EREQPAR, "jo");
-
-	wait (pid, state);
-}
-
-sint running (code_t fun) {
-
-	pcb_t *i;
+	__pi_pcb_t *i;
 
 	if (fun == NULL)
 		return (int) __pi_curr;
@@ -513,9 +502,9 @@ sint running (code_t fun) {
 	return 0;
 }
 
-int crunning (code_t fun) {
+int crunning (fsmcode fun) {
 
-	pcb_t *i;
+	__pi_pcb_t *i;
 	int c;
 
 	c = 0;
@@ -1252,7 +1241,7 @@ void dbb (word d) {
 #endif
 
 #ifdef	DUMP_PCB
-void dpcb (pcb_t *p) {
+void dpcb (__pi_pcb_t *p) {
 
 	diag ("PR %x: S%x T%x E (%x %x) (%x %x) (%x %x)", (word) p,
 		p->Status, p->Timer,

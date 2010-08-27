@@ -14,7 +14,7 @@ static	char	*__procname;
 #undef	entry
 
 #define	process(p,d)	void p (word __pi_st) { \
-				d *data = (d*) __pi_da; \
+				d *data = (d*) __pi_curr->data; \
 				__procname = #p; \
 				switch (__pi_st) {
 

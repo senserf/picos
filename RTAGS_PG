@@ -737,3 +737,29 @@ PG100816A:
 	===
 
 	Still working on the doc.
+
+PG100827A:	3 3	VUEE >= PG100827A
+
+	Updated documentation: PicOS, PiComp, mkmk, VNETI, Serial, Installation.
+	Added new document: Internals (separated from PicOS).
+
+	The context construct has been removed. It was useless and stood in the
+	way.
+
+	Changed the way a strand gets hold of its data pointer. Now, the data
+	pointer appears as a true local variable, which can be reset in the
+	strand, the change being valid until the strand leaves its current
+	state. VUEE mimics this correctly.
+
+	The argument of unwait removed (it didn't make sense).
+
+	uf.tcl has been renamed to piter (PIcos TERminal emulator).
+
+	If you have Tcl8.5 form ActiveState (and it is on your PATH), deploy
+	will now copy piter and udaemon to your bin directory correctly setting
+	it for execution with Tcl/Tk 8.5.
+
+	Fixed the board definition for CHRONOS (it missed a minor upgrade to
+	the LEDs interface).
+
+	Miscellaneous cosmetics here and there.

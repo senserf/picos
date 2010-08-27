@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.24
+set Version 0.25
 
 ###############################################################################
 ###############################################################################
@@ -181,6 +181,7 @@ set C_WORDS(static)		{ 1 1 1 0 0 1 }
 set C_WORDS(union)		{ 1 1 1 1 0 1 }
 set C_WORDS(while)		{ 0 }
 ## Our keywords
+set C_WORDS(bool)		{ 1 1 1 1 1 0 }
 set C_WORDS(idiosyncratic)	{ 1 1 0 0 0 1 }
 set C_WORDS(trueconst)		{ 1 1 0 0 0 1 }
 ## C++ keywords (booked to avoid VUEE conflicts)
@@ -189,7 +190,6 @@ set C_WORDS(dynamic_cast)	{ 0 }
 set C_WORDS(namespace)		{ 0 }
 set C_WORDS(reinterpret_cast)	{ 0 }
 set C_WORDS(try)		{ 0 }
-set C_WORDS(bool)		{ 0 }
 set C_WORDS(explicit)		{ 0 }
 set C_WORDS(new)		{ 0 }
 set C_WORDS(static_cast)	{ 0 }
@@ -715,6 +715,22 @@ proc backtrack { mk } {
 	set TK [lindex $mk 10]
 	set PAR_IT [lindex $mk 11]
 	set PS(HIS) [lindex $mk 12]
+}
+
+proc pushback { str { ebl 0 } } {
+#
+# Push text in front of input for reparsing; ebl == extra brace level;
+# for now, the text is supposed to be NL-free, so we don't have to worry
+# about updating line counts
+#
+	global PS
+
+	set res [string range $PS(SRC) 0 [expr $PS(INX) - 1]]
+	append res $str
+	append res [string range $PS(SRC) $PS(INX) end]
+	set PS(SRC) $res
+
+	incr PS(BRL) $ebl
 }
 
 proc restore { mk } {
@@ -1498,7 +1514,7 @@ N {
 		}
 		if { $fpf == 2 } {
 			# closed function pointer -> arguments expected
-			set arg "([get_args])"
+			set arg "([join [get_args] ,])"
 			if { $TK != ")" } {
 				# get_args does diagnose
 				return ""
@@ -1522,7 +1538,7 @@ N {
 
 		# function announcement
 		set typ "a"
-		set arg "([get_args])"
+		set arg "([join [get_args] ,])"
 		if { $TK != ")" } {
 			return ""
 		}
@@ -2374,41 +2390,6 @@ proc parse_type { } {
 	}
 }
 
-proc parse_context { } {
-#
-# Parses the construct "context type varname"; invoked after seeing "context"
-#
-	global PART_IT PAR_MARK TK
-
-	# this must be a type name ending with a variable
-	set ctp [parse_type]
-	if { $TK != ";" } {
-		xerror "context syntax error, illegal delimiter"
-		return ""
-	}
-
-	set ctl [llength $ctp]
-	if { $ctl < 2 } {
-		xerror "context syntax error, type + symbol expected"
-		return ""
-	}
-
-	incr ctl -1
-	set var [lindex $ctp $ctl]
-	set ctp [lrange $ctp 0 [expr $ctl - 1]]
-	if ![iskwd $var] {
-		xerror "illegal name of context variable"
-		return ""
-	}
-
-	if ![iskwd [lindex $ctp 0]] {
-		xerror "context syntax error, illegal type $ctp"
-		return ""
-	}
-
-	return [list $var $ctp]
-}
-
 proc parse_fsmarg { } {
 #
 # Parses the type argument of an fsm; invoked after seeing the opening (
@@ -2579,6 +2560,7 @@ proc get_args { } {
 
 	set cnt 0
 	set arg ""
+	set cur ""
 
 	while 1 {
 		ntoken
@@ -2594,13 +2576,19 @@ proc get_args { } {
 				   $TK == ";" } {
 				xerror "runaway argument"
 				return ""
+			} elseif { $TK == "," && $cnt == 0 } {
+				lappend arg $cur
+				set cur ""
+				continue
 			}
 		} elseif [endfile] {
 			xerror "runaway argument"
 			return ""
 		}
-		append arg "$TK "
+		append cur "$TK "
 	}
+
+	lappend arg $cur
 	return $arg
 }
 
@@ -2698,8 +2686,6 @@ proc parse_picos { str } {
 	set fg_fsm 0
 	# the state of the global automaton
 	set fstate "K"
-	# context level, 0 == no open context
-	set fsm_context 0
 
 	#######################################################################
 	while 1 {
@@ -2768,39 +2754,6 @@ K {
 			continue
 		}
 
-		if { $TK == "context" } {
-			if { $fg_fsm == 1 } {
-				xerror "context illegal inside an fsm"
-				continue
-			}
-			if { $bra == 0 } {
-				xerror "context not allowed in global scope"
-				continue
-			}
-			if $fsm_context {
-				xerror "contexts cannot be nested"
-				continue
-			}
-
-			set run_mark $PAR_MARK
-			set ins [parse_context]
-
-			if { $ins == "" } {
-				# error, diagnosed
-				continue
-			}
-
-			truncate $run_mark
-
-			set fsm_contvar [lindex $ins 0]
-
-			putS \
-			   "\n#define $fsm_contvar (([lindex $ins 1])__pi_da)\n"
-			catchup
-
-			set fsm_context $bra
-		}
-
 		if { $TK == "runfsm" } {
 
 			if { $bra < 1 } {
@@ -2828,19 +2781,79 @@ K {
 			if { $TK != "(" } {
 				# no arguments
 				append ins "0)$TK"
-			} else {
-				append ins "(address)("
-				set arg [get_args]
-				if { $TK != ")" } {
-					# error
-					continue
-				}
-				append ins "$arg))"
+				truncate $run_mark
+				putS $ins
+				continue
+			}
+
+			# an argument, will have to reparse
+			append ins "(word)("
+
+			set arg [get_args]
+			if { $TK != ")" } {
+				# error
+				continue
+			}
+			if { [llength $arg] != 1 } {
+				xerror "exactly one argument expected"
+				continue
 			}
 
 			truncate $run_mark
 			putS $ins
+			pushback "[join $arg]))"
+			continue
+		}
 
+		if { $TK == "call" } {
+
+			if { $bra < 1 } {
+				xerror "call illegal at global level"
+				continue
+			}
+
+			set run_mark $PAR_MARK
+
+			ntoken
+			if { $PAR_IT != "k" } {
+				xerror "fsm name expected after call"
+				continue
+			}
+
+			set fsm_sname $TK
+
+			ntoken
+			if { $TK != "(" } {
+				xerror "( expected after fsm_name"
+				continue
+			}
+
+			set arg [get_args]
+			if { $TK != ")" } {
+				xerror ") expected after call arguments"
+				continue
+			}
+			set ins [llength $arg]
+
+			if { $ins == 1 } {
+				set dat 0
+				set sta [lindex $arg 0]
+			} elseif { $ins == 2 } {
+				set dat [lindex $arg 0]
+				set sta [lindex $arg 1]
+			} else {
+				xerror "illegal number of call arguments,\
+					1 or 2 expected"
+				continue
+			}
+
+			truncate $run_mark
+
+			# this goes out right away
+			putS "__pi_fork_join_release ($fsm_name, (word)("
+			# this gets pushed back to input to be reparsed
+			set ins "$dat), $sta)"
+			pushback $ins
 			continue
 		}
 
@@ -3024,11 +3037,6 @@ K {
 		# prepare the insert to replace the fsm function header
 		set ins ""
 
-		if { $fsm_type != "" } {
-			# define the data hook
-			lappend dflist [list $fsm_datv "(($fsm_type)__pi_da)"]
-		}
-
 		# defines
 		foreach d $dflist {
 			append ins "\n#define [lindex $d 0] [lindex $d 1]"
@@ -3038,6 +3046,13 @@ K {
 
 		# now goes the new function header
 		append ins "void $fsm_name (word __pi_st) \{ "
+
+		if { $fsm_type != "" } {
+			# local data pointer
+			append ins "$fsm_type $fsm_datv = ($fsm_type)"
+			append ins "(__pi_curr->data); "
+		}
+
 		append ins "switch (__pi_st) \{ "
 
 		insert $fsm_mark $ins
@@ -3052,13 +3067,6 @@ K {
 		set fg_fsm 0
 
 		continue
-	}
-
-	if { $fsm_context && $bra < $fsm_context } {
-		# remove the context
-		putS "\n#undef $fsm_contvar\n"
-		catchup
-		set fsm_context 0
 	}
 }
 
@@ -4611,15 +4619,16 @@ proc pnfx { } {
 
 proc emit_create { pname { arg "" } } {
 #
-# Generates a sequence for creating a SMURPH process
+# Generates a sequence for creating a SMURPH process; the sequence comes in two
+# parts, with the second (containing the data argument) subjected to reparsing
 #
-	set ins "(TheNode->tally_in_pcs()?(create $pname"
+	set pa "(TheNode->tally_in_pcs()?(create $pname"
+	set pb ""
 	if { $arg != "" } {
-		append ins "($arg)"
+		append pb "($arg)"
 	}
-	append ins ")->_pp_apid_():0)"
-
-	return $ins
+	append pb ")->_pp_apid_():0)"
+	return [list $pa $pb]
 }
 
 proc emit_thrname { } {
@@ -4839,7 +4848,7 @@ proc emit_vhdr { } {
 
 		if { $dty != "" } {
 			append res "void setup ($dty d) \{ "
-			append res "Data = (IPointer) d; \};\n"
+			append res "__pi_data = (IPointer) d; \};\n"
 		}
 		append res "perform;\n\};\n"
 	}
@@ -4862,12 +4871,11 @@ proc parse_pfile { cnt src } {
 	set fstate "K"
 	set fg_fsm 0
 	set rootp 0
-	set fsm_context 0
 
 	# symbols illegal at level 0
-	array set ILZ { "context" "" "runfsm" "" "running" "" "crunning" ""
+	array set ILZ { "runfsm" "" "running" "" "crunning" ""
 		"state" "" "entry" "" "initial" "" "__pi_running" "running"
-		"__pi_crunning" "crunning" }
+		"__pi_crunning" "crunning" "call" "" "savedata" "" }
 
 	while 1 {
 
@@ -5236,6 +5244,11 @@ K {
 	  # error (diagnosed by get_args)
 	  continue
 	}
+	if { [llength $arg] != 1 } {
+	  xerror "exactly one argument expected"
+	  continue
+	}
+	set arg [join $arg]
 	# looking at the delimiter following the closing )
 	ntoken
       } else {
@@ -5243,8 +5256,100 @@ K {
       }
 
       truncate $run_mark
-      putS "[emit_create $fsm_sname $arg]$TK"
+      set ins [emit_create $fsm_sname $arg]
 
+      if { $arg == "" } {
+      	putS "[join $ins]$TK"
+      } else {
+	# may need to reparse the arg
+	putS [lindex $ins 0]
+	pushback "[lindex $ins 1]$TK"
+      }
+      continue
+    }
+
+    ####
+
+    if { $TK == "call" } {
+
+      set run_mark $PAR_MARK
+
+      ntoken
+      if { $PAR_IT != "k" } {
+	xerror "fsm name expected after call"
+	continue
+      }
+
+      set fsm_sname $TK[pnfx]
+
+      ntoken
+
+      # expected (
+      if { $TK != "(" } {
+	xerror "( expected after fsm_name"
+	continue
+      }
+
+      set arg [get_args]
+      if { $TK != ")" } {
+	xerror ") expected after call arguments"
+	continue
+      }
+      set ins [llength $arg]
+
+      if { $ins == 1 } {
+	set dat ""
+	set sta [lindex $arg 0]
+      } elseif { $ins == 2 } {
+	set dat [lindex $arg 0]
+	set sta [lindex $arg 1]
+      } else {
+	xerror "illegal number of call arguments, 1 or 2 expected"
+	continue
+      }
+
+      set ins [emit_create $fsm_sname $dat]
+      truncate $run_mark
+
+      set pa "do \{ sint __pi_pid = [lindex $ins 0]"
+      set pb "[lindex $ins 1]; if (__pi_pid) \{ __pi_join (__pi_pid, $sta); "
+      append pb "release; \} \} while (0)"
+
+      if { $dat == "" } {
+	putS "$pa$pb"
+      } else {
+	putS $pa
+	pushback $pb 1
+      }
+      continue
+    }
+
+    ####
+
+    if { $TK == "savedata" } {
+
+      set run_mark $PAR_MARK
+      ntoken
+      if { $TK != "(" } {
+	xerror "( expected after savedata"
+	continue
+      }
+
+      set arg [get_args]
+      if { $TK != ")" } {
+	xerror ") expected after savedata arguments"
+	continue
+      }
+
+      if { [llength $arg] != 1 } {
+	xerror "savedata expects a single argument"
+	continue
+      }
+
+      truncate $run_mark
+
+      putS "ThePPcs->__pi_data = (IPointer)("
+      pushback "[lindex $arg 0])"
       continue
     }
 
@@ -5264,7 +5369,7 @@ K {
 	continue
       }
 
-      set arg [fix_args [get_args]]
+      set arg [fix_args [join [get_args]]]
       if { $TK != ")" } {
 	# error
 	continue
@@ -5319,7 +5424,7 @@ K {
 	continue
       }
 
-      set arg [fix_args [get_args]]
+      set arg [fix_args [join [get_args]]]
       if { $TK != ")" } {
 	# error
 	continue
@@ -5367,28 +5472,6 @@ K {
       truncate $run_mark
       putS "__pi_$d ($nam)"
       continue
-    }
-
-    if { $TK == "context" } {
-      if { $fg_fsm == 1 } {
-	xerror "context illegal inside an fsm"
-	continue
-      }
-      if $fsm_context {
-	xerror "contexts cannot be nested"
-	continue
-      }
-      set run_mark $PAR_MARK
-      set ins [parse_context]
-      if { $ins == "" } {
-	# error, diagnosed
-	continue
-      }
-      truncate $run_mark
-      set fsm_contvar [lindex $ins 0]
-      putS "\n#define $fsm_contvar (([lindex $ins 1])(ThePPcs->Data))\n"
-      catchup
-      set fsm_context $bra
     }
 
     # other non-declaration keywords? later we may want to get rid of the
@@ -5479,7 +5562,7 @@ K {
 	}
 	# defines
 	set ins "(((__NT[pnfx]*)TheStation)->$nnm)"
-	lappend PS($Pgm,AN) $nnm
+	lappend PG($Pgm,AN) $nnm
 	lappend dflist [list $vnm $ins]
 	s_vdec v nam $nnm
 	lappend ors $v
@@ -5540,13 +5623,6 @@ K {
   # delimiter in ground state #################################################
   #############################################################################
 
-  if { $fsm_context && $bra < $fsm_context } {
-    # close the context
-    putS "\n#undef $fsm_contvar\n"
-    catchup
-    set fsm_context 0
-  }
-
   if { $fg_fsm > 0 } {
 
     # within fsm; looking for the closing brace
@@ -5573,10 +5649,6 @@ K {
       set stlist [linsert [lreplace $stlist $st $st] 0 $stinit]
     }
 
-    if { $fsm_type != "" } {
-      lappend dflist [list $fsm_datv "(($fsm_type)Data)"]
-    }
-
     set ins ""
     # defines for shared variables
     foreach d $dflist {
@@ -5585,7 +5657,12 @@ K {
 
     append ins "\n[lnumseq [olinenum $fsm_mark]]"
     # the code method
-    append ins "${fsn}::perform \{\n"
+    append ins "${fsn}::perform \{ "
+
+    if { $fsm_type != "" } {
+      append ins "$fsm_type $fsm_datv = ($fsm_type)__pi_data;"
+    }
+    append ins "\n"
 
     insert $fsm_mark $ins
 
@@ -5861,7 +5938,7 @@ T {
 	if $rootp {
 		# the file contains the root process: add the starter
 		putS "\nvoid __NT[pnfx]::__praxis_starter () \{ "
-		putS [emit_create root[pnfx]]
+		putS [join [emit_create root[pnfx]]]
 		putS "; \}\n"
 	}
 }

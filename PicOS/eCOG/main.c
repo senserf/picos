@@ -11,10 +11,10 @@
 
 //+++ "gpioirq.c"
 
-extern 			pcb_t	*__pi_curr;
-extern 			word  	__pi_mintk;
-extern 	volatile 	word 	__pi_old, __pi_new;
-extern 			address	__pi_utims [MAX_UTIMERS];
+extern 			__pi_pcb_t	*__pi_curr;
+extern 			word  		__pi_mintk;
+extern 	volatile 	word 		__pi_old, __pi_new;
+extern 			address		__pi_utims [MAX_UTIMERS];
 
 void	__pi_malloc_init (void);
 
@@ -516,7 +516,7 @@ void __pi_sched (void) {
 	tcv_init ();
 #endif
 	/* The event loop */
-	__pi_curr = (pcb_t*) fork (root, NULL);
+	__pi_curr = (__pi_pcb_t*) fork (root, 0);
 	/* Delay root startup until the drivers have been initialized */
 #if ECOG_SIM ==0
 	delay (2048, 0);
@@ -1137,7 +1137,7 @@ static void mem_init () {
 static void ios_init () {
 
 	int i;
-	pcb_t *p;
+	__pi_pcb_t *p;
 
 	for_all_tasks (p)
 		/* Mark all task table entries as available */

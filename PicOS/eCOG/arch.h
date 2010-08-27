@@ -93,7 +93,6 @@ extern	address evar_, estk_;
 void 				__pi_set_release (void);
 #define	SET_RELEASE_POINT	__pi_set_release ();
 void				__pi_release (void);
-#define	release			__pi_release ()
 
 #define	nodata			CNOP
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 ###########################\
-exec tclsh "$0" "$@"
+exec tclsh85 "$0" "$@"
 
 #####################################
 # UART front for various UART modes #

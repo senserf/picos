@@ -2,11 +2,13 @@
 ###################\
 exec tclsh "$0" "$@"
 #
-# Consistently installs the complete set (PICOS, VUEE, SIDE) verifying version
-# dependencies
+# Comprehensively and consistently installs the complete set: PICOS, VUEE, SIDE,
+# verifying version dependencies
 #
 
 set PLIST { PICOS SIDE VUEE }
+set TCL85 "tclsh85"
+set TK85  "wish85"
 
 proc errab { m } {
 
@@ -313,9 +315,58 @@ proc ver_dep { depl } {
 	}
 }
 
+proc fixtcl85 { dir pgm bin tcl } {
+
+	global BINW
+
+	set src [file join $dir $pgm]
+
+	if { $BINW == "" } {
+		# just copy it
+		if [catch { file copy -force -- $src $bin } err] {
+			puts "Cannot copy $pgm from $dir to $bin: $err!"
+		}
+		return
+	}
+
+	if [catch { open $src "r" } fd] {
+		puts "Cannot copy $pgm from $dir, ignored!"
+		return
+	}
+
+	if [catch { read $fd } txt] {
+		puts "Cannot read $pgm from $dir, ignored!"
+		catch { close $fd }
+		return
+	}
+
+	catch { close $fd }
+
+	set ns [regsub ".*\nexec *(tclsh|wish)\[^\n\]*" $txt\
+	  "#!/bin/sh\n#####\\\nexec $tcl $BINW/$pgm \"\$@\"" txt]
+
+	if { $ns == 0 } {
+		puts "Failed to install $pgm, ignored!"
+		return
+	}
+
+	set trg [file join $bin $pgm]
+	if [catch { open $trg "w" } fd] {
+		puts "Cannot write $trg, ignored!"
+		return
+	}
+
+	if [catch { puts -nonewline $fd $txt } err] {
+		puts "Cannot write $trg: $err!"
+	}
+
+	catch { exec chmod +x $trg }
+	catch { close $fd }
+}
+
 proc doit { } {
 
-	global CWD PLIST BIN HOME
+	global CWD PLIST BIN BINW HOME TCL85 TK85
 
 	anchor
 
@@ -344,12 +395,37 @@ proc doit { } {
 		errab "Cannot access $hd: $err"
 	}
 
+	# get the windows path to BIN
+	if [catch { exec cygpath -m $hd } BINW] {
+		# not on Windows
+		set BINW ""
+	}
+
 	if [catch { file copy -force -- Scripts/mkmk Scripts/picomp $hd } err] {
 		errab "Cannot copy to $hd: $err"
 	}
 
+	if [catch { exec which $TCL85 } tcldir] {
+		set tcldir ""
+	}
+
+	if { [string first "which:" $tcldir] >= 0 } {
+		set tcldir ""
+	}
+
+	if { $tcldir == "" } {
+		puts "====================================================="
+		puts "You don't seem to have Tcl8.5 anywhere on your  PATH,"
+		puts "so I cannot set up  piter  and  udaemon for automatic"
+		puts "execution from your $BIN directory. Sorry about that."
+		puts "====================================================="
+	} else {
+		fixtcl85 "Scripts" "piter" $hd $TCL85
+		fixtcl85 "../VUEE/UDAEMON" "udaemon" $hd $TK85
+	}
+
 	cd $hd
-	exec chmod +x mkmk picomp
+	exec chmod +x mkmk picomp piter
 
 	puts "All done"
 }

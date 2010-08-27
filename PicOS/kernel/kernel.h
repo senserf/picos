@@ -26,31 +26,7 @@ void	__pi_init_sensors (void);
 void	__pi_lcdg_init (void);
 #endif
 
-typedef struct	{
-/* =================================== */
-/* A single event awaited by a process */
-/* =================================== */
-	word	State;
-	word	Event;
-} event_t;
-
-typedef struct	{
-	/* ============================================================== */
-	/* This is the PCB. Status consists of two parts. The three least */
-	/* significant bits store the number of awaited events except for */
-	/* the Timer delay, and the fourth bit is set if a Timer event is */
-	/* being awaited.  The remaining (upper 12) bits encode the state */
-	/* to be assumed when the Timer goes off. Also, if the process is */
-	/* ready to go, those bits encode the process's current state.    */
-	/* ============================================================== */
-	word	Status;
-	word	Timer;		/* Timer wakeup tick */
-	code_t	code;		/* Code function pointer */
-	address	data;		/* Data pointer */
-	event_t	Events [MAX_EVENTS_PER_TASK];
-} pcb_t;
-
-extern	pcb_t	__PCB [];
+extern	__pi_pcb_t	__PCB [];
 
 extern 			word  		__pi_mintk;
 extern 	volatile 	word 		__pi_old, __pi_new;
@@ -118,7 +94,7 @@ void adddevfunc (devreqfun_t, int);
 /* Event trigger code for interrupt mode functions */
 /* =============================================== */
 #define	i_trigger(evnt)	do {\
-		int j; pcb_t *i;\
+		int j; __pi_pcb_t *i;\
 		for_all_tasks (i) {\
 			if (i->code == NULL)\
 				continue;\
@@ -136,9 +112,9 @@ void adddevfunc (devreqfun_t, int);
 /* ==================================== */
 #define	p_trigger(pcs,evnt) do {\
 		int j; \
-		for (j = 0; j < nevents ((pcb_t*)(pcs)); j++) { \
-			if (((pcb_t*)(pcs))->Events [j] . Event == evnt) {\
-				wakeupev ((pcb_t*)(pcs), j);\
+		for (j = 0; j < nevents ((__pi_pcb_t*)(pcs)); j++) { \
+			if (((__pi_pcb_t*)(pcs))->Events [j] . Event == evnt) {\
+				wakeupev ((__pi_pcb_t*)(pcs), j);\
 				break;\
 			} \
 		} \

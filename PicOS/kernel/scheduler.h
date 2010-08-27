@@ -17,7 +17,6 @@ Redo:
 	for_all_tasks (__pi_curr) {
 		if (__pi_curr->code != NULL && !waiting (__pi_curr)) {
 			// Entry used and process ready
-			__pi_da = __pi_curr->data;
 			(__pi_curr->code) (tstate (__pi_curr));
 			goto Redo;
 		}

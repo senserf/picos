@@ -32,6 +32,18 @@
 #define	MAX_TASKS		16
 #endif
 
+#ifdef __ECOG1__
+#ifdef	STACK_SIZE
+#if STACK_SIZE != 256
+#error "S: cannot redefine STACK_SIZE for ECOG1 this way!!"
+#endif
+#endif
+#else
+#ifndef	STACK_SIZE
+#define	STACK_SIZE		256
+#endif
+#endif
+
 // Detect stack overrun
 #ifndef	STACK_GUARD
 #define	STACK_GUARD		0

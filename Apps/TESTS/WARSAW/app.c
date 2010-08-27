@@ -1992,7 +1992,7 @@ RS_Err:
 		delay (1024*30, RS_AUTOSTART);
   
 	ser_in (RS_RCMD, ibuf, IBUFLEN-1);
-	unwait (WNONE);
+	unwait ();
 
 	switch (ibuf [0]) {
 
