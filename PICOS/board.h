@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.86
+#define	VUEE_VERSION	0.9
 
 #include "picos.h"
 #include "ndata.h"
@@ -254,7 +254,7 @@ process	_PP_ {
 	_PP_		*HNext, *HPrev;	// For hash collisions
 	sint		ID;		// The identifier (required by PicOS)
 	word		Flags;		// GP flags mostly for grabs
-	IPointer	Data;		// The data pointer
+	IPointer	__pi_data;	// The data pointer
 
 // Note ... in preparation for a compiler: we will put there a data pointer
 // but for now it would create more mess than good; this is because while a

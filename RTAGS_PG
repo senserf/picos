@@ -1,4 +1,4 @@
-Version 0.83
+Version 0.9
 
 ===============================================================================
 Quick start:
@@ -597,3 +597,12 @@ PG100729A:
 PG100806A:	PICOS >= PG100806A
 
     Requisite modifications for the new version of PicOS. Not much.
+
+PG100827A:	PICOS >= PG100827A
+
+    Modified VUE_doc.
+
+    Changed the way a strand gets hold of its data pointer.
+
+    udaemon.tcl is now called udaemon and will run on its own as long as wish85
+    is somewhere in PATH.
