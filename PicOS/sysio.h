@@ -998,7 +998,7 @@ typedef struct	{
 	word	Event;
 } __pi_event_t;
 
-typedef struct	{
+struct __pi_pcb_s {
 	/* ============================================================== */
 	/* This is the PCB. Status consists of two parts. The three least */
 	/* significant bits store the number of awaited events except for */
@@ -1012,7 +1012,13 @@ typedef struct	{
 	fsmcode		code;		/* Code function pointer */
 	word		data;		/* Data pointer */
 	__pi_event_t	Events [MAX_EVENTS_PER_TASK];
-} __pi_pcb_t;
+#if MAX_TASKS <= 0
+	// Linked PCBT
+	struct __pi_pcb_s	*Next;
+#endif
+};
+
+typedef struct __pi_pcb_s __pi_pcb_t;
 
 extern __pi_pcb_t *__pi_curr;
 

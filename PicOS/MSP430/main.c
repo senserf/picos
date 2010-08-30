@@ -1022,8 +1022,15 @@ word __pi_stackfree (void) {
 
 static void ios_init () {
 
-	__pi_pcb_t *p;
 	int i;
+
+#if MAX_TASKS > 0
+	__pi_pcb_t *p;
+
+	for_all_tasks (p)
+		/* Mark all task table entries as available */
+		p->code = NULL;
+#endif
 
 #ifdef	EMERGENCY_STARTUP_CONDITION
 
@@ -1065,12 +1072,6 @@ static void ios_init () {
 #endif
 	dbg_1 (0x1000 | SYSVER_X);
 	dbg_1 ((word)STACK_END - (word)(&__bss_end)); // RAM in bytes
-
-	for_all_tasks (p)
-		/* Mark all task table entries as available */
-		p->code = NULL;
-
-	/* Processes can be created past this point */
 
 #if MAX_DEVICES
 	/* Initialize devices */

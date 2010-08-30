@@ -677,7 +677,7 @@ extern uart_t __pi_uart [];
 #define	sti	_EINT ()
 #define	cli	_DINT ()
 
-#define	SLEEP	do { \
+#define	__SLEEP	do { \
 			CPU_MARK_IDLE; \
 			if (__pi_systat.pdmode) { \
 				cli; \
