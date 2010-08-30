@@ -764,7 +764,11 @@ PG100827A:	3 3	VUEE >= PG100827A
 
 	Miscellaneous cosmetics here and there.
 
+<<<<<<< HEAD
 PG100830A:
+=======
+---------:
+>>>>>>> 0e95f15a871adb333148d38d2a181a0db7d25790
 
 	Added new options for organizing the scheduler queue. Here is how it
 	works (this is also described in PicOS.odt):
