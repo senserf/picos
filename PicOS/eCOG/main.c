@@ -318,7 +318,7 @@ void freeze (word nsec) {
 	// and re-enable them when we are done with the waiting; let us assume
 	// for now some cooperation from the praxis and, possibly, try to fix
 	// it later
-	SLEEP;
+	__SLEEP;
 
 	cpupower (4);
 
@@ -356,7 +356,7 @@ void halt (void) {
 	cli_tim;
 	diag ("PicOS halted");
 	while (1)
-		SLEEP;
+		__SLEEP;
 }
 
 #if	ADC_PRESENT
@@ -562,7 +562,7 @@ void __pi_syserror (int ec) {
 		leds (0, 0); leds (1, 0); leds (2, 0); leds (3, 0);
 		mdelay (100);
 #else
-		SLEEP;
+		__SLEEP;
 #endif
 	}
 }
@@ -1137,11 +1137,14 @@ static void mem_init () {
 static void ios_init () {
 
 	int i;
+
+#if 	MAX_TASKS > 0
 	__pi_pcb_t *p;
 
 	for_all_tasks (p)
 		/* Mark all task table entries as available */
 		p->code = NULL;
+#endif
 
 #if	UART_DRIVER
 	/* UART_A is initialized first, to enable diagnostic output */

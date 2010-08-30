@@ -126,13 +126,13 @@ typedef struct	{
 
 // ============================================================================
 #ifdef	MONITOR_PIN_CPU
-#define	SLEEP		do { \
+#define	__SLEEP		do { \
 				_PVS (MONITOR_PIN_CPU, 0); \
 				sleep (); evening; \
 				_PVS (MONITOR_PIN_CPU, 1); \
 			} while (0)
 #else
-#define	SLEEP		do { sleep (); evening; } while (0)
+#define	__SLEEP		do { sleep (); evening; } while (0)
 #endif	/* MONITOR_PIN_CPU */
 // ============================================================================
 

@@ -763,3 +763,33 @@ PG100827A:	3 3	VUEE >= PG100827A
 	the LEDs interface).
 
 	Miscellaneous cosmetics here and there.
+
+---------:
+
+	Added new options for organizing the scheduler queue. Here is how it
+	works (this is also described in PicOS.odt):
+
+	MAX_TASKS > 0
+	As before. There is a table of PCB slots MAX_TASKS entries long.
+
+	MAX_TASKS == 0
+	PCBs are malloc'ed and linked. There is no explicit limit on the number
+	of processes. New processes are added at the end, so the oldest process
+	has the lowest priority.
+
+	MAX_TASKS < 0
+	Like MAX_RASKS == 0, except that new processes are inserted at the
+	front of the list, so the oldest process has the highest priority.
+
+	I have tentatively set the default to MAX_TASKS == 0. Those praxes that
+	expect the number of processes to be well bounded (like survey, for
+	example) have to define MAX_TASKS in their options.sys (survey does).
+
+	I have also updated the PicOS document (not much) to describe the
+	options.
+
+	Note that crunning (NULL) with MAX_TASKS <= 0 doesn't work (it always
+	returns 0).
+
+	The gcc optimization option for MSP430 changed from -O2 to -Os, which
+	seems to give slightly shorter code.

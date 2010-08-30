@@ -1014,7 +1014,7 @@ proc outmkf { def cpu } {
 	}
 	puts $mfd ""
 	puts $mfd "AF=-mmcu=$cpu"
-	puts $mfd "OF=-O2 -g -Wundef"
+	puts $mfd "OF=-Os -g -Wundef"
 	puts $mfd "TR=Image"
 	puts $mfd "TD=./$Kfn"
 
@@ -1220,7 +1220,7 @@ proc outmkf_lib { def cpu } {
 	}
 	puts $mfd ""
 	puts $mfd "AF=-mmcu=$cpu"
-	puts $mfd "OF=-O2 -g -Wundef"
+	puts $mfd "OF=-Os -g -Wundef"
 	puts $mfd "TR=LIBRARY/libpicos.a"
 	puts $mfd "TD=./KTMP"
 

@@ -36,7 +36,7 @@ Redo:
 
 #else	/* NOT SPIN_WHEN_HALTED */
 
-	SLEEP;
+	__SLEEP;
 
 #endif	/* SPIN_WHEN_HALTED */
 

@@ -27,9 +27,11 @@
 #define	SPIN_WHEN_HALTED	0
 #endif
 
-// The maximum number of tasks in the system: size of the PCB table
+// The maximum number of tasks in the system: size of the PCB table; if <= 0,
+// the PCBT is linked, i.e,. PCBs are umalloc'ed; if < 0, new PCBs are
+// allocated from the front, so new processes get higher priority
 #ifndef	MAX_TASKS
-#define	MAX_TASKS		16
+#define	MAX_TASKS		0
 #endif
 
 #ifdef __ECOG1__

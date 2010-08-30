@@ -23,7 +23,11 @@ word	__pi_seed = 30011;
 #include "pins.h"
 
 /* Task table */
+#if MAX_TASKS <= 0
+__pi_pcb_t *__PCB = NULL;
+#else
 __pi_pcb_t __PCB [MAX_TASKS];
+#endif
 
 #if MAX_DEVICES
 /* Device table */
@@ -98,7 +102,7 @@ static __pi_pcb_t *pidver (sint pid) {
 				for_all_tasks (i) \
 					if ((int)(i) == pid) \
 						break; \
-				if ((i) == LAST_PCB) \
+				if (pcb_not_found (i)) \
 					syserror (EREQPAR, "pid"); \
 			} while (0)
 #endif
@@ -279,6 +283,44 @@ sint __pi_fork (fsmcode func, word data) {
 
 	__pi_pcb_t *i;
 
+#if MAX_TASKS <= 0
+//
+// Linked PCBT, the PCB is malloc'ed
+//
+	if ((i = (__pi_pcb_t*) umalloc (sizeof (__pi_pcb_t))) == NULL)
+		return 0;
+
+	i->code = func;
+	i->data = data;
+	i->Status = 0;
+
+#if MAX_TASKS == 0
+//
+// The PCB is appended at the end
+//
+	i->Next = NULL;
+	{
+		__pi_pcb_t *j;
+		if ((j = __PCB) == NULL)
+			__PCB = i;
+		else {
+			for (; j->Next != NULL; j = j->Next);
+			j->Next = i;
+		}
+	}
+#else
+//
+// The PCB is appended at the front
+//
+	i->Next = __PCB;
+	// Note: no race with interrupt trigger/ptrigger
+	__PCB = i;
+#endif
+	return (sint) i;
+#else
+//
+// Static PCBT
+//
 	for_all_tasks (i)
 		if (i->code == NULL) {
 			i -> code = func;
@@ -286,8 +328,8 @@ sint __pi_fork (fsmcode func, word data) {
 			i -> Status = 0;
 			return (sint) i;
 		}
-
 	return 0;
+#endif
 }
 
 /* ======================== */
@@ -320,8 +362,13 @@ void __pi_trigger (word event) {
 	__pi_pcb_t *i;
 
 	for_all_tasks (i) {
+#if MAX_TASKS > 0
+//
+// With linked PCBT, this is never NULL
+//
 		if (i->code == NULL)
 			continue;
+#endif
 		for (j = 0; j < nevents (i); j++) {
 			if (i->Events [j] . Event == event) {
 				/* Wake up */
@@ -334,16 +381,17 @@ void __pi_trigger (word event) {
 
 void __pi_ptrigger (sint pid, word event) {
 //
-// Trigger when the recipient process ID is known
+// Trigger for a single process
 //
 	__pi_pcb_t	*i;
 	int 	j;
 
 	ver_pid (i, pid);
 
+#if MAX_TASKS > 0
 	if (i->code == NULL)
 		return;
-
+#endif
 	for (j = 0; j < nevents (i); j++) {
 		if (i->Events [j] . Event == event) {
 			wakeupev (i, j);
@@ -418,11 +466,20 @@ static void killev (__pi_pcb_t *pid) {
 
 	wfun = (word)(pid->code);
 	for_all_tasks (i) {
+#if MAX_TASKS > 0
 		if (i->code == NULL)
 			continue;
+#endif
 		for (j = 0; j < nevents (i); j++) {
-			if (i->Events [j] . Event == (word)pid ||
-			    i->Events [j] . Event == wfun) {
+			if (i->Events [j] . Event == (word)pid
+			    || i->Events [j] . Event == wfun
+#if MAX_TASKS > 0
+// Also take care of those waiting for a free slot, but only when MAX_TASKS is
+// in effect, as otherwise ufree will trigger the memory event when the PCB is
+// freed
+			    || i->Events [j] . Event == (word)(&(mevent [0]))
+#endif
+			    ) {
 				wakeupev (i, j);
 				break;
 			}
@@ -436,6 +493,37 @@ void kill (sint pid) {
 //
 	__pi_pcb_t *i;
 
+#if MAX_TASKS <= 0
+//
+// Linked PCBT
+//
+	__pi_pcb_t *j;
+
+	if (pid == 0)
+		pid = (sint) __pi_curr;
+
+	j = NULL;
+	for_all_tasks (i) {
+		if ((sint)i == pid) {
+			// Found it
+			if (j == NULL)
+				__PCB = i->Next;
+			else
+				j->Next = i->Next;
+			killev (i);
+			ufree (i);
+			if (i == __pi_curr)
+				release;
+			return;
+		}
+		j = i;
+	}
+	syserror (EREQPAR, "kpi");
+
+#else
+//
+// Static PCBT
+//
 	if (pid == 0)
 		i = __pi_curr;
 	else
@@ -445,23 +533,48 @@ void kill (sint pid) {
 		killev (i);
 		i->Status = 0;
 		i->code = NULL;
-		if (MEV_NWAIT (0)) {
-			trigger (&(mevent [0]));
-			MEV_NWAIT (0) --;
-		}
 	}
 
 	if (i == __pi_curr)
 		release;
+#endif
 }
 
 void killall (fsmcode fun) {
 //
 // Kill all processes running the given code
 //
-	__pi_pcb_t *i;
 	Boolean rel;
+	__pi_pcb_t *i;
 
+#if MAX_TASKS <= 0
+//
+// Linked PCBT
+//
+	__pi_pcb_t *j, *k;
+
+	rel = NO;
+	j = NULL;
+	for (i = __PCB; i != NULL; ) {
+		if (i->code == fun) {
+			k = i->Next;
+			if (j == NULL)
+				__PCB = k;
+			else
+				j->Next = k;
+			if (i == __pi_curr)
+				rel = YES;
+			killev (i);
+			ufree (i);
+			i = k;
+		} else {
+			i = (j = i)->Next;
+		}
+	}
+#else
+//
+// Static PCBT
+//
 	rel = NO;
 	for_all_tasks (i) {
 		if (i->code == fun) {
@@ -472,6 +585,7 @@ void killall (fsmcode fun) {
 			i->code = NULL;
 		}
 	}
+#endif
 	if (rel)
 		release;
 }
@@ -503,7 +617,7 @@ sint running (fsmcode fun) {
 }
 
 int crunning (fsmcode fun) {
-
+//
 	__pi_pcb_t *i;
 	int c;
 
@@ -1007,7 +1121,7 @@ void __pi_waitmem (int np, word state) {
 /*
  * Wait for pool memory release
  */
-	if (MEV_NWAIT (MA_NP) < MAX_TASKS)
+	if (MEV_NWAIT (MA_NP) != 255)
 		MEV_NWAIT (MA_NP) ++;
 
 	wait ((word)(&(mevent [MA_NP])), state);
