@@ -357,8 +357,7 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 // PG =========================================================================
 // Should have a function for this ============================================
 // ============================================================================
-			if (tcvp_issettimer (rtrCache->pkt [i]) ||
-			    tcvp_isqueued (rtrCache->pkt [i])) {
+			if (!tcvp_isdetached (rtrCache->pkt [i])) {
 				// The timer is running or queued to transmit,
 				// feel free to kill
 				tcv_drop (rtrCache->pkt[i]);
@@ -396,8 +395,7 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			);
 			
 // PG =========================================================================
-			if (tcvp_issettimer (rtrCache->pkt [i]) ||
-			    tcvp_isqueued (rtrCache->pkt [i])) {
+			if (!tcvp_isdetached (rtrCache->pkt [i])) {
 				// The timer is running or queued to transmit,
 				// feel free to kill
 				tcv_drop (rtrCache->pkt[i]);

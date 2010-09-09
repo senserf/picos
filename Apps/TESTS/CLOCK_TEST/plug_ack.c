@@ -60,6 +60,7 @@ trueconst tcvplug_t plug_ack =
 static int desc = NONE, phys = NONE;
 
 static address hooks [N_HOOKS];
+static lword hooksec [N_HOOKS];
 
 static byte rtimes [N_HOOKS];	// Retransmission counters (per hook)
 
@@ -203,6 +204,7 @@ HoldIt:
 			// Set the timer (the packet goes into the timer queue)
 			Diag ("X-S %x", p);
 			tcvp_settimer (p, RETR_DELAY);
+			hooksec [i] = seconds () + ((RETR_DELAY + 1023) >> 10);
 			// Detach
 			return TCV_DSP_PASS;
 		}
@@ -216,6 +218,7 @@ HoldIt:
 			Diag ("X-H %x %d", p, i);
 			// This hooks the packet (and sets the hook value)
 			tcvp_hook (p, hooks + i);
+			hooksec [i] = 0L;
 			// Initialize retransmission counter
 			rtimes [i] = 0;
 			goto HoldIt;
@@ -231,6 +234,17 @@ static int tcv_tmt_ack (address p) {
 //
 // Called when the packet's timer goes off: retransmit at high priority
 //
+	word i;
+
+	for (i = 0; i < N_HOOKS; i++) {
+		if (hooks [i] == p) {
+			hooksec [i] = 0L;
+			return;
+		}
+	}
+
+	diag ("TCV TCV_XMT NOT FOUND %x!!!", p);
+
 	Diag ("X-T %x", p);
 	return TCV_DSP_XMTU;
 }
@@ -246,4 +260,25 @@ word n_free_hooks () {
 			c++;
 
 	return c;
+}
+
+address tcv_overtime_check (lword *ovs) {
+
+	word i;
+	address ap;
+	lword ts;
+
+	for (i = 0; i < N_HOOKS; i++) {
+
+		if ((ap = hooks [i]) == NULL ||
+		    (ts = hooksec [i]) == 0L)
+			continue;
+
+		if (ts > seconds () + 2) {
+			*ovs = ts;
+			return ap;
+		}
+	}
+
+	return NULL;
 }

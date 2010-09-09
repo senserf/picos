@@ -1713,9 +1713,23 @@ proc usage { } {
 	exit 99
 }
 
+proc argv_get { } {
+
+	global argv
+
+	return [string trim [lindex $argv 0]]
+}
+
+proc argv_shift { } {
+
+	global argv
+
+	set argv [lrange $argv 1 end]
+}
+
 proc initialize { } {
 
-	global argv ST
+	global ST
 
 	set prt ""
 	set spd ""
@@ -1728,7 +1742,7 @@ proc initialize { } {
 
 	while 1 {
 
-		set par [lindex $argv 0]
+		set par [argv_get]
 
 		if { $par == "" } {
 			# done
@@ -1740,14 +1754,14 @@ proc initialize { } {
 			usage
 		}
 
-		set argv [lrange $argv 1 end]
+		argv_shift
 
 		# the following value
-		set val [lindex $argv 0]
+		set val [argv_get]
 
 		if ![regexp -nocase "^-(\[a-z\])$" $val jnk par] {
 			# if it looks like a flag, assume the value is empty
-			set argv [lrange $argv 1 end]
+			argv_shift
 		} else {
 			set val ""
 		}
@@ -1843,7 +1857,7 @@ proc initialize { } {
 		if [catch { open $sfi "w" } std] {
 			abt "cannot open $sfi for writing, $std"
 		}
-		fconfigure $std -buffering line
+		fconfigure $std -buffering line -translation lf
 		set ST(SFS) $std
 	} else {
 		# for the record

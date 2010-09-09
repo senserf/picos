@@ -1,5 +1,30 @@
 // Insert here applications-specific options
 
+#ifdef	TCV_PRESENT
+#undef 	TCV_PRESENT
+#endif
+
+#ifdef	TCV_TIMERS
+#undef 	TCV_TIMERS
+#endif
+
+#ifdef	TCV_HOOKS
+#undef 	TCV_HOOKS
+#endif
+
+#define	TCV_PRESENT	1
+#define	TCV_TIMERS	1
+#define	TCV_HOOKS	1
+//#define	TCV_LIMIT_RCV	6
+
+// XMT limit is taken care of by the plugin
+
+#ifdef	RESET_ON_SYSERR
+#undef	RESET_ON_SYSERR
+#endif
+
+#define	RESET_ON_SYSERR	0
+
 #ifdef	LEDS_DRIVER
 #undef	LEDS_DRIVER
 #endif
@@ -11,12 +36,6 @@
 #ifdef	CODE_LONG_INTS
 #undef	CODE_LONG_INTS
 #endif
-
-#ifdef	GLACIER
-#undef	GLACIER
-#endif
-
-#define	GLACIER			0
 
 #define	LEDS_DRIVER	1
 #define	RADIO_USE_LEDS	0
@@ -33,6 +52,8 @@
 
 #undef	CRYSTAL2_RATE
 #define	CRYSTAL2_RATE		0
+
+#if 0
 
 #ifdef BOARD_WARSAW_NEW
 #define	MONITOR_PIN_CLOCK	P4_5
@@ -53,4 +74,6 @@
 #define	MONITOR_PIN_CLOCKA	P2_4
 #define	MONITOR_PIN_CLOCKS	P2_3
 #define	MONITOR_PIN_SCHED	P2_2
+#endif
+
 #endif

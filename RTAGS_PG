@@ -793,3 +793,21 @@ PG100830B:
 
 	The gcc optimization option for MSP430 changed from -O2 to -Os, which
 	seems to give slightly shorter code.
+
+PG100909A:
+
+	Macro tcvp_isdetached(p) added to tcvplug.h. Its role is to tell
+	whether the packet is (not) present in any queue, including the timer
+	queue (if TCV_TIMERS is nonzero). Fixed the tarp plugin (tarp.c) to
+	use that macro (instead of calling tcvp_issetimer and tcvp_isqueued),
+	which looks a bit better.
+
+	I discovered a weird behavior of the piter script (when installed by
+	deploy) apparently resulting from some incompatibilities between Cygwin
+	and ActiveState Tcl (which, as we remeber, is intended for plain
+	Windows). Some arguments passed to the script would have CR characters
+	appended to them; also, the hardcopy file produced by the script would
+	have superfluous blank lines. It seems that I have fixed those
+	problems, but without understanding what I was doing.
+
+	A few cosmetics.

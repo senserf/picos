@@ -199,7 +199,7 @@ void update_n_wake (word min) {
 	// Delay timer interrupts are asynchronous, i.e., they are not blocked
 	// while we are doing this, unlike in the TRIPLE_CLOCK mode. We copy
 	// the current new (to make sure it stays put why we are handling it),
-	// but there is no need to block interrupts. The inturrup advances
+	// but there is no need to block interrupts. The interrupt advances
 	// new (we only read it), we advance old (the interrupt only reads it).
 	word znew;
 	znew = __pi_new;

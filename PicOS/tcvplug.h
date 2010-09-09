@@ -34,6 +34,13 @@ address	*tcvp_gethook (address);
 
 #endif	/* __SMURPH __ */
 
+#if	TCV_TIMERS
+#define	tcvp_isdetached(p)	(!tcvp_isqueued(p) && !tcvp_issettimer(p))
+#else
+#define	tcvp_isdetached(p)	(!tcvp_isqueued(p))
+CIPA!!!
+#endif
+
 /* Disposition codes */
 #define	TCV_DSP_PASS	0
 #define	TCV_DSP_DROP	1

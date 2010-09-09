@@ -356,6 +356,10 @@ proc fixtcl85 { dir pgm bin tcl } {
 		return
 	}
 
+	# without this, weird things happen to arguments passed to the script;
+	# this is all beyond my comprehension
+	fconfigure $fd -translation lf
+
 	if [catch { puts -nonewline $fd $txt } err] {
 		puts "Cannot write $trg: $err!"
 	}
