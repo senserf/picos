@@ -916,14 +916,11 @@ int main (int argc, char *argv []) {
 	}
 	zz_c_first_wait = YES;
 
-	if (setjmp (zz_waker))
-		// For remote 'sleep'
-		goto CoRet;
-
-	// Run the coordinator
-	TheProcess->zz_code ();
-
-CoRet:
+	if (!setjmp (zz_waker)) {
+		// For remote sleep; if Root decides to execute sleep, we will
+		// just return
+		TheProcess->zz_code ();
+	}
 
 	TheProcess  = Kernel;
 	TheStation  = System;
@@ -956,6 +953,8 @@ CoRet:
 	zz_setjmp_done = YES;
 	setjmp (zz_mloop);
 
+	// For remote sleep, i.e., executed from a function; it should emulate
+	// a return from the process's code method
 	if (setjmp (zz_waker))
 		goto LoRet;
 
