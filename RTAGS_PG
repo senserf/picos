@@ -811,3 +811,12 @@ PG100909A:
 	problems, but without understanding what I was doing.
 
 	A few cosmetics.
+
+PG100915A:
+
+	Sorry, the previous commit had a semi-intentional bug in tcvplug.h (the
+	thing wouldn't compile with TCV_TIMERS == 0).
+
+	Nothing new, except for a few changes to Apps/TESTS/CLOCK_TEST/ - to
+	test for the alleged bug in timers/hooks reported by Wlodek. BTW: my
+	tests have discovered no problem.

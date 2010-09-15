@@ -451,6 +451,7 @@ fsm root {
 #if STACK_GUARD
 		"v        -> show unused stack space\r\n"
 #endif
+		"k        -> show hooks\r\n"
 
 #if UART_RATE_SETTABLE
 		"S r      -> set UART rate\r\n"
@@ -500,6 +501,7 @@ fsm root {
 		case 'o': proceed RS_QRCV;
 		case 't': proceed RS_QXMT;
 		case 'i': proceed RS_SSID;
+		case 'k': tcv_check_hooks (); proceed RS_RCMD;
 	}
 
   state RS_RCMDP1:

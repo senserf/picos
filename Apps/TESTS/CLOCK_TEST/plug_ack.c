@@ -239,7 +239,7 @@ static int tcv_tmt_ack (address p) {
 	for (i = 0; i < N_HOOKS; i++) {
 		if (hooks [i] == p) {
 			hooksec [i] = 0L;
-			return;
+			return TCV_DSP_XMTU;
 		}
 	}
 
@@ -281,4 +281,21 @@ address tcv_overtime_check (lword *ovs) {
 	}
 
 	return NULL;
+}
+
+void tcv_check_hooks () {
+
+	word i;
+	address ap;
+
+	diag ("HOOKS: %u", (word) seconds ());
+
+	for (i = 0; i < N_HOOKS; i++) {
+
+		if ((ap = hooks [i]) == NULL)
+			continue;
+
+		diag ("H%d: ap = %x, ser = %u, d = %u", i, ap, psernum (ap),
+			(word) (hooksec [i]));
+	}
 }

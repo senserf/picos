@@ -38,7 +38,6 @@ address	*tcvp_gethook (address);
 #define	tcvp_isdetached(p)	(!tcvp_isqueued(p) && !tcvp_issettimer(p))
 #else
 #define	tcvp_isdetached(p)	(!tcvp_isqueued(p))
-CIPA!!!
 #endif
 
 /* Disposition codes */

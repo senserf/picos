@@ -13,6 +13,7 @@ extern trueconst tcvplug_t plug_ack;
 
 word n_free_hooks ();
 address tcv_overtime_check (lword*);
+void tcv_check_hooks ();
 
 //
 // The first two bytes of a packet (folowing the network ID), mean this:
