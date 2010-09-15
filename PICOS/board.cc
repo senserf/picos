@@ -4300,7 +4300,9 @@ void BoardRoot::initAll () {
 
 	print ("\n");
 
-	setResync (500, 0.5);
+	setResync (VUEE_RESYNC_INTERVAL,
+		(VUEE_RESYNC_INTERVAL * 0.001)/VUEE_SLOMO_FACTOR);
+	//setResync (500, 0.5);
 
 	create (System) AgentInterface;
 }

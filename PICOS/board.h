@@ -18,6 +18,16 @@
 
 #include "lib_params.h"
 
+#ifndef	VUEE_RESYNC_INTERVAL
+// The default RT sync granularity in msecs
+#define	VUEE_RESYNC_INTERVAL	500
+#endif
+
+#ifndef	VUEE_SLOMO_FACTOR
+// The slow motion factor > 1.0 -> slow motion, i.e., RT is longer than virtual
+#define	VUEE_SLOMO_FACTOR	1.0
+#endif
+
 #define	N_MEMEVENT	((IPointer)(-65537))
 #define	PMON_CNTEVENT	((IPointer)(-65536))
 #define	PMON_CMPEVENT	PMON_CNTEVENT

@@ -606,3 +606,31 @@ PG100827A:	PICOS >= PG100827A
 
     udaemon.tcl is now called udaemon and will run on its own as long as wish85
     is somewhere in PATH.
+
+PG100915A:
+
+    Added two constants that can be reset from options.sys. Here are their
+    default settings:
+
+	#define VUEE_RESYNC_INTERVAL	500
+	#define	VUEE_SLOMO_FACTOR	1.0
+
+    They translate into the parameters of setResync (see section 7.10 of SMURPH
+    manual) describing the mapping of virtual time into real time. This is how
+    setResync is called:
+
+	setResync (VUEE_RESYNC_INTERVAL,
+		(VUEE_RESYNC_INTERVAL * 0.001)/VUEE_SLOMO_FACTOR);
+
+    Thus, the first parameter specifies the granularity of synchronization to
+    real time in milliseconds, while the second is the slow motion factor. For
+    example, with this setting:
+
+	#define	VUEE_RESYNC_ITERVAL	50
+	#define	VUEE_SLOMO_FACTOR	3
+
+    SMURPH will resynchronize every 50 milliseconds, and 1 second of virtual
+    time will be stretched into 3 seconds of real time.
+
+    Note that you can always call setResync from the praxis, e.g., if you want
+    to change the resync parameters on the fly.
