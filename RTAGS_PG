@@ -634,3 +634,7 @@ PG100915A:
 
     Note that you can always call setResync from the praxis, e.g., if you want
     to change the resync parameters on the fly.
+
+PG100921A:
+
+    The UART window in udaemon allows you now to save the session in a file.
