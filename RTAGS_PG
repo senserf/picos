@@ -821,9 +821,12 @@ PG100915A:
 	test for the alleged bug in timers/hooks reported by Wlodek. BTW: my
 	tests have discovered no problem.
 
----------:
+PG101016A:
 
 	Added new board: WARSAW_IR250LP looking like WARSAW_ILS, except that:
 
 	1. the IR sensor has reverse polarity (i.e., it is active low)
 	2. there is no analog IR sensor (number 3).
+
+	Added new board: WARSAW_BLUE which is the old WARSAW board with
+	LinkMatik 2.0 (BlueTooth) connected via the second UART.
