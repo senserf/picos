@@ -830,3 +830,8 @@ PG101016A:
 
 	Added new board: WARSAW_BLUE which is the old WARSAW board with
 	LinkMatik 2.0 (BlueTooth) connected via the second UART.
+
+PG101019A:	VUEE >= PG101019A
+
+	A slight modification to PiComp for compatibility with the newest fix
+	to VUEE.

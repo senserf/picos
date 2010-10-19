@@ -5657,7 +5657,7 @@ K {
 
     append ins "\n[lnumseq [olinenum $fsm_mark]]"
     # the code method
-    append ins "${fsn}::perform \{ "
+    append ins "${fsn}::perform \{ _pp_enter_ (); "
 
     if { $fsm_type != "" } {
       append ins "$fsm_type $fsm_datv = ($fsm_type)__pi_data;"
