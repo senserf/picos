@@ -1054,7 +1054,7 @@ int _dad (PicOSNode, ser_in) (word st, char *buf, int len) {
 	if (f->__inpline == NULL) {
 		if (f->pcsInserial == NULL) {
 			if (tally_in_pcs ()) {
-				create d_uart_inp_p;
+				(create d_uart_inp_p) -> _pp_apid_ ();
 			} else {
 				npwait (st);
 				sleep;
@@ -1118,7 +1118,7 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 		memcpy (buf, m, prcs);
 
 	if (tally_in_pcs ()) {
-		create d_uart_out_p (buf);
+		(create d_uart_out_p (buf)) -> _pp_apid_ ();
 	} else {
 		ufree (buf);
 		npwait (st);
@@ -1149,7 +1149,7 @@ int _dad (PicOSNode, ser_outb) (word st, const char *m) {
 		sleep;
 	}
 	if (tally_in_pcs ()) {
-		create d_uart_out_p (m);
+		(create d_uart_out_p (m)) -> _pp_apid_ ();
 	} else {
 		ufree (buf);
 		npwait (st);
@@ -1179,7 +1179,7 @@ int _dad (PicOSNode, ser_inf) (word st, const char *fmt, ...) {
 	if (f->__inpline == NULL) {
 		if (f->pcsInserial == NULL) {
 			if (tally_in_pcs ()) {
-				create d_uart_inp_p;
+				(create d_uart_inp_p) -> _pp_apid_ ();
 			} else {
 				npwait (st);
 				sleep;
@@ -1233,7 +1233,7 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 	}
 
 	if (tally_in_pcs ()) {
-		create d_uart_out_p (buf);
+		(create d_uart_out_p (buf)) -> _pp_apid_ ();
 	} else {
 		ufree (buf);
 		npwait (st);
@@ -4336,6 +4336,8 @@ d_uart_inp_p::perform {
 
     int quant;
 
+    _pp_enter_ ();
+
     state IM_INIT:
 
 	if (f->__inpline != NULL)
@@ -4420,6 +4422,8 @@ void d_uart_out_p::close () {
 d_uart_out_p::perform {
 
     int quant;
+
+    _pp_enter_ ();
 
     state OM_INIT:
 
@@ -4530,7 +4534,6 @@ void __pi_kill (sint pid) {
 		TheNode->tally_out_pcs ();
 		// This will trigger the event for joinall, direct events
 		// are awaited directly
-		ThePPcs->_pp_unhash_ ();
 		terminate (ThePPcs);
 		sleep;
 		// Unreachable
@@ -4539,7 +4542,6 @@ void __pi_kill (sint pid) {
 	// Locate the process
 	if ((p = find_pcs_by_id (pid)) != NULL) {
 		TheNode->tally_out_pcs ();
-		p->_pp_unhash_ ();
 		p->terminate ();
 	}
 }
@@ -4577,7 +4579,6 @@ void __pi_killall (code_t tid) {
 	while (1) {
 		np = zz_getproclist (TheNode, tid, P, 16);
 		for (i = 0; i < np; i++) {
-			((_PP_*)(P [i])) -> _pp_unhash_ ();
 			terminate (P [i]);
 			TheNode->tally_out_pcs ();
 		}
@@ -4742,6 +4743,26 @@ int _no_module_ (const char *t, const char *f) {
 }
 
 // ============================================================================
+
+#if 0
+void check_pptable () {
+
+	int n;
+	_PP_ *tp, *tq;
+
+	for (n = 0; n < PPHASH_SIZE; n++) {
+		if ((tp = pptable [n]) == NULL)
+			continue;
+		tq = tp;
+
+		do {
+			if (tp->getClass () != AIC_process)
+				excptn ("NOT A PROCESS: %d", n);
+			tp = tp->HNext;
+		} while (tp != tq);
+	}
+}
+#endif
 
 identify (VUEE VUEE_VERSION);
 

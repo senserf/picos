@@ -638,3 +638,8 @@ PG100915A:
 PG100921A:
 
     The UART window in udaemon allows you now to save the session in a file.
+
+PG101019A:	PICOS >= PG101019A
+
+    Fixed a problem with process termination resulting in a memory corruption
+    after reset.

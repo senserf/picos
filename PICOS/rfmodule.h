@@ -26,7 +26,7 @@
 #define	rerr	(rf->rerror)
 #define	retr	(rf->retrcnt)
 
-strandhdr (Receiver, PicOSNode) {
+process Receiver : _PP_ (PicOSNode) {
 
 	int RBS;			// Receive buffer size
 	rfm_intd_t *rf;
@@ -43,8 +43,10 @@ strandhdr (Receiver, PicOSNode) {
 	};
 };
 
-threadhdr (ADC, PicOSNode) {
-
+process ADC (PicOSNode) {
+//
+// This one is not _PP_
+//
 	double		ATime,		// Accumulated sampling time
 			Average,	// Average signal so far
 			CLevel;		// Current (last) signal level
@@ -72,7 +74,7 @@ threadhdr (ADC, PicOSNode) {
 
 };
 
-threadhdr (Xmitter, PicOSNode) {
+process Xmitter : _PP_ (PicOSNode) {
 
 	int		buflen;
 	ADC		*RSSI;

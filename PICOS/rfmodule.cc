@@ -31,6 +31,8 @@ byte Receiver::get_rssi (byte &qual) {
 
 Xmitter::perform {
 
+    _pp_enter_ ();
+
     state XM_LOOP:
 
 	if (xbf == NULL) {
@@ -189,6 +191,8 @@ Receiver::perform {
     address packet;
     int     pktlen;
     byte    rssi, qual;
+
+    _pp_enter_ ();
 
     state RCV_GETIT:
 

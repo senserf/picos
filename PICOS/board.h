@@ -289,6 +289,10 @@ process	_PP_ {
 
 		clearFlag (Flags, _PP_flag_wtimer);
 	};
+
+	virtual ~_PP_ () {
+		_pp_unhash_ ();
+	};
 };
 	
 station PicOSNode abstract {
@@ -643,7 +647,7 @@ station PicOSNode abstract {
 
 // === UART direct ============================================================
 
-threadhdr (d_uart_inp_p, PicOSNode) {
+process d_uart_inp_p : _PP_ (PicOSNode) {
 
 	uart_dir_int_t *f;
 	char *tmp, *ptr;
@@ -657,7 +661,7 @@ threadhdr (d_uart_inp_p, PicOSNode) {
 	perform;
 };
 
-threadhdr (d_uart_out_p, PicOSNode) {
+process d_uart_out_p : _PP_ (PicOSNode) {
 
 	uart_dir_int_t *f;
 	const char *data, *ptr;
@@ -673,7 +677,7 @@ threadhdr (d_uart_out_p, PicOSNode) {
 
 // === UART N-mode ============================================================
 
-threadhdr (p_uart_rcv_n, PicOSNode) {
+process p_uart_rcv_n : _PP_ (PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -685,7 +689,7 @@ threadhdr (p_uart_rcv_n, PicOSNode) {
 	perform;
 };
 
-threadhdr (p_uart_xmt_n, PicOSNode) {
+process p_uart_xmt_n : _PP_ (PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -698,7 +702,7 @@ threadhdr (p_uart_xmt_n, PicOSNode) {
 
 // === UART P-mode ============================================================
 
-threadhdr (p_uart_rcv_p, PicOSNode) {
+process p_uart_rcv_p : _PP_ (PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -710,7 +714,7 @@ threadhdr (p_uart_rcv_p, PicOSNode) {
 	perform;
 };
 
-threadhdr (p_uart_xmt_p, PicOSNode) {
+process p_uart_xmt_p : _PP_ (PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -726,7 +730,7 @@ threadhdr (p_uart_xmt_p, PicOSNode) {
 
 // === UART L-mode ============================================================
 
-threadhdr (p_uart_rcv_l, PicOSNode) {
+process p_uart_rcv_l : _PP_ (PicOSNode) {
 
 	uart_tcv_int_t *UA;
 
@@ -739,7 +743,7 @@ threadhdr (p_uart_rcv_l, PicOSNode) {
 	void rdbuff (int, int);
 };
 
-threadhdr (p_uart_xmt_l, PicOSNode) {
+process p_uart_xmt_l : _PP_ (PicOSNode) {
 
 	uart_tcv_int_t *UA;
 

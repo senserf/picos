@@ -111,6 +111,8 @@ p_uart_rcv_n::perform {
     byte b;
     word len;
 
+    _pp_enter_ ();
+
     state RC_LOOP:
 
 	LEDIU (2, 0);
@@ -186,6 +188,8 @@ p_uart_xmt_n::perform {
     int stln;
     byte b;
 
+    _pp_enter_ ();
+
     state XM_LOOP:
 
 	LEDIU (1, 0);
@@ -259,6 +263,8 @@ p_uart_rcv_p::perform {
 
     word len;
     byte b, hdr;
+
+    _pp_enter_ ();
 
     state RC_LOOP:
 
@@ -373,6 +379,8 @@ p_uart_xmt_p::perform {
     int stln;
     word chs;
     byte b;
+
+    _pp_enter_ ();
 
     state XM_LOOP:
 
@@ -538,6 +546,8 @@ p_uart_rcv_l::perform {
 
     byte b;
 
+    _pp_enter_ ();
+
     state RC_LOOP:
 
 	LEDIU (2, 0);
@@ -579,6 +589,8 @@ p_uart_xmt_l::perform {
 
     int n, stln;
     char c;
+
+    _pp_enter_ ();
 
     state XM_LOOP:
 
