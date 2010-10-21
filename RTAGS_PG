@@ -643,3 +643,9 @@ PG101019A:	PICOS >= PG101019A
 
     Fixed a problem with process termination resulting in a memory corruption
     after reset.
+
+PG101021A:
+
+    Nick's fix for a problem with timed UART. The automaton's state was not
+    initialized. Sometimes it was found to be zero, which was OK, but, as Nick
+    has noticed, not always.

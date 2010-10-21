@@ -952,6 +952,7 @@ UARTDV::UARTDV (data_ua_t *UAD) {
 	B_ilen = UAD->UIBSize + 2;
 	B_olen = UAD->UOBSize + 2;
 	TI_aux = NULL;
+	TCS = 0;
 	TimedChunkTime = TIME_0;
 
 	IBuf = new byte [B_ilen];
