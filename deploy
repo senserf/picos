@@ -7,8 +7,8 @@ exec tclsh "$0" "$@"
 #
 
 set PLIST { PICOS SIDE VUEE }
-set TCL85 "tclsh85"
-set TK85  "wish85"
+set TCL85 [list "tclsh85" "tclsh8.5"]
+set TK85  [list "wish85" "wish8.5"]
 
 proc errab { m } {
 
@@ -402,19 +402,26 @@ proc doit { } {
 	# get the windows path to BIN
 	if [catch { exec cygpath -m $hd } BINW] {
 		# not on Windows
-		set BINW ""
+		set BINW $hd
 	}
 
 	if [catch { file copy -force -- Scripts/mkmk Scripts/picomp $hd } err] {
 		errab "Cannot copy to $hd: $err"
 	}
 
-	if [catch { exec which $TCL85 } tcldir] {
-		set tcldir ""
-	}
+	set tcldir ""
+	set tclinx 0
 
-	if { [string first "which:" $tcldir] >= 0 } {
-		set tcldir ""
+	foreach tc $TCL85 {
+		if ![catch { exec which $tc } tcp] {
+			if { [string first "which:" $tcp] < 0 } {
+				set tcldir $tcp
+				set TCL85 $tc
+				set TK85 [lindex $TK85 $tclinx]
+				break
+			}
+		}
+		incr tclinx
 	}
 
 	if { $tcldir == "" } {
@@ -429,7 +436,9 @@ proc doit { } {
 	}
 
 	cd $hd
-	exec chmod +x mkmk picomp piter
+	catch { exec chmod +x mkmk }
+	catch { exec chmod +x picomp }
+	catch { exec chmod +x piter }
 
 	puts "All done"
 }

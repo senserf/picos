@@ -20,7 +20,7 @@
  *     4 = SOFTWARE
  */
 #ifndef	RADIO_CRC_MODE
-#define	RADIO_CRC_MODE		0	/* Changed R100617 to 0 from 2 */
+#define	RADIO_CRC_MODE		0	/* Changed (R100617) to 0 from 2 */
 #endif
 
 #ifndef	RADIO_OPTIONS
@@ -36,7 +36,7 @@
 //  	0x10 guard process present
 //	0x20 extra consistency checks
 //	0x40 PHYSOPT_RESET admits a parameter pointing to a substitution table
-//	     for selected register values
+//	     for changing selected register values
 //	0x80 collect entropy from the air on startup
 // ============================================================================
 
@@ -51,7 +51,7 @@
 #endif
 
 // If this is zero, we have an "aggressive" transmitter (it tries to grab the
-// channel at 1 msec intervals)
+// channel at 1 msec intervals); generally not recommended
 #ifndef	RADIO_LBT_BACKOFF_EXP
 #define	RADIO_LBT_BACKOFF_EXP	6
 #endif
@@ -62,20 +62,37 @@
 #define	RADIO_LBT_BACKOFF_RX	3
 #endif
 
-// Fixed space (in milliseconds) between two consecutively transmitted packets
+// Fixed minimum space (in milliseconds) between two consecutively transmitted
+// packets
 #ifndef	RADIO_LBT_XMIT_SPACE
 #define	RADIO_LBT_XMIT_SPACE	2
 #endif
 
-// Retry limit (for the number of attempts to grab the channel)
-#ifndef	RADIO_LBT_RETRY_LIMIT
-#define	RADIO_LBT_RETRY_LIMIT	0	// Switched off
+//
+// LBT modes:
+//
+//	0 - no LBT, transmit blindly ignoring everything
+//	1 - not if receiving a packet
+//	2 - not if CC assessment failure or receiving a packet
+//	3 - staged, limited [up to 8 times degrading sensitivity]
+//
+#ifndef	RADIO_LBT_MODE
+#define	RADIO_LBT_MODE		3
 #endif
 
-// Use different sensitivity for subsequent channel acquisition attempts (legit
-// values 0, 1, 2, 3)
-#ifndef	RADIO_LBT_RETRY_STAGED
-#define	RADIO_LBT_RETRY_STAGED	0
+// MSCM1 register settings (selecting global LBT mode)
+#define	MCSM1_LBT_OFF		(MCSM1_TRANS_MODE | (0 << 4))	// OFF
+#define	MCSM1_LBT_RCV		(MCSM1_TRANS_MODE | (2 << 4))	// If receiving
+#define	MCSM1_LBT_FULL		(MCSM1_TRANS_MODE | (3 << 4))	// Rcv+assess
+
+// RSSI thresholds (for LBT); these values are only relevant when
+// RADIO_LBT_MODE == 2
+#ifndef	RADIO_CC_THRESHOLD
+#define	RADIO_CC_THRESHOLD	6	// 1 lowest, 15 highest, 0 off
+#endif
+
+#ifndef	RADIO_CC_THRESHOLD_REL
+#define	RADIO_CC_THRESHOLD_REL	0	// 1 1 lowest, 3 highest, 0 off
 #endif
 
 // ============================================================================
@@ -99,28 +116,6 @@
 
 #ifndef	RADIO_SYSTEM_IDENT
 #define	RADIO_SYSTEM_IDENT	0xAB35	/* Sync word */
-#endif
-
-/*
- * Channel clear indication for TX:
- *
- *    0  = always (no LBT at all)
- *    1  = if RSSI below threshold
- *    2  = if not receiving a packet
- *    3  = 1+2
- *
- * Level 2 is the smallest recommended.
- *
- */
-#define	CC_INDICATION		3
-
-// RSSI threshold (for LBT), previous values: 8, 0
-#ifndef	RADIO_CC_THRESHOLD
-#define	RADIO_CC_THRESHOLD	6	// 1 lowest, 15 highest, 0 off
-#endif
-
-#ifndef	RADIO_CC_THRESHOLD_REL
-#define	RADIO_CC_THRESHOLD_REL	0	// 1 1 lowest, 3 highest, 0 off
 #endif
 
 // ============================================================================
@@ -251,12 +246,9 @@
 // This one is for power control; we set it up separately
 #define FREND0_SET	    0x10
 
-#ifdef	DEFINE_RF_SETTINGS
-
-// NOTE: PicOS's concepts of bitrate and frequency are deeply entangled.
-//       I hope that this can make it easier to use a custom frequency
-//       So these likely only work for the 200000 bitrate... TJS
-// setup defaults to use the 868MHz frequency range with no offset
+// This is set in the program that wants to have in-memory constants defined,
+// like the driver itself
+#ifdef	CC1100_DEFINE_RF_SETTINGS
 
 //
 // Changed R100617 from 0x1E to 0x22, yielding 904 MHz as the base frequency
@@ -363,11 +355,22 @@ const	byte	cc1100_rfsettings [] = {
         CCxxx0_MCSM0,   0x18,   // Recalibrate on exiting IDLE state, full SLEEP
 #endif
 
-#define	MCSM1_TRANS_MODE	0x03	// RX->IDLE, TX->RX
-#define	MCSM1_CCA		(CC_INDICATION << 4)
+#if RADIO_LBT_MODE < 0 || RADIO_LBT_MODE > 3
+#error "S: illegal setting of RADIO_LBT_MODE, must be 0...3"
+#endif
 
-	CCxxx0_MCSM1,	(MCSM1_TRANS_MODE | MCSM1_CCA),
+// Automatic transitions of the RF automaton: after RX to IDLE, after TX to RX
+#define	MCSM1_TRANS_MODE	0x03
 
+#if RADIO_LBT_MODE == 0
+	CCxxx0_MCSM1,	MCSM1_LBT_OFF,
+#endif
+#if RADIO_LBT_MODE == 1
+	CCxxx0_MCSM1,	MCSM1_LBT_RCV,
+#endif
+#if RADIO_LBT_MODE == 2 || RADIO_LBT_MODE == 3
+	CCxxx0_MCSM1,	MCSM1_LBT_FULL,
+#endif
 	CCxxx0_MCSM2,	0x07,
 
 /* ========== */
@@ -445,60 +448,16 @@ const	byte	*cc1100_ratemenu [] = {
 // ============================================================================
 // ============================================================================
 
-#if RADIO_LBT_RETRY_STAGED
+#if RADIO_LBT_MODE == 3
 
-#if RADIO_LBT_RETRY_STAGED < 0 || RADIO_LBT_RETRY_STAGED > 3
-#error "S: RADIO_LBT_RETRY_STAGED must be between 0 and 3 inclusively!!"
-#endif
+#define	LBT_RETR_LIMIT		8	// Retry count
+#define	LBT_RETR_FORCE_RCV	5	// Force threshold, honor own reception
+#define	LBT_RETR_FORCE_OFF	7	// Force threshold, LBT completely off
 
-const	byte	cc1100_stage_table [] = {
-#if RADIO_LBT_RETRY_STAGED == 1
-	0x59, 0x6C, 0x7E, 0x48
-#define	CC1100_N_STAGES	4
-#endif
-#if RADIO_LBT_RETRY_STAGED == 2
-	0x59, 0x6B, 0x7D, 0x4F, 0x48
-#define	CC1100_N_STAGES	5
-#endif
-#if RADIO_LBT_RETRY_STAGED == 3
-	0x59, 0x5A, 0x6B, 0x6C, 0x7D, 0x4E, 0x4F, 0x48
-#define	CC1100_N_STAGES	8
-#endif
-	};
-
-#define	cc1100_retry_stage(rc)	cc1100_stage_table [cc1100_rsindex (rc)]
-
-#if RADIO_LBT_RETRY_LIMIT == 0
-
-// The counter is used solely for indexing the stage table, not for limit
-#define	cc1100_retry_limit_reached(rc)	((rc) != CC1100_N_STAGES-1 ? (rc)++ : \
-					0, 0)
-
-#define	cc1100_rsindex(a)		(a)
-
-
-#endif	/* Unlimited staging */
-
-// ============================================================================
-
-#else	/* No staging */
-
-#define	CC1100_N_STAGES	RADIO_LBT_RETRY_LIMIT
-
-#endif	/* RADIO_LBT_RETRY_STAGED */
-
-// ============================================================================
-// ============================================================================
-
-#if RADIO_LBT_RETRY_LIMIT
-
-#define	cc1100_retry_limit_reached(rc)	((rc)++ == RADIO_LBT_RETRY_LIMIT-1)
-
-#if RADIO_LBT_RETRY_LIMIT > CC1100_N_STAGES
-#define	cc1100_rsindex(a)	(((a)<CC1100_N_STAGES)?(a):(CC1100_N_STAGES-1))
-#else
-#define	cc1100_rsindex(a)	(a)
-#endif
+const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
+	// This table is ignored for retr >= LBT_RETR_FORCE_RCV
+	0x59, 0x5A, 0x6B, 0x7D, 0x4F
+};
 
 #endif
 
@@ -518,6 +477,9 @@ const	byte	cc1100_stage_table [] = {
 
 extern const byte cc1100_rfsettings [];
 extern const byte *cc1100_ratemenu [];
+#if RADIO_LBT_MODE == 3
+extern const byte cc1100_agcctrl_table [];
+#endif
 
 #endif	/* DEFINE_RF_SETTINGS */
 

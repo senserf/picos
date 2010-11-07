@@ -5,7 +5,7 @@
 
 // This one is intepreted in cc1100.h and indicates that this inclusion of the
 // file should declare the static arrays with settings
-#define	DEFINE_RF_SETTINGS	1
+#define	CC1100_DEFINE_RF_SETTINGS	1
 
 #include "kernel.h"
 #include "tcvphys.h"
@@ -32,21 +32,21 @@ static byte	*supplements = NULL;	// Register definition supplements
 static byte	gwch;			// Guard watch flags
 #endif
 
-#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
+#if RADIO_LBT_MODE == 3
 // We need a retry counter
-static byte	retr;
+static byte	retr = 0;
 #endif
 
 #if (RADIO_OPTIONS & 0x04)
-// Counts events:
+// Counts events ==============================================================
 //
 //	0 - receptions (all events when receiver was awakened by an incoming
 //	    packet, i.e., the start vector [SYSTEM_IDENT] was recognized)
 //	1 - successfully received packets; note that with hardware CRC +
 //	    AUTOFLUSH, 0 and 1 will be equal
 //	2 - the number of packets extracted from the transmit queue (ones the
-//	    driver tried to transmit)
-//	3 - the number of xmt packets dropped on RETRY_LIMIT
+//	    driver ever tried to transmit)
+//	3 - the number of xmt packets dropped on retry LBT_RETR_LIMIT
 //	4 - LBT/congestion indicator: EMA d(n) = 0.75 * d(n-1) + 0.25 * b, where
 //	    b is the backoff experienced when trying to access the channel for
 //	    TX; this is counted over all attempts to access the channel and
@@ -93,6 +93,8 @@ static void set_congestion_indicator (word v) {
 #define	set_congestion_indicator(v)	CNOP
 #endif	/* RADIO_OPTIONS & 0x04 */
 
+// ============================================================================
+
 word		__pi_v_drvprcs, __pi_v_qevent;
 
 static byte	RxOFF,			// Transmitter on/off flags
@@ -101,8 +103,6 @@ static byte	RxOFF,			// Transmitter on/off flags
 		rbuffl,
 		vrate = RADIO_BITRATE_INDEX,	// Rate select
 		channr = RADIO_DEFAULT_CHANNEL;
-
-const byte *suppl;
 
 #if (RADIO_OPTIONS & 0x10)
 // Guard process present ======================================================
@@ -378,8 +378,8 @@ static void init_cc_regs () {
 	if (supplements != NULL)
 		set_reg_group (supplements);
 #endif
+	// Power and channel number are also separate
 	cc1100_set_power ();
-	// And so is the channel number
 	cc1100_setchannel (channr);
 }
 
@@ -622,6 +622,7 @@ static void ini_cc1100 () {
 	ini_regs;
 	chip_reset ();
 
+// ============================================================================
 #if (RADIO_OPTIONS & 0x80)
 #if ENTROPY_COLLECTION
 
@@ -642,6 +643,7 @@ static void ini_cc1100 () {
 	}
 #endif
 #endif
+// ============================================================================
 	power_down ();
 
 	// Read the chip number reg and write a message to the UART
@@ -670,6 +672,7 @@ static void do_rx_fifo () {
 #if SOFTWARE_CRC == 0
 	byte b;
 #endif
+	LEDI (2, 1);
 	// We are making progress as far as reception
 	guard_stop (WATCH_RCV | WATCH_PRG);
 
@@ -687,6 +690,7 @@ static void do_rx_fifo () {
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX BAD STAT!!", (word) seconds ());
 #endif
+ResNX:
 		cc1100_rx_reset ();
 		// Skip reception
 		goto Rtn;
@@ -714,8 +718,7 @@ static void do_rx_fifo () {
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX BAD PL: %d", (word) seconds (), len);
 #endif
-		cc1100_rx_reset ();
-		goto Rtn;
+		goto ResNX;
 	}
 
 	// This is the logical payload length, i.e., the first byte of whatever
@@ -730,8 +733,7 @@ static void do_rx_fifo () {
 		diag ("CC1100: %u RX PL MIS: %d/%d", (word) seconds (), len,
 			paylen);
 #endif
-		cc1100_rx_reset ();
-		goto Rtn;
+		goto ResNX;
 	}
 
 	// We shall copy --len bytes, i.e., paylen + 2 (or, put differently,
@@ -741,8 +743,7 @@ static void do_rx_fifo () {
 #if (RADIO_OPTIONS & 0x01)
 		diag ("CC1100: %u RX LONG: %d", (word) seconds (), paylen);
 #endif
-		cc1100_rx_reset ();
-		goto Rtn;
+		goto ResNX;
 	}
 
 	// Copy the FIFO contents
@@ -832,6 +833,7 @@ static void do_rx_fifo () {
 	tcvphy_rcv (physid, rbuff, paylen);
 Rtn:
 	gbackoff (RADIO_LBT_BACKOFF_RX);
+	LEDI (2, 0);
 }
 
 #define	DR_LOOP		0
@@ -858,11 +860,8 @@ thread (cc1100_driver)
 			tcvphy_erase (physid);
 
 		// Receive or drain
-		while (RX_FIFO_READY) {
-			LEDI (2, 1);
+		while (RX_FIFO_READY)
 			do_rx_fifo ();
-			LEDI (2, 0);
-		}
 XRcv:
 		wait (__pi_v_qevent, DR_LOOP);
 		if (RxOFF == 0)
@@ -870,11 +869,8 @@ XRcv:
 		release;
 	}
 
-	while (RX_FIFO_READY) {
-		LEDI (2, 1);
+	while (RX_FIFO_READY)
 		do_rx_fifo ();
-		LEDI (2, 0);
-	}
 
 	if (bckf_timer) {
 		delay (bckf_timer, DR_LOOP);
@@ -892,39 +888,50 @@ XRcv:
 		goto XRcv;
 	}
 
-	// Try to grab the chip for TX
-#if RADIO_LBT_RETRY_STAGED
-	// We use different sensitivity settings for different attempts
-	cc1100_set_reg (CCxxx0_AGCCTRL1, cc1100_retry_stage (retr));
-#endif
-
-#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
+#if RADIO_LBT_MODE == 3
+	// Staged/limited
+	if (retr < LBT_RETR_FORCE_RCV) {
+		// Retry count below forcing threshold
+		if (retr == 0) {
+			// Initialize MCSM1
+			cc1100_set_reg (CCxxx0_MCSM1, MCSM1_LBT_FULL);
 #if (RADIO_OPTIONS & 0x04)
-	if (retr == 0) {
-		// First time around
-		if (rerror [RERR_XMEX] == MAX_WORD)
-			memset (rerror + RERR_XMEX, 0, sizeof (word) * 2);
-		else
-			rerror [RERR_XMEX] ++;
+			if (rerror [RERR_XMEX] == MAX_WORD)
+				memset (rerror + RERR_XMEX, 0,
+					sizeof (word) * 2);
+			else
+				rerror [RERR_XMEX] ++;
+#endif
+		}
+		cc1100_set_reg (CCxxx0_AGCCTRL1, cc1100_agcctrl_table [retr]);
+	} else {
+		// Forcing
+		cc1100_set_reg (CCxxx0_MCSM1,
+			retr < LBT_RETR_FORCE_OFF ?
+				// Still honor own receptions in pogress
+				MCSM1_LBT_RCV :
+				// Complete OFF
+				MCSM1_LBT_OFF);
 	}
 #endif
-#endif
+
 	if (clear_to_send () == NO) {
 
-#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
-		// This also updates retr
-		if (cc1100_retry_limit_reached (retr)) {
-
-			// Drop the packet
+#if RADIO_LBT_MODE == 3
+		if (retr == LBT_RETR_LIMIT-1) {
+			// Limit reached, drop the packet
 #if (RADIO_OPTIONS & 0x04)
 			// This one is never bigger than RERR_XMEX
 			rerror [RERR_XMDR] ++;
 #endif
-			retr = 0;
 			// Pretend the packet has been transmitted
 			set_congestion_indicator (0);
+#if (RADIO_OPTIONS & 0x01)
+			diag ("CC1100: RTL!!");
+#endif
 			goto FEXmit;
 		}
+		retr++;
 #endif
 
 #if ((RADIO_OPTIONS & 0x05) == 0x05)
@@ -947,14 +954,11 @@ XRcv:
 		set_congestion_indicator (0);
 	}
 
-#if RADIO_LBT_RETRY_LIMIT || RADIO_LBT_RETRY_STAGED
-	retr = 0;
-#endif
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
 		// The last check: the packet may have been removed while
 		// waiting on LBT
 		enter_rx ();
-		proceed (DR_LOOP);
+		goto FEXmit;
 	}
 
 	// A packet arriving from TCV always contains CRC slots, even if
@@ -1011,10 +1015,17 @@ XRcv:
 	}
 #endif
 	guard_stop (WATCH_XMT | WATCH_PRG);
-FEXmit:
+
 	LEDI (1, 0);
+
 #if RADIO_LBT_XMIT_SPACE
 	utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
+#endif
+
+FEXmit:
+
+#if RADIO_LBT_MODE == 3
+	retr = 0;
 #endif
 	proceed (DR_LOOP);
 
@@ -1040,8 +1051,7 @@ thread (cc1100_guard)
 #endif
 Reset:
 		guard_clear;
-		chip_reset ();
-		enter_rx ();
+		cc1100_rx_reset ();
 		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 		delay (GUARD_LONG_DELAY, GU_ACTION);
 		release;
@@ -1229,10 +1239,8 @@ static int option (int opt, address val) {
 	    case PHYSOPT_TXON:
 
 		if (RxOFF) {
-			// Start up
-			chip_reset ();
-			// Even if RX is off, this is our default mode
-			enter_rx ();
+			// Start up; even if RX is off, RX is our default mode
+			cc1100_rx_reset ();
 			// Flag == need to power down on TxOFF
 			RxOFF = 1;
 			LEDI (0, 1);
@@ -1246,11 +1254,9 @@ OREvnt:
 
 	    case PHYSOPT_RXON:
 
-		if ((TxOFF & 1)) {
+		if ((TxOFF & 1))
 			// Start up
-			chip_reset ();
-			enter_rx ();
-		}
+			cc1100_rx_reset ();
 
 		RxOFF = 0;
 
@@ -1393,7 +1399,7 @@ OREvnt:
 #endif
 	    default:
 
-		syserror (EREQPAR, "cc1100 option");
+		syserror (EREQPAR, "cc1100 opt");
 
 	}
 	return ret;

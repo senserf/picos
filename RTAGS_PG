@@ -835,3 +835,33 @@ PG101019A:	VUEE >= PG101019A
 
 	A slight modification to PiComp for compatibility with the newest fix
 	to VUEE.
+
+PG101107A:
+
+	LBT for the CC1100 modified (read Docs/PICOS/cc1100.odt). I have
+	removed the previous (complicated) combination of staging (i.e.,
+	decreasing the sensitivity of thresholds) with limiting the number
+	of retransmissions. The LBT mode is now determined by a single
+	constant, RADIO_LBT_MODE, which can be 0-3:
+
+	0 - LBT completely switched off, all transmissions are blind
+
+	1 - only check (and refuse access) if receiving a packet
+
+	2 - refuse access if receiving a packet or RSS above threshold(s),
+	    with the thresholds described (as before) by RADIO_CC_THRESHOLD
+	    and RADIO_CC_THRESHOLD_REL
+
+	3 - try up to 8 times gradually decreasing LBT sensitivity; the last
+	    attempt is carried out with LBT completely switched off
+
+	Previously, I was under the impression that you can switch off the
+	thresholds completely without setting CCA_MODE to 0 by storing the
+	smallest threshold values in AGCCTRL1 (this is what the document says). 
+	Apparently, as Wlodek's problems indicate, this is not the case. His
+	setups seem to suffer some strange interference which makes it
+	impossible to acquire the channel for a very long time unless you set
+	CCA_MODE to 2 (or 0).
+
+	Improved the recognition of Tcl location by the deploy script (esp.
+	under Linux)
