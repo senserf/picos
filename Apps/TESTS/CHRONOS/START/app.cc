@@ -9,9 +9,6 @@
 
 word dig = 0;
 
-#define	RS_INIT		0
-#define	RS_LOOP		1
-
 rtc_time_t	D = { 10, 2, 3, 3, 19, 58, 0 };
 
 void msg_lcd (const char *txt, word fr, word to) {
@@ -51,9 +48,9 @@ void msg_td (byte n, word seg) {
 	msg_lcd (msg, seg, seg - 1);
 }
 
-thread (root)
+fsm root {
 
-  entry (RS_INIT)
+  state RS_INIT:
 
 	ezlcd_init ();
 	ezlcd_on ();
@@ -63,7 +60,7 @@ thread (root)
 	bzero (&D, sizeof (D));
 	ezlcd_item (LCD_SEG_L1_COL, LCD_MODE_BLINK);
 
-  entry (RS_LOOP)
+  state RS_LOOP:
 
 	rtc_get (&D);
 
@@ -76,4 +73,4 @@ thread (root)
 
 	delay (256, RS_LOOP);
 
-endthread
+}

@@ -16,10 +16,6 @@
 
 #define MAXPLEN			60
 
-static int 	sfd = -1, packet_length, rcvl;
-static lword	last_rcv;
-static word	rssi;
-static address	packet;
 static word 	imess,	// Count received
 		omess;	// ... and outgoing messages
 
@@ -88,13 +84,6 @@ static void buttons (word but) {
 }
 
 // ============================================================================
-
-#define	AS_LOOP		0
-#define	AS_RPRE		1
-#define	AS_RACC		2
-#define	AS_SEND		3
-
-// ============================================================================
 // Array to return sensor values. For the acceleration sensor:
 //
 //	aval [0] = the time stamp as the number of seconds ago (up to 0xffff)
@@ -109,16 +98,15 @@ static void buttons (word but) {
 //	pval [3]   = temperature in Celsius * 20, i.e., divide this by 20 to
 //                   get temperature in Celsius
 //
-word aval [2], pval [3];
 // ============================================================================
 
 word sval_rint;		// Reporting interval
 
-thread (sensor_server)
+fsm sensor_server {
 
-  entry (AS_LOOP)
+  word aval [2], pval [3];
 
-	// ====================================================================
+  state AS_LOOP:
 
 	if (sval_rint == 0) {
 		// Stop
@@ -127,15 +115,15 @@ thread (sensor_server)
 		release;
 	}
 
-  entry (AS_RPRE)
+  state AS_RPRE:
 
 	read_sensor (AS_RPRE, PRESSURE_SENSOR, pval);
 
-  entry (AS_RACC)
+  state AS_RACC:
 
 	read_sensor (AS_RACC, MOTION_SENSOR, aval);
 
-  entry (AS_SEND)
+  state AS_SEND:
 
 	ab_outf (AS_SEND, "MO: %u %u, PR: %lu, TM: %u",
 		aval [0], aval [1], ((lword*)pval) [0], pval [2]);
@@ -143,19 +131,16 @@ thread (sensor_server)
 	msg_nn (1, omess++);
 
 	delay (sval_rint, AS_LOOP);
-
-endthread
+}
 
 // ============================================================================
 
-#define	BS_LOOP		0
+fsm button_server {
 
-thread (button_server)
+  state BS_LOOP:
 
-  char butts [6];
-  word i;
-
-  entry (BS_LOOP)
+        char butts [6];
+        word i;
 
 	if (Buttons == 0) {
 		when (&Buttons, BS_LOOP);
@@ -170,38 +155,18 @@ thread (button_server)
 	ab_outf (BS_LOOP, "Buttons: %s", butts);
 	Buttons = 0;
 	msg_nn (1, omess++);
-	proceed (BS_LOOP);
-
-endthread
+	proceed BS_LOOP;
+}
 
 // ============================================================================
 
-#define	RS_INIT		0
-#define	RS_LOOP		1
-#define	RS_READ		2
-#define	RS_BAD		3
-#define	RS_DDOWN	4
-#define	RS_DLOOP	5
-#define	RS_PDOWN	6
-#define	RS_HOLD		7
-#define	RS_ON		8
-#define	RS_TICK		9
-#define	RS_ASON		10
-#define	RS_ASOFF	11
-#define	RS_DONE		12
-#define	RS_RTC		13
-#define	RS_SHOW		14
-#define	RS_BUZZ		15
-#define	RS_BUZZF	16
+fsm root {
 
-static char *ibuf = NULL;
-static word pddelay, pdcount;
+  int sfd = -1;
+  word pddelay, pdcount;
+  char *ibuf = NULL;
 
-thread (root)
-
-  rtc_time_t r;
-
-  entry (RS_INIT)
+  state RS_INIT:
 
 	ezlcd_init ();
 	ezlcd_on ();
@@ -223,17 +188,17 @@ thread (root)
 	ab_init (sfd);
 	ab_mode (AB_MODE_PASSIVE);
 	buttons_action (buttons);
-	runthread (sensor_server);
-	runthread (button_server);
+	runfsm sensor_server;
+	runfsm button_server;
 
-  entry (RS_LOOP)
+  state RS_LOOP:
 
 	if (ibuf != NULL) {
 		ufree (ibuf);
 		ibuf = NULL;
 	}
 
-  entry (RS_READ)
+  state RS_READ:
 
 	ibuf = ab_in (RS_READ);
 
@@ -241,34 +206,34 @@ thread (root)
 
 	switch (ibuf [0]) {
 
-		case 's' : proceed (RS_ASON);	// Start acceleration reports
-		case 'q' : proceed (RS_ASOFF);	// Stop acceleration reports
-		case 'd' : proceed (RS_PDOWN);	// Power down mode
-		case 'D' : proceed (RS_DDOWN);	// Dumb power down
-		case 'r' : proceed (RS_RTC);	// Set or get RTC
-		case 'b' : proceed (RS_BUZZ);
+		case 's' : proceed RS_ASON;	// Start acceleration reports
+		case 'q' : proceed RS_ASOFF;	// Stop acceleration reports
+		case 'd' : proceed RS_PDOWN;	// Power down mode
+		case 'D' : proceed RS_DDOWN;	// Dumb power down
+		case 'r' : proceed RS_RTC;	// Set or get RTC
+		case 'b' : proceed RS_BUZZ;
 	}
 
-  entry (RS_BAD)
+  state RS_BAD:
 
 	ab_outf (RS_BAD, "Illegal command");
-	proceed (RS_LOOP);
+	proceed RS_LOOP;
 
   // ==========================================================================
 
-  entry (RS_DDOWN)
+  state RS_DDOWN:
 
 	pddelay = 0;
 	scan (ibuf + 1, "%u", &pddelay);
 	if (pddelay == 0)
-		proceed (RS_BAD);
+		proceed RS_BAD;
 
 	ezlcd_off ();
 	powerdown ();
 	tcv_control (sfd, PHYSOPT_RXOFF, NULL);
 	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
 
-  entry (RS_DLOOP)
+  state RS_DLOOP:
 
 	if (pddelay) {
 		pddelay--;
@@ -280,17 +245,17 @@ thread (root)
 	ezlcd_on ();
 	tcv_control (sfd, PHYSOPT_RXON, NULL);
 	tcv_control (sfd, PHYSOPT_TXON, NULL);
-	proceed (RS_DONE);
+	proceed RS_DONE;
 
-  entry (RS_PDOWN)
+  state RS_PDOWN:
 
 	pdcount = pddelay = 0;
 	scan (ibuf + 1, "%u %u", &pddelay, &pdcount);
 
 	if (pddelay == 0 || pdcount == 0)
-		proceed (RS_BAD);
+		proceed RS_BAD;
 
-  entry (RS_HOLD)
+  state RS_HOLD:
 
 	powerdown ();
 	tcv_control (sfd, PHYSOPT_RXOFF, NULL);
@@ -298,19 +263,19 @@ thread (root)
 	delay (pddelay, RS_ON);
 	release;
 
-  entry (RS_ON)
+  state RS_ON:
 
 	powerup ();
 	tcv_control (sfd, PHYSOPT_RXON, NULL);
 	tcv_control (sfd, PHYSOPT_TXON, NULL);
 
-  entry (RS_TICK)
+  state RS_TICK:
 
 	ab_outf (RS_TICK, "Up for a sec");
 	if (pdcount <= 1) {
 		// Exit
 		powerup ();
-		proceed (RS_DONE);
+		proceed RS_DONE;
 	}
 	pdcount--;
 	delay (1000, RS_HOLD);
@@ -318,7 +283,7 @@ thread (root)
 
   // ==========================================================================
 
-  entry (RS_ASON)
+  state RS_ASON:
 
 	// Default interval
 	pddelay = 0;
@@ -328,17 +293,19 @@ thread (root)
 STrig:
 	trigger (&sval_rint);
 
-  entry (RS_DONE)
+  state RS_DONE:
 
 	ab_outf (RS_DONE, "OK");
-	proceed (RS_LOOP);
+	proceed RS_LOOP;
 
-  entry (RS_ASOFF)
+  state RS_ASOFF:
 
 	sval_rint = 0;
 	goto STrig;
 
-  entry (RS_RTC)
+  state RS_RTC:
+
+  	rtc_time_t r;
 
 	if (scan (ibuf + 1, "%u %u %u %u %u %u %u",
 		// Note: this won't overflow
@@ -349,7 +316,7 @@ STrig:
 		((address)ibuf)+4,
 		((address)ibuf)+5,
 		((address)ibuf)+6) != 7)
-			proceed (RS_SHOW);
+			proceed RS_SHOW;
 	// Set
 	r.year   = (byte) ((address)ibuf) [0];
 	r.month  = (byte) ((address)ibuf) [1];
@@ -360,9 +327,11 @@ STrig:
 	r.second = (byte) ((address)ibuf) [6];
 
 	rtc_set (&r);
-	proceed (RS_DONE);
+	proceed RS_DONE;
 
-  entry (RS_SHOW)
+  state RS_SHOW:
+
+  	rtc_time_t r;
 
 	rtc_get (&r);
 	ab_outf (RS_SHOW, "TIME: %u %u %u %u %u %u %u",
@@ -374,22 +343,21 @@ STrig:
 		r.minute,
 		r.second);
 
-	proceed (RS_LOOP);
+	proceed RS_LOOP;
 
-  entry (RS_BUZZ)
+  state RS_BUZZ:
 
 	pddelay = 0;
 	scan (ibuf + 1, "%u", &pddelay);
 	if (pddelay == 0)
-		proceed (RS_BAD);
+		proceed RS_BAD;
 
 	buzzer_on ();
 	delay (pddelay, RS_BUZZF);
 	release;
 
-  entry (RS_BUZZF)
+  state RS_BUZZF:
 
 	buzzer_off ();
-	proceed (RS_DONE);
-
-endthread
+	proceed RS_DONE;
+}

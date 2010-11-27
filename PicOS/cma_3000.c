@@ -14,6 +14,7 @@ static void wreg (byte reg, byte val) {
 
 	// Select the chip
 	__pi_cma_3000_csel;
+	mdelay (5);
 
 	// Remove SPI interrupt condition
 	res = __pi_cma_3000_read;
@@ -42,6 +43,7 @@ static byte rreg (byte reg) {
 
 	// Select the chip
 	__pi_cma_3000_csel;
+	mdelay (5);
 
 	// Remove SPI interrupt condition
 	res = __pi_cma_3000_read;
@@ -93,15 +95,17 @@ void cma_3000_on () {
 
 	__pi_cma_3000_bring_up;
 
-	// This is the standard magic to reset the sensor
-	wreg (0x04, 0x02);
-	wreg (0x04, 0x0A);
-	wreg (0x04, 0x04);
+	do {
+		// May have to retry
+		wreg (0x04, 0x02);	// Reset
+		wreg (0x04, 0x0A);
+		wreg (0x04, 0x04);
+		mdelay (10);
+		wreg (0x02, CMA3000_CONFIG);
+		wreg (0x09, CMA3000_THRESHOLD);
+		mdelay (10);
 
-	mdelay (10);
-
-	wreg (0x02, CMA3000_CONFIG);
-	wreg (0x09, CMA3000_THRESHOLD);
+	} while (rreg (0x02) != CMA3000_CONFIG);
 
 	NEvents = 0;
 	__pi_cma_3000_event_thread = runthread (cma_3000_event_handler);

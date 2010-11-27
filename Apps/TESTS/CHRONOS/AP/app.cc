@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 //
@@ -24,49 +24,37 @@ heapmem {10, 90};
 // 4 bytes are needed for XRS header
 #define	UBUFLEN		(MAXPLEN-4)
 
-static int 	sfd = -1;
-
 // ============================================================================
 
-#define	RC_READ		0
-#define	RC_ECHO		1
-#define	RC_EL		2
+fsm receiver {
 
-static char *ibuf;
+  char *ibuf;
 
-thread (receiver)
-
-  entry (RC_READ)
+  state RC_READ:
 
 	ibuf = ab_in (RC_READ);
 
-  entry (RC_ECHO)
+  state RC_ECHO:
 
 	ser_out (RC_ECHO, ibuf);
 	ufree (ibuf);
 
-  entry (RC_EL)
+  state RC_EL:
 
 	ser_out (RC_EL, "\r\n");
-	proceed (RC_READ);
-
-endthread
+	proceed RC_READ;
+}
 
 // ============================================================================
 
-#define	RS_INIT		0
-#define	RS_WINP		1
-#define	RS_ECHO		2
-#define	RS_SEND		3
+fsm root {
 
-static char ubuf [UBUFLEN];
+  char ubuf [UBUFLEN];
+  int sfd = -1;
 
-thread (root)
+  state RS_INIT:
 
-  char *ob;
-  word w;
-
-  entry (RS_INIT)
+	word w;
 
 	phys_cc1100 (0, MAXPLEN);
 	tcv_plug (0, &plug_null);
@@ -82,23 +70,20 @@ thread (root)
 	ab_init (sfd);
 	// We are in charge of the link
 	ab_mode (AB_MODE_ACTIVE);
-	runthread (receiver);
+	runfsm receiver;
 
-  entry (RS_WINP)
+  state RS_WINP:
 
 	ser_in (RS_WINP, ubuf, UBUFLEN);
 	if (ubuf [0] == '\0')
-		proceed (RS_WINP);
+		proceed RS_WINP;
 
-  entry (RS_ECHO)
+  state RS_ECHO:
 
 	ser_outf (RS_ECHO, "Sending: %s\r\n", ubuf);
 
-  entry (RS_SEND)
+  state RS_SEND:
 
 	ab_outf (RS_SEND, "%s", ubuf);
-	proceed (RS_WINP);
-
-endthread
-
-// ============================================================================
+	proceed RS_WINP;
+}

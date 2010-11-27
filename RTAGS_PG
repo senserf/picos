@@ -865,3 +865,11 @@ PG101107A:
 
 	Improved the recognition of Tcl location by the deploy script (esp.
 	under Linux)
+
+PG101127A:
+
+	CMA3000 driver for EZ-CHRONOS fixed to make sure that the sensor is
+	always initialized properly. Previously, the acceleration sensor would
+	not initialize on some watches on the first try. Persistent
+	initialization until the configuration register reads correctly seems
+	to do the trick.

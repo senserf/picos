@@ -45,13 +45,11 @@
 					_BIC (P1DIR, 0x20); \
 					_BIS (P1SEL, 0xE0); \
 					_BIS (PJOUT, 0x01); \
-					mdelay (50); \
 				} while (0)
 
 #define	__pi_cma_3000_csel	do { \
 					_BIC (P1REN, 0x20); \
 					_BIC (PJOUT, 0x02); \
-					mdelay (50); \
 				} while (0)
 
 #define	__pi_cma_3000_cunsel	do { \
