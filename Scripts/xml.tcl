@@ -304,14 +304,26 @@ proc sxml_txt { s } {
 	return [string trim [lindex $s 1]]
 }
 
-proc sxml_attr { s n } {
+proc sxml_attr { s n { e "" } } {
+
+	if { $e != "" } {
+		# flag to tell the difference between an empty attribute and
+		# its complete lack
+		upvar $e ef
+	}
 
 	set al [lindex $s 2]
 	set n [string tolower $n]
 	foreach a $al {
 		if { [lindex $a 0] == $n } {
+			if { $e != "" } {
+				set ef 1
+			}
 			return [lindex $a 1]
 		}
+	}
+	if { $e != "" } {
+		set ef 0
 	}
 	return ""
 }

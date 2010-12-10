@@ -873,3 +873,38 @@ PG101127A:
 	not initialize on some watches on the first try. Persistent
 	initialization until the configuration register reads correctly seems
 	to do the trick.
+
+PG101210A:
+
+	Flash definitions modified to account for the "non-standard" FIM setup
+	on CC430 (4 blocks x 64 words). Note that this requires the new fixed
+	version of mspgcc (the flash definitions for cc430 were incorrect).
+	I will be shortly putting the Cygwin source package into:
+
+		http://www.olsonet.com/REPO/101210_mspgcc_source.tar.gz
+
+	This is for a complete re-installation; it takes time, as the entire
+	package is recompiled. There's a simple README file explaining the
+	installation procedure.
+
+	If you prefer to upgrade the easy way, then fetch this file instead:
+
+		http://www.olsonet.com/REPO/101210_mspgcc_changes.tar.gz
+
+	Then do:
+
+		zcat 101210_mspgcc_changes.tar.gz | tar -xvf -
+		cd 101210_mspgcc_changes
+		cp -r * /cygdrive/c/mspgcc/msp430/include/
+
+	which operation will just replace the modified include files. Note that
+	flash write/erase operations will not work on the CHRONOS with the
+	previous version of mspgcc (although reading is fine).
+
+	The word addresses of the FIM blocks on CC430 are 0 (block D), 64
+	(block C), 128 (block B), and 192 (block A). The interesting feature of
+	the last block (A) is that its contents survive reflashing the device
+	and can only be erased and overwritten by an explicit action of the
+	program.
+
+	A minor extension to Scripts/xml.tcl.

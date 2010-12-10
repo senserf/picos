@@ -35,6 +35,7 @@
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
 #define		__PORT_FBASE__	P3IN_	// Lowest-address port register
+#define		__FLASH_TYPE__	1
 #endif
 
 #ifdef		__MSP430_149__
@@ -45,6 +46,7 @@
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
 #define		__PORT_FBASE__	P3IN_
+#define		__FLASH_TYPE__	1
 #endif
 
 #ifdef		__MSP430_1611__
@@ -55,6 +57,7 @@
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
 #define		__PORT_FBASE__	P3IN_
+#define		__FLASH_TYPE__	1
 #endif
 
 #ifdef		__MSP430_449__
@@ -65,6 +68,7 @@
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
 #define		__PORT_FBASE__	P3IN_
+#define		__FLASH_TYPE__	1
 #endif
 
 #ifdef		__MSP430_G4617__
@@ -79,6 +83,7 @@
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
 #define		__SWAPPED_UARTS__
+#define		__FLASH_TYPE__	1
 #endif
 
 #ifdef		__MSP430_G4618__
@@ -92,6 +97,7 @@
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
 #define		__SWAPPED_UARTS__
+#define		__FLASH_TYPE__	1
 #endif
 
 #ifdef		__MSP430_G4619__
@@ -105,6 +111,7 @@
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
 #define		__SWAPPED_UARTS__
+#define		__FLASH_TYPE__	1
 #endif
 
 #ifdef		__CC430_6137__
@@ -118,20 +125,109 @@
 #define		__UART_CONFIG__	2
 #define		__ADC_CONFIG__	3	// Extended ADC with REF module
 #define		__TCI_CONFIG__	2
+#define		__FLASH_TYPE__	2
 #endif
 
 #ifndef		RAM_SIZE
-#error	"S: untried yet CPU type: check MSP430/mach.h"
+#error	"S: unknown (yet) CPU type: check MSP430/mach.h"
 #endif
 
 #include "arch.h"
 
 // ============================================================================
 
-#if	INFO_FLASH
-#define	IFLASH_SIZE	128			// This is in words
-#define	IFLASH_HARD_ADDRESS	((word*)0x1000)
+#if __FLASH_TYPE__ == 1
+//
+// FIM type 1 starting at 0x1000, two pages 128 bytes each
+//
+#define	IFLASH_PAGESIZE	64			// This is in words
+#define	CFLASH_PAGESIZE	256			// Also in words
+#define	IFLASH_NPAGES	2
+#define	IFLASH_START	((address)0x1000)
+
+#define	__FLASH_OP_WRITE__(w,a)	cli; \
+				__asm__ __volatile__ ( \
+				"mov %0,%1\n\t" \
+				"mov %2,%3\n\t" \
+				"mov %4,%5\n\t" \
+				"mov %6,%7\n\t" \
+				"mov %2,%5\n\t" \
+				"mov %8,%3\n\t" : : \
+				"i"((int)(FWKEY+FSSEL1+11)), "m"(FCTL2), \
+				"i"((int)(FWKEY)), "m"(FCTL3), \
+				"i"((int)(FWKEY+WRT)), "m"(FCTL1), \
+				"m"((int)(w)),"m"((*((word*)(a)))), \
+				"i"((int)(FWKEY+LOCK)) ); \
+				sti
+
+#define	__FLASH_OP_ERASE__(a)	cli; \
+				__asm__ __volatile__ ( \
+				"mov %0,%1\n\t" \
+				"mov %2,%3\n\t" \
+				"mov %4,%5\n\t" \
+				"clr 0(%6)\n\t" \
+				"mov %7,%3\n\t" : : \
+				"i"((int)(FWKEY+FSSEL1+11)), "m"(FCTL2), \
+				"i"((int)(FWKEY)), "m"(FCTL3), \
+				"i"((int)(FWKEY+ERASE)), "m"(FCTL1), \
+				"r"((int)(a)), \
+				"i"((int)(FWKEY+LOCK)) ); \
+				sti
+
+#define	__FLASH_FIM_UNLOCK__	CNOP
+#define	__FLASH_FIM_RELOCK__	CNOP
+
 #endif
+
+#if __FLASH_TYPE__ == 2
+//
+// CC430: 4 pages at 0x1800
+//
+#define	IFLASH_PAGESIZE	64
+#define	CFLASH_PAGESIZE	256
+#define	IFLASH_NPAGES	4
+#define	IFLASH_START	((address)0x1800)
+
+#define	__FLASH_OP_WRITE__(w,a)	cli; \
+				__asm__ __volatile__ ( \
+				"mov %0,%1\n\t" \
+				"mov %2,%3\n\t" \
+				"mov %4,%5\n\t" \
+				"mov %0,%3\n\t" \
+				"mov %6,%1\n\t" : : \
+				"i"((int)(FWKEY)), "m"(FCTL3), \
+				"i"((int)(FWKEY+WRT)), "m"(FCTL1), \
+				"m"((int)(w)),"m"((*((word*)(a)))), \
+				"i"((int)(FWKEY+LOCK)) ); \
+				sti
+
+#define	__FLASH_OP_ERASE__(a)	cli; \
+				FCTL3 = FWKEY + LOCKA; \
+				__asm__ __volatile__ ( \
+				"mov %0,%1\n\t" \
+				"mov %2,%3\n\t" \
+				"clr 0(%4)\n\t" \
+				"mov %5,%1\n\t" : : \
+				"i"((int)(FWKEY+LOCKA)), "m"(FCTL3), \
+				"i"((int)(FWKEY+ERASE)), "m"(FCTL1), \
+				"r"((int)(a)), \
+				"i"((int)(FWKEY+LOCK)) ); \
+				sti
+
+#define	__FLASH_FIM_UNLOCK__	do { \
+					if ((FCTL3 & LOCKA)) \
+						FCTL3 = FWKEY + LOCKA; \
+				} while (0)
+
+#define	__FLASH_FIM_RELOCK__	do { \
+					if ((FCTL3 & LOCKA) == 0) \
+						FCTL3 = FWKEY + LOCKA; \
+				} while (0)
+#endif
+
+#define	IFLASH_SIZE	(IFLASH_NPAGES * IFLASH_PAGESIZE)
+
+// ============================================================================
 
 #define	RAM_END		(RAM_START + RAM_SIZE)
 #define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack

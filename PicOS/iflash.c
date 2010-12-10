@@ -28,7 +28,9 @@ int if_write (word a, word w) {
 	if (IFLASH [a] != 0xffff)
 		return ERROR;
 #endif
+	__FLASH_FIM_UNLOCK__;
 	if_write_sys (w, IFLASH + a);
+	__FLASH_FIM_RELOCK__;
 
 	return (IFLASH [a] == w) ? 0 : ERROR;
 #if 0
@@ -45,17 +47,18 @@ void if_erase (int a) {
 /*
  * Erase info flash block containing the word with the specified address
  */
+	__FLASH_FIM_UNLOCK__;
 	if (a >= 0) {
 		// Single block
 		if (a >= IFLASH_SIZE)
 			syserror (EFLASH, "if_erase");
-		a &= ~(IF_PAGE_SIZE - 1);
-		if_erase_block (IFLASH + a, IF_PAGE_SIZE);
-		return;
+		a &= ~(IFLASH_PAGESIZE - 1);
+		if_erase_block (IFLASH + a, IFLASH_PAGESIZE);
+	} else {
+		for (a = 0; a < IFLASH_SIZE; a += IFLASH_PAGESIZE)
+			if_erase_block (IFLASH + a, IFLASH_PAGESIZE);
 	}
-
-	for (a = 0; a < IFLASH_SIZE; a += IF_PAGE_SIZE)
-		if_erase_block (IFLASH + a, IF_PAGE_SIZE);
+	__FLASH_FIM_RELOCK__;
 }
 
 #if INFO_FLASH > 1
@@ -66,8 +69,8 @@ void cf_write (address a, word w) { if_write_sys (w, a); }
 
 void cf_erase (address a) {
 
-	if_erase_block ((address)((word)a & ~((CF_PAGE_SIZE << 1) - 1)),
-		CF_PAGE_SIZE);
+	if_erase_block ((address)((word)a & ~((CFLASH_PAGESIZE << 1) - 1)),
+		CFLASH_PAGESIZE);
 }
 
 #endif	/* INFO_FLASH > 1 */

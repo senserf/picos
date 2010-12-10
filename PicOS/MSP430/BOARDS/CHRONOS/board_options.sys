@@ -36,7 +36,7 @@
 
 #define CRYSTAL_RATE		32768
 
-#define	INFO_FLASH		2
+#define	INFO_FLASH		1
 
 #define RESET_ON_SYSERR		0
 #define RESET_ON_MALLOC		1

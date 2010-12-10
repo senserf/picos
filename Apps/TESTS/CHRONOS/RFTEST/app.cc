@@ -12,6 +12,7 @@
 #include "form.h"
 #include "buttons.h"
 #include "sensors.h"
+#include "storage.h"
 #include "ab.h"
 
 #define MAXPLEN			60
@@ -160,10 +161,25 @@ fsm button_server {
 
 // ============================================================================
 
+fsm buzz (word duration) {
+
+	state BUZZ_OFF:
+
+		finish;
+
+	initial state BUZZ_ON:
+
+		buzzer_on ();
+		delay (duration, BUZZ_OFF);
+}
+
+// ============================================================================
+
 fsm root {
 
   int sfd = -1;
-  word pddelay, pdcount;
+  word warg0, warg1;
+  int iarg0;
   char *ibuf = NULL;
 
   state RS_INIT:
@@ -180,8 +196,8 @@ fsm root {
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);
 
-	pddelay = 0xffff;
-	tcv_control (sfd, PHYSOPT_SETSID, &pddelay);
+	warg0 = 0xffff;
+	tcv_control (sfd, PHYSOPT_SETSID, &warg0);
 	tcv_control (sfd, PHYSOPT_TXON, NULL);
 	tcv_control (sfd, PHYSOPT_RXON, NULL);
 
@@ -212,6 +228,14 @@ fsm root {
 		case 'D' : proceed RS_DDOWN;	// Dumb power down
 		case 'r' : proceed RS_RTC;	// Set or get RTC
 		case 'b' : proceed RS_BUZZ;
+
+		case 'f' : {			// INFO FLASH operations
+			switch (ibuf [1]) {
+				case 'r' : proceed IF_READ;
+				case 'w' : proceed IF_WRITE;
+				case 'e' : proceed IF_ERASE;
+			}
+		}
 	}
 
   state RS_BAD:
@@ -223,9 +247,9 @@ fsm root {
 
   state RS_DDOWN:
 
-	pddelay = 0;
-	scan (ibuf + 1, "%u", &pddelay);
-	if (pddelay == 0)
+	warg0 = 0;
+	scan (ibuf + 1, "%u", &warg0);
+	if (warg0 == 0)
 		proceed RS_BAD;
 
 	ezlcd_off ();
@@ -235,8 +259,8 @@ fsm root {
 
   state RS_DLOOP:
 
-	if (pddelay) {
-		pddelay--;
+	if (warg0) {
+		warg0--;
 		delay (1024, RS_DLOOP);
 		release;
 	}
@@ -249,10 +273,10 @@ fsm root {
 
   state RS_PDOWN:
 
-	pdcount = pddelay = 0;
-	scan (ibuf + 1, "%u %u", &pddelay, &pdcount);
+	warg1 = warg0 = 0;
+	scan (ibuf + 1, "%u %u", &warg0, &warg1);
 
-	if (pddelay == 0 || pdcount == 0)
+	if (warg0 == 0 || warg1 == 0)
 		proceed RS_BAD;
 
   state RS_HOLD:
@@ -260,7 +284,7 @@ fsm root {
 	powerdown ();
 	tcv_control (sfd, PHYSOPT_RXOFF, NULL);
 	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
-	delay (pddelay, RS_ON);
+	delay (warg0, RS_ON);
 	release;
 
   state RS_ON:
@@ -272,12 +296,12 @@ fsm root {
   state RS_TICK:
 
 	ab_outf (RS_TICK, "Up for a sec");
-	if (pdcount <= 1) {
+	if (warg1 <= 1) {
 		// Exit
 		powerup ();
 		proceed RS_DONE;
 	}
-	pdcount--;
+	warg1--;
 	delay (1000, RS_HOLD);
 	release;
 
@@ -286,9 +310,9 @@ fsm root {
   state RS_ASON:
 
 	// Default interval
-	pddelay = 0;
-	scan (ibuf + 1, "%u", &pddelay);
-	sval_rint = (pddelay == 0) ? 1024 : pddelay;
+	warg0 = 0;
+	scan (ibuf + 1, "%u", &warg0);
+	sval_rint = (warg0 == 0) ? 1024 : warg0;
 	cma_3000_on ();
 STrig:
 	trigger (&sval_rint);
@@ -296,6 +320,11 @@ STrig:
   state RS_DONE:
 
 	ab_outf (RS_DONE, "OK");
+	proceed RS_LOOP;
+
+  state RS_FAIL:
+
+	ab_outf (RS_FAIL, "Failed");
 	proceed RS_LOOP;
 
   state RS_ASOFF:
@@ -347,17 +376,51 @@ STrig:
 
   state RS_BUZZ:
 
-	pddelay = 0;
-	scan (ibuf + 1, "%u", &pddelay);
-	if (pddelay == 0)
+	warg0 = 0;
+	scan (ibuf + 1, "%u", &warg0);
+	if (warg0 == 0)
 		proceed RS_BAD;
 
-	buzzer_on ();
-	delay (pddelay, RS_BUZZF);
-	release;
+	if (!running (buzz)) {
+		runfsm buzz (warg0);
+		proceed RS_DONE;
+	}
 
-  state RS_BUZZF:
+  state RS_BUZZBUSY:
 
-	buzzer_off ();
+	ab_outf (RS_BUZZBUSY, "Buzzer already buzzing");
+	proceed RS_DONE;
+
+  state IF_READ:
+
+	if (scan (ibuf + 2, "%u", &warg0) != 1 || warg0 >= IFLASH_SIZE)
+		proceed RS_BAD;
+
+	warg1 = IFLASH [warg0];
+
+  state IF_READ_OUT:
+
+	ab_outf (IF_READ_OUT, "IF [%u] = %x (%u, %d)", warg0, warg1, warg1,
+		warg1);
+	proceed RS_LOOP;
+
+  state IF_WRITE:
+
+	if (scan (ibuf + 2, "%u %u", &warg0, &warg1) != 2 ||
+	    warg0 >= IFLASH_SIZE)
+		proceed RS_BAD;
+
+	if (if_write (warg0, warg1))
+		proceed RS_FAIL;
+
+	proceed RS_DONE;
+
+  state IF_ERASE:
+
+	if (scan (ibuf + 2, "%d", &iarg0) != 1 ||
+	    (iarg0 > 0 && iarg0 >= IFLASH_SIZE))
+		proceed RS_BAD;
+
+	if_erase (iarg0);
 	proceed RS_DONE;
 }

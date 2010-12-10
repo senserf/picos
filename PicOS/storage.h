@@ -51,7 +51,7 @@ void	sd_init_erase ();
 int	if_write (word, word);
 void	if_erase (int);
 
-#define	IFLASH		IFLASH_HARD_ADDRESS
+#define	IFLASH		IFLASH_START
 #define	if_read(a)	(IFLASH [a])
 
 #if	INFO_FLASH > 1
