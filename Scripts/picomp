@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.25
+set Version 0.27
 
 ###############################################################################
 ###############################################################################
@@ -811,9 +811,9 @@ proc ntoken { } {
 # Note that strings and comments are treated similarly, except that comments
 # are always returned as empty tokens, i.e., PAR_IT is "s", but the returned
 # value is "". This cannot happen for a string, even if it is empty, because
-# it includes the delimiters ("..." or ','). The idea is that the program can
+# it includes the delimiters ("..." or '.'). The idea is that the program can
 # be recombined by simply concatenating the tokens successively returned by
-# ntoken, as long as you make sure to insert one space between two conecutive
+# ntoken, as long as you make sure to insert one space between two consecutive
 # keywords/numwords.
 #
 # The function atomatically outputs the scanned characters to the parser's
@@ -994,6 +994,40 @@ proc ntoken { } {
 				putC $c
 				incr PS(BRL)
 				outtok "\{"
+			}
+
+			"-" {
+				putC $c
+				set c [peekC]
+				if { $c == ">" } {
+					putC $c
+					getC
+					outtok "->"
+					continue
+				}
+				outtok "-"
+			}
+
+			"." {
+				putC $c
+				set c [peekC]
+				if { $c == "." } {
+					# this must be followed by a third dot,
+					# or the token is illegal
+					putC $c
+					getC
+					set c [peekC]
+					if { $c != "." } {
+						xerror "illegal token starting\
+							with .."
+					} else {
+						putC $c
+						getC
+					}
+					outtok "..."
+					continue
+				}
+				outtok "."
 			}
 
 		  	default {
@@ -2728,13 +2762,8 @@ K {
 
 		set fsm_prev [lindex [prevtok 1] 1]
 
-		if { $fsm_prev == "." } {
+		if { $fsm_prev == "." || $fsm_prev == "->" } {
 			# struct/union attribute reference, ignore
-			continue
-		}
-
-		if { $fsm_prev == ">" && [lindex [prevtok 2] 1] == "-" } {
-			# same via pointer
 			continue
 		}
 
@@ -4913,13 +4942,8 @@ K {
 
     set fsm_prev [lindex [prevtok 1] 1]
 
-    if { $fsm_prev == "." } {
+    if { $fsm_prev == "." || $fsm_prev == "->" } {
       # struct/union attribute reference, ignore
-      continue
-    }
-
-    if { $fsm_prev == ">" && [lindex [prevtok 2] 1] == "-" } {
-      # same via pointer
       continue
     }
 
@@ -5003,6 +5027,19 @@ K {
       #########################################################################
       if { $dtp == "A" || $dtp == "F" } {
 
+	if $FG(I) {
+	  # make all function idiosyncratic unless they are explicitly declared
+	  # static
+	  if { [lsearch -exact $pfx "static"] >= 0 } {
+	    if { $ins == "idiosyncratic" } {
+	      xerror "idiosyncratic functions can't be static"
+	      set ins ""
+	    }
+	  } else {
+	    set ins "idiosyncratic"
+	  }
+	}
+
 	if { $ins != "" } {
 
 	  if { $ins != "idiosyncratic" } {
@@ -5049,6 +5086,19 @@ K {
 	    # there is just a single "variable"
 	    set vrs [lindex [g_vdl $d vrs] 0]
 
+	    # the attributes
+	    set vat [g_vdec $vrs att]
+
+	    # output any asterisks following the prefix
+	    set vnm [g_atts $vat ptr]
+	    while { $vnm } {
+		append ins "*"
+		incr vnm -1
+	    }
+
+	    # the arguments
+	    set arg [g_atts $vat arg]
+
 	    set vnm [g_vdec $vrs nam]
 	    set nnm "_na_$vnm"
 
@@ -5060,8 +5110,8 @@ K {
 
 	    s_vdl d pfx $pfx
 	    s_vdl d vrs [list $vrs]
-	
-	    append ins "__NT[pnfx]::[outvar $vrs] \{"
+
+	    append ins "__NT[pnfx]::$nnm $arg \{"
 
 	    if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
 	      xerror "idiosyncratic function $vnm declared more than once"
@@ -5956,6 +6006,7 @@ proc usage { } {
 		\[-- vuee args\]"
 	puts stderr "       -p  -> PicOS compiler (used as a filter)"
 	puts stderr "       -v  -> VUEE compiler (the default)"
+	puts stderr "       -i  -> make all non-static funcs idiosyncratic"
 	puts stderr "       -n  -> do not call vuee automatically"
 	puts stderr "       -e  -> call vuee for existing VUEE_TMP"
 	puts stderr "       -V  -> debug info written to output (lots)"
@@ -5970,6 +6021,9 @@ set FG(V) 1
 
 # default flag == compile unless errors
 set FG(C) 1
+
+# all non-static functions are made idiosyncratic
+set FG(I) 0
 
 #arguments for VUEE
 set FG(VA) ""
@@ -6005,6 +6059,8 @@ foreach arg $argv {
 		set FG(A) 1
 	} elseif { $arg == "-e" } {
 		set FG(E) 1
+	} elseif { $arg == "-i" } {
+		set FG(I) 1
 	} elseif { $arg == "--" } {
 		# arguments for the vuee compiler
 		if !$FG(V) {

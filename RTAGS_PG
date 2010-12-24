@@ -908,3 +908,12 @@ PG101210A:
 	program.
 
 	A minor extension to Scripts/xml.tcl.
+
+PG101224A:
+
+	Added a new option to PiComp. When compiling for VUEE, you can now
+	specify -i, which will force all functions that are not explicitly
+	declared as static to be implemented as idiosyncratic, i.e., as node
+	methods. This is recommended in those cases when a multiprogram praxis
+	uses the same names for functions in different programs. Read
+	PiComp.pdf.
