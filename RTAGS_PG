@@ -917,3 +917,15 @@ PG101224A:
 	methods. This is recommended in those cases when a multiprogram praxis
 	uses the same names for functions in different programs. Read
 	PiComp.pdf.
+
+PG110114A:
+
+	Battery sensor (internal) added to the CHRONOS board definition. As
+	requested by Wlodek, this is sensor number 0, with the previous two
+	sensors renumbered 1 and 2. It goes like this:
+
+	#define	SENSOR_BATTERY	   0	// Analog internal battery sensor
+	#define	SENSOR_MOTION	   1	// CMA3000 acceleration sensor
+	#define	SENSOR_PRESSTEMP   2	// SCP1000 pressure/temp. combo
+
+	The value returned by the battery sensor is (Vcc/5.0V)*4096.

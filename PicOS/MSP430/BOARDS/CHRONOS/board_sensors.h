@@ -112,14 +112,32 @@
 // ============================================================================
 
 #define	SENSOR_DIGITAL
+#define	SENSOR_ANALOG
 #define	SENSOR_INITIALIZERS
 
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SEN_POWER_SRC	11	// Vcc/2
+#define	SEN_POWER_SHT	4	// 8 cycles = 490us
+#define	SEN_POWER_ISI	0	// Inter-sample interval
+#define	SEN_POWER_NSA	16	// Samples to average
+#define	SEN_POWER_URE	ADC_SREF_RVSS	// Internal
+#define	SEN_POWER_ERE	(ADC_FLG_REFON + ADC_FLG_REF25)
+
 #define	SENSOR_LIST { \
+		ANALOG_SENSOR (SEN_POWER_ISI,  \
+			       SEN_POWER_NSA,  \
+			       SEN_POWER_SRC,  \
+		       	       SEN_POWER_URE,  \
+			       SEN_POWER_SHT,  \
+			       SEN_POWER_ERE), \
 		DIGITAL_SENSOR (0, NULL, cma_3000_read), \
 		DIGITAL_SENSOR (1, scp_1000_init, scp_1000_read) \
 }
 
-#define	MOTION_SENSOR	0
-#define	PRESSURE_SENSOR	1
+#define	SENSOR_BATTERY		0
+#define	SENSOR_MOTION		1
+#define	SENSOR_PRESSTEMP	2
 
 //+++ "sensors.c"

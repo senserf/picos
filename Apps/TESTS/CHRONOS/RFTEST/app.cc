@@ -105,7 +105,7 @@ word sval_rint;		// Reporting interval
 
 fsm sensor_server {
 
-  word aval [2], pval [3];
+  word aval [2], bval, pval [3];
 
   state AS_LOOP:
 
@@ -116,18 +116,22 @@ fsm sensor_server {
 		release;
 	}
 
+  state AS_RBAT:
+
+	read_sensor (AS_RBAT, SENSOR_BATTERY, &bval);
+
   state AS_RPRE:
 
-	read_sensor (AS_RPRE, PRESSURE_SENSOR, pval);
+	read_sensor (AS_RPRE, SENSOR_PRESSTEMP, pval);
 
   state AS_RACC:
 
-	read_sensor (AS_RACC, MOTION_SENSOR, aval);
+	read_sensor (AS_RACC, SENSOR_MOTION, aval);
 
   state AS_SEND:
 
-	ab_outf (AS_SEND, "MO: %u %u, PR: %lu, TM: %u",
-		aval [0], aval [1], ((lword*)pval) [0], pval [2]);
+	ab_outf (AS_SEND, "MO: %u %u, PR: %lu, TM: %u, BA: %u",
+		aval [0], aval [1], ((lword*)pval) [0], pval [2], bval);
 
 	msg_nn (1, omess++);
 
