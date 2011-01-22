@@ -548,6 +548,16 @@ extern uart_t __pi_uart [];
 
 // ============================================================================
 
+#ifndef	ADC_REFERENCE_OUT
+#define	ADC_REFERENCE_OUT	1	// By default, the reference goes out
+#endif
+
+#if ADC_REFERENCE_OUT == 1
+#define	ADC_REF_OUT	ADC12REFOUT
+#else
+#define	ADC_REF_OUT	0
+#endif
+
 #if __ADC_CONFIG__ == 2 || __ADC_CONFIG__ == 3
 
 // CC430F[56]xx (some fields have different names: this is an "extended ADC")
@@ -574,10 +584,10 @@ extern uart_t __pi_uart [];
 #if __ADC_CONFIG__ == 3
 #define	ADC_CTL2_SET	do { \
 			    REFCTL0 = 0; \
-			    ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC12REFOUT; \
+			    ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC_REF_OUT; \
 			} while (0)
 #else
-#define	ADC_CTL2_SET	ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC12REFOUT
+#define	ADC_CTL2_SET	ADC12CTL2 = ADC12RES_2 + ADC12SR + ADC_REF_OUT
 #endif
 
 #endif

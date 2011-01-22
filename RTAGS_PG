@@ -929,3 +929,24 @@ PG110114A:
 	#define	SENSOR_PRESSTEMP   2	// SCP1000 pressure/temp. combo
 
 	The value returned by the battery sensor is (Vcc/5.0V)*4096.
+
+PG110122A:
+
+	Our standard setting of the global ADC options included REFOUT to make
+	sure that the reference voltage was always available on the respective
+	pin. This is not such a terrific idea for CC430 where this function is
+	shared, and REFOUT must be combined with the proper redefinition of the
+	pin function to make sense (otherwise, if the pin is used for another
+	purpose, the ADC may misbehave). So now there is this new option:
+
+	#define ADC_REFERENCE_OUT 1
+
+	with the default setting corresponding to our previous way of handling
+	the reference voltage. On CC430-based boards, it should be set to zero
+	(which I have done), unless you in fact want the reference voltage to
+	go out (and the pin function is properly selected). The option is not
+	applicable to eCOG.
+
+	When called with the program tag (for multiprogram praxes), mkmk
+	wouldn't clear the previous KTMP_... directory of the program; it
+	does now.

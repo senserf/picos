@@ -40,3 +40,6 @@
 
 #define RESET_ON_SYSERR		0
 #define RESET_ON_MALLOC		1
+
+// Don't ref out (by default) as the pin function is shared
+#define	ADC_REFERENCE_OUT	0

@@ -85,8 +85,7 @@
 //
 // Current measurements on the prototype from Warsaw are consistent.
 //
-// Powerdown without clockdown takes about 58uA vs. 12-13uA with clockdown
-// (AUTO_CLOCK_DOWN); freeze yields ca. 11uA.
+// Powerdown takes about 12-13uA
 //
 
 // ============================================================================

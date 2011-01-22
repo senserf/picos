@@ -2477,6 +2477,7 @@ proc main { } {
 		append Ofn "_$Run(praxis)"
 		append Tfn "_$Run(praxis)"
 		append Kfn "_$Run(praxis)"
+		catch { exec rm -rf $Kfn }
 	}
 
 	mkdlist $TGT
