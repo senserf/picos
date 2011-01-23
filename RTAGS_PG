@@ -950,3 +950,36 @@ PG110122A:
 	When called with the program tag (for multiprogram praxes), mkmk
 	wouldn't clear the previous KTMP_... directory of the program; it
 	does now.
+
+PG110123A:
+
+	CMA3000, the acceleration sensor in CHRONOS used for motion detection,
+	now has two modes. The new version of the function initializing the
+	sensor:
+
+	void cma_3000_on (word mode);
+
+	accepts one argument which can be:
+
+	0 - selecting the old low sensitivity mode, with the sensor operating
+	    in the motion detection mode within 8g range. In that mode, the
+	    nominal sensitivity is 67mg (milli-G) in any axis. Its advantage
+	    is the absolutely minimum energy usage. Being entirely interrupt-
+	    driven, it facilitates power-down operation of the CPU. The chip
+	    drains about 9uA of current.
+
+	1 - selecting the high sensitivity mode, with the sensor operating in
+	    measurement mode within 2g range. The nominal sensitivity is 17mg.
+	    The mode requires a constant periodic readout by a special process,
+	    which is presently done at 20 msec intervals. The chip itself
+	    drains about 70uA.
+
+	I have simplified the return value of the sensor removing the time
+	stamp (which was pretty much useless). The third argument of
+	read_sensor is now a word pointer. The single returned word value is
+	proportional to the perceived amount of movement since the previous
+	take (stopping at 0xffff). In mode 0, it counts the interrupts. In
+	mode 1, it stores the aggregated difference in perceived acceleration
+	summed over all three axes (and tends to be much larger than in mode
+	0 - for the same amount of movement, actually showing the amount of
+	movement as opposed to its mere occurrence).

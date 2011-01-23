@@ -10,7 +10,8 @@
 
 extern int __pi_cma_3000_event_thread;
 
-void cma_3000_on ();
+void cma_3000_on (word);
+void cma_3000_on_md (), cma_3000_on_me ();
 void cma_3000_off ();
 void cma_3000_read (word, const byte*, address);
 

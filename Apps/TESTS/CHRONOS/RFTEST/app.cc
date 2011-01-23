@@ -87,10 +87,8 @@ static void buttons (word but) {
 // ============================================================================
 // Array to return sensor values. For the acceleration sensor:
 //
-//	aval [0] = the time stamp as the number of seconds ago (up to 0xffff)
-//	aval [1] = the total number of movement events since last take (zeroed
-//	           after collection; if this is zero, the time stamp is zero
-//		   as well
+//	aval = the total number of movement events since last take (zeroed
+//	       after collection
 //
 // For the pressure/temperature combo:
 //
@@ -105,7 +103,7 @@ word sval_rint;		// Reporting interval
 
 fsm sensor_server {
 
-  word aval [2], bval, pval [3];
+  word aval, bval, pval [3];
 
   state AS_LOOP:
 
@@ -126,12 +124,12 @@ fsm sensor_server {
 
   state AS_RACC:
 
-	read_sensor (AS_RACC, SENSOR_MOTION, aval);
+	read_sensor (AS_RACC, SENSOR_MOTION, &aval);
 
   state AS_SEND:
 
-	ab_outf (AS_SEND, "MO: %u %u, PR: %lu, TM: %u, BA: %u",
-		aval [0], aval [1], ((lword*)pval) [0], pval [2], bval);
+	ab_outf (AS_SEND, "MO: %u, PR: %lu, TM: %u, BA: %u",
+		aval, ((lword*)pval) [0], pval [2], bval);
 
 	msg_nn (1, omess++);
 
@@ -313,11 +311,11 @@ fsm root {
 
   state RS_ASON:
 
-	// Default interval
-	warg0 = 0;
-	scan (ibuf + 1, "%u", &warg0);
-	sval_rint = (warg0 == 0) ? 1024 : warg0;
-	cma_3000_on ();
+	// Mode + interval
+	warg0 = warg1 = 0;
+	scan (ibuf + 1, "%u %u", &warg0, &warg1);
+	sval_rint = (warg1 == 0) ? 1024 : warg1;
+	cma_3000_on (warg0);
 STrig:
 	trigger (&sval_rint);
 

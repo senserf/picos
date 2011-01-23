@@ -4,12 +4,6 @@
 
 #include "cma_3000.h"
 
-//
-// Select the mode for the CMA3000 sensor; we are using it for motion detection
-//
-
-#define	CMA3000_MODE_MOTION
-
 // Connection:
 //
 // PJ.0 -> power switch
@@ -67,18 +61,6 @@
 #define	__pi_cma_3000_write(b)	UCA0TXBUF = (b)
 
 #define	__pi_cma_3000_busy	((UCA0IFG & UCRXIFG) == 0)
-
-#ifdef	CMA3000_MODE_MOTION
-// 0x20 = permanently stay in motion detection mode
-// 0x08 = motion detection mode (interrupts enabled)
-// 0x10 = I2C disabled
-#define	CMA3000_CONFIG		(0x20 + 0x00 + 0x08)
-//#define	CMA3000_CONFIG		0x84
-#define	CMA3000_THRESHOLD	1
-
-// This is the only mode for now
-#endif
-
 
 // ============================================================================
 // SCP1000-D01 pressure sensor ================================================
