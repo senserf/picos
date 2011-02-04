@@ -78,7 +78,7 @@ static const dobject_t dobjects [LCD_N_OBJECTS] = {
 #define SEG_F                	0x01
 #define SEG_G                	0x02
 
-static const ccodes [] = {
+static const byte ccodes [] = {
 
   SEG_A+SEG_B+SEG_C+SEG_D+SEG_E+SEG_F      ,     // "0"
         SEG_B+SEG_C                        ,     // "1"

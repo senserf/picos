@@ -1022,8 +1022,6 @@ word __pi_stackfree (void) {
 
 static void ios_init () {
 
-	int i;
-
 #if MAX_TASKS > 0
 	__pi_pcb_t *p;
 
@@ -1075,11 +1073,11 @@ static void ios_init () {
 
 #if MAX_DEVICES
 	/* Initialize devices */
+	int i;
 	for (i = UART; i < MAX_DEVICES; i++)
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
 #endif
-
 	/* Make SMCLK/MCLK available on P5.5, P5.4 */
 	//_BIS (P5OUT, 0x30);
 	//_BIS (P5SEL, 0x30);

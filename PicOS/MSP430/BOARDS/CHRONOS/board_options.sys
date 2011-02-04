@@ -1,7 +1,7 @@
 #define	MALLOC_SINGLEPOOL	1
 
 #define DIAG_MESSAGES		0	// Disabled for now
-#define	DIAG_IMPLEMENTATION	0	// We will be creative in the praxis
+#define	DIAG_IMPLEMENTATION	2	// We will be creative in the praxis
 
 #define	TCV_PRESENT		1
 #define	TCV_TIMERS		0

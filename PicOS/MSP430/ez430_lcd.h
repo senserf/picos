@@ -1,6 +1,8 @@
 #ifndef	__pg_ez430_lcd_h__
 #define __pg_ez430_lcd_h__
 
+#include "sysio.h"
+
 // Headers for accessing the LCD on ez430_chronos
 
 //+++ "ez430_lcd.c"
@@ -86,5 +88,13 @@ void ezlcd_init ();
 #define	ezlcd_on()	_BIS (LCDBCTL0, LCDON)
 #define	ezlcd_off()	_BIC (LCDBCTL0, LCDON)
 
+#if DIAG_MESSAGES
+#if DIAG_IMPLEMENTATION == 2
+
+void ezlcd_diag_start ();
+void ezlcd_diag_char (char);
+
+#endif
+#endif
 
 #endif

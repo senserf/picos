@@ -255,9 +255,9 @@ typedef	struct {
 } portmap_t;
 
 #define	portmap_entry(a,b,c,d,e,f,g,h,i) \
-		{ (byte*) (&(a)), \
+		{ (byte*) (&(a)), { \
 			(byte) (b), (byte) (c), (byte) (d), (byte) (e), \
-			(byte) (f), (byte) (g), (byte) (h), (byte) (i)  }
+			(byte) (f), (byte) (g), (byte) (h), (byte) (i) }}
 
 #endif	/* __PORTMAPPER__ */
 

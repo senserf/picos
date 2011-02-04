@@ -8,3 +8,5 @@
 #define	lcd_diag_wchar(c)	ezlcd_diag_char (c)
 #define	lcd_diag_wait		CNOP
 #define	lcd_diag_stop		CNOP
+
+#include "ez430_lcd.h"
