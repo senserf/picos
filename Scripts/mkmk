@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #                                                                          #
 # See: proc bad_usage for usage                                            #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005 - 2010 All Rights Reserved    #
+# Copyright (C) Olsonet Communications, 2005 - 2011 All Rights Reserved    #
 ############################################################################
 
 set DEBUG 0
@@ -1456,7 +1456,24 @@ proc rootpf { } {
 	set min 0
 	set ptg "(\[0-9A-Z\]+):"
 	set pve "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
-	set fl [exec ls $RPREF]
+
+	for { set i 0 } { $i < 8 } { incr i } {
+		# this is to allow Cygwin to fail the first time around (or so)
+		# and warn us about DOS paths; not a very smart idea,
+		# especially that, AFAICS, Cygwin does it only once (at the
+		# first usage of a DOS path anywhere as an arg to a program)
+		# and then shuts up; so here is the first place in the program
+		# where we try a (DOS) path; this is not my fault: the
+		# "standard" version of Tcl that comes with Cygwin doesn't do
+		# it right (like pwd returns a DOS-type path)
+		if ![catch { exec ls $RPREF } fl] {
+			break
+		}
+	}
+
+	if { $i >= 8 } {
+		errab "cannot exec ls: $fl"
+	}
 
 	foreach f $fl {
 
@@ -2321,8 +2338,8 @@ proc getarg { } {
 
 proc main { } {
 
-	global argv ToCompile NotFound CWD Run Symbols Scanned CFName SrcLists
-	global LIncludes CWDL ExtraIncDirs
+	global env argv ToCompile NotFound CWD Run Symbols Scanned CFName
+	global SrcLists LIncludes CWDL ExtraIncDirs
 
 	set Run(type) "m"
 	# the board (this must not be null)

@@ -1001,3 +1001,34 @@ PG110204A:
 	Needless to say, they are completely harmless despite those warnings,
 	and eliminating them would require a considerable effort in PiComp,
 	which would serve no other purpose.
+
+PG110206A:
+
+	While cleaning up my laptop, switching to Windows 7, reinstalling
+	Cygwin and stuff, I went through the Installation document fixing this
+	and that. One thing I noticed in the new Cygwin was that the first
+	invocation of mkmk would fail because of Cygwin's warning about DOS-
+	style paths in execs issued by Tcl (the message went to stderr
+	triggerring exec abort in Tcl). Apparently, having issued the warning,
+	Cygwin ignores subsequent cases of DOS-style paths, so I simply had to
+	make sure that the first error was caught and ignored. Note that this
+	is the same Tcl that comes with Cygwin, so the incompatibility is not
+	mine.
+
+	To sum it up:
+
+	1. A minor change in mkmk.
+	2. Updated Installation.pdf.
+	3. Added mspgcc.pdf (Steve Underwood's manual) to Docs, so it is always
+	   easy to find.
+
+	I am putting in our REPO (http://www.olsonet.com/REPO) two files which
+	now represent our official reommended version of mspgcc:
+
+	mspgcc_source.tar.gz	- the source files to compile (both for Linux
+				  and Cygwin)
+
+	mspgcc_linux.tar.gz	- tarred and zipped precompiled /opt/mspgcc for
+				  Linux
+
+	These files are referenced in Installation.pdf.
