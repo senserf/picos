@@ -18,6 +18,15 @@ set Version 0.27
 ###############################################################################
 ###############################################################################
 
+proc cygfix { } {
+#
+# Issue a dummy reference to a file path to trigger a possible DOS-path
+# warning, after which things should continue without any further warnings.
+# This first reference must be caught as otherwise it would abort the script.
+#
+	catch { exec ls [pwd] }
+}
+
 proc errab { m } {
 
 	puts stderr $m
@@ -6015,6 +6024,8 @@ proc usage { } {
 	puts stderr "       -n together with -e shows VUEE_TMP status"
 	exit 99
 }
+
+cygfix
 
 # default mode == vuee compiler
 set FG(V) 1

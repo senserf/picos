@@ -6,6 +6,15 @@ exec tclsh "$0" "$@"
 # Looks up .mop files in the tree and cleans the directories containing them
 #
 
+proc cygfix { } {
+#
+# Issue a dummy reference to a file path to trigger a possible DOS-path
+# warning, after which things should continue without any further warnings.
+# This first reference must be caught as otherwise it would abort the script.
+#
+	catch { exec ls [pwd] }
+}
+
 proc do_it { } {
 #
 # Cleans the current directory
@@ -155,6 +164,8 @@ proc locate_scripts { } {
 	puts stderr "couldn't locate Scripts directory, sorry!"
 	exit 1
 }
+
+cygfix
 
 locate_scripts
 set SL 0

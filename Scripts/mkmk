@@ -51,6 +51,15 @@ set TocTail {
 		"kernel"
 }
 
+proc cygfix { } {
+#
+# Issue a dummy reference to a file path to trigger a possible DOS-path
+# warning, after which things should continue without any further warnings.
+# This first reference must be caught as otherwise it would abort the script.
+#
+	catch { exec ls [pwd] }
+}
+
 proc lappend_toc { li i } {
 
 	global TocTail
@@ -1457,23 +1466,7 @@ proc rootpf { } {
 	set ptg "(\[0-9A-Z\]+):"
 	set pve "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
 
-	for { set i 0 } { $i < 8 } { incr i } {
-		# this is to allow Cygwin to fail the first time around (or so)
-		# and warn us about DOS paths; not a very smart idea,
-		# especially that, AFAICS, Cygwin does it only once (at the
-		# first usage of a DOS path anywhere as an arg to a program)
-		# and then shuts up; so here is the first place in the program
-		# where we try a (DOS) path; this is not my fault: the
-		# "standard" version of Tcl that comes with Cygwin doesn't do
-		# it right (like pwd returns a DOS-type path)
-		if ![catch { exec ls $RPREF } fl] {
-			break
-		}
-	}
-
-	if { $i >= 8 } {
-		errab "cannot exec ls: $fl"
-	}
+	set fl [exec ls $RPREF]
 
 	foreach f $fl {
 
@@ -2338,8 +2331,10 @@ proc getarg { } {
 
 proc main { } {
 
-	global env argv ToCompile NotFound CWD Run Symbols Scanned CFName
+	global argv ToCompile NotFound CWD Run Symbols Scanned CFName
 	global SrcLists LIncludes CWDL ExtraIncDirs
+
+	cygfix
 
 	set Run(type) "m"
 	# the board (this must not be null)

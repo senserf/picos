@@ -21,6 +21,15 @@ proc abt { ln } {
 	exit 99
 }
 
+proc cygfix { } {
+#
+# Issue a dummy reference to a file path to trigger a possible DOS-path
+# warning, after which things should continue without any further warnings.
+# This first reference must be caught as otherwise it would abort the script.
+#
+	catch { exec ls [pwd] }
+}
+
 proc no_function { args } {
 
 	abt "undefined plugin function called"
@@ -1737,6 +1746,8 @@ proc initialize { } {
 	set bin ""
 	set sfi ""
 	set mod ""
+
+	cygfix
 
 	# parse command line arguments
 

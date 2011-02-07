@@ -1032,3 +1032,12 @@ PG110206A:
 				  Linux
 
 	These files are referenced in Installation.pdf.
+
+PG110207A:
+
+	As pointed out by Wlodek, the problem described above concerns other
+	scripts, notably picomp. In most cases it doesn't show up (or isn't
+	very annoying) as after the first failure of ANY script, the remaining
+	invocations of all scripts within the current Cygwin session will be
+	OK. So this is a more comprehensive fix involving picomp, piter, mkmk,
+	and cleanup.
