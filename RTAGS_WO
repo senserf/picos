@@ -86,3 +86,7 @@ WO100801A:
   - retry caches resist retries from upstream (better behaviour at least in
 		  the in-line topology)
   - closing {local_host, rssi} reported in trace outputs.
+
+WO110213A:
+  Added CHRONOS to new_il_demo, see -110213- in 'notes' there. Major update.
+
