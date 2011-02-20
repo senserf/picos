@@ -1041,3 +1041,29 @@ PG110207A:
 	invocations of all scripts within the current Cygwin session will be
 	OK. So this is a more comprehensive fix involving picomp, piter, mkmk,
 	and cleanup.
+
+PG110220A:
+
+	Removed (or so I hope) the hangups of CHRONOS detected by Wlodek in
+	new_il_demo. Wlodek noticed that the hangups did not occur if the
+	RX wasn't switched off and on. Apparently, the problem was caused by
+	enter_rx (in phys_cc1100.c) executed after reset to exit the power
+	down mode. Inserting a slight delay between two consecutive attempts
+	to enter the RX state appears to have helped, although I don't
+	understand why. I've been lucky to have found it at all, considering
+	the lack of debugging (and very mediocre tracking) capabilities on the
+	CHRONOS.
+
+	Fixed a race in phys_cc1100.c causing incorrect setting of the chip
+	when the TX and RX status was changed simultaneously. For example,
+	in this sequence:
+
+	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
+	tcv_control (sfd, PHYSOPT_RXON, NULL);
+
+	if the previous state of TX and RX was both OFF, the RX would not
+	switch on properly.
+
+	All this still sucks. Most of the problems are caused by the different
+	stages of switching off the transmitter: draining, erasing, holding.
+	A question to Wlodek: do we need TXHOLD at all? (It is OK if we do ;-).

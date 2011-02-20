@@ -347,7 +347,7 @@ void __pi_wait (word event, word state) {
 //
 	int j = nevents (__pi_curr);
 
-	if (j == MAX_EVENTS_PER_TASK)
+	if (j >= MAX_EVENTS_PER_TASK)
 		syserror (ENEVENTS, "sw");
 
 	setestate (__pi_curr->Events [j], state, event);

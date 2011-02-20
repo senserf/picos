@@ -478,9 +478,11 @@ static void enter_rx () {
 // ============================================================================
 ReTry:
 	i = 32;
-	while (cc1100_status () != CC1100_STATE_RX) {
-		i--;
+	while (1) {
 		cc1100_strobe (CCxxx0_SRX);
+		if (cc1100_status () == CC1100_STATE_RX)
+			return;
+		i--;
 		if (i < 16) {
 			if (i == 0) {
 #if (RADIO_OPTIONS & 0x01)
@@ -490,15 +492,26 @@ ReTry:
 				chip_reset ();
 				goto ReTry;
 			}
-			mdelay (2);
 		}
+		udelay (100);
 	}
 #else
 // ============================================================================
 	for (i = 0; i < 16; i++) {
+		cc1100_strobe (CCxxx0_SRX);
 		if (cc1100_status () == CC1100_STATE_RX)
 			return;
-		cc1100_strobe (CCxxx0_SRX);
+		// Note: the reason I am entering this state differently than
+		// IDLE (see enter_idle above) is primarily a bug/feature of
+		// CC430 causing CPU hangups when enter_rx is invoked after a
+		// reset following power down (SPD). I don't understand what is
+		// going on there, except that inserting this delay:
+		udelay (100);
+		// between two consecutive retries does help. Apparently, no
+		// such delay is needed for enter_idle. Besides, enter_idle
+		// is not unlikely to be called when the state is IDLE already,
+		// so it may make sense to check first and set second, which is
+		// different for enter_rx.
 	}
 
 #if (RADIO_OPTIONS & 0x01)
@@ -590,7 +603,7 @@ void cc1100_rx_reset () {
 static word clear_to_send () {
 
 	// Make sure our status is sane (FIXME: try removing this)
-	cc1100_status ();
+	// cc1100_status ();
 	cc1100_strobe (CCxxx0_STX);
 	// We succeed if we have entered TX
 	return (cc1100_status () == CC1100_STATE_TX);
@@ -603,8 +616,12 @@ static void power_down () {
 #endif
 	enter_idle ();
 	cc1100_strobe (CCxxx0_SPWD);
-	STROBE_WAIT;
+#ifndef	__CC430__
+	// We do it twice to make sure; kind of stupid, but I do not absolutely
+	// trust the SPI interface. No need to be paranoid on the CC430 where
+	// the commands are simply written to a register.
 	cc1100_strobe (CCxxx0_SPWD);
+#endif
 }
 
 static void chip_reset () {
@@ -849,8 +866,23 @@ thread (cc1100_driver)
 
   entry (DR_LOOP)
 
+	//
+	// This is how the mess works:
+	//
+	// TxOFF == 0 => the transmitter is formally on
+	// TxOFF == 1 => the transmitter is "held"
+	// TxOFF == 2 => the transmitter is switching off (draining the queue)
+	// TxOFF == 3 => the transmitter has drained and is off solid
+	// RxOFF == 0 => the receiver is on
+	// RxOFF == 1 => the receiver is off
+	// RxOFF == 2 => the chip is powered down
+	//
+	// When RxOFF == 1, the transmitter may still be on, but when RxOFF is
+	// 1 and the transmitter is switched off, the chip is powered down.
+	//
+
 	if (TxOFF & 1) {
-		// The transmitter is OFF solid
+		// We won't be transmitting any more
 		if (RxOFF == 1) {
 			// Power down the chip
 			power_down ();
@@ -1254,9 +1286,9 @@ OREvnt:
 
 	    case PHYSOPT_RXON:
 
-		if ((TxOFF & 1))
-			// Start up
-			cc1100_rx_reset ();
+		// This may damage a transmission in progress, but that's OK,
+		// I guess
+		cc1100_rx_reset ();
 
 		RxOFF = 0;
 
