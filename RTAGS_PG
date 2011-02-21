@@ -649,3 +649,7 @@ PG101021A:
     Nick's fix for a problem with timed UART. The automaton's state was not
     initialized. Sometimes it was found to be zero, which was OK, but, as Nick
     has noticed, not always.
+
+---------:
+
+    Fixed a small error in the doc signalled by Nick.
