@@ -650,6 +650,16 @@ PG101021A:
     initialized. Sometimes it was found to be zero, which was OK, but, as Nick
     has noticed, not always.
 
----------:
+PG110226A:
+
+    Nodes displayed in the ROAMER window can now be colored according to
+    specification in the geometry file. Read section 8.10 of the doc,
+    especially "Coloring nodes". You may also want to have a look at the
+    example in PICOS/Apps/VUEE/RFPing (read README_PG.txt).
+
+    Modified mkexe.sh in UDAEMON to use "fullwrap" (tkwrap-8.5.6, see:
+    http://wintcltk.sourceforge.net/tkwrap.html) instead of freewrap, because
+    tkwrap includes the Img package which became needed to accomodate
+    background pictures in ROAMER (as of R100405A).
 
     Fixed a small error in the doc signalled by Nick.

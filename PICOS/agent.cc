@@ -2,7 +2,7 @@
 #define __agent_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2010.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2011.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -31,7 +31,9 @@ inline static void skipblk (char *&bp) {
 }
 
 static void mup_update (Long n) {
-
+//
+// Mobility update: queues the node for its position to be sent to UDAEMON
+//
 	MUP->queue (n);
 }
 
@@ -2241,6 +2243,12 @@ void PINS::qupd_pin (word pn) {
 	word val;
 	byte st;
 
+	if (MUP != NULL)
+		// Queue for a "position" update; pin updates are also sent
+		// to the ROAMER window in case the nodes want to be colored
+		// by pins (is "colored" a politically correct word?)
+		mup_update (IN.TPN->getId ());
+
 	if (IN.OT == NULL)
 		// Forget it
 		return;
@@ -2277,6 +2285,20 @@ void PINS::qupd_all () {
 	Upd->put (-1);
 	for (pin = 0; pin < PIN_MAX; pin++) 
 		qupd_pin (pin);
+}
+
+void PINS::qupd_bpins (char *buf) {
+/*
+ * Create a single-digit-per pin message to be used for node coloring; buf is
+ * assumed to be at least 256 characters long. Note that the maximum number of
+ * pins is 255.
+ */
+	word pn;
+
+	for (pn = 0; pn < PIN_MAX; pn++)
+		buf [pn] = (pin_gstat (pn) == PINSTAT_OUTPUT &&
+			gbit (OValues, pn)) ? '1' : '0';
+	buf [pn] = '\0';
 }
 
 Boolean PINS::pin_adc_available (word p) {
@@ -3224,7 +3246,7 @@ void MoveHandler::setup (Dev *a, FLAGS f) {
 MoveHandler::~MoveHandler () {
 
 	if (RBuf != NULL) {
-		// We have managed to create some stuff
+		// We have managed to set up this thing
 		delete [] RBuf;
 		if (imode (Flags) == XTRN_IMODE_SOCKET) {
 			delete MUP;
@@ -3239,6 +3261,7 @@ MoveHandler::perform {
 	TIME st;
 	double xx, yy;
 	nparse_t NP [9];
+	char cp [256];
 	int rc;
 	Long NN, NS;
 	char *re;
@@ -3300,9 +3323,20 @@ MoveHandler::perform {
 				NN = MUP->get ();
 				pn = (PicOSNode*) idToStation (NN);
 				pn -> get_location (xx, yy);
-				// This one is safe as we do not include the
-				// standard name in an update
-				sprintf (RBuf, "U %1ld %1f %1f\n", NN, xx, yy);
+				if (pn->pins)
+					// Send "coloring" pins
+					pn->pins->qupd_bpins (cp);
+				else
+					cp [0] = '\0';
+
+				while ((rc = snprintf (RBuf, RBSize,
+				    "U %1ld %1f %1f %s\n", NN, xx, yy, cp)) >=
+					RBSize) {
+					RBSize = (word)(rc + 1);
+					delete [] RBuf;
+					RBuf = new char [RBSize];
+				}
+				    
 				BP = &(RBuf [0]);
 				Left = strlen (RBuf);
 				proceed Reply;
@@ -3396,10 +3430,13 @@ Illegal_nid:
 
 			pn = (PicOSNode*)idToStation (NN);
 			pn -> get_location (xx, yy);
-
+			if (pn->pins)
+				pn->pins->qupd_bpins (cp);
+			else
+				cp [0] = '\0';
 			while ((rc = snprintf (RBuf, RBSize,
-			   "P %1ld %1ld %1f %1f %s\n", NN, NStations, xx, yy,
-			      pn->getTName ())) >= RBSize) {
+			   "P %1ld %1ld %1f %1f %s %s\n", NN, NStations, xx, yy,
+			      pn->getTName (), cp)) >= RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
 				delete [] RBuf;

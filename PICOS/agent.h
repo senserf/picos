@@ -45,7 +45,7 @@
 #define	XTRN_MBX_BUFLEN		64		// Mailbox buffer size
 #define	PRQS_INPUT_BUFLEN	82		// PIN request buffer size
 #define	PUPD_OUTPUT_BUFLEN	48		// PIN update buffer size
-#define	MRQS_INPUT_BUFLEN	112		// MOVE request buffer size
+#define	MRQS_INPUT_BUFLEN	128		// MOVE request buffer size
 #define	SRQS_INPUT_BUFLEN	64		// SENSOR request buffer size
 #define	ARQS_INPUT_BUFLEN	64		// PANEL request buffer size
 #define	AUPD_OUTPUT_BUFLEN	64		// Actuator update buffer size
@@ -522,6 +522,9 @@ class PINS {
 
 	void qupd_all ();
 
+	// Single-digit pin values for node coloring
+	void qupd_bpins (char*);
+
 	inline Boolean pin_available (word p) {
 		return pin_gstat (p) <= PINSTAT_ADC;
 	};
@@ -579,13 +582,15 @@ class PINS {
 
 	inline void pin_set_input (word p) {
 		pin_clear_dac (p);
-		cbit (Analog, p);
+		if (Analog)
+			cbit (Analog, p);
 		cbit (Direction, p);
 	};
 
 	inline void pin_set_output (word p) {
 		pin_clear_dac (p);
-		cbit (Analog, p);
+		if (Analog)
+			cbit (Analog, p);
 		sbit (Direction, p);
 	};
 

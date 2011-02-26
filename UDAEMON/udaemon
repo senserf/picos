@@ -391,6 +391,8 @@ set NTYPE_COLORS	{ yellow blue orange red green }
 # 	PINSTAT_ABSENT		7
 #
 
+# legal color names
+
 array set PIN_COLORS	{ D,0 "#A4E22E" D,1 "#FFFF7F" D,2 "#FE8592"
 			  D,3 "#7EDCED" D,4 "#7EDCED" D,5 "#61A77E"
 			  D,6 "#FE3512" D,7 "#C0C0C0" O,0 "#8C82EC"
@@ -657,8 +659,6 @@ proc uartHandler { stid mode } {
 		return
 	}
 
-	set Wn ""
-	
 	log "connecting to UART at node $stid ..."
 
 	if [catch { socket -async $HostName $PortNumber } Sok] {
@@ -1278,8 +1278,6 @@ proc clockHandler { } {
 		return
 	}
 
-	set Wn ""
-	
 	log "connecting to CLOCK ..."
 
 	if [catch { socket -async $HostName $PortNumber } Sok] {
@@ -1476,8 +1474,6 @@ proc ledsHandler { stid } {
 		return
 	}
 
-	set Wn ""
-	
 	log "connecting to LEDS at node $stid ..."
 
 	if [catch { socket -async $HostName $PortNumber } Sok] {
@@ -1766,8 +1762,6 @@ proc lcdgHandler { stid } {
 		return
 	}
 
-	set Wn ""
-	
 	log "connecting to LCDG at node $stid ..."
 
 	if [catch { socket -async $HostName $PortNumber } Sok] {
@@ -2063,8 +2057,6 @@ proc pinsHandler { stid } {
 		return
 	}
 
-	set Wn ""
-	
 	log "connecting to PINS at node $stid ..."
 
 	if [catch { socket -async $HostName $PortNumber } Sok] {
@@ -2493,8 +2485,6 @@ proc sensorsHandler { stid } {
 		return
 	}
 
-	set Wn ""
-
 	log "connecting to SENSORS at node $stid ..."
 
 	if [catch { socket -async $HostName $PortNumber } Sok] {
@@ -2830,8 +2820,6 @@ proc panelHandler { } {
 	if [winlocate "a" ""] {
 		return
 	}
-
-	set Wn ""
 
 	log "connecting to PANEL ..."
 
@@ -3733,7 +3721,7 @@ proc moveIni { Sok } {
 
 proc moveGNP { Sok } {
 
-	global Wins Stat HPA Unique NTYPE_COLORS
+	global Wins Stat HPA Unique NTYPE_COLORS Geometry
 
 	if ![info exists Stat($Sok,NN)] {
 		# play it safe
@@ -3761,11 +3749,10 @@ proc moveGNP { Sok } {
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
 			if ![regexp \
-			   "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+)" \
-			      $cmd junk nod tot x y tn] {
+		      "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+) (\[^ \]*)" \
+			      $cmd junk nod tot x y tn ps] {
 				continue
 			}
-			# puts "INI: '$cmd'"
 
 			if [catch {
 				set nod [expr $nod]
@@ -3808,7 +3795,10 @@ proc moveGNP { Sok } {
 			# we have received a new sample
 			ctimeout $Sok
 
-			# node type color
+			# node type color: if there's a Geometry entry for
+			# the node, it takes effect; otherwise, we use some
+			# standard colors indexed by node type; we start
+			# by assigning standard colors to types
 			if ![info exists Stat($Sok,NT,$tn)] {
 				# this is a new type
 				if { $Stat($Sok,NT) >= \
@@ -3817,16 +3807,63 @@ proc moveGNP { Sok } {
 					set co "grey"
 					set Stat($Sok,NT,$tn) $co
 				} else {
-					set co \
+					set Stat($Sok,NT,$tn) \
 					   [lindex $NTYPE_COLORS $Stat($Sok,NT)]
-					set Stat($Sok,NT,$tn) $co
 					incr Stat($Sok,NT)
 				}
-			} else {
-				set co $Stat($Sok,NT,$tn)
+			}
+
+			# determine how this node is to be colored; the options
+			# are:
+			#
+			# - standard coloring based on predefined node types
+			# - fixed color assigned by Roamer's Geometry spec
+			# - pin-driven color (or colors) with the node
+			#   drawn as a pie
+			#
+			# for the first two options, co is { 0 { color } }, for
+			# the third option, it is { n { colors } { cdesc } },
+			# where n is the number of pie slices, colors is the
+			# initial set of colors, and cdesc is the geometry
+			# pattern for assigning colors based on pin values
+
+			set co ""
+			if [info exists Geometry(roamer,NC)] {
+				foreach cd $Geometry(roamer,NC) {
+					# the node set
+					set nos [lindex $cd 0]
+					if [cover_ns $nos $nod $tn] {
+						# the node is covered by the set
+						set cos [lindex $cd 1]
+						# type
+						set cty [lindex $cos 0]
+						# color (or color set)
+						set cse [lindex $cos 1]
+						if { $cty == "F" } {
+							# a fixed color
+							set co [list 0 [list \
+								$cse]]
+							break
+						}
+						set co [list [llength $cse] \
+							[cassgn $cse $ps] $cse]
+						break
+					}
+				}
+			}
+
+			if { $co == "" } {
+				# use the default
+				set co [list 0 [list $Stat($Sok,NT,$tn)]]
 			}
 	
-			set Stat($Sok,NL,$nod) [list $x $y $tn $co ""]
+			# x coordinate
+			# y coordinate
+			# type name
+			# color (or color set)
+			# list of canvas items
+			# text item for node number
+			set Stat($Sok,NL,$nod) [list $x $y $tn $co "" ""]
 
 			incr Stat($Sok,CI)
 			if { $Stat($Sok,CI) == $tot } {
@@ -3855,6 +3892,29 @@ proc moveGNP { Sok } {
 	}
 }
 
+proc cassgn { cse ps } {
+#
+# Produces the list of color assignments based in the Geometry color pattern cse and the pin
+# value string ps
+#
+	set col ""
+
+	foreach it $cse {
+		set pin [lindex $it 0]
+		set dig [string index $ps $pin]
+		if { $dig == "" || $dig == "0" } {
+			# off
+			set c [lindex $it 1]
+		} else {
+			# on
+			set c [lindex $it 2]
+		}
+		lappend col $c
+	}
+
+	return $col
+}
+	
 proc xtocv { Sok x } {
 
 	global Stat CMARGIN
@@ -4068,8 +4128,8 @@ proc mkMove { Sok } {
 		# we have a background image
 		set imf $Geometry(roamer,i)
 		if [catch { image create photo -file $imf } bgr] {
-			log "Cannot open the background file $imf"
-			return 1
+			alert "Cannot open the background file $imf"
+			exit 99
 		}
 		set aw [image width $bgr]
 		set ah [image height $bgr]
@@ -4135,36 +4195,86 @@ proc moveRedraw { Sok } {
 	if ![info exists Stat($Sok,AX)] {
 		# we are creating the canvas
 		for { set n 0 } { $n < $N } { incr n } {
-			foreach { x y z o t } $Stat($Sok,NL,$n) { }
+			foreach { x y z c o t } $Stat($Sok,NL,$n) { }
 			set cx [xtocv $Sok $x]
 			set cy [ytocv $Sok $y]
-			set o [$w.c create oval \
-			    [expr $cx - $CMARGIN(NR)] \
-			    [expr $cy - $CMARGIN(NR)] \
-			    [expr $cx + $CMARGIN(NR)] \
-			    [expr $cy + $CMARGIN(NR)] \
-				-fill $o]
-			$w.c bind $o <B1-Motion> "moveMove $Sok $n %x %y"
-			$w.c bind $o <B1-ButtonRelease> "moveUpButton $Sok $n"
-			$w.c bind $o <Enter> "moveEnter $Sok $n"
-			$w.c bind $o <Leave> "moveLeave $Sok"
+
+			set ns [lindex $c 0]
+			if { $ns == 0 } {
+				# fixed color == 1 slice
+				set ns 1
+			}
+			# the rectangle shared by all arcs
+			set cxl [expr $cx - $CMARGIN(NR)]
+			set cyl [expr $cy - $CMARGIN(NR)]
+			set cxh [expr $cx + $CMARGIN(NR)]
+			set cyh [expr $cy + $CMARGIN(NR)]
+
+			# color list
+			set cl [lindex $c 1]
+
+			# canvas item list
+			set o ""
+
+			if { $ns == 1 } {
+				# an oval; we may fail on bad color
+				set ci [$w.c create oval $cxl $cyl $cxh $cyh \
+					-fill [lindex $cl 0]]
+				# bind the mouse events
+				$w.c bind $ci <B1-Motion> \
+					"moveMove $Sok $n %x %y"
+				$w.c bind $ci <B1-ButtonRelease> \
+					"moveUpButton $Sok $n"
+				$w.c bind $ci <Enter> "moveEnter $Sok $n"
+				$w.c bind $ci <Leave> "moveLeave $Sok"
+				lappend o $ci
+			} else {
+				# arcs
+				set ast 0
+				# degrees left
+				set lef 360
+				foreach co $cl {
+					set ext [expr $lef / $ns]
+					set ci [$w.c create arc $cxl $cyl \
+						$cxh $cyh -extent $ext \
+						-start $ast -fill $co]
+					# bind the mouse events
+					$w.c bind $ci <B1-Motion> \
+						"moveMove $Sok $n %x %y"
+					$w.c bind $ci <B1-ButtonRelease> \
+						"moveUpButton $Sok $n"
+					$w.c bind $ci <Enter> \
+						"moveEnter $Sok $n"
+					$w.c bind $ci <Leave> "moveLeave $Sok"
+					lappend o $ci
+					incr ast $ext
+					incr lef -$ext
+					incr ns -1
+				}
+			}
 			# the node number
 			set t [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
 				-anchor s -text $n -state disabled]
-			set Stat($Sok,NL,$n) [list $x $y $z $o $t]
+			set Stat($Sok,NL,$n) [list $x $y $z $c $o $t]
 		}
 		set Stat($Sok,AX) [$w.c create text $ddx $ddy -anchor e \
 			-text $dmsg -state disabled]
 	} else {
 		for { set n 0 } { $n < $N } { incr n } {
-			foreach { x y z o t } $Stat($Sok,NL,$n) { }
+			foreach { x y z c o t } $Stat($Sok,NL,$n) { }
 			set cx [xtocv $Sok $x]
 			set cy [ytocv $Sok $y]
-  			$w.c coords $o \
-			    [expr $cx - $CMARGIN(NR)] \
-			    [expr $cy - $CMARGIN(NR)] \
-			    [expr $cx + $CMARGIN(NR)] \
-			    [expr $cy + $CMARGIN(NR)]
+			set ns [lindex $c 0]
+			if { $ns == 0 } {
+				set ns 1
+			}
+			set cxl [expr $cx - $CMARGIN(NR)]
+			set cyl [expr $cy - $CMARGIN(NR)]
+			set cxh [expr $cx + $CMARGIN(NR)]
+			set cyh [expr $cy + $CMARGIN(NR)]
+			foreach ci $o {
+  				$w.c coords $ci $cxl $cyl $cxh $cyh
+			}
 			$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
 		}
 		$w.c coords $Stat($Sok,AX) $ddx $ddy
@@ -4209,7 +4319,7 @@ proc moveMove { Sok n nx ny } {
 
 	set w [stwin $Sok]
 
-	foreach { x y z o t } $Stat($Sok,NL,$n) { }
+	foreach { x y z c o t } $Stat($Sok,NL,$n) { }
 
 	# the actual coordinates
 	set x [xfromcv $Sok $nx]
@@ -4245,13 +4355,16 @@ proc moveMove { Sok n nx ny } {
 	}
 
 	# update the canvas coordinates
-	$w.c coords $o \
-	    [expr $nx - $CMARGIN(NR)] \
-	    [expr $ny - $CMARGIN(NR)] \
-	    [expr $nx + $CMARGIN(NR)] \
-	    [expr $ny + $CMARGIN(NR)]
+	set cxl [expr $nx - $CMARGIN(NR)]
+	set cyl [expr $ny - $CMARGIN(NR)]
+	set cxh [expr $nx + $CMARGIN(NR)]
+	set cyh [expr $ny + $CMARGIN(NR)]
 
-	set Stat($Sok,NL,$n) [list $x $y $z $o $t]
+	foreach ci $o {
+		$w.c coords $ci $cxl $cyl $cxh $cyh
+	}
+
+	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t]
 
 	if [catch { puts -nonewline $Sok "M $n $x $y\n" } res] {
 		log "ROAMER connection aborted: $res"
@@ -4355,8 +4468,9 @@ proc moveUpButton { Sok n } {
 
 	unset Stat($Sok,MF)
 
-	foreach { x y z o t } $Stat($Sok,NL,$n) { }
-
+	set p $Stat($Sok,NL,$n)
+	set x [lindex $p 0]
+	set y [lindex $p 1]
 	moveRedim $Sok x y
 }
 
@@ -4444,12 +4558,10 @@ proc moveUpd { Sok } {
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
 
-			if ![regexp "^U $HPA(D) $HPA(F) $HPA(F)" \
-			      $cmd junk nod x y] {
-				# puts "UNS: '$cmd'"
+			if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) (\[^ \]*)" \
+			      $cmd junk nod x y ps] {
 				continue
 			}
-			# puts "UPD: '$cmd'"
 
 			if { [catch {
 				set nod [expr $nod]
@@ -4460,7 +4572,7 @@ proc moveUpd { Sok } {
 				continue
 			}
 
-			moveNewLocation $Sok $nod $x $y
+			moveNewLocation $Sok $nod $x $y $ps
 			continue
 		}
 		append Stat($Sok,B) $ch
@@ -4507,38 +4619,72 @@ proc moveRedim { Sok nxx nyy } {
 	return 0
 }
 
-proc moveNewLocation { Sok nod nx ny } {
-
+proc moveNewLocation { Sok nod nx ny ps } {
+#
+# Update the location and (possibly) color of the node
+#
 	global Stat CMARGIN
 
 	set w [stwin $Sok]
 
-	foreach { x y z o t } $Stat($Sok,NL,$nod) { }
+	foreach { x y z c o t } $Stat($Sok,NL,$nod) { }
+	# color change flag
+	set cc 0
+	# position change flag
+	set pc 0
 
-	if { $x == $nx && $y == $ny } {
-		# easy way out
+	# check for color update
+	set nc [lindex $c 0]
+	if $nc {
+		# pin-driven coloring
+		set col [lindex $c 1]
+		set cse [lindex $c 2]
+		set nco [cassgn $cse $ps]
+		if { $col != $nco } {
+			# we have a color change
+			set cc 1
+			set c [list $nc $nco $cse]
+		}
+	}
+
+	if { $x != $nx || $y != $ny } {
+		set pc 1
+	}
+
+	if { !$cc && !$pc } {
+		# nothing has changed, just return
 		return
 	}
 
-	set Stat($Sok,NL,$nod) [list $nx $ny $z $o $t]
+	# must update the description
+	set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t]
 
-	if [moveRedim $Sok nx ny] {
-		# done - the canvas has been redrawn
-		return
+	if $pc {
+		# position change
+		if ![moveRedim $Sok nx ny] {
+			# move just the one node
+			set cx [xtocv $Sok $nx]
+			set cy [ytocv $Sok $ny]
+
+			set cxl [expr $cx - $CMARGIN(NR)]
+			set cyl [expr $cy - $CMARGIN(NR)]
+			set cxh [expr $cx + $CMARGIN(NR)]
+			set cyh [expr $cy + $CMARGIN(NR)]
+
+			foreach ci $o {
+				$w.c coords $ci $cxl $cyl $cxh $cyh
+			}
+
+			$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
+		}
 	}
 
-	# move just the one node
-
-	set cx [xtocv $Sok $nx]
-	set cy [ytocv $Sok $ny]
-
-	$w.c coords $o \
-	    [expr $cx - $CMARGIN(NR)] \
-	    [expr $cy - $CMARGIN(NR)] \
-	    [expr $cx + $CMARGIN(NR)] \
-	    [expr $cy + $CMARGIN(NR)]
-
-	$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
+	if $cc {
+		# color change
+		foreach ci $o co [lindex $c 1] {
+			$w.c itemconfigure $ci -fill $co
+		}
+	}
 }
 
 proc doAbort { Sok } {
@@ -4907,6 +5053,299 @@ proc n_parse { ln } {
 	return $num
 }
 
+proc parse_gr { nl } {
+#
+# Parses the list of node ID's, which can be individual items as well as ranges
+# turning them into a sorted list of individual values and ranges
+#
+	set res ""
+
+	while 1 {
+		set nl [string trimleft $nl " \t,"]
+		if { $nl == "" } {
+			return $res
+		}
+		# this must be a number
+		if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk va nl] ||
+		      [catch { expr $va } va] } {
+			error "illegal node number ...$nl"
+		}
+		set nl [string trimleft $nl]
+		set ret ""
+		set done 0
+		if { [string index $nl 0] == "-" } {
+			# this is a range
+			set nl [string trimleft [string range $nl 1 end]]
+			# now, this must be another number
+			if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk vb nl] ||
+			      [catch { expr $vb } vb] } {
+				# error
+				error "illegal node number ...$nl"
+			}
+			if { $vb < $va } {
+				# illegal range
+				error "illegal range: $vb < $va"
+			}
+			# rescan the list
+			foreach it $res {
+				if $done {
+					# copy the tail, the new range already
+					# inserted
+					lappend ret $it
+					continue
+				}
+				set a [lindex $it 0]
+				set b [lindex $it 1]
+				if { $b == "" } {
+					# this is a single ID
+					if { $a < $va } {
+						if { $a == [expr $va - 1] } {
+							# touching
+							set va $a
+						} else {
+							lappend ret $it
+						}
+						continue
+					}
+					if { $a > [expr $vb + 1] } {
+						lappend ret [list $va $vb]
+						lappend ret $it
+						set done 1
+						continue
+					}
+					if { $a == [expr $vb + 1] } {
+						# touching
+						set vb $a
+						lappend ret [list $va $vb]
+						set done 1
+						continue
+					}
+					# falls inside, ignore
+					continue
+				}
+				# this is a range
+				if { $b < [expr $va - 1] } {
+					# separate, preceding
+					lappend ret $it
+					continue
+				}
+
+				if { $a > [expr $vb + 1] } {
+					# separate, following
+					lappend ret [list $va $vb]
+					lappend ret $it
+					set done 1
+					continue
+				}
+
+				# overlapping
+				if { $a < $va } {
+					set va $a
+				}
+				if { $b > $vb } {
+					set vb $b
+				}
+
+				continue
+			}
+
+			if !$done {
+				lappend ret [list $va $vb]
+			}
+
+		} else {
+			# a single item
+			foreach it $res {
+				if $done {
+					# copy the tail
+					lappend ret $it
+					continue
+				}
+				set a [lindex $it 0]
+				set b [lindex $it 1]
+				if { $b == "" } {
+					# a single ID
+					if { $a >= $va } {
+						# here we go
+						lappend ret $va
+						set done 1
+						if { $a != $va } {
+							lappend ret $it
+						}
+					} else {
+						lappend ret $it
+					}
+					continue
+				}
+				# a range
+				if { $b < [expr $va - 1] } {
+					lappend ret $it
+					continue
+				}
+				set done 1
+				if { $a > [expr $va + 1] } {
+					lappend ret $va
+					lappend ret $it
+					continue
+				}
+				if { $a == [expr $va + 1] } {
+					set a $va
+				} elseif { $b == [expr $va - 1] } {
+					set b $va
+				}
+				lappend ret [list $a $b]
+			}
+			if !$done {
+				lappend ret $va
+			}
+		}
+		set res $ret
+	}
+
+	return $res
+}
+
+proc cover_gr { col num } {
+#
+# Checks whether the number (node ID) is covered by the list of ranges col
+#
+	foreach it $col {
+		set a [lindex $it 0]
+		set b [lindex $it 1]
+		if { $b == "" } {
+			if { $a < $num } {
+				continue
+			}
+			# a single item
+			if { $a > $num } {
+				return 0
+			}
+			return 1
+		}
+		# a range
+		if { $b < $num } {
+			continue
+		}
+		if { $a > $num } {
+			return 0
+		}
+		return 1
+	}
+	return 0
+}
+
+proc cover_ns { nos num nt } {
+#
+# Checks whether the node of a given type is covered by the node set
+#
+	set not [lindex $nos 0]
+	set nol [lindex $nos 1]
+
+	if { $not == "" && $nol == "" } {
+		# the set of all nodes
+		return 1
+	}
+
+	if { [string first $not [string tolower $nt]] >= 0 } {
+		return 1
+	}
+
+	return [cover_gr $nol $num]
+}
+
+proc valid_color { cn } {
+#
+# Checks if the color designator is valid
+#
+	if [regexp -nocase \
+	    "^#\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]$" \
+		$cn] {
+		return 1
+	}
+
+	# check if the color is valid by trying it out
+	toplevel .junk
+	if [catch { label .junk.l -text "a" -fg $cn }] {
+		catch { destroy .junk }
+		return 0
+	}
+	catch { destroy .junk }
+	return 1
+}
+
+proc parse_cs { cs } {
+#
+# Parses the color set in the form:
+#
+#	colorid
+#	pn=(colorid,colorid), pn=(colorid,colorid), ...
+#
+	set cs [string trim $cs]
+	set ws "\[ \t\n\r\]*"
+	set wd "\[ \t\n\r,\]+"
+	set ci "\[^ \t\n\r,\\(\\)=\]+"
+
+	if ![regexp "\[0-9\]" [string index $cs 0]] {
+		# this is a single solid color
+		if [valid_color $cs] {
+			return [list "F" $cs]
+		}
+		error "illegal color: $cs"
+	}
+
+	# pin-colored
+	set res ""
+	while 1 {
+		set cs [string trimleft $cs " \t\r\n,"]
+		if { $cs == "" } {
+			break
+		}
+		if ![regexp \
+	        "^(\[0-9\]+)${ws}=${ws}\\(${ws}(${ci})${wd}(${ci})${ws}\\)(.*)"\
+			$cs jnk pin coff con cs] {
+				error "invalid color assignment: $cs"
+		}
+		if [catch { expr $pin } piv] {
+			error "invalid pin number: $pin"
+		}
+
+		if ![valid_color $con] {
+			error "illegal color: $con"
+		}
+
+		if ![valid_color $coff] {
+			error "illegal color: $coff"
+		}
+
+		set new [list $piv $coff $con]
+		set ret ""
+		set done 0
+		foreach it $res {
+			if $done {
+				lappend ret $it
+				continue
+			}
+			set p [lindex $it 0]
+			if { $p < $piv } {
+				lappend ret $it
+				continue
+			}
+			if { $p == $piv } {
+				error "duplicate pin number: $p"
+			}
+			lappend ret $new
+			lappend ret $it
+			set done 1
+		}
+		if !$done {
+			lappend ret $new
+		}
+		set res $ret
+	}
+
+	return [list "P" $res]
+}
+
 proc do_geometry { win kwd { num "" } } {
 
 	global Geometry
@@ -4915,49 +5354,9 @@ proc do_geometry { win kwd { num "" } } {
 		foreach ml $Geometry($kwd) {
 			set exp [lindex $ml 0]
 			set geo [lindex $ml 1]
-			if [numexp $exp $num] {
+			if [cover_gr $exp $num] {
 				wm geometry $win $geo
 				return
-			}
-		}
-	}
-}
-
-proc numexp { exp num } {
-#
-# This is a kind of "number expression" match, whereby we have a list of values
-# with possible ranges and want to check if the specified number qualifies,
-# i.e., is either listed there explicitly or falls into a range
-#
-	if [catch { expr $num } num] {
-		return 1
-	}
-
-	set exp [string trim $exp]
-	if { $exp == "" } {
-		return 1
-	}
-
-	while 1 {
-
-		set exp [string trimleft $exp " \t,"]
-		set a [n_parse exp]
-		if { $a == "" } {
-			return 0
-		}
-		if { $a == $num } {
-			return 1
-		}
-
-		if { [string index $exp 0] == "-" } {
-			# a range
-			set exp [string range $exp 1 end]
-			set b [n_parse exp]
-			if { $b == "" || $a > $b } {
-				return 2
-			}
-			if { $a < $num && $num <= $b } {
-				return 1
 			}
 		}
 	}
@@ -5005,6 +5404,48 @@ proc lappendunique { ls it } {
 	return 0
 }
 
+proc gperror { em } {
+#
+# geometry error
+#
+	alert "Parsing geometry file: $em!"
+	exit 99
+}
+
+proc parse_nodecolor { ncl } {
+#
+# Parses the node color spec in ROAMER geometry
+#
+	global Geometry
+
+	set sts ""
+
+	foreach nc $ncl {
+		set nol ""
+		set not ""
+		set at [sxml_attr $nc "id"]
+		if { $at != "" } {
+			if [catch { parse_gr $at } nol] {
+				gperror "<nodecolor>, $nol"
+			}
+			if { $nol == "" } {
+				gperror "<nodecolor>, empty id attribute"
+			}
+		}
+		set at [string tolower [sxml_attr $nc "type"]]
+		if { $at != "" } {
+			set not $at
+		}
+		# this is the complete description of the set of nodes
+		set nos [list $not $nol]
+		if [catch { parse_cs [sxml_txt $nc] } cst] {
+			gperror "<nodecolor>, $cst"
+		}
+		lappend sts [list $nos $cst]
+	}
+	set Geometry(roamer,NC) $sts
+}
+
 proc parse_geometry { } {
 
 	global GFile Geometry
@@ -5018,27 +5459,24 @@ proc parse_geometry { } {
 		}
 	} else {
 		if [catch { open $GFile "r" } h] {
-			alert "Cannot open geometry file $GFile: $h!"
-			exit 99
+			gperror "cannot open $GFile: $h"
 		}
 	}
 
 	# parse the geometry file
 	if [catch { read $h } p] {
-		alert "Cannot read geometry file $GFile: $p!"
-		exit 99
+		gperror "cannot read $GFile: $p"
 	}
 	catch { close $h }
 
 	if [catch { sxml_parse p } p] {
-		alert "XML error in geometry file $GFile: $p!"
-		exit 99
+		gperror $p
 	}
 
 	set p [sxml_child $p "geometry"]
 
 	if { $p == "" } {
-		alert "There is no <geometry> element in $GFile!"
+		gperror "no <geometry> element found"
 	}
 
 	foreach j [sxml_children $p] {
@@ -5064,21 +5502,16 @@ proc parse_geometry { } {
 			}
 			if ![regexp \
 			    "^(\[^=\]*) *= *\\((\[^)\]+)\\)" \
-			    $t mat pfx geo] {
-				alert "Illegal geometry specification in\
-					$GFile: $t!"
-				exit 99
+			    $t mat pat geo] {
+				gperror "illegal geometry specification"
 			}
-			# validate the pattern
-			if { [numexp $pfx 999888] > 1 } {
-				alert "Illegal number pattern in $GFile ($pfx)!"
-				exit 99
+			# parse the node set
+			if [catch { parse_gr $pat } pfx] {
+				gperror $pfx"
 			}
 			set geo [parse_g $geo]
 			if { $geo == "" } {
-				alert "Illegal geometry specification in\
-					$GFile ($torg)!"
-				exit 99
+				gperror "illegal geometry specification: $torg"
 			}
 			lappend ml [list $pfx $geo]
 			set ls [string length $mat]
@@ -5107,34 +5540,48 @@ proc parse_geometry { } {
 			if { $img != "" } {
 				set dim [sxml_attr $j "width"]
 				if { $dim != "" } {
-					if { [catch { expr $dim } dim] || \
-					    $dim <= 0.0 } {
-						alert "Illegal number in width\
-							in roamer spec in\
-								$GFile!"
-						exit 99
+					if { [catch { expr $dim } val] || \
+					    $val <= 0.0 } {
+						gperror "illegal number in\
+						    width in roamer spec: $dim"
 					}
-					set Geometry(roamer,w) $dim
+					set Geometry(roamer,w) $val
 				}
 				set dim [sxml_attr $j "height"]
 				if { $dim != "" } {
-					if { [catch { expr $dim } dim] || \
-					    $dim <= 0.0 } {
-						alert "Illegal number in height\
-							in roamer spec in\
-								$GFile!"
-						exit 99
+					if { [catch { expr $dim } val] || \
+					    $val <= 0.0 } {
+						gperror "illegal number in\
+						    height in roamer spec: $dim"
 					}
-					set Geometry(roamer,h) $dim
+					set Geometry(roamer,h) $val
 				}
 				if { ![info exists Geometry(roamer,w)] && \
 				     ![info exists Geometry(roamer,h)]     } {
-					alert "Image in roamer spec requires at\
-						least one of 'width', 'height'!"
-					exit 99
+					gperror "image in roamer spec requires\
+					    at least one of 'width', 'height'"
 				}
 				set Geometry(roamer,i) [sxml_attr $j "image"]
 			}
+			set ns [sxml_attr $j "nodesize"]
+			if { $ns != "" } {
+				if { ![regexp "^\[0-9\]+$" $ns] ||
+				      [catch { expr $ns } $ns] || $ns < 4 ||
+				      $ns > 100 } {
+					gperror "illegal nodesize, must be\
+						between 4 and 100"
+				}
+				if [expr $ns & 1] {
+					# make sure it is even
+					incr ns
+				}
+				set nsh [expr $ns / 2]
+				global CMARGIN
+				set CMARGIN(ND) $ns
+				set CMARGIN(NR) $nsh
+				set CMARGIN(TO) [expr $nsh + 5]
+			}
+			parse_nodecolor [sxml_children $j "nodecolor"]
 		}
 	}
 }
