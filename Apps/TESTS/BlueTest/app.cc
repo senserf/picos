@@ -127,6 +127,6 @@ fsm root {
 
   entry RS_ATT:
 
-	ser_outf (RS_ATT, "ATT: %d", blue_attention != 0);
+	ser_outf (RS_ATT, "ATT: %d\r\n", blue_attention != 0);
 	proceed RS_RCM;
 }

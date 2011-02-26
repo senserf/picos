@@ -1067,3 +1067,11 @@ PG110220A:
 	All this still sucks. Most of the problems are caused by the different
 	stages of switching off the transmitter: draining, erasing, holding.
 	A question to Wlodek: do we need TXHOLD at all? (It is OK if we do ;-).
+
+PG110226A:
+
+	Nothing of formal relevance. A minor fix to BlueTest (one of the lines
+	written to the UART wasn't terminated properly). Added a new data set
+	(data8.xml) and a geometry file (geometry8.geo) to Apps/VUEE/RFPing to
+	demonstrate pin-controlled node coloring in the ROAMER window. See
+	README_PG.txt.
