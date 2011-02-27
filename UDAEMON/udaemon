@@ -1270,6 +1270,14 @@ proc endLine { Sok w } {
 
 }
 
+proc sntype { t } {
+#
+# Sanitize the node type name received from the VUEE agent
+#
+	regsub "^_+\[^_\]+_*" $t "" t
+	return $t
+}
+
 proc clockHandler { } {
 
 	global PortNumber HostName Wins
@@ -2940,6 +2948,7 @@ proc panelZero { Sok } {
 				# only long messages expected
 				continue
 			    }
+			    set nnm [sntype $nnm]
 			    if { $Stat($Sok,NN) < 0 } {
 				# waiting for the total number of nodes
 				if { $nod != 0 } {
@@ -3795,6 +3804,9 @@ proc moveGNP { Sok } {
 			# we have received a new sample
 			ctimeout $Sok
 
+			# sanitize the node type name
+		    	set tn [sntype $tn]
+
 			# node type color: if there's a Geometry entry for
 			# the node, it takes effect; otherwise, we use some
 			# standard colors indexed by node type; we start
@@ -4175,6 +4187,17 @@ proc mkMove { Sok } {
 
 	bind $w <Destroy> "destroyWindow $Sok"
 	bind $w.c <Configure> "moveResize $Sok %w %h"
+
+	# a popup menu for node-related commands
+	set m [menu $w.ncm]
+	$m add command -label "UART (ascii)" -command {moveNC "UART (ascii)"}
+	$m add command -label "UART (hex)" -command {moveNC "UART (hex)"}
+	$m add command -label "SENSORS" -command {moveNC "SENSORS"}
+	$m add command -label "PINS" -command {moveNC "PINS"}
+	$m add command -label "LEDS" -command {moveNC "LEDS"}
+	$m add command -label "LCDG" -command {moveNC "LCDG"}
+	$m add command -label "PTRACKER" -command {moveNC "PTRACKER"}
+
 	return 0
 }
 
@@ -4227,6 +4250,8 @@ proc moveRedraw { Sok } {
 					"moveUpButton $Sok $n"
 				$w.c bind $ci <Enter> "moveEnter $Sok $n"
 				$w.c bind $ci <Leave> "moveLeave $Sok"
+				$w.c bind $ci <B3-ButtonRelease> \
+					"moveNodeMenu $Sok $n %X %Y"
 				lappend o $ci
 			} else {
 				# arcs
@@ -4246,6 +4271,8 @@ proc moveRedraw { Sok } {
 					$w.c bind $ci <Enter> \
 						"moveEnter $Sok $n"
 					$w.c bind $ci <Leave> "moveLeave $Sok"
+					$w.c bind $ci <B3-ButtonRelease> \
+						"moveNodeMenu $Sok $n %X %Y"
 					lappend o $ci
 					incr ast $ext
 					incr lef -$ext
@@ -4280,6 +4307,25 @@ proc moveRedraw { Sok } {
 		$w.c coords $Stat($Sok,AX) $ddx $ddy
 		$w.c itemconfigure $Stat($Sok,AX) -text $dmsg
 	}
+}
+
+proc moveNodeMenu { Sok n x y } {
+
+	global StatId
+
+	set w [stwin $Sok]
+	set StatId $n
+	set m $w.ncm
+	tk_popup $m $x $y
+}
+
+proc moveNC { wh } {
+
+	global Option
+
+	set Option $wh
+
+	doConnect
 }
 
 proc moveEnter { Sok n } {

@@ -663,3 +663,10 @@ PG110226A:
     background pictures in ROAMER (as of R100405A).
 
     Fixed a small error in the doc signalled by Nick.
+
+PG110227A:
+
+    Right click inside a node circle in ROAMER brings up a pop-up menu with the
+    list of node interfaces.
+
+    Cleanups in the document.
