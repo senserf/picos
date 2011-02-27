@@ -1075,3 +1075,8 @@ PG110226A:
 	(data8.xml) and a geometry file (geometry8.geo) to Apps/VUEE/RFPing to
 	demonstrate pin-controlled node coloring in the ROAMER window. See
 	README_PG.txt.
+
+---------:
+
+	Updated the com0com driver included in UTILS.zip to the newest version.
+	Have just checked it on Windows 7 and it seems to work fine.
