@@ -412,6 +412,7 @@ array set HPA		{ 1 "(\[0-9a-f\])"
 			  H "(\[0-9a-f\]+)"
 			  D "(\[0-9\]+)"
 			  F "(\[0-9.+-E\]+)"
+			  P "<(\[^,\]*),(\[^>\]*)>"
 			}
 
 #
@@ -3758,10 +3759,19 @@ proc moveGNP { Sok } {
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
 			if ![regexp \
-		      "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+) (\[^ \]*)" \
-			      $cmd junk nod tot x y tn ps] {
+		      "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+) $HPA(P)" \
+			      $cmd junk nod tot x y tn ls ps] {
 				continue
 			}
+
+			if { $ls != "" } {
+				# fast-blink flag for the LEDs
+				set fb [string index $ls 0]
+				set ls [string range $ls 1 end]
+			} else {
+				set fb 0
+			}
+				
 
 			if [catch {
 				set nod [expr $nod]
@@ -3833,10 +3843,10 @@ proc moveGNP { Sok } {
 			# - pin-driven color (or colors) with the node
 			#   drawn as a pie
 			#
-			# for the first two options, co is { 0 { color } }, for
-			# the third option, it is { n { colors } { cdesc } },
+			# for the first two options, co is { 0 {{ color 0 }}},
+			# for the third option, it is { n { colors } { cdesc }},
 			# where n is the number of pie slices, colors is the
-			# initial set of colors, and cdesc is the geometry
+			# initial list of colors, and cdesc is the geometry
 			# pattern for assigning colors based on pin values
 
 			set co ""
@@ -3854,11 +3864,11 @@ proc moveGNP { Sok } {
 						if { $cty == "F" } {
 							# a fixed color
 							set co [list 0 [list \
-								$cse]]
+								[list $cse 0]]]
 							break
 						}
 						set co [list [llength $cse] \
-							[cassgn $cse $ps] $cse]
+						     [cassgn $cse $ls $ps] $cse]
 						break
 					}
 				}
@@ -3866,7 +3876,8 @@ proc moveGNP { Sok } {
 
 			if { $co == "" } {
 				# use the default
-				set co [list 0 [list $Stat($Sok,NT,$tn)]]
+				set co \
+				     [list 0 [list [list $Stat($Sok,NT,$tn) 0]]]
 			}
 	
 			# x coordinate
@@ -3875,7 +3886,8 @@ proc moveGNP { Sok } {
 			# color (or color set)
 			# list of canvas items
 			# text item for node number
-			set Stat($Sok,NL,$nod) [list $x $y $tn $co "" ""]
+			# fast blink flag for the LEDs
+			set Stat($Sok,NL,$nod) [list $x $y $tn $co "" "" $fb]
 
 			incr Stat($Sok,CI)
 			if { $Stat($Sok,CI) == $tot } {
@@ -3904,24 +3916,37 @@ proc moveGNP { Sok } {
 	}
 }
 
-proc cassgn { cse ps } {
+proc cassgn { cse ls ps } {
 #
-# Produces the list of color assignments based in the Geometry color pattern cse and the pin
-# value string ps
+# Produces the list of color assignments based in the Geometry color pattern
+# cse and the led/pin value strings
 #
 	set col ""
 
 	foreach it $cse {
-		set pin [lindex $it 0]
-		set dig [string index $ps $pin]
+		set piv [lindex $it 0]
+		set pin [lindex $piv 0]
+		set typ [lindex $piv 1]
+		if { $typ == "led" } {
+			# this is a led
+			set dig [string index $ls $pin]
+		} else {
+			set dig [string index $ps $pin]
+		}
+		set b 0
 		if { $dig == "" || $dig == "0" } {
 			# off
 			set c [lindex $it 1]
 		} else {
 			# on
 			set c [lindex $it 2]
+			if { $dig != "1" } {
+				# blinking, LEDs only
+				set b 1
+			}
 		}
-		lappend col $c
+		# no led blinking yet
+		lappend col [list $c $b]
 	}
 
 	return $col
@@ -4218,7 +4243,7 @@ proc moveRedraw { Sok } {
 	if ![info exists Stat($Sok,AX)] {
 		# we are creating the canvas
 		for { set n 0 } { $n < $N } { incr n } {
-			foreach { x y z c o t } $Stat($Sok,NL,$n) { }
+			foreach { x y z c o t f } $Stat($Sok,NL,$n) { }
 			set cx [xtocv $Sok $x]
 			set cy [ytocv $Sok $y]
 
@@ -4240,9 +4265,10 @@ proc moveRedraw { Sok } {
 			set o ""
 
 			if { $ns == 1 } {
-				# an oval; we may fail on bad color
+				# an oval
 				set ci [$w.c create oval $cxl $cyl $cxh $cyh \
-					-fill [lindex $cl 0]]
+					-fill gray]
+				colconf $Sok $n $ci [lindex $cl 0]
 				# bind the mouse events
 				$w.c bind $ci <B1-Motion> \
 					"moveMove $Sok $n %x %y"
@@ -4262,7 +4288,8 @@ proc moveRedraw { Sok } {
 					set ext [expr $lef / $ns]
 					set ci [$w.c create arc $cxl $cyl \
 						$cxh $cyh -extent $ext \
-						-start $ast -fill $co]
+						-start $ast -fill gray]
+					colconf $Sok $n $ci $co
 					# bind the mouse events
 					$w.c bind $ci <B1-Motion> \
 						"moveMove $Sok $n %x %y"
@@ -4282,7 +4309,7 @@ proc moveRedraw { Sok } {
 			# the node number
 			set t [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
 				-anchor s -text $n -state disabled]
-			set Stat($Sok,NL,$n) [list $x $y $z $c $o $t]
+			set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f]
 		}
 		set Stat($Sok,AX) [$w.c create text $ddx $ddy -anchor e \
 			-text $dmsg -state disabled]
@@ -4365,7 +4392,7 @@ proc moveMove { Sok n nx ny } {
 
 	set w [stwin $Sok]
 
-	foreach { x y z c o t } $Stat($Sok,NL,$n) { }
+	foreach { x y z c o t f } $Stat($Sok,NL,$n) { }
 
 	# the actual coordinates
 	set x [xfromcv $Sok $nx]
@@ -4410,7 +4437,7 @@ proc moveMove { Sok n nx ny } {
 		$w.c coords $ci $cxl $cyl $cxh $cyh
 	}
 
-	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t]
+	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f]
 
 	if [catch { puts -nonewline $Sok "M $n $x $y\n" } res] {
 		log "ROAMER connection aborted: $res"
@@ -4604,8 +4631,8 @@ proc moveUpd { Sok } {
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
 
-			if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) (\[^ \]*)" \
-			      $cmd junk nod x y ps] {
+			if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) $HPA(P)" \
+			      $cmd junk nod x y ls ps] {
 				continue
 			}
 
@@ -4618,7 +4645,7 @@ proc moveUpd { Sok } {
 				continue
 			}
 
-			moveNewLocation $Sok $nod $x $y $ps
+			moveNewLocation $Sok $nod $x $y $ls $ps
 			continue
 		}
 		append Stat($Sok,B) $ch
@@ -4665,7 +4692,7 @@ proc moveRedim { Sok nxx nyy } {
 	return 0
 }
 
-proc moveNewLocation { Sok nod nx ny ps } {
+proc moveNewLocation { Sok nod nx ny ls ps } {
 #
 # Update the location and (possibly) color of the node
 #
@@ -4673,11 +4700,23 @@ proc moveNewLocation { Sok nod nx ny ps } {
 
 	set w [stwin $Sok]
 
-	foreach { x y z c o t } $Stat($Sok,NL,$nod) { }
+	foreach { x y z c o t f } $Stat($Sok,NL,$nod) { }
 	# color change flag
 	set cc 0
 	# position change flag
 	set pc 0
+	# blink rate change flag
+	set bc 0
+
+	if { $ls != "" } {
+		set b [string index $ls 0]
+		set ls [string range $ls 1 end]
+	}
+
+	if { $b != $f } {
+		set bc 1
+		set f $b
+	}
 
 	# check for color update
 	set nc [lindex $c 0]
@@ -4685,7 +4724,7 @@ proc moveNewLocation { Sok nod nx ny ps } {
 		# pin-driven coloring
 		set col [lindex $c 1]
 		set cse [lindex $c 2]
-		set nco [cassgn $cse $ps]
+		set nco [cassgn $cse $ls $ps]
 		if { $col != $nco } {
 			# we have a color change
 			set cc 1
@@ -4699,11 +4738,16 @@ proc moveNewLocation { Sok nod nx ny ps } {
 
 	if { !$cc && !$pc } {
 		# nothing has changed, just return
+		if $bc {
+			# unless the fast-blink flag has changed, in which case
+			# you only have to update the record
+			set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t $f]
+		}
 		return
 	}
 
 	# must update the description
-	set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t]
+	set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t $f]
 
 	if $pc {
 		# position change
@@ -4728,9 +4772,67 @@ proc moveNewLocation { Sok nod nx ny ps } {
 	if $cc {
 		# color change
 		foreach ci $o co [lindex $c 1] {
-			$w.c itemconfigure $ci -fill $co
+			colconf $Sok $nod $ci $co
 		}
 	}
+}
+
+proc colconf { Sok nod wg col } {
+#
+# Configure the color of a node or its fragment
+#
+	global Stat
+
+	set w [stwin $Sok]
+
+	set co [lindex $col 0]
+
+	if [lindex $col 1] {
+		# blinking, store the color for the callback
+		set Stat($Sok,$wg,C) $co
+		if ![info exists Stat($Sok,$wg,X)] {
+			# the blinker callback is not active, so have to start
+			# it (initially in the ON state)
+			set Stat($Sok,$wg,X) 1
+			colblink $Sok $nod $wg
+		}
+	} else {
+		if [info exists Stat($Sok,$wg,X)] {
+			# this will tell the callback to go away
+			unset Stat($Sok,$wg,X)
+		}
+		$w.c itemconfigure $wg -fill $co
+	}
+}
+
+proc colblink { Sok nod wg } {
+#
+# The blinker callback for colconf
+#
+	global Stat
+
+	set w [stwin $Sok]
+	if ![info exists Stat($Sok,$wg,X)] {
+		# another good reason to exit
+		return
+	}
+	if $Stat($Sok,$wg,X) {
+		# turn on
+		$w.c itemconfigure $wg -fill $Stat($Sok,$wg,C)
+		set Stat($Sok,$wg,X) 0
+	} else {
+		$w.c itemconfigure $wg -fill gray
+		set Stat($Sok,$wg,X) 1
+	}
+
+	# when next?
+	if { [lindex $Stat($Sok,NL,$nod) 6] != 0 } {
+		# fast
+		set del 128
+	} else {
+		set del 512
+	}
+	after $del "colblink $Sok $nod $wg"
 }
 
 proc doAbort { Sok } {
@@ -5331,7 +5433,7 @@ proc parse_cs { cs } {
 	set wd "\[ \t\n\r,\]+"
 	set ci "\[^ \t\n\r,\\(\\)=\]+"
 
-	if ![regexp "\[0-9\]" [string index $cs 0]] {
+	if ![regexp -nocase "^(l?)(\[0-9\])" $cs] {
 		# this is a single solid color
 		if [valid_color $cs] {
 			return [list "F" $cs]
@@ -5339,20 +5441,20 @@ proc parse_cs { cs } {
 		error "illegal color: $cs"
 	}
 
-	# pin-colored
+	# pin or led
 	set res ""
 	while 1 {
 		set cs [string trimleft $cs " \t\r\n,"]
 		if { $cs == "" } {
 			break
 		}
-		if ![regexp \
-	        "^(\[0-9\]+)${ws}=${ws}\\(${ws}(${ci})${wd}(${ci})${ws}\\)(.*)"\
-			$cs jnk pin coff con cs] {
+		if ![regexp -nocase \
+        "^(l?)(\[0-9\]+)${ws}=${ws}\\(${ws}(${ci})${wd}(${ci})${ws}\\)(.*)" \
+			$cs jnk led pin coff con cs] {
 				error "invalid color assignment: $cs"
 		}
 		if [catch { expr $pin } piv] {
-			error "invalid pin number: $pin"
+			error "invalid pin/led number: $pin"
 		}
 
 		if ![valid_color $con] {
@@ -5363,30 +5465,23 @@ proc parse_cs { cs } {
 			error "illegal color: $coff"
 		}
 
+		if { $led != "" } {
+			set typ "led"
+		} else {
+			set typ "pin"
+		}
+
+		set piv [list $piv $typ]
 		set new [list $piv $coff $con]
-		set ret ""
-		set done 0
+
 		foreach it $res {
-			if $done {
-				lappend ret $it
-				continue
-			}
 			set p [lindex $it 0]
-			if { $p < $piv } {
-				lappend ret $it
-				continue
-			}
 			if { $p == $piv } {
-				error "duplicate pin number: $p"
+				error "duplicate color entry: $p"
 			}
-			lappend ret $new
-			lappend ret $it
-			set done 1
 		}
-		if !$done {
-			lappend ret $new
-		}
-		set res $ret
+
+		lappend res $new
 	}
 
 	return [list "P" $res]

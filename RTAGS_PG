@@ -670,3 +670,11 @@ PG110227A:
     list of node interfaces.
 
     Cleanups in the document.
+
+PG110316A:
+
+    Node coloring in the ROAMER window can now be also driven by LEDs. Note
+    that this obvious extension of pin-driven coloring (PG110226A) basically
+    supersedes the LEDS module/interface, but there's no harm in keeping it
+    around (and it still may be useful, e.g., for very large networks). Read
+    section 8.10 of the document, especially the "node coloring" part.

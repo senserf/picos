@@ -3128,7 +3128,7 @@ data_pn_t *BoardRoot::readPinsParams (sxml_t data, const char *esn) {
 		PN->DEB [len] = 0;
 	
 	if (parseNumbers (att, 1, np) != 1 || np [0].LVal < 0 ||
-	    np [0].LVal > 254)
+	    np [0].LVal > MAX_PINS)
 		xeai ("total", es, att);
 
 	if (np [0].LVal == 0) {
@@ -3308,10 +3308,10 @@ NotErr:
 				// Absent
 				excptn ("Root: pin %1d in <buttons> for %s is "
 					"declared as absent", pn, es);
-			if (ni > 254)
+			if (ni > MAX_PINS)
 				excptn ("Root: button number %1d in <buttons> "
-					"for %s is too big (254 is the max)",
-						ni, es);
+					"for %s is too big (%1d is the max)",
+						ni, es, MAX_PINS);
 			BS [pn] = (byte) ni;
 		}
 
@@ -3730,7 +3730,8 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 		}
 	}
 
-	LE->NLeds = (word) (np [0].LVal);
+	if ((LE->NLeds = (word) (np [0].LVal)) > MAX_LEDS)
+		xeai ("number", es, att);
 
 	print (form ("  LEDS: %1d\n", LE->NLeds));
 

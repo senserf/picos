@@ -3,6 +3,9 @@
 
 #define	AGENT_SOCKET		4443
 
+#define	MAX_PINS		255		// Maximum number of pins
+#define	MAX_LEDS		32		// Maximum number of LEDs
+
 // Pin status
 #define	PINSTAT_INPUT		0
 #define	PINSTAT_OUTPUT		1
@@ -322,6 +325,7 @@ class LEDSM {
 	public:
 
 	int ledup_status ();
+	void ledup_status_short (char*);
 	void setfast (Boolean);
 	Boolean isfast () { return Fast; };
 	

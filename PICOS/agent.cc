@@ -2290,8 +2290,7 @@ void PINS::qupd_all () {
 void PINS::qupd_bpins (char *buf) {
 /*
  * Create a single-digit-per pin message to be used for node coloring; buf is
- * assumed to be at least 256 characters long. Note that the maximum number of
- * pins is 255.
+ * assumed to be at least MAX_PINS+1 characters long
  */
 	word pn;
 
@@ -2916,7 +2915,7 @@ LEDSM::LEDSM (data_le_t *le) {
 	NLeds = le->NLeds;
 
 	Assert (NLeds > 0 && NLeds <= 32,
-		"LEDSM at %s: the number of leds (%1d) must be > 0 and <= 64",
+		"LEDSM at %s: the number of leds (%1d) must be > 0 and <= 32",
 			TheStation->getSName (), NLeds);
 
 	// Calculate the update message size:
@@ -2980,6 +2979,9 @@ void LEDSM::leds_op (word led, word op) {
 		Changed = YES;
 		if (IN.OT != NULL)
 			IN.OT->signal (NULL);
+		if (MUP != NULL)
+			// Also queue for position update (for node coloring)
+			mup_update (IN.TPN->getId ());
 	}
 }
 
@@ -2990,6 +2992,8 @@ void LEDSM::setfast (Boolean on) {
 		Changed = YES;
 		if (IN.OT != NULL)
 			IN.OT->signal (NULL);
+		if (MUP != NULL)
+			mup_update (IN.TPN->getId ());
 	}
 }
 
@@ -3010,6 +3014,19 @@ int LEDSM::ledup_status () {
 	return len;
 }
 
+void LEDSM::ledup_status_short (char *buf) {
+/*
+ * Short status (no time) for inclusion with ROAMER update; buf at least
+ * MAX_LEDS + 2 characters long
+ */
+	int i;
+
+	*buf++ = Fast ? '1' : '0';
+	for (i = 0; i < NLeds; i++)
+		*buf++ = (char) (getstat (i) + '0');
+	*buf = '\0';
+}
+	
 // ============================================================================
 
 void pwr_tracker_t::pwrt_clear () {
@@ -3261,7 +3278,8 @@ MoveHandler::perform {
 	TIME st;
 	double xx, yy;
 	nparse_t NP [9];
-	char cp [256];
+	char cp [MAX_PINS+1];
+	char cl [MAX_LEDS+2];	// fast/slow flag takes one extra character
 	int rc;
 	Long NN, NS;
 	char *re;
@@ -3328,9 +3346,13 @@ MoveHandler::perform {
 					pn->pins->qupd_bpins (cp);
 				else
 					cp [0] = '\0';
-
+				if (pn->ledsm)
+					pn->ledsm->ledup_status_short (cl);
+				else
+					cl [0] = '\0';
 				while ((rc = snprintf (RBuf, RBSize,
-				    "U %1ld %1f %1f %s\n", NN, xx, yy, cp)) >=
+				    "U %1ld %1f %1f <%s,%s>\n",
+				      NN, xx, yy, cl, cp)) >=
 					RBSize) {
 					RBSize = (word)(rc + 1);
 					delete [] RBuf;
@@ -3434,9 +3456,14 @@ Illegal_nid:
 				pn->pins->qupd_bpins (cp);
 			else
 				cp [0] = '\0';
+			if (pn->ledsm)
+				pn->ledsm->ledup_status_short (cl);
+			else
+				cl [0] = '\0';
 			while ((rc = snprintf (RBuf, RBSize,
-			   "P %1ld %1ld %1f %1f %s %s\n", NN, NStations, xx, yy,
-			      pn->getTName (), cp)) >= RBSize) {
+			   "P %1ld %1ld %1f %1f %s <%s,%s>\n",
+			    NN, NStations, xx, yy, pn->getTName (), cl, cp))
+			      >= RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
 				delete [] RBuf;
