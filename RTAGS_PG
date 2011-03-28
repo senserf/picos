@@ -678,3 +678,8 @@ PG110316A:
     supersedes the LEDS module/interface, but there's no harm in keeping it
     around (and it still may be useful, e.g., for very large networks). Read
     section 8.10 of the document, especially the "node coloring" part.
+
+PG110328A:
+
+    In consequence of PG110226A, geometry spec for absolute windows (i.e., ones
+    not tagged with node IDs) was ignored by udaemon. Fixed.

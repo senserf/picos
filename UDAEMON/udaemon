@@ -5357,6 +5357,10 @@ proc cover_gr { col num } {
 #
 # Checks whether the number (node ID) is covered by the list of ranges col
 #
+	if { $num == "" } {
+		# absolute windows have no IDs
+		return 1
+	}
 	foreach it $col {
 		set a [lindex $it 0]
 		set b [lindex $it 1]
