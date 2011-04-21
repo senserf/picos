@@ -1,6 +1,6 @@
 #!/bin/sh
-###########################\
-exec tclsh85 "$0" "$@"
+#####################\
+exec tclsh85 "$0" "@"
 
 #####################################
 # UART front for various UART modes #
@@ -281,7 +281,7 @@ proc u_start { udev speed mpl plug ifun } {
 
 	# the generic part of UART configuration
 	if [catch { fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
-	    -blocking 0 -eofchar "" } err] {
+	    -blocking 0 -eofchar "" -ttycontrol { RTS 0 } } err] {
 		abt "u_start: cannot configure UART: $err"
 	}
 
@@ -1507,6 +1507,10 @@ proc icmd { cmd } {
 		}
 		t_ouf $err
 		return
+	}
+
+	if { $cmd == "q" || $cmd == "x" } {
+		exit 0
 	}
 
 	t_ouf "Unknown internal command $cmd!"

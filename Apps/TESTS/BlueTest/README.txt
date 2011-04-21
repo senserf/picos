@@ -1,10 +1,21 @@
-Testing LinkMatik 2.0 using a laptop with BlueTooth capability:
-===============================================================
+Section 1: Testing LinkMatik 2.0 using a laptop with BlueTooth capability:
+===============================================================================
+
+Note: a board using the LinkMatik module must be compiled with the LINKMATIC
+symbol set, e.g.,
+
+#define LINKMATIC
+
+Put this definition at the very front of the praxis's options.sys file.
+
+The board is WARSAW_BLUE.
+
+===============================================================================
 
 Start a terminal emulator, connect to the board at 115200. This is the
 target rate of the BlueTooth module, and it makes sense to keep the
-standard UART rate the same. WARSAW_BLUE has 115200 as the default UART
-rate.
+standard UART rate the same. WARSAW_BLUE with LINKMATIC defined has 115200 as
+the default UART rate.
 
 Whatever the BlueTooth module receives is immediately echoed to the UART.
 
@@ -111,3 +122,60 @@ the module gets paired, it says (on the node's UART):
 Now you can open a terminal emulator on the laptop's new UART (make sure the
 rate is 115200. Whatever you write there, shows up on the module, and vice
 versa.
+
+Section 2: Testing BT-182
+===============================================================================
+
+Note: a board using the BT-182 module must be compiled with the LINKMATIC
+symbol undefined. Make sure #define LINKMATIC is commented out in options.sys.
+
+The board is WARSAW_BLUE (the same as for LinkMatik).
+
+===============================================================================
+
+Everything is basically the same, except that the commands to set the module up
+are different (they resemble a conversation with an old modem). The standard
+UART rate assumed by the praxis is 19200, which coincides with the default UART
+rate for BT-182.
+
+Issue these commands:
+
+w ATC0			[to disable hardware flow control]
+w ATP=1234		[to set up a PID for connections]
+w ATN=Seawolf Dongle	[to set up a device identifier]
+w ATX0			[to disable the +++ escape sequence]
+w ATL5			[to change the UART rate to 115200]
+
+Note that following the last command, you will have to execute
+
+t 1152
+
+Here is the way to list pretty much all the relevant settings:
+
+w ATI1
+
+You get:
+
+ATI1
+OK
+ATC=0, NONE FLOW CONTROL
+ATD=0000-DR
+000000, NEVER SET BLUETOOTH ADR
+ATE=1, ECHO CHARACTERS
+ATG=1, ENABLE ALL PAGE AND INQUIRY SCAN
+ATH=1, DISCOVERABLE
+ATK=0, ONE STOP BIT
+ATL=5, BAUD RATE is 115200
+ATM=0, NONE PARITY_BIT
+ATN=Seawolf Dongle, LOCAL NAME
+ATO=0, ENABLE  AUTO CONNECTING
+ATP=1234, PIN CODE 
+ATQ=0, SEND RESULT CODE 
+ATR=1, SPP SLAVE ROLE 
+ATS=1, ENVRLE AUTO-POWERDOWN OF RS232 DRIVRATX=0, NEVER CHECK '+++' 
+
+This is what I get after the prescribed initialization sequence. Following that,
+everything works exactly as for LinkMatik.
+
+A potentially useful command is ATZ0 (i.e., w ATZ0), which reverts the module
+to factory setting (retaining the name and PIN, however).

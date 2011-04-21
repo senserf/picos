@@ -12,9 +12,6 @@
 
 #define	IBUFLEN	82
 
-trueconst word	RATE115	= 1152,
-		RATE096 = 96;
-
 fsm minput {
 
   char c;
@@ -38,8 +35,6 @@ fsm root {
   entry RS_INI:
 
 	ibuf = (char*) umalloc (IBUFLEN + 2);
-	//ion (UART_A, CONTROL, (char*)(&RATE096), UART_CNTRL_SETRATE);
-	//ion (UART_B, CONTROL, (char*)(&RATE096), UART_CNTRL_SETRATE);
 	runfsm minput;
 
   entry RS_MEN:
@@ -50,9 +45,10 @@ fsm root {
 		"w string    -> write line to module\r\n"
 		"r rate      -> set rate for module\r\n"
 		"t rate      -> set rate for UART\r\n"
-		"e [0|1]     -> escape\r\n"
-		"s           -> reset module\r\n"
-		"a           -> view attention flag\r\n"
+		"e           -> escape\r\n"
+		"a           -> reset\r\n"
+		"s           -> view status flag\r\n"
+		"p [0|1]     -> power (down|up)\r\n"
 	);
 
   entry RS_RCM:
@@ -65,8 +61,9 @@ fsm root {
 	    case 'r': proceed RS_RAT;
 	    case 't': proceed RS_RAU;
 	    case 'e': proceed RS_ESC;
-	    case 's': proceed RS_RES;
-	    case 'a': proceed RS_ATT;
+	    case 'a': proceed RS_RES;
+	    case 's': proceed RS_ATT;
+	    case 'p': proceed RS_POW;
 
 	}
 
@@ -80,11 +77,19 @@ fsm root {
 	for (k = 1; ibuf [k] == ' '; k++);
 	n = strlen (ibuf + k);
 
-	ibuf [k + n    ] = '\r';
-	ibuf [k + n + 1] = '\n';
+	ibuf [k + n] = '\r';
+	n++;
 
-	n += 2;
-	ibuf [k + n    ] = '\0';
+#ifndef LINKMATIC
+	if (blue_status == 0) {
+#endif
+		// Connected, send NL (otherwise, it messes up commands)
+		ibuf [k + n] = '\n';
+		n++;
+#ifndef LINKMATIC
+	}
+#endif
+	ibuf [k + n] = '\0';
 
   entry RS_WRL:
 
@@ -112,21 +117,30 @@ fsm root {
 
   entry RS_ESC:
 
-	n = 0;
-	scan (ibuf + 1, "%d", &n);
-	if (n)
-		blue_cmdmode;
-	else
-		blue_datamode;
+	blue_escape_set;
+	mdelay (10);
+	blue_escape_clear;
 	proceed RS_RCM;
 
   entry RS_RES:
 
-	blue_reset;
+	blue_reset_set;
+	mdelay (10);
+	blue_reset_clear;
+	proceed RS_RCM;
+
+  entry RS_POW:
+
+	n = 1;
+	scan (ibuf + 1, "%d", &n);
+	if (n)
+		blue_power_up;
+	else
+		blue_power_down;
 	proceed RS_RCM;
 
   entry RS_ATT:
 
-	ser_outf (RS_ATT, "ATT: %d\r\n", blue_attention != 0);
+	ser_outf (RS_ATT, "STATUS: %d\r\n", blue_status != 0);
 	proceed RS_RCM;
 }
