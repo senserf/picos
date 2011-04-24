@@ -90,3 +90,7 @@ WO100801A:
 WO110213A:
   Added CHRONOS to new_il_demo, see -110213- in 'notes' there. Major update.
 
+WO110423A:
+  mm_demo: instrumented for BT (Seatan), see mm.odt
+  new_il_demo: preserved a simple BT / UART switch driven by BOARD_WARSAW_BLUE
+
