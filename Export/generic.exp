@@ -1,0 +1,67 @@
+#
+# May 4, 2011
+#
+Apps
+	cleanup
+	ECOPROJECT
+		SENSOR_TEST
+	LIB*
+	RFPing
+	Toy
+	TESTS
+		Toy*
+		WARSAW
+		CHRONOS
+	VUEE
+		EETest
+		ILLUSTRATION
+		INTRO
+		RFPING
+		tnp_demo
+		eco_demo
+			*.cc
+			*.h
+			options.*
+			*.odt
+			*.xml
+			*.ch
+			.mop
+		survey
+Docs
+	*.pdf
+	*.doc
+Linux
+	LOCATION
+PicOS
+	*.c
+	*.h
+	kernel
+	MSP430
+		*.c
+		*.h
+		BOARDS
+			CHRONOS
+			WARSAW
+			ARTURO
+			ARTURO_PMTH
+			ARTURO_SD
+			ARTURO_PYR
+			GENERIC_148
+	Libs
+		Lib
+		LibComms
+		LibLCDG
+		LibXRS
+		LibOEP
+RTAGS*
+cleanup
+deploy
+Scripts
+	UTILS.zip
+	*.tcl
+	mkmk
+	genihex
+	isource
+	cleanapp
+	picomp
+	piter

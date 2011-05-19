@@ -148,7 +148,7 @@ w ATL5			[to change the UART rate to 115200]
 
 Note that following the last command, you will have to execute
 
-t 1152
+r 1152
 
 Here is the way to list pretty much all the relevant settings:
 

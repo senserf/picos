@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -88,6 +88,28 @@
 #define	PIN_MAX			16	// Number of pins
 #define	PIN_MAX_ANALOG		7	// Number of available analog pins
 #define	PIN_DAC_PINS		0x0000
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+// Internal voltage sensor
+#define	SEN_POWER_PIN		INCH_VCC2
+#define	SEN_POWER_SHT		1
+#define SEN_POWER_ISI		0
+#define	SEN_POWER_NSA		16
+#define SEN_POWER_URE		SREF_VREF_AVSS
+#define	SEN_POWER_ERE		(REFON + REF2_5V)
+
+#define	SENSOR_LIST { \
+		ANALOG_SENSOR ( SEN_POWER_ISI,  \
+				SEN_POWER_NSA,  \
+				SEN_POWER_PIN,  \
+				SEN_POWER_URE,  \
+				SEN_POWER_SHT,  \
+				SEN_POWER_ERE) \
+	}
+
+#define	SENSOR_ANALOG
 
 // Bluetooth special pins, polarity may differ depending on the module
 #define	blue_escape_set		_BIS (P1OUT,0x40)

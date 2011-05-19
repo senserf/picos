@@ -1,7 +1,7 @@
 package provide xml 1.0
-#
-# Mini XML parser
-#
+###############################################################################
+# Mini XML parser. Copyright (C) 2008-11 Olsonet Communications Corporation.
+###############################################################################
 
 namespace eval XML {
 
@@ -360,6 +360,17 @@ proc sxml_child { s n } {
 	return ""
 }
 
+proc sxml_yes { item attr } {
+#
+# A useful shortcut
+#
+	if { [string tolower [string index [sxml_attr $item $attr] 0]] == \
+		"y" } {
+			return 1
+	}
+	return 0
+}
+
 namespace export sxml_*
 
 ### end of XML namespace ######################################################
@@ -368,4 +379,6 @@ namespace export sxml_*
 
 namespace import ::XML::*
 
+###############################################################################
+# End of Mini XML parser ######################################################
 ###############################################################################

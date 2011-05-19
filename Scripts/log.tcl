@@ -1,7 +1,7 @@
 package provide log 1.0
-#
-# Log functions
-#
+###############################################################################
+# Log functions. Copyright (C) 2008-11 Olsonet Communications Corporation.
+###############################################################################
 
 namespace eval LOGGING {
 
@@ -138,4 +138,6 @@ namespace export log*
 
 namespace import ::LOGGING::log*
 
+###############################################################################
+# End of Log functions
 ###############################################################################

@@ -1090,3 +1090,14 @@ PG110421A:
 		    by some exotic UARTs, even with hardware flow control
 		    switched off (I needed it to talk to arduino, which you
 		    probably don't care about)
+
+PG110519A:
+
+	The OSSI script in eco_demo revived and tested. See README.txt in
+	Apps/VUEE/eco_demo/OSSI for a brief case study.
+
+	Note that eco_demo is not picomp-compliant yet (this will be my next
+	commit, I guess).
+
+	Voltage sensor (internal) added to BOARDS/WARSAW_BLUE. The sensor
+	(number 0) returns (Vcc * 4095) / 5.
