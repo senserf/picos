@@ -37,7 +37,7 @@
 #define	PHT_DIO_SHT	4	// Sample hold time indicator
 #define	PHT_DIO_ISI	1	// Inter sample interval indicator
 #define	PHT_DIO_NSA	512	// Number of samples
-#define	PHT_DIO_URE	SREF)VEREF_AVSS
+#define	PHT_DIO_URE	SREF_VEREF_AVSS
 #define	PHT_DIO_ERE	0
 
 #define	SENSOR_INITIALIZERS	// To make sure global init function gets called

@@ -1101,3 +1101,7 @@ PG110519A:
 
 	Voltage sensor (internal) added to BOARDS/WARSAW_BLUE. The sensor
 	(number 0) returns (Vcc * 4095) / 5.
+
+---------:
+
+	Fixed a typo in BOARDS/ARTURO/board_pins.h.
