@@ -1102,6 +1102,15 @@ PG110519A:
 	Voltage sensor (internal) added to BOARDS/WARSAW_BLUE. The sensor
 	(number 0) returns (Vcc * 4095) / 5.
 
----------:
+PG110522A:
 
+	I have converted eco_demo to a picomp-compliant form (basically undoing
+	the old-style VUEE-compatibility mess). The new version is stored in
+	Apps/VUEE/new_eco_demo. The old version has been left as it was, except
+	that I removed from it the OSSI subdirectory and the docs (which are
+	now stored with the new version of the praxis. Note that I haven't
+	tested the converted version except for compiling it (in all possible
+	ways) and running briefly a large VUEE model (large_eco.xml). Use with
+	care.
+	
 	Fixed a typo in BOARDS/ARTURO/board_pins.h.

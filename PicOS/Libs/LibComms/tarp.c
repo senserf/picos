@@ -10,7 +10,6 @@
 #endif
 
 #include "tarp.h"
-#include "msg_tarp.h"
 
 #ifndef	__SMURPH__
 #include "tarp_node_data.h"
