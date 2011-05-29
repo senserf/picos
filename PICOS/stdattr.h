@@ -19,6 +19,7 @@
 
 #define	rnd()		toss (65536)
 #define	diag(...)	(  ((PicOSNode*)TheStation)->_na_diag ( __VA_ARGS__)  )
+#define	emul(...)	(  ((PicOSNode*)TheStation)->_na_emul ( __VA_ARGS__)  )
 
 // ============================================================================
 

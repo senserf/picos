@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.9
+#define	VUEE_VERSION	0.93
 
 #include "picos.h"
 #include "ndata.h"
@@ -372,6 +372,11 @@ station PicOSNode abstract {
 	LEDSM		*ledsm;
 
 	/*
+	 * Emulator output
+	 */
+	EMULM		*emulm;
+
+	/*
 	 * Sensors/actuators
 	 */
 	SNSRS		*snsrs;
@@ -398,6 +403,7 @@ station PicOSNode abstract {
 
 
 	void _da (diag) (const char*, ...);
+	void _da (emul) (sint, const char*, ...);
 
 	//
 	// Here comes the 'reset' mess:
@@ -763,6 +769,7 @@ process	BoardRoot {
 	data_pn_t *readPinsParams (sxml_t, const char*);
 	data_sa_t *readSensParams (sxml_t, const char*);
 	data_le_t *readLedsParams (sxml_t, const char*);
+	data_em_t *readEmulParams (sxml_t, const char*);
 	data_pt_t *readPwtrParams (sxml_t, const char*);
 
 	void initTiming (sxml_t);

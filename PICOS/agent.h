@@ -90,6 +90,7 @@
 #define	AGENT_RQ_SENSORS	7
 #define	AGENT_RQ_LCDG		8
 #define	AGENT_RQ_PWRT		9
+#define	AGENT_RQ_EMUL		10
 
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */
@@ -336,6 +337,35 @@ class LEDSM {
 
 	void rst ();
 };
+
+// ============================================================================
+
+mailbox EMessages (char*) {
+
+	void queue (sint, const char*, va_list);
+};
+
+class EMULM {
+/*
+ * Emulator output
+ */
+	friend	class	EmulHandler;
+	friend	class	PicOSNode;
+
+	ag_interface_t	IN;
+
+	EMessages 	*MS;
+	Boolean		Held;
+
+	public:
+
+	EMULM (data_em_t*);
+	~EMULM ();
+
+	void rst ();
+};
+
+// ============================================================================
 
 typedef	struct {
 

@@ -683,3 +683,9 @@ PG110328A:
 
     In consequence of PG110226A, geometry spec for absolute windows (i.e., ones
     not tagged with node IDs) was ignored by udaemon. Fixed.
+
+PG110529A:	PICOS >= PG110529A
+
+    Operation emul (requested by Wlodek) added to provide for a naive generic
+    handling of output devices that have no specific VUEE models (read the
+    document, sections 4.6, 7.6, 8.5).

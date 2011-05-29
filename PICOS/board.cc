@@ -203,6 +203,16 @@ void _dad (PicOSNode, diag) (const char *s, ...) {
 	trace ("DIAG: %s", ::vform (s, ap));
 }
 
+void _dad (PicOSNode, emul) (sint n, const char *s, ...) {
+
+	va_list ap;
+
+	if (emulm != NULL && emulm->MS != NULL) {
+		va_start (ap, s);
+		emulm->MS->queue (n, s, ap);
+	}
+}
+
 void __pi_dbg (int x, word v) {
 
 	trace ("DBG: %1d == %04x / %1u", x, v, v);
@@ -347,6 +357,9 @@ void PicOSNode::reset () {
 
 	if (ledsm != NULL)
 		ledsm->rst ();
+
+	if (emulm != NULL)
+		emulm->rst ();
 
 	if (pwr_tracker != NULL)
 		pwr_tracker->rst ();
@@ -567,6 +580,12 @@ void PicOSNode::setup (data_no_t *nd) {
 		ledsm = NULL;
 	} else {
 		ledsm = new LEDSM (nd->le);
+	}
+
+	if (nd->em == NULL) {
+		emulm = NULL;
+	} else {
+		emulm = new EMULM (nd->em);
 	}
 
 	if (nd->pt == NULL) {
@@ -1942,7 +1961,8 @@ RVErr:
 	return NN;
 }
 
-static FLAGS get_io_desc (sxml_t data, const char *es, const char **ID, const char **OD) {
+static FLAGS get_io_desc (sxml_t data, const char *es, const char **ID,
+	const char **OD) {
 //
 // Parse the standard part of the I/O specification of a module
 //
@@ -2490,6 +2510,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	ND->pn = NULL;
 	ND->sa = NULL;
 	ND->le = NULL;
+	ND->em = NULL;
 	ND->pt = NULL;
 
 	if (data == NULL)
@@ -2893,6 +2914,12 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 /* ==== */
 
 	ND->le = readLedsParams (data, xname (nn));
+
+/* ==== */
+/* EMUL */
+/* ==== */
+
+	ND->em = readEmulParams (data, xname (nn));
 
 /* ======== */
 /* PTRACKER */
@@ -3736,11 +3763,58 @@ data_le_t *BoardRoot::readLedsParams (sxml_t data, const char *esn) {
 	print (form ("  LEDS: %1d\n", LE->NLeds));
 
 	// Output mode
-	get_io_desc (data, es, NULL, &(LE->LODev));
+	if (get_io_desc (data, es, NULL, &(LE->LODev)) == 0)
+		xenf ("<output>", es);
 
 	print ("\n");
 
 	return LE;
+}
+
+data_em_t *BoardRoot::readEmulParams (sxml_t data, const char *esn) {
+/*
+ * Decodes LEDs parameters
+ */
+	data_em_t *EM;
+	const char *att;
+	char es [48];
+	sxml_t oi;
+
+	strcpy (es, "<emul> for ");
+	strcat (es, esn);
+
+	if ((data = sxml_child (data, "emul")) == NULL)
+		return NULL;
+
+	EM = new data_em_t;
+	EM->EODev = NULL;
+	EM->held = EM->absent = NO;
+
+	if ((oi = sxml_child (data, "output")) == NULL) {
+		// Indicates "absent"
+		EM->absent = YES;
+		return EM;
+	}
+
+	if ((att = sxml_attr (oi, "type")) != NULL) {
+		// Same as for UART
+		if (strcmp (att, "held") == 0 ||
+		    strcmp (att, "hold") == 0 ||
+		    strcmp (att, "wait") == 0 ) {
+			EM->held = YES;
+		}
+	}
+
+	print ("  EMUL\n");
+
+	// Output mode
+	get_io_desc (data, es, NULL, &(EM->EODev));
+	if (EM->EODev == NULL && EM->held)
+		// Socket + HELD flag
+		print ("      HELD\n");
+
+	print ("\n");
+	return EM;
 }
 
 data_pt_t *BoardRoot::readPwtrParams (sxml_t data, const char *esn) {
@@ -4079,7 +4153,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 			NOD->sa = NULL;
 		}
 
-		// === LED ====================================================
+		// === LEDS ===================================================
 
 		if (NOD->le == NULL) {
 			// Inherit the defaults
@@ -4089,6 +4163,18 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 			// Explicit "no", ignore the default
 			delete NOD->le;
 			NOD->le = NULL;
+		}
+
+		// === EMUL ===================================================
+
+		if (NOD->em == NULL) {
+			// Inherit the defaults
+			if (DEF->em != NULL && !(DEF->em->absent))
+				NOD->em = DEF->em;
+		} else if (NOD->em->absent) {
+			// Explicit "no", ignore the default
+			delete NOD->em;
+			NOD->em = NULL;
 		}
 
 		// === PTRACKER ===============================================
@@ -4192,6 +4278,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 			delete NOD->sa;
 		if (NOD->le != NULL && NOD->le != DEF->le)
 			delete NOD->le;
+		if (NOD->em != NULL && NOD->em != DEF->em)
+			delete NOD->em;
 		if (NOD->pt != NULL && NOD->pt != DEF->pt)
 			delete NOD->pt;
 		delete NOD;
@@ -4215,6 +4303,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 		delete DEF->pt;
 	if (DEF->le != NULL)
 		delete DEF->le;
+	if (DEF->em != NULL)
+		delete DEF->em;
 
 	delete DEF;
 

@@ -1069,7 +1069,7 @@ proc mkTerm { Sok tt hex } {
 	pack $w.stat.usel.lab -side left
 
 	set Stat($Sok,FD,S) ""
-	set Stat($Sok,FS) [button $w.stat.sfile -command "term_sfile $Sok"]
+	set Stat($Sok,FS) [button $w.stat.sfile -command "term_sfile $Sok term"]
 	pack $w.stat.sfile -side right -expand no
 
 	term_setsfb $Sok
@@ -1129,7 +1129,7 @@ proc term_setsfb { Sok } {
 	}
 }
 
-proc term_sfile { Sok } {
+proc term_sfile { Sok tag } {
 #
 # Toggle the terminal's file save status
 #
@@ -1143,7 +1143,7 @@ proc term_sfile { Sok } {
 		# save file dialog
 		set fn [tk_getSaveFile \
 				-defaultextension ".txt" \
-				-initialfile "term$Stat($Sok,S).txt" \
+				-initialfile "$tag$Stat($Sok,S).txt" \
 				-parent $Wins($Sok) \
 				-title "File to save the session"]
 		if { $fn == "" } {
@@ -1761,6 +1761,166 @@ proc ledsBlinker { Sok } {
 	}
 
 	set Stat($Sok,G) [after $Stat($Sok,J) ledsBlinker $Sok]
+}
+
+proc emulHandler { stid } {
+
+	global PortNumber HostName Wins Stat
+
+	if [winlocate "e" $stid] {
+		return
+	}
+
+	log "connecting to EMUL at node $stid ..."
+
+	if [catch { socket -async $HostName $PortNumber } Sok] {
+		log "connection failed: $Sok"
+		return
+	}
+
+	if [catch { fconfigure $Sok -blocking 0 -buffering none -translation \
+	    binary -encoding binary } err] {
+		dealloc $Sok
+		log "connection failed: $err"
+		return
+	}
+
+	set Wins($Sok) "x"
+	set Stat($Sok,S) $stid
+
+	# send the request when the socket becomes writeable
+	fileevent $Sok writable "sendReq $Sok 10"
+	fileevent $Sok readable "emulIni $Sok"
+}
+
+proc emulIni { Sok } {
+
+	global Wins Stat ECONN_OK Unique
+
+	ctimeout $Sok
+
+	if [catch { read $Sok 4 } res] {
+		dealloc $Sok
+		log "connection failed: $res"
+		return
+	}
+
+	if { $res == "" } {
+		log "connection closed by VUEE"
+		dealloc $Sok
+		return
+	}
+
+	set code [dbinI res]
+	if { $code != $ECONN_OK } {
+		dealloc $Sok
+		log "connection rejected by VUEE: [conerror $code]"
+		return
+	}
+
+	log "connection established"
+
+	# create the window
+
+	set w ".we$Unique"
+	incr Unique
+	set Wins($Sok) $w
+
+	toplevel $w
+
+	wm title $w "EMUL at node $Stat($Sok,S)"
+
+	do_geometry $w "emul" $Stat($Sok,S)
+
+	text $w.t
+
+	$w.t configure \
+		-yscrollcommand "$w.scroly set" \
+		-setgrid true \
+		-width 80 -height 24 -wrap char \
+		-font {-family courier -size 9} \
+		-exportselection 1 \
+		-state normal
+
+	$w.t delete 1.0 end
+
+	scrollbar $w.scroly -command "$w.t yview"
+	pack $w.scroly -side right -fill y
+	pack $w.t -expand yes -fill both
+
+	frame $w.stat -borderwidth 2
+	pack $w.stat -expand no -fill x
+
+	entry $w.stat.f -width 20 -font {-family courier -size 10} \
+		-textvariable Stat($Sok,F)
+	pack $w.stat.f -side right -expand no
+	label $w.stat.l -text "Filter:"
+	pack $w.stat.l -side right -expand no
+
+	$w.t configure -state disabled
+	bind $w <Destroy> "destroyWindow $Sok"
+
+	set Stat($Sok,B) ""
+
+	# for saving in a file
+	set Stat($Sok,FD,S) ""
+	set Stat($Sok,FS) [button $w.stat.sfile -command "term_sfile $Sok emul"]
+	pack $w.stat.sfile -side right -expand no
+	term_setsfb $Sok
+
+	fileevent $Sok readable "emulUpdate $Sok"
+}
+
+proc emulUpdate { Sok } {
+
+	global Stat Wins
+
+	while 1 {
+		if [catch { read $Sok } ch] {
+			# disconnection
+			dealloc $Sok
+			log "connection terminated: $ch"
+			return
+		}
+		if { $ch == "" } {
+			if [eof $Sok] {
+				log "connection closed by VUEE"
+				dealloc $Sok
+			}
+			return
+		}
+
+		append Stat($Sok,B) $ch
+
+		while 1 {
+			set el [string first "\n" $Stat($Sok,B)]
+			if { $el < 0 } {
+				break
+			}
+			set ms [string range $Stat($Sok,B) 0 [expr $el - 1]]
+			set Stat($Sok,B) [string range $Stat($Sok,B) \
+				[expr $el + 1] end]
+
+			set ms [string trim $ms]
+			if { $ms == "" } {
+				# a NOP
+				continue
+			}
+
+			# pass through the filter
+			set f [string trim $Stat($Sok,F)]
+			if { $f != "" } {
+				if [catch { regexp $f $ms } q] {
+					set q 1
+				}
+				if !$q {
+					continue
+				}
+			}
+			addText $Sok $Wins($Sok).t $ms
+			endLine $Sok $Wins($Sok).t
+		}
+	}
 }
 
 proc lcdgHandler { stid } {
@@ -5059,6 +5219,11 @@ proc doConnect { } {
 			ledsHandler $StatId
 		}
 
+		"EMUL"	{
+			if [valsid] { return }
+			emulHandler $StatId
+		}
+
 		"LCDG"	{ 
 			if [valsid] { return }
 			lcdgHandler $StatId
@@ -5757,6 +5922,9 @@ proc predisplay { } {
 			"leds" {
 				predisplay_nodes "ledsHandler %n" $pl
 			}
+			"emul" {
+				predisplay_nodes "emulHandler %n" $pl
+			}
 			"lcdg" {
 				predisplay_nodes "lcdgHandler %n" $pl
 			}
@@ -5844,6 +6012,7 @@ tk_optionMenu .top.select Option \
 	"SENSORS" \
 	"PINS" \
 	"LEDS" \
+	"EMUL" \
 	"LCDG" \
 	"PTRACKER" \
 	"ROAMER" \

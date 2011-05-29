@@ -316,8 +316,7 @@ int AgentOutput::start (void *in, Dev *a, int bufl) {
 			// Make sure the buffer size will allow us to
 			// accommodate requests and updates
 			Agent->resize (XTRN_MBX_BUFLEN > bufl ?
-				XTRN_MBX_BUFLEN : bufl);
-
+					XTRN_MBX_BUFLEN : bufl);
 			IN->I = IN->O = Agent;
 			IN->OT = this;
 			// We are started before the (optional) input thread
@@ -765,6 +764,94 @@ void LedsHandler::nextupd (int lp, int nop) {
 	LE->Changed = NO;
 	Length = LE->ledup_status ();
 	Buf = LE->UBuf;
+}
+
+// ============================================================================
+
+process	EmulHandler : AgentOutput {
+//
+// Handles emulator output
+//
+	EMULM *EM;
+
+	void nextupd (int, int);
+	void setup (EMULM*, Dev*);
+	void remove ();
+	~EmulHandler ();
+};
+
+void EmulHandler::setup (EMULM *em, Dev *a) {
+
+	EM = em;
+
+	if (AgentOutput::start (EM, a, 0) != ERROR) {
+		if (EM->MS == NULL) {
+			// Create the message mailbox; it is there already if
+			// the emulator is "held"
+			EM->MS = create EMessages (MAX_Long);
+		}
+	}
+}
+
+void EmulHandler::nextupd (int lp, int nop) {
+
+	EMessages *ms;
+	char *msg;
+	sint len;
+
+	ms = EM->MS;
+
+	assert (ms != NULL, "EMULM at %s: NULL mailbox", IN->TPN->getSName ());
+
+	if (ms->empty ()) {
+		if (Agent != NULL)
+			// If we are writing to a socket
+			Timer->delay (10.0, nop);
+		ms->wait (NONEMPTY, lp);
+		sleep;
+	}
+
+	msg = ms->first ();
+
+	// No need for sentinel as the line ends with newline
+	Length = strlen (msg);
+
+	// Make sure the size is OK at every write, as we do not impose a
+	// hard limit on message size
+	if (IN->O->isActive ())
+		IN->O->resize (Length);
+
+	Buf = msg;
+}
+
+void EmulHandler::remove () {
+
+	char *msg;
+
+	msg = EM->MS->get ();
+
+	assert (msg != NULL, "EMULM at %s: NULL message", IN->TPN->getSName ());
+
+	delete msg;
+}
+
+EmulHandler::~EmulHandler () {
+
+	char *msg;
+	EMessages *ms;
+
+	// Note that a held EMUL mailbox is kept permanently. This is in
+	// contrast to a held UART (which is only held at the beginning).
+
+	if (EM == NULL || (ms = EM->MS) == NULL)
+		return;
+
+	if (EM->Held == NO) {
+		while ((msg = ms->get ()) != NULL)
+			delete msg;
+		delete ms;
+		EM->MS = NULL;
+	}
 }
 
 // ============================================================================
@@ -3029,6 +3116,56 @@ void LEDSM::ledup_status_short (char *buf) {
 	
 // ============================================================================
 
+EMULM::EMULM (data_em_t *em) {
+
+	IN.init (em->EODev != NULL ? XTRN_OMODE_DEVICE : XTRN_OMODE_SOCKET);
+	MS = NULL;
+	Held = NO;
+	
+	if (em->EODev != NULL) {
+		// Device output
+		IN.O = create Dev;
+		if (IN.O->connect (DEVICE+WRITE, em->EODev, 0,
+		    XTRN_MBX_BUFLEN) == ERROR)
+			excptn ("EMULM at %s: cannot open device %s",
+			    TheStation->getSName (), em->EODev);
+		create (System) EmulHandler (this, NULL);
+	} else {
+		// Socket output
+		if (em->held) {
+			// Pre-create the mailbox, even though we are not
+			// connected yet (we may want to impose a limit on
+			// the number of backlogged entries)
+			Held = YES;
+			MS = create EMessages (MAX_Long);
+		}
+	}
+
+	rst ();
+}
+
+void EMULM::rst () {
+
+	// For now, I am leaving this empty. I was tempted to erase here the
+	// queue of outgoing chunks, but perhaps it makes sense to keep it, so
+	// nothing is ever lost, including resets
+}
+
+void EMessages::queue (sint type, const char *fmt, va_list ap) {
+
+	char *m, *u;
+	int n;
+
+	m = form ("<%1d> %s\n", type, vform (fmt, ap));
+	u = new char [strlen (m) + 1];
+	strcpy (u, m);
+	if (this->put (u) == REJECTED)
+		// In case we decide to impose limits
+		delete u;
+}
+
+// ============================================================================
+
 void pwr_tracker_t::pwrt_clear () {
 
 	int i;
@@ -3124,8 +3261,6 @@ void pwr_tracker_t::pwrt_change (word md, word lv) {
 	double T;
 	pwr_mod_t *ms;
 
-	// trace ("PWRT_CHG: %1u %1u", md, lv);
-
 	Assert (md < PWRT_N_MODULES, "Power tracker at %s: pwrt_change, "
 		"illegal module %1d", md);
 
@@ -3141,7 +3276,6 @@ void pwr_tracker_t::pwrt_change (word md, word lv) {
 
 	T = ituToEtu (Time) - strt_tim;
 
-	// trace ("OLD T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
 	if (T > 0.0)
 		average =
 		    average * (last_tim / T) + (last_val * (T - last_tim)) / T;
@@ -3150,8 +3284,6 @@ void pwr_tracker_t::pwrt_change (word md, word lv) {
 
 	last_val -= ms->Levels [States [md]];
 	last_val += ms->Levels [States [md] = lv];
-
-	// trace ("NEW T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
 
 	upd ();
 }
@@ -3162,8 +3294,6 @@ void pwr_tracker_t::pwrt_add (word md, word lv, double tm) {
 //
 	double T, TT, nv;
 	pwr_mod_t *ms;
-
-	// trace ("PWRT_ADD: %1u %1u %010.6f", md, lv, tm);
 
 	Assert (md < PWRT_N_MODULES, "Power tracker at %s: pwrt_add, "
 		"illegal module %1d", md);
@@ -3181,8 +3311,6 @@ void pwr_tracker_t::pwrt_add (word md, word lv, double tm) {
 	if ((T = ituToEtu (Time) - strt_tim) <= 0.0)
 		// Pathology
 		return;
-
-	// trace ("OLD T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
 
 	// Extended current time
 	TT = T + tm;
@@ -3208,8 +3336,6 @@ void pwr_tracker_t::pwrt_add (word md, word lv, double tm) {
 	// And we leave last_val as if nothing happened, but the time is now
 
 	last_tim = T;
-
-	// trace ("NEW T = %08.3f, L = %08.3f, A = %08.3f, V = %08.3f", T, last_tim, average, last_val);
 
 	upd ();
 }
@@ -3433,7 +3559,6 @@ Illegal:
 			// Position query
 			if ((NN = dechex (BP)) == ERROR)
 				goto Illegal;
-			// trace ("QQQ: %1d", NN);
 
 			if (imode (Flags) != XTRN_IMODE_SOCKET)
 				excptn ("MoveHandler: coordinate query '%s; "
@@ -3500,7 +3625,6 @@ Illegal_crd:
 				create Disconnector (Agent, ECONN_INVALID);
 				terminate;
 			}
-			// trace ("MMM: %1d %f %f", NN, NP [0].DVal, NP [1].DVal);
 
 			pn = (PicOSNode*)idToStation (NN);
 			if (pn->RFInt != NULL) {
@@ -4002,6 +4126,15 @@ AgentConnector::perform {
 						ECONN_STATION);
 				else
 					create LedsHandler (TPN->ledsm, Agent);
+				terminate;
+
+			case AGENT_RQ_EMUL:
+
+				if (TPN == NULL)
+					create Disconnector (Agent,
+						ECONN_STATION);
+				else
+					create EmulHandler (TPN->emulm, Agent);
 				terminate;
 
 			case AGENT_RQ_PWRT:

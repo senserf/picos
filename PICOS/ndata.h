@@ -123,6 +123,15 @@ typedef struct {
 
 } data_pn_t;
 
+typedef struct {
+
+// EMUL
+
+	const char	*EODev;	// Output device
+	Boolean 	held, absent;
+
+} data_em_t;
+
 class SensActDesc {
 
 // A sensor/actuator descriptor, more like a structure
@@ -243,6 +252,7 @@ typedef struct {
 	data_pn_t *pn; 		// PINS module parameters
 	data_sa_t *sa;
 	data_le_t *le;		// LEDs module
+	data_em_t *em;		// Emulator output
 	data_pt_t *pt;		// Power tracker
 
 } data_no_t;

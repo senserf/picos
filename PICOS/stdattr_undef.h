@@ -11,6 +11,7 @@
 #undef phys_uart
 #undef rnd
 #undef diag
+#undef emul
 #undef reset
 #undef halt
 #undef actsize
