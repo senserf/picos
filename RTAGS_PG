@@ -1114,3 +1114,8 @@ PG110522A:
 	care.
 	
 	Fixed a typo in BOARDS/ARTURO/board_pins.h.
+
+PG110529A:
+
+	Macro emul added to make sure that emul calls (see the corresponding
+	entry for VUEE) are converted to NOPs by default.
