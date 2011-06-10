@@ -15,6 +15,13 @@ exec tclsh "$0" "$@"
 
 set Version 0.27
 
+## Directory names to be ignored in the project's directory:
+## strict names, patterns (case ignored)
+set IGDirs {
+	{ "CVS" "VUEE_TMP" }
+	{ "^ktmp" "junk" "attic" "ossi" "\\~\\$" }
+}
+
 ###############################################################################
 ###############################################################################
 
@@ -3342,7 +3349,7 @@ proc mkdrec { dname } {
 # List all subdirectories of the indicated directory recursively in
 # alphabetical order
 #
-	global MKRECV
+	global MKRECV IGDirs
 
 	if [catch { exec ls $dname } sdl] {
 		# doesn't exist
@@ -3350,18 +3357,19 @@ proc mkdrec { dname } {
 	}
 
 	set MKRECV($dname) ""
-	
+
 	foreach f $sdl {
-		if [regexp -nocase "attic|junk" $f] {
-			# ignore
+		if { [lsearch -exact [lindex $IGDirs 0] $f] >= 0 } {
 			continue
 		}
-		if { $f == "CVS" || $f == "VUEE_TMP" || $f == "KTMP" } {
-			# ignore as well
-			continue
+		set k 0
+		foreach p [lindex $IGDirs 1] {
+			if [regexp -nocase $p $f] {
+				set k 1
+				break
+			}
 		}
-		if [regexp "\\~\\$" $f] {
-			# ignore exotic filenames (cause problems on Windows)
+		if $k {
 			continue
 		}
 		set f [file normalize [file join $dname $f]]

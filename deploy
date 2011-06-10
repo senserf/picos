@@ -436,6 +436,14 @@ proc doit { } {
 	}
 
 	cd $hd
+
+	catch {
+		set fd [open "picospath" "w"]
+		puts $fd "#!/bin/sh\necho $CWD"
+		close $fd
+	}
+
+	catch { exec chmod +x picospath }
 	catch { exec chmod +x mkmk }
 	catch { exec chmod +x picomp }
 	catch { exec chmod +x piter }

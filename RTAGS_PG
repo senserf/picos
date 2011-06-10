@@ -1119,3 +1119,13 @@ PG110529A:
 
 	Macro emul added to make sure that emul calls (see the corresponding
 	entry for VUEE) are converted to NOPs by default.
+
+PG110610A:
+
+	A few cosmetic modifications to picomp, mkmk, deploy (as well as some
+	adjustments in the documentation: PiComp, mkmk) facilitating the SDA
+	(Software Development Assistant) that I have begun to work on. This
+	work has a low priority and is likely to be preempted, so don't hold
+	your breath. The temporary code name of this project is PiSDA (for
+	PicOS Software Development Assistant), but it will certainly not stay
+	(it just doesn't sound nice in Polish).

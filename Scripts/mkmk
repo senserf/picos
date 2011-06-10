@@ -29,6 +29,13 @@ set Targets {
 }
 # eCOG has no parameters for now
 
+## Directory names to be ignored in the project's directory:
+## strict names, patterns (case ignored)
+set IGDirs {
+	{ "CVS" "VUEE_TMP" }
+	{ "^ktmp" "junk" "attic" "ossi" "\\~\\$" }
+}
+
 #
 # Directories to be searched (in this order). This also reflects the order of
 # search. Local directories must be at the end, following ".".
@@ -1672,7 +1679,7 @@ proc mkdrec { dname } {
 #
 # Add all subdirectories of the indicated directory (in alphabetical order)
 #
-	global MKRECV
+	global MKRECV IGDirs
 
 	if [catch { exec ls $dname } sdl] {
 		# doesn't exist
@@ -1680,15 +1687,17 @@ proc mkdrec { dname } {
 	}
 	
 	foreach f $sdl {
-		if [regexp -nocase "attic|junk|vuee_tmp" $f] {
-			# ignore oldies and garbage
+		if { [lsearch -exact [lindex $IGDirs 0] $f] >= 0 } {
 			continue
 		}
-		if { $f == "CVS" } {
-			continue
+		set k 0
+		foreach p [lindex $IGDirs 1] {
+			if [regexp -nocase $p $f] {
+				set k 1
+				break
+			}
 		}
-		if [regexp "\\~\\$" $f] {
-			# ignore exotic filenames (cause problems on Windows)
+		if $k {
 			continue
 		}
 		set ff [canon [file join $dname $f]]
