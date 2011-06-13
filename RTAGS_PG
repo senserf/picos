@@ -1129,3 +1129,9 @@ PG110610A:
 	your breath. The temporary code name of this project is PiSDA (for
 	PicOS Software Development Assistant), but it will certainly not stay
 	(it just doesn't sound nice in Polish).
+
+PG110613A:
+
+	Made sure that eco_demo (and new_eco_demo) compiles with WARSAW for
+	the aggregator node (i.e., the aggregator doesn't absolutely have to
+	be equipped with a voltage sensor or an SD card).
