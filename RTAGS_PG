@@ -1135,3 +1135,34 @@ PG110613A:
 	Made sure that eco_demo (and new_eco_demo) compiles with WARSAW for
 	the aggregator node (i.e., the aggregator doesn't absolutely have to
 	be equipped with a voltage sensor or an SD card).
+
+PG110618A:
+
+	Fixed (or rather patched) a problem in the CC1100 driver detected by
+	Paul whereby a large fraction of a collector's packets wouldn't make it
+	to the aggregator. The problem was caused by multiple status change
+	requests that were sent by the praxis to the driver basically in the
+	same event (i.e., without letting the driver's thread run in between).
+	The way a status change (TXOFF, TXON, RXOFF, RXON, TXHOLD) is handled
+	consists of two steps: 1) an immediate action carried out by
+	tcv_control (the driver's options function), 2) some action performed
+	by the driver's thread in response to the event caused by the first
+	action. This is messy because you may, for example, execute TXON and
+	later TXOFF (e.g., in the same state) without giving the driver's
+	thread a chance to respond to the first change (action 2 must be
+	asynchronous). This is allowed and in fact quite natural, as in:
+
+		tcv_control (rfd, PHYSOPT_TXON, NULL);
+		tcv_endp (packet);
+		tcv_control (rfd, PHYSOPT_TXOFF, NULL);
+
+	However, when the above sequence was followed by:
+
+		tcv_control (rfd, PHYSOPT_RXON, NULL);
+
+	executed before the driver's thread responded to the first sequence, it
+	would, with a large probability, quietly abort the transmission in
+	progress.
+
+	I (think I) have fixed this for now, but I don't like it. So I will
+	think of a way to simplify the matters and implement a better solution.
