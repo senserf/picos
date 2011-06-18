@@ -1288,7 +1288,7 @@ OREvnt:
 
 		// This may damage a transmission in progress, but that's OK,
 		// I guess; no, it isn't: FIXME
-		if (TxOFF == 3)
+		if ((TxOFF & 1))
 			// FIXME: have to redo this mess, it cannot possibly
 			// work
 			cc1100_rx_reset ();

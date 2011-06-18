@@ -1166,3 +1166,8 @@ PG110618A:
 
 	I (think I) have fixed this for now, but I don't like it. So I will
 	think of a way to simplify the matters and implement a better solution.
+
+PG110618B:
+
+	A minor improvement to PG110618A (probably inconsequential for
+	eco_demo).
