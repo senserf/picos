@@ -45,7 +45,7 @@ fsm root {
 		"w string    -> write line to module\r\n"
 		"r rate      -> set rate for module\r\n"
 		"t rate      -> set rate for UART\r\n"
-		"e           -> escape\r\n"
+		"e [n]       -> escape\r\n"
 		"a           -> reset\r\n"
 		"s           -> view status flag\r\n"
 		"p [0|1]     -> power (down|up)\r\n"
@@ -117,10 +117,20 @@ fsm root {
 
   entry RS_ESC:
 
+	n = 0;
+	scan (ibuf + 1, "%d", &n);
 	blue_escape_set;
-	mdelay (10);
+	if (n == 0) {
+		mdelay (10);
+		blue_escape_clear;
+		proceed RS_RCM;
+	}
+	// Factory reset
+	while (n--)
+		mdelay (1000);
 	blue_escape_clear;
-	proceed RS_RCM;
+	// Say something
+	proceed RS_ATT;
 
   entry RS_RES:
 

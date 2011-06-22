@@ -53,10 +53,14 @@ t rate (e.g., t 96)
 Changes the rate for UART. The UART rate need not be the same as the BlueTooth
 rate.
 
-e (0 or 1)
+e [n]
 ----------
 
-Controls the ESCAPE signal. The default is 0.
+Controls the ESCAPE signal. Without an argument, sets the escape signal for 10
+ms, which should be a sufficient interval to carry out the normal escape
+function. With an argument, e.g., e 5, sets the signal for the specified number
+of seconds. For BTM-182, e 5 will reset the baud rate to the factory setting of
+19200 (ATL2).
 
 a
 -
@@ -123,10 +127,33 @@ Now you can open a terminal emulator on the laptop's new UART (make sure the
 rate is 115200. Whatever you write there, shows up on the module, and vice
 versa.
 
-Section 2: Testing BT-182
+My settings:
+
+SET BT BDADDR 00:07:80:81:12:8a
+SET BT NAME cipka10
+SET BT CLASS 001f00
+SET BT AUTH * 1234
+SET BT LAP 9e8b33
+SET BT PAGEMODE 4 2000 1
+SET BT ROLE 0 f 7d00
+SET BT SNIFF 0 20 1 8
+SET CONTROL BAUD 115200,8n1
+SET CONTROL CD 04 0
+SET CONTROL ECHO 4
+SET CONTROL ESCAPE 0 00 1
+
+If you see something like:
+
+SET CONTROL AUTOCALL 1101 5000
+
+disable it by writing:
+
+w SET CONTROL AUTOCALL
+
+Section 2: Testing BTM-182
 ===============================================================================
 
-Note: a board using the BT-182 module must be compiled with the LINKMATIC
+Note: a board using the BTM-182 module must be compiled with the LINKMATIC
 symbol undefined. Make sure #define LINKMATIC is commented out in options.sys.
 
 The board is WARSAW_BLUE (the same as for LinkMatik).
@@ -136,7 +163,7 @@ The board is WARSAW_BLUE (the same as for LinkMatik).
 Everything is basically the same, except that the commands to set the module up
 are different (they resemble a conversation with an old modem). The standard
 UART rate assumed by the praxis is 19200, which coincides with the default UART
-rate for BT-182.
+rate for BTM-182.
 
 Issue these commands:
 
@@ -145,6 +172,9 @@ w ATP=1234		[to set up a PID for connections]
 w ATN=Seawolf Dongle	[to set up a device identifier]
 w ATX0			[to disable the +++ escape sequence]
 w ATL5			[to change the UART rate to 115200]
+w ATE1			[echo off]
+w ATQ1			[no result codes (so they won't be diagnosed as bad
+			 commands by the praxis using the UART transparently)]
 
 Note that following the last command, you will have to execute
 
@@ -156,7 +186,7 @@ w ATI1
 
 You get:
 
-ATI1
+AATI1
 OK
 ATC=0, NONE FLOW CONTROL
 ATD=0000-DR
@@ -170,7 +200,7 @@ ATM=0, NONE PARITY_BIT
 ATN=Seawolf Dongle, LOCAL NAME
 ATO=0, ENABLE  AUTO CONNECTING
 ATP=1234, PIN CODE 
-ATQ=0, SEND RESULT CODE 
+ATQ=1, NEVER SEND RESULT CODE 
 ATR=1, SPP SLAVE ROLE 
 ATS=1, ENVRLE AUTO-POWERDOWN OF RS232 DRIVRATX=0, NEVER CHECK '+++' 
 
@@ -179,3 +209,39 @@ everything works exactly as for LinkMatik.
 
 A potentially useful command is ATZ0 (i.e., w ATZ0), which reverts the module
 to factory setting (retaining the name and PIN, however).
+
+If you accidentally set the baud rate to above 115200 (i.e., to more what PicOS
+can handle), you can revert to 19200 by holding the escape signal (PIO 4 on the
+board) for 3+ seconds. You can accomplish this from BlueTest by executing:
+
+e 5
+
+===============================================================================
+
+Some reminiscences from my experiments:
+
+I have been using an XP (SP3) laptop with a built-in BlueTooth module. I have
+been able to run mm_demo on boards equipped with BTM-182 as well as LinkMatik,
+but the connection procedure is significantly different in both cases.
+
+The way I try to communicate with the praxis from the laptop is to open a
+piter terminal emulator pointing to the COM port assigned to the USB RFCOMM
+channel.
+
+For LinkMatik, I am able to pair the device, assign a COM port to it, and
+then I can just open and close that port (e.g., by calling piter) to establish
+a connection. This doesn't work for BTM-182 where I have to resort to Windows
+GUI to set up a connection.
+
+For BTM-182, when I connect first (using the Windows Bluetooth GUI) and then
+open the COM port (from piter), the connection gets immediately dropped. When
+I open the COM port first (invoke piter) and then connect to the device from
+Windows, everything is OK. However, when (while connected) I close the COM
+port (exit piter), the connection gets dropped in a weird way that requires
+resetting BTM-182 on the board (you can power it down and up again, but what
+matters is just resetting the BTM-182 module).
+
+While you can reset BTM-182 from BlueTest, there are no hooks to do it from
+mm_demo, so you have to power the board down and up again. It isn't clear to
+me who is responsible for this problem, but my bet would go to BTM-182. Also,
+the problem may not be present in other version of Windows.

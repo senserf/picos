@@ -1081,7 +1081,7 @@ PG110421A:
 	Updated the com0com driver included in UTILS.zip to the newest version.
 	Have checked it on Windows 7 and it seems to work fine.
 	Board WARSAW_BLUE and the praxis BlueTest modified to accommodate
-	BT-182 (a new module to replace LinkMatik). As it turns out, the
+	BTM-182 (a new module to replace LinkMatik). As it turns out, the
 	replacement will be short lived (and, probably, another replacement
 	will be coming shortly), but the extension was almost trivial.
 	The piter script upgraded a bit:
@@ -1171,3 +1171,8 @@ PG110618B:
 
 	A minor improvement to PG110618A (probably inconsequential for
 	eco_demo).
+
+PG110622A:
+
+	BlueTest modified to allow resetting the baud rate of BTM-182 to
+	factory setting. README.txt fixed a bit and updated.
