@@ -21,5 +21,8 @@ int scan (const char*, const char*, ...);
 #define	isspace(a)	((a)==' ' || (a)=='\t' || (a)=='\n' || (a)=='\r')
 #define	isxdigit(a)	(isdigit(a)||((a)>='a'&&(a)<='f')||((a)>='A'&&(a)<='F'))
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ? ((a) - 'a' + 10) : (((a)>='A'&&(a)<='F') ? ((a) - 'A' + 10) : 0) ) )
+#define	isalpha(a)	(((a) >= 'A' && (a) <= 'Z') || ((a) >= 'a' && (a) <= 'z') || (a) == '_')
+#define	isalnum(a)	(isdigit (a) || isalpha (a))
+#define tolower(a)	(((a) >= 'A' && (a) <= 'Z') ? ((a) - 'A') + 'a' : (a))
 
 #endif

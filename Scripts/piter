@@ -1706,6 +1706,22 @@ proc readmac { bin } {
 
 ###############################################################################
 
+proc scan_uart { } {
+
+	for { set i 0 } { $i < 256 } { incr i } {
+		set devlist [u_cdevl $i]
+		foreach udev $devlist {
+			if [catch { open $udev "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			puts $udev
+		}
+	}
+}
+
+###############################################################################
+
 proc usage { } {
 
 	global argv0
@@ -1719,6 +1735,7 @@ proc usage { } {
 	puts stderr "       -b \[file\]     binary mode (optional macro file)"
 	puts stderr "       -f file       preserve the output in file"
 	puts stderr "       -F file       preserve the input as well"
+	puts stderr "       -S            scan for present UART devs"
 	puts stderr ""
 	puts stderr "Note that pktlen should be the same as the length used"
 	puts stderr "by the praxis in the respective argument of phys_uart."
@@ -1750,6 +1767,7 @@ proc initialize { } {
 	set bin ""
 	set sfi ""
 	set mod ""
+	set sca ""
 
 	cygfix
 
@@ -1830,8 +1848,24 @@ proc initialize { } {
 			}
 			continue
 		}
+
+		if { $par == "S" && $val == "" } {
+			set sca "y"
+			continue
+		}
 			
 		usage
+	}
+
+	if { $sca != "" } {
+
+		if { $mod != "" || $prt != "" || $spd != "" ||
+	     	     $mpl != "" || $bin != "" || $sfi != ""     } {
+			usage
+		}
+
+		scan_uart
+		exit 0
 	}
 
 	# cleanups and defaults

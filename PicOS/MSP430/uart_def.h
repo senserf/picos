@@ -97,6 +97,8 @@ typedef struct	{
     					{ 96, 0x03, 0x4A }  \
 				}
 
+#define	UART_RATES_AVAILABLE { 12, 24, 48, 96 }
+
 #define	uart_0_set_rate(t)	do { \
 					UBR00 = (t).A; \
 					UBR10 = 0; \
@@ -168,6 +170,9 @@ typedef struct	{
     { 1152, (UART_CLOCK_RATE/115200) % 256, (UART_CLOCK_RATE/115200) / 256 }, \
     { 2560, (UART_CLOCK_RATE/256000) % 256, (UART_CLOCK_RATE/256000) / 256 }  \
 				}
+
+#define	UART_RATES_AVAILABLE \
+	 { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152, 2560 }
 
 #define	uart_0_set_rate(t)	do { \
 					UBR00 = (t).A; \
@@ -537,6 +542,8 @@ typedef struct	{
 				{ 96, _uu_pres_n (9600), _uu_modu_n (9600) }  \
 			}
 
+#define	UART_RATES_AVAILABLE { 12, 24, 48, 96 }
+
 #else	/* UART_CLOCK_RATE > 32768 */
 
 #if UART_RATE == 1200
@@ -593,6 +600,9 @@ typedef struct	{
     { 1152, _uu_pres (115200), _uu_modu (115200) }, \
     { 2560, _uu_pres (256000), _uu_modu (256000) }  \
 }
+
+#define	UART_RATES_AVAILABLE \
+	 { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152, 2560 }
 
 #endif	/* UART_CLOCK_RATE > 32768 */
 

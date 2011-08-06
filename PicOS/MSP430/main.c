@@ -494,6 +494,7 @@ static void ssm_init () {
 
 	// High power request from module enable
 	PMMCTL0_H  = PMMPW_H;
+	// Needed (among others) by on-chip CC1101
 	PMMCTL0_L |= PMMHPMRE;
 	PMMCTL0_H  = 0x00;	
 

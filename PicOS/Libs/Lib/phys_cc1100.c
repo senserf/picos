@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -137,20 +137,12 @@ static byte patable [] = CC1100_PATABLE;
 
 static void cc1100_set_reg (byte addr, byte val) {
 
-	// volatile word i;
-
 	// Wait for ready
 	while (!(RF1AIFCTL1 & RFINSTRIFG));
 
 	// Address + instruction
 	RF1AINSTRB = (addr | RF_REGWR);
 	RF1ADINB = val;
-
-	// Wait until complete
-	// while (!(RF1AIFCTL1 & RFDINIFG));
-
-	// Must read this
-	// i = RF1ADOUTB;  
 }
 
 static byte cc1100_get_reg (byte addr) {
@@ -158,7 +150,7 @@ static byte cc1100_get_reg (byte addr) {
 	byte val;
 
 	RF1AINSTR1B = (addr | 0x80); 
-	// A simple return should do (check later)
+	// A simple return should do
   	while (!(RF1AIFCTL1 & RFDOUTIFG));
 	val = RF1ADOUT1B;
 	return val;
@@ -221,7 +213,8 @@ static byte cc1100_strobe (byte b) {
 	// Issue the command
 	RF1AINSTRB = b; 
 
-	while (b != CCxxx0_SRES && (RF1AIFCTL1 & RFSTATIFG) == 0);
+	while (b != CCxxx0_SRES && b != CCxxx0_SNOP &&
+		(RF1AIFCTL1 & RFSTATIFG) == 0);
 
 	sb = RF1ASTATB;
 
@@ -389,8 +382,6 @@ static byte cc1100_status () {
 	int i;
 ReTry:
 	for (i = 0; i < 32; i++) {
-
-		i--;
 
 #ifdef	__CC430__
 
@@ -1037,7 +1028,6 @@ XRcv:
 	release;
 
   entry (DR_SWAIT)
-
 #ifdef CC_BUSY_WAIT_FOR_EOT
 	while (cc1100_status () == CC1100_STATE_TX);
 #else
@@ -1270,7 +1260,7 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_TXON:
 
-		if (RxOFF) {
+		if (RxOFF && (TxOFF & 1)) {
 			// Start up; even if RX is off, RX is our default mode
 			cc1100_rx_reset ();
 			// Flag == need to power down on TxOFF

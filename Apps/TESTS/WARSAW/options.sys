@@ -23,13 +23,11 @@
 //#undef	EE_USE_UART
 //#define	EE_USE_UART	1
 
-#define	RADIO_OPTIONS	(0x08+0x40)	// Precheck for chip present
-
 #ifdef BOARD_WARSAW_NEW
-#define	MONITOR_PIN_CLOCK	P4_5
-#define	MONITOR_PIN_CLOCKA	P4_0
-#define	MONITOR_PIN_CLOCKS	P2_5
-#define	MONITOR_PIN_SCHED	P3_6
+//#define	MONITOR_PIN_CLOCK	P4_5
+//#define	MONITOR_PIN_CLOCKA	P4_0
+//#define	MONITOR_PIN_CLOCKS	P2_5
+//#define	MONITOR_PIN_SCHED	P3_6
 #endif
 
 #ifdef BOARD_XCC430
@@ -39,3 +37,16 @@
 //#define	MONITOR_PIN_SCHED	P4_3
 #endif
 
+#ifdef BOARD_CC430W
+//#define	MONITOR_PIN_CLOCK	P3_0
+//#define	MONITOR_PIN_CLOCKA	P3_1
+//#define	MONITOR_PIN_CLOCKS	P3_2
+//#define	MONITOR_PIN_SCHED	P3_3
+#endif
+
+//#define RADIO_CRC_MODE	4
+#define	RADIO_OPTIONS	(0x08+0x40)
+//#define	RADIO_LBT_MODE	0
+
+// #undef	RADIO_USE_LEDS
+// #define	RADIO_USE_LEDS	0

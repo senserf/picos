@@ -1176,3 +1176,35 @@ PG110622A:
 
 	BlueTest modified to allow resetting the baud rate of BTM-182 to
 	factory setting. README.txt fixed a bit and updated.
+
+PG110806A:
+
+	TESTS/BlueTest completely rewritten (see doc.odt). Added commands to
+	automatically configure BT modules for one of two roles: UART or
+	SCANNER.
+
+	Added praxis TESTS/BlueScan with a sample scanner function, as
+	requisitioned by Wlodek for VeriLoyal. See doc.odt in that directory.
+
+	The default UART rate for WARSAW_BLUE (both BT modules) changed to
+	9600. Read doc.odt in TESTS/BlueTest.
+
+	Added (tentatively) board CC430W describing the new Warsaw board.
+
+	CMA3000 sensor driver updated to be compatible with the new Warsaw
+	board (where the sensor is connected via regular pins rather than SPI).
+	Not tested yet.
+
+	Added board KRAKOW_SHT (required for Wlodek's demo in Krakow). It
+	describes a Warsaw board with three sensors: battery voltage + the
+	two components of a single SHT sensor.
+
+	Added a couple of potentially useful macros to Libs/Lib/form.h.
+
+	A few minor cleanups in phys_cc1100.c.
+
+	A table of available UART rates (a symbolic constant) is now defined
+	in PicOS/MSP430/uart_def.h.
+
+	Option -S added to piter to report the list of available (openable)
+	UARTs.
