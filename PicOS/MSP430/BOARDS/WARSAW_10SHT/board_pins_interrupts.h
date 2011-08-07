@@ -1,17 +1,13 @@
-#ifndef	__pg_sht_xx_h
-#define	__pg_sht_xx_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2007                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "sht_xx_sys.h"
-//+++ "sht_xx.c"
+#ifdef	P1_INTERRUPT_SERVICE
 
-#include "sht_xx_cmd.h"
+#if CC1100
 
-void shtxx_temp (word, const byte*, address);
-void shtxx_humid (word, const byte*, address);
-void shtxx_init (void);
+#include "irq_cc1100.h"
 
+#endif
 #endif

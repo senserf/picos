@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -20,8 +20,7 @@ static Boolean shtxx_cmd (byte cmd) {
 
 	// Reset serial interface - just in case
 	shtxx_ckdown;
-	shtxx_dtout;
-	shtxx_dtup;
+	// Data pin parked input, i.e., high
 	for (i = 0; i < 10; i++) {
 		shtxx_ckup;
 		shtxx_ckdown;

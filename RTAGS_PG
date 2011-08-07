@@ -1208,3 +1208,52 @@ PG110806A:
 
 	Option -S added to piter to report the list of available (openable)
 	UARTs.
+
+PG110807A:
+
+	Added a driver for an array version of the SHT sensor. Board
+	WARSAW_10SHT (see board_pins.h) shows sample defs for such a sensor.
+	The idea is that all the multiple SHT sensors share Vdd, Ground, and
+	Clk lines. Identical commands are sent to all of them at the same time,
+	and data is extracted individually but in unison. The array is visible
+	as two sensors (temp + humid, as for the scalar variant), but the value
+	returned by read_sensor is actually an array of values.
+
+	For example, WARSAW_10SHT defines 10 SHT sensors, to the pointer passed
+	to read_sensor, i.e., val in
+
+		read_sensor (STATE, sensnum, val);
+
+	must be an array of 10 words (the function assumes that there's enough
+	room for 10 word values).
+
+	The pins assignment in WARSAW_10SHT is as requested by Gerry, i.e.,
+
+	CLK  = P1.7
+	DATA = P2.5, P2.3, P2.4, P6.7, P2.2, P1.6, P6.6, P6.5, P6.4, P6.3
+
+	The above ordering of pins corresponds to the ordering of values in the
+	array (0 through 9).
+
+	To test, use the praxis in Apps/ECOPROJECT/SENSOR_TEST (I have modified
+	it, so that it can handle arrays of values):
+
+		mkmk WARSAW_10SHT
+		make
+
+	Commands:
+
+		s 10	[says that values are arrays of 10 words each]
+		r 1	[read the temp array]
+		r 2	[read the humid array]
+
+	Each time you do r, you will see as many values as specified in the
+	last argument of s (with 1 being the default).
+
+	Note: sensor 0 is the battery (voltage) sensor. It doesn't hurt to view
+	it as an array (the unused values are zero).
+
+	Note: if some SHT sensors are disconnected, their values will be
+	0xFFFF or 0x0000 (depending on whether the pull up resistor for the
+	data pin is present or absent).
+
