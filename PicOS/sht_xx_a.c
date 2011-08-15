@@ -14,36 +14,39 @@ static byte sht_delcnt, sht_status = 0;
 #define	SHTXX_STAT_TEMP		1
 #define	SHTXX_STAT_HUMID	2
 
-static word dv () { word a; shtxx_a_data (a); return a; }
-static word du () { shtxx_a_du; }
-static word dd () { shtxx_a_dd; }
-		
+#ifdef	SHTXX_CLOCK_DELAY
+#define	cdel	udelay (SHTXX_CLOCK_DELAY)
+#else
+#define	cdel	CNOP
+#endif
+
+static void ckup () { cdel; shtxx_a_ckup; }
+static void ckdown () { cdel; shtxx_a_ckdown; }
+static void ckck () { ckup (); ckdown (); }
+static word dv () { word a; cdel; shtxx_a_data (a); return a; }
+static word du () { cdel; shtxx_a_du; }
+static word dd () { cdel; shtxx_a_dd; }
+
+// ============================================================================
+
 static void shtxx_cmd (byte cmd) {
 
 	word i;
 
 	// Reset serial interface - just in case
-	shtxx_a_ckdown;
+	// ckdown ();
 	// Data line is always parked input, i.e., up
-	for (i = 0; i < 10; i++) {
-		shtxx_a_ckup;
-		shtxx_a_ckdown;
-	}
+
+	for (i = 0; i < 10; i++)
+		ckck ();
 
 	// Starting sequence for the command
-	shtxx_a_ckup;
-	dd ();
-	shtxx_a_ckdown;
-	shtxx_a_ckup;
-	du ();
-	shtxx_a_ckdown;
+	ckup (); dd (); ckdown (); ckup (); du (); ckdown ();
 
 	// The opening sequence of 3 zeros
 	dd ();
-	for (i = 0; i < 3; i++) {
-		shtxx_a_ckup;
-		shtxx_a_ckdown;
-	}
+	for (i = 0; i < 3; i++)
+		ckck ();
 
 	// Now for the five least significant bits of cmd
 
@@ -53,13 +56,11 @@ static void shtxx_cmd (byte cmd) {
 			du ();
 		else
 			dd ();
-		shtxx_a_ckup;
-		shtxx_a_ckdown;
+		ckck ();
 	}
 
 	du ();		// Select data input
-	shtxx_a_ckup;	// Retrieve (and ignore) the ack bit
-	shtxx_a_ckdown;
+	ckck ();	// Retrieve (and ignore) the ack bit
 }
 
 static void shtxx_get (Boolean ack, byte *res) {
@@ -76,8 +77,7 @@ static void shtxx_get (Boolean ack, byte *res) {
 
 	for (r = 0; r < 8; r++) {
 		v = dv ();
-		shtxx_a_ckup;
-		shtxx_a_ckdown;
+		ckck ();
 		for (rp = res, i = 0; i < SHTXX_A_SIZE; i++) {
 			*rp <<= 1;
 			if (v & (1 << i))
@@ -89,8 +89,7 @@ static void shtxx_get (Boolean ack, byte *res) {
 	if (ack) {
 		// The ACK bit
 		dd ();
-		shtxx_a_ckup;
-		shtxx_a_ckdown;
+		ckck ();
 		du ();
 	}
 }

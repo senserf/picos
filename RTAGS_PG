@@ -1257,3 +1257,15 @@ PG110807A:
 	0xFFFF or 0x0000 (depending on whether the pull up resistor for the
 	data pin is present or absent).
 
+PG110815A:
+
+	Added an option to slow down the clock for the array version of SHT
+	(see the previous tag). As predicted, there seem to be problems with
+	longer cables. You can now set SHTXX_CLOCK_DELAY in options.sys to the
+	number of microseconds (roughly) separating two clock ticks, e.g.,
+
+	#define	SHTXX_CLOCK_DELAY 10
+
+	BTW: some files are tagged as modified although they haven't really
+	changed. Don't be alarmed: I have fixed a few erroneous permission
+	bits.
