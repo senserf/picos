@@ -94,3 +94,6 @@ WO110423A:
   mm_demo: instrumented for BT (Seatan), see mm.odt
   new_il_demo: preserved a simple BT / UART switch driven by BOARD_WARSAW_BLUE
 
+WO110827A:
+  Added kek_ned, see 'notes there. Updated Olsonet's (c) in main.c.
+
