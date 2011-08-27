@@ -189,7 +189,7 @@ Drain:
 #endif
 #endif /* BLUETOOTH_PRESENT */
 
-	if (stln < 4 || (stln & 1) != 0)
+	if (stln < 4 || stln > UA->r_buffl || (stln & 1) != 0)
 		syserror (EREQPAR, "xmtu/length");
 
 	LEDIU (1, 1);
@@ -263,7 +263,8 @@ static void start_uart (word what) {
 void phys_uart (int phy, int mbs, int which) {
 /*
  * phy   - interface number
- * mbs   - maximum packet length (including statid, excluding checksum)
+ * mbs   - maximum packet length (including statid, which counts to the payload,
+ *	   excluding checksum)
  * which - which uart (0 or 1)
  */
 
@@ -300,7 +301,7 @@ void phys_uart (int phy, int mbs, int which) {
 
 	UA->r_prcs = UA->x_prcs = 0;
 
-	// Length in bytes
+	// Length in bytes, includes statid (counts to payload) and checksum
 	UA->r_buffl = mbs;
 
 	UA->v_physid = phy;
@@ -506,7 +507,8 @@ strand (xmtuart, uart_t*)
 			if ((stln & 1)) 
 				// The transmitted length will be even anyway
 				stln++;
-			UA->x_buffl = (byte) stln;
+			if ((UA->x_buffl = (byte) stln) > UA->r_buffl - 4)
+				syserror (EREQPAR, "xmtu/length");
 			// Calculate checksum; note that this assumes a
 			// particular layout of uart_t!!!
 			stln = w_chk ((address)(&(UA->x_buffh)), 1, 0);
@@ -710,7 +712,7 @@ static void start_uart () {
 void phys_uart (int phy, int mbs, int which) {
 /*
  * phy   - interface number
- * mbs   - maximum packet length (excluding checksum and header)
+ * mbs   - maximum packet (payload) length (excluding checksum and header)
  * which - which uart (0 or 1)
  */
 
@@ -1022,7 +1024,8 @@ static void start_uart (word what) {
 void phys_uart (int phy, int mbs, int which) {
 /*
  * phy   - interface number
- * mbs   - maximum packet length (no NetId, no checksum in line mode)
+ * mbs   - maximum packet length (no NetId, no checksum in line mode), including
+ *	   the sentinel byte
  * which - which uart (0 or 1)
  */
 
@@ -1231,14 +1234,14 @@ void __pi_diag_init (int ua) {
 		UART_STOP_XMITTER;
 		if (UA->x_prcs != 0)
 			p_trigger (UA->x_prcs, TXEVENT);
-		bc = UA->x_buffl + 6;
+		bc = UA->r_buffl + 8;
 	} else
 		// Transmitter stopped
 		bc = 4;
 
-	// Send that many 0x54's
+	// Send that many 0x00's
 	while (bc--) {
-		DIAG_WCHAR (0x54);
+		DIAG_WCHAR (0x00);
 		DIAG_WAIT;
 	}
 #endif

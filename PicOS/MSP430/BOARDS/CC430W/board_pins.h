@@ -3,6 +3,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+// This is still temporary: reverse to input and measure current again
+
 // P1:
 //	0 - CONN	J7.9
 //	1 - CONN	J7.8
@@ -12,7 +14,8 @@
 //	5 - UARTRX		[UCA0RX]	CONN	J7.13
 //	6 - UARTTX		[UCA0TX]	CONN	J7.12
 //	7 - INT		CMA3000			CONN	J7.7	[ERROR!]
-#define	PIN_DEFAULT_P1DIR	0x18
+#define	PIN_DEFAULT_P1DIR	0xDF	// 18
+#define	PIN_DEFAULT_P1SEL	0x60
 
 // P2:
 //	0 - CONN	J6.14
@@ -23,7 +26,7 @@
 //	5 - CONN	J7.10	[VEREF+]
 //	6 - INT VOL SEN		[ADC A6]
 //	7 - EXT VOL SEN		[ADC A7]
-#define	PIN_DEFAULT_P2DIR	0x00
+#define	PIN_DEFAULT_P2DIR	0x3D
 #define	PIN_DEFAULT_P2SEL	0xC0
 
 // P3:
@@ -36,20 +39,19 @@
 //	6 - CONN	J6.4
 //	7 - CONN	J6.3
 
-// Temporarily used for debugging
-#define	PIN_DEFAULT_P3DIR	0x00
+#define	PIN_DEFAULT_P3DIR	0xFF
 
 // P4:
-//	0 - EEPROM	CS			PWR	CMA3000	[ERROR!]
+//	0 - EEPROM	CS			VDD	CMA3000	[ERROR!]
 //	1 - ASWITCH	EEPROM
 //	2 - ASWITCH	XX Vcc	J7.3
 //	3 - VOL SEN ON	OFF == HIGH
-//	4 - NC
+//	4 - NC					SHOULD BE CMA3000 VDD
 //	5 - LED Y	OFF == HIGH
 //	6 - LED G	OFF == HIGH
 //	7 - LED R	OFF == HIGH
-#define	PIN_DEFAULT_P4DIR	0x17
-#define	PIN_DEFAULT_P4OUT	0x11
+#define	PIN_DEFAULT_P4DIR	0xF7
+#define	PIN_DEFAULT_P4OUT	0xE8
 
 // P5:
 //	0 - 32K crystal
@@ -63,7 +65,7 @@
 #define	PIN_DEFAULT_P5SEL	0x03
 // Note: bits 0 and 1 on DIR MUST be zero (DIR must be IN) for the crystal to
 // work!!!!
-#define	PIN_DEFAULT_P5DIR	0xE4
+#define	PIN_DEFAULT_P5DIR	0xFC
 
 #define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x02) == 0)
 

@@ -33,13 +33,8 @@ char *ab_outf (word st, const char *fm, ...) {
 	}
 
 	// Need one more for the sentinel
-	if ((ln = strlen (ab_xrs_cou) + 1) > ab_xrs_max) {
-		// Too long
-		ufree (ab_xrs_cou);
-		if (st == WNONE)
-			return NULL;
+	if ((ln = strlen (ab_xrs_cou) + 1) > ab_xrs_max)
 		syserror (EREQPAR, "ab_outf");
-	}
 
 	ab_xrs_sln = (byte) ln;
 	ab_xrs_new = AB_XTRIES;
@@ -61,12 +56,8 @@ char *ab_out (word st, char *str) {
 		release;
 	}
 
-	if ((ln = strlen (str) + 1) > ab_xrs_max) {
-		// Should we rather keep it?
-		if (st == WNONE)
-			return NULL;
+	if ((ln = strlen (str) + 1) > ab_xrs_max)
 		syserror (EREQPAR, "ab_out");
-	}
 
 	ab_xrs_sln = (byte) ln;
 	ab_xrs_new = AB_XTRIES;

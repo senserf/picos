@@ -38,7 +38,7 @@ static Boolean ab_xrs_send (int sid) {
 	if (((ln = ab_xrs_sln) & 1))
 		// Packet length must always be even; we assume that
 		// otherwise ab_xrs_sln in within limits (was checked
-		// by the API function
+		// by the API function)
 		ln++;
 
 	// Note that ln can be zero - if we have nothing to send

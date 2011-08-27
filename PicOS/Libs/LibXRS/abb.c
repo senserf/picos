@@ -19,11 +19,8 @@ byte *abb_outf (word st, word ln) {
 		release;
 	}
 
-	if (ln > ab_xrs_max) {
-		if (st == WNONE)
-			return NULL;
+	if (ln > ab_xrs_max)
 		syserror (EREQPAR, "abb_outf");
-	}
 
 	if ((ab_xrs_cou = (char*) umalloc (ln)) == NULL) {
 		if (st == WNONE)
@@ -42,11 +39,8 @@ byte *abb_out (word st, byte *buf, word ln) {
 //
 // Send a binary message with user-allocated buffer
 //
-	if (ln > ab_xrs_max || buf == NULL) {
-		if (st == WNONE)
-			return NULL;
+	if (ln > ab_xrs_max || buf == NULL)
 		syserror (EREQPAR, "abb_out");
-	}
 
 	if (ab_xrs_sln != 0 || ab_xrs_mod == 0) {
 		// Off or busy

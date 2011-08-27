@@ -9,6 +9,8 @@
 // These are parameters that are visible to the praxis in the same way
 // regardless of the mode (VUEE versus PicOS)
 
+//+++
+
 typedef	void (*oep_chf_t) (word, address, word);
 
 #define	OEP_MAXRAWPL	60	// Maximum raw packet length, excluding checksum

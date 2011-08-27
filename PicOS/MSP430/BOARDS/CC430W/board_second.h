@@ -5,6 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#ifdef	SOFT_RESET_BUTTON_PRESSED
+
 #define	EMERGENCY_RESET_CONDITION	SOFT_RESET_BUTTON_PRESSED
 
 // Blink all LEDs, wait for 2 sec, if key still pressed, blink LEDs 8 times,
@@ -31,10 +33,15 @@
 #define	bkea_if	CNOP
 #endif
 
+#define	bkea_ee CNOP
+
+#ifdef	EEPROM_PRESENT
 #if 	EEPROM_PRESENT
+#undef	bkea_ee
 #define	bkea_ee	ee_init_erase ()
-#else
-#define	bkea_ee	CNOP
 #endif
+#endif
+
+#endif	/* SOFT_RESET_BUTTON_PRESSED */
 
 #endif

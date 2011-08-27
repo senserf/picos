@@ -24,8 +24,8 @@ static void ckup () { cdel; shtxx_a_ckup; }
 static void ckdown () { cdel; shtxx_a_ckdown; }
 static void ckck () { ckup (); ckdown (); }
 static word dv () { word a; cdel; shtxx_a_data (a); return a; }
-static word du () { cdel; shtxx_a_du; }
-static word dd () { cdel; shtxx_a_dd; }
+static void du () { cdel; shtxx_a_du; }
+static void dd () { cdel; shtxx_a_dd; }
 
 // ============================================================================
 

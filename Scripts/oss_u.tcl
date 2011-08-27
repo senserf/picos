@@ -19,7 +19,7 @@ set DB(LEV)	0
 set CH(IPR)		""
 
 # diag preamble
-set CH(DPR)		[format %c [expr 0x54]]
+set CH(DPR)		[format %c [expr 0x00]]
 
 # character zero
 set CH(ZER)		[format %c [expr 0x00]]

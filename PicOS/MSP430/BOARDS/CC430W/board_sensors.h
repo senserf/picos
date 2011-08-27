@@ -8,7 +8,7 @@
 						_BIC (P4OUT, 0x01); \
 						_BIC (P5OUT, 0xE4); \
 						_BIS (P5DIR, 0xE4); \
-						_BIC (P1IE, 0x80); \
+						__pi_cma_3000_disable; \
 					} while (0)
 //+++ "p1irq.c"
 

@@ -32,7 +32,7 @@ proc cygfix { } {
 
 proc no_function { args } {
 
-	abt "undefined plugin function called"
+	abt "undefined module function called"
 }
 
 if { [info tclversion] < 8.5 } {
@@ -67,7 +67,7 @@ set DB(SFD)	""
 set DB(LEV)	0
 
 # diag preamble (for packet modes)
-set CH(DPR)	[format %c [expr 0x54]]
+set CH(DPR)	[format %c [expr 0x00]]
 
 # character zero
 set CH(ZER)	[format %c [expr 0x00]]
@@ -181,7 +181,7 @@ proc chks { wa } {
 }
 
 ###############################################################################
-# Plugin independent functions ################################################
+# Module independent functions ################################################
 ###############################################################################
 
 proc t_out { ln } {
@@ -246,11 +246,11 @@ proc u_cdevl { pi } {
 	return [list $pi "\\\\.\\$pi"]
 }
 
-proc u_start { udev speed mpl plug ifun } {
+proc u_start { udev speed mpl mdle ifun } {
 #
 # open the UART
 #
-	global ST CH PM PLUG
+	global ST CH PM MODULE
 
 	set devlist [u_cdevl $udev]
 
@@ -285,8 +285,8 @@ proc u_start { udev speed mpl plug ifun } {
 		abt "u_start: cannot configure UART: $err"
 	}
 
-	# the plugin
-	set PF $PLUG($plug)
+	# the system module
+	set PF $MODULE($mdle)
 
 	# initialize
 	[lindex $PF 0]
@@ -329,7 +329,7 @@ proc u_ready { } {
 }
 
 ###############################################################################
-# Plugin: mode == N ###########################################################
+# Module: mode == N ###########################################################
 ###############################################################################
 
 proc x_frame_n { m } {
@@ -395,7 +395,7 @@ proc x_fnwrite_n { msg } {
 
 proc x_receive_n { } {
 #
-# Handle received packet (internal for the plugin)
+# Handle received packet (internal for the module)
 #
 	global ST DB CH IV
 
@@ -740,11 +740,11 @@ proc p_init_n { } {
 	x_send_n
 }
 
-set PLUG(N) [list p_init_n p_rawread_n p_write_n]
-set PLUG(X) $PLUG(N)
+set MODULE(N) [list p_init_n p_rawread_n p_write_n]
+set MODULE(X) $MODULE(N)
 
 ###############################################################################
-# Plugin: mode == P ###########################################################
+# Module: mode == P ###########################################################
 ###############################################################################
 
 proc x_frame_p { m cu ex } {
@@ -1135,10 +1135,10 @@ proc p_init_p { } {
 	x_send_p
 }
 
-set PLUG(P) [list p_init_p p_rawread_p p_write_p]
+set MODULE(P) [list p_init_p p_rawread_p p_write_p]
 
 ###############################################################################
-# Plugin: mode == D ###########################################################
+# Module: mode == D ###########################################################
 ###############################################################################
 
 proc p_rawread_d { } {
@@ -1200,7 +1200,7 @@ proc p_init_d { } {
 	set PM(UPL) $PM(MPL)
 }
 
-set PLUG(D) [list p_init_d p_rawread_d p_write_d]
+set MODULE(D) [list p_init_d p_rawread_d p_write_d]
 
 ###############################################################################
 # Tracing and debugging #######################################################
@@ -1339,6 +1339,16 @@ proc sget { } {
 		return
 	}
 
+	if [catch { plug_inppp_t line } ln] {
+		t_ouf "INPPP Error: $ln"
+		return
+	}
+
+	if !$ln {
+		# plugin tells us to ignore the line
+		return
+	}
+
 	if $ST(ECO) {
 		puts $line
 	}
@@ -1353,13 +1363,110 @@ proc sget { } {
 	$ST(OFN) $line
 }
 
+###############################################################################
+
+proc ishex { c } {
+	return [regexp -nocase "\[0-9a-f\]" $c]
+}
+
+proc isoct { c } {
+	return [regexp -nocase "\[0-7\]" $c]
+}
+
+proc stparse { line } {
+#
+# Parse a UNIX string into a list of hex codes; update the source to point to
+# the first character behind the string
+#
+	upvar $line ln
+
+	set nc [string index $ln 0]
+	if { $nc != "\"" } {
+		error "illegal string delimiter: $nc"
+	}
+
+	# the original - for errors
+	set or "\""
+
+	set ln [string range $ln 1 end]
+
+	set vals ""
+
+	while 1 {
+		set nc [string index $ln 0]
+		if { $nc == "" } {
+			error "unterminated string: $or"
+		}
+		set ln [string range $ln 1 end]
+		if { $nc == "\"" } {
+			# done (this version assumes that the sentinel must be
+			# explicit, append 0x00 if this is a problem)
+			return $vals
+		}
+		if { $nc == "\\" } {
+			# escapes
+			set c [string index $ln 0]
+			if { $c == "" } {
+				# delimiter error, will be diagnosed at next
+				# turn
+				continue
+			}
+			if { $c == "x" } {
+				# get hex digits
+				set ln [string range $ln 1 end]
+				while 1 {
+					set d [string index $ln 0]
+					if ![ishex $d] {
+						break
+					}
+					append c $d
+					set ln [string range $ln 1 end]
+				}
+				if [catch { expr 0$c % 256 } val] {
+					error "illegal hex escape in string: $c"
+				}
+				lappend vals $val
+				continue
+			}
+			if [isoct $c] {
+				if { $c != 0 } {
+					set c "0$c"
+				}
+				# get octal digits
+				set ln [string range $ln 1 end]
+				while 1 {
+					set d [string index $ln 0]
+					if ![isoct $d] {
+						break
+					}
+					append c $d
+					set ln [string range $ln 1 end]
+				}
+				if [catch { expr $c % 256 } val] {
+					error \
+					    "illegal octal escape in string: $c"
+				}
+				lappend vals $val
+				continue
+			}
+			set ln [string range $ln 1 end]
+			set nc $c
+			continue
+		}
+		scan $nc %c val
+		lappend vals [expr $val % 256]
+	}
+}
+
+###############################################################################
+
 proc sget_bin { } {
 #
 # The binary variant of sget
 #
 	global PM ST BMAC
 
-	set line [inline]
+	set line [string trim [inline]]
 
 	if { $line == "" } {
 		return
@@ -1381,6 +1488,17 @@ proc sget_bin { } {
 
 	set line $mline
 
+	# plugin preprocessor
+	if [catch { plug_inppp_b line } $oul] {
+		t_ouf "INPPP Error: $oul"
+		return
+	}
+
+	if !$oul {
+		# ignore the line
+		return
+	}
+
 	set out ""
 	set eco ""
 	set oul 0
@@ -1393,23 +1511,32 @@ proc sget_bin { } {
 			break
 		}
 
-		set val ""
-		regexp "^(\[^ \t\]+)(.*)" $line mat val line
+		if { [string index $line 0] == "\"" } {
+			# looks like a string, parse it into a sequence of
+			# bytes
+			if [catch { stparse line } val] {
+				t_ouf "Error: $val"
+				return
+			}
+		} else {
+			set val ""
+			regexp "^(\[^ \t\]+)(.*)" $line mat val line
+			if [catch { eval "expr $val" } val] {
+				t_ouf "Error: illegal expression: $val ...\
+					[string range $line 0 5] ..."
+				return
+			}
 
-		if [catch { eval "expr $val" } val] {
-			t_ouf "Error: illegal expression: $val ...\
-				[string range $line 0 5] ..."
-			return
+			set val [list [expr $val & 0xff]]
 		}
 
-		set val [expr $val & 0xff]
-
-		if $ST(ECO) {
-			append eco [format "%02x " $val]
+		foreach v $val {
+			if $ST(ECO) {
+				append eco [format "%02x " $v]
+			}
+			append out [binary format c $v]
+			incr oul
 		}
-
-		append out [binary format c $val]
-		incr oul
 	}
 
 	if $ST(ECO) {
@@ -1431,7 +1558,11 @@ proc uget { msg } {
 #
 # Receive a line from the board (ASCII mode - just show it)
 #
-	t_out $msg
+	if [catch { plug_outpp_t msg } v] {
+		t_ouf "OUTPP Error: $v"
+	} elseif { $v != 0 } {
+		t_out $msg
+	}
 }
 
 proc uget_bin { msg } {
@@ -1440,17 +1571,31 @@ proc uget_bin { msg } {
 #
 	set len [string length $msg]
 
-	set enc "Received: $len < "
-
-	# encode the bytes in hex
+	# encode the bytes into hex numbers
 	for { set i 0 } { $i < $len } { incr i } {
 		binary scan [string index $msg $i] cu byte
 		append enc [format "%02x " $byte]
 	}
 
-	append enc ">"
+	set enc [string trimright $enc]
 
-	t_out $enc
+	if [catch { plug_outpp_b enc } v] {
+		t_ouf "OUTPP Error: $v, received line was: <$enc>"
+		return
+	}
+
+	if { $v == 0 } {
+		# ignore line
+		return
+	}
+
+	if { $v > 1 } {
+		# null preprocessing, use default decorations
+		t_out "Received: $len < $enc >"
+	} else {
+		# preprocessed, take it at face value
+		t_out $tar
+	}
 }
 
 ###############################################################################
@@ -1547,11 +1692,15 @@ proc macsub { line } {
 		set ll [string length $m]
 		set ma [lindex $BMAC($m) 0]
 		set pl [lindex $BMAC($m) 1]
+		set rf [lindex $BMAC($m) 2]
 
 		while 1 {
 
 			set x [string first $m $line]
 			if { $x < 0 } {
+				break
+			}
+			if { $rf && $x != 0 } {
 				break
 			}
 
@@ -1560,13 +1709,12 @@ proc macsub { line } {
 
 			if { $pl != "" } {
 				# parameters are expected
-				if { [string index $line 0] != "(" } {
+				if ![regexp "^\[ \t\]*\\((.*)" $line jn rest] {
 					# ignore, assume not a macro call
 					continue
 				}
-				# get the actual parameters
 				set al ""
-				set line [string range $line 1 end]
+				set line $rest
 				while 1 {
 					set c [string index $line 0]
 					if { $c == ")" } {
@@ -1617,7 +1765,7 @@ proc readmac { bin } {
 	set BMAC(+) ""
 	if { $bin == "+" } {
 		# try the deafult
-		if [catch { open "bin.mac" r } bfd] {
+		if [catch { open "piter_mac.txt" r } bfd] {
 			# nothing there
 			return
 		}
@@ -1642,7 +1790,9 @@ proc readmac { bin } {
 			continue
 		}
 
-		if ![regexp -nocase "^(\[_a-z\]\[a-z0-9_\]*)(.*)" $ln j nm t] {
+		set rf ""
+		if ![regexp -nocase "^(\\^)?(\[_a-z\]\[a-z0-9_\]*)(.*)" \
+		    $ln j rf nm t] {
 			abt "Illegal macro name in this line: $ln"
 		}
 
@@ -1653,6 +1803,13 @@ proc readmac { bin } {
 		set t [string trimleft $t]
 		set d [string index $t 0]
 		set p ""
+
+		# recursive expansion flag
+		if { $rf == "" } {
+			set rf 0
+		} else {
+			set rf 1
+		}
 
 		if { $d == "(" } {
 			# this is a parameterized macro
@@ -1697,7 +1854,7 @@ proc readmac { bin } {
 			abt "Empty macro in this line: $ln"
 		}
 
-		set BMAC($nm) [list $t $p]
+		set BMAC($nm) [list $t $p $rf]
 		lappend ML $nm
 	}
 	# list of names
@@ -1736,6 +1893,7 @@ proc usage { } {
 	puts stderr "       -f file       preserve the output in file"
 	puts stderr "       -F file       preserve the input as well"
 	puts stderr "       -S            scan for present UART devs"
+	puts stderr "       -P file       preprocessor plugin file"
 	puts stderr ""
 	puts stderr "Note that pktlen should be the same as the length used"
 	puts stderr "by the praxis in the respective argument of phys_uart."
@@ -1757,6 +1915,153 @@ proc argv_shift { } {
 	set argv [lrange $argv 1 end]
 }
 
+###############################################################################
+
+# For now, there are just these two user plugin functions: input and output
+# preprocessors; we may add more later
+
+# input preprocessor, text version; the value 2 means that the line has not
+# been changed
+proc plug_inppp_t { inp } { return 2 }
+
+# input preprocessor, binary version
+proc plug_inppp_b { inp } { return 2 }
+
+# same for output
+proc plug_outpp_t { inp } { return 2 }
+proc plug_outpp_b { inp } { return 2 }
+
+###############################################################################
+
+proc open_plugin { fn } {
+#
+# Opens and runs a file with plugin functions
+#
+	if { $fn == "+" } {
+		set fn "piter_plug.tcl"
+	}
+
+	if [catch { open $fn "r" } fd] {
+		abt "Cannot open plugin file $fn: $fd"
+	}
+
+	if [catch { read $fd } sc] {
+		abt "Cannot read plugin file $fn: $sc"
+	}
+
+	catch { close $fd }
+
+	if [catch { uplevel #0 eval $sc } err] {
+		abt "Cannot insert the plugin, evaluation error: $err"
+	}
+}
+
+###############################################################################
+
+proc fn_date_pfx { } {
+#
+# Produces the date/time prefix for a file name
+#
+	return [clock format [clock seconds] -format %y%m%d_%H%M%S]
+}
+
+proc open_log_file { sfn } {
+#
+# Try to be intelligent about overwriting an existing file
+#
+	if { $sfn == "+" } {
+		set sfn "[fn_date_pfx]_piter_log.txt"
+	}
+
+	set af "w"
+	set fo 0
+	while 1 {
+		if { $af == "w" && $fo == 0 && [file exists $sfn] } {
+			catch { close $std }
+			set sfn [file_name_prompt $sfn \
+				"seems to already exist" af fo]
+			continue
+		}
+		if [catch { open $sfn $af } std] {
+			set sfn [file_name_prompt $sfn "cannot be opened" af fo]
+			continue
+		}
+		break
+	}
+
+	fconfigure $std -buffering line -translation lf
+
+	return $std
+}
+
+proc file_name_prompt { sfn why afg foq } {
+
+	upvar $afg af
+	upvar $foq fo
+
+	puts "File $sfn $why!"
+
+	while 1 {
+		puts "Type one of these:"
+		set opt "QN"
+		puts " Q            - to abort"
+		if { [string index $why 0] == "s" } {
+			puts " O            - to overwrite the file"
+			append opt "O"
+		}
+		puts " N filename   - to specify a different file name"
+		if { $af == "w" } {
+			puts " A            - to try to append to the file"
+			append opt "A"
+		}
+		if ![regexp "^\[0-9\]\[0-9\]" $sfn] {
+			puts \
+		   " D            - to tag the current name with date/time"
+			append opt "D"
+		}
+		while 1 {
+			if [catch { gets stdin line } stat] {
+				exit 0
+			}
+			if { $stat < 0 } {
+				exit 0
+			}
+			set line [string trim $line]
+			if { $line != "" } {
+				break
+			}
+		}
+		set d [string toupper [string index $line 0]]
+		if { [string first $d $opt] < 0 } {
+			continue
+		}
+		if { $d == "Q" } {
+			exit 0
+		}
+		if { $d == "O" } {
+			set fo 1
+			return $sfn
+		}
+		if { $d == "N" } {
+			set fn [string trimleft [string range $line 1 end]]
+			if { $fn == "" } {
+				puts "Filename missing after N"
+				continue
+			}
+			set af "w"
+			return $fn
+		}
+		if { $d == "A" } {
+			set af "a"
+			return $sfn
+		}
+		# append date/time
+		set af "w"
+		return "[clock format [clock seconds] -format \
+			%y%m%d_%H%M%S]_$sfn"
+	}
+}
+
 proc initialize { } {
 
 	global ST
@@ -1768,6 +2073,7 @@ proc initialize { } {
 	set sfi ""
 	set mod ""
 	set sca ""
+	set plu ""
 
 	cygfix
 
@@ -1840,11 +2146,23 @@ proc initialize { } {
 			continue
 		}
 
-		if { ($par == "f" || $par == "F") && $sfi == "" &&
-		    $val != "" } {
-			set sfi $val
+		if { ($par == "f" || $par == "F") && $sfi == "" } {
+			if { $val == "" } {
+				set sfi "+"
+			} else {
+				set sfi $val
+			}
 			if { $par == "F" } {
 				set ST(SFB) 1
+			}
+			continue
+		}
+
+		if { $par == "P" && $plu == "" } {
+			if { $val == "" } {
+				set plu "+"
+			} else {
+				set plu $val
 			}
 			continue
 		}
@@ -1860,7 +2178,8 @@ proc initialize { } {
 	if { $sca != "" } {
 
 		if { $mod != "" || $prt != "" || $spd != "" ||
-	     	     $mpl != "" || $bin != "" || $sfi != ""     } {
+	     	     $mpl != "" || $bin != "" || $sfi != "" ||
+		     $plu != "" 				} {
 			usage
 		}
 
@@ -1903,16 +2222,16 @@ proc initialize { } {
 		if ![info exists ST(SFB)] {
 			set ST(SFB) 0
 		}
-		if [catch { open $sfi "w" } std] {
-			abt "cannot open $sfi for writing, $std"
-		}
-		fconfigure $std -buffering line -translation lf
-		set ST(SFS) $std
+		set ST(SFS) [open_log_file $sfi]
 	} else {
 		# for the record
 		set ST(SFS) ""
 		set ST(SFI) ""
 		set ST(SFB) 0
+	}
+
+	if { $plu != "" } {
+		open_plugin $plu
 	}
 
 	u_start $prt $spd $mpl $mod $ifu

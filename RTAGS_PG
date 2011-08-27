@@ -1269,3 +1269,39 @@ PG110815A:
 	BTW: some files are tagged as modified although they haven't really
 	changed. Don't be alarmed: I have fixed a few erroneous permission
 	bits.
+
+PG110828A:
+
+	Wlodek is forcing my hand, so a couple of items in this commit are
+	incomplete, but that's OK. Nothing serious.
+
+	Added piter_plug.tcl to Apps/VUEE/krk_ned. This is the (tentative)
+	conversion plugin to piter. Invoke piter this way (in that directory):
+
+		piter -p ... -P
+
+	The -P is critical. Also, read Serial.pdf (it has been updated),
+	especially the part about piter.
+
+	Lots of changes to piter, see above.
+
+	Default setting of SHTXX_CLOCK_DELAY in BOARDS/WARSAW_10SHT changed
+	from 0 to 1, as per Gerry's experiments.
+
+	Fixed a problem with picomp whereby the VUEE compiler would ignore
+	function declarations and other definitions in "external" (library)
+	files, especially those that used non-method functions (like LibXRS).
+	The present fix is a crude hack (involving "special sequences" in the
+	affected files) and a better solution is called for. I think I know
+	what to do and there's no rush.
+
+	Modified the way diag was handled in phys_uart.c (and a few related
+	places). One curious feature was that if a diag message started with T,
+	that T was discarded.
+
+	Apps/VUEE/ILLUSTRATION/OSSEXAMPLE added to illustrate my new ideas
+	about OSS. Still to be described, discussed, and probably revised.
+	Stay tuned.
+
+	BOARDS/CC430W in this version is a mess, but I will fix it soon. Just
+	got the mended boards from Warsaw.

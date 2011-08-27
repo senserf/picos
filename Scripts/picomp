@@ -9,11 +9,11 @@ exec tclsh "$0" "$@"
 #	1. PicOS to C compiler
 #	2. PicOS to VUEE compiler
 #
-# Copyright (C) Olsonet Communications Corporation, 2010
+# Copyright (C) Olsonet Communications Corporation, 2010, 2011
 #
 ###############################################################################
 
-set Version 0.27
+set Version 0.28
 
 ## Directory names to be ignored in the project's directory:
 ## strict names, patterns (case ignored)
@@ -3488,7 +3488,7 @@ proc mkdlist { } {
 		set fn [file join $vuee $fn]
 		if ![file isfile $fn] {
 			errab "directory $vuee does not look complete; perhaps\
-				mklinks is needed?"
+				deploy (or mklinks) is needed?"
 		}
 	}
 	set EDirList [list $vuee $side]
@@ -4338,6 +4338,9 @@ proc scanfile { fname inner { prelude "" } } {
 	# line count
 	set FLine 1
 
+	# copy flag
+	set cf $inner
+
 	if [catch { open $fname "r" } fd] {
 		errab "cannot open file '$fname': $fd"
 	}
@@ -4395,21 +4398,53 @@ proc scanfile { fname inner { prelude "" } } {
 			set prelude [lrange $prelude 1 end]
 		}
 
-		# handle //+++ requests, but only in internal files; such
-		# requests will add files to be compiled in the program's set
-		if { $ifstack($ifnest) <= 1 && $inner && \
-		    [regexp "^\[ \t\]*//\\+\\+\\+(.*)" $line jk ar] } {
-			# needed files
-			needlist $ar $fname
-			# output an empty line to maintain correct count
-			append res "\n"
-			continue
+		# handle //+++ and //--- requests:
+		# //+++	filelist requests to include the specified files for
+		# compilation; such a request is only honored from an inner
+		# (i.e., praxis) file
+		# //+++ (empty file list) is a request to copy this piece of
+		# an outer (i.e., library) include file into the compiled file
+		# //--- cancels the efect of previous //+++ (end of current
+		# file cancels it as well
+
+		if { $ifstack($ifnest) <= 1 } {
+			if [regexp "^\[ \t\]*//\\+\\+\\+(.*)" $line jk ar] {
+				# this may be a file request or an indication
+				# to include a piece of external file in the
+				# compiled source
+				set ar [string trim $ar]
+				if { $ar == "" } {
+					# start including this piece
+					set cf 1
+					append res "\n"
+					continue
+				}
+				# request to include files for compilation,
+				# inner file only
+				if $inner {
+					needlist $ar $fname
+					append res "\n"
+					continue
+				}
+			} elseif [regexp "^\[ \t\]*//---" $line] {
+				# end of included piece (will be forced at the
+				# end of current file if the indicator is
+				# absent
+				if { $inner == 0 } {
+					# only valid for non-inner files
+					set cf 0
+				}
+			}
 		}
 
 		if ![regexp "^\[ \t\]*#" $line] {
 			# nothing special, keep going, output if necessary
-			if { $inner && $ifstack($ifnest) <= 1 } {
-				append res "$line\n"
+			if { $ifstack($ifnest) <= 1 } {
+				if $cf {
+					append res "$line\n"
+				} else {
+					append res "\n"
+				}
 			}
 			continue
 		}
@@ -4440,7 +4475,7 @@ proc scanfile { fname inner { prelude "" } } {
 		    $line jk cm ar] {
 			# unrecognizable
 			swarn "unrecognized cpp sequence $line, ignored"
-			if { $inner && $ifstack($ifnest) <= 1 } {
+			if { $ifstack($ifnest) <= 1 } {
 				append res [newlines $lc]
 			}
 			continue
@@ -4491,9 +4526,7 @@ proc scanfile { fname inner { prelude "" } } {
 			}
 			if $val {
 				set ifstack($ifnest) 1
-				if $inner {
-					append res [newlines $lc]
-				}
+				append res [newlines $lc]
 			} else {
 				set ifstack($ifnest) 2
 			}
@@ -4533,9 +4566,7 @@ proc scanfile { fname inner { prelude "" } } {
 				} elseif { $s == 1 } {
 					# ignore #endif, but maintain correct
 					# line count
-					if $inner {
-						append res [newlines $lc]
-					}
+					append res [newlines $lc]
 				} else {
 					# skipping (this part or both)
 					if { $ifstack($ifnest) <= 1 } {
@@ -4555,10 +4586,8 @@ proc scanfile { fname inner { prelude "" } } {
 
 		if { $cm == "define" } {
 			append res "$line\n"
-			if $inner {
-				incr lc -1
-				append res [newlines $lc]
-			}
+			incr lc -1
+			append res [newlines $lc]
 
 			set ar [remcmnt $ar]
 
@@ -4582,10 +4611,8 @@ proc scanfile { fname inner { prelude "" } } {
 			}
 
 			append res "$line\n"
-			if $inner {
-				incr lc -1
-				append res [newlines $lc]
-			}
+			incr lc -1
+			append res [newlines $lc]
 
 			if [info exists Symbols($kwd)] {
 				unset Symbols($kwd)
@@ -4628,9 +4655,7 @@ proc scanfile { fname inner { prelude "" } } {
 				set fm [flook $fn "" $EDirList]
 				if { $fm == "" } {
 					swarn "included file $fn not found"
-					if $inner {
-						append res [newlines $lc]
-					}
+					append res [newlines $lc]
 					continue
 				}
 				set fn 0
