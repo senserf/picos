@@ -1305,3 +1305,11 @@ PG110828A:
 
 	BOARDS/CC430W in this version is a mess, but I will fix it soon. Just
 	got the mended boards from Warsaw.
+
+PG110831A:
+
+	Fixed ossi.tcl in Apps/VUEE/new_eco_demo to properly handle multi-digit
+	power specification for collectors.
+
+	A couple of cleanups in BOARDS/CC430W related to my recent testing of
+	the new Warsaw board.

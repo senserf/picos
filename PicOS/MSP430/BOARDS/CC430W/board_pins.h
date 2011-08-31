@@ -14,7 +14,7 @@
 //	5 - UARTRX		[UCA0RX]	CONN	J7.13
 //	6 - UARTTX		[UCA0TX]	CONN	J7.12
 //	7 - INT		CMA3000			CONN	J7.7	[ERROR!]
-#define	PIN_DEFAULT_P1DIR	0xDF	// 18
+#define	PIN_DEFAULT_P1DIR	0x40	// 18
 #define	PIN_DEFAULT_P1SEL	0x60
 
 // P2:
@@ -26,7 +26,7 @@
 //	5 - CONN	J7.10	[VEREF+]
 //	6 - INT VOL SEN		[ADC A6]
 //	7 - EXT VOL SEN		[ADC A7]
-#define	PIN_DEFAULT_P2DIR	0x3D
+#define	PIN_DEFAULT_P2DIR	0x00
 #define	PIN_DEFAULT_P2SEL	0xC0
 
 // P3:
@@ -39,7 +39,7 @@
 //	6 - CONN	J6.4
 //	7 - CONN	J6.3
 
-#define	PIN_DEFAULT_P3DIR	0xFF
+#define	PIN_DEFAULT_P3DIR	0x00
 
 // P4:
 //	0 - EEPROM	CS			VDD	CMA3000	[ERROR!]
@@ -50,7 +50,7 @@
 //	5 - LED Y	OFF == HIGH
 //	6 - LED G	OFF == HIGH
 //	7 - LED R	OFF == HIGH
-#define	PIN_DEFAULT_P4DIR	0xF7
+#define	PIN_DEFAULT_P4DIR	0xF6
 #define	PIN_DEFAULT_P4OUT	0xE8
 
 // P5:
@@ -65,7 +65,7 @@
 #define	PIN_DEFAULT_P5SEL	0x03
 // Note: bits 0 and 1 on DIR MUST be zero (DIR must be IN) for the crystal to
 // work!!!!
-#define	PIN_DEFAULT_P5DIR	0xFC
+#define	PIN_DEFAULT_P5DIR	0x00
 
 #define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x02) == 0)
 

@@ -16,7 +16,7 @@
 
 #define	ee_bring_up	do { \
 				_BIS (P4OUT, 0x01); \
-				_BIS (P1OUT, 0x10); \
+				_BIS (P1OUT, 0x18); \
 				cswitch_on (CSWITCH_EE); \
 				mdelay (10); \
 			} while (0)
