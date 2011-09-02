@@ -18,8 +18,8 @@ set DB(LEV)	0
 # packet preamble (in "P" mode, it is a string, i.e., multiple characters)
 set CH(IPR)		""
 
-# diag preamble
-set CH(DPR)		[format %c [expr 0x00]]
+# diag preamble: ASCII DLE
+set CH(DPR)		[format %c [expr 0x10]]
 
 # character zero
 set CH(ZER)		[format %c [expr 0x00]]

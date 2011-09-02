@@ -1313,3 +1313,19 @@ PG110831A:
 
 	A couple of cleanups in BOARDS/CC430W related to my recent testing of
 	the new Warsaw board.
+
+PG110902A:
+
+	Apps/VUEE/ILLUSTRATION/OSSEXAMPLE includes an illustration of my
+	tentative OSS framework (for discussion with Wlodek). Read notes.odt
+	in that directory.
+
+	The plugin mechanism of piter extended by plug_init and plug_reset
+	(read Serial.pdf). Fixed a bug in piter rendering the binary mode
+	in the PG110828A version inoperable.
+
+	Changed the diag preamble character for phys_uart from 0x00 (introduced
+	in PG110828A) to 0x10 (ASCII DLE). With 0x00, binary diags will not 
+	work. Does anybody still need them? I don't think so (not with
+	phys_uart, anyway), but, in any case, DLE is better for this role than
+	0x00.

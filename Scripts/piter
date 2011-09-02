@@ -15,13 +15,13 @@ exec tclsh85 "$0" "@"
 #
 ###############################################################################
 
-proc abt { ln } {
+proc pt_abort { ln } {
 
 	puts stderr $ln
 	exit 99
 }
 
-proc cygfix { } {
+proc sy_cygfix { } {
 #
 # Issue a dummy reference to a file path to trigger a possible DOS-path
 # warning, after which things should continue without any further warnings.
@@ -30,13 +30,13 @@ proc cygfix { } {
 	catch { exec ls [pwd] }
 }
 
-proc no_function { args } {
+proc sy_nofun { args } {
 
-	abt "undefined module function called"
+	pt_abort "undefined \"implementation\" function called"
 }
 
 if { [info tclversion] < 8.5 } {
-	abt "This script requires Tcl 8.5 or newer!"
+	pt_abort "This script requires Tcl 8.5 or newer!"
 }
 
 ###############################################################################
@@ -66,17 +66,23 @@ if [catch { exec uname } ST(SYS)] {
 set DB(SFD)	""
 set DB(LEV)	0
 
-# diag preamble (for packet modes)
-set CH(DPR)	[format %c [expr 0x00]]
-
-# character zero
+# character zero (aka NULL)
 set CH(ZER)	[format %c [expr 0x00]]
 
-# maximum message length (for packet modes)
+# diag preamble (for packet modes) = ASCII DLE
+set CH(DPR)	[format %c [expr 0x10]]
+
+# maximum message length (for packet modes), set to default, resettable
 set PM(MPL)	82
 
-# outgoing message
+# output busy flag (current message pending) + output event variable
+set ST(OBS)	0
+
+# current outgoing message
 set ST(OUT)	""
+
+# queue of outgoing messages
+set ST(OQU)	""
 
 # send callback
 set ST(SCB)	""
@@ -94,15 +100,18 @@ set ST(CNT) 0
 set ST(BUF) ""
 
 # app-level input function
-set ST(DFN)	"no_function"
+set ST(DFN)	"sy_nofun"
 
 # app-level output function
-set ST(OFN)	"no_function"
+set ST(OFN)	"sy_nofun"
+
+# plug-level direct output function
+set ST(LFN)	"sy_nofun"
 
 # echo flag
 set ST(ECO)	0
 
-# previous command
+# previous command entered by the user
 set ST(PCM)	""
 
 # packet timeout (msec), once reception has started
@@ -153,7 +162,7 @@ set CRCTAB {
     0x6e17  0x7e36  0x4e55  0x5e74  0x2e93  0x3eb2  0x0ed1  0x1ef0
 }
 
-proc chks { wa } {
+proc pt_chks { wa } {
 
 	global CRCTAB
 
@@ -180,11 +189,25 @@ proc chks { wa } {
 	return $chs
 }
 
+proc mo_write_x { msg } {
+#
+# Send a packet to UART (shared by modes N and P)
+#
+	global DB ST
+
+	if { $DB(LEV) > 1 } {
+		sy_dump "W" $msg
+	}
+
+	puts -nonewline $ST(SFD) $msg
+	flush $ST(SFD)
+}
+
 ###############################################################################
 # Module independent functions ################################################
 ###############################################################################
 
-proc t_out { ln } {
+proc pt_tout { ln } {
 #
 # Output a line to the terminal and optionally save it to file
 #
@@ -197,7 +220,7 @@ proc t_out { ln } {
 	}
 }
 
-proc t_ouf { ln } {
+proc pt_touf { ln } {
 #
 # Output a line to the terminal and optionally save it to file, but the latter
 # only if we are saving input; used to save special lines, like error messages
@@ -211,7 +234,7 @@ proc t_ouf { ln } {
 	}
 }
 
-proc u_cdevl { pi } {
+proc sy_cdevl { pi } {
 #
 # Returns the candidate list of devices to open based on the port identifier
 #
@@ -246,13 +269,13 @@ proc u_cdevl { pi } {
 	return [list $pi "\\\\.\\$pi"]
 }
 
-proc u_start { udev speed mpl mdle ifun } {
+proc sy_ustart { udev speed } {
 #
 # open the UART
 #
 	global ST CH PM MODULE
 
-	set devlist [u_cdevl $udev]
+	set devlist [sy_cdevl $udev]
 
 	set fail 1
 
@@ -274,30 +297,17 @@ proc u_start { udev speed mpl mdle ifun } {
 	}
 
 	if $fail {
-		abt "u_start: cannot open UART: $devlist"
+		pt_abort "sy_ustart: cannot open UART: $devlist"
 	}
-
-	set PM(MPL) $mpl
 
 	# the generic part of UART configuration
 	if [catch { fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
 	    -blocking 0 -eofchar "" -ttycontrol { RTS 0 } } err] {
-		abt "u_start: cannot configure UART: $err"
+		pt_abort "sy_ustart: cannot configure UART: $err"
 	}
-
-	# the system module
-	set PF $MODULE($mdle)
-
-	# initialize
-	[lindex $PF 0]
-
-	set ST(DFN) $ifun
-	set ST(OFN) [lindex $PF 2]
-
-	fileevent $ST(SFD) readable [lindex $PF 1]
 }
 	
-proc u_outdiag { } {
+proc pt_diag { } {
 
 	global ST CH
 
@@ -307,32 +317,19 @@ proc u_outdiag { } {
 		binary scan $ln cuSu lv code
 		#set lv [expr $lv & 0xff]
 		#set code [expr $code & 0xffff]
-		t_out "DIAG: \[[format %02x $lv] -> [format %04x $code]\]"
+		pt_tout "DIAG: \[[format %02x $lv] -> [format %04x $code]\]"
 	} else {
 		# ASCII
-		t_out "DIAG: [string trim $ST(BUF)]"
+		pt_tout "DIAG: [string trim $ST(BUF)]"
 	}
 	flush stdout
-}
-
-proc u_ready { } {
-#
-# Check if can accept a new message
-#
-	global ST
-
-	if { $ST(OUT) == "" } {
-		return 1
-	} else {
-		return 0
-	}
 }
 
 ###############################################################################
 # Module: mode == N ###########################################################
 ###############################################################################
 
-proc x_frame_n { m } {
+proc mo_frame_n { m } {
 #
 # Frame the message (N mode); when we get it here, the message contains the
 # four XRS header bytes in front (they formally count as N-payload), but no
@@ -344,56 +341,35 @@ proc x_frame_n { m } {
 	set ln [string length $msg]
 
 	if { $ln > $PM(MPL) } {
-		if { $DB(LEV) > 0 } {
-			trc "frame: message too long: $ln > $PM(MPL), truncated"
-		}
-		set ln $PM(MPL)
-		set msg [string range $msg 0 [expr $ln - 1]
+		# the message has been prechecked for length bounds
+		pt_abort "Assert mo_frame_n: length > max"
 	}
 
-	if { $ln < 2 } {
-		if { $DB(LEV) > 0 } {
-			trc "frame: message too short: $ln < 2, padded"
-		}
-		while { $ln < 2 } {
-			append msg $CH(ZER)
-			incr ln
-		}
+	if { $ln < 4 } {
+		pt_abort "Assert mo_frame_n: length < min"
 	} elseif [expr $ln & 1] {
 		# odd length, append NULL
 		append msg \x00
-		# do not count the LID in the length fiels
+		# do not count the Network ID (used by the first two bytes of
+		# XRS header) in the length field
 		incr ln -1
 	} else {
 		incr ln -2
 	}
 
-	set msg "$CH(IPR)[binary format c $ln]$msg[binary format s [chks $msg]]"
+	set msg "$CH(IPR)[binary format c $ln]$msg[binary format s\
+		[pt_chks $msg]]"
 }
 
-proc x_write_n { msg } {
-#
-# Send a packet to UART
-#
-	global DB ST
-
-	if { $DB(LEV) > 1 } {
-		dump "W" $msg
-	}
-
-	puts -nonewline $ST(SFD) $msg
-	flush $ST(SFD)
-}
-
-proc x_fnwrite_n { msg } {
+proc mo_fnwrite_n { msg } {
 #
 # Frame and write in one step
 #
-	x_frame_n msg
-	x_write_n $msg
+	mo_frame_n msg
+	mo_write_x $msg
 }
 
-proc x_receive_n { } {
+proc mo_receive_n { } {
 #
 # Handle received packet (internal for the module)
 #
@@ -401,13 +377,13 @@ proc x_receive_n { } {
 
 	if { $DB(LEV) > 1 } {
 		# dump the packet
-		dump "R" $ST(BUF)
+		sy_dump "R" $ST(BUF)
 	}
 
 	# validate CRC
-	if [chks $ST(BUF)] {
+	if [pt_chks $ST(BUF)] {
 		if { $DB(LEV) > 2 } {
-			trc "receive: illegal checksum, packet ignored"
+			pt_trc "receive: illegal checksum, packet ignored"
 		}
 		return
 	}
@@ -417,25 +393,29 @@ proc x_receive_n { } {
 	set len [string length $msg]
 
 	if { $len < 4 } {
-		# ignore it, we need at least the N-type header
+		# ignore it, we need at least the XRS header
 		return
 	}
 
 	# extract the header
 	binary scan $msg cucucucu cu ex ma le
 
-	if { [expr $ma & 0xff] != $CH(MAG) } {
+	if { $ma != $CH(MAG) } {
 		# wrong magic
+		if { $DB(LEV) > 2 } {
+			pt_trc "receive: wrong magic $ma, packet ignored"
+		}
 		return
 	}
 
-	if { $ST(OUT) != "" } {
+	if $ST(OBS) {
 		# we have an outgoing message
 		if { $ex != $CH(CUR) } {
 			# expected != our current, we are done with this
 			# message
 			set ST(OUT) ""
 			set CH(CUR) $ex
+			set ST(OBS) 0
 		}
 	} else {
 		# no outgoing message, set current to expected
@@ -450,14 +430,14 @@ proc x_receive_n { } {
 	if { $cu != $CH(EXP) } {
 		# not what we expect, speed up the NAK
 		catch { after cancel $ST(SCB) }
-		set ST(SCB) [after $IV(RTS) x_send_n]
+		set ST(SCB) [after $IV(RTS) mo_send_n]
 		return
 	}
 
 	if { $le > [expr $len - 4] } {
 		# consistency check
 		if { $DB(LEV) > 2 } {
-			trc "receive: inconsistent XRS header, $le <-> $len"
+			pt_trc "receive: inconsistent XRS header, $le <-> $len"
 		}
 		return
 	}
@@ -469,10 +449,10 @@ proc x_receive_n { } {
 	set CH(EXP) [expr ( $CH(EXP) + 1 ) & 0x00ff]
 
 	# force an ACK
-	x_send_n
+	mo_send_n
 }
 
-proc x_send_n { } {
+proc mo_send_n { } {
 #
 # Callback for sending packets out
 #
@@ -484,17 +464,21 @@ proc x_send_n { } {
 		set ST(SCB) ""
 	}
 
-	# if len > 0, an outgoing message is pending; note: its length has been
-	# checked already (and is <= MAXPL)
+	if !$ST(OBS) {
+		# just in case
+		set ST(OUT) ""
+	}
+	# if len is nonzero, an outgoing message is pending; note: its length
+	# has been checked already (and is <= MAXPL)
 	set len [string length $ST(OUT)]
 
-	x_fnwrite_n\
+	mo_fnwrite_n\
 	    "[binary format cccc $CH(CUR) $CH(EXP) $CH(MAG) $len]$ST(OUT)"
 
-	set ST(SCB) [after $IV(RTL) x_send_n]
+	set ST(SCB) [after $IV(RTL) mo_send_n]
 }
 
-proc p_rawread_n { } {
+proc mo_rawread_n { } {
 #
 # Called whenever data is available on the UART (mode N)
 #
@@ -523,8 +507,8 @@ proc p_rawread_n { } {
 				if { $ST(TIM) != "" } {
 					global DB
 					if { $DB(LEV) > 2 } {
-					  trc "rawread: packet timeout $ST(STA),
-					    $ST(CNT)"
+					  pt_trc "rawread: packet timeout\
+						$ST(STA), $ST(CNT)"
 					}
 					# reset
 					catch { after cancel $ST(TIM) }
@@ -534,7 +518,7 @@ proc p_rawread_n { } {
 					# something has started, set up timer
 					global IV
 					set ST(TIM) \
-					     [after $IV(PKT) p_rawread_n]
+					     [after $IV(PKT) mo_rawread_n]
 				}
 				return
 			}
@@ -584,7 +568,8 @@ proc p_rawread_n { } {
 			if { [expr $bl & 1] || $bl > [expr $PM(MPL) - 2] } {
 				global DB
 				if { $DB(LEV) > 2 } {
-					trc "rawread: illegal packet length $bl"
+					pt_trc "rawread: illegal packet length\
+						$bl"
 				}
 				# reset
 				set ST(STA) 0
@@ -613,7 +598,7 @@ proc p_rawread_n { } {
 				append ST(BUF) $chunk
 				set chunk ""
 				# we have a complete buffer
-				x_receive_n
+				mo_receive_n
 				continue
 			}
 
@@ -621,7 +606,7 @@ proc p_rawread_n { } {
 			append ST(BUF) [string range $chunk 0 \
 				[expr $ST(CNT) - 1]]
 			set chunk [string range $chunk $ST(CNT) end]
-			x_receive_n
+			mo_receive_n
 		}
 
 		3 {
@@ -655,7 +640,7 @@ proc p_rawread_n { } {
 			set chunk [string range $chunk [expr $c + 1] end]
 			# reset
 			set ST(STA) 0
-			u_outdiag
+			pt_diag
 		}
 
 		5 {
@@ -672,13 +657,13 @@ proc p_rawread_n { } {
 				[expr $ST(CNT) - 1]]
 
 			set chunk [string range $chunk $ST(CNT) end]
-			u_outdiag
+			pt_diag
 		}
 
 		default {
 			global DB
 			if { $DB(LEV) > 0 } {
-				trc "rawread: illegal state: $ST(STA)"
+				pt_trc "rawread: illegal state: $ST(STA)"
 			}
 			set ST(STA) 0
 		}
@@ -686,15 +671,14 @@ proc p_rawread_n { } {
 	}
 }
 
-proc p_write_n { msg } {
+proc mo_write_n { msg } {
 #
-# Send out a message
+# Send out a message; assumes $ST(OBS) is 0
 #
 	global ST PM DB
 
-	if { $ST(OUT) != "" } {
-		# busy
-		return 0
+	if $ST(OBS) {
+		pt_abort "Assert mo_write_n: output busy"
 	}
 
 	# we still need the four XRS header bytes in front
@@ -704,17 +688,17 @@ proc p_write_n { msg } {
 		# user payload size before submitting it), but it shouldn't
 		# hurt
 		if { $DB(LEV) > 0 } {
-			trc "write: outgoing message truncated to $lm bytes"
+			pt_trc "write: outgoing message truncated to $lm bytes"
 		}
 		set msg [string range $msg 0 [expr $lm - 1]]
 	}
 
 	set ST(OUT) $msg
-	x_send_n
-	return 1
+	set ST(OBS) 1
+	mo_send_n
 }
 
-proc p_init_n { } {
+proc mo_init_n { } {
 #
 # Initialize
 #
@@ -726,28 +710,40 @@ proc p_init_n { } {
 	set CH(IPR) [format %c [expr 0x55]]
 	set ST(MOD) "N"
 
-	# User packet length: in the N mode, the specified length (MPL) covers
-	# the "Station ID", which is used for two AB control bytes (and it
-	# doesn'c cover CRC - it never does). So the user length (true payload)
-	# is MPL - 4 (two extra bytes are needed for "magic" and true payload
-	# length.
+	# User packet length: in the N mode (which in this case also means
+	# XRS), the specified length (MPL) covers the "Station ID", which is
+	# used for two AB control bytes (and it doesn't cover CRC - it never
+	# does). So the user length (true payload) is MPL - 4 (two extra bytes
+	# are needed for "magic" and true payload length.
 
 	set PM(UPL) [expr $PM(MPL) - 4]
 
 	fconfigure $ST(SFD) -buffering full -translation binary
 
 	# start the write callback
-	x_send_n
+	mo_send_n
 }
 
-set MODULE(N) [list p_init_n p_rawread_n p_write_n]
+proc mo_reset_n { } {
+
+	global ST
+
+	set ST(OQU) ""
+	set ST(OUT) ""
+	set ST(OBS) 0
+
+	set ST(EXP) 0
+	set ST(CUR) 0
+}
+
+set MODULE(N) [list mo_init_n mo_rawread_n mo_write_n mo_reset_n]
 set MODULE(X) $MODULE(N)
 
 ###############################################################################
 # Module: mode == P ###########################################################
 ###############################################################################
 
-proc x_frame_p { m cu ex } {
+proc mo_frame_p { m cu ex } {
 #
 # Frame the message (P mode)
 #
@@ -756,12 +752,9 @@ proc x_frame_p { m cu ex } {
 
 	set ln [string length $msg]
 	if { $ln > $PM(MPL) } {
-		# payload length
-		if { $DB(LEV) > 0 } {
-			trc "frame: message too long: $ln > $PM(MPL), truncated"
-		}
-		set ln $PM(MPL)
-		set msg [string range $msg 0 [expr $ln - 1]
+		# this is an assertion: the message length has been already
+		# verified
+		pt_abort "Assert mo_frame_p: length > max"
 	}
 
 	if [expr $ln & 1] {
@@ -771,32 +764,18 @@ proc x_frame_p { m cu ex } {
 
 	# checksum coverage
 	set msg "[binary format cc [expr ($ex << 1) | $cu] $ln]$msg"
-	set msg "$msg[binary format s [chks $msg]]"
+	set msg "$msg[binary format s [pt_chks $msg]]"
 }
 
-proc x_write_p { msg } {
-#
-# Send a packet to UART
-#
-	global DB ST
-
-	if { $DB(LEV) > 1 } {
-		dump "W" $msg
-	}
-
-	puts -nonewline $ST(SFD) $msg
-	flush $ST(SFD)
-}
-
-proc x_fnwrite_p { msg cu ex } {
+proc mo_fnwrite_p { msg cu ex } {
 #
 # Frame and write in one step
 #
-	x_frame_p msg $cu $ex
-	x_write_p $msg
+	mo_frame_p msg $cu $ex
+	mo_write_x $msg
 }
 
-proc x_receive_p { } {
+proc mo_receive_p { } {
 #
 # Handle received packet
 #
@@ -804,13 +783,13 @@ proc x_receive_p { } {
 
 	if { $DB(LEV) > 1 } {
 		# dump the packet
-		dump "R" $ST(BUF)
+		sy_dump "R" $ST(BUF)
 	}
 
 	# validate CRC
-	if [chks $ST(BUF)] {
+	if [pt_chks $ST(BUF)] {
 		if { $DB(LEV) > 2 } {
-			trc "receive: illegal checksum, packet ignored"
+			pt_trc "receive: illegal checksum, packet ignored"
 		}
 		return
 	}
@@ -822,12 +801,13 @@ proc x_receive_p { } {
 	set cu [expr $pre & 1]
 	set ex [expr ($pre & 2) >> 1]
 
-	if { $ST(OUT) != "" } {
+	if $ST(OBS) {
 		# we have an outgoing message
 		if { $ex != $CH(CUR) } {
 			# expected != our current, so we are done with the
 			# present message
 			set ST(OUT) ""
+			set ST(OBS) 0
 			set CH(CUR) $ex
 		}
 	} else {
@@ -843,7 +823,7 @@ proc x_receive_p { } {
 	if { $cu != $CH(EXP) } {
 		# not what we expect, speed up the NAK
 		catch { after cancel $ST(SCB) }
-		set ST(SCB) [after $IV(RTS) x_send_p]
+		set ST(SCB) [after $IV(RTS) mo_send_p]
 		return
 	}
 
@@ -858,10 +838,10 @@ proc x_receive_p { } {
 	}
 
 	# force an ACK
-	x_send_p
+	mo_send_p
 }
 
-proc x_send_p { } {
+proc mo_send_p { } {
 #
 # Callback for sending messages out
 #
@@ -873,17 +853,18 @@ proc x_send_p { } {
 		set ST(SCB) ""
 	}
 
-	if { $ST(OUT) == "" } {
-		# there is no outgoing message, just an ACK
-		x_fnwrite_p "" 1 $CH(EXP)
+	if $ST(OBS) {
+		# there is an outgoing message
+		mo_fnwrite_p $ST(OUT) $CH(CUR) $CH(EXP)
 	} else {
-		x_fnwrite_p $ST(OUT) $CH(CUR) $CH(EXP)
+		# just the ack
+		mo_fnwrite_p "" 1 $CH(EXP)
 	}
 
-	set ST(SCB) [after $IV(RTL) x_send_p]
+	set ST(SCB) [after $IV(RTL) mo_send_p]
 }
 
-proc p_rawread_p { } {
+proc mo_rawread_p { } {
 #
 # Called whenever data is available on the UART (mode P)
 #
@@ -912,8 +893,8 @@ proc p_rawread_p { } {
 				if { $ST(TIM) != "" } {
 					global DB
 					if { $DB(LEV) > 2 } {
-					  trc "rawread: packet timeout $ST(STA),
-					    $ST(CNT)"
+					  pt_trc "rawread: packet timeout\
+						$ST(STA), $ST(CNT)"
 					}
 					# reset
 					catch { after cancel $ST(TIM) }
@@ -922,7 +903,8 @@ proc p_rawread_p { } {
 				} elseif { $ST(STA) != 0 } {
 					# something has started, set up timer
 					global IV
-					set ST(TIM) [after $IV(PKT) p_rawread_p]
+					set ST(TIM) [after $IV(PKT) \
+						mo_rawread_p]
 				}
 				return
 			}
@@ -973,7 +955,8 @@ proc p_rawread_p { } {
 			if { $bl > $PM(MPL) } {
 				global DB
 				if { $DB(LEV) > 2 } {
-					trc "rawread: illegal packet length $bl"
+					pt_trc "rawread: illegal packet length\
+						$bl"
 				}
 				# reset
 				set ST(STA) 0
@@ -1011,7 +994,7 @@ proc p_rawread_p { } {
 				append ST(BUF) $chunk
 				set chunk ""
 				# we have a complete buffer
-				x_receive_p
+				mo_receive_p
 				continue
 			}
 
@@ -1019,7 +1002,7 @@ proc p_rawread_p { } {
 			append ST(BUF) [string range $chunk 0 \
 				[expr $ST(CNT) - 1]]
 			set chunk [string range $chunk $ST(CNT) end]
-			x_receive_p
+			mo_receive_p
 		}
 
 		3 {
@@ -1053,7 +1036,7 @@ proc p_rawread_p { } {
 			set chunk [string range $chunk [expr $c + 1] end]
 			# reset
 			set ST(STA) 0
-			u_outdiag
+			pt_diag
 		}
 
 		5 {
@@ -1070,13 +1053,13 @@ proc p_rawread_p { } {
 				[expr $ST(CNT) - 1]]
 
 			set chunk [string range $chunk $ST(CNT) end]
-			u_outdiag
+			pt_diag
 		}
 
 		default {
 			global DB
 			if { $DB(LEV) > 0 } {
-				trc "rawread: illegal state: $ST(STA)"
+				pt_trc "rawread: illegal state: $ST(STA)"
 			}
 			set ST(STA) 0
 		}
@@ -1084,31 +1067,28 @@ proc p_rawread_p { } {
 	}
 }
 
-proc p_write_p { msg } {
+proc mo_write_p { msg } {
 #
-# Send out a message
+# Send out a message; assumes $ST(OBS) == 0
 #
 	global ST PM DB
-
-	if { $ST(OUT) != "" } {
-		return 0
-	}
 
 	set ll [string length $msg]
 
 	if { $ll > $PM(MPL) } {
 		if { $DB(LEV) > 0 } {
-			trc "write: outgoing message truncated from $ll to\					$PM(MPL) bytes"
+			pt_trc "write: outgoing message truncated from $ll to\					$PM(MPL) bytes"
 		}
 		set msg [string range $msg 0 [expr $PM(MPL) - 1]]
 	}
 
 	set ST(OUT) $msg
-	x_send_p
+	set ST(OBS) 1
+	mo_send_p
 	return 1
 }
 
-proc p_init_p { } {
+proc mo_init_p { } {
 #
 # Initialize
 #
@@ -1132,18 +1112,28 @@ proc p_init_p { } {
 	fconfigure $ST(SFD) -buffering full -translation binary
 
 	# start the write callback
-	x_send_p
+	mo_send_p
 }
 
-set MODULE(P) [list p_init_p p_rawread_p p_write_p]
+proc mo_reset_p { } {
+
+	global ST CH
+
+	set ST(OQU) ""
+	set ST(OUT) ""
+	set ST(OBS) 0
+
+	set CH(EXP) 0
+	set CH(CUR) 0
+}
+
+set MODULE(P) [list mo_init_p mo_rawread_p mo_write_p mo_reset_p]
 
 ###############################################################################
 # Module: mode == D ###########################################################
 ###############################################################################
 
-proc p_rawread_d { } {
-#
-# Trivial in this case
+proc mo_rawread_d { } {
 #
 	global ST PM DB
 
@@ -1165,29 +1155,30 @@ proc p_rawread_d { } {
 
 		if { $DB(LEV) > 1 } {
 			# dump the packet
-			dump "R" $msg
+			sy_dump "R" $msg
 		}
 
 		$ST(DFN) $msg
 	}
 }
 
-proc p_write_d { msg } {
+proc mo_write_d { msg } {
 #
 # Send out a message
 #
 	global ST PM DB
 
 	if { $DB(LEV) > 1 } {
-		dump "W" $msg
+		sy_dump "W" $msg
 	}
 
 	catch { puts $ST(SFD) $msg }
+	set ST(OBS) 0
 
 	return 1
 }
 
-proc p_init_d { } {
+proc mo_init_d { } {
 #
 # Initialize
 #
@@ -1200,13 +1191,20 @@ proc p_init_d { } {
 	set PM(UPL) $PM(MPL)
 }
 
-set MODULE(D) [list p_init_d p_rawread_d p_write_d]
+proc mo_reset_d { } {
+#
+# Protocol reset, trivial in this case, this is no protocol at all
+#
+
+}
+
+set MODULE(D) [list mo_init_d mo_rawread_d mo_write_d mo_reset_d]
 
 ###############################################################################
 # Tracing and debugging #######################################################
 ###############################################################################
 
-proc dump { hdr buf } {
+proc sy_dump { hdr buf } {
 
 	set code ""
 	set nb [string length $buf]
@@ -1215,10 +1213,10 @@ proc dump { hdr buf } {
 	foreach co $code {
 		append ol [format " %02x" $co]
 	}
-	trc "$hdr:$ol"
+	pt_trc "$hdr:$ol"
 }
 	
-proc d_settrace { lev { file "" } } {
+proc pt_settrc { lev { file "" } } {
 #
 # Set tracing parameters
 #
@@ -1249,7 +1247,7 @@ proc d_settrace { lev { file "" } } {
 	return ""
 }
 
-proc trc { msg } {
+proc pt_trc { msg } {
 
 	variable DB
 
@@ -1269,7 +1267,42 @@ proc trc { msg } {
 ###############################################################################
 ###############################################################################
 
-proc inline { } {
+proc sy_outloop { } {
+
+	global ST
+
+	if !$ST(OBS) {
+		# not busy
+		if { $ST(OQU) != "" } {
+			# something in queue
+			$ST(OFN) [lindex $ST(OQU) 0]
+			set ST(OQU) [lrange $ST(OQU) 1 end]
+		}
+	}
+}
+
+proc sy_outln { line } {
+
+	global ST
+
+	lappend ST(OQU) $line
+	# to trigger the event
+	set ST(OBS) $ST(OBS)
+}
+
+proc pt_outln { line } {
+#
+# This is encapsulated a bit to be more convenient for the plugin; piter
+# doesn't invoke this function
+#
+	global ST
+
+	$ST(LFN) $line
+}
+
+###############################################################################
+			
+proc sy_inline { } {
 #
 # Preprocess a line input from the keyboard
 #
@@ -1277,17 +1310,12 @@ proc inline { } {
 
 	if [catch { gets stdin line } stat] {
 		# ignore errors (can they happen at all?)
-		return ""
+		return -code return
 	}
 
 	if { $stat < 0 } {
 		# end of file
 		exit 0
-	}
-
-	if { $line == "" } {
-		# ignore empty lines
-		return ""
 	}
 
 	# we used to trim here, but perhaps we shouldn't; let's try to avoid
@@ -1305,42 +1333,32 @@ proc inline { } {
 	if { $ltr == "!!" } {
 		# previous command
 		if { $ST(PCM) == "" } {
-			t_ouf "No previous command!"
-			return
+			pt_touf "No previous command!"
+			return -code return
 		}
 		set line $ST(PCM)
 	} elseif { [string index $ltr 0] == "!" } {
 		# not for the board
-		icmd [string trimleft [string range $ltr 1 end]]
-		return ""
+		sy_icmd [string trimleft [string range $ltr 1 end]]
+		return -code return
 	} else {
 		# last command
 		set ST(PCM) $line
 	}
 
-	if ![u_ready] {
-		t_ouf "Board busy!"
-		return ""
-	}
-
 	return $line
 }
 
-proc sget { } {
+proc sy_sgett { } {
 #
 # STDIN becomes readable, i.e., a line of user input (ASCII mode)
 #
 	global ST PM
 
-	set line [inline]
-
-	if { $line == "" } {
-		# busy, internal, or actually an empty line
-		return
-	}
+	set line [sy_inline]
 
 	if [catch { plug_inppp_t line } ln] {
-		t_ouf "INPPP Error: $ln"
+		pt_touf "INPPP Error: $ln"
 		return
 	}
 
@@ -1349,31 +1367,41 @@ proc sget { } {
 		return
 	}
 
+	sy_outlt $line
+}
+
+proc sy_outlt { line } {
+#
+# Write out a text line
+#
+	global ST PM
+
 	if $ST(ECO) {
+		# echo the line
 		puts $line
 	}
 
 	set ln [expr [string length $line] + 1]
 
 	if { $ln > $PM(UPL) } {
-		t_ouf "Error: line longer than max payload of $PM(UPL) chars"
+		pt_touf "Error: line longer than max payload of $PM(UPL) chars"
 		return
 	}
 
-	$ST(OFN) $line
+	sy_outln $line
 }
 
 ###############################################################################
 
-proc ishex { c } {
+proc pt_ishex { c } {
 	return [regexp -nocase "\[0-9a-f\]" $c]
 }
 
-proc isoct { c } {
+proc pt_isoct { c } {
 	return [regexp -nocase "\[0-7\]" $c]
 }
 
-proc stparse { line } {
+proc pt_stparse { line } {
 #
 # Parse a UNIX string into a list of hex codes; update the source to point to
 # the first character behind the string
@@ -1416,7 +1444,7 @@ proc stparse { line } {
 				set ln [string range $ln 1 end]
 				while 1 {
 					set d [string index $ln 0]
-					if ![ishex $d] {
+					if ![pt_ishex $d] {
 						break
 					}
 					append c $d
@@ -1428,7 +1456,7 @@ proc stparse { line } {
 				lappend vals $val
 				continue
 			}
-			if [isoct $c] {
+			if [pt_isoct $c] {
 				if { $c != 0 } {
 					set c "0$c"
 				}
@@ -1436,7 +1464,7 @@ proc stparse { line } {
 				set ln [string range $ln 1 end]
 				while 1 {
 					set d [string index $ln 0]
-					if ![isoct $d] {
+					if ![pt_isoct $d] {
 						break
 					}
 					append c $d
@@ -1460,21 +1488,17 @@ proc stparse { line } {
 
 ###############################################################################
 
-proc sget_bin { } {
+proc sy_sgetb { } {
 #
 # The binary variant of sget
 #
-	global PM ST BMAC
+	global ST
 
-	set line [string trim [inline]]
+	set line [string trim [sy_inline]]
 
-	if { $line == "" } {
-		return
-	}
-
-	if [catch { macsub $line } mline] {
+	if [catch { sy_macsub $line } mline] {
 		# macro substitutions
-		t_ouf "Error: $line"
+		pt_touf "Error: $line"
 		return
 	}
 
@@ -1482,15 +1506,15 @@ proc sget_bin { } {
 		# saving in a file
 		if { [string trim $line] != [string trim $mline] } {
 			# the macro expansion is different
-			catch { puts $STD(SFS) "<M $mline" }
+			catch { puts $ST(SFS) "<M $mline" }
 		}
 	}
 
 	set line $mline
 
 	# plugin preprocessor
-	if [catch { plug_inppp_b line } $oul] {
-		t_ouf "INPPP Error: $oul"
+	if [catch { plug_inppp_b line } oul] {
+		pt_touf "INPPP Error: $oul"
 		return
 	}
 
@@ -1498,6 +1522,18 @@ proc sget_bin { } {
 		# ignore the line
 		return
 	}
+
+	sy_outlb $line
+}
+
+proc sy_outlb { line } {
+#
+# Write out a binary line; this function converts a text form of the binary
+# line into the actual binary form, also does the echo and logging; we have
+# separated this code into a function, because a plugin may want to invoke it
+# (via pt_outln) to inject a line into the outgoing stream (see also sy_outlt)
+#
+	global ST PM
 
 	set out ""
 	set eco ""
@@ -1514,15 +1550,15 @@ proc sget_bin { } {
 		if { [string index $line 0] == "\"" } {
 			# looks like a string, parse it into a sequence of
 			# bytes
-			if [catch { stparse line } val] {
-				t_ouf "Error: $val"
+			if [catch { pt_stparse line } val] {
+				pt_touf "Error: $val"
 				return
 			}
 		} else {
 			set val ""
 			regexp "^(\[^ \t\]+)(.*)" $line mat val line
 			if [catch { eval "expr $val" } val] {
-				t_ouf "Error: illegal expression: $val ...\
+				pt_touf "Error: illegal expression: $val ...\
 					[string range $line 0 5] ..."
 				return
 			}
@@ -1547,25 +1583,25 @@ proc sget_bin { } {
 	}
 
 	if { $oul > $PM(UPL) } {
-		t_ouf "Error: block longer than max payload of $PM(UPL) bytes"
+		pt_touf "Error: block longer than max payload of $PM(UPL) bytes"
 		return
 	}
 
-	$ST(OFN) $out
+	sy_outln $out
 }
 
-proc uget { msg } {
+proc sy_ugett { msg } {
 #
 # Receive a line from the board (ASCII mode - just show it)
 #
 	if [catch { plug_outpp_t msg } v] {
-		t_ouf "OUTPP Error: $v"
+		pt_touf "OUTPP Error: $v"
 	} elseif { $v != 0 } {
-		t_out $msg
+		pt_tout $msg
 	}
 }
 
-proc uget_bin { msg } {
+proc sy_ugetb { msg } {
 #
 # In binary mode
 #
@@ -1580,7 +1616,7 @@ proc uget_bin { msg } {
 	set enc [string trimright $enc]
 
 	if [catch { plug_outpp_b enc } v] {
-		t_ouf "OUTPP Error: $v, received line was: <$enc>"
+		pt_touf "OUTPP Error: $v, received line was: <$enc>"
 		return
 	}
 
@@ -1591,16 +1627,16 @@ proc uget_bin { msg } {
 
 	if { $v > 1 } {
 		# null preprocessing, use default decorations
-		t_out "Received: $len < $enc >"
+		pt_tout "Received: $len < $enc >"
 	} else {
 		# preprocessed, take it at face value
-		t_out $tar
+		pt_tout $tar
 	}
 }
 
 ###############################################################################
 
-proc icmd { cmd } {
+proc sy_icmd { cmd } {
 #
 # Handle internal commands
 #
@@ -1609,7 +1645,7 @@ proc icmd { cmd } {
 	set par ""
 	if ![regexp "^(\[^ \t\]+)(.*)" $cmd jnk cmd par] {
 		# impossible
-		t_ouf "Empty command!"
+		pt_touf "Empty command!"
 		return
 	}
 	set par [string trim $par]
@@ -1626,13 +1662,13 @@ proc icmd { cmd } {
 		}
 
 		if { $par == "on" } {
-			t_ouf "Echo is now on"
+			pt_touf "Echo is now on"
 			set ST(ECO) 1
 		} elseif { $par == "off" } {
-			t_ouf "Echo is now off"
+			pt_touf "Echo is now off"
 			set ST(ECO) 0
 		} else {
-			t_ouf "Illegal parameter, must be empty, on, or off!
+			pt_touf "Illegal parameter, must be empty, on, or off!
 		}
 		return
 	}
@@ -1641,16 +1677,42 @@ proc icmd { cmd } {
 
 		set fnm ""
 		if ![regexp "^(\[0-9\])(.*)" $par jnk lev fnm] {
-			t_ouf "Illegal parameters, must be level \[filename\]!"
+			pt_touf "Illegal parameters, must be level\
+				\[filename\]!"
 			return
 		}
 		set fnm [string trim $fnm]
 
-		set err [d_settrace $lev $fnm]
+		set err [pt_settrc $lev $fnm]
 		if { $err == "" } {
 			set err "OK"
 		}
-		t_ouf $err
+		pt_touf $err
+		return
+	}
+
+	if { $cmd == "o" || $cmd == "oqueue" } {
+		set cn [llength $ST(OQU)]
+		if $ST(OBS) {
+			incr cn
+		}
+		if { $cn == 0 } {
+			pt_touf "Queue is empty"
+		} else {
+			if { $cn > 1 } {
+				set sf "s"
+			} else {
+				set sf ""
+			}
+			pt_touf "Queue size: $cn item$sf"
+		}
+		return
+	}
+
+	if { $cmd == "r" || $cmd == "reset" } {
+		$ST(RFN)
+		plug_reset
+		pt_touf "Protocol reset"
 		return
 	}
 
@@ -1658,12 +1720,12 @@ proc icmd { cmd } {
 		exit 0
 	}
 
-	t_ouf "Unknown internal command $cmd!"
+	pt_touf "Unknown internal command $cmd!"
 }
 
 ###############################################################################
 
-proc suball { line pars vals } {
+proc sy_msuball { line pars vals } {
 #
 # Scans the string substituting all occurrences of parameters with their values
 #
@@ -1678,7 +1740,7 @@ proc suball { line pars vals } {
 
 }
 
-proc macsub { line } {
+proc sy_macsub { line } {
 #
 # Macro substitution (no recursion: one scan per macro in definition order)
 #
@@ -1743,7 +1805,7 @@ proc macsub { line } {
 				}
 				# skip the closing parenthesis
 				set line [string range $line 1 end]
-				append ol [suball $ma $pl $al]
+				append ol [sy_msuball $ma $pl $al]
 			} else {
 				append ol $ma
 			}
@@ -1755,7 +1817,7 @@ proc macsub { line } {
 	return $line
 }
 
-proc readmac { bin } {
+proc sy_rdmac { bin } {
 #
 # Read the macro file for binary mode
 #
@@ -1772,7 +1834,7 @@ proc readmac { bin } {
 	}
 
 	if { $bfd == "" && [catch { open $bin "r" } bfd] } {
-		abt "Cannot open the macro file $bin: $bfd"
+		pt_abort "Cannot open the macro file $bin: $bfd"
 	}
 
 	set lines [split [read $bfd] "\n"]
@@ -1793,11 +1855,11 @@ proc readmac { bin } {
 		set rf ""
 		if ![regexp -nocase "^(\\^)?(\[_a-z\]\[a-z0-9_\]*)(.*)" \
 		    $ln j rf nm t] {
-			abt "Illegal macro name in this line: $ln"
+			pt_abort "Illegal macro name in this line: $ln"
 		}
 
 		if [info exists BMAC($nm)] {
-			abt "Duplicate macro name $nm in this line: $ln"
+			pt_abort "Duplicate macro name $nm in this line: $ln"
 		}
 
 		set t [string trimleft $t]
@@ -1829,13 +1891,13 @@ proc readmac { bin } {
 				}
 				if ![regexp -nocase \
 				    "^(\[a-z\]\[a-z0-9_\]*)(.*)" $t j pm t] {
-					abt "Illegal macro parameter in this\
-						line: $ln"
+					pt_abort "Illegal macro parameter in\
+						this line: $ln"
 				}
 				set t [string trimleft $t]
 				if [info exists parms($pm)] {
-					abt "Duplicate macro parameter in this\
-						line: $ln"
+					pt_abort "Duplicate macro parameter in\
+						this line: $ln"
 				}
 				set parms($pm) ""
 				lappend p $pm
@@ -1845,13 +1907,13 @@ proc readmac { bin } {
 
 		# now the macro body
 		if { [string index $t 0] != "=" } {
-			abt "Illegal macro definition in this line: $ln"
+			pt_abort "Illegal macro definition in this line: $ln"
 		}
 
 		set t [string trimleft [string range $t 1 end]]
 		regexp "^\"(.*)\"$" $t j t
 		if { $t == "" } {
-			abt "Empty macro in this line: $ln"
+			pt_abort "Empty macro in this line: $ln"
 		}
 
 		set BMAC($nm) [list $t $p $rf]
@@ -1863,10 +1925,10 @@ proc readmac { bin } {
 
 ###############################################################################
 
-proc scan_uart { } {
+proc sy_uscan { } {
 
 	for { set i 0 } { $i < 256 } { incr i } {
-		set devlist [u_cdevl $i]
+		set devlist [sy_cdevl $i]
 		foreach udev $devlist {
 			if [catch { open $udev "r" } fd] {
 				continue
@@ -1879,7 +1941,7 @@ proc scan_uart { } {
 
 ###############################################################################
 
-proc usage { } {
+proc sy_usage { } {
 
 	global argv0
 
@@ -1901,14 +1963,14 @@ proc usage { } {
 	exit 99
 }
 
-proc argv_get { } {
+proc sy_argget { } {
 
 	global argv
 
 	return [string trim [lindex $argv 0]]
 }
 
-proc argv_shift { } {
+proc sy_argsft { } {
 
 	global argv
 
@@ -1931,9 +1993,13 @@ proc plug_inppp_b { inp } { return 2 }
 proc plug_outpp_t { inp } { return 2 }
 proc plug_outpp_b { inp } { return 2 }
 
+# init and reset
+proc plug_init { } { }
+proc plug_reset { } { }
+
 ###############################################################################
 
-proc open_plugin { fn } {
+proc sy_openpl { fn } {
 #
 # Opens and runs a file with plugin functions
 #
@@ -1942,35 +2008,35 @@ proc open_plugin { fn } {
 	}
 
 	if [catch { open $fn "r" } fd] {
-		abt "Cannot open plugin file $fn: $fd"
+		pt_abort "Cannot open plugin file $fn: $fd"
 	}
 
 	if [catch { read $fd } sc] {
-		abt "Cannot read plugin file $fn: $sc"
+		pt_abort "Cannot read plugin file $fn: $sc"
 	}
 
 	catch { close $fd }
 
 	if [catch { uplevel #0 eval $sc } err] {
-		abt "Cannot insert the plugin, evaluation error: $err"
+		pt_abort "Cannot insert the plugin, evaluation error: $err"
 	}
 }
 
 ###############################################################################
 
-proc fn_date_pfx { } {
+proc sy_fndpfx { } {
 #
 # Produces the date/time prefix for a file name
 #
 	return [clock format [clock seconds] -format %y%m%d_%H%M%S]
 }
 
-proc open_log_file { sfn } {
+proc sy_openlf { sfn } {
 #
 # Try to be intelligent about overwriting an existing file
 #
 	if { $sfn == "+" } {
-		set sfn "[fn_date_pfx]_piter_log.txt"
+		set sfn "[sy_fndpfx]_piter_log.txt"
 	}
 
 	set af "w"
@@ -1978,12 +2044,12 @@ proc open_log_file { sfn } {
 	while 1 {
 		if { $af == "w" && $fo == 0 && [file exists $sfn] } {
 			catch { close $std }
-			set sfn [file_name_prompt $sfn \
+			set sfn [sy_fnprompt $sfn \
 				"seems to already exist" af fo]
 			continue
 		}
 		if [catch { open $sfn $af } std] {
-			set sfn [file_name_prompt $sfn "cannot be opened" af fo]
+			set sfn [sy_fnprompt $sfn "cannot be opened" af fo]
 			continue
 		}
 		break
@@ -1994,7 +2060,7 @@ proc open_log_file { sfn } {
 	return $std
 }
 
-proc file_name_prompt { sfn why afg foq } {
+proc sy_fnprompt { sfn why afg foq } {
 
 	upvar $afg af
 	upvar $foq fo
@@ -2062,9 +2128,9 @@ proc file_name_prompt { sfn why afg foq } {
 	}
 }
 
-proc initialize { } {
+proc sy_initialize { } {
 
-	global ST
+	global ST MODULE PM
 
 	set prt ""
 	set spd ""
@@ -2075,13 +2141,13 @@ proc initialize { } {
 	set sca ""
 	set plu ""
 
-	cygfix
+	sy_cygfix
 
 	# parse command line arguments
 
 	while 1 {
 
-		set par [argv_get]
+		set par [sy_argget]
 
 		if { $par == "" } {
 			# done
@@ -2090,17 +2156,17 @@ proc initialize { } {
 
 		if ![regexp -nocase "^-(\[a-z\])$" $par jnk par] {
 			# must be a flag
-			usage
+			sy_usage
 		}
 
-		argv_shift
+		sy_argsft
 
 		# the following value
-		set val [argv_get]
+		set val [sy_argget]
 
-		if ![regexp -nocase "^-(\[a-z\])$" $val jnk par] {
+		if ![regexp -nocase "^-\[a-z\]$" $val] {
 			# if it looks like a flag, assume the value is empty
-			argv_shift
+			sy_argsft
 		} else {
 			set val ""
 		}
@@ -2121,7 +2187,7 @@ proc initialize { } {
 		# speed
 		if { $par == "s" && $spd == "" } {
 			if { [catch { expr $val } spd] || $spd <= 0 } {
-				usage
+				sy_usage
 			}
 			continue
 		}
@@ -2130,7 +2196,7 @@ proc initialize { } {
 		if { $par == "l" && $mpl == "" } {
 			if { [catch { expr $val } mpl] || $mpl <= 0 || \
 			    $mpl > 250 } {
-				usage
+				sy_usage
 			}
 			# FIXME: the max may depend on the mode
 			continue
@@ -2172,7 +2238,7 @@ proc initialize { } {
 			continue
 		}
 			
-		usage
+		sy_usage
 	}
 
 	if { $sca != "" } {
@@ -2180,10 +2246,10 @@ proc initialize { } {
 		if { $mod != "" || $prt != "" || $spd != "" ||
 	     	     $mpl != "" || $bin != "" || $sfi != "" ||
 		     $plu != "" 				} {
-			usage
+			sy_usage
 		}
 
-		scan_uart
+		sy_uscan
 		exit 0
 	}
 
@@ -2195,7 +2261,7 @@ proc initialize { } {
 	set mod [string toupper $mod]
 
 	if { $prt == "" } {
-		usage
+		sy_usage
 	}
 
 	if { $spd == "" } {
@@ -2207,13 +2273,15 @@ proc initialize { } {
 	}
 
 	if { $bin != "" } {
-		set ifu "uget_bin"
-		set sfu "sget_bin"
+		set ifu "sy_ugetb"
+		set sfu "sy_sgetb"
+		set lfu "sy_outlb"
 		set ST(BIN) 1
-		readmac $bin
+		sy_rdmac $bin
 	} else {
-		set ifu "uget"
-		set sfu "sget"
+		set ifu "sy_ugett"
+		set sfu "sy_sgett"
+		set lfu "sy_outlt"
 		set ST(BIN) 0
 	}
 
@@ -2222,7 +2290,7 @@ proc initialize { } {
 		if ![info exists ST(SFB)] {
 			set ST(SFB) 0
 		}
-		set ST(SFS) [open_log_file $sfi]
+		set ST(SFS) [sy_openlf $sfi]
 	} else {
 		# for the record
 		set ST(SFS) ""
@@ -2231,16 +2299,41 @@ proc initialize { } {
 	}
 
 	if { $plu != "" } {
-		open_plugin $plu
+		sy_openpl $plu
 	}
 
-	u_start $prt $spd $mpl $mod $ifu
+	set PM(MPL) $mpl
+
+	# initialize the UART
+	sy_ustart $prt $spd
+
+	set pf $MODULE($mod)
+
+	# module initializer
+	[lindex $pf 0]
+
+	# UART input converter: text/binary
+	set ST(DFN) $ifu
+	# line write function: text/binary
+	set ST(LFN) $lfu
+	# module write function
+	set ST(OFN) [lindex $pf 2]
+	# module reset function
+	set ST(RFN) [lindex $pf 3]
+	# module read function
+	fileevent $ST(SFD) readable [lindex $pf 1]
 
 	fconfigure stdin -buffering line -blocking 0 -eofchar ""
 	fileevent stdin readable $sfu
+
+	# plugin initializer
+	plug_init
 }
 
+sy_initialize
 
-initialize
-
-vwait None
+while 1 {
+	# the output event loop is our body
+	sy_outloop
+	vwait ST(OBS)
+}

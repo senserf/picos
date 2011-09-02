@@ -1239,9 +1239,9 @@ void __pi_diag_init (int ua) {
 		// Transmitter stopped
 		bc = 4;
 
-	// Send that many 0x00's
+	// Send that many DLE's
 	while (bc--) {
-		DIAG_WCHAR (0x00);
+		DIAG_WCHAR (0x10);
 		DIAG_WAIT;
 	}
 #endif
