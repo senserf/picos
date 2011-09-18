@@ -1,0 +1,33 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# Creates a release version in picospack.tgz with the .git directories stripped
+# off and everything cleaned up
+#
+set tfn "/tmp/picrelease_[pid]_[clock seconds]"
+exec mkdir $tfn
+set cwd [pwd]
+cd ..
+puts "copying files ..."
+exec cp -r PICOS SIDE VUEE "$tfn/"
+cd $tfn
+cd PICOS
+puts "cleaning up PICOS ..."
+exec rm -rf .git
+exec sh ./cleanup
+cd ../SIDE
+puts "cleaning up SIDE ..."
+exec rm -rf .git
+exec sh ./cleanup
+cd ../VUEE
+puts "cleaning up VUEE ..."
+exec rm -rf .git
+exec sh ./cleanup
+cd ..
+puts "packaging ..."
+exec tar cvf - PICOS SIDE VUEE | gzip -9 > [file join $cwd picospack.tgz] \
+	2>[file join $tfn serr]
+cd $cwd
+puts "cleaning up ..."
+exec rm -rf $tfn

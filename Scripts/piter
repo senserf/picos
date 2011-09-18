@@ -2,41 +2,32 @@
 #####################\
 exec tclsh85 "$0" "@"
 
-#####################################
-# UART front for various UART modes #
-#####################################
+#########################################
+# UART front for the various UART modes #
+#########################################
 
 ###############################################################################
-#
-# Note: I have decided to put everything into a single file, as keeping the
-# multiple "pseudo-modules" is messy. You should either do it right (meaning
-# install everything properly as Tcl packages), or keep the structure as
-# simple as possible (meaning, preferably, in one piece)
-#
-###############################################################################
 
-proc pt_abort { ln } {
+set ST(WSH) [info tclversion]
 
-	puts stderr $ln
+if { $ST(WSH) < 8.5 } {
+	puts stderr "Piter requires Tcl/Tk 8.5 or newer!"
 	exit 99
 }
 
-proc sy_cygfix { } {
-#
-# Issue a dummy reference to a file path to trigger a possible DOS-path
-# warning, after which things should continue without any further warnings.
-# This first reference must be caught as otherwise it would abort the script.
-#
-	catch { exec ls [pwd] }
-}
-
-proc sy_nofun { args } {
-
-	pt_abort "undefined \"implementation\" function called"
-}
-
-if { [info tclversion] < 8.5 } {
-	pt_abort "This script requires Tcl 8.5 or newer!"
+if [llength $argv] {
+	# arguments present, assume comamnd-line call
+	set ST(WSH) 0
+} else {
+	# wish call
+	if [catch { package require Tk $ST(WSH) } ] {
+		puts stderr "Cannot find Tk version $ST(WSH) matching the\
+			Tcl version"
+		exit 99
+	}
+	set ST(WSH) 1
+	# this one won't be needed for sure
+	catch { close stdin }
 }
 
 ###############################################################################
@@ -61,6 +52,11 @@ if [catch { exec uname } ST(SYS)] {
 }
 
 ###############################################################################
+# Shared initialization #######################################################
+###############################################################################
+
+# Working directory
+set PM(PWD) [pwd]
 
 # for tracing and debugging
 set DB(SFD)	""
@@ -74,6 +70,19 @@ set CH(DPR)	[format %c [expr 0x10]]
 
 # maximum message length (for packet modes), set to default, resettable
 set PM(MPL)	82
+
+# default plugin and macro file names
+set PM(DPF)	"piter_plug.tcl"
+set PM(DMF)	"piter_mac.txt"
+
+# default bps
+set PM(DSP)	9600
+
+# log file
+set ST(SFS)	""
+
+# do not log input
+set ST(SFB)	0
 
 # output busy flag (current message pending) + output event variable
 set ST(OBS)	0
@@ -162,6 +171,1284 @@ set CRCTAB {
     0x6e17  0x7e36  0x4e55  0x5e74  0x2e93  0x3eb2  0x0ed1  0x1ef0
 }
 
+###############################################################################
+
+if $ST(WSH) {
+
+###############################################################################
+# Wish-only ###################################################################
+###############################################################################
+
+# Maximum number of lines to be stored off screen (being scrollable)
+set PM(TLC) 	1024
+
+# File label width (chars)
+set PM(FLS)	24
+
+# parameters window (not null if displayed)
+set WI(PMW) 	""
+
+# last log directory
+set WI(LLD) 	$PM(PWD)
+
+# current input line
+set WI(CIL)	""
+
+# saved parameters file
+set PM(SAP)	".piterrc"
+
+# home directory
+if { [info exists env(HOME)] && $env(HOME) != "" } {
+	set PM(HOM) $env(HOME)
+} else {
+	set PM(HOM) $PM(PWD)
+}
+
+###############################################################################
+
+proc sy_alert { msg } {
+
+	tk_dialog .alert "Attention!" "${msg}!" "" 0 "OK"
+}
+
+proc sy_exit { } {
+
+	global WI
+
+	if { $WI(PMW) != "" } {
+		# parameters dialog present, destroy it first
+		catch { destroy $WI(PMW) }
+	}
+
+	exit 0
+}
+
+proc pt_abort { ln } {
+
+	tk_dialog "Abort!" "Fatal error: ${msg}!" "" 0 "OK"
+	sy_exit
+}
+
+proc sy_ftrunc { n fn } {
+#
+# Truncate a file name to be displayed in a label
+#
+	if { $fn == "" } {
+		return "---"
+	}
+
+	set ln [string length $fn]
+	if { $ln > $n } {
+		set fn "...[string range $fn end-[expr $n - 3] end]"
+	}
+	return $fn
+}
+
+proc sy_getsparams { } {
+#
+# Retrieve saved parameters
+#
+	global PM
+
+	set fn [file join $PM(HOM) $PM(SAP)]
+	if [catch { open $fn "r" } fd] {
+		# no such file
+		return ""
+	}
+
+	if [catch { read $fd } pars] {
+		catch { close $fd }
+		return ""
+	}
+
+	# this is supposed to look like a list
+	return [string trim $pars]
+}
+
+proc sy_setsparams { pars } {
+#
+# Save current parameters
+#
+	global PM
+
+	set fn [file join $PM(HOM) $PM(SAP)]
+	if [catch { open $fn "w" } fd] {
+		# cannot open
+		sy_alert "Cannot open $fn, $fd"
+		return
+	}
+
+	if [catch { puts $fd $pars } err] {
+		sy_alert "Cannot write to $fn, $err"
+	}
+	catch { close $fd }
+}
+	
+proc sy_terminput { } {
+#
+# Input line from the terminal
+#
+	global WI ST
+
+	set tx ""
+	# extract the line
+	regexp "\[^\r\n\]+" [.stat.u get 0.0 end] tx
+	# remove it from the input field
+	.stat.u delete 0.0 end
+
+	# current input line (a clumsy way to send the line to sy_sgett to be
+	# compatible with the command-line-version callback)
+	set WI(CIL) $tx
+	$ST(TIF)
+}
+
+proc sy_addtext { w txt } {
+
+	$w configure -state normal
+	$w insert end "$txt"
+	$w configure -state disabled
+	$w yview -pickplace end
+}
+
+proc sy_endline { w } {
+
+	global PM
+
+	$w configure -state normal
+	$w insert end "\n"
+
+	while 1 {
+		set ix [$w index end]
+		set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
+		if { $ix <= $PM(TLC) } {
+			break
+		}
+		# delete the topmost line if above limit
+		$w delete 1.0 2.0
+	}
+
+	$w configure -state disabled
+	# make sure the last line is displayed
+	$w yview -pickplace end
+}
+
+proc sy_dspline { ln } {
+#
+# Write a line to the terminal; the tricky bit is that we cannot assume that
+# the line doesn't contain newlines
+#
+	append ln "\r\n"
+	while { [regexp "\[\r\n\]" $ln m] } {
+		# eol delimiter
+		set el [string first $m $ln]
+		if { $el == 0 } {
+			# first character, check the second one
+			set n [string index $ln 1]
+			if { $m == "\r" && $n == "\n" || \
+			     $m == "\n" && $n == "\r"    } {
+				# two-character EOL
+				set ln [string range $ln 2 end]
+			} else {
+				set ln [string range $ln 1 end]
+			}
+			# complete previous line
+			sy_endline .t
+			continue
+		}
+		# send the preceding string to the terminal
+		sy_addtext .t [string range $ln 0 [expr $el - 1]]
+		set ln [string range $ln $el end]
+	}
+}
+
+proc sy_mkterm { } {
+
+	global ST WI
+
+	# Defaults
+
+	# this will change when we have figured out the parameters
+	wm title . "Piter"
+
+	text .t \
+		-yscrollcommand ".scroly set" \
+		-setgrid true \
+        	-width 80 -height 24 -wrap char \
+		-font {-family courier -size 10} \
+		-exportselection 1 \
+		-state normal
+
+	.t delete 1.0 end
+	scrollbar .scroly -command ".t yview"
+	pack .scroly -side right -fill y
+	pack .t -expand yes -fill both
+	
+	frame .stat -borderwidth 2
+	pack .stat -expand no -fill x
+
+	text .stat.u -height 1 -font {-family courier -size 10}
+	pack .stat.u -side left -expand yes -fill x
+
+	bind .stat.u <Return> "sy_terminput"
+
+	frame .stat.fs -borderwidth 0
+	pack .stat.fs -side right -expand no
+
+	checkbutton .stat.fs.sa -state normal -variable ST(SFB)
+	pack .stat.fs.sa -side right
+	label .stat.fs.sl -text " All:"
+	pack .stat.fs.sl -side right
+
+	set WI(SFS) [button .stat.fs.sf -command "sy_savefile"]
+	pack $WI(SFS) -side right
+	sy_setsblab
+
+	.t configure -state disabled
+	bind . <Destroy> "sy_exit"
+}
+
+proc sy_setsblab { } {
+
+	global ST WI
+
+	if { $ST(SFS) != "" } {
+		set lab "Stop"
+	} else {
+		set lab "Save"
+	}
+
+	$WI(SFS) configure -text $lab
+}
+
+proc sy_savefile { } {
+#
+# Toggle logging
+#
+	global ST WI
+
+	if { $ST(SFS) != "" } {
+		# close the current log
+		catch { close $ST(SFS) }
+		set ST(SFS) ""
+		sy_setsblab
+		return
+	}
+
+	while 1 {
+
+		set fn [tk_getSaveFile \
+			-defaultextension ".txt" \
+			-parent "." \
+			-title "Log file name" \
+			-initialfile "[sy_fndpfx]_piter_log.txt" \
+			-initialdir $WI(LLD)]
+
+		if { $fn == "" } {
+			# cancelled
+			return
+		}
+
+		if [catch { open $fn "a" } std] {
+			if [tk_dialog .alert "Attention!" "File $fn cannot be\
+				opened!" "" 0 "Try another file" "Cancel"] {
+					return
+			}
+			continue
+		}
+
+		fconfigure $std -buffering line -translation lf
+
+		set ST(SFS) $std
+
+		sy_startlog
+
+		# preserve the directory for future opens
+		set WI(LLD) [file dirname $fn]
+		sy_setsblab
+		return
+	}
+}
+
+proc sy_setplugfile { } {
+
+	global WI PM
+
+	set fn [tk_getOpenFile \
+		-defaultextension ".tcl" \
+		-parent $WI(PMW) \
+		-title "Plugin file name"]
+
+	# can be used to revoke the previous/default setting
+	set WI(PFN) $fn
+	$WI(PFL) configure -text [sy_ftrunc $PM(FLS) $fn]
+}
+
+proc sy_setmacfile { } {
+
+	global WI PM
+
+	set fn [tk_getOpenFile \
+		-defaultextension ".txt" \
+		-parent $WI(PMW) \
+		-title "Macro file name"]
+
+	# can be used to revoke the previous/default setting
+	set WI(MFN) $fn
+	$WI(MFL) configure -text [sy_ftrunc $PM(FLS) $fn]
+}
+
+proc sy_valpars { } {
+#
+# Try to set the parameters as specified by the user, verify if they are OK
+#
+	global WI ST PM MODULE
+
+	set err ""
+	set erc 0
+
+	###
+	set mod [sy_valmode $WI(MOD)]
+	if { $mod == "" } {
+		# this is just a wild precaution, not really possible
+		append err ", illegal mode"
+		incr erc
+	}
+
+	###
+	set prt [string trim $WI(DEO)]
+	if { $prt == "" } {
+		set prt [string trim $WI(DEV)]
+	}
+
+	if { $prt == "" } {
+		append err ", no UART device specified"
+		incr erc
+	}
+
+	###
+	set spd [sy_valspeed $WI(SPE)]
+	if !$spd {
+		append err ", illegal bit rate"
+		incr erc
+	}
+
+	###
+	set mpl [sy_valrlen $WI(RLE)]
+	if !$mpl {
+		append err ", illegal record length"
+		incr erc
+	}
+
+	###
+	set bin $WI(BIN)
+
+	###
+	set pfn $WI(PFN)
+	if { $pfn != "" } {
+		# there is a plugin file
+		set est [sy_openpl $pfn]
+		if { $est != "" } {
+			append err ", $est"
+			incr erc
+			# recovery from plugin "evaluation" errors may be
+			# illusory
+		}
+	}
+
+	###
+	if $bin {
+		# macro file is only relevant in binary mode
+		set pfn $WI(MFN)
+		if { $pfn != "" } {
+			set est [sy_rdmac $pfn]
+			if { $est != "" } {
+				append err ", $est"
+				incr erc
+			}
+		}
+	}
+
+	###
+	if $bin {
+		set ifu "sy_ugetb"
+		set sfu "sy_sgetb"
+		set lfu "sy_outlb"
+		set ST(BIN) 1
+	} else {
+		set ifu "sy_ugett"
+		set sfu "sy_sgett"
+		set lfu "sy_outlt"
+		set ST(BIN) 0
+	}
+
+	set PM(MPL) $mpl
+
+	if !$erc {
+		# initialize the UART
+		set est [sy_ustart $prt $spd]
+		if { $est != "" } {
+			append err ", $est"
+			incr erc
+		}
+	}
+
+	if !$erc {
+		# point of no return, I mean no failure
+		set pf $MODULE($mod)
+		# module initializer
+		[lindex $pf 0]
+		# UART input converter: text/binary
+		set ST(DFN) $ifu
+		# line write function: text/binary
+		set ST(LFN) $lfu
+		# module write function
+		set ST(OFN) [lindex $pf 2]
+		# module reset function
+		set ST(RFN) [lindex $pf 3]
+		# module read function
+		fileevent $ST(SFD) readable [lindex $pf 1]
+		# Terminal input event
+		set ST(TIF) $sfu
+		# plugin initializer
+		plug_init
+		# OK
+		return 1
+	}
+
+	# resume default plugin after failure; recovery may be illusory
+	sy_setdefplug
+
+	# revoke macro file after failure
+	sy_clearmac
+
+	# alert
+	set emgs "Error"
+	if { $erc > 1 } {
+		append emsg "s"
+	}
+	if [tk_dialog .alert "$emsg!" "${emsg}: [string range $err 2 end]" "" \
+		0 "Try again" "Quit"] {
+			sy_exit
+	}
+	return 0
+}
+
+proc sy_initialize { } {
+
+	global ST MODULE PM WI PM
+
+	sy_setdefplug
+	sy_clearmac
+
+	sy_mkterm
+
+	update
+
+	# read the parameters
+
+	set w .params
+	set WI(PMW) $w
+
+	toplevel $w
+	wm title $w "Parameters"
+
+	# make it modal
+	catch { grab $w }
+
+	# check for saved parameters
+	set spar [sy_getsparams]
+
+	#######################################################################
+
+	labelframe $w.dev -padx 4 -pady 4 -text "Device"
+	pack $w.dev -side top -expand y -fill x -anchor n
+
+	set dl [sy_uscan]
+
+	set WI(DEV) [lindex $dl 0]
+	set WI(DEO) ""
+
+	set p [lindex $spar 0]
+	if { $p != "" } {
+		# check if on the list
+		if { [lsearch -exact $dl $p] >= 0 } {
+			set WI(DEV) $p
+		} else {
+			set WI(DEO) $p
+		}
+	}
+
+	eval "set mn \[tk_optionMenu $w.dev.dmn WI(DEV) $dl\]"
+
+	pack $w.dev.dmn -side top -expand y -fill x -anchor n
+
+	frame $w.dev.dff
+	pack $w.dev.dff -side top -expand y -fill x
+
+	label $w.dev.dff.odl -text "Other:"
+	pack $w.dev.dff.odl -side left -expand n -anchor w
+
+	entry $w.dev.dff.ode -width 16 -textvariable WI(DEO) -bg gray
+	pack $w.dev.dff.ode -side right -expand y -fill x -anchor n
+
+	#######################################################################
+
+	labelframe $w.mod -padx 4 -pady 4 -text "Mode"
+	pack $w.mod -side top -expand y -fill x -anchor n
+
+	label $w.mod.sl -text "Speed: " -anchor w
+	grid $w.mod.sl -column 0 -row 0 -sticky new
+	label $w.mod.ml -text "Prot: " -anchor w
+	grid $w.mod.ml -column 0 -row 1 -sticky new
+
+	set itl \
+	    { 1200 2400 4800 9600 14400 19200 28800 38400 76800 115200 256000 }
+	set WI(SPE) $PM(DSP)
+	set p [lindex $spar 1]
+	if { [lsearch -exact $itl $p] >= 0 } {
+		set WI(SPE) $p
+	}
+	eval "tk_optionMenu $w.mod.ra WI(SPE) $itl"
+	grid $w.mod.ra -column 1 -row 0 -sticky new
+
+	frame $w.mod.db
+	grid $w.mod.db -column 1 -row 1 -sticky new
+
+	set itl { Direct Persistent XRS }
+	set WI(MOD) "Direct"
+	set p [lindex $spar 2]
+	if { [lsearch -exact $itl $p] >= 0 } {
+		set WI(MOD) $p
+	}
+	eval "tk_optionMenu $w.mod.db.mo WI(MOD) $itl"
+	pack $w.mod.db.mo -side left -expand y -fill x
+
+	set WI(BIN) 0
+	set p [lindex $spar 3]
+	if { $p == 1 } {
+		set WI(BIN) 1
+	}
+	checkbutton $w.mod.db.mb -state normal -variable WI(BIN)
+	pack $w.mod.db.mb -side right -expand n
+	label $w.mod.db.bl -text "  Bin: "
+	pack $w.mod.db.bl -side right -expand n
+
+	set WI(RLE) $PM(MPL)
+	set p [lindex $spar 4]
+	if { ![catch { expr $p } p] && $p >= 16 && $p <= 255 } {
+		set WI(RLE) $p
+	}
+
+	spinbox $w.mod.db.rl -width 4 -textvariable WI(RLE) -bg gray \
+		-justify right -from 16 -to 255 -wrap 1
+	pack $w.mod.db.rl -side right
+	label $w.mod.db.re -text " RLen: "
+	pack $w.mod.db.re -side right -expand n
+
+	grid columnconfigure $w.mod 0 -weight 0
+	grid columnconfigure $w.mod 1 -weight 1
+
+	#######################################################################
+
+	labelframe $w.add -padx 4 -pady 4 -text "Add-ons"
+	pack $w.add -side top -expand y -fill x -anchor n
+
+	# check for saved/default plugin file
+	set p [lindex $spar 5]
+	if { $p != "" } {
+		if ![catch { open $p "r" } fid] {
+			catch { close $fid }
+			set PM(DPF) $p
+		}
+	}
+
+	if [catch { open $PM(DPF) "r" } fid] {
+		# doesn't open
+		set WI(PFN) ""
+	} else {
+		catch { close $fid }
+		set WI(PFN) $PM(DPF)
+	}
+
+	set p [lindex $spar 6]
+	if { $p != "" } {
+		if ![catch { open $p "r" } fid] {
+			catch { close $fid }
+			set PM(DMF) $p
+		}
+	}
+
+	# check for deafult macro file present
+	if [catch { open $PM(DMF) "r" } fid] {
+		set WI(MFN) ""
+	} else {
+		catch { close $fid }
+		set WI(MFN) $PM(DMF)
+	}
+
+	button $w.add.pl -text "Plugin" -anchor w -command sy_setplugfile
+	grid $w.add.pl -column 0 -row 0 -sticky new
+	button $w.add.ml -text "Macros" -anchor w -command sy_setmacfile
+	grid $w.add.ml -column 0 -row 1 -sticky new
+
+	set WI(PFL) $w.add.plf
+	label $w.add.plf -text [sy_ftrunc $PM(FLS) $WI(PFN)] -anchor w \
+		-width $PM(FLS)
+	grid $w.add.plf -column 1 -row 0 -sticky new
+
+	set WI(MFL) $w.add.maf
+	label $w.add.maf -text [sy_ftrunc $PM(FLS) $WI(MFN)] -anchor w \
+		-width $PM(FLS)
+	grid $w.add.maf -column 1 -row 1 -sticky new
+
+	grid columnconfigure $w.add 0 -weight 0
+	grid columnconfigure $w.add 1 -weight 1
+
+	#######################################################################
+
+	frame $w.but
+	pack $w.but -side top -expand y -fill x -anchor n
+	button $w.but.qu -text "Exit" -command "set WI(GOF) 0"
+	pack $w.but.qu -side left -expand n
+	button $w.but.do -text "Proceed" -command "set WI(GOF) 1"
+	pack $w.but.do -side right -expand n
+	button $w.but.sp -text "Save & Proceed" -command "set WI(GOF) 2"
+	pack $w.but.sp -side right -expand n
+
+	#######################################################################
+
+	bind $w <Destroy> "set WI(GOF) 0"
+
+	set WI(GOF) -1
+
+	raise $w
+
+	while 1 {
+
+		tkwait variable WI(GOF)
+
+		if { $WI(GOF) >= 0 } {
+			if { $WI(GOF) == 0 } {
+				sy_exit
+			}
+			if [sy_valpars] {
+				# done if parameters are OK
+				if { $WI(GOF) > 1 } {
+					# save parameters
+					set dev $WI(DEO)
+					if { $dev == "" } {
+						set dev $WI(DEV)
+					}
+					if { $WI(PFN) != "" } {
+						set WI(PFN) \
+						    [file normalize $WI(PFN)]
+					}
+					if { $WI(MFN) != "" } {
+						set WI(MFN) \
+						    [file normalize $WI(MFN)]
+					}
+					sy_setsparams [list \
+						$dev \
+						$WI(SPE) \
+						$WI(MOD) \
+						$WI(BIN) \
+						$WI(RLE) \
+						$WI(PFN) \
+						$WI(MFN) ]
+				}
+				break
+			}
+		}
+	}
+
+	catch { destroy $w }
+	set WI(PMW) ""
+}
+
+proc pt_trc { msg } {
+
+	variable DB
+
+	if { $DB(SFD) == "-" } {
+		# to the terminal
+		sy_dspline $msg
+		return
+	}
+
+	if { $DB(SFD) == "" } {
+		set str stdout
+	} else {
+		set str $DB(SFD)
+	}
+
+	catch { 
+		puts $str $msg
+		flush $str
+	}
+}
+
+###############################################################################
+###############################################################################
+
+} else {
+
+###############################################################################
+# Tcl-only versions of functions ##############################################
+###############################################################################
+
+proc sy_exit { } {
+
+	exit 0
+}
+
+proc pt_abort { ln } {
+
+	puts stderr $ln
+	exit 99
+}
+
+proc sy_dspline { ln } {
+
+	puts $ln
+}
+
+proc sy_initialize { } {
+#
+	global ST MODULE PM
+
+	set prt ""
+	set spd ""
+	set mpl ""
+	set bin ""
+	set sfi ""
+	set mod ""
+	set sca ""
+	set plu ""
+
+	# parse command line arguments
+
+	while 1 {
+
+		set par [sy_argget]
+
+		if { $par == "" } {
+			# done
+			break
+		}
+
+		if ![regexp -nocase "^-(\[a-z\])$" $par jnk par] {
+			# must be a flag
+			sy_usage
+		}
+
+		sy_argsft
+
+		# the value that follows
+		set val [sy_argget]
+
+		if ![regexp -nocase "^-\[a-z\]$" $val] {
+			# if it looks like a flag, assume the value is empty
+			sy_argsft
+		} else {
+			set val ""
+		}
+
+		# the mode flag
+		if { $par == "m" && $mod == "" } {
+			set mod [sy_valmode $val]
+			if { $mod != "" } {
+				continue
+			}
+		}
+
+		# the UART device
+		if { $par == "p" && $prt == "" && $val != "" } {
+			set prt $val
+			continue
+		}
+
+		# speed
+		if { $par == "s" && $spd == "" } {
+			set spd [sy_valspeed $val]
+			if !$spd {
+				sy_usage
+			}
+			continue
+		}
+
+		# length
+		if { $par == "l" && $mpl == "" } {
+			set mpl [sy_valrlen $val]
+			if !$mpl {
+				sy_usage
+			}
+			continue
+		}
+
+		# binary
+		if { $par == "b" && $bin == "" } {
+			if { $val == "" } {
+				# this really means: expect a macro file
+				set bin "+"
+			} else {
+				# this IS the macro file
+				set bin $val
+			}
+			continue
+		}
+
+		if { ($par == "f" || $par == "F") && $sfi == "" } {
+			if { $val == "" } {
+				# default log file
+				set sfi "+"
+			} else {
+				set sfi $val
+			}
+			if { $par == "F" } {
+				# log all
+				set ST(SFB) 1
+			}
+			continue
+		}
+
+		if { $par == "P" && $plu == "" } {
+			if { $val == "" } {
+				# expect a plugin file
+				set plu "+"
+			} else {
+				set plu $val
+			}
+			continue
+		}
+
+		if { $par == "S" && $val == "" } {
+			# just scan for COM ports
+			set sca "y"
+			continue
+		}
+			
+		sy_usage
+	}
+
+	if { $sca != "" } {
+
+		if { $mod != "" || $prt != "" || $spd != "" ||
+	     	     $mpl != "" || $bin != "" || $sfi != "" ||
+		     $plu != "" 				} {
+			sy_usage
+		}
+
+		sy_uscan
+		puts [join [sy_uscan] "\n"]
+		exit 0
+	}
+
+	# cleanups and defaults
+	if { $mod == "" } {
+		set mod "D"
+	}
+
+	if { $prt == "" } {
+		sy_usage
+	}
+
+	if { $spd == "" } {
+		set spd $PM(DSP)
+	}
+
+	if { $mpl == "" } {
+		set mpl $PM(MPL)
+	}
+
+	sy_clearmac
+	if { $bin != "" } {
+		set ifu "sy_ugetb"
+		set sfu "sy_sgetb"
+		set lfu "sy_outlb"
+		set ST(BIN) 1
+		if { $bin == "+" } {
+			set pf [sy_rdmac $PM(DMF)]
+			if { $pf != "" } {
+				if { [string first "cannot open" $pf] != 0 } {
+					pt_abort $pf
+				}
+			}
+		} else {
+			set pf [sy_rdmac $bin]
+			if { $pf != "" } {
+				pt_abort $pf
+			}
+		}
+	} else {
+		set ifu "sy_ugett"
+		set sfu "sy_sgett"
+		set lfu "sy_outlt"
+		set ST(BIN) 0
+	}
+
+	if { $sfi != "" } {
+		if ![info exists ST(SFB)] {
+			set ST(SFB) 0
+		}
+		set ST(SFS) [sy_openlf $sfi]
+		sy_startlog
+	} else {
+		# for the record
+		set ST(SFS) ""
+		set ST(SFB) 0
+	}
+
+	sy_setdefplug
+	if { $plu != "" } {
+		if { $plu == "+" } {
+			set pf [sy_openpl $PM(DPF)]
+			if { $pf != "" } {
+				if { [string first "cannot open" $pf] != 0 } {
+					pt_abort $pf
+				}
+			}
+		} else {
+			# must open
+			set pf [sy_openpl $plu]
+			if { $pf != "" } {
+				pt_abort $pf
+			}
+		}
+	}
+
+	set PM(MPL) $mpl
+
+	# initialize the UART
+	set pf [sy_ustart $prt $spd]
+	if { $pf != "" } {
+		pt_abort $pf
+	}
+
+	set pf $MODULE($mod)
+	# module initializer
+	[lindex $pf 0]
+	# UART input converter: text/binary
+	set ST(DFN) $ifu
+	# line write function: text/binary
+	set ST(LFN) $lfu
+	# module write function
+	set ST(OFN) [lindex $pf 2]
+	# module reset function
+	set ST(RFN) [lindex $pf 3]
+	# module read function
+	fileevent $ST(SFD) readable [lindex $pf 1]
+
+	fconfigure stdin -buffering line -blocking 0 -eofchar ""
+	fileevent stdin readable $sfu
+
+	# plugin initializer
+	plug_init
+}
+
+proc pt_trc { msg } {
+#
+# Write a debug line
+#
+	variable DB
+
+	if { $DB(SFD) == "" || $DB(SFD) == "-" } {
+		set str stdout
+	} else {
+		set str $DB(SFD)
+	}
+
+	catch { 
+		puts $str $msg
+		flush $str
+	}
+}
+
+proc sy_usage { } {
+
+	global argv0
+
+	puts stderr "Usage: $argv0 args, where args can be:"
+	puts stderr ""
+	puts stderr "       -p port/dev   UART dev or COM number, required"
+	puts stderr "       -s speed      UART speed, default is 9600"
+	puts stderr "       -m x|p|d      mode: XRS, P, direct, default is d"
+	puts stderr "       -l pktlen     max pkt len, default is 82"
+	puts stderr "       -b \[file\]     binary mode (optional macro file)"
+	puts stderr "       -f file       preserve the output in file"
+	puts stderr "       -F file       preserve the input as well"
+	puts stderr "       -S            scan for present UART devs"
+	puts stderr "       -P file       preprocessor plugin file"
+	puts stderr ""
+	puts stderr "Note that pktlen should be the same as the length used"
+	puts stderr "by the praxis in the respective argument of phys_uart."
+	puts stderr ""
+	puts stderr "When called without arguments, the program will operate"
+	puts stderr "in a simple GUI mode."
+
+	exit 99
+}
+
+proc sy_argget { } {
+
+	global argv
+
+	return [string trim [lindex $argv 0]]
+}
+
+proc sy_argsft { } {
+
+	global argv
+
+	set argv [lrange $argv 1 end]
+}
+
+proc sy_openlf { sfn } {
+#
+# Try to be intelligent about overwriting an existing file
+#
+	if { $sfn == "+" } {
+		set sfn "[sy_fndpfx]_piter_log.txt"
+	}
+
+	set af "w"
+	set fo 0
+	while 1 {
+		if { $af == "w" && $fo == 0 && [file exists $sfn] } {
+			catch { close $std }
+			set sfn [sy_fnprompt $sfn \
+				"seems to already exist" af fo]
+			continue
+		}
+		if [catch { open $sfn $af } std] {
+			set sfn [sy_fnprompt $sfn "cannot be opened" af fo]
+			continue
+		}
+		break
+	}
+
+	fconfigure $std -buffering line -translation lf
+
+	return $std
+}
+
+proc sy_fnprompt { sfn why afg foq } {
+
+	upvar $afg af
+	upvar $foq fo
+
+	puts "File $sfn $why!"
+
+	while 1 {
+		puts "Type one of these:"
+		set opt "QN"
+		puts " Q            - to abort"
+		if { [string index $why 0] == "s" } {
+			puts " O            - to overwrite the file"
+			append opt "O"
+		}
+		puts " N filename   - to specify a different file name"
+		if { $af == "w" } {
+			puts " A            - to try to append to the file"
+			append opt "A"
+		}
+		if ![regexp "^\[0-9\]\[0-9\]" $sfn] {
+			puts \
+		   " D            - to tag the current name with date/time"
+			append opt "D"
+		}
+		while 1 {
+			if [catch { gets stdin line } stat] {
+				sy_exit
+			}
+			if { $stat < 0 } {
+				sy_exit
+			}
+			set line [string trim $line]
+			if { $line != "" } {
+				break
+			}
+		}
+		set d [string toupper [string index $line 0]]
+		if { [string first $d $opt] < 0 } {
+			continue
+		}
+		if { $d == "Q" } {
+			sy_exit
+		}
+		if { $d == "O" } {
+			set fo 1
+			return $sfn
+		}
+		if { $d == "N" } {
+			set fn [string trimleft [string range $line 1 end]]
+			if { $fn == "" } {
+				puts "Filename missing after N"
+				continue
+			}
+			set af "w"
+			return $fn
+		}
+		if { $d == "A" } {
+			set af "a"
+			return $sfn
+		}
+		# append date/time
+		set af "w"
+		return "[sy_fndpfx]_$sfn"
+	}
+}
+
+###############################################################################
+###############################################################################
+
+}
+
+###############################################################################
+# Shared functions ############################################################
+###############################################################################
+
+proc sy_cygfix { } {
+#
+# Issue a dummy reference to a file path to trigger a possible DOS-path
+# warning, after which things should continue without any further warnings.
+# This first reference must be caught as otherwise it would abort the script.
+#
+	global PM
+
+	catch { exec ls $PM(PWD) }
+}
+
+proc sy_fndpfx { } {
+#
+# Produces the date/time prefix for a file name
+#
+	return [clock format [clock seconds] -format %y%m%d_%H%M%S]
+}
+
+proc pt_ishex { c } {
+	return [regexp -nocase "\[0-9a-f\]" $c]
+}
+
+proc pt_isoct { c } {
+	return [regexp -nocase "\[0-7\]" $c]
+}
+
+proc pt_stparse { line } {
+#
+# Parse a UNIX string into a list of hex codes; update the source to point to
+# the first character behind the string
+#
+	upvar $line ln
+
+	set nc [string index $ln 0]
+	if { $nc != "\"" } {
+		error "illegal string delimiter: $nc"
+	}
+
+	# the original - for errors
+	set or "\""
+
+	set ln [string range $ln 1 end]
+
+	set vals ""
+
+	while 1 {
+		set nc [string index $ln 0]
+		if { $nc == "" } {
+			error "unterminated string: $or"
+		}
+		set ln [string range $ln 1 end]
+		if { $nc == "\"" } {
+			# done (this version assumes that the sentinel must be
+			# explicit, append 0x00 if this is a problem)
+			return $vals
+		}
+		if { $nc == "\\" } {
+			# escapes
+			set c [string index $ln 0]
+			if { $c == "" } {
+				# delimiter error, will be diagnosed at next
+				# turn
+				continue
+			}
+			if { $c == "x" } {
+				# get hex digits
+				set ln [string range $ln 1 end]
+				while 1 {
+					set d [string index $ln 0]
+					if ![pt_ishex $d] {
+						break
+					}
+					append c $d
+					set ln [string range $ln 1 end]
+				}
+				if [catch { expr 0$c % 256 } val] {
+					error "illegal hex escape in string: $c"
+				}
+				lappend vals $val
+				continue
+			}
+			if [pt_isoct $c] {
+				if { $c != 0 } {
+					set c "0$c"
+				}
+				# get octal digits
+				set ln [string range $ln 1 end]
+				while 1 {
+					set d [string index $ln 0]
+					if ![pt_isoct $d] {
+						break
+					}
+					append c $d
+					set ln [string range $ln 1 end]
+				}
+				if [catch { expr $c % 256 } val] {
+					error \
+					    "illegal octal escape in string: $c"
+				}
+				lappend vals $val
+				continue
+			}
+			set ln [string range $ln 1 end]
+			set nc $c
+			continue
+		}
+		scan $nc %c val
+		lappend vals [expr $val % 256]
+	}
+}
+
+proc sy_valmode { m } {
+
+	set m [string toupper [string index $m 0]]
+	if { $m != "X" && $m != "P" && $m != "D" } {
+		return ""
+	}
+	return $m
+}
+
+proc sy_valspeed { s } {
+
+	if { [catch { expr $s } s] || $s < 1200 || $s > 256000 } {
+		return 0
+	}
+	return $s
+}
+
+proc sy_valrlen { v } {
+
+	# FIXME: the true max depends on the mode
+	if { [catch { expr $v } v] || $v < 16 || $v > 255 } {
+		return 0
+	}
+	return $v
+}
+
+proc sy_nofun { args } {
+
+	pt_abort "undefined \"implementation\" function called"
+}
+
 proc pt_chks { wa } {
 
 	global CRCTAB
@@ -187,51 +1474,6 @@ proc pt_chks { wa } {
 	}
 
 	return $chs
-}
-
-proc mo_write_x { msg } {
-#
-# Send a packet to UART (shared by modes N and P)
-#
-	global DB ST
-
-	if { $DB(LEV) > 1 } {
-		sy_dump "W" $msg
-	}
-
-	puts -nonewline $ST(SFD) $msg
-	flush $ST(SFD)
-}
-
-###############################################################################
-# Module independent functions ################################################
-###############################################################################
-
-proc pt_tout { ln } {
-#
-# Output a line to the terminal and optionally save it to file
-#
-	global ST
-
-	puts $ln
-
-	if { $ST(SFS) != "" } {
-		catch { puts $ST(SFS) $ln }
-	}
-}
-
-proc pt_touf { ln } {
-#
-# Output a line to the terminal and optionally save it to file, but the latter
-# only if we are saving input; used to save special lines, like error messages
-#
-	global ST
-
-	puts $ln
-
-	if $ST(SFB) {
-		catch { puts $ST(SFS) $ln }
-	}
 }
 
 proc sy_cdevl { pi } {
@@ -297,16 +1539,47 @@ proc sy_ustart { udev speed } {
 	}
 
 	if $fail {
-		pt_abort "sy_ustart: cannot open UART: $devlist"
+		return "cannot open UART: $devlist"
 	}
 
 	# the generic part of UART configuration
 	if [catch { fconfigure $ST(SFD) -mode "$speed,n,8,1" -handshake none \
 	    -blocking 0 -eofchar "" -ttycontrol { RTS 0 } } err] {
-		pt_abort "sy_ustart: cannot configure UART: $err"
+		catch { close $ST(SFD) }
+		return "cannot configure UART: $err"
+	}
+
+	return ""
+}
+
+proc pt_tout { ln } {
+#
+# Output a line to the terminal and optionally save it in the log file
+#
+	global ST
+
+	sy_dspline $ln
+
+	if { $ST(SFS) != "" } {
+		catch { puts $ST(SFS) $ln }
 	}
 }
-	
+
+proc pt_touf { ln } {
+#
+# Output a line to the terminal and optionally save it in the log file, but the
+# latter only if we are saving input; used to save special lines, like error
+# messages
+#
+	global ST
+
+	sy_dspline $ln
+
+	if { $ST(SFS) != "" && $ST(SFB) } {
+		catch { puts $ST(SFS) $ln }
+	}
+}
+
 proc pt_diag { } {
 
 	global ST CH
@@ -323,6 +1596,753 @@ proc pt_diag { } {
 		pt_tout "DIAG: [string trim $ST(BUF)]"
 	}
 	flush stdout
+}
+
+proc sy_startlog { } {
+#
+# Issues the initial log message
+#
+	global ST
+
+	set msg "\n################################################\n"
+	append msg "### Logging started on: "
+	append msg [clock format [clock seconds] -format \
+		"%y/%m/%d at %H:%M:%S ###"]
+	append msg "\n################################################\n"
+
+	catch { puts $ST(SFS) $msg }
+}
+
+###############################################################################
+# Tracing and debugging #######################################################
+###############################################################################
+
+proc sy_dump { hdr buf } {
+
+	set code ""
+	set nb [string length $buf]
+	binary scan $buf cu$nb code
+	set ol ""
+	foreach co $code {
+		append ol [format " %02x" $co]
+	}
+	pt_trc "$hdr:$ol"
+}
+	
+proc pt_settrc { lev { file "" } } {
+#
+# Set tracing parameters
+#
+	global DB
+
+	if { $DB(SFD) != "" && $DB(SFD) != "-" } {
+		# close any previous file
+		catch { close $DB(SFD) }
+	}
+
+	set DB(SFD) ""
+
+	# new level
+	set DB(LEV) $lev
+
+	if { $lev == 0 } {
+		return ""
+	}
+
+	# open
+	if { $file != "" } {
+		if { $file != "-" } {
+			if [catch { open $file "w" } sfd] {
+				set DB(LEV) 0
+				return "Failed to open debug file, $sfd!"
+			}
+			set DB(SFD) $sfd
+		} else {
+			# to the screen
+			set DB(SFD) "-"
+		}
+	}
+	return ""
+}
+
+###############################################################################
+###############################################################################
+
+proc sy_outloop { } {
+
+	global ST
+
+	if !$ST(OBS) {
+		# not busy
+		if { $ST(OQU) != "" } {
+			# something in queue
+			$ST(OFN) [lindex $ST(OQU) 0]
+			set ST(OQU) [lrange $ST(OQU) 1 end]
+		}
+	}
+}
+
+proc sy_outln { line } {
+
+	global ST
+
+	lappend ST(OQU) $line
+	# to trigger the event
+	set ST(OBS) $ST(OBS)
+}
+
+proc pt_outln { line } {
+#
+# This is encapsulated a bit to be more convenient for the plugin; piter
+# never calls this function
+#
+	global ST
+
+	$ST(LFN) $line
+}
+
+###############################################################################
+###############################################################################
+
+proc sy_inline { } {
+#
+# Preprocess a line input from the keyboard
+#
+	global ST
+
+	if $ST(WSH) {
+		# the wish variant; this doesn't warrant splitting the
+		# function into two versions
+		global WI
+		set line $WI(CIL)
+		set WI(CIL) ""
+	} else {
+		if [catch { gets stdin line } stat] {
+			# ignore errors (can they happen at all?)
+			return -code return
+		}
+		if { $stat < 0 } {
+			# end of file
+			sy_exit
+		}
+	}
+
+	# we used to trim here, but perhaps we shouldn't; let's try to avoid
+	# any interpretation, because the user may actually want to send a
+	# bunch of blanks
+
+	if { $ST(SFS) != "" && $ST(SFB) } {
+		# writing input to a file
+		catch { puts $ST(SFS) "<- $line" }
+	}
+
+	# the trimmed version for special command check
+	set ltr [string trim $line]
+
+	if { $ltr == "!!" } {
+		# previous command
+		if { $ST(PCM) == "" } {
+			pt_touf "No previous command!"
+			return -code return
+		}
+		set line $ST(PCM)
+	} elseif { [string index $ltr 0] == "!" } {
+		# not for the board
+		sy_icmd [string trimleft [string range $ltr 1 end]]
+		return -code return
+	} else {
+		# last command
+		set ST(PCM) $line
+	}
+
+	return $line
+}
+
+proc sy_icmd { cmd } {
+#
+# Handle internal commands
+#
+	global ST
+
+	set par ""
+	if ![regexp "^(\[^ \t\]+)(.*)" $cmd jnk cmd par] {
+		# impossible
+		pt_touf "Empty command!"
+		return
+	}
+	set par [string trim $par]
+
+	if { $cmd == "e" || $cmd == "echo" } {
+
+		if { $par == "" } {
+			# toggle
+			if $ST(ECO) {
+				set par "off"
+			} else {
+				set par "on"
+			}
+		}
+
+		if { $par == "on" } {
+			pt_touf "Echo is now on"
+			set ST(ECO) 1
+		} elseif { $par == "off" } {
+			pt_touf "Echo is now off"
+			set ST(ECO) 0
+		} else {
+			pt_touf "Illegal parameter, must be empty, on, or off!
+		}
+		return
+	}
+
+	if { $cmd == "t" || $cmd == "trace" } {
+
+		set fnm ""
+		if ![regexp "^(\[0-9\])(.*)" $par jnk lev fnm] {
+			pt_touf "Illegal parameters, must be level\
+				\[filename\]!"
+			return
+		}
+		set fnm [string trim $fnm]
+
+		set err [pt_settrc $lev $fnm]
+		if { $err == "" } {
+			set err "OK"
+		}
+		pt_touf $err
+		return
+	}
+
+	if { $cmd == "o" || $cmd == "oqueue" } {
+		set cn [llength $ST(OQU)]
+		if $ST(OBS) {
+			incr cn
+		}
+		if { $cn == 0 } {
+			pt_touf "Queue is empty"
+		} else {
+			if { $cn > 1 } {
+				set sf "s"
+			} else {
+				set sf ""
+			}
+			pt_touf "Queue size: $cn item$sf"
+		}
+		return
+	}
+
+	if { $cmd == "r" || $cmd == "reset" } {
+		$ST(RFN)
+		plug_reset
+		pt_touf "Protocol reset"
+		return
+	}
+
+	if { $cmd == "q" || $cmd == "x" } {
+		sy_exit
+	}
+
+	pt_touf "Unknown internal command $cmd!"
+}
+###############################################################################
+# ASCII terminal input, device output #########################################
+###############################################################################
+
+proc sy_sgett { } {
+#
+# STDIN becomes readable (or a line is entered in the wish case) [ASCII mode]
+#
+	global ST PM
+
+	set line [sy_inline]
+
+	if [catch { plug_inppp_t line } ln] {
+		pt_touf "INPPP Error: $ln"
+		return
+	}
+
+	if !$ln {
+		# plugin tells us to ignore the line
+		return
+	}
+
+	sy_outlt $line
+}
+
+proc sy_outlt { line } {
+#
+# Write out a text line
+#
+	global ST PM
+
+	if $ST(ECO) {
+		# echo the line
+		sy_dspline $line
+	}
+
+	set ln [expr [string length $line] + 1]
+
+	if { $ln > $PM(UPL) } {
+		pt_touf "Error: line longer than max payload of $PM(UPL) chars"
+		return
+	}
+
+	sy_outln $line
+}
+
+###############################################################################
+# Binary terminal input, device output ########################################
+###############################################################################
+
+proc sy_sgetb { } {
+#
+# The binary counterpart of sgett
+#
+	global ST
+
+	set line [string trim [sy_inline]]
+
+	if [catch { sy_macsub $line } mline] {
+		# macro substitutions
+		pt_touf "Error: $mline"
+		return
+	}
+
+	if { $ST(SFS) != "" && $ST(SFB) } {
+		# logging all, so log the substituted variant of the function,
+		# but only if different from the original
+		if { [string trim $line] != [string trim $mline] } {
+			# the macro expansion is different
+			catch { puts $ST(SFS) "<M $mline" }
+		}
+	}
+
+	set line $mline
+
+	# plugin preprocessor
+	if [catch { plug_inppp_b line } oul] {
+		pt_touf "INPPP Error: $oul"
+		return
+	}
+
+	if !$oul {
+		# ignore the line
+		return
+	}
+
+	sy_outlb $line
+}
+
+proc sy_outlb { line } {
+#
+# Write out a binary line; this function converts a text form of the binary
+# line into the actual binary form, also does the echo and logging
+#
+	global ST PM
+
+	set out ""
+	set eco ""
+	set oul 0
+
+	while 1 {
+
+		set line [string trimleft $line]
+
+		if { $line == "" } {
+			break
+		}
+
+		if { [string index $line 0] == "\"" } {
+			# looks like a string, parse it into a sequence of
+			# bytes
+			if [catch { pt_stparse line } val] {
+				pt_touf "Error: $val"
+				return
+			}
+		} else {
+			set val ""
+			regexp "^(\[^ \t\]+)(.*)" $line mat val line
+			if [catch { eval "expr $val" } val] {
+				pt_touf "Error: illegal expression: $val ...\
+					[string range $line 0 5] ..."
+				return
+			}
+
+			set val [list [expr $val & 0xff]]
+		}
+
+		foreach v $val {
+			if $ST(ECO) {
+				append eco [format "%02x " $v]
+			}
+			append out [binary format c $v]
+			incr oul
+		}
+	}
+
+	if $ST(ECO) {
+		sy_dspline "Sending: < $eco>"
+		if { $ST(SFS) != "" && $ST(SFB) } {
+			catch { puts $STD(SFS) "<S < $eco>" }
+		}
+	}
+
+	if { $oul > $PM(UPL) } {
+		pt_touf "Error: block longer than max payload of $PM(UPL) bytes"
+		return
+	}
+
+	sy_outln $out
+}
+
+###############################################################################
+# Input from device ###########################################################
+###############################################################################
+
+proc sy_ugett { msg } {
+#
+# ASCII mode: just show the line
+#
+	set msg [string trimright $msg "\r\n"]
+	if [catch { plug_outpp_t msg } v] {
+		pt_touf "OUTPP Error: $v"
+	} elseif { $v != 0 } {
+		pt_tout $msg
+	}
+}
+
+proc sy_ugetb { msg } {
+#
+# Binary mode: convert to numbers
+#
+	set len [string length $msg]
+
+	# encode the bytes into hex numbers
+	for { set i 0 } { $i < $len } { incr i } {
+		binary scan [string index $msg $i] cu byte
+		append enc [format "%02x " $byte]
+	}
+
+	set enc [string trimright $enc]
+
+	if [catch { plug_outpp_b enc } v] {
+		pt_touf "OUTPP Error: $v, received line was: <$enc>"
+		return
+	}
+
+	if { $v == 0 } {
+		# ignore line
+		return
+	}
+
+	if { $v > 1 } {
+		# null preprocessing, use default decorations
+		pt_tout "Received: $len < $enc >"
+	} else {
+		# preprocessed, at face value
+		pt_tout $tar
+	}
+}
+
+###############################################################################
+# Macro processing functions ##################################################
+###############################################################################
+
+proc sy_msuball { line pars vals } {
+#
+# Scans the string substituting all occurrences of parameters with their values
+#
+	foreach par $pars {
+
+		regsub -all $par $line [lindex $vals 0] line
+		set vals [lrange $vals 1 end]
+
+	}
+
+	return $line
+}
+
+proc sy_macsub { line } {
+#
+# Macro substitution (no recursion: one scan per macro in definition order)
+#
+	global BMAC
+
+	set ml $BMAC(+)
+
+	foreach m $ml {
+
+		set ol ""
+		set ll [string length $m]
+		set ma [lindex $BMAC($m) 0]
+		set pl [lindex $BMAC($m) 1]
+		set rf [lindex $BMAC($m) 2]
+
+		while 1 {
+
+			set x [string first $m $line]
+			if { $x < 0 } {
+				break
+			}
+			if { $rf && $x != 0 } {
+				break
+			}
+
+			append ol [string range $line 0 [expr $x - 1]]
+			set line [string range $line [expr $x + $ll] end]
+
+			if { $pl != "" } {
+				# parameters are expected
+				if ![regexp "^\[ \t\]*\\((.*)" $line jn rest] {
+					# ignore, assume not a macro call
+					continue
+				}
+				set al ""
+				set line $rest
+				while 1 {
+					set c [string index $line 0]
+					if { $c == ")" } {
+						# all done
+						break
+					}
+					if { $c == "" } {
+						error "illegal macro reference"
+					}
+					if { $c == "," } {
+						# empty parameter
+						lappend al ""
+						set line \
+						    [string range $line 1 end]
+						continue
+					}
+					# starts a new parameter
+					regexp "^\[^),\]+" $line c
+					lappend al $c
+					set line [string range $line \
+						[string length $c] end]
+					if { [string index $line 0] == "," } {
+						set line \
+						    [string range $line 1 end]
+					}
+				}
+				# skip the closing parenthesis
+				set line [string range $line 1 end]
+				append ol [sy_msuball $ma $pl $al]
+			} else {
+				append ol $ma
+			}
+		}
+		append ol $line
+		set line $ol
+	}
+
+	return $line
+}
+
+proc sy_clearmac { } {
+#
+# Undefine all macros
+#
+	global BMAC
+
+	array unset BMAC
+	set BMAC(+) ""
+}
+
+proc sy_rdmac { bin } {
+#
+# Read the macro file for binary mode
+#
+	global BMAC
+
+	set bfd ""
+	sy_clearmac
+
+	if [catch { open $bin "r" } bfd] {
+		return "cannot open the macro file $bin: $bfd"
+	}
+
+	if [catch { read $bfd } lines] {
+		catch { close $bfd }
+		return "cannot read the macro file: $lines"
+	}
+
+	catch { close $bfd }
+
+	set lines [split $lines "\n"]
+
+	# parse the macros
+	set ML ""
+
+	foreach ln $lines {
+
+		set ln [string trim $ln]
+		if { $ln == "" || [string index $ln 0] == "#" } {
+			# ignore
+			continue
+		}
+
+		set rf ""
+		if ![regexp -nocase "^(\\^)?(\[_a-z\]\[a-z0-9_\]*)(.*)" \
+		    $ln j rf nm t] {
+			sy_clearmac
+			return "illegal macro name in this line: $ln"
+		}
+
+		if [info exists BMAC($nm)] {
+			sy_clearmac
+			return "duplicate macro name $nm in this line: $ln"
+		}
+
+		set t [string trimleft $t]
+		set d [string index $t 0]
+		set p ""
+
+		# recursive expansion flag
+		if { $rf == "" } {
+			set rf 0
+		} else {
+			set rf 1
+		}
+
+		if { $d == "(" } {
+			# this is a parameterized macro
+			set t [string range $t 1 end]
+			# parse the parameters
+			while 1 {
+				set t [string trimleft $t]
+				set d [string index $t 0]
+				if { $d == "," } {
+					set t [string range $t 1 end]
+					continue
+				}
+				if { $d == ")" } {
+					set t [string trimleft \
+						[string range $t 1 end]]
+					break
+				}
+				if ![regexp -nocase \
+				    "^(\[a-z\]\[a-z0-9_\]*)(.*)" $t j pm t] {
+					sy_clearmac
+					return "illegal macro parameter in\
+						this line: $ln"
+				}
+				set t [string trimleft $t]
+				if [info exists parms($pm)] {
+					sy_clearmac
+					return "duplicate macro parameter in\
+						this line: $ln"
+				}
+				set parms($pm) ""
+				lappend p $pm
+			}
+			array unset parms
+		}
+
+		# now the macro body
+		if { [string index $t 0] != "=" } {
+			sy_clearmac
+			return "illegal macro definition in this line: $ln"
+		}
+
+		set t [string trimleft [string range $t 1 end]]
+		regexp "^\"(.*)\"$" $t j t
+		if { $t == "" } {
+			sy_clearmac
+			return "empty macro in this line: $ln"
+		}
+
+		set BMAC($nm) [list $t $p $rf]
+		lappend ML $nm
+	}
+	# list of names
+	set BMAC(+) $ML
+	return ""
+}
+
+###############################################################################
+# Scan for available COM ports ################################################
+###############################################################################
+
+proc sy_uscan { } {
+
+	set dl ""
+	for { set i 0 } { $i < 256 } { incr i } {
+		set devlist [sy_cdevl $i]
+		foreach udev $devlist {
+			if [catch { open $udev "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			lappend dl $udev
+		}
+	}
+	return $dl
+}
+
+###############################################################################
+# Plugin handling functions ###################################################
+###############################################################################
+
+###############################################################################
+# For now, there are just these user plugin functions:
+# - input preprocessor, text version; the value 2 means that the line has not
+#   been changed
+# - input preprocessor, binary version
+# - same for output
+# - init and reset
+###############################################################################
+
+proc sy_setdefplug { } {
+#
+# Activates the default plugin
+#
+	set sc    {proc plug_inppp_t \{ inp \} \{ return 2 \}\n}
+	append sc {proc plug_inppp_b \{ inp \} \{ return 2 \}\n}
+	append sc {proc plug_outpp_t \{ inp \} \{ return 2 \}\n}
+	append sc {proc plug_outpp_b \{ inp \} \{ return 2 \}\n}
+	append sc {proc plug_init  \{ \} \{ \}\n}
+	append sc {proc plug_reset \{ \} \{ \}\n}
+
+	uplevel #0 eval $sc
+}
+
+proc sy_openpl { fn } {
+#
+# Opens and runs a file with plugin function definitions
+#
+	if [catch { open $fn "r" } fd] {
+		return "cannot open plugin file $fn: $fd"
+	}
+
+	if [catch { read $fd } sc] {
+		catch { close $fd }
+		return "cannot read plugin file $fn: $sc"
+	}
+
+	catch { close $fd }
+
+	if [catch { uplevel #0 eval $sc } err] {
+		return "cannot insert the plugin, evaluation error: $err"
+	}
+}
+
+###############################################################################
+# Module functions ############################################################
+###############################################################################
+
+proc mo_write_x { msg } {
+#
+# Send a packet to UART (shared by modes N and P)
+#
+	global DB ST
+
+	if { $DB(LEV) > 1 } {
+		sy_dump "W" $msg
+	}
+
+	puts -nonewline $ST(SFD) $msg
+	flush $ST(SFD)
 }
 
 ###############################################################################
@@ -1201,1134 +3221,9 @@ proc mo_reset_d { } {
 set MODULE(D) [list mo_init_d mo_rawread_d mo_write_d mo_reset_d]
 
 ###############################################################################
-# Tracing and debugging #######################################################
 ###############################################################################
 
-proc sy_dump { hdr buf } {
-
-	set code ""
-	set nb [string length $buf]
-	binary scan $buf cu$nb code
-	set ol ""
-	foreach co $code {
-		append ol [format " %02x" $co]
-	}
-	pt_trc "$hdr:$ol"
-}
-	
-proc pt_settrc { lev { file "" } } {
-#
-# Set tracing parameters
-#
-	global DB
-
-	if { $DB(SFD) != "" } {
-		# close any previous file
-		catch { close $DB(SFD) }
-		set DB(SFD) ""
-	}
-
-	# new level
-	set DB(LEV) $lev
-
-	if { $lev == 0 } {
-		return ""
-	}
-
-	# open
-	if { $file != "" } {
-		if [catch { open $file "w" } sfd] {
-			set DB(LEV) 0
-			return "Failed to open debug file, $sfd!"
-		}
-		set DB(SFD) $sfd
-	}
-
-	return ""
-}
-
-proc pt_trc { msg } {
-
-	variable DB
-
-	if { $DB(SFD) == "" } {
-		set str stdout
-	} else {
-		set str $DB(SFD)
-	}
-
-	catch { 
-		puts $str $msg
-		flush $str
-	}
-}
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-proc sy_outloop { } {
-
-	global ST
-
-	if !$ST(OBS) {
-		# not busy
-		if { $ST(OQU) != "" } {
-			# something in queue
-			$ST(OFN) [lindex $ST(OQU) 0]
-			set ST(OQU) [lrange $ST(OQU) 1 end]
-		}
-	}
-}
-
-proc sy_outln { line } {
-
-	global ST
-
-	lappend ST(OQU) $line
-	# to trigger the event
-	set ST(OBS) $ST(OBS)
-}
-
-proc pt_outln { line } {
-#
-# This is encapsulated a bit to be more convenient for the plugin; piter
-# doesn't invoke this function
-#
-	global ST
-
-	$ST(LFN) $line
-}
-
-###############################################################################
-			
-proc sy_inline { } {
-#
-# Preprocess a line input from the keyboard
-#
-	global ST
-
-	if [catch { gets stdin line } stat] {
-		# ignore errors (can they happen at all?)
-		return -code return
-	}
-
-	if { $stat < 0 } {
-		# end of file
-		exit 0
-	}
-
-	# we used to trim here, but perhaps we shouldn't; let's try to avoid
-	# any interpretation, because the user may actually want to send a
-	# bunch of blanks
-
-	if $ST(SFB) {
-		# writing input to a file
-		catch { puts $ST(SFS) "<- $line" }
-	}
-
-	# the trimmed version for special command check
-	set ltr [string trim $line]
-
-	if { $ltr == "!!" } {
-		# previous command
-		if { $ST(PCM) == "" } {
-			pt_touf "No previous command!"
-			return -code return
-		}
-		set line $ST(PCM)
-	} elseif { [string index $ltr 0] == "!" } {
-		# not for the board
-		sy_icmd [string trimleft [string range $ltr 1 end]]
-		return -code return
-	} else {
-		# last command
-		set ST(PCM) $line
-	}
-
-	return $line
-}
-
-proc sy_sgett { } {
-#
-# STDIN becomes readable, i.e., a line of user input (ASCII mode)
-#
-	global ST PM
-
-	set line [sy_inline]
-
-	if [catch { plug_inppp_t line } ln] {
-		pt_touf "INPPP Error: $ln"
-		return
-	}
-
-	if !$ln {
-		# plugin tells us to ignore the line
-		return
-	}
-
-	sy_outlt $line
-}
-
-proc sy_outlt { line } {
-#
-# Write out a text line
-#
-	global ST PM
-
-	if $ST(ECO) {
-		# echo the line
-		puts $line
-	}
-
-	set ln [expr [string length $line] + 1]
-
-	if { $ln > $PM(UPL) } {
-		pt_touf "Error: line longer than max payload of $PM(UPL) chars"
-		return
-	}
-
-	sy_outln $line
-}
-
-###############################################################################
-
-proc pt_ishex { c } {
-	return [regexp -nocase "\[0-9a-f\]" $c]
-}
-
-proc pt_isoct { c } {
-	return [regexp -nocase "\[0-7\]" $c]
-}
-
-proc pt_stparse { line } {
-#
-# Parse a UNIX string into a list of hex codes; update the source to point to
-# the first character behind the string
-#
-	upvar $line ln
-
-	set nc [string index $ln 0]
-	if { $nc != "\"" } {
-		error "illegal string delimiter: $nc"
-	}
-
-	# the original - for errors
-	set or "\""
-
-	set ln [string range $ln 1 end]
-
-	set vals ""
-
-	while 1 {
-		set nc [string index $ln 0]
-		if { $nc == "" } {
-			error "unterminated string: $or"
-		}
-		set ln [string range $ln 1 end]
-		if { $nc == "\"" } {
-			# done (this version assumes that the sentinel must be
-			# explicit, append 0x00 if this is a problem)
-			return $vals
-		}
-		if { $nc == "\\" } {
-			# escapes
-			set c [string index $ln 0]
-			if { $c == "" } {
-				# delimiter error, will be diagnosed at next
-				# turn
-				continue
-			}
-			if { $c == "x" } {
-				# get hex digits
-				set ln [string range $ln 1 end]
-				while 1 {
-					set d [string index $ln 0]
-					if ![pt_ishex $d] {
-						break
-					}
-					append c $d
-					set ln [string range $ln 1 end]
-				}
-				if [catch { expr 0$c % 256 } val] {
-					error "illegal hex escape in string: $c"
-				}
-				lappend vals $val
-				continue
-			}
-			if [pt_isoct $c] {
-				if { $c != 0 } {
-					set c "0$c"
-				}
-				# get octal digits
-				set ln [string range $ln 1 end]
-				while 1 {
-					set d [string index $ln 0]
-					if ![pt_isoct $d] {
-						break
-					}
-					append c $d
-					set ln [string range $ln 1 end]
-				}
-				if [catch { expr $c % 256 } val] {
-					error \
-					    "illegal octal escape in string: $c"
-				}
-				lappend vals $val
-				continue
-			}
-			set ln [string range $ln 1 end]
-			set nc $c
-			continue
-		}
-		scan $nc %c val
-		lappend vals [expr $val % 256]
-	}
-}
-
-###############################################################################
-
-proc sy_sgetb { } {
-#
-# The binary variant of sget
-#
-	global ST
-
-	set line [string trim [sy_inline]]
-
-	if [catch { sy_macsub $line } mline] {
-		# macro substitutions
-		pt_touf "Error: $line"
-		return
-	}
-
-	if $ST(SFB) {
-		# saving in a file
-		if { [string trim $line] != [string trim $mline] } {
-			# the macro expansion is different
-			catch { puts $ST(SFS) "<M $mline" }
-		}
-	}
-
-	set line $mline
-
-	# plugin preprocessor
-	if [catch { plug_inppp_b line } oul] {
-		pt_touf "INPPP Error: $oul"
-		return
-	}
-
-	if !$oul {
-		# ignore the line
-		return
-	}
-
-	sy_outlb $line
-}
-
-proc sy_outlb { line } {
-#
-# Write out a binary line; this function converts a text form of the binary
-# line into the actual binary form, also does the echo and logging; we have
-# separated this code into a function, because a plugin may want to invoke it
-# (via pt_outln) to inject a line into the outgoing stream (see also sy_outlt)
-#
-	global ST PM
-
-	set out ""
-	set eco ""
-	set oul 0
-
-	while 1 {
-
-		set line [string trimleft $line]
-
-		if { $line == "" } {
-			break
-		}
-
-		if { [string index $line 0] == "\"" } {
-			# looks like a string, parse it into a sequence of
-			# bytes
-			if [catch { pt_stparse line } val] {
-				pt_touf "Error: $val"
-				return
-			}
-		} else {
-			set val ""
-			regexp "^(\[^ \t\]+)(.*)" $line mat val line
-			if [catch { eval "expr $val" } val] {
-				pt_touf "Error: illegal expression: $val ...\
-					[string range $line 0 5] ..."
-				return
-			}
-
-			set val [list [expr $val & 0xff]]
-		}
-
-		foreach v $val {
-			if $ST(ECO) {
-				append eco [format "%02x " $v]
-			}
-			append out [binary format c $v]
-			incr oul
-		}
-	}
-
-	if $ST(ECO) {
-		puts "Sending: < $eco>"
-		if $ST(SFB) {
-			catch { puts $STD(SFS) "<S < $eco>" }
-		}
-	}
-
-	if { $oul > $PM(UPL) } {
-		pt_touf "Error: block longer than max payload of $PM(UPL) bytes"
-		return
-	}
-
-	sy_outln $out
-}
-
-proc sy_ugett { msg } {
-#
-# Receive a line from the board (ASCII mode - just show it)
-#
-	if [catch { plug_outpp_t msg } v] {
-		pt_touf "OUTPP Error: $v"
-	} elseif { $v != 0 } {
-		pt_tout $msg
-	}
-}
-
-proc sy_ugetb { msg } {
-#
-# In binary mode
-#
-	set len [string length $msg]
-
-	# encode the bytes into hex numbers
-	for { set i 0 } { $i < $len } { incr i } {
-		binary scan [string index $msg $i] cu byte
-		append enc [format "%02x " $byte]
-	}
-
-	set enc [string trimright $enc]
-
-	if [catch { plug_outpp_b enc } v] {
-		pt_touf "OUTPP Error: $v, received line was: <$enc>"
-		return
-	}
-
-	if { $v == 0 } {
-		# ignore line
-		return
-	}
-
-	if { $v > 1 } {
-		# null preprocessing, use default decorations
-		pt_tout "Received: $len < $enc >"
-	} else {
-		# preprocessed, take it at face value
-		pt_tout $tar
-	}
-}
-
-###############################################################################
-
-proc sy_icmd { cmd } {
-#
-# Handle internal commands
-#
-	global ST
-
-	set par ""
-	if ![regexp "^(\[^ \t\]+)(.*)" $cmd jnk cmd par] {
-		# impossible
-		pt_touf "Empty command!"
-		return
-	}
-	set par [string trim $par]
-
-	if { $cmd == "e" || $cmd == "echo" } {
-
-		if { $par == "" } {
-			# toggle
-			if $ST(ECO) {
-				set par "off"
-			} else {
-				set par "on"
-			}
-		}
-
-		if { $par == "on" } {
-			pt_touf "Echo is now on"
-			set ST(ECO) 1
-		} elseif { $par == "off" } {
-			pt_touf "Echo is now off"
-			set ST(ECO) 0
-		} else {
-			pt_touf "Illegal parameter, must be empty, on, or off!
-		}
-		return
-	}
-
-	if { $cmd == "t" || $cmd == "trace" } {
-
-		set fnm ""
-		if ![regexp "^(\[0-9\])(.*)" $par jnk lev fnm] {
-			pt_touf "Illegal parameters, must be level\
-				\[filename\]!"
-			return
-		}
-		set fnm [string trim $fnm]
-
-		set err [pt_settrc $lev $fnm]
-		if { $err == "" } {
-			set err "OK"
-		}
-		pt_touf $err
-		return
-	}
-
-	if { $cmd == "o" || $cmd == "oqueue" } {
-		set cn [llength $ST(OQU)]
-		if $ST(OBS) {
-			incr cn
-		}
-		if { $cn == 0 } {
-			pt_touf "Queue is empty"
-		} else {
-			if { $cn > 1 } {
-				set sf "s"
-			} else {
-				set sf ""
-			}
-			pt_touf "Queue size: $cn item$sf"
-		}
-		return
-	}
-
-	if { $cmd == "r" || $cmd == "reset" } {
-		$ST(RFN)
-		plug_reset
-		pt_touf "Protocol reset"
-		return
-	}
-
-	if { $cmd == "q" || $cmd == "x" } {
-		exit 0
-	}
-
-	pt_touf "Unknown internal command $cmd!"
-}
-
-###############################################################################
-
-proc sy_msuball { line pars vals } {
-#
-# Scans the string substituting all occurrences of parameters with their values
-#
-	foreach par $pars {
-
-		regsub -all $par $line [lindex $vals 0] line
-		set vals [lrange $vals 1 end]
-
-	}
-
-	return $line
-
-}
-
-proc sy_macsub { line } {
-#
-# Macro substitution (no recursion: one scan per macro in definition order)
-#
-	global BMAC
-
-	set ml $BMAC(+)
-
-	foreach m $ml {
-
-		set ol ""
-		set ll [string length $m]
-		set ma [lindex $BMAC($m) 0]
-		set pl [lindex $BMAC($m) 1]
-		set rf [lindex $BMAC($m) 2]
-
-		while 1 {
-
-			set x [string first $m $line]
-			if { $x < 0 } {
-				break
-			}
-			if { $rf && $x != 0 } {
-				break
-			}
-
-			append ol [string range $line 0 [expr $x - 1]]
-			set line [string range $line [expr $x + $ll] end]
-
-			if { $pl != "" } {
-				# parameters are expected
-				if ![regexp "^\[ \t\]*\\((.*)" $line jn rest] {
-					# ignore, assume not a macro call
-					continue
-				}
-				set al ""
-				set line $rest
-				while 1 {
-					set c [string index $line 0]
-					if { $c == ")" } {
-						# all done
-						break
-					}
-					if { $c == "" } {
-						error "illegal macro reference"
-					}
-					if { $c == "," } {
-						# empty parameter
-						lappend al ""
-						set line \
-						    [string range $line 1 end]
-						continue
-					}
-					# starts a new parameter
-					regexp "^\[^),\]+" $line c
-					lappend al $c
-					set line [string range $line \
-						[string length $c] end]
-					if { [string index $line 0] == "," } {
-						set line \
-						    [string range $line 1 end]
-					}
-				}
-				# skip the closing parenthesis
-				set line [string range $line 1 end]
-				append ol [sy_msuball $ma $pl $al]
-			} else {
-				append ol $ma
-			}
-		}
-		append ol $line
-		set line $ol
-	}
-
-	return $line
-}
-
-proc sy_rdmac { bin } {
-#
-# Read the macro file for binary mode
-#
-	global BMAC
-
-	set bfd ""
-	set BMAC(+) ""
-	if { $bin == "+" } {
-		# try the deafult
-		if [catch { open "piter_mac.txt" r } bfd] {
-			# nothing there
-			return
-		}
-	}
-
-	if { $bfd == "" && [catch { open $bin "r" } bfd] } {
-		pt_abort "Cannot open the macro file $bin: $bfd"
-	}
-
-	set lines [split [read $bfd] "\n"]
-
-	catch { close $bfd }
-
-	# parse the macros
-	set ML ""
-
-	foreach ln $lines {
-
-		set ln [string trim $ln]
-		if { $ln == "" || [string index $ln 0] == "#" } {
-			# ignore
-			continue
-		}
-
-		set rf ""
-		if ![regexp -nocase "^(\\^)?(\[_a-z\]\[a-z0-9_\]*)(.*)" \
-		    $ln j rf nm t] {
-			pt_abort "Illegal macro name in this line: $ln"
-		}
-
-		if [info exists BMAC($nm)] {
-			pt_abort "Duplicate macro name $nm in this line: $ln"
-		}
-
-		set t [string trimleft $t]
-		set d [string index $t 0]
-		set p ""
-
-		# recursive expansion flag
-		if { $rf == "" } {
-			set rf 0
-		} else {
-			set rf 1
-		}
-
-		if { $d == "(" } {
-			# this is a parameterized macro
-			set t [string range $t 1 end]
-			# parse the parameters
-			while 1 {
-				set t [string trimleft $t]
-				set d [string index $t 0]
-				if { $d == "," } {
-					set t [string range $t 1 end]
-					continue
-				}
-				if { $d == ")" } {
-					set t [string trimleft \
-						[string range $t 1 end]]
-					break
-				}
-				if ![regexp -nocase \
-				    "^(\[a-z\]\[a-z0-9_\]*)(.*)" $t j pm t] {
-					pt_abort "Illegal macro parameter in\
-						this line: $ln"
-				}
-				set t [string trimleft $t]
-				if [info exists parms($pm)] {
-					pt_abort "Duplicate macro parameter in\
-						this line: $ln"
-				}
-				set parms($pm) ""
-				lappend p $pm
-			}
-			array unset parms
-		}
-
-		# now the macro body
-		if { [string index $t 0] != "=" } {
-			pt_abort "Illegal macro definition in this line: $ln"
-		}
-
-		set t [string trimleft [string range $t 1 end]]
-		regexp "^\"(.*)\"$" $t j t
-		if { $t == "" } {
-			pt_abort "Empty macro in this line: $ln"
-		}
-
-		set BMAC($nm) [list $t $p $rf]
-		lappend ML $nm
-	}
-	# list of names
-	set BMAC(+) $ML
-}
-
-###############################################################################
-
-proc sy_uscan { } {
-
-	for { set i 0 } { $i < 256 } { incr i } {
-		set devlist [sy_cdevl $i]
-		foreach udev $devlist {
-			if [catch { open $udev "r" } fd] {
-				continue
-			}
-			catch { close $fd }
-			puts $udev
-		}
-	}
-}
-
-###############################################################################
-
-proc sy_usage { } {
-
-	global argv0
-
-	puts stderr "Usage: $argv0 args, where args can be:"
-	puts stderr ""
-	puts stderr "       -p port/dev   UART dev or COM number, required"
-	puts stderr "       -s speed      UART speed, default is 9600"
-	puts stderr "       -m x|p|d      mode: XRS, P, direct, default is d"
-	puts stderr "       -l pktlen     max pkt len, default is 82"
-	puts stderr "       -b \[file\]     binary mode (optional macro file)"
-	puts stderr "       -f file       preserve the output in file"
-	puts stderr "       -F file       preserve the input as well"
-	puts stderr "       -S            scan for present UART devs"
-	puts stderr "       -P file       preprocessor plugin file"
-	puts stderr ""
-	puts stderr "Note that pktlen should be the same as the length used"
-	puts stderr "by the praxis in the respective argument of phys_uart."
-
-	exit 99
-}
-
-proc sy_argget { } {
-
-	global argv
-
-	return [string trim [lindex $argv 0]]
-}
-
-proc sy_argsft { } {
-
-	global argv
-
-	set argv [lrange $argv 1 end]
-}
-
-###############################################################################
-
-# For now, there are just these two user plugin functions: input and output
-# preprocessors; we may add more later
-
-# input preprocessor, text version; the value 2 means that the line has not
-# been changed
-proc plug_inppp_t { inp } { return 2 }
-
-# input preprocessor, binary version
-proc plug_inppp_b { inp } { return 2 }
-
-# same for output
-proc plug_outpp_t { inp } { return 2 }
-proc plug_outpp_b { inp } { return 2 }
-
-# init and reset
-proc plug_init { } { }
-proc plug_reset { } { }
-
-###############################################################################
-
-proc sy_openpl { fn } {
-#
-# Opens and runs a file with plugin functions
-#
-	if { $fn == "+" } {
-		set fn "piter_plug.tcl"
-	}
-
-	if [catch { open $fn "r" } fd] {
-		pt_abort "Cannot open plugin file $fn: $fd"
-	}
-
-	if [catch { read $fd } sc] {
-		pt_abort "Cannot read plugin file $fn: $sc"
-	}
-
-	catch { close $fd }
-
-	if [catch { uplevel #0 eval $sc } err] {
-		pt_abort "Cannot insert the plugin, evaluation error: $err"
-	}
-}
-
-###############################################################################
-
-proc sy_fndpfx { } {
-#
-# Produces the date/time prefix for a file name
-#
-	return [clock format [clock seconds] -format %y%m%d_%H%M%S]
-}
-
-proc sy_openlf { sfn } {
-#
-# Try to be intelligent about overwriting an existing file
-#
-	if { $sfn == "+" } {
-		set sfn "[sy_fndpfx]_piter_log.txt"
-	}
-
-	set af "w"
-	set fo 0
-	while 1 {
-		if { $af == "w" && $fo == 0 && [file exists $sfn] } {
-			catch { close $std }
-			set sfn [sy_fnprompt $sfn \
-				"seems to already exist" af fo]
-			continue
-		}
-		if [catch { open $sfn $af } std] {
-			set sfn [sy_fnprompt $sfn "cannot be opened" af fo]
-			continue
-		}
-		break
-	}
-
-	fconfigure $std -buffering line -translation lf
-
-	return $std
-}
-
-proc sy_fnprompt { sfn why afg foq } {
-
-	upvar $afg af
-	upvar $foq fo
-
-	puts "File $sfn $why!"
-
-	while 1 {
-		puts "Type one of these:"
-		set opt "QN"
-		puts " Q            - to abort"
-		if { [string index $why 0] == "s" } {
-			puts " O            - to overwrite the file"
-			append opt "O"
-		}
-		puts " N filename   - to specify a different file name"
-		if { $af == "w" } {
-			puts " A            - to try to append to the file"
-			append opt "A"
-		}
-		if ![regexp "^\[0-9\]\[0-9\]" $sfn] {
-			puts \
-		   " D            - to tag the current name with date/time"
-			append opt "D"
-		}
-		while 1 {
-			if [catch { gets stdin line } stat] {
-				exit 0
-			}
-			if { $stat < 0 } {
-				exit 0
-			}
-			set line [string trim $line]
-			if { $line != "" } {
-				break
-			}
-		}
-		set d [string toupper [string index $line 0]]
-		if { [string first $d $opt] < 0 } {
-			continue
-		}
-		if { $d == "Q" } {
-			exit 0
-		}
-		if { $d == "O" } {
-			set fo 1
-			return $sfn
-		}
-		if { $d == "N" } {
-			set fn [string trimleft [string range $line 1 end]]
-			if { $fn == "" } {
-				puts "Filename missing after N"
-				continue
-			}
-			set af "w"
-			return $fn
-		}
-		if { $d == "A" } {
-			set af "a"
-			return $sfn
-		}
-		# append date/time
-		set af "w"
-		return "[clock format [clock seconds] -format \
-			%y%m%d_%H%M%S]_$sfn"
-	}
-}
-
-proc sy_initialize { } {
-
-	global ST MODULE PM
-
-	set prt ""
-	set spd ""
-	set mpl ""
-	set bin ""
-	set sfi ""
-	set mod ""
-	set sca ""
-	set plu ""
-
-	sy_cygfix
-
-	# parse command line arguments
-
-	while 1 {
-
-		set par [sy_argget]
-
-		if { $par == "" } {
-			# done
-			break
-		}
-
-		if ![regexp -nocase "^-(\[a-z\])$" $par jnk par] {
-			# must be a flag
-			sy_usage
-		}
-
-		sy_argsft
-
-		# the following value
-		set val [sy_argget]
-
-		if ![regexp -nocase "^-\[a-z\]$" $val] {
-			# if it looks like a flag, assume the value is empty
-			sy_argsft
-		} else {
-			set val ""
-		}
-
-		# the mode flag
-		if { $par == "m" && $mod == "" && \
-		    ($val == "x" || $val == "p" || $val == "d") } {
-			set mod $val
-			continue
-		}
-
-		# the UART device
-		if { $par == "p" && $prt == "" && $val != "" } {
-			set prt $val
-			continue
-		}
-
-		# speed
-		if { $par == "s" && $spd == "" } {
-			if { [catch { expr $val } spd] || $spd <= 0 } {
-				sy_usage
-			}
-			continue
-		}
-
-		# length
-		if { $par == "l" && $mpl == "" } {
-			if { [catch { expr $val } mpl] || $mpl <= 0 || \
-			    $mpl > 250 } {
-				sy_usage
-			}
-			# FIXME: the max may depend on the mode
-			continue
-		}
-
-		# binary
-		if { $par == "b" && $bin == "" } {
-			if { $val == "" } {
-				set bin "+"
-			} else {
-				set bin $val
-			}
-			continue
-		}
-
-		if { ($par == "f" || $par == "F") && $sfi == "" } {
-			if { $val == "" } {
-				set sfi "+"
-			} else {
-				set sfi $val
-			}
-			if { $par == "F" } {
-				set ST(SFB) 1
-			}
-			continue
-		}
-
-		if { $par == "P" && $plu == "" } {
-			if { $val == "" } {
-				set plu "+"
-			} else {
-				set plu $val
-			}
-			continue
-		}
-
-		if { $par == "S" && $val == "" } {
-			set sca "y"
-			continue
-		}
-			
-		sy_usage
-	}
-
-	if { $sca != "" } {
-
-		if { $mod != "" || $prt != "" || $spd != "" ||
-	     	     $mpl != "" || $bin != "" || $sfi != "" ||
-		     $plu != "" 				} {
-			sy_usage
-		}
-
-		sy_uscan
-		exit 0
-	}
-
-	# cleanups and defaults
-	if { $mod == "" } {
-		set mod "d"
-	}
-
-	set mod [string toupper $mod]
-
-	if { $prt == "" } {
-		sy_usage
-	}
-
-	if { $spd == "" } {
-		set spd 9600
-	}
-
-	if { $mpl == "" } {
-		set mpl 82
-	}
-
-	if { $bin != "" } {
-		set ifu "sy_ugetb"
-		set sfu "sy_sgetb"
-		set lfu "sy_outlb"
-		set ST(BIN) 1
-		sy_rdmac $bin
-	} else {
-		set ifu "sy_ugett"
-		set sfu "sy_sgett"
-		set lfu "sy_outlt"
-		set ST(BIN) 0
-	}
-
-	if { $sfi != "" } {
-		set ST(SFI) $sfi
-		if ![info exists ST(SFB)] {
-			set ST(SFB) 0
-		}
-		set ST(SFS) [sy_openlf $sfi]
-	} else {
-		# for the record
-		set ST(SFS) ""
-		set ST(SFI) ""
-		set ST(SFB) 0
-	}
-
-	if { $plu != "" } {
-		sy_openpl $plu
-	}
-
-	set PM(MPL) $mpl
-
-	# initialize the UART
-	sy_ustart $prt $spd
-
-	set pf $MODULE($mod)
-
-	# module initializer
-	[lindex $pf 0]
-
-	# UART input converter: text/binary
-	set ST(DFN) $ifu
-	# line write function: text/binary
-	set ST(LFN) $lfu
-	# module write function
-	set ST(OFN) [lindex $pf 2]
-	# module reset function
-	set ST(RFN) [lindex $pf 3]
-	# module read function
-	fileevent $ST(SFD) readable [lindex $pf 1]
-
-	fconfigure stdin -buffering line -blocking 0 -eofchar ""
-	fileevent stdin readable $sfu
-
-	# plugin initializer
-	plug_init
-}
+sy_cygfix
 
 sy_initialize
 
@@ -2336,4 +3231,6 @@ while 1 {
 	# the output event loop is our body
 	sy_outloop
 	vwait ST(OBS)
-}
+} 
+
+###############################################################################

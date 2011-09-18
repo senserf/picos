@@ -1329,3 +1329,46 @@ PG110902A:
 	work. Does anybody still need them? I don't think so (not with
 	phys_uart, anyway), but, in any case, DLE is better for this role than
 	0x00.
+
+PG110918A:
+
+	A new version of piter. Here is the note that has been inserted into
+	Serial.odt:
+
+	===
+
+	When called without parameters, the script runs in a simple GUI mode
+	whereby the terminal is presented in a window (similar to udaemon's
+	UART window). The script's parameters (corresponding to command-line
+	arguments) are entered in a special dialog, which should be
+	self-explanatory. The device (UART) can be selected from a menu (the
+	list of available UARTs is determined by the scrip via a scan
+	(equivalent to -S). A device that does not appear on the menu can be
+	entered manually into the "Other" field (which takes precedence over
+	the menu).
+
+	Note that the log file (equivalent to -f or -F) is controlled from the
+	terminal window (in a manner similar to udaemon's UART window).
+	Logging can be started and stopped on the fly.
+
+	There is an option to save the settings in an "rc" (.piterrc) file in
+	the home/user directory. If a saved setting is available, it will be
+	assumed as default upon the next call.
+
+	===
+
+	The script can be run through freewrap to become executable as a 
+	stand-alone program (it did work for me). Combined with the possibility
+	to save the settings (including the locations of plugins and macro
+	files), the GUI version should be more convenient than the old
+	command-line script.
+
+	One problem: copying to clipboard from the terminal window doesn't
+	work (udaemon has the same issue). I am not sure if this isn't a
+	fundamental problem with Tcl/Tk on Windows. Will investigate.
+
+	===
+
+	Script "release" included in the root directory. Its purpose is to
+	create a clean "platform package" (cleaned up, no .git) to be used for
+	creating live USB sticks.
