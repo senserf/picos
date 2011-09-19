@@ -377,3 +377,9 @@ PG100719A:
 
 	   Fixed a nasty bug in setXPower causing occasional heap screwups
 	   when the transmitter power was reduced.
+
+PG110919A:
+
+	   A semantically irrelevant correction in SOURCES/LIB/sxml.c needed
+	   to appease the new version (4.5.3) of gcc. SIDE didn't want to
+	   "deploy" after I upgraded my Cygwin setup.
