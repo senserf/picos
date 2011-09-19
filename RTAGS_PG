@@ -689,3 +689,9 @@ PG110529A:	PICOS >= PG110529A
     Operation emul (requested by Wlodek) added to provide for a naive generic
     handling of output devices that have no specific VUEE models (read the
     document, sections 4.6, 7.6, 8.5).
+
+PG110919A:
+
+    Inconsequential cosmetics related to the introduction of emul (PG110529A).
+    I would not think of committing it, if not for the fact that I have just
+    committed an equally serious (albeit truly needed) modification to SIDE.

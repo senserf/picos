@@ -3811,7 +3811,7 @@ data_em_t *BoardRoot::readEmulParams (sxml_t data, const char *esn) {
 	get_io_desc (data, es, NULL, &(EM->EODev));
 	if (EM->EODev == NULL && EM->held)
 		// Socket + HELD flag
-		print ("      HELD\n");
+		print ("    OUTPUT: HELD\n");
 
 	print ("\n");
 	return EM;
