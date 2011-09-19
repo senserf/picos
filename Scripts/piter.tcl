@@ -622,7 +622,7 @@ proc sy_valpars { } {
 	sy_clearmac
 
 	# alert
-	set emgs "Error"
+	set emsg "Error"
 	if { $erc > 1 } {
 		append emsg "s"
 	}
@@ -631,6 +631,86 @@ proc sy_valpars { } {
 			sy_exit
 	}
 	return 0
+}
+
+proc sy_defdevlist { } {
+#
+# Produce a default (unscanned) device list
+#
+	global ST
+
+	if { $ST(SYS) == "L" } {
+		set fr 0
+		set to 32
+	} else {
+		set fr 1
+		set to 33
+	}
+
+	set dl ""
+
+	for { set i $fr } { $i < $to } { incr i } {
+		lappend dl [lindex [sy_cdevl $i] 0]
+	}
+
+	return $dl
+}
+
+proc sy_setdefdev { } {
+#
+# Sets the default device selection based on the current list and the
+# saved value in the rc file
+#
+	global WI
+
+	if { $WI(DEV) == "" } {
+		set WI(DEV) [lindex $WI(DEL) 0]
+	} else {
+		# check if present on the list
+		if { [lsearch -exact $WI(DEL) $WI(DEV)] < 0 } {
+			# absent
+			set WI(DEV) [lindex $WI(DEL) 0]
+		}
+	}
+
+	if { $WI(DEO) != "" } {
+		set p $WI(DEO)
+		set WI(DEO) ""
+	} else {
+		# overwritten with previous
+		set p [lindex $WI(SPA) 0]
+	}
+	if { $p != "" } {
+		# check if on the list
+		if { [lsearch -exact $WI(DEL) $p] >= 0 } {
+			set WI(DEV) $p
+		} else {
+			set WI(DEO) $p
+		}
+	}
+}
+
+proc sy_scandev { } {
+#
+# Produces a scanned device list
+#
+	global WI
+
+	set WI(DEL) [sy_uscan]
+	$WI(DEM) delete 0 end
+	foreach w $WI(DEL) {
+		$WI(DEM) add command -label $w -command "sy_devselect $w"
+	}
+	# update the default selection
+	sy_setdefdev
+}
+
+proc sy_devselect { w } {
+
+	global WI
+
+	set WI(DEV) $w
+	set WI(DEO) ""
 }
 
 proc sy_initialize { } {
@@ -656,40 +736,37 @@ proc sy_initialize { } {
 	catch { grab $w }
 
 	# check for saved parameters
-	set spar [sy_getsparams]
+	set WI(SPA) [sy_getsparams]
 
 	#######################################################################
 
 	labelframe $w.dev -padx 4 -pady 4 -text "Device"
 	pack $w.dev -side top -expand y -fill x -anchor n
 
-	set dl [sy_uscan]
+	# generate default device list
+	set WI(DEL) [sy_defdevlist]
 
-	set WI(DEV) [lindex $dl 0]
+	set WI(DEV) ""
 	set WI(DEO) ""
+	sy_setdefdev
 
-	set p [lindex $spar 0]
-	if { $p != "" } {
-		# check if on the list
-		if { [lsearch -exact $dl $p] >= 0 } {
-			set WI(DEV) $p
-		} else {
-			set WI(DEO) $p
-		}
-	}
+	button $w.dev.scb -text "Scan" -anchor w -command sy_scandev
+	grid $w.dev.scb -column 0 -row 0 -sticky new
 
-	eval "set mn \[tk_optionMenu $w.dev.dmn WI(DEV) $dl\]"
+	eval "set WI(DEM) \[tk_optionMenu $w.dev.dmn WI(DEV) $WI(DEL)\]"
 
-	pack $w.dev.dmn -side top -expand y -fill x -anchor n
+	bind $w.dev.dmn <ButtonRelease-1> "sy_devselect $WI(DEV)"
 
-	frame $w.dev.dff
-	pack $w.dev.dff -side top -expand y -fill x
+	grid $w.dev.dmn -column 1 -row 0 -sticky new
 
-	label $w.dev.dff.odl -text "Other:"
-	pack $w.dev.dff.odl -side left -expand n -anchor w
+	label $w.dev.odl -text "Other:"
+	grid $w.dev.odl -column 0 -row 1 -sticky new
 
-	entry $w.dev.dff.ode -width 16 -textvariable WI(DEO) -bg gray
-	pack $w.dev.dff.ode -side right -expand y -fill x -anchor n
+	entry $w.dev.ode -width 16 -textvariable WI(DEO) -bg gray
+	grid $w.dev.ode -column 1 -row 1 -sticky new
+
+	grid columnconfigure $w.dev 0 -weight 0
+	grid columnconfigure $w.dev 1 -weight 1
 
 	#######################################################################
 
@@ -704,7 +781,7 @@ proc sy_initialize { } {
 	set itl \
 	    { 1200 2400 4800 9600 14400 19200 28800 38400 76800 115200 256000 }
 	set WI(SPE) $PM(DSP)
-	set p [lindex $spar 1]
+	set p [lindex $WI(SPA) 1]
 	if { [lsearch -exact $itl $p] >= 0 } {
 		set WI(SPE) $p
 	}
@@ -716,7 +793,7 @@ proc sy_initialize { } {
 
 	set itl { Direct Persistent XRS }
 	set WI(MOD) "Direct"
-	set p [lindex $spar 2]
+	set p [lindex $WI(SPA) 2]
 	if { [lsearch -exact $itl $p] >= 0 } {
 		set WI(MOD) $p
 	}
@@ -724,7 +801,7 @@ proc sy_initialize { } {
 	pack $w.mod.db.mo -side left -expand y -fill x
 
 	set WI(BIN) 0
-	set p [lindex $spar 3]
+	set p [lindex $WI(SPA) 3]
 	if { $p == 1 } {
 		set WI(BIN) 1
 	}
@@ -734,7 +811,7 @@ proc sy_initialize { } {
 	pack $w.mod.db.bl -side right -expand n
 
 	set WI(RLE) $PM(MPL)
-	set p [lindex $spar 4]
+	set p [lindex $WI(SPA) 4]
 	if { ![catch { expr $p } p] && $p >= 16 && $p <= 255 } {
 		set WI(RLE) $p
 	}
@@ -754,7 +831,7 @@ proc sy_initialize { } {
 	pack $w.add -side top -expand y -fill x -anchor n
 
 	# check for saved/default plugin file
-	set p [lindex $spar 5]
+	set p [lindex $WI(SPA) 5]
 	if { $p != "" } {
 		if ![catch { open $p "r" } fid] {
 			catch { close $fid }
@@ -770,7 +847,7 @@ proc sy_initialize { } {
 		set WI(PFN) $PM(DPF)
 	}
 
-	set p [lindex $spar 6]
+	set p [lindex $WI(SPA) 6]
 	if { $p != "" } {
 		if ![catch { open $p "r" } fid] {
 			catch { close $fid }

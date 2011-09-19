@@ -16,7 +16,7 @@ PG100628A:
 
 	3. We should be using commit messages for meaningful comments. Also, we
 	   shouldn't shy away from many small commits (not all of them being
-	   necessarily tagged our way), equatting pushes (which should be
+	   necessarily tagged our way), equating pushes (which should be
 	   tagged - the last commit before a push) with previous CVS commits.
 	   Note that present commits are lighter weight than old CVS commits.
 
@@ -90,7 +90,7 @@ PG100630A:
 
 	Also, PiComp now parses crunning. The case of crunning (NULL) was
 	impossible to handle in a macro (so it didn't work under VUEE), as the
-	(non-NULL) argument od crunning had to be converted to a SIDE process
+	(non-NULL) argument of crunning had to be converted to a SIDE process
 	type ID, i.e.,
 
 	#define	_pt_id_(pt)	(&zz_!!THREADNAME(pt)!!_prcs)
@@ -1380,3 +1380,8 @@ PG110919A:
 	executes in the GUI mode). A symbolic link to piter.tcl is also set
 	from $HOME/bin/piter, which makes the old command-line invocation
 	available as well.
+
+PG110919B:
+
+	Device scan in piter (GUI mode) made optional (via a special button).		In some cases (Bluetooth ports) the scanning may take a while. A few
+	cleanups done along the way.
