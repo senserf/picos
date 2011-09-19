@@ -1372,3 +1372,11 @@ PG110918A:
 	Script "release" included in the root directory. Its purpose is to
 	create a clean "platform package" (cleaned up, no .git) to be used for
 	creating live USB sticks.
+
+PG110919A:
+
+	A tiny little fix to the deploy script. Piter is now installed in
+	$HOME/bin as piter.tcl, which makes it clickable (when clicked, it
+	executes in the GUI mode). A symbolic link to piter.tcl is also set
+	from $HOME/bin/piter, which makes the old command-line invocation
+	available as well.

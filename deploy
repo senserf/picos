@@ -431,7 +431,7 @@ proc doit { } {
 		puts "execution from your $BIN directory. Sorry about that."
 		puts "====================================================="
 	} else {
-		fixtcl85 "Scripts" "piter" $hd $TCL85
+		fixtcl85 "Scripts" "piter.tcl" $hd $TCL85
 		fixtcl85 "../VUEE/UDAEMON" "udaemon" $hd $TK85
 	}
 
@@ -446,7 +446,10 @@ proc doit { } {
 	catch { exec chmod +x picospath }
 	catch { exec chmod +x mkmk }
 	catch { exec chmod +x picomp }
-	catch { exec chmod +x piter }
+	# make piter.tcl clickable, with piter acting as the previous
+	# command-line script
+	catch { exec chmod +x piter.tcl }
+	catch { exec ln -s piter.tcl piter }
 
 	puts "All done"
 }
