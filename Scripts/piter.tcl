@@ -197,6 +197,9 @@ set WI(CIL)	""
 # saved parameters file
 set PM(SAP)	".piterrc"
 
+# recursive exit avoidance flag
+set WI(REX)	0
+
 # home directory
 if { [info exists env(HOME)] && $env(HOME) != "" } {
 	set PM(HOM) $env(HOME)
@@ -215,9 +218,14 @@ proc sy_exit { } {
 
 	global WI
 
+	if $WI(REX) { return }
+
+	set WI(REX) 1
+
 	if { $WI(PMW) != "" } {
 		# parameters dialog present, destroy it first
 		catch { destroy $WI(PMW) }
+		set WI(PMW) ""
 	}
 
 	exit 0
@@ -698,17 +706,30 @@ proc sy_scandev { } {
 
 	set WI(DEL) [sy_uscan]
 	$WI(DEM) delete 0 end
+	set ix 0
 	foreach w $WI(DEL) {
-		$WI(DEM) add command -label $w -command "sy_devselect $w"
+		$WI(DEM) add command -label $w -command "sy_devselect $ix"
+		incr ix
 	}
 	# update the default selection
 	sy_setdefdev
 }
 
-proc sy_devselect { w } {
+proc sy_devselect { { ix -1 } } {
 
 	global WI
 
+	if { $ix >= 0 } {
+		if [catch { $WI(DEM) entrycget $ix -label } w] {
+			set w [lindex $WI(DEL) 0]
+		}
+	} else {
+		set w $WI(DEV)
+	}
+
+	if { [lsearch -exact $WI(DEL) $w] < 0 } {
+		set w [lindex $WI(DEL) 0]
+	}
 	set WI(DEV) $w
 	set WI(DEO) ""
 }
@@ -755,7 +776,7 @@ proc sy_initialize { } {
 
 	eval "set WI(DEM) \[tk_optionMenu $w.dev.dmn WI(DEV) $WI(DEL)\]"
 
-	bind $w.dev.dmn <ButtonRelease-1> "sy_devselect $WI(DEV)"
+	bind $w.dev.dmn <ButtonRelease-1> sy_devselect
 
 	grid $w.dev.dmn -column 1 -row 0 -sticky new
 

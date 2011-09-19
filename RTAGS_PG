@@ -1385,3 +1385,9 @@ PG110919B:
 
 	Device scan in piter (GUI mode) made optional (via a special button).		In some cases (Bluetooth ports) the scanning may take a while. A few
 	cleanups done along the way.
+
+PG110920A:
+
+	Wlodek discovered that piter was having problems with port numbers > 9
+	(on Windows). Hopefully, I have fixed that. Also (which I discovered),
+	it would hung on Linux when exiting. Hopefully, not any more.
