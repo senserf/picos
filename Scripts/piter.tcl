@@ -1423,6 +1423,30 @@ proc sy_fndpfx { } {
 	return [clock format [clock seconds] -format %y%m%d_%H%M%S]
 }
 
+if { $ST(SYS) == "L" } {
+
+proc sy_unesc { dn } {
+#
+# UART device name conversion: presentable->openable; void on Linux ...
+#
+	return $dn
+}
+
+} else {
+
+proc sy_unesc { dn } {
+#
+# ... but not on Windows
+#
+	if [regexp -nocase "^com(\[0-9\]+):$" $dn jk pn] {
+		# a COM device
+		return "\\\\.\\COM$pn"
+	}
+	return "\\\\.\\$dn"
+}
+
+}
+
 proc pt_ishex { c } {
 	return [regexp -nocase "\[0-9a-f\]" $c]
 }
@@ -1574,39 +1598,37 @@ proc pt_chks { wa } {
 	return $chs
 }
 
+if { $ST(SYS) == "L" } {
+
 proc sy_cdevl { pi } {
 #
 # Returns the candidate list of devices to open based on the port identifier
+# Linux version
 #
-	global ST
-
-	if { $ST(SYS) == "L" } {
-		# Linux
-		if [regexp "^\[0-9\]+$" $pi] {
-			# a number
-			return \
-			    [list "/dev/ttyUSB$pi" "/dev/tty$pi" "/dev/pts/$pi"]
-		}
-		if ![regexp "^/dev" $pi] {
-			set pi "/dev/$pi"
-			regsub -all "//" $pi "/" pi
-		}
-		return [list $pi]
+	if [regexp "^\[0-9\]+$" $pi] {
+		# a number
+		return [list "/dev/ttyUSB$pi" "/dev/tty$pi" "/dev/pts/$pi"]
 	}
+	if ![regexp "^/dev" $pi] {
+		set pi "/dev/$pi"
+		regsub -all "//" $pi "/" pi
+	}
+	return [list $pi]
+}
 
+} else {
+
+proc sy_cdevl { pi } {
+#
+# Windows/Cygwin version
+#
 	if { [regexp "^\[0-9\]+$" $pi] && ![catch { expr $pi } pn] } {
 		# looks like a (COM) number
-		if { $pn < 10 } {
-			# use internal Tcl COM id, which is faster
-			set wd "COM${pn}:"
-		} else {
-			set wd "\\\\.\\COM$pn"
-		}
-		return [list $wd]
+		return [list "COM${pn}:"]
 	}
+	return [list $pi]
+}
 
-	# not a number
-	return [list $pi "\\\\.\\$pi"]
 }
 
 proc sy_ustart { udev speed } {
@@ -1630,7 +1652,7 @@ proc sy_ustart { udev speed } {
 	}
 
 	foreach udev $devlist {
-		if ![catch { open $udev $accs } ST(SFD)] {
+		if ![catch { open [sy_unesc $udev] $accs } ST(SFD)] {
 			set fail 0
 			break
 		}
@@ -2368,7 +2390,7 @@ proc sy_uscan { } {
 	for { set i 0 } { $i < 256 } { incr i } {
 		set devlist [sy_cdevl $i]
 		foreach udev $devlist {
-			if [catch { open $udev "r" } fd] {
+			if [catch { open [sy_unesc $udev] "r" } fd] {
 				continue
 			}
 			catch { close $fd }

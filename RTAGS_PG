@@ -1391,3 +1391,9 @@ PG110920A:
 	Wlodek discovered that piter was having problems with port numbers > 9
 	(on Windows). Hopefully, I have fixed that. Also (which I discovered),
 	it would hung on Linux when exiting. Hopefully, not any more.
+
+PG110920B:
+
+	Cleaned up device names in piter (no more weird names like \\.\COM17).
+	Hopefully, this is the last one of the quick series of commits inspired
+	by the Krakow project.
