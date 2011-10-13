@@ -4622,6 +4622,7 @@ void __pi_kill (sint pid) {
 
 	if (pid == 0) {
 		// This process, equivalent to finish
+Self:
 		TheNode->tally_out_pcs ();
 		// This will trigger the event for joinall, direct events
 		// are awaited directly
@@ -4632,6 +4633,8 @@ void __pi_kill (sint pid) {
 
 	// Locate the process
 	if ((p = find_pcs_by_id (pid)) != NULL) {
+		if (p == ThePPcs)
+			goto Self;
 		TheNode->tally_out_pcs ();
 		p->terminate ();
 	}
@@ -4666,16 +4669,24 @@ void __pi_killall (code_t tid) {
 
 	Process *P [16];
 	Long np, i;
+	bool self;
+
+	self = NO;
 
 	while (1) {
 		np = zz_getproclist (TheNode, tid, P, 16);
 		for (i = 0; i < np; i++) {
+			if (P [i] == ThePPcs)
+				self = YES;
 			terminate (P [i]);
 			TheNode->tally_out_pcs ();
 		}
 		if (np < 16)
-			return;
+			break;
 	}
+
+	if (self)
+		sleep;
 }
 
 int __pi_crunning (code_t tid) {

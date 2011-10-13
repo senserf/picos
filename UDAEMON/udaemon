@@ -4,6 +4,25 @@ exec wish85 "$0" "$@"
 
 ###############################################################################
 
+if [catch { exec uname } Stat(S)] {
+
+	set Stat(S) "W"
+
+} elseif [regexp -nocase "linux" $Stat(S)] {
+
+	set Stat(S) "L"
+
+} elseif [regexp -nocase "cygwin" $Stat(S)] {
+
+	set Stat(S) "C"
+
+} else {
+
+	set Stat(S) "W"
+}
+
+###############################################################################
+
 package require Img
 
 package provide xml 1.0
@@ -905,42 +924,29 @@ proc uuRead { Sok } {
 	catch { puts -nonewline $Sok $chunk }
 }
 
-proc u_cdevl { pi } {
+###############################################################################
+
+if { $Stat(S) == "L" } {
+
+proc sy_unesc { dn } {
 #
-# Returns the candidate list of devices to open based on the port identifier
+# UART device name conversion: presentable->openable; void on Linux ...
 #
-	global Stat
-
-	if { $Stat(S) == "L" } {
-		# Linux
-		if ![regexp "\[0-9\]$" $pi dn] {
-			return [list $pi]
-		}
-		if { [string first "pts" $pi] >= 0 } {
-			# a PTY
-			return [list $pi]
-		}
-		return [list "/dev/tty$dn" "/dev/ttyUSB$dn"]
-	}
-
-	# Windows
-	if { [string first "COM" $pi] < 0 } {
-		return [list $pi "\\\\.\\$pi"]
-	}
-
-	if { ![regexp "\[0-9\]$" $pi dn] || [catch { expr $pi } dn] } {
-		return [list $pi]
-	}
-
-	if { $dn < 10 } {
-		# use internal Tcl COM id, which is faster
-		set wd "COM${pn}:"
-	} else {
-		set wd "\\\\.\\COM$pn"
-	}
-
-	return [list $wd]
+	return $dn
 }
+
+} else {
+
+proc sy_unesc { dn } {
+#
+# ... but not on Windows
+#
+	return "\\\\.\\$dn"
+}
+
+}
+
+###############################################################################
 
 proc connUart { Sok } {
 #
@@ -973,18 +979,10 @@ proc connUart { Sok } {
 		return
 	}
 
-	set devlist [u_cdevl $opt]
-
+	set dev [sy_unesc $opt]
 	set fail 1
 
-	foreach dev $devlist {
-		if ![catch { open $dev "r+" } fd] {
-			set fail 0
-			break
-		}
-	}
-
-	if $fail {
+	if [catch { open $dev "r+" } fd] {
 		log "cannot open U-U device $opt: $fd"
 		set Stat($Sok,U) "Off"
 		return
@@ -1046,6 +1044,10 @@ proc mkTerm { Sok tt hex } {
 
 	text $w.stat.u -height 1 -font {-family courier -size 10}
 	pack $w.stat.u -side left -expand yes -fill x
+
+	bind $w.t <ButtonRelease-1> "tk_textCopy $w.t"
+	bind $w.stat.u <ButtonRelease-1> "tk_textCopy $w.stat.u"
+	bind $w.stat.u <ButtonRelease-2> "tk_textPaste $w.stat.u"
 
 	bind $w.stat.u <Return> "handleUserInput $Sok"
 
@@ -1847,6 +1849,8 @@ proc emulIni { Sok } {
 	scrollbar $w.scroly -command "$w.t yview"
 	pack $w.scroly -side right -fill y
 	pack $w.t -expand yes -fill both
+
+	bind $w.t <ButtonRelease-1> "tk_textCopy $w.t"
 
 	frame $w.stat -borderwidth 2
 	pack $w.stat -expand no -fill x
@@ -5969,24 +5973,6 @@ proc predisplay_single { fun } {
 
 ###############################################################################
 
-# heuristics to determine system version
-if [catch { exec uname } Stat(S)] {
-
-	set Stat(S) "W"
-
-} elseif [regexp -nocase "linux" $Stat(S)] {
-
-	set Stat(S) "L"
-
-} elseif [regexp -nocase "cygwin" $Stat(S)] {
-
-	set Stat(S) "C"
-
-} else {
-
-	set Stat(S) "W"
-}
-
 proc terminate { } {
 
 	catch { destroy . }
@@ -6049,6 +6035,8 @@ pack .logger.scrolly -side right -fill y
 pack .logger.scrollx -side bottom -fill x
 
 pack .logger.t -side left -fill both -expand true
+
+bind .logger.t <ButtonRelease-1> "tk_textCopy .logger.t"
 
 pack .logger -side top -fill both -expand true
 

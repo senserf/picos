@@ -695,3 +695,16 @@ PG110919A:
     Inconsequential cosmetics related to the introduction of emul (PG110529A).
     I would not think of committing it, if not for the fact that I have just
     committed an equally serious (albeit truly needed) modification to SIDE.
+
+PG111013A:
+
+    VUEE version of killall fixed not to return when the issuing process is
+    included among those killed.
+
+    Udaemon should now properly set up U-U links to COM ports numbered 10 and
+    higher.
+
+    Clipboard selection in udaemon's logger and UART windows now works. Just
+    drag the text with the left button (as in X-Windows). The same applies to
+    the line input area at the bottom of a UART window. Additionally, the
+    middle button in the line input area does the paste (as for X-Windows).
