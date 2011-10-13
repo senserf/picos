@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -53,17 +53,9 @@ rtc_time_t dtime;
 static void radio_start (word);
 static void radio_stop ();
 
-#define	AU_INIT		0
-#define	AU_EE		10
-#define	AU_RF		20
-#define	AU_RC		30
-#define	AU_LC		40
-#define	AU_PN		50
-#define	AU_FAIL		100
+fsm test_auto {
 
-thread (test_auto)
-
-  entry (AU_INIT)
+  state AU_INIT:
 
 #ifdef EPR_TEST
 	ser_out (AU_INIT, "EEPROM ...\r\n");
@@ -72,74 +64,74 @@ thread (test_auto)
 	delay (750, AU_EE);
 	release;
 
-  entry (AU_EE)
+  state AU_EE:
 
 // ============================================================================
 #ifdef EPR_TEST
 
 	if (ee_open ()) {
 		strcpy (ibuf, "Cannot open EEPROM!\r\n");
-		proceed (AU_FAIL);
+		proceed AU_FAIL;
 	}
 
-  entry (AU_EE+1)
+  state AU_EEP1:
 
-	if (ee_erase (AU_EE+1, 0, 0)) {
+	if (ee_erase (AU_EEP1, 0, 0)) {
 		strcpy (ibuf, "Failed to erase EEPROM!\r\n");
-		proceed (AU_FAIL);
+		proceed AU_FAIL;
 	}
 
 	rssi = pin_read_adc (WNONE, 0, 3, 4);
 	adr = 0;
 
-  entry (AU_EE+2)
+  state AU_EEP2:
 
 	if (adr >= ee_size (NULL, NULL))
-		proceed (AU_EE+3);
+		proceed AU_EEP3;
 	val = adr + rssi;
-	if (ee_write (AU_EE+2, adr, (byte*)&val, 4)) {
+	if (ee_write (AU_EEP2, adr, (byte*)&val, 4)) {
 		form (ibuf, "EEPROM write failed at %lx!\r\n", adr);
-		proceed (AU_FAIL);
+		proceed AU_FAIL;
 	}
 	adr += 1024;
-	proceed  (AU_EE+2);
+	proceed AU_EEP2;
 
-  entry (AU_EE+3)
+  state AU_EEP3:
 
 	adr = 0;
 
-  entry (AU_EE+4)
+  state AU_EEP4:
 
 	if (adr >= ee_size (NULL, NULL))
-		proceed (AU_EE+5);
+		proceed AU_EEP5;
 	if (ee_read (adr, (byte*)&val, 4)) {
 		form (ibuf, "EEPROM read failed at %lx!\r\n", adr);
-		proceed (AU_FAIL);
+		proceed AU_FAIL;
 	}
 	if (val != adr + rssi) {
 		form (ibuf, "EEPROM misread at %lx (%lx != %lx)!\r\n", adr,
 			val, adr + rssi);
-		proceed (AU_FAIL);
+		proceed AU_FAIL;
 	}
 	adr += 1024;
-	proceed  (AU_EE+4);
+	proceed AU_EEP4;
 
-  entry (AU_EE+5)
+  state AU_EEP5:
 
 	ee_close ();
-	ser_out (AU_EE+5, "EEPROM OK\r\n");
+	ser_out (AU_EEP5, "EEPROM OK\r\n");
 #endif
 
 // ============================================================================
 #ifdef RTC_TEST
 
-  entry (AU_RC)
+  state AU_RC:
 
 	ser_out (AU_RC, "RTC ...\r\n");
-	delay (750, AU_RC+1);
+	delay (750, AU_RCP1);
 	release;
 
-  entry (AU_RC+1)
+  state AU_RCP1:
 	
 	dtime.year = 9;
 	dtime.month = 8;
@@ -150,55 +142,55 @@ thread (test_auto)
 	dtime.second = 9;
 
 	rtc_set (&dtime);
-	delay (2048, AU_RC+2);
+	delay (2048, AU_RCP2);
 	release;
 
-  entry (AU_RC+2)
+  state AU_RCP2:
 
 	bzero (&dtime, sizeof (dtime));
 	rtc_get (&dtime);
 	if (dtime.second < 10) {
 		strcpy (ibuf, "RTC doesn't tick!\r\n");
-		proceed (AU_FAIL);
+		proceed AU_FAIL;
 	}
 
-  entry (AU_RC+3)
+  state AU_RCP3:
 
-	ser_out (AU_RC+3, "RTC OK\r\n");
+	ser_out (AU_RCP3, "RTC OK\r\n");
 
 #endif
 
 // ============================================================================
 #ifdef LCD_TEST
 
-  entry (AU_LC)
+  state AU_LC:
 
 	ser_out (AU_LC, "LCD (see the display) ...\r\n");
-	delay (1024, AU_LC+1);
+	delay (1024, AU_LCP1);
 	release;
 
-  entry (AU_LC+1)
+  state AU_LCP1:
 
 	lcd_on (0);
 	lcd_write (0, "This will stay  for 5 seconds!");
-	delay (5*1024, AU_LC+2);
+	delay (5*1024, AU_LCP2);
 	release;
 
-  entry (AU_LC+2)
+  state AU_LCP2:
 
 	lcd_off ();
-	ser_out (AU_LC+2, "LCD done\r\n");
+	ser_out (AU_LCP2, "LCD done\r\n");
 
 #endif
 
-  entry (AU_PN)
+  state AU_PN:
 
 	ser_out (AU_PN,
 		"Pins will light up in the order of defs in board_pins.h\r\n");
 	delay (750, AU_RF);
 	release;
 
-  entry (AU_RF)
+  state AU_RF:
 
 	ser_out (AU_RF, "Starting radio ... (this will go forever)\r\n");
 	radio_start (3);
@@ -206,7 +198,7 @@ thread (test_auto)
 	for (w = 0; w < PIN_MAX; w++)
 		pin_write (w, 0);
 
-  entry (AU_PN+1)
+  state AU_PNP1:
 
 	if (w == PIN_MAX)
 		w = 0;
@@ -214,27 +206,27 @@ thread (test_auto)
 		w++;
 
 	pin_write (w, 1);
-	delay (500, AU_PN+2);
+	delay (500, AU_PNP2);
 	release;
 
-  entry (AU_PN+2)
+  state AU_PNP2:
 
 	pin_write (w, 0);
-	proceed (AU_PN+1);
+	proceed AU_PNP1;
 
-  entry (AU_FAIL)
+  state AU_FAIL:
 
 	radio_stop ();
 	leds (0, 2);
 	leds (1, 2);
 	leds (2, 2);
 
-  entry (AU_FAIL+1)
+  state AU_FAILP1:
 
 	ser_outf (AU_FAIL, ibuf);
-	delay (1024, AU_FAIL+1);
+	delay (1024, AU_FAILP1);
 
-endthread
+}
 
 // ============================================================================
 
@@ -249,15 +241,9 @@ static word gen_packet_length (void) {
 
 }
 
-#define	SN_SEND		0
-#define	SN_NEXT		1
-#define	SN_MESS		2
+fsm sender {
 
-thread (sender)
-
-  int pl, pp;
-
-  entry (SN_SEND)
+  state SN_SEND:
 
 	packet_length = gen_packet_length ();
 
@@ -266,7 +252,9 @@ thread (sender)
 	else if (packet_length > MAX_PACKET_LENGTH)
 		packet_length = MAX_PACKET_LENGTH;
 
-  entry (SN_NEXT)
+  state SN_NEXT:
+
+	int pl, pp;
 
 	packet = tcv_wnp (SN_NEXT, sfd, packet_length + 2);
 
@@ -282,22 +270,18 @@ thread (sender)
 
 	tcv_endp (packet);
 
-  entry (SN_MESS)
+  state SN_MESS:
 
 	ser_outf (SN_MESS, "Sent: %lu [%d]\r\n", last_snt, packet_length);
 	last_snt++;
 	delay (SEND_INTERVAL, SN_SEND);
+}
 
-endthread;
+fsm receiver {
 
-#define	RC_TRY		0
-#define	RC_MESS		1
+  state RC_TRY:
 
-thread (receiver)
-
-  address packet;
-
-  entry (RC_TRY)
+  	address packet;
 
 	packet = tcv_rnp (RC_TRY, sfd);
 	last_rcv = ntowl (((lword*)packet) [1]);
@@ -305,13 +289,13 @@ thread (receiver)
 	rssi = packet [rcvl >> 1];
 	tcv_endp (packet);
 
-  entry (RC_MESS)
+  state RC_MESS:
 
 	ser_outf (RC_MESS, "Rcv: %lu [%d], RSSI = %d, QUA = %d\r\n",
 		last_rcv, rcvl, (rssi >> 8) & 0x00ff, rssi & 0x00ff);
-	proceed (RC_TRY);
+	proceed RC_TRY;
 
-endthread;
+}
 
 static void radio_start (word d) {
 
@@ -321,12 +305,12 @@ static void radio_start (word d) {
 	if (d & 1) {
 		tcv_control (sfd, PHYSOPT_RXON, NULL);
 		if (!running (receiver))
-			runthread (receiver);
+			runfsm receiver;
 	}
 	if (d & 2) {
 		tcv_control (sfd, PHYSOPT_TXON, NULL);
 		if (!running (sender))
-			runthread (sender);
+			runfsm sender;
 	}
 }
 
@@ -344,17 +328,9 @@ static void radio_stop () {
 
 // ============================================================================
 
-#define	PI_INIT		0
-#define	PI_RCMD		10
-#define	PI_ADC		20
-#define	PI_SET		30
-#define	PI_VIE		40
-#define	PI_SRAW		50
-#define	PI_VRAW		60
+fsm test_pin {
 
-thread (test_pin)
-
-  entry (PI_INIT)
+  state PI_INIT:
 
 	ser_out (PI_INIT,
 		"\r\nRF Pin Test\r\n"
@@ -368,64 +344,64 @@ thread (test_pin)
 		"q -> return to main test\r\n"
 	);
 
-  entry (PI_RCMD)
+  state PI_RCMD:
 
 	ser_in (PI_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
-		case 'r': proceed (PI_ADC);
-		case 's': proceed (PI_SET);
-		case 'v': proceed (PI_VIE);
-		case 'S': proceed (PI_SRAW);
-		case 'V': proceed (PI_VRAW);
+		case 'r': proceed PI_ADC;
+		case 's': proceed PI_SET;
+		case 'v': proceed PI_VIE;
+		case 'S': proceed PI_SRAW;
+		case 'V': proceed PI_VRAW;
 		case 'q': { finish; };
 	}
 	
-  entry (PI_RCMD+1)
+  state PI_RCMDP1:
 
-	ser_out (PI_RCMD+1, "Illegal\r\n");
-	proceed (PI_INIT);
+	ser_out (PI_RCMDP1, "Illegal\r\n");
+	proceed PI_INIT;
 
-  entry (PI_ADC)
+  state PI_ADC:
 
 	nt = sl = 0;
 	scan (ibuf + 1, "%u %u", &nt, &sl);
 
-  entry (PI_ADC+1)
+  state PI_ADCP1:
 
-	nt = pin_read_adc (PI_ADC+1, nt, sl, 4);
+	nt = pin_read_adc (PI_ADCP1, nt, sl, 4);
 
-  entry (PI_ADC+2)
+  state PI_ADCP2:
 
-	ser_outf (PI_ADC+2, "Value: %u\r\n", nt);
-	proceed (PI_RCMD);
+	ser_outf (PI_ADCP2, "Value: %u\r\n", nt);
+	proceed PI_RCMD;
 
-  entry (PI_SET)
+  state PI_SET:
 
 	nt = sl = 0;
 	scan (ibuf + 1, "%u %u", &nt, &sl);
 	pin_write (nt, sl);
-	proceed (PI_RCMD);
+	proceed PI_RCMD;
 
-  entry (PI_VIE)
+  state PI_VIE:
 
 	nt = 0;
 	scan (ibuf + 1, "%u", &nt);
 	nt = pin_read (nt);
 
-  entry (PI_VIE+1)
+  state PI_VIEP1:
 
-	ser_outf (PI_VIE+1, "Value: %u\r\n", nt);
-	proceed (PI_RCMD);
+	ser_outf (PI_VIEP1, "Value: %u\r\n", nt);
+	proceed PI_RCMD;
 
-  entry (PI_SRAW)
+  state PI_SRAW:
 
 	w = WNONE;
 	ss = 0;
 
 	scan (ibuf + 1, "%u %u", &w, &ss);
 	if (w >= PORTNAMES_NPINS)
-		proceed (PI_RCMD+1);
+		proceed PI_RCMDP1;
 
 	if (ss < 2) {
 		_PFS (w, 0);
@@ -439,44 +415,31 @@ thread (test_pin)
 		// Special function
 		_PFS (w, 1);
 	}
-	proceed (PI_RCMD);
+	proceed PI_RCMD;
 
-  entry (PI_VRAW)
+  state PI_VRAW:
 
 	w = WNONE;
 	scan (ibuf + 1, "%u", &w);
 	if (w >= PORTNAMES_NPINS)
-		proceed (PI_RCMD+1);
+		proceed PI_RCMDP1;
 
 	nt = _PV (w);
 	sl = _PD (w);
 	ss = _PF (w);
 
-  entry (PI_VRAW+1)
+  state PI_VRAWP1:
 
-	ser_outf (PI_VRAW+1, "Pin %u = val %u, dir %u, fun %u\r\n", nt, sl, ss);
-	proceed (PI_RCMD);
+	ser_outf (PI_VRAWP1, "Pin %u = val %u, dir %u, fun %u\r\n", nt, sl, ss);
+	proceed PI_RCMD;
 
-endthread
+}
 
 // ============================================================================
 
-#define	IF_START	0
-#define	IF_RCMD		10
-#define	IF_LED		20
-#define	IF_BLI		30
-#define	IF_DIA		40
-#define	IF_FLR		50
-#define	IF_FLW		60
-#define	IF_FLE		70
-#define	IF_CLR		80
-#define	IF_CLW		90
-#define	IF_CLE		100
-#define	IF_COT		110
+fsm test_ifl {
 
-thread (test_ifl)
-
-  entry (IF_START)
+  state IF_START:
 
 	ser_out (IF_START,
 		"\r\nFLASH Test\r\n"
@@ -494,103 +457,103 @@ thread (test_ifl)
 		"q -> return to main test\r\n"
 	);
 
-  entry (IF_RCMD)
+  state IF_RCMD:
 
 	err = 0;
 	ser_in (IF_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
-		case 'l': proceed (IF_LED);
-		case 'b': proceed (IF_BLI);
-		case 'd': proceed (IF_DIA);
-		case 'w': proceed (IF_FLW);
-		case 'r': proceed (IF_FLR);
-		case 'e': proceed (IF_FLE);
-		case 'W': proceed (IF_CLW);
-		case 'R': proceed (IF_CLR);
-		case 'E': proceed (IF_CLE);
-		case 'T': proceed (IF_COT);
+		case 'l': proceed IF_LED;
+		case 'b': proceed IF_BLI;
+		case 'd': proceed IF_DIA;
+		case 'w': proceed IF_FLW;
+		case 'r': proceed IF_FLR;
+		case 'e': proceed IF_FLE;
+		case 'W': proceed IF_CLW;
+		case 'R': proceed IF_CLR;
+		case 'E': proceed IF_CLE;
+		case 'T': proceed IF_COT;
 		case 'q': { finish; };
 	}
 	
-  entry (IF_RCMD+1)
+  state IF_RCMDP1:
 
-	ser_out (IF_RCMD+1, "Illegal\r\n");
-	proceed (IF_START);
+	ser_out (IF_RCMDP1, "Illegal\r\n");
+	proceed IF_START;
 
-  entry (IF_LED)
+  state IF_LED:
 
 	scan (ibuf + 1, "%u %u", &bs, &nt);
 	leds (bs, nt);
-	proceed (IF_RCMD);
+	proceed IF_RCMD;
 
-  entry (IF_BLI)
+  state IF_BLI:
 
 	scan (ibuf + 1, "%u", &bs);
 	fastblink (bs);
-	proceed (IF_RCMD);
+	proceed IF_RCMD;
 
-  entry (IF_DIA)
+  state IF_DIA:
 
 	diag ("MSG %d (%x) %u: %s", dcnt, dcnt, dcnt, ibuf+1);
 	dcnt++;
-	proceed (IF_RCMD);
+	proceed IF_RCMD;
 
-  entry (IF_FLR)
+  state IF_FLR:
 
 	scan (ibuf + 1, "%u", &w);
 	if (w >= IFLASH_SIZE)
-		proceed (IF_RCMD+1);
+		proceed IF_RCMDP1;
 	diag ("IF [%u] = %x", w, IFLASH [w]);
-	proceed (IF_RCMD);
+	proceed IF_RCMD;
 
-  entry (IF_FLW)
+  state IF_FLW:
 
 	scan (ibuf + 1, "%u %u", &w, &bs);
 	if (w >= IFLASH_SIZE)
-		proceed (IF_RCMD+1);
+		proceed IF_RCMDP1;
 	if (if_write (w, bs))
 		diag ("FAILED");
 	else
 		diag ("OK");
 	goto Done;
 
-  entry (IF_FLE)
+  state IF_FLE:
 
 	b = -1;
 	scan (ibuf + 1, "%d", &b);
 	if_erase (b);
 	goto Done;
 
-  entry (IF_CLR)
+  state IF_CLR:
 
 	scan (ibuf + 1, "%u", &w);
 	diag ("CF [%u] = %x, et = %x", w, *((address)w), (word)(&_etext));
-	proceed (IF_RCMD);
+	proceed IF_RCMD;
 
-  entry (IF_CLW)
+  state IF_CLW:
 
 	scan (ibuf + 1, "%u %u", &w, &bs);
 	cf_write ((address)w, bs);
 Done:
 	diag ("OK");
-	proceed (IF_RCMD);
+	proceed IF_RCMD;
 
-  entry (IF_CLE)
+  state IF_CLE:
 
 	b = 0;
 	scan (ibuf + 1, "%d", &b);
 	cf_erase ((address)b);
 	goto Done;
 
-  entry (IF_COT)
+  state IF_COT:
 
 	w = 0;
 	scan (ibuf + 1, "%u", &w);
 
 	if (*((address)w) != 0xffff) {
 		diag ("Word not erased: %x", *((address)w));
-		proceed (IF_RCMD);
+		proceed IF_RCMD;
 	}
 
 	for (b = 1; b <= 16; b++) {
@@ -601,50 +564,24 @@ Done:
 	}
 	goto Done;
 
-endthread
+}
 // ============================================================================
 
 #ifdef EPR_TEST
 
-#define	EP_START	0
-#define	EP_INIT		5
-#define	EP_RCMD		10
-#define	EP_SWO		20
-#define	EP_SLW		30
-#define	EP_SST		40
-#define	EP_RWO		50
-#define	EP_RLW		60
-#define	EP_RST		70
-#define	EP_WRI		80
-#define	EP_REA		90
-#define	EP_ERA		100
-#define	EP_SYN		110
-#define	EP_ETS		200
-#define	EP_ETS_O	210
-#define	EP_ETS_E	220
-#define	EP_ETS_F	230
-#define	EP_ETS_G	240
-#define	EP_ETS_M	250
-#define	EP_ETS_H	260
-#define	EP_ETS_I	270
-#define	EP_ETS_N	280
-#define	EP_ETS_J	290
-#define	EP_ETS_K	300
-#define	EP_ETS_L	310
+fsm test_epr {
 
-thread (test_epr)
-
-  entry (EP_START)
+  state EP_START:
 
 	if (ee_open () == 0)
-		proceed (EP_INIT);
+		proceed EP_INIT;
 
-  entry (EP_START+1)
+  state EP_STARTP1:
 
-	ser_out (EP_START+1, "Failed to open\r\n");
+	ser_out (EP_STARTP1, "Failed to open\r\n");
 	finish;
 
-  entry (EP_INIT)
+  state EP_INIT:
 
 	ser_out (EP_INIT,
 		"\r\nEEPROM Test\r\n"
@@ -663,128 +600,128 @@ thread (test_epr)
 		"q -> return to main test\r\n"
 	);
 
-  entry (EP_RCMD)
+  state EP_RCMD:
 
 	err = 0;
 	ser_in (EP_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
-		case 'a': proceed (EP_SWO);
-		case 'b': proceed (EP_SLW);
-		case 'c': proceed (EP_SST);
-		case 'd': proceed (EP_RWO);
-		case 'e': proceed (EP_RLW);
-		case 'f': proceed (EP_RST);
-		case 'g': proceed (EP_WRI);
-		case 'h': proceed (EP_REA);
-		case 'x': proceed (EP_ERA);
-		case 's': proceed (EP_SYN);
-		case 'w': proceed (EP_ETS);
+		case 'a': proceed EP_SWO;
+		case 'b': proceed EP_SLW;
+		case 'c': proceed EP_SST;
+		case 'd': proceed EP_RWO;
+		case 'e': proceed EP_RLW;
+		case 'f': proceed EP_RST;
+		case 'g': proceed EP_WRI;
+		case 'h': proceed EP_REA;
+		case 'x': proceed EP_ERA;
+		case 's': proceed EP_SYN;
+		case 'w': proceed EP_ETS;
 		case 'q': { ee_close (); finish; };
 	}
 	
-  entry (EP_RCMD+1)
+  state EP_RCMDP1:
 
-	ser_out (EP_RCMD+1, "Illegal\r\n");
-	proceed (EP_INIT);
+	ser_out (EP_RCMDP1, "Illegal\r\n");
+	proceed EP_INIT;
 
-  entry (EP_SWO)
+  state EP_SWO:
 
 	scan (ibuf + 1, "%lu %u", &adr, &w);
 	err = ee_write (WNONE, adr, (byte*)(&w), 2);
 
-  entry (EP_SWO+1)
+  state EP_SWOP1:
 
-	ser_outf (EP_SWO+1, "[%d] Stored %u at %lu\r\n", err, w, adr);
-	proceed (EP_RCMD);
+	ser_outf (EP_SWOP1, "[%d] Stored %u at %lu\r\n", err, w, adr);
+	proceed EP_RCMD;
 
-  entry (EP_SLW)
+  state EP_SLW:
 
 	scan (ibuf + 1, "%lu %lu", &adr, &val);
 	err = ee_write (WNONE, adr, (byte*)(&val), 4);
 
-  entry (EP_SLW+1)
+  state EP_SLWP1:
 
-	ser_outf (EP_SLW+1, "[%d] Stored %lu at %lu\r\n", err, val, adr);
-	proceed (EP_RCMD);
+	ser_outf (EP_SLWP1, "[%d] Stored %lu at %lu\r\n", err, val, adr);
+	proceed EP_RCMD;
 
-  entry (EP_SST)
+  state EP_SST:
 
 	scan (ibuf + 1, "%lu %s", &adr, str);
 	len = strlen (str);
 	if (len == 0)
-		proceed (EP_RCMD+1);
+		proceed EP_RCMDP1;
 
 	err = ee_write (WNONE, adr, str, len);
 
-  entry (EP_SST+1)
+  state EP_SSTP1:
 
-	ser_outf (EP_SST+1, "[%d] Stored %s (%u) at %lu\r\n", err, str, len,
+	ser_outf (EP_SSTP1, "[%d] Stored %s (%u) at %lu\r\n", err, str, len,
 		adr);
-	proceed (EP_RCMD);
+	proceed EP_RCMD;
 
-  entry (EP_RWO)
+  state EP_RWO:
 
 	scan (ibuf + 1, "%lu", &adr);
 	err = ee_read (adr, (byte*)(&w), 2);
 
-  entry (EP_RWO+1)
+  state EP_RWOP1:
 
-	ser_outf (EP_RWO+1, "[%d] Read %u (%x) from %lu\r\n", err, w, w, adr);
-	proceed (EP_RCMD);
+	ser_outf (EP_RWOP1, "[%d] Read %u (%x) from %lu\r\n", err, w, w, adr);
+	proceed EP_RCMD;
 
-  entry (EP_RLW)
+  state EP_RLW:
 
 	scan (ibuf + 1, "%lu", &adr);
 	err = ee_read (adr, (byte*)(&val), 4);
 
-  entry (EP_RLW+1)
+  state EP_RLWP1:
 
-	ser_outf (EP_RLW+1, "[%d] Read %lu (%lx) from %lu\r\n",
+	ser_outf (EP_RLWP1, "[%d] Read %lu (%lx) from %lu\r\n",
 		err, val, val, adr);
-	proceed (EP_RCMD);
+	proceed EP_RCMD;
 
-  entry (EP_RST)
+  state EP_RST:
 
 	scan (ibuf + 1, "%lu %u", &adr, &len);
 	if (len == 0)
-		proceed (EP_RCMD+1);
+		proceed EP_RCMDP1;
 
 	str [0] = '\0';
 	err = ee_read (adr, str, len);
 	str [len] = '\0';
 
-  entry (EP_RST+1)
+  state EP_RSTP1:
 
-	ser_outf (EP_RST+1, "[%d] Read %s (%u) from %lu\r\n",
+	ser_outf (EP_RSTP1, "[%d] Read %s (%u) from %lu\r\n",
 		err, str, len, adr);
-	proceed (EP_RCMD);
+	proceed EP_RCMD;
 
-  entry (EP_WRI)
+  state EP_WRI:
 
 	len = 0;
 	scan (ibuf + 1, "%lu %u %lu", &adr, &len, &val);
 	if (len == 0)
-		proceed (EP_RCMD+1);
+		proceed EP_RCMDP1;
 	while (len--) {
 		err += ee_write (WNONE, adr, (byte*)(&val), 4);
 		adr += 4;
 	}
 
-  entry(EP_WRI+1)
+  state EP_WRIP1:
 
 Done:
-	ser_outf (EP_WRI+1, "Done %d\r\n", err);
-	proceed (EP_RCMD);
+	ser_outf (EP_WRIP1, "Done %d\r\n", err);
+	proceed EP_RCMD;
 
-  entry (EP_REA)
+  state EP_REA:
 
 	len = 0;
 	bs = 0;
 	nt = 0;
 	scan (ibuf + 1, "%lu %u %u %u", &adr, &len, &bs, &nt);
 	if (len == 0)
-		proceed (EP_RCMD+1);
+		proceed EP_RCMDP1;
 	if (bs == 0)
 		bs = 4;
 
@@ -808,7 +745,7 @@ Done:
 
 	goto Done;
 
-  entry (EP_ERA)
+  state EP_ERA:
 
 	adr = 0;
 	u = 0;
@@ -816,12 +753,12 @@ Done:
 	err = ee_erase (WNONE, adr, u);
 	goto Done;
 
-  entry (EP_SYN)
+  state EP_SYN:
 
 	err = ee_sync (WNONE);
 	goto Done;
 
-  entry (EP_ETS)
+  state EP_ETS:
 
 	// ERASE-WRITE-READ
 
@@ -839,7 +776,7 @@ Done:
 		// Everything
 		s = 0;
 
-  entry (EP_ETS_O)
+  state EP_ETS_O:
 
 	if (u == 0) {
 		ser_out (EP_ETS_O, "ERASING ALL FLASH\r\n");
@@ -848,19 +785,19 @@ Done:
 			s, s, u - 4, u - 4);
 	}
 
-  entry (EP_ETS_E)
+  state EP_ETS_E:
 
 	//w = ee_erase (WNONE, s, u);
 	w = ee_erase (EP_ETS_E, s, u);
 
-  entry (EP_ETS_F)
+  state EP_ETS_F:
 
 	ser_outf (EP_ETS_F, "ERASE COMPLETE, %u ERRORS\r\n", w);
 
 	adr = s;
 	w = 0;
 
-  entry (EP_ETS_G)
+  state EP_ETS_G:
 
 	if (pat == LWNONE)
 		val = adr;
@@ -871,15 +808,15 @@ Done:
 	w += ee_write (EP_ETS_G, adr, (byte*)(&val), 4);
 
 	if ((adr & 0xFFF) == 0)
-		proceed (EP_ETS_K);
+		proceed EP_ETS_K;
 
-  entry (EP_ETS_M)
+  state EP_ETS_M:
 
 	adr += 4;
 	if (adr < u)
-		proceed (EP_ETS_G);
+		proceed EP_ETS_G;
 
-  entry (EP_ETS_H)
+  state EP_ETS_H:
 
 	//w += ee_sync (WNONE);
 	w += ee_sync (EP_ETS_H);
@@ -890,7 +827,7 @@ Done:
 	w = 0;
 	err = 0;
 
-  entry (EP_ETS_I)
+  state EP_ETS_I:
 
 	w += ee_read (adr, (byte*)(&val), 4);
 
@@ -910,32 +847,32 @@ Done:
 		}
 	}
 	if ((adr & 0xFFF) == 0)
-		proceed (EP_ETS_L);
+		proceed EP_ETS_L;
 
-  entry (EP_ETS_N)
+  state EP_ETS_N:
 
 	adr += 4;
 	if (adr < u)
-		proceed (EP_ETS_I);
+		proceed EP_ETS_I;
 
-  entry (EP_ETS_J)
+  state EP_ETS_J:
 
 	ser_outf (EP_ETS_J, "READ COMPLETE, %u ERRORS, %u MISREADS\r\n",
 		w, err);
 
-	proceed (EP_RCMD);
+	proceed EP_RCMD;
 
-  entry (EP_ETS_K)
+  state EP_ETS_K:
 
 	ser_outf (EP_ETS_K, "WRITTEN %lu (%lx)\r\n", adr, adr);
-	proceed (EP_ETS_M);
+	proceed EP_ETS_M;
 
-  entry (EP_ETS_L)
+  state EP_ETS_L:
 
 	ser_outf (EP_ETS_L, "READ %lu (%lx)\r\n", adr, adr);
-	proceed (EP_ETS_N);
+	proceed EP_ETS_N;
 
-endthread
+}
 
 #endif
 
@@ -943,49 +880,23 @@ endthread
 
 #ifdef SDC_TEST
 
-#define	SD_INIT		0
-#define	SD_OK		1
-#define	SD_IFAIL	2
-#define	SD_START	5
-#define	SD_RCMD		10
-#define	SD_SWO		20
-#define	SD_SLW		30
-#define	SD_SST		40
-#define	SD_RWO		50
-#define	SD_RLW		60
-#define	SD_RST		70
-#define	SD_WRI		80
-#define	SD_REA		90
-#define	SD_ERA		100
-#define	SD_SYN		110
-#define	SD_ETS		200
-#define	SD_ETS_G	240
-#define	SD_ETS_M	250
-#define	SD_ETS_H	260
-#define	SD_ETS_I	270
-#define	SD_ETS_N	280
-#define	SD_ETS_J	290
-#define	SD_ETS_K	300
-#define	SD_ETS_L	310
-#define	SD_IDL		320
+fsm test_sdcard {
 
-thread (test_sdcard)
-
-  entry (SD_INIT)
+  state SD_INIT:
 
 	if ((err = sd_open ()) == 0) 
-		proceed (SD_OK);
+		proceed SD_OK;
 
-  entry (SD_IFAIL)
+  state SD_IFAIL:
 
 	ser_outf (SD_IFAIL, "Failed to open: %u\r\n", err);
 	finish;
 
-  entry (SD_OK)
+  state SD_OK:
 
 	ser_outf (SD_OK, "Card size: %lu\r\n", sd_size ());
 
-  entry (SD_START)
+  state SD_START:
 
 	ser_out (SD_START,
 		"\r\nSD Test\r\n"
@@ -1005,129 +916,129 @@ thread (test_sdcard)
 		"q -> return to main test\r\n"
 	);
 
-  entry (SD_RCMD)
+  state SD_RCMD:
 
 	err = 0;
 	ser_in (SD_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
-		case 'a': proceed (SD_SWO);
-		case 'b': proceed (SD_SLW);
-		case 'c': proceed (SD_SST);
-		case 'd': proceed (SD_RWO);
-		case 'e': proceed (SD_RLW);
-		case 'f': proceed (SD_RST);
-		case 'g': proceed (SD_WRI);
-		case 'h': proceed (SD_REA);
-		case 'x': proceed (SD_ERA);
-		case 's': proceed (SD_SYN);
-		case 'w': proceed (SD_ETS);
-		case 'i': proceed (SD_IDL);
+		case 'a': proceed SD_SWO;
+		case 'b': proceed SD_SLW;
+		case 'c': proceed SD_SST;
+		case 'd': proceed SD_RWO;
+		case 'e': proceed SD_RLW;
+		case 'f': proceed SD_RST;
+		case 'g': proceed SD_WRI;
+		case 'h': proceed SD_REA;
+		case 'x': proceed SD_ERA;
+		case 's': proceed SD_SYN;
+		case 'w': proceed SD_ETS;
+		case 'i': proceed SD_IDL;
 		case 'q': { sd_close (); finish; };
 	}
 	
-  entry (SD_RCMD+1)
+  state SD_RCMDP1:
 
-	ser_out (SD_RCMD+1, "Illegal\r\n");
-	proceed (SD_START);
+	ser_out (SD_RCMDP1, "Illegal\r\n");
+	proceed SD_START;
 
-  entry (SD_SWO)
+  state SD_SWO:
 
 	scan (ibuf + 1, "%lu %u", &adr, &w);
 	err = sd_write (adr, (byte*)(&w), 2);
 
-  entry (SD_SWO+1)
+  state SD_SWOP1:
 
-	ser_outf (SD_SWO+1, "[%d] Stored %u at %lu\r\n", err, w, adr);
-	proceed (SD_RCMD);
+	ser_outf (SD_SWOP1, "[%d] Stored %u at %lu\r\n", err, w, adr);
+	proceed SD_RCMD;
 
-  entry (SD_SLW)
+  state SD_SLW:
 
 	scan (ibuf + 1, "%lu %lu", &adr, &val);
 	err = sd_write (adr, (byte*)(&val), 4);
 
-  entry (SD_SLW+1)
+  state SD_SLWP1:
 
-	ser_outf (SD_SLW+1, "[%d] Stored %lu at %lu\r\n", err, val, adr);
-	proceed (SD_RCMD);
+	ser_outf (SD_SLWP1, "[%d] Stored %lu at %lu\r\n", err, val, adr);
+	proceed SD_RCMD;
 
-  entry (SD_SST)
+  state SD_SST:
 
 	scan (ibuf + 1, "%lu %s", &adr, str);
 	len = strlen (str);
 	if (len == 0)
-		proceed (SD_RCMD+1);
+		proceed SD_RCMDP1;
 
 	err = sd_write (adr, str, len);
 
-  entry (SD_SST+1)
+  state SD_SSTP1:
 
-	ser_outf (SD_SST+1, "[%d] Stored %s (%u) at %lu\r\n", err, str, len,
+	ser_outf (SD_SSTP1, "[%d] Stored %s (%u) at %lu\r\n", err, str, len,
 		adr);
-	proceed (SD_RCMD);
+	proceed SD_RCMD;
 
-  entry (SD_RWO)
+  state SD_RWO:
 
 	scan (ibuf + 1, "%lu", &adr);
 	err = sd_read (adr, (byte*)(&w), 2);
 
-  entry (SD_RWO+1)
+  state SD_RWOP1:
 
-	ser_outf (SD_RWO+1, "[%d] Read %u (%x) from %lu\r\n", err, w, w, adr);
-	proceed (SD_RCMD);
+	ser_outf (SD_RWOP1, "[%d] Read %u (%x) from %lu\r\n", err, w, w, adr);
+	proceed SD_RCMD;
 
-  entry (SD_RLW)
+  state SD_RLW:
 
 	scan (ibuf + 1, "%lu", &adr);
 	err = sd_read (adr, (byte*)(&val), 4);
 
-  entry (SD_RLW+1)
+  state SD_RLWP1:
 
-	ser_outf (SD_RLW+1, "[%d] Read %lu (%lx) from %lu\r\n",
+	ser_outf (SD_RLWP1, "[%d] Read %lu (%lx) from %lu\r\n",
 		err, val, val, adr);
-	proceed (SD_RCMD);
+	proceed SD_RCMD;
 
-  entry (SD_RST)
+  state SD_RST:
 
 	scan (ibuf + 1, "%lu %u", &adr, &len);
 	if (len == 0)
-		proceed (SD_RCMD+1);
+		proceed SD_RCMDP1;
 
 	str [0] = '\0';
 	err = sd_read (adr, str, len);
 	str [len] = '\0';
 
-  entry (SD_RST+1)
+  state SD_RSTP1:
 
-	ser_outf (SD_RST+1, "[%d] Read %s (%u) from %lu\r\n",
+	ser_outf (SD_RSTP1, "[%d] Read %s (%u) from %lu\r\n",
 		err, str, len, adr);
-	proceed (SD_RCMD);
+	proceed SD_RCMD;
 
-  entry (SD_WRI)
+  state SD_WRI:
 
 	len = 0;
 	scan (ibuf + 1, "%lu %u %lu", &adr, &len, &val);
 	if (len == 0)
-		proceed (SD_RCMD+1);
+		proceed SD_RCMDP1;
 	while (len--) {
 		err += (sd_write (adr, (byte*)(&val), 4) != 0);
 		adr += 4;
 	}
 
-  entry(SD_WRI+1)
+  state SD_WRIP1:
 
 Done:
-	ser_outf (SD_WRI+1, "Done %d\r\n", err);
-	proceed (SD_RCMD);
+	ser_outf (SD_WRIP1, "Done %d\r\n", err);
+	proceed SD_RCMD;
 
-  entry (SD_REA)
+  state SD_REA:
 
 	len = 0;
 	bs = 0;
 	nt = 0;
 	scan (ibuf + 1, "%lu %u %u %u", &adr, &len, &bs, &nt);
 	if (len == 0)
-		proceed (SD_RCMD+1);
+		proceed SD_RCMDP1;
 	if (bs == 0)
 		bs = 4;
 
@@ -1151,19 +1062,19 @@ Done:
 
 	goto Done;
 
-  entry (SD_ERA)
+  state SD_ERA:
 
 	s = u = 0;
 	scan (ibuf + 1, "%lu %lu", &s, &u);
 	err = sd_erase (s, u);
 	goto Done;
 
-  entry (SD_SYN)
+  state SD_SYN:
 
 	err = sd_sync ();
 	goto Done;
 
-  entry (SD_ETS)
+  state SD_ETS:
 
 	// WRITE-READ
 
@@ -1184,7 +1095,7 @@ Done:
 	adr = s;
 	w = 0;
 
-  entry (SD_ETS_G)
+  state SD_ETS_G:
 
 	if (pat == LWNONE)
 		val = adr;
@@ -1194,15 +1105,15 @@ Done:
 	w += (sd_write (adr, (byte*)(&val), 4) != 0);
 
 	if ((adr & 0xFFF) == 0)
-		proceed (SD_ETS_K);
+		proceed SD_ETS_K;
 
-  entry (SD_ETS_M)
+  state SD_ETS_M:
 
 	adr += 4;
 	if (adr < u)
-		proceed (SD_ETS_G);
+		proceed SD_ETS_G;
 
-  entry (SD_ETS_H)
+  state SD_ETS_H:
 
 	w += (sd_sync () != 0);
 	ser_outf (SD_ETS_H, "WRITE COMPLETE, %u ERRORS\r\n", w);
@@ -1212,7 +1123,7 @@ Done:
 	w = 0;
 	err = 0;
 
-  entry (SD_ETS_I)
+  state SD_ETS_I:
 
 	w += (sd_read (adr, (byte*)(&val), 4) != 0);
 
@@ -1232,53 +1143,45 @@ Done:
 		}
 	}
 	if ((adr & 0xFFF) == 0)
-		proceed (SD_ETS_L);
+		proceed SD_ETS_L;
 
-  entry (SD_ETS_N)
+  state SD_ETS_N:
 
 	adr += 4;
 	if (adr < u)
-		proceed (SD_ETS_I);
+		proceed SD_ETS_I;
 
-  entry (SD_ETS_J)
+  state SD_ETS_J:
 
 	ser_outf (SD_ETS_J, "READ COMPLETE, %u ERRORS, %u MISREADS\r\n",
 		w, err);
 
-	proceed (SD_RCMD);
+	proceed SD_RCMD;
 
-  entry (SD_ETS_K)
+  state SD_ETS_K:
 
 	ser_outf (SD_ETS_K, "WRITTEN %lu (%lx)\r\n", adr, adr);
-	proceed (SD_ETS_M);
+	proceed SD_ETS_M;
 
-  entry (SD_ETS_L)
+  state SD_ETS_L:
 
 	ser_outf (SD_ETS_L, "READ %lu (%lx)\r\n", adr, adr);
-	proceed (SD_ETS_N);
+	proceed SD_ETS_N;
 
-  entry (SD_IDL)
+  state SD_IDL:
 
 	sd_idle ();
 	goto Done;
 
-endthread
+}
 
 #endif
 
 // ============================================================================
 
-#define	DE_INIT		0
-#define	DE_RCMD		10
-#define	DE_FRE		20
-#define	DE_LHO		30
-#define DE_PDM		40
-#define	DE_PUM		50
-#define	DE_SPN		60
+fsm test_delay {
 
-thread (test_delay)
-
-  entry (DE_INIT)
+  state DE_INIT:
 
 	ser_out (DE_INIT,
 		"\r\nRF Pin Test\r\n"
@@ -1293,63 +1196,63 @@ thread (test_delay)
 		"q -> return to main test\r\n"
 	);
 
-  entry (DE_RCMD)
+  state DE_RCMD:
 
 	ser_in (DE_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
 #if GLACIER
-		case 'f': proceed (DE_FRE);
+		case 'f': proceed DE_FRE;
 #endif
-		case 'l': proceed (DE_LHO);
-		case 'd': proceed (DE_PDM);
-		case 'u': proceed (DE_PUM);
-		case 's': proceed (DE_SPN);
+		case 'l': proceed DE_LHO;
+		case 'd': proceed DE_PDM;
+		case 'u': proceed DE_PUM;
+		case 's': proceed DE_SPN;
 		case 'q': { finish; }
 	}
 	
-  entry (DE_RCMD+1)
+  state DE_RCMDP1:
 
-	ser_out (DE_RCMD+1, "Illegal\r\n");
-	proceed (DE_INIT);
+	ser_out (DE_RCMDP1, "Illegal\r\n");
+	proceed DE_INIT;
 
 #if GLACIER
-  entry (DE_FRE)
+  state DE_FRE:
 
 	nt = 0;
 	scan (ibuf + 1, "%u", &nt);
 	diag ("Start");
 	freeze (nt);
 	diag ("Stop");
-	proceed (DE_RCMD);
+	proceed DE_RCMD;
 #endif
 
-  entry (DE_LHO)
+  state DE_LHO:
 
 	nt = 0;
 	scan (ibuf + 1, "%u", &nt);
 	val = (lword) nt + seconds ();
 	diag ("Start %u", (word) seconds ());
 
-  entry (DE_LHO+1)
+  state DE_LHOP1:
 
-	hold (DE_LHO+1, val);
+	hold (DE_LHOP1, val);
 	diag ("Stop %u", (word) seconds ());
-	proceed (DE_RCMD);
+	proceed DE_RCMD;
 
-  entry (DE_PDM)
+  state DE_PDM:
 
 	diag ("Entering PD mode");
 	powerdown ();
-	proceed (DE_RCMD);
+	proceed DE_RCMD;
 
-  entry (DE_PUM)
+  state DE_PUM:
 
 	diag ("Entering PU mode");
 	powerup ();
-	proceed (DE_RCMD);
+	proceed DE_RCMD;
 
-  entry (DE_SPN)
+  state DE_SPN:
 
 	nt = 0;
 	scan (ibuf + 1, "%u", &nt);
@@ -1357,86 +1260,71 @@ thread (test_delay)
 	// Wait for the nearest round second
 	s = seconds ();
 
-  entry (DE_SPN+1)
+  state DE_SPNP1:
 
 	if ((u = seconds ()) == s)
-		proceed (DE_SPN+1);
+		proceed DE_SPNP1;
 
 	u += nt;
 	s = 0;
 
-  entry (DE_SPN+2)
+  state DE_SPNP2:
 
 	if (seconds () != u) {
 		s++;
-		proceed (DE_SPN+2);
+		proceed DE_SPNP2;
 	}
 
-  entry (DE_SPN+3)
+  state DE_SPNP3:
 
-	ser_outf (DE_SPN+2, "Done: %lu cycles\r\n", s);
-	proceed (DE_RCMD);
+	ser_outf (DE_SPNP2, "Done: %lu cycles\r\n", s);
+	proceed DE_RCMD;
 
-endthread
+}
 
 // ============================================================================
 
-#define	UA_LOOP		00
-#define	UA_BACK		10
+fsm test_uart {
 
-thread (test_uart)
-
-    entry (UA_LOOP)
+    state UA_LOOP:
 
 	ser_in (UA_LOOP, ibuf, IBUFLEN-1);
 
-    entry (UA_BACK)
+    state UA_BACK:
 
 	ser_outf (UA_BACK, "%s\r\n", ibuf);
 
 	if (ibuf [0] == 'q' && ibuf [1] == '\0')
 		// Done
 		finish;
-	proceed (UA_LOOP);
+	proceed UA_LOOP;
 
-endthread
+}
 
 // ============================================================================
 
 #ifdef gps_bring_up
 
-#define	MI_READ		0
-#define	MI_WRITE	1
+fsm minput {
 
-thread (minput)
+  char c;
 
-  static char c;
-
-  entry (MI_READ)
+  state MI_READ:
 
 	io (MI_READ, UART_B, READ, &c, 1);
 
-  entry (MI_WRITE)
+  state MI_WRITE:
 
 	io (MI_WRITE, UART_A, WRITE, &c, 1);
-	proceed (MI_READ);
+	proceed MI_READ;
 
-endthread
+}
 
-#define	GP_INI	0
-#define	GP_MEN	1
-#define	GP_RCM	2
-#define	GP_WRI	3
-#define	GP_ENA	5
-#define	GP_DIS	6
-#define	GP_WRL	9
-#define	GP_ERR	10
+fsm test_gps {
 
-thread (test_gps) 
+  state GP_INI:
 
-  entry (GP_INI)
-
-  entry (GP_MEN)
+  state GP_MEN:
 
 	ser_out (GP_MEN,
 		"\r\nGPS Test\r\n"
@@ -1447,15 +1335,15 @@ thread (test_gps)
 		"q -> quit\r\n"
 	);
 
-  entry (GP_RCM)
+  state GP_RCM:
 
 	ser_in (GP_RCM, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
 
-	    case 'w': proceed (GP_WRI);
-	    case 'e': proceed (GP_ENA);
-	    case 'd': proceed (GP_DIS);
+	    case 'w': proceed GP_WRI;
+	    case 'e': proceed GP_ENA;
+	    case 'd': proceed GP_DIS;
 	    case 'q': {
 			gps_bring_down;
 			killall (minput);
@@ -1464,12 +1352,12 @@ thread (test_gps)
 
 	}
 
-  entry (GP_ERR)
+  state GP_ERR:
 
 	ser_out (GP_ERR, "Illegal\r\n");
-	proceed (GP_MEN);
+	proceed GP_MEN;
 
-  entry (GP_WRI)
+  state GP_WRI:
 
 	for (b = 1; ibuf [b] == ' '; b++);
 	off = strlen (ibuf + b);
@@ -1479,7 +1367,7 @@ thread (test_gps)
 	off += 2;
 	ibuf [b + off    ] = '\0';
 
-  entry (GP_WRL)
+  state GP_WRL:
 
 	while (off) {
 		rcvl = io (GP_WRL, UART_B, WRITE, ibuf + b, off);
@@ -1487,22 +1375,22 @@ thread (test_gps)
 		b += rcvl;
 	}
 
-	proceed (GP_RCM);
+	proceed GP_RCM;
 
-  entry (GP_ENA)
+  state GP_ENA:
 
 	gps_bring_up;
 	killall (minput);
-	runthread (minput);
-	proceed (GP_RCM);
+	runfsm minput;
+	proceed GP_RCM;
 
-  entry (GP_DIS)
+  state GP_DIS:
 
 	gps_bring_down;
 	killall (minput);
-	proceed (GP_RCM);
+	proceed GP_RCM;
 
-endthread
+}
 
 #endif /* gps_bring_up */
 
@@ -1510,17 +1398,9 @@ endthread
 
 #ifdef RTC_TEST
 
-#define	RT_MEN	0
-#define	RT_RCM	10
-#define	RT_ERR	20
-#define	RT_SET	30
-#define	RT_GET	40
-#define	RT_SETR	50
-#define	RT_GETR	60
+fsm test_rtc {
 
-thread (test_rtc) 
-
-  entry (RT_MEN)
+  state RT_MEN:
 
 	ser_out (RT_MEN,
 		"\r\nRTC Test\r\n"
@@ -1534,17 +1414,17 @@ thread (test_rtc)
 		"q -> quit\r\n"
 	);
 
-  entry (RT_RCM)
+  state RT_RCM:
 
 	ser_in (RT_RCM, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
 
-	    case 's': proceed (RT_SET);
-	    case 'r': proceed (RT_GET);
+	    case 's': proceed RT_SET;
+	    case 'r': proceed RT_GET;
 #ifdef RTC_REG
-	    case 'w': proceed (RT_SETR);
-	    case 'g': proceed (RT_GETR);
+	    case 'w': proceed RT_SETR;
+	    case 'g': proceed RT_GETR;
 #endif
 	    case 'q': {
 			finish;
@@ -1552,19 +1432,19 @@ thread (test_rtc)
 
 	}
 
-  entry (RT_ERR)
+  state RT_ERR:
 
 	ser_out (RT_ERR, "Illegal\r\n");
-	proceed (RT_MEN);
+	proceed RT_MEN;
 
-  entry (RT_SET)
+  state RT_SET:
 
 	sl = WNONE;
 	scan (ibuf + 1, "%u %u %u %u %u %u %u",
 		&rssi, &err, &w, &len, &bs, &nt, &sl);
 
 	if (sl == WNONE)
-		proceed (RT_ERR);
+		proceed RT_ERR;
 
 	dtime.year = rssi;
 	dtime.month = err;
@@ -1576,19 +1456,19 @@ thread (test_rtc)
 
 	rtc_set (&dtime);
 
-  entry (RT_SET+1)
+  state RT_SETP1:
 
-	ser_out (RT_SET+1, "Done\r\n");
-	proceed (RT_RCM);
+	ser_out (RT_SETP1, "Done\r\n");
+	proceed RT_RCM;
 
-  entry (RT_GET)
+  state RT_GET:
 
 	bzero (&dtime, sizeof (dtime));
 	rtc_get (&dtime);
 
-  entry (RT_GET+1)
+  state RT_GETP1:
 
-	ser_outf (RT_GET+1, "Date = %u %u %u %u %u %u %u\r\n",
+	ser_outf (RT_GETP1, "Date = %u %u %u %u %u %u %u\r\n",
 				dtime.year,
 				dtime.month,
 				dtime.day,
@@ -1596,30 +1476,30 @@ thread (test_rtc)
 				dtime.hour,
 				dtime.minute,
 				dtime.second);
-	proceed (RT_RCM);
+	proceed RT_RCM;
 
 #ifdef RTC_REG
 
-  entry (RT_SETR)
+  state RT_SETR:
 
 	sl = 0;
 	scan (ibuf + 1, "%u", &sl);
 	err = rtc_setr ((byte) sl);
-	proceed (RT_SET+1);
+	proceed RT_SETP1;
 
-  entry (RT_GETR)
+  state RT_GETR:
 
 	str [0] = 0xff;
 	err = rtc_getr (str);
 
-  entry (RT_GETR+1)
+  state RT_GETRP1:
 
-	ser_outf (RT_GETR+1, "Status = %u // %u\r\n", err, (word) (str [0]));
-	proceed (RT_RCM);
+	ser_outf (RT_GETRP1, "Status = %u // %u\r\n", err, (word) (str [0]));
+	proceed RT_RCM;
 
 #endif
 
-endthread
+}
 
 #endif /* RTC_TEST */
 
@@ -1627,19 +1507,9 @@ endthread
 
 #ifdef LCD_TEST
 
-#define	LT_MEN	0
-#define	LT_RCM	10
-#define	LT_ERR	20
-#define	LT_ON	30
-#define	LT_OFF	40
-#define	LT_DIS	50
-#define	LT_CLE	60
+fsm test_lcd {
 
-thread (test_lcd) 
-
-  char *t;
-
-  entry (LT_MEN)
+  state LT_MEN:
 
 	ser_out (LT_MEN,
 		"\r\nLCD Test\r\n"
@@ -1651,16 +1521,16 @@ thread (test_lcd)
 		"q -> quit\r\n"
 	);
 
-  entry (LT_RCM)
+  state LT_RCM:
 
 	ser_in (LT_RCM, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
 
-	    case 'o': proceed (LT_ON);
-	    case 'f': proceed (LT_OFF);
-	    case 'd': proceed (LT_DIS);
-	    case 'c': proceed (LT_CLE);
+	    case 'o': proceed LT_ON;
+	    case 'f': proceed LT_OFF;
+	    case 'd': proceed LT_DIS;
+	    case 'c': proceed LT_CLE;
 	    case 'q': {
 			lcd_off ();
 			finish;
@@ -1668,12 +1538,12 @@ thread (test_lcd)
 
 	}
 
-  entry (LT_ERR)
+  state LT_ERR:
 
 	ser_out (LT_ERR, "Illegal\r\n");
-	proceed (LT_MEN);
+	proceed LT_MEN;
 
-  entry (LT_ON)
+  state LT_ON:
 
 	sl = 0;
 	scan (ibuf + 1, "%u", &sl);
@@ -1682,37 +1552,39 @@ thread (test_lcd)
 		sl = 1;
 
 	lcd_on (sl);
-	proceed (LT_RCM);
+	proceed LT_RCM;
 
-  entry (LT_OFF)
+  state LT_OFF:
 
 	lcd_off ();
-	proceed (LT_RCM);
+	proceed LT_RCM;
 
-  entry (LT_DIS)
+  state LT_DIS:
+
+	char *t;
 
 	sl = 0;
 	scan (ibuf + 1, "%u", &sl);
 
 	if (sl > 31)
-		proceed (LT_ERR);
+		proceed LT_ERR;
 
 	for (t = ibuf + 1; *t != '\0'; t++)
 		if (*t != ' ' && *t != '\t' && !isdigit (*t))
 			break;
 
 	if (*t == '\0')
-		proceed (LT_ERR);
+		proceed LT_ERR;
 
 	lcd_write (sl, t);
-	proceed (LT_RCM);
+	proceed LT_RCM;
 
-  entry (LT_CLE)
+  state LT_CLE:
 
 	lcd_clear (0, 0);
-	proceed (LT_RCM);
+	proceed LT_RCM;
 
-endthread
+}
 
 #endif /* LCD_TEST */
 
@@ -1720,14 +1592,9 @@ endthread
 
 #ifdef	SENSOR_LIST
 
-#define	SE_INIT		00
-#define	SE_RCMD		10
-#define	SE_GSEN		20
-#define	SE_CSEN		30
+fsm test_sensors {
 
-thread (test_sensors)
-
-  entry (SE_INIT)
+  state SE_INIT:
 
 	ser_out (SE_INIT,
 		"\r\nSensor Test\r\n"
@@ -1737,36 +1604,36 @@ thread (test_sensors)
 		"q -> quit\r\n"
 		);
 
-  entry (SE_RCMD)
+  state SE_RCMD:
 
 	ser_in (SE_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
-		case 'r' : proceed (SE_GSEN);
-		case 'c' : proceed (SE_CSEN);
+		case 'r' : proceed SE_GSEN;
+		case 'c' : proceed SE_CSEN;
 	    	case 'q': { finish; };
 	}
 
-  entry (SE_RCMD+1)
+  state SE_RCMDP1:
 
-	ser_out (SE_RCMD+1, "Illegal\r\n");
-	proceed (SE_INIT);
+	ser_out (SE_RCMDP1, "Illegal\r\n");
+	proceed SE_INIT;
 
-  entry (SE_GSEN)
+  state SE_GSEN:
 
 	w = 0;
 	scan (ibuf + 1, "%u", &w);
 
-  entry (SE_GSEN+1)
+  state SE_GSENP1:
 
-	read_sensor (SE_GSEN+1, w, &ss);
+	read_sensor (SE_GSENP1, w, &ss);
 
-  entry (SE_GSEN+2)
+  state SE_GSENP2:
 
-	ser_outf (SE_GSEN+2, "Val: %u\r\n", ss);
-	proceed (SE_RCMD);
+	ser_outf (SE_GSENP2, "Val: %u\r\n", ss);
+	proceed SE_RCMD;
 
-  entry (SE_CSEN)
+  state SE_CSEN:
 
 	w = 0;
 	bs = 0;
@@ -1776,36 +1643,30 @@ thread (test_sensors)
 	if (nt == 0)
 		nt = 1;
 
-  entry (SE_CSEN+1)
+  state SE_CSENP1:
 
-	read_sensor (SE_CSEN+1, w, &ss);
+	read_sensor (SE_CSENP1, w, &ss);
 	nt--;
 
-  entry (SE_CSEN+2)
+  state SE_CSENP2:
 
-	ser_outf (SE_GSEN+2, "Val: %u (%u left)\r\n", ss, nt);
+	ser_outf (SE_GSENP2, "Val: %u (%u left)\r\n", ss, nt);
 
 	if (nt == 0)
-		proceed (SE_RCMD);
+		proceed SE_RCMD;
 	
-	delay (bs, SE_CSEN+1);
+	delay (bs, SE_CSENP1);
 	release;
 
-endthread
+}
 
 #endif
 
 // ============================================================================
 
-#define	AD_INIT		00
-#define	AD_RCMD		01
-#define	AD_CONF		03
-#define	AD_OK		04
-#define AD_STOP		05
+fsm test_adc {
 
-thread (test_adc)
-
-  entry (AD_INIT)
+  state AD_INIT:
 
 	ser_out (AD_INIT,
 		"\r\nADC Test\r\n"
@@ -1818,25 +1679,25 @@ thread (test_adc)
 		"q -> quit\r\n"
 		);
 
-  entry (AD_RCMD)
+  state AD_RCMD:
 
 	ser_in (AD_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
-		case 'c' : proceed (AD_CONF);
-		case 's' : { adc_start;    proceed (AD_OK); }
-		case 'f' : { adc_off;      proceed (AD_OK); }
-		case 'd' : { adc_disable;  proceed (AD_OK); }
-		case 'h' : proceed (AD_STOP);
+		case 'c' : proceed AD_CONF;
+		case 's' : { adc_start;    proceed AD_OK; }
+		case 'f' : { adc_off;      proceed AD_OK; }
+		case 'd' : { adc_disable;  proceed AD_OK; }
+		case 'h' : proceed AD_STOP;
 	    	case 'q' : { adc_disable;  finish; };
 	}
 
-  entry (AD_RCMD+1)
+  state AD_RCMDP1:
 
-	ser_out (AD_RCMD+1, "Illegal\r\n");
-	proceed (AD_INIT);
+	ser_out (AD_RCMDP1, "Illegal\r\n");
+	proceed AD_INIT;
 
-  entry (AD_CONF)
+  state AD_CONF:
 
 	nt = 0;
 	sl = 0;
@@ -1845,50 +1706,85 @@ thread (test_adc)
 	scan (ibuf + 1, "%u %u %u", &nt, &sl, &ss);
 
 	if (nt > 7 || sl > 3 || ss > 15)
-		proceed (AD_RCMD+1);
+		proceed AD_RCMDP1;
 
 	adc_config_read (nt, sl, ss);
 
-  entry (AD_OK)
+  state AD_OK:
 
 	ser_out (AD_OK, "OK\r\n");
-	proceed (AD_RCMD);
+	proceed AD_RCMD;
 
-  entry (AD_STOP)
+  state AD_STOP:
 
 	adc_stop;
 	if (adc_busy)
-		proceed (AD_STOP+1);
+		proceed AD_STOPP1;
 Value:
 	nt = adc_value;
 
-  entry (AD_STOP+3)
+  state AD_STOPP3:
 
-	ser_outf (AD_STOP+3, "Value = %u [%x]\r\n", nt, nt);
-	proceed (AD_RCMD);
+	ser_outf (AD_STOPP3, "Value = %u [%x]\r\n", nt, nt);
+	proceed AD_RCMD;
 
-  entry (AD_STOP+1)
+  state AD_STOPP1:
 
-	ser_out (AD_STOP+1, "Waiting for idle ...\r\n");
+	ser_out (AD_STOPP1, "Waiting for idle ...\r\n");
 	while (adc_busy);
 
-  entry (AD_STOP+2)
+  state AD_STOPP2:
 
-	ser_out (AD_STOP+2, "Idle\r\n");
+	ser_out (AD_STOPP2, "Idle\r\n");
 	goto Value;
-
-endthread
+}
 
 // ============================================================================
 
-#define	RS_INIT		00
-#define	RS_RCMD		10
-#define	RS_AUTO		20
-#define	RS_AUTOSTART	200
+#if (RADIO_OPTIONS & 0x40)
 
-thread (root)
+#define	MAXRREGS 8
 
-  entry (RS_INIT)
+static byte rregs [2*MAXRREGS+1];
+
+static char *dec_hex (char *p, byte *b) {
+
+	while (!isxdigit (*p)) {
+		if (*p == '\0')
+			return NULL;
+		p++;
+	}
+
+	*b = hexcode (*p);
+	p++;
+	if (!isxdigit (*p))
+		return NULL;
+	*b = ((*b) << 4) | hexcode (*p);
+	return p + 1;
+}
+
+static void set_rregs (char *p) {
+
+	int nc;
+	byte r, v;
+
+	for (nc = 0; nc < MAXRREGS*2; ) {
+		if ((p = dec_hex (p, &r)) == NULL)
+			break;
+		if ((p = dec_hex (p, &v)) == NULL)
+			break;
+		rregs [nc++] = r;
+		rregs [nc++] = v;
+	}
+
+	rregs [nc] = 255;
+}
+
+#endif
+
+fsm root {
+
+  state RS_INIT:
 
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
@@ -1929,12 +1825,16 @@ thread (root)
 	tcv_control (sfd, PHYSOPT_SETSID, (address)&off);
 #endif
 
-  entry (RS_RCMD-2)
+  state RS_RCMDM2:
 
-	ser_out (RS_RCMD-2,
+	ser_out (RS_RCMDM2,
 		"\r\nCommands:\r\n"
 		"a -> auto\r\n"
-		"r -> start radio\r\n"
+#if (RADIO_OPTIONS & 0x40)
+		"r s regs -> start radio\r\n"
+#else
+		"r s -> start radio\r\n"
+#endif
 		"p v  -> xmit pwr\r\n"
 		"c v  -> channel\r\n"
 		"q -> stop radio\r\n"
@@ -1978,15 +1878,15 @@ thread (root)
 		"U -> UART echo\r\n"
 	);
 
-  entry (RS_RCMD-1)
+  state RS_RCMDM1:
 
 RS_Err:
 
 	if ((unsigned char) ibuf [0] == 0xff)
-		ser_out (RS_RCMD-1,
+		ser_out (RS_RCMDM1,
 			"No cmd in 30 sec -> start radio\r\n"
 			);
-  entry (RS_RCMD)
+  state RS_RCMD:
 
 	if ((unsigned char) ibuf [0] == 0xff)
 		delay (1024*30, RS_AUTOSTART);
@@ -1996,15 +1896,34 @@ RS_Err:
 
 	switch (ibuf [0]) {
 
-		case 'a' : proceed (RS_AUTO);
+		case 'a' : proceed RS_AUTO;
 
 		case 'r' : {
-				w = 0;
-				scan (ibuf + 1, "%u", &w);
-				if ((w & 3) == 0)
-					w = 3;
-				radio_start (w);
-RS_Loop:			proceed (RS_RCMD);
+
+			char *p;
+
+			w = 0;
+			p = ibuf + 1;
+			while (!isdigit (*p) && *p != '\0')
+				p++;
+			if (*p != '\0') {
+				w = (*p) - '0';
+				p++;
+			}
+			if ((w & 3) == 0)
+				w = 3;
+#if (RADIO_OPTIONS & 0x40)
+			set_rregs (p);
+			tcv_control (sfd, PHYSOPT_RESET, (address)rregs);
+			diag ("RREGS: %x %x %x %x %x %x",
+				rregs [0], rregs [1], rregs [2], rregs [3],
+					rregs [4], rregs [5]);
+#endif
+			diag ("RSTAR: %d", w);
+
+			radio_start (w);
+
+RS_Loop:		proceed RS_RCMD;
 		}
 	
 		case 'p' : {
@@ -2066,98 +1985,97 @@ RS_Loop:			proceed (RS_RCMD);
 		case 'n' : reset ();
 
 		case 'F' : {
-				runthread (test_ifl);
-				joinall (test_ifl, RS_RCMD-2);
+				runfsm test_ifl;
+				joinall (test_ifl, RS_RCMDM2);
 				release;
 		}
 
 #ifdef EPR_TEST
 		case 'E' : {
-				runthread (test_epr);
-				joinall (test_epr, RS_RCMD-2);
+				runfsm test_epr;
+				joinall (test_epr, RS_RCMDM2);
 				release;
 		}
 #endif
 
 #ifdef SDC_TEST
 		case 'S' : {
-				runthread (test_sdcard);
-				joinall (test_sdcard, RS_RCMD-2);
+				runfsm test_sdcard;
+				joinall (test_sdcard, RS_RCMDM2);
 				release;
 		}
 #endif
 
 		case 'P' : {
-				runthread (test_pin);
-				joinall (test_pin, RS_RCMD-2);
+				runfsm test_pin;
+				joinall (test_pin, RS_RCMDM2);
 				release;
 		}
 		case 'D' : {
-				runthread (test_delay);
-				joinall (test_delay, RS_RCMD-2);
+				runfsm test_delay;
+				joinall (test_delay, RS_RCMDM2);
 				release;
 		}
 		case 'U' : {
-				runthread (test_uart);
-				joinall (test_uart, RS_RCMD-2);
+				runfsm test_uart;
+				joinall (test_uart, RS_RCMDM2);
 				release;
 		}
 #ifdef gps_bring_up
 		case 'G' : {
-				runthread (test_gps);
-				joinall (test_gps, RS_RCMD-2);
+				runfsm test_gps;
+				joinall (test_gps, RS_RCMDM2);
 				release;
 		}
 #endif
 
 #ifdef SENSOR_LIST
 		case 'V' : {
-				runthread (test_sensors);
-				joinall (test_sensors, RS_RCMD-2);
+				runfsm test_sensors;
+				joinall (test_sensors, RS_RCMDM2);
 				release;
 		}
 #endif
 		case 'A' : {
-				runthread (test_adc);
-				joinall (test_adc, RS_RCMD-2);
+				runfsm test_adc;
+				joinall (test_adc, RS_RCMDM2);
 				release;
 		}
 
 #ifdef RTC_TEST
 		case 'T' : {
-				runthread (test_rtc);
-				joinall (test_rtc, RS_RCMD-2);
+				runfsm test_rtc;
+				joinall (test_rtc, RS_RCMDM2);
 				release;
 		}
 #endif
 #ifdef LCD_TEST
 		case 'L' : {
-				runthread (test_lcd);
-				joinall (test_lcd, RS_RCMD-2);
+				runfsm test_lcd;
+				joinall (test_lcd, RS_RCMDM2);
 				release;
 		}
 #endif
 	}
 
-  entry (RS_RCMD+1)
+  state RS_RCMDP1:
 
-	ser_out (RS_RCMD+1, "Illegal\r\n");
-	proceed (RS_RCMD-2);
+	ser_out (RS_RCMDP1, "Illegal\r\n");
+	proceed RS_RCMDM2;
 
-  entry (RS_AUTO)
+  state RS_AUTO:
 
 	ser_out (RS_AUTO, "Auto, q to stop ...\r\n");
-	runthread (test_auto);
+	runfsm test_auto;
 
-  entry (RS_AUTO+1)
+  state RS_AUTOP1:
 
-	ser_in (RS_AUTO+1, ibuf, IBUFLEN-1);
+	ser_in (RS_AUTOP1, ibuf, IBUFLEN-1);
 	reset ();
 
-  entry (RS_AUTOSTART)
+  state RS_AUTOSTART:
 
 	ibuf [0] = 0;
 	radio_start (3);
-	proceed (RS_RCMD);
-
-endthread
+	proceed RS_RCMD;
+}

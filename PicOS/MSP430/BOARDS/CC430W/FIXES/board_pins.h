@@ -3,16 +3,19 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+// These are the "correct" definitions for the fixed version of the board
+// 111012
+
 // P1:
-//	0 - CONN	J7.9
-//	1 - CONN	J7.8
+//	0 - CONN	J8.2	IR PIR
+//	1 - CONN	J8.4	IR TAMP
 //	2 - EEPROM	SO	[UCB0SOMI]
 //	3 - EEPROM	SI	[UCB0SIMO]
 //	4 - EEPROM	SCK	[UCB0CLK]
 //	5 - UARTRX		[UCA0RX]	CONN	J7.13
 //	6 - UARTTX		[UCA0TX]	CONN	J7.12
-//	7 - INT		CMA3000			CONN	J7.7	[ERROR!]
-#define	PIN_DEFAULT_P1DIR	0x40	// 18
+//	7 - INT		CMA3000
+#define	PIN_DEFAULT_P1DIR	0x40
 #define	PIN_DEFAULT_P1SEL	0x60
 
 // P2:
@@ -22,10 +25,10 @@
 //	3 - CONN	J6.11
 //	4 - CONN	J7.11	[VREF-]
 //	5 - CONN	J7.10	[VEREF+]
-//	6 - INT VOL SEN		[ADC A6]
+//	6 - CONN	J7.4
 //	7 - EXT VOL SEN		[ADC A7]
 #define	PIN_DEFAULT_P2DIR	0x00
-#define	PIN_DEFAULT_P2SEL	0xC0
+#define	PIN_DEFAULT_P2SEL	0x80
 
 // P3:
 //	0 - CONN	J6.10
@@ -40,11 +43,11 @@
 #define	PIN_DEFAULT_P3DIR	0x00
 
 // P4:
-//	0 - EEPROM	CS			VDD	CMA3000	[ERROR!]
+//	0 - EEPROM	CS
 //	1 - ASWITCH	EEPROM
 //	2 - ASWITCH	XX Vcc	J7.3
 //	3 - VOL SEN ON	OFF == HIGH
-//	4 - NC					SHOULD BE CMA3000 VDD
+//	4 - CMA3000 VDD
 //	5 - LED Y	OFF == HIGH
 //	6 - LED G	OFF == HIGH
 //	7 - LED R	OFF == HIGH
@@ -57,7 +60,7 @@
 //	2 - CMA3000	CSB
 //	3 - CONN	J7.6
 //	4 - CONN	J7.5
-//	5 - CMA3000	SCL			CONN	J7.4	[ERROR!]
+//	5 - CMA3000	SCL
 //	6 - CMA3000	MOSI SDA ->sensor
 //	7 - CMA3000	MISO	 <-sensor
 #define	PIN_DEFAULT_P5SEL	0x03
@@ -83,9 +86,9 @@
 	PIN_DEF	(P2, 3),	\
 	PIN_DEF	(P2, 4),	\
 	PIN_DEF	(P2, 5),	\
+	PIN_DEF	(P2, 6),	\
 	PIN_DEF	(P1, 0),	\
 	PIN_DEF	(P1, 1),	\
-	PIN_DEF	(P1, 7),	\
 	PIN_DEF (P3, 0),	\
 	PIN_DEF (P3, 1),	\
 	PIN_DEF (P3, 2),	\
@@ -95,12 +98,11 @@
 	PIN_DEF (P3, 6),	\
 	PIN_DEF (P3, 7),	\
 	PIN_DEF (P5, 3),	\
-	PIN_DEF (P5, 4),	\
-	PIN_DEF (P5, 5)		\
+	PIN_DEF (P5, 4)		\
 }
 
-#define	PIN_MAX		19
-#define	PIN_MAX_ANALOG	5
+#define	PIN_MAX		18
+#define	PIN_MAX_ANALOG	6
 #define	PIN_DAC_PINS	0x00
 
 #define	CSWITCH_EE	2

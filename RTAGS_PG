@@ -622,7 +622,7 @@ PG100811A:
 
 		fsm dowol (char *msg) {
 
-	Makes more sense, doesn't it. Except that this isn't compatible any
+	Makes more sense, doesn't it? Except that this isn't compatible any
 	more with the old macro strand, i.e.,
 
 		strand dowol (char *msg) {
@@ -1023,7 +1023,7 @@ PG110206A:
 	   easy to find.
 
 	I am putting in our REPO (http://www.olsonet.com/REPO) two files which
-	now represent our official reommended version of mspgcc:
+	now represent our official recommended version of mspgcc:
 
 	mspgcc_source.tar.gz	- the source files to compile (both for Linux
 				  and Cygwin)
@@ -1397,3 +1397,21 @@ PG110920B:
 	Cleaned up device names in piter (no more weird names like \\.\COM17).
 	Hopefully, this is the last one of the quick series of commits inspired
 	by the Krakow project.
+
+PG111013A:
+
+	Clipboard selection in piter's terminal window (the GUI version) now
+	works. Just drag the text with the left button (as in X-Windows). The
+	same applies to the line input area at the bottom. Additionally, the
+	middle button in the line input area does the paste (as for X-Windows).
+
+	The TESTS/WARSAW praxis made picomp-compatible.
+
+	Board definition for the present (broken) version of the new Warsaw
+	board (BOARDS/CC430W) now corrects for the frequency shift incurred by
+	the faulty crystal, so the board can talk to other boards.
+
+	Fixes/corrections to the new Warsaw board included in
+	BOARDS/CC430W/FIXED (by way of documentation), so we have a ready
+	board definition when the mended version of the actual board
+	materializes.

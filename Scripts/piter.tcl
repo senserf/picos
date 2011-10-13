@@ -413,6 +413,9 @@ proc sy_mkterm { } {
 
 	.t configure -state disabled
 	bind . <Destroy> "sy_exit"
+	bind .t <ButtonRelease-1> "tk_textCopy .t"
+	bind .stat.u <ButtonRelease-1> "tk_textCopy .stat.u"
+	bind .stat.u <ButtonRelease-2> "tk_textPaste .stat.u"
 }
 
 proc sy_setsblab { } {
