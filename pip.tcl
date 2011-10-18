@@ -38,9 +38,9 @@ set IGDirs {
 	{ "^ktmp" "junk" "attic" "ossi" "\\~\\$" }
 }
 
-## List of configuration items (to be searched for in config.prj) + their
+## Dictionary of configuration items (to be searched for in config.prj) + their
 ## default values
-set CFItems { { "CPU" "MSP430" } { "MB" 0 } { "BO" "" } } 
+set CFItems { "CPU" "MSP430" "MB" 0 "BO" "" } 
 
 ## List of legal CPU types
 set CPUTypes { MSP430 eCOG }
@@ -52,6 +52,14 @@ set LProjects ""
 set TCMD(FD) ""
 set TCMD(BF) ""
 set TCMD(BL) 0
+set TCMD(CB) ""
+set TCMD(CL) 0
+
+set P(SSL) ""
+set P(SSV) ""
+
+## double exit avoidance flag
+set REX	0
 
 ###############################################################################
 
@@ -73,34 +81,6 @@ proc xq { pgm { pargs "" } } {
 		set ret [eval [list exec] [list $ef] $pargs]
 	}
 	return $ret
-}
-
-proc dict_s { dd vl } {
-#
-# Set a flat dictionary from a value list
-#
-	upvar $dd d
-
-	set d [dict create]
-
-	foreach v $vl {
-		dict set d [lindex $v 0] [lindex $v 1]
-	}
-}
-
-proc dict_g { d } {
-#
-# Produce a list of { key value } pairs from the flat dictionary
-#
-	set kl [dict keys $d]
-
-	set r ""
-
-	foreach k $kl {
-		lappend r [list $k [dict get $d $k]]
-	}
-
-	return $r
 }
 
 proc alert { msg } {
@@ -1121,8 +1101,6 @@ proc close_project { } {
 	if $P(AC) {
 		# this is used to tell if a project is currently opened;
 		# perhaps we should've checked it before edit_unsaved?
-		set_config
-		# more to add here?
 		set P(AC) 0
 		set P(CO) ""
 	}
@@ -1234,7 +1212,7 @@ proc get_config { } {
 	global CFItems P
 
 	# start from the dictionary of defaults
-	dict_s P(CO) $CFItems
+	set P(CO) $CFItems
 
 	if [catch { open "config.prj" "r" } fd] {
 		return
@@ -1250,9 +1228,7 @@ proc get_config { } {
 
 	set D [dict create]
 
-	foreach vp $pf {
-		set k [lindex $vp 0]
-		set v [lindex $vp 1]
+	foreach { k v } $pf {
 		if { $k == "" || ![dict exists $P(CO) $k] } {
 			alert "Illegal contents of config.prj ($vp), file\
 				ignored"
@@ -1270,14 +1246,12 @@ proc set_config { } {
 #
 	global P
 
-	set r [dict_g $P(CO)]
-
 	if [catch { open "config.prj" "w" } fd] {
 		alert "Cannot open config.prj for writing, $fd"
 		return
 	}
 
-	if [catch { puts -nonewline $fd $r } er] {
+	if [catch { puts -nonewline $fd $P(CO) } er] {
 		catch { close $fd }
 		alert "Cannot write to config.prj, $er"
 		return
@@ -1366,6 +1340,7 @@ proc do_board_selection { } {
 				dict set P(CO) $k $P(BS,$k)
 			}
 			stop_board_selection
+			set_config
 			return
 		}
 		# redo
@@ -1540,11 +1515,18 @@ proc mk_board_selection_window { } {
 	
 proc terminate { { f "" } } {
 
+	global REX
+
+	if $REX { return }
+
+	set REX 1
+
 	if { $f == "" && [edit_unsaved] } {
 		return
 	}
 
 	edit_kill
+	close_project
 	exit 0
 }
 
@@ -1616,7 +1598,7 @@ proc do_stop_term { } {
 		set TCMD(BF) ""
 	}
 	mark_running 0
-	term_dspline "--END--"
+	term_dspline "--DONE--"
 }
 
 ###############################################################################
@@ -1707,11 +1689,45 @@ proc mk_build_menu { } {
 	$m add command -label "Abort" -command "do_abort_term"
 }
 
+proc mark_running_tm { } {
+
+	global P TCMD
+
+	set P(SSV) [format "%3d" $TCMD(CL)]
+}
+
 proc mark_running { stat } {
-###here
 
-puts "Running $stat"
+	global P TCMD
 
+	if $stat {
+		# running
+		if { $TCMD(CB) != "" } {
+			# the callback is active
+			return
+		}
+		set TCMD(CL) 0
+		set P(SSL) "Running: "
+		mark_running_tm
+		set TCMD(CB) [after 1000 mark_running_cb]
+		return
+	}
+
+	if { $TCMD(CB) != "" } {
+		after cancel $TCMD(CB)
+		set TCMD(CB) ""
+	}
+
+	set P(SSL) "Idle:"
+}
+
+proc mark_running_cb { } {
+
+	global TCMD P
+
+	incr TCMD(CL)
+	mark_running_tm
+	set TCMD(CB) [after 1000 mark_running_cb]
 }
 
 proc mk_project_window { } {
@@ -1762,6 +1778,20 @@ proc mk_project_window { } {
 
 	frame .pane.left
 	pack .pane.left -side left -expand y -fill both
+
+	mark_running 0
+
+	frame .pane.left.sf
+	pack .pane.left.sf -side top -expand n -fill x
+
+	label .pane.left.sf.ss -textvariable P(SSL) -background white \
+		-justify left -anchor w
+	pack .pane.left.sf.ss -side left -expand y -fill x
+
+	label .pane.left.sf.sv -textvariable P(SSV) -background white \
+		-justify right -anchor e
+	pack .pane.left.sf.sv -side right -expand y -fill x
+
 	set cn .pane.left
 
 	#######################################################################
@@ -1771,6 +1801,8 @@ proc mk_project_window { } {
 				-yscroll "$cn.vsb set" \
 				-xscroll "$cn.hsb set" \
 				-show tree
+
+	pack $cn.tree -side top -expand y -fill both
 
 	ttk::scrollbar $cn.vsb -orient vertical -command "$cn.tree yview"
 	ttk::scrollbar $cn.hsb -orient horizontal -command "$cn.tree xview"
@@ -1842,9 +1874,27 @@ proc do_mkmk_node { { bi 0 } } {
 	} else {
 		lappend al $bo
 	}
-puts "MKMK: $al"
 
 	if [catch { run_term_command "mkmk" $al } err] {
+		alert $err
+	}
+}
+
+proc do_make_node { { bi 0 } } {
+
+	global P
+
+	set mb [dict get $P(CO) "MB"]
+
+	set al ""
+
+	if $mb {
+		# the index makes sense
+		lappend al "-f"
+		lappend al "Makefile_[lindex $P(PL) $bi]"
+	}
+
+	if [catch { run_term_command "make" $al } err] {
 		alert $err
 	}
 }
