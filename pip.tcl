@@ -22,6 +22,8 @@ set PicOSPath	""
 set DefProjDir	""
 
 set EditCommand "elvis -f ram -m -G x11 -font 9x15"
+set TagsCmd "elvtags"
+set TagsArgs "-l -i -t -v -h -l --"
 
 ## File types to be listed in the Files view
 set LFTypes {
@@ -309,7 +311,9 @@ proc gfl_tree { } {
 	$tv delete [$tv children {}]
 
 	foreach t $LFTypes {
+		# header title
 		set h [lindex $t 0]
+		# the list of items for this header, directories going first
 		set l [gfl_spec $fl $h]
 		set id [$tv insert {} end -text ${h}: -values [list $h "c"]]
 		if [info exists P(FL,c,$h)] {
@@ -321,6 +325,8 @@ proc gfl_tree { } {
 		# tree, parent, list, path so far
 		gfl_tree_pop $tv $id $l ""
 	}
+
+	gfl_make_ctags
 }
 
 proc gfl_tree_pop { tv node lst path } {
@@ -328,7 +334,7 @@ proc gfl_tree_pop { tv node lst path } {
 # Populate the list of children of the given node with the current contents
 # of the list
 #
-	global P
+	global P EFST
 
 	foreach t [lindex $lst 0] {
 		# the directories
@@ -350,7 +356,21 @@ proc gfl_tree_pop { tv node lst path } {
 	# now for the files
 	foreach t [lindex $lst 1] {
 		set p [file join $path $t]
-		$tv insert $node end -text $t -values [list $p "f"]
+		set f [file normalize $p]
+		set u [file_edit_pipe $f]
+		if { $u != "" } {
+			# edited
+			if $EFST($u,M) {
+				# modified
+				set tag sred
+			} else {
+				set tag sgreen
+			}
+			$tv insert $node end -text $t -values [list $p "f"] \
+				-tags $tag
+		} else {
+			$tv insert $node end -text $t -values [list $p "f"]
+		}
 	}
 }
 
@@ -505,13 +525,145 @@ proc gfl_close { tree node } {
 	}
 }
 
+proc gfl_files { { pat "" } } {
+#
+# Finds all files in the tree view matching the specified pattern
+#
+	global P
+
+	set res ""
+
+	foreach d [$P(FL) children {}] {
+		# only headers at this level
+		set lres [gfl_files_rec $d $pat]
+		if { $lres != "" } {
+			set res [concat $res $lres]
+		}
+	}
+	return $res
+}
+
+proc gfl_files_rec { nd pat } {
+#
+# The recursive traverser for gfl_files
+#
+	global P
+
+	set res ""
+
+	foreach d [$P(FL) children $nd] {
+		set vs [$P(FL) item $d -values]
+		if { [lindex $vs 1] != "f" } {
+			# not a file
+			set lres [gfl_files_rec $d $pat]
+			if { $lres != "" } {
+				set res [concat $res $lres]
+			}
+		} else {
+			set fn [lindex $vs 0]
+			if { $pat == "" || [regexp $pat $fn] } {
+				lappend res $fn
+			}
+		}
+	}
+
+	return $res
+}
+
+proc gfl_find { path } {
+#
+# Locates the node corresponding to the given file path
+#
+	global P
+
+	foreach d [$P(FL) children {}] {
+		# only headers at this level
+		set node [gfl_find_rec $d $path]
+		if { $node != "" } {
+			return $node
+		}
+	}
+	return ""
+}
+
+proc gfl_find_rec { nd path } {
+#
+# The recursive traverser for gfl_find
+#
+	global P
+
+	foreach d [$P(FL) children $nd] {
+		set vs [$P(FL) item $d -values]
+		if { [lindex $vs 1] != "f" } {
+			# not a file
+			set node [gfl_find_rec $d $path]
+			if { $node != "" } {
+				return $node
+			}
+			continue
+		}
+		if { [file normalize [lindex $vs 0]] == $path } {
+			return $d
+		}
+	}
+
+	return ""
+}
+
+proc gfl_status { path val } {
+#
+# Change the color of file label in the tree based on the current file status
+#
+	global P
+
+	set node [gfl_find $path]
+
+	if { $node == "" } {
+		return
+	}
+
+	if { $val < 0 } {
+		$P(FL) item $node -tags {}
+	} elseif { $val == 0 } {
+		$P(FL) item $node -tags sgreen
+	} else {
+		$P(FL) item $node -tags sred
+	}
+}
+
+proc gfl_make_ctags { } {
+#
+# Create ctags for all files in the current project. We do this somewhat
+# nonchalantly (for all files) whenever we suspect that something has changed,
+# like after editing a file. Note that this is still a toy implementation of
+# our SDK. We shall worry about efficiency later (if ever).
+#
+	global P TagsCmd TagsArgs
+
+	# the list of the proper files of the project
+	set fl [gfl_files]
+
+	if { $fl == "" } {
+		# no files (yet?)
+		set P(FL,CT) ""
+		return
+	}
+
+	if [catch { xq $TagsCmd [concat $TagsArgs $fl] } P(FL,CT)] {
+		alert "Cannot generate tags: $P(FL,CT)"
+		set P(FL,CT) ""
+		return
+	}
+	log "Tags size [string length $P(FL,CT)] chars"
+}
+
 ###############################################################################
 
 proc edit_file { fn } {
 
 	global EFDS EFST EditCommand
 
-	if [catch { open "|$EditCommand [list $fn]" "r" } fd] {
+	if [catch { open "|$EditCommand [list $fn]" "r+" } fd] {
 		alert "Cannot start text editor: $fd"
 		return
 	}
@@ -521,6 +673,8 @@ proc edit_file { fn } {
 	set EFST($fd,M) 0
 	# PID (unknown yet)
 	set EFST($fd,P) ""
+	# mark the status in the tree
+	gfl_status $fn 0
 
 	log "Editing file: $fn"
 
@@ -560,6 +714,7 @@ proc edit_status_read { fd } {
 	if { $st != $EFST($fd,M) } {
 		log "Edit status change for $EFDS($fd): $EFST($fd,M) -> $st"
 		set EFST($fd,M) $st
+		gfl_status $EFDS($fd) $st
 	}
 }
 
@@ -577,9 +732,11 @@ proc edit_close { fd ab } {
 			set ab "closed"
 		}
 		log "Edit session $EFDS($fd) $ab"
+		gfl_status $EFDS($fd) -1
 		array unset EFST "$fd,*"
 		unset EFDS($fd)
-		# redo the file list
+		# redo the file list; FIXME: don't do this, but redo tags, if
+		# the file has (ever) changed
 		gfl_tree
 	}
 }
@@ -628,6 +785,7 @@ proc edit_kill { { fp "" } } {
 			# not this file
 			continue
 		}
+		gfl_status $EFDS($fd) -1
 		unset EFDS($fd)
 		set pid $EFST($fd,P)
 		array unset EFST($fd,*)
@@ -655,6 +813,19 @@ proc file_is_edited { fn { m 0 } } {
 	return 0
 }
 
+proc file_edit_pipe { fn } {
+
+	global EFDS
+
+	foreach fd [array names EFDS] {
+		if { $EFDS($fd) == $fn } {
+			return $fd
+		}
+	}
+
+	return ""
+}
+
 proc open_for_edit { x y } {
 
 	global P EFDS
@@ -674,8 +845,11 @@ proc open_for_edit { x y } {
 	}
 
 	set fp [file normalize [lindex $vs 0]]
-	if [file_is_edited $fp] {
-		alert "The file is already being edited"
+	set u [file_edit_pipe $fp]
+	if { $u != "" } {
+		# being edited
+		catch { puts $u "" }
+		# alert "The file is already being edited"
 		return
 	}
 	edit_file $fp
@@ -769,7 +943,7 @@ proc open_multiple { } {
 
 proc delete_multiple { } {
 
-	global P EFST EFDS
+	global P
 
 	if ![info exists P(ML)] {
 		# the list of files
@@ -831,7 +1005,7 @@ proc delete_multiple { } {
 	gfl_tree
 }
 
-proc new_file { x y } {
+proc new_file { { x "" } { y "" } } {
 
 	global P LFTypes
 
@@ -839,7 +1013,7 @@ proc new_file { x y } {
 
 	set t [$tv selection]
 
-	if { [llength $t] != 1 } {
+	if { [llength $t] != 1 && $x != "" } {
 		# use the pointer
 		set t [$tv identify item $x $y]
 	} else {
@@ -1063,7 +1237,7 @@ proc val_prj_exists { dir } {
 	}
 
 	if { !$es && $pl == "" } {
-		alert "There is nothing resmbling a PicOS project in this\
+		alert "There is nothing resembling a PicOS project in this\
 			directory"
 		return 0
 	}
@@ -1306,7 +1480,7 @@ proc board_list { cpu } {
 			lappend r $f
 		}
 	}
-	return $r
+	return [lsort $r]
 }
 
 proc do_board_selection { } {
@@ -1824,6 +1998,10 @@ proc mk_project_window { } {
 	bind $P(FL) <Double-1> "open_for_edit %x %y"
 	bind $P(FL) <ButtonPress-3> "tree_menu %x %y %X %Y"
 	bind $P(FL) <ButtonPress-2> "tree_menu %x %y %X %Y"
+
+	# tags for marking edited files and their status
+	$P(FL) tag configure sred -foreground red
+	$P(FL) tag configure sgreen -foreground green
 
 	#######################################################################
 
