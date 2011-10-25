@@ -14,6 +14,10 @@ BO - board or board list, depending on MB; in the latter case, the list is
 
 TODO:
 
++ fsm tags
++ keep multiple tags in case of replication, use some file-name semblance in
+  case of conflict? No! Better cycle through the alternatives on subsequent
+  clicks of the same tag, giving priority to *.cc over *.h.
 + status field (running)
 + save in config.prj board selection
 - more friendly labels in build menu

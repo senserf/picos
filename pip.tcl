@@ -381,8 +381,8 @@ proc gfl_all_rec { path } {
 #
 	global MKRECV IGDirs LFTypes
 
-	if [catch { exec ls $path } sdl] {
-		# doesn't exist?
+	if [catch { glob -directory $path -tails * } sdl] {
+		# something wrong
 		return ""
 	}
 
@@ -643,18 +643,93 @@ proc gfl_make_ctags { } {
 	# the list of the proper files of the project
 	set fl [gfl_files]
 
+	array unset P "FL,T,*"
+
 	if { $fl == "" } {
 		# no files (yet?)
-		set P(FL,CT) ""
 		return
 	}
 
-	if [catch { xq $TagsCmd [concat $TagsArgs $fl] } P(FL,CT)] {
-		alert "Cannot generate tags: $P(FL,CT)"
-		set P(FL,CT) ""
+	if [catch { xq $TagsCmd [concat $TagsArgs $fl] } tl] {
+		alert "Cannot generate tags: $tl"
 		return
 	}
-	log "Tags size [string length $P(FL,CT)] chars"
+
+	# preprocess the tags
+	set tl [split $tl "\n"]
+	foreach t $tl {
+		if { [string index $t 0] == "!" } {
+			# these are comments, ignore
+			continue
+		}
+		if ![regexp "^(\[^\t\]+)\[\t\]+(\[^\t\]+)\[\t\]+(.+);\"" \
+		    $t jnk ta fn cm] {
+			# some garbage
+			continue
+		}
+		if ![info exists P(FL,T,$ta)] {
+			set P(FL,T,$ta) ""
+		}
+		set ne [list $fn $cm]
+		if { [string tolower [file extension $fn]] == ".h" } {
+			# headers have lower priority
+			lappend P(FL,T,$ta) [list $fn $cm]
+		} else {
+			# other files go to front
+			set P(FL,T,$ta) [concat [list $ne] $P(FL,T,$ta)]
+		}
+	}
+}
+
+###############################################################################
+
+proc tag_request { fd tag } {
+#
+# Handles a tag request arriving from one of the editor sessions
+#
+	global P
+
+	log "Tag request: $tag"
+
+	if ![info exists P(FL,T,$tag)] {
+		alert "Tag $tag not found"
+		return
+	}
+
+	# check for a previous reference
+	set nr 0
+	if { [info exists P(FL,LT)] && [lindex $P(FL,LT) 0] == $tag } {
+		# same tag referenced multiple times, get reference number
+		set nr [lindex $P(FL,LT) 1]
+		incr nr
+		if { $nr >= [llength $P(FL,T,$tag)] } {
+			# wrap around
+			set nr 0
+		}
+	}
+	set P(FL,LT) [list $tag $nr]
+
+	set ne [lindex $P(FL,T,$tag) $nr]
+	set fn [lindex $ne 0]
+	set cm [lindex $ne 1]
+	
+	set fp [file normalize $fn]
+
+	# get the pipe to the target file
+	set u [file_edit_pipe $fp]
+
+	if { $u == "" } {
+		# not being edited, try to open it first
+		edit_file $fp
+		set u [file_edit_pipe $fp]
+		if { $u == "" } {
+			# failed for some reason
+			return
+		}
+	}
+
+	# issue the command and raise the window
+	catch { puts $u $cm }
 }
 
 ###############################################################################
@@ -701,21 +776,33 @@ proc edit_status_read { fd } {
 
 	set line [string trim $line]
 
-	if ![regexp "BST: (\[0-9\])" $line jnk st] {
-		# ignore any other lines except the first PID
-		if { $EFST($fd,P) == "" && [regexp "PID: (\[0-9\]+)" $line jnk \
-		     st] } {
-			set EFST($fd,P) $st
-			log "Edit process ID: $st"
+	if [regexp "BST: (\[0-9\])" $line jnk st] {
+		if { $st != $EFST($fd,M) } {
+			# an actual change
+			log "Edit status change for $EFDS($fd): $EFST($fd,M) ->\
+				$st"
+			set EFST($fd,M) $st
+			gfl_status $EFDS($fd) $st
 		}
 		return
 	}
 
-	if { $st != $EFST($fd,M) } {
-		log "Edit status change for $EFDS($fd): $EFST($fd,M) -> $st"
-		set EFST($fd,M) $st
-		gfl_status $EFDS($fd) $st
+	if [regexp "TAG: +(.+)" $line jnk st] {
+		tag_request $fd $st
+		return
 	}
+
+	if [regexp "PID: (\[0-9\]+)" $line jnk st] {
+		log "Edit process ID: $st"
+		if { $EFST($fd,P) == "" } {
+			set EFST($fd,P) $st
+		}
+		return
+	}
+
+	log "PIPE: $line"
+
+	# room for more
 }
 
 proc edit_close { fd ab } {
@@ -1204,7 +1291,7 @@ proc val_prj_exists { dir } {
 #
 	global P
 
-	if [catch { exec ls $dir } fl] {
+	if [catch { glob -directory $dir -tails * } fl] {
 		alert "Cannot access the project's directory $dir, $fl"
 		return 0
 	}
@@ -1251,6 +1338,7 @@ proc val_prj_exists { dir } {
 
 	array unset P "FL,d,*"
 	array unset P "FL,c,*"
+	array unset P "FL,T,*"
 
 	set P(PL) $pl
 
