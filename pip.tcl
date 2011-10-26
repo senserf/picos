@@ -35,10 +35,8 @@ set LFTypes {
 
 ## Directory names to be ignored in the project's directory:
 ## strict names, patterns (case ignored)
-set IGDirs {
-	{ "CVS" "VUEE_TMP" }
-	{ "^ktmp" "junk" "attic" "ossi" "\\~\\$" }
-}
+set IGDirs { "^cvs$" "^vuee_tmp$" "^ktmp" "junk" "attic" "ossi" "\\~\\$" 
+		"\[ \t.\]" }
 
 ## Dictionary of configuration items (to be searched for in config.prj) + their
 ## default values
@@ -59,6 +57,7 @@ set TCMD(CL) 0
 
 set P(SSL) ""
 set P(SSV) ""
+set P(LND) ""
 
 ## double exit avoidance flag
 set REX	0
@@ -71,6 +70,14 @@ proc log { m } {
 }
 
 ###############################################################################
+
+proc isspace { c } {
+	return [regexp "\[ \t\n\r\]" $c]
+}
+
+proc isnum { c } {
+	return [regexp -nocase "\[0-9\]" $c]
+}
 
 proc xq { pgm { pargs "" } } {
 #
@@ -294,6 +301,20 @@ proc upd_last_project_list { } {
 
 ###############################################################################
 
+proc reserved_dname { d } {
+#
+# Checks a root directory name against being reserved
+#
+	global IGDirs
+
+	foreach m $IGDirs {
+		if [regexp -nocase $m $d] {
+			return 1
+		}
+	}
+	return 0
+}
+
 proc gfl_tree { } {
 #
 # Fill/update the treeview file list with files
@@ -379,7 +400,7 @@ proc gfl_all_rec { path } {
 # The recursive part of gfl_tree; returns a two-element list { dirs files } or
 # NULL is there is nothing more below this point
 #
-	global MKRECV IGDirs LFTypes
+	global MKRECV LFTypes
 
 	if [catch { glob -directory $path -tails * } sdl] {
 		# something wrong
@@ -388,9 +409,6 @@ proc gfl_all_rec { path } {
 
 	set dirs ""
 	set fils ""
-
-	# flag == at least one file present here or down from here
-	set fp 0
 
 	foreach f $sdl {
 		set p [file normalize [file join $path $f]]
@@ -405,29 +423,11 @@ proc gfl_all_rec { path } {
 				continue
 			}
 			set MKRECV($p) ""
-			if { [lsearch -exact [lindex $IGDirs 0] $f] >= 0 } {
+			if [reserved_dname $f] {
 				continue
 			}
-			set k 0
-			foreach m [lindex $IGDirs 1] {
-				if [regexp -nocase $m $f] {
-					set k 1
-					break
-				}
-			}
-			if $k {
-				continue
-			}
-
 			set rfl [gfl_all_rec [file join $path $f]]
-			# if rfl is NULL, it means that no more files are
-			# present down the tree
-
-			if { $rfl != "" } {
-				set fp 1
-				lappend dirs [list $f $rfl]
-			}
-			# ignore otherwise
+			lappend dirs [list $f $rfl]
 			continue
 		}
 		# a regular file
@@ -437,7 +437,6 @@ proc gfl_all_rec { path } {
 				if [regexp $p $f] {
 					lappend fils [list [lindex $t 0] $f]
 					set k 1
-					set fp 1
 					break
 				}
 			}
@@ -446,13 +445,7 @@ proc gfl_all_rec { path } {
 			}
 		}
 	}
-
-	if $fp {
-		return [list $dirs $fils]
-	} else {
-		# no file below this point
-		return ""
-	}
+	return [list $dirs $fils]
 }
 
 proc gfl_spec { fl ft } {
@@ -472,7 +465,8 @@ proc gfl_spec { fl ft } {
 		# directories first; the name
 		set n [lindex $t 0]
 		set rfl [gfl_spec [lindex $t 1] $ft]
-		if { $rfl != "" } {
+		if { $rfl != "" || $ft == "Sources" } {
+			# Sources also collects all empty directories
 			set fp 1
 			lappend dirs [list $n $rfl]
 		}
@@ -724,6 +718,7 @@ proc tag_request { fd tag } {
 		set u [file_edit_pipe $fp]
 		if { $u == "" } {
 			# failed for some reason
+			log "Failed to open file $fm for tag"
 			return
 		}
 	}
@@ -942,6 +937,114 @@ proc open_for_edit { x y } {
 	edit_file $fp
 }
 
+proc do_file_line { w x y } {
+
+	# this is the index of the character that has been clicked on
+	set ix @$x,$y
+
+	set if 0
+	# go back until hit word boundary
+	while 1 {
+		set c [$w get -- "${ix} - $if chars"]
+		if { $c == "" || [isspace $c] } {
+			break
+		}
+		incr if
+	}
+
+	if { $if == 0 } {
+		return
+	}
+
+	set ib 0
+	# go forward
+	while 1 {
+		set c [$w get -- "${ix} + $ib chars"]
+		if { $c == "" || [isspace $c] } {
+			break
+		}
+		incr ib
+	}
+
+	incr if -1
+	# starting index
+	set if "${ix} - $if chars"
+	set chunk [$w get -- $if "${ix} + $ib chars"]
+
+	# nc points to the last character of the line number
+	if ![regexp "^(.+):(\[1-9\]\[0-9\]*)" $chunk ma fn ln] {
+		# doesn't look like a line number in a file
+		return
+	}
+
+	# ending index for the tag
+	set ib [string length $ma]
+
+	log "File line ref: $fn, $ln"
+
+	if [catch { expr $ln } $ln] {
+		log "File line number error"
+		return
+	}
+
+	# try to match the file to one of the project files; FIXME: this will
+	# have to be made smarter, to account for the various manglings
+	# performed by picomp
+	set ft [file tail $fn]
+	set fr [file root $ft]
+	set fe [file extension $ft]
+
+	# all project files matching the extension
+	set fl [gfl_files "\\${fe}$"]
+
+	# the length of root portion of the file name
+	set rl [string length $fr]
+
+	# current quality
+	set qu 99999
+
+	# current file name
+	set fm ""
+
+	foreach f $fl {
+		set r [file root [file tail $f]]
+		if { $r == $f } {
+			# ultimate match
+			set fm $f
+			break
+		}
+		if { [string first $r $fr] >= 0 } {
+			# substring
+			set q [expr $rl - [string length $r]]
+			if { $q < $qu } {
+				set qu $q
+				set fm $f
+			}
+		}
+	}
+
+	if { $fm == "" } {
+		log "No matching file found"
+		return
+	}
+
+	# open the file at the indicated line
+	set fm [file normalize $fm]
+	set u [file_edit_pipe $fm]
+	if { $u == "" } {
+		edit_file $fm
+		set u [file_edit_pipe $fm]
+		if { $u == "" } {
+			log "Failed to open file $fm for err ref"
+			return
+		}
+	}
+
+	# issue the positioning command
+	catch { puts $u $ln }
+	$w tag add errtag $if "$if + $ib chars"
+}
+
 proc tree_menu { x y X Y } {
 
 	global P
@@ -951,10 +1054,11 @@ proc tree_menu { x y X Y } {
 	# first check if there's a selection
 	set fl ""
 	foreach t [$tv selection] {
-		# make sure we only look at file items
+		# make sure we only look at file/directory items
 		set vs [$tv item $t -values]
-		if { [lindex $vs 1] == "f" } {
-			lappend fl [lindex $vs 0]
+		set tp [lindex $vs 1]
+		if { $tp == "f" || $tp == "d" } {
+			lappend fl $vs
 		}
 	}
 	if { $fl == "" } {
@@ -964,8 +1068,9 @@ proc tree_menu { x y X Y } {
 			return
 		}
 		set vs [$tv item $t -values]
-		if { [lindex $vs 1] == "f" } {
-			lappend fl [lindex $vs 0]
+		set tp [lindex $vs 1]
+		if { $tp == "f" || $tp == "d" } {
+			lappend fl $vs
 		}
 	}
 
@@ -984,6 +1089,7 @@ proc tree_menu { x y X Y } {
 	$m add command -label "Edit" -command open_multiple -state $st
 	$m add command -label "Delete" -command delete_multiple -state $st
 	$m add command -label "New File" -command "new_file $x $y"
+	$m add command -label "New Directory" -command "new_directory $x $y"
 
 
 	tk_popup .popm $X $Y
@@ -994,11 +1100,20 @@ proc open_multiple { } {
 	global P
 
 	if ![info exists P(ML)] {
-		# the list of files
 		return
 	}
 
-	set fl $P(ML)
+	set fl ""
+	foreach f $P(ML) {
+		# select files only
+		if { [lindex $f 1] == "f" } {
+			lappend fl [lindex $f 0]
+		}
+	}
+
+	if { $fl == "" } {
+		return
+	}
 
 	if { [llength $fl] == 1 } {
 		set fp [file normalize [lindex $fl 0]]
@@ -1037,9 +1152,70 @@ proc delete_multiple { } {
 		return
 	}
 
-	set fl $P(ML)
+	set fl ""
+	foreach f $P(ML) {
+		# files first
+		if { [lindex $f 1] == "f" } {
+			lappend fl [lindex $f 0]
+		}
+	}
 
-	# check for edited and modified
+	if { $fl != "" } {
+		delete_files $fl
+	}
+
+	# now go for directories
+	set fl ""
+	foreach f $P(ML) {
+		if { [lindex $f 1] == "d" } {
+			lappend fl [lindex $f 0]
+		}
+	}
+
+	if { $fl != "" } {
+		delete_directories $fl
+	}
+
+	# redo the tree view
+	gfl_tree
+}
+
+proc delete_directories { fl } {
+
+	set ne ""
+	set de ""
+
+	foreach f $fl {
+		if [catch { glob -directory $f * } fils] {
+			set fils ""
+		}
+		if { $fils != "" } {
+			# nonempty
+			lappend ne $f
+		} else {
+			lappend de $f
+		}
+	}
+
+	if { $ne != "" } {
+		set msg "Director"
+		if { [llength $ne] > 1 } {
+			append msg "ies: [join $ne ", "] are "
+		} else {
+			append msg "y: [lindex $ne 0] is "
+		}
+		append msg "nonempty. You must delete the files first"
+		alert $msg
+	}
+
+	# proceed with the empty ones
+
+	foreach f $de {
+		catch { file delete -force -- [file normalize $f] }
+	}
+}
+
+proc delete_files { fl } {
 
 	set msg "Are you sure you want to delete "
 
@@ -1073,9 +1249,9 @@ proc delete_multiple { } {
 		} else {
 			append msg ": [lindex $mf 0] has"
 		}
-		append msg " been edited and modified but not yet saved. If you\
-			proceed, the edit sessions will be closed and the\
-			changes will be discarded."
+		append msg " been edited and modified but not yet\
+			saved. If you proceed, the edit sessions will\
+			be closed and the changes will be discarded."
 		if ![confirm $msg] {
 			return
 		}
@@ -1087,14 +1263,160 @@ proc delete_multiple { } {
 		edit_kill $fp
 		catch { file delete -force -- $fp }
 	}
+}
 
-	# redo the tree view
+proc new_directory { { x "" } { y "" } } {
+#
+# Creates a new directory in the project's directory
+#
+	global P
+
+	if !$P(AC) {
+		# ignore if no project
+		return
+	}
+
+	set tv $P(FL)
+
+	set t [$tv selection]
+
+	if { [llength $t] != 1 && $x != "" } {
+		# use the pointer
+		set t [$tv identify item $x $y]
+	} else {
+		# use the selection
+		set t [lindex $t 0]
+	}
+
+	while 1 {
+		if { $t == "" } {
+			# unknown, use the project's directory
+			set dir "."
+			break
+		}
+		set vs [$tv item $t -values]
+		set tp [lindex $vs 1]
+		if { $tp == "d" } {
+			set dir [lindex $vs 0]
+			break
+		}
+		if { $tp != "f" } {
+			set t ""
+		} else {
+			# go up
+			set t [$tv parent $t]
+			continue
+		}
+	}
+
+	mk_new_dir_window $dir
+
+	while 1 {
+		set P(ND,EV) 0
+		vwait P(ND,EV)
+		if { $P(ND,EV) < 0 } {
+			# cancellation
+			stop_new_dir
+			return
+		}
+		if { $P(ND,EV) > 0 } {
+			# validate the directory
+			set nd [file normalize [file join $dir \
+				$P(ND,DI)]]
+			set cd [file normalize [pwd]]
+			if { [string first $cd $nd] != 0 } {
+				alert "The new directory is outside the project\
+					tree"
+				continue
+			}
+			if [reserved_dname [file tail $nd]] {
+				alert "The new directory name is illegal, i.e.,\
+					is reserved or includes a disallowed\
+					exotic character"
+				continue
+			}
+			if [file isdirectory $nd] {
+				alert "Directory $nd already exists"
+				continue
+			}
+			if [catch { file mkdir $nd } err] {
+				alert "Cannot create directory $nd, $err"
+				continue
+			}
+			stop_new_dir
+			break
+		}
+	}
+
+	# redo the tree
 	gfl_tree
+}
+
+proc stop_new_dir { } {
+
+	global P
+
+	if [info exists P(ND,WI)] {
+		catch { destroy $P(ND,WI) }
+	}
+
+	array unset P "ND,*"
+}
+
+proc new_dir_click { v } {
+
+	global P
+
+	if { [info exists P(ND,EV)] && $P(ND,EV) == 0 } {
+		set P(ND,EV) $v
+	}
+}
+
+proc mk_new_dir_window { dir } {
+#
+# Opens a dialog to specify a new directory
+#
+	global P
+
+	set w .dsel
+
+	catch { destroy $w }
+
+	set P(ND,WI) $w
+	toplevel $w
+	wm title $w "New directory"
+	catch { grab $w }
+
+	frame $w.tf
+	pack $w.tf -side top -expand y -fill x
+
+	label $w.tf.l -text "$dir / "
+	pack $w.tf.l -side left -expand n -fill x
+
+	set P(ND,DI) "NEW_DIR"
+	entry $w.tf.e -width 8 -font {-family courier -size 10} \
+			-textvariable P(ND,DI)
+	pack $w.tf.e -side left -expand y -fill x
+
+	frame $w.bf
+	pack $w.bf -side top -expand y -fill x
+
+	button $w.bf.b -text "Done" -command "new_dir_click 1"
+	pack $w.bf.b -side right -expand n -fill x
+
+	button $w.bf.c -text "Cancel" -command "new_dir_click -1"
+	pack $w.bf.c -side left -expand n -fill x
+
+	bind $w <Destroy> "new_dir_click -1"
 }
 
 proc new_file { { x "" } { y "" } } {
 
 	global P LFTypes
+
+	if !$P(AC) {
+		return
+	}
 
 	set tv $P(FL)
 
@@ -1284,15 +1606,18 @@ proc val_prj_incomp { } {
 		coexist with app_... files"
 }
 
-proc val_prj_exists { dir } {
+proc val_prj_exists { dir { try 0 } } {
 #
 # Check if the directory contains an existing project that appears to be making
-# sense
+# sense; try != 0 -> don't start it - just check, try < 2 -> issue alerts
 #
 	global P
 
-	if [catch { glob -directory $dir -tails * } fl] {
-		alert "Cannot access the project's directory $dir, $fl"
+	if { [catch { glob -directory $dir -tails * } fl] || $fl == "" } {
+		# this will not happen
+		if { $try <= 1 } {
+			alert "The project directory $dir is empty"
+		}
 		return 0
 	}
 
@@ -1302,31 +1627,46 @@ proc val_prj_exists { dir } {
 	foreach fn $fl {
 		if { $fn == "app.cc" } {
 			if { $pl != "" } {
-				val_prj_incomp
-				return 0
+				if { $try <= 1 } {
+					val_prj_incomp
+				}
+				# return code == not a project, but nonempty
+				return -1
 			}
 			set es 1
 			continue
 		}
 		if { $fn == "app.c" } {
-			alert "This looks like a legacy praxis: file app.c is\
-				incompatible with our projects, please convert\
-				manually and try again"
-			return 0
+			if { $try <= 1 } {
+				alert "This looks like a legacy praxis:\
+					file app.c is incompatible with our\
+					projects, please convert manually and\
+					try again"
+			}
+			return -1
 		}
 		if [regexp "^app_(\[a-zA-Z0-9\]+)\\.cc$" $fn jnk pn] {
 			if $es {
-				val_prj_incomp
-				return 0
+				if { $try <= 1 } {
+					val_prj_incomp
+				}
+				return -1
 			}
 			lappend pl $pn
 		}
 	}
 
 	if { !$es && $pl == "" } {
-		alert "There is nothing resembling a PicOS project in this\
-			directory"
-		return 0
+		if { $try <= 1 } {
+			alert "There is nothing resembling a PicOS project in\
+				directory $dir"
+		}
+		return -1
+	}
+
+	if $try {
+		# do no more
+		return 1
 	}
 
 	# time to close the previous project and assume the new one
@@ -1347,6 +1687,92 @@ proc val_prj_exists { dir } {
 	gfl_tree
 
 	return 1
+}
+
+proc clone_project { } {
+#
+# Clone a project directory to another directory
+#
+	global P DefProjDir
+
+	if [close_project] {
+		# cancelled 
+		return
+	}
+
+	while 1 {
+		# select source directory
+		set sdir [tk_chooseDirectory -initialdir $DefProjDir \
+			-mustexist 1 \
+			-title "Select the source directory:"]
+		if { $sdir == "" } {
+			# cancelled
+			return
+		}
+
+		# check if this is a proper subdirectory of DefProjDir
+		set sdir [file normalize $sdir]
+
+		if ![val_prj_dir $sdir] {
+			continue
+		}
+
+		if { [val_prj_exists $sdir 1] > 0 } {
+			break
+		}
+	}
+
+	while 1 {
+		# select target directory
+		set dir [tk_chooseDirectory -initialdir $DefProjDir \
+			-title "Select the target directory:"]
+		if { $dir == "" } {
+			# cancelled
+			return
+		}
+
+		# check if this is a proper subdirectory of DefProjDir
+		set dir [file normalize $dir]
+
+		if ![val_prj_dir $dir] {
+			continue
+		}
+
+		set v [val_prj_exists $dir 2]
+
+		if { $v != 0 } {
+			if { $v > 0 } {
+				set tm "Directory $dir contains something that\
+					looks like an existing project!"
+			} else {
+				set tm "Directory $dir is not empty!"
+			}
+			append tm " Do you want to erase its contents?\
+				THIS CANNOT BE UNDONE!!!"
+			if ![confirm $tm] {
+				continue
+			}
+		}
+
+		if [file exists $dir] {
+			# we remove the directory and create it from scratch
+			if [catch { file delete -force -- $dir } err] {
+				alert "Cannot erase $dir, $err"
+				continue
+			}
+		}
+
+		# copy source to target
+		if [catch { file copy -force -- $sdir $dir } err] {
+			alert "Cannot copy $sdir to $dir, $err"
+			continue
+		}
+
+		break
+	}
+
+	# now open as a ready project
+	open_project -1 $dir
 }
 
 proc close_project { } {
@@ -1370,7 +1796,7 @@ proc close_project { } {
 	return 0
 }
 
-proc open_project { { which -1 } } {
+proc open_project { { which -1 } { dir "" } } {
 
 	global P DefProjDir PicOSPath LProjects
 
@@ -1383,30 +1809,37 @@ proc open_project { { which -1 } } {
 
 		# open file
 
-		while 1 {
-			set dir [tk_chooseDirectory \
-					-initialdir $DefProjDir \
-					-parent . \
-					-title "Project directory"]
+		if { $dir != "" } {
 
-			if { $dir == "" } {
-				# cancelled
+			# use the specified directory
+			set dir [file normalize $dir]
+			if { [val_prj_exists $dir] <= 0 } {
 				return
 			}
 
-			# probably already normalized, but it doesn't hurt to
-			# make sure
-			set dir [file normalize $dir]
+		} else {
+	
+			while 1 {
+				set dir [tk_chooseDirectory \
+						-initialdir $DefProjDir \
+						-parent . \
+						-title "Project directory"]
 
-			if ![val_prj_dir $dir] {
-				# formally illegal
-				continue
-			}
+				if { $dir == "" } {
+					# cancelled
+					return
+				}
 
-			# this must be an existing project, do some rudimentary
-			# checks
-			if [val_prj_exists $dir] {
-				break
+				set dir [file normalize $dir]
+
+				if ![val_prj_dir $dir] {
+					# formally illegal
+					continue
+				}
+
+				if { [val_prj_exists $dir] > 0 } {
+					break
+				}
 			}
 		}
 
@@ -1427,7 +1860,7 @@ proc open_project { { which -1 } } {
 				break
 			}
 
-			if ![val_prj_exists $dir] {
+			if { [val_prj_exists $dir] <= 0 } {
 				set dir ""
 			}
 			break
@@ -1465,6 +1898,246 @@ proc open_project { { which -1 } } {
 	upd_last_project_list
 	setup_project
 	mk_build_menu
+}
+
+proc new_project { } {
+#
+# Initializes a directory for a new project
+#
+	global P DefProjDir
+
+	if [close_project] {
+		# cancelled 
+		return
+	}
+
+	while 1 {
+		# select the directory
+		set dir [tk_chooseDirectory -initialdir $DefProjDir \
+			-title "Select directory for the project:"]
+		if { $dir == "" } {
+			# cancelled
+			return
+		}
+
+		# check if this is a proper subdirectory of DefProjDir
+		set dir [file normalize $dir]
+
+		if ![val_prj_dir $dir] {
+			continue
+		}
+
+		set v [val_prj_exists $dir 2]
+
+		if { $v > 0 } {
+			# this is an existing project
+			if [confirm "Directory $dir contains something that\
+				looks like an existing project. Would you like\
+				to open that project?"] {
+
+				open_project -1 $dir
+				return
+			}
+
+			# keep trying
+			continue
+		}
+
+		if { $v < 0 } {
+			if ![confirm "Directory $dir is not empty! Do you want\
+				to erase its contents? THIS CANNOT BE\
+				UNDONE!!!"] {
+
+				continue
+			}
+
+			# we remove the directory and create it from scratch
+			if {
+			   [catch { file delete -force -- $dir } err] ||
+			   [catch { file mkdir $dir } err] } {
+				alert "Remove failed: $err"
+				continue
+			}
+		}
+
+		break
+	}
+
+	# we have agreed on the directory, now select the praxis type, i.e.,
+	# single-program/multiple program; options:
+	#
+	# single:   single program, create app.cc + options.sys
+	# multiple: specify suffixes, create multiple app_xxx.cc and
+	#           options_xxx.sys files
+
+	mk_project_selection_window
+
+	while 1 {
+		set P(PS,EV) 0
+		vwait P(PS,EV)
+		if { $P(PS,EV) < 0 } {
+			# cancellation
+			stop_project_selection
+			return
+		}
+		if { $P(PS,EV) == 1 } {
+			# single program
+			set md ""
+			stop_project_selection
+			break
+		}
+		if { $P(PS,EV) == 2 } {
+			# multiple programs, validate the tags
+			set md ""
+			set er ""
+			set ec 0
+			for { set i 0 } { $i < 8 } { incr i } {
+				set t $P(PS,E$i)
+				if { $t == "" } {
+					continue
+				}
+				if ![regexp -nocase "^\[a-z0-9\]+$" $t] {
+					append er ", illegal tag $t"
+					incr ec
+					continue
+				}
+				if { [lsearch -exact $md $t] >= 0 } {
+					append er ", duplicate tag $t"
+					incr ec
+					continue
+				}
+				lappend md $t
+			}
+			if { $md == "" && $ec == 0 } {
+				set ec 1
+				", no tags specified"
+			}
+			if $ec {
+				if { $ec > 1 } {
+					set ec "Errors:"
+				} else {
+					set ec "Error:"
+				}
+				alert "$ec [string range $er 2 end]"
+				continue
+			}
+			# OK
+			stop_project_selection
+			break
+		}
+	}
+
+	# done: create placeholder files
+
+	set flist [list "options.sys"]
+
+	if { $md != "" } {
+		foreach m $md {
+			lappend flist "app_${m}.cc"
+			lappend flist "options_${m}.sys"
+		}
+	} else {
+		lappend flist "app.cc"
+	}
+
+	foreach m $flist {
+
+		if [regexp "cc$" $m] {
+			set fc "#include \"sysio.h\"\n\n"
+			append fc "// This is $m\n\n"
+			append fc "fsm root {\n\tentry INIT:\n\n}"
+		} else {
+			set fc "// This is $m (initially empty)"
+		}
+
+		set tf [file join $dir $m]
+		if [catch { open $tf "w" } fd] {
+			alert "Cannot open $tf for writing"
+			return
+		}
+		if [catch { puts $fd $fc } md] {
+			alert "Cannot write to $tf, $md"
+			catch { close $fd }
+			return
+		}
+		catch { close $fd }
+	}
+
+	# now open as a ready project
+	open_project -1 $dir
+}
+
+proc project_selection_click { v } {
+
+	global P
+
+	if { [info exists P(PS,EV)] && $P(PS,EV) == 0 } {
+		set P(PS,EV) $v
+	}
+}
+
+proc stop_project_selection { } {
+#
+# Terminate new project type selection and clean up things
+#
+	global P
+
+	if [info exists P(PS,WI)] {
+		catch { destroy $P(PS,WI) }
+	}
+
+	array unset P "PS,*"
+}
+
+proc mk_project_selection_window { } {
+#
+# Opens a dialog to select the project type
+#
+	global P
+
+	set w .psel
+
+	catch { destroy $w }
+
+	set P(PS,WI) $w
+	toplevel $w
+	wm title $w "Project type"
+	catch { grab $w }
+
+	frame $w.lf
+	pack $w.lf -side left -expand y -fill y
+
+	button $w.lf.b -text "Single program" \
+		-command "project_selection_click 1"
+	pack $w.lf.b -side top -expand n -fill x
+
+	button $w.lf.c -text "Cancel" \
+		-command "project_selection_click -1"
+	pack $w.lf.c -side bottom -expand n -fill x
+
+	set f $w.rf
+
+	frame $f
+	pack $f -side right -expand y -fill x
+
+	button $f.b -text "Multiple programs" \
+		-command "project_selection_click 2"
+	pack $f.b -side top -expand y -fill x
+
+	for { set i 0 } { $i < 8 } { incr i } {
+		# the tags
+		set tf $f.f$i
+		frame $tf
+		pack $tf -side top -expand y -fill x
+		label $tf.l -text "Tag $i: "
+		pack $tf.l -side left -expand n
+		set P(PS,E$i) ""
+		entry $tf.e -width 8 -font {-family courier -size 10} \
+			-textvariable P(PS,E$i)
+		pack $tf.e -side left -expand y -fill x
+	}
+
+	bind $w <Destroy> "project_selection_click -1"
 }
 
 proc get_config { } {
@@ -1878,6 +2551,7 @@ proc mk_file_menu { } {
 
 	$m add command -label "Open project ..." -command "open_project"
 	$m add command -label "New project ..." -command "new_project"
+	$m add command -label "Clone project ..." -command "clone_project"
 	$m add separator
 
 	if { $LProjects != "" } {
@@ -2116,6 +2790,14 @@ proc mk_project_window { } {
 	pack $w.scroly -side right -fill y
 	# pack $w.scrolx -side bottom -fill x
 	pack $Term -expand yes -fill both
+
+	# tag for file line numbers
+	$Term tag configure errtag -background gray
+
+	#######################################################################
+
+	bind $Term <ButtonRelease-1> "tk_textCopy $Term"
+	bind $Term <Double-1> "do_file_line $Term %x %y"
 
 	#######################################################################
 

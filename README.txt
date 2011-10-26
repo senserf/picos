@@ -20,14 +20,7 @@ TODO:
   clicks of the same tag, giving priority to *.cc over *.h.
 + status field (running)
 + save in config.prj board selection
++ edit file by clicking in term area
+
 - more friendly labels in build menu
-- edit file by clicking in term area
 - show editor line numbers
-
-	ctags appears to work, but opens the file in the same window, which will
-	be confusing;
-
-	seems to be no way to open file or (even worse) to point an already
-	opened one to a specified line number.
-
-	use picomp to generate tags?
