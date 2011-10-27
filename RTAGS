@@ -1,0 +1,38 @@
+PG111027A:
+
+	Started RTAGS. Previous modifications were crudely described at the
+	respective commits.
+
+	PIP is slowly approaching a shape making it almost presentable. Here is
+	the list of things that work:
+
+	- Opening projects, handling files, adding files to projects, deleting
+	  files, directories, and so on. The file handling part is practically
+	  complete together with the reasonably powerfull, flexible, and
+	  friendly tree viewer in the left pane of the project window.
+
+	- Editing files. Maybe to say that elvis has been integrated with PIP
+	  would be an overstatement, but it has been made to collaborate. Some
+	  work remains to be done (e.g., ctags can be improved), but it is
+	  quite OK already. In particular:
+
+	  - Files are opened for editing by clicking on them, including
+	    clicks in the terminal pane. Clicking on an error location produced
+	    by the compiler (including picomp) opens the file at the requisite
+	    position.
+
+	  - Tagging basically works. When you click on an object in an elvis
+	    window, PIP will locate the file with the object's definition and
+	    try to open that file at the perinent location. Some tags still
+	    don't work, but its is pretty much clear how to fix the problems
+	    (so we will take care of the details after some more desperately
+	    needed things have been made to work).
+
+	  - PIP knows which files have been modified and not saved, so it can
+	    notify the user and even force a file to be saved before a build.
+
+	- Simple (skeletal) builds. PIP invokes mkmk, make, and picomp to
+	  compile things.
+
+	I am going to work next on VUEE, i.e., some integration of picomp and
+	udaemon with PIP.

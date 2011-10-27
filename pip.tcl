@@ -25,12 +25,13 @@ set EditCommand "elvis -f ram -m -G x11 -font 9x15"
 set TagsCmd "elvtags"
 set TagsArgs "-l -i -t -v -h -l --"
 
-## File types to be listed in the Files view
+## File types to be listed in the Files view:
+## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
 set LFTypes {
 	{ Headers { "\\.h$" "\\.ch$" } { Header { ".h" ".ch" } } }
 	{ Sources { "\\.cc?$" "\\.asm$" } { Source { ".cc" } } }
 	{ Options { "^options\[_a-z\]*\\.sys$" } { Options { ".sys" } } }
-	{ XMLData { "\\.xml$" } { XMLData { ".xml" } } }
+	{ XMLData { "\\.xml$" "\\.geo$" } { XMLData { ".xml" ".geo" } } }
 }
 
 ## Directory names to be ignored in the project's directory:
@@ -40,7 +41,20 @@ set IGDirs { "^cvs$" "^vuee_tmp$" "^ktmp" "junk" "attic" "ossi" "\\~\\$"
 
 ## Dictionary of configuration items (to be searched for in config.prj) + their
 ## default values
-set CFItems { "CPU" "MSP430" "MB" 0 "BO" "" } 
+set CFBoardItems {
+			"CPU" 		"MSP430"
+			"MB" 		0
+			"BO" 		""
+}
+
+set CFVueeItems {
+			"CMPIS"		0
+			"UDON"		0
+			"UDDF"		""
+			"VUDF"		""
+}
+
+set CFItems 	[concat $CFBoardItems $CFVueeItems]
 
 ## List of legal CPU types
 set CPUTypes { MSP430 eCOG }
@@ -92,9 +106,7 @@ proc delay { msec } {
 	}
 
 	set P(DEL) [after $msec delay_trigger]
-
 	vwait P(DEL)
-
 	unset P(DEL)
 }
 
@@ -347,7 +359,7 @@ proc reserved_dname { d } {
 	return 0
 }
 
-proc valid_prfname { f } {
+proc file_class { f } {
 #
 # Checks if the file name formally qualifies the file as a project member
 #
@@ -356,11 +368,11 @@ proc valid_prfname { f } {
 	foreach t $LFTypes {
 		foreach p [lindex $t 1] {
 			if [regexp $p $f] {
-				return 1
+				return $t
 			}
 		}
 	}
-	return 0
+	return ""
 }
 
 proc inside_project { f } {
@@ -373,6 +385,24 @@ proc inside_project { f } {
 		return 1
 	}
 	return 0
+}
+
+proc relative_path { f } {
+#
+# Transforms an absolute path into a project-relative path (just to shorten it,
+# but also to make it independent of Cygwin/Tcl mismatches
+#
+	set f [file normalize $f]
+	set c [file normalize [pwd]]
+
+	if { [string first $c $f] != 0 } {
+		# not in project
+		return ""
+	}
+
+	set f [string range $f [string length $c] end]
+	regsub "^//*" $f "" f
+	return $f
 }
 
 proc gfl_tree { } {
@@ -460,7 +490,7 @@ proc gfl_all_rec { path } {
 # The recursive part of gfl_tree; returns a two-element list { dirs files } or
 # NULL is there is nothing more below this point
 #
-	global MKRECV LFTypes
+	global MKRECV
 
 	if [catch { glob -directory $path -tails * } sdl] {
 		# something wrong
@@ -491,18 +521,9 @@ proc gfl_all_rec { path } {
 			continue
 		}
 		# a regular file
-		foreach t $LFTypes {
-			set k 0
-			foreach p [lindex $t 1] {
-				if [regexp $p $f] {
-					lappend fils [list [lindex $t 0] $f]
-					set k 1
-					break
-				}
-			}
-			if $k {
-				break
-			}
+		set t [file_class $f]
+		if { $t != "" } {
+			lappend fils [list [lindex $t 0] $f]
 		}
 	}
 	return [list $dirs $fils]
@@ -1118,7 +1139,7 @@ proc do_file_line { w x y } {
 	# nc points to the last character of the line number
 	if ![regexp "^(.+):(\[1-9\]\[0-9\]*)" $chunk ma fn ln] {
 		# doesn't look like a line number in a file
-		if ![valid_prfname $chunk] {
+		if { [file_class $chunk] == "" } {
 			return
 		}
 		set fn $chunk
@@ -1431,6 +1452,67 @@ proc delete_files { fl } {
 	}
 }
 
+###############################################################################
+
+proc md_click { val } {
+#
+# Generic done event for modal windows/dialogs
+#
+	global P
+
+	if { [info exists P(MW,EV)] && $P(MW,EV) == 0 } {
+		set P(MW,EV) $val
+	}
+}
+
+proc md_stop { } {
+#
+# Close operation for a modal window
+#
+	global P
+
+	if [info exists P(MW,WI)] {
+		catch { destroy $P(MW,WI) }
+	}
+	array unset P "MW,*"
+}
+
+proc md_wait { } {
+#
+# Wait for an event on the modal dialog
+#
+	global P
+
+	set P(MW,EV) 0
+	vwait P(MW,EV)
+	if { $P(MW,EV) < 0 } {
+		# cancellation
+		md_stop
+		return -1
+	}
+
+	return $P(MW,EV)
+}
+
+proc md_window { tt } {
+#
+# Creates a modal dialog
+#
+	global P
+
+	set w .modd
+	catch { destroy $w }
+	set P(MW,WI) $w
+	toplevel $w
+	wm title $w $tt
+	# this fails sometimes
+	catch { grap $w }
+
+	return $w
+}
+
+###############################################################################
+
 proc bad_dirname { } {
 
 	alert "The new directory name is illegal, i.e., is reserved or\
@@ -1453,61 +1535,41 @@ proc new_directory { { x "" } { y "" } } {
 	mk_new_dir_window $dir
 
 	while 1 {
-		set P(ND,EV) 0
-		vwait P(ND,EV)
-		if { $P(ND,EV) < 0 } {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
 			# cancellation
-			stop_new_dir
 			return
 		}
-		if { $P(ND,EV) > 0 } {
-			# validate the directory
-			set nd [file normalize [file join $dir \
-				$P(ND,DI)]]
-			if ![inside_project $nd] {
-				alert "The new directory is outside the project\
-					tree"
-				continue
-			}
-			if [reserved_dname [file tail $nd]] {
-				bad_dirname
-				continue
-			}
-			if [file isdirectory $nd] {
-				alert "Directory $nd already exists"
-				continue
-			}
-			log "Creating directory: $nd"
-			if [catch { file mkdir $nd } err] {
-				alert "Cannot create directory $nd, $err"
-				continue
-			}
-			stop_new_dir
-			break
+
+		if { $ev == 0 } {
+			# nothing
 		}
-	}
 
-	# redo the tree
-	gfl_tree
-}
+		# validate the directory
+		set nd [file normalize [file join $dir $P(MW,DI)]]
+		if ![inside_project $nd] {
+			alert "The new directory is outside the project tree"
+			continue
+		}
+		if [reserved_dname [file tail $nd]] {
+			bad_dirname
+			continue
+		}
+		if [file isdirectory $nd] {
+			alert "Directory $nd already exists"
+			continue
+		}
+		log "Creating directory: $nd"
+		if [catch { file mkdir $nd } err] {
+			alert "Cannot create directory $nd, $err"
+			continue
+		}
 
-proc stop_new_dir { } {
-
-	global P
-
-	if [info exists P(ND,WI)] {
-		catch { destroy $P(ND,WI) }
-	}
-
-	array unset P "ND,*"
-}
-
-proc new_dir_click { v } {
-
-	global P
-
-	if { [info exists P(ND,EV)] && $P(ND,EV) == 0 } {
-		set P(ND,EV) $v
+		md_stop
+		gfl_tree
+		return
 	}
 }
 
@@ -1517,14 +1579,7 @@ proc mk_new_dir_window { dir } {
 #
 	global P
 
-	set w .dsel
-
-	catch { destroy $w }
-
-	set P(ND,WI) $w
-	toplevel $w
-	wm title $w "New directory"
-	catch { grab $w }
+	set w [md_window "New directory"]
 
 	frame $w.tf
 	pack $w.tf -side top -expand y -fill x
@@ -1532,21 +1587,21 @@ proc mk_new_dir_window { dir } {
 	label $w.tf.l -text "$dir / "
 	pack $w.tf.l -side left -expand n -fill x
 
-	set P(ND,DI) "NEW_DIR"
+	set P(MW,DI) "NEW_DIR"
 	entry $w.tf.e -width 8 -font {-family courier -size 10} \
-			-textvariable P(ND,DI)
+			-textvariable P(MW,DI)
 	pack $w.tf.e -side left -expand y -fill x
 
 	frame $w.bf
 	pack $w.bf -side top -expand y -fill x
 
-	button $w.bf.b -text "Done" -command "new_dir_click 1"
+	button $w.bf.b -text "Done" -command "md_click 1"
 	pack $w.bf.b -side right -expand n -fill x
 
-	button $w.bf.c -text "Cancel" -command "new_dir_click -1"
+	button $w.bf.c -text "Cancel" -command "md_click -1"
 	pack $w.bf.c -side left -expand n -fill x
 
-	bind $w <Destroy> "new_dir_click -1"
+	bind $w <Destroy> "md_click -1"
 }
 
 proc tree_sel_params { { x "" } { y "" } } {
@@ -1640,12 +1695,13 @@ proc new_file { { x "" } { y "" } } {
 	}
 
 	if $fo {
-		# impossible
+		# impossible, assume Sources
 		set t [lindex $LFTypes 1]
 	}
 
 	set typ [list [lindex $t 2]]
 	if { $ext == "" } {
+		# the first extension from filetypes
 		set ext [lindex [lindex [lindex $typ 0] 1] 0]
 	}
 
@@ -1666,7 +1722,7 @@ proc new_file { { x "" } { y "" } } {
 
 		set fn [file normalize $fn]
 
-		if ![valid_prfname $fn] {
+		if { [file_class $fn] == "" } {
 			alert "Illegal file name or extension"
 			continue
 		}
@@ -1694,7 +1750,7 @@ proc copy_file { { x "" } { y "" } } {
 #
 # Copies an external file (or a bunch of files) to a project's directory
 #
-	global P LFTypes
+	global P
 
 	if !$P(AC) {
 		return
@@ -1726,7 +1782,7 @@ proc copy_file { { x "" } { y "" } } {
 		# verify the extensions
 		set ef ""
 		foreach f $fl {
-			if ![valid_prfname $f] {
+			if { [file_class $f] == "" } {
 				lappend ef $f
 			}
 		}
@@ -1809,16 +1865,17 @@ proc rename_file { { x "" } { y "" } } {
 	mk_rename_window $ta
 
 	while 1 {
-		set P(RE,EV) 0
-		vwait P(RE,EV)
-		if { $P(RE,EV) < 0 } {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
 			# cancellation
-			stop_rename
 			return
 		}
-		if { $P(RE,EV) > 0 } {
+
+		if { $ev > 0 } {
 			# proceed with rename
-			set nm $P(RE,NW)
+			set nm $P(MW,NW)
 			if { $nm == $ta } {
 				alert "This will do nothing"
 				continue
@@ -1838,7 +1895,7 @@ proc rename_file { { x "" } { y "" } } {
 					continue
 				}
 			} else {
-				if ![valid_prfname $nm] {
+				if { [file_class $nm] == "" } {
 					alert "The new file name is illegal or\
 						has an illegal extension"
 					continue
@@ -1864,8 +1921,7 @@ proc rename_file { { x "" } { y "" } } {
 		}
 	}
 
-	stop_rename
-
+	md_stop
 	gfl_tree
 }
 					
@@ -1875,14 +1931,7 @@ proc mk_rename_window { old } {
 #
 	global P
 
-	set w .rsel
-
-	catch { destroy $w }
-
-	set P(RE,WI) $w
-	toplevel $w
-	wm title $w "Rename"
-	catch { grab $w }
+	set [md_window "Rename"]
 
 	frame $w.tf
 	pack $w.tf -side top -expand y -fill x
@@ -1890,41 +1939,21 @@ proc mk_rename_window { old } {
 	label $w.tf.l -text "$old ---> "
 	pack $w.tf.l -side left -expand n -fill x
 
-	set P(RE,NW) $old
+	set P(MW,NW) $old
 	entry $w.tf.e -width 16 -font {-family courier -size 10} \
-			-textvariable P(RE,NW)
+			-textvariable P(MW,NW)
 	pack $w.tf.e -side left -expand y -fill x
 
 	frame $w.bf
 	pack $w.bf -side top -expand y -fill x
 
-	button $w.bf.b -text "Done" -command "rename_click 1"
+	button $w.bf.b -text "Done" -command "md_click 1"
 	pack $w.bf.b -side right -expand n -fill x
 
-	button $w.bf.c -text "Cancel" -command "rename_click -1"
+	button $w.bf.c -text "Cancel" -command "md_click -1"
 	pack $w.bf.c -side left -expand n -fill x
 
-	bind $w <Destroy> "rename_click -1"
-}
-
-proc rename_click { v } {
-
-	global P
-
-	if { [info exists P(RE,EV)] && $P(RE,EV) == 0 } {
-		set P(RE,EV) $v
-	}
-}
-
-proc stop_rename { } {
-
-	global P
-
-	if [info exists P(RE,WI)] {
-		catch { destroy $P(RE,WI) }
-	}
-
-	array unset P "RE,*"
+	bind $w <Destroy> "md_click -1"
 }
 
 ###############################################################################
@@ -1975,6 +2004,13 @@ proc val_prj_exists { dir { try 0 } } {
 # sense; try != 0 -> don't start it - just check, try < 2 -> issue alerts
 #
 	global P
+
+	if ![file isdirectory $dir] {
+		if { $try <= 1 } {
+			alert "The project directory $dir does not exist"
+		}
+		return 0
+	}
 
 	if { [catch { glob -directory $dir -tails * } fl] || $fl == "" } {
 		# this will not happen
@@ -2338,26 +2374,25 @@ proc new_project { } {
 	mk_project_selection_window
 
 	while 1 {
-		set P(PS,EV) 0
-		vwait P(PS,EV)
-		if { $P(PS,EV) < 0 } {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
 			# cancellation
-			stop_project_selection
 			return
 		}
-		if { $P(PS,EV) == 1 } {
+		if { $ev == 1 } {
 			# single program
 			set md ""
-			stop_project_selection
 			break
 		}
-		if { $P(PS,EV) == 2 } {
+		if { $ev == 2 } {
 			# multiple programs, validate the tags
 			set md ""
 			set er ""
 			set ec 0
 			for { set i 0 } { $i < 8 } { incr i } {
-				set t $P(PS,E$i)
+				set t $P(MW,E$i)
 				if { $t == "" } {
 					continue
 				}
@@ -2387,10 +2422,11 @@ proc new_project { } {
 				continue
 			}
 			# OK
-			stop_project_selection
 			break
 		}
 	}
+
+	md_stop
 
 	# done: create placeholder files
 
@@ -2433,52 +2469,23 @@ proc new_project { } {
 	open_project -1 $dir
 }
 
-proc project_selection_click { v } {
-
-	global P
-
-	if { [info exists P(PS,EV)] && $P(PS,EV) == 0 } {
-		set P(PS,EV) $v
-	}
-}
-
-proc stop_project_selection { } {
-#
-# Terminate new project type selection and clean up things
-#
-	global P
-
-	if [info exists P(PS,WI)] {
-		catch { destroy $P(PS,WI) }
-	}
-
-	array unset P "PS,*"
-}
-
 proc mk_project_selection_window { } {
 #
 # Opens a dialog to select the project type
 #
 	global P
 
-	set w .psel
-
-	catch { destroy $w }
-
-	set P(PS,WI) $w
-	toplevel $w
-	wm title $w "Project type"
-	catch { grab $w }
+	set w [md_window "Project type"]
 
 	frame $w.lf
 	pack $w.lf -side left -expand y -fill y
 
 	button $w.lf.b -text "Single program" \
-		-command "project_selection_click 1"
+		-command "md_click 1"
 	pack $w.lf.b -side top -expand n -fill x
 
 	button $w.lf.c -text "Cancel" \
-		-command "project_selection_click -1"
+		-command "md_click -1"
 	pack $w.lf.c -side bottom -expand n -fill x
 
 	set f $w.rf
@@ -2487,7 +2494,7 @@ proc mk_project_selection_window { } {
 	pack $f -side right -expand y -fill x
 
 	button $f.b -text "Multiple programs" \
-		-command "project_selection_click 2"
+		-command "md_click 2"
 	pack $f.b -side top -expand y -fill x
 
 	for { set i 0 } { $i < 8 } { incr i } {
@@ -2497,13 +2504,13 @@ proc mk_project_selection_window { } {
 		pack $tf -side top -expand y -fill x
 		label $tf.l -text "Tag $i: "
 		pack $tf.l -side left -expand n
-		set P(PS,E$i) ""
+		set P(MW,E$i) ""
 		entry $tf.e -width 8 -font {-family courier -size 10} \
-			-textvariable P(PS,E$i)
+			-textvariable P(MW,E$i)
 		pack $tf.e -side left -expand y -fill x
 	}
 
-	bind $w <Destroy> "project_selection_click -1"
+	bind $w <Destroy> "md_click -1"
 }
 
 proc get_config { } {
@@ -2614,70 +2621,42 @@ proc do_board_selection { } {
 #
 # Execute CPU and board selection from Configuration menu
 #
-	global P
+	global P CFBoardItems
 
 	if !$P(AC) {
 		return
 	}
 
 	# copy the relevant parameters to the working array
-	foreach k { "MB" "BO" "CPU" } {
-		set P(BS,$k)  [dict get $P(CO) $k]
+	foreach { k j } $CFBoardItems {
+		set P(MW,$k) [dict get $P(CO) $k]
 	}
 
 	while 1 {
-		# the event variable
+
+		# have to redo this in the loop as the layout of the window
+		# may change
 		mk_board_selection_window
-		set P(BS,EV) 0
-		vwait P(BS,EV)
-		if { $P(BS,EV) < 0 } {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
 			# cancellation
-			stop_board_selection
+			mk_build_menu
 			return
 		}
-		if { $P(BS,EV) == 1 } {
+		if { $ev == 1 } {
 			# accepted; copy the options
-			foreach k { "MB" "BO" "CPU" } {
-				dict set P(CO) $k $P(BS,$k)
+			foreach { k j } $CFBoardItems {
+				dict set P(CO) $k $P(MW,$k)
 			}
-			stop_board_selection
+			md_stop
 			set_config
+			mk_build_menu
 			return
 		}
 		# redo
 	}
-}
-
-proc done_board_selection_click { v } {
-
-	global P
-
-	if { [info exists P(BS,EV)] && $P(BS,EV) == 0 } {
-		set P(BS,EV) $v
-	}
-}
-
-proc stop_board_selection { } {
-#
-# Terminate the board selection window and clean up things
-#
-	global P
-
-	if [info exists P(BS,WI)] {
-		catch { destroy $P(BS,WI) }
-	}
-	array unset P "BS,*"
-	mk_build_menu
-}
-
-proc multiple_check_click { } {
-#
-# The "multiple" selection has changed
-#
-	global P
-
-	# just redo the window
-	set P(BS,EV) 2
 }
 
 proc cpu_selection_click { w n } {
@@ -2688,7 +2667,7 @@ proc cpu_selection_click { w n } {
 
 	set t [$w.m entrycget $n -label]
 	$w configure -text $t
-	set P(BS,CPU) $t
+	set P(MW,CPU) $t
 }
 
 proc board_selection_click { w n } {
@@ -2704,7 +2683,7 @@ proc board_selection_click { w n } {
 	set t [$w.m entrycget $n -label]
 	$w configure -text $t
 
-	set P(BS,BO) [lreplace $P(BS,BO) $nb $nb $t]
+	set P(MW,BO) [lreplace $P(MW,BO) $nb $nb $t]
 }
 
 proc mk_board_selection_window { } {
@@ -2713,19 +2692,7 @@ proc mk_board_selection_window { } {
 #
 	global P CPUTypes
 
-	set w ".bsel"
-
-	# the usual precaution
-	catch { destroy $w }
-
-	set P(BS,WI) $w
-
-	toplevel $w
-
-	wm title $w "Board selection"
-
-	# make it modal
-	catch { grab $w }
+	set w [md_window "Board selection"]
 
 	set f "$w.main"
 
@@ -2743,7 +2710,7 @@ proc mk_board_selection_window { } {
 	label $f.cpl -text "CPU"
 	grid $f.cpl -column $cn -row $rn -sticky nw -padx 1 -pady 1
 
-	set_menu_button $f.cpb $P(BS,CPU) $CPUTypes cpu_selection_click
+	set_menu_button $f.cpb $P(MW,CPU) $CPUTypes cpu_selection_click
 	grid $f.cpb -column $cn -row $rm -sticky nw -padx 1 -pady 1
 
 	### Multiple boards/single board ######################################
@@ -2754,21 +2721,21 @@ proc mk_board_selection_window { } {
 		incr cn
 		label $f.mbl -text "Multiple"
 		grid $f.mbl -column $cn -row $rn -sticky nw -padx 1 -pady 1
-		checkbutton $f.mbc -variable P(BS,MB) \
-			-command "multiple_check_click"
+		checkbutton $f.mbc -variable P(MW,MB) \
+			-command "md_click 2"
 		grid $f.mbc -column $cn -row $rm -sticky nw -padx 1 -pady 1
 	}
 
 	# the list of available boards
-	set boards [board_list $P(BS,CPU)]
+	set boards [board_list $P(MW,CPU)]
 
-	if $P(BS,MB) {
+	if $P(MW,MB) {
 		# multiple
 		set nb 0
 		set tb ""
 		set lb ""
 		foreach suf $P(PL) {
-			set bn [lindex $P(BS,BO) $nb]
+			set bn [lindex $P(MW,BO) $nb]
 			if { $bn == "" } {
 				if { $lb != "" } {
 					set bn $lb
@@ -2789,11 +2756,11 @@ proc mk_board_selection_window { } {
 			incr nb
 			lappend tb $bn
 		}
-		set P(BS,BO) $tb
+		set P(MW,BO) $tb
 	} else {
 		# single board
 		incr cn
-		set bn [lindex $P(BS,BO) 0]
+		set bn [lindex $P(MW,BO) 0]
 		label $f.bl0 -text "Board"
 		grid $f.bl0 -column $cn -row $rn -sticky nw -padx 1 -pady 1
 		set_menu_button $f.bm0 $bn $boards board_selection_click
@@ -2804,14 +2771,14 @@ proc mk_board_selection_window { } {
 
 	# the done button
 	button $f.don -text "Done" -width 7 \
-		-command "done_board_selection_click 1"
+		-command "md_click 1"
 	grid $f.don -column $cn -row $rn -sticky nw -padx 1 -pady 1
 
 	button $f.can -text "Cancel" -width 7 \
-		-command "done_board_selection_click -1"
+		-command "md_click -1"
 	grid $f.can -column $cn -row $rm -sticky nw -padx 1 -pady 1
 
-	bind $w <Destroy> "done_board_selection_click -1"
+	bind $w <Destroy> "md_click -1"
 }
 	
 proc terminate { { f "" } } {
@@ -2829,6 +2796,156 @@ proc terminate { { f "" } } {
 	edit_kill
 	close_project
 	exit 0
+}
+
+###############################################################################
+
+proc do_vuee_config { } {
+
+	global P CFVueeItems
+
+	if !$P(AC) {
+		return
+	}
+
+	# copy the relevant parameters to the working array
+	foreach { k j } $CFVueeItems {
+		set P(MW,$k) [dict get $P(CO) $k]
+	}
+
+	mk_vuee_conf_window
+
+	while 1 {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
+			# cancelled
+			return
+		}
+
+		if { $ev == 1 } {
+			# accepted
+			foreach { k j } $CFVueeItems {
+				dict set P(CO) $k $P(MW,$k)
+			}
+			md_stop
+			set_config
+			return
+		}
+	}
+}
+
+proc mk_vuee_conf_window { } {
+
+	global P
+
+	set w [md_window "VUEE configuration"]
+
+	##
+	set f $w.tf
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Compile all functions as idiosyncratic: "
+	pack $f.l -side left -expand n
+	checkbutton $f.c -variable P(MW,CMPIS)
+	pack $f.c -side right -expand n
+
+	##
+	set f $w.tg
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Always run with udaemon: "
+	pack $f.l -side left -expand n
+	checkbutton $f.c -variable P(MW,UDON)
+	pack $f.c -side right -expand n
+
+	##
+	set f $w.th
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Praxis data file: "
+	pack $f.l -side left -expand n
+	button $f.b -text "Select" -command "vuee_conf_fsel VUDF"
+	pack $f.b -side right -expand n
+	label $f.f -textvariable P(MW,VUDF)
+	pack $f.f -side right -expand n
+
+	##
+	set f $w.ti
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Udaemon geometry file: "
+	pack $f.l -side left -expand n
+	button $f.b -text "Select" -command "vuee_conf_fsel UDDF"
+	pack $f.b -side right -expand n
+	label $f.f -textvariable P(MW,UDDF)
+	pack $f.f -side right -expand n
+
+	##
+	set f $w.tj
+	frame $f
+	pack $f -side top -expand y -fill x
+	button $f.c -text "Cancel" -command "md_click -1"
+	pack $f.c -side left -expand n
+	button $f.d -text "Done" -command "md_click 1"
+	pack $f.d -side right -expand n
+}
+
+proc vuee_conf_fsel { tp } {
+#
+# Selects a data file for the praxis (VUEE model) or udaemon
+#
+	global P
+
+	if { ![info exists P(LFS,$tp)] || ![inside_project $P(LFS,$tp)] } {
+		# remembers last directory and defaults to the project's
+		# directory
+		set P(LFS,$tp) [pwd]
+	}
+
+	if { $tp == "UDDF" } {
+		set ft [list [list "Udaemon geometry file" [list ".geo"]]]
+		set de ".geo"
+		set ti "geometry file for udaemon"
+	} else {
+		set ft [list [list "Praxis data file" [list ".xml"]]]
+		set de ".xml"
+		set ti "data file for the praxis"
+	}
+
+	while 1 {
+
+		set fn [tk_getOpenFile 	-defaultextension $de \
+					-filetypes $ft \
+					-initialdir $P(LFS,$tp) \
+					-title "Select a $ti" \
+					-parent $P(MW,WI)]
+
+		if { $fn == "" } {
+			# cancelled
+			return
+		}
+
+		# check if OK
+		if ![inside_project $fn] {
+			alert "The file must belong to the project tree"
+			continue
+		}
+
+		if ![file isfile $fn] {
+			alert "The file doesn't exist"
+			continue
+		}
+
+		# assume it is OK, but use a relative path
+		set P(MW,$tp) [relative_path $fn]
+
+		# for posterity
+		set P(LS,$tp) [file dirname $fn]
+
+		return
+	}
 }
 
 ###############################################################################
@@ -2872,8 +2989,6 @@ proc run_term_command { cmd al } {
 
 	fconfigure $fd -blocking 0 -buffering none
 	fileevent $fd readable "term_output"
-
-	# enable abort command
 }
 
 proc do_abort_term { } {
@@ -2972,7 +3087,8 @@ proc mk_build_menu { } {
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
-				$m add command -label "mkmk $b $suf" \
+				$m add command -label \
+					"Pre-build $suf (mkmk $b $suf)" \
 					-command "do_mkmk_node $bi"
 				incr bi
 			}
@@ -2980,14 +3096,17 @@ proc mk_build_menu { } {
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
-				$m add command -label "make -f Makefile_$suf" \
+				$m add command -label \
+					"Build $suf (make -f Makefile_$suf)" \
 					-command "do_make_node $bi"
 				incr bi
 			}
 			$m add separator
 		} else {
-			$m add command -label "mkmk $bo" -command "do_mkmk_node"
-			$m add command -label "make" -command "do_make_node"
+			$m add command -label "Pre-build (mkmk $bo)" \
+				-command "do_mkmk_node"
+			$m add command -label "Build (make)" \
+				-command "do_make_node"
 		}
 	}
 
@@ -3064,6 +3183,7 @@ proc mk_project_window { } {
 
 	.menu add cascade -label "Configuration" -menu $m -underline 0
 	$m add command -label "CPU+Board ..." -command "do_board_selection"
+	$m add command -label "VUEE ..." -command "do_vuee_config"
 
 	#######################################################################
 
@@ -3217,8 +3337,17 @@ proc do_make_node { { bi 0 } } {
 
 	if $mb {
 		# the index makes sense
+		set mf "Makefile_[lindex $P(PL) $bi]"
 		lappend al "-f"
-		lappend al "Makefile_[lindex $P(PL) $bi]"
+		lappend al $mf
+	} else {
+		set mf "Makefile"
+	}
+
+	if ![file exists $mf] {
+		alert "No suitable makefile available. You have to pre-build\
+			first"
+		return
 	}
 
 	if [catch { run_term_command "make" $al } err] {
@@ -3234,7 +3363,15 @@ proc do_make_vuee { } {
 		return
 	}
 
-	if [catch { run_term_command "picomp" "" } err] {
+	set i [dict get $P(CO) "CMPIS"]
+
+	if { $i != 0 } {
+		set arg "-i"
+	} else {
+		set arg ""
+	}
+
+	if [catch { run_term_command "picomp" $arg } err] {
 		alert $err
 	}
 }
