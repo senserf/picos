@@ -79,6 +79,38 @@ proc isnum { c } {
 	return [regexp -nocase "\[0-9\]" $c]
 }
 
+###############################################################################
+
+proc delay { msec } {
+#
+# Event admitting "after"
+#
+	global P
+
+	if { [info exists P(DEL)] && $P(DEL) != "" } {
+		catch { after cancel $P(DEL) }
+	}
+
+	set P(DEL) [after $msec delay_trigger]
+
+	vwait P(DEL)
+
+	unset P(DEL)
+}
+
+proc delay_trigger { } {
+
+	global P
+
+	if ![info exists P(DEL)] {
+		return
+	}
+
+	set P(DEL) ""
+}
+
+###############################################################################
+	
 proc xq { pgm { pargs "" } } {
 #
 # A flexible exec (or so I hope)
@@ -833,7 +865,7 @@ proc edit_unsaved { } {
 	foreach fd [array names EFDS] {
 		if { $EFST($fd,M) != 0 } {
 			incr nf
-			append ul "$EFDS($fd), "
+			append ul ", $EFDS($fd)"
 		}
 	}
 
@@ -842,7 +874,7 @@ proc edit_unsaved { } {
 		return 0
 	}
 
-	regsub ", $" $ul "" ul
+	set ul [string range $ul 2 end]
 
 	if { $nf == 1 } {
 		alert "Unsaved file: $ul. Please save the file or close the\
@@ -854,6 +886,90 @@ proc edit_unsaved { } {
 	}
 
 	# terminate the editing sessions
+
+	return 1
+}
+
+proc close_modified { } {
+#
+# Closes the modified files, if the user says so
+#
+	global EFST EFDS
+
+	set nf 0
+	set ul ""
+	set dl ""
+
+	foreach fd [array names EFDS] {
+		if { $EFST($fd,M) != 0 } {
+			incr nf
+			append ul "$EFDS($fd), "
+			lappend dl $fd
+		}
+	}
+
+	if { $nf == 0 } {
+		# no unsaved files
+		return 1
+	}
+
+	set ul [string range $ul 2 end]
+
+	if { $nf == 1 } {
+		set msg "This file: $ul has "
+	} else {
+		set msg "These files: $ul have "
+	}
+	append msg "been modified but not saved."
+
+	set v [tk_dialog .alert "Attention!" $msg "" 0 \
+		"Save" "Do not save" "Cancel"]
+
+	if { $v == 1 } {
+		# proceed as is
+		return 1
+	}
+
+	if { $v == 2 } {
+		# cancel
+		return 0
+	}
+
+	# save the files
+	foreach u $dl {
+		catch { puts $u "w!" }
+		delay 10
+	}
+
+	# wait for them to get saved
+	for { set i 0 } { $i < 10 } { incr i } {
+		delay 200
+		set ul ""
+		set nf 0
+		foreach fd [array names EFDS] {
+			if { $EFST($fd,M) != 0 } {
+				incr nf
+				append ul "$EFDS($fd), "
+			}
+		}
+		if { $nf == 0 } {
+			# done
+			break
+		}
+		# keep waiting
+	}
+
+	if $nf {
+		if { $nf > 1 } {
+			set msg "Files "
+		} else {
+			set msg "File "
+		}
+		append msg "[string range $ul 2 end] couldn't be saved.\
+			Do you want to proceed anyway?"
+
+		return [confirm $msg]
+	}
 
 	return 1
 }
@@ -2811,6 +2927,10 @@ proc do_mkmk_node { { bi 0 } } {
 
 	global P
 
+	if ![close_modified] {
+		return
+	}
+
 	set al ""
 
 	set mb [dict get $P(CO) "MB"]
@@ -2831,6 +2951,10 @@ proc do_mkmk_node { { bi 0 } } {
 proc do_make_node { { bi 0 } } {
 
 	global P
+
+	if ![close_modified] {
+		return
+	}
 
 	set mb [dict get $P(CO) "MB"]
 
