@@ -347,6 +347,34 @@ proc reserved_dname { d } {
 	return 0
 }
 
+proc valid_prfname { f } {
+#
+# Checks if the file name formally qualifies the file as a project member
+#
+	global LFTypes
+
+	foreach t $LFTypes {
+		foreach p [lindex $t 1] {
+			if [regexp $p $f] {
+				return 1
+			}
+		}
+	}
+	return 0
+}
+
+proc inside_project { f } {
+#
+# Checks if the specified path refers to something inside the project
+#
+
+	if { [string first [file normalize [pwd]] [file normalize $f]] == 0 } {
+		# OK
+		return 1
+	}
+	return 0
+}
+
 proc gfl_tree { } {
 #
 # Fill/update the treeview file list with files
@@ -1090,7 +1118,12 @@ proc do_file_line { w x y } {
 	# nc points to the last character of the line number
 	if ![regexp "^(.+):(\[1-9\]\[0-9\]*)" $chunk ma fn ln] {
 		# doesn't look like a line number in a file
-		return
+		if ![valid_prfname $chunk] {
+			return
+		}
+		set fn $chunk
+		set ma $chunk
+		set ln 0
 	}
 
 	# ending index for the tag
@@ -1156,13 +1189,17 @@ proc do_file_line { w x y } {
 		}
 	}
 
-	# issue the positioning command
-	catch { puts $u $ln }
+	# issue the positioning command if line number was present
+	if $ln {
+		catch { puts $u $ln }
+	}
 	$w tag add errtag $if "$if + $ib chars"
 }
 
-proc tree_menu { x y X Y } {
-
+proc tree_selection { { x "" } { y "" } } {
+#
+# Construct the list of selected (or pointed to) items
+#
 	global P
 
 	set tv $P(FL)
@@ -1177,50 +1214,56 @@ proc tree_menu { x y X Y } {
 			lappend fl $vs
 		}
 	}
-	if { $fl == "" } {
-		# no selection, check if we are pointing at some file
-		set t [$tv identify item $x $y]
-		if { $t == "" } {
-			return
-		}
-		set vs [$tv item $t -values]
-		set tp [lindex $vs 1]
-		if { $tp == "f" || $tp == "d" } {
-			lappend fl $vs
-		}
+
+	if { $fl != "" || $x == "" } {
+		# that's it: selection takes precedence over pointer
+		return $fl
 	}
+
+	# no selection and pointer present, check if it is pointing at some file
+	set t [$tv identify item $x $y]
+	if { $t == "" } {
+		return ""
+	}
+	set vs [$tv item $t -values]
+	set tp [lindex $vs 1]
+	if { $tp == "f" || $tp == "d" } {
+		lappend fl $vs
+	}
+
+	return $fl
+}
+
+proc tree_menu { x y X Y } {
 
 	# create the menu
 	catch { destroy .popm }
 	set m [menu .popm -tearoff 0]
 
-	set P(ML) $fl
-
-	if { $fl == "" } {
-		set st "disabled"
-	} else {
-		set st "normal"
-	}
-
-	$m add command -label "Edit" -command open_multiple -state $st
-	$m add command -label "Delete" -command delete_multiple -state $st
-	$m add command -label "New File" -command "new_file $x $y"
-	$m add command -label "New Directory" -command "new_directory $x $y"
-
+	$m add command -label "Edit" -command "open_multiple $x $y"
+	$m add command -label "Delete" -command "delete_multiple $x $y"
+	$m add command -label "Rename ..." -command "rename_file $x $y"
+	$m add command -label "New file ..." -command "new_file $x $y"
+	$m add command -label "Copy from ..." -command "copy_file $x $y"
+	$m add command -label "New directory ..." -command "new_directory $x $y"
 
 	tk_popup .popm $X $Y
 }
 
-proc open_multiple { } {
-
+proc open_multiple { { x "" } { y "" } } {
+#
+# Open files for editing
+#
 	global P
 
-	if ![info exists P(ML)] {
+	if !$P(AC) {
 		return
 	}
 
+	set sel [tree_selection $x $y]
+
 	set fl ""
-	foreach f $P(ML) {
+	foreach f $sel {
 		# select files only
 		if { [lindex $f 1] == "f" } {
 			lappend fl [lindex $f 0]
@@ -1259,17 +1302,20 @@ proc open_multiple { } {
 	}
 }
 
-proc delete_multiple { } {
-
+proc delete_multiple { { x "" } { y "" } } {
+#
+# Delete files or directories (the latter must be empty)
+#
 	global P
 
-	if ![info exists P(ML)] {
-		# the list of files
+	if !$P(AC) {
 		return
 	}
 
+	set sel [tree_selection $x $y]
+
 	set fl ""
-	foreach f $P(ML) {
+	foreach f $sel {
 		# files first
 		if { [lindex $f 1] == "f" } {
 			lappend fl [lindex $f 0]
@@ -1282,7 +1328,7 @@ proc delete_multiple { } {
 
 	# now go for directories
 	set fl ""
-	foreach f $P(ML) {
+	foreach f $sel {
 		if { [lindex $f 1] == "d" } {
 			lappend fl [lindex $f 0]
 		}
@@ -1317,16 +1363,19 @@ proc delete_directories { fl } {
 		set msg "Director"
 		if { [llength $ne] > 1 } {
 			append msg "ies: [join $ne ", "] are "
+			set wh "their"
 		} else {
 			append msg "y: [lindex $ne 0] is "
+			set wh "its"
 		}
-		append msg "nonempty. You must delete the files first"
+		append msg "nonempty. You must delete $wh contents first"
 		alert $msg
 	}
 
 	# proceed with the empty ones
 
 	foreach f $de {
+		log "Deleting file: $f"
 		catch { file delete -force -- [file normalize $f] }
 	}
 }
@@ -1377,8 +1426,15 @@ proc delete_files { fl } {
 	foreach f $fl {
 		set fp [file normalize $f]
 		edit_kill $fp
+		log "Deleting file: $fp"
 		catch { file delete -force -- $fp }
 	}
+}
+
+proc bad_dirname { } {
+
+	alert "The new directory name is illegal, i.e., is reserved or\
+		includes a disallowed exotic character"
 }
 
 proc new_directory { { x "" } { y "" } } {
@@ -1392,38 +1448,7 @@ proc new_directory { { x "" } { y "" } } {
 		return
 	}
 
-	set tv $P(FL)
-
-	set t [$tv selection]
-
-	if { [llength $t] != 1 && $x != "" } {
-		# use the pointer
-		set t [$tv identify item $x $y]
-	} else {
-		# use the selection
-		set t [lindex $t 0]
-	}
-
-	while 1 {
-		if { $t == "" } {
-			# unknown, use the project's directory
-			set dir "."
-			break
-		}
-		set vs [$tv item $t -values]
-		set tp [lindex $vs 1]
-		if { $tp == "d" } {
-			set dir [lindex $vs 0]
-			break
-		}
-		if { $tp != "f" } {
-			set t ""
-		} else {
-			# go up
-			set t [$tv parent $t]
-			continue
-		}
-	}
+	set dir [lindex [tree_sel_params] 0]
 
 	mk_new_dir_window $dir
 
@@ -1439,22 +1464,20 @@ proc new_directory { { x "" } { y "" } } {
 			# validate the directory
 			set nd [file normalize [file join $dir \
 				$P(ND,DI)]]
-			set cd [file normalize [pwd]]
-			if { [string first $cd $nd] != 0 } {
+			if ![inside_project $nd] {
 				alert "The new directory is outside the project\
 					tree"
 				continue
 			}
 			if [reserved_dname [file tail $nd]] {
-				alert "The new directory name is illegal, i.e.,\
-					is reserved or includes a disallowed\
-					exotic character"
+				bad_dirname
 				continue
 			}
 			if [file isdirectory $nd] {
 				alert "Directory $nd already exists"
 				continue
 			}
+			log "Creating directory: $nd"
 			if [catch { file mkdir $nd } err] {
 				alert "Cannot create directory $nd, $err"
 				continue
@@ -1526,13 +1549,13 @@ proc mk_new_dir_window { dir } {
 	bind $w <Destroy> "new_dir_click -1"
 }
 
-proc new_file { { x "" } { y "" } } {
-
-	global P LFTypes
-
-	if !$P(AC) {
-		return
-	}
+proc tree_sel_params { { x "" } { y "" } } {
+#
+# Returns the list of selection parameters { dir, type, extension } forcing
+# the interpretation as a single selection. Used to determine, e.g., the
+# target directory of a new file
+#
+	global P
 
 	set tv $P(FL)
 
@@ -1552,8 +1575,6 @@ proc new_file { { x "" } { y "" } } {
 	set ext ""
 
 	while 1 {
-		# this loop is merely to facilitate selection from a messy set
-		# of options
 		if { $t == "" } {
 			# don't know
 			break
@@ -1562,7 +1583,10 @@ proc new_file { { x "" } { y "" } } {
 		set tp [lindex $vs 1]
 		if { $tp == "d" } {
 			# use this directory and look up the parent class
-			set dir [lindex $vs 0]
+			if { $dir == "." } {
+				# first directory on our path up
+				set dir [lindex $vs 0]
+			}
 			while 1 {
 				set t [$tv parent $t]
 				if { $t == "" } {
@@ -1593,6 +1617,19 @@ proc new_file { { x "" } { y "" } } {
 		# determine types from the class
 		set t [$tv parent $t]
 	}
+
+	return [list $dir $typ $ext]
+}
+
+proc new_file { { x "" } { y "" } } {
+
+	global P LFTypes
+
+	if !$P(AC) {
+		return
+	}
+
+	lassign [tree_sel_params] dir typ ext
 
 	set fo 1
 	foreach t $LFTypes {
@@ -1629,39 +1666,12 @@ proc new_file { { x "" } { y "" } } {
 
 		set fn [file normalize $fn]
 
-		# check if falls under the project
-		set fo 0
-		foreach t $LFTypes {
-			foreach p [lindex $t 1] {
-				if [regexp $p $fn] {
-					set fo 1
-					break
-				}
-			}
-			if $fo {
-				break
-			}
-		}
-		if !$fo {
-			alert "Illegal file extension"
+		if ![valid_prfname $fn] {
+			alert "Illegal file name or extension"
 			continue
 		}
-		set cd [file normalize [pwd]]
-		set fk $fn
-		set fo 0
-		while 1 {
-			set fl [file normalize [file dirname $fk]]
-			if { $fl == $fk } {
-				break
-			}
-			if { $fl == $cd } {
-				set fo 1
-				break
-			}
-			set fk $fl
-		}
 
-		if !$fo {
+		if ![inside_project $fn] {
 			alert "This file is located outside the project's\
 				directory"
 			continue
@@ -1678,6 +1688,243 @@ proc new_file { { x "" } { y "" } } {
 	catch { exec touch $fn }
 	gfl_tree
 	edit_file $fn
+}
+
+proc copy_file { { x "" } { y "" } } {
+#
+# Copies an external file (or a bunch of files) to a project's directory
+#
+	global P LFTypes
+
+	if !$P(AC) {
+		return
+	}
+
+	# the target directory
+	set dir [lindex [tree_sel_params] 0]
+
+	if ![info exists P(LCF)] {
+		global DefProjDir
+		set P(LCF) $DefProjDir
+	}
+
+	while 1 {
+
+		set fl [tk_getOpenFile \
+			-initialdir $P(LCF) \
+			-multiple 1 \
+			-title "Select file(s) to copy:"]
+
+		if { $fl == "" } {
+			# cancelled
+			return
+		}
+
+		# in the future start from here
+		set P(LCF) [file dirname [lindex $fl 0]]
+
+		# verify the extensions
+		set ef ""
+		foreach f $fl {
+			if ![valid_prfname $f] {
+				lappend ef $f
+			}
+		}
+
+		if { $ef == "" } {
+			break
+		}
+
+		if { [llength $ef] > 1 } {
+			set msg "These files: "
+			append msg [join $ef ", "]
+			append msg " have names/extensions that do not"
+		} else {
+			set msg "This file: [lindex $ef 0]"
+			append msg " has name/extension that does not"
+		}
+		append msg " fit the project. Nothing copied. Select again"
+		alert $msg
+	}
+
+	set ef ""
+	foreach f $fl {
+		set t [file tail $f]
+		set u [file join $dir $t]
+		if [file exists $u] {
+			if ![confirm "File $t already exists in the target\
+			    directory. Overwrite?"] {
+				continue
+			}
+		}
+		log "Copy file: $f -> $u"
+		if [catch { file copy -force -- $f $u } err] {
+			lappend ef $f
+		}
+	}
+
+	if { $ef != "" } {
+		if { [llength $ef] > 1 } {
+			set msg "These files: "
+			append msg [join $ef ", "]
+		} else {
+			set msg "This file: [lindex $ef 0]"
+		}
+		append msg " could not be copied. Sorry"
+		alert $msg
+	}
+
+
+	gfl_tree
+}
+
+proc rename_file { { x "" } { y "" } } {
+#
+# Renames a file or directory
+#
+	global P
+
+	if !$P(AC) {
+		return
+	}
+
+	set sel [tree_selection]
+
+	if { $sel == "" } {
+		return
+	}
+
+	if { [llength $sel] > 1 } {
+		alert "You can only rename one thing at a time"
+		return
+	}
+
+	set f [lindex $sel 0]
+	# type: d or f
+	set t [lindex $f 1]
+
+	set fn [lindex $f 0]
+	set ta [file tail $fn]
+
+	mk_rename_window $ta
+
+	while 1 {
+		set P(RE,EV) 0
+		vwait P(RE,EV)
+		if { $P(RE,EV) < 0 } {
+			# cancellation
+			stop_rename
+			return
+		}
+		if { $P(RE,EV) > 0 } {
+			# proceed with rename
+			set nm $P(RE,NW)
+			if { $nm == $ta } {
+				alert "This will do nothing"
+				continue
+			}
+			if { $nm == "" } {
+				alert "The new name cannot be empty"
+				continue
+			}
+			if [regexp "\[\\\\/ \t;\]" $nm] {
+				alert \
+				    "The new name $nm has an illegal character"
+				continue
+			}
+			if { $t == "d" } {
+				if [reserved_dname $nm] {
+					bad_dirname
+					continue
+				}
+			} else {
+				if ![valid_prfname $nm] {
+					alert "The new file name is illegal or\
+						has an illegal extension"
+					continue
+				}
+			}
+			# do it
+			set tf [file join [file dirname $fn] $nm]
+
+			if [file exists $tf] {
+				if ![confirm "File $tf already exists. Do you\
+				    want me to try to overwrite?"] {
+					continue
+				}
+			}
+
+			log "Rename file: $fn -> $tf"
+			if [catch { file rename -force -- $fn $tf } err] {
+				# failed
+				alert "Couldn't rename: $err"
+				continue
+			}
+			break
+		}
+	}
+
+	stop_rename
+
+	gfl_tree
+}
+					
+proc mk_rename_window { old } {
+#
+# Opens a dialog to rename a file or directory
+#
+	global P
+
+	set w .rsel
+
+	catch { destroy $w }
+
+	set P(RE,WI) $w
+	toplevel $w
+	wm title $w "Rename"
+	catch { grab $w }
+
+	frame $w.tf
+	pack $w.tf -side top -expand y -fill x
+
+	label $w.tf.l -text "$old ---> "
+	pack $w.tf.l -side left -expand n -fill x
+
+	set P(RE,NW) $old
+	entry $w.tf.e -width 16 -font {-family courier -size 10} \
+			-textvariable P(RE,NW)
+	pack $w.tf.e -side left -expand y -fill x
+
+	frame $w.bf
+	pack $w.bf -side top -expand y -fill x
+
+	button $w.bf.b -text "Done" -command "rename_click 1"
+	pack $w.bf.b -side right -expand n -fill x
+
+	button $w.bf.c -text "Cancel" -command "rename_click -1"
+	pack $w.bf.c -side left -expand n -fill x
+
+	bind $w <Destroy> "rename_click -1"
+}
+
+proc rename_click { v } {
+
+	global P
+
+	if { [info exists P(RE,EV)] && $P(RE,EV) == 0 } {
+		set P(RE,EV) $v
+	}
+}
+
+proc stop_rename { } {
+
+	global P
+
+	if [info exists P(RE,WI)] {
+		catch { destroy $P(RE,WI) }
+	}
+
+	array unset P "RE,*"
 }
 
 ###############################################################################
@@ -1879,6 +2126,7 @@ proc clone_project { } {
 		}
 
 		# copy source to target
+		log "Copy project: $sdir $dir"
 		if [catch { file copy -force -- $sdir $dir } err] {
 			alert "Cannot copy $sdir to $dir, $err"
 			continue
@@ -2068,6 +2316,7 @@ proc new_project { } {
 			}
 
 			# we remove the directory and create it from scratch
+			log "Erase directory: $dir"
 			if {
 			   [catch { file delete -force -- $dir } err] ||
 			   [catch { file mkdir $dir } err] } {
@@ -2167,6 +2416,7 @@ proc new_project { } {
 		}
 
 		set tf [file join $dir $m]
+		log "Creating file: $tf"
 		if [catch { open $tf "w" } fd] {
 			alert "Cannot open $tf for writing"
 			return
@@ -2684,7 +2934,12 @@ proc mk_file_menu { } {
 
 	$m add command -label "Quit" -command "terminate"
 	$m add separator
+
+	$m add command -label "Edit" -command open_multiple
+	$m add command -label "Delete" -command delete_multiple
+	$m add command -label "Rename ..." -command "rename_file"
 	$m add command -label "New file ..." -command "new_file"
+	$m add command -label "Copy from ..." -command "copy_file"
 	$m add command -label "New directory ..." -command "new_directory"
 }
 
@@ -2967,6 +3222,19 @@ proc do_make_node { { bi 0 } } {
 	}
 
 	if [catch { run_term_command "make" $al } err] {
+		alert $err
+	}
+}
+
+proc do_make_vuee { } {
+
+	global P
+
+	if ![close_modified] {
+		return
+	}
+
+	if [catch { run_term_command "picomp" "" } err] {
 		alert $err
 	}
 }
