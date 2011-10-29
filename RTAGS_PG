@@ -708,3 +708,8 @@ PG111013A:
     drag the text with the left button (as in X-Windows). The same applies to
     the line input area at the bottom of a UART window. Additionally, the
     middle button in the line input area does the paste (as for X-Windows).
+
+PG111029A:
+
+    Keep stdout open in udaemon, which is needed py PIP (on Linux) to correctly
+    perceive that udaemon is still there.

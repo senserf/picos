@@ -6052,7 +6052,8 @@ if { [info tclversion] < 8.5 } {
 }
 
 catch { close stdin }
-catch { close stdout }
+# stdout is needed by PIP (at least on Linux)
+# catch { close stdout }
 catch { close stderr }
 
 predisplay
