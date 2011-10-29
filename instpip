@@ -1,0 +1,149 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# PIP installer
+#
+
+proc abort { msg } {
+
+	puts stderr "$msg!"
+	exit 99
+}
+
+set TCL85 [list "tclsh85" "tclsh8.5"]
+set TK85  [list "wish85" "wish8.5"]
+
+###############################################################################
+# Determine the system type ###################################################
+###############################################################################
+
+if [catch { exec uname } ST(SYS)] {
+	set ST(SYS) "W"
+} elseif [regexp -nocase "linux" $ST(SYS)] {
+	set ST(SYS) "L"
+} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+	set ST(SYS) "C"
+} else {
+	set ST(SYS) "W"
+}
+
+proc fixtcl85 { dir pgm bin tcl } {
+
+	global BINW ST
+
+	set src [file join $dir $pgm]
+
+	if { $ST(SYS) == "L" } {
+		# just copy it
+		if [catch { file copy -force -- $src $bin } err] {
+			puts "Cannot copy $pgm to $bin: $err!"
+		}
+		return
+	}
+
+	if [catch { open $src "r" } fd] {
+		puts "Cannot copy $pgm, ignored!"
+		return
+	}
+
+	if [catch { read $fd } txt] {
+		puts "Cannot read $pgm, ignored!"
+		catch { close $fd }
+		return
+	}
+
+	catch { close $fd }
+
+	set ns [regsub ".*\nexec *(tclsh|wish)\[^\n\]*" $txt\
+	  "#!/bin/sh\n#####\\\nexec $tcl $BINW/$pgm \"\$@\"" txt]
+
+	if { $ns == 0 } {
+		puts "Failed to install $pgm, ignored!"
+		return
+	}
+
+	set trg [file join $bin $pgm]
+	if [catch { open $trg "w" } fd] {
+		puts "Cannot write $trg, ignored!"
+		return
+	}
+
+	# without this, weird things happen to arguments passed to the script;
+	# this is all beyond my comprehension
+	fconfigure $fd -translation lf
+
+	if [catch { puts -nonewline $fd $txt } err] {
+		puts "Cannot write $trg: $err!"
+	}
+
+	catch { exec chmod +x $trg }
+	catch { close $fd }
+}
+
+###############################################################################
+# Determine the location of Tcl/Wish (version 8.5) ############################
+###############################################################################
+
+set tcldir ""
+set tclinx 0
+
+foreach tc $TCL85 {
+	if ![catch { exec which $tc } tcp] {
+		if { [string first "which:" $tcp] < 0 } {
+			set tcldir $tcp
+			set TCL85 $tc
+			set TK85 [lindex $TK85 $tclinx]
+			break
+		}
+	}
+	incr tclinx
+}
+
+if { $tcldir == "" } {
+	abort "No tcl8.5/wish8.5 found on your PATH"
+}
+
+puts "Tcl directory: $tcldir"
+
+###############################################################################
+# Determine whether the user has bin or BIN in HOME ###########################
+###############################################################################
+
+set HOME [file normalize $env(HOME)]
+
+set BIN ""
+foreach bc { bin BIN } {
+	if [file isdirectory [file join $HOME $bc]] {
+		set BIN $bc
+		break
+	}
+}
+
+if { $BIN == "" } {
+	puts "Warning: neither bin nor BIN found in HOME, will create bin"
+	set BIN "bin"
+} else {
+	puts "User executables in $BIN"
+}
+
+set hd [file join $HOME $BIN]
+
+if [catch { file mkdir $hd } err] {
+	abort "Cannot access $hd: $err"
+}
+
+if { $ST(SYS) == "L"} {
+	set BINW $hd
+} else {
+	# get the windows path to BIN
+	set BINW [exec cygpath -m $hd]
+}
+
+fixtcl85 "." "pip.tcl" $hd $TCL85
+
+cd $hd
+
+catch { exec ln -sf pip.tcl pip }
+
+puts "All done"

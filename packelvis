@@ -1,0 +1,86 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# Creates an installable version of elvis; must be run separately under Cygwin
+# and Linux; uses the system's elvis installation, so make sure it is up to
+# date
+#
+
+###############################################################################
+# Determine the system type ###################################################
+###############################################################################
+
+if [catch { exec uname } ST(SYS)] {
+
+	set ST(SYS) "W"
+
+} elseif [regexp -nocase "linux" $ST(SYS)] {
+
+	set ST(SYS) "L"
+
+} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+
+	set ST(SYS) "C"
+
+} else {
+
+	set ST(SYS) "W"
+}
+
+# current directory
+set WD [pwd]
+
+proc abort { msg } {
+
+	puts stderr $msg
+	exit 99
+}
+
+set BINFILES { 
+		/usr/bin/elvis
+		/usr/bin/elvtags
+}
+
+set SHAREDFILES {
+		/usr/share/elvis
+}
+
+###############################################################################
+
+if { $ST(SYS) == "L" } {
+	set TD [file join $WD "ELVIS" "LINUX"]
+} else {
+	set TD [file join $WD "ELVIS" "CYGWIN"]
+	set b ""
+	foreach f $BINFILES {
+		lappend b $f.exe
+	}
+	set BINFILES $b
+}
+
+puts "Target directory is $TD"
+
+set BD [file join $TD "BIN"]
+set SD [file join $TD "SHARED"]
+
+catch { file delete -force -- $TD }
+
+if { [catch { file mkdir $TD } ] || [catch { file mkdir $BD } ] ||
+     [catch { file mkdir $SD } ] } {
+	abort "Cannot create one of target directories"
+}
+
+foreach b $BINFILES {
+	if [catch { file copy -force $b $BD } err] {
+		abort "Cannot copy $b to $BD: $err"
+	}
+}
+
+foreach b $SHAREDFILES {
+	if [catch { file copy -force $b $SD } err] {
+		abort "Cannot copy $b to $SD: $err"
+	}
+}
+
+puts "ALL DONE"

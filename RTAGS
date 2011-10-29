@@ -36,3 +36,11 @@ PG111027A:
 
 	I am going to work next on VUEE, i.e., some integration of picomp and
 	udaemon with PIP.
+
+PG111029A:
+
+	VUEE is now "integrated". this is the first "presentable" version
+	including installation scripts for elvis and PIP. Many cleanups and
+	two or three bugs fixed. Previously, the running status of a term
+	action wasn't recognized properly (in particular when PIP thought it
+	had killed the process, it wasn't always true). That should be OK now.

@@ -1,18 +1,29 @@
 #!/bin/sh
-# This is temporary
 ########\
-exec wish85 C:/cygwin/home/pawel/SOFTWARE/PIP/pip.tcl "$@"
+exec tclsh85 "$0" "$@"
 
 package require Tk
 package require Ttk
 
-proc cygfix { } {
-#
-# Issue a dummy reference to a file path to trigger a possible DOS-path
-# warning, after which things should continue without any further warnings.
-# This first reference must be caught as otherwise it would abort the script.
-#
-	catch { exec ls [pwd] }
+###############################################################################
+# Determine the system type ###################################################
+###############################################################################
+
+if [catch { exec uname } ST(SYS)] {
+
+	set ST(SYS) "W"
+
+} elseif [regexp -nocase "linux" $ST(SYS)] {
+
+	set ST(SYS) "L"
+
+} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+
+	set ST(SYS) "C"
+
+} else {
+
+	set ST(SYS) "W"
 }
 
 ###############################################################################
@@ -24,6 +35,12 @@ set DefProjDir	""
 set EditCommand "elvis -f ram -m -G x11 -font 9x15"
 set TagsCmd "elvtags"
 set TagsArgs "-l -i -t -v -h -l --"
+
+if { $ST(SYS) == "L" } {
+	set SIDENAME "side"
+} else {
+	set SIDENAME "side.exe"
+}
 
 ## File types to be listed in the Files view:
 ## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
@@ -68,6 +85,7 @@ set TCMD(BF) ""
 set TCMD(BL) 0
 set TCMD(CB) ""
 set TCMD(CL) 0
+set TCMD(FU) ""
 
 set P(SSL) ""
 set P(SSV) ""
@@ -122,6 +140,11 @@ proc delay_trigger { } {
 }
 
 ###############################################################################
+
+proc unimpl { } {
+#
+	alert "Not implemented yet"
+}
 	
 proc xq { pgm { pargs "" } } {
 #
@@ -214,12 +237,12 @@ proc term_output { } {
 
 	if [catch { read $TCMD(FD) } chunk] {
 		# assume EOF
-		do_stop_term
+		stop_term
 		return
 	}
 
 	if [eof $TCMD(FD)] {
-		do_stop_term
+		stop_term
 		return
 	}
 
@@ -328,7 +351,7 @@ proc get_last_project_list { } {
 	}
 
 	set LProjects $lpr
-	catch { mk_file_menu }
+	catch { reset_file_menu }
 }
 
 proc upd_last_project_list { } {
@@ -340,10 +363,20 @@ proc upd_last_project_list { } {
 	set rc [read_piprc]
 	catch { dict set rc "LPROJECTS" $LProjects }
 	write_piprc $rc
-	catch { mk_file_menu }
+	catch { reset_file_menu }
 }
 
 ###############################################################################
+
+proc file_present { f } {
+#
+# Checks if the file is present as a regular file
+#
+	if { [file exists $f] && [file isfile $f] } {
+		return 1
+	}
+	return 0
+}
 
 proc reserved_dname { d } {
 #
@@ -1485,6 +1518,9 @@ proc md_wait { } {
 
 	set P(MW,EV) 0
 	vwait P(MW,EV)
+	if ![info exists P(MW,EV)] {
+		return -1
+	}
 	if { $P(MW,EV) < 0 } {
 		# cancellation
 		md_stop
@@ -1563,7 +1599,7 @@ proc new_directory { { x "" } { y "" } } {
 		}
 		log "Creating directory: $nd"
 		if [catch { file mkdir $nd } err] {
-			alert "Cannot create directory $nd, $err"
+			alert "Cannot create directory $nd: $err"
 			continue
 		}
 
@@ -2071,7 +2107,7 @@ proc val_prj_exists { dir { try 0 } } {
 	# time to close the previous project and assume the new one
 
 	if [catch { cd $dir } err] {
-		alert "Cannot move to the project's directory $dir, $err"
+		alert "Cannot move to the project's directory $dir: $err"
 		return 0
 	}
 
@@ -2156,7 +2192,7 @@ proc clone_project { } {
 		if [file exists $dir] {
 			# we remove the directory and create it from scratch
 			if [catch { file delete -force -- $dir } err] {
-				alert "Cannot erase $dir, $err"
+				alert "Cannot erase $dir: $err"
 				continue
 			}
 		}
@@ -2164,7 +2200,7 @@ proc clone_project { } {
 		# copy source to target
 		log "Copy project: $sdir $dir"
 		if [catch { file copy -force -- $sdir $dir } err] {
-			alert "Cannot copy $sdir to $dir, $err"
+			alert "Cannot copy $sdir to $dir: $err"
 			continue
 		}
 
@@ -2191,6 +2227,9 @@ proc close_project { } {
 		# perhaps we should've checked it before edit_unsaved?
 		set P(AC) 0
 		set P(CO) ""
+		# in case something is running
+		abort_term
+		stop_udaemon
 	}
 
 	return 0
@@ -2297,7 +2336,8 @@ proc open_project { { which -1 } { dir "" } } {
 	set LProjects $lp
 	upd_last_project_list
 	setup_project
-	mk_build_menu
+	reset_bnx_menus
+	reset_file_menu
 }
 
 proc new_project { } {
@@ -2458,7 +2498,7 @@ proc new_project { } {
 			return
 		}
 		if [catch { puts $fd $fc } md] {
-			alert "Cannot write to $tf, $md"
+			alert "Cannot write to $tf: $md"
 			catch { close $fd }
 			return
 		}
@@ -2528,7 +2568,7 @@ proc get_config { } {
 
 	if [catch { read $fd } pf] {
 		catch { close $fd }
-		alert "Cannot read config.prj, $pf"
+		alert "Cannot read config.prj: $pf"
 		return
 	}
 
@@ -2555,13 +2595,13 @@ proc set_config { } {
 	global P
 
 	if [catch { open "config.prj" "w" } fd] {
-		alert "Cannot open config.prj for writing, $fd"
+		alert "Cannot open config.prj for writing: $fd"
 		return
 	}
 
 	if [catch { puts -nonewline $fd $P(CO) } er] {
 		catch { close $fd }
-		alert "Cannot write to config.prj, $er"
+		alert "Cannot write to config.prj: $er"
 		return
 	}
 
@@ -2642,7 +2682,7 @@ proc do_board_selection { } {
 
 		if { $ev < 0 } {
 			# cancellation
-			mk_build_menu
+			reset_build_menu
 			return
 		}
 		if { $ev == 1 } {
@@ -2652,7 +2692,7 @@ proc do_board_selection { } {
 			}
 			md_stop
 			set_config
-			mk_build_menu
+			reset_build_menu
 			return
 		}
 		# redo
@@ -2950,6 +2990,139 @@ proc vuee_conf_fsel { tp } {
 
 ###############################################################################
 
+proc run_udaemon { { auto 0 } } {
+#
+	global P TCMD
+
+	if { !$P(AC) || $P(CO) == "" } {
+		# no project
+		return
+	}
+
+	if { $TCMD(FU) != "" } {
+		if !$auto {
+			alert "Udaemon appears to be running already"
+		}
+		return
+	}
+
+	set ef [auto_execok "udaemon"]
+	if { $ef == "" } {
+		alert "Cannot start udaemon: not found on the PATH"
+		return
+	}
+
+	if [file executable $ef] {
+		set cmd "[list $ef]"
+	} else {
+		set cmd "[list sh] [list $ef]"
+	}
+
+	# check for the geometry file
+	set gf [dict get $P(CO) "UDDF"]
+
+	if { $gf != "" } {
+		# there is a geometry file
+		if ![file_present $gf] {
+			alert "The geometry file $gf doesn't exist"
+			return
+		}
+		append cmd " -G [list $gf]"
+	}
+
+	append cmd " 2>@1"
+
+	if [catch { open "|$cmd" "r" } fd] {
+		alert "Cannot start udaemon: $fd"
+		return
+	}
+
+	set TCMD(FU) $fd
+	reset_exec_menu
+
+	# nothing will ever arrive on this pipe; we use it to
+	# find out when udaemon exits
+	fconfigure $fd -blocking 0 -buffering none
+	fileevent $fd readable "udaemon_pipe_event"
+}
+
+proc udaemon_pipe_event { } {
+#
+# Detect when udaemon exits
+#
+	global TCMD
+
+	if { [catch { read $TCMD(FU) } dummy] || [eof $TCMD(FU)] } {
+		stop_udaemon
+	}
+}
+
+proc stop_udaemon { } {
+#
+	global TCMD
+
+	if { $TCMD(FU) != "" } {
+		kill_pipe $TCMD(FU)
+		set TCMD(FU) ""
+		# may fail if we have closed the main window already
+		catch { reset_exec_menu }
+	}
+}
+
+proc run_vuee { } {
+#
+# The VUEE model is run as a term program (because it writes to the term
+# window), unlike udaemon, which is run independently
+#
+	global P TCMD SIDENAME
+
+	if { !$P(AC) || $P(CO) == "" } {
+		# no project
+		return
+	}
+
+	if { $TCMD(FD) != "" } {
+		# This shouldn't be possible
+		alert "Term window busy running a command. Abort it first"
+		return
+	}
+
+	if ![file_present $SIDENAME] {
+		# Nor should this
+		alert "No VUEE model executable. Build it first"
+		return
+	}
+
+	set df [dict get $P(CO) "VUDF"]
+	if { $df == "" } {
+		alert "No data file specified for the model. Configure VUEE\
+			first"
+		return
+	}
+
+	# check if the data file exists
+	if ![file_present $df] {
+		alert "The data file $df does not exist"
+		return
+	}
+
+	# We seem to be in the clear
+	if [catch { run_term_command "./$SIDENAME" [list $df] } err] {
+		alert "Cannot start the model: $err"
+		return
+	}
+
+	stop_udaemon
+	delay 500
+
+	# check if should start udaemon
+	set uf [dict get $P(CO) "UDON"]
+
+	if { $uf && $TCMD(FU) == "" } {
+		run_udaemon 1
+	}
+}
+
 proc run_term_command { cmd al } {
 #
 # Run a command in term window
@@ -2957,7 +3130,7 @@ proc run_term_command { cmd al } {
 	global TCMD
 
 	if { $TCMD(FD) != "" } {
-		error "Already running a command, abort first"
+		error "Already running a command. Abort it first"
 	}
 
 	set ef [auto_execok $cmd]
@@ -2986,45 +3159,68 @@ proc run_term_command { cmd al } {
 	set TCMD(FD) $fd
 	set TCMD(BF) ""
 	mark_running 1
+	reset_bnx_menus
 
 	fconfigure $fd -blocking 0 -buffering none
 	fileevent $fd readable "term_output"
 }
 
-proc do_abort_term { } {
+proc kill_pipe { fd } {
+#
+# Kills the process on the other end of our pipe
+#
+	if { $fd == "" || [catch { pid $fd } pp] || $pp == "" } {
+		return
+	}
+	log "Killing pcs $pp"
+	if [catch { exec kill -QUIT $pp } err] {
+		log "Cannot kill $pp: $err"
+	}
+	catch { close $fd }
+}
+
+proc abort_term { } {
 
 	global TCMD
 
 	if { $TCMD(FD) != "" } {
-		catch { close $TCMD(FD) }
+		kill_pipe $TCMD(FD)
 		set TCMD(FD) ""
 		set TCMD(BF) ""
 		term_dspline "--ABORTED--"
 		mark_running 0
+		# may fail if the master window has been destroyed already
+		catch { reset_bnx_menus }
 	}
 }
 
-proc do_stop_term { } {
+proc stop_term { } {
 
 	global TCMD
 
 	if { $TCMD(FD) != "" } {
-		catch { close $TCMD(FD) }
+		kill_pipe $TCMD(FD)
 		set TCMD(FD) ""
 		set TCMD(BF) ""
+		reset_bnx_menus
 	}
 	mark_running 0
 	term_dspline "--DONE--"
 }
 
+proc upload_image { } {
+
+	unimpl
+}
+
 ###############################################################################
 
-proc mk_file_menu { } {
+proc reset_file_menu { } {
 #
 # Create the File menu of the project window; it must be done dynamically,
 # because it depends on the list of recently opened projects
 #
-	global LProjects
+	global LProjects P
 
 	set m .menu.file
 
@@ -3050,23 +3246,32 @@ proc mk_file_menu { } {
 	$m add command -label "Quit" -command "terminate"
 	$m add separator
 
-	$m add command -label "Edit" -command open_multiple
-	$m add command -label "Delete" -command delete_multiple
-	$m add command -label "Rename ..." -command "rename_file"
-	$m add command -label "New file ..." -command "new_file"
-	$m add command -label "Copy from ..." -command "copy_file"
-	$m add command -label "New directory ..." -command "new_directory"
+	if $P(AC) {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+
+	$m add command -label "Edit" -command open_multiple -state $st
+	$m add command -label "Delete" -command delete_multiple -state $st
+	$m add command -label "Rename ..." -command "rename_file" -state $st
+	$m add command -label "New file ..." -command "new_file" -state $st
+	$m add command -label "Copy from ..." -command "copy_file" -state $st
+	$m add command -label "New directory ..." -command "new_directory" \
+		-state $st
 }
 
-proc mk_build_menu { } {
+proc reset_build_menu { } {
 #
-# Create the build menu, which depends on the board selection and stuff
+# Re-create the build menu; called whenever something has changed that may
+# affect some items on the menu
 #
-	global P
+	global P TCMD
 
 	set m .menu.build
-
-	$m delete 0 end
+	if [catch { $m delete 0 end } ] {
+		return
+	}
 
 	if !$P(AC) {
 		# no project
@@ -3096,23 +3301,87 @@ proc mk_build_menu { } {
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
+				set maf "Makefile_$suf"
+				if [file_present $maf] {
+					set st "normal"
+				} else {
+					set st "disabled"
+				}
 				$m add command -label \
 					"Build $suf (make -f Makefile_$suf)" \
-					-command "do_make_node $bi"
+					-command "do_make_node $bi" -state $st
 				incr bi
 			}
 			$m add separator
 		} else {
 			$m add command -label "Pre-build (mkmk $bo)" \
 				-command "do_mkmk_node"
+			if [file_present "Makefile"] {
+				set st "normal"
+			} else {
+				set st "disabled"
+			}
 			$m add command -label "Build (make)" \
-				-command "do_make_node"
+				-command "do_make_node" -state $st
 		}
 	}
 
 	$m add command -label "VUEE" -command "do_make_vuee"
 	$m add separator
-	$m add command -label "Abort" -command "do_abort_term"
+	if { $TCMD(FD) != "" } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Abort" -command "abort_term" -state $st
+}
+
+proc reset_exec_menu { } {
+#
+# Re-create the exec menu
+#
+	global P SIDENAME TCMD
+
+	set m .menu.exec
+	$m delete 0 end
+
+	if { [catch { glob "Image*" } im] || $im == "" } {
+		set st "disabled"
+	} else {
+		set st "normal"
+	}
+	$m add command -label "Upload image ..." -command upload_image \
+		-state $st
+
+	$m add separator
+
+	if { $TCMD(FD) == "" && [file_present $SIDENAME] } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Run VUEE" -command run_vuee -state $st
+
+	if { $TCMD(FD) == "" } {
+		set st "disabled"
+	} else {
+		set st "normal"
+	}
+	$m add command -label "Abort" -command "abort_term" -state $st
+
+	$m add separator
+
+	if { $TCMD(FU) == "" } {
+		$m add command -label "Run udaemon" -command run_udaemon
+	} else {
+		$m add command -label "Stop udaemon" -command stop_udaemon
+	}
+}
+
+proc reset_bnx_menus { } {
+
+	reset_build_menu
+	reset_exec_menu
 }
 
 proc mark_running_tm { } {
@@ -3174,7 +3443,7 @@ proc mk_project_window { } {
 
 	.menu add cascade -label "File" -menu $m -underline 0
 
-	mk_file_menu
+	reset_file_menu
 
 	#######################################################################
 
@@ -3192,7 +3461,16 @@ proc mk_project_window { } {
 
 	.menu add cascade -label "Build" -menu $m -underline 0
 
-	mk_build_menu
+	#######################################################################
+
+	set m .menu.exec
+	menu $m -tearoff 0
+
+	.menu add cascade -label "Execute" -menu $m -underline 0
+
+	#######################################################################
+
+	reset_bnx_menus
 
 	#######################################################################
 
@@ -3344,7 +3622,7 @@ proc do_make_node { { bi 0 } } {
 		set mf "Makefile"
 	}
 
-	if ![file exists $mf] {
+	if ![file_present $mf] {
 		alert "No suitable makefile available. You have to pre-build\
 			first"
 		return
@@ -3378,7 +3656,15 @@ proc do_make_vuee { } {
 
 ###############################################################################
 
-cygfix
+if { $ST(SYS) != "L" } {
+	#
+	# Issue a dummy reference to a file path to trigger a possible DOS-path
+	# warning, after which things should continue without any further
+	# warnings. This first reference must be caught as otherwise it would
+	# abort the script.
+	#
+	catch { exec ls [pwd] }
+}
 	
 ###############################################################################
 
