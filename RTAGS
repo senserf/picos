@@ -44,3 +44,12 @@ PG111029A:
 	two or three bugs fixed. Previously, the running status of a term
 	action wasn't recognized properly (in particular when PIP thought it
 	had killed the process, it wasn't always true). That should be OK now.
+
+PG111030A:
+
+	Changed the kill signal for pipe processes from QUIT to INT. QUIT would
+	cause unnecessary core/stack dumps. Also the kill operation now handles
+	pipes with multiple (more than 2) stages in a (hopefully) foolproof
+	manner.
+
+	A few cosmetics in README.txt.

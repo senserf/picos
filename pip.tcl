@@ -1071,7 +1071,7 @@ proc edit_kill { { fp "" } } {
 		array unset EFST($fd,*)
 		if { $pid != "" } {
 			log "Killing edit process: $pid"
-			if [catch { exec kill -QUIT $pid } err] {
+			if [catch { exec kill -INT $pid } err] {
 				log "Cannot kill: $err"
 			}
 		}
@@ -3172,9 +3172,11 @@ proc kill_pipe { fd } {
 	if { $fd == "" || [catch { pid $fd } pp] || $pp == "" } {
 		return
 	}
-	log "Killing pcs $pp"
-	if [catch { exec kill -QUIT $pp } err] {
-		log "Cannot kill $pp: $err"
+	foreach p $pp {
+		log "Killing pipe process $p"
+		if [catch { exec kill -INT $p } err] {
+			log "Cannot kill $p: $err"
+		}
 	}
 	catch { close $fd }
 }
