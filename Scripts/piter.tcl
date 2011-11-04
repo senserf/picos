@@ -1,10 +1,36 @@
 #!/bin/sh
 #####################\
-exec tclsh85 "$0" "@"
+exec tclsh85 "$0" "$@"
 
 #########################################
 # UART front for the various UART modes #
 #########################################
+
+proc sy_usage { } {
+
+	global argv0
+
+	puts stderr "Usage: $argv0 args, where args can be:"
+	puts stderr ""
+	puts stderr "       -p port/dev   UART dev or COM number, required"
+	puts stderr "       -s speed      UART speed, default is 9600"
+	puts stderr "       -m x|p|d      mode: XRS, P, direct, default is d"
+	puts stderr "       -l pktlen     max pkt len, default is 82"
+	puts stderr "       -b \[file\]     binary mode (optional macro file)"
+	puts stderr "       -f file       preserve the output in file"
+	puts stderr "       -F file       preserve the input as well"
+	puts stderr "       -S            scan for present UART devs"
+	puts stderr "       -P file       preprocessor plugin file"
+	puts stderr "       -C file       alternative configuration file"
+	puts stderr ""
+	puts stderr "Note that pktlen should be the same as the length used"
+	puts stderr "by the praxis in the respective argument of phys_uart."
+	puts stderr ""
+	puts stderr "When called without arguments (or with -C as the only"
+	puts stderr "argument), the program will operate in a GUI mode."
+
+	exit 99
+}
 
 ###############################################################################
 
@@ -15,8 +41,34 @@ if { $ST(WSH) < 8.5 } {
 	exit 99
 }
 
+# home directory
+if { [info exists env(HOME)] && $env(HOME) != "" } {
+	set PM(HOM) $env(HOME)
+} else {
+	set PM(HOM) $PM(PWD)
+}
+
+# the default rc file
+set PM(SAP) [file join $PM(HOM) ".piterrc"]
+
+# Prescan arguments for -C (the alternative rc file) ##########################
+
+set u [lsearch -exact $argv "-C"]
+if { $u >= 0 } {
+	set f [lindex $argv [expr $u + 1]]
+	if { $f == "" } {
+		sy_usage
+	}
+	set PM(SAP) [file normalize $f]
+	unset f
+	set argv [lreplace $argv $u [expr $u + 1]]
+}
+unset u
+
+###############################################################################
+
 if [llength $argv] {
-	# arguments present, assume comamnd-line call
+	# arguments present, assume command-line call
 	set ST(WSH) 0
 } else {
 	# wish call
@@ -194,18 +246,8 @@ set WI(LLD) 	$PM(PWD)
 # current input line
 set WI(CIL)	""
 
-# saved parameters file
-set PM(SAP)	".piterrc"
-
 # recursive exit avoidance flag
 set WI(REX)	0
-
-# home directory
-if { [info exists env(HOME)] && $env(HOME) != "" } {
-	set PM(HOM) $env(HOME)
-} else {
-	set PM(HOM) $PM(PWD)
-}
 
 ###############################################################################
 
@@ -258,8 +300,7 @@ proc sy_getsparams { } {
 #
 	global PM
 
-	set fn [file join $PM(HOM) $PM(SAP)]
-	if [catch { open $fn "r" } fd] {
+	if [catch { open $PM(SAP) "r" } fd] {
 		# no such file
 		return ""
 	}
@@ -279,15 +320,14 @@ proc sy_setsparams { pars } {
 #
 	global PM
 
-	set fn [file join $PM(HOM) $PM(SAP)]
-	if [catch { open $fn "w" } fd] {
+	if [catch { open $PM(SAP) "w" } fd] {
 		# cannot open
-		sy_alert "Cannot open $fn, $fd"
+		sy_alert "Cannot open $PM(SAP), $fd"
 		return
 	}
 
 	if [catch { puts $fd $pars } err] {
-		sy_alert "Cannot write to $fn, $err"
+		sy_alert "Cannot write to $PM(SAP), $err"
 	}
 	catch { close $fd }
 }
@@ -1262,31 +1302,6 @@ proc pt_trc { msg } {
 		puts $str $msg
 		flush $str
 	}
-}
-
-proc sy_usage { } {
-
-	global argv0
-
-	puts stderr "Usage: $argv0 args, where args can be:"
-	puts stderr ""
-	puts stderr "       -p port/dev   UART dev or COM number, required"
-	puts stderr "       -s speed      UART speed, default is 9600"
-	puts stderr "       -m x|p|d      mode: XRS, P, direct, default is d"
-	puts stderr "       -l pktlen     max pkt len, default is 82"
-	puts stderr "       -b \[file\]     binary mode (optional macro file)"
-	puts stderr "       -f file       preserve the output in file"
-	puts stderr "       -F file       preserve the input as well"
-	puts stderr "       -S            scan for present UART devs"
-	puts stderr "       -P file       preprocessor plugin file"
-	puts stderr ""
-	puts stderr "Note that pktlen should be the same as the length used"
-	puts stderr "by the praxis in the respective argument of phys_uart."
-	puts stderr ""
-	puts stderr "When called without arguments, the program will operate"
-	puts stderr "in a simple GUI mode."
-
-	exit 99
 }
 
 proc sy_argget { } {

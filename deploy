@@ -6,6 +6,22 @@ exec tclsh "$0" "$@"
 # verifying version dependencies
 #
 
+###############################################################################
+# Determine the system type ###################################################
+###############################################################################
+
+if [catch { exec uname } ST(SYS)] {
+	set ST(SYS) "W"
+} elseif [regexp -nocase "linux" $ST(SYS)] {
+	set ST(SYS) "L"
+} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+	set ST(SYS) "C"
+} else {
+	set ST(SYS) "W"
+}
+
+###############################################################################
+
 set PLIST { PICOS SIDE VUEE }
 set TCL85 [list "tclsh85" "tclsh8.5"]
 set TK85  [list "wish85" "wish8.5"]
@@ -317,11 +333,11 @@ proc ver_dep { depl } {
 
 proc fixtcl85 { dir pgm bin tcl } {
 
-	global BINW
+	global BINW ST
 
 	set src [file join $dir $pgm]
 
-	if { $BINW == "" } {
+	if { $ST(SYS) == "L" } {
 		# just copy it
 		if [catch { file copy -force -- $src $bin } err] {
 			puts "Cannot copy $pgm from $dir to $bin: $err!"
@@ -370,7 +386,7 @@ proc fixtcl85 { dir pgm bin tcl } {
 
 proc doit { } {
 
-	global CWD PLIST BIN BINW HOME TCL85 TK85
+	global CWD PLIST BIN BINW HOME TCL85 TK85 ST
 
 	anchor
 
@@ -399,10 +415,11 @@ proc doit { } {
 		errab "Cannot access $hd: $err"
 	}
 
-	# get the windows path to BIN
-	if [catch { exec cygpath -m $hd } BINW] {
-		# not on Windows
+	if { $ST(SYS) == "L" } {
 		set BINW $hd
+	} else {
+		# get the windows path to BIN
+		set BINW [exec cygpath -m $hd]
 	}
 
 	if [catch { file copy -force -- Scripts/mkmk Scripts/picomp $hd } err] {
@@ -449,7 +466,7 @@ proc doit { } {
 	# make piter.tcl clickable, with piter acting as the previous
 	# command-line script
 	catch { exec chmod +x piter.tcl }
-	catch { exec ln -s piter.tcl piter }
+	catch { exec ln -sf piter.tcl piter }
 
 	puts "All done"
 }

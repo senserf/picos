@@ -1415,3 +1415,14 @@ PG111013A:
 	BOARDS/CC430W/FIXED (by way of documentation), so we have a ready
 	board definition when the mended version of the actual board
 	materializes.
+
+PG111104A:
+
+	Added an option to piter (-C filename) to specify an alternative to the
+	"rc" configuration file (i.e., $HOME/.piterrc). This is useful, e.g.,
+	for PIP which wants to associate piter configurations with projects.
+
+	Fixed a bug in piter causing incorrect interpretation of arguments
+	under Linux.
+
+	A few cosmetics in deploy.
