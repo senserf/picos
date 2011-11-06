@@ -19332,8 +19332,14 @@ second parameter with this property is interpreted as the output file name.
 If the input file name is ``{\tt .}'' (period) or if no file name is
 specified at all, \smurph\ assumes that input data is to be read from the
 standard input.
-If no output file is specified, the results will be written to the
-standard output.
+If no output file is specified or the output file name is ``{\tt .}'' (period),
+the results will be written to the standard output.
+If you use ``{\tt +}'' instead of the period, the output will be written to
+standard error.
+On some systems (like Cygwin) this is a more foolproof way of enforcing
+immediate flushing
+of the output data on every write than when writing to standard
+output.
 
 \subsubsection*{Examples}
 

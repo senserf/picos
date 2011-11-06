@@ -636,9 +636,14 @@ void    zz_init_system  (int argc, char *argv []) {
 
 	// Output file
 
-	if ((zz_ofn == NULL) || ((zz_ofn[0] == '.') && (zz_ofn[1] == '\0'))) {
-		// Writing to standard output
-		zz_ofpp = &cout;
+	if ((zz_ofn == NULL) ||
+	    ((zz_ofn [0] == '.' || zz_ofn [0] == '+') &&
+	     (zz_ofn [1] == '\0'))) {
+		// Writing to standard output or standard error
+		if (zz_ofn != NULL && zz_ofn [0] == '+')
+			zz_ofpp = &cerr;
+		else
+			zz_ofpp = &cout;
 	} else {
 		i = (int) umask (OMASK);
 		zz_ofpp = openOStream (zz_ofn, "w");
