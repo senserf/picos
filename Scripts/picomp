@@ -4742,12 +4742,11 @@ proc emit_glue { } {
 		if { $ix > 0 } {
 			append res "else "
 		}
-		if { $ix != [expr $np - 1] } {
-			append res "if (strcmp (tp, \"$Pgm\") == 0) "
-		}
+		append res "if (strcmp (tp, \"$Pgm\") == 0) "
 		append res "__build_[pnfx]node (nddata); "
 	}
 
+	append res "else excptn (\"Illegal node type in data file: %s\", tp);"
 	append res "\n\};\n\}\;\n"
 
 	wtfile $fn $res

@@ -1426,3 +1426,8 @@ PG111104A:
 	under Linux.
 
 	A few cosmetics in deploy.
+
+PG111106A:
+
+	Fixed picomp to recognize and diagnose illegal node types (in
+	multiprogram praxes) instead of defaulting to something.
