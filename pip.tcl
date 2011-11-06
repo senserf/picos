@@ -27,12 +27,14 @@ if [catch { exec uname } ST(SYS)] {
 }
 
 ###############################################################################
-
-# will be set by deploy
+# Will be set by deploy
 set PicOSPath	""
 set DefProjDir	""
 
 set EditCommand "elvis -f ram -m -G x11 -font 9x15"
+## Delay after opening a new elvis and before the first command to it can be
+## issued
+set NewCmdDelay 300
 set TagsCmd "elvtags"
 set TagsArgs "-l -i -t -v -h -l --"
 
@@ -71,7 +73,23 @@ set CFVueeItems {
 			"VUDF"		""
 }
 
-set CFItems 	[concat $CFBoardItems $CFVueeItems]
+## Names of the configurable loaders (just two for now)
+set CFLDNames { ELP MGD }
+
+## Configuration data for loaders; not much for now. We assume there are two
+## loaders: the Elprotronic Lite (which only requires the path to the
+## executable), and msp430-gdb, which requires the device + the arguments to
+## gdbproxy; LDSEL points to the "selected" loader. The selection may make
+## little sense now, because, given the system (Windows, Linux), there is only
+## one choice (but this may change later)
+set CFLoadItems {
+			"LDSEL"		""
+			"LDELPPATH"	""
+			"LDMGDDEV"	""
+			"LDMGDARG"	""
+		}
+
+set CFItems 	[concat $CFBoardItems $CFVueeItems $CFLoadItems]
 
 ## List of legal CPU types
 set CPUTypes { MSP430 eCOG }
@@ -79,20 +97,62 @@ set CPUTypes { MSP430 eCOG }
 ## List of last projects
 set LProjects ""
 
+##
+## Status of external programs
+##
 ## Program running in term
+
+## Output fd of the program running in term
 set TCMD(FD) ""
+
+## Accumulated input chunk arriving from the program running in term
 set TCMD(BF) ""
+
+## BOL flag: 1 if line started but not yet completed
 set TCMD(BL) 0
+
+## Callback (after) to visualize that something is running in term
 set TCMD(CB) ""
+
+## Counter used by the callback
 set TCMD(CL) 0
+
+## File descriptor of the udaemon pipe (!= "" -> udaemon running)
 set TCMD(FU) ""
 
+## Process ID of FET loader (!= "" -> FET loader is running) + callback
+## to monitor its disappearance + signal to kill + action to be performed
+## after kill; on Cygwin, a periodic callback seems to be the only way to
+## learn that a background process has disappeared
+set TCMD(FL) ""
+set TCMD(FL,CB) ""
+set TCMD(FL,SI) "INT"
+set TCMD(FL,AC) "reset_exec_menu"
+
+## Slots for up to 4 instances of piter, CPITERS counts them, so we can order
+## them dynamically
+set TCMD(NPITERS) 4
+set TCMD(CPITERS) 0
+for { set p 0 } { $p < $TCMD(NPITERS) } { incr p } {
+	set TCMD(PI$p) ""
+	set TCMD(PI$p,SN) 0
+}
+
+## Running status (tex variable) of term + running "value" (number of seconds)
 set P(SSL) ""
 set P(SSV) ""
-set P(LND) ""
 
 ## double exit avoidance flag
 set REX	0
+
+## This is the insert into the path to a Windows 7 executable to get to the
+## user-specific copy of Program Files where programs like the Elprotronics
+## programmer write dynamic config files, e.g., if the true program path is:
+## C:/Program Files/Elprotronic/MSP430/FET-Pro430/..., the config will be at:
+## C:/Users/-user-/AppData/Local/VirtualStore/Program Files/Elprotronic/
+## MSP430/FET-Pro430/config.ini; note that env(LOCALAPPDATA) contains
+## C:/Users/-user-/AppData/Local, so maybe VirtualStore is a sufficient hint?
+set ElpConfPath7 "AppData/Local/VirtualStore"
 
 ###############################################################################
 
@@ -248,6 +308,11 @@ proc term_output { } {
 
 	if { $chunk == "" } {
 		return
+	}
+
+	# filter out non-printable characters
+	while { ![string is ascii -failindex el $chunk] } {
+		set chunk [string replace $chunk $el $el]
 	}
 
 	append TCMD(BF) $chunk
@@ -504,7 +569,7 @@ proc gfl_tree_pop { tv node lst path } {
 		set u [file_edit_pipe $f]
 		if { $u != "" } {
 			# edited
-			if $EFST($u,M) {
+			if { $EFST($u,M) > 0 } {
 				# modified
 				set tag sred
 			} else {
@@ -800,7 +865,8 @@ proc tag_request { fd tag } {
 	log "Tag request: $tag"
 
 	if ![info exists P(FL,T,$tag)] {
-		alert "Tag $tag not found"
+		# alert "Tag $tag not found"
+		term_dspline "Tag $tag not found"
 		return
 	}
 
@@ -838,7 +904,7 @@ proc tag_request { fd tag } {
 	}
 
 	# issue the command and raise the window
-	catch { puts $u $cm }
+	edit_command $u $cm
 }
 
 ###############################################################################
@@ -853,10 +919,21 @@ proc edit_file { fn } {
 	}
 
 	set EFDS($fd) $fn
-	# file status
-	set EFST($fd,M) 0
+	# file status; note: -1 means something like "unsettled"; we want to
+	# use this value to mark the moment when the window has been opened
+	# and the editor is ready, e.g., to accept commands from STDIN; I don't
+	# know what is going on, but it appears that on Linux, if a command is
+	# issued too soon, the edit session gets killed; another (minor) issue
+	# is that initially the file status starts "modified" then immediately
+	# becomes "not modified"; so we shall assume that the initial modified
+	# status is ignored, and the true status becomes "settled" upon the
+	# first perception of "not modified" status; if you are confused, you
+	# are not alone
+	set EFST($fd,M) -1
 	# PID (unknown yet)
 	set EFST($fd,P) ""
+	# command queue
+	set EFST($fd,C) ""
 	# mark the status in the tree
 	gfl_status $fn 0
 
@@ -886,12 +963,27 @@ proc edit_status_read { fd } {
 	set line [string trim $line]
 
 	if [regexp "BST: (\[0-9\])" $line jnk st] {
+		if { $EFST($fd,M) < 0 && $st > 0 } {
+			# ignore the initial "modified" status, which is
+			# bogus
+			log "Bogus modified status ignored"
+			return
+		}
 		if { $st != $EFST($fd,M) } {
+			set os $EFST($fd,M)
 			# an actual change
 			log "Edit status change for $EFDS($fd): $EFST($fd,M) ->\
 				$st"
 			set EFST($fd,M) $st
 			gfl_status $EFDS($fd) $st
+			if { $os < 0 } {
+				global NewCmdDelay
+				delay $NewCmdDelay
+				foreach c $EFST($fd,C) {
+					catch { puts $fd $c }
+				}
+				set EFST($fd,C) ""
+			}
 		}
 		return
 	}
@@ -912,6 +1004,20 @@ proc edit_status_read { fd } {
 	log "PIPE: $line"
 
 	# room for more
+}
+
+proc edit_command { fd cmd } {
+
+	global EFST
+
+	if { $EFST($fd,M) < 0 } {
+		# status "unsettled"
+		lappend EFST($fd,C) $cmd
+		log "Queueing command $cmd to $fd"
+	} else {
+		catch { puts $fd $cmd }
+		log "Issuing command $cmd to $fd"
+	}
 }
 
 proc edit_close { fd ab } {
@@ -945,7 +1051,7 @@ proc edit_unsaved { } {
 	set ul ""
 
 	foreach fd [array names EFDS] {
-		if { $EFST($fd,M) != 0 } {
+		if { $EFST($fd,M) > 0 } {
 			incr nf
 			append ul ", $EFDS($fd)"
 		}
@@ -983,7 +1089,7 @@ proc close_modified { } {
 	set dl ""
 
 	foreach fd [array names EFDS] {
-		if { $EFST($fd,M) != 0 } {
+		if { $EFST($fd,M) > 0 } {
 			incr nf
 			append ul "$EFDS($fd), "
 			lappend dl $fd
@@ -1019,7 +1125,7 @@ proc close_modified { } {
 
 	# save the files
 	foreach u $dl {
-		catch { puts $u "w!" }
+		edit_command $u "w!"
 		delay 10
 	}
 
@@ -1029,7 +1135,7 @@ proc close_modified { } {
 		set ul ""
 		set nf 0
 		foreach fd [array names EFDS] {
-			if { $EFST($fd,M) != 0 } {
+			if { $EFST($fd,M) > 0 } {
 				incr nf
 				append ul "$EFDS($fd), "
 			}
@@ -1084,7 +1190,7 @@ proc file_is_edited { fn { m 0 } } {
 
 	foreach fd [array names EFDS] {
 		if { $EFDS($fd) == $fn } {
-			if { $m == 0 || $EFST($fd,M) } {
+			if { $m == 0 || $EFST($fd,M) > 0 } {
 				return 1
 			}
 		}
@@ -1128,7 +1234,7 @@ proc open_for_edit { x y } {
 	set u [file_edit_pipe $fp]
 	if { $u != "" } {
 		# being edited
-		catch { puts $u "" }
+		edit_command $u ""
 		# alert "The file is already being edited"
 		return
 	}
@@ -1170,9 +1276,11 @@ proc do_file_line { w x y } {
 	set chunk [$w get -- $if "${ix} + $ib chars"]
 
 	# nc points to the last character of the line number
-	if ![regexp "^(.+):(\[1-9\]\[0-9\]*)" $chunk ma fn ln] {
+	if { ![regexp "^(.+):(\[1-9\]\[0-9\]*):\[0-9\]" $chunk ma fn ln] &&
+	     ![regexp "^(.+):(\[1-9\]\[0-9\]*)" $chunk ma fn ln] } {
 		# doesn't look like a line number in a file
-		if { [file_class $chunk] == "" } {
+		set chunk [string trimright $chunk ":,;"]
+		if { $chunk == "" || [file_class $chunk] == "" } {
 			return
 		}
 		set fn $chunk
@@ -1245,7 +1353,7 @@ proc do_file_line { w x y } {
 
 	# issue the positioning command if line number was present
 	if $ln {
-		catch { puts $u $ln }
+		edit_command $u $ln
 	}
 	$w tag add errtag $if "$if + $ib chars"
 }
@@ -2667,10 +2775,7 @@ proc do_board_selection { } {
 		return
 	}
 
-	# copy the relevant parameters to the working array
-	foreach { k j } $CFBoardItems {
-		set P(MW,$k) [dict get $P(CO) $k]
-	}
+	params_to_dialog $CFBoardItems
 
 	while 1 {
 
@@ -2687,9 +2792,7 @@ proc do_board_selection { } {
 		}
 		if { $ev == 1 } {
 			# accepted; copy the options
-			foreach { k j } $CFBoardItems {
-				dict set P(CO) $k $P(MW,$k)
-			}
+			dialog_to_params $CFBoardItems
 			md_stop
 			set_config
 			reset_build_menu
@@ -2840,6 +2943,203 @@ proc terminate { { f "" } } {
 
 ###############################################################################
 
+proc params_to_dialog { nl } {
+#
+# Copy relevant configuration parameters to dialog variables ...
+#
+	global P
+
+	foreach { k j } $nl {
+		set P(MW,$k) [dict get $P(CO) $k]
+	}
+}
+
+proc dialog_to_params { nl } {
+#
+# ... and the other way around
+#
+	global P
+
+	foreach { k j } $nl {
+		dict set P(CO) $k $P(MW,$k)
+	}
+}
+
+###############################################################################
+
+proc do_loaders_config { } {
+
+	global P CFLoadItems CFLDNames
+
+	if !$P(AC) {
+		return
+	}
+
+	# make sure the loader is not active while we are doing this
+	if [stop_loader 1] {
+		# the user says "NO"
+		return
+	}
+
+	params_to_dialog $CFLoadItems
+
+	mk_loaders_conf_window
+
+	while 1 {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
+			# cancelled
+			return
+		}
+
+		if { $ev == 1 } {
+			# accepted
+			dialog_to_params $CFLoadItems
+			md_stop
+			set_config
+			return
+		}
+	}
+}
+
+proc mk_loaders_conf_window { } {
+
+	global P ST
+
+	set w [md_window "Loader configuration"]
+
+	## Elprotronic
+	set f $w.f0
+	labelframe $f -text "Elprotronic" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+
+	if { $P(MW,LDSEL) == "" } {
+		if { $ST(SYS) == "L" } {
+			set ds "MGD"
+		} else {
+			set ds "ELP"
+		}
+		set P(MW,LDSEL) $ds
+	}
+
+	radiobutton $f.sel -text "Use" -variable P(MW,LDSEL) -value "ELP"
+	pack $f.sel -side top -anchor "nw"
+	frame $f.f
+	pack $f.f -side top -expand y -fill x
+	label $f.f.l -text "Path to the program's executable: "
+	pack $f.f.l -side left -expand n
+	button $f.f.b -text "Select" -command "loaders_conf_elp_fsel"
+	pack $f.f.b -side right -expand n
+	label $f.f.f -textvariable P(MW,LDELPPATH)
+	pack $f.f.f -side right -expand n
+
+	## MSP430GDB
+	set f $w.f1
+	labelframe $f -text "msp430-gdb" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+	radiobutton $f.sel -text "Use" -variable P(MW,LDSEL) -value "MGD"
+	pack $f.sel -side top -anchor "nw"
+	frame $f.f
+	pack $f.f -side top -expand y -fill x
+	label $f.f.l -text "FET device for msp430-gdbproxy: "
+	pack $f.f.l -side left -expand n
+	button $f.f.b -text "Select" -command "loaders_conf_mgd_fsel"
+	pack $f.f.b -side right -expand n
+	label $f.f.f -textvariable P(MW,LDMGDDEV)
+	pack $f.f.f -side right -expand n
+	frame $f.g
+	pack $f.g -side top -expand y -fill x
+	label $f.g.l -text "Arguments to msp430-gdbproxy: "
+	pack $f.g.l -side left -expand n
+	entry $f.g.e -width 16 -font {-family courier -size 10} \
+		-textvariable P(MW,LDMGDARG)
+	pack $f.g.e -side right -expand n
+
+	## Buttons
+	set f $w.fb
+	frame $f
+	pack $f -side top -expand y -fill x
+	button $f.c -text "Cancel" -command "md_click -1"
+	pack $f.c -side left -expand n
+	button $f.d -text "Done" -command "md_click 1"
+	pack $f.d -side right -expand n
+}
+
+proc loaders_conf_elp_fsel { } {
+#
+# Select the path to Elprotronic loader
+#
+	global P ST env
+
+	if { $ST(SYS) == "L" } {
+		alert "You cannot configure this loader on Linux"
+		return
+	}
+
+	if [info exists P(MW,LDELPPATH_D)] {
+		set id $P(MW,LDELPPATH_D)
+	} else {
+		set id ""
+		if { $P(MW,LDELPPATH) == "" } {
+			if [info exists env(PROGRAMFILES)] {
+				set fp $env(PROGRAMFILES)
+			} else {
+				set fp "C:/Program Files"
+			}
+			if [file isdirectory $fp] {
+				set id $fp
+			}
+		} else {
+			# use the directory path of last selection
+			set fp [file dirname $P(MW,LDELPPATH)]
+			if [file isdirectory $fp] {
+				set id $fp
+			}
+		}
+		set P(MW,LDELPPATH_D) $id
+	}
+
+	set fi [tk_getOpenFile \
+		-initialdir $id \
+		-filetype [list [list "Executable" [list ".exe"]]] \
+		-defaultextension ".exe" \
+		-parent $P(MW,WI)]
+
+	if { $fi != "" } {
+		set P(MW,LDELPPATH) $fi
+	}
+}
+
+proc loaders_conf_mgd_fsel { } {
+#
+# Select the path to mspgcc-gdb (gdb proxy) device
+#
+	global P ST
+
+	if { $ST(SYS) != "L" } {
+		alert "This loader can only be configured on Linux"
+		return
+	}
+
+	set id "/dev"
+	if { $P(MW,LDMGDDEV) != "" } {
+		set fp [file dirname $P(MW,LDMGDDEV)]
+		if [file isdirectory $fp] {
+			set id $fp
+		}
+	}
+
+	set fi [tk_getOpenFile \
+		-initialdir $id \
+		-parent $P(MW,WI)]
+
+	if { $fi != "" } {
+		set P(MW,LDMGDDEV) $fi
+	}
+}
+
 proc do_vuee_config { } {
 
 	global P CFVueeItems
@@ -2848,10 +3148,7 @@ proc do_vuee_config { } {
 		return
 	}
 
-	# copy the relevant parameters to the working array
-	foreach { k j } $CFVueeItems {
-		set P(MW,$k) [dict get $P(CO) $k]
-	}
+	params_to_dialog $CFVueeItems
 
 	mk_vuee_conf_window
 
@@ -2866,9 +3163,7 @@ proc do_vuee_config { } {
 
 		if { $ev == 1 } {
 			# accepted
-			foreach { k j } $CFVueeItems {
-				dict set P(CO) $k $P(MW,$k)
-			}
+			dialog_to_params $CFVueeItems
 			md_stop
 			set_config
 			return
@@ -2990,6 +3285,84 @@ proc vuee_conf_fsel { tp } {
 
 ###############################################################################
 
+proc bpcs_run { path pi } {
+#
+# Run a background (Windows?) program
+#
+	global TCMD
+
+	# a simple escape; do we need more?
+	regsub -all "\[ \t\]" $path {\\&} path
+	log "Running $path <$pi>"
+
+	if [catch { exec bash -c "exec $path" & } pl] {
+		alert "Cannot execute $path: $pl"
+		return 1
+	}
+
+	log "Process ID: $pl"
+
+	set TCMD($pi) $pl
+	if { $TCMD($pi,AC) != "" } {
+		$TCMD($pi,AC)
+	}
+
+	bpcs_check $pi
+	return 0
+}
+
+proc bpcs_check { pi } {
+#
+# Checks for the presence of a background process
+#
+	global TCMD
+
+	if { $TCMD($pi) == "" } {
+		set TCMD($pi,CB) ""
+		return
+	}
+
+	if [catch { exec kill -0 $TCMD($pi) } ] {
+		# gone
+		log "Background process $TCMD($pi) gone"
+		set TCMD($pi) ""
+		set TCMD($pi,CB) ""
+		if { $TCMD($pi,AC) != "" } {
+			$TCMD($pi,AC)
+		}
+		return
+	}
+
+	set TCMD($pi,CB) [after 1000 "bpcs_check $pi"]
+}
+
+proc bpcs_kill { pi } {
+#
+# Kills a background process (monitored by a callback)
+#
+	global TCMD
+
+	if { $TCMD($pi) == "" } {
+		set TCMD($pi,CB) ""
+		return
+	}
+
+	if [catch { exec kill -$TCMD($pi,SI) $TCMD($pi) } err] {
+		# something wrong?
+		log "Cannot kill process $TCMD($pi): $err"
+	}
+
+	set TCMD($pi) ""
+	if { $TCMD($pi,CB) != "" } {
+		catch { after cancel $TCMD($pi,CB) }
+		set TCMD($pi,CB) ""
+	}
+	if { $TCMD($pi,AC) != "" } {
+		# action after kill
+		$TCMD($pi,AC)
+	}
+}
+	
 proc run_udaemon { { auto 0 } } {
 #
 	global P TCMD
@@ -3107,7 +3480,7 @@ proc run_vuee { } {
 	}
 
 	# We seem to be in the clear
-	if [catch { run_term_command "./$SIDENAME" [list $df] } err] {
+	if [catch { run_term_command "./$SIDENAME" [list $df "+"] } err] {
 		alert "Cannot start the model: $err"
 		return
 	}
@@ -3161,11 +3534,11 @@ proc run_term_command { cmd al } {
 	mark_running 1
 	reset_bnx_menus
 
-	fconfigure $fd -blocking 0 -buffering none
+	fconfigure $fd -blocking 0 -buffering none -eofchar ""
 	fileevent $fd readable "term_output"
 }
 
-proc kill_pipe { fd } {
+proc kill_pipe { fd { sig "INT" } } {
 #
 # Kills the process on the other end of our pipe
 #
@@ -3173,8 +3546,8 @@ proc kill_pipe { fd } {
 		return
 	}
 	foreach p $pp {
-		log "Killing pipe process $p"
-		if [catch { exec kill -INT $p } err] {
+		log "Killing <$sig> pipe $fd process $p"
+		if [catch { exec kill -$sig $p } err] {
 			log "Cannot kill $p: $err"
 		}
 	}
@@ -3210,11 +3583,261 @@ proc stop_term { } {
 	term_dspline "--DONE--"
 }
 
+###############################################################################
+
 proc upload_image { } {
 
-	unimpl
+	global P CFLDNames TCMD
+
+	if !$P(AC) {
+		return
+	}
+
+	if { $TCMD(FL) != "" } {
+		alert "Loader already open"
+		return
+	}
+
+	# the loader
+	set ul [dict get $P(CO) "LDSEL"]
+
+	if { $ul == "" } {
+		alert "Loader not configured"
+		return
+	}
+
+	if { [lsearch -exact $CFLDNames $ul] < 0 } {
+		alert "Loader $ul unknown"
+		return
+	}
+
+	upload_$ul
 }
 
+proc upload_ELP { } {
+#
+# Elprotronic
+#
+	global P TCMD
+
+	set cfn "config.ini"
+
+	set ep [dict get $P(CO) "LDELPPATH"]
+	if { $ep == "" } {
+		alert "Unknown path to Elprotronic loader, please configure"
+		return
+	}
+	if ![file exists $ep] {
+		alert "No Elprotronic loader at $ep"
+		return
+	}
+
+	if { [catch { glob "Image*.a43" } im] || $im == "" } {
+		alert "No .a43 (Intel) format image(s) available for upload"
+		return
+	}
+
+	log "Images: $im"
+	# may have to redo this once
+	set loc 1
+	while 1 {
+
+		# check for a local copy of the configuration file
+		if ![file exists $cfn] {
+			# absent -> copy from the installation directory
+			if [catch { file copy -force -- \
+			    [file join [file dirname $ep] $cfn] $cfn } err] {
+				alert "Cannot retrieve the configuration file\
+					of Elprotronic loader: $err"
+				return
+			}
+			# flag = local copy already fetched from install
+			set loc 0
+		}
+
+		# try to open the local configuration file
+		if [catch { open $cfn "r" } fd] {
+			if $loc {
+				# redo
+				set loc 0
+				catch { file delete -force -- $cfn }
+				continue
+			}
+			alert "Cannot open local configuration file of\
+				Elprotronic loader: $fd"
+			return
+		}
+
+		if [catch { read $fd } cf] {
+			catch { close $fd }
+			if $loc {
+				# redo
+				set loc 0
+				catch { file delete -force -- $cfn }
+				continue
+			}
+			alert "Cannot read local configuration file of\
+				Elprotronic loader: $cf"
+			return
+		}
+
+		catch { close $fd }
+
+		# last file to load
+		if ![regexp "CodeFileName\[^\r\n\]*" $cf mat] {
+			if $loc {
+				# redo
+				set loc 0
+				catch { file delete -force -- $cfn }
+				continue
+			}
+			alert "Bad format of Elprotronic configuration file"
+			return
+		}
+		break
+	}
+
+	# locate the previous parameters
+	set loc 0
+	if [regexp \
+	    "^CodeFileName\[ \t\]+(\[^ \t\]+)\[ \t\]+(\[^ \t\]+)\[ \t\]+(.+)" \
+	    $mat jnk suf fil pat] {
+		# format OK
+		set loc 1
+		log "Previous: $suf $fil $pat"
+		if { $suf != "a43" || [lsearch -exact $im $fil] < 0 } {
+			set loc 0
+		}
+		# verify the directory
+		if { !$loc || [file normalize [string trim $pat]] != \
+		     [file normalize [file join [pwd] $fil]] } {
+			set loc 0
+		}
+	}
+
+	if !$loc {
+		# have to update the config file
+		set im [lindex [lsort $im] 0]
+		set ln "CodeFileName\ta43\t${im}\t"
+		append ln [file normalize [file join [pwd] $im]]
+		# substitute and rewrite
+		set ix [string first $mat $cf]
+		regsub -all "/" $ln "\\" ln
+		log "Substituting: $ln"
+		set cf "[string range $cf 0 [expr $ix-1]]$ln[string range $cf \
+			[expr $ix + [string length $mat]] end]"
+
+		if [catch { open $cfn "w" } fd] {
+			alert "Cannot open the local configuration file of\
+				Elprotronic loader for writing: $fd"
+			return
+		}
+		if [catch { puts -nonewline $fd $cf } err] {
+			catch { close $fd }
+			alert "Cannot write the configuration file of\
+				Elprotronic loader: $err"
+			return
+		}
+		catch { close $fd }
+	}
+
+	# start the loader
+
+	bpcs_run $ep "FL"
+}
+
+proc stop_loader { { ask 0 } } {
+
+	global TCMD
+
+	if { $TCMD(FL) == "" } {
+		return 0
+	}
+
+	if { $ask && ![confirm "The loader is running. Do you want me to kill\
+		it first?"] } {
+			return 1
+	}
+
+	bpcs_kill "FL"
+
+	return 0
+}
+
+###############################################################################
+
+proc run_piter { } {
+
+	global P TCMD
+
+	if !$P(AC) {
+		return
+	}
+
+	# find the first free slot
+	for { set p 0 } { $p < $TCMD(NPITERS) } { incr p } {
+		if { $TCMD(PI$p) == "" } {
+			break
+		}
+	}
+
+	if { $p == $TCMD(NPITERS) } {
+		# ignore, this should never happen
+		alert "No more piters, kill some"
+		return
+	}
+
+	set ef [auto_execok "piter"]
+	if { $ef == "" } {
+		alert "Cannot start piter: not found on the PATH"
+		return
+	}
+
+	if [file executable $ef] {
+		set cmd "[list $ef]"
+	} else {
+		set cmd "[list sh] [list $ef]"
+	}
+
+	append cmd " -C config.pit 2>@1"
+
+	if [catch { open "|$cmd" "r" } fd] {
+		alert "Cannot start piter: $fd"
+		return
+	}
+
+	set TCMD(PI$p) $fd
+	incr TCMD(CPITERS)
+	set TCMD(PI$p,SN) $TCMD(CPITERS)
+	reset_exec_menu
+
+	# we may want to show this output?
+	fconfigure $fd -blocking 0 -buffering none
+	fileevent $fd readable "piter_pipe_event $p"
+}
+
+proc piter_pipe_event { p } {
+
+	global TCMD
+
+	if { [catch { read $TCMD(PI$p) } dummy] || [eof $TCMD(PI$p)] } {
+		stop_piter $p
+	}
+}
+
+proc stop_piter { p } {
+
+	global TCMD
+
+	if { $TCMD(PI$p) != "" } {
+		kill_pipe $TCMD(PI$p)
+		set TCMD(PI$p) ""
+		set TCMD(PI$p,SN) 0
+		# may fail if we have closed the main window already
+		catch { reset_exec_menu }
+	}
+}
+	
 ###############################################################################
 
 proc reset_file_menu { } {
@@ -3347,13 +3970,19 @@ proc reset_exec_menu { } {
 	set m .menu.exec
 	$m delete 0 end
 
-	if { [catch { glob "Image*" } im] || $im == "" } {
+	if { !$P(AC) || [catch { glob "Image*" } im] || $im == "" } {
 		set st "disabled"
 	} else {
 		set st "normal"
 	}
-	$m add command -label "Upload image ..." -command upload_image \
-		-state $st
+
+	if { $TCMD(FL) == "" } {
+		$m add command -label "Upload image ..." \
+			-command upload_image -state $st
+	} else {
+		$m add command -label "Terminate loader" \
+			-command "bpcs_kill FL" -state $st
+	}
 
 	$m add separator
 
@@ -3373,10 +4002,48 @@ proc reset_exec_menu { } {
 
 	$m add separator
 
+	if { !$P(AC) || ![file_present $SIDENAME] } {
+		set st "disabled"
+	} else {
+		set st "normal"
+	}
+
 	if { $TCMD(FU) == "" } {
-		$m add command -label "Run udaemon" -command run_udaemon
+		$m add command -label "Run udaemon" -command run_udaemon \
+			-state $st
 	} else {
 		$m add command -label "Stop udaemon" -command stop_udaemon
+	}
+
+	$m add separator
+
+	set f 0
+	for { set p 0 } { $p < $TCMD(NPITERS) } { incr p } {
+		if { $TCMD(PI$p) == "" } {
+			incr f
+		}
+	}
+
+	if $P(AC) {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+
+	if $f {
+		# room for more piters
+		$m add command -label "Start piter" -command run_piter \
+			-state $st
+	}
+
+	if { $f < $TCMD(NPITERS) } {
+		for { set p 0 } { $p < $TCMD(NPITERS) } { incr p } {
+			if { $TCMD(PI$p) != "" } {
+				$m add command \
+					-label "Stop piter $TCMD(PI$p,SN)" \
+					-command "stop_piter $p"
+			}
+		}
 	}
 }
 
@@ -3455,6 +4122,7 @@ proc mk_project_window { } {
 	.menu add cascade -label "Configuration" -menu $m -underline 0
 	$m add command -label "CPU+Board ..." -command "do_board_selection"
 	$m add command -label "VUEE ..." -command "do_vuee_config"
+	$m add command -label "Loaders ..." -command "do_loaders_config"
 
 	#######################################################################
 
