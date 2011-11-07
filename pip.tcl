@@ -2940,6 +2940,11 @@ proc terminate { { f "" } } {
 	}
 
 	edit_kill
+	abort_term
+	stop_piter
+	stop_genimage
+	stop_udaemon
+	bpcs_kill "FL"
 	close_project
 	exit 0
 }
@@ -3362,7 +3367,7 @@ proc bpcs_kill { pi } {
 	}
 	if { $TCMD($pi,AC) != "" } {
 		# action after kill
-		$TCMD($pi,AC)
+		catch { $TCMD($pi,AC) }
 	}
 }
 
@@ -3899,16 +3904,18 @@ proc piter_pipe_event { p } {
 	}
 }
 
-proc stop_piter { p } {
+proc stop_piter { { w "" } } {
 
 	global TCMD
 
-	if { $TCMD(PI$p) != "" } {
-		kill_pipe $TCMD(PI$p)
-		set TCMD(PI$p) ""
-		set TCMD(PI$p,SN) 0
-		# may fail if we have closed the main window already
-		catch { reset_exec_menu }
+	for { set p 0 } { $p < $TCMD(NPITERS) } { incr p } {
+		if { ($w == "" || $p == $w) && $TCMD(PI$p) != "" } {
+			kill_pipe $TCMD(PI$p)
+			set TCMD(PI$p) ""
+			set TCMD(PI$p,SN) 0
+			# may fail if we have closed the main window already
+			catch { reset_exec_menu }
+		}
 	}
 }
 	

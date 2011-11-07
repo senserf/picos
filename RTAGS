@@ -63,3 +63,9 @@ PG111106A:
 PG111107A:
 
 	Integrated genimage.
+
+PG111107B:
+
+	A few cleanups (genimage integrated slightly better ;-). PIP is now
+	more exact about cleaning up at termination, i.e., killing all its
+	spawned programs and scripts.

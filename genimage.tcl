@@ -39,6 +39,8 @@ if [catch { exec uname } ST(SYS)] {
 	set ST(SYS) "W"
 }
 
+set PM(PWD) [file normalize [pwd]]
+
 ###############################################################################
 # Make sure we run as wish ####################################################
 ###############################################################################
@@ -46,6 +48,17 @@ if [catch { exec uname } ST(SYS)] {
 if [catch { package require Tk $ST(WSH) } ] {
 	puts stderr "Cannot find Tk version $ST(WSH) matching the Tcl version"
 	exit 99
+}
+
+proc iscwd { dir } {
+
+	global PM
+
+	if { [file normalize $dir] == $PM(PWD) } {
+		return 1
+	}
+
+	return 0
 }
 
 proc setdefs { } {
@@ -63,7 +76,7 @@ proc setdefs { } {
 		if [info exists env(HOME)] {
 			set PM(HOM) $env(HOME)
 		} else {
-			set PM(HOM) [pwd]
+			set PM(HOM) $PM(PWD)
 		}
 	} else {
 		while 1 {
@@ -74,7 +87,7 @@ proc setdefs { } {
 				break
 			}
 			if ![info exists env(HOMEPATH)] {
-				set PM(HOM) [pwd]
+				set PM(HOM) $PM(PWD)
 				break
 			}
 			set dfn [file join $env(HOMEPATH) "Desktop"]
@@ -91,7 +104,7 @@ proc setdefs { } {
 				set PM(HOM) $env(HOMEPATH)
 				break
 			}
-			set PM(HOM) [pwd]
+			set PM(HOM) $PM(PWD)
 			break
 		}
 	}
@@ -108,7 +121,7 @@ proc setdefs { } {
 		}
 		# with -C, the default path for Image files is the current
 		# directory
-		set PM(DEP) [pwd]
+		set PM(DEP) $PM(PWD)
 		# in case we ever want to handle other arguments
 		set argv [lreplace $argv $u $v]
 	} else {
@@ -184,10 +197,28 @@ proc setdefs { } {
 			     "Image*.a43" } fl] || $fl == "" } {
 				set DEFS($i) "Image.a43"
 			} else {
-				set DEFS($i) [lindex [lsort $fl] 0]
+				set fl [lsort $fl]
+				set fi ""
+				foreach f $fl {
+					if ![regexp -nocase \
+						"_.*\[a-z0-9\]_\[0-9\]+\\.a"] {
+						set fi $fl
+						break
+					}
+				}
+				if { $fi == "" } {
+					set fi "Image.a43"
+				}
+				set DEFS($i) $fi
 			}
 		}
-		set $i [file join $DEFS($t) $DEFS($i)]
+		if [iscwd $DEFS($t)] {
+			# use local name
+			set $i $DEFS($i)
+		} else {
+			# use full path
+			set $i [file join $DEFS($t) $DEFS($i)]
+		}
 	}
 
 	if { [verify_idn $DEFS(IDN) 8] == "" } {
@@ -527,35 +558,6 @@ proc find_ifn { { fn "" } } {
 	return ""
 }
 
-proc defhome { } {
-#
-# Return the default home directory, like the Desktop
-#
-	global env
-
-	if ![info exists env(HOMEPATH)] {
-		return [pwd]
-	}
-
-	set dfn [file join $env(HOMEPATH) Desktop]
-
-	if [file isdirectory $dfn] {
-		return $dfn
-	}
-
-	set dfn [file join $env(HOMEPATH) Documents]
-
-	if [file isdirectory $dfn] {
-		return $dfn
-	}
-
-	if [file isdirectory $env(HOMEPATH)] {
-		return $env(HOMEPATH)
-	}
-
-	return [pwd]
-}
-
 proc savdefs { } {
 #
 # Save the defaults
@@ -663,7 +665,12 @@ proc change_ifn { } {
 
 	set DEFS(SRD) [file dirname $fn]
 	set DEFS(IFN) [file tail $fn]
-	set IFN $fn
+	if [iscwd $DEFS(SRD)] {
+		# local name will do
+		set IFN $DEFS(IFN)
+	} else {
+		set IFN $fn
+	}
 }
 
 proc change_trd { } {
@@ -684,7 +691,11 @@ proc change_trd { } {
 
 	set DEFS(TRD) [file dirname $fn]
 	set DEFS(TFN) [file tail $fn]
-	set TFN $fn
+	if [iscwd $DEFS(TRD)] {
+		set TFN $DEFS(TFN)
+	} else {
+		set TFN $fn
+	}
 }
 
 proc generate { } {
