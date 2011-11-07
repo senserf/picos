@@ -59,3 +59,7 @@ PG111106A:
 	Integrated the Elprotronic loader (sort of). Improved the handling of
 	elvis commands (piped to elvis windows) by delaying them for a while
 	until the window has started.
+
+PG111107A:
+
+	Integrated genimage.

@@ -120,6 +120,9 @@ set TCMD(CL) 0
 ## File descriptor of the udaemon pipe (!= "" -> udaemon running)
 set TCMD(FU) ""
 
+## File descriptor of the genimage pipe
+set TCMD(FG) ""
+
 ## Process ID of FET loader (!= "" -> FET loader is running) + callback
 ## to monitor its disappearance + signal to kill + action to be performed
 ## after kill; on Cygwin, a periodic callback seems to be the only way to
@@ -3362,7 +3365,78 @@ proc bpcs_kill { pi } {
 		$TCMD($pi,AC)
 	}
 }
-	
+
+###############################################################################
+
+proc run_genimage { } {
+#
+	global P TCMD
+
+	if { !$P(AC) || $P(CO) == "" } {
+		# no project
+		return
+	}
+
+	if { $TCMD(FG) != "" } {
+		if !$auto {
+			alert "Genimage appears to be running already"
+		}
+		return
+	}
+
+	set ef [auto_execok "genimage"]
+	if { $ef == "" } {
+		alert "Cannot start genimage: not found on the PATH"
+		return
+	}
+
+	if [file executable $ef] {
+		set cmd "[list $ef]"
+	} else {
+		set cmd "[list sh] [list $ef]"
+	}
+
+	append cmd " -C 2>@1"
+
+	if [catch { open "|$cmd" "r" } fd] {
+		alert "Cannot start genimage: $fd"
+		return
+	}
+
+	set TCMD(FG) $fd
+	reset_exec_menu
+
+	# nothing will ever arrive on this pipe; we use it to
+	# find out when the script exits
+	fconfigure $fd -blocking 0 -buffering none
+	fileevent $fd readable "genimage_pipe_event"
+}
+
+proc genimage_pipe_event { } {
+#
+# Detect when the script exits
+#
+	global TCMD
+
+	if { [catch { read $TCMD(FG) } dummy] || [eof $TCMD(FG)] } {
+		stop_genimage
+	}
+}
+
+proc stop_genimage { } {
+#
+	global TCMD
+
+	if { $TCMD(FG) != "" } {
+		kill_pipe $TCMD(FG)
+		set TCMD(FG) ""
+		# may fail if we have closed the main window already
+		catch { reset_exec_menu }
+	}
+}
+
+###############################################################################
+
 proc run_udaemon { { auto 0 } } {
 #
 	global P TCMD
@@ -3982,6 +4056,13 @@ proc reset_exec_menu { } {
 	} else {
 		$m add command -label "Terminate loader" \
 			-command "bpcs_kill FL" -state $st
+	}
+
+	if { $TCMD(FG) == "" } {
+		$m add command -label "Customize image ..." \
+			-command run_genimage -state $st
+	} else {
+		$m add command -label "Stop genimage" -command stop_genimage
 	}
 
 	$m add separator
