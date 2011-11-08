@@ -142,10 +142,12 @@ if { $ST(SYS) == "L"} {
 
 fixtcl85 "." "pip.tcl" $hd $TCL85
 fixtcl85 "." "genimage.tcl" $hd $TCL85
+fixtcl85 "." "mkstags.tcl" $hd $TCL85
 
 cd $hd
 
 catch { exec ln -sf pip.tcl pip }
 catch { exec ln -sf genimage.tcl genimage }
+catch { exec ln -sf mkstags.tcl mkstags }
 
 puts "All done"

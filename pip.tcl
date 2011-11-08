@@ -10,20 +10,19 @@ package require Ttk
 ###############################################################################
 
 if [catch { exec uname } ST(SYS)] {
-
 	set ST(SYS) "W"
-
 } elseif [regexp -nocase "linux" $ST(SYS)] {
-
 	set ST(SYS) "L"
-
 } elseif [regexp -nocase "cygwin" $ST(SYS)] {
-
 	set ST(SYS) "C"
-
 } else {
-
 	set ST(SYS) "W"
+}
+
+if { [lsearch -exact $argv "-D"] >= 0 } {
+	set ST(DEB) 1
+} else {
+	set ST(DEB) 0
 }
 
 ###############################################################################
@@ -36,7 +35,8 @@ set EditCommand "elvis -f ram -m -G x11 -font 9x15"
 ## issued
 set NewCmdDelay 300
 set TagsCmd "elvtags"
-set TagsArgs "-l -i -t -v -h -l --"
+set TagsArgs "-l -i -t -v -h -s --"
+set STagsCmd "mkstags"
 
 if { $ST(SYS) == "L" } {
 	set SIDENAME "side"
@@ -111,6 +111,9 @@ set TCMD(BF) ""
 ## BOL flag: 1 if line started but not yet completed
 set TCMD(BL) 0
 
+## Extra action to be carried out after the (successful) term command
+set TCMD(EA) ""
+
 ## Callback (after) to visualize that something is running in term
 set TCMD(CB) ""
 
@@ -161,7 +164,11 @@ set ElpConfPath7 "AppData/Local/VirtualStore"
 
 proc log { m } {
 
-	puts $m
+	global ST
+
+	if $ST(DEB) {
+		puts $m
+	}
 }
 
 ###############################################################################
@@ -814,12 +821,10 @@ proc gfl_make_ctags { } {
 # like after editing a file. Note that this is still a toy implementation of
 # our SDK. We shall worry about efficiency later (if ever).
 #
-	global P TagsCmd TagsArgs
+	global TagsCmd TagsArgs
 
 	# the list of the proper files of the project
 	set fl [gfl_files]
-
-	array unset P "FL,T,*"
 
 	if { $fl == "" } {
 		# no files (yet?)
@@ -830,6 +835,33 @@ proc gfl_make_ctags { } {
 		alert "Cannot generate tags: $tl"
 		return
 	}
+	log "Local tag file [string length $tl] characters"
+	store_tags $tl "T"
+}
+
+proc sys_make_ctags { } {
+#
+# Create system tags for all system files referenced by the project; this is
+# done after every Makefile creation and may take a while, but appears to be
+# reasonably fast, so we just do a straight exec
+#
+	global STagsCmd
+
+	if [catch { xq $STagsCmd "" } tl] {
+		alert "Cannot generate system tags: $tl"
+		return
+	}
+	log "System tag file [string length $tl] characters"
+	store_tags $tl "S"
+}
+
+proc store_tags { tl m } {
+#
+# Preprocess and store tags from elvtags output
+#
+	global P
+
+	array unset P "FL,$m,*"
 
 	# preprocess the tags
 	set tl [split $tl "\n"]
@@ -843,21 +875,52 @@ proc gfl_make_ctags { } {
 			# some garbage
 			continue
 		}
-		if ![info exists P(FL,T,$ta)] {
-			set P(FL,T,$ta) ""
+		if ![info exists P(FL,$m,$ta)] {
+			set P(FL,$m,$ta) ""
 		}
 		set ne [list $fn $cm]
 		if { [string tolower [file extension $fn]] == ".h" } {
 			# headers have lower priority
-			lappend P(FL,T,$ta) [list $fn $cm]
+			lappend P(FL,$m,$ta) [list $fn $cm]
 		} else {
 			# other files go to front
-			set P(FL,T,$ta) [concat [list $ne] $P(FL,T,$ta)]
+			set P(FL,$m,$ta) [concat [list $ne] $P(FL,$m,$ta)]
 		}
 	}
 }
 
 ###############################################################################
+
+proc tag_find { tag m } {
+#
+# Locates the specified tag in the tag set described by m
+#
+	global P
+
+	if ![info exists P(FL,$m,$tag)] {
+		# not found
+		return ""
+	}
+
+	# check for a previous reference
+	set nr 0
+	if { [info exists P(FL,LT$m)] && [lindex $P(FL,LT$m) 0] == $tag } {
+		# same tag referenced multiple times, get reference number
+		set nr [lindex $P(FL,LT$m) 1]
+		# rotate
+		incr nr
+		if { $nr >= [llength $P(FL,$m,$tag)] } {
+			# wrap around
+			set nr 0
+		}
+	}
+
+	set P(FL,LT$m) [list $tag $nr]
+
+	set ne [lindex $P(FL,$m,$tag) $nr]
+
+	return [list [file normalize [lindex $ne 0]] [lindex $ne 1]]
+}
 
 proc tag_request { fd tag } {
 #
@@ -867,37 +930,27 @@ proc tag_request { fd tag } {
 
 	log "Tag request: $tag"
 
-	if ![info exists P(FL,T,$tag)] {
-		# alert "Tag $tag not found"
-		term_dspline "Tag $tag not found"
-		return
-	}
-
-	# check for a previous reference
-	set nr 0
-	if { [info exists P(FL,LT)] && [lindex $P(FL,LT) 0] == $tag } {
-		# same tag referenced multiple times, get reference number
-		set nr [lindex $P(FL,LT) 1]
-		incr nr
-		if { $nr >= [llength $P(FL,T,$tag)] } {
-			# wrap around
-			set nr 0
+	# first try local tags
+	set em "T"
+	set ta [tag_find $tag $em]
+	if { $ta == "" } {
+		# try system tags
+		set em "S"
+		set ta [tag_find $tag $em]
+		if { $ta == "" } {
+			term_dspline "Tag $tag not found"
+			return
 		}
 	}
-	set P(FL,LT) [list $tag $nr]
 
-	set ne [lindex $P(FL,T,$tag) $nr]
-	set fn [lindex $ne 0]
-	set cm [lindex $ne 1]
-	
-	set fp [file normalize $fn]
+	set fp [lindex $ta 0]
+	set cm [lindex $ta 1]
 
 	# get the pipe to the target file
 	set u [file_edit_pipe $fp]
-
 	if { $u == "" } {
 		# not being edited, try to open it first
-		edit_file $fp
+		edit_file $fp $em
 		set u [file_edit_pipe $fp]
 		if { $u == "" } {
 			# failed for some reason
@@ -912,11 +965,22 @@ proc tag_request { fd tag } {
 
 ###############################################################################
 
-proc edit_file { fn } {
-
+proc edit_file { fn { em "T" } } {
+#
+# Open a file for edit; the second argument tells whether the file is local
+# to the project (T), or a system file to be opened for viewing (S); in the
+# second case, the file is opened for reading only
+#
 	global EFDS EFST EditCommand
 
-	if [catch { open "|$EditCommand [list $fn]" "r+" } fd] {
+	if { $em == "T" } {
+		set ar [list $fn]
+	} else {
+		# open read-only
+		set ar [list -R $fn]
+	}
+
+	if [catch { open "|$EditCommand $ar" "r+" } fd] {
 		alert "Cannot start text editor: $fd"
 		return
 	}
@@ -933,6 +997,8 @@ proc edit_file { fn } {
 	# first perception of "not modified" status; if you are confused, you
 	# are not alone
 	set EFST($fd,M) -1
+	# open mode: T or S
+	set EFST($fd,E) $em
 	# PID (unknown yet)
 	set EFST($fd,P) ""
 	# command queue
@@ -940,7 +1006,7 @@ proc edit_file { fn } {
 	# mark the status in the tree
 	gfl_status $fn 0
 
-	log "Editing file: $fn"
+	log "Editing file: $fn, mode $em"
 
 	fconfigure $fd -blocking 0 -buffering none
 	fileevent $fd readable "edit_status_read $fd"
@@ -1037,12 +1103,20 @@ proc edit_close { fd ab } {
 			set ab "closed"
 		}
 		log "Edit session $EFDS($fd) $ab"
-		gfl_status $EFDS($fd) -1
+		set es $EFST($fd,E)
+		set em $EFST($fd,M)
+		if { $es == "T" } {
+			# for a local file, need to update the file status
+			gfl_status $EFDS($fd) -1
+		}
 		array unset EFST "$fd,*"
 		unset EFDS($fd)
 		# redo the file list; FIXME: don't do this, but redo tags, if
 		# the file has (ever) changed
-		gfl_tree
+		if { $es == "T" && $em > 0 } {
+			# local modified file -> redo ctags
+			gfl_make_ctags
+		}
 	}
 }
 
@@ -2231,6 +2305,7 @@ proc val_prj_exists { dir { try 0 } } {
 	wm title . "Project: [prj_name $dir]"
 
 	gfl_tree
+	sys_make_ctags
 
 	return 1
 }
@@ -2728,8 +2803,6 @@ proc setup_project { } {
 
 	get_config
 	set P(AC) 1
-
-	# enable menus ....
 }
 
 ###############################################################################
@@ -3575,7 +3648,7 @@ proc run_vuee { } {
 	}
 }
 
-proc run_term_command { cmd al } {
+proc run_term_command { cmd al { ea "" } } {
 #
 # Run a command in term window
 #
@@ -3612,6 +3685,8 @@ proc run_term_command { cmd al } {
 	set TCMD(BF) ""
 	mark_running 1
 	reset_bnx_menus
+
+	set TCMD(EA) $ea
 
 	fconfigure $fd -blocking 0 -buffering none -eofchar ""
 	fileevent $fd readable "term_output"
@@ -3656,6 +3731,10 @@ proc stop_term { } {
 		kill_pipe $TCMD(FD)
 		set TCMD(FD) ""
 		set TCMD(BF) ""
+		if { $TCMD(EA) != "" } {
+			$TCMD(EA)
+			set TCMD(EA) ""
+		}
 		reset_bnx_menus
 	}
 	mark_running 0
@@ -4029,7 +4108,14 @@ proc reset_build_menu { } {
 			}
 			$m add command -label "Build (make)" \
 				-command "do_make_node" -state $st
+			$m add separator
 		}
+	}
+
+	if { $TCMD(FD) != "" || [catch { glob "Makefile*" } st] || $st == "" } {
+		set st "disabled"
+	} else {
+		set st "normal"
 	}
 
 	$m add command -label "VUEE" -command "do_make_vuee"
@@ -4354,7 +4440,7 @@ proc do_mkmk_node { { bi 0 } } {
 		lappend al $bo
 	}
 
-	if [catch { run_term_command "mkmk" $al } err] {
+	if [catch { run_term_command "mkmk" $al "sys_make_ctags" } err] {
 		alert $err
 	}
 }

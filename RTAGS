@@ -69,3 +69,37 @@ PG111107B:
 	A few cleanups (genimage integrated slightly better ;-). PIP is now
 	more exact about cleaning up at termination, i.e., killing all its
 	spawned programs and scripts.
+
+PG111108A:
+
+	Debug information is now written to stdout only when pip has been
+	called with -D, i.e., pip -D.
+
+	Ctags handling improved:
+
+	1. static local tags are now included in the scan (the more the better,
+	   I think)
+
+	2. system files are also tagged (and opened read-only when referenced)
+
+	For the latter, PIP needs the project's Makefile(s). Whenever a new
+	Makefile is created, PIP re-runs a script (mkstags) which picks from
+	all the Makefiles currently present in the project all the system
+	files needed by the project and then calls elvtags for them all. This
+	does take some time, but looks acceptable to me, especially that
+	generating a Makefile is not exactly instantaneous.
+
+	The action of opening a project with Makefile(s) present is now
+	noticeably longer, but we can live with that, I guess. Please let me
+	know if you can't.
+
+	To do:
+
+	1. a way to open system files for writing (so you can edit them form a
+	   project)
+
+	2. if there's a compilation error in a system file, a click on the
+	   error message should open the file (possibly for writing, if the
+	   right option is enabled - I guess that option can be a configuration
+	   attribute of the project); at present only local files are opened
+	   on such a click; I have to sleep on this to do it right
