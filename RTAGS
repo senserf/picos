@@ -103,3 +103,19 @@ PG111108A:
 	   right option is enabled - I guess that option can be a configuration
 	   attribute of the project); at present only local files are opened
 	   on such a click; I have to sleep on this to do it right
+
+PG111113A:
+
+	Simplified loader configuration (auto option included for the path to
+	executable).
+
+	Integrated msp430-gdb (and msp430-gdbproxy) with PIP (under Linux). It
+	was in fact much more challenging that integrating the Elprotronic
+	loader, because I had to write a special (and not completely trivial)
+	Tk script glueing together gdb with the proxy. This script (which can
+	be used independently of PIP) looks like a poor man's GUI for GDB.
+
+	Cleaned up a few minor problems along the way.
+
+	Genimage still doesn't want under Linux, because it requires the Image
+	files to be in the Intel HEX (.a43) format. I will see what I can do.

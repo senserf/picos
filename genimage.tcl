@@ -1,6 +1,6 @@
 #!/bin/sh
 ##########################\
-exec tclsh "$0" "$@"
+exec tclsh85 "$0" "$@"
 
 ############################################################################
 # Generates copies of an ihex file with modified node ID                   #
@@ -41,9 +41,23 @@ if [catch { exec uname } ST(SYS)] {
 
 set PM(PWD) [file normalize [pwd]]
 
+## double exit avoidance flag
+set DEAF 0
+
 ###############################################################################
 # Make sure we run as wish ####################################################
 ###############################################################################
+
+proc terminate { } {
+
+	global DEAF
+
+	if $DEAF { return }
+
+	set DEAF 1
+
+	exit 0
+}
 
 if [catch { package require Tk $ST(WSH) } ] {
 	puts stderr "Cannot find Tk version $ST(WSH) matching the Tcl version"
@@ -83,7 +97,6 @@ proc setdefs { } {
 			if [info exists env(HOME)] {
 				# cygwin?
 				set PM(HOM) $env(HOME)
-				set PM(CFN) ".genimagerc"
 				break
 			}
 			if ![info exists env(HOMEPATH)] {
@@ -201,8 +214,8 @@ proc setdefs { } {
 				set fi ""
 				foreach f $fl {
 					if ![regexp -nocase \
-						"_.*\[a-z0-9\]_\[0-9\]+\\.a"] {
-						set fi $fl
+					     "_.*\[a-z0-9\]_\[0-9\]+\\.a" $f] {
+						set fi $f
 						break
 					}
 				}
@@ -808,9 +821,9 @@ proc generate { } {
 ###############################################################################
 
 catch { close stdin }
-## stdout needed by PIP
+## stdout needed by PIP, stderr useful for errors
 ## catch { close stdout }
-catch { close stderr }
+## catch { close stderr }
 
 set EWAIT 0
 
@@ -920,7 +933,7 @@ pack $w.run -side left -padx 4
 
 set GOBUT "$w.run"
 
-button $w.q -text "Exit" -command "exit"
+button $w.q -text "Exit" -command "terminate"
 pack $w.q -side right -padx 4
 
-bind . <Destroy> { exit }
+bind . <Destroy> { terminate }

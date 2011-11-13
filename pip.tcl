@@ -84,9 +84,9 @@ set CFLDNames { ELP MGD }
 ## one choice (but this may change later)
 set CFLoadItems {
 			"LDSEL"		""
-			"LDELPPATH"	""
-			"LDMGDDEV"	""
-			"LDMGDARG"	""
+			"LDELPPATH"	"Automatic"
+			"LDMGDDEV"	"Automatic"
+			"LDMGDARG"	"msp430"
 		}
 
 set CFItems 	[concat $CFBoardItems $CFVueeItems $CFLoadItems]
@@ -133,7 +133,7 @@ set TCMD(FG) ""
 set TCMD(FL) ""
 set TCMD(FL,CB) ""
 set TCMD(FL,SI) "INT"
-set TCMD(FL,AC) "reset_exec_menu"
+set TCMD(FL,AC) "upload_action"
 
 ## Slots for up to 4 instances of piter, CPITERS counts them, so we can order
 ## them dynamically
@@ -149,16 +149,7 @@ set P(SSL) ""
 set P(SSV) ""
 
 ## double exit avoidance flag
-set REX	0
-
-## This is the insert into the path to a Windows 7 executable to get to the
-## user-specific copy of Program Files where programs like the Elprotronics
-## programmer write dynamic config files, e.g., if the true program path is:
-## C:/Program Files/Elprotronic/MSP430/FET-Pro430/..., the config will be at:
-## C:/Users/-user-/AppData/Local/VirtualStore/Program Files/Elprotronic/
-## MSP430/FET-Pro430/config.ini; note that env(LOCALAPPDATA) contains
-## C:/Users/-user-/AppData/Local, so maybe VirtualStore is a sufficient hint?
-set ElpConfPath7 "AppData/Local/VirtualStore"
+set DEAF 0
 
 ###############################################################################
 
@@ -185,7 +176,7 @@ proc isnum { c } {
 
 proc delay { msec } {
 #
-# Event admitting "after"
+# A variant of "after" admitting events while waiting
 #
 	global P
 
@@ -1727,7 +1718,7 @@ proc md_window { tt } {
 	toplevel $w
 	wm title $w $tt
 	# this fails sometimes
-	catch { grap $w }
+	catch { grab $w }
 
 	return $w
 }
@@ -3002,11 +2993,11 @@ proc mk_board_selection_window { } {
 	
 proc terminate { { f "" } } {
 
-	global REX
+	global DEAF
 
-	if $REX { return }
+	if $DEAF { return }
 
-	set REX 1
+	set DEAF 1
 
 	if { $f == "" && [edit_unsaved] } {
 		return
@@ -3111,8 +3102,10 @@ proc mk_loaders_conf_window { } {
 	pack $f.f -side top -expand y -fill x
 	label $f.f.l -text "Path to the program's executable: "
 	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "loaders_conf_elp_fsel"
+	button $f.f.b -text "Select" -command "loaders_conf_elp_fsel 0"
 	pack $f.f.b -side right -expand n
+	button $f.f.a -text "Auto" -command "loaders_conf_elp_fsel 1"
+	pack $f.f.a -side right -expand n
 	label $f.f.f -textvariable P(MW,LDELPPATH)
 	pack $f.f.f -side right -expand n
 
@@ -3126,8 +3119,10 @@ proc mk_loaders_conf_window { } {
 	pack $f.f -side top -expand y -fill x
 	label $f.f.l -text "FET device for msp430-gdbproxy: "
 	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "loaders_conf_mgd_fsel"
+	button $f.f.b -text "Select" -command "loaders_conf_mgd_fsel 0"
 	pack $f.f.b -side right -expand n
+	button $f.f.a -text "Auto" -command "loaders_conf_mgd_fsel 1"
+	pack $f.f.a -side right -expand n
 	label $f.f.f -textvariable P(MW,LDMGDDEV)
 	pack $f.f.f -side right -expand n
 	frame $f.g
@@ -3148,7 +3143,7 @@ proc mk_loaders_conf_window { } {
 	pack $f.d -side right -expand n
 }
 
-proc loaders_conf_elp_fsel { } {
+proc loaders_conf_elp_fsel { auto } {
 #
 # Select the path to Elprotronic loader
 #
@@ -3156,6 +3151,11 @@ proc loaders_conf_elp_fsel { } {
 
 	if { $ST(SYS) == "L" } {
 		alert "You cannot configure this loader on Linux"
+		return
+	}
+
+	if { $auto } {
+		set P(MW,LDELPPATH) "Automatic"
 		return
 	}
 
@@ -3193,7 +3193,7 @@ proc loaders_conf_elp_fsel { } {
 	}
 }
 
-proc loaders_conf_mgd_fsel { } {
+proc loaders_conf_mgd_fsel { auto } {
 #
 # Select the path to mspgcc-gdb (gdb proxy) device
 #
@@ -3201,6 +3201,11 @@ proc loaders_conf_mgd_fsel { } {
 
 	if { $ST(SYS) != "L" } {
 		alert "This loader can only be configured on Linux"
+		return
+	}
+
+	if $auto {
+		set P(MW,LDMGDDEV) "Automatic"
 		return
 	}
 
@@ -3366,15 +3371,107 @@ proc vuee_conf_fsel { tp } {
 
 ###############################################################################
 
-proc bpcs_run { path pi } {
+if { $ST(SYS) == "L" } {
+
+###############################################################################
+# Linux versions of bpcs functions ############################################
+###############################################################################
+
+proc bpcs_run { path al pi } {
 #
-# Run a background (Windows?) program
+# Run a background program on Linux (use a pipe)
+#
+	global TCMD ST
+
+	log "Running $path $al <$pi>"
+
+	set ef [auto_execok $path]
+	if { $ef == "" } {
+		alert "Cannot start $path: not found on the path"
+		return 1
+	}
+
+	if [file executable $ef] {
+		set cmd "[list $ef]"
+	} else {
+		set cmd "[list sh] [list $ef]"
+	}
+
+	foreach a $al {
+		append cmd " [list $a]"
+	}
+
+	append cmd " 2>@1"
+
+	if [catch { open "|$cmd" "r" } fd] {
+		alert "Cannot start $path: $fd"
+		return 1
+	}
+
+	log "Process pipe: $fd"
+
+	set TCMD($pi) $fd
+	if { $TCMD($pi,AC) != "" } {
+		$TCMD($pi,AC) 1
+	}
+
+	fconfigure $fd -blocking 0 -buffering none
+	fileevent $fd readable "bpcs_check $pi"
+
+	return 0
+}
+
+proc bpcs_check { pi } {
+#
+# Checks for the presence of a background process
 #
 	global TCMD
 
+	if { [catch { read $TCMD($pi) } dummy] || [eof $TCMD($pi)] } {
+		bpcs_kill $pi
+	}
+}
+
+proc bpcs_kill { pi } {
+#
+# Kills a background process
+#
+	global TCMD
+
+	if { $TCMD($pi) == "" } {
+		return
+	}
+
+	kill_pipe $TCMD($pi) "KILL"
+
+	set TCMD($pi) ""
+
+	if { $TCMD($pi,AC) != "" } {
+		# action after kill
+		catch { $TCMD($pi,AC) 0 }
+	}
+}
+
+} else {
+
+###############################################################################
+# Cygwin versions of bpcs functions ###########################################
+###############################################################################
+
+proc bpcs_run { path al pi } {
+#
+# Run a background Windows? program
+#
+	global TCMD ST
+
 	# a simple escape; do we need more?
 	regsub -all "\[ \t\]" $path {\\&} path
-	log "Running $path <$pi>"
+
+	log "Running $path $al <$pi>"
+
+	foreach a $al {
+		append path " [list $a]"
+	}
 
 	if [catch { exec bash -c "exec $path" & } pl] {
 		alert "Cannot execute $path: $pl"
@@ -3385,7 +3482,7 @@ proc bpcs_run { path pi } {
 
 	set TCMD($pi) $pl
 	if { $TCMD($pi,AC) != "" } {
-		$TCMD($pi,AC)
+		$TCMD($pi,AC) 1
 	}
 
 	bpcs_check $pi
@@ -3409,7 +3506,7 @@ proc bpcs_check { pi } {
 		set TCMD($pi) ""
 		set TCMD($pi,CB) ""
 		if { $TCMD($pi,AC) != "" } {
-			$TCMD($pi,AC)
+			$TCMD($pi,AC) 0
 		}
 		return
 	}
@@ -3440,10 +3537,12 @@ proc bpcs_kill { pi } {
 	}
 	if { $TCMD($pi,AC) != "" } {
 		# action after kill
-		catch { $TCMD($pi,AC) }
+		catch { $TCMD($pi,AC) 0 }
 	}
 }
 
+###############################################################################
+}
 ###############################################################################
 
 proc run_genimage { } {
@@ -3475,6 +3574,8 @@ proc run_genimage { } {
 	}
 
 	append cmd " -C 2>@1"
+
+	log "Running $cmd"
 
 	if [catch { open "|$cmd" "r" } fd] {
 		alert "Cannot start genimage: $fd"
@@ -3772,6 +3873,104 @@ proc upload_image { } {
 	upload_$ul
 }
 
+if { $ST(SYS) == "L" } {
+###############################################################################
+# Linux versions of loader functions ##########################################
+###############################################################################
+
+proc kill_gdbproxy { } {
+#
+# Make sure the hard way that no gdbproxy is left over
+#
+	if [catch { xq "ps" "x" } pl]  {
+		log "Cannot list processes: $pl"
+		return
+	}
+
+	set pl [split $pl "\n"]
+
+	foreach p $pl {
+		if [regexp "^\[ \t\]*(\[0-9\]+).*msp430-gdbproxy" $p jk pp] {
+			log "Killing gdbproxy: $pp"
+			catch { exec kill -KILL $pp }
+		}
+	}
+}
+
+proc upload_action { start } {
+#
+# To be invoked when the loader is started/terminated
+#
+	if !$start {
+		kill_gdbproxy
+	}
+	reset_exec_menu
+}
+
+proc upload_ELP { } {
+#
+# Elprotronic
+#
+	global P TCMD
+
+	alert "You cannot use Elprotronic loader on Linux"
+	return
+}
+
+proc upload_MGD { } {
+#
+# GDB + proxy
+#
+	global P TCMD
+
+	if [catch { glob "Image*" } fl] {
+		set fl ""
+	}
+
+	# check if there's at least one qualifying file
+	set fail 1
+	foreach f $fl {
+		if { [string first "." $f] < 0 } {
+			# yes
+			set fail 0
+			break
+		}
+	}
+
+	if $fail {
+		alert "No loadable (ELF) image file found"
+		return
+	}
+
+	set dev [dict get $P(CO) "LDMGDDEV"]
+	set arg [dict get $P(CO) "LDMGDARG"]
+
+	set al ""
+
+	if { $dev != "" && ![regexp -nocase "auto" $dev] } {
+		lappend al "-D"
+		lappend al $dev
+	}
+
+	if { $arg != "" } {
+		set al [concat $al $arg]
+	}
+
+	bpcs_run "gdbloader" $al "FL"
+}
+
+} else {
+###############################################################################
+# Cygwin versions of loader functions #########################################
+###############################################################################
+
+proc upload_action { start } {
+#
+# To be invoked when the loader is started/terminated
+#
+	reset_exec_menu
+}
+
 proc upload_ELP { } {
 #
 # Elprotronic
@@ -3781,9 +3980,28 @@ proc upload_ELP { } {
 	set cfn "config.ini"
 
 	set ep [dict get $P(CO) "LDELPPATH"]
-	if { $ep == "" } {
-		alert "Unknown path to Elprotronic loader, please configure"
-		return
+	if { $ep == "" || $ep == "Automatic" } {
+		# Try to locate
+		global env
+		if ![info exists env(PROGRAMFILES)] {
+			set ep "C:/Program Files"
+		} else {
+			set ep [file normalize $env(PROGRAMFILES)]
+			log "Loader auto path prefix: $ep"
+		}
+		if [catch {
+			glob -directory $ep "Elprotronic/*/*/FET*.exe"
+		} ep] {
+			set ep ""
+		}
+		log "Loader exec candidates: $ep"
+		if { $ep != "" } {
+			set ep [lindex $ep 0]
+		} else {
+			alert "Cannot autolocate the path to Elprotronic\
+				loader, please configure manually"
+			return
+		}
 	}
 	if ![file exists $ep] {
 		alert "No Elprotronic loader at $ep"
@@ -3901,8 +4119,21 @@ proc upload_ELP { } {
 
 	# start the loader
 
-	bpcs_run $ep "FL"
+	bpcs_run $ep "" "FL"
 }
+
+proc upload_MGD { } {
+#
+# GDB + proxy
+#
+
+	alert "You can only use gdb/proxy loader on Linux"
+	return
+}
+
+###############################################################################
+}
+###############################################################################
 
 proc stop_loader { { ask 0 } } {
 
@@ -4382,7 +4613,7 @@ proc mk_project_window { } {
 
 	set w .pane.right
 	frame $w
-	pack $w -side right -expand y -fill both -anchor e
+	pack $w -side right -expand y -fill both -anchor w
 
 	set Term $w.t
 

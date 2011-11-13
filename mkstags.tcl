@@ -1,6 +1,6 @@
 #!/bin/sh
 ###################\
-exec tclsh "$0" "$@"
+exec tclsh85 "$0" "$@"
 #
 # Creates ctags from the system files used by the project
 #
@@ -86,7 +86,7 @@ proc scan_mkfile { mfn } {
 		if { (  $ST(DP) &&
 	            [regexp "^(\[IS\]\[0-9\]+)=(\[A-Z\]:.*)" $ln jk pf fn] ) ||
 		     ( !$ST(DP) &&
-		    [regexp "^(\[IS\]\[0-9\]+)U=(/home/.*)" $ln jk pf fn] ) } {
+		    [regexp "^(\[IS\]\[0-9\]+)U?=(/home/.*)" $ln jk pf fn] ) } {
 
 			set FS($pf) [string trimright $fn]
 			continue
