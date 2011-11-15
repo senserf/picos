@@ -119,3 +119,18 @@ PG111113A:
 
 	Genimage still doesn't want under Linux, because it requires the Image
 	files to be in the Intel HEX (.a43) format. I will see what I can do.
+
+PG111115A:
+
+	System files can now be openened by clicking on them in the terminal
+	pane, not only via ctag references. They are still always opened
+	read-only. I am not sure of we should allow opening them read-write
+	from a project. Should we? Always? On some flag?
+
+	To do:
+
+	1. Cleaning operations (a Clean button and a way to set up a .mop file)
+
+	2. A possibility to edit an external file and/or copy its content to a
+	   "standard" project file (like options.tagall -> options.sys in
+	   new_eco_demo, which presently must be done from outside)

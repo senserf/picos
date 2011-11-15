@@ -478,7 +478,6 @@ proc inside_project { f } {
 #
 # Checks if the specified path refers to something inside the project
 #
-
 	if { [string first [file normalize [pwd]] [file normalize $f]] == 0 } {
 		# OK
 		return 1
@@ -1366,52 +1365,63 @@ proc do_file_line { w x y } {
 		return
 	}
 
-	# try to match the file to one of the project files; FIXME: this will
-	# have to be made smarter, to account for the various manglings
-	# performed by picomp
-	set ft [file tail $fn]
-	set fr [file root $ft]
-	set fe [file extension $ft]
+	# default edit mode
+	set em "T"
 
-	# all project files matching the extension
-	set fl [gfl_files "\\${fe}$"]
-
-	# the length of root portion of the file name
-	set rl [string length $fr]
-
-	# current quality
-	set qu 99999
-
-	# current file name
-	set fm ""
-
-	foreach f $fl {
-		set r [file root [file tail $f]]
-		if { $r == $f } {
-			# ultimate match
-			set fm $f
-			break
+	# a quick check if this is an actual existing file
+	set fm [file normalize $fn]
+	if [file isfile $fm] {
+		if ![inside_project $fm] {
+			# not inside project, so assume it is a system file
+			set em "S"
 		}
-		if { [string first $r $fr] >= 0 } {
-			# substring
-			set q [expr $rl - [string length $r]]
-			if { $q < $qu } {
-				set qu $q
+	} else {
+		# try to match the file to one of the project files;
+		# FIXME: this may have to be made smarter, to account for the
+		# various manglings performed by picomp
+		set ft [file tail $fn]
+		set fr [file root $ft]
+		set fe [file extension $ft]
+
+		# all project files matching the extension
+		set fl [gfl_files "\\${fe}$"]
+
+		# the length of root portion of the file name
+		set rl [string length $fr]
+
+		# current quality
+		set qu 99999
+
+		# current file name
+		set fm ""
+
+		foreach f $fl {
+			set r [file root [file tail $f]]
+			if { $r == $f } {
+				# ultimate match
 				set fm $f
+				break
+			}
+			if { [string first $r $fr] >= 0 } {
+				# substring
+				set q [expr $rl - [string length $r]]
+				if { $q < $qu } {
+					set qu $q
+					set fm $f
+				}
 			}
 		}
-	}
 
-	if { $fm == "" } {
-		log "No matching file found"
-		return
+		if { $fm == "" } {
+			log "No matching file found"
+			return
+		}
 	}
-
 	# open the file at the indicated line
 	set fm [file normalize $fm]
 	set u [file_edit_pipe $fm]
 	if { $u == "" } {
-		edit_file $fm
+		edit_file $fm $em
 		set u [file_edit_pipe $fm]
 		if { $u == "" } {
 			log "Failed to open file $fm for err ref"
@@ -4350,6 +4360,8 @@ proc reset_build_menu { } {
 	}
 
 	$m add command -label "VUEE" -command "do_make_vuee"
+	$m add command -label "VUEE (recompile)" -command "do_make_vuee -e"
+	$m add command -label "VUEE (status)" -command "do_make_vuee { -e -n }"
 	$m add separator
 	if { $TCMD(FD) != "" } {
 		set st "normal"
@@ -4708,7 +4720,7 @@ proc do_make_node { { bi 0 } } {
 	}
 }
 
-proc do_make_vuee { } {
+proc do_make_vuee { { arg "" } } {
 
 	global P
 
@@ -4719,9 +4731,7 @@ proc do_make_vuee { } {
 	set i [dict get $P(CO) "CMPIS"]
 
 	if { $i != 0 } {
-		set arg "-i"
-	} else {
-		set arg ""
+		lappend arg "-i"
 	}
 
 	if [catch { run_term_command "picomp" $arg } err] {
