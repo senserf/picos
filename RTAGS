@@ -134,3 +134,37 @@ PG111115A:
 	2. A possibility to edit an external file and/or copy its content to a
 	   "standard" project file (like options.tagall -> options.sys in
 	   new_eco_demo, which presently must be done from outside)
+
+PG111118A:
+
+	Added color schemes for elvis. The Configuration menu includes a new
+	item named "Editor schemes" which allows you to create/manipulate color
+	(generally elvis configuration) schemes, such that different schemes
+	can be used for different file types (this may be helpful when you edit
+	or view lots of files at once). A bit of documentation may be in order
+	(elvis's help may be of some assistance regarding the meaning of some
+	"faces"), although the basics are simple. For a quick start:
+
+	1. Open a project and click on "Editor schemes" (note that editor
+	   configuration is not part of the per-project config, but belongs to
+	   global PIP settings stored in $HOME/.piprc)
+
+	2. Click on "New" to create a color scheme (using Default for the
+	   starting point); note that you assign names to your schemes
+
+	3. The most important colors are for the face "normal"; an easy test is
+	   to change the background in "normal", which is simply the background
+	   color of the editor screen; do that and click "Done"
+
+	4. Create one or two more schemes
+
+	5. The Assignment section is interpreted in the order of rows; ignore
+	   the regexp pattern for now; whenever you open a file, its name and
+	   location are compared against the rows in Assignment and the scheme
+	   from the first matching row (the last column) is chosen
+
+	To do:
+
+	1. The items from the previous "To do" list
+
+	2. Grep-like search through files, as suggested by Wlodek
