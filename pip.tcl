@@ -94,7 +94,20 @@ set CFLoadItems {
 			"LDMGDARG"	"msp430"
 		}
 
-set CFItems 	[concat $CFBoardItems $CFVueeItems $CFLoadItems]
+## Options; for now, we have just the max number of lines for the terminal +
+## permissions for accessing system files, but we will add more, e.g., search
+## options seem to fit here as well
+set CFOptItems {
+			"OPTERMLINES"	1000
+			"OPSYSFILES"	1
+		}
+
+set CFOptSFModes { "Never" "Tags, R/O" "Always, R/O" "Always, R/W" }
+
+## Console line number limit
+set TermLines 1000
+
+set CFItems 	[concat $CFBoardItems $CFVueeItems $CFLoadItems $CFOptItems]
 
 ## List of legal CPU types
 set CPUTypes { MSP430 eCOG }
@@ -241,6 +254,32 @@ proc mreplace { l ix it } {
 	return [lreplace $l $ix $ix $it]
 }
 
+proc valnum { n { min "" } { max "" } } {
+
+	set n [string tolower [string trim $n]]
+	if { $n == "" } {
+		error "empty string"
+	}
+
+	if { [string first "." $n] >= 0 || [string first "e" $n] >= 0 } {
+		error "string is not an integer number"
+	}
+
+	if [catch { expr $n } n] {
+		error "string is not a number"
+	}
+
+	if { $min != "" && $n < $min } {
+		error "number must not be less than $min"
+	}
+
+	if { $max != "" && $n > $max } {
+		error "number must not be greater than $max"
+	}
+
+	return $n
+}
+
 ###############################################################################
 
 proc delay { msec } {
@@ -326,7 +365,7 @@ proc term_addtxt { txt } {
 
 proc term_endline { } {
 
-	global TCMD Term
+	global TCMD Term TermLines
 
 	$Term configure -state normal
 	$Term insert end "\n"
@@ -334,7 +373,7 @@ proc term_endline { } {
 	while 1 {
 		set ix [$Term index end]
 		set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
-		if { $ix <= 1024 } {
+		if { $ix <= $TermLines } {
 			break
 		}
 		# delete the topmost line if above limit
@@ -1021,6 +1060,14 @@ proc tag_request { fd tag } {
 	set u [file_edit_pipe $fp]
 	if { $u == "" } {
 		# not being edited, try to open it first
+		if { $em != "T" } {
+			# a system file
+			if { [sys_file_mode] < 1 } {
+				# do not open
+				term_dspline "Tag in a system file: $fp"
+				return
+			}
+		}
 		edit_file $fp $em
 		set u [file_edit_pipe $fp]
 		if { $u == "" } {
@@ -1035,6 +1082,19 @@ proc tag_request { fd tag } {
 }
 
 ###############################################################################
+
+proc sys_file_mode { } {
+#
+# Returns the current setting of editing mode for system files
+#
+	global P
+
+	if { !$P(AC) || $P(CO) == "" } {
+		return 0
+	}
+
+	return [dict get $P(CO) "OPSYSFILES"]
+}
 
 proc find_escheme { fn em } {
 #
@@ -1084,7 +1144,11 @@ proc edit_file { fn { em "T" } } {
 	set ar ""
 
 	if { $em != "T" } {
-		lappend ar "-R"
+		# a system file
+		if { [sys_file_mode] < 3 } {
+			# read-only
+			lappend ar "-R"
+		}
 	}
 
 	# generate configuration arguments for elvis
@@ -1141,8 +1205,6 @@ proc edit_file { fn { em "T" } } {
 	lappend ar "-c"
 	lappend ar $ca
 	lappend ar $fn
-
-log "CMD: $ar"
 
 	if [catch { open "|$EditCommand $ar" "r+" } fd] {
 		alert "Cannot start text editor: $fd"
@@ -1288,9 +1350,27 @@ proc edit_close { fd ab } {
 		unset EFDS($fd)
 		# redo the file list; FIXME: don't do this, but redo tags, if
 		# the file has (ever) changed
-		if { $es == "T" && $em > 0 } {
-			# local modified file -> redo ctags
-			gfl_make_ctags
+		if { $em > 0 } {
+			# modified
+			if { $es == "T" } {
+				# local modified file -> redo ctags
+				gfl_make_ctags
+			} else {
+				# redo system tags, but only if this is the
+				# last system file being closed (the operation
+				# is slow)
+				set st 1
+				foreach gd [array names EFDS] {
+					if { $EFST($gd,M) > 0 &&
+					     $EFST($gd,E) != "T" } {
+						set st 0
+						break
+					}
+				}
+				if $st {
+					sys_make_ctags
+				}
+			}
 		}
 	}
 }
@@ -1606,6 +1686,15 @@ proc do_file_line { w x y } {
 	set fm [file normalize $fm]
 	set u [file_edit_pipe $fm]
 	if { $u == "" } {
+		if { $em != "T" } {
+			# a system file
+			if { [sys_file_mode] < 2 } {
+				# do not open in console
+				term_dspline \
+					"Will not open the system file: $fm"
+				return
+			}
+		}
 		edit_file $fm $em
 		set u [file_edit_pipe $fm]
 		if { $u == "" } {
@@ -2213,7 +2302,7 @@ proc copy_file { { x "" } { y "" } } {
 		# verify the extensions
 		set ef ""
 		foreach f $fl {
-			if { [file_class $f] == "" } {
+			if { [file_class [file tail $f]] == "" } {
 				lappend ef $f
 			}
 		}
@@ -2362,7 +2451,7 @@ proc mk_rename_window { old } {
 #
 	global P
 
-	set [md_window "Rename"]
+	set w [md_window "Rename"]
 
 	frame $w.tf
 	pack $w.tf -side top -expand y -fill x
@@ -2956,7 +3045,7 @@ proc get_config { } {
 #
 # Reads the project configuration from config.prj
 #
-	global CFItems P
+	global CFItems P TermLines
 
 	# start from the dictionary of defaults
 	set P(CO) $CFItems
@@ -2985,6 +3074,9 @@ proc get_config { } {
 	}
 
 	set P(CO) [dict merge $P(CO) $D]
+
+	# this one is optimized a bit for faster access
+	set TermLines [dict get $P(CO) "OPTERMLINES"]
 }
 
 proc set_config { } {
@@ -3580,6 +3672,8 @@ proc mk_vuee_conf_window { } {
 	pack $f.c -side left -expand n
 	button $f.d -text "Done" -command "md_click 1"
 	pack $f.d -side right -expand n
+
+	bind $w <Destroy> "md_click -1"
 }
 
 proc vuee_conf_fsel { tp } {
@@ -3636,6 +3730,99 @@ proc vuee_conf_fsel { tp } {
 
 		return
 	}
+}
+
+###############################################################################
+
+proc do_options { } {
+#
+# Configure "other" options associated with the project
+#
+	global P CFOptItems CFOptSFModes TermLines
+
+	if !$P(AC) {
+		return
+	}
+
+	params_to_dialog $CFOptItems
+
+	mk_options_conf_window
+
+	while 1 {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
+			# cancelled
+			return
+		}
+
+		if { $ev == 1 } {
+			# accepted, verify number
+			set n $P(M0,lc)
+			if [catch { valnum $n 24 100000 } n] {
+				alert "Illegal console line number limit: $n"
+				continue
+			}
+			set P(M0,OPTERMLINES) $n
+			set TermLines $n
+			set n [lsearch $CFOptSFModes $P(M0,sf)]
+			if { $n < 0 } {
+				# impossible
+				set n 0
+			}
+			set P(M0,OPSYSFILES) $n
+			dialog_to_params $CFOptItems
+			md_stop
+			set_config
+			return
+		}
+	}
+}
+
+proc mk_options_conf_window { } {
+
+	global P CFOptSFModes
+
+	set w [md_window "Options"]
+
+	##
+	set f $w.tf
+	frame $f
+	pack $f -side top -expand y -fill x
+
+	label $f.tll -text "Maximum number of lines saved in console: "
+	grid $f.tll -column 0 -row 0 -padx 4 -pady 2 -sticky w
+
+	set P(M0,lc) $P(M0,OPTERMLINES)
+	entry $f.tle -width 8 -font {-family courier -size 10} \
+		-textvariable P(M0,lc)
+	grid $f.tle -column 1 -row 0 -padx 4 -pady 2 -sticky we
+
+	label $f.sfl -text "Show and edit system files: "
+	grid $f.sfl -column 0 -row 1 -padx 4 -pady 2 -sticky w
+
+	set v $P(M0,OPSYSFILES)
+	if [catch { valnum $v 0 3 } v] {
+		set v 0
+	}
+
+	set P(M0,sf) [lindex $CFOptSFModes $v]
+	eval "tk_optionMenu $f.sfe P(M0,sf) $CFOptSFModes"
+	grid $f.sfe -column 1 -row 1 -padx 4 -pady 2 -sticky we
+
+	##
+	set f $w.bf
+	frame $f
+	pack $f -side top -expand n -fill x
+
+	button $f.cb -text "Cancel" -command "md_click -1"
+	pack $f.cb -side left -expand n
+
+	button $f.db -text "Done" -command "md_click 1"
+	pack $f.db -side right -expand n
+
+	bind $w <Destroy> "md_click -1"
 }
 
 ###############################################################################
@@ -5066,7 +5253,7 @@ proc reset_config_menu { } {
 	$m add command -label "Loaders ..." -command "do_loaders_config"
 	$m add separator
 	$m add command -label "Editor schemes ..." -command "do_eschemes"
-	# $m add command -label "Options ..." -command "do_options"
+	$m add command -label "Options ..." -command "do_options"
 }
 
 proc reset_build_menu { } {

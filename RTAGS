@@ -168,3 +168,23 @@ PG111118A:
 	1. The items from the previous "To do" list
 
 	2. Grep-like search through files, as suggested by Wlodek
+
+PG111119A:
+
+	Added two (minor) project configuration options (see the Options item
+	in the Configuration menu):
+
+	1. The limit on the number of lines saved in the console (previously
+	   there was a tacit limit of 1024); note that some lines are long
+	   (we count lines by newlines, not by the number of soft [wrapped]
+	   lines in the window)
+
+	2. The open mode for system files:
+
+		Never	- never open system files (for ctags or console clicks)
+		Tags	- open system files for ctags only, read-only
+		Always	- open system files for ctags and also on console
+			  clicks, read-only
+		R/W	- as Always, but read-write
+
+	More options will be likely added later.
