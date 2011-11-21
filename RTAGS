@@ -188,3 +188,58 @@ PG111119A:
 		R/W	- as Always, but read-write
 
 	More options will be likely added later.
+
+PG111121A:
+
+	Added a search engine to PIP (something along the lines mentioned by
+	Wlodek). When you click Search (at the bottom of the File menu) you
+	will open a window whereby you can search the project files as well as
+	the related system files. The latter is optional (see a special
+	checkbox in the window) and, similar to ctags, only works if a Makefile
+	is present in the project's directory.
+
+	Here is a brief explanation of the items in the search window:
+
+	String:	the string to search for. It can be:
+
+	- a regular expression (if RE is selected)
+	- a straightforward (verbatim) piece of text (ST)
+	- a "word-matched" pattern (WD)
+
+	The last option works this way that the string is broken at spaces into
+	chunks, with each chunk to be matched exactly, but the amount of
+	spacing between them is arbitrary. Additionally, the first and last
+	chunks, if they are alphanumeric, must be matched at word boundaries.
+	For example: "fun ( i," will match "fun(i," as well as "fun  (i ,",
+	but not "afun (i,".
+
+	Case: whether the case is relevant (it is when the box is checked).
+
+	Sys: whether system files should be searched as well (note that you
+	need a Makefile for this to work).
+
+	H, M: color selections for the search headers and matches (which are
+	highlighted in the presented text).
+
+	Max lines: the limit on the total number of lines stored in the window.
+
+	Max cases: the limit on the number of matches. When that number is
+	reached, the search is stopped.
+
+	Bracket: the number of lines displayed for each match, including the
+	matched line. If this number is even, one more line will be shown in
+	front.
+
+	FN Pat: an optional regexp restricting the names of files to be
+	searched. For example, when you put "\.h$" in there, you will be only
+	searching through headers.
+
+	The Search button becomes Stop when a search is in progress. By hitting
+	it, you will abort the search. Most searches are reasonably fast.
+
+	Note that you can open a file on a matched line by double clicking on
+	the respective line. For system files to be openable this way, the
+	pertinent configuration option (Configuration->Options) must be set
+	properly.
+
+	Added command Clean to clean up the project.

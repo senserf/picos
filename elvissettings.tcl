@@ -509,7 +509,7 @@ proc advlist { src n item } {
 	return $tar
 }
 
-proc val_color { c } {
+proc valcol { c } {
 #
 # Validates a color
 #
@@ -569,7 +569,7 @@ proc read_old_conf { } {
 		foreach a { color alter backgr } {
 			eval "set cc $[subst $a]"
 			if { $cc != "" } {
-				if [catch { val_color $cc } cc] {
+				if [catch { valcol $cc } cc] {
 					lappend er $cc
 					set bad 1
 					break

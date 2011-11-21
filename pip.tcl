@@ -104,10 +104,36 @@ set CFOptItems {
 
 set CFOptSFModes { "Never" "Tags, R/O" "Always, R/O" "Always, R/W" }
 
+## Saved parameters of the search window: the string searched for, the string
+## type (RE = regular expression), search system files (too), maximum number
+## of returned lines, maximum number of returned cases, surrounding lines per
+## case
+set CFSearchItems {
+			"SESTRING"	""
+			"SESTYPE"	"RE"
+			"SESFILES"	0
+			"SESMAXL"	1000
+			"SESMAXC"	256
+			"SESBRACKET"	5
+			"SESFQUAL"	""
+			"SESCASE"	1
+			"SESCOHD"	"#FF9A35"
+			"SESCOTA"	"#F4FB7B"
+		}
+
+## Option tags for easy reference from the search window
+set CFSearchTags { "s" "m" "x" "l" "c" "b" "f" "k" "h" "n" }
+
+set CFSearchModes { "RE" "ST" "WD" }
+
 ## Console line number limit
 set TermLines 1000
 
-set CFItems 	[concat $CFBoardItems $CFVueeItems $CFLoadItems $CFOptItems]
+set CFItems 	[concat $CFBoardItems \
+			$CFVueeItems \
+			$CFLoadItems \
+			$CFOptItems \
+			$CFSearchItems]
 
 ## List of legal CPU types
 set CPUTypes { MSP430 eCOG }
@@ -165,6 +191,9 @@ set ESchemesD {
 ## Number of rows in the schemes array shown in the configuration windows
 set NSESchemes	6
 
+## Fixed font for the terminal, entry boxes, and so on
+set FFont {-family courier -size 10}
+
 ###############################################################################
 
 ##
@@ -216,6 +245,12 @@ for { set p 0 } { $p < $TCMD(NPITERS) } { incr p } {
 ## Running status (tex variable) of term + running "value" (number of seconds)
 set P(SSL) ""
 set P(SSV) ""
+
+## Search window and status
+set P(SWN) ""
+set P(SST) 0
+set P(SSR) 0
+
 
 ## double exit avoidance flag
 set DEAF 0
@@ -278,6 +313,18 @@ proc valnum { n { min "" } { max "" } } {
 	}
 
 	return $n
+}
+
+
+proc valcol { c } {
+#
+# Validates a color
+#
+	set c [string toupper [string trim $c]]
+	if { [string length $c] != 7 || ![regexp "^#\[0-9A-F\]+$" $c] } {
+		error "illegal color $c"
+	}
+	return $c
 }
 
 ###############################################################################
@@ -1573,7 +1620,7 @@ proc open_for_edit { x y } {
 	edit_file $fp
 }
 
-proc do_file_line { w x y } {
+proc do_filename_click { w diag x y } {
 
 	# this is the index of the character that has been clicked on
 	set ix @$x,$y
@@ -1624,6 +1671,8 @@ proc do_file_line { w x y } {
 	set ib [string length $ma]
 
 	log "File line ref: $fn, $ln"
+
+	$w tag add errtag $if "$if + $ib chars"
 
 	if [catch { expr $ln } $ln] {
 		log "File line number error"
@@ -1690,8 +1739,8 @@ proc do_file_line { w x y } {
 			# a system file
 			if { [sys_file_mode] < 2 } {
 				# do not open in console
-				term_dspline \
-					"Will not open the system file: $fm"
+				$diag \
+				    "Viewing/editing system files not allowed!"
 				return
 			}
 		}
@@ -1707,7 +1756,6 @@ proc do_file_line { w x y } {
 	if $ln {
 		edit_command $u $ln
 	}
-	$w tag add errtag $if "$if + $ib chars"
 }
 
 proc tree_selection { { x "" } { y "" } } {
@@ -2097,7 +2145,7 @@ proc mk_new_dir_window { dir } {
 #
 # Opens a dialog to specify a new directory
 #
-	global P
+	global P FFont
 
 	set w [md_window "New directory"]
 
@@ -2108,8 +2156,7 @@ proc mk_new_dir_window { dir } {
 	pack $w.tf.l -side left -expand n -fill x
 
 	set P(M0,DI) "NEW_DIR"
-	entry $w.tf.e -width 8 -font {-family courier -size 10} \
-			-textvariable P(M0,DI)
+	entry $w.tf.e -width 8 -font $FFont -textvariable P(M0,DI)
 	pack $w.tf.e -side left -expand y -fill x
 
 	frame $w.bf
@@ -2449,7 +2496,7 @@ proc mk_rename_window { old } {
 #
 # Opens a dialog to rename a file or directory
 #
-	global P
+	global P FFont
 
 	set w [md_window "Rename"]
 
@@ -2460,8 +2507,7 @@ proc mk_rename_window { old } {
 	pack $w.tf.l -side left -expand n -fill x
 
 	set P(M0,NW) $old
-	entry $w.tf.e -width 16 -font {-family courier -size 10} \
-			-textvariable P(M0,NW)
+	entry $w.tf.e -width 16 -font $FFont -textvariable P(M0,NW)
 	pack $w.tf.e -side left -expand y -fill x
 
 	frame $w.bf
@@ -2706,6 +2752,9 @@ proc close_project { } {
 	}
 
 	edit_kill
+
+	# in case this one is open
+	close_search_window
 
 	if $P(AC) {
 		# this is used to tell if a project is currently opened;
@@ -3001,7 +3050,7 @@ proc mk_project_selection_window { } {
 #
 # Opens a dialog to select the project type
 #
-	global P
+	global P FFont
 
 	set w [md_window "Project type"]
 
@@ -3033,8 +3082,7 @@ proc mk_project_selection_window { } {
 		label $tf.l -text "Tag $i: "
 		pack $tf.l -side left -expand n
 		set P(M0,E$i) ""
-		entry $tf.e -width 8 -font {-family courier -size 10} \
-			-textvariable P(M0,E$i)
+		entry $tf.e -width 8 -font $FFont -textvariable P(M0,E$i)
 		pack $tf.e -side left -expand y -fill x
 	}
 
@@ -3437,7 +3485,7 @@ proc do_loaders_config { } {
 
 proc mk_loaders_conf_window { } {
 
-	global P ST
+	global P ST FFont
 
 	set w [md_window "Loader configuration"]
 
@@ -3488,8 +3536,7 @@ proc mk_loaders_conf_window { } {
 	pack $f.g -side top -expand y -fill x
 	label $f.g.l -text "Arguments to msp430-gdbproxy: "
 	pack $f.g.l -side left -expand n
-	entry $f.g.e -width 16 -font {-family courier -size 10} \
-		-textvariable P(M0,LDMGDARG)
+	entry $f.g.e -width 16 -font $FFont -textvariable P(M0,LDMGDARG)
 	pack $f.g.e -side right -expand n
 
 	## Buttons
@@ -3782,7 +3829,7 @@ proc do_options { } {
 
 proc mk_options_conf_window { } {
 
-	global P CFOptSFModes
+	global P CFOptSFModes FFont
 
 	set w [md_window "Options"]
 
@@ -3795,8 +3842,7 @@ proc mk_options_conf_window { } {
 	grid $f.tll -column 0 -row 0 -padx 4 -pady 2 -sticky w
 
 	set P(M0,lc) $P(M0,OPTERMLINES)
-	entry $f.tle -width 8 -font {-family courier -size 10} \
-		-textvariable P(M0,lc)
+	entry $f.tle -width 8 -font $FFont -textvariable P(M0,lc)
 	grid $f.tle -column 1 -row 0 -padx 4 -pady 2 -sticky we
 
 	label $f.sfl -text "Show and edit system files: "
@@ -3891,7 +3937,7 @@ proc get_escheme { nam } {
 
 proc mk_eschemes_window { } {
 
-	global P NSESchemes
+	global P NSESchemes FFont
 
 	set w [md_window "Elvis schemes"]
 
@@ -3963,8 +4009,7 @@ proc mk_eschemes_window { } {
 		##
 		set bu $f.p$i
 		set P(M0,P$i) ""
-		entry $bu -width 12 -font {-family courier -size 10} \
-			-textvariable P(M0,P$i)
+		entry $bu -width 12 -font $FFont -textvariable P(M0,P$i)
 		grid $bu -column 1 -row $j -sticky we -padx 2 -pady 2
 		##
 		set bu $f.k$i
@@ -4282,7 +4327,7 @@ proc delete_escheme { } {
 
 proc mk_new_escheme_window { } {
 
-	global P
+	global P FFont
 
 	# level 1 modal window
 	set w [md_window "New scheme" 1]
@@ -4296,8 +4341,7 @@ proc mk_new_escheme_window { } {
 	label $f.nl -text "Name:" -anchor w
 	grid $f.nl -column 0 -row 0 -padx 2 -pady 2 -sticky nw
 
-	entry $f.ne -width 16 -font {-family courier -size 10} \
-		-textvariable P(M1,SN)
+	entry $f.ne -width 16 -font $FFont -textvariable P(M1,SN)
 	grid $f.ne -column 1 -row 0 -padx 2 -pady 2 -sticky wen
 
 	label $f.sl -text "Derived from:" -anchor w
@@ -5230,6 +5274,11 @@ proc reset_file_menu { } {
 	$m add command -label "Copy from ..." -command "copy_file" -state $st
 	$m add command -label "New directory ..." -command "new_directory" \
 		-state $st
+
+	$m add separator
+
+	$m add command -label "Search ..." -command "open_search_window" \
+		-state $st
 }
 
 proc reset_config_menu { } {
@@ -5332,6 +5381,10 @@ proc reset_build_menu { } {
 	$m add command -label "VUEE (recompile)" -command "do_make_vuee -e"
 	$m add command -label "VUEE (status)" -command "do_make_vuee { -e -n }"
 	$m add separator
+
+	$m add command -label "Clean" -command "do_cleanup"
+	$m add separator
+
 	if { $TCMD(FD) != "" } {
 		set st "normal"
 	} else {
@@ -5486,7 +5539,7 @@ proc mark_running_cb { } {
 
 proc mk_project_window { } {
 
-	global P Term
+	global P Term FFont
 
 	# no project active
 	set P(AC) 0
@@ -5605,7 +5658,7 @@ proc mk_project_window { } {
 		-yscrollcommand "$w.scroly set" \
 		-setgrid true \
         	-width 80 -height 24 -wrap char \
-		-font {-family courier -size 10} \
+		-font $FFont \
 		-exportselection 1 \
 		-state normal
 
@@ -5623,7 +5676,7 @@ proc mk_project_window { } {
 	#######################################################################
 
 	bind $Term <ButtonRelease-1> "tk_textCopy $Term"
-	bind $Term <Double-1> "do_file_line $Term %x %y"
+	bind $Term <Double-1> "do_filename_click $Term term_dspline %x %y"
 
 	#######################################################################
 
@@ -5709,6 +5762,734 @@ proc do_make_vuee { { arg "" } } {
 	}
 }
 
+proc do_cleanup { } {
+#
+# Clean up the project
+#
+	global P PicOSPath
+
+	if !$P(AC) {
+		return
+	}
+
+	set cpm [file normalize [file join $PicOSPath "Scripts" "cleanapp"]]
+
+	if ![file exists $cpm] {
+		alert "Cleaning script (cleanapp) not found in Scripts"
+		return
+	}
+
+	if [catch { xq $cpm "" } er] {
+		alert "Cleanup failed: $er"
+	}
+
+	reset_bnx_menus
+}
+
+###############################################################################
+
+proc open_search_window { } {
+#
+	global P FFont CFSearchModes CFSearchItems CFSearchTags
+
+	if !$P(AC) {
+		return
+	}
+
+	if { $P(SWN) != "" } {
+		# already opened, try to raise
+		catch { raise $P(SWN) }
+		return
+	}
+
+	set w ".search0"
+	toplevel $w
+	wm title $w "Search"
+	set P(SWN) $w
+
+	set tf $w.tf
+	frame $tf
+	pack $tf -side top -expand y -fill both
+
+	set t $tf.t
+	set P(SWN,t) $t
+	text $t
+
+	$t configure \
+		-yscrollcommand "$tf.scroly set" \
+		-setgrid true \
+		-width 80 -height 24 -wrap char \
+		-font $FFont \
+		-exportselection 1 \
+		-state normal
+
+	# won't hurt
+	$t delete 1.0 end
+
+	scrollbar $tf.scroly -command "$t yview"
+	pack $tf.scroly -side right -fill y
+	pack $t -side left -expand yes -fill both
+
+	bind $t <ButtonRelease-1> "tk_textCopy $t"
+	bind $t <Double-1> "do_filename_click $t osline %x %y"
+
+	#######################################################################
+
+	# copy options from config
+	foreach u $CFSearchTags { k z } $CFSearchItems {
+		set P(SWN,$u) [dict get $P(CO) $k]
+	}
+
+	# search in progress
+	set P(SST) 0
+
+	validate_search_options 1
+
+	set bf $w.bf
+	frame $bf
+	pack $bf -side top -expand n -fill x
+
+	##
+
+	set f $bf.sf
+	labelframe $f -text "Search" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+
+	label $f.sl -text "String: "
+	pack $f.sl -side left -expand n
+
+	entry $f.se -width 24 -font $FFont -textvariable P(SWN,s)
+	pack $f.se -side left -expand y -fill x
+
+	foreach rb $CFSearchModes {
+		set r $f.[string tolower $rb]
+		radiobutton $r -text $rb -variable P(SWN,m) -value $rb
+		pack $r -side left -expand n
+	}
+
+	label $f.kl -text "Case:"
+	pack $f.kl -side left -expand n
+	checkbutton $f.kf -variable P(SWN,k)
+	pack $f.kf -side left -expand n
+
+	label $f.xl -text "Sys:"
+	pack $f.xl -side left -expand n
+	checkbutton $f.xf -variable P(SWN,x)
+	pack $f.xf -side left -expand n
+
+	button $f.yh -text "H" -command "search_colconf $f.yh h" \
+		-background $P(SWN,h)
+	pack $f.yh -side left -expand n
+
+	button $f.yt -text "M" -command "search_colconf $f.yt n" \
+		-background $P(SWN,n)
+	pack $f.yt -side left -expand n
+
+	##
+
+	set zf $bf.lf
+	frame $zf
+	pack $zf -side top -expand y -fill x
+
+	##
+
+	set f $zf.lf
+	labelframe $f -text "Limits" -padx 2 -pady 2
+	pack $f -side left -expand y -fill x
+
+	label $f.ll -text "Max lines:"
+	grid $f.ll -column 0 -row 0 -sticky w -padx 1 -pady 1
+
+	entry $f.le -width 5 -font $FFont -textvariable P(SWN,l)
+	grid $f.le -column 1 -row 0 -sticky ew -padx 1 -pady 1
+
+	label $f.cl -text " Max cases:"
+	grid $f.cl -column 2 -row 0 -sticky w -padx 1 -pady 1
+
+	entry $f.ce -width 5 -font $FFont -textvariable P(SWN,c)
+	grid $f.ce -column 3 -row 0 -sticky ew -padx 1 -pady 1
+
+	label $f.bl -text " Bracket:"
+	grid $f.bl -column 4 -row 0 -sticky w -padx 1 -pady 1
+
+	entry $f.be -width 5 -font $FFont -textvariable P(SWN,b)
+	grid $f.be -column 5 -row 0 -sticky ew -padx 1 -pady 1
+
+	label $f.fl -text " FN Pat:"
+	grid $f.fl -column 6 -row 0 -sticky w -padx 1 -pady 1
+
+	entry $f.fe -width 5 -font $FFont -textvariable P(SWN,f)
+	grid $f.fe -column 7 -row 0 -sticky ew -padx 1 -pady 1
+
+	grid columnconfigure $f { 1 3 5 7 } -weight 1
+
+	##
+
+	set f $zf.rf
+	labelframe $f -text "Actions" -padx 2 -pady 2
+	pack $f -side right -expand n
+
+	button $f.cb -text "Close" -command close_search_window
+	pack $f.cb -side right -expand n
+
+	set P(SWN,o) $f.gb
+	button $f.gb -text "Search" -command do_search
+	pack $f.gb -side right -expand n
+
+	# tags for marking the match and headers
+	$t tag configure mtag -background $P(SWN,n)
+	$t tag configure htag -background $P(SWN,h)
+
+	##
+	bind $w <Destroy> close_search_window
+}
+
+proc validate_search_options { { force 0 } } {
+#
+# Called to check if the search options make sense; if force, then force them
+# to decent
+#
+	global P CFSearchModes
+
+	set er ""
+
+	if { [lsearch -exact $CFSearchModes $P(SWN,m)] < 0 } {
+		# this cannot really happen unless the config file is broken
+		set P(SWN,m) [lindex $CFSearchModes 0]
+	}
+
+	if { $P(SWN,s) != "" && $P(SWN,m) == "RE" } {
+		# check if the regexp is formally ok
+		if [catch { regexp $P(SWN,s) "xxx" } ] {
+			if $force {
+				set P(SWN,s) ""
+			} else {
+				lappend er "illegal string (not a valid regular\
+					expression)"
+			}
+		}
+	}
+
+	if { $P(SWN,f) != "" } {
+		# check if the file name regexp is ok
+		if [catch { regexp $P(SWN,f) "xxx" } ] {
+			if $force {
+				set P(SWN,f) ""
+			} else {
+				lappend er "illegal file name pattern (not a\
+					valid regular expression)"
+			}
+		}
+	}
+
+	if [catch { valnum $P(SWN,x) 0 1 } P(SWN,x)] {
+		set P(SWN,x) 0
+	}
+
+	if [catch { valnum $P(SWN,k) 0 1 } P(SWN,k)] {
+		set P(SWN,k) 0
+	}
+
+	if [catch { valnum $P(SWN,l) 24 100000 } v] {
+		if $force {
+			set P(SWN,l) 1000
+		} else {
+			lappend er "illegal line number limit: $v"
+		}
+	} else {
+		# normalize
+		set P(SWN,l) $v
+	}
+
+	if [catch { valnum $P(SWN,c) 1 100000 } v] {
+		if $force {
+			set P(SWN,c) 256
+		} else {
+			lappend er "illegal case number limit: $v"
+		}
+	} else {
+		set P(SWN,c) $v
+	}
+
+	if [catch { valnum $P(SWN,b) 0 32 } v] {
+		if $force {
+			set P(SWN,b) 7
+		} else {
+			lappend er "illegal bracket count: $v"
+		}
+	} else {
+		set P(SWN,b) $v
+	}
+
+	if [catch { valcol $P(SWN,h) } v] {
+		set P(SWN,h) "#AAAAAA"
+	}
+
+	if [catch { valcol $P(SWN,n) } v] {
+		set P(SWN,n) "#888888"
+	}
+
+	if { $er != "" } {
+		return [join $er ", "]
+	}
+
+	return ""
+}
+
+proc update_search_options { } {
+#
+# Called to update the project config options related to the search window
+# whenever we suspect that some of them may have changed
+#
+	global P CFSearchItems CFSearchTags
+
+	if { $P(SWN) == "" || $P(CO) == "" } {
+		return
+	}
+
+	validate_search_options 1
+
+	# change flag
+	set c 0
+
+	foreach u $CFSearchTags { k z } $CFSearchItems {
+		if { $P(SWN,$u) != [dict get $P(CO) $k] } {
+			dict set P(CO) $k $P(SWN,$u)
+			set c 1
+		}
+	}
+
+	if $c {
+		set_config
+	}
+}
+
+proc close_search_window { } {
+#
+	global P
+
+	if { $P(SWN) != "" } {
+
+		update_search_options
+		catch { destroy $P(SWN) }
+		set P(SWN) ""
+		# search status, to abort a search in progress
+		set P(SST) 0
+	}
+	array unset P "SWN,*"
+}
+
+proc osline { ln } {
+#
+# Writes one line into the search console, tags == optional positions to be
+# tagged
+#
+	global P
+
+	if { $P(SWN) == "" } {
+		return
+	}
+
+	set t $P(SWN,t)
+
+	$t configure -state normal
+	$t insert end $ln
+	$t insert end "\n"
+
+	while 1 {
+		set ix [$t index end]
+		set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
+		if { $ix <= $P(SWN,l) } {
+			break
+		}
+		$t delete 1.0 2.0
+	}
+
+	$t configure -state disabled
+	$t yview -pickplace end
+}
+
+proc osline_tag { ln tag { tags "" } } {
+#
+# Tags the last line written to the search term
+#
+	global P
+
+	if { $P(SWN) == "" } {
+		return
+	}
+
+	osline $ln
+
+	set t $P(SWN,t)
+
+	set ix [string length $ln]
+
+	if { $tags == "" } {
+		set tags [list [list 0 $ix]]
+	}
+
+	incr ix 2
+
+	foreach m $tags {
+		set a [expr $ix - [lindex $m 0]]
+		set b [expr $ix - [lindex $m 1] - 1]
+		$t tag add $tag "end - $a chars" "end - $b chars"
+	}
+}
+
+proc do_search { } {
+#
+# Toggles search/stop
+#
+	global P STagsCmd
+
+	if { $P(SWN) == "" } {
+		return
+	}
+
+	if $P(SST) {
+		# this means we are searching, stop
+		set P(SST) 0
+		if { $P(SWN) != "" } {
+			# reconfigure the button
+			$P(SWN,o) configure -text "Search"
+		}
+		return
+	}
+
+	if $P(SSR) {
+		# still running, hold on
+		alert "Search engine busy cleaning up, try again in a sec"
+		return
+	}
+
+	# we are not searching, start search
+	set er [validate_search_options]
+
+	if { $er != "" } {
+		if { [string first "," $er] < 0 } {
+			set tt "s"
+		} else {
+			set tt ""
+		}
+		alert "Error$tt in search options: $er"
+		return
+	}
+
+	# the pattern
+	set patt $P(SWN,s)
+
+	# function name suffix
+	set sf $P(SWN,m)
+
+	if !$P(SWN,k) {
+		# ignore case
+		set patt [string tolower $patt]
+	}
+
+	if { $P(SWN,m) == "WD" } {
+		# word matching, preprocess pattern
+		set patt [patt_to_words $patt]
+		# this is handled by regexp
+		set sf "RE"
+	}
+
+	if { $patt == ""} {
+		alert "The search string is empty"
+		return
+	}
+	# the matching function
+	set sfun "smatch_$sf"
+
+	if !$P(SWN,k) {
+		append sfun "_nc"
+	}
+
+	# start search, create a complete list of files
+	set fl [lsort [gfl_files $P(SWN,f)]]
+
+	if $P(SWN,x) {
+		# system files as well
+		if [catch { xq $STagsCmd "-f" } tl] {
+			alert "Cannot list system files: $tl"
+			return
+		}
+		# this list comes sorted
+		if { $P(SWN,f) != "" } {
+			# there is a pattern, trim the list
+			foreach f $tl {
+				if [regexp $P(SWN,f) $f] {
+					lappend fl $f
+				}
+			}
+		} else {
+			# all files
+			set fl [concat $fl $tl]
+		}
+	}
+
+	if { $fl == "" } {
+		osline "No files to search!"
+		return
+	}
+
+	set P(SST) 1
+	set P(SSR) 1
+
+	$P(SWN,o) configure -text "Stop"
+
+	# forward bracket, i.e., lines following the found one
+	set braf [expr $P(SWN,b) / 2]
+	# backward bracket, i.e., lines preceding the found one
+	set brab $braf
+	if [expr $P(SWN,b) & 1] {
+		incr brab
+	}
+	# the terminal
+	set t $P(SWN,t)
+
+	# the search loop
+	set CNT 0
+	foreach f $fl {
+		update
+		if { $P(SST) == 0 } {
+			break
+		}
+		if [catch { open $f "r" } fd] {
+			# this should not happen
+			alert "Couldn't open $f: $fd, will skip this file"
+			continue
+		}
+		if [catch { read $fd } fc] {
+			# neither should this
+			catch { close $fd }
+			alert "Couldn't read $f: $fc, will skip this file"
+			continue
+		}
+		catch { close $fd }
+		set fc [split $fc "\n"]
+		set lc [llength $fc]
+		set lm -1
+		for { set i 0 } { $i < $lc } { incr i } {
+			# current line
+			set ln [lindex $fc $i]
+			set ma [$sfun $patt $ln]
+			if { $ma == "" } {
+				if { [expr $i % 100] == 0 } {
+					update
+					if { $P(SST) == 0 } {
+						break
+					}
+				}
+				continue
+			}
+			# we have a match
+			osline_tag "@@@ $f:[expr $i + 1]" htag
+			# backspace
+			set bf [expr $i - $brab]
+			if { $bf <= $lm } {
+				set bf [expr $lm + 1]
+			}
+			while { $bf < $i } {
+				osline [lindex $fc $bf]
+				incr bf
+			}
+
+			# the matched line
+			osline_tag $ln mtag $ma
+
+			for { set bf 0 } { $bf < $braf } { incr bf } {
+				incr i
+				if { $i >= $lc } {
+					break
+				}
+				osline [lindex $fc $i]
+			}
+			set lm $i
+			update
+			if { $P(SST) == 0 } {
+				break
+			}
+			incr CNT
+			if { $CNT >= $P(SWN,c) } {
+				break
+			}
+		}
+	}
+
+	if { $CNT > 0 } {
+		if { $CNT == 1 } {
+			set ncm "one match found"
+		} else {
+			set ncm "$CNT matches found"
+		}
+	} else {
+		set ncm "no matches found"
+	}
+
+	if { $P(SST) == 0 } {
+		osline "@@@ Stopped, $ncm"
+	} elseif { $CNT >= $P(SWN,c) } {
+		osline "@@@ Case limit reached, $ncm"
+	} else {
+		osline "@@@ All files searched, $ncm"
+	}
+
+	set P(SST) 0
+	set P(SSR) 0
+	if { $P(SWN) != "" } {
+		$P(SWN,o) configure -text "Search"
+	}
+}
+
+proc search_colconf { b u } {
+#
+# Configures a tag color 
+#
+	global P
+
+	if { $P(SWN) == "" } {
+		return
+	}
+
+	# initial color
+	set col $P(SWN,$u)
+
+	if { $u == "h" } {
+		set tp "header"
+		set tag "htag"
+	} else {
+		set tp "match"
+		set tag "mtag"
+	}
+
+	set col [tk_chooseColor -initialcolor $col -title \
+		"Choose $tp color"]
+
+	if { $col == "" } {
+		# cancel
+		return
+	}
+
+	set P(SWN,$u) $col
+	$b configure -background $col
+	$P(SWN,t) tag configure $tag -background $col
+}
+
+proc smatch_RE { pt ln } {
+#
+# Regular expression match (respecting case)
+#
+	if ![regexp -indices -- $pt $ln ma] {
+		# a quick negative
+		return ""
+	}
+
+	set res ""
+
+	while 1 {
+		lappend res $ma
+		if ![regexp -start [expr [lindex $ma 1] + 1] -indices -- $pt \
+		    $ln ma] {
+			return $res
+		}
+	}
+}
+	
+proc smatch_RE_nc { pt ln } {
+#
+# Regular expression match (ignoring case)
+#
+	return [smatch_RE $pt [string tolower $ln]]
+}
+
+proc smatch_ST { pt ln } {
+#
+# Direct string match (respecting case)
+#
+	set ix [string first $pt $ln]
+	if { $ix < 0 } {
+		return ""
+	}
+
+	set res ""
+	set len [string length $pt]
+
+	while 1 {
+		set iy [expr $ix + $len]
+		lappend res [list $ix [expr $iy - 1]]
+		set ix [string first $pt $ln $iy]
+		if { $ix < 0 } {
+			return $res
+		}
+	}
+}
+
+proc smatch_ST_nc { pt ln } {
+#
+# Direct string match (ignoring case)
+#
+	return [smatch_ST $pt [string tolower $ln]]
+}
+
+proc patt_to_words { pt } {
+#
+# Preprocesses the pattern for "word" matching, i.e., transforms it into a
+# list of words
+#
+	set res ""
+
+	set first 1
+	while 1 {
+		set pt [string trimleft $pt]
+		if { $pt == "" } {
+			break
+		}
+		if [regexp "^(\[a-zA-Z0-9_\]+)(.*)" $pt jnk ma pt] {
+			# we have an alpha keyword
+			if $first {
+				# the first item, force word match at the
+				# beginning
+				set first 0
+				append res "(^|\[^a-zA-Z0-9_\])"
+			}
+			# the keyword matched verbatim
+			append res $ma
+			# check if last
+			set pt [string trimleft $pt]
+			if { $pt == "" } {
+				# OK, last, word match at the end
+				append res "(\$|\[^a-zA-Z0-9_\])"
+				return $res
+			} else {
+				# not last, insert space match
+				append res "\[ \t\n\r\]*"
+			}
+			continue
+		}
+		set ma ""
+		# this will necessarily succeed ...
+		regexp "^(\[^a-zA-Z0-9_ \t\n\r\]+)(.*)" $pt jnk ma pt
+		if { $ma == "" } {
+			# ... a stupid precaution in case it doesn't
+			return ""
+		}
+		# here we have a bunch of weird characters, some of which may
+		# be special for regexp, so let us escape them all
+		while { $ma != "" } {
+			append res "\\[string index $ma 0]"
+			set ma [string range $ma 1 end]
+		}
+		set pt [string trimleft $pt]
+		if { $pt == "" } {
+			return $res
+		}
+		append res "\[ \t\n\r\]*"
+		set first 0
+	}
+}
+		
 ###############################################################################
 
 if { $ST(SYS) != "L" } {

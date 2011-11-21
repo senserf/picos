@@ -158,15 +158,14 @@ proc make_file_list { } {
 	return $fl
 }
 
-proc make_ctags { f } {
-
-	global TagsCmd TagsArgs
-
-	puts [xq $TagsCmd [concat $TagsArgs $f]]
-}
-
 set FL [make_file_list]
 
 if { [llength $FL] > 0 } {
-	make_ctags $FL
+	if { [lsearch -exact $argv "-f"] >= 0 } {
+		# just the file list
+		puts $FL
+	} elseif { [llength $FL] > 0 } {
+		# make the tags
+		puts [xq $TagsCmd [concat $TagsArgs $FL]]
+	}
 }
