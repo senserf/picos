@@ -115,6 +115,7 @@ set CFSearchItems {
 			"SESMAXL"	1000
 			"SESMAXC"	256
 			"SESBRACKET"	5
+			"SESFQNEG"	0
 			"SESFQUAL"	""
 			"SESCASE"	1
 			"SESCOHD"	"#FF9A35"
@@ -122,7 +123,7 @@ set CFSearchItems {
 		}
 
 ## Option tags for easy reference from the search window
-set CFSearchTags { "s" "m" "x" "l" "c" "b" "f" "k" "h" "n" }
+set CFSearchTags { "s" "m" "x" "l" "c" "b" "g" "f" "k" "h" "n" }
 
 set CFSearchModes { "RE" "ST" "WD" }
 
@@ -865,7 +866,7 @@ proc gfl_close { tree node } {
 	}
 }
 
-proc gfl_files { { pat "" } } {
+proc gfl_files { { pat "" } { neg 0 } } {
 #
 # Finds all files in the tree view matching the specified pattern
 #
@@ -875,7 +876,7 @@ proc gfl_files { { pat "" } } {
 
 	foreach d [$P(FL) children {}] {
 		# only headers at this level
-		set lres [gfl_files_rec $d $pat]
+		set lres [gfl_files_rec $d $pat $neg]
 		if { $lres != "" } {
 			set res [concat $res $lres]
 		}
@@ -883,7 +884,7 @@ proc gfl_files { { pat "" } } {
 	return $res
 }
 
-proc gfl_files_rec { nd pat } {
+proc gfl_files_rec { nd pat neg } {
 #
 # The recursive traverser for gfl_files
 #
@@ -895,18 +896,19 @@ proc gfl_files_rec { nd pat } {
 		set vs [$P(FL) item $d -values]
 		if { [lindex $vs 1] != "f" } {
 			# not a file
-			set lres [gfl_files_rec $d $pat]
+			set lres [gfl_files_rec $d $pat $neg]
 			if { $lres != "" } {
 				set res [concat $res $lres]
 			}
 		} else {
 			set fn [lindex $vs 0]
-			if { $pat == "" || [regexp $pat $fn] } {
+			if { $pat == "" || 
+			   ( ( $neg && ![regexp $pat $fn] ) ||
+			     (!$neg &&  [regexp $pat $fn] ) ) } {
 				lappend res $fn
 			}
 		}
 	}
-
 	return $res
 }
 
@@ -1351,6 +1353,13 @@ proc edit_status_read { fd } {
 	if [regexp "can't load font +(\[^ \t\]+)" $line jk fn] {
 		edit_kill $EFDS($fd)
 		alert "Illegal font size for Elvis: $fn, please reconfigure"
+		return
+	}
+
+	if [regexp "could not contact X server" $line] {
+		edit_kill $EFDS($fd)
+		alert "No X server available to run the editor! You need an X\
+			server for Elvis"
 		return
 	}
 
@@ -5918,10 +5927,16 @@ proc open_search_window { } {
 	label $f.fl -text " FN Pat:"
 	grid $f.fl -column 6 -row 0 -sticky w -padx 1 -pady 1
 
-	entry $f.fe -width 5 -font $FFont -textvariable P(SWN,f)
-	grid $f.fe -column 7 -row 0 -sticky ew -padx 1 -pady 1
+	label $f.fn -text "!"
+	grid $f.fn -column 7 -row 0 -sticky w -padx 0 -pady 0
 
-	grid columnconfigure $f { 1 3 5 7 } -weight 1
+	checkbutton $f.fg -variable P(SWN,g)
+	grid $f.fg -column 8 -row 0 -sticky ew -padx 0 -pady 0
+	
+	entry $f.fe -width 5 -font $FFont -textvariable P(SWN,f)
+	grid $f.fe -column 9 -row 0 -sticky ew -padx 1 -pady 1
+
+	grid columnconfigure $f { 1 3 5 9 } -weight 1
 
 	##
 
@@ -5935,6 +5950,9 @@ proc open_search_window { } {
 	set P(SWN,o) $f.gb
 	button $f.gb -text "Search" -command do_search
 	pack $f.gb -side right -expand n
+
+	button $f.gc -text "Clean" -command do_clean_search
+	pack $f.gc -side right -expand n
 
 	# tags for marking the match and headers
 	$t tag configure mtag -background $P(SWN,n)
@@ -5982,8 +6000,14 @@ proc validate_search_options { { force 0 } } {
 		}
 	}
 
+	# checkbuttons cannot really be wrong, unless something behind the
+	# scenes is wrong (e.g., the config file has been altered manually)
 	if [catch { valnum $P(SWN,x) 0 1 } P(SWN,x)] {
 		set P(SWN,x) 0
+	}
+
+	if [catch { valnum $P(SWN,g) 0 1 } P(SWN,g)] {
+		set P(SWN,g) 0
 	}
 
 	if [catch { valnum $P(SWN,k) 0 1 } P(SWN,k)] {
@@ -6138,6 +6162,20 @@ proc osline_tag { ln tag { tags "" } } {
 	}
 }
 
+proc do_clean_search { } {
+#
+# Clean up the output pane
+#
+	global P
+
+	if { $P(SWN) != "" } {
+		$P(SWN,t) configure -state normal
+		$P(SWN,t) delete 1.0 end
+		$P(SWN,t) configure -state disabled
+		return
+	}
+}
+
 proc do_search { } {
 #
 # Toggles search/stop
@@ -6207,7 +6245,7 @@ proc do_search { } {
 	}
 
 	# start search, create a complete list of files
-	set fl [lsort [gfl_files $P(SWN,f)]]
+	set fl [lsort [gfl_files $P(SWN,f) $P(SWN,g)]]
 
 	if $P(SWN,x) {
 		# system files as well
@@ -6219,7 +6257,8 @@ proc do_search { } {
 		if { $P(SWN,f) != "" } {
 			# there is a pattern, trim the list
 			foreach f $tl {
-				if [regexp $P(SWN,f) $f] {
+				if { ( $P(SWN,g) && ![regexp $P(SWN,f) $f] ) ||
+				     (!$P(SWN,g) &&  [regexp $P(SWN,f) $f] ) } {
 					lappend fl $f
 				}
 			}

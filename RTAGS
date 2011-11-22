@@ -243,3 +243,14 @@ PG111121A:
 	properly.
 
 	Added command Clean to clean up the project.
+
+PG111122A:
+
+	PIP detects Elvis's problems with contacting the X server (like when
+	PIP is run in an environment without one) and diagnoses them instead
+	of just quietly failing to open the editor's window.
+
+	Added a "negation" checkbox in front of the file name qualifier regexp
+	in the Search window.
+
+	Added a "Clean" button in the Search window.
