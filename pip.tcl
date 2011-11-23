@@ -358,11 +358,6 @@ proc delay_trigger { } {
 
 ###############################################################################
 
-proc unimpl { } {
-#
-	alert "Not implemented yet"
-}
-	
 proc xq { pgm { pargs "" } } {
 #
 # A flexible exec (or so I hope)
@@ -376,14 +371,26 @@ proc xq { pgm { pargs "" } } {
 	return $ret
 }
 
+proc cw { } {
+#
+# Returns the window currently in focus or null if this is the root window
+#
+	set w [focus]
+	if { $w == "." } {
+		set w ""
+	}
+
+	return $w
+}
+
 proc alert { msg } {
 
-	tk_dialog .alert "Attention!" "${msg}!" "" 0 "OK"
+	tk_dialog [cw].alert "Attention!" "${msg}!" "" 0 "OK"
 }
 
 proc confirm { msg } {
 
-	return [tk_dialog .alert "Warning!" $msg "" 0 "NO" "YES"]
+	return [tk_dialog [cw].confirm "Warning!" $msg "" 0 "NO" "YES"]
 }
 
 proc trunc_fname { n fn } {
@@ -2069,7 +2076,7 @@ proc md_window { tt { lv 0 } } {
 #
 	global P
 
-	set w .modal$lv
+	set w [cw].modal$lv
 	catch { destroy $w }
 	set P(M$lv,WI) $w
 	toplevel $w
@@ -5811,7 +5818,7 @@ proc open_search_window { } {
 		return
 	}
 
-	set w ".search0"
+	set w "[cw].search0"
 	toplevel $w
 	wm title $w "Search"
 	set P(SWN) $w
@@ -6403,7 +6410,7 @@ proc search_colconf { b u } {
 		set tag "mtag"
 	}
 
-	set col [tk_chooseColor -initialcolor $col -title \
+	set col [tk_chooseColor -parent $P(SWN) -initialcolor $col -title \
 		"Choose $tp color"]
 
 	if { $col == "" } {

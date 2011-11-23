@@ -478,9 +478,21 @@ if {[info exists ::scrolledframe::version]} { return }
 # End scrolled frame ##########################################################
 ###############################################################################
 
+proc cw { } {
+#
+# Returns the window currently in focus or null if this is the root window
+#
+	set w [focus]
+	if { $w == "." } {
+		set w ""
+	}
+
+	return $w
+}
+
 proc alert { msg } {
 
-	tk_dialog .alert "Attention!" "${msg}!" "" 0 "OK"
+	tk_dialog [cw].alert "Attention!" "${msg}!" "" 0 "OK"
 }
 
 proc advlist { src n item } {

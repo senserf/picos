@@ -40,6 +40,7 @@ if [catch { exec uname } ST(SYS)] {
 }
 
 set PM(PWD) [file normalize [pwd]]
+set MWSG ""
 
 ## double exit avoidance flag
 set DEAF 0
@@ -602,53 +603,80 @@ proc enable_go { } {
 	$GOBUT configure -state normal
 }
 
+proc cw { } {
+#
+# Returns the window currently in focus or null if this is the root window
+#
+	set w [focus]
+	if { $w == "." } {
+		set w ""
+	}
+
+	return $w
+}
+
 proc alert { msg } {
 
-	tk_dialog .alert "Attention!" $msg "" 0 "OK"
+	tk_dialog [cw].alert "Attention!" $msg "" 0 "OK"
 }
 
 proc mk_mess_window { w h } {
 #
 # Progress message
 #
-	set wn ".msg"
+	global WMSG
 
-	toplevel $wn
+	set WMSG "[cw].msg"
 
-	wm title $wn "Progress report"
+	toplevel $WMSG
 
-	label $wn.t -width $w -height $h -borderwidth 2 -state normal
-	pack $wn.t -side top -fill x -fill y
-	button $wn.c -text "Cancel" -command cancel_gen
-	pack $wn.c -side top
-	bind $wn <Destroy> cancel_gen
-	$wn.t configure -text ""
-	raise $wn
+	wm title $WMSG "Progress report"
+
+	label $WMSG.t -width $w -height $h -borderwidth 2 -state normal
+	pack $WMSG.t -side top -fill x -fill y
+	button $WMSG.c -text "Cancel" -command cancel_gen
+	pack $WMSG.c -side top
+	bind $WMSG <Destroy> cancel_gen
+	$WMSG.t configure -text ""
+	raise $WMSG
 }
 
 proc cancelled { } {
 
-	return ![winfo exists ".msg"]
+	global WMSG
+
+	if { $WMSG == "" } {
+		return 1
+	}
+
+	if ![winfo exists $WMSG] {
+		set WMSG ""
+		return 1
+	}
+	return 0
 }
 
 proc outpgs { msg } {
 #
 # Progress message, detect cancellation
 #
+	global WMSG
+
 	if [cancelled] {
 		return 1
 	}
 
-	catch { .msg.t configure -text $msg }
+	catch { $WMSG.t configure -text $msg }
 
 	return 0
 }
 
 proc cancel_gen { } {
 
-	global EWAIT
+	global EWAIT WMSG
 
-	catch { destroy .msg }
+	catch { destroy $WMSG }
+	set WMSG ""
 	incr EWAIT
 }
 

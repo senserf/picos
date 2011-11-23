@@ -254,3 +254,15 @@ PG111122A:
 	in the Search window.
 
 	Added a "Clean" button in the Search window.
+
+PG111123A:
+
+	Fixed the parent of the code picker dialog in the Search window to
+	make the dialog grab control from that window (as opposed to the main
+	window).
+
+	Made sure that alerts, dialogs, and other modal windows (ones that grab
+	focus and event) are properly linked to their parent windows, so that
+	the window to which the modal window applies does not get covered by
+	the root window (to which all modal windows were previously linked by
+	default.
