@@ -266,3 +266,22 @@ PG111123A:
 	the window to which the modal window applies does not get covered by
 	the root window (to which all modal windows were previously linked by
 	default.
+
+PG111123B:
+
+	Added more options for handling system (PicOS) files in search. Now we
+	have these:
+
+	None	system files are not searched at all
+
+	Proj	only the system files related to the project (based on
+		Makefiles) are searched
+
+	All	all system files related to the given CPU are searched
+
+	Only	only (all) system files are searched, i.e., project files are
+		not searched
+
+	The last two options may be useful when modifying PicOS.
+
+	Fixed: the case number limit in search was not honored properly.

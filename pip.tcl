@@ -31,8 +31,11 @@ set PicOSPath	""
 set DefProjDir	""
 
 set EditCommand "elvis -f ram -m -G x11 -font 9x15"
-## Delay after opening a new elvis and before the first command to it can be
-## issued
+## Delay after opening a new elvis session and before the first command to it
+## can be issued; I am not sure this is needed, because I only had problems
+## with this (or rather with something that seems to be circumvented by this)
+## on my laptop's Linux X server, which behaves weirdly with many other
+## programs
 set NewCmdDelay 300
 set TagsCmd "elvtags"
 set TagsArgs "-l -i -t -v -h -s --"
@@ -111,7 +114,7 @@ set CFOptSFModes { "Never" "Tags, R/O" "Always, R/O" "Always, R/W" }
 set CFSearchItems {
 			"SESTRING"	""
 			"SESTYPE"	"RE"
-			"SESFILES"	0
+			"SESFILES"	"None"
 			"SESMAXL"	1000
 			"SESMAXC"	256
 			"SESBRACKET"	5
@@ -124,10 +127,10 @@ set CFSearchItems {
 
 ## Option tags for easy reference from the search window
 set CFSearchTags { "s" "m" "x" "l" "c" "b" "g" "f" "k" "h" "n" }
-
 set CFSearchModes { "RE" "ST" "WD" }
+set CFSearchSFiles { "None" "Proj" "All" "Only" }
 
-## Console line number limit
+## Default console line number limit
 set TermLines 1000
 
 set CFItems 	[concat $CFBoardItems \
@@ -136,7 +139,7 @@ set CFItems 	[concat $CFBoardItems \
 			$CFOptItems \
 			$CFSearchItems]
 
-## List of legal CPU types
+## List of legal CPU types; eCOG probably won't work
 set CPUTypes { MSP430 eCOG }
 
 ###############################################################################
@@ -5806,7 +5809,7 @@ proc do_cleanup { } {
 
 proc open_search_window { } {
 #
-	global P FFont CFSearchModes CFSearchItems CFSearchTags
+	global P FFont CFSearchModes CFSearchItems CFSearchTags CFSearchSFiles
 
 	if !$P(AC) {
 		return
@@ -5890,7 +5893,8 @@ proc open_search_window { } {
 
 	label $f.xl -text "Sys:"
 	pack $f.xl -side left -expand n
-	checkbutton $f.xf -variable P(SWN,x)
+
+	eval "tk_optionMenu $f.xf P(SWN,x) $CFSearchSFiles"
 	pack $f.xf -side left -expand n
 
 	button $f.yh -text "H" -command "search_colconf $f.yh h" \
@@ -5974,13 +5978,17 @@ proc validate_search_options { { force 0 } } {
 # Called to check if the search options make sense; if force, then force them
 # to decent
 #
-	global P CFSearchModes
+	global P CFSearchModes CFSearchSFiles
 
 	set er ""
 
 	if { [lsearch -exact $CFSearchModes $P(SWN,m)] < 0 } {
 		# this cannot really happen unless the config file is broken
 		set P(SWN,m) [lindex $CFSearchModes 0]
+	}
+
+	if { [lsearch -exact $CFSearchSFiles $P(SWN,x)] < 0 } {
+		set P(SWN,x) [lindex $CFSearchSFiles 0]
 	}
 
 	if { $P(SWN,s) != "" && $P(SWN,m) == "RE" } {
@@ -6009,10 +6017,6 @@ proc validate_search_options { { force 0 } } {
 
 	# checkbuttons cannot really be wrong, unless something behind the
 	# scenes is wrong (e.g., the config file has been altered manually)
-	if [catch { valnum $P(SWN,x) 0 1 } P(SWN,x)] {
-		set P(SWN,x) 0
-	}
-
 	if [catch { valnum $P(SWN,g) 0 1 } P(SWN,g)] {
 		set P(SWN,g) 0
 	}
@@ -6187,7 +6191,7 @@ proc do_search { } {
 #
 # Toggles search/stop
 #
-	global P STagsCmd
+	global P STagsCmd PicOSPath
 
 	if { $P(SWN) == "" } {
 		return
@@ -6252,10 +6256,16 @@ proc do_search { } {
 	}
 
 	# start search, create a complete list of files
-	set fl [lsort [gfl_files $P(SWN,f) $P(SWN,g)]]
+	if { $P(SWN,x) == "Only" } {
+		# we only want system files
+		set fl ""
+	} else {
+		# start with project files
+		set fl [lsort [gfl_files $P(SWN,f) $P(SWN,g)]]
+	}
 
-	if $P(SWN,x) {
-		# system files as well
+	if { $P(SWN,x) == "Proj" } {
+		# system files related to the project
 		if [catch { xq $STagsCmd "-f" } tl] {
 			alert "Cannot list system files: $tl"
 			return
@@ -6272,6 +6282,25 @@ proc do_search { } {
 		} else {
 			# all files
 			set fl [concat $fl $tl]
+		}
+	} elseif { $P(SWN,x) != "None" } {
+		# all system files "All" or "Only"
+		if [catch { xq $STagsCmd "-F [dict get $P(CO) CPU]" } tl] {
+			alert "Cannot list system files: $tl"
+			return
+		}
+
+		# the files are PicOS-relative
+		set t [file join $PicOSPath "PicOS"]
+		foreach f $tl {
+			set f [file normalize [file join $t $f]]
+			if { $P(SWN,f) != "" } {
+				if { ( $P(SWN,g) &&  [regexp $P(SWN,f) $f] ) ||
+				     (!$P(SWN,g) && ![regexp $P(SWN,f) $f] ) } {
+					continue
+				}
+			}
+			lappend fl $f
 		}
 	}
 
@@ -6299,7 +6328,7 @@ proc do_search { } {
 	set CNT 0
 	foreach f $fl {
 		update
-		if { $P(SST) == 0 } {
+		if { $P(SST) == 0 || $CNT >= $P(SWN,c) } {
 			break
 		}
 		if [catch { open $f "r" } fd] {

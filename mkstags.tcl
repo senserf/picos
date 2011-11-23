@@ -2,8 +2,28 @@
 ###################\
 exec tclsh85 "$0" "$@"
 #
-# Creates ctags from the system files used by the project
-#
+
+##################################################################
+# Copyright (C) Olsonet Communications, 2011 All Rights Reserved #
+##################################################################
+
+##
+## This script performs the following actions:
+##
+## If called without arguments, it locates all system files used by the
+## project (based on the combined contents of Makefiles in the current
+## directory) and executes elvtags for all those files to produce a combined
+## ctags file on the standard output.
+##
+## If called with -f, it just performs the first step and returns the sorted
+## list of unique file paths on the standard output. PIP calls it this way,
+## if it just wants to learn which system files the project uses.
+##
+## If called with -F followed by the CPU type (msp430, eCOG), it returns the
+## list of all system files for the given CPU type, regardless of whether the
+## project uses them or not (the Makefiles are irrelevant) on the standard
+## output.
+##
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -35,6 +55,9 @@ if [regexp -nocase "^\[a-z\]:" $WD] {
 
 set TagsCmd "elvtags"
 set TagsArgs "-l -i -t -v -h --"
+set PPCmd "picospath"
+## zero-level directories other than ..cpu.. to scan with -F (lower case)
+set PPDirs { libs kernel }
 
 ###############################################################################
 
@@ -139,7 +162,7 @@ proc scan_mkfile { mfn } {
 	}
 }
 
-proc make_file_list { } {
+proc make_list_of_project_related_system_files { } {
 
 	global FLIST
 
@@ -158,14 +181,83 @@ proc make_file_list { } {
 	return $fl
 }
 
-set FL [make_file_list]
+proc make_list_of_all_system_files { cpu } {
+
+	global PPCmd FLIST PDIR
+
+	# PicOS path
+	set PDIR [file join [xq $PPCmd ""] "PicOS"]
+
+	set FLIST ""
+
+	# the files will be PICOS/PicOS-relative
+	traverse $cpu ""
+}
+
+proc traverse { c p } {
+#
+# Traverses recursively directories collecting all file names
+#
+	global FLIST PDIR PPDirs
+
+	set wh [file join $PDIR $p]
+
+	if [catch { glob -directory $wh -tails * } sdl] {
+		return
+	}
+
+	foreach f $sdl {
+		set ff [file join $wh $f]
+		if [file isfile $ff] {
+			lappend FLIST [file join $p $f]
+			continue
+		}
+		if ![file isdirectory $ff] {
+			continue
+		} 
+		if [catch { file lstat $ff vv } ] {
+			continue
+		}
+		if { $vv(type) != "directory" } {
+			continue
+		}
+		array unset vv
+		if { $c != "" } {
+			# zero level
+			set f [string tolower $f]
+			if { $f != $c && [lsearch $f $PPDirs] < 0 } {
+				# ignore
+				continue
+			}
+		}
+		traverse "" [file join $p $f]
+	}
+}
+
+###############################################################################
+
+set FL [lsearch -exact $argv "-F"]
+if { $FL >= 0 } {
+	set cpu [lindex $argv [expr $FL + 1]]
+	if { $cpu == "" } {
+		set cpu "msp430"
+	} else {
+		# unify the case
+		set cpu [string tolower $cpu]
+	}
+	make_list_of_all_system_files $cpu
+	puts [lsort $FLIST]
+	exit 0
+}
+
+set FL [make_list_of_project_related_system_files]
+
+if { [lsearch -exact $argv "-f"] >= 0 } {
+	puts $FL
+	exit 0
+}
 
 if { [llength $FL] > 0 } {
-	if { [lsearch -exact $argv "-f"] >= 0 } {
-		# just the file list
-		puts $FL
-	} elseif { [llength $FL] > 0 } {
-		# make the tags
-		puts [xq $TagsCmd [concat $TagsArgs $FL]]
-	}
+	# make the tags
+	puts [xq $TagsCmd [concat $TagsArgs $FL]]
 }
