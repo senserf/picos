@@ -97,7 +97,7 @@ WO110423A:
 WO110827A:
   Added kek_ned, see 'notes there. Updated Olsonet's (c) in main.c.
 
-WO111128A:
+WO111127A:
   Updated 'survey', see survey.odt for functional changes. This, plus restored
   ee_open() and some cosmetics. Also, nov21.xml describes outdoor experiments
   comparing emspcc with Nanotron nodes.
