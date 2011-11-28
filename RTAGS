@@ -285,3 +285,15 @@ PG111123B:
 	The last two options may be useful when modifying PicOS.
 
 	Fixed: the case number limit in search was not honored properly.
+
+PG111128A:
+
+	Added options to include VUEE (system) files (i.e., ones in VUEE/PICOS)
+	for ctags and search. Many things redone. In particular, the external
+	scripts elvissettings and mkstags eliminated and replaced by internal
+	code. Added buttons to the Search window to edit/create any file
+	anywhere, which will make it more natural to use PIP for fixing PicOS,
+	VUEE, and also SIDE from within a project.
+
+	A manual becomes more and more needed. While many things are obvious,
+	some do call for a bit of explanation.

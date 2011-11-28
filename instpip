@@ -142,8 +142,6 @@ if { $ST(SYS) == "L"} {
 
 fixtcl85 "." "pip.tcl" $hd $TCL85
 fixtcl85 "." "genimage.tcl" $hd $TCL85
-fixtcl85 "." "mkstags.tcl" $hd $TCL85
-fixtcl85 "." "elvissettings.tcl" $hd $TCL85
 
 if { $ST(SYS) == "L" } {
 	fixtcl85 "." "gdbloader.tcl" $hd $TCL85
@@ -153,8 +151,11 @@ cd $hd
 
 catch { exec ln -sf pip.tcl pip }
 catch { exec ln -sf genimage.tcl genimage }
-catch { exec ln -sf mkstags.tcl mkstags }
 catch { exec ln -sf elvissettings.tcl elvissettings }
+
+# remove previous programs/scripts that are no more
+catch { exec rm -rf mkstags mkstags.tcl }
+catch { exec rm -rf elvissettings elvissettings.tcl }
 
 if { $ST(SYS) == "L" } {
 	catch { exec ln -sf gdbloader.tcl gdbloader }
