@@ -4596,7 +4596,7 @@ void hold (int st, lword sec) {
 	setFlag (ThePPcs->Flags, _PP_flag_wtimer);
 	Timer->wait (delta, st);
 	sleep;
-};
+}
 
 sint __pi_getcpid () {
 

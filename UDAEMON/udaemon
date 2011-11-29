@@ -1275,7 +1275,8 @@ proc endLine { Sok w } {
 
 proc sntype { t } {
 #
-# Sanitize the node type name received from the VUEE agent
+# Sanitize the node type name received from the VUEE agent (removing the
+# initial mangle)
 #
 	regsub "^_+\[^_\]+_*" $t "" t
 	return $t
@@ -3570,7 +3571,7 @@ proc pwrtDoResize { Sok } {
 	# correct for the window boundary
 	set aw $Stat($Sok,WW)
 	set ah $Stat($Sok,WH)
-	foreach { dw dh } $Stat($Sok,RM) { }
+	lassign $Stat($Sok,RM) dw dh
 
 	set aw [expr $aw - $dw]
 	set ah [expr $ah - $dh]
@@ -3587,7 +3588,7 @@ proc pwrtRedraw { Sok } {
 
 	set w [stwin $Sok]
 
-	foreach { tm vv av sv bv tf tl } $Stat($Sok,VL) { }
+	lassign $Stat($Sok,VL) tm vv av sv bv tf tl
 
 	set W $Stat($Sok,WW)
 	set H $Stat($Sok,WH)
@@ -3738,7 +3739,7 @@ proc pwrtParse { Sok } {
 			return
 	}
 
-	foreach { tm vv av sv bv tf tl } $Stat($Sok,VL) { }
+	lassign $Stat($Sok,VL) tm vv av sv bv tf tl
 
 	if { $bv == 0.0 } {
 		# the first time around
@@ -4160,7 +4161,7 @@ proc cvcalc_static { Sok wi hi } {
 	global Stat CMARGIN
 
 	# the canvas size
-	foreach { aw ah } $Stat($Sok,NC) { }
+	lassign $Stat($Sok,NC) aw ah
 
 	set cw [expr $aw - $CMARGIN(L) - $CMARGIN(R)]
 	set ch [expr $ah - $CMARGIN(U) - $CMARGIN(D)]
@@ -4221,7 +4222,41 @@ proc cvcalc_static { Sok wi hi } {
 	return 0
 }
 
-proc cvcalc_dynamic { Sok { cre 0 }} {
+proc mv_xpand { min max D } {
+#
+# Expands MAX-MIN to at least D symmetrically, but such that MIN never gets
+# below 0
+#
+	upvar $min MIN
+	upvar $max MAX
+
+	# current span
+	set d [expr $MAX - $MIN]
+
+	if { $d >= $D } {
+		# forget it
+		return $d
+	}
+
+	# the deficit
+	set d [expr $D - $d]
+
+	# try symmetrically
+	set h [expr $d / 2.0]
+
+	if { $h > $MIN } {
+		# cannot be symmetric
+		set MIN 0.0
+		set MAX $D
+	} else {
+		set MIN [expr $MIN - $h]
+		set MAX [expr $MAX + $h]
+	}
+
+	return [expr $MAX - $MIN]
+}
+
+proc cvcalc_dynamic { Sok } {
 #
 # Recalculate canvas parameters based on current network bounds
 #
@@ -4251,26 +4286,12 @@ proc cvcalc_dynamic { Sok { cre 0 }} {
 		}
 	}
 
-	set W [expr $XH - $XL]
-	set H [expr $YH - $YL]
-
 	# make it at least one meter on each dimension
-	if { $W < 1.0 } {
-		set D [expr (1.0 - $W) / 2.0]
-		set XL [expr $XL - $D]
-		set XH [expr $XH + $D]
-		set W [expr $XH - $XL]
-	}
+	set W [mv_xpand XL XH 1.0]
+	set H [mv_xpand YL YH 1.0]
 
-	if { $H < 1.0 } {
-		set D [expr (1.0 - $H) / 2.0]
-		set YL [expr $YL - $D]
-		set YH [expr $YH + $D]
-		set H [expr $YH - $YL]
-	}
-
-	# absolute parameters of the canvas
-	foreach { aw ah } $Stat($Sok,NC) { }
+	# absolute parameters of the canvas in pixels
+	lassign $Stat($Sok,NC) aw ah
 
 	# subtract the margins to obtain the active width and height
 	set cw [expr $aw - $CMARGIN(L) - $CMARGIN(R)]
@@ -4285,22 +4306,17 @@ proc cvcalc_dynamic { Sok { cre 0 }} {
 	# make the coordinates fit
 
 	if { [expr double ($ch) / double ($cw)] > \
-	    [expr double ( $H) / double ( $W)] } {
-		# constrained by width, calculate height increment
-		set D [expr (((double ($W) * double ($ch)) / double ($cw)) \
-			- $H) / 2.0]
-		set YL [expr $YL - $D]
-		set YH [expr $YH + $D]
-		set H [expr $YH - $YL]
+	     [expr double ( $H) / double ( $W)] } {
+		# constrained by width, calculate height
+		set D [expr (double ($W) * double ($ch)) / double ($cw)]
+		set H [mv_xpand YL YH $D]
 	} else {
 		# vice versa
-		set D [expr (((double ($H) * double ($cw)) / double ($ch)) \
-			- $W) / 2.0]
-		set XL [expr $XL - $D]
-		set XH [expr $XH + $D]
-		set W [expr $XH - $XL]
+		set D [expr (double ($H) * double ($cw)) / double ($ch)]
+		set W [mv_xpand XL XH $D]
 	}
 
+	# network bounds
 	set Stat($Sok,M,XL) $XL
 	set Stat($Sok,M,XH) $XH
 	set Stat($Sok,M,YL) $YL
@@ -4357,7 +4373,7 @@ proc mkMove { Sok } {
 		if [cvcalc_static $Sok $wi $hi] {
 			return 1
 		}
-		foreach { aw ah } $Stat($Sok,NC) { }
+		lassign $Stat($Sok,NC) aw ah
 		canvas $w.c -width $aw -height $ah
 		pack $w.c -expand 1 -fill both
 		$w.c create image 0 0 -anchor nw -image $bgr
@@ -4366,8 +4382,8 @@ proc mkMove { Sok } {
 		set Stat($Sok,NC) [list $CMARGIN(DW) $CMARGIN(DH)]
 		# resizable
 		set Stat($Sok,RE) 1
-		cvcalc_dynamic $Sok 1
-		foreach { aw ah } $Stat($Sok,NC) { }
+		cvcalc_dynamic $Sok
+		lassign $Stat($Sok,NC) aw ah
 		canvas $w.c -width $aw -height $ah
 		pack $w.c -expand 1 -fill both
 	}
@@ -4397,17 +4413,24 @@ proc moveRedraw { Sok } {
 	set w [stwin $Sok]
 	set N $Stat($Sok,NN)
 
+	# network width and height
 	set W $Stat($Sok,M,W)
 	set H $Stat($Sok,M,H)
 	set dmsg [format "%4.3fm x %4.3fm" $W $H]
-	foreach { aw ah } $Stat($Sok,NC) { }
+
+	# canvas (full) width and height
+	lassign $Stat($Sok,NC) aw ah
+	# coordinates of the message
 	set ddx [expr $aw - $CMARGIN(RX)]
 	set ddy [expr $ah - $CMARGIN(RY)]
 
 	if ![info exists Stat($Sok,AX)] {
-		# we are creating the canvas
+		# this means that we are creating the canvas
 		for { set n 0 } { $n < $N } { incr n } {
-			foreach { x y z c o t f } $Stat($Sok,NL,$n) { }
+
+			lassign $Stat($Sok,NL,$n) x y z c o t f
+
+			# network to canvas
 			set cx [xtocv $Sok $x]
 			set cy [ytocv $Sok $y]
 
@@ -4479,13 +4502,9 @@ proc moveRedraw { Sok } {
 			-text $dmsg -state disabled]
 	} else {
 		for { set n 0 } { $n < $N } { incr n } {
-			foreach { x y z c o t } $Stat($Sok,NL,$n) { }
+			lassign $Stat($Sok,NL,$n) x y z c o t
 			set cx [xtocv $Sok $x]
 			set cy [ytocv $Sok $y]
-			set ns [lindex $c 0]
-			if { $ns == 0 } {
-				set ns 1
-			}
 			set cxl [expr $cx - $CMARGIN(NR)]
 			set cyl [expr $cy - $CMARGIN(NR)]
 			set cxh [expr $cx + $CMARGIN(NR)]
@@ -4556,9 +4575,9 @@ proc moveMove { Sok n nx ny } {
 
 	set w [stwin $Sok]
 
-	foreach { x y z c o t f } $Stat($Sok,NL,$n) { }
+	lassign $Stat($Sok,NL,$n) x y z c o t f
 
-	# the actual coordinates
+	# network coordinates
 	set x [xfromcv $Sok $nx]
 	set y [yfromcv $Sok $ny]
 
@@ -4579,15 +4598,38 @@ proc moveMove { Sok n nx ny } {
 			set ny [xtocv $Sok $y]
 		}
 	} else {
-		# make sure the network coordinates never get below zero
-		if { $x < 0.0 } {
-			set x 0.0
-			set nx [xtocv $Sok 0.0]
+		if ![info exists Stat($Sok,LS)] {
+			# calculate limits for this move
+			set d $Stat($Sok,M,W)
+			set xl [expr $Stat($Sok,M,XL) - $d]
+			if { $xl < 0.0 } {
+				set xl 0.0
+			}
+			set xh [expr $Stat($Sok,M,XH) + $d]
+			set d $Stat($Sok,M,H)
+			set yl [expr $Stat($Sok,M,YL) - $d]
+			if { $yl < 0.0 } {
+				set yl 0.0
+			}
+			set yh [expr $Stat($Sok,M,YH) + $d]
+			set Stat($Sok,LS) [list $xl $xh $yl $yh]
+		} else {
+			lassign $Stat($Sok,LS) xl xh yl yh
 		}
-
-		if { $y < 0.0 } {
-			set y 0.0
-			set ny [ytocv $Sok 0.0]
+		if { $x < $xl } {
+			set x $xl
+			set nx [xtocv $Sok $x]
+		} elseif { $x > $xh } {
+			set x $xh
+			set nx [xtocv $Sok $x]
+		}
+		if { $y < $yl } {
+			set y $yl
+			set ny [ytocv $Sok $y]
+		}
+		if { $y > $yh } {
+			set y $yh
+			set ny [ytocv $Sok $y]
 		}
 	}
 
@@ -4700,7 +4742,13 @@ proc moveUpButton { Sok n } {
 	}
 
 	if [info exists Stat($Sok,PS)] {
+		# starting point for a line
 		unset Stat($Sok,PS)
+	}
+
+	if [info exists Stat($Sok,LS)] {
+		# window size at start of move
+		unset Stat($Sok,LS)
 	}
 
 	unset Stat($Sok,MF)
@@ -4756,8 +4804,8 @@ proc moveDoResize { Sok } {
 	}
 
 	# correct for the window boundary
-	foreach { aw ah } $Stat($Sok,NC) { }
-	foreach { dw dh } $Stat($Sok,RM) { }
+	lassign $Stat($Sok,NC) aw ah
+	lassign $Stat($Sok,RM) dw dh
 
 	set aw [expr $aw - $dw]
 	set ah [expr $ah - $dh]
@@ -4826,6 +4874,7 @@ proc moveRedim { Sok nxx nyy } {
 	upvar $nxx nx
 	upvar $nyy ny
 
+	# current network bounds
 	set XL $Stat($Sok,M,XL)
 	set XH $Stat($Sok,M,XH)
 	set YL $Stat($Sok,M,YL)
@@ -4864,7 +4913,7 @@ proc moveNewLocation { Sok nod nx ny ls ps } {
 
 	set w [stwin $Sok]
 
-	foreach { x y z c o t f } $Stat($Sok,NL,$nod) { }
+	lassign $Stat($Sok,NL,$nod) x y z c o t f
 	# color change flag
 	set cc 0
 	# position change flag

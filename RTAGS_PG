@@ -713,3 +713,11 @@ PG111029A:
 
     Keep stdout open in udaemon, which is needed py PIP (on Linux) to correctly
     perceive that udaemon is still there.
+
+PG111129A:
+
+    Fixed a bug in udaemon causing problems with ROAMER when nodes were moved
+    outside the canvas. Imposed a limit on how far you can move a node outside
+    the canvas with a single mouse drag - to one current network diameter,
+    i.e., the network width and/or height cannot grow by more than its last
+    width/height.
