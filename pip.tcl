@@ -204,6 +204,7 @@ set NSESchemes	6
 
 ## Fixed font for the terminal, entry boxes, and so on
 set FFont {-family courier -size 10}
+set SFont {-family courier -size 9}
 
 ###############################################################################
 
@@ -5085,7 +5086,7 @@ proc ece_mkwindow { } {
 #
 # Creates the editor's dialog window
 #
-	global P ece_V ESchemesD ece_ATT ece_FS ece_CL
+	global P ece_V ESchemesD ece_ATT ece_FS ece_CL SFont
 
 	set w [md_window "Elvis configuration" 1]
 
@@ -5243,7 +5244,7 @@ proc ece_mkwindow { } {
 
 	set P(M1,EC) $tf.t
 
-	text $tf.t -font {-family courier -size 9} -state normal \
+	text $tf.t -font $SFont -state normal \
 		-yscrollcommand "$tf.scrolly set" \
 		-exportselection yes -width 54 -height 2
 
@@ -5258,6 +5259,15 @@ proc ece_mkwindow { } {
 	bind $P(M1,EC) <ButtonRelease-2> "tk_textPaste $P(M1,EC)"
 
 	bind $w <Destroy> "md_click -1 1"
+}
+
+proc ece_gcommands { } {
+#
+# Extract the extra commands from the text entry
+#
+	global P ece_V
+
+	set ece_V(commands) [string trim [$P(M1,EC) get 1.0 end]]
 }
 
 proc ece_colpick { ix wi } {
@@ -5337,6 +5347,7 @@ proc ece_editor { inp } {
 		if { $ev > 0 } {
 			# accepted
 			set out ""
+			ece_gcommands
 			foreach c $ESchemesD {
 				set c [lindex $c 0]
 				lappend out [list $c $ece_V($c)]
@@ -6818,7 +6829,7 @@ proc open_search_window { } {
 		set P(SWN,$u) [dict get $P(CO) $k]
 	}
 
-	# search in progress
+	# no search in progress
 	set P(SST) 0
 
 	validate_search_options 1
@@ -6836,8 +6847,17 @@ proc open_search_window { } {
 	label $f.sl -text "String: "
 	pack $f.sl -side left -expand n
 
-	entry $f.se -width 24 -font $FFont -textvariable P(SWN,s)
+	text $f.se -width 24 -height 1 -font $FFont -state normal \
+		-exportselection yes
 	pack $f.se -side left -expand y -fill x
+
+	$f.se insert end $P(SWN,s)
+
+	# pointer to the text widget
+	set P(SWN,ss) $f.se
+
+	bind $f.se <ButtonRelease-1> "tk_textCopy $f.se"
+	bind $f.se <ButtonRelease-2> "tk_textPaste $f.se"
 
 	foreach rb $CFSearchModes {
 		set r $f.[string tolower $rb]
@@ -7057,6 +7077,7 @@ proc update_search_options { } {
 		return
 	}
 
+	search_usp
 	validate_search_options 1
 
 	# change flag
@@ -7162,6 +7183,16 @@ proc do_clean_search { } {
 	}
 }
 
+proc search_usp { } {
+#
+# Update the pattern from the text widget
+#
+	global P
+
+	set P(SWN,s) [string trim [$P(SWN,ss) get 1.0 end]]
+	log "Search pattern: $P(SWN,s)"
+}
+
 proc do_search { } {
 #
 # Toggles search/stop
@@ -7189,6 +7220,7 @@ proc do_search { } {
 	}
 
 	# we are not searching, start search
+	search_usp
 	set er [validate_search_options]
 
 	if { $er != "" } {

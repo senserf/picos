@@ -297,3 +297,11 @@ PG111128A:
 
 	A manual becomes more and more needed. While many things are obvious,
 	some do call for a bit of explanation.
+
+PG111130A:
+
+	Fixed a problem in the elvis scheme editor with the "extra commands"
+	field which was not copied properly. Not that it extremely useful.
+
+	The string field in the Search window changed to "text", so that cut
+	and paste (UNIX style) works.
