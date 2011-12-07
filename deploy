@@ -28,15 +28,18 @@ if [catch { exec uname } ST(SYS)] {
 	set ST(SYS) "W"
 }
 
-proc fixtcl85 { dir pgm bin tcl } {
+proc fixtcl85 { dir pgm suf bin tcl } {
 
 	global BINW ST
 
 	set src [file join $dir $pgm]
 
+	set trg "[file rootname [file join $bin $pgm]]$suf"
+	set pgm [file tail $trg]
+
 	if { $ST(SYS) == "L" } {
 		# just copy it
-		if [catch { file copy -force -- $src $bin } err] {
+		if [catch { file copy -force -- $src $trg } err] {
 			puts "Cannot copy $pgm to $bin: $err!"
 		}
 		return
@@ -63,20 +66,8 @@ proc fixtcl85 { dir pgm bin tcl } {
 		return
 	}
 
-	set trg [file join $bin $pgm]
-	if [catch { open $trg "w" } fd] {
-		puts "Cannot write $trg, ignored!"
-		return
-	}
-
-	# without this, weird things happen to arguments passed to the script;
-	# this is all beyond my comprehension
-	fconfigure $fd -translation lf
-
-	if [catch { puts -nonewline $fd $txt } err] {
-		puts "Cannot write $trg: $err!"
-	}
-
+	catch { exec rm -rf $trg }
+	catch { exec cat > $trg << $txt }
 	catch { exec chmod +x $trg }
 	catch { close $fd }
 }
@@ -112,11 +103,14 @@ puts "Tcl directory: $tcldir"
 
 set HOME [file normalize $env(HOME)]
 
-set BIN ""
-foreach bc { bin BIN } {
-	if [file isdirectory [file join $HOME $bc]] {
-		set BIN $bc
-		break
+set BIN [string trim [lindex $argv 0]]
+
+if { $BIN == "" } {
+	foreach bc { bin BIN } {
+		if [file isdirectory [file join $HOME $bc]] {
+			set BIN $bc
+			break
+		}
 	}
 }
 
@@ -140,25 +134,19 @@ if { $ST(SYS) == "L"} {
 	set BINW [exec cygpath -m $hd]
 }
 
-fixtcl85 "." "pip.tcl" $hd $TCL85
-fixtcl85 "." "genimage.tcl" $hd $TCL85
-
-if { $ST(SYS) == "L" } {
-	fixtcl85 "." "gdbloader.tcl" $hd $TCL85
-}
+fixtcl85 "." "pip.tcl" "" $hd $TCL85
+fixtcl85 "." "genimage.tcl" ".tcl" $hd $TCL85
+fixtcl85 "." "gdbloader.tcl" "" $hd $TCL85
 
 cd $hd
 
-catch { exec ln -sf pip.tcl pip }
+catch { exec rm -rf genimage }
 catch { exec ln -sf genimage.tcl genimage }
-catch { exec ln -sf elvissettings.tcl elvissettings }
 
 # remove previous programs/scripts that are no more
+catch { exec rm -rf pip.tcl }
 catch { exec rm -rf mkstags mkstags.tcl }
 catch { exec rm -rf elvissettings elvissettings.tcl }
-
-if { $ST(SYS) == "L" } {
-	catch { exec ln -sf gdbloader.tcl gdbloader }
-}
+catch { exec rm -rf gdbloader.tcl }
 
 puts "All done"

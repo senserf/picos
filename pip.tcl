@@ -5,10 +5,11 @@ exec tclsh85 "$0" "$@"
 package require Tk
 package require Ttk
 
+set ST(VER) 0.4
+
 ###############################################################################
 # Determine the system type ###################################################
 ###############################################################################
-
 if [catch { exec uname } ST(SYS)] {
 	set ST(SYS) "W"
 } elseif [regexp -nocase "linux" $ST(SYS)] {
@@ -18,6 +19,21 @@ if [catch { exec uname } ST(SYS)] {
 } else {
 	set ST(SYS) "W"
 }
+if { $ST(SYS) != "L" } {
+	# sanitize arguments; here you a sample of the magnitude of stupidity
+	# one have to fight when glueing together Windows and Cygwin stuff;
+	# the last argument (sometimes!) has a CR character appended at the
+	# end, and you wouldn't believe how much havoc that can cause
+	set u [string trimright [lindex $argv end]]
+	if { $u == "" } {
+		set argv [lreplace $argv end end]
+	} else {
+		set argv [lreplace $argv end end $u]
+	}
+	unset u
+}
+###############################################################################
+###############################################################################
 
 if { [lsearch -exact $argv "-D"] >= 0 } {
 	set ST(DEB) 1
@@ -44,6 +60,23 @@ set STagsArgs "-l -i -t -v -h --"
 ## tagged
 set VTagsArgs "-l -i -t -v -h -s --"
 set GdbLdCmd "gdbloader"
+set GdbLdUse "usefetdll"
+if { $ST(SYS) == "L" } {
+	# Only this works for now
+	set GdbLdPgm {
+			{ "FET430UIF" "tiusb" "" }
+		     }
+	## Only this one causes problems
+	set GdbLdPtk { "msp430-gdbproxy" }
+} else {
+	set GdbLdPgm {
+			{ "FET430UIF" "tiusb" "TIUSB" }
+			{ "Olimex-Tiny" "olimex" "TIUSB" }
+			{ "Generic" "original" "" }
+		     }
+	## Programs to kill (clean up) when gdbloader exits
+	set GdbLdPtk { "msp430-gdbproxy" "msp430-gdb" }
+}
 set PiterCmd "piter"
 
 if { $ST(SYS) == "L" } {
@@ -244,6 +277,8 @@ set TCMD(FL) ""
 set TCMD(FL,CB) ""
 set TCMD(FL,SI) "INT"
 set TCMD(FL,AC) "upload_action"
+## loader type (CFLDNames)
+set TCMD(FL,LT) ""
 
 ## Slots for up to 4 instances of piter, CPITERS counts them, so we can order
 ## them dynamically
@@ -298,6 +333,28 @@ proc mreplace { l ix it } {
 	}
 
 	return [lreplace $l $ix $ix $it]
+}
+
+proc valfname { fn t } {
+#
+# Checks if the file/directory name doesn't include illegal (from our point of
+# view) characters
+#
+
+	if { [string tolower [string index $t 0]] == "d" } {
+		set t "directory"
+	} else {
+		set t "file"
+	}
+
+	if [regexp "\[\\\\ \t\r\n;\]" $fn] {
+		alert "Illegal character(s) in $t name $fn; names used in\
+			projects (or anywhere inside PICOS)\
+			must not include spaces, tabs, semicolons,\
+			or backslashes"
+		return 0
+	}
+	return 1
 }
 
 proc valnum { n { min "" } { max "" } } {
@@ -1175,6 +1232,12 @@ proc tag_request { fd tag } {
 	}
 	if { $ta == "" } {
 		term_dspline "Tag $tag not found"
+		# check if the Search window is present; if so, insert the
+		# tag's string into the search text widget
+		if { $P(SWN) != "" } {
+			$P(SWN,ss) delete 1.0 end
+			$P(SWN,ss) insert end $tag
+		}
 		return
 	}
 
@@ -2392,6 +2455,10 @@ proc new_file { { x "" } { y "" } } {
 			continue
 		}
 
+		if ![valfname $fn "f"] {
+			continue
+		}
+
 		break
 	}
 
@@ -2529,6 +2596,11 @@ proc copy_to { { x "" } { y "" } } {
 				continue
 			}
 
+			if { [file_location $fl] != "X" &&
+			    ![valfname $fl "f"] } {
+				continue
+			}
+
 			log "Copying $fp to $fl"
 			if ![catch { file copy -force -- $fp $fl } err] {
 				return
@@ -2555,6 +2627,10 @@ proc copy_to { { x "" } { y "" } } {
 		}
 
 		set fl [file normalize $fl]
+
+		if { [file_location $fl] != "X" && ![valfname $fl "d"] } {
+			continue
+		}
 
 		if ![file isdirectory $fl] {
 			# try to create
@@ -2635,11 +2711,11 @@ proc rename_file { { x "" } { y "" } } {
 				alert "The new name cannot be empty"
 				continue
 			}
-			if [regexp "\[\\\\/ \t;\]" $nm] {
-				alert \
-				    "The new name $nm has an illegal character"
+
+			if ![valfname $nm $t] {
 				continue
 			}
+
 			if { $t == "d" } {
 				if [reserved_dname $nm] {
 					bad_dirname
@@ -2716,6 +2792,10 @@ proc val_prj_dir { dir } {
 
 	set apps [file normalize [file join $PicOSPath Apps]]
 
+	if ![valfname $dir "d"] {
+		return 0
+	}
+
 	while 1 {
 		set d [file normalize [file dirname $dir]]
 		if { $d == $dir } {
@@ -2753,13 +2833,21 @@ proc val_prj_exists { dir { try 0 } } {
 # Check if the directory contains an existing project that appears to be making
 # sense; try != 0 -> don't start it - just check, try < 2 -> issue alerts
 #
-	global P
+	global P ST
 
 	if ![file isdirectory $dir] {
 		if { $try <= 1 } {
 			alert "The project directory $dir does not exist"
 		}
 		return 0
+	}
+
+	# if there's a config.prj file, assume the project is OK regardless
+	# of the content
+	set pcf [file isfile [file join $dir "config.prj"]]
+
+	if $pcf {
+		log "config.prj exists"
 	}
 
 	if { [catch { glob -directory $dir -tails * } fl] || $fl == "" } {
@@ -2779,23 +2867,27 @@ proc val_prj_exists { dir { try 0 } } {
 				if { $try <= 1 } {
 					val_prj_incomp
 				}
-				# return code == not a project, but nonempty
+				# return code == not a project, but
+				# nonempty
 				return -1
 			}
 			set es 1
 			continue
 		}
-		if { $fn == "app.c" } {
+
+		# ignore such inconsistencies if the config file is present
+		if { $fn == "app.c" && !$pcf } {
 			if { $try <= 1 } {
 				alert "This looks like a legacy praxis:\
-					file app.c is incompatible with our\
-					projects, please convert manually and\
-					try again"
+					file app.c is incompatible with\
+					PIP projects, please convert\
+					manually and try again"
 			}
 			return -1
 		}
+
 		if [regexp "^app_(\[a-zA-Z0-9\]+)\\.cc$" $fn jnk pn] {
-			if $es {
+			if { $es && !$pcf } {
 				if { $try <= 1 } {
 					val_prj_incomp
 				}
@@ -2804,14 +2896,16 @@ proc val_prj_exists { dir { try 0 } } {
 			lappend pl $pn
 		}
 	}
-
-	if { !$es && $pl == "" } {
+	
+	if { !$pcf && !$es && $pl == "" } {
 		if { $try <= 1 } {
-			alert "There is nothing resembling a PicOS project in\
-				directory $dir"
+			alert "There is nothing resembling a PicOS\
+				project in directory $dir"
 		}
 		return -1
 	}
+
+	# project OK
 
 	if $try {
 		# do no more
@@ -2831,7 +2925,7 @@ proc val_prj_exists { dir { try 0 } } {
 
 	set P(PL) $pl
 
-	wm title . "Project: [prj_name $dir]"
+	wm title . "PIP $ST(VER), project [prj_name $dir]"
 
 	gfl_tree
 
@@ -2874,6 +2968,7 @@ proc clone_project { } {
 	while 1 {
 		# select target directory
 		set dir [tk_chooseDirectory -initialdir $DefProjDir \
+			-mustexist 0 \
 			-title "Select the target directory:"]
 		if { $dir == "" } {
 			# cancelled
@@ -2980,6 +3075,7 @@ proc open_project { { which -1 } { dir "" } } {
 			while 1 {
 				set dir [tk_chooseDirectory \
 						-initialdir $DefProjDir \
+						-mustexist 1 \
 						-parent . \
 						-title "Project directory"]
 
@@ -3077,6 +3173,7 @@ proc new_project { } {
 	while 1 {
 		# select the directory
 		set dir [tk_chooseDirectory -initialdir $DefProjDir \
+			-mustexist 0 \
 			-title "Select directory for the project:"]
 		if { $dir == "" } {
 			# cancelled
@@ -3122,6 +3219,16 @@ proc new_project { } {
 				alert "Remove failed: $err"
 				continue
 			}
+		}
+
+		if ![file exists $dir] {
+			if [catch { file mkdir $dir } err] {
+				alert "Cannot create directory $dir: $err"
+				continue
+			}
+		} elseif ![file isdirectory $dir] {
+			alert "File $dir exists, but is not a directory"
+			continue
 		}
 
 		break
@@ -3265,7 +3372,7 @@ proc mk_project_selection_window { } {
 		set tf $f.f$i
 		frame $tf
 		pack $tf -side top -expand y -fill x
-		label $tf.l -text "Tag $i: "
+		label $tf.l -text "Label $i: "
 		pack $tf.l -side left -expand n
 		set P(M0,E$i) ""
 		entry $tf.e -width 8 -font $FFont -textvariable P(M0,E$i)
@@ -3426,11 +3533,18 @@ proc do_board_selection { } {
 
 	params_to_dialog $CFBoardItems
 
+	set w ""
+
 	while 1 {
 
 		# have to redo this in the loop as the layout of the window
 		# may change
-		mk_board_selection_window
+
+		if { $w != "" } {
+			catch { destroy $w }
+		}
+
+		set w [mk_board_selection_window]
 
 		set ev [md_wait]
 
@@ -3582,6 +3696,8 @@ proc mk_board_selection_window { } {
 	grid $f.can -column $cn -row $rm -sticky nw -padx 1 -pady 1
 
 	bind $w <Destroy> "md_click -1"
+
+	return $w
 }
 	
 proc terminate { { f "" } } {
@@ -3671,7 +3787,7 @@ proc do_loaders_config { } {
 
 proc mk_loaders_conf_window { } {
 
-	global P ST FFont
+	global P ST FFont GdbLdPgm
 
 	set w [md_window "Loader configuration"]
 
@@ -3681,6 +3797,7 @@ proc mk_loaders_conf_window { } {
 	pack $f -side top -expand y -fill x
 
 	if { $P(M0,LDSEL) == "" } {
+		# the default depends on the system
 		if { $ST(SYS) == "L" } {
 			set ds "MGD"
 		} else {
@@ -3710,19 +3827,35 @@ proc mk_loaders_conf_window { } {
 	pack $f.sel -side top -anchor "nw"
 	frame $f.f
 	pack $f.f -side top -expand y -fill x
-	label $f.f.l -text "FET device for msp430-gdbproxy: "
-	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "loaders_conf_mgd_fsel 0"
-	pack $f.f.b -side right -expand n
-	button $f.f.a -text "Auto" -command "loaders_conf_mgd_fsel 1"
-	pack $f.f.a -side right -expand n
-	label $f.f.f -textvariable P(M0,LDMGDDEV)
-	pack $f.f.f -side right -expand n
+
+	if { $ST(SYS) == "L" } {
+		label $f.f.l -text "FET device for msp430-gdbproxy: "
+		pack $f.f.l -side left -expand n
+		button $f.f.b -text "Select" -command "loaders_conf_mgd_fsel 0"
+		pack $f.f.b -side right -expand n
+		button $f.f.a -text "Auto" -command "loaders_conf_mgd_fsel 1"
+		pack $f.f.a -side right -expand n
+		label $f.f.f -textvariable P(M0,LDMGDDEV)
+		pack $f.f.f -side right -expand n
+	}
+
 	frame $f.g
 	pack $f.g -side top -expand y -fill x
-	label $f.g.l -text "Arguments to msp430-gdbproxy: "
+
+	label $f.g.l -text "Programmer: "
 	pack $f.g.l -side left -expand n
-	entry $f.g.e -width 16 -font $FFont -textvariable P(M0,LDMGDARG)
+
+	# create the list of programmers
+	set pl ""
+	foreach p $GdbLdPgm {
+		lappend pl [lindex $p 0]
+	}
+
+	if { [lsearch -exact $pl $P(M0,LDMGDARG)] < 0 } {
+		set P(M0,LDMGDARG) [lindex $pl 0]
+	}
+
+	eval "tk_optionMenu $f.g.e P(M0,LDMGDARG) $pl"
 	pack $f.g.e -side right -expand n
 
 	## Buttons
@@ -3794,7 +3927,8 @@ proc loaders_conf_mgd_fsel { auto } {
 	global P ST
 
 	if { $ST(SYS) != "L" } {
-		alert "This loader can only be configured on Linux"
+		# will never happen
+		alert "This attribute can only be configured on Linux"
 		return
 	}
 
@@ -5192,7 +5326,7 @@ proc ece_mkwindow { } {
 			}
 			set el "${p}$cd"
 			button $el -text $txt -bg $col \
-				-command "ece_colpick $ix $el"
+				-command "ece_colpick $w $ix $el"
 			grid $el -column $ci -row $rc -sticky we -padx 4
 		}
 
@@ -5270,7 +5404,7 @@ proc ece_gcommands { } {
 	set ece_V(commands) [string trim [$P(M1,EC) get 1.0 end]]
 }
 
-proc ece_colpick { ix wi } {
+proc ece_colpick { w ix wi } {
 #
 # Pick a color, modify the entry, repaint the widget
 #
@@ -5300,7 +5434,7 @@ proc ece_colpick { ix wi } {
 		set col #000000
 	}
 
-	set col [tk_chooseColor -initialcolor $col -title \
+	set col [tk_chooseColor -parent $w -initialcolor $col -title \
 	    "Choose [lindex { "" foreground alternate background } $ci] color"]
 
 	# replace the color in the list
@@ -5367,6 +5501,35 @@ if { $ST(SYS) == "L" } {
 ###############################################################################
 # Linux versions of bpcs functions ############################################
 ###############################################################################
+
+proc kill_proc_by_name { name } {
+#
+# A desperate tool to kill something we have spawned, which has escaped, like
+# gdbproxy, for instance
+#
+	if [catch { exec ps x } pl] {
+		log "Cannot exec ps x: $pl"
+		return
+	}
+
+	set pc 0
+	foreach ln [split $pl "\n"] {
+		if ![regexp "(\[0-9\]+).*:\[0-9\]+(.*)" $ln jnk pid cmd] {
+			continue
+		}
+		if { [string first $name $cmd] >= 0 } {
+			if [catch { exec kill -KILL $pid } err] {
+				log "Cannot kill pcs $name <$pid>: $err"
+			} else {
+				log "Killed pcs name <$pid>"
+			}
+			incr pc
+		}
+	}
+	if !$pc {
+		log "Pcs $name not found"
+	}
+}
 
 proc bpcs_run { path al pi } {
 #
@@ -5448,6 +5611,35 @@ proc bpcs_kill { pi } {
 ###############################################################################
 # Cygwin versions of bpcs functions ###########################################
 ###############################################################################
+
+proc kill_proc_by_name { name } {
+#
+# A desperate tool to kill something we have spawned, which has escaped, like
+# gdbproxy, for instance
+#
+	if [catch { exec ps -W } pl] {
+		log "Cannot exec ps -W: $pl"
+		return
+	}
+
+	set pc 0
+	foreach ln [split $pl "\n"] {
+		if ![regexp "(\[0-9\]+).*:..:..(.*)" $ln jnk pid cmd] {
+			continue
+		}
+		if { [string first $name $cmd] >= 0 } {
+			if [catch { exec kill -f $pid } err] {
+				log "Cannot kill pcs $name <$pid>: $err"
+			} else {
+				log "Killed pcs name <$pid>"
+			}
+			incr pc
+		}
+	}
+	if !$pc {
+		log "Pcs $name not found"
+	}
+}
 
 proc bpcs_run { path al pi } {
 #
@@ -5861,6 +6053,10 @@ proc upload_image { } {
 		return
 	}
 
+	# indicate which loader is running; note that LDSEL may change, so
+	# we need something reliable
+	set TCMD(FL,LT) $ul
+
 	upload_$ul
 }
 
@@ -5868,35 +6064,6 @@ if { $ST(SYS) == "L" } {
 ###############################################################################
 # Linux versions of loader functions ##########################################
 ###############################################################################
-
-proc kill_gdbproxy { } {
-#
-# Make sure the hard way that no gdbproxy is left over
-#
-	if [catch { xq "ps" "x" } pl]  {
-		log "Cannot list processes: $pl"
-		return
-	}
-
-	set pl [split $pl "\n"]
-
-	foreach p $pl {
-		if [regexp "^\[ \t\]*(\[0-9\]+).*msp430-gdbproxy" $p jk pp] {
-			log "Killing gdbproxy: $pp"
-			catch { exec kill -KILL $pp }
-		}
-	}
-}
-
-proc upload_action { start } {
-#
-# To be invoked when the loader is started/terminated
-#
-	if !$start {
-		kill_gdbproxy
-	}
-	reset_exec_menu
-}
 
 proc upload_ELP { } {
 #
@@ -5908,59 +6075,10 @@ proc upload_ELP { } {
 	return
 }
 
-proc upload_MGD { } {
-#
-# GDB + proxy
-#
-	global P TCMD GdbLdCmd
-
-	if [catch { glob "Image*" } fl] {
-		set fl ""
-	}
-
-	# check if there's at least one qualifying file
-	set fail 1
-	foreach f $fl {
-		if { [string first "." $f] < 0 } {
-			# yes
-			set fail 0
-			break
-		}
-	}
-
-	if $fail {
-		alert "No loadable (ELF) image file found"
-		return
-	}
-
-	set dev [dict get $P(CO) "LDMGDDEV"]
-	set arg [dict get $P(CO) "LDMGDARG"]
-
-	set al ""
-
-	if { $dev != "" && ![regexp -nocase "auto" $dev] } {
-		lappend al "-D"
-		lappend al $dev
-	}
-
-	if { $arg != "" } {
-		set al [concat $al $arg]
-	}
-
-	bpcs_run $GdbLdCmd $al "FL"
-}
-
 } else {
 ###############################################################################
 # Cygwin versions of loader functions #########################################
 ###############################################################################
-
-proc upload_action { start } {
-#
-# To be invoked when the loader is started/terminated
-#
-	reset_exec_menu
-}
 
 proc upload_ELP { } {
 #
@@ -6113,18 +6231,99 @@ proc upload_ELP { } {
 	bpcs_run $ep "" "FL"
 }
 
+###############################################################################
+}
+###############################################################################
+
 proc upload_MGD { } {
 #
 # GDB + proxy
 #
+	global P TCMD GdbLdCmd ST GdbLdPgm GdbLdUse
 
-	alert "You can only use gdb/proxy loader on Linux"
-	return
+	if [catch { glob "Image*" } fl] {
+		set fl ""
+	}
+
+	# check if there's at least one qualifying file
+	set fail 1
+	foreach f $fl {
+		if { [string first "." $f] < 0 } {
+			# yes
+			set fail 0
+			break
+		}
+	}
+
+	if $fail {
+		alert "No loadable (ELF) image file found"
+		return
+	}
+
+	set arg [dict get $P(CO) "LDMGDARG"]
+
+	# argument list
+	set al ""
+
+	if { $ST(SYS) == "L" } {
+		# device is only relevant on Linux
+		set dev [dict get $P(CO) "LDMGDDEV"]
+		if { $dev != "" && ![regexp -nocase "auto" $dev] } {
+			lappend al "-D"
+			lappend al $dev
+		}
+	}
+
+	set lib ""
+	foreach p $GdbLdPgm {
+		if { [lindex $p 0] == $arg } {
+			set lib [lindex $p 1]
+			set arg [lindex $p 2]
+			break
+		}
+	}
+
+	if { $lib == "" } {
+		alert "Programmer $arg is illegal, please reconfigure the\
+			loader"
+		return
+	}
+
+	# try to switch to the proper DLL set; will not work on Linux right
+	# away
+	catch { xq $GdbLdUse [list $lib] }
+
+	if { $arg != "" } {
+		set al [concat $al $arg]
+	}
+
+	bpcs_run $GdbLdCmd $al "FL"
 }
 
-###############################################################################
+proc kill_gdbproxy { } {
+#
+# For some reason, gdbproxy doesn't want to disappear, so we do it the
+# hard way; note: gdbloader has similar code, but it won't execute if we
+# kill the script
+#
+	global GdbLdPtk
+
+	foreach p $GdbLdPtk {
+		kill_proc_by_name $p
+	}
 }
-###############################################################################
+
+proc upload_action { start } {
+#
+# To be invoked when the loader is started/terminated
+#
+	global TCMD
+
+	if { !$start && $TCMD(FL,LT) == "MGD" } {
+		kill_gdbproxy
+	}
+	reset_exec_menu
+}
 
 proc stop_loader { { ask 0 } } {
 
@@ -6527,13 +6726,15 @@ proc mark_running_cb { } {
 
 proc mk_project_window { } {
 
-	global P Term FFont
+	global P ST Term FFont
 
 	# when a project is open, this shows the directory path; also used to
 	# tell if a project is currently open
 	set P(AC) ""
 	# no configuration
 	set P(CO) ""
+
+	wm title . "PIP $ST(VER)"
 
 	menu .menu -tearoff 0
 
@@ -6814,6 +7015,7 @@ proc open_search_window { } {
 
 	# won't hurt
 	$t delete 1.0 end
+	$t configure -state disabled
 
 	scrollbar $tf.scroly -command "$t yview"
 	pack $tf.scroly -side right -fill y
@@ -6858,6 +7060,7 @@ proc open_search_window { } {
 
 	bind $f.se <ButtonRelease-1> "tk_textCopy $f.se"
 	bind $f.se <ButtonRelease-2> "tk_textPaste $f.se"
+	bind $f.se <Return> "do_return_key"
 
 	foreach rb $CFSearchModes {
 		set r $f.[string tolower $rb]
@@ -7189,8 +7392,37 @@ proc search_usp { } {
 #
 	global P
 
-	set P(SWN,s) [string trim [$P(SWN,ss) get 1.0 end]]
+	regsub "\[\r\n\].*" [string trim [$P(SWN,ss) get 1.0 end]] "" P(SWN,s)
+	$P(SWN,ss) delete 1.0 end
+	$P(SWN,ss) insert end $P(SWN,s)
 	log "Search pattern: $P(SWN,s)"
+}
+
+proc do_return_key { } {
+#
+# Same as search, but we have to absorb the key first
+#
+	search_widgets 0
+	after 10 do_search
+}
+
+proc search_widgets { on } {
+#
+# Enable disable search widgets
+#
+	global P
+
+	if { $P(SWN) == "" } {
+		return
+	}
+
+	if $on {
+		$P(SWN,o) configure -text "Search"
+		$P(SWN,ss) configure -state normal
+	} else {
+		$P(SWN,o) configure -text "Stop"
+		$P(SWN,ss) configure -state disabled
+	}
 }
 
 proc do_search { } {
@@ -7203,24 +7435,24 @@ proc do_search { } {
 		return
 	}
 
+	# update search string
+	search_usp
+
 	if $P(SST) {
 		# this means we are searching, stop
 		set P(SST) 0
-		if { $P(SWN) != "" } {
-			# reconfigure the button
-			$P(SWN,o) configure -text "Search"
-		}
+		search_widgets 1
 		return
 	}
 
 	if $P(SSR) {
 		# still running, hold on
+		search_widgets 0
 		alert "Search engine busy cleaning up, try again in a sec"
 		return
 	}
 
 	# we are not searching, start search
-	search_usp
 	set er [validate_search_options]
 
 	if { $er != "" } {
@@ -7230,6 +7462,7 @@ proc do_search { } {
 			set tt ""
 		}
 		alert "Error$tt in search options: $er"
+		search_widgets 1
 		return
 	}
 
@@ -7253,6 +7486,7 @@ proc do_search { } {
 
 	if { $patt == ""} {
 		alert "The search string is empty"
+		search_widgets 1
 		return
 	}
 	# the matching function
@@ -7322,6 +7556,7 @@ proc do_search { } {
 		
 	if { $fl == "" } {
 		osline "No files to search!"
+		search_widgets 1
 		return
 	}
 
@@ -7329,6 +7564,7 @@ proc do_search { } {
 	set P(SSR) 1
 
 	$P(SWN,o) configure -text "Stop"
+	$P(SWN,ss) configure -state disabled
 
 	# forward bracket, i.e., lines following the found one
 	set braf [expr $P(SWN,b) / 2]
@@ -7433,9 +7669,7 @@ proc do_search { } {
 
 	set P(SST) 0
 	set P(SSR) 0
-	if { $P(SWN) != "" } {
-		$P(SWN,o) configure -text "Search"
-	}
+	search_widgets 1
 }
 
 proc search_colconf { b u } {
@@ -7644,6 +7878,10 @@ proc do_edit_new_file { } {
 	if { $fl == "" } {
 		# cancelled
 		return
+	}
+
+	if { [file_location $fl] != "X" && ![valfname $fl "f"] } {
+		continue
 	}
 
 	set P(LOD) [file dirname $fl]

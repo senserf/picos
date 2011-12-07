@@ -305,3 +305,64 @@ PG111130A:
 
 	The string field in the Search window changed to "text", so that cut
 	and paste (UNIX style) works.
+
+PG111207A:	PICOS >= PG111206A, VUEE >= PG111129A
+
+	Script instpip renamed deploy in accord with the remaining packages.
+	The idea is that now the script can be called from PICOS/deploy.
+
+	When you double click on a word in elvis's window, and that word is not
+	found as a ctag, and the Search window is currently open, then the word
+	is put into the search string.
+
+	Sanitize call arguments. There's a weird problem causing that the last
+	argument passed to the script has CR appended as its last character.
+	I don't understand where it comes from, but it has happened to me on
+	several occassions in the past (like on every second Cygwin upgrade).
+	I have added code (and will do it with all our scripts that care) to
+	preprocess arguments before interpretation and make sure that the last
+	one is sane.
+
+	Added code to try to prevent the creation of a directory or a file name
+	with a space in it (if that thing falls into the PICOS tree), because
+	it screws up mkmk. I may eventually get to fixing mkmk to allow such
+	file names, but the flaky interoperability of Cygwin and Windows makes
+	me reluctant (as there will probably be no end to it).
+
+	Be less strict about checking the consistency of a project's directory
+	if config.prj exists. The user may want to edit out the inconsistencies
+	left in the last session.
+
+	The title of PIP's root window tells the program version as well as
+	the project directory.
+
+	Code where a directory is selected checked and improved a bit to allow
+	for new directory creation in those cases where it makes sense.
+	The choose directory dialog on Windows sucks. At some point I may want
+	to program my own dialog, but we are not desperate at this stage.
+
+	In the project type selection dialog for a new project (multiple
+	programs, single program), "Tag" changed to "Label". We will be calling
+	those things "labels" in agreement with the revised terminology in
+	mkmk.pdf.
+
+	Fixed a bug causing multiple instances of the board selection dialog
+	to pop up when switching between single and multiple. It was
+	introduced when I was fixing the window parenthood problem (in
+	PG111123A).
+
+	Fixed the parent for color selection dialog in the editor config
+	window.
+
+	Return key in the search string triggers search (similar to pressing
+	the Search button).
+
+	The msp430-gdbproxy + msp430-gdb combo made to work under Cygwin. In
+	fact, both MSP-FET430UIF and Olimex TINY work, but the DLLs have to
+	be replaced. Added a command (trivial script) to conveniently replace
+	DLLs. This script comes with PICOS, so upgrade. You also have to fetch
+	the new version of mspgcc from our REPO (where the alternative DLLs
+	are present). See http://www.olsoent.com/REPO/contents.html .
+
+	The elvis set that comes with PIP (the Cygwin part) recompiled under
+	XP. Hopefully, it will be more general (it does work on my Windows 7).

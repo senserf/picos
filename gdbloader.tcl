@@ -17,14 +17,21 @@ if [catch { exec uname } ST(SYS)] {
 } else {
 	set ST(SYS) "W"
 }
-
 if { $ST(SYS) != "L" } {
-
-	global argv0
-
-	puts stderr "$argv0 can only be run on Linux!"
-	exit 99
+	# sanitize arguments; here you a sample of the magnitude of stupidity
+	# one have to fight when glueing together Windows and Cygwin stuff;
+	# the last argument (sometimes!) has a CR character appended at the
+	# end, and you wouldn't believe how much havoc that can cause
+	set u [string trimright [lindex $argv end]]
+	if { $u == "" } {
+		set argv [lreplace $argv end end]
+	} else {
+		set argv [lreplace $argv end end $u]
+	}
+	unset u
 }
+
+###############################################################################
 
 proc handle_args { } {
 
@@ -34,13 +41,13 @@ proc handle_args { } {
 	set ST(PAR) ""
 
 	if { [lindex $argv 0] == "-D" } {
-		# explicit device
+		# explicit device, this will be ignored under Cygwin
 		set ST(PDE) [lindex $argv 1]
 		set argv [lrange $argv 2 end]
 	}
 
 	# the remaining parameters are passed to gdbproxy
-	set ST(PAR) $argv
+	set ST(PAR) [concat [list "msp430"] $argv]
 }
 
 handle_args
@@ -98,6 +105,33 @@ set CB(GDB,TL) [expr 1000 * 3]
 
 ###############################################################################
 
+proc kill_win_proc_by_name { name } {
+#
+# A desperate tool to kill something we have spawned, which has escaped, like
+# gdbproxy, for instance
+#
+	global ST
+
+	if { $ST(SYS) == "L" } {
+		return
+	}
+
+	if [catch { exec ps -W } pl] {
+		return
+	}
+
+	foreach ln [split $pl "\n"] {
+		if ![regexp "(\[0-9\]+).*:..:..(.*)" $ln jnk pid cmd] {
+			continue
+		}
+		if { [string first $name $cmd] >= 0 } {
+			catch { exec kill -f $pid }
+		}
+	}
+}
+
+###############################################################################
+
 proc delay { msec } {
 #
 # A variant of "after" admitting events while waiting
@@ -110,7 +144,7 @@ proc delay { msec } {
 
 	set ST(DEL) [after $msec delay_trigger]
 	vwait ST(DEL)
-	unset ST(DEL)
+	catch { unset ST(DEL) }
 }
 
 proc delay_trigger { } {
@@ -197,7 +231,9 @@ proc run_proxy { dev } {
 
 	set al $ST(PAR)
 
-	lappend al $dev
+	if { $dev != "" } {
+		lappend al $dev
+	}
 
 	if [run_term_command 0 $ProxyCmd $al read_proxy_line proxy_exits] {
 		# failed
@@ -221,7 +257,7 @@ proc proxy_startup_timeout { } {
 	new_state "OFF"
 }
 
-proc run_term_command { t cmd al inp clo } {
+proc run_term_command { t kmd al inp clo } {
 #
 # Run a terminal command:
 #
@@ -231,7 +267,7 @@ proc run_term_command { t cmd al inp clo } {
 #	- input function
 #	- closing function
 #
-	global Term
+	global Term ST
 
 	if { $Term($t,P) != "" } {
 		# pipe already set up; perhaps this should be an alert?
@@ -239,19 +275,16 @@ proc run_term_command { t cmd al inp clo } {
 		return 1
 	}
 
-	set ef [auto_execok $cmd]
+	set ef [auto_execok $kmd]
 	if { $ef == "" } {
 		term_dspline $t "--CANNOT RUN $cmd (PGM NOT FOUND)!"
 		return 1
 	}
-
-	if ![file executable $ef] {
-		# makes no sense
-		term_dspline $t "--CANNOT RUN $cmd (NOT EXECUTABLE)!"
-		return 1
+	if [file executable $ef] {
+		set cmd "[list $ef]"
+	} else {
+		set cmd "[list sh] [list $ef]"
 	}
-
-	set cmd [list $ef]
 
 	foreach a $al {
 		append cmd " [list $a]"
@@ -268,6 +301,7 @@ proc run_term_command { t cmd al inp clo } {
 	set Term($t,P) $fd
 	set Term($t,I) $inp
 	set Term($t,C) $clo
+	set Term($t,K) $kmd
 
 	fconfigure $fd -blocking 0 -buffering none
 	fileevent $fd readable "term_input $t"
@@ -296,16 +330,16 @@ proc term_input { t } {
 
 	append Term($t,B) $chunk
 
-	# split into lines: we are on Linux, so we can assume that lines
-	# terminate with newlines, which simplifies things a bit compared
-	# to the Cygwin mess
+	# split into lines
 	while 1 {
 		set el [string first "\n" $Term($t,B)]
 		if { $el < 0 } {
 			return
 		}
-		# get hold of the line
-		set ln [string range $Term($t,B) 0 [expr $el - 1]]
+		# get hold of the line; in case we are on Cygwin, trim out the
+		# CR characters
+		set ln [string trim [string range $Term($t,B) 0 [expr $el - 1]]\
+			"\r"]
 		set Term($t,B) [string range $Term($t,B) [expr $el + 1] end]
 		term_dspline $t $ln
 		if { $Term($t,I) != "" } {
@@ -321,7 +355,7 @@ proc term_stop { t } {
 	global Term
 
 	if { $Term($t,P) != "" } {
-		kill_pipe $Term($t,P)
+		kill_pipe $Term($t,P) $Term($t,K)
 		set Term($t,P) ""
 		set Term($t,I) ""
 		if { $Term($t,C) != "" } {
@@ -333,7 +367,7 @@ proc term_stop { t } {
 	}
 }
 
-proc kill_pipe { fd { sig "KILL" } } {
+proc kill_pipe { fd nam } {
 #
 # Kills the process on the other end of our pipe
 #
@@ -341,8 +375,9 @@ proc kill_pipe { fd { sig "KILL" } } {
 		return
 	}
 	foreach p $pp {
-		catch { exec kill -$sig $p }
+		catch { exec kill -f -$sig $p }
 	}
+	kill_win_proc_by_name $nam
 	catch { close $fd }
 }
 
@@ -701,28 +736,36 @@ proc restart { } {
 
 	delay 500
 
-	set dev $ST(PDE)
-
-	if { $dev == "" || [regexp -nocase "auto" $dev] } {
-		# locate all USB ttys and scan them
-		if { [catch { glob "/dev/ttyUSB*" } tl] || $tl == "" } {
-			term_dspline 0 "--NO PROXY DEVICE FOUND"
-			return
+	if { $ST(SYS) != "L" } {
+		# Cygwin - no device
+		run_proxy ""
+		if { $ST(STA) != "OFF" } {
+			vwait ST(STA)
 		}
 	} else {
-		set tl [list $dev]
-	}
-
-	foreach d $tl {
-		term_dspline 0 "--TRYING DEVICE: $d"
-		run_proxy $d
-		if { $ST(STA) == "OFF" } {
-			# failed to initialize
-			continue
+		# Linux
+		set dev $ST(PDE)
+		if { $dev == "" || [regexp -nocase "auto" $dev] } {
+			# locate all USB ttys and scan them
+			if { [catch { glob "/dev/ttyUSB*" } tl] || $tl == "" } {
+				term_dspline 0 "--NO PROXY DEVICE FOUND"
+				return
+			}
+		} else {
+			set tl [list $dev]
 		}
-		vwait ST(STA)
-		if { $ST(STA) == "PUP" } {
-			break
+		
+		foreach d $tl {
+			term_dspline 0 "--TRYING DEVICE: $d"
+			run_proxy $d
+			if { $ST(STA) == "OFF" } {
+				# failed to initialize
+				continue
+			}
+			vwait ST(STA)
+			if { $ST(STA) == "PUP" } {
+				break
+			}
 		}
 	}
 
@@ -873,6 +916,9 @@ proc mk_main_window { } {
 
 	bind . <Destroy> "terminate"
 }
+
+kill_win_proc_by_name $GdbCmd
+kill_win_proc_by_name $ProxyCmd
 
 mk_main_window
 
