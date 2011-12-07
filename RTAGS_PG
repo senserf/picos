@@ -1431,3 +1431,31 @@ PG111106A:
 
 	Fixed picomp to recognize and diagnose illegal node types (in
 	multiprogram praxes) instead of defaulting to something.
+
+PG111207A:
+
+	See this:
+
+		http://www.olsonet.com/REPO/contents.html
+
+	This is our new way of strong things in REPO such that we know what
+	is there.
+
+	Files options.nogood, options.satpeg, options.tagall in new_eco_demo
+	renamed to options_nogood.sys, etc. to make them formally visible as 
+	options files by PIP. I hope Wlodek doesn't mind.
+
+	A few documents upgraded.
+
+	Script usefetdll added (it deploys into bin) to switch the DLLs used
+	by gdbproxy - to cater to the different FET programmers: FET430UIF,
+	Olimex Tiny, and parallel (practically defunct). This will only work,
+	if you download the new (binary) mspgcc set (for Windows) from the
+	REPO. Try the binary first. If it doesn't work, compile from the
+	source.
+
+	The deploy script modified to account for PIP (you should keep it at
+	the same directory level as the rest). It will only work if you fetch
+	the new PIP as well.
+
+	Some cosmetic changes to piter and Apps/TEST/WARSAW.

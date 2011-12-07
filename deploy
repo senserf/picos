@@ -22,7 +22,8 @@ if [catch { exec uname } ST(SYS)] {
 
 ###############################################################################
 
-set PLIST { PICOS SIDE VUEE }
+set PLIST { PICOS SIDE VUEE PIP }
+set OPTIONAL { PIP }
 set TCL85 [list "tclsh85" "tclsh8.5"]
 set TK85  [list "wish85" "wish8.5"]
 
@@ -34,12 +35,28 @@ proc errab { m } {
 
 ###############################################################################
 
+proc pexists { pkg } {
+
+	global CWD
+
+	return [file isdirectory [file normalize [file join $CWD .. $pkg]]]
+}
+
 proc install { pkg } {
 
-	global CWD HOME BIN VPATH
+	global CWD HOME BIN VPATH OPTIONAL
+
+	if ![pexists $pkg] {
+		if { [lsearch -exact $OPTIONAL $pkg] < 0 } {
+			errab "Package $pkg not found!"
+		}
+		puts "Skipping optional package $pkg"
+		return
+	}
 
 	cd $CWD
-	cd ../$pkg
+	set tar "../$pkg"
+	cd $tar
 	puts "Deploying $pkg ..."
 	if [catch { exec sh deploy $BIN $VPATH >@ stdout } err] {
 		errab "Failed to deploy $pkg: $err"
@@ -331,15 +348,18 @@ proc ver_dep { depl } {
 	}
 }
 
-proc fixtcl85 { dir pgm bin tcl } {
+proc fixtcl85 { dir pgm suf bin tcl } {
 
 	global BINW ST
 
 	set src [file join $dir $pgm]
 
+	set trg "[file rootname [file join $bin $pgm]]$suf"
+	set pgm [file tail $trg]
+
 	if { $ST(SYS) == "L" } {
 		# just copy it
-		if [catch { file copy -force -- $src $bin } err] {
+		if [catch { file copy -force -- $src $trg } err] {
 			puts "Cannot copy $pgm from $dir to $bin: $err!"
 		}
 		return
@@ -358,6 +378,9 @@ proc fixtcl85 { dir pgm bin tcl } {
 
 	catch { close $fd }
 
+	set trg "[file rootname [file join $bin $pgm]]$suf"
+	set pgm [file tail $trg]
+
 	set ns [regsub ".*\nexec *(tclsh|wish)\[^\n\]*" $txt\
 	  "#!/bin/sh\n#####\\\nexec $tcl $BINW/$pgm \"\$@\"" txt]
 
@@ -366,20 +389,8 @@ proc fixtcl85 { dir pgm bin tcl } {
 		return
 	}
 
-	set trg [file join $bin $pgm]
-	if [catch { open $trg "w" } fd] {
-		puts "Cannot write $trg, ignored!"
-		return
-	}
-
-	# without this, weird things happen to arguments passed to the script;
-	# this is all beyond my comprehension
-	fconfigure $fd -translation lf
-
-	if [catch { puts -nonewline $fd $txt } err] {
-		puts "Cannot write $trg: $err!"
-	}
-
+	catch { exec rm -rf $trg }
+	catch { exec cat > $trg << $txt }
 	catch { exec chmod +x $trg }
 	catch { close $fd }
 }
@@ -395,7 +406,9 @@ proc doit { } {
 	set depl ""
 
 	foreach p $PLIST {
-		lappend depl [list $p [get_rtags $p]]
+		if [pexists $p] {
+			lappend depl [list $p [get_rtags $p]]
+		}
 	}
 
 	ver_dep $depl
@@ -422,7 +435,8 @@ proc doit { } {
 		set BINW [exec cygpath -m $hd]
 	}
 
-	if [catch { file copy -force -- Scripts/mkmk Scripts/picomp $hd } err] {
+	if [catch { file copy -force --\
+	     Scripts/mkmk Scripts/picomp Scripts/usefetdll $hd } err] {
 		errab "Cannot copy to $hd: $err"
 	}
 
@@ -448,8 +462,8 @@ proc doit { } {
 		puts "execution from your $BIN directory. Sorry about that."
 		puts "====================================================="
 	} else {
-		fixtcl85 "Scripts" "piter.tcl" $hd $TCL85
-		fixtcl85 "../VUEE/UDAEMON" "udaemon" $hd $TK85
+		fixtcl85 "Scripts" "piter.tcl" ".tcl" $hd $TCL85
+		fixtcl85 "../VUEE/UDAEMON" "udaemon" ".tcl" $hd $TK85
 	}
 
 	cd $hd
@@ -463,10 +477,15 @@ proc doit { } {
 	catch { exec chmod +x picospath }
 	catch { exec chmod +x mkmk }
 	catch { exec chmod +x picomp }
+	catch { exec chmod +x usefetdll }
+
 	# make piter.tcl clickable, with piter acting as the previous
 	# command-line script
+	catch { exec rm -rf piter udaemon }
 	catch { exec chmod +x piter.tcl }
+	catch { exec chmod +x udaemon.tcl }
 	catch { exec ln -sf piter.tcl piter }
+	catch { exec ln -sf udaemon.tcl udaemon }
 
 	puts "All done"
 }

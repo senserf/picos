@@ -1,0 +1,181 @@
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
+
+// ============================================================================
+// Pin allocation (Sep 30, 2009):
+//
+//	J3: 	============= LCD side
+//		VUSB	RXUA
+//		TXUA  	GND
+//		Vcc	Veref+
+//		P3.7	P3.6
+//		P5.6	P2.5
+//		P2.6	P4.0
+//		P4.4	P4.5
+//		P4.6	Vref-
+//		Vcc  	GND
+//		=============
+//
+//	J5:	============= External side
+//              GND     P1.6
+//		P4.7	P6.7
+//              GND	P6.2
+//		P6.6	P6.0
+//	        GND	P6.4
+//	        GND	P6.1
+//	        GND	P6.3
+//	        GND	P6.5
+//		=============
+//              
+// ============================================================================
+// P1.0 RF RSI
+// P1.1 RF RSCLK
+// P1.2 RF RSO
+// P1.3 RF GDO2                                            
+// P1.4 RF GD02
+// P1.5 RF CSN
+// ------------------------------------
+// P2.0 INT1 RTC
+// P2.1 SCL RTC
+// P2.2 INT2 RTC
+// P2.3 OPTIONS BUTTON
+// P2.4 SOFT RESET
+// P2.5 CONN
+// P2.6 CONN
+// P2.7 SDA RTC
+// ------------------------------------
+// P3.0 POWER Analog SWITCH 4	LCD
+// P3.1 POWER Analog SWITCH 2	EE
+// P3.2 POWER Analog SWITCH 1	SD
+// P3.3 POWER Analog SWITCH 3 	GPS
+// P3.4 U0 TX
+// P3.5 U0 RX
+// P3.6 U1 TX and CONN
+// P3.7 U1 RX and CONN
+// ------------------------------------
+// P4.0 LCD  and CONN
+// P4.1 LED
+// P4.2 LED
+// P4.3 LED
+// P4.4 LCD  and CONN
+// P4.5 LCD  and CONN
+// P4.6 LCD  and CONN
+// ------------------------------------
+// P5.0 EPR CS
+// P5.1 EPR/SD SI
+// P5.2 EPR/SD SO
+// P5.3 EPR/SD CLK
+// P5.4 SEN VRGEN
+// P5.5 SD CS
+// P5.6 ECHO ENABLE
+// P5.7 Voltage sensor ON (LOW!!)
+// ------------------------------------
+// P6.0 SEN PAR#1
+// P6.1 SEN PAR#2 / PYR#2 (Detection)
+// P6.2 SEN ECHxx (Detection)
+// P6.3 SEN PAR#2
+// P6.4 SEN PYR#1
+// P6.5 SEN PYR#2 
+// P6.6 SEN PAR#1 / PYR#1 (Detection)                                           
+// P6.7 SEN ECHxx
+// ============================================================================
+
+//
+// Power measurements using MSP-TS430PM64 socket board
+//
+//	freeze current = 7.7uA DC, 11.22uA RMS
+//	it is about 10uA with RTC included
+//	active current (CPU idling, components switched off) = 284uA DC/RMS
+//	EEPROM on but idle = 361uA
+//	EEPROM writing = 7.5mA, reading = 5mA
+//	SD open, idle = 5mA, WR = 24.3mA, RD = 23mA
+//	
+// Tested resistor in UARTs RX/DX - to avoid parasite powering of the board
+// when Vcc goes down. 2.2K on both is OK (at 1152000), but 22K is too much
+// for TX (seems OK for RX).
+// Use 2.2K for RX.
+//
+// Note: unitialized RTC drains about 150uA!!!!
+//
+// Note: delays in lcd_st7036.c may have to be adjusted if the display doesn't
+// work (I have reduced them drastically)
+//
+
+// ============================================================================
+// Radio is on P1
+// ============================================================================
+// 0 = RF SI OUT
+// 1 = RF CLK OUT
+// 2 = RF SO IN
+// 3 = RF GDO2 unused, but must be input
+// 4 = RF GDO0 IN
+// 5 = RF CSN OUT
+
+#define	PIN_DEFAULT_P1DIR	0x23
+
+// RTC on P2: all pins input (grounded when set to OUT) as we operate in open
+// drain mode
+#define	PIN_DEFAULT_P2DIR	0x00
+
+// Soft reset
+#define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x10) == 0)
+
+// All four switches start off
+#define PIN_DEFAULT_P3DIR	0x5f
+
+// ============================================================================
+
+#define	PIN_DEFAULT_P4DIR	0x0e
+
+// LEDs initially OFF
+#define	PIN_DEFAULT_P4OUT	0x0e
+
+// P5 = EEPROM/SD; default is input (high Z) for power down; P5.6 GPS;
+#define	PIN_DEFAULT_P5DIR	0x40
+
+#define	PIN_DEFAULT_P6DIR	0x00
+
+#define	PIN_LIST	{	\
+	PIN_DEF (P6, 5),	\
+	PIN_DEF (P6, 3),	\
+	PIN_DEF (P6, 1),	\
+	PIN_DEF (P6, 4),	\
+	PIN_DEF (P6, 0),	\
+	PIN_DEF (P6, 6),	\
+	PIN_DEF (P6, 2),	\
+	PIN_DEF (P6, 7),	\
+	PIN_DEF (P4, 7),	\
+	PIN_DEF (P1, 6),	\
+	PIN_DEF (P1, 7),	\
+	PIN_DEF (P5, 7),	\
+	PIN_DEF (P4, 6),	\
+	PIN_DEF (P4, 5),	\
+	PIN_DEF (P4, 4),	\
+	PIN_DEF (P4, 0),	\
+	PIN_DEF	(P2, 6), 	\
+	PIN_DEF	(P2, 5), 	\
+	PIN_DEF	(P5, 6),	\
+	PIN_DEF	(P3, 6),	\
+	PIN_DEF	(P3, 7)		\
+}
+
+#define	PIN_MAX			21	// Number of pins
+#define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
+
+//
+// Component power switch (on P3)
+//
+#define	CSWITCH_LCD		1	// P3.0
+#define CSWITCH_EE		2	// P3.1
+#define	CSWITCH_SD		4	// P3.2
+#define	CSWITCH_ECHO		8	// P3.3
+
+#define	cswitch_on(p)		_BIS (P3OUT, (p) & 0x0f)
+#define	cswitch_off(p)		_BIC (P3OUT, (p) & 0x0f)
+
+#define	CSWITCH_ALL	(CSWITCH_LCD + CSWITCH_EE + CSWITCH_SD + CSWITCH_ECHO)
+
+#include "board_sensors.h"

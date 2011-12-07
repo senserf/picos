@@ -6,6 +6,34 @@ exec tclsh85 "$0" "$@"
 # UART front for the various UART modes #
 #########################################
 
+###############################################################################
+# Determine the system type ###################################################
+###############################################################################
+if [catch { exec uname } ST(SYS)] {
+	set ST(SYS) "W"
+} elseif [regexp -nocase "linux" $ST(SYS)] {
+	set ST(SYS) "L"
+} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+	set ST(SYS) "C"
+} else {
+	set ST(SYS) "W"
+}
+if { $ST(SYS) != "L" } {
+	# sanitize arguments; here you a sample of the magnitude of stupidity
+	# one have to fight when glueing together Windows and Cygwin stuff;
+	# the last argument (sometimes!) has a CR character appended at the
+	# end, and you wouldn't believe how much havoc that can cause
+	set u [string trimright [lindex $argv end]]
+	if { $u == "" } {
+		set argv [lreplace $argv end end]
+	} else {
+		set argv [lreplace $argv end end $u]
+	}
+	unset u
+}
+###############################################################################
+###############################################################################
+
 proc sy_usage { } {
 
 	global argv0
@@ -37,7 +65,7 @@ proc sy_usage { } {
 set ST(WSH) [info tclversion]
 
 if { $ST(WSH) < 8.5 } {
-	puts stderr "Piter requires Tcl/Tk 8.5 or newer!"
+	puts stderr "$argv0 requires Tcl/Tk 8.5 or newer!"
 	exit 99
 }
 
@@ -63,7 +91,6 @@ if { $u >= 0 } {
 	unset f
 	set argv [lreplace $argv $u [expr $u + 1]]
 }
-unset u
 
 ###############################################################################
 
@@ -82,26 +109,7 @@ if [llength $argv] {
 	catch { close stdin }
 }
 
-###############################################################################
-# Determine whether we are on UNIX or Windows #################################
-###############################################################################
-
-if [catch { exec uname } ST(SYS)] {
-
-	set ST(SYS) "W"
-
-} elseif [regexp -nocase "linux" $ST(SYS)] {
-
-	set ST(SYS) "L"
-
-} elseif [regexp -nocase "cygwin" $ST(SYS)] {
-
-	set ST(SYS) "C"
-
-} else {
-
-	set ST(SYS) "W"
-}
+unset u
 
 ###############################################################################
 # Shared initialization #######################################################

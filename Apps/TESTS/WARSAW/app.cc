@@ -1839,7 +1839,7 @@ fsm root {
 		"c v  -> channel\r\n"
 		"q -> stop radio\r\n"
 		"n -> reset\r\n"
-		"u v  -> set uart rate [def = 96]\r\n"
+		"u 0|1 v  -> set uart 0|1 rate [def = 96]\r\n"
 		"d -> pwr: 0-d, 1-u\r\n"
 #ifdef cswitch_on
 		"o c  -> cswitch on\r\n"
@@ -1948,8 +1948,14 @@ RS_Loop:		proceed RS_RCMD;
 
 		case 'u' : {
 			off = 0;
-			scan (ibuf + 1, "%d", &off);
-			ion (UART, CONTROL, (char*) &off, UART_CNTRL_SETRATE);
+			w = 0;
+			scan (ibuf + 1, "%u %d", &w, &off);
+			if (off == 0)
+				off = 96;
+			if (w > 1)
+				w = 1;
+			ion (UART_A + w, CONTROL, (char*) &off,
+				UART_CNTRL_SETRATE);
 			goto RS_Loop;
 		}
 
