@@ -21,9 +21,9 @@ if [catch { exec uname } ST(SYS)] {
 }
 if { $ST(SYS) != "L" } {
 	# sanitize arguments; here you a sample of the magnitude of stupidity
-	# one have to fight when glueing together Windows and Cygwin stuff;
-	# the last argument (sometimes!) has a CR character appended at the
-	# end, and you wouldn't believe how much havoc that can cause
+	# I have to fight when glueing together Windows and Cygwin stuff; the
+	# last argument (sometimes!) has a CR character appended at the end,
+	# and you wouldn't believe how much havoc that can cause
 	set u [string trimright [lindex $argv end]]
 	if { $u == "" } {
 		set argv [lreplace $argv end end]
@@ -98,6 +98,10 @@ set LFTypes {
 ## strict names, patterns (case ignored)
 set IGDirs { "^cvs$" "^vuee_tmp$" "^ktmp" "junk" "attic" "ossi" "\\~\\$" 
 		"\[ \t.\]" }
+
+## List of directories for soft cleaning; perhaps the Cyan ones should not be
+## there
+set SoftCleanDirs { "out" "tmp" "KTMP" }
 
 ###############################################################################
 
@@ -1408,6 +1412,9 @@ proc edit_file { fn } {
 	# first perception of "not modified" status; if you are confused, you
 	# are not alone
 	set EFST($fd,M) -1
+	# this one indicates if the file ever was modified (used to decide if
+	# we have to redo ctags)
+	set EFST($fd,A) 0
 	# open mode: T, S, V, X
 	set EFST($fd,E) $em
 	# PID (unknown yet)
@@ -1468,6 +1475,10 @@ proc edit_status_read { fd } {
 					}
 					set EFST($fd,C) ""
 				}
+			}
+			if $st {
+				# mark the file as "ever modified"
+				set EFST($fd,A) 1
 			}
 		}
 		return
@@ -1533,7 +1544,7 @@ proc edit_close { fd ab } {
 		}
 		log "Edit session $EFDS($fd) $ab"
 		set es $EFST($fd,E)
-		set em $EFST($fd,M)
+		set em $EFST($fd,A)
 		if { $es == "T" } {
 			# for a project file, need to update the file status
 			gfl_status $EFDS($fd) -1
@@ -1543,6 +1554,7 @@ proc edit_close { fd ab } {
 		# redo the file list; FIXME: don't do this, but redo tags, if
 		# the file has (ever) changed
 		if { $em > 0 } {
+			log "File was modified"
 			# modified
 			if { $es == "T" } {
 				# local modified file -> redo ctags
@@ -1565,6 +1577,8 @@ proc edit_close { fd ab } {
 					sys_make_ctags
 				}
 			}
+		} else {
+			log "File was never modified"
 		}
 	}
 }
@@ -3316,7 +3330,7 @@ proc new_project { } {
 		if [regexp "cc$" $m] {
 			set fc "#include \"sysio.h\"\n\n"
 			append fc "// This is $m\n\n"
-			append fc "fsm root {\n\tentry INIT:\n\n}"
+			append fc "fsm root {\n\tstate INIT:\n\n}"
 		} else {
 			set fc "// This is $m (initially empty)"
 		}
@@ -6497,6 +6511,30 @@ proc reset_config_menu { } {
 	$m add command -label "Options ..." -command "do_options"
 }
 
+proc scdir_present { { suf "" } } {
+#
+# Checks if a directory for soft cleaning is present
+#
+	global SoftCleanDirs
+
+	if { $suf != "" } {
+		set suf "_$suf"
+	}
+
+	foreach d $SoftCleanDirs {
+		set d $d$suf
+		if [file isdirectory $d] {
+			# check if nonempty
+			if { ![catch { glob -directory $d -tails * } sdl] &&
+				$sdl != "" } {
+					return 1
+			}
+		}
+	}
+
+	return 0
+}
+
 proc reset_build_menu { } {
 #
 # Re-create the build menu; called whenever something has changed that may
@@ -6569,7 +6607,35 @@ proc reset_build_menu { } {
 	$m add command -label "VUEE (status)" -command "do_make_vuee { -e -n }"
 	$m add separator
 
-	$m add command -label "Clean" -command "do_cleanup"
+	$m add command -label "Clean (full)" -command "do_cleanup"
+
+	if { $mb != "" && $bo != "" } {
+		if $mb {
+			$m add separator
+			set bi 0
+			foreach n $bo {
+				set suf [lindex $P(PL) $bi]
+				if [scdir_present $suf] {
+					set st "normal"
+				} else {
+					set st "disabled"
+				}
+				$m add command -label "Clean (light, $suf)" \
+					-state $st \
+					-command "do_clean_light $bi"
+				incr bi
+			}
+		} else {
+			if [scdir_present] {
+				set st "normal"
+			} else {
+				set st "disabled"
+			}
+			$m add command -label "Clean (soft)" -state $st \
+				-command "do_clean_light"
+		}
+	}
+
 	$m add separator
 
 	if { $TCMD(FD) != "" } {
@@ -6950,6 +7016,8 @@ proc do_make_vuee { { arg "" } } {
 	if [catch { run_term_command "picomp" $arg } err] {
 		alert $err
 	}
+
+	reset_bnx_menus
 }
 
 proc do_cleanup { } {
@@ -6971,6 +7039,26 @@ proc do_cleanup { } {
 
 	if [catch { xq $cpm "" } er] {
 		alert "Cleanup failed: $er"
+	}
+
+	reset_bnx_menus
+}
+
+proc do_clean_light { { ix "" } } {
+#
+# A light cleanup, no need to pre-build, just remove the binaries
+#
+	global P SoftCleanDirs
+
+	if { $ix == "" } {
+		set suf ""
+	} else {
+		set suf "_[lindex $P(PL) $ix]"
+	}
+
+	foreach d $SoftCleanDirs {
+		set d $d$suf
+		catch { exec rm -rf $d }
 	}
 
 	reset_bnx_menus

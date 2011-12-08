@@ -366,3 +366,17 @@ PG111207A:	PICOS >= PG111206A, VUEE >= PG111129A
 
 	The elvis set that comes with PIP (the Cygwin part) recompiled under
 	XP. Hopefully, it will be more general (it does work on my Windows 7).
+
+PG111208A:
+
+	Fixed a bug causing that ctags were not always re-computed after a
+	file modification that should have triggered the action.
+
+	Made gdbloader (and thus PIP) capable of re-flashing the FET device
+	(at this time applicable only to MSP-FET430UIF).
+
+	The stub FSM that comes with a new project has "state" instead of
+	"entry".
+
+	Added commands to soft-clean the project, i.e., removing the object
+	files but not the Makefiles.

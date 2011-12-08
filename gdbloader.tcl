@@ -55,6 +55,8 @@ handle_args
 ## Commands
 set ProxyCmd "msp430-gdbproxy"
 set GdbCmd "msp430-gdb"
+## Only this works for reflashing the FET for now
+set ProxyRefArgs "msp430 --update-usb-fet TIUSB"
 
 ## Duplicate Exit Avoidance Flag
 set DEAF 0
@@ -67,6 +69,7 @@ set DEAF 0
 ##	GSU: gdb starting up
 ##	GUP: gdb up, image selected, no command to gdb
 ##	ILO: image being loaded
+##	REF: reflashing FET
 ##
 ## Do we want more? Like "node running"? Manual commands will screw it up
 ## anyway (unless we carefully monitor what is going on - we can do it later,
@@ -95,6 +98,8 @@ set ST(LUP) ""
 set CB(PRO) ""
 ## Startup timeout
 set CB(PRO,TS) [expr 1000 * 3]
+## Reprogram timeout
+set CB(PRO,TR) [expr 1000 * 10]
 
 ## GDB callback
 set CB(GDB) ""
@@ -104,6 +109,28 @@ set CB(GDB,TS) [expr 1000 * 4]
 set CB(GDB,TL) [expr 1000 * 3]
 
 ###############################################################################
+
+proc cw { } {
+#
+# Returns the window currently in focus or null if this is the root window
+#
+	set w [focus]
+	if { $w == "." } {
+		set w ""
+	}
+
+	return $w
+}
+
+proc alert { msg } {
+
+	tk_dialog [cw].alert "Attention!" "${msg}!" "" 0 "OK"
+}
+
+proc confirm { msg } {
+
+	return [tk_dialog [cw].confirm "Warning!" $msg "" 0 "NO" "YES"]
+}
 
 proc kill_win_proc_by_name { name } {
 #
@@ -216,11 +243,35 @@ proc term_dspline { tt ln } {
 
 ###############################################################################
 
+proc run_reflash { } {
+#
+# Reprogram the FET
+#
+	global ST ProxyCmd ProxyRefArgs CB
+
+	if { $ST(STA) != "OFF" } {
+		# ignore, state must be OFF
+		return
+	}
+
+	term_dspline 0 "--REFLASHING FET"
+
+	if [run_term_command 0 $ProxyCmd $ProxyRefArgs read_proxy_line \
+		proxy_exits] {
+			# failed
+			return
+	}
+
+	set CB(PRO) [after $CB(PRO,TR) proxy_startup_timeout]
+
+	new_state "REF"
+}
+
 proc run_proxy { dev } {
 #
 # Try to start the proxy for the specified device
 #
-	global Term ST ProxyCmd CB
+	global ST ProxyCmd CB
 
 	if { $ST(STA) != "OFF" } {
 		# ignore, state must be OFF
@@ -253,7 +304,7 @@ proc proxy_startup_timeout { } {
 
 	set CB(PRO) ""
 	term_stop 0
-	term_dspline 0 "--PROXY CONNECTION TIMEOUT!"
+	term_dspline 0 "--PROXY RESPONSE TIMEOUT!"
 	new_state "OFF"
 }
 
@@ -408,6 +459,22 @@ proc read_proxy_line { ln } {
 			set CB(GDB) [after $CB(GDB,TL) gdb_load_abort]
 		}
 		return
+	}
+
+	if { $ST(STA) == "REF" } {
+		# reflashing
+		if { [string first "programmed" $ln] > 0 } {
+			# reset the timeout
+			catch { after cancel $CB(PRO) }
+			set CB(PRO) [after $CB(PRO,TR) proxy_startup_timeout]
+		} elseif { [string first "omplete" $ln] > 0 } {
+			# done
+			catch { after cancel $CB(PRO) }
+			set CB(PRO) ""
+			term_dspline 0 "--REPROGRAMMING COMPLETE"
+			term_stop 0
+			new_state "OFF"
+		}
 	}
 }
 
@@ -692,7 +759,7 @@ proc new_state { s } {
 		term_stop 0
 	}
 
-	foreach b { im lo ru st qu re } {
+	foreach b { im lo ru st qu re up } {
 		# disable all buttons
 		$f.$b configure -state disabled
 	}
@@ -708,11 +775,13 @@ proc new_state { s } {
 
 	if [oneof $s "OFF" "PSU" "GSU"] {
 		# proxy not running or gdb starting up, you cannot do anything
+		$f.up configure -state normal
 		return
 	}
 
 	if { $s == "PUP" } {
 		$f.im configure -state normal
+		$f.up configure -state normal
 		return
 	}
 
@@ -720,11 +789,43 @@ proc new_state { s } {
 		$f.lo configure -state normal
 		$f.ru configure -state normal
 		$f.st configure -state normal
+		$f.up configure -state normal
 		return
 	}
 
-	# "ILO" (image being loaded); wait until done; stop aborts
+	# "ILO" "REF" (image being loaded or reflashing FET);
+	# wait until done; stop aborts
 	$f.st configure -state normal
+}
+
+proc reprogram { } {
+
+	global ST
+
+	if { $ST(STA) == "ILO" } {
+		# impossible
+		term_dspline 0 "--IMAGE BEING LOADED, WAIT!"
+		return
+	}
+
+	if ![confirm "Are you absolutely sure?"] {
+		return
+	}
+
+	term_stop 1
+	term_stop 0
+
+	delay 500
+
+	run_reflash
+
+	if { $ST(STA) != "OFF" } {
+		vwait ST(STA)
+	} elseif { $ST(SYS) == "L" } {
+		alert "On Linux, the programmer must be connected as\
+			/dev/ttyUSB0 for reprogramming to succeed!\
+			Check if this is the case"]
+	}
 }
 
 proc restart { } {
@@ -913,6 +1014,9 @@ proc mk_main_window { } {
 
 	button $f.re -text "Restart" -command "restart"
 	pack $f.re -side bottom -expand no -fill x -anchor s
+
+	button $f.up -text "Update FET" -command "reprogram"
+	pack $f.up -side bottom -expand no -fill x -anchor s
 
 	bind . <Destroy> "terminate"
 }
