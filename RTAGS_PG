@@ -721,3 +721,12 @@ PG111129A:
     the canvas with a single mouse drag - to one current network diameter,
     i.e., the network width and/or height cannot grow by more than its last
     width/height.
+
+PG111208A:
+
+    After upgrading Cygwin, I have witnessed the same kind of errors I used to
+    see a couple of years ago when working on eco_net GUI: the last argument
+    passed to a Tcl script from Cygwin would have a CR appended to it. WTF?
+    Oh, well, I know, I know, this is the notorious problem of line ending
+    mismatch between Cygwin and Windows which comes and goes. Had to fix
+    udaemon, because it stopped to work for me.

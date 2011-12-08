@@ -5,20 +5,23 @@ exec wish85 "$0" "$@"
 ###############################################################################
 
 if [catch { exec uname } Stat(S)] {
-
 	set Stat(S) "W"
-
 } elseif [regexp -nocase "linux" $Stat(S)] {
-
 	set Stat(S) "L"
-
 } elseif [regexp -nocase "cygwin" $Stat(S)] {
-
 	set Stat(S) "C"
-
 } else {
-
 	set Stat(S) "W"
+}
+if { $Stat(S) != "L" } {
+	# sanitize arguments
+	set u [string trimright [lindex $argv end]]
+	if { $u == "" } {
+		set argv [lreplace $argv end end]
+	} else {
+		set argv [lreplace $argv end end $u]
+	}
+	unset u
 }
 
 ###############################################################################
