@@ -4737,16 +4737,26 @@ proc emit_glue { } {
 
 	set np [llength $PgmList]
 
-	for { set ix 0 } { $ix < $np } { incr ix } {
-		set Pgm [lindex $PgmList $ix]
-		if { $ix > 0 } {
-			append res "else "
+	if { $np == 1 && [lindex $PgmList 0] == "" } {
+		# single program, unnamed
+		append res "if (tp == NULL || strlen (tp) == 0)\
+			__build_node (nddata); "
+		append res "else \
+		excptn (\"Illegal named node type in data file: %s\", tp);"
+	} else {
+		# multiple programs, or single named
+		append res "if (tp == NULL) \
+		    excptn (\"Illegal unnamed node type in data file\");"
+		for { set ix 0 } { $ix < $np } { incr ix } {
+			set Pgm [lindex $PgmList $ix]
+			append res " else "
+			append res \
+			      "if (tp != NULL && strcmp (tp, \"$Pgm\") == 0) "
+			append res "__build_[pnfx]node (nddata);"
 		}
-		append res "if (strcmp (tp, \"$Pgm\") == 0) "
-		append res "__build_[pnfx]node (nddata); "
+		append res \
+		    " else excptn (\"Illegal node type in data file: %s\", tp);"
 	}
-
-	append res "else excptn (\"Illegal node type in data file: %s\", tp);"
 	append res "\n\};\n\}\;\n"
 
 	wtfile $fn $res

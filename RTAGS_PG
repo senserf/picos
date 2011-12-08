@@ -1459,3 +1459,15 @@ PG111207A:
 	the new PIP as well.
 
 	Some cosmetic changes to piter and Apps/TEST/WARSAW.
+
+PG111208A:
+
+	Fixed a nasty bug in picomp (introduced in PG111106A) causing 
+	segmentation faults when a node type in the data file was unlabeled
+	(which is a standard for single program praxes).
+
+	Fixed the trivial VUEE data files for the three INTRO praxes by
+	removing the false node type ID, which was harmless before PG111106A,
+	but now would cause exceptions.
+
+	Some irrelevant cosmetics in piter.

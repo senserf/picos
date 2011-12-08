@@ -20,7 +20,7 @@ if [catch { exec uname } ST(SYS)] {
 }
 if { $ST(SYS) != "L" } {
 	# sanitize arguments; here you a sample of the magnitude of stupidity
-	# one have to fight when glueing together Windows and Cygwin stuff;
+	# I have to fight when glueing together Windows and Cygwin stuff;
 	# the last argument (sometimes!) has a CR character appended at the
 	# end, and you wouldn't believe how much havoc that can cause
 	set u [string trimright [lindex $argv end]]
