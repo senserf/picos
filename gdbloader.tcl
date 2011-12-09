@@ -509,6 +509,20 @@ proc image_selection_click { } {
 	}
 }
 
+proc create_init_files { } {
+#
+# Make sure gdb init files are present in the directory; otherwise we won't
+# be able to talk to gdbproxy
+#
+	set    gdbi "set remoteaddresssize 64\n"
+	append gdbi "set remotetimeout 999999\n"
+	append gdbi "target remote localhost:2000\n"
+
+	foreach fn { ".gdbinit" "gdb.ini" } {
+		exec cat > $fn << $gdbi
+	}
+}
+
 proc start_gdb { } {
 #
 # Selects an image to load and starts gdb
@@ -526,6 +540,8 @@ proc start_gdb { } {
 		term_dspline 1 "--NO IMAGES TO UPLOAD!"
 		return
 	}
+
+	create_init_files
 
 	term_dspline 1 "--RUNNING GDB FOR $ST(IMF)"
 
@@ -631,6 +647,10 @@ proc load_image { } {
 
 	# send INT signal to gdb to get it to the proper state
 	interrupt_gdb
+
+	# erase command
+	gdb_cmd "monitor erase all"
+	delay 1000
 
 	# issue the load command
 	gdb_cmd "load $ST(IMF)"

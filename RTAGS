@@ -380,3 +380,33 @@ PG111208A:
 
 	Added commands to soft-clean the project, i.e., removing the object
 	files but not the Makefiles.
+
+PG111209A:	PICOS >= PG111209A
+
+	Added a line input field to the console. It may be useful for many
+	different things in the future. For now:
+
+	- there's a button allowing you to run any program (e.g., sh) in the
+	  console; it may not be very nice (the console is not a terminal),
+	  but it can be useful
+
+	- there are buttons to compile VUEE in debug mode and run the model
+	  within gdb; again, not very flashy (the interface to gdb is command-
+	  line), but better than nothing
+
+	Yesterday a VUEE model crashed on me (the bug in picomp at PH111208A),
+	and I had to step out of PIP to run gdb on side.exe. Now I don't have
+	to.
+
+	Note that the line input field handles Control-C, which sends INT to
+	the program, but it only works for programs that take input from the
+	line.
+
+	The kill signal for killing external programs connected via a pipe
+	changed from INT to KILL. INT was ineffective in some cases, KILL
+	should always work.
+
+	Fixed a bug in gdbloader causing that flash was not erased properly
+	before load.
+
+	Added a button to clean the console output.

@@ -78,6 +78,7 @@ if { $ST(SYS) == "L" } {
 	set GdbLdPtk { "msp430-gdbproxy" "msp430-gdb" }
 }
 set PiterCmd "piter"
+set GdbCmd "gdb"
 
 if { $ST(SYS) == "L" } {
 	set SIDENAME "side"
@@ -171,6 +172,11 @@ set CFSearchTags { "s" "m" "x" "v" "l" "c" "b" "g" "f" "k" "h" "n" }
 set CFSearchModes { "RE" "ST" "WD" }
 set CFSearchSFiles { "None" "Proj" "All" "Only" }
 
+## Exec items: last program executed in console
+set CFXecItems {
+			"XELPGM"	""
+		}
+
 ## Default console line number limit
 set TermLines 1000
 
@@ -178,7 +184,8 @@ set CFItems 	[concat $CFBoardItems \
 			$CFVueeItems \
 			$CFLoadItems \
 			$CFOptItems \
-			$CFSearchItems]
+			$CFSearchItems \
+			$CFXecItems]
 
 ## List of legal CPU types; eCOG probably won't work
 set CPUTypes { MSP430 eCOG }
@@ -249,8 +256,11 @@ set SFont {-family courier -size 9}
 ## Status of external programs
 ##
 
-## Output fd of the program running in term
+## Pipe fd of the program running in term
 set TCMD(FD) ""
+
+## Flag: command needs input
+set TCMD(SH) 0
 
 ## Accumulated input chunk arriving from the program running in term
 set TCMD(BF) ""
@@ -477,6 +487,15 @@ proc trunc_fname { n fn } {
 		set fn "...[string range $fn end-[expr $n - 3] end]"
 	}
 	return $fn
+}
+
+proc term_clean { } {
+
+	global Term
+
+	$Term configure -state normal
+	$Term delete 1.0 end
+	$Term configure -state disabled
 }
 
 proc term_addtxt { txt } {
@@ -5892,12 +5911,12 @@ proc stop_udaemon { } {
 	}
 }
 
-proc run_vuee { } {
+proc run_vuee { { deb 0 } } {
 #
 # The VUEE model is run as a term program (because it writes to the term
 # window), unlike udaemon, which is run independently
 #
-	global P TCMD SIDENAME
+	global P TCMD SIDENAME GdbCmd
 
 	if { $P(AC) == "" || $P(CO) == "" } {
 		# no project
@@ -5913,6 +5932,18 @@ proc run_vuee { } {
 	if ![file_present $SIDENAME] {
 		# Nor should this
 		alert "No VUEE model executable. Build it first"
+		return
+	}
+
+	if $deb {
+		# debugging, remove proxy files
+		catch { exec rm -f ".gdbinit" }
+		catch { exec rm -f "gdb.ini" }
+		if [catch { run_term_command $GdbCmd [list $SIDENAME] "" 1 } \
+		    err] {
+			alert "Cannot execute $GdbCmd: $err"
+		}
+		# ignore udaemon
 		return
 	}
 
@@ -5946,7 +5977,7 @@ proc run_vuee { } {
 	}
 }
 
-proc run_term_command { cmd al { ea "" } } {
+proc run_term_command { cmd al { ea "" } { ni 0 } } {
 #
 # Run a command in term window
 #
@@ -5974,23 +6005,32 @@ proc run_term_command { cmd al { ea "" } } {
 	# stderr to stdout
 	append cmd " 2>@1"
 
-	if [catch { open "|$cmd" "r" } fd] {
+	if $ni {
+		set ff "r+"
+	} else {
+		set ff "r"
+	}
+
+	if [catch { open "|$cmd" $ff } fd] {
 		error "Cannot execute $cmd, $fd"
 	}
 
 	# command started
 	set TCMD(FD) $fd
+	set TCMD(SH) $ni
 	set TCMD(BF) ""
 	mark_running 1
 	reset_bnx_menus
 
 	set TCMD(EA) $ea
 
-	fconfigure $fd -blocking 0 -buffering none -eofchar ""
+	log "Pipe: $cmd <$fd, $ni, $ff, $ea>"
+
+	fconfigure $fd -blocking 0 -buffering none -eofchar "" -translation lf
 	fileevent $fd readable "term_output"
 }
 
-proc kill_pipe { fd { sig "INT" } } {
+proc kill_pipe { fd { sig "KILL" } } {
 #
 # Kills the process on the other end of our pipe
 #
@@ -6392,7 +6432,8 @@ proc run_piter { } {
 		set cmd "[list sh] [list $ef]"
 	}
 
-	append cmd " -C config.pit 2>@1"
+	set th [expr $TCMD(CPITERS) + 1]
+	append cmd " -C config.pit -T $th 2>@1"
 
 	if [catch { open "|$cmd" "r" } fd] {
 		alert "Cannot start piter: $fd"
@@ -6400,8 +6441,8 @@ proc run_piter { } {
 	}
 
 	set TCMD(PI$p) $fd
-	incr TCMD(CPITERS)
-	set TCMD(PI$p,SN) $TCMD(CPITERS)
+	set TCMD(CPITERS) $th
+	set TCMD(PI$p,SN) $th
 	reset_exec_menu
 
 	# we may want to show this output?
@@ -6433,6 +6474,125 @@ proc stop_piter { { w "" } } {
 	}
 }
 	
+###############################################################################
+
+proc mk_run_pgm_window { } {
+
+	global P ST FFont
+
+	set w [md_window "Enter command to run"]
+
+	set f $w.f
+	labelframe $f -text "Command to run" -padx 2 -pady 2
+	pack $f -side top -expand n -fill x
+
+	entry $f.e -width 38 -font $FFont -textvariable P(M0,cm)
+	pack $f.e -side top -expand n -fill x
+
+	set b $w.b
+	frame $b
+	pack $b -side top -expand n -fill x
+
+	button $b.cb -text "Cancel" -command "md_click -1"
+	pack $b.cb -side left -expand n
+
+	button $b.eb -text "Execute" -command "md_click 1"
+	pack $b.eb -side right -expand n
+
+	bind $w <Destroy> "md_click -1"
+}
+
+proc run_any_program { } {
+#
+# Executes any program in the console
+#
+	global P TCMD CFXecItems
+
+	if { $P(AC) == "" } {
+		return
+	}
+
+	params_to_dialog $CFXecItems
+	set P(M0,cm) $P(M0,XELPGM)
+
+	mk_run_pgm_window
+
+	while 1 {
+
+		set ev [md_wait]
+		if { $ev < 0 } {
+			# cancelled
+			return
+		}
+
+		if { $ev == 1 } {
+			# accepted
+			if { $P(M0,cm) == "" } {
+				alert "Empty program to run"
+				continue
+			}
+
+			if [regexp "\[<>&@\]" $P(M0,cm)] {
+				alert "Redirections not allowed"
+				continue
+			}
+			set P(M0,XELPGM) $P(M0,cm)
+			set cmd $P(M0,cm)
+		}
+
+		dialog_to_params $CFXecItems
+		md_stop
+		set_config
+		break
+	}
+
+	if { $TCMD(FD) != "" } {
+		# cannot happen
+		alert "Console busy, wait or kill and try again"
+		return
+	}
+
+	if [catch { run_term_command $cmd "" "" 1 } err] {
+		alert "Cannot run $cmd: $err"
+	}
+}
+
+proc do_console_input { } {
+#
+# Handles input into the bottom line
+#
+	global TCMD TEntry
+
+	set tx ""
+
+	regexp "\[^\r\n\]+" [$TEntry get 0.0 end] tx
+	$TEntry delete 0.0 end
+
+	if { $TCMD(FD) != "" } {
+		# this means that the console is busy
+		if { $TCMD(SH) != 1 } {
+			# this means that we got here by accident
+			return
+		}
+		# we write the line to the pipe
+		log "Console input: $tx"
+		catch { puts $TCMD(FD) $tx }
+		catch { flush $TCMD(FD) }
+	}
+}
+
+proc do_console_interrupt { } {
+#
+# Sends sigint to the console process
+#
+	global TCMD
+
+	if { $TCMD(FD) != "" && $TCMD(SH) == 1 } {
+		log "Console interrupt"
+		kill_pipe $TCMD(FD) "INT"
+	}
+}
+
 ###############################################################################
 
 proc reset_file_menu { } {
@@ -6603,6 +6763,7 @@ proc reset_build_menu { } {
 	}
 
 	$m add command -label "VUEE" -command "do_make_vuee"
+	$m add command -label "VUEE (debug)" -command "do_make_vuee { -- -g }"
 	$m add command -label "VUEE (recompile)" -command "do_make_vuee -e"
 	$m add command -label "VUEE (status)" -command "do_make_vuee { -e -n }"
 	$m add separator
@@ -6688,6 +6849,8 @@ proc reset_exec_menu { } {
 		set st "disabled"
 	}
 	$m add command -label "Run VUEE" -command run_vuee -state $st
+	$m add command -label "Run VUEE (debug)" -command "run_vuee 1" \
+		-state $st
 
 	if { $TCMD(FD) == "" } {
 		set st "disabled"
@@ -6741,6 +6904,16 @@ proc reset_exec_menu { } {
 			}
 		}
 	}
+
+	$m add separator
+	if { $TCMD(FD) == "" } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Run program" -command run_any_program -state $st
+	$m add separator
+	$m add command -label "Clean console" -command term_clean
 }
 
 proc reset_bnx_menus { } {
@@ -6758,13 +6931,18 @@ proc mark_running_tm { } {
 
 proc mark_running { stat } {
 
-	global P TCMD
+	global P TCMD TEntry
 
 	if $stat {
 		# running
 		if { $TCMD(CB) != "" } {
 			# the callback is active
 			return
+		}
+		if $TCMD(SH) {
+			# the command needs input
+			$TEntry configure -state normal
+			log "Enabled manual input"
 		}
 		set TCMD(CL) 0
 		set P(SSL) "Running: "
@@ -6779,6 +6957,8 @@ proc mark_running { stat } {
 	}
 
 	set P(SSL) "Idle:"
+	$TEntry configure -state disabled
+	log "Disabled manual input"
 }
 
 proc mark_running_cb { } {
@@ -6792,7 +6972,7 @@ proc mark_running_cb { } {
 
 proc mk_project_window { } {
 
-	global P ST Term FFont
+	global P ST Term TEntry FFont
 
 	# when a project is open, this shows the directory path; also used to
 	# tell if a project is currently open
@@ -6850,8 +7030,6 @@ proc mk_project_window { } {
 	frame .pane.left
 	pack .pane.left -side left -expand y -fill both
 
-	mark_running 0
-
 	frame .pane.left.sf
 	pack .pane.left.sf -side top -expand n -fill x
 
@@ -6902,15 +7080,17 @@ proc mk_project_window { } {
 
 	#######################################################################
 
-	set w .pane.right
+	set pw .pane.right
+	frame $pw
+	pack $pw -side right -expand y -fill both -anchor w
+
+	set w $pw.top
 	frame $w
-	pack $w -side right -expand y -fill both -anchor w
+	pack $w -side top -expand y -fill both
 
 	set Term $w.t
 
-	text $Term
-
-	$Term configure \
+	text $Term \
 		-yscrollcommand "$w.scroly set" \
 		-setgrid true \
         	-width 80 -height 24 -wrap char \
@@ -6924,10 +7104,24 @@ proc mk_project_window { } {
 	# scrollbar $w.scrolx -orient horizontal -command "$w.t xview"
 	pack $w.scroly -side right -fill y
 	# pack $w.scrolx -side bottom -fill x
-	pack $Term -expand yes -fill both
+	pack $Term -side top -expand yes -fill both
 
 	# tag for file line numbers
 	$Term tag configure errtag -background gray
+
+	## the entry line
+
+	set TEntry $pw.e
+	text $TEntry -height 1 -width 80 -wrap char -font $FFont \
+		-exportselection 1 \
+		-state disabled
+
+	pack $TEntry -side top -expand no -fill x
+
+	bind $TEntry <ButtonRelease-1> "tk_textCopy $TEntry"
+	bind $TEntry <ButtonRelease-2> "tk_textPaste $TEntry"
+	bind $TEntry <Return> "do_console_input"
+	bind $TEntry <Control-c> "do_donsole_interrupt"
 
 	#######################################################################
 
@@ -6938,6 +7132,8 @@ proc mk_project_window { } {
 
 	# make it a paned window, so the tree view area can be easily resized
 	.pane add .pane.left .pane.right
+
+	mark_running 0
 
 	bind . <Destroy> "terminate -force"
 }
@@ -7010,7 +7206,7 @@ proc do_make_vuee { { arg "" } } {
 	set i [dict get $P(CO) "CMPIS"]
 
 	if { $i != 0 } {
-		lappend arg "-i"
+		set arg [linsert $arg 0 "-i"]
 	}
 
 	if [catch { run_term_command "picomp" $arg } err] {
