@@ -50,6 +50,7 @@ proc sy_usage { } {
 	puts stderr "       -S            scan for present UART devs"
 	puts stderr "       -P file       preprocessor plugin file"
 	puts stderr "       -C file       alternative configuration file"
+	puts stderr "       -T string     window title string (GUI version)"
 	puts stderr ""
 	puts stderr "Note that pktlen should be the same as the length used"
 	puts stderr "by the praxis in the respective argument of phys_uart."
@@ -81,6 +82,7 @@ set PM(SAP) [file join $PM(HOM) ".piterrc"]
 
 # Prescan arguments for -C (the alternative rc file) ##########################
 
+set f ""
 set u [lsearch -exact $argv "-C"]
 if { $u >= 0 } {
 	set f [lindex $argv [expr $u + 1]]
@@ -88,9 +90,20 @@ if { $u >= 0 } {
 		sy_usage
 	}
 	set PM(SAP) [file normalize $f]
-	unset f
 	set argv [lreplace $argv $u [expr $u + 1]]
 }
+
+set u [lsearch -exact $argv "-T"]
+if { $u >= 0 } {
+	set f [lindex $argv [expr $u + 1]]
+	if { $f == "" } {
+		sy_usage
+	}
+	set PM(TIT) $f
+	set argv [lreplace $argv $u [expr $u + 1]]
+}
+
+unset u f
 
 ###############################################################################
 
@@ -108,8 +121,6 @@ if [llength $argv] {
 	# this one won't be needed for sure
 	catch { close stdin }
 }
-
-unset u
 
 ###############################################################################
 # Shared initialization #######################################################
@@ -419,12 +430,15 @@ proc sy_dspline { ln } {
 
 proc sy_mkterm { } {
 
-	global ST WI
+	global ST WI PM
 
-	# Defaults
+	if { $PM(TIT) != "" } {
+		set hd " $PM(TIT)"
+	} else {
+		set hd ""
+	}
 
-	# this will change when we have figured out the parameters
-	wm title . "Piter"
+	wm title . "Piter$hd"
 
 	text .t \
 		-yscrollcommand ".scroly set" \

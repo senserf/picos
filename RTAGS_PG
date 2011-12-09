@@ -1471,3 +1471,8 @@ PG111208A:
 	but now would cause exceptions.
 
 	Some irrelevant cosmetics in piter.
+
+PG111209A:
+
+	Added a new argument to piter. With -T, PIP can set an identifier in
+	piter's window title, so multiple piter windows can be told apart.
