@@ -79,6 +79,7 @@ if { $ST(SYS) == "L" } {
 }
 set PiterCmd "piter"
 set GdbCmd "gdb"
+set XTCmd "xterm"
 
 if { $ST(SYS) == "L" } {
 	set SIDENAME "side"
@@ -6030,7 +6031,7 @@ proc run_term_command { cmd al { ea "" } { ni 0 } } {
 	fileevent $fd readable "term_output"
 }
 
-proc kill_pipe { fd { sig "KILL" } } {
+proc kill_pipe { fd { sig "KILL" } { stay "" } } {
 #
 # Kills the process on the other end of our pipe
 #
@@ -6043,7 +6044,9 @@ proc kill_pipe { fd { sig "KILL" } } {
 			log "Cannot kill $p: $err"
 		}
 	}
-	catch { close $fd }
+	if { $stay == "" } {
+		catch { close $fd }
+	}
 }
 
 proc abort_term { } {
@@ -6502,6 +6505,13 @@ proc mk_run_pgm_window { } {
 	bind $w <Destroy> "md_click -1"
 }
 
+proc run_xterm { } {
+
+	global XTCmd
+
+	catch { xq $XTCmd "&" }
+}
+
 proc run_any_program { } {
 #
 # Executes any program in the console
@@ -6589,7 +6599,7 @@ proc do_console_interrupt { } {
 
 	if { $TCMD(FD) != "" && $TCMD(SH) == 1 } {
 		log "Console interrupt"
-		kill_pipe $TCMD(FD) "INT"
+		kill_pipe $TCMD(FD) "INT" STAY
 	}
 }
 
@@ -6912,6 +6922,7 @@ proc reset_exec_menu { } {
 		set st "disabled"
 	}
 	$m add command -label "Run program" -command run_any_program -state $st
+	$m add command -label "XTerm" -command run_xterm
 	$m add separator
 	$m add command -label "Clean console" -command term_clean
 }
@@ -6941,7 +6952,7 @@ proc mark_running { stat } {
 		}
 		if $TCMD(SH) {
 			# the command needs input
-			$TEntry configure -state normal
+			$TEntry configure -state normal -relief groove -bg gray
 			log "Enabled manual input"
 		}
 		set TCMD(CL) 0
@@ -6957,7 +6968,7 @@ proc mark_running { stat } {
 	}
 
 	set P(SSL) "Idle:"
-	$TEntry configure -state disabled
+	$TEntry configure -state disabled -relief sunken -bg white
 	log "Disabled manual input"
 }
 
@@ -7121,7 +7132,7 @@ proc mk_project_window { } {
 	bind $TEntry <ButtonRelease-1> "tk_textCopy $TEntry"
 	bind $TEntry <ButtonRelease-2> "tk_textPaste $TEntry"
 	bind $TEntry <Return> "do_console_input"
-	bind $TEntry <Control-c> "do_donsole_interrupt"
+	bind $TEntry <Control-c> "do_console_interrupt"
 
 	#######################################################################
 

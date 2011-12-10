@@ -410,3 +410,15 @@ PG111209A:	PICOS >= PG111209A
 	before load.
 
 	Added a button to clean the console output.
+
+PG111210A:
+
+	PIP manual (or rather introduction) included (a preliminary version,
+	as it always is).
+
+	Fixed a problem with sending the Control-C int signal from the command
+	line, which would detach the program's pipe.
+
+	Added a button to run (trivially) an xterm in the project's directory.
+
+	The input line now changes color and relief when enabled.
