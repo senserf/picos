@@ -1745,7 +1745,7 @@ Value:
 
 #define	MAXRREGS 8
 
-static byte rregs [2*MAXRREGS+1];
+static byte rregs [2*MAXRREGS+1] = { 255 };
 
 static char *dec_hex (char *p, byte *b) {
 
@@ -1805,6 +1805,9 @@ fsm root {
 	}
 #endif
 #endif
+
+	diag ("");
+	diag ("");
 
 #if CC1100
 	diag ("Radio ...");

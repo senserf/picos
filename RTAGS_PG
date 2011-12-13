@@ -1476,3 +1476,10 @@ PG111209A:
 
 	Added a new argument to piter. With -T, PIP can set an identifier in
 	piter's window title, so multiple piter windows can be told apart.
+
+PG111213A:
+
+	Fixed the GP pin list in BOARDS/WARSAW and BOARDS/WARSAW_BLUE to
+	exclude P2.4, which is used as the soft reset button (and was included
+	in the list by mistake). When you set it to output (e.g., during auto
+	test, as in Apps/TESTS/WARSAW), it will reset the CPU.

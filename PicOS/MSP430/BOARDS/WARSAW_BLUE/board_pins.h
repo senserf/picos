@@ -76,7 +76,6 @@
 	PIN_DEF	(P6, 6),	\
 	PIN_DEF	(P2, 2),	\
 	PIN_DEF	(P2, 3),	\
-	PIN_DEF	(P2, 4),	\
 	PIN_DEF	(P2, 5),	\
 	PIN_DEF	(P2, 6),	\
 	PIN_DEF	(P4, 0),	\
@@ -85,7 +84,7 @@
 	PIN_DEF	(P4, 6)		\
 }
 
-#define	PIN_MAX			16	// Number of pins
+#define	PIN_MAX			15	// Number of pins
 #define	PIN_MAX_ANALOG		7	// Number of available analog pins
 #define	PIN_DAC_PINS		0x0000
 
