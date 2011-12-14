@@ -1,4 +1,0 @@
-#undef	MALLOC_STATS
-
-#define	MALLOC_STATS	1
-

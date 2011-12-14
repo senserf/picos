@@ -1483,3 +1483,40 @@ PG111213A:
 	exclude P2.4, which is used as the soft reset button (and was included
 	in the list by mistake). When you set it to output (e.g., during auto
 	test, as in Apps/TESTS/WARSAW), it will reset the CPU.
+
+PG111214A:
+
+	I have reorganized the Apps directory rather drastically:
+
+	- VUEE has been eliminated
+
+	- Apps/LEGACY contains all praxes that cannot be handled by picomp,
+	  including those manually adapted to VUEE (the old pre-picomp way),
+	  except for those that have been put into PROPRIETARY
+
+	- PROPRIETARY contains those praxes that we should never be giving out
+
+	- new_eco_demo/new_il_demo renamed eco_demo/il_demo (old versions
+	  put into LEGACY; probably they should be removed altogether)
+
+	- I have removed a few old and irrelevant test praxes
+
+	Note that NOT ALL non-legacy praxes are VUEE-compliant (in the sense
+	that they can be immediately compiled into VUEE models), but they are
+	all picomp-compliant (except for some praxes in PROPRIETARY). The idea
+	is that anything non-proprietary, is either picomp-compliant, or is
+	considered LEGACY, which means one of these:
+
+	- old trash that we want to keep around for sentimental reasons (some
+	  of it may be deleted after a more thorough investigation)
+
+	- something that is probably needed; we will convert it to a
+	  picomp-compliant form as soon as we need a demo
+	  
+	I don't want to count the old-style, manually converted,
+	VUEE-compatible praxes to the "presentable" pool, because they are 
+	confusing.
+
+	Modified some docs to reflect the new layout of Apps.
+
+	Wlodek, please have a look and tell me what you think.

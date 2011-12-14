@@ -1,9 +1,0 @@
-#undef	CC1100
-#undef	TCV_PRESENT
-#undef	UART_DRIVER
-#undef	STORAGE_AT45XXX
-#undef	UART_TCV
-#undef	UART_RATE
-
-#define	UART_DRIVER	1
-#define	UART_RATE	115200
