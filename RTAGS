@@ -394,7 +394,7 @@ PG111209A:	PICOS >= PG111209A
 	  within gdb; again, not very flashy (the interface to gdb is command-
 	  line), but better than nothing
 
-	Yesterday a VUEE model crashed on me (the bug in picomp at PH111208A),
+	Yesterday a VUEE model crashed on me (the bug in picomp at PG111208A),
 	and I had to step out of PIP to run gdb on side.exe. Now I don't have
 	to.
 
@@ -422,3 +422,11 @@ PG111210A:
 	Added a button to run (trivially) an xterm in the project's directory.
 
 	The input line now changes color and relief when enabled.
+
+PG111214A:
+
+	Apps is now the default directory for project subdirs rather than
+	Apps/VUEE. Apps/VUEE no longer exists.
+
+	A few cosmetics. For example, it is now possible to declare in Config
+	that the project should never be compiled for a VUEE model.

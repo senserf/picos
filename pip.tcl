@@ -116,6 +116,7 @@ set CFBoardItems {
 }
 
 set CFVueeItems {
+			"VDISABLE"	0
 			"CMPIS"		0
 			"UDON"		0
 			"UDDF"		""
@@ -4014,6 +4015,7 @@ proc do_vuee_config { } {
 			dialog_to_params $CFVueeItems
 			md_stop
 			set_config
+			reset_bnx_menus
 			return
 		}
 	}
@@ -4024,6 +4026,15 @@ proc mk_vuee_conf_window { } {
 	global P
 
 	set w [md_window "VUEE configuration"]
+
+	##
+	set f $w.td
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Disable VUEE for this project: "
+	pack $f.l -side left -expand n
+	checkbutton $f.c -variable P(M0,VDISABLE)
+	pack $f.c -side right -expand n
 
 	##
 	set f $w.tf
@@ -4134,6 +4145,23 @@ proc vuee_conf_fsel { tp } {
 	}
 }
 
+proc vuee_disabled { } {
+#
+# Returns 1 if VUEE is disabled for the project
+#
+	global P
+
+	if { $P(AC) == "" || $P(CO) == "" } {
+		return 1
+	}
+
+	if { [dict get $P(CO) "VDISABLE"] == 0 } {
+		return 0
+	}
+
+	return 1
+}
+
 ###############################################################################
 
 proc do_options { } {
@@ -4142,7 +4170,7 @@ proc do_options { } {
 #
 	global P CFOptItems CFOptSFModes TermLines
 
-	if { $P(AC) == "" } {
+	if { $P(AC) == "" || $P(CO) == "" } {
 		return
 	}
 
@@ -6766,19 +6794,29 @@ proc reset_build_menu { } {
 		}
 	}
 
-	if { $TCMD(FD) != "" || [catch { glob "Makefile*" } st] || $st == "" } {
+	if [vuee_disabled] {
 		set st "disabled"
 	} else {
 		set st "normal"
 	}
 
-	$m add command -label "VUEE" -command "do_make_vuee"
-	$m add command -label "VUEE (debug)" -command "do_make_vuee { -- -g }"
-	$m add command -label "VUEE (recompile)" -command "do_make_vuee -e"
-	$m add command -label "VUEE (status)" -command "do_make_vuee { -e -n }"
+	$m add command -label "VUEE" -state $st \
+		-command "do_make_vuee"
+	$m add command -label "VUEE (debug)" -state $st \
+		-command "do_make_vuee { -- -g }"
+	$m add command -label "VUEE (recompile)" -state $st \
+		-command "do_make_vuee -e"
+	$m add command -label "VUEE (status)" -state $st \
+		-command "do_make_vuee { -e -n }"
 	$m add separator
 
 	$m add command -label "Clean (full)" -command "do_cleanup"
+
+	if { $TCMD(FD) != "" || [catch { glob "Makefile*" } st] || $st == "" } {
+		set st "disabled"
+	} else {
+		set st "normal"
+	}
 
 	if { $mb != "" && $bo != "" } {
 		if $mb {
@@ -6853,7 +6891,7 @@ proc reset_exec_menu { } {
 
 	$m add separator
 
-	if { $TCMD(FD) == "" && [file_present $SIDENAME] } {
+	if { ![vuee_disabled] && $TCMD(FD) == "" && [file_present $SIDENAME] } {
 		set st "normal"
 	} else {
 		set st "disabled"
@@ -8415,8 +8453,17 @@ if [catch { xq picospath } PicOSPath] {
 }
 set PicOSPath [file normalize $PicOSPath]
 
+log "PicOS path: $PicOSPath"
+
 # path to the default superdirectory for projects
-set DefProjDir [file join $PicOSPath Apps VUEE]
+foreach DefProjDir [list [file join $PicOSPath Apps VUEE] \
+    [file join $PicOSPath Apps]]  {
+	if [file isdirectory $DefProjDir] {
+		break
+	}
+}
+
+log "Project superdirectory: $DefProjDir"
 
 # list of CPU-specific subdirectories of PicOS
 set CPUDirs { "MSP430" "eCOG" }
@@ -8425,9 +8472,11 @@ set CPUDirs { "MSP430" "eCOG" }
 if [regexp -nocase "^\[a-z\]:" $PicOSPath] {
 	# DOS paths
 	set ST(DP) 1
+	log "Preferred path format: DOS"
 } else {
 	# UNIX paths
 	set ST(DP) 0
+	log "Preferred path format: UNIX"
 }
 
 get_rcoptions
