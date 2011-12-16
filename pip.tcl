@@ -825,6 +825,59 @@ proc gfl_tree { } {
 	}
 
 	gfl_make_ctags
+
+	if { [dict get $P(CO) "OPSYSFILES"] == 0 } {
+		# do not include BOARD files, if the user prefers not to care
+		return
+	}
+
+	set mb [dict get $P(CO) "MB"]
+	set bo [dict get $P(CO) "BO"]
+
+	if { $mb == "" || $bo == "" } {
+		# boards not defined for this project yet
+		return
+	}
+
+	if !$mb {
+		# just in case
+		set bo [list $bo]
+	} else {
+		set bo [lsort -unique $bo]
+	}
+
+	foreach b $bo {
+
+		# path to the board directory
+		set bp [file join [boards_dir] $b]
+		if ![file isdirectory $bp] {
+			# just in case
+			continue
+		}
+
+		# all files
+		set fl [glob -nocomplain -directory $bp -tails *]
+		set l ""
+		foreach f $fl {
+			# this is flat, so only plain files at this level count
+			if ![file isfile [file join $bp $f]] {
+				continue
+			}
+			lappend l $f
+		}
+
+		set id [$tv insert {} end -text "<${b}>:" \
+			-values [list $b "b"]]
+		if [info exists P(FL,b,$b)] {
+			set of 1
+		} else {
+			set of 0
+		}
+		$tv item $id -open $of
+		# the function expects a pair <dirs, files>, but we only have
+		# files
+		gfl_tree_pop $tv $id [list "" $l] $bp
+	}
 }
 
 proc gfl_tree_pop { tv node lst path } {
@@ -879,8 +932,8 @@ proc gfl_all_rec { path } {
 #
 	global MKRECV
 
-	if [catch { glob -directory $path -tails * } sdl] {
-		# something wrong
+	set sdl [glob -nocomplain -directory $path -tails *]
+	if { $sdl == "" } {
 		return ""
 	}
 
@@ -970,7 +1023,7 @@ proc gfl_open { tree node } {
 
 	set t [$tree set $node type]
 
-	if { $t == "c" || $t == "d" } {
+	if { $t == "c" || $t == "d" || $t == "b" } {
 		# mark it as open
 		set P(FL,$t,[$tree set $node filename]) ""
 	}
@@ -982,20 +1035,27 @@ proc gfl_close { tree node } {
 
 	set t [$tree set $node type]
 
-	if { $t == "c" || $t == "d" } {
+	if { $t == "c" || $t == "d" || $t == "b" } {
 		array unset P "FL,$t,[$tree set $node filename]"
 	}
 }
 
 proc gfl_files { { pat "" } { neg 0 } } {
 #
-# Finds all files in the tree view matching the specified pattern
+# Finds all files in the tree view matching the specified pattern; looks only
+# at actual project files skipping over the Boards
 #
 	global P
 
 	set res ""
 
 	foreach d [$P(FL) children {}] {
+		set vs [$P(FL) item $d -values]
+		if { [lindex $vs 1] != "c" } {
+			# ignore Boards; just in case, we assume they need not
+			# be all at the end
+			continue
+		}
 		# only headers at this level
 		set lres [gfl_files_rec $d $pat $neg]
 		if { $lres != "" } {
@@ -1566,10 +1626,8 @@ proc edit_close { fd ab } {
 		log "Edit session $EFDS($fd) $ab"
 		set es $EFST($fd,E)
 		set em $EFST($fd,A)
-		if { $es == "T" } {
-			# for a project file, need to update the file status
-			gfl_status $EFDS($fd) -1
-		}
+		# update file status in tree view
+		gfl_status $EFDS($fd) -1
 		array unset EFST "$fd,*"
 		unset EFDS($fd)
 		# redo the file list; FIXME: don't do this, but redo tags, if
@@ -2090,9 +2148,7 @@ proc delete_directories { fl } {
 	set de ""
 
 	foreach f $fl {
-		if [catch { glob -directory $f * } fils] {
-			set fils ""
-		}
+		set fils [glob -nocomplain -directory $f *]
 		if { $fils != "" } {
 			# nonempty
 			lappend ne $f
@@ -2398,8 +2454,11 @@ proc tree_sel_params { { x "" } { y "" } } {
 					# will redo for "unknown"
 					break
 				}
-				if { [lindex [$tv item $t -values] 0] == "c" } {
-					# the top, i.e., the class node
+				# node type
+				set ht [lindex [$tv item $t -values] 0]
+				if { ht == "c" || $ht == "b" } {
+					# the top, i.e., the class node or
+					# a board header
 					break
 				}
 			}
@@ -2412,6 +2471,17 @@ proc tree_sel_params { { x "" } { y "" } } {
 		if { $tp == "c" } {
 			# class, force the suffix
 			set typ $fn
+			break
+		}
+
+		if { $tp == "b" } {
+			# board
+			if { $dir == "." } {
+				set dir [file normalize \
+					[file join [boards_dir] $fn]]
+			}
+			# a special type
+			set typ "Board"
 			break
 		}
 
@@ -2445,8 +2515,8 @@ proc new_file { { x "" } { y "" } } {
 	}
 
 	if $fo {
-		# impossible, assume Sources
-		set t [lindex $LFTypes 1]
+		# this must be Board, assume Header
+		set t [lindex $LFTypes 0]
 	}
 
 	set typ [list [lindex $t 2]]
@@ -2885,7 +2955,8 @@ proc val_prj_exists { dir { try 0 } } {
 		log "config.prj exists"
 	}
 
-	if { [catch { glob -directory $dir -tails * } fl] || $fl == "" } {
+	set fl [glob -nocomplain -directory $dir -tails *]
+	if { $fl == "" } {
 		# this will not happen
 		if { $try <= 1 } {
 			alert "The project directory $dir is empty"
@@ -2961,6 +3032,8 @@ proc val_prj_exists { dir { try 0 } } {
 	set P(PL) $pl
 
 	wm title . "PIP $ST(VER), project [prj_name $dir]"
+
+	setup_project $dir
 
 	gfl_tree
 
@@ -3187,7 +3260,6 @@ proc open_project { { which -1 } { dir "" } } {
 	set LProjects $lp
 	set_rcoption LProjects
 	catch { reset_file_menu }
-	setup_project $dir
 	reset_bnx_menus
 	reset_file_menu
 	sys_make_ctags
@@ -3540,11 +3612,25 @@ proc click_menu_button { w n { cmd "" } } {
 	}
 }
 
+proc boards_dir { { cpu "" } } {
+#
+# Returns the path to the BOARDS directory for thr given CPU, or for the
+# project's CPU, if null
+#
+	global PicOSPath P
+
+	if { $cpu == "" } {
+		set cpu [dict get $P(CO) "CPU"]
+	}
+
+	return [file join $PicOSPath PicOS $cpu BOARDS]
+}
+
 proc board_list { cpu } {
 
 	global PicOSPath
 
-	set dn [file join $PicOSPath PicOS $cpu BOARDS]
+	set dn [boards_dir $cpu]
 	set fl [glob -nocomplain -tails -directory $dn *]
 
 	set r ""
@@ -3586,6 +3672,7 @@ proc do_board_selection { } {
 		if { $ev < 0 } {
 			# cancellation
 			reset_build_menu
+			gfl_tree
 			return
 		}
 		if { $ev == 1 } {
@@ -3594,9 +3681,10 @@ proc do_board_selection { } {
 			md_stop
 			set_config
 			reset_build_menu
+			# we do this in case board list has changed
+			gfl_tree
 			return
 		}
-		# redo
 	}
 }
 
@@ -4230,6 +4318,8 @@ proc do_options { } {
 			# this can only be done after the changes have settled
 			if $u {
 				sys_make_ctags
+				# to show/hide Boards
+				gfl_tree
 			}
 			if $z {
 				vue_make_ctags
@@ -6183,11 +6273,8 @@ proc upload_ELP { } {
 			set ep [file normalize $env(PROGRAMFILES)]
 			log "Loader auto path prefix: $ep"
 		}
-		if [catch {
-			glob -directory $ep "Elprotronic/*/*/FET*.exe"
-		} ep] {
-			set ep ""
-		}
+		set ep [glob -nocomplain \
+			-directory $ep "Elprotronic/*/*/FET*.exe"]
 		log "Loader exec candidates: $ep"
 		if { $ep != "" } {
 			set ep [lindex $ep 0]
@@ -6202,7 +6289,8 @@ proc upload_ELP { } {
 		return
 	}
 
-	if { [catch { glob "Image*.a43" } im] || $im == "" } {
+	set im [glob -nocomplain "Image*.a43"]
+	if { $im == "" } {
 		alert "No .a43 (Intel) format image(s) available for upload"
 		return
 	}
@@ -6326,9 +6414,7 @@ proc upload_MGD { } {
 #
 	global P TCMD GdbLdCmd ST GdbLdPgm GdbLdUse
 
-	if [catch { glob "Image*" } fl] {
-		set fl ""
-	}
+	set fl [glob -nocomplain "Image*"]
 
 	# check if there's at least one qualifying file
 	set fail 1
@@ -6723,9 +6809,9 @@ proc scdir_present { { suf "" } } {
 		set d $d$suf
 		if [file isdirectory $d] {
 			# check if nonempty
-			if { ![catch { glob -directory $d -tails * } sdl] &&
-				$sdl != "" } {
-					return 1
+			set sdl [glob -nocomplain -directory $d -tails *]
+			if { $sdl != "" } {
+				return 1
 			}
 		}
 	}
@@ -6812,7 +6898,7 @@ proc reset_build_menu { } {
 
 	$m add command -label "Clean (full)" -command "do_cleanup"
 
-	if { $TCMD(FD) != "" || [catch { glob "Makefile*" } st] || $st == "" } {
+	if { $TCMD(FD) != "" || [glob -nocomplain "Makefile*"] == "" } {
 		set st "disabled"
 	} else {
 		set st "normal"
@@ -6868,7 +6954,7 @@ proc reset_exec_menu { } {
 		return
 	}
 
-	if { [catch { glob "Image*" } im] || $im == "" } {
+	if { [glob -nocomplain "Image*"] == "" } {
 		set st "disabled"
 	} else {
 		set st "normal"
@@ -8308,7 +8394,8 @@ proc get_picos_project_files { } {
 #
 	global FNARR
 
-	if { [catch { glob "Makefile*" } ml] || $ml == "" } {
+	set ml [glob -nocomplain "Makefile*"]
+	if { $ml == "" } {
 		return ""
 	}
 
@@ -8350,10 +8437,7 @@ proc gsf_trv { p } {
 	# full path to current place
 	set wh [file join $FNDIR $p]
 
-	if [catch { glob -directory $wh -tails * } sdl] {
-		# no files at this level
-		return
-	}
+	set sdl [glob -nocomplain -directory $wh -tails *]
 
 	foreach f $sdl {
 		# full path to the file
@@ -8391,7 +8475,8 @@ proc get_vuee_files { } {
 		return ""
 	}
 
-	if [catch { glob -directory $vdir -tails * } sdl] {
+	set sdl [glob -nocomplain -directory $vdir -tails *]
+	if { $sdl == "" } {
 		# this will not happen
 		return ""
 	}

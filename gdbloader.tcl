@@ -275,6 +275,7 @@ proc run_proxy { dev } {
 
 	if { $ST(STA) != "OFF" } {
 		# ignore, state must be OFF
+		term_dspline 0 "--STATE != OFF -> $ST(STA)"
 		return
 	}
 
@@ -856,6 +857,8 @@ proc restart { } {
 	term_stop 0
 
 	delay 500
+
+	set ST(STA) "OFF"
 
 	if { $ST(SYS) != "L" } {
 		# Cygwin - no device

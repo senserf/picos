@@ -430,3 +430,18 @@ PG111214A:
 
 	A few cosmetics. For example, it is now possible to declare in Config
 	that the project should never be compiled for a VUEE model.
+
+PG111216A:
+
+	Fixed a problem in gdbloader causing that gdbproxy couldn't be
+	restarted after some communication errors with the CPU.
+
+	Fixed genimage to address the argument passing problem mentioned at
+	PG111207A. Previously I thought that genimage was immune. Also, as
+	suggested by Wlodek, the numbers entered in genimage's widgets can now
+	be in hex (as in 0xAF). Anything acceptable as an expression yielding
+	int will work.
+
+	When system files are declared as viewable (!= Never, see PG111119A),
+	PIP shows in the view tree the board directory (or board directories,
+	for multiprogram praxes). I am not yet sure if I like it this way.

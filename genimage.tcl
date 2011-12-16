@@ -38,16 +38,25 @@ if [catch { exec uname } ST(SYS)] {
 } else {
 	set ST(SYS) "W"
 }
+if { $ST(SYS) != "L" } {
+	# sanitize arguments; here you a sample of the magnitude of stupidity
+	# I have to fight when glueing together Windows and Cygwin stuff; the
+	# last argument (sometimes!) has a CR character appended at the end,
+	# and you wouldn't believe how much havoc that can cause
+	set u [string trimright [lindex $argv end]]
+	if { $u == "" } {
+		set argv [lreplace $argv end end]
+	} else {
+		set argv [lreplace $argv end end $u]
+	}
+	unset u
+}
 
 set PM(PWD) [file normalize [pwd]]
 set MWSG ""
 
 ## double exit avoidance flag
 set DEAF 0
-
-###############################################################################
-# Make sure we run as wish ####################################################
-###############################################################################
 
 proc terminate { } {
 
@@ -59,6 +68,10 @@ proc terminate { } {
 
 	exit 0
 }
+
+###############################################################################
+# Make sure we run as wish ####################################################
+###############################################################################
 
 if [catch { package require Tk $ST(WSH) } ] {
 	puts stderr "Cannot find Tk version $ST(WSH) matching the Tcl version"
@@ -256,11 +269,11 @@ proc verify_pnm { s } {
 #
 # Integer >= 1
 #
-	if ![regexp "^\[0-9\]+$" $s] {
+	if [catch { expr $s } v] {
 		return ""
 	}
 
-	if [catch { expr $s } v] {
+	if [regexp -nocase "\[-.e\]" $s] {
 		return ""
 	}
 
