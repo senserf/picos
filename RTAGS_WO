@@ -102,3 +102,10 @@ WO111127A:
   ee_open() and some cosmetics. Also, nov21.xml describes outdoor experiments
   comparing emspcc with Nanotron nodes.
 
+WO111217A:
+  Updated mm_demo: mostly format changes for ANDROIDEMO (set in options.sys).
+  However, PEG_STR_LEN change from 15 to 33 bloats ram and nvm structs.
+  Also, the alarms are used for handshakes with encoded meanings: in VUEE,
+  odd nodes respond 'no', even ones 'yes', with auto-generated 'ack-alarms'.
+  For demos only, in hybrid scenarios with VUEE and real hardware.
+
