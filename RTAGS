@@ -445,3 +445,18 @@ PG111216A:
 	When system files are declared as viewable (!= Never, see PG111119A),
 	PIP shows in the view tree the board directory (or board directories,
 	for multiprogram praxes). I am not yet sure if I like it this way.
+
+PG111222A:
+
+	Library mode added. It is now possible to compile libraries from PIP
+	and then use them to build projects in library mode (as opposed to the
+	old, traditional "source" mode).
+
+	Libraries created by PIP are associated with boards and clean, in the
+	sense that their creation procedure does not admit local options.sys to
+	modify the parameters defined by the board. The libraries are stored in
+	PICOS/LIBRARIES under directory names matching the corresponding board
+	directory names (in MSP430/BOARDS). The cleanup operation in PicOS
+	(starting from PG111222A) removes LIBRARIES from the tree.
+
+	The documentation expanded a bit.

@@ -5,7 +5,7 @@ exec tclsh85 "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 0.4
+set ST(VER) 0.5
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -92,7 +92,8 @@ if { $ST(SYS) == "L" } {
 set LFTypes {
 	{ Headers { "\\.h$" "\\.ch$" } { Header { ".h" ".ch" } } }
 	{ Sources { "\\.cc?$" "\\.asm$" } { Source { ".cc" } } }
-	{ Options { "^options\[_a-z\]*\\.sys$" } { Options { ".sys" } } }
+	{ Options { "^options\[_a-z\]*\\.sys$" "^options\\.vuee?$" }
+		{ Options { ".sys" ".vue" ".vuee" } } }
 	{ XMLData { "\\.xml$" "\\.geo$" } { XMLData { ".xml" ".geo" } } }
 }
 
@@ -108,11 +109,19 @@ set SoftCleanDirs { "out" "tmp" "KTMP" }
 ###############################################################################
 
 ## Dictionary of configuration items (to be searched for in config.prj) + their
-## default values
+## default values:
+##
+##	CPU (there's only one choice for now)
+##	MB  - multiple boards (0 or 1) for multiprogram praxes
+##	BO  - list of boards (per program, P(PL) is the corresponding list of
+##	      labels
+##	LM  - library mode (indexed as BO), 0 - no, 1 - YES
+##
 set CFBoardItems {
 			"CPU" 		"MSP430"
 			"MB" 		0
 			"BO" 		""
+			"LM"		""
 }
 
 set CFVueeItems {
@@ -189,8 +198,9 @@ set CFItems 	[concat $CFBoardItems \
 			$CFSearchItems \
 			$CFXecItems]
 
-## List of legal CPU types; eCOG probably won't work
-set CPUTypes { MSP430 eCOG }
+## List of legal CPU types; eCOG won't work
+## set CPUTypes { MSP430 eCOG }
+set CPUTypes { MSP430 }
 
 ###############################################################################
 
@@ -272,6 +282,9 @@ set TCMD(BL) 0
 
 ## Extra action to be carried out after the (successful) term command
 set TCMD(EA) ""
+
+## Extra action to be carried out after the command is aborted
+set TCMD(AA) ""
 
 ## Callback (after) to visualize that something is running in term
 set TCMD(CB) ""
@@ -399,7 +412,18 @@ proc valnum { n { min "" } { max "" } } {
 	return $n
 }
 
+proc blindex { lst ix } {
+#
+# Forced boolean interpretation of a list element
+#
+	set v [lindex $lst $ix]
 
+	if { ![regexp "^\[0-9\]+$" $v] || $v == 0 } {
+		return 0
+	}
+	return 1
+}
+	
 proc valcol { c } {
 #
 # Validates a color
@@ -731,6 +755,8 @@ proc file_class { f } {
 #
 	global LFTypes
 
+	set f [file tail $f]
+
 	foreach t $LFTypes {
 		foreach p [lindex $t 1] {
 			if [regexp $p $f] {
@@ -792,6 +818,23 @@ proc relative_path { f } {
 	return $f
 }
 
+proc board_set { } {
+#
+# Returns the list (set) of boards used by the project's program
+#
+	global P
+
+	set mb [dict get $P(CO) "MB"]
+	set bo [dict get $P(CO) "BO"]
+
+	if { $mb == "" || $bo == "" } {
+		# boards not defined for this project yet
+		return ""
+	}
+
+	return [lsort -unique $bo]
+}
+
 proc gfl_tree { } {
 #
 # Fill/update the treeview file list with files
@@ -831,22 +874,7 @@ proc gfl_tree { } {
 		return
 	}
 
-	set mb [dict get $P(CO) "MB"]
-	set bo [dict get $P(CO) "BO"]
-
-	if { $mb == "" || $bo == "" } {
-		# boards not defined for this project yet
-		return
-	}
-
-	if !$mb {
-		# just in case
-		set bo [list $bo]
-	} else {
-		set bo [lsort -unique $bo]
-	}
-
-	foreach b $bo {
+	foreach b [board_set] {
 
 		# path to the board directory
 		set bp [file join [boards_dir] $b]
@@ -867,7 +895,7 @@ proc gfl_tree { } {
 		}
 
 		set id [$tv insert {} end -text "<${b}>:" \
-			-values [list $b "b"]]
+			-values [list $b "b"] -tags sboard]
 		if [info exists P(FL,b,$b)] {
 			set of 1
 		} else {
@@ -3612,9 +3640,41 @@ proc click_menu_button { w n { cmd "" } } {
 	}
 }
 
+proc library_dir { board } {
+#
+# Returns the path to the library directory associated with the board
+#
+	global PicOSPath
+
+	set dir [file join $PicOSPath "LIBRARIES"]
+
+	if ![file isdirectory $dir] {
+		# make sure it exists
+		catch { exec rm -rf $dir }
+		if [catch { file mkdir $dir } err] {
+			alert "Cannot create $dir: $err, internal error"
+			# continue, there's nothing you can do about it
+		}
+	}
+
+	return [file normalize [file join $dir $board]]
+}
+
+proc library_present { board } {
+#
+# Checks if there's a library present for the board
+#
+	set dir [library_dir $board]
+	if ![file isdirectory $dir] {
+		set dir ""
+	}
+
+	return $dir
+}
+
 proc boards_dir { { cpu "" } } {
 #
-# Returns the path to the BOARDS directory for thr given CPU, or for the
+# Returns the path to the BOARDS directory for the given CPU, or for the
 # project's CPU, if null
 #
 	global PicOSPath P
@@ -3623,7 +3683,7 @@ proc boards_dir { { cpu "" } } {
 		set cpu [dict get $P(CO) "CPU"]
 	}
 
-	return [file join $PicOSPath PicOS $cpu BOARDS]
+	return [file normalize [file join $PicOSPath PicOS $cpu BOARDS]]
 }
 
 proc board_list { cpu } {
@@ -3665,6 +3725,19 @@ proc do_board_selection { } {
 			catch { destroy $w }
 		}
 
+		# get the library modes
+		if $P(M0,MB) {
+			for { set n 0 } { $n < [llength $P(PL)] } { incr n } {
+				set P(M0,LM,$n) [blindex $P(M0,LM) $n]
+			}
+		} else {
+			set lm [lindex $P(M0,LM) 0]
+			if { $lm == "" || ($lm != 0 && $lm != 1) } {
+				set lm 0
+			}
+			set P(M0,LM,0) $lm
+		}
+		
 		set w [mk_board_selection_window]
 
 		set ev [md_wait]
@@ -3677,12 +3750,24 @@ proc do_board_selection { } {
 		}
 		if { $ev == 1 } {
 			# accepted; copy the options
+			set P(M0,LM) ""
+			if $P(M0,MB) {
+				for { set n 0 } { $n < [llength $P(PL)] } \
+				    { incr n } {
+					lappend P(M0,LM) $P(M0,LM,$n)
+				}
+			} else {
+				lappend P(M0,LM) $P(M0,LM,0)
+			}
 			dialog_to_params $CFBoardItems
 			md_stop
 			set_config
 			reset_build_menu
 			# we do this in case board list has changed
 			gfl_tree
+			# and this as a matter of principle
+			term_dspline "--RECONFIGURATION, FULL CLEAN FORCED--"
+			do_cleanup
 			return
 		}
 	}
@@ -3734,10 +3819,11 @@ proc mk_board_selection_window { } {
 	# column number for the grid
 	set cn 0
 	set rn 0
+	set rm [expr $rn + 1]
+	set ro [expr $rm + 1]
 
 	### CPU selection #####################################################
 
-	set rm [expr $rn + 1]
 
 	label $f.cpl -text "CPU"
 	grid $f.cpl -column $cn -row $rn -sticky nw -padx 1 -pady 1
@@ -3745,6 +3831,9 @@ proc mk_board_selection_window { } {
 	mk_menu_button $f.cpb
 	set_menu_button $f.cpb $P(M0,CPU) $CPUTypes cpu_selection_click
 	grid $f.cpb -column $cn -row $rm -sticky nw -padx 1 -pady 1
+
+	label $f.lml -text "Lib mode:"
+	grid $f.lml -column $cn -row $ro -sticky nw -padx 1 -pady 1
 
 	### Multiple boards/single board ######################################
 
@@ -3790,6 +3879,10 @@ proc mk_board_selection_window { } {
 			set_menu_button $mb $bn $boards board_selection_click
 			grid $f.bm$nb -column $cn -row $rm -sticky nw \
 				-padx 1 -pady 1
+			checkbutton $f.lm$nb -variable P(M0,LM,$nb)
+			grid $f.lm$nb -column $cn -row $ro -sticky nw \
+				-padx 1 -pady 1
+
 			incr nb
 			lappend tb $bn
 		}
@@ -3805,6 +3898,8 @@ proc mk_board_selection_window { } {
 		mk_menu_button $mb
 		set_menu_button $mb $bn $boards board_selection_click
 		grid $f.bm0 -column $cn -row $rm -sticky nw -padx 1 -pady 1
+		checkbutton $f.lm0 -variable P(M0,LM,0)
+		grid $f.lm0 -column $cn -row $ro -sticky nw -padx 1 -pady 1
 	}
 
 	incr cn
@@ -3812,11 +3907,11 @@ proc mk_board_selection_window { } {
 	# the done button
 	button $f.don -text "Done" -width 7 \
 		-command "md_click 1"
-	grid $f.don -column $cn -row $rn -sticky nw -padx 1 -pady 1
+	grid $f.don -column $cn -row $ro -sticky nw -padx 1 -pady 1
 
 	button $f.can -text "Cancel" -width 7 \
 		-command "md_click -1"
-	grid $f.can -column $cn -row $rm -sticky nw -padx 1 -pady 1
+	grid $f.can -column $cn -row $rn -sticky nw -padx 1 -pady 1
 
 	bind $w <Destroy> "md_click -1"
 
@@ -6058,7 +6153,7 @@ proc run_vuee { { deb 0 } } {
 		# debugging, remove proxy files
 		catch { exec rm -f ".gdbinit" }
 		catch { exec rm -f "gdb.ini" }
-		if [catch { run_term_command $GdbCmd [list $SIDENAME] "" 1 } \
+		if [catch { run_term_command $GdbCmd [list $SIDENAME] "" "" 1 }\
 		    err] {
 			alert "Cannot execute $GdbCmd: $err"
 		}
@@ -6096,9 +6191,15 @@ proc run_vuee { { deb 0 } } {
 	}
 }
 
-proc run_term_command { cmd al { ea "" } { ni 0 } } {
+proc run_term_command { cmd al { ea "" } { aa "" } { ni 0 } } {
 #
-# Run a command in term window
+# Run a command in term window:
+#
+#	cmd - the command
+#	al  - argument list
+#	ea  - end action, i.e., a statement to execute after completion
+#	aa  - abort action, i.e., a statement to execute after abort
+#	ni  - need input (the pipe should be opened rw with input line enabled)
 #
 	global TCMD
 
@@ -6142,8 +6243,9 @@ proc run_term_command { cmd al { ea "" } { ni 0 } } {
 	reset_bnx_menus
 
 	set TCMD(EA) $ea
+	set TCMD(AA) $aa
 
-	log "Pipe: $cmd <$fd, $ni, $ff, $ea>"
+	log "Pipe: $cmd <$fd, $ni, $ff, $ea, $aa>"
 
 	fconfigure $fd -blocking 0 -buffering none -eofchar "" -translation lf
 	fileevent $fd readable "term_output"
@@ -6175,8 +6277,15 @@ proc abort_term { } {
 		kill_pipe $TCMD(FD)
 		set TCMD(FD) ""
 		set TCMD(BF) ""
+		# chain action is ignored after abort
+		set TCMD(EA) ""
+		set aa $TCMD(AA)
+		set TCMD(AA) ""
 		term_dspline "--ABORTED--"
 		mark_running 0
+		if { $aa != "" } {
+			eval $aa
+		}
 		# may fail if the master window has been destroyed already
 		catch { reset_bnx_menus }
 	}
@@ -6186,18 +6295,21 @@ proc stop_term { } {
 
 	global TCMD
 
+	set ea ""
 	if { $TCMD(FD) != "" } {
 		kill_pipe $TCMD(FD)
 		set TCMD(FD) ""
 		set TCMD(BF) ""
-		if { $TCMD(EA) != "" } {
-			$TCMD(EA)
-			set TCMD(EA) ""
-		}
+		set ea $TCMD(EA)
+		set TCMD(EA) ""
+		set TCMD(AA) ""
 		reset_bnx_menus
 	}
 	mark_running 0
 	term_dspline "--DONE--"
+	if { $ea != "" } {
+		eval $ea
+	}
 }
 
 ###############################################################################
@@ -6676,7 +6788,7 @@ proc run_any_program { } {
 		return
 	}
 
-	if [catch { run_term_command $cmd "" "" 1 } err] {
+	if [catch { run_term_command $cmd "" "" "" 1 } err] {
 		alert "Cannot run $cmd: $err"
 	}
 }
@@ -6790,6 +6902,23 @@ proc reset_config_menu { } {
 	$m add command -label "CPU+Board ..." -command "do_board_selection"
 	$m add command -label "VUEE ..." -command "do_vuee_config"
 	$m add command -label "Loaders ..." -command "do_loaders_config"
+
+	set bo [board_set]
+	if { [dict get $P(CO) "OPSYSFILES"] != 0 && $bo != "" } {
+		# add a build board library menu
+		$m add separator
+		foreach b $bo {
+			$m add command -label "Create lib for $b" \
+				-command "do_makelib $b"
+		}
+
+		if { [llength $bo] > 1 } {
+			$m add separator
+			$m add command -label "Create libs for all" \
+				-command "do_makelib_all"
+		}
+	}
+
 	$m add separator
 	$m add command -label "Editor schemes ..." -command "do_eschemes"
 	$m add command -label "Options ..." -command "do_options"
@@ -6838,6 +6967,7 @@ proc reset_build_menu { } {
 
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
+	set bm [dict get $P(CO) "LM"]
 
 	if { $mb != "" && $bo != "" } {
 		# we do have mkmk
@@ -6845,37 +6975,49 @@ proc reset_build_menu { } {
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
+				set lm [blindex $bm $bi]
+				if $lm {
+					set lm "lib"
+				} else {
+					set lm "src"
+				}
 				$m add command -label \
-					"Pre-build $suf (mkmk $b $suf)" \
-					-command "do_mkmk_node $bi"
+				    "Pre-build $suf ($b $lm)" -command \
+				    "do_mkmk_node $bi sys_make_ctags"
 				incr bi
 			}
 			$m add separator
+			if { $bi > 1 } {
+				$m add command -label "Pre-build all" -command \
+				"do_mkmk_all"
+				$m add separator
+			}
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
-				set maf "Makefile_$suf"
-				if [file_present $maf] {
-					set st "normal"
-				} else {
-					set st "disabled"
-				}
 				$m add command -label \
-					"Build $suf (make -f Makefile_$suf)" \
-					-command "do_make_node $bi" -state $st
+					"Build $suf (make)" \
+					-command "do_make_node $bi"
 				incr bi
 			}
 			$m add separator
-		} else {
-			$m add command -label "Pre-build (mkmk $bo)" \
-				-command "do_mkmk_node"
-			if [file_present "Makefile"] {
-				set st "normal"
-			} else {
-				set st "disabled"
+			if { $bi > 1 } {
+				$m add command -label "Build all" \
+				-command "do_make_all"
+				$m add separator
 			}
+		} else {
+			set lm [blindex $bm 0]
+			set bo [lindex $bo 0]
+			if $lm {
+				set lm "lib"
+			} else {
+				set lm "src"
+			}
+			$m add command -label "Pre-build ($bo $lm)" \
+				-command "do_mkmk_node 0 sys_make_ctags"
 			$m add command -label "Build (make)" \
-				-command "do_make_node" -state $st
+				-command "do_make_node 0"
 			$m add separator
 		}
 	}
@@ -7212,6 +7354,7 @@ proc mk_project_window { } {
 	# tags for marking edited files and their status
 	$P(FL) tag configure sred -foreground red
 	$P(FL) tag configure sgreen -foreground green
+	$P(FL) tag configure sboard -background gray
 
 	#######################################################################
 
@@ -7273,7 +7416,7 @@ proc mk_project_window { } {
 	bind . <Destroy> "terminate -force"
 }
 
-proc do_mkmk_node { { bi 0 } } {
+proc do_mkmk_node { { bi 0 } { ea "" } } {
 
 	global P
 
@@ -7286,20 +7429,47 @@ proc do_mkmk_node { { bi 0 } } {
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
 
-	if $mb {
-		lappend al [lindex $bo $bi]
-		lappend al [lindex $P(PL) $bi]
+	if { $mb == "" } {
+		# a precaution
+		return
+	}
+
+	set lm [blindex [dict get $P(CO) "LM"] $bi]
+	set bo [lindex $bo $bi]
+
+	if $lm {
+		# library mode; check if there's a library
+		set lb [library_present $bo]
+		if { $lb == "" } {
+			alert "There's no library at board $bo; you have to\
+				create one to be able to use the library\
+				mode for the build"
+			return
+		}
+		lappend al "-M"
+		lappend al $lb
 	} else {
+		# source mode
 		lappend al $bo
 	}
 
-	if [catch { run_term_command "mkmk" $al "sys_make_ctags" } err] {
+	if $mb {
+		# the label
+		lappend al [lindex $P(PL) $bi]
+	}
+
+	if [catch { run_term_command "mkmk" $al $ea } err] {
 		alert $err
 	}
 }
 
-proc do_make_node { { bi 0 } } {
-
+proc do_make_node { { bi 0 } { m 0 } { ea "" } } {
+#
+# Does a standard build:
+#
+#	bi - board index (can be nonzero for multiprogram projects)
+#	m  - do not proceed if no Makefile (to detect failed auto prebuilds)
+#
 	global P
 
 	if ![close_modified] {
@@ -7319,15 +7489,133 @@ proc do_make_node { { bi 0 } } {
 		set mf "Makefile"
 	}
 
-	if ![file_present $mf] {
-		alert "No suitable makefile available. You have to pre-build\
-			first"
+	if $m {
+		# doing this after a forced pre-build
+		if ![file_present $mf] {
+			term_dspline "--PREBUILD FAILED, NO BUILD--"
+			return
+		}
+		# successful pre-build completes, take care of sys ctags
+		sys_make_ctags
+		term_dspline "--BUILDING--"
+	} else {
+		# we are doing this the first time around
+		if ![file_present $mf] {
+			# try pre-build
+			term_dspline "--NEED TO PREBUILD FIRST--"
+			# afterwards we will get called again with m == 1
+			do_mkmk_node $bi "do_make_node $bi 1"
+			return
+		}
+	}
+
+	if [catch { run_term_command "make" $al $ea } err] {
+		alert $err
+	}
+}
+
+proc do_mkmk_all { { m 0 } } {
+#
+# Pre-build for all programs; m == (running) program index
+#
+	global P
+
+	set mb [dict get $P(CO) "MB"]
+	set bo [dict get $P(CO) "BO"]
+
+	if { $mb == "" || $mb == 0 } {
+		# to prevent stupid crashes on races
 		return
 	}
 
-	if [catch { run_term_command "make" $al } err] {
-		alert $err
+	set nb [llength $bo]
+
+	if { $m >= $nb } {
+		# called for the last time
+		sys_make_ctags
+		term_dspline "--ALL DONE--"
+		return
 	}
+
+	# do board number m
+	set suf [lindex $P(PL) $m]
+	set b [lindex $bo $m]
+	term_dspline "--PREBUILDING $suf for $b--"
+	do_mkmk_node $m "do_mkmk_all [expr $m + 1]"
+}
+
+proc do_make_all { { m 0 } { s 0 } } {
+#
+# Build for all programs; m == running program index, s == stage (0,1,2)
+#
+	global P
+
+	set mb [dict get $P(CO) "MB"]
+	set bo [dict get $P(CO) "BO"]
+
+	if { $mb == "" || $mb == 0 } {
+		# to account for races
+		return
+	}
+
+	if { $m == 0 && $s == 0 } {
+		# initialize the pre-build flag (will tell us if we have to
+		# recalculate sys ctags)
+		set P(WBL) 0
+	}
+
+	set nb [llength $bo]
+
+	if { $m >= $nb } {
+		# called for the last time; note that we postpone sys ctags
+		# until the successfull end of the entire chain; thus, a
+		# failure somewhere along the line may live sys ctags obsolete;
+		# this is OK, because we view the entire operation as a single
+		# step
+		if $P(WBL) {
+			sys_make_ctags
+		}
+		term_dspline "--ALL DONE--"
+		return
+	}
+
+	set suf [lindex $P(PL) $m]
+	set b [lindex $bo $m]
+
+	set mf "Makefile_$suf"
+
+	if { $s == 0 } {
+		# stage 0: check for prebuild present and pre-build if needed
+		if ![file_present $mf] {
+			# need to prebuild
+			term_dspline "--NEED TO PREBUILD $suf--"
+			do_mkmk_node $m "do_make_all $m 1"
+			incr P(WBL)
+			return
+		}
+		term_dspline "--PREBUILD FOR $suf PRESENT--"
+		# fall through proceeding to build
+	} elseif { $s == 1 } {
+		# stage 1: check if the prebuild triggered by us succeeded
+		if ![file_present $mf] {
+			term_dspline "--PREBUILD FOR $suf FAILED--"
+			return
+		}
+		# fall through proceeding to build
+	} else {
+		# stage 2: build completed
+		if ![file_present "Image_$suf"] {
+			term_dspline "--BUILD FOR $suf FAILED--"
+			return
+		}
+		# proceed with next program
+		incr m
+		do_make_all $m 0
+		return
+	}
+
+	# stage 1 action, i.e., build
+	do_make_node $m 0 "do_make_all $m 2"
 }
 
 proc do_make_vuee { { arg "" } } {
@@ -7351,6 +7639,272 @@ proc do_make_vuee { { arg "" } } {
 	reset_bnx_menus
 }
 
+proc remove_temp { } {
+#
+# To clean up after aborted makelib
+#
+	catch { exec rm -rf temp }
+}
+
+proc do_prebuild_lib { board ea } {
+#
+# Prebuild a library for the specified board
+#
+	remove_temp
+
+	if [catch { file mkdir temp } err] {
+		alert "Cannot create temporary directory: $err"
+		return
+	}
+
+	set al [list -c "cd temp ; mkmk $board -l"]
+
+	if [catch { run_term_command "bash" $al $ea remove_temp } err] {
+		remove_temp
+		alert "Cannot run library mkmk for $board: $err"
+	}
+}
+
+proc do_build_lib { board ea } {
+#
+# Completes the library build, which is a two-stage operation
+#
+	if ![file isdirectory temp] {
+		# something happened along the way
+		return
+	}
+
+	set al [list -c "cd temp; make"]
+
+	if [catch { run_term_command "bash" $al $ea remove_temp } err] {
+		remove_temp
+		alert "Cannot run library make for $board: $err"
+	}
+}
+
+proc move_library { board } {
+#
+# Move the library to the target directory
+#
+	set ld [library_dir $board]
+
+	# source
+	set ll [file join "temp" "LIBRARY"]
+
+	# first, move the Makefile to LIBRARY; we will be needing it for
+	# sys ctags
+	catch { exec mv [file join "temp" "Makefile"] $ll }
+
+	# remove the target if exists
+	catch { exec rm -rf $ld }
+
+	# do the move, errors exposed
+	exec mv $ll $ld
+}
+
+proc verify_lib_preconds { board } {
+#
+# Checks if we can go ahead with a library build for board
+#
+	# check if params.sys contains a list of files to compile
+	set ld [file join [boards_dir] $board "params.sys"]
+	set fail 1
+	if ![catch { open $ld "r" } fd] {
+		if ![catch { read $fd } ps] {
+			set fail 0
+		}
+		catch { close $fd }
+	}
+	if $fail {
+		return 1
+	}
+
+	# some heuristics
+	if ![regexp "-l\[ \t\]\[^\n\r\]*\\.c" $ps] {
+		return 2
+	}
+
+	# check if library exists
+	if { [library_present $board] != "" } {
+		return 3
+	}
+
+	return 0
+}
+
+proc do_makelib { board { st 0 } } {
+#
+# Creates a library for the specified board
+#
+	if { $st == 0 } {
+		# stage 0: initial call
+		set s [verify_lib_preconds $board]
+		# failures first
+		if { $s == 1 } {
+			alert "The board directory of $board appears\
+				incomplete: params.sys is missing or unreadable"
+			return
+		}
+		if { $s == 2 } {
+			alert "Board $board declares no library files;\
+			please edit params.sys in the board directory and add\
+			a line starting with -l and including the list of\
+			files+headers to compile"
+			return
+		}
+		# now the warning
+	     	if { $s == 3 && ![confirm "There already exists a library for\
+		    $board. Do you want to re-build it?"] } {
+			return
+		}
+		term_dspline "--PREBUILDING LIBRARY for $board--"
+		do_prebuild_lib $board "do_makelib $board 1"
+		return
+	}
+
+	if { $st == 1 } {
+		# stage 1: proper build
+		if ![file isfile [file join temp Makefile]] {
+			term_dspline "--PREBUILD FAILED, LIBRARY NOT CREATED--"
+			remove_temp
+			return
+		}
+		term_dspline "--BUILDING LIBRARY for $board--"
+		do_build_lib $board "do_makelib $board 2"
+		return
+	}
+
+	# stage 2: after build
+	if ![file exists [file join temp LIBRARY libpicos.a]] {
+		term_dspline "--BUILD FAILED, LIBRARY NOT CREATED--"
+		remove_temp
+		return
+	}
+
+	if [catch { move_library $board } err] {
+		alert "Cannot move library to target directory: $err"
+	} else {
+		term_dspline "--LIBRARY CREATED--"
+	}
+	remove_temp
+	sys_make_ctags
+}
+	
+proc do_makelib_all { { bx 0 } { bn "" } { st 0 } } {
+#
+# Creates a library for the specified board
+#
+	set bo [board_set]
+	set bd [boards_dir]
+
+	if { $bx >= [llength $bo] } {
+		# all done
+		term_dspline "--ALL DONE--"
+		sys_make_ctags
+		return
+	}
+
+	if { $bx == 0 && $st == 0 } {
+		# just starting up
+		set nf ""
+		set nw ""
+		foreach b $bo {
+			set s [verify_lib_preconds $b]
+			if { $s == 1 } {
+				lappend nf "no params.sys for $b"
+				continue
+			}
+			if { $s == 2 } {
+				lappend nf "no files to compile (-l missing\
+					in params.sys) for $b"
+				continue
+			}
+			if { $s == 3 } {
+				lappend nw $b
+			}
+		}
+
+		if { $nf != "" } {
+			# fatal condition(s) present
+			if { [llength $nf] > 1 } {
+				set txt "Problems: "
+				append txt [join $nf ", "]
+			} else {
+				set txt "Problem: [lindex $nf 0]"
+			}
+			append txt ". Nothing will be built"
+			alert $txt
+			return
+		}
+
+		if { $nw != "" } {
+			# existing libs
+			if { [llength $nw] > 1} {
+				set txt "There already exist libraries for: "
+				append txt [join $nw ", "]
+				append txt ". Should they be rebuilt?"
+			} else {
+				set txt "There already exists a library for:\
+					[lindex $nw 0]. Should it be rebuilt?"
+			}
+			append txt " Nothing will be built if you say NO."
+			if ![confirm $txt] {
+				return
+			}
+		}
+	}
+
+	if { $st == 0 } {
+		# stage 0: pre-build
+		set bn [lindex $bo $bx]
+		term_dspline "--PREBUILDING LIBRARY for $bn--"
+		do_prebuild_lib $bn "do_makelib_all $bx $bn 1"
+		return
+	}
+
+	# sanity check for higher stages
+	if { [lindex $bo $bx] != $bn } {
+		alert "Board structure changed during library build,\
+			operation aborted"
+		remove_temp
+		return
+	}
+
+	if { $st == 1 } {
+		# stage 1: proper build
+		if ![file isfile [file join temp Makefile]] {
+			term_dspline \
+			    "--PREBUILD FAILED, LIBRARY for $bn NOT CREATED--"
+			remove_temp
+			return
+		}
+		term_dspline "--BUILDING LIBRARY for $bn--"
+		do_build_lib $bn "do_makelib_all $bx $bn 2"
+		return
+	}
+
+	# stage 2: after build
+	if ![file exists [file join temp LIBRARY libpicos.a]] {
+		term_dspline "--BUILD FAILED, LIBRARY for $bn NOT CREATED--"
+		remove_temp
+		return
+	}
+
+	if [catch { move_library $bn } err] {
+		alert "Cannot move library to target directory $bn: $err"
+		remove_temp
+		return
+	} else {
+		term_dspline "--LIBRARY CREATED--"
+	}
+	remove_temp
+
+	# try the next one
+	do_makelib_all [expr $bx + 1] "" 0
+}
+	
+###############################################################################
+
 proc do_cleanup { } {
 #
 # Clean up the project
@@ -7373,6 +7927,7 @@ proc do_cleanup { } {
 	}
 
 	reset_bnx_menus
+	sys_make_ctags
 }
 
 proc do_clean_light { { ix "" } } {
@@ -8257,6 +8812,7 @@ proc do_edit_any_file { } {
 	}
 
 	set fl [tk_getOpenFile \
+		-parent $P(SWN) \
 		-initialdir $P(LOD) \
 		-multiple 0 \
 		-title "Select file to edit/view:"]
@@ -8290,6 +8846,7 @@ proc do_edit_new_file { } {
 	}
 
 	set fl [tk_getSaveFile \
+		-parent $P(SWN) \
 		-defaultextension $P(LOE) \
 		-initialdir $P(LOD) \
 		-title "File name:"]
@@ -8392,9 +8949,44 @@ proc get_picos_project_files { } {
 # Produces the list of project-related system (PicOS) files based on the
 # current set of Makefiles
 #
-	global FNARR
+	global FNARR P
 
-	set ml [glob -nocomplain "Makefile*"]
+	set mb [dict get $P(CO) "MB"]
+	set bo [dict get $P(CO) "BO"]
+	set lm [dict get $P(CO) "LM"]
+
+	set ml ""
+
+	if $mb {
+		set n [llength $P(PL)]
+	} else {
+		set n 1
+	}
+
+	for { set i 0 } { $i < $n } { incr i } {
+		set l [blindex $lm $i]
+		set b [lindex $bo $i]
+		if $l {
+			# library mode, use LIBRARY Makefile
+			set lb [library_present $b]
+			if { $lb == "" } {
+				continue
+			}
+			set lb [file normalize [file join $lb "Makefile"]]
+		} else {
+			# source mode
+			set lb "Makefile"
+			if $mb {
+				append lb "_[lindex $P(PL) $i]"
+			}
+		}
+		if [file isfile $lb] {
+			lappend ml $lb
+		}
+	}
+
+	log "Makefiles to scan: $ml"
+
 	if { $ml == "" } {
 		return ""
 	}
@@ -8430,7 +9022,7 @@ proc get_picos_files { } {
 
 proc gsf_trv { p } {
 #
-# Recursive directory traverser for get__files
+# Recursive directory traverser for get_picos_files
 #
 	global FNLIST FNCPU FNDIR CPUDirs
 
