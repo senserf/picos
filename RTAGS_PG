@@ -1520,3 +1520,18 @@ PG111214A:
 	Modified some docs to reflect the new layout of Apps.
 
 	Wlodek, please have a look and tell me what you think.
+
+PG111222A:
+
+	More reorganizations following Wlodek's suggestions:
+
+	- eco_demo and il_demo made PROPRIETARY
+
+	- Docs reorganized, added PROPRIETARY subdir, old PICOS and VNETI
+	  subdirs merged into SOURCE, some documents cleaned (like, for
+	  example, updating references to Apps directories, removing
+	  references to things that no longer exists)
+
+	Not sure what to do with SimNets. Probably should be removed. I am in
+	fact tempted to remove all eCOG stuff (we can always excavate it if
+	needed).

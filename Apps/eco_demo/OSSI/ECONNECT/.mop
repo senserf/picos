@@ -1,2 +1,0 @@
-#!/bin/sh
-rm -f genimage.exe econnect.exe esdreader.exe econnect.wixobj econnect.wixpdb econnect.msi cygwin1.dll

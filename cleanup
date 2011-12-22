@@ -16,4 +16,5 @@ fi
 cd Apps
 ./cleanup
 cd ..
+rm -rf LIBRARIES
 ./Scripts/permissions

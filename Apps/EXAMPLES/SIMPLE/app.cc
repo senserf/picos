@@ -13,11 +13,40 @@
 #define	MAX_PACKET_LENGTH	60
 #define	IBUF_LENGTH		82
 
-// This is a SIMPLE illustration of a multiprogram praxis. We have two node
-// types: sender and receiver, i.e., the combined functionality of SIMPLE is
-// split. This is the sender.
-
 int 	sfd = -1;		// Session descriptor
+
+// ============================================================================
+// This is a simple illustration of radio communication via NULL the plugin
+// ============================================================================
+
+void show (word st, address pkt) {
+
+	static word Count = 0;
+
+	ser_outf (st, "RCV: %d [%s] pow = %d qua = %d\r\n",
+		Count++,
+		(char*)(pkt + 1),
+		((byte*)pkt) [tcv_left (pkt) - 1],
+		((byte*)pkt) [tcv_left (pkt) - 2]
+	);
+}
+
+fsm receiver {
+
+  address rpkt;
+
+  state RC_TRY:
+
+	rpkt = tcv_rnp (RC_TRY, sfd);
+
+  state RC_SHOW:
+
+	show (RC_SHOW, rpkt);
+	tcv_endp (rpkt);
+	proceed RC_TRY;
+}
+
+// ============================================================================
 
 word plen (char *str) {
 
@@ -69,13 +98,14 @@ fsm root {
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (WNONE, 0, 0);
 	tcv_control (sfd, PHYSOPT_TXON, NULL);
-	// No need to enable receiver
-	// tcv_control (sfd, PHYSOPT_RXON, NULL);
+	tcv_control (sfd, PHYSOPT_RXON, NULL);
 
 	if (sfd < 0) {
 		diag ("Cannot open tcv interface");
 		halt ();
 	}
+
+	runfsm receiver;
 
   state RS_RCMD_M:
 
