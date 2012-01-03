@@ -4,13 +4,13 @@
 #include "locengine.h"
 
 //
-// Copyright (C) 2008 Olsonet Communications Corporation
+// Copyright (C) 2008-2012 Olsonet Communications Corporation
 //
-// PG March 2008
+// PG March 2008, revised December 2011, January 2012
 //
 
 //
-// This is the naive and temporary implementation of the tpoint database: to
+// This is a naive and temporary implementation of the tpoint database: to
 // be (trivially) replaced by, say, MySQL or something like that.
 //
 
@@ -51,41 +51,6 @@ static char *DBFNAME = NULL;
 
 static bool modified = 0;
 
-static int getint (char **lp, u32 *v) {
-//
-// Reads an integer from the character string
-//
-	char *rp, *p = *lp;
-	while (isspace (*p))
-		p++;
-
-	*v = (u32) strtol (p, &rp, 0);
-
-	if (rp == p)
-		return -1;
-
-	*lp = rp;
-	return 0;
-}
-
-static int getfloat (char **lp, float *v) {
-//
-// Reads a float number from the character string
-//
-	char *rp, *p = *lp;
-
-	while (isspace (*p))
-		p++;
-
-	*v = (float) strtod (p, &rp);
-
-	if (rp == p)
-		return -1;
-
-	*lp = rp;
-	return 0;
-}
-
 static void h_add (u32 p, tpoint_t *tp) {
 //
 // Adds the point to the Peg's set 
@@ -95,11 +60,8 @@ static void h_add (u32 p, tpoint_t *tp) {
 	int h;
 
 	tk = (tplink_t*) malloc (sizeof (tplink_t));
-	if (tk == NULL) {
-Mem:
-		fprintf (stderr, "h_add: out of memory\n");
-		exit (99);
-	}
+	if (tk == NULL)
+		oom ("h_add");
 
 	tk -> TP = tp;
 
@@ -112,7 +74,7 @@ Mem:
 		// Create a new one
 		tphi = (thitem_t*) malloc (sizeof (thitem_t));
 		if (tphi == NULL)
-			goto Mem;
+			oom ("h_add");
 		tphi -> Peg = p;
 		tphi -> next = TPHTABLE [h];
 		tphi -> TPL = NULL;
@@ -125,30 +87,32 @@ Mem:
 
 // ============================================================================
 
-int db_open (const char *fname) {
+void oom (const char *msg) {
+	abt ("%s: out of memory!", msg);
+}
+
+int db_open (const char *fname, const char *pname) {
 //
-// Reads stuff from file to memory
+// Reads the database from file to memory
 //
 	FILE *dbf;
 	char *linebuf, *lp;
 	tpoint_t *tp;
-	tplink_t *tk;
 	size_t lbs;
-	float x, y;
-	int ln, i, j, h;
-	u32 pr, t, pg;
+	float x, y, fv;
+	int ln, i, j;
+	u32 pr, t, pg, tag, iv;
 
-	if (DBFNAME) {
-		fprintf (stderr, "must do db_close before db_open\n");
-		exit (99);
-	}
+	if (DBFNAME)
+		abt ("must do db_close before db_open");
+
+	// Start by parsing the parameters as the interpretation of data in
+	// the database may depend on them
+	set_params (pname);
 
 	DBFNAME = (char*) malloc (strlen (fname) + 1);
-	if (DBFNAME == NULL) {
-Mem:
-		fprintf (stderr, "db_open: out of memory\n");
-		exit (99);
-	}
+	if (DBFNAME == NULL)
+		oom ("db_open");
 
 	strcpy (DBFNAME, fname);
 
@@ -169,34 +133,57 @@ Mem:
 	while (getline (&linebuf, &lbs, dbf) >= 0) {
 		ln++;
 		lp = linebuf;
-		if (getfloat (&lp, &x))
-			// Treat as a comment
+		if (getfloat (&lp, &x)) {
+			// Treat as a comment, but check for version; note that
+			// it is OK for the version to change half way through
+			get_db_version (linebuf);
 			continue;
+		}
 		if (getfloat (&lp, &y))
 			goto FError;
-		if (getint (&lp, &pr))
+
+		if (PM_dbver) {
+			// The tag is expected; otherwise assume it is zero,
+			// meaning "no tag info"
+			if (getu32 (&lp, &tag))
+				goto FError;
+		} else
+			tag = 0;
+
+		if (getu32 (&lp, &pr))
 			goto FError;
-		if (getint (&lp, &t))
+		if (getu32 (&lp, &t))
 			goto FError;
 		// We know the number of <Peg,rssi> pairs
 		tp = (tpoint_t*) malloc (tpoint_tsize (t));
 		if (tp == NULL)
-			goto Mem;
+			oom ("db_open");
 		tp->x = x;
 		tp->y = y;
+		tp->Tag = tag;
 		tp->properties = pr;
 		tp->NPegs = (u16) t;
 
 		for (i = 0; i < t; i++) {
-			if (getint (&lp, &pg))
+			if (getu32 (&lp, &pg))
 				goto FError;
 			tp->Pegs [i] . Peg = pg;
 			for (j = 0; j < i; j++)
 				if (tp->Pegs [j] . Peg == pg)
 					// They must be distinct
 					goto FError;
-			if (getfloat (&lp, &(tp->Pegs [i] . SLR)))
-				goto FError;
+			if (PM_dbver) {
+				// These numbers are integers in the new
+				// with the SLR stored separately
+				if (getu32 (&lp, &iv))
+					goto FError;
+			} else {
+				if (getfloat (&lp, &fv))
+					goto FError;
+				// Round it
+				iv = (u32)(fv + 0.5);
+			}
+			tp->Pegs [i] . RSSI = (u16) iv;
 		}
 		db_add_point (tp);
 	}
@@ -206,8 +193,8 @@ Mem:
 	return 1;
 
 FError:
-	fprintf (stderr, "Database file format error, line %1d\n", ln);
-	exit (99);
+	abt ("Database file format error, line %1d", ln);
+	return 0;
 }
 
 void db_close (void) {
@@ -220,26 +207,25 @@ void db_close (void) {
 	thitem_t *th, *ti;
 	int h;
 
-	if (DBFNAME == NULL) {
-		fprintf (stderr, "must do db_open before db_close\n");
-		exit (99);
-	}
+	if (DBFNAME == NULL)
+		abt ("must do db_open before db_close");
 
 	if (!modified)
 		return;
 
-	if ((dbf = fopen (DBFNAME, "w")) == NULL) {
-		fprintf (stderr, "cannot open %s for writing\n", DBFNAME);
-		exit (99);
-	}
+	if ((dbf = fopen (DBFNAME, "w")) == NULL)
+		abt ("cannot open %s for writing", DBFNAME);
+
+	// Output the version number
+	fprintf (dbf, "DBVersion %1d\n", DBVER);
 
 	for (tk = TPOINTS; tk != NULL; tk = tk->next) {
 		tp = tk->TP;
-		fprintf (dbf, "%10g %10g 0x%08x %1u",
-			tp->x, tp->y, tp->properties, tp->NPegs);
+		fprintf (dbf, "%10g %10g %1u 0x%08x %1u",
+			tp->x, tp->y, tp->Tag, tp->properties, tp->NPegs);
 		for (h = 0; h < tp->NPegs; h++)
-			fprintf (dbf, " %1u %f", tp->Pegs [h] . Peg,
-						 tp->Pegs [h] . SLR );
+			fprintf (dbf, " %1u %1u", tp->Pegs [h] . Peg,
+						  tp->Pegs [h] . RSSI );
 		fprintf (dbf, "\n");
 	}
 
@@ -272,15 +258,15 @@ void db_close (void) {
 	CURRENT = NULL;
 }
 
-static	pegitem_t *APD_SORT;
+static	alitem_t *APD_SORT;
 
-static void sort_pegitems (int lo, int up) {
+static void sort_alitems (int lo, int up) {
 //
 // A sorter for the association list: it is sorted by pegs to facilitate
 // searching
 //
 	int k, l;
-	pegitem_t m;
+	alitem_t m;
 
 	while (up > lo) {
 		k = lo;
@@ -295,9 +281,17 @@ static void sort_pegitems (int lo, int up) {
 			APD_SORT [l] = APD_SORT [k];
 		}
 		APD_SORT [k] = m;
-		sort_pegitems (lo, k - 1);
+		sort_alitems (lo, k - 1);
 		lo = k + 1;
 	}
+}
+
+void db_sort_al (alitem_t *al, int n) {
+//
+// Sorts the association list by pegs (not reentrant)
+//
+	APD_SORT = al;
+	sort_alitems (0, n-1);
 }
 
 void db_add_point (tpoint_t *tp) {
@@ -307,35 +301,33 @@ void db_add_point (tpoint_t *tp) {
 	tplink_t *tk;
 	int i;
 
-	if (DBFNAME == NULL) {
-		fprintf (stderr, "db_add_point: db not open\n");
-		exit (99);
-	}
+	if (DBFNAME == NULL)
+		abt ("db_add_point: db not open");
 
 	// Sort the pegs: this will facilitate searches
-	APD_SORT = tp->Pegs;
-	sort_pegitems (0, tp->NPegs - 1);
+	db_sort_al (tp->Pegs, tp->NPegs);
 
 	for (i = 0; i < tp->NPegs; i++) {
 		// Sanity check
-		if (i > 0 && (tp->Pegs [i].Peg == tp->Pegs [i-1].Peg)) {
-			fprintf (stderr, "db_add_point: duplicate peg\n");
-			exit (99);
-		}
+		if (i > 0 && (tp->Pegs [i].Peg == tp->Pegs [i-1].Peg))
+			abt ("db_add_point: duplicate peg %1d",
+				tp->Pegs [i].Peg);
+		if (tp->Pegs [i].Peg == tp->Tag)
+			abt ("db_add_point: peg %1d is same as Tag",
+				tp->Pegs [i].Peg);
+		tp->Pegs [i] . SLR = rssi_to_slr (tp->Pegs [i] . RSSI);
 		h_add (tp->Pegs [i] . Peg, tp);
 	}
 
 	// Insert into the global list
 	tk = (tplink_t*) malloc (sizeof (tplink_t));
-	if (tk == NULL) {
-		fprintf (stderr, "db_add_point: out of memory\n");
-		exit (99);
-	}
+	if (tk == NULL)
+		oom ("db_add_point");
 	tk -> next = TPOINTS;
 	tk -> TP = tp;
 	TPOINTS = tk;
 
-#ifdef	DEBUGGING
+#if DEBUGGING > 1
 	for (i = 0, tk = TPOINTS; tk != NULL; tk = tk->next, i++);
 	printf ("db_add_point [%1d]: <%f,%f>\n", i, tp->x, tp->y);
 	fflush (stdout);
@@ -345,24 +337,18 @@ void db_add_point (tpoint_t *tp) {
 
 void db_delete_point (tpoint_t *tp) {
 //
-// Deletes the current point. Note: this may be is slow, as deletion is not
-// supposed to occur often.
+// Deletes the current point
 //
-	tplink_t *tk, *tl, *nc;
+	tplink_t *tk, *tl;
 	thitem_t *th;
 	int h;
 
-	if (DBFNAME == NULL) {
-		fprintf (stderr, "db_delete_point: db not open\n");
-		exit (99);
-	}
+	if (DBFNAME == NULL)
+		abt ("db_delete_point: db not open");
 
 	if (tp == NULL) {
-		if (CURRENT == NULL) {
-			fprintf (stderr,
-				"db_delete_point don't know what to delete\n");
-			exit (99);
-		}
+		if (CURRENT == NULL)
+			abt ("db_delete_point don't know what to delete");
 		tp = CURRENT->TP;
 	}
 
@@ -408,19 +394,15 @@ void db_delete_point (tpoint_t *tp) {
 
 tpoint_t *db_get_point (void) {
 
-	if (DBFNAME == NULL) {
-		fprintf (stderr, "db_get_point: db not open\n");
-		exit (99);
-	}
+	if (DBFNAME == NULL)
+		abt ("db_get_point: db not open");
 	return CURRENT == NULL ? NULL : CURRENT->TP;
 }
 
 void db_next_point (void) {
 
-	if (DBFNAME == NULL) {
-		fprintf (stderr, "db_next_point: db not open\n");
-		exit (99);
-	}
+	if (DBFNAME == NULL)
+		abt ("db_next_point: db not open");
 	if (CURRENT != NULL) 
 		CURRENT = CURRENT->next;
 }
@@ -431,10 +413,8 @@ void db_start_points (u32 peg) {
 //
 	thitem_t *th;
 
-	if (DBFNAME == NULL) {
-		fprintf (stderr, "db_start_points: db not open\n");
-		exit (99);
-	}
+	if (DBFNAME == NULL)
+		abt ("db_start_points: db not open");
 
 	if (peg == 0) {
 		CURRENT = TPOINTS;

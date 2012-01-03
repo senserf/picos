@@ -9,8 +9,6 @@
 // PG March 2008
 //
 
-#define	DBNAME	"points.db"
-
 static	char	*LINE, *LP;
 static	size_t	LINE_size;
 
@@ -18,15 +16,17 @@ static	tpoint_t **PBUFFER;	// Buffer for recently viewed points
 static	size_t	 PBUFFER_size;	// Size of PBUFFER
 static	int	NPB;		// Number of points in PBUFFER
 
-#define	skb(p)	do { while (isspace (*p)) p++; } while (0)
-#define	ska(p)	do { while (isalpha (*p)) p++; } while (0)
+#define	iss(p)	isspace ((int)(unsigned char) (p))
+#define	isa(p)	isalpha ((int)(unsigned char) (p))
+#define	skb(p)	do { while (iss (*p)) p++; } while (0)
+#define	ska(p)	do { while (isa (*p)) p++; } while (0)
 
-static int getint (u32 *v) {
+static int g_int (u32 *v) {
 //
 // Reads an integer from the input line
 //
 	char *rp;
-	while (isspace (*LP) || *LP == ',')
+	while (iss (*LP) || *LP == ',' || *LP == '<' || *LP == '>')
 		LP++;
 
 	*v = (u32) strtol (LP, &rp, 0);
@@ -38,12 +38,12 @@ static int getint (u32 *v) {
 	return 0;
 }
 
-static int getfloat (float *v) {
+static int g_float (float *v) {
 //
 // Reads a float number from the character string
 //
 	char *rp;
-	while (isspace (*LP) || *LP == ',')
+	while (iss (*LP) || *LP == ',' || *LP == '<' || *LP == '>')
 		LP++;
 
 	*v = (float) strtod (LP, &rp);
@@ -64,11 +64,14 @@ static void list_point (int pn) {
 
 	p = PBUFFER [pn];
 
-	printf ("*%1d [%1.2f, %1.2f] (%08x) | %1d:", 
-		pn+1, p->x, p->y, p->properties, p->NPegs);
+	printf ("*%1d [%1.2f, %1.2f] <%1u> (%08x) | %1d:", 
+		pn+1, p->x, p->y, p->Tag, p->properties, p->NPegs);
 
 	for (i = 0; i < p->NPegs; i++) {
-		printf (" <%1d,%3.0f>", p->Pegs [i] . Peg, p->Pegs [i] . SLR);
+		printf (" <%1d,%1d,%3.0f>",
+			p->Pegs [i] . Peg,
+			p->Pegs [i] . RSSI,
+			p->Pegs [i] . SLR);
 	}
 
 	printf ("\n---\n");
@@ -151,10 +154,10 @@ void cmd_delete () {
 	}
 
 	n = 0;
-	while (getint (&pn) == 0) {
+	while (g_int (&pn) == 0) {
 		for (i = 0; i < n; i++) {
 			if (pts [i] == pn) {
-				printf ("Point numbers are not disctinct\n");
+				printf ("Point numbers are not distinct\n");
 ERet:
 				free (pts);
 				return;
@@ -184,19 +187,21 @@ ERet:
 
 	NPB = n;
 }
-		
+
 void cmd_add () {
 //
 // Add a point
 //
 	tpoint_t *tp;
 	float	x, y;
-	u32 	pr, t, pg;
+	u32 	pr, t, pg, tag;
 	int	i, j;
 
-	if (getfloat (&x) || getfloat (&y) || getint (&pr) || getint (&t)) {
+	if (g_float (&x) || g_float (&y) || g_int (&tag) || g_int (&pr) ||
+	    g_int (&t)) {
 Error:
-		printf ("Illegal arguments, must be: x y prop npegs <p v>*\n");
+		printf ("Illegal arguments, must be: "
+				"x y tag prop npegs <p v>*\n");
 		return;
 	}
 
@@ -206,12 +211,12 @@ Error:
 		return;
 	}
 
-	tp->x = x; tp->y = y; tp->properties = pr;
+	tp->x = x; tp->y = y; tp->Tag = tag; tp->properties = pr;
 	tp->NPegs = (u16) t;
 
 	for (i = 0; i < t; i++) {
 
-		if (getint (&pg)) {
+		if (g_int (&pg)) {
 			free (tp);
 			goto Error;
 		}
@@ -223,10 +228,11 @@ Error:
 				free (tp);
 				return;
 			}
-		if (getfloat (&(tp->Pegs [i] . SLR))) {
+		if (g_int (&t)) {
 			free (tp);
 			goto Error;
 		}
+		tp->Pegs [i] . RSSI = (u16) t;
 	}
 
 	db_add_point (tp);
@@ -245,15 +251,14 @@ void cmd_find () {
 	double		d, dd;
 	tpoint_t	*tp, *fp;
 
-	if (getfloat (&x0) || getfloat (&y0)) {
+	if (g_float (&x0) || g_float (&y0)) {
 		// At least two coordinates expected
-Error:
 		printf (
 		 "Illegal arguments, must be: x y, or x y r, or x0 y0 x1 y1\n");
 		return;
 	}
 
-	if (getfloat (&x1)) {
+	if (g_float (&x1)) {
 		// Single point closest to x y
 		if (init_pbuffer ()) {
 OOM:
@@ -276,7 +281,7 @@ OOM:
 		}
 		PBUFFER [0] = fp;
 		NPB = 1;
-	} else if (getfloat (&y1)) {
+	} else if (g_float (&y1)) {
 		// All within radius
 		if (init_pbuffer ())
 			goto OOM;
@@ -321,12 +326,12 @@ OOM:
 
 void cmd_peg () {
 //
-// List the points audible by a given peg
+// List the points including the given peg in the association list
 //
 	u32 		p;
 	tpoint_t	*tp;
 
-	if (getint (&p)) {
+	if (g_int (&p)) {
 		printf ("Illegal argument, should be Peg number\n");
 		return;
 	}
@@ -354,47 +359,99 @@ OOM:
 
 void cmd_locate () {
 //
-// Find the location based on the specified sequence of peg readings
+// Estimate location based on the specified association list
 //
-	u32	*pg, prop, K;
-	float	*v, x, y;
-	int	i, N;
+	u32		n, prop, tag, peg, rssi;
+	int		i, N;
+	float 		x, y;
+	alitem_t	*al;
 
-	if (getint (&K) || getint (&prop) || getint (&N)) {
+	if (g_int (&tag) || g_int (&prop) || g_int (&n)) {
 Error:
-		printf ("Illegal arguments, should be K prop N <p v>*\n");
+		printf ("Illegal arguments, should be tag prop N <p v>*\n");
 		return;
 	}
+
+	N = (int) n;
 
 	if (N < 1 || N > 128) {
 		printf ("Illegal number of pegs, must be > 1 and < 129\n");
 		return;
 	}
 
-	pg = (u32*) malloc (N * sizeof (u32));
-	v = (float*) malloc (N * sizeof (float));
-
-	if (pg == NULL || v == NULL) {
+	if ((al = (alitem_t*) malloc (N * sizeof (alitem_t))) == NULL) {
 		printf ("Out of memory\n");
 		return;
 	}
 
 	for (i = 0; i < N; i++) {
-		if (getint (pg + i) || getfloat (v + i)) {
-			free (pg);
-			free (v);
+		if (g_int (&peg) || g_int (&rssi)) {
+			free (al);
 			goto Error;
 		}
+		al [i] . Peg = peg;
+		al [i] . RSSI = (u16) rssi;
+		// Just in case
+		al [i] . SLR = 0.0;
 	}
 
-	i = loc_locate ((int)K, pg, v, N, prop, &x, &y);
-
-	free (pg);
-	free (v);
+	i = loc_locate (tag, al, N, prop, &x, &y);
+	free (al);
 
 	printf ("Location: [%7.2f %7.2f] (%1d)\n", x, y, i);
 }
 
+void cmd_params () {
+//
+// Show parameters and statistics
+//
+	int i, n, minal, maxal, na;
+	double sal;
+	tpoint_t *tp;
+
+	printf ("DB version: %1d\n", PM_dbver);
+	printf ("RSSI->SLR table:");
+	for (i = 0; i < PM_rts_n; i++)
+		printf (" <%1d,%1.2f>", PM_rts_a [i], PM_rts_v [i]);
+	printf ("\n");
+	printf ("Minimum match dimension: %1d\n", PM_dis_min);
+	printf ("Long match preference factor: %1.2f\n", PM_dis_fac);
+	printf ("Tag RSSI/SLR: %1d/%1.2f\n", PM_dis_tag, PM_dis_taf);
+	printf ("Minimum number of points: %1d\n", PM_sel_min);
+	printf ("Maximum number of points: %1d\n", PM_sel_max);
+	printf ("Trim factor: %1.2f\n", PM_sel_fac);
+	printf ("Averaging formula: %s\n", PM_ave_for ? "exp" : "lin");
+	printf ("Proximity factor: %1.2f\n", PM_ave_fac);
+
+	// Calculate the number of points in the database
+	db_start_points (0);
+
+	minal = 9999;
+	maxal = 0;
+	sal = 0.0;
+	n = na = 0;
+
+	while ((tp = db_get_point ()) != NULL) {
+		n++;
+		sal += tp->NPegs;
+		if (tp->NPegs > maxal)
+			maxal = tp->NPegs;
+		if (tp->NPegs < minal)
+			minal = tp->NPegs;
+		if ((tp->properties & PROP_AUTOPROF) != 0)
+			na++;
+		db_next_point ();
+	}
+
+	printf ("Number of points in DB: %1d\n", n);
+	if (n == 0)
+		return;
+	printf ("Autoprofiled points: %1d\n", na);
+	printf ("Minimum AL length: %1d\n", minal);
+	printf ("Maximum AL length: %1d\n", maxal);
+	printf ("Average AL length: %1.2f\n", sal / n);
+}
+	
 void cmd_quit () {
 
 	db_close ();
@@ -405,7 +462,7 @@ void cmd_quit () {
 
 int main (int argc, char *argv []) {
 
-	char cmd, *dbn;
+	char cmd, *dbn, *pmn;
 
 	LINE = (char*) malloc ((LINE_size = 128) * sizeof (char));
 	if (LINE == NULL) {
@@ -415,8 +472,9 @@ int main (int argc, char *argv []) {
 
 	// Open the database
 	dbn = (argc > 1) ? argv [1] : DBNAME;
+	pmn = (argc > 2) ? argv [2] : PMNAME;
 
-	if (db_open (dbn))
+	if (db_open (dbn, pmn))
 		printf ("Database %s exists\n", dbn);
 	else
 		printf ("New database: %s\n", dbn);
@@ -459,6 +517,10 @@ int main (int argc, char *argv []) {
 				cmd_show ();
 				break;
 
+			case 'z':
+				cmd_params ();
+				break;
+
 			case 'd':
 				cmd_delete ();
 				break;
@@ -471,10 +533,11 @@ int main (int argc, char *argv []) {
 
 // ============================================================================
 	printf ("Illegal command, legal commands are:\n");
-	printf ("  a x y prop npegs p v ... p v\n");
+	printf ("  a x y tag prop npegs p v ... p v\n");
 	printf ("  f x y, or x y r, or x0 y0 x1 y1\n");
 	printf ("  p peg\n");
-	printf ("  l K prop npegs p v ... p v\n");
+	printf ("  l tag prop npegs p v ... p v\n");
+	printf ("  z\n");
 	printf ("  s\n");
 	printf ("  d pn ... pn\n");
 	printf ("  q\n");

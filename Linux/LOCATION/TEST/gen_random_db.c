@@ -9,14 +9,15 @@
 // PG March 2008
 //
 
-#define	DBNAME	"points.db"
+#define	MAXPEGS	128
 
 typedef struct {
 	float x, y;
+	u32 Tag;
 } pp_t;
 
 double	XL, YL, XH, YH, Range, Redundancy, Fuzziness, Delta;
-int NPoints;
+int NPoints, NAuto;
 
 int CNPegsS, CNPegs = 0, CNPointsS, CNPoints = 0;
 
@@ -24,7 +25,7 @@ pp_t *PPegs, *PPoints;
 
 float dtorank (double dist) {
 //
-// Converts distance to the rank, i.e., the equivalent of SLR reading
+// Converts distance to the rank, i.e., the equivalent of RSSI reading
 //
 	if (dist > Range)
 		return (float) (drand48 () * 2.0);
@@ -52,12 +53,12 @@ void add_peg (double x, double y) {
 	PPegs [CNPegs] . x = (float) x;
 	PPegs [CNPegs] . y = (float) y;
 	CNPegs++;
-#ifdef DEBUGGING
+#if DEBUGGING
 	printf ("New peg: %1d <%f,%f>\n", CNPegs, x, y); fflush (stdout);
 #endif
 }
 
-void add_point (double x, double y) {
+void add_point (double x, double y, u32 tag) {
 
 	if (CNPoints == 0) {
 		PPoints = (pp_t*) malloc ((CNPointsS = 1024) * sizeof (pp_t));
@@ -68,6 +69,7 @@ void add_point (double x, double y) {
 
 	PPoints [CNPoints] . x = x;
 	PPoints [CNPoints] . y = y;
+	PPoints [CNPoints] . Tag = tag;
 #if DEBUGGING
 	printf ("New point: %1d <%f,%f>\n", CNPoints, x, y); fflush (stdout);
 #endif
@@ -111,16 +113,15 @@ void create_pegs () {
 
 void create_points () {
 
-	double	X, Y, x, y, T;
-	int i, j, M, m;
+	double	X, Y, T;
+	int i, j;
 
 	T = 0.5;
 
 	for (i = 0; i < NPoints; i++) {
+#if 0
 		// Try 10 times at random locations and pick the one with the
 		// smallest coverage
-
-#if 0
 		M = 10000000;
 		for (j = 0; j < 10; j++) {
 			x = XL + (XH - XL) * drand48 ();
@@ -148,25 +149,37 @@ void create_points () {
 		if (YH - Y < T)
 			Y = YH;
 
-		add_point (X, Y);
+		add_point (X, Y, MAXPEGS + MAXPEGS);
+	}
+
+	if (NAuto == 0)
+		return;
+
+	// Create autoprofile points
+	for (i = 0; i < CNPegs; i++) {
+		for (j = 0; j < NAuto; j++)
+			add_point (PPegs [i].x, PPegs [i].y, i+1);
 	}
 }
-
-#define	MAXPEGS	128
 
 void make_database () {
 
 	double x, y, D;
 	tpoint_t *TP;
-	pegitem_t PI [MAXPEGS];
+	alitem_t PI [MAXPEGS];
 	int i, j, k;
+	u32 tag;
 
-	db_open (DBNAME);
+	db_open (DBNAME, PMNAME);
 
 	for (i = 0; i < CNPoints; i++) {
 		x = PPoints [i] . x;
 		y = PPoints [i] . y;
+		tag = PPoints [i] . Tag;
 		for (k = j = 0; j < CNPegs; j++) {
+			if (j+1 == tag)
+				// Autosample for this Peg
+				continue;
 			D = fuzzy (dist (PPegs [j].x, PPegs [j].y, x, y));
 			if (D > Range)
 				continue;
@@ -176,11 +189,11 @@ void make_database () {
 				exit (99);
 			}
 			PI [k] . Peg = (u32) (j+1);
-			PI [k] . SLR = dtorank (D);
+			PI [k] . RSSI = (u16) (dtorank (D) + 0.5);
 			k++;
 		}
 		if (k < 3) {
-#ifdef DEBUGGING
+#if DEBUGGING
 			printf ("<%f,%f>: less than 3 pegs\n", x, y);
 #endif
 			continue;
@@ -189,16 +202,17 @@ void make_database () {
 		TP = (tpoint_t*) malloc (tpoint_tsize (k));
 		TP->x = x;
 		TP->y = y;
-		TP->properties = 0;
+		TP->Tag = tag;
+		TP->properties = (tag <= MAXPEGS) ? PROP_AUTOPROF : 0;
 		TP->NPegs = k;
-		bcopy (PI, TP->Pegs, sizeof (pegitem_t) * k);
+		bcopy (PI, TP->Pegs, sizeof (alitem_t) * k);
 		db_add_point (TP);
 	}
 
 	db_close ();
 }
 			
-main () {
+int main () {
 
 	printf ("Rectangle coordinates (XL, YL, XH, YH) in meters:\n");
 	scanf ("%lf %lf %lf %lf", &XL, &YL, &XH, &YH);
@@ -208,6 +222,9 @@ main () {
 
 	printf ("Coverage redundancy (min = 0.0):\n");
 	scanf ("%lf", &Redundancy);
+
+	printf ("Number of autoprofile samples per peg:\n");
+	scanf ("%d", &NAuto);
 
 	printf ("Fuzziness (min = 0.0, max = 1.0):\n");
 	scanf ("%lf", &Fuzziness);
@@ -228,7 +245,11 @@ main () {
 
 	create_pegs ();
 
+	printf ("Number of pegs: %d\n", CNPegs);
+
 	create_points ();
 
 	make_database ();
+
+	exit (0);
 }

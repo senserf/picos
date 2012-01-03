@@ -10,7 +10,7 @@ exec mkdir $tfn
 set cwd [pwd]
 cd ..
 puts "copying files ..."
-exec cp -r PICOS SIDE VUEE "$tfn/"
+exec cp -r PICOS SIDE VUEE PIP "$tfn/"
 cd $tfn
 cd PICOS
 puts "cleaning up PICOS ..."
@@ -24,9 +24,13 @@ cd ../VUEE
 puts "cleaning up VUEE ..."
 exec rm -rf .git
 exec sh ./cleanup
+cd ../PIP
+puts "cleaning up PIP ..."
+exec rm -rf .git
+exec sh ./cleanup
 cd ..
 puts "packaging ..."
-exec tar cvf - PICOS SIDE VUEE | gzip -9 > [file join $cwd picospack.tgz] \
+exec tar cvf - PICOS SIDE VUEE PIP | gzip -9 > [file join $cwd picospack.tgz] \
 	2>[file join $tfn serr]
 cd $cwd
 puts "cleaning up ..."

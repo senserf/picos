@@ -1535,3 +1535,10 @@ PG111222A:
 	Not sure what to do with SimNets. Probably should be removed. I am in
 	fact tempted to remove all eCOG stuff (we can always excavate it if
 	needed).
+
+PG120103A:
+
+	A new version of the experimental location engine in Linux/LOCATION
+	(read the doc).
+
+	The release script modified to include PIP.

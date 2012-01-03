@@ -1,24 +1,40 @@
 #include <stdio.h>
-#include <string.h>
 #include "locengine.h"
 
 //
-// Copyright (C) 2008 Olsonet Communications Corporation
+// Copyright (C) 2008-2012 Olsonet Communications Corporation
 //
-// PG March 2008
+// PG March 2008, revised January 2012
 //
 
-#ifdef DEBUGGING
+#if DEBUGGING
 
-static void dump_point (tpoint_t *p) {
+static void dump_pt (tpoint_t *p) {
 
 	int i;
 
-	printf ("*** [%1.2f, %1.2f] (%08x) | %1d:", 
-		p->x, p->y, p->properties, p->NPegs);
+	printf ("***PT [%1.2f, %1.2f] %1u (%08x) | %1d:", 
+		p->x, p->y, p->Tag, p->properties, p->NPegs);
 
 	for (i = 0; i < p->NPegs; i++) {
-		printf (" <%1d,%3.0f>", p->Pegs [i] . Peg, p->Pegs [i] . SLR);
+		printf (" <%1d,%1u,%3.0f>", p->Pegs [i] . Peg,
+					    p->Pegs [i] . RSSI,
+					    p->Pegs [i] . SLR);
+	}
+
+	printf ("\n---\n");
+}
+
+static void dump_al (alitem_t *al, int n) {
+
+	int i;
+
+	printf ("***AL:");
+
+	for (i = 0; i < n; i++) {
+		printf (" <%1d,%1u,%3.0f>", al [i] . Peg,
+					    al [i] . RSSI,
+					    al [i] . SLR);
 	}
 
 	printf ("\n---\n");
@@ -54,44 +70,54 @@ int loc_findrect (float x0, float y0, float x1, float y1, tpoint_t **v, int N) {
 
 // ============================================================================
 
-typedef struct {
-//
-// Describes a single point match: coordinates of the points + discrepancy
-//
-	float	x, y;	// Point coordinates
-	float	D;	// Discrepancy
-
-} lmatch_t;
-
-typedef struct {
-//
-// Used for selecting K best points: this is what has to be sorted
-//
-	tpoint_t *P;
-	float    D;	// Discrepancy
-
-} lskey_t;
-
-static lskey_t *LM_SEL;	// Objects to select from
-static int K_SEL;	// How many to select
-
-static float pdist (tpoint_t *P, u32 *pegs, float *vs, int N) {
+static float pdist (tpoint_t *P, alitem_t *al, int N) {
 //
 // Calculates the discrepancy between the point and the Tag's association list
 //
-	int i, NP, ll, rr, mid;
+	int i, NP, ll, rr, mid, NM;
 	double S, Delta;
-	pegitem_t *PI;
+	alitem_t *PI;
 	u32 CP, pp;
+	float ss;
 
 	PI = P->Pegs;
 	NP = P->NPegs;
 
+	// Partial sum
 	S = 0.0;
+
+	// The number of matched entries
+	NM = 0;
+
 	for (i = 0; i < N; i++) {
+
 		// Current peg
-		CP = pegs [i];
-		// Find it on the point's list
+		CP = al [i].Peg;
+
+		// Check if this is the point's tag
+		if (P->Tag == CP) {
+			if (PM_dis_tag == 0)
+				// Matching with tag not allowed, so this is a
+				// mismatch, as Tag cannot be one of the Pegs
+				continue;
+			if ((P->properties & PROP_AUTOPROF) == 0)
+				// Ignore if not autoprofile
+				continue;
+			// Current SLR
+			ss = al [i].SLR;
+			if (PM_dis_tag < 0) {
+				// This is a bound
+				if (ss > PM_dis_taf)
+					ss = PM_dis_taf;
+			}
+			Delta = ss - PM_dis_taf;
+			S += Delta * Delta;
+			NM ++;
+			continue;
+		}
+
+		// Not the Tag, find it on the point's association list
+			
 		ll = 0;
 		rr = NP;
 		while (ll < rr) {
@@ -104,197 +130,286 @@ static float pdist (tpoint_t *P, u32 *pegs, float *vs, int N) {
 				// Hit
 				goto Found;
 		}
-		// Not found: assume zero reference, i.e., the outcome is the
-		// same as if the peg would perceive the point at SLR = 0
-		S += (double) vs [i] * vs [i];
+		// Not found: ignore; FIXME: should we introduce (optional?)
+		// penalty for such misses?
 		continue;
 Found:
-		Delta = (double) vs [i] - PI [mid] . SLR;
+		Delta = al [i].SLR - PI [mid].SLR;
 		S += Delta * Delta;
+		NM ++;
 	}
 
-	// If there are any Pegs that perceived this point, which are not on
-	// the list, we ignore them: packets can be lost
+	if (NM < PM_dis_min)
+		// Cannot calculate the distance
+		return -1.0;
 
-	return (float) (sqrt (S) / N);
+	return (float) sqrt (S / (NM * PM_dis_fac));
 }
 
-static void selK (int lo, int up) {
-//
-// Select K_SEL best points (ones with the smallest D)
-//
-	int k, l;
-	lskey_t m;
+// ============================================================================
 
-	while (up > lo) {
-		k = lo;
-		l = up;
-		m = LM_SEL [lo];
-		while (k < l) {
-			while (LM_SEL [l].D > m.D)
-				l--;
-			LM_SEL [k] = LM_SEL [l];
-			while (k < l && LM_SEL [k].D <= m.D)
-				k++;
-			LM_SEL [l] = LM_SEL [k];
-		}
-		LM_SEL [k] = m;
-		selK (lo, k-1);
-		if (k >= K_SEL)
-			return;
-		lo = k+1;
+struct lskey_s {
+//
+// Used for sorting points based on the discrepancy
+//
+	struct lskey_s *Next;
+	tpoint_t *P;
+	float    D;	// Discrepancy
+};
+
+typedef struct lskey_s lskey_t;
+
+static lskey_t *LM_SEL;	// The pool of points
+static int	LM_N;	// Pool size
+static float	LM_MAX;	// The maximum D in the pool
+
+static void padd (lskey_t *p) {
+//
+// Sort in the point into the pool
+//
+	lskey_t *c, *b;
+
+	if (p->D >= LM_MAX) {
+		p->Next = LM_SEL;
+		LM_SEL = p;
+		LM_MAX = p->D;
+	} else {
+		for (b = NULL, c = LM_SEL; c != NULL && c->D > p->D;
+			c = (b = c)->Next);
+		p->Next = c;
+		if (b == NULL)
+			abt ("padd internal error: b == NULL");
+		b->Next = p;
 	}
+	LM_N++;
 }
 
-static int best_points (u32 *pg, float *v, int N, u32 prp, lmatch_t *r, int K) {
+static void pdeltop (int n) {
 //
-// Scans the points (db_stat_points has been called previously to select all
-// points perceptible by one specific Peg) for K best matches
+// Delete n items from the top
 //
-	int n, S;
+	lskey_t *c;
+
+
+	if (LM_N < n)
+		abt ("pdeltop internal error: LM_N (%1d) < n (%1d)", LM_N, n);
+
+	LM_N -= n;
+
+	while (n--) {
+		if (LM_SEL == NULL)
+			abt ("pdeltop internal error: LM_SEL == NULL (%1d)", n);
+		c = LM_SEL->Next;
+		free (LM_SEL);
+		LM_SEL = c;
+	}
+
+	if (LM_SEL == NULL)
+		LM_MAX = 0.0;
+	else
+		LM_MAX = LM_SEL->D;
+}
+
+// ============================================================================
+
+int loc_locate (u32 tag, alitem_t *al, int N, u32 prop, float *X, float *Y) {
+//
+// Carries out the location estimation:
+//
+//	tag	- the tag making the query (unused for now)
+//	al	- the query association list
+//	N	- the length of the query association list
+//	prop	- properties of the query
+//	X, Y	- returned estimated position
+//
+// Return value: the number of points used for estimation; 0 means estimation
+// failed
+//
+	int i, m;
+	float d;
+	double D, s, W, x, y;
 	tpoint_t *TP;
+	lskey_t *p;
 
-	LM_SEL = (lskey_t*) malloc (sizeof (lskey_t) * (S = 128));
-	if (LM_SEL == NULL) {
-Mem:
-		fprintf (stderr, "best_points: out of memory\n");
-		exit (99);
+	// Make sure the pegs are sorted
+	db_sort_al (al, N);
+
+	// Make sure RSSI is transformed into SLR
+	for (i = 0; i < N; i++)
+		al [i].SLR = rssi_to_slr (al [i].RSSI);
+#if DEBUGGING
+	printf ("QUERY: %1u, %08x, %1d\n", tag, prop, N);
+	dump_al (al, N);
+#endif
+	LM_N = 0;
+	LM_SEL = NULL;
+	LM_MAX = 0.0;
+
+	db_start_points (0);
+
+	while ((TP = db_get_point ()) != NULL) {
+#if DEBUGGING
+		printf ("TRYING: === "); dump_pt (TP);
+#endif
+		if (((TP->properties ^ prop) & PROP_ENVMASK) != 0)
+			// Wrong point
+			goto NextP;
+
+		d = pdist (TP, al, N);
+#if DEBUGGING
+		printf ("DIST: %1.2f\n", d);
+#endif
+		if (d < 0.0)
+			// No match at all
+			goto NextP;
+
+		if (LM_N < PM_sel_max) {
+			// Just add it in; reverse sort based on d
+			if ((p = (lskey_t*) malloc (sizeof (lskey_t))) == NULL)
+				oom ("loc_locate <p0>");
+			p->P = TP;
+			p->D = d;
+			padd (p);
+			goto NextP;
+		}
+		// The list is full, so add only if better
+		if (d >= LM_MAX)
+			goto NextP;
+
+		// Delete the current max
+		pdeltop (1);
+		if ((p = (lskey_t*) malloc (sizeof (lskey_t))) == NULL)
+			oom ("loc_locate <p1>");
+		p->P = TP;
+		p->D = d;
+		padd (p);
+		//
+NextP:		db_next_point ();
 	}
 
-	n = 0;
-	do {
-		if ((TP = db_get_point ()) == NULL)
+#if DEBUGGING
+	printf ("TO TRIM: %1d\n", LM_N);
+	for (p = LM_SEL; p != NULL; p = p->Next) {
+		printf ("DIST: %1.2f === ", p->D);
+		dump_pt (p->P);
+	}
+#endif
+	// Trim out
+
+	while (LM_N > PM_sel_min) {
+
+		// Calculate the average
+		for (s = 0.0, p = LM_SEL; p != NULL; p = p->Next)
+			s += p->D;
+
+		s = (s / LM_N) * PM_sel_fac;
+		// Max points that can be deleted
+		m = LM_N - PM_sel_min;
+#if DEBUGGING
+		printf ("TRIM LOOP: %1.2f, %1d\n", s, m);
+#endif
+		for (i = 0, p = LM_SEL; p != NULL && p->D >= s && i < m;
+			i++, p = p->Next);
+
+		if (i == 0)
+			// No more deletions
+			break;
+#if DEBUGGING
+		printf ("TRIMMED %1d\n", i);
+#endif
+		pdeltop (i);
+	}
+
+	// We are left with the final pool
+#if DEBUGGING
+	printf ("FINAL: %1d\n", LM_N);
+#endif
+	if (LM_N == 0)
+		// No way
+		return 0;
+
+	x = y = 0.0;
+
+	if (PM_ave_for == 0) {
+		// Linear
+		for (D = 0.0, p = LM_SEL; p != NULL; p = p->Next)
+			// Precompute sum of discrepancies
+			D += p->D;
+		// Precompute the exponent
+		for (s = 0.0, p = LM_SEL; p != NULL; p = p->Next) {
+			// This is the weight
+			W = pow (D - p->D, PM_ave_fac);
+			// Accumulate
+			s += W;
+			x += p->P->x * W;
+			y += p->P->y * W;
+		}
+	} else {
+		// Exponential
+		for (s = 0.0, p = LM_SEL; p != NULL; p = p->Next) {
+			// This is the weight
+			W = exp (-(p->D * PM_ave_fac));
+			// Accumulate
+			s += W;
+			x += p->P->x * W;
+			y += p->P->y * W;
+		}
+	}
+
+	if (s < EPS) {
+#if DEBUGGING
+		printf ("ZERO WEIGHTS!!\n");
+#endif
+		// The very special case for which we have to prepare
+		// ourselves, as quite likely we will be playing with
+		// various coarse schemes where Di = 0 may be likely,
+		// possibly for multiple points
+		x = y = 0.0;
+		for (p = LM_SEL; p != NULL; p = p->Next) {
+			x += p->P->x;
+			y += p->P->y;
+		}
+		s = (double) LM_N;
+	}
+
+	*X = (float) (x / s);
+	*Y = (float) (y / s);
+#if DEBUGGING
+	printf ("ESTIMATE %1.2f, %1.2f\n", *X, *Y);
+#endif
+	// Free memory
+	pdeltop (i = LM_N);
+
+	if (LM_SEL != NULL)
+		abt ("loc_locate internal error: LM_SEL != NULL");
+
+	return i;
+}
+
+// ============================================================================
+
+float rssi_to_slr (u16 rssi) {
+
+	int i;
+
+	if (PM_rts_n < 2) {
+		// There's no table -> no translation
+		return (float) rssi;
+	}
+
+	// Find the interval
+	for (i = 0; i < PM_rts_n; i++)
+		if (rssi <= PM_rts_a [i])
 			break;
 
-		if (TP->properties == prp) {
-			if (n == S) {
-				LM_SEL = (lskey_t*) realloc (LM_SEL,
-					(S = S + S) * sizeof (lskey_t));
-				if (LM_SEL == NULL)
-					goto Mem;
-			}
+	if (i == 0)
+		return PM_rts_v [0];
 
-			LM_SEL [n] . P = TP;
-			LM_SEL [n] . D = pdist (TP, pg, v, N);
-#ifdef DEBUGGING
-			printf ("Discrepancy: %f\n", LM_SEL [n] . D);
-			dump_point (TP);
-#endif
-			n++;
-		}
-		db_next_point ();
+	if (i == PM_rts_n)
+		return PM_rts_v [PM_rts_n - 1];
 
-	} while (1);
-
-	if (n > 1) {
-		// Select
-		K_SEL = K;
-		selK (0, n-1);
-	}
-
-	if (K > n)
-		K = n;
-
-	for (S = 0; S < K; S++) {
-		TP = LM_SEL [S] . P;
-		r [S] . x = TP->x;
-		r [S] . y = TP->y;
-		r [S] . D = LM_SEL [S] . D;
-	}
-
-	free (LM_SEL);
-	return K;
-}
-
-#define	MAXSELPOINTS	128
-
-int loc_locate (int K, u32 *pg, float *v, int N, u32 prop, float *X, float *Y) {
-//
-// Given a Tag reading in terms of the list of pegs (pg) and the respective 
-// SLR values (v), N of each, plus the property set prop, returns the estimated
-// coordinates of the Tag (via X, Y)
-//
-	lmatch_t match [MAXSELPOINTS];
-	int NB, i, j, ix;
-	u32 pt;
-	float vt;
-	double S, F, M;
-
-	// A sanity check
-	if (K > MAXSELPOINTS) {
-		fprintf (stderr, "loc_locate: K is too large, %1d is max\n",
-			MAXSELPOINTS);
-		exit (99);
-	}
-
-	if (K < 1)
-		// Make sure there is at least one point
-		K = 1;
-
-	// Sort the pegs from the closest to the furthest (there is just a
-	// handful of them, so no need to be smart)
-
-	for (i = 0; i < N - 1; i++) {
-		vt = v [i];
-		ix = i;
-		for (j = i+1; j < N; j++) {
-			if (v [j] > vt) {
-				vt = v [j];
-				ix = j;
-			}
-		}
-		// Replace
-		vt = v [i];
-		pt = pg [i];
-		v [i] = v [ix];
-		pg [i] = pg [ix];
-		v [ix] = vt;
-		pg [ix] = pt;
-	}
-#ifdef DEBUGGING
-	printf ("loc_locate: %1d pegs, best %1d\n", N, pg [0]);
-#endif
-	// For now, we shall just grab the first peg on the list and match
-	// to the list of points that it can hear (so the above sort is not
-	// really needed, except for the minimum)
-
-	db_start_points (pg [0]);
-
-	NB = best_points (pg, v, N, prop, match, K);
-#ifdef DEBUGGING
-	printf ("found %1d best points [%1d]\n", NB, K);
-#endif
-	*X = 0.0;
-	*Y = 0.0;
-
-	if (NB <= 1) {
-		// Not much we can do
-		if (NB == 1) {
-			*X = match [0] . x;
-			*Y = match [0] . y;
-		}
-		return NB;
-	}
-	
-	M = S = 0.0;
-	for (i = 0; i < NB; i++) {
-		// Sum and max of discrepancies
-		if ((F = (double) (match [i] . D)) > M)
-			M = F;
-		S += F;
-	}
-#ifdef DEBUGGING
-	printf ("S M S = %f / %f / %f\n", S, M, M * NB - S);
-#endif
-	S = M * NB - S;
-	for (i = 0; i < NB; i++) {
-		if (S < 0.00001)
-			F = 1.0 / NB;
-		else
-			F = (M - match [i] . D) / S;
-		*X += (float) (match [i] . x * F);
-		*Y += (float) (match [i] . y * F);
-	}
-
-	return NB;
+	// Interpolate
+	return PM_rts_v [i-1] + (PM_rts_v [i] - PM_rts_v [i-1]) *
+		(((double)(rssi - PM_rts_a [i-1])) /
+			(PM_rts_a [i] - PM_rts_a [i-1]));
 }
