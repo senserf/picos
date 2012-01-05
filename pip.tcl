@@ -835,6 +835,15 @@ proc board_set { } {
 	return [lsort -unique $bo]
 }
 
+proc gfl_erase { } {
+#
+# Clean up the tree (e.g., after closing the project)
+#
+	global P
+
+	$P(FL) delete [$P(FL) children {}]
+}
+
 proc gfl_tree { } {
 #
 # Fill/update the treeview file list with files
@@ -3174,7 +3183,10 @@ proc close_project { } {
 		# a project is open
 		set P(AC) ""
 		set P(CO) ""
+		gfl_erase
 		reset_config_menu
+		reset_bnx_menus
+		reset_file_menu
 		# in case something is running
 		abort_term
 		stop_udaemon
@@ -4415,6 +4427,7 @@ proc do_options { } {
 				sys_make_ctags
 				# to show/hide Boards
 				gfl_tree
+				reset_config_menu
 			}
 			if $z {
 				vue_make_ctags
@@ -6039,8 +6052,7 @@ proc stop_genimage { } {
 	if { $TCMD(FG) != "" } {
 		kill_pipe $TCMD(FG)
 		set TCMD(FG) ""
-		# may fail if we have closed the main window already
-		catch { reset_exec_menu }
+		reset_exec_menu
 	}
 }
 
@@ -6120,8 +6132,7 @@ proc stop_udaemon { } {
 	if { $TCMD(FU) != "" } {
 		kill_pipe $TCMD(FU)
 		set TCMD(FU) ""
-		# may fail if we have closed the main window already
-		catch { reset_exec_menu }
+		reset_exec_menu
 	}
 }
 
@@ -6697,8 +6708,7 @@ proc stop_piter { { w "" } } {
 			kill_pipe $TCMD(PI$p)
 			set TCMD(PI$p) ""
 			set TCMD(PI$p,SN) 0
-			# may fail if we have closed the main window already
-			catch { reset_exec_menu }
+			reset_exec_menu
 		}
 	}
 }
@@ -6840,11 +6850,21 @@ proc reset_file_menu { } {
 
 	set m .menu.file
 
-	$m delete 0 end
+	if [catch { $m delete 0 end } ] {
+		return
+	}
+
+	if { $P(AC) == "" } {
+		set st "disabled"
+	} else {
+		set st "normal"
+	}
 
 	$m add command -label "Open project ..." -command "open_project"
 	$m add command -label "New project ..." -command "new_project"
 	$m add command -label "Clone project ..." -command "clone_project"
+	$m add command -label "Close project ..." -command "close_project" \
+		-state $st
 	$m add separator
 
 	if { $LProjects != "" } {
@@ -6861,12 +6881,6 @@ proc reset_file_menu { } {
 
 	$m add command -label "Quit" -command "terminate"
 	$m add separator
-
-	if { $P(AC) == "" } {
-		set st "disabled"
-	} else {
-		set st "normal"
-	}
 
 	$m add command -label "Edit" -command open_multiple -state $st
 	$m add command -label "Delete" -command delete_multiple -state $st
@@ -7090,7 +7104,10 @@ proc reset_exec_menu { } {
 	global P SIDENAME TCMD
 
 	set m .menu.exec
-	$m delete 0 end
+	if [catch { $m delete 0 end } ] {
+		# destroyed already
+		return
+	}
 
 	if { $P(AC) == "" } {
 		return

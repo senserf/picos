@@ -460,3 +460,21 @@ PG111222A:
 	(starting from PG111222A) removes LIBRARIES from the tree.
 
 	The documentation expanded a bit.
+
+PG120105A:
+
+	Fixed two minor bugs:
+
+	- when the access option to system files changed from Never to anything
+	  else, the board entry in the tree view did not show up until the
+	  Build menu was reset (or the project was re-loaded)
+
+	- when a project was closed because another project was opened, and the
+	  open operation failed half way through, the tree view was left at the
+	  previous project's files and the menus (Build and Exec) were left in
+	  a confused state
+
+	As a part of the second fix, I added an explicit "Close project"
+	operation to the File menu.
+
+	Cosmetic adjustments to the document.
