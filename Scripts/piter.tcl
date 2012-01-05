@@ -93,13 +93,14 @@ if { $u >= 0 } {
 	set argv [lreplace $argv $u [expr $u + 1]]
 }
 
+set PM(TTL) ""
 set u [lsearch -exact $argv "-T"]
 if { $u >= 0 } {
 	set f [lindex $argv [expr $u + 1]]
 	if { $f == "" } {
 		sy_usage
 	}
-	set PM(TIT) $f
+	set PM(TTL) $f
 	set argv [lreplace $argv $u [expr $u + 1]]
 }
 
@@ -432,8 +433,8 @@ proc sy_mkterm { } {
 
 	global ST WI PM
 
-	if { $PM(TIT) != "" } {
-		set hd " $PM(TIT)"
+	if { $PM(TTL) != "" } {
+		set hd " $PM(TTL)"
 	} else {
 		set hd ""
 	}

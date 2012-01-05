@@ -1542,3 +1542,8 @@ PG120103A:
 	(read the doc).
 
 	The release script modified to include PIP.
+
+PG120105A:
+
+	Fixed a bug in piter (introduced at PG111209A) causing an error when
+	piter was called without arguments (outside of pip).
