@@ -328,7 +328,8 @@ const	byte	cc1100_rfsettings [] = {
         CCxxx0_FSCAL3,  0xA9,   // FSCAL3
 	CCxxx0_FSCAL1,	0x00,	// RFM
         CCxxx0_FSCAL0,  0x0D,   // FSCAL0
-        CCxxx0_FSTEST,  0x59,   // FSTEST
+        CCxxx0_FSTEST,  0x59,   // FSTEST (FIXME: according to doc, this is
+				// redundant)
 	CCxxx0_IOCFG2,	0x2f,	// Unused and grounded
 	CCxxx0_IOCFG1,	0x2f,	// Unused and grounded
 	CCxxx0_IOCFG0,	IOCFG0_INT,	// Reception interrupt condition
@@ -462,14 +463,6 @@ const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 #endif
 
 // ============================================================================
-// ============================================================================
-
-#ifndef CC1100_PATABLE
-#define	CC1100_PATABLE { 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xC6, 0xC3 }
-//  #define	PATABLE { 0x03, 0x1C, 0x67, 0x60, 0x85, 0xCC, 0xC6, 0xC3 }
-#endif
-
-// ============================================================================
 
 #else	/* DEFINE_RF_SETTINGS */
 
@@ -482,6 +475,10 @@ extern const byte cc1100_agcctrl_table [];
 #endif
 
 #endif	/* DEFINE_RF_SETTINGS */
+
+#ifndef CC1100_PATABLE
+#define	CC1100_PATABLE { 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xC6, 0xC3 }
+#endif
 
 #define	CC1100_NRATES	4
 

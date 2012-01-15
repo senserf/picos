@@ -1,5 +1,9 @@
 #!/bin/bash
 if [ "x$1" = "xall" ] ||  [ "x$1" = "x-all" ] || [ "x$1" = "x--all" ]; then
+pushd ../PIP
+echo "Cleaning PIP"
+./cleanup
+popd
 pushd ../VUEE
 echo "Cleaning VUEE"
 ./cleanup

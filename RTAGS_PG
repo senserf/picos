@@ -1547,3 +1547,12 @@ PG120105A:
 
 	Fixed a bug in piter (introduced at PG111209A) causing an error when
 	piter was called without arguments (outside of pip).
+
+PG120115A:
+
+	Fixed a nasty bug in sysio.h: the definition of MAX_ULONG was one 'f'
+	short (with disastrous consequences for whoever ever used MAX_ULONG or
+	MAX_LWORD).
+
+	A couple of preliminary (and harmless) add ons in preparation for our
+	forthcoming "spectrum analyzer".

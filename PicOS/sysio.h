@@ -332,7 +332,7 @@ void	buttons_action (void (*action)(word));
 #define	MIN_WORD		MIN_UINT
 #define	MAX_LONG		((lint)0x7fffffffL)
 #define	MIN_LONG		((lint)0x80000000L)
-#define MAX_ULONG		((lword)0xfffffffL)
+#define MAX_ULONG		((lword)0xffffffffL)
 #define	MAX_LWORD		MAX_ULONG
 #define	MIN_ULONG		((lword)0)
 #define	MIN_LWORD		MIN_ULONG
@@ -357,7 +357,7 @@ void	buttons_action (void (*action)(word));
 
 #define	NULL			0
 #define	NONE			((word)(-1))
-#define	LNONE			((lword)(0xffffffff))
+#define	LNONE			((lword)(0xffffffffL))
 #define	LWNONE			LNONE
 #define	SNONE			((int)(-1))
 #define	WNONE			NONE
