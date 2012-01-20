@@ -231,18 +231,18 @@ proc anchor { } {
 	global CWD RWD BIN env HOME VPATH
 
 	set CWD [pwd]
-	set lst ""
 
 	while 1 {
 		if { [file isdirectory "Apps"] && [file isdirectory "PicOS"] &&\
 		     [file isdirectory "Scripts"] } {
 			break
 		}
-		set CWD [file normalize "../$CWD"]
-		if { $CWD == $lst } {
+		set nwd [file normalize "${CWD}/.."]
+		if { $nwd == $CWD || [catch { cd $nwd }] } {
 			errab "cannot locate root directory of the package"
 		}
-		cd $CWD
+		puts "$CWD does not include a complete PICOS tree, trying $nwd"
+		set CWD $nwd
 	}
 
 	# determine the location of HOME/bin
