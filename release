@@ -8,14 +8,27 @@ exec tclsh "$0" "$@"
 set tfn "/tmp/picrelease_[pid]_[clock seconds]"
 exec mkdir $tfn
 set cwd [pwd]
+set expd [lindex $argv 0]
+if { $expd != "" } {
+	# export data specified, produce export version of PICOS
+	puts "exporting PICOS ..."
+	exec sh Scripts/pxport $expd $cwd "$tfn/PICOS"
+} else {
+	puts "copying PICOS ..."
+	exec cp -r ../PICOS "$tfn/"
+}
 cd ..
-puts "copying files ..."
-exec cp -r PICOS SIDE VUEE PIP "$tfn/"
+puts "copying SIDE VUEE PIP ..."
+exec cp -r SIDE VUEE PIP "$tfn/"
 cd $tfn
 cd PICOS
 puts "cleaning up PICOS ..."
 exec rm -rf .git
 exec sh ./cleanup
+cd Apps
+puts "cleaning up PICOS Apps ..."
+exec sh ./cleanup -p
+cd ..
 cd ../SIDE
 puts "cleaning up SIDE ..."
 exec rm -rf .git

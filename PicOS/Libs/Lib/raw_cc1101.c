@@ -15,7 +15,7 @@
 // CC430 (internal MSP430) ====================================================
 // ============================================================================
 
-void rff_set_reg (byte addr, byte val) {
+void rrf_set_reg (byte addr, byte val) {
 
 	// Wait for ready
 	while (!(RF1AIFCTL1 & RFINSTRIFG));
@@ -25,7 +25,7 @@ void rff_set_reg (byte addr, byte val) {
 	RF1ADINB = val;
 }
 
-byte rff_get_reg (byte addr) {
+byte rrf_get_reg (byte addr) {
 
 	byte val;
 
@@ -36,7 +36,7 @@ byte rff_get_reg (byte addr) {
 	return val;
 }
 
-void rff_set_reg_burst (byte addr, byte *buffer, word count) {
+void rrf_set_reg_burst (byte addr, byte *buffer, word count) {
 //
 // Note: this works word-wise, not bytewise (a known bug)
 //
@@ -59,7 +59,7 @@ void rff_set_reg_burst (byte addr, byte *buffer, word count) {
 	i = RF1ADOUTB;
 }
 
-void rff_get_reg_burst (byte addr, byte *buffer, word count) {
+void rrf_get_reg_burst (byte addr, byte *buffer, word count) {
 
 	word i;
 
@@ -162,7 +162,7 @@ static byte cc1100_spi_in () {
 	return val;
 }
 
-void rff_set_reg (byte addr, byte val) {
+void rrf_set_reg (byte addr, byte val) {
 
 	SPI_START;
 	SPI_WAIT;
@@ -171,7 +171,7 @@ void rff_set_reg (byte addr, byte val) {
 	SPI_END;
 }
 
-byte rff_get_reg (byte addr) {
+byte rrf_get_reg (byte addr) {
 
 	register byte val;
 
@@ -182,7 +182,7 @@ byte rff_get_reg (byte addr) {
 	return val;
 }
 
-void rff_set_reg_burst (byte addr, byte *buffer, word count) {
+void rrf_set_reg_burst (byte addr, byte *buffer, word count) {
 
 	SPI_START;
 	cc1100_spi_out (addr | 0x40);
@@ -191,7 +191,7 @@ void rff_set_reg_burst (byte addr, byte *buffer, word count) {
 	SPI_END;
 }
 
-void rff_get_reg_burst (byte addr, byte *buffer, word count) {
+void rrf_get_reg_burst (byte addr, byte *buffer, word count) {
 
 	SPI_START;
 	cc1100_spi_out (addr | 0xC0);
@@ -213,14 +213,14 @@ static void cc1100_strobe (byte cmd) {
 // SPI or CC430 ===============================================================
 // ============================================================================
 
-void rff_set_reg_group (const byte *grp) {
+void rrf_set_reg_group (const byte *grp) {
 
 	for ( ; *grp != 255; grp += 2) {
-		cc1100_set_reg (grp [0], grp [1]);
+		rrf_set_reg (grp [0], grp [1]);
 	}
 }
 
-byte rff_status () {
+byte rrf_status () {
 
 	register byte val;
 	int i;
@@ -259,34 +259,33 @@ ReTry:
 			default:
 				return val;
 		}
-		mdelay (1);
+		udelay (10);
 	}
 
 #ifdef RRF_DEBUG
 	diag ("CC1100: %u ST HNG!!", (word) seconds ());
 #endif
-	rff_chip_reset ();
 	goto ReTry;
 }
 
-void rff_enter_idle () {
+void rrf_enter_idle () {
 
 	int i;
 
 	for (i = 0; i < 16; i++) {
-		if (cc1100_status () == CC1100_STATE_IDLE)
+		if (rrf_status () == CC1100_STATE_IDLE)
 			return;
 		cc1100_strobe (CCxxx0_SIDLE);
 	}
 }
 
-void rff_enter_rx () {
+void rrf_enter_rx () {
 
 	int i;
 
 	for (i = 0; i < 16; i++) {
 		cc1100_strobe (CCxxx0_SRX);
-		if (cc1100_status () == CC1100_STATE_RX)
+		if (rrf_status () == CC1100_STATE_RX)
 			return;
 		// Note: the reason I am entering this state differently than
 		// IDLE (see enter_idle above) is primarily a bug/feature of
@@ -306,7 +305,7 @@ void rff_enter_rx () {
 #endif
 }
 
-int rff_rx_status () {
+int rrf_rx_status () {
 
 #ifdef	__CC430__
 
@@ -340,35 +339,35 @@ int rff_rx_status () {
 	return -1;
 }
 
-void rff_rx_flush () {
+void rrf_rx_flush () {
 
 	int i;
 
 	for (i = 0; i < 16; i++) {
 		cc1100_strobe (CCxxx0_SFRX);
-		if (cc1100_get_reg (CCxxx0_RXBYTES) == 0)
+		if (rrf_get_reg (CCxxx0_RXBYTES) == 0)
 			return;
 	}
 }
 
-void rff_rx_reset () {
+void rrf_rx_reset () {
 
-	rff_chip_reset ();
-	rff_enter_rx ();
+	rrf_chip_reset ();
+	rrf_enter_rx ();
 }
 
-void int rff_cts () {
+int rrf_cts () {
 
 	// Make sure our status is sane (FIXME: try removing this)
-	// cc1100_status ();
+	// rrf_status ();
 	cc1100_strobe (CCxxx0_STX);
 	// We succeed if we have entered TX
-	return (cc1100_status () == CC1100_STATE_TX);
+	return (rrf_status () == CC1100_STATE_TX);
 }
 
-void rff_pd () {
+void rrf_pd () {
 
-	rff_enter_idle ();
+	rrf_enter_idle ();
 	cc1100_strobe (CCxxx0_SPWD);
 #ifndef	__CC430__
 	// We do it twice to make sure; kind of stupid, but I do not absolutely
@@ -378,22 +377,22 @@ void rff_pd () {
 #endif
 }
 
-void rff_chip_reset () {
+void rrf_chip_reset () {
 
 	full_reset;
 
 	// Re-initialize registers from the table
-	rff_set_reg_group (rff_regs);
+	rrf_set_reg_group (rrf_regs);
 
 	// PATABLE is separate
-	rf_set_reg_burst (CCxxx0_PATABLE, rff_patable, sizeof (rff_patable));
+	rrf_set_reg_burst (CCxxx0_PATABLE, rrf_patable, sizeof (rrf_patable));
 }
 
-void rff_init () {
+void rrf_init () {
 
 	// Initialize the requisite pins
 	ini_regs;
-	chip_reset ();
+	rrf_chip_reset ();
 	// Start in power down
-	rff_pd ();
+	rrf_pd ();
 }

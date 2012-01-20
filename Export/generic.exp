@@ -1,35 +1,18 @@
 #
-# May 4, 2011
+# January 20, 2012
 #
 Apps
 	cleanup
-	ECOPROJECT
-		SENSOR_TEST
-	LIB*
-	RFPing
-	Toy
+	EXAMPLES
+	RFPing*
 	TESTS
-		Toy*
-		WARSAW
 		CHRONOS
-	VUEE
-		EETest
-		ILLUSTRATION
-		INTRO
-		RFPING
-		tnp_demo
-		eco_demo
-			*.cc
-			*.h
-			options.*
-			*.odt
-			*.xml
-			*.ch
-			.mop
-		survey
+		WARSAW
+		SENSORS
+	Toy
+	survey
 Docs
 	*.pdf
-	*.doc
 Linux
 	LOCATION
 PicOS
@@ -42,6 +25,7 @@ PicOS
 		BOARDS
 			CHRONOS
 			WARSAW
+			DUMMY_COLLECTOR
 			ARTURO
 			ARTURO_PMTH
 			ARTURO_SD
@@ -58,10 +42,20 @@ cleanup
 deploy
 Scripts
 	UTILS.zip
-	*.tcl
-	mkmk
+	cleanapp
 	genihex
 	isource
-	cleanapp
+	log.tcl
+	mkmk
+	oep.tcl
+	oss_u.tcl
+	oss_u_xrs.tcl
+	permissions
 	picomp
-	piter
+	piter.tcl
+	sample_macros.mac
+	sdb.tcl
+	snippets.tcl
+	uart_*
+	usefetdll
+	xml.tcl

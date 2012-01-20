@@ -246,10 +246,6 @@
 // This one is for power control; we set it up separately
 #define FREND0_SET	    0x10
 
-// This is set in the program that wants to have in-memory constants defined,
-// like the driver itself
-#ifdef	CC1100_DEFINE_RF_SETTINGS
-
 //
 // Changed R100617 from 0x1E to 0x22, yielding 904 MHz as the base frequency
 // (the same as in GENESIS). The formula is:
@@ -296,6 +292,10 @@
 		(RADIO_DEFAULT_CHANNEL * CC1100_CHANSPC_T1000) / 100)
 #define	CC1100_DFREQ		((word)(CC1100_DFREQ_T10 / 10))
 #define	CC1100_DFREQ_10		((word)(CC1100_DFREQ_T10 - (CC1100_DFREQ *10)))
+
+// This is set in the program that wants to have in-memory constants defined,
+// like the driver itself
+#ifdef	CC1100_DEFINE_RF_SETTINGS
 
 // ============================================================================
 // Define Register Contents ===================================================

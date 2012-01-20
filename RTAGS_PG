@@ -1556,3 +1556,37 @@ PG120115A:
 
 	A couple of preliminary (and harmless) add ons in preparation for our
 	forthcoming "spectrum analyzer".
+
+PG120120A:	3 4
+
+	System version bumped to 3.4 (from 3.3).
+
+	A couple of irrelevant cosmetics needed for the spectrum analyzer
+	project.
+
+	Export/generic.exp now describes PICOS export configuration for UOttawa
+	(and, possibly, other places as well). Scripts release and Apps/cleanup
+	modified a bit to allow for convenient export packaging. For example,
+	to create the picospack file for UOttawa do this:
+
+	1. cd to PICOS
+	2. execute ./release Export/generic.exp
+
+	Note: release without the argument works exactly as before, i.e., it
+	packages everything.
+
+	With the argument, the created picospack file will include all the
+	components: PICOS, SIDE, VUEE, PIP, with PICOS taylored to the
+	recipient as per the specified export file:
+
+	- proprietary and garbage stuff removed; Wlodek may want to verify if
+	  I haven't missed anything (and adjust generic.exp to taste)
+
+	- project (PIP) configuration files removed from App subdirectories
+
+	Note: the App/cleanup script now accepts an argument; when called with
+	-p it will (additionally) remove PIP config files.
+
+	The Installation doc corrected as per Paul's suggestion. Indeed, the
+	suggestion to jump to the Windows exercise before the section on how
+	to invoke gdbproxy under Linux was misleading. Thanks Paul!

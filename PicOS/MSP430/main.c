@@ -718,7 +718,7 @@ interrupt (TCI_VECTOR_S) timer_auxiliary () {
 	if (TCI_AUXILIARY_TIMER_INTERRUPT) {
 
 #ifdef	MONITOR_PIN_CLOCKA
-	_PVS (MONITOR_PIN_CLOCKA, 1);
+		_PVS (MONITOR_PIN_CLOCKA, 1);
 #endif
 		// Set for the next tick - as quickly as possible
 		TCI_CCA += TCI_HIGH_DIV;
