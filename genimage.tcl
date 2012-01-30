@@ -3,9 +3,9 @@
 exec tclsh85 "$0" "$@"
 
 ############################################################################
-# Generates copies of an ihex file with modified node ID                   #
+# Generates copies of an Image file with modified node ID                  #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2008-2011 All Rights Reserved      #
+# Copyright (C) Olsonet Communications, 2008-2012 All Rights Reserved      #
 ############################################################################
 
 set PM(VER)	1.3.8
@@ -39,10 +39,10 @@ if [catch { exec uname } ST(SYS)] {
 	set ST(SYS) "W"
 }
 if { $ST(SYS) != "L" } {
-	# sanitize arguments; here you a sample of the magnitude of stupidity
-	# I have to fight when glueing together Windows and Cygwin stuff; the
-	# last argument (sometimes!) has a CR character appended at the end,
-	# and you wouldn't believe how much havoc that can cause
+	# sanitize arguments; here you have a sample of the magnitude of
+	# stupidity I have to fight when glueing together Windows and Cygwin
+	# stuff; the last argument (sometimes!) has a CR character appended
+	# at the end, and you wouldn't believe how much havoc that can cause
 	set u [string trimright [lindex $argv end]]
 	if { $u == "" } {
 		set argv [lreplace $argv end end]
@@ -54,6 +54,10 @@ if { $ST(SYS) != "L" } {
 
 set PM(PWD) [file normalize [pwd]]
 set MWSG ""
+# list of modes for Image files and the associated file name extensions
+set PM(MDS) { "IHEX" "ELF" }
+set PM(MDS,IHEX) { ".a43" {{ "Intel Hex" {*.a43}} { "All" {*} }}}
+set PM(MDS,ELF) { "" {{ "All" {*} }}}
 
 ## double exit avoidance flag
 set DEAF 0
@@ -89,11 +93,90 @@ proc iscwd { dir } {
 	return 0
 }
 
+proc suff { } {
+#
+# Returns the currently effective file suffix
+#
+	global DEFS PM
+	return [lindex $PM(MDS,$DEFS(MOD)) 0]
+}
+
+proc ftps { } {
+#
+# Returns the currently effective set of filetypes for file open dialog
+#
+	global DEFS PM
+	return [lindex $PM(MDS,$DEFS(MOD)) 1]
+}
+
+proc reset_file_name_mode { } {
+#
+# Executed by setdefs and after a change of the file name mode (ihex/ELF) to
+# (re) initialize the file view
+#
+	global DEFS PM IFN TFN
+
+	foreach t { SRD TRD } i { IFN TFN } {
+		if { $DEFS($t) != "" } {
+			# check if exists
+			if ![file isdirectory $DEFS($t)] {
+				set DEFS($t) ""
+			}
+		}
+		if { $DEFS($t) == "" } {
+			set DEFS($t) $PM(DEP)
+		}
+		set DEFS($t) [file normalize $DEFS($t)]
+		if { $DEFS($i) == "" || [file extension $DEFS($i)] != [suff] } {
+			if { $i == "IFN" } {
+				set DEFS($i) "Image[suff]"
+			} else {
+				set DEFS($i) "Image_nnnn[suff]"
+			}
+		}
+		# check if the input image file is present
+		if { $i == "IFN" && 
+		    ![file isfile [file join $DEFS($t) $DEFS($i)]] } {
+			# sorry, try to look something up
+			if { [catch { glob -directory $DEFS($t) -tails \
+			     "Image*[suff]" } fl] || $fl == "" } {
+				# this won't work, anyway, but we need some
+				# filler
+				set DEFS($i) "Image[suff]"
+			} else {
+				set fl [lsort $fl]
+				set fi ""
+				foreach f $fl {
+					# eliminate clones
+					if ![regexp -nocase \
+					     "_.*\[a-z0-9\]_\[0-9\]+" $f] {
+						set fi $f
+						break
+					}
+				}
+				if { $fi == "" } {
+					# still need the filler
+					set fi "Image[suff]"
+				}
+				set DEFS($i) $fi
+			}
+		}
+
+		if [iscwd $DEFS($t)] {
+			# use local name
+			set $i $DEFS($i)
+		} else {
+			# use full path
+			set $i [file join $DEFS($t) $DEFS($i)]
+		}
+	}
+}
+
 proc setdefs { } {
 #
 # Set (default) paths to all relevant places
-
-	global env argv PM ST DEFS IFN TFN
+#
+	global env argv PM ST DEFS
 
 	# default configuration file name
 	set PM(CFN) "config.gen"
@@ -174,7 +257,16 @@ proc setdefs { } {
 
 	set PM(CFN) [file normalize $PM(CFN)]
 
-	foreach t { SRD TRD IFN TFN IDN PFX FRM CNT } {
+	foreach t { SRD TRD IFN TFN IDN PFX FRM CNT MOD } {
+		## SRD - source directory
+		## TRD - target directory
+		## IFN - input file name
+		## TFN - target file name (pattern)
+		## IDN - cookie
+		## PFX - target cookie replacement prefix
+		## FRM - starting counter value
+		## CNT - number of copies
+		## MOD - file mode (IHEX, ELF)
 		set DEFS($t) ""
 	}
 
@@ -198,55 +290,20 @@ proc setdefs { } {
 		break
 	}
 
-	foreach t { SRD TRD } i { IFN TFN } {
-		if { $DEFS($t) != "" } {
-			# check if exists
-			if ![file isdirectory $DEFS($t)] {
-				set DEFS($t) ""
-			}
-		}
-		if { $DEFS($t) == "" } {
-			set DEFS($t) $PM(DEP)
-		}
-		set DEFS($t) [file normalize $DEFS($t)]
-		if { $DEFS($i) == "" } {
-			if { $i == "IFN" } {
-				set DEFS($i) "Image.a43"
-			} else {
-				set DEFS($i) "Image_nnnn.a43"
-			}
-		}
-		# check if the input image file is present
-		if { $i == "IFN" && 
-		    ![file isfile [file join $DEFS($t) $DEFS($i)]] } {
-			# sorry, try to look something up
-			if { [catch { glob -directory $DEFS($t) -tails \
-			     "Image*.a43" } fl] || $fl == "" } {
-				set DEFS($i) "Image.a43"
-			} else {
-				set fl [lsort $fl]
-				set fi ""
-				foreach f $fl {
-					if ![regexp -nocase \
-					     "_.*\[a-z0-9\]_\[0-9\]+\\.a" $f] {
-						set fi $f
-						break
-					}
-				}
-				if { $fi == "" } {
-					set fi "Image.a43"
-				}
-				set DEFS($i) $fi
-			}
-		}
-		if [iscwd $DEFS($t)] {
-			# use local name
-			set $i $DEFS($i)
-		} else {
-			# use full path
-			set $i [file join $DEFS($t) $DEFS($i)]
+	# make sure the mode is sane
+	set i 1
+	foreach t $PM(MDS) {
+		if { $DEFS(MOD) == $t } {
+			set i 0
+			break
 		}
 	}
+
+	if $i {
+		set DEFS(MOD) [lindex $PM(MDS) 0]
+	}
+
+	reset_file_name_mode
 
 	if { [verify_idn $DEFS(IDN) 8] == "" } {
 		set DEFS(IDN) "BACADEAD"
@@ -312,6 +369,14 @@ proc verify_idn { s n } {
 	return $res
 }
 
+proc idn_to_bin { idn } {
+#
+# Transform a cookie string (4 bytes HEX, back to back) into a binary sequence
+# of the respective bytes
+#
+	return [binary format H8 $idn]
+}
+
 proc increment { b } {
 #
 # Increments the hex string
@@ -366,7 +431,11 @@ proc cerror { n s } {
 	error "Image checksum error, line $n: $s!"
 }
 
-proc read_source { fn } {
+###############################################################################
+# HEX file processing #########################################################
+###############################################################################
+
+proc read_source_IHEX { fn } {
 #
 # Reads the source image file
 #
@@ -446,7 +515,7 @@ proc read_source { fn } {
 	return $chunks
 }
 
-proc locate_id { im idn } {
+proc locate_id_IHEX { im idn } {
 #
 # Locates the tag in the image
 #
@@ -478,7 +547,7 @@ proc locate_id { im idn } {
 	return [list $cn $po]
 }
 
-proc modify_image { im org s } {
+proc modify_image_IHEX { im org s } {
 #
 # Substitute the new string in the image
 #
@@ -501,28 +570,7 @@ proc modify_image { im org s } {
 	return $im
 }
 
-proc mkfname { ofn s } {
-#
-# New file name
-#
-	set t ""
-	foreach q $s {
-		set t "${q}$t"
-	}
-	set rfn "[file rootname $ofn]"
-
-	regsub -nocase "_\[a-z0-9.\]*$" $rfn "" rfn
-
-	append t "_[format %05u [expr 0x$t & 0x0000ffff]]"
-
-	if { $rfn == $ofn } {
-		return "${rfn}_$t"
-	}
-
-	return "${rfn}_$t[file extension $ofn]"
-}
-
-proc write_image { im fn } {
+proc write_image_IHEX { im fn } {
 
 	if [catch { open $fn "w" } fd] {
 		error "Cannot open $fn for writing: $fd!"
@@ -555,35 +603,112 @@ proc write_image { im fn } {
 	}
 	catch { close $fd }
 }
-			
+
+###############################################################################
+# ELF file processing #########################################################
 ###############################################################################
 
-proc find_ifn { { fn "" } } {
+proc read_source_ELF { fn } {
 #
-# Tries to find a candidate input file in the current directory
+# Reads the source image file
 #
-
-	if { $fn == "" } {
-		set fn "Image.a43"
+	if [catch { open $fn "r" } fd] {
+		error "Cannot open image file $fn: $fd"
 	}
 
-	if [file isfile $fn] {
-		return $fn
+	fconfigure $fd -encoding binary -translation binary
+
+	if [catch { read $fd } fc] {
+		catch { close $fd }
+		error "Cannot read image file $fn: $fc"
 	}
 
-	if [catch { exec ls } flst] {
-		# cannot list current directory
-		return ""
-	}
+	catch { close $fd }
 
-	foreach fn $flst {
-		if { [string tolower [file extension $fn]] == ".a43" } {
-			return $fn
-		}
-	}
-
-	return ""
+	return $fc
 }
+
+proc locate_id_ELF { im idn } {
+#
+# Locates the tag in the image
+#
+	# translate idn to binary
+	set idb [idn_to_bin $idn]
+	# first location
+	set loc [string first $idb $im]
+	if { $loc < 0 } {
+		error "Cookie not found in the image file!"
+	}
+	if { [string last $idb $im] != $loc } {
+		error "Image error, multiple occurrences of the cookie!"
+	}
+	return $loc
+}
+	
+proc modify_image_ELF { im org s } {
+#
+# Substitute the new string in the image
+#
+	set s [idn_to_bin $s]
+	set len [string length $s]
+	return [string replace $im $org [expr $org + $len - 1] $s]
+}
+
+proc write_image_ELF { im fn } {
+
+	if [catch { open $fn "w" } fd] {
+		error "Cannot open $fn for writing: $fd!"
+	}
+
+	fconfigure $fd -encoding binary -translation binary
+	puts -nonewline $fd $im
+	catch { close $fd }
+}
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+proc click_file_mode { menb n } {
+#
+# Click on the file mode change button
+#
+	global DEFS PM
+
+	set fm [lindex $PM(MDS) $n]
+	if { $fm == "" } {
+		return
+	}
+
+	if { $fm != $DEFS(MOD) } {
+		set DEFS(MOD) $fm
+		$menb configure -text $fm
+		reset_file_name_mode
+	}
+}
+			
+proc mkfname { ofn s } {
+#
+# New file name
+#
+	set t ""
+	foreach q $s {
+		set t "${q}$t"
+	}
+	set rfn "[file rootname $ofn]"
+
+	regsub -nocase "_\[a-z0-9.\]*$" $rfn "" rfn
+
+	append t "_[format %05u [expr 0x$t & 0x0000ffff]]"
+
+	if { $rfn == $ofn } {
+		return "${rfn}_$t"
+	}
+
+	return "${rfn}_$t[file extension $ofn]"
+}
+
+###############################################################################
 
 proc savdefs { } {
 #
@@ -707,9 +832,9 @@ proc change_ifn { } {
 	global DEFS IFN
 
 	set fn [tk_getOpenFile \
-			-defaultextension ".a43" \
+			-defaultextension [suff] \
 			-initialdir $DEFS(SRD) \
-			-filetypes {{ "Intel Hex" {*.a43}} { "All" {*.*} }} \
+			-filetypes [ftps] \
 			-title "Source Image File"]
 
 	if { $fn == "" } {
@@ -800,7 +925,7 @@ proc generate { } {
 		return
 	}
 
-	if [catch { read_source $IFN } image] {
+	if [catch { read_source_$DEFS(MOD) $IFN } image] {
 		alert $image
 		return
 	}
@@ -813,7 +938,7 @@ proc generate { } {
 		return
 	}
 
-	if [catch { locate_id $image [join $idn ""] } org] {
+	if [catch { locate_id_$DEFS(MOD) $image [join $idn ""] } org] {
 		alert $org
 		return
 	}
@@ -836,10 +961,10 @@ proc generate { } {
 			break
 		}
 
-		set image [modify_image $image $org [join $frm ""]]
+		set image [modify_image_$DEFS(MOD) $image $org [join $frm ""]]
 
 		set nfn [mkfname $TFN $frm]
-		if [catch { write_image $image $nfn } err] {
+		if [catch { write_image_$DEFS(MOD) $image $nfn } err] {
 			cancel_gen
 			alert "Cannot write to $nfn: $err!"
 			enable_go
@@ -910,8 +1035,29 @@ pack .sel -side top -fill x
 
 ##
 
+labelframe .sel.mo -text "File type" -padx 4 -pady 4
+pack .sel.mo -side left -expand 0 -fill both
+
+##
+
+set w ".sel.mo"
+label $w.sel -text "Select: "
+pack $w.sel -side left -expand 0 -padx 4
+
+menubutton $w.men -text $DEFS(MOD) -direction right -menu $w.men.m \
+	-relief raised
+pack $w.men -side left -expand 0
+menu $w.men.m -tearoff 0
+set n 0
+foreach t $PM(MDS) {
+	$w.men.m add command -label $t -command "click_file_mode $w.men $n"
+	incr n
+}
+
+##
+
 labelframe .sel.nn -text "Node numbers" -padx 4 -pady 4
-pack .sel.nn -side left -expand 1 -fill x
+pack .sel.nn -side left -expand 1 -fill both
 
 ##
 
@@ -939,7 +1085,7 @@ pack $w.cnn -side left -expand 0 -padx 4
 ##
 
 labelframe .sel.co -text "Cookie" -padx 4 -pady 4
-pack .sel.co -side left -expand 0 -fill x -fill y
+pack .sel.co -side left -expand 0 -fill both
 
 ##
 
@@ -951,7 +1097,7 @@ pack $w.co -side top -padx 4
 ##
 
 labelframe .sel.pr -text "Prefix" -padx 4 -pady 4
-pack .sel.pr -side left -expand 0 -fill x -fill y
+pack .sel.pr -side left -expand 0 -fill both
 
 ##
 

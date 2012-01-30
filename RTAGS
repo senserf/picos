@@ -478,3 +478,14 @@ PG120105A:
 	operation to the File menu.
 
 	Cosmetic adjustments to the document.
+
+PG120130A:
+
+	It is now possible to "customize" ELF Images, not only their IHEX
+	(.a43) versions, which is useful under Linux (with gdb acting as the
+	loader).
+
+	A few cosmetics. In particular, canceling a file selection in a VUEE
+	config option blanks the file (instead of leaving the previous choice
+	intact), so, for example, you can nullify a previous udaemon geometry
+	file selection.

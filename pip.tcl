@@ -903,6 +903,8 @@ proc gfl_tree { } {
 			lappend l $f
 		}
 
+		set l [lsort $l]
+
 		set id [$tv insert {} end -text "<${b}>:" \
 			-values [list $b "b"] -tags sboard]
 		if [info exists P(FL,b,$b)] {
@@ -4315,7 +4317,8 @@ proc vuee_conf_fsel { tp } {
 					-parent $P(M0,WI)]
 
 		if { $fn == "" } {
-			# cancelled
+			# cancelled, cancel
+			set P(M0,$tp) ""
 			return
 		}
 
@@ -6841,6 +6844,14 @@ proc do_console_interrupt { } {
 
 ###############################################################################
 
+proc clean_lprojects { } {
+
+	global LProjects
+
+	set LProjects ""
+	reset_file_menu
+}
+
 proc reset_file_menu { } {
 #
 # Create the File menu of the project window; it must be done dynamically,
@@ -6876,6 +6887,8 @@ proc reset_file_menu { } {
 			$m add command -label $p -command "open_project $ix"
 			incr ix
 		}
+		$m add separator
+		$m add command -label "Clean history" -command clean_lprojects
 		$m add separator
 	}
 
