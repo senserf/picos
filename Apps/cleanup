@@ -19,7 +19,10 @@ proc remove_pip_configs { } {
 #
 # Remove PIP configuration files
 #
-	exec rm -f "config.*"
+	set fl [glob -nocomplain "config.*"]
+	foreach f $fl {
+		catch { exec rm -f $f }
+	}
 }
 
 proc do_it { } {

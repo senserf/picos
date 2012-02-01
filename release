@@ -5,6 +5,11 @@ exec tclsh "$0" "$@"
 # Creates a release version in picospack.tgz with the .git directories stripped
 # off and everything cleaned up
 #
+
+proc cygfix { } { catch { exec ls [pwd] } }
+
+cygfix
+
 set tfn "/tmp/picrelease_[pid]_[clock seconds]"
 exec mkdir $tfn
 set cwd [pwd]

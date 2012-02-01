@@ -1590,3 +1590,31 @@ PG120120A:	3 4
 	The Installation doc corrected as per Paul's suggestion. Indeed, the
 	suggestion to jump to the Windows exercise before the section on how
 	to invoke gdbproxy under Linux was misleading. Thanks Paul!
+
+PG120201A:
+
+	Fixed Apps/cleanup such that cleanup -p works properly under Linux
+	(i.e., removes project config files as it should).
+
+	Inspired by the above fix, I have decided to remove project config
+	files before a comit. Those files tend to change and may be confusing
+	sometimes. It will be safer if you reconfigure your project (which
+	operation is typically very simple) rather than use some accidental
+	config file from a test or something. If you are attached to your
+	config files, copy them before syncing to the repo.
+
+	Praxes VNETI_TIMERS and OSSEXAMPLE moved from EXAMPELS to PROPRIETARY
+	(as suggested by Wlodek). Added a comment to LIB_EXAMPLE/README.txt.
+	Also, README files added to Apps/EXAMPLES and Apps/EXAMPLES/INTRO
+	explaining in which documents the examples are referenced.
+
+	Added a hard option (constant AUTO_RADIO_START) to TEST/WARSAW to make
+	it possible for the test to start with the radio active, which is
+	useful for experiments. This option is now ON.
+
+	BOARDS/CC430W modified to correspond to the correct (fixed) version of
+	the new board. The "broken" files are still available in subdirectory
+	BROKEN.
+
+	A few cosmetics, e.g., cygfix sequence added to scripts pxport and
+	release to walk around the notorious "first file reference" problem.

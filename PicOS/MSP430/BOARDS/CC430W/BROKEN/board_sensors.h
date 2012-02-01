@@ -5,7 +5,7 @@
 #include "cma_3000.h"
 
 #define	__pi_cma_3000_bring_down	do { \
-						_BIC (P4OUT, 0x10); \
+						_BIC (P4OUT, 0x01); \
 						_BIC (P5OUT, 0xE4); \
 						_BIS (P5DIR, 0xE4); \
 						__pi_cma_3000_disable; \
@@ -14,7 +14,7 @@
 
 #define	__pi_cma_3000_bring_up		do { \
 						_BIC (P5DIR, 0x80); \
-						_BIS (P4OUT, 0x10); \
+						_BIS (P4OUT, 0x01); \
 					} while (0)
 					
 #define	__pi_cma_3000_csel		do { \
@@ -58,6 +58,8 @@
 #define	SEN_POWER_URE	ADC_SREF_RVSS	// Internal
 #define	SEN_POWER_ERE	(ADC_FLG_REFON + ADC_FLG_REF25)
 
+#define	SEN_POWER_PIN	6	// Int-ext voltage sensor pin, same ref
+
 #define	SEN_EPOWER_PIN	7	// External voltage pin
 #define	SEN_EPOWER_ERE	ADC_FLG_REFON
 
@@ -65,6 +67,12 @@
 		ANALOG_SENSOR (SEN_POWER_ISI,  \
 			       SEN_POWER_NSA,  \
 			       SEN_POWER_SRC,  \
+		       	       SEN_POWER_URE,  \
+			       SEN_POWER_SHT,  \
+			       SEN_POWER_ERE), \
+		ANALOG_SENSOR (SEN_POWER_ISI,  \
+			       SEN_POWER_NSA,  \
+			       SEN_POWER_PIN,  \
 		       	       SEN_POWER_URE,  \
 			       SEN_POWER_SHT,  \
 			       SEN_POWER_ERE), \
@@ -78,15 +86,21 @@
 }
 
 // Voltage internal-internal
+// Voltage internal-external
 // Voltage external
 // Motion
 
 #define	sensor_adc_prelude(p) \
 			do { \
-			    if (ANALOG_SENSOR_PIN (p) == SEN_EPOWER_PIN) { \
-				_BIS (P4DIR, 0x08); \
-				mdelay (100); \
+			    switch (ANALOG_SENSOR_PIN (p)) { \
+				case SEN_POWER_PIN: \
+				case SEN_EPOWER_PIN: \
+					_BIS (P4DIR, 0x08); \
+					mdelay (100); \
 			    } \
 			} while (0)
 
-#define	sensor_adc_postlude(p)  _BIC (P4DIR, 0x08)
+#define	sensor_adc_postlude(p) \
+			do { \
+				_BIC (P4DIR, 0x08); \
+			} while (0)

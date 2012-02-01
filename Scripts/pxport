@@ -8,6 +8,8 @@ exec tclsh "$0" "$@"
 # Copyright (C) Olsonet Communications, 2008-2010 All Rights Reserved      #
 ############################################################################
 
+proc cygfix { } { catch { exec ls [pwd] } }
+
 proc abt { m } {
 	puts stderr $m
 	exit 99
@@ -92,6 +94,8 @@ proc rmfiles { n } {
 }
 
 ###############################################################################
+
+cygfix
 
 if { [llength $argv] != 3 } {
 	bad_usage

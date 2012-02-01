@@ -48,3 +48,5 @@
 
 // #undef	RADIO_USE_LEDS
 // #define	RADIO_USE_LEDS	0
+
+#define	AUTO_RADIO_START 1

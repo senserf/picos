@@ -7,7 +7,6 @@
 
 #include "boards.h"
 
-
 // ============================================================================
 #include "sysio.h"
 #include "tcvphys.h"
@@ -28,6 +27,10 @@ heapmem {10, 90};
 
 #include "pinopts.h"
 #include "hold.h"
+
+#ifndef AUTO_RADIO_START
+#define	AUTO_RADIO_START	0
+#endif
 
 #define	IBUFLEN		132
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
@@ -1828,6 +1831,11 @@ fsm root {
 	tcv_control (sfd, PHYSOPT_SETSID, (address)&off);
 #endif
 
+#if AUTO_RADIO_START
+	w = 3;
+	goto StartRadio;
+#endif
+
   state RS_RCMDM2:
 
 	ser_out (RS_RCMDM2,
@@ -1923,7 +1931,7 @@ RS_Err:
 					rregs [4], rregs [5]);
 #endif
 			diag ("RSTAR: %d", w);
-
+StartRadio:
 			radio_start (w);
 
 RS_Loop:		proceed RS_RCMD;
