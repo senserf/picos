@@ -730,3 +730,8 @@ PG111208A:
     Oh, well, I know, I know, this is the notorious problem of line ending
     mismatch between Cygwin and Windows which comes and goes. Had to fix
     udaemon, because it stopped to work for me.
+
+PG120210A:	PICOS >= PG120210A
+
+    Change in the signature of these plugin functions: xmt, out, tmt matching
+    the change in PicOS.
