@@ -26,8 +26,8 @@ static int tcv_ope_tarp (int, int, va_list);
 static int tcv_clo_tarp (int, int);
 static int tcv_rcv_tarp (int, address, int, int*, tcvadp_t*);
 static int tcv_frm_tarp (address, int, tcvadp_t*);
-static int tcv_out_tarp (address);
-static int tcv_xmt_tarp (address);
+static int tcv_out_tarp (address, int);
+static int tcv_xmt_tarp (address, int);
 
 #if TARP_RTR
 static int tcv_tmt_tarp (address);
@@ -125,13 +125,13 @@ static int tcv_frm_tarp (address p, int phy, tcvadp_t *bounds) {
 
 }
 
-static int tcv_out_tarp (address p) {
+static int tcv_out_tarp (address p, int s) {
 	int rc = tarp_tx (p);
 	return rc;
 
 }
 
-static int tcv_xmt_tarp (address p) {
+static int tcv_xmt_tarp (address p, int s) {
 #if TARP_RTR
 	return tarp_xmt (p);
 #else

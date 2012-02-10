@@ -1618,3 +1618,43 @@ PG120201A:
 
 	A few cosmetics, e.g., cygfix sequence added to scripts pxport and
 	release to walk around the notorious "first file reference" problem.
+
+PG120210A:	3 5 	VUEE >= PG120210A
+
+	Slight modifications to TCV (VNETI), but requiring changes in the
+	signatures of some plugin functions. Read the blue bits in VNETI.pdf.
+	Nothing revolutionary, but still ... VNETI isn't changed that often.
+	While working on a plugin for OSS (which I later decided to scrap) I
+	discovered that some potentially useful functionality was difficult
+	to accomplish:
+
+	1. There was no way to block tcv_wnp/tcv_wnpu from a plugin, i.e.,
+	   as long as memory was available the function would always grab a
+	   packet buffer. Any decision regarding the packet's fate had to
+	   be postponed until tcv_endp.
+
+	2. These plugin functions: tcv_xmt, tcv_out, tcv_tmt would benefit
+	   from the session ID passed as the second argument, especially in
+	   those cases when the plugin admits multiple sessions.
+
+	I have located all VNETI plugins and modified them accordingly
+	(including TARP, of course), so they all should be OK.
+
+	Also, I have removed some code from tcv_open and tcv_close (or rather
+	made it conditional: #define TCV_OPEN_CAN_BLOCK 1) needed only when
+	the plugin decides to block the operation. None of our plugins comes
+	close to requiring this feature.
+
+	Added a section to cc1100.odt/pdf on adjusting the base RF frequency
+	by setting options.sys constants. It seems that we have to resort to
+	such measures with the new boards on which the oscillator tends to be
+	off a bit.
+
+	Even though I did bump the system version not so long ago, I have
+	decided to do it again, because there are some semi-serious
+	consequences of the present set of changes:
+
+	1. The signature and semantics of some VNETI functions have changed
+	   (so old app code may not be compatible without a modification)
+
+	2. A (slight) matching VUEE modification is required

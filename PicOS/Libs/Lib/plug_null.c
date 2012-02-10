@@ -12,16 +12,16 @@
  * one session per phy interface.
  */
 
-// Note: under the simulator, plugin functions are static. Add the moment,
-// this implies that all stations use the same plugin(s), although, of course,
-// they may use different parameters, which are node attributes.
+// Note: under the simulator, plugin functions are static. This implies that
+// all stations use the same plugin(s), although, of course, they may use
+// different parameters, which are node attributes.
 
 static int tcv_ope_null (int, int, va_list);
 static int tcv_clo_null (int, int);
 static int tcv_rcv_null (int, address, int, int*, tcvadp_t*);
 static int tcv_frm_null (address, int, tcvadp_t*);
-static int tcv_out_null (address);
-static int tcv_xmt_null (address);
+static int tcv_out_null (address, int);
+static int tcv_xmt_null (address, int);
 
 const tcvplug_t plug_null =
 		{ tcv_ope_null, tcv_clo_null, tcv_rcv_null, tcv_frm_null,
@@ -83,13 +83,13 @@ static int tcv_frm_null (address p, int phy, tcvadp_t *bounds) {
 	return bounds->head = bounds->tail = 0;
 }
 
-static int tcv_out_null (address p) {
+static int tcv_out_null (address p, int s) {
 
 	return TCV_DSP_XMT;
 
 }
 
-static int tcv_xmt_null (address p) {
+static int tcv_xmt_null (address p, int s) {
 
 	return TCV_DSP_DROP;
 }

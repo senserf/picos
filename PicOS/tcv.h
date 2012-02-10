@@ -1,25 +1,23 @@
 #ifndef	__tcv_h
 #define __tcv_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "sysio.h"
 
-/* ========================================================================== */
-/*                     PicOS                                                  */
-/*                                                                            */
-/* Transceiver driver include file                                            */
-/*                                                                            */
-
 #if	TCV_PRESENT
 
 #ifndef	TCV_HOOKS
-#define	TCV_HOOKS	0
+#define	TCV_HOOKS		0
 #endif
 
 #ifndef	TCV_TIMERS
-#define	TCV_TIMERS	0
+#define	TCV_TIMERS		0
+#endif
+
+#ifndef	TCV_OPEN_CAN_BLOCK
+#define	TCV_OPEN_CAN_BLOCK	0
 #endif
 
 struct qitem_struct {
@@ -152,6 +150,7 @@ typedef	struct {
 	 * packet because the packet itself knows where it belongs.
 	 */
 
+#if TCV_OPEN_CAN_BLOCK
 	/*
 	 * This one is used while the session is being open and the requesting
 	 * process must go to sleep. Using it, we can identify the descriptor
@@ -159,6 +158,7 @@ typedef	struct {
 	 * I can think of no other use for this attribute.
 	 */
 	int		pid;
+#endif
 } sesdesc_t;
 
 #define	TCV_SESDESC_LENGTH	(4+2+2)

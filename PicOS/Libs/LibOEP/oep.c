@@ -128,8 +128,8 @@ static int tcv_ope_oep (int, int, va_list);
 static int tcv_clo_oep (int, int);
 static int tcv_rcv_oep (int, address, int, int*, tcvadp_t*);
 static int tcv_frm_oep (address, int, tcvadp_t*);
-static int tcv_out_oep (address);
-static int tcv_xmt_oep (address);
+static int tcv_out_oep (address, int);
+static int tcv_xmt_oep (address, int);
 
 const tcvplug_t plug_oep =
 		{ tcv_ope_oep, tcv_clo_oep, tcv_rcv_oep, tcv_frm_oep,
@@ -169,16 +169,16 @@ static int tcv_frm_oep (address p, int phy, tcvadp_t *bounds) {
 
 	bounds->head = 0;
 	bounds->tail = 2;	// We don't care about CRC
-	return 2;
+	return 0;
 }
 
-static int tcv_out_oep (address p) {
+static int tcv_out_oep (address p, int s) {
 
 	return TCV_DSP_XMT;
 
 }
 
-static int tcv_xmt_oep (address p) {
+static int tcv_xmt_oep (address p, int s) {
 
 	return TCV_DSP_DROP;
 }

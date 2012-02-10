@@ -103,6 +103,9 @@
 
 #if TCV_PRESENT
 // These select TCV configuration options
+#ifndef	TCV_OPEN_CAN_BLOCK
+#define	TCV_OPEN_CAN_BLOCK	0
+#endif
 #ifndef	TCV_TIMERS
 #define	TCV_TIMERS		0	// 0/1
 #endif

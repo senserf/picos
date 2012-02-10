@@ -858,9 +858,9 @@ typedef struct {
 	int (*tcv_clo) (int, int);
 	int (*tcv_rcv) (int, address, int, int*, tcvadp_t*);
 	int (*tcv_frm) (address, int, tcvadp_t*);
-	int (*tcv_out) (address);
-	int (*tcv_xmt) (address);
-	int (*tcv_tmt) (address);
+	int (*tcv_out) (address, int);
+	int (*tcv_xmt) (address, int);
+	int (*tcv_tmt) (address, int);
 	int tcv_info;
 } tcvplug_t;
 

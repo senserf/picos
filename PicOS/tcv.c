@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -11,12 +11,6 @@
 #include "tcvplug.h"
 
 /* #define	DUMPQUEUES	1 */
-
-/* ========================================================================== */
-/*                     PicOS                                                  */
-/*                                                                            */
-/* The open-ended and open-sided part of the transceiver driver               */
-
 
 #if	TCV_PRESENT
 
@@ -44,7 +38,6 @@
 #define	q_malloc(s)	UMALLOC (s, (s)-(sizeof (qhead_t)-TCV_QHEAD_LENGTH))
 
 #if DIAG_MESSAGES > 1
-/* FIXME: check if everything works with DIAG_MESSAGES == 1 and 0 */
 #define	verify_ses(p,m)	do { \
 			  if ((p)->attributes.b.session >= TCV_MAX_DESC || \
 			    descriptors [(p)->attributes.b.session] == NULL) \
@@ -321,20 +314,21 @@ __PUBLF (PicOSNode, void, tcv_endp) (address p) {
  * somewhere or deallocated.
  */
 	hblock_t *b;
-	sesdesc_t *d;
 
 	b = header (p);
 	verify_ses (b, "tcv02");
-	d = descriptors [b->attributes.b.session];
 	if (b->attributes.b.outgoing) {
 		verify_plg (b, tcv_out, "tcv03");
-		dispose (b, plugins [b->attributes.b.plugin] -> tcv_out (p));
+		dispose (b, plugins [b->attributes.b.plugin] ->
+			tcv_out (p, b->attributes.b.session));
 	} else
 		/* This is a received packet - just drop it */
 		rlp (b);
 }
 
-__PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
+// ============================================================================
+#if TCV_OPEN_CAN_BLOCK
+// ============================================================================
 /*
  * This function creates a new session descriptor and returns its number.
  *   phy  - physical interface number
@@ -342,6 +336,8 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
  * phy, along with the arguments following plid, is passed to the plugin's
  * tcv_open function
  */
+__PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
+
 	int eid, pid, fd;
 	battr_t attp;
 	sesdesc_t *s;
@@ -351,12 +347,12 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	va_list		ap;
 	va_start (ap, plid);
 #endif
-	/* Check if we have the plugin and the phys */
+#if DIAG_MESSAGES > 1
+	/* Check if we have the plugin and the phy */
 	if (phy < 0 || phy >= TCV_MAX_PHYS || oqueues [phy] == NULL ||
 		plid < 0 || plid >= TCV_MAX_PLUGS || plugins [plid] == NULL)
 			syserror (ENODEVICE, "tcv04");
-
-	pid = getcpid ();
+#endif
 	/* Prepare the attribute pattern word */
 	attp.value = 0;
 	attp.b.plugin = plid;
@@ -371,6 +367,8 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	 * previous attempt)
 	 */
 	attp.b.queued = 1;
+
+	pid = getcpid ();
 
 	for (fd = -1, s = NULL, eid = 0; eid < TCV_MAX_DESC; eid++) {
 		if ((s = descriptors [eid]) == NULL) {
@@ -444,17 +442,19 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 
 __PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 /*
- * This one closes a session descriptor
+ * This one closes a session
  */
 	sesdesc_t *s;
 	word eid;
 	hblock_t *b;
 
 	verify_fds (fd, "tcv07");
-	if ((s = descriptors [fd]) == NULL || s->attpattern.b.queued)
+	s = descriptors [fd];
+#if DIAG_MESSAGES > 1
+	if (s == NULL || s->attpattern.b.queued)
 		/* Also if the session hasn't opened yet */
 		syserror (EREQPAR, "tcv08");
-
+#endif
 	verify_pld (s, tcv_clo, "tcv09");
 	eid = (word) (plugins [s->attpattern.b.plugin]->
 					tcv_clo (s->attpattern.b.phys, fd));
@@ -483,6 +483,99 @@ __PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
 
 	return (int)BLOCKED;
 }
+
+// ============================================================================
+#else
+// ============================================================================
+
+// Non-blocking open and close
+
+__PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
+
+	int fd;
+	battr_t attp;
+	sesdesc_t *s;
+
+#ifdef	__SMURPH__
+#define	va_par(s)	ap
+	va_list		ap;
+	va_start (ap, plid);
+#endif
+
+#if DIAG_MESSAGES > 1
+	/* Check if we have the plugin and the phy */
+	if (phy < 0 || phy >= TCV_MAX_PHYS || oqueues [phy] == NULL ||
+		plid < 0 || plid >= TCV_MAX_PLUGS || plugins [plid] == NULL)
+			syserror (ENODEVICE, "tcv04");
+#endif
+	/* Prepare the attribute pattern word */
+	attp.value = 0;
+	attp.b.plugin = plid;
+	attp.b.phys = phy;
+	/*
+	 * This is set because the attribute pattern will be (mostly) used
+	 * for initializing the attributes of outgoing packets.
+	 */
+	attp.b.outgoing = 1;
+
+	for (fd = 0; fd < TCV_MAX_DESC; fd++)
+		if (descriptors [fd] == NULL)
+			break;
+
+	if (fd == TCV_MAX_DESC)
+		return ERROR;
+
+	s = (sesdesc_t*) s_malloc (sizeof (sesdesc_t));
+	if (s == NULL)
+		syserror (EMALLOC, "tcv05");
+
+	descriptors [fd] = s;
+	q_init (&(s->rqueue));
+	s->attpattern = attp;
+	s->attpattern.b.session = fd;
+
+	sysassert (plugins [plid] -> tcv_ope != NULL, "tcv06");
+
+	if (plugins [plid] -> tcv_ope (phy, fd, va_par (plid))) {
+		return ERROR;
+	}
+
+	descriptors [fd] = s;
+	return fd;
+}
+
+__PUBLF (PicOSNode, int, tcv_close) (word state, int fd) {
+
+	sesdesc_t *s;
+	hblock_t *b;
+
+	verify_fds (fd, "tcv07");
+
+	s = descriptors [fd];
+#if DIAG_MESSAGES > 1
+	if (s == NULL)
+		syserror (EREQPAR, "tcv08");
+#endif
+	verify_pld (s, tcv_clo, "tcv09");
+
+	if (plugins [s->attpattern.b.plugin]->
+	    tcv_clo (s->attpattern.b.phys, fd))
+		return ERROR;
+
+	/* Success */
+	while (!q_empty (&(s->rqueue))) {
+		/* Empty the queue */
+		b = q_first (&(s->rqueue));
+		rlp (b);
+	}
+	ufree (s);
+	descriptors [fd] = NULL;
+	return 0;
+}
+
+// ============================================================================
+#endif 	/* TCV_OPEN_CAN_BLOCK, nonblocking code */
+// ============================================================================
 
 __PUBLF (PicOSNode, int, tcv_plug) (int ord, const tcvplug_t *pl) {
 /*
@@ -527,8 +620,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 	p = ((address)(b + 1));
 	/* Set the pointers to application data */
 	verify_plg (b, tcv_frm, "tcv11");
-	plugins [b->attributes.b.plugin]->tcv_frm (p, b->attributes.b.phys,
-		&(b->u.pointers));
+	plugins [b->attributes.b.plugin]->tcv_frm (p, fd, &(b->u.pointers));
 	/* Adjust the second pointer to look like the length */
 	b->u.pointers.tail =
 		b->length - b->u.pointers.head - b->u.pointers.tail;
@@ -626,6 +718,7 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 	hblock_t *b;
 	tcvadp_t ptrs;
 	sesdesc_t *s;
+	int eid;
 
 	verify_fds (fd, "tcv16");
 
@@ -634,13 +727,20 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 	/* Obtain framing parameters */
 	verify_pld (s, tcv_frm, "tcv17");
 
-	plugins [s->attpattern.b.plugin]->tcv_frm (NULL, s->attpattern.b.phys,
-		&ptrs);
+	if ((eid = (word) plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
+	    &ptrs))) {
+		if (state != WNONE) {
+			when (eid, state);
+			release;
+		}
+		return NULL;
+	}
 
 	sysassert (s->attpattern.b.queued == 0, "tcv18");
 
 	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT+1)) {
 		if (state != WNONE) {
+NoMem:
 			tmwait (state);
 			release;
 		}
@@ -649,10 +749,8 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 
 	if ((b = apb (length + ptrs . head + ptrs . tail)) == NULL) {
 		/* No memory */
-		if (state != WNONE) {
-			tmwait (state);
-			release;
-		}
+		if (state != WNONE)
+			goto NoMem;
 		return NULL;
 	}
 
@@ -687,6 +785,7 @@ __PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 	hblock_t *b;
 	tcvadp_t ptrs;
 	sesdesc_t *s;
+	int eid;
 
 	verify_fds (fd, "tcv19");
 
@@ -694,8 +793,15 @@ __PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 
 	/* Obtain framing parameters */
 	verify_pld (s, tcv_frm, "tcv20");
-	plugins [s->attpattern.b.plugin]->tcv_frm (NULL, s->attpattern.b.phys,
-		&ptrs);
+
+	if ((eid = (word) plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
+	    &ptrs))) {
+		if (state != WNONE) {
+			when (eid, state);
+			release;
+		}
+		return NULL;
+	}
 
 	sysassert (s->attpattern.b.queued == 0, "tcv21");
 
@@ -703,16 +809,17 @@ __PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 
 #if	TCV_LIMIT_XMT
 	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT)) {
-		if (state != WNONE) {
-			tmwait (state);
-			release;
-		}
+		if (state != WNONE)
+			goto NoMem;
 		return NULL;
 	}
 #endif
 	if ((b = apb (length + ptrs . head + ptrs . tail)) == NULL) {
 		/* No memory */
 		if (state != WNONE) {
+#if	TCV_LIMIT_XMT
+NoMem:
+#endif
 			tmwait (state);
 			release;
 		}
@@ -982,7 +1089,8 @@ void TCVTimerService::wake () {
 			p = t_buffer (t);
 			verify_plg (p, tcv_tmt, "runtq");
 			S->dispose (p, plugins [p->attributes.b.plugin] ->
-				tcv_tmt ((address)(p + 1)));
+				tcv_tmt ((address)(p + 1),
+					p->attributes.b.session));
 		} else {
 			t->value -= current;
 			if (t->value < min)
@@ -1051,7 +1159,8 @@ void __pi_tcv_runqueue (word new, word *min) {
 			p = t_buffer (t);
 			verify_plg (p, tcv_tmt, "runtq");
 			dispose (p, plugins [p->attributes.b.plugin] ->
-				tcv_tmt ((address)(p + 1)));
+				tcv_tmt ((address)(p + 1),
+					p->attributes.b.session));
 		} else {
 			if ((d = t->value - new) < *min)
 				*min = d;
@@ -1235,7 +1344,8 @@ __PUBLF (PicOSNode, void, tcvphy_end) (address pkt) {
 	hblock_t *b = header (pkt);
 
 	verify_plg (b, tcv_xmt, "tcv34");
-	dispose (b, plugins [b->attributes.b.plugin]->tcv_xmt (pkt));
+	dispose (b, plugins [b->attributes.b.plugin] ->
+		tcv_xmt (pkt, b->attributes.b.session));
 }
 
 __PUBLF (PicOSNode, int, tcvphy_erase) (int phy) {
