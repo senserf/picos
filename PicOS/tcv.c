@@ -727,7 +727,7 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 	/* Obtain framing parameters */
 	verify_pld (s, tcv_frm, "tcv17");
 
-	if ((eid = (word) plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
+	if ((eid = plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
 	    &ptrs))) {
 		if (state != WNONE) {
 			when (eid, state);
@@ -794,7 +794,7 @@ __PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
 	/* Obtain framing parameters */
 	verify_pld (s, tcv_frm, "tcv20");
 
-	if ((eid = (word) plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
+	if ((eid = plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
 	    &ptrs))) {
 		if (state != WNONE) {
 			when (eid, state);

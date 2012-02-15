@@ -42,7 +42,7 @@ proc sy_usage { } {
 	puts stderr ""
 	puts stderr "       -p port/dev   UART dev or COM number, required"
 	puts stderr "       -s speed      UART speed, default is 9600"
-	puts stderr "       -m x|p|d      mode: XRS, P, direct, default is d"
+	puts stderr "       -m n|x|s|p|d  mode: N, XRS, S, P, Dir, def is d"
 	puts stderr "       -l pktlen     max pkt len, default is 82"
 	puts stderr "       -b \[file\]     binary mode (optional macro file)"
 	puts stderr "       -f file       preserve the output in file"
@@ -179,6 +179,10 @@ set ST(CNT) 0
 
 # input buffer
 set ST(BUF) ""
+
+# output queue bypass flag == not allowed; values: 0 - NA, 1 - tmp off,
+# 2 - tmp on, 3 - permanent
+set ST(BYP) 0
 
 # app-level input function
 set ST(DFN)	"sy_nofun"
@@ -878,7 +882,7 @@ proc sy_initialize { } {
 	frame $w.mod.db
 	grid $w.mod.db -column 1 -row 1 -sticky new
 
-	set itl { Direct Persistent XRS }
+	set itl { Direct Persistent XRS NPacket SDual }
 	set WI(MOD) "Direct"
 	set p [lindex $WI(SPA) 2]
 	if { [lsearch -exact $itl $p] >= 0 } {
@@ -1584,7 +1588,7 @@ proc pt_stparse { line } {
 proc sy_valmode { m } {
 
 	set m [string toupper [string index $m 0]]
-	if { $m != "X" && $m != "P" && $m != "D" } {
+	if { [string first $m "NXSPD"] < 0 } {
 		return ""
 	}
 	return $m
@@ -1837,7 +1841,7 @@ proc sy_outloop { } {
 		# not busy
 		if { $ST(OQU) != "" } {
 			# something in queue
-			$ST(OFN) [lindex $ST(OQU) 0]
+			$ST(OFN) [lindex $ST(OQU) 0] 0
 			set ST(OQU) [lrange $ST(OQU) 1 end]
 		}
 	}
@@ -1846,6 +1850,12 @@ proc sy_outloop { } {
 proc sy_outln { line } {
 
 	global ST
+
+	if { $ST(BYP) > 1 } {
+		# queue bypass
+		$ST(OFN) $line 1
+		return
+	}
 
 	lappend ST(OQU) $line
 	# to trigger the event
@@ -1860,6 +1870,22 @@ proc pt_outln { line } {
 	global ST
 
 	$ST(LFN) $line
+}
+
+proc pt_bypass { on } {
+#
+# Turns the output queue bypass flag on or off, returns the (formal) setting
+#
+	global ST
+
+	if { $on && $ST(BYP) == 1 } {
+		set ST(BYP) 2
+	} elseif { !$on && $ST(BYP) == 2 } {
+		set ST(BYP) 1
+	}
+	# otherwise cannot be reset
+
+	return [expr $ST(BYP) > 1]
 }
 
 ###############################################################################
@@ -1919,6 +1945,31 @@ proc sy_inline { } {
 	return $line
 }
 
+proc sy_icpm { par } {
+
+	if [regexp "^\[0-9\]+" $par num] {
+		if [catch { expr $num } num] {
+			error "illegal number"
+		}
+		if $num {
+			return 1
+		}
+		return 0
+	}
+
+	set par [string tolower $par]
+
+	if { [string first "on" $par] == 0 } {
+		return 1
+	}
+
+	if { [string first "off" $par] == 0 } {
+		return 0
+	}
+
+	error "illegal value: 0, 1, off, on expected"
+}
+
 proc sy_icmd { cmd } {
 #
 # Handle internal commands
@@ -1938,20 +1989,23 @@ proc sy_icmd { cmd } {
 		if { $par == "" } {
 			# toggle
 			if $ST(ECO) {
-				set par "off"
+				set par 0
 			} else {
-				set par "on"
+				set par 1
+			}
+		} else {
+			if [catch { sy_icpm $par } par] {
+				pt_touf "${par}!"
+				return
 			}
 		}
 
-		if { $par == "on" } {
+		if $par {
 			pt_touf "Echo is now on"
 			set ST(ECO) 1
-		} elseif { $par == "off" } {
+		} else {
 			pt_touf "Echo is now off"
 			set ST(ECO) 0
-		} else {
-			pt_touf "Illegal parameter, must be empty, on, or off!
 		}
 		return
 	}
@@ -1989,6 +2043,55 @@ proc sy_icmd { cmd } {
 			}
 			pt_touf "Queue size: $cn item$sf"
 		}
+		return
+	}
+
+	if { $cmd == "b" || $cmd == "bypass" } {
+
+		if { $par == "" } {
+			if { $ST(BYP) == 0 } {
+				pt_touf "Bypass is disabled for this module"
+				return
+			}
+			if { $ST(BYP) == 1 } {
+				pt_touf "Bypass is off"
+				return
+			}
+			if { $ST(BYP) == 2 } {
+				pt_touf "Bypass is on"
+				return
+			}
+			pt_touf "This module writes directly (no queueing)"
+			return
+		}
+
+		if [catch { sy_icpm $par } par] {
+			pt_touf "${par}!"
+			return
+		}
+
+		if { $ST(BYP) == 0 && $par } {
+			pt_touf "Bypass cannot be switched on for this module"
+			return
+		}
+
+		if { $ST(BYP) == 3 && !$par } {
+			pt_touf "Bypass cannot be switched off for this module"
+			return
+		}
+
+		if { $par && $ST(BYP) == 1 } {
+			set ST(BYP) 2
+		} elseif { !$par && $ST(BYP) == 2 } {
+			set ST(BYP) 1
+		}
+
+		if $par {
+			pt_touf "Bypass is on"
+		} else {
+			pt_touf "Bypass is off"
+		}
+
 		return
 	}
 
@@ -2041,7 +2144,7 @@ proc sy_outlt { line } {
 		sy_dspline $line
 	}
 
-	set ln [expr [string length $line] + 1]
+	set ln [string length $line]
 
 	if { $ln > $PM(UPL) } {
 		pt_touf "Error: line longer than max payload of $PM(UPL) chars"
@@ -2492,9 +2595,9 @@ proc sy_openpl { fn } {
 # Module functions ############################################################
 ###############################################################################
 
-proc mo_write_x { msg } {
+proc sy_uwpkt { msg } {
 #
-# Send a packet to UART (shared by modes N and P)
+# Send a packet to UART (shared by modes N, X, S and P)
 #
 	global DB ST
 
@@ -2507,12 +2610,12 @@ proc mo_write_x { msg } {
 }
 
 ###############################################################################
-# Module: mode == N ###########################################################
+# Module: mode == X ###########################################################
 ###############################################################################
 
-proc mo_frame_n { m } {
+proc mo_frame_x { m } {
 #
-# Frame the message (N mode); when we get it here, the message contains the
+# Frame the message (X mode); when we get it here, the message contains the
 # four XRS header bytes in front (they formally count as N-payload), but no
 # checksum. This is exactly what is covered by MPL.
 #
@@ -2523,14 +2626,14 @@ proc mo_frame_n { m } {
 
 	if { $ln > $PM(MPL) } {
 		# the message has been prechecked for length bounds
-		pt_abort "Assert mo_frame_n: length > max"
+		pt_abort "Assert mo_frame_x: length > max"
 	}
 
 	if { $ln < 4 } {
-		pt_abort "Assert mo_frame_n: length < min"
+		pt_abort "Assert mo_frame_x: length < min"
 	} elseif [expr $ln & 1] {
 		# odd length, append NULL
-		append msg \x00
+		append msg $CH(ZER)
 		# do not count the Network ID (used by the first two bytes of
 		# XRS header) in the length field
 		incr ln -1
@@ -2542,15 +2645,15 @@ proc mo_frame_n { m } {
 		[pt_chks $msg]]"
 }
 
-proc mo_fnwrite_n { msg } {
+proc mo_fnwrite_x { msg } {
 #
 # Frame and write in one step
 #
-	mo_frame_n msg
-	mo_write_x $msg
+	mo_frame_x msg
+	sy_uwpkt $msg
 }
 
-proc mo_receive_n { } {
+proc mo_receive_x { } {
 #
 # Handle received packet (internal for the module)
 #
@@ -2611,7 +2714,7 @@ proc mo_receive_n { } {
 	if { $cu != $CH(EXP) } {
 		# not what we expect, speed up the NAK
 		catch { after cancel $ST(SCB) }
-		set ST(SCB) [after $IV(RTS) mo_send_n]
+		set ST(SCB) [after $IV(RTS) mo_send_x]
 		return
 	}
 
@@ -2630,10 +2733,10 @@ proc mo_receive_n { } {
 	set CH(EXP) [expr ( $CH(EXP) + 1 ) & 0x00ff]
 
 	# force an ACK
-	mo_send_n
+	mo_send_x
 }
 
-proc mo_send_n { } {
+proc mo_send_x { } {
 #
 # Callback for sending packets out
 #
@@ -2653,15 +2756,15 @@ proc mo_send_n { } {
 	# has been checked already (and is <= MAXPL)
 	set len [string length $ST(OUT)]
 
-	mo_fnwrite_n\
+	mo_fnwrite_x\
 	    "[binary format cccc $CH(CUR) $CH(EXP) $CH(MAG) $len]$ST(OUT)"
 
-	set ST(SCB) [after $IV(RTL) mo_send_n]
+	set ST(SCB) [after $IV(RTL) mo_send_x]
 }
 
-proc mo_rawread_n { } {
+proc mo_rawread_x { } {
 #
-# Called whenever data is available on the UART (mode N)
+# Called whenever data is available on the UART (mode X)
 #
 	global ST PM
 #
@@ -2699,7 +2802,7 @@ proc mo_rawread_n { } {
 					# something has started, set up timer
 					global IV
 					set ST(TIM) \
-					     [after $IV(PKT) mo_rawread_n]
+					     [after $IV(PKT) mo_rawread_x]
 				}
 				return
 			}
@@ -2779,7 +2882,7 @@ proc mo_rawread_n { } {
 				append ST(BUF) $chunk
 				set chunk ""
 				# we have a complete buffer
-				mo_receive_n
+				mo_receive_x
 				continue
 			}
 
@@ -2787,7 +2890,7 @@ proc mo_rawread_n { } {
 			append ST(BUF) [string range $chunk 0 \
 				[expr $ST(CNT) - 1]]
 			set chunk [string range $chunk $ST(CNT) end]
-			mo_receive_n
+			mo_receive_x
 		}
 
 		3 {
@@ -2852,18 +2955,20 @@ proc mo_rawread_n { } {
 	}
 }
 
-proc mo_write_n { msg } {
+proc mo_write_x { msg byp } {
 #
 # Send out a message; assumes $ST(OBS) is 0
 #
 	global ST PM DB
 
 	if $ST(OBS) {
-		pt_abort "Assert mo_write_n: output busy"
+		pt_abort "Assert mo_write_x: output busy"
 	}
 
 	# we still need the four XRS header bytes in front
 	set lm [expr $PM(MPL) - 4]
+	set ln [string length $msg]
+
 	if { [string length $msg] > $lm } {
 		# this verification is probably redundant (we do check the
 		# user payload size before submitting it), but it shouldn't
@@ -2876,23 +2981,24 @@ proc mo_write_n { msg } {
 
 	set ST(OUT) $msg
 	set ST(OBS) 1
-	mo_send_n
+	mo_send_x
 }
 
-proc mo_init_n { } {
+proc mo_init_x { } {
 #
 # Initialize
 #
 	global CH ST PM
 
+	set ST(BYP) 0
 	set CH(EXP) 0
 	set CH(CUR) 0
 	set CH(MAG) [expr 0xAB]
 	set CH(IPR) [format %c [expr 0x55]]
-	set ST(MOD) "N"
+	set ST(MOD) "X"
 
-	# User packet length: in the N mode (which in this case also means
-	# XRS), the specified length (MPL) covers the "Station ID", which is
+	# User packet length: in the X(RS) mode,
+	# the specified length (MPL) covers the "Station ID", which is
 	# used for two AB control bytes (and it doesn't cover CRC - it never
 	# does). So the user length (true payload) is MPL - 4 (two extra bytes
 	# are needed for "magic" and true payload length.
@@ -2902,10 +3008,10 @@ proc mo_init_n { } {
 	fconfigure $ST(SFD) -buffering full -translation binary
 
 	# start the write callback
-	mo_send_n
+	mo_send_x
 }
 
-proc mo_reset_n { } {
+proc mo_reset_x { } {
 
 	global ST
 
@@ -2917,8 +3023,7 @@ proc mo_reset_n { } {
 	set ST(CUR) 0
 }
 
-set MODULE(N) [list mo_init_n mo_rawread_n mo_write_n mo_reset_n]
-set MODULE(X) $MODULE(N)
+set MODULE(X) [list mo_init_x mo_rawread_x mo_write_x mo_reset_x]
 
 ###############################################################################
 # Module: mode == P ###########################################################
@@ -2953,7 +3058,7 @@ proc mo_fnwrite_p { msg cu ex } {
 # Frame and write in one step
 #
 	mo_frame_p msg $cu $ex
-	mo_write_x $msg
+	sy_uwpkt $msg
 }
 
 proc mo_receive_p { } {
@@ -3248,7 +3353,7 @@ proc mo_rawread_p { } {
 	}
 }
 
-proc mo_write_p { msg } {
+proc mo_write_p { msg byp } {
 #
 # Send out a message; assumes $ST(OBS) == 0
 #
@@ -3274,6 +3379,8 @@ proc mo_init_p { } {
 # Initialize
 #
 	global CH ST PM
+
+	set ST(BYP) 0
 
 	set CH(EXP) 0
 	set CH(CUR) 0
@@ -3311,6 +3418,724 @@ proc mo_reset_p { } {
 set MODULE(P) [list mo_init_p mo_rawread_p mo_write_p mo_reset_p]
 
 ###############################################################################
+# Module: mode == N ###########################################################
+###############################################################################
+
+proc mo_init_n { } {
+#
+# Initialize
+#
+	global CH ST PM
+
+	# permanent queue bypass for output
+	set ST(BYP) 3
+	set CH(IPR) [format %c [expr 0x55]]
+	set ST(MOD) "N"
+	set PM(UPL) $PM(MPL)
+	fconfigure $ST(SFD) -buffering full -translation binary
+}
+
+proc mo_reset_n { } {
+#
+# Void
+#
+
+}
+
+proc mo_rawread_n { } {
+#
+# Called whenever data is available on the UART (mode N); note: this is
+# identical to mo_rawread_x (and mo_rawread_s) except for a different input
+# function called upon packet completion. Well, we could optimize a bit,
+# but it doesn't really matter, because only one of the multiple code
+# instances will be ever actually compiled, so why bother
+#
+	global ST PM
+#
+#  STA = 0  -> Waiting for preamble
+#        1  -> Waiting for the length byte
+#        2  -> Waiting for (CNT) bytes until the end of packet
+#        3  -> Waiting for end of DIAG preamble
+#        4  -> Waiting for EOL until end of DIAG
+#        5  -> Waiting for (CNT) bytes until the end of binary diag
+#
+	set chunk ""
+
+	while 1 {
+
+		if { $chunk == "" } {
+
+			if [catch { read $ST(SFD) } chunk] {
+				# nonblocking read, ignore errors
+				set chunk ""
+			}
+
+			if { $chunk == "" } {
+				# check for timeout
+				if { $ST(TIM) != "" } {
+					global DB
+					if { $DB(LEV) > 2 } {
+					  pt_trc "rawread: packet timeout\
+						$ST(STA), $ST(CNT)"
+					}
+					# reset
+					catch { after cancel $ST(TIM) }
+					set ST(TIM) ""
+					set ST(STA) 0
+				} elseif { $ST(STA) != 0 } {
+					# something has started, set up timer
+					global IV
+					set ST(TIM) \
+					     [after $IV(PKT) mo_rawread_x]
+				}
+				return
+			}
+			# there is something to process, cancel timeout
+			if { $ST(TIM) != "" } {
+				catch { after cancel $ST(TIM) }
+				set ST(TIM) ""
+			}
+		}
+
+		set bl [string length $chunk]
+
+		switch $ST(STA) {
+
+		0 {
+			# waiting for packet preamble
+			global CH
+			# Look up the preamble byte in the received string
+			for { set i 0 } { $i < $bl } { incr i } {
+				set c [string index $chunk $i]
+				if { $c == $CH(IPR) } {
+					# preamble found
+					set ST(STA) 1
+					break
+				}
+				if { $c == $CH(DPR) } {
+					# diag preamble
+					set ST(STA) 3
+					break
+				}
+			}
+			if { $i == $bl } {
+				# not found, keep waiting
+				set chunk ""
+				continue
+			}
+			# found, remove the parsed portion and keep going
+			set chunk [string range $chunk [expr $i + 1] end]
+		}
+
+		1 {
+			# expecting the length byte (note that the byte
+			# does not cover the statid field, so its range is
+			# up to MPL - 2)
+			binary scan [string index $chunk 0] cu bl
+			set chunk [string range $chunk 1 end]
+			if { [expr $bl & 1] || $bl > [expr $PM(MPL) - 2] } {
+				global DB
+				if { $DB(LEV) > 2 } {
+					pt_trc "rawread: illegal packet length\
+						$bl"
+				}
+				# reset
+				set ST(STA) 0
+				continue
+			}
+			# how many bytes to expect
+			set ST(CNT) [expr $bl + 4]
+			set ST(BUF) ""
+			# found
+			set ST(STA) 2
+		}
+
+		2 {
+			# packet reception, filling the buffer
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
+			}
+
+			# end of packet, reset
+			set ST(STA) 0
+
+			if { $bl == $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				# we have a complete buffer
+				mo_receive_n
+				continue
+			}
+
+			# merged packets
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+			set chunk [string range $chunk $ST(CNT) end]
+			mo_receive_n
+		}
+
+		3 {
+			# waiting for the end of a diag header
+			global CH
+			set chunk [string trimleft $chunk $CH(DPR)]
+			if { $chunk != "" } {
+				set ST(BUF) ""
+				# look at the first byte of diag
+				if { [string index $chunk 0] == $CH(ZER) } {
+					# a binary diag, length == 7
+					set ST(CNT) 7
+					set ST(STA) 5
+				} else {
+					# ASCII -> wait for NL
+					set ST(STA) 4
+				}
+			}
+		}
+
+		4 {
+			# waiting for NL ending a diag
+			set c [string first "\n" $chunk]
+			if { $c < 0 } {
+				append ST(BUF) $chunk
+				set chunk ""
+				continue
+			}
+
+			append ST(BUF) [string range $chunk 0 $c]
+			set chunk [string range $chunk [expr $c + 1] end]
+			# reset
+			set ST(STA) 0
+			pt_diag
+		}
+
+		5 {
+			# waiting for CNT bytes of binary diag
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
+			}
+			# reset
+			set ST(STA) 0
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+
+			set chunk [string range $chunk $ST(CNT) end]
+			pt_diag
+		}
+
+		default {
+			global DB
+			if { $DB(LEV) > 0 } {
+				pt_trc "rawread: illegal state: $ST(STA)"
+			}
+			set ST(STA) 0
+		}
+		}
+	}
+}
+
+proc mo_receive_n { } {
+#
+# Handle received packet
+#
+	global ST DB CH
+
+	if { $DB(LEV) > 1 } {
+		# dump the packet
+		sy_dump "R" $ST(BUF)
+	}
+
+	# validate CRC
+	if [pt_chks $ST(BUF)] {
+		if { $DB(LEV) > 2 } {
+			pt_trc "receive: illegal checksum, packet ignored"
+		}
+		return
+	}
+
+	# strip off the checksum
+	set msg [string range $ST(BUF) 0 end-2]
+	set len [string length $msg]
+
+	if { $len < 2 } {
+		# ignore it if too short
+		return
+	}
+
+	# receive it
+	if !$ST(BIN) {
+		# strip off any sentinel
+		set sl [string first $CH(ZER) $msg]
+		if { $sl >= 0 } {
+			set msg [string range $msg 0 [expr $sl - 1]]
+		}
+	}
+
+	$ST(DFN) $msg
+}
+
+proc mo_write_n { msg byp } {
+#
+# Send out a message; assumes $ST(OBS) is 0
+#
+	global ST PM DB CH
+
+	# we still need the two header bytes in front
+	set ln [string length $msg]
+	if { $ln > $PM(MPL) } {
+		# this verification is probably redundant (we do check the
+		# user payload size before submitting it), but it shouldn't
+		# hurt
+		set ln $PM(MPL)
+		if { $DB(LEV) > 0 } {
+			pt_trc "write: outgoing message truncated to $ln bytes"
+		}
+		set msg [string range $msg 0 [expr $ln - 1]]
+	} elseif { $ln == 0 } {
+		set ln 2
+		set msg "$CH(ZER)$CH(ZER)"
+	} elseif [expr $ln & 1] {
+		incr ln
+		append msg $CH(ZER)
+	}
+ 
+	set msg "$CH(IPR)[binary format c [expr $ln - 2]]$msg[binary format s\
+		[pt_chks $msg]]"
+
+	sy_uwpkt $msg
+}
+
+set MODULE(N) [list mo_init_n mo_rawread_n mo_write_n mo_reset_n]
+
+###############################################################################
+# Module: mode == S ###########################################################
+###############################################################################
+
+proc mo_init_s { } {
+#
+# Initialize
+#
+	global CH ST PM
+
+	# optional bypass
+	set ST(BYP) 1
+	set CH(EXP) 0
+	set CH(CUR) 0
+	# ACK flag
+	set CH(ACK) 4
+	# Direct
+	set CH(MAD) [expr 0xAC]
+	# AB
+	set CH(MAP) [expr 0xAD]
+	set CH(IPR) [format %c [expr 0x55]]
+	set ST(MOD) "S"
+
+	# User packet length: in the S mode, the Network ID field is used by
+	# the protocol
+
+	set PM(UPL) [expr $PM(MPL) - 2]
+
+	fconfigure $ST(SFD) -buffering full -translation binary
+
+	# start the write callback for the persistent stream
+	mo_send_s
+}
+
+proc mo_send_s { } {
+#
+# Callback for sending packets out
+#
+	global ST IV CH
+	
+	# cancel the callback, in case called explicitly
+	if { $ST(SCB) != "" } {
+		catch { after cancel $ST(SCB) }
+		set ST(SCB) ""
+	}
+
+	if !$ST(OBS) {
+		# just in case
+		set ST(OUT) ""
+	}
+	# if len is nonzero, an outgoing message is pending; note: its length
+	# has been checked already (and is <= MAXPL)
+	set len [string length $ST(OUT)]
+
+	set flg [expr $CH(CUR) | ( $CH(EXP) << 1 )]
+
+	if { $len == 0 } {
+		# ACK only
+		set flg [expr $flg | $CH(ACK)]
+	}
+
+	mo_fnwrite_s "[binary format cc $CH(MAP) $flg]$ST(OUT)"
+
+	set ST(SCB) [after $IV(RTL) mo_send_s]
+}
+
+proc mo_fnwrite_s { msg } {
+#
+	global PM CH
+
+	set ln [string length $msg]
+	if { $ln > $PM(MPL) } {
+		pt_abort "Assert mo_frame_s: length > max"
+	}
+
+	if { $ln < 2 } {
+		pt_abort "Assert mo_frame_s: length < min"
+	}
+
+	if [expr $ln & 1] {
+		append msg $CH(ZER)
+		incr ln -1
+	} else {
+		incr ln -2
+	}
+
+	sy_uwpkt "$CH(IPR)[binary format c $ln]$msg[binary format s\
+		[pt_chks $msg]]"
+}
+
+proc mo_rawread_s { } {
+#
+# Called whenever data is available on the UART (mode S)
+#
+	global ST PM
+#
+#  STA = 0  -> Waiting for preamble
+#        1  -> Waiting for the length byte
+#        2  -> Waiting for (CNT) bytes until the end of packet
+#        3  -> Waiting for end of DIAG preamble
+#        4  -> Waiting for EOL until end of DIAG
+#        5  -> Waiting for (CNT) bytes until the end of binary diag
+#
+	set chunk ""
+
+	while 1 {
+
+		if { $chunk == "" } {
+
+			if [catch { read $ST(SFD) } chunk] {
+				# nonblocking read, ignore errors
+				set chunk ""
+			}
+
+			if { $chunk == "" } {
+				# check for timeout
+				if { $ST(TIM) != "" } {
+					global DB
+					if { $DB(LEV) > 2 } {
+					  pt_trc "rawread: packet timeout\
+						$ST(STA), $ST(CNT)"
+					}
+					# reset
+					catch { after cancel $ST(TIM) }
+					set ST(TIM) ""
+					set ST(STA) 0
+				} elseif { $ST(STA) != 0 } {
+					# something has started, set up timer
+					global IV
+					set ST(TIM) \
+					     [after $IV(PKT) mo_rawread_x]
+				}
+				return
+			}
+			# there is something to process, cancel timeout
+			if { $ST(TIM) != "" } {
+				catch { after cancel $ST(TIM) }
+				set ST(TIM) ""
+			}
+		}
+
+		set bl [string length $chunk]
+
+		switch $ST(STA) {
+
+		0 {
+			# waiting for packet preamble
+			global CH
+			# Look up the preamble byte in the received string
+			for { set i 0 } { $i < $bl } { incr i } {
+				set c [string index $chunk $i]
+				if { $c == $CH(IPR) } {
+					# preamble found
+					set ST(STA) 1
+					break
+				}
+				if { $c == $CH(DPR) } {
+					# diag preamble
+					set ST(STA) 3
+					break
+				}
+			}
+			if { $i == $bl } {
+				# not found, keep waiting
+				set chunk ""
+				continue
+			}
+			# found, remove the parsed portion and keep going
+			set chunk [string range $chunk [expr $i + 1] end]
+		}
+
+		1 {
+			# expecting the length byte (note that the byte
+			# does not cover the statid field, so its range is
+			# up to MPL - 2)
+			binary scan [string index $chunk 0] cu bl
+			set chunk [string range $chunk 1 end]
+			if { [expr $bl & 1] || $bl > [expr $PM(MPL) - 2] } {
+				global DB
+				if { $DB(LEV) > 2 } {
+					pt_trc "rawread: illegal packet length\
+						$bl"
+				}
+				# reset
+				set ST(STA) 0
+				continue
+			}
+			# how many bytes to expect
+			set ST(CNT) [expr $bl + 4]
+			set ST(BUF) ""
+			# found
+			set ST(STA) 2
+		}
+
+		2 {
+			# packet reception, filling the buffer
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
+			}
+
+			# end of packet, reset
+			set ST(STA) 0
+
+			if { $bl == $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				# we have a complete buffer
+				mo_receive_s
+				continue
+			}
+
+			# merged packets
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+			set chunk [string range $chunk $ST(CNT) end]
+			mo_receive_s
+		}
+
+		3 {
+			# waiting for the end of a diag header
+			global CH
+			set chunk [string trimleft $chunk $CH(DPR)]
+			if { $chunk != "" } {
+				set ST(BUF) ""
+				# look at the first byte of diag
+				if { [string index $chunk 0] == $CH(ZER) } {
+					# a binary diag, length == 7
+					set ST(CNT) 7
+					set ST(STA) 5
+				} else {
+					# ASCII -> wait for NL
+					set ST(STA) 4
+				}
+			}
+		}
+
+		4 {
+			# waiting for NL ending a diag
+			set c [string first "\n" $chunk]
+			if { $c < 0 } {
+				append ST(BUF) $chunk
+				set chunk ""
+				continue
+			}
+
+			append ST(BUF) [string range $chunk 0 $c]
+			set chunk [string range $chunk [expr $c + 1] end]
+			# reset
+			set ST(STA) 0
+			pt_diag
+		}
+
+		5 {
+			# waiting for CNT bytes of binary diag
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
+			}
+			# reset
+			set ST(STA) 0
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+
+			set chunk [string range $chunk $ST(CNT) end]
+			pt_diag
+		}
+
+		default {
+			global DB
+			if { $DB(LEV) > 0 } {
+				pt_trc "rawread: illegal state: $ST(STA)"
+			}
+			set ST(STA) 0
+		}
+		}
+	}
+}
+
+proc mo_receive_s { } {
+#
+# Handle received packet
+#
+	global ST DB CH IV
+
+	if { $DB(LEV) > 1 } {
+		# dump the packet
+		sy_dump "R" $ST(BUF)
+	}
+
+	# validate CRC
+	if [pt_chks $ST(BUF)] {
+		if { $DB(LEV) > 2 } {
+			pt_trc "receive: illegal checksum, packet ignored"
+		}
+		return
+	}
+
+	# strip off the checksum
+	set msg [string range $ST(BUF) 0 end-2]
+	set len [string length $msg]
+
+	if { $len < 2 } {
+		# ignore it
+		return
+	}
+
+	# extract the header
+	binary scan $msg cucu pr fg
+
+	# trim the message
+	set msg [string range $msg 2 end]
+	if !$ST(BIN) {
+		# character mode, strip the sentinel, if any
+		set cu [string first $CH(ZER) $msg]
+		if { $cu >= 0 } {
+			set msg [string range $msg 0 [expr $cu - 1]]
+		}
+	}
+
+	if { $pr == $CH(MAD) } {
+		# direct, receive right away, nothing else to do
+		$ST(DFN) $msg
+		return
+	}
+
+	if { $pr != $CH(MAP) } {
+		# wrong magic
+		if { $DB(LEV) > 2 } {
+			pt_trc "receive: wrong proto $pr, packet ignored"
+		}
+		return
+	}
+
+	set cu [expr $fg & 1]
+	set ex [expr ($fg & 2) >> 1]
+	set ac [expr $fg & 4]
+
+	if $ST(OBS) {
+		# we have an outgoing message
+		if { $ex != $CH(CUR) } {
+			# expected != our current, we are done with this
+			# packet
+			set ST(OUT) ""
+			set CH(CUR) $ex
+			set ST(OBS) 0
+		}
+	} else {
+		# no outgoing message, set current to expected
+		set CH(CUR) $ex
+	}
+
+	if $ac {
+		# treat as pure ACK and ignore
+		return
+	}
+
+	if { $cu != $CH(EXP) } {
+		# not what we expect, speed up the NAK
+		catch { after cancel $ST(SCB) }
+		set ST(SCB) [after $IV(RTS) mo_send_s]
+		return
+	}
+
+	# receive it
+	$ST(DFN) $msg
+
+	# update expected
+	set CH(EXP) [expr 1 - $CH(EXP)]
+
+	# force an ACK
+	mo_send_s
+}
+
+proc mo_write_s { msg byp } {
+#
+# Send out a message
+#
+	global ST PM DB CH
+
+	set lm [expr $PM(MPL) - 2]
+	if { [string length $msg] > $lm } {
+		if { $DB(LEV) > 0 } {
+			pt_trc "write: outgoing message truncated to $lm bytes"
+		}
+		set msg [string range $msg 0 [expr $lm - 1]]
+	}
+
+	if $byp {
+		# immediate output, direct protocol
+		mo_fnwrite_s "[binary format cc $CH(MAD) 0]$msg"
+		return
+	}
+
+	if $ST(OBS) {
+		pt_abort "Assert mo_write_s: output busy"
+	}
+
+	set ST(OUT) $msg
+	set ST(OBS) 1
+	mo_send_s
+}
+
+proc mo_reset_s { } {
+
+	global ST
+
+	set ST(OQU) ""
+	set ST(OUT) ""
+	set ST(OBS) 0
+
+	set ST(EXP) 0
+	set ST(CUR) 0
+
+	set ST(BYP) 1
+}
+
+set MODULE(S) [list mo_init_s mo_rawread_s mo_write_s mo_reset_s]
+
+###############################################################################
 # Module: mode == D ###########################################################
 ###############################################################################
 
@@ -3343,7 +4168,7 @@ proc mo_rawread_d { } {
 	}
 }
 
-proc mo_write_d { msg } {
+proc mo_write_d { msg byp } {
 #
 # Send out a message
 #
@@ -3365,6 +4190,8 @@ proc mo_init_d { } {
 #
 	global CH ST PM
 
+	# permanent bypass
+	set ST(BYP) 3
 	set ST(MOD) "D"
 
 	fconfigure $ST(SFD) -buffering none -translation { lf crlf }

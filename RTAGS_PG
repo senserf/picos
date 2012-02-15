@@ -1658,3 +1658,24 @@ PG120210A:	3 5 	VUEE >= PG120210A
 	   (so old app code may not be compatible without a modification)
 
 	2. A (slight) matching VUEE modification is required
+
+PG120215A:	VUEE >= PG120215A
+
+	OK, following a discussion with Wlodek, I've decided to unscrap the
+	plugin mentioned in the previous entry, test it, and document it.
+
+	Plugin plug_boss in Libs/LibOSS. BOSS stands for Binary OSS, but it
+	doesn't have to be binary. Read Serial.pdf.
+
+	Modified piter to accommodate:
+
+	- raw N mode (without XRS on top, as mode n)
+	- BOSS on top of N (as mode s)
+
+	plus a few cosmetics. Keep your eyes open. Modifications are (sort of)
+	documented in Serial.pdf.
+
+	Apps/TESTS/XRSTest moved to Apps/LEGACY (it follows the old VUEE-
+	compatibility scheme)
+
+	Apps/EXAMPLES/BOSS trivially illustrates how to set up the BOSS plugin.
