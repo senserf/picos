@@ -251,6 +251,7 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	EEEPROM		12	/* EEPROM reference out of range */
 #define	EFLASH		13	/* FLASH reference out of range */
 #define	EWATCH		14	/* Watchdog condition */
+#define	ENOTNOW		15	/* Operation illegal at this time */
 
 #if	BYTE_ORDER == LITTLE_ENDIAN
 

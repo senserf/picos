@@ -51,6 +51,11 @@ ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_params.h ab_params.h
 ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab_modes.h ab_modes.h
 ln -sf ../../PICOS/PicOS/Libs/LibXRS/ab.h ab.h
 ln -sf ../../PICOS/PicOS/Libs/LibXRS/abb.h abb.h
+####################################### LibOSS
+ln -sf ../../PICOS/PicOS/Libs/LibOSS/plug_boss.h .
+ln -sf ../../PICOS/PicOS/Libs/LibOSS/plug_boss.c plug_boss.cc
+ln -sf ../../PICOS/PicOS/Libs/LibOSS/plug_boss_node_data.h .
+ln -sf ../../PICOS/PicOS/Libs/LibOSS/plug_boss_node_data_init.h .
 ####################################### LibLCDG
 ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman.c lcdg_dispman.cc
 ln -sf ../../PICOS/PicOS/Libs/LibLCDG/lcdg_dispman.h lcdg_dispman.h

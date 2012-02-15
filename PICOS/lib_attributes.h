@@ -15,6 +15,10 @@
 #include "net_node_data.h"
 #endif
 
+#ifdef	VUEE_LIB_PLUG_BOSS
+#include "plug_boss_node_data.h"
+#endif
+
 #ifdef	VUEE_LIB_XRS
 #include "ab_data.h"
 #endif

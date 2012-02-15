@@ -55,6 +55,11 @@ rm -f ab_modes.h
 rm -f ab.h
 rm -f abb.h
 
+rm -f plug_boss.h
+rm -f plug_boss.cc
+rm -f plug_boss_node_data.h
+rm -f plug_boss_node_data_init.h
+
 rm -f oep.cc
 rm -f oep.h
 rm -f oep_node_data.h

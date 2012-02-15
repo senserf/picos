@@ -10,11 +10,8 @@
 #include "tcv.h"
 #include "tcvphys.h"
 #include "wchan.h"
-#include "tarp.h"
-#include "plug_tarp.h"
-#include "plug_null.h"
-#include "lcdg_n6100p_driver.h"
 #include "encrypt.h"
+#include "lcdg_n6100p_driver.h"
 
 #include "lib_params.h"
 

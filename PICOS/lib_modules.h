@@ -11,6 +11,10 @@
 #include "tarp.cc"
 #endif
 
+#ifdef	VUEE_LIB_PLUG_BOSS
+#include "plug_boss.cc"
+#endif
+
 #ifdef	VUEE_LIB_XRS
 #include "ab_common.cc"
 #include "ab.cc"

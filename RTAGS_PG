@@ -735,3 +735,7 @@ PG120210A:	PICOS >= PG120210A
 
     Change in the signature of these plugin functions: xmt, out, tmt matching
     the change in PicOS.
+
+PG120215A:	PICOS >= PG120215A
+
+    Accommodating the BOSS plugin. A few cosmetics.
