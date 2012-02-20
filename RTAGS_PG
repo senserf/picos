@@ -1679,3 +1679,24 @@ PG120215A:	VUEE >= PG120215A
 	compatibility scheme)
 
 	Apps/EXAMPLES/BOSS trivially illustrates how to set up the BOSS plugin.
+
+PG120220A:
+
+	A new version (clone) of the econnect script in Scripts. The old
+	version is still available in eco_demo/OSSI/ECONNECT. Note that the
+	old version is only for Windows and must be installed. It was
+	intended for Arturo and needed a special program (esdreader + Cygwin
+	DLL) for extracting data from SD cards. In the clone (which is
+	standalone, needs no Cygwin, and also run on Linux) I have diabled
+	the SD card data extraction, but it should become available
+	(automatically), when esdreader is around (not a big deal, but quite
+	likely such a setup won't ever be necessary).
+
+	I have created a Tcl package for setting up direct connections to
+	VUEE UARTs (Scripts/vuart.tcl). The econnect clone takes advantage
+	of that package and can connect directly to a VUEE UART bypassing
+	the udaemon U-U kludge. I am going to outfit piter with the same
+	feature.
+
+	Some cosmetic corrections to the Serial doc. Don't look there for
+	a description of econnect (it doesn't exist).
