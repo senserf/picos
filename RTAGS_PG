@@ -1700,3 +1700,21 @@ PG120220A:
 
 	Some cosmetic corrections to the Serial doc. Don't look there for
 	a description of econnect (it doesn't exist).
+
+PG120221A:
+
+	A new argument type added to picomp to make it possible to define
+	symbols for the VUEE model, specifically:
+
+		-Dsym			just defines sym
+		-Dsym=val		defines sym to have value val
+		-Dpeg+sym
+		-Dpeg+sym=val		the same but only for the peg program
+
+	Such arguments are used by PIP to pass to the model the board info,
+	if board(s) is/are configured for the praxis.
+
+	Updated documents: PiComp, mkmk. See also PIP.
+
+	A previously undocumented feature, symbol SYSVER_B defined as the
+	stringified board name, is now documented in the mkmk doc.
