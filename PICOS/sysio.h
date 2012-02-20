@@ -4,6 +4,17 @@
 #include "picos.h"
 #include "options.sys"
 
+// ============================================================================
+
+#ifdef	BOARD_TYPE
+#define	SYSVER_B	stringify (BOARD_TYPE)
+#endif
+
+#define	__sgfy(a)	#a
+#define	stringify(a)	__sgfy(a)
+
+// ============================================================================
+
 #ifdef	TCV_PRESENT
 #undef	TCV_PRESENT
 #endif

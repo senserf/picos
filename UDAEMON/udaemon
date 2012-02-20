@@ -1083,7 +1083,7 @@ proc mkTerm { Sok tt hex } {
 
 	if { $Stat(S) == "L" } {
 		# Linux (possibly other Unices)
-		for { set op 0 } { $op < 9 } { incr op } {
+		for { set op 0 } { $op <= 9 } { incr op } {
 			append pl " /dev/pts/$op"
 		}
 		for { set op 0 } { $op < 20 } { incr op } {

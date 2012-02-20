@@ -739,3 +739,10 @@ PG120210A:	PICOS >= PG120210A
 PG120215A:	PICOS >= PG120215A
 
     Accommodating the BOSS plugin. A few cosmetics.
+
+PG120221A:
+
+    Define SYSVER_B if BOARD_TYPE is defined.
+
+    Irrelevant cosmetics in udaemon: unifying the ranges of ports to scan
+    with piter (for not much needed consistency).
