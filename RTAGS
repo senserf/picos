@@ -489,3 +489,9 @@ PG120130A:
 	config option blanks the file (instead of leaving the previous choice
 	intact), so, for example, you can nullify a previous udaemon geometry
 	file selection.
+
+PG120221A:	PICOS >= PG120221A
+
+	PIP now passes the board information (BOARD_TYPE + SYSVER_B) to the
+	VUEE model, if that information has been configured for real-life
+	compilation.

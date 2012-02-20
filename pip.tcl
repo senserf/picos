@@ -7656,9 +7656,26 @@ proc do_make_vuee { { arg "" } } {
 		return
 	}
 
-	set i [dict get $P(CO) "CMPIS"]
+	set mb [dict get $P(CO) "MB"]
+	set bo [dict get $P(CO) "BO"]
 
-	if { $i != 0 } {
+	if { $mb != "" && $bo != "" } {
+		# add the defines pertaining to the board
+		if $mb {
+			set bi 0
+			foreach b $bo {
+				set suf [lindex $P(PL) $bi]
+				set arg [linsert $arg 0 \
+					"-D${suf}+BOARD_$b" \
+					"-D${suf}+BOARD_TYPE=$b"]
+				incr bi
+			}
+		} else {
+			set ar [linsert $arg 0 "-DBOARD_$bo" "-DBOARD_TYPE=$bo"]
+		}
+	}
+
+	if { [dict get $P(CO) "CMPIS"] != 0 } {
 		set arg [linsert $arg 0 "-i"]
 	}
 
