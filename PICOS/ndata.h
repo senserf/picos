@@ -191,6 +191,8 @@ class data_sa_t {
 
 	byte	NS, NA;		// Total number of sensors/actuators
 
+	sint	SOff, AOff;	// Offsets (hidden)
+
 	SensActDesc	*Sensors,
 			*Actuators;
 

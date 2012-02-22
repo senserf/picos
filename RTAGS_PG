@@ -746,3 +746,10 @@ PG120221A:
 
     Irrelevant cosmetics in udaemon: unifying the ranges of ports to scan
     with piter (for not much needed consistency).
+
+PG120223A:	PICOS >= PG120223A
+
+    Accommodates negatively numbered sensors/actuators. The document updated.
+    Some minor cosmetics in udaemon (on top of the changes required to
+    accommodate the negatively numbered sensors/actuators, that is).
+    Version number bumped to 0.94.

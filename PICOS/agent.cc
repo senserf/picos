@@ -2781,6 +2781,9 @@ SNSRS::SNSRS (data_sa_t *SID) {
 
 	Upd = NULL;
 
+	SOff = SID->SOff;
+	AOff = SID->AOff;
+
 	if ((NSensors = SID->NS) != 0) {
 		Sensors = new SensActDesc [NSensors];
 		bcopy (SID->Sensors, Sensors, sizeof (SensActDesc) * NSensors);
@@ -2827,13 +2830,17 @@ SNSRS::~SNSRS () {
 		TheStation->getSName ());
 }
 
-void SNSRS::read (int state, word sn, address vp) {
+void SNSRS::read (int state, sint sn, address vp) {
 
 	TIME del;
 	SensActDesc *s;
 
-	if (sn >= NSensors || (s = Sensors + sn) -> Length == 0)
-		syserror (EREQPAR, "read_sensor");
+	sn += SOff;
+
+	if (sn >= NSensors || sn < 0 || (s = Sensors + sn) -> Length == 0) {
+		++(*vp);
+		return;
+	}
 
 	if (s->MaxTime == 0.0) {
 		// return immediately, no energy usage
@@ -2859,11 +2866,12 @@ void SNSRS::read (int state, word sn, address vp) {
 	sleep;
 }
 
-void SNSRS::write (int state, word sn, address vp) {
+void SNSRS::write (int state, sint sn, address vp) {
 
 	TIME del;
 	SensActDesc *s;
 
+	sn += AOff;
 	if (sn >= NActuators || (s = Actuators + sn) -> Length == 0)
 		syserror (EREQPAR, "write_actuator");
 
@@ -2902,8 +2910,10 @@ int SNSRS::act_status (byte what, byte sid, Boolean lm) {
 	tb = UBuf;
 
 	if (what == SEN_TYPE_PARAMS) {
-		// Send the number of actuators + the number of sensors
-		sprintf (UBuf, "N %1u %1u\n", NActuators, NSensors);
+		// Send the number of actuators + the number of sensors +
+		// the offsets
+		sprintf (UBuf, "N %1u %1u %1u %1u\n",
+			NActuators, AOff, NSensors, SOff);
 	} else {
 		if (what == SEN_TYPE_SENSOR) {
 			ct = 'S';

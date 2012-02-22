@@ -3442,30 +3442,42 @@ static int sa_smax (const char *what, const char *err, sxml_t root) {
 /*
  * Calculates the maximum number of sensors/actuators
  */
-	int max, last;
+	int max, min, last;
 	const char *att;
 	nparse_t np [1];
 
 	np [0].type = TYPE_LONG;
-	max = last = -1;
+	max = MININT;
+	last = -1;
+	min = MAXINT;
 	// No consistency checks yet - just the maximum
 	for (root = sxml_child (root, what); root != NULL;
 						root = sxml_next (root)) {
 		
 		if ((att = sxml_attr (root, "number")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
-				np [0].LVal < 0 || np [0].LVal > 255)
-					// This is an error
-					xeai ("number", err, att);
+			    np [0].LVal < -(MAX_INT) || np [0].LVal > MAX_INT)
+				// This is an error
+				xeai ("number", err, att);
 			last = (int) (np [0].LVal);
 		} else
 			last++;
 
 		if (last > max)
 			max = last;
+		if (last < min)
+			min = last;
 	}
 
-	return max + 1;
+	if (max == MININT)
+		return 0;
+
+	max = max - min + 1;
+
+	if (max > 256)
+		excptn ("Too large span of %s (%1d - %1d)", err, min, max);
+
+	return max;
 }
 
 int SensActDesc::bsize (lword bound) {
@@ -3543,12 +3555,13 @@ void SensActDesc::get (address vp) {
 	}
 }
 
-static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
-									int n) {
+static SensActDesc *sa_doit (const char *what, sint *off, const char *erc,
+							  sxml_t root, int n) {
 /*
  * Initialize the sensor/actuator array
  */
-	int last, i, j, rqs, mns, fill;
+	int first, last, i, j, rqs, mns, fill;
+	sxml_t sns;
 	lword ival;
 	const char *att;
 	nparse_t np [2];
@@ -3562,23 +3575,45 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 	np [0].type = TYPE_LONG;
 	np [1].type = TYPE_LONG;
 
+	mns = MAXINT;
+	rqs = MININT;
 	last = -1;
-	fill = 0;
 
-	for (root = sxml_child (root, what); root != NULL;
-						root = sxml_next (root)) {
+	for (sns = sxml_child (root, what); sns != NULL;
+						sns = sxml_next (sns)) {
 		np [0].type = np [1].type = TYPE_LONG;
 		
-		if ((att = sxml_attr (root, "number")) != NULL) {
+		if ((att = sxml_attr (sns, "number")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
-				np [0].LVal < 0 || np [0].LVal > 255)
-					// This has been verified already, but
-					// let us play it safe
-					xeai ("number", erc, att);
+			    np [0].LVal < -MAX_INT ||
+			    np [0].LVal >  MAX_INT   )
+				xeai ("number", erc, att);
 			last = (int) (np [0].LVal);
 		} else
 			last++;
+		if (last > rqs)
+			rqs = last;
+		if (last < mns)
+			mns = last;
+	}
 
+	*off = 0;
+	if (mns <= rqs && (mns < 0))
+		*off = (sint) (-mns);
+
+	last = -1;
+	fill = 0;
+
+	for (sns = sxml_child (root, what); sns != NULL;
+						sns = sxml_next (sns)) {
+		np [0].type = np [1].type = TYPE_LONG;
+		
+		if ((att = sxml_attr (sns, "number")) != NULL) {
+			parseNumbers (att, 1, np);
+			last = (int) (np [0].LVal) + *off;
+		} else
+			last++;
+		
 		if (last >= n || res [last] . Length != 0)
 			xeai ("number", erc, att);
 
@@ -3588,7 +3623,7 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 		res [last] . Id = last;
 
 		// Check for range
-		att = sxml_txt (root);
+		att = sxml_txt (sns);
 		i = parseNumbers (att, 1, np);
 		if (i == 0) {
 			// Assume unsigned full size
@@ -3604,7 +3639,7 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 		}
 
 		// Check for initial value
-		if ((att = sxml_attr (root, "init")) != NULL) {
+		if ((att = sxml_attr (sns, "init")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 || np [0] . LVal < 0)
 				xeai ("init", erc, att);
 			ival = (lword)(np [0].LVal);
@@ -3612,7 +3647,7 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 			ival = 0;
 
 		// Check for explicit length indication
-		if ((att = sxml_attr (root, "vsize")) != NULL) {
+		if ((att = sxml_attr (sns, "vsize")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
 				np [0].LVal < 1 || np [0].LVal > 4)
 					excptn ("Root: illegal value size in "
@@ -3646,7 +3681,7 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 
 		// Timing
 		np [0].type = np [1].type = TYPE_double;
-		if ((att = sxml_attr (root, "delay")) != NULL) {
+		if ((att = sxml_attr (sns, "delay")) != NULL) {
 			if ((j = parseNumbers (att, 2, np)) < 1 || j > 2)
 				xeai ("delay", erc, att);
 			if ((res [last] . MinTime = np [0] . DVal) < 0.0)
@@ -3665,15 +3700,20 @@ static SensActDesc *sa_doit (const char *what, const char *erc, sxml_t root,
 		res [last] . RValue = res [last] . Value;
 	}
 
-	print (form ("  %s [total = %1d, used = %1d]:\n",
+	print (form ("  %s [total = %1d, used = %1d",
 		strcmp (what, "sensor") ? "ACTUATORS" : "SENSORS", n, fill));
+
+	if (*off)
+		printf (", hidden = %1d", *off);
+
+	printf ("]:\n");
 
 	for (i = 0; i < n; i++)
 		if (res [i] . Length)
 			print (form ("    NUMBER %1d, VSize %1d, "
 				"Range %1u, Init: %1u, "
-					"Delay: [%f7.4,%f7.4]\n",
-						i, res [i] . Length,
+					"Delay: [%7.4f,%7.4f]\n",
+						i - *off, res [i] . Length,
 						res [i] . Max,
 						res [i] . Value,
 						res [i] . MinTime,
@@ -3709,10 +3749,11 @@ data_sa_t *BoardRoot::readSensParams (sxml_t data, const char *esn) {
 	}
 
 	if (SA->NS != 0)
-		SA->Sensors = sa_doit ("sensor", es, data, SA->NS);
-	if (SA->NA != 0)
-		SA->Actuators = sa_doit ("actuator", es, data, SA->NA);
+		SA->Sensors = sa_doit ("sensor", &(SA->SOff), es, data, SA->NS);
 
+	if (SA->NA != 0)
+		SA->Actuators = sa_doit ("actuator", &(SA->AOff), es, data,
+			SA->NA);
 
 	SA->SMode = get_io_desc (data, es, &(SA->SIDev), &(SA->SODev));
 	

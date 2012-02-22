@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.93
+#define	VUEE_VERSION	0.94
 
 #include "picos.h"
 #include "ndata.h"
@@ -611,12 +611,12 @@ station PicOSNode abstract {
 	 */
 	void no_sensor_module (const char*);
 
-	inline void _da (read_sensor) (int st, word sn, address val) {
+	inline void _da (read_sensor) (int st, sint sn, address val) {
 		if (snsrs == NULL)
 			no_sensor_module ("read_sensor");
 		snsrs->read (st, sn, val);
 	}
-	inline void _da (write_actuator) (int st, word sn, address val) {
+	inline void _da (write_actuator) (int st, sint sn, address val) {
 		if (snsrs == NULL)
 			no_sensor_module ("write_actuator");
 		snsrs->write (st, sn, val);

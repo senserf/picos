@@ -729,6 +729,8 @@ class SNSRS {
 
 	SUpdates	*Upd;
 
+	sint		SOff,		// Offsets to implement negative
+			AOff;		// (hidden) numbers
 	public:
 
 	void qupd_act (byte, byte, Boolean lm = NO);
@@ -736,8 +738,8 @@ class SNSRS {
 	int act_status (byte, byte, Boolean);
 	int sensor_update (char*);
 
-	void read (int, word, address);
-	void write (int, word, address);
+	void read (int, sint, address);
+	void write (int, sint, address);
 
 	SNSRS (data_sa_t*);
 
