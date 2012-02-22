@@ -1602,6 +1602,9 @@ fsm test_sensors {
 	ser_out (SE_INIT,
 		"\r\nSensor Test\r\n"
 		"Commands:\r\n"
+#ifdef	__pi_cma_3000_csel
+		"s 0|1|2 -> cma3000 off, low, hight\r\n"
+#endif
 		"r s -> read sensor s\r\n"
 		"c s d n -> read continually at d ms, n times\r\n"
 		"q -> quit\r\n"
@@ -1612,6 +1615,9 @@ fsm test_sensors {
 	ser_in (SE_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
+#ifdef	__pi_cma_3000_csel
+		case 's' : proceed SE_CMA3;
+#endif
 		case 'r' : proceed SE_GSEN;
 		case 'c' : proceed SE_CSEN;
 	    	case 'q': { finish; };
@@ -1621,6 +1627,27 @@ fsm test_sensors {
 
 	ser_out (SE_RCMDP1, "Illegal\r\n");
 	proceed SE_INIT;
+
+  state SE_OK:
+
+	ser_out (SE_OK, "OK\r\n");
+	proceed SE_RCMD;
+
+#ifdef	__pi_cma_3000_csel
+
+  state SE_CMA3:
+
+	w = 0;
+	scan (ibuf + 1, "%u", &w);
+	if (w == 0)
+		cma_3000_off ();
+	else if (w == 1)
+		cma_3000_on_md ();
+	else
+		cma_3000_on_me ();
+
+	proceed SE_OK;
+#endif
 
   state SE_GSEN:
 

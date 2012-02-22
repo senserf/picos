@@ -83,7 +83,7 @@
 
 #define	sensor_adc_prelude(p) \
 			do { \
-			    if (ANALOG_SENSOR_PIN (p) == SEN_POWER_PIN) { \
+			    if (ANALOG_SENSOR_PIN (p) == SEN_EPOWER_PIN) { \
 				_BIS (P4DIR, 0x08); \
 				mdelay (100); \
 			    } \

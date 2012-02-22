@@ -66,7 +66,8 @@
 #define	PIN_DEFAULT_P5SEL	0x03
 // Note: bits 0 and 1 on DIR MUST be zero (DIR must be IN) for the crystal to
 // work!!!!
-#define	PIN_DEFAULT_P5DIR	0x00
+#define	PIN_DEFAULT_P5DIR	0xE4
+#define	PIN_DEFAULT_P5OUT	0xE4
 
 #define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x02) == 0)
 

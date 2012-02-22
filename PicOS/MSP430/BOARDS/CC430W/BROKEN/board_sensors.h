@@ -6,6 +6,7 @@
 
 #define	__pi_cma_3000_bring_down	do { \
 						_BIC (P4OUT, 0x01); \
+						_BIC (P4DIR, 0x01); \
 						_BIC (P5OUT, 0xE4); \
 						_BIS (P5DIR, 0xE4); \
 						__pi_cma_3000_disable; \
@@ -15,6 +16,7 @@
 #define	__pi_cma_3000_bring_up		do { \
 						_BIC (P5DIR, 0x80); \
 						_BIS (P4OUT, 0x01); \
+						_BIS (P4DIR, 0x01); \
 					} while (0)
 					
 #define	__pi_cma_3000_csel		do { \

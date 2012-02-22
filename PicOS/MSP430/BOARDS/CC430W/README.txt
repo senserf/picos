@@ -1,6 +1,11 @@
-These are the definitions for the "broken" new Warsaw board. Directory FIXES
-contains corrections (modified files) for the "corrected" board (which we do
-not have yet, as of 111012).
+Directory BROKEN contains files for the broken version of the board
+(conflicting connections of CMA3000 and EEPROM).
 
-Note that board_options.sys includes frequency adjustments for the "bad" RF
-crystal.
+Directory FIXES contains the correct versions of the affected files for the
+target board.
+
+Make sure to copy the respective file to here according to the board version
+you use.
+
+Note that board_options.sys in BROKEN includes frequency adjustments for the
+"bad" RF crystal.

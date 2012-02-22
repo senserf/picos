@@ -1718,3 +1718,11 @@ PG120221A:
 
 	A previously undocumented feature, symbol SYSVER_B defined as the
 	stringified board name, is now documented in the mkmk doc.
+
+PG120222A:
+
+	Added the capability to test the CMA3000 sensor in TESTS/WARSAW. The
+	problem is that the sensor must be explicitly switched on (in one of
+	two modes) before appearing usable.
+
+	Also cleaned up a couple of items in BOARDS/WARSAW/CC430W.
