@@ -492,12 +492,17 @@ proc cw { } {
 
 proc alert { msg } {
 
+	reset_all_menus 1
 	tk_dialog [cw].alert "Attention!" "${msg}!" "" 0 "OK"
+	reset_all_menus
 }
 
 proc confirm { msg } {
 
-	return [tk_dialog [cw].confirm "Warning!" $msg "" 0 "NO" "YES"]
+	reset_all_menus 1
+	set w [tk_dialog [cw].confirm "Warning!" $msg "" 0 "NO" "YES"]
+	reset_all_menus
+	return $w
 }
 
 proc trunc_fname { n fn } {
@@ -1771,8 +1776,10 @@ proc close_modified { } {
 	}
 	append msg "been modified but not saved."
 
+	reset_all_menus 1
 	set v [tk_dialog .alert "Attention!" $msg "" 0 \
 		"Save" "Do not save" "Cancel"]
+	reset_all_menus
 
 	if { $v == 1 } {
 		# proceed as is
@@ -2568,11 +2575,13 @@ proc new_file { { x "" } { y "" } } {
 
 	while 1 {
 
+		reset_all_menus 1
 		set fn [tk_getSaveFile \
 				-defaultextension $ext \
 				-filetypes $typ \
 				-initialdir $dir \
 				-title "New file"]
+		reset_all_menus
 
 		if { $fn == "" } {
 			# cancelled
@@ -2631,10 +2640,12 @@ proc copy_from { { x "" } { y "" } } {
 
 	while 1 {
 
+		reset_all_menus 1
 		set fl [tk_getOpenFile \
 			-initialdir $P(LCF) \
 			-multiple 1 \
 			-title "Select file(s) to copy:"]
+		reset_all_menus
 
 		if { $fl == "" } {
 			# cancelled
@@ -2723,10 +2734,14 @@ proc copy_to { { x "" } { y "" } } {
 		set dir [file dirname $fp]
 		set ext [file extension $fp]
 		while 1 {
+
+			reset_all_menus 1
 			set fl [tk_getSaveFile \
 				-defaultextension $ext \
 				-initialdir $dir \
 				-title "Where to copy the file:"]
+			reset_all_menus
+
 			if { $fl == "" } {
 				# cancelled
 				return
@@ -2762,9 +2777,11 @@ proc copy_to { { x "" } { y "" } } {
 
 	while 1 {
 
+		reset_all_menus 1
 		set fl [tk_chooseDirectory -initialdir $P(LCT) \
 			-mustexist 0 \
 			-title "Select target directory:"]
+		reset_all_menus
 
 		if { $fl == "" } {
 			return
@@ -3091,10 +3108,14 @@ proc clone_project { } {
 	}
 
 	while 1 {
+
 		# select source directory
+		reset_all_menus 1
 		set sdir [tk_chooseDirectory -initialdir $DefProjDir \
 			-mustexist 1 \
 			-title "Select the source directory:"]
+		reset_all_menus
+
 		if { $sdir == "" } {
 			# cancelled
 			return
@@ -3113,10 +3134,14 @@ proc clone_project { } {
 	}
 
 	while 1 {
+
 		# select target directory
+		reset_all_menus 1
 		set dir [tk_chooseDirectory -initialdir $DefProjDir \
 			-mustexist 0 \
 			-title "Select the target directory:"]
+		reset_all_menus
+
 		if { $dir == "" } {
 			# cancelled
 			return
@@ -3223,11 +3248,14 @@ proc open_project { { which -1 } { dir "" } } {
 		} else {
 	
 			while 1 {
+
+				reset_all_menus 1
 				set dir [tk_chooseDirectory \
 						-initialdir $DefProjDir \
 						-mustexist 1 \
 						-parent . \
 						-title "Project directory"]
+				reset_all_menus
 
 				if { $dir == "" } {
 					# cancelled
@@ -3320,10 +3348,14 @@ proc new_project { } {
 	}
 
 	while 1 {
+
 		# select the directory
+		reset_all_menus 1
 		set dir [tk_chooseDirectory -initialdir $DefProjDir \
 			-mustexist 0 \
 			-title "Select directory for the project:"]
+		reset_all_menus
+
 		if { $dir == "" } {
 			# cancelled
 			return
@@ -4141,11 +4173,13 @@ proc loaders_conf_elp_fsel { auto } {
 		set P(M0,LDELPPATH_D) $id
 	}
 
+	reset_all_menus 1
 	set fi [tk_getOpenFile \
 		-initialdir $id \
 		-filetype [list [list "Executable" [list ".exe"]]] \
 		-defaultextension ".exe" \
 		-parent $P(M0,WI)]
+	reset_all_menus
 
 	if { $fi != "" } {
 		set P(M0,LDELPPATH) $fi
@@ -4177,9 +4211,11 @@ proc loaders_conf_mgd_fsel { auto } {
 		}
 	}
 
+	reset_all_menus 1
 	set fi [tk_getOpenFile \
 		-initialdir $id \
 		-parent $P(M0,WI)]
+	reset_all_menus
 
 	if { $fi != "" } {
 		set P(M0,LDMGDDEV) $fi
@@ -4310,11 +4346,13 @@ proc vuee_conf_fsel { tp } {
 
 	while 1 {
 
+		reset_all_menus 1
 		set fn [tk_getOpenFile 	-defaultextension $de \
 					-filetypes $ft \
 					-initialdir $P(LFS,$tp) \
 					-title "Select a $ti" \
 					-parent $P(M0,WI)]
+		reset_all_menus
 
 		if { $fn == "" } {
 			# cancelled, cancel
@@ -5697,8 +5735,10 @@ proc ece_colpick { w ix wi } {
 		set col #000000
 	}
 
+	reset_all_menus 1
 	set col [tk_chooseColor -parent $w -initialcolor $col -title \
 	    "Choose [lindex { "" foreground alternate background } $ci] color"]
+	reset_all_menus
 
 	# replace the color in the list
 	set ece_V($f) [lreplace $vals $ci $ci $col]
@@ -6852,7 +6892,7 @@ proc clean_lprojects { } {
 	reset_file_menu
 }
 
-proc reset_file_menu { } {
+proc reset_file_menu { { clear 0 } } {
 #
 # Create the File menu of the project window; it must be done dynamically,
 # because it depends on the list of recently opened projects
@@ -6862,6 +6902,10 @@ proc reset_file_menu { } {
 	set m .menu.file
 
 	if [catch { $m delete 0 end } ] {
+		return
+	}
+
+	if $clear {
 		return
 	}
 
@@ -6910,7 +6954,7 @@ proc reset_file_menu { } {
 		-state $st
 }
 
-proc reset_config_menu { } {
+proc reset_config_menu { { clear 0 } } {
 #
 # Re-create the configuration menu (after closing/opening a project)
 #
@@ -6922,7 +6966,7 @@ proc reset_config_menu { } {
 		return
 	}
 
-	if { $P(AC) == "" } {
+	if { $clear || $P(AC) == "" } {
 		return
 	}
 
@@ -6975,7 +7019,7 @@ proc scdir_present { { suf "" } } {
 	return 0
 }
 
-proc reset_build_menu { } {
+proc reset_build_menu { { clear 0 } } {
 #
 # Re-create the build menu; called whenever something has changed that may
 # affect some items on the menu
@@ -6987,7 +7031,7 @@ proc reset_build_menu { } {
 		return
 	}
 
-	if { $P(AC) == "" || $P(CO) == "" } {
+	if { $clear || $P(AC) == "" || $P(CO) == "" } {
 		# no project, no selection, no build
 		return
 	}
@@ -7110,7 +7154,7 @@ proc reset_build_menu { } {
 	$m add command -label "Abort" -command "abort_term" -state $st
 }
 
-proc reset_exec_menu { } {
+proc reset_exec_menu { { clear 0 } } {
 #
 # Re-create the exec menu
 #
@@ -7122,7 +7166,7 @@ proc reset_exec_menu { } {
 		return
 	}
 
-	if { $P(AC) == "" } {
+	if { $clear || $P(AC) == "" } {
 		return
 	}
 
@@ -7223,10 +7267,17 @@ proc reset_exec_menu { } {
 	$m add command -label "Clean console" -command term_clean
 }
 
-proc reset_bnx_menus { } {
+proc reset_bnx_menus { { clear 0 } } {
 
-	reset_build_menu
-	reset_exec_menu
+	reset_build_menu $clear
+	reset_exec_menu $clear
+}
+
+proc reset_all_menus { { clear 0 } } {
+
+	reset_file_menu $clear
+	reset_config_menu $clear
+	reset_bnx_menus $clear
 }
 
 proc mark_running_tm { } {
@@ -8180,6 +8231,9 @@ proc open_search_window { } {
 	button $f.nb -text "New" -command do_edit_new_file
 	pack $f.nb -side right -expand n
 
+	button $f.xb -text "XTerm" -command do_open_xterm
+	pack $f.xb -side right -expand n
+
 	# tags for marking the match and headers
 	$t tag configure mtag -background $P(SWN,n)
 	$t tag configure htag -background $P(SWN,h)
@@ -8714,8 +8768,10 @@ proc search_colconf { b u } {
 		set tag "mtag"
 	}
 
+	reset_all_menus 1
 	set col [tk_chooseColor -parent $P(SWN) -initialcolor $col -title \
 		"Choose $tp color"]
+	reset_all_menus
 
 	if { $col == "" } {
 		# cancel
@@ -8842,6 +8898,58 @@ proc patt_to_words { pt } {
 
 ###############################################################################
 
+proc do_open_xterm { } {
+#
+# Opens an xterm in the indicated directory
+#
+	global P XTCmd
+
+	if { $P(AC) == "" } {
+		# A precaution; Search won't open if there's no project
+		return
+	}
+
+	if ![info exists P(LOD)] {
+		set P(LOD) [pwd]
+	}
+
+	reset_all_menus 1
+	set fl [tk_chooseDirectory \
+		-parent $P(SWN) \
+		-initialdir $P(LOD) \
+		-mustexist 0 \
+		-title "Select directory:"]
+	reset_all_menus
+
+	if { $fl == "" } {
+		# cancelled
+		return
+	}
+
+	set fl [file normalize $fl]
+
+	if ![file isdirectory $fl] {
+		# try to create
+		log "Creating dir $fl"
+		if [catch { file mkdir $fl } err] {
+			alert "Cannot create directory $fl: $err"
+			continue
+		}
+	}
+
+	set P(LOD) $fl
+
+	set cd [pwd]
+	if [catch { cd $fl } err] {
+		catch { cd $cd }
+		alert "Cannot cd to directory $fl: $err"
+		return
+	}
+
+	catch { xq $XTCmd "&" }
+	catch { cd $cd }
+}
+
 proc do_edit_any_file { } {
 #
 # Allows you to open any file from the Search window
@@ -8858,11 +8966,13 @@ proc do_edit_any_file { } {
 		set P(LOD) $DefProjDir
 	}
 
+	reset_all_menus 1
 	set fl [tk_getOpenFile \
 		-parent $P(SWN) \
 		-initialdir $P(LOD) \
 		-multiple 0 \
 		-title "Select file to edit/view:"]
+	reset_all_menus
 
 	if { $fl == "" } {
 		# cancelled
@@ -8892,11 +9002,13 @@ proc do_edit_new_file { } {
 		set P(LOE) ""
 	}
 
+	reset_all_menus 1
 	set fl [tk_getSaveFile \
 		-parent $P(SWN) \
 		-defaultextension $P(LOE) \
 		-initialdir $P(LOD) \
 		-title "File name:"]
+	reset_all_menus
 
 	if { $fl == "" } {
 		# cancelled

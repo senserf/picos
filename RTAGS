@@ -495,3 +495,20 @@ PG120221A:	PICOS >= PG120221A
 	PIP now passes the board information (BOARD_TYPE + SYSVER_B) to the
 	VUEE model, if that information has been configured for real-life
 	compilation.
+
+PG120222A:
+
+	I have discovered that (at least under Windows/Cygwin) pip would
+	hang in a weird way if you:
+
+	1. opened a dialog owned by a non-main window, e.g., Search
+
+	2. tried to open a dialog in the main window, e.g., Config->VUEE while
+	   the previous dialog was open
+
+	So I have made sure to disable all menus when any Tk dialog (file
+	selection, directory selection, color selection) is open and re-
+	enable them when the dialog exits.
+
+	Also added a button to the Search window to open an XTerm in any
+	(indicated) directory.
