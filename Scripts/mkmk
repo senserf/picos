@@ -2515,6 +2515,11 @@ proc main { } {
 	lappend deflist "BOARD_$Run(board)"
 	lappend deflist "BOARD_TYPE=$Run(board)"
 
+	if { $Run(praxis) != "" } {
+		lappend deflist "PGMLABEL_$Run(praxis)"
+		lappend deflist "PGMLABEL=$Run(praxis)"
+	}
+
 	set ExtraIncDirs ""
 
 	if { $Run(type) == "l" } {

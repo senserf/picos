@@ -1755,3 +1755,15 @@ PG120223A:	VUEE >= PG120223A
 	I have added to VUEE the same trick we do in PicOS: for a nonexistent
 	sensor, the return value is incremented (rather than triggering
 	errors).
+
+PG120223B:
+
+	Both mkmk and picomp (for VUEE) now define these symbols:
+
+	#define PGMLABEL_xxx
+	#define	PGMLABEL xxx
+
+	where xxx is the program's file suffix (label). This only applies to
+	multiprogram praxes. Additionally, for mkmk, the praxis must be
+	compiled in the multi-makefile mode; otherwise, the symbols are not
+	set.

@@ -3955,12 +3955,16 @@ proc compile_pgm { } {
 			}
 		}
 
-		if { $pg != "" && [info exists DF($pg)] } {
-			# pgm-specific defs
-			foreach d $DF($pg) {
-				lappend pre \
-					"#define [lindex $d 0] [lindex $d 1]"
+		if { $pg != "" } {
+			if [info exists DF($pg)] {
+				# pgm-specific defs
+				foreach d $DF($pg) {
+					lappend pre \
+					   "#define [lindex $d 0] [lindex $d 1]"
+				}
 			}
+			lappend pre "#define PGMLABEL $pg"
+			lappend pre "#define PGMLABEL_$pg"
 		}
 		# note that the last line of prelude is empty, as it
 		# should be
