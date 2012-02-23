@@ -8,6 +8,11 @@
 #include "pins.h"
 
 #ifdef	ACTUATOR_LIST
+
+#ifndef	N_HIDDEN_ACTUATORS
+#define	N_HIDDEN_ACTUATORS	0
+#endif
+
 static actudesc_t actumap [] = ACTUATOR_LIST;
 
 #define	N_ACTUATORS	(sizeof (actumap) / sizeof (actudesc_t))
@@ -25,13 +30,13 @@ void __pi_init_actuators () {
 
 #endif	/* ACTUATOR_LIST */
 
-void write_actuator (word st, word sn, address val) {
+void write_actuator (word st, sint sn, address val) {
 
 #ifdef	ACTUATOR_LIST
 
 	actudesc_t *s;
 
-	if (sn >= N_ACTUATORS)
+	if ((sn += N_HIDDEN_ACTUATORS) < 0 || sn >= N_ACTUATORS)
 		syserror (EREQPAR, "write_actuator");
 
 	(*(actumap [sn] . fun_val)) (st, val);

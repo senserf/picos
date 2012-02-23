@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -126,6 +126,7 @@
 #define	SENSOR_DIGITAL		// To make sure digital sensors are processed
 
 #define	SENSOR_LIST { \
+		INTERNAL_VOLTAGE_SENSOR,      \
 		ANALOG_SENSOR ( QSO_PAR_ISI,  \
 				QSO_PAR_NSA,  \
 				QSO_PAR_PIN,  \
@@ -141,6 +142,8 @@
 				MOI_ECO_SHT,  \
 				MOI_ECO_ERE)  \
 	}
+
+#define	N_HIDDEN_SENSORS	1
 
 // Set the external reference; for PAR -> voltage through the Zener,
 //			       for ECO -> excitation via P4.7 & delay a bit

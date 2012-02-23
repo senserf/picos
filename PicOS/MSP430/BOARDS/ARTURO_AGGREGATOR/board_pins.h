@@ -48,13 +48,16 @@
 #define	SEN_POWER_ERE	REFON		// 1.5V
 
 #define	SENSOR_LIST { \
+		INTERNAL_VOLTAGE_SENSOR,	\
 		ANALOG_SENSOR ( SEN_POWER_ISI,  \
 				SEN_POWER_NSA,  \
 				SEN_POWER_PIN,  \
 				SEN_POWER_URE,  \
 				SEN_POWER_SHT,  \
-				SEN_POWER_ERE) \
+				SEN_POWER_ERE)  \
 	}
+
+#define	N_HIDDEN_SENSORS	1
 
 // Simplifies a bit the code in sensors.c; also - no call to __pi_init_sensors
 // is required, nor digital (SENSOR_DIGITAL) processing has to be compiled in

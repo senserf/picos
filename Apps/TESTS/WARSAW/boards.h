@@ -68,6 +68,16 @@
 
 // ============================================================================
 
+#ifdef	BOARD_ARTURO
+
+#define EPR_TEST
+
+#include "storage.h"
+
+#endif
+
+// ============================================================================
+
 #ifdef	BOARD_ARTURO_PMTH
 
 #define EPR_TEST
@@ -98,8 +108,10 @@
 // ============================================================================
 
 #ifdef	BOARD_CC430W
+//#define	RTC_TEST
+#define	EPR_TEST
 #include "rtc_cc430.h"
-#define	RTC_TEST
+#include "storage.h"
 
 #endif
 

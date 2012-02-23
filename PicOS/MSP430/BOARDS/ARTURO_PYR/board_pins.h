@@ -142,6 +142,7 @@
 
 
 #define	SENSOR_LIST { \
+		INTERNAL_VOLTAGE_SENSOR,       \
 		ANALOG_SENSOR ( QSO_PAR0_ISI,  \
 				QSO_PAR0_NSA,  \
 				QSO_PAR0_PIN,  \
@@ -175,6 +176,8 @@
 				MOI_ECO_SHT,  \
 				MOI_ECO_ERE)  \
 	}
+
+#define	N_HIDDEN_SENSORS	1
 
 #define	sensor_adc_prelude(p) \
 			do { \

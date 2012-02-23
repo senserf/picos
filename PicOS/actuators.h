@@ -17,6 +17,6 @@ typedef	struct {
 
 } actudesc_t;
 
-void write_actuator (word, word, address);
+void write_actuator (word, sint, address);
 
 #endif

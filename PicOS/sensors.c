@@ -8,13 +8,19 @@
 #include "pins.h"
 
 // ============================================================================
+// ============================================================================
 
 #ifdef	SENSOR_LIST
-
 #ifndef	SENSOR_DIGITAL
 #ifndef	SENSOR_ANALOG
 #error "S: SENSOR_LIST defined, but neither SENSOR_DIGITAL, nor SENSOR_ANALOG!"
 #endif
+#endif
+
+// ============================================================================
+
+#ifndef	N_HIDDEN_SENSORS
+#define	N_HIDDEN_SENSORS	0
 #endif
 
 static const i_sensdesc_t sensor_list [] = SENSOR_LIST;
@@ -29,7 +35,7 @@ static const i_sensdesc_t sensor_list [] = SENSOR_LIST;
 
 void __pi_init_sensors () {
 
-	int i;
+	sint i;
 	void (*f) (void);
 
 	for (i = 0; i < N_SENSORS; i++)
@@ -47,13 +53,13 @@ void __pi_init_sensors () {
 
 // ============================================================================
 
-word read_sensor (word st, word sn, address val) {
+word read_sensor (word st, sint sn, address val) {
 
 #ifdef	SENSOR_LIST
 
 	const d_sensdesc_t *s;
 
-	if (sn >= N_SENSORS) {
+	if ((sn += N_HIDDEN_SENSORS) < 0 || sn >= N_SENSORS) {
 		// Commissioned by Wlodek
 		(*val)++;
 		return ERROR;

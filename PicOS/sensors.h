@@ -10,6 +10,6 @@
 
 #include "sensors_sys.h"
 
-word read_sensor (word, word, address);
+word read_sensor (word, sint, address);
 
 #endif

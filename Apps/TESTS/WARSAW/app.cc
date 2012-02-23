@@ -40,7 +40,7 @@ heapmem {10, 90};
 
 extern void* _etext;
 
-static int 	sfd = -1, off, packet_length, rcvl, b;
+static sint 	sfd = -1, off, packet_length, rcvl, b;
 static word	rssi, err, w, len, bs, nt, sl, ss, dcnt;
 static lword	adr, max, val, last_snt, last_rcv, s, u, pat;
 static byte	str [129], *blk;
@@ -257,7 +257,7 @@ fsm sender {
 
   state SN_NEXT:
 
-	int pl, pp;
+	sint pl, pp;
 
 	packet = tcv_wnp (SN_NEXT, sfd, packet_length + 2);
 
@@ -1651,12 +1651,14 @@ fsm test_sensors {
 
   state SE_GSEN:
 
-	w = 0;
-	scan (ibuf + 1, "%u", &w);
+	b = 0;
+	scan (ibuf + 1, "%d", &b);
 
   state SE_GSENP1:
 
-	read_sensor (SE_GSENP1, w, &ss);
+	// To detect absent sensors, value 273
+	ss = 272;
+	read_sensor (SE_GSENP1, b, &ss);
 
   state SE_GSENP2:
 
@@ -1665,17 +1667,18 @@ fsm test_sensors {
 
   state SE_CSEN:
 
-	w = 0;
+	b = 0;
 	bs = 0;
 	nt = 0;
 
-	scan (ibuf + 1, "%u %u %u", &w, &bs, &nt);
+	scan (ibuf + 1, "%d %u %u", &b, &bs, &nt);
 	if (nt == 0)
 		nt = 1;
 
   state SE_CSENP1:
 
-	read_sensor (SE_CSENP1, w, &ss);
+	ss = 272;
+	read_sensor (SE_CSENP1, b, &ss);
 	nt--;
 
   state SE_CSENP2:
@@ -1795,7 +1798,7 @@ static char *dec_hex (char *p, byte *b) {
 
 static void set_rregs (char *p) {
 
-	int nc;
+	sint nc;
 	byte r, v;
 
 	for (nc = 0; nc < MAXRREGS*2; ) {

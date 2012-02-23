@@ -29,3 +29,9 @@
 #define	PIN_MAX 		0
 #define	PIN_MAX_ANALOG		0
 #define	PIN_DAC_PINS		0
+
+#define	SENSOR_ANALOG
+#define	SENSOR_LIST { INTERNAL_VOLTAGE_SENSOR }
+#define	N_HIDDEN_SENSORS	1
+
+

@@ -1726,3 +1726,32 @@ PG120222A:
 	two modes) before appearing usable.
 
 	Also cleaned up a couple of items in BOARDS/WARSAW/CC430W.
+
+PG120223A:	VUEE >= PG120223A
+
+	Accommodates negative numbers of sensors (and actuators - we don't
+	use them a lot, do we). Look at BOARDS/ARTURO/board_pins.h for an
+	illustration.
+
+	I have defined a macro, INTERNAL_VOLTAGE_SENSOR, to cover all the magic
+	needed to define an ANALOG_SENSOR describing the internal voltage
+	sensor (Vcc/2 referenced to 2.5V). So there is no need to repeat all
+	the detailed definitions (hold time, source, reference, and so on)
+	at all boards that may want to use that (standard) sensor. Here is
+	another standard one: INTERNAL_TEMPERATURE_SENSOR.
+
+	The conversion formula: Temp(C) = V * 0.1032 - 277.75.
+
+	I haven't removed (or reshuffled) any sensors defined in existing
+	boards (yet), except for adding the internal voltage sensors
+	(numbered -1) to all ARTURO* boards (as asked by Wlodek).
+
+	The second argument of read_sensor (and write_actuator) is now sint
+	(not word, as it used to be).
+
+	VUEE knows about all that (see eco_demo/collector.xml for a definition
+	of a negatively numbered sensor).
+
+	I have added to VUEE the same trick we do in PicOS: for a nonexistent
+	sensor, the return value is incremented (rather than triggering
+	errors).
