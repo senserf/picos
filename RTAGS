@@ -512,3 +512,8 @@ PG120222A:
 
 	Also added a button to the Search window to open an XTerm in any
 	(indicated) directory.
+
+PG120223A:
+
+	Nothing remotely important. Added buttons to open XTerm on selections
+	in the tree view.

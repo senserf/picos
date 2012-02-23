@@ -2092,6 +2092,7 @@ proc tree_menu { x y X Y } {
 	$m add command -label "Copy from ..." -command "copy_from $x $y"
 	$m add command -label "Copy to ..." -command "copy_to $x $y"
 	$m add command -label "New directory ..." -command "new_directory $x $y"
+	$m add command -label "Run XTerm here" -command "run_xterm_here $x $y"
 
 	tk_popup .popm $X $Y
 }
@@ -2820,6 +2821,51 @@ proc copy_to { { x "" } { y "" } } {
 	if { $ers != "" } {
 		alert "Couldn't copy: [join $ers ,]"
 	}
+}
+
+proc run_xterm_here { { x "" } { y "" } } {
+#
+# Copies current file anywhere
+#
+	global P
+
+	if { $P(AC) == "" } {
+		return
+	}
+
+	set sel [tree_selection $x $y]
+
+	set nf [llength $sel]
+
+	if { $nf == 0 } {
+		return
+	}
+
+	if { $nf != 1 } {
+		alert "Need a single selection for this"
+		return
+	}
+
+	set fp [lindex $sel 0]
+	if { [lindex $fp 1] == "f" } {
+		set fp [file dirname [file normalize [lindex $fp 0]]]
+	} elseif { [lindex $fp 1] == "d" } {
+		set fp [file normalize [lindex $fp 0]]
+	} else {
+		alert "You have to select a file or directory for this"
+		return
+	}
+
+	set cd [pwd]
+	if [catch { cd $fp } err] {
+		catch { cd $cd }
+		alert "Cannot cd to directory $fp: $err"
+		return
+	}
+
+	run_xterm
+
+	catch { cd $cd }
 }
 		
 proc rename_file { { x "" } { y "" } } {
@@ -6950,6 +6996,10 @@ proc reset_file_menu { { clear 0 } } {
 
 	$m add separator
 
+	$m add command -label "Run XTerm" -command "run_xterm_here" -state $st
+
+	$m add separator
+
 	$m add command -label "Search ..." -command "open_search_window" \
 		-state $st
 }
@@ -8902,7 +8952,7 @@ proc do_open_xterm { } {
 #
 # Opens an xterm in the indicated directory
 #
-	global P XTCmd
+	global P
 
 	if { $P(AC) == "" } {
 		# A precaution; Search won't open if there's no project
@@ -8946,7 +8996,8 @@ proc do_open_xterm { } {
 		return
 	}
 
-	catch { xq $XTCmd "&" }
+	run_xterm
+
 	catch { cd $cd }
 }
 
