@@ -98,6 +98,8 @@
 #define	ANA_SEN3_PIN		7
 
 #define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,		\
+		INTERNAL_VOLTAGE_SENSOR,		\
 		ANALOG_SENSOR (	ANA_SEN_ISI, 		\
 				ANA_SEN_NSA, 		\
 				ANA_SEN0_PIN,		\
@@ -123,6 +125,8 @@
 				ANA_SEN_SHT,		\
 				ANA_SEN_ERE), 		\
 	}
+
+#define	N_HIDDEN_SENSORS	2
 
 #define	sensor_adc_prelude(p) \
 		do { \

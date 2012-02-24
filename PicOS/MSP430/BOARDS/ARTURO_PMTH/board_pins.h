@@ -126,6 +126,7 @@
 #define	SENSOR_DIGITAL		// To make sure digital sensors are processed
 
 #define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,  \
 		INTERNAL_VOLTAGE_SENSOR,      \
 		ANALOG_SENSOR ( QSO_PAR_ISI,  \
 				QSO_PAR_NSA,  \
@@ -143,7 +144,7 @@
 				MOI_ECO_ERE)  \
 	}
 
-#define	N_HIDDEN_SENSORS	1
+#define	N_HIDDEN_SENSORS	2
 
 // Set the external reference; for PAR -> voltage through the Zener,
 //			       for ECO -> excitation via P4.7 & delay a bit

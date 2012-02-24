@@ -102,7 +102,6 @@
 #define	ANA_SEN_URE		SREF_VREF_AVSS
 #define	ANA_SEN_ERE		(REFON + REF2_5V)
 
-#define	SENSOR_VINT_PIN		6
 #define	SENSOR_LIGHT_PIN	5
 #define	SENSOR_IRMTN_PIN	7
 
@@ -115,12 +114,8 @@
 #define	irmtn_off()		_BIC (P2OUT, 0x04)
 
 #define	SENSOR_LIST { \
-		ANALOG_SENSOR (	ANA_SEN_ISI, 		\
-				ANA_SEN_NSA, 		\
-				SENSOR_VINT_PIN,	\
-				ANA_SEN_URE, 		\
-				ANA_SEN_SHT,		\
-				ANA_SEN_ERE), 		\
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR,	\
 		ANALOG_SENSOR (	ANA_SEN_ISI, 		\
 				ANA_SEN_NSA, 		\
 				SENSOR_LIGHT_PIN,	\
@@ -136,24 +131,15 @@
 				ANA_SEN_ERE) 		\
 	}
 
-#define	sensor_adc_prelude(p) \
-		do { \
-			if (ANALOG_SENSOR_PIN(p) == SENSOR_VINT_PIN) { \
-				_BIC (P5OUT, 0x10); \
-				mdelay (40); \
-			} \
-		} while (0);
+#define	N_HIDDEN_SENSORS	2
 
-#define	sensor_adc_postlude(p) \
-		do { \
-			_BIS (P5OUT, 0x10); \
-		} while (0)
+// Note: I have removed the external-internal voltage sensor on Pin P6.6 from
+// the configuration (assuming that the internal-internal one will do)
 
 #define	SENSOR_ANALOG
 #define	SENSOR_DIGITAL
 
-#define	SENSOR_BATTERY		0
-#define	SENSOR_LIGHT		1
-#define	SENSOR_MOTION		2
-#define	SENSOR_MOTION_ANALOG	3
-
+#define	SENSOR_BATTERY		(-1)
+#define	SENSOR_LIGHT		0
+#define	SENSOR_MOTION		1
+#define	SENSOR_MOTION_ANALOG	2

@@ -40,26 +40,14 @@
 #include "analog_sensor.h"
 #include "sensors.h"
 
-#define	SEN_POWER_PIN	0	// P6.0
-#define	SEN_POWER_SHT	1	// 8 cycles = 490us
-#define	SEN_POWER_ISI	0	// Inter-sample interval
-#define	SEN_POWER_NSA	16	// Samples to average
-#define	SEN_POWER_URE	SREF_VREF_AVSS	// Internal
-#define	SEN_POWER_ERE	REFON		// 1.5V
-
 #define	SENSOR_LIST { \
-		INTERNAL_VOLTAGE_SENSOR,	\
-		ANALOG_SENSOR ( SEN_POWER_ISI,  \
-				SEN_POWER_NSA,  \
-				SEN_POWER_PIN,  \
-				SEN_POWER_URE,  \
-				SEN_POWER_SHT,  \
-				SEN_POWER_ERE)  \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR		\
 	}
 
-#define	N_HIDDEN_SENSORS	1
+// Note: I have removed the external-internal voltage sensor on Pin P6.0 from
+// the configuration (assuming that the internal-internal one will do)
 
-// Simplifies a bit the code in sensors.c; also - no call to __pi_init_sensors
-// is required, nor digital (SENSOR_DIGITAL) processing has to be compiled in
+#define	N_HIDDEN_SENSORS	2
 
-#define	SENSOR_ANALOG		// To make sure analog sensors are processed
+#define	SENSOR_ANALOG

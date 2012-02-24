@@ -45,6 +45,7 @@
 #define	SENSOR_DIGITAL		// To make sure digital sensors are processed
 
 #define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
 		INTERNAL_VOLTAGE_SENSOR,	\
 		ANALOG_SENSOR (   QSO_PAR_ISI,  \
 				  QSO_PAR_NSA,  \
@@ -63,7 +64,7 @@
 		DIGITAL_SENSOR (   0, ds18b20_init, ds18b20_read) \
 	}
 
-#define	N_HIDDEN_SENSORS	1
+#define	N_HIDDEN_SENSORS	2
 
 #define	sensor_adc_prelude(p) 	_BIS (P5DIR, 0x10)	// Eref is switchable
 #define	sensor_adc_postlude(p) 	_BIC (P5DIR, 0x10)	// Eref is switchable

@@ -51,3 +51,20 @@
 // No ADC for RSSI, which is collected internally by the RF chip
 
 #define	PULSE_MONITOR		PINS_MONITOR (P6, 1, P6, 2)
+
+/ ============================================================================
+#if 0
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR		\
+	}
+#define	SENSOR_ANALOG
+#define	N_HIDDEN_SENSORS	2
+
+#endif
+// ============================================================================
+

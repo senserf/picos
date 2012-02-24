@@ -62,3 +62,20 @@
 /* ================= */
 #define	PULSE_MONITOR			PINS_MONITOR_INT (3, 4);
 #define	MONITOR_PINS_SEND_INTERRUPTS	1
+
+// ============================================================================
+#if 0
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR		\
+	}
+#define	SENSOR_ANALOG
+#define	N_HIDDEN_SENSORS	2
+
+#endif
+// ============================================================================
+

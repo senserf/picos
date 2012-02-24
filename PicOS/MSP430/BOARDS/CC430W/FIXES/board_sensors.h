@@ -64,22 +64,22 @@
 #define	SENSOR_LIST { \
 		ANALOG_SENSOR (SEN_POWER_ISI,  \
 			       SEN_POWER_NSA,  \
-			       SEN_POWER_SRC,  \
-		       	       SEN_POWER_URE,  \
-			       SEN_POWER_SHT,  \
-			       SEN_POWER_ERE), \
-		ANALOG_SENSOR (SEN_POWER_ISI,  \
-			       SEN_POWER_NSA,  \
 			       SEN_EPOWER_PIN, \
 		       	       SEN_POWER_URE,  \
 			       SEN_POWER_SHT,  \
 			       SEN_EPOWER_ERE),\
+		INTERNAL_TEMPERATURE_SENSOR,   \
+		INTERNAL_VOLTAGE_SENSOR,       \
 		DIGITAL_SENSOR (0, NULL, cma_3000_read) \
 }
 
-// Voltage internal-internal
 // Voltage external
+// Temperature				<-> hidden
+// Voltage internal-internal
+// -------------------------
 // Motion
+
+#define	N_HIDDEN_SENSORS	3
 
 #define	sensor_adc_prelude(p) \
 			do { \

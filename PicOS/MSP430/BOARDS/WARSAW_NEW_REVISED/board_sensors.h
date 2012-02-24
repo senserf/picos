@@ -54,6 +54,20 @@
 #define	MOI_ECO_PIN	7	// ECHO moisture sensor
 
 #define	SENSOR_LIST { \
+		ANALOG_SENSOR (   VSN_INT_ISI,  \
+				  VSN_INT_NSA,  \
+				  VSN_INT_PIN,  \
+				  VSN_INT_URE,  \
+				  VSN_INT_SHT,  \
+				  VSN_INT_ERE), \
+		ANALOG_SENSOR (   VSN_EXT_ISI,  \
+				  VSN_EXT_NSA,  \
+				  VSN_EXT_PIN,  \
+				  VSN_EXT_URE,  \
+				  VSN_EXT_SHT,  \
+				  VSN_EXT_ERE), \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR,	\
 		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp), \
 		DIGITAL_SENSOR (0, NULL, shtxx_humid), \
 		ANALOG_SENSOR (   QSO_PXR_ISI,  \
@@ -85,26 +99,10 @@
 				  QSO_PYR3_PIN, \
 				  QSO_PXR_URE,  \
 				  QSO_PXR_SHT,  \
-				  QSO_PXR_ERE), \
-		ANALOG_SENSOR (   VSN_INT_ISI,  \
-				  VSN_INT_NSA,  \
-				  VSN_INT_PIN,  \
-				  VSN_INT_URE,  \
-				  VSN_INT_SHT,  \
-				  VSN_INT_ERE), \
-		ANALOG_SENSOR (   VSN_INT_ISI,  \
-				  VSN_INT_NSA,  \
-				  VSN_INT_SRC,  \
-				  VSN_INT_URE,  \
-				  VSN_INT_SHT,  \
-				  VSN_INT_ERE), \
-		ANALOG_SENSOR (   VSN_EXT_ISI,  \
-				  VSN_EXT_NSA,  \
-				  VSN_EXT_PIN,  \
-				  VSN_EXT_URE,  \
-				  VSN_EXT_SHT,  \
-				  VSN_EXT_ERE)  \
+				  QSO_PXR_ERE)  \
 	}
+
+#define	N_HIDDEN_SENSORS	4
 
 // Sensor list:
 //
@@ -115,9 +113,10 @@
 //	4 - PXR 1
 //	5 - PXR 2
 //	6 - PXR 3
-//	7 - Voltage int (external)
-//	8 - Voltage int (internal, i.e., on chip)
-//	9 - Voltage ext
+//     -1 - Voltage (int, int)
+//     -2 - Temp (int)
+//     -3 - Voltage ext
+//     -4 - Voltage int (external)
 
 #define	sensor_adc_prelude(p) \
 			do { \

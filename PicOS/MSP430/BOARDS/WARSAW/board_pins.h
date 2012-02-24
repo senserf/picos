@@ -129,3 +129,19 @@
 
 #endif /* SAMPLER or no SAMPLER */
 
+// ============================================================================
+#if 1
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR		\
+	}
+#define	SENSOR_ANALOG
+#define	N_HIDDEN_SENSORS	2
+
+#endif
+// ============================================================================
+

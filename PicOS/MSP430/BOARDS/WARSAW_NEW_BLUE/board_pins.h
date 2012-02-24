@@ -126,3 +126,19 @@
 #define	cswitch_off(p)		_BIC (P3OUT, (p) & 0x0f)
 
 #define	CSWITCH_ALL	(CSWITCH_LCD + CSWITCH_EE + CSWITCH_SD + CSWITCH_GPS)
+
+// ============================================================================
+#if 0
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR		\
+	}
+#define	SENSOR_ANALOG
+#define	N_HIDDEN_SENSORS	2
+
+#endif
+// ============================================================================

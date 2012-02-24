@@ -31,24 +31,14 @@
 #include "analog_sensor.h"
 #include "sensors.h"
 
-// Internal voltage sensor
-#define	SEN_POWER_PIN		INCH_VCC2
-#define	SEN_POWER_SHT		1
-#define SEN_POWER_ISI		0
-#define	SEN_POWER_NSA		16
-#define SEN_POWER_URE		SREF_VREF_AVSS
-#define	SEN_POWER_ERE		(REFON + REF2_5V)
-
 #define	SENSOR_LIST { \
-		ANALOG_SENSOR ( SEN_POWER_ISI,  \
-				SEN_POWER_NSA,  \
-				SEN_POWER_PIN,  \
-				SEN_POWER_URE,  \
-				SEN_POWER_SHT,  \
-				SEN_POWER_ERE), \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR,	\
 		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp), \
 		DIGITAL_SENSOR (0, NULL, shtxx_humid) \
 	}
+
+#define	N_HIDDEN_SENSORS	2
 
 // Pin definitions for the SHT sensor
 

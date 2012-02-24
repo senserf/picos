@@ -63,6 +63,8 @@
 
 
 #define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR,	\
 		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp), \
 		DIGITAL_SENSOR (0, NULL, shtxx_humid), \
 		ANALOG_SENSOR ( QSO_PXR_ISI,  \
@@ -114,6 +116,9 @@
 				SENSOR_PROBE_SHT,  \
 				SENSOR_PROBE_ERE) \
 	}
+
+#define	N_HIDDEN_SENSORS	2
+
 // Sensor list:
 //
 //	0 - SHT TMP

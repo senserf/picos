@@ -1767,3 +1767,43 @@ PG120223B:
 	multiprogram praxes. Additionally, for mkmk, the praxis must be
 	compiled in the multi-makefile mode; otherwise, the symbols are not
 	set.
+
+PG120224A:
+
+	As suggested by Wlodek, I have changed sensor definitions in
+	(practically) all MSP430 boards, such that the internal voltage
+	sensor is -1 and the internal temperature sensor is -2.
+
+	On those boards that defined the so-called external-internal sensor,
+	i.e., a pin-based battery sensor, that sensor has been removed,
+	except for WARSAW_NEW_REVISED where that kind of sensor was explicitly
+	used for testing the internal-internal voltage sensor.
+
+	On those boards defining the external-external voltage sensor, i.e.,
+	a voltage sensor for a pre-regulator external power source, that
+	sensor has been renumbered as -3 (e.g., see CC430W).
+	On WARSAW_NEW_REVISED, the (retained) external-internal sensor is -4.
+	So we have this convention:
+
+	-1		- internal voltage sensor
+	-2		- internal temperature sensor
+	-3		- external voltage sensor (if present)
+	-4 and down	- other exotic "special" sensors
+
+	On some boards that defined no sensors I have added sensors -1 and -2.
+
+	On some other boards that defined no sensors (GENESIS, VERSA), I have
+	added sensors -1 and -2 conditional on #if 0, so I haven't added them
+	really.
+
+	Some yet other boards that defined no sensors (G4619, GENERIC_148) I
+	haven't touched at all.
+
+	Some boards (notably all SFU_ ones) I have packed into archived.tgz and
+	removed.
+
+	Note that sensors have been renumbered on some boards. Wlodek has
+	promised to update the relevant praxes accordingly. Until then those
+	praxes may be out of sync with their boards.
+
+	Fixed EEPROM pins on CC430W.

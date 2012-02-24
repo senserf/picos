@@ -30,8 +30,11 @@
 #define	PIN_MAX_ANALOG		0
 #define	PIN_DAC_PINS		0
 
+#include "analog_sensor.h"
+#include "sensors.h"
+
 #define	SENSOR_ANALOG
-#define	SENSOR_LIST { INTERNAL_VOLTAGE_SENSOR }
-#define	N_HIDDEN_SENSORS	1
+#define	SENSOR_LIST { INTERNAL_TEMPERATURE_SENSOR, INTERNAL_VOLTAGE_SENSOR }
+#define	N_HIDDEN_SENSORS	2
 
 

@@ -51,12 +51,10 @@
 #include "sensors.h"
 //+++ "sensors.c"
 
-#define	SEN_POWER_SRC	11	// Vcc/2 (pin for int-int voltage sensor)
 #define	SEN_POWER_SHT	4	// 8 cycles = 490us
 #define	SEN_POWER_ISI	0	// Inter-sample interval
 #define	SEN_POWER_NSA	16	// Samples to average
 #define	SEN_POWER_URE	ADC_SREF_RVSS	// Internal
-#define	SEN_POWER_ERE	(ADC_FLG_REFON + ADC_FLG_REF25)
 
 #define	SEN_EPOWER_PIN	7	// External voltage pin
 #define	SEN_EPOWER_ERE	ADC_FLG_REFON
@@ -64,22 +62,22 @@
 #define	SENSOR_LIST { \
 		ANALOG_SENSOR (SEN_POWER_ISI,  \
 			       SEN_POWER_NSA,  \
-			       SEN_POWER_SRC,  \
-		       	       SEN_POWER_URE,  \
-			       SEN_POWER_SHT,  \
-			       SEN_POWER_ERE), \
-		ANALOG_SENSOR (SEN_POWER_ISI,  \
-			       SEN_POWER_NSA,  \
 			       SEN_EPOWER_PIN, \
 		       	       SEN_POWER_URE,  \
 			       SEN_POWER_SHT,  \
 			       SEN_EPOWER_ERE),\
+		INTERNAL_TEMPERATURE_SENSOR,   \
+		INTERNAL_VOLTAGE_SENSOR,       \
 		DIGITAL_SENSOR (0, NULL, cma_3000_read) \
 }
 
-// Voltage internal-internal
 // Voltage external
+// Temperature				<-> hidden
+// Voltage internal-internal
+// -------------------------
 // Motion
+
+#define	N_HIDDEN_SENSORS	3
 
 #define	sensor_adc_prelude(p) \
 			do { \

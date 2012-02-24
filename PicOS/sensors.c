@@ -59,7 +59,7 @@ word read_sensor (word st, sint sn, address val) {
 
 	const d_sensdesc_t *s;
 
-	if ((sn += N_HIDDEN_SENSORS) < 0 || sn >= N_SENSORS) {
+	if ((word)(sn += N_HIDDEN_SENSORS) >= N_SENSORS) {
 		// Commissioned by Wlodek
 		(*val)++;
 		return ERROR;

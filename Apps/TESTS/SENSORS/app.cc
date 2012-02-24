@@ -55,7 +55,7 @@ fsm outval {
 fsm root {
 
 	char *ibuf;
-	word v, x;
+	sint v; word x;
 
   state RS_INIT:
 
@@ -118,7 +118,7 @@ fsm root {
   state RS_GSEN:
 
 	v = 0;
-	scan (ibuf + 1, "%u", &v);
+	scan (ibuf + 1, "%d", &v);
 	bzero (sen, sizeof (sen));
 
   state RS_GSEN_READ:
@@ -131,7 +131,7 @@ fsm root {
 
 	v = 0;
 	x = 1024;
-	scan (ibuf + 1, "%u %u", &v, &x);
+	scan (ibuf + 1, "%d %u", &v, &x);
 	bzero (sen, sizeof (sen));
 
   state RS_CSEN_READ:
@@ -167,9 +167,9 @@ fsm root {
 
   state RS_CMO:
 
-	v = 0;
-	scan (ibuf + 1, "%u", &v);
-	cma_3000_on (v);
+	x = 0;
+	scan (ibuf + 1, "%u", &x);
+	cma_3000_on (x);
 	proceed RS_RCMD;
 
   state RS_CMF:

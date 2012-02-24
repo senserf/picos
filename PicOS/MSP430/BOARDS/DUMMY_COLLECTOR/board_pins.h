@@ -39,6 +39,8 @@
 #define	SENSOR_ANALOG		// To make sure analog sensors are processed
 
 #define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,  \
+		INTERNAL_VOLTAGE_SENSOR,      \
 		ANALOG_SENSOR (   SEN_x_ISI, \
 				  SEN_x_NSA,  \
 				  SEN_0_PIN,  \
@@ -70,3 +72,5 @@
 				  SEN_x_SHT,  \
 				  SEN_x_ERE), \
 	}
+
+#define N_HIDDEN_SENSORS	2
