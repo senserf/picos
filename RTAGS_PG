@@ -1807,3 +1807,18 @@ PG120224A:
 	praxes may be out of sync with their boards.
 
 	Fixed EEPROM pins on CC430W.
+
+PG120225A:
+
+	Both mkmk and picomp have been fixed to:
+
+	1. accept defined in #if's, e.g.,
+
+		#if defined A || !defined(B)
+
+	2. handle #elif's, e.g.,
+
+		#if ...
+		#elif ...
+		#elif ...
+		#else

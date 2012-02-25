@@ -4305,6 +4305,26 @@ proc sexpr { str } {
 		return -1
 	}
 
+	# eliminate "defined's"
+	while {
+	  [regexp -nocase \
+	   "defined\[ \t\]+(\[a-z_.\]\[a-z_0-9.\]*)" $str mat sym] ||
+	  [regexp -nocase \
+	   "defined\[ \t\]*\\(\[ \t\]*(\[a-z_.\]\[a-z_0-9.\]*)\[ \t\]*\\)" \
+	    $str mat sym] } {
+
+		set frm [string first $mat $str]
+		set len [string length $mat]
+		set nex [string range $str 0 [expr $frm - 1]]
+		if [info exists Symbols($sym)] {
+			append nex 1
+		} else {
+			append nex 0
+		}
+		append nex [string range $str [expr $frm + $len] end]
+		set str $nex
+	}
+
 	regsub -all "\[ \t\]+" $str "" str
 
 	set turn 0
@@ -4544,6 +4564,41 @@ proc scanfile { fname inner { prelude "" } } {
 			set val [sexpr $ar]
 			if { $val < 0 } {
 				swarn "cannot evaluate #if condition,\
+						assuming zero"
+				set val 0
+			}
+			if $val {
+				set ifstack($ifnest) 1
+				append res [newlines $lc]
+			} else {
+				set ifstack($ifnest) 2
+			}
+			continue
+		}
+
+		if { $cm == "elif" } {
+			if { $ifnest < 1 } {
+			    swarn "extraneous #elif, ignored"
+			    continue
+			}
+			if { $ifstack($ifnest) == 1 } {
+				# following a successful #if, skip until #endif
+				set ifstack($ifnest) 3
+				continue
+			}
+			if { $ifstack($ifnest) == 3 } {
+				continue
+			}
+			if { $ifstack($ifnest) == 0 } {
+				# impossible
+				swarn "stray #elif"
+				continue
+			}
+
+			# 2, i.e., the if was skipped
+			set val [sexpr $ar]
+			if { $val < 0 } {
+				swarn "cannot evaluate #elif condition,\
 						assuming zero"
 				set val 0
 			}
