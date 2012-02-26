@@ -50,7 +50,11 @@ Drain:
 		}
 
 		if ((xbf = tcvphy_get (physid, &buflen)) != NULL) {
-			assert (buflen >= 4 && (buflen & 1) == 0,
+			assert (buflen <= mxpl,
+				"Xmitter: packet too long, %1d > %1d",
+					buflen, mxpl);
+			assert (buflen >= MINIMUM_PACKET_LENGTH &&
+				(buflen & 1) == 0,
 				"Xmitter: illegal packet length %1d", buflen);
 			if (sid != 0xffff)
 				// otherwise, honor the packet's statid
@@ -240,8 +244,8 @@ Receiver::perform {
 	assert (pktlen >= MINIMUM_PACKET_LENGTH,
 		"Receiver: packet too short: %d < %d", pktlen,
 			MINIMUM_PACKET_LENGTH);
-	assert (pktlen <= RBS, "Receiver: packet too long: %d > %d",
-		pktlen, RBS);
+	assert (pktlen <= mxpl, "Receiver: packet too long: %d > %d",
+		pktlen, mxpl);
 
 	if (sid != 0 && sid != 0xffff) {
 		// Admit only packets with agreeable statid
@@ -327,6 +331,7 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 
 	/* Register the phy */
 	txe = tcvphy_reg (phy, rfm_option, INFO_PHYS_DM2200);
+	mxpl = rbs;
 
 	/* Both parts are initially active */
 	rxoff = txoff = 1;
@@ -335,7 +340,7 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 	LEDI (1, 0);
 	LEDI (2, 0);
 
-	if (runthread (Xmitter) == 0 || runstrand (Receiver, rbs) == 0)
+	if (runthread (Xmitter) == 0 || runthread (Receiver) == 0)
 		syserror (ERESOURCE, "phys_rf");
 }
 

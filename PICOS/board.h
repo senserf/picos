@@ -180,6 +180,8 @@ class rfm_intd_t {
 
 	word		statid;
 
+	int		MaxPL;
+
 	Transceiver	*RFInterface;
 	PKT		OBuffer;
 	Boolean		Receiving, Xmitting, TXOFF, RXOFF;

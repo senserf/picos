@@ -753,3 +753,9 @@ PG120223A:	PICOS >= PG120223A
     Some minor cosmetics in udaemon (on top of the changes required to
     accommodate the negatively numbered sensors/actuators, that is).
     Version number bumped to 0.94.
+
+PG120226A:
+
+    The transmitter (of the RF module model) now checks the transmitted packet
+    length against the maximum packet size declared for the module. Previously
+    the length was only checked at the reception which was confusing.

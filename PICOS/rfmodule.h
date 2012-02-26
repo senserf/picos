@@ -4,6 +4,7 @@
 #include "board.h"
 
 #define	rfi	(rf->RFInterface)
+#define	mxpl	(rf->MaxPL)
 #define	xbf	(rf->__pi_x_buffer)
 #define	rbf	(rf->__pi_r_buffer)
 #define	obf	(rf->OBuffer)
@@ -28,7 +29,6 @@
 
 process Receiver : _PP_ (PicOSNode) {
 
-	int RBS;			// Receive buffer size
 	rfm_intd_t *rf;
 
 	states { RCV_GETIT, RCV_START, RCV_RECEIVE, RCV_GOTIT };
@@ -37,8 +37,7 @@ process Receiver : _PP_ (PicOSNode) {
 
 	perform;
 
-	void setup (int s) {
-		RBS = s;
+	void setup () {
 		rf = TheNode->RFInt;
 	};
 };
