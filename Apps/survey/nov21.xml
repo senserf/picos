@@ -97,7 +97,7 @@
 	</node>
         <node number="3" type="peg">
             <location>1.0 15.0</location>
-	    <preinit tag="HID" type="lword">0xBACA0106</preinit>
+	    <preinit tag="HID" type="lword">0xBACA010F</preinit>
 	</node>
 	<node number="4" type="peg">
 	    <location>3.0 4.0</location>

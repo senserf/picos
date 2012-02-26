@@ -30,7 +30,7 @@ static int tcv_out_tarp (address, int);
 static int tcv_xmt_tarp (address, int);
 
 #if TARP_RTR
-static int tcv_tmt_tarp (address);
+static int tcv_tmt_tarp (address, int);
 #else
 #define tcv_tmt_tarp NULL
 #endif
@@ -140,7 +140,7 @@ static int tcv_xmt_tarp (address p, int s) {
 }
 
 #if TARP_RTR
-static int tcv_tmt_tarp (address p) {
+static int tcv_tmt_tarp (address p, int i) {
 	// tarp rtr monitoring is in tarp_xmt and tarp_rx, as they deal
 	// with tarp structs. Here, just re-xmt as urgent.
 	return TCV_DSP_XMTU;

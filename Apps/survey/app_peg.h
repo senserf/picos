@@ -12,9 +12,10 @@
 #include "sysio.h"
 #include "msg_tarp.h"
 
-// all out, uart ON in human i/f, no master change, no autoack (unused)
+// no all out, uart ON in human i/f, no master change, no autoack (unused)
 // (no all out would be 0x0C)
-#define DEF_APP_FLAGS 	0x2C
+// (all out would be 0x2C)
+#define DEF_APP_FLAGS 	0x0C
 
 // level 2, rec 3, slack 0, fwd off
 #define DEF_TARP	0xB0

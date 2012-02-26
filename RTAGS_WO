@@ -109,3 +109,16 @@ WO111217A:
   odd nodes respond 'no', even ones 'yes', with auto-generated 'ack-alarms'.
   For demos only, in hybrid scenarios with VUEE and real hardware.
 
+WO120226A:
+  Added PROPRIETARY/vsen_demo as a (failed) attempt to unify different
+  sensors. Some good was produced, see Pawel's commits. vsen will go to
+  NL for lightly defined demos.
+
+  survey: set defaults to 'no all out', mainly for UfO.
+
+  Created PROPRIETARY/inProgress, for stuff with such status - I'm tired
+  of maintaining local git branches with half-cooked and demo stuff.
+  I put Ariadne, ams_demo and ert there.
+
+  tarp: a plugin signature adjustment.
+
