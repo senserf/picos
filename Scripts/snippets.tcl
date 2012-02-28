@@ -52,6 +52,12 @@ proc snip_cnvrt { v s c } {
 					continue
 				}
 				# scan the collector range
+				set rl [lindex $a 1]
+				if { $rl == "" } {
+					# all
+					set fn 1
+					break
+				}
 				foreach r [lindex $a 1] {
 					set x [lindex $r 0]
 					if { $c == $x } {
@@ -85,21 +91,6 @@ proc snip_cnvrt { v s c } {
 		return [format %1.2f $r]
 	}
 	return ""
-}
-
-proc vnum { n min max } {
-#
-# Verify integer number
-#
-	if [catch { expr int($n) } n] {
-		return ""
-	}
-
-	if { $n < $min || $n >= $max } {
-		return ""
-	}
-
-	return $n
 }
 
 proc snip_icache { } {
@@ -149,7 +140,7 @@ proc ucs { cl } {
 			return ""
 		}
 
-		set a [vnum $a 1 65536]
+		set a [vnum $a 0 65536]
 		if { $a == "" } {
 			return ""
 		}
@@ -158,7 +149,7 @@ proc ucs { cl } {
 			# single value
 			lappend v $a
 		} else {
-			set b [vnum $b 1 65536]
+			set b [vnum $b 0 65536]
 			if { $b == "" || $b < $a } {
 				return ""
 			}
@@ -298,7 +289,7 @@ proc snip_set { nm scr asl } {
 		set cli [ucs [lindex $as 1]]
 		incr i
 		if { $cli == "" } {
-			return "node set number $i is broken"
+			return "node set number $i is invalid"
 		}
 		lappend ssl [list $asg $cli]
 	}
@@ -494,4 +485,3 @@ namespace export snip_*
 }
 
 namespace import ::SNIPPETS::*
-

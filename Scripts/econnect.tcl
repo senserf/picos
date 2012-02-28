@@ -299,6 +299,9 @@ if { $ST(SYS) == "L" } {
 	set PM(MPE)	32
 }
 
+# promiscuous connections
+set PM(PMS)	1
+
 # data directory path (relative to HOME/APPDATA/whatever)
 set PM(HOM)	"econnect"
 
@@ -482,6 +485,12 @@ proc snip_cnvrt { v s c } {
 					continue
 				}
 				# scan the collector range
+				set rl [lindex $a 1]
+				if { $rl == "" } {
+					# all
+					set fn 1
+					break
+				}
 				foreach r [lindex $a 1] {
 					set x [lindex $r 0]
 					if { $c == $x } {
@@ -564,7 +573,7 @@ proc ucs { cl } {
 			return ""
 		}
 
-		set a [vnum $a 1 65536]
+		set a [vnum $a 0 65536]
 		if { $a == "" } {
 			return ""
 		}
@@ -573,7 +582,7 @@ proc ucs { cl } {
 			# single value
 			lappend v $a
 		} else {
-			set b [vnum $b 1 65536]
+			set b [vnum $b 0 65536]
 			if { $b == "" || $b < $a } {
 				return ""
 			}
@@ -713,7 +722,7 @@ proc snip_set { nm scr asl } {
 		set cli [ucs [lindex $as 1]]
 		incr i
 		if { $cli == "" } {
-			return "node set number $i is broken"
+			return "node set number $i is invalid"
 		}
 		lappend ssl [list $asg $cli]
 	}
@@ -1412,9 +1421,9 @@ proc try_port { prt nt } {
 
 	regsub "\[.\]\[^.\]*$" $PM(VER) "" vv
 
-	if { $ver != $vv } {
-		if ![confirm "The node ($tp) responding on port $prt runs\
-			software version $ver, which is incompatible with\
+	if { $ver != $vv && !$PM(PMS) } {
+		if ![confirm "The node ($tp) responding on port [prtname $prt]\
+			runs software version $ver, which is incompatible with\
 			$vv required by this program. If you say YES,\
 			I will try to connect to that node at the risk of\
 			problems."] {
@@ -1834,7 +1843,7 @@ proc cus_status_monitor { prt line } {
 			# check for battery status
 			if [regexp " inp (\[0-9\]+)" $line j bs] {
 				# this is sensor 0
-				set cs [snip_cnvrt $bs 0 $agg]
+				set cs [snip_cnvrt $bs 1 0]
 				if { $cs != "" } {
 					set bs $cs
 				}
@@ -3228,14 +3237,8 @@ proc show_window { prt { redo 0 } } {
 		set col 2
 		for { set i 0 } { $i < $mns } { incr i } {
 
-			label $l.sh$i -text "S$i/raw" -anchor e
+			label $l.sh$i -text "S$i" -anchor e
 			grid $l.sh$i -column $col -row 0 -sticky e -padx 4 \
-				-pady 4
-
-			incr col
-
-			label $l.zh$i -text "S$i/cnv" -anchor e
-			grid $l.zh$i -column $col -row 0 -sticky e -padx 4 \
 				-pady 4
 
 			incr col
@@ -3262,23 +3265,10 @@ proc show_window { prt { redo 0 } } {
 				if { $vr == "" } {
 					break
 				}
-				set vc [snip_cnvrt $vr $sen $cn]
-				if { $vc == "" } {
-					# no converter means value irrelevant
-					set vc "-"
-					set vr "-"
-				}
 				set s $l.vr${row}_$sen 
 				label $s -text $vr -anchor e -width 5
 				grid $s -column $col -row $row -sticky e \
 					-padx 4 -pady 0
-				incr col
-
-				set s $l.vc${row}_$sen 
-				label $s -text $vc -anchor e -width 8
-				grid $s -column $col -row $row -sticky e \
-					-padx 4 -pady 0
-
 				incr col
 				incr sen
 			}
@@ -3304,7 +3294,7 @@ proc show_window { prt { redo 0 } } {
 
 proc show_upd { prt col ts rvals } {
 #
-# Update show values
+# Update show values: port, collector, senset_index, timestamp, raw_sensors
 #
 	global WN
 
@@ -3360,24 +3350,14 @@ proc show_upd { prt col ts rvals } {
 	incr ix
 
 	set l $w.l
-
 	$l.t$ix configure -text $ts
-
 	set sen 0
+
 	foreach v $rvals {
-
-		set vc [snip_cnvrt $v $sen $col]
-		if { $vc == "" } {
-			set vc "-"
-			set v "-"
-		}
-
 		if [catch { $l.vr${ix}_$sen configure -text $v } ] {
 			# in case we somehow have gotten more values
 			break
 		}
-		$l.vc${ix}_$sen configure -text $vc
-
 		incr sen
 	}
 }
@@ -3584,7 +3564,32 @@ proc show_sensors { prt line } {
 		lappend rv $v
 	}
 
-	show_upd $prt $cn $ts $rv
+	if { [llength $rv] < 2 } {
+		# no sensors, at least two entries required
+		return
+	}
+
+	# port, collector, senset_index, timestamp, raw_sensors
+	set si [lindex $rv end]
+	set rv [lreplace $rv end end]
+
+	# converted values only
+	set tv ""
+	set ix 0
+	foreach v $rv {
+		set vc [snip_cnvrt $v $ix $si]
+		if { $vc != "" } {
+			lappend tv $vc
+		}
+		incr ix
+	}
+
+	if { $tv == "" } {
+		# no converted sensors
+		return
+	}
+
+	show_upd $prt $cn $ts $tv
 
 	if ![info exists WN(SF,$prt)] {
 		return
@@ -3592,16 +3597,8 @@ proc show_sensors { prt line } {
 
 	# write to file
 	set line "$cn, $ts"
-	set ix 0
-	foreach v $rv {
-		set vc [snip_cnvrt $v $ix $cn]
-		if { $vc == "" } {
-			# for file, we store zeros for unmapped values
-			set vc 0
-			set v 0
-		}
-		append line ", $v, $vc"
-		incr ix
+	foreach v $tv {
+		append line ", $v"
 	}
 
 	catch { puts $WN(SF,$prt) $line }
@@ -3809,12 +3806,12 @@ proc ewhdr { prt em { len 0 } } {
 			if $coll {
 				# collector
 				set ln "    Status       Slot       Date"
-				append ln "     Time   Raw Converted ..."
+				append ln "     Time     Value ..."
 			} else {
 				# aggregator
 				set ln " Coll  Coll Slot   Agg Slot   Col Date"
-				append ln " Col Time   Agg Date Agg Time   Raw "
-				append ln "Converted ..."
+				append ln " Col Time   Agg Date Agg Time "
+				append ln "    Value ..."
 			}
 			if $len {
 				return [expr [string length $ln] + 3 * 16 - 4]
@@ -3822,11 +3819,9 @@ proc ewhdr { prt em { len 0 } } {
 		} else {
 			# by sensor
 			if $coll {
-				set ln \
-				      "Sen              TStamp   Raw Converted"
+				set ln "Sen              TStamp     Value"
 			} else {
-				set ln \
-				" Coll Sen              TStamp   Raw Converted"
+				set ln " Coll Sen              TStamp     Value"
 			}
 			if $len {
 				return [string length $ln]
@@ -3844,19 +3839,19 @@ proc ewhdr { prt em { len 0 } } {
 			# by collector
 			if $coll {
 				# collector
-				set ln "Status, Slot, Time, Raw, Converted, ..."
+				set ln "Status, Slot, Time, Value, ..."
 			} else {
 				# aggregator
 				set ln "Collector, CSlot, ASlot, CTime, ATime, "
-				append ln "Raw, Converted, ..."
+				append ln "Value, ..."
 			}
 		} else {
 			# by sensor
 			if $coll {
-				set ln "Sensor, TStamp, Raw, Converted"
+				set ln "Sensor, TStamp, Value"
 			} else {
 				set ln \
-				"Collector, Sensor, TStamp, Raw, Converted"
+				"Collector, Sensor, TStamp, Value"
 			}
 			if $len {
 				return [string length $ln]
@@ -3952,22 +3947,46 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 
 	set cts [t_parse cts]
 
+	# parse the list of values
+	set rvls ""
+	while 1 {
+		set n [n_parse vls 1]
+		if { $n == "" } {
+			break
+		}
+		lappend rvls $n
+	}
+
+	if { [llength $rvls] < 2 } {
+		# no sensors
+		return
+	}
+
+	set si [lindex $rvls end]
+	set rvls [lreplace $rvls end end]
+
+	# convert
+	set cvls ""
+	set inx 0
+	foreach v $rvls {
+		set vc [snip_cnvrt $v $inx $si]
+		if { $vc != "" } {
+			lappend cvls $vc
+		}
+		incr inx
+	}
+
+	if { $cvls == "" } {
+		# no converted values
+		return
+	}
+
 	if { $mode > 1 } {
 		# by sensor
 		set inx 0
 		if { $fd == "" } {
 			# writing to the screen
-			while 1 {
-				set n [n_parse vls 1]
-				if { $n == "" } {
-					break
-				}
-				set c [snip_cnvrt $n $inx $cn]
-				if { $c == "" } {
-					# ignore unconverted values
-					incr inx
-					continue
-				}
+			foreach c $cvls {
 				if { $ats != "" } {
 					# this is an aggregator
 					set ln "[trims $col 5] "
@@ -3976,7 +3995,8 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 				}
 				# sensor number + time stamp
 				append ln "[trims $inx 3] $cts"
-				append ln "[trims $n 6][trims $c 10]"
+				append ln "[trims $c 10]"
+###here: length reduced by 6 characters
 				incr inx
 				set w $WN(w,$prt,E)
 				add_text $w.t $ln
@@ -3986,18 +4006,7 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 		}
 
 		# writing to file
-
-		while 1 {
-			set n [n_parse vls 1]
-			if { $n == "" } {
-				break
-			}
-			set c [snip_cnvrt $n $inx $cn]
-			if { $c == "" } {
-				# ignore unconverted values
-				incr inx
-				continue
-			}
+		foreach c $cvls {
 			if { $ats != "" } {
 				# this is an aggregator
 				set ln "$col, "
@@ -4005,7 +4014,7 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 				set ln ""
 			}
 			# sensor number + time stamp
-			append ln "$inx, $cts, $n, $c"
+			append ln "$inx, $cts, $c"
 			catch { puts $fd $ln }
 			incr inx
 		}
@@ -4013,26 +4022,6 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 			eprogress $prt $ds
 		}
 		return
-	}
-
-	# prepare the list of converted values
-	set cvs ""
-	set rvs ""
-	set inx 0
-
-	while 1 {
-		set n [n_parse vls 1]
-		if { $n == "" } {
-			break
-		}
-		set c [snip_cnvrt $n $inx $cn]
-		if { $c == "" } {
-			set c 0
-			set n 0
-		}
-		lappend rvs $n
-		lappend cvs $c
-		incr inx
 	}
 
 	if { $fd == "" } {
@@ -4051,9 +4040,9 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 			append ln " $ats"
 		}
 		# the values
-		foreach ra $rvs co $cvs {
-			append ln [trims $ra 6]
-			append ln [trims $co 10]
+		foreach c $cvls {
+			append ln [trims $c 10]
+###here: removed 6 characters
 		}
 			
 		set w $WN(w,$prt,E)
@@ -4070,8 +4059,8 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 		set ln "$col, $csl, $asl, $cts, $ats"
 	}
 	# the values
-	foreach ra $rvs co $cvs {
-		append ln ", $ra, $co"
+	foreach c $cvls {
+		append ln ", $c"
 	}
 		
 	catch { puts $fd $ln }
@@ -5867,18 +5856,17 @@ bind . <Destroy> { terminate }
 ## and then insert here the contents of the resultant file
 
 set_home_dir {
- 
-{AggBatSen {set value [expr $value * (11.0 * 1.5 / 4095.0)]} {0 10-20}} {SHT_Temp {set value [expr -39.62 + 0.01 * $value]} {1 100-399} {4 400-499}} {PAR_QSO {set value [expr $value * 1.47]} {0 200-499} {1 400-499} {2 400-499} {3 400-499}} {SHT_Humid {set value [expr -4.0 + 0.0405 * $value - 0.0000028 * $value * $value]
+
+{Light {set value [expr $value * 0.5]} {2 3}} {IR_Motion {set value [expr $value]} {3 3}} {SHT_Temp {set value [expr -39.62 + 0.01 * $value]} {2 {1 2 5}} {4 5} {6 5}} {Chip_Temp {set value [expr $value * 0.1032 - 277.75]} {0 all}} {SHT_Humid {set value [expr -4.0 + 0.0405 * $value - 0.0000028 * $value * $value]
 if { $value < 0.0 } {
 	set value 0.0
 } elseif { $value > 100.0 } {
 	set value 100.0
-}} {2 100-399} {5 400-499}} {PhotoDiode {set value [expr $value * 0.5]} {3 600-700}} {ECHO_5 {set value [expr $value * 0.09246 - 40.1]
-if { $value < 0.0 } {
-	set value 0.0
-} elseif { $value > 100.0 } {
-	set value 100.0
-}} {3 300-399}}
+}} {3 {1 2 5}} {5 5} {7 5}} {Chronos_Temp {if [expr $value & 0x2000] {
+	set value [expr (~$value & 0x1fff) + 1]
+	set value [expr -$value]
+}
+set value [expr $value / 20.0]} {3 4}} {Chronos_Acc {set value [expr $value]} {2 4}} {Battery {set value [expr $value * 0.001221]} {1 all}}
 
 }
 

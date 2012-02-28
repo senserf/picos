@@ -1822,3 +1822,30 @@ PG120225A:
 		#elif ...
 		#elif ...
 		#else
+
+PG120228A:
+
+	The first cut of econnect.tcl (in Scripts) compatible with Wlodek's
+	vsen_demo. The conversion snippets seem to be OK for Wlodek's SENSET,
+	as per this list:
+
+	#define SENSET_GENERIC	0
+	#define SENSET_ECO_12	1
+	#define SENSET_ECO_45	2
+	#define SENSET_ILS	3
+	#define SENSET_CHRO	4
+	#define SENSET_10SHT	5
+
+	GENERIC		IT, VOL
+	ECO_12		IT, VOL, SHT_T, SHT_H
+	ECO_45		IT, VOL, SHT_T, SHT_H
+	ILS		IT, VOL, LIGHT, IR
+	CHRO		IT, VOL, ACC_CMA3000, TEMP_SCP1000
+	10SHT		IT, VOL, (SHT_T, SHT_H) * 3
+
+	Modified the snippets package in Scripts. The new version should be
+	compatible with the old snippets data format. The only significant
+	difference is that the range of what was previously considered the
+	collector number now starts at zero, with the number interpreted
+	as the SENSET index.
+
