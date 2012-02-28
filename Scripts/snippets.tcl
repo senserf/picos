@@ -35,7 +35,7 @@ proc snip_getparam { pm } {
 	}
 }
 
-proc snip_cnvrt { v s c } {
+proc snip_cnvrt { v s c { units "" } } {
 #
 # Convert a raw sensor value
 #
@@ -46,7 +46,7 @@ proc snip_cnvrt { v s c } {
 		# build the cache entry
 		set fn 0
 		foreach sn [array names SN] {
-			foreach a [lrange $SN($sn) 1 end] {
+			foreach a [lrange $SN($sn) 2 end] {
 				if { [lindex $a 0] != $s } {
 					# not this sensor
 					continue
@@ -79,13 +79,19 @@ proc snip_cnvrt { v s c } {
 			}
 		}
 		if $fn {
-			set SC($c,$s) [lindex $SN($sn) 0]
+			# the snippet and units
+			set SC($c,$s) [lrange $SN($sn) 0 1]
 		} else {
 			set SC($c,$s) ""
 		}
 	}
 
-	set snip $SC($c,$s)
+	set snip [lindex $SC($c,$s) 0]
+
+	if { $units != "" } {
+		upvar $units un
+		set un [lindex $SC($c,$s) 1]
+	}
 
 	if { $snip != "" && ![catch { snip_eval $snip $v } r] } {
 		return [format %1.2f $r]
@@ -230,7 +236,7 @@ proc snip_assignments { nm } {
 		return ""
 	}
 
-	set asl [lrange $SN($nm) 1 end]
+	set asl [lrange $SN($nm) 2 end]
 
 	set res ""
 
@@ -239,6 +245,17 @@ proc snip_assignments { nm } {
 	}
 
 	return $res
+}
+
+proc snip_units { nm } {
+
+	variable SN
+
+	if ![info exists SN($nm)] {
+		return ""
+	}
+
+	return [lindex $SN($nm) 1]
 }
 
 proc snip_script { nm } {
@@ -268,7 +285,7 @@ proc snip_delete { nm } {
 	}
 }
 
-proc snip_set { nm scr asl } {
+proc snip_set { nm scr units asl } {
 
 	variable SN
 
@@ -294,7 +311,7 @@ proc snip_set { nm scr asl } {
 		lappend ssl [list $asg $cli]
 	}
 
-	set SN($nm) [concat [list $scr] $ssl]
+	set SN($nm) [concat [list $scr] [list $units] $ssl]
 
 	return ""
 }
@@ -376,6 +393,9 @@ proc snip_parse { cf } {
 		# the code
 		set ex [lindex $snip 1]
 
+		# the units
+		set un [lindex $snip 2]
+
 		if [snip_vsn $nm] {
 			return "illegal name '$nm' of snippet number $ix,\
 				must be no more than $snl alphanumeric\
@@ -387,7 +407,7 @@ proc snip_parse { cf } {
 		}
 
 		# this is the list of up to PM(NAS) assignments
-		set asgs [lrange $snip 2 end]
+		set asgs [lrange $snip 3 end]
 
 		if { [llength $asgs] > $nas } {
 			return "too many (> $nas) assignments in snippet\
@@ -402,6 +422,7 @@ proc snip_parse { cf } {
 		# bunch of lists
 		
 		set SN($nm) [list $ex]
+		lappend SN($nm) $un
 		set spn [snip_getparam SPN]
 
 		set iy 0
@@ -461,10 +482,12 @@ proc snip_encode { } {
 		set curr ""
 
 		set ex [lindex $SN($nm) 0]
-		set al [lrange $SN($nm) 1 end]
+		set un [lindex $SN($nm) 1]
+		set al [lrange $SN($nm) 2 end]
 
 		lappend curr $nm
 		lappend curr $ex
+		lappend curr $un
 
 		foreach a $al {
 

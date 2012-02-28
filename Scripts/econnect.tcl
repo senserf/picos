@@ -4,7 +4,7 @@ exec wish "$0" "$@"
 
 ##########################################################
 #                                                        #
-# ECONNECT version 1.3.A                                 #
+# ECONNECT version 1.3.C                                 #
 #                                                        #
 # Copyright (C) Olsonet Communications Corporation, 2012 #
 #                                                        #
@@ -287,7 +287,7 @@ namespace import ::VUART::vuart_conn
 ### Parameters ################################################################
 
 # version number
-set PM(VER)	1.3.A
+set PM(VER)	1.3.C
 
 # maximum number of ports to try
 if { $ST(SYS) == "L" } {
@@ -468,7 +468,7 @@ proc snip_getparam { pm } {
 	}
 }
 
-proc snip_cnvrt { v s c } {
+proc snip_cnvrt { v s c { units "" } { name "" } } {
 #
 # Convert a raw sensor value
 #
@@ -479,7 +479,7 @@ proc snip_cnvrt { v s c } {
 		# build the cache entry
 		set fn 0
 		foreach sn [array names SN] {
-			foreach a [lrange $SN($sn) 1 end] {
+			foreach a [lrange $SN($sn) 2 end] {
 				if { [lindex $a 0] != $s } {
 					# not this sensor
 					continue
@@ -512,13 +512,25 @@ proc snip_cnvrt { v s c } {
 			}
 		}
 		if $fn {
-			set SC($c,$s) [lindex $SN($sn) 0]
+			# the snippet and units
+			set SC($c,$s) [lrange $SN($sn) 0 1]
+			lappend SC($c,$s) $sn
 		} else {
 			set SC($c,$s) ""
 		}
 	}
 
-	set snip $SC($c,$s)
+	set snip [lindex $SC($c,$s) 0]
+
+	if { $units != "" } {
+		upvar $units un
+		set un [lindex $SC($c,$s) 1]
+	}
+
+	if { $name != "" } {
+		upvar $name na
+		set na [lindex $SC($c,$s) 2]
+	}
 
 	if { $snip != "" && ![catch { snip_eval $snip $v } r] } {
 		return [format %1.2f $r]
@@ -600,6 +612,21 @@ proc ucs { cl } {
 	}
 }
 
+proc vnum { n { min "" } { max "" } } {
+#
+# Verify integer number
+#
+	if [catch { expr int($n) } n] {
+		return ""
+	}
+
+	if { ($min != "" && $n < $min) || ($max != "" && $n >= $max) } {
+		return ""
+	}
+
+	return $n
+}
+
 proc pcs { lv } {
 #
 # Convert collector set from list to text
@@ -663,7 +690,7 @@ proc snip_assignments { nm } {
 		return ""
 	}
 
-	set asl [lrange $SN($nm) 1 end]
+	set asl [lrange $SN($nm) 2 end]
 
 	set res ""
 
@@ -672,6 +699,17 @@ proc snip_assignments { nm } {
 	}
 
 	return $res
+}
+
+proc snip_units { nm } {
+
+	variable SN
+
+	if ![info exists SN($nm)] {
+		return ""
+	}
+
+	return [lindex $SN($nm) 1]
 }
 
 proc snip_script { nm } {
@@ -701,7 +739,7 @@ proc snip_delete { nm } {
 	}
 }
 
-proc snip_set { nm scr asl } {
+proc snip_set { nm scr units asl } {
 
 	variable SN
 
@@ -727,7 +765,7 @@ proc snip_set { nm scr asl } {
 		lappend ssl [list $asg $cli]
 	}
 
-	set SN($nm) [concat [list $scr] $ssl]
+	set SN($nm) [concat [list $scr] [list $units] $ssl]
 
 	return ""
 }
@@ -809,6 +847,9 @@ proc snip_parse { cf } {
 		# the code
 		set ex [lindex $snip 1]
 
+		# the units
+		set un [lindex $snip 2]
+
 		if [snip_vsn $nm] {
 			return "illegal name '$nm' of snippet number $ix,\
 				must be no more than $snl alphanumeric\
@@ -820,7 +861,7 @@ proc snip_parse { cf } {
 		}
 
 		# this is the list of up to PM(NAS) assignments
-		set asgs [lrange $snip 2 end]
+		set asgs [lrange $snip 3 end]
 
 		if { [llength $asgs] > $nas } {
 			return "too many (> $nas) assignments in snippet\
@@ -835,6 +876,7 @@ proc snip_parse { cf } {
 		# bunch of lists
 		
 		set SN($nm) [list $ex]
+		lappend SN($nm) $un
 		set spn [snip_getparam SPN]
 
 		set iy 0
@@ -894,10 +936,12 @@ proc snip_encode { } {
 		set curr ""
 
 		set ex [lindex $SN($nm) 0]
-		set al [lrange $SN($nm) 1 end]
+		set un [lindex $SN($nm) 1]
+		set al [lrange $SN($nm) 2 end]
 
 		lappend curr $nm
 		lappend curr $ex
+		lappend curr $un
 
 		foreach a $al {
 
@@ -2483,16 +2527,16 @@ proc fix_intv { intv } {
 		return -1
 	}
 
-	set iv [vnum $intv 60 32768]
+	set iv [vnum $intv 30 32768]
 
 	if { $iv == "" } {
 		alert "Sampling interval is invalid;\
-			must be a positive integer >= 60!"
+			must be a positive integer >= 30!"
 		return -1
 	}
 
-	if { $iv < 60 } {
-		set iv 60
+	if { $iv < 30 } {
+		set iv 30
 	}
 
 	set day [expr 24 * 3600]
@@ -2547,7 +2591,7 @@ proc do_start { prt } {
 	entry $w.o.sie -width 5 -textvariable MV(SN)
 	grid $w.o.sie -column 1 -row 0 -sticky w -padx 4
 	# the default
-	set MV(SN) 60
+	set MV(SN) 30
 
 	label $w.o.pnl -text "Plot number:"
 	grid $w.o.pnl -column 0 -row 1 -sticky w -padx 4
@@ -2918,7 +2962,7 @@ proc do_virgin { prt } {
 		entry $w.o.sie -width 5 -textvariable MV(SN)
 		grid $w.o.sie -column 1 -row 0 -sticky w -padx 4
 		# the default
-		set MV(SN) 60
+		set MV(SN) 30
 
 		if { $nt == "collector" } {
 			# store all samples?
@@ -2973,7 +3017,7 @@ proc do_virgin { prt } {
 		dmw $prt
 	} else {
 		# playing it safe
-		set intv 60
+		set intv 30
 	}
 
 	set msgw [mk_mess_window "cancel_node_command $prt" 35 1 ""]
@@ -3016,7 +3060,7 @@ proc virgin_aggregator { prt msgw intv } {
 	}
 
 	if { $intv == 0 } {
-		set intv 60
+		set intv 30
 	}
 
 	if [coutm $prt $msgw "Pre-setting the sampling interval ..."] {
@@ -3083,7 +3127,7 @@ proc virgin_custodian { prt msgw intv cus } {
 	}
 
 	if { $intv == 0 } {
-		set intv 60
+		set intv 30
 	}
 
 	if [coutm $prt $msgw "Pre-setting the sampling interval ..."] {
@@ -3140,7 +3184,7 @@ proc virgin_collector { prt msgw intv sas } {
 
 	if { $intv == 0 } {
 		# the default
-		set intv 60
+		set intv 30
 	}
 
 	if [coutm $prt $msgw "Pre-setting parameters: $intv / $sas ..."] {
@@ -3266,7 +3310,7 @@ proc show_window { prt { redo 0 } } {
 					break
 				}
 				set s $l.vr${row}_$sen 
-				label $s -text $vr -anchor e -width 5
+				label $s -text $vr -anchor e
 				grid $s -column $col -row $row -sticky e \
 					-padx 4 -pady 0
 				incr col
@@ -3575,11 +3619,13 @@ proc show_sensors { prt line } {
 
 	# converted values only
 	set tv ""
+	set tu ""
 	set ix 0
 	foreach v $rv {
-		set vc [snip_cnvrt $v $ix $si]
+		set vc [snip_cnvrt $v $ix $si un]
 		if { $vc != "" } {
 			lappend tv $vc
+			lappend tu $vc$un
 		}
 		incr ix
 	}
@@ -3589,7 +3635,7 @@ proc show_sensors { prt line } {
 		return
 	}
 
-	show_upd $prt $cn $ts $tv
+	show_upd $prt $cn $ts $tu
 
 	if ![info exists WN(SF,$prt)] {
 		return
@@ -3967,11 +4013,13 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 
 	# convert
 	set cvls ""
+	set cvun ""
 	set inx 0
 	foreach v $rvls {
-		set vc [snip_cnvrt $v $inx $si]
+		set vc [snip_cnvrt $v $inx $si un]
 		if { $vc != "" } {
 			lappend cvls $vc
+			lappend cvun $un
 		}
 		incr inx
 	}
@@ -3986,7 +4034,7 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 		set inx 0
 		if { $fd == "" } {
 			# writing to the screen
-			foreach c $cvls {
+			foreach c $cvls u $cvun {
 				if { $ats != "" } {
 					# this is an aggregator
 					set ln "[trims $col 5] "
@@ -3995,8 +4043,7 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 				}
 				# sensor number + time stamp
 				append ln "[trims $inx 3] $cts"
-				append ln "[trims $c 10]"
-###here: length reduced by 6 characters
+				append ln "[trims $c$u 10]"
 				incr inx
 				set w $WN(w,$prt,E)
 				add_text $w.t $ln
@@ -4040,9 +4087,8 @@ proc dump_values { mode prt col csl asl cts ats vls } {
 			append ln " $ats"
 		}
 		# the values
-		foreach c $cvls {
-			append ln [trims $c 10]
-###here: removed 6 characters
+		foreach c $cvls u $cvun {
+			append ln [trims $c$u 10]
 		}
 			
 		set w $WN(w,$prt,E)
@@ -5201,9 +5247,11 @@ proc snp_ewin { { nm "" } } {
 		}
 		# the script
 		set ex [snip_script $nm]
+		set un [snip_units $nm]
 		set al [snip_assignments $nm]
 	} else {
 		set ex ""
+		set un ""
 		set al ""
 	}
 
@@ -5248,6 +5296,8 @@ proc snp_ewin { { nm "" } } {
 	}
 
 	set z $w.a
+
+	set ST(v,E,$wi,U) $un
 
 	set i 0
 	while 1 {
@@ -5315,7 +5365,7 @@ proc snp_ewin { { nm "" } } {
 	# make sure we can edit it
 	$w.t configure -state normal
 
-	button $w.b.t -text "Try it out" -command "snp_tryout $wi"
+	button $w.b.t -text "Try it out:" -command "snp_tryout $wi"
 	pack $w.b.t -side left
 
 	label $w.b.a -text "value = "
@@ -5333,6 +5383,12 @@ proc snp_ewin { { nm "" } } {
 
 	button $w.b.d -text "Delete" -command "snp_delete $wi"
 	pack $w.b.d -side right
+
+	entry $w.b.u -width 6 -textvariable ST(v,E,$wi,U)
+	pack $w.b.u -side right
+
+	label $w.b.g -text "Units:"
+	pack $w.b.g -side right
 
 	bind $w <Destroy> "snp_qewin $wi 1"
 }
@@ -5608,7 +5664,7 @@ proc snp_esave { wi } {
 	}
 
 	# OK, ready to save
-	set er [snip_set $nm $new $asl]
+	set er [snip_set $nm $new $ST(v,E,$wi,U) $asl]
 
 	if { $er != "" } {
 		alert "The snippet is invalid: $er"
@@ -5857,16 +5913,16 @@ bind . <Destroy> { terminate }
 
 set_home_dir {
 
-{Light {set value [expr $value * 0.5]} {2 3}} {IR_Motion {set value [expr $value]} {3 3}} {SHT_Temp {set value [expr -39.62 + 0.01 * $value]} {2 {1 2 5}} {4 5} {6 5}} {Chip_Temp {set value [expr $value * 0.1032 - 277.75]} {0 all}} {SHT_Humid {set value [expr -4.0 + 0.0405 * $value - 0.0000028 * $value * $value]
+{Light {set value [expr $value * 0.5]} L {2 3}} {IR_Motion {set value [expr $value]} N {3 3}} {SHT_Temp {set value [expr -39.62 + 0.01 * $value]} C {2 {1 2 5}} {4 5} {6 5}} {Chip_Temp {set value [expr $value * 0.1032 - 277.75]} C {0 all}} {SHT_Humid {set value [expr -4.0 + 0.0405 * $value - 0.0000028 * $value * $value]
 if { $value < 0.0 } {
 	set value 0.0
 } elseif { $value > 100.0 } {
 	set value 100.0
-}} {3 {1 2 5}} {5 5} {7 5}} {Chronos_Temp {if [expr $value & 0x2000] {
+}} % {3 {1 2 5}} {5 5} {7 5}} {Chronos_Temp {if [expr $value & 0x2000] {
 	set value [expr (~$value & 0x1fff) + 1]
 	set value [expr -$value]
 }
-set value [expr $value / 20.0]} {3 4}} {Chronos_Acc {set value [expr $value]} {2 4}} {Battery {set value [expr $value * 0.001221]} {1 all}}
+set value [expr $value / 20.0]} C {3 4}} {Chronos_Acc {set value [expr $value]} N {2 4}} {Battery {set value [expr $value * 0.001221]} V {1 all}}
 
 }
 

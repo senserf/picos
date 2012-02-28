@@ -1849,3 +1849,21 @@ PG120228A:
 	collector number now starts at zero, with the number interpreted
 	as the SENSET index.
 
+PG120228B:
+
+	It is now possible for piter to connect directly to a VUEE UART model
+	in way of econnect. Examples:
+
+	piter -p 3:localhost:4445 	(node 3)
+	piter -p :some.host.com: 	(node 0, default port 4443)
+	piter -p 1: 			(node 1, localhost, 4443)
+	piter -p :			(node 0, localhost, 4443)
+
+	Of course, the reamining arguments are as before.
+
+	Replaced piter_plug.tcl in vsen_demo with the new piter plugin for the
+	praxis. Try it.
+
+	Changed the description of snippets (for econnect as well as for the
+	piter plugin in vsen_demo) to include "units". Note: your old snippets
+	in .econnect/ will NOT be compatible.
