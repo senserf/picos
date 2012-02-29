@@ -1867,3 +1867,31 @@ PG120228B:
 	Changed the description of snippets (for econnect as well as for the
 	piter plugin in vsen_demo) to include "units". Note: your old snippets
 	in .econnect/ will NOT be compatible.
+
+PG120229A:
+
+	A new version of econnect, as per my discussion with Wlodek:
+
+	- When you STOP a node, you get a list of options including simple
+	  reset, factory reset, maintenance mode, cancellation.
+
+	- There is no lower bound (other than 1) on the sampling interval, but
+	  note that "Y" is always issued at start. Previously, the interval
+	  could be auto-adjusted, if it didn't divide 24 hours evenly, now I
+	  leave it alone. Not sure how it fares with Y for intervals >= 60 sec.
+
+	- I have removed the "a" command from all sequences.
+
+	A slight modification to piter to make it easier to insert into its
+	code a replacement default plugin. The place to insert the plugin
+	(just write there the contents of the plugin file) is clearly marked
+	at the end of the code. The plugin can be overriden (in the same way
+	as the standard default plugin) by an explicitly specified one.
+
+	I have tested econnect and piter with freewrap. They both seem to be
+	doing fine. Note that their .rc files (.piterrc and econnect,
+	respectively) are created under C:/Users/username.
+
+	I haven't renamed econnect (yet), although I have changed the banner
+	name in the code to ConSenT (as suggested by Wlodek). Feel free to
+	change the filename -> consent.tcl.

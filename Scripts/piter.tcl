@@ -1059,7 +1059,6 @@ proc sy_initialize { } {
 
 	global ST MODULE PM WI PM
 
-	sy_setdefplug
 	sy_clearmac
 
 	sy_mkterm
@@ -1517,7 +1516,6 @@ proc sy_initialize { } {
 		set ST(SFB) 0
 	}
 
-	sy_setdefplug
 	if { $plu != "" } {
 		if { $plu == "+" } {
 			set pf [sy_openpl $PM(DPF)]
@@ -2869,6 +2867,8 @@ proc sy_setdefplug { } {
 
 	uplevel #0 eval $sc
 }
+
+sy_setdefplug
 
 proc sy_openpl { fn } {
 #
@@ -4511,6 +4511,15 @@ set MODULE(D) [list mo_init_d mo_rawread_d mo_write_d mo_reset_d]
 ###############################################################################
 
 sy_cygfix
+
+###############################################################################
+# Insert here your default plugin (just insert the plugin file) ###############
+###############################################################################
+
+### --->
+
+###############################################################################
+###############################################################################
 
 sy_initialize
 

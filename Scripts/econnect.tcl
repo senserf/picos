@@ -4,14 +4,14 @@ exec wish "$0" "$@"
 
 ##########################################################
 #                                                        #
-# ECONNECT version 1.3.C                                 #
+# ConSenT version 1.3.D                                  #
 #                                                        #
 # Copyright (C) Olsonet Communications Corporation, 2012 #
 #                                                        #
 ##########################################################
 
 ##
-## This is a modified version of the original (from eco_demo/OSSI/ECONNECT)
+## This is a modified version of econnect (from eco_demo/OSSI/ECONNECT)
 ## with some features removed and some added - to be used standalone (no
 ## installation) on Linux as well as Windows (no Cygwin needed); should work
 ## with Tk 8.4 as well as 8.5
@@ -2527,18 +2527,16 @@ proc fix_intv { intv } {
 		return -1
 	}
 
-	set iv [vnum $intv 30 32768]
+	set iv [vnum $intv 1 32768]
 
 	if { $iv == "" } {
 		alert "Sampling interval is invalid;\
-			must be a positive integer >= 30!"
+			must be a positive integer > 0!"
 		return -1
 	}
 
-	if { $iv < 30 } {
-		set iv 30
-	}
-
+if 0 {
+########
 	set day [expr 24 * 3600]
 	set daz [expr $day / 2]
 
@@ -2558,6 +2556,8 @@ proc fix_intv { intv } {
 		# retry
 		return -1
 	}
+########
+}
 
 	return $iv
 }
@@ -2746,10 +2746,12 @@ proc start_aggregator { prt msgw intv plid erase } {
 		return 1
 	}
 
+if 0 {
 	# stored entries
 	if [ciss $prt "a -1 -1 -1 3" "^1005" 6 5] {
 		return 1
 	}
+}
 
 	if [ciss $prt "SA" "^1010" 4 3] {
 		return 1
@@ -2804,9 +2806,11 @@ proc start_custodian { prt msgw intv plid erase } {
 
 	# note, we do not set time for a satnode
 
+if 0 {
 	if [ciss $prt [scmd $prt "a -1 -1 -1 3"] "^1005" 6 5] {
 		return 1
 	}
+}
 
 	if [ciss $prt [scmd $prt "SA"] "^1010" 4 10] {
 		return 1
@@ -2820,20 +2824,15 @@ proc do_stop { prt } {
 	global WN
 
 	disable_node_window $prt
-
 	set nt $WN(NT,$prt)
 
-	if { $nt == "aggregator" } {
-		# we have the option of maintenance mode
-		set mai [cconfirm "Would you like to put the aggregator into\
-			maintenance mode?"]
-		if { $mai == 2 } {
-			# cancel
-			enable_node_window $prt
-			return
-		}
-	} else {
-		set mai 0
+	set mai [tk_dialog .alert "Stop options" "Select the action" "" 0 \
+		"Reset" "Factory reset" "Maintenance" "Cancel"]
+
+	if { $mai == 3 } {
+		# cancelled
+		enable_node_window $prt
+		return
 	}
 
 	set msgw [mk_mess_window "cancel_node_command $prt" 35 1 ""]
@@ -2842,9 +2841,9 @@ proc do_stop { prt } {
 	if { $nt == "aggregator" } {
 		set res [stop_aggregator $prt $msgw $mai]
 	} elseif { $nt == "collector" } {
-		set res [stop_collector $prt $msgw]
+		set res [stop_collector $prt $msgw $mai]
 	} else {
-		set res [stop_custodian $prt $msgw]
+		set res [stop_custodian $prt $msgw $mai]
 	}
 
 	set WN(CP,$prt) 1
@@ -2866,31 +2865,43 @@ proc stop_aggregator { prt msgw mai } {
 		return 1
 	}
 
-	if $mai {
+	if { $mai == 2 } {
 		if [ciss $prt "M" "^1005" 4 30] {
 			return 1
 		}
-	} else {
-		# in case already in maintenance mode
-		if [ciss $prt "q" "^(1001|1005)" 4 30] {
+		return 0
+	}
+
+	if { $mai == 1 } {
+		# factory reset
+		if [ciss $prt "Q" "^(1001|AT.CMGS)" 4 60] {
 			return 1
 		}
-		if { [string first "1005" $WN(LI,$prt)] >= 0 } {
-			alert "The node was in maintenance mode;\
-				nothing has been stopped!"
-			# to prevent another alert
-			return 1
-		} else {
-			if [ciss $prt "a -1 -1 -1 0" "^1005" 4 5] {
-				return 1
-			}
-		}
+		return 0
+	}
+
+	# in case already in maintenance mode
+	if [ciss $prt "q" "^(1001|1005)" 4 30] {
+		return 1
+	}
+	if { [string first "1005" $WN(LI,$prt)] >= 0 } {
+		alert "The node was in maintenance mode;\
+			nothing has been stopped!"
+		# to prevent another alert
+		return 1
 	}
 
 	return  0
 }
 
-proc stop_custodian { prt msgw } {
+proc stop_custodian { prt msgw mai } {
+
+	global WN
+
+	return [stop_aggregator $prt $msgw $mai]
+}
+
+proc stop_collector { prt msgw mai } {
 
 	global WN
 
@@ -2898,30 +2909,33 @@ proc stop_custodian { prt msgw } {
 		return 1
 	}
 
-	if [ciss $prt [scmd $prt "q"] "^1001" 4 60] {
-		return 1
+	if { $mai == 2 } {
+		if [ciss $prt "M" "^2005" 4 30] {
+			return 1
+		}
+		return 0
 	}
 
-	if [ciss $prt [scmd $prt "a -1 -1 -1 0"] "^1005" 4 8] {
+	if { $mai == 1 } {
+		# factory reset
+		if [ciss $prt "Q" "^2001" 4 60] {
+			return 1
+		}
+		return 0
+	}
+
+	# in case already in maintenance mode
+	if [ciss $prt "q" "^(2001|2005)" 4 30] {
+		return 1
+	}
+	if { [string first "2005" $WN(LI,$prt)] >= 0 } {
+		alert "The node was in maintenance mode;\
+			nothing has been stopped!"
+		# to prevent another alert
 		return 1
 	}
 
 	return  0
-}
-
-proc stop_collector { prt msgw } {
-
-	global WN
-
-	if [coutm $prt $msgw "Resetting node for maintenance ..."] {
-		return 1
-	}
-
-	if [ciss $prt "M" "^2005" 4 30] {
-		return 1
-	}
-
-	return 0
 }
 
 proc do_virgin { prt } {
@@ -3075,10 +3089,12 @@ proc virgin_aggregator { prt msgw intv } {
 	sendm $prt "m"
 	sendm $prt "m"
 
+if 0 {
 	if [ciss $prt "a -1 -1 -1 3" "^1005" 4 8] {
 		# collect all
 		return 1
 	}
+}
 
 	if [coutm $prt $msgw "Saving sampling parameters ..."] {
 		return 1	
@@ -3092,10 +3108,12 @@ proc virgin_aggregator { prt msgw intv } {
 		return 1
 	}
 
+if 0 {
 	if [ciss $prt "a -1 -1 -1 0" "^1005" 4 5] {
 		# do not collect any samples unless told so
 		return 1
 	}
+}
 
 	return 0
 }
@@ -3145,10 +3163,12 @@ proc virgin_custodian { prt msgw intv cus } {
 	sendm $prt $cmd
 	sendm $prt $cmd
 
+if 0 {
 	if [ciss $prt [scmd $prt "a -1 -1 -1 3"] "^1005" 4 8] {
 		# collect all
 		return 1
 	}
+}
 
 	if [coutm $prt $msgw "Saving sampling parameters ..."] {
 		return 1	
@@ -3162,10 +3182,12 @@ proc virgin_custodian { prt msgw intv cus } {
 		return 1
 	}
 
+if 0 {
 	if [ciss $prt [scmd $prt "a -1 -1 -1 0"] "^1005" 4 5] {
 		# do not collect any samples unless told so
 		return 1
 	}
+}
 
 	return 0
 }
@@ -5282,7 +5304,7 @@ proc snp_ewin { { nm "" } } {
 	wm title $w $tt
 
 	# the top row is for assignments
-	labelframe $w.a -text "Assignments (Sensor, Collectors)" -padx 2 -pady 2
+	labelframe $w.a -text "Assignments (Sensor, SenSets)" -padx 2 -pady 2
 	pack $w.a -side top -fill x -expand no
 
 	set snsel "0"
