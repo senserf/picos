@@ -1895,3 +1895,8 @@ PG120229A:
 	I haven't renamed econnect (yet), although I have changed the banner
 	name in the code to ConSenT (as suggested by Wlodek). Feel free to
 	change the filename -> consent.tcl.
+
+PG120229B:
+
+	Fixed sensors_sys.h, so "INTERNAL SENSORS" can compile in on CHRONOS
+	(and other CC430 boards).

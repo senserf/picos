@@ -61,15 +61,25 @@ typedef struct {
 
 #define	ANALOG_SENSOR_PIN(par)	(*(par) & 0xf)
 
-// Internal voltage sensor
+#ifndef	INCH_VCC2
+#ifdef	ADC12INCH_11
+#define	INCH_VCC2	ADC12INCH_11
+#endif
+#endif
+
+#ifndef	INCH_TEMP
+#ifdef	ADC12INCH_10
+#define	INCH_TEMP	ADC12INCH_10
+#endif
+#endif
+
 #ifdef	INCH_VCC2
 #define	INTERNAL_VOLTAGE_SENSOR	\
       ANALOG_SENSOR (0,16,INCH_VCC2,ADC_SREF_RVSS,4,ADC_FLG_REFON+ADC_FLG_REF25)
 #endif
-// Internal temperature sensor ref to 1.5V
+
 #ifdef	INCH_TEMP
 #define	INTERNAL_TEMPERATURE_SENSOR	\
       ANALOG_SENSOR (0,16,INCH_TEMP,ADC_SREF_RVSS,4,ADC_FLG_REFON)
 #endif
-
 #endif
