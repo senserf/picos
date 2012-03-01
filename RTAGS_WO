@@ -122,3 +122,11 @@ WO120226A:
 
   tarp: a plugin signature adjustment.
 
+WO120301A:
+  For empty sockets, SHT returns -1 -1 on 10SHT and 0 0 on ARTURO* boards,
+  but we don't want to normalize this now (besides, these drivers *should* be
+  independent). Changed snippets within piter_plug.tcl and econnect.tcl
+  to output -1C and -1% on these boards. Note that a regexp had to be
+  adjusted in piter_plug.tcl, to let '-' in -1 values through.
+  Pawel should review these patches, trivial as they are.
+
