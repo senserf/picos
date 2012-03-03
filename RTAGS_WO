@@ -130,3 +130,8 @@ WO120301A:
   adjusted in piter_plug.tcl, to let '-' in -1 values through.
   Pawel should review these patches, trivial as they are.
 
+WO120302A:
+  Minute change in mm_demo, to let through to OSS msgs (profi and alrm) even
+  if p_inc ('include'preferences) don't match). OSS (presumably, an Android app)
+  would rate the incoming info and sort or drop it based on user's preferences.
+
