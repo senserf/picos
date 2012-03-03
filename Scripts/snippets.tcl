@@ -35,7 +35,7 @@ proc snip_getparam { pm } {
 	}
 }
 
-proc snip_cnvrt { v s c { units "" } } {
+proc snip_cnvrt { v s c { units "" } { name "" } } {
 #
 # Convert a raw sensor value
 #
@@ -81,6 +81,7 @@ proc snip_cnvrt { v s c { units "" } } {
 		if $fn {
 			# the snippet and units
 			set SC($c,$s) [lrange $SN($sn) 0 1]
+			lappend SC($c,$s) $sn
 		} else {
 			set SC($c,$s) ""
 		}
@@ -93,10 +94,27 @@ proc snip_cnvrt { v s c { units "" } } {
 		set un [lindex $SC($c,$s) 1]
 	}
 
-	if { $snip != "" && ![catch { snip_eval $snip $v } r] } {
-		return [format %1.2f $r]
+	if { $name != "" } {
+		upvar $name na
+		set na [lindex $SC($c,$s) 2]
 	}
-	return ""
+
+	if { $snip == "" } {
+		return ""
+	}
+
+	if [catch { snip_eval $snip $v } v] {
+		set v "?"
+	}
+
+	if { $v != "?" } {
+		if [catch { expr $v } v] {
+			set v "?"
+		} else {
+			set v [format %1.2f $v]
+		}
+	}
+	return $v
 }
 
 proc snip_icache { } {
@@ -171,6 +189,21 @@ proc ucs { cl } {
 	} else {
 		return $v
 	}
+}
+
+proc vnum { n { min "" } { max "" } } {
+#
+# Verify integer number
+#
+	if [catch { expr int($n) } n] {
+		return ""
+	}
+
+	if { ($min != "" && $n < $min) || ($max != "" && $n >= $max) } {
+		return ""
+	}
+
+	return $n
 }
 
 proc pcs { lv } {
