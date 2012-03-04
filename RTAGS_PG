@@ -1908,3 +1908,7 @@ PG120303A:
 	a snippet and interpreted as none. SHT snippets modified to interpret
 	-1 and 0 as a signal that there is no sensor (so the snippet returns
 	?).
+
+PG120304A:
+
+	Fixed piter_plug.tcl in vsen_demo to account for "gone" collectors.
