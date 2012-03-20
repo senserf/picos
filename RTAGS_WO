@@ -135,3 +135,8 @@ WO120302A:
   if p_inc ('include'preferences) don't match). OSS (presumably, an Android app)
   would rate the incoming info and sort or drop it based on user's preferences.
 
+WO120320B:
+  Added Chronos to vsen_demo, updated econnect. vsen.xml says it all - it is
+  a tentative setup for demos in NL. 'B' because it is after Pawel's PG120320A.
+
+
