@@ -299,7 +299,7 @@ class LEDSM {
 	ag_interface_t	IN;
 
 	word 	NLeds;			// Number of leds (<= 64)
-	byte	OUpdSize;		// Update buffer size
+	word	OUpdSize;		// Update buffer size
 
 	Boolean	Changed,		// Change flag
 		Fast;			// Fast blink rate

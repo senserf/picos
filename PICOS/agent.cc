@@ -3019,9 +3019,14 @@ LEDSM::LEDSM (data_le_t *le) {
 	//
 	// time [0/1] xxxxxxxxxxxxxxx\n
 	// 9 s 1 s NLeds EOL	= NLeds + 13
+	// 
+	// Now we insert node number and node type into the update, so the
+	// estimate cannot be safe; ledup_status will have to check and resize;
+	// AgentOutput makes sure to correctly handle cases where buffer length
+	// exceeds mailbox size
 	//
 
-	OUpdSize = NLeds + 16;	// Round it up
+	OUpdSize = NLeds + 64;	// Round it up a bit
 
 	UBuf = new char [OUpdSize];
 
@@ -3098,12 +3103,20 @@ int LEDSM::ledup_status () {
 /*
  * Prepare an update message
  */
-	
 	int i, len;
 
-	sprintf (UBuf, "U %08.3f: %c ", ituToEtu (Time), Fast ? '1' : '0');
 
-	for (len = strlen (UBuf), i = 0; i < NLeds; i++)
+	while ((len = snprintf (UBuf, OUpdSize, "U %08.3f %1ld %s: %c ",
+		ituToEtu (Time),
+		IN.TPN->getId (),
+		IN.TPN->getTName (),
+		Fast ? '1' : '0')) >= OUpdSize - NLeds) {
+			OUpdSize = (word)(len + NLeds + 16);
+			delete [] UBuf;
+			UBuf = new char [OUpdSize];
+	}
+
+	for (i = 0; i < NLeds; i++)
 		UBuf [len++] = (char) (getstat (i) + '0');
 
 	UBuf [len++] = '\n';
@@ -3468,7 +3481,7 @@ MoveHandler::perform {
 
 		if (imode (Flags) == XTRN_IMODE_SOCKET && 
 						Left == MRQS_INPUT_BUFLEN) {
-			// This is extremely clumsy; the process asks to
+			// This is extremely clumsy; the process begs to
 			// be completely reorganized. This condition tells
 			// us that we haven't started reading yet and we
 			// are an Internet mover, in which case MUP must
@@ -3490,7 +3503,7 @@ MoveHandler::perform {
 				    "U %1ld %1f %1f <%s,%s>\n",
 				      NN, xx, yy, cl, cp)) >=
 					RBSize) {
-					RBSize = (word)(rc + 1);
+					RBSize = (word)(rc + 16);
 					delete [] RBuf;
 					RBuf = new char [RBSize];
 				}

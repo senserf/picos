@@ -759,3 +759,9 @@ PG120226A:
     The transmitter (of the RF module model) now checks the transmitted packet
     length against the maximum packet size declared for the module. Previously
     the length was only checked at the reception which was confusing.
+
+PG120320A:
+
+    A few cleanups in udaemon in preparation for more additions. LEDs colors
+    (for the LEDS module) are now borrowed from the geometry description (for
+    ROAMER), if the node falls into some pin coloring scheme described there.

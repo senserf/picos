@@ -398,6 +398,7 @@ set GFile		""
 
 array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 
+# default colors for the first five node types
 set NTYPE_COLORS	{ yellow blue orange red green }
 
 #
@@ -413,8 +414,6 @@ set NTYPE_COLORS	{ yellow blue orange red green }
 # 	PINSTAT_ABSENT		7
 #
 
-# legal color names
-
 array set PIN_COLORS	{ D,0 "#A4E22E" D,1 "#FFFF7F" D,2 "#FE8592"
 			  D,3 "#7EDCED" D,4 "#7EDCED" D,5 "#61A77E"
 			  D,6 "#FE3512" D,7 "#C0C0C0" O,0 "#8C82EC"
@@ -428,9 +427,7 @@ array set PANEL_COLORS	{ ACTIVE  "#F0EC00" DISABLED "#BEBEBE" DEL "#007DFF"
 
 array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
 
-array set HPA		{ 1 "(\[0-9a-f\])"
-			  2 "(\[0-9a-f\]\[0-9a-f\])"
-			  4 "(\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\])"
+array set HPA		{ 
 			  H "(\[0-9a-f\]+)"
 			  D "(\[0-9\]+)"
 			  F "(\[0-9.+-E\]+)"
@@ -438,7 +435,7 @@ array set HPA		{ 1 "(\[0-9a-f\])"
 			}
 
 #
-# Canvas parameters for ROAMER:
+# Default canvas parameters for ROAMER:
 #
 # NR     = node radius
 # ND     = node diameter
@@ -458,7 +455,6 @@ array set PMARGIN	{ L 12 R 12 T 25 B 30 MW 200 MH 65 DW 500 DH 60 }
 #
 # Stuff for the "LCD" clock
 #
-
 array set LCDSHAPE {
     a {3.0 5 5.2 3 7.0 5 6.0 15 3.8 17 2.0 15}
     b {6.3 2 8.5 0 18.5 0 20.3 2 18.1 4 8.1 4}
@@ -503,15 +499,907 @@ array set LCDOFFITEMS {
 
 array set LCDCOLORS 	{ ONE #ff8080 ONI #ff0000 OFE #000000 OFI #0F0F0F }
 
-set MAXSVAL     [expr pow (2.0, 32.0) - 1.0]
+###############################################################################
+## encoding/decoding ##########################################################
+###############################################################################
+
+proc tohex { b } {
+
+	scan $b %c v
+	return [format %02x $v]
+}
+	
+proc htodec { d } {
+#
+# Converts a hex digit to decimal
+#
+	global HDIGS
+
+	if ![info exists HDIGS(0)] {
+		# initialize
+		set HDIGS(0) 0
+		set HDIGS(1) 1
+		set HDIGS(2) 2
+		set HDIGS(3) 3
+		set HDIGS(4) 4
+		set HDIGS(5) 5
+		set HDIGS(6) 6
+		set HDIGS(7) 7
+		set HDIGS(8) 8
+		set HDIGS(9) 9
+		set HDIGS(a) 10
+		set HDIGS(b) 11
+		set HDIGS(c) 12
+		set HDIGS(d) 13
+		set HDIGS(e) 14
+		set HDIGS(f) 15
+		set HDIGS(A) 10
+		set HDIGS(B) 11
+		set HDIGS(C) 12
+		set HDIGS(D) 13
+		set HDIGS(E) 14
+		set HDIGS(F) 15
+	}
+
+	if ![info exists HDIGS($d)] {
+		return -1
+	}
+
+	return $HDIGS($d)
+}
+
+proc abinB { s b } {
+#
+# append one binary byte to string s
+#
+	upvar $s str
+	append str [binary format c $b]
+}
+
+proc abinS { s h } {
+#
+# append one short int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format S $h]
+}
+
+proc abinI { s l } {
+#
+# append one 32-bit int to string s (in network order)
+#
+	upvar $s str
+	append str [binary format I $l]
+}
+
+proc dbinB { s } {
+#
+# decode one binary byte from string s
+#
+	upvar $s str
+	if { $str == "" } {
+		return -1
+	}
+	binary scan $str c val
+	set str [string range $str 1 end]
+	return [expr ($val & 0x000000ff)]
+}
+
+proc dbinS { s } {
+#
+# decode one binary short int from string s
+#
+	upvar $s str
+	if { [string length $str] < 2 } {
+		return -1
+	}
+	binary scan $str S val
+	set str [string range $str 2 end]
+	return [expr ($val & 0x0000ffff)]
+}
+
+proc dbinI { s } {
+#
+# decode one binary 32-bit int from string s
+#
+	upvar $s str
+	if { [string length $str] < 4 } {
+		return -1
+	}
+	binary scan $str I val
+	set str [string range $str 4 end]
+	return $val
+}
+
+###############################################################################
+# auxiliaries, tests, checks, validation ######################################
+###############################################################################
+
+proc cw { } {
+#
+# Returns the window currently in focus or null if this is the root window
+#
+	set w [focus]
+	if { $w == "." } {
+		set w ""
+	}
+
+	return $w
+}
+
+proc terminate { } {
+
+	catch { destroy . }
+
+}
 
 proc alert { msg } {
 
-	tk_dialog .alert "Attention!" $msg "" 0 "OK"
+	tk_dialog [cw].alert "Attention!" $msg "" 0 "OK"
+}
+
+proc validSid { v } {
+#
+# Validate node ID
+#
+	if { $v == "" } {
+		# empty OK, at least formally, there exist global windows
+		return 1
+	}
+	if { [string length $v] > 6 } {
+		return 0
+	}
+	if { $v == "0" } {
+		return 1
+	}
+	return [regexp "^\[1-9\]\[0-9\]*$" $v]
+}
+
+proc valnum { n { min "" } { max "" } } {
+
+	set n [string tolower [string trim $n]]
+	if { $n == "" } {
+		error "empty string"
+	}
+
+	if { [string first "." $n] >= 0 || [string first "e" $n] >= 0 } {
+		error "string is not an integer number"
+	}
+
+	if [catch { expr $n } n] {
+		error "string is not a number"
+	}
+
+	if { $min != "" && $n < $min } {
+		error "number must not be less than $min"
+	}
+
+	if { $max != "" && $n > $max } {
+		error "number must not be greater than $max"
+	}
+
+	return $n
+}
+
+proc valcol { cn } {
+#
+# Checks if the color designator is valid
+#
+	if [regexp -nocase \
+	    "^#\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]$" \
+		$cn] {
+		return 1
+	}
+
+	# check if the color is valid by trying it out
+	toplevel .junk
+	if [catch { label .junk.l -text "a" -fg $cn }] {
+		catch { destroy .junk }
+		return 0
+	}
+	catch { destroy .junk }
+	return 1
+}
+
+proc lappendunique { ls it } {
+#
+#  Append a new item, if it doesn't already exists on the list
+#
+	upvar $ls lst
+
+	if ![info exists lst] {
+		lappend lst $it
+		return 1
+	}
+
+	if { [lsearch -exact $lst $it] < 0 } {
+		lappend lst $it
+		return 1
+	}
+	return 0
+}
+
+###############################################################################
+# arguments, preprocessing ####################################################
+###############################################################################
+
+proc bad_usage { } {
+
+	global argv0
+
+	alert "Usage: $argv0 \[host:port\] \[-G gfile\]!"
+	exit 99
+}
+
+proc parse_args { } {
+
+	global argv GFile PortNumber HostName
+
+	while { [llength $argv] } {
+
+		set j [lindex $argv 0]
+		set argv [lrange $argv 1 end]
+
+		if { $j == "-G" } {
+			# geometry
+			set h [lindex $argv 0]
+			set argv [lrange $argv 1 end]
+			if { $GFile != "" || $h == "" } {
+				bad_usage
+			}
+			set GFile $h
+			continue
+		}
+
+		# port
+		if { $PortNumber != "" } {
+			bad_usage
+		}
+		if ![regexp "(.*):(.*)" $j j h p] {
+			if [catch { expr $j } p] {
+				set p ""
+				set h $j
+			} else {
+				set h ""
+			}
+		}
+		if { $p == "" } {
+			set PortNumber 4443
+		} else {
+			set PortNumber $p
+		}
+		if { $h != "" } {
+			set HostName $h
+		}
+
+		if [catch { valnum $PortNumber 1 65535 } PortNumber] {
+			alert "Illegal port number: $PortNumber!"
+			exit 99
+		}
+	}
+
+	if { $PortNumber == "" } {
+		set PortNumber 4443
+	}
+}
+
+proc gperror { em } {
+#
+# geometry file parse error
+#
+	alert "Parsing geometry file: $em!"
+	exit 99
+}
+
+proc parse_geometry { } {
+
+	global GFile Geometry
+
+	if { $GFile == "" } {
+		# try to open the default geometry file
+		set GFile "geometry.xml"
+		if [catch { open $GFile "r" } h] {
+			# failure is OK
+			return
+		}
+	} else {
+		if [catch { open $GFile "r" } h] {
+			gperror "cannot open $GFile: $h"
+		}
+	}
+
+	# parse the geometry file
+	if [catch { read $h } p] {
+		gperror "cannot read $GFile: $p"
+	}
+	catch { close $h }
+
+	if [catch { sxml_parse p } p] {
+		gperror $p
+	}
+
+	set p [sxml_child $p "geometry"]
+
+	if { $p == "" } {
+		gperror "no <geometry> element found"
+	}
+
+	foreach j [sxml_children $p] {
+
+		set n [string tolower [sxml_name $j]]
+		set t [sxml_txt $j]
+	
+		set dsp [string tolower [sxml_attr $j "display"]]
+		if { $dsp == "1" || $dsp == "y" || $dsp == "yes" } {
+			set dsp 1
+		} else {
+			set dsp 0
+		}
+
+		regsub -all "\[ \t\r\n\]+" $t " " t
+
+		set ml ""
+
+		while 1 {
+			if { $t == "" } {
+				break
+			}
+			if ![regexp \
+			    "^(\[^=\]*) *= *\\((\[^)\]+)\\)" \
+			    $t mat pat geo] {
+				gperror "illegal geometry specification: $t"
+			}
+			# parse the node set
+			if [catch { parse_ngroup $pat } pfx] {
+				gperror $pfx"
+			}
+			set geo [parse_gspec $geo]
+			if { $geo == "" } {
+				gperror "illegal geometry specification: $t"
+			}
+			lappend ml [list $pfx $geo]
+			set ls [string length $mat]
+			set t [string trimleft [string range $t $ls end] " \t,"]
+
+			if { $dsp && \
+			    ($pfx == "" || ![catch { expr $pfx } nod]) } {
+				# a single number, add it to the auto display
+				# list
+				lappendunique Geometry(=$n) $pfx
+			}
+		}
+
+		if { $ml != "" } {
+			if [info exists Geometry($n)] {
+				set Geometry($n) [concat $Geometry($n) $ml]
+			} else {
+				set Geometry($n) $ml
+			}
+		}
+
+		if { $n == "roamer" } {
+			# we may have a background image for the roamer, which
+			# will also fix the dimensions
+			set img [sxml_attr $j "image"]
+			if { $img != "" } {
+				set dim [sxml_attr $j "width"]
+				if { $dim != "" } {
+					if { [catch { expr $dim } val] || \
+					    $val <= 0.0 } {
+						gperror "illegal number in\
+						    width in roamer spec: $dim"
+					}
+					set Geometry(roamer,w) $val
+				}
+				set dim [sxml_attr $j "height"]
+				if { $dim != "" } {
+					if { [catch { expr $dim } val] || \
+					    $val <= 0.0 } {
+						gperror "illegal number in\
+						    height in roamer spec: $dim"
+					}
+					set Geometry(roamer,h) $val
+				}
+				if { ![info exists Geometry(roamer,w)] && \
+				     ![info exists Geometry(roamer,h)]     } {
+					gperror "image in roamer spec requires\
+					    at least one of 'width', 'height'"
+				}
+				set Geometry(roamer,i) [sxml_attr $j "image"]
+			}
+			set ns [sxml_attr $j "nodesize"]
+			if { $ns != "" } {
+				if [catch { valnum $ns 4 100 } ns] {
+					gperror "illegal nodesize: $ns"
+				}
+				if [expr $ns & 1] {
+					# make sure it is even
+					incr ns
+				}
+				set nsh [expr $ns / 2]
+				global CMARGIN
+				set CMARGIN(ND) $ns
+				set CMARGIN(NR) $nsh
+				set CMARGIN(TO) [expr $nsh + 5]
+			}
+			parse_cspec [sxml_children $j "nodecolor"]
+		}
+	}
+}
+
+proc parse_cspec { ncl } {
+#
+# Parses the node color spec in ROAMER geometry
+#
+	global Geometry
+
+	set sts ""
+
+	foreach nc $ncl {
+		set nol ""
+		set not ""
+		set at [sxml_attr $nc "id"]
+		if { $at != "" } {
+			if [catch { parse_ngroup $at } nol] {
+				gperror "<nodecolor>, $nol"
+			}
+			if { $nol == "" } {
+				gperror "<nodecolor>, empty id attribute"
+			}
+		}
+		set at [string tolower [sxml_attr $nc "type"]]
+		if { $at != "" } {
+			set not $at
+		}
+		# this is the complete description of the set of nodes
+		set nos [list $not $nol]
+		if [catch { parse_cset [sxml_txt $nc] } cst] {
+			gperror "<nodecolor>, $cst"
+		}
+		lappend sts [list $nos $cst]
+	}
+	set Geometry(roamer,NC) $sts
+}
+
+proc parse_num { ln } {
+#
+# Parse a number
+#
+	upvar $ln line
+
+	# no negative numbers in this case, so we stop on a - which means
+	# a range
+	if ![regexp "^\[^ ,\t\n\r\-]+" $line code] {
+		return ""
+	}
+
+	# nonnegative integer expected
+	if [catch { valnum $code 0 } num] {
+		return ""
+	}
+
+	set line \
+		[string trimleft [string range $line [string length $code] end]]
+
+	return $num
+}
+
+proc parse_ngroup { nl } {
+#
+# Parses the list of node ID's, which can be individual items as well as ranges
+# turning them into a sorted list of individual values and ranges
+#
+	set res ""
+
+	while 1 {
+		set nl [string trimleft $nl " \t,"]
+		if { $nl == "" } {
+			return $res
+		}
+		# this must be a number
+		if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk va nl] ||
+		      [catch { expr $va } va] } {
+			error "illegal node number ...$nl"
+		}
+		set nl [string trimleft $nl]
+		set ret ""
+		set done 0
+		if { [string index $nl 0] == "-" } {
+			# this is a range
+			set nl [string trimleft [string range $nl 1 end]]
+			# now, this must be another number
+			if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk vb nl] ||
+			      [catch { expr $vb } vb] } {
+				# error
+				error "illegal node number ...$nl"
+			}
+			if { $vb < $va } {
+				# illegal range
+				error "illegal range: $vb < $va"
+			}
+			# rescan the list
+			foreach it $res {
+				if $done {
+					# copy the tail, the new range already
+					# inserted
+					lappend ret $it
+					continue
+				}
+				set a [lindex $it 0]
+				set b [lindex $it 1]
+				if { $b == "" } {
+					# this is a single ID
+					if { $a < $va } {
+						if { $a == [expr $va - 1] } {
+							# touching
+							set va $a
+						} else {
+							lappend ret $it
+						}
+						continue
+					}
+					if { $a > [expr $vb + 1] } {
+						lappend ret [list $va $vb]
+						lappend ret $it
+						set done 1
+						continue
+					}
+					if { $a == [expr $vb + 1] } {
+						# touching
+						set vb $a
+						lappend ret [list $va $vb]
+						set done 1
+						continue
+					}
+					# falls inside, ignore
+					continue
+				}
+				# this is a range
+				if { $b < [expr $va - 1] } {
+					# separate, preceding
+					lappend ret $it
+					continue
+				}
+
+				if { $a > [expr $vb + 1] } {
+					# separate, following
+					lappend ret [list $va $vb]
+					lappend ret $it
+					set done 1
+					continue
+				}
+
+				# overlapping
+				if { $a < $va } {
+					set va $a
+				}
+				if { $b > $vb } {
+					set vb $b
+				}
+
+				continue
+			}
+
+			if !$done {
+				lappend ret [list $va $vb]
+			}
+
+		} else {
+			# a single item
+			foreach it $res {
+				if $done {
+					# copy the tail
+					lappend ret $it
+					continue
+				}
+				set a [lindex $it 0]
+				set b [lindex $it 1]
+				if { $b == "" } {
+					# a single ID
+					if { $a >= $va } {
+						# here we go
+						lappend ret $va
+						set done 1
+						if { $a != $va } {
+							lappend ret $it
+						}
+					} else {
+						lappend ret $it
+					}
+					continue
+				}
+				# a range
+				if { $b < [expr $va - 1] } {
+					lappend ret $it
+					continue
+				}
+				set done 1
+				if { $a > [expr $va + 1] } {
+					lappend ret $va
+					lappend ret $it
+					continue
+				}
+				if { $a == [expr $va + 1] } {
+					set a $va
+				} elseif { $b == [expr $va - 1] } {
+					set b $va
+				}
+				lappend ret [list $a $b]
+			}
+			if !$done {
+				lappend ret $va
+			}
+		}
+		set res $ret
+	}
+
+	return $res
+}
+
+proc parse_gspec { geo } {
+#
+# Parse a single geometry specification (a pair of coordinates)
+#
+	set g ""
+	foreach u { 0 1 } {
+		# twice (for the two coordinates)
+		set geo [string trimleft $geo]
+		if { [string index $geo 0] == "-" } {
+			set sg "-"
+			set geo [string range $geo 1 end]
+		} else {
+			set sg "+"
+		}
+		set n [parse_num geo]
+		if { $n == "" } {
+			return ""
+		}
+		append g $sg$n
+		set geo [string trimleft $geo " \t,"]
+	}
+	return $g
+}
+
+proc cover_ngroup { col num } {
+#
+# Checks whether the number (node ID) is covered by the node group col
+#
+	if { $num == "" } {
+		# absolute windows have no IDs
+		return 1
+	}
+	foreach it $col {
+		set a [lindex $it 0]
+		set b [lindex $it 1]
+		if { $b == "" } {
+			if { $a < $num } {
+				continue
+			}
+			# a single item
+			if { $a > $num } {
+				return 0
+			}
+			return 1
+		}
+		# a range
+		if { $b < $num } {
+			continue
+		}
+		if { $a > $num } {
+			return 0
+		}
+		return 1
+	}
+	return 0
+}
+
+proc cover_nset { nos num nt } {
+#
+# Checks whether the node of a given type is covered by the node set
+#
+	set not [lindex $nos 0]
+	set nol [lindex $nos 1]
+
+	if { $not == "" && $nol == "" } {
+		# the set of all nodes
+		return 1
+	}
+
+	if { [string first $not [string tolower $nt]] >= 0 } {
+		return 1
+	}
+
+	return [cover_ngroup $nol $num]
+}
+
+proc parse_cset { cs } {
+#
+# Parses the color set in the form:
+#
+#	colorid
+#	pn=(colorid,colorid), pn=(colorid,colorid), ...
+#
+# Returns a list { m c }, where m is "F" or "P" and c is the color (set); for
+# "F", c is a single color, for "P", c is a list of items looking like this:
+# { { n t } coff con }, where n is the pin number, t is "led" or "pin", coff
+# is the "off" color, and con is the "on" color
+#
+	set cs [string trim $cs]
+	set ws "\[ \t\n\r\]*"
+	set wd "\[ \t\n\r,\]+"
+	set ci "\[^ \t\n\r,\\(\\)=\]+"
+
+	if ![regexp -nocase "^l?\[0-9\]" $cs] {
+		# this must be a single solid color
+		if [valcol $cs] {
+			return [list "F" $cs]
+		}
+		error "illegal color: $cs"
+	}
+
+	# pin or led
+	set res ""
+	while 1 {
+		set cs [string trimleft $cs " \t\r\n,"]
+		if { $cs == "" } {
+			break
+		}
+		if ![regexp -nocase \
+        "^(l?)(\[0-9\]+)${ws}=${ws}\\(${ws}(${ci})${wd}(${ci})${ws}\\)(.*)" \
+			$cs jnk led pin coff con cs] {
+				error "invalid color assignment: $cs"
+		}
+		if [catch { expr $pin } piv] {
+			error "invalid pin/led number: $pin"
+		}
+
+		if ![valcol $con] {
+			error "illegal color: $con"
+		}
+
+		if ![valcol $coff] {
+			error "illegal color: $coff"
+		}
+
+		if { $led != "" } {
+			set typ "led"
+		} else {
+			set typ "pin"
+		}
+
+		set piv [list $piv $typ]
+		set new [list $piv $coff $con]
+
+		foreach it $res {
+			set p [lindex $it 0]
+			if { $p == $piv } {
+				error "duplicate color entry: $p"
+			}
+		}
+
+		lappend res $new
+	}
+
+	return [list "P" $res]
+}
+
+proc get_cset { node tp } {
+#
+# Returns the roamer's color set for the node of the given type
+#
+	global Geometry
+
+	if ![info exists Geometry(roamer,NC)] {
+		return ""
+	}
+
+	foreach cd $Geometry(roamer,NC) {
+		if [cover_nset [lindex $cd 0] $node $tp] {
+			return [lindex $cd 1]
+		}
+	}
+
+	return ""
+}
+
+proc do_geometry { win kwd { num "" } } {
+
+	global Geometry
+
+	if [info exists Geometry($kwd)] {
+		foreach ml $Geometry($kwd) {
+			set exp [lindex $ml 0]
+			set geo [lindex $ml 1]
+			if [cover_ngroup $exp $num] {
+				wm geometry $win $geo
+				return
+			}
+		}
+	}
+}
+
+proc predisplay { } {
+#
+# Predisplay windows requested with "display" in the geometry file
+#
+	global Geometry
+
+	set Geometry(+D) 200
+
+	foreach p [array names Geometry "=*"] {
+		set wn [string range $p 1 end]
+		set pl $Geometry($p)
+		switch -- $wn {
+			"uart" {
+				predisplay_nodes "uartHandler %n a" $pl
+			}
+			"sensors" {
+				predisplay_nodes "sensorsHandler %n" $pl
+			}
+			"pins" {
+				predisplay_nodes "pinsHandler %n" $pl
+			}
+			"leds" {
+				predisplay_nodes "ledsHandler %n" $pl
+			}
+			"emul" {
+				predisplay_nodes "emulHandler %n" $pl
+			}
+			"lcdg" {
+				predisplay_nodes "lcdgHandler %n" $pl
+			}
+			"ptracker" {
+				predisplay_nodes "pwrtHandler %n" $pl
+			}
+			"roamer" {
+				predisplay_single "moveHandler"
+			}
+			"panel" {
+				predisplay_single "panelHandler"
+			}
+			"clock" {
+				predisplay_single "clockHandler"
+			}
+		}
+	}
+}
+
+proc predisplay_nodes { fun nl } {
+#
+# Predisplay node-relative windows
+#
+	global Geometry
+
+	foreach n $nl {
+		if { $n != "" } {
+			regsub "%n" $fun $n f
+			after $Geometry(+D) $f
+			incr Geometry(+D) 200
+		}
+	}
+}
+
+proc predisplay_single { fun } {
+
+	global Geometry
+
+	after $Geometry(+D) $fun
+	incr Geometry(+D) 200
+}
+
+###############################################################################
+
+proc unique { } {
+
+	global Unique
+	incr Unique
+	return $Unique
 }
 
 proc stName { Sok } {
-
+#
+# Returns a piece of text (for diagnostics) describing the node of relevance
+#
 	global Stat
 
 	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
@@ -522,7 +1410,9 @@ proc stName { Sok } {
 }
 
 proc uuName { Sok } {
-
+#
+# Returns the name of U-U device for diagnostics
+#
 	global Stat
 
 	if [info exists Stat($Sok,Q)] {
@@ -533,7 +1423,9 @@ proc uuName { Sok } {
 }
 
 proc uuStop { Sok } {
-
+#
+# Closes a U-U connection
+#
 	global Stat
 
 	if [info exists Stat($Sok,FD,U)] {
@@ -545,15 +1437,43 @@ proc uuStop { Sok } {
 	}
 }
 
-proc stimeout { Sok } {
+proc wdestroy { Sok } {
 
+	global Wins Stat
+
+	if [info exists Wins($Sok,NODESTROY)] {
+		return
+	}
+
+	if [info exists Wins($Sok)] {
+		unset Wins($Sok)
+	}
+
+	if ![regexp "^Zombie" $Sok] {
+		dealloc $Sok
+	}
+
+}
+
+proc cabort { Sok } {
+
+	log "connection timed out"
+	dealloc $Sok
+}
+
+proc stimeout { Sok } {
+#
+# Socket timeout while waiting for first data from the agent
+#
 	global Stat
 
-	set Stat($Sok,T) [after 10000 doAbort $Sok]
+	set Stat($Sok,T) [after 10000 cabort $Sok]
 }
 
 proc ctimeout { Sok } {
-
+#
+# Cancels socket timeout when data arrives
+#
 	global Stat
 
 	if [info exists Stat($Sok,T)] {
@@ -564,7 +1484,10 @@ proc ctimeout { Sok } {
 
 proc stwin { Sok } {
 #
-# Safe window acqusition from callbacks
+# Safe window acqusition from callbacks to safeguard against them being
+# activated after the window has disappeared; if the window is no more,
+# this function will return to the caller of its caller amounting to a
+# null action of the caller
 #
 	global Wins
 
@@ -587,7 +1510,11 @@ proc stwin { Sok } {
 }
 
 proc winlocate { tag stid } {
-
+#
+# Tries to locate a window of a given type (tag) for a given node (stid); if
+# stid is null, the windows is supposed to be node-independent, i.e., global;
+# returns 1 if the window is already present, zero otherwise
+#
 	global Wins Stat
 
 	set wn ""
@@ -624,29 +1551,26 @@ proc winlocate { tag stid } {
 	return 0
 }
 
-proc ledColor { i } {
-
-	global LED_COLORS
-
-	if [info exists LED_COLORS($i)] {
-		return $LED_COLORS($i)
-	} else {
-		return "red"
-	}
-}
-
 proc dealloc { Sok } {
+#
+# Carries out the action implied by closing an agent socket upon dropped
+# connection or VUEE's request
+#
+	global Wins Stat
 
-	global Wins Stat Unique
-
+	# the course is clear, no need to wait for anything
 	ctimeout $Sok
 
 	if [info exists Wins($Sok)] {
+		# there is a window for this socket
 		set w $Wins($Sok)
 		if [winfo exists $w] {
-			set Wins(Zombie_$Unique) $w
-			bind $w <Destroy> "destroyWindow Zombie_$Unique"
-			incr Unique
+			# indeed, there is; the window becomes a zombie; it
+			# is left on the screen, so it can stii be viewed,
+			# but it is detached from the set
+			set wid "Zombie_[unique]"
+			set Wins($wid) $w
+			bind $w <Destroy> "wdestroy $wid"
 		}
 		unset Wins($Sok)
 	}
@@ -659,10 +1583,55 @@ proc dealloc { Sok } {
 		unset Stat($it)
 	} 
 
+	# clear all data related to the window
 	array unset Stat "$Sok,*"
 
 	catch { close $Sok }
 }
+
+proc sntype { t } {
+#
+# Sanitize the node type name received from the VUEE agent (removing the
+# initial mangle); this is for the node names mangled by PiComp
+#
+	regsub "^_+\[^_\]+_*" $t "" t
+	return $t
+}
+
+proc sendReq { Sok rqnum } {
+#
+# Sends an agent connection request to VUEE
+#
+	global Stat AGENT_MAGIC
+
+	# prepare the request
+	set rqs ""
+	
+	abinS rqs $AGENT_MAGIC
+	abinS rqs $rqnum
+
+	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
+		abinI rqs $Stat($Sok,S)
+	} else {
+		abinI rqs -1
+	}
+
+	if [catch { puts -nonewline $Sok $rqs } err] {
+		log "connection failed: $err"
+		dealloc $Sok
+		return
+	}
+
+	# wait for the timer to detect timeouts
+	stimeout $Sok
+
+	# prevent writing until connection established; then another action
+	# will be used
+	fileevent $Sok writable ""
+}
+
+###############################################################################
+###############################################################################
 
 proc uartHandler { stid mode } {
 
@@ -707,42 +1676,16 @@ proc uartHandler { stid mode } {
 	fileevent $Sok readable "uartIni $Sok"
 }
 
-proc sendReq { Sok rqnum } {
-
-	global Stat AGENT_MAGIC
-
-	# prepare the request
-	set rqs ""
-	
-	abinS rqs $AGENT_MAGIC
-	abinS rqs $rqnum
-	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
-		abinI rqs $Stat($Sok,S)
-	} else {
-		abinI rqs -1
-	}
-
-	if [catch { puts -nonewline $Sok $rqs } err] {
-		log "connection failed: $err"
-		dealloc $Sok
-		return
-	}
-
-	# wait for the timer to detect timeouts
-	stimeout $Sok
-	fileevent $Sok writable ""
-}
-
 proc uartIni { Sok } {
 
-	global Wins Stat Unique ECONN_OK
+	global Wins Stat ECONN_OK
 
 	# we are reading the initial OK response
 	ctimeout $Sok
 
 	# four bytes expected
 	if [catch { read $Sok 4 } res] {
-		# disconenction
+		# disconnection
 		log "connection failed: $res"
 		dealloc $Sok
 		return
@@ -769,8 +1712,7 @@ proc uartIni { Sok } {
 
 	# create the window
 
-	set Wn ".wu$Unique"
-	incr Unique
+	set Wn ".wu[unique]"
 
 	set Stat($Sok,B) ""
 	set Stat($Sok,F) 0
@@ -950,6 +1892,8 @@ proc sy_unesc { dn } {
 }
 
 ###############################################################################
+# UART ########################################################################
+###############################################################################
 
 proc connUart { Sok } {
 #
@@ -963,13 +1907,9 @@ proc connUart { Sok } {
 
 	set opt $Stat($Sok,U)
 
-	if { $opt == "Off" && $Stat($Sok,Q) == "" } {
-		# nothing
-		return
-	}
-
-	if { $opt == $Stat($Sok,Q) } {
-		# nothing again
+	if { ( $opt == "Off" && $Stat($Sok,Q) == "" ) ||
+	       $opt == $Stat($Sok,Q) } {
+		# nothing 
 		return
 	}
 
@@ -1021,7 +1961,7 @@ proc mkTerm { Sok tt hex } {
 
 	text $w.t
 
-
+	# it is better not to scroll on x (wrapping longer lines)
 	#	-xscrollcommand "$w.scrolx set" 
 
 	$w.t configure \
@@ -1114,7 +2054,7 @@ proc mkTerm { Sok tt hex } {
 
 	$w.t configure -state disabled
 
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 
 	return $w.t
 }
@@ -1206,7 +2146,6 @@ proc handleUserInput { Sok } {
 				break
 			}
 			append os [format %c [expr $d0 * 16 + $d1]]
-			#abinB os [expr $d0 * 10 + $d1]
 		}
 		if $err {
 			addText $Sok $w.t "ILLEGAL HEX INPUT, LINE IGNORED!!!"
@@ -1276,14 +2215,9 @@ proc endLine { Sok w } {
 
 }
 
-proc sntype { t } {
-#
-# Sanitize the node type name received from the VUEE agent (removing the
-# initial mangle)
-#
-	regsub "^_+\[^_\]+_*" $t "" t
-	return $t
-}
+###############################################################################
+# CLOCK #######################################################################
+###############################################################################
 
 proc clockHandler { } {
 
@@ -1317,7 +2251,7 @@ proc clockHandler { } {
 
 proc clockIni { Sok } {
 
-	global Wins Stat Unique ECONN_OK CTime
+	global Wins Stat ECONN_OK CTime
 
 	# we are reading the initial OK response
 	ctimeout $Sok
@@ -1346,8 +2280,7 @@ proc clockIni { Sok } {
 
 	# create the window
 
-	set Wins($Sok) ".wc$Unique"
-	incr Unique
+	set Wins($Sok) ".wc[unique]"
 
 	set Stat($Sok,B) ""
 	set Stat($Sok,F) 0
@@ -1466,7 +2399,7 @@ proc showClock { Sok } {
 
 proc mkClock { Sok } {
 #
-# Creates a clock
+# Creates the clock window
 #
 	global Wins
 
@@ -1478,8 +2411,12 @@ proc mkClock { Sok } {
 
 	canvas $w.c -width 170 -height 45 -bg black
 	pack $w.c -expand y
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 }
+
+###############################################################################
+# LEDS ########################################################################
+###############################################################################
 
 proc ledsHandler { stid } {
 
@@ -1548,7 +2485,7 @@ proc ledsIni { Sok } {
 
 proc ledsFirst { Sok } {
 
-	global Wins Stat Unique
+	global Wins Stat LED_COLORS
 
 	while 1 {
 		if [catch { read $Sok 1 } ch] {
@@ -1575,7 +2512,8 @@ proc ledsFirst { Sok } {
 	set cmd $Stat($Sok,B)
 	set Stat($Sok,B) ""
 
-	if { ![regexp ": (\[0-1\]) (\[0-2\]+)" $cmd junk Fast Leds] } {
+	if { ![regexp "(\[^ \]*): (\[0-1\]) (\[0-2\]+)" \
+	    $cmd junk tn Fast Leds] } {
 		# ignore NOPs and illegal commands
 		return
 	}
@@ -1583,9 +2521,36 @@ proc ledsFirst { Sok } {
 	# terminate the timeout timer
 	ctimeout $Sok
 
+	# determine the colors to be used for the leds; start with the defaults
+	set i 0
+	while 1 {
+		if ![info exists LED_COLORS($i)] {
+			# that's it
+			break
+		}
+		# these are the "on" colors, the off colors are gray by default
+		set Stat($Sok,LC,O,$i) $LED_COLORS($i)
+		incr i
+	}
+
+	set co [get_cset $Stat($Sok,S) [sntype $tn]]
+	if { $co != "" && [lindex $co 0] == "P" } {
+		foreach c [lindex $co 1] {
+			set pn [lindex $c 0]
+			if { [lindex $pn 1] != "led" } {
+				# not a led
+				continue
+			}
+			set i [lindex $pn 0]
+			set of [lindex $c 1]
+			set on [lindex $c 2]
+			set Stat($Sok,LC,F,$i) $of
+			set Stat($Sok,LC,O,$i) $on
+		}
+	}
+
 	# create the window
-	set Wn ".wl$Unique"
-	incr Unique
+	set Wn ".wl[unique]"
 
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
@@ -1654,6 +2619,25 @@ proc mkoneled { canv off } {
 	return $t
 }
 
+proc ledColor { Sok i s } {
+
+	global Stat
+
+	if $s {
+		if [info exists Stat($Sok,LC,O,$i)] {
+			return $Stat($Sok,LC,O,$i)
+		} else {
+			return "red"
+		}
+	}
+
+	if [info exists Stat($Sok,LC,F,$i)] {
+		return $Stat($Sok,LC,F,$i)
+	} else {
+		return "grey"
+	}
+}
+
 proc mkLeds { Sok nleds tt } {
 #
 # Creates a new leds window
@@ -1677,10 +2661,12 @@ proc mkLeds { Sok nleds tt } {
 
 	for { set i 0 } { $i < $nleds } { incr i } {
 		set Stat($Sok,O,$i) [mkoneled $w.c [expr 16 + $i * 24]]
-		set Stat($Sok,V,$i) 0
+		# not a legit status value - to force the first color update,
+		# some off colors need not be grey
+		set Stat($Sok,V,$i) -1
 	}
 	grid $w.c -row 0 -column 0
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 }
 
 proc ledsStatus { Sok fast stat } {
@@ -1709,14 +2695,11 @@ proc ledsStatus { Sok fast stat } {
 		if { $val != $ova } {
 			# new value
 			set Stat($Sok,V,$i) $val
-			if { $val == 1 || ($val == 2 && $Stat($Sok,X)) } {
-				# on
-				$w.c itemconfigure $Stat($Sok,O,$i) -fill \
-					[ledColor $i]
-			} else {
-				# off
-				$w.c itemconfigure $Stat($Sok,O,$i) -fill grey
+			if { $val == 2 && !$Stat($Sok,X) } {
+				set val 0
 			}
+			$w.c itemconfigure $Stat($Sok,O,$i) -fill \
+				[ledColor $Sok $i $val]
 		}
 	}
 
@@ -1751,12 +2734,8 @@ proc ledsBlinker { Sok } {
 
 	for { set i 0 } { [info exists Stat($Sok,V,$i)] } { incr i } {
 		if { $Stat($Sok,V,$i) == 2 } {
-			if $on {
-				$w.c itemconfigure $Stat($Sok,O,$i) -fill \
-					[ledColor $i]
-			} else {
-				$w.c itemconfigure $Stat($Sok,O,$i) -fill grey
-			}
+			$w.c itemconfigure $Stat($Sok,O,$i) -fill \
+				[ledColor $Sok $i $on]
 		}
 	}
 
@@ -1768,6 +2747,10 @@ proc ledsBlinker { Sok } {
 
 	set Stat($Sok,G) [after $Stat($Sok,J) ledsBlinker $Sok]
 }
+
+###############################################################################
+# EMUL ########################################################################
+###############################################################################
 
 proc emulHandler { stid } {
 
@@ -1801,7 +2784,7 @@ proc emulHandler { stid } {
 
 proc emulIni { Sok } {
 
-	global Wins Stat ECONN_OK Unique
+	global Wins Stat ECONN_OK
 
 	ctimeout $Sok
 
@@ -1828,8 +2811,7 @@ proc emulIni { Sok } {
 
 	# create the window
 
-	set w ".we$Unique"
-	incr Unique
+	set w ".we[unique]"
 	set Wins($Sok) $w
 
 	toplevel $w
@@ -1866,7 +2848,7 @@ proc emulIni { Sok } {
 	pack $w.stat.l -side right -expand no
 
 	$w.t configure -state disabled
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 
 	set Stat($Sok,B) ""
 
@@ -1963,7 +2945,7 @@ proc lcdgHandler { stid } {
 
 proc lcdgIni { Sok } {
 
-	global Wins Stat ECONN_OK Unique
+	global Wins Stat ECONN_OK
 
 	ctimeout $Sok
 
@@ -1989,8 +2971,7 @@ proc lcdgIni { Sok } {
 	}
 
 	# Create the window and image data
-	set Wn ".wg$Unique"
-	incr Unique
+	set Wn ".wg[unique]"
 
 	set Wins($Sok) $Wn
 	toplevel $Wn
@@ -2000,7 +2981,7 @@ proc lcdgIni { Sok } {
 	set Stat($Sok,IM) $im
 	set w [label $Wn.im -image $im]
 	pack $w
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 	bind $w <B1-ButtonRelease> "lcdgRefresh $Sok"
 
 	# The default rectangle: full image
@@ -2292,7 +3273,7 @@ proc pinsIni { Sok } {
 
 proc pinsFirst { Sok } {
 
-	global Wins Stat Unique
+	global Wins Stat
 
 	while 1 {
 		if [catch { read $Sok 1 } ch] {
@@ -2336,8 +3317,7 @@ proc pinsFirst { Sok } {
 	}
 
 	# create the window
-	set Wn ".wp$Unique"
-	incr Unique
+	set Wn ".wp[unique]"
 
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
@@ -2534,7 +3514,7 @@ proc mkPins { Sok np na tt } {
 		pack $f.l -side left -expand 1 -fill x
 	}
 
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 }
 
 proc pinsButt { Sok pin } {
@@ -2719,7 +3699,7 @@ proc sensorsIni { Sok } {
 
 proc sensorsFirst { Sok } {
 
-	global Wins Stat Unique
+	global Wins Stat
 
 	while 1 {
 		if [catch { read $Sok 1 } ch] {
@@ -2769,8 +3749,7 @@ proc sensorsFirst { Sok } {
 	}
 
 	# create the window
-	set Wn ".wp$Unique"
-	incr Unique
+	set Wn ".wp[unique]"
 
 	set Wins($Sok) $Wn
 	# damping delay
@@ -2785,7 +3764,7 @@ proc sensorsFirst { Sok } {
 
 proc mkSensors { Sok ns os na oa tt } {
 
-	global Wins Stat MAXSVAL PIN_COLORS
+	global Wins Stat PIN_COLORS
 
 	set w $Wins($Sok)
 	toplevel $w
@@ -2854,7 +3833,7 @@ proc mkSensors { Sok ns os na oa tt } {
 		grid columnconfigure $w.sen 1 -weight 1
 	}
 
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 	bind $w <B1-ButtonRelease> "sensorSend $Sok"
 }
 
@@ -3084,7 +4063,7 @@ proc panelIni { Sok } {
 
 proc panelZero { Sok } {
 
-	global Wins Stat HPA Unique NTYPE_COLORS
+	global Wins Stat NTYPE_COLORS
 
 	if ![info exists Stat($Sok,NN)] {
 		# sanity check
@@ -3191,8 +4170,7 @@ proc panelZero { Sok } {
 			    ctimeout $Sok
 			    # current displayed list
 			    set Stat($Sok,DL) ""
-			    set Wins($Sok) ".wa$Unique"
-			    incr Unique
+			    set Wins($Sok) ".wa[unique]"
 			    log "connection established"
 			    updPanel $Sok
 			    continue
@@ -3366,7 +4344,7 @@ proc updPanel { Sok } {
 
 		toplevel $w
 		wm title $w "PANEL"
-		bind $w <Destroy> "destroyWindow $Sok"
+		bind $w <Destroy> "wdestroy $Sok"
 		if { $ge != "" } {
 			# preserve previous location
 			regexp "\\+.*\\+.*" $ge ge
@@ -3467,7 +4445,7 @@ proc pwrtHandler { stid } {
 
 proc pwrtIni { Sok } {
 
-	global Wins Stat Unique ECONN_OK
+	global Wins Stat ECONN_OK
 
 	ctimeout $Sok
 
@@ -3495,8 +4473,7 @@ proc pwrtIni { Sok } {
 	log "connection established"
 
 	# create the window
-	set Wn ".ww$Unique"
-	incr Unique
+	set Wn ".ww[unique]"
 
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
@@ -3535,7 +4512,7 @@ proc mkPwrt { Sok tt } {
 
 	pwrtRedraw $Sok
 
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 	bind $w.c <Configure> "pwrtResize $Sok %w %h"
 }
 
@@ -3914,7 +4891,7 @@ proc moveIni { Sok } {
 
 proc moveGNP { Sok } {
 
-	global Wins Stat HPA Unique NTYPE_COLORS Geometry
+	global Wins Stat HPA NTYPE_COLORS Geometry
 
 	if ![info exists Stat($Sok,NN)] {
 		# play it safe
@@ -4032,32 +5009,20 @@ proc moveGNP { Sok } {
 			# initial list of colors, and cdesc is the geometry
 			# pattern for assigning colors based on pin values
 
-			set co ""
-			if [info exists Geometry(roamer,NC)] {
-				foreach cd $Geometry(roamer,NC) {
-					# the node set
-					set nos [lindex $cd 0]
-					if [cover_ns $nos $nod $tn] {
-						# the node is covered by the set
-						set cos [lindex $cd 1]
-						# type
-						set cty [lindex $cos 0]
-						# color (or color set)
-						set cse [lindex $cos 1]
-						if { $cty == "F" } {
-							# a fixed color
-							set co [list 0 [list \
-								[list $cse 0]]]
-							break
-						}
-						set co [list [llength $cse] \
+			set co [get_cset $nod $tn]
+			if { $co != "" } {
+				# type
+				set cty [lindex $co 0]
+				# color or color set
+				set cse [lindex $co 1]
+				if { $cty == "F" } {
+					# a fixed color
+					set co [list 0 [list [list $cse 0]]]
+				} else {
+					set co [list [llength $cse] \
 						     [cassgn $cse $ls $ps] $cse]
-						break
-					}
 				}
-			}
-
-			if { $co == "" } {
+			} else {
 				# use the default
 				set co \
 				     [list 0 [list [list $Stat($Sok,NT,$tn) 0]]]
@@ -4077,8 +5042,7 @@ proc moveGNP { Sok } {
 				# done
 				unset Stat($Sok,CI)
 				fileevent $Sok readable "moveUpd $Sok"
-				set Wins($Sok) ".wm$Unique"
-				incr Unique
+				set Wins($Sok) ".wm[unique]"
 				log "connection established"
 				if [mkMove $Sok] {
 					dealloc $Sok
@@ -4408,7 +5372,7 @@ proc mkMove { Sok } {
 
 	moveRedraw $Sok
 
-	bind $w <Destroy> "destroyWindow $Sok"
+	bind $w <Destroy> "wdestroy $Sok"
 	bind $w.c <Configure> "moveResize $Sok %w %h"
 
 	# a popup menu for node-related commands
@@ -5066,29 +6030,8 @@ proc colblink { Sok nod wg } {
 	after $del "colblink $Sok $nod $wg"
 }
 
-proc doAbort { Sok } {
-
-	log "connection timed out"
-	dealloc $Sok
-}
-
-proc destroyWindow { Sok } {
-
-	global Wins Stat
-
-	if [info exists Wins($Sok,NODESTROY)] {
-		return
-	}
-
-	if [info exists Wins($Sok)] {
-		unset Wins($Sok)
-	}
-
-	if ![regexp "^Zombie" $Sok] {
-		dealloc $Sok
-	}
-
-}
+###############################################################################
+###############################################################################
 
 proc log { txt } {
 #
@@ -5132,118 +6075,6 @@ proc conerror { code } {
 
     return "error code $code (unknown)"
 }
-
-## binary encoding/decoding ###################################################
-
-proc tohex { b } {
-
-	scan $b %c v
-	return [format %02x $v]
-}
-	
-proc htodec { d } {
-#
-# Converts a hex digit to decimal
-#
-	global HDIGS
-
-	if ![info exists HDIGS(0)] {
-		# initialize
-		set HDIGS(0) 0
-		set HDIGS(1) 1
-		set HDIGS(2) 2
-		set HDIGS(3) 3
-		set HDIGS(4) 4
-		set HDIGS(5) 5
-		set HDIGS(6) 6
-		set HDIGS(7) 7
-		set HDIGS(8) 8
-		set HDIGS(9) 9
-		set HDIGS(a) 10
-		set HDIGS(b) 11
-		set HDIGS(c) 12
-		set HDIGS(d) 13
-		set HDIGS(e) 14
-		set HDIGS(f) 15
-		set HDIGS(A) 10
-		set HDIGS(B) 11
-		set HDIGS(C) 12
-		set HDIGS(D) 13
-		set HDIGS(E) 14
-		set HDIGS(F) 15
-	}
-
-	if ![info exists HDIGS($d)] {
-		return -1
-	}
-
-	return $HDIGS($d)
-}
-
-proc abinB { s b } {
-#
-# append one binary byte to string s
-#
-	upvar $s str
-	append str [binary format c $b]
-}
-
-proc abinS { s h } {
-#
-# append one short int to string s (in network order)
-#
-	upvar $s str
-	append str [binary format S $h]
-}
-
-proc abinI { s l } {
-#
-# append one 32-bit int to string s (in network order)
-#
-	upvar $s str
-	append str [binary format I $l]
-}
-
-proc dbinB { s } {
-#
-# decode one binary byte from string s
-#
-	upvar $s str
-	if { $str == "" } {
-		return -1
-	}
-	binary scan $str c val
-	set str [string range $str 1 end]
-	return [expr ($val & 0x000000ff)]
-}
-
-proc dbinS { s } {
-#
-# decode one binary short int from string s
-#
-	upvar $s str
-	if { [string length $str] < 2 } {
-		return -1
-	}
-	binary scan $str S val
-	set str [string range $str 2 end]
-	return [expr ($val & 0x0000ffff)]
-}
-
-proc dbinI { s } {
-#
-# decode one binary 32-bit int from string s
-#
-	upvar $s str
-	if { [string length $str] < 4 } {
-		return -1
-	}
-	binary scan $str I val
-	set str [string range $str 4 end]
-	return $val
-}
-
-###############################################################################
 
 proc valsid { } {
 
@@ -5326,725 +6157,8 @@ proc doConnect { } {
 	}
 }
 
-proc validSid { v } {
-
-	if { $v == "" } {
-		return 1
-	}
-	if { [string length $v] > 6 } {
-		return 0
-	}
-	if { $v == "0" } {
-		return 1
-	}
-	return [regexp "^\[1-9\]\[0-9\]*$" $v]
-}
-
-# parse arguments
-
-proc bad_usage { } {
-
-	global argv0
-
-	alert "Usage: $argv0 \[host:port\] \[-G gfile\]!"
-	exit 99
-}
-
-proc parse_args { } {
-
-	global argv GFile PortNumber HostName
-
-	while { [llength $argv] } {
-
-		set j [lindex $argv 0]
-		set argv [lrange $argv 1 end]
-
-		if { $j == "-G" } {
-			# geometry
-			set h [lindex $argv 0]
-			set argv [lrange $argv 1 end]
-			if { $GFile != "" || $h == "" } {
-				bad_usage
-			}
-			set GFile $h
-			continue
-		}
-
-		# port
-		if { $PortNumber != "" } {
-			bad_usage
-		}
-		if ![regexp "(.*):(.*)" $j j h p] {
-			if [catch { expr $j } p] {
-				set p ""
-				set h $j
-			} else {
-				set h ""
-			}
-		}
-		if { $p == "" } {
-			set PortNumber 4443
-		} else {
-			set PortNumber $p
-		}
-		if { $h != "" } {
-			set HostName $h
-		}
-
-		if { [catch { set PortNumber [expr $PortNumber ] }] ||
-	    	    $PortNumber < 1 || $PortNumber > 65535 } {
-			alert "Illegal port number: $PortNumber!"
-			exit 99
-		}
-	}
-
-	if { $PortNumber == "" } {
-		set PortNumber 4443
-	}
-}
-
-proc n_parse { ln } {
-#
-# Parse a number
-#
-	upvar $ln line
-
-	# no negative numbers in this case, so we stop on a - which means
-	# a range
-	if ![regexp "^\[^ ,\t\n\r\-]+" $line code] {
-		return ""
-	}
-
-	if [catch { expr $code } num] {
-		return ""
-	}
-
-	# integer expected
-	if { [catch { expr int($num) } iv] || $iv != $num } {
-		return ""
-	}
-
-	set num $iv
-
-	if { $num < 0 } {
-		# just in case
-		return ""
-	}
-
-	set line \
-		[string trimleft [string range $line [string length $code] end]]
-
-	return $num
-}
-
-proc parse_gr { nl } {
-#
-# Parses the list of node ID's, which can be individual items as well as ranges
-# turning them into a sorted list of individual values and ranges
-#
-	set res ""
-
-	while 1 {
-		set nl [string trimleft $nl " \t,"]
-		if { $nl == "" } {
-			return $res
-		}
-		# this must be a number
-		if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk va nl] ||
-		      [catch { expr $va } va] } {
-			error "illegal node number ...$nl"
-		}
-		set nl [string trimleft $nl]
-		set ret ""
-		set done 0
-		if { [string index $nl 0] == "-" } {
-			# this is a range
-			set nl [string trimleft [string range $nl 1 end]]
-			# now, this must be another number
-			if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk vb nl] ||
-			      [catch { expr $vb } vb] } {
-				# error
-				error "illegal node number ...$nl"
-			}
-			if { $vb < $va } {
-				# illegal range
-				error "illegal range: $vb < $va"
-			}
-			# rescan the list
-			foreach it $res {
-				if $done {
-					# copy the tail, the new range already
-					# inserted
-					lappend ret $it
-					continue
-				}
-				set a [lindex $it 0]
-				set b [lindex $it 1]
-				if { $b == "" } {
-					# this is a single ID
-					if { $a < $va } {
-						if { $a == [expr $va - 1] } {
-							# touching
-							set va $a
-						} else {
-							lappend ret $it
-						}
-						continue
-					}
-					if { $a > [expr $vb + 1] } {
-						lappend ret [list $va $vb]
-						lappend ret $it
-						set done 1
-						continue
-					}
-					if { $a == [expr $vb + 1] } {
-						# touching
-						set vb $a
-						lappend ret [list $va $vb]
-						set done 1
-						continue
-					}
-					# falls inside, ignore
-					continue
-				}
-				# this is a range
-				if { $b < [expr $va - 1] } {
-					# separate, preceding
-					lappend ret $it
-					continue
-				}
-
-				if { $a > [expr $vb + 1] } {
-					# separate, following
-					lappend ret [list $va $vb]
-					lappend ret $it
-					set done 1
-					continue
-				}
-
-				# overlapping
-				if { $a < $va } {
-					set va $a
-				}
-				if { $b > $vb } {
-					set vb $b
-				}
-
-				continue
-			}
-
-			if !$done {
-				lappend ret [list $va $vb]
-			}
-
-		} else {
-			# a single item
-			foreach it $res {
-				if $done {
-					# copy the tail
-					lappend ret $it
-					continue
-				}
-				set a [lindex $it 0]
-				set b [lindex $it 1]
-				if { $b == "" } {
-					# a single ID
-					if { $a >= $va } {
-						# here we go
-						lappend ret $va
-						set done 1
-						if { $a != $va } {
-							lappend ret $it
-						}
-					} else {
-						lappend ret $it
-					}
-					continue
-				}
-				# a range
-				if { $b < [expr $va - 1] } {
-					lappend ret $it
-					continue
-				}
-				set done 1
-				if { $a > [expr $va + 1] } {
-					lappend ret $va
-					lappend ret $it
-					continue
-				}
-				if { $a == [expr $va + 1] } {
-					set a $va
-				} elseif { $b == [expr $va - 1] } {
-					set b $va
-				}
-				lappend ret [list $a $b]
-			}
-			if !$done {
-				lappend ret $va
-			}
-		}
-		set res $ret
-	}
-
-	return $res
-}
-
-proc cover_gr { col num } {
-#
-# Checks whether the number (node ID) is covered by the list of ranges col
-#
-	if { $num == "" } {
-		# absolute windows have no IDs
-		return 1
-	}
-	foreach it $col {
-		set a [lindex $it 0]
-		set b [lindex $it 1]
-		if { $b == "" } {
-			if { $a < $num } {
-				continue
-			}
-			# a single item
-			if { $a > $num } {
-				return 0
-			}
-			return 1
-		}
-		# a range
-		if { $b < $num } {
-			continue
-		}
-		if { $a > $num } {
-			return 0
-		}
-		return 1
-	}
-	return 0
-}
-
-proc cover_ns { nos num nt } {
-#
-# Checks whether the node of a given type is covered by the node set
-#
-	set not [lindex $nos 0]
-	set nol [lindex $nos 1]
-
-	if { $not == "" && $nol == "" } {
-		# the set of all nodes
-		return 1
-	}
-
-	if { [string first $not [string tolower $nt]] >= 0 } {
-		return 1
-	}
-
-	return [cover_gr $nol $num]
-}
-
-proc valid_color { cn } {
-#
-# Checks if the color designator is valid
-#
-	if [regexp -nocase \
-	    "^#\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]\[0-9a-f\]$" \
-		$cn] {
-		return 1
-	}
-
-	# check if the color is valid by trying it out
-	toplevel .junk
-	if [catch { label .junk.l -text "a" -fg $cn }] {
-		catch { destroy .junk }
-		return 0
-	}
-	catch { destroy .junk }
-	return 1
-}
-
-proc parse_cs { cs } {
-#
-# Parses the color set in the form:
-#
-#	colorid
-#	pn=(colorid,colorid), pn=(colorid,colorid), ...
-#
-	set cs [string trim $cs]
-	set ws "\[ \t\n\r\]*"
-	set wd "\[ \t\n\r,\]+"
-	set ci "\[^ \t\n\r,\\(\\)=\]+"
-
-	if ![regexp -nocase "^(l?)(\[0-9\])" $cs] {
-		# this is a single solid color
-		if [valid_color $cs] {
-			return [list "F" $cs]
-		}
-		error "illegal color: $cs"
-	}
-
-	# pin or led
-	set res ""
-	while 1 {
-		set cs [string trimleft $cs " \t\r\n,"]
-		if { $cs == "" } {
-			break
-		}
-		if ![regexp -nocase \
-        "^(l?)(\[0-9\]+)${ws}=${ws}\\(${ws}(${ci})${wd}(${ci})${ws}\\)(.*)" \
-			$cs jnk led pin coff con cs] {
-				error "invalid color assignment: $cs"
-		}
-		if [catch { expr $pin } piv] {
-			error "invalid pin/led number: $pin"
-		}
-
-		if ![valid_color $con] {
-			error "illegal color: $con"
-		}
-
-		if ![valid_color $coff] {
-			error "illegal color: $coff"
-		}
-
-		if { $led != "" } {
-			set typ "led"
-		} else {
-			set typ "pin"
-		}
-
-		set piv [list $piv $typ]
-		set new [list $piv $coff $con]
-
-		foreach it $res {
-			set p [lindex $it 0]
-			if { $p == $piv } {
-				error "duplicate color entry: $p"
-			}
-		}
-
-		lappend res $new
-	}
-
-	return [list "P" $res]
-}
-
-proc do_geometry { win kwd { num "" } } {
-
-	global Geometry
-
-	if [info exists Geometry($kwd)] {
-		foreach ml $Geometry($kwd) {
-			set exp [lindex $ml 0]
-			set geo [lindex $ml 1]
-			if [cover_gr $exp $num] {
-				wm geometry $win $geo
-				return
-			}
-		}
-	}
-}
-
-proc parse_g { geo } {
-#
-# Parse the geometry specification
-#
-	set g ""
-	foreach u { 0 1 } {
-		# twice
-		set geo [string trimleft $geo]
-		if { [string index $geo 0] == "-" } {
-			set sg "-"
-			set geo [string range $geo 1 end]
-		} else {
-			set sg "+"
-		}
-		set n [n_parse geo]
-		if { $n == "" } {
-			return ""
-		}
-		append g $sg$n
-		set geo [string trimleft $geo " \t,"]
-	}
-	return $g
-}
-		
-proc lappendunique { ls it } {
-#
-#  Append a new item, if it doesn't already exists on the list
-#
-	upvar $ls lst
-
-	if ![info exists lst] {
-		lappend lst $it
-		return 1
-	}
-
-	if { [lsearch -exact $lst $it] < 0 } {
-		lappend lst $it
-		return 1
-	}
-	return 0
-}
-
-proc gperror { em } {
-#
-# geometry error
-#
-	alert "Parsing geometry file: $em!"
-	exit 99
-}
-
-proc parse_nodecolor { ncl } {
-#
-# Parses the node color spec in ROAMER geometry
-#
-	global Geometry
-
-	set sts ""
-
-	foreach nc $ncl {
-		set nol ""
-		set not ""
-		set at [sxml_attr $nc "id"]
-		if { $at != "" } {
-			if [catch { parse_gr $at } nol] {
-				gperror "<nodecolor>, $nol"
-			}
-			if { $nol == "" } {
-				gperror "<nodecolor>, empty id attribute"
-			}
-		}
-		set at [string tolower [sxml_attr $nc "type"]]
-		if { $at != "" } {
-			set not $at
-		}
-		# this is the complete description of the set of nodes
-		set nos [list $not $nol]
-		if [catch { parse_cs [sxml_txt $nc] } cst] {
-			gperror "<nodecolor>, $cst"
-		}
-		lappend sts [list $nos $cst]
-	}
-	set Geometry(roamer,NC) $sts
-}
-
-proc parse_geometry { } {
-
-	global GFile Geometry
-
-	if { $GFile == "" } {
-		# try to open the default geometry file
-		set GFile "geometry.xml"
-		if [catch { open $GFile "r" } h] {
-			# failure is OK
-			return
-		}
-	} else {
-		if [catch { open $GFile "r" } h] {
-			gperror "cannot open $GFile: $h"
-		}
-	}
-
-	# parse the geometry file
-	if [catch { read $h } p] {
-		gperror "cannot read $GFile: $p"
-	}
-	catch { close $h }
-
-	if [catch { sxml_parse p } p] {
-		gperror $p
-	}
-
-	set p [sxml_child $p "geometry"]
-
-	if { $p == "" } {
-		gperror "no <geometry> element found"
-	}
-
-	foreach j [sxml_children $p] {
-
-		set n [string tolower [sxml_name $j]]
-		set t [sxml_txt $j]
-		set torg $t
-	
-		set dsp [string tolower [sxml_attr $j "display"]]
-		if { $dsp == "1" || $dsp == "y" || $dsp == "yes" } {
-			set dsp 1
-		} else {
-			set dsp 0
-		}
-
-		regsub -all "\[ \t\r\n\]+" $t " " t
-
-		set ml ""
-
-		while 1 {
-			if { $t == "" } {
-				break
-			}
-			if ![regexp \
-			    "^(\[^=\]*) *= *\\((\[^)\]+)\\)" \
-			    $t mat pat geo] {
-				gperror "illegal geometry specification"
-			}
-			# parse the node set
-			if [catch { parse_gr $pat } pfx] {
-				gperror $pfx"
-			}
-			set geo [parse_g $geo]
-			if { $geo == "" } {
-				gperror "illegal geometry specification: $torg"
-			}
-			lappend ml [list $pfx $geo]
-			set ls [string length $mat]
-			set t [string trimleft [string range $t $ls end] " \t,"]
-
-			if { $dsp && \
-			    ($pfx == "" || ![catch { expr $pfx } nod]) } {
-				# a single number, add it to the auto display
-				# list
-				lappendunique Geometry(=$n) $pfx
-			}
-		}
-
-		if { $ml != "" } {
-			if [info exists Geometry($n)] {
-				set Geometry($n) [concat $Geometry($n) $ml]
-			} else {
-				set Geometry($n) $ml
-			}
-		}
-
-		if { $n == "roamer" } {
-			# we may have a background image for the roamer, which
-			# will also fix the dimensions
-			set img [sxml_attr $j "image"]
-			if { $img != "" } {
-				set dim [sxml_attr $j "width"]
-				if { $dim != "" } {
-					if { [catch { expr $dim } val] || \
-					    $val <= 0.0 } {
-						gperror "illegal number in\
-						    width in roamer spec: $dim"
-					}
-					set Geometry(roamer,w) $val
-				}
-				set dim [sxml_attr $j "height"]
-				if { $dim != "" } {
-					if { [catch { expr $dim } val] || \
-					    $val <= 0.0 } {
-						gperror "illegal number in\
-						    height in roamer spec: $dim"
-					}
-					set Geometry(roamer,h) $val
-				}
-				if { ![info exists Geometry(roamer,w)] && \
-				     ![info exists Geometry(roamer,h)]     } {
-					gperror "image in roamer spec requires\
-					    at least one of 'width', 'height'"
-				}
-				set Geometry(roamer,i) [sxml_attr $j "image"]
-			}
-			set ns [sxml_attr $j "nodesize"]
-			if { $ns != "" } {
-				if { ![regexp "^\[0-9\]+$" $ns] ||
-				      [catch { expr $ns } $ns] || $ns < 4 ||
-				      $ns > 100 } {
-					gperror "illegal nodesize, must be\
-						between 4 and 100"
-				}
-				if [expr $ns & 1] {
-					# make sure it is even
-					incr ns
-				}
-				set nsh [expr $ns / 2]
-				global CMARGIN
-				set CMARGIN(ND) $ns
-				set CMARGIN(NR) $nsh
-				set CMARGIN(TO) [expr $nsh + 5]
-			}
-			parse_nodecolor [sxml_children $j "nodecolor"]
-		}
-	}
-}
-
 ###############################################################################
-
-proc predisplay { } {
-#
-# Predisplay requested windows
-#
-	global Geometry
-
-	set Geometry(+D) 200
-
-	foreach p [array names Geometry "=*"] {
-		set wn [string range $p 1 end]
-		set pl $Geometry($p)
-		switch -- $wn {
-			"uart" {
-				predisplay_nodes "uartHandler %n a" $pl
-			}
-			"sensors" {
-				predisplay_nodes "sensorsHandler %n" $pl
-			}
-			"pins" {
-				predisplay_nodes "pinsHandler %n" $pl
-			}
-			"leds" {
-				predisplay_nodes "ledsHandler %n" $pl
-			}
-			"emul" {
-				predisplay_nodes "emulHandler %n" $pl
-			}
-			"lcdg" {
-				predisplay_nodes "lcdgHandler %n" $pl
-			}
-			"ptracker" {
-				predisplay_nodes "pwrtHandler %n" $pl
-			}
-			"roamer" {
-				predisplay_single "moveHandler"
-			}
-			"panel" {
-				predisplay_single "panelHandler"
-			}
-			"clock" {
-				predisplay_single "clockHandler"
-			}
-		}
-	}
-}
-
-proc predisplay_nodes { fun nl } {
-#
-# Predisplay node-relative windows
-#
-	global Geometry
-
-	foreach n $nl {
-		if { $n != "" } {
-			regsub "%n" $fun $n f
-			after $Geometry(+D) $f
-			incr Geometry(+D) 200
-		}
-	}
-}
-
-proc predisplay_single { fun } {
-
-	global Geometry
-
-	after $Geometry(+D) $fun
-	incr Geometry(+D) 200
-}
-
 ###############################################################################
-
-proc terminate { } {
-
-	catch { destroy . }
-
-}
 
 parse_args
 
