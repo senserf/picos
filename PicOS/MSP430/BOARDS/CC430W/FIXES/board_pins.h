@@ -52,7 +52,7 @@
 //	6 - LED G	OFF == HIGH
 //	7 - LED R	OFF == HIGH
 #define	PIN_DEFAULT_P4DIR	0xF7
-#define	PIN_DEFAULT_P4OUT	0xE8
+#define	PIN_DEFAULT_P4OUT	0xE0
 
 // P5:
 //	0 - 32K crystal

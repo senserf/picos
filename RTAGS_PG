@@ -1912,3 +1912,18 @@ PG120303A:
 PG120304A:
 
 	Fixed piter_plug.tcl in vsen_demo to account for "gone" collectors.
+
+PG120320A:
+
+	Fixed a minor bug in BOARDS/CC430W causing that the external voltage
+	sensor didn't work.
+
+	Added board WARSAW_6SHT with the SHT array truncated to 6 units and the
+	remaining slots used as analog sensors, with P6.3 intended for the
+	sonar. Read README.txt in WARSAW_6SHT.
+
+	Board WARSAW_LCD_TEST moved back from the archive and renamed
+	WARSAW_N6100. That board is needed to compile SEAWOLF, which is an
+	active praxis, so it shouldn't have been removed.
+
+	A few cosmetic changes in the LOCATION document.
