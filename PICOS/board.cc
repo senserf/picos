@@ -2726,7 +2726,9 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		EP->EEPPS = 0;
 		att = sxml_attr (cur, "size");
 
-		if ((len = parseNumbers (att, 2, np)) < 0)
+		if (att == NULL)
+			len = 0;
+		else if ((len = parseNumbers (att, 2, np)) < 0)
 			excptn ("Root: illegal value in <eeprom> size for %s",
 				xname (nn));
 

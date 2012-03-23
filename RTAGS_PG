@@ -764,4 +764,9 @@ PG120320A:
 
     A few cleanups in udaemon in preparation for more additions. LEDs colors
     (for the LEDS module) are now borrowed from the geometry description (for
-    ROAMER), if the node falls into some pin coloring scheme described there.
+    ROAMER), if the node falls under some pin coloring scheme described there.
+
+PG120323A:
+
+    Fixed a bug in board.cc causing segmentation faults when parsing null
+    EEPROM declarations in the data set.
