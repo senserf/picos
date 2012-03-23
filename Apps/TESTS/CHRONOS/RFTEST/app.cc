@@ -56,7 +56,7 @@ void msg_nn (word hi, word a) {
 	char erm [6];
 
 	if (hi) {
-		form (erm, "%u", a % 9999);
+		form (erm, "%u", a % 10000);
 		msg_hi (erm);
 	} else {
 		form (erm, "%u", a);
