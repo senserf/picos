@@ -1927,3 +1927,25 @@ PG120320A:
 	active praxis, so it shouldn't have been removed.
 
 	A few cosmetic changes in the LOCATION document.
+
+PG120323A:
+
+	Fixed a problem with vsen_demo causing extensive current drain for
+	CHRONOS in the apparent SLEEP state. Note: there is a minor (but still
+	nasty, as it turns out) incompatibility between PicOS and VUEE, namely:
+
+	- in VUEE, a missing finish at the end of a state devoid of wait
+	  requests causes the process to terminate
+
+	- in PicOS, such a process will immediately restart in its last state
+	  (effectively looping)
+
+	I promise to do something about it, although the problem is more
+	difficult than it would seem at first sight.
+
+PG120323B:	VUEE >= PG120323A
+
+	Node data for CHRONOS in vsen_demo now declares a null EEPROM (meaning
+	"no EEPROM").
+
+	A cosmetic change to BOARDS/CHRONOS/board_sensors.h.

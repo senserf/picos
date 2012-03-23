@@ -109,6 +109,8 @@
 
 #define	N_HIDDEN_SENSORS	2
 
+#define	SENSOR_TEMP		(-2)
+#define	SENSOR_BATTERY		(-1)
 #define	SENSOR_MOTION		0
 #define	SENSOR_PRESSTEMP	1
 
