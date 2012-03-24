@@ -770,3 +770,13 @@ PG120323A:
 
     Fixed a bug in board.cc causing segmentation faults when parsing null
     EEPROM declarations in the data set.
+
+PG120324A:
+
+    Fixed a couple of small (but nasty) typos causing misinterpretation of the
+    input specification describing EEPROM and IFLASH when the definitions were
+    split between defaults and individual nodes.
+
+    Fixed PTRACKER to correctly show zero power usage by a switched off node.
+    This one was unexpectedly tricky due to the logarithmic scale of PTRACKER's
+    meter.

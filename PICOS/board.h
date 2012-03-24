@@ -323,6 +323,12 @@ station PicOSNode abstract {
 			pwr_tracker->pwrt_clear ();
 	};
 
+	void pwrt_zero () {
+		// Zero out when the node is being switched off
+		if (pwr_tracker)
+			pwr_tracker->pwrt_zero ();
+	};
+
 	/*
 	 * The watchdog process
 	 */

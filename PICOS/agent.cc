@@ -3238,13 +3238,9 @@ pwr_tracker_t::pwr_tracker_t (data_pt_t *pt) {
 
 void pwr_tracker_t::rst () {
 
-	double T;
 	int i;
 
-	T = ituToEtu (Time) - strt_tim;
-	if (T > 0.0)
-		average =
-		    average * (last_tim / T) + (last_val * (T - last_tim)) / T;
+	navg ();
 
 	for (last_val = 0.0, i = 0; i < PWRT_N_MODULES; i++) {
 		States [i] = 0;
@@ -3252,7 +3248,6 @@ void pwr_tracker_t::rst () {
 			last_val += Modules [i] -> Levels [0];
 	}
 
-	last_tim = T;
 	upd ();
 }
 
@@ -3268,10 +3263,7 @@ int pwr_tracker_t::pwrt_status () {
 	// Elapsed time
 	T = t - strt_tim;
 
-	sprintf (UBuf, "U %08.3f [%08.3f]: %1.7g %1.7g\n", t, T,
-		(T > 0.0) ?
-		    average * (last_tim / T) + (last_val * (T - last_tim)) / T
-			: 0.0,
+	sprintf (UBuf, "U %08.3f [%08.3f]: %1.7g %1.7g\n", t, T, vavg (T),
 		last_val);
 
 	return strlen (UBuf);
@@ -3281,7 +3273,6 @@ void pwr_tracker_t::pwrt_change (word md, word lv) {
 //
 // Something goes on
 //
-	double T;
 	pwr_mod_t *ms;
 
 	Assert (md < PWRT_N_MODULES, "Power tracker at %s: pwrt_change, "
@@ -3297,17 +3288,20 @@ void pwr_tracker_t::pwrt_change (word md, word lv) {
 		// No change
 		return;
 
-	T = ituToEtu (Time) - strt_tim;
-
-	if (T > 0.0)
-		average =
-		    average * (last_tim / T) + (last_val * (T - last_tim)) / T;
-
-	last_tim = T;
+	navg ();
 
 	last_val -= ms->Levels [States [md]];
 	last_val += ms->Levels [States [md] = lv];
 
+	upd ();
+}
+
+void pwr_tracker_t::pwrt_zero () {
+//
+// Zero out all power when the node is going off
+//
+	navg ();
+	last_val = 0.0;
 	upd ();
 }
 

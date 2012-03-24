@@ -4647,12 +4647,13 @@ proc pwrtRedraw { Sok } {
 	set Stat($Sok,TS) [$w.c create text $PMARGIN(L) [expr $H - 4] \
 		-anchor sw -text "Tim: $tm" -state disabled]
 	set Stat($Sok,TC) [$w.c create text [expr $W / 3] [expr $H - 4] \
-		-anchor s -text "Cur: $vv" -state disabled]
+		-anchor s -text "Cur: [pwrt_pz $vv]" -state disabled]
 	set Stat($Sok,TA) [$w.c create text [expr int(1.8 * $W / 3.0)] \
-		[expr $H - 4] -anchor s -text "Avg: $av" -state disabled]
+		[expr $H - 4] -anchor s -text "Avg: [pwrt_pz $av]" \
+		-state disabled]
 	set Stat($Sok,TM) [$w.c create text [expr $W - $PMARGIN(R)] \
 		[expr $H - 4] \
-		-anchor se -text "Max: $bv" -state disabled]
+		-anchor se -text "Max: [pwrt_pz $bv]" -state disabled]
 }
 
 proc pwrtUpd { Sok } {
@@ -4699,6 +4700,16 @@ proc pwrtUpd { Sok } {
 	}
 }
 
+proc pwrt_pz { v } {
+#
+# Print as zero something smaller than practical nonzero
+#
+	if { $v < 0.0011 } {
+		return 0.0
+	}
+	return $v
+}
+
 proc pwrtLex { d } {
 	return [expr int(floor(log10($d)))]
 }
@@ -4730,8 +4741,16 @@ proc pwrtParse { Sok } {
 	regexp "^.0*(.*).$" $tim jnk tim
 
 	if { [catch { expr $avg } avg] || [catch { expr $lst } lst] ||
-		$avg <= 0.0 || $lst <= 0.0 } {
+		$avg < 0.0 || $lst < 0.0 } {
 			return
+	}
+
+	if { $avg < 0.001 } {
+		set avg 0.001
+	}
+
+	if { $lst < 0.001 } {
+		set lst 0.001
 	}
 
 	lassign $Stat($Sok,VL) tm vv av sv bv tf tl
@@ -4747,6 +4766,9 @@ proc pwrtParse { Sok } {
 		}
 		set tf [pwrtLex $sv]
 		set tl [pwrtHex $bv]
+		if { $tf == $tl } {
+			incr tl
+		}
 		set Stat($Sok,VL) [list $tim $lst $avg $sv $bv $tf $tl]
 		pwrtRedraw $Sok
 		return
@@ -4806,9 +4828,9 @@ proc pwrtParse { Sok } {
 	$w.c coords $Stat($Sok,MA) $x $y0 [expr $x + 6] $y1
 
 	$w.c itemconfigure $Stat($Sok,TS) -text "Tim: $tim"
-	$w.c itemconfigure $Stat($Sok,TC) -text "Cur: $lst"
-	$w.c itemconfigure $Stat($Sok,TA) -text "Avg: $avg"
-	$w.c itemconfigure $Stat($Sok,TM) -text "Max: $bv"
+	$w.c itemconfigure $Stat($Sok,TC) -text "Cur: [pwrt_pz $lst]"
+	$w.c itemconfigure $Stat($Sok,TA) -text "Avg: [pwrt_pz $avg]"
+	$w.c itemconfigure $Stat($Sok,TM) -text "Max: [pwrt_pz $bv]"
 }
 
 proc moveHandler { } {

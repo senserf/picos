@@ -247,6 +247,8 @@ void PicOSNode::stopall () {
 		lcdg->m_lcdg_off ();
 
 	Halted = YES;
+
+	pwrt_zero ();
 }
 
 void _dad (PicOSNode, reset) () {
@@ -608,7 +610,7 @@ void PicOSNode::setup (data_no_t *nd) {
 		if (EP->IFLSS) {
 			iflash = new NVRAM (EP->IFLSS, EP->IFLPS, 
 				NVRAM_TYPE_NOOVER | NVRAM_TYPE_ERPAGE,
-					EP->EECL, NULL, EP->IFINI, EP->IFIF);
+					EP->IFCL, NULL, EP->IFINI, EP->IFIF);
 		}
 	}
 
@@ -625,6 +627,8 @@ void PicOSNode::setup (data_no_t *nd) {
 	if (nd->On == 0) {
 		// This value means OFF (it can be WNONE - for default - or 1)
 		Halted = YES;
+		// Make sure the node uses zero power
+		pwrt_zero ();
 		return;
 	}
 
@@ -4136,11 +4140,10 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 				// Do not deallocate arrays
 				NEP->EFLGS = DEP->EFLGS | NVRAM_NOFR_EPINIT;
 				NEP->EPINI = DEP->EPINI;
+				NEP->EECL = DEP->EECL;
 				for (j = 0; j < EP_N_BOUNDS; j++)
 					NEP->bounds [j] =
 						DEP->bounds [j];
-				if (NEP->EPIF != NULL) {
-				}
 			}
 			if (NEP->IFLSS == WNONE) {
 				NEP->IFLSS = DEP->IFLSS;
@@ -4149,6 +4152,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 				// Do not deallocate arrays
 				NEP->EFLGS |= NVRAM_NOFR_IFINIT;
 				NEP->IFINI = DEP->IFINI;
+				NEP->IFCL = DEP->IFCL;
 			}
 		}
 

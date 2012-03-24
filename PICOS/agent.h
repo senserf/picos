@@ -772,6 +772,21 @@ class pwr_tracker_t {
 
 	int pwrt_status ();
 
+	inline double vavg (double t) {
+		return (t > 0.0) ? average * (last_tim / t) +
+		                             (last_val * (t - last_tim)) / t
+			         : 0.0;
+	}
+
+	inline void navg () {
+
+		double T;
+
+		T = ituToEtu (Time) - strt_tim;
+		average = vavg (T);
+		last_tim = T;
+	};
+
 	public:
 
 	void rst ();
@@ -782,6 +797,7 @@ class pwr_tracker_t {
 	void pwrt_change (word md, word st);
 	void pwrt_add (word md, word st, double tm);
 	void pwrt_clear ();
+	void pwrt_zero ();
 	// Incoming requests from external agents
 	int pwrt_request (const char*);
 };
