@@ -1949,3 +1949,15 @@ PG120323B:	VUEE >= PG120323A
 	"no EEPROM").
 
 	A cosmetic change to BOARDS/CHRONOS/board_sensors.h.
+
+PG120324A:
+
+	A couple of corrections to the input data set for vsen_demo. Note that
+	to properly set the power tracker parameters for CHRONOS (e.g., to
+	eliminate the standby current drawn by EEPROM), you have to redefine
+	<ptracker> for the node. Removing the EEPROM itself won't do as long
+	as the EEPROM remains present in <ptracker>, because its standby power
+	usage (declared in <ptracker>) will always take effect. Also note that
+	you should define a separate <ptracker> set for CHRONOS anyway, as the
+	power usage parameters for CHRONOS components are quite specific and
+	different, e.g., from those for the WARSAW board.
