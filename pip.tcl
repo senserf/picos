@@ -19,21 +19,35 @@ if [catch { exec uname } ST(SYS)] {
 } else {
 	set ST(SYS) "W"
 }
+
+# no DOS path type
+set ST(DP) 0
+
 if { $ST(SYS) != "L" } {
-	# sanitize arguments; here you a sample of the magnitude of stupidity
-	# I have to fight when glueing together Windows and Cygwin stuff; the
-	# last argument (sometimes!) has a CR character appended at the end,
-	# and you wouldn't believe how much havoc that can cause
+	# sanitize arguments; here you have a sample of the magnitude of
+	# stupidity I have to fight when glueing together Windows and Cygwin
+	# stuff; the last argument (sometimes!) has a CR character appended
+	# at the end, and you wouldn't believe how much havoc that can cause
 	set u [string trimright [lindex $argv end]]
 	if { $u == "" } {
 		set argv [lreplace $argv end end]
 	} else {
 		set argv [lreplace $argv end end $u]
 	}
+
+	# Not Linux: issue a dummy reference to a file path to eliminate the
+	# DOS-path warning triggered at the first reference after Cygwin
+	# startup
+
+	set u [file normalize [pwd]]
+	catch { exec ls $u }
+
+	if [regexp -nocase "^\[a-z\]:" $u] {
+		# DOS paths
+		set ST(DP) 1
+	}
 	unset u
 }
-###############################################################################
-###############################################################################
 
 if { [lsearch -exact $argv "-D"] >= 0 } {
 	set ST(DEB) 1
@@ -478,6 +492,26 @@ proc xq { pgm { pargs "" } } {
 	return $ret
 }
 
+proc fpnorm { fn } {
+#
+# Normalizes the file-name path, accounts for the Cygwin/Windows duality
+#
+	global ST
+
+	if { $ST(DP) && [string index $fn 0] == "/" } {
+		# this is the only place where we may have a problem: we have
+		# a full path from Cygwin, while the script needs DOS
+		if ![catch { xq "cygpath" [list -w $fn] } fm] {
+			log "Cygwin full path: $fn -> $fm"
+			set fn $fm
+		} else {
+			log "cygpath failed: $fn, $fm"
+		}
+	}
+
+	return [file normalize $fn]
+}
+
 proc cw { } {
 #
 # Returns the window currently in focus or null if this is the root window
@@ -783,21 +817,20 @@ proc file_location { f } {
 #
 	global P PicOSPath
 
-	set f [file normalize $f]
+	set f [fpnorm $f]
 
 	if { $P(AC) != "" && [string first $P(AC) $f] == 0 } {
 		# project
 		return "T"
 	}
 
-	if { [string first [file normalize [file join $PicOSPath "PicOS"]] $f] \
-	    == 0 } {
+	if { [string first [fpnorm [file join $PicOSPath "PicOS"]] $f] == 0 } {
 		# PicOS
 		return "S"
 	}
 
-	if { [string first [file normalize \
-	    [file join $PicOSPath "../VUEE/PICOS"]] $f] == 0 } {
+	if { [string first [fpnorm [file join $PicOSPath "../VUEE/PICOS"]] $f] \
+	    == 0 } {
 		return "V"
 	}
 
@@ -811,7 +844,7 @@ proc relative_path { f } {
 #
 	global P
 
-	set f [file normalize $f]
+	set f [fpnorm $f]
 
 	if { [string first $P(AC) $f] != 0 } {
 		# not in project
@@ -951,7 +984,7 @@ proc gfl_tree_pop { tv node lst path } {
 	# now for the files
 	foreach t [lindex $lst 1] {
 		set p [file join $path $t]
-		set f [file normalize $p]
+		set f [fpnorm $p]
 		set u [file_edit_pipe $f]
 		if { $u != "" } {
 			# edited
@@ -985,7 +1018,7 @@ proc gfl_all_rec { path } {
 	set fils ""
 
 	foreach f $sdl {
-		set p [file normalize [file join $path $f]]
+		set p [fpnorm [file join $path $f]]
 		if { $p == "" } {
 			# just in case
 			continue
@@ -1169,7 +1202,7 @@ proc gfl_find_rec { nd path } {
 			}
 			continue
 		}
-		if { [file normalize [lindex $vs 0]] == $path } {
+		if { [fpnorm [lindex $vs 0]] == $path } {
 			return $d
 		}
 	}
@@ -1335,7 +1368,7 @@ proc tag_find { tag m } {
 
 	set ne [lindex $P(FL,$m,$tag) $nr]
 
-	return [list [file normalize [lindex $ne 0]] [lindex $ne 1]]
+	return [list [fpnorm [lindex $ne 0]] [lindex $ne 1]]
 }
 
 proc tag_request { fd tag } {
@@ -1898,7 +1931,7 @@ proc open_for_edit { x y } {
 		return
 	}
 
-	set fp [file normalize [lindex $vs 0]]
+	set fp [fpnorm [lindex $vs 0]]
 	set u [file_edit_pipe $fp]
 	if { $u != "" } {
 		# being edited
@@ -1969,7 +2002,7 @@ proc do_filename_click { w diag x y } {
 	}
 
 	# a quick check if this is an actual existing file
-	set fm [file normalize $fn]
+	set fm [fpnorm $fn]
 	if ![file isfile $fm] {
 		# try to match the file to one of the project files;
 		# FIXME: this may have to be made smarter, to account for the
@@ -2013,7 +2046,7 @@ proc do_filename_click { w diag x y } {
 		}
 	}
 	# open the file at the indicated line
-	set fm [file normalize $fm]
+	set fm [fpnorm $fm]
 	set u [file_edit_pipe $fm]
 	if { $u == "" } {
 		set em [file_location $fm]
@@ -2122,7 +2155,7 @@ proc open_multiple { { x "" } { y "" } } {
 	}
 
 	if { [llength $fl] == 1 } {
-		set fp [file normalize [lindex $fl 0]]
+		set fp [fpnorm [lindex $fl 0]]
 		if [file_is_edited $fp] {
 			alert "The file is already being edited"
 		} else {
@@ -2133,7 +2166,7 @@ proc open_multiple { { x "" } { y "" } } {
 
 	set el ""
 	foreach f $fl {
-		set fp [file normalize $f]
+		set fp [fpnorm $f]
 		if ![file_is_edited $fp] {
 			lappend el $fp
 		}
@@ -2221,7 +2254,7 @@ proc delete_directories { fl } {
 
 	foreach f $de {
 		log "Deleting file: $f"
-		catch { file delete -force -- [file normalize $f] }
+		catch { file delete -force -- [fpnorm $f] }
 	}
 }
 
@@ -2245,7 +2278,7 @@ proc delete_files { fl } {
 	set mf ""
 
 	foreach f $fl {
-		if [file_is_edited [file normalize $f] 1] {
+		if [file_is_edited [fpnorm $f] 1] {
 			lappend mf $f
 		}
 	}
@@ -2269,7 +2302,7 @@ proc delete_files { fl } {
 
 	# delete
 	foreach f $fl {
-		set fp [file normalize $f]
+		set fp [fpnorm $f]
 		edit_kill $fp
 		log "Deleting file: $fp"
 		catch { file delete -force -- $fp }
@@ -2399,7 +2432,7 @@ proc new_directory { { x "" } { y "" } } {
 		}
 
 		# validate the directory
-		set nd [file normalize [file join $dir $P(M0,DI)]]
+		set nd [fpnorm [file join $dir $P(M0,DI)]]
 
 		if { [file_location $nd] != "T" } {
 			alert "The new directory is outside the project tree!\
@@ -2524,8 +2557,7 @@ proc tree_sel_params { { x "" } { y "" } } {
 		if { $tp == "b" } {
 			# board
 			if { $dir == "." } {
-				set dir [file normalize \
-					[file join [boards_dir] $fn]]
+				set dir [fpnorm [file join [boards_dir] $fn]]
 			}
 			# a special type
 			set typ "Board"
@@ -2572,7 +2604,7 @@ proc new_file { { x "" } { y "" } } {
 		set ext [lindex [lindex [lindex $typ 0] 1] 0]
 	}
 
-	set dir [file normalize $dir]
+	set dir [fpnorm $dir]
 
 	while 1 {
 
@@ -2589,7 +2621,7 @@ proc new_file { { x "" } { y "" } } {
 			return
 		}
 
-		set fn [file normalize $fn]
+		set fn [fpnorm $fn]
 
 		if { [file_class $fn] == "" } {
 			alert "Illegal file name or extension"
@@ -2731,7 +2763,7 @@ proc copy_to { { x "" } { y "" } } {
 
 	if { $nf == 1 && [lindex [lindex $sel 0] 1] == "f" } {
 		# single simple file, a special case
-		set fp [file normalize [lindex [lindex $sel 0] 0]]
+		set fp [fpnorm [lindex [lindex $sel 0] 0]]
 		set dir [file dirname $fp]
 		set ext [file extension $fp]
 		while 1 {
@@ -2747,7 +2779,7 @@ proc copy_to { { x "" } { y "" } } {
 				# cancelled
 				return
 			}
-			set fl [file normalize $fl]
+			set fl [fpnorm $fl]
 			set dir [file dirname $fl]
 			set ext [file extension $fl]
 
@@ -2788,7 +2820,7 @@ proc copy_to { { x "" } { y "" } } {
 			return
 		}
 
-		set fl [file normalize $fl]
+		set fl [fpnorm $fl]
 
 		if { [file_location $fl] != "X" && ![valfname $fl "d"] } {
 			continue
@@ -2811,7 +2843,7 @@ proc copy_to { { x "" } { y "" } } {
 
 	set ers ""
 	foreach f $sel {
-		set fn [file normalize [lindex $f 0]]
+		set fn [fpnorm [lindex $f 0]]
 		log "Copying $fn to $fl"
 		if [catch { file copy -force -- $fn $fl } err] {
 			lappend ers "$fn: $err"
@@ -2848,9 +2880,9 @@ proc run_xterm_here { { x "" } { y "" } } {
 
 	set fp [lindex $sel 0]
 	if { [lindex $fp 1] == "f" } {
-		set fp [file dirname [file normalize [lindex $fp 0]]]
+		set fp [file dirname [fpnorm [lindex $fp 0]]]
 	} elseif { [lindex $fp 1] == "d" } {
-		set fp [file normalize [lindex $fp 0]]
+		set fp [fpnorm [lindex $fp 0]]
 	} else {
 		alert "You have to select a file or directory for this"
 		return
@@ -2997,16 +3029,17 @@ proc val_prj_dir { dir } {
 #
 	global PicOSPath
 
-	set apps [file normalize [file join $PicOSPath Apps]]
+	set apps [fpnorm [file join $PicOSPath Apps]]
 
 	if ![valfname $dir "d"] {
 		return 0
 	}
 
 	while 1 {
-		set d [file normalize [file dirname $dir]]
+		set d [fpnorm [file dirname $dir]]
 		if { $d == $dir } {
 			# no change
+			log "bad prj dir $dir -> $d"
 			alert "This directory won't do! A project directory\
 				must be a proper subdirectory of $apps"
 			return 0
@@ -3024,7 +3057,7 @@ proc prj_name { dir } {
 	global PicOSPath
 
 	return [string trim [string range $dir [string length \
-		[file normalize [file join $PicOSPath Apps]]] end] "/"]
+		[fpnorm [file join $PicOSPath Apps]]] end] "/"]
 }
 
 proc val_prj_incomp { } {
@@ -3168,7 +3201,7 @@ proc clone_project { } {
 		}
 
 		# check if this is a proper subdirectory of DefProjDir
-		set sdir [file normalize $sdir]
+		set sdir [fpnorm $sdir]
 
 		if ![val_prj_dir $sdir] {
 			continue
@@ -3194,7 +3227,7 @@ proc clone_project { } {
 		}
 
 		# check if this is a proper subdirectory of DefProjDir
-		set dir [file normalize $dir]
+		set dir [fpnorm $dir]
 
 		if ![val_prj_dir $dir] {
 			continue
@@ -3274,6 +3307,8 @@ proc open_project { { which -1 } { dir "" } } {
 
 	global P DefProjDir PicOSPath LProjects
 
+	log "open_project: $which, $dir"
+
 	if [close_project] {
 		# no
 		return
@@ -3286,7 +3321,7 @@ proc open_project { { which -1 } { dir "" } } {
 		if { $dir != "" } {
 
 			# use the specified directory
-			set dir [file normalize $dir]
+			set dir [fpnorm $dir]
 			if { [val_prj_exists $dir] <= 0 } {
 				return
 			}
@@ -3308,7 +3343,7 @@ proc open_project { { which -1 } { dir "" } } {
 					return
 				}
 
-				set dir [file normalize $dir]
+				set dir [fpnorm $dir]
 
 				if ![val_prj_dir $dir] {
 					# formally illegal
@@ -3331,7 +3366,7 @@ proc open_project { { which -1 } { dir "" } } {
 				break
 			}
 
-			set dir [file normalize $dir]
+			set dir [fpnorm $dir]
 
 			if ![val_prj_dir $dir] {
 				set dir ""
@@ -3366,7 +3401,7 @@ proc open_project { { which -1 } { dir "" } } {
 		if { $p == "" } {
 			continue
 		}
-		set p [file normalize $p]
+		set p [fpnorm $p]
 		if { $p == $dir } {
 			continue
 		}
@@ -3408,7 +3443,7 @@ proc new_project { } {
 		}
 
 		# check if this is a proper subdirectory of DefProjDir
-		set dir [file normalize $dir]
+		set dir [fpnorm $dir]
 
 		if ![val_prj_dir $dir] {
 			continue
@@ -3749,7 +3784,7 @@ proc library_dir { board } {
 		}
 	}
 
-	return [file normalize [file join $dir $board]]
+	return [fpnorm [file join $dir $board]]
 }
 
 proc library_present { board } {
@@ -3775,7 +3810,7 @@ proc boards_dir { { cpu "" } } {
 		set cpu [dict get $P(CO) "CPU"]
 	}
 
-	return [file normalize [file join $PicOSPath PicOS $cpu BOARDS]]
+	return [fpnorm [file join $PicOSPath PicOS $cpu BOARDS]]
 }
 
 proc board_list { cpu } {
@@ -6482,7 +6517,7 @@ proc upload_ELP { } {
 		if ![info exists env(PROGRAMFILES)] {
 			set ep "C:/Program Files"
 		} else {
-			set ep [file normalize $env(PROGRAMFILES)]
+			set ep [fpnorm $env(PROGRAMFILES)]
 			log "Loader auto path prefix: $ep"
 		}
 		set ep [glob -nocomplain \
@@ -6579,8 +6614,8 @@ proc upload_ELP { } {
 			set loc 0
 		}
 		# verify the directory
-		if { !$loc || [file normalize [string trim $pat]] != \
-		     [file normalize [file join $P(AC) $fil]] } {
+		if { !$loc || [fpnorm [string trim $pat]] != \
+		     [fpnorm [file join $P(AC) $fil]] } {
 			set loc 0
 		}
 	}
@@ -6589,7 +6624,7 @@ proc upload_ELP { } {
 		# have to update the config file
 		set im [lindex [lsort $im] 0]
 		set ln "CodeFileName\ta43\t${im}\t"
-		append ln [file normalize [file join $P(AC) $im]]
+		append ln [fpnorm [file join $P(AC) $im]]
 		# substitute and rewrite
 		set ix [string first $mat $cf]
 		regsub -all "/" $ln "\\" ln
@@ -8063,7 +8098,7 @@ proc do_cleanup { } {
 		return
 	}
 
-	set cpm [file normalize [file join $PicOSPath "Scripts" "cleanapp"]]
+	set cpm [fpnorm [file join $PicOSPath "Scripts" "cleanapp"]]
 
 	if ![file exists $cpm] {
 		alert "Cleaning script (cleanapp) not found in Scripts"
@@ -8652,7 +8687,7 @@ proc do_search { } {
 		# the files are PicOS-relative
 		set t [file join $PicOSPath "PicOS"]
 		foreach f $tl {
-			set f [file normalize [file join $t $f]]
+			set f [fpnorm [file join $t $f]]
 			if { $P(SWN,f) != "" } {
 				if { ( $P(SWN,g) &&  [regexp $P(SWN,f) $f] ) ||
 				     (!$P(SWN,g) && ![regexp $P(SWN,f) $f] ) } {
@@ -8976,7 +9011,7 @@ proc do_open_xterm { } {
 		return
 	}
 
-	set fl [file normalize $fl]
+	set fl [fpnorm $fl]
 
 	if ![file isdirectory $fl] {
 		# try to create
@@ -9141,7 +9176,7 @@ proc scan_mkfile { mfn } {
 				continue
 			}
 
-			set fn [file normalize [file join $FS($pf) $fn]]
+			set fn [fpnorm [file join $FS($pf) $fn]]
 
 			if { [file_location $fn] != "S" } {
 				# ignore files other than PicOS files
@@ -9182,7 +9217,7 @@ proc get_picos_project_files { } {
 			if { $lb == "" } {
 				continue
 			}
-			set lb [file normalize [file join $lb "Makefile"]]
+			set lb [fpnorm [file join $lb "Makefile"]]
 		} else {
 			# source mode
 			set lb "Makefile"
@@ -9269,7 +9304,7 @@ proc get_vuee_files { } {
 #
 	global P PicOSPath VUEEPath
 
-	set vdir [file normalize [file join $PicOSPath "../VUEE/PICOS"]]
+	set vdir [fpnorm [file join $PicOSPath "../VUEE/PICOS"]]
 
 	if ![file isdirectory $vdir] {
 		alert "Cannot access VUEE directory $vdir, probably a\
@@ -9312,7 +9347,7 @@ proc get_vuee_files { } {
 			continue
 		}
 		# return full paths this time
-		lappend res [file normalize [file join $vdir $f]]
+		lappend res [fpnorm [file join $vdir $f]]
 	}
 	log "[llength $res] VUEE files"
 
@@ -9320,25 +9355,20 @@ proc get_vuee_files { } {
 }
 
 ###############################################################################
-
-if { $ST(SYS) != "L" } {
-	#
-	# Issue a dummy reference to a file path to trigger a possible DOS-path
-	# warning, after which things should continue without any further
-	# warnings. This first reference must be caught as otherwise it would
-	# abort the script.
-	#
-	catch { exec ls [pwd] }
-}
-	
 ###############################################################################
+
+if $ST(DP) {
+	log "preferred path format: DOS"
+} else {
+	log "preferred path format: UNIX"
+}
 
 # path to PICOS
 if [catch { xq picospath } PicOSPath] {
 	puts stderr "cannot locate PicOS path: $PicOSPath"
 	exit 99
 }
-set PicOSPath [file normalize $PicOSPath]
+set PicOSPath [fpnorm $PicOSPath]
 
 log "PicOS path: $PicOSPath"
 
@@ -9354,17 +9384,6 @@ log "Project superdirectory: $DefProjDir"
 
 # list of CPU-specific subdirectories of PicOS
 set CPUDirs { "MSP430" "eCOG" }
-
-# determine the preferred path format (makes sense for Cygwin only)
-if [regexp -nocase "^\[a-z\]:" $PicOSPath] {
-	# DOS paths
-	set ST(DP) 1
-	log "Preferred path format: DOS"
-} else {
-	# UNIX paths
-	set ST(DP) 0
-	log "Preferred path format: UNIX"
-}
 
 get_rcoptions
 

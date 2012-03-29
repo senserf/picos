@@ -517,3 +517,38 @@ PG120223A:
 
 	Nothing remotely important. Added buttons to open XTerm on selections
 	in the tree view.
+
+PG120329A:
+
+	Fixed a problem with the interpretation of paths in the Windows
+	version of Tcl/Tk surfacing when the preferred path format for the
+	Cygwin version was "Linux" rather than DOS.
+
+	Yesterday, I updated my Cygwin setup. Had to do it from scratch, i.e.,
+	removing the old installation completely, as the update didn't quite
+	work (programs would fail in every which way). But the clean
+	installation appears to be fine. So my Cygwin is now 1.7.11-1.
+
+	Cygwin Tcl is now 8.5; however, we still need the external (Windows)
+	version because the Img package is missing. That package is only
+	needed by udaemon, so I may try to find a way around this problem
+	(one solution that immediately comes to my mind is to wrap udaemon
+	into an executable and forget about the issue).
+
+	One difference is that the new Tcl uses consistently Cygwin paths
+	(without the drive letter, starting with /), which confused PIP
+	(executed under the Windows version of Tcl/Tk from ActiveState).
+
+	You can now invoke pip in two ways:
+
+	1. As before (using the Windows version of Tcl/Tk)
+	
+	2. As 'tclsh ~/bin/pip' (using the Cygwin version of Tcl/Tk)
+
+	Not everything seems to work yet in the second case (I cannot invoke
+	the Elpro loader, for example), but the compilation and editing work
+	fine.
+
+	I may return to this when I am done with some other stuff (considered
+	more urgent at the time). Perhaps it makes sense to try to eliminate
+	the need for a Windows version of Tcl/Tk.
