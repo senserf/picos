@@ -9,21 +9,9 @@
 #ifdef	P2_INTERRUPT_SERVICE
 
 // Button service
+#include "irq_buttons.h"
 
-if (P2IFG & P2_PINS_INTERRUPT_MASK) {
-	buttons_disable ();
-	i_trigger (BUTTON_PRESSED_EVENT);
-	RISE_N_SHINE;
-}
-
-if (__pi_cma_3000_int) {
-
-	__pi_cma_3000_disable;
-	__pi_cma_3000_clear;
-	if (__pi_cma_3000_event_thread)
-		ptrigger (__pi_cma_3000_event_thread,
-			&__pi_cma_3000_event_thread);
-		
-}
+// The accelerometer
+#include "irq_cma3000.h"
 
 #endif

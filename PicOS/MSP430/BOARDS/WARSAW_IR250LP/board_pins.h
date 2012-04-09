@@ -108,7 +108,7 @@
 #define	SENSOR_LIGHT_PIN	5
 
 #define	irmtn_active		((P1IN & 0x40) == 0)
-#define	irmtn_signal		(P1IFG & 0x40)
+#define	irmtn_int		(P1IFG & 0x40)
 #define	irmtn_clear		_BIC (P1IFG, 0x40)
 //+++ "p1irq.c"
 

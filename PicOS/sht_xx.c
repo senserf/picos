@@ -120,7 +120,7 @@ static word shtxx_read (word st, word what) {
 		if (sht_delcnt == 128) {
 			// Something wrong, abort
 			shtxx_init ();
-			return 0;
+			return WNONE;
 		}
 		sht_delcnt++;
 		delay (4, st);

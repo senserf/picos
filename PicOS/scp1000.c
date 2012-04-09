@@ -1,5 +1,5 @@
 #include "sysio.h"
-#include "scp_1000.h"
+#include "scp1000.h"
 
 #define	REG_OPER	0x03			// Operation register
 #define	REG_RSTR	0x06			// Reset register
@@ -127,7 +127,7 @@ static word rreg (byte reg, Boolean wide) {
 
 // ============================================================================
 
-void scp_1000_init () {
+void scp1000_init () {
 //
 // Reset
 //
@@ -138,7 +138,7 @@ void scp_1000_init () {
 
 // ============================================================================
 
-void scp_1000_read (word st, const byte *junk, address val) {
+void scp1000_read (word st, const byte *junk, address val) {
 
 	if (State == 0) {
 

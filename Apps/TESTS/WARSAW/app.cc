@@ -1602,8 +1602,8 @@ fsm test_sensors {
 	ser_out (SE_INIT,
 		"\r\nSensor Test\r\n"
 		"Commands:\r\n"
-#ifdef	__pi_cma_3000_csel
-		"s 0|1|2 -> cma3000 off, low, hight\r\n"
+#ifdef	cma3000_csel
+		"s 0|1 -> cma3000 off, on\r\n"
 #endif
 		"r s -> read sensor s\r\n"
 		"c s d n -> read continually at d ms, n times\r\n"
@@ -1615,7 +1615,7 @@ fsm test_sensors {
 	ser_in (SE_RCMD, ibuf, IBUFLEN-1);
 
 	switch (ibuf [0]) {
-#ifdef	__pi_cma_3000_csel
+#ifdef	cma3000_csel
 		case 's' : proceed SE_CMA3;
 #endif
 		case 'r' : proceed SE_GSEN;
@@ -1633,18 +1633,16 @@ fsm test_sensors {
 	ser_out (SE_OK, "OK\r\n");
 	proceed SE_RCMD;
 
-#ifdef	__pi_cma_3000_csel
+#ifdef	cma3000_csel
 
   state SE_CMA3:
 
 	w = 0;
 	scan (ibuf + 1, "%u", &w);
 	if (w == 0)
-		cma_3000_off ();
-	else if (w == 1)
-		cma_3000_on_md ();
-	else
-		cma_3000_on_me ();
+		cma3000_off ();
+	else 
+		cma3000_on (0, 1, 3);
 
 	proceed SE_OK;
 #endif
@@ -1656,13 +1654,19 @@ fsm test_sensors {
 
   state SE_GSENP1:
 
-	// To detect absent sensors, value 273
-	ss = 272;
-	read_sensor (SE_GSENP1, b, &ss);
+	// To detect absent sensors, value ABSENT01
+	val = 0xAB2E4700;
+	read_sensor (SE_GSENP1, b, (address)(&val));
 
   state SE_GSENP2:
 
-	ser_outf (SE_GSENP2, "Val: %u\r\n", ss);
+	ser_outf (SE_GSENP2, "Val: %lx [%u] <%d, %d, %d, %d>\r\n",
+		val,
+		*((word*)(&val)),
+		((char*)(&val)) [0],
+		((char*)(&val)) [1],
+		((char*)(&val)) [2],
+		((char*)(&val)) [3]);
 	proceed SE_RCMD;
 
   state SE_CSEN:
@@ -1677,13 +1681,19 @@ fsm test_sensors {
 
   state SE_CSENP1:
 
-	ss = 272;
-	read_sensor (SE_CSENP1, b, &ss);
+	val = 0xAB2E4700;
+	read_sensor (SE_CSENP1, b, (address)(&val));
 	nt--;
 
   state SE_CSENP2:
 
-	ser_outf (SE_GSENP2, "Val: %u (%u left)\r\n", ss, nt);
+	ser_outf (SE_CSENP2, "Val: %lx [%u] <%d, %d, %d, %d> (%u left)\r\n",
+		val,
+		*((word*)(&val)),
+		((char*)(&val)) [0],
+		((char*)(&val)) [1],
+		((char*)(&val)) [2],
+		((char*)(&val)) [3], nt);
 
 	if (nt == 0)
 		proceed SE_RCMD;

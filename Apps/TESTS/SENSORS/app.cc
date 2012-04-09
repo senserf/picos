@@ -5,10 +5,13 @@
 
 #include "sysio.h"
 #include "sensors.h"
-#include "board_pins.h"
 
-#ifdef	__pi_cma_3000_bring_up
-#include "cma_3000.h"
+#ifndef	__SMURPH__
+#include "board_pins.h"
+#endif
+
+#ifdef	cma3000_bring_up
+#include "cma3000.h"
 #define	CMA3000
 #endif
 
@@ -51,11 +54,27 @@ fsm outval {
 		cnt++;
 		sameas NEXT;
 }
+
+#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
+
+fsm sevents (sint sn) {
+
+  state SE_WAIT:
+
+	wait_sensor (sn, SE_EVENT);
+
+  state SE_EVENT:
+
+	ser_outf (SE_EVENT, "Event on sensor %d\r\n", sn);
+	sameas SE_WAIT;
+}
+
+#endif
 		
 fsm root {
 
 	char *ibuf;
-	sint v; word x;
+	sint v; word x, y, z;
 
   state RS_INIT:
 
@@ -68,12 +87,17 @@ fsm root {
 		"\r\nSensor Test\r\n"
 		"Commands:\r\n"
 #ifdef CMA3000
-		"C n      -> CMA3000 on, mode n\r\n"
+		"C m t u  -> CMA3000 on, mo th tm\r\n"
 		"F        -> CMA3000 off\r\n"
 #endif
 		"s n      -> set sensor value length (words)\r\n"
 		"r s      -> read value of sensor s\r\n"
 		"c s d    -> read value of sensor s continually at d int\r\n"
+
+#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
+		"v s      -> report events on sensor s"
+#endif
+
 #if 0
 		"x        -> turn reference on\r\n"
 		"t        -> test on\r\n"
@@ -93,6 +117,11 @@ fsm root {
 		case 's' : proceed RS_SVAL;
 		case 'r' : proceed RS_GSEN;
 		case 'c' : proceed RS_CSEN;
+
+#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
+		case 'v' : proceed RS_SWAIT;
+#endif
+
 #if 0
 		case 'x' : proceed RS_CSET;
 		case 't' : proceed RS_CTST;
@@ -104,6 +133,16 @@ fsm root {
 
 	ser_out (RS_ERR, "Illegal command or parameter\r\n");
 	proceed RS_BANNER;
+
+#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
+
+  state RS_SWAIT:
+
+	v = 0;
+	scan (ibuf + 1, "%d", &v);
+	runfsm sevents (v);
+	proceed RS_RCMD;
+#endif
 
   state RS_SVAL:
 
@@ -168,13 +207,15 @@ fsm root {
   state RS_CMO:
 
 	x = 0;
-	scan (ibuf + 1, "%u", &x);
-	cma_3000_on (x);
+	y = 1;
+	z = 3;
+	scan (ibuf + 1, "%u %u %u", &x, &y, &z);
+	cma3000_on (x, y, z);
 	proceed RS_RCMD;
 
   state RS_CMF:
 
-	cma_3000_off ();
+	cma3000_off ();
 	proceed RS_RCMD;
 
 #endif

@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-if (irmtn_signal) {
+if (irmtn_int) {
 	irmtn_clear;
 	if (irmtn_icounter != WNONE)
 		irmtn_icounter++;

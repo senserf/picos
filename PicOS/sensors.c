@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -53,7 +53,7 @@ void __pi_init_sensors () {
 
 // ============================================================================
 
-word read_sensor (word st, sint sn, address val) {
+void read_sensor (word st, sint sn, address val) {
 
 #ifdef	SENSOR_LIST
 
@@ -62,7 +62,7 @@ word read_sensor (word st, sint sn, address val) {
 	if ((word)(sn += N_HIDDEN_SENSORS) >= N_SENSORS) {
 		// Commissioned by Wlodek
 		(*val)++;
-		return ERROR;
+		return;
 	}
 
 	s = sensors + sn;
@@ -83,8 +83,30 @@ word read_sensor (word st, sint sn, address val) {
 #endif
 #endif
 
-	return 0;
 #else
 	syserror (EREQPAR, "read_sensor");
 #endif
 }
+
+// ============================================================================
+
+#ifdef	SENSOR_EVENTS
+
+void wait_sensor (sint sn, word st) {
+//
+// Wait for a sensor event; only available for "digital" sensors
+//
+#if defined(SENSOR_LIST) && defined(SENSOR_DIGITAL)
+
+	const d_sensdesc_t *s;
+
+	if ((word)(sn += N_HIDDEN_SENSORS) < N_SENSORS &&
+	   ((s = sensors + sn) -> tp & 0x80)) {
+		// Otherwise illegal
+		(*(s->fun_val)) (st, (const byte*)s, NULL);
+		release;
+	}
+#endif
+	syserror (EREQPAR, "wait_sensor");
+}
+#endif

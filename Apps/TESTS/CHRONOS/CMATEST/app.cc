@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -7,6 +7,7 @@
 #include "ez430_lcd.h"
 #include "rtc_cc430.h"
 #include "tcvphys.h"
+#include "cc1100.h"
 #include "phys_cc1100.h"
 #include "plug_null.h"
 #include "form.h"
@@ -15,12 +16,44 @@
 #include "storage.h"
 #include "ab.h"
 
-#define MAXPLEN			60
+#define MAXPLEN	CC1100_MAXPLEN
 
 static word 	imess,	// Count received
 		omess;	// ... and outgoing messages
 
 static byte	Buttons;
+
+static int sfd = -1;
+static byte ron = 0,	// Radio on
+	    aon = 0;	// Accelerometer on
+static word rtimer = 0;	// Radio back on timer
+
+static word atimeout = 0,		// Accel event timeout, every that many
+					// msec read data even if no event
+
+       	    areadouts = 0,		// After event read this many times ...
+	    ainterval = 0;  		// ... at this interval before
+					// returning to MD mode
+
+// ============================================================================
+
+static void radio_on () {
+
+	if (!ron) {
+		tcv_control (sfd, PHYSOPT_TXON, NULL);
+		tcv_control (sfd, PHYSOPT_RXON, NULL);
+		ron = 1;
+	}
+}
+
+static void radio_off () {
+
+	if (ron) {
+		tcv_control (sfd, PHYSOPT_RXOFF, NULL);
+		tcv_control (sfd, PHYSOPT_TXOFF, NULL);
+		ron = 0;
+	}
+}
 
 // ============================================================================
 
@@ -85,62 +118,6 @@ static void buttons (word but) {
 }
 
 // ============================================================================
-// Array to return sensor values. For the acceleration sensor:
-//
-//	aval = event + 2 acceleration coordinates
-//
-// For the pressure/temperature combo:
-//
-//	pval [0-1] = lword pressure in Pascals * 4, i.e., divide this by 4 to
-//                   get Pascals
-//	pval [3]   = temperature in Celsius * 20, i.e., divide this by 20 to
-//                   get temperature in Celsius
-//
-// ============================================================================
-
-word sval_rint;		// Reporting interval
-
-fsm sensor_server {
-
-  word bval, pval [3];
-  char aval [4];
-
-  state AS_LOOP:
-
-	if (sval_rint == 0) {
-		// Stop
-		cma3000_off ();
-		when (&sval_rint, AS_LOOP);
-		release;
-	}
-
-  state AS_RBAT:
-
-	read_sensor (AS_RBAT, SENSOR_BATTERY, &bval);
-
-  state AS_RPRE:
-
-	read_sensor (AS_RPRE, SENSOR_PRESSTEMP, pval);
-
-  state AS_RACC:
-
-	read_sensor (AS_RACC, SENSOR_MOTION, (address)(&aval));
-
-  state AS_SEND:
-
-	ab_outf (AS_SEND, "MO: %d,%d,%d,%d, PR: %lu, TM: %u, BA: %u",
-		aval [0],
-		aval [1],
-		aval [2],
-		aval [3],
-			((lword*)pval) [0], pval [2], bval);
-
-	msg_nn (1, omess++);
-
-	delay (sval_rint, AS_LOOP);
-}
-
-// ============================================================================
 
 fsm button_server {
 
@@ -181,11 +158,70 @@ fsm buzz (word duration) {
 
 // ============================================================================
 
+fsm accel_thread {
+
+  char c [4];
+  word nc;
+
+  state AT_WAIT:
+
+	if (atimeout)
+		delay (atimeout, AT_TIMEOUT);
+
+	// Forces release (as it should)
+	wait_sensor (SENSOR_MOTION, AT_EVENT);
+	release;
+
+  state AT_TIMEOUT:
+
+	radio_on ();
+	// One-time read
+	read_sensor (AT_TIMEOUT, SENSOR_MOTION, (address) c);
+
+  state AT_SEND_PERIODIC:
+
+	ab_outf (AT_SEND_PERIODIC, "P: [%x] <%d,%d,%d>",
+		c [0], c [1], c [2], c [3]);
+	msg_nn (1, omess++);
+	proceed AT_WAIT;
+
+  state AT_EVENT:
+
+	radio_on ();
+	if ((nc = areadouts) == 0)
+		proceed AT_NOEREP;
+
+  state AT_READOUT:
+
+	read_sensor (AT_READOUT, SENSOR_MOTION, (address) c);
+
+  state AT_SEND_EVENT:
+
+	ab_outf (AT_SEND_EVENT, "E: [%x] <%d,%d,%d>",
+		c [0], c [1], c [2], c [3]);
+	msg_nn (1, omess++);
+
+	if (nc == 1)
+		// Done
+		proceed AT_WAIT;
+
+	nc--;
+	delay (ainterval, AT_READOUT);
+	release;
+
+  state AT_NOEREP:
+
+	ab_outf (AT_NOEREP, "E!");
+	msg_nn (1, omess++);
+	proceed AT_WAIT;
+}
+	
+// ============================================================================
+
 fsm root {
 
-  int sfd = -1;
-  word w0, w1, w2, w3;
-  int iarg0;
+  word w0, w1, w2;
+  int i0;
   char *ibuf = NULL;
 
   state RS_INIT:
@@ -204,14 +240,14 @@ fsm root {
 
 	w0 = 0xffff;
 	tcv_control (sfd, PHYSOPT_SETSID, &w0);
-	tcv_control (sfd, PHYSOPT_TXON, NULL);
-	tcv_control (sfd, PHYSOPT_RXON, NULL);
+	radio_on ();
 
 	ab_init (sfd);
 	ab_mode (AB_MODE_PASSIVE);
 	buttons_action (buttons);
-	runfsm sensor_server;
 	runfsm button_server;
+	cma3000_off ();
+	powerdown ();
 
   state RS_LOOP:
 
@@ -222,19 +258,24 @@ fsm root {
 
   state RS_READ:
 
+	if (!ron && rtimer)
+		delay (rtimer, RS_FRON);
 	ibuf = ab_in (RS_READ);
-
+	unwait ();
+	rtimer = 0;
 	msg_nn (0, imess++);
 
 	switch (ibuf [0]) {
 
-		case 's' : proceed RS_ASON;	// Start acceleration reports
+		case 'a' : proceed RS_ASON;	// Start acceleration reports
+		case 'D' : proceed RS_DEBREP;
 		case 'q' : proceed RS_ASOFF;	// Stop acceleration reports
-		case 'd' : proceed RS_PDOWN;	// Power down mode
-		case 'D' : proceed RS_DDOWN;	// Dumb power down
+		case 's' : proceed RS_SETDEL;	// Set delays for acc reports
+		case 'h' : proceed RS_HANG;	// Hung RF till accel event
+		case 'd' : proceed RS_DISP;	// Display on/off
 		case 'r' : proceed RS_RTC;	// Set or get RTC
 		case 'b' : proceed RS_BUZZ;
-
+		case 'p' : proceed RS_POW;
 		case 'f' : {			// INFO FLASH operations
 			switch (ibuf [1]) {
 				case 'r' : proceed IF_READ;
@@ -246,97 +287,109 @@ fsm root {
 
   state RS_BAD:
 
+	radio_on ();
 	ab_outf (RS_BAD, "Illegal command");
 	proceed RS_LOOP;
 
+  state RS_DEBREP:
+
+	radio_on ();
+/*
+	ab_outf (RS_DEBREP, "DBG: %x %x %x", cma3000_debug0,
+					     cma3000_debug1,
+					     cma3000_debug2);
+*/
+	proceed RS_LOOP;
+
+  state RS_FRON:
+
+	// Force radio on
+	radio_on ();
+	proceed RS_LOOP;
+
   // ==========================================================================
 
-  state RS_DDOWN:
+  state RS_POW:
 
 	w0 = 0;
 	scan (ibuf + 1, "%u", &w0);
-	if (w0 == 0)
-		proceed RS_BAD;
 
-	ezlcd_off ();
-	powerdown ();
-	tcv_control (sfd, PHYSOPT_RXOFF, NULL);
-	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
-
-  state RS_DLOOP:
-
-	if (w0) {
-		w0--;
-		delay (1024, RS_DLOOP);
-		release;
-	}
-
-	powerup ();
-	ezlcd_on ();
-	tcv_control (sfd, PHYSOPT_RXON, NULL);
-	tcv_control (sfd, PHYSOPT_TXON, NULL);
-	proceed RS_DONE;
-
-  state RS_PDOWN:
-
-	w1 = w0 = 0;
-	scan (ibuf + 1, "%u %u", &w0, &w1);
-
-	if (w0 == 0 || w1 == 0)
-		proceed RS_BAD;
-
-  state RS_HOLD:
-
-	powerdown ();
-	tcv_control (sfd, PHYSOPT_RXOFF, NULL);
-	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
-	delay (w0, RS_ON);
-	release;
-
-  state RS_ON:
-
-	powerup ();
-	tcv_control (sfd, PHYSOPT_RXON, NULL);
-	tcv_control (sfd, PHYSOPT_TXON, NULL);
-
-  state RS_TICK:
-
-	ab_outf (RS_TICK, "Up for a sec");
-	if (w1 <= 1) {
-		// Exit
+	if (w0)
 		powerup ();
-		proceed RS_DONE;
-	}
-	w1--;
-	delay (1000, RS_HOLD);
-	release;
-
-  // ==========================================================================
+	else
+		powerdown ();
+	proceed RS_DONE;
 
   state RS_ASON:
 
-	// Mode + interval
+	if (aon)
+		proceed RS_BAD;
+
 	w0 = 0;
-	scan (ibuf + 1, "%u", &w0);
-	sval_rint = (w0 == 0) ? 1024 : w0;
-	cma3000_on (0, 1, 3);
-STrig:
-	trigger (&sval_rint);
+	w1 = 0;
+	w2 = 3;
 
-  state RS_DONE:
+	scan (ibuf + 1, "%u %u %u", &w0, &w1, &w2);
 
-	ab_outf (RS_DONE, "OK");
-	proceed RS_LOOP;
+	cma3000_on (w0, w1, w2);
+	aon = 1;
 
-  state RS_FAIL:
+	killall (accel_thread);
+	runfsm accel_thread;
 
-	ab_outf (RS_FAIL, "Failed");
-	proceed RS_LOOP;
+	proceed RS_DONE;
 
   state RS_ASOFF:
 
-	sval_rint = 0;
-	goto STrig;
+	if (!aon)
+		proceed RS_BAD;
+
+	killall (accel_thread);
+	cma3000_off ();
+	aon = 0;
+
+	proceed RS_DONE;
+
+  state RS_SETDEL:
+
+	w0 = w1 = w2 = 0;
+	scan (ibuf + 1, "%u %u %u", &w0, &w1, &w2);
+	if (w0 > 60)
+		w0 = 60;
+
+	atimeout = w0 * 1024;
+	areadouts = w1;
+	ainterval = w2;
+
+	proceed RS_DONE;
+
+  state RS_HANG:
+
+	if (!aon)
+		proceed RS_BAD;
+
+	w0 = 0;
+	scan (ibuf + 1, "%d", &w0);
+	if (w0) {
+		if (w0 > 60)
+			w0 = 60;
+		w0 *= 1024;
+	}
+
+	rtimer = w0;
+	radio_off ();
+	proceed RS_LOOP;
+
+  state RS_DISP:
+
+	w0 = 0;
+	scan (ibuf + 1, "%d", &w0);
+
+	if (w0)
+		ezlcd_on ();
+	else
+		ezlcd_off ();
+	proceed RS_DONE;
 
   state RS_RTC:
 
@@ -422,10 +475,20 @@ STrig:
 
   state IF_ERASE:
 
-	if (scan (ibuf + 2, "%d", &iarg0) != 1 ||
-	    (iarg0 > 0 && iarg0 >= IFLASH_SIZE))
+	if (scan (ibuf + 2, "%d", &i0) != 1 ||
+	    (i0 > 0 && i0 >= IFLASH_SIZE))
 		proceed RS_BAD;
 
-	if_erase (iarg0);
+	if_erase (i0);
 	proceed RS_DONE;
+
+  state RS_DONE:
+
+	ab_outf (RS_DONE, "OK");
+	proceed RS_LOOP;
+
+  state RS_FAIL:
+
+	ab_outf (RS_FAIL, "Failed");
+	proceed RS_LOOP;
 }

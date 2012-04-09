@@ -1961,3 +1961,44 @@ PG120324A:
 	you should define a separate <ptracker> set for CHRONOS anyway, as the
 	power usage parameters for CHRONOS components are quite specific and
 	different, e.g., from those for the WARSAW board.
+
+PG120409A:	VUEE >= PG120409A
+
+	There is a new sensor-related function:
+
+		void wait_sensor (sint sensor, word state);
+
+	which waits for a sensor event. The function forces release, so it
+	should be called last in a state. The function is only available
+	(compiled in) if one of the board's critical files (board_pins.h or
+	board_sensors.h) defines the constant SENSOR_EVENTS (the CHRONOS board
+	does that).
+
+	At this time, only digital sensors offer this option. Note that
+	"digital" is a formal classification that should be interpreted as
+	"processed". I want to say that harnessing an analog sensor to trigger
+	events (e.g., thresholds) can be accomplished by implementing it as an
+	"honorary" digital sensor.
+
+	Function read_sensor made void. There was not a single case of using
+	its value, besides, the VUEE variant has always been void.
+
+	CMA3000 driver COMPLETELY redone: read cma3000.pdf in Docs. Directory
+	Apps/TESTS/CHRONOS/CMATEST contains a test praxis for CMA3000/CHRONOS
+	(described in the document). I have modified my praxes referencing
+	CMA3000, but Wlodek will have to take care of his (notably vsen_demo),
+	preferably after having a quick look at the above-mentioned document.
+	I have crudely fixed the praxis to compile, but:
+
+	1. it doesn't use the new event-driven interface to CMA3000
+
+	2. it doesn't even correctly interpret the new value returned by the
+	   sensor, which is 4 bytes long
+
+	The single-sensor variant of the SHT driver now returns WNONE when the
+	sensor is physically absent, in accord with the multiple-sensor
+	variant.
+
+	A few cleanups here and there. Don't be alarmed by the huge number of
+	modified files: many of those modifications are re-sets of permission
+	bits.

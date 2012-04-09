@@ -6,11 +6,7 @@
 #ifdef	P1_INTERRUPT_SERVICE
 
 // Button service
-
-if (P1IFG & P1_PINS_INTERRUPT_MASK) {
-	buttons_disable ();
-	i_trigger (BUTTON_PRESSED_EVENT);
-	RISE_N_SHINE;
-}
+#define	buttons_int (P1IFG & P1_PINS_INTERRUPT_MASK)
+#include "irq_buttons.h"
 
 #endif

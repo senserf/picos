@@ -10,6 +10,12 @@
 
 #include "sensors_sys.h"
 
-word read_sensor (word, sint, address);
+void read_sensor (word, sint, address);
+
+#ifdef	SENSOR_EVENTS
+
+void wait_sensor (sint, word);
+
+#endif
 
 #endif

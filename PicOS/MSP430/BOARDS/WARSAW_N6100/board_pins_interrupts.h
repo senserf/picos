@@ -9,20 +9,16 @@
 #include "irq_cc1100.h"
 #endif
 
-if (P1IFG & P1_PINS_INTERRUPT_MASK) {
-	buttons_disable ();
-	i_trigger (BUTTON_PRESSED_EVENT);
-	RISE_N_SHINE;
-}
+#define	buttons_int (P1IFG & P1_PINS_INTERRUPT_MASK)
+#include "irq_buttons.h"
+#undef 	buttons_int
 
 #endif
 
 #ifdef	P2_INTERRUPT_SERVICE
 
-if (P2IFG & P2_PINS_INTERRUPT_MASK) {
-	buttons_disable ();
-	i_trigger (BUTTON_PRESSED_EVENT);
-	RISE_N_SHINE;
-}
+#define	buttons_int (P2IFG & P2_PINS_INTERRUPT_MASK)
+#include "irq_buttons.h"
+#undef 	buttons_int
 
 #endif
