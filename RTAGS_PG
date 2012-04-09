@@ -780,3 +780,14 @@ PG120324A:
     Fixed PTRACKER to correctly show zero power usage by a switched off node.
     This one was unexpectedly tricky due to the logarithmic scale of PTRACKER's
     meter.
+
+PG120409A:	PICOS >= PG120409A
+
+    Many serious cleanups in udaemon: some parts completely rewritten (please
+    keep your eyes opened). No new functionality yet, but I am clearing the
+    ground.
+
+    Note that the SENSORS window now offers a button at each sensor (labeled
+    E!) to make it possible to trigger sensor events.
+
+    Function wait_sensor implemented (see PG120409A in PicOS).

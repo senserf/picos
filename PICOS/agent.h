@@ -740,6 +740,7 @@ class SNSRS {
 
 	void read (int, sint, address);
 	void write (int, sint, address);
+	void wevent (int, sint);
 
 	SNSRS (data_sa_t*);
 

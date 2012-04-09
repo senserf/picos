@@ -2898,6 +2898,19 @@ SetIt:
 	sleep;
 }
 
+void SNSRS::wevent (int st, sint sn) {
+
+	SensActDesc *s;
+
+	sn += SOff;
+
+	if (sn >= NSensors || sn < 0 || (s = Sensors + sn) -> Length == 0)
+		syserror (EREQPAR, "wait_sensor");
+
+	Monitor->wait (s, st);
+	sleep;
+}
+
 int SNSRS::act_status (byte what, byte sid, Boolean lm) {
 /*
  * Transforms an actuator update message into an outgoing message
@@ -2946,27 +2959,27 @@ int SNSRS::sensor_update (char *rb) {
 
 	c = *rb++;
 
-	if (c != 'S')
-		// Only sensor setting is accepted
+	if (c != 'S' && c != 'E')
+		// Only these are accepted
 		return OK;
 
-	sn = (lword) dechex (rb);
-	sv = (lword) dechex (rb);
-
-	if (sn > NSensors)
+	if ((sn = (lword) dechex (rb)) > NSensors)
 		return ERROR;
 
-	s = Sensors + sn;
-
-	if (s->Length == 0)
+	if ((s = Sensors + sn)->Length == 0)
 		// This sensor does not exist
 		return ERROR;
 
-	if (s->set (sv) && omode (IN.Flags) == XTRN_OMODE_SOCKET) {
-		// The value has changed and this is a socket
-		qupd_act (SEN_TYPE_SENSOR, sn);
+	if (c == 'S') {
+		// set value
+		sv = (lword) dechex (rb);
+		if (s->set (sv) && omode (IN.Flags) == XTRN_OMODE_SOCKET) {
+			// The value has changed and this is a socket
+			qupd_act (SEN_TYPE_SENSOR, sn);
+		}
+	} else {
+		Monitor->signal (s);
 	}
-
 	return OK;
 }
 

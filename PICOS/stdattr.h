@@ -33,6 +33,8 @@
 		(  ((PicOSNode*)TheStation)->_na_read_sensor (a,b,c)  )
 #define	write_actuator(a,b,c) \
 		(  ((PicOSNode*)TheStation)->_na_write_actuator (a,b,c)  )
+#define	wait_sensor(a,b) \
+		(  ((PicOSNode*)TheStation)->_na_wait_sensor (a,b)  )
 
 // ============================================================================
 

@@ -629,6 +629,11 @@ station PicOSNode abstract {
 			no_sensor_module ("write_actuator");
 		snsrs->write (st, sn, val);
 	}
+	inline void _da (wait_sensor) (sint sn, int st) {
+		if (snsrs == NULL)
+			no_sensor_module ("wait_sensor");
+		snsrs->wevent (st, sn);
+	}
 
 	/*
 	 * EEPROM + FIM (IFLASH)

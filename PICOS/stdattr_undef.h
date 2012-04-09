@@ -19,6 +19,7 @@
 #undef io
 #undef ion
 #undef read_sensor
+#undef wait_sensor
 #undef write_actuator
 #undef vform
 #undef fsize
