@@ -2002,3 +2002,9 @@ PG120409A:	VUEE >= PG120409A
 	A few cleanups here and there. Don't be alarmed by the huge number of
 	modified files: many of those modifications are re-sets of permission
 	bits.
+
+PG120411A:
+
+	Board WARSAW_SONAR replaces WARSAW_6SHT which didn't quite work. This
+	is a sonar-only board with the sonar on P6.3 (analog input) and P1.7
+	(power supply).
