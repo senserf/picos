@@ -6310,7 +6310,7 @@ proc run_vuee { { deb 0 } } {
 	}
 
 	# We seem to be in the clear
-	if [catch { run_term_command "./$SIDENAME" [list $df "+"] } err] {
+	if [catch { run_term_command "./$SIDENAME" [list "-e" $df "+"] } err] {
 		alert "Cannot start the model: $err"
 		return
 	}

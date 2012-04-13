@@ -552,3 +552,24 @@ PG120329A:
 	I may return to this when I am done with some other stuff (considered
 	more urgent at the time). Perhaps it makes sense to try to eliminate
 	the need for a Windows version of Tcl/Tk.
+
+PG120413A:	SIDE >= PG120413A
+
+	Calling side with -e to enforce error on "implict process termination",
+	which happens in SIDE when the process fails to issue at least one wait
+	request in its last state. This is a point of disagreement between VUEE
+	and PicOS, because in PicOS such a process will loop to its last state.
+	I don't think it makes a lot of sense to modify SIDE to do the same
+	thing, because:
+
+	1. it practically never makes sense
+
+	2. the PicOS behavior is implied by simplicity: anything else would
+	   require adding statements to scheduler (for no good reason)
+
+	3. some SIDE simulators rely on the standard behavior
+
+	Thus, I have decided to introduce an explicit execution option to make
+	this illegal in a SIDE model, i.e., to abort the simulator when
+	something like that happens. This way, you can at least know what is
+	wrong.
