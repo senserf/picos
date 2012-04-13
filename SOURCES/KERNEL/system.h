@@ -162,6 +162,11 @@ extern  int
 		// suppressed from exposures
 		zz_flg_nosysdisp,
 
+		// Tells wheter implicit process termination, occurring when
+		// the process fails to issue at least one wait request in its
+		// current state, is legit
+		zz_flg_impterm,
+
 		// Tells whether the definition of stations is complete
 		zz_flg_started;
 

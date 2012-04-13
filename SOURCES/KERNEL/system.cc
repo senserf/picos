@@ -190,6 +190,7 @@ static void bad_arguments () {
 	cerr << "     -c              empty message queues\n";
 	cerr << "     -u              disable standard client\n";
 #endif
+	cerr << "     -e              implicit process termination illegal\n";
 	cerr << "     -s              system event info to be exposed\n";
         cerr << "     -M fn           template file name\n";
 #if     ZZ_TOL
@@ -585,6 +586,10 @@ void    zz_init_system  (int argc, char *argv []) {
 				zz_flg_nosysdisp = NO;
 				break;
 
+			case 'e' : // Implicit process termination illegal
+
+				zz_flg_impterm = NO;
+				break;
 #if     ZZ_TOL
 			case 'k' : // Standard tolerance parameters
 

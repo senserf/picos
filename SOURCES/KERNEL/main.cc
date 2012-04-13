@@ -906,8 +906,7 @@ int main (int argc, char *argv []) {
 		(TheProcess == ZZ_Main) && (zz_event_id == START) &&
 		(TheState == 0), "smurph: problems starting Root");
 
-	// Deallocate request chain (it should consist of exactly one entry,
-	// but who knows ...)
+	// Deallocate request chain (it should consist of exactly one entry)
 	for (cp = chain; ; cp = cq) {
 		cq = cp -> other;
 		pool_out (cp);
@@ -1063,7 +1062,8 @@ int main (int argc, char *argv []) {
 			  Info02 = zz_CE -> Info02;
 			  if (zz_ai->Class == AIC_mailbox &&
 			    zz_CE->event_id == RECEIVE) {
-                     // Note that priority put is illegal on a socket mailbox
+                     	      // Note that priority put is illegal on a socket
+			      // mailbox
 			      // The item must be there
 			      m = (Mailbox*) (zz_CE->ai);
     			      assert (m->count, "Internal error -- mailbox "
@@ -1150,7 +1150,7 @@ NEXTEV:
                                 zz_CE = NULL;
 				goto NEXTEV;
 			      }
-			      // If we get here, the item can be acquired
+			      // If we get here, the item can be safely acquired
 			      (m->count)--;
 #if	ZZ_REA || ZZ_RSY
 			      if (m->sfd != NONE) {
@@ -1600,6 +1600,9 @@ LoRet:
 		if (zz_c_first_wait && TheStation != System && TheProcess !=
 		  Kernel) {
 		    // The wait list is empty -- terminate the process
+		    if (!zz_flg_impterm)
+			excptn ("implicit termination illegal, no wait request"
+				" issued in this state");
 		    terminate (TheProcess);
                     // We need these two for display routines. The event
                     // may end up hanging around for some time and being

@@ -183,6 +183,11 @@ int
 	// suppressed from exposures (which is the default)
 	zz_flg_nosysdisp = YES,
 
+	// Tells wheter implicit process termination, occurring when the
+	// process fails to issue at least one wait request in its current
+	// state, is legit
+	zz_flg_impterm = YES,
+
 	// Tells whether the definition of stations is complete and the
 	// protocol (the first protocol process) has been started.
 	zz_flg_started = NO;

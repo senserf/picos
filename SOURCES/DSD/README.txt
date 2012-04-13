@@ -31,3 +31,18 @@ the user's selection. You may change these values by hand if needed.
 To invoke the DSD applet, move to its directory and execute
 
                       appletviewer index.htm
+
+NOTE: these days, after Oracle's takeover, appletviewer will not automatically
+grant the applet access to sockets, unless you modify the policy accordingly.
+For that, locate the policy file (I have found it in $JAVAHOME/jre/lib/security,
+file java.policy) and make sure that a piece like this:
+
+permission java.net.SocketPermission "localhost:1024-",
+"accept, connect, listen";
+
+appears among the permission (you may edit the existing line for
+SocketPermission to appear as above. For reference, this directory includes
+my last working version of the policy file.
+
+Note that then you may also have to select Unrestricted access in the applet's
+properties (in the Applet menu, after starting the applet).

@@ -392,3 +392,20 @@ PG111106A:
 	   (at least on Cygwin).
 
 	   This fix is required for PIP.
+
+PG120413A:
+
+	   Added a new execution option, -e, to make it illegal to terminate a
+	   process by failing to issue at least one wait request in a state.
+	   This is useful for VUEE.
+
+	   In my attempt to revive DSD under Windows 7, I installed a JDK (from
+	   Oracle) on my laptop, but when I tried to start the DSD applet, it
+	   complained about the inadequate permissions to connect to a local
+	   socket. The security/stupidity histeria about Java has forced me to
+	   spend two hours figuring out how to connect from a locally executed
+	   applet to a localhost socket. For that, you need to modify socket
+	   permissions in some obscure file (in my case it was
+	   "Program Files/Java/jdk.../jre/lib/security/java.policy). I have
+	   added a note in README.txt in the DSD directory, as well as a copy
+	   of my java.policy file, in case somebody ever wants to do it again.

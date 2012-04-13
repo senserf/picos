@@ -19240,6 +19240,16 @@ should be included in exposures (\sect{rm_ex_se_ei}).
 \end{quote}
 
 \begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt -e}}\\ \hspace{0in}
+When this argument is present,
+it will be illegal to (implicitly) terminate a process by
+failing to issue at least one wait request from its current state before
+putting the process to sleep (\sect{rm_pr_po}).
+An occurrence of such a scenario will be treated as an error aborting the
+simulation.
+\end{quote}
+
+\begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -k}}\\ \hspace{0in}
 This argument must be followed by exactly two numbers: a nonnegative
 {\tt double} number less than 1.0 and a small nonnegative integer
