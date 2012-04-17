@@ -2008,3 +2008,26 @@ PG120411A:
 	Board WARSAW_SONAR replaces WARSAW_6SHT which didn't quite work. This
 	is a sonar-only board with the sonar on P6.3 (analog input) and P1.7
 	(power supply).
+
+PG120417A:
+
+	A crude and tentative driver for the SCA3100 accelerometer. Board
+	WARSAW_SCA is configured for a single sensor (number 0) with these
+	pins:
+			P6.7	= Vcc
+			P2.2	= CSB
+			P2.3	= MISO
+			P2.4	= MOSI
+			P2.5	= SCK
+
+	The sensor (read_sensor) returns an array of 3 sints: X,Y,Z (signed
+	16-bit acceleration values). Temperature can be added trivially, if
+	needed.
+
+	Functions:
+
+		void sca3100_on ();
+		void sca3100_off ();
+
+	There are no modes and no events (unlike CMA3000). The sensor operates
+	solely in measurement mode, so read_sensor is the only interface.

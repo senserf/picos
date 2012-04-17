@@ -15,6 +15,15 @@
 #define	CMA3000
 #endif
 
+#ifdef	sca3100_bring_up
+#include "sca3100.h"
+#define	SCA3100
+#endif
+
+#if defined(SCA3100) && defined(CMA3000)
+#error "Only one of CMA3000, SCA3100 can be present at the same time"
+#endif
+
 heapmem {10, 90};
 
 #include "ser.h"
@@ -36,7 +45,8 @@ fsm outval {
 	state INIT:
 
 		if (vl == 1) {
-			ser_outf (INIT, "Value: %x [%u]\r\n", sen [0], sen [0]);
+			ser_outf (INIT, "Value: %x [%u] <%d>\r\n",
+				sen [0], sen [0], sen [0]);
 			finish;
 		}
 
@@ -49,8 +59,8 @@ fsm outval {
 			// Done
 			finish;
 
-		ser_outf (NEXT, "Value [%d] = %x [%u]\r\n", cnt,
-					sen [cnt], sen [cnt]);
+		ser_outf (NEXT, "Value [%d] = %x [%u] <%d>\r\n", cnt,
+					sen [cnt], sen [cnt], sen [cnt]);
 		cnt++;
 		sameas NEXT;
 }
@@ -90,6 +100,10 @@ fsm root {
 		"C m t u  -> CMA3000 on, mo th tm\r\n"
 		"F        -> CMA3000 off\r\n"
 #endif
+#ifdef SCA3100
+		"C        -> SCA3100 on\r\n"
+		"F        -> SCA3100 off\r\n"
+#endif
 		"s n      -> set sensor value length (words)\r\n"
 		"r s      -> read value of sensor s\r\n"
 		"c s d    -> read value of sensor s continually at d int\r\n"
@@ -110,7 +124,7 @@ fsm root {
 	ser_in (RS_RCMD, ibuf, IBUFLEN);
 
 	switch (ibuf [0]) {
-#ifdef CMA3000
+#if defined(CMA3000) || defined(SCA3100)
 		case 'C' : proceed RS_CMO;
 		case 'F' : proceed RS_CMF;
 #endif
@@ -202,20 +216,28 @@ fsm root {
 
 #endif
 
-#ifdef CMA3000
+#if defined(CMA3000) || defined(SCA3100)
 
   state RS_CMO:
 
+#ifdef CMA3000
 	x = 0;
 	y = 1;
 	z = 3;
 	scan (ibuf + 1, "%u %u %u", &x, &y, &z);
 	cma3000_on (x, y, z);
+#else
+	sca3100_on ();
+#endif
 	proceed RS_RCMD;
 
   state RS_CMF:
 
+#ifdef CMA3000
 	cma3000_off ();
+#else
+	sca3100_off ();
+#endif
 	proceed RS_RCMD;
 
 #endif
