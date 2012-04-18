@@ -147,7 +147,7 @@ char cma3000_accdata [4];
 static byte pmode;
 static Boolean measuring;
 
-static wreg_n_check (byte reg, byte val) {
+static void wreg_n_check (byte reg, byte val) {
 
 	do { wreg (reg, val); } while (cma3000_rreg (reg) != val);
 }
@@ -195,26 +195,30 @@ void cma3000_off () {
 
 void cma3000_read (word st, const byte *junk, address val) {
 
-	word m;
-
 	if (val == NULL) {
 		// Called to issue a wait request for the event; note that
 		// it also makes sense when the sensor is off
-		when (&cma3000_event_thread, st);
-		// Reset event data
-		cma3000_accdata [0] = 0;
-		// Mark the thread as waiting
-		cma3000_event_thread = getcpid ();
 		if (pmode) {
 			// The sensor is on
 			if (measuring) {
 				// If we have been measuring, revert the sensor
 				// to pmode
+				cma3000_accdata [0] = 0;
 				wreg_n_check (0x02, pmode);
 				measuring = NO;
 			}
 			cma3000_rreg (0x05);
 		}
+
+		if (st == WNONE)
+			// Called to only revert to event mode
+			return;
+
+		when (&cma3000_event_thread, st);
+		// Mark the thread as waiting
+		cma3000_event_thread = getcpid ();
+		if (cma3000_accdata [0] != 0)
+			proceed (st);
 		release;
 	}
 
@@ -229,8 +233,8 @@ void cma3000_read (word st, const byte *junk, address val) {
 
 #define	v ((char*)val)
 
-	if (cma3000_accdata [0]) {
-		// Return accel data from the event; this costs nothing
+	if (!measuring && cma3000_accdata [0]) {
+		// Return accel data from the event
 		memcpy (v, cma3000_accdata, 4);
 		cma3000_accdata [0] = 0;
 		return;

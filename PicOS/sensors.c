@@ -104,8 +104,7 @@ void wait_sensor (sint sn, word st) {
 	   ((s = sensors + sn) -> tp & 0x80)) {
 		// Otherwise illegal
 		(*(s->fun_val)) (st, (const byte*)s, NULL);
-		release;
-	}
+	} else
 #endif
 	syserror (EREQPAR, "wait_sensor");
 }

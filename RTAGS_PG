@@ -2031,3 +2031,11 @@ PG120417A:
 
 	There are no modes and no events (unlike CMA3000). The sensor operates
 	solely in measurement mode, so read_sensor is the only interface.
+
+PG120418A:
+
+	A new version of the CMA3000 driver, as per my discussion with Wlodek.
+	Read cma3000.pdf.
+
+	A new version of the SCA3100 driver, remotely tested and debugged with
+	Gerry.

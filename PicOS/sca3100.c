@@ -25,10 +25,12 @@ static byte ioxb (byte b) {
 		else
 			sca3100_outl;
 		sca3100_clkh;
+// udelay (20);
 		in <<= 1;
 		if (sca3100_data)
 			in |= 1;
 		sca3100_clkl;
+// udelay (20);
 		b <<= 1;
 	}
 
@@ -58,7 +60,7 @@ static void wreg (byte reg, byte val) {
 		// Unselect
 		sca3100_cunsel;
 
-		if ((sta & 0x3) == 1) 
+		if ((sta & 0x6) == 2) 
 			return;
 
 		udelay (2);
@@ -71,7 +73,7 @@ static byte rreg (byte reg) {
 
 	byte res, sta, cnt;
 
-	for (cnt = 255; cnt; cnt--) {
+	for (cnt = 16; cnt; cnt--) {
 
 		sca3100_csel;
 		udelay (2);
@@ -85,23 +87,25 @@ static byte rreg (byte reg) {
 		// Unselect
 		sca3100_cunsel;
 
-		if ((sta & 0x3) == 1) 
+		if ((sta & 0x6) == 2) 
 			return res;
 
 		udelay (2);
 	}
 
-	syserror (EHARDWARE, "sca-r");
+	// syserror (EHARDWARE, "sca-r");
+	return 0xAA;
 }
 
 static void sclear () {
 
 	byte cnt;
 
-	for (cnt = 255; cnt; cnt--)
+	for (cnt = 16; cnt; cnt--) {
 		if (rreg (0x58) == 0)
 			return;
-	syserror (EHARDWARE, "sca-c");
+	}
+	// syserror (EHARDWARE, "sca-c");
 }
 
 // ============================================================================
@@ -113,7 +117,7 @@ void sca3100_on () {
 	sca3100_off ();
 	mdelay (10);
 	sca3100_bring_up;
-	mdelay (120);
+	mdelay (240);
 	sclear ();
 }
 

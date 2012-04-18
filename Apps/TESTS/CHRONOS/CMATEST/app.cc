@@ -31,7 +31,7 @@ static word rtimer = 0;	// Radio back on timer
 static word atimeout = 0,		// Accel event timeout, every that many
 					// msec read data even if no event
 
-       	    areadouts = 0,		// After event read this many times ...
+       	    areadouts = 1,		// After event read this many times ...
 	    ainterval = 0;  		// ... at this interval before
 					// returning to MD mode
 
@@ -168,8 +168,9 @@ fsm accel_thread {
 	if (atimeout)
 		delay (atimeout, AT_TIMEOUT);
 
-	// Forces release (as it should)
-	wait_sensor (SENSOR_MOTION, AT_EVENT);
+	if (areadouts)
+		wait_sensor (SENSOR_MOTION, AT_EVENT);
+
 	release;
 
   state AT_TIMEOUT:
@@ -183,13 +184,16 @@ fsm accel_thread {
 	ab_outf (AT_SEND_PERIODIC, "P: [%x] <%d,%d,%d>",
 		c [0], c [1], c [2], c [3]);
 	msg_nn (1, omess++);
+Revert:
+	if (areadouts == 0)
+		// No wait: revert to event mode
+		wait_sensor (SENSOR_MOTION, WNONE);
 	proceed AT_WAIT;
 
   state AT_EVENT:
 
 	radio_on ();
-	if ((nc = areadouts) == 0)
-		proceed AT_NOEREP;
+	nc = areadouts;
 
   state AT_READOUT:
 
@@ -201,19 +205,13 @@ fsm accel_thread {
 		c [0], c [1], c [2], c [3]);
 	msg_nn (1, omess++);
 
-	if (nc == 1)
+	if (nc <= 1)
 		// Done
 		proceed AT_WAIT;
 
 	nc--;
 	delay (ainterval, AT_READOUT);
 	release;
-
-  state AT_NOEREP:
-
-	ab_outf (AT_NOEREP, "E!");
-	msg_nn (1, omess++);
-	proceed AT_WAIT;
 }
 	
 // ============================================================================
@@ -333,7 +331,7 @@ fsm root {
 
 	cma3000_on (w0, w1, w2);
 	aon = 1;
-
+Restart:
 	killall (accel_thread);
 	runfsm accel_thread;
 
@@ -357,9 +355,15 @@ fsm root {
 	if (w0 > 60)
 		w0 = 60;
 
+	if (w0 == 0 && w1 == 0)
+		proceed RS_BAD;
+
 	atimeout = w0 * 1024;
 	areadouts = w1;
 	ainterval = w2;
+
+	if (aon)
+		goto Restart;
 
 	proceed RS_DONE;
 
