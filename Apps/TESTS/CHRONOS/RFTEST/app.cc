@@ -171,6 +171,7 @@ fsm buzz (word duration) {
 
 	state BUZZ_OFF:
 
+		buzzer_off ();
 		finish;
 
 	initial state BUZZ_ON:
