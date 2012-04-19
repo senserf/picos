@@ -241,7 +241,7 @@ void cma3000_read (word st, const byte *junk, address val) {
 	}
 
 	if (st == WNONE) {
-		cma3000_accdata [0] = 0;
+		v [0] = 0;
 		return;
 	}
 
