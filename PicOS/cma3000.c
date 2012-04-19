@@ -240,6 +240,11 @@ void cma3000_read (word st, const byte *junk, address val) {
 		return;
 	}
 
+	if (st == WNONE) {
+		cma3000_accdata [0] = 0;
+		return;
+	}
+
 	// Go into measurement mode
 
 	if (!measuring) {

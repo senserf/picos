@@ -2039,3 +2039,13 @@ PG120418A:
 
 	A new version of the SCA3100 driver, remotely tested and debugged with
 	Gerry.
+
+PG120419A:
+
+	A slightly improved version of the CMA3000 driver (see the blue text in
+	cma3000.pdf).
+
+	Previous commit (untagged): added buzzer_off to CHRONOS/CMATEST and
+	CHRONOS/RFTEST. I have no clue why that stupid command disappeared
+	from app.cc for a second time (I distinctly recall fixing the same
+	problem some time ago).
