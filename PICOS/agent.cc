@@ -2842,7 +2842,7 @@ void SNSRS::read (int state, sint sn, address vp) {
 		return;
 	}
 
-	if (s->MaxTime == 0.0) {
+	if (s->MaxTime == 0.0 || state == WNONE) {
 		// return immediately, no energy usage
 		s->get (vp);
 		return;
@@ -2875,7 +2875,7 @@ void SNSRS::write (int state, sint sn, address vp) {
 	if (sn >= NActuators || (s = Actuators + sn) -> Length == 0)
 		syserror (EREQPAR, "write_actuator");
 
-	if (s->MaxTime == 0.0)
+	if (s->MaxTime == 0.0 || state == WNONE)
 		// return immediately
 		goto SetIt;
 
@@ -2906,6 +2906,10 @@ void SNSRS::wevent (int st, sint sn) {
 
 	if (sn >= NSensors || sn < 0 || (s = Sensors + sn) -> Length == 0)
 		syserror (EREQPAR, "wait_sensor");
+
+	if (st == WNONE)
+		// Special action ignored by VUEE
+		return;
 
 	Monitor->wait (s, st);
 	sleep;

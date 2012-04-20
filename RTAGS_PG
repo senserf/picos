@@ -791,3 +791,14 @@ PG120409A:	PICOS >= PG120409A
     E!) to make it possible to trigger sensor events.
 
     Function wait_sensor implemented (see PG120409A in PicOS).
+
+PG120421A:	PICOS >= PG120421A
+
+    I have removed the dependence of udaemon on the Img package, which was
+    needed for the sole purpose of accommodating background images for ROAMER,
+    so you could specify them, e.g., as jpeg files. That was extravagant and,
+    with the recent upgrade of Cygwin's Tcl to 8.5, became the only serious
+    obstacle to running udaemon with Cygwin's native Tcl. When you convert your
+    backgorund (jpeg) image to GIF or PPM/PGM, you can use without the Img
+    package. This is what I did to the background image in ils_demo (see
+    PICOS/Apps/PROPRIETARY/ils_demo).

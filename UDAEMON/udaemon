@@ -26,7 +26,14 @@ if { $Stat(S) != "L" } {
 
 ###############################################################################
 
-package require Img
+##
+## Uncomment this if:
+##	1. you do have the package
+##	2. you want to use jpeg (or other) image types for ROAMER background
+##	   (rather than the built-in gif, ppm/pgm
+## The package is not required for anything else
+##
+## package require Img
 
 package provide xml 1.0
 #
@@ -4647,6 +4654,10 @@ proc moveGNP { Sok cmd } {
 		if [mkMove $Sok] {
 			# unfortunately, this can fail
 			dealloc $Sok
+			log "failed"
+			# this will return from the caller (sock_rl) to prevent
+			# any attempts at further interpretation
+			return -code return
 		}
 		log "done"
 		fileevent $Sok readable "sock_rl $Sok moveUpd"
@@ -4936,7 +4947,7 @@ proc mkMove { Sok } {
 		# we have a background image
 		set imf $Geometry(roamer,i)
 		if [catch { image create photo -file $imf } bgr] {
-			log "cannot open the background image file $imf"
+			log "cannot open the background image file $imf, $bgr"
 			return 1
 		}
 		set aw [image width $bgr]
