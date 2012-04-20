@@ -3,7 +3,7 @@
 exec tclsh "$0" "$@"
 #
 # Comprehensively and consistently installs the complete set: PICOS, VUEE, SIDE,
-# verifying version dependencies
+# PIP verifying version dependencies
 #
 
 ###############################################################################
@@ -22,10 +22,22 @@ if [catch { exec uname } ST(SYS)] {
 
 ###############################################################################
 
+set TCLVER [info tclversion]
+
+if { [string first "-l" $argv] < 0 && $TCLVER >= 8.5 } {
+	puts "==============================================="
+	puts "Using native Tcl (version $TCLVER) for all scripts!"
+	puts "==============================================="
+	set TCL85 ""
+} else {
+	# name suffixes to be appended to tclsh wish
+	set TCL85 [list "85" "8.5"]
+}
+
+###############################################################################
+
 set PLIST { PICOS SIDE VUEE PIP }
 set OPTIONAL { PIP }
-set TCL85 [list "tclsh85" "tclsh8.5"]
-set TK85  [list "wish85" "wish8.5"]
 
 proc errab { m } {
 
@@ -348,56 +360,95 @@ proc ver_dep { depl } {
 	}
 }
 
-proc fixtcl85 { dir pgm suf bin tcl } {
+proc copyscript { src nam suf tar } {
+#
+# Copy script, make sure permissions are right, and optionally create a
+# link
+#
+	set fis [file join $src $nam]
+	set fit "[file rootname [file join $tar $nam]]$suf"
+	set pgm [file tail $fit]
 
-	global BINW ST
-
-	set src [file join $dir $pgm]
-
-	set trg "[file rootname [file join $bin $pgm]]$suf"
-	set pgm [file tail $trg]
-
-	if { $ST(SYS) == "L" } {
-		# just copy it
-		if [catch { file copy -force -- $src $trg } err] {
-			puts "Cannot copy $pgm from $dir to $bin: $err!"
-		}
+	if [catch { file copy -force -- $fis $fit } err] {
+		puts "Cannot copy $fis to $fit ($err), script ignored!"
 		return
 	}
 
-	if [catch { open $src "r" } fd] {
-		puts "Cannot copy $pgm from $dir, ignored!"
-		return
+	set cwd [pwd]
+
+	if [catch { cd $tar } err] {
+		puts "Cannot cd to $tar ($err)!"
+	} else {
+		catch { exec chmod 0755 $pgm }
+		if { $suf != "" } {
+			set lk [file rootname $pgm]
+			catch { file delete -force -- $lk }
+			catch { exec ln -sf $pgm $lk }
+		}
+	}
+
+	cd $cwd
+}
+
+proc fixtcl85 { pgm } {
+
+	global BIN BINW TCL85 ST
+
+	set fn "$pgm.tcl"
+	if [catch { open $fn "r" } fd] {
+		set fn $pgm
+		if [catch { open $fn "r" } fd] {
+			puts "Cannot open $fn, ignored!"
+			return
+		}
 	}
 
 	if [catch { read $fd } txt] {
-		puts "Cannot read $pgm from $dir, ignored!"
+		puts "Cannot read $pgm from $BIN, ignored!"
 		catch { close $fd }
 		return
 	}
 
 	catch { close $fd }
 
-	set trg "[file rootname [file join $bin $pgm]]$suf"
-	set pgm [file tail $trg]
+	set trg "[file join $BIN $pgm]"
 
-	set ns [regsub ".*\nexec *(tclsh|wish)\[^\n\]*" $txt\
-	  "#!/bin/sh\n#####\\\nexec $tcl $BINW/$pgm \"\$@\"" txt]
-
-	if { $ns == 0 } {
-		puts "Failed to install $pgm, ignored!"
+	if ![regexp "\nexec *(tclsh|wish)\[^\n\]*" $txt match what] {
+		puts "Cannot locate tcl reference in $pgm, ignored!"
 		return
 	}
 
-	catch { exec rm -rf $trg }
-	catch { exec cat > $trg << $txt }
-	catch { exec chmod +x $trg }
-	catch { close $fd }
+	set ix [string first $match $txt]
+
+	set in "\nexec "
+	if { [string index $what 0] == "t" } {
+		append in "tclsh"
+	} else {
+		append in "wish"
+	}
+
+	if { $TCL85 != "" } {
+		append in $TCL85
+		# this is a Cygwin-unaware version, so make sure the path is
+		# fully specified
+		append in " $BINW/$fn"
+	} else {
+		append in " \"\$0\""
+	}
+
+	append in " \"\$@\""
+
+	set txt "[string range $txt 0 [expr $ix - 1]]$in[string range $txt \
+		[expr $ix + [string length $match]] end]"
+
+	catch { exec rm -rf $fn }
+	catch { exec cat > $fn << $txt }
+	catch { exec chmod 0755 $trg }
 }
 
 proc doit { } {
 
-	global CWD PLIST BIN BINW HOME TCL85 TK85 ST
+	global CWD PLIST BIN BINW HOME TCL85 ST
 
 	anchor
 
@@ -422,51 +473,57 @@ proc doit { } {
 
 	puts "Deploying PICOS ..."
 
-	set hd [file join $HOME $BIN]
+	set BIN [file join $HOME $BIN]
 
-	if [catch { file mkdir $hd } err] {
-		errab "Cannot access $hd: $err"
+	if [catch { file mkdir $BIN } err] {
+		errab "Cannot access $BIN: $err"
 	}
 
 	if { $ST(SYS) == "L" } {
-		set BINW $hd
+		set BINW $BIN
 	} else {
 		# get the windows path to BIN
-		set BINW [exec cygpath -m $hd]
+		set BINW [exec cygpath -m $BIN]
 	}
 
-	if [catch { file copy -force --\
-	     Scripts/mkmk Scripts/picomp Scripts/usefetdll $hd } err] {
-		errab "Cannot copy to $hd: $err"
-	}
+	# copy scripts (for PICOS and VUEE); PIP did it itself
+	copyscript "Scripts" "mkmk" "" $BIN
+	copyscript "Scripts" "picomp" "" $BIN
+	copyscript "Scripts" "usefetdll" "" $BIN
+	copyscript "Scripts" "piter.tcl" ".tcl" $BIN
+	copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN
+
+	set ScriptsToFix { pip piter udaemon genimage gdbloader }
 
 	set tcldir ""
-	set tclinx 0
-
-	foreach tc $TCL85 {
-		if ![catch { exec which $tc } tcp] {
-			if { [string first "which:" $tcp] < 0 } {
-				set tcldir $tcp
-				set TCL85 $tc
-				set TK85 [lindex $TK85 $tclinx]
-				break
+	if { $TCL85 != "" } {
+		foreach tc $TCL85 {
+			if ![catch { exec which "tclsh$tc" } tcp] {
+				if { [string first "which:" $tcp] < 0 } {
+					set tcldir $tcp
+					set TCL85 $tc
+					break
+				}
 			}
 		}
-		incr tclinx
+		if { $tcldir == "" } {
+		    puts "====================================================="
+		    puts "You don't seem to have Tcl8.5 anywhere on your  PATH,"
+		    puts "so  I cannot fix those scripts that require Tcl8.5 to"
+		    puts "use it. This may cause problems."
+		    puts "====================================================="
+		    set ScriptsToFix ""
+		}
 	}
 
-	if { $tcldir == "" } {
-		puts "====================================================="
-		puts "You don't seem to have Tcl8.5 anywhere on your  PATH,"
-		puts "so I cannot set up  piter  and  udaemon for automatic"
-		puts "execution from your $BIN directory. Sorry about that."
-		puts "====================================================="
-	} else {
-		fixtcl85 "Scripts" "piter.tcl" ".tcl" $hd $TCL85
-		fixtcl85 "../VUEE/UDAEMON" "udaemon" ".tcl" $hd $TK85
+	if [catch { cd $BIN } err] {
+		puts "Cannot cd to $BIN, $err!"
+		exit 99
 	}
 
-	cd $hd
+	foreach tc $ScriptsToFix {
+		fixtcl85 $tc
+	}
 
 	catch {
 		set fd [open "picospath" "w"]
@@ -474,19 +531,7 @@ proc doit { } {
 		close $fd
 	}
 
-	catch { exec chmod +x picospath }
-	catch { exec chmod +x mkmk }
-	catch { exec chmod +x picomp }
-	catch { exec chmod +x usefetdll }
-
-	# make piter.tcl clickable, with piter acting as the previous
-	# command-line script
-	catch { exec rm -rf piter udaemon }
-	catch { exec chmod +x piter.tcl }
-	catch { exec chmod +x udaemon.tcl }
-	catch { exec ln -sf piter.tcl piter }
-	catch { exec ln -sf udaemon.tcl udaemon }
-
+	catch { exec chmod 0755 picospath }
 	puts "All done"
 }
 

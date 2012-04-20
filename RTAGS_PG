@@ -2049,3 +2049,22 @@ PG120419A:
 	CHRONOS/RFTEST. I have no clue why that stupid command disappeared
 	from app.cc for a second time (I distinctly recall fixing the same
 	problem some time ago).
+
+PG120421A:	PIP >= PG120421A
+
+	Modified the deploy script to automatically use Cygwin's/Linux's native
+	Tcl, if it is version 8.5 or above. I think I have finally managed to
+	eliminate the need for a special installation of Tcl (on both systems).
+	If you still want to use the "special" (ActiveState) Tcl, even though
+	your native Tcl is 8.5, call deploy with -l.
+
+	On Cygwin, this will only work with a recent version of Cygwin (my
+	present version (uname --all) is:
+
+	CYGWIN_NT-6.1 MNIV 1.7.13(0.260/5/3) 2012-04-05 12:43 i686 Cygwin
+
+	On Ubuntu, you have to make sure that you have installed packages
+	Tcl8.5 and Tk8.5.
+
+	A new (simple) praxis for Gerry to collect data from SCA3100
+	(TESTS/SCA3100). Gerry has it already.

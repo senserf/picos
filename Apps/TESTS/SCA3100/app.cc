@@ -22,11 +22,12 @@ heapmem {10, 90};
 #define	VBUFSIZE	1000
 #define	SENSOR_SCA3100	0
 
-typedef struct { sint X, Y, Z; } readout_t;
+typedef struct { sint xx, yy, zz; } readout_t;
 
 readout_t readouts [VBUFSIZE];
 
 word NR;
+word Del;
 
 char ibuf [IBUFLEN];
 
@@ -39,8 +40,11 @@ static void collect (word n) {
 
 	NR = n;
 
-	for (p = readouts; n; n--, p++)
+	for (p = readouts; n; n--, p++) {
+		if (Del)
+			mdelay (Del);
 		read_sensor (WNONE, SENSOR_SCA3100, (address) p);
+	}
 }
 
 fsm root {
@@ -56,9 +60,9 @@ fsm root {
 
 	ser_out (RS_BANNER,
 		"\r\nCommands:\r\n"
-		"r        -> read one sample\r\n"
-		"c n      -> collect n samples (<= 1000)\r\n"
-		"d        -> dump collected samples\r\n"
+		"r     -> read one sample\r\n"
+		"c n d -> collect n samples (<= 1000), d = del ms (<= 1000)\r\n"
+		"d     -> dump collected samples\r\n"
 		);
 
   state RS_RCMD:
@@ -94,8 +98,9 @@ fsm root {
 
 	NR = 0;
 	n = 1000;
-	scan (ibuf + 1, "%u", &n);
-	if (n > 1000)
+	Del = 0;
+	scan (ibuf + 1, "%u %u", &n, &Del);
+	if (n > 1000 || Del > 1000)
 		proceed RS_ERR;
 
 	collect (n);
@@ -112,9 +117,9 @@ fsm root {
 		proceed RS_RCMD;
 
 	ser_outf (RS_NEXTITEM, "%u, %d, %d, %d\r\n", n,
-		readouts [n] . X,
-		readouts [n] . Y,
-		readouts [n] . Z);
+		readouts [n] . xx,
+		readouts [n] . yy,
+		readouts [n] . zz);
 
 	n++;
 	sameas RS_NEXTITEM;
