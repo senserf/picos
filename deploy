@@ -2,7 +2,7 @@
 ###################\
 exec tclsh "$0" "$@"
 #
-# PIP installer
+# PIP installer 
 #
 
 proc abort { msg } {
@@ -10,9 +10,6 @@ proc abort { msg } {
 	puts stderr "$msg!"
 	exit 99
 }
-
-set TCL85 [list "tclsh85" "tclsh8.5"]
-set TK85  [list "wish85" "wish8.5"]
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -28,77 +25,40 @@ if [catch { exec uname } ST(SYS)] {
 	set ST(SYS) "W"
 }
 
-proc fixtcl85 { dir pgm suf bin tcl } {
-
-	global BINW ST
-
-	set src [file join $dir $pgm]
-
-	set trg "[file rootname [file join $bin $pgm]]$suf"
-	set pgm [file tail $trg]
-
-	if { $ST(SYS) == "L" } {
-		# just copy it
-		if [catch { file copy -force -- $src $trg } err] {
-			puts "Cannot copy $pgm to $bin: $err!"
-		}
-		return
-	}
-
-	if [catch { open $src "r" } fd] {
-		puts "Cannot copy $pgm, ignored!"
-		return
-	}
-
-	if [catch { read $fd } txt] {
-		puts "Cannot read $pgm, ignored!"
-		catch { close $fd }
-		return
-	}
-
-	catch { close $fd }
-
-	set ns [regsub ".*\nexec *(tclsh|wish)\[^\n\]*" $txt\
-	  "#!/bin/sh\n#####\\\nexec $tcl $BINW/$pgm \"\$@\"" txt]
-
-	if { $ns == 0 } {
-		puts "Failed to install $pgm, ignored!"
-		return
-	}
-
-	catch { exec rm -rf $trg }
-	catch { exec cat > $trg << $txt }
-	catch { exec chmod +x $trg }
-	catch { close $fd }
-}
-
-###############################################################################
-# Determine the location of Tcl/Wish (version 8.5) ############################
-###############################################################################
-
-set tcldir ""
-set tclinx 0
-
-foreach tc $TCL85 {
-	if ![catch { exec which $tc } tcp] {
-		if { [string first "which:" $tcp] < 0 } {
-			set tcldir $tcp
-			set TCL85 $tc
-			set TK85 [lindex $TK85 $tclinx]
-			break
-		}
-	}
-	incr tclinx
-}
-
-if { $tcldir == "" } {
-	abort "No tcl8.5/wish8.5 found on your PATH"
-}
-
-puts "Tcl directory: $tcldir"
-
 ###############################################################################
 # Determine whether the user has bin or BIN in HOME ###########################
+###############################################################################
+
+proc copyscript { src nam suf tar } {
+#
+# Copy script, make sure permissions are right, and optionally create a
+# link
+#
+	set fis [file join $src $nam]
+	set fit "[file rootname [file join $tar $nam]]$suf"
+	set pgm [file tail $fit]
+
+	if [catch { file copy -force -- $fis $fit } err] {
+		puts "Cannot copy $fis to $fit ($err), script ignored!"
+		return
+	}
+
+	set cwd [pwd]
+
+	if [catch { cd $tar } err] {
+		puts "Cannot cd to $tar ($err)!"
+	} else {
+		catch { exec chmod 0755 $pgm }
+		if { $suf != "" } {
+			set lk [file rootname $pgm]
+			catch { file delete -force -- $lk }
+			catch { exec ln -sf $pgm $lk }
+		}
+	}
+
+	cd $cwd
+}
+
 ###############################################################################
 
 set HOME [file normalize $env(HOME)]
@@ -127,26 +87,8 @@ if [catch { file mkdir $hd } err] {
 	abort "Cannot access $hd: $err"
 }
 
-if { $ST(SYS) == "L"} {
-	set BINW $hd
-} else {
-	# get the windows path to BIN
-	set BINW [exec cygpath -m $hd]
-}
+copyscript "." "pip.tcl" "" $hd
+copyscript "." "genimage.tcl" ".tcl" $hd
+copyscript "." "gdbloader.tcl" "" $hd
 
-fixtcl85 "." "pip.tcl" "" $hd $TCL85
-fixtcl85 "." "genimage.tcl" ".tcl" $hd $TCL85
-fixtcl85 "." "gdbloader.tcl" "" $hd $TCL85
-
-cd $hd
-
-catch { exec rm -rf genimage }
-catch { exec ln -sf genimage.tcl genimage }
-
-# remove previous programs/scripts that are no more
-catch { exec rm -rf pip.tcl }
-catch { exec rm -rf mkstags mkstags.tcl }
-catch { exec rm -rf elvissettings elvissettings.tcl }
-catch { exec rm -rf gdbloader.tcl }
-
-puts "All done"
+puts "Done"

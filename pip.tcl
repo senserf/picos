@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec tclsh85 "$0" "$@"
+exec tclsh "$0" "$@"
 
 package require Tk
 package require Ttk
@@ -502,14 +502,49 @@ proc fpnorm { fn } {
 		# this is the only place where we may have a problem: we have
 		# a full path from Cygwin, while the script needs DOS
 		if ![catch { xq "cygpath" [list -w $fn] } fm] {
-			log "Cygwin full path: $fn -> $fm"
+			log "Path (L->D): $fn -> $fm"
+			set fn $fm
+		} else {
+			log "cygpath failed: $fn, $fm"
+		}
+	} elseif { !$ST(DP) && $ST(SYS) != "L" &&
+	    [regexp "^\[A-Za-z\]:\[/\\\\\]" $fn] } {
+		if ![catch { xq "cygpath" [list $fn] } fm] {
+			log "Path (D->L): $fn -> $fm"
+			set fn $fm
+		} else {
+			log "cygpath failed: $fn, $fm"
+		}
+	}
+	return [file normalize $fn]
+}
+
+proc dospath { fn } {
+#
+# Converts the file path to DOS for the occasion of passing it to some Windows
+# program that doesn't understand Cygwin
+#
+	global ST
+
+	if { $ST(SYS) == "L" } {
+		alert "DOS path conversion requested from Linux (file name:\
+			$fn). This looks like some configuration problem"
+		return $fn
+	}
+
+	set fn [fpnorm $fn]
+
+	if !$ST(DP) {
+		# do nothing if preferred path format is DOS
+		if ![catch { xq "cygpath" [list -w $fn] } fm] {
+			log "DOS path: $fn -> $fm"
 			set fn $fm
 		} else {
 			log "cygpath failed: $fn, $fm"
 		}
 	}
 
-	return [file normalize $fn]
+	return $fn
 }
 
 proc cw { } {
@@ -897,6 +932,8 @@ proc gfl_tree { } {
 
 	# remove all nodes in treeview; will fill it from scratch
 	$tv delete [$tv children {}]
+
+	log "Updating tree view"
 
 	foreach t $LFTypes {
 		# header title
@@ -2795,6 +2832,7 @@ proc copy_to { { x "" } { y "" } } {
 
 			log "Copying $fp to $fl"
 			if ![catch { file copy -force -- $fp $fl } err] {
+				gfl_tree
 				return
 			}
 			alert "Cannot copy: $err"
@@ -2853,6 +2891,9 @@ proc copy_to { { x "" } { y "" } } {
 	if { $ers != "" } {
 		alert "Couldn't copy: [join $ers ,]"
 	}
+
+	# in case the target is inside the project
+	gfl_tree
 }
 
 proc run_xterm_here { { x "" } { y "" } } {
@@ -2870,6 +2911,7 @@ proc run_xterm_here { { x "" } { y "" } } {
 	set nf [llength $sel]
 
 	if { $nf == 0 } {
+		alert "You have to select a file or directory for this"
 		return
 	}
 
@@ -2884,7 +2926,7 @@ proc run_xterm_here { { x "" } { y "" } } {
 	} elseif { [lindex $fp 1] == "d" } {
 		set fp [fpnorm [lindex $fp 0]]
 	} else {
-		alert "You have to select a file or directory for this"
+		alert "What you have selected is neither a file nor a directory"
 		return
 	}
 
@@ -4257,7 +4299,7 @@ proc loaders_conf_elp_fsel { auto } {
 	reset_all_menus 1
 	set fi [tk_getOpenFile \
 		-initialdir $id \
-		-filetype [list [list "Executable" [list ".exe"]]] \
+		-filetypes [list [list "Executable" [list ".exe"]]] \
 		-defaultextension ".exe" \
 		-parent $P(M0,WI)]
 	reset_all_menus
@@ -6506,7 +6548,7 @@ proc upload_ELP { } {
 #
 # Elprotronic
 #
-	global P TCMD
+	global P ST TCMD
 
 	set cfn "config.ini"
 
@@ -6609,26 +6651,26 @@ proc upload_ELP { } {
 	    $mat jnk suf fil pat] {
 		# format OK
 		set loc 1
-		log "Previous: $suf $fil $pat"
 		if { $suf != "a43" || [lsearch -exact $im $fil] < 0 } {
 			set loc 0
 		}
 		# verify the directory
-		if { !$loc || [fpnorm [string trim $pat]] != \
-		     [fpnorm [file join $P(AC) $fil]] } {
+		if { !$loc || [string trim $pat] != \
+		     [dospath [file join $P(AC) $fil]] } {
 			set loc 0
 		}
+		log "Elpro previous: $suf $fil $pat $loc"
 	}
 
 	if !$loc {
 		# have to update the config file
 		set im [lindex [lsort $im] 0]
 		set ln "CodeFileName\ta43\t${im}\t"
-		append ln [fpnorm [file join $P(AC) $im]]
+		append ln [dospath [file join $P(AC) $im]]
 		# substitute and rewrite
 		set ix [string first $mat $cf]
 		regsub -all "/" $ln "\\" ln
-		log "Substituting: $ln"
+		log "Elpro substituting: $ln"
 		set cf "[string range $cf 0 [expr $ix-1]]$ln[string range $cf \
 			[expr $ix + [string length $mat]] end]"
 
@@ -9117,7 +9159,7 @@ proc scan_mkfile { mfn } {
 #
 # Scans a Makefile for the list of project-related "system" files
 #
-	global ST FNARR
+	global ST FNARR PicOSPath
 
 	if [catch { open $mfn "r" } fd] {
 		return
@@ -9134,11 +9176,30 @@ proc scan_mkfile { mfn } {
 
 	foreach ln $mf {
 		# collect the list of file paths
-		if { (  $ST(DP) &&
-	            [regexp "^(\[IS\]\[0-9\]+)=(\[A-Z\]:.*)" $ln jk pf fn] ) ||
-		     ( !$ST(DP) &&
-		    [regexp "^(\[IS\]\[0-9\]+)U?=(/home/.*)" $ln jk pf fn] ) } {
-
+		if $ST(DP) {
+			# We expect DOS paths, but we don't know if mkmk
+			# is native, i.e., if it uses DOS paths at all
+			if [regexp "^(\[IS\]\[0-9\]+)=(\[A-Z\]:.*)" \
+			    $ln jk pf fn] {
+				# this happens when mkmk uses DOS paths as well
+				set FS($pf) [string trimright $fn]
+				continue
+			}
+			# give it a second chance
+			if { [regexp "^(\[IS\]\[0-9\]+)U?=(/.*)" \
+			    $ln jk pf fn] && ![info exists FS($pf)] } {
+				if { [string first $ST(NPP) $fn] == 0 } {
+					# starts with a PicOS path in "unix"
+					# flavor
+					set fn "$PicOSPath[string range \
+					    [string trimright $fn] $ST(NPL) \
+						end]"
+					set FS($pf) $fn
+				}
+				continue
+			}
+		} elseif [regexp "^(\[IS\]\[0-9\]+)U?=(/.*)" $ln jk pf fn] {
+			# expect unix paths
 			set FS($pf) [string trimright $fn]
 			continue
 		}
@@ -9364,13 +9425,14 @@ if $ST(DP) {
 }
 
 # path to PICOS
-if [catch { xq picospath } PicOSPath] {
-	puts stderr "cannot locate PicOS path: $PicOSPath"
+if [catch { xq picospath } ST(NPP)] {
+	puts stderr "cannot locate PicOS path: $ST(NPP)"
 	exit 99
 }
-set PicOSPath [fpnorm $PicOSPath]
+set PicOSPath [fpnorm $ST(NPP)]
+set ST(NPL) [string length $ST(NPP)]
 
-log "PicOS path: $PicOSPath"
+log "PicOS path: $ST(NPP) -> $PicOSPath"
 
 # path to the default superdirectory for projects
 foreach DefProjDir [list [file join $PicOSPath Apps VUEE] \

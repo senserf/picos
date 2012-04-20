@@ -573,3 +573,12 @@ PG120413A:	SIDE >= PG120413A
 	this illegal in a SIDE model, i.e., to abort the simulator when
 	something like that happens. This way, you can at least know what is
 	wrong.
+
+PG120421A:	PICOS >= PG120421A
+
+	PIP fixed to work with the native version of Tcl/Tk (both on Cygwin and
+	Linux) as long as it is 8.5 or higher.
+
+	Note: remove .piprc (from the non-native version of PIP) before running
+	PIP with native Tcl/Tk. The paths stored in the old file may confuse
+	PIP.
