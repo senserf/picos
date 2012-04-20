@@ -1,0 +1,66 @@
+#
+# March 21, 2012
+#
+Apps
+	cleanup
+	EXAMPLES
+	RFPing*
+	TESTS
+		CHRONOS
+		WARSAW
+		SENSORS
+	PROPRIETARY
+		vsen_demo
+	Toy
+	survey
+Docs
+	*.pdf
+Linux
+	LOCATION
+PicOS
+	*.c
+	*.h
+	kernel
+	MSP430
+		*.c
+		*.h
+		BOARDS
+			CHRONOS
+			WARSAW
+			DUMMY_COLLECTOR
+			ARTURO
+			ARTURO_PMTH
+			ARTURO_PYR
+			GENERIC_148
+			WARSAW_10SHT
+			WARSAW_ILS
+			WARSAW_SONAR
+	Libs
+		Lib
+		LibComms
+		LibLCDG
+		LibXRS
+		LibOEP
+RTAGS*
+cleanup
+deploy
+Scripts
+	UTILS.zip
+	cleanapp
+	genihex
+	isource
+	log.tcl
+	mkmk
+	oep.tcl
+	oss_u.tcl
+	oss_u_xrs.tcl
+	permissions
+	picomp
+	piter.tcl
+	sample_macros.mac
+	sdb.tcl
+	snippets.tcl
+	uart_*
+	usefetdll
+	xml.tcl
+	econnect.tcl
