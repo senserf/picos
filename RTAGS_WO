@@ -139,4 +139,9 @@ WO120320B:
   Added Chronos to vsen_demo, updated econnect. vsen.xml says it all - it is
   a tentative setup for demos in NL. 'B' because it is after Pawel's PG120320A.
 
+WO120419A:
+  vsen_demo: added WARSAW_SONAR (as simps), updated CHRONOS with the driver
+  changes. See vsen_demo/notes tail for a short summary. This version will
+  update Raoul's inventory.
+
 
