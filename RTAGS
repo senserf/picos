@@ -582,3 +582,7 @@ PG120421A:	PICOS >= PG120421A
 	Note: remove .piprc (from the non-native version of PIP) before running
 	PIP with native Tcl/Tk. The paths stored in the old file may confuse
 	PIP.
+
+PG120422A:
+
+	Modified the doc in accordance with PG120421A.
