@@ -802,3 +802,10 @@ PG120421A:	PICOS >= PG120421A
     backgorund (jpeg) image to GIF or PPM/PGM, you can use without the Img
     package. This is what I did to the background image in ils_demo (see
     PICOS/Apps/PROPRIETARY/ils_demo).
+
+PG120422A:
+
+    Updated the document to reflect PG120409A and PG120421A. If the Img package
+    happens to be available, udaemon will use it automatically thus increasing
+    the pool of image formats acceptable as backgrounds for the ROAMER window.
+

@@ -27,13 +27,10 @@ if { $Stat(S) != "L" } {
 ###############################################################################
 
 ##
-## Uncomment this if:
-##	1. you do have the package
-##	2. you want to use jpeg (or other) image types for ROAMER background
-##	   (rather than the built-in gif, ppm/pgm
-## The package is not required for anything else
+## This is optional; it just extends the pool of file formats available as
+## background images to ROAMER
 ##
-## package require Img
+catch { package require Img }
 
 package provide xml 1.0
 #
