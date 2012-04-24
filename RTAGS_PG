@@ -2072,3 +2072,20 @@ PG120421A:	PIP >= PG120421A
 PG120422A:
 
 	Updated the Installation doc in accordance with the previous mod.
+
+PG120424A:
+
+	The euphoria about using native Tcl under Cygwin was a bit premature.
+	There are problems with piter (opening COM ports, especially the
+	exotic variants, like "CNCx:" used for COM-COM emulation). So I am
+	disabling the default behavior of deploy on Cygwin systems (not on
+	Linux), i.e., on Cygwin deploy will select the old setup by default
+	(using Active State Tcl). If you want to try the native version, you
+	have to specify -n.
+
+	Hopefully, I will be able to fix that soon (so I am not updating the
+	docs [yet]), but I don't want to feel pressed, especially if the
+	problem with exotic devices turns out to be serious.
+
+	Fixed piter.tcl in Scripts to get rid of DOS lines apparently causing
+	problems on Ubuntu.
