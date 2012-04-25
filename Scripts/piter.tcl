@@ -31,6 +31,18 @@ if { $ST(SYS) != "L" } {
 	}
 	unset u
 }
+
+###############################################################################
+# Determine the way devices are named; if running natively under Cygwin, use
+# Linux style
+###############################################################################
+
+if [file isdirectory "/dev"] {
+	set ST(DEV) "L"
+} else {
+	set ST(DEV) "W"
+}
+
 ###############################################################################
 ###############################################################################
 
@@ -196,9 +208,11 @@ proc abtd { } {
 proc kick { } {
 
 	variable VU
-	upvar #0 $VU(AV) abv
 
-	set abv $abv
+	catch {
+		upvar #0 $VU(AV) abv
+		set abv $abv
+	}
 }
 
 proc cleanup { { ok 0 } } {
@@ -366,6 +380,210 @@ namespace import ::VUART::vuart_conn
 
 ###############################################################################
 
+package provide unames 1.0
+##########################################################################
+# This is a package for handling the various names under which COM ports #
+# may appear in our messy setup.                                         #
+# Copyright (C) 2012 Olsonet Communications Corporation.                 #
+##########################################################################
+
+namespace eval UNAMES {
+
+variable Dev
+
+proc unames_init { stype } {
+
+	variable Dev
+
+	set Dev(SYS) $stype
+	unames_defnames
+
+	if { $Dev(SYS) == "L" } {
+		# determine the root of virtual ttys
+		if [file isdirectory "/dev/pts"] {
+			# BSD style
+			set Dev(PRT) "/dev/pts/"
+		} else {
+			set Dev(PRT) "/dev/pty"
+		}
+	}
+}
+
+proc unames_defnames { } {
+#
+# Generate the list of default names
+#
+	variable Dev
+
+	# flag == default names, not real devices
+	set Dev(DEF) 1
+	# true devices
+	set Dev(COM) ""
+	# virtual devices
+	set Dev(VCM) ""
+
+	if { $Dev(SYS) == "L" } {
+		# Linux style
+		for { set i 0 } { $i < 32 } { incr i } {
+			lappend Dev(COM) "ttyS$i (COM[expr $i + 1])"
+		}
+		for { set i 0 } { $i < 9 } { incr i } {
+			lappend Dev(VCM) "pty$i (virt)"
+		}
+	} else {
+		for { set i 1 } { $i <= 32 } { incr i } {
+			lappend Dev(COM) "COM$i:"
+		}
+		for { set i 0 } { $i < 4 } { incr i } {
+			lappend Dev(VCM) "CNCA$i"
+			lappend Dev(VCM) "CNCB$i"
+		}
+	}
+}
+
+proc unames_ntodev { n } {
+#
+# Proposes a device list for a number
+#
+	variable Dev
+
+	if { $Dev(SYS) == "L" } {
+		return "/dev/ttyS$n /dev/ttyUSB$n /dev/tty$n"
+	} else {
+		if { $n < 1 } {
+			return ""
+		}
+		return "COM$n:"
+	}
+}
+
+proc unames_ntovdev { n } {
+#
+# Proposes a virtual device list for a number
+#
+	variable Dev
+
+	if { $Dev(SYS) == "L" } {
+		return "$Dev(PRT)$n"
+	} else {
+		if { $n > 3 } {
+			return ""
+		}
+		return "CNCA$n CNCB$n"
+	}
+}
+
+proc unames_unesc { dn } {
+#
+# Escapes the device name so it can be used as an argument to open
+#
+	variable Dev
+
+	if { $Dev(SYS) == "L" } {
+		# no need to do anything
+		return $dn
+	}
+
+	if [regexp -nocase "^com(\[0-9\]+):$" $dn jk pn] {
+		set dn "\\\\.\\COM$pn"
+	} else {
+		set dn "\\\\.\\$dn"
+	}
+
+	return $dn
+}
+
+proc unames_scan { } {
+#
+# Scan actual devices
+#
+	variable Dev
+
+	set Dev(DEF) 0
+	set Dev(COM) ""
+	set Dev(VCM) ""
+
+	# real devices
+	for { set i 0 } { $i < 256 } { incr i } {
+		set dl [unames_ntodev $i]
+		if { $dl == "" } {
+			continue
+		}
+		foreach d $dl {
+			if [catch { open [unames_unesc $d] "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			lappend Dev(COM) $d
+		}
+	}
+
+	# virtual devices
+	for { set i 0 } { $i < 32 } { incr i } {
+		set dl [unames_ntovdev $i]
+		if { $dl == "" } {
+			continue
+		}
+		foreach d $dl {
+			if [catch { open [unames_unesc $d] "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			lappend Dev(VCM) $d
+		}
+	}
+}
+
+proc unames_fnlist { fn } {
+#
+# Returns the list of filenames to try to open, given an element from one of
+# the lists; if not on the list, assume a direct name (to be escaped, however)
+#
+	variable Dev
+
+	if [regexp "^\[0-9\]+$" $fn] {
+		# just a number
+		return [unames_ntodev $fn]
+	}
+
+	if { [lsearch -exact $Dev(COM) $fn] >= 0 } {
+		if !$Dev(DEF) {
+			# this is an actual device
+			return $fn
+		}
+		# get a number and convert to a list
+		if ![regexp "\[0-9\]+" $fn n] {
+			return ""
+		}
+		return [unames_ntodev $n]
+	}
+	if { [lsearch -exact $Dev(VCM) $fn] >= 0 } {
+		if !$Dev(DEF) {
+			return $fn
+		}
+		if ![regexp "\[0-9\]+" $fn n] {
+			return ""
+		}
+		return [unames_ntovdev $n]
+	}
+	# return as is
+	return $fn
+}
+
+proc unames_choice { } {
+
+	variable Dev
+
+	return [list $Dev(COM) $Dev(VCM)]
+}
+
+namespace export unames_*
+
+### end of UNAMES namespace ####################################################
+}
+
+namespace import ::UNAMES::*
+
 ###############################################################################
 # Shared initialization #######################################################
 ###############################################################################
@@ -519,6 +737,47 @@ set WI(CIL)	""
 
 # recursive exit avoidance flag
 set WI(REX)	0
+
+###############################################################################
+# This circumvents a bug in Cygwin native Tcl whereby "readable" on a COM port
+# causes Windows to lose text events (at least this is how much I understand
+# abou the bug. So in such a case, the readable event is emulated by timer
+# callbacks. This is ugly (FIXME), but hopefully I will remove it some day.
+###############################################################################
+
+proc sy_readcb { fun } {
+
+	global ST
+
+	if [$fun] {
+		# a void call, increase the timeout
+		if { $ST(ROT) < 40 } {
+			incr ST(ROT)
+		}
+	} else {
+		set ST(ROT) 0
+	}
+
+	after $ST(ROT) "sy_readcb $fun"
+}
+
+proc sy_onreadable { fun } {
+#
+# This circumvents a bug (FIXME)
+#
+	global ST
+
+	if { $ST(SYS) == "L" || $ST(DEV) != "L" } {
+		# we have no problem unless this doesn't hold, i.e., we are
+		# on Windows running Cygwin native Tcl
+		fileevent $ST(SFD) readable $fun
+		return
+	}
+
+	# emulate the callback by a timer
+	set ST(ROT) 1
+	sy_readcb $fun
+}
 
 ###############################################################################
 
@@ -708,7 +967,7 @@ proc sy_mkterm { } {
 	frame .stat -borderwidth 2
 	pack .stat -expand no -fill x
 
-	text .stat.u -height 1 -font {-family courier -size 10}
+	text .stat.u -height 1 -font {-family courier -size 10} -state normal
 	pack .stat.u -side left -expand yes -fill x
 
 	bind .stat.u <Return> "sy_terminput"
@@ -931,7 +1190,7 @@ proc sy_valpars { } {
 		# module reset function
 		set ST(RFN) [lindex $pf 3]
 		# module read function
-		fileevent $ST(SFD) readable [lindex $pf 1]
+		sy_onreadable [lindex $pf 1]
 		# Terminal input event
 		set ST(TIF) $sfu
 		# plugin initializer
@@ -960,29 +1219,6 @@ proc sy_valpars { } {
 			sy_exit
 	}
 	return 0
-}
-
-proc sy_defdevlist { } {
-#
-# Produce a default (unscanned) device list
-#
-	global ST
-
-	if { $ST(SYS) == "L" } {
-		set fr 0
-		set to 32
-	} else {
-		set fr 1
-		set to 33
-	}
-
-	set dl ""
-
-	for { set i $fr } { $i < $to } { incr i } {
-		lappend dl [lindex [sy_cdevl $i] 0]
-	}
-
-	return $dl
 }
 
 proc sy_setdefdev { } {
@@ -1025,7 +1261,10 @@ proc sy_scandev { } {
 #
 	global WI
 
-	set WI(DEL) [sy_uscan]
+	unames_scan
+	set ol [unames_choice]
+	set WI(DEL) [concat [lindex $ol 0] [lindex $ol 1]]
+
 	$WI(DEM) delete 0 end
 	set ix 0
 	foreach w $WI(DEL) {
@@ -1084,8 +1323,9 @@ proc sy_initialize { } {
 	labelframe $w.dev -padx 4 -pady 4 -text "Device"
 	pack $w.dev -side top -expand y -fill x -anchor n
 
-	# generate default device list
-	set WI(DEL) [sy_defdevlist]
+	# use default device list: real + virtual
+	set ol [unames_choice]
+	set WI(DEL) [concat [lindex $ol 0] [lindex $ol 1]]
 
 	set WI(DEV) ""
 	set WI(DEO) ""
@@ -1314,6 +1554,13 @@ proc pt_trc { msg } {
 # Tcl-only versions of functions ##############################################
 ###############################################################################
 
+proc sy_onreadable { fun } {
+
+	global ST
+
+	fileevent $ST(SFD) readable $fun
+}
+
 proc sy_exit { } {
 
 	exit 0
@@ -1456,8 +1703,9 @@ proc sy_initialize { } {
 			sy_usage
 		}
 
-		sy_uscan
-		puts [join [sy_uscan] "\n"]
+		unames_scan
+		set ol [unames_choice]
+		puts [join [concat [lindex $ol 0] [lindex $ol 1]] "\n"]
 		exit 0
 	}
 
@@ -1553,7 +1801,7 @@ proc sy_initialize { } {
 	# module reset function
 	set ST(RFN) [lindex $pf 3]
 	# module read function
-	fileevent $ST(SFD) readable [lindex $pf 1]
+	sy_onreadable [lindex $pf 1]
 
 	fconfigure stdin -buffering line -blocking 0 -eofchar ""
 	fileevent stdin readable $sfu
@@ -1719,30 +1967,6 @@ proc sy_fndpfx { } {
 	return [clock format [clock seconds] -format %y%m%d_%H%M%S]
 }
 
-if { $ST(SYS) == "L" } {
-
-proc sy_unesc { dn } {
-#
-# UART device name conversion: presentable->openable; void on Linux ...
-#
-	return $dn
-}
-
-} else {
-
-proc sy_unesc { dn } {
-#
-# ... but not on Windows
-#
-	if [regexp -nocase "^com(\[0-9\]+):$" $dn jk pn] {
-		# a COM device
-		return "\\\\.\\COM$pn"
-	}
-	return "\\\\.\\$dn"
-}
-
-}
-
 proc pt_ishex { c } {
 	return [regexp -nocase "\[0-9a-f\]" $c]
 }
@@ -1894,39 +2118,6 @@ proc pt_chks { wa } {
 	return $chs
 }
 
-if { $ST(SYS) == "L" } {
-
-proc sy_cdevl { pi } {
-#
-# Returns the candidate list of devices to open based on the port identifier
-# Linux version
-#
-	if [regexp "^\[0-9\]+$" $pi] {
-		# a number
-		return [list "/dev/ttyUSB$pi" "/dev/tty$pi" "/dev/pts/$pi"]
-	}
-	if ![regexp "^/dev" $pi] {
-		set pi "/dev/$pi"
-		regsub -all "//" $pi "/" pi
-	}
-	return [list $pi]
-}
-
-} else {
-
-proc sy_cdevl { pi } {
-#
-# Windows/Cygwin version
-#
-	if { [regexp "^\[0-9\]+$" $pi] && ![catch { expr $pi } pn] } {
-		# looks like a (COM) number
-		return [list "COM${pn}:"]
-	}
-	return [list $pi]
-}
-
-}
-
 proc sy_ustart { udev speed } {
 #
 # open the UART
@@ -1977,7 +2168,7 @@ proc sy_ustart { udev speed } {
 
 	# regular device
 
-	set devlist [sy_cdevl $udev]
+	set devlist [unames_fnlist $udev]
 
 	set fail 1
 
@@ -1992,7 +2183,7 @@ proc sy_ustart { udev speed } {
 	}
 
 	foreach udev $devlist {
-		if ![catch { open [sy_unesc $udev] $accs } ST(SFD)] {
+		if ![catch { open [unames_unesc $udev] $accs } ST(SFD)] {
 			set fail 0
 			break
 		}
@@ -2822,26 +3013,6 @@ proc sy_rdmac { bin } {
 }
 
 ###############################################################################
-# Scan for available COM ports ################################################
-###############################################################################
-
-proc sy_uscan { } {
-
-	set dl ""
-	for { set i 0 } { $i < 256 } { incr i } {
-		set devlist [sy_cdevl $i]
-		foreach udev $devlist {
-			if [catch { open [sy_unesc $udev] "r" } fd] {
-				continue
-			}
-			catch { close $fd }
-			lappend dl $udev
-		}
-	}
-	return $dl
-}
-
-###############################################################################
 # Plugin handling functions ###################################################
 ###############################################################################
 
@@ -3075,6 +3246,7 @@ proc mo_rawread_x { } {
 #        5  -> Waiting for (CNT) bytes until the end of binary diag
 #
 	set chunk ""
+	set void 1
 
 	while 1 {
 
@@ -3103,13 +3275,14 @@ proc mo_rawread_x { } {
 					set ST(TIM) \
 					     [after $IV(PKT) mo_rawread_x]
 				}
-				return
+				return $void
 			}
 			# there is something to process, cancel timeout
 			if { $ST(TIM) != "" } {
 				catch { after cancel $ST(TIM) }
 				set ST(TIM) ""
 			}
+			set void 0
 		}
 
 		set bl [string length $chunk]
@@ -3463,6 +3636,7 @@ proc mo_rawread_p { } {
 #        5  -> Waiting for (CNT) bytes until the end of binary diag
 #
 	set chunk ""
+	set void 1
 
 	while 1 {
 
@@ -3491,13 +3665,14 @@ proc mo_rawread_p { } {
 					set ST(TIM) [after $IV(PKT) \
 						mo_rawread_p]
 				}
-				return
+				return $void
 			}
 			# there is something to process, cancel timeout
 			if { $ST(TIM) != "" } {
 				catch { after cancel $ST(TIM) }
 				set ST(TIM) ""
 			}
+			set void 0
 		}
 
 		set bl [string length $chunk]
@@ -3759,6 +3934,7 @@ proc mo_rawread_n { } {
 #        5  -> Waiting for (CNT) bytes until the end of binary diag
 #
 	set chunk ""
+	set void 1
 
 	while 1 {
 
@@ -3787,13 +3963,14 @@ proc mo_rawread_n { } {
 					set ST(TIM) \
 					     [after $IV(PKT) mo_rawread_x]
 				}
-				return
+				return $void
 			}
 			# there is something to process, cancel timeout
 			if { $ST(TIM) != "" } {
 				catch { after cancel $ST(TIM) }
 				set ST(TIM) ""
 			}
+			set void 0
 		}
 
 		set bl [string length $chunk]
@@ -4115,6 +4292,7 @@ proc mo_rawread_s { } {
 #        5  -> Waiting for (CNT) bytes until the end of binary diag
 #
 	set chunk ""
+	set void 1
 
 	while 1 {
 
@@ -4143,13 +4321,14 @@ proc mo_rawread_s { } {
 					set ST(TIM) \
 					     [after $IV(PKT) mo_rawread_x]
 				}
-				return
+				return $void
 			}
 			# there is something to process, cancel timeout
 			if { $ST(TIM) != "" } {
 				catch { after cancel $ST(TIM) }
 				set ST(TIM) ""
 			}
+			set void 0
 		}
 
 		set bl [string length $chunk]
@@ -4443,7 +4622,7 @@ proc mo_rawread_d { } {
 	global ST PM DB
 
 	if { [catch { read $ST(SFD) } sta] || $sta == "" } {
-		return
+		return 1
 	}
 
 	append ST(BUF) $sta
@@ -4452,7 +4631,7 @@ proc mo_rawread_d { } {
 
 		set sta [string first "\n" $ST(BUF)]
 		if { $sta < 0 } {
-			return
+			return 0
 		}
 
 		set msg [string range $ST(BUF) 0 [expr $sta - 1]]
@@ -4511,6 +4690,8 @@ set MODULE(D) [list mo_init_d mo_rawread_d mo_write_d mo_reset_d]
 ###############################################################################
 
 sy_cygfix
+
+unames_init $ST(DEV)
 
 ###############################################################################
 # Insert here your default plugin (just insert the plugin file) ###############

@@ -2089,3 +2089,47 @@ PG120424A:
 
 	Fixed piter.tcl in Scripts to get rid of DOS lines apparently causing
 	problems on Ubuntu.
+
+PG120425A:	VUEE >= PG120425A
+
+	OK, we are back with PG120421A, i.e., deploy WILL automatically use
+	native Tcl/Tk on Cygwin, if it is 8.5 (unless you specify -l).
+
+	There were two problems with piter, which translated into corresponding
+	problems with udeamon, specifically:
+
+	1. Serial device names were wrong. The Cygwin native version of Tcl
+	   does not accept Windows style COM names, like \\.\COM12, which the
+	   script would issue. It will accept instead starightforward COM
+	   names, like COM7: which, however, are discouraged under recent
+	   Cygwin. The recommended style of naming serial devices is now
+	   completely UNIX-like with COM1 translating into /dev/ttyS0, COM2
+	   into /dev/ttyS1, and so on (note the shift by 1). Notably, Cygwin
+	   now implements pseudo-ttys (virtual, open-ended tty's) which can be
+	   used instead of the CNCAx/CNCBx pairs. The procedure is exactly as
+	   for Linux (described in the VUEE doc). This is good news, because
+	   I could find no way to access the CNCAx/CNCBx devices from native
+	   Tcl.
+
+	2. If udaemon is to run under native Tcl, the same problems must be
+	   addressed. Also, it must use pseudo-ttys (rather than CNCAx/CNCBx
+	   devices) for U-U connections.
+
+	3. There is actually a bug in native Tcl/Tk causing weird window
+	   hangups, if you issue "fileevent $fd readable" to a non-blocking
+	   COM file descriptor.
+
+	Regarding 3, I spent a whole day chasing the bug, and the most specific
+	diagnosis that I have been able to procure is that when you issue
+	"fileevent $fd readable" to a COM fd, then text widgets will stop
+	receiving update events. Weird, isn't it? For now I have circumvented
+	the problem by emulating the readable event via a looping "after"
+	callback with dynamically adjustable delay. It is effective but ugly.
+	Needless to say, I will remove it as soon as I see that the problem has
+	been rectified in Tcl/Tk.
+
+	I have redone the handling of COM names in piter and udaemon. The
+	operations have been unified into a package (see unames.tcl in
+	Scripts). Note that for U-U connections both piter and udaemon now use
+	pseudo-ttys (also under Cygwin in native mode), so the CNCAx/CNCBx
+	devices can be considered obsolete (one less thing to carry around).

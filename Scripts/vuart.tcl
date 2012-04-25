@@ -65,9 +65,11 @@ proc abtd { } {
 proc kick { } {
 
 	variable VU
-	upvar #0 $VU(AV) abv
 
-	set abv $abv
+	catch {
+		upvar #0 $VU(AV) abv
+		set abv $abv
+	}
 }
 
 proc cleanup { { ok 0 } } {
