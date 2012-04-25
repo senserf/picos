@@ -809,3 +809,7 @@ PG120422A:
     happens to be available, udaemon will use it automatically thus increasing
     the pool of image formats acceptable as backgrounds for the ROAMER window.
 
+PG120425A:	PICOS >= PG120425A
+
+    Fixed udaemon to operate correctly under Cygwin's native Tcl/Tk (see
+    PG120425A in PICOS).

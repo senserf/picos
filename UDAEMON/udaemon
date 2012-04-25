@@ -25,6 +25,17 @@ if { $Stat(S) != "L" } {
 }
 
 ###############################################################################
+# Determine the way devices are named; if running natively under Cygwin, use
+# Linux style
+###############################################################################
+
+if [file isdirectory "/dev"] {
+	set Stat(D) "L"
+} else {
+	set Stat(D) "W"
+}
+
+###############################################################################
 
 ##
 ## This is optional; it just extends the pool of file formats available as
@@ -389,6 +400,212 @@ namespace export sxml_*
 }
 
 namespace import ::XML::*
+
+package provide unames 1.0
+##########################################################################
+# This is a package for handling the various names under which COM ports #
+# may appear in our messy setup.                                         #
+# Copyright (C) 2012 Olsonet Communications Corporation.                 #
+##########################################################################
+
+namespace eval UNAMES {
+
+variable Dev
+
+proc unames_init { stype } {
+
+	variable Dev
+
+	set Dev(SYS) $stype
+	unames_defnames
+
+	if { $Dev(SYS) == "L" } {
+		# determine the root of virtual ttys
+		if [file isdirectory "/dev/pts"] {
+			# BSD style
+			set Dev(PRT) "/dev/pts/"
+		} else {
+			set Dev(PRT) "/dev/pty"
+		}
+	}
+}
+
+proc unames_defnames { } {
+#
+# Generate the list of default names
+#
+	variable Dev
+
+	# flag == default names, not real devices
+	set Dev(DEF) 1
+	# true devices
+	set Dev(COM) ""
+	# virtual devices
+	set Dev(VCM) ""
+
+	if { $Dev(SYS) == "L" } {
+		# Linux style
+		for { set i 0 } { $i < 32 } { incr i } {
+			lappend Dev(COM) "ttyS$i (COM[expr $i + 1])"
+		}
+		for { set i 0 } { $i < 9 } { incr i } {
+			lappend Dev(VCM) "pty$i (virt)"
+		}
+	} else {
+		for { set i 1 } { $i <= 32 } { incr i } {
+			lappend Dev(COM) "COM$i:"
+		}
+		for { set i 0 } { $i < 4 } { incr i } {
+			lappend Dev(VCM) "CNCA$i"
+			lappend Dev(VCM) "CNCB$i"
+		}
+	}
+}
+
+proc unames_ntodev { n } {
+#
+# Proposes a device list for a number
+#
+	variable Dev
+
+	if { $Dev(SYS) == "L" } {
+		return "/dev/ttyS$n /dev/ttyUSB$n /dev/tty$n"
+	} else {
+		if { $n < 1 } {
+			return ""
+		}
+		return "COM$n:"
+	}
+}
+
+proc unames_ntovdev { n } {
+#
+# Proposes a virtual device list for a number
+#
+	variable Dev
+
+	if { $Dev(SYS) == "L" } {
+		return "$Dev(PRT)$n"
+	} else {
+		if { $n > 3 } {
+			return ""
+		}
+		return "CNCA$n CNCB$n"
+	}
+}
+
+proc unames_unesc { dn } {
+#
+# Escapes the device name so it can be used as an argument to open
+#
+	variable Dev
+
+	if { $Dev(SYS) == "L" } {
+		# no need to do anything
+		return $dn
+	}
+
+	if [regexp -nocase "^com(\[0-9\]+):$" $dn jk pn] {
+		set dn "\\\\.\\COM$pn"
+	} else {
+		set dn "\\\\.\\$dn"
+	}
+
+	return $dn
+}
+
+proc unames_scan { } {
+#
+# Scan actual devices
+#
+	variable Dev
+
+	set Dev(DEF) 0
+	set Dev(COM) ""
+	set Dev(VCM) ""
+
+	# real devices
+	for { set i 0 } { $i < 256 } { incr i } {
+		set dl [unames_ntodev $i]
+		if { $dl == "" } {
+			continue
+		}
+		foreach d $dl {
+			if [catch { open [unames_unesc $d] "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			lappend Dev(COM) $d
+		}
+	}
+
+	# virtual devices
+	for { set i 0 } { $i < 32 } { incr i } {
+		set dl [unames_ntovdev $i]
+		if { $dl == "" } {
+			continue
+		}
+		foreach d $dl {
+			if [catch { open [unames_unesc $d] "r" } fd] {
+				continue
+			}
+			catch { close $fd }
+			lappend Dev(VCM) $d
+		}
+	}
+}
+
+proc unames_fnlist { fn } {
+#
+# Returns the list of filenames to try to open, given an element from one of
+# the lists; if not on the list, assume a direct name (to be escaped, however)
+#
+	variable Dev
+
+	if [regexp "^\[0-9\]+$" $fn] {
+		# just a number
+		return [unames_ntodev $fn]
+	}
+
+	if { [lsearch -exact $Dev(COM) $fn] >= 0 } {
+		if !$Dev(DEF) {
+			# this is an actual device
+			return $fn
+		}
+		# get a number and convert to a list
+		if ![regexp "\[0-9\]+" $fn n] {
+			return ""
+		}
+		return [unames_ntodev $n]
+	}
+	if { [lsearch -exact $Dev(VCM) $fn] >= 0 } {
+		if !$Dev(DEF) {
+			return $fn
+		}
+		if ![regexp "\[0-9\]+" $fn n] {
+			return ""
+		}
+		return [unames_ntovdev $n]
+	}
+	# return as is
+	return $fn
+}
+
+proc unames_choice { } {
+
+	variable Dev
+
+	return [list $Dev(COM) $Dev(VCM)]
+}
+
+namespace export unames_*
+
+### end of UNAMES namespace ####################################################
+}
+
+namespace import ::UNAMES::*
+
+unames_init $Stat(D)
 
 ###############################################################################
 
@@ -1991,29 +2208,7 @@ proc uuRead { Sok } {
 
 ###############################################################################
 
-if { $Stat(S) == "L" } {
-
-proc sy_unesc { dn } {
-#
-# UART device name conversion: presentable->openable; void on Linux ...
-#
-	return $dn
-}
-
-} else {
-
-proc sy_unesc { dn } {
-#
-# ... but not on Windows
-#
-	return "\\\\.\\$dn"
-}
-
-}
-
-###############################################################################
-
-proc connUart { Sok } {
+proc connUart { Sok { ix -1 } } {
 #
 # U-U connection/re-connection/drop
 #
@@ -2023,7 +2218,18 @@ proc connUart { Sok } {
 		return
 	}
 
-	set opt $Stat($Sok,U)
+	if { $ix >= 0 } {
+		if [catch { $Stat($Sok,O) entrycget $ix -label } opt] {
+			set opt [lindex $Stat($Sok,A) 0]
+		}
+	} else {
+		set opt $Stat($Sok,U)
+	}
+
+	if { [lsearch -exact $Stat($Sok,A) $opt] < 0 } {
+		set opt [lindex $Stat($Sok,A) 0]
+	}
+	set $Stat($Sok,U) $opt
 
 	if { ( $opt == "Off" && $Stat($Sok,Q) == "" ) ||
 	       $opt == $Stat($Sok,Q) } {
@@ -2040,10 +2246,40 @@ proc connUart { Sok } {
 		return
 	}
 
-	set dev [sy_unesc $opt]
+	if { $opt == "Scan" } {
+		log "Scanning for devices ..."
+		$Stat($Sok,O) delete 0 end
+		unames_scan
+		set ol [unames_choice]
+		set Stat($Sok,A) \
+			[concat "Off Scan" [lindex $ol 0] [lindex $ol 1]]
+		set ix 0
+		foreach opt $Stat($Sok,A) {
+			$Stat($Sok,O) add command -label $opt -command \
+				"connUart $Sok $ix"
+			incr ix
+		}
+		set Stat($Sok,U) "Off"
+		return
+	}
+
+	set devlist [unames_fnlist $opt]
 	set fail 1
 
-	if [catch { open $dev "r+" } fd] {
+	if { $Stat(S) == "L" } {
+		set accs { RDWR NOCTTY NONBLOCK }
+	} else {
+		set accs "r+"
+	}
+
+	foreach udev $devlist {
+		if ![catch { open [unames_unesc $udev] $accs } fd] {
+			set fail 0
+			break
+		}
+	}
+
+	if $fail {
 		log "cannot open U-U device $opt: $fd"
 		set Stat($Sok,U) "Off"
 		return
@@ -2137,32 +2373,20 @@ proc mkTerm { Sok tt hex } {
 
 	term_setsfb $Sok
 
-	set pl "Off"
-
-	if { $Stat(S) == "L" } {
-		# Linux (possibly other Unices)
-		for { set op 0 } { $op <= 9 } { incr op } {
-			append pl " /dev/pts/$op"
-		}
-		for { set op 0 } { $op < 20 } { incr op } {
-			append pl " /dev/tty(USB)$op"
-		}
-	} else {
-		# Windows
-		append pl " CNCB0 CNCB1 CNCB2 CNCB3"
-		for { set op 1 } { $op < 33 } { incr op } {
-			append pl " COM$op"
-		}
-	}
-
-	set dmn $w.stat.usel.men
-	eval "set mmn \[tk_optionMenu $dmn Stat($Sok,U) $pl\]"
+	unames_defnames
+	set ol [unames_choice]
+	set Stat($Sok,A) [concat "Off Scan" [lindex $ol 0] [lindex $ol 1]]
 	set Stat($Sok,U) "Off"
 
-	foreach op $pl {
+	set dmn $w.stat.usel.men
+	eval \
+	    "set Stat($Sok,O) \[tk_optionMenu $dmn Stat($Sok,U) $Stat($Sok,A)\]"
+	set Stat($Sok,U) "Off"
+
+	foreach op $Stat($Sok,A) {
 		# button release in the menu doesn't work (the event
 		# is triggered before the change), but this does
-		$mmn entryconfigure $op -command "connUart $Sok"
+		$Stat($Sok,O) entryconfigure $op -command "connUart $Sok"
 	}
 
 	# U-U UART device name for diagnostics
