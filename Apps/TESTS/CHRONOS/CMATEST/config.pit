@@ -1,1 +1,1 @@
-COM10: 9600 Direct 0 82 {} {}
+/dev/ttyS9 9600 Direct 0 82 {} {}

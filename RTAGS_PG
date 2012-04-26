@@ -2133,3 +2133,15 @@ PG120425A:	VUEE >= PG120425A
 	Scripts). Note that for U-U connections both piter and udaemon now use
 	pseudo-ttys (also under Cygwin in native mode), so the CNCAx/CNCBx
 	devices can be considered obsolete (one less thing to carry around).
+
+PG120426A:
+
+	A tentative board definition for the solder reflow project
+	(WARSAW_REFLOW) with this pin assignment:
+
+	THERMOCOUPLE SENSOR (MAX6675):	Vcc=P1.6, SO=P2.2, CS=P2.3, SCK=P2.4
+	OWEN SWITCH: 			P1.7
+
+	A simple driver for the MAX6675 sensor.
+
+	A simple praxis to test the board and connections: TESTS/REFLOW.
