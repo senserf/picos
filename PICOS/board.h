@@ -401,11 +401,18 @@ station PicOSNode abstract {
 	// ====================================================================
 
 	/*
-	 * RTC: this one is built-in and not optional, as it is simple, so we
-	 * need not specify it in the data set
+	 * RTC: this one is built-in and not optional, as it is extremely
+	 * simple, so we need not specify it in the data set
 	 */
 	rtc_module_t	rtc_module;
 
+	// ====================================================================
+
+	/*
+	 * If not NULL, contains information how the node should be temporarily
+	 * repainted, if presented by ROAMER
+	 */
+	highlight_supplement_t *highlight;
 
 	void _da (diag) (const char*, ...);
 	void _da (emul) (sint, const char*, ...);
@@ -436,6 +443,8 @@ station PicOSNode abstract {
 	void _da (halt) ();
 	// This one stops the node (from outside the praxis)
 	void stopall ();
+	// Clear the highlight supplement
+	Process *cleanhlt ();
 	// This is type specific reset; also called by the agent to halt the
 	// node
 	virtual void reset ();
@@ -821,6 +830,8 @@ process MoveHandler {
 
 	~MoveHandler ();
 
+	void fill_buffer (Long, char);
+
 	perform;
 };
 
@@ -880,6 +891,11 @@ void watchdog_start (), watchdog_stop ();
 
 void rtc_set (const rtc_time_t*);
 void rtc_get (rtc_time_t*);
+
+// ============================================================================
+
+void highlight_set (lword, double , const char*, ...);
+void highlight_clear ();
 
 // ============================================================================
 

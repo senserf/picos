@@ -30,11 +30,12 @@ inline static void skipblk (char *&bp) {
 		bp++;
 }
 
-static void mup_update (Long n) {
+static inline void mup_update (Long n) {
 //
 // Mobility update: queues the node for its position to be sent to UDAEMON
 //
-	MUP->queue (n);
+	if (MUP != NULL)
+		MUP->queue (n);
 }
 
 static int dechex (char *&bp) {
@@ -144,6 +145,103 @@ int Dev::rs (int st, char *&buf, int &left) {
 			return REJECTED;
 	} 
 }
+
+// ============================================================================
+
+process highlight_guard (PicOSNode) {
+
+	double D;
+
+	states { Start, Fire };
+
+	void setup (double d) { D = d; };
+
+	perform {
+		state Start:
+			Timer->delay (D, Fire);
+		state Fire:
+			S->cleanhlt ();
+			terminate;
+	};
+};
+
+Process *PicOSNode::cleanhlt () {
+//
+// Remove the highlight supplement; needed as a node method, because it must be
+// called at reset (stopall)
+//
+	Process *res;
+
+	if (highlight == NULL)
+		return NULL;
+
+	res = highlight->Guard;
+
+	if (highlight->Label)
+		delete [] highlight->Label;
+
+	delete highlight;
+	highlight = NULL;
+	mup_update (getId ());
+
+	return res;
+}
+
+void highlight_set (lword color, double duration, const char *fmt, ...) {
+//
+// Create a highlight supplement for the current node
+//
+	va_list ap;
+	highlight_supplement_t *vp;
+	char *lb;
+
+	if (fmt != "" ) {
+		va_start (ap, fmt);
+		lb = ::vform (fmt, ap);
+	} else
+		lb = NULL;
+
+	if ((vp = ThePicOSNode->highlight) == NULL) {
+		vp = ThePicOSNode->highlight = new highlight_supplement_t;
+		vp -> Guard = NULL;
+		vp -> Label = NULL;
+	}
+
+	if (vp->Guard)
+		terminate (vp->Guard);
+
+	if (vp->Label) {
+		delete [] vp->Label;
+	}
+
+	if (lb) {
+		vp->Label = new char [strlen (lb) + 1];
+		strcpy (vp->Label, lb);
+	} else {
+		vp->Label = NULL;
+	}
+
+	vp->Color = color;
+
+	if (duration > 0.0)
+		vp->Guard = create highlight_guard (duration);
+	else
+		vp->Guard = NULL;
+
+	mup_update (ThePicOSNode->getId ());
+}
+
+void highlight_clear () {
+//
+// Remove the highlight supplement from the node
+//
+	Process *vp;
+
+	if ((vp = ThePicOSNode->cleanhlt ()))
+		terminate (vp);
+}
+
+// ============================================================================
 
 process	AgentConnector {
 /*
@@ -2330,11 +2428,10 @@ void PINS::qupd_pin (word pn) {
 	word val;
 	byte st;
 
-	if (MUP != NULL)
-		// Queue for a "position" update; pin updates are also sent
-		// to the ROAMER window in case the nodes want to be colored
-		// by pins (is "colored" a politically correct word?)
-		mup_update (IN.TPN->getId ());
+	// Queue for a "position" update; pin updates are also sent
+	// to the ROAMER window in case the nodes want to be colored
+	// by pins (is "colored" a politically correct word?)
+	mup_update (IN.TPN->getId ());
 
 	if (IN.OT == NULL)
 		// Forget it
@@ -3098,9 +3195,8 @@ void LEDSM::leds_op (word led, word op) {
 		Changed = YES;
 		if (IN.OT != NULL)
 			IN.OT->signal (NULL);
-		if (MUP != NULL)
-			// Also queue for position update (for node coloring)
-			mup_update (IN.TPN->getId ());
+		// Also queue for position update (for node coloring)
+		mup_update (IN.TPN->getId ());
 	}
 }
 
@@ -3111,8 +3207,7 @@ void LEDSM::setfast (Boolean on) {
 		Changed = YES;
 		if (IN.OT != NULL)
 			IN.OT->signal (NULL);
-		if (MUP != NULL)
-			mup_update (IN.TPN->getId ());
+		mup_update (IN.TPN->getId ());
 	}
 }
 
@@ -3433,15 +3528,64 @@ MoveHandler::~MoveHandler () {
 	}
 }
 
+void MoveHandler::fill_buffer (Long NN, char cmd) {
+//
+// Prepare an outgoing message
+//
+	int rc;
+	PicOSNode *pn;
+	double xx, yy;
+	char cp [MAX_PINS+1];
+	char cl [MAX_LEDS+2];
+	char ch [8];
+	char *lb;
+
+	pn = (PicOSNode*) idToStation (NN);
+	pn -> get_location (xx, yy);
+
+	if (pn->pins)
+		// Send "coloring" pins
+		pn->pins->qupd_bpins (cp);
+	else
+		cp [0] = '\0';
+
+	if (pn->ledsm)
+		pn->ledsm->ledup_status_short (cl);
+	else
+		cl [0] = '\0';
+
+	if (pn->highlight) {
+		sprintf (ch, "%1d", (pn->highlight->Color) & 0x00ffffff);
+		lb = pn->highlight->Label;
+	} else {
+		ch [0] = '\0';
+		lb = ch;
+	}
+		
+	while ((rc = (cmd == 'U') ?
+		snprintf (RBuf, RBSize,
+			"U %1ld %1f %1f <%s,%s> [%s,%s]\n", NN,
+			xx, yy, cl, cp, ch, lb) :
+		snprintf (RBuf, RBSize,
+			"P %1ld %1ld %1f %1f %s <%s,%s> [%s,%s]\n", NN,
+			NStations, xx, yy, pn->getTName (), cl, cp, ch, lb)) >=
+				RBSize) {
+
+		RBSize = (word)(rc + 16);
+		delete [] RBuf;
+		RBuf = new char [RBSize];
+	}
+	BP = &(RBuf [0]);
+	Left = strlen (RBuf);
+}
+
 MoveHandler::perform {
 
 	TIME st;
-	double xx, yy;
+	double dl;
 	nparse_t NP [9];
-	char cp [MAX_PINS+1];
-	char cl [MAX_LEDS+2];	// fast/slow flag takes one extra character
 	int rc;
-	Long NN, NS;
+	Long NN;
 	char *re;
 	PicOSNode *pn;
 	Transceiver *TR;
@@ -3498,29 +3642,7 @@ MoveHandler::perform {
 			// are an Internet mover, in which case MUP must
 			// be present.
 			if (!MUP->empty ()) {
-				NN = MUP->get ();
-				pn = (PicOSNode*) idToStation (NN);
-				pn -> get_location (xx, yy);
-				if (pn->pins)
-					// Send "coloring" pins
-					pn->pins->qupd_bpins (cp);
-				else
-					cp [0] = '\0';
-				if (pn->ledsm)
-					pn->ledsm->ledup_status_short (cl);
-				else
-					cl [0] = '\0';
-				while ((rc = snprintf (RBuf, RBSize,
-				    "U %1ld %1f %1f <%s,%s>\n",
-				      NN, xx, yy, cl, cp)) >=
-					RBSize) {
-					RBSize = (word)(rc + 16);
-					delete [] RBuf;
-					RBuf = new char [RBSize];
-				}
-				    
-				BP = &(RBuf [0]);
-				Left = strlen (RBuf);
+				fill_buffer (MUP->get (), 'U');
 				proceed Reply;
 			}
 
@@ -3570,8 +3692,8 @@ HandleInput:
 				BP++;
 			} else
 				off = NO;
-			xx = strtod (BP, &re);
-			if (BP == re || xx < 0.0) {
+			dl = strtod (BP, &re);
+			if (BP == re || dl < 0.0) {
 				// Illegal request
 Illegal:
 				if (imode (Flags) != XTRN_IMODE_SOCKET)
@@ -3580,7 +3702,7 @@ Illegal:
 				create Disconnector (Agent, ECONN_INVALID);
 				terminate;
 			}
-			st = etuToItu (xx);
+			st = etuToItu (dl);
 			if (off)
 				TimedRequestTime += st;
 			else
@@ -3609,28 +3731,7 @@ Illegal_nid:
 				terminate;
 			}
 
-			pn = (PicOSNode*)idToStation (NN);
-			pn -> get_location (xx, yy);
-			if (pn->pins)
-				pn->pins->qupd_bpins (cp);
-			else
-				cp [0] = '\0';
-			if (pn->ledsm)
-				pn->ledsm->ledup_status_short (cl);
-			else
-				cl [0] = '\0';
-			while ((rc = snprintf (RBuf, RBSize,
-			   "P %1ld %1ld %1f %1f %s <%s,%s>\n",
-			    NN, NStations, xx, yy, pn->getTName (), cl, cp))
-			      >= RBSize) {
-				// Must grow the buffer
-				RBSize = (word)(rc + 1);
-				delete [] RBuf;
-				RBuf = new char [RBSize];
-			}
-
-			BP = &(RBuf [0]);
-			Left = strlen (RBuf);
+			fill_buffer (NN, 'P');
 			proceed Reply;
 
 		    case 'M':
@@ -3669,8 +3770,7 @@ Illegal_crd:
 			}
 			// Send the update regardless, you will get 0,0 for a
 			// transceiver-less node
-			if (MUP != NULL)
-				MUP->queue (NN);
+			mup_update (NN);
 
 			proceed Loop;
 

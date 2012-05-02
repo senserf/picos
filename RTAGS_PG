@@ -813,3 +813,8 @@ PG120425A:	PICOS >= PG120425A
 
     Fixed udaemon to operate correctly under Cygwin's native Tcl/Tk (see
     PG120425A in PICOS).
+
+PG120502A:	PICOS >= PG120502A
+
+    Added highlighting as a simple "visualization" feature. Read the last
+    section from the doc.

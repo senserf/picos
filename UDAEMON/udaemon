@@ -622,6 +622,13 @@ array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 # default colors for the first five node types
 set NTYPE_COLORS	{ yellow blue orange red green }
 
+# default colors for small number "visualization" color overrides
+set VIS_COLORS		{ black gray white magenta darkviolet goldenrod
+			  orangered chocoloate }
+
+#default color for visual label
+set LAB_COLOR		maroon
+
 #
 # Pin status ordinals:
 #
@@ -653,6 +660,13 @@ array set HPA		{
 			  D "(\[0-9\]+)"
 			  F "(\[0-9.+-E\]+)"
 			  P "<(\[^,\]*),(\[^>\]*)>"
+			  V "\\\[(\[^,\]*),(.*)\\\]"
+			}
+
+array set FONT		{
+			  D {-family courier -size 10}
+			  R {-family courier -size 9}
+			  L {-family helvetica -size 7 -slant italic}
 			}
 
 #
@@ -661,12 +675,13 @@ array set HPA		{
 # NR     = node radius
 # ND     = node diameter
 # TO     = text label Y offset
+# LO	 = label offset (x,y) from the corner of node's box
 # RX, RY = running coordinate offset from left bottom
 # MW, MH = minimum width and height
 # DW, DH = default (initial) width and height
 #
 array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 ND 10 TO 10 RX 10 RY 10
-			  MW 200 MH 200 DW 400 DH 400 }
+			  LO 5 LW 100 MW 200 MH 200 DW 400 DH 400 }
 
 #
 # Canvas parameters for PTRACKER:
@@ -1157,7 +1172,46 @@ proc parse_geometry { } {
 				set CMARGIN(TO) [expr $nsh + 5]
 			}
 			parse_cspec [sxml_children $j "nodecolor"]
+			parse_vspec [sxml_child $j "viscolors"]
 		}
+	}
+}
+
+proc parse_vspec { ncl } {
+#
+# Parses the list of "small" colors for visualization
+#
+	global VIS_COLORS LAB_COLOR
+
+	if { $ncl == "" } {
+		return
+	}
+
+	set lab [sxml_attr $ncl "label"]
+	if { $lab != "" } {
+		if ![valcol $lab] {
+			gperror "<viscolors>, illegal label color: $lab"
+		}
+		set LAB_COLOR $lab
+	}
+
+	set VIS_COLORS ""
+
+	set ncl [sxml_txt $ncl]
+
+	while 1 {
+		set ncl [string trimleft $ncl ", \t\r\n"]
+		if { $ncl == "" } {
+			break
+		}
+		if ![regexp "^\[^, \t\r\n\]+" $ncl col] {
+			gperror "<viscolors>, $ncl, syntax error"
+		}
+		if ![valcol $col] {
+			gperror "<viscolors>, illegal color: $col"
+		}
+		lappend VIS_COLORS $col
+		set ncl [string range $ncl [string length $col] end]
 	}
 }
 
@@ -1951,7 +2005,7 @@ proc sock_rep { Sok } {
 	set ini "$Stat($Sok,W)_ini"
 	if [catch { $ini $Sok $co } err] {
 		# this should not happen
-		log "the initializer $ini failed: $err"
+		log "initializer $ini failed: $err"
 		dealloc $Sok
 		return
 	}
@@ -2303,7 +2357,7 @@ proc mkTerm { Sok tt hex } {
 #
 # Creates a new terminal
 #
-	global Wins Stat
+	global Wins Stat FONT
 
 	set w $Wins($Sok)
 
@@ -2322,7 +2376,7 @@ proc mkTerm { Sok tt hex } {
 		-yscrollcommand "$w.scroly set" \
 		-setgrid true \
         	-width 80 -height 24 -wrap char \
-		-font {-family courier -size 10} \
+		-font $FONT(D) \
 		-exportselection 1 \
 		-state normal
 
@@ -2339,7 +2393,7 @@ proc mkTerm { Sok tt hex } {
 	frame $w.stat -borderwidth 2
 	pack $w.stat -expand no -fill x
 
-	text $w.stat.u -height 1 -font {-family courier -size 10}
+	text $w.stat.u -height 1 -font $FONT(D)
 	pack $w.stat.u -side left -expand yes -fill x
 
 	bind $w.t <ButtonRelease-1> "tk_textCopy $w.t"
@@ -2977,7 +3031,7 @@ proc emulHandler { stid } {
 
 proc EMUL_ini { Sok code } {
 
-	global Wins Stat
+	global Wins Stat FONT
 
 	set w ".we[unique]"
 	set Wins($Sok) $w
@@ -2994,7 +3048,7 @@ proc EMUL_ini { Sok code } {
 		-yscrollcommand "$w.scroly set" \
 		-setgrid true \
 		-width 80 -height 24 -wrap char \
-		-font {-family courier -size 9} \
+		-font $FONT(R) \
 		-exportselection 1 \
 		-state normal
 
@@ -3009,8 +3063,7 @@ proc EMUL_ini { Sok code } {
 	frame $w.stat -borderwidth 2
 	pack $w.stat -expand no -fill x
 
-	entry $w.stat.f -width 20 -font {-family courier -size 10} \
-		-textvariable Stat($Sok,F)
+	entry $w.stat.f -width 20 -font $FONT(D) -textvariable Stat($Sok,F)
 	pack $w.stat.f -side right -expand no
 	label $w.stat.l -text "Filter:"
 	pack $w.stat.l -side right -expand no
@@ -4751,8 +4804,9 @@ proc moveGNP { Sok cmd } {
 #
 	global Wins Stat HPA NTYPE_COLORS Geometry
 
-	if ![regexp "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+) $HPA(P)" \
-	    $cmd junk nod tot x y tn ls ps] {
+	if ![regexp \
+	  "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+) $HPA(P) $HPA(V)" \
+	    $cmd junk nod tot x y tn ls ps vc vn] {
 		return
 	}
 
@@ -4803,7 +4857,7 @@ proc moveGNP { Sok cmd } {
 		return
 	}
 
-	# we have received a new sample
+	# we have received a new sample, so clear the timeout
 	ctimeout $Sok
 
 	# sanitize the node type name
@@ -4824,17 +4878,32 @@ proc moveGNP { Sok cmd } {
 		set Stat($Sok,NT,$tn) $co
 	}
 
-	# determine how this node is to be colored; the options
-	# are:
+	#
+	# determine how this node is to be colored; the options are:
 	#
 	# - standard coloring based on default colors for node types
 	# - fixed color assigned by Roamer's Geometry spec
 	# - pin-driven color (or colors) with the node drawn as a pie
 	#
-	# for the first two options, co is { 0 {{ color 0 }}}, for the third
-	# option, it is { n { colors } { cdesc }}, where n is the number of pie
-	# slices, colors is the initial list of colors, and cdesc is the
-	# geometry pattern for assigning colors based on pin values
+	# Generally, the calculated list of colors, co, looks like this:
+	# { n { { color blink } ... { color blink } } cdesc }, where
+	# n is the number of different colors (pie slices), which is followed
+	# by the list of currently assigned colors with blink flags, followed
+	# in turn by the geometry data pattern (cdesc) describing how to
+	# assign colors (when the pin/led value changes).
+	#
+	# For the first two options, the situation is simpler (there is a
+	# single immutable color), so co looks like this: { 0 { { color 0 } } }
+	# (in agreement with the general format). Note that cdesc (being
+	# irrelevant) is NULL. Also, there is a difference between the first
+	# element being 0 and 1 (the latter indicating a single mutable color).
+	#
+	# The format of cdesc is described at parse_cset. Note that as stored
+	# in co the list does not include the leading flag ("F" or "P"),
+	# because it is bound to be P, only the second item, i.e., it is a
+	# list of items looking like this: { { pin typ } offcolor oncolor },
+	# where typ can be "led" or "pin".
+	#
 
 	set co [get_cset $nod $tn]
 	if { $co != "" } {
@@ -4863,9 +4932,12 @@ proc moveGNP { Sok cmd } {
 	# color (or color set)
 	# list of canvas items
 	# text item for node number
+	# label widget, if label is currently displayed
 	# fast blink flag for the LEDs
+	# { color label } for visualization
 	#
-	set Stat($Sok,NL,$nod) [list $x $y $tn $co "" "" $fb]
+	set Stat($Sok,NL,$nod) \
+		[list $x $y $tn $co "" "" "" $fb [vipars $vc $vn]]
 
 	incr Stat($Sok,CI)
 	if { $Stat($Sok,CI) == $tot } {
@@ -4877,7 +4949,7 @@ proc moveGNP { Sok cmd } {
 			dealloc $Sok
 			log "failed"
 			# this will return from the caller (sock_rl) to prevent
-			# any attempts at further interpretation
+			# any further interpretation
 			return -code return
 		}
 		log "done"
@@ -4889,10 +4961,37 @@ proc moveGNP { Sok cmd } {
 	sock_wr $Sok "Q $Stat($Sok,CI)\n"
 }
 
+proc vipars { col lab } {
+#
+# Sanitize the "visualization" arguments and combine them into a single item
+#
+	global HPA VIS_COLORS
+
+	set lab [string trim $lab]
+	if { $col == "" && $lab == "" } {
+		# nothing
+		return ""
+	}
+	if { $col != "" && ![catch { expr $col } col] } {
+		if { $col < [llength $VIS_COLORS] } {
+			set col [lindex $VIS_COLORS $col]
+		} else {
+			set col [format "#%06X" $col]
+		}
+	} else {
+		set col ""
+	}
+		
+	return [list $col $lab]
+}
+
 proc cassgn { cse ls ps } {
 #
 # Produces the list of color assignments based in the Geometry color pattern
-# cse and the led/pin value strings
+# cse and the led/pin value strings; cse is a list of items looking like this:
+# { { pin typ } offcolor oncolor }, where typ can be "led" or "pin"; the
+# resulting list consists of pairs { color blink }, where blink is 1, if the
+# color is supposed to blink
 #
 	set col ""
 
@@ -4918,7 +5017,6 @@ proc cassgn { cse ls ps } {
 				set b 1
 			}
 		}
-		# no led blinking yet
 		lappend col [list $c $b]
 	}
 
@@ -5120,7 +5218,7 @@ proc cvcalc_dynamic { Sok } {
 
 	if { $cw < 10 || $ch < 10 } {
 		# now what? formally, this is impossible because the window
-		# window has constrained minimum dimensions of 200x200
+		# has constrained minimum dimensions of 200x200
 		return
 	}
 
@@ -5236,8 +5334,8 @@ proc drawNode { Sok w n } {
 #
 	global Stat CMARGIN
 
-	# coords, typename, color (set), items, text, fblink
-	lassign $Stat($Sok,NL,$n) x y z c o t f
+	# coords, typename, color (set), items, text, fblink, vis
+	lassign $Stat($Sok,NL,$n) x y z c o t l f v
 
 	# network to canvas
 	set cx [xtocv $Sok $x]
@@ -5260,10 +5358,16 @@ proc drawNode { Sok w n } {
 	# canvas item list
 	set o ""
 
+	# temporary override color (visualization)
+	set vc [lindex $v 0]
+
+	# textual label
+	set vl [lindex $v 1]
+
 	if { $ns == 1 } {
 		# a single slice, i.e., an oval
 		set ci [$w.c create oval $cxl $cyl $cxh $cyh -fill gray]
-		colconf $Sok $n $ci [lindex $cl 0]
+		colconf $Sok $n $ci [lindex $cl 0] $vc
 		# bind the mouse events
 		$w.c bind $ci <B1-Motion> "moveMove $Sok $n %x %y"
 		$w.c bind $ci <B1-ButtonRelease> "moveUpButton $Sok $n"
@@ -5281,7 +5385,7 @@ proc drawNode { Sok w n } {
 			set ext [expr $lef / $ns]
 			set ci [$w.c create arc $cxl $cyl $cxh $cyh \
 			    -extent $ext -start $ast -fill gray]
-			colconf $Sok $n $ci $co
+			colconf $Sok $n $ci $co $vc
 			# bind the mouse events
 			$w.c bind $ci <B1-Motion> "moveMove $Sok $n %x %y"
 			$w.c bind $ci <B1-ButtonRelease> "moveUpButton $Sok $n"
@@ -5296,10 +5400,16 @@ proc drawNode { Sok w n } {
 		}
 	}
 
+	if { $vl != "" } {
+		set l [drawLabel $Sok $cx $cy $vl]
+	} else {
+		set l ""
+	}
+
 	# the node number
 	set t [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
 		-anchor s -text $n -state disabled]
-	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f]
+	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $l $f $v]
 }
 
 proc moveRedraw { Sok } {
@@ -5333,7 +5443,7 @@ proc moveRedraw { Sok } {
 	} else {
 		# redrawing existing nodes, i.e., adjusting their coordinates
 		for { set n 0 } { $n < $N } { incr n } {
-			lassign $Stat($Sok,NL,$n) x y z c o t
+			lassign $Stat($Sok,NL,$n) x y z c o t l f v
 			set cx [xtocv $Sok $x]
 			set cy [ytocv $Sok $y]
 			set cxl [expr $cx - $CMARGIN(NR)]
@@ -5345,6 +5455,21 @@ proc moveRedraw { Sok } {
 			}
 			$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
 		}
+
+		if { $l != "" } {
+			# label widget present; delete the old copy
+			$w.c delete $l
+			# the label text
+			set vt [lindex $v 1]
+			if { $vt != "" } {
+				# and create a new one if still required
+				set l [drawLabel $Sok $cx $cy $vt]
+			} else {
+				set l ""
+			}
+			set $Stat($Sok,NL,$n) [list $x $y $z $c $o $t $l $f $v]
+		}
+		
 		$w.c coords $Stat($Sok,AX) $ddx $ddy
 		$w.c itemconfigure $Stat($Sok,AX) -text $dmsg
 	}
@@ -5401,12 +5526,14 @@ proc moveLeave { Sok } {
 }
 
 proc moveMove { Sok n nx ny } {
-
+#
+# Move one node (mouse action)
+#
 	global Stat CMARGIN
 
 	set w [stwin $Sok]
 
-	lassign $Stat($Sok,NL,$n) x y z c o t f
+	lassign $Stat($Sok,NL,$n) x y z c o t l f v
 
 	# network coordinates
 	set x [xfromcv $Sok $nx]
@@ -5479,13 +5606,26 @@ proc moveMove { Sok n nx ny } {
 		$w.c coords $ci $cxl $cyl $cxh $cyh
 	}
 
-	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f]
+	if { $l != "" } {
+		# label widget present; delete the old copy
+		$w.c delete $l
+		# the label text
+		set vt [lindex $v 1]
+		if { $vt != "" } {
+			# and create a new one if still required
+			set l [drawLabel $Sok $nx $ny $vt]
+		} else {
+			set l ""
+		}
+	}
+
+	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $l $f $v]
 
 	if [sock_wr $Sok "M $n $x $y\n"] {
 		return
 	}
 
-	# update node label
+	# update node number
 	$w.c coords $t $nx [expr $ny - $CMARGIN(TO)]
 
 	# update running coordinate display
@@ -5657,8 +5797,8 @@ proc moveUpd { Sok cmd } {
 #
 	global Stat HPA
 
-	if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) $HPA(P)" \
-	      $cmd junk nod x y ls ps] {
+	if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      $cmd junk nod x y ls ps vc vn] {
 		continue
 	}
 
@@ -5671,7 +5811,7 @@ proc moveUpd { Sok cmd } {
 		return
 	}
 
-	moveNewLocation $Sok $nod $x $y $ls $ps
+	moveNewLocation $Sok $nod $x $y $ls $ps [vipars $vc $vn]
 }
 
 proc moveRedim { Sok nxx nyy } {
@@ -5715,7 +5855,7 @@ proc moveRedim { Sok nxx nyy } {
 	return 0
 }
 
-proc moveNewLocation { Sok nod nx ny ls ps } {
+proc moveNewLocation { Sok nod nx ny ls ps vic } {
 #
 # Update the location and (possibly) color of the node
 #
@@ -5723,13 +5863,15 @@ proc moveNewLocation { Sok nod nx ny ls ps } {
 
 	set w [stwin $Sok]
 
-	lassign $Stat($Sok,NL,$nod) x y z c o t f
+	lassign $Stat($Sok,NL,$nod) x y z c o t l f v
 	# color change flag
 	set cc 0
 	# position change flag
 	set pc 0
 	# blink rate change flag
 	set bc 0
+	# label change flag
+	set lc 0
 
 	if { $ls != "" } {
 		set b [string index $ls 0]
@@ -5755,22 +5897,21 @@ proc moveNewLocation { Sok nod nx ny ls ps } {
 		}
 	}
 
+	if { $vic != $v } {
+		if { [lindex $vic 0] != [lindex $v 0] } {
+			# override color has changed
+			set cc 1
+		}
+		if { [lindex $vic 1] != [lindex $v 1] } {
+			# text label has changed
+			set lc 1
+		}
+		set v $vic
+	}
+
 	if { $x != $nx || $y != $ny } {
 		set pc 1
 	}
-
-	if { !$cc && !$pc } {
-		# nothing has changed, just return
-		if $bc {
-			# unless the fast-blink flag has changed, in which case
-			# you only have to update the record
-			set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t $f]
-		}
-		return
-	}
-
-	# must update the description
-	set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t $f]
 
 	if $pc {
 		# position change
@@ -5795,18 +5936,47 @@ proc moveNewLocation { Sok nod nx ny ls ps } {
 	if $cc {
 		# color change
 		foreach ci $o co [lindex $c 1] {
-			colconf $Sok $nod $ci $co
+			colconf $Sok $nod $ci $co [lindex $v 0]
 		}
 	}
+
+	if $lc {
+		# label change
+		if { $l != "" } {
+			$w.c delete $l
+			set l ""
+		}
+		set vt [lindex $v 1]
+		if { $vt != "" } {
+			set cx [xtocv $Sok $nx]
+			set cy [ytocv $Sok $ny]
+			set l [drawLabel $Sok $cx $cy $vt]
+		}
+	}
+
+	set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t $l $f $v]
 }
 
-proc colconf { Sok nod wg col } {
+proc colconf { Sok nod wg col cov } {
 #
 # Configure the color of a node or its fragment
 #
 	global Stat
 
 	set w [stwin $Sok]
+
+	if { $cov != "" } {
+		# temporary override; let's be careful, because the color
+		# spec is not reliable
+		if ![catch { $w.c itemconfigure $wg -fill $cov }] {
+			# we have succeeded, make sure there's no callback
+			# (if the previous state was blinking)
+			if [info exists Stat($Sok,$wg,X)] {
+				unset Stat($Sok,$wg,X)
+			}
+			return
+		}
+	}
 
 	set co [lindex $col 0]
 
@@ -5849,13 +6019,65 @@ proc colblink { Sok nod wg } {
 	}
 
 	# when next?
-	if { [lindex $Stat($Sok,NL,$nod) 6] != 0 } {
+	if { [lindex $Stat($Sok,NL,$nod) 7] != 0 } {
 		# fast
 		set del 128
 	} else {
 		set del 512
 	}
 	after $del "colblink $Sok $nod $wg"
+}
+
+proc drawLabel { Sok x y txt } {
+#
+# Draws a label box associated with the node at x y
+#
+	global Stat CMARGIN FONT LAB_COLOR
+
+	set w [stwin $Sok]
+
+	# this is the offset of the label box corner from the corner of the
+	# node's box; we still don't know the direction
+	set co [expr $CMARGIN(NR) + $CMARGIN(LO)]
+
+	# determine the box's orientation; it is always in the direction of
+	# maximum space
+	lassign $Stat($Sok,NC) aw ah
+
+	if { [expr $ah - $y] > $y } {
+		set dy 1
+		set anc "s"
+	} else {
+		set dy -1
+		set anc "n"
+	}
+	# anchor y coordinate
+	set yc [expr $y + $dy * $co]
+
+	if { [expr $aw - $x] > $x } {
+		set dx 1
+		append anc "w"
+		set jus "left"
+	} else {
+		set dx -1
+		append anc "e"
+		set jus "right"
+	}
+	# anchor x coordinate
+	set xc [expr $x + $dx * $co]
+
+	# width taken by the text if not broken
+	set rw [font measure $FONT(L) $txt]
+	set rw [expr $rw + 14]
+	if { $rw > $CMARGIN(LW) } {
+		# will break into multiple lines
+		set rw $CMARGIN(LW)
+	} else {
+		set rw 0
+	}
+
+	return [$w.c create text $xc $yc -anchor $anc -text $txt \
+		-justify $jus -width $rw -fill $LAB_COLOR]
 }
 
 ###############################################################################
@@ -6034,7 +6256,7 @@ set Logger [text .logger.t -width 64 -height 10 \
 	-borderwidth 2 -relief raised -setgrid true -wrap none \
 	-yscrollcommand {.logger.scrolly set} \
 	-xscrollcommand {.logger.scrollx set} \
-	-font {-family courier -size 9} \
+	-font $FONT(R) \
 	-exportselection 1 \
 	-state normal]
 

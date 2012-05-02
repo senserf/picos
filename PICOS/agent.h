@@ -266,6 +266,23 @@ process	UART_out {
 
 station PicOSNode;
 
+// ============================================================================
+
+struct highlight_supplement_s {
+//
+// Current "highlight supplement" of a node; for now, we support color change,
+// label (a piece of text), and time limit, i.e., for how long the supplement
+// is supposed to be active (overriding the default coloring)
+//
+	Process	*Guard;	// The timeout process
+	lword	Color;	// RGB color
+	char	*Label;	// Can be NULL
+};
+
+typedef	struct highlight_supplement_s highlight_supplement_t;
+
+// ============================================================================
+
 class ag_interface_t {
 //
 // Agent's output interface

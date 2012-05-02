@@ -227,9 +227,9 @@ void PicOSNode::stopall () {
 // Cleanup all activities at the node, as for halt
 //
 	MemChunk *mc;
-
+	
+	cleanhlt ();
 	terminate ();
-
 	uart_abort ();
 
 	// Clean up memory
@@ -532,6 +532,8 @@ void PicOSNode::setup (data_no_t *nd) {
 
 	NFree = MFree = MTotal = (nd->Mem + 3) / 4; // This is in full words
 	MHead = MTail = NULL;
+
+	highlight = NULL;
 
 	// Radio
 
