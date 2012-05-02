@@ -25,10 +25,6 @@ if [catch { exec uname } ST(SYS)] {
 	set ST(SYS) "W"
 }
 
-###############################################################################
-# Determine whether the user has bin or BIN in HOME ###########################
-###############################################################################
-
 proc copyscript { src nam suf tar } {
 #
 # Copy script, make sure permissions are right, and optionally create a
@@ -37,6 +33,9 @@ proc copyscript { src nam suf tar } {
 	set fis [file join $src $nam]
 	set fit "[file rootname [file join $tar $nam]]$suf"
 	set pgm [file tail $fit]
+
+	catch { file delete -force -- $fit }
+	catch { file delete -force -- [file rootname $fit] }
 
 	if [catch { file copy -force -- $fis $fit } err] {
 		puts "Cannot copy $fis to $fit ($err), script ignored!"
@@ -51,7 +50,6 @@ proc copyscript { src nam suf tar } {
 		catch { exec chmod 0755 $pgm }
 		if { $suf != "" } {
 			set lk [file rootname $pgm]
-			catch { file delete -force -- $lk }
 			catch { exec ln -sf $pgm $lk }
 		}
 	}
@@ -59,6 +57,9 @@ proc copyscript { src nam suf tar } {
 	cd $cwd
 }
 
+
+###############################################################################
+# Determine whether the user has bin or BIN in HOME ###########################
 ###############################################################################
 
 set HOME [file normalize $env(HOME)]

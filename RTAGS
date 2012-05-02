@@ -586,3 +586,7 @@ PG120421A:	PICOS >= PG120421A
 PG120422A:
 
 	Modified the doc in accordance with PG120421A.
+
+PG120502A:
+
+	Fixed deploy to work under pre 1.7.13 Cygwin. Or so I think.
