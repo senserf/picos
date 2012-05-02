@@ -2318,17 +2318,13 @@ proc ifnotcygwin { } {
 # This tells us whether the compiler accepts UNIX-like file names or not.
 #
 	if [catch { exec which msp430-gcc } p] {
-	    	puts stdout "Warning: cannot determine mspgcc installation\
-			type, assuming DOS-type file paths"
-		return 1
+	    	errab "Cannot locate mspgcc installation, sorry!"
 	}
 
 	set p [file dirname $p]
 
 	if [catch { exec ls $p } p] {
-		puts stdout "Warning: cannot inspect mspgcc installation,\
-			assuming DOS-type file paths"
-		return 1
+		errab "Cannot inspect mspgcc installation, sorry!"
 	}
 
 	if { [lsearch -glob $p "cyg*"] >= 0 } {

@@ -2145,3 +2145,16 @@ PG120426A:
 	A simple driver for the MAX6675 sensor.
 
 	A simple praxis to test the board and connections: TESTS/REFLOW.
+
+PG120502A:	VUEE >= PG120502A
+
+	Added highlighting as a simple "visualization" feature (read the last
+	section of VUEE doc). I have inserted some naive highlighting commands
+	into il_demo and RFPing_u. They translate into CNOP for PicOS, so there
+	is no harm. To see them in action (say in il_demo), make sure to run
+	udaemon with the geometry file included in the project's directory.
+
+	Fixed mkmk to fail if there's no path to msp430-gcc.
+
+	I think I have fixed deploy to work correctly on pre 1.7.13 Cygwin.
+	Wlodek, please check.

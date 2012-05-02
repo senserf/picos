@@ -1,5 +1,6 @@
 <geometry>
 	<roamer nodesize="40">
+		<viscolors>red green blue</viscolors>
 		<nodecolor id="0">
 			0=(#ffffff,#ff0000)
 		</nodecolor>

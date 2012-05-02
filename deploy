@@ -44,7 +44,7 @@ if { $TCL85 == "" } {
 ###############################################################################
 
 set PLIST { PICOS SIDE VUEE PIP }
-set OPTIONAL { PIP }
+set OPTIONAL ""
 
 proc errab { m } {
 
@@ -244,8 +244,7 @@ proc get_rtags { pkg } {
 
 proc anchor { } {
 #
-# Locate the root directory of PICOS (i.e., from where we should have been
-# called)
+# Locate the root directory of PICOS (i.e., from where we should be called)
 #
 	global CWD RWD BIN env HOME VPATH
 
@@ -376,6 +375,9 @@ proc copyscript { src nam suf tar } {
 	set fit "[file rootname [file join $tar $nam]]$suf"
 	set pgm [file tail $fit]
 
+	catch { file delete -force -- $fit }
+	catch { file delete -force -- [file rootname $fit] }
+
 	if [catch { file copy -force -- $fis $fit } err] {
 		puts "Cannot copy $fis to $fit ($err), script ignored!"
 		return
@@ -389,7 +391,6 @@ proc copyscript { src nam suf tar } {
 		catch { exec chmod 0755 $pgm }
 		if { $suf != "" } {
 			set lk [file rootname $pgm]
-			catch { file delete -force -- $lk }
 			catch { exec ln -sf $pgm $lk }
 		}
 	}

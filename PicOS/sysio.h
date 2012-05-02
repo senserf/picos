@@ -979,8 +979,10 @@ void	adc_stop (void);
 
 #define	PREINIT(a,b)	(a)
 
-#define	vuee_control(a,...)	CNOP
-#define	__sinit(...)	= { __VA_ARGS__ }
+#define	vuee_control(a,...)		CNOP
+#define	highlight_set(a,b,c,...)	CNOP
+#define	highlight_clear()		CNOP
+#define	__sinit(...)		= { __VA_ARGS__ }
 
 #define	__PRIVF(ot,tp,nam)	static tp nam
 #define	__PUBLF(ot,tp,nam)	tp nam

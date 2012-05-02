@@ -63,25 +63,25 @@
 	    <location>1.0 1.0</location>
 	</node>
 	<node number="1">
-	    <location>2.0 1.0</location>
+	    <location>2.0 1.5</location>
 	</node>
 	<node number="2">
 	    <location>3.0 1.0</location>
 	</node>
 	<node number="3">
-	    <location>4.0 1.0</location>
+	    <location>4.0 1.5</location>
 	</node>
 	<node number="4">
 	    <location>1.0 2.0</location>
 	</node>
 	<node number="5">
-	    <location>2.0 2.0</location>
+	    <location>2.0 2.5</location>
 	</node>
 	<node number="6">
 	    <location>3.0 2.0</location>
 	</node>
 	<node number="7">
-	    <location>4.0 2.0</location>
+	    <location>4.0 2.5</location>
 	</node>
     </nodes>
 </network>

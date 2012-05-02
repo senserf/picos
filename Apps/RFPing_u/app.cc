@@ -76,6 +76,7 @@ fsm receiver {
 
     entry RC_DATA:
 
+	highlight_set (0, 0.5, "Rcvd: %1d %1d", last_rcv, tcv_left (packet) -2);
 	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %d), pow = %d qua = %d\r\n",
 		packet [1],
 		last_rcv, tcv_left (packet) - 2,
@@ -192,6 +193,7 @@ Finish:
 
     entry SN_NEXT1:
 
+	highlight_set (1, 0.5, "Sent: %1d %1d", last_snt, packet_length);
 	ser_outf (SN_NEXT1, "SND %lu, len = %d\r\n", last_snt,
 		packet_length);
 	proceed SN_SEND;
