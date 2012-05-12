@@ -144,4 +144,14 @@ WO120419A:
   changes. See vsen_demo/notes tail for a short summary. This version will
   update Raoul's inventory.
 
+WO120512A:
+  mm_demo updates for Android most recent works. mm_odt clearly shows the
+  original and the two updates. Still, some (relatively old) functionality is
+  undocumented, but an up-to-date version should wait for consistent 
+  requirements and total rewrite, which are due after 1st demo / user feedback.
+
+  In vsen_demo, options.sys shows (commented out) European settings and moves
+  RF to channel 255. 'Ronin buzzer' is added. Chronos def. freq. is changed
+  from 30 to 60, other nodes' from 30 to 900. All the changes were used for
+  experiments with CMA and dimihished RTLS.
 
