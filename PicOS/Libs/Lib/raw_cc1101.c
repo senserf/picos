@@ -393,6 +393,5 @@ void rrf_init () {
 	// Initialize the requisite pins
 	ini_regs;
 	rrf_chip_reset ();
-	// Start in power down
-	rrf_pd ();
+	rrf_enter_rx ();
 }

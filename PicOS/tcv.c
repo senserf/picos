@@ -188,6 +188,10 @@ __PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
 }
 
 #if	TCV_LIMIT_RCV || TCV_LIMIT_XMT
+#ifndef	TCV_LIMIT_URGENT_BUMP
+// Extra room reserved for urgent packets
+#define	TCV_LIMIT_URGENT_BUMP	1
+#endif
 __PRIVF (PicOSNode, Boolean, qmore) (qhead_t *q, word lim) {
 
 	hblock_t *p;
@@ -738,7 +742,8 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 
 	sysassert (s->attpattern.b.queued == 0, "tcv18");
 
-	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT+1)) {
+	if (qmore (oqueues [s->attpattern.b.phys],
+				      TCV_LIMIT_XMT + TCV_LIMIT_URGENT_BUMP)) {
 		if (state != WNONE) {
 NoMem:
 			tmwait (state);
@@ -994,10 +999,14 @@ __PUBLF (PicOSNode, address, tcvp_new) (int size, int dsp, int ses) {
 #if	TCV_LIMIT_RCV
 
 		if ((dsp == TCV_DSP_RCV || dsp == TCV_DSP_RCVU) &&
-	    	    qmore (&(descriptors [ses]->rqueue), (dsp == TCV_DSP_RCVU) ?
-			TCV_LIMIT_RCV + 1 : TCV_LIMIT_RCV)) {
-		    	    // Drop
-		    	    return NULL;
+	    	    qmore (&(descriptors [ses]->rqueue),
+			(dsp == TCV_DSP_RCVU)
+			?
+			TCV_LIMIT_RCV + TCV_LIMIT_URGENT_BUMP
+			:
+			TCV_LIMIT_RCV)) {
+		    		// Drop
+		    		return NULL;
 		}
 #endif
 
@@ -1005,10 +1014,13 @@ __PUBLF (PicOSNode, address, tcvp_new) (int size, int dsp, int ses) {
 
 		if ((dsp == TCV_DSP_XMT || dsp == TCV_DSP_XMTU) &&
 	    	    qmore (oqueues [descriptors [ses]->attpattern.b.phys],
-			(dsp == TCV_DSP_XMTU) ? TCV_LIMIT_XMT + 1 :
-			    TCV_LIMIT_XMT)) {
-		    	   	 // Drop
-		    	   	 return NULL;
+			(dsp == TCV_DSP_XMTU)
+			?
+			TCV_LIMIT_XMT + TCV_LIMIT_URGENT_BUMP
+			:
+			TCV_LIMIT_XMT)) {
+		       		// Drop
+		    	   	return NULL;
 		}
 #endif
 		if ((p = apb (size)) != NULL) {

@@ -6,7 +6,6 @@
 /* ==================================================================== */
 
 #include "kernel.h"
-#include "phys_cc1100.h"
 #include "cc1100_sys.h"
 #include "rfleds.h"
 

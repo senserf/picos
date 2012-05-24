@@ -219,7 +219,7 @@ void update_n_wake (word min) {
 		// As now all __pi_mintk values are legit (e.g., 0 cannot be
 		// special), the condition will occasionally force us to do
 		// an idle scan through the list of processes. This will do no
-		// harm, or at least less harm than having an extra flags.
+		// harm, or at least less harm than having an extra flag.
 
 		for_all_tasks (i) {
 
@@ -237,13 +237,11 @@ void update_n_wake (word min) {
 					min = d;
 			}
 		}
-#if TCV_PRESENT
-#if TCV_TIMERS
+#if TCV_PRESENT && TCV_TIMERS
 		__pi_tcv_runqueue (znew, &min);
 #endif
-#endif
 	} else {
-		// Nobody is eligible for wakeup, old minimum holds, unless
+		// Nobody is eligible for wakeup, the old minimum holds, unless
 		// the requested one is less
 		if (__pi_mintk - znew < min) 
 			goto MOK;
@@ -415,10 +413,9 @@ void __pi_fork_join_release (fsmcode func, word data, word st) {
 /* ========== */
 void delay (word d, word state) {
 
+	// Note that this also removes the timer wait bit, if set, so
+	// update_n_wake won't bother us
 	settstate (__pi_curr, state);
-
-	// Remove any previous delay (so update_n_wake doesn't look at us)
-	cltmwait (__pi_curr);
 
 	// Catch up with time
 	update_n_wake (d);

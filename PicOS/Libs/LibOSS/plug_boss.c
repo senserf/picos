@@ -111,7 +111,7 @@ static int tcv_rcv_boss (int phy, address p, int len, int *ses,
 			// Also flip in the outgoing packet
 			pkb (boss_out, BOSS_PO_FLG) ^= BOSS_BI_EXP;
 		// and receive
-		ds = TCV_DSP_RCV;
+		ds = TCV_DSP_RCVU;
 	} else {
 		ds = TCV_DSP_DROP;
 	}
@@ -136,7 +136,7 @@ static int tcv_rcv_boss (int phy, address p, int len, int *ses,
 			// Treat it as a NAK
 			if (boss_out_held) {
 				boss_out_held = NO;
-				tcvp_dispose (boss_out, TCV_DSP_XMT);
+				tcvp_dispose (boss_out, TCV_DSP_XMTU);
 			}
 		}
 	}
@@ -145,7 +145,7 @@ static int tcv_rcv_boss (int phy, address p, int len, int *ses,
 
 	// Decide whether to send an explicit ACK
 	if (boss_out == NULL && (bt & BOSS_BI_ACK) == 0 && (p = tcvp_new (4,
-	    TCV_DSP_XMT, *ses)) != NULL)
+	    TCV_DSP_XMTU, *ses)) != NULL)
 		sphdr (p, BOSS_PR_ABP, BOSS_BI_ACK);
 
 	return ds;
@@ -174,12 +174,12 @@ static int tcv_out_boss (address p, int ses) {
 		sphdr (p, BOSS_PR_ABP, 0);
 		boss_out = p;
 		boss_out_held = NO;
-	} else
+		return TCV_DSP_XMTU;
+	} else {
 		// Don't touch the other fields, the praxis can use them
 		pkb (p, BOSS_PO_PRO) = BOSS_PR_DIR;
-
-	return TCV_DSP_XMT;
-
+		return TCV_DSP_XMT;
+	}
 }
 
 static int tcv_xmt_boss (address p, int ses) {

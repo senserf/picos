@@ -2158,3 +2158,17 @@ PG120502A:	VUEE >= PG120502A
 
 	I think I have fixed deploy to work correctly on pre 1.7.13 Cygwin.
 	Wlodek, please check.
+
+PG120524A:
+
+	Praxis PROPRIETARY/SA as the first (somewhat) working version of our
+	"spectrum analyzer". To be enhanced and documented.
+
+	A few modifications to the BOSS plugin, mostly to give the "reliable"
+	traffic a higher priority.
+
+	A minor modification to tcv.c to provide for more flexible queue size
+	limits (if this option is used), like setting aside a nontrivial pool
+	of buffers for "urgent" traffic.
+
+	A few irrelevant cosmetics here and there.

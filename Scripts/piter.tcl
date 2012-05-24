@@ -2246,7 +2246,9 @@ proc pt_diag { } {
 		# ASCII
 		pt_tout "DIAG: [string trim $ST(BUF)]"
 	}
-	flush stdout
+	if !$ST(WSH) {
+		flush stdout
+	}
 }
 
 proc sy_startlog { } {
