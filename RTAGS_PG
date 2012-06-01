@@ -2172,3 +2172,8 @@ PG120524A:
 	of buffers for "urgent" traffic.
 
 	A few irrelevant cosmetics here and there.
+
+PG120601A:
+
+	The first presentable and (lamely) documented version of "spectrum
+	analyzer". Read Apps/PROPRIETARY/SA/OSS/Doc/SA.pdf.

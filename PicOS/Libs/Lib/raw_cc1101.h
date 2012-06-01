@@ -23,6 +23,7 @@ void rrf_enter_rx ();
 int rrf_rx_status ();
 void rrf_rx_reset ();
 int rrf_cts ();
+void rrf_send (byte*, byte);
 void rrf_pd ();
 void rrf_chip_reset ();
 void rrf_init ();

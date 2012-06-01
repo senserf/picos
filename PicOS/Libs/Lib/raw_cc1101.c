@@ -365,6 +365,12 @@ int rrf_cts () {
 	return (rrf_status () == CC1100_STATE_TX);
 }
 
+void rrf_send (byte *pkt, byte len) {
+
+	rrf_set_reg (CCxxx0_TXFIFO, len);
+	rrf_set_reg_burst (CCxxx0_TXFIFO, pkt, len);
+}
+
 void rrf_pd () {
 
 	rrf_enter_idle ();
