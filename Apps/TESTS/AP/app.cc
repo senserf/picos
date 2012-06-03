@@ -1,9 +1,9 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 //
-// A simple "access point" for the CHRONOS watch
+// A simple "access point" for OSS communication over RF using XRS
 //
 
 #include "sysio.h"
@@ -15,12 +15,13 @@ heapmem {10, 90};
 #include "serf.h"
 #include "form.h"
 
+#include "cc1100.h"
 #include "phys_cc1100.h"
 #include "plug_null.h"
 #include "ab.h"
 
-// This is the maximum for CC1100
-#define	MAXPLEN		60
+// The maximum packet length for CC1100
+#define	MAXPLEN		CC1100_MAXPLEN
 // 4 bytes are needed for XRS header
 #define	UBUFLEN		(MAXPLEN-4)
 
@@ -72,6 +73,10 @@ fsm root {
 	ab_mode (AB_MODE_ACTIVE);
 	runfsm receiver;
 
+  state RS_GREATING:
+
+	ser_out (RS_GREATING, "AP:\r\n");
+
   state RS_WINP:
 
 	ser_in (RS_WINP, ubuf, UBUFLEN);
@@ -85,5 +90,5 @@ fsm root {
   state RS_SEND:
 
 	ab_outf (RS_SEND, "%s", ubuf);
-	proceed RS_WINP;
+	proceed RS_GREATING;
 }

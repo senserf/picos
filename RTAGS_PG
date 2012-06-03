@@ -2177,3 +2177,37 @@ PG120601A:
 
 	The first presentable and (lamely) documented version of "spectrum
 	analyzer". Read Apps/PROPRIETARY/SA/OSS/Doc/SA.pdf.
+
+PG120603A:
+
+	Praxis BlueTest upgraded to handle BT modules connected to single-UART
+	boards (see the document). In such a case, the user communication goes
+	through an Access Point node.
+
+	Praxis AP (a simple generic Access Point), which is now a bit more
+	useful than it used to be, has been moved from Apps/TESTS/CHRONOS to
+	Apps/TESTS.
+
+	The symbol UART_B is now defined only if the board actually has the
+	second UART.
+
+	Board CC430W_BLUE has been defined (according to Gerry's prescription).
+	I have verified things with my version of CC430W. Note that the present
+	configuration of CC430W_BLUE assumes that the board is broken, i.e.,
+
+	1. CMA3000 power supply is confused with EEPROM CS
+
+	2. the RF frequency needs to be offset (NB: my new "spectrum analyzer"
+	   has verified our earlier [ad-hoc'ish] calculation of the required
+	   offset).
+
+	Gerry, if you want to use a fixed variant of the board (no frequency
+	offset, no misconnections), do this:
+
+	   cd PicOS/MSP430/BOARDS/CC430W/FIXES
+	   cp * ../
+
+	Still to do (assuming that we want to follow up on the idea of
+	connecting BT modules to CC430W): make sure that the UART on CC430W
+	can use rates higher than 9600 (this is now the limit to the BT serial
+	rate).

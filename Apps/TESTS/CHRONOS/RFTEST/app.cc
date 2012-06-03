@@ -15,7 +15,7 @@
 #include "storage.h"
 #include "ab.h"
 
-#define MAXPLEN			60
+#define MAXPLEN			CC1100_MAXPLEN
 
 static word 	imess,	// Count received
 		omess;	// ... and outgoing messages

@@ -341,7 +341,9 @@ void	buttons_action (void (*action)(word));
 /* Device identifiers (numbers) */
 /* ============================ */
 #define	UART_A			0
+#ifdef	UART_PREINIT_B
 #define	UART_B			1
+#endif
 #define	UART			UART_A
 #define	LCD			2
 #define	LEDS			3

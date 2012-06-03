@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -10,6 +10,21 @@
 #include "serf.h"
 #include "form.h"
 #include "uart_def.h"
+
+#ifdef	UART_B
+#define	LINE_LENGTH	84
+#define	UART_BT		UART_B
+#else
+// Single UART, OSS through RF
+#include "tcvphys.h"
+#include "cc1100.h"
+#include "phys_cc1100.h"
+#include "plug_null.h"
+#include "ab.h"
+// We will try to live with this
+#define	LINE_LENGTH	(CC1100_MAXPLEN - 4)
+#define	UART_BT		UART_A
+#endif
 
 #define	DELAY_CMDI	512		// Command - first verification try
 #define	DELAY_CMDV	512		// Ver command - first check
@@ -25,13 +40,11 @@
 #define	TRIES_CMDI	3		// Commands
 #define	TRIES_POKE	3		// Number of poke commands
 
-#define	LINE_LENGTH	84
-
 static char bibuf [LINE_LENGTH];	// BT input buffer
 static char uibuf [LINE_LENGTH];	// UART input buffer
 static char cmbuf [LINE_LENGTH];	// Command buffer (BT output)
 static char scbuf [LINE_LENGTH];	// Secondary command buffer
-static void (*readf) (const char*);	// Function to interpete BT input
+static void (*bt_readf) (const char*);	// Function to interpete BT input
 static char *cmdl;			// List of commands to run
 
 // The secondary buffer is used, e.g., for command verification, whereby a
@@ -46,6 +59,8 @@ typedef struct o_line_s {
 	struct o_line_s *next;
 	char line [0];
 } o_line_t;
+
+#define	O_LINE_HDRLEN	sizeof (o_line_t*)	// Offset to the string
 
 static o_line_t	*u_o_lines,	// Output lines destined to UART
 		*b_o_lines;	// Output lines destined to BT
@@ -78,9 +93,9 @@ void write_line (const char*, o_line_t**);
 
 // ============================================================================
 
-static int rate_index (word r) {
+static sint rate_index (word r) {
 
-	int i;
+	sint i;
 
 	for (i = 0; i < sizeof (rate_list) / sizeof (word); i++)
 		if (rate_list [i] == r)
@@ -243,9 +258,9 @@ static void bt_setpin_cmd () {
 // Only these rates are accessible
 const word lrates [] = { 48, 96, 192, 384, 576, 1152, 2304 };
 
-static int bt_rate_available (word a) {
+static sint bt_rate_available (word a) {
 
-	int i;
+	sint i;
 
 	for (i = 0; i < sizeof (lrates) / sizeof (word); i++)
 		if (lrates [i] == rate_list [a])
@@ -365,7 +380,13 @@ static void bt_setpin_cmd () {
 
 // ============================================================================
 
+static void bt_echo (const char *il) { wl_u (il); }
+
+// ============================================================================
+
 fsm bt_read {
+
+	Boolean el;
 
 	state START:
 
@@ -375,19 +396,25 @@ fsm bt_read {
 
 		char c;
 
-		io (CONTINUE, UART_B, READ, &c, 1);
+		io (CONTINUE, UART_BT, READ, &c, 1);
 
 		if (c < 32) {
+			if (nbibuf == 0)
+				sameas CONTINUE;
 			// Assume anything less than blank ends the line;
-			// empty and weird lines will be ignored anyway
-			bibuf [nbibuf] = '\0';
-			if (readf != NULL)
-				readf (bibuf);
+			// empty and weird lines should be ignored
+			if (nbibuf != 0) {
+				bibuf [nbibuf] = '\0';
+				if (bt_readf != NULL)
+					bt_readf (bibuf);
+			}
 			sameas START;
 		}
 
-		if (nbibuf < LINE_LENGTH-1)
-			bibuf [nbibuf++] = c;
+		if (c <= 0x7E) {
+			if (nbibuf < LINE_LENGTH-1)
+				bibuf [nbibuf++] = c;
+		}
 
 		sameas CONTINUE;
 }
@@ -417,13 +444,13 @@ fsm bt_write {
 			sameas CODA;
 		}
 
-		io (WRITE_LINE, UART_B, WRITE, s, 1);
+		io (WRITE_LINE, UART_BT, WRITE, s, 1);
 		s++;
 		sameas WRITE_LINE;
 
 	state CODA:
 
-		io (CODA, UART_B, WRITE, (char*)(eol+0), 1);
+		io (CODA, UART_BT, WRITE, (char*)(eol+0), 1);
 
 #ifndef LINKMATIC
 		// Don't send \n for BTM-182 if not connected
@@ -434,14 +461,18 @@ fsm bt_write {
 
 	state FINE:
 
-		io (FINE, UART_B, WRITE, (char*)(eol+1), 1);
+		io (FINE, UART_BT, WRITE, (char*)(eol+1), 1);
 		proceed INIT;
 }
 
 // ============================================================================
 
-fsm ua_write {
+#ifdef UART_B
 
+fsm oss_write {
+//
+// This FSM writes to UART_B
+//
 	char *s;
 
 	state INIT:
@@ -478,11 +509,57 @@ fsm ua_write {
 		proceed INIT;
 }
 
+#define	oss_read(st,buf)	ser_in (st, buf, LINE_LENGTH)
+
+#else
+
+fsm oss_write {
+//
+// This FSM writes to an AP over the wireless link
+//
+	char *s;
+
+	state INIT:
+
+		char *q;
+
+		if (u_o_lines == NULL) {
+			when (&u_o_lines, INIT);
+			release;
+		}
+
+		// Release the line
+		s = (char*) u_o_lines;
+		u_o_lines = u_o_lines -> next;
+		// Shift the line down, so the string begins at the first byte
+		// of the structure, so we can pass it directly to ab_out, so
+		// it will deallocate it properly
+		for (q = s; (*q = *(q + O_LINE_HDRLEN)) != '\0'; q++);
+
+	state SEND:
+
+		ab_out (SEND, s);
+		sameas INIT;
+}
+
+void oss_read (word st, char *buf) {
+//
+// Read from an AP
+//
+	char *s;
+
+	s = ab_in (st);
+	strcpy (buf, s);
+	ufree (s);
+}
+	
+#endif
+
 // ============================================================================
 
 void write_line (const char *line, o_line_t **q) {
 
-	int n, m;
+	sint n, m;
 	o_line_t *newl, *p;
 
 	m = (n = strlen (line)) + 1 + sizeof (o_line_t);
@@ -504,10 +581,6 @@ void write_line (const char *line, o_line_t **q) {
 	for (p = *q; p->next != NULL; p = p->next);
 	p->next = newl;
 }
-
-// ============================================================================
-
-static void bt_echo (const char *il) { wl_u (il); }
 
 // ============================================================================
 // ============================================================================
@@ -594,7 +667,7 @@ fsm bt_check_response {
 	state INIT:
 
 		OK = 0;
-		readf = bt_rate_test;
+		bt_readf = bt_rate_test;
 		waitcount = TRIES_POKE * 4;
 		bt_poke_cmd ();
 
@@ -637,7 +710,6 @@ fsm bt_findrate {
 		blue_reset_clear;
 		mdelay (40);
 
-		readf = bt_rate_test;
 		OK = 0;
 
 		// Do not use rates below 9600
@@ -659,7 +731,7 @@ fsm bt_findrate {
 		form (uibuf, "TRYING %d00 bps ...", rate_list [rate]);
 		wl_u (uibuf);
 
-		ion (UART_B, CONTROL, (char*)(rate_list + rate),
+		ion (UART_BT, CONTROL, (char*)(rate_list + rate),
 			UART_CNTRL_SETRATE);
 
 		delay (DELAY_SAFE, CHECK_RESPONSE);
@@ -676,8 +748,7 @@ fsm bt_findrate {
 			form (uibuf, "RATE IS %d00", rate_list [rate]);
 			wl_u (uibuf);
 		} else {
-			while (rate < NRATES) {
-				rate++;
+			while (++rate < NRATES) {
 				if (bt_rate_available (rate))
 					proceed NEXT_RATE;
 			}
@@ -734,7 +805,7 @@ NoResp:
 
 		// The "list" commands
 		OK = 0;
-		readf = bt_name_command_test;
+		bt_readf = bt_name_command_test;
 		bt_setname_cmd ();
 		bt_name_verification_cmd ();
 		join (runfsm bt_command, B_PINCMD);
@@ -746,7 +817,7 @@ NoResp:
 			wl_u ("Cannot set name");
 			finish;
 		}
-		readf = bt_pin_command_test;
+		bt_readf = bt_pin_command_test;
 		bt_setpin_cmd ();
 		bt_pin_verification_cmd ();
 		join (runfsm bt_command, B_LIST);
@@ -755,7 +826,7 @@ NoResp:
 	state B_LIST:
 
 		// Running commands from the list
-		readf = bt_command_test;
+		bt_readf = bt_command_test;
 
 	state B_MORE:
 
@@ -784,7 +855,7 @@ NoResp:
 
 		rate = new_rate_index;
 
-		ion (UART_B, CONTROL, (char*)(rate_list + rate),
+		ion (UART_BT, CONTROL, (char*)(rate_list + rate),
 			UART_CNTRL_SETRATE);
 
 		join (runfsm bt_check_response, B_NEWRATE_CHECK);
@@ -803,17 +874,17 @@ NoResp:
 
 // ============================================================================
 
-static int skipb () {
+static sint skipb () {
 	while (isspace (*iparse)) iparse++;
 	return *iparse;
 }
 
-static int skipnb () {
+static sint skipnb () {
 	while (!isspace (*iparse) && *iparse != '\0') iparse++;
 	return *iparse;
 }
 
-int scanstr (char *t, int len) {
+sint scanstr (char *t, sint len) {
 
 	if (skipb () == '\0')
 		return 0;
@@ -832,18 +903,37 @@ int scanstr (char *t, int len) {
 
 fsm root {
 
-	int n, k, p;
+	sint n, k, p;
+
+#ifndef	UART_B
+	sint sfd = -1;
+#endif
 
   state RS_INI:
 
-	ion (UART_B, CONTROL, (char*)(&n), UART_CNTRL_GETRATE);
+#ifndef	UART_B
+
+	phys_cc1100 (0, CC1100_MAXPLEN);
+
+	tcv_plug (0, &plug_null);
+	sfd = tcv_open (NONE, 0, 0);
+	n = 0xffff;
+	tcv_control (sfd, PHYSOPT_SETSID, (address)(&n));
+	tcv_control (sfd, PHYSOPT_TXON, NULL);
+	tcv_control (sfd, PHYSOPT_RXON, NULL);
+
+	ab_init (sfd);
+	ab_mode (AB_MODE_PASSIVE);
+#endif
+	ion (UART_BT, CONTROL, (char*)(&n), UART_CNTRL_GETRATE);
 	rate = rate_index (n);
+
 
 	runfsm bt_read;
 	runfsm bt_write;
-	runfsm ua_write;
+	runfsm oss_write;
 
-	readf = bt_echo;
+	bt_readf = bt_echo;
 
   state RS_MEN:
 
@@ -854,25 +944,29 @@ fsm root {
 	wl_u ("BT BTM-182: test and maintanance");
 #endif
 	wl_u ("Commands:");
-	wl_u ("w string    -> write line to module");
-	wl_u ("r rate      -> set rate for module");
-	wl_u ("t rate      -> set rate for UART");
-	wl_u ("e [n]       -> escape");
-	wl_u ("a           -> reset");
-	wl_u ("s           -> view status flag");
-	wl_u ("D           -> auto discover rate");
-	wl_u ("S r n p m   -> preset rate, name, pin, mode=uart|sniffer");
-	wl_u ("p [0|1]     -> power (down|up)");
+	wl_u ("w string  > write line to module");
+	wl_u ("r rate    > set rate for module");
+#ifdef	UART_B
+	wl_u ("t rate    > set rate for UART");
+#endif
+	wl_u ("e [n]     > escape");
+	wl_u ("a         > reset");
+	wl_u ("s         > view status flag");
+	wl_u ("D         > auto discover rate");
+	wl_u ("S r n p m > preset rate name pin mode=uart|sniffer");
+	wl_u ("p [0|1]   > power (down|up)");
 
   state RS_RCM:
 
-	ser_in (RS_RCM, uibuf, LINE_LENGTH);
+	oss_read (RS_RCM, uibuf);
 
 	switch (uibuf [0]) {
 
 	    case 'w': proceed RS_WRI;
 	    case 'r': proceed RS_RAT;
+#ifdef	UART_B
 	    case 't': proceed RS_RAU;
+#endif
 	    case 'e': proceed RS_ESC;
 	    case 'a': proceed RS_RES;
 	    case 's': proceed RS_ATT;
@@ -899,10 +993,11 @@ fsm root {
 	scan (uibuf + 1, "%d", &n);
 	if ((k = rate_index (n)) < 3 || !bt_rate_available (k))
 		proceed RS_ERR;
-	ion (UART_B, CONTROL, (char*)(&n), UART_CNTRL_SETRATE);
+	ion (UART_BT, CONTROL, (char*)(&n), UART_CNTRL_SETRATE);
 	rate = k;
 	proceed RS_RCM;
 
+#ifdef	UART_B
   state RS_RAU:
 
 	n = 96;
@@ -911,6 +1006,7 @@ fsm root {
 		proceed RS_ERR;
 	ion (UART_A, CONTROL, (char*)(&n), UART_CNTRL_SETRATE);
 	proceed RS_RCM;
+#endif
 
   state RS_ESC:
 
@@ -960,7 +1056,7 @@ fsm root {
 
   state RS_DID_DONE:
 
-	readf = bt_echo;
+	bt_readf = bt_echo;
 	proceed RS_RCM;
 
   state RS_PRE:
