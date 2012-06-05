@@ -6215,7 +6215,7 @@ parse_args
 
 parse_geometry
 			
-wm title . "VUEE udaemon"
+wm title . "VUEE udaemon (ZZ000000A)"
 
 do_geometry . "root"
 
