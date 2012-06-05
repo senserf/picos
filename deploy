@@ -18,8 +18,13 @@ if [ -e maker.exe ]; then
 else
 	strip maker
 fi
+if [ "x$3" = "x" ]; then
+	rtag="0"
+else
+	rtag=$3
+fi
 echo "Running maker for mks ..."
-./maker -b << m_end
+./maker -b -r $rtag << m_end
 none
 
 
@@ -35,7 +40,7 @@ n
 
 m_end
 echo "Running maker for vuee ..."
-./maker -b << v_end
+./maker -b -r $rtag << v_end
 none
 
 

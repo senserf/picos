@@ -1,5 +1,5 @@
 /* SIDE version number */
-#define  VERSION      "3.20-OA"
+#define  VERSION      "3.21-OA"
 
 #ifdef	__CYGWIN32__
 #define	ZZ_CYW				1
@@ -141,3 +141,4 @@ typedef void (*SIGARG) (int);
 #define  ZZ_INCPATH      "-I /home/pawel/SOFTWARE/SIDE/Examples/IncLib -I /home/pawel/SOFTWARE/VUEE/PICOS"
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442
+#define  ZZ_RTAG	"PG120605A"

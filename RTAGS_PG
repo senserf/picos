@@ -409,3 +409,9 @@ PG120413A:
 	   "Program Files/Java/jdk.../jre/lib/security/java.policy). I have
 	   added a note in README.txt in the DSD directory, as well as a copy
 	   of my java.policy file, in case somebody ever wants to do it again.
+
+PG120605A:	PICOS >= PG120605B, PIP >= PG120605A, VUEE >= PG12060A
+
+	   PICOS deploy now passes the RTAG number (like PG120605A) to maker,
+	   which puts it into version.h. When called with -V, mks/vuee prints
+	   the version number and exits.

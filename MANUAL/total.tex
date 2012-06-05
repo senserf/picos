@@ -1997,7 +1997,7 @@ In order to be managed that way, an object should define two attributes
 {\tt\begin{tabbing}
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
 \> {\tt struct my\_pool\_item\_s \{ }\\
-\>\> {\tt struct my\_pool\_item *prev, *next; }\\
+\>\> {\tt struct my\_pool\_item\_s *prev, *next; }\\
 \>\> {\em ... other stuff ...}\\
 \> {\tt \};}\\
 \> {\tt typedef struct my\_pool\_item\_s my\_pool\_item; }
@@ -19009,6 +19009,12 @@ Multiple arguments of this form are permitted (up to 8), and the order of their
 occurrence determines the search order.
 The {\tt include} directories specified this way are searched {\em after\/}
 those declared with {\tt maker} (\sect{rm_un_in}).
+\end{quote}\medskip
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt -V}}\\ \hspace{0in}
+The program writes the package's version number to the standard output and
+exits.
 \end{quote}\medskip
 
 In consequence of running {\tt mks}, all protocol files from the current

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-2010   P. Gburzynski */
+/* Copyright (C) 1991-2012   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -121,23 +121,41 @@ void	encint (int v) {
 
 void bad_usage (const char *pn) {
 
-	fprintf (stderr, "Usage: %s [-b]\n", pn);
+	fprintf (stderr, "Usage: %s [-b] [-r tag]\n", pn);
 	exit (99);
 }
 	
 main (int argc, const char *argv []) {
 
 	char    c, *s;
+	const char *pname, *rtag;
 	istream *vfi;
 	ostream	*vfo;
 	int	i, m;
 
-	if (argc > 1) {
-		if (argc > 2 || strcmp (argv [1], "-b"))
-			bad_usage (argv [1]);
-		batch = 1;
+	pname = argv [0];
+	rtag = NULL;
+
+	while (1) {
+		argc--;
+		argv++;
+		if (argc <= 0)
+			break;
+		if (strcmp (*argv, "-b") == 0) {
+			if (batch)
+				bad_usage (pname);
+			batch = 1;
+			continue;
+		}
+		if (strcmp (*argv, "-r") == 0) {
+			if (argc < 1 || rtag != NULL)
+				bad_usage (pname);
+			argc--;
+			argv++;
+			rtag = *argv;
+		}
 	}
-		
+
 if (!batch) {
 cout << "Hi, this is SMURPH/SIDE Version " << VERSION << '\n';
 cout << "You will be asked a few simple questions.  By  hitting  RETURN you\n";
@@ -662,7 +680,6 @@ COVH:
 	*vfo << "#define  ZZ_LIBPATH      \"" << libdir << "\"\n";
 	*vfo << "#define  ZZ_INCPATH      \"";
 
-
 	for (i = m = 0; i < MAXINCDIRS; i++) {
 		if (incdir [i]) {
 			if (m++)
@@ -677,6 +694,9 @@ COVH:
 		*vfo << "#define  ZZ_MONHOST      \"" << monhost << "\"\n";
 		*vfo << "#define  ZZ_MONSOCK      " << monport << '\n';
 	}
+
+	if (rtag != NULL)
+		*vfo << "#define  ZZ_RTAG	\"" << rtag << "\"\n";
 
 	// vfo->close ();
 	vfo -> flush ();

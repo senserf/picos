@@ -83,7 +83,8 @@
 	//		them:
 	//
 	//	-E           -- leave the '.C' files after compilation
-	//	-V	     -- 'verbose'
+	//	-T	     -- 'verbose'
+	//	-V           -- print version number and exit
 	//
 	// The configuration of options, with exception of '-o', determines the
 	// library subdirectory name.
@@ -1177,7 +1178,7 @@ main    (int argc, char *argv[]) {
 			LeaveCFiles = 1;
 			break;
 
-		  case 'V' :
+		  case 'T' :
 
 			BeVerbose = 1;
 			break;
@@ -1190,6 +1191,16 @@ main    (int argc, char *argv[]) {
 			argc--;
 			includes [nincludes++] = *argv;
 			break;
+
+		  case 'V' :
+
+			// Print version number
+			cout << "Version: " << VERSION
+#ifdef	ZZ_RTAG
+				<< " (" << ZZ_RTAG << ")"
+#endif
+				<< "\n";
+			exit (0);
 
 		  default :
 
