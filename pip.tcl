@@ -2466,6 +2466,7 @@ proc new_directory { { x "" } { y "" } } {
 
 		if { $ev == 0 } {
 			# nothing
+			continue
 		}
 
 		# validate the directory
@@ -7465,7 +7466,7 @@ proc mk_project_window { } {
 	# no configuration
 	set P(CO) ""
 
-	wm title . "PIP $ST(VER)"
+	wm title . "PIP $ST(VER) (ZZ000000A)"
 
 	menu .menu -tearoff 0
 

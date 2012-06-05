@@ -590,3 +590,12 @@ PG120422A:
 PG120502A:
 
 	Fixed deploy to work under pre 1.7.13 Cygwin. Or so I think.
+
+PG120605A:	SIDE >= PG120605A, PICOS >= PG120605B, VUEE >= PG120605A
+
+	All programs and (serious) scripts now show the version number which
+	always includes at least the last RTAG of the respective package. For
+	command line programs, the version number can be obtained by specifying
+	the -V option. GUI scripts include the tag number in the title of the
+	main window.
+

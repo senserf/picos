@@ -8,7 +8,7 @@ exec tclsh85 "$0" "$@"
 # Copyright (C) Olsonet Communications, 2008-2012 All Rights Reserved      #
 ############################################################################
 
-set PM(VER)	1.3.8
+set PM(VER)	1.4.0
 
 proc usage { } {
 
@@ -995,7 +995,7 @@ set EWAIT 0
 
 setdefs
 
-wm title . "Flash Image Generator $PM(VER)"
+wm title . "Flash Image Generator $PM(VER) (ZZ000000A)"
 
 labelframe .fls -text "Files" -padx 4 -pady 4
 pack .fls -side top -expand 1 -fill x

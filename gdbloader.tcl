@@ -1042,6 +1042,8 @@ proc mk_main_window { } {
 	pack $f.up -side bottom -expand no -fill x -anchor s
 
 	bind . <Destroy> "terminate"
+
+	wm title . "GDB Loader (ZZ000000A)"
 }
 
 kill_win_proc_by_name $GdbCmd

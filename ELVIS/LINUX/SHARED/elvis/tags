@@ -3,7 +3,7 @@
 !_TAG_PROGRAM_AUTHOR	Steve Kirkendall	/kirkenda@cs.pdx.edu/
 !_TAG_PROGRAM_NAME	Elvis Ctags	//
 !_TAG_PROGRAM_URL	ftp://ftp.cs.pdx.edu/pub/elvis/README.html	/official site/
-!_TAG_PROGRAM_VERSION	2.2.0	//
+!_TAG_PROGRAM_VERSION	2.2.0 (PG120605A)	//
 ABS	stubs/glibstub.c	128;"	d
 ACCESSPERMS	stubs/unixstub.c	5277;"	d
 ACCT_COMM	stubs/unixstub.c	1648;"	d
