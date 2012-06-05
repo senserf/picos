@@ -305,7 +305,7 @@ proc ver_dep { depl } {
 #
 # Verify version dependencies
 #
-	global PVER
+	global PVER REL
 
 	set out ""
 

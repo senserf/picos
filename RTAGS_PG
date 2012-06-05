@@ -2211,3 +2211,12 @@ PG120603A:
 	connecting BT modules to CC430W): make sure that the UART on CC430W
 	can use rates higher than 9600 (this is now the limit to the BT serial
 	rate).
+
+PG120605A:
+
+	A few improvements to the spectrum analyzer. For example, the starting
+	frequency for a band scan is now randomized to reduce the likelihood of
+	a time correlation with the transmission frequency of a monitored node.
+
+	Added back the contects of /BOARDS/CC430W/FIXES/ which accidentally
+	disappeared in the previous commit.
