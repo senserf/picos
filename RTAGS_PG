@@ -2220,3 +2220,12 @@ PG120605A:
 
 	Added back the contects of /BOARDS/CC430W/FIXES/ which accidentally
 	disappeared in the previous commit.
+
+PG120605B:	SIDE >= PG120605A, PIP >= PG120605A, VUEE >= PG120605A
+
+	All programs and (serious) scripts now show the version number which
+	always includes at least the last RTAG of the respective package. For
+	command line programs, the version number can be obtained by specifying
+	the -V option. GUI scripts include the tag number in the title of the
+	main window.
+

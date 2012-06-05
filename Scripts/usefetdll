@@ -27,6 +27,11 @@ if [catch { exec uname } ST(SYS)] {
 
 set TARGET [string trim [lindex $argv 0]]
 
+if { $TARGET == "-V" } {
+	puts "ZZ000000A"
+	exit 0
+}
+
 proc abt { msg } {
 
 	puts stderr $msg!

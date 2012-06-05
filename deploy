@@ -63,7 +63,7 @@ proc pexists { pkg } {
 
 proc install { pkg } {
 
-	global CWD HOME BIN VPATH OPTIONAL
+	global CWD HOME BIN VPATH OPTIONAL REL
 
 	if ![pexists $pkg] {
 		if { [lsearch -exact $OPTIONAL $pkg] < 0 } {
@@ -77,7 +77,7 @@ proc install { pkg } {
 	set tar "../$pkg"
 	cd $tar
 	puts "Deploying $pkg ..."
-	if [catch { exec sh deploy $BIN $VPATH >@ stdout } err] {
+	if [catch { exec sh deploy $BIN $VPATH $REL($pkg) >@ stdout } err] {
 		errab "Failed to deploy $pkg: $err"
 	}
 
@@ -366,7 +366,7 @@ proc ver_dep { depl } {
 	}
 }
 
-proc copyscript { src nam suf tar } {
+proc copyscript { src nam suf tar rtg } {
 #
 # Copy script, make sure permissions are right, and optionally create a
 # link
@@ -378,7 +378,7 @@ proc copyscript { src nam suf tar } {
 	catch { file delete -force -- $fit }
 	catch { file delete -force -- [file rootname $fit] }
 
-	if [catch { file copy -force -- $fis $fit } err] {
+	if [catch { exec sed -e "s/ZZ000000A/$rtg/g" < $fis > $fit } err] {
 		puts "Cannot copy $fis to $fit ($err), script ignored!"
 		return
 	}
@@ -456,7 +456,7 @@ proc fixtcl85 { pgm } {
 
 proc doit { } {
 
-	global CWD PLIST BIN BINW HOME TCL85 ST
+	global CWD PLIST BIN BINW HOME TCL85 ST REL
 
 	anchor
 
@@ -495,11 +495,11 @@ proc doit { } {
 	}
 
 	# copy scripts (for PICOS and VUEE); PIP did it itself
-	copyscript "Scripts" "mkmk" "" $BIN
-	copyscript "Scripts" "picomp" "" $BIN
-	copyscript "Scripts" "usefetdll" "" $BIN
-	copyscript "Scripts" "piter.tcl" ".tcl" $BIN
-	copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN
+	copyscript "Scripts" "mkmk" "" $BIN $REL(PICOS)
+	copyscript "Scripts" "picomp" "" $BIN $REL(PICOS)
+	copyscript "Scripts" "usefetdll" "" $BIN $REL(PICOS)
+	copyscript "Scripts" "piter.tcl" ".tcl" $BIN $REL(PICOS)
+	copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN $REL(VUEE)
 
 	set ScriptsToFix { pip piter udaemon genimage gdbloader }
 

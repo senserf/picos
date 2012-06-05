@@ -9,7 +9,7 @@ exec tclsh "$0" "$@"
 #	1. PicOS to C compiler
 #	2. PicOS to VUEE compiler
 #
-# Copyright (C) Olsonet Communications Corporation, 2010, 2011
+# Copyright (C) Olsonet Communications Corporation, 2010-2012
 #
 ###############################################################################
 
@@ -6138,11 +6138,12 @@ proc usage { } {
 	puts stderr "       -i  -> make all non-static funcs idiosyncratic"
 	puts stderr "       -n  -> do not call vuee automatically"
 	puts stderr "       -e  -> call vuee for existing VUEE_TMP"
-	puts stderr "       -V  -> debug info written to output (lots)"
+	puts stderr "       -G  -> debug info written to output (lots)"
 	puts stderr "       -A  -> stop on first compilation error"
 	puts stderr "       --  -> subsequent args passed to vuee"
 	puts stderr "       -n together with -e shows VUEE_TMP status"
 	puts stderr "       -Dsym, -Dpgm+sym, -Dsym=val, -Dpgm+sym=val"
+	puts stderr "       -V  -> print version number and exit"
 	exit 99
 }
 
@@ -6150,6 +6151,9 @@ cygfix
 
 # default mode == vuee compiler
 set FG(V) 1
+
+# version + exit
+set FG(Q) 0
 
 # default flag == compile unless errors
 set FG(C) 1
@@ -6228,9 +6232,11 @@ foreach arg $argv {
 		set FG(V) 0
 	} elseif { $arg == "-v" } {
 		set FG(V) 1
+	} elseif { $arg == "-V" } {
+		set FG(Q) 1
 	} elseif { $arg == "-n" } {
 		set FG(C) 0
-	} elseif { $arg == "-V" } {
+	} elseif { $arg == "-G" } {
 		set FG(D) 1
 	} elseif { $arg == "-A" } {
 		set FG(A) 1
@@ -6264,13 +6270,18 @@ set ErrCnt 0
 
 proc dbg { m } { }
 
-if $FG(V) {
+if { $FG(V) || $FG(Q) } {
 
 	if $FG(D) {
 		proc dbg { m } { puts $m }
 	}
 
-	puts "PiComp version $Version"
+	puts "PiComp version $Version (ZZ000000A)"
+
+	if $FG(Q) {
+		exit 0
+	}
+	
 	parse_vuee
 
 } else {

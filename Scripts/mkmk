@@ -2423,6 +2423,12 @@ proc main { } {
 		bad_usage
 	}
 
+	if { $arg == "-V" } {
+		# just print the version number (release tag)
+		puts "ZZ000000A"
+		exit 0
+	}
+
 	if { $arg == "-M" || $arg == "-P" } {
 		# library mode
 		set Run(type) [string index $arg 1]

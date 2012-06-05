@@ -63,6 +63,7 @@ proc sy_usage { } {
 	puts stderr "       -P file       preprocessor plugin file"
 	puts stderr "       -C file       alternative configuration file"
 	puts stderr "       -T string     window title string (GUI version)"
+	puts stderr "       -V            print the version number and exit"
 	puts stderr ""
 	puts stderr "Note that pktlen should be the same as the length used"
 	puts stderr "by the praxis in the respective argument of phys_uart."
@@ -944,12 +945,12 @@ proc sy_mkterm { } {
 	global ST WI PM
 
 	if { $PM(TTL) != "" } {
-		set hd " $PM(TTL)"
+		set hd " \[$PM(TTL)\]"
 	} else {
 		set hd ""
 	}
 
-	wm title . "Piter$hd"
+	wm title . "Piter (ZZ000000A)$hd"
 
 	text .t \
 		-yscrollcommand ".scroly set" \
@@ -1604,6 +1605,11 @@ proc sy_initialize { } {
 		if ![regexp -nocase "^-(\[a-z\])$" $par jnk par] {
 			# must be a flag
 			sy_usage
+		}
+
+		if { $par == "V" } {
+			puts "ZZ000000A"
+			exit 0
 		}
 
 		sy_argsft
