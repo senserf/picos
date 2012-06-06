@@ -2229,3 +2229,22 @@ PG120605B:	SIDE >= PG120605A, PIP >= PG120605A, VUEE >= PG120605A
 	the -V option. GUI scripts include the tag number in the title of the
 	main window.
 
+PG120606A:
+
+	CC430W (and other CC430-based boards) can now use UART rates above
+	9600. When you put:
+
+	    #define UART_FROM_SMCLK 1
+
+	in options.sys, the UART will be driven by SMCLK (fed from the FLL) at
+	12,025,856 Hz (give or take a few Hz ;-). Then you can use UART rates
+	from 4800 up to 115,200.
+
+	CC430W_BLUE has the respective definition in board_options.sys, so you
+	need not do anything (this is for Gerry).
+
+	Note that the UART_FROM_SMCLK option applies only to CC430-based
+	boards. On MSP430F1xx-based boards, the UART is driven from SMCLK
+	whenever a second (high-speed) crystal is present (CRYSTAL2_RATE is
+	set). The two issues can be easily separated, although there is
+	probably no rush.

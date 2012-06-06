@@ -1,7 +1,7 @@
 #ifndef	__pg_uart_def_h
 #define	__pg_uart_def_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -407,14 +407,26 @@ typedef struct	{
 
 // CC430 single UART on P1.5, P1.6
 
-#if CRYSTAL2_RATE
+#ifndef	UART_FROM_SMCLK
+#define	UART_FROM_SMCLK	0
+#endif
+
+#if UART_FROM_SMCLK
+
+#ifndef	SMCLK_RATE
+#error "SMCLK_RATE undefined!"
+#endif
+
 // SMCLK
 #define	UART_UTCTL	UCSSEL1
-#define	UART_CLOCK_RATE	CRYSTAL2_RATE
+#define	UART_CLOCK_RATE	SMCLK_RATE
+
 #else
+
 // ACLK
 #define	UART_UTCTL	UCSSEL0
 #define	UART_CLOCK_RATE	CRYSTAL_RATE
+
 #endif
 
 
@@ -491,7 +503,7 @@ typedef struct	{
 
 // Modulus for oversampling mode ( << 1 | 1 )
 #define _uu_modu_o(r)	(((_uu_rndF_x (r) < 16 ? _uu_rndF_x (r) : \
-				_uu_rndF_x (r) - 1) << 8) | 1)
+				_uu_rndF_x (r) - 1) << 4) | 1)
 
 // Prescaler non-oversampling
 #define _uu_pres_n(r)	(UART_CLOCK_RATE/(r))
@@ -588,8 +600,6 @@ typedef struct	{
 #define	UART_UCBRS	_uu_modu (UART_RATE)
 
 #define	UART_RATE_TABLE	{ \
-    {	12, _uu_pres (  1200), _uu_modu (  1200) }, \
-    {	24, _uu_pres (  2400), _uu_modu (  2400) }, \
     {	48, _uu_pres (  4800), _uu_modu (  4800) }, \
     {	96, _uu_pres (  9600), _uu_modu (  9600) }, \
     {  144, _uu_pres ( 14400), _uu_modu ( 14400) }, \
@@ -602,7 +612,7 @@ typedef struct	{
 }
 
 #define	UART_RATES_AVAILABLE \
-	 { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152, 2560 }
+	 { 48, 96, 144, 192, 288, 384, 768, 1152, 2560 }
 
 #endif	/* UART_CLOCK_RATE > 32768 */
 

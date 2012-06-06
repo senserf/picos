@@ -54,6 +54,7 @@ static char *cmdl;			// List of commands to run
 static word nbibuf;			// bibuf fill count
 static word rate;			// Current rate index
 static word OK;
+static sint min_rate_index;
 
 typedef struct o_line_s {
 	struct o_line_s *next;
@@ -712,9 +713,8 @@ fsm bt_findrate {
 
 		OK = 0;
 
-		// Do not use rates below 9600
-		for (rate = 3; !bt_rate_available (rate) && rate < NRATES;
-			rate++);
+		for (rate = min_rate_index;
+			!bt_rate_available (rate) && rate < NRATES; rate++);
 
 		if (rate == NRATES) {
 			wl_u ("No rates available for module");
@@ -926,8 +926,15 @@ fsm root {
 	ab_mode (AB_MODE_PASSIVE);
 #endif
 	ion (UART_BT, CONTROL, (char*)(&n), UART_CNTRL_GETRATE);
-	rate = rate_index (n);
+	// Do not use rates below 9600
+	if ((min_rate_index = rate_index (96)) < 0) {
+		wl_u ("Rate 9600 is not available!");
+		// Wait forever
+		when (&min_rate_index, RS_INI);
+		release;
+	}
 
+	rate = rate_index (n);
 
 	runfsm bt_read;
 	runfsm bt_write;
@@ -991,7 +998,7 @@ fsm root {
 
 	n = 96;
 	scan (uibuf + 1, "%d", &n);
-	if ((k = rate_index (n)) < 3 || !bt_rate_available (k))
+	if ((k = rate_index (n)) < min_rate_index || !bt_rate_available (k))
 		proceed RS_ERR;
 	ion (UART_BT, CONTROL, (char*)(&n), UART_CNTRL_SETRATE);
 	rate = k;
@@ -1002,7 +1009,7 @@ fsm root {
 
 	n = 96;
 	scan (uibuf + 1, "%d", &n);
-	if ((k = rate_index (n)) < 3)
+	if ((k = rate_index (n)) < min_rate_index)
 		proceed RS_ERR;
 	ion (UART_A, CONTROL, (char*)(&n), UART_CNTRL_SETRATE);
 	proceed RS_RCM;
@@ -1063,7 +1070,7 @@ fsm root {
 
 	n = 0;
 	scan (uibuf + 1, "%d", &n);
-	if ((k = rate_index (n)) < 3 || !bt_rate_available (k))
+	if ((k = rate_index (n)) < min_rate_index || !bt_rate_available (k))
 		proceed RS_ERR;
 
 	new_rate_index = k;

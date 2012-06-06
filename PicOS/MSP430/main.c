@@ -2,7 +2,7 @@
 #include "storage.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -515,7 +515,7 @@ static void ssm_init () {
 	_BIS_SR(SCG0);             // Disable the FLL control loop
 	UCSCTL0 = 0x0000;          // Set lowest possible DCOx, MODx
 	UCSCTL1 = DCORSEL_5;       // Select suitable range
-	UCSCTL2 = FLLD_1 + 0x16E;  // Set DCO Multiplier
+	UCSCTL2 = FLL_DIVIDER + DCO_MULTIPLIER;  // 12,025,856 Hz
 	_BIC_SR(SCG0);             // Enable the FLL control loop
 	
     	// Worst-case settling time for the DCO when the DCO range bits have

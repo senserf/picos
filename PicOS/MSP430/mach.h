@@ -126,6 +126,11 @@
 #define		__ADC_CONFIG__	3	// Extended ADC with REF module
 #define		__TCI_CONFIG__	2
 #define		__FLASH_TYPE__	2
+// DCO/FLL parameters
+#define		FLL_DIVIDER	FLLD_1	// fDCO = fDCOCLKDIV * 2
+#define		DCO_MULTIPLIER	366
+// This yields 12,025,856 Hz
+#define		SMCLK_RATE	(CRYSTAL_RATE * (DCO_MULTIPLIER + 1))
 #endif
 
 #ifndef		RAM_SIZE
