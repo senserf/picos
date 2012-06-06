@@ -2248,3 +2248,36 @@ PG120606A:
 	whenever a second (high-speed) crystal is present (CRYSTAL2_RATE is
 	set). The two issues can be easily separated, although there is
 	probably no rush.
+
+PG120606B:
+
+	Fixed a little problem with the triple clock (see R100411A). The idea
+	was just great, except for one tiny glitch. In a situation like this:
+
+		fsm one {
+			state INIT:
+				diag ("one");
+				delay (1024, INIT);
+		}
+
+		fsm two {
+			state INIT:
+				udelay (10);
+				proceed INIT;
+		}
+
+	i.e., FSM one (of a higher priority) executing delay, while FSM two (of
+	a lower priority) looping through the scheduler, the delay of FSM one
+	would never go off. That was because the duration of the scheduler loop
+	at FSM two is below 1/4 of a millisecond, and the scheduler would keep
+	resetting the timer for FSM one before it could be given a chance to
+	make a tick.
+
+	Arguably, the situation is pathological. We do not have praxes like
+	this, especially in the low-power environment for which triple clock
+	was primarily intended. But I did hit upon this very problem in the
+	spectrum analyzer praxis. I could easily circumvent it by switching the
+	triple clock off, but ... still ... I didn't like it.
+
+	The way it is now the code has become marginally more complicated, but
+	in fact considerably more efficient timewise.

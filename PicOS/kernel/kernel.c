@@ -177,7 +177,7 @@ lword seconds () { return __pi_nseconds; }
 
 #endif
 
-void update_n_wake (word min) {
+void update_n_wake (word min, Boolean force) {
 //
 // The idea is this. There are two circular clock pointers wrapping around at
 // 64K (PicOS) milliseconds, i.e., at 64 seconds. One of them is called new
@@ -208,7 +208,10 @@ void update_n_wake (word min) {
 #define	znew __pi_new
 	// This will collect any ticks accumulated since the timer was started
 	// (i.e., bring new up to date) and make sure the timer is stopped now
-	TCI_UPDATE_DELAY_TICKS;
+	if (TCI_UPDATE_DELAY_TICKS (force))
+		// Timer is running and we are not doing a new delay request;
+		// so just let it continue
+		return;
 #endif
 // ============================================================================
 
@@ -418,7 +421,7 @@ void delay (word d, word state) {
 	settstate (__pi_curr, state);
 
 	// Catch up with time
-	update_n_wake (d);
+	update_n_wake (d, YES);
 
 	__pi_curr->Timer = __pi_old + d;
 
@@ -440,7 +443,7 @@ word dleft (sint pid) {
 
 	__pi_pcb_t *i;
 
-	update_n_wake (MAX_UINT);
+	update_n_wake (MAX_UINT, YES);
 
 	if (pid == 0)
 		i = __pi_curr;

@@ -1198,7 +1198,7 @@ __PUBLF (PicOSNode, void, tcvp_settimer) (address p, word del) {
 	TheNode->tcv_tservice->newitem (del);
 	t -> value = del;
 #else
-	update_n_wake (del);
+	update_n_wake (del, YES);
 	t -> value = __pi_old + del;
 #endif
 

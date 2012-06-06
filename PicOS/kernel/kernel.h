@@ -16,7 +16,7 @@
 #include "pins.h"
 
 void	__pi_set_release (void);
-void	update_n_wake (word);
+void	update_n_wake (word, Boolean);
 
 #ifdef SENSOR_LIST
 void	__pi_init_sensors (void);

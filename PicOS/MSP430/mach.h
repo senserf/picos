@@ -460,11 +460,11 @@ typedef	struct {
 #define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	aux_timer_inactive = 0
 #define	TCI_RUN_DELAY_TIMER		tci_run_delay_timer ()
 #define	TCI_RUN_AUXILIARY_TIMER		tci_run_auxiliary_timer ()
-#define	TCI_UPDATE_DELAY_TICKS 		tci_update_delay_ticks ()
+#define	TCI_UPDATE_DELAY_TICKS(f)	tci_update_delay_ticks (f)
 
 void tci_run_delay_timer ();
 void tci_run_auxiliary_timer ();
-void tci_update_delay_ticks ();
+word tci_update_delay_ticks (Boolean);
 
 #define	cli_utims	cli_aux
 #define	sti_utims	sti_aux

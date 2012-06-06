@@ -664,7 +664,7 @@ void tci_run_delay_timer () {
 //
 	word d;
 
-	cli_tim;	// This should be redundant
+	// cli_tim;	// This should be redundant
 
 	// Time to elapse in msecs
 	d = __pi_mintk - __pi_old;
@@ -685,21 +685,36 @@ void tci_run_auxiliary_timer () {
 	sti_aux;
 }
 
-void tci_update_delay_ticks () {
+word tci_update_delay_ticks (Boolean force) {
 //
 // Called to stop the timer, if running, and tally up the ticks
 //
 	cli_tim;
 	if (setdel) {
 		// The timer has been running, otherwise we don't have to
-		// bother; the role of the 3 is to round it up, such that
-		// the estimate will tend to err on the low side, which will
-		// make sure that the measured delay is never less than asked
-		// for
-		__pi_new += setdel - TCI_TICKSTODEL (TCI_CCR - gettav () + 3);
-		// Use it only once
-		setdel = 0;
+		// bother; force tells whether we have to stop the timer (e.g.,
+		// catering to a new delay request), or whether we are just
+		// checking; if !force, and the timer is running, just let
+		// it go and return YES, to tell update_n_wake to exit;
+		// when we return NO, it means that we actually have to
+		// examine the delay queue; in such a case, the timer will
+		// be restarted later
+		if (force) {
+			// the role of the 3 is to round it up, such that the
+			// estimate will tend to err on the low side,
+			// which will make sure that the measured delay is
+			// never less than asked for
+			__pi_new +=
+			    setdel - TCI_TICKSTODEL (TCI_CCR - gettav () + 3);
+			// Use it only once
+			setdel = 0;
+			goto EX;
+		}
+		sti_tim;
+		return YES;
 	}
+EX:
+	return NO;
 }
 		
 // ============================================================================
