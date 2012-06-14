@@ -3555,7 +3555,7 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 		cl [0] = '\0';
 
 	if (pn->highlight) {
-		sprintf (ch, "%1d", (pn->highlight->Color) & 0x00ffffff);
+		sprintf (ch, "%1lu", (pn->highlight->Color) & 0x00ffffff);
 		lb = pn->highlight->Label;
 	} else {
 		ch [0] = '\0';

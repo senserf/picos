@@ -827,3 +827,9 @@ PG120605A:	SIDE >= PG120605A, PICOS >= PG120605B, PIP >= PG120605A
     the -V option. GUI scripts include the tag number in the title of the
     main window.
 
+PG120614A:
+
+    Udaemon outfitted with the new version of unames (see the corresponding
+    RTAG in PICOS).
+
+    Fixed a minor (harmless) format inconsistency in agent.cc spotted by Wlodek.
