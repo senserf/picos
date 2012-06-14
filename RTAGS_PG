@@ -2281,3 +2281,19 @@ PG120606B:
 
 	The way it is now the code has become marginally more complicated, but
 	in fact considerably more efficient timewise.
+
+PG120614A:
+
+	Fixed a problem in unames (this is a Tcl package for locating openable
+	COM/tty devices) causing that the xterm window from which a script
+	(using unames) was invoked was subsequently left (as a tty) in a messed
+	up (raw) state (requiring a reset). As it turns out, such a state
+	results when you open and close the pseudo tty of the current terminal.
+
+	I have also reduced the number of different kinds of tty devices that
+	are shown as options and scanned, basically to COMn (for Windows, or
+	"non-native" Cygwin), ttyUSBn for Linux, and ttySn for "native" Cygwin,
+	plus virtual devices: CNCAn/CNCBm, pts/n, ptyn.
+
+	A couple of trivial cosmetics, e.g., in anticipation of the
+	solder-reflow praxis.

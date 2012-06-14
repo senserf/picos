@@ -1,7 +1,7 @@
 #ifndef __pg_irq_timer_h
 #define __pg_irq_timer_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -15,6 +15,10 @@
 
 #if LEDS_BLINKING
 #include "irq_timer_leds.h"
+#endif
+
+#ifdef PRAXIS_IRQ_TIMER
+#include "board_irq_timer.h"
 #endif
 
 #endif
