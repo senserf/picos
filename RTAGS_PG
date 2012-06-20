@@ -2297,3 +2297,14 @@ PG120614A:
 
 	A couple of trivial cosmetics, e.g., in anticipation of the
 	solder-reflow praxis.
+
+PG120620A:
+
+	Removed the old (and long ago obsoleted) symbol RADIO_BITRATE from all
+	places replacing it (wherever required) with RADIO_DEFAULT_BITRATE.
+	Wlodek has just discovered that his attempts to set the radio bit rate
+	to 200K were illusory.
+
+	A few (mostly) cosmetic fixes to the spectrum analyzer.
+
+	Added a command to TEST/WARSAW to show stack/memory usage data.

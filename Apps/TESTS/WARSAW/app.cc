@@ -1829,6 +1829,15 @@ fsm root {
 
   state RS_INIT:
 
+#if STACK_GUARD
+	sl = stackfree ();
+#endif
+#if MALLOC_STATS
+	ss = memfree (0, NULL);
+#endif
+#if STACK_GUARD || MALLOC_STATS
+	diag ("MEM: %d %d", sl, ss);
+#endif
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
 
@@ -1889,6 +1898,9 @@ fsm root {
 		"p v  -> xmit pwr\r\n"
 		"c v  -> channel\r\n"
 		"q -> stop radio\r\n"
+#if STACK_GUARD || MALLOC_STATS
+		"m -> memstat\r\n"
+#endif
 		"n -> reset\r\n"
 		"u 0|1 v  -> set uart 0|1 rate [def = 96]\r\n"
 		"d -> pwr: 0-d, 1-u\r\n"
@@ -2111,6 +2123,24 @@ RS_Loop:		proceed RS_RCMD;
 				runfsm test_lcd;
 				joinall (test_lcd, RS_RCMDM2);
 				release;
+		}
+#endif
+#if STACK_GUARD || MALLOC_STATS
+		case 'm' : {
+#if STACK_GUARD
+			sl = stackfree ();
+#else
+			sl = 0;
+#endif
+#if MALLOC_STATS
+			ss = memfree (0, &bs);
+			w = maxfree (0, &len);
+#else
+			ss = w = bs = len = 0;
+#endif
+			diag ("S = %u, MF = %u, FA = %u, MX = %u, NC = %u",
+				sl, ss, bs, w, len);
+			proceed RS_RCMD;
 		}
 #endif
 	}
