@@ -3217,8 +3217,12 @@ int LEDSM::ledup_status () {
  */
 	int i, len;
 
-
-	while ((len = snprintf (UBuf, OUpdSize, "U %08.3f %1ld %s: %c ",
+	while ((len = snprintf (UBuf, OUpdSize,
+#if LONGBITS <= 32
+				"U %08.3f %1ld %s: %c ",
+#else
+				"U %08.3f %1d %s: %c ",
+#endif
 		ituToEtu (Time),
 		IN.TPN->getId (),
 		IN.TPN->getTName (),
@@ -3555,7 +3559,13 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 		cl [0] = '\0';
 
 	if (pn->highlight) {
-		sprintf (ch, "%1lu", (pn->highlight->Color) & 0x00ffffff);
+		sprintf (ch,
+#if LONGBITS <= 32
+			 "%1lu",
+#else
+			 "%1u",
+#endif
+			 (pn->highlight->Color) & 0x00ffffff);
 		lb = pn->highlight->Label;
 	} else {
 		ch [0] = '\0';
@@ -3564,12 +3574,20 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 		
 	while ((rc = (cmd == 'U') ?
 		snprintf (RBuf, RBSize,
-			"U %1ld %1f %1f <%s,%s> [%s,%s]\n", NN,
-			xx, yy, cl, cp, ch, lb) :
+#if LONGBITS <= 32
+			  "U %1ld %1f %1f <%s,%s> [%s,%s]\n",
+#else
+			  "U %1d %1f %1f <%s,%s> [%s,%s]\n",
+#endif
+			  NN, xx, yy, cl, cp, ch, lb) :
 		snprintf (RBuf, RBSize,
-			"P %1ld %1ld %1f %1f %s <%s,%s> [%s,%s]\n", NN,
-			NStations, xx, yy, pn->getTName (), cl, cp, ch, lb)) >=
-				RBSize) {
+#if LONGBITS <= 32
+			  "P %1ld %1ld %1f %1f %s <%s,%s> [%s,%s]\n",
+#else
+			  "P %1d %1d %1f %1f %s <%s,%s> [%s,%s]\n",
+#endif
+			  NN, NStations, xx, yy, pn->getTName (), cl, cp, ch,
+			  lb)) >= RBSize) {
 
 		RBSize = (word)(rc + 16);
 		delete [] RBuf;
@@ -3975,8 +3993,13 @@ PanelHandler::perform {
 			// a socket; thus PUP must be present
 			if (!PUP->empty ()) {
 				NN = PUP->get ();
-				sprintf (RBuf, "%1ld %c\n", NN,
-					((PicOSNode*)idToStation (NN))->Halted ?
+				sprintf (RBuf,
+#if LONGBITS <= 32
+					 "%1ld %c\n",
+#else
+					 "%1d %c\n",
+#endif
+					 NN, ((PicOSNode*)idToStation (NN))->Halted ?
 						'F' : 'O');
 				BP = &(RBuf [0]);
 				Left = strlen (RBuf);
@@ -4068,7 +4091,11 @@ Illegal_nid:
 			pn = (PicOSNode*)idToStation (NN);
 
 			while ((rc = snprintf (RBuf, RBSize,
+#if LONGBITS <= 32
 			    "%1ld %c %1ld %s\n",
+#else
+			    "%1d %c %1d %s\n",
+#endif
 			    NN,
 			    pn->Halted ?  'F' : 'O',
 			    NStations,

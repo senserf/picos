@@ -833,3 +833,11 @@ PG120614A:
     RTAG in PICOS).
 
     Fixed a minor (harmless) format inconsistency in agent.cc spotted by Wlodek.
+
+PG120626A:
+
+    Nick's fix to eliminate compiler warnings on 64-bit machines:
+
+    Nicholas Boers <boersn@macewan.ca>: On 64-bit machines, SIDE uses the C
+    type 'int' for its type 'Long'. The code then proceeded to use the "%ld"
+    format specifier, which caused warning messages.
