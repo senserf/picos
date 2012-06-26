@@ -203,7 +203,7 @@ void RFShadow::setup (
 	print (bu, "  Activity threshold:", 10, 26);
 	print (co, "  Cutoff threshold:", 10, 26);
 
-	print ("  Fading fromula:\n");
+	print ("  Fading formula:\n");
 	print (form ("    RP(d)/XP = -10 x %3.1f x log(d/%3.1fm) + X(%3.1f) - "
 		"%4.1fdB\n\n", be, rd, sg, lo));
 }

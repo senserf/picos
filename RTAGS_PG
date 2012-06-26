@@ -415,3 +415,7 @@ PG120605A:	PICOS >= PG120605B, PIP >= PG120605A, VUEE >= PG12060A
 	   PICOS deploy now passes the RTAG number (like PG120605A) to maker,
 	   which puts it into version.h. When called with -V, mks/vuee prints
 	   the version number and exits.
+
+PG120626A:
+
+	   Nick's fix of a couple of typos: Nicholas Boers <boersn@macewan.ca>.
