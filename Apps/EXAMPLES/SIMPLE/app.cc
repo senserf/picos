@@ -24,11 +24,12 @@ void show (word st, address pkt) {
 	static word Count = 0;
 
 	ser_outf (st, "RCV: %d [%s] pow = %d qua = %d\r\n",
-		Count++,
+		Count,
 		(char*)(pkt + 1),
 		((byte*)pkt) [tcv_left (pkt) - 1],
 		((byte*)pkt) [tcv_left (pkt) - 2]
 	);
+	Count++;
 }
 
 fsm receiver {

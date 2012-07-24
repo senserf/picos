@@ -4044,6 +4044,8 @@ proc compile_pgm { } {
 	set PG($pg,TD) ""
 	# type name list (to prevent duplicates)
 	set PG($pg,TN) ""
+	# flag == host_id attribute present
+	set PG($pg,HI) 0
 
 	set cnt 0
 	foreach cfn $SFList {
@@ -4985,6 +4987,11 @@ proc emit_vhdr { } {
 
 	append res "char __attr_init_end \[0\];\n"
 
+	if $PG($Pgm,HI) {
+		# host_id present, make it visible
+		append res "lword __host_id () { return __vattr_host_id; };\n"
+	}
+
 	append res "void __praxis_starter ();\n"
 	append res "void reset () \{ PicOSNode::reset (); \};\n"
 	append res "void init (); \n\};\n"
@@ -5371,6 +5378,11 @@ K {
 	# don't use #ifdef here, may help discover some potential errors
 	append ins "#define $vnm (((__NT[pnfx]*)"
 	append ins "TheStation)->$nnm)\n"
+
+	if { $nnm == "__vattr_host_id" && [lsearch -exact $pfx "lword"] >= 0 } {
+		# flag == host_id variable present
+		set PG($Pgm,HI) 1
+	}
 
 	s_vdec v nam $nnm
 	# include the original variable name

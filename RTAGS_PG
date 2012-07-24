@@ -2308,3 +2308,28 @@ PG120620A:
 	A few (mostly) cosmetic fixes to the spectrum analyzer.
 
 	Added a command to TEST/WARSAW to show stack/memory usage data.
+
+PG120724A:	VUEE >= PG120724A
+
+	PiComp has been made aware of the host_id variable. If present, it
+	will be made available to VUEE to determine the node ID displayed in
+	udaemon's ROAMER window instead of the station's serial number as
+	known by SMURPH.
+
+	Note: this way, host_id has been turned into a de facto standard. If
+	a praxis declares host_id this way:
+
+		lword host_id = ...;
+
+	or
+
+		static lword host_id = ...;
+
+	then the contents of that variable (the less significant half-word)
+	will be also used by VUEE (udaemon) as the node identifier. Otherwise, 
+	udaemon will be using simple SMURPH node numbers, as before.
+
+	A cosmetic fix in Apps/EXAMPLES/SIMPLE and SIMPLE_TWO (the Count
+	variable [used to count received packets] was incorrectly incremented).
+
+	A few cosmetic improvements to the documentation.

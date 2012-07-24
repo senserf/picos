@@ -840,6 +840,7 @@ void	dbb (word);
 #define	PHYSOPT_GETMAXPL	24	/* Get the maximum packet length */
 
 #define	PHYSOPT_RESET		25	/* Reset the radio */
+#define	PHYSOPT_RXWOR		26	/* Wake-on-radio mode */
 
 typedef	struct {
 /*
