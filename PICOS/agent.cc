@@ -3575,19 +3575,20 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 	while ((rc = (cmd == 'U') ?
 		snprintf (RBuf, RBSize,
 #if LONGBITS <= 32
-			  "U %1ld %1f %1f <%s,%s> [%s,%s]\n",
+			  "U %1ld %1lu %1f %1f <%s,%s> [%s,%s]\n",
 #else
-			  "U %1d %1f %1f <%s,%s> [%s,%s]\n",
+			  "U %1d %1u %1f %1f <%s,%s> [%s,%s]\n",
 #endif
-			  NN, xx, yy, cl, cp, ch, lb) :
+			  NN, pn->__host_id (), xx, yy, cl, cp, ch, lb) :
 		snprintf (RBuf, RBSize,
 #if LONGBITS <= 32
-			  "P %1ld %1ld %1f %1f %s <%s,%s> [%s,%s]\n",
+			  "P %1ld %1lu %1ld %1f %1f %1d %s <%s,%s> [%s,%s]\n",
 #else
-			  "P %1d %1d %1f %1f %s <%s,%s> [%s,%s]\n",
+			  "P %1d %1u %1d %1f %1f %1d %s <%s,%s> [%s,%s]\n",
 #endif
-			  NN, NStations, xx, yy, pn->getTName (), cl, cp, ch,
-			  lb)) >= RBSize) {
+			  NN, pn->__host_id (), NStations, xx, yy,
+				pn->Movable, pn->getTName (), cl, cp, ch, lb)
+	) >= RBSize) {
 
 		RBSize = (word)(rc + 16);
 		delete [] RBuf;
@@ -3717,6 +3718,7 @@ Illegal:
 				if (imode (Flags) != XTRN_IMODE_SOCKET)
 					excptn ("MoveHandler: illegal request "
 						"%s", RBuf);
+IDisconn:
 				create Disconnector (Agent, ECONN_INVALID);
 				terminate;
 			}
@@ -3761,6 +3763,15 @@ Illegal_nid:
 			if (!isStationId (NN))
 				goto Illegal_nid;
 
+			pn = (PicOSNode*)idToStation (NN);
+
+			if (!pn->Movable) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: request to move "
+					    "a non-movable node");
+				goto IDisconn;
+			}
+
 			// Prepare the parse structure
 			NP [0] . type = NP [1] . type = TYPE_double;
 
@@ -3775,11 +3786,9 @@ Illegal_crd:
 						"negative", NP[0].DVal,
 						    NP[1].DVal);
 				// Socket
-				create Disconnector (Agent, ECONN_INVALID);
-				terminate;
+				goto IDisconn;
 			}
 
-			pn = (PicOSNode*)idToStation (NN);
 			if (pn->RFInt != NULL) {
 				TR = pn->RFInt->RFInterface;
 				// Cancel any present movement
@@ -3801,6 +3810,14 @@ Illegal_crd:
 			if (!isStationId (NN))
 				goto Illegal_nid;
 
+			pn = (PicOSNode*) idToStation (NN);
+			if (!pn->Movable) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: request to roam "
+					    "a non-movable node");
+				goto IDisconn;
+			}
+
 			for (rc = 0; rc < 9; rc++)
 				NP [rc] . type = TYPE_double;
 
@@ -3819,8 +3836,7 @@ Illegal_crd:
 					"<%f,%f> <%f,%f>", NP[0].DVal,
 					   NP[1].DVal, NP[2].DVal, NP[3].DVal);
 				// Socket
-				create Disconnector (Agent, ECONN_INVALID);
-				terminate;
+				goto IDisconn;
 			}
 
 			if (NP [4].DVal <= 0.0 || NP [5].DVal < NP [4].DVal) {
@@ -3829,8 +3845,7 @@ Illegal_crd:
 					"parameters "
 					"(%f,%f)", NP[4].DVal, NP[5].DVal);
 				// Socket
-				create Disconnector (Agent, ECONN_INVALID);
-				terminate;
+				goto IDisconn;
 			}
 
 			if (NP [6].DVal < 0.0 || NP [7].DVal < NP [6].DVal) {
@@ -3839,24 +3854,19 @@ Illegal_crd:
 					"parameters "
 					"(%f,%f)", NP[6].DVal, NP[7].DVal);
 				// Socket
-				create Disconnector (Agent, ECONN_INVALID);
-				terminate;
+				goto IDisconn;
 			}
 
 			// The time can be negative, which (including zero)
 			// means that we roam forever
 
-			// Do not roam stations devoid of RF interface
-			pn = (PicOSNode*) idToStation (NN);
-			if (pn->RFInt != NULL)
-				rwpmmStart (NN, pn->RFInt->RFInterface,
-					NP [0].DVal, NP [1].DVal,
-					NP [2].DVal, NP [3].DVal,
-					NP [4].DVal, NP [5].DVal,
-					NP [6].DVal, NP [7].DVal,
-					NP [8].DVal);
+			rwpmmStart (NN, pn->RFInt->RFInterface,
+				NP [0].DVal, NP [1].DVal,
+				NP [2].DVal, NP [3].DVal,
+				NP [4].DVal, NP [5].DVal,
+				NP [6].DVal, NP [7].DVal,
+				NP [8].DVal);
 
-			// Just ignore otherwise
 			proceed Loop;
 
 		    case '\0':

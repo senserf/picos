@@ -240,7 +240,7 @@ typedef struct {
 typedef struct {
 /*
  * This is a set of parameters describing a node. By keeping everything
- * in one place, we can simplify constructor headers and avoid some mess
+ * in one place, we can simplify constructor headers and avoid mess
  * during network construction stage.
  */
 	word	PLimit;		// Process table size
@@ -248,6 +248,7 @@ typedef struct {
 	word	On;		// Initially on
 	word	Lcdg;		// This will do for now as a flag
 	double X, Y;		// Coordinates
+	Boolean	Movable;
 	data_rf_t *rf;		// RF module data parameters
 	data_ep_t *ep;		// EEPROM parameters
 	data_ua_t *ua;		// UART parameters

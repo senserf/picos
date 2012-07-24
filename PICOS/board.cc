@@ -548,6 +548,8 @@ void PicOSNode::setup (data_no_t *nd) {
 		RFInt = new rfm_intd_t (nd);
 	}
 
+	Movable = nd->Movable;
+
 	if (nd->ua == NULL) {
 		// No UART
 		uart = NULL;
@@ -2493,7 +2495,10 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	ND->Mem = 0;
 	// These ones are not set here, placeholders only to be set by
 	// the caller
-	ND->X = ND->Y = 0.0;
+	ND->X = ND->Y = -1.0;
+	// The default for Movability is YES, but for a node (as opposed to
+	// "default") make it "undefined" for now
+	ND->Movable = (nn < 0) ? YES : YES + YES;
 
 	if (ion == NULL)
 		ND->On = WNONE;
@@ -2952,6 +2957,43 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 /* ================= */
 
 	ND->sa = readSensParams (data, xname (nn));
+
+/* ======== */
+/* Location */
+/* ======== */
+
+	if ((cur = sxml_child (data, "location")) != NULL) {
+		if ((att = sxml_attr (cur, "movable")) != NULL) {
+			// yes or no
+			if (strcmp (att, "no") == 0)
+				ND->Movable = NO;
+			else if (strcmp (att, "yes") == 0)
+				ND->Movable = YES;
+			else
+				xeai ("movable", "location", att);
+		}
+		if (nn >= 0) {
+			// Not defaults
+			att = sxml_txt (cur);
+			np [0].type = np [1].type = TYPE_double;
+			if (parseNumbers (att, 2, np) != 2 ||
+			    np [0].DVal < 0.0 || np [1].DVal < 0.0)
+				excptn ("Root: illegal location (%s) for node "
+					"%1d", att, nn);
+			ND->X = np [0].DVal;
+			ND->Y = np [1].DVal;
+			print (form ("  Location: <%1.2f,%1.2f> %c\n",
+				ND->X, ND->Y,
+				 ND->Movable == NO  ? 'F' :
+				(ND->Movable == YES ? 'M' : 'D')));
+				
+		} else {
+			// Defaults
+			print (form ("  Location: %c\n",
+				 ND->Movable == NO  ? 'F' : 'M'));
+		}
+		print ("\n");
+	}
 
 	return ND;
 }
@@ -4286,25 +4328,20 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 				excptn ("Root: LBT parameters for node %1d are "
 					"undefined", i);
 		}
-				
-		// Location: there is no definable default for it, but it
-		// defaults to <0, 0> if no radif
-		if ((cur = sxml_child (cno, "location")) == NULL) {
 
+		if (NOD->X < 0.0 || NOD->Y < 0.0) {
+			// No location, there's no default for it
 			if (NRF != NULL)
 			  	excptn ("Root: no location for node %1d (which"
 					"is equipped with radio)", i);
-
+			// OK, if no radio, but force it to be legal
 			NOD->X = NOD->Y = 0.0;
+			NOD->Movable = NO;
 		} else {
-			att = sxml_txt (cur);
-			np [0].type = np [1].type = TYPE_double;
-			if (parseNumbers (att, 2, np) != 2 ||
-			    np [0].DVal < 0.0 || np [1].DVal < 0.0)
-				excptn ("Root: illegal location (%s) for node "
-					"%1d", att, i);
-			NOD->X = np [0].DVal;
-			NOD->Y = np [1].DVal;
+			// Location OK
+			if (NOD->Movable != NO && NOD->Movable != YES)
+				// Movability unknown, use the default
+				NOD->Movable = DEF->Movable;
 		}
 
 		buildNode (nod_type, NOD);

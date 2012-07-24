@@ -4836,8 +4836,8 @@ proc moveGNP { Sok cmd } {
 	global Wins Stat HPA NTYPE_COLORS Geometry
 
 	if ![regexp \
-	  "^P $HPA(D) $HPA(D) $HPA(F) $HPA(F) (\[^ \]+) $HPA(P) $HPA(V)" \
-	    $cmd junk nod tot x y tn ls ps vc vn] {
+"^P $HPA(D) $HPA(D) $HPA(D) $HPA(F) $HPA(F) $HPA(D) (\[^ \]+) $HPA(P) $HPA(V)" \
+	    $cmd junk nod hos tot x y mov tn ls ps vc vn] {
 		return
 	}
 
@@ -4851,7 +4851,9 @@ proc moveGNP { Sok cmd } {
 				
 	if [catch {
 		set nod [expr $nod]
+		set hos [expr $hos]
 		set tot [expr $tot]
+		set mov [expr $mov]
 	} ] {
 		return
 	}
@@ -4868,7 +4870,8 @@ proc moveGNP { Sok cmd } {
 		set Stat($Sok,NN) $tot
 	} elseif { $Stat($Sok,NN) != $tot } {
 		# different total, this will never happen either
-		log "illegal response, total doesn't match '$cmd'"
+		log "illegal response,\
+			total doesn't match expected value '$cmd'"
 		dealloc $Sok
 		return
 	}
@@ -4969,6 +4972,12 @@ proc moveGNP { Sok cmd } {
 	#
 	set Stat($Sok,NL,$nod) \
 		[list $x $y $tn $co "" "" "" $fb [vipars $vc $vn]]
+
+	# the host number, i.e., the lower word of host_id, aka local_host
+	set Stat($Sok,NH,$nod) $hos
+
+	# movability
+	set Stat($Sok,NM,$nod) $mov
 
 	incr Stat($Sok,CI)
 	if { $Stat($Sok,CI) == $tot } {
@@ -5439,7 +5448,8 @@ proc drawNode { Sok w n } {
 
 	# the node number
 	set t [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
-		-anchor s -text $n -state disabled]
+		-anchor s -text [expr $Stat($Sok,NH,$n) & 0xffff] \
+		-state disabled]
 	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $l $f $v]
 }
 
@@ -5563,6 +5573,11 @@ proc moveMove { Sok n nx ny } {
 	global Stat CMARGIN
 
 	set w [stwin $Sok]
+
+	if !$Stat($Sok,NM,$n) {
+		# node not movable
+		return
+	}
 
 	lassign $Stat($Sok,NL,$n) x y z c o t l f v
 
@@ -5828,13 +5843,14 @@ proc moveUpd { Sok cmd } {
 #
 	global Stat HPA
 
-	if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
-	      $cmd junk nod x y ls ps vc vn] {
+	if ![regexp "^U $HPA(D) $HPA(D) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      $cmd junk nod hos x y ls ps vc vn] {
 		continue
 	}
 
 	if { [catch {
 		set nod [expr $nod]
+		set hos [expr $hos]
 		set x [expr $x]
 		set y [expr $y]
 	}] || $x < 0.0 || $y < 0.0 || $nod >= $Stat($Sok,NN) } {
@@ -5842,7 +5858,7 @@ proc moveUpd { Sok cmd } {
 		return
 	}
 
-	moveNewLocation $Sok $nod $x $y $ls $ps [vipars $vc $vn]
+	moveNewLocation $Sok $nod $hos $x $y $ls $ps [vipars $vc $vn]
 }
 
 proc moveRedim { Sok nxx nyy } {
@@ -5886,7 +5902,7 @@ proc moveRedim { Sok nxx nyy } {
 	return 0
 }
 
-proc moveNewLocation { Sok nod nx ny ls ps vic } {
+proc moveNewLocation { Sok nod hos nx ny ls ps vic } {
 #
 # Update the location and (possibly) color of the node
 #
@@ -5903,6 +5919,12 @@ proc moveNewLocation { Sok nod nx ny ls ps vic } {
 	set bc 0
 	# label change flag
 	set lc 0
+
+	if { $hos != $Stat($Sok,NH,$nod) } {
+		# local_host may have changed (rare)
+		set Stat($Sok,NH,$nod) $hos
+		$w.c itemconfigure $t -text [expr $hos & 0xffff]
+	}
 
 	if { $ls != "" } {
 		set b [string index $ls 0]

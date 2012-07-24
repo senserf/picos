@@ -354,13 +354,14 @@ station PicOSNode abstract {
 	lword		_da (entropy);
 
 	/*
-	 * One more Boolean flag - to tell if the node is halted; we may want
-	 * to reorganize this a bit later (like into a bunch of binary flags
-	 * perhaps?
-	 *
+	 * To tell if the node is halted
 	 */
-	Boolean		Halted;
+	Boolean		Halted,
 
+	/*
+	 * Can be moved from its initial location
+	 */
+			Movable;
 	/*
 	 * This is NULL if the node has no UART
 	 */
@@ -452,6 +453,9 @@ station PicOSNode abstract {
 	// to start the root process); also called by the agent to switch
 	// the node on (after switchOff)
 	virtual void init () { };
+	// This one returns the node's hostid defaulting to the node's
+	// SMURPH ID
+	virtual lword __host_id () { return (lword) getId (); }
 
 	void initParams ();
 

@@ -841,3 +841,33 @@ PG120626A:
     Nicholas Boers <boersn@macewan.ca>: On 64-bit machines, SIDE uses the C
     type 'int' for its type 'Long'. The code then proceeded to use the "%ld"
     format specifier, which caused warning messages.
+
+PG120724A:	PICOS >= PG120724A
+
+    ROAMER protocol changed to (additionally) send to the agent:
+
+	1. the host id of the node (derived from the host_id constant/variable
+	   declared by the praxis)
+
+	2. the "movability" flag of the node
+
+    If the praxis declares this variable:
+
+	lword host_id = ...;
+
+    possibly preceded by const, VUEE (udaemon) will use the lower half of the
+    contents of that variable as the node identifier (displayed in the ROAMER
+    window). Note that this feature requires a collaboration from PiComp.
+
+    Nodes can be declared as non-moveable. You can do it this way:
+
+	<location movable="no"> ... </location>
+
+    The default is movable="yes", but you can change it by putting this:
+
+	<location movable="no"/>
+
+    into <default>.
+
+    A non-movable node is nailed down, so it cannot be moved from udaemon (or
+    from anywhere else).
