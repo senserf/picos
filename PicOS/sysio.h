@@ -2,7 +2,7 @@
 #define	__pg_sysio_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -439,6 +439,8 @@ void		__pi_memset (char *dest, char c, int);
 
 extern 	const char	__pi_hex_enc_table [];
 #define	HEX_TO_ASCII(p)		(__pi_hex_enc_table [(p) & 0xf])
+
+extern	const lword	host_id;
 
 #if	MALLOC_SINGLEPOOL
 

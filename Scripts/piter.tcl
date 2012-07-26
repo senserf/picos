@@ -64,6 +64,7 @@ proc sy_usage { } {
 	puts stderr "       -C file       alternative configuration file"
 	puts stderr "       -T string     window title string (GUI version)"
 	puts stderr "       -V            print the version number and exit"
+	puts stderr "       --            terminates args, plugin args follow"
 	puts stderr ""
 	puts stderr "Note that pktlen should be the same as the length used"
 	puts stderr "by the praxis in the respective argument of phys_uart."
@@ -97,9 +98,24 @@ if { [info exists env(HOME)] && $env(HOME) != "" } {
 # the default rc file
 set PM(SAP) [file join $PM(HOM) ".piterrc"]
 
-# Prescan arguments for -C (the alternative rc file) ##########################
-
+#
+# Prescan arguments:
+#
+#	1. separate plugin arguments
+#	2. extract special arguments (alternative rc file, window title)
+#	3. decide between GUI/command line call
+#
 set f ""
+
+set u [lsearch -exact $argv "--"]
+if { $u < 0 } {
+	# no plugin args
+	set PM(PLA) ""
+} else {
+	set PM(PLA) [lrange $argv [expr $u + 1] end]
+	set argv [lrange 0 [expr $u - 1]]
+}
+
 set u [lsearch -exact $argv "-C"]
 if { $u >= 0 } {
 	set f [lindex $argv [expr $u + 1]]
@@ -1217,7 +1233,7 @@ proc sy_valpars { } {
 		# Terminal input event
 		set ST(TIF) $sfu
 		# plugin initializer
-		if [catch { plug_init } err] {
+		if [catch { plug_init $PM(PLA) } err] {
 			append err ", plugin init failed: $err"
 			incr erc
 		} else {
@@ -1835,7 +1851,7 @@ proc sy_initialize { } {
 	fileevent stdin readable $sfu
 
 	# plugin initializer
-	if [catch { plug_init } err] {
+	if [catch { plug_init $PM(PLA) } err] {
 		pt_abort "Plugin init failed: $err"
 	}
 }
@@ -3063,7 +3079,7 @@ proc sy_setdefplug { } {
 	append sc {proc plug_inppp_b \{ inp \} \{ return 2 \}\n}
 	append sc {proc plug_outpp_t \{ inp \} \{ return 2 \}\n}
 	append sc {proc plug_outpp_b \{ inp \} \{ return 2 \}\n}
-	append sc {proc plug_init  \{ \} \{ \}\n}
+	append sc {proc plug_init  \{ pla \} \{ \}\n}
 	append sc {proc plug_reset \{ \} \{ \}\n}
 
 	uplevel #0 eval $sc

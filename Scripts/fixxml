@@ -1,0 +1,50 @@
+#!/bin/tclsh
+#
+# Converts xml data files for VUEE models by replacing old-style preinits for
+# local_host with the new hid attribute of <node>.
+#
+
+proc do_fix { } {
+
+	global FILE
+
+	while 1 {
+
+		if ![regexp "\[ \t\]*<preinit\[ \t]+tag=.HID\[^\n\r<\]*>\[ \t\]*(\[^ \t<\]+)\[^\n\r>\]*preinit>\[ \t]*\[\n\r\]" $FILE mat pre] {
+			return
+		}
+puts "FOUND $mat"
+
+		set ix [string first $mat $FILE]
+		if { $ix < 0 } {
+			return
+		}
+
+		set p [string range $FILE 0 [expr $ix - 1]]
+		set t [string range $FILE [expr $ix + [string length $mat]] end]
+
+		set iy [string last "<node " $p]
+		if { $iy >= 0 } {
+			set q [string range $p 0 [expr $iy - 1]]
+			set r [string range $p $iy end]
+			regsub ">" $r " hid=\"$pre\">" r
+			set p $q
+			append p $r
+		}
+		append p $t
+		set FILE $p
+	}
+}
+
+foreach f $argv {
+
+	set fd [open $f "r"]
+	set FILE [read $fd]
+	close $fd
+
+	do_fix 
+
+	set fd [open $f "w"]
+	puts -nonewline $fd $FILE
+	close $fd
+}

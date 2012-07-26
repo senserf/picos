@@ -2323,7 +2323,7 @@ PG120724A:	VUEE >= PG120724A
 
 	or
 
-		static lword host_id = ...;
+		const lword host_id = ...;
 
 	then the contents of that variable (the less significant half-word)
 	will be also used by VUEE (udaemon) as the node identifier. Otherwise, 
@@ -2333,3 +2333,68 @@ PG120724A:	VUEE >= PG120724A
 	variable [used to count received packets] was incorrectly incremented).
 
 	A few cosmetic improvements to the documentation.
+
+PG120726A:	VUEE >= PG120726A
+
+	I have redone the interpretation/assignment of host_id. For the
+	SEDATIVE project, I need the host_id to be present in some conspicuous
+	place in the XML data file. So I believe that this solution makes
+	better sense:
+
+	host_id is now implanted into PicOS! There is a global "code" constant
+	declared as:
+
+		const lword host_id = 0xBACADEAD;
+
+	This means that both host_id and BACADEAD are now "standards". Also,
+	any other ways of defining the same thing, like the different names
+	used by some praxes (ESN, for example) should be converted to the
+	standard.
+
+	In a praxis, you have to:
+
+		1. Get rid of the hostid.cc file (or whatever it is called),
+		   including references to it like //+++ hostid.cc.
+
+		2. Remove all declarations of the sort "extern lword host_id"
+		   (although legit for real-life compilation, they will
+	           interfere with VUEE's handling of host_id). Note that
+		   host_id is always available to the praxis and need not be
+		   declared.
+
+		3. Remove from the XML data file all preinits of the form:
+
+			<preinit tag="HID" type="lword">0xBACA0001</preinit>
+
+		   referring to host_id. Instead, insert a hid attribute at the
+		   node, e.g.,
+
+			<node number="0" hid="0xBACA0001">
+
+		   This is now the proper way of setting local_host in VUEE.
+
+	Note that I have already fixed some praxes in PROPRIETARY, notably:
+	eco_demo, il_demo, vsen_demo, KRK_NED, SEAWOLF, and also Ariadne and
+	ams_demo in inProgress. I am putting into Scripts a Tcl script named
+	fixxml which you can use to automatically fix the XML data files, i.e.,
+	do the changes prescribed in point 3 above. You call it with possibly
+	multiple filenames passed as arguments, e.g.,
+
+			fixxml data.xml test.xml
+
+	It won't harm a file that doesn't include a preinit with tag="HID",
+	so going fixxml *.xml is probably the best idea.
+
+	Note that some praxes, notably ert (in inProgress) use a different
+	convention for local_host (like ESN). If we still need those praxes,
+	then they must be fixed by replacing ESN with local_host (and fixing
+	the problems mentioned above). I can take care of that, but perhaps
+	Wlodek should have a look there first.
+
+	Arguments to piter can now include items addressed to the plugin
+	following --, e.g.,
+
+		piter -p 1 -m d -- this goes to the plugin
+
+	The list of arguments following -- is passed to plug_init as the
+	(single) function call argument.

@@ -62,6 +62,8 @@ const char	__pi_hex_enc_table [] = {
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
 
+const lword	host_id = 0xBACADEAD;
+
 static	address mevent;
 
 #define	MEV_NWAIT(np)	(*((byte*)(&(mevent [np])) + 0 ))
