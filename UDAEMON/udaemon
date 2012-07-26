@@ -5843,14 +5843,13 @@ proc moveUpd { Sok cmd } {
 #
 	global Stat HPA
 
-	if ![regexp "^U $HPA(D) $HPA(D) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
-	      $cmd junk nod hos x y ls ps vc vn] {
+	if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      $cmd junk nod x y ls ps vc vn] {
 		continue
 	}
 
 	if { [catch {
 		set nod [expr $nod]
-		set hos [expr $hos]
 		set x [expr $x]
 		set y [expr $y]
 	}] || $x < 0.0 || $y < 0.0 || $nod >= $Stat($Sok,NN) } {
@@ -5858,7 +5857,7 @@ proc moveUpd { Sok cmd } {
 		return
 	}
 
-	moveNewLocation $Sok $nod $hos $x $y $ls $ps [vipars $vc $vn]
+	moveNewLocation $Sok $nod $x $y $ls $ps [vipars $vc $vn]
 }
 
 proc moveRedim { Sok nxx nyy } {
@@ -5902,7 +5901,7 @@ proc moveRedim { Sok nxx nyy } {
 	return 0
 }
 
-proc moveNewLocation { Sok nod hos nx ny ls ps vic } {
+proc moveNewLocation { Sok nod nx ny ls ps vic } {
 #
 # Update the location and (possibly) color of the node
 #
@@ -5919,12 +5918,6 @@ proc moveNewLocation { Sok nod hos nx ny ls ps vic } {
 	set bc 0
 	# label change flag
 	set lc 0
-
-	if { $hos != $Stat($Sok,NH,$nod) } {
-		# local_host may have changed (rare)
-		set Stat($Sok,NH,$nod) $hos
-		$w.c itemconfigure $t -text [expr $hos & 0xffff]
-	}
 
 	if { $ls != "" } {
 		set b [string index $ls 0]

@@ -535,6 +535,8 @@ void PicOSNode::setup (data_no_t *nd) {
 
 	highlight = NULL;
 
+	__host_id__ = nd->HID_present ? nd->HID : (lword) getId ();
+
 	// Radio
 
 	if (nd->rf == NULL) {
@@ -2499,6 +2501,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	// The default for Movability is YES, but for a node (as opposed to
 	// "default") make it "undefined" for now
 	ND->Movable = (nn < 0) ? YES : YES + YES;
+	ND->HID_present = NO;
 
 	if (ion == NULL)
 		ND->On = WNONE;
@@ -2535,6 +2538,19 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	else
 		print (form ("    %3d", nn));
 	print ("]:\n\n");
+
+/* === */
+/* HID */
+/* === */
+	if (nn >= 0 && (att = sxml_attr (data, "hid")) != NULL) {
+		// Host id
+		np [0] . type = TYPE_LONG;
+		if (parseNumbers (att, 1, np) != 1)
+			xeai ("hid", xname (nn), att);
+		ND->HID_present = YES;
+		ND->HID = (lword) (np [0] . LVal);
+		print (form ("  HID:        %08X\n", ND->HID));
+	}
 
 /* ======== */
 /* Preinits */

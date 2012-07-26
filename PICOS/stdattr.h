@@ -23,6 +23,7 @@
 
 // ============================================================================
 
+#define	host_id		(  ((PicOSNode*)TheStation)->__host_id ()  )
 #define	reset()		(  ((PicOSNode*)TheStation)->_na_reset ()  )
 #define	halt()		(  ((PicOSNode*)TheStation)->_na_halt ()  )
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )

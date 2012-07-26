@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.94
+#define	VUEE_VERSION	0.96
 
 #include "picos.h"
 #include "ndata.h"
@@ -351,7 +351,10 @@ station PicOSNode abstract {
 	 */
 	rfm_intd_t	*RFInt;
 
-	lword		_da (entropy);
+	lword		_da (entropy),
+			__host_id__;
+
+	inline lword __host_id () { return __host_id__; };
 
 	/*
 	 * To tell if the node is halted
@@ -453,9 +456,6 @@ station PicOSNode abstract {
 	// to start the root process); also called by the agent to switch
 	// the node on (after switchOff)
 	virtual void init () { };
-	// This one returns the node's hostid defaulting to the node's
-	// SMURPH ID
-	virtual lword __host_id () { return (lword) getId (); }
 
 	void initParams ();
 

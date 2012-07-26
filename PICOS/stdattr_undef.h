@@ -6,6 +6,7 @@
 #undef finish
 #undef hang
 #undef entropy
+#undef host_id
 #undef phys_dm2200
 #undef phys_cc1100
 #undef phys_uart

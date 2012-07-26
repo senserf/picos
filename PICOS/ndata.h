@@ -247,8 +247,10 @@ typedef struct {
 	word	Mem;		// Memory
 	word	On;		// Initially on
 	word	Lcdg;		// This will do for now as a flag
+	lword	HID;
 	double X, Y;		// Coordinates
-	Boolean	Movable;
+	Boolean	Movable,
+		HID_present;
 	data_rf_t *rf;		// RF module data parameters
 	data_ep_t *ep;		// EEPROM parameters
 	data_ua_t *ua;		// UART parameters

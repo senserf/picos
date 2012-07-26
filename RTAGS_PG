@@ -871,3 +871,8 @@ PG120724A:	PICOS >= PG120724A
 
     A non-movable node is nailed down, so it cannot be moved from udaemon (or
     from anywhere else).
+
+PG120726A:	PICOS >= PG120726A
+
+    I have redone the handling of local_host. See RTAGS_PG in PICOS and the
+    doc.

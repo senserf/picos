@@ -3575,18 +3575,18 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 	while ((rc = (cmd == 'U') ?
 		snprintf (RBuf, RBSize,
 #if LONGBITS <= 32
-			  "U %1ld %1lu %1f %1f <%s,%s> [%s,%s]\n",
+			  "U %1ld %1f %1f <%s,%s> [%s,%s]\n",
 #else
 			  "U %1d %1u %1f %1f <%s,%s> [%s,%s]\n",
 #endif
-			  NN, pn->__host_id (), xx, yy, cl, cp, ch, lb) :
+			  NN, xx, yy, cl, cp, ch, lb) :
 		snprintf (RBuf, RBSize,
 #if LONGBITS <= 32
 			  "P %1ld %1lu %1ld %1f %1f %1d %s <%s,%s> [%s,%s]\n",
 #else
 			  "P %1d %1u %1d %1f %1f %1d %s <%s,%s> [%s,%s]\n",
 #endif
-			  NN, pn->__host_id (), NStations, xx, yy,
+			  NN, pn->__host_id__, NStations, xx, yy,
 				pn->Movable, pn->getTName (), cl, cp, ch, lb)
 	) >= RBSize) {
 
