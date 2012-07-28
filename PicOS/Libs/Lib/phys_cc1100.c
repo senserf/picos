@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -97,8 +97,7 @@ static void set_congestion_indicator (word v) {
 
 word		__pi_v_drvprcs, __pi_v_qevent;
 
-static byte	RxOFF,			// Transmitter on/off flags
-		TxOFF,
+static byte	RxST,			// Receiver status
 		xpower,			// Power select
 		rbuffl,
 		vrate = RADIO_BITRATE_INDEX,	// Rate select
@@ -684,7 +683,7 @@ static void do_rx_fifo () {
 	// We are making progress as far as reception
 	guard_stop (WATCH_RCV | WATCH_PRG);
 
-	if (RxOFF) {
+	if (RxST) {
 		// If we are switched off, just clean the FIFO and return
 #if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX OFF CLEANUP", (word) seconds ());
@@ -857,58 +856,37 @@ thread (cc1100_driver)
 
   entry (DR_LOOP)
 
-	//
-	// This is how the mess works:
-	//
-	// TxOFF == 0 => the transmitter is formally on
-	// TxOFF == 1 => the transmitter is "held"
-	// TxOFF == 2 => the transmitter is switching off (draining the queue)
-	// TxOFF == 3 => the transmitter has drained and is off solid
-	// RxOFF == 0 => the receiver is on
-	// RxOFF == 1 => the receiver is off
-	// RxOFF == 2 => the chip is powered down
-	//
-	// When RxOFF == 1, the transmitter may still be on, but when RxOFF is
-	// 1 and the transmitter is switched off, the chip is powered down.
-	//
-
-	if (TxOFF & 1) {
-		// We won't be transmitting any more
-		if (RxOFF == 1) {
-			// Power down the chip
-			power_down ();
-			RxOFF = 2;
-		}
-		if (TxOFF == 3)
-			tcvphy_erase (physid);
-
-		// Receive or drain
+	if (RxST != 2) {
+		// The receiver is formally off, but still running, so let us
+		// clear the FIFO
 		while (RX_FIFO_READY)
 			do_rx_fifo ();
-XRcv:
+	}
+
+	if (tcvphy_top (physid) == NULL) {
+		if (RxST == 1) {
+			// Nothing to transmit, receiver off -> power down
+			power_down ();
+			// Flag == powered down
+			RxST = 2;
+		}
+WEvent:
 		wait (__pi_v_qevent, DR_LOOP);
-		if (RxOFF == 0)
+		if (RxST == 0)
 			rcv_enable_int;
 		release;
 	}
 
-	while (RX_FIFO_READY)
-		do_rx_fifo ();
-
 	if (bckf_timer) {
 		delay (bckf_timer, DR_LOOP);
-		goto XRcv;
+		goto WEvent;
 	}
-	
-	if (tcvphy_top (physid) == NULL) {
-		// Nothing to transmit
-		if (TxOFF) {
-			// TxOFF == 2 -> draining: stop xmt
-			TxOFF = 3;
-			proceed (DR_LOOP);
-		}
-		// Wait
-		goto XRcv;
+
+	// We've got something to transmit
+	if (RxST == 2) {
+		// We are powered down
+		cc1100_rx_reset ();
+		RxST = 1;
 	}
 
 #if RADIO_LBT_MODE == 3
@@ -977,12 +955,8 @@ XRcv:
 		set_congestion_indicator (0);
 	}
 
-	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL) {
-		// The last check: the packet may have been removed while
-		// waiting on LBT
-		enter_rx ();
-		goto FEXmit;
-	}
+	// This cannot possibly fail
+	xbuff = tcvphy_get (physid, &paylen);
 
 	// A packet arriving from TCV always contains CRC slots, even if
 	// we are into hardware CRC; its minimum legit length is SID + CRC
@@ -1079,7 +1053,7 @@ Reset:
 		release;
 	}
 
-	if ((TxOFF & 1) && RxOFF) {
+	if (RxST == 2) {
 		// The chip is powered down, so don't bother
 		delay (GUARD_LONG_DELAY, GU_ACTION);
 		release;
@@ -1217,7 +1191,7 @@ void phys_cc1100 (int phy, int mbs) {
 	LEDI (2, 0);
 
 	// Things start in the off state
-	RxOFF = TxOFF = 1;
+	RxST = 1;
 	xpower = RADIO_DEFAULT_POWER;
 	/* Initialize the device */
 	ini_cc1100 ();
@@ -1245,78 +1219,32 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		if (TxOFF == 0)
-			ret = 2;
-		if ((TxOFF & 1) == 0) {
-			// On or draining
-			if (tcvphy_top (physid) != NULL || cc1100_status () ==
-			    CC1100_STATE_TX)
-				ret |= 4;
-		}
-		if (RxOFF == 0)
-			ret |= 1;
-
+		ret = 2 | (RxST == 0);
 		goto RVal;
-
-	    case PHYSOPT_TXON:
-
-		if (RxOFF && (TxOFF & 1)) {
-			// Start up; even if RX is off, RX is our default mode
-			cc1100_rx_reset ();
-			// Flag == need to power down on TxOFF
-			RxOFF = 1;
-			LEDI (0, 1);
-		} else {
-			LEDI (0, 2);
-		}
-		TxOFF = 0;
-OREvnt:
-		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
-		break;
 
 	    case PHYSOPT_RXON:
 
-		// This may damage a transmission in progress, but that's OK,
-		// I guess; no, it isn't: FIXME
-		if ((TxOFF & 1))
-			// FIXME: have to redo this mess, it cannot possibly
-			// work
+		if (RxST == 2)
+			// We have been switched off
 			cc1100_rx_reset ();
 
-		RxOFF = 0;
+		RxST = 0;
+		LEDI (0, 1);
+OREvnt:
+		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 
-		if (TxOFF)
-			LEDI (0, 1);
-		else
-			LEDI (0, 2);
-		goto OREvnt;
-
+	    case PHYSOPT_TXON:
 	    case PHYSOPT_TXOFF:
-
-		/* Drain */
-		TxOFF = 2;
-		if (RxOFF)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		goto OREvnt;
-
 	    case PHYSOPT_TXHOLD:
 
-		TxOFF = 1;
-		if (RxOFF)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		goto OREvnt;
+		break;
 
 	    case PHYSOPT_RXOFF:
 
-		RxOFF = 1;
-		if (TxOFF)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
+		if (RxST == 0)
+			RxST = 1;
+
+		LEDI (0, 0);
 		goto OREvnt;
 
 	    case PHYSOPT_CAV:
@@ -1338,8 +1266,9 @@ OREvnt:
 			xpower = 7;
 		else
 			xpower = *val;
-		cc1100_set_power ();
 
+		// This will fail if the chip is switched off, but so what?
+		cc1100_set_power ();
 		break;
 
 	    case PHYSOPT_GETPOWER:
@@ -1386,14 +1315,10 @@ OREvnt:
 		chip_reset ();
 
 		// Check if should bring it up
-
-		if (RxOFF == 0 || (TxOFF & 1) == 0) {
-			// Bring it up
-			enter_rx ();
-		} else {
+		if (RxST == 2)
 			power_down ();
-		}
-
+		else
+			enter_rx ();
 		break;
 
 	    case PHYSOPT_GETRATE:

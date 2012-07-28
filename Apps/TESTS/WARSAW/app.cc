@@ -36,7 +36,6 @@ heapmem {10, 90};
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
 
 #define	EEPROM_INCR	255
-#define	SEND_INTERVAL	512
 
 extern void* _etext;
 
@@ -46,6 +45,7 @@ static lword	adr, max, val, last_snt, last_rcv, s, u, pat;
 static byte	str [129], *blk;
 static char	*ibuf;
 static address	packet;
+static word	send_interval = 512;
 
 #ifdef RTC_TEST
 rtc_time_t dtime;
@@ -277,7 +277,7 @@ fsm sender {
 
 	ser_outf (SN_MESS, "Sent: %lu [%d]\r\n", last_snt, packet_length);
 	last_snt++;
-	delay (SEND_INTERVAL, SN_SEND);
+	delay (send_interval, SN_SEND);
 }
 
 fsm receiver {
@@ -1895,6 +1895,7 @@ fsm root {
 #else
 		"r s -> start radio\r\n"
 #endif
+		"i d -> xmit interval\r\n"
 		"p v  -> xmit pwr\r\n"
 		"c v  -> channel\r\n"
 		"q -> stop radio\r\n"
@@ -1987,6 +1988,13 @@ StartRadio:
 			radio_start (w);
 
 RS_Loop:		proceed RS_RCMD;
+		}
+
+		case 'i' : {
+
+			send_interval = 512;
+			scan (ibuf + 1, "%u", &send_interval);
+			goto RS_Loop;
 		}
 	
 		case 'p' : {

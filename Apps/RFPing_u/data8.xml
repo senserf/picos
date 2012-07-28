@@ -58,6 +58,13 @@
 		<status>1111111111</status>
 		<values>0000000000</values>
 	    </pins>
+	    <ptracker>
+		<output target="socket"/>
+		<module id="cpu">0.3 0.0077</module>
+		<module id="radio">0.0004 16.0 30.7 30.7</module>
+		<module id="storage">0.030 0.030 10.0 15.0 17.0 16.0</module>
+		<module id="sensors">0.0 2.5</module>
+	    </ptracker>
 	</defaults>
 	<node number="0">
 	    <location>1.0 1.0</location>

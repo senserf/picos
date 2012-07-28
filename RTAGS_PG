@@ -2371,7 +2371,7 @@ PG120726A:	VUEE >= PG120726A
 
 			<node number="0" hid="0xBACA0001">
 
-		   This is now the proper way of setting local_host in VUEE.
+		   This is now the proper way of setting host_id in VUEE.
 
 	Note that I have already fixed some praxes in PROPRIETARY, notably:
 	eco_demo, il_demo, vsen_demo, KRK_NED, SEAWOLF, and also Ariadne and
@@ -2386,8 +2386,8 @@ PG120726A:	VUEE >= PG120726A
 	so going fixxml *.xml is probably the best idea.
 
 	Note that some praxes, notably ert (in inProgress) use a different
-	convention for local_host (like ESN). If we still need those praxes,
-	then they must be fixed by replacing ESN with local_host (and fixing
+	convention for host_id (like ESN). If we still need those praxes,
+	then they must be fixed by replacing ESN with host_id (and fixing
 	the problems mentioned above). I can take care of that, but perhaps
 	Wlodek should have a look there first.
 
@@ -2398,3 +2398,32 @@ PG120726A:	VUEE >= PG120726A
 
 	The list of arguments following -- is passed to plug_init as the
 	(single) function call argument.
+
+PG120728A:	VUEE >= PG120728A
+
+	The TXOFF/TXON/TXHOLD physopts have been removed from the CC1100
+	driver. Following Wlodek's insightful suggestion, I have simplified
+	things such that the transmitter is now implicitly switched on whenever
+	there is a packet in the output queue, and switched off otherwise.
+
+	That has got rid of the mess related to the various states of the
+	driver caused by emptying the queue, holding it, draining it (in TXOFF,
+	TXHOLD), and the product of those states with the receiver states. As
+	of now, the only on/off physopt is RXON/RXOFF (a.k.a. ON and OFF),
+	i.e., these constants: PHYSOPT_RXON and PHYSOPT_RXOFF can be replaced
+	with PHYSOPT_ON and PHYSOPT_OFF (these aliases have been around for
+	some time). The old TX-related constants (and physopts) are still
+	formally legal, but their actions are void. As needed, we shall be
+	implementing the same mode of operation in other RF drivers (but for
+	now only CC1100 works this way).
+
+	A single transmission while the receiver is switched off costs
+	considerably more (timewise) than when the receiver is on. This is
+	because the chip must be powered up and (fully) reset (its registers
+	reloaded) before the transmission. Following the first transmission in
+	such a state, the chip will remain powered up for as long as the output
+	queue is nonempty, but when it gets drained, the chip will be powered
+	down again. The moral: if you have several packets to transmit in the
+	RXOFF mode, either make sure that the queue is being filled faster than
+	the transmitter drains it, or turn on the receiver for the entire
+	series of packets.
