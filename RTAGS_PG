@@ -876,3 +876,7 @@ PG120726A:	PICOS >= PG120726A
 
     I have redone the handling of local_host. See RTAGS_PG in PICOS and the
     doc.
+
+PG120728A:	PICOS >= PG120728A
+
+    Modified rfmodule to match PG120728A in PICOS.

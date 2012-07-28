@@ -184,7 +184,7 @@ class rfm_intd_t {
 
 	Transceiver	*RFInterface;
 	PKT		OBuffer;
-	Boolean		Receiving, Xmitting, TXOFF, RXOFF;
+	Boolean		Receiving, Xmitting, RXOFF;
 	address		__pi_x_buffer, __pi_r_buffer;
 	int		tx_event;
 

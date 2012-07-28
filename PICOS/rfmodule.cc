@@ -35,42 +35,20 @@ Xmitter::perform {
 
     state XM_LOOP:
 
-	if (xbf == NULL) {
-		if (txoff) {
-			if (txoff == 3) {
-Drain:
-				tcvphy_erase (physid);
-				when (txe, XM_LOOP);
-				release;
-			} else if (txoff == 1) {
-				bkf = 0;
-				when (txe, XM_LOOP);
-				release;
-			}
-		}
-
-		if ((xbf = tcvphy_get (physid, &buflen)) != NULL) {
-			assert (buflen <= mxpl,
-				"Xmitter: packet too long, %1d > %1d",
-					buflen, mxpl);
-			assert (buflen >= MINIMUM_PACKET_LENGTH &&
-				(buflen & 1) == 0,
-				"Xmitter: illegal packet length %1d", buflen);
-			if (sid != 0xffff)
-				// otherwise, honor the packet's statid
-				xbf [0] = sid;
-		} else {
-			// Nothing to transmit
-			if (txoff == 2) {
-				// Draining, stop if the queue is empty
-				txoff = 3;
-				goto Drain;
-			}
-			when (txe, XM_LOOP);
-			release;
-		}
+	if (xbf == NULL && (xbf = tcvphy_get (physid, &buflen)) == NULL) {
+		// Nothing to transmit
+		when (txe, XM_LOOP);
+		release;
 	}
 
+	assert (buflen <= mxpl, "Xmitter: packet too long, %1d > %1d",
+		buflen, mxpl);
+	assert (buflen >= MINIMUM_PACKET_LENGTH && (buflen & 1) == 0,
+		"Xmitter: illegal packet length %1d", buflen);
+	if (sid != 0xffff)
+		// otherwise, honor the packet's statid
+		xbf [0] = sid;
+		
 	if (bkf && !tcv_isurgent (xbf)) {
 		// backing off and the packet is not urgent
 		delay (bkf, XM_LOOP);
@@ -94,7 +72,6 @@ Drain:
 		delay (lbtdl, XM_LBS);
 		release;
 	}
-
 Xmit:
 	set_congestion_indicator (0);
 	obf.load (xbf, buflen);
@@ -334,7 +311,7 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 	mxpl = rbs;
 
 	/* Both parts are initially active */
-	rxoff = txoff = 1;
+	rxoff = YES;
 	pwrt_change (PWRT_RADIO, PWRT_RADIO_OFF);
 	LEDI (0, 0);
 	LEDI (1, 0);
@@ -358,91 +335,44 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		if (txoff == 0)
-			ret = 2;
-		if ((txoff & 1) == 0) {
-			// On or draining
-			if (xbf != NULL || tcvphy_top (physid) != NULL)
-				ret |= 4;
-		}
-		if (rxoff == 0)
-			ret++;
-	
+		ret = (2 | !rxoff);
 		if (val != NULL)
 			*val = ret;
-		break;
-
-	    case PHYSOPT_TXON:
-
-		if (txoff) {
-			txoff = NO;
-			trigger (txe);
-		}
-
-		if (rxoff)
-			LEDI (0, 1);
-		else
-			LEDI (0, 2);
-
 		break;
 
 	    case PHYSOPT_RXON:
 
 		if (rxoff) {
-			rxoff = NO;
 			if (!xmtg) {
 #if (RADIO_OPTIONS & 0x02)
-			    diag ("RF driver: %u POWER DOWN",
+			    diag ("RF driver: %u POWER UP",
 				(word) seconds ());
 #endif
 			    TheNode->pwrt_change (PWRT_RADIO, PWRT_RADIO_RCV);
+			    trigger (rxe);
 			}
-			trigger (rxe);
+
+			LEDI (0, 1);
+			rxoff = NO;
 		}
 
-		if (txoff)
-			LEDI (0, 1);
-		else
-			LEDI (0, 2);
-
-		break;
-
+	    case PHYSOPT_TXON:
 	    case PHYSOPT_TXOFF:
-
-		/* Drain */
-		txoff = 2;
-		trigger (txe);
-
-		if (rxoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
-		break;
-
 	    case PHYSOPT_TXHOLD:
 
-		txoff = 1;
-		trigger (txe);
-
-		if (rxoff)
-			LEDI (0, 0);
-		else
-			LEDI (0, 1);
 		break;
 
 	    case PHYSOPT_RXOFF:
 
 		if (!rxoff) {
-			rxoff = 1;
-			if (!xmtg)
+			rxoff = YES;
+			if (!xmtg) {
+			    trigger (rxe);
 			    TheNode->pwrt_change (PWRT_RADIO, PWRT_RADIO_OFF);
-		}
-		trigger (rxe);
-
-		if (txoff)
+			}
 			LEDI (0, 0);
-		else
-			LEDI (0, 1);
+		}
+
 		break;
 
 	    case PHYSOPT_CAV:
@@ -559,7 +489,6 @@ static int rfm_option (int opt, address val) {
 #undef	bkf
 #undef	txe
 #undef	rxe
-#undef	txoff
 #undef	rxoff
 #undef	sid
 #undef	minbkf

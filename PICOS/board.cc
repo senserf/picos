@@ -457,7 +457,7 @@ void rfm_intd_t::init () {
 	retrcnt = 0;
 #endif
 	Receiving = Xmitting = NO;
-	TXOFF = RXOFF = YES;
+	RXOFF = YES;
 
 	OBuffer.fill (NONE, NONE, 0, 0, 0);
 }

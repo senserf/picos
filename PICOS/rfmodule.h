@@ -11,7 +11,6 @@
 #define	bkf	(rf->backoff)
 #define	txe	(rf->tx_event)
 #define	rxe	rf
-#define	txoff	(rf->TXOFF)
 #define	rxoff	(rf->RXOFF)
 #define	sid	(rf->statid)
 #define	minbkf	(rf->min_backoff)
