@@ -655,7 +655,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 
 	lsize = (lsize + 3) / 4;		// Convert to 4-tuples
 	if (lsize > MFree) {
-		//trace ("MEMALLOC OOM");
+		//trace ("MEMALLOC OOM: %1d [%1d, %1d]", MFree, size, lsize);
 		return NULL;
 	}
 
@@ -673,7 +673,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 	else
 		MTail->Next = mc;
 	MTail = mc;
-	//trace ("MEMALLOC %x [%1d, %1d]", mc->PTR, size, lsize);
+	//trace ("MEMALLOC %x %1d [%1d, %1d]", mc->PTR, MFree, lsize, size);
 
 	return mc->PTR;
 }
@@ -682,8 +682,11 @@ void PicOSNode::memFree (address p) {
 
 	MemChunk *mc, *pc;
 
-	if (p == NULL)
+	if (p == NULL) {
+	//trace ("MEMFREE: NULL");
 		return;
+	}
+
 
 	for (pc = NULL, mc = MHead; mc != NULL; pc = mc, mc = mc -> Next) {
 
@@ -699,6 +702,7 @@ void PicOSNode::memFree (address p) {
 
 			delete [] (byte*) (mc->PTR);
 			MFree += mc -> Size;
+			//trace ("MEMFREE: %x %1d [%1d]", p, MFree, mc->Size);
 			assert (MFree <= MTotal,
 				"PicOSNode->memFree: corrupted memory");
 			//trace ("MEMFREE OK: %x %1d", p, mc->Size);

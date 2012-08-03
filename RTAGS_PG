@@ -880,3 +880,13 @@ PG120726A:	PICOS >= PG120726A
 PG120728A:	PICOS >= PG120728A
 
     Modified rfmodule to match PG120728A in PICOS.
+
+PG120803A:	PICOS >= PG120803A
+
+    Introduced definable labels for pins, leds, sensors, actuators. Read
+    the doc (especially the last sections), also see
+    PICOS/Apps/PROPRIETARY/eco_demo/large_eco.geo. The agent protocol
+    considerably revised as part of the SEDATIVE project.  
+
+    Fixed a bug in udaemon causing errors when a highlighted node was moved
+    by the ROAMER.

@@ -2,7 +2,7 @@
 #define __agent_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2011.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2012.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -65,6 +65,22 @@ static int dechex (char *&bp) {
 	}
 
 	return res;
+}
+
+static char *sigseq (PicOSNode *pn) {
+//
+// Generates the standard "signature" component of a handshake
+//
+	return form (
+#if LONGBITS <= 32
+		"P %1ld %1lu %1ld <%s>:",
+#else
+		"P %1d %1u %1d <%s>:",
+#endif
+			pn->getId (),
+			pn->__host_id__,
+			NStations,
+			pn->getTName ());
 }
 
 int Dev::wl (int st, char *&buf, int &left) {
@@ -276,10 +292,11 @@ process	UartHandler {
  */
 	Dev 		*Agent;
 	UARTDV		*UA;
-	char		*Buf;
+	char		*Buf, *UBuf;
 	int		Left;
+	PicOSNode	*TPN;
 
-	states { AckUart, UartFlush };
+	states { AckUart, Sign, UartFlush };
 
 	void setup (PicOSNode*, Dev*);
 
@@ -315,10 +332,15 @@ process AgentOutput abstract {
 	int		Length;
 	char		*Buf;
 
-	states { Ack, Loop, Send, Nop, SNop };
+	states { Ack, First, Loop, Send, Nop, SNop };
 
 	void goaway (lword);
 
+	virtual Boolean initupd (int rdy) {
+		// This one can be left at the default; it says that there is
+		// no special initial message
+		return NO;
+	};
 	virtual void nextupd (int rdy, int nop) {
 		excptn ("%s: nextupd unimplemented", getSName ());
 	};
@@ -461,10 +483,15 @@ AgentOutput::perform {
 			}
 		}
 
+	transient First:
+
+		if (initupd (First))
+			proceed Send;
+
 	transient Loop:
 
 		nextupd (Loop, Nop);
-		// No return if no update available
+		// Return if update available
 
 	transient Send:
 
@@ -735,7 +762,7 @@ void PinsHandler::setup (PINS *pn, Dev *a) {
 			// will be forced by rst
 			PN->qupd_all ();
 			// And this is done explicitly for a device
-			PN->IN.IT = create PinsInput (PN);
+			IN->IT = create PinsInput (PN);
 		}
 	}
 }
@@ -749,12 +776,21 @@ void PinsInput::setup (PINS *p) {
 
 void PinsHandler::nextupd (int lp, int nop) {
 
+	pin_update_t upd;
+
+Ignore:
 	if (PN->Upd->empty ()) {
 		PN->Upd->wait (NONEMPTY, lp);
 		sleep;
 	}
 
-	Length = PN->pinup_status (PN->Upd->retrieve ());
+	upd = PN->Upd->retrieve ();
+
+	if (Agent == NULL && *((lint*)(&upd)) == -1)
+		// Ignore signatures if not a socket
+		goto Ignore;
+
+	Length = PN->pinup_status (upd);
 	Buf = PN->UBuf;
 	// nop state unused
 }
@@ -802,7 +838,7 @@ void SensorsHandler::setup (SNSRS *sn, Dev *a) {
 			// will be forced by rst
 			SN->qupd_all ();
 			// And this is done explicitly for a device
-			SN->IN.IT = create SensorsInput (SN);
+			IN->IT = create SensorsInput (SN);
 		}
 	}
 }
@@ -818,12 +854,18 @@ void SensorsHandler::nextupd (int lp, int nop) {
 	Boolean lm;
 	byte	tp, sid;
 
+Ignore:
 	if (SN->Upd->empty ()) {
 		SN->Upd->wait (NONEMPTY, lp);
 		sleep;
 	}
 
 	lm = SN->Upd->retrieve (tp, sid);
+
+	if (tp == SEN_TYPE_PARAMS && Agent == NULL)
+		// Ignore the signature if not socket
+		goto Ignore;
+	
 	Length = SN->act_status (tp, sid, lm);
 	Buf = SN->UBuf;
 	// nop state unused
@@ -837,6 +879,7 @@ process	LedsHandler : AgentOutput {
 //
 	LEDSM *LE;
 
+	Boolean initupd (int);
 	void nextupd (int, int);
 	void setup (LEDSM*, Dev*);
 };
@@ -845,9 +888,21 @@ void LedsHandler::setup (LEDSM *le, Dev *a) {
 
 	LE = le;
 
-	if (AgentOutput::start (LE, a, LE->OUpdSize) != ERROR) {
+	if (AgentOutput::start (LE, a, LE ? LE->OUpdSize : 0) != ERROR) {
 		LE->Changed = YES;
 	}
+}
+
+Boolean LedsHandler::initupd (int lp) {
+
+	if (Agent == NULL)
+		// This is only needed for a socket connection
+		return NO;
+
+	LE->Changed = NO;
+	Length = LE->ledup_status ('P');
+	Buf = LE->UBuf;
+	return YES;
 }
 
 void LedsHandler::nextupd (int lp, int nop) {
@@ -860,7 +915,7 @@ void LedsHandler::nextupd (int lp, int nop) {
 	}
 
 	LE->Changed = NO;
-	Length = LE->ledup_status ();
+	Length = LE->ledup_status ('U');
 	Buf = LE->UBuf;
 }
 
@@ -887,6 +942,10 @@ void EmulHandler::setup (EMULM *em, Dev *a) {
 			// Create the message mailbox; it is there already if
 			// the emulator is "held"
 			EM->MS = create EMessages (MAX_Long);
+			// New mailbox starts with the standard signature
+			// message
+			if (Agent != NULL)
+				EM->sigmess ();
 		}
 	}
 }
@@ -961,11 +1020,12 @@ process	PwrtHandler : AgentOutput {
 	pwr_tracker_t *PT;
 
 	void nextupd (int, int);
+	Boolean initupd (int);
 
 	void setup (pwr_tracker_t*, Dev*);
 
 	void nopmess () {
-		Length = PT->pwrt_status ();
+		Length = PT->pwrt_status ('U');
 		Buf = PT->UBuf;
 	};
 };
@@ -986,7 +1046,7 @@ void PwrtHandler::setup (pwr_tracker_t *pt, Dev *a) {
 		PT->Changed = YES;
 		if (a != NULL) {
 			// The input leg is only needed for a socket connection
-			PT->IN.IT = create PwrtInput (PT);
+			IN->IT = create PwrtInput (PT);
 		}
 	}
 }
@@ -995,6 +1055,16 @@ void PwrtInput::setup (pwr_tracker_t *pt) {
 
 	PT = pt;
 	AgentInput::start (&(pt->IN), SRQS_INPUT_BUFLEN);
+}
+
+Boolean PwrtHandler::initupd (int lp) {
+
+	if (Agent == NULL)
+		return NO;
+
+	Length = PT->pwrt_status ('P');
+	Buf = PT->UBuf;
+	return YES;
 }
 
 void PwrtHandler::nextupd (int lp, int nop) {
@@ -1007,7 +1077,7 @@ void PwrtHandler::nextupd (int lp, int nop) {
 	}
 
 	PT->Changed = NO;
-	Length = PT->pwrt_status ();
+	Length = PT->pwrt_status ('U');
 	Buf = PT->UBuf;
 }
 
@@ -1019,6 +1089,7 @@ process	LcdgHandler : AgentOutput {
 //
 	LCDG *LC;
 	word WNOP;
+	char *sig;
 
 	void nextupd (int, int);
 	void remove ();
@@ -1039,17 +1110,31 @@ process	LcdgHandler : AgentOutput {
 
 void LcdgHandler::setup (LCDG *lc, Dev *a) {
 
+	char *t;
+
 	LC = lc;
 
 	if (AgentOutput::start (LC, a, LCDG_OUTPUT_BUFLEN) != ERROR) {
 		LC->init_connection ();
 	}
 	WNOP = htons (0x1000);
+
+	// Prepare the signature message
+	sig = new char [strlen (t = sigseq (IN->TPN)) + 2];
+	strcpy (sig, t);
+	strcat (sig, "\n");
 }
 
 void LcdgHandler::nextupd (int lp, int nop) {
 
 	word *WB;
+
+	if (sig) {
+		// Initial signature message
+		Buf = sig;
+		Length = strlen (Buf);
+		return;
+	}
 
 	if (LC->UHead == NULL) {
 		// Periodic NOPs
@@ -1077,6 +1162,14 @@ void LcdgHandler::nextupd (int lp, int nop) {
 void LcdgHandler::remove () {
 
 	lcdg_update_t *cu;
+
+	if (sig) {
+		// Initial message cleanup
+		delete [] sig;
+		// This is automatic, but better be safe
+		sig = NULL;
+		return;
+	}
 
 	LC->UHead = (cu = LC->UHead)->Next;
 	delete [] (byte*) cu;
@@ -1177,7 +1270,7 @@ void UARTDV::rst () {
 	// UART drivers. 
 
 	// Note that the input is not reset, should it be? I don't think so.
-	// Event string input should not be used for post reset initialization
+	// Even string input should not be used for post reset initialization
 	// (preinit) is for that. So what is gone is gone.
 
 	IB_in = IB_out = 0;
@@ -1687,7 +1780,7 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 	lword c;
 
 	Agent = a;
-	UA = tpn->uart->U;
+	UA = (TPN = tpn)->uart->U;
 
 	// Make sure we don't belong to the node. That would get us killed
 	// upon reset.
@@ -1702,8 +1795,7 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 	} else if (UA->I != NULL || UA->O != NULL) {
 		// Duplicate connection, refuse it
 		assert (UA->I != NULL && UA->O != NULL,
-			"UART at %s: inconsistent status",
-				tpn->getSName ());
+			"UART at %s: inconsistent status", tpn->getSName ());
 		c = ECONN_ALREADY;
 	}
 
@@ -1715,8 +1807,9 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 
 UartHandler::perform {
 
-	int	nc;
 	lword 	c;
+	int	len;
+	char	*sg;
 
 	state AckUart:
 
@@ -1728,6 +1821,27 @@ Term:
 			delete Agent;
 			terminate;
 		}
+
+		// Prepare the signature message
+		UBuf = new char [len = AUPD_OUTPUT_BUFLEN];
+
+		sg = sigseq (TPN);
+		while ((Left = snprintf (UBuf, len, "%s\n", sg)) >= len) {
+				len = Left + 32;
+				delete [] UBuf;
+				UBuf = new char [len];
+		}
+
+		Buf = UBuf;
+
+	transient Sign:
+
+		if (Agent->wl (Sign, Buf, Left) == ERROR) {
+			delete [] UBuf;
+			goto Term;
+		}
+
+		delete [] UBuf;
 
 		// Check if there is accumulated output to be flushed
 		if (UA->TI_aux != NULL) {
@@ -2079,7 +2193,8 @@ PINS::PINS (data_pn_t *PID) {
 		PID->PODev, IN.I, IN.O, IN.S);
 
 	// Allocate buffer for updates
-	UBuf = new char [PUPD_OUTPUT_BUFLEN];
+	OUpdSize = PUPD_OUTPUT_BUFLEN;
+	UBuf = new char [OUpdSize];
 
 	// Note that I shares location with S
 	if (IN.I != NULL) {
@@ -2343,7 +2458,7 @@ void PINS::pin_new_value (word pin, word val) {
 
 void PINS::pin_new_voltage (word pin, word val) {
 
-	if (!pin_adc (pin))
+	if (!pin_adc_available (pin))
 		return;
 
 	VADC [pin] = val;
@@ -2792,16 +2907,26 @@ int PINS::pinup_status (pin_update_t upd) {
 /*
  * Transforms a pin update request into an outgoing message
  */
-	char *tb;
-	tb = UBuf;
+	int len;
+	char *sg;
 
 	if (*((lint*)(&upd)) == -1) {
-		// This is a params update: two numbers only
-		sprintf (UBuf, "N %1u %1u\n", PIN_MAX, PIN_MAX_ANALOG);
-	} else {
-		sprintf (UBuf, "U %08.3f: %1u %1u %1u\n", ituToEtu (Time),
-			upd.pin, upd.stat, upd.value);
+		// Initial message
+		sg = sigseq (IN.TPN);
+		while ((len = snprintf (UBuf, OUpdSize, "%s %1u %1u %1d %1d\n",
+			sg, PIN_MAX, PIN_MAX_ANALOG,
+			PIN_DAC [0] == BNONE ? -1 : PIN_DAC [0],
+			PIN_DAC [1] == BNONE ? -1 : PIN_DAC [1] )) >=
+			    OUpdSize) {
+				OUpdSize = (word)(len + 32);
+				delete [] UBuf;
+				UBuf = new char [OUpdSize];
+		}
+		return len;
 	}
+
+	sprintf (UBuf, "U %08.3f: %1u %1u %1u\n", ituToEtu (Time),
+		upd.pin, upd.stat, upd.value);
 
 	return strlen (UBuf);
 }
@@ -2903,7 +3028,8 @@ SNSRS::SNSRS (data_sa_t *SID) {
 		SID->SODev, IN.I, IN.O, IN.S);
 
 	// Allocate buffer for updates
-	UBuf = new char [AUPD_OUTPUT_BUFLEN];
+	OUpdSize = AUPD_OUTPUT_BUFLEN;
+	UBuf = new char [OUpdSize];
 
 	// Note that I shares location with S
 	if (IN.I != NULL) {
@@ -3017,17 +3143,20 @@ int SNSRS::act_status (byte what, byte sid, Boolean lm) {
  * Transforms an actuator update message into an outgoing message
  */
 	double tm;
-	char *tb;
+	char *sg;
 	SensActDesc *s;
+	int len;
 	char ct;
 
-	tb = UBuf;
-
 	if (what == SEN_TYPE_PARAMS) {
-		// Send the number of actuators + the number of sensors +
-		// the offsets
-		sprintf (UBuf, "N %1u %1u %1u %1u\n",
-			NActuators, AOff, NSensors, SOff);
+		sg = sigseq (IN.TPN);
+		while ((len = snprintf (UBuf, OUpdSize, "%s %1u %1u %1u %1u\n",
+			sg, NActuators, AOff, NSensors, SOff)) >= OUpdSize) {
+				OUpdSize = (word)(len + 32);
+				delete [] UBuf;
+				UBuf = new char [OUpdSize];
+		}
+		return len;
 	} else {
 		if (what == SEN_TYPE_SENSOR) {
 			ct = 'S';
@@ -3211,25 +3340,35 @@ void LEDSM::setfast (Boolean on) {
 	}
 }
 
-int LEDSM::ledup_status () {
+int LEDSM::ledup_status (char cmd) {
 /*
  * Prepare an update message
  */
 	int i, len;
+	char *sg;
 
-	while ((len = snprintf (UBuf, OUpdSize,
+	if (cmd == 'P') {
+		sg = sigseq (IN.TPN);
+		while ((len = snprintf (UBuf, OUpdSize, "%s %c ",
+			sg, Fast ? '1' : '0')) >= OUpdSize - NLeds) {
+				OUpdSize = (word)(len + NLeds + 16);
+				delete [] UBuf;
+				UBuf = new char [OUpdSize];
+		}
+	} else {
+		while ((len = snprintf (UBuf, OUpdSize,
 #if LONGBITS <= 32
-				"U %08.3f %1ld %s: %c ",
+				"U %08.3f %1ld: %c ",
 #else
-				"U %08.3f %1d %s: %c ",
+				"U %08.3f %1d: %c ",
 #endif
-		ituToEtu (Time),
-		IN.TPN->getId (),
-		IN.TPN->getTName (),
-		Fast ? '1' : '0')) >= OUpdSize - NLeds) {
-			OUpdSize = (word)(len + NLeds + 16);
-			delete [] UBuf;
-			UBuf = new char [OUpdSize];
+			ituToEtu (Time),
+			IN.TPN->getId (),
+			Fast ? '1' : '0')) >= OUpdSize - NLeds) {
+				OUpdSize = (word)(len + NLeds + 16);
+				delete [] UBuf;
+				UBuf = new char [OUpdSize];
+		}
 	}
 
 	for (i = 0; i < NLeds; i++)
@@ -3277,10 +3416,24 @@ EMULM::EMULM (data_em_t *em) {
 			// the number of backlogged entries)
 			Held = YES;
 			MS = create EMessages (MAX_Long);
+			sigmess ();
 		}
 	}
 
 	rst ();
+}
+
+void EMULM::sigmess () {
+//
+// Issue a signature message to the mailbox
+//
+	char *sig, *t;
+
+	sig = new char [strlen (t = sigseq (IN.TPN)) + 2];
+	strcpy (sig, t);
+	strcat (sig, "\n");
+	if (MS->put (sig) == REJECTED)
+		excptn ("EMUL: no room in MBX for signature message");
 }
 
 void EMULM::rst () {
@@ -3340,7 +3493,7 @@ pwr_tracker_t::pwr_tracker_t (data_pt_t *pt) {
 	init_module_io (IN.Flags, PUPD_OUTPUT_BUFLEN, "PTRACKER", pt->PIDev,
 		pt->PODev, IN.I, IN.O, IN.S);
 
-	UBuf = new char [PUPD_OUTPUT_BUFLEN];
+	UBuf = new char [OUpdSize = PUPD_OUTPUT_BUFLEN];
 
 	if (IN.I != NULL)
 		// The input end
@@ -3367,13 +3520,27 @@ void pwr_tracker_t::rst () {
 	upd ();
 }
 
-int pwr_tracker_t::pwrt_status () {
+int pwr_tracker_t::pwrt_status (char cmd) {
 //
 // Issue an update message
 //
 	double t, T;
+	int len;
+	char *sg;
 
-	// Absolute time
+	if (cmd == 'P') {
+		// Initial signature message
+		sg = sigseq (IN.TPN);
+		while ((len = snprintf (UBuf, OUpdSize, "%s\n", sg)) >=
+			OUpdSize) {
+				OUpdSize = (word)(len + 16);
+				delete [] UBuf;
+				UBuf = new char [OUpdSize];
+		}
+		return len;
+	}
+
+	// Normal update: absolute time
 	t = ituToEtu (Time);
 
 	// Elapsed time
@@ -3542,7 +3709,7 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 	char cp [MAX_PINS+1];
 	char cl [MAX_LEDS+2];
 	char ch [8];
-	char *lb;
+	char *lb, *sg;
 
 	pn = (PicOSNode*) idToStation (NN);
 	pn -> get_location (xx, yy);
@@ -3571,31 +3738,33 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 		ch [0] = '\0';
 		lb = ch;
 	}
-		
-	while ((rc = (cmd == 'U') ?
-		snprintf (RBuf, RBSize,
-#if LONGBITS <= 32
-			  "U %1ld %1f %1f <%s,%s> [%s,%s]\n",
-#else
-			  "U %1d %1u %1f %1f <%s,%s> [%s,%s]\n",
-#endif
-			  NN, xx, yy, cl, cp, ch, lb) :
-		snprintf (RBuf, RBSize,
-#if LONGBITS <= 32
-			  "P %1ld %1lu %1ld %1f %1f %1d %s <%s,%s> [%s,%s]\n",
-#else
-			  "P %1d %1u %1d %1f %1f %1d %s <%s,%s> [%s,%s]\n",
-#endif
-			  NN, pn->__host_id__, NStations, xx, yy,
-				pn->Movable, pn->getTName (), cl, cp, ch, lb)
-	) >= RBSize) {
 
-		RBSize = (word)(rc + 16);
-		delete [] RBuf;
-		RBuf = new char [RBSize];
+	if (cmd == 'U') {
+		while ((Left = snprintf (RBuf, RBSize,
+#if LONGBITS <= 32
+			"U %1ld %1f %1f <%s,%s> [%s,%s]\n",
+#else
+			"U %1d %1u %1f %1f <%s,%s> [%s,%s]\n",
+#endif
+			NN, xx, yy, cl, cp, ch, lb)) >= RBSize) {
+				RBSize = (word)(rc + 16);
+				delete [] RBuf;
+				RBuf = new char [RBSize];
+		}
+	} else {
+		sg = sigseq (pn);
+		while ((Left = snprintf (RBuf, RBSize,
+			"%s %1f %1f %1d <%s,%s> [%s,%s]\n",
+			sg,
+			xx, yy,
+			pn->Movable, cl, cp, ch, lb)) >= RBSize) {
+				RBSize = (word)(rc + 16);
+				delete [] RBuf;
+				RBuf = new char [RBSize];
+		}
 	}
+
 	BP = &(RBuf [0]);
-	Left = strlen (RBuf);
 }
 
 MoveHandler::perform {
@@ -4098,18 +4267,10 @@ Illegal_nid:
 				terminate;
 			}
 
-			pn = (PicOSNode*)idToStation (NN);
+			re = sigseq (pn = (PicOSNode*)idToStation (NN));
 
-			while ((rc = snprintf (RBuf, RBSize,
-#if LONGBITS <= 32
-			    "%1ld %c %1ld %s\n",
-#else
-			    "%1d %c %1d %s\n",
-#endif
-			    NN,
-			    pn->Halted ?  'F' : 'O',
-			    NStations,
-			    pn->getTName ())) >= RBSize) {
+			while ((rc = snprintf (RBuf, RBSize, "%s %c\n",
+			    re, pn->Halted ?  'F' : 'O')) >= RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
 				delete [] RBuf;

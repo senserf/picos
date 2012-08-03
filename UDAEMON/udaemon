@@ -680,10 +680,14 @@ array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
 array set HPA		{ 
 			  H "(\[0-9a-f\]+)"
 			  D "(\[0-9\]+)"
+			  S "(\[+-\]?\[0-9\]+)"
 			  F "(\[0-9.+-E\]+)"
 			  P "<(\[^,\]*),(\[^>\]*)>"
 			  V "\\\[(\[^,\]*),(.*)\\\]"
 			}
+
+# node signature
+set HPA(G)		"^P $HPA(D) $HPA(D) $HPA(D) <(\[^ \]*)>:"
 
 array set FONT		{
 			  D {-family courier -size 10}
@@ -703,7 +707,7 @@ array set FONT		{
 # DW, DH = default (initial) width and height
 #
 array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 ND 10 TO 10 RX 10 RY 10
-			  LO 5 LW 100 MW 200 MH 200 DW 400 DH 400 }
+			  LO 0 LW 100 MW 200 MH 200 DW 400 DH 400 }
 
 #
 # Canvas parameters for PTRACKER:
@@ -1099,7 +1103,14 @@ proc parse_geometry { } {
 
 		set n [string tolower [sxml_name $j]]
 		set t [sxml_txt $j]
-	
+
+
+		if { $n == "labels" } {
+			# this one is a bit different
+			parse_labels $j
+			continue
+		}
+			
 		set dsp [string tolower [sxml_attr $j "display"]]
 		if { $dsp == "1" || $dsp == "y" || $dsp == "yes" } {
 			set dsp 1
@@ -1237,6 +1248,32 @@ proc parse_vspec { ncl } {
 	}
 }
 
+proc parse_noset { itm err } {
+#
+# Parses the node set, i.e., ID range/type
+#
+	set nol ""
+	set not ""
+
+	set at [sxml_attr $itm "id"]
+
+	if { $at != "" } {
+		if [catch { parse_ngroup $at } nol] {
+				gperror "$err, $nol"
+		}
+		if { $nol == "" } {
+			gperror "$err, empty id attribute"
+		}
+	}
+
+	set at [string tolower [sxml_attr $itm "type"]]
+	if { $at != "" } {
+		set not $at
+	}
+
+	return [list $not $nol]
+}
+
 proc parse_cspec { ncl } {
 #
 # Parses the node color spec in ROAMER geometry
@@ -1246,26 +1283,13 @@ proc parse_cspec { ncl } {
 	set sts ""
 
 	foreach nc $ncl {
-		set nol ""
-		set not ""
-		set at [sxml_attr $nc "id"]
-		if { $at != "" } {
-			if [catch { parse_ngroup $at } nol] {
-				gperror "<nodecolor>, $nol"
-			}
-			if { $nol == "" } {
-				gperror "<nodecolor>, empty id attribute"
-			}
-		}
-		set at [string tolower [sxml_attr $nc "type"]]
-		if { $at != "" } {
-			set not $at
-		}
-		# this is the complete description of the set of nodes
-		set nos [list $not $nol]
+
+		set nos [parse_noset $nc "<nodecolor>"]
+
 		if [catch { parse_cset [sxml_txt $nc] } cst] {
 			gperror "<nodecolor>, $cst"
 		}
+
 		lappend sts [list $nos $cst]
 	}
 	set Geometry(roamer,NC) $sts
@@ -1610,6 +1634,236 @@ proc get_cset { node tp } {
 	}
 
 	return ""
+}
+
+proc get_lset { node tp mod } {
+#
+# Returns the set of labels for the specified object at the node
+#
+	global Geometry
+
+	if ![info exists Geometry(L,$mod)] {
+		return ""
+	}
+
+	foreach cd $Geometry(L,$mod) {
+		if [cover_nset [lindex $cd 0] $node $tp] {
+			return [lindex $cd 1]
+		}
+	}
+
+	return ""
+}
+
+proc parse_labels { xd } {
+
+	global Geometry
+
+	foreach j [sxml_children $xd] {
+
+		set n [string tolower [sxml_name $j]]
+
+		set err "<parse><$n>"
+
+		if ![info exists Geometry(L,$n)] {
+			# initialize the module's label list
+			set Geometry(L,$n) ""
+		}
+
+		# get the node set
+
+		set nos [parse_noset $j $err]
+
+		if [catch { parse_lablist [sxml_txt $j] } labs] {
+			gperror "$err, $labs"
+		}
+
+		lappend Geometry(L,$n) [list $nos $labs]
+	}
+}
+
+proc parse_lablist { txt } {
+
+	global HPA
+
+	# calculate the minimum label number
+	set min  999
+	set max -999
+
+	# implict last index
+	set las -1
+
+	while 1 {
+		set txt [string trimleft $txt]
+		if { $txt == "" } {
+			break
+		}
+		if [regexp "^$HPA(S)\[ \t\r\n\]*=" $txt mat n] {
+			set txt [string trimleft [string range $txt \
+				[string length $mat] end]]
+			if [catch { expr $n } x] {
+				error "illegal label index: $n"
+			}
+		} else {
+			# implicit index
+			incr las
+			set x $las
+		}
+
+		if { $x < -256 || $x > 255 } {
+			error "label index out of range: $x"
+		}
+		if [info exists lbs($x)] {
+			error "duplicate label index: $x"
+		}
+
+		# decode the label
+		if { $txt == "" } {
+			error "index not followed by a label"
+		}
+
+		if { [string index $txt 0] == "\"" } {
+			set lab [parse_string txt]
+		} else {
+			set lab ""
+			regexp "^\[^ \t\r\n,\]+" $txt lab
+			set txt [string range $txt [string length $lab] end]
+		}
+
+		if { $lab == "" } {
+			error "empty label"
+		}
+
+
+		# check for colors
+		set cf ""
+		set cb ""
+
+		foreach c { cf cb } {
+			set txt [string trimleft $txt]
+			if [regexp "^,\[ \t\r\n\]*(\[^ \t\r\n,\]*)" \
+			    $txt mat col] {
+				set txt [string range $txt \
+				    [string length $mat] end]
+				# verify the color
+				if { $col != "" && ![valcol $col] } {
+					error "illegal color: $col"
+				}
+				set $c $col
+			} else {
+				break
+			}
+		}
+
+		set lbs($x) [list $lab $cf $cb]
+		set las $x
+
+		if { $x < $min } {
+			set min $x
+		}
+
+		if { $x > $max } {
+			set max $x
+		}
+	}
+
+	if { $min == 999 } {
+		return ""
+	}
+
+	set res [list $min]
+
+	while { $min <= $max } {
+		if [info exists lbs($min)] {
+			lappend res $lbs($min)
+		} else {
+			lappend res ""
+		}
+		incr min
+	}
+
+	return $res
+}
+
+proc getLabel { Sok n { pfx "" } } {
+#
+# Returns the label of object number $n
+#
+	global Stat
+
+	set ll $Stat($Sok,LA)
+	set lb ""
+	set co ""
+
+	while 1 {
+
+		if { $ll == "" } {
+			# just the number
+			break
+		}
+
+		set min [lindex $ll 0]
+		if { $n < $min } {
+			break
+		}
+
+		set lb [lindex $ll [expr $n - $min + 1]]
+		break
+	}
+
+	set res [list -text]
+
+	if { $lb == "" } {
+		lappend res "${pfx}$n"
+	} else {
+		lappend res [lindex $lb 0]
+		foreach u { foreground background } v [lrange $lb 1 2] {
+			if { $v != "" } {
+				lappend res "-$u"
+				lappend res $v
+			}
+		}
+	}
+	return $res
+}
+
+proc parse_string { t } {
+#
+# Parses a string enclosed in " ... "
+#
+	upvar $t txt
+
+	set res ""
+
+	set ix 1
+
+	while 1 {
+
+		set c [string index $txt $ix]
+		if { $c == "" } {
+			error "unterminated string"
+		}
+
+		if { $c == "\"" } {
+			break
+		}
+
+		if { $c == "\\" } {
+			incr ix
+			set c [string index $txt $ix]
+			if { $c != "\"" } {
+				append res "\\"
+			}
+		}
+		append res $c
+		incr ix
+	}
+
+	incr ix
+
+	set txt [string range $txt $ix end]
+
+	return $res
 }
 
 proc do_geometry { win kwd { num "" } } {
@@ -2103,6 +2357,46 @@ proc sock_rl { Sok hand } {
 	}
 }
 
+proc node_sig { Sok c { v "" } } {
+#
+# Extracts and verifies node signature
+#
+	upvar $c cmd
+
+	global Stat HPA
+
+	if ![regexp $HPA(G) $cmd mat nod hos tot tna] {
+		return "illegal signature format"
+	}
+
+	if [catch {
+		set nod [expr $nod]
+		set hos [expr $hos & 0xFFFF]
+		set tot [expr $tot]
+	} ] {
+		return "illegal number in signature"
+	}
+
+	if { $nod >= $tot } {
+		return "node number >= total in signature"
+	}
+
+	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
+		if  { $Stat($Sok,S) != $nod } {
+			return "node number $nod != expected $Stat($Sok,S)"
+		}
+	}
+
+	if { $v != "" } {
+		upvar $v val
+		set val [list $nod $hos $tot [sntype $tna]]
+	}
+
+	set cmd [string range $cmd [string length $mat] end]
+
+	return ""
+}
+		
 ###############################################################################
 # UART ########################################################################
 ###############################################################################
@@ -2135,21 +2429,53 @@ proc uartHandler { stid mode } {
 
 proc UART_ini { Sok code } {
 
-	global Wins Stat
+	global Stat
 
 	# the rate
 	set Stat($Sok,R) [expr (($code >> 8) & 0x0ffff) * 100]
 	log "UART rate: $Stat($Sok,R)"
 
+	# wait for the first message
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "uartFirst $Sok"
+}
+
+proc uartFirst { Sok } {
+
+	global Wins Stat
+
+	while 1 {
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
+
 	# create the window
 	set Wn ".wu[unique]"
 
-	set Stat($Sok,B) ""
 	set Stat($Sok,F) 0
 
 	set Wins($Sok) $Wn
 
-	mkTerm $Sok "UART at node $Stat($Sok,S)" $Stat($Sok,M)
+	mkTerm $Sok "UART at node [lindex $pmt 1]" $Stat($Sok,M)
 
 	# reset the input script
 	fileevent $Sok readable "uartRead $Sok"
@@ -2817,8 +3143,12 @@ proc ledsFirst { Sok } {
 	set cmd $Stat($Sok,B)
 	set Stat($Sok,B) ""
 
-	if { ![regexp "(\[^ \]*): (\[0-1\]) (\[0-2\]+)" \
-	    $cmd junk tn Fast Leds] } {
+	if { [node_sig $Sok cmd pmt] != "" } {
+		# keep going
+		return
+	}
+
+	if ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Fast Leds] {
 		# ignore NOPs and illegal commands
 		return
 	}
@@ -2838,7 +3168,8 @@ proc ledsFirst { Sok } {
 		incr i
 	}
 
-	set co [get_cset $Stat($Sok,S) [sntype $tn]]
+	set tn [lindex $pmt 3]
+	set co [get_cset $Stat($Sok,S) $tn]
 	if { $co != "" && [lindex $co 0] == "P" } {
 		foreach c [lindex $co 1] {
 			set pn [lindex $c 0]
@@ -2854,13 +3185,17 @@ proc ledsFirst { Sok } {
 		}
 	}
 
+	set Stat($Sok,LA) [get_lset $Stat($Sok,S) $tn "leds"]
+
+	# determine the labels
+
 	# create the window
 	set Wn ".wl[unique]"
 
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 
-	mkLeds $Sok [string length $Leds] "$Stat($Sok,S) LEDS"
+	mkLeds $Sok [string length $Leds] "[lindex $pmt 1] LEDS"
 
 	ledsStatus $Sok $Fast $Leds
 
@@ -2951,20 +3286,21 @@ proc mkLeds { Sok nleds tt } {
 
 	do_geometry $w "leds" $Stat($Sok,S)
 
-	canvas $w.c -width [expr 32 + $nleds * 24] -height 28
-
 	# blinker callback
 	set Stat($Sok,G) ""
 	# blinker toggle
 	set Stat($Sok,X) 1
 
 	for { set i 0 } { $i < $nleds } { incr i } {
-		set Stat($Sok,O,$i) [mkoneled $w.c [expr 16 + $i * 24]]
-		# not a legit status value - to force the first color update,
-		# some off colors need not be grey
+		set f $w.f$i
+		eval labelframe $f [getLabel $Sok $i]
+		pack $f -side left -expand y -fill both
+		canvas $f.c -width 28 -height 28
+		pack $f.c -side left -expand y -fill both
+		set Stat($Sok,O,$i) [mkoneled $f.c 4]
 		set Stat($Sok,V,$i) -1
 	}
-	grid $w.c -row 0 -column 0
+
 	bind $w <Destroy> "wdestroy $Sok"
 }
 
@@ -2997,7 +3333,7 @@ proc ledsStatus { Sok fast stat } {
 			if { $val == 2 && !$Stat($Sok,X) } {
 				set val 0
 			}
-			$w.c itemconfigure $Stat($Sok,O,$i) -fill \
+			$w.f$i.c itemconfigure $Stat($Sok,O,$i) -fill \
 				[ledColor $Sok $i $val]
 		}
 	}
@@ -3033,7 +3369,7 @@ proc ledsBlinker { Sok } {
 
 	for { set i 0 } { [info exists Stat($Sok,V,$i)] } { incr i } {
 		if { $Stat($Sok,V,$i) == 2 } {
-			$w.c itemconfigure $Stat($Sok,O,$i) -fill \
+			$w.f$i.c itemconfigure $Stat($Sok,O,$i) -fill \
 				[ledColor $Sok $i $on]
 		}
 	}
@@ -3062,14 +3398,49 @@ proc emulHandler { stid } {
 
 proc EMUL_ini { Sok code } {
 
+	global Stat
+
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "emulFirst $Sok"
+}
+
+proc emulFirst { Sok } {
+
 	global Wins Stat FONT
+
+	while 1 {
+
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	# terminate the timeout timer
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
 
 	set w ".we[unique]"
 	set Wins($Sok) $w
 
 	toplevel $w
 
-	wm title $w "EMUL at node $Stat($Sok,S)"
+	wm title $w "EMUL at node [lindex $pmt 1]"
 
 	do_geometry $w "emul" $Stat($Sok,S)
 
@@ -3101,8 +3472,6 @@ proc EMUL_ini { Sok code } {
 
 	$w.t configure -state disabled
 	bind $w <Destroy> "wdestroy $Sok"
-
-	set Stat($Sok,B) ""
 
 	# for saving in a file
 	set Stat($Sok,FD,S) ""
@@ -3171,13 +3540,49 @@ proc lcdgHandler { stid } {
 
 proc LCDG_ini { Sok code } {
 
+	global Stat
+
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "lcdgFirst $Sok"
+}
+
+proc lcdgFirst { Sok } {
+
 	global Wins Stat
+
+	while 1 {
+
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	# terminate the timeout timer
+	ctimeout $Sok
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	set err [node_sig $Sok cmd pmt]
+
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
 
 	set Wn ".wg[unique]"
 
 	set Wins($Sok) $Wn
 	toplevel $Wn
-	wm title $Wn "LCDG: $Stat($Sok,S)"
+	wm title $Wn "LCDG: [lindex $pmt 1]"
 	do_geometry $Wn "lcdg" $Stat($Sok,S)
 	set im [image create photo -width 130 -height 130]
 	set Stat($Sok,IM) $im
@@ -3210,7 +3615,6 @@ proc LCDG_ini { Sok code } {
 	lcdgUPDI $Sok off
 
 	# wait for the updates
-	set Stat($Sok,B) ""
 	fileevent $Sok readable "lcdgRead $Sok"
 }
 
@@ -3423,7 +3827,7 @@ proc PINS_ini { Sok code } {
 
 proc pinsFirst { Sok } {
 
-	global Wins Stat
+	global Wins Stat HPA
 
 	while 1 {
 
@@ -3444,18 +3848,44 @@ proc pinsFirst { Sok } {
 	set cmd $Stat($Sok,B)
 	set Stat($Sok,B) ""
 
-	if ![regexp "^N (\[0-9\]+) (\[0-9\]+)" $cmd junk np na] {
-		log "incorrect handshake, pin count message expected"
+	set err [node_sig $Sok cmd pmt]
+	if { $err != "" } {
+		log "incorrect handshake, $err"
 		dealloc $Sok
 		return
 	}
 
-	if { [catch { set np [expr $np] ; set na [expr $na] } ] || $np < 1 || 
-	    $na > $np } {
+	if ![regexp "$HPA(D) $HPA(D) $HPA(S) $HPA(S)" $cmd junk np na d0 d1] {
+		log "incorrect handshake, pin counts missing"
+		dealloc $Sok
+		return
+	}
+
+	if { [catch {
+		set np [expr $np]
+		set na [expr $na]
+		set d0 [expr $d0]
+		set d1 [expr $d1]
+	} ] || $np < 1 || 
+	    $na >  $np ||
+	    $d0 >= $np ||
+	    $d1 >= $np ||
+	   ($d0 >= 0 && $d0 == $d1)
+	} {
 		log "incorrect handshake, illegal pin numbers $np/$na"
 		dealloc $Sok
 		return
 	}
+
+	set dl ""
+	if { $d0 >= 0 } {
+		lappend dl $d0
+	}
+	if { $d1 >= 0 } {
+		lappend dl $d1
+	}
+	set tn [lindex $pmt 3]
+	set Stat($Sok,LA) [get_lset $Stat($Sok,S) $tn "pins"]
 
 	# create the window
 	set Wn ".wp[unique]"
@@ -3463,7 +3893,7 @@ proc pinsFirst { Sok } {
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 
-	mkPins $Sok $np $na "PINS at node $Stat($Sok,S)"
+	mkPins $Sok $np $na $dl "PINS at node [lindex $pmt 1]"
 
 	fileevent $Sok readable "pinsUpdate $Sok"
 }
@@ -3557,7 +3987,7 @@ proc setPinDac { Sok pin v } {
 	sock_wr $Sok "D $pin $v\n"
 }
 
-proc mkPins { Sok np na tt } {
+proc mkPins { Sok np na dl tt } {
 
 	global Wins Stat
 
@@ -3569,41 +3999,40 @@ proc mkPins { Sok np na tt } {
 	do_geometry $w "pins" $Stat($Sok,S)
 
 	frame $w.dig -borderwidth 4
-	pack $w.dig -side top -expand 1 -fill x
+	pack $w.dig -side top -expand 1 -fill both
 
-	set iw 3
 	set ih 2
 
 	set Stat($Sok,NP) $np
 	set Stat($Sok,NA) $na
+	set Stat($Sok,DA) $dl
 
 	for { set i 0 } { $i < $np } { incr i } {
 		# numbers
-		set c [label $w.dig.h$i -width $iw -height $ih -text $i]
+		set c [eval label $w.dig.h$i [getLabel $Sok $i]]
 		grid $c -column $i -row 0 -sticky nsew
 		# directions
 		set Stat($Sok,D$i) -1
-		set c [label $w.dig.d$i -width $iw -height $ih -text "-" \
+		set c [label $w.dig.d$i -height 2 -text "-" \
 			 -relief raised]
 		grid $c -column $i -row 1 -sticky nsew
 		# output
 		set Stat($Sok,O$i) -1
-		set c [label $w.dig.o$i -width $iw -height $ih -text "-" \
+		set c [label $w.dig.o$i -height 2 -text "-" \
 			-relief sunken]
 		grid $c -column $i -row 2 -sticky nsew
 		# buttons
 		set Stat($Sok,I$i) -1
-		set c [button $w.dig.i$i -width $iw -height $ih -text "-" \
+		set c [button $w.dig.i$i -height 2 -text "-" \
 			-command "pinsInput $Sok $i" -state normal]
 		set Stat($Sok,J$i) "-"
 		grid $c -column $i -row 3 -sticky nsew
 	}
 
+	grid rowconfigure $w.dig { 1 2 3 } -weight 1
 	for { set i 0 } { $i < $np } { incr i } {
-		grid rowconfigure $w.dig.d$i 0 -weight 1
-		grid rowconfigure $w.dig.o$i 0 -weight 1
+		grid columnconfigure $w.dig $i -weight 1
 		set v $w.dig.i$i
-		grid rowconfigure $v 0 -weight 1
 		bind $v <B3-ButtonRelease> "pinsButt $Sok $i"
 		set Stat($Sok,XC$i) ""
 	}
@@ -3613,32 +4042,39 @@ proc mkPins { Sok np na tt } {
 
 		frame $w.adc -borderwidth 4
 		pack $w.adc -side top -expand 0 -fill x
+		set u $w.adc
 
 		for { set i 0 } { $i < $na } { incr i } {
-			set Stat($Sok,A$i) 0
-			set f [frame $w.adc.f$i -borderwidth 0]
-			pack $f -side top -expand 0 -fill x
-			scale $f.s -orient horizontal -length 200 \
+
+			eval label $u.l$i -anchor w [getLabel $Sok $i "ADC "]
+			grid $u.l$i -column 0 -row $i -sticky nsw
+
+			scale $u.s$i -orient horizontal -length 200 \
 				-from 0.0 -to 3.3 -resolution 0.01 \
 				-command "setPinDac $Sok $i" -state normal
-			pack $f.s -side right
-			$f.s set 0.0
-			label $f.l -text "ADC $i"
-			pack $f.l -side right -expand 1 -fill x
+			grid $u.s$i -column 1 -row $i -sticky nsew
+			$u.s$i set 0.0
 		}
+
+		grid columnconfigure $w.adc 1 -weight 1
 	}
 
-	frame $w.dac -borderwidth 4 -relief raised
-	pack $w.dac -side top -expand 0 -fill x
+	if { $Stat($Sok,DA) != "" } {
 
-	# DAC output
-	for { set i 0 } { $i < 2 } { incr i } {
-		set f [frame $w.dac.f$i -borderwidth 0]
-		pack $f -side left -expand 1 -fill x
-		label $f.v -text "00.000 V" -relief sunken
-		pack $f.v -side right
-		label $f.l -justify left -text "DAC $i"
-		pack $f.l -side left -expand 1 -fill x
+		frame $w.dac -borderwidth 4 -relief raised
+		pack $w.dac -side top -expand 0 -fill x
+		# DAC output
+		set i 0
+		foreach dp $Stat($Sok,DA) {
+			set f [frame $w.dac.f$i -borderwidth 0]
+			pack $f -side left -expand 1 -fill x
+			label $f.v -text "00.000 V" -relief sunken
+			pack $f.v -side right -expand 0
+			eval label $f.l -justify right -anchor e \
+				[getLabel $Sok $dp "DAC "]
+			pack $f.l -side left -expand 1 -fill x
+			incr i
+		}
 	}
 
 	bind $w <Destroy> "wdestroy $Sok"
@@ -3746,17 +4182,18 @@ proc newPinStatus { Sok upd } {
 		if { $pin >= $na } {
 			return
 		}
-		set f $w.adc.f$pin
-		$f.s configure -state normal -activebackground $PIN_COLORS(A) \
+		set s $w.adc.s$pin
+		$s configure -state normal -activebackground $PIN_COLORS(A) \
 			-bg $PIN_COLORS(N)
-		$f.s set [toVoltage $val]
+		$s set [toVoltage $val]
 	} elseif { $pin < $na } {
-		$w.adc.f${pin}.s configure -state disabled -bg $PIN_COLORS(I)
+		set s $w.adc.s$pin
+		$s configure -state disabled -bg $PIN_COLORS(I)
 	}
 
-	if { $sta == 3 } {
+	if { $sta == 3 && [lindex $Stat($Sok,DA) 0] != "" } {
 		$w.dac.f0.v configure -text [toVoltage $val]
-	} elseif { $sta == 4 } {
+	} elseif { $sta == 4 && [lindex $Stat($Sok,DA) 1] != "" } {
 		$w.dac.f1.v configure -text [toVoltage $val]
 	}
 }
@@ -3786,7 +4223,7 @@ proc SENSORS_ini { Sok code } {
 
 proc sensorsFirst { Sok } {
 
-	global Wins Stat
+	global Wins Stat HPA
 
 	while 1 {
 
@@ -3806,10 +4243,17 @@ proc sensorsFirst { Sok } {
 	set cmd $Stat($Sok,B)
 	set Stat($Sok,B) ""
 
+	set err [node_sig $Sok cmd pmt]
+	if { $err != "" } {
+		log "incorrect handshake, $err"
+		dealloc $Sok
+		return
+	}
+
 	# This must be the first update with parameters
-	if ![regexp "^N (\[0-9\]+) (\[0-9\]+) (\[0-9\]+) (\[0-9\]+)" $cmd junk \
+	if ![regexp "$HPA(D) $HPA(D) $HPA(D) $HPA(D)" $cmd junk \
 	    na oa ns os] {
-		log "incorrect handshake, sensor count message expected"
+		log "incorrect handshake, sensor counts expected"
 		dealloc $Sok
 		return
 	}
@@ -3821,10 +4265,14 @@ proc sensorsFirst { Sok } {
 		set os [expr $os]
 	} ] } {
 		log "incorrect handshake,\
-			illegal sensor numbers $na/$oa/$ns/$os"
+			illegal sensor counts $na/$oa/$ns/$os"
 		dealloc $Sok
 		return
 	}
+
+	set tn [lindex $pmt 3]
+	set Stat($Sok,LA,0) [get_lset $Stat($Sok,S) $tn "actuators"]
+	set Stat($Sok,LA,1) [get_lset $Stat($Sok,S) $tn "sensors"]
 
 	# create the window
 	set Wn ".wp[unique]"
@@ -3833,7 +4281,7 @@ proc sensorsFirst { Sok } {
 	# damping delay
 	set Stat($Sok,D) 80
 
-	mkSensors $Sok $ns $os $na $oa "SENSORS at node $Stat($Sok,S)"
+	mkSensors $Sok $ns $os $na $oa "SENSORS at node [lindex $pmt 1]"
 
 	fileevent $Sok readable "sensorsUpdate $Sok"
 }
@@ -3856,6 +4304,8 @@ proc mkSensors { Sok ns os na oa tt } {
 
 	if { $na > 0 } {
 
+		set Stat($Sok,LA) $Stat($Sok,LA,0)
+
 		if { $ns > 0 } {
 			frame $w.act -borderwidth 4 -pady 4 -relief sunken
 		} else {
@@ -3876,14 +4326,18 @@ proc mkSensors { Sok ns os na oa tt } {
 			# the window
 			${f}s set 0.0
 
-			label ${f}l -text "Act [expr $i - $oa]"
-			grid ${f}l -row $i -column 0 -sticky w
+			eval label ${f}l -anchor w \
+				[getLabel $Sok [expr $i - $oa] "Act "]
+
+			grid ${f}l -row $i -column 0 -sticky we
 		}
 		grid columnconfigure $w.act 0 -weight 0
 		grid columnconfigure $w.act 1 -weight 1
 	}
 
 	if { $ns > 0 } {
+
+		set Stat($Sok,LA) $Stat($Sok,LA,1)
 
 		if { $na > 0 } {
 			frame $w.sen -borderwidth 4 -pady 4 -relief sunken
@@ -3902,8 +4356,10 @@ proc mkSensors { Sok ns os na oa tt } {
 			grid ${f}s -row $i -column 1 -sticky ew
 			${f}s set 0.0
 
-			label ${f}l -text "Sen [expr $i - $os]"
-			grid ${f}l -row $i -column 0 -sticky w
+			eval label ${f}l -anchor w \
+				[getLabel $Sok [expr $i - $os] "Sen "]
+
+			grid ${f}l -row $i -column 0 -sticky we
 
 			button ${f}e -text "E!" -state normal \
 				-command "triggerSensor $Sok $i"
@@ -4098,7 +4554,7 @@ proc PANEL_ini { Sok code } {
 
 proc panelZero { Sok } {
 
-	global Wins Stat NTYPE_COLORS
+	global Wins Stat NTYPE_COLORS HPA
 
 	if ![info exists Stat($Sok,NN)] {
 		# sanity check
@@ -4118,40 +4574,37 @@ proc panelZero { Sok } {
 			set cmd [string trim $Stat($Sok,B)]
 			set Stat($Sok,B) ""
 			set nnm ""
-			if ![regexp "^(\[0-9\]+) (\[FO\])(.*)" $cmd junk nod \
-			    sta nnm] {
-				continue
-			}
 
-			if [catch { set nod [expr $nod] } ] {
-				# ignore
-				continue
-			}
+			# long or short message?
+			set tot -1
 
+			if { [node_sig $Sok cmd pmt] == "" } {
+				# suspect long
+			    	if ![regexp "(\[FO\])" $cmd sta] {
+					# something wrong
+					continue
+				}
+				lassign $pmt nod hos tot nnm
+			} elseif ![regexp "$HPA(D) +(\[FO\])" \
+			     $cmd junk nod sta] {
+			   	 continue
+			}
+ 
 			if { $Stat($Sok,IN) } {
-			    # initializing
-			    if ![regexp "(\[0-9\]+) (.*)" $nnm junk tot nnm] {
-				# only long messages expected
+
+			    # initializing, expect a long message
+
+			    if { $tot < 0 } {
 				continue
 			    }
-			    set nnm [sntype $nnm]
+
 			    if { $Stat($Sok,NN) < 0 } {
 				# waiting for the total number of nodes
-				if { $nod != 0 } {
-				    continue
-				}
-				if [catch { set tot [expr $tot] } ] {
-				    continue
-				}
-				if { $tot < 0 } {
-				    continue
-				}
 				set Stat($Sok,NN) $tot
 				# how many more to ask for
 				if { $tot > 16 } {
 				    set tot 16
 				}
-				set nnm [string trim $nnm]
 				# current node list
 				set Stat($Sok,SL) [list [list 0 $sta $nnm]]
 				set Stat($Sok,EL) ""
@@ -4176,7 +4629,6 @@ proc panelZero { Sok } {
 				}
 				set Stat($Sok,EL) \
 					[lreplace $Stat($Sok,EL) $ix $ix]
-				set nnm [string trim $nnm]
 				lappend Stat($Sok,SL) [list $nod $sta $nnm]
 				if { [llength $Stat($Sok,EL)] } {
 				    # more
@@ -4225,7 +4677,7 @@ proc panelZero { Sok } {
 			}
 
 			# node not found; check if this is a long status message
-			if ![regexp "(\[0-9\]+) (.*)" $nnm junk tot nnm] {
+			if { $tot < 0 } {
 				# nope, ignore it
 				continue
 			}
@@ -4241,8 +4693,7 @@ proc panelZero { Sok } {
 			set Stat($Sok,EL) [lreplace $Stat($Sok,EL) $ix $ix]
 
 			# and add it to the panel
-			lappend Stat($Sok,SL) \
-				[list $nod $sta [string trim $nnm]]
+			lappend Stat($Sok,SL) [list $nod $sta $nnm]
 
 			updPanel $Sok
 		}
@@ -4835,9 +5286,14 @@ proc moveGNP { Sok cmd } {
 #
 	global Wins Stat HPA NTYPE_COLORS Geometry
 
-	if ![regexp \
-"^P $HPA(D) $HPA(D) $HPA(D) $HPA(F) $HPA(F) $HPA(D) (\[^ \]+) $HPA(P) $HPA(V)" \
-	    $cmd junk nod hos tot x y mov tn ls ps vc vn] {
+
+	if { [node_sig $Sok cmd pmt] != "" } {
+		# keep going, accept only correct items
+		return
+	}
+
+	if ![regexp "$HPA(F) $HPA(F) $HPA(D) $HPA(P) $HPA(V)" $cmd junk \
+	    x y mov ls ps vc vn] {
 		return
 	}
 
@@ -4849,14 +5305,11 @@ proc moveGNP { Sok cmd } {
 		set fb 0
 	}
 				
-	if [catch {
-		set nod [expr $nod]
-		set hos [expr $hos]
-		set tot [expr $tot]
-		set mov [expr $mov]
-	} ] {
+	if [catch { set mov [expr $mov] } ] {
 		return
 	}
+
+	lassign $pmt nod hos tot tn
 
 	if { $nod != $Stat($Sok,CI) } {
 		# the expected node number is wrong, this will not happen
@@ -4893,9 +5346,6 @@ proc moveGNP { Sok cmd } {
 
 	# we have received a new sample, so clear the timeout
 	ctimeout $Sok
-
-	# sanitize the node type name
-    	set tn [sntype $tn]
 
 	# node type color: if there's a Geometry entry for the node, it takes
 	# effect; otherwise, we use some standard colors indexed by node type;
@@ -4966,18 +5416,20 @@ proc moveGNP { Sok cmd } {
 	# color (or color set)
 	# list of canvas items
 	# text item for node number
-	# label widget, if label is currently displayed
 	# fast blink flag for the LEDs
-	# { color label } for visualization
+	# { color label } for highlighting
 	#
 	set Stat($Sok,NL,$nod) \
-		[list $x $y $tn $co "" "" "" $fb [vipars $vc $vn]]
+		[list $x $y $tn $co "" "" $fb [vipars $vc $vn]]
 
 	# the host number, i.e., the lower word of host_id, aka local_host
 	set Stat($Sok,NH,$nod) $hos
 
 	# movability
 	set Stat($Sok,NM,$nod) $mov
+
+	# highlight label widget
+	set Stat($Sok,HL,$nod) ""
 
 	incr Stat($Sok,CI)
 	if { $Stat($Sok,CI) == $tot } {
@@ -5375,7 +5827,7 @@ proc drawNode { Sok w n } {
 	global Stat CMARGIN
 
 	# coords, typename, color (set), items, text, fblink, vis
-	lassign $Stat($Sok,NL,$n) x y z c o t l f v
+	lassign $Stat($Sok,NL,$n) x y z c o t f v
 
 	# network to canvas
 	set cx [xtocv $Sok $x]
@@ -5440,17 +5892,44 @@ proc drawNode { Sok w n } {
 		}
 	}
 
-	if { $vl != "" } {
-		set l [drawLabel $Sok $cx $cy $vl]
-	} else {
-		set l ""
-	}
+	drawLabel $Sok $n $cx $cy $vl
 
 	# the node number
 	set t [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
-		-anchor s -text [expr $Stat($Sok,NH,$n) & 0xffff] \
+		-anchor s -text $Stat($Sok,NH,$n) \
 		-state disabled]
-	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $l $f $v]
+
+	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
+}
+
+proc redrawNode { Sok w n } {
+#
+# Redraw an existing node in a new place
+#
+	global Stat CMARGIN
+
+	lassign $Stat($Sok,NL,$n) x y z c o t f v
+
+	set cx [xtocv $Sok $x]
+	set cy [ytocv $Sok $y]
+	set cxl [expr $cx - $CMARGIN(NR)]
+	set cyl [expr $cy - $CMARGIN(NR)]
+	set cxh [expr $cx + $CMARGIN(NR)]
+	set cyh [expr $cy + $CMARGIN(NR)]
+
+	# override (highlight) color
+	set vc [lindex $v 0]
+	# label
+	set vl [lindex $v 1]
+
+	foreach ci $o co [lindex $c 1] {
+  		$w.c coords $ci $cxl $cyl $cxh $cyh
+		colconf $Sok $n $ci $co $vc
+	}
+
+	$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
+
+	drawLabel $Sok $n $cx $cy $vl
 }
 
 proc moveRedraw { Sok } {
@@ -5484,31 +5963,7 @@ proc moveRedraw { Sok } {
 	} else {
 		# redrawing existing nodes, i.e., adjusting their coordinates
 		for { set n 0 } { $n < $N } { incr n } {
-			lassign $Stat($Sok,NL,$n) x y z c o t l f v
-			set cx [xtocv $Sok $x]
-			set cy [ytocv $Sok $y]
-			set cxl [expr $cx - $CMARGIN(NR)]
-			set cyl [expr $cy - $CMARGIN(NR)]
-			set cxh [expr $cx + $CMARGIN(NR)]
-			set cyh [expr $cy + $CMARGIN(NR)]
-			foreach ci $o {
-  				$w.c coords $ci $cxl $cyl $cxh $cyh
-			}
-			$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
-		}
-
-		if { $l != "" } {
-			# label widget present; delete the old copy
-			$w.c delete $l
-			# the label text
-			set vt [lindex $v 1]
-			if { $vt != "" } {
-				# and create a new one if still required
-				set l [drawLabel $Sok $cx $cy $vt]
-			} else {
-				set l ""
-			}
-			set $Stat($Sok,NL,$n) [list $x $y $z $c $o $t $l $f $v]
+			redrawNode $Sok $w $n
 		}
 		
 		$w.c coords $Stat($Sok,AX) $ddx $ddy
@@ -5579,7 +6034,7 @@ proc moveMove { Sok n nx ny } {
 		return
 	}
 
-	lassign $Stat($Sok,NL,$n) x y z c o t l f v
+	lassign $Stat($Sok,NL,$n) x y z c o t f v
 
 	# network coordinates
 	set x [xfromcv $Sok $nx]
@@ -5652,20 +6107,9 @@ proc moveMove { Sok n nx ny } {
 		$w.c coords $ci $cxl $cyl $cxh $cyh
 	}
 
-	if { $l != "" } {
-		# label widget present; delete the old copy
-		$w.c delete $l
-		# the label text
-		set vt [lindex $v 1]
-		if { $vt != "" } {
-			# and create a new one if still required
-			set l [drawLabel $Sok $nx $ny $vt]
-		} else {
-			set l ""
-		}
-	}
+	moveLabel $Sok $n $nx $ny
 
-	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $l $f $v]
+	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
 
 	if [sock_wr $Sok "M $n $x $y\n"] {
 		return
@@ -5909,25 +6353,35 @@ proc moveNewLocation { Sok nod nx ny ls ps vic } {
 
 	set w [stwin $Sok]
 
-	lassign $Stat($Sok,NL,$nod) x y z c o t l f v
+	lassign $Stat($Sok,NL,$nod) x y z c o t f v
+
+	if { $x != $nx || $y != $ny } {
+		# take care of position change first, then do the updates on
+		# the new node location
+		set x $nx
+		set y $ny
+		set Stat($Sok,NL,$nod) [lreplace $Stat($Sok,NL,$nod) 0 1 $x $y]
+		if ![moveRedim $Sok nx ny] {
+			# no resize, move just this one node, but note that its
+			# coordinates may have been adjusted by moveRedim
+			set x $nx
+			set y $ny
+			set Stat($Sok,NL,$nod) \
+				[lreplace $Stat($Sok,NL,$nod) 0 1 $x $y]
+			redrawNode $Sok $w $nod
+		}
+	}
+
 	# color change flag
 	set cc 0
-	# position change flag
-	set pc 0
-	# blink rate change flag
-	set bc 0
 	# label change flag
 	set lc 0
 
-	if { $ls != "" } {
-		set b [string index $ls 0]
-		set ls [string range $ls 1 end]
-	}
+	set b [string index $ls 0]
+	set ls [string range $ls 1 end]
 
-	if { $b != $f } {
-		set bc 1
-		set f $b
-	}
+	# new blink rate
+	set f $b
 
 	# check for color update
 	set nc [lindex $c 0]
@@ -5955,29 +6409,7 @@ proc moveNewLocation { Sok nod nx ny ls ps vic } {
 		set v $vic
 	}
 
-	if { $x != $nx || $y != $ny } {
-		set pc 1
-	}
-
-	if $pc {
-		# position change
-		if ![moveRedim $Sok nx ny] {
-			# move just the one node
-			set cx [xtocv $Sok $nx]
-			set cy [ytocv $Sok $ny]
-
-			set cxl [expr $cx - $CMARGIN(NR)]
-			set cyl [expr $cy - $CMARGIN(NR)]
-			set cxh [expr $cx + $CMARGIN(NR)]
-			set cyh [expr $cy + $CMARGIN(NR)]
-
-			foreach ci $o {
-				$w.c coords $ci $cxl $cyl $cxh $cyh
-			}
-
-			$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
-		}
-	}
+	set Stat($Sok,NL,$nod) [list $x $y $z $c $o $t $f $v]
 
 	if $cc {
 		# color change
@@ -5987,20 +6419,9 @@ proc moveNewLocation { Sok nod nx ny ls ps vic } {
 	}
 
 	if $lc {
-		# label change
-		if { $l != "" } {
-			$w.c delete $l
-			set l ""
-		}
-		set vt [lindex $v 1]
-		if { $vt != "" } {
-			set cx [xtocv $Sok $nx]
-			set cy [ytocv $Sok $ny]
-			set l [drawLabel $Sok $cx $cy $vt]
-		}
+		drawLabel $Sok $nod [xtocv $Sok $x] [ytocv $Sok $y] \
+			[lindex $v 1]
 	}
-
-	set Stat($Sok,NL,$nod) [list $nx $ny $z $c $o $t $l $f $v]
 }
 
 proc colconf { Sok nod wg col cov } {
@@ -6065,7 +6486,7 @@ proc colblink { Sok nod wg } {
 	}
 
 	# when next?
-	if { [lindex $Stat($Sok,NL,$nod) 7] != 0 } {
+	if { [lindex $Stat($Sok,NL,$nod) 6] != 0 } {
 		# fast
 		set del 128
 	} else {
@@ -6074,13 +6495,11 @@ proc colblink { Sok nod wg } {
 	after $del "colblink $Sok $nod $wg"
 }
 
-proc drawLabel { Sok x y txt } {
+proc labelCoord { Sok x y } {
 #
-# Draws a label box associated with the node at x y
+# Caclculate label coordinates
 #
-	global Stat CMARGIN FONT LAB_COLOR
-
-	set w [stwin $Sok]
+	global Stat CMARGIN
 
 	# this is the offset of the label box corner from the corner of the
 	# node's box; we still don't know the direction
@@ -6090,12 +6509,13 @@ proc drawLabel { Sok x y txt } {
 	# maximum space
 	lassign $Stat($Sok,NC) aw ah
 
+	# determine the text anchor
 	if { [expr $ah - $y] > $y } {
 		set dy 1
-		set anc "s"
+		set anc "n"
 	} else {
 		set dy -1
-		set anc "n"
+		set anc "s"
 	}
 	# anchor y coordinate
 	set yc [expr $y + $dy * $co]
@@ -6112,6 +6532,31 @@ proc drawLabel { Sok x y txt } {
 	# anchor x coordinate
 	set xc [expr $x + $dx * $co]
 
+	return [list $xc $yc $anc $jus]
+}
+
+proc drawLabel { Sok n x y txt } {
+#
+# Draws a label box associated with the node at x y
+#
+	global Stat CMARGIN FONT LAB_COLOR
+
+	set w [stwin $Sok]
+
+	if { $Stat($Sok,HL,$n) != "" } {
+		# remove the previous one
+		$w.c delete $Stat($Sok,HL,$n)
+		set $Stat($Sok,HL,$n) ""
+	}
+
+	if { $txt == "" } {
+		# that's it
+		return
+	}
+
+	# coordinates and anchor
+	lassign [labelCoord $Sok $x $y] xc yc anc jus
+
 	# width taken by the text if not broken
 	set rw [font measure $FONT(L) $txt]
 	set rw [expr $rw + 14]
@@ -6122,8 +6567,27 @@ proc drawLabel { Sok x y txt } {
 		set rw 0
 	}
 
-	return [$w.c create text $xc $yc -anchor $anc -text $txt \
+	set Stat($Sok,HL,$n) [$w.c create text $xc $yc -anchor $anc -text $txt \
 		-justify $jus -width $rw -fill $LAB_COLOR]
+}
+
+proc moveLabel { Sok n x y } {
+#
+# Update the label's coordinates
+#
+	global Stat
+
+	set w [stwin $Sok]
+
+	if { $Stat($Sok,HL,$n) == "" } {
+		# no label
+		return
+	}
+
+	lassign [labelCoord $Sok $x $y] xc yc anc jus
+
+	$w.c coords $Stat($Sok,HL,$n) $xc $yc
+	$w.c itemconfigure $Stat($Sok,HL,$n) -anchor $anc -justify $jus
 }
 
 ###############################################################################
@@ -6283,7 +6747,7 @@ tk_optionMenu .top.select Option \
 	"PANEL" \
 	"CLOCK"
 
-label .top.l -text "Node Id:"
+label .top.l -text "Node serial number:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \
 	-validate key -vcmd {validSid %P} -invcmd bell
 

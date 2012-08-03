@@ -342,7 +342,7 @@ class LEDSM {
 
 	public:
 
-	int ledup_status ();
+	int ledup_status (char);
 	void ledup_status_short (char*);
 	void setfast (Boolean);
 	Boolean isfast () { return Fast; };
@@ -379,6 +379,7 @@ class EMULM {
 	EMULM (data_em_t*);
 	~EMULM ();
 
+	void sigmess ();
 	void rst ();
 };
 
@@ -540,6 +541,8 @@ class PINS {
 	const short *DefAVo;		// Default (inout) voltage
 
 	char	*UBuf;			// Buffer for updates
+
+	word	OUpdSize;		// Buffer size
 
 	PUpdates *Upd;
 
@@ -748,6 +751,9 @@ class SNSRS {
 
 	sint		SOff,		// Offsets to implement negative
 			AOff;		// (hidden) numbers
+
+	word		OUpdSize;	// Update buffer size
+
 	public:
 
 	void qupd_act (byte, byte, Boolean lm = NO);
@@ -779,6 +785,7 @@ class pwr_tracker_t {
 	word		States [PWRT_N_MODULES];	// Current states
 
 	char		*UBuf;
+	word		OUpdSize;
 
 	Boolean		Changed;
 
@@ -788,7 +795,7 @@ class pwr_tracker_t {
 			IN.OT->signal (NULL);
 	};
 
-	int pwrt_status ();
+	int pwrt_status (char);
 
 	inline double vavg (double t) {
 		return (t > 0.0) ? average * (last_tim / t) +
