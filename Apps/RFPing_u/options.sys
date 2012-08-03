@@ -43,3 +43,5 @@
 #define	DIAG_MESSAGES	2
 
 #endif
+
+#define	TCV_LIMIT_RCV	4

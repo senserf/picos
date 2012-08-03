@@ -134,26 +134,59 @@ proc sock_read { } {
 
 	variable VU
 
-	kick
+	if { $VU(SS) == 0 } {
+		# expecting the initial code
+		if { [catch { read $VU(FD) 4 } res] || $res == "" } {
+			# disconnection
+			set VU(ER) "Connection refused"
+			kick
+			return
+		}
 
-	if { [catch { read $VU(FD) 4 } res] || $res == "" } {
-		# disconnection
-		set VU(ER) "Connection refused"
-		return
+		set code [dbin_Q res]
+		if { $code != 129 } {
+			# wrong code
+			set VU(ER) "Connection refused by VUEE, code $code"
+			kick
+			return 
+		}
+
+		set VU(SS) 1
+		set VU(SI) ""
 	}
 
-	set code [dbin_Q res]
+	# read the signature message
 
-	if { $code != 129 } {
-		# wrong code
-		set VU(ER) "Connection refused by VUEE, code $code"
+	while 1 {
+		if [catch { read $VU(FD) 1 } res] {
+			set VU(ER) "Connection broken during handshake"
+			kick
+			return
+		}
+		if { $res == "" } {
+			return
+		}
+		if { $res == "\n" } {
+			# done
+			break
+		}
+		append VU(SI) $res
+	}
+
+	# verify the signature
+	kick
+	if ![regexp "^P (\[0-9\]+) (\[0-9\]+) (\[0-9\]+) <(\[^ \]*)>:" $VU(SI) \
+	    mat nod hos tot tna] {
+		set VU(ER) "Illegal node signature: $sig"
 		return
 	}
 
 	# connection OK
+
+	set VU(SI) [list $nod $hos $tot $tna]
 }
 
-proc vuart_conn { ho po no abvar } {
+proc vuart_conn { ho po no abvar { sig "" } } {
 #
 # Connect to UART at the specified host, port, node; abvar is the abort 
 # variable (set to 1 <from the outside> to abort the connection in progress)
@@ -207,6 +240,7 @@ proc vuart_conn { ho po no abvar } {
 	}
 
 	# wait for a reply
+	set VU(SS) 0
 	fileevent $VU(FD) readable ::VUART::sock_read
 
 	wkick
@@ -223,7 +257,15 @@ proc vuart_conn { ho po no abvar } {
 	}
 
 	set fd $VU(FD)
+
+	if { $sig != "" } {
+		upvar $sig s
+		set s $VU(SI)
+	}
+
 	cleanup 1
+
+	fileevent $fd readable {}
 
 	return $fd
 }

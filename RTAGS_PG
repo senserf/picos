@@ -2427,3 +2427,9 @@ PG120728A:	VUEE >= PG120728A
 	RXOFF mode, either make sure that the queue is being filled faster than
 	the transmitter drains it, or turn on the receiver for the entire
 	series of packets.
+
+PG120803A:	VUEE >= PG120803A
+
+	Numerous cleanups to the VUEE-udaemon interface reulting in
+	modifications to piter and econnect, as well as some illustrative
+	modifications to XML data/geometry sets.

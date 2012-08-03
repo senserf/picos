@@ -53,11 +53,19 @@
 	    <leds number="4">
 		<output target="socket"></output>
 	    </leds>
-	    <pins number="6">
+	    <pins number="6" dac="2 4">
 		<output target="socket"></output>
 		<status>1111111111</status>
 		<values>0000000000</values>
 	    </pins>
+	    <sensors>
+		<input source="socket"></input>
+		<output target="socket"></output>
+		<sensor number="0" vsize="2" delay="0.6">2047</sensor>
+		<sensor number="1" vsize="2" delay="0.220">16381</sensor>
+		<sensor number="2" vsize="2" delay="0.06">4095</sensor>
+		<actuator vsize="2" delay="0.0">15</actuator>
+	    </sensors>
 	    <ptracker>
 		<output target="socket"/>
 		<module id="cpu">0.3 0.0077</module>
@@ -86,9 +94,23 @@
 	</node>
 	<node number="6">
 	    <location>3.0 2.0</location>
+	    <emul><output target="socket" type="held"></output></emul>
 	</node>
 	<node number="7">
 	    <location>4.0 2.5</location>
+	    <emul><output target="socket" type="held"></output></emul>
 	</node>
     </nodes>
+    <roamer>
+	<input source="string">
+		R 0 [1.0 1.0 64.0 64.0] [4.0 4.0] [2.0 4.0] -1.0
+		R 1 [1.0 1.0 64.0 64.0] [4.0 4.0] [2.0 4.0] -1.0
+		R 2 [1.0 1.0 64.0 64.0] [4.0 4.0] [2.0 4.0] -1.0
+		R 3 [1.0 1.0 64.0 64.0] [4.0 4.0] [2.0 4.0] -1.0
+		R 4 [1.0 1.0 64.0 64.0] [4.0 4.0] [2.0 4.0] -1.0
+		R 5 [1.0 1.0 64.0 64.0] [0.5 2.0] [2.0 4.0] -1.0
+		R 6 [1.0 1.0 64.0 64.0] [0.5 2.0] [2.0 4.0] -1.0
+		R 7 [1.0 1.0 64.0 64.0] [0.5 2.0] [2.0 4.0] -1.0
+	</input>
+    </roamer>
 </network>

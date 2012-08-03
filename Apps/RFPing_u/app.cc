@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -10,9 +10,32 @@
 #include "form.h"
 #include "phys_cc1100.h"
 #include "plug_null.h"
+
+#include "pins.h"
+
+#if defined(PIN_LIST) || defined (__SMURPH__)
+#define	PIN_OPERATIONS_INCLUDED
+#endif
+
+#if defined(SENSOR_LIST) || defined (__SMURPH__)
+#define	SENSOR_OPERATIONS_INCLUDED
+#endif
+
+#if defined(ACTUATOR_LIST) || defined (__SMURPH__)
+#define	ACTUATOR_OPERATIONS_INCLUDED
+#endif
+
+#ifdef PIN_OPERATIONS_INCLUDED
 #include "pinopts.h"
+#endif
+
+#ifdef SENSOR_OPERATIONS_INCLUDED
 #include "sensors.h"
+#endif
+
+#ifdef ACTUATOR_OPERATIONS_INCLUDED
 #include "actuators.h"
+#endif
 
 #define	MIN_PACKET_LENGTH	24
 #define	MAX_PACKET_LENGTH	46
@@ -83,6 +106,8 @@ fsm receiver {
 		((byte*)packet) [tcv_left (packet) - 1],
 		((byte*)packet) [tcv_left (packet) - 2]
 	);
+
+	emul (1, "Reception: %lu", last_rcv);
 
 	tcv_endp (packet);
 
@@ -339,6 +364,7 @@ fsm root {
 		"q        -> stop rf\r\n"
 		"i        -> set sid\r\n"
 		"z        -> reset\r\n"
+#ifdef PIN_OPERATIONS_INCLUDED
 		"p n      -> read pin\r\n"
 		"u n v    -> set pin\r\n"
 		"a n r d  -> read ADC pin\r\n"
@@ -353,8 +379,13 @@ fsm root {
 		"X        -> start mtr\r\n"
 		"Y        -> stop mtr\r\n"
 #endif
+#endif
+#ifdef SENSOR_OPERATIONS_INCLUDED
 		"S n      -> read n-th sensor\r\n"
+#endif
+#ifdef ACTUATOR_OPERATIONS_INCLUDED
 		"A n v    -> set n-th actuator\r\n"
+#endif
 		"K        -> force watchdog reset\r\n"
 	);
 
@@ -382,6 +413,7 @@ fsm root {
 	    case 'q': proceed RS_QUIT;
 	    case 'i': proceed RS_SSID;
 	    case 'z': proceed RS_RES;
+#ifdef PIN_OPERATIONS_INCLUDED
 	    case 'p': proceed RS_RPIN;
 	    case 'u': proceed RS_SPIN;
 	    case 'a': proceed RS_RANA;
@@ -396,8 +428,13 @@ fsm root {
 	    case 'X': proceed RS_PSMT;
 	    case 'Y': proceed RS_PQMT;
 #endif
+#endif
+#ifdef SENSOR_OPERATIONS_INCLUDED
 	    case 'S': proceed RS_GETS;
+#endif
+#ifdef ACTUATOR_OPERATIONS_INCLUDED
 	    case 'A': proceed RS_SETA;
+#endif
 	    case 'K': {
 			killall (watchdog);
 			proceed RS_RCMD;
@@ -489,6 +526,7 @@ fsm root {
 	reset ();
 	// We should be killed past this
 
+#ifdef PIN_OPERATIONS_INCLUDED
     entry RS_RPIN:
 
 	if (scan (ibuf + 1, "%u", p+0) < 1)
@@ -594,6 +632,7 @@ fsm root {
 	proceed RS_RCMD;
 
 #endif /* PMON_NOTEVENT */
+#endif /* PIN_OPERATIONS_INCLUDED */
 
     entry RS_SETP:
 
@@ -609,6 +648,7 @@ fsm root {
 		tcv_control (sfd, PHYSOPT_GETPOWER, NULL));
 	proceed RS_RCMD;
 
+#ifdef SENSOR_OPERATIONS_INCLUDED
     entry RS_GETS:
 
 	if (scan (ibuf + 1, "%u", p+0) < 1)
@@ -622,7 +662,9 @@ fsm root {
 
 	ser_outf (RS_GETS2, "V = %u\r\n", p [1]);
 	proceed RS_RCMD;
+#endif
 
+#ifdef ACTUATOR_OPERATIONS_INCLUDED
     entry RS_SETA:
 
 	if (scan (ibuf + 1, "%u %u", p+0, p+1) < 1)
@@ -632,4 +674,6 @@ fsm root {
 
 	write_actuator (RS_SETA1, p [0], p + 1);
 	proceed RS_RCMD;
+#endif
+
 }
