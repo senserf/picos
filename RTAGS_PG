@@ -2433,3 +2433,21 @@ PG120803A:	VUEE >= PG120803A
 	Numerous cleanups to the VUEE-udaemon interface reulting in
 	modifications to piter and econnect, as well as some illustrative
 	modifications to XML data/geometry sets.
+
+PG120814A:	VUEE >= PG120814A, PIP >= PG120814A
+
+	Following the (rather drastic) changes to the VUEE agent protocol (see
+	the VUEE doc), I have updated some data sets augmenting them with what
+	was previously known as udaemon geometry data (which used to be stored
+	in separate files, their names typically ending with .geo).
+
+	Specifically, I have updated these data sets:
+
+	Seawolf: 	sixnodes.xml, removed geometry.xml
+	eco_demo:	collector.xml, large_eco.xml, removed large_eco.geo
+	il_demo:	mlakes_27_?.xml, removed mlakes.geo
+	ams_demo:	ams.xml, removed ams.geo
+	RFPing_u:	data8.xml, removed geometry8.geo
+
+	The new versions of those data files can be used as illustrations.
+	Read the VUEE doc, especially the section on udaemon.
