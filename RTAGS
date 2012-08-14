@@ -599,3 +599,9 @@ PG120605A:	SIDE >= PG120605A, PICOS >= PG120605B, VUEE >= PG120605A
 	the -V option. GUI scripts include the tag number in the title of the
 	main window.
 
+PG120814A:	VUEE >= PG120814A
+
+	The VUEE configuration dialog now asks whether udaemon's data should
+	be provided directly (using the -G option -- read the VUEE doc),
+	instead for a specific data file. The data set for udaemon is now the
+	same as for the VUEE model.

@@ -142,7 +142,7 @@ set CFVueeItems {
 			"VDISABLE"	0
 			"CMPIS"		0
 			"UDON"		0
-			"UDDF"		""
+			"UDDF"		0
 			"VUDF"		""
 }
 
@@ -4412,25 +4412,23 @@ proc mk_vuee_conf_window { } {
 	pack $f.c -side right -expand n
 
 	##
+	set f $w.ti
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Direct udaemon data: "
+	pack $f.l -side left -expand n
+	checkbutton $f.c -variable P(M0,UDDF)
+	pack $f.c -side right -expand n
+
+	##
 	set f $w.th
 	frame $f
 	pack $f -side top -expand y -fill x
 	label $f.l -text "Praxis data file: "
 	pack $f.l -side left -expand n
-	button $f.b -text "Select" -command "vuee_conf_fsel VUDF"
+	button $f.b -text "Select" -command "vuee_conf_fsel"
 	pack $f.b -side right -expand n
 	label $f.f -textvariable P(M0,VUDF)
-	pack $f.f -side right -expand n
-
-	##
-	set f $w.ti
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Udaemon geometry file: "
-	pack $f.l -side left -expand n
-	button $f.b -text "Select" -command "vuee_conf_fsel UDDF"
-	pack $f.b -side right -expand n
-	label $f.f -textvariable P(M0,UDDF)
 	pack $f.f -side right -expand n
 
 	##
@@ -4445,42 +4443,36 @@ proc mk_vuee_conf_window { } {
 	bind $w <Destroy> "md_click -1"
 }
 
-proc vuee_conf_fsel { tp } {
+proc vuee_conf_fsel { } {
 #
-# Selects a data file for the praxis (VUEE model) or udaemon
+# Selects a data file for the praxis (VUEE model)
 #
 	global P
 
-	if { ![info exists P(LFS,$tp)] ||
-	      [file_location $P(LFS,$tp)] != "T" } {
+	if { ![info exists P(LFS,VUDF)] ||
+	      [file_location $P(LFS,VUDF)] != "T" } {
 		# remembers last directory and defaults to the project's
 		# directory
-		set P(LFS,$tp) $P(AC)
+		set P(LFS,VUDF) $P(AC)
 	}
 
-	if { $tp == "UDDF" } {
-		set ft [list [list "Udaemon geometry file" [list ".geo"]]]
-		set de ".geo"
-		set ti "geometry file for udaemon"
-	} else {
-		set ft [list [list "Praxis data file" [list ".xml"]]]
-		set de ".xml"
-		set ti "data file for the praxis"
-	}
+	set ft [list [list "Praxis data file" [list ".xml"]]]
+	set de ".xml"
+	set ti "data file for the praxis"
 
 	while 1 {
 
 		reset_all_menus 1
 		set fn [tk_getOpenFile 	-defaultextension $de \
 					-filetypes $ft \
-					-initialdir $P(LFS,$tp) \
+					-initialdir $P(LFS,VUDF) \
 					-title "Select a $ti" \
 					-parent $P(M0,WI)]
 		reset_all_menus
 
 		if { $fn == "" } {
 			# cancelled, cancel
-			set P(M0,$tp) ""
+			set P(M0,VUDF) ""
 			return
 		}
 
@@ -4496,10 +4488,10 @@ proc vuee_conf_fsel { tp } {
 		}
 
 		# assume it is OK, but use a relative path
-		set P(M0,$tp) [relative_path $fn]
+		set P(M0,VUDF) [relative_path $fn]
 
 		# for posterity
-		set P(LS,$tp) [file dirname $fn]
+		set P(LS,VUDF) [file dirname $fn]
 
 		return
 	}
@@ -6253,19 +6245,24 @@ proc run_udaemon { { auto 0 } } {
 		set cmd "[list sh] [list $ef]"
 	}
 
-	# check for the geometry file
+	# check for udaemon data file
 	set gf [dict get $P(CO) "UDDF"]
 
-	if { $gf != "" } {
-		# there is a geometry file
-		if ![file_present $gf] {
-			alert "The geometry file $gf doesn't exist"
-			return
+	if { $gf != 0 } {
+		# direct data file to udaemon
+		set gf [dict get $P(CO) "VUDF"]
+		if { $gf != "" } {
+			if ![file_present $gf] {
+				alert "Data file $gf doesn't exist"
+				return
+			}
+			append cmd " -G [list $gf]"
 		}
-		append cmd " -G [list $gf]"
 	}
 
 	append cmd " 2>@1"
+
+	log "Pipe: $cmd"
 
 	if [catch { open "|$cmd" "r" } fd] {
 		alert "Cannot start udaemon: $fd"
