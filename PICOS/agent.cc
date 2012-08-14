@@ -15,6 +15,8 @@
 #define	omode(f)	((f) & XTRN_OMODE_MASK)
 
 word	__pi_Agent_Port	= AGENT_SOCKET;
+char	*__pi_XML_Data = NULL,	// Copy of complete XML data file (includes in)
+	*__pi_BGR_Image = NULL;	// File name or ROAMER's background image
 
 static MUpdates *MUP = NULL,	// To signal mobility updates
 		*PUP = NULL;	// To signal panel updates
@@ -83,6 +85,53 @@ static char *sigseq (PicOSNode *pn) {
 			pn->getTName ());
 }
 
+static char *rdfile (const char *fn, int &Len) {
+//
+// Read the contents of file into memory
+//
+	int fd, len, cur, rea;
+	char *f;
+
+	if ((fd = open (fn, O_RDONLY)) < 0) {
+		Len = -1;
+		return NULL;
+	}
+
+	if ((f = (char*) malloc (len = 16384)) == NULL) {
+M_err:
+		Len = -2;
+G_err:
+		close (fd);
+		return NULL;
+	}
+
+	cur = 0;
+
+	while (1) {
+		if (cur == len) {
+			if ((f = (char*) realloc (f, len += 8192)) == NULL)
+				goto M_err;
+		}
+		if ((rea = read (fd, f + cur, len - cur)) == 0)
+			break;
+		if (rea < 0) {
+			free (f);
+			Len = -1;
+			goto G_err;
+		}
+		cur += rea;
+	}
+
+	close (fd);
+
+	if ((Len = cur) == 0) {
+		free (f);
+		f = NULL;
+	}
+
+	return f;
+}
+			
 int Dev::wl (int st, char *&buf, int &left) {
 	// This is for writing stuff potentially longer than the
 	// mailbox buffer
@@ -315,6 +364,21 @@ process ClockHandler {
 	}
 
 	states	{ AckClk, Send };
+
+	void setup (Dev*);
+
+	perform;
+};
+
+process DataSender {
+/*
+ * Sends the XML data and quits
+ */
+	Dev	*Agent;
+	char	*Buf;
+	int	Length;
+
+	states { AckData, Send, Wait, Kill };
 
 	void setup (Dev*);
 
@@ -1901,6 +1965,45 @@ Term:
 			goto Term;
 
 		Timer->wait (secdelay, Send);
+}
+
+void DataSender::setup (Dev *a) {
+
+	(Agent = a) -> resize (DATA_OUTPUT_BUFLEN);
+	Length = strlen (Buf = __pi_XML_Data);
+}
+
+DataSender::perform {
+
+	lword c;
+
+	state AckData:
+
+		c = htonl (ECONN_OK | (((lword)Length) << 8));
+
+		if (Agent->wi (AckData, (char*)(&c), 4) == ERROR) {
+Term:
+			delete Agent;
+			terminate;
+		}
+
+
+	transient Send:
+
+		Agent->wl (Send, Buf, Length);
+
+	transient Wait:
+
+		// Wait for the output to be flushed
+		if (!Agent->isActive () || !Agent->outputPending ())
+			goto Term;
+
+		Agent->wait (OUTPUT, Wait);
+		Timer->delay (MILLISECOND * SHORT_TIMEOUT, Kill);
+
+	state Kill:
+
+		goto Term;
 }
 
 word PINS::adc (short v, int ref) {
@@ -3680,10 +3783,8 @@ void MoveHandler::setup (Dev *a, FLAGS f) {
 	if (imode (Flags) != XTRN_IMODE_STRING)
 		Agent->setSentinel ('\n');
 	TimedRequestTime = Time;
-	// This will do for input requests, but we have to play it
-	// safe with the output stuff, which includes node type names,
-	// as there is no explicit limit on their length
-	RBuf = new char [RBSize = MRQS_INPUT_BUFLEN];
+
+	// RBuf allocated in the process code method
 }
 
 MoveHandler::~MoveHandler () {
@@ -3781,17 +3882,54 @@ MoveHandler::perform {
 	char cc;
 	Boolean off;
 
-	state AckMove:
+	state InitMove:
 
-		if (imode (Flags) == XTRN_IMODE_SOCKET) {
-			// Need to acknowledge
- 			c = htonl (ECONN_OK);
- 			if (Agent->wi (AckMove, (char*)(&c), 4) == ERROR) {
-				// Disconnected
-				delete Agent;
-				terminate;
+		Left = 0;
+
+		if (imode (Flags) != XTRN_IMODE_SOCKET)
+			// No need to acknowledge
+			sameas AckDone;
+
+		// Check if background image is available
+		if (__pi_BGR_Image != NULL &&
+		    (Flags & XTRN_OMODE_OPTION) &&
+		    (RBuf = rdfile (__pi_BGR_Image, Left)) != NULL) {
+			if (Left > 0xFFFFFF) {
+				// File too big
+				free (RBuf);
+				RBuf = NULL;
+				Left = 0;
 			}
 		}
+
+	transient AckMove:
+
+		c = htonl (ECONN_OK | ((lword)Left) << 8);
+
+		if (Agent->wi (AckMove, (char*)(&c), 4) == ERROR) {
+			// Disconnected
+Term:
+			delete Agent;
+			terminate;
+		}
+
+		if (Left == 0)
+			sameas AckDone;
+
+		// Send the background image file
+
+		BP = RBuf;
+
+	transient BgrMove:
+
+		if (Agent->wl (BgrMove, BP, Left) == ERROR)
+			goto Term;
+
+		free (RBuf);
+
+	transient AckDone:
+
+		RBuf = new char [RBSize = MRQS_INPUT_BUFLEN];
 
 	transient Loop:
 
@@ -4481,7 +4619,9 @@ AgentConnector::perform {
 
 			case AGENT_RQ_MOVE:
 
-				create MoveHandler (Agent, XTRN_IMODE_SOCKET);
+				create MoveHandler (Agent,
+					XTRN_IMODE_SOCKET | ((st == -2) ?
+					XTRN_OMODE_OPTION : 0));
 				terminate;
 
 			case AGENT_RQ_CLOCK:
@@ -4501,7 +4641,13 @@ AgentConnector::perform {
 				create LcdgHandler (TPN->lcdg, Agent);
 				terminate;
 
-			// More options will come later
+			case AGENT_RQ_DATA:
+
+				// Send the XML data file
+				create DataSender (Agent);
+				terminate;
+
+			// More options may come later
 			default:
 				create Disconnector (Agent, ECONN_UNIMPL);
 		}

@@ -644,12 +644,11 @@ array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 # default colors for the first five node types
 set NTYPE_COLORS	{ yellow blue orange red green }
 
-# default colors for small number "visualization" color overrides
-set VIS_COLORS		{ black gray white magenta darkviolet goldenrod
-			  orangered chocoloate }
-
-#default color for visual label
-set LAB_COLOR		maroon
+# default highlight colors: "note bgr" "list of small-value colors"
+set Geometry(H,)	{
+	{ {} {} }
+	{ black gray white magenta darkviolet goldenrod orangered chocolate }
+}
 
 #
 # Pin status ordinals:
@@ -701,7 +700,7 @@ array set FONT		{
 # NR     = node radius
 # ND     = node diameter
 # TO     = text label Y offset
-# LO	 = label offset (x,y) from the corner of node's box
+# LO	 = note offset (x,y) from the corner of node's box
 # RX, RY = running coordinate offset from left bottom
 # MW, MH = minimum width and height
 # DW, DH = default (initial) width and height
@@ -772,6 +771,7 @@ array set SREQUESTS	{
 				LCDG		8
 				PTRACKER	9
 				EMUL		10
+				XMLDATA		11
 			}
 
 ###############################################################################
@@ -998,12 +998,25 @@ proc lappendunique { ls it } {
 # arguments, preprocessing ####################################################
 ###############################################################################
 
+proc alex { { msg "" } } {
+#
+# Alert and exit
+#
+	if { $msg != "" } {
+		if [catch { alert $msg }] {
+			catch { puts $msg }
+		}
+	}
+
+	catch { destroy . }
+	exit 99
+}
+
 proc bad_usage { } {
 
 	global argv0
 
-	alert "Usage: $argv0 \[host:port\] \[-G gfile\]!"
-	exit 99
+	alex "Usage: $argv0 \[host:port\] \[-G gfile\]!"
 }
 
 proc parse_args { } {
@@ -1044,12 +1057,14 @@ proc parse_args { } {
 			set PortNumber $p
 		}
 		if { $h != "" } {
+			if { [string index $h 0] == "-" } {
+				alex "Illegal host name: $h"
+			}
 			set HostName $h
 		}
 
 		if [catch { valnum $PortNumber 1 65535 } PortNumber] {
-			alert "Illegal port number: $PortNumber!"
-			exit 99
+			alex "Illegal port number: $PortNumber!"
 		}
 	}
 
@@ -1062,175 +1077,447 @@ proc gperror { em } {
 #
 # geometry file parse error
 #
-	alert "Parsing geometry file: $em!"
-	exit 99
+	alex "Parsing geometry data: $em!"
 }
 
-proc parse_geometry { } {
-
-	global GFile Geometry
-
-	if { $GFile == "" } {
-		# try to open the default geometry file
-		set GFile "geometry.xml"
-		if [catch { open $GFile "r" } h] {
-			# failure is OK
-			return
-		}
-	} else {
-		if [catch { open $GFile "r" } h] {
-			gperror "cannot open $GFile: $h"
-		}
-	}
-
-	# parse the geometry file
-	if [catch { read $h } p] {
-		gperror "cannot read $GFile: $p"
-	}
-	catch { close $h }
-
-	if [catch { sxml_parse p } p] {
-		gperror $p
-	}
-
-	set p [sxml_child $p "geometry"]
-
-	if { $p == "" } {
-		gperror "no <geometry> element found"
-	}
-
-	foreach j [sxml_children $p] {
-
-		set n [string tolower [sxml_name $j]]
-		set t [sxml_txt $j]
-
-
-		if { $n == "labels" } {
-			# this one is a bit different
-			parse_labels $j
-			continue
-		}
-			
-		set dsp [string tolower [sxml_attr $j "display"]]
-		if { $dsp == "1" || $dsp == "y" || $dsp == "yes" } {
-			set dsp 1
-		} else {
-			set dsp 0
-		}
-
-		regsub -all "\[ \t\r\n\]+" $t " " t
-
-		set ml ""
-
-		while 1 {
-			if { $t == "" } {
-				break
-			}
-			if ![regexp \
-			    "^(\[^=\]*) *= *\\((\[^)\]+)\\)" \
-			    $t mat pat geo] {
-				gperror "illegal geometry specification: $t"
-			}
-			# parse the node set
-			if [catch { parse_ngroup $pat } pfx] {
-				gperror $pfx"
-			}
-			set geo [parse_gspec $geo]
-			if { $geo == "" } {
-				gperror "illegal geometry specification: $t"
-			}
-			lappend ml [list $pfx $geo]
-			set ls [string length $mat]
-			set t [string trimleft [string range $t $ls end] " \t,"]
-
-			if { $dsp && \
-			    ($pfx == "" || ![catch { expr $pfx } nod]) } {
-				# a single number, add it to the auto display
-				# list
-				lappendunique Geometry(=$n) $pfx
-			}
-		}
-
-		if { $ml != "" } {
-			if [info exists Geometry($n)] {
-				set Geometry($n) [concat $Geometry($n) $ml]
-			} else {
-				set Geometry($n) $ml
-			}
-		}
-
-		if { $n == "roamer" } {
-			# we may have a background image for the roamer, which
-			# will also fix the dimensions
-			set img [sxml_attr $j "image"]
-			if { $img != "" } {
-				set dim [sxml_attr $j "width"]
-				if { $dim != "" } {
-					if { [catch { expr $dim } val] || \
-					    $val <= 0.0 } {
-						gperror "illegal number in\
-						    width in roamer spec: $dim"
-					}
-					set Geometry(roamer,w) $val
-				}
-				set dim [sxml_attr $j "height"]
-				if { $dim != "" } {
-					if { [catch { expr $dim } val] || \
-					    $val <= 0.0 } {
-						gperror "illegal number in\
-						    height in roamer spec: $dim"
-					}
-					set Geometry(roamer,h) $val
-				}
-				if { ![info exists Geometry(roamer,w)] && \
-				     ![info exists Geometry(roamer,h)]     } {
-					gperror "image in roamer spec requires\
-					    at least one of 'width', 'height'"
-				}
-				set Geometry(roamer,i) [sxml_attr $j "image"]
-			}
-			set ns [sxml_attr $j "nodesize"]
-			if { $ns != "" } {
-				if [catch { valnum $ns 4 100 } ns] {
-					gperror "illegal nodesize: $ns"
-				}
-				if [expr $ns & 1] {
-					# make sure it is even
-					incr ns
-				}
-				set nsh [expr $ns / 2]
-				global CMARGIN
-				set CMARGIN(ND) $ns
-				set CMARGIN(NR) $nsh
-				set CMARGIN(TO) [expr $nsh + 5]
-			}
-			parse_cspec [sxml_children $j "nodecolor"]
-			parse_vspec [sxml_child $j "viscolors"]
-		}
-	}
-}
-
-proc parse_vspec { ncl } {
+proc XMLDATA_ini { Sok code } {
 #
-# Parses the list of "small" colors for visualization
+# To read the XML data arriving from the server
 #
-	global VIS_COLORS LAB_COLOR
+	global Stat
 
-	if { $ncl == "" } {
+	# length
+	set dfl [expr ($code >> 8) & 0x00ffffff]
+
+	if { $dfl == 0 } {
+		wdestroy $Sok
 		return
 	}
 
-	set lab [sxml_attr $ncl "label"]
-	if { $lab != "" } {
-		if ![valcol $lab] {
-			gperror "<viscolors>, illegal label color: $lab"
+	set Stat($Sok,FL) $dfl
+	set Stat($Sok,LE) 0
+	set Stat($Sok,DA) ""
+
+	fileevent $Sok readable "readXML $Sok"
+	stimeout $Sok
+}
+
+proc readXML { Sok } {
+#
+# Read the XML data arriving from the server
+#
+	global Stat Geometry
+
+	while (1) {
+		if [sock_rd $Sok ch [expr $Stat($Sok,FL) - $Stat($Sok,LE)]] {
+			# failure
+			return
 		}
-		set LAB_COLOR $lab
+		set ln [string length $ch]
+		if { $ln == 0 } {
+			# keep going
+			return
+		}
+		ctimeout $Sok
+		append Stat($Sok,DA) $ch
+		incr Stat($Sok,LE) $ln
+		if { $Stat($Sok,LE) >= $Stat($Sok,FL) } {
+			break
+		}
+		stimeout $Sok
 	}
 
-	set VIS_COLORS ""
+	log "XML data received OK"
+	set Geometry(+F) $Stat($Sok,DA)
+	wdestroy $Sok
+}
 
-	set ncl [sxml_txt $ncl]
+proc parse_geometry { } {
+#
+# These days we parse the "standard" VUEE data file for udaemon's tags; the
+# name "geometry" is now a misnomer, but we leave it for historic reasons
+#
+	global Stat GFile Geometry
+
+	set Geometry(+F) ""
+	if { $GFile != "" } {
+		# this takes precedence
+		if [catch { open $GFile "r" } h] {
+			gperror "cannot open $GFile: $h"
+		}
+		if [catch { read $h } p] {
+			gperror "cannot read $GFile: $p"
+		}
+		# the data
+		set Geometry(+F) $p
+	} else {
+		# ask the server for it
+		log "Waiting for XML data from the server ..."
+		set Sok [sock_conn "XMLDATA"]
+		if { $Sok == "" } {
+			# connection failure
+			return
+		}
+		# this will be unset when the socket closes
+		set Stat($Sok,FI) 1
+		vwait Stat($Sok,FI)
+	}
+
+	if { $Geometry(+F) == "" } {
+		# nothing to do
+		unset Geometry(+F)
+		return
+	}
+
+	if [catch { sxml_parse Geometry(+F) } p] {
+		gperror $p
+	}
+
+	set Geometry(+F) [sxml_child $p "network"]
+
+	if { $Geometry(+F) == "" } {
+		gperror "<network> not found"
+	}
+
+	# zero-level, node-independent modules
+	set p [sxml_child $Geometry(+F) "display"]
+
+	if { $p != "" } {
+		parse_globals $p
+	}
+
+	# go for <nodes>; postpone defaults for the end, so they provide a
+	# fallback
+
+	set p [sxml_child $Geometry(+F) "nodes"]
+
+	set NN -1
+
+	# node color sets
+	set Geometry(roamer,NC) ""
+
+	foreach j [sxml_children $p "node"] {
+		# check for explicit node number
+		set nv [sxml_attr $j "number"]
+		set nn [parse_num nv]
+		if { $nn != "" } {
+			set NN $nn
+		} else {
+			incr NN
+		}
+		parse_node $j $NN
+	}
+
+	# now for the defaults
+	set j [sxml_child $p "defaults"]
+	if { $j != "" } {
+		parse_node $j
+	}
+	unset Geometry(+F)
+}
+
+proc parse_disp { item n mod nod } {
+#
+# Parses a single "module" tag:
+#
+#	n	module name, e.g., "sensors"
+#	mod	module mode, 0-node-independent, 1-node-dependent
+#	nod	node (if mode == 1), "" means ANY
+#
+	global Geometry
+
+	set t [sxml_txt $item]
+
+	if { $mod == 0 } {
+		# make sure this takes precedence
+		set nod ""
+	}
+
+	set dsp 0
+	if { $mod == 0 || $nod != "" } {
+		# node-independent or  specific node, honor the "display"
+		# attribute
+		set coo [string tolower [sxml_attr $item "display"]]
+		if { $coo == "1" || $coo == "y" || $coo == "yes" } {
+			set dsp 1
+		}
+	}
+
+	regsub -all "\[ \t\r\n\]+" $t " " t
+
+	# coordinates
+	set coo [parse_gspec $t]
+
+	# item to add
+	set new [list $nod $coo]
+
+	if { $mod && [info exists Geometry($n)] } {
+		# node-related append
+		lappend Geometry($n) $new
+	} else {
+		# initialize or override
+		set Geometry($n) [list $new]
+	}
+
+	# check for display + single node/node-less; in such a case, add the
+	# item to the startup list
+	if $dsp {
+		lappendunique Geometry(=$n) $nod
+	}
+}
+
+proc parse_roamer { item } {
+#
+# Parses the extras for roamer
+#
+	global Geometry
+
+	# we may have a background image for the roamer, which will also fix
+	# the dimensions; note that the image (as such) may come from the
+	# server (so we won't be using the file), but we still need the
+	# dimensions
+
+	set img [sxml_attr $item "image"]
+	if { $img != "" } {
+		set dim [sxml_attr $item "width"]
+		if { $dim != "" } {
+			if { [catch { expr $dim } val] || $val <= 0.0 } {
+				gperror "illegal number in\
+						    width in roamer spec: $dim"
+			}
+			set Geometry(roamer,w) $val
+		}
+		set dim [sxml_attr $item "height"]
+		if { $dim != "" } {
+			if { [catch { expr $dim } val] || $val <= 0.0 } {
+				gperror "illegal number in\
+						    height in roamer spec: $dim"
+			}
+			set Geometry(roamer,h) $val
+		}
+		if { ![info exists Geometry(roamer,w)] && \
+		     ![info exists Geometry(roamer,h)] } {
+			gperror "image in roamer spec requires\
+					    at least one of 'width', 'height'"
+		}
+		set Geometry(roamer,i) [sxml_attr $item "image"]
+	}
+
+	set ns [sxml_attr $item "nodesize"]
+	if { $ns != "" } {
+		if [catch { valnum $ns 4 100 } ns] {
+			gperror "illegal nodesize: $ns"
+		}
+		if [expr $ns & 1] {
+			# make sure it is even
+			incr ns
+		}
+		set nsh [expr $ns / 2]
+		global CMARGIN
+		set CMARGIN(ND) $ns
+		set CMARGIN(NR) $nsh
+		set CMARGIN(TO) [expr $nsh + 5]
+	}
+}
+
+proc parse_globals { data } {
+#
+# Parses the global <display> objects
+#
+	global Geometry
+
+	foreach j [sxml_children $data] {
+
+		set n [string tolower [sxml_name $j]]
+		parse_disp $j $n 0 ""
+
+		if { $n == "roamer" } {
+			# this one is special
+			parse_roamer $j
+		}
+	}
+}
+
+proc parse_lcols { it } {
+#
+# Parses a standard pair of attribute colors
+#
+	set cf ""
+	set cb ""
+
+	foreach c { cf cb } \
+	   a { { "on" "fg" "foreground" } { "off" "bg" "background" } } {
+
+		foreach k $a {
+			set att [sxml_attr $it $k]
+			if { $att != "" } {
+				break
+			}
+		}
+
+		if { $att != "" && ![valcol $att] } {
+			error "illegal color: $att"
+		}
+
+		set $c $att
+	}
+
+	return [list $cf $cb]
+}
+
+proc parse_label { it { tx 1 } { ix "" } } {
+#
+# Parses a label spec
+#
+	set col [parse_lcols $it]
+
+	if $tx {
+		set lab [sxml_txt $it]
+		# include the text
+		regsub -all "\[ \t\n\r\]+" $lab " " lab
+		if { $lab == "" } {
+			error "empty label"
+		}
+	}
+
+	if { $ix != "" } {
+		# we care about the index
+		upvar $ix nn
+		set att [sxml_attr $it "index"]
+		if { $att == "" } {
+			set att [sxml_attr $it "number"]
+		}
+		if { $att != "" } {
+			set nn [parse_num att "" ""]
+			if { $nn == "" } {
+				error "illegal index/number"
+			}
+		} else {
+			set nn ""
+		}
+	}
+
+	if $tx {
+		# text + colors
+		return [concat [list $lab] $col]
+	}
+
+	# just the colors
+	return $col
+}
+
+proc parse_salabels { item what n } {
+#
+# Parse labels in sensors or actuators
+#
+	global Geometry
+
+	set NN -1
+
+	if { $n == "" } {
+		set err "<defaults>"
+	} else {
+		set err "<node> $n"
+	}
+
+	append err " <$what><label>"
+
+	set LL ""
+
+	foreach j [sxml_children $item $what] {
+
+		set nv [sxml_attr $j "number"]
+		if { $nv == "" } {
+			set nv [sxml_attr $j "index"]
+		}
+		set nn [parse_num nv -255]
+		if { $nn != "" } {
+			set NN $nn
+		} else {
+			incr NN
+		}
+
+		set it [sxml_child $j "label"]
+		if { $it != "" } {
+
+			if [catch { parse_label $it } lab] {
+				gperror "$err, $lab"
+			}
+
+			lappend LL [concat [list $NN] $lab]
+		}
+	}
+
+	if { $LL != "" } {
+		set LL [sort_indexed $LL]
+	}
+
+	set x "${what}s"
+
+	if ![info exists Geometry(L,$x)] {
+		set Geometry(L,$x) ""
+	}
+
+	lappend Geometry(L,$x) [list $n $LL]
+}
+
+proc sort_indexed { ll } {
+#
+# Transforms a list of labels into an array, i.e., a "complete" list
+#
+	set min 999
+	set max -999
+
+	foreach it $ll {
+		set num [lindex $it 0]
+		if [info exists labs($num)] {
+			# this won't happen
+			continue
+		}
+		if { $num < $min } {
+			set min $num
+		}
+		if { $num > $max } {
+			set max $num
+		}
+		set labs($num) $it
+	}
+
+	set res [list $min]
+
+	while { $min <= $max } {
+
+		if [info exists labs($min)] {
+			lappend res [lrange $labs($min) 1 end]
+		} else {
+			lappend res ""
+		}
+		incr min
+	}
+
+	return $res
+}
+
+proc parse_hl { item n } {
+#
+# Parses the "<highlight>" tag
+#
+	global Geometry
+
+	if { $n == "" } {
+		set err "<defaults>"
+	} else {
+		set err "<node> $n"
+	}
+
+	append err " <highlight>"
+
+	if [catch { parse_lcols $item } nco] {
+		gperror "$err, $nco"
+	}
+
+	set vcl ""
+	set ncl [sxml_txt $item]
 
 	while 1 {
 		set ncl [string trimleft $ncl ", \t\r\n"]
@@ -1238,64 +1525,165 @@ proc parse_vspec { ncl } {
 			break
 		}
 		if ![regexp "^\[^, \t\r\n\]+" $ncl col] {
-			gperror "<viscolors>, $ncl, syntax error"
+			gperror "$err, $ncl, syntax error"
 		}
 		if ![valcol $col] {
-			gperror "<viscolors>, illegal color: $col"
+			gperror "$err, illegal color: $col"
 		}
-		lappend VIS_COLORS $col
+		lappend vcl $col
 		set ncl [string range $ncl [string length $col] end]
 	}
+
+	set Geometry(H,$n) [list $nco $vcl]
 }
 
-proc parse_noset { itm err } {
+proc parse_pins { item n } {
 #
-# Parses the node set, i.e., ID range/type
-#
-	set nol ""
-	set not ""
-
-	set at [sxml_attr $itm "id"]
-
-	if { $at != "" } {
-		if [catch { parse_ngroup $at } nol] {
-				gperror "$err, $nol"
-		}
-		if { $nol == "" } {
-			gperror "$err, empty id attribute"
-		}
-	}
-
-	set at [string tolower [sxml_attr $itm "type"]]
-	if { $at != "" } {
-		set not $at
-	}
-
-	return [list $not $nol]
-}
-
-proc parse_cspec { ncl } {
-#
-# Parses the node color spec in ROAMER geometry
+# Parses pin labels
 #
 	global Geometry
 
-	set sts ""
-
-	foreach nc $ncl {
-
-		set nos [parse_noset $nc "<nodecolor>"]
-
-		if [catch { parse_cset [sxml_txt $nc] } cst] {
-			gperror "<nodecolor>, $cst"
-		}
-
-		lappend sts [list $nos $cst]
+	if { $n == "" } {
+		set err "<defaults>"
+	} else {
+		set err "<node> $n"
 	}
-	set Geometry(roamer,NC) $sts
+
+	append err " <pins><label>"
+
+	if [catch { parse_lablist $item } labs] {
+		gperror "$err, $labs"
+	}
+
+	if ![info exists Geometry(L,pins)] {
+		set Geometry(L,pins) ""
+	}
+
+	lappend Geometry(L,pins) [list $n $labs]
 }
 
-proc parse_num { ln } {
+proc parse_leds { item n } {
+#
+# Parses led labels and colors
+#
+	global Geometry
+
+	if { $n == "" } {
+		set err "<defaults>"
+	} else {
+		set err "<node> $n"
+	}
+
+	append err " <leds>"
+
+	if [catch { parse_lablist $item } labs] {
+		gperror "$err<label>, $labs"
+	}
+
+	if ![info exists Geometry(L,leds)] {
+		set Geometry(L,leds) ""
+	}
+
+	lappend Geometry(L,leds) [list $n $labs]
+
+	set las -1
+	set LL ""
+
+	foreach it [sxml_children $item "color"] {
+
+		if [catch { parse_label $it 0 x } col] {
+			gperror "$err<color>, $col"
+		}
+
+		if { $x == "" } {
+			incr las
+			set x $las
+		} else {
+			set las $x
+		}
+
+		if { $x < 0 || $x > 255 } {
+			gperror "$err<color>, illegal led index: $x"
+		}
+
+		lappend LL [concat [list $x] $col]
+	}
+
+	if { $LL != "" } {
+		set LL [sort_indexed $LL]
+		if ![info exists Geometry(L,ledsc)] {
+			set Geometry(L,ledsc) ""
+		}
+		lappend Geometry(L,ledsc) [list $n $LL]
+	}
+}
+			
+proc parse_node { item { n "" } } {
+#
+# Parses the node stuff, which may also come from defaults:
+#
+#	color, labels
+#
+	global Geometry
+
+	## color
+
+	if [catch { parse_cset $item } cst] {
+		if { $n == "" } {
+			set d "<defaults>"
+		} else {
+			set d "<node> $n"
+		}
+		gperror "$d <color>, $cst"
+	}
+	if { $cst != "" } {
+		lappend Geometry(roamer,NC) [list $n $cst]
+	}
+
+	## sensors
+	set it [sxml_child $item "sensors"]
+	if { $it != "" } {
+		parse_salabels $it "sensor" $n
+		parse_salabels $it "actuator" $n
+	}
+
+	## pins
+	set it [sxml_child $item "pins"]
+	if { $it != "" } {
+		parse_pins $it $n
+		set w [sxml_child $it "window"]
+	}
+
+	## leds
+	set it [sxml_child $item "leds"]
+	if { $it != "" } {
+		parse_leds $it $n
+	}
+
+	# highlight colors
+	set it [sxml_child $item "highlight"]
+	if { $it != "" } {
+		parse_hl $it $n
+	}
+
+	# windows
+
+	foreach m { "uart" "sensors" "pins" "leds" "emul" "lcdg" "ptracker" } {
+
+		set it [sxml_child $item $m]
+		if { $it != "" } {
+			set w [sxml_child $it "window"]
+		} else {
+			# try this
+			set w [sxml_child $item "${m}_window"]
+		}
+		if { $w != "" } {
+			parse_disp $w $m 1 $n
+		}
+	}
+}
+	
+proc parse_num { ln { min 0 } { max "" } } {
 #
 # Parse a number
 #
@@ -1303,12 +1691,19 @@ proc parse_num { ln } {
 
 	# no negative numbers in this case, so we stop on a - which means
 	# a range
-	if ![regexp "^\[^ ,\t\n\r\-]+" $line code] {
+
+	if { $min == "" || $min < 0 } {
+		set pat "^\[^ ,\t\n\r]+"
+	} else {
+		set pat "^\[^ ,\t\n\r\-]+"
+	}
+
+	if ![regexp "^$pat" $line code] {
 		return ""
 	}
 
 	# nonnegative integer expected
-	if [catch { valnum $code 0 } num] {
+	if [catch { valnum $code $min $max } num] {
 		return ""
 	}
 
@@ -1316,158 +1711,6 @@ proc parse_num { ln } {
 		[string trimleft [string range $line [string length $code] end]]
 
 	return $num
-}
-
-proc parse_ngroup { nl } {
-#
-# Parses the list of node ID's, which can be individual items as well as ranges
-# turning them into a sorted list of individual values and ranges
-#
-	set res ""
-
-	while 1 {
-		set nl [string trimleft $nl " \t,"]
-		if { $nl == "" } {
-			return $res
-		}
-		# this must be a number
-		if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk va nl] ||
-		      [catch { expr $va } va] } {
-			error "illegal node number ...$nl"
-		}
-		set nl [string trimleft $nl]
-		set ret ""
-		set done 0
-		if { [string index $nl 0] == "-" } {
-			# this is a range
-			set nl [string trimleft [string range $nl 1 end]]
-			# now, this must be another number
-			if { ![regexp "^(\[0-9\]+)(.*)" $nl jnk vb nl] ||
-			      [catch { expr $vb } vb] } {
-				# error
-				error "illegal node number ...$nl"
-			}
-			if { $vb < $va } {
-				# illegal range
-				error "illegal range: $vb < $va"
-			}
-			# rescan the list
-			foreach it $res {
-				if $done {
-					# copy the tail, the new range already
-					# inserted
-					lappend ret $it
-					continue
-				}
-				set a [lindex $it 0]
-				set b [lindex $it 1]
-				if { $b == "" } {
-					# this is a single ID
-					if { $a < $va } {
-						if { $a == [expr $va - 1] } {
-							# touching
-							set va $a
-						} else {
-							lappend ret $it
-						}
-						continue
-					}
-					if { $a > [expr $vb + 1] } {
-						lappend ret [list $va $vb]
-						lappend ret $it
-						set done 1
-						continue
-					}
-					if { $a == [expr $vb + 1] } {
-						# touching
-						set vb $a
-						lappend ret [list $va $vb]
-						set done 1
-						continue
-					}
-					# falls inside, ignore
-					continue
-				}
-				# this is a range
-				if { $b < [expr $va - 1] } {
-					# separate, preceding
-					lappend ret $it
-					continue
-				}
-
-				if { $a > [expr $vb + 1] } {
-					# separate, following
-					lappend ret [list $va $vb]
-					lappend ret $it
-					set done 1
-					continue
-				}
-
-				# overlapping
-				if { $a < $va } {
-					set va $a
-				}
-				if { $b > $vb } {
-					set vb $b
-				}
-
-				continue
-			}
-
-			if !$done {
-				lappend ret [list $va $vb]
-			}
-
-		} else {
-			# a single item
-			foreach it $res {
-				if $done {
-					# copy the tail
-					lappend ret $it
-					continue
-				}
-				set a [lindex $it 0]
-				set b [lindex $it 1]
-				if { $b == "" } {
-					# a single ID
-					if { $a >= $va } {
-						# here we go
-						lappend ret $va
-						set done 1
-						if { $a != $va } {
-							lappend ret $it
-						}
-					} else {
-						lappend ret $it
-					}
-					continue
-				}
-				# a range
-				if { $b < [expr $va - 1] } {
-					lappend ret $it
-					continue
-				}
-				set done 1
-				if { $a > [expr $va + 1] } {
-					lappend ret $va
-					lappend ret $it
-					continue
-				}
-				if { $a == [expr $va + 1] } {
-					set a $va
-				} elseif { $b == [expr $va - 1] } {
-					set b $va
-				}
-				lappend ret [list $a $b]
-			}
-			if !$done {
-				lappend ret $va
-			}
-		}
-		set res $ret
-	}
-
-	return $res
 }
 
 proc parse_gspec { geo } {
@@ -1494,7 +1737,7 @@ proc parse_gspec { geo } {
 	return $g
 }
 
-proc cover_ngroup { col num } {
+proc covered_node { col num } {
 #
 # Checks whether the number (node ID) is covered by the node group col
 #
@@ -1502,110 +1745,76 @@ proc cover_ngroup { col num } {
 		# absolute windows have no IDs
 		return 1
 	}
-	foreach it $col {
-		set a [lindex $it 0]
-		set b [lindex $it 1]
-		if { $b == "" } {
-			if { $a < $num } {
-				continue
-			}
-			# a single item
-			if { $a > $num } {
-				return 0
-			}
-			return 1
-		}
-		# a range
-		if { $b < $num } {
-			continue
-		}
-		if { $a > $num } {
-			return 0
-		}
+
+	if { $col == "" || $col < 0 } {
+		# all
 		return 1
 	}
+
+	if { $col == $num } {
+		return 1
+	}
+
 	return 0
 }
 
-proc cover_nset { nos num nt } {
+proc parse_cset { item } {
 #
-# Checks whether the node of a given type is covered by the node set
-#
-	set not [lindex $nos 0]
-	set nol [lindex $nos 1]
-
-	if { $not == "" && $nol == "" } {
-		# the set of all nodes
-		return 1
-	}
-
-	if { [string first $not [string tolower $nt]] >= 0 } {
-		return 1
-	}
-
-	return [cover_ngroup $nol $num]
-}
-
-proc parse_cset { cs } {
-#
-# Parses the color set in the form:
-#
-#	colorid
-#	pn=(colorid,colorid), pn=(colorid,colorid), ...
+# <color led="n"|pin="n" on="..." off="..."/>
 #
 # Returns a list { m c }, where m is "F" or "P" and c is the color (set); for
 # "F", c is a single color, for "P", c is a list of items looking like this:
 # { { n t } coff con }, where n is the pin number, t is "led" or "pin", coff
 # is the "off" color, and con is the "on" color
 #
-	set cs [string trim $cs]
-	set ws "\[ \t\n\r\]*"
-	set wd "\[ \t\n\r,\]+"
-	set ci "\[^ \t\n\r,\\(\\)=\]+"
-
-	if ![regexp -nocase "^l?\[0-9\]" $cs] {
-		# this must be a single solid color
-		if [valcol $cs] {
-			return [list "F" $cs]
-		}
-		error "illegal color: $cs"
-	}
-
-	# pin or led
 	set res ""
-	while 1 {
-		set cs [string trimleft $cs " \t\r\n,"]
-		if { $cs == "" } {
-			break
-		}
-		if ![regexp -nocase \
-        "^(l?)(\[0-9\]+)${ws}=${ws}\\(${ws}(${ci})${wd}(${ci})${ws}\\)(.*)" \
-			$cs jnk led pin coff con cs] {
-				error "invalid color assignment: $cs"
-		}
-		if [catch { expr $pin } piv] {
-			error "invalid pin/led number: $pin"
+
+	foreach it [sxml_children $item "color"] {
+
+		set att [sxml_attr $it "solid"]
+		if { $att != "" } {
+			if ![valcol $att] {
+				error "illegal solid color: $att"
+			}
+			# search no further
+			return [list "F" $att]
 		}
 
-		if ![valcol $con] {
-			error "illegal color: $con"
-		}
-
-		if ![valcol $coff] {
-			error "illegal color: $coff"
-		}
-
-		if { $led != "" } {
-			set typ "led"
-		} else {
+		set att [sxml_attr $it "pin"]
+		if { $att != "" } {
 			set typ "pin"
+		} else {
+			set att [sxml_attr $it "led"]
+			if { $att != "" } {
+				set typ "led"
+			} else {
+				error "pin, led, or solid attribute required\
+					in <color>"
+			}
 		}
 
-		set piv [list $piv $typ]
-		set new [list $piv $coff $con]
+		if [catch { valnum $att 0 255 } pin] {
+			error "illegal $typ number: $stt"
+		}
 
-		foreach it $res {
-			set p [lindex $it 0]
+		set piv [list $pin $typ]
+
+		# expect a pair of colors
+		lassign [parse_lcols $it] fgr bgr
+
+		if { $fgr == "" } {
+			error "on/fg color must be specified"
+		}
+
+		if { $bgr == "" } {
+			# use some default
+			set bgr "lightgray"
+		}
+
+		set new [list $piv $bgr $fgr]
+
+		foreach u $res {
+			set p [lindex $u 0]
 			if { $p == $piv } {
 				error "duplicate color entry: $p"
 			}
@@ -1614,10 +1823,14 @@ proc parse_cset { cs } {
 		lappend res $new
 	}
 
-	return [list "P" $res]
+	if { $res != "" } {
+		return [list "P" $res]
+	}
+
+	return ""
 }
 
-proc get_cset { node tp } {
+proc get_cset { node } {
 #
 # Returns the roamer's color set for the node of the given type
 #
@@ -1628,7 +1841,7 @@ proc get_cset { node tp } {
 	}
 
 	foreach cd $Geometry(roamer,NC) {
-		if [cover_nset [lindex $cd 0] $node $tp] {
+		if [covered_node [lindex $cd 0] $node] {
 			return [lindex $cd 1]
 		}
 	}
@@ -1636,7 +1849,7 @@ proc get_cset { node tp } {
 	return ""
 }
 
-proc get_lset { node tp mod } {
+proc get_lset { node mod } {
 #
 # Returns the set of labels for the specified object at the node
 #
@@ -1647,7 +1860,7 @@ proc get_lset { node tp mod } {
 	}
 
 	foreach cd $Geometry(L,$mod) {
-		if [cover_nset [lindex $cd 0] $node $tp] {
+		if [covered_node [lindex $cd 0] $node] {
 			return [lindex $cd 1]
 		}
 	}
@@ -1655,137 +1868,42 @@ proc get_lset { node tp mod } {
 	return ""
 }
 
-proc parse_labels { xd } {
-
-	global Geometry
-
-	foreach j [sxml_children $xd] {
-
-		set n [string tolower [sxml_name $j]]
-
-		set err "<parse><$n>"
-
-		if ![info exists Geometry(L,$n)] {
-			# initialize the module's label list
-			set Geometry(L,$n) ""
-		}
-
-		# get the node set
-
-		set nos [parse_noset $j $err]
-
-		if [catch { parse_lablist [sxml_txt $j] } labs] {
-			gperror "$err, $labs"
-		}
-
-		lappend Geometry(L,$n) [list $nos $labs]
-	}
-}
-
-proc parse_lablist { txt } {
+proc parse_lablist { item } {
 
 	global HPA
-
-	# calculate the minimum label number
-	set min  999
-	set max -999
 
 	# implict last index
 	set las -1
 
-	while 1 {
-		set txt [string trimleft $txt]
-		if { $txt == "" } {
-			break
+	set LL ""
+
+	foreach it [sxml_children $item "label"] {
+
+		if [catch { parse_label $it 1 x } lab] {
+			error "<label>, $lab"
 		}
-		if [regexp "^$HPA(S)\[ \t\r\n\]*=" $txt mat n] {
-			set txt [string trimleft [string range $txt \
-				[string length $mat] end]]
-			if [catch { expr $n } x] {
-				error "illegal label index: $n"
-			}
-		} else {
-			# implicit index
+
+		if { $x == "" } {
 			incr las
 			set x $las
-		}
-
-		if { $x < -256 || $x > 255 } {
-			error "label index out of range: $x"
-		}
-		if [info exists lbs($x)] {
-			error "duplicate label index: $x"
-		}
-
-		# decode the label
-		if { $txt == "" } {
-			error "index not followed by a label"
-		}
-
-		if { [string index $txt 0] == "\"" } {
-			set lab [parse_string txt]
 		} else {
-			set lab ""
-			regexp "^\[^ \t\r\n,\]+" $txt lab
-			set txt [string range $txt [string length $lab] end]
-		}
-
-		if { $lab == "" } {
-			error "empty label"
-		}
-
-
-		# check for colors
-		set cf ""
-		set cb ""
-
-		foreach c { cf cb } {
-			set txt [string trimleft $txt]
-			if [regexp "^,\[ \t\r\n\]*(\[^ \t\r\n,\]*)" \
-			    $txt mat col] {
-				set txt [string range $txt \
-				    [string length $mat] end]
-				# verify the color
-				if { $col != "" && ![valcol $col] } {
-					error "illegal color: $col"
-				}
-				set $c $col
-			} else {
-				break
+			if { $x < -256 || $x > 255 } {
+				error "label index out of range: $x"
 			}
+			set las $x
 		}
-
-		set lbs($x) [list $lab $cf $cb]
-		set las $x
-
-		if { $x < $min } {
-			set min $x
-		}
-
-		if { $x > $max } {
-			set max $x
-		}
+			
+		lappend LL [concat [list $x] $lab]
 	}
 
-	if { $min == 999 } {
-		return ""
+	if { $LL != "" } {
+		set LL [sort_indexed $LL]
 	}
 
-	set res [list $min]
-
-	while { $min <= $max } {
-		if [info exists lbs($min)] {
-			lappend res $lbs($min)
-		} else {
-			lappend res ""
-		}
-		incr min
-	}
-
-	return $res
+	return $LL
 }
 
-proc getLabel { Sok n { pfx "" } } {
+proc get_label { Sok n { pfx "" } } {
 #
 # Returns the label of object number $n
 #
@@ -1793,7 +1911,6 @@ proc getLabel { Sok n { pfx "" } } {
 
 	set ll $Stat($Sok,LA)
 	set lb ""
-	set co ""
 
 	while 1 {
 
@@ -1809,6 +1926,11 @@ proc getLabel { Sok n { pfx "" } } {
 
 		set lb [lindex $ll [expr $n - $min + 1]]
 		break
+	}
+
+	if { $pfx == "-c" } {
+		# just the item
+		return $lb
 	}
 
 	set res [list -text]
@@ -1874,7 +1996,7 @@ proc do_geometry { win kwd { num "" } } {
 		foreach ml $Geometry($kwd) {
 			set exp [lindex $ml 0]
 			set geo [lindex $ml 1]
-			if [cover_ngroup $exp $num] {
+			if [covered_node $exp $num] {
 				wm geometry $win $geo
 				return
 			}
@@ -2169,7 +2291,7 @@ proc sntype { t } {
 	return $t
 }
 
-proc sock_req { Sok rqnum } {
+proc sock_req { Sok rqnum stid } {
 #
 # Sends an agent connection request to VUEE
 #
@@ -2180,12 +2302,7 @@ proc sock_req { Sok rqnum } {
 	
 	abinS rqs $AGENT_MAGIC
 	abinS rqs $rqnum
-
-	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
-		abinI rqs $Stat($Sok,S)
-	} else {
-		abinI rqs -1
-	}
+	abinI rqs $stid
 
 	if [catch { puts -nonewline $Sok $rqs } err] {
 		log "connection failed: $err"
@@ -2201,7 +2318,7 @@ proc sock_req { Sok rqnum } {
 	fileevent $Sok writable ""
 }
 
-proc sock_conn { what { stid "" } } {
+proc sock_conn { what { stid -1 } } {
 #
 # Get a socket to VUEE
 #
@@ -2215,7 +2332,7 @@ proc sock_conn { what { stid "" } } {
 	set rqnum $SREQUESTS($what)
 
 	set tt $what
-	if { $stid != "" } {
+	if { $stid >= 0 } {
 		append tt " at node $stid"
 	}
 
@@ -2240,11 +2357,11 @@ proc sock_conn { what { stid "" } } {
 	# until we actually get it up (or otherwise)
 	set Wins($Sok) "x"
 
-	if { $stid != "" } {
+	if { $stid >= 0 } {
 		set Stat($Sok,S) $stid
 	}
 
-	fileevent $Sok writable "sock_req $Sok $rqnum"
+	fileevent $Sok writable "sock_req $Sok $rqnum $stid"
 	fileevent $Sok readable "sock_rep $Sok"
 
 	return $Sok
@@ -2304,7 +2421,7 @@ proc sock_rd { Sok ch { n 4096 } } {
 		return 1
 	}
 
-	if { $ch == "" } {
+	if { $chunk == "" } {
 		if [eof $Sok] {
 			# closed
 			log "connection[mdName $Sok] closed"
@@ -3156,9 +3273,18 @@ proc ledsFirst { Sok } {
 	# terminate the timeout
 	ctimeout $Sok
 
+	# the node
+	set nod $Stat($Sok,S)
+
+	# the number of leds
+	set nleds [string length $Leds]
+
 	# determine the colors to be used for the leds; start with the defaults
 	set i 0
 	while 1 {
+		if { $i >= $nleds } {
+			break
+		}
 		if ![info exists LED_COLORS($i)] {
 			# that's it
 			break
@@ -3168,26 +3294,34 @@ proc ledsFirst { Sok } {
 		incr i
 	}
 
-	set tn [lindex $pmt 3]
-	set co [get_cset $Stat($Sok,S) $tn]
-	if { $co != "" && [lindex $co 0] == "P" } {
-		foreach c [lindex $co 1] {
-			set pn [lindex $c 0]
-			if { [lindex $pn 1] != "led" } {
-				# not a led
+	# user-provided led colors
+	set co [get_lset $nod "ledsc"]
+	if { $co != "" } {
+		set Stat($Sok,LA) $co
+		for { set i 0 } { $i < $nleds } { incr i } {
+			set ix [get_label $Sok $i -c]
+			if { $ix == "" } {
 				continue
 			}
-			set i [lindex $pn 0]
-			set of [lindex $c 1]
-			set on [lindex $c 2]
-			set Stat($Sok,LC,F,$i) $of
+			lassign $ix on of
 			set Stat($Sok,LC,O,$i) $on
+			set Stat($Sok,LC,F,$i) $of
 		}
 	}
 
-	set Stat($Sok,LA) [get_lset $Stat($Sok,S) $tn "leds"]
+	# the labels
+	set Stat($Sok,LA) [get_lset $nod "leds"]
 
-	# determine the labels
+	# use the label background as the canvas background
+	if { $Stat($Sok,LA) != "" } {
+		for { set i 0 } { $i < $nleds } { incr i } {
+			set ix [get_label $Sok $i -c]
+			if { $ix == "" } {
+				continue
+			}
+			set Stat($Sok,LC,B,$i) [lindex $ix 2]
+		}
+	}
 
 	# create the window
 	set Wn ".wl[unique]"
@@ -3195,7 +3329,7 @@ proc ledsFirst { Sok } {
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 
-	mkLeds $Sok [string length $Leds] "[lindex $pmt 1] LEDS"
+	mkLeds $Sok $nleds "[lindex $pmt 1] LEDS"
 
 	ledsStatus $Sok $Fast $Leds
 
@@ -3293,9 +3427,13 @@ proc mkLeds { Sok nleds tt } {
 
 	for { set i 0 } { $i < $nleds } { incr i } {
 		set f $w.f$i
-		eval labelframe $f [getLabel $Sok $i]
+		eval labelframe $f [get_label $Sok $i]
 		pack $f -side left -expand y -fill both
 		canvas $f.c -width 28 -height 28
+		if { [info exists Stat($Sok,LC,B,$i)] && \
+		    $Stat($Sok,LC,B,$i) !=  "" } {
+			$f.c configure -bg $Stat($Sok,LC,B,$i)
+		}
 		pack $f.c -side left -expand y -fill both
 		set Stat($Sok,O,$i) [mkoneled $f.c 4]
 		set Stat($Sok,V,$i) -1
@@ -3884,8 +4022,7 @@ proc pinsFirst { Sok } {
 	if { $d1 >= 0 } {
 		lappend dl $d1
 	}
-	set tn [lindex $pmt 3]
-	set Stat($Sok,LA) [get_lset $Stat($Sok,S) $tn "pins"]
+	set Stat($Sok,LA) [get_lset $Stat($Sok,S) "pins"]
 
 	# create the window
 	set Wn ".wp[unique]"
@@ -4009,7 +4146,7 @@ proc mkPins { Sok np na dl tt } {
 
 	for { set i 0 } { $i < $np } { incr i } {
 		# numbers
-		set c [eval label $w.dig.h$i [getLabel $Sok $i]]
+		set c [eval label $w.dig.h$i [get_label $Sok $i]]
 		grid $c -column $i -row 0 -sticky nsew
 		# directions
 		set Stat($Sok,D$i) -1
@@ -4046,7 +4183,7 @@ proc mkPins { Sok np na dl tt } {
 
 		for { set i 0 } { $i < $na } { incr i } {
 
-			eval label $u.l$i -anchor w [getLabel $Sok $i "ADC "]
+			eval label $u.l$i -anchor w [get_label $Sok $i "ADC "]
 			grid $u.l$i -column 0 -row $i -sticky nsw
 
 			scale $u.s$i -orient horizontal -length 200 \
@@ -4071,7 +4208,7 @@ proc mkPins { Sok np na dl tt } {
 			label $f.v -text "00.000 V" -relief sunken
 			pack $f.v -side right -expand 0
 			eval label $f.l -justify right -anchor e \
-				[getLabel $Sok $dp "DAC "]
+				[get_label $Sok $dp "DAC "]
 			pack $f.l -side left -expand 1 -fill x
 			incr i
 		}
@@ -4270,9 +4407,8 @@ proc sensorsFirst { Sok } {
 		return
 	}
 
-	set tn [lindex $pmt 3]
-	set Stat($Sok,LA,0) [get_lset $Stat($Sok,S) $tn "actuators"]
-	set Stat($Sok,LA,1) [get_lset $Stat($Sok,S) $tn "sensors"]
+	set Stat($Sok,LA,0) [get_lset $Stat($Sok,S) "actuators"]
+	set Stat($Sok,LA,1) [get_lset $Stat($Sok,S) "sensors"]
 
 	# create the window
 	set Wn ".wp[unique]"
@@ -4327,7 +4463,7 @@ proc mkSensors { Sok ns os na oa tt } {
 			${f}s set 0.0
 
 			eval label ${f}l -anchor w \
-				[getLabel $Sok [expr $i - $oa] "Act "]
+				[get_label $Sok [expr $i - $oa] "Act "]
 
 			grid ${f}l -row $i -column 0 -sticky we
 		}
@@ -4357,7 +4493,7 @@ proc mkSensors { Sok ns os na oa tt } {
 			${f}s set 0.0
 
 			eval label ${f}l -anchor w \
-				[getLabel $Sok [expr $i - $os] "Sen "]
+				[get_label $Sok [expr $i - $os] "Sen "]
 
 			grid ${f}l -row $i -column 0 -sticky we
 
@@ -5249,26 +5385,86 @@ proc pwrtParse { Sok } {
 
 proc moveHandler { } {
 
+	global GFile Geometry
+
 	if [winlocate "m" ""] {
 		return
 	}
 
-	sock_conn "ROAMER"
+	if { $GFile == "" && [info exists Geometry(roamer,i)] } {
+		# we can use the background image, but we don't have it, so
+		# we have to ask the server
+		set rq -2
+	} else {
+		set rq -1
+	}
+
+	sock_conn "ROAMER" $rq
 }
 
 proc ROAMER_ini { Sok code } {
 
 	global Stat
 
-	# must collect node info: total number of nodes unknown
+	set bfl [expr ($code >> 8) & 0x00ffffff]
+	# message acquisition buffer
+	set Stat($Sok,B) ""
+	# background image data
+	set Stat($Sok,BI) ""
+
+	if $bfl {
+		# read the background image: total length
+		set Stat($Sok,FL) $bfl
+		# length so far
+		set Stat($Sok,LE) 0
+		fileevent $Sok readable "moveBGI $Sok"
+		stimeout $Sok
+		return
+	}
+
+	moveINP $Sok
+}
+
+proc moveBGI { Sok } {
+#
+# Read the background image from the simulator
+#
+	global Stat
+
+	while (1) {
+		if [sock_rd $Sok ch [expr $Stat($Sok,FL) - $Stat($Sok,LE)]] {
+			# failure
+			return
+		}
+		set ln [string length $ch]
+		if { $ln == 0 } {
+			return
+		}
+		ctimeout $Sok
+		append Stat($Sok,BI) $ch
+		incr Stat($Sok,LE) $ln
+		if { $Stat($Sok,LE) >= $Stat($Sok,FL) } {
+			break
+		}
+		stimeout $Sok
+	}
+
+	log "read $Stat($Sok,LE) bytes of background image"
+
+	moveINP $Sok
+}
+
+proc moveINP { Sok } {
+
+	global Stat
+
+	# collect node info: total number of nodes unknown
 	set Stat($Sok,NN) -1
 	# for default coloring: the number of node colors used so far,
 	# one color per node type
 	set Stat($Sok,NT) 0
 	# current node number queried
 	set Stat($Sok,CI) 0
-	# message acquisition buffer
-	set Stat($Sok,B) ""
 
 	log "receiving node positions ..."
 
@@ -5389,7 +5585,7 @@ proc moveGNP { Sok cmd } {
 	# where typ can be "led" or "pin".
 	#
 
-	set co [get_cset $nod $tn]
+	set co [get_cset $nod]
 	if { $co != "" } {
 		# type
 		set cty [lindex $co 0]
@@ -5406,6 +5602,24 @@ proc moveGNP { Sok cmd } {
 		set co [list 0 [list [list $Stat($Sok,NT,$tn) 0]]]
 	}
 
+	# highlight colors for fast access (needed by vipars among others)
+	if [info exists Geometry(H,$nod)] {
+		set hl $Geometry(H,$nod)
+	} else {
+		set hl $Geometry(H,)
+	}
+
+	# small-numbered colors for node highlighting
+	set Stat($Sok,HV,$nod) [lindex $hl 1]
+
+	# fgr/bgr pair for notes and node identifiers
+	lassign [lindex $hl 0] Stat($Sok,HF,$nod) Stat($Sok,HB,$nod)
+
+	if { $Stat($Sok,HF,$nod) == "" } {
+		# this one cannot be null
+		set Stat($Sok,HF,$nod) "black"
+	}
+
 	#
 	# This list gives the complete description of how the node should be
 	# drawn:
@@ -5420,7 +5634,7 @@ proc moveGNP { Sok cmd } {
 	# { color label } for highlighting
 	#
 	set Stat($Sok,NL,$nod) \
-		[list $x $y $tn $co "" "" $fb [vipars $vc $vn]]
+		[list $x $y $tn $co "" "" $fb [vipars $Sok $vc $vn $nod]]
 
 	# the host number, i.e., the lower word of host_id, aka local_host
 	set Stat($Sok,NH,$nod) $hos
@@ -5428,7 +5642,7 @@ proc moveGNP { Sok cmd } {
 	# movability
 	set Stat($Sok,NM,$nod) $mov
 
-	# highlight label widget
+	# highlight label widget pair
 	set Stat($Sok,HL,$nod) ""
 
 	incr Stat($Sok,CI)
@@ -5453,11 +5667,11 @@ proc moveGNP { Sok cmd } {
 	sock_wr $Sok "Q $Stat($Sok,CI)\n"
 }
 
-proc vipars { col lab } {
+proc vipars { Sok col lab nod } {
 #
 # Sanitize the "visualization" arguments and combine them into a single item
 #
-	global HPA VIS_COLORS
+	global Stat HPA
 
 	set lab [string trim $lab]
 	if { $col == "" && $lab == "" } {
@@ -5465,8 +5679,9 @@ proc vipars { col lab } {
 		return ""
 	}
 	if { $col != "" && ![catch { expr $col } col] } {
-		if { $col < [llength $VIS_COLORS] } {
-			set col [lindex $VIS_COLORS $col]
+		set hl $Stat($Sok,HV,$nod)
+		if { $col < [llength $hl] } {
+			set col [lindex $hl $col]
 		} else {
 			set col [format "#%06X" $col]
 		}
@@ -5746,7 +5961,7 @@ proc mkMove { Sok } {
 #
 # Create the ROAMER window
 #
-	global Wins Stat CMARGIN Geometry
+	global Wins Stat CMARGIN Geometry GFile
 
 	set w $Wins($Sok)
 	toplevel $w
@@ -5755,12 +5970,25 @@ proc mkMove { Sok } {
 	do_geometry $w "roamer"
 
 	if [info exists Geometry(roamer,i)] {
-		# we have a background image
-		set imf $Geometry(roamer,i)
-		if [catch { image create photo -file $imf } bgr] {
-			log "cannot open the background image file $imf, $bgr"
-			return 1
+		if { $Stat($Sok,BI) != "" } {
+			# use the image that has arrived from the server
+			if [catch {
+				image create photo -data $Stat($Sok,BI)
+			} bgr] {
+				log "cannot render remote background image,\
+					$bgr"
+				return 1
+			}
+		} else {
+			# use the local file
+			set imf $Geometry(roamer,i)
+			if [catch { image create photo -file $imf } bgr] {
+				log "cannot open the local background image\
+					file $imf, $bgr"
+				return 1
+			}
 		}
+		# apparently we have succeeded with the image
 		set aw [image width $bgr]
 		set ah [image height $bgr]
 		# not resizable
@@ -5892,13 +6120,25 @@ proc drawNode { Sok w n } {
 		}
 	}
 
-	drawLabel $Sok $n $cx $cy $vl
+	drawNote $Sok $n $cx $cy $vl
+
+	# use the note colors for the node number (we may want to change this
+	# later)
 
 	# the node number
-	set t [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
+	set la [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
 		-anchor s -text $Stat($Sok,NH,$n) \
-		-state disabled]
+		-state disabled -fill $Stat($Sok,HF,$n)]
 
+	if { $Stat($Sok,HB,$n) != "" } {
+		set bg [$w.c create rectangle [$w.c bbox $la] \
+			-fill $Stat($Sok,HB,$n) -outline ""]
+		$w.c raise $la
+	} else {
+		set bg ""
+	}
+
+	set t [list $la $bg]
 	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
 }
 
@@ -5927,9 +6167,23 @@ proc redrawNode { Sok w n } {
 		colconf $Sok $n $ci $co $vc
 	}
 
-	$w.c coords $t $cx [expr $cy - $CMARGIN(TO)]
+	lassign $t la bg
+	$w.c coords $la $cx [expr $cy - $CMARGIN(TO)]
 
-	drawLabel $Sok $n $cx $cy $vl
+	if { $bg != "" } {
+		# have to redraw the bounding box
+		$w.c delete $bg
+		set bg [$w.c create rectangle [$w.c bbox $la] \
+			-fill $Stat($Sok,HB,$n) -outline ""]
+		$w.c raise $la
+		set t [list $la $bg]
+		set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
+	}
+
+	drawNote $Sok $n $cx $cy $vl
+
+	# propagate the possible change to the caller
+	return $t
 }
 
 proc moveRedraw { Sok } {
@@ -6107,16 +6361,26 @@ proc moveMove { Sok n nx ny } {
 		$w.c coords $ci $cxl $cyl $cxh $cyh
 	}
 
-	moveLabel $Sok $n $nx $ny
+	moveNote $Sok $n $nx $ny
+
+	# update the position of node number
+
+	lassign $t la bg
+	$w.c coords $la $nx [expr $ny - $CMARGIN(TO)]
+	if { $bg != "" } {
+		# have to redraw the bounding box
+		$w.c delete $bg
+		set bg [$w.c create rectangle [$w.c bbox $la] \
+			-fill $Stat($Sok,HB,$n) -outline ""]
+		$w.c raise $la
+		set t [list $la $bg]
+	}
 
 	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
 
 	if [sock_wr $Sok "M $n $x $y\n"] {
 		return
 	}
-
-	# update node number
-	$w.c coords $t $nx [expr $ny - $CMARGIN(TO)]
 
 	# update running coordinate display
 	if [info exists Stat($Sok,RC)] {
@@ -6301,7 +6565,7 @@ proc moveUpd { Sok cmd } {
 		return
 	}
 
-	moveNewLocation $Sok $nod $x $y $ls $ps [vipars $vc $vn]
+	moveNewLocation $Sok $nod $x $y $ls $ps [vipars $Sok $vc $vn $nod]
 }
 
 proc moveRedim { Sok nxx nyy } {
@@ -6368,7 +6632,7 @@ proc moveNewLocation { Sok nod nx ny ls ps vic } {
 			set y $ny
 			set Stat($Sok,NL,$nod) \
 				[lreplace $Stat($Sok,NL,$nod) 0 1 $x $y]
-			redrawNode $Sok $w $nod
+			set t [redrawNode $Sok $w $nod]
 		}
 	}
 
@@ -6419,7 +6683,7 @@ proc moveNewLocation { Sok nod nx ny ls ps vic } {
 	}
 
 	if $lc {
-		drawLabel $Sok $nod [xtocv $Sok $x] [ytocv $Sok $y] \
+		drawNote $Sok $nod [xtocv $Sok $x] [ytocv $Sok $y] \
 			[lindex $v 1]
 	}
 }
@@ -6495,9 +6759,9 @@ proc colblink { Sok nod wg } {
 	after $del "colblink $Sok $nod $wg"
 }
 
-proc labelCoord { Sok x y } {
+proc noteCoords { Sok x y } {
 #
-# Caclculate label coordinates
+# Caclculate note coordinates
 #
 	global Stat CMARGIN
 
@@ -6535,18 +6799,22 @@ proc labelCoord { Sok x y } {
 	return [list $xc $yc $anc $jus]
 }
 
-proc drawLabel { Sok n x y txt } {
+proc drawNote { Sok n x y txt } {
 #
-# Draws a label box associated with the node at x y
+# Draws a note box for the node $n at node coords x y
 #
-	global Stat CMARGIN FONT LAB_COLOR
+	global Stat CMARGIN FONT
 
 	set w [stwin $Sok]
 
 	if { $Stat($Sok,HL,$n) != "" } {
 		# remove the previous one
-		$w.c delete $Stat($Sok,HL,$n)
-		set $Stat($Sok,HL,$n) ""
+		lassign $Stat($Sok,HL,$n) la bg
+		$w.c delete $la
+		if { $bg != "" } {
+			$w.c delete $bg
+		}
+		set Stat($Sok,HL,$n) ""
 	}
 
 	if { $txt == "" } {
@@ -6555,7 +6823,7 @@ proc drawLabel { Sok n x y txt } {
 	}
 
 	# coordinates and anchor
-	lassign [labelCoord $Sok $x $y] xc yc anc jus
+	lassign [noteCoords $Sok $x $y] xc yc anc jus
 
 	# width taken by the text if not broken
 	set rw [font measure $FONT(L) $txt]
@@ -6567,13 +6835,23 @@ proc drawLabel { Sok n x y txt } {
 		set rw 0
 	}
 
-	set Stat($Sok,HL,$n) [$w.c create text $xc $yc -anchor $anc -text $txt \
-		-justify $jus -width $rw -fill $LAB_COLOR]
+	set la [$w.c create text $xc $yc -anchor $anc -text $txt \
+		-justify $jus -width $rw -fill $Stat($Sok,HF,$n)]
+
+	if { $Stat($Sok,HB,$n) != "" } {
+		set bg [$w.c create rectangle [$w.c bbox $la] \
+			-fill $Stat($Sok,HB,$n) -outline ""]
+		$w.c raise $la
+	} else {
+		set bg ""
+	}
+
+	set Stat($Sok,HL,$n) [list $la $bg]
 }
 
-proc moveLabel { Sok n x y } {
+proc moveNote { Sok n x y } {
 #
-# Update the label's coordinates
+# Update the note's coordinates
 #
 	global Stat
 
@@ -6584,10 +6862,19 @@ proc moveLabel { Sok n x y } {
 		return
 	}
 
-	lassign [labelCoord $Sok $x $y] xc yc anc jus
+	lassign [noteCoords $Sok $x $y] xc yc anc jus
+	lassign $Stat($Sok,HL,$n) la bg
 
-	$w.c coords $Stat($Sok,HL,$n) $xc $yc
-	$w.c itemconfigure $Stat($Sok,HL,$n) -anchor $anc -justify $jus
+	$w.c coords $la $xc $yc
+	$w.c itemconfigure $la -anchor $anc -justify $jus
+
+	if { $bg != "" } {
+		$w.c delete $bg
+		set bg [$w.c create rectangle [$w.c bbox $la] \
+			-fill $Stat($Sok,HB,$n) -outline ""]
+		$w.c raise $la
+		set Stat($Sok,HL,$n) [list $la $bg]
+	}
 }
 
 ###############################################################################
@@ -6613,6 +6900,7 @@ proc log { txt } {
 		addText "" $Logger "$out"
 		endLine "" $Logger
 		if { $txt == "" } {
+			update idletasks
 			return
 		}
 	}
@@ -6722,12 +7010,8 @@ proc doConnect { } {
 ###############################################################################
 
 parse_args
-
-parse_geometry
 			
 wm title . "VUEE udaemon (ZZ000000A)"
-
-do_geometry . "root"
 
 frame .top -borderwidth 10
 pack .top -side top -expand 0 -fill x
@@ -6755,8 +7039,8 @@ pack .top.quit .top.connect .top.select -side right
 pack .top.l .top.stat -side left
 
 bind .top.stat <Return> doConnect
-bind .top <Destroy> { exit }
-bind . <Destroy> { exit }
+bind .top <Destroy> { alex }
+bind . <Destroy> { alex }
 
 focus .top.stat
 
@@ -6789,14 +7073,17 @@ bind . <Destroy> { terminate }
 
 if { [info tclversion] < 8.5 } {
 
-	alert "This program requires Tcl/Tk version 8.5 or higher!"
-	exit 99
+	alex "This program requires Tcl/Tk version 8.5 or higher!"
 }
 
 catch { close stdin }
 # stdout is needed by PIP (at least on Linux)
 # catch { close stdout }
 catch { close stderr }
+
+parse_geometry
+
+do_geometry . "root"
 
 predisplay
 

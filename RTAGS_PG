@@ -890,3 +890,13 @@ PG120803A:	PICOS >= PG120803A
 
     Fixed a bug in udaemon causing errors when a highlighted node was moved
     by the ROAMER.
+
+PG120814A:	PICOS >= PG120814A, SIDE >= PG120814A
+
+    Extensive modifications to the agent protocol and udaemon. The so-called
+    "geometry data" for udaemon is now included in the data set for the model.
+    This is explained in the document which has been updated and largely
+    rewritten.
+
+    Fixed a bug in udaemon causing spin hangups when the model was aborted
+    while udaemon was listening.

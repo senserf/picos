@@ -53,6 +53,7 @@
 #define	ARQS_INPUT_BUFLEN	64		// PANEL request buffer size
 #define	AUPD_OUTPUT_BUFLEN	64		// Actuator update buffer size
 #define	LCDG_OUTPUT_BUFLEN	1024		// LCDG output buffer size (bts)
+#define	DATA_OUTPUT_BUFLEN	1024		// For sending XML data
 
 #define	XTRN_IMODE_NONE		(0<<29)
 #define	XTRN_IMODE_DEVICE	(1<<29)
@@ -74,6 +75,7 @@
 #define	XTRN_OMODE_ASCII	(0<<24)
 #define	XTRN_OMODE_HOLD		(1<<23)		/* hold output (socket) */
 #define	XTRN_OMODE_NOHOLD	(0<<23)
+#define	XTRN_OMODE_OPTION	(1<<22)		/* an option */
 
 #define	XTRN_IMODE_STRLEN	0x00FFFFFF
 
@@ -91,6 +93,7 @@
 #define	AGENT_RQ_LCDG		8
 #define	AGENT_RQ_PWRT		9
 #define	AGENT_RQ_EMUL		10
+#define	AGENT_RQ_DATA		11
 
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */
@@ -840,5 +843,6 @@ process	AgentInterface {
 };
 
 extern word __pi_Agent_Port;
+extern char *__pi_XML_Data, *__pi_BGR_Image;
 
 #endif

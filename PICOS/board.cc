@@ -2200,6 +2200,31 @@ void BoardRoot::initRoamers (sxml_t data) {
 	print ("\n");
 }
 
+void BoardRoot::initAgent (sxml_t data) {
+//
+// Extracts the stuff that belongs to the Agent's visual info and must be
+// known to us. For now, this is only the file name of the background image,
+// if any.
+//
+	sxml_t t;
+	const char *att;
+	int len;
+
+	if ((data = sxml_child (data, "display")) == NULL)
+		return;
+
+	if ((t = sxml_child (data, "roamer")) != NULL &&
+	    (att = sxml_attr (t, "image")) != NULL &&
+	    (len = strlen (att)) != 0) {
+
+		__pi_BGR_Image = (char*) malloc (len + 1);
+		strcpy (__pi_BGR_Image, att);
+
+		// Try to open; do we really care? What if nobody ever asks
+		// for it?
+	}
+}
+
 void BoardRoot::readPreinits (sxml_t data, int nn) {
 
 	const char *att;
@@ -3524,11 +3549,12 @@ static int sa_smax (const char *what, const char *err, sxml_t root) {
 	for (root = sxml_child (root, what); root != NULL;
 						root = sxml_next (root)) {
 		
-		if ((att = sxml_attr (root, "number")) != NULL) {
+		if ((att = sxml_attr (root, "number")) != NULL ||
+		    (att = sxml_attr (root, "index")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
 			    np [0].LVal < -(MAX_INT) || np [0].LVal > MAX_INT)
 				// This is an error
-				xeai ("number", err, att);
+				xeai ("number/index", err, att);
 			last = (int) (np [0].LVal);
 		} else
 			last++;
@@ -3653,11 +3679,12 @@ static SensActDesc *sa_doit (const char *what, sint *off, const char *erc,
 						sns = sxml_next (sns)) {
 		np [0].type = np [1].type = TYPE_LONG;
 		
-		if ((att = sxml_attr (sns, "number")) != NULL) {
+		if ((att = sxml_attr (sns, "number")) != NULL ||
+		    (att = sxml_attr (sns, "index")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
 			    np [0].LVal < -MAX_INT ||
 			    np [0].LVal >  MAX_INT   )
-				xeai ("number", erc, att);
+				xeai ("number/index", erc, att);
 			last = (int) (np [0].LVal);
 		} else
 			last++;
@@ -3678,14 +3705,15 @@ static SensActDesc *sa_doit (const char *what, sint *off, const char *erc,
 						sns = sxml_next (sns)) {
 		np [0].type = np [1].type = TYPE_LONG;
 		
-		if ((att = sxml_attr (sns, "number")) != NULL) {
+		if ((att = sxml_attr (sns, "number")) != NULL ||
+		    (att = sxml_attr (sns, "index")) != NULL) {
 			parseNumbers (att, 1, np);
 			last = (int) (np [0].LVal) + *off;
 		} else
 			last++;
 		
 		if (last >= n || res [last] . Length != 0)
-			xeai ("number", erc, att);
+			xeai ("number/index", erc, att);
 
 		fill++;
 
@@ -4087,17 +4115,19 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 	for (cno = sxml_child (data, "node"); cno != NULL;
 							cno = sxml_next (cno)) {
-		att = sxml_attr (cno, "number");
+		if ((att = sxml_attr (cno, "number")) == NULL)
+			att = sxml_attr (cno, "index");
+		
 		if (att != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
 			    np [0].LVal < 0 || np [0].LVal >= NT)
-				xeai ("number", "<node>", att);
+				xeai ("number/index", "<node>", att);
 			last = (Long) (np [0].LVal);
 		} else
 			last++;
 
 		if (last >= NT)
-			excptn ("Root: implict node number reaches the limit"
+			excptn ("Root: implict node index reaches the limit"
 				" of %1d", NT);
 
 		if (xnodes [last] != NULL)
@@ -4439,10 +4469,12 @@ void BoardRoot::initAll () {
 			TRACE_OPTION_STATID +
 			TRACE_OPTION_PROCESS );
 
-	xml = sxml_parse_input ();
+	xml = sxml_parse_input ('\0', &__pi_XML_Data);
+
 	if (!sxml_ok (xml))
 		excptn ("Root: XML input data error, %s",
 			(char*)sxml_error (xml));
+
 	if (strcmp (sxml_name (xml), "network"))
 		excptn ("Root: <network> data expected");
 
@@ -4492,6 +4524,8 @@ void BoardRoot::initAll () {
 	initNodes (xml, NT, NN);
 	initPanels (xml);
 	initRoamers (xml);
+	initAgent (xml);
+	
 
 	sxml_free (xml);
 

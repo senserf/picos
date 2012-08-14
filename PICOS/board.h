@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.97
+#define	VUEE_VERSION	0.98
 
 #include "picos.h"
 #include "ndata.h"
@@ -800,6 +800,7 @@ process	BoardRoot {
 	void initNodes (sxml_t, int, int);
 	void initPanels (sxml_t);
 	void initRoamers (sxml_t);
+	void initAgent (sxml_t);
 	void initAll ();
 
 	void readPreinits (sxml_t, int);
@@ -828,7 +829,8 @@ process MoveHandler {
 	word RBSize;
 	FLAGS Flags;
 
-	states { AckMove, Loop, ReadRq, Reply, Delay };
+	states { InitMove, AckMove, BgrMove, AckDone, Loop, ReadRq, Reply,
+			Delay };
 
 	void setup (Dev*, FLAGS);
 
