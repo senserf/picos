@@ -1822,7 +1822,7 @@ void print (const BIG &n, const char *h = NULL, int ns = 15, int hs = 0);
 inline void print (const BIG &n, int ns) { print (n, NULL, ns); };
 #endif
 void print (const char *n, int ns = 0);
-sxml_t sxml_parse_input (char del = '\0');
+sxml_t sxml_parse_input (char del = '\0', char **data = NULL);
 
 /* ---------------------------------------------------------- */
 /* User-invisible global function to issue an inspect request */

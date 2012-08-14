@@ -1,6 +1,6 @@
-/* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-09   P. Gburzynski */
-/* ooooooooooooooooooooooooooooooooooooo */
+/* ooooooooooooooooooooooooooooooooooooooo */
+/* Copyright (C) 1991-2012   P. Gburzynski */
+/* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
 
@@ -891,11 +891,11 @@ Mem:
 		if ((w = (char*) malloc (nr)) == NULL)
 			goto Mem;
 
-		strncpy (w, IF, ms);
-		strncpy (w + ms, f, nc);
-		strncpy (w + ms + nc, t, tl);
+		memcpy (w, IF, ms);
+		memcpy (w + ms, f, nc);
+		memcpy (w + ms + nc, t, tl);
 
-		*MS = ms + nc + tl;
+		*MS = nr;
 
 		free (IF);
 		free (f);
@@ -905,7 +905,7 @@ Mem:
 	}
 }
 
-sxml_t	sxml_parse_input (char del) {
+sxml_t	sxml_parse_input (char del, char **data) {
 /*
  * Parse the input data. The optional character (if not 0) gives the delimiter
  * expected to occur as the only character of a terminating line. Otherwise,
@@ -916,16 +916,21 @@ sxml_t	sxml_parse_input (char del) {
 	sxml_t	xml;
 	Boolean	EOL;
 
-#define	sxml_put(h)	do { \
-				if (CSize == MSize) { \
-					SF = (char*) malloc (MSize + MSize); \
-					memcpy (SF, IF, CSize); \
-					free (IF); \
-					IF = SF; \
-					MSize += MSize; \
-				} \
-				IF [CSize++] = h; \
-			} while (0)
+#define	sxml_put(h) do { \
+		if (CSize == MSize) { \
+			SF = (char*) malloc (MSize + MSize); \
+			if (SF == NULL) \
+				goto Mem; \
+			memcpy (SF, IF, CSize); \
+			free (IF); \
+			IF = SF; \
+			MSize += MSize; \
+		} \
+		IF [CSize++] = h; \
+	} while (0)
+
+	if (data != NULL)
+		*data = NULL;
 
 	if (EndOfData)
 		return sxml_parse_str ("", 0);
@@ -934,13 +939,15 @@ sxml_t	sxml_parse_input (char del) {
 	CSize = 0;
 	EOL = YES;
 
-	while (!Inf.eof ()) {
+	while (1) {
 		Inf.get (c);
+		if (Inf.eof ())
+			break;
 		if (EOL && c != '\0' && c == del) {
-			if (Inf.eof ())
-				break;
 			d = c;
 			Inf.get (c);
+			if (Inf.eof ())
+				break;
 			if (c == '\n')
 				break;
 			sxml_put (d);
@@ -952,6 +959,16 @@ sxml_t	sxml_parse_input (char del) {
 	if ((IF = sxml_handle_includes (IF, &CSize, &SF)) == NULL)
 		// IF has been freed by sxml_handle_includes
 		return sxml_parse_str (SF, 0);
+
+	if (data != NULL) {
+		// Copy the data file
+		if ((*data = (char*) malloc (CSize + 1)) == NULL) {
+Mem:
+			excptn ("sxml_parse_input: out of memory");
+		}
+		memcpy (*data, IF, CSize);
+		(*data) [CSize] = '\0';
+	}
 	
 	return sxml_parse_str1 (IF, CSize);
 	// No need to delete IF; it is being recycled by sxml_parse_str1 and

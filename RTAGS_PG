@@ -419,3 +419,11 @@ PG120605A:	PICOS >= PG120605B, PIP >= PG120605A, VUEE >= PG12060A
 PG120626A:
 
 	   Nick's fix of a couple of typos: Nicholas Boers <boersn@macewan.ca>.
+
+PG120814A:
+
+	   Function sxml_parse_input now accepts an (optional) second argument
+	   which can be used to return (and store) the pre-parsed XML data set
+	   as a NULL-terminated string with all the includes resolved. This is
+	   going to be useful for VUEE: the simulator will be able to save the
+	   data set and later convey it to an agent (e.g., udaemon).
