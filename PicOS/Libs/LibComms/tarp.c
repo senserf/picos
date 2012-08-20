@@ -510,9 +510,9 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			  memcpy ((char *)dup + tr_offset (msgBuf),
 				(char *)&local_host, sizeof(nid_t));
 #endif
-			  *((char *)dup + tr_offset (msgBuf)) = 
+			  *((byte *)dup + tr_offset (msgBuf)) = 
 				  (byte)local_host;
-			  *((char *)dup + tr_offset (msgBuf) +1) = rssi;
+			  *((byte *)dup + tr_offset (msgBuf) +1) = rssi;
 			}
 			tarp_ctrl.fwd++;
 		}
@@ -551,8 +551,8 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			memcpy ((char *)dup + tr_offset (msgBuf),
 				(char *)&local_host, sizeof(nid_t));
 #endif
-			*((char *)dup + tr_offset (msgBuf)) = (byte)local_host;
-			*((char *)dup + tr_offset (msgBuf) +1) = rssi;
+			*((byte *)dup + tr_offset (msgBuf)) = (byte)local_host;
+			*((byte *)dup + tr_offset (msgBuf) +1) = rssi;
 			dbug_rx ("%u %u cpy trace", 
 					msgBuf->msg_type, msgBuf->snd);
 		}

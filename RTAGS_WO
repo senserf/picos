@@ -155,3 +155,13 @@ WO120512A:
   from 30 to 60, other nodes' from 30 to 900. All the changes were used for
   experiments with CMA and dimihished RTLS.
 
+WO120820A:
+  - inProgress/trace: Read trace.odt there. Unfinished business: Soon, we'll
+    update it after DIVA slides, for DIVA and similar demos. After that, open
+    problems, sensor module and OSS refinements are expected.
+  - In tarp.c, trace-related castings are fixed.
+  - In il_demo, sensor- and board-related symbols are updated. More updates
+    and cleanup will come after board_options are streamlined and made
+    available for VUEE.
+  - In mm_demo, STACK_SIZE is updated 256->512.
+
