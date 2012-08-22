@@ -1190,8 +1190,8 @@ void phys_cc1100 (int phy, int mbs) {
 	LEDI (1, 0);
 	LEDI (2, 0);
 
-	// Things start in the off state
-	RxST = 1;
+	// Things start in the off state (ini_cc1100 powers down the chip)
+	RxST = 2;
 	xpower = RADIO_DEFAULT_POWER;
 	/* Initialize the device */
 	ini_cc1100 ();

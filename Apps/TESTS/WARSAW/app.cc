@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -1187,7 +1187,7 @@ fsm test_delay {
   state DE_INIT:
 
 	ser_out (DE_INIT,
-		"\r\nRF Pin Test\r\n"
+		"\r\nRF Power Test\r\n"
 		"Commands:\r\n"
 #if GLACIER
 		"f s -> freeze\r\n"

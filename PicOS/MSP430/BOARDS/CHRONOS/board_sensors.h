@@ -57,6 +57,7 @@
 #define	cma3000_spi_write(b)	UCA0TXBUF = (b)
 
 #define	cma3000_busy		((UCA0IFG & UCRXIFG) == 0)
+#define	cma3000_delay		udelay (2)
 
 // ============================================================================
 // SCP1000-D01 pressure sensor ================================================

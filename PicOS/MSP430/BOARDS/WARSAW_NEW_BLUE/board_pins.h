@@ -3,7 +3,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-// Includes BlueTooth LinkMatic 2.0 connected via J3:
+// Includes BlueTooth LinkMatik 2.0 connected via J3:
 //
 //	GND  ->       (0)
 //	P3.7 -> TX    (1)

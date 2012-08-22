@@ -8,6 +8,7 @@
 #include "rtc_cc430.h"
 #include "tcvphys.h"
 #include "phys_cc1100.h"
+#include "cc1100.h"
 #include "plug_null.h"
 #include "form.h"
 #include "buttons.h"

@@ -1,8 +1,5 @@
-//
-// Frequency correction for the wrong crystal
-//
 #define	CC1100_FREQ_FREQ1_VALUE	0xC5
-#define	CC1100_FREQ_FREQ0_VALUE	0xA0
+#define	CC1100_FREQ_FREQ0_VALUE	0x7A
 
 #define	MALLOC_SINGLEPOOL	1
 

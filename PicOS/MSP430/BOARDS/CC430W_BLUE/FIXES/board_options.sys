@@ -1,6 +1,9 @@
+//#define	CC1100_FREQ_FREQ1_VALUE	0xC5
+//#define	CC1100_FREQ_FREQ0_VALUE	0xA0
+
 #define	MALLOC_SINGLEPOOL	1
 
-#define DIAG_MESSAGES		2
+#define DIAG_MESSAGES		0
 
 #define	TCV_PRESENT		1
 #define	TCV_TIMERS		0
@@ -22,6 +25,7 @@
 
 #define UART_DRIVER		1
 #define	UART_RATE_SETTABLE	1
+#define	UART_FROM_SMCLK		1
 #define	RADIO_USE_LEDS		7
 
 #define CC1100			1

@@ -1,6 +1,10 @@
 #include "sysio.h"
 #include "cma3000.h"
 
+#ifndef	cma3000_delay
+#define	cma3000_delay	CNOP
+#endif
+
 #ifdef	cma3000_spi_read
 // ============================================================================
 // SPI access =================================================================
@@ -12,7 +16,7 @@ static void wreg (byte reg, byte val) {
 
 	// Select the chip
 	cma3000_csel;
-	udelay (2);
+	cma3000_delay;
 
 	// Remove SPI interrupt condition
 	res = cma3000_spi_read;
@@ -41,7 +45,7 @@ byte cma3000_rreg (byte reg) {
 
 	// Select the chip
 	cma3000_csel;
-	udelay (2);
+	cma3000_delay;
 
 	// Remove SPI interrupt condition
 	res = cma3000_spi_read;
@@ -97,7 +101,9 @@ static void put_byte (byte b) {
 		else
 			cma3000_outl;
 		cma3000_clkh;
+		cma3000_delay;
 		cma3000_clkl;
+		cma3000_delay;
 		b <<= 1;
 	}
 }
@@ -106,7 +112,7 @@ static void wreg (byte reg, byte val) {
 
 	// Select the chip
 	cma3000_csel;
-	udelay (2);
+	// cma3000_delay;
 
 	// Address + write
 	put_byte ((reg << 2) | 0x02);
@@ -116,6 +122,7 @@ static void wreg (byte reg, byte val) {
 
 	// Unselect
 	cma3000_cunsel;
+	cma3000_delay;
 }
 
 byte cma3000_rreg (byte reg) {
@@ -124,7 +131,6 @@ byte cma3000_rreg (byte reg) {
 
 	// Select the chip
 	cma3000_csel;
-	udelay (2);
 
 	// Address + read
 	put_byte (reg << 2);
@@ -149,7 +155,9 @@ static Boolean measuring;
 
 static void wreg_n_check (byte reg, byte val) {
 
-	do { wreg (reg, val); } while (cma3000_rreg (reg) != val);
+	do {
+		wreg (reg, val);
+	} while (cma3000_rreg (reg) != val);
 }
 
 void cma3000_on (byte mode, byte th, byte tm) {

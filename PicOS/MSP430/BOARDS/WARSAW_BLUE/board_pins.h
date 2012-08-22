@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -28,13 +28,27 @@
 // 6 = BT ESC OUT
 // 7 = BT RESET OUT
 
-#ifdef	LINKMATIC
+#ifdef	BT_MODULE_LINKMATIK
 // This is for backward compatibility, I am assuming we are retiring LinkMatic,
 // so this constant is undefined by default
 #define	PIN_DEFAULT_P1DIR	(0x23+0xC0)
-#else
-// Reset on BTM-182 is input/open
+#define	__BT_MODULE_DEFINED
+#endif
+
+#ifdef	BT_MODULE_BTM182
 #define	PIN_DEFAULT_P1DIR	(0x23+0x40)
+// Reset on BTM-182 is input/open
+#define	__BT_MODULE_DEFINED
+#endif
+
+#ifdef	BT_MODULE_BC4
+#define	PIN_DEFAULT_P1DIR	(0x23+0xC0)
+#define	PIN_DEFAULT_P1OUT	0x80
+#define	__BT_MODULE_DEFINED
+#endif
+
+#ifndef	__BT_MODULE_DEFINED
+#error "You have to define exactly one of: BT_MODULE_LINKMATIK, BT_MODULE_BTM182, BT_MODULE_BC4!!!"
 #endif
 
 // 0, 1, 7 hang loose, 4 = soft reset button, must be IN
@@ -111,10 +125,17 @@
 #define	blue_power_down		_BIC (P4OUT,0x80)
 #define	blue_status		(P6IN & 0x80)
 
-#ifdef LINKMATIC
+#ifdef BT_MODULELINKMATIK
 #define	blue_reset_set		_BIS (P1OUT,0x80)
 #define	blue_reset_clear	_BIC (P1OUT,0x80)
-#else
+#endif
+
+#ifdef BT_MODULE_BTM182
 #define	blue_reset_set		_BIS (P1DIR,0x80)
 #define	blue_reset_clear	_BIC (P1DIR,0x80)
+#endif
+
+#ifdef BT_MODULE_BC4
+#define	blue_reset_set		_BIC (P1OUT,0x80)
+#define	blue_reset_clear	_BIS (P1OUT,0x80)
 #endif

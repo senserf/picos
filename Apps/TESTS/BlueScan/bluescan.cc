@@ -4,12 +4,13 @@
 #include "board_pins.h"
 
 static const char bscan_init_commands [] =
-#ifdef	LINKMATIC
+#ifdef	BT_MODULE_LINKMATIK
 	"SET CONTROL ECHO 7\0"
 	"SET CONTROL ECHO 7\0"
 	"SET CONTROL ECHO 7\0"
 	"SET CONTROL AUTOCALL\0"
-#else
+#endif
+#ifdef	BT_MODULE_BTM182
 	"ATC0\0"
 	"ATX0\0"
 	"ATQ0\0"
@@ -19,9 +20,10 @@ static const char bscan_init_commands [] =
 	    "\0";
 
 static const char bscan_scan_commands [] = 
-#ifdef	LINKMATIC
+#ifdef	BT_MODULE_LINKMATIK
 	"INQUIRY 12 NAME\0"
-#else
+#endif
+#ifdef	BT_MODULE_BTM182
 	"ATF?\0"
 	"ATF?\0"
 #endif
@@ -83,7 +85,7 @@ static void add_cache () {
 
     bscan_item_t pp;
 
-#ifdef LINKMATIC
+#ifdef BT_MODULE_LINKMATIK
 
     {
 	const char *s;
@@ -119,7 +121,9 @@ static void add_cache () {
 	pp.name [nc] = '\0';
     }
 
-#else	/* BTM-182 */
+#endif
+
+#ifdef	BT_MODULE_BTM182
 
     {
 	const char *s;
@@ -249,7 +253,7 @@ fsm bscan_out (const char *sp) {
 
 		io (CODA, UART_B, WRITE, (char*)(eol+0), 1);
 
-#ifdef LINKMATIC
+#ifdef BT_MODULE_LINKMATIK
 	state FINE:
 
 		io (FINE, UART_B, WRITE, (char*)(eol+1), 1);

@@ -2451,3 +2451,31 @@ PG120814A:	VUEE >= PG120814A, PIP >= PG120814A
 
 	The new versions of those data files can be used as illustrations.
 	Read the VUEE doc, especially the section on udaemon.
+
+PG120822A:
+
+	Fixed a (really stupid) bug in phys_cc1100.c introduced along with the
+	features in PG120728A. If you initialized the driver (by phys_cc1100)
+	and then (within the same state) immediately powered the chip up
+	(PHYSOPT_RXON), the latter action was ineffective.
+
+	Fixed the CMA3000 driver. Added delays in write operations for non-SPI
+	access; otherwise write to registers wouldn't work for CC430W. I have
+	made sure that the fixed driver works with CHRONOS as well.
+
+	For BlueTooth boards and praxes, I have changed the names of constants
+	selecting the bluetooth module (in anticipation of new selections). So
+	it is now:
+
+	#define	BT_MODULE_LINKMATIK
+	#define	BT_MODULE_BTM182
+
+	One of the two must be defined (there's no fallback to BTM182). This
+	will extend over any future additions. I have started work on the BC4
+	module sent me by Gerry:
+
+	#define	BT_MODULE_BC4
+
+	but I haven't been able to get it to respond yet.
+
+	A cosmetic fix in TESTS/WARSAW/app.cc.

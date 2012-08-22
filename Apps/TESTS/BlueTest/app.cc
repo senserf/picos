@@ -125,7 +125,7 @@ Next:
 
 // ============================================================================
 
-#ifdef	LINKMATIC
+#ifdef	BT_MODULE_LINKMATIK
 
 // ============================================================================
 // Linkmatik ==================================================================
@@ -250,7 +250,9 @@ static void bt_setpin_cmd () {
 	form (cmbuf, "SET BT AUTH * %s", new_pin);
 }
 
-#else
+#endif
+
+#ifdef	BT_MODULE_BTM182
 
 // ============================================================================
 // BTM 182 ====================================================================
@@ -453,7 +455,7 @@ fsm bt_write {
 
 		io (CODA, UART_BT, WRITE, (char*)(eol+0), 1);
 
-#ifndef LINKMATIC
+#ifdef BT_MODULE_BTM182
 		// Don't send \n for BTM-182 if not connected
 		if (blue_status)
 			// Not connected, bypass sending NL
@@ -945,9 +947,10 @@ fsm root {
   state RS_MEN:
 
 	wl_u (" ");
-#ifdef LINKMATIC
+#ifdef BT_MODULE_LINKMATIK
 	wl_u ("BT LinkMatik: test and maintanance");
-#else
+#endif
+#ifdef BT_MODULE_BTM182
 	wl_u ("BT BTM-182: test and maintanance");
 #endif
 	wl_u ("Commands:");
@@ -956,7 +959,7 @@ fsm root {
 #ifdef	UART_B
 	wl_u ("t rate    > set rate for UART");
 #endif
-	wl_u ("e [n]     > escape");
+	wl_u ("e [|0|1]  > escape");
 	wl_u ("a         > reset");
 	wl_u ("s         > view status flag");
 	wl_u ("D         > auto discover rate");
@@ -1017,17 +1020,27 @@ fsm root {
 
   state RS_ESC:
 
-	n = 0;
+	n = -1;
 	scan (uibuf + 1, "%d", &n);
+	if (n == 0)
+		goto EClear;
+
 	blue_escape_set;
-	if (n == 0) {
+	if (n == -1)
+		// Hold
+		proceed RS_ATT;
+
+	if (n == 1) {
+		// Standard pulse
 		mdelay (10);
+EClear:
 		blue_escape_clear;
 		proceed RS_RCM;
 	}
 	// Factory reset
 	while (n--)
 		mdelay (1000);
+
 	blue_escape_clear;
 	// Say something
 	proceed RS_ATT;
@@ -1104,7 +1117,7 @@ fsm root {
 
 	wl_u (uibuf);
 
-#ifndef LINKMATIC
+#ifdef BT_MODULE_BTM182
 
 	wl_u ("Resetting to factory rate ...");
 	blue_escape_set;
