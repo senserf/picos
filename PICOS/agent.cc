@@ -1180,13 +1180,13 @@ void LcdgHandler::setup (LCDG *lc, Dev *a) {
 
 	if (AgentOutput::start (LC, a, LCDG_OUTPUT_BUFLEN) != ERROR) {
 		LC->init_connection ();
-	}
-	WNOP = htons (0x1000);
+		WNOP = htons (0x1000);
 
-	// Prepare the signature message
-	sig = new char [strlen (t = sigseq (IN->TPN)) + 2];
-	strcpy (sig, t);
-	strcat (sig, "\n");
+		// Prepare the signature message
+		sig = new char [strlen (t = sigseq (IN->TPN)) + 2];
+		strcpy (sig, t);
+		strcat (sig, "\n");
+	}
 }
 
 void LcdgHandler::nextupd (int lp, int nop) {
@@ -4535,8 +4535,9 @@ void AgentConnector::setup (Dev *m) {
 AgentConnector::perform {
 
 	rqhdr_t	header;
-	int	st;
-	PicOSNode *TPN;
+	int	st, fg;
+	Long	nn;
+	PicOSNode *TPN, *pn;
 
 	state Init:
 
@@ -4557,71 +4558,90 @@ AgentConnector::perform {
 		}
 
 		st = ntohl (header.stnum);
-		TPN = isStationId (st) ? (PicOSNode*) idToStation (st) : NULL;
+		fg = ntohl (header.flags);
+		TPN = NULL;
+
+		if (st >= 0) {
+			if (flagSet (fg, RQHDR_FLAG_HID)) {
+				// This is a HID
+				for (nn = 0; nn < NStations; nn++) {
+					pn = (PicOSNode*) idToStation (nn);
+					if (((pn->__host_id__ ^ st) & 0xFFFF) ==
+					    0) {
+						if (TPN != NULL) {
+							// Ambiguous
+							create Disconnector (
+							    Agent,
+							    ECONN_AMBIGUOUS);
+							terminate;
+						}
+						TPN = pn;
+					}
+				}
+			} else {
+				if (isStationId (st))
+					TPN = (PicOSNode*) idToStation (st);
+			}
+		}
 
 		switch (ntohs (header.rqcod)) {
 
 			case AGENT_RQ_UART:
 
 				if (TPN == NULL)
-					create Disconnector (Agent,
-						ECONN_STATION);
-				else
-					create UartHandler (TPN, Agent);
+					goto NoNode;
+				create UartHandler (TPN, Agent);
 				terminate;
 
 			case AGENT_RQ_PINS:
 
 				if (TPN == NULL)
-					create Disconnector (Agent,
-						ECONN_STATION);
-				else
-					create PinsHandler (TPN->pins, Agent);
+					goto NoNode;
+				create PinsHandler (TPN->pins, Agent);
 				terminate;
 
 			case AGENT_RQ_SENSORS:
 
 				if (TPN == NULL)
-					create Disconnector (Agent,
-						ECONN_STATION);
-				else
-					create SensorsHandler (TPN->snsrs,
-						Agent);
+					goto NoNode;
 				terminate;
 
 			case AGENT_RQ_LEDS:
 
 				if (TPN == NULL)
-					create Disconnector (Agent,
-						ECONN_STATION);
-				else
-					create LedsHandler (TPN->ledsm, Agent);
+					goto NoNode;
+				create LedsHandler (TPN->ledsm, Agent);
 				terminate;
 
 			case AGENT_RQ_EMUL:
 
 				if (TPN == NULL)
-					create Disconnector (Agent,
-						ECONN_STATION);
-				else
-					create EmulHandler (TPN->emulm, Agent);
+					goto NoNode;
+				create EmulHandler (TPN->emulm, Agent);
 				terminate;
 
 			case AGENT_RQ_PWRT:
 
 				if (TPN == NULL)
-					create Disconnector (Agent,
-						ECONN_STATION);
-				else
-					create PwrtHandler (TPN->pwr_tracker,
-						Agent);
+					goto NoNode;
+				create PwrtHandler (TPN->pwr_tracker, Agent);
+				terminate;
+
+			case AGENT_RQ_LCDG:
+
+				// Note: the write-to-file option will be
+				// handled separately
+				if (TPN == NULL) 
+					goto NoNode;
+				create LcdgHandler (TPN->lcdg, Agent);
 				terminate;
 
 			case AGENT_RQ_MOVE:
 
 				create MoveHandler (Agent,
-					XTRN_IMODE_SOCKET | ((st == -2) ?
-					XTRN_OMODE_OPTION : 0));
+					XTRN_IMODE_SOCKET |
+					  (flagSet (fg, RQHDR_FLAG_BIM) ?
+					    XTRN_OMODE_OPTION : 0));
 				terminate;
 
 			case AGENT_RQ_CLOCK:
@@ -4634,20 +4654,13 @@ AgentConnector::perform {
 				create PanelHandler (Agent, XTRN_IMODE_SOCKET);
 				terminate;
 
-			case AGENT_RQ_LCDG:
-
-				// Note: the write-to-file option will be
-				// handled separately
-				create LcdgHandler (TPN->lcdg, Agent);
-				terminate;
-
 			case AGENT_RQ_DATA:
 
 				// Send the XML data file
 				create DataSender (Agent);
 				terminate;
 
-			// More options may come later
+			// More choice may come later
 			default:
 				create Disconnector (Agent, ECONN_UNIMPL);
 		}
@@ -4656,6 +4669,9 @@ AgentConnector::perform {
 	state GiveUp:
 
 		create Disconnector (Agent, ECONN_TIMEOUT);
+		terminate;
+NoNode:
+		create Disconnector (Agent, ECONN_STATION);
 		terminate;
 }
 

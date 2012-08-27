@@ -2091,8 +2091,26 @@ proc mdName { Sok } {
 
 	if [info exists Stat($Sok,W)] {
 		set in " to $Stat($Sok,W)"
+		set hi ""
+		set id ""
+		if { [info exists Stat($Sok,I)] && $Stat($Sok,I) != "" } {
+			set hi $Stat($Sok,I)
+		}
 		if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
-			append in " at node $Stat($Sok,S)"
+			set id $Stat($Sok,S)
+		}
+		if { $hi != "" || $id != "" } {
+			append in " at node "
+			if { $hi == "" } {
+				set hi $id
+			} elseif { $id == "" } {
+				set id $hi
+			}
+			if { $hi == $id } {
+				append in $hi
+			} else {
+				append in "$hi/$id"
+			}
 		}
 		return $in
 	}
@@ -2202,7 +2220,7 @@ proc stwin { Sok } {
 	return $w
 }
 
-proc winlocate { tag stid } {
+proc winlocate { tag { stid "" } { hid 0 } } {
 #
 # Tries to locate a window of a given type (tag) for a given node (stid); if
 # stid is null, the windows is supposed to be node-independent, i.e., global;
@@ -2224,10 +2242,20 @@ proc winlocate { tag stid } {
 				set wn $w
 				break
 			}
-		} elseif { [info exists Stat($s,S)] && \
-		    $stid == $Stat($s,S) } {
-			set wn $w
-			break
+		} else {
+			if $hid {
+				if { [info exists Stat($s,I)] &&
+				    $Stat($s,I) == $stid } {
+					set wn $w
+					break
+				}
+			} else {
+				if { [info exists Stat($s,S)] &&
+				    $Stat($s,S) == $stid } {
+					set wn $w
+					break
+				}
+			}
 		}
 	}
 
@@ -2291,7 +2319,7 @@ proc sntype { t } {
 	return $t
 }
 
-proc sock_req { Sok rqnum stid } {
+proc sock_req { Sok rqnum stid flags } {
 #
 # Sends an agent connection request to VUEE
 #
@@ -2303,6 +2331,7 @@ proc sock_req { Sok rqnum stid } {
 	abinS rqs $AGENT_MAGIC
 	abinS rqs $rqnum
 	abinI rqs $stid
+	abinI rqs $flags
 
 	if [catch { puts -nonewline $Sok $rqs } err] {
 		log "connection failed: $err"
@@ -2318,7 +2347,7 @@ proc sock_req { Sok rqnum stid } {
 	fileevent $Sok writable ""
 }
 
-proc sock_conn { what { stid -1 } } {
+proc sock_conn { what { stid -1 } { flags 0 } } {
 #
 # Get a socket to VUEE
 #
@@ -2361,7 +2390,7 @@ proc sock_conn { what { stid -1 } } {
 		set Stat($Sok,S) $stid
 	}
 
-	fileevent $Sok writable "sock_req $Sok $rqnum $stid"
+	fileevent $Sok writable "sock_req $Sok $rqnum $stid $flags"
 	fileevent $Sok readable "sock_rep $Sok"
 
 	return $Sok
@@ -2499,8 +2528,8 @@ proc node_sig { Sok c { v "" } } {
 	}
 
 	if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
-		if  { $Stat($Sok,S) != $nod } {
-			return "node number $nod != expected $Stat($Sok,S)"
+		if  { $Stat($Sok,S) != $nod && $Stat($Sok,S) != $hos } {
+			return "node number $nod/$hos != expected $Stat($Sok,S)"
 		}
 	}
 
@@ -2518,11 +2547,11 @@ proc node_sig { Sok c { v "" } } {
 # UART ########################################################################
 ###############################################################################
 
-proc uartHandler { stid mode } {
+proc uartHandler { stid mode { fg 0 } } {
 
 	global Wins Stat
 
-	if [winlocate "u" $stid] {
+	if [winlocate "u" $stid $fg] {
 		# window already exists
 		return
 	}
@@ -2535,7 +2564,7 @@ proc uartHandler { stid mode } {
 		set umo 0
 	}
 
-	set Sok [sock_conn "UART" $stid]
+	set Sok [sock_conn "UART" $stid $fg]
 	if { $Sok == "" } {
 		# failed, diagnosed
 		return
@@ -2585,6 +2614,8 @@ proc uartFirst { Sok } {
 		return
 	}
 
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
 	# create the window
 	set Wn ".wu[unique]"
 
@@ -2592,7 +2623,7 @@ proc uartFirst { Sok } {
 
 	set Wins($Sok) $Wn
 
-	mkTerm $Sok "UART at node [lindex $pmt 1]" $Stat($Sok,M)
+	mkTerm $Sok "UART at node $Stat($Sok,I)" $Stat($Sok,M)
 
 	# reset the input script
 	fileevent $Sok readable "uartRead $Sok"
@@ -2839,7 +2870,7 @@ proc mkTerm { Sok tt hex } {
 
 	wm title $w $tt
 
-	do_geometry $w "uart" $Stat($Sok,S)
+	do_geometry $w "uart" $Stat($Sok,N)
 
 	text $w.t
 
@@ -2958,7 +2989,7 @@ proc term_sfile { Sok tag } {
 		# save file dialog
 		set fn [tk_getSaveFile \
 				-defaultextension ".txt" \
-				-initialfile "$tag$Stat($Sok,S).txt" \
+				-initialfile "$tag$Stat($Sok,I).txt" \
 				-parent $Wins($Sok) \
 				-title "File to save the session"]
 		if { $fn == "" } {
@@ -3087,7 +3118,7 @@ proc endLine { Sok w } {
 
 proc clockHandler { } {
 
-	if [winlocate "c" ""] {
+	if [winlocate "c"] {
 		return
 	}
 
@@ -3223,13 +3254,13 @@ proc mkClock { Sok } {
 # LEDS ########################################################################
 ###############################################################################
 
-proc ledsHandler { stid } {
+proc ledsHandler { stid { fg 0 } } {
 
-	if [winlocate "l" $stid] {
+	if [winlocate "l" $stid $fg] {
 		return
 	}
 
-	sock_conn "LEDS" $stid
+	sock_conn "LEDS" $stid $fg
 }
 
 proc LEDS_ini { Sok code } {
@@ -3266,15 +3297,16 @@ proc ledsFirst { Sok } {
 	}
 
 	if ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Fast Leds] {
-		# ignore NOPs and illegal commands
 		return
 	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
 
 	# terminate the timeout
 	ctimeout $Sok
 
 	# the node
-	set nod $Stat($Sok,S)
+	set nod $Stat($Sok,N)
 
 	# the number of leds
 	set nleds [string length $Leds]
@@ -3329,7 +3361,7 @@ proc ledsFirst { Sok } {
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 
-	mkLeds $Sok $nleds "[lindex $pmt 1] LEDS"
+	mkLeds $Sok $nleds "$Stat($Sok,I) LEDS"
 
 	ledsStatus $Sok $Fast $Leds
 
@@ -3418,7 +3450,7 @@ proc mkLeds { Sok nleds tt } {
 
 	wm title $w $tt
 
-	do_geometry $w "leds" $Stat($Sok,S)
+	do_geometry $w "leds" $Stat($Sok,N)
 
 	# blinker callback
 	set Stat($Sok,G) ""
@@ -3525,13 +3557,13 @@ proc ledsBlinker { Sok } {
 # EMUL ########################################################################
 ###############################################################################
 
-proc emulHandler { stid } {
+proc emulHandler { stid { fg 0 } } {
 
-	if [winlocate "e" $stid] {
+	if [winlocate "e" $stid $fg] {
 		return
 	}
 
-	sock_conn "EMUL" $stid
+	sock_conn "EMUL" $stid $fg
 }
 
 proc EMUL_ini { Sok code } {
@@ -3573,14 +3605,16 @@ proc emulFirst { Sok } {
 		return
 	}
 
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
 	set w ".we[unique]"
 	set Wins($Sok) $w
 
 	toplevel $w
 
-	wm title $w "EMUL at node [lindex $pmt 1]"
+	wm title $w "EMUL at node $Stat($Sok,I)"
 
-	do_geometry $w "emul" $Stat($Sok,S)
+	do_geometry $w "emul" $Stat($Sok,N)
 
 	text $w.t
 
@@ -3667,13 +3701,13 @@ proc emulUpdate { Sok } {
 # LCDG ########################################################################
 ###############################################################################
 
-proc lcdgHandler { stid } {
+proc lcdgHandler { stid { fg 0 } } {
 
-	if [winlocate "g" $stid] {
+	if [winlocate "g" $stid $fg] {
 		return
 	}
 
-	sock_conn "LCDG" $stid
+	sock_conn "LCDG" $stid $fg
 }
 
 proc LCDG_ini { Sok code } {
@@ -3716,12 +3750,14 @@ proc lcdgFirst { Sok } {
 		return
 	}
 
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
 	set Wn ".wg[unique]"
 
 	set Wins($Sok) $Wn
 	toplevel $Wn
-	wm title $Wn "LCDG: [lindex $pmt 1]"
-	do_geometry $Wn "lcdg" $Stat($Sok,S)
+	wm title $Wn "LCDG: $Stat($Sok,I)"
+	do_geometry $Wn "lcdg" $Stat($Sok,N)
 	set im [image create photo -width 130 -height 130]
 	set Stat($Sok,IM) $im
 	set w [label $Wn.im -image $im]
@@ -3944,13 +3980,13 @@ proc lcdgRead { Sok } {
 # PINS ########################################################################
 ###############################################################################
 				
-proc pinsHandler { stid } {
+proc pinsHandler { stid { fg 0 } } {
 
-	if [winlocate "p" ""] {
+	if [winlocate "p" $stid $fg] {
 		return
 	}
 
-	sock_conn "PINS" $stid
+	sock_conn "PINS" $stid $fg
 }
 
 proc PINS_ini { Sok code } {
@@ -3993,6 +4029,8 @@ proc pinsFirst { Sok } {
 		return
 	}
 
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
 	if ![regexp "$HPA(D) $HPA(D) $HPA(S) $HPA(S)" $cmd junk np na d0 d1] {
 		log "incorrect handshake, pin counts missing"
 		dealloc $Sok
@@ -4022,7 +4060,7 @@ proc pinsFirst { Sok } {
 	if { $d1 >= 0 } {
 		lappend dl $d1
 	}
-	set Stat($Sok,LA) [get_lset $Stat($Sok,S) "pins"]
+	set Stat($Sok,LA) [get_lset $Stat($Sok,N) "pins"]
 
 	# create the window
 	set Wn ".wp[unique]"
@@ -4030,7 +4068,7 @@ proc pinsFirst { Sok } {
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 
-	mkPins $Sok $np $na $dl "PINS at node [lindex $pmt 1]"
+	mkPins $Sok $np $na $dl "PINS at node $Stat($Sok,I)"
 
 	fileevent $Sok readable "pinsUpdate $Sok"
 }
@@ -4133,7 +4171,7 @@ proc mkPins { Sok np na dl tt } {
 
 	wm title $w $tt
 
-	do_geometry $w "pins" $Stat($Sok,S)
+	do_geometry $w "pins" $Stat($Sok,N)
 
 	frame $w.dig -borderwidth 4
 	pack $w.dig -side top -expand 1 -fill both
@@ -4339,13 +4377,13 @@ proc newPinStatus { Sok upd } {
 # SENSORS #####################################################################
 ###############################################################################
 
-proc sensorsHandler { stid } {
+proc sensorsHandler { stid { fg 0 } } {
 
-	if [winlocate "s" ""] {
+	if [winlocate "s" $stid $fg] {
 		return
 	}
 
-	sock_conn "SENSORS" $stid
+	sock_conn "SENSORS" $stid $fg
 }
 
 proc SENSORS_ini { Sok code } {
@@ -4387,6 +4425,8 @@ proc sensorsFirst { Sok } {
 		return
 	}
 
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
 	# This must be the first update with parameters
 	if ![regexp "$HPA(D) $HPA(D) $HPA(D) $HPA(D)" $cmd junk \
 	    na oa ns os] {
@@ -4407,17 +4447,17 @@ proc sensorsFirst { Sok } {
 		return
 	}
 
-	set Stat($Sok,LA,0) [get_lset $Stat($Sok,S) "actuators"]
-	set Stat($Sok,LA,1) [get_lset $Stat($Sok,S) "sensors"]
+	set Stat($Sok,LA,0) [get_lset $Stat($Sok,N) "actuators"]
+	set Stat($Sok,LA,1) [get_lset $Stat($Sok,N) "sensors"]
 
 	# create the window
-	set Wn ".wp[unique]"
+	set Wn ".ws[unique]"
 
 	set Wins($Sok) $Wn
 	# damping delay
 	set Stat($Sok,D) 80
 
-	mkSensors $Sok $ns $os $na $oa "SENSORS at node [lindex $pmt 1]"
+	mkSensors $Sok $ns $os $na $oa "SENSORS at node $Stat($Sok,I)"
 
 	fileevent $Sok readable "sensorsUpdate $Sok"
 }
@@ -4431,7 +4471,7 @@ proc mkSensors { Sok ns os na oa tt } {
 
 	wm title $w $tt
 
-	do_geometry $w "sensors" $Stat($Sok,S)
+	do_geometry $w "sensors" $Stat($Sok,N)
 
 	set Stat($Sok,NS) $ns
 	set Stat($Sok,OS) $os
@@ -4661,7 +4701,7 @@ proc triggerSensor { Sok sen } {
 
 proc panelHandler { } {
 
-	if [winlocate "a" ""] {
+	if [winlocate "a"] {
 		return
 	}
 
@@ -5017,18 +5057,50 @@ proc updPanel { Sok } {
 # PTRACKER ####################################################################
 ###############################################################################
 
-proc pwrtHandler { stid } {
+proc pwrtHandler { stid { fg 0 } } {
 
-	if [winlocate "w" $stid] {
+	if [winlocate "w" $stid $fg] {
 		return
 	}
 
-	sock_conn "PTRACKER" $stid
+	sock_conn "PTRACKER" $stid $fg
 }
 
 proc PTRACKER_ini { Sok code } {
 
+	global Stat
+
+	stimeout $Sok
+	set Stat($Sok,B) ""
+	fileevent $Sok readable "pwrtFirst $Sok"
+}
+
+proc pwrtFirst { Sok } {
+
 	global Wins Stat
+
+	while 1 {
+		if { [sock_rd $Sok ch 1] || $ch == "" } {
+			return
+		}
+		if { $ch == "\n" } {
+			# end of command line
+			break
+		}
+		append Stat($Sok,B) $ch
+	}
+
+	set cmd $Stat($Sok,B)
+	set Stat($Sok,B) ""
+
+	if { [node_sig $Sok cmd pmt] != "" } {
+		# keep waiting for the signature
+		return
+	}
+
+	lassign $pmt Stat($Sok,N) Stat($Sok,I)
+
+	ctimeout $Sok
 
 	set Wn ".ww[unique]"
 
@@ -5037,10 +5109,9 @@ proc PTRACKER_ini { Sok code } {
 	# current val, avg, min, max
 	set Stat($Sok,VL) [list 0.0 0.0 0.0 0.0 0.0 0 1]
 
-	mkPwrt $Sok "PTracker at node $Stat($Sok,S)"
+	mkPwrt $Sok "PTracker at node $Stat($Sok,I)"
 
 	# wait for updates
-	set Stat($Sok,B) ""
 	fileevent $Sok readable "pwrtUpd $Sok"
 }
 
@@ -5387,19 +5458,19 @@ proc moveHandler { } {
 
 	global GFile Geometry
 
-	if [winlocate "m" ""] {
+	if [winlocate "m"] {
 		return
 	}
 
 	if { $GFile == "" && [info exists Geometry(roamer,i)] } {
 		# we can use the background image, but we don't have it, so
 		# we have to ask the server
-		set rq -2
+		set rq 2
 	} else {
-		set rq -1
+		set rq 0
 	}
 
-	sock_conn "ROAMER" $rq
+	sock_conn "ROAMER" -1 $rq
 }
 
 proc ROAMER_ini { Sok code } {
@@ -6212,36 +6283,59 @@ proc moveRedraw { Sok } {
 		for { set n 0 } { $n < $N } { incr n } {
 			drawNode $Sok $w $n
 		}
-		set Stat($Sok,AX) [$w.c create text $ddx $ddy -anchor e \
+		set tx [$w.c create text $ddx $ddy -anchor e \
 			-text $dmsg -state disabled]
+		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+			-outline ""]
+		$w.c raise $tx
 	} else {
 		# redrawing existing nodes, i.e., adjusting their coordinates
 		for { set n 0 } { $n < $N } { incr n } {
 			redrawNode $Sok $w $n
 		}
-		
-		$w.c coords $Stat($Sok,AX) $ddx $ddy
-		$w.c itemconfigure $Stat($Sok,AX) -text $dmsg
+		lassign $Stat($Sok,AX) tx bg
+		$w.c coords $tx $ddx $ddy
+		$w.c itemconfigure $tx -text $dmsg
+		$w.c delete $bg
+		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+			-outline ""]
+		$w.c raise $tx
 	}
+	set Stat($Sok,AX) [list $tx $bg]
 }
 
 proc moveNodeMenu { Sok n x y } {
 
-	global StatId
+	global MStatId
 
 	set w [stwin $Sok]
-	set StatId $n
+	set MStatId $n
 	set m $w.ncm
 	tk_popup $m $x $y
 }
 
 proc moveNC { wh } {
 
-	global Option
+	global MStatId
 
-	set Option $wh
+	doConnect $wh $MStatId
+}
 
-	doConnect
+proc move_ninfo { Sok n } {
+#
+# Node information line (showing up when the mouse enters the node)
+#
+	global Stat
+
+	if ![info exists Stat($Sok,NL,$n)] {
+		return ""
+	}
+
+	lassign $Stat($Sok,NL,$n) x y p
+	set msg [format "<%4.3f,%4.3f>: %s" $x $y $p]
+	append msg " $n/$Stat($Sok,NH,$n)"
+
+	return $msg
 }
 
 proc moveEnter { Sok n } {
@@ -6249,18 +6343,23 @@ proc moveEnter { Sok n } {
 	global Stat CMARGIN
 
 	set w [stwin $Sok]
-	set p $Stat($Sok,NL,$n)
-
-	set msg [format "<%4.3f,%4.3f>: %s" [lindex $p 0] [lindex $p 1] \
-		[lindex $p 2]]
 
 	if [info exists Stat($Sok,RC)] {
-		$w.c delete $Stat($Sok,RC)
+		foreach wi $Stat($Sok,RC) {
+			$w.c delete $wi
+		}
 	}
-	set ch $Stat($Sok,M,h)
-	set Stat($Sok,RC) [$w.c create text $CMARGIN(RX) \
+
+	set tx [$w.c create text $CMARGIN(RX) \
 		[expr [lindex $Stat($Sok,NC) 1] - $CMARGIN(RY)] -anchor sw \
-			-text $msg -state disabled]
+			-text [move_ninfo $Sok $n] -state disabled]
+
+	set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+		-outline ""]
+
+	$w.c raise $tx
+
+	set Stat($Sok,RC) [list $tx $bg]
 }
 
 proc moveLeave { Sok } {
@@ -6270,7 +6369,9 @@ proc moveLeave { Sok } {
 	set w [stwin $Sok]
 
 	if [info exists Stat($Sok,RC)] {
-		$w.c delete $Stat($Sok,RC)
+		foreach wi $Stat($Sok,RC) {
+			$w.c delete $wi
+		}
 		unset Stat($Sok,RC)
 	}
 }
@@ -6384,8 +6485,13 @@ proc moveMove { Sok n nx ny } {
 
 	# update running coordinate display
 	if [info exists Stat($Sok,RC)] {
-		$w.c itemconfigure $Stat($Sok,RC) -text \
-			[format "<%4.3f,%4.3f>: %s" $x $y $z]
+		lassign $Stat($Sok,RC) tx bg
+		$w.c itemconfigure $tx -text [move_ninfo $Sok $n]
+		$w.c delete $bg
+		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+			-outline ""]
+		$w.c raise $tx
+		set Stat($Sok,RC) [list $tx $bg]
 	}
 
 	# move flag for moveUpButton
@@ -6925,64 +7031,78 @@ proc conerror { code } {
     return "error code $code (unknown)"
 }
 
-proc valsid { } {
+proc valsid { var } {
 
-	global StatId
+	upvar $var v
 
-	if [catch { expr $StatId } num] {
-		log "request ignored: illegal node Id '$StatId'"
+	if [catch { expr $v } num] {
+		log "request ignored: illegal node Id '$v'"
 		return 1
 	}
-	set StatId $num
+	set v $num
 	return 0
 }
 
-proc doConnect { } {
+proc doConnect { { opt "" } { nod "" } } {
 #
 # Handle a new connection request
 #
-	global Option StatId AGENT_MAGIC
+	global Option IDMode StatId AGENT_MAGIC
 
-	switch $Option {
+	if { $opt != "" } {
+		# direct
+		set fg 0
+	} else {
+		# root window
+		if { $IDMode == "host" } {
+			set fg 1
+		} else {
+			set fg 0
+		}
+		set nod $StatId
+		set opt $Option
+	}
+
+	switch $opt {
 
 		"UART (ascii)"	{
-			if [valsid] { return }
-			uartHandler $StatId a
+			if [valsid nod] { return }
+			uartHandler $nod a $fg
 		}
 
 		"UART (hex)"	{
-			if [valsid] { return }
-			uartHandler $StatId h
+			if [valsid nod] { return }
+			uartHandler $nod h $fg
 		}
 
 		"SENSORS"	{
-			if [valsid] { return }
-			sensorsHandler $StatId
+			if [valsid nod] { return }
+			sensorsHandler $nod $fg
 		}
 
 		"PINS"	{
-			if [valsid] { return }
-			pinsHandler $StatId
+			if [valsid nod] { return }
+			pinsHandler $nod $fg
 		}
 
 		"LEDS"	{ 
-			if [valsid] { return }
-			ledsHandler $StatId
+			if [valsid nod] { return }
+			ledsHandler $nod $fg
 		}
 
 		"EMUL"	{
-			if [valsid] { return }
-			emulHandler $StatId
+			if [valsid nod] { return }
+			emulHandler $nod $fg
 		}
 
 		"LCDG"	{ 
-			if [valsid] { return }
-			lcdgHandler $StatId
+			if [valsid nod] { return }
+			lcdgHandler $nod $fg
 		}
 
 		"PTRACKER" {
-			if [valsid] { return }
-			pwrtHandler $StatId
+			if [valsid nod] { return }
+			pwrtHandler $nod $fg
 		}
 
 		"ROAMER" {
@@ -7031,12 +7151,15 @@ tk_optionMenu .top.select Option \
 	"PANEL" \
 	"CLOCK"
 
-label .top.l -text "Node serial number:"
+label .top.la -text "Node"
+set IDMode "host"
+tk_optionMenu .top.hs IDMode "serial" "host"
+label .top.lb -text "number:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \
 	-validate key -vcmd {validSid %P} -invcmd bell
 
 pack .top.quit .top.connect .top.select -side right
-pack .top.l .top.stat -side left
+pack .top.la .top.hs .top.lb .top.stat -side left
 
 bind .top.stat <Return> doConnect
 bind .top <Destroy> { alex }

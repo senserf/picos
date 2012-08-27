@@ -104,9 +104,15 @@
 #define	ECONN_DISCONN		6		/* This is in fact a dummy */
 #define	ECONN_LONG		7
 #define	ECONN_INVALID		8		/* Invalid request */
+#define	ECONN_AMBIGUOUS		9
 
 #define	ECONN_NOMODULE		128
 #define	ECONN_OK		129		/* Positive ack */
+
+// Request flags:
+//
+#define	RQHDR_FLAG_HID		0		// HID instead of node ID
+#define	RQHDR_FLAG_BIM		1		// Bgr image rq for MoveHandler
 
 #define	ThePicOSNode	((PicOSNode*)TheStation)
 
@@ -122,7 +128,8 @@ typedef	struct {
  */
 	unsigned int	magic:16,	// Magic for a quick sanity check
 			rqcod:16,	// Request code
-			stnum:32;	// Station ID
+			stnum:32,	// Node ID
+			flags:32;	// Flags
 } rqhdr_t;
 
 struct lcdg_update_struct {

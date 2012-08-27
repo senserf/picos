@@ -900,3 +900,22 @@ PG120814A:	PICOS >= PG120814A, SIDE >= PG120814A
 
     Fixed a bug in udaemon causing spin hangups when the model was aborted
     while udaemon was listening.
+
+PG120827A:
+
+    Several modifications to the agent protocol and enhancements to udaemon:
+
+	- it is now possible to use local host ID (instead of serial [SMURPH]
+	  node number) in the root window
+
+	- the piece of text you see when you hover the mouse over a node in the
+	  ROAMER window now includes the node's serial number and its local
+	  host ID
+
+	- a frame has been added to the above text (as well as to the
+	  dimensions text shown in the lower right corner) to make the
+	  characters better visible against a background image
+
+	- PTRACKER windows are now correctly labeled with host ID's (rather
+	  than serial ID's); I overlooked PTRACKER in the previous set of
+	  modifications).
