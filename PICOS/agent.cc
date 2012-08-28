@@ -4604,6 +4604,7 @@ AgentConnector::perform {
 
 				if (TPN == NULL)
 					goto NoNode;
+				create SensorsHandler (TPN->snsrs, Agent);
 				terminate;
 
 			case AGENT_RQ_LEDS:

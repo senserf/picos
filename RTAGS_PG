@@ -919,3 +919,9 @@ PG120827A:
 	- PTRACKER windows are now correctly labeled with host ID's (rather
 	  than serial ID's); I overlooked PTRACKER in the previous set of
 	  modifications).
+
+PG120828A:
+
+    Fixed a bug introduced along with the features in PG120827A consisting in
+    non-responsive SENSORS module.
+    
