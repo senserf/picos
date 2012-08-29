@@ -2479,3 +2479,8 @@ PG120822A:
 	but I haven't been able to get it to respond yet.
 
 	A cosmetic fix in TESTS/WARSAW/app.cc.
+
+PG120829A:
+
+	Added a new function qualifier, nonidiosyncratic, to PiComp (read the
+	blue paragraph in the doc). The keyword is ugly and rightfully so.

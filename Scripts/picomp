@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.29
+set Version 0.3
 
 ## Directory names to be ignored in the project's directory:
 ## strict names, patterns (case ignored)
@@ -199,6 +199,7 @@ set C_WORDS(while)		{ 0 }
 ## Our keywords
 set C_WORDS(bool)		{ 1 1 1 1 1 0 }
 set C_WORDS(idiosyncratic)	{ 1 1 0 0 0 1 }
+set C_WORDS(nonidiosyncratic)	{ 1 1 0 0 0 1 }
 set C_WORDS(trueconst)		{ 1 1 0 0 0 1 }
 ## C++ keywords (booked to avoid VUEE conflicts)
 set C_WORDS(asm)		{ 0 }
@@ -2378,9 +2379,8 @@ proc get_dimensions { ast } {
 
 proc pstype { pf ef { clear 0 } } {
 #
-# Extracts the PicOS storage type (idiosyncratic, trueconst)from a type prefix;
-# we used to have more; this function now appears redundant, but let's keep it
-# in case something else comes up
+# Extracts the PicOS storage type (idiosyncratic, nonidiosyncratic, trueconst)
+# from a type prefix
 #
 	upvar $pf pfx
 	upvar $ef err
@@ -2388,9 +2388,10 @@ proc pstype { pf ef { clear 0 } } {
 	set f ""
 	set err 0
 
-	foreach k { "idiosyncratic" "trueconst" } {
+	foreach k { "idiosyncratic" "nonidiosyncratic" "trueconst" } {
 		set l [lsearch -exact $pfx $k]
 		if { $l >= 0 } {
+			dbg "pstype: $k, $pfx"
 			if { $f != "" } {
 				set err 1
 				if { $f == $k } {
@@ -2404,6 +2405,7 @@ proc pstype { pf ef { clear 0 } } {
 			set f $k
 			if $clear {
 				set pfx [lreplace $pfx $l $l]
+				dbg "pstype: cleared $pfx"
 			}
 		}
 	}
@@ -5144,7 +5146,8 @@ K {
 	continue
       }
 
-      if { $ins != "" && $ins != "idiosyncratic" && $ins != "trueconst" } {
+      if { $ins != "" && $ins != "idiosyncratic" && $ins != "nonidiosyncratic"
+       && $ins != "trueconst" } {
 	xerror "$ins is illegal in global scope"
 	continue
       }
@@ -5156,22 +5159,28 @@ K {
       #########################################################################
       if { $dtp == "A" || $dtp == "F" } {
 
+	dbg "function: $pfx"
+
 	if $FG(I) {
 	  # make all function idiosyncratic unless they are explicitly declared
-	  # static
+	  # static or global
 	  if { [lsearch -exact $pfx "static"] >= 0 } {
-	    if { $ins == "idiosyncratic" } {
-	      xerror "idiosyncratic functions can't be static"
+	    if { $ins == "idiosyncratic" || $ins == "nonidiosyncratic" } {
+	      xerror "idiosyncratic or nonidiosyncratic functions can't be\
+		static"
 	      set ins ""
 	    }
 	  } else {
-	    set ins "idiosyncratic"
+	    if { $ins != "nonidiosyncratic" } {
+	      dbg "idiosyncratic forced"
+	      set ins "idiosyncratic"
+	    }
 	  }
 	}
 
 	if { $ins != "" } {
 
-	  if { $ins != "idiosyncratic" } {
+	  if { $ins != "idiosyncratic" && $ins != "nonidiosyncratic" } {
 	    xerror "$ins is illegal in this context"
 	    continue
 	  }
@@ -5186,31 +5195,45 @@ K {
 	  if { $dtp == "A" } {
 
 	    # function announcement
+	    dbg "function ann: $ins, $pfx"
 
 	    set vrs [g_vdl $d vrs]
 	    set lnu [g_vdl $d lnu]
 
-	    set ins ""
+	    if { $ins == "nonidiosyncratic" } {
 
-	    foreach v $vrs {
+	      # copy the original sans the global qualifier
 
-	      # original name
-	      set vnm [g_vdec $v nam]
-	      # mangled (method) name
-	      set nnm "_na_$vnm"
+	      s_vdl d pfx $pfx
+	      set ins [outdecl $d]
 
-	      append ins "#ifndef $vnm\n#define $vnm (((__NT[pnfx]*)"
-	      append ins "TheStation)->$nnm)\n#endif\n"
+	    } else {
 
-	      # FIXME: this is not used at present; I guess we can use it for
-	      # verification
-	      lappend_unique PG($Pgm,ID) [list $nnm $vnm $lnu]
+	      set ins ""
+		
+	      foreach v $vrs {
+
+	        # original name
+	        set vnm [g_vdec $v nam]
+	        # mangled (method) name
+	        set nnm "_na_$vnm"
+
+	        append ins "#ifndef $vnm\n#define $vnm (((__NT[pnfx]*)"
+	        append ins "TheStation)->$nnm)\n#endif\n"
+
+	        # FIXME: this is not used at present; I guess we can use it for
+	        # verification
+	        lappend_unique PG($Pgm,ID) [list $nnm $vnm $lnu]
+	      }
 	    }
 
 	  } else {
 
 	    # function declaration, pfx cleaned up by pstype
+	    set v $ins
+
 	    set ins " [outpref $pfx]"
+	    dbg "function decl: $ins"
 
 	    # there is just a single "variable"
 	    set vrs [lindex [g_vdl $d vrs] 0]
@@ -5229,25 +5252,38 @@ K {
 	    set arg [g_atts $vat arg]
 
 	    set vnm [g_vdec $vrs nam]
-	    set nnm "_na_$vnm"
 
-	    # updated variable description
-	    s_vdec vrs nam $nnm
+	    if { $v == "nonidiosyncratic" } {
 
-	    # include original name as "old"
-	    s_vdec vrs old $vnm
+	      append ins "$vnm $arg \{"
 
-	    s_vdl d pfx $pfx
-	    s_vdl d vrs [list $vrs]
-
-	    append ins "__NT[pnfx]::$nnm $arg \{"
-
-	    if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
-	      xerror "idiosyncratic function $vnm declared more than once"
 	    } else {
-	      lappend PG($Pgm,AN) $nnm
-	      lappend PG($Pgm,AL) $d
+
+	      set nnm "_na_$vnm"
+
+	      # updated variable description
+	      s_vdec vrs nam $nnm
+
+	      # include original name as "old"
+	      s_vdec vrs old $vnm
+
+	      s_vdl d pfx $pfx
+	      s_vdl d vrs [list $vrs]
+
+	      append ins "__NT[pnfx]::$nnm $arg \{"
+
+	      if { [lsearch -exact $PG($Pgm,AN) $nnm] >= 0 } {
+	        xerror "idiosyncratic function $vnm declared more than once"
+	      } else {
+	        lappend PG($Pgm,AN) $nnm
+	        lappend PG($Pgm,AL) $d
+	      }
+
+	      # include the "announcement" in case the decl is all there is
+	      append ins "\n#ifndef $vnm\n#define $vnm (((__NT[pnfx]*)"
+	      append ins "TheStation)->$nnm)\n#endif\n"
 	    }
+	    catchup
 	  }
 
 	  putS $ins
@@ -5259,8 +5295,8 @@ K {
 	continue
       }
 
-      if { $ins == "idiosyncratic" } {
-	xerror "only functions can be idiosyncratic"
+      if { $ins == "idiosyncratic" || $ins == "nonidiosyncratic" } {
+	xerror "only functions can be idiosyncratic or nonidiosyncratic"
 	continue
       }
 

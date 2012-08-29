@@ -981,6 +981,7 @@ void	adc_stop (void);
 
 #define	trueconst	const
 #define	idiosyncratic
+#define nonidiosyncratic
 
 #define	PREINIT(a,b)	(a)
 
