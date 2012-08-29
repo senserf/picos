@@ -7228,8 +7228,7 @@ proc reset_build_menu { { clear 0 } } {
 		-command "do_make_vuee"
 	$m add command -label "VUEE (debug)" -state $st \
 		-command "do_make_vuee { -- -g }"
-	$m add command -label "VUEE (recompile)" -state $st \
-		-command "do_make_vuee -e"
+	# $m add command -label "VUEE (recompile)" -state $st  -command "do_make_vuee -e"
 	$m add command -label "VUEE (status)" -state $st \
 		-command "do_make_vuee { -e -n }"
 	$m add separator
