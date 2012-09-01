@@ -39,12 +39,7 @@
 			// Length field error, ignore bytes until we are
 			// reset by the process
 			UA->r_buffer [0] = 0xffff;
-			// Wake up the process to reset things
-			RISE_N_SHINE;
-			if (UA->r_prcs != 0)
-				p_trigger (UA->r_prcs, RXEVENT);
-			UA->r_istate = IRQ_R_OFF;
-			RTNI;
+			goto RxEvent;
 		}
 		// The number of expected bytes
 		UA->r_buffs = b + 4;
@@ -57,9 +52,15 @@
 		((byte*)(UA->r_buffer)) [UA->r_buffp++] = RBUF;
 		if (UA->r_buffp == UA->r_buffs) {
 			// All done
+RxEvent:
 			RISE_N_SHINE;
 			if (UA->r_prcs != 0)
 				p_trigger (UA->r_prcs, RXEVENT);
+#ifdef UART_XMITTER_ON
+			// Half duplex UART: notify the sender it can go
+			if (UA->x_prcs != 0)
+				p_trigger (UA->x_prcs, RDYEVENT);
+#endif
 			UA->r_istate = IRQ_R_OFF;
 		}
 		RTNI;
@@ -104,11 +105,7 @@
 			// reset by the process
 			UA->r_buffer [0] = 0xffff;
 			// Wake up the process to reset things
-			RISE_N_SHINE;
-			if (UA->r_prcs != 0)
-				p_trigger (UA->r_prcs, RXEVENT);
-			UA->r_istate = IRQ_R_OFF;
-			RTNI;
+			goto RxEvent;
 		}
 		UA->r_buffs = b;
 		UA->r_buffp = 0;
@@ -129,9 +126,15 @@
 		// Second byte of checksum
 		((byte*)(UA->r_buffer + 1)) [UA->r_buffp++] = RBUF;
 		// Complete packet
+RxEvent:
 		RISE_N_SHINE;
 		if (UA->r_prcs != 0)
 			p_trigger (UA->r_prcs, RXEVENT);
+#ifdef UART_XMITTER_ON
+		// Half duplex: notify the sender it can go
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, RDYEVENT);
+#endif
 		UA->r_istate = IRQ_R_OFF;
 		RTNI;
     }	
@@ -168,6 +171,11 @@
 			RISE_N_SHINE;
 			if (UA->r_prcs != 0)
 				p_trigger (UA->r_prcs, RXEVENT);
+#ifdef UART_XMITTER_ON
+			// Half duplex: notify the sender it can go
+			if (UA->x_prcs != 0)
+				p_trigger (UA->x_prcs, RDYEVENT);
+#endif
 			UA->r_istate = IRQ_R_OFF;
 		} else {
 			if (UA->r_buffp < UA->r_buffl)

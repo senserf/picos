@@ -35,7 +35,7 @@
 
 // ============================================================================
 
-#if UART_DRIVER > 1
+#if UART_DRIVER > 1 || UART_TCV > 1
 // ============================================================================
 // This also means that CTS/RTS are disconnected from RXD1/TXD1, as they should
 // be

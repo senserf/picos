@@ -24,8 +24,7 @@
 #define	UAFLG_ROFF		0x08		// RCV off
 #define	UAFLG_UNAC		0x10		// Last out message unacked
 #define	UAFLG_SACK		0x20		// Send ACK ASAP
-#define	UAFLG_HOLD		0x40
-#define	UAFLG_DRAI		0x80
+// Bits 0x40, 0x80 are available
 
 
 #define	TXEVENT			((word)(&(UA->x_buffer)))
@@ -33,6 +32,7 @@
 #define	RSEVENT			((word)(&(UA->r_buffl)))
 #define	OFFEVENT		((word)(&(UA->r_buffs)))
 #define	ACKEVENT		((word)(&(UA->r_buffp)))
+#define	RDYEVENT		((word)(&(UA->r_istate)))
 
 #define	RCVSPACE		50
 #define	RXTIME			1024

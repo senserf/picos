@@ -55,6 +55,60 @@
 					UA->r_istate = IRQ_R_OFF; \
 				} while (0)
 
+#if defined(uart_a_xmitter_on) || defined(uart_b_xmitter_on)
+// Half-duplex operations (RS485) on at least one UART
+
+#ifndef uart_a_xmitter_on
+#define	uart_a_xmitter_on		CNOP
+#define	uart_a_xmitter_off		CNOP
+#endif
+
+#ifndef	uart_a_xmitter_on_delay
+#define	uart_a_xmitter_on_delay		0
+#endif
+
+#ifndef	uart_a_xmitter_off_delay
+#define	uart_a_xmitter_off_delay	0
+#endif
+
+#ifndef uart_b_xmitter_on
+#define	uart_b_xmitter_on		CNOP
+#define	uart_b_xmitter_off		CNOP
+#endif
+
+#ifndef	uart_b_xmitter_on_delay
+#define	uart_b_xmitter_on_delay		0
+#endif
+
+#ifndef	uart_b_xmitter_off_delay
+#define	uart_b_xmitter_off_delay	0
+#endif
+
+#define	UART_XMITTER_ON		do { \
+					if (UA == __pi_uart) \
+						uart_a_xmitter_on; \
+					else \
+						uart_b_xmitter_on; \
+				} while (0)
+
+#define	UART_XMITTER_OFF	do { \
+					if (UA == __pi_uart) \
+						uart_a_xmitter_off; \
+					else \
+						uart_b_xmitter_off; \
+				} while (0)
+
+#define	UART_XMITTER_ON_DELAY	((UA == __pi_uart) ? \
+					uart_a_xmitter_on_delay : \
+					uart_b_xmitter_on_delay)
+					
+#define	UART_XMITTER_OFF_DELAY	((UA == __pi_uart) ? \
+					uart_a_xmitter_off_delay : \
+					uart_b_xmitter_off_delay)
+					
+
+#endif /* Half duplex operations */
+
 #else /* single UART */
 
 // ----------------------------------------------------------------------------
@@ -80,7 +134,27 @@
 					UA->r_istate = IRQ_R_OFF; \
 				} while (0)
 
+#ifdef	uart_a_xmitter_on
+// Half duplex operations (RS 485)
+#define	UART_XMITTER_ON		uart_a_xmitter_on
+#define	UART_XMITTER_OFF	uart_a_xmitter_off
+
+#ifndef	uart_a_xmitter_on_delay
+#define	uart_a_xmitter_on_delay		0
+#endif
+
+#ifndef	uart_a_xmitter_off_delay
+#define	uart_a_xmitter_off_delay	0
+#endif
+
+#define	UART_XMITTER_ON_DELAY		uart_a_xmitter_on_delay
+#define	UART_XMITTER_OFF_DELAY		uart_a_xmitter_off_delay
+
+#endif	/* Half duplex */
+
 #endif	/* N_UARTS_TCV > 1 */
+
+#define	UART_RCV_RUNNING	(UA->r_istate > IRQ_R_STRT)
 
 #endif	/* defined N_UARTS_TCV */
 

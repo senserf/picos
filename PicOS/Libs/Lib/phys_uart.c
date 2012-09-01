@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -49,9 +49,9 @@ word __pi_uart_getrate (uart_t*);
 // ============================================================================
 
 #if UART_TCV > 1
-#define	START_UART(a,b)	start_uart (a,b)
+#define	START_UART(a)	start_uart (a)
 #else
-#define	START_UART(a,b)	start_uart (b)
+#define	START_UART(a)	start_uart ()
 #endif
 
 #define	RC_LOOP		0
@@ -89,12 +89,12 @@ strand (rcvuart, uart_t*)
 	// We are past the length byte
 	delay (RXTIME, RC_RESET);
 	when (OFFEVENT, RC_LOOP);
-	// The ordering of these requests does matter, as interrupt can occur
-	// to unblock the last one. We need not be obsessive, as the
-	// likelihood of missing a reception is not very high (the packet is
-	// probably broken then), and we are timing out to reset, but if the
+	// The ordering of these requests does matter, as an interrupt can
+	// unblock the last one. We need not be obsessive, as the likelihood
+	// of missing a reception is not very high (the packet is probably
+	// broken then, anyway), and we are timing out to reset, but if the
 	// interrupt found this event pending before other events in this
-	// state have been issued, things would become messy
+	// state have been issued, things could become messy
 	when (RXEVENT, RC_END);
 	release;
 
@@ -109,7 +109,7 @@ strand (rcvuart, uart_t*)
 	UART_STOP_RECEIVER;
 
 	if (UA->r_buffer [0] == 0xffff) {
-		// Length field error, reset the thing
+		// Length field error flag, reset the thing
 		delay (RCVSPACE, RC_LOOP);
 		when (OFFEVENT, RC_LOOP);
 		release;
@@ -137,6 +137,9 @@ endstrand
 
 #define	XM_LOOP		0
 #define	XM_END		1
+#define	XM_WRCV		2
+#define	XM_SXMT		3
+#define	XM_OFF		4
 
 strand (xmtuart, uart_t*)
 
@@ -151,25 +154,8 @@ strand (xmtuart, uart_t*)
     entry (XM_LOOP)
 
 	LEDIU (1, 0);
-	if ((UA->v_flags & UAFLG_HOLD)) {
-		// Solid OFF
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			// Draining
-Drain:
-			tcvphy_erase (UA->v_physid);
-		}
-		// Queue held: do not "finish", keep the process slot
-		UART_STOP_XMITTER;
-		when (UA->x_qevent, XM_LOOP);
-		release;
-	}
-
 	if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
 		// Nothing to transmit
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			UA->v_flags |=  UAFLG_HOLD;
-			goto Drain;
-		}
 		when (UA->x_qevent, XM_LOOP);
 		release;
 	}
@@ -192,8 +178,6 @@ Drain:
 	if (stln < 4 || stln > UA->r_buffl || (stln & 1) != 0)
 		syserror (EREQPAR, "xmtu/length");
 
-	LEDIU (1, 1);
-
 	// In bytes
 	UA->x_buffl = stln;
 	stln >>= 1;
@@ -202,14 +186,46 @@ Drain:
 		UA->x_buffer [0] = UA->v_statid;
 	UA->x_buffer [stln - 1] = w_chk (UA->x_buffer, stln - 1, 0);
 
+#ifdef UART_XMITTER_ON
+
+    entry (XM_WRCV)
+
+	// Half duplex, do not interfere with the receiver
+	cli;
+	if (UART_RCV_RUNNING) {
+		when (RDYEVENT, XM_WRCV);
+		sti;
+		release;
+	}
+	UART_XMITTER_ON;
+	sti;
+
+	delay (UART_XMITTER_ON_DELAY, XM_SXMT);
+	release;
+
+    entry (XM_SXMT)
+
+#endif
+	LEDIU (1, 1);
 	when (TXEVENT, XM_END);
 	UART_START_XMITTER;
 	release;
 
     entry (XM_END)
 
+#ifdef UART_XMITTER_ON
+
+	delay (UART_XMITTER_OFF_DELAY, XM_OFF);
+	release;
+
+    entry (XM_OFF)
+
+	UART_XMITTER_OFF;
+#endif
+
 Drop:
 	tcvphy_end (UA->x_buffer);
+
 	proceed (XM_LOOP);
 
 #undef UA
@@ -226,37 +242,26 @@ static void ini_uart () {
 /*
  * Initialize the device
  */
-	diag ("UART %d initialized, rate: %d00", WHICH, (int)(UART_RATE/100));
+	diag ("UART %d, rate: %d00", WHICH, (int)(UART_RATE/100));
 #undef	WHICH
 }
 
 #if UART_TCV > 1
-static void start_uart (uart_t *ua, word what) {
+static void start_uart (uart_t *ua) {
 #define	UA ua
 #else
-static void start_uart (word what) {
+static void start_uart () {
 #define	UA __pi_uart
 #endif
 
-	if (what & 0x1) {
-		// Transmitter
-		if (UA->x_prcs == 0) {
-			if ((UA->x_prcs = runstrand (xmtuart, UA)) == 0)
-				syserror (ERESOURCE, "phys_uart");
-		}
-		UA->v_flags &= ~(UAFLG_HOLD + UAFLG_DRAI);
-		trigger (UA->x_qevent);
-	}
+	// Transmitter
+	UA->x_prcs = runstrand (xmtuart, UA);
+	UA->r_prcs = runstrand (rcvuart, UA);
 
-	if (what & 0x2) {
-		// Receiver
-		if (UA->r_prcs == 0) {
-			if ((UA->r_prcs = runstrand (rcvuart, UA)) == 0)
-				syserror (ERESOURCE, "phys_uart");
-		}
-		UA->v_flags &= ~UAFLG_ROFF;
-		trigger (OFFEVENT);
-	}
+	if (UA->r_prcs == 0 || UA->x_prcs == 0)
+		syserror (ERESOURCE, "phys_uart");
+
+	UA->v_flags = 0;
 #undef UA
 }
 
@@ -299,8 +304,6 @@ void phys_uart (int phy, int mbs, int which) {
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_uart");
 
-	UA->r_prcs = UA->x_prcs = 0;
-
 	// Length in bytes, includes statid (counts to payload) and checksum
 	UA->r_buffl = mbs;
 
@@ -324,10 +327,7 @@ void phys_uart (int phy, int mbs, int which) {
 				+ which);
 
 	INI_UART (UA);
-	START_UART (UA, 0x3);
-	// Start in the OFF state? No, I don't think it makes much sense
-	// for a UART
-	// UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
+	START_UART (UA);
 
 #undef	UA
 }
@@ -353,46 +353,28 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = (((UA->v_flags & (UAFLG_HOLD + UAFLG_DRAI)) != 0) << 1) |
-		       ((UA->v_flags &  UAFLG_ROFF) != 0);
+		ret = 2 | ((UA->v_flags & UAFLG_ROFF) == 0);
 
 		if (val != NULL)
 			*val = ret;
-		break;
 
 	    case PHYSOPT_TXON:
-
-		START_UART (UA, 1);
-		break;
-
-	    case PHYSOPT_RXON:
-
-		START_UART (UA, 2);
-		break;
-
 	    case PHYSOPT_TXOFF:
-
-		/* Drain */
-		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
-			break;
-		UA->v_flags |= UAFLG_DRAI;
-		trigger (UA->x_qevent);
-		break;
-
 	    case PHYSOPT_TXHOLD:
 
-		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
-			break;
-
-		UA->v_flags |= UAFLG_HOLD;
-		trigger (UA->x_qevent);
 		break;
 
-	    case PHYSOPT_RXOFF:
+	    case PHYSOPT_ON:
 
-		UA->v_flags |= UAFLG_ROFF;
+		UA->v_flags &= ~UAFLG_ROFF;
+TOffEv:
 		trigger (OFFEVENT);
 		break;
+
+	    case PHYSOPT_OFF:
+
+		UA->v_flags |= UAFLG_ROFF;
+		goto TOffEv;
 
 	    case PHYSOPT_SETSID:
 
@@ -461,6 +443,9 @@ static const byte ackc [2][2] = { 0x21, 0x10, 0x63, 0x30 };
 #define	XM_LOOP		0
 #define	XM_END		1
 #define	XM_NEXT		2
+#define	XM_WRCV		3
+#define	XM_SXMT		4
+#define	XM_OFF		5
 
 strand (xmtuart, uart_t*)
 
@@ -477,7 +462,6 @@ strand (xmtuart, uart_t*)
 	LEDIU (1, 0);
 	// Hold (never drain)
 	if ((UA->v_flags & UAFLG_ROFF)) {
-		UART_STOP_XMITTER;
 		when (UA->x_qevent, XM_LOOP);
 		release;
 	}
@@ -534,15 +518,43 @@ strand (xmtuart, uart_t*)
 
 	// Acknowledgement sent (one way or the other), clear the flag
 	UA->v_flags &= ~UAFLG_SACK;
-			
-	when (TXEVENT, XM_END);
-	// Transmit
+
+#ifdef UART_XMITTER_ON
+
+    entry (XM_WRCV)
+
+	// Half duplex, do not interfere with the receiver
+	cli;
+	if (UART_RCV_RUNNING) {
+		when (RDYEVENT, XM_WRCV);
+		sti;
+		release;
+	}
+	UART_XMITTER_ON;
+	sti;
+
+	delay (UART_XMITTER_ON_DELAY, XM_SXMT);
+	release;
+
+    entry (XM_SXMT)
+
+#endif
 	LEDIU (1, 1);
+	when (TXEVENT, XM_END);
 	UART_START_XMITTER;
 	release;
 
     entry (XM_END)
 
+#ifdef UART_XMITTER_ON
+
+	delay (UART_XMITTER_OFF_DELAY, XM_OFF);
+	release;
+
+    entry (XM_OFF)
+
+	UART_XMITTER_OFF;
+#endif
 	if ((UA->v_flags & UAFLG_ROFF))
 		// Switched off
 		proceed (XM_LOOP);
@@ -683,7 +695,7 @@ static void ini_uart () {
 /*
  * Initialize the device
  */
-	diag ("UART-P %d initialized, rate: %d00", WHICH, (int)(UART_RATE/100));
+	diag ("UART-P %d, rate: %d00", WHICH, (int)(UART_RATE/100));
 	// Note: diag should be disabled if it gets in the way
 #undef	WHICH
 }
@@ -695,16 +707,14 @@ static void start_uart (int which) {
 static void start_uart () {
 #define	UA __pi_uart
 #endif
-	// Note: ROFF is used as a global OFF flags
-	UA->v_flags &= ~UAFLG_ROFF;
-	if (UA->r_prcs == 0)
-		UA->r_prcs = runstrand (rcvuart, UA);
-	if (UA->x_prcs == 0) {
-		UA->x_prcs = runstrand (xmtuart, UA);
-	}
+
+	UA->r_prcs = runstrand (rcvuart, UA);
+	UA->x_prcs = runstrand (xmtuart, UA);
 
 	if (UA->r_prcs == 0 || UA->x_prcs == 0)
 		syserror (ERESOURCE, "phys_uart");
+
+	UA->v_flags = 0;
 
 #undef	UA
 }
@@ -758,8 +768,6 @@ void phys_uart (int phy, int mbs, int which) {
 #endif
 			INFO_PHYS_UARTP + which);
 
-	UA->v_flags = 0;
-
 	INI_UART (which);
 	START_UART (which);
 
@@ -787,14 +795,15 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = (UA->v_flags & UAFLG_ROFF) >> 3;
+		ret = 2 | ((UA->v_flags & UAFLG_ROFF) == 0);
+
 		if (val != NULL)
 			*val = ret;
 		break;
 
 	    case PHYSOPT_ON:
 
-		START_UART (UA);
+		UA->v_flags &= ~UAFLG_ROFF;
 Wake:
 		trigger (UA->x_qevent);
 		trigger (OFFEVENT);
@@ -804,15 +813,12 @@ Wake:
 	    case PHYSOPT_HOLD:
 	    case PHYSOPT_OFF:
 
-		if ((UA->v_flags & UAFLG_ROFF))
-			break;
-
 		UA->v_flags |= UAFLG_ROFF;
 		goto Wake;
 
 	    case PHYSOPT_TXON:
 
-		// This is used here for active mode
+		// This is used for active mode
 		UA->v_flags |= UAFLG_PERS;
 		goto Wake;
 
@@ -859,9 +865,9 @@ Wake:
 // ============================================================================
 
 #if UART_TCV > 1
-#define	START_UART(a,b)	start_uart (a,b)
+#define	START_UART(a)	start_uart (a)
 #else
-#define	START_UART(a,b)	start_uart (b)
+#define	START_UART(a)	start_uart ()
 #endif
 
 #define	RC_LOOP		0
@@ -904,6 +910,9 @@ endstrand
 
 #define	XM_LOOP		0
 #define	XM_END		1
+#define	XM_WRCV		2
+#define	XM_SXMT		3
+#define	XM_OFF		4
 
 strand (xmtuart, uart_t*)
 
@@ -918,25 +927,9 @@ strand (xmtuart, uart_t*)
     entry (XM_LOOP)
 
 	LEDIU (1, 0);
-	if ((UA->v_flags & UAFLG_HOLD)) {
-		// Solid OFF
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			// Draining
-Drain:
-			tcvphy_erase (UA->v_physid);
-		}
-		// Otherwise, the queue is being held
-		UART_STOP_XMITTER;
-		when (UA->x_qevent, XM_LOOP);
-		release;
-	}
 
 	if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
 		// Nothing to transmit
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			UA->v_flags |=  UAFLG_HOLD;
-			goto Drain;
-		}
 		when (UA->x_qevent, XM_LOOP);
 		release;
 	}
@@ -958,16 +951,44 @@ Drain:
 #endif /* BLUETOOTH_PRESENT */
 
 	// Empty line allowed here, even though an empty line cannot be received
-
-	LEDIU (1, 1);
-
-	// In bytes
 	UA->x_buffl = stln;
+
+#ifdef UART_XMITTER_ON
+
+    entry (XM_WRCV)
+
+	// Half duplex, do not interfere with the receiver
+	cli;
+	if (UART_RCV_RUNNING) {
+		when (RDYEVENT, XM_WRCV);
+		sti;
+		release;
+	}
+	UART_XMITTER_ON;
+	sti;
+
+	delay (UART_XMITTER_ON_DELAY, XM_SXMT);
+	release;
+
+    entry (XM_SXMT)
+
+#endif
+	LEDIU (1, 1);
 	when (TXEVENT, XM_END);
 	UART_START_XMITTER;
 	release;
 
     entry (XM_END)
+
+#ifdef UART_XMITTER_ON
+
+	delay (UART_XMITTER_OFF_DELAY, XM_OFF);
+	release;
+
+    entry (XM_OFF)
+
+	UART_XMITTER_OFF;
+#endif
 
 Drop:
 	tcvphy_end (UA->x_buffer);
@@ -987,37 +1008,26 @@ static void ini_uart () {
 /*
  * Initialize the device
  */
-	diag ("UART %d initialized, rate: %d00", WHICH, (int)(UART_RATE/100));
+	diag ("UART %d, rate: %d00", WHICH, (int)(UART_RATE/100));
 #undef	WHICH
 }
 
 #if UART_TCV > 1
-static void start_uart (uart_t *ua, word what) {
+static void start_uart (uart_t *ua) {
 #define	UA ua
 #else
-static void start_uart (word what) {
+static void start_uart () {
 #define	UA __pi_uart
 #endif
 
-	if (what & 0x1) {
-		// Transmitter
-		if (UA->x_prcs == 0) {
-			if ((UA->x_prcs = runstrand (xmtuart, UA)) == 0)
-				syserror (ERESOURCE, "phys_uart");
-		}
-		UA->v_flags &= ~(UAFLG_HOLD + UAFLG_DRAI);
-		trigger (UA->x_qevent);
-	}
+	UA->x_prcs = runstrand (xmtuart, UA);
+	UA->r_prcs = runstrand (rcvuart, UA);
 
-	if (what & 0x2) {
-		// Receiver
-		if (UA->r_prcs == 0) {
-			if ((UA->r_prcs = runstrand (rcvuart, UA)) == 0)
-				syserror (ERESOURCE, "phys_uart");
-		}
-		UA->v_flags &= ~UAFLG_ROFF;
-		trigger (OFFEVENT);
-	}
+	if (UA->x_prcs == 0 || UA->r_prcs == 0)
+		syserror (ERESOURCE, "phys_uart");
+
+	UA->v_flags = 0;
+
 #undef UA
 }
 
@@ -1057,8 +1067,6 @@ void phys_uart (int phy, int mbs, int which) {
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
 		syserror (EMALLOC, "phys_uart");
 
-	UA->r_prcs = UA->x_prcs = 0;
-
 	// Length in bytes; minus one to make sure that the NULL byte sentinel
 	// always fits
 	UA->r_buffl = mbs - 1;
@@ -1083,9 +1091,7 @@ void phys_uart (int phy, int mbs, int which) {
 				+ which);
 
 	INI_UART (UA);
-	START_UART (UA, 0x3);
-	// Start in the OFF state? No, let them start running!
-	// UA->v_flags |= UAFLG_HOLD + UAFLG_DRAI + UAFLG_ROFF;
+	START_UART (UA);
 
 #undef	UA
 }
@@ -1111,46 +1117,28 @@ static int option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		ret = (((UA->v_flags & (UAFLG_HOLD + UAFLG_DRAI)) != 0) << 1) |
-		       ((UA->v_flags &  UAFLG_ROFF) != 0);
+		ret = 2 | ((UA->v_flags & UAFLG_ROFF) == 0);
 
 		if (val != NULL)
 			*val = ret;
-		break;
 
 	    case PHYSOPT_TXON:
-
-		START_UART (UA, 1);
-		break;
-
-	    case PHYSOPT_RXON:
-
-		START_UART (UA, 2);
-		break;
-
 	    case PHYSOPT_TXOFF:
-
-		/* Drain */
-		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
-			break;
-		UA->v_flags |= UAFLG_DRAI;
-		trigger (UA->x_qevent);
-		break;
-
 	    case PHYSOPT_TXHOLD:
 
-		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
-			break;
-
-		UA->v_flags |= UAFLG_HOLD;
-		trigger (UA->x_qevent);
 		break;
 
-	    case PHYSOPT_RXOFF:
+	    case PHYSOPT_ON:
 
-		UA->v_flags |= UAFLG_ROFF;
+		UA->v_flags &= ~UAFLG_ROFF;
+TOffEv:
 		trigger (OFFEVENT);
 		break;
+
+	    case PHYSOPT_OFF:
+
+		UA->v_flags |= UAFLG_ROFF;
+		goto TOffEv;
 
 #if UART_RATE_SETTABLE
 
@@ -1224,6 +1212,14 @@ void __pi_diag_init (int ua) {
 			p_trigger (UA->x_prcs, TXEVENT);
 	}
 
+#ifdef UART_XMITTER_ON
+
+	else {
+		UART_XMITTER_ON;
+		mdelay (UART_XMITTER_ON_DELAY);
+	}
+#endif
+
 	DIAG_WCHAR ('\r'); DIAG_WAIT;
 
 #else
@@ -1235,10 +1231,15 @@ void __pi_diag_init (int ua) {
 		if (UA->x_prcs != 0)
 			p_trigger (UA->x_prcs, TXEVENT);
 		bc = UA->r_buffl + 8;
-	} else
+	} else {
 		// Transmitter stopped
 		bc = 4;
 
+#ifdef UART_XMITTER_ON
+		UART_XMITTER_ON;
+		mdelay (UART_XMITTER_ON_DELAY);
+#endif
+	}
 	// Send that many DLE's
 	while (bc--) {
 		DIAG_WCHAR (0x10);
@@ -1248,11 +1249,18 @@ void __pi_diag_init (int ua) {
 
 }
 
-void __pi_diag_stop (int ua) { }
+void __pi_diag_stop (int ua) {
+
+#ifdef UART_XMITTER_OFF
+	mdelay (UART_XMITTER_OFF_DELAY);
+	UART_XMITTER_OFF;
+#endif
+
+}
 
 #undef	UA
 #undef	DIAG_WAIT
-#undef	DIAH_WCHAR
+#undef	DIAG_WCHAR
 		
 #endif	/* DIAG_MESSAGES */
 

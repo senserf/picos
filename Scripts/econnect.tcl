@@ -267,6 +267,7 @@ proc vuart_conn { ho po no abvar { sig "" } } {
 	abin_S rqs 0xBAB4
 	abin_S rqs 1
 	abin_I rqs $no
+	abin_I rqs 0
 
 	if [catch { puts -nonewline $sfd $rqs } erc] {
 		cleanup

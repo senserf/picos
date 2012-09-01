@@ -378,6 +378,7 @@ proc vuart_conn { ho po no abvar { sig "" } } {
 	abin_S rqs 0xBAB4
 	abin_S rqs 1
 	abin_I rqs $no
+	abin_I rqs 0
 
 	if [catch { puts -nonewline $sfd $rqs } erc] {
 		cleanup
@@ -1688,7 +1689,7 @@ proc sy_initialize { } {
 		}
 
 		if { $par == "V" } {
-			puts "ZZ000000A"
+			puts "PG120829A"
 			exit 0
 		}
 
@@ -3320,7 +3321,7 @@ proc mo_send_x { } {
 	set ST(SCB) [after $IV(RTL) mo_send_x]
 }
 
-proc mo_rawread_x { } {
+proc mo_rawread_x { { to 0 } } {
 #
 # Called whenever data is available on the UART (mode X)
 #
@@ -3347,7 +3348,7 @@ proc mo_rawread_x { } {
 
 			if { $chunk == "" } {
 				# check for timeout
-				if { $ST(TIM) != "" } {
+				if { $to && $ST(TIM) != "" } {
 					global DB
 					if { $DB(LEV) > 2 } {
 					  pt_trc "rawread: packet timeout\
@@ -3361,7 +3362,7 @@ proc mo_rawread_x { } {
 					# something has started, set up timer
 					global IV
 					set ST(TIM) \
-					     [after $IV(PKT) mo_rawread_x]
+					     [after $IV(PKT) "mo_rawread_x 1"]
 				}
 				return $void
 			}
@@ -3710,7 +3711,7 @@ proc mo_send_p { } {
 	set ST(SCB) [after $IV(RTL) mo_send_p]
 }
 
-proc mo_rawread_p { } {
+proc mo_rawread_p { { to 0 } } {
 #
 # Called whenever data is available on the UART (mode P)
 #
@@ -3737,7 +3738,7 @@ proc mo_rawread_p { } {
 
 			if { $chunk == "" } {
 				# check for timeout
-				if { $ST(TIM) != "" } {
+				if { $to && $ST(TIM) != "" } {
 					global DB
 					if { $DB(LEV) > 2 } {
 					  pt_trc "rawread: packet timeout\
@@ -3751,7 +3752,7 @@ proc mo_rawread_p { } {
 					# something has started, set up timer
 					global IV
 					set ST(TIM) [after $IV(PKT) \
-						mo_rawread_p]
+						"mo_rawread_p 1"]
 				}
 				return $void
 			}
@@ -4004,7 +4005,7 @@ proc mo_reset_n { } {
 
 }
 
-proc mo_rawread_n { } {
+proc mo_rawread_n { { to 0 } } {
 #
 # Called whenever data is available on the UART (mode N); note: this is
 # identical to mo_rawread_x (and mo_rawread_s) except for a different input
@@ -4035,7 +4036,7 @@ proc mo_rawread_n { } {
 
 			if { $chunk == "" } {
 				# check for timeout
-				if { $ST(TIM) != "" } {
+				if { $to && $ST(TIM) != "" } {
 					global DB
 					if { $DB(LEV) > 2 } {
 					  pt_trc "rawread: packet timeout\
@@ -4049,7 +4050,7 @@ proc mo_rawread_n { } {
 					# something has started, set up timer
 					global IV
 					set ST(TIM) \
-					     [after $IV(PKT) mo_rawread_x]
+					     [after $IV(PKT) "mo_rawread_n 1"]
 				}
 				return $void
 			}
@@ -4366,7 +4367,7 @@ proc mo_fnwrite_s { msg } {
 		[pt_chks $msg]]"
 }
 
-proc mo_rawread_s { } {
+proc mo_rawread_s { { to 0 } } {
 #
 # Called whenever data is available on the UART (mode S)
 #
@@ -4393,7 +4394,7 @@ proc mo_rawread_s { } {
 
 			if { $chunk == "" } {
 				# check for timeout
-				if { $ST(TIM) != "" } {
+				if { $to && $ST(TIM) != "" } {
 					global DB
 					if { $DB(LEV) > 2 } {
 					  pt_trc "rawread: packet timeout\
@@ -4407,7 +4408,7 @@ proc mo_rawread_s { } {
 					# something has started, set up timer
 					global IV
 					set ST(TIM) \
-					     [after $IV(PKT) mo_rawread_x]
+					     [after $IV(PKT) "mo_rawread_s 1"]
 				}
 				return $void
 			}

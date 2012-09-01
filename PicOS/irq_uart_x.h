@@ -10,12 +10,6 @@
 
     switch (UA->x_istate) {
 
-	case IRQ_X_OFF:
-
-		// Stop the automaton
-		UART_STOP_XMITTER;
-		RTNI;
-
 	case IRQ_X_STRT:
 
 	    	// Transmitting the "preamble"
@@ -47,6 +41,10 @@
 		RISE_N_SHINE;
 		if (UA->x_prcs != 0)
 			p_trigger (UA->x_prcs, TXEVENT);
+		// Fall through
+
+	case IRQ_X_OFF:
+
 		UART_STOP_XMITTER;
 		RTNI;
     }
@@ -59,12 +57,6 @@
 // ============================================================================
 
     switch (UA->x_istate) {
-
-	case IRQ_X_OFF:
-
-		// Stop the automaton
-		UART_STOP_XMITTER;
-		RTNI;
 
 	case IRQ_X_STRT:
 
@@ -103,6 +95,9 @@
 		RISE_N_SHINE;
 		if (UA->x_prcs != 0)
 			p_trigger (UA->x_prcs, TXEVENT);
+
+	case IRQ_X_OFF:
+
 		UART_STOP_XMITTER;
 		RTNI;
     }
@@ -117,12 +112,6 @@
     byte b;   
 
     switch (UA->x_istate) {
-
-	case IRQ_X_OFF:
-
-		// Stop the automaton
-		UART_STOP_XMITTER;
-		RTNI;
 
 	case IRQ_X_STRT:
 
@@ -158,6 +147,9 @@ Eol:
 		RISE_N_SHINE;
 		if (UA->x_prcs != 0)
 			p_trigger (UA->x_prcs, TXEVENT);
+
+	case IRQ_X_OFF:
+
 		UART_STOP_XMITTER;
 		RTNI;
     }

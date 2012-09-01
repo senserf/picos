@@ -2484,3 +2484,24 @@ PG120829A:
 
 	Added a new function qualifier, nonidiosyncratic, to PiComp (read the
 	blue paragraph in the doc). The keyword is ugly and rightfully so.
+
+PG120902A:
+
+	Cleaned up the UART PHY code. Removed the ON/OFF options of the
+	transmitter, so the PHY is now compatible with the CC1100 driver
+	(see PG120728A). In a nutshell, the transmitter is never switched on
+	or off; its status is determined by the output queue.
+
+	Added hooks to the UART PHY (all three modes) for half duplex
+	operation (as in RS485). The hooks assume a special signal to enable
+	transmission + delays on both ends of the transmitted packet. Further
+	tests are required to determine the delays (we may also need an
+	after-reception delay), but the framework is ready (albeit undocumented
+	yet).
+
+	Fixed a minor bug in UART configuration defs (that part has not been
+	tested until now).
+
+	Fixed the vuart package (piter, econnect) to use the new handshake when
+	connecting to a virtual (VUEE) UART.
+	

@@ -7,7 +7,7 @@
 
 //
 // This is a complete set of macros for UART operation, such that the rest can
-// be CPU independent; this should be included by mach.h
+// be CPU independent
 //
 
 //
@@ -260,10 +260,10 @@ typedef struct	{
 #define	uart_a_disable_write_int	_BIC (IE2, UTXIE1)
 #define	uart_a_enable_read_int		_BIS (IE2, URXIE1)
 #define	uart_a_enable_write_int		_BIS (IE2, UTXIE1)
-#define uart_a_set_read_int		_BIS (IFG1, URXIFG0)
-#define uart_a_set_write_int		_BIS (IFG1, UTXIFG0)
-#define uart_a_get_read_int		(IFG1 & URXIFG0)
-#define uart_a_get_write_int		(IFG1 & UTXIFG0)
+#define uart_a_set_read_int		_BIS (IFG2, URXIFG1)
+#define uart_a_set_write_int		_BIS (IFG2, UTXIFG1)
+#define uart_a_get_read_int		(IFG2 & URXIFG1)
+#define uart_a_get_write_int		(IFG2 & UTXIFG1)
 #define	uart_a_get_int_stat		(IE2 & (URXIE1 + UTXIE1))
 #define	uart_a_set_int_stat(w)		_BIS (IE2, (w) & (URXIE1 + UTXIE1))
 #define	uart_a_reset_on			_BIS (UCTL1, SWRST)
@@ -343,10 +343,10 @@ typedef struct	{
 #define	uart_b_disable_write_int	_BIC (IE2, UTXIE1)
 #define	uart_b_enable_read_int		_BIS (IE2, URXIE1)
 #define	uart_b_enable_write_int		_BIS (IE2, UTXIE1)
-#define uart_b_set_read_int		_BIS (IFG1, URXIFG0)
-#define uart_b_set_write_int		_BIS (IFG1, UTXIFG0)
-#define uart_b_get_read_int		(IFG1 & URXIFG0)
-#define uart_b_get_write_int		(IFG1 & UTXIFG0)
+#define uart_b_set_read_int		_BIS (IFG2, URXIFG1)
+#define uart_b_set_write_int		_BIS (IFG2, UTXIFG1)
+#define uart_b_get_read_int		(IFG2 & URXIFG1)
+#define uart_b_get_write_int		(IFG2 & UTXIFG1)
 #define	uart_b_get_int_stat		(IE2 & (URXIE1 + UTXIE1))
 #define	uart_b_set_int_stat(w)		_BIS (IE2, (w) & (URXIE1 + UTXIE1))
 #define	uart_b_reset_on			_BIS (UCTL1, SWRST)
