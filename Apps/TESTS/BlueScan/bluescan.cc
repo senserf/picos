@@ -3,6 +3,8 @@
 #include "bluescan.h"
 #include "board_pins.h"
 
+#define	BSCAN_CDELAY	128
+
 static const char bscan_init_commands [] =
 #ifdef	BT_MODULE_LINKMATIK
 	"SET CONTROL ECHO 7\0"
@@ -17,6 +19,11 @@ static const char bscan_init_commands [] =
 	"ATR0\0"
 	"ATO1\0"
 #endif
+#ifdef	BT_MODULE_BOLUTEK
+	"AT+ROLE1\0"
+	"AT+AUTOCONN1\0"
+	"AT+INQM0,9,30\0"
+#endif
 	    "\0";
 
 static const char bscan_scan_commands [] = 
@@ -26,6 +33,13 @@ static const char bscan_scan_commands [] =
 #ifdef	BT_MODULE_BTM182
 	"ATF?\0"
 	"ATF?\0"
+#endif
+#ifdef	BT_MODULE_BOLUTEK
+	"AT+CLEAR\0"
+	"AT+ROLE1\0"
+	"AT+AUTOINQ0\0"
+	"AT+INQC\0"
+	"AT+INQ\0"
 #endif
 	    "\0";
 
@@ -74,20 +88,18 @@ static void update_cache () {
 			if (st == 0) {
 				// expired
 				st = 0x80;
-				trigger (bscan_cache);
+				trigger (BSCAN_EVENT);
 			}
 			p->status = st;
 		}
 	}
 }
 
-static void add_cache () {
-
-    bscan_item_t pp;
-
 #ifdef BT_MODULE_LINKMATIK
 
-    {
+static void add_cache () {
+
+	bscan_item_t pp;
 	const char *s;
 	word w, nc;
 
@@ -119,13 +131,13 @@ static void add_cache () {
 		pp.name [nc] = *s;
 	}
 	pp.name [nc] = '\0';
-    }
-
 #endif
 
 #ifdef	BT_MODULE_BTM182
 
-    {
+static void add_cache () {
+
+	bscan_item_t pp;
 	const char *s;
 	word w, v, nc;
 	lword wl;
@@ -170,7 +182,81 @@ static void add_cache () {
 	pp.name [nc] = '\0';
 	while (nc--)
 		pp.name [nc] = s [nc];
-    }
+#endif
+
+#ifdef	BT_MODULE_BOLUTEK
+
+static bscan_item_t pp;
+static word macset = 0;
+
+#define RESTART_EVENT (&pp)
+
+static void add_cache () {
+
+	const char *s;
+	word w, nc;
+
+	s = ibuf;
+//	diag ("INP: <%d> %s", macset, s);
+
+	if (scmp (s, "+INQ:")) {
+		for (s = ibuf + 5, nc = 0; nc < 6; nc++, s += 3) {
+			if (scan (s, "%x", &w) == 0)
+				// Something wrong
+				return;
+			pp.mac [nc] = (byte) w;
+		}
+//		diag ("COK <%d>", macset);
+		macset = 1;
+HB:
+		heartbeat = BSCAN_HBCREDITS;
+		return;
+	}
+
+	if (scmp (s, "+INQS") )  {
+		macset = 0;
+		goto HB;
+	}
+
+	if (scmp (s, "+READY")) {
+		if (macset)
+			trigger (RESTART_EVENT);
+MR:
+		macset = 0;
+		return;
+	}
+
+	if (!scmp (s, "+RNAME="))
+		return;
+//	diag ("Q <%d> %s", macset, s);
+
+	if (macset != 1)
+		// No MAC address
+		goto MR;
+
+	s += 7;
+	nc = strlen (s);
+//	diag ("N <%d> %s", nc, s);
+	while (nc > 0) {
+		w = s [nc-1];
+		if (w > 0x20)
+			break;
+		nc--;
+	}
+	if (nc == 0)
+		// Something wrong
+		goto MR;
+
+	if (nc > BSCAN_NAMELENGTH)
+		nc = BSCAN_NAMELENGTH;
+
+	pp.name [nc] = '\0';
+	while (nc--)
+		pp.name [nc] = s [nc];
+
+	macset = 2;
+
+//	diag ("N OK");
 #endif
 
     {
@@ -205,7 +291,8 @@ Next:		CNOP;
 		return;
 
 	*q = pp;
-	trigger (bscan_cache);
+//	diag ("EVENT");
+	trigger (BSCAN_EVENT);
     }
 }
 
@@ -221,13 +308,15 @@ fsm bscan_read {
 
 		char c;
 
-		io (CONTINUE, UART_B, READ, &c, 1);
+		io (CONTINUE, BT_UART, READ, &c, 1);
 
 		if (c < 32) {
 			// Assume anything less than blank ends the line;
 			// empty and weird lines will be ignored anyway
-			ibuf [nibuf] = '\0';
-			add_cache ();
+			if (nibuf) {
+				ibuf [nibuf] = '\0';
+				add_cache ();
+			}
 			sameas START;
 		}
 
@@ -239,24 +328,28 @@ fsm bscan_read {
 
 fsm bscan_out (const char *sp) {
 
+//	state START:
+
+//	diag ("W: %s", sp);
+
 	state LINE_OUT:
 
 		if (*sp == '\0')
 			sameas CODA;
 
-		io (LINE_OUT, UART_B, WRITE, (char*)sp, 1);
+		io (LINE_OUT, BT_UART, WRITE, (char*)sp, 1);
 		sp++;
 		savedata (sp);
 		sameas LINE_OUT;
 
 	state CODA:
 
-		io (CODA, UART_B, WRITE, (char*)(eol+0), 1);
+		io (CODA, BT_UART, WRITE, (char*)(eol+0), 1);
 
-#ifdef BT_MODULE_LINKMATIK
+#if defined(BT_MODULE_LINKMATIK) || defined(BT_MODULE_BOLUTEK)
 	state FINE:
 
-		io (FINE, UART_B, WRITE, (char*)(eol+1), 1);
+		io (FINE, BT_UART, WRITE, (char*)(eol+1), 1);
 #endif
 		finish;
 }
@@ -281,7 +374,7 @@ fsm bscan_scan {
 		// Skip the current command
 		while (*s++ != '\0');
 		if (*s != '\0') {
-			delay (128, SCAN_INIT);
+			delay (BSCAN_CDELAY, SCAN_INIT);
 			release;
 		}
 
@@ -309,11 +402,14 @@ fsm bscan_scan {
 		// Skip
 		while (*s++ != '\0');
 		if (*s != '\0') {
-			delay (128, SCAN_ENTER);
+			delay (BSCAN_CDELAY, SCAN_ENTER);
 			release;
 		}
 
 		heartbeat--;
+#ifdef RESTART_EVENT
+		when (RESTART_EVENT, SCAN_LOOP);
+#endif
 		delay (BSCAN_INTERVAL, SCAN_LOOP);
 }
 

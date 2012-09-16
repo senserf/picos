@@ -4,13 +4,41 @@
 /* ==================================================================== */
 
 //
-// BT LinkMatik connected to the primary UART, formally through the on-board
-// switch (which is not present in my version). Other pins of LM
+// Module connected to the primary UART, formally through the on-board
+// switch (which is not present in my version). The remaining pins:
 //
+// LinkMatik:
 //	ESC	- P5.4
 //	ATN	- P2.4
 //	RESET	- P5.3
 //
+// BTM-182:
+//	PIO 4	- P5.4
+//	PIO 6	- P2.4
+//	RESET	- P5.3
+//
+// BOLUTEK:
+//	PIO 3	- P5.4
+//	PIO 2	- P2.4
+//		  P5.3 is unused
+// ============================================================================
+
+#ifdef	BT_MODULE_LINKMATIK
+#define	__P5DIR_SUPPL	0x18
+#endif
+
+#ifdef	BT_MODULE_BTM182
+#define	__P5DIR_SUPPL	0x18
+#endif
+
+#ifdef	BT_MODULE_BOLUTEK
+// No RESET pin
+#define	__P5DIR_SUPPL	0x10
+#endif
+
+#ifndef	__P5DIR_SUPPL
+#error "You have to define exactly one of: BT_MODULE_LINKMATIK, BT_MODULE_BTM182, BT_MODULE_BOLUTEK!!!"
+#endif
 
 // P1:
 //	0 - CONN	J7.9
@@ -72,7 +100,7 @@
 #define	PIN_DEFAULT_P5SEL	0x03
 // Note: bits 0 and 1 on DIR MUST be zero (DIR must be IN) for the crystal to
 // work!!!!
-#define	PIN_DEFAULT_P5DIR	(0xE4		+ 0x18)
+#define	PIN_DEFAULT_P5DIR	(0xE4 + __P5DIR_SUPPL)
 #define	PIN_DEFAULT_P5OUT	0xE4
 
 #define	SOFT_RESET_BUTTON_PRESSED	((P2IN & 0x02) == 0)
@@ -118,13 +146,30 @@
 #define	cswitch_on(p)	_BIS (P4OUT, p)
 #define	cswitch_off(p)	_BIC (P4OUT, p)
 
+#ifdef	BT_MODULE_LINKMATIK
 #define	blue_reset_set		_BIS (P5OUT,0x08)
 #define	blue_reset_clear	_BIC (P5OUT,0x08)
-
 #define	blue_escape_set		_BIS (P5OUT,0x10)
 #define	blue_escape_clear	_BIC (P5OUT,0x10)
+#define	blue_ready		(P2IN & 0x10)
+#endif
+
+#ifdef	BT_MODULE_BTM182
+#define	blue_reset_set		_BIS (P5OUT,0x08)
+#define	blue_reset_clear	_BIC (P5OUT,0x08)
+#define	blue_escape_set		_BIS (P5OUT,0x10)
+#define	blue_escape_clear	_BIC (P5OUT,0x10)
+#define	blue_ready		((P2IN & 0x10) == 0)
+#endif
+
+#ifdef	BT_MODULE_BOLUTEK
+// No RESET pin
+#define	blue_reset_set		blue_escape_set
+#define	blue_reset_clear	blue_escape_clear
+#define	blue_escape_set		_BIS (P5OUT,0x10)
+#define	blue_escape_clear	_BIC (P5OUT,0x10)
+#define	blue_ready		(P2IN & 0x10)
+#endif
 
 #define	blue_power_up		cswitch_on (CSWITCH_EXT)
 #define	blue_power_down		cswitch_off (CSWITCH_EXT)
-
-#define	blue_status	(P2IN & 0x10)

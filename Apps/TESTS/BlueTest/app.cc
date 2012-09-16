@@ -32,7 +32,7 @@
 #define	DELAY_EXIT	1024		// To clean up
 #define	DELAY_SAFE	512		// Delay "just in case"
 #define	DELAY_POKE	256		// Between poke tries
-#define DELAY_RRESET	(4*1024)	// Rate reset
+#define DELAY_RRESET	(1*1024)	// Rate reset
 #define	DELAY_RESET	10		// Module reset
 
 #define	TRIES_VERI	6		// Verification checks 256
@@ -381,6 +381,154 @@ static void bt_setpin_cmd () {
 
 #endif
 
+#ifdef	BT_MODULE_BOLUTEK
+
+// ============================================================================
+// BC4 BOLUTEK version ========================================================
+// ============================================================================
+
+// Accessible rates
+const word lrates [] = { 48, 96, 192, 384, 576, 1152, 2304 };
+
+static sint bt_rate_available (word a) {
+
+	sint i;
+
+	for (i = 0; i < sizeof (lrates) / sizeof (word); i++)
+		if (lrates [i] == rate_list [a])
+			return i + 3 + '0';
+	return 0;
+}
+
+static const char *b_cmd_uart =
+	"AT+ROLE0\0"
+	"AT+RESET\0"
+	"AT+INQ\0"
+	"\0";
+
+static const char *b_cmd_sniff = 
+	"AT+ROLE1\0"
+	"AT+RESET\0"
+	"AT+INQM0,9,30\0"
+	"AT+AUTOINQ0\0"
+	"AT+INQC\0"
+	"\0";
+
+static void bt_rate_test (const char *li) {
+//
+// Determines if there's a valid response from the module for a rate check
+//
+	if (kcmp (li, "OK"))
+		OK = 1;
+}
+
+static void bt_command_test (const char *li) {
+//
+// Verifies whether one of the "list" command has been accepted
+//
+	const char *s;
+
+	if (kcmp (cmbuf, "ROLE0")) {
+		if (kcmp (li, "ROLE=0"))
+			OK = 1;
+		return;
+	}
+
+	if (kcmp (cmbuf, "ROLE1")) {
+		if (kcmp (li, "ROLE=1"))
+			OK = 1;
+		return;
+	}
+
+	if (kcmp (cmbuf, "RESET")) {
+		if (kcmp (li, "+READY"))
+			OK = 1;
+		return;
+	}
+
+	if (kcmp (cmbuf, "INQM")) {
+		if (kcmp (li, "+INQM=0,9,30"))
+			OK = 1;
+		return;
+	}
+
+	if (kcmp (cmbuf, "AUTOINQ")) {
+		if (kcmp (li, "Q0") || kcmp (li, "OK"))
+			OK = 1;
+		return;
+	}
+
+	if (kcmp (cmbuf, "INQC")) {
+		if (kcmp (li, "+INQE") || kcmp (li, "304"))
+			OK = 1;
+		return;
+	}
+
+	if (kcmp (cmbuf, "INQ")) {
+		if (kcmp (li, "+PAIR") || kcmp (li, "303"))
+			OK = 1;
+		return;
+	}
+
+	bt_rate_test (li);
+}
+
+static void bt_name_command_test (const char *li) {
+//
+// Verifies the acceptance of the name setting command
+//
+	if (kcmp (li, new_name))
+		OK = 1;
+}
+
+static void bt_pin_command_test (const char *li) {
+
+	if (kcmp (li, new_pin))
+		OK = 1;
+}
+
+static void bt_poke_cmd () {
+//
+// Create a command to poke the module (used to check if rate is correct)
+//
+	strcpy (cmbuf, "AT");
+}
+
+static void bt_verification_cmd () {
+//
+// Given the command string (in cmbuf), fills scbuf with a command to poll
+// for the effects of that command
+//
+	// The direct response is fine
+	scbuf [0] = '\0';
+}
+
+static void bt_name_verification_cmd () {
+	bt_verification_cmd ();
+}
+
+static void bt_pin_verification_cmd () {
+	bt_verification_cmd ();
+}
+
+static void bt_setrate_cmd () {
+	form (cmbuf, "AT+BAUD%c", bt_rate_available (new_rate_index));
+}
+
+static void bt_setname_cmd () {
+	form (cmbuf, "AT+NAME%s", new_name);
+}
+
+static void bt_setpin_cmd () {
+	form (cmbuf, "AT+PIN%s", new_pin);
+}
+
+static void bt_factory_cmd () {
+	strcpy (cmbuf, "AT+DEFAULT");
+}
+
+#endif
+
 // ============================================================================
 
 static void bt_echo (const char *il) { wl_u (il); }
@@ -457,7 +605,7 @@ fsm bt_write {
 
 #ifdef BT_MODULE_BTM182
 		// Don't send \n for BTM-182 if not connected
-		if (blue_status)
+		if (!blue_ready)
 			// Not connected, bypass sending NL
 			proceed INIT;
 #endif
@@ -617,8 +765,12 @@ fsm bt_command {
 	state VERIFY:
 
 		// Verification command
-		wl_b (scbuf);
-		vertries++;
+		if (*scbuf != '\0') {
+			wl_b (scbuf);
+			vertries++;
+		} else {
+			vertries = TRIES_CMDV;
+		}
 		// Delay another bit
 		delay (DELAY_CMDV, VERCHK);
 		release;
@@ -770,8 +922,11 @@ fsm bt_findrate {
 
 fsm bt_preset {
 
+	Boolean fdone;
+
 	state INIT:
 
+		fdone = NO;
 		wl_u ("Resetting the module ...");
 		blue_reset_set;
 		delay (DELAY_RESET, RESET_DONE);
@@ -780,6 +935,7 @@ fsm bt_preset {
 	state RESET_DONE:
 
 		blue_reset_clear;
+CRate:
 		wl_u ("Checking the rate at which module responds ...");
 		join (runfsm bt_findrate, B_RATE_FOUND);
 		release;
@@ -792,6 +948,34 @@ NoResp:
 			finish;
 		}
 
+#ifdef BT_MODULE_BOLUTEK
+
+		if (fdone)
+			goto FactoryDone;
+
+		// Need to reset to factory defaults (which may change the
+		// rate)
+
+		wl_u ("Resetting to factory defaults ...");
+		bt_factory_cmd ();
+		bt_readf = bt_command_test;
+		OK = 0;
+		wl_b (cmbuf);
+		delay (DELAY_SAFE, B_CHECK_FACTORY);
+		release;
+
+	state B_CHECK_FACTORY:
+
+		if (!OK)
+			// Failed, try again from scratch
+			proceed INIT;
+
+		fdone = YES;
+		goto CRate;
+
+FactoryDone:
+
+#endif
 		if (new_rate_index != rate) {
 			// Need to reset rate
 			form (uibuf, "Changing rate to %d00",
@@ -953,6 +1137,9 @@ fsm root {
 #ifdef BT_MODULE_BTM182
 	wl_u ("BT BTM-182: test and maintanance");
 #endif
+#ifdef BT_MODULE_BOLUTEK
+	wl_u ("BT BC4 (BOLUTEK): test and maintanance");
+#endif
 	wl_u ("Commands:");
 	wl_u ("w string  > write line to module");
 	wl_u ("r rate    > set rate for module");
@@ -1064,7 +1251,7 @@ EClear:
 
   state RS_ATT:
 
-	form (uibuf, "STATUS = %d", blue_status);
+	form (uibuf, "STATUS = %d", blue_ready);
 	wl_u (uibuf);
 	proceed RS_RCM;
 

@@ -28,6 +28,14 @@
 #define	BUTTON_DEBOUNCE_DELAY	64
 #define	BUTTON_PRESSED_LOW	1
 
+// Current measurement on EM430F6137RF900 development board:
+//
+//	CPU Idle in PD mode (mormal OS activity): 2.7uA at 3.3V
+//	----------- PU -------------------------: 452uA
+//	CPU spin                                : 2.8mA
+//
+// Added 100uF capacitor Vdd-GND, no noticeable increase in current
+
 // ============================================================================
 
 #include "board_rtc.h"

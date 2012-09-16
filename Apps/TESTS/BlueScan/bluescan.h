@@ -13,6 +13,12 @@
 #define	BSCAN_ILINELENGTH	64
 #define	BSCAN_HBCREDITS		3	// Heartbeat credits
 
+#ifdef	UART_B
+#define	BT_UART	UART_B
+#else
+#define	BT_UART	UART_A
+#endif
+
 typedef struct {
 
 	byte status;			// 1 +

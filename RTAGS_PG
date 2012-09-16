@@ -2505,3 +2505,18 @@ PG120902A:
 	Fixed the vuart package (piter, econnect) to use the new handshake when
 	connecting to a virtual (VUEE) UART.
 	
+PG120916A:
+
+	Configuration options for the BC4 BOLUTEK BlueTooth module, see the
+	document in Apps/TESTS/BlueTest + board_pins.h for WARSAW_BLUE and
+	CC430W_BLUE. The scanner role (Apps/TESTS/BlueScan) seems to work as
+	well (in case we ever need it).
+
+	Let it be known that I have wasted a lot of time and patience on this
+	module, and I am still far from being 100% sure that it really works
+	(Gerry will take over the testing). The required functionality has been 
+	determined largely by trial and error.
+
+	I have started to put into the board directories some essential
+	documentation related to the boards: schematics, pinouts, etc. This may
+	be useful (at least I find it so).
