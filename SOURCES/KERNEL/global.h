@@ -1933,6 +1933,10 @@ extern  void                   *Info01, *Info02, *zz_mbi;
 extern  ZZ_EVENT               zz_fsent, zz_rsent, *zz_sentinel_event;
 extern  ZZ_REQUEST             *zz_nqrqs;
 
+// Program call arguments passed to the model
+extern	int 		       PCArgc;
+extern	const char 	       **PCArgv;
+
 // Tracing variables (soft + hard)
 
 extern  TIME                   TracingTimeStart, TracingTimeStop;

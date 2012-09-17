@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-08   P. Gburzynski */
+/* Copyright (C) 1991-12   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -101,6 +101,12 @@ BITCOUNT        zz_NQBits,              // Number of queued bits
 #endif	/* NOC */
 
 Mailbox         *zz_ncmailbox = NULL;	// Temporary head for mailbox list
+
+// ----------------- */
+/* Program call args */
+// ----------------- */
+int		PCArgc = 0;
+const char	**PCArgv = NULL;
 
 /* --------------------- */
 /* Debugging and tracing */

@@ -427,3 +427,19 @@ PG120814A:
 	   as a NULL-terminated string with all the includes resolved. This is
 	   going to be useful for VUEE: the simulator will be able to save the
 	   data set and later convey it to an agent (e.g., udaemon).
+
+PG120917A:	PIP >= PG120917A, VUEE >= PG120917A
+
+	   Fixed the handling of zero resync interval in the RSY mode (the
+	   problem was signaled by Nick). Now, with this kind of setting, the
+	   model should execute correctly, at full simulation speed, without
+	   re-synchronizing itself to real time.
+
+	   It is now possible to pass program call arguments to the model. Any
+	   call arguments following -- are made available to the model via:
+
+		int PCArgc;
+		const char **PCArgv;
+
+	   in the same way as the standard arguments of main.
+	   

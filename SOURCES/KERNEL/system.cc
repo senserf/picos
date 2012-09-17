@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-09   P. Gburzynski */
+/* Copyright (C) 1991-12   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -209,6 +209,7 @@ static void bad_arguments () {
         cerr << "     -D yy/mm/dd\n";
         cerr << "     -D mm/dd        set effective date/time\n";
         cerr << "     -D J            set date/time from journal\n";
+	cerr << "     -- model args\n";
 #endif
 // FIXME: add setResync parameter
 	cerr << "    Files: [inp [out]]\n";
@@ -471,6 +472,10 @@ void    zz_init_system  (int argc, char *argv []) {
 
 		switch (param = (*(argv++))[1]) {
 
+			case '-' : // End of SMURPH args
+
+				goto EOA;
+
 			case 'r' : // Random seeds
 
 				for (i = 0; argc; i++) {
@@ -615,6 +620,11 @@ void    zz_init_system  (int argc, char *argv []) {
 			default: bad_arguments ();
 		}
 	}
+
+EOA:	// Arguments visible to the model
+
+	PCArgc = argc;
+	PCArgv = (const char**) argv;
 
 	// Initialize actual seeds
 #if     ZZ_R48

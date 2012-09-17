@@ -670,9 +670,18 @@ inline void zz_advance_real_time () {
   	Mailbox *sok;
 	Long	delta;
 
-	if (ZZ_ResyncMsec == 0)
-		// This is also used as a flag
+	if (ZZ_ResyncMsec == 0) {
+	    	zz_check_asyn_io ();
+	    	if (DisplayActive && --zz_events_to_display <= 0)
+			refreshDisplay ();
+		for (sok = zz_socket_list; sok != NULL; sok = sok->nexts) {
+	            // Update the status of socket buffers
+	            sok->flushOutput ();
+	            sok->readInput ();
+	    	}
 		return;
+	}
+
 #if ZZ_TAG
 	(zz_eq -> waketime).get (t);
 #else

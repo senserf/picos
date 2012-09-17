@@ -19086,6 +19086,23 @@ is always the same.
 \end{quote}
 
 \begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt --}}\\ \hspace{0in}
+A double dash terminates the argument list interpreted by the simulator's
+kernel.
+Any remaining arguments, if present, can be accessed by the user program
+via these two global variables:
+{\tt\begin{tabbing}
+12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
+\>{\tt int PCArgc;} \\
+\>{\tt const char **PCArgv;}
+\end{tabbing}}
+\noindent
+interpreted as the standard arguments to {\tt main}, i.e., {\tt PCArgc}
+tells the number of arguments left, and {\tt PCArgv} is an array of strings
+consisting of {\tt PCArgc} elements.
+\end{quote}
+
+\begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -d}}\\ \hspace{0in}
 When this argument is used, the program will suspend its execution
 immediately after {\tt Root} completes the initialization phase,
