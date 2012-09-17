@@ -609,3 +609,12 @@ PG120814A:	VUEE >= PG120814A
 PG120829A:
 
 	Removed the confusing "VUEE (recompile)" option from the Build menu.
+
+PG120917A:	SIDE >= PG120917A, VUEE >= PG120917A
+
+	Added a slo-mo config option to the VUEE Configuration dialog. The
+	selection includes "U" which executes the model in an unsynced,
+	full-speed, pure simulation mode (that was suggested by Nick).
+
+	The image loader is now auto-configured to a default if the user hasn't
+	configured it explicitly.

@@ -82,6 +82,9 @@ if { $ST(SYS) == "L" } {
 		     }
 	## Only this one causes problems
 	set GdbLdPtk { "msp430-gdbproxy" }
+	set SIDENAME "side"
+	# default loader
+	set DEFLOADR "MGD"
 } else {
 	set GdbLdPgm {
 			{ "FET430UIF" "tiusb" "TIUSB" }
@@ -90,16 +93,12 @@ if { $ST(SYS) == "L" } {
 		     }
 	## Programs to kill (clean up) when gdbloader exits
 	set GdbLdPtk { "msp430-gdbproxy" "msp430-gdb" }
+	set SIDENAME "side.exe"
+	set DEFLOADR "ELP"
 }
 set PiterCmd "piter"
 set GdbCmd "gdb"
 set XTCmd "xterm"
-
-if { $ST(SYS) == "L" } {
-	set SIDENAME "side"
-} else {
-	set SIDENAME "side.exe"
-}
 
 ## File types to be listed in the Files view:
 ## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
@@ -144,6 +143,7 @@ set CFVueeItems {
 			"UDON"		0
 			"UDDF"		0
 			"VUDF"		""
+			"VUSM"		1.0
 }
 
 ## Names of the configurable loaders (just two for now)
@@ -4175,7 +4175,7 @@ proc do_loaders_config { } {
 
 proc mk_loaders_conf_window { } {
 
-	global P ST FFont GdbLdPgm
+	global P ST FFont GdbLdPgm DEFLOADR
 
 	set w [md_window "Loader configuration"]
 
@@ -4185,13 +4185,8 @@ proc mk_loaders_conf_window { } {
 	pack $f -side top -expand y -fill x
 
 	if { $P(M0,LDSEL) == "" } {
-		# the default depends on the system
-		if { $ST(SYS) == "L" } {
-			set ds "MGD"
-		} else {
-			set ds "ELP"
-		}
-		set P(M0,LDSEL) $ds
+		# the default
+		set P(M0,LDSEL) $DEFLOADR
 	}
 
 	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "ELP"
@@ -4430,6 +4425,16 @@ proc mk_vuee_conf_window { } {
 	pack $f.b -side right -expand n
 	label $f.f -textvariable P(M0,VUDF)
 	pack $f.f -side right -expand n
+
+	##
+	set f $w.ts
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Slo-mo factor: "
+	pack $f.l -side left -expand n
+	tk_optionMenu $f.m P(M0,VUSM) \
+		"U" 0.25 0.5 1.0 2.0 3.0 4.0 5.0 10.0 20.0 50.0 100.0
+	pack $f.m -side right -expand n
 
 	##
 	set f $w.tj
@@ -6349,8 +6354,37 @@ proc run_vuee { { deb 0 } } {
 		return
 	}
 
+	# argument list
+	set argl [list "-e" $df "+"]
+	set df [dict get $P(CO) "VUSM"]
+	if { $df == "U" } {
+		# unsynced
+		set df 0
+	} else {
+		if { [catch { expr $df } df] || $df <= 0.0 } {
+			# force the default in case of any trouble
+			set df 1.0
+		}
+	}
+
+	if { $df != 1.0 } {
+		# default resync interval
+		set ef 500
+		if { $df > 0 } {
+			# calculate the resync interval in milliseconds as 1/2
+			# of the slo-mo factor or 1000, whichever is less
+			set ef [expr int($df * 500)]
+			if { $ef <= 0 } {
+				set ef 1
+			} elseif { $ef > 1000 } {
+				set ef 1000
+			}
+		}
+		set argl [concat $argl [list "--" $df $ef]]
+	}
+
 	# We seem to be in the clear
-	if [catch { run_term_command "./$SIDENAME" [list "-e" $df "+"] } err] {
+	if [catch { run_term_command "./$SIDENAME" $argl } err] {
 		alert "Cannot start the model: $err"
 		return
 	}
@@ -6491,7 +6525,7 @@ proc stop_term { } {
 
 proc upload_image { } {
 
-	global P CFLDNames TCMD
+	global P CFLDNames TCMD DEFLOADR
 
 	if { $P(AC) == "" } {
 		return
@@ -6506,8 +6540,10 @@ proc upload_image { } {
 	set ul [dict get $P(CO) "LDSEL"]
 
 	if { $ul == "" } {
-		alert "Loader not configured"
-		return
+		# use the default
+		set ul $DEFLOADR
+		dict set P(CO) "LDSEL" $ul
+		set_config
 	}
 
 	if { [lsearch -exact $CFLDNames $ul] < 0 } {
