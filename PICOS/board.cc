@@ -3802,9 +3802,9 @@ static SensActDesc *sa_doit (const char *what, sint *off, const char *erc,
 		strcmp (what, "sensor") ? "ACTUATORS" : "SENSORS", n, fill));
 
 	if (*off)
-		printf (", hidden = %1d", *off);
+		print (form (", hidden = %1d", *off));
 
-	printf ("]:\n");
+	print ("]:\n");
 
 	for (i = 0; i < n; i++)
 		if (res [i] . Length)
@@ -4463,12 +4463,43 @@ void BoardRoot::initAll () {
 	nparse_t np [1];
 	Boolean nc;
 	int NN, NT;
+	double SF;
+	Long RI;
 
 	settraceFlags (	TRACE_OPTION_TIME +
 			TRACE_OPTION_ETIME +
 			TRACE_OPTION_STATID +
 			TRACE_OPTION_PROCESS );
 
+	// VUEE-specific arguments (if present): slomo factor, resync interval
+
+	SF = VUEE_SLOMO_FACTOR;
+	RI = VUEE_RESYNC_INTERVAL;
+
+	if (PCArgc) {
+		PCArgc--;
+		np [0] . type = TYPE_double;
+		if (parseNumbers (*PCArgv++, 1, np) != 1)
+			excptn ("Root: slo-mo factor arg is not a number");
+		SF = np [0] . DVal;
+		if (SF <= 0.0) {
+			// Treat as unsynced
+			SF = 1.0;
+			RI = 0;
+			goto IRI;
+		}
+	}
+
+	if (PCArgc) {
+		PCArgc--;
+		np [0] . type = TYPE_LONG;
+		if (parseNumbers (*PCArgv++, 1, np) != 1)
+			excptn ("Root: resync intvl arg is not a number");
+		RI = (Long) (np [0] . LVal);
+		if (RI < 0 || RI > 1000)
+			excptn ("Root: resync intvl must be >= 0 and <= 1000");
+	}
+IRI:
 	xml = sxml_parse_input ('\0', &__pi_XML_Data);
 
 	if (!sxml_ok (xml))
@@ -4531,8 +4562,7 @@ void BoardRoot::initAll () {
 
 	print ("\n");
 
-	setResync (VUEE_RESYNC_INTERVAL,
-		(VUEE_RESYNC_INTERVAL * 0.001)/VUEE_SLOMO_FACTOR);
+	setResync (RI, (RI * 0.001)/SF);
 	//setResync (500, 0.5);
 
 	create (System) AgentInterface;

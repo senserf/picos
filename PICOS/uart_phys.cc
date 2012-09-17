@@ -23,8 +23,6 @@ static int unp_option (int, address);
 #define	UAFLG_ROFF		0x08		// Receiver OFF
 #define	UAFLG_UNAC		0x10		// Last out message unacked
 #define	UAFLG_SACK		0x20		// Send ACK ASAP
-#define	UAFLG_HOLD		0x40
-#define	UAFLG_DRAI		0x80
 
 #define	UART_PKT_RETRTIME	1024
 
@@ -194,24 +192,8 @@ p_uart_xmt_n::perform {
 
 	LEDIU (1, 0);
 
-	if ((UA->v_flags & UAFLG_HOLD)) {
-		// The HOLD flag == OFF solid
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			// Draining
-Drain:
-			tcvphy_erase (UA->v_physid);
-		}
-		// Queue held
-		when (UART_EVP_XMT, XM_LOOP);
-		sleep;
-	}
-
 	if ((UA->x_buffer = tcvphy_get ((int)(UA->v_physid), &stln)) == NULL) {
 		// Nothing to transmit
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			UA->v_flags |= UAFLG_HOLD;
-			goto Drain;
-		}
 		when (UART_EVP_XMT, XM_LOOP);
 		sleep;
 	}
@@ -596,25 +578,8 @@ p_uart_xmt_l::perform {
 
 	LEDIU (1, 0);
 
-	if ((UA->v_flags & UAFLG_HOLD)) {
-		// The HOLD flag == OFF solid
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			// Bit 1 set == draining
-Drain:
-			tcvphy_erase (UA->v_physid);
-		}
-		// Queue held
-		when (UART_EVP_XMT, XM_LOOP);
-		sleep;
-	}
-
 	if ((UA->x_buffer = tcvphy_get ((int)(UA->v_physid), &stln)) == NULL) {
 		// Nothing to transmit
-		if ((UA->v_flags & UAFLG_DRAI)) {
-			// Draining
-			UA->v_flags |= UAFLG_HOLD;
-			goto Drain;
-		}
 		when (UART_EVP_XMT, XM_LOOP);
 		sleep;
 	}
@@ -720,7 +685,6 @@ MBS:
 
 		// If not NULL, the buffer must be released to TCV
 		UA->x_buffer = NULL;
-		UA->v_flags = 0;
 	}
 
 	UA->r_buffl = mbs;
@@ -761,11 +725,7 @@ static int unp_option (int opt, address val) {
 
 	    case PHYSOPT_STATUS:
 
-		if (IMode == UART_IMODE_P)
-			ret = (UA->v_flags & UAFLG_ROFF) >> 3;
-		else
-			ret = (((UA->v_flags & (UAFLG_HOLD + UAFLG_DRAI)) != 0)
-				<< 1) | ((UA->v_flags &  UAFLG_ROFF) != 0);
+		ret = 2 | ((UA->v_flags & UAFLG_ROFF) == 0);
 
 		if (val != NULL)
 			*val = ret;
@@ -773,16 +733,15 @@ static int unp_option (int opt, address val) {
 
 	    case PHYSOPT_TXON:
 
-		if (IMode == UART_IMODE_P)
+		if (IMode == UART_IMODE_P) {
 			// This is used for active (persistent) mode
 			UA->v_flags |= UAFLG_PERS;
-		else
-			UA->v_flags &= ~(UAFLG_HOLD + UAFLG_DRAI);
+			trigger (UART_EVP_XMT);
+		}
 
-		trigger (UART_EVP_XMT);
 		break;
 
-	    case PHYSOPT_RXON:
+	    case PHYSOPT_ON:
 
 		// Used as global ON for P-mode
 		UA->v_flags &= ~UAFLG_ROFF;
@@ -796,39 +755,16 @@ static int unp_option (int opt, address val) {
 		if (IMode == UART_IMODE_P) {
 			// This is used for active (persistent) mode
 			UA->v_flags &= ~UAFLG_PERS;
-		} else {
-			if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
-				break;
-
-			UA->v_flags |= UAFLG_DRAI;
-		}
-		trigger (UART_EVP_XMT);
-		break;
-
-	    case PHYSOPT_TXHOLD:
-
-		if (IMode == UART_IMODE_P)
-			goto RxOff;
-
-		if ((UA->v_flags & (UAFLG_DRAI + UAFLG_HOLD)))
-			break;
-
-		UA->v_flags |= UAFLG_HOLD;
-		trigger (UART_EVP_XMT);
-		break;
-
-	    case PHYSOPT_RXOFF:
-
-		if (IMode == UART_IMODE_P) {
-RxOff:
-			if ((UA->v_flags & UAFLG_ROFF))
-				break;
-
-			UA->v_flags |= UAFLG_ROFF;
 			trigger (UART_EVP_XMT);
-		} else {
-			UA->v_flags |= UAFLG_ROFF;
 		}
+
+	    case PHYSOPT_HOLD:
+	    case PHYSOPT_OFF:
+
+		UA->v_flags |= UAFLG_ROFF;
+		if (IMode == UART_IMODE_P) {
+			trigger (UART_EVP_XMT);
+		} 
 		trigger (UART_EVP_RCV);
 		break;
 

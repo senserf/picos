@@ -925,3 +925,32 @@ PG120828A:
     Fixed a bug introduced along with the features in PG120827A consisting in
     non-responsive SENSORS module.
     
+PG120917A:	SIDE >= PG120917A
+
+    The model's resync interval and the slo-mo factor are now settable when
+    the simulator is called, e.g.,
+
+	side data_file.xml output_file.txt -- 2.0
+
+    sets the the slo-mo factor to 2.0 (the default is 1.0) retaining the
+    default setting of the resync interval (500 msec). This:
+
+	side data_file.xml output_file.txt -- 0.25 125
+
+    sets both the slo-mo factor (to 1/4, i.e., four times faster than RT) and
+    the resync interval to 125 msec. This:
+
+	side data_file.xml output_file.txt -- 0
+
+    will run the model in pure simulation mode, i.e., full speed, no sync to
+    real time.
+
+    This new handy feature was suggested (and partially implemented) by Nick.
+
+    Note that the extra arguments (following --) are interpreted by VUEE. This
+    requires a modification to SIDE whereby -- terminates the list of arguments
+    interpreted by the simulator's kernel and passess the remaining arguments
+    to the model.
+
+    The model of UART PHY now matches the new modified version of the PicOS
+    driver.
