@@ -2520,3 +2520,37 @@ PG120916A:
 	I have started to put into the board directories some essential
 	documentation related to the boards: schematics, pinouts, etc. This may
 	be useful (at least I find it so).
+
+PG120930A:
+
+	While trying the BC4 BOLUTEK module with CC430W I discovered (and
+	fixed) a bug in BlueTest/app.cc causing that lines longer than the
+	payload capacity of an XRS packet over CC1100 would hang the praxis.
+	Of course, that could only happen in the AP (access point) mode.
+
+	Modified (extended) the reflow test praxis for Gerry:
+
+	1. The temperature is now reported in degrees C with the resolution of
+	   1/10 degree (plus the old raw reading from the sensor). The
+	   conversion is done according to the table that Gerry sent me a few
+	   weeks ago. The table appears at the front of app.cc and can be
+	   easily edited as needed.  You can modify the table by replacing an
+	   entry or entering a new entry between a pair of existing entries.
+	   Remember that the values (in both columns) must be monotonically
+	   increasing for the interpolation algorithm to work.
+
+	2. There is a new (argument-less) command named run. It starts periodic
+	   temperature reports every second in a CSV format which can be pasted
+	   into a spreadsheet file (I guess). You stop the reports by entering
+ 	   any command.
+
+	Wrote a trivial praxis for my septic tank sensor (PROPRIETARY/ST).
+	Previously, I was using eco_demo which 1) was an overkill, 2) required
+	a PC for the readouts. Now I can tell what is going on just by looking
+	at the LEDS of the "master node".
+
+	Fixed the permission script to classify files staring with #!/usr...
+	as executables. Previously, only files starting with #!/bin... were
+	classified as such.
+
+	Fixed a minor and irrelevant bug in piter.

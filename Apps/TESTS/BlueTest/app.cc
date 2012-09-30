@@ -22,7 +22,7 @@
 #include "plug_null.h"
 #include "ab.h"
 // We will try to live with this
-#define	LINE_LENGTH	(CC1100_MAXPLEN - 4)
+#define	LINE_LENGTH	(CC1100_MAXPLEN - 6)
 #define	UART_BT		UART_A
 #endif
 

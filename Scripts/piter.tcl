@@ -887,7 +887,7 @@ proc sy_exit { } {
 
 proc pt_abort { ln } {
 
-	tk_dialog "Abort!" "Fatal error: ${msg}!" "" 0 "OK"
+	tk_dialog .abert "Abort!" "Fatal error: ${msg}!" "" 0 "OK"
 	sy_exit
 }
 

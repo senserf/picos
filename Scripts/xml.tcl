@@ -3,6 +3,8 @@ package provide xml 1.0
 # Mini XML parser. Copyright (C) 2008-11 Olsonet Communications Corporation.
 ###############################################################################
 
+### Last modified PG110519A ###
+
 namespace eval XML {
 
 proc xstring { s } {
