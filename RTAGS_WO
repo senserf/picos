@@ -165,3 +165,10 @@ WO120820A:
     available for VUEE.
   - In mm_demo, STACK_SIZE is updated 256->512.
 
+WO121020A:
+  - PROPRIETARY/tracEd, see tracEd.odt there. Significant update of what 
+    used to be inProgress/trace, which is removed. To be continue.
+  - Cosmetics in mm_demo:
+    - TARP params changed 0xB1 -> 0xA3, for better routing in Paul's exp's.
+    - HID / host_id changes to follow PicOS.
+
