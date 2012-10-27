@@ -16,6 +16,9 @@
 		<sensor number="0" vsize="2" delay="0.01" init="0x1ff">
 			0x0fff
 		</sensor>
+		<actuator number="0" vsize="2" init="0">
+			1024
+		</actuator>
 	    </sensors>
 	</defaults>
 	<node number="0">

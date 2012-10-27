@@ -2140,7 +2140,7 @@ PG120426A:
 	(WARSAW_REFLOW) with this pin assignment:
 
 	THERMOCOUPLE SENSOR (MAX6675):	Vcc=P1.6, SO=P2.2, CS=P2.3, SCK=P2.4
-	OWEN SWITCH: 			P1.7
+	OVEN SWITCH: 			P1.7
 
 	A simple driver for the MAX6675 sensor.
 
@@ -2554,3 +2554,32 @@ PG120930A:
 	classified as such.
 
 	Fixed a minor and irrelevant bug in piter.
+
+PG121027A:
+
+	Extended the XML (xml.tcl) package to provide for accurate parsing of
+	text (an element body) with interspersed other elements. We haven't
+	needed that so far (because our XML data sets never used text items
+	where the interpretation of inner elements would affect the text) until
+	now (for the IRAP kiosk project). The version label for the XML package
+	says PG111008A. There is no such commit (the modification didn't
+	warrant one), so this is just the modification date of the XML package.
+
+	Added a null-modem option to the access point (AP) praxis, i.e., two
+	access points talking to each other. This is nothing really, except
+	that one of the two AP should not operate the AB link in active mode.
+
+	The first tentative version of the REFLOW praxis for Gerry. The praxis
+	is in PROPRIETARY/REFLOW. A brief document is included.
+
+	I have created a PWM driver (files pwm_driver.c pwm_driver.h). The idea
+	is to have an actuator whose value determines the width of a software
+	controlled pulse in a not-too-fast (and not too precise) setup. This is
+	accomplished by a process which pulls a pin one way, then delays for
+	the pulse width interval (a number of PicOS milliseconds, then pulls
+	the pin the other way, and delays for the remaining interval of the
+	period. The default period is one second (1024 ticks). See pwm_driver.c
+	for details. The PWM driver is handy for the REFLOW praxis (or we shall
+	see).
+
+	A few permission fixes (Cygwin sucks).

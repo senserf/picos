@@ -9,8 +9,6 @@
 #ifndef	__SMURPH__
 #include "board_pins.h"
 #else
-#define	owen_on() CNOP
-#define	owen_off() CNOP
 #define	max6675_on() CNOP
 #define	max6675_off() CNOP
 #endif
@@ -23,6 +21,7 @@ heapmem {10, 90};
 
 #define	IBUFLEN		82
 #define	THERMOCOUPLE	0
+#define	OVEN		0
 
 typedef	struct {
 
@@ -175,12 +174,12 @@ fsm root {
 
 	ser_out (RS_BANNER,
 		"\r\nCommands:\r\n"
-		"on    -> owen on\r\n"
-		"off   -> owen off\r\n"
-		"son   -> thermocouple sensor on\r\n"
-		"soff  -> thermocouple sensor off\r\n"
-		"temp  -> read thermocouple sensor\r\n"
-		"run   -> start measurement, stop on any input\r\n"
+		"on [v]    -> oven on\r\n"
+		"off       -> oven off\r\n"
+		"son       -> thermocouple sensor on\r\n"
+		"soff      -> thermocouple sensor off\r\n"
+		"temp      -> read thermocouple sensor\r\n"
+		"run       -> start measurement, stop on any input\r\n"
 	);
 
   state RS_RCMD:
@@ -196,7 +195,7 @@ fsm root {
 
 	switch (ibuf [0]) {
 
-		case 'o' : proceed RS_OWEN;
+		case 'o' : proceed RS_OVEN;
 		case 's' : proceed RS_SENSOR;
 		case 't' : proceed RS_TEMP;
 		case 'r' : proceed RS_RUN;
@@ -207,15 +206,19 @@ fsm root {
 	ser_out (RS_ERR, "Illegal command\r\n");
 	proceed RS_BANNER;
 
-  state RS_OWEN:
+  state RS_OVEN:
 
-	if (ibuf [1] == 'n')
-		owen_on ();
-	else if (ibuf [1] == 'f')
-		owen_off ();
-	else
+	if (ibuf [1] == 'n') {
+		val = 1024;
+		scan (ibuf + 2, "%u", &val);
+		if (val > 1024)
+			val = 1024;
+	} else if (ibuf [1] == 'f') {
+		val = 0;
+	} else
 		proceed RS_ERR;
 
+	write_actuator (WNONE, OVEN, &val);
 	proceed RS_RCMD;
 
   state RS_SENSOR:

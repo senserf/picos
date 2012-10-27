@@ -1,8 +1,14 @@
 #include "sysio.h"
 #include "max6675.h"
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2012                           */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
 
 void max6675_read (word st, const byte *junk, address val) {
-
+//
+// MAX6675 thermocouple read
+//
 	word res;
 	int i;
 

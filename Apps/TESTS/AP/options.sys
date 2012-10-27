@@ -5,3 +5,6 @@
 
 #undef 	UART_RATE
 #define	UART_RATE	9600
+
+// Uncomment this for a null modem's second end
+// #define	AB_LINK_MODE	AB_MODE_PASSIVE

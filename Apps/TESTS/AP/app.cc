@@ -25,6 +25,12 @@ heapmem {10, 90};
 // 4 bytes are needed for XRS header
 #define	UBUFLEN		(MAXPLEN-4)
 
+#ifndef	AB_LINK_MODE
+// We are in charge of the link by default. Define this as AB_MODE_PASSIVE, if
+// you are implementing a null wireless modem on the other side.
+#define	AB_LINK_MODE	AB_MODE_ACTIVE
+#endif
+
 // ============================================================================
 
 fsm receiver {
@@ -70,7 +76,7 @@ fsm root {
 	tcv_control (sfd, PHYSOPT_RXON, NULL);
 	ab_init (sfd);
 	// We are in charge of the link
-	ab_mode (AB_MODE_ACTIVE);
+	ab_mode (AB_LINK_MODE);
 	runfsm receiver;
 
   state RS_GREATING:

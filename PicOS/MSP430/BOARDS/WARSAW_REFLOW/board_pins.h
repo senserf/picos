@@ -3,14 +3,6 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-//
-//	P1.6	= Vcc sen
-//	P1.7	= Switch
-//	P2.2	= SO
-//	P2.3	= CS
-//	P2.4	= SCK
-//
-
 #define	PIN_DEFAULT_P1DIR	0xC0
 #define	PIN_DEFAULT_P2DIR	0x9F	// 0,1 and 7 hang loose
 #define	PIN_DEFAULT_P3DIR	0xC9
@@ -30,18 +22,23 @@
 #define	PIN_DAC_PINS		0
 
 #include "max6675.h"
+#include "pwm_driver.h"
 #include "analog_sensor.h"
 #include "sensors.h"
+#include "actuators.h"
 
 #define	SENSOR_LIST { \
-		INTERNAL_TEMPERATURE_SENSOR,	\
-		INTERNAL_VOLTAGE_SENSOR,	\
-		DIGITAL_SENSOR (0, NULL, max6675_read) \
+		INTERNAL_TEMPERATURE_SENSOR,		\
+		INTERNAL_VOLTAGE_SENSOR,		\
+		DIGITAL_SENSOR (0, NULL, max6675_read)	\
 	}
 
 #define	N_HIDDEN_SENSORS	2
 
-// Pin definitions for SCA3100
+#define	ACTUATOR_LIST { \
+		DIGITAL_ACTUATOR (0, pwm_driver_start, pwm_driver_write) \
+	}
+
 #define	max6675_bring_down	do { \
 					_BIC (P1OUT, 0x40); \
 					_BIS (P2DIR, 0x04); \
@@ -64,6 +61,7 @@
 
 #define	SENSOR_ANALOG		// To make sure analog sensors are processed
 #define	SENSOR_DIGITAL		// To make sure digital sensors are processed
+#define	ACTUATOR_DIGITAL	// Not needed at present, but may be later
 
-#define	owen_on()		_BIS (P1OUT, 0x80)
-#define	owen_off()		_BIC (P1OUT, 0x80)
+#define	pwm_output_on		_BIS (P1OUT, 0x80)
+#define	pwm_output_off		_BIC (P1OUT, 0x80)

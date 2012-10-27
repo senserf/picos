@@ -17,7 +17,7 @@
 #include "irq_timer_leds.h"
 #endif
 
-#ifdef PRAXIS_IRQ_TIMER
+#ifdef BOARD_IRQ_TIMER
 #include "board_irq_timer.h"
 #endif
 
