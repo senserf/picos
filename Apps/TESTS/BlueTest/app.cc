@@ -46,6 +46,7 @@ static char cmbuf [LINE_LENGTH];	// Command buffer (BT output)
 static char scbuf [LINE_LENGTH];	// Secondary command buffer
 static void (*bt_readf) (const char*);	// Function to interpete BT input
 static char *cmdl;			// List of commands to run
+static word bcint = 1024;		// Beacon interval
 
 // The secondary buffer is used, e.g., for command verification, whereby a
 // different command may have to be interjected to check for the effects of
@@ -1060,6 +1061,26 @@ FactoryDone:
 
 // ============================================================================
 
+fsm bt_beacon {
+
+	word cnt;
+
+	state INIT:
+
+		wl_u ("any command stops");
+		cnt = 0;
+
+	state LOOP:
+
+		cnt++;
+		form (scbuf, "%d", cnt);
+		wl_u (scbuf);
+		wl_b (cmbuf);
+		delay (bcint, LOOP);
+}
+
+// ============================================================================
+
 static sint skipb () {
 	while (isspace (*iparse)) iparse++;
 	return *iparse;
@@ -1142,6 +1163,8 @@ fsm root {
 #endif
 	wl_u ("Commands:");
 	wl_u ("w string  > write line to module");
+	wl_u ("W string  > write line periodically");
+	wl_u ("I n       > set intvl (msec) for W (def=1024)");
 	wl_u ("r rate    > set rate for module");
 #ifdef	UART_B
 	wl_u ("t rate    > set rate for UART");
@@ -1157,9 +1180,14 @@ fsm root {
 
 	oss_read (RS_RCM, uibuf);
 
+	// In case beacon is running, kill it on any command
+	killall (bt_beacon);
+
 	switch (uibuf [0]) {
 
 	    case 'w': proceed RS_WRI;
+	    case 'W': proceed RS_WRP;
+	    case 'I': proceed RS_WRV;
 	    case 'r': proceed RS_RAT;
 #ifdef	UART_B
 	    case 't': proceed RS_RAU;
@@ -1182,6 +1210,26 @@ fsm root {
 
 	for (k = 1; uibuf [k] == ' '; k++);
 	wl_b (uibuf + k);
+	proceed RS_RCM;
+
+  state RS_WRP:
+
+	for (k = 1; uibuf [k] == ' '; k++);
+	strcpy (cmbuf, uibuf + k);
+
+	runfsm bt_beacon;
+	proceed RS_RCM;
+
+  state RS_WRV:
+
+	n = 1024;
+	scan (uibuf + 1, "%u", &n);
+	if (n < 0)
+		n = 32767;
+	if (n < 256)
+		n = 256;
+
+	bcint = n;
 	proceed RS_RCM;
 
   state RS_RAT:

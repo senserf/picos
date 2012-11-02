@@ -2583,3 +2583,23 @@ PG121027A:
 	see).
 
 	A few permission fixes (Cygwin sucks).
+
+PG121102A:
+
+	Two commands added to the BlueTest praxis as per Wlodek's request:
+
+		W line
+
+		The command periodically writes to the BT module the specified
+		line (akin to a beacon). The default period is 1024 PicOS msecs
+		(or 1 sec). The beacon stops when you enter any command.
+
+		The default period can be changed with:
+
+		I n
+
+		where n is the number of msecs. If the number is less than 256
+		(considered the minimum period), 256 is substituted instead.
+
+	A few cleanups in the PiComp doc. Described the caveats discovered by
+	Wlodek.
