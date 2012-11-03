@@ -172,3 +172,8 @@ WO121020A:
     - TARP params changed 0xB1 -> 0xA3, for better routing in Paul's exp's.
     - HID / host_id changes to follow PicOS.
 
+WO121103A:
+  TracEd: updates after the WiSense presentation & talks with Pawel:
+  - Chronos buzzes in UIoff mode
+  - highlight colors
+  - updated .odt, removed some code comments
