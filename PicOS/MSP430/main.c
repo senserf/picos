@@ -37,7 +37,7 @@ static void	devinit_uart (int);
 // ============================================================================
 // This is clumsy. We need a way to make the second UART configurable
 // dynamically, as it can be shared with SPI, so we need it as a formal
-// device, but we don't want the preinit, freeze auto enable/disable, etc.
+// device, but we don't want the preinit, freeze, auto enable/disable, etc.
 // ============================================================================
 
 #if N_UARTS < 2
@@ -55,8 +55,8 @@ extern void	__bss_end;
 
 #if MAX_DEVICES
 
-// As it happens, on MSP430, UART is the only "device" (a good reason to get
-// rid of the concept)
+// On MSP430, UART is the only "device" (a good reason to get rid of the
+// concept)
 
 const static devinit_t devinit [MAX_DEVICES] = {
 /* === */
@@ -137,8 +137,8 @@ int main (void) {
 #endif
 	// Assume root process identity
 	__pi_curr = (__pi_pcb_t*) fork (root, 0);
-	// Delay root startup for 16 msec to give the drivers a chance to
-	// go first, regardless where they are
+	// Delay root startup for 16 msec to make sure that the drivers go
+	// first
 	delay (16, 0);
 
 	powerup ();
@@ -651,7 +651,6 @@ static word gettav () {
 	word del;
 
 	while (1) {
-		// Majority vote
 		del = TCI_VAL;
 		if (TCI_VAL == del && TCI_VAL == del && TCI_VAL == del)
 			return del;
@@ -1258,6 +1257,27 @@ R_redo:
 #endif
 		case WRITE:
 
+#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_ready)
+			// Transparent BT over UART: ignore all output if BT
+			// not ready
+			if (
+#if N_UARTS > 1
+				// There is a choice of UARTs, have to check if
+				// this is the one
+				u
+#if BLUETOOTH_TRANSPARENT == 0
+				   // BT on UART 0
+				   ==
+#else
+				   // BT on UART 1
+				   !=
+#endif	/* UART 0 or 1 */
+					__pi_uart &&
+#endif	/* Multiple UARTs */
+							// BT must be connected
+							!blue_ready)
+								return 1;
+#endif	/* Transparent BT */
 			if ((u->flags & UART_FLAGS_OUT) == 0) {
 X_redo:
 				u->out = *buf;

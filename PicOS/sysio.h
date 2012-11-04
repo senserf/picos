@@ -105,22 +105,6 @@
 #define	LEDS_BLINKING	0
 #endif
 
-// BLUETOOTH through UART ====================================================
-
-#ifdef	BLUETOOTH_PRESENT
-#undef	BLUETOOTH_PRESENT
-#endif
-
-#if BLUETOOTH_LM20
-#define	BLUETOOTH_PRESENT	BLUETOOTH_LM20
-#endif
-
-#ifdef BLUETOOTH_PRESENT
-#if BLUETOOTH_PRESENT > UART_TCV
-#error "S: Bluetooth on serial requires UART_TCV >= BLUETOOTH_PRESENT"
-#endif
-#endif
-
 // DIAG MESSAGES =============================================================
 
 // If DIAG_MESSAGES is not set, there is no need to worry; otherwise, we have

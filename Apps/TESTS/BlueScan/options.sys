@@ -1,5 +1,12 @@
 // ============================================================================
-// #define BT_MODULE_LINKMATIK
-// #define	BT_MODULE_BT182
-#define	BT_MODULE_BOLUTEK
+#define BT_MODULE_LINKMATIK
+// #define BT_MODULE_BTM182
+// #define BT_MODULE_BOLUTEK
 // ============================================================================
+
+#ifdef	BLUETOOTH_TRANSPARENT
+// Need to undefine this, so we can write commands to the BT UART; otherwise
+// anything we write to the UART while the module is disconnected would be
+// ignored (as it should be in transparent mode)
+#undef	BLUETOOTH_TRANSPARENT
+#endif

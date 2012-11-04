@@ -14,10 +14,6 @@
 #error "S: phys_uart.c can only be compiled when UART_TCV > 0"
 #endif
 
-#ifdef BLUETOOTH_PRESENT
-#include "bluetooth.h"
-#endif
-
 // ============================================================================
 
 #if UART_TCV > 1
@@ -160,11 +156,11 @@ strand (xmtuart, uart_t*)
 		release;
 	}
 
-#ifdef BLUETOOTH_PRESENT
+#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_ready)
 /*
  * Do not send anything (drop packets) if the BlueTooth link is inactive
  */
-#if BLUETOOTH_PRESENT == 1
+#if BLUETOOTH_TRANSPARENT == 0
 	// On the first UART
 	if (UA == __pi_uart && !blue_ready)
 		goto Drop;
@@ -173,7 +169,7 @@ strand (xmtuart, uart_t*)
 	if (UA != __pi_uart && !blue_ready)
 		goto Drop;
 #endif
-#endif /* BLUETOOTH_PRESENT */
+#endif /* BLUETOOTH_TRANSPARENT */
 
 	if (stln < 4 || stln > UA->r_buffl || (stln & 1) != 0)
 		syserror (EREQPAR, "xmtu/length");
@@ -294,11 +290,9 @@ void phys_uart (int phy, int mbs, int which) {
 	// Make sure the checksum is extra
 	mbs += 2;
 
-#ifdef BLUETOOTH_PRESENT
-	if (which == BLUETOOTH_PRESENT - 1) {
-		ini_blue_regs;
+#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_reset)
+	if (which == BLUETOOTH_TRANSPARENT)
 		blue_reset;
-	}
 #endif
 
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
@@ -317,8 +311,8 @@ void phys_uart (int phy, int mbs, int which) {
 		option,
 #endif
 
-#ifdef BLUETOOTH_PRESENT
-			((which == BLUETOOTH_PRESENT - 1) ?
+#ifdef BLUETOOTH_TRANSPARENT
+			((which == BLUETOOTH_TRANSPARENT) ?
 			  INFO_PHYS_UARTB :
 			    INFO_PHYS_UART)
 #else
@@ -934,11 +928,11 @@ strand (xmtuart, uart_t*)
 		release;
 	}
 
-#ifdef BLUETOOTH_PRESENT
+#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_ready)
 /*
  * Do not send anything if the BlueTooth link is inactive
  */
-#if BLUETOOTH_PRESENT == 1
+#if BLUETOOTH_TRANSPARENT == 0
 	// On the first UART
 	if (UA == __pi_uart && !blue_ready)
 		goto Drop;
@@ -948,7 +942,7 @@ strand (xmtuart, uart_t*)
 		goto Drop;
 #endif
 
-#endif /* BLUETOOTH_PRESENT */
+#endif /* BLUETOOTH_TRANSPARENT */
 
 	// Empty line allowed here, even though an empty line cannot be received
 	UA->x_buffl = stln;
@@ -1057,11 +1051,9 @@ void phys_uart (int phy, int mbs, int which) {
 	else if (mbs < 4)
 		mbs = UART_DEF_BUF_LEN;
 
-#ifdef BLUETOOTH_PRESENT
-	if (which == BLUETOOTH_PRESENT - 1) {
-		ini_blue_regs;
+#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_reset)
+	if (which == BLUETOOTH_TRANSPARENT)
 		blue_reset;
-	}
 #endif
 
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
@@ -1081,8 +1073,8 @@ void phys_uart (int phy, int mbs, int which) {
 		option,
 #endif
 
-#ifdef BLUETOOTH_PRESENT
-			((which == BLUETOOTH_PRESENT - 1) ?
+#ifdef BLUETOOTH_TRANSPARENT
+			((which == BLUETOOTH_TRANSPARENT) ?
 			  INFO_PHYS_UARTLB :
 			    INFO_PHYS_UARTL)
 #else

@@ -292,12 +292,6 @@
 #endif
 // ============================================================================
 
-// BlueTooth on serial ========================================================
-#ifndef	BLUETOOTH_LM20
-#define	BLUETOOTH_LM20		0
-#endif
-// ============================================================================
-
 // Operations for accessing INFO flash on MSP430
 #ifndef	INFO_FLASH
 #define	INFO_FLASH		0

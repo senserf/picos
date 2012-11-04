@@ -623,7 +623,7 @@ fsm bt_write {
 
 fsm oss_write {
 //
-// This FSM writes to UART_B
+// This FSM writes to UART_A (UART_B means that BT is on UART_B)
 //
 	char *s;
 

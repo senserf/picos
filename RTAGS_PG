@@ -2603,3 +2603,32 @@ PG121102A:
 
 	A few cleanups in the PiComp doc. Described the caveats discovered by
 	Wlodek.
+
+PG121104A:
+
+	Gerry discovered that writing to the BT UART when the BT module is not
+	connected interferes with connection attempts. I have added code to the
+	UART driver to ignore writes to a BT UART when blue_ready is false.
+	This is a bit trickier than it sounds, because sometimes (in particular
+	in the BlueTest and BlueScan praxes) we HAVE to be able to write to the
+	BT UART (also when disconnected) in order to set up the module.
+
+	The way it works is that there is a constant defined in board_options.h
+	to declare the transparent mode of BT over UART, e.g., this (for
+	WARSAW_BLUE):
+
+		#define	BLUETOOTH_TRANSPARENT	1
+
+	The 1 means that the BT UART is UART 1, i.e., the second UART. The same
+	constant is set to 0 in CC430W_BLUE. When this constant is defined,
+	both the UART driver, as well as phys_uart (for modes N and L), will
+	ignore all writes to the device until blue_ready (the connected signal
+	from the module) becomes true.
+
+	Praxes BlueTest and BlueScan switch that off (so they can issue
+	commands to the module) by undefining the constant in their private
+	options.sys. Note to Gerry: if you want to test connections in the
+	transparent mode, you can remove the #undef command from options.sys 
+	(commenting out #undef BLUETOOTH_TRANSPARENT). You can then issue W
+	and so on, testing connection attempts, but you won't be able to
+	re-initialize the module until you put the #undef statement back.

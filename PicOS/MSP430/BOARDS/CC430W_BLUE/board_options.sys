@@ -26,6 +26,7 @@
 #define UART_DRIVER		1
 #define	UART_RATE_SETTABLE	1
 #define	UART_FROM_SMCLK		1
+#define	BLUETOOTH_TRANSPARENT	0	// BT on UART 0
 #define	RADIO_USE_LEDS		7
 
 #define CC1100			1
