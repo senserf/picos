@@ -2637,3 +2637,8 @@ PG121106A:
 
 	Fixed a problem with the PWM driver/actuator configuration for the
 	REFLOW praxis. The oven actuator didn't work, but it should be OK now.
+
+PG121106B:
+
+	Added the -H argument for PiComp (see the doc) as a hook allowing PIP
+	to request the inclusion of board_options.sys for VUEE compilation.

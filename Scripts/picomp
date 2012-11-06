@@ -3903,7 +3903,7 @@ proc compile_pgm { } {
 #
 # Compile one program
 #
-	global PG PCN Pgm SFList ToCompile Processed NotFound TDIR EXEC FG DF
+	global PG PCN Pgm SFList ToCompile Processed NotFound TDIR EXEC FG DF HF
 
 	# list of handled files
 	set SFList ""
@@ -3968,9 +3968,25 @@ proc compile_pgm { } {
 			lappend pre "#define PGMLABEL $pg"
 			lappend pre "#define PGMLABEL_$pg"
 		}
-		# note that the last line of prelude is empty, as it
-		# should be
+
+		# The prelude format is:
+		#
+		# 	line line line ... "" fname fname fname ...
+		#
+		# where line(s) are individual lines (mostly defines) to be
+		# prepended to the compiled files, while fname(s) are the names
+		# of extra headers to be precompiled in front of the file, but
+		# following the prelude lines.
+
 		set pre [concat $pre [split [emit_thrname] "\n"]]
+
+		if [info exists HF(+)] {
+			set pre [concat $pre $HF(+)]
+		}
+
+		if { $pg != "" && [info exists HF($pg)] } {
+			set pre [concat $pre $HF($pg)]
+		}
 
 		set exp [scanfile $cfn 1 $pre]
 
@@ -4416,14 +4432,19 @@ proc scanfile { fname inner { prelude "" } } {
 	set ifstack($ifnest) "0"
 
 	# the output
-	set res [lnumseq [list 1 $CFName]]
+	set res [slineseq]
 
 	while 1 {
 
 		if { $prelude == "" } {
 			if { [gets $fd line] < 0 } {
 				if { $ifnest > 0 } {
-					swarn "#endif missing"
+					if { $ifnest > 1 } {
+						set ar "$ifnest #endifs"
+					} else {
+						set ar "one #endif"
+					}
+					swarn "$ar missing"
 				}
 				break
 			}
@@ -4434,7 +4455,13 @@ proc scanfile { fname inner { prelude "" } } {
 			# stays at line 0
 			set line [lindex $prelude 0]
 			if { $line == "" } {
-				# a prelude ends with an empty line
+				# empty line ends the defines and gets us to
+				# the list of extra headers
+				set jk $CFName
+				foreach fm [lrange $prelude 1 end] {
+					append res [scanfile $fm 0]
+				}
+				set CFName $jk
 				set prelude ""
 				set FLine 1
 				append res "[slineseq]"
@@ -6169,6 +6196,7 @@ proc usage { } {
 
 	puts stderr "Usage: $pgname \[-p|-v\] \[-n\] \[-e\] \[-V\] \[-A\]\
 		\[-- vuee args\]"
+	puts stderr "       -V  -> print version number and exit"
 	puts stderr "       -p  -> PicOS compiler (used as a filter)"
 	puts stderr "       -v  -> VUEE compiler (the default)"
 	puts stderr "       -i  -> make all non-static funcs idiosyncratic"
@@ -6179,7 +6207,7 @@ proc usage { } {
 	puts stderr "       --  -> subsequent args passed to vuee"
 	puts stderr "       -n together with -e shows VUEE_TMP status"
 	puts stderr "       -Dsym, -Dpgm+sym, -Dsym=val, -Dpgm+sym=val"
-	puts stderr "       -V  -> print version number and exit"
+	puts stderr "       -Hfile, -Hpgm+file"
 	exit 99
 }
 
@@ -6219,12 +6247,16 @@ proc parse_def_arg { a } {
 #
 # Parse a -D argument (see "usage")
 #
-	global DF
+	global DF HF
 
 	set pgm "+"
 	set val ""
 
-	if ![regexp "^-D" $a] {
+	if [regexp "^-D" $a] {
+		set xf "DF"
+	} elseif [regexp "^-H" $a] {
+		set xf "HF"
+	} else {
 		return 1
 	}
 
@@ -6235,27 +6267,43 @@ proc parse_def_arg { a } {
 		set a [string range $a [string length $mat] end]
 	}
 
-	if ![regexp -nocase "^\[a-z0-9_$\]+" $a sym] {
-		return 1
-	}
-
-	if ![iskwd $sym] {
-		return 1
-	}
-
-	set a [string range $a [string length $sym] end]
-
-	if { $a != "" } {
-		if ![regexp "^=(.*)" $a mat val] {
+	if { $xf == "DF" } {
+		# defines
+		if ![regexp -nocase "^\[a-z0-9_$\]+" $a sym] {
 			return 1
 		}
-	}
 
-	if ![info exists DF($pgm)] {
-		set DF($pgm) ""
-	}
+		if ![iskwd $sym] {
+			return 1
+		}
 
-	lappend DF($pgm) [list $sym $val]
+		set a [string range $a [string length $sym] end]
+
+		if { $a != "" } {
+			if ![regexp "^=(.*)" $a mat val] {
+				return 1
+			}
+		}
+
+		if ![info exists DF($pgm)] {
+			set DF($pgm) ""
+		}
+
+		lappend DF($pgm) [list $sym $val]
+
+	} else {
+		# extra includes
+		if ![file isfile $a] {
+			puts stderr "Extra header file $a does not exist!"
+			return 1
+		}
+
+		if ![info exists HF($pgm)] {
+			set HF($pgm) ""
+		}
+
+		lappend HF($pgm) $a
+	}
 
 	return 0
 }
