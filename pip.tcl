@@ -547,6 +547,25 @@ proc dospath { fn } {
 	return $fn
 }
 
+proc unipath { fn } {
+#
+# Converts the file path to UNIX for the occasion of passing it to a program 
+# that we know requires UNIX paths
+#
+	global ST
+
+	set fn [fpnorm $fn]
+	if { $ST(SYS) == "L" || !$ST(DP) } {
+		return $fn
+	}
+	if ![catch { xq "cygpath" [list $fn] } fm] {
+		log "Path (D->L): $fn -> $fm"
+		return $fm
+	}
+	log "cygpath failed: $fn, $fm"
+	return $fn
+}
+
 proc cw { } {
 #
 # Returns the window currently in focus or null if this is the root window
@@ -3870,6 +3889,17 @@ proc board_list { cpu } {
 		}
 	}
 	return [lsort $r]
+}
+
+proc board_opts { bo } {
+#
+# Returns the file name of the board options file
+#
+	set fn [file join [boards_dir] $bo "board_options.sys"]
+	if [file isfile $fn] {
+		return $fn
+	}
+	return ""
 }
 
 proc do_board_selection { } {
@@ -7879,10 +7909,20 @@ proc do_make_vuee { { arg "" } } {
 				set arg [linsert $arg 0 \
 					"-D${suf}+BOARD_$b" \
 					"-D${suf}+BOARD_TYPE=$b"]
+				set fn [board_opts $b]
+				if { $fn != "" } {
+					set arg [linsert $arg 0 \
+						"-H${suf}+[unipath $fn]"]
+				}
 				incr bi
 			}
 		} else {
 			set ar [linsert $arg 0 "-DBOARD_$bo" "-DBOARD_TYPE=$bo"]
+			set fn [board_opts $bo]
+			if { $fn != "" } {
+				set arg [linsert $arg 0 \
+					"-H${suf}+[unipath $fn]"]
+			}
 		}
 	}
 

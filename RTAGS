@@ -618,3 +618,9 @@ PG120917A:	SIDE >= PG120917A, VUEE >= PG120917A
 
 	The image loader is now auto-configured to a default if the user hasn't
 	configured it explicitly.
+
+PG121106A:	PICOS >= PG121106B
+
+	PIP now makes sure to (implicitly) include board_options.sys for the
+	program(s) of a VUEE-compiled praxis, if the target board(s) is(are)
+	defined.
