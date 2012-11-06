@@ -20,7 +20,7 @@ typedef	struct {
 // This may be temporary. For now, we only need "digital" actuators without
 // initialization parameters. If we ever need anything else, say DAC actuators,
 // we will redo things slightly, along the line of sensors.
-#define	DIGITAL_ACTUATOR(a,b,c)	ACTUATOR_DEF (c, b)
+#define	DIGITAL_ACTUATOR(a,b,c)	ACTUATOR_DEF (b, c)
 
 void write_actuator (word, sint, address);
 

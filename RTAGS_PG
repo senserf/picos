@@ -2632,3 +2632,8 @@ PG121104A:
 	(commenting out #undef BLUETOOTH_TRANSPARENT). You can then issue W
 	and so on, testing connection attempts, but you won't be able to
 	re-initialize the module until you put the #undef statement back.
+
+PG121106A:
+
+	Fixed a problem with the PWM driver/actuator configuration for the
+	REFLOW praxis. The oven actuator didn't work, but it should be OK now.

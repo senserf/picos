@@ -62,6 +62,7 @@
 #define	SENSOR_ANALOG		// To make sure analog sensors are processed
 #define	SENSOR_DIGITAL		// To make sure digital sensors are processed
 #define	ACTUATOR_DIGITAL	// Not needed at present, but may be later
+#define	ACTUATOR_INITIALIZERS
 
 #define	pwm_output_on		_BIS (P1OUT, 0x80)
 #define	pwm_output_off		_BIC (P1OUT, 0x80)

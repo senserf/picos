@@ -1060,6 +1060,10 @@ static void ios_init () {
 	__pi_init_sensors ();
 #endif
 
+#ifdef	ACTUATOR_INITIALIZERS
+	__pi_init_actuators ();
+#endif
+
 #ifdef	EXTRA_INITIALIZERS
 	// Extra initialization (praxis-dependent)
 	EXTRA_INITIALIZERS;
