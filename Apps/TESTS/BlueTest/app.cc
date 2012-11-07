@@ -1106,6 +1106,10 @@ sint scanstr (char *t, sint len) {
 	return 1;
 }
 
+static void transparent (sint mode) {
+	ion (UART_BT, CONTROL, (char*)(&mode), UART_CNTRL_TRANSPARENT);
+}
+
 // ============================================================================
 
 fsm root {
@@ -1133,6 +1137,8 @@ fsm root {
 	ab_mode (AB_MODE_PASSIVE);
 #endif
 	ion (UART_BT, CONTROL, (char*)(&n), UART_CNTRL_GETRATE);
+	// Non-transparent UART mode
+	transparent (0);
 	// Do not use rates below 9600
 	if ((min_rate_index = rate_index (96)) < 0) {
 		wl_u ("Rate 9600 is not available!");
@@ -1172,6 +1178,7 @@ fsm root {
 	wl_u ("e [|0|1]  > escape");
 	wl_u ("a         > reset");
 	wl_u ("s         > view status flag");
+	wl_u ("T [|0|1]  > transparent mode");
 	wl_u ("D         > auto discover rate");
 	wl_u ("S r n p m > preset rate name pin mode=uart|sniffer");
 	wl_u ("p [0|1]   > power (down|up)");
@@ -1195,6 +1202,7 @@ fsm root {
 	    case 'e': proceed RS_ESC;
 	    case 'a': proceed RS_RES;
 	    case 's': proceed RS_ATT;
+	    case 'T': proceed RS_TRA;
 	    case 'p': proceed RS_POW;
 	    case 'D': proceed RS_DIS;
 	    case 'S': proceed RS_PRE;
@@ -1303,8 +1311,16 @@ EClear:
 	wl_u (uibuf);
 	proceed RS_RCM;
 
+  state RS_TRA:
+
+	n = 1;
+	scan (uibuf + 1, "%d", &n);
+	transparent (n);
+	proceed RS_RCM;
+
   state RS_DIS:
 
+	transparent (0);
 	wl_u ("Scanning for bit rate");
 	join (runfsm bt_findrate, RS_DID_DONE);
 	release;
@@ -1349,6 +1365,8 @@ EClear:
 
 	form (uibuf, "RATE: %d00 [%d], name: %s, pin: %s, mode: %c",
 		n, new_rate_index, new_name, new_pin, p);
+
+	transparent (0);
 
 	wl_u (uibuf);
 

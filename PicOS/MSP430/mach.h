@@ -520,6 +520,7 @@ extern uart_t __pi_uart [];
 
 #define	UART_FLAGS_IN		0x80
 #define	UART_FLAGS_OUT		0x40
+#define	UART_FLAGS_NOTRANS	0x20
 
 #endif	/* UART_DRIVER */
 

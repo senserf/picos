@@ -24,7 +24,8 @@
 #define	UAFLG_ROFF		0x08		// RCV off
 #define	UAFLG_UNAC		0x10		// Last out message unacked
 #define	UAFLG_SACK		0x20		// Send ACK ASAP
-// Bits 0x40, 0x80 are available
+#define	UAFLG_NOTR		0x40		// Non-transparent BT (L-mode)
+// Bit 0x80 is available
 
 
 #define	TXEVENT			((word)(&(UA->x_buffer)))

@@ -2642,3 +2642,26 @@ PG121106B:
 
 	Added the -H argument for PiComp (see the doc) as a hook allowing PIP
 	to request the inclusion of board_options.sys for VUEE compilation.
+
+PG121107A:
+
+	The transparent BT mode has been made switchable from the praxis. I 
+	have removed the constant BLUETOOTH_TRANSPARENT (introduced in
+	PG121104A) replacing it with BLUETOOTH_UART (which now merely indicates
+	which UART is connected to the BT module). There is no need to play
+	tricks with this constant in BlueTest (to operate the UART in
+	non-transparent mode). The praxis issues this call:
+
+		ion (UART_BT, CONTROL, (char*)(&mode), UART_CNTRL_TRANSPARENT);
+
+	where mode is an int value. If that value is zero, the UART/BT is put
+	into non-transparent mode, so the praxis can control the module. If
+	mode is nonzero, the (default) transparent mode is resumed. This extra
+	CONTROL request is only available when a BT module is configured into
+	the system.
+
+	I have added a command to BlueTest to toggle the transparent mode (see
+	the document). Gerry, you don't have to worry about anything. Things
+	work as before (by default). There is no need to recompile BlueTest
+	for tests with commented out #undef BLUETOOTH_TRANSPARENT. You can
+	switch the transparent mode on and off from the praxis.

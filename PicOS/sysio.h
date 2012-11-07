@@ -753,6 +753,7 @@ void	dbb (word);
 // None of these can be zero
 #define	UART_CNTRL_SETRATE	1
 #define	UART_CNTRL_GETRATE	2
+#define	UART_CNTRL_TRANSPARENT	3
 
 #define	LCD_CNTRL_POS		1	/* Position (SEEK) */
 #define	LCD_CNTRL_ERASE		2	/* Clear */
@@ -827,6 +828,8 @@ void	dbb (word);
 
 #define	PHYSOPT_RESET		25	/* Reset the radio */
 #define	PHYSOPT_RXWOR		26	/* Wake-on-radio mode */
+
+#define	PHYSOPT_TRANSPARENT	27
 
 typedef	struct {
 /*

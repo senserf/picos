@@ -1261,25 +1261,25 @@ R_redo:
 #endif
 		case WRITE:
 
-#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_ready)
-			// Transparent BT over UART: ignore all output if BT
-			// not ready
+#if defined(blue_ready) && defined(BLUETOOTH_UART)
+			// Bluetooth on UART
 			if (
 #if N_UARTS > 1
 				// There is a choice of UARTs, have to check if
 				// this is the one
 				u
-#if BLUETOOTH_TRANSPARENT == 0
+#if BLUETOOTH_UART == 0
 				   // BT on UART 0
 				   ==
 #else
 				   // BT on UART 1
 				   !=
 #endif	/* UART 0 or 1 */
-					__pi_uart &&
+				      __pi_uart &&
 #endif	/* Multiple UARTs */
-							// BT must be connected
-							!blue_ready)
+					(u->flags & UART_FLAGS_NOTRANS) == 0 &&
+					  // BT must be connected
+					  !blue_ready)
 								return 1;
 #endif	/* Transparent BT */
 			if ((u->flags & UART_FLAGS_OUT) == 0) {
@@ -1322,6 +1322,16 @@ X_redo:
 				*((word*)buf) = __pi_uart_getrate (u);
 				return 1;
 			}
+#ifdef blue_ready
+			if (len == UART_CNTRL_TRANSPARENT) {
+				if (*((word*)buf))
+					_BIC (u->flags, UART_FLAGS_NOTRANS);
+				else
+					_BIS (u->flags, UART_FLAGS_NOTRANS);
+				return 1;
+			}
+#endif
+
 #endif
 			/* Fall through */
 		default:

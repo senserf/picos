@@ -156,11 +156,11 @@ strand (xmtuart, uart_t*)
 		release;
 	}
 
-#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_ready)
-/*
- * Do not send anything (drop packets) if the BlueTooth link is inactive
- */
-#if BLUETOOTH_TRANSPARENT == 0
+#if defined(blue_ready) && defined(BLUETOOTH_UART)
+// Do not send anything (drop packets) if the BlueTooth link is inactive.
+// N mode doesn't implement non-transparent (command) mode of BT UART (only L
+// mode can do that).
+#if BLUETOOTH_UART == 0
 	// On the first UART
 	if (UA == __pi_uart && !blue_ready)
 		goto Drop;
@@ -169,7 +169,7 @@ strand (xmtuart, uart_t*)
 	if (UA != __pi_uart && !blue_ready)
 		goto Drop;
 #endif
-#endif /* BLUETOOTH_TRANSPARENT */
+#endif /* BLUETOOTH_UART */
 
 	if (stln < 4 || stln > UA->r_buffl || (stln & 1) != 0)
 		syserror (EREQPAR, "xmtu/length");
@@ -290,8 +290,8 @@ void phys_uart (int phy, int mbs, int which) {
 	// Make sure the checksum is extra
 	mbs += 2;
 
-#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_reset)
-	if (which == BLUETOOTH_TRANSPARENT)
+#if defined(blue_reset) && defined(BLUETOOTH_UART)
+	if (which == BLUETOOTH_UART)
 		blue_reset;
 #endif
 
@@ -311,8 +311,8 @@ void phys_uart (int phy, int mbs, int which) {
 		option,
 #endif
 
-#ifdef BLUETOOTH_TRANSPARENT
-			((which == BLUETOOTH_TRANSPARENT) ?
+#ifdef BLUETOOTH_UART
+			((which == BLUETOOTH_UART) ?
 			  INFO_PHYS_UARTB :
 			    INFO_PHYS_UART)
 #else
@@ -928,21 +928,20 @@ strand (xmtuart, uart_t*)
 		release;
 	}
 
-#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_ready)
-/*
- * Do not send anything if the BlueTooth link is inactive
- */
-#if BLUETOOTH_TRANSPARENT == 0
+#if defined(blue_ready) && defined(BLUETOOTH_UART)
+// Do not send the line to BT unless connected (or in non-transparent mode)
+	if (UA
+#if BLUETOOTH_UART == 0
 	// On the first UART
-	if (UA == __pi_uart && !blue_ready)
-		goto Drop;
+		==
 #else
-	// On the second UART
-	if (UA != __pi_uart && !blue_ready)
-		goto Drop;
+		!=
 #endif
+		   __pi_uart && !blue_ready && (UA->v_flags & UAFLG_NOTR) == 0)
 
-#endif /* BLUETOOTH_TRANSPARENT */
+			goto Drop;
+
+#endif /* blue_ready */
 
 	// Empty line allowed here, even though an empty line cannot be received
 	UA->x_buffl = stln;
@@ -1051,8 +1050,8 @@ void phys_uart (int phy, int mbs, int which) {
 	else if (mbs < 4)
 		mbs = UART_DEF_BUF_LEN;
 
-#if defined(BLUETOOTH_TRANSPARENT) && defined(blue_reset)
-	if (which == BLUETOOTH_TRANSPARENT)
+#if defined(BLUETOOTH_UART) && defined(blue_reset)
+	if (which == BLUETOOTH_UART)
 		blue_reset;
 #endif
 
@@ -1073,8 +1072,8 @@ void phys_uart (int phy, int mbs, int which) {
 		option,
 #endif
 
-#ifdef BLUETOOTH_TRANSPARENT
-			((which == BLUETOOTH_TRANSPARENT) ?
+#ifdef BLUETOOTH_UART
+			((which == BLUETOOTH_UART) ?
 			  INFO_PHYS_UARTLB :
 			    INFO_PHYS_UARTL)
 #else

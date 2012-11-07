@@ -427,8 +427,13 @@ void bscan_stop () {
 void bscan_start (Boolean (*q)(const bscan_item_t*)) {
 
 	bscan_item_t *p;
+	sint mode;
 
 	bscan_stop ();
+
+	// Non-transparent mode
+	mode = 0;
+	ion (BT_UART, CONTROL, (char*)(&mode), UART_CNTRL_TRANSPARENT);
 
 	// Zero out cache
 
