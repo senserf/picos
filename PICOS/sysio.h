@@ -2,7 +2,15 @@
 #define	__sysio_h__
 
 #include "picos.h"
+
+#ifndef	DONT_INCLUDE_OPTIONS_SYS
+// This is a legacy feature to provide for the brute-force inclusion of
+// options.sys where the module options can be defined for those programs
+// that are not compiled with picomp.
 #include "options.sys"
+#endif
+
+#include "modsyms.h"
 
 // ============================================================================
 
@@ -19,54 +27,14 @@
 #undef	TCV_PRESENT
 #endif
 
-#ifndef	CODE_LONG_INTS
-#define	CODE_LONG_INTS	1
-#endif
+// This must be overriden unconditionally because TCV is always compiled in
+#define	TCV_PRESENT	1
 
 #define	CRC_ISO3309	1
 
-// This must be overriden because TCV is always compiled in
-#define	TCV_PRESENT	1
-
-#ifndef	UART_TCV
-#define	UART_TCV		0
-#endif
-
-#ifndef	UART_TCV_MODE
-#define	UART_TCV_MODE		UART_TCV_MODE_N
-#endif
-
-#define	UART_TCV_MODE_N		0	// Non-persisitent packets
+#define	UART_TCV_MODE_N		0	// Non-persistent packets
 #define	UART_TCV_MODE_P		1	// Built-in ACKs
 #define	UART_TCV_MODE_L		2	// Lines
-
-#ifndef	CC1000
-#define	CC1000 0
-#endif
-#ifndef	CC1100
-#define	CC1100 0
-#endif
-#ifndef	DM2200
-#define	DM2200 0
-#endif
-#ifndef	ETHERNET_DRIVER
-#define	ETHERNET_DRIVER 0
-#endif
-#ifndef	UART_TCV
-#define	UART_TCV 0
-#endif
-#ifndef	RADIO_OPTIONS
-#define RADIO_OPTIONS	0
-#endif
-#ifndef	RADIO_CRC_MODE
-#define	RADIO_CRC_MODE	0
-#endif
-#ifndef RADIO_LBT_RETRY_LIMIT
-#define	RADIO_LBT_RETRY_LIMIT	0
-#endif
-#ifndef DUMP_MEMORY
-#define	DUMP_MEMORY	0
-#endif
 
 #define	PHYSID			0
 #define	MINIMUM_PACKET_LENGTH	4
@@ -99,14 +67,6 @@
 #define	TCV_MAX_DESC		4
 #define	TCV_MAX_PHYS		2
 #define	TCV_MAX_PLUGS		3
-
-#ifndef	TCV_LIMIT_RCV
-#define	TCV_LIMIT_RCV		0
-#endif
-
-#ifndef	TCV_LIMIT_XMT
-#define	TCV_LIMIT_XMT		0
-#endif
 
 #define	PHYSOPT_PLUGINFO	(-1)	/* These two are kind of special */
 #define	PHYSOPT_PHYSINFO	(-2)

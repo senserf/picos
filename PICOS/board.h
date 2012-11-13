@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.98
+#define	VUEE_VERSION	0.99
 
 #include "picos.h"
 #include "ndata.h"
@@ -787,7 +787,7 @@ process p_uart_xmt_l : _PP_ (PicOSNode) {
 
 process	BoardRoot {
 
-	data_no_t *readNodeParams (sxml_t, int, const char*);
+	data_no_t *readNodeParams (sxml_t, int, const char*, const char*);
 	data_ua_t *readUartParams (sxml_t, const char*);
 	data_pn_t *readPinsParams (sxml_t, const char*);
 	data_sa_t *readSensParams (sxml_t, const char*);
@@ -797,7 +797,7 @@ process	BoardRoot {
 
 	void initTiming (sxml_t);
 	int initChannel (sxml_t, int, Boolean);
-	void initNodes (sxml_t, int, int);
+	void initNodes (sxml_t, int, int, const char*[], const char*[], int);
 	void initPanels (sxml_t);
 	void initRoamers (sxml_t);
 	void initAgent (sxml_t);

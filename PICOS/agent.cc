@@ -15,8 +15,15 @@
 #define	omode(f)	((f) & XTRN_OMODE_MASK)
 
 word	__pi_Agent_Port	= AGENT_SOCKET;
-char	*__pi_XML_Data = NULL,	// Copy of complete XML data file (includes in)
-	*__pi_BGR_Image = NULL;	// File name or ROAMER's background image
+
+// Copy of complete original XML data file (all includes in)
+char	*__pi_XML_Data,
+// Supplementary data, i.e., board-specific <node> defaults
+	*__pi_XML_Suppl,
+// File name of ROAMER's background image
+	*__pi_BGR_Image;
+
+int	__pi_XML_Data_Length, __pi_XML_Suppl_Length;
 
 static MUpdates *MUP = NULL,	// To signal mobility updates
 		*PUP = NULL;	// To signal panel updates
@@ -85,7 +92,7 @@ static char *sigseq (PicOSNode *pn) {
 			pn->getTName ());
 }
 
-static char *rdfile (const char *fn, int &Len) {
+char *__pi_rdfile (const char *fn, int &Len) {
 //
 // Read the contents of file into memory
 //
@@ -128,6 +135,9 @@ G_err:
 		free (f);
 		f = NULL;
 	}
+
+	// In case we have grabbed way too much
+	f = (char*) realloc (f, Len);
 
 	return f;
 }
@@ -378,7 +388,7 @@ process DataSender {
 	char	*Buf;
 	int	Length;
 
-	states { AckData, Send, Wait, Kill };
+	states { AckData, Send_d, Send_s, Wait, Kill };
 
 	void setup (Dev*);
 
@@ -1575,14 +1585,14 @@ ReDo:
 			// non-socked (absent) interface
 			return;
 
-		// Should collect the bytes to present them once we get
+		// Have to collect the bytes to present them once we get
 		// connected
 
 		Assert (I == NULL, "UART at %s: I != NULL while O == NULL",
 			TheStation->getSName ());
 
 		// Under the circumstances, we can recycle TI_aux for the
-		// temporary buffer. We shall flush it forcibly when we get
+		// temporary buffer. We shall flush it as soon as we get
 		// the mailbox.
 
 		if (TI_aux == NULL) {
@@ -1970,7 +1980,6 @@ Term:
 void DataSender::setup (Dev *a) {
 
 	(Agent = a) -> resize (DATA_OUTPUT_BUFLEN);
-	Length = strlen (Buf = __pi_XML_Data);
 }
 
 DataSender::perform {
@@ -1979,7 +1988,8 @@ DataSender::perform {
 
 	state AckData:
 
-		c = htonl (ECONN_OK | (((lword)Length) << 8));
+		c = htonl (ECONN_OK | (((lword)(__pi_XML_Data_Length +
+			__pi_XML_Suppl_Length)) << 8));
 
 		if (Agent->wi (AckData, (char*)(&c), 4) == ERROR) {
 Term:
@@ -1987,10 +1997,24 @@ Term:
 			terminate;
 		}
 
+		// Data goes first
+		Buf = __pi_XML_Data;
+		Length = __pi_XML_Data_Length;
 
-	transient Send:
+	transient Send_d:
 
-		Agent->wl (Send, Buf, Length);
+		Agent->wl (Send_d, Buf, Length);
+
+		if (__pi_XML_Suppl_Length == 0)
+			proceed Wait;
+
+		// Supplement
+		Buf = __pi_XML_Suppl;
+		Length = __pi_XML_Suppl_Length;
+
+	transient Send_s:
+
+		Agent->wl (Send_s, Buf, Length);
 
 	transient Wait:
 
@@ -3893,7 +3917,7 @@ MoveHandler::perform {
 		// Check if background image is available
 		if (__pi_BGR_Image != NULL &&
 		    (Flags & XTRN_OMODE_OPTION) &&
-		    (RBuf = rdfile (__pi_BGR_Image, Left)) != NULL) {
+		    (RBuf = __pi_rdfile (__pi_BGR_Image, Left)) != NULL) {
 			if (Left > 0xFFFFFF) {
 				// File too big
 				free (RBuf);

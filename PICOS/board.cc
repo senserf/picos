@@ -57,6 +57,8 @@ struct preinit_s {
 
 typedef struct preinit_s preinit_t;
 
+#define	NFTABLE_SIZE	32
+
 static	preinit_t *PREINITS = NULL;
 
 static	strpool_t *STRPOOL = NULL;
@@ -98,6 +100,19 @@ static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
 	STRPOOL = p;
 
 	return p->STR;
+}
+
+static int nstrcmp (const char *a, const char *b) {
+//
+// String compare that accounts for NULL
+//
+	if (a == NULL)
+		return b != NULL;
+
+	if (b == NULL)
+		return -(a != NULL);
+
+	return strcmp (a, b);
 }
 
 // ============================================================================
@@ -189,9 +204,14 @@ sint _PP_::_pp_apid_ () {
 	
 // ============================================================================
 
-static const char *xname (int nn) {
+static const char *xname (int nn, const char *lab = NULL) {
 
-	return (nn < 0) ? "<defaults>" : form ("node %1d", nn);
+	if (nn < 0) {
+		if (nn < -1)
+			return form ("<defaults--%s>", lab ? lab : "*");
+		return "<defaults>";
+	}
+	return form ("node %1d", nn);
 }
 
 void _dad (PicOSNode, diag) (const char *s, ...) {
@@ -1724,7 +1744,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		xenf ("<rates>", "<network>");
 
 	// This tells us whether we should expect boost factors
-	rmo = (att = sxml_attr (cur, "boost")) != NULL && strcmp (att, "no");
+	rmo = !nstrcmp (sxml_attr (cur, "boost"), "yes");
 	att = sxml_txt (cur);
 
 	if (rmo) {
@@ -2510,7 +2530,8 @@ static void deallocate_ep_def (data_ep_t *ep) {
 	delete ep;
 }
 		 
-data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
+data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
+							   const char *ion) {
 
 	nparse_t np [2 + EP_N_BOUNDS];
 	sxml_t cur, mai;
@@ -2539,7 +2560,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	else if (strcmp (ion, "off") == 0)
 		ND->On = 0;
 	else
-		xeai ("start", "node or defaults", ion);
+		xeai ("start", xname (nn, lab), ion);
 
 	ND->PLimit = WNONE;
 
@@ -2562,10 +2583,13 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 	print ("Node configuration [");
 
-	if (nn < 0)
+	if (nn < 0) {
 		print ("default");
-	else
+		if (nn < 1)
+			print (form ("--%s", lab ? lab : "*"));
+	} else {
 		print (form ("    %3d", nn));
+	}
 	print ("]:\n\n");
 
 /* === */
@@ -2575,7 +2599,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		// Host id
 		np [0] . type = TYPE_LONG;
 		if (parseNumbers (att, 1, np) != 1)
-			xeai ("hid", xname (nn), att);
+			xeai ("hid", xname (nn, lab), att);
 		ND->HID_present = YES;
 		ND->HID = (lword) (np [0] . LVal);
 		print (form ("  HID:        %08X\n", ND->HID));
@@ -2596,11 +2620,11 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	if ((cur = sxml_child (data, "memory")) != NULL) {
 		np [0].type = np [1].type = TYPE_LONG;
 		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xevi ("<memory>", xname (nn), sxml_txt (cur));
+			xevi ("<memory>", xname (nn, lab), sxml_txt (cur));
 		ND->Mem = (word) (np [0] . LVal);
 		if (ND->Mem > 0x00008000)
 			excptn ("Root: <memory> too large (%1d) in %s; the "
-				"maximum is 32768", ND->Mem, xname (nn));
+				"maximum is 32768", ND->Mem, xname (nn, lab));
 		print (form ("  Memory:     %1d bytes\n", ND->Mem));
 		ppf = YES;
 	}
@@ -2610,7 +2634,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	/* PLIMIT */
 	if ((cur = sxml_child (data, "processes")) != NULL) {
 		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-			xesi ("<power>", xname (nn));
+			xesi ("<power>", xname (nn, lab));
 		ND->PLimit = (word) (np [0] . LVal);
 		print (form ("  Processes:  %1d\n", ND->PLimit));
 		ppf = YES;
@@ -2625,7 +2649,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 			ND->Lcdg = 1;
 		else
 			excptn ("Root: 'type' for <lcdg> (%s) in %s can only "
-				"be 'n6100p' at present", att, xname (nn));
+				"be 'n6100p' at present", att, xname (nn, lab));
 		if (ND->Lcdg)
 			print (form ("  LCDG display: %s\n", att));
 	}
@@ -2641,7 +2665,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		// The node has a radio interface
 
 		assert (Ether != NULL, "Root: <radio> (in %s) illegal if there"
-			" is no RF <channel>", xname (nn));
+			" is no RF <channel>", xname (nn, lab));
 
 		RF = ND->rf = new data_rf_t;
 		RF->LBTThs = RF->Boost = HUGE;
@@ -2654,12 +2678,12 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		if ((cur = sxml_child (mai, "power")) != NULL) {
 			// This is the index
 			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-				xesi ("<power>", xname (nn));
+				xesi ("<power>", xname (nn, lab));
 			RF->Power = (word) (np [0] . LVal);
 			if (!(Ether->PS->exact (RF->Power)))
 				excptn ("Root: power index %1d (in %s) does not"
 					" occur in <channel><power>",
-						RF->Power, xname (nn));
+						RF->Power, xname (nn, lab));
 			print (form ("  Power idx:  %1d\n", RF->Power));
 			ppf = YES;
 			RF->absent = NO;
@@ -2668,13 +2692,13 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		/* RATE */
 		if ((cur = sxml_child (mai, "rate")) != NULL) {
 			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-				xesi ("<rate>", xname (nn));
+				xesi ("<rate>", xname (nn, lab));
 			RF->Rate = (word) (np [0].LVal);
 			// Check if the rate index is legit
 			if (!(Ether->Rates->exact (RF->Rate))) 
 				excptn ("Root: rate index %1d (in %s) does not"
 					" occur in <channel><rates>",
-						RF->Rate, xname (nn));
+						RF->Rate, xname (nn, lab));
 			print (form ("  Rate idx:   %1d\n", RF->Rate));
 			RF->absent = NO;
 		}
@@ -2682,13 +2706,13 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		/* CHANNEL */
 		if ((cur = sxml_child (mai, "channel")) != NULL) {
 			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-				xesi ("<channel>", xname (nn));
+				xesi ("<channel>", xname (nn, lab));
 			RF->Channel = (word) (np [0].LVal);
 			// Check if the channel number is legit
 			if (Ether->Channels->max () < RF->Channel) 
 				excptn ("Root: channel number %1d (in %s) is "
 					"illegal (see <channel><channels>)",
-						RF->Channel, xname (nn));
+						RF->Channel, xname (nn, lab));
 			print (form ("  Channel:    %1d\n", RF->Channel));
 			RF->absent = NO;
 		}
@@ -2698,12 +2722,13 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 			// Both are int
 			if (parseNumbers (sxml_txt (cur), 2, np) != 2)
 				excptn ("Root: two int numbers required in "
-					"<backoff> in %s", xname (nn));
+					"<backoff> in %s", xname (nn, lab));
 			RF->BCMin = (word) (np [0].LVal);
 			RF->BCMax = (word) (np [1].LVal);
 	
 			if (RF->BCMax < RF->BCMin)
-				xevi ("<backoff>", xname (nn), sxml_txt (cur));
+				xevi ("<backoff>", xname (nn, lab),
+					sxml_txt (cur));
 	
 			print (form ("  Backoff:    min=%1d, max=%1d\n",
 				RF->BCMin, RF->BCMax));
@@ -2715,7 +2740,8 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		if ((cur = sxml_child (mai, "preamble")) != NULL) {
 			// Both are int
 			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-				xevi ("<preamble>", xname (nn), sxml_txt (cur));
+				xevi ("<preamble>", xname (nn, lab),
+					sxml_txt (cur));
 			RF->Pre = (word) (np [0].LVal);
 			print (form ("  Preamble:   %1d bits\n", RF->Pre));
 			ppf = YES;
@@ -2729,7 +2755,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		/* LBT */
 		if ((cur = sxml_child (mai, "lbt")) != NULL) {
 			if (parseNumbers (sxml_txt (cur), 2, np) != 2)
-				xevi ("<lbt>", xname (nn), sxml_txt (cur));
+				xevi ("<lbt>", xname (nn, lab), sxml_txt (cur));
 			RF->LBTDel = (word) (np [0].LVal);
 			RF->LBTThs = np [1].DVal;
 	
@@ -2745,7 +2771,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 	
 		if ((cur = sxml_child (mai, "boost")) != NULL) {
 			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
-				xefi ("<boost>", xname (nn));
+				xefi ("<boost>", xname (nn, lab));
 			RF->Boost = np [0] . DVal;
 			print (form ("  Boost:      %gdB\n", RF->Boost));
 			ppf = YES;
@@ -2786,7 +2812,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 			len = 0;
 		else if ((len = parseNumbers (att, 2, np)) < 0)
 			excptn ("Root: illegal value in <eeprom> size for %s",
-				xname (nn));
+				xname (nn, lab));
 
 		// No size or size=0 means no EEPROM
 		EP->EEPRS = (len == 0) ? 0 : (lword) (np [0] . LVal);
@@ -2820,7 +2846,8 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 					    (EP->EEPRS % pgsz) != 0)
 						excptn ("Root: number of eeprom"
  						    " pages, %1d, is illegal "
-						    "in %s", pgsz, xname (nn));
+						    "in %s", pgsz,
+						    xname (nn, lab));
 					pgsz = EP->EEPRS / pgsz;
 				}
 				EP->EEPPS = pgsz;
@@ -2843,7 +2870,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 					np + 2)) < 0)
 						excptn ("Root: illegal timing "
 							"value in <eeprom> for "
-							"%s", xname (nn));
+							"%s", xname (nn, lab));
 
 				for (i = 0; i < len; i++) {
 					EP->bounds [i] = np [i + 2] . DVal;
@@ -2863,7 +2890,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 						" are illegal in %s",
 							EP->bounds [i],
 							EP->bounds [i+1],
-							xname (nn));
+							xname (nn, lab));
 			}
 
 			if ((att = sxml_attr (cur, "image")) != NULL) {
@@ -2872,7 +2899,8 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 				strcpy (EP->EPIF, att);
 			}
 
-			EP->EPINI = get_nv_inits (cur, "EEPROM", xname (nn));
+			EP->EPINI = get_nv_inits (cur, "EEPROM",
+				xname (nn, lab));
 
 		   	print (form (
 		"  EEPROM:     %1d bytes, page size: %1d, clean: %02x\n",
@@ -2914,18 +2942,18 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 		att = sxml_attr (cur, "size");
 		len = parseNumbers (att, 2, np);
 		if (len != 1 && len != 2)
-			xevi ("<iflash>", xname (nn), sxml_txt (cur));
+			xevi ("<iflash>", xname (nn, lab), sxml_txt (cur));
 		ifsz = (Long) (np [0].LVal);
 		if (ifsz < 0 || ifsz > 65536)
 			excptn ("Root: iflash size must be >= 0 and <= 65536, "
-				"is %1d, in %s", ifsz, xname (nn));
+				"is %1d, in %s", ifsz, xname (nn, lab));
 		ifps = ifsz;
 		if (len == 2) {
 			ifps = (Long) (np [1].LVal);
 			if (ifps) {
 			    if (ifps < 0 || ifps > ifsz || (ifsz % ifps) != 0)
 				excptn ("Root: number of iflash pages, %1d, is "
-					"illegal in %s", ifps, xname (nn));
+					"illegal in %s", ifps, xname (nn, lab));
 			    ifps = ifsz / ifps;
 			}
 		}
@@ -2934,7 +2962,8 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 
 		if (ifsz) {
 			// There is an IFLASH
-			EP->IFINI = get_nv_inits (cur, "IFLASH", xname (nn));
+			EP->IFINI = get_nv_inits (cur, "IFLASH",
+				xname (nn, lab));
 
 			if ((att = sxml_attr (cur, "clean")) != NULL) {
 				if (parseNumbers (att, 1, np) != 1)
@@ -2971,37 +3000,37 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *ion) {
 /* LEDS */
 /* ==== */
 
-	ND->le = readLedsParams (data, xname (nn));
+	ND->le = readLedsParams (data, xname (nn, lab));
 
 /* ==== */
 /* EMUL */
 /* ==== */
 
-	ND->em = readEmulParams (data, xname (nn));
+	ND->em = readEmulParams (data, xname (nn, lab));
 
 /* ======== */
 /* PTRACKER */
 /* ======== */
 
-	ND->pt = readPwtrParams (data, xname (nn));
+	ND->pt = readPwtrParams (data, xname (nn, lab));
 
 /* ==== */
 /* UART */
 /* ==== */
 
-	ND->ua = readUartParams (data, xname (nn));
+	ND->ua = readUartParams (data, xname (nn, lab));
 
 /* ==== */
 /* PINS */
 /* ==== */
 
-	ND->pn = readPinsParams (data, xname (nn));
+	ND->pn = readPinsParams (data, xname (nn, lab));
 
 /* ================= */
 /* Sensors/Actuators */
 /* ================= */
 
-	ND->sa = readSensParams (data, xname (nn));
+	ND->sa = readSensParams (data, xname (nn, lab));
 
 /* ======== */
 /* Location */
@@ -4065,13 +4094,36 @@ data_pt_t *BoardRoot::readPwtrParams (sxml_t data, const char *esn) {
 	return PT;
 }
 
-void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
+static void append_suppl (const char *src, int len = 0) {
+//
+// Appends a string at the end of the supplement data
+//
+	if (len == 0)
+		// We have a string
+		len = strlen (src);
 
-	data_no_t *DEF, *NOD;
-	const char *def_type, *nod_type, *att, *start;
+	if (len == 0)
+		// A precaution
+		return;
+
+	if ((__pi_XML_Suppl = (char*) realloc (__pi_XML_Suppl,
+		__pi_XML_Suppl_Length + len)) == NULL)
+			excptn ("Root: out of memory for supplementary data");
+
+	memcpy (__pi_XML_Suppl + __pi_XML_Suppl_Length, src, len);
+
+	__pi_XML_Suppl_Length += len;
+}
+
+void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
+							const char *BDFN [],
+								    int NFC) {
+	data_no_t *DEF, *BDEF [NFTABLE_SIZE], *NOD, *D;
+	const char *bfn, *def_type, *nod_type, *att, *start;
+	char *xdata;
 	sxml_t cno, cur, *xnodes;
 	Long i, j, last, fill;
-	int tq;
+	int tq, tl;
 	nparse_t np [2];
 	data_rf_t *NRF, *DRF;
 	data_ep_t *NEP, *DEP;
@@ -4100,11 +4152,53 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 	} else
 		def_type = NULL;
 
-	// OK if NULL, readNodeParams will initialize them
-	DEF = readNodeParams (cno, -1, start);
 	// DEF is never NULL, remember to deallocate it
-	
-	// A temporary
+	DEF = readNodeParams (cno, -1, NULL, start);
+
+	// Read the supplementary data, i.e., board-specific <node> defaults
+	if (NFC) {
+
+		append_suppl ("<supplement>\n");
+
+		for (tq = 0; tq < NFC; tq++) {
+			xdata = __pi_rdfile (bfn = BDFN [tq], tl);
+			if (tl < 0)
+				excptn ("Root: cannot access board defaults "
+					"file %s", bfn);
+			if (tl == 0)
+				excptn ("Root: the board defaults file %s is "
+					"empty", bfn);
+			// Append to the set
+			append_suppl ("<board");
+			if (BDLB [tq] != NULL) {
+				append_suppl (" type=\"");
+				append_suppl (BDLB [tq]);
+				append_suppl ("\"");
+			}
+			append_suppl (">\n");
+			append_suppl (xdata, tl);
+			append_suppl ("</board>\n");
+
+			// sxml_parse_str1 marks the input string for
+			// dealloaction when the sxml structure is deallocated
+			cno = sxml_parse_str1 (xdata, tl);
+			if (!sxml_ok (cno))
+				excptn ("Root: failed to parse the board "
+					"defaults file %s, %s", bfn,
+					sxml_error (cno));
+			if (strcmp (sxml_name (cno), "node") != 0)
+				excptn ("Root: the board defaults file %s has "
+					"no <node> element", bfn);
+
+			BDEF [tq] = readNodeParams (cno, -2, BDLB [tq],
+				sxml_attr (cno, "start"));
+			sxml_free (cno);
+		}
+
+		append_suppl ("</supplement>\n");
+		append_suppl ("\0", 1);
+	}
+
 	xnodes = new sxml_t [NT];
 	for (i = 0; i < NT; i++)
 		xnodes [i] = NULL;
@@ -4148,28 +4242,56 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 	for (tq = i = 0; i < NT; i++) {
 		cno = xnodes [i];
 		start = sxml_attr (cno, "start");
-		NOD = readNodeParams (cno, i, start);
+		NOD = readNodeParams (cno, i, NULL, start);
 
 		if ((nod_type = sxml_attr (cno, "type")) == NULL)
 			nod_type = def_type;
 
+		att = sxml_attr (cno, "default");
+
+		// Check if the node type has a board default
+		D = NULL;
+		for (tl = 0; tl < NFC; tl++) {
+			if (nstrcmp (nod_type, BDLB [tl]) == 0) {
+				D = BDEF [tl];
+				break;
+			}
+		}
+
+		// Which default to use
+		if (att == NULL || *att == 'd') {
+			// Generic defaults only
+			D = DEF;
+		} else if (*att == 'b') {
+			// Board only
+			if (D == NULL)
+				excptn ("Root: node type <%s>, number %1d, "
+					"requires board default, but no such "
+					"default is available",
+					nod_type ? nod_type : "*", i);
+		} else {
+			// Flexible
+			if (D == NULL)
+				D = DEF;
+		}
+
 		// Substitute defaults as needed; validate later
 		if (NOD->Mem == 0)
-			NOD->Mem = DEF->Mem;
+			NOD->Mem = D->Mem;
 
 		if (NOD->On == WNONE)
-			NOD->On = DEF->On;
+			NOD->On = D->On;
 
 		if (NOD->PLimit == WNONE)
-			NOD->PLimit = DEF->PLimit;
+			NOD->PLimit = D->PLimit;
 
 		if (NOD->Lcdg == WNONE)
-			NOD->Lcdg = DEF->Lcdg;
+			NOD->Lcdg = D->Lcdg;
 
 		// === radio ==================================================
 
 		NRF = NOD->rf;
-		DRF = DEF->rf;
+		DRF = D->rf;
 
 		if (NRF == NULL) {
 			// Inherit the defaults
@@ -4213,7 +4335,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 		// === EEPROM =================================================
 
 		NEP = NOD->ep;
-		DEP = DEF->ep;
+		DEP = D->ep;
 
 		if (NEP == NULL) {
 			// Inherit the defaults
@@ -4262,8 +4384,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		if (NOD->ua == NULL) {
 			// Inherit the defaults
-			if (DEF->ua != NULL && !(DEF->ua->absent))
-				NOD->ua = DEF->ua;
+			if (D->ua != NULL && !(D->ua->absent))
+				NOD->ua = D->ua;
 		} else if (NOD->ua->absent) {
 			// Explicit "no", ignore the default
 			delete NOD->ua;
@@ -4274,8 +4396,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		if (NOD->pn == NULL) {
 			// Inherit the defaults
-			if (DEF->pn != NULL && !(DEF->pn->absent))
-				NOD->pn = DEF->pn;
+			if (D->pn != NULL && !(D->pn->absent))
+				NOD->pn = D->pn;
 		} else if (NOD->pn->absent) {
 			// Explicit "no", ignore the default
 			delete NOD->pn;
@@ -4286,8 +4408,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		if (NOD->sa == NULL) {
 			// Inherit the defaults
-			if (DEF->sa != NULL && !(DEF->sa->absent))
-				NOD->sa = DEF->sa;
+			if (D->sa != NULL && !(D->sa->absent))
+				NOD->sa = D->sa;
 		} else if (NOD->sa->absent) {
 			// Explicit "no", ignore the default
 			delete NOD->sa;
@@ -4298,8 +4420,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		if (NOD->le == NULL) {
 			// Inherit the defaults
-			if (DEF->le != NULL && !(DEF->le->absent))
-				NOD->le = DEF->le;
+			if (D->le != NULL && !(D->le->absent))
+				NOD->le = D->le;
 		} else if (NOD->le->absent) {
 			// Explicit "no", ignore the default
 			delete NOD->le;
@@ -4310,8 +4432,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		if (NOD->em == NULL) {
 			// Inherit the defaults
-			if (DEF->em != NULL && !(DEF->em->absent))
-				NOD->em = DEF->em;
+			if (D->em != NULL && !(D->em->absent))
+				NOD->em = D->em;
 		} else if (NOD->em->absent) {
 			// Explicit "no", ignore the default
 			delete NOD->em;
@@ -4322,8 +4444,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 
 		if (NOD->pt == NULL) {
 			// Inherit the defaults
-			if (DEF->pt != NULL && !(DEF->pt->absent))
-				NOD->pt = DEF->pt;
+			if (D->pt != NULL && !(D->pt->absent))
+				NOD->pt = D->pt;
 		} else if (NOD->pt->absent) {
 			// Explicit "no", ignore the default
 			delete NOD->pt;
@@ -4391,7 +4513,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 			// Location OK
 			if (NOD->Movable != NO && NOD->Movable != YES)
 				// Movability unknown, use the default
-				NOD->Movable = DEF->Movable;
+				NOD->Movable = D->Movable;
 		}
 
 		buildNode (nod_type, NOD);
@@ -4402,21 +4524,21 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 		// is deallocated elsewhere, or intentionally copied (constant)
 		// strings that have been linked to by the respective objects.
 
-		if (NOD->rf != NULL && NOD->rf != DEF->rf)
+		if (NOD->rf != NULL && NOD->rf != D->rf)
 			delete NOD->rf;
-		if (NOD->ep != NULL && NOD->ep != DEF->ep)
+		if (NOD->ep != NULL && NOD->ep != D->ep)
 			deallocate_ep_def (NOD->ep);
-		if (NOD->ua != NULL && NOD->ua != DEF->ua)
+		if (NOD->ua != NULL && NOD->ua != D->ua)
 			delete NOD->ua;
-		if (NOD->pn != NULL && NOD->pn != DEF->pn)
+		if (NOD->pn != NULL && NOD->pn != D->pn)
 			delete NOD->pn;
-		if (NOD->sa != NULL && NOD->sa != DEF->sa)
+		if (NOD->sa != NULL && NOD->sa != D->sa)
 			delete NOD->sa;
-		if (NOD->le != NULL && NOD->le != DEF->le)
+		if (NOD->le != NULL && NOD->le != D->le)
 			delete NOD->le;
-		if (NOD->em != NULL && NOD->em != DEF->em)
+		if (NOD->em != NULL && NOD->em != D->em)
 			delete NOD->em;
-		if (NOD->pt != NULL && NOD->pt != DEF->pt)
+		if (NOD->pt != NULL && NOD->pt != D->pt)
 			delete NOD->pt;
 		delete NOD;
 	}
@@ -4424,25 +4546,29 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN) {
 	// Delete the scratch node list
 	delete [] xnodes;
 
-	// Delete the default data block
-	if (DEF->rf != NULL)
-		delete DEF->rf;
-	if (DEF->ep != NULL)
-		deallocate_ep_def (DEF->ep);
-	if (DEF->ua != NULL)
-		delete DEF->ua;
-	if (DEF->pn != NULL)
-		delete DEF->pn;
-	if (DEF->sa != NULL)
-		delete DEF->sa;
-	if (DEF->pt != NULL)
-		delete DEF->pt;
-	if (DEF->le != NULL)
-		delete DEF->le;
-	if (DEF->em != NULL)
-		delete DEF->em;
+	for (tl = 0; tl <= NFC; tl++) {
+		// Delete default data blocks
+		D = (tl == NFC) ? DEF : BDEF [tl];
 
-	delete DEF;
+		if (D->rf != NULL)
+			delete D->rf;
+		if (D->ep != NULL)
+			deallocate_ep_def (D->ep);
+		if (D->ua != NULL)
+			delete D->ua;
+		if (D->pn != NULL)
+			delete D->pn;
+		if (D->sa != NULL)
+			delete D->sa;
+		if (D->pt != NULL)
+			delete D->pt;
+		if (D->le != NULL)
+			delete D->le;
+		if (D->em != NULL)
+			delete D->em;
+
+		delete D;
+	}
 
 	if (tq < NN)
 		excptn ("Root: too few (%1d) nodes with RF interface, %1d"
@@ -4461,46 +4587,105 @@ void BoardRoot::initAll () {
 	sxml_t xml;
 	const char *att;
 	nparse_t np [1];
-	Boolean nc;
-	int NN, NT;
+	Boolean nc, sm, ri;
+	int NN, NT, NFC;
 	double SF;
 	Long RI;
+	const char *BDFN [NFTABLE_SIZE], *BDLB [NFTABLE_SIZE];
 
 	settraceFlags (	TRACE_OPTION_TIME +
 			TRACE_OPTION_ETIME +
 			TRACE_OPTION_STATID +
 			TRACE_OPTION_PROCESS );
 
-	// VUEE-specific arguments (if present): slomo factor, resync interval
-
 	SF = VUEE_SLOMO_FACTOR;
 	RI = VUEE_RESYNC_INTERVAL;
 
-	if (PCArgc) {
+	// Board-specific node defaults
+	NFC = 0;
+
+	// VUEE-specific arguments (if present): slomo factor, resync interval
+
+	sm = ri = NO;
+
+	while (PCArgc) {
 		PCArgc--;
-		np [0] . type = TYPE_double;
-		if (parseNumbers (*PCArgv++, 1, np) != 1)
-			excptn ("Root: slo-mo factor arg is not a number");
-		SF = np [0] . DVal;
-		if (SF <= 0.0) {
-			// Treat as unsynced
-			SF = 1.0;
-			RI = 0;
-			goto IRI;
-		}
+		att = *PCArgv++;
+		if (strcmp (att, "-s") == 0) {
+			// Slo-mo factor
+			if (sm) {
+ADup:
+				excptn ("Root: duplicate argument %s", att);
+			}
+			if (PCArgc == 0) {
+AExp:
+				excptn ("Root: argument expected after %s",
+					att);
+			}
+			np [0] . type = TYPE_double;
+			if (parseNumbers (*PCArgv, 1, np) != 1) {
+ANum:
+				excptn ("Root: arg of %s is not a number", att);
+			}
+			SF = np [0] . DVal;
+			if (SF <= 0.0) {
+				// Treat as unsynced
+				SF = 1.0;
+				if (ri)
+					excptn ("Root: -s 0 forces unsynced, "
+						"conflicts with previous -r");
+				RI = 0;
+				ri = YES;
+			}
+			sm = YES;
+		} else if (strcmp (att, "-r") == 0) {
+			// Resync interval
+			if (ri)
+				goto ADup;
+
+			if (PCArgc == 0)
+				goto AExp;
+
+			np [0] . type = TYPE_LONG;
+			if (parseNumbers (*PCArgv, 1, np) != 1)
+				goto ANum;
+			RI = (Long) (np [0] . LVal);
+			if (RI < 0 || RI > 1000)
+				excptn ("Root: resync intvl must be >= 0 and "
+					"<= 1000");
+			ri = YES;
+		} else if (strcmp (att, "-n") == 0) {
+			// Node defaults file
+			if (PCArgc == 0)
+				goto AExp;
+			if (NFC == NFTABLE_SIZE)
+				excptn ("Root: too many board-specific node "
+					"defaults, the limit is %1d",
+					NFTABLE_SIZE);
+			if (PCArgc > 1 && **(PCArgv+1) != '-') {
+				// Label + file
+				BDLB [NFC] = *PCArgv++;
+				PCArgc--;
+			} else {
+				BDLB [NFC] = NULL;
+			}
+			BDFN [NFC] = *PCArgv++;
+			for (NN = 0; NN < NFC; NN++)
+				if (nstrcmp (BDLB [NFC], BDLB [NN]) == 0)
+					excptn ("Root: duplicate pgm label in "
+						"-n, %s", BDLB [NFC] ?
+							  BDLB [NFC] :
+							  "--null--");
+			NFC++;
+		} else
+			excptn ("Root: illegal PC argument %s", att);
+
+		PCArgc--;
+		PCArgv++;
 	}
 
-	if (PCArgc) {
-		PCArgc--;
-		np [0] . type = TYPE_LONG;
-		if (parseNumbers (*PCArgv++, 1, np) != 1)
-			excptn ("Root: resync intvl arg is not a number");
-		RI = (Long) (np [0] . LVal);
-		if (RI < 0 || RI > 1000)
-			excptn ("Root: resync intvl must be >= 0 and <= 1000");
-	}
-IRI:
-	xml = sxml_parse_input ('\0', &__pi_XML_Data);
+			
+	xml = sxml_parse_input ('\0', &__pi_XML_Data, &__pi_XML_Data_Length);
 
 	if (!sxml_ok (xml))
 		excptn ("Root: XML input data error, %s",
@@ -4552,7 +4737,7 @@ IRI:
 	// definition in the input data set
 	NN = initChannel (xml, NN, nc);
 
-	initNodes (xml, NT, NN);
+	initNodes (xml, NT, NN, BDLB, BDFN, NFC);
 	initPanels (xml);
 	initRoamers (xml);
 	initAgent (xml);

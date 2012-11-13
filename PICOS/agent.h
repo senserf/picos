@@ -850,6 +850,9 @@ process	AgentInterface {
 };
 
 extern word __pi_Agent_Port;
-extern char *__pi_XML_Data, *__pi_BGR_Image;
+extern char *__pi_XML_Data, *__pi_XML_Suppl, *__pi_BGR_Image;
+extern int __pi_XML_Data_Length, __pi_XML_Suppl_Length;
+
+char *__pi_rdfile (const char*, int&);
 
 #endif

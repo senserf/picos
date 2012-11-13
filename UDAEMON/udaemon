@@ -44,9 +44,11 @@ if [file isdirectory "/dev"] {
 catch { package require Img }
 
 package provide xml 1.0
-#
-# Mini XML parser
-#
+###############################################################################
+# Mini XML parser. Copyright (C) 2008-12 Olsonet Communications Corporation.
+###############################################################################
+
+### Last modified PG111008A ###
 
 namespace eval XML {
 
@@ -198,7 +200,7 @@ proc xftag { s } {
 
 	set kwd [string tolower $kwd]
 
-	# decode any attributes
+	# decode the attributes
 	set attr ""
 	array unset atts
 
@@ -244,11 +246,14 @@ proc xftag { s } {
 
 proc xadv { s kwd } {
 #
-# Returns the text + the list of children for the current tag
+# Returns the text + the list of children for the current tag. A child looks
+# like this:
+#
+#	text:		<"" the_text>
+#	element:	<tag attributes children_list>
 #
 	upvar $s str
 
-	set txt ""
 	set chd ""
 
 	while 1 {
@@ -259,7 +264,12 @@ proc xadv { s kwd } {
 			if { $kwd != "" } {
 				error "unterminated tag: <$kwd ...>"
 			}
-			return [list "$txt$str" $chd]
+
+			if { $str != "" } {
+				# a tailing text item
+				lappend chd [list "" $str]
+				return $chd
+			}
 		}
 
 		set md [lindex $tag 0]
@@ -267,19 +277,22 @@ proc xadv { s kwd } {
 		set kw [lindex $tag 2]
 		set at [lindex $tag 3]
 
-		append txt $fr
+		if { $fr != "" } {
+			# append a text item
+			lappend chd [list "" $fr]
+		}
 
 		if { $md == 0 } {
 			# opening, not self-closing
 			set cl [xadv str $kw]
 			# inclusion ?
-			set tc [list $kw [lindex $cl 0] $at [lindex $cl 1]]
+			set tc [list $kw $at $cl]
 			if ![xincl str $tc] {
 				lappend chd $tc
 			}
 		} elseif { $md == 2 } {
 			# opening, self-closing
-			set tc [list $kw "" $at ""]
+			set tc [list $kw $at ""]
 			if ![xincl str $tc] {
 				lappend chd $tc
 			}
@@ -288,9 +301,8 @@ proc xadv { s kwd } {
 			if { $kw != $kwd } {
 				error "mismatched tag: <$kwd ...> </$kw>"
 			}
-			# we are done with the tag - check for file
-			# inclusion
-			return [list $txt $chd]
+			# we are done with the tag
+			return $chd
 		}
 	}
 }
@@ -336,7 +348,7 @@ proc sxml_parse { s } {
 
 	set v [xadv str ""]
 
-	return [list root [lindex $v 0] "" [lindex $v 1]]
+	return [list root "" $v]
 }
 
 proc sxml_name { s } {
@@ -346,15 +358,47 @@ proc sxml_name { s } {
 
 proc sxml_txt { s } {
 
-	return [string trim [lindex $s 1]]
+	set txt ""
+
+	foreach t [lindex $s 2] {
+		if { [lindex $t 0] == "" } {
+			append txt [lindex $t 1]
+		}
+	}
+
+	return $txt
 }
 
-proc sxml_attr { s n } {
+proc sxml_snippet { s } {
 
-	set al [lindex $s 2]
+	if { [lindex $s 0] != "" } {
+		return ""
+	}
+
+	return [lindex $s 1]
+}
+
+proc sxml_attr { s n { e "" } } {
+
+	if { $e != "" } {
+		# flag to tell the difference between an empty attribute and
+		# its complete lack
+		upvar $e ef
+		set ef 0
+	}
+
+	if { [lindex $s 0] == "" } {
+		# this is a text
+		return ""
+	}
+
+	set al [lindex $s 1]
 	set n [string tolower $n]
 	foreach a $al {
 		if { [lindex $a 0] == $n } {
+			if { $e != "" } {
+				set ef 1
+			}
 			return [lindex $a 1]
 		}
 	}
@@ -363,17 +407,30 @@ proc sxml_attr { s n } {
 
 proc sxml_children { s { n "" } } {
 
-	set cl [lindex $s 3]
+	# this is automatically null for a text
+	set cl [lindex $s 2]
 
-	if { $n == "" } {
+	if { $n == "+" } {
+		# all including text
 		return $cl
 	}
 
 	set res ""
 
-	foreach c $cl {
-		if { [lindex $c 0] == $n } {
-			lappend res $c
+	if { $n == "" } {
+		# tagged elements only
+		foreach c $cl {
+			if { [lindex $c 0] != "" } {
+				lappend res $c
+			}
+		}
+		return $res
+	} else {
+		# all with the given tag name
+		foreach c $cl {
+			if { [lindex $c 0] == $n } {
+				lappend res $c
+			}
 		}
 	}
 
@@ -382,7 +439,8 @@ proc sxml_children { s { n "" } } {
 
 proc sxml_child { s n } {
 
-	set cl [lindex $s 3]
+	# null for a text
+	set cl [lindex $s 2]
 
 	foreach c $cl {
 		if { [lindex $c 0] == $n } {
@@ -393,6 +451,17 @@ proc sxml_child { s n } {
 	return ""
 }
 
+proc sxml_yes { item attr } {
+#
+# A useful shortcut
+#
+	if { [string tolower [string index [sxml_attr $item $attr] 0]] == \
+		"y" } {
+			return 1
+	}
+	return 0
+}
+
 namespace export sxml_*
 
 ### end of XML namespace ######################################################
@@ -400,6 +469,10 @@ namespace export sxml_*
 }
 
 namespace import ::XML::*
+
+###############################################################################
+# End of Mini XML parser ######################################################
+###############################################################################
 
 package provide unames 1.0
 ##########################################################################
@@ -645,7 +718,7 @@ array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 set NTYPE_COLORS	{ yellow blue orange red green }
 
 # default highlight colors: "note bgr" "list of small-value colors"
-set Geometry(H,)	{
+set Geometry(H,,)	{
 	{ {} {} }
 	{ black gray white magenta darkviolet goldenrod orangered chocolate }
 }
@@ -1174,6 +1247,7 @@ proc parse_geometry { } {
 	}
 
 	set Geometry(+F) [sxml_child $p "network"]
+	set Geometry(+S) [sxml_child $p "supplement"]
 
 	if { $Geometry(+F) == "" } {
 		gperror "<network> not found"
@@ -1193,8 +1267,17 @@ proc parse_geometry { } {
 
 	set NN -1
 
-	# node color sets
+	# initialize node color sets
 	set Geometry(roamer,NC) ""
+
+	# generic defaults
+	set d [sxml_child $p "defaults"]
+	if { $d != "" } {
+		# determine the default node type
+		set dnt [sxml_attr $d "type"]
+	} else {
+		set dnt ""
+	}
 
 	foreach j [sxml_children $p "node"] {
 		# check for explicit node number
@@ -1205,24 +1288,50 @@ proc parse_geometry { } {
 		} else {
 			incr NN
 		}
-		parse_node $j $NN
+		set tp [sxml_attr $j "type"]
+		if { $tp == "" } {
+			set tp $dnt
+		}
+		set tm [string index [sxml_attr $j "default"] 0]
+		# b - board, d - generic defaults, f - flexible
+		if { $tm == "" } {
+			set tm "d"
+		}
+		# node index to <default mode, node type>
+		set Geometry(N,$NN) [list $tm $tp]
+		parse_node $j $NN $tp
 	}
 
-	# now for the defaults
-	set j [sxml_child $p "defaults"]
-	if { $j != "" } {
-		parse_node $j
+	# check for supplements, i.e., board-specific, type-indexed defaults,
+	# which should go next
+
+	foreach k [sxml_children $Geometry(+S) "board"] {
+		set tp [sxml_attr $k "type"]
+		set j [sxml_child $k "node"]
+		if { $j == "" } {
+			# just in case
+			continue
+		}
+		# node -1 means supplementary defaults
+		parse_node $j -1 $tp
+	}
+
+	# now for the generic defaults
+	if { $d != "" } {
+		parse_node $d
 	}
 	unset Geometry(+F)
+	unset Geometry(+S)
 }
 
-proc parse_disp { item n mod nod } {
+proc parse_disp { item n mod { nod "" } { typ "" } } {
 #
 # Parses a single "module" tag:
 #
 #	n	module name, e.g., "sensors"
 #	mod	module mode, 0-node-independent, 1-node-dependent
 #	nod	node (if mode == 1), "" means ANY
+#	typ	node type (only valid if mod != 0)
 #
 	global Geometry
 
@@ -1234,13 +1343,15 @@ proc parse_disp { item n mod nod } {
 	}
 
 	set dsp 0
-	if { $mod == 0 || $nod != "" } {
+	if { $mod == 0 || ($nod != "" && $nod >= 0) } {
 		# node-independent or  specific node, honor the "display"
 		# attribute
 		set coo [string tolower [sxml_attr $item "display"]]
 		if { $coo == "1" || $coo == "y" || $coo == "yes" } {
 			set dsp 1
 		}
+		# force typ to be ""
+		set typ ""
 	}
 
 	regsub -all "\[ \t\r\n\]+" $t " " t
@@ -1249,7 +1360,7 @@ proc parse_disp { item n mod nod } {
 	set coo [parse_gspec $t]
 
 	# item to add
-	set new [list $nod $coo]
+	set new [list $nod $typ $coo]
 
 	if { $mod && [info exists Geometry($n)] } {
 		# node-related append
@@ -1324,12 +1435,10 @@ proc parse_globals { data } {
 #
 # Parses the global <display> objects
 #
-	global Geometry
-
 	foreach j [sxml_children $data] {
 
 		set n [string tolower [sxml_name $j]]
-		parse_disp $j $n 0 ""
+		parse_disp $j $n 0
 
 		if { $n == "roamer" } {
 			# this one is special
@@ -1406,7 +1515,19 @@ proc parse_label { it { tx 1 } { ix "" } } {
 	return $col
 }
 
-proc parse_salabels { item what n } {
+proc parse_serr { n t } {
+
+	if { $n == "" } {
+		if { $t != "" } {
+			return "<defaults--$t>"
+		}
+		return "<defaults>"
+	}
+
+	return "<node> $n"
+}
+
+proc parse_salabels { item what n t } {
 #
 # Parse labels in sensors or actuators
 #
@@ -1414,13 +1535,7 @@ proc parse_salabels { item what n } {
 
 	set NN -1
 
-	if { $n == "" } {
-		set err "<defaults>"
-	} else {
-		set err "<node> $n"
-	}
-
-	append err " <$what><label>"
+	set err "[parse_serr $n $t] <$what><label>"
 
 	set LL ""
 
@@ -1458,7 +1573,7 @@ proc parse_salabels { item what n } {
 		set Geometry(L,$x) ""
 	}
 
-	lappend Geometry(L,$x) [list $n $LL]
+	lappend Geometry(L,$x) [list $n $t $LL]
 }
 
 proc sort_indexed { ll } {
@@ -1498,19 +1613,18 @@ proc sort_indexed { ll } {
 	return $res
 }
 
-proc parse_hl { item n } {
+proc parse_hl { item n t } {
 #
 # Parses the "<highlight>" tag
 #
 	global Geometry
 
-	if { $n == "" } {
-		set err "<defaults>"
-	} else {
-		set err "<node> $n"
-	}
+	set err "[parse_serr $n $t] <highlight>"
 
-	append err " <highlight>"
+	if { $n != "" && $n >= 0 } {
+		# force null type if node number present
+		set t ""
+	}
 
 	if [catch { parse_lcols $item } nco] {
 		gperror "$err, $nco"
@@ -1534,22 +1648,16 @@ proc parse_hl { item n } {
 		set ncl [string range $ncl [string length $col] end]
 	}
 
-	set Geometry(H,$n) [list $nco $vcl]
+	set Geometry(H,$n,$t) [list $nco $vcl]
 }
 
-proc parse_pins { item n } {
+proc parse_pins { item n t } {
 #
 # Parses pin labels
 #
 	global Geometry
 
-	if { $n == "" } {
-		set err "<defaults>"
-	} else {
-		set err "<node> $n"
-	}
-
-	append err " <pins><label>"
+	set err "[parse_serr $n $t] <pins><label>"
 
 	if [catch { parse_lablist $item } labs] {
 		gperror "$err, $labs"
@@ -1559,22 +1667,16 @@ proc parse_pins { item n } {
 		set Geometry(L,pins) ""
 	}
 
-	lappend Geometry(L,pins) [list $n $labs]
+	lappend Geometry(L,pins) [list $n $t $labs]
 }
 
-proc parse_leds { item n } {
+proc parse_leds { item n t } {
 #
 # Parses led labels and colors
 #
 	global Geometry
 
-	if { $n == "" } {
-		set err "<defaults>"
-	} else {
-		set err "<node> $n"
-	}
-
-	append err " <leds>"
+	set err "[parse_serr $n $t] <leds>"
 
 	if [catch { parse_lablist $item } labs] {
 		gperror "$err<label>, $labs"
@@ -1584,7 +1686,7 @@ proc parse_leds { item n } {
 		set Geometry(L,leds) ""
 	}
 
-	lappend Geometry(L,leds) [list $n $labs]
+	lappend Geometry(L,leds) [list $n $t $labs]
 
 	set las -1
 	set LL ""
@@ -1614,11 +1716,11 @@ proc parse_leds { item n } {
 		if ![info exists Geometry(L,ledsc)] {
 			set Geometry(L,ledsc) ""
 		}
-		lappend Geometry(L,ledsc) [list $n $LL]
+		lappend Geometry(L,ledsc) [list $n $t $LL]
 	}
 }
 			
-proc parse_node { item { n "" } } {
+proc parse_node { item { n "" } { t "" } } {
 #
 # Parses the node stuff, which may also come from defaults:
 #
@@ -1629,41 +1731,36 @@ proc parse_node { item { n "" } } {
 	## color
 
 	if [catch { parse_cset $item } cst] {
-		if { $n == "" } {
-			set d "<defaults>"
-		} else {
-			set d "<node> $n"
-		}
-		gperror "$d <color>, $cst"
+		gperror "[parse_serr $n $t] <color>, $cst"
 	}
 	if { $cst != "" } {
-		lappend Geometry(roamer,NC) [list $n $cst]
+		lappend Geometry(roamer,NC) [list $n $t $cst]
 	}
 
 	## sensors
 	set it [sxml_child $item "sensors"]
 	if { $it != "" } {
-		parse_salabels $it "sensor" $n
-		parse_salabels $it "actuator" $n
+		parse_salabels $it "sensor" $n $t
+		parse_salabels $it "actuator" $n $t
 	}
 
 	## pins
 	set it [sxml_child $item "pins"]
 	if { $it != "" } {
-		parse_pins $it $n
+		parse_pins $it $n $t
 		set w [sxml_child $it "window"]
 	}
 
 	## leds
 	set it [sxml_child $item "leds"]
 	if { $it != "" } {
-		parse_leds $it $n
+		parse_leds $it $n $t
 	}
 
 	# highlight colors
 	set it [sxml_child $item "highlight"]
 	if { $it != "" } {
-		parse_hl $it $n
+		parse_hl $it $n $t
 	}
 
 	# windows
@@ -1678,7 +1775,7 @@ proc parse_node { item { n "" } } {
 			set w [sxml_child $item "${m}_window"]
 		}
 		if { $w != "" } {
-			parse_disp $w $m 1 $n
+			parse_disp $w $m 1 $n $t
 		}
 	}
 }
@@ -1737,21 +1834,54 @@ proc parse_gspec { geo } {
 	return $g
 }
 
-proc covered_node { col num } {
+proc ndprf { n } {
 #
-# Checks whether the number (node ID) is covered by the node group col
+# Node preference regarding fallback to default
+#
+	global Geometry
+
+	if [info exists Geometry(N,$n)] {
+		return $Geometry(N,$n)
+	}
+
+	return [list "d" ""]
+}
+
+proc covered_node { col typ num } {
+#
+# Checks whether the number (node ID) is covered by the node group col/typ
 #
 	if { $num == "" } {
 		# absolute windows have no IDs
 		return 1
 	}
 
-	if { $col == "" || $col < 0 } {
-		# all
+	lassign [ndprf $num] tm tp
+
+	if { $col == "" } {
+		# generic default, checked last and always works unless tm is
+		# b (indicating strict preference for supplementary default)
+		if { $tm == "b" } {
+			return 0
+		}
 		return 1
 	}
 
+	if { $col < 0 } {
+		# supplementary default, only works if types match
+		if { $tm == "d" } {
+			# node prefers generic default
+			return 0
+		}
+		if { $typ == "" || $typ == $tp } {
+			return 1
+		}
+		return 0
+	}
+
+
 	if { $col == $num } {
+		# the numbers must match
 		return 1
 	}
 
@@ -1841,8 +1971,8 @@ proc get_cset { node } {
 	}
 
 	foreach cd $Geometry(roamer,NC) {
-		if [covered_node [lindex $cd 0] $node] {
-			return [lindex $cd 1]
+		if [covered_node [lindex $cd 0] [lindex $cd 1] $node] {
+			return [lindex $cd 2]
 		}
 	}
 
@@ -1860,8 +1990,8 @@ proc get_lset { node mod } {
 	}
 
 	foreach cd $Geometry(L,$mod) {
-		if [covered_node [lindex $cd 0] $node] {
-			return [lindex $cd 1]
+		if [covered_node [lindex $cd 0] [lindex $cd 1] $node] {
+			return [lindex $cd 2]
 		}
 	}
 
@@ -1995,8 +2125,9 @@ proc do_geometry { win kwd { num "" } } {
 	if [info exists Geometry($kwd)] {
 		foreach ml $Geometry($kwd) {
 			set exp [lindex $ml 0]
-			set geo [lindex $ml 1]
-			if [covered_node $exp $num] {
+			set typ [lindex $ml 1]
+			set geo [lindex $ml 2]
+			if [covered_node $exp $typ $num] {
 				wm geometry $win $geo
 				return
 			}
@@ -5674,10 +5805,18 @@ proc moveGNP { Sok cmd } {
 	}
 
 	# highlight colors for fast access (needed by vipars among others)
-	if [info exists Geometry(H,$nod)] {
-		set hl $Geometry(H,$nod)
+	if [info exists Geometry(H,$nod,)] {
+		set hl $Geometry(H,$nod,)
 	} else {
-		set hl $Geometry(H,)
+		# need a default
+		lassign [ndprf $nod] tm tp
+		if { $tm != "d" && [info exists Geometry(H,-1,$tp)] } {
+			# applicable supplementary default found
+			set hl $Geometry(H,-1,$tp)
+		} else {
+			# use the generic default (we must find something)
+			set hl $Geometry(H,,)
+		}
 	}
 
 	# small-numbered colors for node highlighting
