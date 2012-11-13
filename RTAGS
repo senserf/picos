@@ -624,3 +624,8 @@ PG121106A:	PICOS >= PG121106B
 	PIP now makes sure to (implicitly) include board_options.sys for the
 	program(s) of a VUEE-compiled praxis, if the target board(s) is(are)
 	defined.
+
+PG121113A: 	PICOS >= PG121113A, SIDE >= PG121113A, VUEE >= PG121113A
+
+	A few rather messy changes in the way VUEE gets its options. Read
+	RTAGS_PG.

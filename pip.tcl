@@ -140,6 +140,7 @@ set CFBoardItems {
 set CFVueeItems {
 			"VDISABLE"	0
 			"CMPIS"		0
+			"DPBC"		0
 			"UDON"		0
 			"UDDF"		0
 			"VUDF"		""
@@ -4428,6 +4429,15 @@ proc mk_vuee_conf_window { } {
 	pack $f.c -side right -expand n
 
 	##
+	set f $w.tk
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Do no propagate board config to VUEE: "
+	pack $f.l -side left -expand n
+	checkbutton $f.c -variable P(M0,DPBC)
+	pack $f.c -side right -expand n
+
+	##
 	set f $w.tg
 	frame $f
 	pack $f -side top -expand y -fill x
@@ -6397,6 +6407,38 @@ proc run_vuee { { deb 0 } } {
 		}
 	}
 
+	set argm ""
+
+	# locate default node data in board directories
+
+	set dp [dict get $P(CO) "DPBC"]
+	set mb [dict get $P(CO) "MB"]
+	set bo [dict get $P(CO) "BO"]
+
+	if { $dp == 0 && $mb != "" && $bo != "" } {
+		if $mb {
+			# multiple boards
+			set bi 0
+			foreach b $bo {
+				set suf [lindex $P(PL) $bi]
+				set fna [file join [boards_dir] $b "node.xml"]
+				if [file isfile $fna] {
+					lappend argm "-n"
+					lappend argm $suf
+					lappend argm [unipath $fna]
+				}
+				incr bi
+			}
+		} else {
+			set fna [file join [boards_dir] $bo "node.xml"]
+			if [file isfile $fna] {
+				lappend argm "-n"
+				lappend argm [unipath $fna]
+			}
+		}
+	}
+
+
 	if { $df != 1.0 } {
 		# default resync interval
 		set ef 500
@@ -6410,7 +6452,15 @@ proc run_vuee { { deb 0 } } {
 				set ef 1000
 			}
 		}
-		set argl [concat $argl [list "--" $df $ef]]
+		lappend argm "-s"
+		lappend argm $df
+		lappend argm "-r"
+		lappend argm $ef
+	}
+
+	if { $argm != "" } {
+		lappend argl "--"
+		set argl [concat $argl $argm]
 	}
 
 	# We seem to be in the clear
@@ -7900,7 +7950,7 @@ proc do_make_vuee { { arg "" } } {
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
 
-	if { $mb != "" && $bo != "" } {
+	if { [dict get $P(CO) "DPBC"] == 0 && $mb != "" && $bo != "" } {
 		# add the defines pertaining to the board
 		if $mb {
 			set bi 0
@@ -7917,11 +7967,12 @@ proc do_make_vuee { { arg "" } } {
 				incr bi
 			}
 		} else {
-			set ar [linsert $arg 0 "-DBOARD_$bo" "-DBOARD_TYPE=$bo"]
+			set arg [linsert $arg 0 "-DBOARD_$bo" \
+				"-DBOARD_TYPE=$bo"]
 			set fn [board_opts $bo]
 			if { $fn != "" } {
 				set arg [linsert $arg 0 \
-					"-H${suf}+[unipath $fn]"]
+					"-H[unipath $fn]"]
 			}
 		}
 	}
