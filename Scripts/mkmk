@@ -2282,9 +2282,9 @@ proc scanfile { fname } {
 
 proc bad_usage { } {
 
-	puts stderr "Usage: mkmk boardname \[-m|-p\] \[tag\]"
+	puts stderr "Usage: mkmk boardname \[-m|-p\] \[label\]"
 	puts stderr "       mkmk boardname -l"
-	puts stderr "       mkmk -M|-P \[libdir\] \[tag\]"
+	puts stderr "       mkmk -M|-P \[libdir\] \[label\]"
 	exit 1
 }
 

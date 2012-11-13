@@ -4,6 +4,8 @@
 //+++ "ee_ol.c"
 //+++
 
+#define	VUEE_LIB_OL
+
 byte ee_load (lword, void**);
 
 #define	EE_LOADERR_NOMEM	17

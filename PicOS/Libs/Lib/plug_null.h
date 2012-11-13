@@ -9,6 +9,8 @@
 
 //+++ "plug_null.c"
 
+#define	VUEE_LIB_PLUG_NULL
+
 extern const tcvplug_t plug_null;
 
 #endif

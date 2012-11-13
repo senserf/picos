@@ -5,6 +5,8 @@
 
 #include "oep_params.h"
 
+#define	VUEE_LIB_OEP
+
 #ifdef	__SMURPH__
 // ============================================================================
 // Attribute names of the variables and methods directly accessible by the

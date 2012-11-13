@@ -3474,7 +3474,7 @@ proc mkdlist { } {
 #
 # Create the list of local subdirectories to search for include files
 #
-	global MKRECV CWD DirList EDirList env
+	global FG MKRECV CWD DirList EDirList env MODSYMS
 
 	mkdrec $CWD
 
@@ -3494,8 +3494,37 @@ proc mkdlist { } {
 		}
 	}
 	set EDirList [list $vuee $side]
+
+	# produce the list of symbols to propagate from praxis programs to the
+	# VUEE engine
+
+	set fn [file join $vuee "modsyms.h"]
+	if [catch { open $fn "r" } fd] {
+		# this will never happen
+		errab "file $fn not found"
+	}
+
+	if [catch { read $fd } sl] {
+		errab "cannot read $fn, $sl"
+	}
+
+	catch { close $fd }
+
+	set MODSYMS ""
+
+	foreach ln [split $sl "\n"] {
+		set ln [string trim $ln]
+		if { [regexp "^#define\[ \t\]+(\[^ \t\]+)" $ln jk sy] ||
+		     [regexp "//->\[ \t\]*(\[^ \t\]+)" $ln jk sy] } {
+			lappend MODSYMS $sy
+		}
+	}
+
+	if $FG(D) {
+		dbg "MODSYMS: $MODSYMS"
+	}
 }
-	
+
 proc fprerr { } {
 	errab "app.c/app.cc cannot coexist with app_... files in the same\
 		directory"
@@ -3680,11 +3709,27 @@ proc which_endian { } {
 	}
 }
 
+proc add_modsym { l sym val } {
+
+	upvar $l ls
+
+	if ![info exists ls] {
+		set ls [list $sym $val]
+		return
+	}
+
+	if { [lsearch -exact -index 0 $ls $sym] >= 0 } {
+		return
+	}
+
+	lappend ls [list $sym $val]
+}
+
 proc parse_vuee { } {
 #
 # Compile all programs in current directory into VUEE
 #
-	global DirList Pgm PgmList CWD TDIR SFList FG EXEC ErrCnt
+	global DirList Pgm PgmList VMList CWD TDIR SFList FG EXEC ErrCnt HF
 
 	# find the requisite executables
 	foreach p { "vuee" "vue2" "vue" } {
@@ -3758,31 +3803,69 @@ proc parse_vuee { } {
 	# for now, in case we need, e.g., pwarn
 	set Pgm ""
 
+	# the (global) list of optional modules
+	set GVMList ""
+
 	file delete -force $TDIR
 
 	if [catch { file mkdir $TDIR } err] {
 		errab "cannot create tmp directory $TDIR, $err"
 	}
 
-	set FG(NOS) 0
-	if ![file exists "options.sys"] {
-		pwarn "no options.sys, using an empty one"
-		wtfile "options.sys" ""
-		# flag, don't include
-		set FG(NOS) 1
-	} elseif [catch { file copy -force "options.sys" $TDIR } err] {
-		errab "cannot copy options.sys to $TDIR, $err"
-	}
+	# prepare the options files
+	foreach p $PgmList {
+		if { $p == "" } {
+			set fn "options.sys"
+			set p "+"
+		} else {
+			set fn "options_${p}.sys"
+		}
+		# target file name
+		set tn $fn
+		if ![file isfile $fn] {
+			if { $p != "+" } {
+				# try the generic options.sys
+				set gn "options.sys"
+				if ![file isfile $gn] {
+					pwarn "neither $fn nor $gn found in\
+						project directory"
+					continue
+				}
+				set fn $gn
+			} else {
+				pwarn "$fn not found in project directory"
+				continue
+			}
+		}
 
+		set tn [file join $TDIR $tn]
+		if [catch { file copy -force $fn $tn } err] {
+			errab "cannot copy $fn to $TDIR, $err"
+		}
+
+		# options file present, extra include at the end of the list,
+		# so it follows board_options.sys
+		lappend_unique HF($p) $tn
+	}
+			
 	foreach p $PgmList {
 
 		set Pgm $p
+
+		# local list of optional modules
+		set VMList ""
 
 		compile_pgm
 		verify_externals
 		emit_vhdr
 		emit_vini
+
+		foreach m $VMList {
+			add_modsym GVMList [lindex $m 0] [lindex $m 1]
+		}
 	}
+
+	set VMList $GVMList
 
 	emit_glue
 
@@ -3904,6 +3987,7 @@ proc compile_pgm { } {
 # Compile one program
 #
 	global PG PCN Pgm SFList ToCompile Processed NotFound TDIR EXEC FG DF HF
+	global Symbols VMList MODSYMS
 
 	# list of handled files
 	set SFList ""
@@ -3969,6 +4053,8 @@ proc compile_pgm { } {
 			lappend pre "#define PGMLABEL_$pg"
 		}
 
+		lappend pre "#define DONT_INCLUDE_OPTIONS_SYS"
+
 		# The prelude format is:
 		#
 		# 	line line line ... "" fname fname fname ...
@@ -3989,6 +4075,19 @@ proc compile_pgm { } {
 		}
 
 		set exp [scanfile $cfn 1 $pre]
+
+		# search for defined symbols in the form VUEE_LIB_... which
+		# determine the configuration of optional VUEE modules
+
+		foreach vm $MODSYMS {
+			if [info exists Symbols($vm)] {
+				add_modsym VMList $vm $Symbols($vm)
+			}
+		}
+
+		if $FG(D) {
+			dbg "compile_pgm: VMList = $VMList"
+		}
 
 		if { $exp != "" } {
 
@@ -4752,10 +4851,6 @@ proc scanfile { fname inner { prelude "" } } {
 			if { $fn == "" } {
 				continue
 			}
-			if { $fn == "options.sys" && $FG(NOS) } {
-				# do not include "options.sys"
-				continue
-			}
 			# look it up locally
 			set fm [flook $fn "" $DirList]
 			if { $fm == "" } {
@@ -4827,11 +4922,19 @@ proc emit_glue { } {
 #
 # Creates the "glue" file (SMURPH Root) for the praxis - one for the whole set
 #
-	global PG PgmList Pgm
+	global PG PgmList Pgm VMList
 
 	set fn "__vuee_root.cc"
 
-	set res "#include \"sysio.h\"\n"
+	set res ""
+
+	foreach np $VMList {
+		append res "#define [lindex $np 0] [lindex $np 1]\n"
+	}
+
+	append res "#define DONT_INCLUDE_OPTIONS_SYS\n"
+
+	append res "#include \"sysio.h\"\n"
 	append res "#include \"board.h\"\n"
 	append res "#include \"board.cc\"\n"
 
@@ -4989,12 +5092,20 @@ proc emit_vhdr { } {
 #
 # Creates __vueehdr...h
 #
-	global PG Pgm
+	global PG Pgm VMList
 
 	set fn "__vueehdr[pnfx].h"
 	set ta "__vueehdr[pnfx]_h"
 
-	set res "#ifndef $ta\n[emit_thrname]#include \"board.h\"\n"
+	set res "#ifndef $ta\n[emit_thrname]"
+
+	foreach d $VMList {
+		append res "#define [lindex $d 0] [lindex $d 1]\n"
+	}
+
+	append res "#define DONT_INCLUDE_OPTIONS_SYS\n"
+
+	append res "#include \"board.h\"\n"
 
 	foreach d $PG($Pgm,TD) {
 		# type declarations

@@ -1,6 +1,8 @@
 #ifndef	__ab_params_h__
 #define	__ab_params_h__
 
+#define	VUEE_LIB_XRS
+
 // These can be in principle redefined, this is why the ifndefs
 
 #ifndef	AB_PL_CUR

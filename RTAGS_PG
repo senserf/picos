@@ -2665,3 +2665,49 @@ PG121107A:
 	work as before (by default). There is no need to recompile BlueTest
 	for tests with commented out #undef BLUETOOTH_TRANSPARENT. You can
 	switch the transparent mode on and off from the praxis.
+
+PG121113A:	3 6	VUEE >= PG121113A, SIDE >= PG121113A, PIP >= PG121113A
+
+	A few rather messy changes in the way VUEE gets its options. First of
+	all board options are now included (implicitly) in front of every
+	program file compiled for VUEE, but only if the praxis (project) has
+	been configured for real-life compilation.
+
+	Local options files are also included following the board options. This
+	is the same as for real-life compilation and allows the local options
+	to override the board options. Note that previously only the single
+	options.sys file was used by VUEE, regardless of whether the praxis was
+	single- or multi-program. Now it is the same as for PicOS, i.e.,
+	"labeled" options is tried first, and if the file is missing,
+	options.sys provides a fallback.
+
+	Note that local options files are now optional also for VUEE (they
+	have been optional for PicOS for some time). VUEE doesn't need them
+	any more for identifying the optionally compiled modules or the radio.
+	The former is guessed based on the content of the parsed programs,
+	the latter can be found in the board files to the same extent that
+	it can be done for PicOS compilation. Of course, if you don't want to
+	configure your project for real-life boards, you have to provide the
+	required "hardware" options (like the radio module selection) in local
+	options.
+
+	Legacy praxes can still be compiled by hand, but they have to provide
+	options.sys (the single file regardless of whether the praxis is
+	multi-program or not). Please move! About half of my effort related to
+	this modifiaction was related to maintaining legacy compatibility.
+
+	Some heuristics are involved, because for a multi-program praxis, the
+	hardware options (applicable globally to the shared "engine") are
+	derived from the options files of all the requisite boards. So there
+	better be no weird conflicts.
+
+	If the board directory contains a file named node.xml (see WARSAW for
+	an example), that file provides a supplementary default for node
+	definitions in the standard data file. This is a bit messy, but
+	I didn't want to turn everything upside down. This is described (in a
+	lame sort of way) in the VUEE doc. I don't know how to describe it
+	"nicely". Perhaps it doesn't make sense? The modification took me two
+	days and I hate it. Note that there are implications for udaemon,
+	because, e.g., the visualization data must be inherited properly.
+
+	I am not sure if we will not backpedal on this little revolution.

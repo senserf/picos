@@ -7,6 +7,8 @@
 
 //+++ "lcdg_images.c"
 
+#define	VUEE_LIB_LCDG
+
 #include "lcdg_images_params.h"
 #include "lcdg_images_types.h"
 

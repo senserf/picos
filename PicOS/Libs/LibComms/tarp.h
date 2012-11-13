@@ -1,5 +1,5 @@
-#ifndef __tarp_h
-#define __tarp_h
+#ifndef __tarp_h_
+#define __tarp_h_
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2007.			*/
 /* All rights reserved.							*/
@@ -8,6 +8,10 @@
 #include "sysio.h"
 #include "tcvplug.h"
 #include "msg_tarp.h"
+
+// This one is needed to declare (when compiled for VUEE) that the TARP module
+// should be included in the model
+#define	VUEE_LIB_PLUG_TARP
 
 #define TARP_CACHES_MALLOCED	0
 #define	TARP_CACHES_TEST	0
@@ -113,7 +117,10 @@ extern  nid_t		net_id;
 extern  nid_t		local_host;
 extern  nid_t		master_host;
 
-#ifndef	__SMURPH__
+#ifdef	__SMURPH__
+// Needed for net.c
+#include "plug_null.h"
+#else
 #include "tarp_hooks.h"
 #endif
 

@@ -9,6 +9,8 @@
 
 //+++ "plug_boss.c"
 
+#define	VUEE_LIB_PLUG_BOSS
+
 extern const tcvplug_t plug_boss;
 
 #define	BOSS_FD_ABP	0	// FD ordinals: AB descriptor
