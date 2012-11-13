@@ -443,3 +443,7 @@ PG120917A:	PIP >= PG120917A, VUEE >= PG120917A
 
 	   in the same way as the standard arguments of main.
 	   
+PG121113A:
+
+	   A small adjustment to sxml_parse_input which is now a bit safer and
+	   more general.

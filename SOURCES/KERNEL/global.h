@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-10   P. Gburzynski */
+/* Copyright (C) 1991-12   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 //#define	ZZ_RF_DEBUG
@@ -1822,7 +1822,7 @@ void print (const BIG &n, const char *h = NULL, int ns = 15, int hs = 0);
 inline void print (const BIG &n, int ns) { print (n, NULL, ns); };
 #endif
 void print (const char *n, int ns = 0);
-sxml_t sxml_parse_input (char del = '\0', char **data = NULL);
+sxml_t sxml_parse_input (char del = '\0', char **data = NULL, int *len = NULL);
 
 /* ---------------------------------------------------------- */
 /* User-invisible global function to issue an inspect request */

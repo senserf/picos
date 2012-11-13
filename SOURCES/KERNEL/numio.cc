@@ -905,11 +905,12 @@ Mem:
 	}
 }
 
-sxml_t	sxml_parse_input (char del, char **data) {
+sxml_t	sxml_parse_input (char del, char **data, int *len) {
 /*
  * Parse the input data. The optional character (if not 0) gives the delimiter
  * expected to occur as the only character of a terminating line. Otherwise,
- * the stream is read until EOF.
+ * the stream is read until EOF. The optional second argument is a pointer to
+ * where a copy of the input data should be saved.
  */
 	int	CSize, MSize = 1024;
 	char	*IF, *SF, c, d;
@@ -929,8 +930,11 @@ sxml_t	sxml_parse_input (char del, char **data) {
 		IF [CSize++] = h; \
 	} while (0)
 
-	if (data != NULL)
+	if (data != NULL) {
 		*data = NULL;
+		if (len != NULL)
+			*len = 0;
+	}
 
 	if (EndOfData)
 		return sxml_parse_str ("", 0);
@@ -968,6 +972,8 @@ Mem:
 		}
 		memcpy (*data, IF, CSize);
 		(*data) [CSize] = '\0';
+		if (len != NULL)
+			*len = CSize;
 	}
 	
 	return sxml_parse_str1 (IF, CSize);
