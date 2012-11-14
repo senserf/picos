@@ -2711,3 +2711,8 @@ PG121113A:	3 6	VUEE >= PG121113A, SIDE >= PG121113A, PIP >= PG121113A
 	because, e.g., the visualization data must be inherited properly.
 
 	I am not sure if we will not backpedal on this little revolution.
+
+PG121114A:
+
+	A new version of the REFLOW praxis for Gerry. Read the doc in
+	Apps/PROPRIETARY/REFLOW.
