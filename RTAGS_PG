@@ -2716,3 +2716,7 @@ PG121114A:
 
 	A new version of the REFLOW praxis for Gerry. Read the doc in
 	Apps/PROPRIETARY/REFLOW.
+
+PG121115A:
+
+	Fixed a couple of stupid glitches in Gerry's REFLOW praxis.
