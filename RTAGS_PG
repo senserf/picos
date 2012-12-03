@@ -2720,3 +2720,14 @@ PG121114A:
 PG121115A:
 
 	Fixed a couple of stupid glitches in Gerry's REFLOW praxis.
+
+PG121203A:
+
+	A (completely) new version of the REFLOW praxis, this time with GUI.
+	Read the doc in Apps/PROPRIETARY/REFLOW.
+
+	A few cosmetic changes along the way. Added Tcl packages to Scripts:
+	boss.tcl, tooltips.tcl, autoconnect.tcl.
+
+	Fixed picomp not to use 8.5 features to make sure it still runs with
+	Tcl 8.4 on older versions of Cygwin.

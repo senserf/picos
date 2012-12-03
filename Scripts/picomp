@@ -3718,8 +3718,10 @@ proc add_modsym { l sym val } {
 		return
 	}
 
-	if { [lsearch -exact -index 0 $ls $sym] >= 0 } {
-		return
+	foreach t $ls {
+		if { [lindex $t 0] == $sym } {
+			return
+		}
 	}
 
 	lappend ls [list $sym $val]

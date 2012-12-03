@@ -30,7 +30,7 @@
 
 // Current measurement on EM430F6137RF900 development board:
 //
-//	CPU Idle in PD mode (mormal OS activity): 2.7uA at 3.3V
+//	CPU Idle in PD mode (normal OS activity): 2.7uA at 3.3V
 //	----------- PU -------------------------: 452uA
 //	CPU spin                                : 2.8mA
 //

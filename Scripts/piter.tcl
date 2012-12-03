@@ -885,7 +885,7 @@ proc sy_exit { } {
 	exit 0
 }
 
-proc pt_abort { ln } {
+proc pt_abort { msg } {
 
 	tk_dialog .abert "Abort!" "Fatal error: ${msg}!" "" 0 "OK"
 	sy_exit
@@ -3164,8 +3164,10 @@ proc sy_uwpkt { msg } {
 		sy_dump "W" $msg
 	}
 
-	puts -nonewline $ST(SFD) $msg
-	flush $ST(SFD)
+	catch {
+		puts -nonewline $ST(SFD) $msg
+		flush $ST(SFD)
+	}
 }
 
 ###############################################################################
