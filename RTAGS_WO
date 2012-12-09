@@ -177,3 +177,10 @@ WO121103A:
   - Chronos buzzes in UIoff mode
   - highlight colors
   - updated .odt, removed some code comments
+
+WO121209A:
+  inProgress/netting: Another praxis meant as blueprint, this time for
+  experiments with networking. Disappointments include incombatibility with
+  tracEd meant to traliblaze general OSSI structures. So, this part of
+  tracEd was futile; perhaps BOSS? As to 'netting', see netting.odt in there.
+

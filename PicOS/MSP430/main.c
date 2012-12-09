@@ -1084,7 +1084,7 @@ static void ios_init () {
 #ifdef	SYSVER_B
 		"-" SYSVER_B
 #endif
-        	", (C) Olsonet Communications, 2002-2011");
+        	", (C) Olsonet Communications, 2002-2012");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
 	dbg_1 (0x1000 | SYSVER_X);
