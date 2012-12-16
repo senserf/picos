@@ -4669,7 +4669,7 @@ ANum:
 			} else {
 				BDLB [NFC] = NULL;
 			}
-			BDFN [NFC] = *PCArgv++;
+			BDFN [NFC] = *PCArgv;
 			for (NN = 0; NN < NFC; NN++)
 				if (nstrcmp (BDLB [NFC], BDLB [NN]) == 0)
 					excptn ("Root: duplicate pgm label in "

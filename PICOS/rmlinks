@@ -17,6 +17,7 @@ rm -f phys_cc1100.h
 #################################
 rm -f tcv.cc
 rm -f tcv.h
+rm -f tcv_defs.h
 rm -f tcv_node_data.h
 rm -f tcvphys.h
 rm -f tcvplug.h

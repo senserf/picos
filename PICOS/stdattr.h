@@ -141,22 +141,14 @@
 	(  ((PicOSNode*)TheStation)->_na_tcv_qsize (a,b)  )
 #define	tcv_erase(a,b) \
 	(  ((PicOSNode*)TheStation)->_na_tcv_erase (a,b)  )
-#define	tcv_wnpu(a,b,c) \
-	(  ((PicOSNode*)TheStation)->_na_tcv_wnpu (a,b,c)  )
-#define	tcv_wnp(a,b,c) \
-	(  ((PicOSNode*)TheStation)->_na_tcv_wnp (a,b,c)  )
+#define	tcv_wnps(a,b,c,d) \
+	(  ((PicOSNode*)TheStation)->_na_tcv_wnps (a,b,c,d)  )
 #define	tcv_read(a,b,c) \
 	(  ((PicOSNode*)TheStation)->_na_tcv_read (a,b,c)  )
 #define	tcv_write(a,b,c) \
 	(  ((PicOSNode*)TheStation)->_na_tcv_write (a,b,c)  )
 #define	tcv_drop(a) \
 	(  ((PicOSNode*)TheStation)->_na_tcv_drop (a)  )
-#define	tcv_left(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcv_left (a)  )
-#define	tcv_urgent(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcv_urgent (a)  )
-#define	tcv_isurgent(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcv_isurgent (a)  )
 #define	tcv_control(a,b,c) \
 	(  ((PicOSNode*)TheStation)->_na_tcv_control (a,b,c)  )
 
@@ -170,24 +162,16 @@
 	(  ((PicOSNode*)TheStation)->_na_tcvp_clone (a,b)  )
 #define	tcvp_dispose(a,b) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_dispose (a,b)  )
-#define	tcvp_isqueued(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcvp_isqueued (a)  )
 #define	tcvp_new(a,b,c) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_new (a,b,c)  )
 #define	tcvp_hook(a,b) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_hook (a,b)  )
-#define	tcvp_gethook(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcvp_gethook (a)  )
 #define	tcvp_unhook(a) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_unhook (a)  )
 #define	tcvp_settimer(a,b) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_settimer (a,b)  )
-#define	tcvp_issettimer(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcvp_issettimer (a)  )
 #define	tcvp_cleartimer(a) \
 	(  ((PicOSNode*)TheStation)->_na_tcvp_cleartimer (a)  )
-#define	tcvp_length(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcvp_length (a)  )
 #define	tcvphy_reg(a,b,c) \
 	(  ((PicOSNode*)TheStation)->_na_tcvphy_reg (a,b,c)  )
 #define	tcvphy_rcv(a,b,c) \

@@ -92,14 +92,14 @@ static void pkt_rreset (uart_tcv_int_t *UA, int redo, int done) {
 	int k;
 
 	while (Time < UA->r_rstime) {
-		if ((UA->v_flags & UAFLG_ROFF)) {
-			Timer->wait (0, done);
-			sleep;
-		}
+		if ((UA->v_flags & UAFLG_ROFF))
+			break;
 		when (UART_EVP_RCV, redo);
 		Timer->wait (UA->r_rstime - Time, redo);
 		io (redo, 0, READ, (char*)(UA->r_buffer), UA->r_buffl);
 	}
+	Timer->wait (0, done);
+	sleep;
 }
 
 // ============================================================================

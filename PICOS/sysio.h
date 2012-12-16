@@ -30,6 +30,20 @@
 // This must be overriden unconditionally because TCV is always compiled in
 #define	TCV_PRESENT	1
 
+#ifndef	TCV_HOOKS
+#define	TCV_HOOKS		0
+#endif
+
+#ifndef	TCV_TIMERS
+#define	TCV_TIMERS		0
+#endif
+
+#ifndef	TCV_OPEN_CAN_BLOCK
+#define	TCV_OPEN_CAN_BLOCK	0
+#endif
+
+// ============================================================================
+
 #define	CRC_ISO3309	1
 
 #define	UART_TCV_MODE_N		0	// Non-persistent packets
@@ -64,7 +78,7 @@
 #define	UART_CNTRL_GETRATE	3
 #define	UART_CNTRL_CALIBRATE	4	/* For UARTs driven by flimsy clocks */
 
-#define	TCV_MAX_DESC		4
+#define	TCV_MAX_DESC		8
 #define	TCV_MAX_PHYS		2
 #define	TCV_MAX_PLUGS		3
 
@@ -107,50 +121,9 @@
 #define	PHYSOPT_GETMAXPL	24	/* Get the maximum packet length */
 #define	PHYSOPT_RESET		25
 
-typedef	struct {
-/*
- * Application data pointers. These two numbers represent the offset to the
- * starting byte in the application portion of a received packet, and the
- * offset of the last application byte from the end, or, in simple words,
- * the header and trailer length, respectively.
- */
-	word	head,
-		tail;
-} tcvadp_t;
-
-/*
- * Plugin functions
- */
-typedef struct {
-	int (*tcv_ope) (int, int, va_list);
-	int (*tcv_clo) (int, int);
-	int (*tcv_rcv) (int, address, int, int*, tcvadp_t*);
-	int (*tcv_frm) (address, int, tcvadp_t*);
-	int (*tcv_out) (address, int);
-	int (*tcv_xmt) (address, int);
-	int (*tcv_tmt) (address, int);
-	int tcv_info;
-} tcvplug_t;
-
 #if	TCV_PRESENT
 
-/* Functions, we declare them only if the device is present */
-void	tcv_plug (int, const tcvplug_t*);
-int	tcv_open (word, int, int, ...);
-int	tcv_close (word, int);
-address	tcv_rnp (word, int);
-address tcv_wnp (word, int, int);
-address tcv_wnpu (word, int, int);
-int	tcv_qsize (int, int);
-int	tcv_erase (int, int);
-int	tcv_read (address, char*, int);
-int	tcv_write (address, const char*, int);
-void	tcv_endp (address);
-void	tcv_drop (address);
-int	tcv_left (address);	/* Also plays the role of old tcv_plen */
-void	tcv_urgent (address);
-Boolean	tcv_isurgent (address);
-int	tcv_control (int, int, address);
+#include "tcv_defs.h"
 
 typedef	int (*ctrlfun_t) (int option, address);
 
