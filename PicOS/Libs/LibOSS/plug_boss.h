@@ -13,9 +13,6 @@
 
 extern const tcvplug_t plug_boss;
 
-#define	BOSS_FD_ABP	0	// FD ordinals: AB descriptor
-#define	BOSS_FD_DIR	1	// DIRect descriptor
-
 #define	BOSS_PO_PRO	0	// Packet offset: protocol
 #define	BOSS_PO_FLG	1	// Packet offset: flag
 #define	BOSS_BI_CUR	1	// Bit 0

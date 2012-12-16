@@ -7,7 +7,7 @@
 
 #include "mach.h"
 
-#ifdef	DIAG_IMPLEMENTATION
+#if	DIAG_MESSAGES
 
 #if	DIAG_IMPLEMENTATION == 0
 // Direct UART
@@ -73,7 +73,7 @@ void __pi_diag_init (int), __pi_diag_stop (int);
 #define	diag_enable_int(a,u)	CNOP
 #endif	/* void */
 
-#endif	/* DIAG_IMPLEMENTATION */
+#endif	/* DIAG_MESSAGES */
 // ============================================================================
 
 #endif

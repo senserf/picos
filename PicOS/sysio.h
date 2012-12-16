@@ -831,50 +831,9 @@ void	dbb (word);
 
 #define	PHYSOPT_TRANSPARENT	27
 
-typedef	struct {
-/*
- * Application data pointers. These two numbers represent the offset to the
- * starting byte in the application portion of a received packet, and the
- * offset of the last application byte from the end, or, in simple words,
- * the header and trailer length, respectively.
- */
-	word	head,
-		tail;
-} tcvadp_t;
-
-/*
- * Plugin functions
- */
-typedef struct {
-	int (*tcv_ope) (int, int, va_list);
-	int (*tcv_clo) (int, int);
-	int (*tcv_rcv) (int, address, int, int*, tcvadp_t*);
-	int (*tcv_frm) (address, int, tcvadp_t*);
-	int (*tcv_out) (address, int);
-	int (*tcv_xmt) (address, int);
-	int (*tcv_tmt) (address, int);
-	int tcv_info;
-} tcvplug_t;
-
 #if	TCV_PRESENT
 
-/* Functions, we declare them only if the device is present */
-int	tcv_plug (int, const tcvplug_t*);
-int	tcv_open (word, int, int, ...);
-int	tcv_close (word, int);
-address	tcv_rnp (word, int);
-address tcv_wnp (word, int, int);
-address tcv_wnpu (word, int, int);
-int	tcv_qsize (int, int);
-int	tcv_erase (int, int);
-int	tcv_read (address, char*, int);
-int	tcv_write (address, const char*, int);
-void	tcv_endp (address);
-void	tcv_drop (address);
-int	tcv_left (address);	/* Also plays the role of old tcv_plen */
-void	tcv_urgent (address);
-Boolean	tcv_isurgent (address);
-int	tcv_control (int, int, address);
+#include "tcv_defs.h"
 
 /* TCV malloc shortcut */
 #define	tmalloc(s)	malloc (1, s)

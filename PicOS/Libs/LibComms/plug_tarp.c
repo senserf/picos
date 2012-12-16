@@ -25,12 +25,12 @@ extern int tarp_xmt (address buffer);
 static int tcv_ope_tarp (int, int, va_list);
 static int tcv_clo_tarp (int, int);
 static int tcv_rcv_tarp (int, address, int, int*, tcvadp_t*);
-static int tcv_frm_tarp (address, int, tcvadp_t*);
-static int tcv_out_tarp (address, int);
-static int tcv_xmt_tarp (address, int);
+static int tcv_frm_tarp (address, tcvadp_t*);
+static int tcv_out_tarp (address);
+static int tcv_xmt_tarp (address);
 
 #if TARP_RTR
-static int tcv_tmt_tarp (address, int);
+static int tcv_tmt_tarp (address);
 #else
 #define tcv_tmt_tarp NULL
 #endif
@@ -118,20 +118,20 @@ static int tcv_rcv_tarp (int phy, address p, int len, int *ses, tcvadp_t *bounds
 	
 }
 
-static int tcv_frm_tarp (address p, int phy, tcvadp_t *bounds) {
+static int tcv_frm_tarp (address p, tcvadp_t *bounds) {
 
 	// can't use this one if framing (e.g. ethernet) is done in the application
 	return bounds->head = bounds->tail = 0;
 
 }
 
-static int tcv_out_tarp (address p, int s) {
+static int tcv_out_tarp (address p) {
 	int rc = tarp_tx (p);
 	return rc;
 
 }
 
-static int tcv_xmt_tarp (address p, int s) {
+static int tcv_xmt_tarp (address p) {
 #if TARP_RTR
 	return tarp_xmt (p);
 #else
@@ -140,7 +140,7 @@ static int tcv_xmt_tarp (address p, int s) {
 }
 
 #if TARP_RTR
-static int tcv_tmt_tarp (address p, int i) {
+static int tcv_tmt_tarp (address p) {
 	// tarp rtr monitoring is in tarp_xmt and tarp_rx, as they deal
 	// with tarp structs. Here, just re-xmt as urgent.
 	return TCV_DSP_XMTU;

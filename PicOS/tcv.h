@@ -8,108 +8,23 @@
 
 #if	TCV_PRESENT
 
-#ifndef	TCV_HOOKS
-#define	TCV_HOOKS		0
-#endif
+#define	qitem_t			__tcv_qitem_t
+#define	qhead_t			__tcv_qhead_t
+#define	titem_t			__tcv_titem_t
+#define	thead_t			__tcv_thead_t
+#define	battr_t			__tcv_battr_t
 
-#ifndef	TCV_TIMERS
-#define	TCV_TIMERS		0
-#endif
+#define	hblock_t		__tcv_hblock_t
+#define	sesdesc_t		__tcv_sesdesc_t
 
-#ifndef	TCV_OPEN_CAN_BLOCK
-#define	TCV_OPEN_CAN_BLOCK	0
-#endif
+#define	hblenb			__tcv_hblenb
+#define hblen			__tcv_hblen
 
-struct qitem_struct {
-	struct qitem_struct	*next,
-				*prev;
-};
+#define	header(p)		__tcv_header (p)
 
-typedef	struct qitem_struct	qitem_t;
-typedef	struct qitem_struct	qhead_t;
-
-#define	TCV_QHEAD_LENGTH	4
-
-struct titem_struct {
-// Timer queue item
-	struct titem_struct	*next,
-				*prev;
-	word			value;
-};
-
-typedef	struct titem_struct	titem_t;
-
-typedef	struct {
-	titem_t			*next,
-				*prev;
-} thead_t;
-
-typedef	union {
-	word	value;
-	struct	{
-		word 	queued:1,
-			outgoing:1,
-			urgent:1,
-			session:7,
-			plugin:3,
-			phys:3;
-	} b;
-} battr_t;
-
-/* =================== */
-/* Buffer header block */
-/* =================== */
-struct hblock_struct {
-	/*
-	 * These ones must be at the very beginning
-	 */
-    union {
-	qitem_t			bqueue;		/* Buffer queue links */
-	tcvadp_t		pointers;	/* Application data pointers */
-	/*
-	 * Note: the application data pointers are only valid for a packet that
-	 * has been either removed from a queue, or not yet put into a queue;
-	 * thus, we recycle the links for this purpose.
-	 */
-    } u;			// 4 bytes PicOS, 8 bytes simulator
-
-#if	TCV_HOOKS
-	address *hptr;		// 2 bytes PicOS, 4 bytes simulator
-#define	TCV_HBLOCK_HOOKS_LENGTH		2
-#else
-#define	TCV_HBLOCK_HOOKS_LENGTH		0
-#endif
-	/*
-	 * Packet length in bytes.
-	 */
-	word	length;		// 2 bytes
-	/*
-	 * Flags (e.g., whether the packet is queued or not) + plugin ID +
-	 * phys ID
-	 */
-	battr_t	attributes;	// 2 bytes
-
-#if	TCV_TIMERS
-	/*
-	 * Timer queue links (must be the last item, see
-	 * t_tqoffset below
-	 */
-	titem_t	tqueue;		// 6 bytes PicOS, 12 bytes simulator
-#define	TCV_HBLOCK_TIMERS_LENGTH	6
-#else
-#define	TCV_HBLOCK_TIMERS_LENGTH	0
-#endif
-};
-
-#define	TCV_HBLOCK_LENGTH   (8+TCV_HBLOCK_HOOKS_LENGTH+TCV_HBLOCK_TIMERS_LENGTH)
-
-typedef	struct hblock_struct	hblock_t;
-
-#define	hblenb		(sizeof (hblock_t))
-#define hblen		(hblenb/sizeof(word))
+// ============================================================================
 
 #define	payload(p)	(byteaddr ((p) + 1))
-#define	header(p)	((hblock_t*)((p) - hblen))
 
 #define	q_first(q)	((hblock_t*)((q)->next))
 #define	q_end(p,q)	(((qitem_t*)(p)) == (q))
@@ -135,33 +50,6 @@ typedef	struct hblock_struct	hblock_t;
 					(t)->next = NULL; \
 				} \
 			} while (0)
-
-typedef	struct {
-/*
- * Session descriptor
- */
-	qhead_t		rqueue;		/* Reception queue */
-	/*
-	 * This is the attribute pattern word for a new outgoing packet
-	 */
-	battr_t		attpattern;
-	/*
-	 * Note: we no longer use the notion of the currently read/written
-	 * packet because the packet itself knows where it belongs.
-	 */
-
-#if TCV_OPEN_CAN_BLOCK
-	/*
-	 * This one is used while the session is being open and the requesting
-	 * process must go to sleep. Using it, we can identify the descriptor
-	 * when the open operation is resumed. Kind of clumsy, especially that
-	 * I can think of no other use for this attribute.
-	 */
-	int		pid;
-#endif
-} sesdesc_t;
-
-#define	TCV_SESDESC_LENGTH	(4+2+2)
 
 // Here is some mess required by the timers
 #ifdef	__SMURPH__

@@ -1,10 +1,10 @@
 #ifndef __plug_boss_node_data_h
 #define __plug_boss_node_data_h
 
-__STATIC int _da (boss_fdsc) [2]
+__STATIC int _da (boss_fdsc)
 
 #ifndef	__SMURPH__
-			= { NONE, NONE }
+			= NONE
 #endif
 				;
 

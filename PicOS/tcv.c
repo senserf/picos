@@ -165,20 +165,16 @@ __PRIVF (PicOSNode, void, enq) (qhead_t *q, hblock_t *p) {
  * Inserts a buffer into a queue
  */
 	sysassert (p->attributes.b.queued == 0, "tcv01");
-	if (p->attributes.b.urgent) {
-		/* At the front. This always triggers a queue event. */
+	if (q_empty (q))
 		trigger (q);
+	if (p->attributes.b.urgent) {
+		// At the front
 		p->u.bqueue.next = q->next;
 		p->u.bqueue.prev = q;
 		q->next->prev = (qitem_t*) p;
 		q->next = (qitem_t*) p;
 	} else {
-		/*
-		 * At the end. This triggers a queue event if the queue was
-		 * empty.
-		 */
-		if (q_empty (q))
-			trigger (q);
+		// At the end
 		p->u.bqueue.next = q;
 		p->u.bqueue.prev = q->prev;
 		q->prev->next = (qitem_t*) p;
@@ -324,7 +320,7 @@ __PUBLF (PicOSNode, void, tcv_endp) (address p) {
 	if (b->attributes.b.outgoing) {
 		verify_plg (b, tcv_out, "tcv03");
 		dispose (b, plugins [b->attributes.b.plugin] ->
-			tcv_out (p, b->attributes.b.session));
+			tcv_out (p));
 	} else
 		/* This is a received packet - just drop it */
 		rlp (b);
@@ -624,7 +620,7 @@ __PUBLF (PicOSNode, address, tcv_rnp) (word state, int fd) {
 	p = ((address)(b + 1));
 	/* Set the pointers to application data */
 	verify_plg (b, tcv_frm, "tcv11");
-	plugins [b->attributes.b.plugin]->tcv_frm (p, fd, &(b->u.pointers));
+	plugins [b->attributes.b.plugin]->tcv_frm (p, &(b->u.pointers));
 	/* Adjust the second pointer to look like the length */
 	b->u.pointers.tail =
 		b->length - b->u.pointers.head - b->u.pointers.tail;
@@ -712,13 +708,8 @@ Er_rt:
 	return nq;
 }
 
-#if	TCV_LIMIT_XMT
-
-__PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
-/*
- * Urgent variant of wnp. Bumps by 1 the queue size limit and marks the packet
- * as urgent.
- */
+__PUBLF (PicOSNode, address, tcv_wnps) (word state, int fd, int length,
+								Boolean urg) {
 	hblock_t *b;
 	tcvadp_t ptrs;
 	sesdesc_t *s;
@@ -728,11 +719,15 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 
 	s = descriptors [fd];
 
-	/* Obtain framing parameters */
 	verify_pld (s, tcv_frm, "tcv17");
 
-	if ((eid = plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
-	    &ptrs))) {
+	// tcv_frm invoked with packet == NULL, pass in the frame parameters
+	// the session and urgent flag
+	ptrs.head = (word) fd;
+	ptrs.tail = (word) urg;
+
+	if ((eid = plugins [s->attpattern.b.plugin]->tcv_frm (NULL, &ptrs))) {
+		// Blocked by the plugin
 		if (state != WNONE) {
 			when (eid, state);
 			release;
@@ -742,78 +737,10 @@ __PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
 
 	sysassert (s->attpattern.b.queued == 0, "tcv18");
 
-	if (qmore (oqueues [s->attpattern.b.phys],
-				      TCV_LIMIT_XMT + TCV_LIMIT_URGENT_BUMP)) {
-		if (state != WNONE) {
-NoMem:
-			tmwait (state);
-			release;
-		}
-		return NULL;
-	}
-
-	if ((b = apb (length + ptrs . head + ptrs . tail)) == NULL) {
-		/* No memory */
-		if (state != WNONE)
-			goto NoMem;
-		return NULL;
-	}
-
-	b->attributes = s->attpattern;
-	b->attributes.b.urgent = 1;
-	b->u.pointers.head = ptrs.head;
-	b->u.pointers.tail = length;
-
-	return (address) (b + 1);
-}
-
-#else	/* TCV_LIMIT_XMT */
-
-__PUBLF (PicOSNode, address, tcv_wnpu) (word state, int fd, int length) {
-
-	address p = tcv_wnp (state, fd, length);
-
-	if (p != NULL)
-		tcv_urgent (p);
-
-	return p;
-}
-
-#endif	/* TCV_LIMIT_XMT */
-
-__PUBLF (PicOSNode, address, tcv_wnp) (word state, int fd, int length) {
-/*
- * Creates a new outgoing packet and makes it available for writing. Returns
- * the packet handle. There may be several such packets started up per
- * session, so there's no notion of 'current' outgoing packet.
- */
-	hblock_t *b;
-	tcvadp_t ptrs;
-	sesdesc_t *s;
-	int eid;
-
-	verify_fds (fd, "tcv19");
-
-	s = descriptors [fd];
-
-	/* Obtain framing parameters */
-	verify_pld (s, tcv_frm, "tcv20");
-
-	if ((eid = plugins [s->attpattern.b.plugin]->tcv_frm (NULL, fd,
-	    &ptrs))) {
-		if (state != WNONE) {
-			when (eid, state);
-			release;
-		}
-		return NULL;
-	}
-
-	sysassert (s->attpattern.b.queued == 0, "tcv21");
-
-	/* Total length of the packet */
-
-#if	TCV_LIMIT_XMT
-	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT)) {
+#if TCV_LIMIT_XMT
+	if (qmore (oqueues [s->attpattern.b.phys], TCV_LIMIT_XMT + (urg ? \
+	    TCV_LIMIT_URGENT_BUMP : 0))) {
+		// Queue limit size exceeded
 		if (state != WNONE)
 			goto NoMem;
 		return NULL;
@@ -832,6 +759,8 @@ NoMem:
 	}
 
 	b->attributes = s->attpattern;
+	if (urg)
+		b->attributes.b.urgent = 1;
 	b->u.pointers.head = ptrs.head;
 	b->u.pointers.tail = length;
 
@@ -879,25 +808,6 @@ __PUBLF (PicOSNode, void, tcv_drop) (address p) {
  */
 	if (p != NULL)
 		rlp (header (p));
-}
-
-__PUBLF (PicOSNode, int, tcv_left) (address p) {
-/*
- * Tells how much packet space is left
- */
-	return header (p) -> u.pointers.tail;
-}
-
-__PUBLF (PicOSNode, void, tcv_urgent) (address p) {
-/*
- * Mark the packet as urgent
- */
-	header (p) -> attributes.b.urgent = 1;
-}
-
-__PUBLF (PicOSNode, Boolean, tcv_isurgent) (address p) {
-
-	return header (p) -> attributes.b.urgent;
 }
 
 __PUBLF (PicOSNode, int, tcv_control) (int fd, int opt, address arg) {
@@ -1039,21 +949,11 @@ __PUBLF (PicOSNode, address, tcvp_new) (int size, int dsp, int ses) {
 		return NULL;
 }
 
-__PUBLF (PicOSNode, Boolean, tcvp_isqueued) (address p) {
-
-	return header (p) -> attributes.b.queued;
-}
-
 #if	TCV_HOOKS
 __PUBLF (PicOSNode, void, tcvp_hook) (address p, address *h) {
 
 	header (p) -> hptr = h;
 	*h = p;
-}
-
-__PUBLF (PicOSNode, address*, tcvp_gethook) (address p) {
-
-	return header (p) -> hptr;
 }
 
 __PUBLF (PicOSNode, void, tcvp_unhook) (address p) {
@@ -1101,8 +1001,7 @@ void TCVTimerService::wake () {
 			p = t_buffer (t);
 			verify_plg (p, tcv_tmt, "runtq");
 			S->dispose (p, plugins [p->attributes.b.plugin] ->
-				tcv_tmt ((address)(p + 1),
-					p->attributes.b.session));
+				tcv_tmt ((address)(p + 1)));
 		} else {
 			t->value -= current;
 			if (t->value < min)
@@ -1171,8 +1070,7 @@ void __pi_tcv_runqueue (word new, word *min) {
 			p = t_buffer (t);
 			verify_plg (p, tcv_tmt, "runtq");
 			dispose (p, plugins [p->attributes.b.plugin] ->
-				tcv_tmt ((address)(p + 1),
-					p->attributes.b.session));
+				tcv_tmt ((address)(p + 1)));
 		} else {
 			if ((d = t->value - new) < *min)
 				*min = d;
@@ -1216,17 +1114,7 @@ __PUBLF (PicOSNode, void, tcvp_cleartimer) (address p) {
 	deqtm (header (p));
 }
 
-__PUBLF (PicOSNode, Boolean, tcvp_issettimer) (address p) {
-
-	return (header (p) -> tqueue) . next != NULL;
-
-}
-
 #endif	/* TIMERS */
-
-__PUBLF (PicOSNode, int, tcvp_length) (address p) {
-	return header (p) -> length;
-}
 
 /* ---------------------------------------------------------------------- */
 		    /* ============================== */
@@ -1357,7 +1245,7 @@ __PUBLF (PicOSNode, void, tcvphy_end) (address pkt) {
 
 	verify_plg (b, tcv_xmt, "tcv34");
 	dispose (b, plugins [b->attributes.b.plugin] ->
-		tcv_xmt (pkt, b->attributes.b.session));
+		tcv_xmt (pkt));
 }
 
 __PUBLF (PicOSNode, int, tcvphy_erase) (int phy) {

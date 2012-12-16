@@ -113,7 +113,7 @@
 #define	TCV_HOOKS		0	// 0/1
 #endif
 #ifndef	TCV_MAX_DESC
-#define	TCV_MAX_DESC		16	// Maximum number of sessions
+#define	TCV_MAX_DESC		8	// Maximum number of sessions
 #endif
 #ifndef	TCV_MAX_PHYS
 #define	TCV_MAX_PHYS		3	// Maximum number of physical interfaces

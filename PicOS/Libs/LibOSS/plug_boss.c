@@ -7,9 +7,9 @@
 static int tcv_ope_boss (int, int, va_list);
 static int tcv_clo_boss (int, int);
 static int tcv_rcv_boss (int, address, int, int*, tcvadp_t*);
-static int tcv_frm_boss (address, int, tcvadp_t*);
-static int tcv_out_boss (address, int);
-static int tcv_xmt_boss (address, int);
+static int tcv_frm_boss (address, tcvadp_t*);
+static int tcv_out_boss (address);
+static int tcv_xmt_boss (address);
 
 const tcvplug_t plug_boss =
 		{ tcv_ope_boss, tcv_clo_boss, tcv_rcv_boss, tcv_frm_boss,
@@ -36,16 +36,11 @@ const word boss_wnone = WNONE;
 
 static int tcv_ope_boss (int phy, int fd, va_list ap) {
 
-	int k;
-
-	// This is zero or one
-	k = va_arg (ap, int);
-
 #if DIAG_MESSAGES > 1
-	if ((k != BOSS_FD_ABP && k != BOSS_FD_DIR) || boss_fdsc [k] != NONE)
+	if (boss_fdsc != NONE)
 		syserror (EREQPAR, "boss: ope");
 #endif
-	boss_fdsc [k] = fd;
+	boss_fdsc = fd;
 	tcvp_control (phy, PHYSOPT_SETSID, (address)&boss_wnone);
 	return 0;
 }
@@ -54,21 +49,16 @@ static int tcv_clo_boss (int phy, int fd) {
 
 	int k;
 
-	for (k = 0; k < 1; k++) {
-		if (boss_fdsc [k] == fd) {
-			if (k == BOSS_FD_ABP) {
-				// Remove held packet, if any
-				if (boss_out != NULL && boss_out_held)
-					tcvp_dispose (boss_out, TCV_DSP_DROP);
-				boss_out = NULL;
-				boss_out_held = NO;
-				boss_exp = boss_cur = 0;
-			}
-			boss_fdsc [k] = NONE;
-			return 0;
-		}
+	if (boss_fdsc == fd) {
+		// Remove held packet, if any
+		if (boss_out != NULL && boss_out_held)
+			tcvp_dispose (boss_out, TCV_DSP_DROP);
+		boss_out = NULL;
+		boss_out_held = NO;
+		boss_exp = boss_cur = 0;
+		boss_fdsc = NONE;
+		return 0;
 	}
-
 	return ERROR;
 }
 
@@ -83,24 +73,20 @@ static int tcv_rcv_boss (int phy, address p, int len, int *ses,
 	byte bt, ie;
 	int ds;
 
-	// We (formally) skip the first two bytes + checksum; this is the same
-	// for both packet types
-	bounds->head = bounds->tail = 0;
-
-	if ((bt = pkb (p, BOSS_PO_PRO)) == BOSS_PR_DIR) {
-		// A direct packet -> always receive as long as the session is
-		// present
-		return ((*ses = boss_fdsc [BOSS_FD_DIR]) == NONE) ?
-			TCV_DSP_DROP : TCV_DSP_RCV;
-	}
-
-	if (bt != BOSS_PR_ABP)
+	if ((bt = pkb (p, BOSS_PO_PRO)) != BOSS_PR_DIR && bt != BOSS_PR_ABP)
 		// Not one of ours
 		return TCV_DSP_PASS;
 
-	if ((*ses = boss_fdsc [BOSS_FD_ABP]) == NONE)
-		// No session
+	if ((*ses = boss_fdsc) == NONE)
+		// We have no session yet
 		return TCV_DSP_DROP;
+
+	bounds->head = bounds->tail = 0;
+
+	if (bt == BOSS_PR_DIR) {
+		// A direct packet -> always receive (as urgent)
+		return TCV_DSP_RCVU;
+	}
 
 	bt = pkb (p, BOSS_PO_FLG);
 
@@ -111,13 +97,12 @@ static int tcv_rcv_boss (int phy, address p, int len, int *ses,
 			// Also flip in the outgoing packet
 			pkb (boss_out, BOSS_PO_FLG) ^= BOSS_BI_EXP;
 		// and receive
-		ds = TCV_DSP_RCVU;
+		ds = TCV_DSP_RCV;
 	} else {
 		ds = TCV_DSP_DROP;
 	}
 
 	// boss_exp has been settled
-
 	ie = (bt & BOSS_BI_EXP) >> 1;
 
 	if (boss_out != NULL) {
@@ -136,7 +121,7 @@ static int tcv_rcv_boss (int phy, address p, int len, int *ses,
 			// Treat it as a NAK
 			if (boss_out_held) {
 				boss_out_held = NO;
-				tcvp_dispose (boss_out, TCV_DSP_XMTU);
+				tcvp_dispose (boss_out, TCV_DSP_XMT);
 			}
 		}
 	}
@@ -145,47 +130,51 @@ static int tcv_rcv_boss (int phy, address p, int len, int *ses,
 
 	// Decide whether to send an explicit ACK
 	if (boss_out == NULL && (bt & BOSS_BI_ACK) == 0 && (p = tcvp_new (4,
-	    TCV_DSP_XMTU, *ses)) != NULL)
+	    TCV_DSP_XMT, *ses)) != NULL) {
 		sphdr (p, BOSS_PR_ABP, BOSS_BI_ACK);
+	}
 
 	return ds;
 }
 		
-static int tcv_frm_boss (address p, int ses, tcvadp_t *bounds) {
+static int tcv_frm_boss (address p, tcvadp_t *bounds) {
+
+	int res = 0;
+
+	if (p == NULL && bounds->tail == 0) {
+		// Called by tcv_wnps for a reliable (non-urgent) packet
+		if (boss_out != NULL)
+			// Block
+			res = (int)(BOSS_EV_OUT);
+	}
 
 	bounds->head = bounds->tail = 2;
-
-	if (p == NULL && ses == boss_fdsc [BOSS_FD_ABP]) {
-		// ABP and called by tcv_wnp/tcv_wnpu
-		if (boss_out != NULL)
-			return (int)(BOSS_EV_OUT);
-	}
-
-	return 0;
+	return res;
 }
 
-static int tcv_out_boss (address p, int ses) {
+static int tcv_out_boss (address p) {
 
-	if (ses == boss_fdsc [BOSS_FD_ABP]) {
-		if (boss_out != NULL)
-			// Something went wrong; this can happen if multiple
-			// processes try to write interleaving wnp/endp
-			syserror (ENOTNOW, "boss: out");
-		sphdr (p, BOSS_PR_ABP, 0);
-		boss_out = p;
-		boss_out_held = NO;
-		return TCV_DSP_XMTU;
-	} else {
-		// Don't touch the other fields, the praxis can use them
+	if (tcvp_isurgent (p)) {
+		// Non-reliable packet
 		pkb (p, BOSS_PO_PRO) = BOSS_PR_DIR;
-		return TCV_DSP_XMT;
+		return TCV_DSP_XMTU;
 	}
+
+	// Reliable (non-urgent)
+	if (boss_out != NULL)
+		// Something went wrong; this can happen if multiple
+		// processes try to write interleaving wnp/endp
+		syserror (ENOTNOW, "boss: out");
+	sphdr (p, BOSS_PR_ABP, 0);
+	boss_out = p;
+	boss_out_held = NO;
+	return TCV_DSP_XMT;
 }
 
-static int tcv_xmt_boss (address p, int ses) {
+static int tcv_xmt_boss (address p) {
 
-	if (ses == boss_fdsc [BOSS_FD_ABP] && boss_out == p) {
-		// Need to hold
+	if (boss_out == p && !tcvp_isurgent (p)) {
+		// Have to hold until acked
 		boss_out_held = YES;
 		return TCV_DSP_PASS;
 	}

@@ -2731,3 +2731,23 @@ PG121203A:
 
 	Fixed picomp not to use 8.5 features to make sure it still runs with
 	Tcl 8.4 on older versions of Cygwin.
+
+PG121216A:	VUEE >= PG121216A
+
+	Implemented a new version of the BOSS plugin (see Serial.pdf). Also,
+	cleaned up VNETI (TCV) fixing a bit here and there (see VNETI.pdf).
+	Headers of some plugin function have changed which forced me to look up
+	and modify (mostly mechanically) all our current plugins. I even fixed
+	them in some of the archived praxes, but not all.
+
+	Some of the changes were inspired by BOSS, especially the need to
+	differentiate the processing of urgent and regular packets before
+	buffer space allocation by tcv_wnp/tcv_wnpu. The two wnp functions
+	have been replaced by one with the old functions accessible as macros
+	for backward compatibility. A few other functions have been turned into
+	macros as well.
+
+	I will write a separate notebook document about the BOSS plugin to vent
+	some of my confusion.
+
+	A few miscellaneous cleanups here and there.

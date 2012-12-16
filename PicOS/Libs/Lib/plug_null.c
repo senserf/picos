@@ -19,9 +19,9 @@
 static int tcv_ope_null (int, int, va_list);
 static int tcv_clo_null (int, int);
 static int tcv_rcv_null (int, address, int, int*, tcvadp_t*);
-static int tcv_frm_null (address, int, tcvadp_t*);
-static int tcv_out_null (address, int);
-static int tcv_xmt_null (address, int);
+static int tcv_frm_null (address, tcvadp_t*);
+static int tcv_out_null (address);
+static int tcv_xmt_null (address);
 
 const tcvplug_t plug_null =
 		{ tcv_ope_null, tcv_clo_null, tcv_rcv_null, tcv_frm_null,
@@ -78,18 +78,18 @@ static int tcv_rcv_null (int phy, address p, int len, int *ses,
 	return TCV_DSP_RCV;
 }
 
-static int tcv_frm_null (address p, int phy, tcvadp_t *bounds) {
+static int tcv_frm_null (address p, tcvadp_t *bounds) {
 
 	return bounds->head = bounds->tail = 0;
 }
 
-static int tcv_out_null (address p, int s) {
+static int tcv_out_null (address p) {
 
 	return TCV_DSP_XMT;
 
 }
 
-static int tcv_xmt_null (address p, int s) {
+static int tcv_xmt_null (address p) {
 
 	return TCV_DSP_DROP;
 }

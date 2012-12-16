@@ -72,14 +72,11 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 	address 	_da (tcv_rnp) (word state, int fd);
 	int 		_da (tcv_qsize) (int fd, int disp);
 	int 		_da (tcv_erase) (int fd, int disp);
-	address 	_da (tcv_wnpu) (word state, int fd, int length);
-	address 	_da (tcv_wnp) (word state, int fd, int length);
+	address 	_da (tcv_wnps) (word state, int fd, int length,
+				Boolean urg);
 	int 		_da (tcv_read) (address p, char *buf, int len);
 	int 		_da (tcv_write) (address p, const char *buf, int len);
 	void 		_da (tcv_drop) (address p);
-	int 		_da (tcv_left) (address p);
-	void 		_da (tcv_urgent) (address p);
-	Boolean		_da (tcv_isurgent) (address p);
 	int 		_da (tcv_control) (int fd, int opt, address arg);
 
 	int 		_da (tcvp_control) (int phy, int opt, address arg);
@@ -88,21 +85,16 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 	address 	_da (tcvp_clone) (address p, int disp);
 	void 		_da (tcvp_dispose) (address p, int dsp);
 	address 	_da (tcvp_new) (int size, int dsp, int ses);
-	Boolean		_da (tcvp_isqueued) (address p);
 #if TCV_HOOKS
 	void 		_da (tcvp_hook) (address p, address *h);
-	address*	_da (tcvp_gethook) (address p);
 	void 		_da (tcvp_unhook) (address p);
 #endif
 #if TCV_TIMERS
 	void 		_da (tcvp_settimer) (address p, word del);
-	Boolean		_da (tcvp_issettimer) (address p);
 	void 		_da (tcvp_cleartimer) (address p);
 	friend class	TCVTimerService;
 	TCVTimerService *tcv_tservice;
 #endif
-	int 		_da (tcvp_length) (address p);
-
 	int 		_da (tcvphy_reg) (int phy, ctrlfun_t ps, int info);
 	int 		_da (tcvphy_rcv) (int phy, address p, int len);
 	address 	_da (tcvphy_get) (int phy, int *len);

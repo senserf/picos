@@ -14,27 +14,36 @@
 #if	TCV_TIMERS
 void	tcvp_settimer (address, word);
 void	tcvp_cleartimer (address);
-Boolean	tcvp_issettimer (address);
 #endif
 
-int	tcvp_length (address);
 int	tcvp_control (int, int, address);
 void	tcvp_assign (address, int);
 void	tcvp_attach (address, int);
 void	tcvp_dispose (address, int);
 address	tcvp_clone (address, int);
 address	tcvp_new (int, int, int);
-Boolean	tcvp_isqueued (address);
 
 #if	TCV_HOOKS
 void	tcvp_hook (address, address*);
 void	tcvp_unhook (address);
-address	*tcvp_gethook (address);
 #endif
 
 #endif	/* __SMURPH __ */
 
+#define	tcvp_isqueued(p)	(__tcv_header (p) -> attributes.b.queued)
+#define	tcvp_isoutgoing(p)	(__tcv_header (p) -> attributes.b.outgoing)
+#define	tcvp_isurgent(p)	tcv_isurgent (p)
+#define	tcvp_session(p)		(__tcv_header (p) -> attributes.b.session)
+#define	tcvp_plugin(p)		(__tcv_header (p) -> attributes.b.plugin)
+#define	tcvp_phys(p)		(__tcv_header (p) -> attributes.b.phys)
+#define	tcvp_length(p)		(__tcv_header (p) -> length)
+
+#if	TCV_HOOKS
+#define	tcvp_gethook(p)		(__tcv_header (p) -> hptr)
+#endif
+
 #if	TCV_TIMERS
+#define	tcvp_issettimer(p)	((__tcv_header (p) -> tqueue) . next != NULL)
 #define	tcvp_isdetached(p)	(!tcvp_isqueued(p) && !tcvp_issettimer(p))
 #else
 #define	tcvp_isdetached(p)	(!tcvp_isqueued(p))
