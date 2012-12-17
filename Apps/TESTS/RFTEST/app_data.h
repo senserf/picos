@@ -98,8 +98,6 @@ typedef struct {
 
 // ============================================================================
 
-extern const lword host_id;
-
 word report_size ();
 void reset_count ();
 void uart_outf (word, const char*, ...);

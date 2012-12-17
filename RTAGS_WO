@@ -184,3 +184,22 @@ WO121209A:
   tracEd meant to traliblaze general OSSI structures. So, this part of
   tracEd was futile; perhaps BOSS? As to 'netting', see netting.odt in there.
 
+WO121217A:
+  - eco_demo: 
+  -- For WARSAW_ILS, first four sensors show int. temp. (-2),
+     int. voltage (-1), light (0), movements (1); other boards unchanged.
+     My understanding is that OSS scripts running on comip.ca use sensor slots
+     0, 1, so for WARSAW_ILS they'll have voltage and light, as needed for
+     solar panel experiments.
+  -- Power sensor on pegs corrected to -1.
+  -- .xml models updated for current sensor indexing.
+  -- Adjusted various options* for current VUEE status and comip.ca channel.
+     BE CAREFUL to avoid interference with the live run.
+
+ - preserved inProgress/netting in inProgress/alphat, as it was sent to
+   Alphatronics. The latest Netting.odt is both in netting and alphat.
+
+ - TESTS/RFTEST updated for current host_id PicOS status.
+
+
+
