@@ -79,4 +79,20 @@
 #define	TCV_LIMIT_XMT		0
 #endif
 
+#ifndef	TCV_HOOKS
+#define	TCV_HOOKS		0
+#endif
+
+#ifndef	TCV_TIMERS
+#define	TCV_TIMERS		0
+#endif
+
+#ifndef	TCV_OPEN_CAN_BLOCK
+#define	TCV_OPEN_CAN_BLOCK	0
+#endif
+
+#ifndef	TARP_RTR
+#define	TARP_RTR		0
+#endif
+
 #endif

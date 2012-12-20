@@ -965,3 +965,10 @@ PG121216A:	PICOS >= PG121216A
     Changes in some headers to match the VNETI upgrade in PicOS. Fixed a bug in
     program call argument processing causing errors when multiple boards of the
     project's set provided node.xml data.
+
+PG121220A:	PICOS >= PG121220A
+
+    Added a few definitions to modsyms.h that should have been put there when
+    the file was created (at PG121113A). Basically, that file should contain
+    all the definitions from options.h (in PICOS/PicOS) that may be relevant to
+    modules compiled for VUEE.

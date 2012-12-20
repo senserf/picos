@@ -30,18 +30,6 @@
 // This must be overriden unconditionally because TCV is always compiled in
 #define	TCV_PRESENT	1
 
-#ifndef	TCV_HOOKS
-#define	TCV_HOOKS		0
-#endif
-
-#ifndef	TCV_TIMERS
-#define	TCV_TIMERS		0
-#endif
-
-#ifndef	TCV_OPEN_CAN_BLOCK
-#define	TCV_OPEN_CAN_BLOCK	0
-#endif
-
 // ============================================================================
 
 #define	CRC_ISO3309	1
