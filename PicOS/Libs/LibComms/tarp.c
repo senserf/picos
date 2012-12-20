@@ -3,12 +3,6 @@
 /* All rights reserved.							*/
 /* ==================================================================== */
 
-#ifndef	__SMURPH__
-
-#include "sysio.h"
-
-#endif
-
 #include "tarp.h"
 
 #ifndef	__SMURPH__

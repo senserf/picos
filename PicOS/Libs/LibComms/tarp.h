@@ -32,10 +32,6 @@
 #define rtrCacheSize		10
 #define tarp_maxHops		10
 
-#ifndef TARP_RTR
-#define TARP_RTR	0
-#endif
-
 #if TARP_RTR
 #if TCV_TIMERS == 0 || TCV_HOOKS == 0
 #error missing TCV_TIMERS or TCV_HOOKS

@@ -2751,3 +2751,9 @@ PG121216A:	VUEE >= PG121216A
 	some of my confusion.
 
 	A few miscellaneous cleanups here and there.
+
+PG121220A:	VUEE >= PG121220A
+
+	Fixed a bug(oid) (mostly in VUEE) causing that some standard options
+	set in local options.sys were not perceptible by the respective modules
+	when compiled for VUEE. A couple of minor cleanups.

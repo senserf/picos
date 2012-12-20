@@ -246,6 +246,11 @@
 #define	RANDOM_NUMBER_GENERATOR	0
 #endif
 
+// TARP retry mode
+#ifndef TARP_RTR
+#define TARP_RTR		0
+#endif
+
 /* =============== */
 /* UART parameters */
 /* =============== */
