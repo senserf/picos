@@ -318,7 +318,6 @@ proc outprf { def cpu } {
 
 	if [islibrun] {
 		set LD [file join $Run(library) asm]
-		set LI [file join $Run(library) include]
 		set LS [file join $Run(library) stubs]
 		# prepare the list of ASM files in the library
 		if [catch { exec ls [uxname [file join $Run(library) asm]] } \
@@ -334,7 +333,6 @@ proc outprf { def cpu } {
 		}
 	} else {
 		set LD ""
-		set LI ""
 		set LS ""
 	}
 
@@ -493,11 +491,6 @@ proc outprf { def cpu } {
 			set first 1
 			set idirs ""
 
-			if [islibrun] {
-				lappend idirs $LI
-				set first 0
-			}
-
 			foreach { dir sht } [array get IncShort] {
 				lappend idirs [list $dir $sht]
 			}
@@ -575,7 +568,6 @@ proc outmkfc { def } {
 		set lid [file join $Run(library) asm]
 		puts $mfd "LD=$lid"
 		puts $mfd "LDU=[uxname $lid]"
-		puts $mfd "LI=-I[file join $Run(library) include] -I."
 		puts $mfd "LS=-lib [file join $Run(library) stubs]"
 		# prepare the list of ASM files in the library
 		if [catch { exec ls [uxname [file join $Run(library) ASM]] }\
@@ -596,7 +588,6 @@ proc outmkfc { def } {
 	} else {
 		puts $mfd "LD=\$(TD)"
 		puts $mfd "LDU=\$(TD)"
-		puts $mfd "LI="
 		puts $mfd "LS="
 	}
 
@@ -740,17 +731,17 @@ proc outmkfc { def } {
 				# copy to a scratch .c file
 				puts $mfd "\tcp \$($dsh)/${rfn}c $spfx/$rfm"
 				puts -nonewline $mfd \
-					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 				puts $mfd \
 				     " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
 				puts $mfd "\trm $spfx/$rfm"
 				puts -nonewline $mfd \
-					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 			} else {
 				set spfx "\$($dsh)"
 				if { $suf == ".c" } {
 					puts -nonewline $mfd \
-					  "\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+					  "\t\$(CC) \$(CF) \$(OF) \$(IN)"
 				} else {
 					errab "Illegal source suffix '$sf'"
 				}
@@ -909,12 +900,12 @@ proc outmkfc_lib { def } {
 			# copy to a scratch .c file
 			puts $mfd "\tcp \$($dsh)/${rfn}c $spfx/$rfm"
 			puts -nonewline $mfd \
-				"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+				"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 			puts $mfd \
 			     " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
 			puts $mfd "\trm $spfx/$rfm"
 			puts -nonewline $mfd \
-				"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+				"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 		} else {
 			set spfx "\$($dsh)"
 			if { $suf == ".c" } {
@@ -1035,11 +1026,9 @@ proc outmkf { def cpu } {
 	puts $mfd "TD=./$Kfn"
 
 	if [islibrun] {
-		puts $mfd "LI=-I[file join $Run(library) include] -I."
 		puts $mfd "LD=-L$Run(library) -lpicos"
 	} else {
 		puts $mfd "LD="
-		puts $mfd "LI="
 	}
 
 	# output the list of directories
@@ -1172,20 +1161,20 @@ proc outmkf { def cpu } {
 				set spfx "\$(TD)"
 				puts $mfd "\tcp \$($dsh$U)/${rfn}c $spfx/$rfm"
 				puts -nonewline $mfd \
-					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 				puts $mfd \
 				    " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
 				puts $mfd "\trm $spfx/$rfm"
 				puts -nonewline $mfd \
-					"\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 			} else {
 				set spfx "\$($dsh)"
 				if { $suf == ".c" } {
 					puts -nonewline $mfd \
-					  "\t\$(CC) \$(CF) \$(OF) \$(LI) \$(IN)"
+					  "\t\$(CC) \$(CF) \$(OF) \$(IN)"
 				} elseif { [string first ".a" $suf] == 0 } {
 					puts -nonewline $mfd \
-						"\t\$(AS) \$(AF) \$(LI) \$(IN)"
+						"\t\$(AS) \$(AF) \$(IN)"
 				} else {
 					errab "Illegal source suffix '$sf'"
 				}
@@ -1626,6 +1615,11 @@ proc mkdlist { cpu } {
 	# working copy of the target list
 	set DLIST ""
 	set PDirList ""
+
+	if [islibrun] {
+		# make sure the library include directory is searched
+		lappend DirList [file join $Run(library) "include"]
+	}
 
 	foreach p $DirList {
 		set target [regsub -all "@TARGET@" $p $cpu p]
@@ -2576,7 +2570,7 @@ proc main { } {
 	set ExtraIncDirs ""
 
 	if { $Run(type) == "l" } {
-		# library run
+		# creating library
 
 		set iflist [getflag "l"]
 		if { $iflist == "" } {

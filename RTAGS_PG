@@ -2757,3 +2757,80 @@ PG121220A:	VUEE >= PG121220A
 	Fixed a bug(oid) (mostly in VUEE) causing that some standard options
 	set in local options.sys were not perceptible by the respective modules
 	when compiled for VUEE. A couple of minor cleanups.
+
+PG121225A:	VUEE >= PG121225A
+
+	I have integrated modsyms.h (for VUEE) with options.h (for PicOS), so
+	we have just one place where symbols affecting the compilation of the
+	various modules, including the modules shared by VUEE, should be put.
+	The old options.h has been reorganized and renamed modsyms.h. The very
+	same file is linked as modsyms.h in VUEE/PICOS.
+
+	It works like this (as viewed from the VUEE end):
+
+	First of all, modsyms.h is included (in its entirety) by sysio.h (of
+	VUEE as well as of PicOS). Thus, the file should include all those
+	global (praxis-visible) definitions that should be shared by the two.
+	If there is something that VUEE shouldn't (doesn't have to) see, it
+	can be encapsulated into #ifndef __SMURPH__.
+
+	Note, however, that the values of option symbols are (or at least can
+	be) determined by the configurations of options.sys file of the praxis.
+	In modsyms.h, those symbols are encapsulated into #ifndef ... #endif,
+	e.g.,
+
+		#ifndef TARP_RTR
+		#define TARP_RTR    0
+		#endif
+
+	providing deafult definitions which can be easily overriden.
+
+	When a praxis file is compiled, picomp just formally prepends all the
+	definitions from the respective options.sys files (there can be up to
+	two such files per program, i.e., board_options.sys from the BOARD
+	definition + one provided by the praxis) to the program, so they can
+	override the defaults in modsyms.h. For a module (internal) file, the
+	situation is more complicated, because, even if the praxis consists of
+	multiple programs, there is just a single compiled version of the
+	module file. So the potential multitude of various options.sys files
+	(belonging to the different programs and possibly boards) must be
+	somehow made sense of and turned into a single set of non-colliding
+	definitions for the module configuration symbols mentioned in them.
+
+	For that, picomp reads modsyms.h and extracts from it the part from
+	the first occurrence of //-> (at the beginning of a line) up to the
+	first occurrence of #ifndef __SMURPH__. Then that piece is parsed.
+	The symbols marked with //-> are interpreted as module selectors. They
+	are looked up in all the system header files included by the praxis.
+	When a symbol like that is defined anywhere, it means that the
+	respective module, considered optional, should be compiled in. For
+	example, VUEE_LIB_PLUG_NULL selects the NULL plugin module. This
+	applies to several modules that need not be always compiled into the
+	model.
+
+	Any regular configuration symbol located by picomp in the selected
+	part of modsyms.h is looked up in all the options.sys files of all
+	the programs of the praxis. I have tried to come up with some logic,
+	but failed, so the way it works is that the definition of the symbol
+	assumed by the first program (in the compilation order) is going to
+	be applied to the (single-compiled) set of modules. In practice, it
+	is strongly recommended that all programs come up with the same
+	configuration values for the modules.
+
+	Then, picomp puts together all the definitions determined this way
+	and prepends them to the modules, so they can override the (default)
+	definitions in modsyms.h. What that means is that only those symbols
+	defined in options.sys that are mentioned in modsyms.h are in fact
+	seen by the modules. Note that praxis programs, in contrast, see
+	everything from options.sys.
+
+	---
+
+	Gerry detected a bug in the library mode build causing that the library
+	includes were not prescanned by mkmk together with the praxis files as
+	they should be. That bug has been fixed. I have tested library
+	compilation with eco_demo and it seems to work fine.
+
+	---
+
+	A few irrelevant cosmetics.

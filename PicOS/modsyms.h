@@ -1,5 +1,5 @@
-#ifndef __pg_options_h
-#define	__pg_options_h		1
+#ifndef __pg_modsyms_h
+#define	__pg_modsyms_h		1
 
 /* ======================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2010                        */
@@ -13,6 +13,142 @@
 /* We make sure that the configuration symbols receive default values, even */
 /* if they are not mentioned in options.sys.                                */
 /* ======================================================================== */
+
+// As of PG121225A, this file is shared by VUEE. First of all, it is included
+// by VUEE's version of sysio.h, so it may define those things that should be
+// rightfully shared by the two. Second, the part starting from the first
+// occurrence of //-> (at the begining of a line) to #ifndef __SMURPH__ (also
+// at the beginning of a line) is parsed by picomp (when running for VUEE) to
+// find symbols whose local re-definitions (as determined by the options.sys
+// files seen by the praxis) should be passed to VUEE modules. The symbols
+// marked by //-> are looked up in the include files requested by the praxis
+// for identification of the (optional) modules to be compiled into the
+// model.
+
+/* ======================================================================== */
+
+#ifdef	BOARD_TYPE
+#define	SYSVER_B	stringify (BOARD_TYPE)
+#endif
+
+#define	__sgfy(a)	#a
+#define	stringify(a)	__sgfy(a)
+
+// ============================================================================
+
+#define	UART_TCV_MODE_N		0	// Non-persisitent packets
+#define	UART_TCV_MODE_P		1	// Built-in ACKs
+#define	UART_TCV_MODE_L		2	// Lines
+
+// These are special sequences to identify (for picomp) those symbols that are
+// only defined, not set. These symbols represent optional modules.
+
+// ============================================================================
+
+//->VUEE_LIB_PLUG_NULL
+//->VUEE_LIB_PLUG_TARP
+//->VUEE_LIB_PLUG_BOSS
+//->VUEE_LIB_XRS
+//->VUEE_LIB_OEP
+//->VUEE_LIB_LCDG
+
+#ifndef	CODE_LONG_INTS
+#define	CODE_LONG_INTS		1
+#endif
+
+#ifndef	UART_TCV
+#define	UART_TCV		0
+#endif
+
+#ifndef	UART_TCV_MODE
+#define	UART_TCV_MODE		UART_TCV_MODE_N
+#endif
+
+#ifndef	CC1000
+#define	CC1000 			0
+#endif
+
+#ifndef	CC1100
+#define	CC1100 			0
+#endif
+
+#ifndef	DM2200
+#define	DM2200 			0
+#endif
+
+#ifndef	ETHERNET_DRIVER
+#define	ETHERNET_DRIVER		0
+#endif
+
+#ifndef	RADIO_OPTIONS
+#define RADIO_OPTIONS		0
+#endif
+
+#ifndef	RADIO_CRC_MODE
+#define	RADIO_CRC_MODE		0
+#endif
+
+#ifndef RADIO_LBT_RETRY_LIMIT
+#define	RADIO_LBT_RETRY_LIMIT	0
+#endif
+
+#ifndef DUMP_MEMORY
+#define	DUMP_MEMORY		0
+#endif
+
+#ifndef	TCV_LIMIT_RCV
+#define	TCV_LIMIT_RCV		0
+#endif
+
+#ifndef	TCV_LIMIT_XMT
+#define	TCV_LIMIT_XMT		0
+#endif
+
+#ifndef	TCV_HOOKS
+#define	TCV_HOOKS		0
+#endif
+
+#ifndef	TCV_TIMERS
+#define	TCV_TIMERS		0
+#endif
+
+#ifndef	TCV_OPEN_CAN_BLOCK
+#define	TCV_OPEN_CAN_BLOCK	0
+#endif
+
+#ifndef	TCV_MAX_DESC
+#define	TCV_MAX_DESC		8	// Maximum number of sessions
+#endif
+
+#ifndef	TCV_MAX_PHYS
+#define	TCV_MAX_PHYS		3	// Maximum number of physical interfaces
+#endif
+
+#ifndef	TCV_MAX_PLUGS
+#define	TCV_MAX_PLUGS		3	// Maximum number of plugins
+#endif
+
+#ifndef	TCV_LIMIT_RCV
+#define	TCV_LIMIT_RCV		0	// No limit for RCV queue
+#endif
+
+#ifndef	TCV_LIMIT_XMT
+#define	TCV_LIMIT_XMT		0	// No limit for OUT queue
+#endif
+
+#ifndef	TARP_RTR
+#define	TARP_RTR		0
+#endif
+
+#ifndef	DIAG_MESSAGES
+#define	DIAG_MESSAGES		2
+#endif
+
+/* ======================================================================== */
+/* End of the part parsed by picomp                                         */
+/* ======================================================================== */
+
+#ifndef	__SMURPH__
 
 // This one indicates whether we are running under the simulator (0/1) [eCOG]
 #ifndef ECOG_SIM
@@ -56,13 +192,6 @@
 #define	MAX_EVENTS_PER_TASK	4
 #endif
 
-// This one makes system messages go to UART_A. Also 'diag' becomes enabled
-// and useful for debugging (0/1). If DIAG_MESSAGES > 1, system error
-// messages are verbose.
-#ifndef	DIAG_MESSAGES
-#define	DIAG_MESSAGES		2
-#endif
-
 // Use switches for PIO input [eCOG]
 #ifndef	SWITCHES
 #define	SWITCHES		0
@@ -102,35 +231,8 @@
 #endif
 
 #if TCV_PRESENT
-// These select TCV configuration options
-#ifndef	TCV_OPEN_CAN_BLOCK
-#define	TCV_OPEN_CAN_BLOCK	0
-#endif
-#ifndef	TCV_TIMERS
-#define	TCV_TIMERS		0	// 0/1
-#endif
-#ifndef	TCV_HOOKS
-#define	TCV_HOOKS		0	// 0/1
-#endif
-#ifndef	TCV_MAX_DESC
-#define	TCV_MAX_DESC		8	// Maximum number of sessions
-#endif
-#ifndef	TCV_MAX_PHYS
-#define	TCV_MAX_PHYS		3	// Maximum number of physical interfaces
-#endif
-#ifndef	TCV_MAX_PLUGS
-#define	TCV_MAX_PLUGS		3	// Maximum number of plugins
-#endif
-#ifndef	TCV_LIMIT_RCV
-#define	TCV_LIMIT_RCV		0	// No limit for RCV queue
-#endif
-#ifndef	TCV_LIMIT_XMT
-#define	TCV_LIMIT_XMT		0	// No limit for OUT queue
-#endif
-
 //+++ "tcv.c"
-
-#endif	/* TCV_PRESENT */
+#endif
 
 // Enables 'freeze' (low power hibernation) [MSP430]
 #ifndef	GLACIER
@@ -142,12 +244,6 @@
 // ramget / ramput. (0/1) [eCOG]
 #ifndef	SDRAM_PRESENT
 #define	SDRAM_PRESENT		0
-#endif
-
-// Makes long encoding/decoding formats (%ld, %lu, %lx) available in form
-// and scan (library functions) (0/1)
-#ifndef	CODE_LONG_INTS
-#define	CODE_LONG_INTS		0
 #endif
 
 // Configures the ADC interface: 0/1 [eCOG, deprecated]
@@ -176,20 +272,8 @@
 #define	MALLOC_ALIGN4		0
 #endif
 
-#ifndef CC1000
-#define CC1000                 	0
-#endif
-
-#ifndef CC1100
-#define CC1100                 	0
-#endif
-
 #ifndef	DM2100
 #define	DM2100			0
-#endif
-
-#ifndef	DM2200
-#define	DM2200			0
 #endif
 
 #ifndef	RF24G
@@ -199,18 +283,6 @@
 #ifndef	RF24L01
 #define	RF24L01			0
 #endif
-
-#ifndef	UART_TCV
-#define	UART_TCV		0
-#endif
-
-#ifndef	UART_TCV_MODE
-#define	UART_TCV_MODE		UART_TCV_MODE_N
-#endif
-
-#define	UART_TCV_MODE_N		0	// Non-persisitent packets
-#define	UART_TCV_MODE_P		1	// Built-in ACKs
-#define	UART_TCV_MODE_L		2	// Lines
 
 /* ========================================================================= */
 /* End of RF modules. Note that UART is an honorary RF module, if configured */
@@ -244,11 +316,6 @@
 // of memory.
 #ifndef	RANDOM_NUMBER_GENERATOR
 #define	RANDOM_NUMBER_GENERATOR	0
-#endif
-
-// TARP retry mode
-#ifndef TARP_RTR
-#define TARP_RTR		0
 #endif
 
 /* =============== */
@@ -329,6 +396,8 @@
 #ifndef	emul
 #define	emul(a,b,...)		CNOP
 #endif
+
+#endif /* !__SMURPH__ */
 
 /* ======================================================================== */
 /*        E N D    O F    C O N F I G U R A T I O N     O P T I O N S       */

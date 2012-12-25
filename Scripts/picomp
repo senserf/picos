@@ -3510,6 +3510,15 @@ proc mkdlist { } {
 
 	catch { close $fd }
 
+	# trim it down
+	if [regexp -line -indices "^//->" $sl ix] {
+		set sl [string range $sl [lindex $ix 0] end]
+	}
+
+	if [regexp -line -indices "^#ifndef\[ \t\]+__SMURPH__" $sl ix] {
+		set sl [string range $sl 0 [expr [lindex $ix 0] - 1]]
+	}
+
 	set MODSYMS ""
 
 	foreach ln [split $sl "\n"] {

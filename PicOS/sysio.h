@@ -24,13 +24,6 @@
 #define	SYSVER_S	stringify (SYSVER_U) "." stringify (SYSVER_L)
 #define	SYSVER_R	stringify (SYSVER_T)
 
-#ifdef	BOARD_TYPE
-#define	SYSVER_B	stringify (BOARD_TYPE)
-#endif
-
-#define	__sgfy(a)	#a
-#define	stringify(a)	__sgfy(a)
-
 // ============================================================================
 
 /* ================================================= */
@@ -54,7 +47,7 @@
 //+++ "main.c"
 //+++ "kernel.c"
 
-#include "options.h"
+#include "modsyms.h"
 #include "mach.h"
 
 #if	RADIO_USE_LEDS
