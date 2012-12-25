@@ -972,3 +972,14 @@ PG121220A:	PICOS >= PG121220A
     the file was created (at PG121113A). Basically, that file should contain
     all the definitions from options.h (in PICOS/PicOS) that may be relevant to
     modules compiled for VUEE.
+
+PG121225A:	PICOS >= PG121225A
+
+    Unified modsyms.h with options.h in PicOS (read RTAGS_PG in PICOS).
+
+    Signal level calculation for LBT in the RF model now involves the maximum
+    (rather than the average), which makes better sense and provides for a more
+    realistic behavior.
+
+    The PANEL window in udaemon now shows host ID's (as well as serial node
+    IDs).

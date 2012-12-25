@@ -14,15 +14,6 @@
 
 // ============================================================================
 
-#ifdef	BOARD_TYPE
-#define	SYSVER_B	stringify (BOARD_TYPE)
-#endif
-
-#define	__sgfy(a)	#a
-#define	stringify(a)	__sgfy(a)
-
-// ============================================================================
-
 #ifdef	TCV_PRESENT
 #undef	TCV_PRESENT
 #endif
@@ -33,10 +24,6 @@
 // ============================================================================
 
 #define	CRC_ISO3309	1
-
-#define	UART_TCV_MODE_N		0	// Non-persistent packets
-#define	UART_TCV_MODE_P		1	// Built-in ACKs
-#define	UART_TCV_MODE_L		2	// Lines
 
 #define	PHYSID			0
 #define	MINIMUM_PACKET_LENGTH	4
@@ -65,10 +52,6 @@
 #define	UART_CNTRL_SETRATE	2
 #define	UART_CNTRL_GETRATE	3
 #define	UART_CNTRL_CALIBRATE	4	/* For UARTs driven by flimsy clocks */
-
-#define	TCV_MAX_DESC		8
-#define	TCV_MAX_PHYS		2
-#define	TCV_MAX_PLUGS		3
 
 #define	PHYSOPT_PLUGINFO	(-1)	/* These two are kind of special */
 #define	PHYSOPT_PHYSINFO	(-2)

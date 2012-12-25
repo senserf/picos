@@ -26,6 +26,10 @@
 #define	rerr	(rf->rerror)
 #define	retr	(rf->retrcnt)
 
+// Uncomment this to make LBT threshold an average over the interval (as it
+// used to be) rather than the maximum
+// #define LBT_THRESHOLD_IS_AVERAGE
+
 process Receiver : _PP_ (PicOSNode) {
 
 	rfm_intd_t *rf;
@@ -45,11 +49,13 @@ process ADC (PicOSNode) {
 //
 // This one is not _PP_
 //
+	rfm_intd_t 	*rf;
+
+#ifdef LBT_THRESHOLD_IS_AVERAGE
 	double		ATime,		// Accumulated sampling time
 			Average,	// Average signal so far
 			CLevel;		// Current (last) signal level
 	TIME		Last;		// Last sample time
-	rfm_intd_t 	*rf;
 
 	double sigLevel () {
 
@@ -58,9 +64,16 @@ process ADC (PicOSNode) {
 		DT = (double)(Time - Last);
 		NA = ATime + DT;
 		res = ((Average * ATime) / NA) + (CLevel * DT) / NA;
-// diag ("ADC: %d / %g / %g", S->getId (), res, S->lbt_threshold);
+		// trace ("ADC: %g / %g", res, rf->lbt_threshold);
 		return res;
 	};
+#else
+	double		Maximum;
+
+	double sigLevel () {
+		return Maximum;
+	}
+#endif
 
 	states { ADC_WAIT, ADC_RESUME, ADC_UPDATE, ADC_STOP };
 

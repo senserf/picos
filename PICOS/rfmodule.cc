@@ -126,8 +126,6 @@ Xmit:
 
 ADC::perform {
 
-    double DT, NA;
-
     state ADC_WAIT:
 
 	this->wait (SIGNAL, ADC_RESUME);
@@ -135,12 +133,15 @@ ADC::perform {
     state ADC_RESUME:
 
 	assert (ptrtoint (TheSignal) == YES, "ADC: illegal ON signal");
-	
+
+#ifdef LBT_THRESHOLD_IS_AVERAGE
 	ATime = 0.0;
 	Average = 0.0;
 	Last = Time;
 	CLevel = rfi->sigLevel ();
-
+#else
+	Maximum = rfi->sigLevel ();
+#endif
 	// In case something is already pending
 	rfi->wait (ANYEVENT, ADC_UPDATE);
 	this->wait (SIGNAL, ADC_STOP);
@@ -150,12 +151,19 @@ ADC::perform {
 	// Calculate the average signal level over the sampling
 	// period
 
+#ifdef LBT_THRESHOLD_IS_AVERAGE
+	double DT, NA;
 	DT = (double)(Time - Last);	// Time increment
 	NA = ATime + DT;		// New total sampling time
-	Average = ((Average * ATime) / NA) + (CLevel * DT) / NA;
 	CLevel = rfi->sigLevel ();
+	Average = ((Average * ATime) / NA) + (CLevel * DT) / NA;
 	Last = Time;
 	ATime = NA;
+#else
+	double DT;
+	if ((DT = rfi->sigLevel ()) > Maximum)
+		Maximum = DT;
+#endif
 	// Only new events, no looping!
 	rfi->wait (ANYEVENT, ADC_UPDATE);
 	this->wait (SIGNAL, ADC_STOP);

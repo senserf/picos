@@ -745,7 +745,8 @@ array set PIN_COLORS	{ D,0 "#A4E22E" D,1 "#FFFF7F" D,2 "#FE8592"
 			}
 
 array set PANEL_COLORS	{ ACTIVE  "#F0EC00" DISABLED "#BEBEBE" DEL "#007DFF"
-			  ONLABEL "#FF0000" OFFLABEL "#909090"               }
+			  ONLABEL "#FF0000" OFFLABEL "#909090"
+			  HOSTID  "#F7C89E" }
 
 array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
 
@@ -4913,7 +4914,7 @@ proc panelZero { Sok } {
 				    set tot 16
 				}
 				# current node list
-				set Stat($Sok,SL) [list [list 0 $sta $nnm]]
+				set Stat($Sok,SL) [list [list 0 $hos $sta $nnm]]
 				set Stat($Sok,EL) ""
 
 				if { $tot > 1 } {
@@ -4936,7 +4937,7 @@ proc panelZero { Sok } {
 				}
 				set Stat($Sok,EL) \
 					[lreplace $Stat($Sok,EL) $ix $ix]
-				lappend Stat($Sok,SL) [list $nod $sta $nnm]
+				lappend Stat($Sok,SL) [list $nod $hos $sta $nnm]
 				if { [llength $Stat($Sok,EL)] } {
 				    # more
 				    continue
@@ -4965,8 +4966,10 @@ proc panelZero { Sok } {
 					if { $sta != [lindex $no 1] } {
 						# actual status change
 						set up 2
-						lappend nl [list $nod $sta \
-							[lindex $no 2]]
+						lappend nl [list $nod \
+							[lindex $no 1] \
+							$sta \
+							[lindex $no 3]]
 					}
 				} else {
 					lappend nl $no
@@ -5000,7 +5003,7 @@ proc panelZero { Sok } {
 			set Stat($Sok,EL) [lreplace $Stat($Sok,EL) $ix $ix]
 
 			# and add it to the panel
-			lappend Stat($Sok,SL) [list $nod $sta $nnm]
+			lappend Stat($Sok,SL) [list $nod $hos $sta $nnm]
 
 			updPanel $Sok
 		}
@@ -5131,6 +5134,8 @@ proc updPanel { Sok } {
 			pack $fr -side top -expand 1 -fill x
 			label $fr.ide -text ""
 			pack $fr.ide -side left
+			label $fr.hos -text "" -bg $PANEL_COLORS(HOSTID)
+			pack $fr.hos -side left
 			button $fr.del -text "Delete" -state normal \
 				-command "delPanel $Sok $ix" \
 				-bg $PANEL_COLORS(DEL)
@@ -5158,11 +5163,10 @@ proc updPanel { Sok } {
 	# update labels and buttons
 	set ix 0
 	foreach no $Stat($Sok,SL) {
-		set non [lindex $no 0]
-		set nos [lindex $no 1]
-		set not [lindex $no 2]
+		lassign $no non noh nos not
 		set fr $w.stat.pa$ix
 		$fr.ide configure -text [format "%4d: %s" $non $not]
+		$fr.hos configure -text [format "%5d" $noh]
 		if { $nos == "F" } {
 			# node is down: ON active, OFF disabled
 			$fr.ide configure -bg $PANEL_COLORS(OFFLABEL)
