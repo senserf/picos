@@ -9368,6 +9368,11 @@ proc scan_mkfile { mfn } {
 				continue
 			}
 
+			if ![file isfile $fn] {
+				# make sure the file in fact exists
+				continue
+			}
+
 			set FNARR($fn) ""
 		}
 

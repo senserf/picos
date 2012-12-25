@@ -629,3 +629,10 @@ PG121113A: 	PICOS >= PG121113A, SIDE >= PG121113A, VUEE >= PG121113A
 
 	A few rather messy changes in the way VUEE gets its options. Read
 	RTAGS_PG.
+
+PG121225A:
+
+	Prevent errors caused by ctagging when a file pointed to by a library
+	Makefile doesn't exist. A situation like that is not considered an
+	error if the user has got the library, but doesn't (isn't supposed to)
+	have the full source set.
