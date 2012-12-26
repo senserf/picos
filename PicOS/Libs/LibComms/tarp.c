@@ -43,17 +43,10 @@ __PUBLF (PicOSNode, word, getSpdM) (word * hop) {
 
 #endif
 
-#ifndef _TARP_T_RX
+// These are debug options that should stay here (not in options.sys)
 #define _TARP_T_RX	0
-#endif
-
-#ifndef _TARP_T_LIGHT
 #define _TARP_T_LIGHT	0
-#endif
-
-#ifndef _TARP_T_RTR
-#define _TARP_T_RTR   0
-#endif
+#define _TARP_T_RTR	0
 
 #if _TARP_T_RX
 #define dbug_rx(a, ...)	diag (a, ## __VA_ARGS__)
@@ -680,4 +673,8 @@ CacheIt:
 	return TCV_DSP_DROP;
 }
 #endif
+
+#undef _TARP_T_RX
+#undef _TARP_T_LIGHT
+#undef _TARP_T_RTR
 

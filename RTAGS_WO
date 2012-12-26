@@ -201,5 +201,12 @@ WO121217A:
 
  - TESTS/RFTEST updated for current host_id PicOS status.
 
-
+WO121226A:
+ - cosmetic cleanup in tarp.c debug facilities
+ - inProgress/netting:
+ -- lword ref# everywhere, including trace
+ -- ack (2-way route) is optional on odr
+ -- optional odr output on transient nodes
+ -- WARSAW_BLUE goes via UART 2 (not tested)
+ -- updated Netting.odt
 
