@@ -203,7 +203,7 @@ __PRIVF (PicOSNode, Boolean, dd_fresh) (headerType * buffer) {
 		}
 		ddCache->m_seq = buffer->seq_no;
 		if (tarp_ctrl.ssignal) {
-			spdCache->m_hop = (word)(buffer->hoc & 0x7F) << 8;
+			spdCache->m_hop = (word)(buffer->hoc) << 8;
 		}
 		return true;
 	}
@@ -243,15 +243,15 @@ __PRIVF (PicOSNode, void, upd_spd) (headerType * msg) {
 	word i;
 	if (msg->snd == master_host) {
 		// clears retries or empty write:
-		spdCache->m_hop = (word)(msg->hoc & 0x7F) << 8;
+		spdCache->m_hop = (word)(msg->hoc) << 8;
 		return;
 	}
 	if ((i = findInSpd (msg->snd)) < spdCacheSize) {
-		spdCache->en[i].hop = (word)(msg->hoc & 0x7F) << 8;
+		spdCache->en[i].hop = (word)(msg->hoc) << 8;
 		return;
 	}
 	spdCache->en[spdCache->head].host = msg->snd;
-	spdCache->en[spdCache->head].hop = (word)(msg->hoc & 0x7F) << 8;
+	spdCache->en[spdCache->head].hop = (word)(msg->hoc) << 8;
 	if (++spdCache->head >= spdCacheSize)
 		spdCache->head = 0;
 	return;
@@ -274,7 +274,7 @@ __PRIVF (PicOSNode, int, check_spd) (headerType * msg) {
 		// hco should not be 0 any more... keep it until we can
 		// test things properly
 		i = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
-			(msg->hoc & 0x7F) -
+			msg->hoc -
 			(spdCache->m_hop >>8) +
 			((spdCache->m_hop & 0x00FF) >> tarp_rte_rec) +
 			tarp_slack;
@@ -291,14 +291,14 @@ __PRIVF (PicOSNode, int, check_spd) (headerType * msg) {
 	if ((i = findInSpd(msg->rcv)) >= spdCacheSize) {
 
 		dbug_rx ("%u %u spdno %d %u %u %u", msg->msg_type, msg->snd,
-			msg->hco - (msg->hoc & 0x7F) + tarp_slack -1,
+			msg->hco - msg->hoc + tarp_slack -1,
 			msg->hco, msg->hoc, msg->seq_no);
 
-		return msg->hco - (msg->hoc & 0x7F) + tarp_slack -1;
+		return msg->hco - msg->hoc + tarp_slack -1;
 	}
 
 	j = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
-		(msg->hoc & 0x7F) -
+		msg->hoc -
 		(spdCache->en[i].hop >>8) +
 		((spdCache->en[i].hop & 0x00FF) >> tarp_rte_rec) +
 		tarp_slack;
@@ -443,12 +443,12 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 
 	msgBuf->hoc++;
 
-	if (msgBuf->hoc & 0x80) {
+	if (msgBuf->weak) {
 		dbg_8 (0x0700 | msgBuf->hoc);
 		tarp_ctrl.ssignal = NO;
 	} else {
 		if (!tarp_ctrl.ssignal)
-			msgBuf->hoc |= 0x80;
+			msgBuf->weak = YES;
 	}
 
 #if TARP_RTR
@@ -479,7 +479,8 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 		// if we ever want bcast retried... for now, this is redundant
 		ackForRtr (msgBuf, ses);
 #endif
-		if (!tarp_fwd_on || (msgBuf->hoc & 0x7F) >= msgBuf->hco) {
+		if (!tarp_fwd_on || msgBuf->prox ||
+				msgBuf->hoc >= msgBuf->hco) {
 
 		dbug_rx ("%u %u bcast just rcv %u", msgBuf->msg_type, 
 				msgBuf->snd, msgBuf->seq_no);
@@ -508,14 +509,14 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 		return TCV_DSP_RCV; // the original
 	}
 
-	if ((msgBuf->hoc & 0x7F) >= tarp_maxHops) {
+	if (msgBuf->hoc >= tarp_maxHops) {
 
 		dbug_rx ("%u %u Max drop %d", msgBuf->msg_type, msgBuf->snd, 
 			msgBuf->seq_no);
 		return TCV_DSP_DROP;
 	}
 
-	if (tarp_fwd_on &&
+	if (tarp_fwd_on && !msgBuf->prox &&
 		(tarp_level < 2 || check_spd (msgBuf) >= 0)) {
 		tarp_ctrl.fwd++;
 #if TARP_RTR
@@ -578,6 +579,7 @@ __PUBLF (PicOSNode, int, tarp_tx) (address buffer) {
 
 	tarp_ctrl.snd++;
 	msgBuf->hoc = 0;
+	msgBuf->weak = 0;
 	setHco(msgBuf);
 	if (++tarp_cyclingSeq & 0xFF00)
 		tarp_cyclingSeq = 1;

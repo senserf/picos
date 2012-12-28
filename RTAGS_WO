@@ -210,3 +210,16 @@ WO121226A:
  -- WARSAW_BLUE goes via UART 2 (not tested)
  -- updated Netting.odt
 
+WO121228A:
+TARP header changed, with hoc, hco :4 and separate weak, prox flags. Lightly
+tested, but the changes are rather trivial. The new prox flag is used in
+netting, significantly improving ODR with non-zero TARP's slack. Note that
+other applications that use proximity messages are unchanged; there, the
+similar functionality can be achieved by switching on TARP's fwd flag.
+
+It seems that my abhorrence to bit-fields came from experience with the eCog
+compiler... if so, TARP caches should be redesigned as well. However, that
+should wait for some form of TARP test bed. Either we'll try something within
+SIDE, as we discussed with Pawel, or we'll reheat old tries from TARP's early
+days.
+
