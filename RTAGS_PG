@@ -2834,3 +2834,14 @@ PG121225A:	VUEE >= PG121225A
 	---
 
 	A few irrelevant cosmetics.
+
+PG121229A:
+
+	A rather minor modification to the REFLOW praxis extending the range of
+	Span to 0 - 1024 (previously it was 10 - 1024). Gerry, you may want to
+	try the Span setting of 0 (with the remaining parameters set to zero as
+	well), to check how the oven fares under the simple binary control (on,
+	off).
+
+	A cosmetic change in modsyms.h: RADIO_LBT_RETRY_LIMIT is no longer
+	used.
