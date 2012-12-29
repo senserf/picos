@@ -983,3 +983,12 @@ PG121225A:	PICOS >= PG121225A
 
     The PANEL window in udaemon now shows host ID's (as well as serial node
     IDs).
+
+PG121229A:
+
+    Moved all (internal) process definitions to board.h to make them available
+    to (future) observers.
+
+    Now I see that using observers for the kind of testing that we discussed
+    with Wlodek the other day is probably not a good idea (some other tool is
+    needed). I will think a bit more about it.

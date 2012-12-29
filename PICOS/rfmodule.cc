@@ -2,15 +2,42 @@
 #define	__rfmodule_cc__
 
 #include "board.h"
+
+#define	rfi	(rf->RFInterface)
+#define	mxpl	(rf->MaxPL)
+#define	xbf	(rf->__pi_x_buffer)
+#define	rbf	(rf->__pi_r_buffer)
+#define	obf	(rf->OBuffer)
+#define	bkf	(rf->backoff)
+#define	txe	(rf->tx_event)
+#define	rxe	rf
+#define	rxoff	(rf->RXOFF)
+#define	sid	(rf->statid)
+#define	minbkf	(rf->min_backoff)
+#define	maxbkf	(rf->max_backoff)
+#define	lbtth	(rf->lbt_threshold)
+#define	lbtdl	(rf->lbt_delay)
+#define	xmtg	(rf->Xmitting)
+#define	rcvg	(rf->Receiving)
+#define	defxp	(rf->DefXPower)
+#define	defrt	(rf->DefRate)
+#define	defch	(rf->DefChannel)
+#define	physid	(rf->phys_id)
+#define	rerr	(rf->rerror)
+
 #include "stdattr.h"
-#include "rfmodule.h"
 #include "tcvphys.h"
 #include "tcv.cc"
 #include "rfleds.h"
 
 static int rfm_option (int, address);
 
-byte Receiver::get_rssi (byte &qual) {
+void RM_Receiver::setup () {
+
+	rf = TheNode->RFInt;
+}
+
+byte RM_Receiver::get_rssi (byte &qual) {
 
 	word wr;
 
@@ -29,7 +56,75 @@ byte Receiver::get_rssi (byte &qual) {
 	return (byte) wr;
 }
 
-Xmitter::perform {
+void RM_ADC::setup () {
+
+	rf = TheNode->RFInt;
+};
+
+double RM_ADC::sigLevel () {
+
+#ifdef LBT_THRESHOLD_IS_AVERAGE
+	double DT, NA, res;
+
+	DT = (double)(Time - Last);
+	NA = ATime + DT;
+	res = ((Average * ATime) / NA) + (CLevel * DT) / NA;
+	// trace ("RM_ADC: %g / %g", res, rf->lbt_threshold);
+	return res;
+#else
+	return Maximum;
+#endif
+}
+
+void RM_Xmitter::setup () {
+
+	rf = TheNode->RFInt;
+	xbf = NULL;
+	RSSI = create RM_ADC;
+
+}
+
+void RM_Xmitter::gbackoff () {
+	bkf = minbkf + toss (maxbkf);
+}
+
+void RM_Xmitter::pwr_on () {
+
+	TheNode->pwrt_change (PWRT_RADIO, 
+		rxoff ? PWRT_RADIO_XMT : PWRT_RADIO_XCV);
+}
+
+void RM_Xmitter::pwr_off () {
+
+	TheNode->pwrt_change (PWRT_RADIO, 
+		rxoff ? PWRT_RADIO_OFF : PWRT_RADIO_RCV);
+}
+
+// Copied almost directly from PICOS; will be optimized out if the body
+// is empty
+void RM_Xmitter::set_congestion_indicator (word v) {
+
+#if (RADIO_OPTIONS & 0x04)
+
+	if ((rerr [RERR_CONG] = (rerr [RERR_CONG] * 3 + v) >> 2) > 0x0fff)
+		rerr [RERR_CONG] = 0xfff;
+
+	if (v) {
+		if (rerr [RERR_CURB] + v < rerr [RERR_CURB])
+			// Overflow
+			rerr [RERR_CURB] = 0xffff;
+		else
+			rerr [RERR_CURB] += v;
+	} else {
+		// Update max
+		if (rerr [RERR_MAXB] < rerr [RERR_CURB])
+			rerr [RERR_MAXB] = rerr [RERR_CURB];
+		rerr [RERR_CURB] = 0;
+	}
+#endif
+}
+
+RM_Xmitter::perform {
 
     _pp_enter_ ();
 
@@ -41,10 +136,10 @@ Xmitter::perform {
 		release;
 	}
 
-	assert (buflen <= mxpl, "Xmitter: packet too long, %1d > %1d",
+	assert (buflen <= mxpl, "RM_Xmitter: packet too long, %1d > %1d",
 		buflen, mxpl);
 	assert (buflen >= MINIMUM_PACKET_LENGTH && (buflen & 1) == 0,
-		"Xmitter: illegal packet length %1d", buflen);
+		"RM_Xmitter: illegal packet length %1d", buflen);
 	if (sid != 0xffff)
 		// otherwise, honor the packet's statid
 		xbf [0] = sid;
@@ -124,7 +219,7 @@ Xmit:
 
 }
 
-ADC::perform {
+RM_ADC::perform {
 
     state ADC_WAIT:
 
@@ -132,7 +227,7 @@ ADC::perform {
 
     state ADC_RESUME:
 
-	assert (ptrtoint (TheSignal) == YES, "ADC: illegal ON signal");
+	assert (ptrtoint (TheSignal) == YES, "RM_ADC: illegal ON signal");
 
 #ifdef LBT_THRESHOLD_IS_AVERAGE
 	ATime = 0.0;
@@ -175,7 +270,7 @@ ADC::perform {
 	proceed ADC_WAIT;
 }
 
-Receiver::perform {
+RM_Receiver::perform {
 
     address packet;
     int     pktlen;
@@ -227,9 +322,9 @@ Receiver::perform {
 	pktlen = ThePckt -> PaySize;
 
 	assert (pktlen >= MINIMUM_PACKET_LENGTH,
-		"Receiver: packet too short: %d < %d", pktlen,
+		"RM_Receiver: packet too short: %d < %d", pktlen,
 			MINIMUM_PACKET_LENGTH);
-	assert (pktlen <= mxpl, "Receiver: packet too long: %d > %d",
+	assert (pktlen <= mxpl, "RM_Receiver: packet too long: %d > %d",
 		pktlen, mxpl);
 
 	if (sid != 0 && sid != 0xffff) {
@@ -325,7 +420,7 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 	LEDI (1, 0);
 	LEDI (2, 0);
 
-	if (runthread (Xmitter) == 0 || runthread (Receiver) == 0)
+	if (runthread (RM_Xmitter) == 0 || runthread (RM_Receiver) == 0)
 		syserror (ERESOURCE, "phys_rf");
 }
 

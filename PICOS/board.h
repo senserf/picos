@@ -141,8 +141,6 @@ typedef	struct {
 #define	UART_INTF_D(u)	((uart_dir_int_t*)((u)->Int))
 #define	UART_INTF_P(u)	((uart_tcv_int_t*)((u)->Int))
 
-// ============================================================================
-
 packet	PKT {
 
 	word	*Payload;
@@ -207,10 +205,6 @@ class rfm_intd_t {
 
 	word		rerror [RERR_CURB+1];
 #endif
-
-#if RADIO_LBT_RETRY_LIMIT
-	word		retrcnt;
-#endif
 	rfm_intd_t (const data_no_t*);
 
 	// Low-level setrate/setchannel
@@ -249,9 +243,6 @@ class rtc_module_t {
 	void set (const rtc_time_t*);
 	void get (rtc_time_t*);
 };
-
-// ============================================================================
-
 
 // ============================================================================
 
@@ -781,6 +772,65 @@ process p_uart_xmt_l : _PP_ (PicOSNode) {
 	void setup () { UA = UART_INTF_P (TheNode->uart); };
 
 	perform;
+};
+
+// RF Module ==================================================================
+
+// Uncomment this to make LBT threshold an average over the interval (as it
+// used to be) rather than the maximum
+// #define LBT_THRESHOLD_IS_AVERAGE
+
+process RM_Receiver : _PP_ (PicOSNode) {
+
+	rfm_intd_t *rf;
+
+	states { RCV_GETIT, RCV_START, RCV_RECEIVE, RCV_GOTIT };
+
+	byte get_rssi (byte&);
+
+	perform;
+
+	void setup ();
+};
+
+process RM_ADC (PicOSNode) {
+//
+// This one is not _PP_
+//
+	rfm_intd_t 	*rf;
+
+#ifdef LBT_THRESHOLD_IS_AVERAGE
+	double		ATime,		// Accumulated sampling time
+			Average,	// Average signal so far
+			CLevel;		// Current (last) signal level
+	TIME		Last;		// Last sample time
+#else
+	double		Maximum;
+#endif
+	double sigLevel ();
+
+	states { ADC_WAIT, ADC_RESUME, ADC_UPDATE, ADC_STOP };
+
+	perform;
+
+	void setup ();
+};
+
+process RM_Xmitter : _PP_ (PicOSNode) {
+
+	int		buflen;
+	RM_ADC		*RSSI;
+	rfm_intd_t	*rf;
+
+	states { XM_LOOP, XM_TXDONE, XM_LBS };
+
+	perform;
+
+	void setup ();
+	void gbackoff ();
+	void pwr_on ();
+	void pwr_off ();
+	void set_congestion_indicator (word);
 };
 
 // ============================================================================
