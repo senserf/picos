@@ -2845,3 +2845,29 @@ PG121229A:
 
 	A cosmetic change in modsyms.h: RADIO_LBT_RETRY_LIMIT is no longer
 	used.
+
+PG130105A:
+
+	A few enhancements to the Spectrum Analyzer. Connection should now be
+	faster and more reliable, fixed a bug causing that some registers were
+	not written properly. I haven't done anything about the problems
+	signalled by Wlodek, because I don't know what to do. I believe that
+	some characteristics of the sampling process can be improved (or at
+	least changed) by modifying some registers (e.g., affecting the
+	selectivity), so we can do those experiments without modifying the
+	praxis or the OSS script.
+
+	Wlodek says that once you modify the frequency (by adjusting the
+	slider), then it is impossible to get back to the previous exact
+	setting. This is not true. For fine adjustment, click in the area to
+	the right or left of the slider's handle. I did consider once adding a
+	straightforward numerical entry field, but gave up having discovered
+	how to make fine adjustments at the full granularity.
+
+	Previously the praxis would reset the board on every new request. I
+	have made it less drastic, as the reset was probably not necessary.
+
+	A few cosmetics here and there. I have added a function to the BOSS
+	package to change the acknowledgment timeouts. The essence of the trick
+	to improve OSS connectivity to the SA praxis was to reduce the timeouts
+	during the handshake phase.

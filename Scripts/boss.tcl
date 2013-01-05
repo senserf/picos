@@ -477,6 +477,8 @@ proc bo_receive { } {
 # Handle a received packet
 #
 	variable B
+	
+	# dmp "RCV" $B(BUF)
 
 	# validate CRC
 	if [bo_chks $B(BUF)] {
@@ -570,6 +572,12 @@ proc boss_reset { } {
 
 	# current
 	set B(CUR) 0
+
+	if { $B(SCB) != "" } {
+		# abort the callback
+		catch { after cancel $B(SCB) }
+		set B(SCB) ""
+	}
 }
 
 proc boss_init { ufd mpl { clo "" } { emu 0 } } {
@@ -630,7 +638,9 @@ proc boss_oninput { { fun "" } } {
 	set B(DFN) $fun
 }
 
-proc boss_trigger { } { set ::BOSS::B(OBS) $::BOSS::B(OBS) }
+proc boss_trigger { } {
+	set ::BOSS::B(OBS) $::BOSS::B(OBS)
+}
 
 proc boss_wait { } {
 
@@ -727,6 +737,25 @@ proc boss_send { buf { urg 0 } } {
 	lappend B(OQU) $buf
 
 	boss_trigger
+}
+
+proc boss_timeouts { slow { fast 0 } } {
+#
+# Sets the timeouts:
+#
+#	slow	periodic ACKS
+#	fast	nack after unexpected packet
+#
+	variable B
+
+	set B(RTL) $slow
+	if $fast {
+		set B(RTS) $fast
+	}
+
+	if { $B(SCB) != "" } {
+		bo_send
+	}
 }
 
 namespace export boss_*
