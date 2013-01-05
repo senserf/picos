@@ -1159,7 +1159,7 @@ __PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {
 
 	verify_fph (phy, "tcv30");
 
-	dsp = NONE;
+	dsp = TCV_DSP_PASS;
 	for (plg = TCV_MAX_PLUGS-1; plg >= 0; plg--) {
 		/*
 		 * We start from the high end giving the plugins with higher
@@ -1177,7 +1177,7 @@ __PUBLF (PicOSNode, int, tcvphy_rcv) (int phy, address p, int len) {
 				break;
 	}
 
-	if (dsp == NONE || dsp == TCV_DSP_DROP) {
+	if (dsp == TCV_DSP_PASS || dsp == TCV_DSP_DROP) {
 		/*
 		 * Either no one is claiming the packet or the claimant says
 		 * we should drop it.

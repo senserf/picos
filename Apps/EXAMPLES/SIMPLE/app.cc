@@ -98,8 +98,7 @@ fsm root {
 	phys_cc1100 (0, MAX_PACKET_LENGTH);
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (WNONE, 0, 0);
-	tcv_control (sfd, PHYSOPT_TXON, NULL);
-	tcv_control (sfd, PHYSOPT_RXON, NULL);
+	tcv_control (sfd, PHYSOPT_ON, NULL);
 
 	if (sfd < 0) {
 		diag ("Cannot open tcv interface");
