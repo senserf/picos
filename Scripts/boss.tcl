@@ -88,7 +88,7 @@ set B(CNT) 0
 set B(SCB) ""
 
 # long retransmit interval
-set B(RTL) 2000
+set B(RTL) 2048
 
 # short retransmit interval
 set B(RTS) 250
@@ -109,7 +109,7 @@ set B(PKT) 80
 
 proc bo_nop { args } { }
 
-proc bo_chks { wa } {
+proc boss_chks { wa } {
 
 	variable CRCTAB
 
@@ -229,7 +229,7 @@ proc bo_fnwrite { msg } {
 	if [catch {
 		puts -nonewline $B(SFD) \
 			"$B(IPR)[binary format c $ln]$msg[binary format s\
-				[bo_chks $msg]]"
+				[boss_chks $msg]]"
 		flush $B(SFD)
 	}] {
 		boss_close "BOSS write error"
@@ -481,7 +481,7 @@ proc bo_receive { } {
 	# dmp "RCV" $B(BUF)
 
 	# validate CRC
-	if [bo_chks $B(BUF)] {
+	if [boss_chks $B(BUF)] {
 		return
 	}
 
@@ -748,6 +748,9 @@ proc boss_timeouts { slow { fast 0 } } {
 #
 	variable B
 
+	if { $slow == 0 } {
+		set slow 1000000000
+	}
 	set B(RTL) $slow
 	if $fast {
 		set B(RTS) $fast

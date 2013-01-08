@@ -31,7 +31,7 @@ proc autocn_heartbeat { } {
 	incr ACB(LRM)
 }
 
-proc autocn_start { op cl hs hc cc { po "" } } {
+proc autocn_start { op cl hs hc cc { po "" } { dl "" } } {
 #
 # op - open function
 # cl - close function
@@ -39,6 +39,7 @@ proc autocn_start { op cl hs hc cc { po "" } } {
 # hc - handshake condition (if true, handshake has been successful)
 # cc - connection condition (if false, connection has been broken)
 # po - poll function (to kick the node if no heartbeat)
+# dl - explicit device list
 # 
 	variable ACB
 
@@ -48,6 +49,7 @@ proc autocn_start { op cl hs hc cc { po "" } } {
 	set ACB(HSC) [gize $hc]
 	set ACB(CNC) [gize $cc]
 	set ACB(POL) [gize $po]
+	set ACB(DLI) $dl
 
 	# last device scan time
 	set ACB(LDS) 0
@@ -124,8 +126,20 @@ proc ac_callback { } {
 		if { $tm > [expr $ACB(LDS) + 5] } {
 			# last scan for new devices was done more than 5 sec
 			# ago, rescan
-			unames_scan
-			set ACB(DVS) [lindex [unames_choice] 0]
+			if { $ACB(DLI) != "" } {
+				set ACB(DVS) ""
+				foreach d $ACB(DLI) {
+					if [catch { expr $d } n] {
+						lappend ACB(DVS) $d
+					} else {
+						lappend ACB(DVS) \
+							[unames_ntodev $d]
+					}
+				}
+			} else {
+				unames_scan
+				set ACB(DVS) [lindex [unames_choice] 0]
+			}
 			set ACB(DVL) [llength $ACB(DVS)]
 			set ACB(LDS) $tm
 			# trc "AC RESCAN: $ACB(DVS), $ACB(DVL)"
