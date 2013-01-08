@@ -2871,3 +2871,39 @@ PG121205A:
 	package to change the acknowledgment timeouts. The essence of the trick
 	to improve OSS connectivity to the SA praxis was to reduce the timeouts
 	during the handshake phase.
+
+PG121208A:
+
+	A few more additions/modifications to SA in my attempts to (at least
+	partially) appease Wlodek:
+
+	Better "Stop". I don't think it will timeout anymore (at least not so
+	notoriously). Also, I try to do a much better clean up when the script
+	is exited during a scan (as to leave the node in the stopped/reset
+	state).
+
+	The node is now hard reset before every scan (as it used to be, but I
+	reverted that [compilation] option in the previous commit). Hopefully,
+	this will help the problems with missing packets. I would like to hear
+	more.
+
+	There is a button to toggle the description of the signal level scale
+	between RSSI and dB. RSSI is the default. dB is RSSI but relative to
+	the ground level. In short, dB is baloney (and it cannot be anything
+	else). Don't trust the dBm shown by the TI scanner.
+
+	Band scan now shows the running maximum numerically in the left upper
+	corner.
+
+	The log can now be cleared.
+
+	When the script is called from a command line, you can give it as
+	arguments the explicit devices (or just port numbers) to be scanned.
+	Then it will only scan those. To Wlodek: multiple devices doing
+	different things (and talking to different scripts via boss) can be
+	autoscanned reliably, as they exhibit different signatures (there is a
+	provision for that in the [autoconnect] protocol). The problem with
+	autoconnection that you fear only concerns multiple devices of the same
+	kind.
+
+	A few other less visible things.
