@@ -2907,3 +2907,9 @@ PG130108A:
 	kind.
 
 	A few other less visible things.
+
+PG130114A:
+
+	Updated piter to allow for a reconnection from the same window. The old
+	version of GUI was added as a rather quick and ugly hack to the command
+	line script, and it wasn't very natural.

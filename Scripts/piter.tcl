@@ -19,10 +19,7 @@ if [catch { exec uname } ST(SYS)] {
 	set ST(SYS) "W"
 }
 if { $ST(SYS) != "L" } {
-	# sanitize arguments; here you a sample of the magnitude of stupidity
-	# I have to fight when glueing together Windows and Cygwin stuff;
-	# the last argument (sometimes!) has a CR character appended at the
-	# end, and you wouldn't believe how much havoc that can cause
+	# sanitize arguments
 	set u [string trimright [lindex $argv end]]
 	if { $u == "" } {
 		set argv [lreplace $argv end end]
@@ -670,6 +667,15 @@ namespace import ::UNAMES::*
 # Shared initialization #######################################################
 ###############################################################################
 
+# UART file descriptor
+set ST(SFD) ""
+
+# UART read callback (if we cannot rely on the standard "readable" event)
+set ST(ORC) ""
+
+# UART connect status string
+set ST(UCS) "disconnected"
+
 # Working directory
 set PM(PWD) [pwd]
 
@@ -753,7 +759,7 @@ set IV(PKT)	80
 set IV(RTS)	250
 
 # long retransmit interval
-set IV(RTL)	2000
+set IV(RTL)	1000
 
 ###############################################################################
 # ISO 3309 CRC ################################################################
@@ -823,8 +829,8 @@ set WI(REX)	0
 ###############################################################################
 # This circumvents a bug in Cygwin native Tcl whereby "readable" on a COM port
 # causes Windows to lose text events (at least this is how much I understand
-# abou the bug. So in such a case, the readable event is emulated by timer
-# callbacks. This is ugly (FIXME), but hopefully I will remove it some day.
+# about the bug. So in such a case, the readable event is emulated by timer
+# callbacks.
 ###############################################################################
 
 proc sy_readcb { fun } {
@@ -840,7 +846,7 @@ proc sy_readcb { fun } {
 		set ST(ROT) 0
 	}
 
-	after $ST(ROT) "sy_readcb $fun"
+	set ST(ORC) [after $ST(ROT) "sy_readcb $fun"]
 }
 
 proc sy_onreadable { fun } {
@@ -1021,9 +1027,9 @@ proc sy_dspline { ln } {
 	}
 }
 
-proc sy_mkterm { } {
+proc sy_updtitle { } {
 
-	global ST WI PM
+	global ST PM
 
 	if { $PM(TTL) != "" } {
 		set hd " \[$PM(TTL)\]"
@@ -1031,7 +1037,18 @@ proc sy_mkterm { } {
 		set hd ""
 	}
 
+	if { $ST(UCS) != "" } {
+		append hd " <$ST(UCS)>"
+	}
+
 	wm title . "Piter (ZZ000000A)$hd"
+}
+
+proc sy_mkterm { } {
+
+	global ST WI
+
+	sy_updtitle
 
 	text .t \
 		-yscrollcommand ".scroly set" \
@@ -1057,6 +1074,9 @@ proc sy_mkterm { } {
 	frame .stat.fs -borderwidth 0
 	pack .stat.fs -side right -expand no
 
+	button .stat.fs.rb -command sy_reconnect -text "Connect"
+	pack .stat.fs.rb -side right
+
 	checkbutton .stat.fs.sa -state normal -variable ST(SFB)
 	pack .stat.fs.sa -side right
 	label .stat.fs.sl -text " All:"
@@ -1064,6 +1084,7 @@ proc sy_mkterm { } {
 
 	set WI(SFS) [button .stat.fs.sf -command "sy_savefile"]
 	pack $WI(SFS) -side right
+
 	sy_setsblab
 
 	.t configure -state disabled
@@ -1163,6 +1184,22 @@ proc sy_setmacfile { } {
 	$WI(MFL) configure -text [sy_ftrunc $PM(FLS) $fn]
 }
 
+proc sy_clrplugfile { } {
+
+	global WI PM
+
+	set WI(PFN) ""
+	$WI(PFL) configure -text [sy_ftrunc $PM(FLS) ""]
+}
+
+proc sy_clrmacfile { } {
+
+	global WI PM
+
+	set WI(MFN) ""
+	$WI(MFL) configure -text [sy_ftrunc $PM(FLS) ""]
+}
+
 proc sy_valpars { } {
 #
 # Try to set the parameters as specified by the user, verify if they are OK
@@ -1205,6 +1242,8 @@ proc sy_valpars { } {
 		incr erc
 	}
 
+	set mos "$prt,$mod,$spd,$mpl"
+
 	###
 	set bin $WI(BIN)
 
@@ -1223,6 +1262,7 @@ proc sy_valpars { } {
 
 	###
 	if $bin {
+		append mos ",B"
 		# macro file is only relevant in binary mode
 		set pfn $WI(MFN)
 		if { $pfn != "" } {
@@ -1281,9 +1321,12 @@ proc sy_valpars { } {
 			incr erc
 		} else {
 			# OK
+			set ST(UCS) $mos
 			return 1
 		}
 	}
+
+	set ST(SFD) ""
 
 	# resume default plugin after failure; recovery may be illusory
 	sy_setdefplug
@@ -1296,10 +1339,7 @@ proc sy_valpars { } {
 	if { $erc > 1 } {
 		append emsg "s"
 	}
-	if [tk_dialog .alert "$emsg!" "${emsg}: [string range $err 2 end]" "" \
-		0 "Try again" "Quit"] {
-			sy_exit
-	}
+	sy_alert "${emsg}: [string range $err 2 end]"
 	return 0
 }
 
@@ -1378,13 +1418,14 @@ proc sy_devselect { { ix -1 } } {
 
 proc sy_initialize { } {
 
-	global ST MODULE PM WI PM
-
 	sy_clearmac
-
 	sy_mkterm
-
 	update
+}
+
+proc sy_reconnect { } {
+
+	global ST MODULE PM WI PM
 
 	# read the parameters
 
@@ -1541,14 +1582,21 @@ proc sy_initialize { } {
 		-width $PM(FLS)
 	grid $w.add.maf -column 1 -row 1 -sticky new
 
+	button $w.add.pc -text "Clr" -command sy_clrplugfile
+	grid $w.add.pc -column 2 -row 0 -sticky new
+
+	button $w.add.mc -text "Clr" -command sy_clrmacfile
+	grid $w.add.mc -column 2 -row 1 -sticky new
+
 	grid columnconfigure $w.add 0 -weight 0
 	grid columnconfigure $w.add 1 -weight 1
+	grid columnconfigure $w.add 2 -weight 0
 
 	#######################################################################
 
 	frame $w.but
 	pack $w.but -side top -expand y -fill x -anchor n
-	button $w.but.qu -text "Exit" -command "set WI(GOF) 0"
+	button $w.but.qu -text "Cancel" -command "set WI(GOF) 0"
 	pack $w.but.qu -side left -expand n
 	button $w.but.do -text "Proceed" -command "set WI(GOF) 1"
 	pack $w.but.do -side right -expand n
@@ -1563,13 +1611,15 @@ proc sy_initialize { } {
 
 	raise $w
 
+	sy_uclose
+
 	while 1 {
 
 		tkwait variable WI(GOF)
 
 		if { $WI(GOF) >= 0 } {
 			if { $WI(GOF) == 0 } {
-				sy_exit
+				break
 			}
 			if [sy_valpars] {
 				# done if parameters are OK
@@ -1602,6 +1652,7 @@ proc sy_initialize { } {
 	}
 
 	catch { destroy $w }
+	sy_updtitle
 	set WI(PMW) ""
 }
 
@@ -2288,6 +2339,34 @@ proc sy_ustart { udev speed } {
 	}
 
 	return ""
+}
+
+proc sy_uclose { } {
+#
+# Closes the current connection
+#
+	global ST
+
+	if { $ST(SFD) == "" } {
+		return
+	}
+
+	catch { close $ST(SFD) }
+	set ST(SFD) ""
+
+	foreach cb { "ORC" "SCB" "TIM" } {
+		if { $ST($cb) != "" } {
+			catch { after cancel $ST($cb) }
+			set ST($cb) ""
+		}
+	}
+
+	$ST(RFN)
+
+	sy_setdefplug
+	sy_clearmac
+
+	set ST(UCS) "disconnected"
 }
 
 proc pt_tout { ln } {
@@ -3584,6 +3663,7 @@ proc mo_reset_x { } {
 
 	set ST(EXP) 0
 	set ST(CUR) 0
+	set ST(BUF) ""
 }
 
 set MODULE(X) [list mo_init_x mo_rawread_x mo_write_x mo_reset_x]
@@ -3978,6 +4058,7 @@ proc mo_reset_p { } {
 
 	set CH(EXP) 0
 	set CH(CUR) 0
+	set ST(BUF) ""
 }
 
 set MODULE(P) [list mo_init_p mo_rawread_p mo_write_p mo_reset_p]
@@ -4700,6 +4781,7 @@ proc mo_reset_s { } {
 	set ST(CUR) 0
 
 	set ST(BYP) 1
+	set ST(BUF) ""
 }
 
 set MODULE(S) [list mo_init_s mo_rawread_s mo_write_s mo_reset_s]
