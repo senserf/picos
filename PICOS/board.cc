@@ -485,7 +485,7 @@ void rfm_intd_t::setrfpowr (word ix) {
 //
 	IVMapper *m;
 
-	m = SEther -> PS;
+	m = Ether -> PS;
 
 	assert (m->exact (ix), "RFInt->setrfpowr: illegal power index %1d", ix);
 
@@ -499,7 +499,7 @@ void rfm_intd_t::setrfrate (word ix) {
 	double rate;
 	IVMapper *m;
 
-	m = SEther -> Rates;
+	m = Ether -> Rates;
 
 	assert (m->exact (ix), "RFInt->setrfrate: illegal rate index %1d", ix);
 
@@ -514,7 +514,7 @@ void rfm_intd_t::setrfchan (word ch) {
 //
 	MXChannels *m;
 
-	m = SEther -> Channels;
+	m = Ether -> Channels;
 
 	assert (ch <= m->max (), "RFInt->setrfchan: illegal channel %1d", ch);
 
@@ -1597,7 +1597,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	Ether = NULL;
 
 	if (NN == 0)
-		// Ignore the channel, no stations have radio
+		// Ignore the channel, no stations are equipped with radio
 		return NN;
 
 	if ((data = sxml_child (data, "channel")) == NULL) {
@@ -1745,7 +1745,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	att = sxml_txt (cur);
 
 	if (rmo) {
-		// Expect sets of triplets: int int doubls
+		// Expect sets of triplets: int int double
 		for (i = 0; i < NPTABLE_SIZE; i += 3) {
 			np [i  ] . type = np [i+1] . type = TYPE_int;
 			np [i+2] . type = TYPE_double;
@@ -1982,12 +1982,12 @@ RVErr:
 
 	print ("\n");
 
-	// Create the channel (this sets SEther)
+	// Create the channel
 	create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db, bn_db,
 		cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 
 	// Packet cleaner
-	SEther->setPacketCleaner (packetCleaner);
+	Ether->setPacketCleaner (packetCleaner);
 
 	return NN;
 }
@@ -4570,13 +4570,6 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 	if (tq < NN)
 		excptn ("Root: too few (%1d) nodes with RF interface, %1d"
 			" expected", tq, NN);
-
-	if (SEther != NULL) {
-		// Minimum distance
-		SEther->setMinDistance (SEther->RDist);
-		// We need this for ANYEVENT
-		SEther->setAevMode (NO);
-	}
 }
 
 void BoardRoot::initAll () {
@@ -4748,6 +4741,8 @@ ANum:
 	//setResync (500, 0.5);
 
 	create (System) AgentInterface;
+
+	Ether->printTop ("RF CHANNEL exposure\n\n");
 }
 
 // ======================================================== //

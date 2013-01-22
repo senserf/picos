@@ -992,3 +992,10 @@ PG121229A:
     Now I see that using observers for the kind of testing that we discussed
     with Wlodek the other day is probably not a good idea (some other tool is
     needed). I will think a bit more about it.
+    
+PG130122A:	SIDE >= PG130122A
+
+    Matching modification to SIDE PG130122A. Do not reference SEther in the
+    model (which points to the specific shadowing link model - RFShadow), but
+    Ether (pointing to the underlying generic link type - RadioChannel). The
+    VUEE model has to be independent of the channel type.

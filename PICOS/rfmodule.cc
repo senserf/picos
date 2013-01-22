@@ -422,6 +422,23 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 
 	if (runthread (RM_Xmitter) == 0 || runthread (RM_Receiver) == 0)
 		syserror (ERESOURCE, "phys_rf");
+
+#if 0
+	// Dump the Transceiver status
+	{
+		Transceiver *t;
+		t = rf->RFInterface;
+		diag ("TRANSCEIVER %1d, %1d, %g, %g, %1d, %1d, %g, %1d",
+			(Long)(t->getTRate ()),
+			t->getPreamble (),
+			t->getXPower (),
+			t->getRPower (),
+			(Long)(t->getTag ()),
+			t->getErrorRun (),
+			t->getMinDistance (),
+			t->getAevMode ());
+	}
+#endif
 }
 
 static int rfm_option (int opt, address val) {
@@ -524,7 +541,7 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_GETRATE:
 
-		ret = SEther->tagToRI (rfi->getTag ());
+		ret = Ether->tagToRI (rfi->getTag ());
 		if (val != NULL)
 			*val = ret;
 		break;
@@ -543,7 +560,7 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_GETCHANNEL:
 
-		ret = SEther->tagToCh (rfi->getTag ());
+		ret = Ether->tagToCh (rfi->getTag ());
 		if (val != NULL)
 			*val = ret;
 		break;
