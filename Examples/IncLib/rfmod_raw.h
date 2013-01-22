@@ -266,8 +266,9 @@ process Xmitter {
 	void setup (RFModule *rfm) {
 		CP = NULL;
 		RFM = rfm;
-		RFM->Xcv->setAevMode (NO);
-		RFM->Xcv->setMinDistance (SEther->RDist);
+		// Now done in the channel
+		// RFM->Xcv->setAevMode (NO);
+		// RFM->Xcv->setMinDistance (SEther->RDist);
 	};
 };
 

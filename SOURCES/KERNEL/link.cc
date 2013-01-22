@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-08   P. Gburzynski */
+/* Copyright (C) 1991-13   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -399,7 +399,7 @@ void Link::setFaultRate (double r, int ft) {
 #endif
 };
 
-void    Link::setup (Long np, TIME at, int spf) {
+void    Link::setup (Long np, RATE r, TIME at, int spf) {
 
 /* ------------------- */
 /* Link initialization */
@@ -408,6 +408,10 @@ void    Link::setup (Long np, TIME at, int spf) {
 	int     i, j;
 	static  int     asize = 15;     // A small power of two - 1 (initial
 					// size of zz_lk)
+
+	DefTRate = r;
+	DefAevMode = YES;
+
 	Link    **scratch;
 
 	Assert (!zz_flg_started,
@@ -832,7 +836,7 @@ Port::Port () {
 
 	Class = AIC_port;
 	nextp = NULL;
-	TRate = RATE_0;
+	TRate = RATE_inf;	// Means "none"
 	Lnk = NULL;             // Not connected yet
 
 	// Add to the temporary list
@@ -891,8 +895,8 @@ void    Port::setup (RATE r) {
 /* Initializes a port created by 'create' */
 /* -------------------------------------- */
 
-	if (TRate != RATE_0) {
-		Assert (r == RATE_0,
+	if (TRate != RATE_inf) {
+		Assert (r == RATE_inf,
 			"Port create: %s, redefining TRate", getSName ());
 	} else
 		TRate = r;
@@ -904,6 +908,12 @@ RATE    Port::setTRate (RATE r) {
 /* Dynamically changes transmission rate */
 /* ------------------------------------- */
 
+	if (r == RATE_inf && Lnk)
+		r = Lnk->DefTRate;
+
+	assert (r != RATE_inf,
+		"Port->setTRate: %s, illegal (infinite) rate", getSName ());
+
 	RATE qr;
 	qr = TRate;
 	TRate = r;
@@ -911,6 +921,12 @@ RATE    Port::setTRate (RATE r) {
 }
 
 Boolean	Port::setAevMode (Boolean b) {
+
+	if (b == YESNO && Lnk)
+		b = Lnk->DefAevMode;
+
+	assert (b == YES || b == NO,
+		"Port->setAevMode: %s, illegal (undefined) mode", getSName ());
 
 	Boolean old;
 	old = AevMode;
@@ -927,6 +943,11 @@ void    Link::setTRate (RATE r) {
 	Long i;
 	Port *np;
 
+	if (r == RATE_inf)
+		r = DefTRate;
+	else
+		DefTRate = r;
+
 	for (i = 0; i < NStations; i++)
 	  for (np = idToStation (i) -> Ports; np != NULL; np = np -> nextp)
 	    if (np->Lnk == this)
@@ -937,6 +958,11 @@ void    Link::setAevMode (Boolean b) {
 
 	Long i;
 	Port *np;
+
+	if (b != YES && b != NO)
+		b = DefAevMode;
+	else
+		DefAevMode = b;
 
 	for (i = 0; i < NStations; i++)
 	  for (np = idToStation (i) -> Ports; np != NULL; np = np -> nextp)
@@ -977,7 +1003,9 @@ void    Port::connect (Link *lk, int lrid) {
 	Lnk = lk;                        // Link pointer
 
 	Activity = Interpolator = NULL;
-	AevMode = YES;
+	AevMode = Lnk->DefAevMode;
+	if (TRate == RATE_inf)
+		TRate = Lnk->DefTRate;
 	IJTime = TIME_0;
 }
 

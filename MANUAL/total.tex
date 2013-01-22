@@ -1992,6 +1992,14 @@ of two values: 0 represented by the symbolic constant {\tt NO} (standing for
 ``false'') and 1 represented by the symbolic constant {\tt YES} (which stands
 for ``true'').
 
+Note that a variable of type {\tt Boolean} can hold values other than 0 and 1,
+with anything nonzero interpreted as ``true,'' unless the variable is directly
+compared against {\tt YES}.
+Value 2 (constant {\tt YESNO}) is intended to mark a special (e.g.,
+uninitialized)
+content of a {\tt Boolean} variable.
+Note that it will formally evaluate to ``true.''
+
 \subsection{Pools}
 \label{rm_au_po}
 
@@ -2921,7 +2929,7 @@ are models of
 simple communication channels that can be implemented in real life
 on the basis of some broadcast-type communication media, e.g.,
 a piece of wire, a coaxial cable, an optical fiber, or even a wireless link
-(although {\tt RFChannel}s are generally more useful for the last purpose).
+(although {\tt RFChannel}s are generally more useful for that purpose).
 
 Stations are interfaced to links via {\em ports},
 which can be viewed as some specific points (taps) on the links
@@ -2943,7 +2951,7 @@ propagation and packet reception.
 Owing to the large and unforeseeable set of possible channel models that
 people may want to plug into \smurph\ simulators, the package does not
 presume any built-in characteristics, except for the timing of signals
-according to the distance among different geographical points.
+according to the (Euclidean) distance between the concerned points.
 
 The radio channel equivalent of a port is called a {\em transceiver}.
 Similar to a port, it represents an interface of a station to a
@@ -3256,24 +3264,42 @@ any other {\em Object\/} (see \sect{rm_st_oc}).
 The standard link {\tt setup} method is declared with the following header
 (the same for all link types):
 \begin{verbatim}
-        void setup (Long np, TIME at = TIME_0, int spf = ON);
+        void setup (Long np, RATE r, TIME at, int spf);
 \end{verbatim}
-Thus, the {\tt create} operation for a link expects
-at least one and at most three setup arguments.
-The first (mandatory) argument ({\tt np}) specifies the number
+The first argument, {\tt np}, specifies the number
 of ports that will be connected to the link.
-The second argument ({\tt at}) gives the so-called link {\em archival time\/}
+The second argument, {\tt r}, provides the default transmission rate for a
+port connected to the link.
+That rate will be assigned to every port connected to the link that doesn't
+directly specify a transmission rate at its creation (\sect{rm_to_po_cr}).
+The third argument, {\tt at}, gives the so-called link {\em archival time\/}
 in {\em ITU\/}s.
 The archival time determines for how long descriptions of activities that
 have formally disappeared from the link are to be kept in the link
 data base (see \sect{rm_po_ac_pr}).
-The default value (0) means that any activity leaving the link is immediately
+Value 0 (or {\tt TIME\_0}) means that any activity leaving the link is
+immediately
 forgotten (this is how things appear in real life).
 The last argument indicates whether standard performance measures
 are to be calculated for the link.
-With the default value {\tt ON} (1), standard performance measures will be
-computed;
-the value {\tt OFF} (0) turns them off.
+{\tt ON} (1) means that the standard performance measures will be
+computed; {\tt OFF} (0) turns them off.
+
+There is an alternative (shortcut) setup method for {\tt Link} declared as:
+\begin{verbatim}
+        void setup (Long np, TIME at = TIME_0, int spf = ON);
+\end{verbatim}
+\noindent
+which translates into this call:
+\begin{verbatim}
+        setup (np, RATE_0, at, spf);
+\end{verbatim}
+\noindent
+and basically ignores the default port rate argument setting it to zero (note that such a rate is not usable for transmission---\sect{rm_to_po_cr}).
+Thus, ports are expected to take care of their transmission
+rates all by themselves. 
+
+With the two setup variants for {\tt Link}, the {\tt create} operation for a link expects at least one and at most four setup arguments.
 
 \medskip
 
@@ -3326,7 +3352,7 @@ One is to use the standard {\tt create} operation
 (see \sect{rm_st_oc}).
 The port {\tt setup} method for this occasion is declared as follows:
 \begin{verbatim}
-        void setup (RATE rate = RATE_0);
+        void setup (RATE rate = RATE_inf);
 \end{verbatim}
 where the optional argument defines the port transmission rate (attribute
 {\tt TRate}) as the
@@ -3335,9 +3361,16 @@ This attribute is relevant if the port will ever
 be used for {\em transmission\/}
 (see \sect{rm_po_ac}) and determines the amount of time
 required to transmit a packet through the port.
-If nothing is ever transmitted via the port, i.e.,
-it is used for reception only, the argument can be skipped, in which case
-the port's transmission rate is undefined (set to 0).
+
+The default value, {\tt RATE\_inf}, assumed if you don't explicity specify a
+transmission rate at the port's creation, is interpreted as ``none'' and
+means that the default transmission rate associated with the link
+(\sect{rm_to_li_cr}) should be used for the port.
+That rate will be copied by the port from the link at the moment when
+the port gets
+{\em connected\/} to the link (\sect{rm_to_po_co}).
+If nothing is ever transmitted via the port, i.e., the port
+is used for reception only, its transmission rate is irrelevant.
 
 Ports are naturally associated with stations and links.
 From the viewpoint of the protocol program, the association of a port
@@ -3350,8 +3383,11 @@ station type and then created automatically when the station is created, i.e.,
 \>{\tt Port }{\em portname\/}{\tt ;}
 \end{tabbing}}
 \noindent
-Note that such a port has no assigned transmission rate.
-The rate can be set separately by the {\tt setRate} method of {\tt Port}.
+Note that such a port is not explicitly assigned a transmission rate (it
+will inherit the rate from the link at the moment of
+connection---\sect{rm_to_po_co}).
+Note that the rate can also be specified later (and redefined at any time)
+by the {\tt setRate} method of {\tt Port}.
 For illustration, in the following code:
 \begin{verbatim}
         station BusStation {
@@ -3369,15 +3405,28 @@ For illustration, in the following code:
 \end{verbatim}
 \noindent
 the statically declared port {\tt P} is assigned a transmission rate as well
-as a nickname.
+as a nickname in the setup method of its station.
+Note that it doesn't matter whether the port is connected to a link
+at the moment
+or not, as long as the specified rate is not {\tt RATE\_inf}.
+Any non-void (different from {\tt RATE\_inf}) rate explicitly
+assigned to a port always takes precedence over any default rate
+defined by the link.
 
 In addition to setting the transmission rate of its port, {\tt setTRate}
 returns the previous setting of the rate.
 The method is declared with the following header:
 \begin{verbatim}
-        RATE setTRate (RATE r);
+        RATE setTRate (RATE r = RATE_inf);
 \end{verbatim}
 \noindent
+When called with the void rate {\tt RATE\_inf}
+(or with no argument at all), the method will
+cause the port to be assigned the default transmission rate of its
+link, but that will only work if the port is already connected---\sect{rm_to_po_co}).
+Any other value is interpreted as the port's new, private, and specific
+transmission rate.
+
 This method:
 \begin{verbatim}
         RATE getTRate ();
@@ -3478,6 +3527,11 @@ unoccupied link-relative number is to be assigned to the port.
 The user can force this number to be any number unused so far, but the
 resulting numbering of all ports that eventually get connected to the link
 must be continuous and start from 0.
+
+When a port is being connected to a link, and its transmission rate is
+undefined at the moment (equal to {\tt RATE\_inf}), the port's
+transmission rate will be copied from the link's default
+(\sect{rm_to_li_cr}).
 
 \subsubsection{Setting the distance between ports}
 \label{rm_to_po_se}
@@ -3710,12 +3764,40 @@ another subtype; in such a case, the ascendant type should appear as
 
 The {\tt setup} method of {\tt RFChannel} has the following header:
 \begin{verbatim}
+        void setup (Long nt, RATE r, int pre, double xp, double rs,
+                                                            int spf = ON);
+\end{verbatim}
+where {\tt nt} is the total number of transceivers to be interfaced to the
+channel.
+Arguments {\tt r} through {\tt rp} provide the default values for the
+respective attributes of the transceivers that will be
+interfaced (``connected'') to the channel.
+Those attributes can be specified individually, on a per-transceiver
+basis, when the transceiver is created, in which case they will take
+precedence over the channel's defaults (\sect{rm_to_tr_cr}).
+
+The last argument of the setup method, {\tt spf},
+plays the same role as the corresponding link setup
+parameter (\sect{rm_to_li_cr})
+and is used to switch on or off the automatic collection of
+standard performance measures.
+
+There exists an abbreviated version of the setup method for
+{\tt RFChannel} which skips the default attributes of transceivers,
+setting them to generic and mostly unusable values.
+That way it is assumed that the transceivers will take care of those
+attributes all by themselves, e.g., providing them at the moment of their
+creation (\sect{rm_to_tr_cr}).
+The header of the abbreviated variant looks like this:
+\begin{verbatim}
         void setup (Long nt, int spf = ON);
 \end{verbatim}
 \noindent
-where {\tt nt} is the total number of transceivers to be interfaced to the
-channel, and {\tt spf} plays the same role as the
-corresponding link parameter (\sect{rm_to_li_cr}).
+and its effect is equivalent to:
+\begin{verbatim}
+        setup (nt, RATE_0, 0, 0.0, 0.0, spf);
+\end{verbatim}
+\noindent
 
 Similar to links,
 the {\tt Id} attributes of radio channels (and also their standard names---see
@@ -4060,8 +4142,8 @@ The {\tt setup} method, of {\tt Transceiver},
 which determines the configuration of arguments for
 {\tt create}, has the following header:
 \begin{verbatim}
-        void setup (RATE r = RATE_0, int pre = 0,
-                    double xp = 0.0, double rs = 0.0,
+        void setup (RATE r = RATE_inf, int pre = -1,
+                    double xp = -1.0, double rs = -1.0,
                     double x = Distance_0, double y = Distance_0);
 \end{verbatim}
 \noindent
@@ -4071,16 +4153,21 @@ All arguments are optional and have the following meaning:
 \noindent\hspace{-0.35in}{\bf {\tt r}}\\ \hspace{0in}
 This is the transmission rate in {\em ITU\/}s per bit,
 analogous to the corresponding {\tt Port} attribute.
-The default setting of 0 makes it impossible to use the transceiver
-for transmission (it can still be used for reception).
+The default setting of {\tt RATE\_inf} is formally void (the value
+stands for ``none'')
+and means that the rate should be copied from the radio channel
+({\tt RFChannel}) to which the transceiver will be
+interfaced (\sect{rm_to_rf_cr}).
 \end{quote}
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt pre}}\\ \hspace{0in}
 The preamble length in ``physical'' bits to be inserted by the transmitter
 before an actual packet.
-If the transceiver is to be used for transmission, this
-length cannot be zero.
+The default (negative) value formally stands for ``none'' and means that the
+attribute should be copied from the channel.
+If the transceiver is to be used for transmission, the preample length must
+be strictly greater than zero.
 \end{quote}
 
 \begin{quote}
@@ -4089,6 +4176,8 @@ Transmission power, i.e., the signal level of the transmitter.
 This number is used as the original signal level of all packets transmitted
 by the transceiver, e.g., as the argument to {\tt RFC\_att}, as well as the
 transmitter's interference level (argument {\tt xmt} of {\tt RFC\_add}).
+The default (negative) value is treated as ``none'' meaning that the
+attribute should be copied from the channel.
 \end{quote}
 
 \begin{quote}
@@ -4096,6 +4185,8 @@ transmitter's interference level (argument {\tt xmt} of {\tt RFC\_add}).
 Receiver gain (sensitivity).
 This number is used as the argument
 in {\tt RFC\_act}, {\tt RFC\_bot} and {\tt RFC\_eot}.
+The default (negative) value is treated as ``none'' meaning that the
+attribute should be copied from the channel.
 \end{quote}
 
 \begin{quote}
@@ -4107,6 +4198,9 @@ coordinates $<0,0>$.
 Note that locations apply to transceivers rather than to stations.
 Thus, it is possible to have multiple transceivers of the same station appear
 at different geographical locations.
+Also note that there is no default transceiver location attribute
+associated with the {\tt RFChannel} object and retrievable by the transceiver
+from the channel (e.g., like the default rate).
 \end{quote}
 
 \medskip
@@ -4117,8 +4211,8 @@ If the simulator has been created with the {\tt -3} option (selecting the
 3-dimensional spatial model---\sect{rm_un_cr}), the {\tt setup} method of
 {\tt Transceiver} receives one extra argument, i.e., its header is:
 \begin{verbatim}
-        void setup (RATE r = RATE_0, int pre = 0,
-                    double xp = 0.0, double rs = 0.0,
+        void setup (RATE r = RATE_inf, int pre = -1,
+                    double xp = -1.0, double rs = -1.0,
                     double x = Distance_0,
                     double y = Distance_0,
                     double z = Distance_0);
@@ -4127,10 +4221,31 @@ If the simulator has been created with the {\tt -3} option (selecting the
 where {\tt z} stands for the third coordinate.
 
 \medskip
+Note that a transceiver can only be used for transmission/reception after it
+has been interfaced (``connected'') to a channel (\sect{rm_to_tr_if}).
+Thus the default {\em void\/}
+values of the ``unassigned'' transceiver attributes
+will always be overriden by the respective channel defaults
+(\sect{rm_to_rf_cr}) before the transceiver is used for transmission or
+reception.
+In order to be able to transmit anything, a transceiver must specify a
+rate different from 0 and {\tt RATE\_inf}, as well as a preamble strictly
+greater than zero.
+Moreover, transmitting at power zero or/and receiving at sensitivity zero
+is probably not going to succeed;
+that is up to the assessment methods, however.
 
-It is possible to create a transceiver with the default set of attributes
-(i.e., without specifying any arguments to {\tt create} and then set the
-relevant attributes by invoking some methods.
+The set of attributes of a transceiver (defined directly or
+inherited from the channel) can be redefined at any time
+by invoking some methods described in \sect{rm_to_tr_if}.
+Note that some attributes can be set {\em exclusively\/} with those methods
+as they are not setup arguments for {\tt Transceiver} or {\tt RFChannel}.
+Such attributes receive blanket default values, which are typically
+predefined within {\tt RFChannel}, when the transceiver is interfaced to its
+channel.
+The details are described in \sect{rm_to_tr_if} when discussing the respective
+methods.
+
 Similar to a port, a transceiver can be declared statically within
 a station type, e.g.,
 \begin{verbatim}
@@ -4152,6 +4267,9 @@ a station type, e.g.,
 \end{verbatim}
 \noindent
 (compare \sect{rm_to_po_cr}).
+Such a transceiver may obtain some attributes from the channel (at the
+moment of connection); however,
+its location must be assigned explicitly by {\tt setLocation}.
 
 Similar to a port, a transceiver must always be
 associated with a specific station.
@@ -4217,6 +4335,12 @@ or one of these methods of {\tt Transceiver}:
 In the last case, the argument is the numerical {\tt Id} of the radio channel
 (\sect{rm_to_rf_cr}).
 
+When a transceiver is connected to a link, and some of its setup attributes
+have values amounting to ``none''
+(\sect{rm_to_tr_cr}) 
+those attributes will be copied from the default attributes of the
+channel (\sect{rm_to_rf_cr}).
+
 In contrast to ports and links, there is no need to set up a distance matrix
 for the radio channel.
 The coordinates of transceivers determine their Euclidean distances on the
@@ -4248,40 +4372,68 @@ but the detailed explanation of some of them will be given later, in
 \sect{rm_tr}, where we shall augment this list with a few more methods.
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt RATE setTRate (RATE r);}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\bf {\tt RATE setTRate (RATE r = RATE\_inf);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method sets (or re-sets) the transmission rate of the transceiver.
 The transmission rate can be changed at any time, and it immediately
 becomes effective for all packets transmitted after the change.
 The method returns the previous setting of the transmission rate.
+
+\noindent
+If the argument is {\tt RATE\_inf} (or absent), the method will reset
+the transceiver's rate to the default rate associated with the channel
+(\sect{rm_to_rf_cr}).
+This is only possible if the transceiver has been already interfaced (connected)
+to a channel.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt Long setPreamble (Long p);}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\bf {\tt Long setPreamble (Long p = -1);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method sets (or re-sets) the preamble length
-(in physical bits---\sect{rm_tr_ra_ps})
+(expressed in physical bits---\sect{rm_tr_ra_ps})
 to be applied to all
 packets subsequently transmitted from the transceiver.
 The method returns the previous setting of the preamble length.
+
+\noindent
+If the argument is negative (or absent), the method will reset
+the preamble length to the default length associated with the channel
+(\sect{rm_to_rf_cr}).
+This is only possible if the transceiver has been already interfaced (connected)
+to a channel.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt double setXPower (double xp);}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\bf {\tt double setXPower (double xp = -1.0);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method sets (or re-sets) the transmission power of the transceiver
 returning the previous value.
+
+\noindent
+If the argument is negative (or absent), the method will reset
+the transmission power to the default transmission power
+associated with the channel (\sect{rm_to_rf_cr}).
+This is only possible if the transceiver has been already interfaced (connected)
+to a channel.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt double setRPower (double xp);}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\bf {\tt double setRPower (double rp = -1.0);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method sets (or re-sets) the receiver gain
 returning the previous value.
+
+\noindent
+If the argument is negative (or absent), the method will reset
+the gain to the default gain
+associated with the channel (\sect{rm_to_rf_cr}).
+This is only possible if the transceiver has been already interfaced (connected)
+to a channel.
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt IPointer setTag (IPointer tag);}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\bf {\tt IPointer setTag (IPointer tag = ANY);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method sets (or re-sets) the tag associated with the port, which will be
 used to tag all signals of subsequently transmitted packets.
@@ -4293,9 +4445,21 @@ attributes affecting the calculation of the combined signal level
 The method returns the previous value of the tag.
 
 \noindent
-The default value of a transceiver's tag is zero.
-If the channel model
-needs no tags, the user can ignore this feature.
+If the argument is {\tt ANY} (or absent), the method will reset
+the tag to the default tag
+associated with the channel.
+This is only possible if the transceiver has been already interfaced (connected)
+to a channel.
+
+\noindent
+Note that the tag attribute can only be set with the {\tt setTag} method, as it
+doesn't appear on the list of setup arguments of {\tt Transceiver}.
+The default value of this attribute (stored in the {\tt RFChannel} object) is
+zero.
+While that default cannot be reset when the channel is created (there is no
+channel setup argument to this end), it can be redefined by invoking the
+{\tt RFChannel} variant of {\tt setTag} (as explained further in the present
+section).
 \end{quote}
 
 \begin{quote}
@@ -4334,17 +4498,27 @@ This applies to both variants of the method, i.e.,
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt void setMinDistance (double d);}} \hspace{0in}\vspace{0.05in}\\
+\noindent\hspace{-0.35in}{\bf {\tt void setMinDistance (double d = -1.0);}} \hspace{0in}\vspace{0.05in}\\
 \noindent
 This method sets the minimum distance between a pair of transceivers.
 It is generally reasonable to assume that no two transceivers ever
 occupy exactly the same location, i.e., the distance between them can
-be exactly zero.
+never be exactly zero.
 Thus, even if they actually fall into the same spot on the (discrete)
 plane, \smurph\ will make sure that their distance is not less than the
 specified minimum (in {\em DU\/}s).
-The default setting of minimum distance is the {\em DU\/} equivalent of
+
+\noindent
+If the argument is negative (or absent), the method will reset
+the minimum distance to the default minimum distance setting
+associated with the channel.
+This is only possible if the transceiver has been already interfaced (connected)
+to a channel.
+The default setting of minimum distance in {\tt RFChannel}
+is the {\em DU\/} equivalent of
 1~{\em ITU}, i.e., the minimum non-zero distance.
+That default can be reset by invoking the {\tt RFChannel} variant of
+{\tt setMinDistance} (see below).
 \end{quote}
 
 Each of the above ``set'' methods has a corresponding ``get'' method that
@@ -4396,8 +4570,41 @@ for all transceivers interfaced to the same radio channel, by calling the
 corresponding method of {\tt RFChannel} rather than the one of
 {\tt Transceiver}.
 Except for {\tt setLocation}, all the ``set'' methods listed above
-have their {\tt RFChannel} variants, which may be useful as shortcuts at the
-initialization stage.
+have their {\tt RFChannel} variants.
+Such a variant can be used for one of these purposes:
+
+\begin{enumerate}
+\item
+To set the attribute in all transceivers connected to the channel to the same
+value and make that value a new channel default.
+\item
+To set the attribute in all transceivers to the current channel default
+(without changing that default).
+\end{enumerate}
+
+\noindent
+For example, with this invocation:
+\begin{verbatim}
+        CH->setPreamble (18);
+\end{verbatim}
+\noindent
+(assuming that {\tt CH} points to an {\tt RFChannel}) the program will set the
+preamble length for all transceivers interfaced to the channel to 18 bits
+{\em and\/} redefine the channel's default for preamble length to 18.
+By using --1 for the argument, or skipping the argument altogether, as in:
+\begin{verbatim}
+        CH->setPreamble ();
+\end{verbatim}
+the program will reset the preamble length of all transceivers to the channel's
+current default, whatever it is.
+The same idea applies to {\tt setTRate},
+{\tt setTag},
+{\tt setErrorRun},
+{\tt setXPower},
+{\tt setRPower},
+{\tt setMinDistance}, and
+{\tt setAevMode}.
+
 The {\tt RFChannel} methods return no values (they are declared as {\tt void}).
 A few more ``set/get'' methods of transceivers (and their global 
 {\tt RFChannel} versions) will be introduced in \sect{rm_tr_ac_be}.
@@ -8207,8 +8414,12 @@ before {\tt stop}, it has no impact on the packet being transmitted.
 It is also possible to change the transmission rates of all ports connected
 to a given link by executing the {\tt setTRate} method associated with type
 {\tt Link}.
-The {\tt Link}'s method accepts the same argument as the {\tt Port}'s method,
+The link method accepts the same argument as the port method,
 but it returns no value (its type is {\tt void}).
+When called with {\tt RATE\_inf} (or with no argument at all),
+the link method uses the (current) default rate of the link.
+Otherwise, the argument redefines the link's default rate and also becomes the
+current transmission rate of all ports connected to the link.
 
 The following port method:
 \begin{verbatim}
@@ -8474,6 +8685,18 @@ assumed.
 The second value declares the ``standard'' (and default) handling of
 {\tt ANYEVENT}, whereby events persist until time is advanced.
 The methods returns the option's previous setting.
+
+When you invoke {\tt setAevMode} without an argument (or, equivalently, with
+{\tt YESNO}, which is interpreted as an undefined Boolean
+value---\sect{rm_au_tb}), the method
+will set the port's {\tt AEV} mode to the default mode of the link, which is
+{\tt YES} (by default).
+The link's default mode can be changed by calling the {\tt setAevMode} method
+of the link, which will redefine the link's default as well as set the mode of
+all ports connected to the link.
+When you do this at the initialization, when no ports are connected to the
+link, the ports will automatically
+copy the new default as they are being connected.
 
 The recommended way of receiving {\tt ANYEVENT} in the non-persistent mode
 is as follows:
@@ -9268,7 +9491,7 @@ determined by the transceiver's transmission rate ({\tt TRate}) and the lengths
 of the corresponding packet components.
 If stage {\em P\/} occurs at time $t$, then stage {\em T\/} will take place
 at $t$ + {\tt tcv->TRate * tcv->Preamble}, where {\tt tcv} is the transmitting
-transceiver and {\tt Preamble} is its currently defined preamble length.
+transceiver and {\tt Preamble} is its (currently defined) preamble length.
 Then, stage {\em E\/} will occur {\tt RFC\_xmt (tcv->TRate, pkt->TLength)}
 {\em ITU\/}s after stage {\em T}, where
 {\tt pkt} points to the packet being transmitted.
@@ -9416,7 +9639,7 @@ A transceiver changes its transmission power (attribute {\tt XPower}).
 If the power increases, the neighborhood of the transceiver may include more
 transceivers; if it decreases, the neighborhood may have to be trimmed down.
 \item
-A transceiver changes it reception gain (attribute {\tt RPower}).
+A transceiver changes its reception gain (attribute {\tt RPower}).
 If the gain increases, the transceiver may have to be included in some
 new neighborhoods; if it decreases, the transceiver may have to be removed
 from some neighborhoods.
@@ -9461,7 +9684,7 @@ At any moment, a given transceiver may perceive a number of packets arriving
 from different neighbors and being at different stages.
 The role of the assessment procedure at a receiving transceiver is to
 determine whether any of those packets should be received or, more
-specifically, whether it should trigger the events that will conceptually
+specifically, whether it should trigger the events that will
 amount to its reception.
 The decisions are arrived at by the collective interaction of the
 user-exchangeable {\em assessment methods\/} listed in~\sect{rm_to_rf_cr}.
@@ -9470,7 +9693,7 @@ First, {\tt RFC\_att} is called to
 determine the signal level of the packet at the
 perceiving port.
 Its first argument describes the transmission power at which
-the packet was originally transmitted at the sending transceivers,
+the packet was originally transmitted at the sending transceiver,
 as well as the tag of that transmission,
 the second argument gives the distance between
 the sender and the perceiving transceiver, and the last argument
@@ -9490,8 +9713,8 @@ between the channel numbers.
 
 Note that, although the sender transceiver is directly available
 to {\tt RFC\_att} (via the third argument), the method
-should avoid consulting its attributes unless absolutely necessary.
-In particular, instead of using the {\tt Tag} value from the
+should avoid consulting its attributes, if only possible.
+For example, instead of using the {\tt Tag} value from the
 first {\tt SLEntry*} argument, the method may be tempted to invoke
 {\tt getTag} for the sender's transceiver.
 However,
@@ -9938,8 +10161,7 @@ at the same time.
 The transmission of a packet can be aborted prematurely (by {\tt abort})
 during the preamble, i.e., before the first bit of the proper packet has
 been transmitted.
-Such a packet is a special case of sorts: it has a degenerate stage
-{\em T\/} (the preamble does end but
+Such a packet has a degenerate stage {\em T\/} (the preamble does end but
 the proper packet never begins),
 and has no stage {\em E}.
 No assessment will ever be carried out
@@ -10338,6 +10560,19 @@ This is accomplished by invoking the {\tt setAevMode} method of
 {\tt Transceiver}, whose properties are identical to its {\tt Port}
 counterpart.
 
+Similar to links and ports,
+when you invoke {\tt setAevMode} without an argument (or, equivalently, with
+{\tt YESNO}, which is interpreted as an undefined Boolean
+value---\sect{rm_au_tb}), the method
+will set the transceiver's {\tt AEV} mode to the default mode of the channel, which is
+{\tt YES} (by default).
+The channel's default mode can be changed by calling the {\tt setAevMode} method
+of {\tt RFChannel}, which will redefine the channel's default as well as set the mode of
+all transceivers connected to the channel.
+When you do this at the initialization, when no transceivers are yet connected to the
+channel, the transceivers will automatically
+copy the new default as they are being connected.
+
 \subsubsection{Event priorities}
 \label{rm_tr_pp_ep}
 
@@ -10620,9 +10855,13 @@ reception parameters of the {\em followed\/} packet.
 
 As most ``set'' methods, {\tt setErrorRun} returns the previous setting of
 the error run option.
-Also, an {\tt RFChannel} variant is available which returns no value and
+Also, an {\tt RFChannel} variant of the method is available which returns no value and
 selects the same value of error run
-for all transceivers interfaced to the channel.
+for all transceivers interfaced to the channel (resetting the channel's
+default, e.g., as for channel {\tt setTRate}---\sect{rm_to_tr_cr}).
+The channel's default for the length of error run, which is assumed by
+transceivers as their default, is 1.
+
 There is a matching {\tt getErrorRun} method of {\tt Transceiver}, which
 returns the current setting of the option.
 

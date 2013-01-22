@@ -38,19 +38,6 @@ rfchannel RFShadow : RadioChannel {
 	Long RFC_erb (RATE, const SLEntry*, const SLEntry*, double, Long);
 	Long RFC_erd (RATE, const SLEntry*, const SLEntry*, double, Long);
 
-	inline unsigned short tagToCh (IPointer tag) {
-		return (unsigned short) (tag & 0xffff);
-	};
-
-	inline unsigned short tagToRI (IPointer tag) {
-		return (unsigned short) ((tag >> 16) & 0xffff);
-	};
-
-	inline double rateBoost (IPointer tag) {
-		return RBoost == NULL ? 1.0 :
-			RBoost->setvalue ((unsigned short) (tag >> 16));
-	};
-
 	void setup (
 		Long,			// The number of transceivers
 		const sir_to_ber_t*,	// SIR to BER conversion table
@@ -70,7 +57,5 @@ rfchannel RFShadow : RadioChannel {
 		double (*g) (Transceiver*, Transceiver*) = NULL
 	);
 };
-
-#define	SEther ((RFShadow*) Ether)
 
 #endif

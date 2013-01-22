@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-10   P. Gburzynski */
+/* Copyright (C) 1991-12   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -452,7 +452,8 @@ void    RFChannel::zz_start () {
 	pool_in (this, TheProcess->ChList);
 };
 
-void RFChannel::setup (Long nx, int spf) {
+void RFChannel::setup (Long nx, RATE r, int pre, double XP, double RP,
+								     int spf) {
 
 	static	int asize = 3;
 	RFChannel **scratch;
@@ -466,6 +467,18 @@ void RFChannel::setup (Long nx, int spf) {
 
 	assert (nx > 1, "RFChannel: the number of transceivers (%1d) must be at"
 		" least 2", nx);
+
+	assert (XP >= 0.0 && RP >= 0.0, "RFChannel: transmit/receive power "
+		"(%f, %f) cannot be negative", XP, RP);
+
+	DefXPower = XP;
+	DefRPower = RP;
+	DefTRate = r;
+	DefPreamble = pre;
+	DefMinDistance = ituToDu (DISTANCE_1);
+	DefAevMode = YES;
+	DefErrorRun = 1;
+	DefTag = 0;
 
 	NTransceivers = (int) nx;
 
@@ -556,11 +569,7 @@ void Transceiver::setup (RATE r, int pre, double XP, double RP,
 #endif
 
 	Preamble = pre;
-	assert (XP >= 0.0 && RP >= 0.0, "Transceiver: transmit/receive power "
-		"(%f, %f) cannot be negative", XP, RP);
-
 	XPower = XP;
-
 	// Receiver sensitivity
 	SenTag.Level = RP;
 }
@@ -584,7 +593,7 @@ Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
 	RFC = NULL;
 	SigThreshold = 0.0;
 	TracedActivity = NULL;
-	MinDistance = DISTANCE_1;
+	MinDistance = DISTANCE_inf;
 
 	Neighbors = NULL;
 	NNeighbors = 0;
@@ -596,10 +605,11 @@ Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
 					, z
 #endif
 						);
-	AevMode = RxOn = YES;
+	RxOn = YES;
+	AevMode = YESNO;
 	Mark = NO;
-	SenTag.Tag = 0;
-	ErrorRun = 1;
+	SenTag.Tag = ANY;
+	ErrorRun = -1;
 
 	if (nn != NULL) {
 		// Nickname assigned
@@ -670,6 +680,23 @@ void	RFChannel::connect (Transceiver *xcv) {
 			xcv->getSName (), NTransceivers);
 	xcv->RFC = this;
 	Tcvs [i] = xcv;
+
+	if (xcv->Preamble < 0)
+		xcv->setPreamble (DefPreamble);
+	if (xcv->TRate == RATE_inf)
+		xcv->setTRate (DefTRate);
+	if (xcv->XPower < 0.0)
+		xcv->setXPower (DefXPower);
+	if (xcv->getRPower () < 0.0)
+		xcv->setRPower (DefRPower);
+	if (xcv->AevMode == YESNO)
+		xcv->setAevMode (DefAevMode);
+	if (xcv->getMinDistance () < 0.0)
+		xcv->setMinDistance (DefMinDistance);
+	if (xcv->getTag () == ANY)
+		xcv->setTag (DefTag);
+	if (xcv->ErrorRun < 0)
+		xcv->setErrorRun (DefErrorRun);
 }
 
 void	Transceiver::connect (Long chn) {
@@ -751,6 +778,12 @@ RATE	Transceiver::setTRate (RATE r) {
 
 	RATE qr;
 
+	if (r == RATE_inf && RFC)
+		r = RFC->DefTRate;
+
+	assert (r != RATE_inf,
+		"Transceiver->setTRate: %s, illegal (infinite) rate",
+			getSName ());
 	qr = TRate;
 	TRate = r;
 	return qr;
@@ -759,6 +792,13 @@ RATE	Transceiver::setTRate (RATE r) {
 IPointer Transceiver::setTag (IPointer t) {
 
 	IPointer old;
+
+	if (t == ANY && RFC)
+		t = RFC->DefTag;
+
+	assert (t != ANY,
+		"Transceiver->setTag: %s, illegal (null) tag",
+			getSName ());
 
 	old = SenTag.Tag;
 	SenTag.Tag = t;
@@ -769,8 +809,11 @@ Long	Transceiver::setErrorRun (Long e) {
 
 	Long old;
 
+	if (e < 0 && RFC)
+		e = RFC->DefErrorRun;
+
 	Assert (e > 0,
-	    "TRansceiver->setErrorRun: %s, error run length (%1d) must be > 0",
+	    "Transceiver->setErrorRun: %s, illegal error run length %1d",
 		getSName (), e);
 	old = ErrorRun;
 	ErrorRun = e;
@@ -781,6 +824,13 @@ Long	Transceiver::setPreamble (Long t) {
 
 	Long old;
 
+	if (t < 0 && RFC)
+		t = RFC->DefPreamble;
+
+	assert (t >= 0,
+		"Transceiver->setPreamble: %s, illegal (undefined) "
+		"preamble length", getSName ());
+
 	old = Preamble;
 	Preamble = t;
 	return old;
@@ -790,8 +840,11 @@ double	Transceiver::setXPower (double p) {
 
 	double op;
 
+	if (p < 0.0 && RFC)
+		p = RFC->DefXPower;
+
 	assert (p >= 0.0,
-		"Transceiver->setXPower: %s, power (%f) cannot be negative",
+		"Transceiver->setXPower: %s, llegal (undefined) power (%f)",
 			getSName (), p);
 
 	op = XPower;
@@ -812,8 +865,11 @@ double	Transceiver::setRPower (double p) {
 
 	double op;
 
+	if (p < 0.0 && RFC)
+		p = RFC->DefRPower;
+
 	assert (p >= 0.0,
-		"Transceiver->setRPower: %s, power (%1d) cannot be negative",
+		"Transceiver->setRPower: %s, illegal (undefined) power (%1f)",
 			getSName (), p);
 
 	op = SenTag.Level;
@@ -837,8 +893,15 @@ void RFChannel::setTRate (RATE r) {
 
 	Long i;
 
+	if (r == RATE_inf)
+		r = DefTRate;
+	else
+		DefTRate = r;
+
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> TRate = r;
+		if (Tcvs [i])
+			// Can be called at initialization
+			Tcvs [i] -> TRate = r;
 }
 
 void RFChannel::setPreamble (Long t) {
@@ -849,8 +912,15 @@ void RFChannel::setPreamble (Long t) {
 
 	Long i;
 
+	if (t < 0)
+		t = DefPreamble;
+	else
+		DefPreamble = t;
+
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> setPreamble (t);
+		if (Tcvs [i])
+			// Can be called before the network has been initialized
+			Tcvs [i] -> setPreamble (t);
 }
 
 void RFChannel::setTag (IPointer t) {
@@ -861,28 +931,42 @@ void RFChannel::setTag (IPointer t) {
 
 	Long i;
 
+	if (t == ANY)
+		t = DefTag;
+	else
+		DefTag = t;
+
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> SenTag.Tag = t;
+		if (Tcvs [i])
+			Tcvs [i] -> SenTag.Tag = t;
 }
 
 void RFChannel::setErrorRun (Long e) {
 
 	Long i;
 
+	if (e < 0)
+		e = DefErrorRun;
+	else
+		DefErrorRun = e;
+
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> setErrorRun (e);
+		if (Tcvs [i])
+			Tcvs [i] -> setErrorRun (e);
 }
 
 void RFChannel::setXPower (double p) {
 
 	Long i;
 
-	assert (p >= 0.0,
-		"RFChannel->setXPower: %s, power (%1d) cannot be negative",
-			getSName (), p);
+	if (p < 0.0)
+		p = DefXPower;
+	else
+		DefXPower = p;
 
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> XPower = p;
+		if (Tcvs [i])
+			Tcvs [i] -> XPower = p;
 
 	if (zz_flg_started) {
 		// Redo all neighborhoods
@@ -896,12 +980,14 @@ void RFChannel::setRPower (double p) {
 
 	Long i;
 
-	assert (p >= 0.0,
-		"RFChannel->setRPower: %s, power (%1d) cannot be negative",
-			getSName (), p);
+	if (p < 0.0)
+		p = DefRPower;
+	else
+		DefRPower = p;
 
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> SenTag.Level = p;
+		if (Tcvs [i])
+			Tcvs [i] -> SenTag.Level = p;
 
 	if (zz_flg_started) {
 		// Redo all neighborhoods
@@ -919,16 +1005,28 @@ void RFChannel::setMinDistance (double d) {
 	    "RFChannel->setMinDistance: %s, distance (%f) cannot be less "
 		"than 0.0", getSName (), d);
 
+	if (d < 0.0)
+		d = DefMinDistance;
+	else
+		DefMinDistance = d;
+
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> setMinDistance (d);
+		if (Tcvs [i])
+			Tcvs [i] -> setMinDistance (d);
 }
 
 void RFChannel::setAevMode (Boolean b) {
 
 	int i;
 
+	if (b != YES && b != NO)
+		b = DefAevMode;
+	else
+		DefAevMode = b;
+
 	for (i = 0; i < NTransceivers; i++)
-		Tcvs [i] -> setAevMode (b);
+		if (Tcvs [i])
+			Tcvs [i] -> setAevMode (b);
 }
 
 Long RFChannel::errors (RATE r, const SLEntry *sl, const SLEntry *rs,
@@ -1717,11 +1815,11 @@ void Transceiver::startTransfer (Packet *p) {
 			p->frameSize ()];
 	Activity->Pkt = *p;
 
-	Assert (TRate != RATE_0,
+	Assert (TRate != RATE_0 && TRate != RATE_inf,
 		"Transceiver->startTransfer: %s, TRate undefined",
 			getSName ());
-	Assert (Preamble != 0, "Transceiver->startTransfer: %s, preamble "
-		"length is zero", getSName ());
+	Assert (Preamble > 0, "Transceiver->startTransfer: %s, preamble "
+		"length is undefined", getSName ());
 
 	Activity->TRate = (Activity->Tcv = this)->TRate;
 
@@ -3049,13 +3147,24 @@ double Transceiver::setSigThreshold (double t) {
 	return old;
 }
 
+double Transceiver::getMinDistance () {
+
+	if (MinDistance == DISTANCE_inf)
+		return -1.0;
+
+	return ituToDu (MinDistance);
+}
+
 double Transceiver::setMinDistance (double d) {
 
 	double old;
 
+	if (d < 0.0 && RFC)
+		d = RFC->DefMinDistance;
+
 	assert (d >= 0.0,
-          	"Transceiver->setMinDistance: %s, distance (%f) cannot be "
-			"negative", getSName (), d);
+          	"Transceiver->setMinDistance: %s, illegal (undefined) distance "
+			"(%f)", getSName (), d);
 
 	old = getMinDistance ();
 
@@ -3075,6 +3184,13 @@ Boolean Transceiver::setAevMode (Boolean b) {
 
 	Boolean old;
 
+	if (b == YESNO && RFC)
+		b = RFC->DefAevMode;
+
+	assert (b == YES || b == NO,
+          	"Transceiver->setAevMode: %s, illegal (undefined) mode (%1d)",
+			getSName (), b);
+		
 	old = AevMode;
 	AevMode = b;
 	return old;
@@ -3840,6 +3956,16 @@ void RFChannel::exPrtTop (Boolean full) {
 
 	if (!full)
 		return;
+
+	Ouf << "\n    Transceiver defaults:\n\n";
+	print (DefXPower        , "        XPower:      ");
+	print (DefRPower        , "        RPower:      ");
+	print (DefTRate         , "        TRate:       ");
+	print (DefPreamble      , "        Preamble:    ");
+	print (DefMinDistance   , "        MinDistance: ");
+	print (DefErrorRun      , "        ErrorRun:    ");
+	print (DefAevMode       , "        AevMode:     ");
+	print (DefTag           , "        Tag:         ");
 
 	Ouf << "\n    Neighbor lists:\n\n";
 

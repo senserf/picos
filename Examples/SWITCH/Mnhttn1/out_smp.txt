@@ -1,27 +1,27 @@
-SMURPH Version 1.82      Unidentified protocol    Sat Jan  7 12:22:12 1995
-Call arguments: data_smp.txt out
+SMURPH Version 3.21-OA      Unidentified protocol    Mon Jan 21 22:56:52 2013
+Call arguments: data_smp.txt junko
 
 Network topology
 
 Stations:
 
-  NumId             Type         NPorts       NBuffers                NName
-      0         MStation              4              1                -----
-      1         MStation              4              1                -----
-      2         MStation              4              1                -----
-      3         MStation              4              1                -----
-      4         MStation              4              1                -----
-      5         MStation              4              1                -----
-      6         MStation              4              1                -----
-      7         MStation              4              1                -----
-      8         MStation              4              1                -----
-      9         MStation              4              1                -----
-     10         MStation              4              1                -----
-     11         MStation              4              1                -----
-     12         MStation              4              1                -----
-     13         MStation              4              1                -----
-     14         MStation              4              1                -----
-     15         MStation              4              1                -----
+  NumId             Type  NPorts  NTrans  NBuffs            NName
+      0         MStation       4       0       1            -----
+      1         MStation       4       0       1            -----
+      2         MStation       4       0       1            -----
+      3         MStation       4       0       1            -----
+      4         MStation       4       0       1            -----
+      5         MStation       4       0       1            -----
+      6         MStation       4       0       1            -----
+      7         MStation       4       0       1            -----
+      8         MStation       4       0       1            -----
+      9         MStation       4       0       1            -----
+     10         MStation       4       0       1            -----
+     11         MStation       4       0       1            -----
+     12         MStation       4       0       1            -----
+     13         MStation       4       0       1            -----
+     14         MStation       4       0       1            -----
+     15         MStation       4       0       1            -----
 
 Links:
 
@@ -29,7 +29,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -42,7 +42,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -55,7 +55,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -68,7 +68,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -81,7 +81,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -94,7 +94,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -107,7 +107,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -120,7 +120,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -133,7 +133,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -146,7 +146,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -159,7 +159,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -172,7 +172,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -185,7 +185,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -198,7 +198,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -211,7 +211,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -224,7 +224,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -237,7 +237,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -250,7 +250,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -263,7 +263,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -276,7 +276,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -289,7 +289,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -302,7 +302,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -315,7 +315,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -328,7 +328,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -341,7 +341,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -354,7 +354,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -367,7 +367,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -380,7 +380,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -393,7 +393,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -406,7 +406,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -419,7 +419,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -432,7 +432,7 @@ Links:
 
     Distance matrix:
 
-     0:      ---  1000000
+     0:      ---    1e+06
      1:      ***      ---
 
     Ports:
@@ -440,6 +440,9 @@ Links:
       LRId    Station    SRId        Rate
          0         15       3        1000
          1         14       3           0
+
+
+RFChannels
 
 (System) End of list
 
@@ -472,7 +475,7 @@ Receivers: all stations
 
 (Client) End of list
 
-Time:     34078483836     (Client) Global performance measures:
+Time: 34078483836 [34078483.836000] (Client) Global performance measures:
 
 AMD - Absolute message delay:
 

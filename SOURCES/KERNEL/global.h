@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-12   P. Gburzynski */
+/* Copyright (C) 1991-13   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 //#define	ZZ_RF_DEBUG
@@ -262,6 +262,7 @@ class		ZZ_RF_ACTIVITY;
 /* -------------- */
 #define         NO              0       // Logical value 'false'
 #define         YES             1       // Logical value 'true'
+#define		YESNO		2	// Undefined Boolean (evaluating as YES)
 #define         ON              1       // A flag is on
 #define         OFF             0       // A flag is off
 
@@ -3552,10 +3553,10 @@ class   Port : public AI {
 
 	// Setup functions
 
-	void    setup (RATE r = RATE_0);
+	void    setup (RATE r = RATE_inf);
 
-	RATE setTRate (RATE);
-	Boolean setAevMode (Boolean);
+	RATE setTRate (RATE r = RATE_inf);
+	Boolean setAevMode (Boolean b = YESNO);
 	inline RATE getTRate () { return TRate; };
 	inline Boolean getAevMode () { return AevMode; };
 
@@ -3632,8 +3633,8 @@ class   Link : public AI {
 	public:
 
 	void    setFaultRate (double r = 0.0, int ft = FT_LEVEL1);
-	void    setTRate (RATE);
-	void	setAevMode (Boolean);
+	void    setTRate (RATE r = RATE_inf);
+	void	setAevMode (Boolean b = YESNO);
 
 	void	setPacketCleaner (void (*)(Packet*));
 
@@ -3689,9 +3690,16 @@ class   Link : public AI {
 
 	ZZ_REQUEST      *RQueue [ZZ_N_LINK_EVENTS];     // Request queues
 
+	RATE		DefTRate;
+	Boolean		DefAevMode;
+
 	void zz_start ();                       // Nonstandard constructor
 
-	void setup (Long np, TIME at = TIME_0, int spf = ON);
+	void setup (Long np, RATE r, TIME at, int spf);
+
+	void setup (Long np, TIME at = TIME_0, int spf = ON) {
+		setup (np, RATE_0, at, spf);
+	}
 
 	~Link () {
 		excptn ("Link: [%1d] once created, a link cannot be destroyed",
@@ -3845,9 +3853,12 @@ inline  void    zz_bld_BLink (char *nn = NULL) {
 class   ULink : public Link {
 	public:
 	virtual const char *getTName () { return ("ULink"); };
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+	inline void setup (Long np, RATE r, TIME at, int spf) {
 		Type = LT_unidirectional;
-		Link::setup (np, at, spf);
+		Link::setup (np, r, at, spf);
+	};
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+		setup (np, RATE_0, at, spf);
 	};
 };
 
@@ -3867,9 +3878,12 @@ inline  void    zz_bld_ULink (char *nn = NULL) {
 class   PLink : public Link {
 	public:
 	virtual const char *getTName () { return ("PLink"); };
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+	inline void setup (Long np, RATE r, TIME at, int spf) {
 		Type = LT_pointtopoint;
-		Link::setup (np, at, spf);
+		Link::setup (np, r, at, spf);
+	};
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+		setup (np, RATE_0, at, spf);
 	};
 };
 
@@ -3889,9 +3903,12 @@ inline  void    zz_bld_PLink (char *nn = NULL) {
 class   CLink : public Link {
 	public:
 	virtual const char *getTName () { return ("CLink"); };
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+	inline void setup (Long np, RATE r, TIME at, int spf) {
 		Type = LT_cpropagate;
-		Link::setup (np, at, spf);
+		Link::setup (np, r, at, spf);
+	};
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+		setup (np, RATE_0, at, spf);
 	};
 };
 
@@ -4390,9 +4407,27 @@ class	RFChannel : public AI {
 	BITCOUNT	NRBits,
 			NTBits;
 
+	double		DefMinDistance,
+			DefXPower,
+			DefRPower;
+
+	RATE		DefTRate;
+
+	Long		DefPreamble,
+			DefErrorRun;
+
+	IPointer	DefTag;
+	
+	Boolean		DefAevMode;
+
 	void zz_start ();
 
-	void setup (Long np, int spf = ON);
+	void setup (Long np, RATE r, int pre, double xp, double rp,
+		int spf = ON);
+
+	void setup (Long np, int spf = ON) {
+		setup (np, RATE_0, 0, 0.0, 0.0, spf);
+	}
 
 	~RFChannel () {
 		excptn ("RFChannel: [%1d] once created, an RFChannel cannot be "
@@ -4426,14 +4461,14 @@ class	RFChannel : public AI {
 	virtual void    pfmPAB (Packet*) {};
 
 	void 	connect (Transceiver*);
-	void	setTRate (RATE);
-	void	setPreamble (Long);
-	void	setTag (IPointer);
-	void	setErrorRun (Long);
-	void	setXPower (double);
-	void	setRPower (double);
-	void	setMinDistance (double);
-	void	setAevMode (Boolean);
+	void	setTRate (RATE r = RATE_inf);
+	void	setPreamble (Long p = -1);
+	void	setTag (IPointer p = ANY);
+	void	setErrorRun (Long e = -1);
+	void	setXPower (double p = -1.0);
+	void	setRPower (double p = -1.0);
+	void	setMinDistance (double d = -1.0);
+	void	setAevMode (Boolean b = YESNO);
 
 	void	setPacketCleaner (void (*)(Packet*));
 
@@ -4777,15 +4812,15 @@ class	Transceiver : public AI {
 	const char	*getTName () { return ("Tcv"); };
 	int	getSID (), getYID ();
 
-	RATE	setTRate (RATE);
-	Long	setPreamble (Long);
-	double	setXPower (double);
-	double	setRPower (double);
-	IPointer setTag (IPointer);
-	Long	setErrorRun (Long);
+	RATE	setTRate (RATE r = RATE_inf);
+	Long	setPreamble (Long p = -1);
+	double	setXPower (double p = -1.0);
+	double	setRPower (double p = -1.0);
+	IPointer setTag (IPointer p = ANY);
+	Long	setErrorRun (Long e = -1);
+	double 	setMinDistance (double d = -1.0);
+	Boolean	setAevMode (Boolean b = YESNO);
 	double 	setSigThreshold (double);
-	double 	setMinDistance (double);
-	Boolean	setAevMode (Boolean);
 	Boolean follow (Packet *p = NULL);
 	inline Boolean isFollowed (Packet*);
 
@@ -4793,13 +4828,13 @@ class	Transceiver : public AI {
 
 #if	ZZ_R3D
 
-	Transceiver (RATE r = RATE_0, int pre = 0,
-		double xp = 0.0, double rp = 0.0, double x = Distance_inf,
+	Transceiver (RATE r = RATE_inf, int pre = -1,
+		double xp = -1.0, double rp = -1.0, double x = Distance_inf,
 			double y = Distance_inf, double z = Distance_inf,
 				char *nn = NULL);
 
-	void	setup (RATE r = RATE_0, int pre = 0,
-		double xp = 0.0, double rp = 0.0, double x = Distance_0,
+	void	setup (RATE r = RATE_inf, int pre = -1,
+		double xp = -1.0, double rp = -1.0, double x = Distance_0,
 			double y = Distance_0, double z = Distance_0);
 	void 	setLocation (double, double, double);
 	inline  void	getLocation (double &x, double &y, double &z) {
@@ -4810,12 +4845,12 @@ class	Transceiver : public AI {
 
 #else	/* 2-D */
 
-	Transceiver (RATE r = RATE_0, int pre = 0,
-		double xp = 0.0, double rp = 0.0, double x = Distance_inf,
+	Transceiver (RATE r = RATE_inf, int pre = -1,
+		double xp = -1.0, double rp = -1.0, double x = Distance_inf,
 			double y = Distance_inf, char *nn = NULL);
 
-	void	setup (RATE r = RATE_0, int pre = 0,
-		double xp = 0.0, double rp = 0.0, double x = Distance_0,
+	void	setup (RATE r = RATE_inf, int pre = -1,
+		double xp = -1.0, double rp = -1.0, double x = Distance_0,
 			double y = Distance_0);
 	void 	setLocation (double, double);
 	inline  void	getLocation (double &x, double &y) {
@@ -4835,7 +4870,7 @@ class	Transceiver : public AI {
 	inline	IPointer getTag () { return SenTag.Tag; };
 	inline	Long	getErrorRun () { return ErrorRun; };
 	inline  double  getSigThreshold () { return SigThreshold; };
-	inline	double  getMinDistance () { return ituToDu (MinDistance); };
+	double  getMinDistance ();
 	inline	Boolean	getAevMode () { return AevMode; };
 
 	void zz_expose (int, const char *h = NULL, Long s = NONE);

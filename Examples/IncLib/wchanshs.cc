@@ -160,6 +160,8 @@ void RFShadow::setup (
 	COSL = (co == -HUGE) ? 0.0 : dBToLin (co);
 	Sigma = sg;
 
+	setMinDistance (RDist);
+
 	LFac = pow (RDist, be) / dBToLin (lo);
 	NBeta = -be;		// The exponent is negative
 	OBeta = 1.0 / -be;

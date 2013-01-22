@@ -447,3 +447,24 @@ PG121113A:
 
 	   A small adjustment to sxml_parse_input which is now a bit safer and
 	   more general.
+	   
+PG130122A:	VUEE >= PG130122A
+
+           A few rather painful modifications constituting a prerequisite for
+	   the sample-driven RF channel model. While the modifications were not
+	   absolutely necessary, they do help a bit to structure the model and
+	   make its components more independent.
+	   
+	   The primary reason for the pain was the need to introduce similar
+	   modifications to the Link-Port interface, for consistency and
+	   overall neatness. Then I had to update the document.
+	   
+	   The essence of the modifications is to provide defaults for some of
+	   the essential attributes of Transceivers (and Ports) in RFChannels
+	   (and Links). That allows us to set those parameters conveniently in
+	   the RFChannel/Link setup method, thus absolving the caller from the
+	   need to fix them outside the setup method in a way that would have
+	   to assume a specific RFChannel/Link type. Don't worry if you don't
+	   get it. I barely get it myself.
+	   
+	   Version number bumped a bit.

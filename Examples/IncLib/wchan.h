@@ -7,7 +7,7 @@ typedef struct {
 	// This structure represents a single entry mapping SIR (Signal to
 	// Interference Ratio) to BER (Bit Error Rate). The user specifies
 	// a bunch of discrete entries, and the actual values (for SIR in
-	// between are interpolated. Does this make sense? Beats me!
+	// between are interpolated. Does this make sense?
 	double	sir, ber, fac;
 	// Note: the third value is a precalculated factor to save on
 	// multiplication/division
@@ -25,14 +25,14 @@ class IVMapper {
 
 	Boolean Dec,		// Decreasing order of values
 		Log;		// Logarithmic
-	unsigned short NL;	// Number of discrete levels
+	unsigned short NL;	// Number of levels
 	unsigned short *VLV;	// Representations
 	double *SLV;		// Values
 	double *FAC;		// To speed up interpolation
 
 	inline Boolean vtor (double a, double b) {
-		// b is to the right of a (for values, which can be
-		// either increasing or decreasing)
+		// Returns YES if b's representation is larger than a's, i.e.,
+		// b is to the "right" of a 
 		return (Dec && (a >= b)) || (!Dec && (a <= b));
 	}
 
@@ -81,7 +81,7 @@ class MXChannels {
 			"MXChannels: attempt to use different channels while"
 			" no channels are defined");
 
-		if (--c1 > NSEP)
+		if (--c1 >= NSEP)
 			return 0.0;
 
 		return SEP [c1];
@@ -113,6 +113,22 @@ rfchannel RadioChannel {
 	virtual TIME RFC_xmt (RATE, Long);
 
 	double ber (double);		// Converts SIR to BER
+
+	inline unsigned short tagToCh (IPointer tag) {
+		// Tag to channel number
+		return (unsigned short) (tag & 0xffff);
+	};
+
+	inline unsigned short tagToRI (IPointer tag) {
+		// Tag to rate index
+		return (unsigned short) ((tag >> 16) & 0xffff);
+	};
+
+	inline double rateBoost (IPointer tag) {
+		// Rate-index-specific boost for BER assessment
+		return RBoost == NULL ? 1.0 :
+			RBoost->setvalue ((unsigned short) (tag >> 16));
+	};
 
 	void setup (
 		Long nt,		// The number of transceivers

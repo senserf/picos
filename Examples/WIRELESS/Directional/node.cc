@@ -423,7 +423,7 @@ void Node::setup (RATE xr) {
 
 	RFI = create Transceiver (xr, pr, dBToLin (xp), 1.0, X, Y);
 
-	SEther->connect (RFI);
+	Ether->connect (RFI);
 
 	Event = create Barrier ();
 
@@ -485,13 +485,6 @@ void initNodes (Long N) {
 
 	for (n = 0; n < N; n++)
 		create Node (XmitRate);
-
-	// Global parameters for transceivers
-
-	// Minimum distance
-	SEther->setMinDistance (SEther->RDist);
-	// We need this for ANYEVENT
-	SEther->setAevMode (NO);
 }
 
 // ============================================================================

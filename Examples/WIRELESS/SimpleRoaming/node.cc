@@ -83,7 +83,7 @@ void Node::setup ( RATE xr, Long Pre,	// These two are sort of standard
 	RFI = create Transceiver (xr, Pre, dBToLin (xp), 1.0, X, Y);
 
 	// Interface to the channel
-	SEther->connect (RFI);
+	Ether->connect (RFI);
 
 	// The transport-level transmitter
 	create Dispatcher;

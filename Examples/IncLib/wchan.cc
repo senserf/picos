@@ -45,6 +45,8 @@ void RadioChannel::setup (
 	Channels = mxc;
 	Ether = this;
 
+	setAevMode (NO);
+
 	// Preprocess the BER table
 	stb = (sir_to_ber_t*) STB;
 	for (i = 0; i < STBL-1; i++)
@@ -311,7 +313,7 @@ Boolean IVMapper::inrange (unsigned short w) {
 	if (NL == 1)
 		return (w == VLV [0]);
 
-	return (w >= VLV [0] && w <= VLV [1]);
+	return (w >= lower () && w <= upper ());
 }
 
 MXChannels::MXChannels (unsigned short nc, int nsep, double *sep) {

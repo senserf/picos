@@ -760,7 +760,7 @@ void Node::setup (RATE xr, Long Pre) {
 
 	RFI = create Transceiver (xr, Pre, dBToLin (xp), 1.0, X, Y);
 
-	SEther->connect (RFI);
+	Ether->connect (RFI);
 
 	// Minimum and maximum Hello interval
 	readIn (minb);
@@ -814,13 +814,6 @@ void initNodes (Long N, Long P) {
 		TN->RFM->setXAntOmni ();
 		TN->RFM->setRAntOmni ();
 	}
-
-	// Global parameters for transceivers
-
-	// Minimum distance
-	SEther->setMinDistance (SEther->RDist);
-	// We need this for ANYEVENT
-	SEther->setAevMode (NO);
 }
 
 // ============================================================================

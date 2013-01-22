@@ -164,7 +164,6 @@ Long initChannel () {
 	ivc [0] = new IVMapper (1, &rix, &g);
 	ivc [1] = ivc [2] = ivc [3] = NULL;
 
-	// This sets SEther
 	create RFShadow (NS, STB, STBL, RD, LossRD, Beta, Sigma, BN, BN, COFF,
 		MPR, BPB, EFB, ivc, NULL, dir_gain);
 
