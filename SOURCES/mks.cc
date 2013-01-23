@@ -208,7 +208,7 @@ void    badArgs () {
 	cerr << "       -a         assertions switched off\n";
 	cerr << "       -v         observers deactivated\n";
 	cerr << "       -m         error detection for BIG arith. suppressed\n";
-	cerr << "       -d         distances are BIG\n";
+	cerr << "       -d [B|L|l] distances are BIG|LONG|Long\n";
 	cerr << "       -i         bit counters are BIG\n";
 	cerr << "       -r         port transmission rates are BIG\n";
 	cerr << "       -n         clocks are absolutely accurate\n";
@@ -880,9 +880,8 @@ main    (int argc, char *argv[]) {
 	strcpy (ASR, "-DZZ_ASR=1");             options [LIBX_ASR] = ASR;
 	strcpy (OBS, "-DZZ_OBS=1");             options [LIBX_OBS] = OBS;
 	strcpy (AER, "-DZZ_AER=1");             options [LIBX_AER] = AER;
-	strcpy (DST, "-DZZ_DST=0");             options [LIBX_DST] = DST;
-	strcpy (BTC, "-DZZ_BTC=0");             options [LIBX_BTC] = BTC;
-	strcpy (RTS, "-DZZ_RTS=0");             options [LIBX_RTS] = RTS;
+	strcpy (BTC, "-DZZ_BTC=1");             options [LIBX_BTC] = BTC;
+	strcpy (RTS, "-DZZ_RTS=1");             options [LIBX_RTS] = RTS;
 	strcpy (TOL, "-DZZ_TOL=1");             options [LIBX_TOL] = TOL;
 	strcpy (TAG, "-DZZ_TAG=0");		options [LIBX_TAG] = TAG;
 	strcpy (FLK, "-DZZ_FLK=0");		options [LIBX_FLK] = FLK;
@@ -905,6 +904,7 @@ main    (int argc, char *argv[]) {
 		// VUEE options selection
         	strcpy (RSY, "-DZZ_RSY=1");
         	strcpy (NOL, "-DZZ_NOL=0");
+		strcpy (DST, "-DZZ_DST=0");
 		// Check for VUEEPATH in the environment
 		if ((str = getenv ("VUEEPATH")) != NULL) {
 			// Add it as the first include directory
@@ -913,10 +913,12 @@ main    (int argc, char *argv[]) {
 	} else {
         	strcpy (RSY, "-DZZ_RSY=0");
         	strcpy (NOL, "-DZZ_NOL=1");
+		strcpy (DST, "-DZZ_DST=1");
 	}
 
         options [LIBX_RSY] = RSY;
         options [LIBX_NOL] = NOL;
+        options [LIBX_DST] = DST;
 
 	options [NOPT] = NULL;
 
@@ -970,22 +972,61 @@ main    (int argc, char *argv[]) {
 		  case 'd' :
 
 			if (libindex [LIBX_DST] != 'x') badArgs ();
-			DST [9] = '1';
-			libindex [LIBX_DST] = 'y';
+
+			i = 2;
+
+			if (argc >= 2 && **(argv+1) != '-') {
+				argv++;
+				argc--;
+				if (**argv == 'l')
+					i = 0;
+				else if (**argv == 'L')
+					i = 1;
+				else if (**argv != 'B')
+					badArgs ();
+			}
+
+			libindex [LIBX_DST] = DST [9] = (char)('0' + i);
 			break;
 
 		  case 'i' :
 
 			if (libindex [LIBX_BTC] != 'x') badArgs ();
-			BTC [9] = '1';
-			libindex [LIBX_BTC] = 'y';
+
+			i = 2;
+
+			if (argc >= 2 && **(argv+1) != '-') {
+				argv++;
+				argc--;
+				if (**argv == 'l')
+					i = 0;
+				else if (**argv == 'L')
+					i = 1;
+				else if (**argv != 'B')
+					badArgs ();
+			}
+
+			libindex [LIBX_BTC] = BTC [9] = (char)('0' + i);
 			break;
 
 		  case 'r' :
 
 			if (libindex [LIBX_RTS] != 'x') badArgs ();
-			RTS [9] = '1';
-			libindex [LIBX_RTS] = 'y';
+
+			i = 2;
+
+			if (argc >= 2 && **(argv+1) != '-') {
+				argv++;
+				argc--;
+				if (**argv == 'l')
+					i = 0;
+				else if (**argv == 'L')
+					i = 1;
+				else if (**argv != 'B')
+					badArgs ();
+			}
+
+			libindex [LIBX_RTS] = RTS [9] = (char)('0' + i);
 			break;
 
 		  case 'n' :

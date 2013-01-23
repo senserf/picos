@@ -1059,14 +1059,14 @@ may also be potentially big.
 On the other hand, using type {\tt BIG} to represent all numbers that
 could potentially exceed the capacity of standard types {\tt int} or
 {\tt long} would be too costly in typical situations.
-Therefore, there exist three non-standard numerical types that can be used
-to represent nonnegative integer variables
-that typically fit into the {\tt long~int} range,
-but sometimes one would prefer to store them as {\tt BIG} numbers.
-Each of these types is an alias ({\tt typedef}) for either {\tt LONG}
-or {\tt BIG}, depending on the setting of some options of {\tt mks}
-(see \sect{rm_un_cr}).
-The three ``flexible'' types are listed below.
+Therefore, there exist three flexible
+non-standard numerical types that can be used
+to represent nonnegative integer variables.
+By default, all three types are equivalenced ({\tt typedef}) to type {\tt LONG},
+but those defaults can be changed with compilation options
+to {\tt BIG} or {\tt Long} (see \sect{rm_un_cr}), depending on whether they are
+too tight or still too wasteful.
+The three types are:
 
 \medskip
 
@@ -1076,8 +1076,7 @@ This type is used to represent (internally)
 propagation distances between {\em ports\/} or {\em transceivers\/}
 (see sections \ref{rm_to_li_pr}, \ref{rm_to_po_co}, \ref{rm_to_tr_if}).
 A propagation distance is in fact a time interval; however, in most cases
-this interval is reasonably small and there is no need to use type {\tt BIG}
-for its representation.
+this interval is reasonably small.
 \end{quote}
 
 \begin{quote}
@@ -1093,8 +1092,7 @@ various performance measures.
 This type is used to represent port {\em transmission rates\/}
 (see \sect{rm_to_po_cr}).
 The transmission rate of a port is a time interval which in most cases
-is rather small and therefore {\tt BIG} representation would be too costly
-for it.
+is rather small.
 \end{quote}\medskip
 
 Five macros are associated with each of the above three types.
@@ -1106,16 +1104,16 @@ For example, the following macros are related to type {\tt DISTANCE}:
 \noindent\hspace{-0.35in}{\bf {\tt TYPE\_DISTANCE}}\\ \hspace{0in}
 This is a symbolic constant which
 can have one of two values: {\tt TYPE\_long}~(0) meaning that type
-{\tt DISTANCE} is equivalent to {\tt LONG}, or {\tt TYPE\_BIG}~(2) which
+{\tt DISTANCE} is equivalent to {\tt LONG} or {\tt Long},
+or {\tt TYPE\_BIG}~(2) which
 means that {\tt DISTANCE} is equivalent to {\tt BIG}.
 \end{quote}
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt MAX\_DISTANCE}}\\ \hspace{0in}
-This macro is defined as {\tt BIG\_inf} if type {\tt DISTANCE} is
-equivalent to {\tt BIG} or as
-{\tt MAX\_LONG} (equal to the maximum {\tt LONG} number
-representable on the machine), otherwise.
+This macro is defined as {\tt BIG\_inf}, {\tt MAX\_LONG}, or
+{\tt MAX\_Long}, depending on whether 
+type {\tt DISTANCE} is equivalent to {\tt BIG}, {\tt LONG}, or {\tt Long}.
 \end{quote}
 
 \begin{quote}
@@ -1126,20 +1124,18 @@ The same as {\tt MAX\_DISTANCE}.
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt DISTANCE\_0}}\\ \hspace{0in}
 This macro is defined as {\tt 0} if type {\tt DISTANCE} is equivalent to
-{\tt LONG}, or as {\tt BIG\_0}, otherwise.
+{\tt LONG} or {\tt Long}, or as {\tt BIG\_0}, otherwise.
 \end{quote}
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt DISTANCE\_1}}\\ \hspace{0in}
 This macro is defined as {\tt 1} if type {\tt DISTANCE} is equivalent to
-{\tt LONG}, or as {\tt BIG\_1}, otherwise.
+{\tt LONG} or {\tt Long}, or as {\tt BIG\_1}, otherwise.
 \end{quote}\medskip
 
 To obtain the corresponding macros for the other two types, replace
 the word {\tt DISTANCE} with {\tt BITCOUNT} or {\tt RATE}.
 
-By default, all three types {\tt DISTANCE}, {\tt BITCOUNT}, {\tt RATE} are
-equivalent to {\tt LONG}.
 You should use your judgment, based on the interpretation of {\em ITU\/} and the
 expected range of values accumulated in bit counters (like the total length
 of all messages received by a node in the course of a simulation run) to 
@@ -19044,8 +19040,17 @@ The default precision of {\tt BIG} is 2.
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -d}}\\ \hspace{0in}
-Type {\tt DISTANCE} (\sect{rm_mp_ot}) will be defined as {\tt BIG}.
-If this argument is not used, type {\tt DISTANCE} is equivalent to {\tt LONG}.
+If the argument is not followed by one the letters {\tt B}, {\tt L}, or
+{\tt l} (separated from {\tt -d} by a space), then it says that
+type {\tt DISTANCE} (\sect{rm_mp_ot}) will be defined as {\tt BIG}.
+By default, if the argument is absent, type {\tt DISTANCE} is equivalent to
+{\tt LONG}.
+If {\tt -d} is followed by {\tt l}, then type {\tt DISTANCE} will be defined
+as {\tt Long}.
+{\tt B} following {\tt -d} is equivalent to {\tt -d} occurring alone
+({\tt DISTANCE} defined as {\tt BIG}), and {\tt L} is
+equivalent to no argument at all (the default case of type {\tt DISTANCE}
+being defined as {\tt LONG}).
 \end{quote}
 
 \begin{quote}
@@ -19072,8 +19077,9 @@ of internal assertions) in {\tt gdb}.
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -i}}\\ \hspace{0in}
-Type {\tt BITCOUNT} (\sect{rm_mp_ot}) will be defined as {\tt BIG}.
-If this argument is not used, type {\tt BITCOUNT} is equivalent to {\tt LONG}.
+This argument determines the definition of type {\tt BITCOUNT}
+(\sect{rm_mp_ot}) in the same way that argument {\tt -d} determines the
+definition of type {\tt DISTANCE} (see above).
 \end{quote}
 
 \begin{quote}
@@ -19125,8 +19131,9 @@ is ``\smurphtts.''
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -r}}\\ \hspace{0in}
-Type {\tt RATE} (\sect{rm_mp_ot}) will be defined as {\tt BIG}.
-If this argument is not used, type {\tt RATE} is equivalent to {\tt LONG}.
+This argument determines the definition of type {\tt RATE}
+(\sect{rm_mp_ot}) in the same way that argument {\tt -d} determines the
+definition of type {\tt DISTANCE} (see above).
 \end{quote}
 
 \begin{quote}

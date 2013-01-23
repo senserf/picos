@@ -1657,7 +1657,7 @@ typedef         BIG             TIME;                   // An alias
 /* Distances, bit counts and rates */
 /* ------------------------------- */
 
-#if     ZZ_DST
+#if     ZZ_DST == 2
 	// Distances should be of type BIG
 typedef BIG     DISTANCE;
 #define TYPE_DISTANCE   TYPE_BIG
@@ -1665,8 +1665,11 @@ typedef BIG     DISTANCE;
 #define DISTANCE_inf    BIG_inf         // Maximum distance
 #define DISTANCE_0      BIG_0
 #define DISTANCE_1      BIG_1
-#else
-typedef LONG    DISTANCE;               // Default: type long
+#endif
+
+#if	ZZ_DST == 1
+	// Distances should be LONG (this is the default)
+typedef LONG    DISTANCE;
 #define TYPE_DISTANCE   TYPE_long
 #define MAX_DISTANCE    MAX_LONG
 #define DISTANCE_inf    MAX_LONG        // Maximum distance
@@ -1674,7 +1677,19 @@ typedef LONG    DISTANCE;               // Default: type long
 #define DISTANCE_1      (1L)
 #endif
 
-#if     ZZ_BTC
+#ifndef	TYPE_DISTANCE
+	// Fallback to Long
+typedef Long    DISTANCE;
+#define TYPE_DISTANCE   TYPE_long
+#define MAX_DISTANCE    MAX_Long
+#define DISTANCE_inf    MAX_Long        // Maximum distance
+#define DISTANCE_0      0
+#define DISTANCE_1      1
+#endif
+
+// ============================================================================
+
+#if     ZZ_BTC == 2
 	// Counters should be of type BIG
 typedef BIG     BITCOUNT;
 #define TYPE_BITCOUNT   TYPE_BIG
@@ -1682,8 +1697,11 @@ typedef BIG     BITCOUNT;
 #define BITCOUNT_inf    BIG_inf
 #define BITCOUNT_0      BIG_0
 #define BITCOUNT_1      BIG_1
-#else
-typedef LONG    BITCOUNT;               // Default: type long
+#endif
+
+#if	ZZ_BTC == 1
+	// Counters should be of type LONG (the default)
+typedef LONG    BITCOUNT;
 #define TYPE_BITCOUNT   TYPE_long
 #define MAX_BITCOUNT    MAX_LONG
 #define BITCOUNT_inf    MAX_LONG
@@ -1691,7 +1709,19 @@ typedef LONG    BITCOUNT;               // Default: type long
 #define BITCOUNT_1      (1L)
 #endif
 
-#if     ZZ_RTS
+#ifndef	TYPE_BITCOUNT
+	// Fallback to Long
+typedef Long    BITCOUNT;
+#define TYPE_BITCOUNT   TYPE_long
+#define MAX_BITCOUNT    MAX_Long
+#define BITCOUNT_inf    MAX_Long
+#define BITCOUNT_0      0
+#define BITCOUNT_1      1
+#endif
+
+// ============================================================================
+
+#if     ZZ_RTS == 2
 	// Transfer rates should be BIG
 typedef BIG     RATE;
 #define TYPE_RATE       TYPE_BIG
@@ -1699,13 +1729,26 @@ typedef BIG     RATE;
 #define RATE_inf        BIG_inf
 #define RATE_0          BIG_0
 #define RATE_1          BIG_1
-#else
-typedef LONG    RATE;                   // Default: type long
+#endif
+
+#if	ZZ_RTS == 1
+	// Transfer rates should be LONG (the default)
+typedef LONG    RATE;
 #define TYPE_RATE       TYPE_long
 #define MAX_RATE        MAX_LONG
 #define RATE_inf        MAX_LONG
 #define RATE_0          (0L)
 #define RATE_1          (1L)
+#endif
+
+#ifndef	TYPE_RATE
+	// Fallback to Long
+typedef Long    RATE;
+#define TYPE_RATE       TYPE_long
+#define MAX_RATE        MAX_Long
+#define RATE_inf        MAX_Long
+#define RATE_0          0
+#define RATE_1          1
 #endif
 
 /* ------------------------ */

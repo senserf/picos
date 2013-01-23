@@ -468,3 +468,14 @@ PG130122A:	VUEE >= PG130122A
 	   get it. I barely get it myself.
 	   
 	   Version number bumped a bit.
+
+PG130123A:
+
+	   One more change intended to facilitate the new channel model (or
+	   rather VUEE in general). Each of the types DISTANCE, RATE, BITCOUNT
+	   can now be additionally equivalenced to Long, i.e., a simple int.
+	   Especially DISTANCE in VUEE tends to be small enough to fit into
+	   Long, which will simplify gridding for the new channel model. The
+	   vuee variant of mks now selects the Long option for DISTANCE, which
+	   is "-d l". This will also speed up a few things a tiny bit, but you
+	   probably won't notice.
