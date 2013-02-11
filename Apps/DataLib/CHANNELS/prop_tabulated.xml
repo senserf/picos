@@ -1,0 +1,14 @@
+	<propagation type="sampled" sigma="1.0dB">
+		<!--
+			Based on the empirical data collected by Wlodek
+			and Gerry, and trying to take RSSI at its face
+			value (which is a huge leap of faith), I am
+			assuming a steady drop of 10dB per 50m, past
+			the 20m range.
+		-->
+			  0.1m     -30.0dB
+			  5.0m     -53.0dB
+			 20.0m     -59.0dB
+			 50.0m     -65.0dB
+			400.0m    -135.0dB
+	</propagation>

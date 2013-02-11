@@ -9,7 +9,8 @@
 // PG March 2008
 //
 
-#define	MAXPEGS	128
+#define	MAXPEGS		128
+//#define	DEBUGGING	1
 
 typedef struct {
 	float x, y;
@@ -92,14 +93,10 @@ int neighbors (double x, double y) {
 
 void create_pegs () {
 
-	double x, y, dx, dy, D;
+	double x, y, dx, dy;
 	int nx, ny, i, j;
 
 	// Cover the perimeter first
-
-	D = Delta;
-	if (Redundancy >= 1.0)
-		D += 0.5 * Range;
 
 	for (nx = 1; (dx = (XH - XL) / nx) > Delta; nx++);
 	for (ny = 1; (dy = (YH - YL) / ny) > Delta; ny++);
@@ -194,7 +191,7 @@ void make_database () {
 		}
 		if (k < 3) {
 #if DEBUGGING
-			printf ("<%f,%f>: less than 3 pegs\n", x, y);
+			printf ("<%f,%f>: %1d < 3 pegs\n", x, y, k);
 #endif
 			continue;
 		}

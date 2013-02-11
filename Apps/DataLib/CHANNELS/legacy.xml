@@ -1,0 +1,52 @@
+<channel bn="-110.0dBm">
+	<propagation type="shadowing" sigma="1.0dB">
+		RP(d)    = received power at distance d
+		XP       = transmitted power
+		X(sigma) = lognormal random Gaussian component
+ 		=========================================================
+		RP(d)/XP [dB] = -10 x 3.0 x log(d/1.0m) + X(sigma) - 38.0
+ 		=========================================================
+	</propagation>
+	<cutoff>-110.0dBm</cutoff>
+	<ber>
+		Interpolated ber table:
+		======================
+		  SIR		  BER
+		50.0dB		1.0E-6
+		40.0dB		2.0E-6
+		30.0dB		5.0E-6
+		20.0dB		1.0E-5
+		10.0dB		1.0E-4
+		 5.0dB		1.0E-3
+		 2.0dB		1.0E-1
+		 0.0dB		2.0E-1
+		-2.0dB		5.0E-1
+		-5.0dB		9.9E-1
+	</ber>
+	<frame>
+		min preamble (aka syncbits) = 8
+		physical bits per byte      = 12
+		extra framing bits          = 0
+	</frame>
+	<rssi>0 -138.0 255 -10.5</rssi>
+	<power>
+		0	-30.0dBm
+		1	-15.0dBm
+		2	-10.0dBm
+		3	 -5.0dBm
+		4	  0.0dBm
+		5	  5.0dBm
+		6	  7.0dBm
+		7	 10.0dBm
+	</power>
+	<rates boost="yes">
+		0	  4800		 3dB
+		1	 10000		 0dB
+		2	 38400		-4dB
+		3       200000		-10dB
+	</rates>
+	<channels number="255">
+		Cross channel separation
+		20dB 29dB 38dB 46dB 54dB 62dB 70dB 78dB 86dB 94dB 102dB
+	</channels>
+</channel>

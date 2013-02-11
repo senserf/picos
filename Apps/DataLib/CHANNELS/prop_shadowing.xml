@@ -1,0 +1,8 @@
+	<propagation type="shadowing" sigma="1.0dB">
+		RP(d)    = received power at distance d
+		XP       = transmitted power
+		X(sigma) = lognormal random Gaussian component
+ 		=========================================================
+		RP(d)/XP [dB] = -10 x 2.8 x log(d/1.0m) + X(sigma) - 32.0
+ 		=========================================================
+	</propagation>
