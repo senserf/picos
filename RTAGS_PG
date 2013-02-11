@@ -999,3 +999,12 @@ PG130122A:	SIDE >= PG130122A
     model (which points to the specific shadowing link model - RFShadow), but
     Ether (pointing to the underlying generic link type - RadioChannel). The
     VUEE model has to be independent of the channel type.
+
+PG130211A:	SIDE >= PG130211A, PICOS >= PG130211A
+
+    Sampled channel model added. Data format (channel specification) slightly
+    changed. Owing to the introduction of a global repository for XML data
+    snippets (aka the Data Library), the direct data access option for udaemon
+    is now even more pointless than before and has been removed. Note that now,
+    when you start udaemon ahead of the simulator, it will wait for the master
+    socket to come up, so it can get the "geometry" data from the simulator.

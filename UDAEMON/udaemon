@@ -710,7 +710,6 @@ set HostName		"localhost"
 set AGENT_MAGIC		0xBAB4
 set ECONN_OK		129
 set PortNumber		""
-set GFile		""
 
 array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 
@@ -1095,23 +1094,12 @@ proc bad_usage { } {
 
 proc parse_args { } {
 
-	global argv GFile PortNumber HostName
+	global argv PortNumber HostName
 
 	while { [llength $argv] } {
 
 		set j [lindex $argv 0]
 		set argv [lrange $argv 1 end]
-
-		if { $j == "-G" } {
-			# geometry
-			set h [lindex $argv 0]
-			set argv [lrange $argv 1 end]
-			if { $GFile != "" || $h == "" } {
-				bad_usage
-			}
-			set GFile $h
-			continue
-		}
 
 		# port
 		if { $PortNumber != "" } {
@@ -1158,13 +1146,15 @@ proc XMLDATA_ini { Sok code } {
 #
 # To read the XML data arriving from the server
 #
-	global Stat
+	global Stat Geometry
 
 	# length
 	set dfl [expr ($code >> 8) & 0x00ffffff]
 
 	if { $dfl == 0 } {
+		# zero length, no XML data
 		wdestroy $Sok
+		set Geometry(+F) ""
 		return
 	}
 
@@ -1201,7 +1191,6 @@ proc readXML { Sok } {
 		stimeout $Sok
 	}
 
-	log "XML data received OK"
 	set Geometry(+F) $Stat($Sok,DA)
 	wdestroy $Sok
 }
@@ -1211,37 +1200,43 @@ proc parse_geometry { } {
 # These days we parse the "standard" VUEE data file for udaemon's tags; the
 # name "geometry" is now a misnomer, but we leave it for historic reasons
 #
-	global Stat GFile Geometry
+	global Stat Geometry LogStat
 
-	set Geometry(+F) ""
-	if { $GFile != "" } {
-		# this takes precedence
-		if [catch { open $GFile "r" } h] {
-			gperror "cannot open $GFile: $h"
-		}
-		if [catch { read $h } p] {
-			gperror "cannot read $GFile: $p"
-		}
-		# the data
-		set Geometry(+F) $p
-	} else {
-		# ask the server for it
-		log "Waiting for XML data from the server ..."
+	if [info exists Geometry(+F)] {
+		unset Geometry(+F)
+	}
+
+	log "Waiting for XML data from the server ..."
+
+	set LogStat 0
+
+	while 1 {
+		update
 		set Sok [sock_conn "XMLDATA"]
 		if { $Sok == "" } {
 			# connection failure
-			return
+			after 500
+			continue
 		}
 		# this will be unset when the socket closes
 		set Stat($Sok,FI) 1
 		vwait Stat($Sok,FI)
+		if [info exists Geometry(+F)] {
+			break
+		}
+		after 500
 	}
+
+	set LogStat 1
 
 	if { $Geometry(+F) == "" } {
 		# nothing to do
 		unset Geometry(+F)
+		log "Connection OK, no XML data"
 		return
 	}
+
+	log "Connection OK, XML data received"
 
 	if [catch { sxml_parse Geometry(+F) } p] {
 		gperror $p
@@ -5591,13 +5586,13 @@ proc pwrtParse { Sok } {
 
 proc moveHandler { } {
 
-	global GFile Geometry
+	global Geometry
 
 	if [winlocate "m"] {
 		return
 	}
 
-	if { $GFile == "" && [info exists Geometry(roamer,i)] } {
+	if [info exists Geometry(roamer,i)] {
 		# we can use the background image, but we don't have it, so
 		# we have to ask the server
 		set rq 2
@@ -6175,7 +6170,7 @@ proc mkMove { Sok } {
 #
 # Create the ROAMER window
 #
-	global Wins Stat CMARGIN Geometry GFile
+	global Wins Stat CMARGIN Geometry
 
 	set w $Wins($Sok)
 	toplevel $w
@@ -6481,7 +6476,7 @@ proc move_ninfo { Sok n } {
 	return $msg
 }
 
-proc moveEnter { Sok n } {
+proc show_ninfo { Sok n } {
 
 	global Stat CMARGIN
 
@@ -6503,6 +6498,15 @@ proc moveEnter { Sok n } {
 	$w.c raise $tx
 
 	set Stat($Sok,RC) [list $tx $bg]
+}
+
+proc moveEnter { Sok n } {
+#
+# Do the proper action from the callback. When I tried to do it directly from
+# this event handler, it would occasionally get into an infinite Enter-Exit
+# loop.
+#
+	after 1 "show_ninfo $Sok $n"
 }
 
 proc moveLeave { Sok } {
@@ -7134,7 +7138,12 @@ proc log { txt } {
 #
 # Writes a line to log
 #
-	global Logger
+	global Logger LogStat
+
+	if !$LogStat {
+		# logging switched off
+		return
+	}
 
 	while 1 {
 
@@ -7319,6 +7328,8 @@ set Logger [text .logger.t -width 64 -height 10 \
 	-font $FONT(R) \
 	-exportselection 1 \
 	-state normal]
+
+set LogStat 1
 
 scrollbar .logger.scrolly -command {.logger.t yview}
 scrollbar .logger.scrollx -orient horizontal -command {.logger.t xview}

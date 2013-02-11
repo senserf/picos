@@ -6,6 +6,7 @@
 #include "board.h"
 #include "rwpmm.cc"
 #include "wchansh.cc"
+#include "wchansd.cc"
 #include "encrypt.cc"
 #include "nvram.cc"
 #include "agent.h"
@@ -14,7 +15,7 @@
 // Size of the number table for extracting table contents:
 // make it divisible by 2 and 3
 //
-#define	NPTABLE_SIZE	66
+#define	NPTABLE_SIZE	(3*2*128)
 
 //
 // Size of the hash table for keeping track of process IDs
@@ -1550,7 +1551,7 @@ void BoardRoot::initTiming (sxml_t xml) {
 	// ETU == 1 second
 	setEtu (SOL_VACUUM / grid);
 
-	// DU is equal to the propagation time across 1m
+	// DU is equal to the propagation time (in ITU) across 1m
 	setDu (1.0/grid);
 
 	// Clock tolerance
@@ -1582,16 +1583,17 @@ static void packetCleaner (Packet *p) {
 
 int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 
-	const char *att, *xnam;
+	const char *sfname, *att, *xnam;
 	double bn_db, beta, dref, sigm, loss_db, psir, pber, cutoff;
 	nparse_t np [NPTABLE_SIZE];
-	int nb, nr, i, j, syncbits, bpb, frml;
+	int ctype, K, nb, nr, i, j, syncbits, bpb, frml;
 	sxml_t cur;
 	sir_to_ber_t	*STB;
 	IVMapper	*ivc [4];
+	DVMapper	*dvc;
 	MXChannels	*mxc;
 	word wn, *wt;
-	Boolean rmo;
+	Boolean rmo, symm;
 	double *dta, *dtb;
 
 	Ether = NULL;
@@ -1599,6 +1601,10 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	if (NN == 0)
 		// Ignore the channel, no stations are equipped with radio
 		return NN;
+
+	for (i = 0; i < NPTABLE_SIZE; i++)
+		// We shall be reading double for a while
+		np [i].type = TYPE_double;
 
 	if ((data = sxml_child (data, "channel")) == NULL) {
 		if (nc)
@@ -1610,50 +1616,122 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		// No continuation
 	}
 
-	// At the moment, we handle shadowing models only
-	if ((cur = sxml_child (data, "shadowing")) == NULL)
-		xenf ("<shadowing>", "<channel>");
-
-	if ((att = sxml_attr (cur, "bn")) == NULL)
-		xemi ("bn", "<shadowing> for <channel>");
-
-	np [0].type = TYPE_double;
-	if (parseNumbers (att, 1, np) != 1)
-		xeai ("bn", "<shadowing> for <channel>", att);
-
-	bn_db = np [0].DVal;
-
-	if ((att = sxml_attr (cur, "syncbits")) == NULL)
-		xemi ("syncbits", "<shadowing> for <channel>");
-
-	np [0].type = TYPE_LONG;
-	if (parseNumbers (att, 1, np) != 1)
-		xeai ("syncbits", "<shadowing> for <channel>", att);
-
-	syncbits = np [0].LVal;
-	
-	// Now for the model paramaters
-	att = sxml_txt (cur);
-	for (i = 0; i < NPTABLE_SIZE; i++)
-		np [i].type = TYPE_double;
-	if ((nb = parseNumbers (att, 5, np)) != 5) {
-		if (nb < 0)
-			excptn ("Root: illegal number in <shadowing>");
-		else
-			excptn ("Root: expected 5 numbers in <shadowing>,"
-				" found %1d", nb);
+	// The default value for background noise translating into lin 0.0
+	bn_db = -HUGE;
+	if ((att = sxml_attr (data, "bn")) != NULL) {
+		if (parseNumbers (att, 1, np) != 1)
+			xeai ("bn", "<channel>", att);
+		bn_db = np [0].DVal;
 	}
 
-	if (np [0].DVal != -10.0)
-		excptn ("Root: the factor in <shadowing> must be -10, is %f",
-			np [0].DVal);
+	if ((cur = sxml_child (data, "propagation")) == NULL)
+		xenf ("<propagation>", "<channel>");
 
-	beta = np [1].DVal;
-	dref = np [2].DVal;
-	sigm = np [3].DVal;
-	loss_db = np [4].DVal;
+	if ((att = sxml_attr (cur, "type")) == NULL)
+		xemi ("type", "<propagation>");
 
-	// Decode the BER table
+	if (strncmp (att, "sh", 2) == 0)
+		ctype = 0;
+	else if (strncmp (att, "sa", 2) == 0)
+		ctype = 1;
+	else
+		xeai ("type", "<propagation>", att);
+
+	sigm = 0.0;
+
+	if ((att = sxml_attr (cur, "sigma")) != NULL) {
+		// Expect a double
+		if (parseNumbers (att, 1, np) != 1)
+			xeai ("sigma", "<propagation>", att);
+		sigm = np [0].DVal;
+	}
+
+	// The content of <propagation> depends on channel type
+
+	if (ctype == 0) {
+		// Here we have the old shadowing model
+		att = sxml_txt (cur);
+		if ((nb = parseNumbers (att, 4, np)) != 4) {
+			if (nb < 0)
+				excptn ("Root: illegal number in "
+					"<propagation>");
+			else
+				excptn ("Root: expected 4 numbers in "
+					"<propagation>, found %1d", nb);
+		}
+
+		if (np [0].DVal != -10.0)
+			excptn ("Root: the factor in propagation formula "
+				"must be -10, is %f", np [0].DVal);
+		beta = np [1].DVal;
+		dref = np [2].DVal;
+		loss_db = np [3].DVal;
+	} else {
+		// This is the sample-driven model
+		sfname = sxml_attr (cur, "samples");	// Can be NULL
+		K = 4;					// Samples to average
+		dref = 1.0;				// Averaging factor
+		if ((att = sxml_attr (cur, "average")) != NULL) {
+			np [0].type = TYPE_int;
+			nr = parseNumbers (att, NPTABLE_SIZE, np);
+			if (nr == 0 || nr > 2)
+				xeai ("average", "<propagation>", att);
+			K = (int) (np [0].LVal);
+			if (K < 1 || K > 32)
+				excptn ("Root: the number of samples to "
+					"average must be between 1 and 32, is "
+					"%1d", K);
+			if (nr > 1) {
+				dref = np [1].DVal;
+				if (dref <= 0.0)
+					excptn ("Root: the averaging factor "
+						"must be > 0.0, is %g",
+						dref);
+			}
+			np [0].type = TYPE_double;
+		}
+
+		symm = NO;
+		if ((att = sxml_attr (cur, "symmetric")) != NULL &&
+			*att == 'y')
+				symm = YES;
+
+		att = sxml_txt (cur);
+		// Expect the attenuation table
+		nr = parseNumbers (att, NPTABLE_SIZE, np);
+		if (nr > NPTABLE_SIZE)
+			xeni ("<propagation>");
+		if (nr < 4 || (nr % 1) != 0)
+			excptn ("Root: <propagation> table needs an even "
+				"number of entries and at least 4");
+		nr /= 2;
+
+		dta = new double [nr];
+		dtb = new double [nr];
+
+		for (i = 0; i < nr; i++) {
+			dta [i] = np [2 * i    ] . DVal;
+			dtb [i] = np [2 * i + 1] . DVal;
+			if (i > 0) {
+			    if (dta [i] <= dta [i - 1])
+				excptn ("Root: distances in the <propagation> "
+					"table are not strictly increasing, "
+					"%g [%1d] <= %g [%1d]",
+						dta [i], i,
+						dta [i - 1], i - 1);
+			    if (dtb [i] >= dtb [i - 1])
+				excptn ("Root: levels in the <propagation> "
+					"table are not strictly decreasing, "
+					"%g [%1d] >= %g [%1d]",
+						dtb [i], i,
+						dtb [i - 1], i - 1);
+			}
+		}
+
+		dvc = new DVMapper (nr, dta, dtb, YES);
+	}
+
+	// The BER table
 	if ((cur = sxml_child (data, "ber")) == NULL)
 		xenf ("<ber>", "<channel>");
 
@@ -1710,29 +1788,21 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	if ((cur = sxml_child (data, "frame")) == NULL)
 		xenf ("<frame>", "<channel>");
 	att = sxml_txt (cur);
-	np [0] . type = np [1] . type = TYPE_LONG;
-	if (parseNumbers (att, 2, np) != 2)
+	np [0] . type = np [1] . type = np [2] . type = TYPE_LONG;
+	if (parseNumbers (att, 3, np) != 3)
 		xevi ("<frame>", "<channel>", att);
 
-	bpb = (int) (np [0].LVal);
+	syncbits = (int) (np [0].LVal);
+	bpb      = (int) (np [1].LVal);
+	frml     = (int) (np [2].LVal);
 
-	frml = (int) (np [1].LVal);
-	if (bpb <= 0 || frml < 0)
+	if (syncbits < 0 || bpb <= 0 || frml < 0)
 		xevi ("<frame>", "<channel>", att);
 
 	// Prepare np for reading value mappers
 	for (i = 0; i < NPTABLE_SIZE; i += 2) {
 		np [i  ] . type = TYPE_int;
 		np [i+1] . type = TYPE_double;
-	}
-
-	print ("Channel:\n");
-	print (form ("  RP(d)/XP [dB] = -10 x %g x log(d/%gm) + X(%g) - %g\n",
-			beta, dref, sigm, loss_db));
-	print ("\n  BER table:           SIR         BER\n");
-	for (i = 0; i < nb; i++) {
- 		print (form ("             %11gdB %11g\n",
-			linTodB (STB[i].sir), STB[i].ber));
 	}
 
 	memset (ivc, 0, sizeof (ivc));
@@ -1772,15 +1842,6 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 
 		xmon (nr, wt, dta, "<rates>");
 		xmon (nr, wt, dtb, "<rates>");
-
-		att = form ("\n  Rates: ", xnam);
-		print (att);
-		oadj (att, 24);
-
-		print ("REP        RATE        BOOST\n");
-		for (j = 0; j < nr; j++)
- 			print (form ("                %10d %11g %10gdB\n",
-				wt [j], dta [j], dtb [j]));
 
 		ivc [0] = new IVMapper (nr, wt, dta);
 		ivc [1] = new IVMapper (nr, wt, dtb, YES);
@@ -1824,15 +1885,6 @@ RVErr:
 			xmon (nr, wt, dta, "<rates>");
 		}
 
-		att = form ("\n  Rates: ", xnam);
-		print (att);
-		oadj (att, 24);
-
-		print ("REP        RATE\n");
-		for (j = 0; j < nr; j++)
- 			print (form ("                %10d %11g\n",
-				wt [j], dta [j]));
-
 		ivc [0] = new IVMapper (nr, wt, dta);
 	}
 
@@ -1875,18 +1927,9 @@ RVErr:
 		xmon (nr, wt, dta, "<power>");
 	}
 
-	att = form ("\n  Power: ", xnam);
-	print (att);
-	oadj (att, 24);
-
-	print ("REP       POWER\n");
-	for (j = 0; j < nr; j++)
- 		print (form ("                %10d %8gdBm\n",
-			wt [j], dta [j]));
-
 	ivc [3] = new IVMapper (nr, wt, dta, YES);
 
-	// RSSI map (optional)
+	// RSSI map (optional for shadowing)
 
 	if ((cur = sxml_child (data, "rssi")) != NULL) {
 
@@ -1914,16 +1957,12 @@ RVErr:
 		}
 		xmon (nr, wt, dta, "<rssi>");
 
-		att = form ("\n  RSSI: ", xnam);
-		print (att);
-		oadj (att, 24);
-
-		print ("REP      SIGNAL\n");
-		for (j = 0; j < nr; j++)
- 			print (form ("                %10d %8gdBm\n",
-				wt [j], dta [j]));
-
 		ivc [2] = new IVMapper (nr, wt, dta, YES);
+
+	} else if (ctype == 1 && sfname != NULL) {
+
+		excptn ("Root: \"sampled\" propagation model with non-empty "
+			"sample file requires RSSI table");
 	}
 
 	// Channels
@@ -1968,13 +2007,6 @@ RVErr:
 					dta [i] = np [i] . DVal;
 			}
 
-			print (form ("\n  %1d channels", wn));
-			if (j) {
-				print (", separation: ");
-				for (i = 0; i < j; i++)
-					print (form (" %gdB", dta [i]));
-			}
-			print ("\n");
 			mxc = new MXChannels (wn, j, dta);
 		} else
 			xemi ("number", "<channels>");
@@ -1983,9 +2015,14 @@ RVErr:
 	print ("\n");
 
 	// Create the channel
-	create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db, bn_db,
-		cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 
+	if (ctype == 0)
+		create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db,
+			bn_db, cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
+	else
+		create RFSampled (NN, STB, nb, K, dref, sigm, bn_db, bn_db,
+			cutoff, syncbits, bpb, frml, dvc, ivc, sfname, symm,
+				mxc, NULL);
 	// Packet cleaner
 	Ether->setPacketCleaner (packetCleaner);
 
@@ -4125,7 +4162,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 	data_rf_t *NRF, *DRF;
 	data_ep_t *NEP, *DEP;
 
-	print ("Timing:\n\n");
+	print ("\nTiming:\n\n");
 	print ((double) etuToItu (1.0),
 		   "  ETU (1s) = ", 11, 14);
 	print ((double) duToItu (1.0),
