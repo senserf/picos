@@ -142,7 +142,6 @@ set CFVueeItems {
 			"CMPIS"		0
 			"DPBC"		0
 			"UDON"		0
-			"UDDF"		0
 			"VUDF"		""
 			"VUSM"		1.0
 }
@@ -1288,6 +1287,20 @@ proc gfl_status { path val } {
 	}
 }
 
+proc trim_to_existing { fl } {
+
+	set res ""
+
+	foreach f $fl {
+
+		if [file exists $f] {
+			lappend res $f
+		}
+	}
+
+	return $res
+}
+
 proc gfl_make_ctags { } {
 #
 # Create ctags for all files in the current project. We do this somewhat
@@ -1299,7 +1312,7 @@ proc gfl_make_ctags { } {
 	global TagsCmd PTagsArgs
 
 	# the list of the proper files of the project
-	set fl [gfl_files]
+	set fl [trim_to_existing [gfl_files "(\\.c|\\.cc|\\.h)$"]]
 
 	if { $fl == "" } {
 		# no files (yet?)
@@ -3732,7 +3745,11 @@ proc get_config { } {
 
 	foreach { k v } $pf {
 		if { $k == "" || ![dict exists $P(CO) $k] } {
-			alert "Illegal contents of config.prj ($vp), file\
+			if { $k == "UDDF" } {
+				# this one has been removed, just ignore
+				continue
+			}
+			alert "Illegal contents of config.prj ($v), file\
 				ignored"
 			return
 		}
@@ -4444,15 +4461,6 @@ proc mk_vuee_conf_window { } {
 	label $f.l -text "Always run with udaemon: "
 	pack $f.l -side left -expand n
 	checkbutton $f.c -variable P(M0,UDON)
-	pack $f.c -side right -expand n
-
-	##
-	set f $w.ti
-	frame $f
-	pack $f -side top -expand y -fill x
-	label $f.l -text "Direct udaemon data: "
-	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,UDDF)
 	pack $f.c -side right -expand n
 
 	##
@@ -6288,21 +6296,6 @@ proc run_udaemon { { auto 0 } } {
 		set cmd "[list $ef]"
 	} else {
 		set cmd "[list sh] [list $ef]"
-	}
-
-	# check for udaemon data file
-	set gf [dict get $P(CO) "UDDF"]
-
-	if { $gf != 0 } {
-		# direct data file to udaemon
-		set gf [dict get $P(CO) "VUDF"]
-		if { $gf != "" } {
-			if ![file_present $gf] {
-				alert "Data file $gf doesn't exist"
-				return
-			}
-			append cmd " -G [list $gf]"
-		}
 	}
 
 	append cmd " 2>@1"

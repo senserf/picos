@@ -636,3 +636,8 @@ PG121225A:
 	Makefile doesn't exist. A situation like that is not considered an
 	error if the user has got the library, but doesn't (isn't supposed to)
 	have the full source set.
+
+PG130211A:	VUEE >= PG130211A
+
+	The direct data option for udaemon has been removed. A couple of
+	inconsequential cleanups.
