@@ -4885,7 +4885,11 @@ class	Transceiver : public AI {
 		y = ituToDu (Y);
 		z = ituToDu (Z);
 	};
-
+	inline	void getRawLocation (DISTANCE &x, DISTANCE &y, DISTANCE &z) {
+		x = X;
+		y = Y;
+		z = Z;
+	};
 #else	/* 2-D */
 
 	Transceiver (RATE r = RATE_inf, int pre = -1,
@@ -4900,7 +4904,10 @@ class	Transceiver : public AI {
 		x = ituToDu (X);
 		y = ituToDu (Y);
 	};
-
+	inline	void getRawLocation (DISTANCE &x, DISTANCE &y) {
+		x = X;
+		y = Y;
+	};
 #endif	/* ZZ_R3D */
 
 	inline	RATE	getTRate () { return TRate; };
@@ -6752,5 +6759,12 @@ inline void zz_setths (Station *s) {
 inline void zz_remths () {
 	TheStation = zz_CSTA [--zz_csv];
 }
+
+#ifdef	ZZ_XINCPAT
+// DataLib directory present
+#define	DATALIBDIRS	DataLibDirs
+extern	const char *DataLibDirs [];
+
+#endif
 
 #include        "inlines.h"

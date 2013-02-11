@@ -479,3 +479,12 @@ PG130123A:
 	   vuee variant of mks now selects the Long option for DISTANCE, which
 	   is "-d l". This will also speed up a few things a tiny bit, but you
 	   probably won't notice.
+
+PG130211A:	PICOS >= PG130211A, VUEE >= PG130211A
+
+	   A new "sampled" RF channel model added to the library:
+
+	   - wchansd.h and wchansd.cc added to IncLib
+	   - cleanups and reorganization of the generic channel model
+	   - data library directories (for included XML snippets)
+	   - documentation update

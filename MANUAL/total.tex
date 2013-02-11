@@ -1949,6 +1949,13 @@ e.g., these two constructs:
 \noindent
 are equivalent.
 
+Unless the name of the included file begins with `{\tt /}', it is first looked
+for
+in the current directory, i.e., in the directory in which the simulator has
+been called.
+If that fails, and if data include libraries are defined (see \sect{rm_un_in}),
+the library directories are then searched in the order of their defintions.
+
 \subsection{Operations on flags}
 \label{rm_au_fl}
 
@@ -18875,6 +18882,13 @@ then they will add to the list.
 You can eliminate the standard library (at any moment) by entering a line
 containing `{\tt -}' (minus) as the only character.
 An empty line always terminates the list.
+\item
+The name of the directory containing the (optional)
+library for XML data files
+{\em included\/} (see \sect{rm_au_io_xm}) from XML data sets.
+Multiple such directories can be specified: they will be
+scanned in the order of their definition.
+An empty line terminates the sequece of data include directories.
 \item
 The Internet
 name of the host running the \smurph\ monitor (\sect{rm_ds_mo}).

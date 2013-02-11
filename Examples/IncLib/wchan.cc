@@ -22,15 +22,17 @@ void RadioChannel::setup (
 ) {
 	int i;
 	sir_to_ber_t *stb;
+	double v, w;
+	unsigned short r;
 
 	Assert (Ether == NULL, "RadioChannel->setup: only one Ether channel"
 		" can exist in the present version");
 
-	print ("RFChannel parameters:\n\n");
+	print ("RFChannel:\n\n");
 
 	RFChannel::setup (nt);
 
-	BNoise = dBToLin (no);
+	BNoise = (no == -HUGE) ? 0.0 : dBToLin (no);
 	STB = st;
 	STBL = sl;
 	BitsPerByte = bpb;
@@ -53,15 +55,45 @@ void RadioChannel::setup (
 		stb [i].fac = (stb [i+1].ber - stb [i].ber) /
 			(stb [i].sir - stb [i+1].sir);
 
-	print (nt, "  Number of xceivers:", 10, 26);
+	print (nt, "  Number of nodes:", 10, 26);
 	print (no, "  Background noise (dBm):", 10, 26);
 	print (BitsPerByte, "  Phys bits per byte:", 10, 26);
 	print (PacketFrameLength, "  Phys header length:", 10, 26);
-	print ("  -------SIR to -------BER ---table:\n");
+	print ("\n   SIR(dB)           BER\n");
 	for (i = 0; i < STBL; i++)
-		print (form ("  %10g    %10g\n", linTodB (stb [i].sir),
+		print (form ("  %8g    %10g\n", linTodB (stb [i].sir),
 			stb [i].ber));
-	print ("  ----------------------------------\n");
+
+	if (Rates) {
+		print ("\n      Rate         BPS  Boost(dB)\n");
+		for (i = 0; i < Rates->size (); i++) {
+			r = Rates->row (i, v);
+			if (RBoost)
+				RBoost->row (i, w);
+			else
+				w = 0.0;
+			print (form ("%10d %11g %10g\n", r, v, w));
+		}
+	}
+
+	if (RSSIC) {
+		print ("\n      RSSI  Signal(dBm)\n");
+		for (i = 0; i < RSSIC->size (); i++) {
+			r = RSSIC->row (i, v);
+			print (form ("%10d     %8g\n", r, v));
+		}
+	}
+
+	if (PS) {
+		print ("\n   Setting  Power(dBm)\n");
+		for (i = 0; i < PS->size (); i++) {
+			r = PS->row (i, v);
+			print (form ("%10d    %8g\n", r, v));
+		}
+	}
+
+	if (Channels)
+		Channels->print ();
 }
 
 TIME RadioChannel::RFC_xmt (RATE r, Long tl) {
@@ -157,165 +189,6 @@ double RadioChannel::ber (double sir) {
 
 }
 
-IVMapper::IVMapper (unsigned short n, unsigned short *wt, double *dt,
-								Boolean lg) {
-
-	int i;
-
-	NL = n;
-	VLV = wt;
-
-	if (n < 2)
-		Dec = 0;
-	else
-		Dec = (dt [1] < dt [0]);
-	Log = lg;
-
-	// Interpolation
-	SLV = dt;
-	if (NL > 1) {
-		FAC = new double [NL - 1];
-		for (i = 0; i < NL-1; i++)
-			FAC [i] = (double) (SLV [i+1] - SLV [i]) /
-				(VLV [i+1] - VLV [i]);
-	} else {
-		FAC = NULL;
-	}
-}
-	
-double IVMapper::setvalue (unsigned short w) {
-
-	double d;
-	int a, b, ix;
-
-	a = 0; b = NL;
-
-	do {
-		ix = (a + b) >> 1;
-
-		if (VLV [ix] <= w) {
-
-			if (ix+1 == NL) {
-				d = SLV [ix];
-				goto Ret;
-			}
-
-			if (VLV [ix+1] <= w) {
-				// Go to right
-				a = ix+1;
-				continue;
-			}
-			// Interpolate and return
-			break;
-		}
-
-		if (ix == 0) {
-			// At the beginning
-			d = SLV [0];
-			goto Ret;
-		}
-
-		if (VLV [ix-1] > w) {
-			// Go to left
-			b = ix;
-			continue;
-		}
-
-		// Interpolate and return
-		ix--;
-		break;
-
-	} while (1);
-
-	// Interpolate
-	d = ((w - VLV [ix]) * FAC [ix]) + SLV [ix];
-Ret:
-	return Log ? dBToLin (d) : d;
-}
-
-unsigned short IVMapper::getvalue (double v) {
-
-	int a, b, ix;
-
-	a = 0; b = NL;
-
-	if (Log)
-		v = linTodB (v);
-
-	do {
-		ix = (a + b) >> 1;
-
-		if (vtor (SLV [ix], v)) {
-			if (ix+1 == NL)
-				// At the end
-				return VLV [ix];
-
-			if (vtor (SLV [ix+1], v)) {
-				// Go to right
-				a = ix+1;
-				continue;
-			}
-			// Interpolate and return
-			break;
-		}
-
-		if (ix == 0)
-			// At the beginning
-			return VLV [0];
-
-		if (!vtor (SLV [ix-1], v)) {
-			// Go to left
-			b = ix;
-			continue;
-		}
-
-		// Interpolate and return
-		ix--;
-		break;
-
-	} while (1);
-
-	return (unsigned short) ((v - SLV [ix]) / FAC [ix]) + VLV [ix];
-}
-
-Boolean IVMapper::exact (unsigned short w) {
-
-	int a, b, ix;
-
-	a = 0; b = NL;
-
-	do {
-		ix = (a + b) >> 1;
-
-		if (VLV [ix] == w)
-			return YES;
-
-		if (VLV [ix] < w) {
-			// Go to the right
-			if (ix + 1 == NL || VLV [ix + 1] > w)
-				return NO;
-
-			a = ix + 1;
-			continue;
-		}
-
-		// Go to the left
-		if (ix == 0 || VLV [ix - 1] < w)
-			return NO;
-
-		b = ix;
-
-	} while (1);
-}
-
-Boolean IVMapper::inrange (unsigned short w) {
-
-	if (NL == 1)
-		return (w == VLV [0]);
-
-	return (w >= lower () && w <= upper ());
-}
-
 MXChannels::MXChannels (unsigned short nc, int nsep, double *sep) {
 
 	int i;
@@ -330,4 +203,17 @@ MXChannels::MXChannels (unsigned short nc, int nsep, double *sep) {
 	}
 }
 
+void MXChannels::print () {
+
+	int i;
+
+	::print (form ("\n  %1d Channels", NC));
+	if (NSEP) {
+		::print (", sep(dB): ");
+		for (i = 0; i < NSEP; i++)
+			::print (form (" %g", linTodB (SEP [i])));
+	}
+	::print ("\n");
+}
+	
 #endif

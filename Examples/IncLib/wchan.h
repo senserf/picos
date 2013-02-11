@@ -13,7 +13,7 @@ typedef struct {
 	// multiplication/division
 } sir_to_ber_t;
 
-class IVMapper {
+template <class RType> class XVMapper {
 
 	// This is a generic converter between model parameters (like signal
 	// levels or bit rates) and their representations for the praxis.
@@ -26,7 +26,7 @@ class IVMapper {
 	Boolean Dec,		// Decreasing order of values
 		Log;		// Logarithmic
 	unsigned short NL;	// Number of levels
-	unsigned short *VLV;	// Representations
+	RType *VLV;		// Representations
 	double *SLV;		// Values
 	double *FAC;		// To speed up interpolation
 
@@ -38,22 +38,185 @@ class IVMapper {
 
 	public:
 
-	IVMapper (unsigned short, unsigned short*, double*, Boolean l = NO);
+	XVMapper (unsigned short n, RType *wt, double *dt, Boolean lg = NO) {
 
+		int i;
+
+		NL = n;
+		VLV = wt;
+
+		if (n < 2)
+			Dec = 0;
+		else
+			Dec = (dt [1] < dt [0]);
+		Log = lg;
+
+		// Interpolation
+		SLV = dt;
+		if (NL > 1) {
+			FAC = new double [NL - 1];
+			for (i = 0; i < NL-1; i++)
+				FAC [i] = (double) (SLV [i+1] - SLV [i]) /
+					(VLV [i+1] - VLV [i]);
+		} else {
+			FAC = NULL;
+		}
+	};
+
+	unsigned short size () { return NL; };
+
+	RType row (int n, double &v) {
+		v = SLV [n];
+		return VLV [n];
+	};
+
+	double setvalue (RType w, Boolean lin = YES) {
+	//
 	// Converts representation to value
-	double setvalue (unsigned short);
+	//
+		double d;
+		int a, b, ix;
+
+		a = 0; b = NL;
+
+		do {
+			ix = (a + b) >> 1;
+
+			if (VLV [ix] <= w) {
+
+				if (ix+1 == NL) {
+					d = SLV [ix];
+					goto Ret;
+				}
+
+				if (VLV [ix+1] <= w) {
+					// Go to right
+					a = ix+1;
+					continue;
+				}
+				// Interpolate and return
+				break;
+			}
+
+			if (ix == 0) {
+				// At the beginning
+				d = SLV [0];
+				goto Ret;
+			}
+
+			if (VLV [ix-1] > w) {
+				// Go to left
+				b = ix;
+				continue;
+			}
+
+			// Interpolate and return
+			ix--;
+			break;
+
+		} while (1);
+
+		// Interpolate
+		d = ((w - VLV [ix]) * FAC [ix]) + SLV [ix];
+	Ret:
+		return (Log && lin) ? dBToLin (d) : d;
+	};
+
+	RType getvalue (double v, Boolean db = YES) {
+	//
 	// Converts value to representation
-	unsigned short getvalue (double);
-	// Checks is the representation is "exact", i.e., it actually is one
-	// of the stored discrete representations
-	Boolean exact (unsigned short);
+	//
+		int a, b, ix;
+
+		a = 0; b = NL;
+
+		if (Log && db)
+			v = linTodB (v);
+
+		do {
+			ix = (a + b) >> 1;
+
+			if (vtor (SLV [ix], v)) {
+				if (ix+1 == NL)
+					// At the end
+					return VLV [ix];
+
+				if (vtor (SLV [ix+1], v)) {
+					// Go to right
+					a = ix+1;
+					continue;
+				}
+				// Interpolate and return
+				break;
+			}
+
+			if (ix == 0)
+				// At the beginning
+				return VLV [0];
+
+			if (!vtor (SLV [ix-1], v)) {
+				// Go to left
+				b = ix;
+				continue;
+			}
+
+			// Interpolate and return
+			ix--;
+			break;
+
+		} while (1);
+
+		return (RType) ((v - SLV [ix]) / FAC [ix]) + VLV [ix];
+	};
+
+	Boolean exact (RType w) {
+	//
 	// Checks if the representation is in range, i.e., between min and
 	// max
-	Boolean inrange (unsigned short);
+	//
+		int a, b, ix;
+
+		a = 0; b = NL;
+
+		do {
+			ix = (a + b) >> 1;
+
+			if (VLV [ix] == w)
+				return YES;
+
+			if (VLV [ix] < w) {
+				// Go to the right
+				if (ix + 1 == NL || VLV [ix + 1] > w)
+					return NO;
+
+				a = ix + 1;
+				continue;
+			}
+
+			// Go to the left
+			if (ix == 0 || VLV [ix - 1] < w)
+				return NO;
+
+			b = ix;
+
+		} while (1);
+	};
+
+	Boolean inrange (RType w) {
+
+		if (NL == 1)
+			return (w == VLV [0]);
+
+		return (w >= lower () && w <= upper ());
+	};
+
 	// Return the limits on the index
-	unsigned short lower () { return VLV [0]; };
-	unsigned short upper () { return VLV [NL-1]; };
+	RType lower () { return VLV [0]; };
+	RType upper () { return VLV [NL-1]; };
 };
+
+typedef	XVMapper<unsigned short>	IVMapper;
+typedef	XVMapper<double>		DVMapper;
 
 class MXChannels {
 
@@ -88,6 +251,8 @@ class MXChannels {
 	};
 
 	unsigned short max () { return NC-1; };
+
+	void print ();
 };
 
 rfchannel RadioChannel {

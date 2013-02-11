@@ -52,8 +52,7 @@ double RFShadow::RFC_cut (double xp, double rp) {
 
 /*
  * The cut-off distance d is the minimum distance at which the attenuated
- * signal (without the Gaussian component) bumped by CUTOFF_MARGIN dB is
- * below the background noise level.
+ * signal (without the Gaussian component) is deemed irrelevant.
  */
 	double d;
 
@@ -73,7 +72,8 @@ Long RFShadow::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	ir = ir * rs->Level + BNoise;
 
 	trc ("RFC_erb (sl) = %g", sl->Level);
-	res = lRndBinomial (ber ((sl->Level * rs->Level) / ir), nb);
+	res = (ir == 0.0) ? 0 :
+		lRndBinomial (ber ((sl->Level * rs->Level) / ir), nb);
 
 	trc ("RFC_erb (nb) = %1d/%1d", res, nb);
 	return res;
@@ -92,6 +92,10 @@ Long RFShadow::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 
 	trc ("RFC_erd (ir) = %g %g %g", ir, rs->Level, BNoise);
 	ir = ir * rs->Level + BNoise;
+
+	if (ir == 0.0)
+		return MAX_Long;
+
 	er = ber ((sl->Level * rs->Level) / ir);
 	trc ("RFC_erd (be) = %g", er);
 

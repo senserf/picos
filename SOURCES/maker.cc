@@ -37,9 +37,10 @@ char    is [BFFSIZE],
 
 char    wd [MAXPATHLEN];
 
-char    *incdir [MAXINCDIRS], *ccomp, *ckomp, *jcomp, *srcdir, *libdir,
+char    *incdir [MAXINCDIRS], *xncdir [MAXINCDIRS], *ccomp, *ckomp, *jcomp,
+	*srcdir, *libdir,
 	*monhost, *mkname, *mksdir, *sokdir;
-int     maxlib, monport, batch;
+int     maxlib, monport, batch, nxncdirs;
 
 #define	HOME getenv ("HOME")
 #define notabsolute(s)   ((s)[0] != '/')
@@ -362,9 +363,10 @@ IllNum:
 
 if (!batch) {
 cout << '\n';
-cout << "Now, please enter the list of paths to 'include' libraries  (which\n";
-cout << "can be absolute or relative to your home directory),  each path in\n";
-cout << "a separate line. Enter an empty line when done. This path:\n\n";
+cout << "Now,  please enter the list of paths to source 'include' libraries\n";
+cout << "(which can be absolute or relative to your home directory),   each\n";
+cout << "path in a separate line. Enter an empty line when done. This path:\n";
+cout << "\n";
 }
 
 	getwd (wd);
@@ -475,6 +477,92 @@ IN_CD:
 	goto IN_RETRY;
 
 IN_DONE:
+
+if (!batch) {
+cout << '\n';
+cout << "Now,  please enter the list of paths to data 'include'  libraries,\n";
+cout << "i.e.,  the directories that will be searched for <include>s in XML\n";
+cout << "data. Each path must be specified in a separate line with an empty\n";
+cout << "line ending the sequence. There is no default.\n";
+}
+	nxncdirs = 0;
+
+XN_RETRY:
+
+	getstring ();
+
+	if (is [0] == '\0') {
+		if (nxncdirs) {
+			if (nxncdirs == 1)
+				cout << "One";
+			else
+				cout << nxncdirs;
+		} else {
+			cout << "No";
+		}
+		cout << " data include librar";
+		cout << ((nxncdirs == 1) ? "y" : "ies");
+		cout << '\n';
+		goto XN_DONE;
+	}
+
+	if (nxncdirs == MAXINCDIRS) {
+		if (batch) {
+			cerr << "Too many libraries\n";
+			exit (1);
+		}
+		cout << "Too many libraries!\n";
+		goto IN_RETRY;
+	}
+
+	if (notabsolute (is)) {
+		// Turn it into $HOME/is
+		if ((s = HOME) == NULL) {
+			if (batch)
+				goto NoHome;
+			cout << "Cannot determine your home directory;"
+				<< " please specify the full path\n";
+			goto XN_RETRY;
+		}
+		strcpy (is+4096, is);
+		strcpy (is, s);
+		strcat (is, "/");
+		strcat (is, is+4096);
+	}
+
+	// Check if the directory exists
+	getwd (wd);             // Save current wd
+XN_CD:
+	if (chdir (is) < 0) {
+		// Assume that it does not exist and try to create it
+		for (s = is+1; *s != '\0'; s++) {
+			if (*s == '/' && *(s+1) != '\0') {
+				c = *s;
+				*s = '\0';
+				mkdir (is, 0777);
+				*s = c;
+			}
+		}
+
+		if (mkdir (is, 0777) < 0) {
+			if (batch)
+				goto DirAcc;
+			cout << "I have problems accessing this";
+			cout << " directory; please specify another";
+			cout << " path\n";
+			goto XN_RETRY;
+		}
+
+	} else {
+		chdir (wd);     // Move back
+	}
+
+	xncdir [nxncdirs] = new char [strlen (is) + 1];
+	strcpy (xncdir [nxncdirs], is);
+	nxncdirs++;
+	goto XN_RETRY;
+
+XN_DONE:
 
 if (!batch) {
 cout << '\n';
@@ -689,6 +777,16 @@ COVH:
 	}
 
 	*vfo << "\"\n";
+
+	if (nxncdirs) {
+		*vfo << "#define  ZZ_XINCPAT      {";
+		for (m = 0; m < nxncdirs; m++) {
+			if (m)
+				*vfo << ", ";
+			*vfo << "\"" << xncdir [m] << "\"";
+		}
+		*vfo << ", NULL}\n";
+	}
 
 	if (monhost [0] != '\0') {
 		*vfo << "#define  ZZ_MONHOST      \"" << monhost << "\"\n";

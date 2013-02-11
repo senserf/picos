@@ -28,6 +28,10 @@ static  int             ni_counter = 0,         // Pending count for readInteger
 #endif
 			nr_counter = 0;         // ... and for readReal
 
+#ifdef	ZZ_XINCPAT
+const char *DataLibDirs [] = ZZ_XINCPAT;
+#endif
+
 /* ---------------------------------------------------------- */
 /* Input   subroutines:  for  reading  numbers  and  skipping */
 /* garbage                                                    */
@@ -749,7 +753,8 @@ static char *sxml_handle_includes (char *IF, int *MS, char **err) {
  * parser.
  */
 	int sk, tl, nc, nr, ms;
-	char *e, *s, *t, *u, *v, *w, *f;
+	char *e, *s, *t, *u, *v, *w, *f, *fn;
+	const char *fc;
 
 	e = (s = IF) + *MS;
 	*err = NULL;
@@ -840,10 +845,44 @@ Unmatched:
 		// Can do it safely as that part will be removed
 		*w = '\0';
 
+		// ============================================================
+
 		if ((sk = open (v, O_RDONLY)) < 0) {
+#ifdef	ZZ_XINCPAT
+			if (*v == '/') {
+NoFile:
+				*err = "cannot open include file";
+				goto Error;
+			}
+
+			// Check if you can locate it in one of the
+			// include directories
+			ms = 0;
+			fn = NULL;
+			do {
+				free (fn);
+				if ((fc = DataLibDirs [ms++]) == NULL)
+					goto NoFile;
+				fn = (char*) malloc (strlen (fc) +
+						     strlen (v) + 2);
+				if (fn == NULL)
+					goto Mem;
+
+				strcpy (fn, fc);
+				strcat (fn, "/");
+				strcat (fn, v);
+				if ((sk = open (fn, O_RDONLY)) >= 0) {
+					free (fn);
+					break;
+				}
+			} while (1);
+#else
 			*err = "cannot open include file";
 			goto Error;
+#endif
 		}
+
+		// ============================================================
 
 		if ((f = (char*) malloc (ms = 1024)) == NULL) {
 Mem:

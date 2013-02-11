@@ -139,6 +139,7 @@ typedef void (*SIGARG) (int);
 #define  ZZ_SOURCES      "/home/pawel/SOFTWARE/SIDE/SOURCES"
 #define  ZZ_LIBPATH      "/home/pawel/SOFTWARE/SIDE/LIB"
 #define  ZZ_INCPATH      "-I /home/pawel/SOFTWARE/SIDE/Examples/IncLib -I /home/pawel/SOFTWARE/VUEE/PICOS"
+#define  ZZ_XINCPAT      {"/home/pawel/SOFTWARE/PICOS/Apps/DataLib", NULL}
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442
-#define  ZZ_RTAG	"PG130122A"
+#define  ZZ_RTAG	"PG130123A"

@@ -5,7 +5,7 @@ else
 	bin=$1
 fi
 if [ "x$2" = "x" ]; then
-	vpath=SOFTWARE/VUEE/PICOS
+	vpath=SOFTWARE
 else
 	vpath=$2
 fi
@@ -30,6 +30,7 @@ none
 
 25
 
+
 localhost
 4442
 mks
@@ -45,7 +46,9 @@ none
 
 
 25
-$vpath
+$vpath/VUEE/PICOS
+
+$vpath/PICOS/Apps/DataLib
 
 localhost
 4442

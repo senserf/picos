@@ -63,8 +63,7 @@ double RFShadow::RFC_cut (double xp, double rp) {
 
 /*
  * The cut-off distance d is the minimum distance at which the attenuated
- * signal (without the Gaussian component) bumped by CUTOFF_MARGIN dB is
- * below the background noise level.
+ * signal (without the Gaussian component) is deemed irrelevant.
  */
 	double d;
 
@@ -96,7 +95,8 @@ Long RFShadow::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 
 	trc ("RFC_erb (sl) = [%08x %08x] %g %g", sl->Tag, rs->Tag,
 		sl->Level, rateBoost (sl->Tag));
-	res = lRndBinomial (ber ((sl->Level * rs->Level *
+
+	res = (ir == 0.0) ? 0 : lRndBinomial (ber ((sl->Level * rs->Level *
 		rateBoost (sl->Tag)) / ir), nb);
 
 	trc ("RFC_erb (nb) = %1d/%1d", res, nb);
@@ -122,6 +122,10 @@ Long RFShadow::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 
 	trc ("RFC_erd (ir) = %g %g %g", ir, rs->Level, BNoise);
 	ir = ir * rs->Level + BNoise;
+
+	if (ir == 0.0)
+		// Account for the pathological case of 0 noise
+		return MAX_Long;
 
 	er = ber ((sl->Level * rs->Level * rateBoost (sl->Tag)) / ir);
 	trc ("RFC_erd (be) = [%08x %08x] %g -> %g", sl->Tag, rs->Tag,
@@ -201,13 +205,14 @@ void RFShadow::setup (
 	BThrs = dBToLin (bu);
 	gain = g;
 
+	print ("\n");
 	print (MinPr, "  Minimum preamble:", 10, 26);
 	print (bu, "  Activity threshold:", 10, 26);
 	print (co, "  Cutoff threshold:", 10, 26);
 
-	print ("  Fading formula:\n");
+	print ("  Attenuation formula:\n");
 	print (form ("    RP(d)/XP = -10 x %3.1f x log(d/%3.1fm) + X(%3.1f) - "
-		"%4.1fdB\n\n", be, rd, sg, lo));
+		"%4.1fdB\n", be, rd, sg, lo));
 }
 
 #endif
