@@ -1008,3 +1008,8 @@ PG130211A:	SIDE >= PG130211A, PICOS >= PG130211A
     is now even more pointless than before and has been removed. Note that now,
     when you start udaemon ahead of the simulator, it will wait for the master
     socket to come up, so it can get the "geometry" data from the simulator.
+
+PG130214A:	SIDE >= PG130214A
+
+    The sampled channel model now offers the option to specify sigma on a
+    per-distance basis. This is described in the VUEE doc (see page 15).

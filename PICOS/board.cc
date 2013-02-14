@@ -1589,12 +1589,11 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	int ctype, K, nb, nr, i, j, syncbits, bpb, frml;
 	sxml_t cur;
 	sir_to_ber_t	*STB;
-	IVMapper	*ivc [4];
-	DVMapper	*dvc;
+	IVMapper	*ivc [6];
 	MXChannels	*mxc;
 	word wn, *wt;
 	Boolean rmo, symm;
-	double *dta, *dtb;
+	double *dta, *dtb, *dtc;
 
 	Ether = NULL;
 
@@ -1605,6 +1604,9 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	for (i = 0; i < NPTABLE_SIZE; i++)
 		// We shall be reading double for a while
 		np [i].type = TYPE_double;
+
+	// Preset this to NULL
+	memset (ivc, 0, sizeof (ivc));
 
 	if ((data = sxml_child (data, "channel")) == NULL) {
 		if (nc)
@@ -1637,19 +1639,22 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	else
 		xeai ("type", "<propagation>", att);
 
-	sigm = 0.0;
+	sigm = -1.0;
 
 	if ((att = sxml_attr (cur, "sigma")) != NULL) {
 		// Expect a double
-		if (parseNumbers (att, 1, np) != 1)
-			xeai ("sigma", "<propagation>", att);
-		sigm = np [0].DVal;
+		if (parseNumbers (att, 1, np) != 1 ||
+			(sigm = np [0].DVal) < 0.0)
+				xeai ("sigma", "<propagation>", att);
 	}
 
 	// The content of <propagation> depends on channel type
 
 	if (ctype == 0) {
 		// Here we have the old shadowing model
+		if (sigm < 0.0)
+			// Use the default sigma of zero if missing
+			sigm = 0.0;
 		att = sxml_txt (cur);
 		if ((nb = parseNumbers (att, 4, np)) != 4) {
 			if (nb < 0)
@@ -1697,38 +1702,101 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 				symm = YES;
 
 		att = sxml_txt (cur);
+
 		// Expect the attenuation table
+
 		nr = parseNumbers (att, NPTABLE_SIZE, np);
 		if (nr > NPTABLE_SIZE)
 			xeni ("<propagation>");
-		if (nr < 4 || (nr % 1) != 0)
-			excptn ("Root: <propagation> table needs an even "
-				"number of entries and at least 4");
-		nr /= 2;
 
-		dta = new double [nr];
-		dtb = new double [nr];
+		if (sigm < 0.0) {
+			// Just in case, make sure this is always sane
+			sigm = 0.0;
+			// We expect triplets: distance, attenuation, sigma
+			if (nr < 6 || (nr % 3) != 0)
+				excptn ("Root: the number of entries in "
+					"<propagation> table must be divisible "
+					"by 3 and at least equal 6");
+			nr /= 3;
+			dta = new double [nr];
+			dtb = new double [nr];
+			dtc = new double [nr];
 
-		for (i = 0; i < nr; i++) {
-			dta [i] = np [2 * i    ] . DVal;
-			dtb [i] = np [2 * i + 1] . DVal;
-			if (i > 0) {
-			    if (dta [i] <= dta [i - 1])
-				excptn ("Root: distances in the <propagation> "
-					"table are not strictly increasing, "
-					"%g [%1d] <= %g [%1d]",
-						dta [i], i,
-						dta [i - 1], i - 1);
-			    if (dtb [i] >= dtb [i - 1])
-				excptn ("Root: levels in the <propagation> "
-					"table are not strictly decreasing, "
-					"%g [%1d] >= %g [%1d]",
-						dtb [i], i,
-						dtb [i - 1], i - 1);
+			for (i = 0; i < nr; i++) {
+
+				dta [i] = np [3 * i    ] . DVal;
+				dtb [i] = np [3 * i + 1] . DVal;
+				dtc [i] = np [3 * i + 2] . DVal;
+
+				if (dta [i] < 0.0) {
+PTErr1:
+					excptn ("Root: negative distance in the"
+						" <propagation> table, "
+						"%g [%1d]",
+						dta [i], i);
+				}
+				if (dtc [i] < 0.0)
+					excptn ("Root: negative sigma in the"
+						" <propagation> table, "
+						"%g [%1d]",
+						dtc [i], i);
+				// Note: we do not insist on the sigmas being
+				// monotonic. As we never lookup distances
+				// based on sigma, it should be OK.
+				if (i > 0) {
+				    if (dta [i] <= dta [i - 1]) {
+PTErr2:
+					excptn ("Root: distances in the "
+						"<propagation> table are not "
+						"strictly increasing, "
+						"%g [%1d] <= %g [%1d]",
+							dta [i], i,
+							dta [i - 1], i - 1);
+				    }
+				    if (dtb [i] >= dtb [i - 1]) {
+PTErr3:
+					excptn ("Root: levels in the "
+						"<propagation> table are not "
+						"strictly decreasing, "
+						"%g [%1d] >= %g [%1d]",
+							dtb [i], i,
+							dtb [i - 1], i - 1);
+				    }
+			        }
 			}
+
+			ivc [XVMAP_SIGMA] =
+				(IVMapper*) new DVMapper (nr, dta, dtc, NO);
+
+		} else {
+			// Dublets (sigma is fixed)
+			if (nr < 4 || (nr % 2) != 0)
+				excptn ("Root: <propagation> table needs an "
+				    "even number of entries and at least 4");
+			nr /= 2;
+
+			dta = new double [nr];
+			dtb = new double [nr];
+
+			for (i = 0; i < nr; i++) {
+
+				dta [i] = np [2 * i    ] . DVal;
+				dtb [i] = np [2 * i + 1] . DVal;
+
+				if (dta [i] < 0.0)
+					goto PTErr1;
+
+				if (i > 0) {
+			    		if (dta [i] <= dta [i - 1])
+						goto PTErr2;
+			    		if (dtb [i] >= dtb [i - 1])
+						goto PTErr3;
+				}
+			}
+
 		}
 
-		dvc = new DVMapper (nr, dta, dtb, YES);
+		ivc [XVMAP_ATT] = (IVMapper*) new DVMapper (nr, dta, dtb, YES);
 	}
 
 	// The BER table
@@ -1805,8 +1873,6 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		np [i+1] . type = TYPE_double;
 	}
 
-	memset (ivc, 0, sizeof (ivc));
-
 	if ((cur = sxml_child (data, "rates")) == NULL)
 		xenf ("<rates>", "<network>");
 
@@ -1843,8 +1909,8 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		xmon (nr, wt, dta, "<rates>");
 		xmon (nr, wt, dtb, "<rates>");
 
-		ivc [0] = new IVMapper (nr, wt, dta);
-		ivc [1] = new IVMapper (nr, wt, dtb, YES);
+		ivc [XVMAP_RATES] = new IVMapper (nr, wt, dta);
+		ivc [XVMAP_RBOOST] = new IVMapper (nr, wt, dtb, YES);
 
 	} else {
 
@@ -1885,7 +1951,7 @@ RVErr:
 			xmon (nr, wt, dta, "<rates>");
 		}
 
-		ivc [0] = new IVMapper (nr, wt, dta);
+		ivc [XVMAP_RATES] = new IVMapper (nr, wt, dta);
 	}
 
 	// Power
@@ -1927,7 +1993,7 @@ RVErr:
 		xmon (nr, wt, dta, "<power>");
 	}
 
-	ivc [3] = new IVMapper (nr, wt, dta, YES);
+	ivc [XVMAP_PS] = new IVMapper (nr, wt, dta, YES);
 
 	// RSSI map (optional for shadowing)
 
@@ -1957,7 +2023,7 @@ RVErr:
 		}
 		xmon (nr, wt, dta, "<rssi>");
 
-		ivc [2] = new IVMapper (nr, wt, dta, YES);
+		ivc [XVMAP_RSSI] = new IVMapper (nr, wt, dta, YES);
 
 	} else if (ctype == 1 && sfname != NULL) {
 
@@ -2021,7 +2087,7 @@ RVErr:
 			bn_db, cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 	else
 		create RFSampled (NN, STB, nb, K, dref, sigm, bn_db, bn_db,
-			cutoff, syncbits, bpb, frml, dvc, ivc, sfname, symm,
+			cutoff, syncbits, bpb, frml, ivc, sfname, symm,
 				mxc, NULL);
 	// Packet cleaner
 	Ether->setPacketCleaner (packetCleaner);
