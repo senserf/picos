@@ -2921,7 +2921,7 @@ PG130211A:	3 7 	VUEE >= PG130211A, SIDE >= PG130211A
 	inspired quite a few changes.
 
 	First, the data format has changed slightly (see the VUEE doc, the
-	parts in blue). The "propagation" component has been ecapsulated and
+	parts in blue). The "propagation" component has been encapsulated and
 	separated from the rest, so it can be easily exchanged.
 
 	Directory Apps/DataLib is intended for storing globally useful XML data
@@ -2985,3 +2985,8 @@ PG130211A:	3 7 	VUEE >= PG130211A, SIDE >= PG130211A
 	The legacy channels should be avoided and eventually eliminated. For
 	all our standard praxes, the recommended blanket channel model is
 	tabulated.xml.
+
+PG130214A:	VUEE >= PG130214A
+
+	A small change to the "sampled" and "tabulated" RF channel models to
+	illustrate per-distance sigma.
