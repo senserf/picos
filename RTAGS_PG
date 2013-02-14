@@ -488,3 +488,10 @@ PG130211A:	PICOS >= PG130211A, VUEE >= PG130211A
 	   - cleanups and reorganization of the generic channel model
 	   - data library directories (for included XML snippets)
 	   - documentation update
+
+PG130214A:	PICOS >= PG130214A, VUEE >= PG130214A
+
+	   For the "sampled" channel model, you can now define sigma on a
+	   per-distance basis. This is described in the VUEE doc.
+
+

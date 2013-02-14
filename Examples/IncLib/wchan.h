@@ -1,7 +1,15 @@
 #ifndef	__wchan_h__
 #define	__wchan_h__
 
+// =========================================================================
 // General framework for a wireless channel model (version V - used in VUEE)
+// =========================================================================
+
+// Standard indexes into the XVMapper table
+#define	XVMAP_RATES	0
+#define	XVMAP_RBOOST	1
+#define	XVMAP_RSSI	2
+#define	XVMAP_PS	3
 
 typedef struct {
 	// This structure represents a single entry mapping SIR (Signal to

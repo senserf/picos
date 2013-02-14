@@ -23,6 +23,18 @@ typedef struct {
 
 } rss_rsample_t;
 
+static inline double vlength (sdpair_t &sdp) {
+//
+// Note that the length is in meters
+//
+	double x, y;
+
+	x = (double) (sdp.XA - sdp.XB);
+	y = (double) (sdp.YA - sdp.YB);
+
+	return sqrt (x * x + y * y) / Du;
+};
+
 // ============================================================================
 
 void RFSampled::read_samples (const char *sfname) {
@@ -219,7 +231,9 @@ Opened:
 
 		SSMP.Attenuation = (float)(RSMP->Attenuation);
 		if (RSMP->NS < 2) {
-			SSMP.Sigma = Sigma;
+			// Single-valued sample, use the default Sigma
+			SSMP.Sigma = (SIGMA == NULL) ? Sigma :
+				SIGMA->setvalue (vlength (SSMP.SDP));
 		} else {
 			SSMP.Sigma = (float) sqrt (RSMP->Sigma /
 				(RSMP->NS - 1));
@@ -256,7 +270,6 @@ void RFSampled::setup (
 	Long mp,		// Minimum received preamble length
 	int bpb,		// Bits per byte
 	int frm,		// Packet frame (extra physical bits)
-	DVMapper *attb,		// Attenuation table
 	IVMapper **ivcc,	// Value converters
 	const char *sfname,	// Data file name
 	Boolean symm,		// Symmetric
@@ -279,21 +292,21 @@ void RFSampled::setup (
 	if ((K = k) > RFSMPL_MAXK)
 		excptn ("RFSampled: samples to average larger than max (%1d)",
 			RFSMPL_MAXK);
-	ATTB = attb;
+	ATTB = (DVMapper*)(ivcc [XVMAP_ATT]);
+	SIGMA = (DVMapper*)(ivcc [XVMAP_SIGMA]);
 
 	print (MinPr, 		"  Minimum preamble:", 10, 26);
 	print (bu,    		"  Activity threshold:", 10, 26);
 	print (co,    		"  Cutoff threshold:", 10, 26);
-	print (Sigma, 		"  Default sigma:", 10, 26);
 	print (EAF,   		"  Averaging exponent:", 10, 26);
 	print (K,     		"  Samples to average:", 10, 26);
 	print (Symmetric, 	"  Symmetric:", 10, 26);
 
-	print ("\n  Distance(m)  Attenuation(dB)\n");
+	print ("\n  Distance(m)  Attenuation(dB)    Sigma\n");
 
 	for (i = 0; i < ATTB->size (); i++) {
 		r = ATTB->row (i, v);
-		print (form ("  %11.3f       %8g\n", r, v));
+		print (form ("  %11.3f       %8g %8g\n", r, v, sigma (r)));
 	}
 
 	NSamples = 0;
@@ -314,29 +327,18 @@ void RFSampled::setup (
 
 // ============================================================================
 
-static inline double vlength (sdpair_t &sdp) {
-//
-// Note that the length is in meters
-//
-	double x, y;
-
-	x = (double) (sdp.XA - sdp.XB);
-	y = (double) (sdp.YA - sdp.YB);
-
-	return sqrt (x * x + y * y) / Du;
-};
-
 double RFSampled::attenuate (sdpair_t &sdp) {
 
 	dict_item_t	*di, *dh;
 	Long		rss, ix;
-	double 		res;
+	double 		res, d;
 
 	if (HTable == NULL) {
 		// No sampled data, fallback to the table
+		d = vlength (sdp);
 		res = dBToLin (ATTB->setvalue (vlength (sdp), NO) +
-			dRndGauss (0.0, Sigma));
-		trc ("attenuate: no sampled data %g", res);
+			dRndGauss (0.0, sigma (d)));
+		trc ("attenuate: no sampled data %g %g", res, sigma (d));
 		return res;
 	}
 

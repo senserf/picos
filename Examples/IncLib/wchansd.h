@@ -9,6 +9,10 @@
 #define	RFSMPL_HASHMASK		(RFSMPL_HASHSIZE - 1)
 #define	RFSMPL_MAXK		32
 
+// Indexes into the XVMapper table
+#define	XVMAP_ATT		4
+#define	XVMAP_SIGMA		5
+
 // ============================================================================
 
 typedef	struct {
@@ -51,7 +55,8 @@ rfchannel RFSampled : RadioChannel {
 
 	int		K;	// Samples to average
 
-	DVMapper	*ATTB;	// Attenuation table
+	DVMapper	*ATTB,	// Attenuation table
+			*SIGMA;	// Sigma table
 
 			// Optional gain function (e.g., for directional ant.)
 	double 	(*gain) (Transceiver*, Transceiver*);
@@ -70,6 +75,10 @@ rfchannel RFSampled : RadioChannel {
 	dict_item_t	**HTable;
 	rss_sample_t	*Samples;
 	Long		NSamples;
+
+	inline double sigma (double d) {
+		return (SIGMA == NULL) ? Sigma : SIGMA->setvalue (d);
+	};
 
 	inline Long hash (sdpair_t &sdp) {
 		if (Symmetric)
@@ -152,7 +161,6 @@ rfchannel RFSampled : RadioChannel {
 		Long,			// Minimum received preamble length
 		int,			// Bits per byte
 		int,			// Packet frame (extra physical bits)
-		DVMapper *att,		// Attenuation table
 		IVMapper **ivcc, 	// Value converters
 		const char *sfname,	// File with sampled RSSI data
 		Boolean symm,		// Symmetric flag
