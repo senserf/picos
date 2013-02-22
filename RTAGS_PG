@@ -2990,3 +2990,84 @@ PG130214A:	VUEE >= PG130214A
 
 	A small change to the "sampled" and "tabulated" RF channel models to
 	illustrate per-distance sigma.
+
+PG130222A:
+
+	A new (experimental) version of the CC1100 driver. I have removed the
+	numerous obsessive sanity checks and resets on every slightly
+	suspicious event. My understanding is that the problems that led me to
+	incorporate those checks were poorly understood at the time of their
+	occurrence, and that most (if not all) of those desperate "remedies"
+	were unnecessary. We shall see. Note that this is the first version of
+	the driver, extremely poorly tested and not (yet) recommended for
+	production. But this will be driver to be further developed (with the
+	old driver frozen at its present stage). In particular, any WOR
+	features will be implemented in the new driver only (the structure of
+	the old driver was not conductive to this kind of work).
+
+	I may write a brief document (or an addition to the old documentation
+	of the driver) once things become stable. This is the summary for now:
+
+	To select the experimental driver, put this:
+
+		#define CC1100_EXPERIMENTAL_DRIVER
+
+	in options.sys. Note that no value is needed.
+
+	Major user-level differences:
+
+	1. By default, the power level is hardwired at 7 (max) and not
+	   changeable, i.e., a SETPOWER request (also GETPOWER) will cause a
+	   syserror. To make it changeable, put this:
+
+		#define RADIO_POWER_SETTABLE 1
+
+	   into options.sys. Note that for the previous driver, the default
+	   power level was 2 and the xmit power could always be set
+	   dynamically.
+
+	2. By default, the channel number is not changeable and hardwired at 0
+	   (SETCHANNEL/GETCHANNEL will cause a syserror). To make it
+	   changeable, put this:
+
+		#define RADIO_CHANNEL_SETTABLE 1
+
+	   into options.sys.
+
+	3. By default, the transmission rate is not changeable and hardwired at
+	   10000, i.e., option 1 (SETRATE/GETRATE will cause a syserror). To
+	   make it changeable, put this:
+
+		#define RADIO_BITRATE_SETTABLE 1
+
+	   into options.sys. When you do that, you will get the same four 
+	   options as before.
+
+	   Note that you can change the defaults without making the parameters
+	   dynamically changeable, e.g.,
+
+		#define RADIO_DEFAULT_BITRATE 	38400
+		#define	RADIO_DEFAULT_POWER	4
+		#define	RADIO_DEFAULT_CHANNEL	128
+
+	4. Operation RESET takes no argument. In the old version, the optional
+	   argument could point to a register table with substitute register
+	   values (that was RADIO_OPTIONS bit 0x40). Owing to the unpredictable
+	   resets during "normal" operation, you couldn't change a register
+	   value without storing that change in some "supplement" table (to be
+	   mechanically reapplied at every reset). There is no request yet to
+	   change an arbitrary register to an arbitrary value, but I will
+	   (probably) add later something amounting to it. At present, the chip
+	   is only reset at the beginning (at initialization) and upon an
+	   explicit request (RESET) from the praxis.
+
+	5. RADIO_OPTIONS 0x40 and 0x20 (obsessive consistency checks) have been
+	   removed. Options 0x10 (the Guard process) has been redefined to
+	   eliminate some parameter (sanity) checks normally done on startup.
+	   There is no Guard process now (originally that process was
+	   introduced to mitigate some problems at RFM).
+
+	Except for the above differences, the logical functionality of the
+	driver should appear as before.
+
+	I haven't checked CC430 with the new driver yet.

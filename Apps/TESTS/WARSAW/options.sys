@@ -1,3 +1,8 @@
+//#define	CC1100_EXPERIMENTAL_DRIVER
+//#define	RADIO_POWER_SETTABLE		1
+//#define	RADIO_CHANNEL_SETTABLE		1
+
+
 #undef	DIAG_MESSAGES
 #define	DIAG_MESSAGES	2
 
@@ -42,7 +47,7 @@
 #endif
 
 //#define RADIO_CRC_MODE	4
-#define	RADIO_OPTIONS	(0x08+0x40)
+//#define	RADIO_OPTIONS	(0x08+0x40)
 //#define	RADIO_OPTIONS	(0x08)
 //#define	RADIO_LBT_MODE	0
 

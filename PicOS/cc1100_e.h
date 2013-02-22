@@ -1,28 +1,13 @@
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 #include "kernel.h"
 #include "cc1100_sys.h"
 #include "rfleds.h"
-
-
-
-
-
-#ifdef	CC1100_EXPERIMENTAL_DRIVER
-
-#undef	__pg_cc1100_h
-#include "cc1100_e.h"
-
-#else
-
-
-
-
 
 /*
  * CRC calculation mode
@@ -47,10 +32,7 @@
 //	0x02 trace: diag messages on important events)
 //	0x04 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
 //	0x08 prechecks: initial check for RF chip present (to prevent hangups)
-//  	0x10 guard process present
-//	0x20 extra consistency checks
-//	0x40 PHYSOPT_RESET admits a parameter pointing to a substitution table
-//	     for changing selected register values
+//  	0x10 lean code: remove parameter checks for driver requests
 //	0x80 collect entropy from the air on startup
 // ============================================================================
 
@@ -94,10 +76,10 @@
 #define	RADIO_LBT_MODE		3
 #endif
 
-// MSCM1 register settings (selecting global LBT mode)
-#define	MCSM1_LBT_OFF		(MCSM1_TRANS_MODE | (0 << 4))	// OFF
-#define	MCSM1_LBT_RCV		(MCSM1_TRANS_MODE | (2 << 4))	// If receiving
-#define	MCSM1_LBT_FULL		(MCSM1_TRANS_MODE | (3 << 4))	// Rcv+assess
+#if RADIO_LBT_MODE < 0 || RADIO_LBT_MODE > 3
+#error "S: illegal setting of RADIO_LBT_MODE, must be 0...3"
+#endif
+
 
 // RSSI thresholds (for LBT); these values are only relevant when
 // RADIO_LBT_MODE == 2
@@ -111,20 +93,38 @@
 
 // ============================================================================
 
-// Default power corresponds to the center == 0dBm
+// Default power is max
 #ifndef	RADIO_DEFAULT_POWER
-#define	RADIO_DEFAULT_POWER	2
+#define	RADIO_DEFAULT_POWER	7
+#endif
+
+#ifndef	RADIO_POWER_SETTABLE
+#define	RADIO_POWER_SETTABLE	0
+#endif
+
+#if RADIO_DEFAULT_POWER < 0 || RADIO_DEFAULT_POWER > 7
+#error "S: RADIO_DEFAULT_POWER > 7!!!"
 #endif
 
 #ifndef	RADIO_DEFAULT_BITRATE
 #define	RADIO_DEFAULT_BITRATE	10000
 #endif
 
+#define	CC1100_NRATES	4
+
+#ifndef	RADIO_BITRATE_SETTABLE
+#define	RADIO_BITRATE_SETTABLE	0
+#endif
+
 #ifndef RADIO_DEFAULT_CHANNEL
 #define	RADIO_DEFAULT_CHANNEL	0
 #endif
 
-#if RADIO_DEFAULT_CHANNEL > 255
+#ifndef	RADIO_CHANNEL_SETTABLE
+#define	RADIO_CHANNEL_SETTABLE	0
+#endif
+
+#if RADIO_DEFAULT_CHANNEL < 0 || RADIO_DEFAULT_CHANNEL > 255
 #error "S: RADIO_DEFAULT_CHANNEL > 255!!!"
 #endif
 
@@ -134,8 +134,9 @@
 
 // ============================================================================
 
-#define	GUARD_LONG_DELAY	65367	/* Max == 64 seconds minus 1 tick */
-#define	GUARD_SHORT_DELAY	5000	/* 5 seconds */
+#ifndef	RADIO_CAV_SETTABLE
+#define	RADIO_CAV_SETTABLE	0
+#endif
 
 // ============================================================================
 
@@ -312,153 +313,262 @@
 #ifdef	CC1100_DEFINE_RF_SETTINGS
 
 // ============================================================================
-// Define Register Contents ===================================================
+// Rate-specific settings
 // ============================================================================
 
-const	byte	cc1100_rfsettings [] = {
-//
-// Common settings for all rates
-//
-        CCxxx0_FSCTRL0, 0x00,   // FSCTRL0
-	CCxxx0_FREQ2,   CC1100_FREQ_FREQ2_VALUE,   // FREQ2
-        CCxxx0_FREQ1,   CC1100_FREQ_FREQ1_VALUE,   // FREQ1 3B the base radio
-        CCxxx0_FREQ0,   CC1100_FREQ_FREQ0_VALUE,   // FREQ0 13 frequency
-        CCxxx0_MDMCFG0, CC1100_CHANSPC_M,   	   // MDMCFG0 channel spacing
-        CCxxx0_FREND1,  0x56,   // FREND1
-        CCxxx0_BSCFG,   0x6C,   // BSCFG
+#define CCxxx0_FSCTRL1_RATE0	0x0C
+// 4.8 kbps
+#define CCxxx0_MDMCFG4_RATE0	0xC7
+#define CCxxx0_MDMCFG3_RATE0	0x83
+// Double sync word
+#define CCxxx0_MDMCFG2_RATE0	(0x00 + 0x03)
+// Preamble + ch spacing
+#define CCxxx0_MDMCFG1_RATE0	(0x40 + CC1100_CHANSPC_E)
+#define CCxxx0_DEVIATN_RATE0	0x34
+#define CCxxx0_FOCCFG_RATE0 	0x15
+#define CCxxx0_FSCAL2_RATE0 	0x2A
 
-//      CCxxx0_AGCCTRL2,0x83,   // AGCCTRL2
-// Changed Dec 31, 2006 PG
-        CCxxx0_AGCCTRL2,0x03,   // AGCCTRL2
+// ============================================================================
 
-#define	RSSI_AGC	(((RADIO_CC_THRESHOLD-8) & 0xf) | \
-				(RADIO_CC_THRESHOLD_REL << 4))
+#define CCxxx0_FSCTRL1_RATE1	CCxxx0_FSCTRL1_RATE0
+// 10 kbps
+#define CCxxx0_MDMCFG4_RATE1	0x68
+#define CCxxx0_MDMCFG3_RATE1	0x93
+#define CCxxx0_MDMCFG2_RATE1	CCxxx0_MDMCFG2_RATE0	
+#define CCxxx0_MDMCFG1_RATE1	CCxxx0_MDMCFG1_RATE0
+#define CCxxx0_DEVIATN_RATE1	CCxxx0_DEVIATN_RATE0
+#define CCxxx0_FOCCFG_RATE1	CCxxx0_FOCCFG_RATE0
+#define CCxxx0_FSCAL2_RATE1	CCxxx0_FSCAL2_RATE0
 
-#define	AGCCTRL1_VAL	(0x40 | RSSI_AGC)
+// ============================================================================
 
-	CCxxx0_AGCCTRL1,AGCCTRL1_VAL,
+#define CCxxx0_FSCTRL1_RATE2	CCxxx0_FSCTRL1_RATE0
+// 38.4 kbps
+#define CCxxx0_MDMCFG4_RATE2	0xCA
+#define CCxxx0_MDMCFG3_RATE2	0x83
+#define CCxxx0_MDMCFG2_RATE2	CCxxx0_MDMCFG2_RATE0	
+#define CCxxx0_MDMCFG1_RATE2	CCxxx0_MDMCFG1_RATE0
+#define CCxxx0_DEVIATN_RATE2	CCxxx0_DEVIATN_RATE0
+#define CCxxx0_FOCCFG_RATE2	CCxxx0_FOCCFG_RATE0
+#define CCxxx0_FSCAL2_RATE2	CCxxx0_FSCAL2_RATE0
 
-        CCxxx0_AGCCTRL0,0x91,   // AGCCTRL0
-        CCxxx0_FSCAL3,  0xA9,   // FSCAL3
-	CCxxx0_FSCAL1,	0x00,	// RFM
-        CCxxx0_FSCAL0,  0x0D,   // FSCAL0
-        CCxxx0_FSTEST,  0x59,   // FSTEST (FIXME: according to doc, this is
-				// redundant)
-	CCxxx0_IOCFG2,	0x2f,	// Unused and grounded
-	CCxxx0_IOCFG1,	0x2f,	// Unused and grounded
-	CCxxx0_IOCFG0,	IOCFG0_INT,	// Reception interrupt condition
+// ============================================================================
 
-        CCxxx0_PKTLEN,  MAX_TOTAL_PL,
+#define CCxxx0_FSCTRL1_RATE3	0x0A
+// 200 kbps
+#define CCxxx0_MDMCFG4_RATE3	0x8C
+#define CCxxx0_MDMCFG3_RATE3	0x22
+// Single sync word
+#define CCxxx0_MDMCFG2_RATE3	(0x10 + 0x02)
+#define CCxxx0_MDMCFG1_RATE3	(0x20 + CC1100_CHANSPC_E)
+#define CCxxx0_DEVIATN_RATE3	0x47
+#define CCxxx0_FOCCFG_RATE3	0x36
+#define CCxxx0_FSCAL2_RATE3	0x0A
 
-				// Autoflush + 2 status bytes on reception
-	CCxxx0_PKTCTRL1,(0x04 | AUTOFLUSH_FLAG),
-
-	CCxxx0_PKTCTRL0,(0x41 | CRC_FLAGS), // Whitening, pkt lngth follows sync
-
-        CCxxx0_ADDR,    0x00,   // ADDR      Device address.
-
-	CCxxx0_FIFOTHR,	0x0F,	// 64 bytes in FIFO
-
-	CCxxx0_SYNC1,	((RADIO_SYSTEM_IDENT >> 8) & 0xff),
-	CCxxx0_SYNC0,	((RADIO_SYSTEM_IDENT     ) & 0xff),
-
-#ifdef	__CC430__
-        CCxxx0_MCSM0,   0x10,   // Recalibrate on exiting IDLE state, full SLEEP
-#else
-	// Changed from 0x14 to 0x18 (PG 100620), see page 78 PO_TIMEOUT
-	// (cc1101)
-        CCxxx0_MCSM0,   0x18,   // Recalibrate on exiting IDLE state, full SLEEP
+#if RADIO_DEFAULT_BITRATE == 5000
+	#define	RADIO_BITRATE_INDEX	0
+	#define CCxxx0_FSCTRL1_RATEx	CCxxx0_FSCTRL1_RATE0
+	#define CCxxx0_MDMCFG4_RATEx	CCxxx0_MDMCFG4_RATE0
+	#define CCxxx0_MDMCFG3_RATEx	CCxxx0_MDMCFG3_RATE0
+	#define CCxxx0_MDMCFG2_RATEx	CCxxx0_MDMCFG2_RATE0
+	#define CCxxx0_MDMCFG1_RATEx	CCxxx0_MDMCFG1_RATE0
+	#define CCxxx0_DEVIATN_RATEx	CCxxx0_DEVIATN_RATE0
+	#define CCxxx0_FOCCFG_RATEx	CCxxx0_FOCCFG_RATE0 
+	#define CCxxx0_FSCAL2_RATEx	CCxxx0_FSCAL2_RATE0
 #endif
 
-#if RADIO_LBT_MODE < 0 || RADIO_LBT_MODE > 3
-#error "S: illegal setting of RADIO_LBT_MODE, must be 0...3"
+#if RADIO_DEFAULT_BITRATE == 10000
+	#define	RADIO_BITRATE_INDEX	1
+	#define CCxxx0_FSCTRL1_RATEx	CCxxx0_FSCTRL1_RATE1
+	#define CCxxx0_MDMCFG4_RATEx	CCxxx0_MDMCFG4_RATE1
+	#define CCxxx0_MDMCFG3_RATEx	CCxxx0_MDMCFG3_RATE1
+	#define CCxxx0_MDMCFG2_RATEx	CCxxx0_MDMCFG2_RATE1
+	#define CCxxx0_MDMCFG1_RATEx	CCxxx0_MDMCFG1_RATE1
+	#define CCxxx0_DEVIATN_RATEx	CCxxx0_DEVIATN_RATE1
+	#define CCxxx0_FOCCFG_RATEx	CCxxx0_FOCCFG_RATE1 
+	#define CCxxx0_FSCAL2_RATEx	CCxxx0_FSCAL2_RATE1
 #endif
 
-// Automatic transitions of the RF automaton: after RX to IDLE, after TX to RX
-#define	MCSM1_TRANS_MODE	0x03
-
-#if RADIO_LBT_MODE == 0
-	CCxxx0_MCSM1,	MCSM1_LBT_OFF,
+#if RADIO_DEFAULT_BITRATE == 38400
+	#define	RADIO_BITRATE_INDEX	2
+	#define CCxxx0_FSCTRL1_RATEx	CCxxx0_FSCTRL1_RATE2
+	#define CCxxx0_MDMCFG4_RATEx	CCxxx0_MDMCFG4_RATE2
+	#define CCxxx0_MDMCFG3_RATEx	CCxxx0_MDMCFG3_RATE2
+	#define CCxxx0_MDMCFG2_RATEx	CCxxx0_MDMCFG2_RATE2
+	#define CCxxx0_MDMCFG1_RATEx	CCxxx0_MDMCFG1_RATE2
+	#define CCxxx0_DEVIATN_RATEx	CCxxx0_DEVIATN_RATE2
+	#define CCxxx0_FOCCFG_RATEx	CCxxx0_FOCCFG_RATE2 
+	#define CCxxx0_FSCAL2_RATEx	CCxxx0_FSCAL2_RATE2
 #endif
-#if RADIO_LBT_MODE == 1
-	CCxxx0_MCSM1,	MCSM1_LBT_RCV,
-#endif
-#if RADIO_LBT_MODE == 2 || RADIO_LBT_MODE == 3
-	CCxxx0_MCSM1,	MCSM1_LBT_FULL,
-#endif
-	CCxxx0_MCSM2,	0x07,
 
-/* ========== */
+#if RADIO_DEFAULT_BITRATE == 200000
+	#define	RADIO_BITRATE_INDEX	3
+	#define CCxxx0_FSCTRL1_RATEx	CCxxx0_FSCTRL1_RATE3
+	#define CCxxx0_MDMCFG4_RATEx	CCxxx0_MDMCFG4_RATE3
+	#define CCxxx0_MDMCFG3_RATEx	CCxxx0_MDMCFG3_RATE3
+	#define CCxxx0_MDMCFG2_RATEx	CCxxx0_MDMCFG2_RATE3
+	#define CCxxx0_MDMCFG1_RATEx	CCxxx0_MDMCFG1_RATE3
+	#define CCxxx0_DEVIATN_RATEx	CCxxx0_DEVIATN_RATE3
+	#define CCxxx0_FOCCFG_RATEx	CCxxx0_FOCCFG_RATE3 
+	#define CCxxx0_FSCAL2_RATEx	CCxxx0_FSCAL2_RATE3
+#endif
 
-        255
-};
+#ifndef	RADIO_BITRATE_INDEX
+#error	"S: Unknown bit rate, legal rates are 5000, 10000, 38400, 200000"
+#endif
+
+#if RADIO_BITRATE_SETTABLE
+
+static const	byte	cc1100_ratereg [] = {
+        					CCxxx0_FSCTRL1,
+       						CCxxx0_MDMCFG4,
+       						CCxxx0_MDMCFG3,
+        					CCxxx0_MDMCFG2,
+        					CCxxx0_MDMCFG1,
+        					CCxxx0_DEVIATN,
+        					CCxxx0_FOCCFG, 
+        					CCxxx0_FSCAL2
+					    };
 
 static const	byte	__pi_rate0 [] = {
 
-        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-       	CCxxx0_MDMCFG4, 0xC7,   // MDMCFG4 	(4.8 kbps)
-       	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x00 + 0x03,		// Double sync word
-        CCxxx0_MDMCFG1, 0x40 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
-        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
-        CCxxx0_FOCCFG,  0x15,   // FOCCFG
-        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
-
-	255
-};
+        					CCxxx0_FSCTRL1_RATE0,
+       						CCxxx0_MDMCFG4_RATE0,
+       						CCxxx0_MDMCFG3_RATE0,
+        					CCxxx0_MDMCFG2_RATE0,
+        					CCxxx0_MDMCFG1_RATE0,
+        					CCxxx0_DEVIATN_RATE0,
+        					CCxxx0_FOCCFG_RATE0,
+        					CCxxx0_FSCAL2_RATE0
+					};
 
 static const	byte	__pi_rate1 [] = {
 
-        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-       	CCxxx0_MDMCFG4, 0x68,   // MDMCFG4 	(10 kbps)
-       	CCxxx0_MDMCFG3, 0x93,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x00 + 0x03,
-        CCxxx0_MDMCFG1, 0x40 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
-        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
-        CCxxx0_FOCCFG,  0x15,   // FOCCFG
-        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
-
-	255
-};
+        					CCxxx0_FSCTRL1_RATE1,
+       						CCxxx0_MDMCFG4_RATE1,
+       						CCxxx0_MDMCFG3_RATE1,
+        					CCxxx0_MDMCFG2_RATE1,
+        					CCxxx0_MDMCFG1_RATE1,
+        					CCxxx0_DEVIATN_RATE1,
+        					CCxxx0_FOCCFG_RATE1,
+        					CCxxx0_FSCAL2_RATE1
+					};
 
 static const	byte	__pi_rate2 [] = {
 
-        CCxxx0_FSCTRL1, 0x0C,   // FSCTRL1
-       	CCxxx0_MDMCFG4, 0xCA,   // MDMCFG4 	(38.4 kbps)
-       	CCxxx0_MDMCFG3, 0x83,   // MDMCFG3
-        CCxxx0_MDMCFG2, 0x00 + 0x03,
-        CCxxx0_MDMCFG1, 0x40 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
-        CCxxx0_DEVIATN, 0x34,   // DEVIATN	47 -> 40 -> 34
-        CCxxx0_FOCCFG,  0x15,   // FOCCFG
-        CCxxx0_FSCAL2,  0x2A,   // FSCAL2
-
-	255
-};
+					        CCxxx0_FSCTRL1_RATE2,
+       						CCxxx0_MDMCFG4_RATE2,
+       						CCxxx0_MDMCFG3_RATE2,
+        					CCxxx0_MDMCFG2_RATE2,
+        					CCxxx0_MDMCFG1_RATE2,
+        					CCxxx0_DEVIATN_RATE2,
+        					CCxxx0_FOCCFG_RATE2,
+        					CCxxx0_FSCAL2_RATE2
+					};
 
 static const	byte	__pi_rate3 [] = {
 
-        CCxxx0_FSCTRL1, 0x0A,   // FSCTRL1	WAS 0C
+        					CCxxx0_FSCTRL1_RATE3,
+       						CCxxx0_MDMCFG4_RATE3,
+       						CCxxx0_MDMCFG3_RATE3,
+        					CCxxx0_MDMCFG2_RATE3,
+        					CCxxx0_MDMCFG1_RATE3,
+        					CCxxx0_DEVIATN_RATE3,
+        					CCxxx0_FOCCFG_RATE3,
+        					CCxxx0_FSCAL2_RATE3
+					};
 
- #ifdef TRUE_200KBAUD
-       	CCxxx0_MDMCFG4, 0x5C,   // TJS was 0x8C,   // MDMCFG4	(200 kbps)
-	CCxxx0_MDMCFG3, 0xF8,   // TJS 0x22,   // MDMCFG3
- #else
-       	CCxxx0_MDMCFG4, 0x8C,   // MDMCFG4	(200 kbps)
-	CCxxx0_MDMCFG3, 0x22,   // MDMCFG3
- #endif
+const	byte	*cc1100_ratemenu [] = {	__pi_rate0,
+					__pi_rate1,
+					__pi_rate2,
+					__pi_rate3  };
 
-        CCxxx0_MDMCFG2, 0x10 + 0x02,		// Single sync word
-        CCxxx0_MDMCFG1, 0x20 + CC1100_CHANSPC_E,// MDMCFG1 4 pre + ch spacing
-        CCxxx0_DEVIATN, 0x47,   // DEVIATN	47 -> 40 -> 34
-        CCxxx0_FOCCFG,  0x36,   // FOCCFG
-        CCxxx0_FSCAL2,  0x0A,   // FSCAL2
+#define	approx_xmit_time(p)	(vrate < 2 ? (p) : 1)
 
-	255
+#else
+
+#define	approx_xmit_time(p)	(RADIO_BITRATE_INDEX < 2 ? (p) : 1)
+
+#endif	/* RADIO_BITRATE_SETTABLE */
+
+// ============================================================================
+// Global settings ============================================================
+// ============================================================================
+
+// Automatic transitions of the RF automaton: after RX to IDLE, after TX to RX
+#define	MCSM1_TRANS_MODE	0x03
+// MSCM1 register settings (selecting global LBT mode)
+#define	MCSM1_LBT_OFF		(MCSM1_TRANS_MODE | (0 << 4))	// OFF
+#define	MCSM1_LBT_RCV		(MCSM1_TRANS_MODE | (2 << 4))	// If receiving
+#define	MCSM1_LBT_FULL		(MCSM1_TRANS_MODE | (3 << 4))	// Rcv+assess
+
+#if RADIO_LBT_MODE == 0
+	#define	CCxxx0_MCSM1_x	MCSM1_LBT_OFF
+#endif
+#if RADIO_LBT_MODE == 1
+	#define	CCxxx0_MCSM1_x	MCSM1_LBT_RCV
+#endif
+#if RADIO_LBT_MODE == 2 || RADIO_LBT_MODE == 3
+	#define	CCxxx0_MCSM1_x	MCSM1_LBT_FULL
+#endif
+
+#ifdef	__CC430__
+	// Recalibrate on exiting IDLE state, full SLEEP
+	#define	CCxxx0_MCSM0_x	0x10
+#else
+	// Changed from 0x14 to 0x18 (PG 100620), see page 78 PO_TIMEOUT
+	// (cc1101)
+	#define	CCxxx0_MCSM0_x	0x18
+#endif
+	
+const	byte	cc1100_rfsettings [] = {
+	0x2f,		// IOCFG2	unused and grounded
+	0x2f,		// IOCFG1	unused and grounded
+	IOCFG0_INT,	// IOCFG0	reception interrupt condition
+	0x0F,		// FIFOTHR	64 bytes in FIFO
+	((RADIO_SYSTEM_IDENT >> 8) & 0xff),	// SYNC1
+	((RADIO_SYSTEM_IDENT     ) & 0xff),	// SYNC0
+        MAX_TOTAL_PL,				// PKTLEN
+	(0x04 | AUTOFLUSH_FLAG),		// PKTCTRL1
+	// Whitening, packet length follows SYNC
+	(0x41 | CRC_FLAGS), 			// PKTCTRL0
+        0x00,   				// ADDR
+	RADIO_DEFAULT_CHANNEL,			// CHANNR
+	CCxxx0_FSCTRL1_RATEx,			// FSCTRL1 rate-specific
+	0x00,					// FSCTRL0
+	CC1100_FREQ_FREQ2_VALUE,   		// FREQ2
+        CC1100_FREQ_FREQ1_VALUE,   		// FREQ1 
+        CC1100_FREQ_FREQ0_VALUE,   		// FREQ0
+	CCxxx0_MDMCFG4_RATEx,			// MDMCFG4 rate-specific
+	CCxxx0_MDMCFG3_RATEx,			// MDMCFG3 rate-specific
+	CCxxx0_MDMCFG2_RATEx,			// MDMCFG2 rate-specific
+	CCxxx0_MDMCFG1_RATEx,			// MDMCFG1 rate-specific
+        CC1100_CHANSPC_M,   	   		// MDMCFG0 channel spacing
+	CCxxx0_DEVIATN_RATEx,			// DEVIATN rate-specific
+	0x07,					// MCSM2
+	CCxxx0_MCSM1_x,				// MCSM1
+	CCxxx0_MCSM0_x,				// MCSM0
+	CCxxx0_FOCCFG_RATEx,			// FOCCFG rate-specific
+	0x6c,					// BSCFG
+	// Changed Dec 31, 2006 PG from 0x83
+        0x03,   				// AGCCTRL2
+						// AGCCTRL1 (LBT thresholding)
+	0x40 | (((RADIO_CC_THRESHOLD-8) & 0xf) | (RADIO_CC_THRESHOLD_REL << 4)),
+	0x91,					// AGCCTRL0
+	0x87,					// WOREVT1 (reset value)
+	0x6B,					// WOREVT0 (reset value)
+	0xF8,					// WORCTRL (reset value)
+	0x56,					// FREND1
+	FREND0_SET | RADIO_DEFAULT_POWER,	// FREND0
+	0xA9,					// FSCAL3
+        CCxxx0_FSCAL2_RATEx,			// FSCAL2 rate-specific
+	0x00,					// FSCAL1
+	0x0D					// FSCAL0
+	// Note: removed FSTEST (RFM recommended the setting of 0x59; the
+	// manual insists the register should never be set
 };
 
-const	byte	*cc1100_ratemenu [] = {
-			__pi_rate0, __pi_rate1, __pi_rate2, __pi_rate3
-};
+#define	CC1100_N_REGS	sizeof (cc1100_rfsettings)
 
 // ============================================================================
 // ============================================================================
@@ -484,6 +594,7 @@ const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 
 extern const byte cc1100_rfsettings [];
 extern const byte *cc1100_ratemenu [];
+
 #if RADIO_LBT_MODE == 3
 extern const byte cc1100_agcctrl_table [];
 #endif
@@ -494,31 +605,7 @@ extern const byte cc1100_agcctrl_table [];
 #define	CC1100_PATABLE { 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xC6, 0xC3 }
 #endif
 
-#define	CC1100_NRATES	4
-
-#define	approx_xmit_time(p)	(vrate < 2 ? (p) : 1)
-
 #define	TXEND_POLL_DELAY	1	/* Milliseconds */
-
-#if	RADIO_DEFAULT_BITRATE == 5000
-#define	RADIO_BITRATE_INDEX	0
-#endif
-
-#if	RADIO_DEFAULT_BITRATE == 10000
-#define	RADIO_BITRATE_INDEX	1
-#endif
-
-#if	RADIO_DEFAULT_BITRATE == 38400
-#define	RADIO_BITRATE_INDEX	2
-#endif
-
-#if	RADIO_DEFAULT_BITRATE == 200000
-#define	RADIO_BITRATE_INDEX	3
-#endif
-
-#ifndef	RADIO_BITRATE_INDEX
-#error	"S: Unknown bit rate, legal rates are 5000, 10000, 38400, 200000"
-#endif
 
 // ============================================================================
 
@@ -569,7 +656,7 @@ extern const byte cc1100_agcctrl_table [];
 				csn_up; \
 				UWAIT41; \
 				SPI_START; \
-				cc1100_spi_out (CCxxx0_SRES); \
+				spi_out (CCxxx0_SRES); \
 				while (so_val); \
 				SPI_END; \
 			} while (0)
@@ -588,7 +675,5 @@ extern const byte cc1100_agcctrl_table [];
 			} while (0)
 
 extern word		__pi_v_drvprcs, __pi_v_qevent;
-
-#endif	/* FOR EXPERIMENTAL DRIVER ONLY, REMOVE THIS #endif WHEN DONE */
 
 #endif

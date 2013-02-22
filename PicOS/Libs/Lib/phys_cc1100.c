@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -10,6 +10,24 @@
 #include "kernel.h"
 #include "tcvphys.h"
 #include "cc1100.h"
+
+
+
+
+
+
+#ifdef	CC1100_EXPERIMENTAL_DRIVER
+
+#include "phys_cc1100_e.c"
+
+#else
+
+
+
+
+
+
+
 
 static int option (int, address);
 static void chip_reset();
@@ -1359,3 +1377,5 @@ RVal:
 
 	return ret;
 }
+
+#endif	/* FOR EXPERIMENTAL DRIVER ONLY, REMOVE THIS #endif WHEN DONE */
