@@ -494,4 +494,8 @@ PG130214A:	PICOS >= PG130214A, VUEE >= PG130214A
 	   For the "sampled" channel model, you can now define sigma on a
 	   per-distance basis. This is described in the VUEE doc.
 
+PG130222A:
 
+	   Wlodek discovered that the compiler couldn't find the declaration
+	   of function getline on an older version of Cygwin. This should fix
+	   it.

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-06   P. Gburzynski */
+/* Copyright (C) 1991-13   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -10,6 +10,9 @@
 
 #define	OBUFSIZE  256		// Size of an ostream buffer
 
+#define	_GNU_SOURCE	1
+
+#include	<stdio.h>
 #include	<string.h>
 #include	<math.h>
 #include	<stdarg.h>
