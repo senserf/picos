@@ -3,6 +3,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+// Experimental new driver for CC1100
+
 // This one is interpreted in cc1100.h and indicates that this inclusion of the
 // file should declare the static arrays with settings
 #define	CC1100_DEFINE_RF_SETTINGS	1
@@ -346,7 +348,7 @@ static byte read_status () {
 			// Loop on these until they go away
 			case CC1100_STATE_CALIBRATE:
 			case CC1100_STATE_SETTLING:
-				udelay (500);
+				udelay (50);
 				break;
 
 			default:
@@ -932,7 +934,7 @@ OREvnt:
 
 		{
 			word i;
-			byte *r;
+			const byte *r;
 
 			r = cc1100_ratemenu [
 				(val == NULL) ? RADIO_BITRATE_INDEX :
@@ -953,6 +955,18 @@ OREvnt:
 #endif
 	    case PHYSOPT_RESET:
 
+#if (RADIO_OPTIONS & 0x40)
+		if (val != NULL) {
+
+			byte *r;
+
+			for (r = (byte*)val; *r != 255; r += 2)
+				set_reg (*r, *(r+1));
+
+			// Do not reset
+			break;
+		}
+#endif
 		chip_reset ();
 		goto OREvnt;
 
@@ -1066,7 +1080,7 @@ void phys_cc1100 (int phy, int mbs) {
 	LEDI (1, 0);
 	LEDI (2, 0);
 
-	// Initialize the device (this is done only once)
+	// Initialize the device
 	ini_regs;
 	chip_reset ();
 

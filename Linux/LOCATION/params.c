@@ -477,9 +477,10 @@ void set_params_dis (sxml_t xmlp) {
 			abt ("<dis> tag attribute (%s) is not an int", att);
 		// Note that set_params_rts was called earlier, so it is OK to
 		// call rssi_to_slr
-		if ((PM_dis_taf = rssi_to_slr (PM_dis_tag = iv)) < 0.0)
-			// This is always nonnegative
-			PM_dis_taf = -PM_dis_taf;
+		if ((PM_dis_tag = iv) < 0)
+			iv = -iv;
+		// This is always nonnegative
+		PM_dis_taf = rssi_to_slr (iv);
 	}
 
 	if ((att = (char*) sxml_attr (xmlp, "fac")) != NULL) {

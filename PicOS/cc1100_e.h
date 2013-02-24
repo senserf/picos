@@ -33,6 +33,7 @@
 //	0x04 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
 //	0x08 prechecks: initial check for RF chip present (to prevent hangups)
 //  	0x10 lean code: remove parameter checks for driver requests
+//	0x40 RESET with argument writes into registers (doing no reset)
 //	0x80 collect entropy from the air on startup
 // ============================================================================
 
@@ -632,8 +633,8 @@ extern const byte cc1100_agcctrl_table [];
 #define	SPI_END		CNOP
 
 #define	full_reset	do { \
-				cc1100_strobe (CCxxx0_SRES); \
-				cc1100_strobe (CCxxx0_SNOP); \
+				strobe (CCxxx0_SRES); \
+				strobe (CCxxx0_SNOP); \
 			} while (0)
 
 #else

@@ -6,6 +6,7 @@
 #include "sysio.h"
 #include "form.h"
 #include "tcvphys.h"
+#include "cc1100.h"
 #include "phys_cc1100.h"
 #include "phys_uart.h"
 #include "plug_null.h"
@@ -38,7 +39,12 @@ lword	g_pat_acc;
 byte	g_pat_cset [] = { 0x3e, 0, 255 }, g_pat_cred;
 
 char	*g_snd_rcmd, *g_pcmd_cmd;
+
+#ifdef	CC1100_EXPERIMENTAL_DRIVER
+const byte g_patable [] = CC1100_PATABLE;
+#else
 byte	*g_reg_suppl;
+#endif
 
 address	g_rcv_ackrp;
 
@@ -411,7 +417,14 @@ word do_command (const char *cb, word sender, word sernum) {
 		}
 
 		if (n == 0) {
-			// This means remove previous table
+			// This means remove previous table; note with the new
+			// driver, the command works differently, i.e., the
+			// registers are modified in place and there is no
+			// supplementary table
+#ifdef CC1100_EXPERIMENTAL_DRIVER
+			// Do nothing
+			CNOP;
+#else
 			if (g_reg_suppl) {
 				rs = NULL;
 CDiff:
@@ -421,6 +434,7 @@ CDiff:
 				tcv_control (g_fd_rf, PHYSOPT_RESET,
 					(address)g_reg_suppl);
 			}
+#endif
 		} else {
 			if (n & 1)
 				return 4;
@@ -444,7 +458,10 @@ CDiff:
 			}
 
 			rs [n] = 0xff;
-
+#ifdef CC1100_EXPERIMENTAL_DRIVER
+			tcv_control (g_fd_rf, PHYSOPT_RESET, (address) rs);
+			ufree (rs);
+#else
 			// Check if this is a different table
 			if (!g_reg_suppl)
 				// Different, the previous one was empty
@@ -465,6 +482,7 @@ CDiff:
 			}
 			// Same
 			ufree (rs);
+#endif
 		}
 		// Do nothing
 		return 0;
@@ -884,8 +902,13 @@ fsm thread_patable {
   entry PA_DONE:
 
 	uart_outf (PA_DONE, "All done");
-	// Resume previous settings
+	// Resume previous setting
+#ifdef CC1100_EXPERIMENTAL_DRIVER
+	g_pat_cset [1] = g_patable [0];
+	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)&g_pat_cset);
+#else
 	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)g_reg_suppl);
+#endif
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &spow);
 	finish;
 }
@@ -1180,7 +1203,7 @@ fsm root {
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
 	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
 
-	tcv_control (g_fd_rf, PHYSOPT_TXON, NULL);
+	// tcv_control (g_fd_rf, PHYSOPT_TXON, NULL);
 	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
 	runfsm thread_listener;
 

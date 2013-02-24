@@ -3071,3 +3071,23 @@ PG130222A:
 	driver should appear as before.
 
 	I haven't checked CC430 with the new driver yet.
+
+PG130224A:
+
+	Fixed a bug in LOCATION/params.c. The tag attribute of <dis> was not
+	read correctly.
+
+	Added an option to the new (experimental) CC1100 driver to set
+	registers. It works similar (but different) to the old driver. If
+	RADIO_OPTIONS includes 0x40, a RESET with an argument causes no reset,
+	but the argument is interpreted as a pointer to a list of pairs:
+	[register, value] as before. The difference is that the list is not
+	stored as a "supplement", but applied once and that action is not
+	followed by a reset. To reset the chip, you have to issue an
+	argument-less RESET request, which will just reset the chip to the
+	state after initialization, with any later register updates removed.
+	This is probably how it will look in the target version of the driver.
+
+	I have tested CC430 with the new driver. It seems to work fine, except
+	that my prototype board is experiencing some strange hangups (which may
+	be unrelated to the radio). I will keep testing.
