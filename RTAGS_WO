@@ -225,11 +225,11 @@ days.
 
 WO130224A:
 Location-related (partial) works.
-Ariadne:
+Ariadne 
 - allow TARP_RTR, even if not immediately needed.
 - adapt a flavour of combat10.xml, common for experiments and simulations.
 - surloc.tcl - location-related (temporary) script.
-Netting:
+Netting 
 - If compiled with ODR_FILL_BCAST (by default present in options.sys), at
   'broadcast steps' in ODR nodes fill in their ids. It helps with RSSI
   recording, but also makes the ODR strict when retracting to the source;
