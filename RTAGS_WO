@@ -223,3 +223,22 @@ should wait for some form of TARP test bed. Either we'll try something within
 SIDE, as we discussed with Pawel, or we'll reheat old tries from TARP's early
 days.
 
+WO130224A:
+Location-related (partial) works.
+Ariadne 
+- allow TARP_RTR, even if not immediately needed.
+- adapt a flavour of combat10.xml, common for experiments and simulations.
+- surloc.tcl - location-related (temporary) script.
+Netting 
+- If compiled with ODR_FILL_BCAST (by default present in options.sys), at
+  'broadcast steps' in ODR nodes fill in their ids. It helps with RSSI
+  recording, but also makes the ODR strict when retracting to the source;
+  hence under the option.
+- 'f' command formats OSS out. If set, the ODR output is suitable for
+  SIMPLE experiments, where the server uses the string to set return path.
+  Defaults to 0, not written to FIM. It replaces compile-time
+  ODR_MHOP_SERV_EXPER, which is eliminated.
+- options.sys cleaned up a bit.
+- Added exp subdir, location-related, see Expernetting.odt there.
+- rssi.tcl and loca.tcl - location-related (temporary) scripts.
+
