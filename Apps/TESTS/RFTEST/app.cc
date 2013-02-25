@@ -1218,7 +1218,7 @@ fsm root {
 
   entry RS_ON:
 
-	uart_out (RS_ON, "Ready:");
+	uart_outf (RS_ON, "Ready %u:", HOST_ID);
 
   entry RS_READ:
 

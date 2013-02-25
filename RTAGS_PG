@@ -3091,3 +3091,15 @@ PG130224A:
 	I have tested CC430 with the new driver. It seems to work fine, except
 	that my prototype board is experiencing some strange hangups (which may
 	be unrelated to the radio). I will keep testing.
+
+PG130225A:
+
+	A minor adjustment to the new CC1100 driver to fix a problem that
+	probably caused the occasional hangups with CC430 (tests in progress).
+	Modified PATABLE for the new driver according to my tests. This is
+	described in a separate note. Briefly: the highest power entry replaced
+	with 0xE0, entry 0xC6 removed (not sure how it ever got there), then
+	the remaining entries shifted up and entry 0x00 added at the bottom.
+	That one gives the lowest (ever receivable) transmit power.
+
+	Added a few DEBUG messages to locengine to verify the calculations.

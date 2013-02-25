@@ -109,9 +109,16 @@ static float pdist (tpoint_t *P, alitem_t *al, int N) {
 				// This is a bound
 				if (ss > PM_dis_taf)
 					ss = PM_dis_taf;
+#if DEBUGGING
+				printf ("DIST THR: %d, %u, %1.2f\n", i, CP, ss);
+#endif
 			}
 			Delta = ss - PM_dis_taf;
 			S += Delta * Delta;
+#if DEBUGGING
+			printf ("DIST DTHR: %d, %u, %1.2f %1.2f\n",
+				i, CP, Delta, sqrt (S));
+#endif
 			NM ++;
 			continue;
 		}
@@ -136,12 +143,18 @@ static float pdist (tpoint_t *P, alitem_t *al, int N) {
 Found:
 		Delta = al [i].SLR - PI [mid].SLR;
 		S += Delta * Delta;
+#if DEBUGGING
+		printf ("DIST: %d, %u, %1.2f, %1.2f\n", i, CP, Delta, sqrt (S));
+#endif
 		NM ++;
 	}
 
 	if (NM < PM_dis_min)
 		// Cannot calculate the distance
 		return -1.0;
+#if DEBUGGING
+		printf ("DIST FAC: %d, %1.2f\n", NM, sqrt (NM * PM_dis_fac));
+#endif
 
 	return (float) sqrt (S / (NM * PM_dis_fac));
 }
@@ -323,6 +336,10 @@ NextP:		db_next_point ();
 	// We are left with the final pool
 #if DEBUGGING
 	printf ("FINAL: %1d\n", LM_N);
+	for (p = LM_SEL; p != NULL; p = p->Next) {
+		printf ("DIST: %1.2f === ", p->D);
+		dump_pt (p->P);
+	}
 #endif
 	if (LM_N == 0)
 		// No way
@@ -335,6 +352,9 @@ NextP:		db_next_point ();
 		for (D = 0.0, p = LM_SEL; p != NULL; p = p->Next)
 			// Precompute sum of discrepancies
 			D += p->D;
+#if DEBUGGING
+		printf ("SODISC: %1.2f\n", D);
+#endif
 		// Precompute the exponent
 		for (s = 0.0, p = LM_SEL; p != NULL; p = p->Next) {
 			// This is the weight
@@ -343,6 +363,10 @@ NextP:		db_next_point ();
 			s += W;
 			x += p->P->x * W;
 			y += p->P->y * W;
+#if DEBUGGING
+			printf ("LWEIGHT: %1.2f, %1.2f->%1.2f, %1.2f->%1.2f, "
+				"%1.2f\n", W, p->P->x, x, p->P->y, y, s);
+#endif
 		}
 	} else {
 		// Exponential
@@ -353,6 +377,10 @@ NextP:		db_next_point ();
 			s += W;
 			x += p->P->x * W;
 			y += p->P->y * W;
+#if DEBUGGING
+			printf ("EWEIGHT: %1.2f, %1.2f->%1.2f, %1.2f->%1.2f, "
+				"%1.2f\n", W, p->P->x, x, p->P->y, y, s);
+#endif
 		}
 	}
 

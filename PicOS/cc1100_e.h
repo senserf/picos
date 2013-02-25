@@ -321,7 +321,7 @@
 // 4.8 kbps
 #define CCxxx0_MDMCFG4_RATE0	0xC7
 #define CCxxx0_MDMCFG3_RATE0	0x83
-// Double sync word
+// FSK + double sync word
 #define CCxxx0_MDMCFG2_RATE0	(0x00 + 0x03)
 // Preamble + ch spacing
 #define CCxxx0_MDMCFG1_RATE0	(0x40 + CC1100_CHANSPC_E)
@@ -359,7 +359,7 @@
 // 200 kbps
 #define CCxxx0_MDMCFG4_RATE3	0x8C
 #define CCxxx0_MDMCFG3_RATE3	0x22
-// Single sync word
+// GFSK + single sync word
 #define CCxxx0_MDMCFG2_RATE3	(0x10 + 0x02)
 #define CCxxx0_MDMCFG1_RATE3	(0x20 + CC1100_CHANSPC_E)
 #define CCxxx0_DEVIATN_RATE3	0x47
@@ -603,7 +603,7 @@ extern const byte cc1100_agcctrl_table [];
 #endif	/* DEFINE_RF_SETTINGS */
 
 #ifndef CC1100_PATABLE
-#define	CC1100_PATABLE { 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xC6, 0xC3 }
+#define	CC1100_PATABLE { 0x00, 0x03, 0x1C, 0x57, 0x8E, 0x85, 0xCC, 0xE0 }
 #endif
 
 #define	TXEND_POLL_DELAY	1	/* Milliseconds */

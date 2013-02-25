@@ -482,6 +482,7 @@ static void do_rx_fifo () {
 #endif
 RRX:
 		// Reset to RX
+		enter_idle ();
 		rx_reset ();
 		goto Rtn;
 	}
