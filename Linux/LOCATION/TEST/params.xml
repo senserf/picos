@@ -1,6 +1,6 @@
 <data>
 <slr> (30 0.0) (240 210.0) </slr>
-<dis min="2" fac="1.5" tag="-140"/>
+<dis min="2" fac="1.5" tag="-230"/>
 <sel min="3" max="9" fac="1.5"/>
-<ave for="exp" fac="3.0">
+<ave for="exp" fac="5.0">
 </data>

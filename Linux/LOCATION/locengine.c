@@ -370,16 +370,23 @@ NextP:		db_next_point ();
 		}
 	} else {
 		// Exponential
+		for (m = 0, D = 0.0, p = LM_SEL; p != NULL; p = p->Next, m++)
+			// Calculate the average discrepancy to make the
+			// result scale-invariant
+			D += p->D;
+
+		D /= m;
+
 		for (s = 0.0, p = LM_SEL; p != NULL; p = p->Next) {
 			// This is the weight
-			W = exp (-(p->D * PM_ave_fac));
+			W = exp (-((p->D/D) * PM_ave_fac));
 			// Accumulate
 			s += W;
 			x += p->P->x * W;
 			y += p->P->y * W;
 #if DEBUGGING
-			printf ("EWEIGHT: %1.2f, %1.2f->%1.2f, %1.2f->%1.2f, "
-				"%1.2f\n", W, p->P->x, x, p->P->y, y, s);
+			printf ("EWEIGHT: %g, %1.2f->%1.2f, %1.2f->%1.2f, "
+				"%g\n", W, p->P->x, x, p->P->y, y, s);
 #endif
 		}
 	}

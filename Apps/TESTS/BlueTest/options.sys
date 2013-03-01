@@ -1,5 +1,5 @@
 // ============================================================================
-#define BT_MODULE_LINKMATIK
+// #define BT_MODULE_LINKMATIK
 // #define BT_MODULE_BTM182
-// #define BT_MODULE_BOLUTEK
+#define BT_MODULE_BOLUTEK
 // ============================================================================

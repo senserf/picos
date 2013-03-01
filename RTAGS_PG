@@ -3103,3 +3103,8 @@ PG130225A:
 	That one gives the lowest (ever receivable) transmit power.
 
 	Added a few DEBUG messages to locengine to verify the calculations.
+
+PG130301A:
+
+	Fixed a problem in LOCATION/locengine.c causing that the exponential
+	weights for final coordinate averaging were not scale invariant.
