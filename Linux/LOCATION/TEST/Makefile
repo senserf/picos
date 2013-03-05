@@ -16,3 +16,6 @@ query.o:		query.c
 
 clean:
 			rm -f *.o
+
+cleanall:
+			rm -f *.o gen_random_db query

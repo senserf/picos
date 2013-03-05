@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -313,13 +313,20 @@ word do_command (const char *cb, word sender, word sernum) {
 		return 0;
 	    }
 
-	    case 'f':
+	    case 'f': {
+
+		word wormode;
 
 		if (sender)
 			return 11;
 
-		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
+		wormode = 0;
+
+		scan (cb + 1, "%u", &wormode);
+
+		tcv_control (g_fd_rf, PHYSOPT_RXOFF, &wormode);
 		return 0;
+	    }
 
 	    case 'g':
 

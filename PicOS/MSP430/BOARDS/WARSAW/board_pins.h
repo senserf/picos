@@ -35,15 +35,6 @@
 
 // ============================================================================
 
-#if UART_DRIVER > 1 || UART_TCV > 1
-// ============================================================================
-// This also means that CTS/RTS are disconnected from RXD1/TXD1, as they should
-// be
-// ============================================================================
-#define	PIN_DEFAULT_P3DIR	0x5F
-
-#else
-
 // 0 doubles with RXD1 (as CTS, and is in the way, so must be input)
 // 1 doubles with TXD0 (and is in the way, so must be input)
 // 2 doubles with RXD0 (and is in the way, so must be input)
@@ -53,9 +44,6 @@
 // 6 is TXD1
 // 7 is RXD1
 #define	PIN_DEFAULT_P3DIR	0x50
-//#define	PIN_DEFAULT_P3DIR	0xC9
-// ============================================================================
-#endif
 
 // 1, 2, 3 = LEDs, 0, 4-7 = general unused by default
 #define PIN_DEFAULT_P4DIR	0xFF

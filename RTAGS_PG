@@ -3108,3 +3108,12 @@ PG130301A:
 
 	Fixed a problem in LOCATION/locengine.c causing that the exponential
 	weights for final coordinate averaging were not scale invariant.
+
+PG120305A:
+
+	WOR option added to the new (aka experimental) CC1100 driver. For now,
+	it is a preliminary solution with fixed-length rounds: 113.4 seconds
+	with 0.391% duty cycle. I will write a detailed description after I
+	am done with preliminary tests.
+
+	A few minor cleanups here and there.

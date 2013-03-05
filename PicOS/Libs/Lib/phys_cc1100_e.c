@@ -256,9 +256,13 @@ static byte	retr = 0;	// Retry counter for staged LBT
 static byte	vrate = 0;
 #endif
 
+#if RADIO_WOR_MODE
+static byte	woron = 0;
+#endif
+
 static const byte patable [] = CC1100_PATABLE;
 
-#define	RCV_STATE_PD	2	// Powered down
+#define	RCV_STATE_PD	2	// Power down or WOR
 #define	RCV_STATE_OFF	1
 #define RCV_STATE_ON	0
 
@@ -402,15 +406,55 @@ static void enter_rx () {
 	syserror (EHARDWARE, "cc11 er");
 }
 
+static void set_reg_group (const byte *r, const byte *v, word n) {
+
+	do { --n; set_reg (r [n], v [n]); } while (n);
+}
+
 // ============================================================================
 
 static void power_down () {
 
-#if (RADIO_OPTIONS & 0x02)
-	diag ("CC1100: %u POWER DOWN", (word) seconds ());
-#endif
 	enter_idle ();
-	strobe (CCxxx0_SPWD);
+
+#if RADIO_WOR_MODE
+	if (woron) {
+		// The procedure of entering WOR is a bit tricky, somewhat
+		// trickier than one would expect based on the doc. One problem
+		// is the always lingering "PQT reached" signal from the
+		// last RX mode, which gets always set, because we don't use
+		// PQT for normal reception (so the threshold is permanently
+		// reached). We want to get rid of this signal BEFORE we switch
+		// the role of GDO0 to "PQT reached", as otherwise the
+		// interrupt will be triggered immediately. So we start with a
+		// dummy setting of PKTCTRL1 to the highest possible PQT:
+		set_reg (CCxxx0_PKTCTRL1, 0xE0);
+		// ... then we enter RX to clear the PQT reached signal
+		enter_rx ();
+		// ... then we enter IDLE again in preparation for WOR
+		enter_idle ();
+		// ... then we set the registers for WOR operation
+		set_reg_group (cc1100_wor_sr, cc1100_wor_von,
+			sizeof (cc1100_wor_sr));
+		// ... now we can enable the interrupt, which is not pending
+		// any more. Note that whoever calls power_down running this
+		// code (entering WOR) MUST BE already prepared to receive
+		// interrupts. A missing interrupt means hung WOR.
+		rcv_enable_int;
+
+		strobe (CCxxx0_SWOR);
+#if (RADIO_OPTIONS & 0x02)
+		diag ("CC1100: %u WOR", (word) seconds ());
+#endif
+	} else
+#endif
+	{
+		strobe (CCxxx0_SPWD);
+#if (RADIO_OPTIONS & 0x02)
+		diag ("CC1100: %u POWER DOWN", (word) seconds ());
+#endif
+	}
+
 	RxST = RCV_STATE_PD;
 }
 
@@ -420,9 +464,13 @@ static void chip_reset () {
 //
 // Reset the module to standard register setting in power down mode
 //
+#if RADIO_WOR_MODE
+	woron = 0;
+#endif
 	full_reset;
 	// Set the registers
-	set_reg_burst (0x00, (byte*)cc1100_rfsettings, CC1100_N_REGS);
+	set_reg_burst (0x00, (byte*)cc1100_rfsettings,
+		sizeof (cc1100_rfsettings));
 	power_down ();
 #if RADIO_BITRATE_SETTABLE
 	vrate = RADIO_BITRATE_INDEX;
@@ -452,6 +500,11 @@ static void power_up () {
 // Return from sleep
 //
 	enter_idle ();
+#if RADIO_WOR_MODE
+	if (woron)
+		set_reg_group (cc1100_wor_sr, cc1100_wor_voff,
+			sizeof (cc1100_wor_sr));
+#endif
 	// Load PATABLE
 	set_reg_burst (CCxxx0_PATABLE, (byte*) patable, sizeof (patable));
 	rx_reset ();
@@ -646,6 +699,9 @@ Rtn:
 
 #define	DR_LOOP		0
 #define	DR_SWAIT	1
+#define	DR_WORTMOUT	2
+#define	DR_XMIT		3
+#define	DR_BREAK	4
 
 thread (cc1100_driver)
 
@@ -665,29 +721,53 @@ thread (cc1100_driver)
 			do_rx_fifo ();
 	}
 
+#if RADIO_WOR_MODE
+	else if (woron) {
+		// PD & woron means that we are running WOR; threat this as a
+		// signal to get back to normal; if this is an interrupt, it
+		// means PQT reached; otherwise, it is a request to the driver,
+		// which requires it to have a look around and maybe transmit
+		// a packet; in any case, we begin to listen
+		power_up ();
+		// When woron is set, RxST should never become RCV_STATE_OFF
+		RxST = RCV_STATE_ON;
+	}
+#endif
 	if (tcvphy_top (physid) == NULL) {
-		// Nothing to transmit
-		if (RxST == RCV_STATE_OFF) {
-			// Nothing to transmit, receiver off -> power down
-			power_down ();
-			// Flag == powered down
-			RxST = RCV_STATE_PD;
-		}
-WEvent:
+		// Nothing to transmit; we know that we shall be waiting
 		wait (__pi_v_qevent, DR_LOOP);
+#if RADIO_WOR_MODE
+		if (woron) {
+			// Listen for a while before resuming WOR; do that only
+			// if nothing happens in the meantime
+			delay (RADIO_WOR_IDLE_TIMEOUT, DR_WORTMOUT);
+			rcv_enable_int;
+			release;
+		}
+#endif
+		// Not WOR mode
+		if (RxST == RCV_STATE_OFF) 
+			// Nothing to transmit, no WOR, receiver off -> power
+			// down
+			power_down ();
+WEvent:
 		if (RxST != RCV_STATE_PD)
+			// Enable RX interrupt
 			rcv_enable_int;
 		release;
 	}
 
+	// We do have a packet to transmit
+
 	if (bckf_timer) {
+		wait (__pi_v_qevent, DR_LOOP);
 		delay (bckf_timer, DR_LOOP);
 		goto WEvent;
 	}
 
-	// We've got something to transmit
 	if (RxST == RCV_STATE_PD) {
-		// We are powered down, have to power up
+		// We are powered down, have to power up, cannot happen with
+		// woron, as we should be up at this stage with RX
 		power_up ();
 		RxST = RCV_STATE_OFF;
 	}
@@ -760,8 +840,24 @@ WEvent:
 		set_congestion_indicator (0);
 	}
 
+#if RADIO_WOR_MODE
+
+	if (woron) {
+		delay (RADIO_WOR_PREAMBLE_TIME, DR_XMIT);
+		wait (__pi_v_qevent, DR_BREAK);
+		release;
+	}
+
+  entry (DR_XMIT)
+
+	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL)
+		// This can fail, because we have been sleeping for a while,
+		// but only if woron is set
+		goto Break;
+#else
 	// This cannot possibly fail
 	xbuff = tcvphy_get (physid, &paylen);
+#endif
 
 	// A packet arriving from TCV always contains CRC slots, even if
 	// we are into hardware CRC; its minimum legit length is SID + CRC
@@ -828,6 +924,28 @@ FEXmit:
 #endif
 	proceed (DR_LOOP);
 
+#if RADIO_WOR_MODE
+
+  entry (DR_WORTMOUT)
+
+	if (woron && !RX_FIFO_READY && tcvphy_top (physid) == NULL) {
+		// This will enter WOR mode
+		wait (__pi_v_qevent, DR_LOOP);
+		power_down ();
+		release;
+	}
+
+	proceed (DR_LOOP);	
+
+  entry (DR_BREAK)
+
+	// Abort the preamble, enter RX, and do it again
+Break:
+	enter_rx ();
+	proceed (DR_LOOP);
+
+#endif
+
 endthread
 
 // ============================================================================
@@ -848,7 +966,9 @@ static int option (int opt, address val) {
 		if (RxST == RCV_STATE_PD)
 			// We have been switched off
 			power_up ();
-
+#if RADIO_WOR_MODE
+		woron = 0;
+#endif
 		RxST = RCV_STATE_ON;
 		LEDI (0, 1);
 OREvnt:
@@ -862,6 +982,19 @@ OREvnt:
 
 	    case PHYSOPT_RXOFF:
 
+#if RADIO_WOR_MODE
+		if (val != NULL && *val) {
+			// Enter WOR
+			if (woron)
+				break;
+			woron = 1;
+			if (RxST == RCV_STATE_OFF)
+				// Make sure that RxST is never RCV_STATE_OFF
+				// when woron is set; will truly enter WOR
+				// after the first timeout
+				RxST = RCV_STATE_ON;
+		} else
+#endif
 		if (RxST == RCV_STATE_ON)
 			RxST = RCV_STATE_OFF;
 
@@ -943,8 +1076,8 @@ OREvnt:
 					*val)
 			];
 
-			for (i = 0; i < sizeof (cc1100_ratereg); i++)
-				set_reg (cc1100_ratereg [i], r [i]);
+			set_reg_group (cc1100_ratereg, r,
+				sizeof (cc1100_ratereg));
 		}
 
 		break;

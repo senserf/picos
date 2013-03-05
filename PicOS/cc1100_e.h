@@ -139,6 +139,10 @@
 #define	RADIO_CAV_SETTABLE	0
 #endif
 
+#ifndef	RADIO_WOR_MODE
+#define	RADIO_WOR_MODE		0
+#endif
+
 // ============================================================================
 
 #if (RADIO_CRC_MODE & 4)
@@ -503,6 +507,13 @@ const	byte	*cc1100_ratemenu [] = {	__pi_rate0,
 #define	MCSM1_LBT_RCV		(MCSM1_TRANS_MODE | (2 << 4))	// If receiving
 #define	MCSM1_LBT_FULL		(MCSM1_TRANS_MODE | (3 << 4))	// Rcv+assess
 
+#define	CCxxx0_MCSM2_x		0x07
+
+#define	CCxxx0_AGCCTRL1_x	(0x40 | (((RADIO_CC_THRESHOLD-8) & 0xf) | \
+					(RADIO_CC_THRESHOLD_REL << 4)))
+
+#define	CCxxx0_PKTCTRL1_x	(0x04 | AUTOFLUSH_FLAG)
+
 #if RADIO_LBT_MODE == 0
 	#define	CCxxx0_MCSM1_x	MCSM1_LBT_OFF
 #endif
@@ -521,7 +532,72 @@ const	byte	*cc1100_ratemenu [] = {	__pi_rate0,
 	// (cc1101)
 	#define	CCxxx0_MCSM0_x	0x18
 #endif
+
+// ============================================================================
 	
+#if RADIO_WOR_MODE
+
+#ifndef	RADIO_WOR_IDLE_TIMEOUT
+#define	RADIO_WOR_IDLE_TIMEOUT		4096
+#endif
+
+#ifndef	RADIO_WOR_PREAMBLE_TIME
+#define	RADIO_WOR_PREAMBLE_TIME		3072
+#endif
+
+// This is the maximum, which, at WOR_RES == 0, should yield ca. 1.89 sec for
+// the complete cycle (assuming 26MHz crystal, which we assume throughout)
+#define	WOR_EVT0_TIME	0xFFFF
+
+// With WOR_RES == 0, 5 yields 0.391% duty cycle, while 6 is 0.195%; at max
+// WOR_EVT0_TIME, they translate into ca. 7.4ms and 3.7ms, i.e., 74 and 37
+// bits @ 10kbps
+#define	WOR_RX_TIME	5
+
+// With WOR_AUTOSYNC = 0 (which is our only sensible choice), this gives the
+// number of RC oscillator ticks (fosc/750): 4, 6, 8, 12, 16, 24, 32, 48
+// (1 tick = 2.88x10^-5 sec = 0.0288 msec) until EVENT1. The documents are
+// confusing. At some point they say that FS calibration counts to EVENT1
+// delay, at some other that it doesn't. The most conservative setting is 7.
+// We shall experiment.
+#define	WOR_EVT1_TIME	7
+
+// Preamble quality threshold: 1 means 4 bits, 2 - 8 bits, 3 - 12 bits; it is
+// in fact a bit more complicated (see PKTCTRL1 in doc)
+#define	WOR_PQ_THR	3
+
+const	byte	cc1100_wor_sr [] = {
+// Registers to set when entering WOR
+	CCxxx0_IOCFG0,
+	CCxxx0_PKTCTRL1,
+	CCxxx0_AGCCTRL1,
+	CCxxx0_WORCTRL,
+	CCxxx0_MCSM2
+};
+
+const	byte	cc1100_wor_von [] = {
+// Register values when WOR is on
+	0x08,				// Preamble quality OK
+	WOR_PQ_THR << 5,		// PQT
+	0x40 | 0x9,			// Lowest RSSI threshold
+	// RC calibration enabled (should it be?) + WOR_RES = 0
+	(WOR_EVT1_TIME << 4) | 0x8,
+	(0x18 | WOR_RX_TIME)		// RX_TIME_RSSI | RX_TIME_QUAL
+};
+
+const	byte	cc1100_wor_voff [] = {
+// Register values when WOR is off
+	IOCFG0_INT,			// Standard RX interrupt
+	CCxxx0_PKTCTRL1_x,
+	CCxxx0_AGCCTRL1_x,
+	0xf8,				// Reset value
+	CCxxx0_MCSM2_x
+};
+
+#endif	/* RADIO_WOR_MODE */
+
+// ============================================================================
+
 const	byte	cc1100_rfsettings [] = {
 	0x2f,		// IOCFG2	unused and grounded
 	0x2f,		// IOCFG1	unused and grounded
@@ -530,7 +606,7 @@ const	byte	cc1100_rfsettings [] = {
 	((RADIO_SYSTEM_IDENT >> 8) & 0xff),	// SYNC1
 	((RADIO_SYSTEM_IDENT     ) & 0xff),	// SYNC0
         MAX_TOTAL_PL,				// PKTLEN
-	(0x04 | AUTOFLUSH_FLAG),		// PKTCTRL1
+	CCxxx0_PKTCTRL1_x, 			// PKTCTRL1
 	// Whitening, packet length follows SYNC
 	(0x41 | CRC_FLAGS), 			// PKTCTRL0
         0x00,   				// ADDR
@@ -546,18 +622,22 @@ const	byte	cc1100_rfsettings [] = {
 	CCxxx0_MDMCFG1_RATEx,			// MDMCFG1 rate-specific
         CC1100_CHANSPC_M,   	   		// MDMCFG0 channel spacing
 	CCxxx0_DEVIATN_RATEx,			// DEVIATN rate-specific
-	0x07,					// MCSM2
+	CCxxx0_MCSM2_x,				// MCSM2
 	CCxxx0_MCSM1_x,				// MCSM1
 	CCxxx0_MCSM0_x,				// MCSM0
 	CCxxx0_FOCCFG_RATEx,			// FOCCFG rate-specific
 	0x6c,					// BSCFG
 	// Changed Dec 31, 2006 PG from 0x83
         0x03,   				// AGCCTRL2
-						// AGCCTRL1 (LBT thresholding)
-	0x40 | (((RADIO_CC_THRESHOLD-8) & 0xf) | (RADIO_CC_THRESHOLD_REL << 4)),
+	CCxxx0_AGCCTRL1_x,			// AGCCTRL1 (LBT thresholding)
 	0x91,					// AGCCTRL0
+#if RADIO_WOR_MODE
+	WOR_EVT0_TIME >> 8,			// WOREVT1
+	WOR_EVT0_TIME & 0xff,			// WOREVT0
+#else
 	0x87,					// WOREVT1 (reset value)
 	0x6B,					// WOREVT0 (reset value)
+#endif
 	0xF8,					// WORCTRL (reset value)
 	0x56,					// FREND1
 	FREND0_SET | RADIO_DEFAULT_POWER,	// FREND0
@@ -568,8 +648,6 @@ const	byte	cc1100_rfsettings [] = {
 	// Note: removed FSTEST (RFM recommended the setting of 0x59; the
 	// manual insists the register should never be set
 };
-
-#define	CC1100_N_REGS	sizeof (cc1100_rfsettings)
 
 // ============================================================================
 // ============================================================================

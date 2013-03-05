@@ -19,3 +19,6 @@ sxml.o:		sxml.c sxml.h
 
 clean:
 		rm -f *.o
+
+cleanall:
+		rm -f *.o libloc.a
