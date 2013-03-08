@@ -404,11 +404,11 @@
 #if RADIO_WOR_MODE
 
 #ifndef	RADIO_WOR_IDLE_TIMEOUT
-#define	RADIO_WOR_IDLE_TIMEOUT		4096
+#define	RADIO_WOR_IDLE_TIMEOUT		3072
 #endif
 
 #ifndef	RADIO_WOR_PREAMBLE_TIME
-#define	RADIO_WOR_PREAMBLE_TIME		3072
+#define	RADIO_WOR_PREAMBLE_TIME		2048
 #endif
 
 // This is the maximum, which, at WOR_RES == 0, should yield ca. 1.89 sec for
@@ -420,7 +420,9 @@
 // With WOR_RES == 0, 5 yields 0.391% duty cycle, while 6 is 0.195%; at max
 // WOR_EVT0_TIME, they translate into ca. 7.4ms and 3.7ms, i.e., 74 and 37
 // bits @ 10kbps
-#define	WOR_RX_TIME	5
+#ifndef	WOR_RX_TIME
+#define	WOR_RX_TIME	6
+#endif
 
 // With WOR_AUTOSYNC = 0 (which is our only sensible choice), this gives the
 // number of RC oscillator ticks (fosc/750): 4, 6, 8, 12, 16, 24, 32, 48
@@ -428,14 +430,20 @@
 // confusing. At some point they say that FS calibration counts to EVENT1
 // delay, at some other that it doesn't. The most conservative setting is 7.
 // We shall experiment.
-#define	WOR_EVT1_TIME	4
+#ifndef	WOR_EVT1_TIME
+#define	WOR_EVT1_TIME	0
+#endif
 
 // Preamble quality threshold: 1 means 4 bits, 2 - 8 bits, 3 - 12 bits; it is
 // in fact a bit more complicated (see PKTCTRL1 in doc)
-#define	WOR_PQ_THR	6
+#ifndef	WOR_PQ_THR
+#define	WOR_PQ_THR	5
+#endif
 
 // RSSI threshold for WOR (from 1 to 15, converted to signed nibble)
+#ifndef	WOR_RSSI_THR
 #define	WOR_RSSI_THR	2
+#endif
 
 // ============================================================================
 

@@ -3164,3 +3164,19 @@ PG120307A:
 	long preamble. There is no other use for urgent packets in the driver,
 	so that is OK, I guess.
 
+PG130308A:
+
+	Changed the default values of some WOR parameters:
+
+	WOR_RX_TIME 6 (was 5) reduces the duty cycle without visibly impairing
+	the reception rate (in my lame experiments).
+
+	WOR_EVT1_TIME 0 (was 5) doesn't seem to be making any difference for
+	the quality of communication, but it may further reduce the duty cycle
+	a bit.
+
+	WOR_PQ_THR 5 (was 6) reduces the preamble quality threshold (with a
+	chance of avoiding missing some packets) with no false wakeups.
+
+	Cleaned up the documents a bit: cc1100 and the RFTEST doc. We are ready
+	for more serious tests.
