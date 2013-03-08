@@ -3117,3 +3117,50 @@ PG120305A:
 	am done with preliminary tests.
 
 	A few minor cleanups here and there.
+
+PG120307A:
+
+	The new CC1100 driver has been made the "official" driver. The old
+	driver can still be selected by:
+
+		#define	CC1100_OLD_DRIVER
+
+	put, e.g., in options.sys. To avoid confusion, I have temporarily
+	included these definitions at the top of (new) cc1100.h:
+
+		#ifndef	RADIO_POWER_SETTABLE
+		#define	RADIO_POWER_SETTABLE	1
+		#endif
+
+		#ifndef	RADIO_BITRATE_SETTABLE
+		#define	RADIO_BITRATE_SETTABLE	1
+		#endif
+
+		#ifndef	RADIO_CHANNEL_SETTABLE
+		#define	RADIO_CHANNEL_SETTABLE	1
+		#endif
+
+		#ifndef	RADIO_CAV_SETTABLE
+		#define	RADIO_CAV_SETTABLE	1
+		#endif
+
+	Thay make sure that (by a temporary default) the new driver offers
+	roughly the same assortment of physopt calls as the new one.
+
+	WOR slightly upgraded and tested. Read cc1100.pdf in Doc. Amazingly, it
+	seems to work, at least across my table (I had 100% packet reception
+	rate, one way, for 1000 packets), although the exact current
+	consumption still has to be determined, together with the optimum
+	setting of the WOR parameters for our networks (which clearly affects
+	the current consumption).
+
+	I have decided to change the way the driver decides to issue a long
+	(waking) preamble in front of a transmitted packet. Originally that was
+	done for all packets sent while the receiver was logically in WOR (off)
+	state. That would make little sense, as the situation is usually
+	asymmetric, i.e., the (waking) transmitter doesn't want its receiver to
+	operate in WOR mode. So now, the praxis has to make a packet urgent to
+	tell the driver that it is a waking packet, i.e., to be preceded by a
+	long preamble. There is no other use for urgent packets in the driver,
+	so that is OK, I guess.
+

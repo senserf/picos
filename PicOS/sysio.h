@@ -820,7 +820,7 @@ void	dbb (word);
 #define	PHYSOPT_GETMAXPL	24	/* Get the maximum packet length */
 
 #define	PHYSOPT_RESET		25	/* Reset the radio */
-#define	PHYSOPT_RXWOR		26	/* Wake-on-radio mode */
+#define	PHYSOPT_SETPARAMS	26	/* Generic request to set misc params */
 
 #define	PHYSOPT_TRANSPARENT	27
 

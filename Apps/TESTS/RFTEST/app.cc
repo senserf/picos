@@ -29,10 +29,10 @@ int	g_fd_rf = -1, g_fd_uart = -1, g_snd_opl,
 	g_pkt_maxpl = MAX_PACKET_LENGTH;
 
 word	g_pkt_mindel = 1024, g_pkt_maxdel = 1024,
-	g_snd_count, g_snd_rnode, g_snd_rcode, g_chsec, g_pcmd_del,
+	g_snd_count, g_snd_rnode, g_snd_rcode, g_chsec, g_pcmd_del, g_snd_left,
 	g_snd_sernum = 1, g_snd_rtries, g_flags = 0;
 
-byte	g_last_rssi, g_last_qual;
+byte	g_last_rssi, g_last_qual, g_snd_urgent;
 
 word	g_pat_peer, g_pat_cnt, g_pat_cntr;
 lword	g_pat_acc;
@@ -40,10 +40,10 @@ byte	g_pat_cset [] = { 0x3e, 0, 255 }, g_pat_cred;
 
 char	*g_snd_rcmd, *g_pcmd_cmd;
 
-#ifdef	CC1100_EXPERIMENTAL_DRIVER
-const byte g_patable [] = CC1100_PATABLE;
-#else
+#ifdef	CC1100_OLD_DRIVER
 byte	*g_reg_suppl;
+#else
+const byte g_patable [] = CC1100_PATABLE;
 #endif
 
 address	g_rcv_ackrp;
@@ -271,13 +271,13 @@ word do_command (const char *cb, word sender, word sernum) {
 		return 0;
 	    }
 
-	    case 's': {
+	    case 'l': {
 
-		// Start/restart transmitting
+		// Packet parameters
 
 		word mide, made, mipl, mapl;
 
-		// Start transmitting
+		// Assume previous values
 		mide = g_pkt_mindel;
 		made = g_pkt_maxdel;
 		mipl = (word) g_pkt_minpl;
@@ -304,6 +304,22 @@ word do_command (const char *cb, word sender, word sernum) {
 		g_pkt_maxdel = made;
 		g_pkt_minpl = (int) mipl;
 		g_pkt_maxpl = (int) mapl;
+
+		return 0;
+	    }
+
+	    case 's': {
+
+		// Start/restart the sender
+		word np, ur;
+
+		// Default = no limit, non urgent
+		np = ur = 0;
+
+		scan (cb + 1, "%u %u", &np, &ur);
+
+		g_snd_left = np;
+		g_snd_urgent = (ur != 0);
 
 		killall (thread_sender);
 
@@ -402,7 +418,34 @@ word do_command (const char *cb, word sender, word sernum) {
 		if (runfsm thread_patable == 0)
 			return 6;
 		return 0;
-		
+
+#ifndef	CC1100_OLD_DRIVER
+
+	    case 'w': {
+
+		// Set WOR parameters
+		word n, v [7];
+
+		v [0] = RADIO_WOR_PREAMBLE_TIME / 1024;
+		v [1] = RADIO_WOR_IDLE_TIMEOUT / 1024;
+		v [2] = WOR_EVT0_TIME >> 8;
+		v [3] = WOR_RX_TIME;
+		v [4] = WOR_PQ_THR;
+		v [5] = WOR_RSSI_THR;
+		v [6] = WOR_EVT1_TIME;
+
+		scan (cb + 1, "%u %u %u %u %u %u %u",
+			v + 0, v + 1, v + 2, v + 3, v + 4, v + 5, v + 6);
+
+		for (n = 0; n < 7; n++)
+			((byte*)v) [n] = (byte) v [n];
+
+		tcv_control (g_fd_rf, PHYSOPT_SETPARAMS, v);
+
+		return 0;
+	    }
+
+#endif
 	    case 'm': {
 
 		// Modify CC1100 register
@@ -428,10 +471,7 @@ word do_command (const char *cb, word sender, word sernum) {
 			// driver, the command works differently, i.e., the
 			// registers are modified in place and there is no
 			// supplementary table
-#ifdef CC1100_EXPERIMENTAL_DRIVER
-			// Do nothing
-			CNOP;
-#else
+#ifdef CC1100_OLD_DRIVER
 			if (g_reg_suppl) {
 				rs = NULL;
 CDiff:
@@ -441,6 +481,8 @@ CDiff:
 				tcv_control (g_fd_rf, PHYSOPT_RESET,
 					(address)g_reg_suppl);
 			}
+#else
+			CNOP;
 #endif
 		} else {
 			if (n & 1)
@@ -465,10 +507,7 @@ CDiff:
 			}
 
 			rs [n] = 0xff;
-#ifdef CC1100_EXPERIMENTAL_DRIVER
-			tcv_control (g_fd_rf, PHYSOPT_RESET, (address) rs);
-			ufree (rs);
-#else
+#ifdef CC1100_OLD_DRIVER
 			// Check if this is a different table
 			if (!g_reg_suppl)
 				// Different, the previous one was empty
@@ -488,6 +527,9 @@ CDiff:
 				n++;
 			}
 			// Same
+			ufree (rs);
+#else
+			tcv_control (g_fd_rf, PHYSOPT_RESET, (address) rs);
 			ufree (rs);
 #endif
 		}
@@ -910,11 +952,11 @@ fsm thread_patable {
 
 	uart_outf (PA_DONE, "All done");
 	// Resume previous setting
-#ifdef CC1100_EXPERIMENTAL_DRIVER
+#ifdef CC1100_OLD_DRIVER
+	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)g_reg_suppl);
+#else
 	g_pat_cset [1] = g_patable [0];
 	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)&g_pat_cset);
-#else
-	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)g_reg_suppl);
 #endif
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &spow);
 	finish;
@@ -1120,20 +1162,18 @@ fsm thread_sender {
   word scnt;
   address spkt;
 
+#if NUMBER_OF_SENSORS > 0
+
+  word sval [NUMBER_OF_SENSORS];
+
+#endif
+
   entry SN_DELAY:
 
 	delay (gen_send_params (), SN_NEXT);
 	if (g_snd_opl < MIN_MES_PACKET_LENGTH)
 		g_snd_opl = MIN_MES_PACKET_LENGTH;
 	release;
-
-  entry SN_NEXT:
-
-	spkt = tcv_wnp (SN_NEXT, g_fd_rf, g_snd_opl);
-	spkt [POFF_RCV] = 0;
-	spkt [POFF_SND] = HOST_ID;
-	spkt [POFF_FLG] = tcv_control (g_fd_rf, PHYSOPT_GETPOWER, NULL) |
-		g_flags;
 
 	scnt = 0;
 
@@ -1142,11 +1182,24 @@ fsm thread_sender {
 #if NUMBER_OF_SENSORS > 0
 
 	if (scnt < NUMBER_OF_SENSORS) {
-		read_sensor (SN_NSEN, scnt,
-			spkt + POFF_SEN + scnt);
+		read_sensor (SN_NSEN, scnt, sval + scnt);
 		scnt++;
 		proceed SN_NSEN;
 	}
+
+#endif
+
+  entry SN_NEXT:
+
+	spkt = tcv_wnps (SN_NEXT, g_fd_rf, g_snd_opl, g_snd_urgent);
+	spkt [POFF_RCV] = 0;
+	spkt [POFF_SND] = HOST_ID;
+	spkt [POFF_FLG] = tcv_control (g_fd_rf, PHYSOPT_GETPOWER, NULL) |
+		g_flags;
+
+#if NUMBER_OF_SENSORS > 0
+
+	memcpy (spkt + POFF_SEN, sval, NUMBER_OF_SENSORS * sizeof (word));
 
 #endif
 
@@ -1160,6 +1213,11 @@ fsm thread_sender {
 
 	tcv_endp (spkt);
 	g_snd_count++;
+
+	if (g_snd_left && --g_snd_left == 0)
+		// Zero means infinite
+		finish;
+		
 	proceed SN_DELAY;
 }
 
