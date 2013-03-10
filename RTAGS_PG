@@ -3180,3 +3180,9 @@ PG130308A:
 
 	Cleaned up the documents a bit: cc1100 and the RFTEST doc. We are ready
 	for more serious tests.
+
+PG130310A:
+
+	A cosmetic fix to the WOR mode of the CC1100 driver. When you set the
+	RSSI threshold to 0 (WOR_RSSI_THR), the RSSI threshold bit in MCSM2 is
+	cleared for neatness.

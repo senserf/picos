@@ -1236,27 +1236,31 @@ OREvnt:
 			byte *v = (byte*)val;
 
 			// Preamble time
-			wor_preamble_time = (((word)(*v++)) << 10);
+			wor_preamble_time = (((word)(v [0])) << 10);
 			// Stay in RX time
-			wor_idle_timeout = (((word)(*v++)) << 10);
+			wor_idle_timeout = (((word)(v [1])) << 10);
 			// High byte of EVT0 value
-			set_reg (CCxxx0_WOREVT1, *v++);
+			set_reg (CCxxx0_WOREVT1, v [2]);
+
+
 			// RX time
-			cc1100_wor_von [4] = (cc1100_wor_von [4] & 0xF8) |
-				(*v > 6) ? 6 : *v;
-			v++;
+			cc1100_wor_von [4] = 
+				((v [5] == 0) ?
+				    // Switch off RSSI thresholding
+				    CCxxx0_MCSM2_WOR_P :
+				        // RSSI thresholding is on
+					CCxxx0_MCSM2_WOR_RP) |
+					    ((v [3] > 6) ? 6 : v [3]);
 			// PQT
 			cc1100_wor_von [1] = (cc1100_wor_von [1] & 0x1F) |
-				(((*v == 0) ? 1 : ((*v > 7) ? 7 : *v)) << 5);
-			v++;
+				(((v [4] == 0) ? 1 : ((v [4] > 7) ? 7 :
+					v [4])) << 5);
 			// RSSI threshold
 			cc1100_wor_von [2] = (cc1100_wor_von [2] & 0xF0) |
-				((((*v == 0) ? 1 : ((*v > 15) ? 15 : *v)) - 8) &
-					0x0F);
-			v++;
+				((((v [5] > 15) ? 15 : v [5]) - 8) & 0x0F);
 			// EVNT1
 			cc1100_wor_von [3] = (cc1100_wor_von [3] & 0x8F) |
-				(((*v > 7) ? 7 : *v) << 4);
+				(((v [6] > 7) ? 7 : v [6]) << 4);
 		}
 
 		break;

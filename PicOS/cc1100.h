@@ -374,6 +374,8 @@
 #define	MCSM1_LBT_FULL		(MCSM1_TRANS_MODE | (3 << 4))	// Rcv+assess
 
 #define	CCxxx0_MCSM2_x		0x07
+#define	CCxxx0_MCSM2_WOR_RP	0x18
+#define	CCxxx0_MCSM2_WOR_P	0x08
 
 #define	CCxxx0_AGCCTRL1_x	(0x40 | (((RADIO_CC_THRESHOLD-8) & 0xf) | \
 					(RADIO_CC_THRESHOLD_REL << 4)))
@@ -450,7 +452,13 @@
 #define	CCxxx0_PKTCTRL1_WORx	(WOR_PQ_THR << 5)
 #define	CCxxx0_AGCCTRL1_WORx	(0x40 | ((WOR_RSSI_THR - 8) & 0x0F))
 #define	CCxxx0_WORCTRL_WORx	((WOR_EVT1_TIME << 4) | 0x8)
-#define	CCxxx0_MCSM2_WORx	(0x18 | WOR_RX_TIME)
+#if WOR_RSSI_THR == 0
+// Switch off RSSI thresholding
+#define	CCxxx0_MCSM2_WORx	(CCxxx0_MCSM2_WOR_P  | WOR_RX_TIME)
+#else
+// RSSI thresholding is on
+#define	CCxxx0_MCSM2_WORx	(CCxxx0_MCSM2_WOR_RP | WOR_RX_TIME)
+#endif
 
 #endif
 
