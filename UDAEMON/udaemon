@@ -1089,17 +1089,29 @@ proc bad_usage { } {
 
 	global argv0
 
-	alex "Usage: $argv0 \[host:port\] \[-G gfile\]!"
+	alex "Usage: $argv0 \[host:port\] \[-R\]!"
 }
 
 proc parse_args { } {
 
-	global argv PortNumber HostName
+	global argv PortNumber HostName RY
+
+	# invert Y coordinates
+	set RY 0
 
 	while { [llength $argv] } {
 
 		set j [lindex $argv 0]
 		set argv [lrange $argv 1 end]
+
+		if { $j == "-R" } {
+			# invert y coordinate
+			if $RY {
+				bad_usage
+			}
+			set RY 1
+			continue
+		}
 
 		# port
 		if { $PortNumber != "" } {
@@ -5940,52 +5952,6 @@ proc cassgn { cse ls ps } {
 }
 
 ###############################################################################
-	
-proc xtocv { Sok x } {
-#
-# Converts network x coordinate to canvas x
-#
-	global Stat CMARGIN
-
-	return [expr round (($Stat($Sok,M,w) * \
-		($x - $Stat($Sok,M,XL)))/$Stat($Sok,M,W)) + $CMARGIN(L)]
-}
-
-proc ytocv { Sok y } {
-#
-# Converts network y coordinate to canvas y
-#
-	global Stat CMARGIN
-
-	set ch $Stat($Sok,M,h)
-	return [expr $ch - round (($ch * \
-		($y - $Stat($Sok,M,YL)))/$Stat($Sok,M,H)) + $CMARGIN(U)]
-}
-
-proc xfromcv { Sok nx } {
-#
-# Converts canvas x coordinate to network x
-#
-	global Stat CMARGIN
-
-	return [expr ($Stat($Sok,M,W) * \
-		double ($nx - $CMARGIN(L))) / double ($Stat($Sok,M,w)) + \
-			$Stat($Sok,M,XL)]
-}
-
-proc yfromcv { Sok ny } {
-#
-# Converts canvas y coordinate to network y
-#
-	global Stat CMARGIN
-
-	set ch $Stat($Sok,M,h)
-	return [expr ($Stat($Sok,M,H) * \
-		double ($ch - $ny + $CMARGIN(U))) / double ($ch) + \
-			$Stat($Sok,M,YL)]
-}
-
-###############################################################################
 
 proc cvcalc_static { Sok wi hi } {
 #
@@ -7282,7 +7248,78 @@ proc doConnect { { opt "" } { nod "" } } {
 ###############################################################################
 
 parse_args
-			
+
+###############################################################################
+# The shape of these functions depends on whether the Y coordinate is reversed
+###############################################################################
+
+if $RY {
+	# Y reversed, i.e., top = 0
+	proc ytocv { Sok y } {
+	#
+	# Converts network y coordinate to canvas y
+	#
+		global Stat CMARGIN
+	
+		return [expr round (($Stat($Sok,M,h) * \
+			($y - $Stat($Sok,M,YL)))/$Stat($Sok,M,H)) + $CMARGIN(D)]
+	}
+	proc yfromcv { Sok ny } {
+	#
+	# Converts canvas y coordinate to network y
+	#
+		global Stat CMARGIN
+
+		return [expr ($Stat($Sok,M,H) * \
+			double ($ny - $CMARGIN(D))) / double ($Stat($Sok,M,h)) \
+				+ $Stat($Sok,M,YL)]
+	}
+} else {
+	# bottom = 0
+	proc ytocv { Sok y } {
+	#
+		global Stat CMARGIN
+
+		set ch $Stat($Sok,M,h)
+		return [expr $ch - round (($ch * \
+			($y - $Stat($Sok,M,YL)))/$Stat($Sok,M,H)) + $CMARGIN(U)]
+	}
+	proc yfromcv { Sok ny } {
+	#
+		global Stat CMARGIN
+
+		set ch $Stat($Sok,M,h)
+		return [expr ($Stat($Sok,M,H) * \
+			double ($ch - $ny + $CMARGIN(U))) / double ($ch) + \
+				$Stat($Sok,M,YL)]
+	}
+}
+
+unset RY
+
+proc xtocv { Sok x } {
+#
+# Converts network x coordinate to canvas x
+#
+	global Stat CMARGIN
+
+	return [expr round (($Stat($Sok,M,w) * \
+		($x - $Stat($Sok,M,XL)))/$Stat($Sok,M,W)) + $CMARGIN(L)]
+}
+
+proc xfromcv { Sok nx } {
+#
+# Converts canvas x coordinate to network x
+#
+	global Stat CMARGIN
+
+	return [expr ($Stat($Sok,M,W) * \
+		double ($nx - $CMARGIN(L))) / double ($Stat($Sok,M,w)) + \
+			$Stat($Sok,M,XL)]
+}
+
+###############################################################################
+
 wm title . "VUEE udaemon (ZZ000000A)"
 
 frame .top -borderwidth 10

@@ -90,7 +90,9 @@
 #define	PHYSOPT_GETRATE		23
 
 #define	PHYSOPT_GETMAXPL	24	/* Get the maximum packet length */
+
 #define	PHYSOPT_RESET		25
+#define	PHYSOPT_SETPARAMS	26	/* Generic request to set misc params */
 
 #if	TCV_PRESENT
 

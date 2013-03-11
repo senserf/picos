@@ -1013,3 +1013,8 @@ PG130214A:	SIDE >= PG130214A
 
     The sampled channel model now offers the option to specify sigma on a
     per-distance basis. This is described in the VUEE doc (see page 15).
+
+PG130311A:
+
+    Added an option to udaemon (-R) to invert the y-coordinate in the ROAMER
+    window.
