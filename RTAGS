@@ -641,3 +641,9 @@ PG130211A:	VUEE >= PG130211A
 
 	The direct data option for udaemon has been removed. A couple of
 	inconsequential cleanups.
+
+PG130311A:	VUEE >= PG130311A
+
+	Added an option to invert the y-coordinate in udaemon.
+
+	

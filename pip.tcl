@@ -142,6 +142,7 @@ set CFVueeItems {
 			"CMPIS"		0
 			"DPBC"		0
 			"UDON"		0
+			"YCDN"		0
 			"VUDF"		""
 			"VUSM"		1.0
 }
@@ -4464,6 +4465,15 @@ proc mk_vuee_conf_window { } {
 	pack $f.c -side right -expand n
 
 	##
+	set f $w.tq
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Y coordinate goes up->down: "
+	pack $f.l -side left -expand n
+	checkbutton $f.c -variable P(M0,YCDN)
+	pack $f.c -side right -expand n
+
+	##
 	set f $w.th
 	frame $f
 	pack $f -side top -expand y -fill x
@@ -6296,6 +6306,10 @@ proc run_udaemon { { auto 0 } } {
 		set cmd "[list $ef]"
 	} else {
 		set cmd "[list sh] [list $ef]"
+	}
+
+	if [dict get $P(CO) "YCDN"] {
+		append cmd " -R"
 	}
 
 	append cmd " 2>@1"
