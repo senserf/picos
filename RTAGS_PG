@@ -3144,8 +3144,8 @@ PG120307A:
 		#define	RADIO_CAV_SETTABLE	1
 		#endif
 
-	Thay make sure that (by a temporary default) the new driver offers
-	roughly the same assortment of physopt calls as the new one.
+	They make sure that (by a temporary default) the new driver offers
+	roughly the same assortment of physopt calls as the old one.
 
 	WOR slightly upgraded and tested. Read cc1100.pdf in Doc. Amazingly, it
 	seems to work, at least across my table (I had 100% packet reception
@@ -3186,3 +3186,13 @@ PG130310A:
 	A cosmetic fix to the WOR mode of the CC1100 driver. When you set the
 	RSSI threshold to 0 (WOR_RSSI_THR), the RSSI threshold bit in MCSM2 is
 	cleared for neatness.
+
+PG130313A:
+
+	Fixed a bug in the new CC1100 driver causing that SETPOWER 0 was
+	treated as SETPOWER 7 (which, for example, caused the patable check
+	in RFTEST not to work).
+
+	RFTEST can now compile and run under VUEE. Some commands do not work,
+	however. Notably, WOR has no VUEE model yet. We shall do something
+	about it as soon as the implementation settles down a bit.

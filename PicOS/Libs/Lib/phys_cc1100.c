@@ -1170,7 +1170,7 @@ OREvnt:
 
 	    case PHYSOPT_SETPOWER:
 
-		power = (*val == NULL) ? RADIO_DEFAULT_POWER :
+		power = (val == NULL) ? RADIO_DEFAULT_POWER :
 			((*val > 7) ? 7 : (byte) (*val));
 		set_reg (CCxxx0_FREND0, FREND0_SET | power);
 		break;

@@ -27,16 +27,16 @@
 	    <location>240.0 335.0</location>
 	    <preinit tag="HID" type="lword">0x07000014</preinit>
 	</node>
-        <node number="5" type="tag" start="on">
+        <node number="5" start="on">
             <location>247.0 307.0</location>
             <preinit tag="HID" type="lword">0x07000015</preinit>
         </node>
-        <node number="6" type="tag" start="on">
+        <node number="6" start="on">
             <location>250.0 335.0</location>
             <preinit tag="HID" type="lword">0x07000016</preinit>
         </node>
 
-       <node number="7" type="tag" start="on">
+       <node number="7" start="on">
             <location>460.0 230.0</location>
             <preinit tag="HID" type="lword">0x07000017</preinit>
         </node>

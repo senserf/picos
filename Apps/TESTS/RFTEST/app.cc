@@ -6,7 +6,9 @@
 #include "sysio.h"
 #include "form.h"
 #include "tcvphys.h"
+#ifndef __SMURPH__
 #include "cc1100.h"
+#endif
 #include "phys_cc1100.h"
 #include "phys_uart.h"
 #include "plug_null.h"
@@ -40,10 +42,12 @@ byte	g_pat_cset [] = { 0x3e, 0, 255 }, g_pat_cred;
 
 char	*g_snd_rcmd, *g_pcmd_cmd;
 
+#ifndef	__SMURPH__
 #ifdef	CC1100_OLD_DRIVER
 byte	*g_reg_suppl;
 #else
 const byte g_patable [] = CC1100_PATABLE;
+#endif
 #endif
 
 address	g_rcv_ackrp;
@@ -370,6 +374,7 @@ word do_command (const char *cb, word sender, word sernum) {
 		// Stop transmitting
 		killall (thread_sender);
 		// To terminate the PATABLE thread, if running
+		g_pat_cnt = 0;
 		trigger (&g_pat_cred);
 		return 0;
 
@@ -401,6 +406,8 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		g_flags &= ~0x4000;
 		return 0;
+
+#ifndef __SMURPH__
 
 	    case 't':
 
@@ -537,6 +544,8 @@ CDiff:
 		return 0;
 	    }
 
+#endif	/* __SMURPH__ */
+
 	    case 'C': {
 
 		// Switch channel for the prescribed number of seconds
@@ -614,6 +623,7 @@ CDiff:
 		return 0;
 	    }
 			
+#ifndef __SMURPH__
 	    // Two special commands used by PATABLE tester
 
 	    case '+': {
@@ -666,6 +676,9 @@ CDiff:
 		ptrigger (pid, &g_pat_cred);
 		return WNONE;
 	    }
+
+#endif /* __SMURPH__ */
+
 	}
 	return 7;
 }
@@ -867,6 +880,8 @@ fsm thread_chguard {
 
 // ============================================================================
 
+#ifndef	__SMURPH__
+
 fsm thread_patable {
 
   word ntries, spow;
@@ -961,6 +976,8 @@ fsm thread_patable {
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &spow);
 	finish;
 }
+
+#endif /* __SMURPH__ */
 
 // ============================================================================
 
