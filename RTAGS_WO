@@ -242,3 +242,24 @@ Netting
 - Added exp subdir, location-related, see Expernetting.odt there.
 - rssi.tcl and loca.tcl - location-related (temporary) scripts.
 
+WO130312A:
+Still unfinished location-related works. I'd like to commit the status quo
+before switching to the new CC1100 driver:
+
+- in inProgress/netting:
+-- loca.tcl produce 4 files: db and queries with rssi forward anc backward.
+-- 2loca.tcl: an attempt to process files generatedfrom surveys (tags) and
+   "proxy auto-profiling". The former is a 1-hop bcast ODR, the latter either
+   2-hop bcast on bcast or several anchored bcasts. 8 files are produced.
+-- combReal.xml - mirror/model of what hangs at the HQ.
+-- combReal directory contains data gathered from the HQ setup, with
+   several 1-hop and 2-hop surveys. Note that this is NOT the data we want to
+   produce in true surveys; old driver was used, only 2 tag points.
+
+- in LOCATION (and ./TEST):
+-- locdbase.c and query.c got the infamous #define _GNU_SOURCE.
+-- in params.xml, I added <slr> transforms that "work" for vuee and real
+   setup at the HQ. (They'recommented out.)
+
+
+
