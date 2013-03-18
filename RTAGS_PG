@@ -499,3 +499,14 @@ PG130222A:
 	   Wlodek discovered that the compiler couldn't find the declaration
 	   of function getline on an older version of Cygwin. This should fix
 	   it.
+
+PG130319A:
+
+	   Fixed a bug in the sampled channel model which caused incorrect
+	   averaging of "perfect hits".
+
+	   The exponential weights have been made scale-invariant by being
+	   based on distance ratio to average distance, rather than on absolute
+	   distance expressed in DU (as before). This changes the
+	   interpretation of the averaging factor (in a nutshell, larger values
+	   are now recommended, something of order 1 or bigger).

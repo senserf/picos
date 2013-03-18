@@ -433,6 +433,18 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 		DBK [k] = D;
 	}
 
+	// Calculate the average distance to make the exponential weights
+	// scale-invariant
+	A = 0.0;
+	for (i = 0; i < NBK; i++)
+		A += DBK [i];
+
+	A /= NBK;
+	if (A == 0.0)
+		// This is impossible, but be prepared, e.g., some degenerate
+		// case of NBK == 1
+		A = 1.0;
+
 	for (i = 0; i < NBK; i++) {
 		// Stage 1: replace distances by exponents; the distance is
 		// transposed to Du (meters), so we know what the factor (EAF)
@@ -444,20 +456,20 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 			BK [i]->SDP.YB,
 			BK [i]->Attenuation,
 			BK [i]->Sigma, DBK [i]);
-		DBK [i] = exp (-((DBK [i] / Du) * EAF));
+		DBK [i] = exp (-((DBK [i] / A) * EAF));
 		trc ("in d->w %g [EAF=%g]", DBK [i], EAF);
 	}
 
 	W = A = S = D = 0.0;
 	for (i = 0; i < NBK; i++) {
-		// Stage2: convert weight di to ti = di * Prod dj (j!=i); this
-		// makes sure that 1) if there is (one) di == 0, all ti's
+		// Stage2: convert weight di to ti = di * Prod (1 - dj) (j!=i);
+		// this makes sure that 1) if there is (one) di == 1, all ti's
 		// except that one will be zero, 2) di closer to one are
 		// further amplified (will have to check it empirically)
 		T = DBK [i];
 		for (j = 0; j < NBK; j++)
 			if (j != i)
-				T *= (1.0 - DBK [i]);
+				T *= (1.0 - DBK [j]);
 		// Sum of weights for normalization
 		W += T;
 		A += (BK [i] -> Attenuation) * T;
