@@ -3196,3 +3196,19 @@ PG130313A:
 	RFTEST can now compile and run under VUEE. Some commands do not work,
 	however. Notably, WOR has no VUEE model yet. We shall do something
 	about it as soon as the implementation settles down a bit.
+
+PG120322A:
+
+	Wlodek's modifications to RFTEST made official (it should be Wlodek's
+	commit, really). I have only changed slightly the format of the output
+	line (for the PATABLE test) to make the output better readable by
+	spreadsheet programs (CSV).
+
+	Fixed a minor bug in piter causing errors when you tried to input
+	something into a disconnected window.
+
+	Added tldebug.c/tldebug.h to Libs/Lib. This is a simple (and
+	undocumented) tool to debug interrupt service routines, like delayed
+	diag of sorts. I need it in my struggle with CC430 regarding WOR.
+
+	A few mode changes after running "permissions".

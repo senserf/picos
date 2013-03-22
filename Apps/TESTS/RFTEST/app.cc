@@ -14,6 +14,10 @@
 #include "plug_null.h"
 #include "hold.h"
 
+#ifdef TLDEBUG
+#include "tldebug.h"
+#endif
+
 #include "app_data.h"
 
 #if	NUMBER_OF_SENSORS > 0
@@ -39,6 +43,8 @@ byte	g_last_rssi, g_last_qual, g_snd_urgent;
 word	g_pat_peer, g_pat_cnt, g_pat_cntr;
 lword	g_pat_acc;
 byte	g_pat_cset [] = { 0x3e, 0, 255 }, g_pat_cred;
+
+word	g_pat_nlqi, g_pat_maxlqi, g_pat_drop;
 
 char	*g_snd_rcmd, *g_pcmd_cmd;
 
@@ -426,7 +432,7 @@ word do_command (const char *cb, word sender, word sernum) {
 			return 6;
 		return 0;
 
-#ifndef	CC1100_OLD_DRIVER
+#if !defined(CC1100_OLD_DRIVER) && RADIO_WOR_MODE
 
 	    case 'w': {
 
@@ -645,7 +651,8 @@ CDiff:
 		packet [POFF_RCV] = sender;
 		packet [POFF_SND] = HOST_ID;
 		packet [POFF_SER] = sernum;	// identifies the setting
-		form ((char*)&(packet [POFF_CMD]), "- %x", g_last_rssi);
+		form ((char*)&(packet [POFF_CMD]), "- %x",
+		       ((word)g_last_rssi << 8) + g_last_qual);
 		tcv_endp (packet);
 
 		return WNONE;
@@ -667,12 +674,19 @@ CDiff:
 		val = WNONE;
 		cb = skip_blk (++cb);
 		scan (cb, "%x", &val);
-
+#if 0
 		if (val > 255)
 			// Illegal
 			return WNONE;
+#endif
+		g_pat_cred = (byte) (val >> 8);
 
-		g_pat_cred = (byte) val;
+		if ((val &= 0x00ff) != 0) {
+			g_pat_nlqi++;
+			if (g_pat_maxlqi < val)
+				g_pat_maxlqi = val;
+		}
+
 		ptrigger (pid, &g_pat_cred);
 		return WNONE;
 	    }
@@ -901,6 +915,7 @@ fsm thread_patable {
 	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)&g_pat_cset);
 	g_pat_cntr = 0;
 	g_pat_acc = 0;
+	g_pat_nlqi = g_pat_maxlqi = g_pat_drop = 0;
 	delay (10, PA_RUN);
 	ntries = 0;
 	release;
@@ -927,12 +942,15 @@ fsm thread_patable {
 	release;
 
   entry PA_TMOUT:
-
+#if 0
 	if (ntries > PATABLE_MAX_TRIES)
 		proceed PA_NEXT;
 
 	ntries++;
 	proceed PA_RUN;
+#endif
+	g_pat_drop++;
+	g_pat_cred = 0;
 
   entry PA_NEWVAL:
 
@@ -951,9 +969,10 @@ fsm thread_patable {
 
   entry PA_NEXT:
 
-	uart_outf (PA_NEXT, "PA: %x, %d, %d", g_pat_cset [1],
-		(word) (g_pat_cntr > 1 ? g_pat_acc / g_pat_cntr : g_pat_acc),
-		g_pat_cntr);
+	g_pat_cntr -= g_pat_drop;
+	uart_outf (PA_NEXT, "0x%x, %d, %d, %u, %u", g_pat_cset [1],
+		(word) (g_pat_cntr  > 1 ? g_pat_acc / g_pat_cntr : g_pat_acc),
+			g_pat_cntr, g_pat_nlqi, g_pat_maxlqi);
 
 	// Next value
 	if (g_pat_cset [1] != 255) {
@@ -1140,7 +1159,7 @@ fsm thread_listener {
 	tr = packet [pl - 1];
 	g_last_rssi = (byte)(tr >> 8);
 	g_last_qual = (byte) tr      ;
-	
+
 	if (pl >= MIN_ANY_PACKET_LENGTH/2) {
 
 		if (packet [POFF_RCV] == 0) {
@@ -1246,6 +1265,10 @@ fsm root {
 
   entry RS_INIT:
 
+#ifdef TLDEBUG
+	tld_init (20, 2, 64);
+#endif
+
 	// Packet length for the PHY doesn't cover the checksum
 	phys_cc1100 (0, MAX_PACKET_LENGTH);
 	phys_uart (1, UART_LINE_LENGTH, 0);
@@ -1325,3 +1348,5 @@ fsm root {
 	uart_out (RS_MSG, msg);
 	proceed RS_ON;
 }
+
+// ============================================================================

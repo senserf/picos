@@ -956,6 +956,11 @@ proc sy_terminput { } {
 #
 	global WI ST
 
+	if { $ST(SFD) == "" } {
+		sy_dspline "No connection!!!"
+		return
+	}
+
 	set tx ""
 	# extract the line
 	regexp "\[^\r\n\]+" [.stat.u get 0.0 end] tx
