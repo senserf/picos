@@ -261,5 +261,20 @@ before switching to the new CC1100 driver:
 -- in params.xml, I added <slr> transforms that "work" for vuee and real
    setup at the HQ. (They'recommented out.)
 
+WO130327A:
+Location-related updates, in netting and (minimal) in LOCATION/TEST.
+ExperiNetting.odt is a must if you want to continue on this thread. Changes:
+- combReal directory with combReal13* is zipped in combReal1303.zip. In the
+  results, the 150 node is corrected (I cheated, collecting data from 150's
+  location from the 77 node).
+- exp dir is cleaned and ready for experimenting descibed in experiNetting.
+- 2loca.tcl and verloca.tcl create and verify location-related data
+- combReal.xml uses combReal_ch.xml (instead of channel.xml)
+- _coord lists coordiantes for combReal stuff
+- oo_samples.txt contains samples generated from real runs. It is here for
+  the convenience of running VUEE without the data re-generation.
 
+- In LOCATION/TEST: query.c modified to provide querying id,
+	params.xml contains a few <slr> (this mess is temporary here, as it
+	should be by praxis / model)
 

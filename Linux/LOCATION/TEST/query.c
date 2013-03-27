@@ -399,7 +399,7 @@ Error:
 	i = loc_locate (tag, al, N, prop, &x, &y);
 	free (al);
 
-	printf ("Location: [%7.2f %7.2f] (%1d)\n", x, y, i);
+	printf ("Location %u: [%7.2f %7.2f] (%1d)\n", tag, x, y, i);
 }
 
 void cmd_params () {
