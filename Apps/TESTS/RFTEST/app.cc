@@ -483,7 +483,8 @@ word do_command (const char *cb, word sender, word sernum) {
 			// This means remove previous table; note with the new
 			// driver, the command works differently, i.e., the
 			// registers are modified in place and there is no
-			// supplementary table
+			// supplementary table, so the command without
+			// arguments resets the chip
 #ifdef CC1100_OLD_DRIVER
 			if (g_reg_suppl) {
 				rs = NULL;
@@ -495,7 +496,8 @@ CDiff:
 					(address)g_reg_suppl);
 			}
 #else
-			CNOP;
+			// Do reset
+			tcv_control (g_fd_rf, PHYSOPT_RESET, NULL);
 #endif
 		} else {
 			if (n & 1)
@@ -693,6 +695,101 @@ CDiff:
 
 #endif /* __SMURPH__ */
 
+	    case 'z': {
+		// Misc commands for debugging and stuff
+		cb++;
+
+		switch (*cb) {
+
+		    case 't' : {
+			// Time the CPU
+			lword sec;
+			word arg, cnt, i;
+			Boolean u;
+			cb++;
+			if (*cb == 'u') {
+				u = YES;
+			} else if (*cb == 'm') {
+				u = NO;
+			} else {
+				return 4;
+			}
+			arg = 1;
+			cnt = 1;
+			scan (cb + 1, "%u %u", &arg, &cnt);
+			sec = seconds ();
+			i = cnt;
+			if (u) {
+				while (i--)
+					udelay (arg);
+			} else {
+				while (i--)
+					mdelay (arg);
+			}
+			sec = seconds () - sec;
+			uart_outf (WNONE, "ZT%c: %u, %u -> %u",
+				u ? 'U' : 'M',
+				arg, cnt, (word)sec);
+			return WNONE;
+
+		    }
+
+		    case 'r': {
+			// Memory read
+			Boolean b;
+			volatile word a, c;
+			cb++;
+			b = YES;
+			if (*cb == 'w') {
+				b = NO;
+				cb++;
+			} else if (*cb == 'b') {
+				cb++;
+			}
+			// Read the address in hex
+			a = 0;
+			scan (cb + 1, "%x", &a);
+			if (a == 0)
+				return 10;
+			if (b)
+				c = *((byte*)a);
+			else
+				c = *((word*)a);
+			uart_outf (WNONE, "ZR: %c(%x) => %x <%u>",
+				b ? 'B' : 'W',
+				a, c, c);
+			return WNONE;
+		    }
+
+		    case 'w' : {
+			// Memory write
+			Boolean b;
+			volatile word a, c;
+			cb++;
+			b = YES;
+			if (*cb == 'w') {
+				b = NO;
+				cb++;
+			} else if (*cb == 'b') {
+				cb++;
+			}
+			// Read the address and content in hex
+			a = c = 0;
+			scan (cb + 1, "%x %x", &a, &c);
+			if (a == 0)
+				return 10;
+			if (b)
+				*((byte*)a) = (byte)c;
+			else
+				*((word*)a) = c;
+			uart_outf (WNONE, "ZW: %x <%u> => %c(%x)",
+				c, c,
+				b ? 'B' : 'W',
+				a);
+			return WNONE;
+		    }
+		}
+	    }
 	}
 	return 7;
 }
@@ -749,7 +846,8 @@ word gen_send_params () {
 		g_snd_opl = ((word)(rnd () % (g_pkt_maxpl - g_pkt_minpl + 1)) +
 			g_pkt_minpl);
 
-	g_snd_opl &= 0xfe;
+	if ((g_snd_opl &= 0xfe) < MIN_MES_PACKET_LENGTH)
+		g_snd_opl = MIN_MES_PACKET_LENGTH;
 
 	if (g_pkt_mindel >= g_pkt_maxdel)
 		return g_pkt_mindel;
@@ -1204,14 +1302,18 @@ fsm thread_sender {
 
 #endif
 
+  entry SN_START:
+
+	// A special case for the first packet which goes right away
+	gen_send_params ();
+	scnt = 0;
+	proceed SN_NSEN;
+
   entry SN_DELAY:
 
-	delay (gen_send_params (), SN_NEXT);
-	if (g_snd_opl < MIN_MES_PACKET_LENGTH)
-		g_snd_opl = MIN_MES_PACKET_LENGTH;
-	release;
-
+	delay (gen_send_params (), SN_NSEN);
 	scnt = 0;
+	release;
 
   entry SN_NSEN:
 

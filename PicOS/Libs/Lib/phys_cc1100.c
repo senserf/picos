@@ -40,6 +40,10 @@
 
 // Internal (CC430)
 
+#if RADIO_WOR_MODE
+byte		cc1100_worstate;	// WOR interrupt machine state
+#endif
+
 static void set_reg (byte addr, byte val) {
 
 	// Wait for ready
@@ -106,22 +110,52 @@ static void get_reg_burst (byte addr, byte *buffer, word count) {
 	*buffer = RF1ADOUT0B;
 }
 
-static byte strobe (byte b) {
+#define	strobe(b) cc1100_strobe (b)
 
-	volatile byte sb;
+#if RADIO_WOR_MODE == 0
+// Must be visible from the interrupt service routine
+static
+#endif
+
+byte cc1100_strobe (byte b) {
+//
+// This one must be global for WOR
+//
+	volatile word sb;
 
 	// Clear the status-read flag 
 	RF1AIFCTL1 &= ~(RFSTATIFG);
 	  
 	// Wait until ready for next instruction
-	while(!(RF1AIFCTL1 & RFINSTRIFG));
+	while (!(RF1AIFCTL1 & RFINSTRIFG));
 
+	// Take the ready status before issuing the command to prevent race.
+	// Note that I am trying to follow recommendations in the "official"
+	// examples/application notes, while fixing obvious problems in those
+	// examples. This is one such fix.
+	sb = chip_not_ready;
 	// Issue the command
 	RF1AINSTRB = b; 
 
-	while (b != CCxxx0_SRES && b != CCxxx0_SNOP &&
-		(RF1AIFCTL1 & RFSTATIFG) == 0);
+	if (b == CCxxx0_SRES || b == CCxxx0_SNOP)
+		goto Ret;
 
+	if (b != CCxxx0_SPWD
+#if RADIO_WOR_MODE
+	    // This strobe is never used if WOR_MODE is 0
+	    && b != CCxxx0_SWOR
+#endif
+				) {
+		// We worry about the chip being ready
+		if (sb) {
+			// Transiting from SLEEP or WOR
+			while (chip_not_ready);
+			udelay (CHIP_READY_DELAY);
+		}
+	}
+
+	while ((RF1AIFCTL1 & RFSTATIFG) == 0);
+Ret:
 	sb = RF1ASTATB;
 
 	return (sb & CC1100_STATE_MASK);
@@ -259,11 +293,6 @@ static int rx_status () {
 // End chip access functions ==================================================
 // ============================================================================
 
-static word	*rbuff = NULL,
-		physid,
-		statid = 0,
-		bckf_timer = 0;
-
 static byte	rbuffl,		// Input buffer length, basically a constant
 		RxST;		// Logical state of the receiver
 
@@ -284,7 +313,7 @@ static byte	vrate = 0;	// Rate index
 #endif
 
 #if RADIO_WOR_MODE
-static byte	woron = 0;	// WOR on flag
+static byte	woron = 0;	// WOR "on" flag
 #endif
 
 static const byte patable [] = CC1100_PATABLE;
@@ -295,6 +324,11 @@ static const byte patable [] = CC1100_PATABLE;
 #define	RCV_STATE_PD	2	// Power down or WOR
 #define	RCV_STATE_OFF	1
 #define RCV_STATE_ON	0
+
+static word	*rbuff = NULL,
+		physid,
+		statid = 0,
+		bckf_timer = 0;
 
 word		__pi_v_drvprcs, __pi_v_qevent;
 
@@ -316,7 +350,7 @@ static word	wor_idle_timeout = RADIO_WOR_IDLE_TIMEOUT,
 // ============================================================================
 #if (RADIO_OPTIONS & 0x04)
 // ============================================================================
-// Counts events ==============================================================
+// Count events ===============================================================
 // ============================================================================
 //
 //	0 - receptions (all events when receiver was awakened by an incoming
@@ -413,15 +447,13 @@ static void enter_idle () {
 
 	word i;
 
-	i = 0;
-	while (1) {
+	for (i = 0; i < 15; i++) {
+		strobe (CCxxx0_SIDLE);
 		if (read_status () == CC1100_STATE_IDLE)
 			return;
-		if (i > 16)
-			syserror (EHARDWARE, "cc11 ei");
-		strobe (CCxxx0_SIDLE);
-		i++;
 	}
+
+	syserror (EHARDWARE, "cc11 ei");
 }
 
 // ============================================================================
@@ -430,21 +462,11 @@ static void enter_rx () {
 
 	word i;
 
-	for (i = 0; i < 16; i++) {
+	for (i = 0; i < 15; i++) {
 		strobe (CCxxx0_SRX);
 		if (read_status () == CC1100_STATE_RX)
 			return;
-		// Note: the reason I am entering this state differently than
-		// IDLE (see enter_idle above) is primarily a bug/feature of
-		// CC430 causing CPU hangups when enter_rx is invoked after a
-		// reset following power down (SPD). I don't understand what is
-		// going on there, except that inserting this delay:
-		udelay (100);
-		// between two consecutive retries does help. Apparently, no
-		// such delay is needed for enter_idle. Besides, enter_idle
-		// is not unlikely to be called when the state is IDLE already,
-		// so it may make sense to check first and set second, which is
-		// different for enter_rx.
+		// udelay (100);
 	}
 
 	syserror (EHARDWARE, "cc11 er");
@@ -459,6 +481,10 @@ static void set_reg_group (const byte *r, const byte *v, word n) {
 
 static void power_down () {
 
+#if defined(__CC430__) && RADIO_WOR_MODE
+	// Switch off the WOR interrupt automaton
+	cc1100_worstate = 0;
+#endif
 	enter_idle ();
 
 #if RADIO_WOR_MODE
@@ -466,7 +492,7 @@ static void power_down () {
 		// The procedure of entering WOR is a bit tricky, somewhat
 		// trickier than one would expect based on the doc. One problem
 		// is the lingering "PQT reached" signal from the last RX mode,
-		// which is always up, because we don't use PQT for normal
+		// which is always on, because we don't use PQT for normal
 		// reception (so the threshold is permanently "reached"). We
 		// want to get rid of this signal BEFORE we switch the role of
 		// GDO0 to "PQT reached" event, as otherwise the interrupt will
@@ -483,10 +509,13 @@ static void power_down () {
 		// ... now we can enable the interrupt, which is not pending
 		// any more. Note that whoever calls power_down running this
 		// code (entering WOR) MUST BE already prepared to receive
-		// interrupts. A missing interrupt would hung WOR.
-		rcv_enable_int;
-
+		// events. A missing/ignored interrupt would hang WOR.
+		wor_enable_int;
+#ifdef __CC430__
+		cc1100_worstate = 1;
+#endif
 		strobe (CCxxx0_SWOR);
+
 #if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u WOR", (word) seconds ());
 #endif
@@ -511,10 +540,10 @@ static void set_default_wor_params () {
 	wor_preamble_time = RADIO_WOR_PREAMBLE_TIME;
 	wor_idle_timeout = RADIO_WOR_IDLE_TIMEOUT;
 	set_reg (CCxxx0_WOREVT1, WOR_EVT0_TIME >> 8);
-	cc1100_wor_von [1] = CCxxx0_PKTCTRL1_WORx;
-	cc1100_wor_von [2] = CCxxx0_AGCCTRL1_WORx;
-	cc1100_wor_von [3] = CCxxx0_WORCTRL_WORx;
-	cc1100_wor_von [4] = CCxxx0_MCSM2_WORx;
+	cc1100_wor_von [0] = CCxxx0_PKTCTRL1_WORx;
+	cc1100_wor_von [1] = CCxxx0_AGCCTRL1_WORx;
+	cc1100_wor_von [2] = CCxxx0_WORCTRL_WORx;
+	cc1100_wor_von [3] = CCxxx0_MCSM2_WORx;
 }
 
 #endif
@@ -573,11 +602,16 @@ static void power_up () {
 //
 // Return from sleep
 //
+#if defined(__CC430__) && RADIO_WOR_MODE
+	// Disable the WOR interrupt automaton in case we're returning from WOR
+	cc1100_worstate = 0;
+#endif
 	enter_idle ();
 #if RADIO_WOR_MODE
-	if (woron)
+	if (woron) {
 		set_reg_group (cc1100_wor_sr, cc1100_wor_voff,
 			sizeof (cc1100_wor_sr));
+	}
 #endif
 	// Load PATABLE
 	set_reg_burst (CCxxx0_PATABLE, (byte*) patable, sizeof (patable));
@@ -604,7 +638,7 @@ static void do_rx_fifo () {
 
 	if ((len = rx_status ()) < 0) {
 		// Something wrong, bad state
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX BAD STAT!!", (word) seconds ());
 #endif
 RRX:
@@ -615,7 +649,6 @@ RRX:
 	}
 
 	if (RxST) {
-
 		// We are formally switched off (but still up, note that RxST
 		// cannot be 2 at this point), so just clean the FIFO
 		if (len) {
@@ -647,7 +680,7 @@ RRX:
 #endif
 	    ) {
 
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX BAD PL: %d", (word) seconds (), len);
 #endif
 		goto RRX;
@@ -661,7 +694,7 @@ RRX:
 	// because of the two status bytes appended at the end by the chip
 	if (paylen != len - 3) {
 
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX PL MIS: %d/%d", (word) seconds (), len,
 			paylen);
 #endif
@@ -672,7 +705,7 @@ RRX:
 	// whatever is present in the FIFO), because we need the status bytes
 	// as well
 	if (--len > rbuffl) {
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX LONG: %d", (word) seconds (), paylen);
 #endif
 		goto RRX;
@@ -682,14 +715,14 @@ RRX:
 	get_reg_burst (CCxxx0_RXFIFO, (byte*)rbuff, (byte) len);
 
 	// We have emptied the FIFO, so we can immediately start RCV for
-	// another one
+	// another packet
 	enter_rx ();
 
 	if (statid != 0 && statid != 0xffff) {
 		// Admit only packets with agreeable statid
 		if (rbuff [0] != 0 && rbuff [0] != statid) {
 			// Drop
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 			diag ("CC1100: %u RX BAD STID: %x", (word) seconds (),
 				rbuff [0]);
 #endif
@@ -702,7 +735,7 @@ RRX:
 	len = paylen >> 1;
 	if (w_chk (rbuff, len, 0)) {
 		// Bad checksum
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX CKS (S) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
 			(word*)(rbuff) [1],
@@ -740,7 +773,7 @@ RRX:
 		*eptr = (b & 0x7f);
 	} else {
 		// Bad checksum
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX CKS (H) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
 			(word*)(rbuff) [1],
@@ -791,7 +824,7 @@ thread (cc1100_driver)
 
 	if (RxST != RCV_STATE_PD) {
 		// Take care of the RX FIFO; only when the chip is solid off,
-		// we don't have to look there
+		// don't we have to look there
 		while (RX_FIFO_READY)
 			do_rx_fifo ();
 	}
@@ -810,7 +843,7 @@ thread (cc1100_driver)
 #endif
 
 	// The next thing to find out is whether we have anything to transmit;
-	// if not, we will have to wait for sure
+	// if not, we will have to wait
 
 #if RADIO_WOR_MODE
 	if ((xbuff = tcvphy_top (physid)) == NULL) {
@@ -829,7 +862,7 @@ thread (cc1100_driver)
 #endif
 		if (RxST == RCV_STATE_OFF) 
 			// Nothing to transmit, no WOR, receiver off -> power
-			// down
+			// down; note that power_down sets RxST to RCV_STATE_PD
 			power_down ();
 WEvent:
 		if (RxST != RCV_STATE_PD)
@@ -848,10 +881,14 @@ WEvent:
 
 	if (RxST == RCV_STATE_PD) {
 		// We are powered down, have to power up, cannot happen with
-		// woron, as we should be up at this stage with RX
+		// woron, as we should be up at this stage in RX
 		power_up ();
 		RxST = RCV_STATE_OFF;
 	}
+
+	// ====================================================================
+	// LBT ================================================================
+	// ====================================================================
 
 #if RADIO_LBT_MODE == 3
 	// Staged/limited
@@ -879,7 +916,6 @@ WEvent:
 				MCSM1_LBT_OFF);
 	}
 #endif
-
 	// Channel assessment
 	strobe (CCxxx0_STX);
 	if (read_status () != CC1100_STATE_TX) {
@@ -895,7 +931,7 @@ WEvent:
 #endif
 			// Pretend the packet has been transmitted
 			set_congestion_indicator (0);
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & 0x02)
 			diag ("CC1100: RTL!!");
 #endif
 			goto FEXmit;
@@ -937,6 +973,7 @@ WEvent:
 
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL)
 		// This can fail, because we may have been sleeping for a while
+		// while sending a long preamble
 		goto Break;
 #else
 	// This cannot possibly fail
@@ -987,6 +1024,7 @@ WEvent:
 	release;
 
   entry (DR_SWAIT)
+
 #ifdef CC_BUSY_WAIT_FOR_EOT
 	while (read_status () == CC1100_STATE_TX);
 #else
@@ -1013,7 +1051,18 @@ FEXmit:
   entry (DR_WORTMOUT)
 
 	if (woron && !RX_FIFO_READY && tcvphy_top (physid) == NULL) {
-		// This will enter WOR mode
+		// This will enter WOR mode. Note: we could add more conditions:
+		//
+		//	- PQT reached (that would require running the RX mode
+		//	  with PQT enabled, which we don't do)
+		//
+		//	- FIFO nonempty (meaning a packet is being received)
+		//
+		// with the intention of catching packets in the process of
+		// being received, which are otherwise missed. Let's wait and
+		// see if we are losing a lot by ignoring those cases. After
+		// all, the role of the timeout (which gets us here) is to make
+		// sure that we don't.
 		wait (__pi_v_qevent, DR_LOOP);
 		power_down ();
 		release;
@@ -1023,7 +1072,7 @@ FEXmit:
 
   entry (DR_BREAK)
 
-	// Abort the preamble, enter RX, and do it again
+	// Abort the preamble, enter RX, and try again
 Break:
 	enter_rx ();
 	proceed (DR_LOOP);
@@ -1069,15 +1118,20 @@ OREvnt:
 #if RADIO_WOR_MODE
 		if (val != NULL && *val) {
 			// Enter WOR
-			if (woron)
-				goto RRet;
-			woron = 1;
-			if (RxST == RCV_STATE_OFF)
-				// Make sure that RxST is never RCV_STATE_OFF
-				// when woron is set; will truly enter WOR
-				// after the first timeout
-				RxST = RCV_STATE_ON;
+			if (!woron) {
+				// Not in WOR already
+				woron = 1;
+				if (RxST == RCV_STATE_OFF)
+					// Make sure that RxST is never
+					// RCV_STATE_OFF when woron is set;
+					// will truly enter WOR after the first
+					// timeout
+					RxST = RCV_STATE_ON;
+			}
+			// If we are already in WOR, this will run us through
+			// a wakeup cycle (falling through this if)
 		} else {
+			// Normal PD
 			if (woron || RxST == RCV_STATE_ON)
 				RxST = RCV_STATE_OFF;
 			woron = 0;
@@ -1160,7 +1214,8 @@ OREvnt:
 
 	}
 
-	// These ones cannot be done in PD mode (including WOR)
+	// These ones cannot (or should not) be handled  in PD mode (including
+	// WOR)
 	if (RxST == RCV_STATE_PD)
 		enter_idle ();
 
@@ -1242,9 +1297,8 @@ OREvnt:
 			// High byte of EVT0 value
 			set_reg (CCxxx0_WOREVT1, v [2]);
 
-
 			// RX time
-			cc1100_wor_von [4] = 
+			cc1100_wor_von [3] = 
 				((v [5] == 0) ?
 				    // Switch off RSSI thresholding
 				    CCxxx0_MCSM2_WOR_P :
@@ -1252,14 +1306,14 @@ OREvnt:
 					CCxxx0_MCSM2_WOR_RP) |
 					    ((v [3] > 6) ? 6 : v [3]);
 			// PQT
-			cc1100_wor_von [1] = (cc1100_wor_von [1] & 0x1F) |
+			cc1100_wor_von [0] = (cc1100_wor_von [0] & 0x1F) |
 				(((v [4] == 0) ? 1 : ((v [4] > 7) ? 7 :
 					v [4])) << 5);
 			// RSSI threshold
-			cc1100_wor_von [2] = (cc1100_wor_von [2] & 0xF0) |
+			cc1100_wor_von [1] = (cc1100_wor_von [1] & 0xF0) |
 				((((v [5] > 15) ? 15 : v [5]) - 8) & 0x0F);
 			// EVNT1
-			cc1100_wor_von [3] = (cc1100_wor_von [3] & 0x8F) |
+			cc1100_wor_von [2] = (cc1100_wor_von [2] & 0x8F) |
 				(((v [6] > 7) ? 7 : v [6]) << 4);
 		}
 
@@ -1272,7 +1326,7 @@ OREvnt:
 	}
 
 	if (RxST == RCV_STATE_PD)
-		// It should work OK also for WOR
+		// This should work OK also for WOR
 		power_down ();
 
 	// ====================================================================
@@ -1329,7 +1383,7 @@ void phys_cc1100 (int phy, int mbs) {
 #endif
 
 #if !defined(__CC430__) && (RADIO_OPTIONS & 0x08)
-	// Chip connectibility test
+	// Chip connectivity test
 	csn_down;
 	mdelay (2);
 	if (so_val) {
@@ -1403,5 +1457,12 @@ void phys_cc1100 (int phy, int mbs) {
 		syserror (ERESOURCE, "cc11");
 #endif
 }
+
+
+
+
+
+
+
 
 #endif	/* FOR OLD DRIVER COMPATIBILITY, REMOVE THIS #endif WHEN RETIRED */

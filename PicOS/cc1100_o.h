@@ -9,6 +9,12 @@
 #include "cc1100_sys.h"
 #include "rfleds.h"
 
+#ifdef RADIO_WOR_MODE
+#if RADIO_WOR_MODE
+#error "S: RADIO_WOR_MODE incompatible with old CC1100 driver!!!"
+#endif
+#endif
+
 /*
  * CRC calculation mode
  *
@@ -533,6 +539,8 @@ extern const byte cc1100_agcctrl_table [];
 				cc1100_strobe (CCxxx0_SRES); \
 				cc1100_strobe (CCxxx0_SNOP); \
 			} while (0)
+
+#include "irq_cc430_rf.h"
 
 #else
 

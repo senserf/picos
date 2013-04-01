@@ -19,7 +19,7 @@
 
 #define	BUTTONS_DRIVER		1
 
-#define	PPM_LEVEL		3	// Power management level
+#define	PMM_LEVEL		3	// Power management level
 
 #define LEDS_DRIVER		1
 #define	LEDS_BLINKING		1

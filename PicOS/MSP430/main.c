@@ -450,9 +450,17 @@ static void ssm_init () {
 // ===========================================================================
 // ===========================================================================
 
-#ifdef	__MSP430_6xx__
+#if defined(__MSP430_6xx__) || defined(__MSP430_5xx__)
 
-#if	PPM_LEVEL
+#ifndef	PMM_LEVEL
+#define	PMM_LEVEL	3
+#endif
+
+#if PMM_LEVEL < 0 || PMM_LEVEL > 3
+#error "S: PMM_LEVEL must be between 0 and 3!!"
+#endif
+
+#if	PMM_LEVEL
 // Note: we may need a general function for this (later)
 
 	{
@@ -473,10 +481,10 @@ static void ssm_init () {
   			SVSMLCTL = SVSLE + SVMLE + one;
 			// Delay until settled
   			while ((PMMIFG & SVSMLDLYIFG) == 0);
-			// VCore level
-  			PMMCTL0_L = (byte) one;
 			// Clear already set flags
   			PMMIFG &= ~(SVMLVLRIFG + SVMLIFG);
+			// VCore level
+  			PMMCTL0_L = (byte) one;
   			if ((PMMIFG & SVMLIFG))
 				// Wait until level reached
     				while ((PMMIFG & SVMLVLRIFG) == 0);
@@ -485,12 +493,10 @@ static void ssm_init () {
 			// Done for this step
 			PMMCTL0_H = 0x00;
 
-		} while (one < PPM_LEVEL);
+		} while (one < PMM_LEVEL);
 	}
 
-#endif	/* PPM_LEVEL */
-
-	// I am copying this from the SportsWatch program
+#endif	/* PMM_LEVEL */
 
 	// High power request from module enable
 	PMMCTL0_H  = PMMPW_H;
@@ -498,26 +504,63 @@ static void ssm_init () {
 	PMMCTL0_L |= PMMHPMRE;
 	PMMCTL0_H  = 0x00;	
 
-	// Enable 32kHz ACLK; note: GP pins may have to be selected properly
-	// for that; we assume that the appropriate PIN_DEFAULT_PxSEL is set
-	// as required in board_pins.h
+#if CRYSTAL_RATE != 32768
+#error "S: the LF crystal must be 32768Hz!!"
+#endif
 
-	UCSCTL6 &= ~(XT1OFF + XT1DRIVE_3);  // XT1 On, Lowest drive strength
-	UCSCTL6 |= XCAP_3;                  // Internal load cap
-	UCSCTL3 = SELA__XT1CLK;             // Select XT1 as FLL reference
-	UCSCTL4 = SELA__XT1CLK | SELS__DCOCLKDIV | SELM__DCOCLKDIV;      
+#ifndef	LF_CRYSTAL_ABSENT
+#define	LF_CRYSTAL_ABSENT	0
+#endif
 
-	// According to the SportsWatch program, this sets the CPU clock for
-	// 12MHz; confirmed, looks like this much after udelay calibration
+#if LF_CRYSTAL_ABSENT
+
+	// No LF crystal, use internal 32KHz oscillator (as an acting crystal)
+
+#define	_SELREF	SELREF__REFOCLK
+#define	_SELA	SELA__REFOCLK
+
+#else
+
+	// LF crystal present
+
+#define	_SELREF	SELREF__XT1CLK
+#define	_SELA	SELA__XT1CLK
+
+#ifndef	UCS_XT1DRIVE
+#define	UCS_XT1DRIVE	0
+#endif
+	// Enable 32kHz crystal ACLK; note: GP pins may have to be selected
+	// properly for that; we assume that the appropriate PIN_DEFAULT_PxSEL
+	// is set as required in board_pins.h
+
+	UCSCTL6 &= ~XT1OFF;
+
+#if UCS_XT1DRIVE < 0 || UCS_XT1DRIVE > 3
+#error "S: UCS_XT1DRIVE must be between 0 and 3!!"
+#endif
+
+	UCSCTL6 |= (XCAP_3 | (UCS_XT1DRIVE << 6));
+
+#endif	/* Crystal absent or present */
 
 #define	CPU_CLOCK_RATE	12000
-	
+
 	_BIS_SR(SCG0);             // Disable the FLL control loop
-	UCSCTL0 = 0x0000;          // Set lowest possible DCOx, MODx
-	UCSCTL1 = DCORSEL_5;       // Select suitable range
-	UCSCTL2 = FLL_DIVIDER + DCO_MULTIPLIER;  // 12,025,856 Hz
-	_BIC_SR(SCG0);             // Enable the FLL control loop
+
+	// The CPU clock rate is determined by FLL_DIVIDER and DCO_MULTIPLIER
+	// (see mach.h) as ((DCO_MULTIPLIER + 1) * 32768 * D) / 2, where D
+	// is determined from FLL_DIVIDER bits: 0-1, 1-2, 2-4, 3-8, ..., e.g.,
+	// FLLD_1 and 366 yield (2 * 367 * 32768)/2 = 12025856
+
+	UCSCTL3 = _SELREF;	   // FLL reference
+	UCSCTL4 = _SELA | SELS__DCOCLKDIV | SELM__DCOCLKDIV;      
 	
+	UCSCTL0 = 0x0000;          // Set lowest possible DCOx, MODx
+	UCSCTL1 = DCORSEL_5;       // Select suitable range (depends on freq)
+	UCSCTL2 = FLL_DIVIDER + DCO_MULTIPLIER;  // 12,025,856 Hz
+
+	_BIC_SR(SCG0);             // Enable the FLL control loop
+
     	// Worst-case settling time for the DCO when the DCO range bits have
 	// been changed is n x 32 x 32 x f_MCLK / f_FLL_reference. See UCS
 	// chapter in 5xx UG for optimization.

@@ -3197,7 +3197,7 @@ PG130313A:
 	however. Notably, WOR has no VUEE model yet. We shall do something
 	about it as soon as the implementation settles down a bit.
 
-PG120322A:
+PG130322A:
 
 	Wlodek's modifications to RFTEST made official (it should be Wlodek's
 	commit, really). I have only changed slightly the format of the output
@@ -3212,3 +3212,44 @@ PG120322A:
 	diag of sorts. I need it in my struggle with CC430 regarding WOR.
 
 	A few mode changes after running "permissions".
+
+	I think I have tagged this as PG120322A by mistake.
+
+PG130401A:
+
+	Modifications (extensions) to accommodate WOR on CC430 (unsuccessful
+	so far). See my Unfuddle notes. The best I can get is working WOR with
+	power down level 1, i.e., LPM1_bits, yielding about 300uA current.
+	For some reason, WOR refuses to work when the CPU goes into any deeper
+	low power mode during the cycle regardless of the clock settings. I
+	think I have tried everything, including increasing the crystal drive
+	strength, sourcing clocks from different oscillators (ignoring the
+	crystal altogether), reducing the CPU clock rate, etc. Nothing has
+	worked except for raising the CPU power level during the cycle to level
+	1. I have even tried implementing software WOR, but the timed RX
+	operation doesn't seem to work outside the WOR cycle. Of course, a
+	pure software implementation is possible, and I may return to it later,
+	but for now I need a break.
+
+	A few cleanups related to CC1100 (the new driver) and CC430. Note: if
+	you want to try WOR on CC430, make sure to set:
+
+		#define	LOW_POWER_SLEEP_MODE 	LPM1_bits
+
+	in options.sys. That will make sure that the low power mode of the CPU
+	is raised properly, so WOR won't reset the CPU.
+
+	BTW: it is now possible to run crystal-less CC430 boards by setting:
+
+		#define	LF_CRYSTAL_ABSENT	1
+
+	in options.sys. In such a case, the low-power internal oscillator
+	(running approximately at 32768 Hz) will be used.
+
+	Defined a new board, OLIMEX_CCRF, to accommodate our recent purchase.
+
+	Retired the 0x01 option in RADIO_OPTIONS, which was confusing. Whatever
+	used to be covered by it falls now under 0x02.
+
+	Added a few debugging commands to RFTEST, undocumented for now, but not
+	extremely useful, except in emergencies.

@@ -380,11 +380,6 @@
 #define	DUMP_MEMORY		0
 #endif
 
-// PPM level (for MSP430x61xx)
-#ifndef	PPM_LEVEL
-#define	PPM_LEVEL		0
-#endif
-
 #ifndef	dbg_level
 #define	dbg_level		0
 #endif

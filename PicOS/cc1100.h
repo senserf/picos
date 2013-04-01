@@ -66,8 +66,8 @@
 // ============================================================================
 // OPTIONS, EXTENSIONS:
 //
-//	0x01 debug: diag messages on various abnormal conditions)
-//	0x02 trace: diag messages on important events)
+//	0x01 retired and amalgamated into 0x02
+//	0x02 trace: diag messages on important events and problems)
 //	0x04 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
 //	0x08 prechecks: initial check for RF chip present (to prevent hangups)
 //  	0x10 lean code: remove parameter checks for driver requests
@@ -189,8 +189,10 @@
 #define	RADIO_WOR_MODE		0
 #endif
 
+#if 0
 #if RADIO_WOR_MODE && defined(__CC430__)
 #error "S: WOR mode is not implemented on CC430 (yet)!!!"
+#endif
 #endif
 
 // ============================================================================
@@ -393,7 +395,8 @@
 #endif
 
 #ifdef	__CC430__
-	// Recalibrate on exiting IDLE state, full SLEEP
+	// Recalibrate on exiting IDLE state, full SLEEP; bits 2 and 3 are
+	// reserved (not used) on CC430, so better not to set them
 	#define	CCxxx0_MCSM0_x	0x10
 #else
 	// Changed from 0x14 to 0x18 (PG 100620), see page 78 PO_TIMEOUT
@@ -416,7 +419,14 @@
 // This is the maximum, which, at WOR_RES == 0, should yield ca. 1.89 sec for
 // the complete cycle (assuming 26MHz crystal, which we assume throughout)
 #ifndef	WOR_EVT0_TIME
+#ifdef	__CC430__
+// On CC430, the WOR clock is simply ACLK running at 32768Hz, whereas on CC110x,
+// the WOR clock runs at 26MHz/750 = 34667Hz. The ratio is 0.9452, which yields
+// 61944, instead of 65535.
+#define	WOR_EVT0_TIME	0xF1F8
+#else
 #define	WOR_EVT0_TIME	0xFFFF
+#endif
 #endif
 
 // With WOR_RES == 0, 5 yields 0.391% duty cycle, while 6 is 0.195%; at max
@@ -433,7 +443,12 @@
 // delay, at some other that it doesn't. The most conservative setting is 7.
 // We shall experiment.
 #ifndef	WOR_EVT1_TIME
+#ifdef	__CC430__
+// This doesn't seem to make any difference whatsoever
+#define	WOR_EVT1_TIME	7
+#else
 #define	WOR_EVT1_TIME	0
+#endif
 #endif
 
 // Preamble quality threshold: 1 means 4 bits, 2 - 8 bits, 3 - 12 bits; it is
@@ -653,13 +668,22 @@ static const	byte	*cc1100_ratemenu [] = {	__pi_rate0,
 // WOR data ===================================================================
 // ============================================================================
 
+#ifdef	__CC430__
+// We use the interrupt status for GIO1 to tell when the chip is ready; needed
+// for safe transition from a sleep state to active
+#define	IOCFG1_VAL	0x29			// RF_RDYn
+#endif
+
 static const byte cc1100_wor_sr [] = {
 // Registers to set when entering WOR
-	CCxxx0_IOCFG0,
 	CCxxx0_PKTCTRL1,
 	CCxxx0_AGCCTRL1,
 	CCxxx0_WORCTRL,
 	CCxxx0_MCSM2
+#ifndef	__CC430__
+	// No need to reconfigure IOCFG0 on CC430
+      , CCxxx0_IOCFG0
+#endif
 };
 
 static
@@ -668,20 +692,24 @@ const
 #endif
 byte	cc1100_wor_von [] = {
 // Register values when WOR is on
-	0x08,				// Preamble quality OK
 	CCxxx0_PKTCTRL1_WORx,
 	CCxxx0_AGCCTRL1_WORx,
 	CCxxx0_WORCTRL_WORx,
 	CCxxx0_MCSM2_WORx
+#ifndef	__CC430__
+      , 0x08
+#endif
 };
 
 static const byte cc1100_wor_voff [] = {
 // Register values when WOR is off
-	IOCFG0_INT,			// Standard RX interrupt
 	CCxxx0_PKTCTRL1_x,
 	CCxxx0_AGCCTRL1_x,
-	0xf8,				// Reset value
+	0xf8,					// Reset value
 	CCxxx0_MCSM2_x
+#ifndef	__CC430__
+      , IOCFG0_INT
+#endif
 };
 
 #endif	/* RADIO_WOR_MODE */
@@ -690,10 +718,14 @@ static const byte cc1100_wor_voff [] = {
 // Global settings ============================================================
 // ============================================================================
 
+#ifndef	IOCFG1_VAL
+#define	IOCFG1_VAL	0x2f		// Grounded
+#endif
+
 static const byte cc1100_rfsettings [] = {
 	0x2f,		// IOCFG2	unused and grounded
-	0x2f,		// IOCFG1	unused and grounded
-	IOCFG0_INT,	// IOCFG0	reception interrupt condition
+	IOCFG1_VAL,	// IOCFG1	unused or RX ready (n) flag
+	IOCFG0_INT,	// IOCFG0	RX interrupt condition
 	0x0F,		// FIFOTHR	64 bytes in FIFO
 	((RADIO_SYSTEM_IDENT >> 8) & 0xff),	// SYNC1
 	((RADIO_SYSTEM_IDENT     ) & 0xff),	// SYNC0
@@ -787,12 +819,16 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 #define	SPI_START	CNOP
 #define	SPI_END		CNOP
 
+// Note that SRES on CC430 leaves the chip in SLEEP rather than IDLE, so a
+// safe transition to IDLE involves a wake delay
 #define	full_reset	do { \
 				strobe (CCxxx0_SRES); \
 				strobe (CCxxx0_SNOP); \
 			} while (0)
 
-#else
+#include "irq_cc430_rf.h"
+
+#else	/* __CC430__ */
 
 // ============================================================================
 
@@ -817,7 +853,13 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 				SPI_END; \
 			} while (0)
 
+#if RADIO_WOR_MODE
+
+#define	wor_enable_int	rcv_enable_int
+
 #endif
+
+#endif	/* __CC430__ */
 
 // ============================================================================
 

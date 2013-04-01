@@ -133,6 +133,25 @@
 #define		SMCLK_RATE	(CRYSTAL_RATE * (DCO_MULTIPLIER + 1))
 #endif
 
+#ifdef		__CC430_5137__
+#define		RAM_START	0x1C00
+#define		RAM_SIZE	0x1000	// 4K
+#define       	__MSP430_5xx__
+#define       	__CC430_5xx__
+#define		__CC430__
+#define		__PORTMAPPER__
+#define		__PORT_FBASE__	P1IN_	// Won't cover port J!!!
+#define		__UART_CONFIG__	2
+#define		__ADC_CONFIG__	3	// Extended ADC with REF module
+#define		__TCI_CONFIG__	2
+#define		__FLASH_TYPE__	2
+// DCO/FLL parameters
+#define		FLL_DIVIDER	FLLD_1	// fDCO = fDCOCLKDIV * 2
+#define		DCO_MULTIPLIER	366
+// This yields 12,025,856 Hz
+#define		SMCLK_RATE	(CRYSTAL_RATE * (DCO_MULTIPLIER + 1))
+#endif
+
 #ifndef		RAM_SIZE
 #error	"S: unknown (yet) CPU type: check MSP430/mach.h"
 #endif
@@ -789,6 +808,10 @@ extern uart_t __pi_uart [];
 #define	sti	_EINT ()
 #define	cli	_DINT ()
 
+#ifndef	LOW_POWER_SLEEP_MODE
+#define	LOW_POWER_SLEEP_MODE	LPM3_bits
+#endif
+
 #define	__SLEEP	do { \
 			CPU_MARK_IDLE; \
 			if (__pi_systat.pdmode) { \
@@ -796,7 +819,7 @@ extern uart_t __pi_uart [];
 				if (__pi_systat.evntpn) { \
 					sti; \
 				} else { \
-					_BIS_SR (LPM3_bits + GIE); \
+					_BIS_SR (LOW_POWER_SLEEP_MODE + GIE); \
 				} \
 			} else { \
 				cli; \
@@ -810,8 +833,6 @@ extern uart_t __pi_uart [];
 			CPU_MARK_BUSY; \
 		} while (0)
 
-#if 1
-// used to be: #if NESTED_INTERRUPTS
 /*
  * Although it may appear a bit more costly, this way of triggering scheduler
  * events from interrupts should be preferred. This is because this version of
@@ -828,7 +849,12 @@ extern uart_t __pi_uart [];
 					_BIC_SR_IRQ (LPM4_bits); \
 				return; \
 			} while (0)
-#else	/* dead code */
+#if 0
+//
+// DEAD CODE
+//
+// This is how it used to look
+//
 
 #define	RISE_N_SHINE	do { \
 				__pi_systat.evntpn = 1; \
@@ -836,7 +862,7 @@ extern uart_t __pi_uart [];
 			} while (0)
 #define	RTNI		return
 
-#endif	/* dead code, was: NESTED_INTERRUPTS */
+#endif	/* DEAD CODE */
 
 
 #if LEDS_DRIVER
