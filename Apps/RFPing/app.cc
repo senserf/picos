@@ -685,8 +685,6 @@ fsm root {
 	p [0] = WNONE;
 	p [1] = 0;
 	scan (ibuf + 1, "%u %u", p+0, p+1);
-	if (p [0] >= PORTNAMES_NPINS)
-		proceed (RS_RCMD_1);
 
 	if (p [1] < 2) {
 		_PFS (p [0], 0);
@@ -706,8 +704,6 @@ fsm root {
 
 	p [0] = WNONE;
 	scan (ibuf + 1, "%u", p+0);
-	if (p [0] >= PORTNAMES_NPINS)
-		proceed (RS_RCMD_1);
 
 	p [1] = _PV (p [0]);
 	p [2] = _PD (p [0]);

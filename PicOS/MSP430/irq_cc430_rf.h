@@ -22,7 +22,7 @@
 
 // Time the CPU must remain powered up while the radio is transiting from a 
 // power down state (approximately in usecs)
-#define	CHIP_READY_DELAY	100
+#define	CHIP_READY_DELAY	900
 
 #define rcv_enable_int		do { \
 					RF1AIE = IRQ_RCPT; \

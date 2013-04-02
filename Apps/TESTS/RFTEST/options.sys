@@ -2,9 +2,9 @@
 #define	VUEE_RESYNC_INTERVAL	100
 
 // #define	TLDEBUG
-// #define	MONITOR_PIN_SCHED	P1_1
-// #define	MONITOR_PIN_EVENT0	P1_2
-// #define	MONITOR_PIN_EVENT1	P1_3
+// #define	MONITOR_PIN_SCHED	P3_0
+// #define	MONITOR_PIN_EVENT0	P3_1
+// #define	MONITOR_PIN_EVENT1	P3_2
 
 // #define	CC1100_OLD_DRIVER
 
@@ -18,7 +18,6 @@
 #define	LOW_POWER_SLEEP_MODE		LPM1_bits
 #define	RADIO_WOR_MODE			1
 #endif
-
 
 #define	RADIO_BITRATE_SETTABLE		1
 #define	RADIO_POWER_SETTABLE		1
