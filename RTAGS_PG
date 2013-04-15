@@ -3253,3 +3253,18 @@ PG130401A:
 
 	Added a few debugging commands to RFTEST, undocumented for now, but not
 	extremely useful, except in emergencies.
+
+PG130402A:
+
+	WOR seems to work on the Olimex board with MSP430F5137. The trick was
+	to increase the spin delay after turning on RX. Note that this is 5137;
+	the problems with 6137 are of a completely different nature.
+
+	1. Increased the delay after switching on RX in WOR cycle (CC430 only)
+	   to ~900us.
+
+	2. Fixed portnames.h to account for the fact that there is no P4 on
+	   5137. It should be more flexible now, as we do not assume any ports
+	   that are present on all CPUs.
+
+	3. Updated the RFTEST document.

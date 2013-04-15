@@ -8,8 +8,6 @@
 // Transformations of port operations, such that port pins can be
 // parameterized by constants
 
-#define	PORTNAMES_NPINS	29
-
 #define	GPIO_0		0
 #define	GPIO_1		1
 #define	GPIO_2		2

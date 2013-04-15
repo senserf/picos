@@ -1,5 +1,9 @@
 #ifndef __pg_portnames_h
 #define	__pg_portnames_h		1
+
+#include <io.h>
+#include <signal.h>
+
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2010                    */
 /* All rights reserved.                                                 */
@@ -13,6 +17,24 @@
 // variable argument, then you will implement functions referencing these
 // macros.
 
+#if defined(P1DIR) || defined(P1DIR_)
+
+#define	_PDS_s_01(p)	case 0: _BIS (P1DIR, 1 << ((p) & 7)); break;
+#define	_PDS_c_01(p)	case 0: _BIC (P1DIR, 1 << ((p) & 7)); break;
+#define	_PFS_s_01(p)	case 0: _BIS (P1SEL, 1 << ((p) & 7)); break;
+#define	_PFS_c_01(p)	case 0: _BIC (P1SEL, 1 << ((p) & 7)); break;
+#define	_PVS_s_01(p)	case 0: _BIS (P1OUT, 1 << ((p) & 7)); break;
+#define	_PVS_c_01(p)	case 0: _BIC (P1OUT, 1 << ((p) & 7)); break;
+#define	_PHS_s_01(p)	case 0: _BIS (P1DS,  1 << ((p) & 7)); break;
+#define	_PHS_c_01(p)	case 0: _BIC (P1DS,  1 << ((p) & 7)); break;
+#define	_PPS_s_01(p)	case 0: _BIS (P1REN, 1 << ((p) & 7)); break;
+#define	_PPS_c_01(p)	case 0: _BIC (P1REN, 1 << ((p) & 7)); break;
+#define	_PV____01(p)	((p) >> 3) == 0 ? P1IN
+#define	_PF____01(p)	((p) >> 3) == 0 ? P1SEL
+#define	_PD____01(p)	((p) >> 3) == 0 ? P1DIR
+#define	_PH____01(p)	((p) >> 3) == 0 ? P1DS
+#define	_PP____01(p)	((p) >> 3) == 0 ? P1REN
+
 #define	P1_0		(0+0)
 #define	P1_1		(0+1)
 #define	P1_2		(0+2)
@@ -22,26 +44,45 @@
 #define	P1_6		(0+6)
 #define	P1_7		(0+7)
 
-#define	_PDS_s___(n,p)	case n-1: _BIS (P ## n ## DIR, 1 << ((p) & 7)); break;
-#define	_PDS_c___(n,p)	case n-1: _BIC (P ## n ## DIR, 1 << ((p) & 7)); break;
+#else
 
-#define	_PFS_s___(n,p)	case n-1: _BIS (P ## n ## SEL, 1 << ((p) & 7)); break;
-#define	_PFS_c___(n,p)	case n-1: _BIC (P ## n ## SEL, 1 << ((p) & 7)); break;
+#define	_PDS_s_01(p)
+#define	_PDS_c_01(p)
+#define	_PFS_s_01(p)
+#define	_PFS_c_01(p)
+#define	_PVS_s_01(p)
+#define	_PVS_c_01(p)
+#define	_PHS_s_01(p)
+#define	_PHS_c_01(p)
+#define	_PPS_s_01(p)
+#define	_PPS_c_01(p)
+#define	_PV____01(p)	0 ? 0
+#define	_PF____01(p)	0 ? 0
+#define	_PD____01(p)	0 ? 0
+#define	_PH____01(p)	0 ? 0
+#define	_PP____01(p)	0 ? 0
 
-#define	_PVS_s___(n,p)	case n-1: _BIS (P ## n ## OUT, 1 << ((p) & 7)); break;
-#define	_PVS_c___(n,p)	case n-1: _BIC (P ## n ## OUT, 1 << ((p) & 7)); break;
+#endif
 
-#define	_PHS_s___(n,p)	case n-1: _BIS (P ## n ## DS, 1 << ((p) & 7)); break;
-#define	_PHS_c___(n,p)	case n-1: _BIC (P ## n ## DS, 1 << ((p) & 7)); break;
+// ============================================================================
 
-#define	_PPS_s___(n,p)	case n-1: _BIS (P ## n ## REN, 1 << ((p) & 7)); break;
-#define	_PPS_c___(n,p)	case n-1: _BIC (P ## n ## REN, 1 << ((p) & 7)); break;
+#if defined(P2DIR) || defined(P2DIR_)
 
-#define	_PV______(n,p)	((p) >> 3) == n-1 ? P ## n ## IN
-#define	_PF______(n,p)	((p) >> 3) == n-1 ? P ## n ## SEL
-#define	_PD______(n,p)	((p) >> 3) == n-1 ? P ## n ## DIR
-#define	_PH______(n,p)	((p) >> 3) == n-1 ? P ## n ## DS
-#define	_PP______(n,p)	((p) >> 3) == n-1 ? P ## n ## REN
+#define	_PDS_s_02(p)	case 1: _BIS (P2DIR, 1 << ((p) & 7)); break;
+#define	_PDS_c_02(p)	case 1: _BIC (P2DIR, 1 << ((p) & 7)); break;
+#define	_PFS_s_02(p)	case 1: _BIS (P2SEL, 1 << ((p) & 7)); break;
+#define	_PFS_c_02(p)	case 1: _BIC (P2SEL, 1 << ((p) & 7)); break;
+#define	_PVS_s_02(p)	case 1: _BIS (P2OUT, 1 << ((p) & 7)); break;
+#define	_PVS_c_02(p)	case 1: _BIC (P2OUT, 1 << ((p) & 7)); break;
+#define	_PHS_s_02(p)	case 1: _BIS (P2DS,  1 << ((p) & 7)); break;
+#define	_PHS_c_02(p)	case 1: _BIC (P2DS,  1 << ((p) & 7)); break;
+#define	_PPS_s_02(p)	case 1: _BIS (P2REN, 1 << ((p) & 7)); break;
+#define	_PPS_c_02(p)	case 1: _BIC (P2REN, 1 << ((p) & 7)); break;
+#define	_PV____02(p)	((p) >> 3) == 0 ? P2IN
+#define	_PF____02(p)	((p) >> 3) == 0 ? P2SEL
+#define	_PD____02(p)	((p) >> 3) == 0 ? P2DIR
+#define	_PH____02(p)	((p) >> 3) == 0 ? P2DS
+#define	_PP____02(p)	((p) >> 3) == 0 ? P2REN
 
 #define	P2_0		(8+0)
 #define	P2_1		(8+1)
@@ -52,6 +93,46 @@
 #define	P2_6		(8+6)
 #define	P2_7		(8+7)
 
+#else
+
+#define	_PDS_s_02(p)
+#define	_PDS_c_02(p)
+#define	_PFS_s_02(p)
+#define	_PFS_c_02(p)
+#define	_PVS_s_02(p)
+#define	_PVS_c_02(p)
+#define	_PHS_s_02(p)
+#define	_PHS_c_02(p)
+#define	_PPS_s_02(p)
+#define	_PPS_c_02(p)
+#define	_PV____02(p)	0 ? 0
+#define	_PF____02(p)	0 ? 0
+#define	_PD____02(p)	0 ? 0
+#define	_PH____02(p)	0 ? 0
+#define	_PP____02(p)	0 ? 0
+
+#endif
+
+// ============================================================================
+
+#if defined(P3DIR) || defined(P3DIR_)
+
+#define	_PDS_s_03(p)	case 2: _BIS (P3DIR, 1 << ((p) & 7)); break;
+#define	_PDS_c_03(p)	case 2: _BIC (P3DIR, 1 << ((p) & 7)); break;
+#define	_PFS_s_03(p)	case 2: _BIS (P3SEL, 1 << ((p) & 7)); break;
+#define	_PFS_c_03(p)	case 2: _BIC (P3SEL, 1 << ((p) & 7)); break;
+#define	_PVS_s_03(p)	case 2: _BIS (P3OUT, 1 << ((p) & 7)); break;
+#define	_PVS_c_03(p)	case 2: _BIC (P3OUT, 1 << ((p) & 7)); break;
+#define	_PHS_s_03(p)	case 2: _BIS (P3DS,  1 << ((p) & 7)); break;
+#define	_PHS_c_03(p)	case 2: _BIC (P3DS,  1 << ((p) & 7)); break;
+#define	_PPS_s_03(p)	case 2: _BIS (P3REN, 1 << ((p) & 7)); break;
+#define	_PPS_c_03(p)	case 2: _BIC (P3REN, 1 << ((p) & 7)); break;
+#define	_PV____03(p)	((p) >> 3) == 0 ? P3IN
+#define	_PF____03(p)	((p) >> 3) == 0 ? P3SEL
+#define	_PD____03(p)	((p) >> 3) == 0 ? P3DIR
+#define	_PH____03(p)	((p) >> 3) == 0 ? P3DS
+#define	_PP____03(p)	((p) >> 3) == 0 ? P3REN
+
 #define	P3_0		(16+0)
 #define	P3_1		(16+1)
 #define	P3_2		(16+2)
@@ -60,6 +141,46 @@
 #define	P3_5		(16+5)
 #define	P3_6		(16+6)
 #define	P3_7		(16+7)
+
+#else
+
+#define	_PDS_s_03(p)
+#define	_PDS_c_03(p)
+#define	_PFS_s_03(p)
+#define	_PFS_c_03(p)
+#define	_PVS_s_03(p)
+#define	_PVS_c_03(p)
+#define	_PHS_s_03(p)
+#define	_PHS_c_03(p)
+#define	_PPS_s_03(p)
+#define	_PPS_c_03(p)
+#define	_PV____03(p)	0 ? 0
+#define	_PF____03(p)	0 ? 0
+#define	_PD____03(p)	0 ? 0
+#define	_PH____03(p)	0 ? 0
+#define	_PP____03(p)	0 ? 0
+
+#endif
+
+// ============================================================================
+
+#if defined(P4DIR) || defined(P4DIR_)
+
+#define	_PDS_s_04(p)	case 3: _BIS (P4DIR, 1 << ((p) & 7)); break;
+#define	_PDS_c_04(p)	case 3: _BIC (P4DIR, 1 << ((p) & 7)); break;
+#define	_PFS_s_04(p)	case 3: _BIS (P4SEL, 1 << ((p) & 7)); break;
+#define	_PFS_c_04(p)	case 3: _BIC (P4SEL, 1 << ((p) & 7)); break;
+#define	_PVS_s_04(p)	case 3: _BIS (P4OUT, 1 << ((p) & 7)); break;
+#define	_PVS_c_04(p)	case 3: _BIC (P4OUT, 1 << ((p) & 7)); break;
+#define	_PHS_s_04(p)	case 3: _BIS (P4DS,  1 << ((p) & 7)); break;
+#define	_PHS_c_04(p)	case 3: _BIC (P4DS,  1 << ((p) & 7)); break;
+#define	_PPS_s_04(p)	case 3: _BIS (P4REN, 1 << ((p) & 7)); break;
+#define	_PPS_c_04(p)	case 3: _BIC (P4REN, 1 << ((p) & 7)); break;
+#define	_PV____04(p)	((p) >> 3) == 0 ? P4IN
+#define	_PF____04(p)	((p) >> 3) == 0 ? P4SEL
+#define	_PD____04(p)	((p) >> 3) == 0 ? P4DIR
+#define	_PH____04(p)	((p) >> 3) == 0 ? P4DS
+#define	_PP____04(p)	((p) >> 3) == 0 ? P4REN
 
 #define	P4_0		(24+0)
 #define	P4_1		(24+1)
@@ -70,6 +191,46 @@
 #define	P4_6		(24+6)
 #define	P4_7		(24+7)
 
+#else
+
+#define	_PDS_s_04(p)
+#define	_PDS_c_04(p)
+#define	_PFS_s_04(p)
+#define	_PFS_c_04(p)
+#define	_PVS_s_04(p)
+#define	_PVS_c_04(p)
+#define	_PHS_s_04(p)
+#define	_PHS_c_04(p)
+#define	_PPS_s_04(p)
+#define	_PPS_c_04(p)
+#define	_PV____04(p)	0 ? 0
+#define	_PF____04(p)	0 ? 0
+#define	_PD____04(p)	0 ? 0
+#define	_PH____04(p)	0 ? 0
+#define	_PP____04(p)	0 ? 0
+
+#endif
+
+// ============================================================================
+
+#if defined(P5DIR) || defined(P5DIR_)
+
+#define	_PDS_s_05(p)	case 4: _BIS (P5DIR, 1 << ((p) & 7)); break;
+#define	_PDS_c_05(p)	case 4: _BIC (P5DIR, 1 << ((p) & 7)); break;
+#define	_PFS_s_05(p)	case 4: _BIS (P5SEL, 1 << ((p) & 7)); break;
+#define	_PFS_c_05(p)	case 4: _BIC (P5SEL, 1 << ((p) & 7)); break;
+#define	_PVS_s_05(p)	case 4: _BIS (P5OUT, 1 << ((p) & 7)); break;
+#define	_PVS_c_05(p)	case 4: _BIC (P5OUT, 1 << ((p) & 7)); break;
+#define	_PHS_s_05(p)	case 4: _BIS (P5DS,  1 << ((p) & 7)); break;
+#define	_PHS_c_05(p)	case 4: _BIC (P5DS,  1 << ((p) & 7)); break;
+#define	_PPS_s_05(p)	case 4: _BIS (P5REN, 1 << ((p) & 7)); break;
+#define	_PPS_c_05(p)	case 4: _BIC (P5REN, 1 << ((p) & 7)); break;
+#define	_PV____05(p)	((p) >> 3) == 0 ? P5IN
+#define	_PF____05(p)	((p) >> 3) == 0 ? P5SEL
+#define	_PD____05(p)	((p) >> 3) == 0 ? P5DIR
+#define	_PH____05(p)	((p) >> 3) == 0 ? P5DS
+#define	_PP____05(p)	((p) >> 3) == 0 ? P5REN
+
 #define	P5_0		(32+0)
 #define	P5_1		(32+1)
 #define	P5_2		(32+2)
@@ -79,12 +240,29 @@
 #define	P5_6		(32+6)
 #define	P5_7		(32+7)
 
-#define	PORTNAMES_NPINS	40
+#else
 
-#ifdef	P6DIR
+#define	_PDS_s_05(p)
+#define	_PDS_c_05(p)
+#define	_PFS_s_05(p)
+#define	_PFS_c_05(p)
+#define	_PVS_s_05(p)
+#define	_PVS_c_05(p)
+#define	_PHS_s_05(p)
+#define	_PHS_c_05(p)
+#define	_PPS_s_05(p)
+#define	_PPS_c_05(p)
+#define	_PV____05(p)	0 ? 0
+#define	_PF____05(p)	0 ? 0
+#define	_PD____05(p)	0 ? 0
+#define	_PH____05(p)	0 ? 0
+#define	_PP____05(p)	0 ? 0
 
-#undef	PORTNAMES_NPINS
-#define	PORTNAMES_NPINS	(40+8)
+#endif
+
+// ============================================================================
+
+#if defined(P6DIR) || defined(P6DIR_)
 
 #define	_PDS_s_06(p)	case 5: _BIS (P6DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_06(p)	case 5: _BIC (P6DIR, 1 << ((p) & 7)); break;
@@ -131,10 +309,9 @@
 
 #endif	/* P6 present */
 
-#ifdef	P7DIR
+// ============================================================================
 
-#undef	PORTNAMES_NPINS
-#define	PORTNAMES_NPINS	(48+8)
+#if defined(P7DIR) || defined(P7DIR_)
 
 #define	_PDS_s_07(p)	case 6: _BIS (P7DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_07(p)	case 6: _BIC (P7DIR, 1 << ((p) & 7)); break;
@@ -181,10 +358,9 @@
 
 #endif	/* P7 present */
 
-#ifdef	P8DIR
+// ============================================================================
 
-#undef	PORTNAMES_NPINS
-#define	PORTNAMES_NPINS	(48+8+8)
+#if defined(P8DIR) || defined(P8DIR_)
 
 #define	_PDS_s_08(p)	case 7: _BIS (P8DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_08(p)	case 7: _BIC (P8DIR, 1 << ((p) & 7)); break;
@@ -231,10 +407,9 @@
 
 #endif	/* P8 present */
 
-#ifdef	P9DIR
+// ============================================================================
 
-#undef	PORTNAMES_NPINS
-#define	PORTNAMES_NPINS	(48+8+8+8)
+#if defined(P9DIR) || defined(P9DIR_)
 
 #define	_PDS_s_09(p)	case 8: _BIS (P9DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_09(p)	case 8: _BIC (P9DIR, 1 << ((p) & 7)); break;
@@ -281,10 +456,9 @@
 
 #endif	/* P9 present */
 
-#ifdef	P10DIR
+// ============================================================================
 
-#undef	PORTNAMES_NPINS
-#define	PORTNAMES_NPINS	(48+8+8+8+8)
+#if defined(P10DIR) || defined(P10DIR_)
 
 #define	_PDS_s_10(p)	case 9: _BIS (P10DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_10(p)	case 9: _BIC (P10DIR, 1 << ((p) & 7)); break;
@@ -331,10 +505,9 @@
 
 #endif
 
-#ifdef	P11DIR
+// ============================================================================
 
-#undef	PORTNAMES_NPINS
-#define	PORTNAMES_NPINS	(48+8+8+8+8+8)
+#if defined(P11DIR) || defined(P11DIR_)
 
 #define	_PDS_s_11(p)	case 10: _BIS (P11DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_11(p)	case 10: _BIC (P11DIR, 1 << ((p) & 7)); break;
@@ -381,10 +554,9 @@
 
 #endif
 
-#ifdef	PJDIR
+// ============================================================================
 
-#undef	PORTNAMES_NPINS
-#define	PORTNAMES_NPINS	(48+8+8+8+8+8+8)
+#if defined(PJDIR) || defined(PJDIR_)
 
 #define	_PDS_s_J(p)	case 11: _BIS (PJDIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_J(p)	case 11: _BIC (PJDIR, 1 << ((p) & 7)); break;
@@ -440,11 +612,11 @@
 #define	_PDS(p,v)	do { \
 			    if (v) { \
 				switch ((p) >> 3) { \
-					_PDS_s___ ( 1, p) \
-					_PDS_s___ ( 2, p) \
-					_PDS_s___ ( 3, p) \
-					_PDS_s___ ( 4, p) \
-					_PDS_s___ ( 5, p) \
+					_PDS_s_01 (    p) \
+					_PDS_s_02 (    p) \
+					_PDS_s_03 (    p) \
+					_PDS_s_04 (    p) \
+					_PDS_s_05 (    p) \
 					_PDS_s_06 (    p) \
 					_PDS_s_07 (    p) \
 					_PDS_s_08 (    p) \
@@ -456,11 +628,11 @@
 				} \
 			    } else { \
 				switch ((p) >> 3) { \
-					_PDS_c___ ( 1, p) \
-					_PDS_c___ ( 2, p) \
-					_PDS_c___ ( 3, p) \
-					_PDS_c___ ( 4, p) \
-					_PDS_c___ ( 5, p) \
+					_PDS_c_01 (    p) \
+					_PDS_c_02 (    p) \
+					_PDS_c_03 (    p) \
+					_PDS_c_04 (    p) \
+					_PDS_c_05 (    p) \
 					_PDS_c_06 (    p) \
 					_PDS_c_07 (    p) \
 					_PDS_c_08 (    p) \
@@ -476,11 +648,11 @@
 #define	_PFS(p,v)	do { \
 			    if (v) { \
 				switch ((p) >> 3) { \
-					_PFS_s___ ( 1, p) \
-					_PFS_s___ ( 2, p) \
-					_PFS_s___ ( 3, p) \
-					_PFS_s___ ( 4, p) \
-					_PFS_s___ ( 5, p) \
+					_PFS_s_01 (    p) \
+					_PFS_s_02 (    p) \
+					_PFS_s_03 (    p) \
+					_PFS_s_04 (    p) \
+					_PFS_s_05 (    p) \
 					_PFS_s_06 (    p) \
 					_PFS_s_07 (    p) \
 					_PFS_s_08 (    p) \
@@ -492,11 +664,11 @@
 				} \
 			    } else { \
 				switch ((p) >> 3) { \
-					_PFS_c___ ( 1, p) \
-					_PFS_c___ ( 2, p) \
-					_PFS_c___ ( 3, p) \
-					_PFS_c___ ( 4, p) \
-					_PFS_c___ ( 5, p) \
+					_PFS_c_01 (    p) \
+					_PFS_c_02 (    p) \
+					_PFS_c_03 (    p) \
+					_PFS_c_04 (    p) \
+					_PFS_c_05 (    p) \
 					_PFS_c_06 (    p) \
 					_PFS_c_07 (    p) \
 					_PFS_c_08 (    p) \
@@ -512,11 +684,11 @@
 #define	_PVS(p,v)	do { \
 			    if (v) { \
 				switch ((p) >> 3) { \
-					_PVS_s___ ( 1, p) \
-					_PVS_s___ ( 2, p) \
-					_PVS_s___ ( 3, p) \
-					_PVS_s___ ( 4, p) \
-					_PVS_s___ ( 5, p) \
+					_PVS_s_01 (    p) \
+					_PVS_s_02 (    p) \
+					_PVS_s_03 (    p) \
+					_PVS_s_04 (    p) \
+					_PVS_s_05 (    p) \
 					_PVS_s_06 (    p) \
 					_PVS_s_07 (    p) \
 					_PVS_s_08 (    p) \
@@ -528,11 +700,11 @@
 				} \
 			    } else { \
 				switch ((p) >> 3) { \
-					_PVS_c___ ( 1, p) \
-					_PVS_c___ ( 2, p) \
-					_PVS_c___ ( 3, p) \
-					_PVS_c___ ( 4, p) \
-					_PVS_c___ ( 5, p) \
+					_PVS_c_01 (    p) \
+					_PVS_c_02 (    p) \
+					_PVS_c_03 (    p) \
+					_PVS_c_04 (    p) \
+					_PVS_c_05 (    p) \
 					_PVS_c_06 (    p) \
 					_PVS_c_07 (    p) \
 					_PVS_c_08 (    p) \
@@ -546,11 +718,11 @@
 			} while (0)
 
 #define	_PV(p)		( (  ( \
-				(_PV______ (1, p) : \
-				(_PV______ (2, p) : \
-				(_PV______ (3, p) : \
-				(_PV______ (4, p) : \
-				(_PV______ (5, p) : \
+				(_PV____01 (   p) : \
+				(_PV____02 (   p) : \
+				(_PV____03 (   p) : \
+				(_PV____04 (   p) : \
+				(_PV____05 (   p) : \
 				(_PV____06 (   p) : \
 				(_PV____07 (   p) : \
 				(_PV____08 (   p) : \
@@ -560,11 +732,11 @@
 				(_PV____J  (   p) : \
 					0 )))))))))))) ) >> ((p) & 7)) & 1)
 #define	_PF(p)		( (  ( \
-				(_PF______ (1, p) : \
-				(_PF______ (2, p) : \
-				(_PF______ (3, p) : \
-				(_PF______ (4, p) : \
-				(_PF______ (5, p) : \
+				(_PF____01 (   p) : \
+				(_PF____02 (   p) : \
+				(_PF____03 (   p) : \
+				(_PF____04 (   p) : \
+				(_PF____05 (   p) : \
 				(_PF____06 (   p) : \
 				(_PF____07 (   p) : \
 				(_PF____08 (   p) : \
@@ -574,11 +746,11 @@
 				(_PF____J  (   p) : \
 					0 )))))))))))) ) >> ((p) & 7)) & 1)
 #define	_PD(p)		( (  ( \
-				(_PD______ (1, p) : \
-				(_PD______ (2, p) : \
-				(_PD______ (3, p) : \
-				(_PD______ (4, p) : \
-				(_PD______ (5, p) : \
+				(_PD____01 (   p) : \
+				(_PD____02 (   p) : \
+				(_PD____03 (   p) : \
+				(_PD____04 (   p) : \
+				(_PD____05 (   p) : \
 				(_PD____06 (   p) : \
 				(_PD____07 (   p) : \
 				(_PD____08 (   p) : \
@@ -595,11 +767,11 @@
 #define	_PHS(p,v)	do { \
 			    if (v) { \
 				switch ((p) >> 3) { \
-					_PHS_s___ ( 1, p) \
-					_PHS_s___ ( 2, p) \
-					_PHS_s___ ( 3, p) \
-					_PHS_s___ ( 4, p) \
-					_PHS_s___ ( 5, p) \
+					_PHS_s_01 (    p) \
+					_PHS_s_02 (    p) \
+					_PHS_s_03 (    p) \
+					_PHS_s_04 (    p) \
+					_PHS_s_05 (    p) \
 					_PHS_s_06 (    p) \
 					_PHS_s_07 (    p) \
 					_PHS_s_08 (    p) \
@@ -611,11 +783,11 @@
 				} \
 			    } else { \
 				switch ((p) >> 3) { \
-					_PHS_c___ ( 1, p) \
-					_PHS_c___ ( 2, p) \
-					_PHS_c___ ( 3, p) \
-					_PHS_c___ ( 4, p) \
-					_PHS_c___ ( 5, p) \
+					_PHS_c_01 (    p) \
+					_PHS_c_02 (    p) \
+					_PHS_c_03 (    p) \
+					_PHS_c_04 (    p) \
+					_PHS_c_05 (    p) \
 					_PHS_c_06 (    p) \
 					_PHS_c_07 (    p) \
 					_PHS_c_08 (    p) \
@@ -631,11 +803,11 @@
 #define	_PPS(p,v)	do { \
 			    if (v) { \
 				switch ((p) >> 3) { \
-					_PPS_s___ ( 1, p) \
-					_PPS_s___ ( 2, p) \
-					_PPS_s___ ( 3, p) \
-					_PPS_s___ ( 4, p) \
-					_PPS_s___ ( 5, p) \
+					_PPS_s_01 (    p) \
+					_PPS_s_02 (    p) \
+					_PPS_s_03 (    p) \
+					_PPS_s_04 (    p) \
+					_PPS_s_05 (    p) \
 					_PPS_s_06 (    p) \
 					_PPS_s_07 (    p) \
 					_PPS_s_08 (    p) \
@@ -647,11 +819,11 @@
 				} \
 			    } else { \
 				switch ((p) >> 3) { \
-					_PPS_c___ ( 1, p) \
-					_PPS_c___ ( 2, p) \
-					_PPS_c___ ( 3, p) \
-					_PPS_c___ ( 4, p) \
-					_PPS_c___ ( 5, p) \
+					_PPS_c_01 (    p) \
+					_PPS_c_02 (    p) \
+					_PPS_c_03 (    p) \
+					_PPS_c_04 (    p) \
+					_PPS_c_05 (    p) \
 					_PPS_c_06 (    p) \
 					_PPS_c_07 (    p) \
 					_PPS_c_08 (    p) \
@@ -665,11 +837,11 @@
 			} while (0)
 
 #define	_PH(p)		( (  ( \
-				(_PH______ (1, p) : \
-				(_PH______ (2, p) : \
-				(_PH______ (3, p) : \
-				(_PH______ (4, p) : \
-				(_PH______ (5, p) : \
+				(_PH____01 (   p) : \
+				(_PH____02 (   p) : \
+				(_PH____03 (   p) : \
+				(_PH____04 (   p) : \
+				(_PH____05 (   p) : \
 				(_PH____06 (   p) : \
 				(_PH____07 (   p) : \
 				(_PH____08 (   p) : \
@@ -680,11 +852,11 @@
 					0 )))))))))))) ) >> ((p) & 7)) & 1)
 
 #define	_PP(p)		( (  ( \
-				(_PP______ (1, p) : \
-				(_PP______ (2, p) : \
-				(_PP______ (3, p) : \
-				(_PP______ (4, p) : \
-				(_PP______ (5, p) : \
+				(_PP____01 (   p) : \
+				(_PP____02 (   p) : \
+				(_PP____03 (   p) : \
+				(_PP____04 (   p) : \
+				(_PP____05 (   p) : \
 				(_PP____06 (   p) : \
 				(_PP____07 (   p) : \
 				(_PP____08 (   p) : \

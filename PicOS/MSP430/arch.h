@@ -6,13 +6,9 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-/* ========================================================================== */
-/*                     PicOS                                                  */
-/*                                                                            */
-/* Architecture-specific definitions                                          */
-/*                                                                            */
-#include <io.h>
-#include <signal.h>
+/* ==================================================================== */
+/* Architecture-specific definitions                                    */
+/* ==================================================================== */
 
 typedef unsigned char	bool;
 typedef unsigned char	Boolean;

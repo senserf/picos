@@ -403,8 +403,6 @@ fsm test_pin {
 	ss = 0;
 
 	scan (ibuf + 1, "%u %u", &w, &ss);
-	if (w >= PORTNAMES_NPINS)
-		proceed PI_RCMDP1;
 
 	if (ss < 2) {
 		_PFS (w, 0);
@@ -424,8 +422,6 @@ fsm test_pin {
 
 	w = WNONE;
 	scan (ibuf + 1, "%u", &w);
-	if (w >= PORTNAMES_NPINS)
-		proceed PI_RCMDP1;
 
 	nt = _PV (w);
 	sl = _PD (w);
