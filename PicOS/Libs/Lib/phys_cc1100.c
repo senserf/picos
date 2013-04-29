@@ -1420,7 +1420,7 @@ void phys_cc1100 (int phy, int mbs) {
 	chip_reset ();
 
 #if DIAG_MESSAGES
-	diag ("CC1100E: %d, %d.%dMHz, %d/%dkHz=%d.%dMHz", RADIO_DEFAULT_BITRATE,
+	diag ("CC1100E: %d, %d.%dMHz, %d/%dkHz=%d.%dMHz", RADIO_BITRATE_INDEX,
 		CC1100_BFREQ, CC1100_BFREQ_10, RADIO_DEFAULT_CHANNEL,
 			CC1100_CHANSPC_T1000, CC1100_DFREQ, CC1100_DFREQ_10);
 #endif

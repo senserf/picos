@@ -278,3 +278,9 @@ ExperiNetting.odt is a must if you want to continue on this thread. Changes:
 	params.xml contains a few <slr> (this mess is temporary here, as it
 	should be by praxis / model)
 
+WO130415A:
+In netting, updated _coord, combReal.xml, added hq.gif for the engine and model.
+In LOCATION/TEST, updated params.xml with exp. SLR translation.
+In phys_cc1100.c, replaced overflowing RADIO_DEFAULT_BITRATE with
+  RADIO_BITRATE_INDEX for startup reporting.
+
