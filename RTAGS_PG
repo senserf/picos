@@ -3268,3 +3268,29 @@ PG130402A:
 	   that are present on all CPUs.
 
 	3. Updated the RFTEST document.
+
+PG130429A:
+
+	Updated the CC1100 document.
+
+	But this is more important:
+
+	After the longish break I have tried to get back to the issue of WOR on
+	MSP430F6137. So I have set up the same testbed as before and ... this
+	time everything seems to work just fine. The board has been running for
+	one full day now and there's no trace of the previous problem.
+
+	It may be too early to get excited, but, mind you, the second XCC430
+	board used to fail immediately on the first transition to WOR. Now both
+	boards seem to work just fine. In fact, it is the second one that has
+	been running happily through the night.
+
+	Note that owing to the largish parameter space, I cannot swear that I
+	ever ran the test before with the present values of all the parameters.
+	For example, the slight adjustment of the spin delay after the RX
+	switch in the WOR cycle, combined with setting WOR_EVT1_TIME to 7 may
+	have done the trick. Or something.
+
+	Anyway, even if this is just some fluke, let me do the commit first,
+	without trying to answer any questions, so we have the thing saved
+	for reference.

@@ -24,6 +24,8 @@
 #include "sensors.h"
 #endif
 
+#define	MAX_PACKET_LENGTH	CC1100_MAXPLEN
+
 heapmem { 50, 50 };
 
 // ============================================================================

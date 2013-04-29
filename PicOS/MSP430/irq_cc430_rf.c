@@ -37,10 +37,7 @@ interrupt (CC1101_VECTOR) irq_cc430_rf () {
 		// happy. The manual says that the CPU cannot go to the low
 		// power mode for over 800us when transiting from SLEEP (also
 		// WOR) to any active state. Apparently, the manual is right as
-		// otherwise the chip hangs in weird states after a few hours
-		// of waiting in WOR.
-		//
-		// Oh, well, it hangs regardless ... the radio is buggy
+		// otherwise the chip tends to hang in RX.
 		//
 		cc1100_strobe (CCxxx0_SRX);
 #ifdef	MONITOR_PIN_EVENT0

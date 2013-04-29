@@ -2,9 +2,20 @@
 #define	VUEE_RESYNC_INTERVAL	100
 
 // #define	TLDEBUG
-// #define	MONITOR_PIN_SCHED	P3_0
-// #define	MONITOR_PIN_EVENT0	P3_1
-// #define	MONITOR_PIN_EVENT1	P3_2
+
+#if 1
+
+#ifdef	BOARD_OLIMEX_CCRF
+#define	MONITOR_PIN_SCHED	P3_0
+#define	MONITOR_PIN_EVENT0	P3_1
+#define	MONITOR_PIN_EVENT1	P3_2
+#else
+#define	MONITOR_PIN_SCHED	P1_1
+#define	MONITOR_PIN_EVENT0	P1_2
+#define	MONITOR_PIN_EVENT1	P1_3
+#endif
+
+#endif
 
 // #define	CC1100_OLD_DRIVER
 
@@ -13,9 +24,9 @@
 #undef	UART_DRIVER
 #undef	UART_TCV
 
-#if 0
-#define	LF_CRYSTAL_ABSENT		0
-#define	LOW_POWER_SLEEP_MODE		LPM1_bits
+#if 1
+// #define	LF_CRYSTAL_ABSENT		0
+// #define	LOW_POWER_SLEEP_MODE		LPM1_bits
 #define	RADIO_WOR_MODE			1
 #endif
 
@@ -50,12 +61,6 @@
 //#define	RADIO_LBT_BACKOFF_RX	2
 
 #define	TCV_LIMIT_XMT		16
-
-#if RADIO_CRC_MODE < 4
-#define	MAX_PACKET_LENGTH	62
-#else
-#define	MAX_PACKET_LENGTH	60
-#endif
 
 #ifdef BOARD_WARSAW
 #define	NUMBER_OF_SENSORS	0
