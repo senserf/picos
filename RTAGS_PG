@@ -3294,3 +3294,14 @@ PG130429A:
 	Anyway, even if this is just some fluke, let me do the commit first,
 	without trying to answer any questions, so we have the thing saved
 	for reference.
+
+PG130430A:
+
+	Added a new board definition, WARSAW_PMTHA, which is slightly massaged
+	ARTURO_PMTH including CMA3000 as an additional sensor. This is a demo
+	board for Gerry. We still need some praxis to demonstrate the board,
+	I guess. For now, Gerry can use Apps/TESTS/CMA3000 to test the CMA3000
+	on the board.
+
+	Note that I don't have a specimen of the board, so my modifications
+	are blind. Don't be surprised if it doesn't work out of the box.
