@@ -284,3 +284,9 @@ In LOCATION/TEST, updated params.xml with exp. SLR translation.
 In phys_cc1100.c, replaced overflowing RADIO_DEFAULT_BITRATE with
   RADIO_BITRATE_INDEX for startup reporting.
 
+WO130503A:
+Updates to netting: scripts, the model for Combat's HQ. Also, WIFI added for
+combined or independent location tracking.
+
+Unzip exp2013_05_03.zip and read notes there.
+
