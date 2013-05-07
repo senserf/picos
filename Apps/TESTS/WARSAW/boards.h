@@ -115,4 +115,13 @@
 
 #endif
 
+#ifdef	BOARD_OLIMEX_CCRFLCD
+#define	RTC_TEST
+#include "rtc_cc430.h"
+#include "lcd_ccrf.h"
+#define	LCD_TEST
+#endif
+
+// ============================================================================
+
 #endif

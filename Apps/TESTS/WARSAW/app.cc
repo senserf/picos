@@ -1515,7 +1515,7 @@ fsm test_lcd {
 		"Commands:\r\n"
 		"o n -> on (1 = cursor shown)\r\n"
 		"f -> off\r\n"
-		"d n t -> display text at pos n\r\n"
+		"d t -> display text\r\n"
 		"c -> clear\r\n"
 		"q -> quit\r\n"
 	);
@@ -1545,7 +1545,7 @@ fsm test_lcd {
   state LT_ON:
 
 	sl = 0;
-	scan (ibuf + 1, "%u", &sl);
+	scan (ibuf + 1, "%x", &sl);
 
 	if (sl)
 		sl = 1;
@@ -1562,20 +1562,14 @@ fsm test_lcd {
 
 	char *t;
 
-	sl = 0;
-	scan (ibuf + 1, "%u", &sl);
-
-	if (sl > 31)
-		proceed LT_ERR;
-
 	for (t = ibuf + 1; *t != '\0'; t++)
-		if (*t != ' ' && *t != '\t' && !isdigit (*t))
+		if (*t != ' ' && *t != '\t')
 			break;
 
 	if (*t == '\0')
 		proceed LT_ERR;
 
-	lcd_write (sl, t);
+	lcd_write (0, t);
 	proceed LT_RCM;
 
   state LT_CLE:

@@ -3305,3 +3305,8 @@ PG130430A:
 
 	Note that I don't have a specimen of the board, so my modifications
 	are blind. Don't be surprised if it doesn't work out of the box.
+
+PG130507A:
+
+	Added a new board definition, OLIMEX_CCRFLCD, and a driver for the LCD
+	on the board (files lcd_ccrf.[hc]).

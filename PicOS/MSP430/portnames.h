@@ -5,7 +5,7 @@
 #include <signal.h>
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -556,12 +556,15 @@
 
 // ============================================================================
 
+// Port J has no SEL
+#define	_PFS_s_J(p)
+#define	_PFS_c_J(p)
+#define	_PF____J(p)	0 ? 0
+
 #if defined(PJDIR) || defined(PJDIR_)
 
 #define	_PDS_s_J(p)	case 11: _BIS (PJDIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_J(p)	case 11: _BIC (PJDIR, 1 << ((p) & 7)); break;
-#define	_PFS_s_J(p)	case 11: _BIS (PJSEL, 1 << ((p) & 7)); break;
-#define	_PFS_c_J(p)	case 11: _BIC (PJSEL, 1 << ((p) & 7)); break;
 #define	_PVS_s_J(p)	case 11: _BIS (PJOUT, 1 << ((p) & 7)); break;
 #define	_PVS_c_J(p)	case 11: _BIC (PJOUT, 1 << ((p) & 7)); break;
 #define	_PHS_s_J(p)	case 11: _BIS (PJDS,  1 << ((p) & 7)); break;
@@ -569,7 +572,6 @@
 #define	_PPS_s_J(p)	case 11: _BIS (PJREN, 1 << ((p) & 7)); break;
 #define	_PPS_c_J(p)	case 11: _BIC (PJREN, 1 << ((p) & 7)); break;
 #define	_PV____J(p)	((p) >> 3) == 11 ? PJIN
-#define	_PF____J(p)	((p) >> 3) == 11 ? PJSEL
 #define	_PD____J(p)	((p) >> 3) == 11 ? PJDIR
 #define	_PH____J(p)	((p) >> 3) == 11 ? PJDS
 #define	_PP____J(p)	((p) >> 3) == 11 ? PJREN
@@ -587,8 +589,6 @@
 
 #define	_PDS_s_J(p)
 #define	_PDS_c_J(p)
-#define	_PFS_s_J(p)
-#define	_PFS_c_J(p)
 #define	_PVS_s_J(p)
 #define	_PVS_c_J(p)
 #define	_PHS_s_J(p)
@@ -596,7 +596,6 @@
 #define	_PPS_s_J(p)
 #define	_PPS_c_J(p)
 #define	_PV____J(p)	0 ? 0
-#define	_PF____J(p)	0 ? 0
 #define	_PD____J(p)	0 ? 0
 #define	_PH____J(p)	0 ? 0
 #define	_PP____J(p)	0 ? 0
