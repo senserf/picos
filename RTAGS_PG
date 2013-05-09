@@ -3310,3 +3310,30 @@ PG130507A:
 
 	Added a new board definition, OLIMEX_CCRFLCD, and a driver for the LCD
 	on the board (files lcd_ccrf.[hc]).
+
+PG130509A:
+
+	Some cosmetics (well, a bit more than that) related to econnect and
+	vsen_demo:
+
+	- econnect (the generic version in Scripts): Slightly modernized. The
+	  previous code for selecting the UART and connecting to it reorganized
+	  using the unames package (which we have been using in piter and
+	  udaemon for some time).
+
+	  Wlodek, if you are still using XP, could you please check if the
+	  present option of prescanning COM ports works efficiently? I mean
+	  the econnect now only lists those ports that can be (in principle
+	  opened). I recall it used to take a long time on XP. If it still
+	  does, it can be disabled by resetting PM(AUA) to 0 (line 573 of
+	  econnect.tcl).
+
+	- The snippets package (affecting piter_plug.tcl in vsen_demo): Fixed
+	  a bug causing that repeated intialization (snip_parse) would trigger
+	  errors on duplicate snippet names. Re-intialization is now allowed,
+	  as it should be.
+
+	- A truly cosmetic fix in piter.
+
+	- Fixed options.sys in vsen_demo to undefine some of the symbols before
+	  re-setting them in the file, so VUEE compiles without errors.

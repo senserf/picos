@@ -1321,8 +1321,8 @@ proc sy_valpars { } {
 		# Terminal input event
 		set ST(TIF) $sfu
 		# plugin initializer
-		if [catch { plug_init $PM(PLA) } err] {
-			append err ", plugin init failed: $err"
+		if [catch { plug_init $PM(PLA) } erq] {
+			append err ", plugin init failed: $erq"
 			incr erc
 		} else {
 			# OK
