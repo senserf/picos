@@ -807,9 +807,10 @@ Rtn:
 
 #define	DR_LOOP		0
 #define	DR_SWAIT	1
-#define	DR_WORTMOUT	2
-#define	DR_XMIT		3
-#define	DR_BREAK	4
+#define	DR_RECALIBRATE	2
+#define	DR_WORTMOUT	3
+#define	DR_XMIT		4
+#define	DR_BREAK	5
 
 thread (cc1100_driver)
 
@@ -842,15 +843,16 @@ thread (cc1100_driver)
 	}
 #endif
 
-	// The next thing to find out is whether we have anything to transmit;
-	// if not, we will have to wait
+	// The next thing to find out is whether we have anything to transmit
 
 #if RADIO_WOR_MODE
 	if ((xbuff = tcvphy_top (physid)) == NULL) {
 		wait (__pi_v_qevent, DR_LOOP);
 		if (woron) {
 			// Listen for a while before resuming WOR; do that only
-			// if nothing happens in the meantime
+			// if nothing happens in the meantime; note: we do not
+			// periodically recalibrate here understanding that the
+			// wait in RX is going to be quite finite
 			delay (wor_idle_timeout, DR_WORTMOUT);
 			rcv_enable_int;
 			release;
@@ -861,23 +863,33 @@ thread (cc1100_driver)
 		wait (__pi_v_qevent, DR_LOOP);
 #endif
 		if (RxST == RCV_STATE_OFF) 
-			// Nothing to transmit, no WOR, receiver off -> power
-			// down; note that power_down sets RxST to RCV_STATE_PD
+			// Nothing to transmit, no WOR (RxST is never OFF if
+			// woron is set), go to PD state; note that power_down
+			// sets RxST to RCV_STATE_PD
 			power_down ();
-WEvent:
-		if (RxST != RCV_STATE_PD)
-			// Enable RX interrupt
+
+		if (RxST != RCV_STATE_PD) {
+			// Receiver is on
+#if RADIO_RECALIBRATE
+			// Periodic recalibration
+			delay (RADIO_RECALIBRATE * 1024, DR_RECALIBRATE);
+#endif
 			rcv_enable_int;
+		}
 		release;
 	}
 
 	// There is a packet to transmit
-
 	if (bckf_timer) {
+		// Backoff wait
 		wait (__pi_v_qevent, DR_LOOP);
 		delay (bckf_timer, DR_LOOP);
-		goto WEvent;
+		if (RxST != RCV_STATE_PD)
+			rcv_enable_int;
+		release;
 	}
+
+	// Transmission OK
 
 	if (RxST == RCV_STATE_PD) {
 		// We are powered down, have to power up, cannot happen with
@@ -1033,6 +1045,11 @@ WEvent:
 		release;
 	}
 #endif
+
+#if RADIO_RECALIBRATE
+	// Explicit transition to RX to recalibrate
+	enter_rx ();
+#endif
 	LEDI (1, 0);
 
 #if RADIO_LBT_XMIT_SPACE
@@ -1045,6 +1062,18 @@ FEXmit:
 	retr = 0;
 #endif
 	proceed (DR_LOOP);
+
+#if RADIO_RECALIBRATE
+
+  entry (DR_RECALIBRATE)
+
+	enter_idle ();
+	enter_rx ();
+#if (RADIO_OPTIONS & 0x02)
+	diag ("CC1100: %u RECAL", (word) seconds ());
+#endif
+	proceed (DR_LOOP);
+#endif
 
 #if RADIO_WOR_MODE
 

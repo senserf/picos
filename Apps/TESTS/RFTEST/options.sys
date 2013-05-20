@@ -3,7 +3,7 @@
 
 // #define	TLDEBUG
 
-#if 1
+#if 0
 
 #ifdef	BOARD_OLIMEX_CCRF
 #define	MONITOR_PIN_SCHED	P3_0
@@ -29,6 +29,8 @@
 // #define	LOW_POWER_SLEEP_MODE		LPM1_bits
 #define	RADIO_WOR_MODE			1
 #endif
+
+#define	RADIO_RECALIBRATE		8
 
 #define	RADIO_BITRATE_SETTABLE		1
 #define	RADIO_POWER_SETTABLE		1

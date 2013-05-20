@@ -116,6 +116,10 @@
 #define	RADIO_LBT_MODE		3
 #endif
 
+#ifndef	RADIO_RECALIBRATE
+#define	RADIO_RECALIBRATE	0
+#endif
+
 #if RADIO_LBT_MODE < 0 || RADIO_LBT_MODE > 3
 #error "S: illegal setting of RADIO_LBT_MODE, must be 0...3"
 #endif
@@ -368,8 +372,18 @@
 // ============================================================================
 // ============================================================================
 
-// Automatic transitions of the RF automaton: after RX to IDLE, after TX to RX
+#if RADIO_RECALIBRATE
+// When periodic recalibration is selected, TX transits to IDLE, so we will
+// recalibrate on transition to RX
+#if RADIO_RECALIBRATE < 0 || RADIO_RECALIBRATE > 63
+#error "S: RADIO_RECALIBRATE must be between 0 and 63 inclusively"
+#endif
+#define	MCSM1_TRANS_MODE	0x00
+#else
+// No periodic recalibration, TX transits to RX
 #define	MCSM1_TRANS_MODE	0x03
+#endif
+
 // MSCM1 register settings (selecting global LBT mode)
 #define	MCSM1_LBT_OFF		(MCSM1_TRANS_MODE | (0 << 4))	// OFF
 #define	MCSM1_LBT_RCV		(MCSM1_TRANS_MODE | (2 << 4))	// If receiving

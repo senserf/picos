@@ -3337,3 +3337,40 @@ PG130509A:
 
 	- Fixed options.sys in vsen_demo to undefine some of the symbols before
 	  re-setting them in the file, so VUEE compiles without errors.
+
+PG130520A:
+
+	A new compilation option added to the CC1100 driver. Here is the
+	relevant excerpt from the CC1100 document:
+
+	RADIO_RECALIBRATE (default setting 0) tells whether the the module's
+	frequency synthesizer should be periodically recalibrated if nothing
+	happens in the meantime that would trigger automatic recalibration.
+	Normally, when RADIO_CALIBRATE is zero, the synthesizer is recalibrated
+	automatically in these circumstances:
+
+	1. before switching on RX (including after every packet reception)
+
+	2. before switching on TX, but only if the receiver (RX) has been
+	   inactive (OFF); this includes the case of transmitting in the OFF
+	   mode, or powering the chip ON (switching the receiver ON) after OFF
+
+	Theoretically, if no packet is received for a long time while the chip
+	remains in the RX state, the synthesizer may lose its calibration. The
+	praxis can always trigger recalibration explicitly by powering the
+	module down (going OFF) and then back ON, but the driver can also do it
+	periodically (and more efficiently) if RADIO_RECALIBRATE is nonzero.
+
+	If nonzero, RADIO_RECALIBRATE tells the number of seconds after which
+	the synthesizer will be forcibly recalibrated if the module remains in
+	RX and there has been no reception. The maximum duration of the
+	recalibration interval is 63 seconds.
+
+	If RADIO_RECALIBRATE is nonzero, then automatic recalibration is also
+	forced after every packet transmission (including the situation when
+	the receiver is ON). This is accomplished by switching the module to
+	IDLE and then back to RX after every transmission. Note that the driver
+	doesn't use the explicit calibration strobe (SCAL) which is messy and
+	probably not much more efficient than going through the IDLE state.
+
+	gennodes.tcl included in Scripts.
