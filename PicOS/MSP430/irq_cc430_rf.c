@@ -13,6 +13,10 @@
 
 interrupt (CC1101_VECTOR) irq_cc430_rf () {
 
+#ifdef	MONITOR_PIN_CC1100_INT
+	_PVS (MONITOR_PIN_CC1100_INT, 1);
+#endif
+
 	RF1AIE = 0;
 	// Make sure FLL is on while we are doing this (just for a test)
 	_BIC_SR (SCG0 + SCG1);
@@ -71,5 +75,10 @@ interrupt (CC1101_VECTOR) irq_cc430_rf () {
 
 	RF1AIFG = 0;
 Rtn:
+
+#ifdef	MONITOR_PIN_CC1100_INT
+	_PVS (MONITOR_PIN_CC1100_INT, 0);
+#endif
+
 	RTNI;
 }

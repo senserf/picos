@@ -2,9 +2,9 @@
 #include "locengine.h"
 
 //
-// Copyright (C) 2008-2012 Olsonet Communications Corporation
+// Copyright (C) 2008-2013 Olsonet Communications Corporation
 //
-// PG March 2008, revised January 2012
+// PG March 2008, revised January 2012, more modifications January-May 2013
 //
 
 #if DEBUGGING
@@ -153,10 +153,11 @@ Found:
 		// Cannot calculate the distance
 		return -1.0;
 #if DEBUGGING
-		printf ("DIST FAC: %d, %1.2f\n", NM, sqrt (NM * PM_dis_fac));
+		printf ("DIST FAC: %d, %1.2f\n", NM,
+			sqrt (pow (NM, PM_dis_fac)));
 #endif
 
-	return (float) sqrt (S / (NM * PM_dis_fac));
+	return (float) sqrt (S / pow (NM, PM_dis_fac));
 }
 
 // ============================================================================

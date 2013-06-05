@@ -66,7 +66,7 @@
 // ============================================================================
 // OPTIONS, EXTENSIONS:
 //
-//	0x01 retired and amalgamated into 0x02
+//	0x01 overwrite packet [1] with the packet's backoff value
 //	0x02 trace: diag messages on important events and problems)
 //	0x04 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
 //	0x08 prechecks: initial check for RF chip present (to prevent hangups)
@@ -127,11 +127,11 @@
 // RSSI thresholds (for LBT); these values are only relevant when
 // RADIO_LBT_MODE == 2
 #ifndef	RADIO_CC_THRESHOLD
-#define	RADIO_CC_THRESHOLD	6	// 1 lowest, 15 highest, 0 off
+#define	RADIO_CC_THRESHOLD	1	// 1 lowest, 15 highest, 0 off
 #endif
 
 #ifndef	RADIO_CC_THRESHOLD_REL
-#define	RADIO_CC_THRESHOLD_REL	0	// 1 1 lowest, 3 highest, 0 off
+#define	RADIO_CC_THRESHOLD_REL	1	// 1 lowest, 3 highest, 0 off
 #endif
 
 #if RADIO_LBT_MODE == 3

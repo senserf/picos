@@ -38,8 +38,8 @@ u32	PM_dis_min = 1;
 
 float	PM_dis_fac = 1.0;
 		// Preference factor for longer matches. The discrepancy is
-		// calculated as sqrt (sum (Di^2) / (N * fac)), where N is
-		// the number of matched Pegs; thus, fac > 1 will give
+		// calculated as sqrt (sum (Di^2) / (N ^ fac)), where N is
+		// the number of matched Pegs; thus, fac > 0 will give
 		// preference to longer matches.
 
 int	PM_dis_tag = 0;		
@@ -487,9 +487,6 @@ void set_params_dis (sxml_t xmlp) {
 		if (findfloat (&att, &PM_dis_fac))
 			abt ("<dis> fac attribute (%s) is not an FP number ",
 				att);
-		if (PM_dis_fac <= 0.0)
-			abt ("<dis> fac attribute (%f) has an illegal value",
-				PM_dis_fac);
 	}
 }
 

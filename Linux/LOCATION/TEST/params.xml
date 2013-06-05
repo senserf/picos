@@ -11,7 +11,7 @@ the below is not derived, just more or less double every 10 rssi points
 <!-- this doesn't work too well... 
 <slr> (30 0.0) (240 210.0) </slr>
 -->
-<dis min="2" fac="1.5" tag="-230"/>
+<dis min="2" fac="1.2" tag="-230"/>
 <sel min="3" max="9" fac="1.5"/>
 <ave for="exp" fac="5.0">
 </data>

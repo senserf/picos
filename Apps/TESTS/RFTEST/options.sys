@@ -3,6 +3,8 @@
 
 // #define	TLDEBUG
 
+// #define RADIO_LBT_MODE	2
+
 #if 0
 
 #ifdef	BOARD_OLIMEX_CCRF
@@ -17,6 +19,18 @@
 
 #endif
 
+
+#if 0
+
+#ifdef	BOARD_WARSAW
+#define	MONITOR_PIN_CC1100_INT	P1_7
+#define	MONITOR_PIN_CC1100_RX	P2_2
+#define	MONITOR_PIN_CC1100_TXP	P2_3
+#define	MONITOR_PIN_CC1100_TXS	P2_5
+#endif
+
+#endif
+
 // #define	CC1100_OLD_DRIVER
 
 #undef	STORAGE_AT45XXX
@@ -24,13 +38,13 @@
 #undef	UART_DRIVER
 #undef	UART_TCV
 
-#if 1
-// #define	LF_CRYSTAL_ABSENT		0
-// #define	LOW_POWER_SLEEP_MODE		LPM1_bits
+#if 0
+#define	LF_CRYSTAL_ABSENT		0
+#define	LOW_POWER_SLEEP_MODE		LPM1_bits
 #define	RADIO_WOR_MODE			1
 #endif
 
-#define	RADIO_RECALIBRATE		8
+// #define	RADIO_RECALIBRATE		8
 
 #define	RADIO_BITRATE_SETTABLE		1
 #define	RADIO_POWER_SETTABLE		1
@@ -55,7 +69,7 @@
 
 #define	UART_TCV		1
 #define	UART_TCV_MODE		UART_TCV_MODE_L
-#define	RADIO_OPTIONS		(0x02 + 0x04 + 0x40 + 0x80 + 0x20)
+#define	RADIO_OPTIONS		(0x01 + 0x04 + 0x40 + 0x80 + 0x20)
 #define	RADIO_CRC_MODE		0
 #undef	DIAG_IMPLEMENTATION
 #define	DIAG_IMPLEMENTATION	1

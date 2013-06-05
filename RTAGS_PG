@@ -3374,3 +3374,19 @@ PG130520A:
 	probably not much more efficient than going through the IDLE state.
 
 	gennodes.tcl included in Scripts.
+
+PG130605A:
+
+	A minor fix to the location engine: the usage of fac in calculating
+	inter-sample distance didnt' make a lot of sense.
+
+	A couple of tweaks to the CC1100 driver (irrelevant from the viewpoint
+	of a production praxis) to facilitate tests:
+
+	- important events can be optionally seen on indicated pins
+
+	- RADIO_OPTIONS bit 0 (0x01) causes the driver to insert into word 1
+	  of every outgoing packet the amount of backoff (in PicOS
+	  milliseconds) suffered by the packet
+
+	The RFTEST praxis tweaked accordingly.

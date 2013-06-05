@@ -114,6 +114,7 @@ void confirm (word sender, word sernum, word code) {
 		packet [POFF_RCV] = HOST_ID;
 		packet [POFF_SND] = sender;
 		packet [POFF_SER] = sernum;
+		packet [POFF_FLG] = 0;		// This is not used by ACK
 		packet [POFF_CMD] = code;
 		tcv_endp (packet);
 	}
@@ -160,7 +161,7 @@ Bad_length:
 	g_snd_rcode = buf [POFF_CMD];
 	tcv_endp (buf);
 End:
-	g_snd_rtries = RF_COMMAND_RETRIES+10;
+	g_snd_rtries = WNONE;
 	trigger (&g_snd_rnode);
 }
 
@@ -323,20 +324,28 @@ word do_command (const char *cb, word sender, word sernum) {
 	    case 's': {
 
 		// Start/restart the sender
-		word np, ur;
+		word np, ur, to, dl;
 
 		// Default = no limit, non urgent
-		np = ur = 0;
+		np = ur = to = dl = 0;
 
-		scan (cb + 1, "%u %u", &np, &ur);
+		scan (cb + 1, "%u %u %u %u", &np, &ur, &to, &dl);
 
 		g_snd_left = np;
 		g_snd_urgent = (ur != 0);
 
 		killall (thread_sender);
 
-		if (runfsm thread_sender == 0)
+		if (to != 0) {
+			killall (thread_rxbackon);
+			tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
+			if  (runfsm thread_rxbackon (to) == 0)
+				return 6;
+		}
+
+		if (runfsm thread_sender (dl) == 0) {
 			return 6;
+		}
 
 		return 0;
 	    }
@@ -352,12 +361,14 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		scan (cb + 1, "%u", &wormode);
 
+		killall (thread_rxbackon);
 		tcv_control (g_fd_rf, PHYSOPT_RXOFF, &wormode);
 		return 0;
 	    }
 
 	    case 'g':
 
+		killall (thread_rxbackon);
 		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
 		return 0;
 
@@ -854,6 +865,9 @@ word gen_send_params () {
 	if (g_pkt_mindel >= g_pkt_maxdel)
 		return g_pkt_mindel;
 
+	if (g_pkt_mindel == g_pkt_maxdel)
+		return g_pkt_maxdel;
+
 	return (word)(rnd () % (g_pkt_maxdel - g_pkt_mindel + 1)) +
 		g_pkt_mindel;
 }
@@ -910,23 +924,24 @@ void view_packet (address p, word pl) {
 		// Something wrong
 		return;
 
-	uart_outf (WNONE, "S: %u, L: %u, P: %u, R: %u, Q: %u, M %c"
+	uart_outf (WNONE, "S:%u, D:%x, N:%u, L:%u, P:%u, R:%u, Q:%u, M%c"
 #if NUMBER_OF_SENSORS > 0
-		", V: %u"
+		", V:%u"
 #if NUMBER_OF_SENSORS > 1
-		", %u"
+		",%u"
 #if NUMBER_OF_SENSORS > 2
-		", %u"
+		",%u"
 #if NUMBER_OF_SENSORS > 3
-		", %u"
+		",%u"
 #if NUMBER_OF_SENSORS > 4
-		", %u"
+		",%u"
 #endif
 #endif
 #endif
 #endif
 #endif
-		, p [POFF_SND], pl << 1, p [POFF_FLG] & 0x07,
+		, p [POFF_SND], p [POFF_DRI], p [POFF_SER],
+		  	pl << 1, p [POFF_FLG] & 0x07,
 			g_last_rssi, g_last_qual,
 			(p [POFF_FLG] & 0x8000) ? 'D' : 'U'
 
@@ -949,6 +964,21 @@ void view_packet (address p, word pl) {
 }
 
 // ============================================================================
+
+fsm thread_rxbackon (word offtime) {
+//
+// Turn RX on after a delay
+//
+	entry RF_START:
+
+		delay (offtime, RF_BACKON);
+		release;
+
+	entry RF_BACKON:
+
+		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+		finish;
+}
 
 fsm thread_pcmnder {
 
@@ -1033,6 +1063,7 @@ fsm thread_patable {
 	packet [POFF_RCV] = g_pat_peer;
 	packet [POFF_SND] = HOST_ID;
 	packet [POFF_SER] = (word) (g_pat_cset [1]);
+	packet [POFF_FLG] = 0;
 	strcpy ((char*)(packet+POFF_CMD), "+");
 	tcv_endp (packet);
 
@@ -1142,6 +1173,7 @@ fsm thread_rfcmd {
 
 	packet [POFF_RCV] = g_snd_rnode;
 	packet [POFF_SND] = HOST_ID;
+	packet [POFF_FLG] = 0;
 	packet [POFF_SER] = g_snd_sernum;
 
 	strcpy ((char*)(packet + POFF_CMD), g_snd_rcmd);
@@ -1157,6 +1189,8 @@ fsm thread_rfcmd {
 
 fsm thread_rreporter {
 
+  word nn, nx;
+
   entry UF_START:
 
 	uart_outf (UF_START, "Stats of node %u:", g_rcv_ackrp [POFF_RCV]);
@@ -1165,19 +1199,16 @@ fsm thread_rreporter {
 
 	uart_outf (UF_FIXED, "Sent: %u", g_rcv_ackrp [POFF_SENT]);
 
-	// Use these as counters
-	g_rcv_ackrp [POFF_SND] = 0;
-	g_rcv_ackrp [POFF_SER] = POFF_NTAB;
+	nn = 0;
+	nx = POFF_NTAB;
 
   entry UF_NEXT:
 
-	if (g_rcv_ackrp [POFF_SND] < g_rcv_ackrp [POFF_NNOD]) {
+	if (nn < g_rcv_ackrp [POFF_NNOD]) {
 		uart_outf (UF_NEXT, "Received from %u: %u",
-			g_rcv_ackrp [g_rcv_ackrp [POFF_SER]    ],
-			g_rcv_ackrp [g_rcv_ackrp [POFF_SER] + 1]);
-
-		g_rcv_ackrp [POFF_SND]++;
-		g_rcv_ackrp [POFF_SER] += 2;
+			g_rcv_ackrp [nx], g_rcv_ackrp [nx + 1]);
+		nn ++;
+		nx += 2;
 		proceed UF_NEXT;
 	}
 
@@ -1263,8 +1294,7 @@ fsm thread_listener {
 	if (pl >= MIN_ANY_PACKET_LENGTH/2) {
 
 		if (packet [POFF_RCV] == 0) {
-			// This is one of the packets to be counted;
-			// packet [2] is the node number of the sender
+			// This is one of the packets to be counted
 			update_count (packet [POFF_SND]);
 			if ((g_flags & 0x4000))
 				view_packet (packet, pl);
@@ -1293,9 +1323,9 @@ fsm thread_listener {
 
 // ============================================================================
 
-fsm thread_sender {
+fsm thread_sender (word dl) {
 
-  word scnt;
+  word scnt, sernum;
   address spkt;
 
 #if NUMBER_OF_SENSORS > 0
@@ -1303,6 +1333,14 @@ fsm thread_sender {
   word sval [NUMBER_OF_SENSORS];
 
 #endif
+
+  entry SN_INIT:
+
+	// A delay at the beginning, so any threaded preprocessing
+	// has a chance to complete
+	sernum = 0;
+	delay (dl, SN_START);
+	release;
 
   entry SN_START:
 
@@ -1334,6 +1372,7 @@ fsm thread_sender {
 	spkt = tcv_wnps (SN_NEXT, g_fd_rf, g_snd_opl, g_snd_urgent);
 	spkt [POFF_RCV] = 0;
 	spkt [POFF_SND] = HOST_ID;
+	spkt [POFF_SER] = sernum++;
 	spkt [POFF_FLG] = tcv_control (g_fd_rf, PHYSOPT_GETPOWER, NULL) |
 		g_flags;
 
@@ -1417,7 +1456,7 @@ fsm root {
 	runfsm thread_listener;
 
 	if (g_flags & 0x4000)
-		runfsm thread_sender;
+		runfsm thread_sender (0);
 
 	// Only this one stays
 	g_flags &= 0x8000;

@@ -330,6 +330,17 @@ static word	*rbuff = NULL,
 		statid = 0,
 		bckf_timer = 0;
 
+#if (RADIO_OPTIONS & 0x01)
+static word	bckf_lbt = 0;
+
+#define	update_bckf_lbt(v)	bckf_lbt += (v)
+
+#else
+
+#define	update_bckf_lbt(v)	CNOP
+
+#endif
+
 word		__pi_v_drvprcs, __pi_v_qevent;
 
 #if RADIO_WOR_MODE && (RADIO_OPTIONS & 0x20)
@@ -636,6 +647,10 @@ static void do_rx_fifo () {
 #endif
 	LEDI (2, 1);
 
+#ifdef	MONITOR_PIN_CC1100_RX
+	_PVS (MONITOR_PIN_CC1100_RX, 1);
+#endif
+
 	if ((len = rx_status ()) < 0) {
 		// Something wrong, bad state
 #if (RADIO_OPTIONS & 0x02)
@@ -799,6 +814,11 @@ RRX:
 Rtn:
 	gbackoff (RADIO_LBT_BACKOFF_RX);
 	LEDI (2, 0);
+
+#ifdef	MONITOR_PIN_CC1100_RX
+	_PVS (MONITOR_PIN_CC1100_RX, 0);
+#endif
+
 }
 
 // ============================================================================
@@ -880,6 +900,10 @@ thread (cc1100_driver)
 	}
 
 	// There is a packet to transmit
+
+#ifdef	MONITOR_PIN_CC1100_TXP
+	_PVS (MONITOR_PIN_CC1100_TXP, 1);
+#endif
 	if (bckf_timer) {
 		// Backoff wait
 		wait (__pi_v_qevent, DR_LOOP);
@@ -960,17 +984,27 @@ thread (cc1100_driver)
 		// Aggressive transmitter
 		delay (1, DR_LOOP);
 		set_congestion_indicator (1);
+		update_bckf_lbt (1);
 		release;
 #else
 		// Backoff
 		gbackoff (RADIO_LBT_BACKOFF_EXP);
 		set_congestion_indicator (bckf_timer);
+		update_bckf_lbt (bckf_timer);
 		proceed (DR_LOOP);
 #endif
 	} else {
 		// Channel access granted
 		set_congestion_indicator (0);
 	}
+
+#ifdef	MONITOR_PIN_CC1100_TXP
+	_PVS (MONITOR_PIN_CC1100_TXP, 0);
+#endif
+
+#ifdef	MONITOR_PIN_CC1100_TXS
+	_PVS (MONITOR_PIN_CC1100_TXS, 1);
+#endif
 
 #if RADIO_WOR_MODE
 
@@ -984,8 +1018,8 @@ thread (cc1100_driver)
   entry (DR_XMIT)
 
 	if ((xbuff = tcvphy_get (physid, &paylen)) == NULL)
-		// This can fail, because we may have been sleeping for a while
-		// while sending a long preamble
+		// This can fail, because we may have been sleeping while
+		// sending the long preamble
 		goto Break;
 #else
 	// This cannot possibly fail
@@ -1012,6 +1046,11 @@ thread (cc1100_driver)
 	if (statid != 0xffff)
 		// This means "honor the packet's statid"
 		xbuff [0] = statid;
+
+#if (RADIO_OPTIONS & 0x01)
+	xbuff [1] = bckf_lbt;
+	bckf_lbt = 0;
+#endif
 
 #if SOFTWARE_CRC
 	// Calculate CRC
@@ -1054,6 +1093,10 @@ thread (cc1100_driver)
 
 #if RADIO_LBT_XMIT_SPACE
 	utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
+#endif
+
+#ifdef	MONITOR_PIN_CC1100_TXS
+	_PVS (MONITOR_PIN_CC1100_TXS, 0);
 #endif
 
 FEXmit:
