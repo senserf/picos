@@ -646,4 +646,7 @@ PG130311A:	VUEE >= PG130311A
 
 	Added an option to invert the y-coordinate in udaemon.
 
-	
+PG130606A:	VUEE >= PG130606A
+
+	Added an option (in the VUEE config menu) to terminate the VUEE model
+	when udaemon quits.

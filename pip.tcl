@@ -142,6 +142,7 @@ set CFVueeItems {
 			"CMPIS"		0
 			"DPBC"		0
 			"UDON"		0
+			"UDTM"		0
 			"YCDN"		0
 			"VUDF"		""
 			"VUSM"		1.0
@@ -4465,6 +4466,15 @@ proc mk_vuee_conf_window { } {
 	pack $f.c -side right -expand n
 
 	##
+	set f $w.tt
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Terminate when udaemon quits: "
+	pack $f.l -side left -expand n
+	checkbutton $f.c -variable P(M0,UDTM)
+	pack $f.c -side right -expand n
+
+	##
 	set f $w.tq
 	frame $f
 	pack $f -side top -expand y -fill x
@@ -6310,6 +6320,10 @@ proc run_udaemon { { auto 0 } } {
 
 	if [dict get $P(CO) "YCDN"] {
 		append cmd " -R"
+	}
+
+	if [dict get $P(CO) "UDTM"] {
+		append cmd " -T"
 	}
 
 	append cmd " 2>@1"
