@@ -3390,3 +3390,10 @@ PG130605A:
 	  milliseconds) suffered by the packet
 
 	The RFTEST praxis tweaked accordingly.
+
+PG130606A:	VUEE >= PG130606A
+
+	dbg_level added to modsyms to make the definitions of dbg_x(...)
+	consistent across program and library files (in VUEE models).
+
+	Location doc file renamed (correcting my stupid mistake).

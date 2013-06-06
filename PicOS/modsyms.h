@@ -140,6 +140,10 @@
 #define	DIAG_MESSAGES		2
 #endif
 
+#ifndef	dbg_level
+#define	dbg_level		0
+#endif
+
 /* ======================================================================== */
 /* End of the part parsed by picomp                                         */
 /* ======================================================================== */

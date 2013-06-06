@@ -5,10 +5,6 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#ifndef	dbg_level
-#define	dbg_level	0
-#endif
-
 #if			(dbg_level & 1)
 #define	dbg_0(c)	__pi_dbg (0, (word)(c))
 #else
@@ -111,7 +107,7 @@
 #define	dbg_binary	0
 #endif
 
-extern	void __pi_dbg (const word, word);
+extern	void __pi_dbg (word, word);
 
 #endif
 
