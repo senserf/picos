@@ -130,6 +130,50 @@ proc wrap_udaemon { } {
 	cd $CD
 }
 
+proc check_reverse_y { } {
+
+	if [catch { open "config.prj" "r" } fd] {
+		return 0
+	}
+
+	if [catch { read $fd } pf] {
+		abt "Cannot read config.prj, $pf"
+	}
+
+	catch { close $fd }
+
+	if { [string first "YCDN 1" $pf] >= 0 } {
+		return 1
+	}
+
+	return 0
+}
+
+proc fix_runmodel { } {
+
+	global TDIR
+
+	if [catch { open "runmodel.tcl" "r" } fd] {
+		abt "Cannot open runmodel.tcl in $TDIR"
+	}
+
+	if [catch { read $fd } rf] {
+		abt "Cannot read runmodel.tcl in $TDIR"
+	}
+
+	catch { close $fd }
+
+	regsub "\"-T\"" $rf "\"-T\" \"-R\"" rf
+
+	if [catch { open "runmodel.tcl" "w" } fd] {
+		abt "Cannot write runmodel.tcl in $TDIR"
+	}
+
+	puts -nonewline $fd $rf
+
+	catch { close $fd }
+}
+
 proc wrap_runmodel { } {
 
 	global TDIR PP
@@ -139,9 +183,15 @@ proc wrap_runmodel { } {
 		abt "Cannot copy runmodel.tcl to $TDIR, $err"
 	}
 
+	set yr [check_reverse_y]
+
 	set CD [pwd]
 	if [catch { cd $TDIR } err] {
 		abt "Cannot cd to $TDIR, $err"
+	}
+
+	if $yr {
+		fix_runmodel
 	}
 
 	if [catch { exec fullwrap "runmodel.tcl" } err] {
