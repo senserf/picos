@@ -3523,7 +3523,7 @@ proc mkdlist { } {
 
 	foreach ln [split $sl "\n"] {
 		set ln [string trim $ln]
-		if { [regexp "^#define\[ \t\]+(\[^ \t\]+)" $ln jk sy] ||
+		if { [regexp "^#define\[ \t\]+(\[^ (\t\]+)" $ln jk sy] ||
 		     [regexp "//->\[ \t\]*(\[^ \t\]+)" $ln jk sy] } {
 			lappend MODSYMS $sy
 		}

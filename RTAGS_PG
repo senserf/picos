@@ -3397,3 +3397,21 @@ PG130606A:	VUEE >= PG130606A
 	consistent across program and library files (in VUEE models).
 
 	Location doc file renamed (correcting my stupid mistake).
+
+PG130606B:
+
+	Two scripts: mksvm (make standalone vuee model) and runmodel.tcl added
+	to Scripts. With mksvm (executed from within a project directory) you
+	can create a standalone Windows-executable model pack. The single
+	optional argument is interpreted as the path to the target directory
+	(which need not exist). By default it is VUEEPACK in the current (i.e.,
+	project's) directory. The script assumes that:
+
+	- your Cygwin version is reasonably recent
+	- PICOS and friends have been deployed
+	- executable fullwrap is available (as the Tcl wrapper)
+
+	I have checked that packs generated under Windows 7 can be executed
+	on Vista (and on Windows 7, of course).
+
+	A minor fix to picomp to allow macros with arguments in MODSYMS.

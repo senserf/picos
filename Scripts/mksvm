@@ -1,0 +1,177 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# Creates a standalone VUEE model from a compiled VUEE project; should be
+# called under Cygwin in the project directory
+#
+
+set CYGDLLS { "cyggcc_s-1.dll" "cygstdc++-6.dll" "cygwin1.dll" }
+
+proc abt { m } {
+	puts stderr $m
+	exit 99
+}
+
+proc bad_args { } {
+
+	global argv0
+
+	abt "Usage: $argv0 \[target_directory_name\]"
+}
+
+proc parse_args { } {
+
+	global argv TDIR
+
+	set na [llength $argv]
+	if { $na == 0 } {
+		set TDIR [file join [pwd] "VUEEPACK"]
+	} elseif { $na == 1 } {
+		set TDIR [lindex $argv 0]
+	} else {
+		bad_args
+	}
+}
+
+proc make_target_directory { } {
+
+	global TDIR
+
+	catch { file delete -force -- $TDIR }
+
+	if [catch { file mkdir $TDIR } err] {
+		abt "Cannot create $TDIR, $err"
+	}
+}
+
+proc copy_cygwin_dlls { } {
+
+	global TDIR CYGDLLS
+
+	foreach f $CYGDLLS {
+		if [catch { file copy [file join "/bin" $f] $TDIR } err] {
+			abt "Cannot copy $f from /bin to $TDIR, $err"
+		}
+	}
+}
+
+proc copy_applib { } {
+
+	global TDIR PP
+
+	if [catch { exec picospath } PP] {
+		abt "Cannot get PICOS path (picospath failure), $PP"
+	}
+
+	set pp [file join $PP "Apps" "DataLib"]
+
+	set fl [glob -nocomplain -path "${pp}/" "*"]
+
+	foreach f $fl {
+
+		if [file isdirectory $f] {
+			if [catch { file copy $f $TDIR } err] {
+				abt "Cannot copy $f to $TDIR, $err"
+			}
+		}
+	}
+}
+
+proc copy_data { } {
+
+	global TDIR
+
+	set fl [glob -nocomplain "*.xml"]
+
+	foreach f $fl {
+		if [catch { file copy $f $TDIR } err] {
+			abt "Cannot copy $f to $TDIR, $err"
+		}
+	}
+}
+
+proc copy_side { } {
+
+	global TDIR
+
+	if ![file exists "side.exe"] {
+		abt "Project not compiled for VUEE, no side.exe file"
+	}
+
+	if [catch { file copy "side.exe" $TDIR } err] {
+		abt "Cannot copy side.exe to $TDIR, $err"
+	}
+}
+
+proc wrap_udaemon { } {
+
+	global TDIR PP
+
+	if { [catch { exec which udaemon } ud] || ![file exists $ud] } {
+		abt "Cannot locate udaemon script"
+	}
+
+	if [catch { exec cp $ud [file join $TDIR "udaemon.tcl"] } err] {
+		abt "Cannot copy udaemon to $TDIR, $err"
+	}
+
+	set CD [pwd]
+	if [catch { cd $TDIR } err] {
+		abt "Cannot cd to $TDIR, $err"
+	}
+
+	if [catch { exec fullwrap "udaemon.tcl" } err] {
+		abt "Cannot wrap udaemon, $err"
+	}
+
+	file delete -force "udaemon.tcl"
+
+	cd $CD
+}
+
+proc wrap_runmodel { } {
+
+	global TDIR PP
+
+	if [catch { file copy [file join $PP "Scripts" "runmodel.tcl"] $TDIR } \
+	    err] {
+		abt "Cannot copy runmodel.tcl to $TDIR, $err"
+	}
+
+	set CD [pwd]
+	if [catch { cd $TDIR } err] {
+		abt "Cannot cd to $TDIR, $err"
+	}
+
+	if [catch { exec fullwrap "runmodel.tcl" } err] {
+		abt "Cannot wrap runmodel.tcl, $err"
+	}
+
+	file delete -force "runmodel.tcl"
+
+	cd $CD
+}
+
+parse_args
+
+puts "target directory: $TDIR"
+make_target_directory
+
+puts "copying side.exe ..."
+copy_side
+
+puts "copying Cygwin DLLs ..."
+copy_cygwin_dlls
+
+puts "copying AppLib files ..."
+copy_applib
+
+puts "copying data files ..."
+copy_data
+
+puts "wrapping udaemon ..."
+wrap_udaemon
+
+puts "wrapping runmodel ..."
+wrap_runmodel
