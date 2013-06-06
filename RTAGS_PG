@@ -1018,3 +1018,12 @@ PG130311A:
 
     Added an option to udaemon (-R) to invert the y-coordinate in the ROAMER
     window.
+
+PG130606A:	PICOS >= PG130606A
+
+    dbg_level added to modsyms to make the definitions of dbg_x(...) consistent
+    across program and library files (in VUEE models).
+
+    New service (STOP) added to agent.cc and udaemon to provide for terminating
+    the model from udaemon (on exit). To be documented soon.
+

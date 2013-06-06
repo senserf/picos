@@ -845,6 +845,7 @@ array set SREQUESTS	{
 				PTRACKER	9
 				EMUL		10
 				XMLDATA		11
+				STOP		12
 			}
 
 ###############################################################################
@@ -1089,15 +1090,18 @@ proc bad_usage { } {
 
 	global argv0
 
-	alex "Usage: $argv0 \[host:port\] \[-R\]!"
+	alex "Usage: $argv0 \[host:port\] \[-R\] \[-T\]!"
 }
 
 proc parse_args { } {
 
-	global argv PortNumber HostName RY
+	global argv PortNumber HostName RY TM
 
 	# invert Y coordinates
 	set RY 0
+
+	# terminate model on exit
+	set TM 0
 
 	while { [llength $argv] } {
 
@@ -1110,6 +1114,15 @@ proc parse_args { } {
 				bad_usage
 			}
 			set RY 1
+			continue
+		}
+
+		if { $j == "-T" } {
+			# terminate model on exit
+			if $TM {
+				bad_usage
+			}
+			set TM 1
 			continue
 		}
 
@@ -1205,6 +1218,15 @@ proc readXML { Sok } {
 
 	set Geometry(+F) $Stat($Sok,DA)
 	wdestroy $Sok
+}
+
+proc STOP_ini { Sok code } {
+#
+# To connect to the termination socket for the model
+#
+	global TM
+
+	set TM ""
 }
 
 proc parse_geometry { } {
@@ -7096,6 +7118,23 @@ proc moveNote { Sok n x y } {
 	}
 }
 
+proc terminate_on_exit { } {
+#
+# Opens a socket to link udaemon to the model to be closed on exit, which will
+# tell the model to terminate.
+#
+	global TM
+
+	update
+	set TM [sock_conn "STOP"]
+	if { $TM == "" } {
+		# cannot fail
+		alex "Cannot connect to the model's STOP service"
+	}
+
+	vwait TM
+}
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -7396,6 +7435,10 @@ catch { close stdin }
 catch { close stderr }
 
 parse_geometry
+
+if $TM {
+	terminate_on_exit
+}
 
 do_geometry . "root"
 

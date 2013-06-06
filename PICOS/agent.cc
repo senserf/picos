@@ -395,6 +395,19 @@ process DataSender {
 	perform;
 };
 
+process Terminator {
+/*
+ * Terminates the model on disconnection
+ */
+	Dev	*Agent;
+
+	states { AckData, Loop } ;
+
+	void setup (Dev *a) { Agent = a; };
+
+	perform;
+};
+
 // ============================================================================
 
 process AgentOutput abstract {
@@ -638,7 +651,7 @@ AgentInput::perform {
 	transient ReadRq:
 
 		if ((rc = IN->I->rs (ReadRq, BP, Left)) == ERROR) {
-			// We know this is not string
+			// Not a string
 			if ((IN->Flags & XTRN_IMODE_SOCKET) == 0) {
 				// A device, EOF, close this part of the shop
 				IN->IT = NULL;
@@ -2028,6 +2041,34 @@ Term:
 	state Kill:
 
 		goto Term;
+}
+
+Terminator::perform {
+
+	lword c;
+
+	state AckData:
+
+		c = htonl (ECONN_OK);
+		if (Agent->wi (AckData, (char*)(&c), 4) == ERROR) {
+			delete Agent;
+			terminate;
+		}
+
+	transient Loop:
+
+		// Try to read skipping everything until disconnection
+		if (Agent->read ((char*)(&c), 1) != ACCEPTED) {
+			if (!Agent->isActive ()) {
+				// Disconnection, end execution
+				Kernel->terminate ();
+				terminate;
+			}
+			Agent->wait (NEWITEM, Loop);
+			sleep;
+		}
+
+		proceed Loop;
 }
 
 word PINS::adc (short v, int ref) {
@@ -4683,6 +4724,12 @@ AgentConnector::perform {
 
 				// Send the XML data file
 				create DataSender (Agent);
+				terminate;
+
+			case AGENT_RQ_STOP:
+
+				// Terminate the model on disconnection
+				create Terminator (Agent);
 				terminate;
 
 			// More choice may come later

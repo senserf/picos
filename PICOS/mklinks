@@ -1,5 +1,6 @@
 #!/bin/sh
 ln -sf ../../PICOS/PicOS/modsyms.h modsyms.h
+ln -sf ../../PICOS/PicOS/dbgtrc.h dbgtrc.h
 ln -sf ../../PICOS/PicOS/tcv.c tcv.cc
 ln -sf ../../PICOS/PicOS/tcv.h .
 ln -sf ../../PICOS/PicOS/tcv_defs.h .

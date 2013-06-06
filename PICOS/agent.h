@@ -94,6 +94,7 @@
 #define	AGENT_RQ_PWRT		9
 #define	AGENT_RQ_EMUL		10
 #define	AGENT_RQ_DATA		11
+#define	AGENT_RQ_STOP		12
 
 #define	ECONN_MAGIC		0		/* Illegal magic */
 #define	ECONN_STATION		1		/* Illegal station number */

@@ -344,9 +344,9 @@ RM_Receiver::perform {
 #endif
 #if (RADIO_OPTIONS & 0x02)
 	diag ("RF driver: %u RX OK %04x %04x %04x", (word) seconds (),
-		(word*)(rbf) [0],
-		(word*)(rbf) [1],
-		(word*)(rbf) [2]);
+		rbf [0],
+		rbf [1],
+		rbf [2]);
 #endif
 	tcvphy_rcv (physid, rbf, pktlen);
 	proceed RCV_GETIT;
