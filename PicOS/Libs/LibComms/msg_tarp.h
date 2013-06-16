@@ -15,11 +15,10 @@ typedef struct headerStruct {
 	seq_t   seq_no;
 	nid_t   snd;
 	nid_t   rcv;
-	word	hoc   :4; // # of hops so far
-	word	hco   :4; // range or perceived distance
-	word	prox  :1; // proxy msg (no fwd)
+	word	hoc   :7; // # of hops so far
+	word    prox  :1; // proxy msg (no fwd)
+	word	hco   :7; // range or perceived distance
 	word	weak  :1; // weak signal (overshot?) happened on the way
-	word	spare :6;
 } headerType;
 #define in_header(buf, field)   (((headerType *)(buf))->field)
 

@@ -60,7 +60,7 @@ proc copy_applib { } {
 
 	global TDIR PP
 
-	if [catch { exec picospath } PP] {
+	if [catch { exec sh picospath } PP] {
 		abt "Cannot get PICOS path (picospath failure), $PP"
 	}
 
