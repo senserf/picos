@@ -296,7 +296,7 @@ updates for AT were produced from the up-to-date netting.
 
 inProgress/alfMay2013 is a new clone of vsen_demo with updates we did and left at AT while in Lokeren. See notes there.
 
-Netting:
+ Netting:
 - nett20130604.zip is a compressed dir with images left at AT.
 - options.sysupdated forEurope and dbg_? cleanup;
 - exp_rtt.zip contains RTT experiments (see rtt_notes.txt there).
@@ -305,7 +305,7 @@ Netting:
 - sq16, mod_sq16, patt_sq.xml - 250 nodes in 16 rows;
 - longs.zip - experiments with long hop chains;
 
-TARP:
+ TARP:
 hoc, hco changed from :4 to :7, header rearranged
 
 Scripts/mksvm: exec sh picospath (I hope it is generally OK)
