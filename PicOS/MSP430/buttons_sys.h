@@ -17,32 +17,32 @@
 
 #if	BUTTON_PRESSED_LOW
 
-#define	buttons_iedge_p1	_BIS (P1IES, P1_PINS_INTERRUPT_MASK)
-#define	buttons_iedge_p2	_BIS (P2IES, P2_PINS_INTERRUPT_MASK)
+#define	buttons_iedge_p1	_BIS (P1IES, P1_BUTTONS_INTERRUPT_MASK)
+#define	buttons_iedge_p2	_BIS (P2IES, P2_BUTTONS_INTERRUPT_MASK)
 #define	button_still_pressed(b) (button_pin_status(b) == 0)
 
 #else
 
-#define	buttons_iedge_p1	_BIC (P1IES, P1_PINS_INTERRUPT_MASK)
-#define	buttons_iedge_p2	_BIC (P2IES, P2_PINS_INTERRUPT_MASK)
+#define	buttons_iedge_p1	_BIC (P1IES, P1_BUTTONS_INTERRUPT_MASK)
+#define	buttons_iedge_p2	_BIC (P2IES, P2_BUTTONS_INTERRUPT_MASK)
 #define	button_still_pressed(b) button_pin_status(b)
 
 #endif	/* BUTTON_PRESSED_LOW */
 
 // ============================================================================
 
-#ifdef	P1_PINS_INTERRUPT_MASK
+#ifdef	P1_BUTTONS_INTERRUPT_MASK
 
 #define	buttons_enable_p1	do { \
-					_BIC (P1IFG, P1_PINS_INTERRUPT_MASK); \
-					_BIS (P1IE, P1_PINS_INTERRUPT_MASK); \
+				    _BIC (P1IFG, P1_BUTTONS_INTERRUPT_MASK); \
+				    _BIS (P1IE, P1_BUTTONS_INTERRUPT_MASK); \
 				} while (0)
 
-#define	buttons_disable_p1	_BIC (P1IE, P1_PINS_INTERRUPT_MASK)
+#define	buttons_disable_p1	_BIC (P1IE, P1_BUTTONS_INTERRUPT_MASK)
 
 #define	buttons_init_p1		do { \
 					buttons_iedge_p1; \
-					_BIC (P1IFG, P1_PINS_INTERRUPT_MASK); \
+					_BIC (P1IFG, P1_BUTTONS_INTERRUPT_MASK); \
 				} while (0)
 
 REQUEST_EXTERNAL (p1irq);
@@ -56,18 +56,18 @@ REQUEST_EXTERNAL (p1irq);
 #endif	/* P1 */
 
 
-#ifdef	P2_PINS_INTERRUPT_MASK
+#ifdef	P2_BUTTONS_INTERRUPT_MASK
 
 #define	buttons_enable_p2	do { \
-					_BIC (P2IFG, P2_PINS_INTERRUPT_MASK); \
-					_BIS (P2IE, P2_PINS_INTERRUPT_MASK); \
+				    _BIC (P2IFG, P2_BUTTONS_INTERRUPT_MASK); \
+				    _BIS (P2IE, P2_BUTTONS_INTERRUPT_MASK); \
 				} while (0)
 
-#define	buttons_disable_p2	_BIC (P2IE, P2_PINS_INTERRUPT_MASK)
+#define	buttons_disable_p2	_BIC (P2IE, P2_BUTTONS_INTERRUPT_MASK)
 
 #define	buttons_init_p2		do { \
-					buttons_iedge_p2; \
-					_BIC (P2IFG, P2_PINS_INTERRUPT_MASK); \
+				    buttons_iedge_p2; \
+				    _BIC (P2IFG, P2_BUTTONS_INTERRUPT_MASK); \
 				} while (0)
 REQUEST_EXTERNAL (p2irq);
 //+++ "p2irq.c"

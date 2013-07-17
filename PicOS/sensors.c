@@ -41,8 +41,6 @@ void __pi_init_sensors () {
 	for (i = 0; i < N_SENSORS; i++)
 		if ((sensors [i] . tp & 0x80) &&
 		    (f = sensors [i] . fun_ini) != NULL)
-			// Note: the arg is either nothing (no controllers) or
-			// WNONE (selecting the initializer function)
 			(*f) ();
 
 }

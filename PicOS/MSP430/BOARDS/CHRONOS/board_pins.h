@@ -89,9 +89,9 @@ REQUEST_EXTERNAL (p2irq);
 #define	BUTTON_S2	3
 #define	BUTTON_BL	4
 
-#define	P2_PINS_INTERRUPT_MASK	0x1F
-#define	buttons_int 		(P2IFG & P2_PINS_INTERRUPT_MASK)
-#define	BUTTON_DEBOUNCE_DELAY	64
+#define	P2_BUTTONS_INTERRUPT_MASK	0x1F
+#define	buttons_int 			(P2IFG & P2_BUTTONS_INTERRUPT_MASK)
+#define	BUTTON_DEBOUNCE_DELAY		64
 
 // ============================================================================
 

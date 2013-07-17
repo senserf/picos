@@ -2142,6 +2142,7 @@ proc pt_stparse { line } {
 		if { $nc == "" } {
 			error "unterminated string: $or"
 		}
+		append or $nc
 		set ln [string range $ln 1 end]
 		if { $nc == "\"" } {
 			# done (this version assumes that the sentinel must be

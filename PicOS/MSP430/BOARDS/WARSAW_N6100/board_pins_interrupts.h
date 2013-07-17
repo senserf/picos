@@ -9,7 +9,7 @@
 #include "irq_cc1100.h"
 #endif
 
-#define	buttons_int (P1IFG & P1_PINS_INTERRUPT_MASK)
+#define	buttons_int (P1IFG & P1_BUTTONS_INTERRUPT_MASK)
 #include "irq_buttons.h"
 #undef 	buttons_int
 
@@ -17,7 +17,7 @@
 
 #ifdef	P2_INTERRUPT_SERVICE
 
-#define	buttons_int (P2IFG & P2_PINS_INTERRUPT_MASK)
+#define	buttons_int (P2IFG & P2_BUTTONS_INTERRUPT_MASK)
 #include "irq_buttons.h"
 #undef 	buttons_int
 
