@@ -30,7 +30,7 @@
 #define ddCacheSize		10
 #define spdCacheSize		20
 #define rtrCacheSize		10
-#define tarp_maxHops		10
+#define tarp_maxHops		125
 
 #if TARP_RTR
 #if TCV_TIMERS == 0 || TCV_HOOKS == 0
@@ -40,7 +40,7 @@
 #endif
 
 #ifndef DEFAULT_RSSI_THOLD
-#define DEFAULT_RSSI_THOLD	80
+#define DEFAULT_RSSI_THOLD	100
 #endif
 
 /*

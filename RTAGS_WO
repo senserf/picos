@@ -310,4 +310,12 @@ hoc, hco changed from :4 to :7, header rearranged
 
 Scripts/mksvm: exec sh picospath (I hope it is generally OK)
 
+WO130627A:
+Mainly netting experiments with location, see notes in exp2013_06_27.zip.
+
+2loca.tcl: added WIFIDAT(ignore) to ignore WIFI altogether.
+
+verloca.tcl: as in 2loca, we derive location coords for node ids > 10000 (coords for experiments with android tablets).
+
+In tarp.h: DEFAULT_RSSI_THOLD changed from 80 to 100 (important for mhopping)
 
