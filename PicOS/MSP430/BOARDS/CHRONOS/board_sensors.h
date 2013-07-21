@@ -98,12 +98,33 @@
 #include "analog_sensor.h"
 #include "sensors.h"
 
+#if BUTTONS_DRIVER
+
+// Buttons implemented via a special driver
+
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,	\
 		INTERNAL_VOLTAGE_SENSOR,	\
 		DIGITAL_SENSOR (0, NULL, cma3000_read), \
 		DIGITAL_SENSOR (1, scp1000_init, scp1000_read) \
 }
+
+#else
+
+// Buttons implemented as a sensor
+#include "pin_sensor.h"
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR,	\
+		DIGITAL_SENSOR (0, NULL, cma3000_read), \
+		DIGITAL_SENSOR (1, scp1000_init, scp1000_read), \
+		DIGITAL_SENSOR (0, pin_sensor_init, pin_sensor_read) \
+}
+
+#define	SENSOR_BUTTONS		2
+
+#endif	/* BUTTONS_DRIVER */
 
 #define	N_HIDDEN_SENSORS	2
 

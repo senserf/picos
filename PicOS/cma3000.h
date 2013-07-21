@@ -8,7 +8,7 @@
 #include "cma3000_sys.h"
 //+++ "cma3000.c"
 
-extern sint cma3000_event_thread;
+extern Boolean cma3000_wait_pending;
 extern char cma3000_accdata [4];
 
 byte cma3000_rreg (byte);

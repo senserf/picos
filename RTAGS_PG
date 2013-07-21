@@ -3415,3 +3415,47 @@ PG130606B:
 	on Vista (and on Windows 7, of course).
 
 	A minor fix to picomp to allow macros with arguments in MODSYMS.
+
+PG130721A:
+
+	Added a sensor-mode implementation of buttons. This needs documenting.
+	I have looked into the PinOps doc, where these issues probably belong,
+	and noticed that the document is somewhat dated (to put it mildly). In
+	my spare time, I will try to document things like pin access, buttons,
+	sensors, and so on, bringing PinOps up to date.
+
+	For now, the sensor-mode implementation of buttons is illustrated in
+	CHRONOS. if you reset BUTTONS_DRIVER to 0, e.g., putting:
+
+		#undef  BUTTONS_DRIVER
+		#define	BUTTONS_DRIVER 0
+
+	into options.sys, you will get the sensor implementation. These praxes:
+	TESTS/CHRONOS/RFTEST and TESTS/CHRONOS/CMATEST are prepared for that
+	and they will automatically accommodate the new mode.
+
+	In a nutshell:
+
+		byte bb [2];
+		...
+			...
+			wait_sensor (SENSOR_BUTTONS, BP);
+			...
+		state BP:
+
+			read_sensor (BP, SENSOR_BUTTONS, (adddress)bb);
+			if (bb[1] & BUTTON_M1) ...
+			if (bb[1] & BUTTON_M2) ...
+
+	The constants BUTTON_... are defined in board_pins.h. Note that they
+	are bits selecting pins on P2. The reason why you refer to bb[1] is
+	that bb[0] is for P1 and bb[1] is for P2 (and the buttons are on P2).
+	Perhaps I will make it nicer some day (didn't want to inflate the code
+	for no good reason).
+
+	Note that the buttons are not debounced in the sensor mode, which 
+	(unfortunately) shows. You may want to add delays after servicing a
+	button (read_sensor) and before looping to wait_sensor, which may act
+	like some debouncing. Please let me know.
+
+	A minor fix in the CMA3000 driver.

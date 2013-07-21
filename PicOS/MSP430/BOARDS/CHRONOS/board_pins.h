@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -75,6 +75,12 @@
 //+++ "p2irq.c"
 REQUEST_EXTERNAL (p2irq);
 
+#if BUTTONS_DRIVER
+
+// ============================================================================
+// Debounced buttons via a special driver =====================================
+// ============================================================================
+
 #define	BUTTON_LIST 	{ \
 				BUTTON_DEF (2, 0x04, 0), \
 				BUTTON_DEF (2, 0x02, 0), \
@@ -93,6 +99,24 @@ REQUEST_EXTERNAL (p2irq);
 #define	buttons_int 			(P2IFG & P2_BUTTONS_INTERRUPT_MASK)
 #define	BUTTON_DEBOUNCE_DELAY		64
 
+#else
+
+// ============================================================================
+// Buttons implemented as a pin sensor ========================================
+// ============================================================================
+
+#define	PIN_SENSOR_P2_BITS	0x1F
+#define	PIN_SENSOR_P2_IRQ	PIN_SENSOR_P2_BITS
+
+#define	BUTTON_M1       0x04
+#define	BUTTON_M2       0x02
+#define	BUTTON_S1       0x10
+#define	BUTTON_S2       0x01
+#define	BUTTON_BL       0x08
+
+#endif
+// ============================================================================
+// ============================================================================
 // ============================================================================
 
 #include "board_sensors.h"

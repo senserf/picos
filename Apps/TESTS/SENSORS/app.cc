@@ -109,7 +109,7 @@ fsm root {
 		"c s d    -> read value of sensor s continually at d int\r\n"
 
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
-		"v s      -> report events on sensor s"
+		"v s      -> report events on sensor s\r\n"
 #endif
 
 #if 0

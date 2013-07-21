@@ -8,8 +8,21 @@
 
 #ifdef	P2_INTERRUPT_SERVICE
 
-// Button service
+// ============================================================================
+// Button service =============================================================
+// ============================================================================
+#if BUTTONS_DRIVER
+
 #include "irq_buttons.h"
+
+#else
+
+#define	pin_sensor_int	(P2IFG & PIN_SENSOR_P2_IRQ)
+#include "irq_pin_sensor.h"
+#undef	pin_sensor_int
+
+#endif
+// ============================================================================
 
 // The accelerometer
 #include "irq_cma3000.h"

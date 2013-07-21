@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -11,10 +11,13 @@
 #include "phys_cc1100.h"
 #include "plug_null.h"
 #include "form.h"
-#include "buttons.h"
 #include "sensors.h"
 #include "storage.h"
 #include "ab.h"
+
+#if BUTTONS_DRIVER
+#include "buttons.h"
+#endif
 
 #define MAXPLEN	CC1100_MAXPLEN
 
@@ -110,14 +113,20 @@ void msg_xx (word hi, word a) {
 	}
 }
 
+#if BUTTONS_DRIVER
 static void buttons (word but) {
 
 	Buttons |= (1 << but);
 	trigger (&Buttons);
 
 }
+#endif
 
 // ============================================================================
+
+#if BUTTONS_DRIVER
+
+// Buttons serviced by a special (debouncing) driver
 
 fsm button_server {
 
@@ -141,6 +150,42 @@ fsm button_server {
 	msg_nn (1, omess++);
 	proceed BS_LOOP;
 }
+
+#else
+
+// Buttons implemented as a sensor
+
+static const byte btable [] = {
+	BUTTON_M1, BUTTON_M2, BUTTON_S1, BUTTON_S2, BUTTON_BL
+};
+
+fsm button_server {
+
+  char butts [6];
+
+  state BS_LOOP:
+
+	wait_sensor (SENSOR_BUTTONS, BS_PRESSED);
+
+  state BS_PRESSED:
+
+	byte bv [2], i;
+
+	read_sensor (BS_PRESSED, SENSOR_BUTTONS, (address) bv);
+
+	for (i = 0; i < 5; i++)
+		butts [i] = (bv [1] & btable [i]) ? 'X' : '-';
+
+	butts [5] = '\0';
+
+  state BS_OUT:
+
+	ab_outf (BS_OUT, "Buttons: %s", butts);
+	msg_nn (1, omess++);
+	proceed BS_LOOP;
+}
+
+#endif /* BUTTONS_SERVER */
 
 // ============================================================================
 
@@ -243,7 +288,9 @@ fsm root {
 
 	ab_init (sfd);
 	ab_mode (AB_MODE_PASSIVE);
+#if BUTTONS_DRIVER
 	buttons_action (buttons);
+#endif
 	runfsm button_server;
 	cma3000_off ();
 	powerdown ();

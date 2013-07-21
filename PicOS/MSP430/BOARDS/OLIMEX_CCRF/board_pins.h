@@ -3,7 +3,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-// P1.5 = UARTRX, P1.6 = UARTTX, P1.1 = BUTTON (presed low, explicit pullup)
+// P1.5 = UARTRX, P1.6 = UARTTX, P1.1 = BUTTON (pressed low, explicit pullup)
 // P1.0 = LED (on high)
 #define	PIN_DEFAULT_P1SEL	0x60
 #define	PIN_DEFAULT_P1DIR	0xDD

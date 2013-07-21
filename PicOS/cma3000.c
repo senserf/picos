@@ -147,8 +147,8 @@ byte cma3000_rreg (byte reg) {
 // ============================================================================
 #endif
 
-sint cma3000_event_thread;
-char cma3000_accdata [4];
+Boolean	cma3000_wait_pending;
+char	cma3000_accdata [4];
 
 static byte pmode;
 static Boolean measuring;
@@ -222,9 +222,9 @@ void cma3000_read (word st, const byte *junk, address val) {
 			// Called to only revert to event mode
 			return;
 
-		when (&cma3000_event_thread, st);
+		when (&cma3000_wait_pending, st);
 		// Mark the thread as waiting
-		cma3000_event_thread = getcpid ();
+		cma3000_wait_pending = YES;
 		if (cma3000_accdata [0] != 0)
 			proceed (st);
 		release;
