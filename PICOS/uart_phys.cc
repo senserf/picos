@@ -151,10 +151,12 @@ p_uart_rcv_n::perform {
 	// This length is in bytes and is even
 	len = UA->r_buffp - (byte*)(UA->r_buffer);
 
+#if !defined(UART_TCV_MODE_CHECKSUM) || UART_TCV_MODE_CHECKSUM == 0
 	if (w_chk (UA->r_buffer, len >> 1, 0)) {
 		// Wrong
 		proceed (RC_LOOP);
 	}
+#endif
 
 	// Receive the packet
 	tcvphy_rcv (UA->v_physid, UA->r_buffer, len);
@@ -198,7 +200,13 @@ p_uart_xmt_n::perform {
 		sleep;
 	}
 
-	if (stln < 4 || (stln & 1) != 0)
+	if (stln <
+#if !defined(UART_TCV_MODE_CHECKSUM) || UART_TCV_MODE_CHECKSUM == 0
+	  4
+#else
+	  2
+#endif
+	    || (stln & 1) != 0)
 		syserror (EREQPAR, "xmtu/length");
 
 	LEDIU (1, 1);
@@ -211,7 +219,9 @@ p_uart_xmt_n::perform {
 	if (UA->v_statid != 0xffff)
 		UA->x_buffer [0] = UA->v_statid;
 
+#if !defined(UART_TCV_MODE_CHECKSUM) || UART_TCV_MODE_CHECKSUM == 0
 	UA->x_buffer [stln - 1] = w_chk (UA->x_buffer, (word) stln - 1, 0);
+#endif
 
     transient XM_PRE:
 

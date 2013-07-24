@@ -1027,3 +1027,9 @@ PG130606A:	PICOS >= PG130606A
     New service (STOP) added to agent.cc and udaemon to provide for terminating
     the model from udaemon (on exit). To be documented soon.
 
+PG130724A:	PICOS >= PG130724A
+
+    Matching PICOS PG130724A. You can now switch off CRC calculation/checking
+    for UART_TCV_MODE_N by setting UART_TCV_MODE_NOCHECKSUM to 1.
+
+    Minor fixes in the doc.
