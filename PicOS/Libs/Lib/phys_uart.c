@@ -1,12 +1,29 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
 #include "tcvphys.h"
 #include "uart.h"
 
-#if UART_TCV_MODE != UART_TCV_MODE_L
+#if UART_TCV_MODE == UART_TCV_MODE_P
+// Checksum (CRC) is mandatory in P mode
+#undef	UART_TCV_MODE_NOCHECKSUM
+#define	UART_TCV_MODE_NOCHECKSUM 0
+#endif
+
+#if UART_TCV_MODE == UART_TCV_MODE_L
+// No CRC in L mode
+#undef	UART_TCV_MODE_NOCHECKSUM
+#define	UART_TCV_MODE_NOCHECKSUM 1
+#endif
+
+#if (UART_TCV_MODE == UART_TCV_MODE_N) && !defined(UART_TCV_MODE_NOCHECKSUM)
+// In N mode, CRC is optional defaulting to YES
+#define	UART_TCV_MODE_NOCHECKSUM 0
+#endif
+
+#if UART_TCV_MODE_NOCHECKSUM == 0
 #include "checksum.h"
 #endif
 
@@ -119,11 +136,13 @@ strand (rcvuart, uart_t*)
 			proceed (RC_LOOP);
 	}
 
+#if UART_TCV_MODE_NOCHECKSUM == 0
 	// Validate checksum: r_buffp is even
 	if (w_chk (UA->r_buffer, UA->r_buffp >> 1, 0)) {
 		// Wrong
 		proceed (RC_LOOP);
 	}
+#endif
 
 	// Receive the packet
 	tcvphy_rcv (UA->v_physid, UA->r_buffer, UA->r_buffp);
@@ -171,16 +190,25 @@ strand (xmtuart, uart_t*)
 #endif
 #endif /* BLUETOOTH_UART */
 
-	if (stln < 4 || stln > UA->r_buffl || (stln & 1) != 0)
+	if (stln <
+#if UART_TCV_MODE_NOCHECKSUM
+	  2
+#else
+	  4
+#endif
+	    || stln > UA->r_buffl || (stln & 1) != 0)
 		syserror (EREQPAR, "xmtu/length");
 
 	// In bytes
 	UA->x_buffl = stln;
 	stln >>= 1;
-	// Checksum
 	if (UA->v_statid != 0xffff)
 		UA->x_buffer [0] = UA->v_statid;
+
+#if UART_TCV_MODE_NOCHECKSUM == 0
+	// Checksum
 	UA->x_buffer [stln - 1] = w_chk (UA->x_buffer, stln - 1, 0);
+#endif
 
 #ifdef UART_XMITTER_ON
 

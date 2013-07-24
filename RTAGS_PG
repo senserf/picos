@@ -3459,3 +3459,10 @@ PG130721A:
 	like some debouncing. Please let me know.
 
 	A minor fix in the CMA3000 driver.
+
+PG130724A:	VUEE >= PG130724A
+
+	You can now switch off CRC calculation/checking for UART_TCV_MODE_N by
+	setting UART_TCV_MODE_NOCHECKSUM to 1. This is intended to facilitate
+	the planned simple binary OSS interface where the praxis may want to
+	calculate a much simpler, lightweight checksum (parity) on its own.
