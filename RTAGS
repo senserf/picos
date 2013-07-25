@@ -650,3 +650,10 @@ PG130606A:	VUEE >= PG130606A
 
 	Added an option (in the VUEE config menu) to terminate the VUEE model
 	when udaemon quits.
+
+PG130725A:
+
+	Fixed a bug causing an incorrect invocation of side when the simulation
+	mode was on (i.e., "U" was selected from the slo-mo menu). That bug was
+	introduced with the latest modification of VUEE-specific SIDE args: as
+	of that modification, -s 0 and -r ... cannot be specified together.

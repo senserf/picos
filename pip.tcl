@@ -6475,8 +6475,10 @@ proc run_vuee { { deb 0 } } {
 		}
 		lappend argm "-s"
 		lappend argm $df
-		lappend argm "-r"
-		lappend argm $ef
+		if { $df > 0 } {
+			lappend argm "-r"
+			lappend argm $ef
+		}
 	}
 
 	if { $argm != "" } {
