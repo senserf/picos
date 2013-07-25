@@ -306,9 +306,11 @@ extern  int     zz_processId;
 #if ZZ_REA || ZZ_RSY
 
 // Asynchronous I/O check interval (in milliseconds) for real mode
-#define         IOCHECKINT              1000   // One second
+#define         IOCHECKINT              1000	// One second
 // For simulating select, if it doesn't exits: retry every SOCKCHKINT usec
-#define		SOCKCHKINT              1000   // 0.001 sec
+#define		SOCKCHKINT              1000	// 0.001 sec
+// For awaiting an external event in RSY simulation mode
+#define		EXTVCHKINT		100	// 100 usecs
 
 #if ZZ_JOU
 // Journal magic

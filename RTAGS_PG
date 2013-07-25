@@ -510,3 +510,16 @@ PG130319A:
 	   distance expressed in DU (as before). This changes the
 	   interpretation of the averaging factor (in a nutshell, larger values
 	   are now recommended, something of order 1 or bigger).
+
+PG130725A:
+
+	   Fixed a bug in the simulation mode detected by Nick. The bypass in
+	   advance_real_time wouldn't check if the next event had finite time,
+	   so it didn't account for external events. I am not quite sure what
+	   to do in such cases (some models may want to treat them as errors).
+	   For now, we loop with usleep until something shows up.
+
+	   While at it, I have also improved getEffectiveTimeOfDay to make
+	   sure that long deltas will be handled properly. In the simulation
+	   mode, the time of day is calculated as the (virtual) simulated time
+	   in seconds + the real start time of the simulation.

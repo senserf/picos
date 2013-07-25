@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-11   P. Gburzynski */
+/* Copyright (C) 1991-13   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -259,14 +259,14 @@ static void openSourceJournals () {
   ZZ_Journal *jn;
   for (jn = ZZ_Journals; jn != NULL; jn = jn -> next)
     if (jn->JType != 'J') jn->openFile ();
-};
+}
 
 static void openTracingJournals () {
   // Opens the journals used for tracing
   ZZ_Journal *jn;
   for (jn = ZZ_Journals; jn != NULL; jn = jn -> next)
     if (jn->JType == 'J') jn->openFile ();
-};
+}
 
 static void setTimeOffset () {
   // Sets the time offset based on the specified time/date
@@ -344,7 +344,7 @@ SD_Fail:
   }
   gettimeofday (&RT, NULL);
   TimeOffset = off - RT.tv_sec;
-};
+}
 
 #else	/* not JOU */
 
@@ -361,7 +361,7 @@ static inline Long msecdiff (struct timeval &early, struct timeval &late) {
     diff = 0;
   diff += (late.tv_usec - early.tv_usec) / 1000;
   return diff;
-};
+}
 
 void zz_wait_for_sockets (Long ms) {
 
@@ -374,11 +374,10 @@ void zz_wait_for_sockets (Long ms) {
 
   if (ms == 0) return;
 
-#define	NOSELECT 0
-
 #if ZZ_CYW
-#undef NOSELECT
-#define	NOSELECT 1
+#define	NOSELECT	1
+#else
+#define	NOSELECT	0
 #endif
 
 #if NOSELECT
@@ -439,7 +438,18 @@ void zz_wait_for_sockets (Long ms) {
     usleep (ms * 1000);
   }
 #endif
-};
+}
+
+inline void zz_push_sockets () {
+
+	Mailbox *sok;
+
+	for (sok = zz_socket_list; sok != NULL; sok = sok->nexts) {
+            // Update socket buffers
+            sok->flushOutput ();
+            sok->readInput ();
+    	}
+}
 
 #endif	/* ZZ_REA + ZZ_RSY */
 
@@ -453,7 +463,7 @@ static struct timeval RT_LastEvent, RT_LastDisplay;
 Long getEffectiveTimeOfDay (Long *usec) {
   if (usec != NULL) *usec = RealTime.tv_usec;
   return RealTime.tv_sec + TimeOffset;
-};
+}
 
 static inline void adjust_RT (Long diff) {
   // Subtracts diff milliseconds from the time of the last event
@@ -464,20 +474,19 @@ static inline void adjust_RT (Long diff) {
     // We cannot be dragging behind more than a few seconds
   }
   RT_LastEvent.tv_usec -= diff;
-};
+}
 
 static void mark_real_time () {
   gettimeofday (&RT_LastEvent, NULL);
   RealTime = RT_LastEvent;
   // This function tags TIME 0 with the current time in microseconds
-};
+}
 
 inline void zz_advance_real_time () {
 /*
  * Referenced only once, so let it be inline
  */
 
-  Mailbox *sok;
   Long NMS, EMS;
 
   TIME t;
@@ -501,11 +510,7 @@ Display:
     // that.
     zz_max_sleep_time = IOCHECKINT;
 
-    for (sok = zz_socket_list; sok != NULL; sok = sok->nexts) {
-      // Update the status of socket buffers
-      sok->flushOutput ();
-      sok->readInput ();
-    }
+    zz_push_sockets ();
 
     // Determine the time of the next event
 
@@ -575,7 +580,7 @@ Display:
 #endif
     RT_LastEvent = RealTime;
   }
-};
+}
 
 #endif	/* ZZ_REA */
 
@@ -608,13 +613,15 @@ static inline void mark_real_time () {
 
 	gettimeofday (&RealTime, NULL);
 	LastRT = Time;
-};
+}
 
 void setResync (Long msecs, double tm) {
 /*
  * Sets the resync interval to the prescribed number of milliseconds and
  * associates that interval with Etu factored by tm
  */
+	mark_real_time ();
+
 	if (msecs == 0) {
 		// This is also the default
 		ZZ_ResyncMsec = 0;
@@ -634,7 +641,6 @@ void setResync (Long msecs, double tm) {
 		ResyncDelta.tv_sec = 0;
 		ResyncDelta.tv_usec = msecs * 1000;
 	}
-	mark_real_time ();
 	NextResync = Time + ResyncInt;
 	ResyncTime = RealTime;
 	add_rtime (ResyncTime, ResyncDelta);
@@ -644,42 +650,57 @@ void setResync (Long msecs, double tm) {
 Long getEffectiveTimeOfDay (Long *usec) {
 
 	Long	UDelta, SDelta;
+	TIME	TDelta;
 
-	// Add microseconds elapsed from last take
+	// Should account for a very long delta when we are running in
+	// simulation mode. Effective time of day is then set to simulated
+	// time in seconds + the real time of the start of simulation.
+
+	TDelta = Time - LastRT;
+
+	// Difference in seconds
+	SDelta = (Long)(TDelta / Second);
+
+	// Residual difference in us
 	UDelta = RealTime.tv_usec +
-		(Long)((Time - LastRT) / (ITUPerMSec * 1000.0));
-	if (UDelta >= 1000000) {
-		// Adjustment for seconds
-		SDelta = UDelta / 1000000;
+		(TDelta - (TIME)(SDelta * Second)) / (ITUPerMSec * 1000.0);
+
+	if (UDelta > 1000000) {
+		// Second adjustment
+		SDelta += UDelta / 1000000;
 		if (usec != NULL)
-			// Corrected microseconds
+			// Microsecond correction
 			*usec = UDelta % 1000000;
 	} else {
-		SDelta = 0;
 		if (usec != NULL)
 			*usec = UDelta;
 	}
 
 	// Return seconds
 	return RealTime.tv_sec + TimeOffset + SDelta;
-};
+}
 
 inline void zz_advance_real_time () {
 
-	TIME t;
-  	Mailbox *sok;
+	TIME 	t;
 	Long	delta;
 
-	if (ZZ_ResyncMsec == 0) {
+	while (ZZ_ResyncMsec == 0) {
 	    	zz_check_asyn_io ();
 	    	if (DisplayActive && --zz_events_to_display <= 0)
 			refreshDisplay ();
-		for (sok = zz_socket_list; sok != NULL; sok = sok->nexts) {
-	            // Update the status of socket buffers
-	            sok->flushOutput ();
-	            sok->readInput ();
-	    	}
-		return;
+		zz_push_sockets ();
+#if ZZ_TAG
+		(zz_eq -> waketime).get (t);
+#else
+		t = zz_eq -> waketime;
+#endif
+		if (t != TIME_inf) 
+			// OK, there is an event to handle
+			return;
+
+		// Need an external event, sleep for 100 us and try again
+		usleep (EXTVCHKINT);
 	}
 
 #if ZZ_TAG
@@ -700,11 +721,7 @@ inline void zz_advance_real_time () {
 			// should be refreshing at sync intervals
 		        refreshDisplay ();
 
-		for (sok = zz_socket_list; sok != NULL; sok = sok->nexts) {
-	            // Update the status of socket buffers
-	            sok->flushOutput ();
-	            sok->readInput ();
-	    	}
+		zz_push_sockets ();
 
 		// Do it again: the mailboxes may have changed things
 #if ZZ_TAG
@@ -747,7 +764,7 @@ Long getEffectiveTimeOfDay (Long *usec) {
   gettimeofday (&RT, NULL);
   if (usec != NULL) *usec = RT.tv_usec;
   return RT.tv_sec;
-};
+}
 
 #endif	/* Neither ZZ_REA nor ZZ_RSY */
 
@@ -819,10 +836,10 @@ int main (int argc, char *argv []) {
 
 	zz_init_system (argc, argv);    // Files + options
 
-#if  JOU
+#if  ZZ_JOU
         // Source journals must be opened first, so that we can use their
         // creation times in setTimeOffset. This in turn is needed to setup
-        // the headers of tracing yournals.
+        // the headers of tracing journals.
         openSourceJournals ();
         setTimeOffset ();
         openTracingJournals ();
@@ -2257,7 +2274,7 @@ void zz_nfp (const char *em) {
   strcpy (tmp, "FLOATING POINT OPERATION: ");
   strcat (tmp, em);
   excptn (tmp);
-};
+}
 
 double  ceil (double d)		{ zz_nfp ("ceil"); 		};
 double  cos(double d)   	{ zz_nfp ("cos"); 		};

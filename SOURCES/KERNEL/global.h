@@ -3174,7 +3174,7 @@ class   Mailbox : public AI {
         friend  class   ZZ_Journal;
 #endif
 	friend  void	zz_wait_for_sockets (Long);
-	friend  void 	zz_advance_real_time ();
+	friend  void 	zz_push_sockets ();
 #endif
 	friend  int     main (int, char *[]);
 
