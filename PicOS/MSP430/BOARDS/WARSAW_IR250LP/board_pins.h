@@ -111,6 +111,7 @@
 #define	irmtn_int		(P1IFG & 0x40)
 #define	irmtn_clear		_BIC (P1IFG, 0x40)
 //+++ "p1irq.c"
+REQUEST_EXTERNAL (p1irq);
 
 #define	irmtn_on()		CNOP
 #define	irmtn_off()		CNOP

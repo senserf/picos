@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -10,13 +10,15 @@ word		__pi_pmonevent [0];
 __pi_pmon_t	__pi_pmon;
 #endif
 
-#if PIN_MAX
+#ifdef PIN_LIST
 
 static const pind_t pinmap [] = PIN_LIST;
 
+#define	__pin_max (sizeof (pinmap) / sizeof (pind_t))
+
 Boolean __pi_pin_available (word p) {
 
-	if ((p >= PIN_MAX) || (pinmap[p].poff == 0xff))
+	if ((p >= __pin_max) || (pinmap[p].poff == 0xff))
 		return NO;
 
 #ifdef PULSE_MONITOR
@@ -40,7 +42,7 @@ Boolean __pi_pin_adc_available (word p) {
 
 word __pi_pin_ivalue (word p) {
 
-	if (p >= PIN_MAX)
+	if (p >= __pin_max)
 		return 0;
 	return (*(byte*)
 		(__PORT_FBASE__ + pinmap[p].poff) >> pinmap[p].pnum) & 1;
@@ -48,7 +50,7 @@ word __pi_pin_ivalue (word p) {
 
 word __pi_pin_ovalue (word p) {
 
-	if (p >= PIN_MAX)
+	if (p >= __pin_max)
 		return 0;
 	return (*(byte*)
 		(__PORT_FBASE__ + pinmap[p].poff + POUT_off) >> pinmap[p].pnum)
@@ -175,4 +177,4 @@ void __pi_pin_set_adc (word p) {
 	}
 }
 
-#endif /* PIN_MAX */
+#endif /* __pin_max */

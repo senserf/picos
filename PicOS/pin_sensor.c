@@ -2,45 +2,21 @@
 #include "kernel.h"
 #include "pin_sensor.h"
 
-#ifdef	PIN_SENSOR_P1_IRQ
-#define	clear_p1_irq	_BIC (P1IFG, PIN_SENSOR_P1_IRQ)
-#define	enable_p1_irq	_BIS (P1IE, PIN_SENSOR_P1_IRQ)
-#define	disable_p1_irq	_BIC (P1IE, PIN_SENSOR_P1_IRQ)
-#else
-#define	clear_p1_irq	CNOP
-#define	enable_p1_irq	CNOP
-#define	disable_p1_irq	CNOP
-#endif
-
-#ifdef	PIN_SENSOR_P2_IRQ
-#define	clear_p2_irq	_BIC (P2IFG, PIN_SENSOR_P2_IRQ)
-#define	enable_p2_irq	_BIS (P2IE, PIN_SENSOR_P2_IRQ)
-#define	disable_p2_irq	_BIC (P2IE, PIN_SENSOR_P2_IRQ)
-#else
-#define	clear_p2_irq	CNOP
-#define	enable_p2_irq	CNOP
-#define	disable_p2_irq	CNOP
-#endif
-
-#define	clear_irq	do { clear_p1_irq; clear_p2_irq; } while (0)
-#define	enable_irq	do { enable_p1_irq; enable_p2_irq; } while (0)
-#define	disable_irq	do { disable_p1_irq; disable_p2_irq; } while (0)
+#ifdef INPUT_PIN_LIST
 
 // ============================================================================
+// Pin sensor =================================================================
+// ============================================================================
 
-void pin_sensor_init () {
+static const piniod_t input_pins [] = INPUT_PIN_LIST;
 
-#ifdef	PIN_SENSOR_P1_EDGES
-	P1IES = (P1IES & ~PIN_SENSOR_P1_BITS) | PIN_SENSOR_P1_EDGES;
-#endif
-
-#ifdef	PIN_SENSOR_P2_EDGES
-	P2IES = (P2IES & ~PIN_SENSOR_P2_BITS) | PIN_SENSOR_P2_EDGES;
-#endif
-
-}
+void pin_sensor_init () { __pinsen_setedge_irq; }
 
 void pin_sensor_read (word st, const byte *junk, address val) {
+
+	const piniod_t *p;
+	word i;
+	byte v;
 
 	if (val == NULL) {
 		// Called to issue a wait request
@@ -48,43 +24,58 @@ void pin_sensor_read (word st, const byte *junk, address val) {
 			// Make sure this is not WNONE
 			return;
 		cli;
-		clear_irq;
-		enable_irq;
-		when (&pin_sensor_read, st);
+		__pinsen_clear_irq;
+		__pinsen_enable_irq;
+		when (&input_pins, st);
 		sti;
 		release;
 	}
-	((byte*)val) [0] =
-#ifdef	PIN_SENSOR_P1_BITS
-				(P1IN & PIN_SENSOR_P1_BITS)
-#ifdef	PIN_SENSOR_P1_EDGES
-					^ PIN_SENSOR_P1_EDGES
-#endif
 
-#else
-				0
-#endif
-	;
-
-	((byte*)val) [1] =
-#ifdef	PIN_SENSOR_P2_BITS
-				(P2IN & PIN_SENSOR_P2_BITS)
-#ifdef	PIN_SENSOR_P2_EDGES
-					^ PIN_SENSOR_P2_EDGES
-#endif
-
-#else
-				0
-#endif
-	;
+	*val = 0;
+	for (i = 0, p = input_pins;
+	    		  i < sizeof (input_pins) / sizeof (piniod_t); i++, p++)
+		*val |= (((((*((byte*)(__PORT_FBASE__ + p->poff))) &
+			(1 << p->pnum)) != 0) ^ p->edge) << i);
 }
 
 void pin_sensor_interrupt () {
 
-	i_trigger ((word)(&pin_sensor_read));
+	i_trigger ((word)(&input_pins));
 
-	disable_irq;
-	clear_irq;
+	__pinsen_disable_irq;
+	__pinsen_clear_irq;
 
 	RISE_N_SHINE;
 }
+
+#endif /* INPUT_PIN_LIST */
+
+#ifdef OUTPUT_PIN_LIST
+
+// ============================================================================
+// Pin actuator ===============================================================
+// ============================================================================
+
+static const piniod_t output_pins [] = OUTPUT_PIN_LIST;
+
+void pin_actuator_write (word st, const byte *junk, address val) {
+
+	const piniod_t *p;
+	word i;
+	byte *t, b, c;
+
+	for (i = 0, p = output_pins;
+		      i < sizeof (output_pins) / sizeof (piniod_t); i++, p++) {
+		b = *(t = ((byte*)(__PORT_FBASE__ + p->poff)));
+		c = (1 << p->pnum);
+		if (((*val >> i) & 1) ^ p->edge)
+			// Must be set
+			_BIS (b, c);
+		else
+			// Must be cleared
+			_BIC (b, c);
+		*t = b;
+	}
+}
+
+#endif /* OUTPUT_PIN_LIST */

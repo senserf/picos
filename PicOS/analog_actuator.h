@@ -1,14 +1,14 @@
+#ifndef	__pg_analog_actuator_h
+#define	__pg_analog_actuator_h
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#ifdef	P1_INTERRUPT_SERVICE
-#endif
+#include "actuators.h"
 
-#ifdef	P2_INTERRUPT_SERVICE
+//+++ "analog_actuator.c"
 
-// The accelerometer
-#include "irq_cma3000.h"
+void analog_actuator_write (word, const a_actudesc_t*, word);
 
 #endif

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -112,6 +112,10 @@ fsm root {
 		"v s      -> report events on sensor s\r\n"
 #endif
 
+#if defined(ACTUATOR_LIST) || defined(__SMURPH__)
+		"a s v    -> set actuator s to v (hex)\r\n"
+#endif
+
 #if 0
 		"x        -> turn reference on\r\n"
 		"t        -> test on\r\n"
@@ -135,6 +139,9 @@ fsm root {
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
 		case 'v' : proceed RS_SWAIT;
 #endif
+#if defined(ACTUATOR_LIST) || defined(__SMURPH__)
+		case 'a' : proceed RS_SACT;
+#endif
 
 #if 0
 		case 'x' : proceed RS_CSET;
@@ -152,9 +159,12 @@ fsm root {
 
   state RS_SWAIT:
 
-	v = 0;
+	v = -1;
 	scan (ibuf + 1, "%d", &v);
-	runfsm sevents (v);
+	if (v < 0)
+		killall (sevents);
+	else
+		runfsm sevents (v);
 	proceed RS_RCMD;
 #endif
 
@@ -197,6 +207,18 @@ fsm root {
 
 	delay (x, RS_CSEN_READ);
 	release;
+
+  state RS_SACT:
+
+	v = 0;
+	x = 0;
+
+	scan (ibuf + 1, "%d %x", &v, &x);
+
+  state RS_SACT_SET:
+
+	write_actuator (RS_SACT_SET, v, &x);
+	proceed RS_RCMD;
 
 #if 0
   state RS_CSET:

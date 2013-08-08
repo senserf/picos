@@ -15,7 +15,7 @@
 #include "storage.h"
 #include "ab.h"
 
-#if BUTTONS_DRIVER
+#ifdef	BUTTONS
 #include "buttons.h"
 #endif
 
@@ -113,7 +113,7 @@ void msg_xx (word hi, word a) {
 	}
 }
 
-#if BUTTONS_DRIVER
+#ifdef	BUTTONS
 static void buttons (word but) {
 
 	Buttons |= (1 << but);
@@ -124,7 +124,7 @@ static void buttons (word but) {
 
 // ============================================================================
 
-#if BUTTONS_DRIVER
+#ifdef	BUTTONS
 
 // Buttons serviced by a special (debouncing) driver
 
@@ -288,7 +288,7 @@ fsm root {
 
 	ab_init (sfd);
 	ab_mode (AB_MODE_PASSIVE);
-#if BUTTONS_DRIVER
+#ifdef	BUTTONS
 	buttons_action (buttons);
 #endif
 	runfsm button_server;

@@ -659,6 +659,13 @@ extern uart_t __pi_uart [];
 				   (((t) & 0xf) << 12) + (((t) & 0xf) << 8); \
 				} while (0)
 
+// For DAC setup
+#define	adc_set_reference(r)	do { \
+				  _BIC (ADC12CTL0, ADC_FLG_ENC); \
+				  ADC12CTL0 = ADC_FLG_REFON + \
+				   ((r) ? ADC_FLG_REF25 : 0); \
+				} while (0)
+
 #ifdef	PIN_ADC_RSSI
 //
 // ADC configuration for collecting RSSI
@@ -756,6 +763,9 @@ extern uart_t __pi_uart [];
 				    DAC12_1DAT = (v); \
 				  } \
 				} while (0)
+
+// DAC off sets voltage to zero
+#define	DAC_CNF_OFF	DAC12AMP_1
 
 // ============================================================================
 

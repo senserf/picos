@@ -3466,3 +3466,20 @@ PG130724A:	VUEE >= PG130724A
 	setting UART_TCV_MODE_NOCHECKSUM to 1. This is intended to facilitate
 	the planned simple binary OSS interface where the praxis may want to
 	calculate a much simpler, lightweight checksum (parity) on its own.
+
+PG130808A:
+
+	Cleaned up various bits and pieces of pin operations (see the PinOps
+	doc). Added analog actuators (don't ask me why, probably for some 
+	misplaced sense of duty, completeness, and neatness, if these
+	adjectives are applicable to the mess).
+
+	Anyway, the pin sensor (see PG130721A) now works differently (I mean
+	PG130721A no longer holds - see PinOps, which I have rewritten
+	completely). For CHRONOS, if you undefine BUTTONS in options.sys, as
+	in:
+
+		#undef BUTTONS
+
+	you will get the sensor implementation. The TESTS/CHRONOS/RFTEST praxis
+	shows you how.

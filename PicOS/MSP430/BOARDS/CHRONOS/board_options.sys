@@ -17,8 +17,6 @@
 #define	RANDOM_NUMBER_GENERATOR	2
 #define ENTROPY_COLLECTION	1
 
-#define	BUTTONS_DRIVER		1
-
 #define	PMM_LEVEL		3	// Power management level
 
 // LEDs defined through LCD, but this must be set as it still selects them
@@ -43,3 +41,8 @@
 
 // Don't ref out (by default) as the pin function is shared
 #define	ADC_REFERENCE_OUT	0
+
+// If this one is defined (need not be set), we have buttons (rather than a
+// sensor for the button pins)
+#define	BUTTONS
+

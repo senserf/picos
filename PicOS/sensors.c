@@ -11,10 +11,8 @@
 // ============================================================================
 
 #ifdef	SENSOR_LIST
-#ifndef	SENSOR_DIGITAL
-#ifndef	SENSOR_ANALOG
+#if !defined(SENSOR_DIGITAL) && !defined(SENSOR_ANALOG)
 #error "S: SENSOR_LIST defined, but neither SENSOR_DIGITAL, nor SENSOR_ANALOG!"
-#endif
 #endif
 
 // ============================================================================

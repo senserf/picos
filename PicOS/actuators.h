@@ -1,26 +1,14 @@
 #ifndef	__pg_actuators_h
 #define	__pg_actuators_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 #include "sysio.h"
 //+++ "actuators.c"
 
-#define	ACTUATOR_DEF(inf,vlf)	{ vlf, inf }
-
-typedef	struct {
-
-	void (*fun_val) (word, address);
-	void (*fun_ini) (void);
-
-} actudesc_t;
-
-// This may be temporary. For now, we only need "digital" actuators without
-// initialization parameters. If we ever need anything else, say DAC actuators,
-// we will redo things slightly, along the line of sensors.
-#define	DIGITAL_ACTUATOR(a,b,c)	ACTUATOR_DEF (b, c)
+#include "actuators_sys.h"
 
 void write_actuator (word, sint, address);
 

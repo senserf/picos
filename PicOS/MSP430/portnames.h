@@ -865,6 +865,13 @@
 				(_PP____J  (   p) : \
 					0 )))))))))))) ) >> ((p) & 7)) & 1)
 
+#else
+
+#define _PHS(p,v) 	CNOP
+#define _PPS(p,v) 	CNOP
+#define _PH(p) 		0
+#define _PP(p) 		0
+
 #endif	/* P1DS */
 
 #endif

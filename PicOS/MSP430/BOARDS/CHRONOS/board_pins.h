@@ -75,7 +75,7 @@
 //+++ "p2irq.c"
 REQUEST_EXTERNAL (p2irq);
 
-#if BUTTONS_DRIVER
+#ifdef	BUTTONS
 
 // ============================================================================
 // Debounced buttons via a special driver =====================================
@@ -95,9 +95,7 @@ REQUEST_EXTERNAL (p2irq);
 #define	BUTTON_S2	3
 #define	BUTTON_BL	4
 
-#define	P2_BUTTONS_INTERRUPT_MASK	0x1F
-#define	buttons_int 			(P2IFG & P2_BUTTONS_INTERRUPT_MASK)
-#define	BUTTON_DEBOUNCE_DELAY		64
+#define	BUTTON_PIN_P2_IRQ		0x1F
 
 #else
 
@@ -105,14 +103,21 @@ REQUEST_EXTERNAL (p2irq);
 // Buttons implemented as a pin sensor ========================================
 // ============================================================================
 
-#define	PIN_SENSOR_P2_BITS	0x1F
-#define	PIN_SENSOR_P2_IRQ	PIN_SENSOR_P2_BITS
+#define	INPUT_PIN_LIST	{ \
+				INPUT_PIN (P2, 2, 0), \
+				INPUT_PIN (P2, 1, 0), \
+				INPUT_PIN (P2, 4, 0), \
+				INPUT_PIN (P2, 0, 0), \
+				INPUT_PIN (P2, 3, 0)  \
+			}
 
-#define	BUTTON_M1       0x04
-#define	BUTTON_M2       0x02
-#define	BUTTON_S1       0x10
-#define	BUTTON_S2       0x01
-#define	BUTTON_BL       0x08
+#define	BUTTON_M1       0x0001
+#define	BUTTON_M2       0x0002
+#define	BUTTON_S1       0x0004
+#define	BUTTON_S2       0x0008
+#define	BUTTON_BL       0x0010
+
+#define	INPUT_PIN_P2_IRQ	0x1F
 
 #endif
 // ============================================================================

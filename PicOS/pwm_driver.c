@@ -44,7 +44,7 @@ void pwm_driver_stop () {
 	pwm_output_off;
 }
 
-void pwm_driver_write (word st, address val) {
+void pwm_driver_write (word st, const byte *junk, address val) {
 
 	Pulse = (*val > Width) ? Width : *val;
 }

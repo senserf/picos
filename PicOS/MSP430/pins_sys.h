@@ -1,11 +1,15 @@
 #ifndef	__pg_pins_sys_h
 #define	__pg_pins_sys_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 #include "sysio.h"
+
+// ============================================================================
+// This is for the "legacy" (the so-called unified access) pin interface ======
+// ============================================================================
 
 #define	PIN_DEF(p,n)	{ p ## IN_ - __PORT_FBASE__ , n }
 #define PIN_RESERVED	{ 0xff, 0 }
@@ -180,10 +184,6 @@
 
 #include "board_pins.h"
 
-#ifndef	PIN_MAX
-#define	PIN_MAX				0
-#endif
-
 #ifndef	PIN_MAX_ANALOG
 #define	PIN_MAX_ANALOG			0
 #endif
@@ -196,10 +196,6 @@
 #define	MONITOR_PINS_SEND_INTERRUPTS	0
 #endif
 
-#if	PIN_MAX 
-//+++ pins_sys.c
-#endif
-
 #ifdef	PULSE_MONITOR
 //+++ pins_sys.c
 #endif
@@ -209,7 +205,9 @@
 REQUEST_EXTERNAL (p2irq);
 #endif
 
-#if PIN_MAX
+#ifdef PIN_LIST
+
+//+++ pins_sys.c
 
 typedef struct {
 	byte poff, pnum;
@@ -236,7 +234,7 @@ void __pi_pin_set_input (word);
 void __pi_pin_set_output (word);
 void __pi_pin_set_adc (word);
 
-#else	/* PIN_MAX == 0 */
+#else	/* NO PIN_LIST */
 
 #define __pi_pin_available(a)		0
 #define __pi_pin_adc_available(a)	0
@@ -252,7 +250,7 @@ void __pi_pin_set_adc (word);
 
 #define	adc_config_rssi		adc_disable
 
-#endif	/* PIN_MAX == 0 */
+#endif	/* PIN_LIST or NO PIN_LIST */
 
 #ifndef	PIN_DAC_PINS
 #define	PIN_DAC_PINS			0
@@ -275,5 +273,26 @@ void __pi_write_dac (word, word, word);
 #define	__pi_write_dac(a,b,c)		CNOP
 
 #endif	/* PIN_DAC_PINS */
+
+// ============================================================================
+// This is for the sensor/actuator-type pin interface =========================
+// ============================================================================
+
+#define	INPUT_PIN(p,n,e)	{ n, e, p ## IN_  - __PORT_FBASE__ }
+#define	OUTPUT_PIN(p,n,e)	{ n, e, p ## OUT_ - __PORT_FBASE__ }
+
+#if defined(INPUT_PIN_LIST) || defined(OUTPUT_PIN_LIST)
+
+typedef struct {
+
+	word	pnum:3,		// Pin number (0-7)
+		edge:1,		// Polarity 0: on==1, 1: on==0
+		poff:12;	// Offset of the port address
+
+} piniod_t;
+
+#endif
+
+// ============================================================================
 
 #endif

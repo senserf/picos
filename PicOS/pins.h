@@ -1,13 +1,13 @@
 #ifndef	__pg_pins_h
 #define	__pg_pins_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 #include "pins_sys.h"
 
-#if BUTTONS_DRIVER
+#ifdef BUTTON_LIST
 #include "buttons.h"
 #endif
 
@@ -61,7 +61,7 @@ extern	word 	__pi_pmonevent [0];
 #define	PMON_DEBOUNCE_CNT_ON	3	// 48 msec on
 #define	PMON_DEBOUNCE_CNT_OFF	3	// 48 msec off
 #define	PMON_DEBOUNCE_NOT_ON	4	// 64 msec on
-#define	PMON_DEBOUNCE_NOT_OFF	100	// 2 sec off
+#define	PMON_DEBOUNCE_NOT_OFF	100	// 1.6 sec off
 
 /* ----------------------------------------
  * Used by pin interrupts and timer assists

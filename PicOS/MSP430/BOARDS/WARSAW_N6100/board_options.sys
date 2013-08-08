@@ -13,8 +13,6 @@
 #define ENTROPY_COLLECTION	1
 #define	GLACIER			0
 
-#define	BUTTONS_DRIVER		1
-
 #define LEDS_DRIVER		1
 #define LEDS_BLINKING		1
 

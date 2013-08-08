@@ -21,6 +21,7 @@
 						_BIC (P2IE, 0x20); \
 					} while (0)
 //+++ "p2irq.c"
+REQUEST_EXTERNAL (p2irq);
 
 // SPI master, 8 bits, MSB first, clock idle low, data output on first edge
 // Rate = 12MHz/30 = 400kHz
@@ -98,9 +99,9 @@
 #include "analog_sensor.h"
 #include "sensors.h"
 
-#if BUTTONS_DRIVER
+#ifdef	BUTTON_LIST
 
-// Buttons implemented via a special driver
+// Buttons implemented via a driver
 
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,	\
@@ -124,7 +125,7 @@
 
 #define	SENSOR_BUTTONS		2
 
-#endif	/* BUTTONS_DRIVER */
+#endif	/* BUTTON_LIST */
 
 #define	N_HIDDEN_SENSORS	2
 

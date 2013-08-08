@@ -15,7 +15,7 @@
 #include "storage.h"
 #include "ab.h"
 
-#if BUTTONS_DRIVER
+#ifdef BUTTONS
 #include "buttons.h"
 #endif
 
@@ -81,7 +81,7 @@ void msg_xx (word hi, word a) {
 	}
 }
 
-#if BUTTONS_DRIVER
+#ifdef BUTTONS
 static void buttons (word but) {
 
 	Buttons |= (1 << but);
@@ -148,7 +148,7 @@ fsm sensor_server {
 
 // ============================================================================
 
-#if BUTTONS_DRIVER
+#ifdef BUTTONS
 
 // Buttons serviced by a special (debouncing) driver
 
@@ -179,10 +179,6 @@ fsm button_server {
 
 // Buttons implemented as a sensor
 
-static const byte btable [] = {
-	BUTTON_M1, BUTTON_M2, BUTTON_S1, BUTTON_S2, BUTTON_BL
-};
-
 fsm button_server {
 
   char butts [6];
@@ -193,12 +189,12 @@ fsm button_server {
 
   state BS_PRESSED:
 
-	byte bv [2], i;
+	word bv, i;
 
-	read_sensor (BS_PRESSED, SENSOR_BUTTONS, (address) bv);
+	read_sensor (BS_PRESSED, SENSOR_BUTTONS, &bv);
 
 	for (i = 0; i < 5; i++)
-		butts [i] = (bv [1] & btable [i]) ? 'X' : '-';
+		butts [i] = (bv & (1 << i)) ? 'X' : '-';
 
 	butts [5] = '\0';
 
@@ -209,7 +205,7 @@ fsm button_server {
 	proceed BS_LOOP;
 }
 
-#endif /* BUTTONS_SERVER */
+#endif /* BUTTONS */
 
 // ============================================================================
 
@@ -256,7 +252,7 @@ fsm root {
 
 	ab_init (sfd);
 	ab_mode (AB_MODE_PASSIVE);
-#if BUTTONS_DRIVER
+#ifdef BUTTONS
 	buttons_action (buttons);
 #endif
 	runfsm sensor_server;

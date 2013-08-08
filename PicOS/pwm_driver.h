@@ -8,6 +8,6 @@
 //+++ "pwm_driver.c"
 
 void pwm_driver_start (), pwm_driver_stop ();
-void pwm_driver_setwidth (word), pwm_driver_write (word, address);
+void pwm_driver_setwidth (word), pwm_driver_write (word, const byte*, address);
 
 #endif

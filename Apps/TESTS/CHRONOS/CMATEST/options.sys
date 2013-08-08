@@ -1,3 +1,2 @@
 // Insert here applications-specific options
-#undef	BUTTONS_DRIVER
-#define	BUTTONS_DRIVER	0
+#undef	BUTTONS

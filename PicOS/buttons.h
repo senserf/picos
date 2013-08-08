@@ -19,4 +19,8 @@
 
 extern const word button_list [];
 
+//+++ "buttons.c"
+
+void	buttons_action (void (*action)(word));
+
 #endif

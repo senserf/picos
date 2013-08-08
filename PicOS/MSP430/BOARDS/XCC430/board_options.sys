@@ -17,8 +17,6 @@
 #define	RANDOM_NUMBER_GENERATOR	2
 #define ENTROPY_COLLECTION	1
 
-#define	BUTTONS_DRIVER		1
-
 #define	PMM_LEVEL		3	// Power management level
 
 #define LEDS_DRIVER		1

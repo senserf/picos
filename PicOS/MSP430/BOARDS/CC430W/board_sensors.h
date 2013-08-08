@@ -11,6 +11,7 @@
 						cma3000_disable; \
 					} while (0)
 //+++ "p1irq.c"
+REQUEST_EXTERNAL (p1irq);
 
 #define	cma3000_bring_up		do { \
 						_BIC (P5DIR, 0x80); \
