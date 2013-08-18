@@ -3483,3 +3483,11 @@ PG130808A:
 
 	you will get the sensor implementation. The TESTS/CHRONOS/RFTEST praxis
 	shows you how.
+
+PG130818A:
+
+	The first working version of drivers for BMA250 and BMP085 (the new
+	acceleration and pressure sensors in CHRONOS_WHITE). I want to commit
+	them (because they work), although I am not happy with these versions
+	(especially BMA250) and they will probably change. Documentation in
+	preparation.

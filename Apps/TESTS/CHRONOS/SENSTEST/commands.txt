@@ -1,0 +1,97 @@
+Common:
+=======
+
+D	
+	debug report (needs debugging code, absent by default)
+-------------------------------------------------------------------------------
+P 0
+	powerdown (0) or powerup (1)
+-------------------------------------------------------------------------------
+s 0 0 0	
+	set delays for acceleration reports:
+		* timeout in sec for forced sensor_read (if no events)
+		* n readouts after an event
+		* interval (msec) between readouts
+-------------------------------------------------------------------------------
+h 0	
+	off radio until report
+		* if (nonzero) auto ON after that many seconds
+-------------------------------------------------------------------------------
+d 0
+	display on (1) / off (0)
+-------------------------------------------------------------------------------
+r [y m d dow h m s]
+	read/set the RTC
+-------------------------------------------------------------------------------
+b n
+	buzzer on for n msec
+-------------------------------------------------------------------------------
+fr a	read info flash word number a
+fw a w  write info flash word number a to w (unsigned decimal)
+fe a	erase info flash block containing word a, a < 0 => erase all info flash
+-------------------------------------------------------------------------------
+
+
+CMA3000/SCP1000 (black):
+========================
+
+a 0 0 0
+	start CMA3000 with the three arguments + the acceleration report thread
+		* 0 = motion detection, 1 = free fall
+		* threshold (0 most sensitive, max 255, useful 20)
+		* time (best 3, max 15)
+-------------------------------------------------------------------------------
+q
+	quit acceleration reports, acceleration sensor off
+-------------------------------------------------------------------------------
+p
+	report SCP1000 sensor value
+-------------------------------------------------------------------------------
+
+
+BMA250/BMP085 (white):
+======================
+
+a 0 0 0 0 0 0 0
+	start BMA250 + acceleration thread
+		* range (0-3: 2G, 4G, 8G, 16G)
+		* bandwidth: 0-7
+		* mode (0-6):
+			0 - passive mode, no events, just sensor readouts
+			1 - movement detection
+				* axes: 1-7 (XYZ)
+				* nsamples (1-4)
+				* threshold (0-255)
+			2 - tap detection
+				* mode: 0-3 (b0 = shock, b1 = quiet)
+				* threshold: 0-31
+				* delay (for double): 0-8 (0 => single)
+				* nsamples: 0-3
+			3 - orientation
+				* blocking: 0-3 (b0 theta, b1 slope)
+				* mode: 0-3 (sym, hass, lass, sym)
+				* theta: 0-63
+				* hysteresis: 0-7
+			4 - flat
+				* theta: 0-63
+				* hold: 0-3
+			5 - lowg (fall)
+				* mode: 0 = single, 1 = sum
+				* threshold
+				* hysteresis: 0-7
+			6 - highg
+				* axes: 1-7
+				* time 
+				* threshold
+				* hysteresis: 0-3
+-------------------------------------------------------------------------------
+q 0
+	if arg == 0, quit acceleration reports, acceleration sensor off
+	otherwise, power down the sensor 1-lowest, 12 (and more) -full
+-------------------------------------------------------------------------------
+p [o]
+	report BMP085 value:
+		* if != WNONE -> oversample
+pc
+	report calibration data (11 words)
+-------------------------------------------------------------------------------

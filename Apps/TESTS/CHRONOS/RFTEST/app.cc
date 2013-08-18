@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2011                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -20,6 +20,20 @@
 #endif
 
 #define MAXPLEN			CC1100_MAXPLEN
+
+// ============================================================================
+
+#ifdef	BOARD_CHRONOS_WHITE
+// Differentiating sensors in version 1.1 of CHRONOS
+#define	ACCEL_BMA250
+#define	PRESS_BMP085
+#else
+// Assume version 1.0
+#define	ACCEL_CMA3000
+#define	PRESS_SCP1000
+#endif
+
+// ============================================================================
 
 static word 	imess,	// Count received
 		omess;	// ... and outgoing messages

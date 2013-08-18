@@ -1,0 +1,2 @@
+-c cc430x6137
+-l main.c sysio.h plug_tarp.c tarp.c net.c phys_cc1100.c plug_null.c bmp085.c bma250.c rtc_cc430.c ez430_lcd.c ab.c abb.c sensors.c

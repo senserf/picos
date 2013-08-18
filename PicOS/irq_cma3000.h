@@ -1,5 +1,5 @@
 //
-// Irq service for the CMA3000 sensor
+// IRQ service for the CMA3000 accelerometer
 //
 if (cma3000_int) {
 
