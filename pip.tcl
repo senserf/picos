@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 0.5
+set ST(VER) 0.6
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -3826,6 +3826,80 @@ proc set_menu_button { w tx ltx { cmd "" } } {
 	}
 }
 
+proc set_board_menu_button { w sel blist } {
+#
+# We need a special function for board selection because of the cascades
+#
+	if { $sel == "" || [lsearch -exact $blist $sel] < 0 } {
+		set sel "---"
+	}
+
+	$w.m delete 0 end
+
+	$w configure -text $sel
+
+	# cascade submenu counter for naming
+	set sc 0
+
+	while { $blist != "" } {
+
+		# the head entry
+		set mbn [lindex $blist 0]
+		# any prefix?
+		if ![regexp "^(\[^_\]+)_" $mbn jnk pfx] {
+			set pfx $mbn
+		}
+
+		set blist [lrange $blist 1 end]
+		set pleng [string length $pfx]
+
+		# check if the same prefix is used in subsequent board names;
+		# note that the list is sorted
+
+		set n 0
+		while 1 {
+			set sbn [lindex $blist $n]
+			if { $sbn == "" } {
+				# end of list
+				break
+			}
+			set d [string index $sbn $pleng]
+			if { $d != "_" && $d != "" || 
+			    [string first $pfx $sbn] != 0 } {
+				# no match
+				break
+			}
+			# OK
+			incr n
+		}
+
+		if $n {
+			# need a submenu
+			set sm $w.m.sm$sc
+			incr sc
+			# may exist already
+			if [catch { menu $sm -tearoff 0 } ] {
+				$sm delete 0 end
+			}
+			$sm add command -label $mbn \
+				-command "board_selection_click $w $mbn"
+			set m 0
+			while { $m < $n } {
+				set sbn [lindex $blist $m]
+				$sm add command -label $sbn \
+				    -command "board_selection_click $w $sbn"
+				incr m
+			}
+			$w.m add cascade -label "${pfx}..." -menu $sm
+			set blist [lrange $blist $n end]
+		} else {
+			# a straightforward entry
+			$w.m add command -label $mbn \
+				-command "board_selection_click $w $mbn"
+		}
+	}
+}
+
 proc read_menu_button { w } {
 #
 # Get the current selection from the menu button, i.e., the button's current
@@ -4004,8 +4078,7 @@ proc cpu_selection_click { w t } {
 		set P(M0,BO) ""
 		set boards [board_list $t]
 		foreach m $P(M0,BL) {
-			set_menu_button $m "?" $boards \
-				board_selection_click
+			set_board_menu_button $m "" $boards
 		}
 		set P(M0,CPU) $t
 	}
@@ -4017,6 +4090,7 @@ proc board_selection_click { w t } {
 #
 	global P
 
+	$w configure -text $t
 	# the board number
 	set nb 0
 	regexp "\[0-9\]+$" $w nb
@@ -4096,7 +4170,7 @@ proc mk_board_selection_window { } {
 			set mb $f.bm$nb
 			lappend P(M0,BL) $mb
 			mk_menu_button $mb
-			set_menu_button $mb $bn $boards board_selection_click
+			set_board_menu_button $mb $bn $boards
 			grid $f.bm$nb -column $cn -row $rm -sticky nw \
 				-padx 1 -pady 1
 			checkbutton $f.lm$nb -variable P(M0,LM,$nb)
@@ -4116,7 +4190,7 @@ proc mk_board_selection_window { } {
 		set mb $f.bm0
 		lappend P(M0,BL) $mb
 		mk_menu_button $mb
-		set_menu_button $mb $bn $boards board_selection_click
+		set_board_menu_button $mb $bn $boards
 		grid $f.bm0 -column $cn -row $rm -sticky nw -padx 1 -pady 1
 		checkbutton $f.lm0 -variable P(M0,LM,0)
 		grid $f.lm0 -column $cn -row $ro -sticky nw -padx 1 -pady 1

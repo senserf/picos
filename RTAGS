@@ -657,3 +657,9 @@ PG130725A:
 	mode was on (i.e., "U" was selected from the slo-mo menu). That bug was
 	introduced with the latest modification of VUEE-specific SIDE args: as
 	of that modification, -s 0 and -r ... cannot be specified together.
+
+PG130818A:
+
+	Added cascades to the board selection menu, so the ever growing BOARDS
+	directory can be accommodated better. There is a separate submenu for
+	all board names with the same prefix up to _.
