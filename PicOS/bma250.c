@@ -70,26 +70,6 @@ static void wreg (byte reg, byte val) {
 
 	bma250_cunsel;
 	bma250_delay;
-
-#if 0
-mdelay (2);
-
-byte c;
-
-if (reg != 0x14) {
-c = rreg (reg);
-if (c != val) {
-msg_xx (1, reg);
-msg_xx (0, (((word)c) << 8) | val);
-mdelay (4000);
-}
-}
-#endif
-
-
-
-
-
 }
 
 #else
@@ -170,75 +150,88 @@ static byte rreg (byte reg) {
 // ============================================================================
 #endif
 
-Boolean bma250_wait_pending = NO;
-byte	bma250_mode = 0;
+byte bma250_status = 0;
 
 // ============================================================================
 
-static void disint () {
+static void clrevent () {
 
-	bma250_disable;
-	wreg (0x16, 0);
-	wreg (0x17, 0);
-}
-
-static void enaint (byte reg, byte bits) {
-
-	mdelay (1);
-	wreg (reg, bits);
+	_BIC (bma250_status, BMA250_STATUS_EVENT);
+	// Fully latched interrupts
+	wreg (0x21, 0x87);
 	bma250_enable;
 }
 
-void bma250_on (byte range, byte bandwidth) {
+void bma250_on (byte range, byte bandwidth, byte stat) {
 //
+	byte r16, r17;
+
 	bma250_bring_up;
 	// Reset the chip
 	wreg (0x14, 0xB6);
 	udelay (200);
 
-	disint ();
-	bma250_mode = 1;
+	bma250_disable;
+	_BIS (bma250_status, BMA250_STATUS_ON);
+	clrevent ();
 
 	// range & bandwidth
 	wreg (0x0F, range);
 	wreg (0x10, bandwidth | 0x8);
 
 	// Global interrupt configuration, all interrupts directed to INT1,
-	// INT2 is not connected
+	// INT2 is not connected; new-data unmapped, we never use it
 	wreg (0x19, 0xF7);
-	// New-data unmapped, we never use it
+
+	// Enable the events
+	r16 = r17 = 0;
+
+	if (stat & BMA250_STAT_MOVE)
+		_BIS (r16, BMA250_ALL_AXES);
+
+	if (stat & BMA250_STAT_TAP_S)
+		_BIS (r16, 0x20);
+	else if (stat & BMA250_STAT_TAP_D)
+		_BIS (r16, 0x10);
+
+	if (stat & BMA250_STAT_ORIENT)
+		_BIS (r16, 0x40);
+
+	if (stat & BMA250_STAT_FLAT)
+		_BIS (r16, 0x80);
+
+	if (stat & BMA250_STAT_LOWG)
+		_BIS (r17, 0x08);
+
+	if (stat & BMA250_STAT_HIGHG)
+		_BIS (r17, BMA250_ALL_AXES);
+
+	// Enable the events
+	wreg (0x16, r16);
+	wreg (0x17, r17);
 }
 
-void bma250_move (byte axes, byte nsamples, byte threshold) {
+void bma250_move (byte nsamples, byte threshold) {
 //
-	disint ();
+	if (!(bma250_status & BMA250_STATUS_ON))
+		return;
+
 	if (nsamples < 1)
 		nsamples = 1;
 	else if (nsamples > 4)
 		nsamples = 4;
 
-	bma250_mode = 2;
-		
 	wreg (0x27, nsamples - 1);
 	wreg (0x28, threshold);
-	enaint (0x16, axes);
 }
 
 void bma250_tap (byte mode, byte threshold, byte delay, byte nsamples) {
 //
-	byte inq;
+	if (!(bma250_status & BMA250_STATUS_ON))
+		return;
 
-	disint ();
-
-	if (delay) {
-		// double
-		inq = 0x10;
-		if (--delay > 7)
-			delay = 7;
-	} else {
-		// single
-		inq = 0x20;
-	}
+	if (delay > 7)
+		delay = 7;
 		
 	wreg (0x2A, mode | delay);
 
@@ -248,16 +241,13 @@ void bma250_tap (byte mode, byte threshold, byte delay, byte nsamples) {
 	if (threshold > 31)
 		threshold = 31;
 
-	bma250_mode = 3;
-
 	wreg (0x2B, nsamples << 6 | threshold);
-
-	enaint (0x16, inq);
 }
 
 void bma250_orient (byte blocking, byte mode, byte theta, byte hysteresis) {
 //
-	disint ();
+	if (!(bma250_status & BMA250_STATUS_ON))
+		return;
 
 	if (hysteresis > 7)
 		hysteresis = 7;
@@ -267,68 +257,61 @@ void bma250_orient (byte blocking, byte mode, byte theta, byte hysteresis) {
 	if (theta > 63)
 		theta = 63;
 
-	bma250_mode = 4;
-
 	wreg (0x2D, theta);
-
-	enaint (0x16, 0x40);
 }
 
 void bma250_flat (byte theta, byte hold) {
 //
-	disint ();
+	if (!(bma250_status & BMA250_STATUS_ON))
+		return;
+
 	if (theta > 63)
 		theta = 63;
 	if (hold > 3)
 		hold = 3;
-	bma250_mode = 5;
+
 	wreg (0x2E, theta);
 	wreg (0x2F, hold << 4);
-
-	enaint (0x16, 0x80);
 }
 
-void bma250_lowg (byte mode, byte threshold, byte hysteresis) {
+void bma250_lowg (byte mode, byte threshold, byte del, byte hysteresis) {
 //
-	disint ();
+	if (!(bma250_status & BMA250_STATUS_ON))
+		return;
+
+	wreg (0x22, del);
 	wreg (0x23, threshold);
-	if (hysteresis > 7)
-		hysteresis = 7;
-	bma250_mode = 6;
-	wreg (0x24, hysteresis | mode);
+	if (hysteresis > 3)
+		hysteresis = 3;
 
-	enaint (0x17, 0x08);
+	wreg (0x24, hysteresis | mode);
 }
 
-void bma250_highg (byte axes, byte time, byte threshold, byte hysteresis) {
+void bma250_highg (byte threshold, byte del, byte hysteresis) {
 //
-	disint ();
+	if (!(bma250_status & BMA250_STATUS_ON))
+		return;
 
 	if (hysteresis > 3)
 		hysteresis = 3;
 
 	wreg (0x24, hysteresis << 6);
 
-	bma250_mode = 7;
-
-	wreg (0x25, time);
+	wreg (0x25, del);
 	wreg (0x26, threshold);
-
-	enaint (0x17, axes);
 }
 
 void bma250_off (byte pow) {
 
-	if (!bma250_mode)
+	if (!(bma250_status & BMA250_STATUS_ON))
 		// The sensor is off
 		return;
 
 	if (pow == 0) {
 		// Power down
-		disint ();
 		wreg (0x11, 0x80);
 		bma250_bring_down;
-		bma250_mode = 0;
+		_BIS (bma250_status, BMA250_STATUS_ON);
 		return;
 	}
 
@@ -348,16 +331,28 @@ void bma250_read (word st, const byte *junk, address val) {
 	byte r;
 
 	if (val == NULL) {
-		when (&bma250_wait_pending, st);
-		bma250_wait_pending = YES;
+		cli;
+		if (bma250_status & BMA250_STATUS_EVENT) {
+			// Restart immediately, bma250 interrupt already
+			// disabled
+			sti;
+			proceed (st);
+		}
+		// No event ready, wait
+		when (&bma250_status, st);
+		_BIS (bma250_status, BMA250_STATUS_WAIT);
+		sti;
 		release;
 	}
 
-	if (bma250_mode == 0) {
+	if (!(bma250_status & BMA250_STATUS_ON)) {
 		// No data, the sensor is off
 		bzero (val, sizeof (bma250_data_t));
 		return;
 	}
+
+	// Status
+	*val++ = rreg (0x09) | (((word)(rreg (0x0c))) << 8);
 
 	// Acc data
 	for (r = 0x02; r < 0x08; r += 2, val++) {
@@ -366,9 +361,10 @@ void bma250_read (word st, const byte *junk, address val) {
 				*val |= 0xFC00;
 	}
 
-	// Status
-	*((byte*)val) = rreg (0x09);
-
 	// Temperature
-	*(((byte*)val) + 1) = rreg (0x08);
+	*((byte*)val) = rreg (0x08);
+
+	// Clear events
+	if (bma250_status & BMA250_STATUS_EVENT)
+		clrevent ();
 }

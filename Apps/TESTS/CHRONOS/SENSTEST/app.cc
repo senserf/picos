@@ -340,6 +340,9 @@ fsm root {
 	switch (ibuf [0]) {
 
 		case 'a' : proceed RS_ASON;	// Start acceleration reports
+#ifdef	BOARD_CHRONOS_WHITE
+		case 'm' : proceed RS_MODE;
+#endif
 		case 'D' : proceed RS_DEBREP;
 		case 'q' : proceed RS_ASOFF;	// Stop acceleration reports
 		case 's' : proceed RS_SETDEL;	// Set delays for acc reports
@@ -406,13 +409,7 @@ fsm root {
 
 #ifdef	BOARD_CHRONOS_WHITE
 
-	w[3] = 0;
-	w[4] = 0;
-	w[5] = 0;
-	w[6] = 0;
-
-	scan (ibuf + 1, "%u %u %u %u %u %u %u",
-		w+0, w+1, w+2, w+3, w+4, w+5, w+6);
+	scan (ibuf + 1, "%u %u %x", w+0, w+1, w+2);
 
 	switch (w[0]) {
 		case 0:  w[0] = BMA250_RANGE_2G; break;
@@ -424,61 +421,7 @@ fsm root {
 	if (w[1] > 7)
 		w[1] = 7;
 
-	bma250_on ((byte)(w[0]), (byte)(w[1]));
-
-	switch (w[2]) {
-		// Mode select
-		case 0:
-			// No events
-			break;
-
-		case 1:
-			// Movement
-			if (w[3] == 0 || w[3] > 7)
-				w[3] = 7;
-
-			bma250_move ((byte)(w[3]), (byte)(w[4]), (byte)(w[5]));
-			break;
-
-		case 2:
-			// Tap
-			if (w[3] > 3)
-				w[3] = 3;
-			bma250_tap ((byte)(w[3] << 6), (byte)(w[4]),
-				(byte)(w[5]), (byte)(w[6]));
-			break;
-
-		case 3:
-			// Orient
-			if (w[3] > 3)
-				w[3] = 3;
-			if (w[4] > 3)
-				w[4] = 3;
-			if (w[6] > 7)
-				w[6] = 7;
-			bma250_orient ((byte)(w[3] << 2), (byte)(w[4]),
-				(byte)(w[5]), (byte)(w[6]));
-			break;
-
-		case 4:
-			// Flat
-			bma250_flat ((byte)(w[3]), (byte)(w[4]));
-			break;
-
-		case 5:
-			// Lowg
-			if (w[3])
-				w[3] = BMA250_LOWG_MODSUM;
-			bma250_lowg ((byte)(w[3]), (byte)(w[4]), (byte)(w[5]));
-			break;
-
-		default:
-			// Highg
-			if (w[6] > 3)
-				w[6] = 3;
-			bma250_highg ((byte)(w[3]), (byte)(w[4]), (byte)(w[5]),
-				(byte)(w[6]));
-	}
+	bma250_on ((byte)(w[0]), (byte)(w[1]), (byte)(w[2]));
 
 #else
 	scan (ibuf + 1, "%u %u %u", w+0, w+1, w+2);
@@ -491,6 +434,68 @@ Restart:
 	runfsm accel_thread;
 
 	proceed RS_DONE;
+
+#ifdef	BOARD_CHRONOS_WHITE
+
+  state RS_MODE:
+
+	w[0] = w[1] = w[2] = w[3] = w[4] = 0;
+
+	scan (ibuf + 1, "%c %u %u %u %u", w+0, w+1, w+2, w+3, w+4);
+
+	switch (w[0]) {
+		// Mode select
+		case 'm':
+			// Movement
+			bma250_move ((byte)(w[1]), (byte)(w[2]));
+			break;
+
+		case 't':
+			// Tap
+			if (w[1] > 3)
+				w[1] = 3;
+			bma250_tap ((byte)(w[1] << 6), (byte)(w[2]),
+				(byte)(w[3]), (byte)(w[4]));
+			break;
+
+		case 'o':
+			// Orient
+			if (w[1] > 3)
+				w[1] = 3;
+			if (w[2] > 3)
+				w[2] = 3;
+			if (w[3] > 63)
+				w[3] = 63;
+			if (w[4] > 7)
+				w[4] = 7;
+			bma250_orient ((byte)(w[1] << 2), (byte)(w[2]),
+				(byte)(w[3]), (byte)(w[4]));
+			break;
+
+		case 'f':
+			// Flat
+			bma250_flat ((byte)(w[1]), (byte)(w[2]));
+			break;
+
+		case 'l':
+			// Lowg
+			if (w[1])
+				w[1] = BMA250_LOWG_MODSUM;
+			bma250_lowg ((byte)(w[1]), (byte)(w[2]), (byte)(w[3]),
+				(byte)(w[4]));
+			break;
+
+		case 'h':
+			// Highg
+			bma250_highg ((byte)(w[1]), (byte)(w[2]), (byte)(w[3]));
+			break;
+
+		default:
+			proceed RS_BAD;
+	}
+
+	proceed RS_DONE;
+#endif
 
   state RS_ASOFF:
 

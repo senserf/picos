@@ -3491,3 +3491,8 @@ PG130818A:
 	them (because they work), although I am not happy with these versions
 	(especially BMA250) and they will probably change. Documentation in
 	preparation.
+
+PG130820:
+
+	The first official version of the drivers for BMA250 and BMP085. Read
+	bma250.pdf for BMA250 and forget about BMP085 for a while.

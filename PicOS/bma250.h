@@ -43,26 +43,38 @@
 #define	BMA250_STAT_ORIENT	0x40
 #define	BMA250_STAT_FLAT	0x80
 
+#define	BMA250_STAT_HX		0x0100
+#define	BMA250_STAT_HY		0x0200
+#define	BMA250_STAT_HZ		0x0400
+#define	BMA250_STAT_HS		0x0800
+#define	BMA250_STAT_O0		0x1000
+#define	BMA250_STAT_O1		0x2000
+#define	BMA250_STAT_ZU		0x4000
+#define	BMA250_STAT_ISFLAT	0x8000
+
 typedef	struct {
 
+	word	stat;
 	sint	x, y, z;
-	byte	stat;
 	char	temp;
 
 } bma250_data_t;
 
-void bma250_on (byte range, byte bandwidth);
-void bma250_move (byte axes, byte nsamples, byte threshold);
+void bma250_on (byte range, byte bandwidth, byte events);
+void bma250_move (byte nsamples, byte threshold);
 void bma250_tap (byte mode, byte threshold, byte delay, byte nsamples);
 void bma250_orient (byte blocking, byte mode, byte theta, byte hysteresis);
 void bma250_flat (byte theta, byte hold);
-void bma250_lowg (byte mode, byte threshold, byte hysteresis);
-void bma250_highg (byte axes, byte time, byte threshold, byte hysteresis);
+void bma250_lowg (byte mode, byte threshold, byte dur, byte hysteresis);
+void bma250_highg (byte threshold, byte dur, byte hysteresis);
 void bma250_off (byte);
 
 void bma250_read (word, const byte*, address);
 
-extern Boolean bma250_wait_pending;
-extern byte bma250_mode;
+extern byte bma250_status;
+
+#define	BMA250_STATUS_ON	0x01
+#define	BMA250_STATUS_WAIT	0x02
+#define	BMA250_STATUS_EVENT	0x04
 
 #endif

@@ -48,8 +48,9 @@ REQUEST_EXTERNAL (p2irq);
 					_BIS (P1REN, 0x20); \
 				} while (0)
 
-// Rising edge, no need to change IES
-#define	bma250_enable		_BIS (P2IE, 0x20)
+// Rising edge + already on
+#define	bma250_enable		do { if (P2IN & 0x20) _BIS (P2IFG, 0x20); \
+				     _BIS (P2IE, 0x20); } while (0)
 #define	bma250_disable		_BIC (P2IE, 0x20)
 #define	bma250_clear		_BIC (P2IFG, 0x20)
 #define	bma250_int		(P2IFG & 0x20)

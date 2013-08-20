@@ -52,38 +52,46 @@ p
 BMA250/BMP085 (white):
 ======================
 
-a 0 0 0 0 0 0 0
+a 0 0 0
 	start BMA250 + acceleration thread
-		* range (0-3: 2G, 4G, 8G, 16G)
+		* range (0-3: 2G, 4G, 8G, 16G), if > 3, skip to mode
 		* bandwidth: 0-7
-		* mode (0-6):
-			0 - passive mode, no events, just sensor readouts
-			1 - movement detection
-				* axes: 1-7 (XYZ)
-				* nsamples (1-4)
-				* threshold (0-255)
-			2 - tap detection
-				* mode: 0-3 (b0 = shock, b1 = quiet)
-				* threshold: 0-31
-				* delay (for double): 0-8 (0 => single)
-				* nsamples: 0-3
-			3 - orientation
-				* blocking: 0-3 (b0 theta, b1 slope)
-				* mode: 0-3 (sym, hass, lass, sym)
-				* theta: 0-63
-				* hysteresis: 0-7
-			4 - flat
-				* theta: 0-63
-				* hold: 0-3
-			5 - lowg (fall)
-				* mode: 0 = single, 1 = sum
-				* threshold
-				* hysteresis: 0-7
-			6 - highg
-				* axes: 1-7
-				* time 
-				* threshold
-				* hysteresis: 0-3
+		* events (hex): 1lg, 2hg, 4mv, 10td, 20ts, 40or, 80fl
+-------------------------------------------------------------------------------
+mx 0 0 0 0
+	modify mode params:
+		* x = m, t, o, f, l, h 
+
+		m - movement
+			* nsamples (1-4)
+			* threshold (0-255)
+
+		t - tap
+			* mode: 0-3 (b0 = shock, b1 = quiet)
+			* threshold: 0-31
+			* delay (for double): 0-7
+			* nsamples: 0-3
+
+		o - orientation
+			* blocking: 0-3 (b0 theta, b1 slope)
+			* mode: 0-3 (sym, hass, lass, sym)
+			* theta: 0-63
+			* hysteresis: 0-7
+
+		f - flat
+			* theta: 0-63
+			* hold: 0-3
+
+		l - lowg (fall)
+			* mode: 0 = single, 1 = sum
+			* threshold
+			* duration
+			* hysteresis: 0-3
+
+		h - highg
+			* threshold
+			* duration
+			* hysteresis: 0-3
 -------------------------------------------------------------------------------
 q 0
 	if arg == 0, quit acceleration reports, acceleration sensor off
