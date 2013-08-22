@@ -3496,3 +3496,8 @@ PG130820:
 
 	The first official version of the drivers for BMA250 and BMP085. Read
 	bma250.pdf for BMA250 and forget about BMP085 for a while.
+
+PG130822A:
+
+	Fixed a bug in picomp causing that structs/unions containing
+	expressions in declarations were considered erroneous.

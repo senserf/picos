@@ -1060,15 +1060,6 @@ proc ntoken { } {
 }
 
 ###############################################################################
-
-proc legcs { c } {
-#
-# Legitimate delimiters in structures
-#
-	return [regexp "\[;,\{\}\\\[\\\]:\\\*\\\(\\\)\]" $c]
-}
-
-###############################################################################
 # Parser for declarations #####################################################
 ###############################################################################
 #
@@ -2705,11 +2696,6 @@ proc get_tbody { } {
 			if { $TK == "\}" && [brcnt] < $br } {
 				# closing brace
 				return $res
-			}
-			if ![legcs $TK] {
-				xerror "illegal token $TK in enum, union, or\
-					struct"
-				return ""
 			}
 		} else {
 			if [endfile] {
