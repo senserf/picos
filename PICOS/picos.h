@@ -38,6 +38,18 @@ typedef	unsigned char	byte;
 
 #define	heapmem		const static byte __pi_heapmem [] =
 
+#define	strlen(s)	__pi_strlen (s)
+#define	strcpy(a,b)	__pi_strcpy (a, b)
+#define	strncpy(a,b,c)	__pi_strncpy (a, b, c)
+#define	strcat(a,b) 	__pi_strcat (a, b)
+#define	strncat(a,b,c)	__pi_strncat (a, b, c)
+
+sint		__pi_strlen (const char*);
+void		__pi_strcpy (char*, const char*);
+void		__pi_strncpy (char*, const char*, int);
+void		__pi_strcat (char*, const char*);
+void		__pi_strncat (char*, const char*, int);
+
 /* ========================================================================== */
 
 #include "sysio.h"

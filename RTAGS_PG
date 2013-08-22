@@ -1033,3 +1033,11 @@ PG130724A:	PICOS >= PG130724A
     for UART_TCV_MODE_N by setting UART_TCV_MODE_NOCHECKSUM to 1.
 
     Minor fixes in the doc.
+
+PG130822A:
+
+    Made sure that PicOS versions of string functions, notably strncpy are used
+    with praxis files, instead of libc versions.
+
+    Fixed a problem with channel-less models that would cause errors on failed
+    exposures of the non-existent "Ether" channel.

@@ -4734,7 +4734,7 @@ ANum:
 		} else if (strcmp (att, "-r") == 0) {
 			// Resync interval
 			if (ri)
-				goto ADup;
+				excptn ("Root: illegal -r argument");
 
 			if (PCArgc == 0)
 				goto AExp;
@@ -4845,7 +4845,8 @@ ANum:
 
 	create (System) AgentInterface;
 
-	Ether->printTop ("RF CHANNEL exposure\n\n");
+	if (Ether)
+		Ether->printTop ("RF CHANNEL exposure\n\n");
 }
 
 // ======================================================== //
@@ -5159,6 +5160,40 @@ int __pi_crunning (code_t tid) {
 	}
 
 	return np;
+}
+
+// ============================================================================
+
+sint __pi_strlen (const char *s) {
+
+	int i;
+
+	for (i = 0; *(s+i) != '\0'; i++);
+
+	return (sint) i;
+}
+
+void __pi_strcpy (char *d, const char *s) {
+
+	while ((Boolean)(*d++ = *s++));
+}
+
+void __pi_strncpy (char *d, const char *s, int n) {
+
+	while (n-- && (*s != '\0'))
+		*d++ = *s++;
+	*d = '\0';
+}
+
+void __pi_strcat (char *d, const char *s) {
+
+	while (*d != '\0') d++;
+	strcpy (d, s);
+}
+
+void __pi_strncat (char *d, const char *s, int n) {
+
+	strcpy (d+n, s);
 }
 
 // ============================================================================
