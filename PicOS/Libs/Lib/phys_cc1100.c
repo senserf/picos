@@ -254,7 +254,7 @@ static void get_reg_burst (byte addr, byte *buffer, word count) {
 	
 static byte strobe (byte cmd) {
 
-	register res;
+	register byte res;
 
 	SPI_START;
 	res = spi_out (cmd);

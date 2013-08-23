@@ -319,3 +319,17 @@ verloca.tcl: as in 2loca, we derive location coords for node ids > 10000 (coords
 
 In tarp.h: DEFAULT_RSSI_THOLD changed from 80 to 100 (important for mhopping)
 
+WO130823A:
+MatchMaker
+- LEGACY/mm_demo preserved in legacy_mm_demo.zip, just in case;
+- PROPRIETARY/SEAWOLF/mm contains a "modern" version with (intended) EXACTLY
+  the same functionlity (as the legacy version).
+- SEAWOLF/BOOTH will keep the 'booth' attempt(s) at shows for incomplete
+  Seawolf / PINDA stuff.
+
+Minor update (implicit int to explicit byte) update in phys_cc1100.c.
+
+inProgress/spot is intended to be a derivative from alfMay2013 for AT.
+I'd like to preserve quite significant code changes (see 'notes' there),
+in case the works resume.
+
