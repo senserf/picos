@@ -3501,3 +3501,19 @@ PG130822A:
 
 	Fixed a bug in picomp causing that structs/unions containing
 	expressions in declarations were considered erroneous.
+
+PG130829A:
+
+	Fixed a problem with CC430 (CHRONOS) causing chip hangups while
+	transmitting with RXOFF.
+
+	Caveat emptor: I don't understand what I am doing. I've tracked the
+	problem down to one place in the driver where I'm invoking SFRX after
+	power up (entering IDLE, then setting PATABLE, then entering RX before
+	a transmission). The SFRX strobe hangs unless I insert a delay before
+	it. 125us worked fine in my tests, while 60 us was too small. So I have
+	settled for 200 us, and my tests (as well as Wlodek's) seem to be doing
+	fine.
+
+	Changed the settings for CHRONOS (and CHRONOS_WHITE) to auto reset on
+	syserror.

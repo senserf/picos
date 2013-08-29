@@ -67,19 +67,30 @@
 #undef	RADIO_USE_LEDS
 #define	RADIO_USE_LEDS	0
 
-#define	UART_TCV		1
-#define	UART_TCV_MODE		UART_TCV_MODE_L
+// ============================================================================
+
+#undef	DIAG_IMPLEMENTATION
 #define	RADIO_OPTIONS		(0x01 + 0x04 + 0x40 + 0x80 + 0x20)
 #define	RADIO_CRC_MODE		0
-#undef	DIAG_IMPLEMENTATION
+
+#define	NUMBER_OF_SENSORS	0
+
+#if defined(BOARD_CHRONOS) || defined(BOARD_CHRONOS_WHITE)
+
+#define	CHRONOS
+
+#define	UART_TCV		0
+#define	DIAG_IMPLEMENTATION	0
+
+#else
+
+#define	UART_TCV		1
+#define	UART_TCV_MODE		UART_TCV_MODE_L
 #define	DIAG_IMPLEMENTATION	1
+
+#endif
+
 //#define	RADIO_LBT_BACKOFF_EXP	6
 //#define	RADIO_LBT_BACKOFF_RX	2
 
 #define	TCV_LIMIT_XMT		16
-
-#ifdef BOARD_WARSAW
-#define	NUMBER_OF_SENSORS	0
-#else
-#define	NUMBER_OF_SENSORS	4
-#endif

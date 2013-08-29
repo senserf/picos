@@ -31,7 +31,6 @@
 
 
 
-
 // ============================================================================
 // Chip access functions ======================================================
 // ============================================================================
@@ -597,6 +596,13 @@ static void rx_reset () {
 //
 	word i;
 
+#ifdef	__CC430__
+	// This delay seems to be needed on CC430 to prevent hangups occurring
+	// when transmitting with RXOFF. On my device (CHRONOS). 125 us seems
+	// to work fine, while 60 is too small. Let's hope that 200 will do the
+	// trick.
+	udelay (200);
+#endif
 	for (i = 0; i < 16; i++) {
 		strobe (CCxxx0_SFRX);
 		if (rx_status () == 0) {

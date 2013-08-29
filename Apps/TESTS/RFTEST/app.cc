@@ -4,15 +4,25 @@
 /* ==================================================================== */
 
 #include "sysio.h"
-#include "form.h"
 #include "tcvphys.h"
 #ifndef __SMURPH__
 #include "cc1100.h"
 #endif
 #include "phys_cc1100.h"
-#include "phys_uart.h"
 #include "plug_null.h"
 #include "hold.h"
+
+#include "form.h"
+
+#if UART_TCV
+// UART present
+#include "phys_uart.h"
+#endif
+
+#ifdef	CHRONOS
+#include "ez430_lcd.h"
+#include "rtc_cc430.h"
+#endif
 
 #ifdef TLDEBUG
 #include "tldebug.h"
@@ -32,7 +42,11 @@ heapmem { 50, 50 };
 
 lword	g_lrs;
 
-int	g_fd_rf = -1, g_fd_uart = -1, g_snd_opl,
+#ifndef CHRONOS
+int	g_fd_uart = -1;
+#endif
+
+int	g_fd_rf = -1, g_snd_opl,
 	g_pkt_minpl = MIN_MES_PACKET_LENGTH,
 	g_pkt_maxpl = MAX_PACKET_LENGTH;
 
@@ -64,6 +78,128 @@ noded_t	g_rep_nodes [MAX_NODES];
 
 // ============================================================================
 
+#ifdef CHRONOS
+// ============================================================================
+// CHRONOS interface ==========================================================
+// ============================================================================
+
+static char c_msg [6];
+
+static void msg_lcd (const char *txt, word fr, word to) {
+//
+// Displays characters on the LCD
+//
+	char c;
+
+	while (1) {
+		if ((c = *txt) != '\0') {
+			if (c >= 'a' && c <= 'z')
+				c -= ('a' - 'A');
+			ezlcd_item (fr, (word)c | LCD_MODE_SET);
+			txt++;
+		} else {
+			ezlcd_item (fr, LCD_MODE_CLEAR);
+		}
+		if (fr == to)
+			return;
+		if (fr > to)
+			fr--;
+		else
+			fr++;
+	}
+}
+
+static void msg_hi (const char *txt) {
+	msg_lcd (txt, LCD_SEG_L1_3, LCD_SEG_L1_0);
+}
+
+void msg_lo (const char *txt) {
+	msg_lcd (txt, LCD_SEG_L2_4, LCD_SEG_L2_0);
+}
+
+static char h_code (v) {
+
+	v &= 0xF;
+	return v < 10 ? '0' + v : ('a' + (v - 10));
+}
+
+static void err_msg (word st, word v) {
+
+	if (v != 0 && v != WNONE) {
+		c_msg [0] = 'E';
+		c_msg [1] = 'R';
+		c_msg [2] = v > 11 ? 'u' : h_code (v);
+		c_msg [3] = '\0';
+		msg_hi (c_msg);
+	}
+}
+
+static void enc_dec (word n, word s) {
+
+	char *m;
+
+	m = c_msg + 4;
+	do {
+		*m-- = (char) ('0' + (n % 10));
+		s--;
+		n /= 10;
+	} while (s);
+}
+
+static void enc_hex (word n, word s) {
+
+	char *m;
+
+	s--;
+	m = c_msg + s;
+
+	while (1) {
+		*m = h_code (n);
+		if (s == 0)
+			break;
+		m--;
+		s--;
+		n >>= 4;
+	}
+}
+
+static byte m_busy = 0;
+
+fsm thread_m_busy {
+
+	state MB_START:
+
+		delay (512, MB_CLEAR);
+		release;
+
+	state MB_CLEAR:
+
+		m_busy = 0;
+		trigger (&m_busy);
+		finish;
+}
+
+static void m_out (word st, const char *t) {
+
+	if (m_busy) {
+		if (st == WNONE)
+			return;
+		when (&m_busy, st);
+		release;
+	}
+
+	msg_lo (t);
+
+	if (runfsm thread_m_busy)
+		m_busy = 1;
+}
+
+// ============================================================================
+// UART interface =============================================================
+// ============================================================================
+
+#else
+
 static char *emess (word estat) {
 
 	switch (estat) {
@@ -87,6 +223,55 @@ static char *emess (word estat) {
 			return (char*)"Unknown error";
 	}
 }
+
+#define	err_msg(st,v)	do { \
+				char *msg = emess (v); \
+				if (msg != NULL) \
+					uart_out (st, msg); \
+			} while (0)
+
+void uart_outf (word st, const char *fm, ...) {
+//
+// Formatted output over L-mode UART
+//
+	va_list ap;
+	address packet;
+	word ln;
+
+	va_start (ap, fm);
+
+	if ((ln = vfsize (fm, ap)) > UART_LINE_LENGTH - 1)
+		syserror (EREQPAR, "uart_outf");
+
+	packet = tcv_wnp (st, g_fd_uart, ln + 1);
+	if (packet == NULL)
+		return;
+
+	vform ((char*)packet, fm, ap);
+
+	tcv_endp (packet);
+}
+
+void uart_out (word st, const char *ms) {
+//
+// Unformatted output over L-mode UART
+//
+	address packet;
+	word ln;
+
+	if ((ln = strlen (ms)) > UART_LINE_LENGTH - 1)
+		syserror (EREQPAR, "uart_out");
+
+	packet = tcv_wnp (st, g_fd_uart, ln + 1);
+	if (packet == NULL)
+		return;
+	memcpy (packet, ms, ln + 1);
+	tcv_endp (packet);
+}
+
+#endif /* CHRONOS or UART */
+
+// ============================================================================
 
 static const char *skip_blk (const char *cb) {
 //
@@ -131,7 +316,11 @@ void handle_ack (address buf, word pl) {
 		if (g_rcv_ackrp) {
 			// Still doing the previous one
 			tcv_endp (buf);
+#ifdef CHRONOS
+			m_out (WNONE, "AIRS");
+#else
 			uart_out (WNONE, "Incoming report skipped");
+#endif
 			return;
 		}
 
@@ -139,7 +328,11 @@ void handle_ack (address buf, word pl) {
 			// At least this much needed to make sense
 Bad_length:
 			tcv_endp (buf);
+#ifdef CHRONOS
+			m_out (WNONE, "ABAD");
+#else
 			uart_out (WNONE, "Bad report");
+#endif
 			return;
 		}
 
@@ -149,7 +342,11 @@ Bad_length:
 
 		if (runfsm thread_rreporter == 0) {
 			tcv_endp (buf);
+#ifdef CHRONOS
+			m_out (WNONE, "ACAF");
+#else
 			uart_out (WNONE, "Can't fork");
+#endif
 			return;
 		}
 
@@ -192,7 +389,11 @@ word do_command (const char *cb, word sender, word sernum) {
 			ps = (POFF_NTAB + (rs = report_size ()) * 2 + 1) * 2;
 
 			if (ps > MAX_PACKET_LENGTH) {
+#ifdef CHRONOS
+				m_out (WNONE, "ERTL");
+#else
 				uart_out (WNONE, "Report too large");
+#endif
 				return 1;
 			}
 
@@ -708,6 +909,8 @@ CDiff:
 
 #endif /* __SMURPH__ */
 
+#ifndef	CHRONOS
+
 	    case 'z': {
 		// Misc commands for debugging and stuff
 		cb++;
@@ -803,51 +1006,10 @@ CDiff:
 		    }
 		}
 	    }
+#endif /* ndef CHRONOS */
 	}
 	return 7;
 }
-
-// ============================================================================
-
-void uart_outf (word st, const char *fm, ...) {
-//
-// Formatted output over L-mode UART
-//
-	va_list ap;
-	address packet;
-	word ln;
-
-	va_start (ap, fm);
-
-	if ((ln = vfsize (fm, ap)) > UART_LINE_LENGTH - 1)
-		syserror (EREQPAR, "uart_outf");
-
-	packet = tcv_wnp (st, g_fd_uart, ln + 1);
-	if (packet == NULL)
-		return;
-
-	vform ((char*)packet, fm, ap);
-
-	tcv_endp (packet);
-}
-
-void uart_out (word st, const char *ms) {
-//
-// Unformatted output over L-mode UART
-//
-	address packet;
-	word ln;
-
-	if ((ln = strlen (ms)) > UART_LINE_LENGTH - 1)
-		syserror (EREQPAR, "uart_out");
-
-	packet = tcv_wnp (st, g_fd_uart, ln + 1);
-	if (packet == NULL)
-		return;
-	memcpy (packet, ms, ln + 1);
-	tcv_endp (packet);
-}
-
 
 // ============================================================================
 
@@ -924,6 +1086,13 @@ void view_packet (address p, word pl) {
 		// Something wrong
 		return;
 
+#ifdef CHRONOS
+
+	c_msg [0] = 'R';
+	enc_dec (p [POFF_SER], 4);
+	m_out (WNONE, c_msg);
+
+#else
 	uart_outf (WNONE, "S:%u, D:%x, N:%u, L:%u, P:%u, R:%u, Q:%u, M%c"
 #if NUMBER_OF_SENSORS > 0
 		", V:%u"
@@ -961,6 +1130,8 @@ void view_packet (address p, word pl) {
 #endif
 #endif
 		);
+#endif	/* ndef CHRONOS */
+
 }
 
 // ============================================================================
@@ -995,18 +1166,19 @@ fsm thread_pcmnder {
 
   entry PC_NEXT:
 
+#ifdef CHRONOS
+	c_msg [0] = 'C';
+	enc_dec ((word) seconds (), 4);
+	m_out (PC_NEXT, c_msg);
+#else
+
 	uart_outf (PC_NEXT, "CMD: [%lu] %s", seconds (), g_pcmd_cmd);
+#endif
 	estat = do_command (g_pcmd_cmd, 0, 0);
 
   entry PC_MSG:
 
-  	char *msg;
-
-	msg = emess (estat);
-	if (msg == NULL)
-		proceed PC_START;
-
-	uart_out (PC_MSG, msg);
+	err_msg (PC_MSG, estat);
 	proceed PC_START;
 }
 
@@ -1074,8 +1246,10 @@ fsm thread_patable {
 
   entry PA_TMOUT:
 #if 0
-	if (ntries > PATABLE_MAX_TRIES)
+	if (ntries > PATABLE_MAX_TRIES) {
+		g_pat_cntr -= g_pat_drop;
 		proceed PA_NEXT;
+	}
 
 	ntries++;
 	proceed PA_RUN;
@@ -1098,13 +1272,22 @@ fsm thread_patable {
 		proceed PA_RUN;
 	}
 
+	g_pat_cntr -= g_pat_drop;
+
   entry PA_NEXT:
 
-	g_pat_cntr -= g_pat_drop;
+#ifdef CHRONOS
+
+	enc_hex (g_pat_cset [1], 2);
+	enc_dec ((word) (g_pat_cntr  > 1 ? g_pat_acc / g_pat_cntr : g_pat_acc),
+		3);
+
+	m_out (PA_NEXT, c_msg);
+#else
 	uart_outf (PA_NEXT, "0x%x, %d, %d, %u, %u", g_pat_cset [1],
 		(word) (g_pat_cntr  > 1 ? g_pat_acc / g_pat_cntr : g_pat_acc),
 			g_pat_cntr, g_pat_nlqi, g_pat_maxlqi);
-
+#endif
 	// Next value
 	if (g_pat_cset [1] != 255) {
 		g_pat_cset [1] ++;
@@ -1115,7 +1298,11 @@ fsm thread_patable {
 
   entry PA_DONE:
 
-	uart_outf (PA_DONE, "All done");
+#ifdef CHRONOS
+	m_out (PA_DONE, "DONE");
+#else
+	uart_out (PA_DONE, "All done");
+#endif
 	// Resume previous setting
 #ifdef CC1100_OLD_DRIVER
 	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)g_reg_suppl);
@@ -1150,14 +1337,25 @@ fsm thread_rfcmd {
 		}
 		if (g_snd_rtries > RF_COMMAND_RETRIES) {
 			// Response
+#ifdef CHRONOS
+			if (g_snd_rcode)
+				m_out (WNONE, "RERR");
+			else
+				m_out (WNONE, "ROK");
+#else
 			if (g_snd_rcode)
 				uart_outf (WNONE, "Error %u from %u",
 					g_snd_rcode, g_snd_rnode);
 			else
 				uart_outf (WNONE, "OK from %u", g_snd_rnode);
+#endif
 		} else {
 			// Timeout
+#ifdef CHRONOS
+			m_out (WNONE, "RTMO");
+#else
 			uart_outf (WNONE, "Timeout reaching %u", g_snd_rnode);
+#endif
 		}
 		g_snd_rnode = 0;
 		finish;
@@ -1189,14 +1387,22 @@ fsm thread_rfcmd {
 
 fsm thread_rreporter {
 
+#ifndef CHRONOS
+
   word nn, nx;
 
   entry UF_START:
 
 	uart_outf (UF_START, "Stats of node %u:", g_rcv_ackrp [POFF_RCV]);
+#endif
 
   entry UF_FIXED:
 
+#ifdef CHRONOS
+	enc_dec (g_rcv_ackrp [POFF_SENT], 4);
+	c_msg [0] = 'S';
+	m_out (UF_FIXED, c_msg);
+#else
 	uart_outf (UF_FIXED, "Sent: %u", g_rcv_ackrp [POFF_SENT]);
 
 	nn = 0;
@@ -1221,7 +1427,7 @@ fsm thread_rreporter {
 			g_rcv_ackrp [POFF_RERR+3],
 			g_rcv_ackrp [POFF_RERR+4],
 			g_rcv_ackrp [POFF_RERR+5] );
-
+#endif
 	tcv_endp (g_rcv_ackrp);
 	g_rcv_ackrp = NULL;
 
@@ -1231,6 +1437,8 @@ fsm thread_rreporter {
 // ============================================================================
 
 fsm thread_ureporter (word clear) {
+
+#ifndef CHRONOS
 
   word cnt;
 
@@ -1246,9 +1454,15 @@ fsm thread_ureporter (word clear) {
 	vals [0] = memfree (0, vals + 1);
 	vals [2] = stackfree ();
 	uart_outf (RE_MEM, "Mem: %u %u %u" , vals [0], vals [1], vals [2]);
+#endif
 
   entry RE_FIXED:
 
+#ifdef CHRONOS
+	enc_dec (g_snd_count, 4);
+	c_msg [0] = 'S';
+	m_out (RE_FIXED, c_msg);
+#else
 	uart_outf (RE_FIXED, "Sent: %u", g_snd_count);
 	cnt = 0;
 
@@ -1267,10 +1481,14 @@ fsm thread_ureporter (word clear) {
 	word errs [6];
 
 	tcv_control (g_fd_rf, PHYSOPT_ERROR, errs);
+#endif
 	if (clear)
 		tcv_control (g_fd_rf, PHYSOPT_ERROR, NULL);
+
+#ifndef CHRONOS
 	uart_outf (RE_DRIV, "Driver stats: %u, %u, %u, %u, %u, %u",
 		errs [0], errs [1], errs [2], errs [3], errs [4], errs [5]);
+#endif
 	finish;
 }
 
@@ -1400,8 +1618,152 @@ fsm thread_sender (word dl) {
 	proceed SN_DELAY;
 }
 
+#ifdef CHRONOS
+
 // ============================================================================
-		
+// CHRONOS ====================================================================
+// ============================================================================
+
+static byte rcv_stat = 0, lcd_stat = 0;
+
+static void buttons (word but) {
+
+	word estat;
+
+	estat = 13;
+
+	switch (but) {
+
+	    case 0:
+
+		if (running (thread_sender)) {
+			estat = do_command ("q", 0, 0);
+			msg_hi ("STOP");
+		} else {
+			estat = do_command ("s", 0, 0);
+			msg_hi ("SEND");
+		}
+		break;
+
+	    case 1:
+
+		if (g_flags & 0x4000) {
+			estat = do_command ("n", 0, 0);
+			msg_hi ("TERS");
+		} else {
+			estat = do_command ("v", 0, 0);
+			msg_hi ("VERB");
+		}
+		break;
+
+	    case 2:
+
+		if (g_flags & 0x8000) {
+			estat = do_command ("u", 0, 0);
+			msg_hi ("PWUP");
+		} else {
+			estat = do_command ("d", 0, 0);
+			msg_hi ("PWDN");
+		}
+		break;
+
+	    case 3:
+
+		if (rcv_stat == 0) {
+			// OFF
+			rcv_stat = 1;
+			estat = do_command ("f", 0, 0);
+			msg_hi ("RXOF");
+		} else if (rcv_stat == 1) {
+			rcv_stat = 2;
+			estat = do_command ("f 1", 0, 0);
+			msg_hi ("RXWO");
+		} else {
+			rcv_stat = 0;
+			estat = do_command ("g", 0, 0);
+		}
+		break;
+
+	    case 4:
+
+		if (lcd_stat) {
+			// Turn on
+			lcd_stat = 0;
+			ezlcd_on ();
+		} else {
+			lcd_stat = 1;
+			ezlcd_off ();
+		}
+		break;
+	}
+
+	err_msg (WNONE, estat);
+}
+
+fsm root {
+
+  word estat;
+
+  entry RS_INIT:
+
+	word scr;
+
+#ifdef TLDEBUG
+	tld_init (20, 2, 64);
+#endif
+	ezlcd_init ();
+	ezlcd_on ();
+
+	phys_cc1100 (0, MAX_PACKET_LENGTH);
+	tcv_plug (0, &plug_null);
+	g_fd_rf = tcv_open (WNONE, 0, 0);	// NULL plug on CC1100
+
+	if (g_fd_rf < 0)
+		syserror (ERESOURCE, "app desc");
+
+	g_flags = HOST_FLAGS;
+
+	//
+	// d a z z z p p p c c c c c c c c
+	//
+	// d 	- power down flag
+	// a    - active flag (sender initially on)
+	// zzz  - last three bits of network ID
+	// ppp  - default power level for xmitter
+	// c..c - the channel
+	//
+
+	scr = NETWORK_ID | ((g_flags >> 11) & 0x7);
+	tcv_control (g_fd_rf, PHYSOPT_SETSID, &scr);
+	scr = (g_flags >> 8) & 0x7;
+	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
+	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
+	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+
+	runfsm thread_listener;
+
+	if (g_flags & 0x4000)
+		runfsm thread_sender (0);
+
+	// Only this one stays
+	g_flags &= 0x8000;
+
+	if (g_flags)
+		powerdown ();
+
+	msg_hi ("RFTS");
+	msg_lo ("READY");
+
+	buttons_action (buttons);
+	finish;
+}
+	
+#else
+
+// ============================================================================
+// UART =======================================================================
+// ============================================================================
+
 fsm root {
 
   word estat;
@@ -1482,14 +1844,10 @@ fsm root {
 
   entry RS_MSG:
 
-  	char *msg;
-
-	msg = emess (estat);
-	if (msg == NULL)
-		proceed RS_ON;
-
-	uart_out (RS_MSG, msg);
+	err_msg (RS_MSG, estat);
 	proceed RS_ON;
 }
+
+#endif /* CHRONOS or UART */
 
 // ============================================================================
