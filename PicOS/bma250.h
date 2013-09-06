@@ -69,6 +69,8 @@ void bma250_lowg (byte mode, byte threshold, byte dur, byte hysteresis);
 void bma250_highg (byte threshold, byte dur, byte hysteresis);
 void bma250_off (byte);
 
+void bma250_init (void);
+
 void bma250_read (word, const byte*, address);
 
 extern byte bma250_status;

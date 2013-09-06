@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -27,6 +27,10 @@ heapmem {10, 90};
 
 #include "pinopts.h"
 #include "hold.h"
+
+#ifdef	BUTTON_LIST
+#include "buttons.h"
+#endif
 
 #ifndef AUTO_RADIO_START
 #define	AUTO_RADIO_START	0
@@ -337,7 +341,6 @@ fsm test_pin {
 
 	ser_out (PI_INIT,
 		"\r\nRF Pin Test\r\n"
-		"Commands:\r\n"
 		"r p r -> read ADC pin 'p' with reference r:\r\n"
 		" 0-1.5V, 1-2.5V, 2-Vcc, 3-Eref\r\n"
 		"s p v -> set pin 'p' to digital v (0/1)\r\n"
@@ -442,7 +445,6 @@ fsm test_ifl {
 
 	ser_out (IF_START,
 		"\r\nFLASH Test\r\n"
-		"Commands:\r\n"
 		"l led w -> led status [w = 0, 1, 2]\r\n"
 		"b w -> blinkrate 0-low, 1-high\r\n"
 		"d m -> write a diag message\r\n"
@@ -584,7 +586,6 @@ fsm test_epr {
 
 	ser_out (EP_INIT,
 		"\r\nEEPROM Test\r\n"
-		"Commands:\r\n"
 		"a adr int -> store word\r\n"
 		"b adr lint -> store lword\r\n"
 		"c adr str -> store string\r\n"
@@ -899,7 +900,6 @@ fsm test_sdcard {
 
 	ser_out (SD_START,
 		"\r\nSD Test\r\n"
-		"Commands:\r\n"
 		"a adr int -> store a word\r\n"
 		"b adr lint -> store a lword\r\n"
 		"c adr str -> store a string\r\n"
@@ -1184,7 +1184,6 @@ fsm test_delay {
 
 	ser_out (DE_INIT,
 		"\r\nRF Power Test\r\n"
-		"Commands:\r\n"
 #if GLACIER
 		"f s -> freeze\r\n"
 #endif
@@ -1327,7 +1326,6 @@ fsm test_gps {
 
 	ser_out (GP_MEN,
 		"\r\nGPS Test\r\n"
-		"Commands:\r\n"
 		"w string -> write line to module\r\n"
 		"e -> enable\r\n"
 		"d -> disable\r\n"
@@ -1403,7 +1401,6 @@ fsm test_rtc {
 
 	ser_out (RT_MEN,
 		"\r\nRTC Test\r\n"
-		"Commands:\r\n"
 		"s y m d dw h m s -> set the clock\r\n"
 		"r -> read the clock\r\n"
 #ifdef RTC_REG
@@ -1512,7 +1509,6 @@ fsm test_lcd {
 
 	ser_out (LT_MEN,
 		"\r\nLCD Test\r\n"
-		"Commands:\r\n"
 		"o n -> on (1 = cursor shown)\r\n"
 		"f -> off\r\n"
 		"d t -> display text\r\n"
@@ -1591,7 +1587,6 @@ fsm test_sensors {
 
 	ser_out (SE_INIT,
 		"\r\nSensor Test\r\n"
-		"Commands:\r\n"
 #ifdef	cma3000_csel
 		"s 0|1 -> cma3000 off, on\r\n"
 #endif
@@ -1697,13 +1692,208 @@ fsm test_sensors {
 
 // ============================================================================
 
+#ifdef bma250_csel
+
+#ifndef	SENSOR_MOTION
+#error "SENSOR_MOTION must be defined along with bma250_csel!!"
+#endif
+
+#define	_w	((word*)str)
+
+static word bma250_rdelay;
+
+fsm bma250_thread {
+
+  bma250_data_t c;
+  char tp;
+
+  state AT_WAIT:
+
+	tp = 'V';
+
+	if (bma250_rdelay)
+		delay (bma250_rdelay, AT_TIMEOUT);
+
+	wait_sensor (SENSOR_MOTION, AT_EVENT);
+
+	release;
+
+  state AT_TIMEOUT:
+
+	read_sensor (AT_TIMEOUT, SENSOR_MOTION, (address)(&c));
+
+  state AT_REPORT:
+
+	ser_outf (AT_REPORT, "%c: [%x] t=%d <%d,%d,%d>\r\n",
+		tp, c.stat, c.temp, c.x, c.y, c.z);
+
+	sameas AT_WAIT;
+
+  state AT_EVENT:
+
+	tp = 'E';
+	sameas AT_TIMEOUT;
+}
+
+fsm test_bma250 {
+
+  state BT_INIT:
+
+	ser_out (BT_INIT,
+		"\r\nBMA250 Test\r\n"
+		"s r b s -> on\r\n"
+		"e m -> off\r\n"
+		"q -> quit\r\n"
+		"m ns th -> motion\r\n"
+		"t md th de ns -> tap\r\n"
+		"o bl md th hy -> orient\r\n"
+		"f th ho -> flat\r\n"
+		"l md th du hy -> fall\r\n"
+		"h th du hy -> hit\r\n"
+		"r de -> run thread\r\n"
+		"u -> stop\r\n"
+	);
+
+  state BT_RCMD:
+
+	ser_in (BT_RCMD, ibuf, IBUFLEN-1);
+
+	_w[0] = 0;
+	_w[1] = 0;
+	_w[2] = 0;
+	_w[3] = 0;
+
+	switch (ibuf [0]) {
+
+		case 's' : proceed BT_START;
+		case 'e' : proceed BT_OFF;
+		case 'q' : {
+			killall (bma250_thread);
+			finish;
+		}
+		case 'm' : proceed BT_MOVE;
+		case 't' : proceed BT_TAP;
+		case 'o' : proceed BT_ORIENT;
+		case 'f' : proceed BT_FLAT;
+		case 'l' : proceed BT_FALL;
+		case 'h' : proceed BT_HIT;
+		case 'r' : proceed BT_RUN;
+		case 'u' : proceed BT_STOP;
+	}
+
+  state BT_IERR:
+
+	ser_out (BT_IERR, "Illegal\r\n");
+	proceed BT_INIT;
+
+  state BT_OK:
+
+	ser_out (BT_OK, "OK\r\n");
+	proceed BT_RCMD;
+
+  state BT_START:
+
+	scan (ibuf + 1, "%u %u %x", _w+0, _w+1, _w+2);
+
+	switch (_w[0]) {
+		case 0:  _w[0] = BMA250_RANGE_2G; break;
+		case 1:  _w[0] = BMA250_RANGE_4G; break;
+		case 2:  _w[0] = BMA250_RANGE_8G; break;
+		default: _w[0] = BMA250_RANGE_16G;
+	}
+
+	if (_w[1] > 7)
+		_w[1] = 7;
+
+	bma250_on ((byte)(_w[0]), (byte)(_w[1]), (byte)(_w[2]));
+
+	proceed BT_OK;
+
+  state BT_OFF:
+
+	scan (ibuf + 1, "%u", _w+0);
+
+	if (_w[0] > 12)
+		_w[0] = 12;
+
+	bma250_off ((byte)(_w[0]));
+
+	proceed BT_OK;
+
+  state BT_MOVE:
+
+	scan (ibuf + 1, "%u %u", _w+0, _w+1);
+	bma250_move ((byte)(_w[0]), (byte)(_w[1]));
+	proceed BT_OK;
+
+  state BT_TAP:
+
+	scan (ibuf + 1, "%u %u %u %u", _w+0, _w+1, _w+2, _w+3);
+	if (_w[0] > 3)
+		_w[0] = 3;
+	bma250_tap ((byte)(_w[0] << 6), (byte)(_w[1]), (byte)(_w[2]),
+		(byte)(_w[3]));
+	proceed BT_OK;
+
+  state BT_ORIENT:
+
+	scan (ibuf + 1, "%u %u %u %u", _w+0, _w+1, _w+2, _w+3);
+	if (_w[0] > 3)
+		_w[0] = 3;
+	if (_w[1] > 3)
+		_w[1] = 3;
+	if (_w[2] > 63)
+		_w[2] = 63;
+	if (_w[3] > 7)
+		_w[3] = 7;
+	bma250_orient ((byte)(_w[0] << 2), (byte)(_w[1]), (byte)(_w[2]),
+		(byte)(_w[3]));
+	proceed BT_OK;
+
+  state BT_FLAT:
+
+	scan (ibuf + 1, "%u %u", _w+0, _w+1);
+	bma250_flat ((byte)(_w[0]), (byte)(_w[1]));
+	proceed BT_OK;
+
+  state BT_FALL:
+
+	scan (ibuf + 1, "%u %u %u %u", _w+0, _w+1, _w+2, _w+3);
+	if (_w[0])
+		_w[0] = BMA250_LOWG_MODSUM;
+	bma250_lowg ((byte)(_w[0]), (byte)(_w[1]), (byte)(_w[2]),
+		(byte)(_w[3]));
+	proceed BT_OK;
+
+  state BT_HIT:
+
+	scan (ibuf + 1, "%u %u %u", _w+0, _w+1, _w+2);
+	bma250_highg ((byte)(_w[0]), (byte)(_w[1]), (byte)(_w[2]));
+	proceed BT_OK;
+
+  state BT_RUN:
+
+	scan (ibuf + 1, "%u", &bma250_rdelay);
+	if (!running (bma250_thread))
+		runfsm bma250_thread;
+	proceed BT_OK;
+
+  state BT_STOP:
+
+	killall (bma250_thread);
+	proceed BT_OK;
+}
+
+#endif
+
+// ============================================================================
+
 fsm test_adc {
 
   state AD_INIT:
 
 	ser_out (AD_INIT,
 		"\r\nADC Test\r\n"
-		"Commands:\r\n"
 		"c p rf st -> configure\r\n"
 		"s -> start\r\n"
 		"h -> stop & read\r\n"
@@ -1771,6 +1961,58 @@ Value:
 	ser_out (AD_STOPP2, "Idle\r\n");
 	goto Value;
 }
+
+// ============================================================================
+
+#ifdef	BUTTON_LIST
+
+static word Buttons;
+
+fsm button_thread {
+
+	state BT_LOOP:
+
+		if (Buttons == 0) {
+			when (&Buttons, BT_LOOP);
+			release;
+		}
+
+		ser_outf (BT_LOOP, "Press: %x\r\n", Buttons);
+		Buttons = 0;
+		sameas BT_LOOP;
+}
+
+static void butpress (word but) {
+
+	Buttons |= (1 << but);
+	trigger (&Buttons);
+}
+
+fsm test_buttons {
+
+	state TB_INIT:
+
+		ser_out (TB_INIT, "Press button, q to quit\r\n");
+
+		buttons_action (butpress);
+
+		if (!running (button_thread))
+			runfsm button_thread;
+
+	state TB_WAIT:
+
+		ser_in (TB_WAIT, ibuf, IBUFLEN-1);
+
+		if (ibuf [0] == 'q') {
+			buttons_action (NULL);
+			killall (button_thread);
+			finish;
+		}
+
+		sameas TB_WAIT;
+}
+
+#endif
 
 // ============================================================================
 
@@ -1878,7 +2120,7 @@ fsm root {
   state RS_RCMDM2:
 
 	ser_out (RS_RCMDM2,
-		"\r\nCommands:\r\n"
+		"\r\nRoot:\r\n"
 		"a -> auto\r\n"
 #if (RADIO_OPTIONS & 0x40)
 		"r s regs -> start radio\r\n"
@@ -1919,6 +2161,10 @@ fsm root {
 		"V -> sensors\r\n"
 #endif
 
+#ifdef bma250_csel
+		"B -> bma250\r\n"
+#endif
+
 		"A -> ADC\r\n"
 
 #ifdef RTC_TEST
@@ -1928,7 +2174,9 @@ fsm root {
 #ifdef LCD_TEST
 		"L -> LCD\r\n"
 #endif
-
+#ifdef BUTTON_LIST
+		"b -> buttons\r\n"
+#endif
 		"U -> UART echo\r\n"
 	);
 
@@ -2103,6 +2351,14 @@ RS_Loop:		proceed RS_RCMD;
 				release;
 		}
 #endif
+
+#ifdef	bma250_csel
+		case 'B' : {
+				runfsm test_bma250;
+				joinall (test_bma250, RS_RCMDM2);
+				release;
+		}
+#endif
 		case 'A' : {
 				runfsm test_adc;
 				joinall (test_adc, RS_RCMDM2);
@@ -2139,6 +2395,14 @@ RS_Loop:		proceed RS_RCMD;
 			diag ("S = %u, MF = %u, FA = %u, MX = %u, NC = %u",
 				sl, ss, bs, w, len);
 			proceed RS_RCMD;
+		}
+#endif
+
+#ifdef	BUTTON_LIST
+		case 'b' : {
+			runfsm test_buttons;
+			joinall (test_buttons, RS_RCMDM2);
+			release;
 		}
 #endif
 	}

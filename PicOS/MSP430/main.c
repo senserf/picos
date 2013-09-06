@@ -1108,7 +1108,7 @@ static void ios_init () {
 #endif
 
 #ifdef	EXTRA_INITIALIZERS
-	// Extra initialization (praxis-dependent)
+	// Extra initialization
 	EXTRA_INITIALIZERS;
 #endif
 
@@ -1118,6 +1118,8 @@ static void ios_init () {
 	// to use diag.
 	preinit_uart ();
 #endif
+
+#if	DIAG_MESSAGES
 	diag ("");
 
 #ifdef	BANNER
@@ -1130,6 +1132,9 @@ static void ios_init () {
         	", (C) Olsonet Communications, 2002-2012");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
+
+#endif	/* DIAG_MESSAGES */
+
 	dbg_1 (0x1000 | SYSVER_X);
 	dbg_1 ((word)STACK_END - (word)(&__bss_end)); // RAM in bytes
 

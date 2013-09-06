@@ -17,6 +17,9 @@
 
 #ifdef BUTTONS
 #include "buttons.h"
+
+static byte Buttons;
+
 #endif
 
 #define MAXPLEN			CC1100_MAXPLEN
@@ -37,8 +40,6 @@
 
 static word 	imess,	// Count received
 		omess;	// ... and outgoing messages
-
-static byte	Buttons;
 
 // ============================================================================
 

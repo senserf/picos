@@ -1259,7 +1259,6 @@ void __pi_dbg (const word lvl, word code) {
 
 #if	DIAG_MESSAGES
 
-
 void diag (const char *mess, ...) {
 /* ================================ */
 /* Writes a direct message to UART0 */
@@ -1335,7 +1334,9 @@ void diag (const char *mess, ...) {
 
 #else
 
-void diag (const char *mess, ...) { }
+#ifdef __ECOG1__
+void diag (const char *fmt, ...) { }
+#endif
 
 #endif	/* DIAG_MESSAGES */
 

@@ -3517,3 +3517,20 @@ PG130829A:
 
 	Changed the settings for CHRONOS (and CHRONOS_WHITE) to auto reset on
 	syserror.
+
+	RFTEST can now be compiled for and uploaded into CHRONOS.
+
+PG130906A:
+
+	ALPHATRONICS board added. Apps/TESTS/WARSAW extended by the optional
+	test of BMA250, so the same test can be used for ALPHATRONICS (the
+	name WARSAW only sticks by tradition).
+
+	Cosmetic corrections to some CC430 boards reflecting the recent changes
+	and options in the implementation of buttons.
+
+	A cosmetic change to the treatment of DIAG_MESSAGES == 0 replacing the
+	void specification of function diag with a NULL macro.
+
+	A (slightly more than) cosmetic adjustment to the BMA250 driver.
+

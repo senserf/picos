@@ -574,7 +574,11 @@ void		dmp_mem (void);
 
 // ============================================================================
 
+#if DIAG_MESSAGES || defined(__ECOG1__)
 void	diag (const char *, ...);
+#else
+#define	diag(...)	CNOP
+#endif
 
 #if RANDOM_NUMBER_GENERATOR > 1
 // High-quality rnd

@@ -2,8 +2,17 @@
 #include "bma250.h"
 
 #ifndef	bma250_delay
-#define	bma250_delay	CNOP
+#define	bma250_delay		CNOP
 #endif
+
+#ifndef	bma250_bring_up
+#define	bma250_bring_up		CNOP
+#endif
+
+#ifndef	bma250_bring_down
+#define	bma250_bring_down	CNOP
+#endif
+
 
 #ifdef	bma250_spi_read
 // ============================================================================
@@ -115,7 +124,6 @@ static void wreg (byte reg, byte val) {
 
 	// Select the chip
 	bma250_csel;
-	// bma250_delay;
 
 	// Address
 	put_byte (reg);
@@ -311,7 +319,7 @@ void bma250_off (byte pow) {
 		// Power down
 		wreg (0x11, 0x80);
 		bma250_bring_down;
-		_BIS (bma250_status, BMA250_STATUS_ON);
+		_BIC (bma250_status, BMA250_STATUS_ON);
 		return;
 	}
 
@@ -322,6 +330,15 @@ void bma250_off (byte pow) {
 		pow = (16+64) - pow;
 
 	wreg (0x11, pow);
+}
+
+void bma250_init (void) {
+//
+// This is optional, to be used if the sensor must be soft-powered down on
+// startup
+//
+	_BIS (bma250_status, BMA250_STATUS_ON);
+	bma250_off (0);
 }
 
 // ============================================================================

@@ -907,8 +907,6 @@ CDiff:
 		return WNONE;
 	    }
 
-#endif /* __SMURPH__ */
-
 #ifndef	CHRONOS
 
 	    case 'z': {
@@ -1007,6 +1005,8 @@ CDiff:
 		}
 	    }
 #endif /* ndef CHRONOS */
+#endif /* __SMURPH__ */
+
 	}
 	return 7;
 }
@@ -1578,6 +1578,8 @@ fsm thread_sender (word dl) {
 #if NUMBER_OF_SENSORS > 0
 
 	if (scnt < NUMBER_OF_SENSORS) {
+		// Note that this only works for simple values, e.g., it won't
+		// work for chronos
 		read_sensor (SN_NSEN, scnt, sval + scnt);
 		scnt++;
 		proceed SN_NSEN;
@@ -1677,9 +1679,10 @@ static void buttons (word but) {
 		} else if (rcv_stat == 1) {
 			rcv_stat = 2;
 			estat = do_command ("f 1", 0, 0);
-			msg_hi ("RXWO");
+			msg_hi ("RXVO");
 		} else {
 			rcv_stat = 0;
+			msg_hi ("RXON");
 			estat = do_command ("g", 0, 0);
 		}
 		break;
