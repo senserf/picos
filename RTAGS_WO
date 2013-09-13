@@ -333,3 +333,15 @@ inProgress/spot is intended to be a derivative from alfMay2013 for AT.
 I'd like to preserve quite significant code changes (see 'notes' there),
 in case the works resume.
 
+WO130912A:
+BOOTH/show is ready for HW / Android plays. Expected minor incompabilities.
+Documentation missing, coming soon. alltogether, this is a messy entanglement
+of PINDA-centric functionality, Seawolf and hardcoded vsen. Oh, and CHRONOS.
+After the September's show, we hope to writedown reqs for the next one and
+better BOOTH in unison with Android, PINDA and WEB server.
+
+tarp.h had unreasonable 125 as tarp_maxHops; back to 10. ddCacheSize 10->20
+(I thought fast hosts in BOOTH/show overwhelmed this cache, but there is more
+ to it... Both sizes are arbitrary, perhaps we should make them part of
+ application-specific data in options.sys?)
+

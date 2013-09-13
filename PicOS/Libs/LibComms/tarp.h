@@ -27,10 +27,11 @@
 #define false NO
 #endif
 
-#define ddCacheSize		10
+#define ddCacheSize		20
 #define spdCacheSize		20
 #define rtrCacheSize		10
-#define tarp_maxHops		125
+//#define tarp_maxHops		125 check DD... seriously
+#define tarp_maxHops		10
 
 #if TARP_RTR
 #if TCV_TIMERS == 0 || TCV_HOOKS == 0
