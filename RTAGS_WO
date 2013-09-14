@@ -345,3 +345,14 @@ tarp.h had unreasonable 125 as tarp_maxHops; back to 10. ddCacheSize 10->20
  to it... Both sizes are arbitrary, perhaps we should make them part of
  application-specific data in options.sys?)
 
+WO130913A:
+ BOOTH/show changes continue undocumented:
+ - shuffling ttags (I think the algorithm is cute, naturally extendable to 
+ 	k-permutations, likely known in advanced kindergarden nowadays).
+ - changed leds RGB -> BGR - all the boards I have are consistently messed up.
+ - gave sensors a second to measure things at startup.
+ - fixed options for 'default' BT modules' configs... let's not go there.
+ - updated wm_demo.xml - no way people would find tags in disjoint areas.
+ - images.zip contains images handcrafted for the coming week of demos and
+   testing. They WILL be removed.
+
