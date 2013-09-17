@@ -19,6 +19,7 @@
 //		=============
 //
 //	J5:	============= External side
+//		P1.7    GND   not soldered on
 //              GND     P1.6
 //		P4.7	P6.7
 //              GND	P6.2

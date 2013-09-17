@@ -35,7 +35,8 @@ typedef struct	{
 
 // ============================================================================
 
-#if CRYSTAL2_RATE
+#if CRYSTAL2_RATE && (UART_RATE_SETTABLE || UART_RATE > 9600)
+// #if CRYSTAL2_RATE
 // SMCLK
 #define	UART_UTCTL	SSEL1
 #define	UART_CLOCK_RATE	CRYSTAL2_RATE

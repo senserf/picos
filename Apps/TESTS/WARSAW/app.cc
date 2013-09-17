@@ -46,7 +46,7 @@ extern void* _etext;
 static sint 	sfd = -1, off, packet_length, rcvl, b;
 static word	rssi, err, w, len, bs, nt, sl, ss, dcnt;
 static lword	adr, max, val, last_snt, last_rcv, s, u, pat;
-static byte	str [129], *blk;
+static byte	str [129], *blk, silent;
 static char	*ibuf;
 static address	packet;
 static word	send_interval = 512;
@@ -279,7 +279,10 @@ fsm sender {
 
   state SN_MESS:
 
-	ser_outf (SN_MESS, "Sent: %lu [%d]\r\n", last_snt, packet_length);
+	if (!silent) {
+		ser_outf (SN_MESS, "Sent: %lu [%d]\r\n", last_snt,
+			packet_length);
+	}
 	last_snt++;
 	delay (send_interval, SN_SEND);
 }
@@ -298,8 +301,10 @@ fsm receiver {
 
   state RC_MESS:
 
-	ser_outf (RC_MESS, "Rcv: %lu [%d], RSSI = %d, QUA = %d\r\n",
-		last_rcv, rcvl, (rssi >> 8) & 0x00ff, rssi & 0x00ff);
+	if (!silent) {
+		ser_outf (RC_MESS, "Rcv: %lu [%d], RSSI = %d, QUA = %d\r\n",
+			last_rcv, rcvl, (rssi >> 8) & 0x00ff, rssi & 0x00ff);
+	}
 	proceed RC_TRY;
 
 }
@@ -2213,7 +2218,7 @@ RS_Err:
 				p++;
 			}
 			if ((w & 3) == 0)
-				w = 3;
+				w |= 3;
 #if (RADIO_OPTIONS & 0x40)
 			set_rregs (p);
 			tcv_control (sfd, PHYSOPT_RESET, (address)rregs);
@@ -2231,7 +2236,10 @@ RS_Loop:		proceed RS_RCMD;
 		case 'i' : {
 
 			send_interval = 512;
-			scan (ibuf + 1, "%u", &send_interval);
+			b = -1;
+			scan (ibuf + 1, "%u %d", &send_interval, &b);
+			if (b >= 0)
+				silent = b;
 			goto RS_Loop;
 		}
 	

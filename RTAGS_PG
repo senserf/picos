@@ -3534,3 +3534,68 @@ PG130906A:
 
 	A (slightly more than) cosmetic adjustment to the BMA250 driver.
 
+PG130917A:
+
+	Fixed a problem signaled by Wlodek causing a confusing behavior of the
+	UART with CRYSTAL2_RATE set to nonzero when the device was put into
+	powerdown mode.
+
+	Note that the confusion is mostly in the eyes of the beholder. Here is
+	a description of the problem (note that it only applies to the CPUs
+	accepting a second high-speed crystal, which means MSP430F1xx in our
+	case):
+
+	If CRYSTAL2_RATE was nonzero, then SMCLK and, consequently, the UART
+	were driven by the second (high-speed) crystal oscillator. That was
+	intended (basically) to enable UART rates in excess of 9600 bps. On the
+	other hand, powerdown must turn the second oscillator off (to attain
+	the kind of power savings that are worth attaining). Thus, with
+	CRYSTAL2_RATE set, the UART would not work in powerdown mode.
+
+	Wlodek's problem was that CRYSTAL2_RATE was not unset in local
+	options.sys (from the default for the WARSAW board), which he only
+	noticed after some painful search. The outcome was the lost of UART
+	I/O whenever the program went into powerdown mode.
+
+	Now, the role of CRYSTAL2_RATE was exactly that: to drive SMCLK (and
+	implicitly the UART) from the fast oscillator, if it happened to be
+	available (so the rates were not bounded by 9600 bps). The idea was
+	that if you didn't care, you could just set CRYSTAL2_RATE to zero
+	disabling the second oscillator, which would limit the UART rate to
+	9600, but allow it to work in powerdown. Inspired by Wlodek's e-mail, I
+	noticed that the condition for feeding the UART's clock from the fast
+	crystal could be weakened to prevent this kind of mishap in the future,
+	so this is how it works now:
+
+	If CRYSTAL2_RATE is set (to nonzero), then SMCLK is driven from the
+	fast (second-crystal) oscillator. This is to make sure that those
+	peripherals that need CRYSTAL2_RATE (and use SMCLK) can be driven by
+	the fast oscillator (this is the whole purpose of CRYSTAL2_RATE). The
+	UART is only driven by SMCLK if its rate is explicitly set (UART_RATE)
+	in excess of 9600 bps, OR the rate is declared as "settable" (constant
+	UART_RATE_SETTABLE is nonzero). Otherwise, the UART is driven by ACLK,
+	which means that it won't be disabled when the second oscillator is
+	switched off (as in powerdown).
+
+	Note that the primary (by a large margin) use of CRYSTAL2_RATE is to
+	enable high UART rates, so if the condition from the previous paragraph
+	does not hold, then you can (mostly) as well set CRYSTAL2_RATE to zero,
+	which will take care of everything and also eliminate some (rather
+	trivial) amount of code. However, formally, the two things are
+	separate: you can have some modules other than the UART that need the
+	second oscillator (SPI, ADC sampler). Then, you should be aware that
+	those modules will not work when you powerdown the CPU. So I am not
+	sure if the fix simplifies things or makes them more complicated.
+
+	Added a "silent" mode to TESTS/WARSAW whereby the activities of
+	transmitter/receiver do not cause any output to the UART. This may be
+	useful for Gerry's solar power tests.
+
+	A minor fix to the Serial document.
+
+	Schematics included in BOARDS/WARSAW_NEW and WARSAW_NEW_REVISED. I
+	never knew which one was which.
+
+	Added noss.tcl to Scripts. This is a Tcl plugin for implementing N-mode
+	based binary OSS interfaces. A step towards the new grand, unified, and
+	simplified OSS interface.

@@ -1,10 +1,13 @@
-package provide boss 1.0
+package provide noss 1.0
 
 ###############################################################################
-# BOSS ########################################################################
+# NOSS ########################################################################
 ###############################################################################
 
-namespace eval BOSS {
+# This is N-mode packet interface with the Network ID field used as part
+# of payload (akin to the boss package)
+
+namespace eval NOSS {
 
 ###############################################################################
 # ISO 3309 CRC + supplementary stuff needed by the protocol module ############
@@ -56,27 +59,11 @@ set B(DGO) ""
 # character zero (aka NULL)
 set B(ZER) [format %c [expr 0x00]]
 
-# the ACK flag
-set B(ACK) [expr 0x04]
-
-# direct packet type
-set B(MAD) [expr 0xAC]
-
-# acked packet type
-set B(MAP) [expr 0xAD]
-
 # preamble byte
 set B(IPR) [format %c [expr 0x55]]
 
 # diag preamble (for packet modes) = ASCII DLE
 set B(DPR) [format %c [expr 0x10]]
-
-# output busy flag (current message pending) + output event variable; also
-# used as main event trigger for all vital events
-set B(OBS) 0
-
-# output queue
-set B(OQU) ""
 
 # reception automaton state
 set B(STA) 0
@@ -84,17 +71,8 @@ set B(STA) 0
 # reception automaton remaining byte count
 set B(CNT) 0
 
-# send callback
-set B(SCB) ""
-
-# long retransmit interval
-set B(RTL) 2048
-
-# short retransmit interval
-set B(RTS) 250
-
 # function to call on packet reception
-set B(DFN) "bo_nop"
+set B(DFN) "no_nop"
 
 # function to call on UART close (which can happen asynchronously)
 set B(UCF) ""
@@ -107,9 +85,9 @@ set B(PKT) 80
 
 ###############################################################################
 
-proc bo_nop { args } { }
+proc no_nop { args } { }
 
-proc boss_chks { wa } {
+proc no_chks { wa } {
 
 	variable CRCTAB
 
@@ -136,7 +114,7 @@ proc boss_chks { wa } {
 	return $chs
 }
 
-proc bo_abort { msg } {
+proc no_abort { msg } {
 
 	variable B
 
@@ -149,7 +127,7 @@ proc bo_abort { msg } {
 	exit 1
 }
 
-proc bo_diag { } {
+proc no_diag { } {
 
 	variable B
 
@@ -185,7 +163,7 @@ proc lize { fun } {
 	return "::BOSS::$fun"
 }
 
-proc bo_emu_readable { fun } {
+proc no_emu_readable { fun } {
 #
 # Emulates auto read on readable UART
 #
@@ -200,10 +178,10 @@ proc bo_emu_readable { fun } {
 		set B(ROT) 0
 	}
 
-	set B(ONR) [after $B(ROT) "[lize bo_emu_readable] $fun"]
+	set B(ONR) [after $B(ROT) "[lize no_emu_readable] $fun"]
 }
 
-proc bo_fnwrite { msg } {
+proc no_write { msg } {
 #
 # Writes a packet to the UART
 #
@@ -211,11 +189,9 @@ proc bo_fnwrite { msg } {
 
 	set ln [string length $msg]
 	if { $ln > $B(MPL) } {
-		bo_abort "assert fnwrite: $ln > max ($B(MPL))"
-	}
-
-	if { $ln < 2 } {
-		bo_abort "assert fnwrite: length ($ln) < 2"
+		# truncate the message to size, probably a bad idea
+		set ln $B(MPL)
+		set msg [string range $msg 0 [expr $ln - 1]]
 	}
 
 	if [expr $ln & 1] {
@@ -229,78 +205,17 @@ proc bo_fnwrite { msg } {
 	if [catch {
 		puts -nonewline $B(SFD) \
 			"$B(IPR)[binary format c $ln]$msg[binary format s\
-				[boss_chks $msg]]"
+				[no_chks $msg]]"
 		flush $B(SFD)
 	}] {
-		boss_close "BOSS write error"
+		noss_close "NOSS write error"
 	}
 }
 
-proc bo_send { } {
+proc no_rawread { } {
 #
-# Callback for sending packets out
-#
-	variable B
-	
-	# cancel the callback, in case called explicitly
-	if { $B(SCB) != "" } {
-		catch { after cancel $B(SCB) }
-		set B(SCB) ""
-	}
-
-	if !$B(OBS) {
-		# just in case, this is a consistency invariant
-		set B(OUT) ""
-	}
-
-	set len [string length $B(OUT)]
-	# if len is nonzero, an outgoing message is pending; its length
-	# has been checked already (and is <= MAXPL)
-
-	set flg [expr $B(CUR) | ( $B(EXP) << 1 )]
-
-	if { $len == 0 } {
-		# ACK only
-		set flg [expr $flg | $B(ACK)]
-	}
-
-	bo_fnwrite "[binary format cc $B(MAP) $flg]$B(OUT)"
-
-	set B(SCB) [after $B(RTL) [lize bo_send]]
-}
-
-proc bo_write { msg { byp 0 } } {
-#
-# Write out a message
-#
-	variable B
-
-	set lm [expr $B(MPL) - 2]
-
-	if { [string length $msg] > $lm } {
-		# truncate the message to size, probably a bad idea
-		set msg [string range $msg 0 [expr $lm - 1]]
-	}
-
-	if $byp {
-		# immediate output, direct protocol
-		bo_fnwrite "[binary format cc $B(MAD) 0]$msg"
-		return
-	}
-
-	if $B(OBS) {
-		bo_abort "assert write: output busy"
-	}
-
-	set B(OUT) $msg
-	set B(OBS) 1
-
-	bo_send
-}
-
-proc bo_rawread { } {
-#
-# Called whenever data is available on the UART
+# Called whenever data is available on the UART; returns 1 (if void), 0 (if
+# progress, i.e., some data was available)
 #
 	variable B
 #
@@ -333,7 +248,7 @@ proc bo_rawread { } {
 				} elseif { $B(STA) != 0 } {
 					# something has started, set up timer
 					set B(TIM) \
-				            [after $B(PKT) [lize bo_rawread]]
+				            [after $B(PKT) [lize no_rawread]]
 				}
 				return $void
 			}
@@ -407,14 +322,14 @@ proc bo_rawread { } {
 				append B(BUF) $chunk
 				set chunk ""
 				# we have a complete buffer
-				bo_receive
+				no_receive
 				continue
 			}
 
 			# merged packets
 			append B(BUF) [string range $chunk 0 [expr $B(CNT) - 1]]
 			set chunk [string range $chunk $B(CNT) end]
-			bo_receive
+			no_receive
 		}
 
 		3 {
@@ -447,7 +362,7 @@ proc bo_rawread { } {
 			set chunk [string range $chunk [expr $c + 1] end]
 			# reset
 			set B(STA) 0
-			bo_diag
+			no_diag
 		}
 
 		5 {
@@ -462,7 +377,7 @@ proc bo_rawread { } {
 			set B(STA) 0
 			append B(BUF) [string range $chunk 0 [expr $B(CNT) - 1]]
 			set chunk [string range $chunk $B(CNT) end]
-			bo_diag
+			no_diag
 		}
 
 		default {
@@ -472,7 +387,7 @@ proc bo_rawread { } {
 	}
 }
 
-proc bo_receive { } {
+proc no_receive { } {
 #
 # Handle a received packet
 #
@@ -481,7 +396,7 @@ proc bo_receive { } {
 	# dmp "RCV" $B(BUF)
 
 	# validate CRC
-	if [boss_chks $B(BUF)] {
+	if [no_chks $B(BUF)] {
 		return
 	}
 
@@ -494,93 +409,10 @@ proc bo_receive { } {
 		return
 	}
 
-	# extract the header
-	binary scan $msg cucu pr fg
-
-	# trim the message
-	set msg [string range $msg 2 end]
-
-	if { $pr == $B(MAD) } {
-		# direct, receive right away, nothing else to do
-		$B(DFN) $msg
-		# count received messages as a form of heartbeat
-		return
-	}
-
-	if { $pr != $B(MAP) } {
-		# wrong magic
-		return
-	}
-
-	set cu [expr $fg & 1]
-	set ex [expr ($fg & 2) >> 1]
-	set ac [expr $fg & 4]
-
-	if $B(OBS) {
-		# we have an outgoing message
-		if { $ex != $B(CUR) } {
-			# expected != our current, we are done with this
-			# packet
-			set B(OUT) ""
-			set B(CUR) $ex
-			set B(OBS) 0
-		}
-	} else {
-		# no outgoing message, set current to expected
-		set B(CUR) $ex
-	}
-
-	if $ac {
-		# treat as pure ACK and ignore
-		return
-	}
-
-	if { $cu != $B(EXP) } {
-		# not what we expect, speed up the NAK
-		catch { after cancel $B(SCB) }
-		set B(SCB) [after $B(RTS) [lize bo_send]]
-		return
-	}
-
-	# receive it
 	$B(DFN) $msg
-
-	# update expected
-	set B(EXP) [expr 1 - $B(EXP)]
-
-	# force an ACK
-	bo_send
 }
 
-proc boss_reset { } {
-#
-# Protocol reset
-#
-	variable B
-
-	# queue of outgoing messages
-	set B(OQU) ""
-
-	# current outgoing message
-	set B(OUT) ""
-
-	# output busy flag
-	set B(OBS) 0
-
-	# expected
-	set B(EXP) 0
-
-	# current
-	set B(CUR) 0
-
-	if { $B(SCB) != "" } {
-		# abort the callback
-		catch { after cancel $B(SCB) }
-		set B(SCB) ""
-	}
-}
-
-proc boss_init { ufd mpl { clo "" } { emu 0 } } {
+proc noss_init { ufd mpl { clo "" } { emu 0 } } {
 #
 # Initialize: 
 #
@@ -591,8 +423,6 @@ proc boss_init { ufd mpl { clo "" } { emu 0 } } {
 #
 	variable B
 
-	boss_reset
-
 	set B(STA) 0
 	set B(CNT) 0
 	set B(BUF) ""
@@ -602,35 +432,27 @@ proc boss_init { ufd mpl { clo "" } { emu 0 } } {
 
 	set B(UCF) $clo
 
-	# User packet length: in the S mode, the Network ID field is used by
-	# the protocol
-	set B(UPL) [expr $B(MPL) - 2]
-
 	fconfigure $B(SFD) -buffering full -translation binary
 
-	# start the write callback for the persistent stream
-	bo_send
-
-	# insert the auto-input handler
 	if $emu {
 		# the readable flag doesn't work for UART on some Cygwin
 		# setups
 		set B(ROT) 1
-		bo_emu_readable "[lize bo_rawread]"
+		no_emu_readable "[lize no_rawread]"
 	} else {
 		# do it the easy way
-		fileevent $B(SFD) readable "[lize bo_rawread]"
+		fileevent $B(SFD) readable "[lize no_rawread]"
 	}
 }
 
-proc boss_oninput { { fun "" } } {
+proc noss_oninput { { fun "" } } {
 #
 # Declares a function to be called when a packet is received
 #
 	variable B
 
 	if { $fun == "" } {
-		set fun "bo_nop"
+		set fun "no_nop"
 	} else {
 		set fun [gize $fun]
 	}
@@ -638,53 +460,24 @@ proc boss_oninput { { fun "" } } {
 	set B(DFN) $fun
 }
 
-proc boss_trigger { } {
-	set ::BOSS::B(OBS) $::BOSS::B(OBS)
-}
-
-proc boss_wait { } {
-
-	variable B
-
-	if !$B(OBS) {
-		# not busy
-		if { $B(OQU) != "" } {
-			# something in queue
-			if { $B(SFD) != "" } {
-				bo_write [lindex $B(OQU) 0]
-				set B(OQU) [lrange $B(OQU) 1 end]
-			} else {
-				# drop everything, this is just a precaution
-				set B(OQU) ""
-			}
-		}
-	}
-
-	vwait ::BOSS::B(OBS)
-}
-
-proc boss_stop { } {
+proc noss_stop { } {
 #
 # Stop the protocol
 #
 	variable B
 
-	foreach cb { "SCB" "TIM" } {
-		# kill callbacks
-		if { $B($cb) != "" } {
-			catch { after cancel $B($cb) }
-			set B($cb) ""
-		}
+	if { $B(TIM) != "" } {
+		# kill the callback
+		catch { after cancel $B(TIM) }
+		set B(TIM) ""
 	}
-
-	boss_reset
 
 	set B(STA) 0
 	set B(CNT) 0
 	set B(BUF) ""
 }
 
-proc boss_close { { err "" } } {
+proc noss_close { { err "" } } {
 #
 # Close the UART (externally or internally, which can happen asynchronously)
 #
@@ -709,14 +502,11 @@ proc boss_close { { err "" } } {
 	set B(SFD) ""
 
 	# stop the protocol
-	boss_stop
-
-	boss_oninput
-
-	boss_trigger
+	noss_stop
+	noss_oninput
 }
 
-proc boss_send { buf { urg 0 } } {
+proc noss_send { buf { urg 0 } } {
 #
 # This is the user-level output function
 #
@@ -727,46 +517,17 @@ proc boss_send { buf { urg 0 } } {
 		return
 	}
 
-	# dmp "SND<$urg>" $buf
+	# dmp "SND" $buf
 
-	if $urg {
-		bo_write $buf 1
-		return
-	}
-
-	lappend B(OQU) $buf
-
-	boss_trigger
+	no_write $buf
 }
 
-proc boss_timeouts { slow { fast 0 } } {
-#
-# Sets the timeouts:
-#
-#	slow	periodic ACKS
-#	fast	nack after unexpected packet
-#
-	variable B
-
-	if { $slow == 0 } {
-		set slow 1000000000
-	}
-	set B(RTL) $slow
-	if $fast {
-		set B(RTS) $fast
-	}
-
-	if { $B(SCB) != "" } {
-		bo_send
-	}
-}
-
-namespace export boss_*
+namespace export noss_*
 
 }
 
-namespace import ::BOSS::*
+namespace import ::NOSS::*
 
 ###############################################################################
-# End of BOSS #################################################################
+# End of NOSS #################################################################
 ###############################################################################
