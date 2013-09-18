@@ -356,3 +356,16 @@ WO130913A:
  - images.zip contains images handcrafted for the coming week of demos and
    testing. They WILL be removed.
 
+WO130917A
+ BOOTH/show continues:
+ - booth.doc attempts at the mess' description. Now it may be somewhat useful.
+ - In SLEEP, local_host is displayed in high row.
+ - Made SEN thresholds configurable via UART, saved in FIM - the i/f is real
+   bad, be careful and use when needed for calibration (we need it for RH);
+ - Added to SEN simple diags (on / off via UART) to trace outgoing alarms;
+   may be useful, too.
+ - Hunt strings (TH) are the same to PINDA nad up to the Android phone.
+ - Corrected a glitch is SUI (pp, pi, pe handling)
+ - Corrected a few profiles in wm_demo.xml.
+ - Regenerated images.
+
