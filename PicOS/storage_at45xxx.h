@@ -1,7 +1,7 @@
 #ifndef	__pg_storage_at45xxx_h
 #define	__pg_storage_at45xxx_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -33,7 +33,7 @@
 #endif	/* 41 */
 
 // ============================================================================
-#if STORAGE_AT45_TYPE == 410
+#if STORAGE_AT45_TYPE >= 410
 //
 // This is the 'D' variant of 41
 //
@@ -56,10 +56,14 @@
 
 #define	EE_NBLOCKS	2048
 
+#if STORAGE_AT45_TYPE == 413
+// This is the "E" version with ultra-super-duper-deep power-down mode
+#define	EE_PDN		0x79		// Enter ultra-deep PD mode
+#else
 #define	EE_PDN		0xB9		// Enter PD mode
-#define	EE_PUP		0xAB		// Return to standby
+#endif
 
-#define	EEPROM_PDMODE_AVAILABLE	1
+#define	EE_PUP		0xAB		// Return to standby
 
 #endif	/* 41 D */
 
@@ -81,6 +85,10 @@
 #define	EE_NBLOCKS	8192
 
 #endif	/* 321 */
+
+#ifndef	EE_NBLOCKS
+#error "S: illegal STORAGE_AT45_TYPE, not supported"
+#endif
 
 #define	EE_MMPB1R	0x53		// Main memory page read to buffer 1
 #define	EE_MMPB2R	0x55		// Main memory page read to buffer 2

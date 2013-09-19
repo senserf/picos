@@ -187,9 +187,8 @@ static void saddr (word a) {
 
 	register int i;
 
-	a <<= (16 - EE_PADDR_BITS);
 	for (i = 0; i < EE_PADDR_BITS; i++) {
-		if (a & 0x8000)
+		if (a & (((word)0x8000) >> (16 - EE_PADDR_BITS)))
 			ee_outh;
 		else
 			ee_outl;
@@ -205,10 +204,8 @@ static void soffs (word a) {
 
 	register int i;
 
-	a <<= (16 - EE_POFFS_BITS);
-	
 	for (i = 0; i < EE_POFFS_BITS; i++) {
-		if (a & 0x8000)
+		if (a & (((word)0x8000) >> (16 - EE_POFFS_BITS)))
 			ee_outh;
 		else
 			ee_outl;
@@ -689,7 +686,7 @@ word ee_open () {
 
 	ee_bring_up;
 
-#ifdef	EEPROM_PDMODE_AVAILABLE
+#ifdef	EE_PUP
 	ee_start;
 	put_byte (EE_PUP);
 	ee_stop;
@@ -716,7 +713,7 @@ void ee_close () {
 
 	for (cnt = 1000; !nonbusy () && cnt; cnt--);
 
-#ifdef	EEPROM_PDMODE_AVAILABLE
+#ifdef	EE_PDN
 	ee_start;
 	put_byte (EE_PDN);
 	ee_stop;

@@ -3554,7 +3554,7 @@ PG130917A:
 
 	Wlodek's problem was that CRYSTAL2_RATE was not unset in local
 	options.sys (from the default for the WARSAW board), which he only
-	noticed after some painful search. The outcome was the lost of UART
+	noticed after some painful search. The outcome was the loss of UART
 	I/O whenever the program went into powerdown mode.
 
 	Now, the role of CRYSTAL2_RATE was exactly that: to drive SMCLK (and
@@ -3599,3 +3599,30 @@ PG130917A:
 	Added noss.tcl to Scripts. This is a Tcl plugin for implementing N-mode
 	based binary OSS interfaces. A step towards the new grand, unified, and
 	simplified OSS interface.
+
+PG130919A:
+
+	Added a new board, OLIMEX_CCRF_EETEST, which is the LCD-less CC430
+	OLIMEX board with the new EEPROM (AT45DB041E) attached. I have used
+	the board to test the new EEPROM chip.
+
+	A few rather cosmetic changes inspired by the test. For one thing,
+	the new EEPROM has the so-called "ultra-deep power-down" mode with
+	the current drain of order nanoamps. I have made sure that when the
+	EEPROM is closed, that mode is in fact assumed.
+
+	NOTE: on those boards on which the EEPROM admits (any) power-down
+	mode, which includes our standard WARSAW boards, the lowest current
+	usage in powerdown (I mean system powerdown) is attained when the
+	EEPROM has been explicitly closed, i.e., first opened and then closed.
+	The difference is not much, order 2uA, which doesn't really matter for
+	the WARSAW board.
+
+	The test indicates that the EEPROM works fine when the power supply
+	voltage gets down to about 2.3V. It probably also works at a lower
+	voltage, but the notorious leaks through the UART dongle make it
+	impossible for the voltage to controlably drop below that (i.e., when
+	I try, the CPU begins to misbehave).  Anyway, my conclusion is that the
+	chip is OK. Note that the chip is compatible with the old driver, but
+	the driver can be probably simplified for the chip (we shall see to it
+	when we get to using the chip in production).

@@ -283,9 +283,6 @@ void freeze (word nsec) {
 	uart_a_disable_int;
 	uart_b_disable_int;
 
-#ifdef EEPROM_PDMODE_AVAILABLE
-	__pi_ee_pdown ();
-#endif
 	leds_save (saveLD, saveLDB);
 
 	// Enable LTMR; note: there is no LD_MASK, as we want to run this timer
@@ -333,9 +330,6 @@ void freeze (word nsec) {
 	// ... the running clocks
 	rg.ssm.clk_en = saveCK;
 
-#ifdef EEPROM_PDMODE_AVAILABLE
-	__pi_ee_pup ();
-#endif
 	// ... and UART interrupts
 	rg.duart.a_int_en = saveUA;
 	rg.duart.b_int_en = saveUB;

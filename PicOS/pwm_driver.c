@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 #if !defined(pwm_output_on) || !defined(pwm_output_off)
-#error "constants pwm_output_on and pwm_output_off must be defined for pwm_driver to work!!!"
+#error "S: constants pwm_output_on and pwm_output_off must be defined for pwm_driver to work!!!"
 #endif
 
 static word Width = 1024, Pulse = 0;

@@ -1,5 +1,4 @@
 #define	STORAGE_AT45_TYPE	410	// Select the actual model used (D)
-#define	EEPROM_PDMODE_AVAILABLE	1
 
 #include "pins.h"
 #include "storage_at45xxx.h"
