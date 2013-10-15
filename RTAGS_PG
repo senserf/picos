@@ -3626,3 +3626,15 @@ PG130919A:
 	chip is OK. Note that the chip is compatible with the old driver, but
 	the driver can be probably simplified for the chip (we shall see to it
 	when we get to using the chip in production).
+
+PG131015A:
+
+	Added a new praxis, Apps/TESTS/OSSTEST, to test my obscure OSS
+	interface scripts (still being developed).
+
+	A few irrelevant cosmetics:
+
+	- fixed a glitch in raw_cc1101.c as to make it compile wit SA
+	- fixed a minor problem with piter's window (it now resizes better)
+	- fixed a minor problem with deploy (replacing exec ls with glob)
+	- ...

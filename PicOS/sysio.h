@@ -537,6 +537,7 @@ void		dmp_mem (void);
 						
 #define	fastblink(a)	(__pi_systat.fstblk = ((a) != 0))
 #define is_fastblink    (__pi_systat.fstblk != 0)
+#define	is_powerdown	(__pi_systat.pdmode)
 
 #define	all_leds_blink	do { leds_on; mdelay (200); leds_off; mdelay (200); } \
 				while (0)

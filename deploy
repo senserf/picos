@@ -143,7 +143,7 @@ proc get_rtags { pkg } {
 		errab "Package $pkg is not present at $dir"
 	}
 
-	set fl [exec ls]
+	set fl [glob *]
 	set rt "X000000A"
 	set maj 0
 	set min 0

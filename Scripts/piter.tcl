@@ -1071,7 +1071,8 @@ proc sy_mkterm { } {
 	frame .stat -borderwidth 2
 	pack .stat -expand no -fill x
 
-	text .stat.u -height 1 -font {-family courier -size 10} -state normal
+	text .stat.u -height 1 -font {-family courier -size 10} -state normal \
+		-width 10
 	pack .stat.u -side left -expand yes -fill x
 
 	bind .stat.u <Return> "sy_terminput"

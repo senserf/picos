@@ -107,6 +107,9 @@ static byte cc1100_strobe (byte b) {
 // SPI BASED (external chip) ==================================================
 // ============================================================================
 
+// Needed by full_reset
+#define	spi_out(b) cc1100_spi_out (b)
+
 static void cc1100_spi_out (byte b) {
 
 	register int i;
