@@ -523,3 +523,8 @@ PG130725A:
 	   sure that long deltas will be handled properly. In the simulation
 	   mode, the time of day is calculated as the (virtual) simulated time
 	   in seconds + the real start time of the simulation.
+
+PG131015A:
+
+	   The header file <unistd.h> is now included (in LIB/lib.h) to appease
+	   the newest gcc compiler.

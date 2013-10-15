@@ -13,6 +13,7 @@
 #define	_GNU_SOURCE	1
 
 #include	<stdio.h>
+#include	<unistd.h>
 #include	<string.h>
 #include	<math.h>
 #include	<stdarg.h>
