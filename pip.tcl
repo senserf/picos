@@ -3620,7 +3620,7 @@ proc new_project { } {
 			}
 			if { $md == "" && $ec == 0 } {
 				set ec 1
-				", no tags specified"
+				set er ", no tags specified"
 			}
 			if $ec {
 				if { $ec > 1 } {

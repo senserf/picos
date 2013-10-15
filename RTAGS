@@ -663,3 +663,7 @@ PG130818A:
 	Added cascades to the board selection menu, so the ever growing BOARDS
 	directory can be accommodated better. There is a separate submenu for
 	all board names with the same prefix up to _.
+
+PG131015A:
+
+	Fixed a very minor bug not worthy commenting upon.
