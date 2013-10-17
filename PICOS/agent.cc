@@ -2,7 +2,7 @@
 #define __agent_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2012.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2013.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -750,7 +750,7 @@ void ag_interface_t::init (FLAGS fg) {
 	OT = IT = NULL;
 }
 
-static void init_module_io (FLAGS Flags, int bufl, const char *es,
+static void init_module_io (FLAGS Flags, int ibufl, int obufl, const char *es,
 	const char *ID,
 	const char *OD,
 	Dev  *&I,
@@ -760,6 +760,12 @@ static void init_module_io (FLAGS Flags, int bufl, const char *es,
 // Does the standard I/O startup for a module
 //
 	int i;
+
+	if (ibufl < XTRN_MBX_BUFLEN)
+		ibufl = XTRN_MBX_BUFLEN;
+
+	if (obufl < XTRN_MBX_BUFLEN)
+		obufl = XTRN_MBX_BUFLEN;
 
 	if (imode (Flags) == XTRN_IMODE_SOCKET ||
 				omode (Flags) == XTRN_OMODE_SOCKET) {
@@ -779,13 +785,12 @@ static void init_module_io (FLAGS Flags, int bufl, const char *es,
 		if (omode (Flags) == XTRN_OMODE_DEVICE &&
 		    strcmp (ID, OD) == 0) {
 			// Yep, a single mailbox will do
-			i = I->connect (DEVICE+READ+WRITE, ID, 0,
-				(XTRN_MBX_BUFLEN > bufl) ?
-					XTRN_MBX_BUFLEN : bufl);
+			if (ibufl < obufl)
+				ibufl = obufl;
+			i = I->connect (DEVICE+READ+WRITE, ID, 0, ibufl);
 			O = I;
 		} else {
-			i = I->connect (DEVICE+READ, ID, 0,
-				XTRN_MBX_BUFLEN);
+			i = I->connect (DEVICE+READ, ID, 0, ibufl);
 		}
 		if (i == ERROR)
 			excptn ("%s at %s: cannot open device %s", es, 
@@ -803,7 +808,7 @@ static void init_module_io (FLAGS Flags, int bufl, const char *es,
 		Assert (OD != NULL, "%s at %s: no output device name",
 			es, TheStation->getSName ());
 		O = create Dev;
-		if (O->connect (DEVICE+WRITE, OD, 0, bufl))
+		if (O->connect (DEVICE+WRITE, OD, 0, obufl))
 			excptn ("%s at %s: cannot open device %s", es,
 				TheStation->getSName (), OD);
 	}
@@ -1331,8 +1336,8 @@ UARTDV::UARTDV (data_ua_t *UAD) {
  	DefRate = Rate = UAD->URate;
 	// Will be actually set by rst
 
-	init_module_io (Flags, XTRN_MBX_BUFLEN, "UART", UAD->UIDev, UAD->UODev,
-		I, O, S);
+	init_module_io (Flags, (int)B_ilen, (int)B_olen, "UART", UAD->UIDev,
+		UAD->UODev, I, O, S);
 
 	rst ();
 }
@@ -1694,7 +1699,8 @@ Complete:
 
 	TimeLastRead = Time;
 	Monitor->signal (&(U->IB_in));
-	proceed Get;
+	sameas Get;
+	// proceed Get;
 
     state GetH1:
 
@@ -1741,7 +1747,8 @@ UART_out::perform {
 
 	TimeLastWritten = Time;
 
-	proceed Put;
+	sameas Put;
+	//proceed Put;
 }
 
 UARTDV::~UARTDV () {
@@ -1865,8 +1872,8 @@ int UARTDV::ioop (int state, int ope, char *buf, int len) {
 void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 
 	lword c;
+	int len;
 
-	Agent = a;
 	UA = (TPN = tpn)->uart->U;
 
 	// Make sure we don't belong to the node. That would get us killed
@@ -1886,10 +1893,18 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 		c = ECONN_ALREADY;
 	}
 
+	Agent = a;
+
 	if (c != ECONN_OK) {
 		create Disconnector (Agent, c);
 		terminate ();
 	}
+
+	if ((len = UA->B_olen) < UA->B_ilen)
+		len = UA->B_ilen;
+
+	if (len > XTRN_MBX_BUFLEN)
+		Agent->resize (len);
 }
 
 UartHandler::perform {
@@ -2357,8 +2372,8 @@ PINS::PINS (data_pn_t *PID) {
 		VADC = NULL;
 	}
 
-	init_module_io (IN.Flags, PUPD_OUTPUT_BUFLEN, "PINS", PID->PIDev,
-		PID->PODev, IN.I, IN.O, IN.S);
+	init_module_io (IN.Flags, PUPD_OUTPUT_BUFLEN, PUPD_OUTPUT_BUFLEN,
+		"PINS", PID->PIDev, PID->PODev, IN.I, IN.O, IN.S);
 
 	// Allocate buffer for updates
 	OUpdSize = PUPD_OUTPUT_BUFLEN;
@@ -3192,8 +3207,8 @@ SNSRS::SNSRS (data_sa_t *SID) {
 		"SENSORS: the number of sensors and actuators at %s is zero",
 			TheStation->getSName ());
 
-	init_module_io (IN.Flags, AUPD_OUTPUT_BUFLEN, "SENSORS", SID->SIDev,
-		SID->SODev, IN.I, IN.O, IN.S);
+	init_module_io (IN.Flags, AUPD_OUTPUT_BUFLEN, AUPD_OUTPUT_BUFLEN,
+		"SENSORS", SID->SIDev, SID->SODev, IN.I, IN.O, IN.S);
 
 	// Allocate buffer for updates
 	OUpdSize = AUPD_OUTPUT_BUFLEN;
@@ -3658,8 +3673,8 @@ pwr_tracker_t::pwr_tracker_t (data_pt_t *pt) {
 		Modules [i] = pt->Modules [i];
 	}
 
-	init_module_io (IN.Flags, PUPD_OUTPUT_BUFLEN, "PTRACKER", pt->PIDev,
-		pt->PODev, IN.I, IN.O, IN.S);
+	init_module_io (IN.Flags, PUPD_OUTPUT_BUFLEN, PUPD_OUTPUT_BUFLEN,
+		"PTRACKER", pt->PIDev, pt->PODev, IN.I, IN.O, IN.S);
 
 	UBuf = new char [OUpdSize = PUPD_OUTPUT_BUFLEN];
 

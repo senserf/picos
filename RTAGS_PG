@@ -1041,3 +1041,22 @@ PG130822A:
 
     Fixed a problem with channel-less models that would cause errors on failed
     exposures of the non-existent "Ether" channel.
+
+PG131017A:
+
+    The UART model made more flexible. By setting bsize (in XML node data), you
+    can now affect the mailbox size for the UART (not only the [pretty much
+    irrelevant] size of the circular [timing] buffer, as before). By increasing
+    the mailbox size above the previously hardwired 64 bytes, you will greatly
+    improve UART performance for higher rates/volume, which will, e.g., prevent
+    the model from choking up under the strain of a large number of
+    simultaneous events.
+
+    In a nutshell:
+
+	<uart rate="115200" bsize="12,2048">
+	...
+
+    The first number applies to the input end, and the second number applies to     the input end. The above may be a recommended setting for a high rate/high
+    (output) volume scenario. If there is a single number, then it applies to
+    both ends at the same time.
