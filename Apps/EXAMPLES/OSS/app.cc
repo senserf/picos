@@ -46,6 +46,7 @@ static void pktmsg (lword cnt, byte rss, address pay, word plen) {
 	msghdr->ref = 0;
 	msgblk->counter = cnt;
 	msgblk->rssi = rss;
+	msgblk->payload.size = plen;
 	memcpy (msgblk->payload.content, pay, plen);
 
 	tcv_endp (msg);
@@ -66,11 +67,11 @@ static void statmsg () {
 	    sizeof (message_status_t) + 2)) == NULL)
 		return;
 
-	msghdr->code = 0x02;
+	msghdr->code = 0x01;
 	msghdr->ref = CMD->ref;
 	msgblk->rstatus = rf_control.status;
-	msgblk->rpower = (byte) tcv_control (sd_rf, PHYSOPT_GETPOWER, NULL);
-	msgblk->rchannel = (byte) tcv_control (sd_rf, PHYSOPT_GETCHANNEL, NULL);
+	msgblk->rpower = rf_control.power;
+	msgblk->rchannel = (byte) rf_control.channel;
 	*((lword*)(msgblk->rinterval)) = *((lword*)(rf_control.interval));
 	*((lword*)(msgblk->rlength)) = *((lword*)(rf_control.length));
 	msgblk->smemstat [0] = memfree (0, msgblk->smemstat + 1);
@@ -100,6 +101,7 @@ fsm radio_receiver {
 				((byte*)pkt) [len - 1],
 				pkt + 3, len - 8);
 
+		tcv_endp (pkt);
 		proceed RCV_WAIT;
 }
 
@@ -348,11 +350,12 @@ void handle_command () {
 		case 0:
 			// Heartbeat, autoconnect
 			if (*((lword*)PMT) == OSS_PRAXIS_ID && (msg = 
-			    tcv_wnp (WNONE, sd_uart, sizeof (oss_hdr_t) + 6))
+			    tcv_wnp (WNONE, sd_uart, sizeof (oss_hdr_t) + 4))
 				!= NULL) {
 
 				msg [0] = 0;
-				*((lword*)(msg + 1)) = OSS_PRAXIS_ID;
+				*(msg + 1) = (word)(OSS_PRAXIS_ID ^ 
+					(OSS_PRAXIS_ID >> 16));
 				tcv_endp (msg);
 			}
 			return;

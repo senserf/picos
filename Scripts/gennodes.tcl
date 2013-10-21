@@ -282,7 +282,7 @@ proc generate_node { loc } {
 	incr P(FNODE)
 
 	if { $P(HID) != "" } {
-		append chunk "hid=\"[format %08X $P(HID)]\" "
+		append chunk "hid=\"0x[format %08X $P(HID)]\" "
 		incr P(HID)
 	}
 

@@ -499,6 +499,7 @@ proc doit { } {
 	copyscript "Scripts" "picomp" "" $BIN $REL(PICOS)
 	copyscript "Scripts" "usefetdll" "" $BIN $REL(PICOS)
 	copyscript "Scripts" "piter.tcl" ".tcl" $BIN $REL(PICOS)
+	copyscript "Scripts" "oss.tcl" "" $BIN $REL(PICOS)
 	copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN $REL(VUEE)
 
 	set ScriptsToFix { pip piter udaemon genimage gdbloader }

@@ -3638,3 +3638,20 @@ PG131015A:
 	- fixed a minor problem with piter's window (it now resizes better)
 	- fixed a minor problem with deploy (replacing exec ls with glob)
 	- ...
+
+PG131021A:
+
+	The first commit of my OSS hacks. Perhaps it is too early to get
+	excited about it (the document is still incomplete, so I didn't
+	bother to create a PDF version), and not everything has been tested,
+	but I want to commit it anyway, as my backup habits have become less
+	than exemplary these days.
+
+	So there is this script named oss.tcl (oss when it gets into bin) which
+	is now being deployed with PICOS. There is also a praxis (EXAMPLES/OSS)
+	which illustrates how to program the node and how to write "plugins"
+	for the script. The principles of operation are explained in
+	Docs/SOURCE/oss.odt), but (as I said) it may be too early to devour on
+	it. Just give me a day or two.
+
+	Fixed gennodes.tcl as (implicitly) requested by Wlodek.
