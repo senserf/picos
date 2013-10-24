@@ -622,8 +622,7 @@ proc autocn_start { op cl hs hc cc { po "" } { dl "" } } {
 	set ACB(POL) [gize $po]
 	set ACB(DLI) $dl
 
-	trc "ACN START: $ACB(OPE) $ACB(CLO) $ACB(HSH) $ACB(HSC) $ACB(CNC) \
-		$ACB(POL) $ACB(DLI)"
+	# trc "ACN START: $ACB(OPE) $ACB(CLO) $ACB(HSH) $ACB(HSC) $ACB(CNC) $ACB(POL) $ACB(DLI)"
 
 	# last device scan time
 	set ACB(LDS) 0
@@ -1302,7 +1301,7 @@ proc noss_close { { err "" } } {
 #
 	variable B
 
-	trc "NOSS CLOSE"
+	# trc "NOSS CLOSE"
 
 	if { [info exist B(ONR)] && $B(ONR) != "" } {
 		# we have been emulating 'readable', kill the callback
@@ -1571,13 +1570,12 @@ proc parse_subst { a r l p } {
 	upvar $p ptr
 
 	set line [oss_evalscript "subst { $line }"]
-	trc "SUBST: $line"
+	# trc "SUBST: $line"
 	lappend res $line
 	set ptr 0
 
 	return 0
 }
-	
 
 proc parse_skip { a r l p } {
 #
@@ -1657,9 +1655,17 @@ proc parse_number { a r l p } {
 	upvar $l line
 	upvar $p ptr
 
+	if [regexp {^[[:space:]]*"} $line] {
+		# trc "PNUM: STRING!"
+		# a special check for a string which fares fine as an
+		# expression, but we don't want it; if it doesn't open the
+		# expression, but occurs inside, that's fine
+		return 1
+	}
+
 	set ll [string length $line]
 	set ix $ll
-	trc "PNUM: $ix <$line>"
+	# trc "PNUM: $ix <$line>"
 
 	while 1 {
 
@@ -1825,8 +1831,6 @@ proc oss_parse { args } {
 	variable OSSS
 
 	set res ""
-	trc "OSS_PARSE $args"
-	trc "CUR: $OSSP(CUR) <$OSSP(POS)>"
 	# checkpoint
 	set chk ""
 
@@ -1917,7 +1921,6 @@ proc oss_parse { args } {
 					}
 					set res [lindex $res $na]
 				}
-				trc "PARSE R(F) $res"
 				return $res
 			}
 
@@ -1944,7 +1947,6 @@ proc oss_parse { args } {
 			} else {
 				set OSSP(THN) 0
 			}
-			trc "PARSE $w FAIL"
 			return ""
 		}
 
@@ -1959,7 +1961,6 @@ proc oss_parse { args } {
 		set OSSP(THN) 0
 	}
 
-	trc "PARSE R $res"
 	return $res
 }
 
@@ -2480,7 +2481,6 @@ proc oss_setvalues { vals nc { bstr 0 } } {
 	if { $stru == "" } {
 		error "command $nc not found"
 	}
-	trc "SETVU: $stru"
 
 	while 1 {
 
@@ -2503,7 +2503,6 @@ proc oss_setvalues { vals nc { bstr 0 } } {
 		set stru [lrange $stru 1 end]
 
 		foreach { tp nm ts di of } $str { }
-		trc "SETVP: $tp $nm $ts $di $of"
 
 		while { $fil < $of } {
 			# align as needed
@@ -2546,7 +2545,6 @@ proc oss_setvalues { vals nc { bstr 0 } } {
 		}
 	}
 
-	trc "SETVR: [oss_bintobytes $res]"
 	return $res
 }
 
@@ -2578,7 +2576,6 @@ proc oss_defparse { line { bstr 0 } } {
 		set cc [oss_parse -skip " \t," -return 0]
 
 		foreach { tp nm ti di le } $st { }
-		trc "DEFP: $tp $nm $ti $di $le"
 
 		if { $tp == "blob" } {
 
@@ -2611,7 +2608,6 @@ proc oss_defparse { line { bstr 0 } } {
 				}
 			}
 			lappend vals $bb
-			trc "DEFPV: $vals"
 			# this must be the last item
 			break
 		}
@@ -2644,7 +2640,6 @@ proc oss_defparse { line { bstr 0 } } {
 		} else {
 			lappend vals $res
 		}
-		trc "DEFPV: $vals"
 	}
 
 	if { [oss_parse -skip -return 0] != "" } {
@@ -3508,7 +3503,6 @@ proc sy_start_uart { } {
 
 proc sy_start_vuee { } {
 
-	trc "START VUEE"
 	autocn_start \
 		sy_socket_open \
 		noss_close \
@@ -3569,22 +3563,24 @@ proc sy_socket_open { udev } {
 
 	set ST(ABV) 0
 	set ST(VUC) [after $PM(VUT) "incr ::ST(ABV)"]
-	set ST(UCS) "VUEE"
+	set ST(UCS) "VUEE ($WI(WUH):$WI(WUP)/$WI(WUN) \["
+	if $WI(HID) {
+		append ST(UCS) "h"
+	} else {
+		append ST(UCS) "s"
+	}
+	append ST(UCS) "\])"
 	sy_updtitle
-
-	trc "SK CN: $WI(WUH) $WI(WUP) $WI(WUN) $WI(HID)"
 
 	if { [catch {
 		vuart_conn $WI(WUH) $WI(WUP) $WI(WUN) ::ST(ABV) $WI(HID)
 					} ST(SFD)] || $ST(ABV) } {
-		trc "SK AB: $ST(SFD)"
 		catch { after cancel $ST(VUC) }
 		set S(SFD) ""
 		unset ST(ABV)
 		unset ST(VUC)
 		return 0
 	}
-	trc "SK CONNECTED"
 
 	catch { after cancel $ST(VUC) }
 	unset ST(ABV)
@@ -3684,7 +3680,6 @@ proc sy_uart_read { msg } {
 	}
 
 	if [catch { $shw $code $opref $msg } out] {
-		trc "SHOW FAILED"
 		set line "Message "
 		append line [format "\[%02X %02X\], " $code $opref]
 		append line "$out\n"

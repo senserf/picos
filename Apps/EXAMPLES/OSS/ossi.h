@@ -21,6 +21,7 @@ typedef	struct {
 // Command structures
 // ==================
 
+#define	command_radio_code	1
 typedef struct {
 	byte	status;
 	byte	power;
@@ -30,6 +31,7 @@ typedef struct {
 	blob	data;
 } command_radio_t;
 
+#define	command_system_code	2
 typedef struct {
 	word	spin;
 	word	leds;
@@ -43,6 +45,7 @@ typedef struct {
 // Message structures
 // ==================
 
+#define	message_status_code	1
 typedef struct {
 	byte	rstatus;
 	byte	rpower;
@@ -53,6 +56,7 @@ typedef struct {
 	byte	spower;
 } message_status_t;
 
+#define	message_packet_code	2
 typedef struct {
 	lword	counter;
 	byte	rssi;

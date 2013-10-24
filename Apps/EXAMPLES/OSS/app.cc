@@ -9,12 +9,13 @@
 #include "cc1100.h"
 #endif
 
-#define	MAX_PACKET_LENGTH CC1100_MAXPLEN
+#define	MAX_PACKET_LENGTH 	CC1100_MAXPLEN
+#define	MAX_PAYLOAD_LENGTH	(MAX_PACKET_LENGTH - 2 - 2 - 4)
 
 // ============================================================================
 
 command_radio_t rf_control = { 0, 7, 0, { 1024, 1024 } , { 32, 32} , { 0 } };
-byte rf_payload [MAX_PACKET_LENGTH - 2 - 2 - 4];
+byte __payload_storage__ [MAX_PAYLOAD_LENGTH];
 
 sint sd_rf, sd_uart;
 Boolean power_up = 1;
@@ -274,10 +275,10 @@ static void command_radio () {
 	set_interval (pmt->length, rf_control.length, 8, MAX_PACKET_LENGTH);
 
 	if ((len = pmt->data.size)) {
-		if (len > sizeof (rf_payload))
-			len = sizeof (rf_payload);
+		if (len > MAX_PAYLOAD_LENGTH)
+			len = MAX_PAYLOAD_LENGTH;
 		rf_control.data.size = (byte) len;
-		memcpy (rf_payload, pmt->data.content, len);
+		memcpy (&(rf_control.data.content), pmt->data.content, len);
 	}
 
 	if (reset)
@@ -330,7 +331,7 @@ static void command_system () {
 		}
 	}
 
-	if (pmt->diag.size)
+	if (pmt->diag.size > 1)
 		diag ((const char*)(pmt->diag.content));
 
 	if (pmt->request)

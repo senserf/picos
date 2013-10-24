@@ -3655,3 +3655,8 @@ PG131021A:
 	it. Just give me a day or two.
 
 	Fixed gennodes.tcl as (implicitly) requested by Wlodek.
+
+PG131024A:
+
+	A presentable (and documented - sort of) version of my OSS hacks. Note
+	that presentable doesn't mean free of bugs.
