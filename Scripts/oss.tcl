@@ -590,7 +590,7 @@ proc gize { fun } {
 
 proc lize { fun } {
 
-	return [namespace code $fun]
+	return "::AUTOCONNECT::$fun"
 }
 
 proc autocn_heartbeat { } {
@@ -890,7 +890,7 @@ set B(STA) 0
 set B(CNT) 0
 
 # function to call on packet reception
-set B(DFN) "no_nop"
+set B(DFN) ""
 
 # function to call on UART close (which can happen asynchronously)
 set B(UCF) ""
@@ -899,11 +899,9 @@ set B(UCF) ""
 set B(TIM)  ""
 
 # packet timeout (msec), once reception has started
-set B(PKT) 80
+set B(PKT) 8000
 
 ###############################################################################
-
-proc no_nop { args } { }
 
 proc no_chks { wa } {
 
@@ -978,7 +976,7 @@ proc gize { fun } {
 
 proc lize { fun } {
 
-	return [namespace code $fun]
+	return "::NOSS::$fun"
 }
 
 proc no_emu_readable { fun } {
@@ -1030,7 +1028,17 @@ proc no_write { msg } {
 	}
 }
 
-proc no_rawread { } {
+proc no_timeout { } {
+
+	variable B
+
+	if { $B(TIM) != "" } {
+		no_rawread 1
+		set B(TIM) ""
+	}
+}
+
+proc no_rawread { { tm 0 } } {
 #
 # Called whenever data is available on the UART; returns 1 (if void), 0 (if
 # progress, i.e., some data was available)
@@ -1058,15 +1066,17 @@ proc no_rawread { } {
 
 			if { $chunk == "" } {
 				# check for timeout
-				if { $B(TIM) != "" } {
+				if $tm {
 					# reset
-					catch { after cancel $B(TIM) }
-					set B(TIM) ""
 					set B(STA) 0
 				} elseif { $B(STA) != 0 } {
-					# something has started, set up timer
-					set B(TIM) \
-				            [after $B(PKT) [lize no_rawread]]
+					# something has started, set up timer,
+					# if not running already
+					if { $B(TIM) == "" } {
+						set B(TIM) \
+				            	    [after $B(PKT) \
+							[lize no_timeout]]
+					}
 				}
 				return $void
 			}
@@ -1227,15 +1237,19 @@ proc no_receive { } {
 		return
 	}
 
-	$B(DFN) $msg
+	if { $B(DFN) != "" } {
+		$B(DFN) $msg
+	}
 }
 
-proc noss_init { ufd mpl { clo "" } { emu 0 } } {
+proc noss_init { ufd mpl { inp "" } { dia "" } { clo "" } { emu 0 } } {
 #
 # Initialize: 
 #
 #	ufd - UART descriptor
 #	mpl - max packet length
+#	inp - function to be called on user input
+#	dia - function to be called to present a diag message
 #	clo - function to call on UART close (can happen asynchronously)
 #	emu - emulate 'readable'
 #
@@ -1250,32 +1264,20 @@ proc noss_init { ufd mpl { clo "" } { emu 0 } } {
 
 	set B(UCF) $clo
 
+	set B(DFN) $inp
+	set B(DGO) $dia
+
 	fconfigure $B(SFD) -buffering full -translation binary
 
 	if $emu {
 		# the readable flag doesn't work for UART on some Cygwin
 		# setups
 		set B(ROT) 1
-		no_emu_readable "[lize no_rawread]"
+		no_emu_readable [lize no_rawread]
 	} else {
 		# do it the easy way
-		fileevent $B(SFD) readable "[lize no_rawread]"
+		fileevent $B(SFD) readable [lize no_rawread]
 	}
-}
-
-proc noss_oninput { { fun "" } } {
-#
-# Declares a function to be called when a packet is received
-#
-	variable B
-
-	if { $fun == "" } {
-		set fun "no_nop"
-	} else {
-		set fun [gize $fun]
-	}
-
-	set B(DFN) $fun
 }
 
 proc noss_stop { } {
@@ -1323,7 +1325,9 @@ proc noss_close { { err "" } } {
 
 	# stop the protocol
 	noss_stop
-	noss_oninput
+
+	set B(DFN) ""
+	set B(DGO) ""
 }
 
 proc noss_send { buf } {
@@ -1384,7 +1388,7 @@ set OSST(lword) [list 4 "iu" 0 4294967295]
 set OSST(lint) 	[list 4 "i" -2147483648 2147483647]
 set OSST(byte) 	[list 1 "cu" 0 255]
 set OSST(char) 	[list 1 "c" -128 127]
-set OSST(blob) 	[list 1 ""]
+set OSST(blob) 	[list 2 ""]
 
 # To keep track of errors in specification
 set OSSI(ERRORS) 	""
@@ -1451,19 +1455,19 @@ proc oss_blobtovalues { blob } {
 #
 # Convert a blob to a list of numerical values
 #
-	if { $blob == "" } {
+	if { [string length $blob] < 2 } {
 		error "blob missing"
 	}
 
-	binary scan $blob cu size
+	binary scan $blob su size
 
 	if { $size == 0 } {
 		return ""
 	}
 
-	set blob [string range $blob 1 $size]
+	set blob [string range $blob 2 [expr $size + 1]]
 	if { [string length $blob] != $size } {
-		error "blob data too short"
+		error "blob data too short, $size bytes expected"
 	}
 
 	set res ""
@@ -1480,19 +1484,19 @@ proc oss_blobtostring { blob } {
 #
 # Convert a blob to a string
 #
-	if { $blob == "" } {
+	if { [string length $blob] < 2 } {
 		error "blob missing"
 	}
 
-	binary scan $blob cu size
+	binary scan $blob su size
 
 	if { $size == 0 } {
 		return ""
 	}
 
-	set blob [string range $blob 1 $size]
+	set blob [string range $blob 2 [expr $size + 1]]
 	if { [string length $blob] != $size } {
-		error "blob data too short"
+		error "blob data too short, $size bytes expected"
 	}
 
 	# remove the sentinel(s) on the right
@@ -1505,13 +1509,12 @@ proc oss_valuestoblob { vals } {
 #
 	set cnt [llength $vals]
 
-	if { $cnt > 255 } {
-		set cnt 255
-		set vals [lrange $vals 0 254]
+	if { $cnt > 65535 } {
+		set cnt 65535
+		set vals [lrange $vals 0 65534]
 	}
 
-	set res [binary format c $cnt]
-	append res [oss_bytestobin $vals]
+	set res "[binary format s $cnt][oss_bytestobin $vals]"
 
 	return $res
 }
@@ -1524,12 +1527,12 @@ proc oss_stringtoblob { vals } {
 	}
 
 	set len [string length $vals]
-	if { $len > 255 } {
-		set len 255
-		set vals "[string range $vals 0 253]$zer"
+	if { $len > 65535 } {
+		set len 65535
+		set vals "[string range $vals 0 65533]$zer"
 	}
 
-	return "[binary format c $len]$vals"
+	return "[binary format s $len]$vals"
 }
 
 proc oss_bintobytes { block } {
@@ -2726,7 +2729,7 @@ proc oss_genheader { } {
 // =================================================================
 
 typedef	struct {
-	byte size;
+	word size;
 	byte content [];
 } blob;
 
@@ -3547,10 +3550,7 @@ proc sy_uart_open { udev } {
 	set ST(HSK) 0
 
 	# configure the protocol
-	noss_init $ST(SFD) $PM(MPL) sy_uart_close $emu
-
-	# input function
-	noss_oninput sy_uart_read
+	noss_init $ST(SFD) $PM(MPL) sy_uart_read oss_ttyout sy_uart_close $emu
 
 	sy_term_enable 2
 
@@ -3569,7 +3569,7 @@ proc sy_socket_open { udev } {
 	} else {
 		append ST(UCS) "s"
 	}
-	append ST(UCS) "\])"
+	append ST(UCS) "\]"
 	sy_updtitle
 
 	if { [catch {
@@ -3586,8 +3586,7 @@ proc sy_socket_open { udev } {
 	unset ST(ABV)
 	unset ST(VUC)
 	set ST(HSK) 0
-	noss_init $ST(SFD) $PM(MPL) sy_uart_close 0
-	noss_oninput sy_uart_read
+	noss_init $ST(SFD) $PM(MPL) sy_uart_read oss_ttyout sy_uart_close 0
 
 	sy_term_enable 2
 

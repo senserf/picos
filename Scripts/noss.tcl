@@ -72,7 +72,7 @@ set B(STA) 0
 set B(CNT) 0
 
 # function to call on packet reception
-set B(DFN) "no_nop"
+set B(DFN) ""
 
 # function to call on UART close (which can happen asynchronously)
 set B(UCF) ""
@@ -81,11 +81,9 @@ set B(UCF) ""
 set B(TIM)  ""
 
 # packet timeout (msec), once reception has started
-set B(PKT) 80
+set B(PKT) 8000
 
 ###############################################################################
-
-proc no_nop { args } { }
 
 proc no_chks { wa } {
 
@@ -160,7 +158,7 @@ proc gize { fun } {
 
 proc lize { fun } {
 
-	return "::BOSS::$fun"
+	return "::NOSS::$fun"
 }
 
 proc no_emu_readable { fun } {
@@ -212,7 +210,17 @@ proc no_write { msg } {
 	}
 }
 
-proc no_rawread { } {
+proc no_timeout { } {
+
+	variable B
+
+	if { $B(TIM) != "" } {
+		no_rawread 1
+		set B(TIM) ""
+	}
+}
+
+proc no_rawread { { tm 0 } } {
 #
 # Called whenever data is available on the UART; returns 1 (if void), 0 (if
 # progress, i.e., some data was available)
@@ -240,15 +248,17 @@ proc no_rawread { } {
 
 			if { $chunk == "" } {
 				# check for timeout
-				if { $B(TIM) != "" } {
+				if $tm {
 					# reset
-					catch { after cancel $B(TIM) }
-					set B(TIM) ""
 					set B(STA) 0
 				} elseif { $B(STA) != 0 } {
-					# something has started, set up timer
-					set B(TIM) \
-				            [after $B(PKT) [lize no_rawread]]
+					# something has started, set up timer,
+					# if not running already
+					if { $B(TIM) == "" } {
+						set B(TIM) \
+				            	    [after $B(PKT) \
+							[lize no_timeout]]
+					}
 				}
 				return $void
 			}
@@ -409,15 +419,19 @@ proc no_receive { } {
 		return
 	}
 
-	$B(DFN) $msg
+	if { $B(DFN) != "" } {
+		$B(DFN) $msg
+	}
 }
 
-proc noss_init { ufd mpl { clo "" } { emu 0 } } {
+proc noss_init { ufd mpl { inp "" } { dia "" } { clo "" } { emu 0 } } {
 #
 # Initialize: 
 #
 #	ufd - UART descriptor
 #	mpl - max packet length
+#	inp - function to be called on user input
+#	dia - function to be called to present a diag message
 #	clo - function to call on UART close (can happen asynchronously)
 #	emu - emulate 'readable'
 #
@@ -432,32 +446,20 @@ proc noss_init { ufd mpl { clo "" } { emu 0 } } {
 
 	set B(UCF) $clo
 
+	set B(DFN) $inp
+	set B(DGO) $dia
+
 	fconfigure $B(SFD) -buffering full -translation binary
 
 	if $emu {
 		# the readable flag doesn't work for UART on some Cygwin
 		# setups
 		set B(ROT) 1
-		no_emu_readable "[lize no_rawread]"
+		no_emu_readable [lize no_rawread]
 	} else {
 		# do it the easy way
-		fileevent $B(SFD) readable "[lize no_rawread]"
+		fileevent $B(SFD) readable [lize no_rawread]
 	}
-}
-
-proc noss_oninput { { fun "" } } {
-#
-# Declares a function to be called when a packet is received
-#
-	variable B
-
-	if { $fun == "" } {
-		set fun "no_nop"
-	} else {
-		set fun [gize $fun]
-	}
-
-	set B(DFN) $fun
 }
 
 proc noss_stop { } {
@@ -483,6 +485,8 @@ proc noss_close { { err "" } } {
 #
 	variable B
 
+	# trc "NOSS CLOSE"
+
 	if { [info exist B(ONR)] && $B(ONR) != "" } {
 		# we have been emulating 'readable', kill the callback
 		catch { after cancel $B(ONR) }
@@ -503,10 +507,12 @@ proc noss_close { { err "" } } {
 
 	# stop the protocol
 	noss_stop
-	noss_oninput
+
+	set B(DFN) ""
+	set B(DGO) ""
 }
 
-proc noss_send { buf { urg 0 } } {
+proc noss_send { buf } {
 #
 # This is the user-level output function
 #

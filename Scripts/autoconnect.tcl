@@ -8,6 +8,10 @@ package require unames
 
 namespace eval AUTOCONNECT {
 
+variable ACB
+
+array set ACB { CLO "" CBK "" }
+
 proc gize { fun } {
 
 	if { $fun != "" && [string range $fun 0 1] != "::" } {
@@ -51,6 +55,8 @@ proc autocn_start { op cl hs hc cc { po "" } { dl "" } } {
 	set ACB(POL) [gize $po]
 	set ACB(DLI) $dl
 
+	# trc "ACN START: $ACB(OPE) $ACB(CLO) $ACB(HSH) $ACB(HSC) $ACB(CNC) $ACB(POL) $ACB(DLI)"
+
 	# last device scan time
 	set ACB(LDS) 0
 
@@ -61,7 +67,34 @@ proc autocn_start { op cl hs hc cc { po "" } { dl "" } } {
 	set ACB(RRM) -1
 	set ACB(LRM) -1
 
-	ac_callback
+	if { $ACB(CBK) != "" } {
+		# a precaution
+		catch { after cancel $ACB(CBK) }
+	}
+	set ACB(CBK) [after 10 [lize ac_callback]]
+}
+
+proc autocn_stop { } {
+#
+# Stop the callback and disconnect
+#
+	variable ACB
+
+	if { $ACB(CBK) != "" } {
+		catch { after cancel $ACB(CBK) }
+		set ACB(CBK) ""
+	}
+
+	if { $ACB(CLO) != "" } {
+		$ACB(CLO)
+	}
+}
+
+proc ac_again { d } {
+
+	variable ACB
+
+	set ACB(CBK) [after $d [lize ac_callback]]
 }
 
 proc ac_callback { } {
@@ -73,9 +106,11 @@ proc ac_callback { } {
 
 	# trc "AC S=$ACB(STA)"
 	if { $ACB(STA) == "R" } {
+		# CONNECTED
 		if ![$ACB(CNC)] {
+			# just got disconnected
 			set ACB(STA) "L"
-			after 100 [lize ac_callback]
+			ac_again 100
 			return
 		}
 		# we are connected, check for heartbeat
@@ -84,44 +119,46 @@ proc ac_callback { } {
 			if { $ACB(POL) != "" } { $ACB(POL) }
 			set ACB(STA) "T"
 			set ACB(FAI) 0
-			after 1000 [lize ac_callback]
+			ac_again 1000
 			return
 		}
 		set ACB(RRM) $ACB(LRM)
-		# we are connected, no need to panic
-		after 2000 [lize ac_callback]
+		# we are still connected, no need to panic
+		ac_again 2000
 		return
 	}
 
 	if { $ACB(STA) == "T" } {
-		# counting heartbeat failures
+		# HEARTBEAT FAILURE
 		if ![$ACB(CNC)] {
+			# disconnected
 			set ACB(STA) "L"
-			after 100 [lize ac_callback]
+			ac_again 100
 			return
 		}
 		if { $ACB(RRM) == $ACB(LRM) } {
+			# count failures
 			if { $ACB(FAI) == 5 } {
 				set ACB(STA) "L"
 				$ACB(CLO)
-				after 100 [lize ac_callback]
+				ac_again 100
 				return
 			}
 			incr ACB(FAI)
 			if { $ACB(POL) != "" } { $ACB(POL) }
-			after 600 [lize ac_callback]
+			ac_again 600
 			return
 		}
 		set ACB(RRM) $ACB(LRM)
 		set ACB(STA) "R"
-		after 2000 [lize ac_callback]
+		ac_again 2000
 		return
 	}
 	
 	#######################################################################
 
 	if { $ACB(STA) == "L" } {
-		# Main loop
+		# CONNECTING
 		set tm [clock seconds]
 		if { $tm > [expr $ACB(LDS) + 5] } {
 			# last scan for new devices was done more than 5 sec
@@ -147,59 +184,60 @@ proc ac_callback { } {
 		# index into the device table
 		set ACB(CUR) 0
 		set ACB(STA) "N"
-		after 250 [lize ac_callback]
+		ac_again 250
 		return
 	}
 
 	#######################################################################
 
 	if { $ACB(STA) == "N" } {
+		# TRYING NEXT DEVICE
 		# trc "AC N CUR=$ACB(CUR), DVL=$ACB(DVL)"
 		# try to open a new UART
 		if { $ACB(CUR) >= $ACB(DVL) } {
 			if { $ACB(DVL) == 0 } {
 				# no devices
 				set ACB(LDS) 0
-				after 1000 [lize ac_callback]
+				ac_again 1000
 				return
 			}
 			set ACB(STA) "L"
-			after 100 [lize ac_callback]
+			ac_again 100
 			return
 		}
 
 		set dev [lindex $ACB(DVS) $ACB(CUR)]
 		incr ACB(CUR)
 		if { [$ACB(OPE) $dev] == 0 } {
-			after 100 [lize ac_callback]
+			ac_again 100
 			return
 		}
 
 		$ACB(HSH)
 
 		set ACB(STA) "C"
-		after 2000 [lize ac_callback]
+		ac_again 2000
 		return
 	}
 
 	if { $ACB(STA) == "C" } {
-		# check if handshake established
+		# WAITING FOR HANDSHAKE
 		if [$ACB(HSC)] {
-			# yep, assume connection OK
+			# established, assume connection OK
 			set ACB(STA) "R"
-			after 2000 [lize ac_callback]
+			ac_again 2000
 			return
 		}
 		# sorry, try another one
 		# trc "AC C -> CLOSING"
 		$ACB(CLO)
 		set ACB(STA) "N"
-		after 100 [lize ac_callback]
+		ac_again 100
 		return
 	}
 
 	set ACB(STA) "L"
-	after 1000 [lize ac_callback]
+	ac_again 1000
 }
 
 namespace export autocn_*
@@ -207,6 +245,3 @@ namespace export autocn_*
 }
 
 namespace import ::AUTOCONNECT::*
-
-###############################################################################
-###############################################################################

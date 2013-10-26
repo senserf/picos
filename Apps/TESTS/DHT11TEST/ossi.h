@@ -1,6 +1,6 @@
 #include "sysio.h"
 
-#define	OSS_PRAXIS_ID		65537
+#define	OSS_PRAXIS_ID		589826
 #define	OSS_UART_RATE		9600
 #define	OSS_PACKET_LENGTH	82
 
@@ -38,8 +38,14 @@ typedef struct {
 	byte	request;
 	byte	blinkrate;
 	byte	power;
+	byte	swtch;
 	blob	diag;
 } command_system_t;
+
+#define	command_dht11_code	3
+typedef struct {
+	byte	duration;
+} command_dht11_t;
 
 // ==================
 // Message structures
@@ -54,6 +60,7 @@ typedef struct {
 	word	rlength [2];
 	word	smemstat [3];
 	byte	spower;
+	byte	swtch;
 } message_status_t;
 
 #define	message_packet_code	2
@@ -62,6 +69,11 @@ typedef struct {
 	byte	rssi;
 	blob	payload;
 } message_packet_t;
+
+#define	message_dht11t_code	3
+typedef struct {
+	blob	times;
+} message_dht11t_t;
 
 
 // ===================================

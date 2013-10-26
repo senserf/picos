@@ -241,10 +241,12 @@ proc sock_read { } {
 	set VU(SI) [list $nod $hos $tot $tna]
 }
 
-proc vuart_conn { ho po no abvar { sig "" } } {
+proc vuart_conn { ho po no abvar { hi 0 } { sig "" } } {
 #
-# Connect to UART at the specified host, port, node; abvar is the abort 
-# variable (set to 1 <from the outside> to abort the connection in progress)
+# Connect to UART at the specified host, port, node; hi is the HID flag: when
+# nonzero, it means that the node number is to be interpreted as a Host ID;
+# abvar is the abort variable (set to 1 <from the outside> to abort the
+# connection in progress)
 #
 	variable VU
 
@@ -269,12 +271,16 @@ proc vuart_conn { ho po no abvar { sig "" } } {
 		error "Connection failed: $erc"
 	}
 
+	if $hi {
+		set hi 1
+	}
+
 	# prepare a request
 	set rqs ""
 	abin_S rqs 0xBAB4
 	abin_S rqs 1
 	abin_I rqs $no
-	abin_I rqs 0
+	abin_I rqs $hi
 
 	if [catch { puts -nonewline $sfd $rqs } erc] {
 		cleanup

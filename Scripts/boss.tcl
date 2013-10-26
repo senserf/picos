@@ -298,9 +298,19 @@ proc bo_write { msg { byp 0 } } {
 	bo_send
 }
 
-proc bo_rawread { } {
+proc bo_timeout { } {
+
+	variable B
+
+	if { $B(TIM) != "" } {
+		bo_rawread 1
+		set B(TIM) ""
+	}
+}
+
+proc bo_rawread { { tm 0 } } {
 #
-# Called whenever data is available on the UART
+# Called whenever data is available on the UART (mode S)
 #
 	variable B
 #
@@ -325,15 +335,17 @@ proc bo_rawread { } {
 
 			if { $chunk == "" } {
 				# check for timeout
-				if { $B(TIM) != "" } {
+				if $tm {
 					# reset
-					catch { after cancel $B(TIM) }
-					set B(TIM) ""
 					set B(STA) 0
 				} elseif { $B(STA) != 0 } {
 					# something has started, set up timer
-					set B(TIM) \
-				            [after $B(PKT) [lize bo_rawread]]
+					# if not running already
+					if { $B(TIM) == "" } {
+						set B(TIM) \
+				            	    [after $B(PKT) \
+							[lize bo_timeout]]
+					}
 				}
 				return $void
 			}

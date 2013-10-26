@@ -3660,3 +3660,16 @@ PG131024A:
 
 	A presentable (and documented - sort of) version of my OSS hacks. Note
 	that presentable doesn't mean free of bugs.
+
+PG131026A:
+
+	Fixed a couple of bugs in oss.tcl related to UART packet timeouts.
+	Updated Tcl packages: NOSS, BOSS, AUTOCONNECT, VUART and the scripts
+	using them, notably piter.
+
+	Notably, I have changed the size attribute of blob to word, mostly to
+	get around the different alignment rules in VUEE and mspgcc.
+
+	Praxis TESTS/DHT11TEST (probably temporary) to play with voltage
+	step-up converters and logic voltage convertes to see how easily we
+	can accommodate 5V sensors.
