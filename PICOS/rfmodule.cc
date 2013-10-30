@@ -32,6 +32,8 @@
 
 static int rfm_option (int, address);
 
+// ============================================================================
+
 void RM_Receiver::setup () {
 
 	rf = TheNode->RFInt;
@@ -352,6 +354,123 @@ RM_Receiver::perform {
 	proceed RCV_GETIT;
 }
 
+// ============================================================================
+
+void RN_Receiver::setup () {
+
+	rf = TheNode->RFInt;
+}
+
+void RN_Xmitter::setup () {
+
+	rf = TheNode->RFInt;
+}
+
+void RN_Xmitter::pwr_on () {
+
+	TheNode->pwrt_change (PWRT_RADIO, 
+		rxoff ? PWRT_RADIO_XMT : PWRT_RADIO_XCV);
+}
+
+void RN_Xmitter::pwr_off () {
+
+	TheNode->pwrt_change (PWRT_RADIO, 
+		rxoff ? PWRT_RADIO_OFF : PWRT_RADIO_RCV);
+}
+
+RN_Receiver::perform {
+
+	address	packet;
+	int	pktlen;
+
+	_pp_enter_ ();
+
+	state RCV_GETIT:
+
+		LEDI (2, 0);
+
+		if (rxoff) {
+			when (rxe, RCV_GETIT);
+			release;
+		}
+
+		rfi->wait (EOT, RCV_GO);
+		when (rxe, RCV_GETIT);
+
+	state RCV_GO:
+
+		LEDI (2, 1);
+
+		while (rfi->anotherActivity () != NONE) {
+			if (ThePckt->Sender == TheNode->getId ())
+				continue;
+			packet = ThePckt -> Payload;
+			pktlen = ThePckt -> PaySize;
+
+			assert (pktlen >= MINIMUM_PACKET_LENGTH,
+				"RN_Receiver: packet too short: %d < %d",
+				pktlen, MINIMUM_PACKET_LENGTH);
+
+			assert (pktlen <= mxpl,
+				"RN_Receiver: packet too long: %d > %d",
+				pktlen, mxpl);
+
+			if (sid != 0 && sid != 0xffff) {
+				// Admit only packets with agreeable statid
+				if (packet [0] != 0 && packet [0] != sid)
+					// Ignore
+					continue;
+			}
+
+			memcpy (rbf, packet, pktlen);
+			// Dummy RSSI/qual
+			rbf [(pktlen - 1) >> 1] = 0xFF00;
+			tcvphy_rcv (physid, rbf, pktlen);
+		}
+
+		skipto RCV_GETIT;
+}
+
+RN_Xmitter::perform {
+
+	int buflen;
+
+	_pp_enter_ ();
+
+	state XM_LOOP:
+
+		if ((xbf = tcvphy_get (physid, &buflen)) == NULL) {
+			when (txe, XM_LOOP);
+			release;
+		}
+
+		assert (buflen <= mxpl,
+			"RN_Xmitter: packet too long, %1d > %1d",
+			buflen, mxpl);
+
+		assert (buflen >= MINIMUM_PACKET_LENGTH && (buflen & 1) == 0,
+			"RN_Xmitter: illegal packet length %1d", buflen);
+
+		if (sid != 0xffff)
+			// otherwise, honor the packet's statid
+			xbf [0] = sid;
+
+		obf.load (xbf, buflen);
+		pwr_on ();
+		LEDI (1, 1);
+		rfi->transmit (&obf, XM_TXDONE);
+
+	state XM_TXDONE:
+
+		rfi->stop ();
+		LEDI (1, 0);
+		tcvphy_end (xbf);
+		pwr_off ();
+		proceed XM_LOOP;
+}
+
+// ============================================================================
+
 __PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
 /*
  * phy  - interface number
@@ -401,6 +520,7 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 
 	rfm_intd_t *rf;
+	Boolean su;
 
 	rf = TheNode->RFInt;
 
@@ -420,7 +540,13 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 	LEDI (1, 0);
 	LEDI (2, 0);
 
-	if (runthread (RM_Xmitter) == 0 || runthread (RM_Receiver) == 0)
+	if (__pi_channel_type == CTYPE_NEUTRINO)
+		su = runthread (RN_Xmitter) != 0 &&
+			runthread (RN_Receiver) != 0;
+	else
+		su = runthread (RM_Xmitter) != 0 &&
+			runthread (RM_Receiver) != 0;
+	if (!su)
 		syserror (ERESOURCE, "phys_rf");
 
 #if 0

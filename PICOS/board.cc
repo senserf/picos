@@ -7,6 +7,7 @@
 #include "rwpmm.cc"
 #include "wchansh.cc"
 #include "wchansd.cc"
+#include "wchannt.cc"
 #include "encrypt.cc"
 #include "nvram.cc"
 #include "agent.h"
@@ -26,6 +27,7 @@ const char	__pi_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
+int __pi_channel_type = -1;
 
 // Legitimate UART rates ( / 100)
 static const word urates [] = { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152,
@@ -485,12 +487,18 @@ void rfm_intd_t::setrfpowr (word ix) {
 // Set X power
 //
 	IVMapper *m;
+	double v;
 
-	m = Ether -> PS;
+	if (__pi_channel_type == CTYPE_NEUTRINO) {
+		v = 1.0;
+	} else {
+		m = Ether -> PS;
+		assert (m->exact (ix),
+			"RFInt->setrfpowr: illegal power index %1d", ix);
+		v = m->setvalue (ix);
+	}
 
-	assert (m->exact (ix), "RFInt->setrfpowr: illegal power index %1d", ix);
-
-	RFInterface -> setXPower (m->setvalue (ix));
+	RFInterface -> setXPower (v);
 }
 
 void rfm_intd_t::setrfrate (word ix) {
@@ -1445,6 +1453,14 @@ static void oadj (const char *s, int n) {
 	}
 }
 
+static void sptypes (nparse_t *np, int tp) {
+
+	int i;
+
+	for (i = 0; i < NPTABLE_SIZE; i++)
+		np [i].type = tp;
+}
+
 BoardRoot::perform {
 
 	state Start:
@@ -1586,8 +1602,8 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	const char *sfname, *att, *xnam;
 	double bn_db, beta, dref, sigm, loss_db, psir, pber, cutoff;
 	nparse_t np [NPTABLE_SIZE];
-	int ctype, K, nb, nr, i, j, syncbits, bpb, frml;
-	sxml_t cur;
+	int K, nb, nr, i, j, syncbits, bpb, frml;
+	sxml_t prp, cur;
 	sir_to_ber_t	*STB;
 	IVMapper	*ivc [6];
 	MXChannels	*mxc;
@@ -1601,9 +1617,7 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		// Ignore the channel, no stations are equipped with radio
 		return NN;
 
-	for (i = 0; i < NPTABLE_SIZE; i++)
-		// We shall be reading double for a while
-		np [i].type = TYPE_double;
+	sptypes (np, TYPE_double);
 
 	// Preset this to NULL
 	memset (ivc, 0, sizeof (ivc));
@@ -1618,44 +1632,190 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		// No continuation
 	}
 
-	// The default value for background noise translating into lin 0.0
-	bn_db = -HUGE;
-	if ((att = sxml_attr (data, "bn")) != NULL) {
-		if (parseNumbers (att, 1, np) != 1)
-			xeai ("bn", "<channel>", att);
-		bn_db = np [0].DVal;
-	}
-
-	if ((cur = sxml_child (data, "propagation")) == NULL)
+	// Determine the channel type
+	if ((prp = sxml_child (data, "propagation")) == NULL)
 		xenf ("<propagation>", "<channel>");
 
-	if ((att = sxml_attr (cur, "type")) == NULL)
+	if ((att = sxml_attr (prp, "type")) == NULL)
 		xemi ("type", "<propagation>");
 
 	if (strncmp (att, "sh", 2) == 0)
-		ctype = 0;
+		__pi_channel_type = CTYPE_SHADOWING;
 	else if (strncmp (att, "sa", 2) == 0)
-		ctype = 1;
+		__pi_channel_type = CTYPE_SAMPLED;
+	else if (strncmp (att, "ne", 2) == 0)
+		__pi_channel_type = CTYPE_NEUTRINO;
 	else
 		xeai ("type", "<propagation>", att);
 
-	sigm = -1.0;
+	if (__pi_channel_type != CTYPE_NEUTRINO) {
 
-	if ((att = sxml_attr (cur, "sigma")) != NULL) {
-		// Expect a double
-		if (parseNumbers (att, 1, np) != 1 ||
-			(sigm = np [0].DVal) < 0.0)
-				xeai ("sigma", "<propagation>", att);
+		// Some "common" attributes are ignored for neutrino type
+		// channel
+
+		if (__pi_channel_type == CTYPE_SAMPLED)
+			// We need this one in advance, can be NULL
+			sfname = sxml_attr (prp, "samples");
+
+		bn_db = -HUGE;
+		// The default value for background noise translating into
+		// lin 0.0
+		if ((att = sxml_attr (data, "bn")) != NULL) {
+			if (parseNumbers (att, 1, np) != 1)
+				xeai ("bn", "<channel>", att);
+			bn_db = np [0].DVal;
+		}
+
+		sigm = -1.0;
+
+		if ((att = sxml_attr (prp, "sigma")) != NULL) {
+			// Expect a double
+			if (parseNumbers (att, 1, np) != 1 ||
+				(sigm = np [0].DVal) < 0.0)
+					xeai ("sigma", "<propagation>", att);
+		}
+
+		// The BER table
+		if ((cur = sxml_child (data, "ber")) == NULL)
+			xenf ("<ber>", "<channel>");
+
+		att = sxml_txt (cur);
+		nb = parseNumbers (att, NPTABLE_SIZE, np);
+		if (nb > NPTABLE_SIZE)
+			excptn ("Root: <ber> table too large, "
+				"increase NPTABLE_SIZE");
+
+		if (nb < 4 || (nb & 1) != 0) {
+
+			if (nb < 0)
+				excptn ("Root: illegal numerical value in "
+					"<ber> table");
+			else
+				excptn ("Root: illegal size of <ber> table "
+					"(%1d), must be an even number >= 4",
+					nb);
+		}
+
+		psir = HUGE;
+		pber = -1.0;
+		// This is the size of BER table
+		nb /= 2;
+		STB = new sir_to_ber_t [nb];
+
+		for (i = 0; i < nb; i++) {
+			// The SIR is stored as a linear ratio
+			STB [i].sir = dBToLin (np [2 * i] . DVal);
+			STB [i].ber = np [2 * i + 1] . DVal;
+			// Validate
+			if (STB [i] . sir >= psir)
+				excptn ("Root: SIR entries in <ber> must be "
+					"monotonically decreasing, %f and %f "
+					"aren't", psir, STB [i] . sir);
+			psir = STB [i] . sir;
+			if (STB [i] . ber < 0)
+				excptn ("Root: BER entries in <ber> must not "
+					"be negative, %f is", STB [i] . ber);
+			if (STB [i] . ber <= pber)
+				excptn ("Root: BER entries in <ber> must be "
+					"monotonically increasing, %f and %f "
+					"aren't", pber, STB [i] . ber);
+			pber = STB [i] . ber;
+		}
+
+		// The cutoff threshold wrt to background noise: the default
+		// means no cutoff
+		cutoff = -HUGE;
+		if ((cur = sxml_child (data, "cutoff")) != NULL) {
+			att = sxml_txt (cur);
+			if (parseNumbers (att, 1, np) != 1)
+				xevi ("<cutoff>", "<channel>", att);
+			cutoff = np [0].DVal;
+		}
+
+		// Power
+		if ((cur = sxml_child (data, "power")) == NULL)
+			xenf ("<power>", "<network>");
+
+		att = sxml_txt (cur);
+
+		// Check for a single double value first
+		if (parseNumbers (att, 2, np) == 1) {
+			// We have a single entry case
+			wt = new word [1];
+			dta = new double [1];
+			wt [0] = 0;
+			dta [0] = np [0] . DVal;
+			nr = 1;
+		} else {
+			for (i = 0; i < NPTABLE_SIZE; i += 2)
+				np [i ]  . type = TYPE_int;
+			nr = parseNumbers (att, NPTABLE_SIZE, np);
+			if (nr > NPTABLE_SIZE)
+				xeni ("<power>");
+
+			if (nr < 2 || (nr % 2) != 0) 
+				excptn ("Root: number of items in <power> must "
+					"be either 1, or a nonzero multiple of "
+					"2");
+			nr /= 2;
+			wt = new word [nr];
+			dta = new double [nr];
+
+			for (j = 0; j < nr; j++) {
+				wt [j] = (word) (np [2*j] . IVal);
+				dta [j] = np [2*j + 1] . DVal;
+			}
+			xmon (nr, wt, dta, "<power>");
+			for (i = 0; i < NPTABLE_SIZE; i += 2)
+				np [i ]  . type = TYPE_double;
+			sptypes (np, TYPE_double);
+		}
+
+		ivc [XVMAP_PS] = new IVMapper (nr, wt, dta, YES);
+
+		// RSSI map (optional for shadowing)
+		if ((cur = sxml_child (data, "rssi")) != NULL) {
+
+			att = sxml_txt (cur);
+
+			for (i = 0; i < NPTABLE_SIZE; i += 2)
+				np [i ]  . type = TYPE_int;
+
+			nr = parseNumbers (att, NPTABLE_SIZE, np);
+			if (nr > NPTABLE_SIZE)
+				xeni ("<rssi>");
+
+			if (nr < 2 || (nr % 2) != 0) 
+				excptn ("Root: number of items in <rssi> must "
+						"be a nonzero multiple of 2");
+			nr /= 2;
+			wt = new word [nr];
+			dta = new double [nr];
+
+			for (j = 0; j < nr; j++) {
+				wt [j] = (word) (np [2*j] . IVal);
+				dta [j] = np [2*j + 1] . DVal;
+			}
+			xmon (nr, wt, dta, "<rssi>");
+
+			ivc [XVMAP_RSSI] = new IVMapper (nr, wt, dta, YES);
+
+			sptypes (np, TYPE_double);
+
+		} else if (__pi_channel_type == CTYPE_SAMPLED &&
+							sfname != NULL) {
+
+			excptn ("Root: \"sampled\" propagation model with "
+				"non-empty sample file requires RSSI table");
+		}
 	}
 
-	// The content of <propagation> depends on channel type
+	if (__pi_channel_type == CTYPE_SHADOWING) {
 
-	if (ctype == 0) {
-		// Here we have the old shadowing model
 		if (sigm < 0.0)
 			// Use the default sigma of zero if missing
 			sigm = 0.0;
-		att = sxml_txt (cur);
+		att = sxml_txt (prp);
 		if ((nb = parseNumbers (att, 4, np)) != 4) {
 			if (nb < 0)
 				excptn ("Root: illegal number in "
@@ -1671,12 +1831,12 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		beta = np [1].DVal;
 		dref = np [2].DVal;
 		loss_db = np [3].DVal;
-	} else {
-		// This is the sample-driven model
-		sfname = sxml_attr (cur, "samples");	// Can be NULL
+
+	} else if (__pi_channel_type == CTYPE_SAMPLED) {
+
 		K = 4;					// Samples to average
 		dref = 1.0;				// Averaging factor
-		if ((att = sxml_attr (cur, "average")) != NULL) {
+		if ((att = sxml_attr (prp, "average")) != NULL) {
 			np [0].type = TYPE_int;
 			nr = parseNumbers (att, NPTABLE_SIZE, np);
 			if (nr == 0 || nr > 2)
@@ -1697,11 +1857,11 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		}
 
 		symm = NO;
-		if ((att = sxml_attr (cur, "symmetric")) != NULL &&
+		if ((att = sxml_attr (prp, "symmetric")) != NULL &&
 			*att == 'y')
 				symm = YES;
 
-		att = sxml_txt (cur);
+		att = sxml_txt (prp);
 
 		// Expect the attenuation table
 
@@ -1797,59 +1957,21 @@ PTErr3:
 		}
 
 		ivc [XVMAP_ATT] = (IVMapper*) new DVMapper (nr, dta, dtb, YES);
-	}
 
-	// The BER table
-	if ((cur = sxml_child (data, "ber")) == NULL)
-		xenf ("<ber>", "<channel>");
+	} else {
 
-	att = sxml_txt (cur);
-	nb = parseNumbers (att, NPTABLE_SIZE, np);
-	if (nb > NPTABLE_SIZE)
-		excptn ("Root: <ber> table too large, increase NPTABLE_SIZE");
-
-	if (nb < 4 || (nb & 1) != 0) {
-		if (nb < 0)
-			excptn ("Root: illegal numerical value in <ber> table");
-		else
-			excptn ("Root: illegal size of <ber> table (%1d), "
-				"must be an even number >= 4", nb);
-	}
-
-	psir = HUGE;
-	pber = -1.0;
-	// This is the size of BER table
-	nb /= 2;
-	STB = new sir_to_ber_t [nb];
-
-	for (i = 0; i < nb; i++) {
-		// The SIR is stored as a linear ratio
-		STB [i].sir = dBToLin (np [2 * i] . DVal);
-		STB [i].ber = np [2 * i + 1] . DVal;
-		// Validate
-		if (STB [i] . sir >= psir)
-			excptn ("Root: SIR entries in <ber> must be "
-				"monotonically decreasing, %f and %f aren't",
-					psir, STB [i] . sir);
-		psir = STB [i] . sir;
-		if (STB [i] . ber < 0)
-			excptn ("Root: BER entries in <ber> must not be "
-				"negative, %f is", STB [i] . ber);
-		if (STB [i] . ber <= pber)
-			excptn ("Root: BER entries in <ber> must be "
-				"monotonically increasing, %f and %f aren't",
-					pber, STB [i] . ber);
-		pber = STB [i] . ber;
-	}
-
-	// The cutoff threshold wrt to background noise: the default means no
-	// cutoff
-	cutoff = -HUGE;
-	if ((cur = sxml_child (data, "cutoff")) != NULL) {
-		att = sxml_txt (cur);
-		if (parseNumbers (att, 1, np) != 1)
-			xevi ("<cutoff>", "<channel>", att);
-		cutoff = np [0].DVal;
+		// Neutrino channel
+		if ((att = sxml_attr (prp, "range")) != NULL) {
+			nr = parseNumbers (att, 1, np);
+			if (nr == 0)
+				xeai ("range", "<propagation>", att);
+			dref = np [0].DVal;
+			if (dref <= 0.0)
+				excptn ("Root: the propagation range must be > "
+					"0.0, is %g", dref);
+		} else {
+			dref = HUGE;
+		}
 	}
 
 	// Frame parameters
@@ -1857,12 +1979,19 @@ PTErr3:
 		xenf ("<frame>", "<channel>");
 	att = sxml_txt (cur);
 	np [0] . type = np [1] . type = np [2] . type = TYPE_LONG;
-	if (parseNumbers (att, 3, np) != 3)
-		xevi ("<frame>", "<channel>", att);
-
-	syncbits = (int) (np [0].LVal);
-	bpb      = (int) (np [1].LVal);
-	frml     = (int) (np [2].LVal);
+	if ((nr = parseNumbers (att, 3, np)) != 3) {
+		if (nr != 2) {
+			xevi ("<frame>", "<channel>", att);
+		} else {
+			syncbits = 0;
+			bpb      = (int) (np [0].LVal);
+			frml     = (int) (np [1].LVal);
+		}
+	} else {
+		syncbits = (int) (np [0].LVal);
+		bpb      = (int) (np [1].LVal);
+		frml     = (int) (np [2].LVal);
+	}
 
 	if (syncbits < 0 || bpb <= 0 || frml < 0)
 		xevi ("<frame>", "<channel>", att);
@@ -1954,83 +2083,6 @@ RVErr:
 		ivc [XVMAP_RATES] = new IVMapper (nr, wt, dta);
 	}
 
-	// Power
-
-	if ((cur = sxml_child (data, "power")) == NULL)
-		xenf ("<power>", "<network>");
-
-	att = sxml_txt (cur);
-
-	// Check for a single double value first
-	np [0] . type = TYPE_double;
-	if (parseNumbers (att, 2, np) == 1) {
-		// We have a single entry case
-		wt = new word [1];
-		dta = new double [1];
-		wt [0] = 0;
-		dta [0] = np [0] . DVal;
-	} else {
-		for (i = 0; i < NPTABLE_SIZE; i += 2) {
-			np [i ]  . type = TYPE_int;
-			np [i+1] . type = TYPE_double;
-		}
-		nr = parseNumbers (att, NPTABLE_SIZE, np);
-		if (nr > NPTABLE_SIZE)
-			xeni ("<power>");
-
-		if (nr < 2 || (nr % 2) != 0) 
-			excptn ("Root: number of items in <power> must "
-					"be either 1, or a nonzero multiple of "
-						"2");
-		nr /= 2;
-		wt = new word [nr];
-		dta = new double [nr];
-
-		for (j = 0; j < nr; j++) {
-			wt [j] = (word) (np [2*j] . IVal);
-			dta [j] = np [2*j + 1] . DVal;
-		}
-		xmon (nr, wt, dta, "<power>");
-	}
-
-	ivc [XVMAP_PS] = new IVMapper (nr, wt, dta, YES);
-
-	// RSSI map (optional for shadowing)
-
-	if ((cur = sxml_child (data, "rssi")) != NULL) {
-
-		att = sxml_txt (cur);
-
-		for (i = 0; i < NPTABLE_SIZE; i += 2) {
-			np [i ]  . type = TYPE_int;
-			np [i+1] . type = TYPE_double;
-		}
-
-		nr = parseNumbers (att, NPTABLE_SIZE, np);
-		if (nr > NPTABLE_SIZE)
-			xeni ("<rssi>");
-
-		if (nr < 2 || (nr % 2) != 0) 
-			excptn ("Root: number of items in <rssi> must "
-					"be a nonzero multiple of 2");
-		nr /= 2;
-		wt = new word [nr];
-		dta = new double [nr];
-
-		for (j = 0; j < nr; j++) {
-			wt [j] = (word) (np [2*j] . IVal);
-			dta [j] = np [2*j + 1] . DVal;
-		}
-		xmon (nr, wt, dta, "<rssi>");
-
-		ivc [XVMAP_RSSI] = new IVMapper (nr, wt, dta, YES);
-
-	} else if (ctype == 1 && sfname != NULL) {
-
-		excptn ("Root: \"sampled\" propagation model with non-empty "
-			"sample file requires RSSI table");
-	}
-
 	// Channels
 
 	if ((cur = sxml_child (data, "channels")) == NULL) {
@@ -2051,8 +2103,7 @@ RVErr:
 
 			att = sxml_txt (cur);
 
-			for (i = 0; i < NPTABLE_SIZE; i++)
-				np [i] . type = TYPE_double;
+			sptypes (np, TYPE_double);
 
 			j = parseNumbers (att, NPTABLE_SIZE, np);
 
@@ -2082,13 +2133,16 @@ RVErr:
 
 	// Create the channel
 
-	if (ctype == 0)
+	if (__pi_channel_type == CTYPE_SHADOWING)
 		create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db,
 			bn_db, cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
-	else
+	else if (__pi_channel_type == CTYPE_SAMPLED)
 		create RFSampled (NN, STB, nb, K, dref, sigm, bn_db, bn_db,
 			cutoff, syncbits, bpb, frml, ivc, sfname, symm,
 				mxc, NULL);
+	else if (__pi_channel_type == CTYPE_NEUTRINO)
+		create RFNeutrino (NN, dref, bpb, frml, ivc, mxc);
+
 	// Packet cleaner
 	Ether->setPacketCleaner (packetCleaner);
 
@@ -2780,7 +2834,8 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 			if (parseNumbers (sxml_txt (cur), 1, np) != 1)
 				xesi ("<power>", xname (nn, lab));
 			RF->Power = (word) (np [0] . LVal);
-			if (!(Ether->PS->exact (RF->Power)))
+			if (__pi_channel_type != CTYPE_NEUTRINO &&
+			    !(Ether->PS->exact (RF->Power)))
 				excptn ("Root: power index %1d (in %s) does not"
 					" occur in <channel><power>",
 						RF->Power, xname (nn, lab));
@@ -3975,8 +4030,11 @@ data_sa_t *BoardRoot::readSensParams (sxml_t data, const char *esn) {
 		return SA;
 	}
 
-	if (SA->NS != 0)
+	if (SA->NS != 0) {
 		SA->Sensors = sa_doit ("sensor", &(SA->SOff), es, data, SA->NS);
+		if (SA->NA != 0)
+			print ("\n");
+	}
 
 	if (SA->NA != 0)
 		SA->Actuators = sa_doit ("actuator", &(SA->AOff), es, data,
@@ -4580,9 +4638,11 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 				// This one has a reasonable default
 				NRF->Rate = Ether->Rates->lower ();
 
-			if (NRF->Power == WNONE)
+			if (NRF->Power == WNONE) {
 				// And so does this one
-				NRF->Power = Ether->PS->lower ();
+				NRF->Power = __pi_channel_type ==
+				    CTYPE_NEUTRINO ? 0 : Ether->PS->lower ();
+			}
 
 			if (NRF->Channel == WNONE)
 				// And so does this

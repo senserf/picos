@@ -1060,3 +1060,9 @@ PG131017A:
     The first number applies to the input end, and the second number applies to     the input end. The above may be a recommended setting for a high rate/high
     (output) volume scenario. If there is a single number, then it applies to
     both ends at the same time.
+
+PG131030A:	SIDE >= PG131030A
+
+    The first cut of the neutrino propagation model (read the doc, the blue
+    parts). Tested very superficially, so be careful. I will be testing more in
+    the next few days.

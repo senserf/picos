@@ -43,6 +43,11 @@
 #define	UART_IMODE_P		2	// PHY (TCV) P-mode (packet, persistent)
 #define	UART_IMODE_L		3	// PHY (TCV) mode (line)
 
+// Channel types
+#define	CTYPE_SHADOWING		0
+#define	CTYPE_SAMPLED		1
+#define	CTYPE_NEUTRINO		2
+
 #define	TheNode		((PicOSNode*)TheStation)
 #define	ThePckt		((PKT*)ThePacket)
 #define	ThePPcs		((_PP_*)TheProcess)
@@ -57,6 +62,7 @@ void __pi_panel_signal (Long);
 Boolean __pi_validate_uart_rate (word);
 
 extern	const char __pi_hex_enc_table [];
+extern	int __pi_channel_type;
 
 void	syserror (int, const char*);
 
@@ -831,6 +837,31 @@ process RM_Xmitter : _PP_ (PicOSNode) {
 	void pwr_on ();
 	void pwr_off ();
 	void set_congestion_indicator (word);
+};
+
+// Neutrino channel
+
+process RN_Receiver : _PP_ (PicOSNode) {
+
+	rfm_intd_t	*rf;
+
+	states { RCV_GETIT, RCV_GO };
+
+	void setup ();
+
+	perform;
+};
+
+process RN_Xmitter : _PP_ (PicOSNode) {
+
+	rfm_intd_t	*rf;
+
+	void setup ();
+	void pwr_on (), pwr_off ();
+
+	states { XM_LOOP, XM_TXDONE };
+
+	perform;
 };
 
 // ============================================================================
