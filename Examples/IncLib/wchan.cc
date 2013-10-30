@@ -56,13 +56,16 @@ void RadioChannel::setup (
 			(stb [i].sir - stb [i+1].sir);
 
 	print (nt, "  Number of nodes:", 10, 26);
-	print (no, "  Background noise (dBm):", 10, 26);
+	if (no != -HUGE)
+		print (no, "  Background noise (dBm):", 10, 26);
 	print (BitsPerByte, "  Phys bits per byte:", 10, 26);
 	print (PacketFrameLength, "  Phys header length:", 10, 26);
-	print ("\n   SIR(dB)           BER\n");
-	for (i = 0; i < STBL; i++)
-		print (form ("  %8g    %10g\n", linTodB (stb [i].sir),
-			stb [i].ber));
+	if (STBL) {
+		print ("\n   SIR(dB)           BER\n");
+		for (i = 0; i < STBL; i++)
+			print (form ("  %8g    %10g\n", linTodB (stb [i].sir),
+				stb [i].ber));
+	}
 
 	if (Rates) {
 		print ("\n      Rate         BPS  Boost(dB)\n");

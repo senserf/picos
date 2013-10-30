@@ -4,7 +4,6 @@
 // Shadowing channel model: multiple channels and rates
 
 #include "wchansh.h"
-
 #include "wchan.cc"
 
 //#undef trc

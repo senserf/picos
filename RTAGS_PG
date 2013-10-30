@@ -528,3 +528,7 @@ PG131015A:
 
 	   The header file <unistd.h> is now included (in LIB/lib.h) to appease
 	   the newest gcc compiler.
+
+PG131030A:
+
+	   Added the neutrino channel model (wchannt.cc, wchannt.h) to IncLib.
