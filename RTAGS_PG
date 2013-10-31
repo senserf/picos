@@ -1066,3 +1066,10 @@ PG131030A:	SIDE >= PG131030A
     The first cut of the neutrino propagation model (read the doc, the blue
     parts). Tested very superficially, so be careful. I will be testing more in
     the next few days.
+
+PG131031A:
+
+    Fixed a problem with the neutrino channel model causing SIGSEGV when a node
+    tried to change the transmit power.
+
+    A few cleanups in the doc.

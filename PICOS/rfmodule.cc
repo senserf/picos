@@ -633,6 +633,10 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_SETPOWER:
 
+		if (__pi_channel_type == CTYPE_NEUTRINO)
+			// Ignore
+			break;
+
 		// Make sure the argument is decent
 		if (val != NULL) {
 			v = *val;
@@ -647,7 +651,9 @@ static int rfm_option (int opt, address val) {
 
 	    case PHYSOPT_GETPOWER:
 
-		ret = (word) (Ether->PS->getvalue (rfi->getXPower ()));
+		ret = (__pi_channel_type == CTYPE_NEUTRINO) ? 0 :
+			(word) (Ether->PS->getvalue (rfi->getXPower ()));
+
 		if (val != NULL)
 			*val = ret;
 		break;
