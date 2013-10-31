@@ -173,6 +173,7 @@ static void statmsg () {
 	msgblk->smemstat [0] = memfree (0, msgblk->smemstat + 1);
 	msgblk->smemstat [2] = stackfree ();
 	msgblk->spower = power_up;
+	msgblk->swtch = switch_on;
 
 	tcv_endp (msg);
 }

@@ -28,4 +28,4 @@
 //#undef	EE_USE_UART
 //#define	EE_USE_UART	1
 
-// #define	PIN_DEFAULT_P2DIR	0xFE
+#define	PIN_DEFAULT_P2DIR	0xFE

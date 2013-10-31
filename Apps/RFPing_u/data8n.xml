@@ -1,0 +1,138 @@
+<network nodes="8">
+    <grid>0.1m</grid>
+    <tolerance quality="2">1E-4</tolerance>
+    <xi:include href="neutrino.xml"/>
+    <nodes>
+	<defaults>
+	    <memory>2048 bytes</memory>
+	    <radio>
+	    	<preamble>0 bits</preamble>
+	    	<preamble>24 bits</preamble>
+	    	<lbt>
+			delay			8msec
+			threshold		-109.0dBm
+	    	</lbt>
+	    	<backoff>
+			min			8msec
+			max			303msec
+	    	</backoff>
+	    </radio>
+	    <eeprom size="4096"></eeprom>
+	    <iflash size="256,2"></iflash>
+	    <uart rate="9600" bsize="256">
+		<input source="socket"></input>
+		<output target="socket" type="held"></output>
+	    </uart>
+	    <leds number="3">
+		<output target="socket"></output>
+		<label fg="yellow" bg="brown">L0</label>
+		<label fg="green" bg="magenta">L1</label>
+		<label fg="red" bg="beige">L2</label>
+		<color on="pink" off="blue"/>
+		<color on="#FFFF00" off="#0000FF"/>
+		<color on="white" off="black"/>
+	    </leds>
+	    <pins number="6" dac="2 4">
+		<label fg="#FFFF00" bg="#0000FF" index="2">First</label>
+		<label fg="#00FFFF" bg="#FF0000" index="1">Second</label>
+		<label fg="#FF00FF" bg="#00FF00" index="0">Third</label>
+		<output target="socket"></output>
+		<status>1111111111</status>
+		<values>0000000000</values>
+	    </pins>
+	    <sensors>
+		<input source="socket"></input>
+		<output target="socket"></output>
+		<sensor number="0" vsize="2" delay="0.6">
+			2047
+			<label fg="red" bg="yellow">PAR</label>
+		</sensor>
+		<sensor number="1" vsize="2" delay="0.220">
+			16381
+			<label fg="blue" bg="yellow">TEMP</label>
+		</sensor>
+		<sensor number="2" vsize="2" delay="0.06">
+			4095
+			<label>HUMID</label>
+		</sensor>
+		<actuator vsize="2" delay="0.0">
+			15
+			<label bg="pink">Switch</label>
+		</actuator>
+	    </sensors>
+	    <ptracker>
+		<output target="socket"/>
+		<module id="cpu">0.3 0.0077</module>
+		<module id="radio">0.0004 16.0 30.7 30.7</module>
+		<module id="storage">0.030 0.030 10.0 15.0 17.0 16.0</module>
+		<module id="sensors">0.0 2.5</module>
+	    </ptracker>
+	    <color led="0" fg="green" bg="beige"/>
+	    <color led="1" fg="blue" bg="beige"/>
+	    <color led="2" fg="red" bg="beige"/>
+	    <color led="3" fg="yellow" bg="beige"/>
+	</defaults>
+	<node number="0">
+	    <color pin="0" bg="#ffffff" fg="#ff0000"/>
+	    <sensors>
+		<input source="socket"></input>
+		<output target="socket"></output>
+		<sensor number="-2" vsize="2" delay="0.1">
+			2000
+			<label fg="pink" bg="white">Int Tmp</label>
+		</sensor>
+		<sensor number="-1" vsize="2" delay="0.2">
+			2500
+			<label fg="brown" bg="blue">Int Vol</label>
+		</sensor>
+	    </sensors>
+	    <location>1.0 1.0</location>
+	    <uart rate="9600" bsize="256">
+		<input source="string">
+			s 1024\nr\n
+		</input>
+	    </uart>
+	    <leds_window display="yes">800,210</leds_window>
+	</node>
+	<node number="1">
+	    <color pin="0" fg="red" bg="lightgray"/>
+	    <color pin="1" fg="blue" bg="yellow"/>
+	    <location>2.0 1.5</location>
+	    <highlight fg="orange" bg="black">
+		yellow orange red green
+	    </highlight>
+	    <leds_window display="yes">950,210</leds_window>
+	</node>
+	<node number="2">
+	    <location>3.0 1.0</location>
+	    <leds number="3">
+		<output target="socket"></output>
+		<label fg="green" bg="bisque">Status</label>
+		<label fg="red" bg="bisque">Xmt</label>
+		<label fg="orange" bg="bisque">Rcv</label>
+		<color on="green" off="black"/>
+		<color on="red" off="black"/>
+		<color on="orange" off="black"/>
+		<window display="yes">1100,210</window>
+	    </leds>
+	</node>
+	<node number="3">
+	    <location>4.0 1.5</location>
+	</node>
+	<node number="4">
+	    <location>1.0 2.0</location>
+	</node>
+	<node number="5">
+	    <location>2.0 2.5</location>
+	</node>
+	<node number="6">
+	    <color solid="purple"/>
+	    <location>3.0 2.0</location>
+	    <emul><output target="socket" type="held"></output></emul>
+	</node>
+	<node number="7">
+	    <location>4.0 2.5</location>
+	    <emul><output target="socket" type="held"></output></emul>
+	</node>
+    </nodes>
+</network>

@@ -452,7 +452,7 @@ proc parse_cmd_system { } {
 			}
 
 			"switch" {
-				set switch [parse_choice { on off } "switch"]
+				set switch [parse_choice { off on } "switch"]
 				incr otr
 			}
 

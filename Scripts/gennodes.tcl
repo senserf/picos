@@ -20,12 +20,15 @@ exec tclsh "$0" "$@"
 # is random within the rectangle: XL, YL, XH, YH.
 #
 #	<node number="210" type="simps" start="on">
-#		<location>5 10.0 12.0</location>
+#		<location>5 10.0 12.0 32.0 44.0</location>
 #		...
 #	</node>
 #
 # Generates 210 nodes, starting number 0, location is grid with 5 rows,
-# horizontal distance 10.0, vertical distance 12.0.
+# horizontal distance 10.0, vertical distance 12.0, the coordinates of the
+# first node (left lower corner, if you will), are 32.0 and 44.0. The last
+# two numbers can be absent (defaulting to 0.0 0.0), but either both must be
+# present or both absent (to tell the case from the first one).
 #
 
 proc valnum { n { min "" } { max "" } } {
@@ -239,8 +242,9 @@ proc prepare_data { } {
 			abt "In <location>,\
 				YL = $P(YL) is greater than YH = $P(YH)"
 		}
-	} elseif { $ll == 3 }  {
-		# number of rows + 2 grid distances
+	} elseif { $ll == 3 || $ll == 5 } {
+		# number of rows + 2 grid distances + 2 (optional) coordinates
+		# of the first node
 		set P(D) "g"
 		set n [lindex $lo 0]
 		# this is the number of rows, which must be <= the
@@ -250,15 +254,27 @@ proc prepare_data { } {
 		}
 		set P(RO) $n
 		# two more FP numbers expected
-		foreach n [lrange $lo 1 end] mo { "DX" "DY" } {
+		foreach n [lrange $lo 1 2] mo { "DX" "DY" } {
 			if [catch { valfnum $n 0.0 } n] {
 				abt "Illegal grid parameter in <location>, $n"
 			}
 			set P($mo) $n
 		}
+		if { $ll == 5 } {
+			foreach n [lrange $lo 3 5] mo { "SX" "SY" } {
+				if [catch { valfnum $n 0.0 } n] {
+					abt "Illegal starting node coordinate\
+						 in <location>, $n"
+				}
+				set P($mo) $n
+			}
+		} else {
+			set P(SX) 0.0
+			set P(SY) 0.0
+		}
 	} else {
 		abt "Illegal contents of <location>,\
-			must be XL, YL, XH, YH, or NR, DX, DY"
+			must be XL, YL, XH, YH, or NR, DX, DY \[, SX, SY\]"
 	}
 }
 
@@ -310,9 +326,9 @@ proc generate_nodes { } {
 		# number of columns
 		set nc [expr ($P(NODES) + $P(RO) - 1) / $P(RO)]
 		set nn 0
-		set yy $P(DY)
+		set yy $P(SY)
 		for { set r 0 } { $r < $P(RO) } { incr r } {
-			set xx $P(DX)
+			set xx $P(SX)
 			for { set c 0 } { $c < $nc } { incr c } {
 				if { $nn >= $P(NODES) } {
 					return
