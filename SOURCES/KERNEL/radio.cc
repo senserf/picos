@@ -1818,7 +1818,7 @@ void Transceiver::startTransfer (Packet *p) {
 	Assert (TRate != RATE_0 && TRate != RATE_inf,
 		"Transceiver->startTransfer: %s, TRate undefined",
 			getSName ());
-	Assert (Preamble > 0, "Transceiver->startTransfer: %s, preamble "
+	Assert (Preamble >= 0, "Transceiver->startTransfer: %s, preamble "
 		"length is undefined", getSName ());
 
 	Activity->TRate = (Activity->Tcv = this)->TRate;

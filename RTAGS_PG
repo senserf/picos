@@ -532,3 +532,10 @@ PG131015A:
 PG131030A:
 
 	   Added the neutrino channel model (wchannt.cc, wchannt.h) to IncLib.
+
+PG131031A:
+
+	   Admitting preamble length zero (may be useful in combination with
+	   the neutrino channel model). Previously, preamble length had to be
+	   at least 1. I see no reason why it cannot be zero (as long as the
+	   assessment methods can live with it).
