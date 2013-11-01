@@ -378,3 +378,30 @@ WO130919A:
  - cosmetics on LCD: FINI -> END (I admit, segmented FINI looked bad)
  - booth.doc updated with mobility alarms. images.zip regenerated.
 
+WO131031A:
+
+ BOOTH/show v0.2 update:
+ - var pinda_id (K command)
+ - var beacon freqs for profi, alrm msg (F command)
+ - ossi throttling (O command)
+ - oss out on tag insert failures (a LOT of output if oss_out is 2 (default)
+ - xmls for large models (100pattern, add100, demo100, demo100_n, neutrino,
+   wm_demo_n)
+ - minor internal cosmetics:
+   - rearranged app_flags
+   - trueconst are back
+   - const char * for literals (to supress warnings
+
+ - Still missing or outstanding:
+   - documentation, any kind;
+   - good tests, also over BT;
+   - neutrinos take more CPU & RAM, but are stable 
+   - with RF, we run out of nodes' memory (see demo100 vs demo100_n), likely
+     because of LBT it starts complainig after 400-450s
+   - With my laptop, I lost eeprom / restart updates, but I don't want
+     to restore them before we know what we need with the server. E.g., we'll
+     likely to go off on lost connections, so perhaps the server should keep
+     the context and load it via commands at node's (re)start... (?) If we
+     have dongles to keep context over power cycles and don't store history
+     or neighbourhood data, we should scrap eeprom and go for FIM.
+
