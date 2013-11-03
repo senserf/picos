@@ -405,3 +405,9 @@ WO131031A:
      have dongles to keep context over power cycles and don't store history
      or neighbourhood data, we should scrap eeprom and go for FIM.
 
+WO131102A:
+ BOOTH/show v0.2 update:
+ - some documentation (../media/booth.doc); however crappy it is, we need
+   a sync point.
+ - cosmetics for virt flag, as in the doc.
+
