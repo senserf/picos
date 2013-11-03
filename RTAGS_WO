@@ -411,3 +411,10 @@ WO131102A:
    a sync point.
  - cosmetics for virt flag, as in the doc.
 
+WO131103A:
+ Minor BOOTH/show v0.2 update:
+ - oss_out default changed to 1. For small models it doesn't matter, for large
+   ones it can be easily changed by O2 command if massive NEW flow is needed.
+ - local tag list now forces out virtual dongles if a real one is to be added.
+   OSS will see output like for gone tags, with 'forcedOut' instead of 'gone'.
+
