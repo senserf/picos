@@ -3242,7 +3242,7 @@ proc val_prj_exists { dir { try 0 } } {
 	array unset P "FL,c,*"
 	array unset P "FL,T,*"
 
-	set P(PL) $pl
+	set P(PL) [lsort $pl]
 
 	wm title . "PIP $ST(VER), project [prj_name $dir]"
 

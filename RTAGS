@@ -667,3 +667,9 @@ PG130818A:
 PG131015A:
 
 	Fixed a very minor bug not worthy commenting upon.
+
+PG131104A:
+
+	Fixed a problem with board lists in multiprogram projects causing
+	misassignments of boards to programs when switching between Windows
+	and Linux.
