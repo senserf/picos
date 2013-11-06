@@ -3681,3 +3681,9 @@ PG131031A:
 
 	A few irrelevant cosmetics, e.g., neutrion propagation model added to
 	Apps/DataLib/CHANNELS/.
+
+PG131106A:
+
+	Praxis TESTS/BVSHIFT for Gerry to test the battery bumper. Read
+	README.txt in the praxis directory.
+

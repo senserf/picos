@@ -1372,7 +1372,7 @@ variable OSSMC
 set OSSP(OPTIONS) { match number skip string start save restore then return
 			subst checkpoint }
 
-set OSSI(OPTIONS) { id speed length parser }
+set OSSI(OPTIONS) { id speed length parser connection }
 
 set OSSI(SPEEDS) { 1200 2400 4800 9600 14400 19200 28800 38400 76800 115200
 			256000 }
@@ -2224,6 +2224,25 @@ proc oss_interface { args } {
 			set ::PM(PRS) $arg
 		}
 
+		"connection" {
+
+			set conn ""
+			set arg [string tolower $arg]
+			if { [string first "v" $arg] >= 0 } {
+				append conn "v"
+			}
+			if { [string first "r" $arg] >= 0 } {
+				append conn "r"
+			}
+			if { $conn == "" } {
+				oss_ierr "oss_interface, illegal -connection\
+					argument, must be vuee, real, or\
+					vuee+real"
+			}
+
+			set ::PM(CON) $conn
+		}
+
 		}
 		###############################################################
 	}
@@ -2874,6 +2893,9 @@ set PM(MPL)	82
 # Command parser functions
 set PM(PRS)	""
 
+# connection type
+set PM(CON)	"rv"
+
 # VUEE socket connection timeout
 set PM(VUT)	[expr 6 * 1000]
 
@@ -3342,7 +3364,7 @@ proc sy_reconnect { } {
 #
 # Responds to the Connect button, i.e., connects or disconnects
 #
-	global ST WI MO
+	global ST WI MO PM
 
 	set st [$WI(CON) cget -text]
 
@@ -3355,6 +3377,13 @@ proc sy_reconnect { } {
 	}
 
 	# connect
+	if { [string first "v" $PM(CON)] < 0 } {
+		# real only, do not show the window
+		sy_start_uart
+		$WI(CON) configure -text "Disconnect"
+		sy_updtitle
+		return
+	}
 
 	set w .params
 	set MO(WIN) $w
@@ -3379,9 +3408,15 @@ proc sy_reconnect { } {
 	set f [labelframe $w.bf -padx 4 -pady 4 -text "VUEE"]
 	pack $f -side top -expand y -fill x
 
-	set WI(VUS) 0
-	set c [checkbutton $f.vs -state normal -variable WI(VUS) \
-		-command "set MO(GOF) -2"]
+	if { [string first "r" $PM(CON)] >= 0 } {
+		# choice between VUEE and real
+		set WI(VUS) 0
+		set c [checkbutton $f.vs -state normal -variable WI(VUS) \
+			-command "set MO(GOF) -2"]
+	} else {
+		set WI(VUS) 1
+	}
+
 	pack $c -side top -anchor w -expand no
 
 	set f [frame $f.b]
