@@ -2226,17 +2226,32 @@ proc oss_interface { args } {
 
 		"connection" {
 
+			if $::PM(CVR) {
+				# overriden by call parameters
+				break
+			}
+				
+			set cty [string tolower [lindex $arg 0]]
+
+			set err [sy_valvp [lrange $arg 1 end]]
+			if { $err != "" } {
+				oss_ierr "oss_interface, $err"
+			}
+
 			set conn ""
-			set arg [string tolower $arg]
-			if { [string first "v" $arg] >= 0 } {
+
+			if { [string first "v" $cty] >= 0 } {
 				append conn "v"
 			}
-			if { [string first "r" $arg] >= 0 } {
+			if { [string first "r" $cty] >= 0 } {
 				append conn "r"
+			}
+			if { $conn == "v" && [string first "*" $cty] >= 0 } {
+				append conn "*"
 			}
 			if { $conn == "" } {
 				oss_ierr "oss_interface, illegal -connection\
-					argument, must be vuee, real, or\
+					argument, must be vuee, vuee*, real, or\
 					vuee+real"
 			}
 
@@ -2896,6 +2911,12 @@ set PM(PRS)	""
 # connection type
 set PM(CON)	"rv"
 
+# connection type override flag
+set PM(CVR)	0
+
+# device list for UART connection
+set PM(DVL)	""
+
 # VUEE socket connection timeout
 set PM(VUT)	[expr 6 * 1000]
 
@@ -3360,6 +3381,52 @@ proc sy_term_enable { level } {
 	}
 }
 
+proc sy_valvp { vp } {
+#
+# Validate VUEE params
+#
+	global WI
+
+	set err ""
+
+	if { [llength $vp] >= 3 } {
+		# host name
+		set WI(WUH) [lindex $vp 0]
+		if { $WI(WUH) != "localhost" && [sy_valaddr $WI(WUH)] != 0 } {
+			lappend err "illegal host name $WI(WUH)"
+		}
+		set vp [lrange $vp 1 2]
+	}
+
+	if { [llength $vp] == 2 } {
+		# port number
+		set val [lindex $vp 0]
+		if [catch { oss_valint $val 1 65535 } WI(WUP)] {
+			lappend err "illegal port number $val, $WI(WUP)"
+		}
+		set vp [lrange $vp 1 end]
+	}
+
+	if { [llength $vp] == 1 } {
+		set val [lindex $vp 0]
+		if { [string tolower [string index $val 0]] == "h" } {
+			set WI(HID) 1
+			set val [string range $val 1 end]
+		}
+		if [catch { oss_valint $val 0 65535 } vam] {
+			lappend err "illegal node number $val, $vam"
+		} else {
+			set WI(WUN) $vam
+		}
+	}
+
+	if { $err != "" } {
+		set err [join $err ", "]
+	}
+
+	return $err
+}
+
 proc sy_reconnect { } {
 #
 # Responds to the Connect button, i.e., connects or disconnects
@@ -3377,9 +3444,18 @@ proc sy_reconnect { } {
 	}
 
 	# connect
+
 	if { [string first "v" $PM(CON)] < 0 } {
 		# real only, do not show the window
 		sy_start_uart
+		$WI(CON) configure -text "Disconnect"
+		sy_updtitle
+		return
+	}
+
+	if { [string first "*" $PM(CON)] >= 0 } {
+		# VUEE with preset parameters, no need for the window
+		sy_start_vuee
 		$WI(CON) configure -text "Disconnect"
 		sy_updtitle
 		return
@@ -3413,11 +3489,10 @@ proc sy_reconnect { } {
 		set WI(VUS) 0
 		set c [checkbutton $f.vs -state normal -variable WI(VUS) \
 			-command "set MO(GOF) -2"]
+		pack $c -side top -anchor w -expand no
 	} else {
 		set WI(VUS) 1
 	}
-
-	pack $c -side top -anchor w -expand no
 
 	set f [frame $f.b]
 	pack $f -side top -expand y -fill both
@@ -3530,13 +3605,16 @@ proc sy_reconnect { } {
 
 proc sy_start_uart { } {
 
+	global PM
+
 	autocn_start \
 		sy_uart_open \
 		noss_close \
 		sy_send_handshake \
 		sy_handshake_ok \
 		sy_connected \
-		sy_poll
+		sy_poll \
+		$PM(DVL)
 }
 
 proc sy_start_vuee { } {
@@ -3752,9 +3830,112 @@ set USPEC {}
 ###############################################################################
 ###############################################################################
 
+###############################################################################
+#
+# Usage:
+#
+#	-I interface file (also -F)
+#	-V host port [h]node
+#	-V port [h]node
+#	-V [h]node
+#	-V
+#	-U dev ... dev (also -R)
+#	-U
+#
+###############################################################################
+
+proc sy_args { } {
+
+	global argv USPEC PM WI
+
+	while { $argv != "" } {
+
+		set arg [lindex $argv 0]
+		set argv [lrange $argv 1 end]
+
+		if { $arg == "-F" || $arg == "-I" } {
+			# interface file
+			if { $USPEC != "" } {
+				sy_abort "(usage) -F illegal with compiled-in\
+					specification"
+			}
+			if [info exists A(f)] {
+				sy_abort "(usage) duplicate argument $arg"
+			}
+			set PM(DSF) [lindex $argv 0]
+			if { $PM(DSF) == "" } {
+				sy_abort "(usage) interface file required\
+					following $arg"
+			}
+			set argv [lrange $argv 1 end]
+			set A(f) ""
+			continue
+		}
+
+		if { $arg == "-V" } {
+			if [info exists A(u)] {
+				sy_abort "(usage) -V and -U cannot be mixed"
+			}
+			if [info exists A(v)] {
+				sy_abort "(usage) duplicate argument -V"
+			}
+			set vp ""
+			for { set i 0 } { $i < 3 } { incr i } {
+				set arg [lindex $argv 0]
+				if { $arg == "" ||
+					       [string index $arg 0] == "-" } {
+					break
+				}
+				lappend vp $arg
+				set argv [lrange $argv 1 end]
+			}
+
+			if { $vp == "" } {
+				set PM(CON) "v"
+			} else {
+				set err [sy_valvp $vp]
+				if { $err != "" } {
+					sy_abort "(usage) $err"
+				}
+				set PM(CON) "v*"
+			}
+			set PM(CVR) 1
+			set A(v) ""
+			continue
+		}
+
+		if { $arg == "-U" || $arg == "-R" } {
+			if [info exists A(v)] {
+				sy_abort "(usage) -V and -U cannot be mixed"
+			}
+			if [info exists A(u)] {
+				sy_abort "(usage) duplicate argument -U"
+			}
+			# extract the device list
+			while 1 {
+				set arg [lindex $argv 0]
+				if { $arg == "" ||
+					       [string index $arg 0] == "-" } {
+					break
+				}
+				lappend PM(DVL) $arg
+				set argv [lrange $argv 1 end]
+			}
+			set A(u) ""
+			set PM(CON) "r"
+			set PM(CVR) 1
+			continue
+		}
+
+		sy_abort "(usage) illegal argument $arg"
+	}
+}
+				
 proc sy_init { } {
 
 	global PM WI USPEC ST argv
+
+	catch { close stdin}
 
 	unames_init $ST(DEV) $ST(SYS)
 	# start by creating the window (in disabled state); we will use it
@@ -3764,12 +3945,9 @@ proc sy_init { } {
 	# disable all widgets
 	sy_term_enable 0
 
+	sy_args
+
 	if { $USPEC == "" } {
-		# no inline specification file, we have to read it
-		set argv [lindex $argv 0]
-		if { $argv != "" } {
-			set PM(DSF) $argv
-		}
 		if [catch { open $PM(DSF) "r" } ifd] {
 			sy_abort "Cannot open specification file $PM(DSF), $ifd"
 		}

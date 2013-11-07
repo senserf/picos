@@ -3687,3 +3687,9 @@ PG131106A:
 	Praxis TESTS/BVSHIFT for Gerry to test the battery bumper. Read
 	README.txt in the praxis directory.
 
+PG131107A:
+
+	The oss script integrated with pip (in a way that should be more or
+	less obvious).
+
+	Some program call arguments added to oss (see the document).
