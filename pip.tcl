@@ -108,6 +108,7 @@ set LFTypes {
 	{ Options { "^options\[_a-z\]*\\.sys$" "^options\\.vuee?$" }
 		{ Options { ".sys" ".vue" ".vuee" } } }
 	{ XMLData { "\\.xml$" "\\.geo$" } { XMLData { ".xml" ".geo" } } }
+	{ Scripts { "\\.tcl$" } { Scripts { ".tcl" } } }
 }
 
 ## Directory names to be ignored in the project's directory:
@@ -144,6 +145,9 @@ set CFVueeItems {
 			"UDON"		0
 			"UDTM"		0
 			"YCDN"		0
+			"OSON"		0
+			"OSNN"		0
+			"OSNH"		0
 			"VUDF"		""
 			"VUSM"		1.0
 }
@@ -311,6 +315,9 @@ set TCMD(CL) 0
 ## File descriptor of the udaemon pipe (!= "" -> udaemon running)
 set TCMD(FU) ""
 
+## File descriptor of the oss script pipe
+set TCMD(FO) ""
+
 ## File descriptor of the genimage pipe
 set TCMD(FG) ""
 
@@ -361,10 +368,6 @@ proc log { m } {
 
 proc isspace { c } {
 	return [regexp "\[ \t\n\r\]" $c]
-}
-
-proc isnum { c } {
-	return [regexp -nocase "\[0-9\]" $c]
 }
 
 proc mreplace { l ix it } {
@@ -3374,6 +3377,7 @@ proc close_project { } {
 		# in case something is running
 		abort_term
 		stop_udaemon
+		stop_oss
 		# QUESTION: do we want to auto kill bpcs (loader, piter) as
 		# well? Perhaps not.
 	}
@@ -4229,6 +4233,7 @@ proc terminate { { f "" } } {
 	stop_piter
 	stop_genimage
 	stop_udaemon
+	stop_oss
 	bpcs_kill "FL"
 	close_project
 	exit 0
@@ -4465,6 +4470,11 @@ proc loaders_conf_mgd_fsel { auto } {
 	}
 }
 
+proc oss_available { } {
+
+	return [file_present "ossi.tcl"]
+}
+
 proc do_vuee_config { } {
 
 	global P CFVueeItems
@@ -4479,6 +4489,20 @@ proc do_vuee_config { } {
 
 	while 1 {
 
+		# enable/disable widgets
+		vconf_widgets disable { cmpis dpbc udon udtm ycdn oson osnn
+			osnh vudf vusm }
+
+		if !$P(M0,VDISABLE) {
+			vconf_widgets normal { cmpis dpbc udon oson vudf vusm }
+			if $P(M0,UDON) {
+				vconf_widgets normal { udtm ycdn }
+			}
+			if $P(M0,OSON) {
+				vconf_widgets normal { osnn osnh }
+			}
+		}
+
 		set ev [md_wait]
 
 		if { $ev < 0 } {
@@ -4488,6 +4512,16 @@ proc do_vuee_config { } {
 
 		if { $ev == 1 } {
 			# accepted
+			if $P(M0,OSON) {
+				# validate node number
+				if [catch { valnum $P(M0,OSNN) 0 } val] {
+					alert "Illegal host number for oss,\
+						$val"
+					continue
+				}
+				set P(M0,OSNN) $val
+			}
+
 			dialog_to_params $CFVueeItems
 			md_stop
 			set_config
@@ -4497,9 +4531,21 @@ proc do_vuee_config { } {
 	}
 }
 
-proc mk_vuee_conf_window { } {
+proc vconf_widgets { what which } {
 
 	global P
+
+	foreach w $which {
+
+		if [info exists P(M0,$w)] {
+			$P(M0,$w) configure -state $what
+		}
+	}
+}
+
+proc mk_vuee_conf_window { } {
+
+	global P FFont
 
 	set w [md_window "VUEE configuration"]
 
@@ -4509,7 +4555,7 @@ proc mk_vuee_conf_window { } {
 	pack $f -side top -expand y -fill x
 	label $f.l -text "Disable VUEE for this project: "
 	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,VDISABLE)
+	checkbutton $f.c -variable P(M0,VDISABLE) -command "set P(M0,EV) 2"
 	pack $f.c -side right -expand n
 
 	##
@@ -4518,44 +4564,77 @@ proc mk_vuee_conf_window { } {
 	pack $f -side top -expand y -fill x
 	label $f.l -text "Compile all functions as idiosyncratic: "
 	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,CMPIS)
+	set P(M0,cmpis) [checkbutton $f.c -variable P(M0,CMPIS)]
 	pack $f.c -side right -expand n
 
 	##
 	set f $w.tk
 	frame $f
 	pack $f -side top -expand y -fill x
-	label $f.l -text "Do no propagate board config to VUEE: "
+	label $f.l -text "Do not propagate board config to VUEE: "
 	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,DPBC)
+	set P(M0,dpbc) [checkbutton $f.c -variable P(M0,DPBC)]
 	pack $f.c -side right -expand n
 
 	##
 	set f $w.tg
 	frame $f
 	pack $f -side top -expand y -fill x
-	label $f.l -text "Always run with udaemon: "
+	label $f.l -text "Run with udaemon: "
 	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,UDON)
+	set P(M0,udon) [checkbutton $f.c -variable P(M0,UDON) \
+		-command "set P(M0,EV) 2"]
 	pack $f.c -side right -expand n
 
 	##
 	set f $w.tt
 	frame $f
 	pack $f -side top -expand y -fill x
-	label $f.l -text "Terminate when udaemon quits: "
+	label $f.l -text "    Terminate when udaemon quits: "
 	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,UDTM)
+	set P(M0,udtm) [checkbutton $f.c -variable P(M0,UDTM)]
 	pack $f.c -side right -expand n
 
 	##
 	set f $w.tq
 	frame $f
 	pack $f -side top -expand y -fill x
-	label $f.l -text "Y coordinate goes up->down: "
+	label $f.l -text "    Y coordinate goes up->down: "
 	pack $f.l -side left -expand n
-	checkbutton $f.c -variable P(M0,YCDN)
+	set P(M0,ycdn) [checkbutton $f.c -variable P(M0,YCDN)]
 	pack $f.c -side right -expand n
+
+	if [oss_available] {
+
+		##
+		set f $w.og
+		frame $f
+		pack $f -side top -expand y -fill x
+		label $f.l -text "Run with oss: "
+		pack $f.l -side left -expand n
+		set P(M0,oson) [checkbutton $f.c -variable P(M0,OSON) \
+			-command "set P(M0,EV) 2"]
+		pack $f.c -side right -expand n
+
+		##
+		set f $w.ot
+		frame $f
+		pack $f -side top -expand y -fill x
+		label $f.l -text "    Node number: "
+		pack $f.l -side left -expand n
+		set P(M0,osnn) \
+		    [entry $f.c -width 4 -font $FFont -textvariable P(M0,OSNN)]
+		pack $f.c -side right -expand n
+
+		##
+		set f $w.ou
+		frame $f
+		pack $f -side top -expand y -fill x
+		label $f.l -text "    Number is host ID: "
+		pack $f.l -side left -expand n
+		set P(M0,osnh) [checkbutton $f.c -variable P(M0,OSNH)]
+		pack $f.c -side right -expand n
+	}
 
 	##
 	set f $w.th
@@ -4563,7 +4642,7 @@ proc mk_vuee_conf_window { } {
 	pack $f -side top -expand y -fill x
 	label $f.l -text "Praxis data file: "
 	pack $f.l -side left -expand n
-	button $f.b -text "Select" -command "vuee_conf_fsel"
+	set P(M0,vudf) [button $f.b -text "Select" -command "vuee_conf_fsel"]
 	pack $f.b -side right -expand n
 	label $f.f -textvariable P(M0,VUDF)
 	pack $f.f -side right -expand n
@@ -4576,6 +4655,7 @@ proc mk_vuee_conf_window { } {
 	pack $f.l -side left -expand n
 	tk_optionMenu $f.m P(M0,VUSM) \
 		"U" 0.25 0.5 1.0 2.0 3.0 4.0 5.0 10.0 20.0 50.0 100.0
+	set P(M0,vusm) $f.m
 	pack $f.m -side right -expand n
 
 	##
@@ -6440,6 +6520,88 @@ proc stop_udaemon { } {
 	}
 }
 
+proc run_oss { { auto 0 } { vuee 0 } } {
+#
+	global P TCMD
+
+	if { $P(AC) == "" || $P(CO) == "" } {
+		# no project
+		return
+	}
+
+	if { $TCMD(FO) != "" } {
+		if !$auto {
+			alert "Oss appears to be running already"
+		}
+		return
+	}
+
+	set ef [auto_execok "oss"]
+	if { $ef == "" } {
+		alert "Cannot start oss: not found on the PATH"
+		return
+	}
+
+	if [file executable $ef] {
+		set cmd "[list $ef]"
+	} else {
+		set cmd "[list sh] [list $ef]"
+	}
+
+	if $vuee {
+		append cmd " -V"
+		if [dict get $P(CO) "OSON"] {
+			# use the parameters from VUEE config
+			append cmd " "
+			if [dict get $P(CO) "OSNH"] {
+				append cmd "h"
+			}
+			append cmd [dict get $P(CO) "OSNN"]
+		}
+	} else {
+		append cmd " -U"
+	}
+
+	append cmd " 2>@1"
+
+	log "Pipe: $cmd"
+
+	if [catch { open "|$cmd" "r" } fd] {
+		alert "Cannot start oss: $fd"
+		return
+	}
+
+	set TCMD(FO) $fd
+	reset_exec_menu
+
+	# nothing will ever arrive on this pipe; we use it to
+	# find out when the script exits
+	fconfigure $fd -blocking 0 -buffering none
+	fileevent $fd readable "oss_pipe_event"
+}
+
+proc oss_pipe_event { } {
+#
+# Detect when the oss script exits
+#
+	global TCMD
+
+	if { [catch { read $TCMD(FO) } dummy] || [eof $TCMD(FO)] } {
+		stop_oss
+	}
+}
+
+proc stop_oss { } {
+#
+	global TCMD
+
+	if { $TCMD(FO) != "" } {
+		kill_pipe $TCMD(FO)
+		set TCMD(FO) ""
+		reset_exec_menu
+	}
+}
+
 proc run_vuee { { deb 0 } } {
 #
 # The VUEE model is run as a term program (because it writes to the term
@@ -6567,13 +6729,17 @@ proc run_vuee { { deb 0 } } {
 	}
 
 	stop_udaemon
+	stop_oss
 	delay 500
 
-	# check if should start udaemon
-	set uf [dict get $P(CO) "UDON"]
-
-	if { $uf && $TCMD(FU) == "" } {
+	if { [dict get $P(CO) "UDON"] && $TCMD(FU) == "" } {
+		# start udaemon
 		run_udaemon 1
+	}
+
+	if { [dict get $P(CO) "OSON"] && $TCMD(FO) == "" } {
+		# start oss
+		run_oss 1 1
 	}
 }
 
@@ -7559,6 +7725,19 @@ proc reset_exec_menu { { clear 0 } } {
 			-state $st
 	} else {
 		$m add command -label "Stop udaemon" -command stop_udaemon
+	}
+
+	if { $TCMD(FO) == "" } {
+		if [oss_available] {
+			$m add command -label "Run oss (real)" \
+				-command run_oss -state normal
+			if ![dict get $P(CO) "VDISABLE"] {
+				$m add command -label "Run oss (VUEE)" \
+					-command "run_oss 0 1" -state $st
+			}
+		}
+	} else {
+		$m add command -label "Stop oss" -command stop_oss
 	}
 
 	$m add separator

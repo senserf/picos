@@ -673,3 +673,10 @@ PG131104A:
 	Fixed a problem with board lists in multiprogram projects causing
 	misassignments of boards to programs when switching between Windows
 	and Linux.
+
+PG131107A:	PICOS >= PG131107A
+
+	The oss script integrated with PIP. The VUEE configuration dialog
+	made a bit more flexible.
+
+	
