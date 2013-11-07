@@ -1073,3 +1073,10 @@ PG131031A:
     tried to change the transmit power.
 
     A few cleanups in the doc.
+
+PG131107A:
+
+    If a single buffer length is specified in UART parameters, then that length
+    is applied to both buffers, not just to the input buffer, as before.
+
+    The doc updated and cleaned up a bit.

@@ -3303,7 +3303,7 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 		len = parseNumbers (att, 2, np);
 		if ((len != 1 && len != 2) || np [0].LVal < 0)
 			xeai ("bsize", es, att);
-		UA->UIBSize = (word) (np [0].LVal);
+		UA->UOBSize = UA->UIBSize = (word) (np [0].LVal);
 		if (len == 2) {
 			if (np [1].LVal < 0)
 				xeai ("bsize", es, att);
