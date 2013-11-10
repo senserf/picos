@@ -502,7 +502,7 @@ proc doit { } {
 	copyscript "Scripts" "oss.tcl" "" $BIN $REL(PICOS)
 	copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN $REL(VUEE)
 
-	set ScriptsToFix { pip piter udaemon genimage gdbloader }
+	set ScriptsToFix { pip piter udaemon genimage gdbloader oss }
 
 	set tcldir ""
 	if { $TCL85 != "" } {

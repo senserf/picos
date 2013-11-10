@@ -3679,7 +3679,7 @@ PG131031A:
 	The gennodes script modified as requested by Wlodek (see the comment
 	in the scripts header).
 
-	A few irrelevant cosmetics, e.g., neutrion propagation model added to
+	A few irrelevant cosmetics, e.g., neutrino propagation model added to
 	Apps/DataLib/CHANNELS/.
 
 PG131106A:
@@ -3693,3 +3693,8 @@ PG131107A:
 	less obvious).
 
 	Some program call arguments added to oss (see the document).
+
+PG131110A:
+
+	Fixed deploy to use Active Tcl for oss when the native version is below
+	8.5 (Gerry has an old version of Cygwin).
