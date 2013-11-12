@@ -418,3 +418,19 @@ WO131103A:
  - local tag list now forces out virtual dongles if a real one is to be added.
    OSS will see output like for gone tags, with 'forcedOut' instead of 'gone'.
 
+WO131111A:
+ eco_demo touched to accommodate BVSHIFT testing:
+  If BVSHIFT_TH in options_tag.sys is nonzero, it serves as the threshold
+  below which the node switches to battery booster (pin_write (9, 0)). This is
+  done once only. The sensors read int. temp & int. voltage as usual, then
+  #3 is 0 - no booster, 1 - booster, and #4 shows uptime in minutes of the
+  switch event (just at the switch). Note that this applies to ANY board
+  type.
+  To experimanters: rx_span = 1 is merciless on battery, i.e. best for this
+  exercise. Also, I did NOT touch RF freq and threshold is 0. Change those
+  as needed.
+  Tested with VUEE only (large_eco). We'd have to clean the models, as only
+  this one will work with nonzero BVSHIFT (the models should be tied to
+  board types, as sensors are far from uniform). In any case, on large_eco
+  moving voltage below threshold clears pin #9.
+
