@@ -3731,3 +3731,9 @@ PG131115A:	3 8
 		eco (cus)	      9478		     886E
 
 	so the savings are not insignificant.
+
+PG131115B:
+
+	Pin operations now do compile with CC430 CPUs.
+
+	
