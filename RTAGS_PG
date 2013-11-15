@@ -3698,3 +3698,36 @@ PG131110A:
 
 	Fixed deploy to use Active Tcl for oss when the native version is below
 	8.5 (Gerry has an old version of Cygwin).
+
+PG131115A:	3 8
+
+        I have made PicOS run with the new official mspgcc package (downloaded
+	from http://sourceforge.net/projects/mspgcc/files/Windows/).
+
+	Note: the current "experimental" version (mspgcc-20120911-experimental)
+	doesn't seem to work, so I have used mspgcc-20120406, which seems to be
+	fine. But beware that I have only tested it on RFPing_u and managed to
+	compile eco_demo (without loading it into nodes).
+
+	For a known problem, pin operations do not compile yet with CC430 CPUs.
+
+	Also note that PicOS can now compile with both versions of mspgcc,
+	i.e., our version, as well as the official one. That was more
+	difficult to accomplish that it might seem at first sight. There have
+	been a few rathes essential changes in header files. Also, the
+	official version is for Windows (sans Cygwin), so it can only deal
+	with DOS-style paths (with forward slashes).
+
+	You can easily keep both versions and rename the directories. I might
+	add something to PIP to do it for you, but it would be rather kludgy.
+
+	The new compiler generates shorter (!) code (it used to generate
+	longer code, so we were not eager to adopt it). Here's some numbers:
+
+		Program		Size (old)		Size(new)
+		RFPing_u	      545E		     4C54
+		eco (peg)	      9DB8		     9122
+		eco (tag)	      8308		     7170
+		eco (cus)	      9478		     886E
+
+	so the savings are not insignificant.

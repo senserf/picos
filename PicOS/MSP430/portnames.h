@@ -1,11 +1,16 @@
 #ifndef __pg_portnames_h
 #define	__pg_portnames_h		1
 
+#if __COMP_VERSION__ < 4
 #include <io.h>
 #include <signal.h>
+#else
+#include <msp430.h>
+#include <legacymsp430.h>
+#endif
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 

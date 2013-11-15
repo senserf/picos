@@ -43,7 +43,7 @@ typedef struct {
 		
 extern volatile systat_t __pi_systat;
 
-extern void	__bss_end;
+extern byte	*__bss_end;
 #define	MALLOC_START		((address)&__bss_end)
 
 #if	STACK_GUARD
@@ -68,5 +68,7 @@ void		__pi_release () __attribute__ ((noreturn));
 #define	INLINE		inline
 
 #define	REQUEST_EXTERNAL(p) __asm__ (".global " #p)
+
+#include "supplement_sys.h"
 
 #endif

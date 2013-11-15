@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #                                                                          #
 # See: proc bad_usage for usage                                            #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005 - 2011 All Rights Reserved    #
+# Copyright (C) Olsonet Communications, 2005 - 2013 All Rights Reserved    #
 ############################################################################
 
 set DEBUG 0
@@ -1015,12 +1015,15 @@ proc outmkf { def cpu } {
 	puts $mfd "AS=msp430-as"
 	puts $mfd "OC=msp430-objcopy -O ihex"
 	puts $mfd "SI=msp430-size -Ax"
-	puts -nonewline $mfd "CF=-mmcu=$cpu -mendup-at=main"
+	puts -nonewline $mfd "CF=-mmcu=[cputag $cpu]"
+	if { $Run(GCV) < 4 } {
+		puts -nonewline $mfd " -mendup-at=main"
+	}
 	foreach sht $def {
 		puts -nonewline $mfd " -D$sht"
 	}
 	puts $mfd ""
-	puts $mfd "AF=-mmcu=$cpu"
+	puts $mfd "AF=-mmcu=[cputag $cpu]"
 	puts $mfd "OF=-Os -g -Wundef"
 	puts $mfd "TR=Image"
 	puts $mfd "TD=./$Kfn"
@@ -1040,11 +1043,14 @@ proc outmkf { def cpu } {
 	set idirs [lsort -index 1 $idirs]
 	foreach dir $idirs {
 		set fna [lindex $dir 0]
+		set fnb $fna
 		set tag [lindex $dir 1]
+		if { $Run(DNM) == 1 } {
+			set fna [dsname $fna]
+		}
 		puts $mfd "$tag=$fna"
 		if { $Run(DNM) == 1 } {
-			# canonical names are DOS-style
-			puts $mfd "${tag}U=[uxname $fna]"
+			puts $mfd "${tag}U=[uxname $fnb]"
 		}
 	}
 	puts $mfd "# source directories"
@@ -1056,11 +1062,14 @@ proc outmkf { def cpu } {
 	set sdirs [lsort -index 1 $sdirs]
 	foreach dir $sdirs {
 		set fna [lindex $dir 0]
+		set fnb $fna
 		set tag [lindex $dir 1]
+		if { $Run(DNM) == 1 } {
+			set fna [dsname $fna]
+		}
 		puts $mfd "$tag=$fna"
 		if { $Run(DNM) == 1 } {
-			# canonical names are DOS-style
-			puts $mfd "${tag}U=[uxname $fna]"
+			puts $mfd "${tag}U=[uxname $fnb]"
 		}
 	}
 	puts $mfd "#"
@@ -1219,12 +1228,15 @@ proc outmkf_lib { def cpu } {
 	puts $mfd "AR=msp430-ar"
 	puts $mfd "RL=msp430-ranlib"
 	puts $mfd "RM=rm"
-	puts -nonewline $mfd "CF=-mmcu=$cpu -mendup-at=main"
+	puts -nonewline $mfd "CF=-mmcu=[cputag $cpu]"
+	if { $Run(GCV) < 4 } {
+		puts -nonewline $mfd " -mendup-at=main"
+	}
 	foreach sht $def {
 		puts -nonewline $mfd " -D$sht"
 	}
 	puts $mfd ""
-	puts $mfd "AF=-mmcu=$cpu"
+	puts $mfd "AF=-mmcu=[cputag $cpu]"
 	puts $mfd "OF=-Os -g -Wundef"
 	puts $mfd "TR=LIBRARY/libpicos.a"
 	puts $mfd "TD=./KTMP"
@@ -1238,11 +1250,14 @@ proc outmkf_lib { def cpu } {
 	set idirs [lsort -index 1 $idirs]
 	foreach dir $idirs {
 		set fna [lindex $dir 0]
+		set fnb $fna
 		set tag [lindex $dir 1]
+		if { $Run(DNM) == 1 } {
+			set fna [dsname $fna]
+		}
 		puts $mfd "$tag=$fna"
 		if { $Run(DNM) == 1 } {
-			# canonical names are DOS-style
-			puts $mfd "${tag}U=[uxname $fna]"
+			puts $mfd "${tag}U=[uxname $fnb]"
 		}
 	}
 	puts $mfd "# source directories"
@@ -1254,11 +1269,14 @@ proc outmkf_lib { def cpu } {
 	set sdirs [lsort -index 1 $sdirs]
 	foreach dir $sdirs {
 		set fna [lindex $dir 0]
+		set fnb $fna
 		set tag [lindex $dir 1]
+		if { $Run(DNM) == 1 } {
+			set fna [dsname $fna]
+		}
 		puts $mfd "$tag=$fna"
 		if { $Run(DNM) == 1 } {
-			# canonical names are DOS-style
-			puts $mfd "${tag}U=[uxname $fna]"
+			puts $mfd "${tag}U=[uxname $fnb]"
 		}
 	}
 	puts $mfd "#"
@@ -1358,22 +1376,37 @@ proc outmkf_lib { def cpu } {
 	libsig 0
 }
 
+proc dsname { fn } {
+#
+# Convert UNIX name to Windows
+#
+	if [regexp -nocase "^(\[A-Z\]):" $fn] {
+		return $fn
+	}
+
+	# windows, forward slashes
+	if [catch { exec cygpath -m $fn } res] {
+		errab "Cannot convert file name to DOS, cygpath call failed,\
+			$res"
+	}
+
+	return $res
+}
+
 proc uxname { fn } {
 #
 # Convert Windows file name to UNIX
 #
 	global Run
 
-	if [regexp -nocase "^(\[A-Z\]):" $fn junk DP] {
+	if [regexp -nocase "^(\[A-Z\]):" $fn] {
 		# DOS filename prefix
-		set cn [string first "/home/" $fn]
-		if { $cn > 0 } {
-			# this is inside our Cygwin home
-			set fn [string range $fn $cn end]
-		} else {
-			set fn "/cygdrive/$DP[string range $fn 2 end]"
+		if [catch { exec cygpath $fn } res] {
+			errab "Cannot convert file name to UNIX, cygpath call\
+				failed, $res"
 		}
 	}
+
 	return $fn
 }
 
@@ -1386,10 +1419,12 @@ proc canon { fnf } {
 	if [catch { file normalize $fnf } fn] {
 		set fn $fnf
 	}
-	if { $Run(mode) != "E" && !$Run(DNM) } {
-		# canonical names are UNIX style
-		set fn [uxname $fn]
+
+	# at this point the path is UNIX format
+	if { $Run(mode) == "E" } {
+		set fn [dsname $fn]
 	}
+
 	return $fn
 }
 
@@ -2306,11 +2341,34 @@ proc getflag { fg } {
 	return [string trim $par]
 }
 
+proc sysdesig { } {
+
+	global Run
+
+	if { $Run(DNM) == "" } {
+		return "<unknown>"
+	}
+
+	if { $Run(DNM) == 0 } {
+		return "Cygwin"
+	}
+
+	if { $Run(DNM) == 1 } {
+		return "Windows"
+	}
+
+	return "Linux"
+}
+
 proc ifnotcygwin { } {
 #
 # Checks if mspgcc operates in the cygwin environment, i.e., using cygwin DLLs.
-# This tells us whether the compiler accepts UNIX-like file names or not.
+# This tells us whether the compiler accepts UNIX-like file names or not. Note
+# that as of now, the Tcl used to run this script DOES accept regular (Linux)
+# paths and (as it turns out) nothing else.
 #
+	global Run
+
 	if [catch { exec which msp430-gcc } p] {
 	    	errab "Cannot locate mspgcc installation, sorry!"
 	}
@@ -2321,18 +2379,71 @@ proc ifnotcygwin { } {
 		errab "Cannot inspect mspgcc installation, sorry!"
 	}
 
+	# endup at main
+	set Run(GCV) 3
+
 	if { [lsearch -glob $p "cyg*"] >= 0 } {
-		puts stdout "Detected Cygwin environment for mspgcc"
-		return 0
+		# no need to go any further
+		set ver 0
+	} else {
+		# determine the version; this is also needed for Linux;
+		set res ""
+		catch { exec msp430-gcc -v } res
+		if ![regexp "version (\[0-9\]+\)\\.\[0-9\]+\\.\[0-9\]+" \
+		    $res jnk res] {
+			errab "Cannot determine msp430-gcc version number"
+		}
+
+		puts stdout "msp430-gcc $jnk"
+
+		if { $res > 3 } {
+			set Run(GCV) $res
+		}
+
+		if { [lsearch $p "msp430-gcc.exe"] >= 0 } {
+			if { $res < 4 } {
+				set ver 0
+			} else {
+				set ver 1
+			}
+		} else {
+			set ver 2
+		}
 	}
 
-	if { [lsearch $p "msp430-gcc.exe"] >= 0 } {
-		puts stdout "Detected Windows native environment for mspgcc"
-		return 1
+	# this is tricky, because our version (which we maintained
+	# up to 3.2.3) was "Cygwin", so we have to check the version
+
+	set res "Detected "
+
+	if { $ver == 0 } {
+		append res "Cygwin"
+	} elseif { $ver == 1 } {
+		append res "Windows"
+	} else {
+		append res "Linux"
 	}
 
-	puts stdout "Detected Linux environment for mspgcc"
-	return 2
+	puts stdout "$res environment for mspgcc"
+
+	if { $Run(DNM) != "" } {
+		if { $Run(DNM) != $ver } {
+			puts stdout "[sysdesig] environment forced"
+		}
+	} else {
+		set Run(DNM) $ver
+	}
+}
+
+proc cputag { cpu } {
+
+	global Run
+
+	if { $Run(GCV) >= 4 } {
+		# version 4 or later
+		regsub "x" $cpu "f" cpu
+	}
+	return $cpu
 }
 
 proc outquote { s } {
@@ -2398,6 +2509,7 @@ proc main { } {
 
 	# forced path type preference
 	set Run(DNM) ""
+	set Run(GCV) 0
 	set f [lsearch -regexp $argv "^-\[LUCW\]$"]
 	if { $f >= 0 } {
 		set arg [lindex $argv $f]
@@ -2471,21 +2583,14 @@ proc main { } {
 	# locate the board
 	lboard TGT
 
-	if { $Run(DNM) != "" } {
-		if { $Run(DNM) == 0 } {
-			set nf "Cygwin"
-		} elseif { $Run(DNM) == 1 } {
-			set nf "Windows"
-		} else {
-			set nf "Linux"
-		}
-	}
+	# CPU type
+	set mcpu [getflag "c"]
 
 	if { $Run(mode) == "E" } {
 		# this can only be on Windows
 		if { $Run(DNM) != "" && $Run(DNM) != 1 } {
-			puts stdout "Warning: explicit $nf-type path preference\
-				for CyanIDE ignored"
+			puts stdout "Warning: explicit [sysdesig]-type path\
+				preference for CyanIDE ignored"
 		}
 		set Run(DNM) 1
 	} else {
@@ -2493,15 +2598,9 @@ proc main { } {
 			errab "Parameter -$Run(type) is only applicable to\
 				Cyan SDK (an eCOG board)"
 		}
-		if { $Run(DNM) == "" } {
-			# DOS-name mode if not cygwin
-			set Run(DNM) [ifnotcygwin]
-		} else {
-			puts stdout "Forced $nf environment for mspgcc"
-		}
+		ifnotcygwin
 	}
 
-	set mcpu [getflag "c"]
 	set RPREF [canon RPREF]
 	set CWD [canon $CWD]
 	set CWDL [string length $CWD]
@@ -2561,6 +2660,7 @@ proc main { } {
 
 	lappend deflist "BOARD_$Run(board)"
 	lappend deflist "BOARD_TYPE=$Run(board)"
+	lappend deflist "__COMP_VERSION__=$Run(GCV)"
 
 	if { $Run(praxis) != "" } {
 		lappend deflist "PGMLABEL_$Run(praxis)"

@@ -51,7 +51,7 @@ static void	devinit_uart (int);
 
 #endif  /* UART_DRIVER || UART_TCV */
 
-extern void	__bss_end;
+extern byte	*__bss_end;
 
 #if MAX_DEVICES
 
