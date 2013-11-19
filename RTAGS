@@ -679,4 +679,20 @@ PG131107A:	PICOS >= PG131107A
 	The oss script integrated with PIP. The VUEE configuration dialog
 	made a bit more flexible.
 
-	
+PG131119A:
+
+	Added rudimentary support for mspdebug (one more loader choice). At
+	present mspdebug only works under Linux. Even if it never works under
+	Windows/Cygwin Cygwin, it is a very valuable addition to the Linux
+	platform, because it allows us to flash basically everything. So this
+	is the first time when the Cygwin platform becomes less than critical.
+
+	At present, only command line call to msdebug is supported, which, for
+	example, makes it impossible to re-flash the FET (which must be done
+	externally) or to connect to gdb. That should be possible (from PIP)
+	shortly when I implement a "manual" model for mspdebug intended for
+	these special occasions. Of course, having read the man page of
+	mspdebug, you can easily take advantage of those features (in a truly
+	manual fashion), until there's a special click for it in PIP.
+
+	Fixed a minor glitch in gdbloader.

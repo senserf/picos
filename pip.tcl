@@ -84,7 +84,7 @@ if { $ST(SYS) == "L" } {
 	set GdbLdPtk { "msp430-gdbproxy" }
 	set SIDENAME "side"
 	# default loader
-	set DEFLOADR "MGD"
+	set DEFLOADR "MSD"
 } else {
 	set GdbLdPgm {
 			{ "FET430UIF" "tiusb" "TIUSB" }
@@ -96,6 +96,19 @@ if { $ST(SYS) == "L" } {
 	set SIDENAME "side.exe"
 	set DEFLOADR "ELP"
 }
+
+set MspdLdDrv { "tilib"
+		"rf2500"
+		"uif"
+		"olimex"
+		"olimex-v1"
+		"olimex-iso"
+		"olimex-iso-mk2"
+		"sim"
+		"goodfet"
+		"pif"
+		"manual" }
+
 set PiterCmd "piter"
 set GdbCmd "gdb"
 set XTCmd "xterm"
@@ -153,9 +166,9 @@ set CFVueeItems {
 }
 
 ## Names of the configurable loaders (just two for now)
-set CFLDNames { ELP MGD }
+set CFLDNames { ELP MSD MGD }
 
-## Configuration data for loaders; not much for now. We assume there are two
+## Configuration data for loaders.
 ## loaders: the Elprotronic Lite (which only requires the path to the
 ## executable), and msp430-gdb, which requires the device + the arguments to
 ## gdbproxy; LDSEL points to the "selected" loader. The selection may make
@@ -163,6 +176,8 @@ set CFLDNames { ELP MGD }
 ## one choice (but this may change later)
 set CFLoadItems {
 			"LDSEL"		""
+			"LDMSDDEV"	"Automatic"
+			"LDMSDDRV"	"tilib"
 			"LDELPPATH"	"Automatic"
 			"LDMGDDEV"	"Automatic"
 			"LDMGDARG"	"msp430"
@@ -4304,19 +4319,53 @@ proc do_loaders_config { } {
 
 proc mk_loaders_conf_window { } {
 
-	global P ST FFont GdbLdPgm DEFLOADR
+	global P ST FFont GdbLdPgm MspdLdDrv DEFLOADR
 
 	set w [md_window "Loader configuration"]
-
-	## Elprotronic
-	set f $w.f0
-	labelframe $f -text "Elprotronic" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
 
 	if { $P(M0,LDSEL) == "" } {
 		# the default
 		set P(M0,LDSEL) $DEFLOADR
 	}
+
+	## MSPDEBUG
+
+	set f $w.f0
+	labelframe $f -text "MSPDebug" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+
+	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "MSD"
+	pack $f.sel -side top -anchor "nw"
+	frame $f.f
+	pack $f.f -side top -expand y -fill x
+	label $f.f.l -text "FET device for MSPDebug: "
+	pack $f.f.l -side left -expand n
+	button $f.f.b -text "Select" -command "loaders_conf_msd_fsel 0"
+	pack $f.f.b -side right -expand n
+	button $f.f.a -text "Auto" -command "loaders_conf_msd_fsel 1"
+	pack $f.f.a -side right -expand n
+	label $f.f.f -textvariable P(M0,LDMSDDEV)
+	pack $f.f.f -side right -expand n
+	
+	frame $f.g
+	pack $f.g -side top -expand y -fill x
+
+	label $f.g.l -text "Driver: "
+	pack $f.g.l -side left -expand n
+
+	# create the list of drivers
+	set pl $MspdLdDrv
+	if { [lsearch -exact $pl $P(M0,LDMSDDRV)] < 0 } {
+		set P(M0,LDMGDARG) [lindex $pl 0]
+	}
+
+	eval "tk_optionMenu $f.g.e P(M0,LDMSDDRV) [split [join $pl]]"
+	pack $f.g.e -side right -expand n
+
+	## Elprotronic
+	set f $w.f1
+	labelframe $f -text "Elprotronic" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
 
 	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "ELP"
 	pack $f.sel -side top -anchor "nw"
@@ -4332,7 +4381,7 @@ proc mk_loaders_conf_window { } {
 	pack $f.f.f -side right -expand n
 
 	## MSP430GDB
-	set f $w.f1
+	set f $w.f2
 	labelframe $f -text "msp430-gdb" -padx 2 -pady 2
 	pack $f -side top -expand y -fill x
 	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "MGD"
@@ -4452,7 +4501,7 @@ proc loaders_conf_mgd_fsel { auto } {
 	}
 
 	set id "/dev"
-	if { $P(M0,LDMGDDEV) != "" } {
+	if { $P(M0,LDMGDDEV) != "" && $P(M0,LDMGDDEV) != "Automatic" } {
 		set fp [file dirname $P(M0,LDMGDDEV)]
 		if [file isdirectory $fp] {
 			set id $fp
@@ -4467,6 +4516,41 @@ proc loaders_conf_mgd_fsel { auto } {
 
 	if { $fi != "" } {
 		set P(M0,LDMGDDEV) $fi
+	}
+}
+
+proc loaders_conf_mgd_fsel { auto } {
+#
+# Select the path to mspdebug device
+#
+	global P ST
+
+	if { $ST(SYS) != "L" } {
+		alert "This attribute can only be configured on Linux"
+		return
+	}
+
+	if $auto {
+		set P(M0,LDMSDDEV) "Automatic"
+		return
+	}
+
+	set id "/dev"
+	if { $P(M0,LDMSDDEV) != "" && $P(M0,LDMSDDEV) != "Automatic" } {
+		set fp [file dirname $P(M0,LDMSDDEV)]
+		if [file isdirectory $fp] {
+			set id $fp
+		}
+	}
+
+	reset_all_menus 1
+	set fi [tk_getOpenFile \
+		-initialdir $id \
+		-parent $P(M0,WI)]
+	reset_all_menus
+
+	if { $fi != "" } {
+		set P(M0,LDMSDDEV) $fi
 	}
 }
 
@@ -7150,14 +7234,127 @@ proc kill_gdbproxy { } {
 	}
 }
 
+###############################################################################
+
+proc upload_MSD { } {
+#
+# MSPDEBUG
+#
+	global P TCMD
+
+	set fl [glob -nocomplain "Image*"]
+
+	if { $fl == "" } {
+		alert "No image file found"
+		return
+	}
+
+	set fl [lsort $fl]
+
+	# check if manual
+
+	set driver [dict get $P(CO) "LDMSDDRV"]
+
+	if { $driver == "manual" } {
+		alert "Manual handler for mspdebug not implemented yet"
+		return
+	}
+
+	# check if there is a single file
+	set froot ""
+	set ok 1
+	foreach f $fl {
+		set fr [file rootname $f]
+		if { $froot == "" } {
+			set froot $fr
+		} elseif { $froot != $fr } {
+			set ok 0
+			break
+		}
+	}
+
+	log "MSPDEBUG: root = $froot, list = $fl"
+
+	if $ok {
+		# this gives preference to ELF files
+		set fn [lindex $fl 0]
+		log "MSPDEBUG: single file = $fn"
+	} else {
+		# we need to decide in a separate dialog
+		log "MSPDEBUG: file selection dialog"
+		set w [mk_upload_file_selection_window $fl]
+		while 1 {
+			set ev [md_wait]
+			if { $ev < 0 } {
+				# cancelled
+				return
+			}
+			if { $ev == 1 } {
+				set fn $P(M0,UFILE)
+				md_stop
+				break
+			}
+		}
+	}
+
+	set TCMD(FL) "+"
+
+	# run mspdebug as a line command in the main window
+	set al [list $driver "prog $fn"]
+	log "MSPDEBUG: args = $al"
+
+	term_dspline "UPLOADING: $fn"
+
+	if [catch { run_term_command "mspdebug" $al "upload_action 0" \
+	    "upload_action 0" } err] {
+		alert "MSPDebug failed, $err"
+		set TCMD(FL) ""
+	}
+}
+
+proc mk_upload_file_selection_window { flist } {
+
+	global P
+
+	set w [md_window "File selection"]
+
+	frame $w.tf
+	pack $w.tf -side top -expand y -fill x
+
+	label $w.tf.l -text "Select the image file to upload: "
+	pack $w.tf.l -side left -expand n -fill x
+
+	set P(M0,UFILE) [lindex $flist 0]
+
+	eval "tk_optionMenu $w.tf.r P(M0,UFILE) [split [join $flist]]"
+	pack $w.tf.r -side right -expand n
+
+	frame $w.bf
+	pack $w.bf -side top -expand y -fill x
+
+	button $w.bf.b -text "Go Ahead" -command "md_click 1"
+	pack $w.bf.b -side right -expand n -fill x
+
+	button $w.bf.c -text "Cancel" -command "md_click -1"
+	pack $w.bf.c -side left -expand n -fill x
+
+	bind $w <Destroy> "md_click -1"
+}
+
+###############################################################################
+
 proc upload_action { start } {
 #
 # To be invoked when the loader is started/terminated
 #
 	global TCMD
 
-	if { !$start && $TCMD(FL,LT) == "MGD" } {
-		kill_gdbproxy
+	if !$start {
+		if { $TCMD(FL,LT) == "MGD" } {
+			kill_gdbproxy
+		}
+		# needed in case the loader is running in the terminal
+		set TCMD(FL) ""
 	}
 	reset_exec_menu
 }
@@ -7175,7 +7372,14 @@ proc stop_loader { { ask 0 } } {
 			return 1
 	}
 
-	bpcs_kill "FL"
+	if { $TCMD(FL) == "+" } {
+		# this means that the loader is running in the terminal
+		abort_term
+		set TCMD(FL) ""
+	} else {
+		# running separately
+		bpcs_kill "FL"
+	}
 
 	return 0
 }
@@ -7684,7 +7888,7 @@ proc reset_exec_menu { { clear 0 } } {
 			-command upload_image -state $st
 	} else {
 		$m add command -label "Terminate loader" \
-			-command "bpcs_kill FL" -state $st
+			-command "stop_loader" -state $st
 	}
 
 	if { $TCMD(FG) == "" } {

@@ -329,7 +329,7 @@ proc run_term_command { t kmd al inp clo } {
 
 	set ef [auto_execok $kmd]
 	if { $ef == "" } {
-		term_dspline $t "--CANNOT RUN $cmd (PGM NOT FOUND)!"
+		term_dspline $t "--CANNOT RUN $kmd (PGM NOT FOUND)!"
 		return 1
 	}
 	if [file executable $ef] {
