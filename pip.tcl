@@ -178,6 +178,7 @@ set CFLoadItems {
 			"LDSEL"		""
 			"LDMSDDEV"	"Automatic"
 			"LDMSDDRV"	"tilib"
+			"LDMSDAFU"	0
 			"LDELPPATH"	"Automatic"
 			"LDMGDDEV"	"Automatic"
 			"LDMGDARG"	"msp430"
@@ -4356,11 +4357,20 @@ proc mk_loaders_conf_window { } {
 	# create the list of drivers
 	set pl $MspdLdDrv
 	if { [lsearch -exact $pl $P(M0,LDMSDDRV)] < 0 } {
-		set P(M0,LDMGDARG) [lindex $pl 0]
+		set P(M0,LDMSDDRV) [lindex $pl 0]
 	}
 
 	eval "tk_optionMenu $f.g.e P(M0,LDMSDDRV) [split [join $pl]]"
 	pack $f.g.e -side right -expand n
+
+	frame $f.u
+	pack $f.u -side top -expand y -fill x
+
+	label $f.u.l -text "Allow firmware update: "
+	pack $f.u.l -side left -expand n
+
+	checkbutton $f.u.c -variable P(M0,LDMSDAFU)
+	pack $f.u.c -side right -expand n
 
 	## Elprotronic
 	set f $w.f1
@@ -4519,7 +4529,7 @@ proc loaders_conf_mgd_fsel { auto } {
 	}
 }
 
-proc loaders_conf_mgd_fsel { auto } {
+proc loaders_conf_msd_fsel { auto } {
 #
 # Select the path to mspdebug device
 #
@@ -7299,8 +7309,23 @@ proc upload_MSD { } {
 
 	set TCMD(FL) "+"
 
+	set al ""
+
+	set device [dict get $P(CO) "LDMSDDEV"]
+
+	if { $device != "Automatic" } {
+		lappend al "-d"
+		lappend al $device
+	}
+
+	if [dict get $P(CO) "LDMSDAFU"] {
+		lappend al "--allow-fw-update"
+	}
+
 	# run mspdebug as a line command in the main window
-	set al [list $driver "prog $fn"]
+	lappend al $driver
+	lappend al "prog $fn"
+
 	log "MSPDEBUG: args = $al"
 
 	term_dspline "UPLOADING: $fn"
@@ -7308,6 +7333,7 @@ proc upload_MSD { } {
 	if [catch { run_term_command "mspdebug" $al "upload_action 0" \
 	    "upload_action 0" } err] {
 		alert "MSPDebug failed, $err"
+		upload_action 0
 		set TCMD(FL) ""
 	}
 }

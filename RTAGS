@@ -696,3 +696,11 @@ PG131119A:
 	manual fashion), until there's a special click for it in PIP.
 
 	Fixed a minor glitch in gdbloader.
+
+PG131119B:
+
+	Fixed a minor problem with the mspdebug loader option. Now there is an
+	checkbox to allow firmware replacement which will let us do pretty much
+	everything with a command-line call. Do we need more? I don't know. You
+	can always open an xterm window in the project's directory and invoke
+	mspdebug by hand for tricky cases.
