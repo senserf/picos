@@ -2081,6 +2081,8 @@ fsm root {
 #if 0
 #ifdef RTC_TEST
 
+	// NOTE: this is for external RTC only, as for WARSAW_NEW
+
 	// Check if the clock is running; if not, set it to anything as
 	// otherwise it drains current;
 	// Note: the problem disappears if the pull-up resisitors are driven
@@ -2092,6 +2094,7 @@ fsm root {
 			rtc_set (&dtime);
 		}
 	}
+
 #endif
 #endif
 

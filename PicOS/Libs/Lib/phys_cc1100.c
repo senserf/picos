@@ -149,14 +149,13 @@ byte cc1100_strobe (byte b) {
 		if (sb) {
 			// Transiting from SLEEP or WOR
 			while (chip_not_ready);
-			udelay (CHIP_READY_DELAY);
+			udelay (DELAY_CHIP_READY);
 		}
 	}
 
 	while ((RF1AIFCTL1 & RFSTATIFG) == 0);
 Ret:
 	sb = RF1ASTATB;
-
 	return (sb & CC1100_STATE_MASK);
 }
 
@@ -440,7 +439,7 @@ static byte read_status () {
 			// Loop on these until they go away
 			case CC1100_STATE_CALIBRATE:
 			case CC1100_STATE_SETTLING:
-				udelay (50);
+				udelay (DELAY_SETTLING_STATE);
 				break;
 
 			default:
@@ -476,7 +475,7 @@ static void enter_rx () {
 		strobe (CCxxx0_SRX);
 		if (read_status () == CC1100_STATE_RX)
 			return;
-		// udelay (100);
+		udelay (DELAY_SRX_FAILURE);
 	}
 
 	syserror (EHARDWARE, "cc11 er");
@@ -596,13 +595,6 @@ static void rx_reset () {
 //
 	word i;
 
-#ifdef	__CC430__
-	// This delay seems to be needed on CC430 to prevent hangups occurring
-	// when transmitting with RXOFF. On my device (CHRONOS). 125 us seems
-	// to work fine, while 60 is too small. Let's hope that 200 will do the
-	// trick.
-	udelay (200);
-#endif
 	for (i = 0; i < 16; i++) {
 		strobe (CCxxx0_SFRX);
 		if (rx_status () == 0) {
@@ -624,6 +616,15 @@ static void power_up () {
 	cc1100_worstate = 0;
 #endif
 	enter_idle ();
+
+#ifdef	__CC430__
+	// This delay seems to be needed on CC430 to prevent hangups occurring
+	// when transmitting with RXOFF. On my device (CHRONOS). 125 us seems
+	// to work fine, while 60 is too small. Let's hope that 200 will do the
+	// trick.
+	udelay (DELAY_IDLE_PDOWN);
+#endif
+
 #if RADIO_WOR_MODE
 	if (woron) {
 		set_reg_group (cc1100_wor_sr, cc1100_wor_voff,

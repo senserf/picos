@@ -193,12 +193,30 @@
 #define	RADIO_WOR_MODE		0
 #endif
 
-#if 0
-#if RADIO_WOR_MODE && defined(__CC430__)
-#error "S: WOR mode is not implemented on CC430 (yet)!!!"
-#endif
+// ============================================================================
+
+// Various delays needed by the driver to prevent hangups and so on
+
+// Time the CPU must remain powered up while the radio is transiting from a 
+// power down state (approximately in usecs)
+#ifndef	DELAY_CHIP_READY
+#define	DELAY_CHIP_READY	900
 #endif
 
+// After detecting a state that needs settling until next try (usecs)
+#ifndef	DELAY_SETTLING_STATE
+#define	DELAY_SETTLING_STATE	50
+#endif
+
+// After detecting SRX failure until next try (usecs)
+#ifndef	DELAY_SRX_FAILURE
+#define	DELAY_SRX_FAILURE	100
+#endif
+
+// After entering IDLE in powerdown state before doing anything (CC430, usecs)
+#ifndef	DELAY_IDLE_PDOWN
+#define	DELAY_IDLE_PDOWN	400
+#endif
 // ============================================================================
 
 #if (RADIO_CRC_MODE & 4)

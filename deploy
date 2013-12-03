@@ -519,7 +519,7 @@ proc doit { } {
 		    puts "====================================================="
 		    puts "You don't seem to have Tcl8.5 anywhere on your  PATH,"
 		    puts "so  I cannot fix those scripts that require Tcl8.5 to"
-		    puts "use it. This may cause problems."
+		    puts "use it. This may cause problems.                     "
 		    puts "====================================================="
 		    set ScriptsToFix ""
 		}

@@ -20,10 +20,6 @@
 #define	IRQ_RCPT		(1 << 0)	// Reception on GDO0
 #define	IRQ_RXTM		(1 << 1)	// !Chip ready on GDO1
 
-// Time the CPU must remain powered up while the radio is transiting from a 
-// power down state (approximately in usecs)
-#define	CHIP_READY_DELAY	900
-
 #define rcv_enable_int		do { \
 					RF1AIE = IRQ_RCPT; \
 					if (RX_FIFO_READY) \

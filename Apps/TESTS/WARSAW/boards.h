@@ -107,13 +107,6 @@
 
 // ============================================================================
 
-#ifdef	BOARD_ALPHATRONICS
-
-#define	RTC_TEST
-#include "rtc_cc430.h"
-
-#endif
-
 #ifdef	BOARD_CC430W
 //#define	RTC_TEST
 #define	EPR_TEST

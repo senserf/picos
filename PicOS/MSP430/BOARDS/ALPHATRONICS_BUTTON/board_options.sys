@@ -1,6 +1,6 @@
 #define	MALLOC_SINGLEPOOL	1
 
-#define DIAG_MESSAGES		2
+#define DIAG_MESSAGES		0
 #define	DIAG_IMPLEMENTATION	0
 
 #define	TCV_PRESENT		1
@@ -17,17 +17,20 @@
 #define ENTROPY_COLLECTION	1
 
 #define	PMM_LEVEL		3	// Power management level
-//#define	LF_CRYSTAL_ABSENT	1	// No LF crystal
-#define CRYSTAL_RATE		32768
+#define	LF_CRYSTAL_ABSENT	1	// No LF crystal
 
 #define LEDS_DRIVER		1
 #define	LEDS_BLINKING		1
 
 #define UART_DRIVER		1
 #define	UART_PREINIT		CNOP	// Pins defined statically
-#define	RADIO_USE_LEDS		3
+#define	RADIO_USE_LEDS		7
 
 #define CC1100			1
+#if 0
+#define	CC1100_FREQ_FREQ1_VALUE	0xC0
+#define	CC1100_FREQ_FREQ0_VALUE	0x00
+#endif
 
 #define	INFO_FLASH		2
 

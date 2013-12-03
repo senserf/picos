@@ -3736,4 +3736,13 @@ PG131115B:
 
 	Pin operations now do compile with CC430 CPUs.
 
-	
+PG131203A:
+
+	Added two Alphatronics boards + a set of test programs. Fixed a small
+	problem in the CC1100 driver causing hangups with Alphatronics boards.
+	Hard to tell if that was a driver problem, a generic hardware problem,
+	or a hardware problem with the Alphatronics boards. I had to increase
+	some delay and reshuffle the code a bit. There is a sizeable chunk of
+	black magic in all those rituals; the driver just needed a new spell.
+
+	Some irrelevant cosmetics here and there.
