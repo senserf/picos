@@ -155,6 +155,7 @@ set CFVueeItems {
 			"VDISABLE"	0
 			"CMPIS"		0
 			"DPBC"		0
+			"PFAC"		"Default"
 			"UDON"		0
 			"UDTM"		0
 			"YCDN"		0
@@ -4584,11 +4585,12 @@ proc do_vuee_config { } {
 	while 1 {
 
 		# enable/disable widgets
-		vconf_widgets disable { cmpis dpbc udon udtm ycdn oson osnn
+		vconf_widgets disable { cmpis dpbc pfac udon udtm ycdn oson osnn
 			osnh vudf vusm }
 
 		if !$P(M0,VDISABLE) {
-			vconf_widgets normal { cmpis dpbc udon oson vudf vusm }
+			vconf_widgets normal \
+				{ cmpis dpbc pfac udon oson vudf vusm }
 			if $P(M0,UDON) {
 				vconf_widgets normal { udtm ycdn }
 			}
@@ -4639,7 +4641,7 @@ proc vconf_widgets { what which } {
 
 proc mk_vuee_conf_window { } {
 
-	global P FFont
+	global P FFont AgentPorts
 
 	set w [md_window "VUEE configuration"]
 
@@ -4669,6 +4671,17 @@ proc mk_vuee_conf_window { } {
 	pack $f.l -side left -expand n
 	set P(M0,dpbc) [checkbutton $f.c -variable P(M0,DPBC)]
 	pack $f.c -side right -expand n
+
+	##
+	set f $w.tv
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Port for agent connections: "
+	pack $f.l -side left -expand n
+	tk_optionMenu $f.m P(M0,PFAC) "Default" 3066 3067 3068 4013 4014 4015\
+		4444 4445 4446 4447
+	set P(M0,pfac) $f.m
+	pack $f.m -side right -expand n
 
 	##
 	set f $w.tg
@@ -6566,6 +6579,10 @@ proc run_udaemon { { auto 0 } } {
 		set cmd "[list sh] [list $ef]"
 	}
 
+	if ![catch { valnum [dict get $P(CO) "PFAC"] 1 65535 } po] {
+		append cmd " $po"
+	}
+
 	if [dict get $P(CO) "YCDN"] {
 		append cmd " -R"
 	}
@@ -6765,6 +6782,7 @@ proc run_vuee { { deb 0 } } {
 	set dp [dict get $P(CO) "DPBC"]
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
+	set po [dict get $P(CO) "PFAC"]
 
 	if { $dp == 0 && $mb != "" && $bo != "" } {
 		if $mb {
@@ -6809,6 +6827,11 @@ proc run_vuee { { deb 0 } } {
 			lappend argm "-r"
 			lappend argm $ef
 		}
+	}
+
+	if ![catch { valnum $po 1 65535 } po] {
+		lappend argm "-p"
+		lappend argm $po
 	}
 
 	if { $argm != "" } {

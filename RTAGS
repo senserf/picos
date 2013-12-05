@@ -704,3 +704,8 @@ PG131119B:
 	everything with a command-line call. Do we need more? I don't know. You
 	can always open an xterm window in the project's directory and invoke
 	mspdebug by hand for tricky cases.
+
+PG131205A:	VUEE >= PG131205A
+
+	An option to choose from a selection of port numbers for UDAEMON
+	connection.
