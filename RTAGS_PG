@@ -1080,3 +1080,9 @@ PG131107A:
     is applied to both buffers, not just to the input buffer, as before.
 
     The doc updated and cleaned up a bit.
+
+PG131205A:
+
+    An option (-p) to change the default port number for agent connections.
+    Note that when this option is used, any attempt to change the port number
+    from the data set is void. This is intended to be used by PIP.

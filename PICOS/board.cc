@@ -33,6 +33,8 @@ int __pi_channel_type = -1;
 static const word urates [] = { 12, 24, 48, 96, 144, 192, 288, 384, 768, 1152,
                               2560 };
 
+static Boolean force_port = NO;
+
 struct strpool_s {
 
 	const byte *STR;
@@ -4830,6 +4832,18 @@ ANum:
 							  BDLB [NFC] :
 							  "--null--");
 			NFC++;
+		} else if (strcmp (att, "-p") == 0) {
+			// Agent port
+			if (PCArgc == 0)
+				goto AExp;
+			np [0] . type = TYPE_LONG;
+			if (parseNumbers (*PCArgv, 1, np) != 1)
+				goto ANum;
+			if (np [0] . LVal > 0xFFFF || np [0] . LVal <= 0)
+				excptn ("Root: port number must be > 0 && < "
+					"64K");
+			__pi_Agent_Port = (word) (np [0] . LVal);
+			force_port = YES;
 		} else
 			excptn ("Root: illegal PC argument %s", att);
 
@@ -4877,7 +4891,7 @@ ANum:
 		nc = NO;
 	}
 	// Check for the non-standard port
-	if ((att = sxml_attr (xml, "port")) != NULL) {
+	if (!force_port && (att = sxml_attr (xml, "port")) != NULL) {
 		if (parseNumbers (att, 1, np) != 1 || np [0] . LVal < 1 ||
 		    np [0] . LVal > 0x0000ffff)
 			xeai ("port", "<network>", att);
