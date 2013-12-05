@@ -31,9 +31,7 @@ void RFNeutrino::setup (
 
 double RFNeutrino::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
-	if (tagToCh (xp->Tag) != tagToCh (TheTransceiver->getTag ()) ||
-	    d >= Range)
-		// Different channels or out of range
+	if (xp->Tag != TheTransceiver->getTag () || d >= Range)
 		return 0.0;
 
 	return 1.0;
@@ -51,25 +49,24 @@ double RFNeutrino::RFC_cut (double xp, double rp) {
 
 Long RFNeutrino::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 							double ir, Long nb) {
-	return 0;
+	return (sl->Tag == rs->Tag) ? 0 : nb;
 }
 
 Long RFNeutrino::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
-	double ir, Long nb) {
-
-	return MAX_Long;
+							double ir, Long nb) {
+	return (sl->Tag == rs->Tag) ? MAX_Long : 0;
 }
 
 Boolean RFNeutrino::RFC_bot (RATE r, const SLEntry *sl, const SLEntry *sn,
 	const IHist *h) {
 
-	return YES;
+	return (sl->Tag == sn->Tag);
 }
 
 Boolean RFNeutrino::RFC_eot (RATE r, const SLEntry *sl, const SLEntry *sn,
 	const IHist *h) {
 
-	return YES;
+	return (sl->Tag == sn->Tag);
 }
 
 #endif

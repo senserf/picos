@@ -539,3 +539,12 @@ PG131031A:
 	   the neutrino channel model). Previously, preamble length had to be
 	   at least 1. I see no reason why it cannot be zero (as long as the
 	   assessment methods can live with it).
+
+PG131205A:
+
+	   Pretty much irrelevant cosmetics:
+
+	   1. Provided for rate separation for neutrion channel model.
+
+	   2. Removed the monitor connection attempt for VUEE, which is
+	      pretty much useless (at least has been so so far).
