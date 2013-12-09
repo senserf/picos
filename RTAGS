@@ -709,3 +709,20 @@ PG131205A:	VUEE >= PG131205A
 
 	An option to choose from a selection of port numbers for UDAEMON
 	connection.
+
+PG131209A:
+
+	There is now an option for the mspdebug loader to act as a connection
+	vehicle (aka proxy) for GDB. When you select this option and then try
+	to load an image file, PIP will run mspdebug (as a proxy) in the main
+	console window and (once mspdebug has initialized successfully) start
+	GDB in an xterm.
+
+	This is a slightly different approach from what I did for the old
+	gbdproxy. In that case, we needed some simple button just for loading,
+	so it made sense to encapsulate GDB into some rudimentary Tcl/Tk GUI.
+	As now there is a special and trivial load mode for mspdebug, there is
+	no need to bend over backward to make the GDB interface appear
+	friendly. Just the opposite: we almost never (well, never) use GDB, so
+	if you decide to use it, you probably need its raw power which is best
+	attained from a simple terminal.

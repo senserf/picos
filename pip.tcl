@@ -111,6 +111,8 @@ set MspdLdDrv { "tilib"
 
 set PiterCmd "piter"
 set GdbCmd "gdb"
+set GdbMCmd "msp430-gdb"
+set MspDCmd "mspdebug"
 set XTCmd "xterm"
 
 ## File types to be listed in the Files view:
@@ -179,6 +181,7 @@ set CFLoadItems {
 			"LDSEL"		""
 			"LDMSDDEV"	"Automatic"
 			"LDMSDDRV"	"tilib"
+			"LDMSDGDP"	"None"
 			"LDMSDAFU"	0
 			"LDELPPATH"	"Automatic"
 			"LDMGDDEV"	"Automatic"
@@ -308,6 +311,10 @@ set SFont {-family courier -size 9}
 ## Pipe fd of the program running in term
 set TCMD(FD) ""
 
+## Trace (i.e., store) the output
+set TCMD(TO) 0
+set TCMD(TR) ""
+
 ## Flag: command needs input
 set TCMD(SH) 0
 
@@ -337,6 +344,17 @@ set TCMD(FO) ""
 
 ## File descriptor of the genimage pipe
 set TCMD(FG) ""
+
+## FET loader status: 0 - not running, 1 - single process running in FL,
+## 2 - single process running in FD, 3 - two processes, one running in FL,
+### the other in FD
+set TCMD(FY) 0
+
+## Callback for syncing the two processes of the TCMD(FY) = 3 case
+set TCMD(FY,CB) ""
+
+## Argument for the second program
+set TCMD(FY,AR) ""
 
 ## Process ID of FET loader (!= "" -> FET loader is running) + callback
 ## to monitor its disappearance + signal to kill + action to be performed
@@ -446,6 +464,11 @@ proc valnum { n { min "" } { max "" } } {
 	}
 
 	return $n
+}
+
+proc valport { n } {
+
+	return [valnum $n 1 65535]
 }
 
 proc blindex { lst ix } {
@@ -641,12 +664,16 @@ proc term_clean { } {
 
 proc term_addtxt { txt } {
 
-	global Term
+	global TCMD Term
 
 	$Term configure -state normal
-	$Term insert end "$txt"
+	$Term insert end $txt
 	$Term configure -state disabled
 	$Term yview -pickplace end
+
+	if $TCMD(TO) {
+		append TCMD(TR) $txt
+	}
 }
 
 proc term_endline { } {
@@ -655,6 +682,10 @@ proc term_endline { } {
 
 	$Term configure -state normal
 	$Term insert end "\n"
+
+	if $TCMD(TO) {
+		append TCMD(TR) "\n"
+	}
 
 	while 1 {
 		set ix [$Term index end]
@@ -4373,6 +4404,16 @@ proc mk_loaders_conf_window { } {
 	checkbutton $f.u.c -variable P(M0,LDMSDAFU)
 	pack $f.u.c -side right -expand n
 
+	frame $f.w
+	pack $f.w -side top -expand y -fill x
+	
+	label $f.w.l -text "GDB connection port: "
+	pack $f.w.l -side left -expand n
+
+	eval "tk_optionMenu $f.w.e P(M0,LDMSDGDP) None 2000 2001 2002 2003 \
+		3010 3011 3012 3100 3101 3102"
+	pack $f.w.e -side right -expand n
+
 	## Elprotronic
 	set f $w.f1
 	labelframe $f -text "Elprotronic" -padx 2 -pady 2
@@ -6579,7 +6620,7 @@ proc run_udaemon { { auto 0 } } {
 		set cmd "[list sh] [list $ef]"
 	}
 
-	if ![catch { valnum [dict get $P(CO) "PFAC"] 1 65535 } po] {
+	if ![catch { valport [dict get $P(CO) "PFAC"] } po] {
 		append cmd " $po"
 	}
 
@@ -6829,7 +6870,7 @@ proc run_vuee { { deb 0 } } {
 		}
 	}
 
-	if ![catch { valnum $po 1 65535 } po] {
+	if ![catch { valport $po } po] {
 		lappend argm "-p"
 		lappend argm $po
 	}
@@ -6991,7 +7032,7 @@ proc upload_image { } {
 		return
 	}
 
-	if { $TCMD(FL) != "" } {
+	if { $TCMD(FY) != 0 } {
 		alert "Loader already open"
 		return
 	}
@@ -7184,6 +7225,7 @@ proc upload_ELP { } {
 
 	# start the loader
 
+	set TCMD(FY) 1
 	bpcs_run $ep "" "FL"
 }
 
@@ -7251,6 +7293,7 @@ proc upload_MGD { } {
 		set al [concat $al $arg]
 	}
 
+	set TCMD(FY) 1
 	bpcs_run $GdbLdCmd $al "FL"
 }
 
@@ -7269,11 +7312,31 @@ proc kill_gdbproxy { } {
 
 ###############################################################################
 
+proc make_gdb_files { port } {
+#
+# Creates the GDB config files for the given port number
+#
+	set fc "set remoteaddresssize 64\n"
+	append fc "set remotetimeout 999999\n"
+	append fc "target remote localhost:$port"
+
+	foreach fn { ".gdbinit" "gdb.ini" } {
+		if [catch { open $fn "w" } fd] {
+			error "unable to open $fn, $fd"
+		}
+		if [catch { puts $fd $fc } err] {
+			catch { close $fd }
+			error "unable to write to $fn, $err"
+		}
+		catch { close $fd }
+	}
+}
+
 proc upload_MSD { } {
 #
 # MSPDEBUG
 #
-	global P TCMD
+	global P TCMD MspDCmd
 
 	set fl [glob -nocomplain "Image*"]
 
@@ -7284,12 +7347,90 @@ proc upload_MSD { } {
 
 	set fl [lsort $fl]
 
-	# check if manual
-
 	set driver [dict get $P(CO) "LDMSDDRV"]
 
 	if { $driver == "manual" } {
 		alert "Manual handler for mspdebug not implemented yet"
+		return
+	}
+
+	set al ""
+
+	set device [dict get $P(CO) "LDMSDDEV"]
+
+	if { $device != "Automatic" } {
+		lappend al "-d"
+		lappend al $device
+	}
+
+	if [dict get $P(CO) "LDMSDAFU"] {
+		lappend al "--allow-fw-update"
+	}
+
+	lappend al $driver
+	
+	if ![catch { valport [dict get $P(CO) "LDMSDGDP"] } gp] {
+
+		# extract only ELF files, GDB only handles these
+		set ffl ""
+		foreach f $fl {
+			if { [file extension $f] == "" } {
+				lappend ffl $f
+			}
+		}
+
+		if { $ffl == "" } {
+			alert "No ELF image file found (GDB only handles ELF\
+				images"
+			return
+		}
+
+		if { [llength $ffl] == 1 } {
+			set fn [lindex $ffl 0]
+		} else {
+			log "MSPDEBUG: file selection dialog"
+			set w [mk_upload_file_selection_window $ffl]
+			while 1 {
+				set ev [md_wait]
+				if { $ev < 0 } {
+					# cancelled
+					return
+				}
+				if { $ev == 1 } {
+					set fn $P(M0,UFILE)
+					md_stop
+					break
+				}
+			}
+		}
+
+		set TCMD(FY,AR) $fn
+
+		if [catch { make_gdb_files $gp } err] {
+			alert "Cannot create GDB init files, $err"
+			return
+		}
+
+		lappend al "gdb $gp"
+
+		log "MSPDEBUG: args = $al"
+
+		term_dspline "STARTING MSPDEBUG AS GDB PROXY"
+
+		set TCMD(FY) 3
+
+		if [catch { run_term_command $MspDCmd $al "upload_action 0" \
+	    	    "upload_action 0" } err] {
+			alert "MSPDebug failed, $err"
+			upload_action 0
+			return
+		}
+
+		set TCMD(TO) 1
+		set TCMD(TR) ""
+
+		set TCMD(FY,CB) [after 300 check_mspdebug_proxy]
+
 		return
 	}
 
@@ -7330,36 +7471,49 @@ proc upload_MSD { } {
 		}
 	}
 
-	set TCMD(FL) "+"
+	set TCMD(FY) 2
 
-	set al ""
-
-	set device [dict get $P(CO) "LDMSDDEV"]
-
-	if { $device != "Automatic" } {
-		lappend al "-d"
-		lappend al $device
-	}
-
-	if [dict get $P(CO) "LDMSDAFU"] {
-		lappend al "--allow-fw-update"
-	}
-
-	# run mspdebug as a line command in the main window
-	lappend al $driver
 	lappend al "prog $fn"
 
 	log "MSPDEBUG: args = $al"
 
 	term_dspline "UPLOADING: $fn"
 
-	if [catch { run_term_command "mspdebug" $al "upload_action 0" \
+	if [catch { run_term_command $MspDCmd $al "upload_action 0" \
 	    "upload_action 0" } err] {
 		alert "MSPDebug failed, $err"
 		upload_action 0
-		set TCMD(FL) ""
 	}
 }
+
+proc check_mspdebug_proxy { } {
+#
+# A callback to check if the proxy is ready and to start GDB if so
+#
+	global TCMD XTCmd GdbMCmd
+
+	if { $TCMD(FY) != 3 || $TCMD(FL) != "" } {
+		# cannot happen
+		return
+	}
+
+	if { [string first "waiting for connection" $TCMD(TR)] < 0 } {
+		# not yet
+		set TCMD(FY,CB) [after 300 check_mspdebug_proxy]
+		return
+	}
+
+	set TCMD(FY,CB) ""
+	set TCMD(TO) 0
+	set TCMD(TR) ""
+
+	# start GDB
+	set al [list -e $GdbMCmd]
+	lappend al $TCMD(FY,AR)
+	bpcs_run $XTCmd $al "FL"
+}
+
+###############################################################################
 
 proc mk_upload_file_selection_window { flist } {
 
@@ -7399,11 +7553,33 @@ proc upload_action { start } {
 	global TCMD
 
 	if !$start {
+		if { $TCMD(FY) == 0 } {
+			# already handled
+			return
+		}
 		if { $TCMD(FL,LT) == "MGD" } {
 			kill_gdbproxy
 		}
-		# needed in case the loader is running in the terminal
-		set TCMD(FL) ""
+		if { $TCMD(FY) == 3 } {
+			# need to kill two processes; prevent the second copy
+			# of upload_action from running
+			set TCMD(FY) 0
+			if { $TCMD(FL) != "" } {
+				bpcs_kill "FL"
+			}
+			if { $TCMD(FD) != "" } {
+				abort_term
+			}
+			if { $TCMD(FY,CB) != "" } {
+				catch { after cancel $TCMD(FY,CB) }
+				set TCMD(FY,CB) ""
+			}
+			# trace output off
+			set TCMD(TO) 0
+			set TCMD(TR) ""
+			set TCMD(FY,AR) ""
+		}
+		set TCMD(FY) 0
 	}
 	reset_exec_menu
 }
@@ -7412,7 +7588,7 @@ proc stop_loader { { ask 0 } } {
 
 	global TCMD
 
-	if { $TCMD(FL) == "" } {
+	if { $TCMD(FY) == 0 } {
 		return 0
 	}
 
@@ -7421,14 +7597,16 @@ proc stop_loader { { ask 0 } } {
 			return 1
 	}
 
-	if { $TCMD(FL) == "+" } {
-		# this means that the loader is running in the terminal
-		abort_term
-		set TCMD(FL) ""
-	} else {
-		# running separately
+	if { $TCMD(FY) == 1 } {
 		bpcs_kill "FL"
+	} elseif { $TCMD(FY) == 2 } {
+		abort_term
+	} else {
+		bpcs_kill "FL"
+		abort_term
 	}
+
+	set TCMD(FY) 0
 
 	return 0
 }
@@ -7932,7 +8110,7 @@ proc reset_exec_menu { { clear 0 } } {
 		set st "normal"
 	}
 
-	if { $TCMD(FL) == "" } {
+	if !$TCMD(FY) {
 		$m add command -label "Upload image ..." \
 			-command upload_image -state $st
 	} else {
