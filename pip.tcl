@@ -168,15 +168,15 @@ set CFVueeItems {
 			"VUSM"		1.0
 }
 
-## Names of the configurable loaders (just two for now)
-set CFLDNames { ELP MSD MGD }
+## Names of the configurable loaders
+set CFLDNames { ELP MSD GPR MGD }
 
-## Configuration data for loaders.
-## loaders: the Elprotronic Lite (which only requires the path to the
-## executable), and msp430-gdb, which requires the device + the arguments to
-## gdbproxy; LDSEL points to the "selected" loader. The selection may make
-## little sense now, because, given the system (Windows, Linux), there is only
-## one choice (but this may change later)
+## Configuration data for loaders:
+##	LDSEL		- loader selector
+##	LDMSD...	- mspdebug (device, driver, GDB port, allow upgrade)
+##	LDELP...	- Elprotronic Lite (program path)
+##	LDMGD...	- GDB + proxy (legacy, being retired)
+##	LDGPR...	- general command-line program
 set CFLoadItems {
 			"LDSEL"		""
 			"LDMSDDEV"	"Automatic"
@@ -186,6 +186,8 @@ set CFLoadItems {
 			"LDELPPATH"	"Automatic"
 			"LDMGDDEV"	"Automatic"
 			"LDMGDARG"	"msp430"
+			"LDGPRPATH"	""
+			"LDGPRARG"	""
 		}
 
 ## Options; for now, we have just the max number of lines for the terminal +
@@ -609,6 +611,25 @@ proc unipath { fn } {
 	}
 	log "cygpath failed: $fn, $fm"
 	return $fn
+}
+
+proc isfullpath { fn } {
+
+	global ST
+
+	if { $ST(SYS) == "L" || !$ST(DP) } {
+		if { [string index $fn 0] == "/" } {
+			return 1
+		} else {
+			return 0
+		}
+	}
+
+	if [regexp -nocase {^[a-z]:[/\\]} $fn] {
+		return 1
+	} else {
+		return 0
+	}
 }
 
 proc cw { } {
@@ -4418,11 +4439,13 @@ proc mk_loaders_conf_window { } {
 	set f $w.f1
 	labelframe $f -text "Elprotronic" -padx 2 -pady 2
 	pack $f -side top -expand y -fill x
-
+	##
 	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "ELP"
 	pack $f.sel -side top -anchor "nw"
+	##
 	frame $f.f
 	pack $f.f -side top -expand y -fill x
+	##
 	label $f.f.l -text "Path to the program's executable: "
 	pack $f.f.l -side left -expand n
 	button $f.f.b -text "Select" -command "loaders_conf_elp_fsel 0"
@@ -4432,8 +4455,33 @@ proc mk_loaders_conf_window { } {
 	label $f.f.f -textvariable P(M0,LDELPPATH)
 	pack $f.f.f -side right -expand n
 
-	## MSP430GDB
+	## Command line
 	set f $w.f2
+	labelframe $f -text "Command line" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "GPR"
+	pack $f.sel -side top -anchor "nw"
+	##
+	frame $f.f
+	pack $f.f -side top -expand y -fill x
+	##
+	label $f.f.l -text "Path to the program: "
+	pack $f.f.l -side left -expand n
+	button $f.f.b -text "Select" -command "loaders_conf_gpr_fsel"
+	pack $f.f.b -side right -expand n
+	label $f.f.f -textvariable P(M0,LDGPRPATH)
+	pack $f.f.f -side right -expand n
+	##
+	frame $f.g
+	pack $f.g -side top -expand y -fill x
+	##
+	label $f.g.l -text "Arguments: "
+	pack $f.g.l -side left -expand n
+	entry $f.g.a -font $FFont -textvariable P(M0,LDGPRARG)
+	pack $f.g.a -side right -expand y -fill x
+
+	## MSP430GDB
+	set f $w.f3
 	labelframe $f -text "msp430-gdb" -padx 2 -pady 2
 	pack $f -side top -expand y -fill x
 	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "MGD"
@@ -4509,6 +4557,7 @@ proc loaders_conf_elp_fsel { auto } {
 			} else {
 				set fp "C:/Program Files"
 			}
+			set fp [fpnorm $fp]
 			if [file isdirectory $fp] {
 				set id $fp
 			}
@@ -4603,6 +4652,63 @@ proc loaders_conf_msd_fsel { auto } {
 
 	if { $fi != "" } {
 		set P(M0,LDMSDDEV) $fi
+	}
+}
+
+proc loaders_conf_gpr_fsel { } {
+#
+# Select the path to the command-line loader
+#
+	global P ST env
+
+	set P(M0,LDGPRPATH) [string trim $P(M0,LDGPRPATH)]
+
+	if [info exists P(M0,LDGPRPATH_D)] {
+		set id $P(M0,LDGPRPATH_D)
+	} else {
+		if { $P(M0,LDGPRPATH) == "" } {
+			if { $ST(SYS) == "L" } {
+				# Linux
+				set fnd 0
+				foreach id { "/usr/local/msp430"
+					     "/usr/local"
+					     "/opt" } {
+					if [file isdirectory $id] {
+						set fnd 1
+						break
+					}
+				}
+				if !$fnd {
+					set id ""
+				}
+			} else {
+				# Windows/Cygwin
+				if [info exists env(PROGRAMFILES)] {
+					set id $env(PROGRAMFILES)
+				} else {
+					set id "C:/Program Files"
+				}
+				set id [fpnorm $id]
+				if ![file isdirectory $id] {
+					set id ""
+				}
+			}
+		} else {
+			# use the directory path of last selection
+			set id [file dirname $P(M0,LDGPRPATH)]
+			if ![file isdirectory $id] {
+				set id ""
+			}
+		}
+		set P(M0,LDGPRPATH_D) $id
+	}
+
+	reset_all_menus 1
+	set fi [tk_getOpenFile -initialdir $id -parent $P(M0,WI)]
+	reset_all_menus
+
+	if { $fi != "" } {
+		set P(M0,LDGPRPATH) $fi
 	}
 }
 
@@ -6911,21 +7017,35 @@ proc run_term_command { cmd al { ea "" } { aa "" } { ni 0 } } {
 #	aa  - abort action, i.e., a statement to execute after abort
 #	ni  - need input (the pipe should be opened rw with input line enabled)
 #
-	global TCMD
+	global TCMD ST
 
 	if { $TCMD(FD) != "" } {
 		error "Already running a command. Abort it first"
 	}
 
-	set ef [auto_execok $cmd]
-	if { $ef == "" } {
-		error "Cannot execute $cmd"
-	}
+	log "Running $cmd $al"
 
-	if [file executable $ef] {
-		set cmd "[list $ef]"
+	if [isfullpath $cmd] {
+		log "Full path exec"
+		if ![file exists $cmd] {
+			error "executable file doesn't exist"
+		}
+		if ![file executable $cmd] {
+			error "file is not executable"
+		}
+		set cmd [list $cmd]
 	} else {
-		set cmd "[list sh] [list $ef]"
+		set ef [auto_execok $cmd]
+		if { $ef == "" } {
+			error "program is not executable"
+		}
+		if [file executable $ef] {
+			set cmd "[list $ef]"
+			log "Autoexec direct: $cmd"
+		} else {
+			set cmd "[list sh] [list $ef]"
+			log "Autoexec shell: $cmd"
+		}
 	}
 
 	foreach a $al {
@@ -7094,9 +7214,10 @@ proc upload_ELP { } {
 		if ![info exists env(PROGRAMFILES)] {
 			set ep "C:/Program Files"
 		} else {
-			set ep [fpnorm $env(PROGRAMFILES)]
-			log "Loader auto path prefix: $ep"
+			set ep $env(PROGRAMFILES)
 		}
+		set ep [fpnorm $ep]
+		log "Loader auto path prefix: $ep"
 		set ep [glob -nocomplain \
 			-directory $ep "Elprotronic/*/*/FET*.exe"]
 		log "Loader exec candidates: $ep"
@@ -7226,6 +7347,7 @@ proc upload_ELP { } {
 	# start the loader
 
 	set TCMD(FY) 1
+
 	bpcs_run $ep "" "FL"
 }
 
@@ -7329,6 +7451,150 @@ proc make_gdb_files { port } {
 			error "unable to write to $fn, $err"
 		}
 		catch { close $fd }
+	}
+}
+
+proc gpr_file_arg { } {
+#
+# Returns the list: filetype filetype, where the first filetype is the
+# required file name suffix of a present image file and the second, if not
+# null, is the substitute suffix.
+#
+	global P
+
+	set arg [dict get $P(CO) "LDGPRARG"]
+
+	if [regexp -nocase {%f\.([a-z_0-9]+)=([a-z_0-9]+)} $arg jnk ta tb] {
+		# the most general case: type substitute
+		return [list $ta $tb]
+	}
+
+	if [regexp -nocase {%f=([a-z_0-9]+)} $arg jnk tb] {
+		# empty first type
+		return [list "" $tb]
+	}
+
+	if [regexp -nocase {%f\.([a-z_0-9]+)} $arg jnk ta] {
+		# type, no substitute
+		return [list $ta ""]
+	}
+
+	if [regexp -nocase {%f} $arg] {
+		return [list "" ""]
+	}
+
+	# this pathological case means: no file needed
+	return ""
+}
+
+proc gpr_file_name_subst { fn } {
+#
+# Substitutes a file name in the argument string
+#
+	global P
+
+	set arg [dict get $P(CO) "LDGPRARG"]
+
+	regsub -all -nocase {%f\.[a-z_0-9]+=[a-z_0-9]+} $arg $fn arg
+	regsub -all -nocase {%f=[a-z_0-9]+} $arg $fn arg
+	regsub -all -nocase {%f\.[a-z_0-9]+} $arg $fn arg
+	regsub -all -nocase {%f} $arg $fn arg
+	return $arg
+}
+
+proc upload_GPR { } {
+#
+# General command-line program
+#
+	global P
+
+	set pgm [dict get $P(CO) "LDGPRPATH"]
+	if { $pgm == "" } {
+		alert "Unknown loader program, you have to specify the program\
+			path in the loader configuration window"
+		return
+	}
+
+	set ft [gpr_file_arg]
+	if { $ft != "" } {
+		# file name substitution
+		set ta [lindex $ft 0]
+		set tb [lindex $ft 1]
+		log "Load file types: $ta -> $tb"
+		set fl [glob -nocomplain "Image*"]
+		set ffl ""
+
+		foreach f $fl {
+			# select the interesting files
+			if { $ta == "" && [file extension $f] == "" ||
+			     $ta != "" && [file extension $f] == ".$ta" } {
+				lappend ffl $f
+			}
+		}
+
+		if { $ffl == "" } {
+			if { $ta == "" } {
+				set tp "ELF"
+			} else {
+				set tp $ta
+			}
+			alert "No image file found (type = $tp)"
+			return
+		}
+
+		if { [llength $ffl] == 1 } {
+			set fn [lindex $ffl 0]
+		} else {
+			set w [mk_upload_file_selection_window $ffl]
+			while 1 {
+				set ev [md_wait]
+				if { $ev < 0 } {
+					# cancelled
+					return
+				}
+				if { $ev == 1 } {
+					set fn $P(M0,UFILE)
+					md_stop
+					break
+				}
+			}
+		}
+
+		if { $tb != "" } {
+			# need to copy the file
+			set fm "[file rootname $fn].$tb"
+			if [catch { file copy -force -- $fn $fm } err] {
+				alert "Cannot replicate $fn to $fm, $err"
+				return
+			}
+			set fn $fm
+		}
+	} else {
+		# file name is irrelevant
+		set fn ""
+	}
+
+	set arg [gpr_file_name_subst $fn]
+
+	set al ""
+	if [catch {
+		foreach a $arg {
+			lappend al $a
+		}
+	} ] {
+		alert "The effective argument string ($arg) does not comprise\
+			a list"
+		return
+	}
+
+	set TCMD(FY) 1
+
+	term_dspline "UPLOADING: $fn"
+
+	if [catch { run_term_command $pgm $al "upload_action 0" \
+	    "upload_action 0" } err] {
+		alert "Cannot execute $pgm, $err"
+		upload_action 0
 	}
 }
 

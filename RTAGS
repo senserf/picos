@@ -726,3 +726,10 @@ PG131209A:
 	friendly. Just the opposite: we almost never (well, never) use GDB, so
 	if you decide to use it, you probably need its raw power which is best
 	attained from a simple terminal.
+
+PG131212A:
+
+	Added an option to the Loader Config window for a generic command-line
+	programmer. Instructions on how to configure, say, the olimex
+	programmer to work with PIP are in the doc (which has been brought
+	up to date).
