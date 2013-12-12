@@ -481,7 +481,14 @@ proc vuart_conn { ho po no abvar { hi 0 } { sig "" } } {
 	}
 
 	# these actions cannot block
-	if [catch { socket -async $ho $po } sfd] {
+	if { [info tclversion] > 8.5 } {
+		# do not use -async, it doesn't seem to work in 8.6
+		set err [catch { socket $ho $po } sfd]
+	} else {
+		set err [catch { socket -async $ho $po } sfd]
+	}
+
+	if $err {
 		cleanup
 		error "Connection failed: $sfd"
 	}

@@ -175,3 +175,31 @@
 #if !defined(P5OUT_) && defined(PCOUT_)
 #define	P5OUT_				PCOUT_
 #endif
+
+#if !defined(REF2_5V) && defined(ADC12REF2_5V)
+#define	REF2_5V				ADC12REF2_5V
+#endif
+
+#if !defined(SREF_VREF_AVSS) && defined(ADC12SREF_1)
+#define	SREF_VREF_AVSS			ADC12SREF_1
+#endif
+
+#if !defined(SREF_VREF_AVSS) && defined(SREF_1)
+#define	SREF_VREF_AVSS			SREF_1
+#endif
+
+#if !defined(SREF_VEREF_AVSS) && defined(ADC12SREF_2)
+#define	SREF_VEREF_AVSS			ADC12SREF_2
+#endif
+
+#if !defined(SREF_VEREF_AVSS) && defined(SREF_2)
+#define	SREF_VEREF_AVSS			SREF_2
+#endif
+
+#if !defined(SREF_AVCC_AVSS) && defined(ADC12SREF_0)
+#define	SREF_AVCC_AVSS			ADC12SREF_0
+#endif
+
+#if !defined(SREF_AVCC_AVSS) && defined(SREF_0)
+#define	SREF_AVCC_AVSS			SREF_0
+#endif

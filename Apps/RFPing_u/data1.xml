@@ -18,17 +18,12 @@
 	    </radio>
 	    <eeprom size="4096"></eeprom>
 	    <iflash size="256,2"></iflash>
-<!--
 	    <uart rate="9600" bsize="12">
 		<input source="socket"></input>
 		<output target="socket" type="held"></output>
 	    </uart>
--->
 	</defaults>
 	<node number="0">
-	    <uart rate="9600" bsize="12">
-		<input source="string">s 2048\r\nr\r\n</input>
-	    </uart>
 	    <leds number="4">
 		<output target="socket"></output>
 	    </leds>
@@ -41,9 +36,6 @@
 	    <location>1.0 4.0</location>
 	</node>
 	<node number="1">
-	    <uart rate="9600" bsize="12">
-		<input source="string">s 2048\r\nr\r\n</input>
-	    </uart>
 	    <leds number="4">
 		<output target="socket"></output>
 	    </leds>

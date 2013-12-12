@@ -3746,3 +3746,20 @@ PG131203A:
 	black magic in all those rituals; the driver just needed a new spell.
 
 	Some irrelevant cosmetics here and there.
+
+PG131212A:
+
+	Two more ALPHATRONICS boards: the base (aka AP321) + PANIC (AP320)
+	emulated using OLIMEX_CCRF.
+
+	A few modification to ALPHATRONICS tests.
+
+	Fixed the scripts connecting to VUEE over a virtual UART (the vuart
+	package) to work with Tcl8.6 from ActiveState. Previously they would
+	hang on -async sockets.
+
+	Rewritten the Installation doc in preparation for a REPO cleanup.
+
+	Removed UTILS.zip from Scripts. The stuff in there was mostly obsolete.
+	The updated contents of UTILS.zip (whatever is still relevant) will be
+	available from the REPO.
