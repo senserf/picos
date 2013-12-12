@@ -2528,7 +2528,14 @@ proc sock_conn { what { stid -1 } { flags 0 } } {
 
 	log "connecting to $tt ..."
 
-	if [catch { socket -async $HostName $PortNumber } Sok] {
+	if { [info tclversion] > 8.5 } {
+		# do not use -async, it doesn't seem to work in 8.6
+		set err [catch { socket $HostName $PortNumber } Sok]
+	} else {
+		set err [catch { socket -async $HostName $PortNumber } Sok]
+	}
+
+	if $err {
 		log "connection failed: $Sok"
 		return ""
 	}
