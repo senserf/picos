@@ -849,11 +849,11 @@ set WI(REX)	0
 
 proc sy_readcb { fun } {
 
-	global ST
+	global ST PM
 
 	if [$fun] {
 		# a void call, increase the timeout
-		if { $ST(ROT) < 40 } {
+		if { $ST(ROT) < $PM(RMX) } {
 			incr ST(ROT)
 		}
 	} else {
@@ -863,15 +863,44 @@ proc sy_readcb { fun } {
 	set ST(ORC) [after $ST(ROT) "sy_readcb $fun"]
 }
 
-proc sy_onreadable { fun } {
+proc sy_use_read_timeout { } {
 #
 # This circumvents a bug (FIXME)
+# Sorry, no FIXME, in fact we have to capitalize on this "feature" as
+# asynchronous reading from UART dongles VirtualBox/Linux doesn't seem to
+# work in Tcl.
+#
+# The function checks whether we should be using timeouts instead of relying
+# on the readable event for UART input.
 #
 	global ST
 
-	if { $ST(SYS) == "L" || $ST(DEV) != "L" } {
-		# we have no problem unless this doesn't hold, i.e., we are
-		# on Windows running Cygwin native Tcl
+	if { $ST(SYS) == "L" } {
+		# We are on Linux, the only problem is virtual box
+		if { [file exists "/dev/vboxuser"] ||
+		     [file exists "/dev/vboxguest"] } {
+			# VirtualBox; use a longer timeout
+			return 400
+		}
+		return 0
+	}
+
+	if { $ST(DEV) == "L" } {
+		# Cygwin + native Tcl
+		return 50
+	}
+
+	return 0
+}
+
+proc sy_onreadable { fun } {
+#
+	global ST PM
+
+	set PM(RMX) [sy_use_read_timeout]
+
+	if { $PM(RMX) == 0 } {
+		# we have no problem
 		fileevent $ST(SFD) readable $fun
 		return
 	}

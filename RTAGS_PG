@@ -3763,3 +3763,24 @@ PG131212A:
 	Removed UTILS.zip from Scripts. The stuff in there was mostly obsolete.
 	The updated contents of UTILS.zip (whatever is still relevant) will be
 	available from the REPO.
+
+PG131215A:
+
+	Circumvented a problem with USB/UART/Tcl interface on Linux running as
+	guest in VirtualBox causing piter window hangups when waiting for
+	readable event on the UART.
+
+	Note1: the present mode of interacting with the UART assumed by piter
+	when on VirtalBox consists in invoking a callback every 400 msec with
+	the interval being shortented when there is a frequent supply of I/O
+	events. This appears to cause stress for the virtual machine increasing
+	the CPU usage on the host. Within the virtual machine itself, the
+	process appears to be doing fine. Increasing the interval doesn't seem
+	to reduce the stress, which suggests that some kind of fundamental
+	problems is in fact there.
+
+	Note2: the fact the piter is running in VirtualBox is recognized by
+	checking if /dev/vboxuser or /dev/vboxguest is present.
+
+	Note3: the U-U mode in udaemon, when one of the UARTs is a real device,
+	may still suffer from this problem.
