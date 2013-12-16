@@ -1,0 +1,207 @@
+#!/bin/tclsh
+########################################################
+# Inserts the required packages into indicated scripts #
+########################################################
+
+set PAT(PKGH) \
+  {package[[:space:]]+provide[[:space:]]+([[:alnum:]_]+)[[:space:]]+[[:digit:]]}
+
+set PAT(NSST) \
+  {namespace[[:blank:]]+eval[[:blank:]]+([[:alnum:]_]+)}
+
+set PAT(NSEN) \
+  {namespace[[:blank:]]+import[[:blank:]]+::([[:alnum:]]+)::[^\n]*\n}
+
+proc run_picospath { } {
+
+	set ef [auto_execok "picospath"]
+	if ![file executable $ef] {
+		return [eval [list exec] [list sh] [list $ef]]
+	}
+	return [eval [list exec] [list $ef]]
+}
+
+proc get_pkg_path { } {
+#
+# Try to figure out where the packages are
+#
+	if ![catch { run_picospath } a] {
+		set path [string trim $a]
+	} else {
+		puts "failed to execute picospath"
+		set path [pwd]
+		while 1 {
+			if { [file tail $path] == "PICOS" } {
+				break
+			}
+			set prev [file dirname $path]
+			if { $prev == $path } {
+				puts "cannot locate PICOS root!"
+				exit 1
+			}
+		}
+	}
+
+	set path [file normalize [file join $path "Scripts" "Packages"]]
+
+	if ![file isdirectory $path] {
+		puts "directory $path does not exist!"
+		exit 1
+	}
+
+	return $path
+}
+
+proc make_package_dict { } {
+
+	global Pkdir Packages PAT
+
+	set fl [glob -nocomplain -directory $Pkdir -tails *]
+
+	foreach fi $fl {
+		set f [file join $Pkdir $fi]
+		if ![file isfile $f] {
+			continue
+		}
+		if [catch { open $f "r" } fd] {
+			puts "cannot open package file $fi, $fd (ignored)"
+			continue
+		}
+		if [catch { read $fd } pc] {
+			puts "cannot read package file $fi, $pc (ignored)"
+			catch { close $fd }
+			continue
+		}
+		catch { close $fd }
+		if ![regexp $PAT(PKGH) $pc jk pname] {
+			puts "no package in file $fi (ignored)"
+			continue
+		}
+		if [info exists Packages($pname)] {
+			puts "duplicate package $pname in $fi (ignored)"
+			continue
+		}
+		set Packages($pname) $pc
+		puts "package $pname in file $fi"
+	}
+}
+
+proc substitute_packages { source } {
+
+	global Packages PAT
+
+	set head ""
+
+	while 1 {
+
+		if ![regexp $PAT(PKGH) $source jk pname] {
+			break
+		}
+
+		set ix [string first $jk $source]
+
+		if { $ix < 0 } {
+			# impossible
+			break
+		}
+
+		append head [string range $source 0 [expr $ix - 1]]
+
+		set source [string range $source $ix end]
+
+		# locate the nearest namespace
+
+		if ![regexp $PAT(NSST) $source jk nname] {
+			error "namespace eval not found"
+		}
+
+		set ix [string first $jk $source]
+
+		if ![regexp $PAT(NSEN) $source jk mname] {
+			error "namespace import not found"
+		}
+
+		set iy [string first $jk $source]
+
+		if { $ix > $iy } {
+			error "namespace import precedes eval"
+		}
+
+		if { $nname != $mname } {
+			error "namespace eval ($nname) != import ($mname)"
+		}
+
+		set iy [expr $iy + [string length $jk]]
+
+		if ![info exists Packages($pname)] {
+			puts "package $pname doesn't exist (ignored)"
+			append head [string range $source 0 [expr $iy - 1]]
+		} else {
+			puts "replacing package $pname"
+			append head $Packages($pname)
+		}
+
+		set source [string range $source $iy end]
+	}
+
+	if { $head != "" } {
+		append head $source
+	}
+
+	return $head
+}
+				
+proc main { } {
+
+	global argv Pkdir
+
+	if { [llength $argv] == 0 } {
+		puts "list of files required!"
+		exit 1
+	}
+
+	set Pkdir [get_pkg_path]
+
+	make_package_dict
+
+	foreach f $argv {
+		if [catch { open $f "r" } fd] {
+			puts "cannot open file $f (ignored)"
+			continue
+		}
+		if [catch { read $fd } fc] {
+			puts "cannot read file $f (ignored)"
+			catch { close $fd }
+			continue
+		}
+		catch { close $fd }
+		puts "doing file $f ..."
+		if [catch { substitute_packages $fc } new] {
+			puts "error, $new (file unchanged)"
+			continue
+		}
+
+		if { $new == "" } {
+			puts "no packages to replace"
+			continue
+		}
+
+		if [catch { open $f "w" } fd] {
+			puts "cannot write to file $f, $fd (file unchanged)"
+			continue
+		}
+
+		if [catch { puts -nonewline $fd $new } err] {
+			puts "cannot write to file $f, $err\
+			    (check file for damage)"
+			catch { close $fd }
+			continue
+		}
+
+		catch { close $fd }
+		puts "file $f done"
+		continue
+	}
+}
+
+main

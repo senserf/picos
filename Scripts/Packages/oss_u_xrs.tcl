@@ -1,6 +1,6 @@
-package require oss_u 1.0
-
 package provide oss_u_xrs 1.0
+
+package require oss_u 1.0
 
 #
 # XRS
@@ -233,5 +233,3 @@ namespace export u_ab_*
 }
 
 namespace import ::OSSUAB::*
-
-###############################################################################

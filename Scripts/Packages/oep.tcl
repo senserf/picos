@@ -1,6 +1,6 @@
-package require oss_u_xrs 1.0
-
 package provide oep 1.0
+
+package require oss_u_xrs 1.0
 
 namespace eval OEP {
 
@@ -518,5 +518,3 @@ namespace export oep_*
 }
 
 namespace import ::OEP::*
-
-###############################################################################

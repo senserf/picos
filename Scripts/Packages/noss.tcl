@@ -169,7 +169,7 @@ proc no_emu_readable { fun } {
 
 	if [$fun] {
 		# a void call, increase the timeout
-		if { $B(ROT) < 40 } {
+		if { $B(ROT) < $B(RMX) } {
 			incr B(ROT)
 		}
 	} else {
@@ -455,6 +455,7 @@ proc noss_init { ufd mpl { inp "" } { dia "" } { clo "" } { emu 0 } } {
 		# the readable flag doesn't work for UART on some Cygwin
 		# setups
 		set B(ROT) 1
+		set B(RMX) $emu
 		no_emu_readable [lize no_rawread]
 	} else {
 		# do it the easy way
@@ -533,7 +534,3 @@ namespace export noss_*
 }
 
 namespace import ::NOSS::*
-
-###############################################################################
-# End of NOSS #################################################################
-###############################################################################

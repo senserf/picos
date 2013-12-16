@@ -1,0 +1,83 @@
+<!-- This is the network map file -->
+<map>
+
+<!-- Commented out for tests (PG); note that sensor labels (in <sensormap>
+     are now numeric (just their order of appearance on the line produced
+     by the aggregator) as Wlodek has eliminated the symbolic labels (and
+     rightfully so.
+
+    <database name="econet">
+	<user>econet_admin</user>
+	<!-- Not extremely secret, is it? -->
+	<password>2aWba#</password>
+	<host>warburg.cs.ualberta.ca</host>
+	<!-- Sensor numbers derived from labels (see below) for database operations -->
+	<sensormap> 1=1 2=2 3=3 0=4 </sensormap>
+    </database>
+
+    <operator>
+	<!-- Who receives e-mail alerts -->
+	<email>pawel@cs.ualberta.ca</email>
+    </operator>
+-->
+
+    <aggregators>
+	<node id="10" power="7" frequency="30"></node>
+    </aggregators>
+
+    <collectors>
+	<node id="101" power="7777" frequency="30" rxspan="2">South Wall</node>
+    </collectors>
+
+    <ossi id="10"></ossi>
+
+    <converters>
+	<snippet sensors="PAR">
+		set value [expr $value * 1.47]
+	</snippet>
+	<snippet sensors="TMP">
+		<!-- This is the official formula for SHT -->
+		set value [expr -39.62 + 0.01 * $value]
+
+	</snippet>
+	<snippet sensors="HUM">
+		<!-- Another official formula for SHT -->
+		set value [expr -4.0 + 0.0405 * $value - 0.0000028 * $value * \
+			$value]
+		if { $value < 0.0 } {
+			set value 0.0
+		} elseif { $value > 100.0 } {
+			set value 100.0
+		}
+	</snippet>
+	<snippet sensors="E05">
+		<!-- I have calculated these based on voltage measurements and sensor manuals -->
+		set value [expr $value * 0.09246 - 40.1]
+		if { $value < 0.0 } {
+			set value 0.0
+		} elseif { $value > 100.0 } {
+			set value 100.0
+		}
+	</snippet>
+	<snippet sensors="E20">
+		set value [expr $value * 0.0532 - 26.0]
+		if { $value < 0.0 } {
+			set value 0.0
+		} elseif { $value > 100.0 } {
+			set value 100.0
+		}
+	</snippet>
+    </converters>
+
+    <sensors>
+	<!-- Same here: label is just the serial number (in the order of
+	     appearance at the node. Perhaps the whole thing should be re-
+	     organized now, but we shall worry when there is a more serious
+	     project -->
+
+	<sensor name="PAR 101" label="0" node="101" emu="0/0-1024"></sensor>
+	<sensor name="TMP 101" label="1" node="101" emu="1/5500-6500"></sensor>
+	<sensor name="HUM 101" label="2" node="101" emu="2/1000-3000"></sensor>
+    </sensors>
+
+</map>

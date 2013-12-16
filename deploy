@@ -456,7 +456,7 @@ proc fixtcl85 { pgm } {
 
 proc doit { } {
 
-	global CWD PLIST BIN BINW HOME TCL85 ST REL
+	global CWD PLIST BIN BINW HOME TCL85 ST REL argv
 
 	anchor
 
@@ -534,13 +534,21 @@ proc doit { } {
 		fixtcl85 $tc
 	}
 
+	#######################################################################
+
+	set pp "#!/bin/sh\nif \[ \"x\$1\" = \"x\" \]; then\n"
+	append pp "\techo $CWD\nelse\n\techo $argv\nfi"
+
 	catch {
 		set fd [open "picospath" "w"]
-		puts $fd "#!/bin/sh\necho $CWD"
+		puts $fd $pp
 		close $fd
 	}
 
 	catch { exec chmod 0755 picospath }
+
+	#######################################################################
+
 	puts "All done"
 }
 

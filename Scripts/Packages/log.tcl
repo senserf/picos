@@ -1,17 +1,11 @@
 package provide log 1.0
 ###############################################################################
-# Log functions. Copyright (C) 2008-11 Olsonet Communications Corporation.
+# Log functions. Copyright (C) 2008-13 Olsonet Communications Corporation.
 ###############################################################################
 
 namespace eval LOGGING {
 
 variable Log
-
-proc abt { m } {
-
-	puts stderr $m
-	exit 99
-}
 
 proc log_open { { fname "" } { maxsize "" } { maxvers "" } } {
 
@@ -50,14 +44,14 @@ proc log_open { { fname "" } { maxsize "" } { maxvers "" } } {
 	if [catch { file size $Log(FN) } fs] {
 		# not present
 		if [catch { open $Log(FN) "w" } fd] {
-			abt "Cannot open log file $Log(FN): $fd"
+			error "cannot open log file $Log(FN), $fd"
 		}
 		# empty log
 		set Log(SZ) 0
 	} else {
 		# log file exists
 		if [catch { open $Log(FN) "a" } fd] {
-			abt "Cannot open log file $log(FN): $fd"
+			error "cannot open log file $Log(FN), $fd"
 		}
 		set Log(SZ) $fs
 	}
@@ -81,7 +75,7 @@ proc rotate { } {
 		catch { file rename -force $ofn $tfn }
 	}
 
-	log_open
+	catch { log_open }
 }
 
 proc outlm { m } {
@@ -137,7 +131,3 @@ namespace export log*
 }
 
 namespace import ::LOGGING::log*
-
-###############################################################################
-# End of Log functions
-###############################################################################

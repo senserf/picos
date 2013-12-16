@@ -3784,3 +3784,74 @@ PG131215A:
 
 	Note3: the U-U mode in udaemon, when one of the UARTs is a real device,
 	may still suffer from this problem.
+
+PG131216A:
+
+	Introduced a generic way of passing parameters from deploy to scripts,
+	meaning all scripts that might be interested in such parameters. The
+	primary inspiration was the need to tell piter that it should be using
+	polling instead of the readable event for asynchronous UART input. As
+	Wlodek informed me, checking for /dev/vbox* is not a sure way to tell
+	that we are running in VirtualBox. Besides, some other scripts may not
+	want to miss the fun.
+
+	So this is how it works. All parameters passed to deploy (whatever they
+	are) are stored in the picospath script and can be produced by running:
+
+		picospath -d
+
+	Any argument will do for now, but we kind of reserve -d for this
+	purpose, in case we ever want to add more features to picospath. Recall
+	that picospath without arguments returns the path to PICOS.
+
+	Any script that wants to learn something from deploy can execute
+	picospath -d to see the arguments. For now,
+
+		deploy -p n
+
+	is interpreted as the request to use polling for UART input, that is
+	if n is > 0. In such a case, n is interpreted as the maximum polling
+	interval in milliseconds. The way it works is that any input shrinks
+	the interval to zero and then, on every failure, the interval gets
+	incremented by 1 towards the maximum.
+
+		deploy -p
+
+	means polling with the default max interval, which is 40 msecs.
+
+	Without this parameter, the script will do some heuristics (including
+	checking for /dev/vbox*) to guess whether polling is needed. The
+	default interval for heuristically guessed VirtualBox is 400 msecs.
+
+		deploy -p 0
+
+	kills the heuristics and forces non-polling, event-driven, input.
+
+	The most recent scripts talking to the UART, like boss, noss, oss, and
+	also econnect (the one in Scripts/EcoNet) do implement the checks,
+	although I haven't really tested them. We shall do the testing as need
+	arises.
+
+	I have reorganized the Scripts directory moving all "packages" to a
+	separate subdirectory. There is a script named inspackages called:
+
+		inspackages file file ...
+
+	which makes sure that the versions of all our standard packages
+	embedded into the specified scripts agree with the most recent versions
+	in Scripts/Packages. Doing that by hand has become painfull and error
+	prone.
+
+	Theoretically, we could set up a formal library of those packages for
+	Tcl, and so on, but I am afraid that with all the multitude of features
+	and platforms that would create considerably more confusion.
+
+	Note that the previous -l argument to deploy is still fine. For
+	example, when you go:
+
+		deploy -l -p 0
+
+	(under Cygwin), then picospath -d will return -l -p 0, i.e., all the
+	arguments that were passed to deploy. -l has been interpreted by
+	deploy (to select the ActiveState Tcl for the GUI scripts) with the
+	complete argument string saved and made available via picospath.

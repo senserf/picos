@@ -451,6 +451,140 @@ namespace import ::VUART::vuart_conn
 ###############################################################################
 ###############################################################################
 
+package provide uartpoll 1.0
+#################################################################
+# Selects polled versus automatic input from asynchronous UART. #
+# Copyright (C) 2012 Olsonet Communications Corporation.        #
+#################################################################
+
+namespace eval UARTPOLL {
+
+variable DE
+
+proc run_picospath { } {
+
+	set ef [auto_execok "picospath"]
+	if ![file executable $ef] {
+		return [eval [list exec] [list sh] [list $ef] [list -d]]
+	}
+	return [eval [list exec] [list $ef] [list -d]]
+}
+
+proc get_deploy_param { } {
+#
+# Extracts the poll argument of deploy
+#
+	if [catch { run_picospath } a] {
+		return ""
+	}
+
+	# look up -p
+	set l [lsearch -exact $a "-p"]
+	if { $l < 0 } {
+		return ""
+	}
+
+	set l [lindex $a [expr $l + 1]]
+
+	if [catch { expr $l } l] {
+		return 40
+	}
+
+	if { $l < 0 } {
+		return 0
+	}
+
+	return [expr int($l)]
+}
+
+proc uartpoll_interval { sys fsy } {
+
+	set p [get_deploy_param]
+
+	if { $p != "" } {
+		return $p
+	}
+
+	# use heuristics
+	if { $sys == "L" } {
+		# We are on Linux, the only problem is virtual box
+		if { [file exists "/dev/vboxuser"] ||
+		     [file exists "/dev/vboxguest"] } {
+			# VirtualBox; use a longer timeout
+			return 400
+		}
+		return 0
+	}
+
+	if { $fsy == "L" } {
+		# Cygwin + native Tcl
+		return 40
+	}
+
+	return 0
+}
+
+proc read_cb { dev fun } {
+
+	variable CB
+
+	if [eval $fun] {
+		# void call, push the timeout
+		if { $CB($dev) < $CB($dev,m) } {
+			incr CB($dev)
+		}
+	} else {
+		set $CB($dev) 0
+	}
+
+	set CB($dev,c) [after $CB($dev) "::UARTPOLL::read_cb $dev $fun"]
+}
+
+proc uartpoll_oninput { dev fun { sys "" } { fsy "" } } {
+
+	variable CB
+
+	if { $sys == "" } {
+		set p 0
+	} else {
+		set p [uartpoll_interval $sys $fsy]
+	}
+
+	if { $p == 0 } {
+		set CB($dev,c) ""
+		fileevent $dev readable $fun
+		return
+	}
+
+	set CB($dev) 1
+	set CB($dev,m) $p
+	read_cb $dev $fun
+}
+
+proc uartpoll_stop { dev } {
+
+	variable CB
+
+	if [info exists CB($dev)] {
+		if { $CB($dev,c) != "" } {
+			catch { after cancel $CB($dev,c) }
+		}
+		array unset CB($dev)
+		array unset CB($dev,*)
+	}
+}
+
+namespace export uartpoll_*
+
+### end of UARTPOLL namespace #################################################
+
+}
+
+namespace import ::UARTPOLL::uartpoll_*
+
+###############################################################################
+###############################################################################
+
 package provide unames 1.0
 ##########################################################################
 # This is a package for handling the various names under which COM ports #
@@ -684,9 +818,6 @@ namespace import ::UNAMES::*
 # UART file descriptor
 set ST(SFD) ""
 
-# UART read callback (if we cannot rely on the standard "readable" event)
-set ST(ORC) ""
-
 # UART connect status string
 set ST(UCS) "disconnected"
 
@@ -839,76 +970,6 @@ set WI(CIL)	""
 
 # recursive exit avoidance flag
 set WI(REX)	0
-
-###############################################################################
-# This circumvents a bug in Cygwin native Tcl whereby "readable" on a COM port
-# causes Windows to lose text events (at least this is how much I understand
-# about the bug. So in such a case, the readable event is emulated by timer
-# callbacks.
-###############################################################################
-
-proc sy_readcb { fun } {
-
-	global ST PM
-
-	if [$fun] {
-		# a void call, increase the timeout
-		if { $ST(ROT) < $PM(RMX) } {
-			incr ST(ROT)
-		}
-	} else {
-		set ST(ROT) 0
-	}
-
-	set ST(ORC) [after $ST(ROT) "sy_readcb $fun"]
-}
-
-proc sy_use_read_timeout { } {
-#
-# This circumvents a bug (FIXME)
-# Sorry, no FIXME, in fact we have to capitalize on this "feature" as
-# asynchronous reading from UART dongles VirtualBox/Linux doesn't seem to
-# work in Tcl.
-#
-# The function checks whether we should be using timeouts instead of relying
-# on the readable event for UART input.
-#
-	global ST
-
-	if { $ST(SYS) == "L" } {
-		# We are on Linux, the only problem is virtual box
-		if { [file exists "/dev/vboxuser"] ||
-		     [file exists "/dev/vboxguest"] } {
-			# VirtualBox; use a longer timeout
-			return 400
-		}
-		return 0
-	}
-
-	if { $ST(DEV) == "L" } {
-		# Cygwin + native Tcl
-		return 50
-	}
-
-	return 0
-}
-
-proc sy_onreadable { fun } {
-#
-	global ST PM
-
-	set PM(RMX) [sy_use_read_timeout]
-
-	if { $PM(RMX) == 0 } {
-		# we have no problem
-		fileevent $ST(SFD) readable $fun
-		return
-	}
-
-	# emulate the callback by a timer
-	set ST(ROT) 1
-	sy_readcb $fun
-}
 
 ###############################################################################
 
@@ -1361,7 +1422,7 @@ proc sy_valpars { } {
 		# module reset function
 		set ST(RFN) [lindex $pf 3]
 		# module read function
-		sy_onreadable [lindex $pf 1]
+		uartpoll_oninput $ST(SFD) [lindex $pf 1] $ST(SYS) $ST(DEV)
 		# Terminal input event
 		set ST(TIF) $sfu
 		# plugin initializer
@@ -1988,7 +2049,7 @@ proc sy_initialize { } {
 	# module reset function
 	set ST(RFN) [lindex $pf 3]
 	# module read function
-	sy_onreadable [lindex $pf 1]
+	uartpoll_oninput $ST(SFD) [lindex $pf 1]
 
 	fconfigure stdin -buffering line -blocking 0 -eofchar ""
 	fileevent stdin readable $sfu
@@ -2401,10 +2462,11 @@ proc sy_uclose { } {
 		return
 	}
 
+	uartpoll_stop $ST(SFD)
 	catch { close $ST(SFD) }
 	set ST(SFD) ""
 
-	foreach cb { "ORC" "SCB" "TIM" } {
+	foreach cb { "SCB" "TIM" } {
 		if { $ST($cb) != "" } {
 			catch { after cancel $ST($cb) }
 			set ST($cb) ""

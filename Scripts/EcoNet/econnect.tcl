@@ -53,6 +53,138 @@ if [file isdirectory "/dev"] {
 }
 
 ###############################################################################
+package provide uartpoll 1.0
+#################################################################
+# Selects polled versus automatic input from asynchronous UART. #
+# Copyright (C) 2012 Olsonet Communications Corporation.        #
+#################################################################
+
+namespace eval UARTPOLL {
+
+variable DE
+
+proc run_picospath { } {
+
+	set ef [auto_execok "picospath"]
+	if ![file executable $ef] {
+		return [eval [list exec] [list sh] [list $ef] [list -d]]
+	}
+	return [eval [list exec] [list $ef] [list -d]]
+}
+
+proc get_deploy_param { } {
+#
+# Extracts the poll argument of deploy
+#
+	if [catch { run_picospath } a] {
+		return ""
+	}
+
+	# look up -p
+	set l [lsearch -exact $a "-p"]
+	if { $l < 0 } {
+		return ""
+	}
+
+	set l [lindex $a [expr $l + 1]]
+
+	if [catch { expr $l } l] {
+		return 40
+	}
+
+	if { $l < 0 } {
+		return 0
+	}
+
+	return [expr int($l)]
+}
+
+proc get_poll_option { sys fsy } {
+
+	set p [get_deploy_param]
+
+	if { $p != "" } {
+		return $p
+	}
+
+	# use heuristics
+	if { $sys == "L" } {
+		# We are on Linux, the only problem is virtual box
+		if { [file exists "/dev/vboxuser"] ||
+		     [file exists "/dev/vboxguest"] } {
+			# VirtualBox; use a longer timeout
+			return 400
+		}
+		return 0
+	}
+
+	if { $fsy == "L" } {
+		# Cygwin + native Tcl
+		return 40
+	}
+
+	return 0
+}
+
+proc read_cb { dev fun } {
+
+	variable CB
+
+	if [eval $fun] {
+		# void call, push the timeout
+		if { $CB($dev) < $CB($dev,m) } {
+			incr CB($dev)
+		}
+	} else {
+		set $CB($dev) 0
+	}
+
+	set CB($dev,c) [after $CB($dev) "::UARTPOLL::read_cb $dev $fun"]
+}
+
+proc uartpoll_oninput { dev fun { sys "" } { fsy "" } } {
+
+	variable CB
+
+	if { $sys == "" } {
+		set p 0
+	} else {
+		set p [get_poll_option $sys $fsy]
+	}
+
+	if { $p == 0 } {
+		set CB($dev,c) ""
+		fileevent $dev readable $fun
+		return
+	}
+
+	set CB($dev) 1
+	set CB($dev,m) $p
+	read_cb $dev $fun
+}
+
+proc uartpoll_stop { dev } {
+
+	variable CB
+
+	if [info exists CB($dev)] {
+		if { $CB($dev,c) != "" } {
+			catch { after cancel $CB($dev,c) }
+		}
+		array unset CB($dev)
+		array unset CB($dev,*)
+	}
+}
+
+namespace export uartpoll_*
+
+### end of UARTPOLL namespace #################################################
+
+}
+
+namespace import ::UARTPOLL::uartpoll_*
+
+###############################################################################
 package provide vuart 1.0
 #####################################################################
 # This is a package for initiating direct VUEE-UART communication.  #
@@ -1139,7 +1271,7 @@ proc snip_parse { cf } {
 	# invalidate the cache
 	snip_icache
 
-	# make sure the storage is empty
+	# empty the storage
 	array unset SN
 
 	set ix 0
@@ -1279,21 +1411,13 @@ namespace import ::SNIPPETS::*
 ### Logging ###################################################################
 
 package provide log 1.0
-#
-# Log functions
-#
+###############################################################################
+# Log functions. Copyright (C) 2008-13 Olsonet Communications Corporation.
+###############################################################################
 
 namespace eval LOGGING {
 
 variable Log
-
-proc abt { m } {
-
-	if [catch { ::abt $m } ] {
-		catch { alert "Aborted: $m" }
-		exit 99
-	}
-}
 
 proc log_open { { fname "" } { maxsize "" } { maxvers "" } } {
 
@@ -1302,14 +1426,9 @@ proc log_open { { fname "" } { maxsize "" } { maxvers "" } } {
 	if { $fname == "" } {
 		if ![info exists Log(FN)] {
 			set Log(FN) "log"
-			set Log(SU) ".txt"
 		}
 	} else {
-		set Log(FN) [file rootname $fname]
-		set Log(SU) [file extension $fname]
-		if { $Log(SU) == "" } {
-			set Log(SU) ".txt"
-		}
+		set Log(FN) $fname
 	}
 
 	if { $maxsize == "" } {
@@ -1334,18 +1453,17 @@ proc log_open { { fname "" } { maxsize "" } { maxvers "" } } {
 		unset Log(FD)
 	}
 
-	set fn "$Log(FN)$Log(SU)"
-	if [catch { file size $fn } fs] {
+	if [catch { file size $Log(FN) } fs] {
 		# not present
-		if [catch { open $fn "w" } fd] {
-			abt "Cannot open log file $fn: $fd"
+		if [catch { open $Log(FN) "w" } fd] {
+			error "cannot open log file $Log(FN), $fd"
 		}
 		# empty log
 		set Log(SZ) 0
 	} else {
 		# log file exists
-		if [catch { open $fn "a" } fd] {
-			abt "Cannot open log file $fn: $fd"
+		if [catch { open $Log(FN) "a" } fd] {
+			error "cannot open log file $Log(FN), $fd"
 		}
 		set Log(SZ) $fs
 	}
@@ -1361,16 +1479,15 @@ proc rotate { } {
 	unset Log(FD)
 
 	for { set i $Log(MV) } { $i > 0 } { incr i -1 } {
-		set tfn "$Log(FN)_$i$Log(SU)"
+		set tfn "$Log(FN).$i"
 		set ofn $Log(FN)
 		if { $i > 1 } {
-			append ofn "_[expr $i - 1]"
+			append ofn ".[expr $i - 1]"
 		}
-		append ofn $Log(SU)
 		catch { file rename -force $ofn $tfn }
 	}
 
-	log_open
+	catch { log_open }
 }
 
 proc outlm { m } {
@@ -1519,7 +1636,7 @@ proc u_conf { prt speed } {
 #
 # Centralized fconfigure for the UART
 #
-	global WN
+	global WN ST
 
 	set fd $WN(FD,$prt)
 
@@ -1534,7 +1651,8 @@ proc u_conf { prt speed } {
 	# accumulated input buffer
 	set WN(IB,$prt) ""
 
-	fileevent $fd readable "u_iready $prt"
+	uartpoll_oninput $fd "u_iready $prt" $ST(SYS) $ST(DEV)
+
 	return 0
 }
 
@@ -1705,6 +1823,7 @@ proc stop_port { pn } {
 	# close the UART
 	if [info exists WN(FD,$pn)] {
 		# UART open
+		uartpoll_stop $WN(FD,$pn)
 		fclose $WN(FD,$pn)
 		unset WN(FD,$pn)
 	}
@@ -6129,7 +6248,9 @@ proc set_home_dir { ds } {
 	cd $hfn
 
 	# open the log
-	log_open
+	if [catch { log_open } err] {
+		abt "Error: $err"
+	}
 
 	# read conversion snippets
 	set err [snp_read]

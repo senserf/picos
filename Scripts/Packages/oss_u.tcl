@@ -1,5 +1,4 @@
 package provide oss_u 1.0
-
 #
 # UART interface for packet protocols: N and P
 #
@@ -847,5 +846,3 @@ namespace export u_*
 }
 
 namespace import ::OSSU::*
-
-###############################################################################

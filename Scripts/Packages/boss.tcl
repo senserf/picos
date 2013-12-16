@@ -193,7 +193,7 @@ proc bo_emu_readable { fun } {
 
 	if [$fun] {
 		# a void call, increase the timeout
-		if { $B(ROT) < 40 } {
+		if { $B(ROT) < $B(RMX) } {
 			incr B(ROT)
 		}
 	} else {
@@ -628,6 +628,7 @@ proc boss_init { ufd mpl { clo "" } { emu 0 } } {
 		# the readable flag doesn't work for UART on some Cygwin
 		# setups
 		set B(ROT) 1
+		set B(RMX) $emu
 		bo_emu_readable "[lize bo_rawread]"
 	} else {
 		# do it the easy way
@@ -778,7 +779,3 @@ namespace export boss_*
 }
 
 namespace import ::BOSS::*
-
-###############################################################################
-# End of BOSS #################################################################
-###############################################################################
