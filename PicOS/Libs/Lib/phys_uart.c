@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -12,8 +12,8 @@
 #define	UART_TCV_MODE_NOCHECKSUM 0
 #endif
 
-#if UART_TCV_MODE == UART_TCV_MODE_L
-// No CRC in L mode
+#if UART_TCV_MODE == UART_TCV_MODE_L || UART_TCV_MODE == UART_TCV_MODE_E
+// No CRC in L mode, trivial (parity) checksum in E mode
 #undef	UART_TCV_MODE_NOCHECKSUM
 #define	UART_TCV_MODE_NOCHECKSUM 1
 #endif
@@ -197,7 +197,7 @@ strand (xmtuart, uart_t*)
 	  4
 #endif
 	    || stln > UA->r_buffl || (stln & 1) != 0)
-		syserror (EREQPAR, "xmtu/length");
+		syserror (EREQPAR, "xln");
 
 	// In bytes
 	UA->x_buffl = stln;
@@ -283,7 +283,7 @@ static void start_uart () {
 	UA->r_prcs = runstrand (rcvuart, UA);
 
 	if (UA->r_prcs == 0 || UA->x_prcs == 0)
-		syserror (ERESOURCE, "phys_uart");
+		syserror (ERESOURCE, "phu");
 
 	UA->v_flags = 0;
 #undef UA
@@ -304,14 +304,14 @@ void phys_uart (int phy, int mbs, int which) {
 #endif
 
 	if ((word)which >= UART_TCV)
-		syserror (EREQPAR, "phys_uart");
+		syserror (EREQPAR, "phu");
 
 	if (UA->r_buffer != NULL)
 		/* We are allowed to do it only once */
-		syserror (ETOOMANY, "phys_uart");
+		syserror (ETOOMANY, "phu");
 
 	if ((mbs & 1) || (word)mbs > 252)
-		syserror (EREQPAR, "phys_uart mbs");
+		syserror (EREQPAR, "phb");
 	else if (mbs == 0)
 		mbs = UART_DEF_BUF_LEN;
 
@@ -324,7 +324,7 @@ void phys_uart (int phy, int mbs, int which) {
 #endif
 
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
-		syserror (EMALLOC, "phys_uart");
+		syserror (EMALLOC, "phu");
 
 	// Length in bytes, includes statid (counts to payload) and checksum
 	UA->r_buffl = mbs;
@@ -418,7 +418,7 @@ TOffEv:
 			ret = *val;
 			break;
 		}
-		syserror (EREQPAR, "phys_uart rate");
+		syserror (EREQPAR, "phr");
 
 	    case PHYSOPT_GETRATE:
 
@@ -432,7 +432,7 @@ TOffEv:
 
 	    default:
 
-		syserror (EREQPAR, "phys_uart option");
+		syserror (EREQPAR, "pho");
 
 	}
 	return ret;
@@ -514,7 +514,7 @@ strand (xmtuart, uart_t*)
 				// The transmitted length will be even anyway
 				stln++;
 			if ((UA->x_buffl = (byte) stln) > UA->r_buffl - 4)
-				syserror (EREQPAR, "xmtu/length");
+				syserror (EREQPAR, "xln");
 			// Calculate checksum; note that this assumes a
 			// particular layout of uart_t!!!
 			stln = w_chk ((address)(&(UA->x_buffh)), 1, 0);
@@ -734,7 +734,7 @@ static void start_uart () {
 	UA->x_prcs = runstrand (xmtuart, UA);
 
 	if (UA->r_prcs == 0 || UA->x_prcs == 0)
-		syserror (ERESOURCE, "phys_uart");
+		syserror (ERESOURCE, "phu");
 
 	UA->v_flags = 0;
 
@@ -754,14 +754,14 @@ void phys_uart (int phy, int mbs, int which) {
 #define	UA	__pi_uart
 #endif
 	if ((word)which >= UART_TCV)
-		syserror (EREQPAR, "phys_uart");
+		syserror (EREQPAR, "phu");
 
 	if (UA->r_buffer != NULL)
 		/* We are allowed to do it only once */
-		syserror (ETOOMANY, "phys_uart");
+		syserror (ETOOMANY, "phu");
 
 	if ((word)mbs > 254 - 4)
-		syserror (EREQPAR, "phys_uart mbs");
+		syserror (EREQPAR, "phb");
 	else if (mbs == 0)
 		mbs = UART_DEF_BUF_LEN;
 	if ((mbs & 1))
@@ -771,7 +771,7 @@ void phys_uart (int phy, int mbs, int which) {
 	mbs += 4;
 
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
-		syserror (EMALLOC, "phys_uart");
+		syserror (EMALLOC, "phu");
 
 	// If not NULL, the buffer must be released to TCV
 	UA->x_buffer = NULL;
@@ -857,7 +857,7 @@ Wake:
 			ret = *val;
 			break;
 		}
-		syserror (EREQPAR, "phys_uart rate");
+		syserror (EREQPAR, "phr");
 
 	    case PHYSOPT_GETRATE:
 
@@ -872,7 +872,7 @@ Wake:
 
 	    default:
 
-		syserror (EREQPAR, "phys_uart option");
+		syserror (EREQPAR, "pho");
 
 	}
 	return ret;
@@ -1045,7 +1045,7 @@ static void start_uart () {
 	UA->r_prcs = runstrand (rcvuart, UA);
 
 	if (UA->x_prcs == 0 || UA->r_prcs == 0)
-		syserror (ERESOURCE, "phys_uart");
+		syserror (ERESOURCE, "phu");
 
 	UA->v_flags = 0;
 
@@ -1067,14 +1067,14 @@ void phys_uart (int phy, int mbs, int which) {
 #endif
 
 	if ((word)which >= UART_TCV)
-		syserror (EREQPAR, "phys_uart");
+		syserror (EREQPAR, "phu");
 
 	if (UA->r_buffer != NULL)
 		/* We are allowed to do it only once */
-		syserror (ETOOMANY, "phys_uart");
+		syserror (ETOOMANY, "phu");
 
 	if (mbs < 0 || mbs > 255)
-		syserror (EREQPAR, "phys_uart mbs");
+		syserror (EREQPAR, "phb");
 	else if (mbs < 4)
 		mbs = UART_DEF_BUF_LEN;
 
@@ -1084,7 +1084,7 @@ void phys_uart (int phy, int mbs, int which) {
 #endif
 
 	if ((UA->r_buffer = umalloc (mbs)) == NULL)
-		syserror (EMALLOC, "phys_uart");
+		syserror (EMALLOC, "phu");
 
 	// Length in bytes; minus one to make sure that the NULL byte sentinel
 	// always fits
@@ -1167,7 +1167,7 @@ TOffEv:
 			ret = *val;
 			break;
 		}
-		syserror (EREQPAR, "phys_uart rate");
+		syserror (EREQPAR, "phr");
 
 	    case PHYSOPT_GETRATE:
 
@@ -1181,13 +1181,347 @@ TOffEv:
 
 	    default:
 
-		syserror (EREQPAR, "phys_uart option");
+		syserror (EREQPAR, "pho");
 
 	}
 	return ret;
 }
 
 #endif /* UART_TCV_MODE_L */
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+
+#if UART_TCV_MODE == UART_TCV_MODE_E
+
+// ============================================================================
+// STX/ETX/DLE with single byte parity ========================================
+// ============================================================================
+
+#if UART_TCV > 1
+#define	START_UART(a)	start_uart (a)
+#else
+#define	START_UART(a)	start_uart ()
+#endif
+
+#define	RC_LOOP		0
+#define	RC_START	1
+#define	RC_END		2
+
+strand (rcvuart, uart_t*)
+
+#if UART_TCV > 1
+#define	UA data
+#else
+#define	UA __pi_uart
+#endif
+
+    byte p;
+    word n;
+
+    entry (RC_LOOP)
+
+	LEDIU (2, 0);
+
+	when (OFFEVENT, RC_LOOP);
+	if ((UA->v_flags & UAFLG_ROFF))
+		release;
+
+	UART_START_RECEIVER;
+
+    entry (RC_START)
+
+	when (OFFEVENT, RC_LOOP);
+	when (RXEVENT, RC_END);
+	release;
+
+    entry (RC_END)
+
+	UART_STOP_RECEIVER;
+
+	// Validate the parity; note that we have received the payload + the
+	// parity byte
+	p = 0x02 ^ 0x03;
+	for (n = 0; n < UA->r_buffp; n++)
+		p ^= ((byte*)(UA->r_buffer)) [n];
+
+	if (p)
+		// Wrong
+		proceed (RC_LOOP);
+
+	// Receive the packet
+	tcvphy_rcv (UA->v_physid, UA->r_buffer, UA->r_buffp - 1);
+	proceed (RC_LOOP);
+
+endstrand
+
+#define	XM_LOOP		0
+#define	XM_END		1
+#define	XM_WRCV		2
+#define	XM_SXMT		3
+#define	XM_OFF		4
+
+strand (xmtuart, uart_t*)
+
+#if UART_TCV > 1
+#define	UA data
+#else
+#define	UA __pi_uart
+#endif
+
+    word stln;
+
+    entry (XM_LOOP)
+
+	LEDIU (1, 0);
+	if ((UA->x_buffer = tcvphy_get (UA->v_physid, &stln)) == NULL) {
+		// Nothing to transmit
+		when (UA->x_qevent, XM_LOOP);
+		release;
+	}
+
+#if defined(blue_ready) && defined(BLUETOOTH_UART)
+// Do not send anything (drop packets) if the BlueTooth link is inactive.
+// N mode doesn't implement non-transparent (command) mode of BT UART (only L
+// mode can do that).
+#if BLUETOOTH_UART == 0
+	// On the first UART
+	if (UA == __pi_uart && !blue_ready)
+		goto Drop;
+#else
+	// On the second UART
+	if (UA != __pi_uart && !blue_ready)
+		goto Drop;
+#endif
+#endif /* BLUETOOTH_UART */
+
+	if (stln >= UA->r_buffl)
+		syserror (EREQPAR, "xln");
+
+	UA->x_buffl = stln;
+
+#ifdef UART_XMITTER_ON
+
+    entry (XM_WRCV)
+
+	// Half duplex, do not interfere with the receiver
+	cli;
+	if (UART_RCV_RUNNING) {
+		when (RDYEVENT, XM_WRCV);
+		sti;
+		release;
+	}
+	UART_XMITTER_ON;
+	sti;
+
+	delay (UART_XMITTER_ON_DELAY, XM_SXMT);
+	release;
+
+    entry (XM_SXMT)
+
+#endif
+	LEDIU (1, 1);
+	when (TXEVENT, XM_END);
+	UART_START_XMITTER;
+	release;
+
+    entry (XM_END)
+
+#ifdef UART_XMITTER_ON
+
+	delay (UART_XMITTER_OFF_DELAY, XM_OFF);
+	release;
+
+    entry (XM_OFF)
+
+	UART_XMITTER_OFF;
+#endif
+
+Drop:
+	tcvphy_end (UA->x_buffer);
+
+	proceed (XM_LOOP);
+
+#undef UA
+
+endstrand;
+
+#if UART_TCV > 1
+static void ini_uart (uart_t *ua) {
+#define	WHICH	(ua == __pi_uart ? 0 : 1)
+#else
+static void ini_uart () {
+#define	WHICH	0
+#endif
+/*
+ * Initialize the device
+ */
+	diag ("UART %d, rate: %d00", WHICH, (int)(UART_RATE/100));
+#undef	WHICH
+}
+
+#if UART_TCV > 1
+static void start_uart (uart_t *ua) {
+#define	UA ua
+#else
+static void start_uart () {
+#define	UA __pi_uart
+#endif
+
+	// Transmitter
+	UA->x_prcs = runstrand (xmtuart, UA);
+	UA->r_prcs = runstrand (rcvuart, UA);
+
+	if (UA->r_prcs == 0 || UA->x_prcs == 0)
+		syserror (ERESOURCE, "phu");
+
+	UA->v_flags = 0;
+#undef UA
+}
+
+void phys_uart (int phy, int mbs, int which) {
+/*
+ * phy   - interface number
+ * mbs   - maximum packet length (payload only!)
+ * which - which uart (0 or 1)
+ */
+
+#if UART_TCV > 1
+#define	UA	(__pi_uart + which)
+#else
+#define	UA	__pi_uart
+#endif
+
+	if ((word)which >= UART_TCV)
+		syserror (EREQPAR, "phu");
+
+	if (UA->r_buffer != NULL)
+		/* We are allowed to do it only once */
+		syserror (ETOOMANY, "phu");
+
+	if ((word)mbs > 254)
+		syserror (EREQPAR, "phb");
+	else if (mbs == 0)
+		mbs = UART_DEF_BUF_LEN;
+
+	// Make sure the parity byte is included
+	mbs += 1;
+
+#if defined(blue_reset) && defined(BLUETOOTH_UART)
+	if (which == BLUETOOTH_UART)
+		blue_reset;
+#endif
+
+	if ((UA->r_buffer = umalloc (mbs)) == NULL)
+		syserror (EMALLOC, "phu");
+
+	// Length in bytes, including the parity byte
+	UA->r_buffl = mbs;
+	UA->v_physid = phy;
+
+	/* Register the phy */
+	UA->x_qevent = tcvphy_reg (phy,
+#if UART_TCV > 1
+		UA == __pi_uart ? option0 : option1,
+#else
+		option,
+#endif
+
+#ifdef BLUETOOTH_UART
+			((which == BLUETOOTH_UART) ?
+			  INFO_PHYS_UARTB :
+			    INFO_PHYS_UART)
+#else
+			INFO_PHYS_UART
+#endif
+				+ which);
+
+	INI_UART (UA);
+	START_UART (UA);
+
+#undef	UA
+}
+
+#if UART_TCV > 1
+static int option0 (int opt, address val) {
+	return option (opt, val, __pi_uart + 0);
+}
+static int option1 (int opt, address val) {
+	return option (opt, val, __pi_uart + 1);
+}
+static int option (int opt, address val, uart_t *UA) {
+#else
+static int option (int opt, address val) {
+#define	UA __pi_uart
+#endif	/* UART_TCV > 1 */
+/*
+ * Option processing
+ */
+	int ret = 0;
+
+	switch (opt) {
+
+	    case PHYSOPT_STATUS:
+
+		ret = 2 | ((UA->v_flags & UAFLG_ROFF) == 0);
+
+		if (val != NULL)
+			*val = ret;
+
+	    case PHYSOPT_TXON:
+	    case PHYSOPT_TXOFF:
+	    case PHYSOPT_TXHOLD:
+
+		break;
+
+	    case PHYSOPT_ON:
+
+		UA->v_flags &= ~UAFLG_ROFF;
+TOffEv:
+		trigger (OFFEVENT);
+		break;
+
+	    case PHYSOPT_OFF:
+
+		UA->v_flags |= UAFLG_ROFF;
+		goto TOffEv;
+
+#if UART_RATE_SETTABLE
+
+	    case PHYSOPT_SETRATE:
+
+		if (__pi_uart_setrate (*val, UA)) {
+			ret = *val;
+			break;
+		}
+		syserror (EREQPAR, "phr");
+
+	    case PHYSOPT_GETRATE:
+
+		ret = __pi_uart_getrate (UA);
+		break;
+#endif
+	    case PHYSOPT_GETMAXPL:
+
+		ret = UA->r_buffl - 1;
+		break;
+
+	    default:
+
+		syserror (EREQPAR, "pho");
+
+	}
+	return ret;
+}
+
+#endif /* UART_TCV_MODE_E */
+
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
 
 #if DIAG_MESSAGES
 #if DIAG_IMPLEMENTATION == 1
@@ -1222,6 +1556,9 @@ void __pi_diag_init (int ua) {
 // Preempt the UART for a diag message
 //
 
+// ============================================================================
+// ============================================================================
+
 #if UART_TCV_MODE == UART_TCV_MODE_L
 
 	if (UA->x_istate != IRQ_X_OFF) {
@@ -1240,8 +1577,13 @@ void __pi_diag_init (int ua) {
 #endif
 
 	DIAG_WCHAR ('\r'); DIAG_WAIT;
+#endif /* MODE_L */
 
-#else
+// ============================================================================
+// ============================================================================
+
+#if UART_TCV_MODE == UART_TCV_MODE_N || UART_TCV_MODE == UART_TCV_MODE_P
+
 	word bc;
 
 	if (UA->x_istate != IRQ_X_OFF) {
@@ -1264,7 +1606,42 @@ void __pi_diag_init (int ua) {
 		DIAG_WCHAR (0x10);
 		DIAG_WAIT;
 	}
+#endif /* MODE_N or MODE_P */
+
+// ============================================================================
+// ============================================================================
+
+#if UART_TCV_MODE == UART_TCV_MODE_E
+
+	word bc;
+
+	if (UA->x_istate != IRQ_X_OFF) {
+		// Transmitter running, abort it
+		UART_STOP_XMITTER;
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, TXEVENT);
+	} else {
+
+#ifdef UART_XMITTER_ON
+		UART_XMITTER_ON;
+		mdelay (UART_XMITTER_ON_DELAY);
 #endif
+	}
+
+	bc = 4;
+	// Send that many ETX's
+	while (bc--) {
+		DIAG_WCHAR (0x03);
+		DIAG_WAIT;
+	}
+
+	// And this many DLE's
+	bc = 4;
+	while (bc--) {
+		DIAG_WCHAR (0x10);
+		DIAG_WAIT;
+	}
+#endif /* MODE_E */
 
 }
 

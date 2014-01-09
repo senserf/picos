@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -189,5 +189,68 @@ RxEvent:
 
 	
     }	
+
+#endif
+
+#if UART_TCV_MODE == UART_TCV_MODE_E
+// ============================================================================
+// STX-ETX-DLE ================================================================
+// ============================================================================
+
+    b = RBUF;
+    if (b == 0x10 && (UA->v_flags & UAFLG_ESCP) == 0) {
+	UA->v_flags |= UAFLG_ESCP;
+	RTNI;
+    }
+
+    switch (UA->r_istate) {
+
+	case IRQ_R_OFF:
+
+		break;
+
+	case IRQ_R_STRT:
+
+		if (b == 0x02 && (UA->v_flags & UAFLG_ESCP) == 0) {
+			// Expecting STX
+			LEDIU (2, 1);
+STX_rst:
+			UA->r_buffp = 0;
+			UA->r_istate = IRQ_R_PKT;
+		}
+		break;
+
+	case IRQ_R_PKT:
+
+		if ((UA->v_flags & UAFLG_ESCP) == 0) {
+			// Unescaped
+			if (b == 0x03) {
+				// The end
+				RISE_N_SHINE;
+				if (UA->r_prcs != 0)
+					p_trigger (UA->r_prcs, RXEVENT);
+#ifdef UART_XMITTER_ON
+				// Half-duplex
+				if (UA->x_prcs != 0)
+					p_trigger (UA->x_prcs, RDYEVENT);
+#endif
+				UA->r_istate = IRQ_R_OFF;
+				break;
+			}
+			if (b == 0x02)
+				// STX reset
+				goto STX_rst;
+		}
+		if (UA->r_buffp >= UA->r_buffl) {
+			// Too long, reset
+			LEDIU (2, 0);
+			UA->r_istate = IRQ_R_STRT;
+			break;
+		}
+		((byte*)(UA->r_buffer)) [UA->r_buffp++] = b;
+    }
+
+    UA->v_flags &= ~UAFLG_ESCP;
+    RTNI;
 
 #endif

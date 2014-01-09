@@ -4,10 +4,10 @@
 /* ========================================================================= */
 
 // ============================================================================
-// P1.0	BUTTON 3 (on high)
-// P1.1 BUTTON 4 (on high)
-// P1.2 BUTTON 5
-// P1.3 BUTTON 2
+// P1.0	BUTTON 4 (on high)
+// P1.1 BUTTON 2 (on high)
+// P1.2 BUTTON 0
+// P1.3 BUTTON 5
 // P1.4 SWITCH S4 - 3
 // P1.5 UARTRX
 // P1.6 UARTTX
@@ -17,8 +17,8 @@
 #define	PIN_DEFAULT_P1OUT	0x9F
 #define	PIN_DEFAULT_P1REN	0x0F
 // ============================================================================
-// P2.0 BUTTON 1
-// P2.1 BUTTON 0
+// P2.0 BUTTON 3
+// P2.1 BUTTON 1
 // P2.2 NC
 // P2.3 NC
 // P2.4 NC

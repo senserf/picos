@@ -3855,3 +3855,11 @@ PG131216A:
 	arguments that were passed to deploy. -l has been interpreted by
 	deploy (to select the ActiveState Tcl for the GUI scripts) with the
 	complete argument string saved and made available via picospath.
+
+PG140109A:
+
+	Added a new mode to the UART PHY. The E (for escaped) mode conforms to
+	the Alphatronics spec (or so I think). This new mode has been 
+	amalgamated into piter (see the Serial doc).
+
+	A few new tests added to Apps/PROPRIETARY/ALPHATRONICS.

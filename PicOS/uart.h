@@ -25,6 +25,7 @@
 #define	UAFLG_UNAC		0x10		// Last out message unacked
 #define	UAFLG_SACK		0x20		// Send ACK ASAP
 #define	UAFLG_NOTR		0x40		// Non-transparent BT (L-mode)
+#define	UAFLG_ESCP		UAFLG_SACK	// Escape (DLE)
 // Bit 0x80 is available
 
 
@@ -83,7 +84,10 @@ extern	uart_t __pi_uart [N_UARTS_TCV];
 #define	IRQ_X_PKT	3
 #define	IRQ_X_STOP	4
 #define	IRQ_X_CH1	5
+#define	IRQ_X_PAE	6
+#define	IRQ_X_ETX	IRQ_X_CH1
 #define	IRQ_X_LIN	IRQ_X_LEN
+#define	IRQ_X_ESC	IRQ_X_LEN
 #define	IRQ_X_EOL	IRQ_X_PKT
 
 #endif	/* N_UARTS_TCV */

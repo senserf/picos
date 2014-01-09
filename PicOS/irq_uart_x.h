@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2008                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -153,5 +153,87 @@ Eol:
 		UART_STOP_XMITTER;
 		RTNI;
     }
+
+#endif
+
+#if UART_TCV_MODE == UART_TCV_MODE_E
+// ============================================================================
+// STX-ETX-DLE ================================================================
+// ============================================================================
+
+    byte b;
+
+    switch (UA->x_istate) {
+
+	case IRQ_X_STRT:
+
+		// Sending STX, initializing checksum (r_buffs unused by the
+		// receiver)
+		UA->r_buffs = 0x02 ^ 0x03;
+		UA->x_buffp = 0;
+		XBUF_STORE (0x02);
+		UA->x_istate = IRQ_X_PKT;
+		RTNI;
+
+	case IRQ_X_PKT:
+
+		// Sending the payload
+		if (UA->x_buffp == UA->x_buffl) {
+			// No more payload, the parity byte
+			if (UA->r_buffs != 0x02 && UA->r_buffs != 0x03 &&
+			    UA->r_buffs != 0x10)
+				goto SendPar;
+
+			// Need to escape the parity byte
+			XBUF_STORE (0x10);
+			UA->x_istate = IRQ_X_PAE;
+		} else {
+			// A payload byte
+			b = ((byte*)(UA->x_buffer)) [UA->x_buffp];
+			if (b == 0x02 || b == 0x03 || b == 0x10) {
+				// Escape
+				XBUF_STORE (0x10);
+				UA->x_istate = IRQ_X_ESC;
+			} else {
+SendByte:
+				XBUF_STORE (b);
+				UA->x_buffp++;
+				UA->r_buffs ^= b;
+			}
+		}
+		RTNI;
+
+	case IRQ_X_ESC:
+
+		// DLE escape within the payload
+		b = ((byte*)(UA->x_buffer)) [UA->x_buffp];
+		UA->x_istate = IRQ_X_PKT;
+		goto SendByte;
+
+	case IRQ_X_PAE:
+
+		// Parity byte escaped, send the parity byte and quit
+SendPar:
+		XBUF_STORE (UA->r_buffs);
+		UA->x_istate = IRQ_X_ETX;
+		RTNI;
+
+	case IRQ_X_ETX:
+
+		// ETX
+		XBUF_STORE (0x03);
+		UA->x_istate = IRQ_X_STOP;
+		RTNI;
+
+	case IRQ_X_STOP:
+
+		RISE_N_SHINE;
+		if (UA->x_prcs != 0)
+			p_trigger (UA->x_prcs, TXEVENT);
+
+	case IRQ_X_OFF:
+
+		UART_STOP_XMITTER;
+}
 
 #endif

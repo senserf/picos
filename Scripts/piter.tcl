@@ -1,6 +1,6 @@
 #!/bin/sh
 #####################\
-exec tclsh85 "$0" "$@"
+exec tclsh "$0" "$@"
 
 #########################################
 # UART front for the various UART modes #
@@ -49,19 +49,19 @@ proc sy_usage { } {
 
 	puts stderr "Usage: $argv0 args, where args can be:"
 	puts stderr ""
-	puts stderr "       -p port/dev   UART dev or COM number, required"
-	puts stderr "       -s speed      UART speed, default is 9600"
-	puts stderr "       -m n|x|s|p|d  mode: N, XRS, S, P, Dir, def is d"
-	puts stderr "       -l pktlen     max pkt len, default is 82"
-	puts stderr "       -b \[file\]     binary mode (optional macro file)"
-	puts stderr "       -f file       preserve the output in file"
-	puts stderr "       -F file       preserve the input as well"
-	puts stderr "       -S            scan for present UART devs"
-	puts stderr "       -P file       preprocessor plugin file"
-	puts stderr "       -C file       alternative configuration file"
-	puts stderr "       -T string     window title string (GUI version)"
-	puts stderr "       -V            print the version number and exit"
-	puts stderr "       --            terminates args, plugin args follow"
+	puts stderr "       -p port/dev     UART dev or COM number, required"
+	puts stderr "       -s speed        UART speed, default is 9600"
+	puts stderr "       -m n|x|s|e|p|d  mode, default is d"
+	puts stderr "       -l pktlen       max pkt len, default is 82"
+	puts stderr "       -b \[file\]       binary mode (optional macro file)"
+	puts stderr "       -f file         preserve the output in file"
+	puts stderr "       -F file         preserve the input as well"
+	puts stderr "       -S              scan for present UART devs"
+	puts stderr "       -P file         preprocessor plugin file"
+	puts stderr "       -C file         alternative configuration file"
+	puts stderr "       -T string       window title string (GUI version)"
+	puts stderr "       -V              print the version number and exit"
+	puts stderr "       --              terminates args, plugin args follow"
 	puts stderr ""
 	puts stderr "Note that pktlen should be the same as the length used"
 	puts stderr "by the praxis in the respective argument of phys_uart."
@@ -1605,7 +1605,7 @@ proc sy_reconnect { } {
 	frame $w.mod.db
 	grid $w.mod.db -column 1 -row 1 -sticky new
 
-	set itl { Direct Persistent XRS NPacket SDual }
+	set itl { Direct Persistent XRS NPacket SDual Escaped }
 	set WI(MOD) "Direct"
 	set p [lindex $WI(SPA) 2]
 	if { [lsearch -exact $itl $p] >= 0 } {
@@ -2312,7 +2312,7 @@ proc pt_stparse { line } {
 proc sy_valmode { m } {
 
 	set m [string toupper [string index $m 0]]
-	if { [string first $m "NXSPD"] < 0 } {
+	if { [string first $m "NXSPDE"] < 0 } {
 		return ""
 	}
 	return $m
@@ -3731,7 +3731,6 @@ proc mo_write_x { msg byp } {
 
 	# we still need the four XRS header bytes in front
 	set lm [expr $PM(MPL) - 4]
-	set ln [string length $msg]
 
 	if { [string length $msg] > $lm } {
 		# this verification is probably redundant (we do check the
@@ -3754,6 +3753,7 @@ proc mo_init_x { } {
 #
 	global CH ST PM
 
+	set ST(STA) 0
 	set ST(BYP) 0
 	set CH(EXP) 0
 	set CH(CUR) 0
@@ -4158,6 +4158,7 @@ proc mo_init_p { } {
 	global CH ST PM
 
 	set ST(BYP) 0
+	set ST(STA) 0
 
 	set CH(EXP) 0
 	set CH(CUR) 0
@@ -4207,6 +4208,7 @@ proc mo_init_n { } {
 
 	# permanent queue bypass for output
 	set ST(BYP) 3
+	set ST(STA) 0
 	set CH(IPR) [format %c [expr 0x55]]
 	set ST(MOD) "N"
 	set PM(UPL) $PM(MPL)
@@ -4514,6 +4516,7 @@ proc mo_init_s { } {
 
 	# optional bypass
 	set ST(BYP) 1
+	set ST(STA) 0
 	set CH(EXP) 0
 	set CH(CUR) 0
 	# ACK flag
@@ -4939,6 +4942,264 @@ proc mo_reset_s { } {
 set MODULE(S) [list mo_init_s mo_rawread_s mo_write_s mo_reset_s]
 
 ###############################################################################
+# Module: mode == E ###########################################################
+###############################################################################
+
+proc mo_rawread_e { } {
+#
+# Called whenever data is available on the UART (mode X)
+#
+	global ST CH
+#
+#  STA = 0  -> Waiting for STX
+#        1  -> Waiting for payload bytes + ETX
+#        2  -> Waiting for end of DIAG preamble
+#        3  -> Waiting for EOL until end of DIAG
+#        4  -> Waiting for (CNT) bytes until the end of binary diag
+#
+	set chunk ""
+	set void 1
+
+	while 1 {
+
+		if { $chunk == "" } {
+
+			if [catch { read $ST(SFD) } chunk] {
+				# nonblocking read, ignore errors
+				set chunk ""
+			}
+
+			if { $chunk == "" } {
+				return $void
+			}
+
+			set void 0
+		}
+
+		set bl [string length $chunk]
+
+		switch $ST(STA) {
+
+		0 {
+			# waiting for STX
+			for { set i 0 } { $i < $bl } { incr i } {
+				set c [string index $chunk $i]
+				if { $c == $CH(DPR) } {
+					# diag preamble
+					set ST(STA) 2
+					break
+				}
+				if { $c == $CH(IPR) } {
+					# STX
+					set ST(STA) 1
+					set ST(ESC) 0
+					set ST(BUF) ""
+					set ST(BFL) 0
+					# initialize the parity byte
+					set ST(PAR) $ST(PAI)
+					break
+				}
+			}
+			if { $i == $bl } {
+				set chunk ""
+				continue
+			}
+
+			# remove the parsed out portion of the input string
+			incr i
+			set chunk [string range $chunk $i end]
+		}
+
+		1 {
+			# parse the chunk for escapes
+			for { set i 0 } { $i < $bl } { incr i } {
+				set c [string index $chunk $i]
+				if !$ST(ESC) {
+					if { $c == $CH(ETX) } {
+						# that's it
+						set ST(STA) 0
+						set chunk [string range $chunk \
+							[expr { $i + 1 }] end]
+						if { $ST(BFL) > $ST(MPM) ||
+						     $ST(PAR) } {
+							# too long or parity
+							break
+						}
+						# remove the parity byte
+						$ST(DFN) [string range \
+							$ST(BUF) 0 end-1]
+						break
+					}
+					if { $c == $CH(IPR) } {
+						# reset
+						set ST(STA) 0
+						set chunk [string range $chunk \
+							$i end]
+						break
+					}
+					if { $c == $CH(DLE) } {
+						# escape
+						set ST(ESC) 1
+						continue
+					}
+				} else {
+					set ST(ESC) 0
+				}
+				if { $ST(BFL) < $ST(MPM) } {
+					append ST(BUF) $c
+					binary scan $c cu v
+					set ST(PAR) [expr { $ST(PAR) ^ $v }]
+				}
+				incr ST(BFL)
+			}
+			if $ST(STA) {
+				set chunk ""
+			}
+		}
+
+		2 {
+			# waiting for the first non-DLE byte
+			set chunk [string trimleft $chunk $CH(DPR)]
+			if { $chunk != "" } {
+				set ST(BUF) ""
+				if { [string index $chunk 0] == $CH(ZER) } {
+					# a binary diag, length == 7
+					set ST(CNT) 7
+					set ST(STA) 4
+				} else {
+					# ASCII -> wait for NL
+					set ST(STA) 3
+				}
+			}
+		}
+
+		3 {
+			# waiting for NL ending a diag
+			set c [string first "\n" $chunk]
+			if { $c < 0 } {
+				append ST(BUF) $chunk
+				set chunk ""
+				continue
+			}
+
+			append ST(BUF) [string range $chunk 0 $c]
+			set chunk [string range $chunk [expr $c + 1] end]
+			# reset
+			set ST(STA) 0
+			pt_diag
+		}
+
+		4 {
+			# waiting for CNT bytes of binary diag
+			if { $bl < $ST(CNT) } {
+				append ST(BUF) $chunk
+				set chunk ""
+				incr ST(CNT) -$bl
+				continue
+			}
+			# reset
+			set ST(STA) 0
+			append ST(BUF) [string range $chunk 0 \
+				[expr $ST(CNT) - 1]]
+
+			set chunk [string range $chunk $ST(CNT) end]
+			pt_diag
+		}
+
+		default {
+			global DB
+			if { $DB(LEV) > 0 } {
+				pt_trc "rawread: illegal state: $ST(STA)"
+			}
+			set ST(STA) 0
+		}
+		}
+	}
+}
+
+proc mo_write_e { msg byp } {
+
+	global ST DB CH PM
+
+
+	set out $CH(IPR)
+	set par $ST(PAI)
+	set lm [string length $msg]
+
+	if { $lm > $PM(MPL) } {
+		if { $DB(LEV) > 0 } {
+			pt_trc "write: outgoing message truncated to $PM(MPL)\
+				bytes"
+		}
+		set lm $PM(MPL)
+	}
+
+	for { set i 0 } { $i < $lm } { incr i } {
+		set c [string index $msg $i]
+		if { $c == $CH(IPR) || $c == $CH(ETX) || $c == $CH(DLE) } {
+			# need to escape
+			append out $CH(DLE)
+		}
+		append out $c
+		# parity
+		binary scan $c cu v
+		set par [expr { $par ^ $v }]
+	}
+
+	set par [binary format c $par]
+	if { $par == $CH(IPR) || $par == $CH(ETX) || $par == $CH(DLE) } {
+		set par "$CH(DLE)$par"
+	}
+
+	# complete
+	append out "${par}$CH(ETX)"
+
+	if { $DB(LEV) > 1 } {
+		sy_dump "W" $out
+	}
+
+	catch {
+		puts -nonewline $ST(SFD) $out
+		flush $ST(SFD)
+	}
+
+	set ST(OBS) 0
+
+	return 1
+}
+
+proc mo_init_e { } {
+
+	global CH ST PM
+
+	set ST(STA) 0
+	set ST(BYP) 3
+	set ST(MOD) "E"
+
+	fconfigure $ST(SFD) -buffering none -translation binary
+
+	set PM(UPL) $PM(MPL)
+
+	set CH(IPR) [format %c [expr 0x02]]
+	set CH(DLE) [format %c [expr 0x10]]
+	set CH(ETX) [format %c [expr 0x03]]
+
+	# initial parity
+	set ST(PAI) [expr { 0x02 ^ 0x03 }]
+
+	# max buffer length + 1 to accommodate parity on input
+	set ST(MPM) [expr { $PM(MPL) + 1 }]
+}
+
+proc mo_reset_e { } {
+
+# void
+
+}
+
+set MODULE(E) [list mo_init_e mo_rawread_e mo_write_e mo_reset_e]
+
+###############################################################################
 # Module: mode == D ###########################################################
 ###############################################################################
 
@@ -4948,6 +5209,15 @@ proc mo_rawread_d { } {
 
 	if { [catch { read $ST(SFD) } sta] || $sta == "" } {
 		return 1
+	}
+
+	if $ST(BIN) {
+		if { $DB(LEV) > 1 } {
+			# dump
+			sy_dump "R" $msg
+		}
+		$ST(DFN) $sta
+		return 0
 	}
 
 	append ST(BUF) $sta
@@ -4975,13 +5245,21 @@ proc mo_write_d { msg byp } {
 #
 # Send out a message
 #
-	global ST PM DB
+	global ST DB
 
 	if { $DB(LEV) > 1 } {
 		sy_dump "W" $msg
 	}
 
-	catch { puts $ST(SFD) $msg }
+	if $ST(BIN) {
+		catch {
+			puts -nonewline $ST(SFD) $msg
+			flush $ST(SFD)
+		}
+	} else {
+		catch { puts $ST(SFD) $msg }
+	}
+
 	set ST(OBS) 0
 
 	return 1
@@ -4997,7 +5275,13 @@ proc mo_init_d { } {
 	set ST(BYP) 3
 	set ST(MOD) "D"
 
-	fconfigure $ST(SFD) -buffering none -translation { lf crlf }
+	if $ST(BIN) {
+		set trn "binary"
+	} else {
+		set trn { lf crlf }
+	}
+
+	fconfigure $ST(SFD) -buffering none -translation $trn
 
 	set PM(UPL) $PM(MPL)
 }

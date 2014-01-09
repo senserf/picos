@@ -39,6 +39,7 @@
 #define	UART_TCV_MODE_N		0	// Non-persisitent packets
 #define	UART_TCV_MODE_P		1	// Built-in ACKs
 #define	UART_TCV_MODE_L		2	// Lines
+#define	UART_TCV_MODE_E		3	// STX/ETX/DLE with one-byte parity
 
 // These are special sequences to identify (for picomp) those symbols that are
 // only defined, not set. These symbols represent optional modules.
