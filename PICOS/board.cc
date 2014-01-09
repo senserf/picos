@@ -319,6 +319,7 @@ void PicOSNode::uart_reset () {
 		case UART_IMODE_N:
 		case UART_IMODE_P:
 		case UART_IMODE_L:
+		case UART_IMODE_E:
 
 			UART_INTF_P (uart) -> init ();
 			break;
@@ -352,6 +353,7 @@ void PicOSNode::uart_abort () {
 		case UART_IMODE_N:
 		case UART_IMODE_P:
 		case UART_IMODE_L:
+		case UART_IMODE_E:
 
 			UART_INTF_P (uart) -> abort ();
 			break;
@@ -591,6 +593,7 @@ void PicOSNode::setup (data_no_t *nd) {
 			case UART_IMODE_N:
 			case UART_IMODE_P:
 			case UART_IMODE_L:
+			case UART_IMODE_E:
 				uart->Int = (void*) new uart_tcv_int_t;
 				break;
 			default:
@@ -3292,6 +3295,10 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 			// Line packet
 			UA->iface = UART_IMODE_L;
 			um = 'l';
+		} else if (*att == 'e') {
+			// escaped mode
+			UA->iface = UART_IMODE_E;
+			um = 'e';
 		} else if (*att != 'd')
 			// It can only be "direct", "n-packet", "p-packet",
 			// "l-packet"

@@ -573,7 +573,7 @@ p_uart_rcv_l::perform {
 
 	pkt_ignore (UA, RC_WOFF, RC_LOOP);
 
-endstrand
+}
 
 // ============================================================================
 
@@ -630,9 +630,176 @@ p_uart_xmt_l::perform {
 
 	// Done
 	tcvphy_end (UA->x_buffer);
-		proceed (XM_LOOP);
+	proceed XM_LOOP;
 }
 
+// ============================================================================
+// Escaped mode
+// ============================================================================
+
+p_uart_rcv_e::perform {
+
+    byte b;
+
+    _pp_enter_ ();
+
+    state RC_LOOP:
+
+	LEDIU (2, 0);
+
+    transient RC_WAITSTX:
+
+	b = upkt_getbyte (UA, RC_WAITSTX, RC_OFFSTATE);
+
+	if (b == 0x10)
+		// DLE escape
+		sameas RC_WAITESC;
+
+	if (b != 0x02)
+		sameas RC_WAITSTX;
+STX_reset:
+
+	UA->r_buffp = (byte*)(UA->r_buffer);
+	// This is pure payload length + 1
+	UA->r_buffs = UA->r_buffl;
+	Parity = 0x02 ^ 0x03;
+
+    transient RC_MORE:
+
+	b = upkt_getbyte (UA, RC_MORE, RC_OFFSTATE);
+
+	if (b == 0x10)
+		// DLE escape
+		sameas RC_MOREESC;
+
+	if (b == 0x03) {
+		// The end
+		if (Parity == 0)
+			tcvphy_rcv (UA->v_physid, UA->r_buffer,
+				(UA->r_buffp - (byte*)(UA->r_buffer)) - 1);
+		proceed RC_LOOP;
+	}
+
+	if (b == 0x02)
+		// STX reset
+		goto STX_reset;
+Store_it:
+
+	if (UA->r_buffs == 0)
+		// Too long, reset
+		sameas RC_LOOP;
+
+	*(UA->r_buffp)++ = b;
+	UA->r_buffs--;
+	Parity ^= b;
+
+	sameas RC_MORE;
+
+    state RC_MOREESC:
+
+	b = upkt_getbyte (UA, RC_MOREESC, RC_OFFSTATE);
+	goto Store_it;
+
+    state RC_WAITESC:
+
+	b = upkt_getbyte (UA, RC_WAITESC, RC_OFFSTATE);
+	sameas RC_WAITSTX;
+
+    state RC_OFFSTATE:
+
+	LEDIU (2, 0);
+
+    transient RC_WOFF:
+
+	pkt_ignore (UA, RC_WOFF, RC_LOOP);
+}
+
+p_uart_xmt_e::perform {
+
+    int stln;
+    char c;
+
+    _pp_enter_ ();
+
+    state XM_LOOP:
+
+	LEDIU (1, 0);
+
+	if ((UA->x_buffer = tcvphy_get ((int)(UA->v_physid), &stln)) == NULL) {
+		// Nothing to transmit
+		when (UART_EVP_XMT, XM_LOOP);
+		sleep;
+	}
+
+	// Zero length allowed, odd length allowed, must be < bufflen
+	if (stln >= UA->r_buffl)
+		syserror (EREQPAR, "xmtu/length");
+
+	LEDIU (1, 1);
+
+	Parity = 0x02 ^ 0x03;
+
+	UA->x_buffl = (word) stln;
+	UA->x_buffp = (byte*)(UA->x_buffer);
+
+    transient XM_SSTX:
+
+	c = 0x02;
+	io (XM_SSTX, 0, WRITE, &c, 1);
+
+    transient XM_SEND:
+
+	if (UA->x_buffl == 0)
+		sameas XM_CODA;
+
+	c = *((char*)(UA->x_buffp));
+
+	if (c == 0x02 || c == 0x03 || c == 0x10)
+		sameas XM_ESCAPE;
+
+    transient XM_OUTBYTE:
+
+	c = *((char*)(UA->x_buffp));
+	io (XM_OUTBYTE, 0, WRITE, &c, 1);
+	UA->x_buffp++;
+	UA->x_buffl--;
+	Parity ^= (byte)c;
+
+	sameas XM_SEND;
+
+    state XM_ESCAPE:
+
+	c = 0x10;
+	io (XM_OUTBYTE, 0, WRITE, &c, 1);
+	sameas XM_OUTBYTE;
+
+    state XM_CODA:
+
+	if (Parity == 0x02 || Parity == 0x03 || Parity == 0x10)
+		sameas XM_PESCAPE;
+
+    transient XM_SPARITY:
+
+	io (XM_SPARITY, 0, WRITE, (char*)(&Parity), 1);
+
+    transient XM_SETX:
+
+	c = 0x03;
+	io (XM_SETX, 0, WRITE, &c, 1);
+
+	// Done
+	tcvphy_end (UA->x_buffer);
+	proceed XM_LOOP;
+
+    state XM_PESCAPE:
+
+	c = 0x10;
+	io (XM_PESCAPE, 0, WRITE, &c, 1);
+	sameas XM_SPARITY;
+}
+
+// ============================================================================
+// ============================================================================
 // ============================================================================
 
 __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
@@ -664,7 +831,7 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 
 	if (IMode == UART_IMODE_L) {
 		// Line mode
-		if (mbs < 0 || mbs > 255) {
+		if (mbs > 255) {
 MBS:
 			syserror (EREQPAR, "phys_uart mbs");
 		}
@@ -679,6 +846,13 @@ MBS:
 			goto MBS;
 		// Make sure the checksum is extra
 		mbs += 2;
+
+	} else if (IMode == UART_IMODE_E) {
+
+		if (mbs > 254)
+			goto MBS;
+
+		mbs += 1;
 
 	} else {
 
@@ -712,6 +886,8 @@ MBS:
 		ok = runthread (p_uart_rcv_l) && runthread (p_uart_xmt_l);
 	else if (IMode == UART_IMODE_N)
 		ok = runthread (p_uart_rcv_n) && runthread (p_uart_xmt_n);
+	else if (IMode == UART_IMODE_E)
+		ok = runthread (p_uart_rcv_e) && runthread (p_uart_xmt_e);
 	else
 		ok = runthread (p_uart_rcv_p) && runthread (p_uart_xmt_p);
 
@@ -790,14 +966,14 @@ static int unp_option (int opt, address val) {
 
 	    case PHYSOPT_SETSID:
 
-		if (IMode == UART_IMODE_L)
+		if (IMode == UART_IMODE_L || IMode == UART_IMODE_E)
 			goto Bad;
 		UA->v_statid = (val == NULL) ? 0 : *val;
 		break;
 
             case PHYSOPT_GETSID:
 
-		if (IMode == UART_IMODE_L)
+		if (IMode == UART_IMODE_L || IMode == UART_IMODE_E)
 			goto Bad;
 		ret = (int) (UA->v_statid);
 		if (val != NULL)
@@ -811,6 +987,8 @@ static int unp_option (int opt, address val) {
 			ret += 1;
 		else if (IMode == UART_IMODE_P)
 			ret -= 4;
+		else if (IMode == UART_IMODE_E)
+			ret -= 1;
 		else
 			ret -= 2;
 		break;

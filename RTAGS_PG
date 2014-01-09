@@ -1091,3 +1091,7 @@ PG131212A:
 
     Fixed udaemon to work with Tcl8.6 (from ActiveState). Cleanups in the
     document.
+
+PG140109A:	PICOS >= PG140109A
+
+    The E mode of UART PHY included in VUEE. Use mode="e" in the <uart> tag.

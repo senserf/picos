@@ -42,6 +42,7 @@
 #define	UART_IMODE_N		1	// PHY (TCV) N-mode (packet)
 #define	UART_IMODE_P		2	// PHY (TCV) P-mode (packet, persistent)
 #define	UART_IMODE_L		3	// PHY (TCV) mode (line)
+#define	UART_IMODE_E		4	// PHY (TCV) mode (escaped)
 
 // Channel types
 #define	CTYPE_SHADOWING		0
@@ -774,6 +775,36 @@ process p_uart_xmt_l : _PP_ (PicOSNode) {
 	uart_tcv_int_t *UA;
 
 	states { XM_LOOP, XM_SEND, XM_EOL1, XM_EOL2 };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+};
+
+// === UART E-mode ============================================================
+
+process p_uart_rcv_e : _PP_ (PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	byte Parity;
+
+	states { RC_LOOP, RC_WAITSTX, RC_MORE, RC_MOREESC, RC_WAITESC,
+			RC_OFFSTATE, RC_WOFF };
+
+	void setup () { UA = UART_INTF_P (TheNode->uart); };
+
+	perform;
+};
+
+process p_uart_xmt_e : _PP_ (PicOSNode) {
+
+	uart_tcv_int_t *UA;
+
+	byte Parity;
+
+	states { XM_LOOP, XM_SSTX, XM_SEND, XM_OUTBYTE, XM_ESCAPE, XM_CODA,
+			XM_SPARITY, XM_SETX, XM_PESCAPE };
 
 	void setup () { UA = UART_INTF_P (TheNode->uart); };
 
