@@ -544,7 +544,12 @@ PG131205A:
 
 	   Pretty much irrelevant cosmetics:
 
-	   1. Provided for rate separation for neutrion channel model.
+	   1. Provided for rate separation for neutrino channel model.
 
 	   2. Removed the monitor connection attempt for VUEE, which is
 	      pretty much useless (at least has been so so far).
+
+PG140118A:
+
+	   Added "no linger" option to all mailbox sockets to make sure that
+	   sockets closed abnormally ... well ... do not linger.
