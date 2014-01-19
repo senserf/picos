@@ -1,0 +1,118 @@
+<!-- sidemon is called like this:
+
+	sidemon datafile logfile
+
+     where logfile is optional and datafile, if not specified, defaults to
+     sidemon.xml; you should be using the log file, at least for tests.
+
+     When called this way:
+
+	sidemon -kill datafile logfile
+
+     the script will terminate all runs described in datafile, if they happen
+     to exists.
+-->
+
+<sidemon dirbase="/home/pawel/SOFTWARE/PICOS/Apps" delay="4" interval="15"
+    sockbase="3072" detach="yes">
+	<!--
+		The attributes of sidemon:
+
+		dirbase		the base directory for locating praxis
+				directories; the run directories (see the
+				path tags below); will be taken relative to
+				dirbase; the default is none, i.e., the paths
+				will be interpreted as absolute or relative to
+				the place where sidemon is called 
+
+		delay		the maximum delay in seconds for a socket
+				request to side to respond; if there's no
+				response after that many seconds, the run will
+				be presumed dead (and restarted); the default
+				is 4 seconds
+
+		interval	the interval in seconds at which the runs will
+				be checked for being alive; every that many
+				seconds the script will try to connect to the
+				simulator; the connection is a CLOCK request;
+				the default is 15 seconds
+
+		sockbase	the starting number for socket port allocation
+				to runs; note that runs may specify absolute
+				(distinct) port numbers (in which case the base
+				is ignored); the attribute is optional, but
+				required if there is at least one run that
+				doesn't specify an explicit port number; every
+				such run will get the next port number starting
+				from the base; in any case, it is checked
+				whether all runs use distinct port numbers
+				(which are the primary identifiers of the runs)
+
+		detach		indicates that the simulator instances should
+				be run as daemons in a detached state, so they
+				won't be terminated when sidemon exits. This
+				is required, if you want to have idempotent
+				multiple instances of sidemon guarding your
+				runs
+	-->
+
+	<params>
+		<!-- This element can be used to specify extra arguments to
+		     side that should be applied to all runs; no need to use
+		     it, unless there is something truly exceptional; it can
+		     be absent altogether -->
+	</params>
+
+	<side followproject="yes" socket="2011">
+
+		<!-- Every run is described by an item like this;
+
+		     Attributes:
+
+			followproject	if "yes", the exact call format of the
+					simulator will be determined by the
+					project configuration in the praxis
+					directory; for example, if no data set
+					is explicitly specified for a run, and
+					followproject is "yes", the data set
+					described in the project config (if
+					any) will be used
+
+			socket		the explicit socket port number to be
+					used by the run; this run will use the
+					port number 2011, while the port number
+					for the next run (see below) will be
+					determined by sockbase
+		-->
+		<path>
+			<!-- This is the path to the praxis directory relative
+			     to dirbase -->
+
+			PROPRIETARY/eco_demo
+		</path>
+		<output>
+			junk_output.txt
+		</output>
+	</side>
+
+	<side>
+		<path>RFPing_u</path>
+		<data>
+			<!-- Note that this run specifies an explicit data set;
+			     this is in fact required, because there's no
+			     followproject for this run; the data set is
+			     located relative to the praxis directory -->
+
+			data8n.xml
+		</data>
+		<output append="yes">
+			<!-- This is the output file for the run (relative to
+			     the praxis directory; if unspecified (like in the
+			     previous run), the output goes to /dev/null -->
+			junk_output.txt
+		</output>
+	</side>
+
+	<!-- ... and so on; you can have as many runs as you like -->
+
+</sidemon>
