@@ -1096,6 +1096,6 @@ PG140109A:	PICOS >= PG140109A
 
     The E mode of UART PHY included in VUEE. Use mode="e" in the <uart> tag.
 
-PG140119A:
+PG140119A:	SIDE >= PG140119A
 
     The sidemon script included. Read SIDEMON.pdf in Doc.
