@@ -553,3 +553,18 @@ PG140118A:
 
 	   Added "no linger" option to all mailbox sockets to make sure that
 	   sockets closed abnormally ... well ... do not linger.
+
+PG140119A:
+
+	   Added a new simulator call argument. With -b, the simulator is run
+	   in the background in a detached state (as a daemon). When -b is
+	   followed by 0, e.g.,
+
+		side -b 0 datafile outfile
+
+	   all three standard streams are additionally directed to /dev/null.
+	   Thus, in particular, if the output file is not specified, as in:
+
+		side -b 0 datafile
+
+	   the program's output will be disabled and lost.

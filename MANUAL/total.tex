@@ -19363,6 +19363,21 @@ consisting of {\tt PCArgc} elements.
 \end{quote}
 
 \begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt -b}}\\ \hspace{0in}
+This argument indicates that the simulator should be run in the background,
+as a {\em daemon}, detached from the parent process (shell) and from the
+terminal.
+If the argument is followed by {\tt 0} (seprated from it by a space), the
+program will additionally make sure to direct all three standard streams
+({\tt stdin}, {\tt stdout}, and {\tt stderr}) to {\tt /dev/null}.
+In that case,
+if the output file has not been specified (see below), which means that
+the program's
+output is being directed to {\tt stdout} or {\tt stderr}, the output
+will be effectively switched off and irretrievably lost.
+\end{quote}
+
+\begin{quote}
 \noindent\hspace{-0.35in}{\bf {\tt -d}}\\ \hspace{0in}
 When this argument is used, the program will suspend its execution
 immediately after {\tt Root} completes the initialization phase,

@@ -190,6 +190,7 @@ static void bad_arguments () {
 	cerr << "     -c              empty message queues\n";
 	cerr << "     -u              disable standard client\n";
 #endif
+	cerr << "     -b [0|1]        run in background (as a daemon)\n";
 	cerr << "     -e              implicit process termination illegal\n";
 	cerr << "     -s              system event info to be exposed\n";
         cerr << "     -M fn           template file name\n";
@@ -423,7 +424,7 @@ void    zz_init_system  (int argc, char *argv []) {
 /* things                                                     */
 /* ---------------------------------------------------------- */
 
-	int     		i, k;
+	int     		i, k, b;
 	Long    		l;
 	del_trace_init_block	*dtib;
         char    		param;
@@ -434,6 +435,8 @@ void    zz_init_system  (int argc, char *argv []) {
 	Time = TIME_0;
 	
 	zz_processId = (int) getpid ();
+
+	b = -1;				// Background flag
 
 #if  ZZ_REA || ZZ_RSY
 	zz_nfdesc = getdtablesize ();
@@ -595,6 +598,24 @@ void    zz_init_system  (int argc, char *argv []) {
 
 				zz_flg_impterm = NO;
 				break;
+
+			case 'b' : // Background, i.e., run as daemon
+
+				if (b >= 0)
+					bad_arguments ();
+
+				if (argc < 2 || ((*argv)[0] != '0' &&
+						 (*argv)[0] != '1')) {
+					b = 1;
+					break;
+				}
+
+				b = ((*argv) [0] != '0');
+
+				argv++;
+				argc--;
+
+				break;
 #if     ZZ_TOL
 			case 'k' : // Standard tolerance parameters
 
@@ -677,6 +698,10 @@ EOA:	// Arguments visible to the model
 	base_time = (double) etimes.tms_utime / ZZ_HZ;
 #endif
 	signal (SIGCHKP, SIG_IGN);
+
+	if (b >= 0)
+		// Run as a daemon
+		daemon (1, b);
 }
 
 void    zz_done () {
