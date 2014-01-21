@@ -79,8 +79,9 @@
 
 #define	XTRN_IMODE_STRLEN	0x00FFFFFF
 
-#define	CONNECTION_TIMEOUT	(1024*30)	/* Thirty seconds */
-#define	SHORT_TIMEOUT		(1024*10)	/* Ten seconds */
+#define	CONNECTION_TIMEOUT	30.0		/* Thirty seconds */
+#define	SHORT_TIMEOUT		10.0		/* Ten seconds */
+#define	LINGER_TIMEOUT		SHORT_TIMEOUT	/* Emul linger for out socket */
 #define	AGENT_MAGIC		htons (0xBAB4)
 
 #define	AGENT_RQ_UART		1		/* Remote UART */

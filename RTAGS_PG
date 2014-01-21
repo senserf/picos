@@ -1099,3 +1099,14 @@ PG140109A:	PICOS >= PG140109A
 PG140119A:	SIDE >= PG140119A
 
     The sidemon script included. Read SIDEMON.pdf in Doc.
+
+PG140121A:
+
+    The introduction of global "no linger" for SIDE sockets (PG140118A) made it
+    impossible to retrieve the data set by udaemon, if the connection was
+    non-local. I have fixed that by emulating a short linger in the application
+    (i.e., VUEE). The problem concerned one request only (DATA) where VUEE
+    would write the data set to the socket and immediately close it. In all
+    remaining requests, the idea to close the connection (explicit or implicit)
+    always originates in the client, which makes it compatible with no linger
+    (the socket option) on the server's side.

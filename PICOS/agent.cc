@@ -2047,11 +2047,7 @@ Term:
 	transient Wait:
 
 		// Wait for the output to be flushed
-		if (!Agent->isActive () || !Agent->outputPending ())
-			goto Term;
-
-		Agent->wait (OUTPUT, Wait);
-		Timer->delay (MILLISECOND * SHORT_TIMEOUT, Kill);
+		Timer->delay (LINGER_TIMEOUT, Kill);
 
 	state Kill:
 
@@ -4622,7 +4618,7 @@ AgentConnector::perform {
 	state Init:
 
 		// Must receive the block within this interval
-		Timer->delay (MILLISECOND * CONNECTION_TIMEOUT, GiveUp);
+		Timer->delay (CONNECTION_TIMEOUT, GiveUp);
 
 		if (Agent->ri (Init, (char*)(&header), sizeof (rqhdr_t)) ==
 		    ERROR) {
@@ -4769,7 +4765,7 @@ Disconnector::perform {
 		// Try to disconnect softly, so as to convey a NACK to the
 		// other party, if only possible. But never hang around
 		// indefinitely.
-		Timer->delay (MILLISECOND * SHORT_TIMEOUT, Kill);
+		Timer->delay (SHORT_TIMEOUT, Kill);
 		if (Agent->wi (Send, (char*)(&code), 4) == ERROR)
 			goto Term;
 
@@ -4780,7 +4776,7 @@ Disconnector::perform {
 		if (!Agent->isActive () || !Agent->outputPending ())
 			goto Term;
 		Agent->wait (OUTPUT, Wait);
-		Timer->delay (MILLISECOND * SHORT_TIMEOUT, Kill);
+		Timer->delay (SHORT_TIMEOUT, Kill);
 
 	state Kill:
 Term:
