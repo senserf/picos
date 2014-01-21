@@ -19,20 +19,17 @@
 #include        <netinet/in.h>
 #include        <netdb.h>
 
-#define	NEVER_LINGER	1
-
-#ifdef NEVER_LINGER
-static int set_no_linger (int sfd) {
+static void set_socket_options (int sfd) {
   // Sets the "no linger" option for the socket
   struct linger linp;
+  int kal;
   bzero (&linp, sizeof (linp));
   linp.l_onoff = 1;
   linp.l_linger = 0;
-  return setsockopt (sfd, SOL_SOCKET, SO_LINGER, &linp, sizeof (linp));
+  setsockopt (sfd, SOL_SOCKET, SO_LINGER, &linp, sizeof (linp));
+  kal = 1;
+  setsockopt (sfd, SOL_SOCKET, SO_KEEPALIVE, &kal, sizeof (kal));
 }
-#else
-#define set_no_linger(a)	0
-#endif
 
 int openClientSocket (const char *hostname, int port) {
   // Connect to the specified port on the specified host
@@ -76,8 +73,7 @@ int openClientSocket (const char *hostname, int port) {
       return -1;
     }
   }
-  if (set_no_linger (sk))
-    return -1;
+  set_socket_options (sk);
   return sk;
 };
 
@@ -100,8 +96,7 @@ int openClientSocket (const char *fname) {
       return -1;
     }
   }
-  if (set_no_linger (sk))
-    return -1;
+  set_socket_options (sk);
   return sk;
 };
 
@@ -119,9 +114,8 @@ int openServerSocket (int port) {
     errno = er;
     return -1;
   }
+  set_socket_options (sk);
   listen (sk, 5);
-  if (set_no_linger (sk))
-    return -1;
   return sk;
 };
 
@@ -146,9 +140,8 @@ int openServerSocket (const char *fname) {
     errno = er;
     return -1;
   }
+  set_socket_options (sk);
   listen (sk, 5);
-  if (set_no_linger (sk))
-    return -1;
   return sk;
 };
 

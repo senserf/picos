@@ -549,10 +549,24 @@ PG131205A:
 	   2. Removed the monitor connection attempt for VUEE, which is
 	      pretty much useless (at least has been so so far).
 
-PG140118A:
+PG140118A:	VUEE >= PG140121A
 
-	   Added "no linger" option to all mailbox sockets to make sure that
-	   sockets closed abnormally ... well ... do not linger.
+	   Added "no linger" (SO_LINGER 1 0) option to all mailbox sockets to
+	   make sure that sockets closed abnormally ... well ... do not linger.
+
+	   I noticed (a bit later) that the no linger setting for a DATA
+	   connection to VUEE would make it impossible to retrieve the data
+	   set by udaemon, if the connection was non-local. To fix that, I
+	   first tried to relax the no linger option to a short linger, but it
+	   didn't seem to work, i.e., no matter how short the linger delay I
+	   specified, it always turned out as long as before (a minute or so).
+	   So instead I decided to emulate a short linger in the application
+	   (i.e., VUEE) leaving the no linger option on in SIDE. The problem
+	   concerned that one request only (DATA) where VUEE would write the
+	   data set to the socket and immediately close it. In all remaining
+	   requests, the idea to close the connection (explicit or implicit)
+	   always originates in the client, which makes it compatible with no
+	   linger on the server's side.
 
 PG140119A:
 
@@ -568,3 +582,11 @@ PG140119A:
 		side -b 0 datafile
 
 	   the program's output will be disabled and lost.
+
+PG140121A:
+
+	   I have thrown in SO_KEEPALIVE to the socket options, in addition to
+	   SO_LINGER (see PG140118A). For a UART connection to VUEE, the option
+	   will make sure to eventually kill a hung socket resulting from a
+	   disappeared client (e.g., after reboot, unplugging, broken Internet
+	   connection).
