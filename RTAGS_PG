@@ -3863,3 +3863,11 @@ PG140109A:
 	amalgamated into piter (see the Serial doc).
 
 	A few new tests added to Apps/PROPRIETARY/ALPHATRONICS.
+
+PG140121A:
+
+	Modified and updated versions of ALPHATRONICS tests
+	(Apps/PROPRIETARY/ALPHATRONICS/ONEHOP) as they were sent to Bert.
+
+	Fixed PicOS/modsyms.h to make sure that RADIO_USE_LEDS from
+	options.sys/board_options.sys is properly conveyed to VUEE.

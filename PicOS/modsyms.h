@@ -85,6 +85,16 @@
 #define RADIO_OPTIONS		0
 #endif
 
+// RF modules blink LEDs on transmission, reception, and so on ...
+#ifndef	RADIO_USE_LEDS
+#define	RADIO_USE_LEDS		0
+#endif
+
+// LEDs for UART over TCV
+#ifndef	UART_USE_LEDS
+#define	UART_USE_LEDS		0
+#endif
+
 #ifndef	RADIO_CRC_MODE
 #define	RADIO_CRC_MODE		0
 #endif
@@ -295,16 +305,6 @@
 // the "official" 16-bit ISO3309 CRC.
 #ifndef	CRC_ISO3309
 #define CRC_ISO3309		1
-#endif
-
-// RF modules blink LEDs on transmission, reception, and so on ...
-#ifndef	RADIO_USE_LEDS
-#define	RADIO_USE_LEDS		0
-#endif
-
-// LEDs for UART over TCV
-#ifndef	UART_USE_LEDS
-#define	UART_USE_LEDS		0
 #endif
 
 // Entropy collection enabled, if possible
