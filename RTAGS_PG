@@ -3871,3 +3871,10 @@ PG140121A:
 
 	Fixed PicOS/modsyms.h to make sure that RADIO_USE_LEDS from
 	options.sys/board_options.sys is properly conveyed to VUEE.
+
+PG140130A:
+
+	Updated version of ALPHATRONICS tests as per Bert's last clarification.
+
+	Defined a new board: OLIMEX_CCRF_BMA250 reflecting Gerry's recent
+	addition of BMA250 to OLIMEX_CCRF.

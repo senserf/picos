@@ -141,6 +141,7 @@
 #define		__CC430__
 #define		__PORTMAPPER__
 #define		__PORT_FBASE__	P1IN_	// Won't cover port J!!!
+#define		__NO_PORT_P4
 #define		__UART_CONFIG__	2
 #define		__ADC_CONFIG__	3	// Extended ADC with REF module
 #define		__TCI_CONFIG__	2

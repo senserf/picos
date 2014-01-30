@@ -127,6 +127,11 @@
 #include "rtc_cc430.h"
 #endif
 
+#ifdef	BOARD_OLIMEX_CCRF_BMA250
+#define	RTC_TEST
+#include "rtc_cc430.h"
+#endif
+
 #ifdef	BOARD_OLIMEX_CCRF_EETEST
 #define	RTC_TEST
 #define	EPR_TEST

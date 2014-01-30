@@ -126,6 +126,7 @@
 
 // ============================================================================
 
+#ifndef __NO_PORT_P4
 #if !defined(P4IN_) && defined(PBIN_)
 #define	P4IN_				(PBIN_+1)
 #endif
@@ -149,6 +150,7 @@
 #if !defined(P4OUT_) && defined(PBOUT_)
 #define	P4OUT_				(PBOUT_+1)
 #endif
+#endif	/* __NO_PORT_P4 */
 
 // ============================================================================
 
