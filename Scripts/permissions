@@ -34,8 +34,14 @@ proc calc_mode { fn } {
 
 	# content
 	if [catch { open $fn "r" } fd] {
-		# cannot open, ignore
-		return 644
+		# cannot open
+		if [catch { exec chmod -f 444 $fn } err] {
+			puts stderr "cannot chmod 444 $d: $err"
+			exit 99
+		}
+		if [catch { open $fn "r" } fd] {
+			return 644
+		}
 	}
 
 	fconfigure $fd -encoding binary
@@ -57,10 +63,17 @@ proc do_it { path } {
 #
 # Handles the current directory
 #
-	if [catch { exec ls -a } flist] {
+	if [catch { glob -nocomplain * } flist] {
 		puts stderr "cannot list directory: $flist"
 		exit 99
 	}
+
+	if [catch { glob -types hidden -nocomplain * } hlist] {
+		puts stderr "cannot list directory: $hlist"
+		exit 99
+	}
+
+	set flist [concat $flist $hlist]
 
 	foreach d $flist {
 		if { $d == "." || $d == ".." } {
@@ -89,6 +102,12 @@ proc do_it { path } {
 				do_it $npa
 				cd $c
 			}
+			continue
+		}
+
+		if ![file isfile $d] {
+			# ignore links, if any
+			puts "L: $npa"
 			continue
 		}
 

@@ -1132,8 +1132,10 @@ proc outmkf { def cpu } {
 
 		# the actual target
 		puts $mfd "\$(TR)$tarn :\t\$(BF$tarn)"
+		puts $mfd "\ttouch \$(TR)$tarn"
 		puts $mfd "\t\$(CC) -o \$(TR)$tarn \$(CF) \$(BF$tarn) \$(LD)"
 		puts $mfd "\t\$(OC) \$(TR)$tarn \$(TR)${tarn}.a43"
+		puts $mfd "\tchmod 0644 \$(TR)${tarn}.a43"
 		puts $mfd "\t\$(SI) \$(TR)$tarn\n"
 
 		# the list of compileable sources

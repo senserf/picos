@@ -3,6 +3,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+//#define	BMA250_POWERED_FROM_PIN
+
 // ============================================================================
 // P1.5 = UARTRX, P1.6 = UARTTX, P1.1 = BUTTON (pressed low, explicit pullup)
 // P1.0 = LED (on high), P1.7 = BMA250/INT1, P1.4 = BMA250/INT2
@@ -11,14 +13,20 @@
 #define	PIN_DEFAULT_P1REN	0x90
 #define	PIN_DEFAULT_P1OUT	0x00
 // ============================================================================
+// P3.0 BMA250 POWER		(if powered from pin)
 // P3.1 BMA250 SDI
 // P3.2        SDO
 // P3.3        SCK
-// P3.4        PS
+// P3.4        PS		(if powered from pin)
 // P3.5        CSB
 #define	PIN_DEFAULT_P3SEL	0x00
 #define	PIN_DEFAULT_P3DIR	0xFB
+
+#ifdef	BMA250_POWERED_FROM_PIN
+#define	PIN_DEFAULT_P3OUT	0x00
+#else
 #define	PIN_DEFAULT_P3OUT	0x28
+#endif
 
 // P5.0, P5.1 == LF crystal
 #define PIN_DEFAULT_P5SEL	0x03
@@ -81,6 +89,27 @@
 
 #define	bma250_data	(P3IN & 0x04)
 
+#ifdef	BMA250_POWERED_FROM_PIN
+
+#define	bma250_bring_up	do { \
+				bma250_cunsel; bma250_clkh; \
+				_BIS (P3OUT, 0x01); udelay (200); \
+			} while (0)
+
+#define	bma250_bring_down do { \
+				_BIC (P3OUT, 0x01); bma250_clkl; \
+				bma250_csel; \
+			} while (0)
+
+#define	__bma250_init	NULL
+
+#else
+
+#define	__bma250_init	bma250_init
+#define	SENSOR_INITIALIZERS
+
+#endif
+
 // Note: this delay only applies when writing. 15us didn't work, 20us did,
 // so 40 looks like a safe bet
 #define	bma250_delay	udelay (40)
@@ -88,7 +117,7 @@
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
-		DIGITAL_SENSOR (0, bma250_init, bma250_read)	\
+		DIGITAL_SENSOR (0, __bma250_init, bma250_read)	\
 	}
 
 #define	SENSOR_ANALOG
@@ -96,7 +125,6 @@
 #define	SENSOR_MOTION		0
 #define	SENSOR_DIGITAL
 #define	SENSOR_EVENTS
-#define	SENSOR_INITIALIZERS
 
 // ============================================================================
 

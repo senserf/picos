@@ -3878,3 +3878,25 @@ PG140130A:
 
 	Defined a new board: OLIMEX_CCRF_BMA250 reflecting Gerry's recent
 	addition of BMA250 to OLIMEX_CCRF.
+
+	Fixed a minor glitch in supplement_sys.h causing spurious references
+	to the non-existent port P4 for CC430F5137 (under new mspgcc).
+
+PG140131A:
+
+	Fixed a problem with the OLIMEX_CCRF_BMA250 board: the interrupt
+	service for sensor events was missing. As it turns out, the PS pin
+	cannot be driven from a pin if the power supply for the chip supply
+	isn't, because the pin is too late with its state. I have added an
+	option to the board to power the sensor from a pin. The option is off
+	now (and Gerry should solder PS to ground), but it may be useful for
+	future experiments.
+
+	Modified mkmk to "touch" some files in my (largely futile) attempts
+	to appease the broken Cygwin on my new laptop. I have no clue what is
+	going on, but I will experiment some more. These modifications are
+	harmless.
+
+	Modified the permissions script to make it a bit more intelligent and
+	general. I've used it to clean up permissions in all my files that I
+	moved from Ubuntu to Windows 8 on my new laptop.
