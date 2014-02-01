@@ -683,9 +683,9 @@ PG131119A:
 
 	Added rudimentary support for mspdebug (one more loader choice). At
 	present mspdebug only works under Linux. Even if it never works under
-	Windows/Cygwin Cygwin, it is a very valuable addition to the Linux
-	platform, because it allows us to flash basically everything. So this
-	is the first time when the Cygwin platform becomes less than critical.
+	Windows/Cygwin, it is a very valuable addition to the Linux platform,
+	because it allows us to flash basically everything. So this is the
+	first time when the Cygwin platform becomes less than critical.
 
 	At present, only command line call to msdebug is supported, which, for
 	example, makes it impossible to re-flash the FET (which must be done
@@ -733,3 +733,8 @@ PG131212A:
 	programmer. Instructions on how to configure, say, the olimex
 	programmer to work with PIP are in the doc (which has been brought
 	up to date).
+
+PG140131A:
+
+	Fixed the problem with Windows file paths including (...), e.g., when
+	invoking flash programmers in ...Program Files (x86)...

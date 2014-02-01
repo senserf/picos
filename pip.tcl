@@ -6548,7 +6548,7 @@ proc bpcs_run { path al pi } {
 	global TCMD ST
 
 	# a simple escape; do we need more?
-	regsub -all "\[ \t\]" $path {\\&} path
+	regsub -all "\[ \t()\]" $path {\\&} path
 
 	log "Running $path $al <$pi>"
 
