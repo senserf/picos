@@ -3900,3 +3900,30 @@ PG140131A:
 	Modified the permissions script to make it a bit more intelligent and
 	general. I've used it to clean up permissions in all my files that I
 	moved from Ubuntu to Windows 8 on my new laptop.
+
+PG140216A:
+
+	Modified ezlcd_item in ez430_lcd to simplify the interpretation of the
+	second argument. I have compressed the valid character codes (I mean
+	those that can be sensibly displayed) into a continuous range. There is
+	no need to preserve any ASCII interpretation. This means that the
+	caller now has to do a more elaborate job preparing the argument, but
+	the simple cases (like digits, for example) are simpler. The codes are:
+
+		0  -  9		decimal digits 0 - 9
+		10 - 35		characters A-Z
+
+	Note that W doesn't show and is replaced by -.
+
+	I have searched for and modified all invocations of ez430_lcd in praxes,
+	including Wlodek's praxes.
+
+	ALPHATRONICS boards modified to change the RF frequency to 868 MHz.
+
+	The desperate tweak in mkmk to appease broken Cygwin on my new laptop
+	revoked - it is not needed after all (specifically, after Cygwin has
+	been reinstalled).
+
+	The preliminary version of my planned elaborate test of CHRONOS_WHITE
+	intended for the new "shock detection" application. For now, the test
+	(see Apps/TESTS/CHRONOS/SHOCK) encompasses a simple settable watch.

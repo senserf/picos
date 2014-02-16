@@ -39,3 +39,10 @@
 
 // Don't ref out (by default) as the pin function is shared
 #define	ADC_REFERENCE_OUT	0
+
+// ============================================================================
+// 868 MHz base freq
+// ============================================================================
+#define	CC1100_FREQ_FREQ2_VALUE	0x21
+#define	CC1100_FREQ_FREQ1_VALUE	0x62
+#define	CC1100_FREQ_FREQ0_VALUE	0x76

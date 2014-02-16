@@ -90,13 +90,6 @@ static const byte ccodes [] = {
   SEG_A+SEG_B+SEG_C                        ,     // "7"
   SEG_A+SEG_B+SEG_C+SEG_D+SEG_E+SEG_F+SEG_G,     // "8"
   SEG_A+SEG_B+SEG_C+SEG_D+      SEG_F+SEG_G,     // "9"
-  0                                        ,     // " "
-  0                                        ,     // " "
-  0                                        ,     // " "
-  0                                        ,     // " "
-  0                                        ,     // " "
-                   SEG_D+SEG_E+       SEG_G,     // "c"
-  0                                        ,     // " "
   SEG_A+SEG_B+SEG_C+      SEG_E+SEG_F+SEG_G,     // "A"
               SEG_C+SEG_D+SEG_E+SEG_F+SEG_G,     // "b"
   SEG_A+            SEG_D+SEG_E+SEG_F      ,     // "C"
@@ -130,10 +123,7 @@ static const byte ccodes [] = {
 
 static inline byte code_char (word ch) {
 
-	if (ch == 0x2d)
-		// Exception - not in set
-		return 0x02;
-	ch = (ch & 0xff) - (word) '0';
+	ch = (ch & 0xff);
 	return ch >= sizeof (ccodes) ? 0 : ccodes [ch];
 }
 
@@ -185,12 +175,11 @@ void ezlcd_item (word it, word mode) {
 		// Erase -> nothing more to do
 		return;
 
-	// We will display the thing, check if a character item
 	if (it >= LCD_SEGMENTS_START) {
 		// Display character
 		ms = code_char (mode);
 		if (it >= LCD_SEG_L2_0) {
-			if (it == LCD_SEG_L2_5 && ms != 0)
+			if (it == LCD_SEG_L2_5)
 				// There is just one segment in this one
 				ms = 0x80;
 			else

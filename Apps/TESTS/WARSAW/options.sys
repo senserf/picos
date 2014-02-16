@@ -14,6 +14,14 @@
 #undef	CODE_LONG_INTS
 #define	CODE_LONG_INTS	1
 
+#undef	UART_TCV
+#define	UART_TCV	0
+
+#if	UART_DRIVER == 0
+#undef	UART_DRIVER
+#define	UART_DRIVER	1
+#endif
+
 #undef 	UART_RATE
 #define	UART_RATE	9600
 
@@ -49,4 +57,4 @@
 // #undef	RADIO_USE_LEDS
 // #define	RADIO_USE_LEDS	0
 
-#define	AUTO_RADIO_START 	0
+#define	AUTO_RADIO_START 	1

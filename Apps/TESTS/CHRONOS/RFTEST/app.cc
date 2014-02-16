@@ -52,7 +52,13 @@ void msg_lcd (const char *txt, word fr, word to) {
 	while (1) {
 		if ((c = *txt) != '\0') {
 			if (c >= 'a' && c <= 'z')
-				c -= ('a' - 'A');
+				c = c - 'a' + 10;
+			else if (c >= 'A' && c <= 'Z')
+				c = c - 'A' + 10;
+			else if (c >= '0' && c <= '9')
+				c -= '0';
+			else
+				c = 32;
 			ezlcd_item (fr, (word)c | LCD_MODE_SET);
 			txt++;
 		} else {

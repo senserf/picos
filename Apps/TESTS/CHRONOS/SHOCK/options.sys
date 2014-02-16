@@ -1,0 +1,4 @@
+// Insert here applications-specific options
+// #define	CC1100_OLD_DRIVER
+// #define	RADIO_WOR_MODE	1
+#undef	BUTTONS

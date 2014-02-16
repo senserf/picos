@@ -36,6 +36,5 @@
 	<module id="cpu">0.3 0.0077</module>
 	<module id="radio">0.0004 16.0 30.7 30.7</module>
 	<module id="storage">0.030 0.030 10.0 15.0 17.0 16.0</module>
-	<sensor number="6" vsize="2" delay="0.01">1</sensor>
     </ptracker>
 </node>
