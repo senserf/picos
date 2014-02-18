@@ -440,9 +440,11 @@ rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 		// Disable it
 		lbt_threshold = HUGE;
 		lbt_delay = 0;
+		lbt_tries = 0;
 	} else {
 		lbt_threshold = dBToLin (rf->LBTThs);
-		lbt_delay = (word) (rf->LBTDel);
+		lbt_delay = rf->LBTDel;
+		lbt_tries = rf->LBTTries;
 	}
 
 	DefXPower   = rf->Power;		// Index
@@ -2830,6 +2832,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 		RF->LBTThs = RF->Boost = HUGE;
 		RF->Power = RF->Rate = RF->Channel = RF->Pre = RF->LBTDel =
 			RF->BCMin = RF->BCMax = WNONE;
+		RF->LBTTries = 5;
 
 		RF->absent = YES;
 
@@ -2911,16 +2914,21 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 		// ============================================================
 	
 		np [1] . type = TYPE_double;
+		np [2] . type = TYPE_LONG;
 	
 		/* LBT */
 		if ((cur = sxml_child (mai, "lbt")) != NULL) {
-			if (parseNumbers (sxml_txt (cur), 2, np) != 2)
+			if ((len = parseNumbers (sxml_txt (cur), 3, np)) < 2)
 				xevi ("<lbt>", xname (nn, lab), sxml_txt (cur));
 			RF->LBTDel = (word) (np [0].LVal);
 			RF->LBTThs = np [1].DVal;
+
+			if (len >= 3)
+				RF->LBTTries = (word) (np [2].LVal);
 	
-			print (form ("  LBT:        del=%1d, ths=%g\n",
-				RF->LBTDel, RF->LBTThs));
+			print (form ("  LBT:        del=%1d, ths=%g, "
+				"tries=%1d\n",
+					RF->LBTDel, RF->LBTThs, RF->LBTTries));
 			ppf = YES;
 			RF->absent = NO;
 		}
@@ -4496,6 +4504,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 			if (NRF->LBTDel == WNONE) {
 				NRF->LBTDel = DRF->LBTDel;
 				NRF->LBTThs = DRF->LBTThs;
+				NRF->LBTTries = DRF->LBTTries;
 			}
 		}
 

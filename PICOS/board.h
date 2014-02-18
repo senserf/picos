@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.991
+#define	VUEE_VERSION	0.992
 
 #include "picos.h"
 #include "ndata.h"
@@ -196,7 +196,7 @@ class rfm_intd_t {
 	double		lbt_threshold;
 
 	word		min_backoff, max_backoff, backoff;
-	word		lbt_delay;
+	word		lbt_delay, lbt_tries;
 	word		phys_id;
 
 #if (RADIO_OPTIONS & 0x04)
@@ -856,6 +856,7 @@ process RM_ADC (PicOSNode) {
 process RM_Xmitter : _PP_ (PicOSNode) {
 
 	int		buflen;
+	word		ntry;
 	RM_ADC		*RSSI;
 	rfm_intd_t	*rf;
 

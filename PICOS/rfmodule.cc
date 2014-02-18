@@ -17,6 +17,7 @@
 #define	maxbkf	(rf->max_backoff)
 #define	lbtth	(rf->lbt_threshold)
 #define	lbtdl	(rf->lbt_delay)
+#define	lbtries	(rf->lbt_tries);
 #define	xmtg	(rf->Xmitting)
 #define	rcvg	(rf->Receiving)
 #define	defxp	(rf->DefXPower)
@@ -132,10 +133,14 @@ RM_Xmitter::perform {
 
     state XM_LOOP:
 
-	if (xbf == NULL && (xbf = tcvphy_get (physid, &buflen)) == NULL) {
-		// Nothing to transmit
-		when (txe, XM_LOOP);
-		release;
+	if (xbf == NULL) {
+		if ((xbf = tcvphy_get (physid, &buflen)) == NULL) {
+			// Nothing to transmit
+			when (txe, XM_LOOP);
+			release;
+		}
+		// Reset the number of tries
+		ntry = lbtries;
 	}
 
 	assert (buflen <= mxpl, "RM_Xmitter: packet too long, %1d > %1d",
@@ -154,20 +159,23 @@ RM_Xmitter::perform {
 		release;
 	}
 
-	if (rcvg) {
-		delay (minbkf, XM_LOOP);
-		when (txe, XM_LOOP);
-		release;
-	}
+	if (ntry) {
 
-	if (lbtdl && !rxoff) {
-		// Start the ADC
-		if (RSSI->signal ((void*)YES) == REJECTED)
-			// Race with ADC
-			proceed XM_LOOP;
+		if (rcvg) {
+			delay (minbkf, XM_LOOP);
+			when (txe, XM_LOOP);
+			release;
+		}
 
-		delay (lbtdl, XM_LBS);
-		release;
+		if (lbtdl && !rxoff) {
+			// Start the ADC
+			if (RSSI->signal ((void*)YES) == REJECTED)
+				// Race with ADC
+				proceed XM_LOOP;
+
+			delay (lbtdl, XM_LBS);
+			release;
+		}
 	}
 Xmit:
 	set_congestion_indicator (0);
@@ -216,6 +224,8 @@ Xmit:
 		diag ("RF driver: LBT congestion!!");
 #endif
 	gbackoff ();
+	if (ntry)
+		ntry--;
 	set_congestion_indicator (minbkf);
 	proceed XM_LOOP;
 
@@ -747,6 +757,7 @@ static int rfm_option (int opt, address val) {
 #undef	maxbkf
 #undef	lbtth	
 #undef	lbtdl
+#undef	lbtries
 #undef	xmtg
 #undef	rcvg
 #undef	defxp

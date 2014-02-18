@@ -1110,3 +1110,33 @@ PG140121A:
     remaining requests, the idea to close the connection (explicit or implicit)
     always originates in the client, which makes it compatible with no linger
     (the socket option) on the server's side.
+
+PG140218A:
+
+    Improved the LBT model by introducing one more parameter, tries, to limit
+    the number of LBT attempts. This is in line with the default configuration
+    of the real-life CC1100 driver. By default, the limit is 5. You can use
+    the new third (optional) parameter of <lbt>, e.g.,
+
+	    	<lbt>
+			delay			8msec
+			threshold		-109.0dBm
+			tries			2
+	    	</lbt>
+
+    to change the default. When the number of tries is reached, the packet is
+    unconditionally transmitted without listening to the channel. That is, if
+    tries is 5, the transmitter will back off up to five times and then (after
+    the fifth backoff) transmit the packet without employing the LBT scheme.
+    Note that setting tries to zero is one more way to disable LBT. In fact,
+    it is even stronger, because with LBT disabled by setting delay to zero,
+    still no packet will be transmitted, if a packet is currently being
+    received. On the other hand, when the tries counter reaches zero, the
+    outgoing packet is expedited regardless of the receiver's state.
+
+    Note that in the real-life CC1100 driver, if the channel acquisition still
+    fails with LBT switched off completely, the seventh attempt is forced even
+    if the chip says that it is currently receiving a packet. So perhaps the
+    setting tries = 7 best approximates what happens in real life, although
+    personally, I would recommend to set tries lower than 7 (perhaps the LBT
+    model is still too sensitive).

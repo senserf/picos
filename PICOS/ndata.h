@@ -22,6 +22,7 @@ typedef	struct {
 		Channel,	// Channel number
 		BCMin, BCMax,	// Minimum and maximum backoff
 		LBTDel,		// LBT delay
+		LBTTries,	// Maximum number of attempts
 		Pre;		// Preamble length
 
 	Boolean absent;		// Explicitly absent
