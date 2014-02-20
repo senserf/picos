@@ -391,7 +391,7 @@ class EMULM {
 	EMULM (data_em_t*);
 	~EMULM ();
 
-	void sigmess ();
+	char *sigmess ();
 	void rst ();
 };
 

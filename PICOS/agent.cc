@@ -1018,7 +1018,9 @@ process	EmulHandler : AgentOutput {
 // Handles emulator output
 //
 	EMULM *EM;
+	char *SIG;
 
+	Boolean initupd (int);
 	void nextupd (int, int);
 	void setup (EMULM*, Dev*);
 	void remove ();
@@ -1030,16 +1032,23 @@ void EmulHandler::setup (EMULM *em, Dev *a) {
 	EM = em;
 
 	if (AgentOutput::start (EM, a, 0) != ERROR) {
-		if (EM->MS == NULL) {
+		if (EM->MS == NULL)
 			// Create the message mailbox; it is there already if
 			// the emulator is "held"
 			EM->MS = create EMessages (MAX_Long);
-			// New mailbox starts with the standard signature
-			// message
-			if (Agent != NULL)
-				EM->sigmess ();
-		}
 	}
+
+	SIG = NULL;
+}
+
+Boolean EmulHandler::initupd (int lp) {
+
+	if (Agent == NULL)
+		return NO;
+
+	Length = strlen (Buf = SIG = EM->sigmess ());
+
+	return YES;
 }
 
 void EmulHandler::nextupd (int lp, int nop) {
@@ -1077,6 +1086,13 @@ void EmulHandler::remove () {
 
 	char *msg;
 
+	if (SIG) {
+		// Called after initupd
+		delete SIG;
+		SIG = NULL;
+		return;
+	}
+
 	msg = EM->MS->get ();
 
 	assert (msg != NULL, "EMULM at %s: NULL message", IN->TPN->getSName ());
@@ -1088,6 +1104,11 @@ EmulHandler::~EmulHandler () {
 
 	char *msg;
 	EMessages *ms;
+
+	if (SIG) {
+		delete SIG;
+		SIG = NULL;
+	}
 
 	// Note that a held EMUL mailbox is kept permanently. This is in
 	// contrast to a held UART (which is only held at the beginning).
@@ -3602,7 +3623,7 @@ EMULM::EMULM (data_em_t *em) {
 	rst ();
 }
 
-void EMULM::sigmess () {
+char *EMULM::sigmess () {
 //
 // Issue a signature message to the mailbox
 //
@@ -3611,8 +3632,7 @@ void EMULM::sigmess () {
 	sig = new char [strlen (t = sigseq (IN.TPN)) + 2];
 	strcpy (sig, t);
 	strcat (sig, "\n");
-	if (MS->put (sig) == REJECTED)
-		excptn ("EMUL: no room in MBX for signature message");
+	return sig;
 }
 
 void EMULM::rst () {
