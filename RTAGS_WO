@@ -434,3 +434,25 @@ WO131111A:
   board types, as sensors are far from uniform). In any case, on large_eco
   moving voltage below threshold clears pin #9.
 
+WO140223A:
+ Synchronizing work in progress:
+
+ - Rewritten and vuee-tested SPOT. The 'original' in old_spot.zip, including
+   'notes' on its history. The current version is meant as a refreshed attempt
+   at modularization. Misssing, in this order: add AP* nodes with bin i/f,
+   documentation, more 'modular reshuffling'.
+
+ - Netting: combLoca reconciles (I hope) last year's survey with VUEE. Survey
+   was performed with a slightly skewed backdrop. Since the co-ordinates were
+   tapped-in on this backdrop, a few nodes had to be moved. They're marked
+   green in combLoca.xml. combLocaOrig.xml keeps the data from the survey's
+   time. When we return to our location works, we'll decide how reliable this
+   data is and if we can avoid another survey.
+
+ - add100_1.xml, eve_1.xml for server-based Semantic Hub.
+
+ - deleted 'sandbox' from alfMay3013 - this 'inProgress' praxis may still have
+   some value...
+
+ - removed dbg lines from options.sys.
+
