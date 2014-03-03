@@ -164,6 +164,7 @@ RM_Xmitter::perform {
 		if (rcvg) {
 			delay (minbkf, XM_LOOP);
 			when (txe, XM_LOOP);
+			ntry--;
 			release;
 		}
 
@@ -210,6 +211,8 @@ Xmit:
 		set_congestion_indicator (minbkf);
 		delay (minbkf, XM_LOOP);
 		when (txe, XM_LOOP);
+		if (ntry)
+			ntry--;
 		release;
 	}
 
