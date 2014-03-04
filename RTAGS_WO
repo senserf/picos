@@ -459,3 +459,7 @@ WO140223A:
 WO140301A:
   Synchronizing update: modular reshuffling of SPOT. Not done, but closer.
 
+WO140303A:
+  Another SPOT update. Basic functionality ready for documenting, which may be
+  easier with Cygwin snapshots and wrappers.
+ 
