@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -311,7 +311,9 @@ static byte	vrate = 0;	// Rate index
 #endif
 
 #if RADIO_WOR_MODE
-static byte	woron = 0;	// WOR "on" flag
+static byte	woron = 0;				// WOR "on" flag
+static word	wor_idle_timeout = RADIO_WOR_IDLE_TIMEOUT,
+		wor_preamble_time = RADIO_WOR_PREAMBLE_TIME;
 #endif
 
 static const byte patable [] = CC1100_PATABLE;
@@ -340,21 +342,6 @@ static word	bckf_lbt = 0;
 #endif
 
 word		__pi_v_drvprcs, __pi_v_qevent;
-
-#if RADIO_WOR_MODE && (RADIO_OPTIONS & 0x20)
-// ============================================================================
-// WOR parameters can be changed ==============================================
-// ============================================================================
-
-static word	wor_idle_timeout = RADIO_WOR_IDLE_TIMEOUT,
-		wor_preamble_time = RADIO_WOR_PREAMBLE_TIME;
-
-#else
-
-#define	wor_idle_timeout 	RADIO_WOR_IDLE_TIMEOUT
-#define	wor_preamble_time 	RADIO_WOR_PREAMBLE_TIME
-
-#endif
 
 // ============================================================================
 #if (RADIO_OPTIONS & 0x04)
@@ -542,17 +529,21 @@ static void power_down () {
 
 // ============================================================================
 
-#if RADIO_WOR_MODE && (RADIO_OPTIONS & 0x20)
+#if RADIO_WOR_MODE
 
 static void set_default_wor_params () {
 
 	wor_preamble_time = RADIO_WOR_PREAMBLE_TIME;
 	wor_idle_timeout = RADIO_WOR_IDLE_TIMEOUT;
+
+#if (RADIO_OPTIONS & 0x20)
 	set_reg (CCxxx0_WOREVT1, WOR_EVT0_TIME >> 8);
 	cc1100_wor_von [0] = CCxxx0_PKTCTRL1_WORx;
 	cc1100_wor_von [1] = CCxxx0_AGCCTRL1_WORx;
 	cc1100_wor_von [2] = CCxxx0_WORCTRL_WORx;
 	cc1100_wor_von [3] = CCxxx0_MCSM2_WORx;
+#endif
+
 }
 
 #endif
@@ -569,7 +560,7 @@ static void chip_reset () {
 	set_reg_burst (0x00, (byte*)cc1100_rfsettings,
 		sizeof (cc1100_rfsettings));
 
-#if RADIO_WOR_MODE && (RADIO_OPTIONS & 0x20)
+#if RADIO_WOR_MODE
 	// Reset WOR defaults
 	set_default_wor_params ();
 #endif
@@ -1360,40 +1351,38 @@ OREvnt:
 		chip_reset ();
 		goto OREvnt;
 
-#if RADIO_WOR_MODE && (RADIO_OPTIONS & 0x20)
+#if RADIO_WOR_MODE
 	    // Change WOR params
 	    case PHYSOPT_SETPARAMS:
 
 		if (val == NULL) {
 			set_default_wor_params ();
 		} else {
-			byte *v = (byte*)val;
-
-			// Preamble time
-			wor_preamble_time = (((word)(v [0])) << 10);
-			// Stay in RX time
-			wor_idle_timeout = (((word)(v [1])) << 10);
+			wor_idle_timeout = *val++;
+			wor_preamble_time = *val;
+#if (RADIO_OPTIONS & 0x20)
+			byte *v = (byte*)(++val);
 			// High byte of EVT0 value
-			set_reg (CCxxx0_WOREVT1, v [2]);
-
+			set_reg (CCxxx0_WOREVT1, v [0]);
 			// RX time
 			cc1100_wor_von [3] = 
-				((v [5] == 0) ?
+				((v [3] == 0) ?
 				    // Switch off RSSI thresholding
 				    CCxxx0_MCSM2_WOR_P :
 				        // RSSI thresholding is on
 					CCxxx0_MCSM2_WOR_RP) |
-					    ((v [3] > 6) ? 6 : v [3]);
+					    ((v [1] > 6) ? 6 : v [1]);
 			// PQT
 			cc1100_wor_von [0] = (cc1100_wor_von [0] & 0x1F) |
-				(((v [4] == 0) ? 1 : ((v [4] > 7) ? 7 :
-					v [4])) << 5);
+				(((v [2] == 0) ? 1 : ((v [2] > 7) ? 7 :
+					v [2])) << 5);
 			// RSSI threshold
 			cc1100_wor_von [1] = (cc1100_wor_von [1] & 0xF0) |
-				((((v [5] > 15) ? 15 : v [5]) - 8) & 0x0F);
+				((((v [3] > 15) ? 15 : v [3]) - 8) & 0x0F);
 			// EVNT1
 			cc1100_wor_von [2] = (cc1100_wor_von [2] & 0x8F) |
-				(((v [6] > 7) ? 7 : v [6]) << 4);
+				(((v [4] > 7) ? 7 : v [4]) << 4);
+#endif
 		}
 
 		break;
@@ -1445,7 +1434,7 @@ void phys_cc1100 (int phy, int mbs) {
 // the end of the useful payload two bytes (RSSI and link quality) for which it
 // expects room in the buffer. Thus, in both cases, the amount of memory
 // reserved for the reception buffer is exactly mbs, even though its useful
-// length is mbs - 2.
+// length is (always) mbs - 2.
 //
 #if (RADIO_OPTIONS & 0x10) == 0
 	if (rbuff != NULL)

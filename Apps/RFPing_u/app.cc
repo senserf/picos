@@ -221,6 +221,7 @@ Finish:
 	highlight_set (1, 0.5, "Sent: %1d %1d", last_snt, packet_length);
 	ser_outf (SN_NEXT1, "SND %lu, len = %d\r\n", last_snt,
 		packet_length);
+	emul (3, "SNT: %1d %1d", last_snt, packet_length);
 	proceed SN_SEND;
 }
 

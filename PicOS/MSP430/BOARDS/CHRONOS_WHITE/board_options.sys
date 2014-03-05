@@ -46,3 +46,4 @@
 // sensor for the button pins)
 #define	BUTTONS
 
+#define	BMP085_AUTO_CALIBRATE

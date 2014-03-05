@@ -54,7 +54,7 @@
  *     1 = built-in CC2400-compatible
  *     2 = 0 + AUTOFLUSH (don't present packets with wrong CRC)
  *     3 = 1 + AUTOFLUSH
- *     4 = SOFTWARE
+ *     4 = SOFTWARE CHECKSUM
  */
 #ifndef	RADIO_CRC_MODE
 #define	RADIO_CRC_MODE		0	/* Changed (R100617) to 0 from 2 */

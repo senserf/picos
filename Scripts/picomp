@@ -4134,9 +4134,9 @@ proc compile_pgm { } {
 	if { $NotFound != "" } {
 		if { [llength $NotFound] > 1 } {
 			set NotFound [join $NotFound ", "]
-			pwarn "files not found: $NotFound"
+			swerr "files not found: $NotFound"
 		} else {
-			pwarn "file not found: [lindex $NotFound 0]"
+			swerr "file not found: [lindex $NotFound 0]"
 		}
 	}
 
@@ -4226,6 +4226,13 @@ proc pwarn { m } {
 	}
 
 	puts "warning: $m"
+}
+
+proc swerr { m } {
+
+	global FLine CFName
+
+	xerror $m [list $FLine $CFName]
 }
 
 proc flook { fn prefdir dirs } {
@@ -4540,7 +4547,7 @@ proc scanfile { fname inner { prelude "" } } {
 					} else {
 						set ar "one #endif"
 					}
-					swarn "$ar missing"
+					swerr "$ar missing"
 				}
 				break
 			}
@@ -4703,7 +4710,7 @@ proc scanfile { fname inner { prelude "" } } {
 
 		if { $cm == "elif" } {
 			if { $ifnest < 1 } {
-			    swarn "extraneous #elif, ignored"
+			    swerr "extraneous #elif"
 			    continue
 			}
 			if { $ifstack($ifnest) == 1 } {
@@ -4716,7 +4723,7 @@ proc scanfile { fname inner { prelude "" } } {
 			}
 			if { $ifstack($ifnest) == 0 } {
 				# impossible
-				swarn "stray #elif"
+				swerr "stray #elif"
 				continue
 			}
 
@@ -4739,7 +4746,7 @@ proc scanfile { fname inner { prelude "" } } {
 		if { $cm == "else" } {
 
 			if { $ifnest < 1 } {
-			    swarn "extraneous #else, ignored"
+			    swerr "extraneous #else"
 			    continue
 			}
 
@@ -4753,7 +4760,7 @@ proc scanfile { fname inner { prelude "" } } {
 				set ifstack($ifnest) 1
 			} elseif { $ifstack($ifnest) == 0 } {
 				# impossible
-				swarn "stray #else"
+				swerr "stray #else"
 			}
 				
 			continue
@@ -4765,7 +4772,7 @@ proc scanfile { fname inner { prelude "" } } {
 				incr ifnest -1
 				if { $s == 0 } {
 					# impossible
-					swarn "stray #endif"
+					swerr "stray #endif"
 				} elseif { $s == 1 } {
 					# ignore #endif, but maintain correct
 					# line count
@@ -4777,13 +4784,20 @@ proc scanfile { fname inner { prelude "" } } {
 					}
 				}
 			} else {
-			    	swarn "extraneous #endif, ignored"
+			    	swerr "extraneous #endif"
 				continue
 			}
 			continue
 		}
 
 		if { $ifstack($ifnest) > 1 } {
+			continue
+		}
+
+		if { $cm == "error" } {
+			set ar [string trim $ar " \t\""]
+			swerr "#error \"$ar\""
+			append res [newlines $lc]
 			continue
 		}
 
@@ -4797,7 +4811,7 @@ proc scanfile { fname inner { prelude "" } } {
 			set nam ""
 			if ![regexp -nocase "^(\[a-z_0-9.\]+)(\[ \t\]+(.*))?" \
 			    $ar jk kwd jk nam] {
-				swarn "#define syntax error"
+				swarn "#define syntax error, ignored"
 				continue
 			}
 
@@ -4830,15 +4844,15 @@ proc scanfile { fname inner { prelude "" } } {
 				if ![regexp -nocase "^\[ \t\]*(\[a-z_0-9.\]+)" \
 				    $ar jk fn] {
 					# unrecognizable
-					swarn "unrecognizable #include\
-						argument, ignored"
+					swerr "unrecognizable #include\
+						argument"
 					append res [newlines $lc]
 					continue
 				}
 				# try the symbol
 				if ![info exists Symbols($fn)] {
 					append res "$line\n"
-					swarn "unrecognizable #include syntax"
+					swerr "unrecognizable #include syntax"
 					append res [newlines $lc]
 					continue
 				}
@@ -4853,7 +4867,7 @@ proc scanfile { fname inner { prelude "" } } {
 			if { $fm == "" } {
 				set fm [flook $fn "" $EDirList]
 				if { $fm == "" } {
-					swarn "included file $fn not found"
+					swerr "included file $fn not found"
 					append res [newlines $lc]
 					continue
 				}

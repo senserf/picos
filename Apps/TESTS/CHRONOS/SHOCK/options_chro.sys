@@ -2,3 +2,7 @@
 // #define	CC1100_OLD_DRIVER
 // #define	RADIO_WOR_MODE	1
 #undef	BUTTONS
+
+#define	RADIO_WOR_MODE		1
+#define	BMA250_RAW_INTERFACE
+#define	BMP085_AUTO_CALIBRATE

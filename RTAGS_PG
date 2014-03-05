@@ -3927,3 +3927,24 @@ PG140216A:
 	The preliminary version of my planned elaborate test of CHRONOS_WHITE
 	intended for the new "shock detection" application. For now, the test
 	(see Apps/TESTS/CHRONOS/SHOCK) encompasses a simple settable watch.
+
+PG140305A:
+
+	A comprehensive test praxis for CHRONOS (white), see
+	Apps/TEST/CHRONOS/SHOCK.
+
+	Drivers form BMA250 and BMP085 revised (see the respective documents).
+
+	In WOR mode for CC110x, you can now use PHYSOPT_SETPARAMS to change
+	the waking preamble length and the RX on time (without having to
+	provide all the other intricate parameters as well).
+
+	Pipe error status was not properly detected by mkmk. I have split the
+	pipe using an intermediate file to correct the problem.
+
+	Preprocessor errors in picomp (for VUEE) made fatal; also added
+	#error interception.
+
+	Added -time to oss_parse in oss.tcl
+
+	A few cosmetics here and there.

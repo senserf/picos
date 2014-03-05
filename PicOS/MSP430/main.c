@@ -2,7 +2,7 @@
 #include "storage.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -1129,7 +1129,7 @@ static void ios_init () {
 #ifdef	SYSVER_B
 		"-" SYSVER_B
 #endif
-        	", (C) Olsonet Communications, 2002-2012");
+        	", (C) Olsonet Communications, 2002-2014");
 	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
 #endif
 

@@ -4,7 +4,7 @@
 /* ==================================================================== */
 
 #include "watch.h"
-#include "butts.h"
+#include "display.h"
 #include "ez430_lcd.h"
 #include "rtc_cc430.h"
 
@@ -97,6 +97,7 @@ void watch_start () {
 // Called only once
 //
 
+#if 0
 RTC.hour = 13;
 RTC.minute = 15;
 RTC.second = 31;
@@ -104,6 +105,7 @@ RTC.year = 14;
 RTC.month = 2;
 RTC.day = 17;
 rtc_set (&RTC);
+#endif
 
 	runfsm watch_driver_fsm;
 }

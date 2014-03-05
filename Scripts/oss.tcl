@@ -1510,7 +1510,7 @@ variable OSSMN
 variable OSSMC
 
 set OSSP(OPTIONS) { match number skip string start save restore then return
-			subst checkpoint }
+			subst checkpoint time }
 
 set OSSI(OPTIONS) { id speed length parser connection }
 
@@ -1614,7 +1614,7 @@ proc oss_blobtovalues { blob } {
 
 	for { set i 0 } { $i < $size } { incr i } {
 		binary scan [string index $blob $i] cu val
-		lappend res [format %02X $val]
+		lappend res "0x[format %02X $val]"
 	}
 
 	return $res
@@ -1819,6 +1819,36 @@ proc parse_number { a r l p } {
 		}
 
 		if ![catch { expr [string range $line 0 $ix] } val] {
+			# found, remove the match
+			set line [string range $line [expr $ix + 1] end]
+			lappend res $val
+			set ptr 0
+			return 0
+		}
+	}
+}
+
+proc parse_time { a r l p } {
+#
+# Parses a time string than can be parsed by clock scan
+#
+	upvar $a args
+	upvar $r res
+	upvar $l line
+	upvar $p ptr
+
+	set ll [string length $line]
+	set ix $ll
+
+	while 1 {
+
+		incr ix -1
+		if { $ix < 0 } {
+			# failure
+			return 1
+		}
+
+		if ![catch { clock scan [string range $line 0 $ix] } val] {
 			# found, remove the match
 			set line [string range $line [expr $ix + 1] end]
 			lappend res $val
@@ -2883,6 +2913,38 @@ proc oss_defshow { code opref block { bstr 0 } } {
 	oss_ttyout $res
 }
 
+proc oss_dump { args } {
+#
+# Sets the dump flag
+#
+	global PM
+
+	while { $args != "" } {
+
+		set what [lindex $args 0]
+		set args [lrange $args 1 end]
+
+		if { [string index $what 0] != "-" } {
+			error "selector for oss_dump doesn't start with '-'"
+		}
+
+		set what [string range $what 1 end]
+
+		if [catch { oss_keymatch $what { "incoming" "outgoing" "off" 
+		    "none" } } w] {
+			error "oss_dump, $w"
+		}
+
+		if { $w == "incoming" } {
+			set PM(DMP) [expr { $PM(DMP) | 0x01 }]
+		} elseif { $w == "outgoing" } {
+			set PM(DMP) [expr { $PM(DMP) | 0x02 }]
+		} else {
+			set pm(DMP) 0
+		}
+	}
+}
+
 proc oss_genheader { } {
 
 	global PM
@@ -3010,6 +3072,10 @@ proc oss_issuecommand { code block } {
 		set ST(OPREF) 1
 	}
 
+	if { [expr { $PM(DMP) & 0x01 } ] != 0 } {
+		oss_ttyout "OUT: [oss_bintobytes $msg]"
+	}
+
 	noss_send $msg
 }
 
@@ -3030,6 +3096,9 @@ namespace import ::OSS::*
 
 # Default name of the specification file
 set PM(DSF)	"ossi.tcl"
+
+# Dump flag
+set PM(DMP)	0
 
 # Current directory
 set PM(PWD)	[pwd]
@@ -3902,7 +3971,7 @@ proc sy_uart_read { msg } {
 	}
 
 	binary scan $msg cucu code opref
-	set msg [string range $msg 2 end]
+	set mes [string range $msg 2 end]
 
 	if { $code == 0 && $opref == 0 } {
 		# heartbeat/autoconnect
@@ -3910,7 +3979,7 @@ proc sy_uart_read { msg } {
 			# ignore
 			return
 		}
-		binary scan $msg su pxi
+		binary scan $mes su pxi
 		if { $pxi == [expr ($PM(PXI) ^ ($PM(PXI) >> 16)) & 0xFFFF] } {
 			# handshake OK
 			if !$ST(HSK) {
@@ -3928,12 +3997,17 @@ proc sy_uart_read { msg } {
 		set shw [sy_localize $shw "USER"]
 	}
 
-	if [catch { $shw $code $opref $msg } out] {
+	if [catch { $shw $code $opref $mes } out] {
 		set line "Message "
 		append line [format "\[%02X %02X\], " $code $opref]
 		append line "$out\n"
-		append line "Content:[oss_bintobytes $msg]"
+		append line "Content:[oss_bintobytes $mes]"
 		oss_ttyout $line
+		return
+	}
+
+	if { [expr { $PM(DMP) & 0x02 } ] != 0 } {
+		oss_ttyout "INC: [oss_bintobytes $msg]"
 	}
 }
 

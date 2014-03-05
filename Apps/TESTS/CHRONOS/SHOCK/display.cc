@@ -1,8 +1,4 @@
 #include "display.h"
-#include "butts.h"
-
-// Flag == 24h clock; perhaps we should use a byte of bit flags?
-static Boolean W24H;
 
 // ============================================================================
 
@@ -21,6 +17,14 @@ static void s2d (word seg, byte w, Boolean blink) {
 	ezlcd_item (seg, w | attr);
 }
 
+static void stxt (word seg, char *txt, Boolean blink) {
+
+	word attr = blink ? LCD_MODE_BLINK : LCD_MODE_SET;
+
+	while (*txt != '\0')
+		ezlcd_item (seg--, (word)((byte)(*txt++ - 'A' + 10)) | attr);
+}
+
 static void clear_lcd (word s, word t) {
 
 	while (1) {
@@ -34,11 +38,30 @@ static void clear_lcd (word s, word t) {
 	}
 }
 
+static void display (byte);
+static byte display_content (byte);
+
 // ============================================================================
-// A minute watch in the upper row
+// Variables (grouped together for defragmentation)
 // ============================================================================
 
-static void mw_show () {
+static lword GLNum;		// Generic number long
+static word GWNum;		// Generic number short
+static sint LTemp;		// Temperature (can be negative)
+static rtc_time_t SRTC;		// SRTC <- RTC before setting
+static Boolean W24H;		// Flag == 24h clock
+static Boolean w24h;		// For setting the watch
+static byte GStat;		// Generic status
+static Boolean GLNPer;		// Generic number long (decimal dot)
+static byte AcsMode;		// Accelerator display mode
+
+// ============================================================================
+// The watch module
+// ============================================================================
+
+static void watch_mn_show () {
+//
+// Minutes in the upper row
 //
 	word am, pm, hr;
 
@@ -63,42 +86,43 @@ static void mw_show () {
 	s2d (LCD_SEG_L1_0, RTC.minute, NO);
 }
 
-static void mw_clear () {
+static void watch_mn_clear () {
 
 	clear_lcd (LCD_SEG_L1_COL, LCD_SEG_L1_COL);
 	clear_lcd (LCD_SYMB_AM, LCD_SYMB_PM);
 	clear_lcd (LCD_SEG_L1_0, LCD_SEG_L1_3);
 }
 
-static void mw_update () {
+static void watch_mn_update () {
 //
 // To be queued for 1 min updates
 //
 	if (RTC.minute == 0)
-		mw_show ();
+		watch_mn_show ();
 	else
 		s2d (LCD_SEG_L1_0, RTC.minute, NO);
 }
 
-// ============================================================================
-// Seconds displayed in second row (update is same as show, 1 sec intervals)
-// ============================================================================
+// Option: seconds
 
-static void sw_show () {
+static void watch_sc_show () {
+//
+// Seconds in second row
+//
 	s2d (LCD_SEG_L2_0, RTC.second, NO);
 }
 
-static void sw_clear () {
+static void watch_sc_clear () {
 
 	clear_lcd (LCD_SEG_L2_0, LCD_SEG_L2_1);
 }
 
-// ============================================================================
-// Calendar displayed in second row
-// ============================================================================
+// Option: calendar
 
-static void cw_show () {
-
+static void watch_ca_show () {
+//
+// Calendar in second row
+//
 	ezlcd_item (LCD_SEG_L2_COL0, LCD_MODE_SET);
 	ezlcd_item (LCD_SEG_L2_COL1, LCD_MODE_SET);
 	s2d (LCD_SEG_L2_4, RTC.month, NO);
@@ -106,49 +130,28 @@ static void cw_show () {
 	s2d (LCD_SEG_L2_0, RTC.year, NO);
 }
 
-static void cw_clear () {
+static void watch_ca_clear () {
 
 	clear_lcd (LCD_SEG_L2_COL1, LCD_SEG_L2_COL0);
 	clear_lcd (LCD_SEG_L2_0, LCD_SEG_L2_5);
 }
 
-static void cw_update () {
+static void watch_ca_update () {
 //
 // Every minute
 //
 	if (RTC.hour == 0 && RTC.minute == 0)
 		// The only moment when the calendar changes
-		cw_show ();
+		watch_ca_show ();
 }
 
 // ============================================================================
-// ============================================================================
-// ============================================================================
-
-// ============================================================================
-// Setting the watch ==========================================================
+// Setting mode for the watch module
 // ============================================================================
 
-static rtc_time_t SRTC;	// SRTC <- RTC before setting
-static Boolean w24h;
-
+static void watch_mns_show () {
 //
-// WatchBeingSet indicates what we are setting:
-//
-//	0 - seconds
-//	1 - minutes
-//	2 - AM/PM/24H
-//	3 - hours
-//	4 - day
-//	5 - month
-//	6 - year
-//
-
-// ============================================================================
-// Minute watch set
-// ============================================================================
-
-void mwset_show () {
+// Minute set
 //
 	word am, pm, hr;
 
@@ -181,22 +184,13 @@ void mwset_show () {
 	s2d (LCD_SEG_L1_0, SRTC.minute, WatchBeingSet == 1);
 }
 
-void mwset_clear () {
+static void watch_mns_clear () {
 
-	mw_clear ();
+	watch_mn_clear ();
 	ezlcd_item (LCD_SYMB_ARROW_UP, LCD_MODE_CLEAR);
 }
 
-Boolean mwset_button () {
-
-	sint upd;
-
-	if (TheButton == BUTTON_RT)
-		upd = 1;
-	else if (TheButton == BUTTON_RB)
-		upd = -1;
-	else
-		return NO;
+static Boolean watch_mns_button (sint upd) {
 
 	switch (WatchBeingSet) {
 
@@ -251,7 +245,7 @@ Boolean mwset_button () {
 			return NO;
 	}
 
-	mwset_show ();
+	watch_mns_show ();
 
 	return YES;
 }
@@ -260,24 +254,12 @@ Boolean mwset_button () {
 // Seconds watch set
 // ============================================================================
 
-void swset_show () {
+static void watch_ses_show () {
 
 	s2d (LCD_SEG_L2_0, SRTC.second, WatchBeingSet == 0);
 }
 
-Boolean swset_button () {
-
-	sint upd;
-
-	if (TheButton == BUTTON_RT)
-		upd = 1;
-	else if (TheButton == BUTTON_RB)
-		upd = -1;
-	else
-		return NO;
-
-	if (WatchBeingSet != 0)
-		return NO;
+static Boolean watch_ses_button (sint upd) {
 
 	upd += SRTC.second;
 	if (upd < 0)
@@ -287,16 +269,12 @@ Boolean swset_button () {
 
 	SRTC.second = (byte) upd;
 
-	swset_show ();
+	watch_ses_show ();
 
 	return YES;
 }
 
-// ============================================================================
-// Calendar watch set
-// ============================================================================
-
-void cwset_show () {
+static void watch_cas_show () {
 
 	ezlcd_item (LCD_SEG_L2_COL0, LCD_MODE_SET);
 	ezlcd_item (LCD_SEG_L2_COL1, LCD_MODE_SET);
@@ -305,16 +283,9 @@ void cwset_show () {
 	s2d (LCD_SEG_L2_0, SRTC.year, WatchBeingSet == 6);
 }
 
-Boolean cwset_button () {
+static Boolean watch_cas_button (sint upd) {
 
-	sint upd, max;
-
-	if (TheButton == BUTTON_RT)
-		upd = 1;
-	else if (TheButton == BUTTON_RB)
-		upd = -1;
-	else
-		return NO;
+	sint max;
 
 	switch (WatchBeingSet) {
 
@@ -371,13 +342,38 @@ Boolean cwset_button () {
 			return NO;
 	}
 
-	cwset_show ();
+	watch_cas_show ();
 	return YES;
 }
 
 // ============================================================================
 
-void display_setwatch () {
+void watch_display () {
+
+	display (DISPLAY_MWATCH);
+	display (DISPLAY_CWATCH);
+}
+
+void watch_option (sint dir) {
+
+	display ((display_content (1) == DISPLAY_SWATCH) ?
+		DISPLAY_CWATCH : DISPLAY_SWATCH);
+}
+
+Boolean watch_enter_set_mode () {
+
+	memcpy (&SRTC, &RTC, sizeof (SRTC));
+	w24h = W24H;
+
+	WatchBeingSet = 0;
+	display (DISPLAY_MWATCH_SET);
+	display (DISPLAY_SWATCH_SET);
+	return YES;
+}
+
+void watch_exit_set_mode () {
+
+	WatchBeingSet = BNONE;
 
 	memcpy (&RTC, &SRTC, sizeof (RTC));
 	rtc_set (&RTC);
@@ -387,49 +383,312 @@ void display_setwatch () {
 	display (DISPLAY_CWATCH);
 }
 
-void display_startset () {
+void watch_set_next () {
 
-	memcpy (&SRTC, &RTC, sizeof (SRTC));
-	w24h = W24H;
-
-	WatchBeingSet = 0;
+	if (++WatchBeingSet > 6)
+		WatchBeingSet = 0;
+	// The minute watch is always there
 	display (DISPLAY_MWATCH_SET);
-	display (DISPLAY_SWATCH_SET);
+	// The seconds are only displayed if they are being set; otherwise,
+	// it is the calendar
+	display (WatchBeingSet ? DISPLAY_CWATCH_SET : DISPLAY_SWATCH_SET);
+}
+
+void watch_set_value (sint dir) {
+
+	if (WatchBeingSet == 0)
+		watch_ses_button (dir);
+	else if (WatchBeingSet < 4)
+		watch_mns_button (dir);
+	else
+		watch_cas_button (dir);
 }
 
 // ============================================================================
+// Generic status
+// ============================================================================
+
+static void gstat_show_common (Boolean blink) {
+
+	stxt (LCD_SEG_L1_2,
+		GStat > 1 ? "CLR" : (GStat == 1 ? " ON" : "OFF"), blink);
+}
+
+static void gstat_show () { gstat_show_common (NO); }
+static void gstats_show () { gstat_show_common (YES); }
+static void gstat_clear () { clear_lcd (LCD_SEG_L1_2, LCD_SEG_L1_0); }
+
+// ============================================================================
+// Generic numbers
+// ============================================================================
+
+static void glnum_show () {
+
+	lword v;
+	word seg, chr;
+
+	if (GLNPer)
+		ezlcd_item (LCD_SEG_L2_DP, LCD_MODE_SET);
+
+	if ((v = GLNum) > 99999)
+		v = 99999;
+
+	for (seg = LCD_SEG_L2_0; seg <= LCD_SEG_L2_4; seg++) {
+		if (seg != LCD_SEG_L2_0 && v == 0)
+			chr = 64;
+		else
+			chr = (word)(v % 10);
+
+		ezlcd_item (seg, chr | LCD_MODE_SET);
+		v /= 10;
+	}
+}
+
+static void glnum_clear () { 
+
+	ezlcd_item (LCD_SEG_L2_DP, LCD_MODE_CLEAR);
+	clear_lcd (LCD_SEG_L2_0, LCD_SEG_L2_4);
+	clear_lcd (LCD_SYMB_AVERAGE, LCD_SYMB_MAX);
+}
+
+static void gwnum_show () {
+
+	word v, seg;
+
+	if ((v = GWNum) > 9999)
+		v = 9999;
+
+	for (seg = LCD_SEG_L1_0; seg <= LCD_SEG_L2_4; seg++) {
+
+		ezlcd_item (seg,
+			((v == 0 && seg != LCD_SEG_L1_0) ? 127 :
+				v % 10) | LCD_MODE_SET);
+		v /= 10;
+	}
+}
+
+static void gwnum_clear () { clear_lcd (LCD_SEG_L1_0, LCD_SEG_L2_4); }
+
+// ============================================================================
+// Just to show the ACCEL text in the bottom line
+// ============================================================================
+
+static void acc_show () { stxt (LCD_SEG_L2_4, "ACCEL", NO); }
+static void acc_clear () { clear_lcd (LCD_SEG_L2_4, LCD_SEG_L2_0); }
+
+// ============================================================================
+// The radio module
+// ============================================================================
+
+static void radio_show () { stxt (LCD_SEG_L2_4, "RADIO", NO); }
+static void radio_clear () { clear_lcd (LCD_SEG_L2_4, LCD_SEG_L2_0); }
+
+void radio_display () {
+
+	GStat = RadioOn;
+	display (DISPLAY_GSTAT);
+	display (DISPLAY_RADIO);
+}
+
+Boolean radio_enter_set_mode () {
+
+	display (DISPLAY_GSTAT_SET);
+}
+
+void radio_exit_set_mode () {
+
+	display (DISPLAY_GSTAT);
+	if (GStat != RadioOn)
+		switch_radio (GStat);
+}
+
+void radio_set_value (sint dir) {
+
+	if (GStat == 1)
+		GStat = 0;
+	else
+		GStat = 1;
+	display (DISPLAY_GSTAT_SET);
+}
+
+// ============================================================================
+// The accelerator
+// ============================================================================
+
+void accel_update_display () {
+
+	GWNum = ((AccelEvents >> 16)) ? 9999 : (word) AccelEvents;
+
+	if (AcsMode == 0)
+		GLNum = (lword) AccelLast;
+	else if (AcsMode == 1)
+		GLNum = (AccelTotal / AccelEvents);
+	else
+		GLNum = (lword) AccelMax;
+
+	GLNum = (GLNum * 391) / 1000;
+
+	display (DISPLAY_GWNUM);
+	display (DISPLAY_GLNUM);
+}
+
+void accel_display () {
+
+	AcsMode = 2;		// Show last
+	GLNPer = YES;
+
+	accel_option (1);
+}
+
+void accel_option (sint dir) {
+
+	if ((dir += AcsMode) > 2)
+		AcsMode = 0;
+	else if (dir < 0)
+		AcsMode = 2;
+	else
+		AcsMode = (byte)dir;
+
+	clear_lcd (LCD_SYMB_AVERAGE, LCD_SYMB_MAX);
+	if (AcsMode)
+		ezlcd_item (AcsMode == 1 ? LCD_SYMB_AVERAGE : LCD_SYMB_MAX,
+			LCD_MODE_SET);
+
+	accel_update_display ();
+}
+
+Boolean accel_enter_set_mode () {
+
+	// Manually, we can only set it on or off overriding the delay
+	// parameters
+	GStat = AccelOn;
+	display (DISPLAY_GSTAT_SET);
+	display (DISPLAY_ACCEL);
+}
+
+void accel_exit_set_mode () {
+
+	if (GStat != AccelOn) {
+		if (GStat > 1)
+			accel_clear ();
+		accel_start (GStat, 0, 0);
+	}
+	accel_display ();
+}
+
+void accel_set_value (sint dir) {
+
+	if ((dir += GStat) < 0)
+		dir = 2;
+	else if (dir > 2)
+		dir = 0;
+	GStat = (byte) dir;
+	display (DISPLAY_GSTAT_SET);
+}
+
+// ============================================================================
+// Pressure/temp
+// ============================================================================
+
+static sint LTemp;
+
+static void temp_show () {
+
+	sint w = LTemp;
+	word seg;
+
+	if (w < 0) {
+		ezlcd_item (LCD_SYMB_ARROW_DOWN, LCD_MODE_SET);
+		w = -w;
+	} else {
+		ezlcd_item (LCD_SYMB_ARROW_DOWN, LCD_MODE_CLEAR);
+	}
+
+	for (seg = LCD_SEG_L1_1; seg <= LCD_SEG_L1_3; seg++) {
+		ezlcd_item (seg,
+			((w == 0 && seg != LCD_SEG_L1_1) ? 127 :
+				(w % 10)) | LCD_MODE_SET);
+		w /= 10;
+	}
+
+	ezlcd_item (LCD_UNIT_L1_DEGREE, LCD_MODE_SET);
+	ezlcd_item (LCD_SEG_L1_DP1, LCD_MODE_SET);
+	ezlcd_item (LCD_SEG_L1_0, ('C'-'A'+10) | LCD_MODE_SET);
+}
+
+static void temp_clear () {
+
+	clear_lcd (LCD_SEG_L1_0, LCD_SEG_L1_3);
+	ezlcd_item (LCD_UNIT_L1_DEGREE, LCD_MODE_CLEAR);
+	ezlcd_item (LCD_SEG_L1_DP1, LCD_MODE_CLEAR);
+}
+
+void press_update_display (lword press, sint temp) {
+
+	LTemp = temp;
+	GLNum = (press+5)/10;
+	GLNPer = NO;
+	display (DISPLAY_TEMP);
+	display (DISPLAY_GLNUM);
+}
+
+void press_display () {
+
+	press_update_display (0, 0);	// Show zeros to indicate we are on
+	press_trigger (0);		// Make sure the sensor thread is up
+
+}
+
+// No option yet (later?), no setting, nothing
+
+// ============================================================================
 // ============================================================================
 // ============================================================================
 
-static const display_t views [N_DISPLAYS] = {
+static const line_display_t views [N_DISPLAYS] = {
 
-	{ NULL, mw_update, mw_show, mw_clear, NULL, 0 },	// Minute watch
-	{ sw_show, NULL, sw_show, sw_clear, NULL, 1 },		// Scnds watch
-	{ NULL, cw_update, cw_show, cw_clear, NULL, 1 },	// Calendar
-	{ NULL, NULL, mwset_show, mwset_clear, mwset_button, 0 },	// Set
-	{ NULL, NULL, swset_show, sw_clear, swset_button, 1 },	
-	{ NULL, NULL, cwset_show, cw_clear, cwset_button, 1 },
+	{ NULL, watch_mn_update, watch_mn_show, watch_mn_clear, 0 },
+	{ watch_sc_show, NULL, watch_sc_show, watch_sc_clear, 1 },
+	{ NULL, watch_ca_update, watch_ca_show, watch_ca_clear, 1 },
+	{ NULL, NULL, watch_mns_show, watch_mns_clear, 0 },
+	{ NULL, NULL, watch_ses_show, watch_sc_clear, 1 },	
+	{ NULL, NULL, watch_cas_show, watch_ca_clear, 1 },
+	{ NULL, NULL, gstat_show, gstat_clear, 0 },
+	{ NULL, NULL, gstats_show, gstat_clear, 0 },
+	{ NULL, NULL, radio_show, radio_clear, 1 },
+	{ NULL, NULL, glnum_show, glnum_clear, 1 },
+	{ NULL, NULL, gwnum_show, gwnum_clear, 0 },
+	{ NULL, NULL, temp_show, temp_clear, 0 },
+	{ NULL, NULL, acc_show, acc_clear, 1 },
 };
 
-static const display_t	*current [N_WINDOWS];
+static const line_display_t	*current [N_WINDOWS];
 
 // ============================================================================
+
+void display_clear (byte where) {
+
+	const line_display_t *win;
+
+	if ((win = current [where]) != NULL) {
+		watch_dequeue (win->cb_sec);
+		watch_dequeue (win->cb_min);
+		if (win->fn_clear)
+			win->fn_clear ();
+	}
+	current [where] = NULL;
+}
 
 void display (byte what) {
 
-	const display_t *new, *old;
+	const line_display_t *new, *old;
 	byte where;
 
 	where = (new = views + what) -> where;
 
 	if ((old = current [where]) != new) {
 		// We are changing the display; otherwise it is just a refresh
-		if (old) {
-			watch_dequeue (old->cb_sec);
-			watch_dequeue (old->cb_min);
-			if (old->fn_clear)
-				old->fn_clear ();
-		}
+		display_clear (where);
 		watch_queue (new->cb_sec, YES);
 		watch_queue (new->cb_min, NO);
 		current [where] = new;
@@ -440,22 +699,18 @@ void display (byte what) {
 
 }
 
-Boolean display_button () {
-
-	word i;
-
-	for (i = 0; i < N_WINDOWS; i++)
-		if (current [i] && current [i] -> fn_butt &&
-		    current [i] -> fn_butt ())
-			// Handled
-			return YES;
-	return NO;
-}
-
 byte display_content (byte which) {
 
 	byte res;
 
 	return current [which] == NULL ? BNONE :
 		(byte) (current [which] - views);
+}
+
+void display_rfstat () {
+
+	word seg;
+
+	for (seg = LCD_ICON_RADIO0; seg <= LCD_ICON_RADIO2; seg++)
+		ezlcd_item (seg, RadioOn ? LCD_MODE_SET : LCD_MODE_CLEAR);
 }

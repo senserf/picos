@@ -315,8 +315,10 @@ void phys_uart (int phy, int mbs, int which) {
 	else if (mbs == 0)
 		mbs = UART_DEF_BUF_LEN;
 
+#if UART_TCV_MODE_NOCHECKSUM == 0
 	// Make sure the checksum is extra
 	mbs += 2;
+#endif
 
 #if defined(blue_reset) && defined(BLUETOOTH_UART)
 	if (which == BLUETOOTH_UART)

@@ -170,6 +170,47 @@ static void clrevent () {
 	bma250_enable;
 }
 
+#ifdef	BMA250_RAW_INTERFACE
+
+static const byte reglist [] = { 0x0F, 0x10, 0x11, 0x13, 0x16, 0x17, 0x1E,
+				 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
+				 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F };
+
+void bma250_on (bma250_regs_t *regs) {
+
+	word i;
+	byte *r;
+
+	bma250_bring_up;
+	// Reset
+	wreg (0x14, 0xB6);
+	udelay (200);
+
+	bma250_disable;
+
+	for (i = 0, r = regs->regs; i < sizeof (reglist); i++, r++)
+		if ((regs->rmask >> i) & 1)
+			wreg (reglist [i], *r);
+
+	_BIS (bma250_status, BMA250_STATUS_ON);
+	clrevent ();
+
+	// Global interrupt configuration, all interrupts directed to INT1,
+	// INT2 is not connected; new-data unmapped, we never use it
+	wreg (0x19, 0xF7);
+}
+
+void bma250_off () {
+
+	if (bma250_status & BMA250_STATUS_ON) {
+		wreg (0x11, 0x80);
+		bma250_bring_down;
+		_BIC (bma250_status, BMA250_STATUS_ON);
+	}
+}
+
+#else	/* BMA250_RAW_INTERFACE not defined */
+
 void bma250_on (byte range, byte bandwidth, byte stat) {
 //
 	byte r16, r17;
@@ -332,14 +373,7 @@ void bma250_off (byte pow) {
 	wreg (0x11, pow);
 }
 
-void bma250_init (void) {
-//
-// This is optional, to be used if the sensor must be soft-powered down on
-// startup
-//
-	_BIS (bma250_status, BMA250_STATUS_ON);
-	bma250_off (0);
-}
+#endif	/* BMA250_RAW_INTERFACE */
 
 // ============================================================================
 

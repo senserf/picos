@@ -101,21 +101,29 @@ REQUEST_EXTERNAL (p2irq);
 #define	SENSOR_DIGITAL
 #define	SENSOR_ANALOG
 #define	SENSOR_EVENTS
-#define	SENSOR_INITIALIZERS
 
 #include "analog_sensor.h"
 #include "sensors.h"
+
+#ifdef	BMP085_AUTO_CALIBRATE
+#define	__bmp085_cal_sensor
+#define	N_HIDDEN_SENSORS	2
+#else
+#define	__bmp085_cal_sensor	DIGITAL_SENSOR (0, NULL, bmp085_read_calib),
+#define	N_HIDDEN_SENSORS	3
+#define	SENSOR_PRESSTEMP_CALIB	(-3)
+#endif
 
 #ifdef	BUTTON_LIST
 
 // Buttons implemented via a driver
 
 #define	SENSOR_LIST { \
-		DIGITAL_SENSOR (0, NULL, bmp085_read_calib),	\
+		__bmp085_cal_sensor				\
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
 		DIGITAL_SENSOR (0, NULL, bma250_read), 		\
-		DIGITAL_SENSOR (0, NULL, bmp085_read) 		\
+		DIGITAL_SENSOR (0, bmp085_init, bmp085_read)	\
 }
 
 #else
@@ -124,11 +132,11 @@ REQUEST_EXTERNAL (p2irq);
 #include "pin_sensor.h"
 
 #define	SENSOR_LIST { \
-		DIGITAL_SENSOR (0, NULL, bmp085_read_calib), 		\
+		__bmp085_cal_sensor					\
 		INTERNAL_TEMPERATURE_SENSOR,				\
 		INTERNAL_VOLTAGE_SENSOR,				\
-		DIGITAL_SENSOR (0, NULL, bma250_read), 			\
-		DIGITAL_SENSOR (0, NULL, bmp085_read), 			\
+		DIGITAL_SENSOR (0, NULL, bma250_read),			\
+		DIGITAL_SENSOR (0, bmp085_init, bmp085_read),		\
 		DIGITAL_SENSOR (0, pin_sensor_init, pin_sensor_read) 	\
 }
 
@@ -136,12 +144,11 @@ REQUEST_EXTERNAL (p2irq);
 
 #endif	/* BUTTON_LIST */
 
-#define	N_HIDDEN_SENSORS	3
 
 #define	SENSOR_TEMP		(-2)
 #define	SENSOR_BATTERY		(-1)
 #define	SENSOR_MOTION		0
 #define	SENSOR_PRESSTEMP	1
-#define	SENSOR_PRESSTEMP_CALIB	(-3)
+#define	SENSOR_INITIALIZERS
 
 //+++ "sensors.c"

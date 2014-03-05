@@ -727,14 +727,16 @@ proc outmkfc { def } {
 				# this is a VUEE source, preprocess
 				set rfn "${rna}.c"
 				set rfm "___pcs___$rfn"
+				set rfo "___pct___$rfn"
 				set spfx "\$(TD)"
 				# copy to a scratch .c file
 				puts $mfd "\tcp \$($dsh)/${rfn}c $spfx/$rfm"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+				puts $mfd " -E $spfx/$rfm > $spfx/$rfo"
 				puts $mfd \
-				     " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
-				puts $mfd "\trm $spfx/$rfm"
+					"\tpicomp -p < $spfx/$rfo > $spfx/$rfn"
+				puts $mfd "\trm $spfx/$rfm $spfx/$rfo"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 			} else {
@@ -896,14 +898,15 @@ proc outmkfc_lib { def } {
 			# this is a VUEE/picomp source
 			set rfn "${rna}.c"
 			set rfm "___pcs___$rfn"
+			set rfo "___pct___$rfn"
 			set spfx "\$(TD)"
 			# copy to a scratch .c file
 			puts $mfd "\tcp \$($dsh)/${rfn}c $spfx/$rfm"
 			puts -nonewline $mfd \
 				"\t\$(CC) \$(CF) \$(OF) \$(IN)"
-			puts $mfd \
-			     " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
-			puts $mfd "\trm $spfx/$rfm"
+			puts $mfd " -E $spfx/$rfm > $spfx/$rfo"
+			puts $mfd "\tpicomp -p < $spfx/$rfo > $spfx/$rfn"
+			puts $mfd "\trm $spfx/$rfm $spfx/$rfo"
 			puts -nonewline $mfd \
 				"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 		} else {
@@ -1168,13 +1171,15 @@ proc outmkf { def cpu } {
 				# be preprocessed by picomp
 				set rfn "${rna}.c"
 				set rfm "___pcs___$rfn"
+				set rfo "___pct___$rfn"
 				set spfx "\$(TD)"
 				puts $mfd "\tcp \$($dsh$U)/${rfn}c $spfx/$rfm"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
+				puts $mfd " -E $spfx/$rfm > $spfx/$rfo"
 				puts $mfd \
-				    " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
-				puts $mfd "\trm $spfx/$rfm"
+					"\tpicomp -p < $spfx/$rfo > $spfx/$rfn"
+				puts $mfd "\trm $spfx/$rfm $spfx/$rfo"
 				puts -nonewline $mfd \
 					"\t\$(CC) \$(CF) \$(OF) \$(IN)"
 			} else {
@@ -1335,11 +1340,13 @@ proc outmkf_lib { def cpu } {
 			# this is "enhanced" source code to be precompiled
 			set rfn "${rna}.c"
 			set rfm "___pcs___$rfn"
+			set rfo "___pct___$rfn"
 			puts $mfd "\tcp \$($dsh$U)/${rfn}c \$(TD)/$rfm"
 			set spfx "\$(TD)"
 			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
-			puts $mfd " -E $spfx/$rfm | picomp -p > $spfx/$rfn"
-			puts $mfd "\trm $spfx/$rfm"
+			puts $mfd " -E $spfx/$rfm > $spfx/$rfo"
+			puts $mfd "\tpicomp -p < $spfx/$rfo > $spfx/$rfn"
+			puts $mfd "\trm $spfx/$rfm $spfx/$rfo"
 			puts -nonewline $mfd "\t\$(CC) \$(CF) \$(OF) \$(IN)"
 		} else {
 			set spfx "\$($dsh)"

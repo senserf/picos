@@ -682,23 +682,22 @@ Restart:
 
 #ifdef BOARD_CHRONOS_WHITE
 
+#ifdef	BMP085_AUTO_CALIBRATE
+#define	PVALU "%lu, %u", *((lword*)w), w [2]
+#else
+#define	PVALU "%u, %u", w [1], w [0]
 	if (ibuf [1] == 'c')
 		// Read calibration data
 		proceed RS_PRESS_CALIB;
-
+#endif
 	w[0] = WNONE;
-
 	scan (ibuf + 1, "%d", w+0);
-
 	if (w[0] != WNONE)
 		bmp085_oversample ((byte)(w[0]));
 
-#define	PVALU "%u, %u", w [0], w [1]
 
 #else
-
 #define	PVALU "%lu, %u", *((lword*)w), w [2]
-
 #endif
 
   state RS_PRESS_READ:
@@ -710,7 +709,7 @@ Restart:
 	ab_outf (RS_PRESS_SEND, "PR: " PVALU);
 	proceed RS_LOOP;
 
-#ifdef BOARD_CHRONOS_WHITE
+#if defined(BOARD_CHRONOS_WHITE) && !defined(BMP085_AUTO_CALIBRATE)
 
   state RS_PRESS_CALIB:
 

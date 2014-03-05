@@ -53,12 +53,31 @@
 #define	BMA250_STAT_ISFLAT	0x8000
 
 typedef	struct {
-
-	word	stat;
-	sint	x, y, z;
-	char	temp;
+//
+// Sensor value
+//
+	word	stat;		// Events
+	sint	x, y, z;	// Accelerations
+	char	temp;		// Temperature
 
 } bma250_data_t;
+
+#ifdef	BMA250_RAW_INTERFACE
+
+typedef struct {
+//
+// Configuration registers; the population of configurable registers is
+// described by a table in bma250.c
+//
+	lword	rmask;
+	byte	regs [20];
+
+} bma250_regs_t;
+
+void bma250_on (bma250_regs_t*);
+void bma250_off ();
+
+#else
 
 void bma250_on (byte range, byte bandwidth, byte events);
 void bma250_move (byte nsamples, byte threshold);
@@ -69,8 +88,9 @@ void bma250_lowg (byte mode, byte threshold, byte dur, byte hysteresis);
 void bma250_highg (byte threshold, byte dur, byte hysteresis);
 void bma250_off (byte);
 
-void bma250_init (void);
+#endif
 
+void bma250_init (void);
 void bma250_read (word, const byte*, address);
 
 extern byte bma250_status;
