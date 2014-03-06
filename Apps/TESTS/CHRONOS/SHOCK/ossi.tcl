@@ -111,7 +111,7 @@ proc myinit { } {
 		incr i
 	}
 
-	# oss_dump -incoming -outgoing
+	oss_dump -incoming -outgoing
 }
 
 myinit

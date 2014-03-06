@@ -3948,3 +3948,9 @@ PG140305A:
 	Added -time to oss_parse in oss.tcl
 
 	A few cosmetics here and there.
+
+PG140306A:
+
+	A few fixes to the CHRONOS/SHOCK praxis.
+
+	Added .mop to inProgress/spot (which Wlodek forgot to put there).

@@ -70,7 +70,7 @@ static void display_item (byte n) {
 
 	if ((Item = n) == BNONE) {
 		// Zero out the display
-		TheItem == NULL;
+		TheItem = NULL;
 		display_clear (0);
 		display_clear (1);
 	} else {
@@ -264,8 +264,8 @@ void accel_clear () {
 
 fsm accel_starter (byte on) {
 //
-// This extra thread is needed primarily because of the possible delayed
-// startup of the accelerator
+// This extra thread is needed primarily to implement the delayed startup of 
+// the accelerometer
 //
 	state AS_INIT:
 
@@ -309,6 +309,8 @@ fsm accel_starter (byte on) {
 			delay (256, AS_RUNNING);
 			release;
 		}
+
+		delay (1024, AS_RUNNING);
 }
 
 Boolean accel_start (byte on, lword af, lword du) {
@@ -321,7 +323,7 @@ Boolean accel_start (byte on, lword af, lword du) {
 
 static void accpms (lword res [2]) {
 //
-// Transforms accelerator's timing parameters into values to be sent to OSS
+// Transforms accelerometer's timing parameters into values to be sent to OSS
 //
 	lword sec = seconds ();
 
@@ -512,7 +514,7 @@ OK:
 #undef	pmt
 		case command_accturn_code:
 
-			// Switch the accelerator on or off
+			// Switch the accelerometer on or off
 			if (pml < sizeof (command_accturn_t))
 				goto BadLength;
 
