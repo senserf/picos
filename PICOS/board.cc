@@ -1109,6 +1109,8 @@ int _dad (PicOSNode, ser_in) (word st, char *buf, int len) {
 	int prcs;
 	uart_dir_int_t *f;
 
+	assert (uart != NULL, "PicOSNode->ser_in: no UART present at the node");
+
 	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_in: not allowed "
 		"in mode %1d", uart->IMode);
 
@@ -1155,6 +1157,9 @@ int _dad (PicOSNode, ser_out) (word st, const char *m) {
 	char *buf;
 	uart_dir_int_t *f;
 
+	assert (uart != NULL,
+		"PicOSNode->ser_out: no UART present at the node");
+
 	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_out: not allowed "
 		"in mode %1d", uart->IMode);
 
@@ -1200,6 +1205,9 @@ int _dad (PicOSNode, ser_outb) (word st, const char *m) {
 	char *buf;
 	uart_dir_int_t *f;
 
+	assert (uart != NULL,
+		"PicOSNode->ser_outb: no UART present at the node");
+
 	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_outb: not allowed "
 		"in mode %1d", uart->IMode);
 
@@ -1233,6 +1241,9 @@ int _dad (PicOSNode, ser_inf) (word st, const char *fmt, ...) {
 	int prcs;
 	va_list	ap;
 	uart_dir_int_t *f;
+
+	assert (uart != NULL,
+		"PicOSNode->ser_inf: no UART present at the node");
 
 	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_inf: not allowed "
 		"in mode %1d", uart->IMode);
@@ -1272,6 +1283,9 @@ int _dad (PicOSNode, ser_outf) (word st, const char *m, ...) {
 	char *buf;
 	va_list ap;
 	uart_dir_int_t *f;
+
+	assert (uart != NULL,
+		"PicOSNode->ser_outf: no UART present at the node");
 
 	assert (uart->IMode == UART_IMODE_D, "PicOSNode->ser_outf: not allowed "
 		"in mode %1d", uart->IMode);
@@ -3367,8 +3381,9 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 		}
 	}
 
-	if ((UA->UMode & XTRN_OMODE_MASK) == XTRN_OMODE_NONE) {
+	if ((UA->UMode & XTRN_OMODE_MASK) != XTRN_OMODE_NONE) {
 		// The coding
+		cur = sxml_child (data, "output");
 		if ((att = sxml_attr (cur, "coding")) != NULL) {
 			if (strcmp (att, "hex") == 0) {
 				UA->UMode |= XTRN_OMODE_HEX;

@@ -816,6 +816,9 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 		// UART0 only
 		syserror (EREQPAR, "phys_uart");
 
+	assert (uart != NULL,
+		"PicOSNode->phys_uart: no UART present at the node");
+
 	IMode = uart->IMode;
 
 	UA = UART_INTF_P (uart);

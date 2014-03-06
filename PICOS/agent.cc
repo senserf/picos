@@ -1895,23 +1895,21 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 	lword c;
 	int len;
 
-	UA = (TPN = tpn)->uart->U;
-
-	// Make sure we don't belong to the node. That would get us killed
-	// upon reset.
-
 	c = ECONN_OK;
 
-	if (UA == NULL) {
-		// No UART for this station
+	if ((TPN = tpn)->uart == NULL) {
 		c = ECONN_NOMODULE;
-	} else if (imode (UA->Flags) != XTRN_IMODE_SOCKET) {
-		c = ECONN_ITYPE;
-	} else if (UA->I != NULL || UA->O != NULL) {
-		// Duplicate connection, refuse it
-		assert (UA->I != NULL && UA->O != NULL,
-			"UART at %s: inconsistent status", tpn->getSName ());
-		c = ECONN_ALREADY;
+	} else {
+		UA = TPN->uart->U;
+		if (imode (UA->Flags) != XTRN_IMODE_SOCKET) {
+			c = ECONN_ITYPE;
+		} else if (UA->I != NULL || UA->O != NULL) {
+			// Duplicate connection, refuse it
+			assert (UA->I != NULL && UA->O != NULL,
+				"UART at %s: inconsistent status",
+					tpn->getSName ());
+			c = ECONN_ALREADY;
+		}
 	}
 
 	Agent = a;
@@ -1919,13 +1917,13 @@ void UartHandler::setup (PicOSNode *tpn, Dev *a) {
 	if (c != ECONN_OK) {
 		create Disconnector (Agent, c);
 		terminate ();
+	} else {
+		if ((len = UA->B_olen) < UA->B_ilen)
+			len = UA->B_ilen;
+
+		if (len > XTRN_MBX_BUFLEN)
+			Agent->resize (len);
 	}
-
-	if ((len = UA->B_olen) < UA->B_ilen)
-		len = UA->B_ilen;
-
-	if (len > XTRN_MBX_BUFLEN)
-		Agent->resize (len);
 }
 
 UartHandler::perform {
@@ -4782,20 +4780,11 @@ Disconnector::perform {
 
 	state Send:
 
-		// Try to disconnect softly, so as to convey a NACK to the
-		// other party, if only possible. But never hang around
-		// indefinitely.
-		Timer->delay (SHORT_TIMEOUT, Kill);
 		if (Agent->wi (Send, (char*)(&code), 4) == ERROR)
 			goto Term;
 
-	transient Wait:
-
-		// In this state we wait for the output to be flushed; normally,
-		// we need a single pass through the scheduler
-		if (!Agent->isActive () || !Agent->outputPending ())
-			goto Term;
-		Agent->wait (OUTPUT, Wait);
+		// Linger blindly to give the status message a chence to get
+		// to the node
 		Timer->delay (SHORT_TIMEOUT, Kill);
 
 	state Kill:

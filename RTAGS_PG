@@ -1145,3 +1145,10 @@ PG140220A:
 
     Fixed a bug causing that a disconnected and held EMUL session couldn't be
     reestablished.
+
+PG140306A:
+
+    Fixed a bug (or rather a collections of bugs) causing
+
+	1. model aborts on undefined UARTs (reversed default)
+	2. model aborts on udaemon connection attempts to absent UARTs
