@@ -420,6 +420,7 @@ fsm status_sender {
 		pmt->time [3] = RTC.hour;
 		pmt->time [4] = RTC.minute;
 		pmt->time [5] = RTC.second;
+		pmt->freemem = memfree (0, &(pmt->minmem));
 		pmt->battery = batt;
 
 		tcv_endp (msg);

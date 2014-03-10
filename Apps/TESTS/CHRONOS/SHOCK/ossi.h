@@ -74,6 +74,8 @@ typedef struct {
 	byte	display;
 	word	delay;
 	word	battery;
+	word	freemem;
+	word	minmem;
 	byte	time [6];
 } message_status_t;
 

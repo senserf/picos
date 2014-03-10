@@ -111,7 +111,7 @@ proc myinit { } {
 		incr i
 	}
 
-	oss_dump -incoming -outgoing
+	# oss_dump -incoming -outgoing
 }
 
 myinit
@@ -232,6 +232,8 @@ oss_message status 0x01 {
 	byte	display;
 	word	delay;
 	word 	battery;
+	word	freemem;
+	word	minmem;
 	byte	time [6];
 }
 
@@ -895,7 +897,7 @@ proc sectoh { se } {
 
 proc show_msg_status { msg } {
 
-	lassign [oss_getvalues $msg "status"] se af du ac di de ba tm
+	lassign [oss_getvalues $msg "status"] se af du ac di de ba fm mm tm
 
 	set res "Node status:\n"
 
@@ -931,6 +933,8 @@ proc show_msg_status { msg } {
 	append res "  RXOn:        ${de}ms\n"
 
 	append res "  Battery:     [format %4.2f [expr { ($ba*5.0)/4095 }]]V\n"
+
+	append res "  Mem cur/min: [expr $fm * 2]/[expr $mm * 2]B\n"
 
 	oss_ttyout $res
 }

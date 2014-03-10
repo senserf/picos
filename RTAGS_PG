@@ -3954,3 +3954,16 @@ PG140306A:
 	A few fixes to the CHRONOS/SHOCK praxis.
 
 	Added .mop to inProgress/spot (which Wlodek forgot to put there).
+
+PG140310A:
+
+	Fixed picomp to give a slightly less confusing diagnostics when an
+	FSM state symbol causes conflicts. The problem is with SIDE's smpp
+	which requires a rather serious overhaul to account for VUEE's
+	anomalies. It can be done, but can wait.
+
+	Added node.xml to CHRONOS and CHRONOS_WHITE. Tested with Wlodek's
+	spot and it seemed to work fine. Wlodek, I didn't touch your data
+	sets.
+
+	A minor adjustment to the SHOCK test praxis for CHRONOS_WHITE.

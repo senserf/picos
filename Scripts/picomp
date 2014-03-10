@@ -5149,10 +5149,12 @@ proc emit_vhdr { } {
 		set nam [lindex $d 0]
 		set stl [lindex $d 1]
 		set dty [lindex $d 2]
+		set lnu [lindex $d 3]
 
+		append res [lnumseq $lnu]
 		append res "process $nam : _PP_ (__NT[pnfx]) \{\n"
-		append res "states \{ "
-		append res [join $stl ","]
+		append res "states \{ [join $stl ,] \};\n"
+
 		append res " \};\n"
 
 		if { $dty != "" } {
@@ -5165,6 +5167,13 @@ proc emit_vhdr { } {
 	append res "#endif\n"
 
 	wtfile $fn $res
+}
+
+proc curl { } {
+
+	global PS
+
+	return [list $PS(LIN) $PS(LIF)]
 }
 
 proc parse_pfile { cnt src } {
@@ -6055,7 +6064,7 @@ K {
     }
 
     # process description
-    lappend PG($Pgm,PL) [list $fsn $stlist $fsm_type]
+    lappend PG($Pgm,PL) [list $fsn $stlist $fsm_type $fsm_line]
     continue
   }
 
@@ -6204,6 +6213,7 @@ F {
 		continue
 	}
 
+	set fsm_line [curl]
 	set fg_fsm 1
 
 	# truncate the output to remove the fsm header (which has to be
