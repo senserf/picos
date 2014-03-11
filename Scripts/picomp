@@ -5155,8 +5155,6 @@ proc emit_vhdr { } {
 		append res "process $nam : _PP_ (__NT[pnfx]) \{\n"
 		append res "states \{ [join $stl ,] \};\n"
 
-		append res " \};\n"
-
 		if { $dty != "" } {
 			append res "void setup ($dty d) \{ "
 			append res "__pi_data = (IPointer) d; \};\n"

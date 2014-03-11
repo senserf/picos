@@ -3967,3 +3967,8 @@ PG140310A:
 	sets.
 
 	A minor adjustment to the SHOCK test praxis for CHRONOS_WHITE.
+
+PG140311A:
+
+	Fixed a bug in the previous commit. I accidentally committed the wrong
+	version of picomp.
