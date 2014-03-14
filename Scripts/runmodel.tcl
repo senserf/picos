@@ -72,14 +72,52 @@ proc run { } {
 
 	global IFN OFN
 
-	if [catch { xq side.exe [list $IFN $OFN "&"] } er] {
+	set fl [glob -nocomplain "supp_node*.xml"]
+
+	set sl ""
+	set sn 0
+	set ar [list $IFN $OFN]
+	foreach f $fl {
+		if [regexp "^supp_node_(.+).xml" $f jnk suf] {
+			lappend sl $suf
+			continue
+		}
+		if { $f == "supp_node.xml" } {
+			set sn 1
+			break
+		}
+	}
+
+	if { $sn || $sl != "" } {
+		lappend ar "--"
+		if $sn {
+			lappend ar "-n"
+			lappend ar "supp_node.xml"
+		} else {
+			foreach s $sl {
+				lappend ar "-n"
+				lappend ar $s
+				lappend ar "supp_node_$s.xml"
+			}
+		}
+	}
+
+	lappend ar "&"
+
+	if [catch { xq side.exe $ar } er] {
 		alert "Cannot start SIDE: $er"
 		return
 	}
 
 	after 2000
 
-	if [catch { xq udaemon.exe [list "-T" "&"] } er] {
+	set ar [list "-T"]
+	if [file isfile "uplug.tcl"] {
+		lappend ar "-P"
+	}
+	lappend ar "&"
+
+	if [catch { xq udaemon.exe $ar } er] {
 		alert "Cannot start udaemon: $er"
 		return
 	}

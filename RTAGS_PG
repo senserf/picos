@@ -3972,3 +3972,9 @@ PG140311A:
 
 	Fixed a bug in the previous commit. I accidentally committed the wrong
 	version of picomp.
+
+PG140314A:	VUEE >= PG140314A
+
+	The test praxis for Alphatronics cleaned up and turned into a nice
+	VUEE model. For that I had to improve mksvm, runmodel.tcl, clean up
+	board definitions, add node.xml data to boards, and more.

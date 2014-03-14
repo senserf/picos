@@ -5,6 +5,7 @@ exec tclsh "$0" "$@"
 # Creates a standalone VUEE model from a compiled VUEE project; should be
 # called under Cygwin in the project directory
 #
+###############################################################################
 
 set CYGDLLS { "cyggcc_s-1.dll" "cygstdc++-6.dll" "cygwin1.dll" }
 
@@ -82,7 +83,7 @@ proc copy_data { } {
 
 	global TDIR
 
-	set fl [glob -nocomplain "*.xml"]
+	set fl [concat [glob -nocomplain "*.xml"] [glob -nocomplain "*.gif"]]
 
 	foreach f $fl {
 		if [catch { file copy $f $TDIR } err] {
@@ -130,19 +131,117 @@ proc wrap_udaemon { } {
 	cd $CD
 }
 
-proc check_reverse_y { } {
+proc read_config { } {
+
+	global CONF
+
+	set CONF ""
 
 	if [catch { open "config.prj" "r" } fd] {
-		return 0
+		puts "Warning: cannot open config.prj"
+		return
 	}
 
-	if [catch { read $fd } pf] {
-		abt "Cannot read config.prj, $pf"
+	if [catch { read $fd } CONF] {
+		abt "Cannot read config.prj, $CONF"
+	}
+}
+
+proc copy_supplementary_data { } {
+
+	global CONF PP TDIR
+
+	# get the list of boards
+
+	set BL ""
+	foreach { k v } $CONF {
+		if { $k == "BO" } {
+			set BL $v
+			break
+		}
 	}
 
-	catch { close $fd }
+	if { $BL == "" } {
+		puts "Warning: no boards assigned in project"
+		return
+	}
 
-	if { [string first "YCDN 1" $pf] >= 0 } {
+	# get the list of program types (app suffixes)
+	set SU ""
+	set fl [glob -nocomplain "app_*.cc"]
+	if { $fl == "" } {
+		if ![file isfile "app.cc"] {
+			puts "Warning: no app... files in the directory"
+			return
+		}
+	} else {
+		foreach f $fl {
+			regexp "^app_(.*).cc" $f jk su
+			lappend SU $su
+		}
+		set SU [lsort $SU]
+	}
+
+	if { $SU == "" && [llength $BL] != 1 || $SU != "" && [llength $SU] != 
+	     [llength $BL] } {
+		puts "Warning: inconsistent board assignment"
+		return
+	}
+
+	if { $SU == "" } {
+		set SU [list ""]
+	}
+
+	set bd [file join $PP PicOS MSP430 BOARDS]
+
+	foreach b $BL s $SU {
+		set sd [file join $bd $b "node.xml"]
+		if [file isfile $sd] {
+			if { $s != "" } {
+				set s "_$s"
+			}
+			set td [file join $TDIR "supp_node$s.xml"]
+			if [catch { file copy $sd $td } err] {
+				abt "Cannot copy $sd to $td, $err"
+			}
+		}
+	}
+}
+
+proc copy_udaemon_plug { } {
+
+	global CONF PP TDIR
+
+	# get the list of boards
+
+	set BL ""
+	foreach { k v } $CONF {
+		if { $k == "UDPL" } {
+			set BL $v
+			break
+		}
+	}
+
+	if { $BL == "" } {
+		return
+	}
+
+	if ![file isfile $BL] {
+		puts "Warning: the udaemon plugin file $BL is missing"
+		return
+	}
+
+	set td [file join $TDIR "uplug.tcl"]
+	if [catch { file copy $BL $td } err] {
+		abt "Cannot copy $BL to $td, $err"
+	}
+}
+
+proc check_reverse_y { } {
+
+	global CONF
+
+	if { [string first "YCDN 1" $CONF] >= 0 } {
 		return 1
 	}
 
@@ -205,6 +304,8 @@ proc wrap_runmodel { } {
 
 parse_args
 
+read_config
+
 puts "target directory: $TDIR"
 make_target_directory
 
@@ -219,6 +320,8 @@ copy_applib
 
 puts "copying data files ..."
 copy_data
+copy_supplementary_data
+copy_udaemon_plug
 
 puts "wrapping udaemon ..."
 wrap_udaemon

@@ -134,7 +134,7 @@
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
-		DIGITAL_SENSOR (0, bma250_init, bma250_read)	\
+		DIGITAL_SENSOR (0, NULL, bma250_read)		\
 	}
 
 #define	SENSOR_MOTION		0
