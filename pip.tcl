@@ -161,6 +161,7 @@ set CFVueeItems {
 			"UDON"		0
 			"UDTM"		0
 			"YCDN"		0
+			"UDPL"		""
 			"OSON"		0
 			"OSNN"		0
 			"OSNH"		0
@@ -4733,13 +4734,13 @@ proc do_vuee_config { } {
 
 		# enable/disable widgets
 		vconf_widgets disable { cmpis dpbc pfac udon udtm ycdn oson osnn
-			osnh vudf vusm }
+			udpl osnh vudf vusm }
 
 		if !$P(M0,VDISABLE) {
 			vconf_widgets normal \
 				{ cmpis dpbc pfac udon oson vudf vusm }
 			if $P(M0,UDON) {
-				vconf_widgets normal { udtm ycdn }
+				vconf_widgets normal { udtm ycdn udpl }
 			}
 			if $P(M0,OSON) {
 				vconf_widgets normal { osnn osnh }
@@ -4858,6 +4859,17 @@ proc mk_vuee_conf_window { } {
 	set P(M0,ycdn) [checkbutton $f.c -variable P(M0,YCDN)]
 	pack $f.c -side right -expand n
 
+	##
+	set f $w.up
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "    Plugin file: "
+	pack $f.l -side left -expand n
+	set P(M0,udpl) [button $f.b -text "Select" -command "vuee_conf_psel"]
+	pack $f.b -side right -expand n
+	label $f.f -textvariable P(M0,UDPL)
+	pack $f.f -side right -expand n
+
 	if [oss_available] {
 
 		##
@@ -4973,6 +4985,60 @@ proc vuee_conf_fsel { } {
 
 		# for posterity
 		set P(LS,VUDF) [file dirname $fn]
+
+		return
+	}
+}
+
+proc vuee_conf_psel { } {
+#
+# Selects a plugin file for VUEE
+#
+	global P
+
+	if { ![info exists P(LFS,UDPL)] ||
+	      [file_location $P(LFS,UDPL)] != "T" } {
+		# remembers last directory and defaults to the project's
+		# directory
+		set P(LFS,UDPL) $P(AC)
+	}
+
+	set ft [list [list "Udaemon plugin file" [list ".tcl"]]]
+	set de ".tcl"
+	set ti "plugin file for udaemon"
+
+	while 1 {
+
+		reset_all_menus 1
+		set fn [tk_getOpenFile 	-defaultextension $de \
+					-filetypes $ft \
+					-initialdir $P(LFS,UDPL) \
+					-title "Select a $ti" \
+					-parent $P(M0,WI)]
+		reset_all_menus
+
+		if { $fn == "" } {
+			# cancelled, cancel
+			set P(M0,UDPL) ""
+			return
+		}
+
+		# check if OK
+		if { [file_location $fn] != "T" } {
+			alert "The file must belong to the project tree"
+			continue
+		}
+
+		if ![file isfile $fn] {
+			alert "The file doesn't exist"
+			continue
+		}
+
+		# assume it is OK, but use a relative path
+		set P(M0,UDPL) [relative_path $fn]
+
+		# for posterity
+		set P(LS,UDPL) [file dirname $fn]
 
 		return
 	}
@@ -6736,6 +6802,11 @@ proc run_udaemon { { auto 0 } } {
 
 	if [dict get $P(CO) "UDTM"] {
 		append cmd " -T"
+	}
+
+	set udpl [dict get $P(CO) "UDPL"]
+	if { $udpl != "" } {
+		append cmd " -P $udpl"
 	}
 
 	append cmd " 2>@1"

@@ -738,3 +738,7 @@ PG140131A:
 
 	Fixed the problem with Windows file paths including (...), e.g., when
 	invoking flash programmers in ...Program Files (x86)...
+
+PG140314A:	PICOS >= PG140314A
+
+	Plugins for udaemon: a new entry in the VUEE config menu.
