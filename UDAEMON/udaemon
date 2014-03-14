@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec wish85 "$0" "$@"
+exec wish "$0" "$@"
 
 ###############################################################################
 
@@ -1090,18 +1090,21 @@ proc bad_usage { } {
 
 	global argv0
 
-	alex "Usage: $argv0 \[host:port\] \[-R\] \[-T\]!"
+	alex "Usage: $argv0 \[host:port\] \[-R\] \[-T\] \[-P \[file\]\]!"
 }
 
 proc parse_args { } {
 
-	global argv PortNumber HostName RY TM
+	global argv PortNumber HostName RY TM PF
 
 	# invert Y coordinates
 	set RY 0
 
 	# terminate model on exit
 	set TM 0
+
+	# plugin file
+	set PF ""
 
 	while { [llength $argv] } {
 
@@ -1123,6 +1126,19 @@ proc parse_args { } {
 				bad_usage
 			}
 			set TM 1
+			continue
+		}
+
+		if { $j == "-P" } {
+			if { $PF != "" } {
+				bad_usage
+			}
+			set PF [lindex $argv 0]
+			if { $PF == "" || [string index $PF 0] == "-" } {
+				set PF "uplug.tcl"
+			} else {
+				set argv [lrange $argv 1 end]
+			}
 			continue
 		}
 
@@ -1157,6 +1173,29 @@ proc parse_args { } {
 
 	if { $PortNumber == "" } {
 		set PortNumber 4443
+	}
+}
+
+proc plugin_check { } {
+
+	global PF
+
+	if { $PF == "" } {
+		return
+	}
+
+	if [catch { open $PF "r" } fd] {
+		alex "Cannot open plugin file $PF, $fd"
+	}
+
+	if [catch { read $fd } pl] {
+		alex "Cannot read plugin file $PF, $pl"
+	}
+
+	catch { close $fd }
+
+	if [catch { uplevel #0 eval $pl } err] {
+		alex "Error inserting the plugin file $PF, $err"
 	}
 }
 
@@ -1390,7 +1429,7 @@ proc parse_disp { item n mod { nod "" } { typ "" } } {
 	set coo [parse_gspec $t]
 
 	# item to add
-	set new [list $nod $typ $coo]
+	set new [list $nod $typ $coo [sxml_attr $item "params"]]
 
 	if { $mod && [info exists Geometry($n)] } {
 		# node-related append
@@ -2159,10 +2198,12 @@ proc do_geometry { win kwd { num "" } } {
 			set geo [lindex $ml 2]
 			if [covered_node $exp $typ $num] {
 				wm geometry $win $geo
-				return
+				# the argument
+				return [lindex $ml 3]
 			}
 		}
 	}
+	return ""
 }
 
 proc predisplay { } {
@@ -2464,6 +2505,10 @@ proc dealloc { Sok } {
 		}
 		unset Stat($it)
 	} 
+
+	if { [info exists Stat($Sok,PLUG)] && $Stat($Sok,PLUG) } {
+		plug_close $Sok
+	}
 
 	# clear all data related to the window
 	array unset Stat "$Sok,*"
@@ -2791,7 +2836,11 @@ proc uartFirst { Sok } {
 
 	set Wins($Sok) $Wn
 
-	mkTerm $Sok "UART at node $Stat($Sok,I)" $Stat($Sok,M)
+	set Stat($Sok,UART) [mkTerm $Sok "UART at node $Stat($Sok,I)" \
+		$Stat($Sok,M)]
+
+	set Stat($Sok,PLUG) [plug_open [lindex $pmt 0] [lindex $pmt 1] \
+		[lindex $pmt 3] $Sok]
 
 	# reset the input script
 	fileevent $Sok readable "uartRead $Sok"
@@ -2808,6 +2857,13 @@ proc uartRead { Sok } {
 	if { $Stat($Sok,FD,U) != "" } {
 		# send it to the C-0-C UART
 		catch { puts -nonewline $Stat($Sok,FD,U) $chunk }
+	}
+
+	if $Stat($Sok,PLUG) {
+		set chunk [plug_receive $chunk $Sok $Stat($Sok,H)]
+		if { $chunk == "" } {
+			return
+		}
 	}
 
 	set Wn $Wins($Sok)
@@ -3038,7 +3094,15 @@ proc mkTerm { Sok tt hex } {
 
 	wm title $w $tt
 
-	do_geometry $w "uart" $Stat($Sok,N)
+	set params [string tolower \
+		[string index [do_geometry $w "uart" $Stat($Sok,N)] 0]]
+
+	if { $params == "h" || $params == "b" || $params == "x" } {
+		# force type
+		set hex 1
+	} elseif { $params == "a" || $params == "c" || $params == "s" } {
+		set hex 0
+	}
 
 	text $w.t
 
@@ -3188,6 +3252,10 @@ proc handleUserInput { Sok } {
 	# remove it from the input field
 	$w.stat.u delete 0.0 end
 
+	if { $Stat($Sok,PLUG) && [plug_input tx $Sok] } {
+		return
+	}
+
 	if $Stat($Sok,F) {
 		set Stat($Sok,F) 0
 		endLine $Sok $w.t
@@ -3278,6 +3346,31 @@ proc endLine { Sok w } {
 	# make sure the last line is displayed
 	$w yview -pickplace end
 
+}
+
+###############################################################################
+# For UART plugins ############################################################
+###############################################################################
+
+proc term_output { text Sok } {
+
+	global Stat Wins
+
+	if { ![info exists Stat($Sok,UART)] || [catch { addText $Sok \
+	    $Stat($Sok,UART) $text } ] } {
+		return 1
+	}
+
+	return 0
+}
+
+proc uart_send { text Sok } {
+
+	if { ![info exists Stat($Sok,UART)] || [sock_wr $Sok $text] } {
+		return 1
+	}
+
+	return 0
 }
 
 ###############################################################################
@@ -7363,6 +7456,14 @@ proc xfromcv { Sok nx } {
 		double ($nx - $CMARGIN(L))) / double ($Stat($Sok,M,w)) + \
 			$Stat($Sok,M,XL)]
 }
+
+###############################################################################
+# Default plugin ##############################################################
+###############################################################################
+
+proc plug_open { nn hn nt ta } { return 0 }
+
+plugin_check
 
 ###############################################################################
 

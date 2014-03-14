@@ -1152,3 +1152,9 @@ PG140306A:
 
 	1. model aborts on undefined UARTs (reversed default)
 	2. model aborts on udaemon connection attempts to absent UARTs
+
+PG140314A:
+
+    Implemented a simple idea of plugins for udaemon's UARTs. Note: first I
+    tried to make them compatible with piter's plugins, but that wasn't as
+    natural as it might seem at first sight.
