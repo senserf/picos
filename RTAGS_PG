@@ -1158,3 +1158,8 @@ PG140314A:
     Implemented a simple idea of plugins for udaemon's UARTs. Note: first I
     tried to make them compatible with piter's plugins, but that wasn't as
     natural as it might seem at first sight.
+
+PG140321A:
+
+    Fixed a bug in agent.cc causing aborts when connecting to a non-existent
+    EMUL module.

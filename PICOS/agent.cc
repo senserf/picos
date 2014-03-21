@@ -2,7 +2,7 @@
 #define __agent_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2013.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2014.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -340,7 +340,10 @@ process Disconnector {
 
 	states { Send, Wait, Kill };
 
-	void setup (Dev *a, lword c) { Agent = a; code = htonl (c); };
+	void setup (Dev *a, lword c) {
+		Agent = a;
+		code = htonl (c);
+	};
 
 	perform;
 };
@@ -1030,6 +1033,7 @@ process	EmulHandler : AgentOutput {
 void EmulHandler::setup (EMULM *em, Dev *a) {
 
 	EM = em;
+	SIG = NULL;
 
 	if (AgentOutput::start (EM, a, 0) != ERROR) {
 		if (EM->MS == NULL)
@@ -1037,8 +1041,6 @@ void EmulHandler::setup (EMULM *em, Dev *a) {
 			// the emulator is "held"
 			EM->MS = create EMessages (MAX_Long);
 	}
-
-	SIG = NULL;
 }
 
 Boolean EmulHandler::initupd (int lp) {
