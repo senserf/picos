@@ -742,3 +742,14 @@ PG140131A:
 PG140314A:	PICOS >= PG140314A
 
 	Plugins for udaemon: a new entry in the VUEE config menu.
+
+PG140323A:
+
+	Added a new entry to the "exec" menu (debug+go). When you click it,
+	PIP will run the model through GDB (as for the regular, old debug
+	click), but it will also automatically start the model (with the proper
+	arguments, which otherwise would have to be meticulously entered by the
+	user) and also invoke udaemon, if prescribed by the project config.
+	Especially when the praxis data set refers to node.xml files in board
+	directories, entering the arguments manually may be tedious
+	and error-prone.

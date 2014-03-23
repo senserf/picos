@@ -6931,57 +6931,33 @@ proc stop_oss { } {
 	}
 }
 
-proc run_vuee { { deb 0 } } {
+proc side_args { deb } {
 #
-# The VUEE model is run as a term program (because it writes to the term
-# window), unlike udaemon, which is run independently
+# Build the arguments for side invocation
 #
-	global P TCMD SIDENAME GdbCmd
+	global P
 
-	if { $P(AC) == "" || $P(CO) == "" } {
-		# no project
-		return
-	}
-
-	if { $TCMD(FD) != "" } {
-		# This shouldn't be possible
-		alert "Term window busy running a command. Abort it first"
-		return
-	}
-
-	if ![file_present $SIDENAME] {
-		# Nor should this
-		alert "No VUEE model executable. Build it first"
-		return
-	}
-
-	if $deb {
-		# debugging, remove proxy files
-		catch { exec rm -f ".gdbinit" }
-		catch { exec rm -f "gdb.ini" }
-		if [catch { run_term_command $GdbCmd [list $SIDENAME] "" "" 1 }\
-		    err] {
-			alert "Cannot execute $GdbCmd: $err"
-		}
-		# ignore udaemon
-		return
-	}
-
+	# the data file
 	set df [dict get $P(CO) "VUDF"]
 	if { $df == "" } {
 		alert "No data file specified for the model. Configure VUEE\
 			first"
-		return
+		return ""
 	}
 
 	# check if the data file exists
 	if ![file_present $df] {
 		alert "The data file $df does not exist"
-		return
+		return ""
 	}
 
-	# argument list
-	set argl [list "-e" $df "+"]
+	set argl [list "-e" $df]
+
+	if !$deb {
+		# write to stderr, if output directed to console
+		lappend argl "+"
+	}
+
 	set df [dict get $P(CO) "VUSM"]
 	if { $df == "U" } {
 		# unsynced
@@ -7025,7 +7001,6 @@ proc run_vuee { { deb 0 } } {
 		}
 	}
 
-
 	if { $df != 1.0 } {
 		# default resync interval
 		set ef 500
@@ -7057,10 +7032,70 @@ proc run_vuee { { deb 0 } } {
 		set argl [concat $argl $argm]
 	}
 
-	# We seem to be in the clear
-	if [catch { run_term_command "./$SIDENAME" $argl } err] {
-		alert "Cannot start the model: $err"
+	return $argl
+}
+
+proc run_vuee { { deb 0 } } {
+#
+# Run the model; the arg: 0 - normal, 1 - debug, 2 - debug + go
+#
+	global P TCMD SIDENAME GdbCmd
+
+	if { $P(AC) == "" || $P(CO) == "" } {
+		# no project
 		return
+	}
+
+	if { $TCMD(FD) != "" } {
+		# This shouldn't be possible
+		alert "Term window busy running a command. Abort it first"
+		return
+	}
+
+	if ![file_present $SIDENAME] {
+		# Nor should this
+		alert "No VUEE model executable. Build it first"
+		return
+	}
+
+	if $deb {
+		# debugger run, remove proxy files
+		catch { exec rm -f ".gdbinit" }
+		catch { exec rm -f "gdb.ini" }
+		# start the debugger
+		if [catch { run_term_command $GdbCmd [list $SIDENAME] \
+		    "" "" 1 } err] {
+			alert "Cannot execute $GdbCmd: $err"
+			return
+		}
+		if { $deb < 2 } {
+			# just the debugger, the user will do the rest; ignore
+			# udaemon in this case
+			return
+		}
+		# go, i.e., issue a command to start the model, in this case
+		# we will also run udaemon, if prescribed by config
+		set args [side_args 1]
+		if { $args == "" } {
+			# error, diagnosed by side_args
+			return
+		}
+		set args "run [join $args]"
+		log "debug go: $args"
+		catch { puts $TCMD(FD) "$args\n" }
+		catch { flush $TCMD(FD) }
+	} else {
+		# regular run, no debugger
+		set args [side_args 0]
+		if { $args == "" } {
+			# error
+			return
+		}
+
+		if [catch { run_term_command "./$SIDENAME" $args } err] {
+			alert "Cannot start the model: $err"
+			return
+		}
 	}
 
 	stop_udaemon
@@ -8471,6 +8506,8 @@ proc reset_exec_menu { { clear 0 } } {
 	}
 	$m add command -label "Run VUEE" -command run_vuee -state $st
 	$m add command -label "Run VUEE (debug)" -command "run_vuee 1" \
+		-state $st
+	$m add command -label "Run VUEE (debug+go)" -command "run_vuee 2" \
 		-state $st
 
 	if { $TCMD(FD) == "" } {
