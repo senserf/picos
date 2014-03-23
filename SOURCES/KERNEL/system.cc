@@ -243,11 +243,17 @@ static void signal_service () {
 #ifdef  SIGSYS
 	signal (SIGSYS , (SIGARG) sigill );
 #endif
+#ifdef  SIGEMT
+	signal (SIGEMT , (SIGARG) sigill );
+#endif
 #ifdef	SIGFPE
 	signal (SIGFPE , (SIGARG) sigfpx );
 #endif
 #ifdef  SIGBUS
 	signal (SIGBUS , (SIGARG) sigbus );
+#endif
+#ifdef	SIGABRT
+	signal (SIGABRT, (SIGARG) sigsegv);
 #endif
 #ifdef	SIGSEGV
 	signal (SIGSEGV, (SIGARG) sigsegv);

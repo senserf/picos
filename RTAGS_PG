@@ -590,3 +590,9 @@ PG140121A:
 	   will make sure to eventually kill a hung socket resulting from a
 	   disappeared client (e.g., after reboot, unplugging, broken Internet
 	   connection).
+
+PG140323A:
+
+	   Added a couple of exotic signals (defined in Cygwin, like SIGABRT and
+	   SIGEMT) to catch all (or at least more) cases of "segmentation
+	   violation", i.e., illegal memory references.
