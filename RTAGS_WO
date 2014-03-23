@@ -465,4 +465,6 @@ WO140303A:
 
 WO140314A:
   SPOT update with a few add-ons. mostly to sync with repo.
- 
+
+WO140323A:
+  SPOT - added AP* nodes, tcve. Sync update, not tested, not documented. 
