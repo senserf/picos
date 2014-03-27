@@ -120,7 +120,7 @@ set XTCmd "xterm"
 set LFTypes {
 	{ Headers { "\\.h$" "\\.ch$" } { Header { ".h" ".ch" } } }
 	{ Sources { "\\.cc?$" "\\.asm$" } { Source { ".cc" } } }
-	{ Options { "^options\[_a-z\]*\\.sys$" "^options\\.vuee?$" }
+	{ Options { "^options\[_a-zA-Z0-9\]*\\.sys$" "^options\\.vuee?$" }
 		{ Options { ".sys" ".vue" ".vuee" } } }
 	{ XMLData { "\\.xml$" "\\.geo$" } { XMLData { ".xml" ".geo" } } }
 	{ Scripts { "\\.tcl$" } { Scripts { ".tcl" } } }
@@ -7082,7 +7082,7 @@ proc run_vuee { { deb 0 } } {
 		}
 		set args "run [join $args]"
 		log "debug go: $args"
-		catch { puts $TCMD(FD) "$args\n" }
+		catch { puts $TCMD(FD) $args }
 		catch { flush $TCMD(FD) }
 	} else {
 		# regular run, no debugger

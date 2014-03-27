@@ -753,3 +753,8 @@ PG140323A:
 	Especially when the praxis data set refers to node.xml files in board
 	directories, entering the arguments manually may be tedious
 	and error-prone.
+
+PG140327A:
+
+	Fixed a bug causing that options files with labels containing digits
+	were not shown in the tree view.
