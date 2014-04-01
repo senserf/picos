@@ -3,6 +3,7 @@
     <radio>
     	<power>7</power>
     	<preamble>32 bits</preamble>
+	<rate>2</rate>
     	<lbt>
 		delay			4msec
 		threshold		-109.0dBm
@@ -25,7 +26,7 @@
     	<input source="socket"></input>
 	<output target="socket"></output>
 	<sensor number="-2" vsize="2" delay="0.01" init="2300">2000</sensor>
-	<sensor number="-1" vsize="2" delay="0.01" init="2300">2047</sensor>
+	<sensor number="-1" vsize="2" delay="0.01" init="2457">2600</sensor>
     </sensors>
     <pins number="6">
 	<input source="socket"></input>

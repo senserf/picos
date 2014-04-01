@@ -3886,7 +3886,7 @@ PG140131A:
 
 	Fixed a problem with the OLIMEX_CCRF_BMA250 board: the interrupt
 	service for sensor events was missing. As it turns out, the PS pin
-	cannot be driven from a pin if the power supply for the chip supply
+	cannot be driven from a pin if the power supply for the chip
 	isn't, because the pin is too late with its state. I have added an
 	option to the board to power the sensor from a pin. The option is off
 	now (and Gerry should solder PS to ground), but it may be useful for
@@ -3933,7 +3933,7 @@ PG140305A:
 	A comprehensive test praxis for CHRONOS (white), see
 	Apps/TEST/CHRONOS/SHOCK.
 
-	Drivers form BMA250 and BMP085 revised (see the respective documents).
+	Drivers for BMA250 and BMP085 revised (see the respective documents).
 
 	In WOR mode for CC110x, you can now use PHYSOPT_SETPARAMS to change
 	the waking preamble length and the RX on time (without having to
@@ -3978,3 +3978,14 @@ PG140314A:	VUEE >= PG140314A
 	The test praxis for Alphatronics cleaned up and turned into a nice
 	VUEE model. For that I had to improve mksvm, runmodel.tcl, clean up
 	board definitions, add node.xml data to boards, and more.
+
+PG140401A:
+
+	The first version of piter plugin for testing the Alphatronics praxis +
+	a few cleanups. Note that the RF bit rate for Alphatronics boards has
+	been changed to 38400. I have fixed that in nodes.xml (for the Alpha
+	boards), but it seems that we have been using wrong rate settings in
+	some models (defaulting to 0 = 4800 bps).
+
+	The plugin is in Apps/PROPRIETARY/ALPHATRONICS/ONEHOP/piter_plug.tcl
+	A brief document is in Doc in the same directory.

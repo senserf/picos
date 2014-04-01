@@ -1721,6 +1721,8 @@ proc sy_reconnect { } {
 
 	raise $w
 
+	catch { plug_close }
+
 	sy_uclose
 
 	while 1 {
@@ -1850,7 +1852,7 @@ proc sy_initialize { } {
 		}
 
 		if { $par == "V" } {
-			puts "PG120829A"
+			puts "ZZ000000A"
 			exit 0
 		}
 
@@ -3315,6 +3317,7 @@ proc sy_setdefplug { } {
 	append sc {proc plug_outpp_b \{ inp \} \{ return 2 \}\n}
 	append sc {proc plug_init  \{ pla \} \{ \}\n}
 	append sc {proc plug_reset \{ \} \{ \}\n}
+	append sc {proc plug_close \{ \} \{ \}\n}
 
 	uplevel #0 eval $sc
 }
