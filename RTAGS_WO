@@ -468,3 +468,16 @@ WO140314A:
 
 WO140323A:
   SPOT - added AP* nodes, tcve. Sync update, not tested, not documented. 
+
+WO140405A:
+  SPOT - tcve i/f on AP* nodes close to AT specs. Lightly tested, w/o
+    piter's plugin for (n)acks. AT-related works cut into the 'modularization'
+    attempts, with messy but potentially beneficial result. Still to do:
+    - tests, 1st superficial and after the i/f is 'finalized', thorough.
+    - light description of what is happening on the i/f, for AT.
+    - shuffle some attributes (e.g. looper's hearbeat should be on its i/f).
+    - write decent 'modular' documentation.
+
+  apki.xml is with pure AP* net; spot_at3.zip contains what I sent Pawel when
+  he was in Lokeren (Images AT has contain further modifications).
+
