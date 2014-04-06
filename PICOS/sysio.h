@@ -11,7 +11,8 @@
 #endif
 
 #include "modsyms.h"
-
+#include "bma250.h"
+#include "bmp085.h"
 #include "dbgtrc.h"
 
 // ============================================================================

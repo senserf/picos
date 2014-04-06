@@ -1,4 +1,6 @@
 #!/bin/sh
+ln -sf ../../PICOS/PicOS/bmp085.h bmp085.h
+ln -sf ../../PICOS/PicOS/bma250.h bma250.h
 ln -sf ../../PICOS/PicOS/modsyms.h modsyms.h
 ln -sf ../../PICOS/PicOS/dbgtrc.h dbgtrc.h
 ln -sf ../../PICOS/PicOS/tcv.c tcv.cc

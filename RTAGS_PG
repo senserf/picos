@@ -1163,3 +1163,10 @@ PG140321A:
 
     Fixed a bug in agent.cc causing aborts when connecting to a non-existent
     EMUL module.
+
+PG140406A:	PICOS >= PG140406A
+
+    PicOS header files bma250.h and bmp085.h are now included by the model
+    providing tweaks for accessing sensor specific operations. They can also
+    be used as illustrations how to handle such operations for other sensors.
+	
