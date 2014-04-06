@@ -1,6 +1,26 @@
 #ifndef __pg_bmp085_h
 #define	__pg_bmp085_h
 
+#ifdef	__SMURPH__
+
+// ============================================================================
+// Dummies for VUEE models (auto-calibrate version only)
+// ============================================================================
+
+typedef struct {
+//
+// Sensor value
+//
+	unsigned int temp:8, press:24;
+
+} bmp085_data_t;
+
+#define	bmp085_oversample(b) emul (10, "BMP085_OVERSAMPLE: %1d", b)
+
+// ============================================================================
+#else	/* Real life */
+// ============================================================================
+
 #include "bmp085_sys.h"
 //+++ "bmp085.c"
 
@@ -54,5 +74,7 @@ typedef struct {
 } bmp085_data_t;
 
 #endif	/* BMP085_AUTO_CALIBRATE */
+
+#endif	/* __SMURPH__ or real life */
 
 #endif

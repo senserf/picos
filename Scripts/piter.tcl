@@ -3074,7 +3074,7 @@ proc sy_ugetb { msg } {
 		pt_tout "Received: $len < $enc >"
 	} else {
 		# preprocessed, at face value
-		pt_tout $tar
+		pt_tout $enc
 	}
 }
 

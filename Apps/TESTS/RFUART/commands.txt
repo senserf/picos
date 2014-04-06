@@ -1,0 +1,17 @@
+accel off | on range(0-3) freq(0-7) mask(0-0xFF)
+
+amode
+	motion	nsamples(1-4) threshold(0-255)
+	tap	mode(0-3,b0-shock,b1-quiet) th(0-31) del(0-7,dbl) ns(0-3)
+	orient	blk(0-3,b0-th,b1-slope) mode(0-3) th(0-63) hys(0-7)
+	flat	th(0-63) hold(0-3)
+	fall	mode(0-single,1-sum) th du hys(0-3)
+	shock	th du hys(0-3)
+
+radio on | off [d] | wor
+
+pins
+	monitor off | p ... p
+	set p v
+	get p
+	pulse p

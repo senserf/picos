@@ -24,6 +24,9 @@
 
 #undef 	UART_RATE
 #define	UART_RATE	9600
+// #define UART_RATE	115200
+// #define	UART_FROM_SMCLK	1
+
 
 //#undef	EE_USE_UART
 //#define	EE_USE_UART	1

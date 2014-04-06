@@ -3989,3 +3989,19 @@ PG140401A:
 
 	The plugin is in Apps/PROPRIETARY/ALPHATRONICS/ONEHOP/piter_plug.tcl
 	A brief document is in Doc in the same directory.
+
+PG140406A:
+
+	Fixed a bug in piter causing errors in plugins when an unprocessed
+	binary line was left for default formatting.
+
+	A new test praxis (RFUART) to serve as a pattern for testing single-
+	UART boards over RF (when the UART is occupied). Needed to test Gerry's
+	new board design.
+
+	Header files for the BMA250 and BMP085 drivers tweaked to provide a
+	rudimentary interface for VUEE models: sensor value view + specific
+	operations (the latter translating into EMUL calls). These same header
+	files are now included in VUEE/PICOS/sysio.h, so the model can
+	reference the sensor operations in the same way as the real-life
+	program.

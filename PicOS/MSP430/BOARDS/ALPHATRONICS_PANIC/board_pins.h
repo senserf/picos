@@ -140,7 +140,6 @@
 #define	SENSOR_MOTION		0
 #define	SENSOR_DIGITAL
 #define	SENSOR_EVENTS
-#define	SENSOR_INITIALIZERS
 
 // ============================================================================
 

@@ -1,12 +1,13 @@
 #ifndef	__pg_bma250_h
 #define	__pg_bma250_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "bma250_sys.h"
-//+++ "bma250.c"
+// This illustrates how we can VUEE-ify some exotic hardware without pushing
+// it to far; this file should be linked to VUEE/PICOS and included from 
+// sysio.h
 
 #define	BMA250_RANGE_2G		0x3
 #define	BMA250_RANGE_4G		0x5
@@ -52,15 +53,49 @@
 #define	BMA250_STAT_ZU		0x4000
 #define	BMA250_STAT_ISFLAT	0x8000
 
+#ifdef __SMURPH__
+//
+// A long value transformed into "some" attributes
+//
 typedef	struct {
+
+	int 	stat:8, x:6, y:6, z:6, temp:6;
+
+} bma250_data_t;
+
+#else
 //
-// Sensor value
+// Actual sensor value
 //
+typedef struct {
+
 	word	stat;		// Events
 	sint	x, y, z;	// Accelerations
 	char	temp;		// Temperature
 
 } bma250_data_t;
+
+#endif
+
+// ============================================================================
+
+#ifndef	__SMURPH__
+
+#include "bma250_sys.h"
+//+++ "bma250.c"
+
+void bma250_init (void);
+void bma250_read (word, const byte*, address);
+
+extern byte bma250_status;
+
+#define	BMA250_STATUS_ON	0x01
+#define	BMA250_STATUS_WAIT	0x02
+#define	BMA250_STATUS_EVENT	0x04
+
+#endif
+
+// ============================================================================
 
 #ifdef	BMA250_RAW_INTERFACE
 
@@ -74,8 +109,33 @@ typedef struct {
 
 } bma250_regs_t;
 
+#ifdef	__SMURPH__
+
+#define	bma250_on(a)		emul (9, "BMA250_ON: ... regs ...")
+#define	bma250_off()		emul (9, "BMA250_OFF: <>")
+
+#else
+
 void bma250_on (bma250_regs_t*);
 void bma250_off ();
+
+#endif
+
+#else	/* BMA250_RAW_INTERFACE */
+
+#ifdef	__SMURPH__
+
+#define	bma250_on(a,b,c)	emul (1, "BMA250_ON: %1d %1d %02x", a, b, c)
+#define	bma250_off(a)		emul (1, "BMA250_OFF: %1d", a)
+#define	bma250_move(a,b)	emul (1, "BMA250_MOVE: %1d %1d", a, b)
+#define	bma250_tap(a,b,c,d)	emul (1, "BMA250_TAP: %1d %1d %1d %1d", a, b,\
+					c, d)
+#define	bma250_orient(a,b,c,d)	emul (1, "BMA250_ORIENT: %1d %1d %1d %1d", a,\
+					b, c, d)
+#define	bma250_flat(a,b)	emul (1, "BMA250_FLAT: %1d %1d", a, b)
+#define	bma250_lowg(a,b,c,d)	emul (1, "BMA250_LOWG: %1d %1d %1d %1d", a,\
+					b, c, d)
+#define	bma250_highg(a,b,c)	emul (1, "BMA250_HIGHG: %1d %1d %1d", a, b, c)
 
 #else
 
@@ -90,13 +150,6 @@ void bma250_off (byte);
 
 #endif
 
-void bma250_init (void);
-void bma250_read (word, const byte*, address);
+#endif	/* BMA250_RAW_INTERFACE */
 
-extern byte bma250_status;
-
-#define	BMA250_STATUS_ON	0x01
-#define	BMA250_STATUS_WAIT	0x02
-#define	BMA250_STATUS_EVENT	0x04
-
-#endif
+#endif	/* Conditional include */
