@@ -110,7 +110,7 @@ if { $u < 0 } {
 	set PM(PLA) ""
 } else {
 	set PM(PLA) [lrange $argv [expr $u + 1] end]
-	set argv [lrange 0 [expr $u - 1]]
+	set argv [lrange $argv 0 [expr $u - 1]]
 }
 
 set u [lsearch -exact $argv "-C"]
@@ -1421,16 +1421,17 @@ proc sy_valpars { } {
 		set ST(OFN) [lindex $pf 2]
 		# module reset function
 		set ST(RFN) [lindex $pf 3]
-		# module read function
-		uartpoll_oninput $ST(SFD) [lindex $pf 1] $ST(SYS) $ST(DEV)
-		# Terminal input event
-		set ST(TIF) $sfu
-		# plugin initializer
+		# call plug_init before uartpoll_... so all input will be
+		# intercepted
 		if [catch { plug_init $PM(PLA) } erq] {
 			append err ", plugin init failed: $erq"
 			incr erc
 		} else {
-			# OK
+			# module read function
+			uartpoll_oninput $ST(SFD) [lindex $pf 1] $ST(SYS) \
+				$ST(DEV)
+			# Terminal input event
+			set ST(TIF) $sfu
 			set ST(UCS) $mos
 			return 1
 		}
@@ -1852,7 +1853,7 @@ proc sy_initialize { } {
 		}
 
 		if { $par == "V" } {
-			puts "ZZ000000A"
+			puts "PG140406A"
 			exit 0
 		}
 
@@ -3038,8 +3039,9 @@ proc sy_ugett { msg } {
 # ASCII mode: just show the line
 #
 	set msg [string trimright $msg "\r\n"]
+	set msh $msg
 	if [catch { plug_outpp_t msg } v] {
-		pt_touf "OUTPP Error: $v"
+		pt_touf "OUTPP Error: $v, received line was: <$msh>"
 	} elseif { $v != 0 } {
 		pt_tout $msg
 	}
@@ -3059,8 +3061,9 @@ proc sy_ugetb { msg } {
 
 	set enc [string trimright $enc]
 
+	set ens $enc
 	if [catch { plug_outpp_b enc } v] {
-		pt_touf "OUTPP Error: $v, received line was: <$enc>"
+		pt_touf "OUTPP Error: $v, received line was: <$ens>"
 		return
 	}
 

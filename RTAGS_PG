@@ -4005,3 +4005,13 @@ PG140406A:
 	files are now included in VUEE/PICOS/sysio.h, so the model can
 	reference the sensor operations in the same way as the real-life
 	program.
+
+PG140407A:
+
+	Fixed a bug in piter causing delayed plugin initialization for a
+	socket connection to a virtual UART with data pending.
+
+	The piter plugin for spot/ONEHOP beefed up a bit:
+
+	piter -- -D	[dump all normal traffic in hex]
+	piter -- -DD	[dump all traffic]
