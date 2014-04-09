@@ -771,7 +771,7 @@ RRX:
 	// Status bytes (now in place)
 	eptr = (byte*)rbuff + paylen;
 	b = *(eptr+1);
-	add_entropy (rbuff [len]);
+	add_entropy (*eptr);
 	// Add the two status byte to the payload
 	paylen += 2;
 

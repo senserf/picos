@@ -4015,3 +4015,36 @@ PG140407A:
 
 	piter -- -D	[dump all normal traffic in hex]
 	piter -- -DD	[dump all traffic]
+
+PG140408A:
+
+	A new piter plugin for spot:
+
+	- the polling is now more realistic, parameters:
+		PLUG(RETRIES)	the total number of tries until ACK
+		PLUG(RTIME)	retry interval
+		PLUG(LTIME)	interal between failing polls for get node Id
+		PLUG(PTIME)	interval between normal polls
+
+	- dumps are more consistent (all in HEX, no 0x in front):
+		"-->"		outgoing raw command
+		"<-U"		incoming unrecognized
+		"<-W"		incoming awaited reply
+		"<-S"		incoming spurious reply
+		"<-E"		incoming event
+		"A->"		ack for event
+		"D->"		ack for duplicate event
+		"P->"		outgoing poll
+
+	- four levels (none,D,DD,DDD):
+		0		nothing
+		1		normal + spurious
+		2		ACKs
+		3		retried polls
+
+	Some minor cosmetics. I have discovered that the even-length
+	requirement for packet payload in CC1100 can be lifted (unless we have
+	software checksum, which we don't these days). I have stopped short of
+	doing that, because it would require rather intricate modifications in
+	VUEE and, in these hectic times, it would be better not to fix things
+	that ain't broke.
