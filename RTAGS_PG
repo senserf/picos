@@ -4048,3 +4048,29 @@ PG140408A:
 	doing that, because it would require rather intricate modifications in
 	VUEE and, in these hectic times, it would be better not to fix things
 	that ain't broke.
+
+PG140410A:
+
+	The piter plugin for spot fixed again:
+
+	No attempt to identify duplicates in event messages, i.e., all event
+	messages are always "translated".
+
+	Illegal octal numbers in the free-style input option are now detected
+	and diagnosed as such.
+
+	Added a hex option for input. If the input line starts with x, as in:
+
+		x 11 09 00 00 01 00
+
+	then the expected continuation is a bunch of pairs of hex digits
+	optionally separated by spaces (this x110900000100 will also do).
+
+	Otherwise, the input is free-style expressions, e.g.,
+
+		1+2 (16+7-4) ....
+
+	and so on. The standard Tcl expression parser is used to partition the
+	line into a sequence of values. Looking from the left, the first value
+	is the maximum substring that can be evaluated as a correct expression
+	in Tcl. Then the substring is removed and we go again.
