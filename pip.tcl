@@ -1075,7 +1075,7 @@ proc gfl_tree { } {
 		set l [lsort $l]
 
 		set id [$tv insert {} end -text "<${b}>:" \
-			-values [list $b "b"] -tags sboard]
+			-values [list $bp "b"] -tags sboard]
 		if [info exists P(FL,b,$b)] {
 			set of 1
 		} else {
@@ -2233,7 +2233,7 @@ proc tree_selection { { x "" } { y "" } } {
 		# make sure we only look at file/directory items
 		set vs [$tv item $t -values]
 		set tp [lindex $vs 1]
-		if { $tp == "f" || $tp == "d" } {
+		if { $tp == "f" || $tp == "d" || $tp == "b" } {
 			lappend fl $vs
 		}
 	}
@@ -2250,7 +2250,7 @@ proc tree_selection { { x "" } { y "" } } {
 	}
 	set vs [$tv item $t -values]
 	set tp [lindex $vs 1]
-	if { $tp == "f" || $tp == "d" } {
+	if { $tp == "f" || $tp == "d" || $tp == "b" } {
 		lappend fl $vs
 	}
 
@@ -2296,6 +2296,7 @@ proc open_multiple { { x "" } { y "" } } {
 	}
 
 	if { $fl == "" } {
+		alert "No file selected"
 		return
 	}
 
@@ -2347,20 +2348,30 @@ proc delete_multiple { { x "" } { y "" } } {
 		}
 	}
 
+	set de 0
+
 	if { $fl != "" } {
 		delete_files $fl
+		incr de
 	}
 
-	# now go for directories
+	# now go for directories (include boards)
 	set fl ""
 	foreach f $sel {
-		if { [lindex $f 1] == "d" } {
+		set tp [lindex $f 1]
+		if { $tp == "d" || $tp == "b" } {
 			lappend fl [lindex $f 0]
 		}
 	}
 
 	if { $fl != "" } {
 		delete_directories $fl
+		incr de
+	}
+
+	if !$de {
+		alert "Nothing selected for deletion"
+		return
 	}
 
 	# redo the tree view
@@ -2904,6 +2915,7 @@ proc copy_to { { x "" } { y "" } } {
 	set nf [llength $sel]
 
 	if { $nf == 0 } {
+		alert "Nothing selected to copy"
 		return
 	}
 
@@ -3030,9 +3042,10 @@ proc run_xterm_here { { x "" } { y "" } } {
 	}
 
 	set fp [lindex $sel 0]
-	if { [lindex $fp 1] == "f" } {
+	set ft [lindex $fp 1]
+	if { $ft == "f" } {
 		set fp [file dirname [fpnorm [lindex $fp 0]]]
-	} elseif { [lindex $fp 1] == "d" } {
+	} elseif { $ft == "d" || $ft == "b" } {
 		set fp [fpnorm [lindex $fp 0]]
 	} else {
 		alert "What you have selected is neither a file nor a directory"
@@ -3064,6 +3077,7 @@ proc rename_file { { x "" } { y "" } } {
 	set sel [tree_selection]
 
 	if { $sel == "" } {
+		alert "Nothing selected to rename"
 		return
 	}
 
@@ -3106,7 +3120,14 @@ proc rename_file { { x "" } { y "" } } {
 				continue
 			}
 
-			if { $t == "d" } {
+			if { $t == "d" || $t == "b" } {
+				# directory or board
+				if { [file dirname [fpnorm $ta]] != \
+				    [file dirname [fpnorm $nm]] } {
+					alert "A board directory cannot be\
+						moved outside its location"
+					continue
+				}
 				if [reserved_dname $nm] {
 					bad_dirname
 					continue

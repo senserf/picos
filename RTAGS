@@ -758,3 +758,9 @@ PG140327A:
 
 	Fixed a bug causing that options files with labels containing digits
 	were not shown in the tree view.
+
+PG140410A:
+
+	A few cleanups and corrections in the code for clickable commands in
+	the tree view pane. For example, board names were not recognized as
+	clickable directories.
