@@ -29,9 +29,9 @@
 	<sensor number="-1" vsize="2" delay="0.01" init="2457">2600</sensor>
 	<sensor number="0" vsize="4" delay="0.01" init="0"></sensor>
     </sensors>
-    <pins number="1">
+    <pins number="2">
 	<input source="socket"></input>
-	<buttons>0</buttons>
+	<buttons>0 1</buttons>
     </pins>
     <emul>
 	<output target="socket" type="held"></output>

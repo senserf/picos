@@ -85,6 +85,7 @@ typedef struct {
 //+++ "bma250.c"
 
 void bma250_init (void);
+
 void bma250_read (word, const byte*, address);
 
 extern byte bma250_status;

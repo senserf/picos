@@ -10,7 +10,9 @@
 #endif
 
 #ifndef	bma250_bring_down
-#define	bma250_bring_down	CNOP
+#define	bma250_bring_down_x	CNOP
+#else
+#define	bma250_bring_down_x	bma250_bring_down
 #endif
 
 
@@ -170,6 +172,14 @@ static void clrevent () {
 	bma250_enable;
 }
 
+void bma250_init () {
+
+	sint c;
+
+	for (c = 0; c < 3; c++)
+		wreg (0x11, 0x80);
+}
+
 #ifdef	BMA250_RAW_INTERFACE
 
 static const byte reglist [] = { 0x0F, 0x10, 0x11, 0x13, 0x16, 0x17, 0x1E,
@@ -203,8 +213,8 @@ void bma250_on (bma250_regs_t *regs) {
 void bma250_off () {
 
 	if (bma250_status & BMA250_STATUS_ON) {
-		wreg (0x11, 0x80);
-		bma250_bring_down;
+		bma250_init ();
+		bma250_bring_down_x;
 		_BIC (bma250_status, BMA250_STATUS_ON);
 	}
 }
@@ -358,8 +368,8 @@ void bma250_off (byte pow) {
 
 	if (pow == 0) {
 		// Power down
-		wreg (0x11, 0x80);
-		bma250_bring_down;
+		bma250_init ();
+		bma250_bring_down_x;
 		_BIC (bma250_status, BMA250_STATUS_ON);
 		return;
 	}

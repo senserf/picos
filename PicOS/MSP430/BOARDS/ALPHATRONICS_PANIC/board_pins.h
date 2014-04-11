@@ -4,8 +4,8 @@
 /* ========================================================================= */
 
 // ============================================================================
-// P1.0	BUTTON, on low, BROKEN: LED on high
-// P1.1 NC
+// P1.0	BUTTON, on low
+// P1.1 loop sensor, on low
 // P1.2 NC
 // P1.3 NC
 // P1.4 INT2 of BMA250
@@ -21,9 +21,9 @@
 #else
 #define	PIN_DEFAULT_P1DIR	0x4E
 // Pull down the two interrupt pins in case BMA250 is absent, also the button
-// pin needs a pullup
-#define	PIN_DEFAULT_P1REN	0x91
-#define	PIN_DEFAULT_P1OUT	0x01
+// pins need pullup
+#define	PIN_DEFAULT_P1REN	0x93
+#define	PIN_DEFAULT_P1OUT	0x03
 #endif
 
 // ============================================================================
@@ -91,11 +91,12 @@
 #define	button_pressed		(P4IN & 0x10)
 #else
 // Normal button on P1.0
-#define	BUTTON_LIST 		{ BUTTON_DEF (1, 0x01, 0) }
-#define	BUTTON_PIN_P1_IRQ	0x01
+#define	BUTTON_LIST 		{ BUTTON_DEF (1, 0x01, 0), BUTTON_DEF (1, 0x02, 0) }
+#define	BUTTON_PIN_P1_IRQ	0x03
 #define	BUTTON_DEBOUNCE_DELAY	32
 #define	BUTTON_PRESSED_LOW	1
-#define	BUTTON_PANIC	0
+#define	BUTTON_PANIC		0
+#define	BUTTON_LOOP		1
 #endif
 
 #define	PIN_MAX		0
@@ -134,12 +135,13 @@
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
-		DIGITAL_SENSOR (0, NULL, bma250_read)		\
+		DIGITAL_SENSOR (0, bma250_init, bma250_read)	\
 	}
 
 #define	SENSOR_MOTION		0
 #define	SENSOR_DIGITAL
 #define	SENSOR_EVENTS
+#define	SENSOR_INITIALIZERS
 
 // ============================================================================
 

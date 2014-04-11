@@ -4074,3 +4074,9 @@ PG140410A:
 	line into a sequence of values. Looking from the left, the first value
 	is the maximum substring that can be evaluated as a correct expression
 	in Tcl. Then the substring is removed and we go again.
+
+PG140411A:
+
+	Added code to initialize BMA250 (on ALPHATRONICS_PANIC) as otherwise
+	the sensor drains current. Also, the second button defined to act as
+	the loop sensor.
