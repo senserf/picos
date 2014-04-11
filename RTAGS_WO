@@ -481,3 +481,13 @@ WO140405A:
   apki.xml is with pure AP* net; spot_at3.zip contains what I sent Pawel when
   he was in Lokeren (Images AT has contain further modifications).
 
+WO140411A:
+ SPOT touched to conform to the latest guess about Alphanet params:
+ - heartbeats: peg's 25->60; tag's: 60,60,3600 -> 900,900,3600
+ - pong params: { 5, 3, 2, 0, 0x7777}
+ - conistent app_dbg for master abdication / coronation
+ - Renesas retries 50ms on real nodes, 500 in VUEE
+ - local alarms don't go to the audited pool of tags
+ - TARP slack inited to 1
+ - **in Libs/LibComms** tarp_maxHops changed 10 -> 5
+
