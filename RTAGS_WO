@@ -491,3 +491,19 @@ WO140411A:
  - TARP slack inited to 1
  - **in Libs/LibComms** tarp_maxHops changed 10 -> 5
 
+WO140414A:
+ SPOT / alphanet:
+ - periodic peg stats (app_diag go to emul)
+ - better looper tracking (app_diag)
+ - max reliable tags per peg introduced (_TMGR_MAX_RELIABLE 12)
+ - alarm=0 are not reliable (repAcks still come back, for nothing)
+ - better tag manager tracking
+ - old tags (255s) removed from 'reliability list'
+ - prepared options* for TARP_RTR (messy because of VUEE), but all hiddedn
+ - remove atsimple.xml (became confusing)
+ - added apkilot.xml
+
+ All lightly tested, likely to be ready for Alphanet 1.0 flashing. Note
+ missing variable power level - thery contradict previous feelings that
+ lower levels cause delays in tags' responses.
+
