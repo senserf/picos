@@ -4945,6 +4945,11 @@ ANum:
 
 	print ("\n");
 
+	print (RI, "Resync interval: ", 11, 20);
+	print (SF, "Slow motion factor:", 11, 20);
+	
+	print ("\n");
+
 	setResync (RI, (RI * 0.001)/SF);
 	//setResync (500, 0.5);
 

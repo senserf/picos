@@ -3366,6 +3366,8 @@ proc term_output { text Sok } {
 
 proc uart_send { text Sok } {
 
+	global Stat
+
 	if { ![info exists Stat($Sok,UART)] || [sock_wr $Sok $text] } {
 		return 1
 	}

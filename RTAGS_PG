@@ -1170,3 +1170,7 @@ PG140406A:	PICOS >= PG140406A
     providing tweaks for accessing sensor specific operations. They can also
     be used as illustrations how to handle such operations for other sensors.
 	
+PG140414A:
+
+    Fixed a glitch in udaemon rendering plugin output (to the model) incorrect.
+    Cosmetics in board.cc.
