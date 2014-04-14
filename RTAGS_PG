@@ -4080,3 +4080,11 @@ PG140411A:
 	Added code to initialize BMA250 (on ALPHATRONICS_PANIC) as otherwise
 	the sensor drains current. Also, the second button defined to act as
 	the loop sensor.
+
+PG140414A:
+
+	Floor 2 background added to spot. Use floor_plus2.xml for data, Y goes
+	top to bottom.
+
+	Note that the udaemon plug in spot is not functionally identical (or at
+	least should be) to the piter plug (but you need to redeploy udaemon).

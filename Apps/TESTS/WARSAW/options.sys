@@ -61,3 +61,7 @@
 // #define	RADIO_USE_LEDS	0
 
 #define	AUTO_RADIO_START 	1
+
+#ifdef BMA250_RAW_INTERFACE
+#undef BMA250_RAW_INTERFACE
+#endif
