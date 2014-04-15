@@ -764,3 +764,7 @@ PG140410A:
 	A few cleanups and corrections in the code for clickable commands in
 	the tree view pane. For example, board names were not recognized as
 	clickable directories.
+
+PG140415A:
+
+	Added resync interval to the set of configurable parameters for VUEE.

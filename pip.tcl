@@ -167,6 +167,7 @@ set CFVueeItems {
 			"OSNH"		0
 			"VUDF"		""
 			"VUSM"		1.0
+			"VURI"		500
 }
 
 ## Names of the configurable loaders
@@ -4755,11 +4756,11 @@ proc do_vuee_config { } {
 
 		# enable/disable widgets
 		vconf_widgets disable { cmpis dpbc pfac udon udtm ycdn oson osnn
-			udpl osnh vudf vusm }
+			udpl osnh vudf vusm vuri }
 
 		if !$P(M0,VDISABLE) {
 			vconf_widgets normal \
-				{ cmpis dpbc pfac udon oson vudf vusm }
+				{ cmpis dpbc pfac udon oson vudf vusm vuri }
 			if $P(M0,UDON) {
 				vconf_widgets normal { udtm ycdn udpl }
 			}
@@ -4943,6 +4944,17 @@ proc mk_vuee_conf_window { } {
 	tk_optionMenu $f.m P(M0,VUSM) \
 		"U" 0.25 0.5 1.0 2.0 3.0 4.0 5.0 10.0 20.0 50.0 100.0
 	set P(M0,vusm) $f.m
+	pack $f.m -side right -expand n
+
+	##
+	set f $w.tz
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Resync interval: "
+	pack $f.l -side left -expand n
+	tk_optionMenu $f.m P(M0,VURI) \
+		1000 750 500 300 200 100 75 50 40 30 20 10 5
+	set P(M0,vuri) $f.m
 	pack $f.m -side right -expand n
 
 	##
@@ -6979,6 +6991,13 @@ proc side_args { deb } {
 		lappend argl "+"
 	}
 
+	set ri [dict get $P(CO) "VURI"]
+
+	if { [catch { expr $ri } ri] || $ri < 5 } {
+		# force the default in case of any trouble
+		set ri 500
+	}
+
 	set df [dict get $P(CO) "VUSM"]
 	if { $df == "U" } {
 		# unsynced
@@ -7022,25 +7041,21 @@ proc side_args { deb } {
 		}
 	}
 
-	if { $df != 1.0 } {
-		# default resync interval
-		set ef 500
-		if { $df > 0 } {
-			# calculate the resync interval in milliseconds as 1/2
-			# of the slo-mo factor or 1000, whichever is less
-			set ef [expr int($df * 500)]
-			if { $ef <= 0 } {
-				set ef 1
-			} elseif { $ef > 1000 } {
-				set ef 1000
-			}
+	# slo-mo/resync
+	if { $df > 0 } {
+		# scale resync interval to slo-mo
+		set ef [expr int($df * $ri)]
+		if { $ef <= 0 } {
+			set ef 1
+		} elseif { $ef > 1000 } {
+			set ef 1000
 		}
-		lappend argm "-s"
-		lappend argm $df
-		if { $df > 0 } {
-			lappend argm "-r"
-			lappend argm $ef
-		}
+	}
+	lappend argm "-s"
+	lappend argm $df
+	if { $df > 0 } {
+		lappend argm "-r"
+		lappend argm $ef
 	}
 
 	if ![catch { valport $po } po] {
@@ -7338,24 +7353,27 @@ proc upload_ELP { } {
 	if { $ep == "" || $ep == "Automatic" } {
 		# Try to locate
 		global env
-		if ![info exists env(PROGRAMFILES)] {
-			set ep "C:/Program Files"
-		} else {
-			set ep $env(PROGRAMFILES)
+		set ep ""
+		foreach pp [array names env] {
+			if ![regexp -nocase "program.*files" $pp] {
+				continue
+			}
+			set pp [fpnorm $env($pp)]
+			log "Trying loader path: $pp"
+			set pp [glob -nocomplain \
+				-directory $pp "Elprotronic/*/*/FET*.exe"]
+			if { $pp != "" } {
+				set ep [lindex $pp 0]
+				break
+			}
 		}
-		set ep [fpnorm $ep]
-		log "Loader auto path prefix: $ep"
-		set ep [glob -nocomplain \
-			-directory $ep "Elprotronic/*/*/FET*.exe"]
-		log "Loader exec candidates: $ep"
-		if { $ep != "" } {
-			set ep [lindex $ep 0]
-		} else {
+		if { $ep == "" } {
 			alert "Cannot autolocate the path to Elprotronic\
 				loader, please configure manually"
 			return
 		}
 	}
+
 	if ![file exists $ep] {
 		alert "No Elprotronic loader at $ep"
 		return
