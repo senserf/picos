@@ -507,3 +507,11 @@ WO140414A:
  missing variable power level - thery contradict previous feelings that
  lower levels cause delays in tags' responses.
 
+WO140415A:
+  SPOT 1.0 (?)
+  - tag's pong_params = { 3, 4, 2, 0, 0x7777} (every 3s, 4 tries)
+  - tag's heartbeat _HBEAT 3600
+  - Renesas i/f for switching Tarp's fwd on / off
+  - relays at dst come out with no 0x80 set (subject to acks, etc.)
+  - real tag blinks for 3s at boot, in vuee rnd'ed 1-6s
+
