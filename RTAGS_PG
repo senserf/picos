@@ -1174,3 +1174,12 @@ PG140414A:
 
     Fixed a glitch in udaemon rendering plugin output (to the model) incorrect.
     Cosmetics in board.cc.
+
+PG140416A:
+
+    Node locations can now be specified (alternatively) in a separate
+    <locations> element. When you click in the network dimension in the right
+    bottom corner of the ROAMER window, you will get a dialog to save the
+    current layout of nodes into a file as a <locations> element. That file
+    can be included in the data set, thus making the network layout modifiable
+    in a non-volatile way. See section 4.4.5, 7.6 from the VUEE doc.

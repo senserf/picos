@@ -3230,8 +3230,7 @@ proc term_sfile { Sok tag } {
 		}
 		if [catch { open $fn "w" } fd] {
 			# failed
-			tk_dialog .alert "Attention!" "Cannot open $fn:$fd" ""\
-				0 "OK"
+			alert "Cannot open $fn: $fd"
 			return
 		}
 		set Stat($Sok,FD,S) $fd
@@ -6347,6 +6346,53 @@ proc mkMove { Sok } {
 	return 0
 }
 
+proc moveSNL { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	if ![info exists Stat($Sok,NN)] {
+		return
+	}
+
+	set N $Stat($Sok,NN)
+	set loc "<locations>\n"
+
+	set fn [tk_getSaveFile \
+		-defaultextension ".xml" \
+		-initialfile "locations.xml" \
+		-parent $w \
+		-title "File to save node locations"]
+
+	if { $fn == "" } {
+		# cancelled
+		return
+	}
+
+	if [catch { open $fn "w" } fd] {
+		# failed
+		alert "Cannot open $fn: $fd"
+		return
+	}
+
+	# create the location list
+	for { set n 0 } { $n < $N } { incr n } {
+		lassign $Stat($Sok,NL,$n) x y
+		append loc "    <location node=\"$n\"> [format %4.3f $x]\
+			[format %4.3f $y] </location>\n"
+	}
+
+	append loc "</locations>"
+
+	if [catch { puts $fd $loc } err] {
+		alert "Caccot write to $fn: $err"
+	}
+
+	catch { close $fd }
+
+}
+
 proc drawNode { Sok w n } {
 #
 # Draws node number n in window w
@@ -6516,6 +6562,7 @@ proc moveRedraw { Sok } {
 		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
 			-outline ""]
 		$w.c raise $tx
+		$w.c bind $bg <ButtonRelease-1> "moveSNL $Sok"
 	} else {
 		# redrawing existing nodes, i.e., adjusting their coordinates
 		for { set n 0 } { $n < $N } { incr n } {
@@ -6527,6 +6574,7 @@ proc moveRedraw { Sok } {
 		$w.c delete $bg
 		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
 			-outline ""]
+		$w.c bind $bg <ButtonRelease-1> "moveSNL $Sok"
 		$w.c raise $tx
 	}
 	set Stat($Sok,AX) [list $tx $bg]

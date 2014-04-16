@@ -62,6 +62,13 @@ struct preinit_s {
 
 typedef struct preinit_s preinit_t;
 
+typedef struct {
+
+	double	x, y;
+	Boolean Movable;
+
+} location_t;
+
 #define	NFTABLE_SIZE	32
 
 static	preinit_t *PREINITS = NULL;
@@ -688,7 +695,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 
 	lsize = (lsize + 3) / 4;		// Convert to 4-tuples
 	if (lsize > MFree) {
-		//trace ("MEMALLOC OOM: %1d [%1d, %1d]", MFree, size, lsize);
+//trace ("MEMALLOC OOM: %1d [%1d, %1d]", MFree, size, lsize);
 		return NULL;
 	}
 
@@ -2704,6 +2711,65 @@ static void deallocate_ep_def (data_ep_t *ep) {
 	
 	delete ep;
 }
+
+static Boolean parseLocation (sxml_t cur, int tp, Long nn,
+							 double *x, double *y) {
+//
+// tp == 0	=> defaults
+// tp == 1	=> within <node>
+// tp == 2	=> within <location>
+//
+	const char *att;
+	nparse_t np [2];
+	Boolean res;
+
+	res = YES + YES;	// undefined
+
+	if ((att = sxml_attr (cur, "movable")) != NULL) {
+		// yes or no
+		if (strcmp (att, "no") == 0)
+			res = NO;
+		else if (strcmp (att, "yes") == 0)
+			res = YES;
+		else
+				xeai ("movable", "location", att);
+	}
+
+	if (tp == 0) {
+		// That's it (defaults)
+		print (form ("  Location: %c\n\n",
+			 res == NO ? 'F' : 'M'));
+		return res;
+	}
+
+	// Not defaults
+	att = sxml_txt (cur);
+	np [0].type = np [1].type = TYPE_double;
+	if (parseNumbers (att, 2, np) != 2 || np [0].DVal < 0.0 || 
+	    np [1].DVal < 0.0) {
+
+		if (tp == 1)
+			excptn ("Root: illegal location (%s) for <node> %1d",
+				att, nn);
+		else
+			excptn ("Root: illegal location (%s) for <location> "
+				"(node %1d)", att, nn);
+	}
+
+	*x = np [0].DVal;
+	*y = np [1].DVal;
+
+	if (tp == 1)
+		print (form ("  Location: <%1.2f,%1.2f> %c\n\n",
+				*x, *y, 
+				 res == NO  ? 'F' :
+				(res == YES ? 'M' : 'D')));
+	else
+		print (form ("  Node %1d: <%1.2f,%1.2f> %c\n", nn,
+				*x, *y, 
+				 res == NO  ? 'F' :
+				(res == YES ? 'M' : 'D')));
+}
 		 
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 							   const char *ion) {
@@ -3218,39 +3284,9 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 /* Location */
 /* ======== */
 
-	if ((cur = sxml_child (data, "location")) != NULL) {
-		if ((att = sxml_attr (cur, "movable")) != NULL) {
-			// yes or no
-			if (strcmp (att, "no") == 0)
-				ND->Movable = NO;
-			else if (strcmp (att, "yes") == 0)
-				ND->Movable = YES;
-			else
-				xeai ("movable", "location", att);
-		}
-		if (nn >= 0) {
-			// Not defaults
-			att = sxml_txt (cur);
-			np [0].type = np [1].type = TYPE_double;
-			if (parseNumbers (att, 2, np) != 2 ||
-			    np [0].DVal < 0.0 || np [1].DVal < 0.0)
-				excptn ("Root: illegal location (%s) for node "
-					"%1d", att, nn);
-			ND->X = np [0].DVal;
-			ND->Y = np [1].DVal;
-			print (form ("  Location: <%1.2f,%1.2f> %c\n",
-				ND->X, ND->Y,
-				 ND->Movable == NO  ? 'F' :
-				(ND->Movable == YES ? 'M' : 'D')));
-				
-		} else {
-			// Defaults
-			print (form ("  Location: %c\n",
-				 ND->Movable == NO  ? 'F' : 'M'));
-		}
-		print ("\n");
-	}
-
+	if ((cur = sxml_child (data, "location")) != NULL)
+		ND->Movable = parseLocation (cur, nn >= 0, nn, &(ND->X),
+			&(ND->Y));
 	return ND;
 }
 
@@ -4311,12 +4347,13 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 	data_no_t *DEF, *BDEF [NFTABLE_SIZE], *NOD, *D;
 	const char *bfn, *def_type, *nod_type, *att, *start;
 	char *xdata;
-	sxml_t cno, cur, *xnodes;
+	sxml_t cno, lcc, cur, *xnodes;
 	Long i, j, last, fill;
 	int tq, tl;
 	nparse_t np [2];
 	data_rf_t *NRF, *DRF;
 	data_ep_t *NEP, *DEP;
+	location_t *locs;
 
 	print ("\nTiming:\n\n");
 	print ((double) etuToItu (1.0),
@@ -4329,6 +4366,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 	print ("\n");
 
 	TheStation = System;
+	locs = NULL;
 
 	if ((data = sxml_child (data, "nodes")) == NULL)
 		xenf ("<nodes>", "<network>");
@@ -4389,13 +4427,58 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 		append_suppl ("\0", 1);
 	}
 
+	np [0] . type = TYPE_LONG;
+
+	// Read "locations" if separate from the nodes
+	if ((lcc = sxml_child (data, "locations")) != NULL) {
+
+		locs = new location_t [NT];
+
+		for (i = 0; i < NT; i++)
+			// Mark as unused
+			locs [i] . Movable = 0xff;
+
+		last = -1;
+		fill = 0;
+
+		print ("Node locations:\n\n");
+
+		for (cno = sxml_child (lcc, "location"); cno != NULL;
+							cno = sxml_next (cno)) {
+			if ((att = sxml_attr (cno, "number")) == NULL)
+				att = sxml_attr (cno, "index");
+
+			if (att != NULL) {
+				if (parseNumbers (att, 1, np) != 1 ||
+				    np [0].LVal < 0 || np [0].LVal >= NT)
+				      xeai ("number/index", "<location>", att);
+				last = (Long) (np [0].LVal);
+			} else
+				last++;
+
+			if (last >= NT)
+				excptn ("Root: implict node index at <location>"
+					" reaches the limit of %1d", NT);
+
+			if (locs [last] . Movable != 0xff)
+				excptn ("Root: location for node %1d multiply"
+					" defined", last);
+
+			locs [last] . Movable = parseLocation (cno, 2, last,
+				&(locs [last] . x), &(locs [last] . y));
+
+			fill++;
+		}
+
+		print ("\n");
+	}
+
 	xnodes = new sxml_t [NT];
 	for (i = 0; i < NT; i++)
 		xnodes [i] = NULL;
 
 	last = -1;
 	fill = 0;
-	np [0] . type = TYPE_LONG;
 
 	for (cno = sxml_child (data, "node"); cno != NULL;
 							cno = sxml_next (cno)) {
@@ -4695,7 +4778,15 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 		}
 
 		if (NOD->X < 0.0 || NOD->Y < 0.0) {
-			// No location, there's no default for it
+			// No location
+			if (locs && locs [i] . Movable != 0xff) {
+				NOD->X = locs [i] . x;
+				NOD->Y = locs [i] . y;
+				NOD->Movable = locs [i] . Movable;
+			}
+		}
+
+		if (NOD->X < 0.0 || NOD->Y < 0.0) {
 			if (NRF != NULL)
 			  	excptn ("Root: no location for node %1d (which"
 					"is equipped with radio)", i);
@@ -4738,6 +4829,9 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 
 	// Delete the scratch node list
 	delete [] xnodes;
+	// Delete the scratch location table
+	if (locs)
+		delete [] locs;
 
 	for (tl = 0; tl <= NFC; tl++) {
 		// Delete default data blocks
@@ -4942,8 +5036,6 @@ ANum:
 	
 
 	sxml_free (xml);
-
-	print ("\n");
 
 	print (RI, "Resync interval: ", 11, 20);
 	print (SF, "Slow motion factor:", 11, 20);
