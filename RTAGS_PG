@@ -4088,3 +4088,15 @@ PG140414A:
 
 	Note that the udaemon plug in spot is not functionally identical (or at
 	least should be) to the piter plug (but you need to redeploy udaemon).
+
+PG140416A:	VUEE >= PG140416A
+
+	The dataset aa_floor_plus2.xml in spot shows how to isolate node
+	locations, so they can be updated from udaemon.
+
+	A fix to oss_peg_tcve.cc which Wlodek will probably override. Anyway,
+	this is what went into the first set of test images sent to
+	Alphatronics yesterday.
+
+	Modified RFPing_u to allow me to test reception of bunches of packets
+	sent back-to-back.

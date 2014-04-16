@@ -15,6 +15,11 @@
 
 #undef	SPIN_WHEN_HALTED
 
+#undef	UART_DRIVER
+#undef	UART_TCV
+#define	UART_DRIVER	1
+#define	UART_TCV	0
+
 #undef	LEDS_DRIVER
 #undef	RADIO_USE_LEDS
 #undef	CODE_LONG_INTS
@@ -27,4 +32,4 @@
 
 #endif
 
-#define	TCV_LIMIT_RCV	4
+// #define	TCV_LIMIT_RCV	4

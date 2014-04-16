@@ -44,6 +44,7 @@
 
 #define	PKT_ACK		0x1234
 #define	PKT_DAT		0xABCD
+#define	PKT_BUN		0xEE00
 
 #define	ACK_LENGTH	12
 #define MAXPLEN		(MAX_PACKET_LENGTH + 2)
@@ -185,11 +186,6 @@ Finish:
 
 	packet_length = gen_packet_length ();
 
-	if (packet_length < 10)
-		packet_length = 10;
-	else if (packet_length > MAX_PACKET_LENGTH)
-		packet_length = MAX_PACKET_LENGTH;
-
 	proceed SN_NEXT;
 
     entry SN_NEXT:
@@ -229,7 +225,6 @@ int snd_start (int del) {
 
 	tkillflag = NO;
 	last_ack = last_snt;
-	tcv_control (sfd, PHYSOPT_TXON, NULL);
 
 	if (!XMTon) {
 		runfsm sender (del);
@@ -242,7 +237,6 @@ int snd_start (int del) {
 
 int snd_stop () {
 
-	tcv_control (sfd, PHYSOPT_TXOFF, NULL);
 	if (XMTon) {
 		tkillflag = YES;
 		trigger (&tkillflag);
@@ -356,6 +350,7 @@ fsm root {
 		"\r\nRF Ping Test\r\n"
 		"Commands:\r\n"
 		"s intvl  -> snd int\r\n"
+		"b n      -> bunch pkts\r\n"
 		"r        -> rcv\r\n"
 		"d q v    -> physopt\r\n"
 		"x p      -> xmt pwr\r\n"
@@ -405,6 +400,7 @@ fsm root {
 
 	switch (ibuf [0]) {
 	    case 's': proceed RS_SND;
+	    case 'b': proceed RS_BUNCH;
 	    case 'r': proceed RS_RCV;
 	    case 'd': proceed RS_PAR;
 	    case 'x': proceed RS_SETP;
@@ -459,6 +455,41 @@ fsm root {
     entry RS_SND1:
 
 	ser_outf (RS_SND1, "Sender rate: %d\r\n", n1);
+	proceed RS_RCMD;
+
+    entry RS_BUNCH:
+
+	address pkt;
+	byte pc;
+
+	n1 = 8;
+	scan (ibuf + 1, "%d", &n1);
+	if (n1 < 1)
+		n1 = 1;
+
+	pc = 0;
+
+	while (n1) {
+
+		k = gen_packet_length ();
+		if ((pkt = tcv_wnp (WNONE, sfd, k + 2)) == NULL) {
+			break;
+		}
+		pkt [0] = 0;
+		pkt [1] = PKT_BUN | pc;
+
+		n1--;
+		pc++;
+
+		while (k > 3)
+			((byte*)pkt) [k--] = 0xAA;
+
+		tcv_endp (pkt);
+	}
+
+    entry RS_BUNCH1:
+
+	ser_outf (RS_BUNCH1, "%d left\r\n", n1);
 	proceed RS_RCMD;
 
     entry RS_RCV:
