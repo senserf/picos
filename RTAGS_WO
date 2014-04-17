@@ -515,3 +515,10 @@ WO140415A:
   - relays at dst come out with no 0x80 set (subject to acks, etc.)
   - real tag blinks for 3s at boot, in vuee rnd'ed 1-6s
 
+WO140417A:
+  Cosmetics in SPOT:
+  - fixed peg audit (marka :3)
+  - removed 50ms delay before sending stashed alarm
+  - cleaned the glitch with relays' acks Pawel already fixed
+
+
