@@ -520,5 +520,5 @@ WO140417A:
   - fixed peg audit (marka :3)
   - removed 50ms delay before sending stashed alarm
   - cleaned the glitch with relays' acks Pawel already fixed
-
+  - peg's heartbeats at 15s
 
