@@ -1,0 +1,2 @@
+-c cc430x6137
+-l main.c sysio.h plug_tarp.c plug_null.c tarp.c net.c phys_cc1100.c ser_in.c ser_out.c ser_inf.c ser_outf.c form.c pin_read.c ser.h serf.h plug_null.c plug_tarp.c ser_outb.c rtc_cc430.c cma3000.c sensors.c

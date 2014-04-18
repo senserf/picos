@@ -4100,3 +4100,10 @@ PG140416A:	VUEE >= PG140416A
 
 	Modified RFPing_u to allow me to test reception of bunches of packets
 	sent back-to-back.
+
+PG140418A:
+
+	A new board for Gerry (CC430W_BUTTON). It should work (for testing)
+	with TESTS/WARSAW, including CMA3000.
+
+	A cosmetic fix in uplug.tcl for spot.
