@@ -461,6 +461,11 @@ process AgentInput abstract {
 		excptn ("%s: update unimplemented", getSName ());
 	};
 
+	Boolean suspended () {
+		return IN->TPN->Halted && (IN->Flags & XTRN_IMODE_SOCKET) &&
+		   !(IN->Flags & XTRN_IMODE_TIMED);
+	};
+
 	void start (ag_interface_t*, int);
 
 	~AgentInput () { delete [] RBuf; };
@@ -628,6 +633,16 @@ AgentInput::perform {
 		BP = RBuf;
 		Left = Length;
 
+		if (suspended ()) {
+			// Suspended, skip everything
+			Monitor->wait (&(IN->TPN->Halted), Loop);
+			if ((rc = IN->I->rs (Loop, BP, Left)) == ERROR)
+				goto SockErr;
+			if (rc == REJECTED)
+				goto LengthErr;
+			proceed Loop;
+		}
+			
 		if (imode (IN->Flags) == XTRN_IMODE_STRING) {
 			// This is simple
 			while ((IN->Flags & XTRN_IMODE_STRLEN) != 0) {
@@ -660,6 +675,7 @@ AgentInput::perform {
 				IN->IT = NULL;
 				terminate;
 			}
+SockErr:
 			// Socket disconnection
 			Assert (IN->OT != NULL,
 			    	"%s at %s: sibling thread is gone", getSName (),
@@ -678,10 +694,13 @@ AgentInput::perform {
 					getSName (), IN->TPN->getSName (),
 					    Length);
 			}
-
+LengthErr:
 			((AgentOutput*)(IN->OT))->goaway (ECONN_LONG);
 			sleep;
 		}
+
+		if (suspended ())
+			proceed Loop;
 
 		// Fine: this is the length excluding the newline
 		RBuf [Length - 1 - Left] = '\0';
@@ -1388,6 +1407,13 @@ void UARTDV::rst () {
 	// Even string input should not be used for post reset initialization
 	// (preinit) is for that. So what is gone is gone.
 
+	// For a socket, when we halt the node, we leave a dummy input process
+	// absorbing all input from the socket
+	if (PI) {
+		// Kill the dummy input process
+		terminate (PI);
+	}
+
 	IB_in = IB_out = 0;
 	// Note that if we are reading from string, and the string is gone,
 	// the process will immediately terminate itself.
@@ -1397,6 +1423,23 @@ void UARTDV::rst () {
 	PO = create UART_out (this);
 
 	setRate (DefRate);
+}
+
+void UARTDV::abt () {
+
+	// Called to abort the UART when the node gets powered down, i.e.,
+	// halted. Note that we are called after all the node's processes,
+	// including the UART processes, have been terminated
+
+	if ((Flags & XTRN_IMODE_SOCKET) && !(Flags & XTRN_IMODE_TIMED)) {
+		// If socket and not timed, the input will be ignored while
+		// the node is powered down
+		PI = (UART_in*) create UART_skip (this);
+	} else {
+		// This will be used as flag for rst to tell whether the dummy
+		// input absorber for a socket is present
+		PI = NULL;
+	}
 }
 
 void UART_in::setup (UARTDV *u) {
@@ -1772,6 +1815,14 @@ UART_out::perform {
 
 	sameas Put;
 	//proceed Put;
+}
+
+UART_skip::perform {
+
+	state Skip:
+
+		U->getOneByte (Skip);
+		sameas Skip;
 }
 
 UARTDV::~UARTDV () {

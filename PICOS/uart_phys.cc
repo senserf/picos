@@ -770,7 +770,7 @@ p_uart_xmt_e::perform {
     state XM_ESCAPE:
 
 	c = 0x10;
-	io (XM_OUTBYTE, 0, WRITE, &c, 1);
+	io (XM_ESCAPE, 0, WRITE, &c, 1);
 	sameas XM_OUTBYTE;
 
     state XM_CODA:

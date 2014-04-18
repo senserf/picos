@@ -1183,3 +1183,21 @@ PG140416A:
     current layout of nodes into a file as a <locations> element. That file
     can be included in the data set, thus making the network layout modifiable
     in a non-volatile way. See section 4.4.5, 7.6 from the VUEE doc.
+
+PG140418A:
+
+    Fixed a bug in uart_phys causing missing escapes in 'E' mode under heavy
+    traffic to the UART.
+
+    When a node is powered down and its UART is interfaced to a socket, any
+    input from that socket is now absorbed and ignored. Note that this only
+    happens for socket interface (and if the UART is not "timed", which we
+    never use anyway).
+
+    I believe the same now holds for pins and sensors. Note, however, that
+    when you power down a node, its pins are shown as they were before the node
+    went down. I guess I should bring them all down, but there is no consistent
+    reference (and it doesn't even always have to be the case in real life).
+    When you power the node up again, the pins will revert to reset values.
+
+    Is there still any problem with EMUL? I couldn't see any.

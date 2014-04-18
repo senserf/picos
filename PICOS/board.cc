@@ -1,6 +1,11 @@
 #ifndef __picos_board_c__
 #define __picos_board_c__
 
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2014.       */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
+
 #include "stdattr_undef.h"
 
 #include "board.h"
@@ -262,7 +267,8 @@ void PicOSNode::stopall () {
 	
 	cleanhlt ();
 	terminate ();
-	uart_abort ();
+	if (uart != NULL)
+		uart_abort ();
 
 	// Clean up memory
 	while (MHead != NULL) {
@@ -312,10 +318,6 @@ void PicOSNode::uart_reset () {
 //
 	uart_dir_int_t *f;
 
-	if (uart == NULL)
-		// Nothing to do
-		return;
-
 	switch (uart->IMode) {
 
 		case UART_IMODE_D:
@@ -346,10 +348,6 @@ void PicOSNode::uart_abort () {
 //
 	uart_dir_int_t *f;
 
-	if (uart == NULL)
-		// Nothing to do
-		return;
-
 	switch (uart->IMode) {
 
 		case UART_IMODE_D:
@@ -370,8 +368,8 @@ void PicOSNode::uart_abort () {
 			excptn ("PicOSNode->uart_abort: illegal mode %1d",
 				uart->IMode);
 	}
-	// If there is a need to abort the low-level (common) UART interface,
-	// the code should go here
+
+	uart->U->abt ();
 }
 
 void PicOSNode::reset () {
@@ -383,7 +381,8 @@ void PicOSNode::reset () {
 	NFree = MFree = MTotal;
 	MTail = NULL;
 
-	uart_reset ();
+	if (uart != NULL)
+		uart_reset ();
 
 	if (pins != NULL)
 		pins->rst ();
@@ -673,12 +672,16 @@ void PicOSNode::setup (data_no_t *nd) {
 	if (nd->On == 0) {
 		// This value means OFF (it can be WNONE - for default - or 1)
 		Halted = YES;
+		// Dummy "abort" for the UART to set the input absorber process
+		if (uart)
+			uart->U->abt ();
 		// Make sure the node uses zero power
 		pwrt_zero ();
 		return;
 	}
 
 	Halted = NO;
+	Monitor->signal (&Halted);
 	init ();
 
 #include "lib_attributes_init.h"
@@ -2229,6 +2232,9 @@ InpIll:
 			len = sanitize_string (str);
 			if (len == 0)
 				excptn ("Root: empty <input> string in %s", es);
+			if (len & ~XTRN_IMODE_STRLEN)
+				excptn ("Root: <input> string too long in %s",
+					es);
 			// We copy the string, as it has to survive the
 			// initialization
 			str = (char*) find_strpool ((const byte*) str, len + 1,

@@ -77,7 +77,7 @@
 #define	XTRN_OMODE_NOHOLD	(0<<23)
 #define	XTRN_OMODE_OPTION	(1<<22)		/* an option */
 
-#define	XTRN_IMODE_STRLEN	0x00FFFFFF
+#define	XTRN_IMODE_STRLEN	0x0000FFFF
 
 #define	CONNECTION_TIMEOUT	30.0		/* Thirty seconds */
 #define	SHORT_TIMEOUT		10.0		/* Ten seconds */
@@ -160,11 +160,13 @@ mailbox Dev (int) {
 
 process	UART_in;
 process	UART_out;
+process UART_skip;
 
 class	UARTDV {
 
 	friend  class UART_in;
 	friend  class UART_out;
+	friend  class UART_skip;
 	friend	class UartHandler;
 
 	union	{
@@ -249,6 +251,7 @@ class	UARTDV {
 	word getRate () { return Rate; };
 
 	void rst ();
+	void abt ();
 
 	UARTDV (data_ua_t*);
 	~UARTDV ();
@@ -261,6 +264,15 @@ process	UART_in {
 
 	states { Get, GetH1 };
 	void setup (UARTDV*);
+	perform;
+};
+
+process UART_skip {
+
+	UARTDV	*U;
+
+	states { Skip };
+	void setup (UARTDV *u) { U = u; };
 	perform;
 };
 
