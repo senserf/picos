@@ -756,10 +756,12 @@ array set HPA		{
 			  F "(\[0-9.+-E\]+)"
 			  P "<(\[^,\]*),(\[^>\]*)>"
 			  V "\\\[(\[^,\]*),(.*)\\\]"
+			  Q "(\[FO\])"
+			  L "(\[FO\]*)"
 			}
 
 # node signature
-set HPA(G)		"^P $HPA(D) $HPA(D) $HPA(D) <(\[^ \]*)>:"
+set HPA(G)		"^P $HPA(D) $HPA(Q) $HPA(D) $HPA(D) <(\[^ \]*)>:"
 
 array set FONT		{
 			  D {-family courier -size 10}
@@ -2489,7 +2491,7 @@ proc dealloc { Sok } {
 		set w $Wins($Sok)
 		if [winfo exists $w] {
 			# indeed, there is; the window becomes a zombie; it
-			# is left on the screen, so it can stii be viewed,
+			# is left on the screen, so it can still be viewed,
 			# but it is detached from the set
 			set wid "Zombie_[unique]"
 			set Wins($wid) $w
@@ -2724,7 +2726,7 @@ proc node_sig { Sok c { v "" } } {
 
 	global Stat HPA
 
-	if ![regexp $HPA(G) $cmd mat nod hos tot tna] {
+	if ![regexp $HPA(G) $cmd mat nod sta hos tot tna] {
 		return "illegal signature format"
 	}
 
@@ -2748,7 +2750,7 @@ proc node_sig { Sok c { v "" } } {
 
 	if { $v != "" } {
 		upvar $v val
-		set val [list $nod $hos $tot [sntype $tna]]
+		set val [list $nod $hos $tot [sntype $tna] $sta]
 	}
 
 	set cmd [string range $cmd [string length $mat] end]
@@ -2844,6 +2846,8 @@ proc uartFirst { Sok } {
 
 	# reset the input script
 	fileevent $Sok readable "uartRead $Sok"
+
+	u_state_change $Sok
 }
 
 proc uartRead { Sok } {
@@ -2981,6 +2985,27 @@ proc uuRead { Sok } {
 	# make this transparent, it is better to detect disconnection
 	# elsewhere
 	catch { puts -nonewline $Sok $chunk }
+}
+
+proc u_state_change { Sok } {
+#
+# Node state change (power up / power down)
+#
+	global Stat
+
+	set nn $Stat($Sok,S)
+
+	if { ![info exists Stat($Sok,UART)] || ![info exists Stat(PNN,$nn)] } {
+		return
+	}
+
+	if { $Stat(PNN,$nn) == "O" } {
+		set co "white"
+	} else {
+		set co "gray"
+	}
+
+	$Stat($Sok,UART) configure -bg $co
 }
 
 ###############################################################################
@@ -3558,7 +3583,8 @@ proc ledsFirst { Sok } {
 		return
 	}
 
-	if ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Fast Leds] {
+	if ![regexp "(\[0-1\]) (\[0-2\]+)" $cmd junk Stat($Sok,FA) \
+	    Stat($Sok,LD)] {
 		return
 	}
 
@@ -3571,7 +3597,7 @@ proc ledsFirst { Sok } {
 	set nod $Stat($Sok,N)
 
 	# the number of leds
-	set nleds [string length $Leds]
+	set nleds [string length $Stat($Sok,LD)]
 
 	# determine the colors to be used for the leds; start with the defaults
 	set i 0
@@ -3625,7 +3651,7 @@ proc ledsFirst { Sok } {
 
 	mkLeds $Sok $nleds "$Stat($Sok,I) LEDS"
 
-	ledsStatus $Sok $Fast $Leds
+	l_state_change $Sok
 
 	fileevent $Sok readable "ledsUpdate $Sok"
 }
@@ -3656,13 +3682,13 @@ proc ledsUpdate { Sok } {
 			set Stat($Sok,D) $nd
 			set cmd $Stat($Sok,B)
 			set Stat($Sok,B) ""
-			if { ![regexp ": (\[0-1\]) (\[0-2\]+)" $cmd junk Fast \
-			   Leds] } {
+			if { ![regexp ": (\[0-1\]) (\[0-2\]+)" $cmd junk \
+			    Stat($Sok,FA) Stat($Sok,LD)] } {
 				# ignore NOPs and illegal commands
 				return
 			}
 
-			ledsStatus $Sok $Fast $Leds
+			l_state_change $Sok
 			if { $nd > 0 } {
 				# hold before accepting next line
 				fileevent $Sok readable ""
@@ -3736,9 +3762,17 @@ proc mkLeds { Sok nleds tt } {
 	bind $w <Destroy> "wdestroy $Sok"
 }
 
-proc ledsStatus { Sok fast stat } {
+proc l_state_change { Sok } {
 
 	global Stat
+
+	if ![info exists Stat($Sok,FA)] {
+		return
+	}
+
+	set fast $Stat($Sok,FA)
+	set stat $Stat($Sok,LD)
+	set nn $Stat($Sok,S)
 
 	set w [stwin $Sok]
 
@@ -3751,10 +3785,15 @@ proc ledsStatus { Sok fast stat } {
 			break
 		}
 		# new value
-		set val [string index $stat $i]
-		if { $val == 2 } {
-			# some leds blink
-			set blink 1
+		if { $Stat(PNN,$nn) == "F" } {
+			# force OFF
+			set val 0
+		} else {
+			set val [string index $stat $i]
+			if { $val == 2 } {
+				# some leds blink
+				set blink 1
+			}
 		}
 		# old value
 		set ova $Stat($Sok,V,$i)
@@ -3914,6 +3953,7 @@ proc emulFirst { Sok } {
 	term_setsfb $Sok
 
 	fileevent $Sok readable "emulUpdate $Sok"
+	e_state_change $Sok
 }
 
 proc emulUpdate { Sok } {
@@ -3957,6 +3997,27 @@ proc emulUpdate { Sok } {
 			endLine $Sok $Wins($Sok).t
 		}
 	}
+}
+
+proc e_state_change { Sok } {
+#
+# Node state change (power up / power down)
+#
+	global Stat Wins
+
+	set nn $Stat($Sok,S)
+
+	if { ![info exists Wins($Sok)] || ![info exists Stat(PNN,$nn)] } {
+		return
+	}
+
+	if { $Stat(PNN,$nn) == "O" } {
+		set co "white"
+	} else {
+		set co "gray"
+	}
+
+	catch { $Wins($Sok).t configure -bg $co }
 }
 
 ###############################################################################
@@ -4052,6 +4113,21 @@ proc lcdgFirst { Sok } {
 
 	# wait for the updates
 	fileevent $Sok readable "lcdgRead $Sok"
+}
+
+proc g_state_change { Sok } {
+
+	global Stat
+
+	if ![info exists Stat($Sok,IS)] {
+		return
+	}
+
+	set nn $Stat($sok,S)
+
+	if { $Stat(PNN,$nn) == "F" } {
+		lcdgUPDI $Sok "off"
+	}
 }
 
 proc lcdgRefresh { Sok } {
@@ -4330,9 +4406,100 @@ proc pinsFirst { Sok } {
 	set Wins($Sok) $Wn
 	set Stat($Sok,D) 80
 
+	for { set i 0 } { $i < $np } { incr i } {
+		# currently displayed status
+		set Stat($Sok,CS,$i) ""
+		# updated status (which may be held, e.g., while the node is
+		# powered down); note that we start with all pins output and
+		# zero, which basically corresponds to a powered-down node
+		set Stat($Sok,NS,$i) [list 1 0]
+	}
+
 	mkPins $Sok $np $na $dl "PINS at node $Stat($Sok,I)"
+	p_state_change $Sok
 
 	fileevent $Sok readable "pinsUpdate $Sok"
+}
+
+proc p_state_change { Sok } {
+
+	global Stat PIN_COLORS PIN_STCODE
+
+	set w [stwin $Sok]
+
+	set np $Stat($Sok,NP)
+	set na $Stat($Sok,NA)
+	set nn $Stat($Sok,S)
+
+	for { set pin 0 } { $pin < $np } { incr pin } {
+
+		if { $Stat(PNN,$nn) == "F" } {
+			# if the node is down, set them all output 0
+			set s [list 1 0]
+		} else {
+			# use actual values
+			set s $Stat($Sok,NS,$pin)
+		}
+		if { $Stat($Sok,CS,$pin) == $s } {
+			# no change
+			continue
+		}
+		set Stat($Sok,CS,$pin) $s
+		lassign $s sta val
+
+		$w.dig.d$pin configure -bg $PIN_COLORS(D,$sta) \
+			-text $PIN_STCODE($sta)
+
+		if { $sta == 0 || $sta == 5 || $sta == 6 } {
+			# input
+			if $val {
+				# make sure this is zero or 1
+				set val 1
+			}
+			$w.dig.i$pin configure \
+				-activebackground $PIN_COLORS(A) \
+				-bg $PIN_COLORS(I,$val) -text $val \
+				-state normal
+			set Stat($Sok,J$pin) $val
+		} else {
+			$w.dig.i$pin configure -bg $PIN_COLORS(I,2) -text "-" \
+				-state disabled
+			set Stat($Sok,J$pin) "-"
+		}
+
+		if { $sta == 1 } {
+			#output
+			if $val {
+				# make sure this is zero or 1
+				set val 1
+			}
+			$w.dig.o$pin configure -bg $PIN_COLORS(O,$val) \
+				-text $val
+		} else {
+			$w.dig.o$pin configure -bg $PIN_COLORS(O,2) -text "-"
+		}
+
+		if { $sta == 2 } {
+			# ADC
+			if { $pin >= $na } {
+				return
+			}
+			set s $w.adc.s$pin
+			$s configure -state normal \
+				-activebackground $PIN_COLORS(A) \
+				-bg $PIN_COLORS(N)
+			$s set [toVoltage $val]
+		} elseif { $pin < $na } {
+			set s $w.adc.s$pin
+			$s configure -state disabled -bg $PIN_COLORS(I)
+		}
+
+		if { $sta == 3 && [lindex $Stat($Sok,DA) 0] != "" } {
+			$w.dac.f0.v configure -text [toVoltage $val]
+		} elseif { $sta == 4 && [lindex $Stat($Sok,DA) 1] != "" } {
+			$w.dac.f1.v configure -text [toVoltage $val]
+		}
+	}
 }
 
 proc pinsUpdate { Sok } {
@@ -4400,7 +4567,7 @@ proc pinsInput { Sok pin } {
 		set ov 1
 	}
 
-	if [sock_wr $Sok "P $pin $ov\n"] {
+	if [sock_wr $Sok "S $pin $ov\n"] {
 		return 0
 	}
 
@@ -4560,9 +4727,7 @@ proc toVoltage { v } {
 
 proc newPinStatus { Sok upd } {
 
-	global Stat PIN_COLORS PIN_STCODE
-
-	set w [stwin $Sok]
+	global Stat
 
 	if ![regexp ": (\[0-9\]+) (\[0-9\]+) (\[0-9\]+)" $upd jnk pin sta val] {
 		# ignore
@@ -4570,8 +4735,8 @@ proc newPinStatus { Sok upd } {
 	}
 
 	# a few sanity checks
+
 	set np $Stat($Sok,NP)
-	set na $Stat($Sok,NA)
 
 	if { [catch {
 		set pin [expr $pin]
@@ -4586,53 +4751,9 @@ proc newPinStatus { Sok upd } {
 		return
 	}
 
-	$w.dig.d$pin configure -bg $PIN_COLORS(D,$sta) -text $PIN_STCODE($sta)
+	set Stat($Sok,NS,$pin) [list $sta $val]
 
-	if { $sta == 0 || $sta == 5 || $sta == 6 } {
-		# input
-		if $val {
-			# make sure this is zero or 1
-			set val 1
-		}
-		$w.dig.i$pin configure -activebackground $PIN_COLORS(A) \
-			-bg $PIN_COLORS(I,$val) -text $val -state normal
-		set Stat($Sok,J$pin) $val
-	} else {
-		$w.dig.i$pin configure -bg $PIN_COLORS(I,2) -text "-" \
-			-state disabled
-		set Stat($Sok,J$pin) "-"
-	}
-
-	if { $sta == 1 } {
-		#output
-		if $val {
-			# make sure this is zero or 1
-			set val 1
-		}
-		$w.dig.o$pin configure -bg $PIN_COLORS(O,$val) -text $val
-	} else {
-		$w.dig.o$pin configure -bg $PIN_COLORS(O,2) -text "-"
-	}
-
-	if { $sta == 2 } {
-		# ADC
-		if { $pin >= $na } {
-			return
-		}
-		set s $w.adc.s$pin
-		$s configure -state normal -activebackground $PIN_COLORS(A) \
-			-bg $PIN_COLORS(N)
-		$s set [toVoltage $val]
-	} elseif { $pin < $na } {
-		set s $w.adc.s$pin
-		$s configure -state disabled -bg $PIN_COLORS(I)
-	}
-
-	if { $sta == 3 && [lindex $Stat($Sok,DA) 0] != "" } {
-		$w.dac.f0.v configure -text [toVoltage $val]
-	} elseif { $sta == 4 && [lindex $Stat($Sok,DA) 1] != "" } {
-		$w.dac.f1.v configure -text [toVoltage $val]
-	}
+	p_state_change $Sok
 }
 
 ###############################################################################
@@ -4712,6 +4833,16 @@ proc sensorsFirst { Sok } {
 	set Stat($Sok,LA,0) [get_lset $Stat($Sok,N) "actuators"]
 	set Stat($Sok,LA,1) [get_lset $Stat($Sok,N) "sensors"]
 
+	for { set i 0 } { $i < $ns } { incr i } {
+		set Stat($Sok,CS,$i) ""
+		set Stat($Sok,NS,$i) [list 0 0]
+	}
+
+	for { set i 0 } { $i < $na } { incr i } {
+		set Stat($Sok,CA,$i) ""
+		set Stat($Sok,NA,$i) [list 0 0]
+	}
+
 	# create the window
 	set Wn ".ws[unique]"
 
@@ -4720,6 +4851,7 @@ proc sensorsFirst { Sok } {
 	set Stat($Sok,D) 80
 
 	mkSensors $Sok $ns $os $na $oa "SENSORS at node $Stat($Sok,I)"
+	s_state_change $Sok
 
 	fileevent $Sok readable "sensorsUpdate $Sok"
 }
@@ -4856,8 +4988,6 @@ proc newSensorStatus { Sok upd } {
 
 	global Stat
 
-	set w [stwin $Sok]
-
 	set par ""
 	if ![regexp "^(\[AS\])\[^:\]+: (\[0-9\]+) (\[^ \]+)(.*)" $upd jnk \
 	    typ sen val max] {
@@ -4865,64 +4995,134 @@ proc newSensorStatus { Sok upd } {
 		return
 	}
 
-	if [catch {
-		set sen [expr $sen]
-		# this (at least in version 8.4) treats val as unsigned, i.e.,
-		# the result is alwayn nonnegative; good!
-		set val [expr double (0x$val)]
-	     }] {
-		# garbage
+	# sanity checks
+
+	if [catch { expr $sen } sen] {
+		return
+	}
+
+	if [catch { expr 0x[string trim $max] } max] {
+		return
+	}
+
+	if [catch { expr 0x[string trim $val] } val] {
+		return
+	}
+
+	if { $val > $max } {
 		return
 	}
 
 	if { $typ == "A" } {
-		if { $sen >= $Stat($Sok,NA) } {
-			# illegal
+		if { $sen > $Stat($Sok,NA) } {
 			return
 		}
-		set xx "AC$sen"
-		set f "$w.act.f$sen"
+		set Stat($Sok,NA,$sen) [list $val $max]
 	} else {
-		if { $sen >= $Stat($Sok,NS) } {
+		if { $sen > $Stat($Sok,NS) } {
 			return
 		}
-		set xx "SE$sen"
-		set f "$w.sen.f$sen"
+		set Stat($Sok,NS,$sen) [list $val $max]
 	}
 
-	if { $Stat($Sok,$xx) == "" } {
-		# undefined yet, check for max specification
-		set max [string trim $max]
-		if { $max == "" } {
-			return
-		}
-		if [catch {
-			set max [expr double (0x$max)]
-		   }] {
-			return
-		}
-		if { $max <= 0.0 } {
-			# a precaution
-			return
-		}
-		set Stat($Sok,$xx) $max
-		${f}s configure -to $max -tickinterval [expr $max / 5.0]
-		if { $typ != "A" } {
-			# enable input
-			${f}s configure -state normal
-		}
-	}
+	s_state_change $Sok
+}
 
-	if { $val > $Stat($Sok,$xx) } {
-		# another precaution
-		set val $Stat($Sok,$xx)
-	}
-	if { $typ == "A" } {
+proc s_state_change { Sok } {
+
+	global Stat
+
+	set w [stwin $Sok]
+
+	set nn $Stat($Sok,S)
+
+	# actuators
+
+	set nk $Stat($Sok,NA)
+
+	for { set sen 0 } { $sen < $nk } { incr sen } {
+
+		if { $Stat(PNN,$nn) == "F" } {
+			set s [list 0 0]
+		} else {
+			set s $Stat($Sok,NA,$sen)
+		}
+
+		set pv $Stat($Sok,CA,$sen)
+		if { $pv == $s } {
+			# no change
+			continue
+		}
+
+		set Stat($Sok,CA,$sen) $s
+		lassign $s val max
+		set f "$w.act.f$sen"
+
+		if $max {
+			set dmax [expr double ($max)]
+		} else {
+			set val 0
+			set dmax 1.0
+		}
+
+		if { $max != [lindex $pv 1] } {
+			# the maximum has changed
+			${f}s configure -to $dmax \
+				-tickinterval [expr $dmax / 5.0]
+		}
+
+		set val [expr double ($val)]
+
 		${f}s configure -state normal
 		${f}s set $val
 		${f}s configure -state disabled
-	} else {
+	}
+
+	# sensors
+
+	set nk $Stat($Sok,NS)
+
+	for { set sen 0 } { $sen < $nk } { incr sen } {
+
+		if { $Stat(PNN,$nn) == "F" } {
+			set s [list 0 0]
+		} else {
+			set s $Stat($Sok,NS,$sen)
+		}
+
+		set pv $Stat($Sok,CS,$sen)
+		if { $pv == $s } {
+			# no change
+			continue
+		}
+
+		set Stat($Sok,CS,$sen) $s
+		lassign $s val max
+		set f "$w.sen.f$sen"
+
+		if $max {
+			set dmax [expr double ($max)]
+		} else {
+			set dmax 1.0
+			set val 0
+		}
+
+		if { $max != [lindex $pv 1] } {
+			# the maximum has changed
+			${f}s configure -to $dmax \
+				-tickinterval [expr $dmax / 5.0]
+		}
+
+
+		set val [expr double ($val)]
+		${f}s configure -state normal
 		${f}s set $val
+		if { $max == 0 } {
+			${f}s configure -state disabled
+			${f}e configure -state disabled
+		} else {
+			${f}e configure -state normal
+		}
 	}
 }
 
@@ -4961,184 +5161,224 @@ proc triggerSensor { Sok sen } {
 # PANEL #######################################################################
 ###############################################################################
 
-proc panelHandler { } {
+# the number of nodes
+set Stat(PNN) ""
+# state of the panel window: 0 - no, +1 active, -1 initializing
+set Stat(PNN,IN) 0
 
-	if [winlocate "a"] {
-		return
-	}
+proc panel_preconnect { } {
+#
+# Initial connection to the panel; udaemon keeps it alive all the time; called
+# only once at the very beginning
+#
+	global Stat
 
-	sock_conn "PANEL"
+	# establish persistent connection to the panel service
+	after 100 "sock_conn PANEL -1 2"
 }
 
 proc PANEL_ini { Sok code } {
 
-	global Stat
+	global Stat Wins
 
-	# issue a request for node 0, which is the default display
-	set Stat($Sok,NN) -1
-	# init flags
-	set Stat($Sok,IN) 1
+	set Stat(PNN,S) $Sok
 
-	log "receiving status info ..."
-
-	# query for node 0
-	if [sock_wr $Sok "Q 0\n"] {
-		return
-	}
-
-	fileevent $Sok readable "panelZero $Sok"
+	# to make sure the socket is not deallocated with the window
+	fileevent $Sok readable "sock_rl $Sok panelUpd"
 	stimeout $Sok
 }
 
-proc panelZero { Sok } {
+proc panelUpd { Sok cmd } {
 
-	global Wins Stat NTYPE_COLORS HPA
+	global Stat HPA
 
-	if ![info exists Stat($Sok,NN)] {
-		# sanity check
+	if [regexp "^$HPA(D) +$HPA(Q)" $cmd junk nod sta] {
+		# short status message
+		if { $Stat(PNN) != "" && $nod < $Stat(PNN) &&
+		     $Stat(PNN,$nod) != $sta } {
+			# an actual and legit update
+			set Stat(PNN,$nod) $sta
+			nodeStateChange $nod
+			if { $Stat(PNN,IN) > 0 } {
+				# window active
+				updPanel
+			}
+		}
 		return
 	}
 
-	# read the response line
-	while 1 {
+	if { [node_sig $Sok cmd pmt] == "" } {
+		# window startup query response
+		if { $Stat(PNN) != "" && $Stat(PNN,IN) != 0 } {
+			panelWinInit $pmt
+		}
+		return
+	}
 
-		if { [sock_rd $Sok ch 1] || $ch == "" } {
+	# now, it can only be the initial message specifying the status of all
+	# nodes
+
+	if [regexp "^$HPA(D):+$HPA(L)" $cmd junk nn nst] {
+		if { $Stat(PNN) != "" } {
+			# initialized already
 			return
 		}
 
-		if { $ch == "\n" } {
-
-			# a new line
-			set cmd [string trim $Stat($Sok,B)]
-			set Stat($Sok,B) ""
-			set nnm ""
-
-			# long or short message?
-			set tot -1
-
-			if { [node_sig $Sok cmd pmt] == "" } {
-				# suspect long
-			    	if ![regexp "(\[FO\])" $cmd sta] {
-					# something wrong
-					continue
-				}
-				lassign $pmt nod hos tot nnm
-			} elseif ![regexp "$HPA(D) +(\[FO\])" \
-			     $cmd junk nod sta] {
-			   	 continue
-			}
- 
-			if { $Stat($Sok,IN) } {
-
-			    # initializing, expect a long message
-
-			    if { $tot < 0 } {
-				continue
-			    }
-
-			    if { $Stat($Sok,NN) < 0 } {
-				# waiting for the total number of nodes
-				set Stat($Sok,NN) $tot
-				# how many more to ask for
-				if { $tot > 16 } {
-				    set tot 16
-				}
-				# current node list
-				set Stat($Sok,SL) [list [list 0 $hos $sta $nnm]]
-				set Stat($Sok,EL) ""
-
-				if { $tot > 1 } {
-				    # ask for the remaining nodes
-				    for { set n 1 } { $n < $tot } { incr n } {
-					if [sock_wr $Sok "Q $n\n"] {
-					    return
-					}
-					lappend Stat($Sok,EL) $n
-				    }
-				    # keep going
-				    continue
-				}
-				# fall through, if $tot == 1
-			    } else {
-				# waiting for more
-				set ix [lsearch -exact $Stat($Sok,EL) $nod]
-				if { $ix < 0 } {
-				    continue
-				}
-				set Stat($Sok,EL) \
-					[lreplace $Stat($Sok,EL) $ix $ix]
-				lappend Stat($Sok,SL) [list $nod $hos $sta $nnm]
-				if { [llength $Stat($Sok,EL)] } {
-				    # more
-				    continue
-				}
-			    }
-			    # ready to display
-			    set Stat($Sok,IN) 0
-			    # start the window
-			    ctimeout $Sok
-			    # current displayed list
-			    set Stat($Sok,DL) ""
-			    set Wins($Sok) ".wa[unique]"
-			    log "done"
-			    updPanel $Sok
-			    continue
-			}
-
-			# the window is up and running, so this must be an
-			# update; look up the node number
-
-			set nl ""
-			set up 0
-			foreach no $Stat($Sok,SL) {
-				if { $nod == [lindex $no 0] } {
-					set up 1
-					if { $sta != [lindex $no 1] } {
-						# actual status change
-						set up 2
-						lappend nl [list $nod \
-							[lindex $no 1] \
-							$sta \
-							[lindex $no 3]]
-					}
-				} else {
-					lappend nl $no
-				}
-			}
-
-			if $up {
-				# node found on the list
-				if { $up > 1 } {
-					# actual change
-					set Stat($Sok,SL) $nl
-					updPanel $Sok
-				}
-				continue
-			}
-
-			# node not found; check if this is a long status message
-			if { $tot < 0 } {
-				# nope, ignore it
-				continue
-			}
-
-			# are we waiting for it?
-			set ix [lsearch -exact $Stat($Sok,EL) $nod]
-			if { $ix < 0 } {
-				# we are not
-				continue
-			}
-
-			# remove the node from the waiting list
-			set Stat($Sok,EL) [lreplace $Stat($Sok,EL) $ix $ix]
-
-			# and add it to the panel
-			lappend Stat($Sok,SL) [list $nod $hos $sta $nnm]
-
-			updPanel $Sok
+		if [catch { expr $nn } nn] {
+			log "illegal panel init message: $cmd"
+			return
 		}
-		append Stat($Sok,B) $ch
+
+		for { set i 0 } { $i < $nn } { incr i } {
+			set s [string index $nst $i]
+			if { $s == "F" || $s == "O" } {
+				set Stat(PNN,$i) $s
+			} else {
+				# format error
+				array unset Stat "PNN,*"
+				log "illegal panel init message: $cmd"
+				return
+			}
+		}
+
+		ctimeout $Sok
+
+		set Stat(PNN) $nn
+
+		# initial state triggers
+		for { set i 0 } { $i < $nn } { incr i } {
+			nodeStateChange $i
+		}
 	}
+}
+
+proc nodeStateChange { n } {
+
+	global Stat Wins
+
+	foreach s [array names Wins] {
+
+		set w $Wins($s)
+
+		if { [info exists Stat($s,S)] && $Stat($s,S) == $n } {
+			set tp [string index $w 2]
+			catch { ${tp}_state_change $s }
+		}
+	}
+}
+
+###############################################################################
+
+proc panelHandler { } {
+
+	global Stat
+
+	if $Stat(PNN,IN) {
+		# already active or being initialized
+		return
+	}
+
+	# number of tries for timeout
+	set Stat(PNN,T) 0
+
+	panelStart
+}
+
+proc panelStart { } {
+
+	global Stat Wins
+
+	if { $Stat(PNN) == "" } {
+		# delay for a sec, perhaps the interface is just being
+		# initialized
+		if { $Stat(PNN,T) > 50 } {
+			log "connection to panel timed out"
+			return
+		}
+		incr Stat(PNN,T)
+		after 100 panelStart
+		return
+	}
+
+	if $Stat(PNN,IN) {
+		# race with another request
+		return
+	}
+
+	# initializing
+	set Stat(PNN,IN) -1
+
+	# 
+	set Sok $Stat(PNN,S)
+
+	set Stat($Sok,SL) ""
+	set Stat($Sok,EL) ""
+
+	set tot $Stat(PNN)
+	if { $tot > 16 } {
+		set tot 16
+	}
+
+	for { set n 0 } { $n < $tot } { incr n } {
+		if [sock_wr $Sok "Q $n\n"] {
+			log "error sending panel request"
+			panelClose
+			return
+		}
+		lappend Stat($Sok,EL) $n
+	}
+
+	log "receiving panel status info ..."
+}
+
+proc panelClose { } {
+
+	global Stat
+
+	set Sok $Stat(PNN,S)
+
+	if [info exists Wins($Sok)] {
+		catch { destroy $Wins($Sok) }
+		unset -nocomplain Wins($Sok)
+	}
+
+	# no need to worry about zombie windows, because (normally) the socket
+	# itself stays alive until the end of the session
+
+	set Stat(PNN,IN) 0
+}
+
+proc panelWinInit { pmt } {
+
+	global Stat Wins
+
+	lassign $pmt nod hos tot nnm sta
+	set Sok $Stat(PNN,S)
+
+	set ix [lsearch -exact $Stat($Sok,EL) $nod]
+	if { $ix < 0 } {
+		# we are not waiting for this node status
+		return
+	}
+
+	set Stat($Sok,EL) [lreplace $Stat($Sok,EL) $ix $ix]
+	lappend Stat($Sok,SL) [list $nod $hos $nnm]
+
+	if [llength $Stat($Sok,EL)] {
+		# waiting for more
+		return
+	}
+
+	if { $Stat(PNN,IN) < 0 } {
+		# initializing, ready to display
+		set Stat(PNN,IN) 1
+		# currently displayed list
+		set Stat($Sok,DL) ""
+		set Wins($Sok) ".wa[unique]"
+		log "done"
+	}
+
+	updPanel
 }
 
 proc addPanel { Sok } {
@@ -5159,7 +5399,7 @@ proc addPanel { Sok } {
 		return
 	}
 
-	if { $nod >= $Stat($Sok,NN) } {
+	if { $nod >= $Stat(PNN) } {
 		log "node number out of range"
 		return
 	}
@@ -5214,22 +5454,17 @@ proc delPanel { Sok ix } {
 
 	set Stat($Sok,SL) [lreplace $Stat($Sok,SL) $ix $ix]
 
-	updPanel $Sok
+	updPanel
 }
 
-proc updPanel { Sok } {
+proc updPanel { } {
 #
 # Make or re-make, e.g., after adding/deleting a node
 #
 	global Wins Stat PANEL_COLORS
 
+	set Sok $Stat(PNN,S)
 	set w $Wins($Sok)
-
-	if { $Stat($Sok,SL) == $Stat($Sok,DL) } {
-		# no need to update
-		return
-	}
-
 	set ne [llength $Stat($Sok,SL)]
 
 	if { $ne != [llength $Stat($Sok,DL)] } {
@@ -5239,14 +5474,13 @@ proc updPanel { Sok } {
 			# window absent
 			set ge ""
 		} else {
-			set Wins($Sok,NODESTROY) 1
+			bind $w <Destroy> {}
 			destroy $w
-			unset Wins($Sok,NODESTROY)
 		}
 
 		toplevel $w
 		wm title $w "PANEL"
-		bind $w <Destroy> "wdestroy $Sok"
+		bind $w <Destroy> panelClose
 		if { $ge != "" } {
 			# preserve previous location
 			regexp "\\+.*\\+.*" $ge ge
@@ -5279,7 +5513,7 @@ proc updPanel { Sok } {
 			pack $fr.del $fr.res $fr.off $fr.on -side right
 		}
 
-		if { $ne < $Stat($Sok,NN) } {
+		if { $ne < $Stat(PNN) } {
 			frame $w.add -borderwidth 1
 			pack $w.add -side top -expand 1 -fill x
 			entry $w.add.non -width 6 -relief sunken \
@@ -5293,11 +5527,11 @@ proc updPanel { Sok } {
 	# update labels and buttons
 	set ix 0
 	foreach no $Stat($Sok,SL) {
-		lassign $no non noh nos not
+		lassign $no non noh not
 		set fr $w.stat.pa$ix
 		$fr.ide configure -text [format "%4d: %s" $non $not]
 		$fr.hos configure -text [format "%5d" $noh]
-		if { $nos == "F" } {
+		if { $Stat(PNN,$non) == "F" } {
 			# node is down: ON active, OFF disabled
 			$fr.ide configure -bg $PANEL_COLORS(OFFLABEL)
 			$fr.on configure -state normal -bg \
@@ -5407,6 +5641,32 @@ proc mkPwrt { Sok tt } {
 
 	bind $w <Destroy> "wdestroy $Sok"
 	bind $w.c <Configure> "pwrtResize $Sok %w %h"
+
+	w_state_change $Sok
+}
+
+proc w_state_change { Sok } {
+
+	global Stat
+
+	set nn $Stat($Sok,S)
+
+	if ![info exists Stat(PNN,$nn)] {
+		return
+	}
+
+	if { $Stat(PNN,$nn) == "F" } {
+		set cl "gray"
+		set ss "diabled"
+	} else {
+		set cl "white"
+		set ss "normal"
+	}
+
+	set w [stwin $Sok]
+
+	$w.c configure -bg $cl
+	$w.z configure -state $ss
 }
 
 proc pwrtZero { Sok } {
@@ -5611,7 +5871,7 @@ proc pwrt_eval { w tf tl v } {
 
 proc pwrtParse { Sok } {
 
-	global Stat PMARGIN
+	global Stat PMARGIN HPA
 
 	set w [stwin $Sok]
 
@@ -6938,13 +7198,13 @@ proc moveDoResize { Sok } {
 
 proc moveUpd { Sok cmd } {
 #
-# read location updates
+# receive location updates
 #
 	global Stat HPA
 
-	if ![regexp "^U $HPA(D) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
-	      $cmd junk nod x y ls ps vc vn] {
-		continue
+	if ![regexp "^U $HPA(D) $HPA(Q) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      $cmd junk nod os x y ls ps vc vn] {
+		return
 	}
 
 	if { [catch {
@@ -6956,7 +7216,7 @@ proc moveUpd { Sok cmd } {
 		return
 	}
 
-	moveNewLocation $Sok $nod $x $y $ls $ps [vipars $Sok $vc $vn $nod]
+	moveNewLocation $Sok $nod $os $x $y $ls $ps [vipars $Sok $vc $vn $nod]
 }
 
 proc moveRedim { Sok nxx nyy } {
@@ -7000,7 +7260,7 @@ proc moveRedim { Sok nxx nyy } {
 	return 0
 }
 
-proc moveNewLocation { Sok nod nx ny ls ps vic } {
+proc moveNewLocation { Sok nod os nx ny ls ps vic } {
 #
 # Update the location and (possibly) color of the node
 #
@@ -7050,6 +7310,11 @@ proc moveNewLocation { Sok nod nx ny ls ps vic } {
 			set cc 1
 			set c [list $nc $nco $cse]
 		}
+	}
+
+	if { $os == "F" } {
+		# the node is off, paint it dull gray
+		set vic [list "gray" ""]
 	}
 
 	if { $vic != $v } {
@@ -7599,6 +7864,8 @@ if $TM {
 }
 
 do_geometry . "root"
+
+panel_preconnect
 
 predisplay
 

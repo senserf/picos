@@ -47,7 +47,7 @@
 
 #define	XTRN_MBX_BUFLEN		64		// Mailbox buffer size
 #define	PRQS_INPUT_BUFLEN	82		// PIN request buffer size
-#define	PUPD_OUTPUT_BUFLEN	48		// PIN update buffer size
+#define	PUPD_OUTPUT_BUFLEN	64		// PIN update buffer size
 #define	MRQS_INPUT_BUFLEN	128		// MOVE request buffer size
 #define	SRQS_INPUT_BUFLEN	64		// SENSOR request buffer size
 #define	ARQS_INPUT_BUFLEN	64		// PANEL request buffer size
@@ -115,6 +115,7 @@
 //
 #define	RQHDR_FLAG_HID		0		// HID instead of node ID
 #define	RQHDR_FLAG_BIM		1		// Bgr image rq for MoveHandler
+#define	RQHDR_FLAG_NOS		1		// Binary node status for panel
 
 #define	ThePicOSNode	((PicOSNode*)TheStation)
 

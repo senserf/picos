@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.992
+#define	VUEE_VERSION	0.999
 
 #include "picos.h"
 #include "ndata.h"
@@ -953,6 +953,8 @@ process MoveHandler {
 
 	perform;
 };
+
+void __mup_update (Long);		// Function to request move update
 
 process PanelHandler {
 

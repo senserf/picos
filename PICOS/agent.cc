@@ -39,7 +39,7 @@ inline static void skipblk (char *&bp) {
 		bp++;
 }
 
-static inline void mup_update (Long n) {
+inline void __mup_update (Long n) {
 //
 // Mobility update: queues the node for its position to be sent to UDAEMON
 //
@@ -82,11 +82,12 @@ static char *sigseq (PicOSNode *pn) {
 //
 	return form (
 #if LONGBITS <= 32
-		"P %1ld %1lu %1ld <%s>:",
+		"P %1ld %c %1lu %1ld <%s>:",
 #else
-		"P %1d %1u %1d <%s>:",
+		"P %1d %c %1u %1d <%s>:",
 #endif
 			pn->getId (),
+			pn->Halted ? 'F' : 'O',
 			pn->__host_id__,
 			NStations,
 			pn->getTName ());
@@ -257,7 +258,7 @@ Process *PicOSNode::cleanhlt () {
 
 	delete highlight;
 	highlight = NULL;
-	mup_update (getId ());
+	__mup_update (getId ());
 
 	return res;
 }
@@ -303,7 +304,7 @@ void highlight_set (lword color, double duration, const char *fmt, ...) {
 	else
 		vp->Guard = NULL;
 
-	mup_update (ThePicOSNode->getId ());
+	__mup_update (ThePicOSNode->getId ());
 }
 
 void highlight_clear () {
@@ -2797,7 +2798,7 @@ void PINS::qupd_pin (word pn) {
 	// Queue for a "position" update; pin updates are also sent
 	// to the ROAMER window in case the nodes want to be colored
 	// by pins (is "colored" a politically correct word?)
-	mup_update (IN.TPN->getId ());
+	__mup_update (IN.TPN->getId ());
 
 	if (IN.OT == NULL)
 		// Forget it
@@ -3204,7 +3205,7 @@ int PINS::pinup_update (char *rb) {
 
 	switch (c) {
 
-	    case 'P' :
+	    case 'S' :
 		// Set pin value
 		if (pv > 1)
 			return ERROR;
@@ -3418,13 +3419,9 @@ int SNSRS::act_status (byte what, byte sid, Boolean lm) {
 		}
 		tm = ituToEtu (Time);
 		s += sid;
-		if (lm)
-			sprintf (UBuf, "%c %08.3f: %1u %08x %08x\n",
-				ct, tm, sid, (unsigned int)(s->Value), 
-					(unsigned int)(s->Max));
-		else
-			sprintf (UBuf, "%c %08.3f: %1u %08x\n", ct, tm, sid,
-				(unsigned int)(s->Value));
+		sprintf (UBuf, "%c %08.3f: %1u %08x %08x\n",
+			ct, tm, sid, (unsigned int)(s->Value), 
+				(unsigned int)(s->Max));
 	}
 	return strlen (UBuf);
 }
@@ -3576,7 +3573,7 @@ void LEDSM::leds_op (word led, word op) {
 		if (IN.OT != NULL)
 			IN.OT->signal (NULL);
 		// Also queue for position update (for node coloring)
-		mup_update (IN.TPN->getId ());
+		__mup_update (IN.TPN->getId ());
 	}
 }
 
@@ -3587,7 +3584,7 @@ void LEDSM::setfast (Boolean on) {
 		Changed = YES;
 		if (IN.OT != NULL)
 			IN.OT->signal (NULL);
-		mup_update (IN.TPN->getId ());
+		__mup_update (IN.TPN->getId ());
 	}
 }
 
@@ -3796,8 +3793,8 @@ int pwr_tracker_t::pwrt_status (char cmd) {
 	// Elapsed time
 	T = t - strt_tim;
 
-	sprintf (UBuf, "U %08.3f [%08.3f]: %1.7g %1.7g\n", t, T, vavg (T),
-		last_val);
+	sprintf (UBuf, "U %08.3f [%08.3f]: %1.7g %1.7g\n",
+		t, T, vavg (T), last_val);
 
 	return strlen (UBuf);
 }
@@ -3922,7 +3919,7 @@ void MoveHandler::setup (Dev *a, FLAGS f) {
 		}
 		// Create the mailbox to receive updates
 		MUP = create MUpdates (MAX_Long);
-		rwpmmSetNotifier (mup_update);
+		rwpmmSetNotifier (__mup_update);
 	}
 
 	Agent = a;
@@ -3951,7 +3948,6 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 //
 // Prepare an outgoing message
 //
-	int rc;
 	PicOSNode *pn;
 	double xx, yy;
 	char cp [MAX_PINS+1];
@@ -3990,12 +3986,14 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 	if (cmd == 'U') {
 		while ((Left = snprintf (RBuf, RBSize,
 #if LONGBITS <= 32
-			"U %1ld %1f %1f <%s,%s> [%s,%s]\n",
+			"U %1ld %c %1f %1f <%s,%s> [%s,%s]\n",
 #else
-			"U %1d %1u %1f %1f <%s,%s> [%s,%s]\n",
+			"U %1d %c %1u %1f %1f <%s,%s> [%s,%s]\n",
 #endif
-			NN, xx, yy, cl, cp, ch, lb)) >= RBSize) {
-				RBSize = (word)(rc + 16);
+			NN,
+			pn->Halted ? 'F' : 'O', xx, yy, cl, cp, ch, lb)) >=
+			RBSize) {
+				RBSize = (word)(Left + 16);
 				delete [] RBuf;
 				RBuf = new char [RBSize];
 		}
@@ -4006,7 +4004,7 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 			sg,
 			xx, yy,
 			pn->Movable, cl, cp, ch, lb)) >= RBSize) {
-				RBSize = (word)(rc + 16);
+				RBSize = (word)(Left + 16);
 				delete [] RBuf;
 				RBuf = new char [RBSize];
 		}
@@ -4251,7 +4249,7 @@ Illegal_crd:
 			}
 			// Send the update regardless, you will get 0,0 for a
 			// transceiver-less node
-			mup_update (NN);
+			__mup_update (NN);
 
 			proceed Loop;
 
@@ -4380,7 +4378,12 @@ void PanelHandler::setup (Dev *a, FLAGS f) {
 
 	TimedRequestTime = Time;
 
-	RBuf = new char [RBSize = ARQS_INPUT_BUFLEN];
+	RBSize = ARQS_INPUT_BUFLEN;
+	if ((Flags & XTRN_OMODE_OPTION) && RBSize < NStations + 32)
+		// Need to accommodate the initial status message
+		RBSize = NStations + 32;
+
+	RBuf = new char [RBSize];
 }
 
 PanelHandler::~PanelHandler () {
@@ -4419,6 +4422,26 @@ PanelHandler::perform {
 				// Disconnected
 				delete Agent;
 				terminate;
+			}
+
+			if (Flags & XTRN_OMODE_OPTION) {
+				// Need to send the initial on/off status of
+				// all nodes
+#if LONGBITS <= 32
+				sprintf (RBuf, "%1ld:", NStations);
+#else
+				sprintf (RBuf, "%1d:", NStations);
+#endif
+				re = RBuf + strlen (RBuf);
+				for (NN = 0; NN < NStations; NN++)
+					*re++ =
+					((PicOSNode*)idToStation (NN))->Halted ?
+						'F' : 'O';
+				*re++ = '\n';
+				*re   = '\0';
+				BP = &(RBuf [0]);
+				Left = re - BP;
+				sameas Reply;
 			}
 		}
 
@@ -4553,9 +4576,8 @@ Illegal_nid:
 			}
 
 			re = sigseq (pn = (PicOSNode*)idToStation (NN));
-
-			while ((rc = snprintf (RBuf, RBSize, "%s %c\n",
-			    re, pn->Halted ?  'F' : 'O')) >= RBSize) {
+			while ((rc = snprintf (RBuf, RBSize, "%s\n", re)) >=
+			    RBSize) {
 				// Must grow the buffer
 				RBSize = (word)(rc + 1);
 				delete [] RBuf;
@@ -4584,7 +4606,9 @@ Init:
 				pn->reset ();
 				pn->init ();
 				pn->Halted = NO;
+				Monitor->signal (&(pn->Halted));
 				__pi_panel_signal (NN);
+				__mup_update (NN);
 				TheStation = System;
 			}
 
@@ -4606,6 +4630,7 @@ Init:
 				// This sets Halted
 				pn->stopall ();
 				__pi_panel_signal (NN);
+				__mup_update (NN);
 				TheStation = System;
 			}
 
@@ -4631,6 +4656,9 @@ Init:
 			pn->reset ();
 			pn->Halted = NO;
 			pn->init ();
+			Monitor->signal (&(pn->Halted));
+			__pi_panel_signal (NN);
+			__mup_update (NN);
 			TheStation = System;
 
 			proceed Loop;
@@ -4799,7 +4827,10 @@ AgentConnector::perform {
 
 			case AGENT_RQ_PANEL:
 
-				create PanelHandler (Agent, XTRN_IMODE_SOCKET);
+				create PanelHandler (Agent,
+					XTRN_IMODE_SOCKET |
+					  (flagSet (fg, RQHDR_FLAG_NOS) ?
+					    XTRN_OMODE_OPTION : 0));
 				terminate;
 
 			case AGENT_RQ_DATA:

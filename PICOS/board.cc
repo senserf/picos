@@ -297,6 +297,9 @@ void _dad (PicOSNode, reset) () {
 	reset ();
 	Halted = NO;
 	init ();
+	Monitor->signal (&Halted);
+	__pi_panel_signal (getId ());
+	__mup_update (getId ());
 	sleep;
 }
 
@@ -309,6 +312,7 @@ void _dad (PicOSNode, halt) () {
 	// because the status change is momentary and not perceptible by
 	// agents
 	__pi_panel_signal (getId ());
+	__mup_update (getId ());
 	sleep;
 }
 
@@ -681,7 +685,6 @@ void PicOSNode::setup (data_no_t *nd) {
 	}
 
 	Halted = NO;
-	Monitor->signal (&Halted);
 	init ();
 
 #include "lib_attributes_init.h"
