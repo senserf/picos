@@ -1210,3 +1210,11 @@ PG140423A:
     sensor values cannot be changed, and so on. UART and EMUL windows become
     gray. The UART behaves as described at PG140418A. The document has been
     updated.
+
+PG140424A:
+
+    Tips added to udaemon. I mean little snippets of text popping up when you
+    hover the mouse over a widget. This is the first version, anyway. Ideas are
+    welcome.
+
+    A few cosmetic fixes to the agent protocol.

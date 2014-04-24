@@ -704,6 +704,126 @@ unames_init $Stat(D) $Stat(S)
 
 ###############################################################################
 
+package provide tooltips 1.0
+
+###############################################################################
+# TOOLTIPS ####################################################################
+###############################################################################
+
+namespace eval TOOLTIPS {
+
+variable ttps
+
+proc tip_init { { fo "" } { wi "" } { bg "" } { fg "" } } {
+#
+# Font, wrap length, i.e., width (in pixels)
+#
+	variable ttps
+
+	if { $fo == "" } {
+		set fo "TkSmallCaptionFont"
+	}
+
+	if { $wi == "" } {
+		set wi 320
+	}
+
+	if { $bg == "" } {
+		set bg "lightyellow"
+	}
+
+	if { $fg == "" } {
+		set fg "black"
+	}
+
+	set ttps(FO) $fo
+	set ttps(WI) $wi
+	set ttps(BG) $bg
+	set ttps(FG) $fg
+
+}
+
+proc tip_set { w t } {
+
+	bind $w <Any-Enter> [list after 200 [list tip_show %W $t]]
+	bind $w <Any-Leave> [list after 500 [list destroy %W.ttip]]
+	bind $w <Any-KeyPress> [list after 500 [list destroy %W.ttip]]
+	bind $w <Any-Button> [list after 500 [list destroy %W.ttip]]
+}
+
+proc tip_setc { w c t } {
+
+	$w bind $c <Any-Enter> [list after 200 [list tip_show %W $t]]
+	$w bind $c <Any-Leave> [list after 500 [list destroy %W.ttip]]
+	$w bind $c <Any-KeyPress> [list after 500 [list destroy %W.ttip]]
+	$w bind $c <Any-Button> [list after 500 [list destroy %W.ttip]]
+}
+
+proc tip_show { w t } {
+
+	global tcl_platform
+	variable ttps
+
+	set px [winfo pointerx .]
+	set py [winfo pointery .]
+
+	if { [string match $w* [winfo containing $px $py]] == 0 } {
+                return
+        }
+
+	catch { destroy $w.ttip }
+
+	set scrh [winfo screenheight $w]
+	set scrw [winfo screenwidth $w]
+
+	set tip [toplevel $w.ttip -bd 1 -bg black]
+
+	wm geometry $tip +$scrh+$scrw
+	wm overrideredirect $tip 1
+
+	if { $tcl_platform(platform) == "windows" } {
+		wm attributes $tip -topmost 1
+	}
+
+	pack [label $tip.label -bg $ttps(BG) -fg $ttps(FG) -text $t \
+		-justify left -wraplength $ttps(WI) -font $ttps(FO)]
+
+	set wi [winfo reqwidth $tip.label]
+	set hi [winfo reqheight $tip.label]
+
+	set xx [expr $px - round($wi / 2.0)]
+
+	if { $py > [expr $scrh / 2.0] } {
+		# lower half
+		set yy [expr $py - $hi - 10]
+	} else {
+		set yy [expr $py + 10]
+	}
+
+	if  { [expr $xx + $wi] > $scrw } {
+		set xx [expr $scrw - $wi]
+	} elseif { $xx < 0 } {
+		set xx 0
+	}
+
+	wm geometry $tip [join "$wi x $hi + $xx + $yy" {}]
+
+        raise $tip
+
+        bind $w.ttip <Any-Enter> { destroy %W }
+        bind $w.ttip <Any-Leave> { destroy %W }
+}
+
+namespace export tip_*
+
+}
+
+namespace import ::TOOLTIPS::*
+
+###############################################################################
+
+tip_init
+
 set Unique		0
 set MaxLineCount	1024
 set HostName		"localhost"
@@ -748,6 +868,17 @@ array set PANEL_COLORS	{ ACTIVE  "#F0EC00" DISABLED "#BEBEBE" DEL "#007DFF"
 			  HOSTID  "#F7C89E" }
 
 array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
+
+array set PIN_STTIP	{
+			  0 "digital input"
+			  1 "digital output"
+			  2 "analog input"
+			  3 "first digital-to-analog"
+			  4 "second digital-to-analog"
+			  5 "pulse counter"
+			  6 "pulse monitor"
+			  7 "absent"
+			}
 
 array set HPA		{ 
 			  H "(\[0-9a-f\]+)"
@@ -2838,7 +2969,7 @@ proc uartFirst { Sok } {
 
 	set Wins($Sok) $Wn
 
-	set Stat($Sok,UART) [mkTerm $Sok "UART at node $Stat($Sok,I)" \
+	set Stat($Sok,UART) [mkUart $Sok "UART at node $Stat($Sok,I)" \
 		$Stat($Sok,M)]
 
 	set Stat($Sok,PLUG) [plug_open [lindex $pmt 0] [lindex $pmt 1] \
@@ -3107,7 +3238,7 @@ proc connUart { Sok { ix -1 } } {
 	log "U-U connection successful"
 }
 
-proc mkTerm { Sok tt hex } {
+proc mkUart { Sok tt hex } {
 #
 # Creates a new terminal
 #
@@ -3174,8 +3305,12 @@ proc mkTerm { Sok tt hex } {
 	# U-U file descriptor
 	set Stat($Sok,FD,U) ""
 
-	checkbutton $w.stat.hsel.but -state normal -variable Stat($Sok,H)
-	pack $w.stat.hsel.but -side left
+	set dmn $w.stat.hsel.but
+	checkbutton $dmn -state normal -variable Stat($Sok,H)
+	pack $dmn -side left
+	tip_set $dmn "Toggle between the normal and HEX modes. Note: in HEX\
+		mode, the input consists of pairs of HEX digits, e.g.,\
+		68 65 6C 70 0A."
 
 	frame $w.stat.usel -borderwidth 2
 	pack $w.stat.usel -side right -expand no
@@ -3198,6 +3333,9 @@ proc mkTerm { Sok tt hex } {
 	eval \
 	    "set Stat($Sok,O) \[tk_optionMenu $dmn Stat($Sok,U) $Stat($Sok,A)\]"
 	set Stat($Sok,U) "Off"
+
+	tip_set $dmn "Use to connect (disconnect) the UART to (from) a real\
+		device (UART-to-UART)"
 
 	foreach op $Stat($Sok,A) {
 		# button release in the menu doesn't work (the event
@@ -3227,8 +3365,10 @@ proc term_setsfb { Sok } {
 
 	if { $Stat($Sok,FD,S) == "" } {
 		$w configure -text "File"
+		tip_set $w "Click to save the session log in a file"
 	} else {
 		$w configure -text "Stop"
+		tip_set $w "Click to stop saving the session log in the file"
 	}
 }
 
@@ -3533,6 +3673,8 @@ proc mkClock { Sok } {
 	do_geometry $w "clock"
 
 	canvas $w.c -width 170 -height 45 -bg black
+	tip_set $w.c "Tells the amount of modeled time in seconds counted from\
+		the beginning of simulation"
 	pack $w.c -expand y
 	bind $w <Destroy> "wdestroy $Sok"
 }
@@ -3701,9 +3843,10 @@ proc ledsUpdate { Sok } {
 	}
 }
 
-proc mkoneled { canv off } {
+proc mkoneled { canv off n } {
 
 	set t [$canv create oval $off 4 [expr 20 + $off] 24 -fill grey]
+	tip_setc $canv $t "Shows the status of LED number $n"
 	return $t
 }
 
@@ -3755,7 +3898,7 @@ proc mkLeds { Sok nleds tt } {
 			$f.c configure -bg $Stat($Sok,LC,B,$i)
 		}
 		pack $f.c -side left -expand y -fill both
-		set Stat($Sok,O,$i) [mkoneled $f.c 4]
+		set Stat($Sok,O,$i) [mkoneled $f.c 4 $i]
 		set Stat($Sok,V,$i) -1
 	}
 
@@ -3940,6 +4083,8 @@ proc emulFirst { Sok } {
 
 	entry $w.stat.f -width 20 -font $FONT(D) -textvariable Stat($Sok,F)
 	pack $w.stat.f -side right -expand no
+	tip_set $w.stat.f "Enter here a regular expression to select the lines\
+		that you want to see. When empty, all lines are qualified."
 	label $w.stat.l -text "Filter:"
 	pack $w.stat.l -side right -expand no
 
@@ -4423,7 +4568,7 @@ proc pinsFirst { Sok } {
 
 proc p_state_change { Sok } {
 
-	global Stat PIN_COLORS PIN_STCODE
+	global Stat PIN_COLORS PIN_STCODE PIN_STTIP
 
 	set w [stwin $Sok]
 
@@ -4431,14 +4576,20 @@ proc p_state_change { Sok } {
 	set na $Stat($Sok,NA)
 	set nn $Stat($Sok,S)
 
+	set da(0) 0
+	set da(1) 0
+
 	for { set pin 0 } { $pin < $np } { incr pin } {
 
 		if { $Stat(PNN,$nn) == "F" } {
 			# if the node is down, set them all output 0
 			set s [list 1 0]
+			set pt " (this status is forced, because the node\
+				is currently powered down)"
 		} else {
 			# use actual values
 			set s $Stat($Sok,NS,$pin)
+			set pt ""
 		}
 		if { $Stat($Sok,CS,$pin) == $s } {
 			# no change
@@ -4447,57 +4598,106 @@ proc p_state_change { Sok } {
 		set Stat($Sok,CS,$pin) $s
 		lassign $s sta val
 
-		$w.dig.d$pin configure -bg $PIN_COLORS(D,$sta) \
-			-text $PIN_STCODE($sta)
+		set px $w.dig.d$pin
+		$px configure -bg $PIN_COLORS(D,$sta) -text $PIN_STCODE($sta)
+		tip_set $px "Shows the pin's current configuration status;\
+			this pin is configured as \"$PIN_STTIP($sta)\"$pt"
 
+		set px $w.dig.i$pin
+		set pt "Shows the value of a digital input pin, including\
+			pulse monitor and counter"
 		if { $sta == 0 || $sta == 5 || $sta == 6 } {
 			# input
 			if $val {
 				# make sure this is zero or 1
 				set val 1
 			}
-			$w.dig.i$pin configure \
+			$px configure \
 				-activebackground $PIN_COLORS(A) \
 				-bg $PIN_COLORS(I,$val) -text $val \
 				-state normal
 			set Stat($Sok,J$pin) $val
+			append pt ". Left click to toggle the value, right\
+				click to generate a pulse."
 		} else {
-			$w.dig.i$pin configure -bg $PIN_COLORS(I,2) -text "-" \
+			$px configure -bg $PIN_COLORS(I,2) -text "-" \
 				-state disabled
 			set Stat($Sok,J$pin) "-"
+			append pt " (this is not a digital input pin, so the\
+				field shows nothing)"
 		}
+		tip_set $px $pt
 
+		set px $w.dig.o$pin
+		set pt "Shows the value of a digital output pin"
 		if { $sta == 1 } {
 			#output
 			if $val {
 				# make sure this is zero or 1
 				set val 1
 			}
-			$w.dig.o$pin configure -bg $PIN_COLORS(O,$val) \
+			$px configure -bg $PIN_COLORS(O,$val) \
 				-text $val
 		} else {
-			$w.dig.o$pin configure -bg $PIN_COLORS(O,2) -text "-"
+			$px configure -bg $PIN_COLORS(O,2) -text "-"
+			append pt " (this is not a digital output pin, so the\
+				field shows nothing)"
 		}
+		tip_set $px $pt
 
-		if { $sta == 2 } {
-			# ADC
-			if { $pin >= $na } {
-				return
+		if { $pin < $na } {
+			# take care of ADC pins
+			set st 0
+			set s $w.adc.s$pin
+			set pt "Shows the voltage of an ADC pin"
+			if { $sta == 2 } {
+				if { $Stat(PNN,$nn) == "F" } {
+					append pt " (not adjustable at the\
+						moment, because the node is\
+						powered down)"
+				} else {
+					set st 1
+					append pt " (adjustable by the user)"
+				}
+				$s set [toVoltage $val]
+			} else {
+				append pt ". The pins is currently not\
+					configured as ADC, so the widget is\
+					disabled."
 			}
-			set s $w.adc.s$pin
-			$s configure -state normal \
-				-activebackground $PIN_COLORS(A) \
-				-bg $PIN_COLORS(N)
-			$s set [toVoltage $val]
-		} elseif { $pin < $na } {
-			set s $w.adc.s$pin
-			$s configure -state disabled -bg $PIN_COLORS(I)
+			if $st {
+				$s configure -state normal \
+					-activebackground $PIN_COLORS(A) \
+					-bg $PIN_COLORS(N)
+			} else {
+				$s configure -state disabled -bg $PIN_COLORS(I)
+			}
+			tip_set $s $pt
 		}
 
+		set s ""
 		if { $sta == 3 && [lindex $Stat($Sok,DA) 0] != "" } {
-			$w.dac.f0.v configure -text [toVoltage $val]
+			set s $w.dac.f0.v
+			set da(0) 1
 		} elseif { $sta == 4 && [lindex $Stat($Sok,DA) 1] != "" } {
-			$w.dac.f1.v configure -text [toVoltage $val]
+			set s $w.dac.f1.v
+			set da(1) 1
+		}
+		if { $s != "" } {
+			$s configure -text [toVoltage $val]
+		}
+	}
+
+	for { set i 0 } { $i < 2 } { incr i } {
+		if { [lindex $Stat($Sok,DA) $i] != "" } {
+			set s $w.dac.f$i.v
+			set pt "Shows the voltage on a DAC\
+				(digital-to-analog) pin"
+			if !$da($i) {
+				append pt ". This pin is currently not\
+					configured as DAC."
+			}
+			tip_set $s $pt
 		}
 	}
 }
@@ -4550,7 +4750,13 @@ proc pinsInput { Sok pin } {
 
 	if { $Stat($Sok,XC$pin) != "" } {
 		# temporarily disabled
-		return
+		return 0
+	}
+
+	set nn $Stat($Sok,S)
+	if { $Stat(PNN,$nn) == "F" } {
+		# the node is off
+		return 0
 	}
 
 	set b $w.dig.i$pin
@@ -4895,6 +5101,8 @@ proc mkSensors { Sok ns os na oa tt } {
 			# rescale them later once we know everything about
 			# the window
 			${f}s set 0.0
+			tip_set ${f}s "Shows the value of an actuator (cannot\
+				be adjusted by the user, only by the node)"
 
 			eval label ${f}l -anchor w \
 				[get_label $Sok [expr $i - $oa] "Act "]
@@ -5111,6 +5319,20 @@ proc s_state_change { Sok } {
 			# the maximum has changed
 			${f}s configure -to $dmax \
 				-tickinterval [expr $dmax / 5.0]
+
+			set tp "Shows and sets the sensor value ("
+			set te "Sends a sensor event to the node"
+			if $max {
+				append tp "can be adjusted by the user"
+			} else {
+				append tp "cannot be adjusted at this time,\
+					because the node is powered down"
+				append te "(disabled at the moment, because the\
+					node is powered down)"
+			}
+			append tp ")"
+			tip_set ${f}s $tp
+			tip_set ${f}e $te
 		}
 
 
@@ -5498,18 +5720,29 @@ proc updPanel { } {
 			pack $fr -side top -expand 1 -fill x
 			label $fr.ide -text ""
 			pack $fr.ide -side left
+			tip_set $fr.ide "Shows the internal (SMURPH) number of\
+				the node and its type name, i.e., program name\
+				suffix"
 			label $fr.hos -text "" -bg $PANEL_COLORS(HOSTID)
 			pack $fr.hos -side left
+			tip_set $fr.hos "This is the host_id of the node, i.e.,\
+				its formal network address"
 			button $fr.del -text "Delete" -state normal \
 				-command "delPanel $Sok $ix" \
 				-bg $PANEL_COLORS(DEL)
+			tip_set $fr.del "Press to remove the node from the\
+				panel. Nothing will happen to the node itself:\
+				it will just disappear from the panel."
 			button $fr.res -text "Reset" -state normal \
 				-command "reqPanel $Sok $ix R" \
 				-bg $PANEL_COLORS(ACTIVE)
+			tip_set $fr.res "Press to reset the node"
 			button $fr.off -text "Off" \
 				-command "reqPanel $Sok $ix F"
+			tip_set $fr.off "Press to power the node off"
 			button $fr.on -text "On" \
 				-command "reqPanel $Sok $ix O"
+			tip_set $fr.on "Press to power the node on"
 			pack $fr.del $fr.res $fr.off $fr.on -side right
 		}
 
@@ -5519,7 +5752,13 @@ proc updPanel { } {
 			entry $w.add.non -width 6 -relief sunken \
 				-textvariable Stat($Sok,NA) -validate key \
 					-vcmd {validSid %P} -invcmd bell
+			tip_set $w.add.non "Enter here the (internal) number\
+				of the node to be added to the panel.\
+				You can only add one node at a time."
 			button $w.add.but -text "Add" -command "addPanel $Sok"
+			tip_set $w.add.but "Press to add to the panel the node\
+				whose number you have entered in the box to\
+				the left"
 			pack $w.add.non $w.add.but -side left
 		}
 	}
@@ -5655,15 +5894,29 @@ proc w_state_change { Sok } {
 		return
 	}
 
+	set pt "Shows the current (in milliamps) drawn by the node.\
+		The red point shows the present (momentary) usage, the green\
+		point shows the average."
+
+	set pq "Press this button to reset the average (to be calculated\
+		from now)"
+
 	if { $Stat(PNN,$nn) == "F" } {
 		set cl "gray"
 		set ss "diabled"
+		append pt " The node is currently powered down, so the red\
+			point shows zero."
+		append pq ". The button is disabled, because the node is\
+			powered down at the moment."
 	} else {
 		set cl "white"
 		set ss "normal"
 	}
 
 	set w [stwin $Sok]
+
+	tip_set $w.c $pt
+	tip_set $w.z $pq
 
 	$w.c configure -bg $cl
 	$w.z configure -state $ss
@@ -6819,10 +7072,6 @@ proc moveRedraw { Sok } {
 		}
 		set tx [$w.c create text $ddx $ddy -anchor e \
 			-text $dmsg -state disabled]
-		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
-			-outline ""]
-		$w.c raise $tx
-		$w.c bind $bg <ButtonRelease-1> "moveSNL $Sok"
 	} else {
 		# redrawing existing nodes, i.e., adjusting their coordinates
 		for { set n 0 } { $n < $N } { incr n } {
@@ -6832,11 +7081,14 @@ proc moveRedraw { Sok } {
 		$w.c coords $tx $ddx $ddy
 		$w.c itemconfigure $tx -text $dmsg
 		$w.c delete $bg
-		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
-			-outline ""]
-		$w.c bind $bg <ButtonRelease-1> "moveSNL $Sok"
-		$w.c raise $tx
 	}
+
+	set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+		-outline ""]
+	tip_setc $w.c $bg "Click to save node positions in a file"
+	$w.c bind $bg <ButtonRelease-1> "moveSNL $Sok"
+	$w.c raise $tx
+
 	set Stat($Sok,AX) [list $tx $bg]
 }
 

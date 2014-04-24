@@ -456,15 +456,10 @@ process AgentInput abstract {
 	int       	Length, Left;
 	char      	*RBuf;
 
-	states { Loop, ReadRq, Delay };
+	states { Loop, ReadRq, IfHalted, Delay };
 
 	virtual	int update (char*) { 
 		excptn ("%s: update unimplemented", getSName ());
-	};
-
-	Boolean suspended () {
-		return IN->TPN->Halted && (IN->Flags & XTRN_IMODE_SOCKET) &&
-		   !(IN->Flags & XTRN_IMODE_TIMED);
 	};
 
 	void start (ag_interface_t*, int);
@@ -634,16 +629,23 @@ AgentInput::perform {
 		BP = RBuf;
 		Left = Length;
 
-		if (suspended ()) {
-			// Suspended, skip everything
+		if (IN->TPN->Halted) {
+			// Prevent input; if socket and untimed, the input is
+			// lost; otherwise, it is blocked
 			Monitor->wait (&(IN->TPN->Halted), Loop);
-			if ((rc = IN->I->rs (Loop, BP, Left)) == ERROR)
-				goto SockErr;
-			if (rc == REJECTED)
-				goto LengthErr;
-			proceed Loop;
+			if ((IN->Flags & XTRN_IMODE_SOCKET) &&
+		   	   !(IN->Flags & XTRN_IMODE_TIMED)) {
+				// Skip
+				if ((rc = IN->I->rs (Loop, BP, Left)) == ERROR)
+					goto SockErr;
+				if (rc == REJECTED)
+					goto LengthErr;
+				proceed Loop;
+			}
+			// Wait
+			sleep;
 		}
-			
+
 		if (imode (IN->Flags) == XTRN_IMODE_STRING) {
 			// This is simple
 			while ((IN->Flags & XTRN_IMODE_STRLEN) != 0) {
@@ -700,11 +702,20 @@ LengthErr:
 			sleep;
 		}
 
-		if (suspended ())
-			proceed Loop;
-
 		// Fine: this is the length excluding the newline
 		RBuf [Length - 1 - Left] = '\0';
+
+	transient IfHalted:
+
+		if (IN->TPN->Halted) {
+			if ((IN->Flags & XTRN_IMODE_SOCKET) &&
+		   	   !(IN->Flags & XTRN_IMODE_TIMED))
+				// Skip
+				proceed Loop;
+			// Make sure you not lose the input
+			Monitor->wait (&(IN->TPN->Halted), IfHalted);
+			sleep;
+		}
 HandleInput:
 		BP = RBuf;
 		skipblk (BP);
