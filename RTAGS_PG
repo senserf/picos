@@ -1218,3 +1218,10 @@ PG140424A:
     welcome.
 
     A few cosmetic fixes to the agent protocol.
+
+PG140425A:
+
+    Fixed a bug in udaemon causing that node color in ROAMER derived from a
+    LED was sometimes not updated correctly.
+
+    Added tips for the root window.

@@ -6331,9 +6331,13 @@ proc moveGNP { Sok cmd } {
 #
 	global Wins Stat HPA NTYPE_COLORS Geometry
 
-
 	if { [node_sig $Sok cmd pmt] != "" } {
-		# keep going, accept only correct items
+		# check for an update arriving while we are collecting
+		# the initial positions; store it and play back later when
+		# we are done with this stage
+		if [regexp "^U $HPA(D) " $cmd junk nod] {
+			set Stat($Sok,PZ,$nod) $cmd
+		}
 		return
 	}
 
@@ -6355,6 +6359,9 @@ proc moveGNP { Sok cmd } {
 	}
 
 	lassign $pmt nod hos tot tn
+
+	# this obviates any pending update for the node
+	unset -nocomplain Stat($Sok,PZ,$nod)
 
 	if { $nod != $Stat($Sok,CI) } {
 		# the expected node number is wrong, this will not happen
@@ -6514,6 +6521,11 @@ proc moveGNP { Sok cmd } {
 			# this will return from the caller (sock_rl) to prevent
 			# any further interpretation
 			return -code return
+		}
+		# play back pending updates
+		foreach ix [array names Stat "$Sok,PZ,*"] {
+			moveUpd $Sok $Stat($ix)
+			unset Stat($ix)
 		}
 		log "done"
 		fileevent $Sok readable "sock_rl $Sok moveUpd"
@@ -7084,7 +7096,7 @@ proc moveRedraw { Sok } {
 	}
 
 	set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
-		-outline ""]
+		-outline black]
 	tip_setc $w.c $bg "Click to save node positions in a file"
 	$w.c bind $bg <ButtonRelease-1> "moveSNL $Sok"
 	$w.c raise $tx
@@ -8041,6 +8053,10 @@ pack .top -side top -expand 0 -fill x
 button .top.quit -text "Quit" -command { terminate }
 button .top.connect -text "Connect" -command doConnect
 
+tip_set .top.connect "Click to connect to the module selected by the widgets\
+	to the left. Note that you can also connect to node-specific modules\
+	from the ROAMER window by right-clicking on the nodes."
+
 tk_optionMenu .top.select Option \
 	"UART (ascii)" \
 	"UART (hex)" \
@@ -8054,12 +8070,29 @@ tk_optionMenu .top.select Option \
 	"PANEL" \
 	"CLOCK"
 
+tip_set .top.select "This is the menu of modules to connect to. Modules\
+	ROAMER, PANEL, and CLOCK are global (require no node number), so you\
+	can leave the \"number\" field empty. The remaining modules belong\
+	to nodes, so a node number is required."
+	
+
 label .top.la -text "Node"
 set IDMode "host"
 tk_optionMenu .top.hs IDMode "serial" "host"
+
+tip_set .top.hs "Select the way to interpret the node number (to the right).\
+	It can be Host Id (node address), or serial (SMURPH) node number\
+	(from zero up)."
+
 label .top.lb -text "number:"
 entry .top.stat -width 6 -relief sunken -textvariable StatId \
 	-validate key -vcmd {validSid %P} -invcmd bell
+
+tip_set .top.stat "Enter the node number for those modules that belong to\
+	nodes, i.e., UART, SENSORS, PINS, LEDS, EMUL, LCDG, and PTRACKER.\
+	That number will be interpreted as the Host Id (node address within\
+	the network), or as the internal (SMURPH) serial number of the node\
+	(from zero up), depending on the selection in the menu to the left."
 
 pack .top.quit .top.connect .top.select -side right
 pack .top.la .top.hs .top.lb .top.stat -side left
