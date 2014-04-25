@@ -48,8 +48,6 @@ package provide xml 1.0
 # Mini XML parser. Copyright (C) 2008-12 Olsonet Communications Corporation.
 ###############################################################################
 
-### Last modified PG111008A ###
-
 namespace eval XML {
 
 proc xstring { s } {
@@ -740,7 +738,19 @@ proc tip_init { { fo "" } { wi "" } { bg "" } { fg "" } } {
 	set ttps(WI) $wi
 	set ttps(BG) $bg
 	set ttps(FG) $fg
+	set ttps(EN) 1
 
+}
+
+proc tip_enable { on } {
+
+	variable ttps
+
+	if { $on != 0 } {
+		set ttps(EN) 1
+	} else {
+		set ttps(EN) 0
+	}
 }
 
 proc tip_set { w t } {
@@ -763,6 +773,10 @@ proc tip_show { w t } {
 
 	global tcl_platform
 	variable ttps
+
+	if { $ttps(EN) == 0 } {
+		return
+	}
 
 	set px [winfo pointerx .]
 	set py [winfo pointery .]
@@ -6852,6 +6866,13 @@ proc mkMove { Sok } {
 		pack $w.c -expand 1 -fill both
 	}
 
+	tip_set $w.c "*-Right click a node to see the menu of modules to\
+		connect to.\n*-Click one node then another one to see the\
+		distance between them.\n*-Hover over a node to see\
+		(in left bottom corner) its coordinates and IDs.\n*-Click\
+		the dimension box in right bottom corner to save node\
+		coordinates in a file."
+
 	moveRedraw $Sok
 
 	bind $w <Destroy> "wdestroy $Sok"
@@ -8037,6 +8058,22 @@ proc xfromcv { Sok nx } {
 }
 
 ###############################################################################
+
+proc tips_status { } {
+
+	global TIPSTAT
+
+	if $TIPSTAT {
+		log "Tips enabled"
+		tip_enable 1
+	} else {
+		log "Tips disabled"
+		tip_enable 0
+	}
+
+}
+		
+###############################################################################
 # Default plugin ##############################################################
 ###############################################################################
 
@@ -8095,7 +8132,13 @@ tip_set .top.stat "Enter the node number for those modules that belong to\
 	(from zero up), depending on the selection in the menu to the left."
 
 pack .top.quit .top.connect .top.select -side right
-pack .top.la .top.hs .top.lb .top.stat -side left
+
+set TIPSTAT 1
+
+label .top.tl -text "Tips"
+checkbutton .top.to -variable TIPSTAT -command tips_status
+
+pack .top.tl .top.to .top.la .top.hs .top.lb .top.stat -side left
 
 bind .top.stat <Return> doConnect
 bind .top <Destroy> { alex }

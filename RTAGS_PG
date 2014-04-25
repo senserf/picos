@@ -1225,3 +1225,7 @@ PG140425A:
     LED was sometimes not updated correctly.
 
     Added tips for the root window.
+
+PG140425B:
+
+    A few more cosmetics related to tips in udaemon.
