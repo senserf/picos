@@ -42,8 +42,15 @@
 // ============================================================================
 // 868 MHz base freq
 // ============================================================================
+#if 1
 #define	CC1100_FREQ_FREQ2_VALUE	0x21
 #define	CC1100_FREQ_FREQ1_VALUE	0x62
 #define	CC1100_FREQ_FREQ0_VALUE	0x76
+#else
+// Alternative frequency: 868.8MHz for testing interference
+#define	CC1100_FREQ_FREQ2_VALUE	0x21
+#define	CC1100_FREQ_FREQ1_VALUE	0x6A
+#define	CC1100_FREQ_FREQ0_VALUE	0x56
+#endif
 
 #define	RADIO_DEFAULT_BITRATE	2

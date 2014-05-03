@@ -40,7 +40,7 @@
 		<color on="#FFFF00" off="#0000FF"/>
 		<color on="white" off="black"/>
 	    </leds>
-	    <pins number="6" dac="2 4">
+	    <pins number="6" adc="3" dac="2 4">
 		<label fg="#FFFF00" bg="#0000FF" index="2">First</label>
 		<label fg="#00FFFF" bg="#FF0000" index="1">Second</label>
 		<label fg="#FF00FF" bg="#00FF00" index="0">Third</label>

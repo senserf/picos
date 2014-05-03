@@ -4107,3 +4107,11 @@ PG140418A:
 	with TESTS/WARSAW, including CMA3000.
 
 	A cosmetic fix in uplug.tcl for spot.
+
+PG140503A:
+
+	Nothing really except for some cosmetics which I want to get out of my
+	way. The tooltips (Tcl) package slightly extended to the version
+	currently incorporated in udaemon. While testing the new udaemon with
+	old programs, a couple of minor items in SEAWOLF needed catching up
+	with "progress".

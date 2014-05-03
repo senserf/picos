@@ -34,7 +34,19 @@ proc tip_init { { fo "" } { wi "" } { bg "" } { fg "" } } {
 	set ttps(WI) $wi
 	set ttps(BG) $bg
 	set ttps(FG) $fg
+	set ttps(EN) 1
 
+}
+
+proc tip_enable { on } {
+
+	variable ttps
+
+	if { $on != 0 } {
+		set ttps(EN) 1
+	} else {
+		set ttps(EN) 0
+	}
 }
 
 proc tip_set { w t } {
@@ -45,10 +57,22 @@ proc tip_set { w t } {
 	bind $w <Any-Button> [list after 500 [list destroy %W.ttip]]
 }
 
+proc tip_setc { w c t } {
+
+	$w bind $c <Any-Enter> [list after 200 [list tip_show %W $t]]
+	$w bind $c <Any-Leave> [list after 500 [list destroy %W.ttip]]
+	$w bind $c <Any-KeyPress> [list after 500 [list destroy %W.ttip]]
+	$w bind $c <Any-Button> [list after 500 [list destroy %W.ttip]]
+}
+
 proc tip_show { w t } {
 
 	global tcl_platform
 	variable ttps
+
+	if { $ttps(EN) == 0 } {
+		return
+	}
 
 	set px [winfo pointerx .]
 	set py [winfo pointery .]
