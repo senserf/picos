@@ -3,8 +3,6 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-// Experimental new driver for CC1100
-
 // This one is interpreted in cc1100.h and indicates that this inclusion of the
 // file should declare the static arrays with settings
 #define	CC1100_DEFINE_RF_SETTINGS	1
@@ -21,6 +19,7 @@
 // ============================================================================
 
 #ifdef	CC1100_OLD_DRIVER
+// This is obsolete and will be removed shortly
 
 #include "phys_cc1100_o.c"
 
@@ -1403,8 +1402,7 @@ RRet:
 RVal:
 	if (val != NULL)
 		*val = ret;
-
-	return ret;
+	goto RRet;
 }
 
 // ============================================================================

@@ -4115,3 +4115,11 @@ PG140503A:
 	currently incorporated in udaemon. While testing the new udaemon with
 	old programs, a couple of minor items in SEAWOLF needed catching up
 	with "progress".
+
+PG140514A:
+
+	The first version of CC3000 driver. Not sure if it will stay (and if we
+	want to use the module after all), but here is the starting point for
+	something that may work. Undocumented yet.
+
+	A few irrelevant cosmetics inspired by the work on the driver.

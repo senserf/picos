@@ -55,7 +55,7 @@ static byte sd_act = NO;
 static lword sd_bkn = LWNONE;	// Block number stored in the buffer
 static lword sd_siz;		// Size
 
-#if SD_USE_UART
+#ifdef sd_rx_ready
 
 // ============================================================================
 // SPI mode ===================================================================

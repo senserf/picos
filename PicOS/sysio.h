@@ -242,6 +242,12 @@
 
 #endif	/* __pi_RADIO_DRIVER_PRESENT */
 
+#if	CC3000
+#ifndef	__pi_TCV_REQUIRED
+#define	__pi_TCV_REQUIRED		1
+#endif
+#endif
+
 #ifdef	__pi_TCV_REQUIRED
 #if	TCV_PRESENT == 0
 #error	"S: TCV is required but has been explicitly removed from configuration"
@@ -896,6 +902,7 @@ void	adc_stop (void);
 #define	INFO_PHYS_CC1100	0x0600	/* CC1100 */
 #define	INFO_PHYS_DM2200	0x0700  /* VERSA 2 */
 #define	INFO_PHYS_RF24L01	0x0800
+#define	INFO_PHYS_CC3000	0x0201
 
 #endif //if SIM_NET==0
 

@@ -7,7 +7,9 @@
 #include "storage.h"
 #include "storage_m95xxx.h"
 
-#if EE_USE_UART
+#ifdef	ee_tx_ready
+
+// SPI mode
 
 static byte get_byte () {
 	// Send a dummy byte of zeros; we are the master so we have to
@@ -26,7 +28,9 @@ static void put_byte (byte b) {
 	s = ee_get;
 }
 
-#else	/* EE_USE_UART */
+#else
+
+// Direct pin mode
 
 static byte get_byte () {
 

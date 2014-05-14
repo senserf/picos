@@ -77,6 +77,10 @@
 #define	DM2200 			0
 #endif
 
+#ifndef	CC3000
+#define	CC3000			0
+#endif
+
 #ifndef	ETHERNET_DRIVER
 #define	ETHERNET_DRIVER		0
 #endif

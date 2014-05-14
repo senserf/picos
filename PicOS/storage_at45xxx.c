@@ -72,7 +72,8 @@ static  word wpageo,		// page offset for write
 
 static 	const byte *wbuffp;	// write buffer pointer
 
-#if	EE_USE_UART
+#ifdef	ee_tx_ready
+#define	EE_SPI_MODE	1
 // ===========================================================================
 // SPI mode ==================================================================
 // ===========================================================================
@@ -127,7 +128,8 @@ static void dummies (word n) {
 		put_byte (0);
 }
 
-#else 	/* EE_USE_UART */
+#else 	/* SPI MODE */
+#define	EE_SPI_MODE	0
 
 // ===========================================================================
 // Direct mode ===============================================================
@@ -232,7 +234,7 @@ static void sdc (byte nb) {
 // ============================================================================
 // ============================================================================
 
-#endif 	/* EE_USE_UART */
+#endif 	/* SPI MODE */
 
 static byte blook (word page) {
 
@@ -276,7 +278,7 @@ word ee_read (lword a, byte *s, word len) {
 		if ((bi = blook (pn)) == BNONE) {
 			ee_start;
 			put_byte (EE_MMPR);
-#if EE_USE_UART
+#if EE_SPI_MODE
 			saddr (pn, po);
 #else
 			// Page number
@@ -289,7 +291,7 @@ word ee_read (lword a, byte *s, word len) {
 		} else {
 			ee_start;
 			put_byte (EE_BiR (bi));
-#if EE_USE_UART
+#if EE_SPI_MODE
 			saddr (0, po);
 #else
 			sdc (EE_PADDR_BITS);
@@ -356,7 +358,7 @@ static byte bflush () {
 	ee_start;
 
 	put_byte (buf_stat [k] . wcmd);
-#if EE_USE_UART
+#if EE_SPI_MODE
 	saddr (buf_stat [k] . page, 0);
 #else
 	saddr (buf_stat [k] . page);
@@ -373,7 +375,7 @@ static void bfetch (word pn, byte bi) {
 	ee_start;
 
 	put_byte (EE_MMPBiR(bi));
-#if EE_USE_UART
+#if EE_SPI_MODE
 	saddr (pn, 0);
 #else
 	saddr (pn);
@@ -390,7 +392,7 @@ static void bwrite (byte bi, word po, const char *buf, word nb) {
 	ee_start;
 	put_byte (EE_BiW (bi));
 
-#if EE_USE_UART
+#if EE_SPI_MODE
 	saddr (0, po);
 #else
 	sdc (EE_PADDR_BITS);
@@ -420,7 +422,7 @@ static void sync (word st) {
 				wwait (st);
 				ee_start;
 				put_byte (buf_stat [i] . wcmd);
-#if EE_USE_UART
+#if EE_SPI_MODE
 				saddr (buf_stat [i] . page, 0);
 #else
 				saddr (buf_stat [i] . page);
@@ -566,7 +568,7 @@ WS_pcheck:
 			wwait (st);
 			ee_start;
 			put_byte (EE_ERASE);
-#if EE_USE_UART
+#if EE_SPI_MODE
 			saddr (wpagen, 0);
 #else
 			saddr (wpagen);
