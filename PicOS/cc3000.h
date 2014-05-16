@@ -3,7 +3,41 @@
 
 #include "cc3000_sys.h"
 
-#define	CC3000_DATAGRAMS	1
+#ifndef	CC3000_DEBUG
+#define	CC3000_DEBUG		0
+#endif
+
+#ifndef	WIFI_OPTIONS
+#define	WIFI_OPTIONS		0
+#endif
+//
+//	0x01 - TCP (instead of the default UDP)
+//	0x02 - interpret NetID as for standard radio (e.g., CC1100)
+#define	WIFI_OPTION_TCP		0x01
+#define	WIFI_OPTION_NETID	0x02
+
+#ifndef	WIFI_KAL_INTERVAL
+// This is in units of CC3000_POLLINT_MIN
+#define	WIFI_KAL_INTERVAL	(15 * 16)
+#endif
+
+// ============================================================================
+
+#if WIFI_OPTIONS & WIFI_OPTION_TCP
+#define	CC3000_SOCKTYPE		CC3000_SOCK_STREAM
+#define	CC3000_RCVCMND		CC3000_HCICMD_RCV	// Cmnd to receive
+#define	CC3000_EVNTSND		CC3000_HCIEV_SNT	// Packet sent event
+#define	CC3000_EVNTRCV		CC3000_HCIEV_RCV	// Packet rcvd event
+// Overhead on buffer size needed for reception; the extra number of bytes
+// (over the maximum usable packet length) needed to accommodate extra stuff
+#define	CC3000_BHDRLEN		30		// Measured as 29
+#else
+#define	CC3000_SOCKTYPE		CC3000_SOCK_DGRAM
+#define	CC3000_RCVCMND		CC3000_HCICMD_RVF
+#define	CC3000_EVNTSND		CC3000_HCIEV_STO
+#define	CC3000_EVNTRCV		CC3000_HCIEV_RVF
+#define	CC3000_BHDRLEN		30		// Measured as 29
+#endif
 
 // SPI ops
 #define	CC3000_SPIOP_WRITE	0x01
@@ -91,14 +125,6 @@ extern sint cc3000_event_thread;
 
 #define	CC3000_DEFPLEN		128
 
-// Overhead on buffer size needed (primarily) for reception; the extra number
-// o bytes (over DEFPLEN) needed to accommodate extra stuff
-#if CC3000_DATAGRAMS
-#define	CC3000_BHDRLEN		30		// Measured as 29
-#else
-#define	CC3000_BHDRLEN		24		// unknown yet
-#endif
-
 // Timeouts
 #define	CC3000_TIMEOUT_SHORT	(5*1024)
 #define	CC3000_TIMEOUT_LONG	(15*1024)
@@ -106,8 +132,12 @@ extern sint cc3000_event_thread;
 #define	CC3000_DELAY_EVENT	0
 
 // Minimum poll interval (in 1/15.46 of a second)
+#ifndef	CC3000_POLLINT_MIN
 #define CC3000_POLLINT_MIN	1
+#endif
 // Maximum poll interval (same units)
+#ifndef	CC3000_POLLINT_MAX
 #define	CC3000_POLLINT_MAX	15
+#endif
 
 #endif

@@ -8,8 +8,6 @@
 #include "cc3000.h"
 #include "phys_cc3000.h"
 
-#define	CC3000_DEBUG	0
-
 #ifdef	cc3000_xc_ready
 
 // ============================================================================
@@ -99,8 +97,14 @@ sint cc3000_event_thread = 0;		// must be global, used by the IRQ
 static cc3000_server_params_t *sparams;	// server params (port + IP)
 static cc3000_wlan_params_t   *wparams;	// network params (SSID and stuff)
 
-static word physid, maxplen, buflen, keepalcnt, pollcnt;
+static word physid, maxplen, buflen, keepalcnt;
 static word pollint = CC3000_POLLINT_MIN;
+#if WIFI_OPTIONS & WIFI_OPTION_NETID
+static word statid = 0;
+#endif
+#if WIFI_KAL_INTERVAL
+static word kalcnt = WIFI_KAL_INTERVAL;
+#endif
 static byte *buffer;
 static byte socket;
 static byte nbuffers, freebuffers;
@@ -335,11 +339,7 @@ static void create_socket () {
 
 	hci_cmd_start (CC3000_HCICMD_SOK, 3*4);
 	put_byteaslong (CC3000_AF_INET);
-#if CC3000_DATAGRAMS
-	put_byteaslong (CC3000_SOCK_DGRAM);
-#else
-	put_byteaslong (CC3000_SOCK_STREAM);
-#endif
+	put_byteaslong (CC3000_SOCKTYPE);
 	put_byteaslong (CC3000_IPPROTO_IP);
 	hci_cmd_end (3*4);
 #if CC3000_DEBUG
@@ -348,55 +348,7 @@ static void create_socket () {
 }
 
 // ============================================================================
-#if CC3000_DATAGRAMS
-// ============================================================================
-
-static void send (byte *buf, word len) {
-
-	word i;
-
-#if CC3000_DEBUG >= 0
-	diag ("S: %s", buf);
-#endif
-	sysassert (len <= maxplen, "cc30 py");
-
-	freebuffers--;
-
-	hci_data_start (CC3000_HCICMD_STO, 24, len + 16);
-	put_byteaslong (socket);
-	put_byteaslong (24-4);
-	put_wordaslong (len);
-	// Flags
-	put_zero (4);
-	put_wordaslong (len + 8);
-	put_byteaslong (8);
-
-	for (i = len; i; i--)
-		put_byte (*buf++);
-
-#if LITTLE_ENDIAN
-	// Make sure these are htons
-	put_byte ((byte)(CC3000_AF_INET >> 8));
-	put_byte ((byte)(CC3000_AF_INET     ));
-	put_byte ((byte)(sparams->port  >> 8));
-	put_byte ((byte)(sparams->port      ));
-#else
-	put_word (CC3000_AF_INET);
-	put_word (sparams->port);
-#endif
-	for (i = 0; i < 4; i++)
-		put_byte (sparams->ip [i]);
-	// Make it up to 16
-	put_zero (8);
-		
-	hci_data_end (len);
-#if CC3000_DEBUG > 1
-	diag ("STO: %u %d", len, freebuffers);
-#endif
-}
-
-// ============================================================================
-#else /* !DATAGRAMS */
+#if WIFI_OPTIONS & WIFI_OPTION_TCP
 // ============================================================================
 
 static void connect_to_server () {
@@ -451,8 +403,54 @@ static void send (byte *buf, word len) {
 #endif
 }
 
+#else	/* UDP */
+
+static void send (byte *buf, word len) {
+
+	word i;
+
+#if CC3000_DEBUG > 0
+	diag ("S: %s", buf);
+#endif
+	sysassert (len <= maxplen, "cc30 py");
+
+	freebuffers--;
+
+	hci_data_start (CC3000_HCICMD_STO, 24, len + 16);
+	put_byteaslong (socket);
+	put_byteaslong (24-4);
+	put_wordaslong (len);
+	// Flags
+	put_zero (4);
+	put_wordaslong (len + 8);
+	put_byteaslong (8);
+
+	for (i = len; i; i--)
+		put_byte (*buf++);
+
+#if LITTLE_ENDIAN
+	// Make sure these are htons
+	put_byte ((byte)(CC3000_AF_INET >> 8));
+	put_byte ((byte)(CC3000_AF_INET     ));
+	put_byte ((byte)(sparams->port  >> 8));
+	put_byte ((byte)(sparams->port      ));
+#else
+	put_word (CC3000_AF_INET);
+	put_word (sparams->port);
+#endif
+	for (i = 0; i < 4; i++)
+		put_byte (sparams->ip [i]);
+	// Make it up to 16
+	put_zero (8);
+		
+	hci_data_end (len);
+#if CC3000_DEBUG > 1
+	diag ("STO: %u %d", len, freebuffers);
+#endif
+}
+
 // ============================================================================
-#endif /* DATAGRAMS */
+#endif /* TCP or UDP */
 // ============================================================================
 
 static void read_version () {
@@ -496,11 +494,7 @@ static void close_socket () {
 
 static void receive () {
 
-#if CC3000_DATAGRAMS
-	hci_cmd_start (CC3000_HCICMD_RVF, 3*4);
-#else
-	hci_cmd_start (CC3000_HCICMD_RCV, 3*4);
-#endif
+	hci_cmd_start (CC3000_RCVCMND, 3*4);
 	put_byteaslong (socket);
 	put_wordaslong (maxplen);
 	put_zero (4);
@@ -509,6 +503,27 @@ static void receive () {
 	diag ("REC");
 #endif
 }
+
+// ============================================================================
+
+#if WIFI_KAL_INTERVAL
+
+static void send_kal () {
+
+	word kp [2];
+
+#if WIFI_OPTIONS & WIFI_OPTION_NETID
+
+	kp [0] = statid;
+	kp [1] = (word) host_id;
+#else
+	kp [0] = kp [1] = 0;
+#endif
+
+	send ((byte*)kp, 4);
+}
+
+#endif	/* KAL */
 
 // ============================================================================
 // ============================================================================
@@ -554,7 +569,7 @@ End:
 
 	if ((len = spi_rea ()) == 0) {
 		// This cannot happen, if IRQ is pending
-#if CC3000_DEBUG >= 0
+#if CC3000_DEBUG > 0
 		diag ("EE!");
 #endif
 		goto End;
@@ -563,7 +578,7 @@ End:
 	if (len > buflen) {
 		// Again, this should be impossible even with the minimum
 		// buffer size
-#if CC3000_DEBUG >= 0
+#if CC3000_DEBUG > 0
 		diag ("OV!! %u", len);
 #endif
 		goto Done;
@@ -647,7 +662,7 @@ Done:
 			goto Done;
 
 // ============================================================================
-#if CC3000_DATAGRAMS == 0
+#if WIFI_OPTIONS & WIFI_OPTION_TCP
 // ============================================================================
 
 		    case CC3000_HCIEV_CON:
@@ -664,7 +679,7 @@ Done:
 			goto Done;
 
 // ============================================================================
-#endif	/* !DATAGRAMS */
+#endif	/* TCP */
 // ============================================================================
 
 		    case CC3000_HCIEV_SLS:
@@ -741,15 +756,7 @@ Done:
 #endif
 			// goto Done;
 
-// ============================================================================
-#if CC3000_DATAGRAMS
-// ============================================================================
-		   case CC3000_HCIEV_STO:
-#else
-		   case CC3000_HCIEV_SNT:
-// ============================================================================
-#endif
-// ============================================================================
+		   case CC3000_EVNTSND:
 
 #if CC3000_DEBUG
 			diag ("TX %u", dstate);
@@ -761,15 +768,7 @@ Done:
 
 			goto Done;
 
-// ============================================================================
-#if CC3000_DATAGRAMS
-// ============================================================================
-		    case CC3000_HCIEV_RVF:
-#else
 		    case CC3000_HCIEV_RCV:
-// ============================================================================
-#endif
-// ============================================================================
 
 #if CC3000_DEBUG
 			diag ("RC %u", dstate);
@@ -779,7 +778,7 @@ Done:
 			goto Done;
 
 // ============================================================================
-#if CC3000_DATAGRAMS == 0
+#if WIFI_OPTIONS & WIFI_OPTION_TCP
 // ============================================================================
 		    case CC3000_HCIEV_CLOSEWAIT:
 
@@ -797,7 +796,7 @@ Done:
 
 			goto Done;
 // ============================================================================
-#endif	/* !DATAGRAMS */
+#endif	/* TCP */
 // ============================================================================
 
 		    case CC3000_HCIEV_SEL:
@@ -807,19 +806,22 @@ Done:
 			diag ("SE %u", dstate);
 #endif
 			if (dstate == CC3000_STATE_RECV) {
-				pollcnt++;
+#if WIFI_KAL_INTERVAL
+				kalcnt += pollint;
+#endif
 				if (buffer [CC3000_HCIPO_SELRD])
 					// Wake up and receive
 					dstate = CC3000_STATE_READ;
 				else
 					// Try to send
 					dstate = CC3000_STATE_ESTB;
+
 				goto Trig;
 			}
 			goto Done;
 
 // ============================================================================
-#if CC3000_DATAGRAMS == 0
+#if WIFI_OPTIONS & WIFI_OPTION_TCP
 // ============================================================================
 
 		    case CC3000_HCIEV_CLO:
@@ -836,7 +838,7 @@ Done:
 			goto Done;
 
 // ============================================================================
-#endif	/* !DATAGRAMS */
+#endif	/* TCP */
 // ============================================================================
 
 #if CC3000_DEBUG > 0
@@ -870,10 +872,18 @@ Done:
 		if ((payl -= argl) == 0)
 			// Ignore zero length packets?
 			goto Done;
-#if CC3000_DEBUG >= 0
-		diag ("RHDR: %u %u", argl + 5, payl);
+
+		argl += 5;
+#if CC3000_DEBUG > 1
+		diag ("RHDR: %u %u", argl, payl);
 #endif
-		tcvphy_rcv (physid, (address)(buffer + 5 + argl), payl);
+#if WIFI_OPTIONS & WIFI_OPTION_NETID
+		if (payl >= 4 && (statid == 0 || statid == 0xffff ||
+		    ((address)(buffer + argl)) [0] == statid))
+			// Only receive if statid agreeable
+#endif
+			tcvphy_rcv (physid, (address)(buffer + argl), payl);
+
 		if (dstate == CC3000_STATE_READ) {
 			dstate = CC3000_STATE_ESTB;
 			goto Trig;
@@ -926,7 +936,7 @@ Loop:
 
 	if (flags & CC3000_FLAG_OFF) {
 		// Switching off
-		if (dstate >= CC3000_STATE_ESTB) {
+		if (dstate >= CC3000_STATE_CSNG) {
 			// Connected to server, need to close socket
 			if (dstate == CC3000_STATE_ESTB) {
 				dstate = CC3000_STATE_CSNG;
@@ -997,24 +1007,46 @@ CTimer:
 				// connection failure
 				goto FClose;
 
-#if CC3000_DATAGRAMS
-			dstate = CC3000_STATE_ESTB;
-#else
+#if WIFI_OPTIONS & WIFI_OPTION_TCP
+
 			// Connect to the client
 			connect_to_server ();
 			// FIXME: detect connection refused; CTIMER is for a
 			// hard errors (no response)
 			goto CTimer;
+#else
+			dstate = CC3000_STATE_ESTB;
+			// Fall through
 #endif
 		case CC3000_STATE_ESTB:
 
-			if (freebuffers && (buf = tcvphy_get (physid, &len))) {
-				dstate = CC3000_STATE_SENT;
-				send ((byte*)buf, len);
-				tcvphy_end (buf);
-				goto DecInt;
+			if (freebuffers) {
+				if ((buf = tcvphy_get (physid, &len))) {
+					// regular packet to send
+#if WIFI_OPTIONS & WIFI_OPTION_NETID
+					sysassert (len >= 4, "cc30 pl");
+					if (statid != 0xffff)
+						buf [0] = statid;
+#endif
+					send ((byte*)buf, len);
+					tcvphy_end (buf);
+					dstate = CC3000_STATE_SENT;
+#if WIFI_KAL_INTERVAL
+					kalcnt = 0;
+#endif
+					goto DecInt;
+				}
+#if WIFI_KAL_INTERVAL
+				if ((kalcnt >= WIFI_KAL_INTERVAL) &&
+				    freebuffers == nbuffers) {
+					send_kal ();
+					dstate = CC3000_STATE_SENT;
+					kalcnt = 0;
+					goto STimer;
+				}
+#endif
 			}
-
+					
 			dstate = CC3000_STATE_RECV;
 			simple_select ();
 			// Increase poll interval
@@ -1055,9 +1087,14 @@ static int option (int opt, address val) {
 			ret = 2 | ((flags & CC3000_FLAG_OFF) != 0);
 RVal:
 			if (val != NULL) {
-				*val++ = dstate | (((word)nbuffers) << 8);
-				*val++ = keepalcnt;
-				*val   = pollcnt;
+				((cc3000_phy_status_t*)val) -> dstate = dstate;
+				((cc3000_phy_status_t*)val) -> freebuffers =
+					freebuffers;
+				((cc3000_phy_status_t*)val) -> mkalcnt =
+					keepalcnt;
+#if WIFI_KAL_INTERVAL
+				((cc3000_phy_status_t*)val) -> dkalcnt = kalcnt;
+#endif
 			}
 RRet:
 			return ret;
@@ -1092,6 +1129,19 @@ RRet:
 
 			ret = maxplen;
 			goto RVal;
+
+#if WIFI_OPTIONS & WIFI_OPTION_NETID
+
+		case PHYSOPT_SETSID:
+
+			statid = (val == NULL) ? 0 : *val;
+			goto RRet;
+
+		case PHYSOPT_GETSID:
+
+			ret = (int) statid;
+			goto RVal;
+#endif
 
 	}
 

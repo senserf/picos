@@ -1,1 +1,4 @@
 // Insert here applications-specific options
+// #define	WIFI_OPTIONS 		WIFI_OPTION_TCP
+// #define	WIFI_OPTIONS 		WIFI_OPTION_NETID
+// #define	WIFI_KAL_INTERVAL	0

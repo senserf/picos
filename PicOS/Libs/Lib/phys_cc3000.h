@@ -27,11 +27,11 @@
 #define	CC3000_STATE_RCON	4		// Connecting to AP
 #define CC3000_STATE_APCN	5		// Connected to AP
 #define	CC3000_STATE_SOKA	6		// Socket available
-#define	CC3000_STATE_ESTB	7		// Connection established
-#define	CC3000_STATE_RECV	8		// Receive poll
-#define	CC3000_STATE_READ	9		// Read received packet
-#define	CC3000_STATE_SENT	10		// Packet sent
-#define	CC3000_STATE_CSNG	11		// Closing server connection
+#define	CC3000_STATE_CSNG	7		// Closing server connection
+#define	CC3000_STATE_ESTB	8		// Connection established
+#define	CC3000_STATE_RECV	9		// Receive poll
+#define	CC3000_STATE_READ	10		// Read received packet
+#define	CC3000_STATE_SENT	11		// Packet sent
 
 //+++ "phys_cc3000.c"
 
@@ -58,6 +58,17 @@ typedef struct {
 	word port;
 
 } cc3000_server_params_t;
+
+typedef struct {
+
+	// PHY status info
+
+	byte	dstate;
+	byte	freebuffers;
+	word	mkalcnt;
+	word	dkalcnt;
+
+} cc3000_phy_status_t;
 
 // The third argument of phys_cc3000 is a flag:
 #define	CC3000_FLAG_OFF		0x01		// The device is OFF

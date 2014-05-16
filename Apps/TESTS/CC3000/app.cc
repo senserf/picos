@@ -156,7 +156,11 @@ fsm root {
 	state RS_STATUS_SHOW:
 
 		ser_outf (RS_STATUS_SHOW, "ST: %u %u %u %u %u\r\n",
-			w [1] & 0xFF, w [1] >> 8, w [2], w [3], w [0]);
+			((cc3000_phy_status_t*)(w+1))->dstate,
+			((cc3000_phy_status_t*)(w+1))->freebuffers,
+			((cc3000_phy_status_t*)(w+1))->mkalcnt,
+			((cc3000_phy_status_t*)(w+1))->dkalcnt,
+			w [0]);
 		proceed RS_LOOP;
 
 	state RS_PARA:

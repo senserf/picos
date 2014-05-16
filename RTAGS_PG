@@ -4123,3 +4123,8 @@ PG140514A:
 	something that may work. Undocumented yet.
 
 	A few irrelevant cosmetics inspired by the work on the driver.
+
+PG140516A:
+
+	A few cleanups/enhancements in the CC3000 driver (automatic keepalive
+	packets, the Network Id option) + the first version of the document.

@@ -13,11 +13,20 @@
 
 char buffer [BUFSIZE];
 int bp;
+unsigned int kalcnt;
 
-void doit () {
+int doit () {
 
 	int pp;
 	char c;
+
+	if (bp == 4) {
+		fprintf (stderr, "KAL %4x %4x (%1u)\n", 
+			((unsigned short*) buffer) [0],
+			((unsigned short*) buffer) [1],
+				kalcnt++);
+		return 1;
+	}
 
 	for (pp = 0; pp < bp; pp++) {
 		c = buffer [pp];
@@ -27,6 +36,8 @@ void doit () {
 		else if (c >= 'A' && c <= 'Z')
 			buffer [pp] = c - 'A' + 'a';
 	}
+
+	return 0;
 }
 
 main() 
@@ -75,7 +86,8 @@ main()
 			 (unsigned int)(ap [4]),
 			 (unsigned int)(ap [5]));
 
-		doit ();
+		if (doit ())
+			continue;
 
 		if (sendto (sock, buffer, bp, 0, (struct sockaddr*) &from,
 		    fromlength) < 0) {
