@@ -2778,6 +2778,7 @@ static Boolean parseLocation (sxml_t cur, int tp, Long nn,
 				*x, *y, 
 				 res == NO  ? 'F' :
 				(res == YES ? 'M' : 'D')));
+	return res;
 }
 		 
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,

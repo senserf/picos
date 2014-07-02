@@ -1229,3 +1229,10 @@ PG140425A:
 PG140425B:
 
     A few more cosmetics related to tips in udaemon.
+
+PG140702A:
+
+    Fixed a bug causing that the "Movable" attribute of some nodes might not
+    be set correctly.
+
+    A few more cosmetics related to tips in udaemon.
