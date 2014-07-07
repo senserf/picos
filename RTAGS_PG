@@ -4128,3 +4128,15 @@ PG140516A:
 
 	A few cleanups/enhancements in the CC3000 driver (automatic keepalive
 	packets, the Network Id option) + the first version of the document.
+
+PG140707A:
+
+	Added .prj files to the INTRO Apps selecting "Do not propagate board
+	info to VUEE" to prevent errors when an attempt is made to run a model
+	with an RF (physical) board configured. The error is caused by the fact
+	that the board defines an RF interface, while the VUEE data file says
+	"no radio".
+
+	The generic export definitions brought up to date.
+
+	Minor cosmetics to the cc3000 doc.

@@ -1,7 +1,8 @@
 #
-# January 20, 2012
+# July 3, 2014
 #
 Apps
+	DataLib
 	cleanup
 	EXAMPLES
 	RFPing*
@@ -15,6 +16,7 @@ Docs
 	*.pdf
 Linux
 	LOCATION
+	nullmodem.c
 PicOS
 	*.c
 	*.h
@@ -24,6 +26,7 @@ PicOS
 		*.h
 		BOARDS
 			CHRONOS
+			CHRONOS_WHITE
 			WARSAW
 			DUMMY_COLLECTOR
 			ARTURO
@@ -31,31 +34,26 @@ PicOS
 			ARTURO_SD
 			ARTURO_PYR
 			GENERIC_148
+			XCC430*
+			OLIMEX_CCRF*
 	Libs
 		Lib
 		LibComms
 		LibLCDG
 		LibXRS
 		LibOEP
+		LibOSS
 RTAGS*
 cleanup
 deploy
 Scripts
-	UTILS.zip
 	cleanapp
 	genihex
-	isource
-	log.tcl
 	mkmk
-	oep.tcl
-	oss_u.tcl
-	oss_u_xrs.tcl
+	olimex_programmer.sh
+	oss.tcl
 	permissions
 	picomp
 	piter.tcl
 	sample_macros.mac
-	sdb.tcl
-	snippets.tcl
-	uart_*
 	usefetdll
-	xml.tcl
