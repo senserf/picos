@@ -332,9 +332,9 @@ proc sock_read { } {
 
 	# verify the signature
 	kick
-	if ![regexp "^P (\[0-9\]+) (\[0-9\]+) (\[0-9\]+) <(\[^ \]*)>:" $VU(SI) \
-	    mat nod hos tot tna] {
-		set VU(ER) "Illegal node signature: $sig"
+	if ![regexp "^P (\[0-9\]+) \[FO\] (\[0-9\]+) (\[0-9\]+) <(\[^ \]*)>:" \
+	    $VU(SI) mat nod hos tot tna] {
+		set VU(ER) "Illegal node signature: $VU(SI)"
 		return
 	}
 

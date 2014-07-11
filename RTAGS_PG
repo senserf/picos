@@ -4140,3 +4140,17 @@ PG140707A:
 	The generic export definitions brought up to date.
 
 	Minor cosmetics to the cc3000 doc.
+
+PG140711A:
+
+	Fixed a bug in piter surfacing when connecting to a VUEE UART and 
+	producing "illegal node signature" errors. The bug was introduced in
+	PG140423A (in VUEE) when I modified the signature format, but only
+	fixed udaemon (forgetting about piter).
+
+	I have removed the naive RENESAS emulator from udeamon's plugin in
+	Apps/PROPRIETARY/inProgress/spot. It was incorrectly programmed (being
+	beningly confused by multiple UARTs). I will reprogram it (and maybe
+	find a better way to unify it with the piter plugin - so I don't have
+	to program two separate plugins doing the same thing) when it becomes
+	clear what else must be added to the plugin.
