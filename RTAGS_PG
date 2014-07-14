@@ -4154,3 +4154,8 @@ PG140711A:
 	find a better way to unify it with the piter plugin - so I don't have
 	to program two separate plugins doing the same thing) when it becomes
 	clear what else must be added to the plugin.
+
+PG140714A:
+
+	Added an option to spot to use LED 3 to indicate whether the peg is
+	the master (see constant MASTER_STATUS_LED in commons.h).
