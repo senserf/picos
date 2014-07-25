@@ -522,3 +522,17 @@ WO140417A:
   - cleaned the glitch with relays' acks Pawel already fixed
   - peg's heartbeats at 15s
 
+WO140724A:
+  Updates to SPOT, dealing with tag registration (treg):
+  -testNotes.txt describes rudimentary examples;
+  -implemented cmds 0x13, 0x14, 0x15 more or less as requested;
+  -kicked uplug.tcl - Pawel will do it better and consistent with piter
+  -overloaded "alarm type" flag (global/local). When it reaches tcve, it shows:
+   - b7 is set if there will be no ack;
+   - b4-b6 shows try (0) and retries (now 1-3)
+   - lower tuple wasted on g(1) / l(0) flag, as before.
+ We must describe it for AT, especially the "alarm type". Later.
+
+ We also should clear a bit the worst things from the i/f to Renesas, As is,
+ I can construct input that will have undefined functionality.
+
