@@ -536,3 +536,14 @@ WO140724A:
  We also should clear a bit the worst things from the i/f to Renesas, As is,
  I can construct input that will have undefined functionality.
 
+WO140821A:
+  SPOT updates for 'sympathetic learning mode', to follow Renesas functionality:
+  - added relevant scenarios to tregIFnotes.txt;
+  - touched uplug..tcl to show now relevant RSSI (perhaps Pawel will reconcile
+    uplug with its piter's sibling...
+  - updated cmds 0x13, 0x14 to accommodate the requirements: a binary flag to
+    ack all tags with local alarms with rssi over 149, when it is set.
+  Note: it would be even more natural to have this implemented as *exact* mirror
+  of the association logic. Likely, the functionality would be better, too.
+  Let's wait for 2.0 and Renesas i/f redesign, if we ever go there.
+
