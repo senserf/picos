@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -1054,12 +1054,13 @@ TCVTimerService::perform {
 
 #else
 
+extern titem_t	*__pi_tcv_ftimers;
+
 void __pi_tcv_runqueue (word new, word *min) {
 //
 // Invoked in one place (see kernel.c)
 //
 	titem_t *t, *f;
-	hblock_t *p;
 	word d;
 
 	for (t = t_first; !t_end (t); t = f) {
@@ -1067,14 +1068,41 @@ void __pi_tcv_runqueue (word new, word *min) {
 		if (twakecnd (__pi_old, new, t->value)) {
 			// Trigger this one
 			deqt (t);
-			p = t_buffer (t);
-			verify_plg (p, tcv_tmt, "runtq");
-			dispose (p, plugins [p->attributes.b.plugin] ->
-				tcv_tmt ((address)(p + 1)));
+			// We put the timers to fire on a separate (one-way)
+			// list to be picked by __pi_tcv_execqueue below. This
+			// is an unorthodox way to use the timer links, but
+			// nobody will notice, because nothing will really
+			// happen between the two actions. The sole purpose of
+			// their separation is to prevent a recursive call to
+			// update_n_wake when the plugin function run by the
+			// timer issues tcvp_settimer request.
+			t->next = __pi_tcv_ftimers;
+			__pi_tcv_ftimers = t;
+
 		} else {
 			if ((d = t->value - new) < *min)
 				*min = d;
 		}
+	}
+}
+
+void __pi_tcv_execqueue () {
+//
+// See above
+//
+	hblock_t *p;
+	titem_t *f;
+
+	while (__pi_tcv_ftimers) {
+		f = __pi_tcv_ftimers;
+		__pi_tcv_ftimers = __pi_tcv_ftimers -> next;
+		// Need to set the link to NULL before running the plugin, so
+		// the timer status appears sane
+		f->next = NULL;
+		p = t_buffer (f);
+		verify_plg (p, tcv_tmt, "runtq");
+		dispose (p, plugins [p->attributes.b.plugin] ->
+			tcv_tmt ((address)(p + 1)));
 	}
 }
 

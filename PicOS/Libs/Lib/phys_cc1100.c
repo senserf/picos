@@ -524,6 +524,10 @@ static void power_down () {
 	}
 
 	RxST = RCV_STATE_PD;
+
+#ifdef	MONITOR_PIN_CC1100_PUP
+	_PVS (MONITOR_PIN_CC1100_PUP, 0);
+#endif
 }
 
 // ============================================================================
@@ -601,6 +605,9 @@ static void power_up () {
 //
 // Return from sleep
 //
+#ifdef MONITOR_PIN_CC1100_PUP
+	_PVS (MONITOR_PIN_CC1100_PUP, 1);
+#endif
 #if defined(__CC430__) && RADIO_WOR_MODE
 	// Disable the WOR interrupt automaton in case we're returning from WOR
 	cc1100_worstate = 0;
@@ -840,6 +847,8 @@ thread (cc1100_driver)
 
   entry (DR_LOOP)
 
+DR_LOOP__:
+
 	if (RxST != RCV_STATE_PD) {
 		// Take care of the RX FIFO; only when the chip is solid off,
 		// don't we have to look there
@@ -988,7 +997,7 @@ thread (cc1100_driver)
 		gbackoff (RADIO_LBT_BACKOFF_EXP);
 		set_congestion_indicator (bckf_timer);
 		update_bckf_lbt (bckf_timer);
-		proceed (DR_LOOP);
+		goto DR_LOOP__;
 #endif
 	} else {
 		// Channel access granted
@@ -1101,7 +1110,7 @@ FEXmit:
 #if RADIO_LBT_MODE == 3
 	retr = 0;
 #endif
-	proceed (DR_LOOP);
+	goto DR_LOOP__;
 
 #if RADIO_RECALIBRATE
 
@@ -1112,7 +1121,7 @@ FEXmit:
 #if (RADIO_OPTIONS & 0x02)
 	diag ("CC1100: %u RECAL", (word) seconds ());
 #endif
-	proceed (DR_LOOP);
+	goto DR_LOOP__;
 #endif
 
 #if RADIO_WOR_MODE
@@ -1137,14 +1146,14 @@ FEXmit:
 		release;
 	}
 
-	proceed (DR_LOOP);	
+	goto DR_LOOP__;
 
   entry (DR_BREAK)
 
 	// Abort the preamble, enter RX, and try again
 Break:
 	enter_rx ();
-	proceed (DR_LOOP);
+	goto DR_LOOP__;
 
 #endif
 

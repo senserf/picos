@@ -4159,3 +4159,23 @@ PG140714A:
 
 	Added an option to spot to use LED 3 to indicate whether the peg is
 	the master (see constant MASTER_STATUS_LED in commons.h).
+
+PG141124A:
+
+	Fixed a bug spotted by Nick Boers and affecting TCV packet timers. The
+	problem was a recursive call to update_n_wake when the plugin function
+	servicing the timer going off tried to set up another timer. Sometimes
+	such calls were fine, sometimes they weren't. I had to separate the
+	operations of identifying the timers going off (inside update_n_wake)
+	from actually servicing them, such that the two calls to update_n_wake
+	are no longer recursive. The solution is a bit messy (as it requires
+	one extra global variable [only when packet timers are compiled in]),
+	so I may try to think about a better one later.
+
+	A few (basically cosmetic) changes to the CC1100 driver: conditional
+	code toggling a pin for the measurements of module's on/off time (that
+	I did for Stefaan). Also, I have changed a few proceed's to direct
+	goto's - to make the driver slightly more aggressive.
+
+	A few pending and irrelevant cosmetics related to the spot praxis for
+	Alphatronics.

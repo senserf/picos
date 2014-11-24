@@ -60,8 +60,25 @@
 // #undef	RADIO_USE_LEDS
 // #define	RADIO_USE_LEDS	0
 
-#define	AUTO_RADIO_START 	1
+#define	AUTO_RADIO_START 	0
 
 #ifdef BMA250_RAW_INTERFACE
 #undef BMA250_RAW_INTERFACE
+#endif
+
+// ============================================================================
+// To make the RF compatible with ALPHATRONICS ================================
+// ============================================================================
+
+#if 0
+#define	CC1100_FREQ_FREQ2_VALUE	0x21
+#define	CC1100_FREQ_FREQ1_VALUE	0x62
+#define	CC1100_FREQ_FREQ0_VALUE	0x76
+#define	RADIO_DEFAULT_BITRATE	2
+#endif
+
+#if 0
+#define	MONITOR_PIN_CC1100_PUP	P4_4
+#define	RADIO_LBT_MODE		0
+#define	CC_BUSY_WAIT_FOR_EOT	1
 #endif

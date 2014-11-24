@@ -12,8 +12,8 @@
 #include "tcvphys.h"
 #include "iflash_sys.h"
 
-#define	MIN_PACKET_LENGTH	24
-#define	MAX_PACKET_LENGTH	42
+#define	MIN_PACKET_LENGTH	8
+#define	MAX_PACKET_LENGTH	60
 
 heapmem {10, 90};
 
@@ -50,6 +50,8 @@ static byte	str [129], *blk, silent;
 static char	*ibuf;
 static address	packet;
 static word	send_interval = 512;
+static word	plength_min = MIN_PACKET_LENGTH,
+		plength_max = MAX_PACKET_LENGTH;
 
 #ifdef RTC_TEST
 rtc_time_t dtime;
@@ -239,13 +241,11 @@ fsm test_auto {
 
 static word gen_packet_length (void) {
 
-#if MIN_PACKET_LENGTH >= MAX_PACKET_LENGTH
-	return MIN_PACKET_LENGTH;
-#else
-	return ((rnd () % (MAX_PACKET_LENGTH - MIN_PACKET_LENGTH + 1)) +
-			MIN_PACKET_LENGTH) & 0xFFE;
-#endif
+	if (plength_min >= plength_max)
+		return plength_max;
 
+	return ((rnd () % (plength_max - plength_min + 1)) +
+			plength_min) & 0xFFE;
 }
 
 fsm sender {
@@ -253,11 +253,6 @@ fsm sender {
   state SN_SEND:
 
 	packet_length = gen_packet_length ();
-
-	if (packet_length < 10)
-		packet_length = 10;
-	else if (packet_length > MAX_PACKET_LENGTH)
-		packet_length = MAX_PACKET_LENGTH;
 
   state SN_NEXT:
 
@@ -526,9 +521,10 @@ fsm test_ifl {
 
   state IF_FLE:
 
-	b = -1;
-	scan (ibuf + 1, "%d", &b);
-	if_erase (b);
+	sint a;
+	a = -1;
+	scan (ibuf + 1, "%d", &a);
+	if_erase (a);
 	goto Done;
 
   state IF_CLR:
@@ -547,12 +543,15 @@ Done:
 
   state IF_CLE:
 
-	b = 0;
-	scan (ibuf + 1, "%d", &b);
-	cf_erase ((address)b);
+	sint a;
+	a = 0;
+	scan (ibuf + 1, "%d", &a);
+	cf_erase ((address)a);
 	goto Done;
 
   state IF_COT:
+
+	sint i;
 
 	w = 0;
 	scan (ibuf + 1, "%u", &w);
@@ -562,8 +561,8 @@ Done:
 		proceed IF_RCMD;
 	}
 
-	for (b = 1; b <= 16; b++) {
-		nt = 0xffff << b;
+	for (i = 1; i <= 16; i++) {
+		nt = 0xffff << i;
 		cf_write ((address)w, nt);
 		sl = *((address)w);
 		diag ("Written %x, read %x", nt, sl);
@@ -2136,6 +2135,7 @@ fsm root {
 		"r s -> start radio\r\n"
 #endif
 		"i d -> xmit interval\r\n"
+		"l mn mx -> pkt len\r\n"
 		"p v  -> xmit pwr\r\n"
 		"c v  -> channel\r\n"
 		"q -> stop radio\r\n"
@@ -2238,11 +2238,36 @@ RS_Loop:		proceed RS_RCMD;
 
 		case 'i' : {
 
+			sint p;
 			send_interval = 512;
-			b = -1;
-			scan (ibuf + 1, "%u %d", &send_interval, &b);
-			if (b >= 0)
-				silent = b;
+			p = -1;
+			scan (ibuf + 1, "%u %d", &send_interval, &p);
+			if (p >= 0)
+				silent = p;
+			goto RS_Loop;
+		}
+
+		case 'l' : {
+
+			sint mn, mx;
+			mn = mx = -1;
+			scan (ibuf + 1, "%d %d", &mn, &mx);
+			if (mn >= 0) {
+				if (mn < MIN_PACKET_LENGTH ||
+				    mn > MAX_PACKET_LENGTH)
+					plength_min = MIN_PACKET_LENGTH;
+				else
+					plength_min = mn;
+			}
+			if (mx >= 0) {
+				if (mx < MIN_PACKET_LENGTH ||
+				    mx > MAX_PACKET_LENGTH)
+					plength_max = MAX_PACKET_LENGTH;
+				else
+					plength_max = mx;
+			}
+			if (plength_max < plength_min)
+				plength_min = plength_max;
 			goto RS_Loop;
 		}
 	

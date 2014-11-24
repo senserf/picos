@@ -57,6 +57,13 @@ volatile word	__pi_old, __pi_new;
 /* ================================ */
 address		__pi_utims [MAX_UTIMERS];
 
+#if TCV_PRESENT && TCV_TIMERS
+/* ============================= */
+/* Queue for fired packet timers */
+/* ============================= */
+titem_t		*__pi_tcv_ftimers;
+#endif
+
 const char	__pi_hex_enc_table [] = {
 				'0', '1', '2', '3', '4', '5', '6', '7',
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
@@ -243,6 +250,18 @@ void update_n_wake (word min, Boolean force) {
 			}
 		}
 #if TCV_PRESENT && TCV_TIMERS
+		// Identify the packet timers that has gone off. This function
+		// picks them up and puts into a special queue, pointed to by
+		// __pi_tcv_ftimers (in kernel.c). Then, __pi_tcv_execqueue
+		// (see below) will actually fire them. We cannot fire them
+		// right away (as we pick them), because the firing involves
+		// calling plugin functions, which are not unlikely to issue
+		// tcvp_settimer requests, which in turn will call us (i.e.,
+		// update_n_wake) recursively (which would be bad at this
+		// stage). So we have to do it in two steps. Note that nothing
+		// really happens between these two steps, except that want to
+		// separate them by the code that separates this point from the
+		// call to __pi_tcv_execqueue below.
 		__pi_tcv_runqueue (znew, &min);
 #endif
 	} else {
@@ -272,6 +291,13 @@ MOK:
 	// This is void with TRIPLE_CLOCK == 0 (the hardware timer never stops
 	// running); otherwise, it starts the hardware timer
 	TCI_RUN_DELAY_TIMER;
+
+#if TCV_PRESENT && TCV_TIMERS
+	// Fire the expired packet timers. We can (must) do it as the last
+	// statement in update_n_wake, so a possible recursive call from a
+	// plugin will effectively amount to a separate (safe) call.
+	__pi_tcv_execqueue ();
+#endif
 
 #if TRIPLE_CLOCK == 0
 #undef	znew

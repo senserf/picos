@@ -59,7 +59,12 @@ process TCVTimerService;
 #else
 
 #include "kernel.h"
+
+#if TCV_TIMERS
 void __pi_tcv_runqueue (word, word*);
+void __pi_tcv_execqueue ();
+#endif
+
 #endif	/* __SMURPH__ */
 
 #endif

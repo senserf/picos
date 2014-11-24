@@ -494,7 +494,7 @@ word tci_update_delay_ticks (Boolean);
 #define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	CNOP
 #define	TCI_RUN_DELAY_TIMER		CNOP
 #define	TCI_RUN_AUXILIARY_TIMER		CNOP
-#define	TCI_UPDATE_DELAY_TICKS		CNOP
+#define	TCI_UPDATE_DELAY_TICKS(f)	CNOP
 
 #define	cli_utims	cli_tim
 #define	sti_utims	sti_tim
