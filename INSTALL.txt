@@ -9,13 +9,12 @@ instalation procedure is essentially the same as for UNIX.
    on your system. This version of SIDE is unlikely to work with other
    compilers out of the box. The recommended platform is Linux or Cygwin.
 
-2. If you want to use DSD (you do), make sure that JDK is installed on
-   your system. If not, go to http://java.sun.com/, fetch and install
-   a version of JDK for your platform. If you don't want to install JDK,
-   you can till use DSD on another machine connecting remotely to your
-   machine, or you may run DSD from a Java-capable browser. Read file
-   README in SIDE/SOURCES/DSD and the chapter "DSD: the dynamic status
-   display program" in the manual.
+2. If you want to use DSD, make sure that JDK is installed on your system.
+   If not, go to http://java.sun.com/, fetch and install a version of JDK for
+   your platform. If you don't want to install JDK, you can till use DSD on
+   another machine connecting remotely to your machine, or you may run DSD
+   from a Java-capable browser. Read file README in SIDE/SOURCES/DSD and the
+   chapter "DSD: the dynamic status display program" in the manual.
 
 3. If you received the package as a single compressed file, unpack it anywhere
    you want, e.g.,
@@ -29,15 +28,29 @@ instalation procedure is essentially the same as for UNIX.
    about the installation procedure. But to make your life simpler, we will
    give you here a few more hints.
 
-4. Go to directory SIDE/SOURCES. Compile the maker program by executing
+
+4. Go to directory SIDE/SOURCES. Your options:
+
+  4.1 Here is a handy, no-brainer installation shortcut, if you want to get
+      started right away postponing the understanding until later. Execute
+      this:
+
+             ./make_smurph
+
+      When done go to step 7.
+
+  4.2 All steps manually, i.e., the hard way. Compile the maker program by
+      executing:
 
              g++ -o maker maker.cc
 
-   Then run the maker program (in directory SIDE/SOURCES) by simply executing
+      Then run the maker program (in directory SIDE/SOURCES) by simply
+      executing:
 
              ./maker
 
-   (Note that it will be called maker.exe under CYGWIN.)
+      (Note that it will be called maker.exe under CYGWIN.)
+      Then continue at 5.
 
 5. The maker program will ask you a few questions and complete the installation
    for you. Default answers are fine in most cases. Specifically, the program
@@ -115,7 +128,7 @@ instalation procedure is essentially the same as for UNIX.
    directory of your choice. Again, the default directory (SIDE/SOURCES/DSD)
    is perfectly fine.
 
-   That's it -- SIDE has been installed. RTFM.
+7. That's it -- SIDE has been installed. RTFM.
 
    The simulation examples included with the package, execept for the few that
    come with their own description, are discussed in detail in:
@@ -129,6 +142,6 @@ instalation procedure is essentially the same as for UNIX.
    be called SMURPH in its previous life). It doesn't cover recent additions,
    like radio channels, but it is still a good introduction to the package.
 
-   If you have problems and/or comments, send a note to pawel@cs.ualberta.ca
-                                                        ====================
+   If you have problems and/or comments, send a note to pawelg@ualberta.ca
+                                                        ==================
 

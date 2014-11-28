@@ -13,7 +13,7 @@ else
 	exit 1
 fi
 fi
-./maker <<END1
+./maker <<ENDINPUT
 none
 
 
@@ -28,21 +28,4 @@ y
 n
 
 
-END1
-./maker <<END2
-none
-
-
-25
-SOFTWARE/VUEE/PICOS
-
-SOFTWARE/PICOS/Apps/DataLib
-
-
-vuee
-$bindir
-y
-n
-
-
-END2
+ENDINPUT

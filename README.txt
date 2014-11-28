@@ -32,7 +32,7 @@
                     Edmonton, Alberta, CANADA T6G 2E8
                     tel.:  (780) 492-2347
                     fax:   (780) 492-1071
-                    email: pawel@cs.ualberta.ca
+                    email: pawelg@ualberta.ca
 
   ----------------------------------------------------------------------------
  |  Note: The following book about SMURPH/SIDE is available:                  |
@@ -40,6 +40,14 @@
  |        Protocol Design for Local and Metropolitan Area Networks            |
  |        Prentice Hall, 1996                                                 |
  |        ISBN 0-13-554270-7                                                  |
+ |                                                                            |
+ |  Note: The book may be outdated (SMURPH/SIDE has evolved in  the  meantime |
+ |        and  there  are  many  new features not described in the book (like |
+ |        wireless channels, for example). Nonetheless, the book is still the |
+ |        most friendly introduction to the package (and the idea behind it). |
+ |        Use the enclosed reference manual as the authoritative  (albeit not |
+ |        quite as friendly) source of wisdom.                                |
+ |                                                                            |
   ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
@@ -53,7 +61,7 @@
   ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
- |  Copyright (C) 1994-2007 P. Gburzynski                                     |
+ |  Copyright (C) 1994-2014 P. Gburzynski                                     |
   ----------------------------------------------------------------------------
 
        ----------------------------------------------------------------
@@ -746,4 +754,4 @@
 
  ==============================================================================
 
- The rest of changelog is in RTAGS_PG
+ The change log is continued in RTAGS_PG in this directory

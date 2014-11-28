@@ -596,3 +596,8 @@ PG140323A:
 	   Added a couple of exotic signals (defined in Cygwin, like SIGABRT and
 	   SIGEMT) to catch all (or at least more) cases of "segmentation
 	   violation", i.e., illegal memory references.
+
+PG141128A:
+
+	   A few cosmetics inspired by the need to prepare SMURPH for my course
+	   at AFiB.
