@@ -547,3 +547,36 @@ WO140821A:
   of the association logic. Likely, the functionality would be better, too.
   Let's wait for 2.0 and Renesas i/f redesign, if we ever go there.
 
+WO150129A:
+ SPOT updates to neutralize mysterious events in Bruges. Hopefully, they're
+ temporary kludges to unwind with a decent upgrade; hence, I list them here
+ by file, commented for more permanent fixes:
+ commons.h: added a structure to store attempted master change events.
+ tag_mgr.cc/h introduced var roma of roguemType, to use it to record & report.
+ tarp_virt.cc: crucial msg_isMaster returns false on DEF_MHOST. This is bad in
+   any praxis that allows master change. Worse than bad.
+ msg_io_peg.cc/h: added msg_master_in(). It triggers master beacon (after the
+   master change is refused). Obviously, this goes against any procedure that
+   would allow master change or master hodt with id != DEF_MHOST (1).
+ root_peg.cc: init rome, plug in msg_master_in().
+ oss_peg_tcve.cc: added 0x11(4) to report roma; updated 0x11(2) to return
+   master_host; disallowed id change to or from DEF_MHOST; disabled master id
+   change. The last item hinges on ugly if (0), if (1) for tests under vuee.
+
+ Note that all this crap goes into a network that only master node is to be
+ reflashed, possibly with a few other pegs. Most of the nodes will stay as
+ before this update.
+
+ When we ever implement master id change, the safest would be to store the
+ change in iflash and reset the node to read it and init properly. Likely,
+ same should happen for any local host id change. Likely, host & master id
+ changes should be bundled into a single operation (reset would take care of
+ its consistency).
+
+ I don't know how we can neutralize dreadful scenarios of incidental msg_master
+ occurences. Decidedly, master beacons must be triggered. Perhaps a designated
+ default master should auto-assume master role if the new master doesn't
+ reaffirm its role, to avoid unlikely but possible ghost masters formed from
+ RF noise rendering networks  masterless.
+
+
