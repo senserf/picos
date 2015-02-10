@@ -22,6 +22,9 @@
 #ifdef	CHRONOS
 #include "ez430_lcd.h"
 #include "rtc_cc430.h"
+#if UART_TCV
+#error "S: CHRONOS and UART_TCV are incompatible"
+#endif
 #endif
 
 #ifdef TLDEBUG
@@ -42,7 +45,7 @@ heapmem { 50, 50 };
 
 lword	g_lrs;
 
-#ifndef CHRONOS
+#if UART_TCV
 int	g_fd_uart = -1;
 #endif
 
@@ -204,7 +207,7 @@ static void m_out (word st, const char *t) {
 // UART interface =============================================================
 // ============================================================================
 
-#else
+#elif UART_TCV
 
 static char *emess (word estat) {
 
@@ -274,6 +277,13 @@ void uart_out (word st, const char *ms) {
 	memcpy (packet, ms, ln + 1);
 	tcv_endp (packet);
 }
+
+#else  /* No UART */
+
+#define	err_msg(st,v)		CNOP
+#define	uart_out(a,b)		CNOP
+#define uart_outf(a,b,...)	CNOP
+#define	uart_out(a,b)		CNOP
 
 #endif /* CHRONOS or UART */
 
@@ -913,7 +923,7 @@ CDiff:
 		return WNONE;
 	    }
 
-#ifndef	CHRONOS
+#if UART_TCV
 
 	    case 'z': {
 		// Misc commands for debugging and stuff
@@ -1010,7 +1020,7 @@ CDiff:
 		    }
 		}
 	    }
-#endif /* ndef CHRONOS */
+#endif /* UART_TCV */
 #endif /* __SMURPH__ */
 
 	}
@@ -1767,7 +1777,7 @@ fsm root {
 	finish;
 }
 	
-#else
+#elif UART_TCV
 
 // ============================================================================
 // UART =======================================================================
@@ -1789,7 +1799,6 @@ fsm root {
 	tcv_plug (0, &plug_null);
 	g_fd_rf = tcv_open (WNONE, 0, 0);	// NULL plug on CC1100
 	g_fd_uart = tcv_open (WNONE, 1, 0);	// NULL plug on UART
-
 	if (g_fd_rf < 0 || g_fd_uart < 0)
 		syserror (ERESOURCE, "app desc");
 
@@ -1855,6 +1864,59 @@ fsm root {
 
 	err_msg (RS_MSG, estat);
 	proceed RS_ON;
+}
+
+#else  /* No UART */
+
+fsm root {
+
+  word estat;
+
+  entry RS_INIT:
+
+	word scr;
+
+#ifdef TLDEBUG
+	tld_init (20, 2, 64);
+#endif
+	phys_cc1100 (0, MAX_PACKET_LENGTH);
+	tcv_plug (0, &plug_null);
+	g_fd_rf = tcv_open (WNONE, 0, 0);	// NULL plug on CC1100
+
+	if (g_fd_rf < 0)
+		syserror (ERESOURCE, "app desc");
+
+	g_flags = HOST_FLAGS;
+
+	//
+	// d a z z z p p p c c c c c c c c
+	//
+	// d 	- power down flag
+	// a    - active flag (sender initially on)
+	// zzz  - last three bits of network ID
+	// ppp  - default power level for xmitter
+	// c..c - the channel
+	//
+
+	scr = NETWORK_ID | ((g_flags >> 11) & 0x7);
+	tcv_control (g_fd_rf, PHYSOPT_SETSID, &scr);
+	scr = (g_flags >> 8) & 0x7;
+	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
+	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
+	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+
+	runfsm thread_listener;
+
+	if (g_flags & 0x4000)
+		runfsm thread_sender (0);
+
+	// Only this one stays
+	g_flags &= 0x8000;
+
+	if (g_flags)
+		powerdown ();
+
+	finish;
 }
 
 #endif /* CHRONOS or UART */

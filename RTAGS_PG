@@ -4179,3 +4179,28 @@ PG141124A:
 
 	A few pending and irrelevant cosmetics related to the spot praxis for
 	Alphatronics.
+
+PG150210A:
+
+	A few little things:
+
+	- fixed a couple of bugs in SA causing hangups under heavy scenarios of
+	  packet injection; basically, I have switched some commands to urgent
+	  BOSS mode; the whole idea of BOSS was probably flawed
+
+	- a few adjustments to LOGSCAN (which is now a new component of SA)
+
+	- redone the piter plugin for spot; it is now more structured and, e.g.,
+	  provides for convenient intriduction of new commands/responses
+
+	- a few adjustments to RFTEST to make it run on non-CHRONOS UART-less
+	  boards
+
+	- added a new compilation option to phys_cc1100 to allow for reception
+	  of packets with bad CRC; this is needed by praxis-level sniffers
+
+	- a skeletal version of praxis-level sniffer (using the driver instead
+	  of raw interface, as SA) in Apps/PROPRIETARY/SNIFFER
+
+	- a new board, ALPHATRONICS_BASE_XCC430, to test the peg app on a more
+	  friendly board

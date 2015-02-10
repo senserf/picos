@@ -85,7 +85,9 @@
 #define	UART_LINE_LENGTH	82
 #define	RF_COMMAND_SPACING	1024
 #define	RF_COMMAND_RETRIES	5
+#ifndef	NETWORK_ID
 #define	NETWORK_ID		0xF610
+#endif
 #define	HOST_ID			((word) host_id)
 #define	HOST_FLAGS		((word) (host_id >> 16))
 

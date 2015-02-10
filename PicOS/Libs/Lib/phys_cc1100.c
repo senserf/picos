@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -645,8 +645,7 @@ static void do_rx_fifo () {
 
 	int len, paylen;
 	byte *eptr;
-
-#if SOFTWARE_CRC == 0
+#if SOFTWARE_CRC == 0 || RADIO_CRC_TRANSPARENT
 	byte b;
 #endif
 	LEDI (2, 1);
@@ -752,6 +751,15 @@ RRX:
 #if SOFTWARE_CRC
 	// Verify software CRC (at this point len = paylen + 2)
 	len = paylen >> 1;
+
+#if RADIO_CRC_TRANSPARENT
+	// Receive packets with bad checksum
+	eptr = (byte*)rbuff + paylen;
+	b = *(eptr + 1) & 0x7f;
+	if (w_chk (rbuff, len, 0))
+		b |= 0x80;
+	((byte*)rbuff) [paylen - 2] = b;
+#else
 	if (w_chk (rbuff, len, 0)) {
 		// Bad checksum
 #if (RADIO_OPTIONS & 0x02)
@@ -768,29 +776,27 @@ RRX:
 	// a bit)
 	eptr = (byte*)rbuff + paylen;
 	((byte*)rbuff) [paylen - 2] = (*(eptr + 1) & 0x7f);
+
+#endif	/* RADIO_CRC_TRANSPARENT */
+
 	// This number is signed and starts negative, so we have to bias it
 	((byte*)rbuff) [paylen - 1] = *((char*)eptr) + 128;
 	add_entropy (rbuff [len - 1]);
 
-#else	/* SOFTWARE_CRC (now for the hardware option) */
+#else	/* SOFTWARE_CRC (the hardware option) */
 
 	// Status bytes (now in place)
 	eptr = (byte*)rbuff + paylen;
-	b = *(eptr+1);
 	add_entropy (*eptr);
+	b = *(eptr+1);
+	*(eptr+1) = *((char*)eptr) + 128;
+	*eptr = b;
 	// Add the two status byte to the payload
 	paylen += 2;
+	
+#if RADIO_CRC_TRANSPARENT == 0 && AUTOFLUSH_FLAG == 0
 
-#if AUTOFLUSH_FLAG
-	// No need to verify the checksum
-	*(eptr+1) = *((char*)eptr) + 128;
-	*eptr = (b & 0x7f);
-#else
-	if (b & 0x80) {
-		// CRC OK
-		*(eptr+1) = *((char*)eptr) + 128;
-		*eptr = (b & 0x7f);
-	} else {
+	if ((b & 0x80) == 0) {
 		// Bad checksum
 #if (RADIO_OPTIONS & 0x02)
 		diag ("CC1100: %u RX CKS (H) %x %x %x", (word) seconds (),
@@ -801,7 +807,8 @@ RRX:
 		// Ignore
 		goto Rtn;
 	}
-#endif	/* AUTOFLUSH_FLAG */
+#endif	/* RADIO_CRC_TRANSPARENT */
+
 #endif	/* SOFTWARE_CRC */
 
 #if (RADIO_OPTIONS & 0x04)

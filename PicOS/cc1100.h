@@ -1,7 +1,7 @@
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -58,6 +58,12 @@
  */
 #ifndef	RADIO_CRC_MODE
 #define	RADIO_CRC_MODE		0	/* Changed (R100617) to 0 from 2 */
+#endif
+
+#ifndef	RADIO_CRC_TRANSPARENT
+// If nonzero, pass received packets with bad CRC; it is up to the user to
+// decide what to do with them
+#define	RADIO_CRC_TRANSPARENT	0
 #endif
 
 #ifndef	RADIO_OPTIONS

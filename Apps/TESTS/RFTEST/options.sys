@@ -37,6 +37,7 @@
 #undef	CRYSTAL2_RATE
 #undef	UART_DRIVER
 #undef	UART_TCV
+#undef	UART_TCV_MODE
 
 #if 0
 #define	LF_CRYSTAL_ABSENT		0
@@ -94,3 +95,22 @@
 //#define	RADIO_LBT_BACKOFF_RX	2
 
 #define	TCV_LIMIT_XMT		16
+
+
+
+
+
+
+#ifdef BOARD_ALPHATRONICS_BASE
+#undef	UART_TCV
+#define	UART_TCV 	0
+#endif
+
+#if defined(BOARD_ALPHATRONICS_BASE) || defined(BOARD_ALPHATRONICS_BUTTON) || defined(BOARD_ALPHATRONICS_PANIC)
+#define	NETWORK_ID	0x004d
+#endif
+
+#if defined(BOARD_ALPHATRONICS_BUTTON) || defined(BOARD_ALPHATRONICS_PANIC)
+#define	UART_FROM_SMCLK		1
+#define	UART_RATE		115200
+#endif
