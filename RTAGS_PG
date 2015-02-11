@@ -4204,3 +4204,13 @@ PG150210A:
 
 	- a new board, ALPHATRONICS_BASE_XCC430, to test the peg app on a more
 	  friendly board
+
+PG150211A:
+
+	Redone the UART I/O interface of the Spectrum Analyzer eliminating BOSS
+	and replacing it with simple N-type packets. This simplifies a few
+	things and makes the SA more responsive, especially for high-rate
+	packet insertion.
+
+	Note: BOSS probably should be scrapped. The only place it is still used
+	is Gerry's REFLOW app.
