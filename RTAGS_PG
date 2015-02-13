@@ -4213,4 +4213,11 @@ PG150211A:
 	packet insertion.
 
 	Note: BOSS probably should be scrapped. The only place it is still used
-	is Gerry's REFLOW app.
+
+PG150213A:
+
+	Extended piter_plugin for spot to more closely emulate what arrives
+	from Renesas on the real node.
+
+	A few minor adjustments here and there, e.g., added a Clear button to
+	piter's window, updated documentation.

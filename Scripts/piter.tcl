@@ -1136,6 +1136,16 @@ proc sy_dspline { ln } {
 	}
 }
 
+proc sy_clearsc { w } {
+
+	if [catch { $w configure -state normal }] {
+		return
+	}
+
+	$w delete 1.0 end
+	$w configure -state disabled
+}
+
 proc sy_updtitle { } {
 
 	global ST PM
@@ -1196,6 +1206,9 @@ proc sy_mkterm { } {
 	pack $WI(SFS) -side right
 
 	sy_setsblab
+
+	button .stat.fs.cf -text "Clear" -command "sy_clearsc .t"
+	pack .stat.fs.cf -side right
 
 	.t configure -state disabled
 	bind . <Destroy> "sy_exit"
