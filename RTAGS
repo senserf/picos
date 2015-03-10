@@ -768,3 +768,7 @@ PG140410A:
 PG140415A:
 
 	Added resync interval to the set of configurable parameters for VUEE.
+
+PG150310A:
+
+	PIP can now invoke the spectrum analyzer with per-project config file.

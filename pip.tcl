@@ -114,6 +114,7 @@ set GdbCmd "gdb"
 set GdbMCmd "msp430-gdb"
 set MspDCmd "mspdebug"
 set XTCmd "xterm"
+set SACmd "sa"
 
 ## File types to be listed in the Files view:
 ## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
@@ -314,6 +315,9 @@ set SFont {-family courier -size 9}
 
 ## Pipe fd of the program running in term
 set TCMD(FD) ""
+
+## Pipe fd of the program running the spectrum analyzer
+set TCMD(SA) ""
 
 ## Trace (i.e., store) the output
 set TCMD(TO) 0
@@ -4323,6 +4327,7 @@ proc terminate { { f "" } } {
 	edit_kill
 	abort_term
 	stop_piter
+	stop_sa
 	stop_genimage
 	stop_udaemon
 	stop_oss
@@ -8024,6 +8029,63 @@ proc stop_loader { { ask 0 } } {
 
 ###############################################################################
 
+proc run_sa { } {
+
+	global P TCMD SACmd
+
+	if { $P(AC) == "" || $TCMD(SA) != "" } {
+		# impossible
+		return
+	}
+
+	set ef [auto_execok $SACmd]
+	if { $ef == "" } {
+		alert "Cannot run spectrum analyzer, not installed"
+		return
+	}
+
+	if [file executable $ef] {
+		set cmd "[list $ef]"
+	} else {
+		set cmd "[list sh] [list $ef]"
+	}
+
+	append cmd " -C config.san 2>@1"
+
+	if [catch { open "|$cmd" "r" } fd] {
+		alert "Cannot start spectrum analyzer: $fd"
+		return
+	}
+
+	set TCMD(SA) $fd
+	reset_exec_menu
+	
+	fconfigure $fd -blocking 0 -buffering none
+	fileevent $fd readable "sa_pipe_event"
+}
+
+proc sa_pipe_event { } {
+
+	global TCMD
+
+	if { [catch { read $TCMD(SA) } dummy] || [eof $TCMD(SA)] } {
+		stop_sa
+	}
+}
+
+proc stop_sa { } {
+
+	global TCMD
+
+	if { $TCMD(SA) != "" } {
+		kill_pipe $TCMD(SA)
+		set TCMD(SA) ""
+		reset_exec_menu
+	}
+}
+
+###############################################################################
+
 proc run_piter { } {
 
 	global P TCMD PiterCmd
@@ -8623,6 +8685,17 @@ proc reset_exec_menu { { clear 0 } } {
 	}
 	$m add command -label "Run program" -command run_any_program -state $st
 	$m add command -label "XTerm" -command run_xterm
+
+	$m add separator
+
+	if { $TCMD(SA) == "" } {
+		$m add command -label "Run spectrum analyzer" \
+			-command run_sa
+	} else {
+		$m add command -label "Stop spectrum analyzer" \
+			-command stop_sa
+	}
+
 	$m add separator
 	$m add command -label "Clean console" -command term_clean
 }
