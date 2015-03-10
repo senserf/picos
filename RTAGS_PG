@@ -4221,3 +4221,18 @@ PG150213A:
 
 	A few minor adjustments here and there, e.g., added a Clear button to
 	piter's window, updated documentation.
+
+PG150310A:
+
+	I have fixed a bugoid in phys_cc1100.c consisting in ignoring FIFO
+	overflow on reception. I believe that the bugoid would increase the
+	probability of interpreting a garbage packet longer than 62 bytes
+	with correct SYNC and correct NID, but incorrect CRC as valid to about
+	1/512 (from 1/64K). That problem only occurred for CC430 (not for
+	CC110x, where the FIFO overflow flag was interpreted correctly).
+
+	The spectrum analyzer can now be called from PIP (using a per-project
+	configuration file). It is now also installed in BIN (bin) by deploy.
+
+	Included Blat in the source tree. Blat is a compact command-line 
+	windows program for sending e-mail (e.g., from OSS scripts).

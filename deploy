@@ -494,6 +494,8 @@ proc doit { } {
 		set BINW [exec cygpath -m $BIN]
 	}
 
+	set ScriptsToFix { pip piter udaemon genimage gdbloader oss }
+
 	# copy scripts (for PICOS and VUEE); PIP did it itself
 	copyscript "Scripts" "mkmk" "" $BIN $REL(PICOS)
 	copyscript "Scripts" "picomp" "" $BIN $REL(PICOS)
@@ -501,8 +503,11 @@ proc doit { } {
 	copyscript "Scripts" "piter.tcl" ".tcl" $BIN $REL(PICOS)
 	copyscript "Scripts" "oss.tcl" "" $BIN $REL(PICOS)
 	copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN $REL(VUEE)
-
-	set ScriptsToFix { pip piter udaemon genimage gdbloader oss }
+	if [file isfile Apps/PROPRIETARY/SA/OSS/sa.tcl] {
+		copyscript "Apps/PROPRIETARY/SA/OSS" "sa.tcl" "" \
+			$BIN $REL(PICOS)
+		lappend ScriptsToFix "sa"
+	}
 
 	set tcldir ""
 	if { $TCL85 != "" } {

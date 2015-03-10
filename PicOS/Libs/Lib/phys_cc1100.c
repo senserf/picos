@@ -160,10 +160,21 @@ Ret:
 
 static int rx_status () {
 
-	if (strobe (CCxxx0_SNOP) == CC1100_STATE_IDLE) {
+	int res;
 
+	if (strobe (CCxxx0_SNOP) == CC1100_STATE_IDLE) {
 		// The state is right, check RXBYTES
-		return get_reg (CCxxx0_RXBYTES) & 0x7f;
+		if (!((res = get_reg (CCxxx0_RXBYTES)) & 0x80))
+			// Treat FIFO overflow as forced garbage, even if,
+			// theoretically, it can mean two packets glued
+			// together, with the first one receivable. Note that
+			// a nasty overflow case can result in garbage with the
+			// length byte looking accidentally right (P = 1/256)
+			// and the CRC OK bit of the overflow status byte
+			// right, too (P = 1/2). Thus a long garbage packet
+			// (with correct SYNC/NID) might be receivable with
+			// P = 1/512 (or so).
+			return res;
 	}
 
 	return -1;
@@ -684,7 +695,7 @@ RRX:
 		memset (rerror + RERR_RCPA, 0, sizeof (word) * 2);
 	rerror [RERR_RCPA] ++;
 #endif
-	// len is the physical payload lenght, i.e., the number of bytes in the
+	// len is the physical payload length, i.e., the number of bytes in the
 	// pipe
 
 	if ((len & 1) == 0 || len <
