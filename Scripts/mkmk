@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #                                                                          #
 # See: proc bad_usage for usage                                            #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005 - 2013 All Rights Reserved    #
+# Copyright (C) Olsonet Communications, 2005 - 2015 All Rights Reserved    #
 ############################################################################
 
 set DEBUG 0
@@ -1032,7 +1032,12 @@ proc outmkf { def cpu } {
 	puts $mfd "TD=./$Kfn"
 
 	if [islibrun] {
-		puts $mfd "LD=-L$Run(library) -lpicos"
+		if { $Run(DNM) == 1 } {
+			set lfn [dsname $Run(library)]
+		} else {
+			set lfn $Run(library)
+		}
+		puts $mfd "LD=-L$lfn -lpicos"
 	} else {
 		puts $mfd "LD="
 	}

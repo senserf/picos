@@ -4236,3 +4236,12 @@ PG150310A:
 
 	Included Blat in the source tree. Blat is a compact command-line 
 	windows program for sending e-mail (e.g., from OSS scripts).
+
+PG150312A:
+
+	Fixed a glitch in mkmk causing compilation-from-library problems when
+	the full (cygwin) path of the library was specified with -M (and the
+	mspgcc version was windows-paths-based [as it is these days]). It seems
+	that compilation from library for ALPHATRONICS boards works fine. Also
+	fixed the params.sys parts of ALPHATRONICS board definitions to include
+	all the necessary library components.
