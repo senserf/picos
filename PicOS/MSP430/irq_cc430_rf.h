@@ -12,6 +12,7 @@
 #endif
 
 //+++ "irq_cc430_rf.c"
+REQUEST_EXTERNAL (irq_cc430_rf);
 
 #define	RX_FIFO_READY		(RF1AIN & 0x01)
 

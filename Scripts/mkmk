@@ -968,11 +968,12 @@ proc outmkfc_lib { def } {
 
 proc libsig { tar } {
 #
-# Write to the library directory params.sys + target signature
+# Write to the library directory params.sys, node.xml + target signature
 #
 	global Targets Run
 
 	catch { exec cp $Run(bdir)/params.sys LIBRARY/ }
+	catch { exec cp $Run(bdir)/node.xml LIBRARY/ }
 	set tar [lindex $Targets $tar]
 
 	catch { exec echo "$tar" > LIBRARY/target }
@@ -1385,7 +1386,7 @@ proc outmkf_lib { def cpu } {
 		}
 	}
 
-	# copy target, params.sys, if present
+	# copy target, params.sys, node.xml, if present
 	libsig 0
 }
 

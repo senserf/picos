@@ -1,0 +1,35 @@
+#
+# March 12, 2015
+#
+
+deploy
+RTAGS_PG
+RTAGS_WO
+RTAGS
+
+Apps
+	cleanup
+	PROPRIETARY
+		inProgress
+			spot
+		SA
+			OSS
+
+Docs
+	Installation.pdf
+	PicOS.pdf
+	Serial.pdf
+
+Scripts
+	cleanapp
+	gdbp_tiny.sh
+	genihex
+	mkmk
+	olimex_programmer.sh
+	oss.tcl
+	permissions
+	picomp
+	piter.tcl
+	usefetdll
+
+LIBRARIES

@@ -44,7 +44,7 @@ if { $TCL85 == "" } {
 ###############################################################################
 
 set PLIST { PICOS SIDE VUEE PIP }
-set OPTIONAL ""
+set OPTIONAL "SIDE VUEE"
 
 proc errab { m } {
 
@@ -348,15 +348,17 @@ proc ver_dep { depl } {
 				continue
 			}
 			# puts "$p <- $pac release $REL($pac)"
-			set cmp [cmp_tags $REL($pac) $tag]
-			if { $cmp == "" } {
-				errab "Cannot compare tags $tag (of $p) and\
-					$REL($pac) of $pac"
-			}
-			if { $cmp < 0 } {
-				puts "$p requires release $tag (or higher)\
-					of $pac"
-				set ok 0
+			if [info exists REL($pac)] {
+				set cmp [cmp_tags $REL($pac) $tag]
+				if { $cmp == "" } {
+					errab "Cannot compare tags $tag\
+						(of $p) and $REL($pac) of $pac"
+				}
+				if { $cmp < 0 } {
+					puts "$p requires release $tag\
+						(or higher) of $pac"
+					set ok 0
+				}
 			}
 		}
 	}
@@ -494,15 +496,23 @@ proc doit { } {
 		set BINW [exec cygpath -m $BIN]
 	}
 
-	set ScriptsToFix { pip piter udaemon genimage gdbloader oss }
+	set ScriptsToFix { pip }
+
 
 	# copy scripts (for PICOS and VUEE); PIP did it itself
-	copyscript "Scripts" "mkmk" "" $BIN $REL(PICOS)
-	copyscript "Scripts" "picomp" "" $BIN $REL(PICOS)
-	copyscript "Scripts" "usefetdll" "" $BIN $REL(PICOS)
-	copyscript "Scripts" "piter.tcl" ".tcl" $BIN $REL(PICOS)
-	copyscript "Scripts" "oss.tcl" "" $BIN $REL(PICOS)
-	copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN $REL(VUEE)
+	if [info exists REL(PICOS)] {
+		copyscript "Scripts" "mkmk" "" $BIN $REL(PICOS)
+		copyscript "Scripts" "picomp" "" $BIN $REL(PICOS)
+		copyscript "Scripts" "usefetdll" "" $BIN $REL(PICOS)
+		copyscript "Scripts" "piter.tcl" ".tcl" $BIN $REL(PICOS)
+		copyscript "Scripts" "oss.tcl" "" $BIN $REL(PICOS)
+		set ScriptsToFix [concat $ScriptsToFix \
+			{ piter genimage gdbloader oss }]
+	}
+	if [info exists REL(VUEE)] {
+		copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN $REL(VUEE)
+		lappend ScriptsToFix "udaemon"
+	}
 	if [file isfile Apps/PROPRIETARY/SA/OSS/sa.tcl] {
 		copyscript "Apps/PROPRIETARY/SA/OSS" "sa.tcl" "" \
 			$BIN $REL(PICOS)

@@ -4245,3 +4245,12 @@ PG150312A:
 	that compilation from library for ALPHATRONICS boards works fine. Also
 	fixed the params.sys parts of ALPHATRONICS board definitions to include
 	all the necessary library components.
+
+PG150313A:	PIP >= PG150313A
+
+	Made sure that modules containing interrupt service functions are
+	explicitly requested as external functions from their drivers, so they
+	get linked in library-mode builds. I lost a whole day chasing a bug
+	caused by the phys_uart irq function being missing.
+
+	A few tweaks in preparation for the Alphatronics source release.

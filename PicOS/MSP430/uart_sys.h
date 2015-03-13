@@ -16,6 +16,11 @@
 #ifdef N_UARTS_TCV
 
 //+++ "uartirq.c"
+#ifdef	UART_A_TX_RX_VECTOR
+REQUEST_EXTERNAL (uart0xx_int);
+#else
+REQUEST_EXTERNAL (uart0tx_int);
+#endif
 
 #if N_UARTS_TCV > 1
 // ----------------------------------------------------------------------------
