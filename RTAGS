@@ -772,3 +772,9 @@ PG140415A:
 PG150310A:
 
 	PIP can now invoke the spectrum analyzer with per-project config file.
+
+PG150313A:	PICOS >= PG150313A
+
+	In a library-only installation, PIP will detect the absent components
+	and avoid presenting choices that cannot be fulfilled. There is now a
+	button to save console output to a file.

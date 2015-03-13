@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 0.6
+set ST(VER) 0.7
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -691,7 +691,7 @@ proc term_clean { } {
 
 proc term_addtxt { txt } {
 
-	global TCMD Term
+	global TCMD Term ST
 
 	$Term configure -state normal
 	$Term insert end $txt
@@ -701,17 +701,25 @@ proc term_addtxt { txt } {
 	if $TCMD(TO) {
 		append TCMD(TR) $txt
 	}
+
+	if { $ST(CF) != "" } {
+		catch { puts -nonewline $ST(CF) $txt }
+	}
 }
 
 proc term_endline { } {
 
-	global TCMD Term TermLines
+	global TCMD Term TermLines ST
 
 	$Term configure -state normal
 	$Term insert end "\n"
 
 	if $TCMD(TO) {
 		append TCMD(TR) "\n"
+	}
+
+	if { $ST(CF) != "" } {
+		catch { puts $ST(CF) "" }
 	}
 
 	while 1 {
@@ -861,11 +869,9 @@ proc get_rcoptions { } {
 #
 # Retrieve the list of options from the .rc fil
 #
-	global LProjects
-
 	set rc [read_piprc]
 
-	foreach v { LProjects ESchemes ESchemesA } {
+	foreach v { LProjects ESchemes ESchemesA LCSFile } {
 
 		global $v
 
@@ -1020,7 +1026,7 @@ proc gfl_tree { } {
 #
 # Fill/update the treeview file list with files
 #
-	global LFTypes MKRECV P
+	global LFTypes MKRECV P ST
 
 	array unset MKRECV
 	set fl [gfl_all_rec .]
@@ -1057,10 +1063,16 @@ proc gfl_tree { } {
 		return
 	}
 
+	if $ST(LO) {
+		# library-only installation, do not include board dirs
+		return
+	}
+
+	set bdir [boards_dir]
 	foreach b [board_set] {
 
 		# path to the board directory
-		set bp [file join [boards_dir] $b]
+		set bp [file join $bdir $b]
 		if ![file isdirectory $bp] {
 			# just in case
 			continue
@@ -4060,7 +4072,11 @@ proc boards_dir { { cpu "" } } {
 # Returns the path to the BOARDS directory for the given CPU, or for the
 # project's CPU, if null
 #
-	global PicOSPath P
+	global PicOSPath P ST
+
+	if $ST(LO) {
+		return ""
+	}
 
 	if { $cpu == "" } {
 		set cpu [dict get $P(CO) "CPU"]
@@ -4069,18 +4085,55 @@ proc boards_dir { { cpu "" } } {
 	return [fpnorm [file join $PicOSPath PicOS $cpu BOARDS]]
 }
 
+proc board_repo { bo } {
+
+	global PicOSPath ST
+
+	if $ST(LO) {
+		set bd [file join $PicOSPath LIBRARIES]
+	} else {
+		set bd [boards_dir]
+	}
+
+	return [file join $bd $bo]
+}
+
 proc board_list { cpu } {
 
-	global PicOSPath
+	global PicOSPath ST
 
-	set dn [boards_dir $cpu]
+	if $ST(LO) {
+		# library installation
+		set dn [file join $PicOSPath LIBRARIES]
+	} else {
+		set dn [boards_dir $cpu]
+	}
+
 	set fl [glob -nocomplain -tails -directory $dn *]
 
 	set r ""
 	foreach f $fl {
-		if [file isdirectory [file join $dn $f]] {
-			lappend r $f
+		set bdf [file join $dn $f]
+		if ![file isdirectory $bdf] {
+			# ignore any non-directory files
+			continue
 		}
+		if $ST(LO) {
+			# have to verify target
+			if [catch { open [file join $bdf target] "r" } dd] {
+				continue
+			}
+			if [catch { read $dd } dc] {
+				catch { close $dd }
+				continue
+			}
+			catch { close $dd }
+			if { [string first $cpu $dc] < 0 } {
+				continue
+			}
+		}
+
+		lappend r $f
 	}
 	return [lsort $r]
 }
@@ -4089,10 +4142,20 @@ proc board_opts { bo } {
 #
 # Returns the file name of the board options file
 #
-	set fn [file join [boards_dir] $bo "board_options.sys"]
+	global PicOSPath ST
+
+	set fn [board_repo $bo]
+
+	if $ST(LO) {
+		set fn [file join $fn "include"]
+	}
+
+	set fn [file join $fn "board_options.sys"]
+
 	if [file isfile $fn] {
 		return $fn
 	}
+
 	return ""
 }
 
@@ -4201,7 +4264,7 @@ proc mk_board_selection_window { } {
 #
 # Open the board selection window
 #
-	global P CPUTypes
+	global P CPUTypes ST
 
 	set w [md_window "Board selection"]
 
@@ -4273,7 +4336,15 @@ proc mk_board_selection_window { } {
 			set_board_menu_button $mb $bn $boards
 			grid $f.bm$nb -column $cn -row $rm -sticky nw \
 				-padx 1 -pady 1
-			checkbutton $f.lm$nb -variable P(M0,LM,$nb)
+			if $ST(LO) {
+				# make sure the library option is set and it is
+				# frozen
+				set st "disabled"
+				set P(M0,LM,$nb) 1
+			} else {
+				set st "normal"
+			}
+			checkbutton $f.lm$nb -variable P(M0,LM,$nb) -state $st
 			grid $f.lm$nb -column $cn -row $ro -sticky nw \
 				-padx 1 -pady 1
 
@@ -4292,7 +4363,14 @@ proc mk_board_selection_window { } {
 		mk_menu_button $mb
 		set_board_menu_button $mb $bn $boards
 		grid $f.bm0 -column $cn -row $rm -sticky nw -padx 1 -pady 1
-		checkbutton $f.lm0 -variable P(M0,LM,0)
+		if $ST(LO) {
+			# make sure the library option is set and it is frozen
+			set st "disabled"
+			set P(M0,LM,0) 1
+		} else {
+			set st "normal"
+		}
+		checkbutton $f.lm0 -variable P(M0,LM,0) -state $st
 		grid $f.lm0 -column $cn -row $ro -sticky nw -padx 1 -pady 1
 	}
 
@@ -5086,13 +5164,13 @@ proc vuee_disabled { } {
 #
 # Returns 1 if VUEE is disabled for the project
 #
-	global P
+	global P ST
 
 	if { $P(AC) == "" || $P(CO) == "" } {
 		return 1
 	}
 
-	if { [dict get $P(CO) "VDISABLE"] == 0 } {
+	if { !$ST(VP) || [dict get $P(CO) "VDISABLE"] == 0 } {
 		return 0
 	}
 
@@ -5181,7 +5259,7 @@ proc do_options { } {
 
 proc mk_options_conf_window { } {
 
-	global P CFOptSFModes FFont
+	global P CFOptSFModes FFont ST
 
 	set w [md_window "Options"]
 
@@ -5208,16 +5286,18 @@ proc mk_options_conf_window { } {
 	eval "tk_optionMenu $f.sfe P(M0,sf) $CFOptSFModes"
 	grid $f.sfe -column 1 -row 1 -padx 4 -pady 2 -sticky we
 
-	label $f.vfl -text "Show and edit VUEE system files: "
-	grid $f.vfl -column 0 -row 2 -padx 4 -pady 2 -sticky w
+	if $ST(VP) {
+		label $f.vfl -text "Show and edit VUEE system files: "
+		grid $f.vfl -column 0 -row 2 -padx 4 -pady 2 -sticky w
 
-	set v $P(M0,OPVUEEFILES)
-	if [catch { valnum $v 0 3 } v] {
-		set v 0
+		set v $P(M0,OPVUEEFILES)
+		if [catch { valnum $v 0 3 } v] {
+			set v 0
+		}
+		set P(M0,vf) [lindex $CFOptSFModes $v]
+		eval "tk_optionMenu $f.vfe P(M0,vf) $CFOptSFModes"
+		grid $f.vfe -column 1 -row 2 -padx 4 -pady 2 -sticky we
 	}
-	set P(M0,vf) [lindex $CFOptSFModes $v]
-	eval "tk_optionMenu $f.vfe P(M0,vf) $CFOptSFModes"
-	grid $f.vfe -column 1 -row 2 -padx 4 -pady 2 -sticky we
 
 	##
 	set f $w.bf
@@ -7029,7 +7109,7 @@ proc side_args { deb } {
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
-				set fna [file join [boards_dir] $b "node.xml"]
+				set fna [file join [board_repo $b] "node.xml"]
 				if [file isfile $fna] {
 					lappend argm "-n"
 					lappend argm $suf
@@ -7038,7 +7118,7 @@ proc side_args { deb } {
 				incr bi
 			}
 		} else {
-			set fna [file join [boards_dir] $bo "node.xml"]
+			set fna [file join [board_repo $bo] "node.xml"]
 			if [file isfile $fna] {
 				lappend argm "-n"
 				lappend argm [unipath $fna]
@@ -8286,6 +8366,63 @@ proc do_console_interrupt { } {
 	}
 }
 
+proc do_console_save { } {
+
+	global ST P LCSFile
+
+	if { $ST(CF) != "" } {
+		# stop saving
+		catch { close $ST(CF) }
+		set ST(CF) ""
+		set_csbut_label
+		return
+	}
+
+	set lf $LCSFile
+
+	while 1 {
+
+		set fn [tk_getSaveFile \
+			-defaultextension ".txt" \
+			-parent "." \
+			-title "Save file name" \
+			-initialfile [file tail $lf] \
+			-initialdir [file dirname $lf]]
+
+		if { $fn == "" } {
+			# cancelled
+			return
+		}
+
+		if [catch { open $fn "w" } std] {
+			alert "Cannot open file $fn, $std"
+			continue
+		}
+
+		fconfigure $std -buffering line
+		set ST(CF) $std
+
+		set LCSFile $fn
+		set_rcoption "LCSFile"
+
+		set_csbut_label
+		return
+	}
+}
+
+proc set_csbut_label { } {
+
+	global ST CSBut
+
+	if { $ST(CF) == "" } {
+		set lab "Save"
+	} else {
+		set lab "Stop"
+	}
+
+	$CSBut configure -text $lab
+}
+
 ###############################################################################
 
 proc clean_lprojects { } {
@@ -8366,7 +8503,7 @@ proc reset_config_menu { { clear 0 } } {
 #
 # Re-create the configuration menu (after closing/opening a project)
 #
-	global P
+	global P ST
 
 	set m .menu.config
 
@@ -8379,11 +8516,16 @@ proc reset_config_menu { { clear 0 } } {
 	}
 
 	$m add command -label "CPU+Board ..." -command "do_board_selection"
-	$m add command -label "VUEE ..." -command "do_vuee_config"
+	if $ST(VP) {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "VUEE ..." -command "do_vuee_config" -state $st
 	$m add command -label "Loaders ..." -command "do_loaders_config"
 
 	set bo [board_set]
-	if { [dict get $P(CO) "OPSYSFILES"] != 0 && $bo != "" } {
+	if { [dict get $P(CO) "OPSYSFILES"] != 0 && $bo != "" && !$ST(LO) } {
 		# add a build board library menu
 		$m add separator
 		foreach b $bo {
@@ -8432,7 +8574,7 @@ proc reset_build_menu { { clear 0 } } {
 # Re-create the build menu; called whenever something has changed that may
 # affect some items on the menu
 #
-	global P TCMD
+	global P TCMD ST
 
 	set m .menu.build
 	if [catch { $m delete 0 end } ] {
@@ -8455,7 +8597,7 @@ proc reset_build_menu { { clear 0 } } {
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
 				set lm [blindex $bm $bi]
-				if $lm {
+				if { $ST(LO) || $lm } {
 					set lm "lib"
 				} else {
 					set lm "src"
@@ -8488,7 +8630,7 @@ proc reset_build_menu { { clear 0 } } {
 		} else {
 			set lm [blindex $bm 0]
 			set bo [lindex $bo 0]
-			if $lm {
+			if { $ST(LO) || $lm } {
 				set lm "lib"
 			} else {
 				set lm "src"
@@ -8565,7 +8707,7 @@ proc reset_exec_menu { { clear 0 } } {
 #
 # Re-create the exec menu
 #
-	global P SIDENAME TCMD
+	global P SIDENAME TCMD SACmd
 
 	set m .menu.exec
 	if [catch { $m delete 0 end } ] {
@@ -8689,8 +8831,13 @@ proc reset_exec_menu { { clear 0 } } {
 	$m add separator
 
 	if { $TCMD(SA) == "" } {
+		if { [auto_execok $SACmd] == "" } {
+			set st "disabled"
+		} else {
+			set st "normal"
+		}
 		$m add command -label "Run spectrum analyzer" \
-			-command run_sa
+			-command run_sa -state $st
 	} else {
 		$m add command -label "Stop spectrum analyzer" \
 			-command stop_sa
@@ -8763,7 +8910,7 @@ proc mark_running_cb { } {
 
 proc mk_project_window { } {
 
-	global P ST Term TEntry FFont
+	global P ST Term TEntry FFont CSBut
 
 	# when a project is open, this shows the directory path; also used to
 	# tell if a project is currently open
@@ -8901,14 +9048,26 @@ proc mk_project_window { } {
 	# tag for file line numbers
 	$Term tag configure errtag -background gray
 
+	bind $Term <ButtonRelease-1> "tk_textCopy $Term"
+
+	## the bottom frame
+	set bf [frame $pw.bof]
+	pack $bf -side top -expand no -fill x
+
 	## the entry line
 
-	set TEntry $pw.e
+	set TEntry $bf.e
 	text $TEntry -height 1 -width 80 -wrap char -font $FFont \
 		-exportselection 1 \
 		-state disabled
 
-	pack $TEntry -side top -expand no -fill x
+	pack $TEntry -side left -expand y -fill x
+
+	## the save button
+	set  CSBut $bf.s
+	button $CSBut -width 8 -command "do_console_save"
+	pack $CSBut -side left -expand n -fill y
+	set_csbut_label
 
 	bind $TEntry <ButtonRelease-1> "tk_textCopy $TEntry"
 	bind $TEntry <ButtonRelease-2> "tk_textPaste $TEntry"
@@ -8932,7 +9091,7 @@ proc mk_project_window { } {
 
 proc do_mkmk_node { { bi 0 } { ea "" } } {
 
-	global P
+	global P ST
 
 	if ![close_modified] {
 		return
@@ -8951,7 +9110,7 @@ proc do_mkmk_node { { bi 0 } { ea "" } } {
 	set lm [blindex [dict get $P(CO) "LM"] $bi]
 	set bo [lindex $bo $bi]
 
-	if $lm {
+	if { $ST(LO) || $lm } {
 		# library mode; check if there's a library
 		set lb [library_present $bo]
 		if { $lb == "" } {
@@ -10577,7 +10736,7 @@ proc get_picos_project_files { } {
 # Produces the list of project-related system (PicOS) files based on the
 # current set of Makefiles
 #
-	global FNARR P
+	global FNARR P ST
 
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
@@ -10594,7 +10753,7 @@ proc get_picos_project_files { } {
 	for { set i 0 } { $i < $n } { incr i } {
 		set l [blindex $lm $i]
 		set b [lindex $bo $i]
-		if $l {
+		if { $ST(LO) || $l } {
 			# library mode, use LIBRARY Makefile
 			set lb [library_present $b]
 			if { $lb == "" } {
@@ -10690,8 +10849,6 @@ proc get_vuee_files { } {
 	set vdir [fpnorm [file join $PicOSPath "../VUEE/PICOS"]]
 
 	if ![file isdirectory $vdir] {
-		alert "Cannot access VUEE directory $vdir, probably a\
-			configuration/deployment error"
 		return ""
 	}
 
@@ -10740,39 +10897,72 @@ proc get_vuee_files { } {
 ###############################################################################
 ###############################################################################
 
-if $ST(DP) {
-	log "preferred path format: DOS"
-} else {
-	log "preferred path format: UNIX"
-}
+proc initialize { } {
 
-# path to PICOS
-if [catch { xq picospath } ST(NPP)] {
-	puts stderr "cannot locate PicOS path: $ST(NPP)"
-	exit 99
-}
-set PicOSPath [fpnorm $ST(NPP)]
-set ST(NPL) [string length $ST(NPP)]
+	global ST PicOSPath DefProjDir CPUDirs SACmd
 
-log "PicOS path: $ST(NPP) -> $PicOSPath"
-
-# path to the default superdirectory for projects
-foreach DefProjDir [list [file join $PicOSPath Apps VUEE] \
-    [file join $PicOSPath Apps]]  {
-	if [file isdirectory $DefProjDir] {
-		break
+	if $ST(DP) {
+		log "preferred path format: DOS"
+	} else {
+		log "preferred path format: UNIX"
 	}
+
+	# path to PICOS
+	if [catch { xq picospath } ST(NPP)] {
+		puts stderr "cannot locate PicOS path: $ST(NPP)"
+		exit 99
+	}
+
+	set PicOSPath [fpnorm $ST(NPP)]
+	set ST(NPL) [string length $ST(NPP)]
+
+	log "PicOS path: $ST(NPP) -> $PicOSPath"
+
+	# path to the default superdirectory for projects
+	foreach DefProjDir [list [file join $PicOSPath Apps VUEE] \
+    	[file join $PicOSPath Apps]]  {
+		if [file isdirectory $DefProjDir] {
+			break
+		}
+	}
+
+	log "Project superdirectory: $DefProjDir"
+
+	# check if VUEE is present
+	if [file isdirectory [file join $PicOSPath "../VUEE/PICOS"]] {
+		log "VUEE found"
+		set ST(VP) 1
+	} else {
+		log "VUEE assumed absent"
+		set ST(VP) 0
+	}
+
+	# CPU-specific directories
+	set CPUDirs ""
+	foreach t { "MSP430" "eCOG" } {
+		if [file isdirectory [file join $PicOSPath "PicOS" $t]] {
+			lappend CPUDirs $t
+		}
+	}
+
+	if { $CPUDirs == "" } {
+		log "Library-only installation"
+		set ST(LO) 1
+	} else {
+		log "CPUs: [join $CPUDirs]"
+		set ST(LO) 0
+	}
+
+	# file descriptor to save console
+	set ST(CF) ""
 }
 
-log "Project superdirectory: $DefProjDir"
+###############################################################################
 
-# list of CPU-specific subdirectories of PicOS
-set CPUDirs { "MSP430" "eCOG" }
+initialize
 
 get_rcoptions
 
 mk_project_window
-
-###############################################################################
 
 vwait forever
