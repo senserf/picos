@@ -601,3 +601,8 @@ PG141128A:
 
 	   A few cosmetics inspired by the need to prepare SMURPH for my course
 	   at AFiB.
+
+PG150325A:
+
+	   Fixed sxml_name to never return NULL to appease the newest version
+	   of g++.

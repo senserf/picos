@@ -93,7 +93,7 @@ sxml_t sxml_child(sxml_t xml, const char *name);
 sxml_t sxml_idx(sxml_t xml, int idx);
 
 // returns the name of the given tag
-#define sxml_name(xml) ((xml) ? xml->name : NULL)
+#define sxml_name(xml) ((xml) ? xml->name : "")
 
 // returns the given tag's character content or empty string if none
 #define sxml_txt(xml) ((xml) ? xml->txt : "")
