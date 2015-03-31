@@ -778,3 +778,17 @@ PG150313A:	PICOS >= PG150313A
 	In a library-only installation, PIP will detect the absent components
 	and avoid presenting choices that cannot be fulfilled. There is now a
 	button to save console output to a file.
+
+PG150331A:
+
+	When invoking the Elpro loader, and when the config.ini file is absent
+	in the project directory (so it has to be copied from the loader's
+	installation directory) first try explicitly the VirtualStore shadow of
+	the installation directory. I understand that normally this should be
+	automatic, but it isn't on my system for some reason (some weird UAC
+	configuration which I don't [want to] understand), when the Active
+	version of Tcl/Tk is used (deploy -l). Normally we don't do deploy -l
+	under Cygwin, so ... who cares, really. For one thing, the Active
+	version of Tcl has nicer fonts.
+
+	Minor adjustments to the doc.

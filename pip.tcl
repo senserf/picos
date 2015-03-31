@@ -7430,7 +7430,7 @@ proc upload_ELP { } {
 #
 # Elprotronic
 #
-	global P ST TCMD
+	global P ST TCMD env
 
 	set cfn "config.ini"
 
@@ -7478,11 +7478,39 @@ proc upload_ELP { } {
 		# check for a local copy of the configuration file
 		if ![file exists $cfn] {
 			# absent -> copy from the installation directory
-			if [catch { file copy -force -- \
-			    [file join [file dirname $ep] $cfn] $cfn } err] {
-				alert "Cannot retrieve the configuration file\
-					of Elprotronic loader: $err"
-				return
+			set dfn [file dirname $ep]
+			set tra 1
+			if { [regexp -nocase {^[a-z]:[/\\](.*)} $dfn jnk vfn] &&
+			     [info exists env(LOCALAPPDATA)] } {
+				# try virtualstore first; the Windows (Active)
+				# version of Tcl/Tk gets the config file from
+				# the installation directory whereas it should
+				# come from virtualstore; I believe that should
+				# be automatic, but it isn't on my system (it
+				# is OK for the Cygwin version of Tcl/Tk),
+				# probably because of some UAC settings
+				set vfn [file join $env(LOCALAPPDATA) \
+				    VirtualStore $vfn $cfn]
+				puts "Config file absent, trying $vfn"
+				if [catch { file copy -force -- $vfn $cfn } \
+				    err] {
+					log "Failed to copy $vfn, $err"
+				} else {
+					# done
+					set tra 0
+				}
+			}
+			if $tra {
+				# try the installation directory
+				set vfn [file join $dfn $cfn]
+				puts "Config file absent, trying $vfn"
+				if [catch { file copy -force -- $vfn $cfn } \
+				   err] {
+					alert "Cannot retrieve the\
+						configuration file\
+						of Elprotronic loader: $err"
+					return
+				}
 			}
 			# flag = local copy already fetched from install
 			set loc 0
