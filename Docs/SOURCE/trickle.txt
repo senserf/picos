@@ -24,7 +24,9 @@ The timer is basically a settable alarm clock within some range [0, D], where D 
 
 Node algorithm (same for all nodes, including the master):
 
-Set the timer T = rnd (D/2, D)
+Start:
+
+Set the timer T = rnd (D/2, D) and C = 0
 
 When the timer T goes off:
 
@@ -34,14 +36,12 @@ When the timer T goes off:
 
 When the D timer goes off AND ALSO upon ID event:
 
-	C = 0
 	goto Start;
 	
 Upon SD event:
 
 	C++;
 	
-
 
 	
 A natural option:

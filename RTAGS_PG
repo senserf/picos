@@ -4254,3 +4254,14 @@ PG150313A:	PIP >= PG150313A
 	caused by the phys_uart irq function being missing.
 
 	A few tweaks in preparation for the Alphatronics source release.
+
+PG150507A:
+
+	A small fix to mkmk to make sure that library directory paths are
+	correctly recognized in their Windows versions.
+
+	A few cosmetic changes in documentation.
+
+	Added a new formatting script to SA/LOGSCAN: format_alpha1.fun which
+	also formats reports, pongs, and their acks, as per Alphanet version
+	1.0.

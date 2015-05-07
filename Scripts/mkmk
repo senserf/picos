@@ -1419,6 +1419,7 @@ proc uxname { fn } {
 			errab "Cannot convert file name to UNIX, cygpath call\
 				failed, $res"
 		}
+		set fn $res
 	}
 
 	return $fn
@@ -2557,7 +2558,7 @@ proc main { } {
 		if { $arg == "" } {
 			bad_usage
 		}
-		set Run(library) $arg
+		set Run(library) [uxname $arg]
 		set arg [getarg]
 	} else {
 		# this must be a board name
