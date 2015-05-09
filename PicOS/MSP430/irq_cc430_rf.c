@@ -37,7 +37,7 @@ interrupt (CC1101_VECTOR) irq_cc430_rf () {
 		//
 		// This really (I mean REALLY) sucks. I have to use a spin-loop
 		// (this is what the SRX strobe amounts to) in an interrupt
-		// service routine (or order 1msec) to make the stupid chip
+		// service routine (of order 1msec) to make the stupid chip
 		// happy. The manual says that the CPU cannot go to the low
 		// power mode for over 800us when transiting from SLEEP (also
 		// WOR) to any active state. Apparently, the manual is right as

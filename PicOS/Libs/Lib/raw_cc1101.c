@@ -73,6 +73,7 @@ void rrf_get_reg_burst (byte addr, byte *buffer, word count) {
 		// Wait for the byte
 		while (!(RF1AIFCTL1 & RFDOUTIFG));
                 // Read DOUT + clear RFDOUTIFG, initialize auto-read for next
+		// byte
 		*buffer++ = RF1ADOUT1B;
 	}
 
@@ -80,24 +81,41 @@ void rrf_get_reg_burst (byte addr, byte *buffer, word count) {
 	*buffer = RF1ADOUT0B;
 }
 
+#define	strobe(b) cc1100_strobe (b)
+
 static byte cc1100_strobe (byte b) {
 
-	volatile byte sb;
+	volatile word sb;
 
 	// Clear the status-read flag 
 	RF1AIFCTL1 &= ~(RFSTATIFG);
 	  
 	// Wait until ready for next instruction
-	while(!(RF1AIFCTL1 & RFINSTRIFG));
+	while (!(RF1AIFCTL1 & RFINSTRIFG));
 
+	// Take the ready status before issuing the command to prevent race.
+	// Note that I am trying to follow recommendations in the "official"
+	// examples/application notes, while fixing obvious problems in those
+	// examples. This is one such fix.
+	sb = chip_not_ready;
 	// Issue the command
 	RF1AINSTRB = b; 
 
-	while (b != CCxxx0_SRES && b != CCxxx0_SNOP &&
-		(RF1AIFCTL1 & RFSTATIFG) == 0);
+	if (b == CCxxx0_SRES || b == CCxxx0_SNOP)
+		goto Ret;
 
+	if (b != CCxxx0_SPWD) {
+		// We worry about the chip being ready
+		if (sb) {
+			// Transiting from SLEEP
+			while (chip_not_ready);
+			udelay (DELAY_CHIP_READY);
+		}
+	}
+
+	while ((RF1AIFCTL1 & RFSTATIFG) == 0);
+Ret:
 	sb = RF1ASTATB;
-
 	return (sb & CC1100_STATE_MASK);
 }
 
@@ -312,13 +330,15 @@ int rrf_rx_status () {
 
 #ifdef	__CC430__
 
-	if (cc1100_strobe (CCxxx0_SNOP) == CC1100_STATE_IDLE) {
+	int res;
 
+	if (cc1100_strobe (CCxxx0_SNOP) == CC1100_STATE_IDLE) {
 		// The state is right, check RXBYTES
-		return cc1100_get_reg (CCxxx0_RXBYTES) & 0x7f;
+		if (!((res = rrf_get_reg (CCxxx0_RXBYTES)) & 0x80))
+			return res;
 	}
 #else
-	register byte b, val;
+	byte b, val;
 
 	SPI_START;
 

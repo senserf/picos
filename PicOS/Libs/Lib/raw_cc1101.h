@@ -5,6 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#define	CC1101_RAW_INTERFACE	1
+
 #include "cc1100.h"
 
 //+++ "raw_cc1101.c"

@@ -6,6 +6,20 @@
 // routine
 // ============================================================================
 
+#define	RX_FIFO_READY		(RF1AIN & 0x01)
+
+#define	ini_regs		CNOP
+
+#define	chip_not_ready		(RF1AIN & IRQ_RXTM)
+
+#define	IRQ_RCPT		(1 << 0)	// Reception on GDO0
+#define	IRQ_RXTM		(1 << 1)	// !Chip ready on GDO1
+
+// ============================================================================
+
+#ifndef	CC1101_RAW_INTERFACE
+// Skip this if using raw interface (no interrupts in that case)
+
 #ifndef	RADIO_WOR_MODE
 // For compatibility with the old driver
 #define	RADIO_WOR_MODE	0
@@ -14,20 +28,12 @@
 //+++ "irq_cc430_rf.c"
 REQUEST_EXTERNAL (irq_cc430_rf);
 
-#define	RX_FIFO_READY		(RF1AIN & 0x01)
-
-#define	ini_regs		CNOP
-
-#define	IRQ_RCPT		(1 << 0)	// Reception on GDO0
-#define	IRQ_RXTM		(1 << 1)	// !Chip ready on GDO1
 
 #define rcv_enable_int		do { \
 					RF1AIE = IRQ_RCPT; \
 					if (RX_FIFO_READY) \
 						_BIS (RF1AIFG, IRQ_RCPT); \
 				} while (0)
-
-#define	chip_not_ready		(RF1AIN & IRQ_RXTM)
 
 #if RADIO_WOR_MODE
 
@@ -45,5 +51,7 @@ byte cc1100_strobe (byte);
 #define	wor_enable_int		RF1AIE =  IRQ_EVT0
 
 #endif	/* RADIO_WOR_MODE */
+
+#endif	/* CC1101_RAW_INTERFACE */
 
 #endif

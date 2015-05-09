@@ -4265,3 +4265,30 @@ PG150507A:
 	Added a new formatting script to SA/LOGSCAN: format_alpha1.fun which
 	also formats reports, pongs, and their acks, as per Alphanet version
 	1.0.
+
+PG150509A:
+
+	Renamed Alphanet boards to include the official board identifiers
+	within the names.
+
+	Added new board definitions:
+
+	ALPHANET_CP432_USB: the USB dongle; I have tested the device and it
+	works fine.
+
+	ALPHANET_CP423_USB_SA: the dongle configured as the Spectrum Analyzer.
+
+	ALPHANET_AP331_PANIC: the coil (loop detector) version of the panic
+	button board. I have tested the board (running as a tag) without
+	touching the loop detector for which we need a driver (if it is ever to
+	be used). The board drains about 266uA. When run with the AP320
+	firmware, the current is about 9mA (probably because of the
+	misconfiguration of the UART pins). According to the datasheet, the
+	loop detector (AS3932) drains 5-6uA in the full on mode (in which, I
+	believe, it is set to operate by default, so we need some driver to
+	change that). Anyway, the board has a voltage regulator which is
+	probably responsible for the relatively large current. Note that at
+	this current the 250mAh battery will last for about a month. The board
+	is supposed to recharge, so this may be OK.
+
+	Cleaned a few things in the spectrum analyzer.

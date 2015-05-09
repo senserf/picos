@@ -1,0 +1,2 @@
+-c cc430x6137
+-l main.c sysio.h plug_boss.h raw_cc1101.h plug_boss.c raw_cc1101.c
