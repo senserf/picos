@@ -190,6 +190,7 @@ class rfm_intd_t {
 	Transceiver	*RFInterface;
 	PKT		OBuffer;
 	Boolean		Receiving, Xmitting, RXOFF;
+	byte		LastPower;
 	address		__pi_x_buffer, __pi_r_buffer;
 	int		tx_event;
 
@@ -199,7 +200,7 @@ class rfm_intd_t {
 	word		lbt_delay, lbt_tries;
 	word		phys_id;
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 
 #define	RERR_RCPA	0
 #define	RERR_RCPS	1

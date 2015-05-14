@@ -1,4 +1,5 @@
 #!/bin/sh
+rm -f cc1100.h
 rm -f rtc_cc430.h
 rm -f rtc_s35390.h
 rm -f pinopts.h

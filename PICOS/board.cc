@@ -481,7 +481,7 @@ void rfm_intd_t::init () {
 //
 
 	RFInterface->rcvOn ();
-	setrfpowr (DefXPower);
+	setrfpowr (LastPower = DefXPower);
 	RFInterface->setRPower (DefRPower);
 
 	setrfrate (DefRate);

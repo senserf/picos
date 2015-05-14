@@ -10,6 +10,7 @@
 #define	obf	(rf->OBuffer)
 #define	bkf	(rf->backoff)
 #define	txe	(rf->tx_event)
+#define	lastp	(rf->LastPower)
 #define	rxe	rf
 #define	rxoff	(rf->RXOFF)
 #define	sid	(rf->statid)
@@ -107,7 +108,7 @@ void RM_Xmitter::pwr_off () {
 // is empty
 void RM_Xmitter::set_congestion_indicator (word v) {
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 
 	if ((rerr [RERR_CONG] = (rerr [RERR_CONG] * 3 + v) >> 2) > 0x0fff)
 		rerr [RERR_CONG] = 0xfff;
@@ -128,6 +129,11 @@ void RM_Xmitter::set_congestion_indicator (word v) {
 }
 
 RM_Xmitter::perform {
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+    address ppm;
+    byte w, ppw;
+#endif
 
     _pp_enter_ ();
 
@@ -153,11 +159,40 @@ RM_Xmitter::perform {
 		
 	if (bkf && !tcv_isurgent (xbf)) {
 		// backing off and the packet is not urgent
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+Bkf:
+#endif
 		delay (bkf, XM_LOOP);
 		bkf = 0;
 		when (txe, XM_LOOP);
 		release;
 	}
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+
+	// Check for CAV requested in the packet
+	ppm = xbf + (buflen >> 1) - 1;
+
+	if ((bkf = (*ppm & 0x0fff))) {
+		*ppm &= ~0x0fff;
+		goto Bkf;
+	}
+
+	if (__pi_channel_type != CTYPE_NEUTRINO) {
+		// Xmit power setting?
+		ppw = (*ppm >> 12) & 0x7;
+		if (ppw != lastp) {
+			if (ppw > (w = Ether->PS->upper ()))
+				ppw = w;
+			else if (ppw < (w = Ether->PS->lower ()))
+				ppw = w;
+			rf->setrfpowr (lastp = ppw);
+		}
+	}
+
+	if (*ppm & 0x8000)
+		ntry = 0;
+#endif
 
 	if (ntry) {
 
@@ -222,7 +257,7 @@ Xmit:
 	if (RSSI->sigLevel () < lbtth)
 		goto Xmit;
 
-#if ((RADIO_OPTIONS & 0x05) == 0x05)
+#if ((RADIO_OPTIONS & (RADIO_OPTION_RBKF | RADIO_OPTION_STATS)) == (RADIO_OPTION_RBKF | RADIO_OPTION_STATS))
 	if (rerr [RERR_CONG] >= 0x0fff)
 		diag ("RF driver: LBT congestion!!");
 #endif
@@ -319,7 +354,7 @@ RM_Receiver::perform {
 
     state RCV_RECEIVE:
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	if (rerr [RERR_RCPA] == MAX_WORD)
 		// Zero out slots 0 and 1
 		memset (rerr + RERR_RCPA, 0, sizeof (word) * 2);
@@ -354,10 +389,10 @@ RM_Receiver::perform {
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
 	rbf [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	rerr [RERR_RCPS] ++;
 #endif
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 	diag ("RF driver: %u RX OK %04x %04x %04x", (word) seconds (),
 		rbf [0],
 		rbf [1],
@@ -603,7 +638,7 @@ static int rfm_option (int opt, address val) {
 
 		if (rxoff) {
 			if (!xmtg) {
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 			    diag ("RF driver: %u POWER UP",
 				(word) seconds ());
 #endif
@@ -644,6 +679,8 @@ static int rfm_option (int opt, address val) {
 		trigger (txe);
 		break;
 
+#if ((RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0)
+
 	    case PHYSOPT_SETPOWER:
 
 		if (__pi_channel_type == CTYPE_NEUTRINO)
@@ -659,9 +696,11 @@ static int rfm_option (int opt, address val) {
 				v = w;
 		} else
 			v = defxp;
-		rf->setrfpowr (v);
-		break;
 
+		if (v != lastp)
+			rf->setrfpowr (lastp = v);
+		break;
+#endif
 	    case PHYSOPT_GETPOWER:
 
 		ret = (__pi_channel_type == CTYPE_NEUTRINO) ? 0 :
@@ -722,7 +761,7 @@ static int rfm_option (int opt, address val) {
 			*val = ret;
 		break;
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	    case PHYSOPT_ERROR:
 
 		if (val != NULL) {
@@ -768,6 +807,7 @@ static int rfm_option (int opt, address val) {
 #undef	defch
 #undef	rerr
 #undef	retr
+#undef	lastp
 
 #include "stdattr_undef.h"
 

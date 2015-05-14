@@ -1236,3 +1236,8 @@ PG140702A:
     be set correctly.
 
     A few more cosmetics related to tips in udaemon.
+
+PG150514A:	PICOS >= P150514A
+
+    RADIO_OPTION_PXOPTIONS is interpreted in the VUEE's model of the RF driver
+    (see PG150514A in PICOS).
