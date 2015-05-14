@@ -1,7 +1,7 @@
 #ifndef	__tcv_defs_h
 #define __tcv_defs_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -152,6 +152,7 @@ typedef	struct {
 #define	tcv_isurgent(p)		(__tcv_header (p) -> attributes.b.urgent)
 #define	tcv_left(p)		(__tcv_header (p) -> u.pointers.tail)
 #define	tcv_offset(p)		(__tcv_header (p) -> u.pointers.head)
+#define	tcv_tlength(p)		(__tcv_header (p) -> length)
 
 #define	tcv_urgent(p)		do { \
 				  __tcv_header (p) -> attributes.b.urgent = 1; \

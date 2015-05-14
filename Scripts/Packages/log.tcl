@@ -100,7 +100,7 @@ proc log { m } {
 	variable Log 
 
 	if ![info exists Log(FD)] {
-		# no log filr
+		# no log file
 		return
 	}
 

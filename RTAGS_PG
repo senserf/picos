@@ -4292,3 +4292,32 @@ PG150509A:
 	is supposed to recharge, so this may be OK.
 
 	Cleaned a few things in the spectrum analyzer.
+
+PG150514A:
+
+	Added a new option to the CC1100 driver (phys_cc1100.c). When bit 8
+	(RADIO_OPTION_PXOPTIONS) is set in RADIO_OPTIONS, the last two bytes
+	of every outgoing packet are used to specify three items (see the blue
+	parts in Docs/cc1100.pdf):
+
+	- the transmission power
+	- the collision avoidance vector
+	- a flag indicating whether to disable LBT for the packet
+
+	This way every outgoing packet specifies its own transmission
+	parameters which will apply exclusively and consistently to this and
+	only this packet.
+
+	When the option is in effect, PHYSOPT_SETPOWER is undefined and
+	illegal (it makes no sense).
+
+	Note that every outgoing packet buffer must provide two extra bytes at
+	the end (regardless whether RADIO_OPTION_PXOPTIONS is compiled in or
+	not). When the option IS compiled in, the input contents of those bytes
+	are interpreted by the driver.
+
+	This also works for VUEE.
+
+	A few cleanups here and there. We now have a packet sniffer that can
+	be tuned to a specific Network ID and set to ignore packets with bad
+	checksums.

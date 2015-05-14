@@ -340,7 +340,7 @@ static word	*rbuff = NULL,
 		statid = 0,
 		bckf_timer = 0;
 
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
 static word	bckf_lbt = 0;
 
 #define	update_bckf_lbt(v)	bckf_lbt += (v)
@@ -354,7 +354,7 @@ static word	bckf_lbt = 0;
 word		__pi_v_drvprcs, __pi_v_qevent;
 
 // ============================================================================
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 // ============================================================================
 // Count events ===============================================================
 // ============================================================================
@@ -410,7 +410,7 @@ static void set_congestion_indicator (word v) {
 
 #else
 #define	set_congestion_indicator(v)	CNOP
-#endif	/* RADIO_OPTIONS & 0x04 */
+#endif	/* RADIO_OPTIONS & RADIO_OPTION_STATS */
 
 // ============================================================================
 
@@ -522,14 +522,14 @@ static void power_down () {
 #endif
 		strobe (CCxxx0_SWOR);
 
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u WOR", (word) seconds ());
 #endif
 	} else
 #endif
 	{
 		strobe (CCxxx0_SPWD);
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u POWER DOWN", (word) seconds ());
 #endif
 	}
@@ -550,7 +550,7 @@ static void set_default_wor_params () {
 	wor_preamble_time = RADIO_WOR_PREAMBLE_TIME;
 	wor_idle_timeout = RADIO_WOR_IDLE_TIMEOUT;
 
-#if (RADIO_OPTIONS & 0x20)
+#if (RADIO_OPTIONS & RADIO_OPTION_WORPARAMS)
 	set_reg (CCxxx0_WOREVT1, WOR_EVT0_TIME >> 8);
 	cc1100_wor_von [0] = CCxxx0_PKTCTRL1_WORx;
 	cc1100_wor_von [1] = CCxxx0_AGCCTRL1_WORx;
@@ -584,7 +584,7 @@ static void chip_reset () {
 	vrate = RADIO_BITRATE_INDEX;
 #endif
 
-#if RADIO_POWER_SETTABLE
+#if RADIO_POWER_SETTABLE && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0
 	power = RADIO_DEFAULT_POWER;
 #endif
 
@@ -667,7 +667,7 @@ static void do_rx_fifo () {
 
 	if ((len = rx_status ()) < 0) {
 		// Something wrong, bad state
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u RX BAD STAT!!", (word) seconds ());
 #endif
 RRX:
@@ -681,7 +681,7 @@ RRX:
 		// We are formally switched off (but still up, note that RxST
 		// cannot be 2 at this point), so just clean the FIFO
 		if (len) {
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 			diag ("CC1100: %u RX OFF CLEANUP", (word) seconds ());
 #endif
 			goto RRX;
@@ -689,7 +689,7 @@ RRX:
 		goto Rtn;
 	}
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	if (rerror [RERR_RCPA] == MAX_WORD)
 		// Zero out slots 0 and 1
 		memset (rerror + RERR_RCPA, 0, sizeof (word) * 2);
@@ -709,7 +709,7 @@ RRX:
 #endif
 	    ) {
 
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u RX BAD PL: %d", (word) seconds (), len);
 #endif
 		goto RRX;
@@ -723,7 +723,7 @@ RRX:
 	// because of the two status bytes appended at the end by the chip
 	if (paylen != len - 3) {
 
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u RX PL MIS: %d/%d", (word) seconds (), len,
 			paylen);
 #endif
@@ -734,7 +734,7 @@ RRX:
 	// whatever is present in the FIFO), because we need the status bytes
 	// as well
 	if (--len > rbuffl) {
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u RX LONG: %d", (word) seconds (), paylen);
 #endif
 		goto RRX;
@@ -751,7 +751,7 @@ RRX:
 		// Admit only packets with agreeable statid
 		if (rbuff [0] != 0 && rbuff [0] != statid) {
 			// Drop
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 			diag ("CC1100: %u RX BAD STID: %x", (word) seconds (),
 				rbuff [0]);
 #endif
@@ -773,7 +773,7 @@ RRX:
 #else
 	if (w_chk (rbuff, len, 0)) {
 		// Bad checksum
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u RX CKS (S) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
 			(word*)(rbuff) [1],
@@ -809,7 +809,7 @@ RRX:
 
 	if ((b & 0x80) == 0) {
 		// Bad checksum
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100: %u RX CKS (H) %x %x %x", (word) seconds (),
 			(word*)(rbuff) [0],
 			(word*)(rbuff) [1],
@@ -822,11 +822,11 @@ RRX:
 
 #endif	/* SOFTWARE_CRC */
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	rerror [RERR_RCPS] ++;
 #endif
 
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 	diag ("CC1100: %u RX OK %x %x %x", (word) seconds (),
 		(word*)(rbuff) [0],
 		(word*)(rbuff) [1],
@@ -863,6 +863,11 @@ thread (cc1100_driver)
   int len;
 #endif
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+  address ppm;
+  word pcav;
+#endif
+
   entry (DR_LOOP)
 
 DR_LOOP__:
@@ -888,10 +893,9 @@ DR_LOOP__:
 #endif
 
 	// The next thing to find out is whether we have anything to transmit
-
-#if RADIO_WOR_MODE
 	if ((xbuff = tcvphy_top (physid)) == NULL) {
 		wait (__pi_v_qevent, DR_LOOP);
+#if RADIO_WOR_MODE
 		if (woron) {
 			// Listen for a while before resuming WOR; do that only
 			// if nothing happens in the meantime; note: we do not
@@ -901,10 +905,6 @@ DR_LOOP__:
 			rcv_enable_int;
 			release;
 		}
-#else
-	// Not WOR mode
-	if (tcvphy_top (physid) == NULL) {
-		wait (__pi_v_qevent, DR_LOOP);
 #endif
 		if (RxST == RCV_STATE_OFF) 
 			// Nothing to transmit, no WOR (RxST is never OFF if
@@ -930,6 +930,9 @@ DR_LOOP__:
 #endif
 	if (bckf_timer) {
 		// Backoff wait
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+Bkf:
+#endif
 		wait (__pi_v_qevent, DR_LOOP);
 		delay (bckf_timer, DR_LOOP);
 		if (RxST != RCV_STATE_PD)
@@ -937,6 +940,16 @@ DR_LOOP__:
 		release;
 	}
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	// Check for CAV requested in the packet
+	ppm = xbuff + ((tcv_tlength (xbuff) >> 1) - 1);
+	if ((pcav = (*ppm) & 0x0fff)) {
+		// Remove for next turn
+		*ppm &= ~0x0fff;
+		utimer_set (bckf_timer, pcav);
+		goto Bkf;
+	}
+#endif
 	// Transmission OK
 
 	if (RxST == RCV_STATE_PD) {
@@ -950,14 +963,26 @@ DR_LOOP__:
 	// LBT ================================================================
 	// ====================================================================
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) && RADIO_POWER_SETTABLE
+	if ((byte)(pcav = (*ppm >> 12) & 0x7) != power) {
+		power = (byte)pcav;
+		set_reg (CCxxx0_FREND0, FREND0_SET | power);
+	}
+#endif
+
 #if RADIO_LBT_MODE == 3
 	// Staged/limited
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	if (*ppm & 0x8000)
+		// LBT off requested by the packet
+		retr = LBT_RETR_FORCE_OFF;
+#endif
 	if (retr < LBT_RETR_FORCE_RCV) {
 		// Retry count below forcing threshold
 		if (retr == 0) {
 			// Initialize MCSM1
 			set_reg (CCxxx0_MCSM1, MCSM1_LBT_FULL);
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 			if (rerror [RERR_XMEX] == MAX_WORD)
 				memset (rerror + RERR_XMEX, 0,
 					sizeof (word) * 2);
@@ -985,13 +1010,13 @@ DR_LOOP__:
 			// Limit reached, ignore and start again; I guess we
 			// used to drop packets here, but it makes no sense,
 			// so just pretend you drop it
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 			// This one is never bigger than RERR_XMEX
 			rerror [RERR_XMDR] ++;
 #endif
 			// Pretend the packet has been transmitted
 			set_congestion_indicator (0);
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 			diag ("CC1100: RTL!!");
 #endif
 			goto FEXmit;
@@ -999,7 +1024,7 @@ DR_LOOP__:
 		retr++;
 #endif
 
-#if ((RADIO_OPTIONS & 0x05) == 0x05)
+#if ((RADIO_OPTIONS & (RADIO_OPTION_RBKF | RADIO_OPTION_STATS)) == (RADIO_OPTION_RBKF | RADIO_OPTION_STATS))
 		if (rerror [RERR_CONG] >= 0x0fff)
 				diag ("CC1100: LBT CNG");
 #endif
@@ -1046,8 +1071,8 @@ DR_LOOP__:
 		// sending the long preamble
 		goto Break;
 #else
-	// This cannot possibly fail
-	xbuff = tcvphy_get (physid, &paylen);
+	// This cannot possibly fail, xbuf already assigned
+	tcvphy_get (physid, &paylen);
 #endif
 
 	// A packet arriving from TCV always contains CRC slots, even if
@@ -1071,7 +1096,7 @@ DR_LOOP__:
 		// This means "honor the packet's statid"
 		xbuff [0] = statid;
 
-#if (RADIO_OPTIONS & 0x01)
+#if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
 	xbuff [1] = bckf_lbt;
 	bckf_lbt = 0;
 #endif
@@ -1136,7 +1161,7 @@ FEXmit:
 
 	enter_idle ();
 	enter_rx ();
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 	diag ("CC1100: %u RECAL", (word) seconds ());
 #endif
 	goto DR_LOOP__;
@@ -1171,7 +1196,7 @@ FEXmit:
 	// Abort the preamble, enter RX, and try again
 Break:
 	enter_rx ();
-	goto DR_LOOP__;
+	goto FEXmit;
 
 #endif
 
@@ -1258,7 +1283,7 @@ OREvnt:
 		;
 		goto RVal;
 
-#if (RADIO_OPTIONS & 0x04)
+#if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	    case PHYSOPT_ERROR:
 
 		if (val != NULL) {
@@ -1317,7 +1342,7 @@ OREvnt:
 
 	switch (opt) {
 
-#if RADIO_POWER_SETTABLE
+#if RADIO_POWER_SETTABLE && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0
 
 	    case PHYSOPT_SETPOWER:
 
@@ -1362,7 +1387,7 @@ OREvnt:
 #endif
 	    case PHYSOPT_RESET:
 
-#if (RADIO_OPTIONS & 0x40)
+#if (RADIO_OPTIONS & RADIO_OPTION_REGWRITE)
 		if (val != NULL) {
 
 			byte *r;
@@ -1386,7 +1411,7 @@ OREvnt:
 		} else {
 			wor_idle_timeout = *val++;
 			wor_preamble_time = *val;
-#if (RADIO_OPTIONS & 0x20)
+#if (RADIO_OPTIONS & RADIO_OPTION_WORPARAMS)
 			byte *v = (byte*)(++val);
 			// High byte of EVT0 value
 			set_reg (CCxxx0_WOREVT1, v [0]);
@@ -1461,7 +1486,7 @@ void phys_cc1100 (int phy, int mbs) {
 // reserved for the reception buffer is exactly mbs, even though its useful
 // length is (always) mbs - 2.
 //
-#if (RADIO_OPTIONS & 0x10) == 0
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
 	if (rbuff != NULL)
 		/* We are allowed to do it only once */
 		syserror (ETOOMANY, "cc11");
@@ -1470,12 +1495,12 @@ void phys_cc1100 (int phy, int mbs) {
 	if (mbs == 0)
 		mbs = CC1100_MAXPLEN;
 
-#if (RADIO_OPTIONS & 0x10) == 0
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
 	if (mbs < 6 || mbs > CC1100_MAXPLEN)
 		syserror (EREQPAR, "cc11 mb");
 #endif
 
-#if !defined(__CC430__) && (RADIO_OPTIONS & 0x08)
+#if !defined(__CC430__) && (RADIO_OPTIONS & RADIO_OPTION_CCHIP)
 	// Chip connectivity test
 	csn_down;
 	mdelay (2);
@@ -1495,7 +1520,7 @@ void phys_cc1100 (int phy, int mbs) {
 #endif
 	;
 	rbuff = umalloc (rbuffl);
-#if (RADIO_OPTIONS & 0x10) == 0
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
 	if (rbuff == NULL)
 		syserror (EMALLOC, "cc11");
 #endif
@@ -1518,7 +1543,7 @@ void phys_cc1100 (int phy, int mbs) {
 			CC1100_CHANSPC_T1000, CC1100_DFREQ, CC1100_DFREQ_10);
 #endif
 
-#if (RADIO_OPTIONS & 0x80) && ENTROPY_COLLECTION
+#if (RADIO_OPTIONS & RADIO_OPTION_ENTROPY) && ENTROPY_COLLECTION
 
 	// Collect initial entropy
 	{
@@ -1533,7 +1558,7 @@ void phys_cc1100 (int phy, int mbs) {
 				(get_reg (CCxxx0_RSSI) & 0xF);
 			enter_idle ();
 		}
-#if (RADIO_OPTIONS & 0x02)
+#if (RADIO_OPTIONS & RADIO_OPTION_DIAG)
 		diag ("CC1100 ENTR: %x%x", (word)entropy, (word)(entropy>>16));
 #endif
 		power_down ();
@@ -1545,7 +1570,7 @@ void phys_cc1100 (int phy, int mbs) {
 
 	// Start the driver process
 	__pi_v_drvprcs = runthread (cc1100_driver);
-#if (RADIO_OPTIONS & 0x10) == 0
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
 	if (__pi_v_drvprcs == 0)
 		syserror (ERESOURCE, "cc11");
 #endif

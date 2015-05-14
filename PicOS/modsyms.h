@@ -89,6 +89,20 @@
 #define RADIO_OPTIONS		0
 #endif
 
+// RADIO_OPTIONS bits (see cc1100.h); I put them in here to make them uniformly
+// visible for PicOS as well as VUEE
+#define	RADIO_OPTION_RBKF	0x001
+#define	RADIO_OPTION_DIAG	0x002
+#define	RADIO_OPTION_STATS	0x004
+#define	RADIO_OPTION_CCHIP	0x008
+#define	RADIO_OPTION_NOCHECKS	0x010
+#define	RADIO_OPTION_WORPARAMS	0x020
+#define	RADIO_OPTION_REGWRITE	0x040
+#define	RADIO_OPTION_ENTROPY	0x080
+#define	RADIO_OPTION_PXOPTIONS	0x100
+
+
+
 // RF modules blink LEDs on transmission, reception, and so on ...
 #ifndef	RADIO_USE_LEDS
 #define	RADIO_USE_LEDS		0

@@ -70,16 +70,17 @@
 #define	RADIO_OPTIONS		0
 #endif
 // ============================================================================
-// OPTIONS, EXTENSIONS:
+// OPTIONS, EXTENSIONS (see modysms.h for symbolic names):
 //
-//	0x01 overwrite packet [1] with the packet's backoff value
-//	0x02 trace: diag messages on important events and problems)
-//	0x04 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
-//	0x08 prechecks: initial check for RF chip present (to prevent hangups)
-//  	0x10 lean code: remove parameter checks for driver requests
-//	0x20 WOR test mode: PHYSOPT_SETPARAMS sets WOR parameters
-//	0x40 RESET with argument writes into registers (doing no reset)
-//	0x80 collect entropy from the air on startup
+//	0x001 overwrite packet [1] with the packet's backoff value
+//	0x002 trace: diag messages on important events and problems)
+//	0x004 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
+//	0x008 prechecks: initial check for RF chip present (to prevent hangups)
+//  	0x010 lean code: remove parameter checks for driver requests
+//	0x020 WOR test mode: PHYSOPT_SETPARAMS sets WOR parameters
+//	0x040 RESET with argument writes into registers (doing no reset)
+//	0x080 collect entropy from the air on startup
+//	0x100 last word of outgoing packet specifies transmission options
 // ============================================================================
 
 // ============================================================================
