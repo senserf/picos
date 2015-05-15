@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 0.7
+set ST(VER) 0.71
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -114,6 +114,7 @@ set GdbCmd "gdb"
 set GdbMCmd "msp430-gdb"
 set MspDCmd "mspdebug"
 set XTCmd "xterm"
+set EXCmd "explorer"
 set SACmd "sa"
 
 ## File types to be listed in the Files view:
@@ -587,8 +588,12 @@ proc dospath { fn } {
 
 	set fn [fpnorm $fn]
 
-	if !$ST(DP) {
-		# do nothing if preferred path format is DOS
+	if $ST(DP) {
+		# preferred path format is DOS, just make sure it is a native
+		# name
+		set fn [file nativename $fn]
+	} else {
+		# have to convert, -w will make it native
 		if ![catch { xq "cygpath" [list -w $fn] } fm] {
 			log "DOS path: $fn -> $fm"
 			set fn $fm
@@ -2276,6 +2281,8 @@ proc tree_selection { { x "" } { y "" } } {
 
 proc tree_menu { x y X Y } {
 
+	global ST
+
 	# create the menu
 	catch { destroy .popm }
 	set m [menu .popm -tearoff 0]
@@ -2288,7 +2295,10 @@ proc tree_menu { x y X Y } {
 	$m add command -label "Copy to ..." -command "copy_to $x $y"
 	$m add command -label "New directory ..." -command "new_directory $x $y"
 	$m add command -label "Run XTerm here" -command "run_xterm_here $x $y"
-
+	if { $ST(SYS) != "L" } {
+		$m add command -label "Run Windows Explorer here" \
+			-command "run_explorer_here $x $y"
+	}
 	tk_popup .popm $X $Y
 }
 
@@ -3034,14 +3044,14 @@ proc copy_to { { x "" } { y "" } } {
 	gfl_tree
 }
 
-proc run_xterm_here { { x "" } { y "" } } {
+proc get_items_dir { x y } {
 #
-# Copies current file anywhere
+# Obtain the path to the selected/pointed to item
 #
 	global P
 
 	if { $P(AC) == "" } {
-		return
+		return ""
 	}
 
 	set sel [tree_selection $x $y]
@@ -3050,12 +3060,12 @@ proc run_xterm_here { { x "" } { y "" } } {
 
 	if { $nf == 0 } {
 		alert "You have to select a file or directory for this"
-		return
+		return ""
 	}
 
 	if { $nf != 1 } {
 		alert "Need a single selection for this"
-		return
+		return ""
 	}
 
 	set fp [lindex $sel 0]
@@ -3066,6 +3076,19 @@ proc run_xterm_here { { x "" } { y "" } } {
 		set fp [fpnorm [lindex $fp 0]]
 	} else {
 		alert "What you have selected is neither a file nor a directory"
+		return ""
+	}
+
+	return $fp
+}
+
+proc run_xterm_here { { x "" } { y "" } } {
+#
+# Runs xterm for the directory of current item
+#
+	set fp [get_items_dir $x $y]
+	if { $fp == "" } {
+		# failed
 		return
 	}
 
@@ -3080,7 +3103,20 @@ proc run_xterm_here { { x "" } { y "" } } {
 
 	catch { cd $cd }
 }
-		
+
+proc run_explorer_here { { x "" } { y "" } } {
+#
+# Runs window explorer in the directory of the current item
+#
+	set fp [get_items_dir $x $y]
+	if { $fp == "" } {
+		# failed
+		return
+	}
+
+	run_explorer $fp
+}
+
 proc rename_file { { x "" } { y "" } } {
 #
 # Renames a file or directory
@@ -8303,6 +8339,23 @@ proc run_xterm { } {
 	catch { xq $XTCmd "&" }
 }
 
+proc run_explorer { { wd "" } } {
+
+	global EXCmd ST
+
+	if { $ST(SYS) == "L" } {
+		# not available
+		alert "Windows explorer is not available on this system"
+		return
+	}
+
+	if { $wd == "" } {
+		set wd [pwd]
+	}
+
+	catch { xq $EXCmd [list [dospath $wd] "&"] }
+}
+
 proc run_any_program { } {
 #
 # Executes any program in the console
@@ -8466,7 +8519,7 @@ proc reset_file_menu { { clear 0 } } {
 # Create the File menu of the project window; it must be done dynamically,
 # because it depends on the list of recently opened projects
 #
-	global LProjects P
+	global LProjects P ST
 
 	set m .menu.file
 
@@ -8520,6 +8573,10 @@ proc reset_file_menu { { clear 0 } } {
 	$m add separator
 
 	$m add command -label "Run XTerm" -command "run_xterm_here" -state $st
+	if { $ST(SYS) != "L" } {
+		$m add command -label "Run Windows Explorer" \
+			-command "run_explorer_here" -state $st
+	}
 
 	$m add separator
 
@@ -8735,7 +8792,7 @@ proc reset_exec_menu { { clear 0 } } {
 #
 # Re-create the exec menu
 #
-	global P SIDENAME TCMD SACmd
+	global P SIDENAME TCMD SACmd ST
 
 	set m .menu.exec
 	if [catch { $m delete 0 end } ] {
@@ -8855,6 +8912,9 @@ proc reset_exec_menu { { clear 0 } } {
 	}
 	$m add command -label "Run program" -command run_any_program -state $st
 	$m add command -label "XTerm" -command run_xterm
+	if { $ST(SYS) != "L" } {
+		$m add command -label "Windows Explorer" -command run_explorer
+	}
 
 	$m add separator
 
@@ -9684,6 +9744,7 @@ proc do_clean_light { { ix "" } } {
 proc open_search_window { } {
 #
 	global P FFont CFSearchModes CFSearchItems CFSearchTags CFSearchSFiles
+	global ST
 
 	if { $P(AC) == "" } {
 		return
@@ -9864,6 +9925,11 @@ proc open_search_window { } {
 
 	button $f.xb -text "XTerm" -command do_open_xterm
 	pack $f.xb -side right -expand n
+
+	if { $ST(SYS) != "L" } {
+		button $f.yb -text "Explorer" -command do_open_explorer
+		pack $f.yb -side right -expand n
+	}
 
 	# tags for marking the match and headers
 	$t tag configure mtag -background $P(SWN,n)
@@ -10529,15 +10595,15 @@ proc patt_to_words { pt } {
 
 ###############################################################################
 
-proc do_open_xterm { } {
+proc select_xtex_dir { } {
 #
-# Opens an xterm in the indicated directory
+# Selects the directory to open xterm or explorer in
 #
 	global P
 
 	if { $P(AC) == "" } {
-		# A precaution; Search won't open if there's no project
-		return
+		# A precaution; search won't open if there's no project
+		return ""
 	}
 
 	if ![info exists P(LOD)] {
@@ -10554,7 +10620,7 @@ proc do_open_xterm { } {
 
 	if { $fl == "" } {
 		# cancelled
-		return
+		return ""
 	}
 
 	set fl [fpnorm $fl]
@@ -10570,6 +10636,19 @@ proc do_open_xterm { } {
 
 	set P(LOD) $fl
 
+	return $fl
+}
+
+proc do_open_xterm { } {
+#
+# Opens an xterm in the indicated directory
+#
+	set fl [select_xtex_dir]
+
+	if { $fl == "" } {
+		return
+	}
+
 	set cd [pwd]
 	if [catch { cd $fl } err] {
 		catch { cd $cd }
@@ -10580,6 +10659,19 @@ proc do_open_xterm { } {
 	run_xterm
 
 	catch { cd $cd }
+}
+
+proc do_open_explorer { } {
+#
+# Opens Windows Explorer in the indicated directory
+#
+	set fl [select_xtex_dir]
+
+	if { $fl == "" } {
+		return
+	}
+
+	run_explorer $fl
 }
 
 proc do_edit_any_file { } {
