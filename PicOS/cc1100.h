@@ -1,7 +1,7 @@
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
