@@ -16,8 +16,9 @@
 #define	POFF_SND	3	// Sender
 #define	POFF_SER	4	// Serial number
 #define	POFF_FLG	5	// Flag field
-#define	POFF_SEN	6	// First sensor location (measurement packet)
+#define	POFF_SEN	7	// First sensor location (measurement packet)
 #define	POFF_CMD	6	// Command code (command packet)
+#define	POFF_ACT	6	// Node ID to collect ACKs (measurement packet)
 
 // Maximum command length in a command packet: ==
 // MAX - header - CHK - string sentinel
@@ -33,10 +34,23 @@
 // match ACKs to commands.
 //
 // A simple ACK response consists of a single word - the command status: zero
-// if OK, error number if something wrong (WNONE is reserved). A longer
-// response means a packet count report which looks like this:
+// if OK, error number if something wrong (WNONE is reserved).
 //
-//	SENT DRVT DRVC DRVL DRVS NNOD [Node Count]*N
+// A four word response is a measurement packet ACK. Its layout is:
+//
+// 	FROM SERN LNGT RSSQ
+//
+// where:
+//
+//	FROM is the packet's sender
+//
+//	LNGT is the packet's length packed with transmission power P << 8 | len
+//
+//	RSSQ is the packet's RSSI+LQI, i.e., the status word
+//
+// A response still longer than that is a packet count report which looks like
+// this:
+//
 //	SENT RERR-6 NNOD [Node Count]*NNOD
 //
 // where:
@@ -63,9 +77,15 @@
 // receive, not only measurement packets, and possibly some stray packets
 // from unrelated devices.
 //
+
+#define	POFF_FROM	(POFF_SER+1)
+#define	POFF_LNGT	(POFF_SER+2)
+#define	POFF_RSSQ	(POFF_SER+3)
+
+//
 // Measurement packets (the ones to be counted) look like this:
 //
-//	NID DRI 0 SND SER FLG SEN1 ... SENN ... random contents ... CHK
+//	NID DRI 0 SND SER FLG ACT SEN1 ... SENN ... random contents ... CHK
 //
 // The total length of a packet to send is a random number between
 // g_pkt_minpl and g_pkt_maxpl, inclusively, with the actual minimum never
@@ -75,7 +95,8 @@
 
 #define	MIN_ANY_PACKET_LENGTH	((POFF_FLG + 2)*2)
 #define	MIN_ACK_LENGTH		((POFF_CMD + 2)*2)
-#define	MIN_MES_PACKET_LENGTH	((POFF_FLG + 2 + NUMBER_OF_SENSORS) * 2)
+#define	MIN_MACK_LENGTH		((POFF_CMD + 4)*2)
+#define	MIN_MES_PACKET_LENGTH	((POFF_ACT + 2 + NUMBER_OF_SENSORS) * 2)
 
 // ============================================================================
 

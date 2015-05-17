@@ -11,25 +11,6 @@
 #include "tcvphys.h"
 #include "cc1100.h"
 
-
-
-
-
-
-// ============================================================================
-
-#ifdef	CC1100_OLD_DRIVER
-// This is obsolete and will be removed shortly
-
-#include "phys_cc1100_o.c"
-
-#else
-
-
-
-
-
-
 // ============================================================================
 // Chip access functions ======================================================
 // ============================================================================
@@ -1575,12 +1556,3 @@ void phys_cc1100 (int phy, int mbs) {
 		syserror (ERESOURCE, "cc11");
 #endif
 }
-
-
-
-
-
-
-
-
-#endif	/* FOR OLD DRIVER COMPATIBILITY, REMOVE THIS #endif WHEN RETIRED */

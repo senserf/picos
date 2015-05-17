@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -31,7 +31,7 @@
 #include "tldebug.h"
 #endif
 
-#include "app_data.h"
+#include "params.h"
 
 #if	NUMBER_OF_SENSORS > 0
 #include "sensors.h"
@@ -55,7 +55,7 @@ int	g_fd_rf = -1, g_snd_opl,
 
 word	g_pkt_mindel = 1024, g_pkt_maxdel = 1024,
 	g_snd_count, g_snd_rnode, g_snd_rcode, g_chsec, g_pcmd_del, g_snd_left,
-	g_snd_sernum = 1, g_snd_rtries, g_flags = 0;
+	g_snd_sernum = 1, g_snd_rtries, g_pkt_ack_to, g_flags = 0;
 
 byte	g_last_rssi, g_last_qual, g_snd_urgent;
 
@@ -68,11 +68,7 @@ word	g_pat_nlqi, g_pat_maxlqi, g_pat_drop;
 char	*g_snd_rcmd, *g_pcmd_cmd;
 
 #ifndef	__SMURPH__
-#ifdef	CC1100_OLD_DRIVER
-byte	*g_reg_suppl;
-#else
 const byte g_patable [] = CC1100_PATABLE;
-#endif
 #endif
 
 address	g_rcv_ackrp;
@@ -307,7 +303,7 @@ static const char *skip_del (const char *cb) {
 	
 void confirm (word sender, word sernum, word code) {
 //
-// Send an ACK
+// Send a command ACK
 //
 	address packet;
 
@@ -321,24 +317,73 @@ void confirm (word sender, word sernum, word code) {
 	}
 }
 
+void send_mak (address pkt, word pl) {
+//
+// Send a measurement packet ACK
+//
+	address packet;
+
+	if (pkt [POFF_ACT] == HOST_ID) {
+		// Show it on the UART
+#ifdef CHRONOS
+		enc_dec (pkt [POFF_RSSQ] >> 8);
+		m_out (WNONE, "RSSI");
+#else
+		uart_outf (WNONE,
+			"MAK F:%u, T:%u, N:%u, L:%u, P:%u, R:%u, Q:%u",
+				pkt [POFF_SND],
+				HOST_ID,
+				pkt [POFF_SER],
+				pl << 1,
+				pkt [POFF_FLG] & 0x07,
+				pkt [pl - 1] >> 8,
+				pkt [pl - 1] & 0x7f);
+#endif
+		return;
+	}
+
+	if ((packet = tcv_wnp (WNONE, g_fd_rf, MIN_MACK_LENGTH)) != NULL) {
+		packet [POFF_RCV] = HOST_ID;
+		packet [POFF_SND] = pkt [POFF_ACT];
+		packet [POFF_SER] = pkt [POFF_SER];
+
+		packet [POFF_FROM] = pkt [POFF_SND];
+		packet [POFF_LNGT] = pl | ((pkt [POFF_FLG] & 0x07) << 8);
+		packet [POFF_RSSQ] = pkt [pl - 1];
+		tcv_endp (packet);
+	}
+}
+
 void handle_ack (address buf, word pl) {
 //
 // Handles a received ACK; note that we are passed a packet buffer, which we
 // are expected to deallocate
 //
 	// The length is in words
-	if (pl > MIN_ACK_LENGTH/2) {
-		// This looks like a report
-		if (g_rcv_ackrp) {
-			// Still doing the previous one
-			tcv_endp (buf);
-#ifdef CHRONOS
-			m_out (WNONE, "AIRS");
-#else
-			uart_out (WNONE, "Incoming report skipped");
-#endif
-			return;
-		}
+	if (pl <= MIN_ACK_LENGTH/2) {
+		// This is a simple status ack
+		if (buf [POFF_RCV] != g_snd_rnode ||
+			buf [POFF_SER] != g_snd_sernum)
+				goto Skip;
+		g_snd_rcode = buf [POFF_CMD];
+		tcv_endp (buf);
+EndRet:
+		g_snd_rtries = WNONE;
+		trigger (&g_snd_rnode);
+		return;
+	}
+
+
+	if (pl > MIN_MACK_LENGTH/2) {
+
+		// This is a report
+		if (buf [POFF_RCV] != g_snd_rnode ||
+		    buf [POFF_SER] != g_snd_sernum || g_rcv_ackrp)
+			// This requires a thread which can (should) exist
+			// in a single copy; g_rcv_ackrp points to the packet
+			// buffer the thread is handling and expected
+			// to deallocate
+			goto Skip;
 
 		if (pl < POFF_NTAB + 1) {
 			// At least this much needed to make sense
@@ -357,6 +402,7 @@ Bad_length:
 
 
 		if (runfsm thread_rreporter == 0) {
+Cant_fork:
 			tcv_endp (buf);
 #ifdef CHRONOS
 			m_out (WNONE, "ACAF");
@@ -368,14 +414,31 @@ Bad_length:
 
 		g_rcv_ackrp = buf;
 		g_snd_rcode = 0;
-		goto End;
+		// This has also been caused by a command, so make sure to
+		// stop retrying
+		goto EndRet;
 	}
 
-	g_snd_rcode = buf [POFF_CMD];
+	// This is a (spontaneous) measurement packet ACK, just show it
+	if (pl < MIN_MACK_LENGTH/2)
+		// The length of this one is fixed
+		goto Bad_length;
+
+#ifdef CHRONOS
+	enc_dec (buf [POFF_RSSQ] >> 8);
+	m_out (WNONE, "RSSI");
+#else
+	uart_outf (WNONE, "MAK F:%u, T:%u, N:%u, L:%u, P:%u, R:%u, Q:%u",
+		buf [POFF_FROM],
+		buf [POFF_RCV],
+		buf [POFF_SER],
+		(buf [POFF_LNGT] & 0x7F) << 1,
+		(buf [POFF_LNGT] >> 8),
+		buf [POFF_RSSQ] >> 8,
+		buf [POFF_RSSQ] & 0x7F);
+#endif
+Skip:
 	tcv_endp (buf);
-End:
-	g_snd_rtries = WNONE;
-	trigger (&g_snd_rnode);
 }
 
 word do_command (const char *cb, word sender, word sernum) {
@@ -505,15 +568,17 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		// Packet parameters
 
-		word mide, made, mipl, mapl;
+		word mide, made, mipl, mapl, acto;
 
 		// Assume previous values
 		mide = g_pkt_mindel;
 		made = g_pkt_maxdel;
 		mipl = (word) g_pkt_minpl;
 		mapl = (word) g_pkt_maxpl;
+		acto = g_pkt_ack_to;
 
-		scan (cb + 1, "%u %u %u %u", &mide, &made, &mipl, &mapl);
+		scan (cb + 1, "%u %u %u %u %u",
+			&mide, &made, &mipl, &mapl, &acto);
 
 		if (mide < MIN_SEND_INTERVAL)
 			mide = MIN_SEND_INTERVAL;
@@ -534,7 +599,12 @@ word do_command (const char *cb, word sender, word sernum) {
 		g_pkt_maxdel = made;
 		g_pkt_minpl = (int) mipl;
 		g_pkt_maxpl = (int) mapl;
+		g_pkt_ack_to = acto;
 
+		if (!sender)
+			uart_outf (WNONE,
+			    "mnd:%u, mxd:%u, mnl:%u, mxl:%u, act:%u",
+				mide, made, mipl, mapl, acto);
 		return 0;
 	    }
 
@@ -634,14 +704,29 @@ word do_command (const char *cb, word sender, word sernum) {
 		reset_count ();
 		return 0;
 
-	    case 'v':
-		g_flags |= 0x4000;
+	    case 'v': {
+
+		sint fg;
+
+		fg = -1;
+		scan (cb + 1, "%d", &fg);
+
+		if (fg < 0)
+			fg = 2;
+
+		g_flags = (g_flags & 0x9fff) | ((fg & 3) << 13);
+RetFlags:
+		if (!sender)
+			uart_outf (WNONE, "F:%u", (g_flags >> 13) & 3);
+
 		return 0;
+
+	    }
 
 	    case 'n':
 
-		g_flags &= ~0x4000;
-		return 0;
+		g_flags &= ~0x6000;
+		goto RetFlags;
 
 #ifndef __SMURPH__
 
@@ -662,7 +747,7 @@ word do_command (const char *cb, word sender, word sernum) {
 			return 6;
 		return 0;
 
-#if !defined(CC1100_OLD_DRIVER) && RADIO_WOR_MODE
+#if RADIO_WOR_MODE
 
 	    case 'w': {
 
@@ -715,20 +800,7 @@ word do_command (const char *cb, word sender, word sernum) {
 			// registers are modified in place and there is no
 			// supplementary table, so the command without
 			// arguments resets the chip
-#ifdef CC1100_OLD_DRIVER
-			if (g_reg_suppl) {
-				rs = NULL;
-CDiff:
-				// ufree (NULL) is legal
-				ufree (g_reg_suppl);
-				g_reg_suppl = rs;
-				tcv_control (g_fd_rf, PHYSOPT_RESET,
-					(address)g_reg_suppl);
-			}
-#else
-			// Do reset
 			tcv_control (g_fd_rf, PHYSOPT_RESET, NULL);
-#endif
 		} else {
 			if (n & 1)
 				return 4;
@@ -752,31 +824,8 @@ CDiff:
 			}
 
 			rs [n] = 0xff;
-#ifdef CC1100_OLD_DRIVER
-			// Check if this is a different table
-			if (!g_reg_suppl)
-				// Different, the previous one was empty
-				goto CDiff;
-
-			n = 0;
-			while (1) {
-				if (g_reg_suppl [n] != rs [n])
-					// Different
-					goto CDiff;
-				n++;
-				if (g_reg_suppl [n] != rs [n])
-					goto CDiff;
-				if (rs [n] == 0xff)
-					// The end
-					break;
-				n++;
-			}
-			// Same
-			ufree (rs);
-#else
 			tcv_control (g_fd_rf, PHYSOPT_RESET, (address) rs);
 			ufree (rs);
-#endif
 		}
 		// Do nothing
 		return 0;
@@ -913,7 +962,7 @@ CDiff:
 #endif
 		g_pat_cred = (byte) (val >> 8);
 
-		if ((val &= 0x00ff) != 0) {
+		if ((val &= 0x007f) != 0) {
 			g_pat_nlqi++;
 			if (g_pat_maxlqi < val)
 				g_pat_maxlqi = val;
@@ -1086,9 +1135,9 @@ word report_size () {
 	return i;
 }
 
-void view_packet (address p, word pl) {
+void view_rcv_packet (address p, word pl) {
 //
-// View (nonaggressively, i.e., never block) a measurement packet
+// View (nonaggressively, i.e., never block) a received measurement packet
 //
 	address packet;
 	word ns;
@@ -1109,7 +1158,8 @@ void view_packet (address p, word pl) {
 	m_out (WNONE, c_msg);
 
 #else
-	uart_outf (WNONE, "S:%u, D:%x, N:%u, L:%u, P:%u, R:%u, Q:%u, M%c"
+	uart_outf (WNONE,
+		"<-S:%u, D:%x, N:%u, L:%u, P:%u, R:%u, Q:%u, A:%u, M%c"
 #if NUMBER_OF_SENSORS > 0
 		", V:%u"
 #if NUMBER_OF_SENSORS > 1
@@ -1128,6 +1178,7 @@ void view_packet (address p, word pl) {
 		, p [POFF_SND], p [POFF_DRI], p [POFF_SER],
 		  	pl << 1, p [POFF_FLG] & 0x07,
 			g_last_rssi, g_last_qual,
+			p [POFF_ACT],
 			(p [POFF_FLG] & 0x8000) ? 'D' : 'U'
 
 #if NUMBER_OF_SENSORS > 0
@@ -1150,6 +1201,67 @@ void view_packet (address p, word pl) {
 
 }
 
+void view_xmt_packet (address p, word pl) {
+//
+// View (nonaggressively, i.e., never block) a sent measurement packet
+//
+	address packet;
+	word ns;
+
+	if (pl <= POFF_SEN + 1)
+		ns = 0;
+	else
+		ns = pl - POFF_SEN - 1;
+
+	if (ns < NUMBER_OF_SENSORS)
+		// Something wrong
+		return;
+
+#ifdef CHRONOS
+
+	c_msg [0] = 'S';
+	enc_dec (p [POFF_SER], 4);
+	m_out (WNONE, c_msg);
+
+#else
+	uart_outf (WNONE, "->N:%u, L:%u, P:%u, M%c"
+#if NUMBER_OF_SENSORS > 0
+		", V:%u"
+#if NUMBER_OF_SENSORS > 1
+		",%u"
+#if NUMBER_OF_SENSORS > 2
+		",%u"
+#if NUMBER_OF_SENSORS > 3
+		",%u"
+#if NUMBER_OF_SENSORS > 4
+		",%u"
+#endif
+#endif
+#endif
+#endif
+#endif
+		, p [POFF_SER], pl, p [POFF_FLG] & 0x07,
+			(p [POFF_FLG] & 0x8000) ? 'D' : 'U'
+
+#if NUMBER_OF_SENSORS > 0
+		, p [POFF_SEN + 0]
+#if NUMBER_OF_SENSORS > 1
+		, p [POFF_SEN + 1]
+#if NUMBER_OF_SENSORS > 2
+		, p [POFF_SEN + 2]
+#if NUMBER_OF_SENSORS > 3
+		, p [POFF_SEN + 3]
+#if NUMBER_OF_SENSORS > 4
+		, p [POFF_SEN + 4]
+#endif
+#endif
+#endif
+#endif
+#endif
+		);
+#endif	/* ndef CHRONOS */
+
+}
 // ============================================================================
 
 fsm thread_rxbackon (word offtime) {
@@ -1320,12 +1432,8 @@ fsm thread_patable {
 	uart_out (PA_DONE, "All done");
 #endif
 	// Resume previous setting
-#ifdef CC1100_OLD_DRIVER
-	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)g_reg_suppl);
-#else
 	g_pat_cset [1] = g_patable [0];
 	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)&g_pat_cset);
-#endif
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &spow);
 	finish;
 }
@@ -1528,10 +1636,13 @@ fsm thread_listener {
 	if (pl >= MIN_ANY_PACKET_LENGTH/2) {
 
 		if (packet [POFF_RCV] == 0) {
-			// This is one of the packets to be counted
+			// This is a measurement packet
 			update_count (packet [POFF_SND]);
 			if ((g_flags & 0x4000))
-				view_packet (packet, pl);
+				view_rcv_packet (packet, pl);
+			if (packet [POFF_ACT])
+				// Wants to be acknowledged
+				send_mak (packet, pl);
 		} else if (packet [POFF_RCV] == HOST_ID &&
 			    packet [POFF_SND] != 0) {
 				// This is a command addressed to us
@@ -1540,13 +1651,8 @@ fsm thread_listener {
 				if (pl != WNONE)
 					confirm (packet [POFF_SND],
 						 packet [POFF_SER], pl);
-		} else if (packet [POFF_SND] == HOST_ID &&
-		    packet [POFF_RCV] == g_snd_rnode &&
-		    packet [POFF_SER] == g_snd_sernum) {
-			// An ack for our remote command
+		} else if (packet [POFF_SND] == HOST_ID) {
 			handle_ack (packet, pl);
-			// handle_ack is responsible for deallocating
-			// the packet
 			proceed LI_WAIT;
 		}
 	}
@@ -1611,6 +1717,7 @@ fsm thread_sender (word dl) {
 	spkt [POFF_SER] = sernum++;
 	spkt [POFF_FLG] = tcv_control (g_fd_rf, PHYSOPT_GETPOWER, NULL) |
 		g_flags;
+	spkt [POFF_ACT] = g_pkt_ack_to;
 
 #if NUMBER_OF_SENSORS > 0
 
@@ -1619,6 +1726,9 @@ fsm thread_sender (word dl) {
 #endif
 
 	scnt += POFF_SEN;
+
+	if (g_flags & 0x2000)
+		view_xmt_packet (spkt, g_snd_opl);
 
 	// Turn into word count and remove checksum
 	g_snd_opl = (g_snd_opl - 2) >> 1;

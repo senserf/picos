@@ -31,8 +31,6 @@
 
 #endif
 
-// #define	CC1100_OLD_DRIVER
-
 #undef	STORAGE_AT45XXX
 #undef	CRYSTAL2_RATE
 #undef	UART_DRIVER
@@ -71,7 +69,7 @@
 // ============================================================================
 
 #undef	DIAG_IMPLEMENTATION
-#define	RADIO_OPTIONS		(0x01 + 0x04 + 0x40 + 0x80 + 0x20)
+#define	RADIO_OPTIONS		(RADIO_OPTION_RBKF + RADIO_OPTION_STATS + RADIO_OPTION_REGWRITE + RADIO_OPTION_ENTROPY + RADIO_OPTION_WORPARAMS)
 #define	RADIO_CRC_MODE		0
 
 #define	NUMBER_OF_SENSORS	0
@@ -96,21 +94,16 @@
 
 #define	TCV_LIMIT_XMT		16
 
-
-
-
-
-
-#ifdef BOARD_ALPHATRONICS_BASE
+#ifdef BOARD_ALPHANET_AP321_BASE
 #undef	UART_TCV
 #define	UART_TCV 	0
 #endif
 
-#if defined(BOARD_ALPHATRONICS_BASE) || defined(BOARD_ALPHATRONICS_BUTTON) || defined(BOARD_ALPHATRONICS_PANIC)
+#if defined(BOARD_ALPHANET_AP321_BASE) || defined(BOARD_ALPHANET_AP319_BUTTONS) || defined(BOARD_ALPHANET_AP320_PANIC)
 #define	NETWORK_ID	0x004d
 #endif
 
-#if defined(BOARD_ALPHATRONICS_BUTTON) || defined(BOARD_ALPHATRONICS_PANIC)
+#if defined(BOARD_ALPHANET_AP319_BUTTONS) || defined(BOARD_ALPHANET_AP320_PANIC)
 #define	UART_FROM_SMCLK		1
 #define	UART_RATE		115200
 #endif

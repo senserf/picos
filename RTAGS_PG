@@ -4321,3 +4321,12 @@ PG150514A:
 	A few cleanups here and there. We now have a packet sniffer that can
 	be tuned to a specific Network ID and set to ignore packets with bad
 	checksums.
+
+PG150517A:
+
+	Modified the RFTEST praxis to provide for reverse RSS reports.
+
+	Removed the old version of the CC1100 driver. I don't think there is
+	any chance now that we will ever revert to it.
+
+	

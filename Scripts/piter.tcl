@@ -1551,6 +1551,16 @@ proc sy_reconnect { } {
 
 	global ST MODULE PM WI PM
 
+	# use default device list: real + virtual
+	unames_scan
+	set ol [unames_choice]
+	set WI(DEL) [concat [lindex $ol 0] [lindex $ol 1]]
+
+	if { $WI(DEL) == "" } {
+		sy_alert "No device available to connect to"
+		return
+	}
+
 	# read the parameters
 
 	set w .params
@@ -1569,10 +1579,6 @@ proc sy_reconnect { } {
 
 	labelframe $w.dev -padx 4 -pady 4 -text "Device"
 	pack $w.dev -side top -expand y -fill x -anchor n
-
-	# use default device list: real + virtual
-	set ol [unames_choice]
-	set WI(DEL) [concat [lindex $ol 0] [lindex $ol 1]]
 
 	set WI(DEV) ""
 	set WI(DEO) ""

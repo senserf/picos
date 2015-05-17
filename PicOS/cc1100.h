@@ -9,18 +9,7 @@
 #include "cc1100_sys.h"
 #include "rfleds.h"
 
-
-
-
-
 // ============================================================================
-
-#ifdef	CC1100_OLD_DRIVER
-
-#undef	__pg_cc1100_h
-#include "cc1100_o.h"
-
-#else
 
 // Temporary definitions for old driver compatibility
 #ifndef	RADIO_POWER_SETTABLE
@@ -912,7 +901,5 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 			} while (0)
 
 extern word		__pi_v_drvprcs, __pi_v_qevent;
-
-#endif	/* FOR OLD DRIVER ONLY, REMOVE WHEN THE OLD DRIVER HAS BEEN RETIRED */
 
 #endif
