@@ -797,3 +797,9 @@ PG150515A:
 
 	PIP can now also open Windows Explorer in all those places where it can
 	open an XTerm (when it runs on Windows, that is).
+
+PG150522A:
+
+	Added Windows-style cut-copy-paste capability to PIP's text widgets.
+
+	

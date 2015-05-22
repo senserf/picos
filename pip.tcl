@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec tclsh "$0" "$@"
+exec tclsh85 C:/cygwin/home/pawel/bin/pip "$@"
 
 package require Tk
 package require Ttk
@@ -6231,6 +6231,59 @@ if {[info exists ::scrolledframe::version]} { return }
 
 ## End scrolled frame #########################################################
 
+proc cut_copy_paste { w x y } {
+#
+# Handles windows-style cut-copy-paste from a text widget; invoked in response
+# to right click in a text widget
+#
+	if [catch { $w get sel.first sel.last } sel] {
+		# selection absent -> empty
+		set sel ""
+	}
+
+	# determine the state, i.e., are we allowed to paste into the widget?
+	set sta [$w configure -state]
+	if { [string first "normal" $sta] >= 0 } {
+		set sta "normal"
+	} else {
+		set sta "disabled"
+	}
+
+	set r $w._rcm
+
+	catch { destroy $r }
+
+	set m [menu $r -tearoff 0]
+
+	if { $sel != "" && $sta == "normal" } {
+		# cut allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Cut" -command "tk_textCut $w" -state $st
+
+	if { $sel != "" } {
+		# copy allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Copy" -command "tk_textCopy $w" -state $st
+
+	if [catch { clipboard get -displayof $w } cs] {
+		set cs ""
+	}
+	if { $sta == "normal" && $cs != "" } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Paste" -command "tk_textPaste $w" -state $st
+
+	tk_popup $m $x $y
+}
+
 proc ece_inp { cs } {
 #
 # Preprocesses the input configuration transforming it into an array for
@@ -6507,8 +6560,7 @@ proc ece_mkwindow { } {
 
 	$P(M1,EC) insert end $ece_V(commands)
 
-	bind $P(M1,EC) <ButtonRelease-1> "tk_textCopy $P(M1,EC)"
-	bind $P(M1,EC) <ButtonRelease-2> "tk_textPaste $P(M1,EC)"
+	bind $P(M1,EC) <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 
 	bind $w <Destroy> "md_click -1 1"
 }
@@ -9136,7 +9188,7 @@ proc mk_project_window { } {
 	# tag for file line numbers
 	$Term tag configure errtag -background gray
 
-	bind $Term <ButtonRelease-1> "tk_textCopy $Term"
+	bind $Term <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 
 	## the bottom frame
 	set bf [frame $pw.bof]
@@ -9157,14 +9209,13 @@ proc mk_project_window { } {
 	pack $CSBut -side left -expand n -fill y
 	set_csbut_label
 
-	bind $TEntry <ButtonRelease-1> "tk_textCopy $TEntry"
-	bind $TEntry <ButtonRelease-2> "tk_textPaste $TEntry"
+	bind $TEntry <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+
 	bind $TEntry <Return> "do_console_input"
 	bind $TEntry <Control-c> "do_console_interrupt"
 
 	#######################################################################
 
-	bind $Term <ButtonRelease-1> "tk_textCopy $Term"
 	bind $Term <Double-1> "do_filename_click $Term term_dspline %x %y"
 
 	#######################################################################
@@ -9785,7 +9836,7 @@ proc open_search_window { } {
 	pack $tf.scroly -side right -fill y
 	pack $t -side left -expand yes -fill both
 
-	bind $t <ButtonRelease-1> "tk_textCopy $t"
+	bind $t <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 	bind $t <Double-1> "do_filename_click $t osline %x %y"
 
 	#######################################################################
@@ -9822,8 +9873,7 @@ proc open_search_window { } {
 	# pointer to the text widget
 	set P(SWN,ss) $f.se
 
-	bind $f.se <ButtonRelease-1> "tk_textCopy $f.se"
-	bind $f.se <ButtonRelease-2> "tk_textPaste $f.se"
+	bind $f.se <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 	bind $f.se <Return> "do_return_key"
 
 	foreach rb $CFSearchModes {
