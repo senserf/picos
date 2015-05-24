@@ -3895,7 +3895,7 @@ proc sy_socket_open { udev } {
 		vuart_conn $WI(WUH) $WI(WUP) $WI(WUN) ::ST(ABV) $WI(HID)
 					} ST(SFD)] || $ST(ABV) } {
 		catch { after cancel $ST(VUC) }
-		set S(SFD) ""
+		set ST(SFD) ""
 		unset ST(ABV)
 		unset ST(VUC)
 		return 0

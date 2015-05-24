@@ -4329,4 +4329,10 @@ PG150517A:
 	Removed the old version of the CC1100 driver. I don't think there is
 	any chance now that we will ever revert to it.
 
-	
+PG150524A:
+
+	Added a naive test app for the Alpha collector script (see
+	PROPRIETARY/ALPHATRONICS/COLLTEST/). The app also shows in a nutshell
+	how to talk to the script from a Peg.
+
+	Windows style cut-copy-paste added to piter's text widgets.

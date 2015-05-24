@@ -1163,6 +1163,59 @@ proc sy_updtitle { } {
 	wm title . "Piter (ZZ000000A)$hd"
 }
 
+proc sy_cut_copy_paste { w x y } {
+#
+# Handles windows-style cut-copy-paste from a text widget; invoked in response
+# to right click in a text widget
+#
+	if [catch { $w get sel.first sel.last } sel] {
+		# selection absent -> empty
+		set sel ""
+	}
+
+	# determine the state, i.e., are we allowed to paste into the widget?
+	set sta [$w configure -state]
+	if { [string first "normal" $sta] >= 0 } {
+		set sta "normal"
+	} else {
+		set sta "disabled"
+	}
+
+	set r $w._rcm
+
+	catch { destroy $r }
+
+	set m [menu $r -tearoff 0]
+
+	if { $sel != "" && $sta == "normal" } {
+		# cut allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Cut" -command "tk_textCut $w" -state $st
+
+	if { $sel != "" } {
+		# copy allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Copy" -command "tk_textCopy $w" -state $st
+
+	if [catch { clipboard get -displayof $w } cs] {
+		set cs ""
+	}
+	if { $sta == "normal" && $cs != "" } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Paste" -command "tk_textPaste $w" -state $st
+
+	tk_popup $m $x $y
+}
+
 proc sy_mkterm { } {
 
 	global ST WI
@@ -1212,9 +1265,8 @@ proc sy_mkterm { } {
 
 	.t configure -state disabled
 	bind . <Destroy> "sy_exit"
-	bind .t <ButtonRelease-1> "tk_textCopy .t"
-	bind .stat.u <ButtonRelease-1> "tk_textCopy .stat.u"
-	bind .stat.u <ButtonRelease-2> "tk_textPaste .stat.u"
+	bind .t <ButtonRelease-3> "sy_cut_copy_paste %W %X %Y"
+	bind .stat.u <ButtonRelease-3> "sy_cut_copy_paste %W %X %Y"
 }
 
 proc sy_setsblab { } {
