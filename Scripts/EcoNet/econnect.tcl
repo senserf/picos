@@ -99,7 +99,7 @@ proc get_deploy_param { } {
 	return [expr int($l)]
 }
 
-proc get_poll_option { sys fsy } {
+proc uartpoll_interval { sys fsy } {
 
 	set p [get_deploy_param]
 
@@ -149,7 +149,7 @@ proc uartpoll_oninput { dev fun { sys "" } { fsy "" } } {
 	if { $sys == "" } {
 		set p 0
 	} else {
-		set p [get_poll_option $sys $fsy]
+		set p [uartpoll_interval $sys $fsy]
 	}
 
 	if { $p == 0 } {
@@ -362,9 +362,9 @@ proc sock_read { } {
 
 	# verify the signature
 	kick
-	if ![regexp "^P (\[0-9\]+) (\[0-9\]+) (\[0-9\]+) <(\[^ \]*)>:" $VU(SI) \
-	    mat nod hos tot tna] {
-		set VU(ER) "Illegal node signature: $sig"
+	if ![regexp "^P (\[0-9\]+) \[FO\] (\[0-9\]+) (\[0-9\]+) <(\[^ \]*)>:" \
+	    $VU(SI) mat nod hos tot tna] {
+		set VU(ER) "Illegal node signature: $VU(SI)"
 		return
 	}
 
@@ -390,8 +390,9 @@ proc vuart_conn { ho po no abvar { hi 0 } { sig "" } } {
 	}
 
 	# these actions cannot block
-	if { [info tclversion] > 8.5 } {
+	if { [info tclversion] > 8.5 && $ho == "localhost" } {
 		# do not use -async, it doesn't seem to work in 8.6
+		# for localhost
 		set err [catch { socket $ho $po } sfd]
 	} else {
 		set err [catch { socket -async $ho $po } sfd]
@@ -1512,7 +1513,7 @@ proc log { m } {
 	variable Log 
 
 	if ![info exists Log(FD)] {
-		# no log filr
+		# no log file
 		return
 	}
 

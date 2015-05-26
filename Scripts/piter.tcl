@@ -360,8 +360,9 @@ proc vuart_conn { ho po no abvar { hi 0 } { sig "" } } {
 	}
 
 	# these actions cannot block
-	if { [info tclversion] > 8.5 } {
+	if { [info tclversion] > 8.5 && $ho == "localhost" } {
 		# do not use -async, it doesn't seem to work in 8.6
+		# for localhost
 		set err [catch { socket $ho $po } sfd]
 	} else {
 		set err [catch { socket -async $ho $po } sfd]
