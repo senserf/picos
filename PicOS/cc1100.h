@@ -387,14 +387,24 @@
 // ============================================================================
 
 #if RADIO_RECALIBRATE
-// When periodic recalibration is selected, TX transits to IDLE, so we will
-// recalibrate on transition to RX
+// Note that the recalibration is ALWAYS done (see CCxxx0_MCSM0_x below) when
+// transiting from IDLE to RX or TX, so this options only causes extra
+// transitions
 #if RADIO_RECALIBRATE < 0 || RADIO_RECALIBRATE > 63
 #error "S: RADIO_RECALIBRATE must be between 0 and 63 inclusively"
 #endif
+// When periodic recalibration is selected, we make TX transit to IDLE, so we
+// will recalibrate on the subsequent transition to RX (forced after every
+// TX->IDLE and also periodically, if staying in RX for longer than
+// RADIO_RECALIBRATE seconds). Note that periodic recalibration is recommended
+// for those nodes whose receivers tend to stay constantly on.
 #define	MCSM1_TRANS_MODE	0x00
 #else
-// No periodic recalibration, TX transits to RX
+// No periodic recalibration, TX transits to RX. This mode is recommended for
+// low-power nodes whose radios are mostly off being turned on for short bursts
+// (where the initial calibration suffices). This kind of assumes that the
+// burst of such a node consists of a TX followed by leaving the receiver open
+// for a (short) while
 #define	MCSM1_TRANS_MODE	0x03
 #endif
 
