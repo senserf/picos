@@ -2,7 +2,7 @@
 #define __picos_board_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2014.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2015.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -333,6 +333,7 @@ void PicOSNode::uart_reset () {
 		case UART_IMODE_P:
 		case UART_IMODE_L:
 		case UART_IMODE_E:
+		case UART_IMODE_F:
 
 			UART_INTF_P (uart) -> init ();
 			break;
@@ -363,6 +364,7 @@ void PicOSNode::uart_abort () {
 		case UART_IMODE_P:
 		case UART_IMODE_L:
 		case UART_IMODE_E:
+		case UART_IMODE_F:
 
 			UART_INTF_P (uart) -> abort ();
 			break;
@@ -606,6 +608,7 @@ void PicOSNode::setup (data_no_t *nd) {
 			case UART_IMODE_P:
 			case UART_IMODE_L:
 			case UART_IMODE_E:
+			case UART_IMODE_F:
 				uart->Int = (void*) new uart_tcv_int_t;
 				break;
 			default:
@@ -3367,6 +3370,10 @@ data_ua_t *BoardRoot::readUartParams (sxml_t data, const char *esn) {
 			// escaped mode
 			UA->iface = UART_IMODE_E;
 			um = 'e';
+		} else if (*att == 'f') {
+			// escaped mode
+			UA->iface = UART_IMODE_F;
+			um = 'f';
 		} else if (*att != 'd')
 			// It can only be "direct", "n-packet", "p-packet",
 			// "l-packet"

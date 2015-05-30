@@ -23,6 +23,7 @@ static int unp_option (int, address);
 #define	UAFLG_ROFF		0x08		// Receiver OFF
 #define	UAFLG_UNAC		0x10		// Last out message unacked
 #define	UAFLG_SACK		0x20		// Send ACK ASAP
+#define	UAFLG_FMOD		0x8000		// Mode F (rather than E)
 
 #define	UART_PKT_RETRTIME	1024
 
@@ -662,7 +663,8 @@ STX_reset:
 	UA->r_buffp = (byte*)(UA->r_buffer);
 	// This is pure payload length + 1
 	UA->r_buffs = UA->r_buffl;
-	Parity = 0x02 ^ 0x03;
+
+	Parity = (UA->v_flags & UAFLG_FMOD) ? 0x02 + 0x03 : 0x02 ^ 0x03;
 
     transient RC_MORE:
 
@@ -691,7 +693,10 @@ Store_it:
 
 	*(UA->r_buffp)++ = b;
 	UA->r_buffs--;
-	Parity ^= b;
+	if ((UA->v_flags & UAFLG_FMOD))
+		Parity += b;
+	else
+		Parity ^= b;
 
 	sameas RC_MORE;
 
@@ -737,7 +742,7 @@ p_uart_xmt_e::perform {
 
 	LEDIU (1, 1);
 
-	Parity = 0x02 ^ 0x03;
+	Parity = (UA->v_flags & UAFLG_FMOD) ? -(0x02 + 0x03) : 0x02 ^ 0x03;
 
 	UA->x_buffl = (word) stln;
 	UA->x_buffp = (byte*)(UA->x_buffer);
@@ -763,7 +768,10 @@ p_uart_xmt_e::perform {
 	io (XM_OUTBYTE, 0, WRITE, &c, 1);
 	UA->x_buffp++;
 	UA->x_buffl--;
-	Parity ^= (byte)c;
+	if ((UA->v_flags & UAFLG_FMOD))
+		Parity -= (byte)c;
+	else
+		Parity ^= (byte)c;
 
 	sameas XM_SEND;
 
@@ -850,13 +858,14 @@ MBS:
 		// Make sure the checksum is extra
 		mbs += 2;
 
-	} else if (IMode == UART_IMODE_E) {
+	} else if (IMode == UART_IMODE_E || IMode == UART_IMODE_F) {
 
 		if (mbs > 254)
 			goto MBS;
 
 		mbs += 1;
-
+		if (IMode == UART_IMODE_F)
+			UA->v_flags |= UAFLG_FMOD;
 	} else {
 
 		// P-packet mode
@@ -889,7 +898,7 @@ MBS:
 		ok = runthread (p_uart_rcv_l) && runthread (p_uart_xmt_l);
 	else if (IMode == UART_IMODE_N)
 		ok = runthread (p_uart_rcv_n) && runthread (p_uart_xmt_n);
-	else if (IMode == UART_IMODE_E)
+	else if (IMode == UART_IMODE_E || IMode == UART_IMODE_F)
 		ok = runthread (p_uart_rcv_e) && runthread (p_uart_xmt_e);
 	else
 		ok = runthread (p_uart_rcv_p) && runthread (p_uart_xmt_p);
@@ -969,14 +978,16 @@ static int unp_option (int opt, address val) {
 
 	    case PHYSOPT_SETSID:
 
-		if (IMode == UART_IMODE_L || IMode == UART_IMODE_E)
+		if (IMode == UART_IMODE_L || IMode == UART_IMODE_E ||
+		    IMode == UART_IMODE_F)
 			goto Bad;
 		UA->v_statid = (val == NULL) ? 0 : *val;
 		break;
 
             case PHYSOPT_GETSID:
 
-		if (IMode == UART_IMODE_L || IMode == UART_IMODE_E)
+		if (IMode == UART_IMODE_L || IMode == UART_IMODE_E ||
+		    IMode == UART_IMODE_F)
 			goto Bad;
 		ret = (int) (UA->v_statid);
 		if (val != NULL)
@@ -990,7 +1001,7 @@ static int unp_option (int opt, address val) {
 			ret += 1;
 		else if (IMode == UART_IMODE_P)
 			ret -= 4;
-		else if (IMode == UART_IMODE_E)
+		else if (IMode == UART_IMODE_E || IMode == UART_IMODE_F)
 			ret -= 1;
 		else
 			ret -= 2;

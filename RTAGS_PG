@@ -1241,3 +1241,8 @@ PG150514A:	PICOS >= P150514A
 
     RADIO_OPTION_PXOPTIONS is interpreted in the VUEE's model of the RF driver
     (see PG150514A in PICOS).
+
+PG150530A:	PICOS >= PG150530A
+
+    Added the F-mode to UART, see PICOS PG150530A. The snapshot tagged for
+    Alphanet 1.5 separation.

@@ -42,7 +42,8 @@
 #define	UART_IMODE_N		1	// PHY (TCV) N-mode (packet)
 #define	UART_IMODE_P		2	// PHY (TCV) P-mode (packet, persistent)
 #define	UART_IMODE_L		3	// PHY (TCV) mode (line)
-#define	UART_IMODE_E		4	// PHY (TCV) mode (escaped)
+#define	UART_IMODE_E		4	// PHY (TCV) mode (escaped, parity)
+#define	UART_IMODE_F		5	// PHY (TCV) mode (escaped, checksum)
 
 // Channel types
 #define	CTYPE_SHADOWING		0

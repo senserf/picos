@@ -2720,8 +2720,10 @@ proc sock_conn { what { stid -1 } { flags 0 } } {
 
 	log "connecting to $tt ..."
 
-	if { [info tclversion] > 8.5 } {
+	if { [info tclversion] > 8.5 && $HostName == "localhost" } {
 		# do not use -async, it doesn't seem to work in 8.6
+		# hey, it's even weirder, it does work after all, but not
+		# for localhost
 		set err [catch { socket $HostName $PortNumber } Sok]
 	} else {
 		set err [catch { socket -async $HostName $PortNumber } Sok]
