@@ -24,10 +24,6 @@
 	<sensor number="-2" vsize="2" delay="0.01" init="2300">2000</sensor>
 	<sensor number="-1" vsize="2" delay="0.01" init="2457">2700</sensor>
     </sensors>
-    <uart rate="115200" bsize="256,256" mode="escape">
-	<input source="socket"/>
-	<output target="socket" type="held"/>
-    </uart>
     <emul>
 	<output target="socket" type="held"></output>
     </emul>

@@ -4336,3 +4336,47 @@ PG150524A:
 	how to talk to the script from a Peg.
 
 	Windows style cut-copy-paste added to piter's text widgets.
+
+PG150530A:	VUEE >= PG150530A
+
+	This commit marks the moment of separation of Alphanet 1.0 from its
+	successor dubbed Alphanet 1.1. I have done this:
+
+	1. The previous spot praxis (Apps/PROPRIETARY/inProgress) has been
+	   renamed to AlphaNet1_0. The present spot praxis is intended as the
+	   boilerplate for version 1.5.
+
+	2. I have added a new mode to phys_uart. Mode F (UART_TCV_MODE_F) is
+	   identical to mode E, except that the "parity byte" is calculated as
+	   the negated arithmetic sum (rather than XOR) of all the remaining
+	   non-escape bytes. The Serial doc has been updated accordingly. VUEE
+	   and piter have been extended by the new mode.
+
+	3. The UART definition in node.xml in ALPHANET_AP321_BASE has been
+	   removed. The praxes using the board now have to define the UART
+	   individually, because the mode (E or F) is not glued to the board.
+
+	4. I have gone through VUEE data files in both copies of the spot
+	   praxis and modified them to account for the differences. To spell it
+	   out: AlphaNet1_0 uses mode E, while spot uses mode F.
+
+	5. I have modified options_a321p.sys in both praxes to reflect the
+	   proper UART mode, so Alphanet1_0 uses mode E and spot used mode F.
+	   The praxes have been tested in a simple (real) setup involving the
+	   master, one Peg, and one Tag. They both seem to work. Needless to
+	   say, I have also run VUEE tests.
+
+	6. The udaemon plugin in spot has been tweaked to use mode F instead of
+	   mode E. Note that the piter plugin need not be tweaked, because the
+	   mode is encoded in piter. When running piter with spot, select the
+	   "F-scaped" mode (the previous "Escaped" mode [to be used with
+	   AlphaNet1_0] has been renamed to "E-scaped" [in my attempt to make
+	   it all look less ugly])
+
+	7. I have added RADIO_RECALIBRATE to options_a321p.sys in spot to
+	   periodically recalibrate the radio at 10 second intervals. This only
+	   happens for Pegs.
+
+	8. This commit has been tagged (in addition to the standard tag) as
+	   AlphaNet10. I will use the same tag in VUEE, PIP, and SIDE to mark
+	   their present versions.

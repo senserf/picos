@@ -2,7 +2,7 @@
 #define	__pg_modsyms_h		1
 
 /* ======================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                        */
+/* Copyright (C) Olsonet Communications, 2002 - 2015                        */
 /* All rights reserved.                                                     */
 /* ======================================================================== */
 
@@ -40,6 +40,7 @@
 #define	UART_TCV_MODE_P		1	// Built-in ACKs
 #define	UART_TCV_MODE_L		2	// Lines
 #define	UART_TCV_MODE_E		3	// STX/ETX/DLE with one-byte parity
+#define	UART_TCV_MODE_F		4	// STX/ETX/DLE with one-byte checksum
 
 // These are special sequences to identify (for picomp) those symbols that are
 // only defined, not set. These symbols represent optional modules.

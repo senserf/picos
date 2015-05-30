@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -12,8 +12,8 @@
 #define	UART_TCV_MODE_NOCHECKSUM 0
 #endif
 
-#if UART_TCV_MODE == UART_TCV_MODE_L || UART_TCV_MODE == UART_TCV_MODE_E
-// No CRC in L mode, trivial (parity) checksum in E mode
+#if UART_TCV_MODE == UART_TCV_MODE_L || UART_TCV_MODE == UART_TCV_MODE_E || UART_TCV_MODE == UART_TCV_MODE_F
+// No CRC in L mode, parity in E mode, simple single-byte checksum in F mode
 #undef	UART_TCV_MODE_NOCHECKSUM
 #define	UART_TCV_MODE_NOCHECKSUM 1
 #endif
@@ -1196,7 +1196,7 @@ TOffEv:
 // ============================================================================
 // ============================================================================
 
-#if UART_TCV_MODE == UART_TCV_MODE_E
+#if UART_TCV_MODE == UART_TCV_MODE_E || UART_TCV_MODE == UART_TCV_MODE_F
 
 // ============================================================================
 // STX/ETX/DLE with single byte parity ========================================
@@ -1243,12 +1243,18 @@ strand (rcvuart, uart_t*)
 
 	UART_STOP_RECEIVER;
 
+#if UART_TCV_MODE == UART_TCV_MODE_E
 	// Validate the parity; note that we have received the payload + the
 	// parity byte
 	p = 0x02 ^ 0x03;
 	for (n = 0; n < UA->r_buffp; n++)
 		p ^= ((byte*)(UA->r_buffer)) [n];
-
+#else
+	// Validate the checksum
+	p = 0x02 + 0x03;
+	for (n = 0; n < UA->r_buffp; n++)
+		p += ((byte*)(UA->r_buffer)) [n];
+#endif
 	if (p)
 		// Wrong
 		proceed (RC_LOOP);
@@ -1518,7 +1524,7 @@ TOffEv:
 	return ret;
 }
 
-#endif /* UART_TCV_MODE_E */
+#endif /* UART_TCV_MODE_E || UART_TCV_MODE_F */
 
 // ============================================================================
 // ============================================================================
@@ -1613,7 +1619,7 @@ void __pi_diag_init (int ua) {
 // ============================================================================
 // ============================================================================
 
-#if UART_TCV_MODE == UART_TCV_MODE_E
+#if UART_TCV_MODE == UART_TCV_MODE_E || UART_TCV_MODE == UART_TCV_MODE_F
 
 	word bc;
 
@@ -1643,7 +1649,7 @@ void __pi_diag_init (int ua) {
 		DIAG_WCHAR (0x10);
 		DIAG_WAIT;
 	}
-#endif /* MODE_E */
+#endif /* MODE_E || MODE_F */
 
 }
 

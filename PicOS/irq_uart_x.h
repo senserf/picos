@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -156,7 +156,7 @@ Eol:
 
 #endif
 
-#if UART_TCV_MODE == UART_TCV_MODE_E
+#if UART_TCV_MODE == UART_TCV_MODE_E || UART_TCV_MODE == UART_TCV_MODE_F
 // ============================================================================
 // STX-ETX-DLE ================================================================
 // ============================================================================
@@ -169,7 +169,11 @@ Eol:
 
 		// Sending STX, initializing checksum (r_buffs unused by the
 		// receiver)
+#if UART_TCV_MODE == UART_TCV_MODE_E
 		UA->r_buffs = 0x02 ^ 0x03;
+#else
+		UA->r_buffs = -(0x02 + 0x03);
+#endif
 		UA->x_buffp = 0;
 		XBUF_STORE (0x02);
 		UA->x_istate = IRQ_X_PKT;
@@ -198,7 +202,11 @@ Eol:
 SendByte:
 				XBUF_STORE (b);
 				UA->x_buffp++;
+#if UART_TCV_MODE == UART_TCV_MODE_E
 				UA->r_buffs ^= b;
+#else
+				UA->r_buffs -= b;
+#endif
 			}
 		}
 		RTNI;
