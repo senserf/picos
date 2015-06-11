@@ -4380,3 +4380,13 @@ PG150530A:	VUEE >= PG150530A
 	8. This commit has been tagged (in addition to the standard tag) as
 	   AlphaNet10. I will use the same tag in VUEE, PIP, and SIDE to mark
 	   their present versions.
+
+PG150611A:	VUEE >= PG150611A
+
+	Unified the plugins for UDAEMON and PITER in Alphanet1_0 and spot thus
+	providing a staring point for the new (single) plugin for Alphanet 1.5.
+
+	The deploy script now installs nullmodem (from Linux) in user BIN. The
+	old Windows null modem (COM-COM) driver doesn't seem to work under
+	Windows 8, but the Cygwin/POSIX pty pairs seem to work fine (both under
+	Cygwin and Linux).

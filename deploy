@@ -456,6 +456,35 @@ proc fixtcl85 { pgm } {
 	catch { exec chmod 0755 $trg }
 }
 
+proc linux_nullmodem { } {
+#
+# Installs the nullmodem program in BIN
+#
+	global BIN CWD
+
+	puts "Installing nullmodem ..."
+
+	catch { cd $CWD }
+	set swd [file join $CWD Linux]
+
+	if [catch { cd $swd } err] {
+		return $err
+	}
+
+	set tf [file join $BIN "nullmodem"]
+
+	if [catch {
+		exec gcc -o $tf nullmodem.c
+		exec strip $tf
+	} err] {
+		catch { cd $CWD }
+		return $err
+	}
+
+	catch { cd $CWD }
+	return ""
+}
+		
 proc doit { } {
 
 	global CWD PLIST BIN BINW HOME TCL85 ST REL argv
@@ -563,6 +592,12 @@ proc doit { } {
 	catch { exec chmod 0755 picospath }
 
 	#######################################################################
+
+	# install nullmodem
+	set err [linux_nullmodem]
+	if { $err != "" } {
+		puts "Failed to install nullmodem, $err"
+	}
 
 	puts "All done"
 }
