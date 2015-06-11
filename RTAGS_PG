@@ -1246,3 +1246,8 @@ PG150530A:	PICOS >= PG150530A
 
     Added the F-mode to UART, see PICOS PG150530A. The snapshot tagged for
     Alphanet 1.5 separation.
+
+PG150611A:	PICOS >= PG150611A
+
+    Renamed UART plugin functions to make it possible to share plugins between
+    piter and udaemon.

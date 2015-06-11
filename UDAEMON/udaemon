@@ -2654,7 +2654,7 @@ proc dealloc { Sok } {
 	} 
 
 	if { [info exists Stat($Sok,PLUG)] && $Stat($Sok,PLUG) } {
-		plug_close $Sok
+		vplug_close $Sok
 	}
 
 	# clear all data related to the window
@@ -2988,7 +2988,7 @@ proc uartFirst { Sok } {
 	set Stat($Sok,UART) [mkUart $Sok "UART at node $Stat($Sok,I)" \
 		$Stat($Sok,M)]
 
-	set Stat($Sok,PLUG) [plug_open [lindex $pmt 0] [lindex $pmt 1] \
+	set Stat($Sok,PLUG) [vplug_init [lindex $pmt 0] [lindex $pmt 1] \
 		[lindex $pmt 3] $Sok]
 
 	# reset the input script
@@ -3011,7 +3011,7 @@ proc uartRead { Sok } {
 	}
 
 	if $Stat($Sok,PLUG) {
-		set chunk [plug_receive $chunk $Sok $Stat($Sok,H)]
+		set chunk [vplug_receive $chunk $Sok $Stat($Sok,H)]
 		if { $chunk == "" } {
 			return
 		}
@@ -3432,7 +3432,7 @@ proc handleUserInput { Sok } {
 	# remove it from the input field
 	$w.stat.u delete 0.0 end
 
-	if { $Stat($Sok,PLUG) && [plug_input tx $Sok] } {
+	if { $Stat($Sok,PLUG) && [vplug_input tx $Sok] } {
 		return
 	}
 
@@ -8083,7 +8083,7 @@ proc change_tips_status { } {
 # Default plugin ##############################################################
 ###############################################################################
 
-proc plug_open { nn hn nt ta } { return 0 }
+proc vplug_init { nn hn nt ta } { return 0 }
 
 plugin_check
 
