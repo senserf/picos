@@ -845,7 +845,7 @@ set PM(VCT)	4000
 set PM(MPL)	82
 
 # default plugin and macro file names
-set PM(DPF)	"piter_plug.tcl"
+set PM(DPF)	[list "piter_plug.tcl" "shared_plug.tcl"]
 set PM(DMF)	"piter_mac.txt"
 
 # default bps
@@ -1724,16 +1724,18 @@ proc sy_reconnect { } {
 	if { $p != "" } {
 		if ![catch { open $p "r" } fid] {
 			catch { close $fid }
-			set PM(DPF) $p
+			set PM(DPF) [list $p]
 		}
 	}
 
-	if [catch { open $PM(DPF) "r" } fid] {
-		# doesn't open
-		set WI(PFN) ""
-	} else {
-		catch { close $fid }
-		set WI(PFN) $PM(DPF)
+	set WI(PFN) ""
+	foreach f $PM(DPF) {
+		if ![catch { open $f "r" } fid] {
+			# doesn't open
+			catch { close $fid }
+			set WI(PFN) $f
+			break
+		}
 	}
 
 	set p [lindex $WI(SPA) 6]
@@ -2091,14 +2093,19 @@ proc sy_initialize { } {
 
 	if { $plu != "" } {
 		if { $plu == "+" } {
-			set pf [sy_openpl $PM(DPF)]
-			if { $pf != "" } {
-				if { [string first "cannot open" $pf] != 0 } {
-					pt_abort $pf
+			foreach f $PM(DPF) {
+				set pf [sy_openpl $f]
+				if { $pf != "" } {
+					if { [string first "cannot open" $pf]
+					    != 0 } {
+						pt_abort $pf
+					}
+				} else {
+					break
 				}
 			}
 		} else {
-			# must open
+			# single file, must open
 			set pf [sy_openpl $plu]
 			if { $pf != "" } {
 				pt_abort $pf

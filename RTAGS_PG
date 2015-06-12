@@ -4390,3 +4390,12 @@ PG150611A:	VUEE >= PG150611A
 	old Windows null modem (COM-COM) driver doesn't seem to work under
 	Windows 8, but the Cygwin/POSIX pty pairs seem to work fine (both under
 	Cygwin and Linux).
+
+PG150612A:
+
+	Fixed a bug in shared_plug.tcl in spot.
+
+	Modified piter to automatically accept shared_plug.tcl as the second
+	(alternative) standard plugin file (after piter_plug.tcl).
+
+	Fixed the Serial doc accordingly.
