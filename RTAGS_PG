@@ -1251,3 +1251,8 @@ PG150611A:	PICOS >= PG150611A
 
     Renamed UART plugin functions to make it possible to share plugins between
     piter and udaemon.
+
+PG150612A:
+
+    Fixed udaemon to automatically accept shared_plug.tcl as an alternative
+    standard plugin file name. Updated the doc accordingly.

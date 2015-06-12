@@ -1282,8 +1282,9 @@ proc parse_args { } {
 			}
 			set PF [lindex $argv 0]
 			if { $PF == "" || [string index $PF 0] == "-" } {
-				set PF "uplug.tcl"
+				set PF [list "uplug.tcl" "shared_plug.tcl"]
 			} else {
+				set PF [list $PF]
 				set argv [lrange $argv 1 end]
 			}
 			continue
@@ -1331,19 +1332,32 @@ proc plugin_check { } {
 		return
 	}
 
-	if [catch { open $PF "r" } fd] {
-		alex "Cannot open plugin file $PF, $fd"
+	foreach f $PF {
+
+		if [catch { open $PF "r" } fd] {
+			continue
+		}
+
+		if [catch { read $fd } pl] {
+			alex "Cannot read plugin file $PF, $pl"
+		}
+
+		catch { close $fd }
+
+		if [catch { uplevel #0 eval $pl } err] {
+			alex "Error inserting the plugin file $PF, $err"
+		}
+
+		return
 	}
 
-	if [catch { read $fd } pl] {
-		alex "Cannot read plugin file $PF, $pl"
+	if { [llength $PF] > 1 } {
+		set msg "Cannot open any of the plugin files: [join $PF]"
+	} else {
+		set msg "Cannot open plugin file: [join $PF]"
 	}
 
-	catch { close $fd }
-
-	if [catch { uplevel #0 eval $pl } err] {
-		alex "Error inserting the plugin file $PF, $err"
-	}
+	alex $msg
 }
 
 proc gperror { em } {
