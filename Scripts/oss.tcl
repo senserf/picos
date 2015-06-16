@@ -1752,8 +1752,6 @@ proc parse_skip { a r l p } {
 
 proc parse_match { a r l p } {
 
-	variable OSSP
-
 	upvar $a args
 	upvar $r res
 	upvar $l line

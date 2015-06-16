@@ -74,8 +74,8 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 	int 		_da (tcv_erase) (int fd, int disp);
 	address 	_da (tcv_wnps) (word state, int fd, int length,
 				Boolean urg);
-	int 		_da (tcv_read) (address p, char *buf, int len);
-	int 		_da (tcv_write) (address p, const char *buf, int len);
+	int 		_da (tcv_read) (address p, byte *buf, int len);
+	int 		_da (tcv_write) (address p, const byte *buf, int len);
 	void 		_da (tcv_drop) (address p);
 	int 		_da (tcv_control) (int fd, int opt, address arg);
 

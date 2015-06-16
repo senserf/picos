@@ -767,7 +767,7 @@ NoMem:
 	return (address) (b + 1);
 }
 
-__PUBLF (PicOSNode, int, tcv_read) (address p, char *buf, int len) {
+__PUBLF (PicOSNode, int, tcv_read) (address p, byte *buf, int len) {
 /*
  * Extracts (up to) len bytes from the packet
  */
@@ -777,7 +777,7 @@ __PUBLF (PicOSNode, int, tcv_read) (address p, char *buf, int len) {
 		len = b->u.pointers.tail;
 
 	if (len > 0) {
-		memcpy (buf, ((char*)p) + b->u.pointers.head, len);
+		memcpy ((char*)buf, ((char*)p) + b->u.pointers.head, len);
 		b->u.pointers.tail -= len;
 		b->u.pointers.head += len;
 	}
@@ -785,7 +785,7 @@ __PUBLF (PicOSNode, int, tcv_read) (address p, char *buf, int len) {
 	return len;
 }
 
-__PUBLF (PicOSNode, int, tcv_write) (address p, const char *buf, int len) {
+__PUBLF (PicOSNode, int, tcv_write) (address p, const byte *buf, int len) {
 /*
  * Writes (up to) len bytes to the packet
  */
@@ -795,7 +795,7 @@ __PUBLF (PicOSNode, int, tcv_write) (address p, const char *buf, int len) {
 		len = b->u.pointers.tail;
 
 	if (len > 0) {
-		memcpy (((char*)p) + b->u.pointers.head, buf, len);
+		memcpy (((char*)p) + b->u.pointers.head, (char*)buf, len);
 		b->u.pointers.tail -= len;
 		b->u.pointers.head += len;
 	}

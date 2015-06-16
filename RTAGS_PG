@@ -4399,3 +4399,7 @@ PG150612A:
 	(alternative) standard plugin file (after piter_plug.tcl).
 
 	Fixed the Serial doc accordingly.
+
+PG150616A:
+
+	Buffer type for tcv_read and tcv_write changed from char* to byte*. 
