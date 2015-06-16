@@ -17,6 +17,7 @@
 #undef halt
 #undef actsize
 #undef memfree
+#undef maxfree
 #undef io
 #undef ion
 #undef read_sensor

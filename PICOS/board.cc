@@ -766,14 +766,22 @@ void PicOSNode::memFree (address p) {
 }
 
 word _dad (PicOSNode, memfree) (int pool, word *res) {
-/*
- * This one is for stats
- */
+
 	if (res != NULL)
 		*res = NFree << 1;
 
 	// This is supposed to be in words, if I remember correctly. What
 	// a mess!!!
+	return MFree << 1;
+}
+
+word _dad (PicOSNode, maxfree) (int pool, word *res) {
+/*
+ * This is a stub
+ */
+	if (res != NULL)
+		*res = 1;
+
 	return MFree << 1;
 }
 

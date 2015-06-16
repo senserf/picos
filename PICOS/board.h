@@ -467,6 +467,7 @@ station PicOSNode abstract {
 	inline void waitMem (int state) { TB.wait (N_MEMEVENT, state); };
 
 	word _da (memfree) (int, word*);
+	word _da (maxfree) (int, word*);
 
 	inline Boolean tally_in_pcs () {
 		if (NPcLim == 0)
@@ -475,7 +476,7 @@ station PicOSNode abstract {
 			return NO;
 		NPcss++;
 		return YES;
-	}
+	};
 
 	inline void tally_out_pcs () {
 		if (NPcss != 0)
