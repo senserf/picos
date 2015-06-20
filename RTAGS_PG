@@ -4403,3 +4403,7 @@ PG150612A:
 PG150616A:
 
 	Buffer type for tcv_read and tcv_write changed from char* to byte*. 
+
+PG150620A:
+
+	The first cut of piter/udaemon plugin for version 1.5 spot.

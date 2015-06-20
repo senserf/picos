@@ -3134,6 +3134,7 @@ proc sy_ugetb { msg } {
 #
 	set len [string length $msg]
 
+	set enc ""
 	# encode the bytes into hex numbers
 	for { set i 0 } { $i < $len } { incr i } {
 		binary scan [string index $msg $i] cu byte
