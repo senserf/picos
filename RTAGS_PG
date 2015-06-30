@@ -4424,3 +4424,9 @@ PG150630A:
 
 	GENEVENT praxis to generate dummy events for testing the master in
 	Alphanet 1.0.
+
+PG150630B:
+
+	Fixed shared_plug.tcl. I managed to commit the wrong version (no idea
+	how it could happen) probably because of the hangups of my broken
+	laptop. Let's hope this is the correct one.
