@@ -4407,3 +4407,20 @@ PG150616A:
 PG150620A:
 
 	The first cut of piter/udaemon plugin for version 1.5 spot.
+
+PG150630A:
+
+	Fixed shared_plug.tcl in spot: added a couple of commands, the plugin
+	now works with udaemon (I have tested it briefly with Wlodek's newest
+	commit). The default setting of dump is now 2.
+
+	Wlodek, I think the format of the log message issued by the node after
+	startup is wrong. The first value is announced as a byte, whereas the
+	actual value is 2 bytes. It shows as garbage in the UART terminal.
+	Please check.
+
+	Fixed a bug in SA (the OSS script) causing errors on some inject
+	autoincrements.
+
+	GENEVENT praxis to generate dummy events for testing the master in
+	Alphanet 1.0.
