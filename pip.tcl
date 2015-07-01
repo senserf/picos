@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec tclsh85 C:/cygwin/home/pawel/bin/pip "$@"
+exec tclsh "$0" "$@"
 
 package require Tk
 package require Ttk
@@ -570,7 +570,13 @@ proc fpnorm { fn } {
 			log "cygpath failed: $fn, $fm"
 		}
 	}
-	return [file normalize $fn]
+	if [catch { file normalize $fn } fm] {
+		# this may fail on Cygwin when trying to expand fancy file
+		# names, like ones including ~
+		return $fn
+	} else {
+		return $fm
+	}
 }
 
 proc dospath { fn } {
@@ -939,7 +945,11 @@ proc file_class { f } {
 #
 	global LFTypes
 
-	set f [file tail $f]
+	if [catch { file tail $f } f] {
+		# this may fail for weird file names, e.g., starting with ~
+		# which Cygwin may try to expand
+		return ""
+	}
 
 	foreach t $LFTypes {
 		foreach p [lindex $t 1] {

@@ -802,4 +802,7 @@ PG150522A:
 
 	Added Windows-style cut-copy-paste capability to PIP's text widgets.
 
-	
+PG150701A:
+
+	Intercept and ignore errors caused by weird Windows file names which
+	Cygwin's Tcl tries to normalize (expand) into even weirder ways.
