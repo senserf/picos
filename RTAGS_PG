@@ -4430,3 +4430,18 @@ PG150630B:
 	Fixed shared_plug.tcl. I managed to commit the wrong version (no idea
 	how it could happen) probably because of the hangups of my broken
 	laptop. Let's hope this is the correct one.
+
+PG150703A:
+
+	Added a trivial NULLMODEM App to emulate ... well ... a null modem,
+	i.e., a UART-UART bridge (the rate is fixed at 115200). Now, as the
+	old software U-U (com0com) bridge doesn't work under Windows 8.1 (not
+	without some rather serious and unsafe hacks), we can achieve the same
+	by connecting a Warsaw box to two USB COM ports. Perhaps Gerry could
+	procure a box with two FTDI sockets? Not that we need it desperately.
+	I just wanted to test conveniently the U-U option of Udaemon's UART.
+
+	A minor fix to the Cut-Copy-Paste feature of piter's window.
+
+	BTW: I have tested U-U with spot and it works, so physical Renesas
+	nodes can talk to the model.

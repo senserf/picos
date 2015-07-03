@@ -1177,7 +1177,7 @@ proc sy_cut_copy_paste { w x y } {
 	}
 
 	# determine the state, i.e., are we allowed to paste into the widget?
-	set sta [$w configure -state]
+	set sta [$w cget -state]
 	if { [string first "normal" $sta] >= 0 } {
 		set sta "normal"
 	} else {
