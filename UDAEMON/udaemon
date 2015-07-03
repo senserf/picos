@@ -1215,6 +1215,59 @@ proc lappendunique { ls it } {
 	return 0
 }
 
+proc cut_copy_paste { w x y } {
+#
+# Handles windows-style cut-copy-paste from a text widget; invoked in response
+# to right click in a text widget
+#
+	if [catch { $w get sel.first sel.last } sel] {
+		# selection absent -> empty
+		set sel ""
+	}
+
+	# determine the state, i.e., are we allowed to paste into the widget?
+	set sta [$w cget -state]
+	if { [string first "normal" $sta] >= 0 } {
+		set sta "normal"
+	} else {
+		set sta "disabled"
+	}
+
+	set r $w._rcm
+
+	catch { destroy $r }
+
+	set m [menu $r -tearoff 0]
+
+	if { $sel != "" && $sta == "normal" } {
+		# cut allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Cut" -command "tk_textCut $w" -state $st
+
+	if { $sel != "" } {
+		# copy allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Copy" -command "tk_textCopy $w" -state $st
+
+	if [catch { clipboard get -displayof $w } cs] {
+		set cs ""
+	}
+	if { $sta == "normal" && $cs != "" } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Paste" -command "tk_textPaste $w" -state $st
+
+	tk_popup $m $x $y
+}
+
 ###############################################################################
 # arguments, preprocessing ####################################################
 ###############################################################################
@@ -3319,9 +3372,8 @@ proc mkUart { Sok tt hex } {
 	text $w.stat.u -height 1 -font $FONT(D)
 	pack $w.stat.u -side left -expand yes -fill x
 
-	bind $w.t <ButtonRelease-1> "tk_textCopy $w.t"
-	bind $w.stat.u <ButtonRelease-1> "tk_textCopy $w.stat.u"
-	bind $w.stat.u <ButtonRelease-2> "tk_textPaste $w.stat.u"
+	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+	bind $w.stat.u <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 
 	bind $w.stat.u <Return> "handleUserInput $Sok"
 
@@ -4106,7 +4158,7 @@ proc emulFirst { Sok } {
 	pack $w.scroly -side right -fill y
 	pack $w.t -expand yes -fill both
 
-	bind $w.t <ButtonRelease-1> "tk_textCopy $w.t"
+	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 
 	frame $w.stat -borderwidth 2
 	pack $w.stat -expand no -fill x
@@ -8190,7 +8242,7 @@ pack .logger.scrollx -side bottom -fill x
 
 pack .logger.t -side left -fill both -expand true
 
-bind .logger.t <ButtonRelease-1> "tk_textCopy .logger.t"
+bind .logger.t <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 
 pack .logger -side top -fill both -expand true
 

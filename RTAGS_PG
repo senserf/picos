@@ -1262,3 +1262,7 @@ PG150616A:
     Added maxfree (which was missing). It is a stub which returns memfree and
     1 chunk, but perhaps better than nothing. It cannot be done right in VUEE
     without complicating things beyond reasonable.
+
+PG150703A:
+
+    Implemented Windows-style Cut-Copy-Paste for UART and EMUL windows.
