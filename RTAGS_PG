@@ -4445,3 +4445,11 @@ PG150703A:
 
 	BTW: I have tested U-U with spot and it works, so physical Renesas
 	nodes can talk to the model.
+
+PG150704A:
+
+	I have redone the plugin a bit. Responses and reports always produce a
+	single line including the "stuff" (if any) as well as the status info.
+	Added the event items suggested by Wlodek (not sure if they are right).
+	I don't think voltage is shown correctly. My attempts at changing the
+	sensor setting yield no correlated responses.
