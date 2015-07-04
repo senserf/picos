@@ -581,3 +581,11 @@ WO150129A:
 
 WO150630A:
   SPOT is Alphanet 1.5 with unfinished testing. In DOC, there is a change-marked working doc about the OSSI.
+
+WO150704A:
+  SPOT - rather minor changes & testing, updated ...preliminary (with change bards waiting for removal. Code:
+  - removed RC_RMT (no local RC_OK, it is coming from the relay's dst);
+  - added back the call to board_out (what an annoying bug!);
+  - removed opref from relay report;
+  - cleanup & minor fixes.
+
