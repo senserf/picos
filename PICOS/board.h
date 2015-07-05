@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	0.999
+#define	VUEE_VERSION	1.01
 
 #include "picos.h"
 #include "ndata.h"

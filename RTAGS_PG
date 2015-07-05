@@ -1266,3 +1266,10 @@ PG150616A:
 PG150703A:
 
     Implemented Windows-style Cut-Copy-Paste for UART and EMUL windows.
+
+PG150705A:
+
+    A few fixes to udaemon. In particular, one more UART window type (plug)
+    is now available. This windows should be selected if you want to use the
+    plugin, otherwise, the plugin is disabled, so you can, e.g., connect to
+    the window an external device, without the plugin being in the way.

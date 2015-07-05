@@ -1379,7 +1379,10 @@ proc parse_args { } {
 
 proc plugin_check { } {
 
-	global PF
+	global PF Stat
+
+	# no plugin
+	set Stat(P) 0
 
 	if { $PF == "" } {
 		return
@@ -1387,20 +1390,22 @@ proc plugin_check { } {
 
 	foreach f $PF {
 
-		if [catch { open $PF "r" } fd] {
+		if [catch { open $f "r" } fd] {
 			continue
 		}
 
 		if [catch { read $fd } pl] {
-			alex "Cannot read plugin file $PF, $pl"
+			alex "Cannot read plugin file $f, $pl"
 		}
 
 		catch { close $fd }
 
 		if [catch { uplevel #0 eval $pl } err] {
-			alex "Error inserting the plugin file $PF, $err"
+			alex "Error inserting the plugin file $f, $err"
 		}
 
+		# plugin present
+		set Stat(P) 1
 		return
 	}
 
@@ -2512,8 +2517,8 @@ proc mdName { Sok } {
 		if { [info exists Stat($Sok,I)] && $Stat($Sok,I) != "" } {
 			set hi $Stat($Sok,I)
 		}
-		if { [info exists Stat($Sok,S)] && $Stat($Sok,S) != "" } {
-			set id $Stat($Sok,S)
+		if { [info exists Stat($Sok,N)] && $Stat($Sok,N) != "" } {
+			set id $Stat($Sok,N)
 		}
 		if { $hi != "" || $id != "" } {
 			append in " at node "
@@ -2666,8 +2671,8 @@ proc winlocate { tag { stid "" } { hid 0 } } {
 					break
 				}
 			} else {
-				if { [info exists Stat($s,S)] &&
-				    $Stat($s,S) == $stid } {
+				if { [info exists Stat($s,N)] &&
+				    $Stat($s,N) == $stid } {
 					set wn $w
 					break
 				}
@@ -2985,7 +2990,10 @@ proc uartHandler { stid mode { fg 0 } } {
 		return
 	}
 
-	if { $mode == "h" } {
+	if { $mode == "p" } {
+		# Plug
+		set umo 2
+	} elseif { $mode == "h" } {
 		# HEX
 		set umo 1
 	} else {
@@ -3046,17 +3054,40 @@ proc uartFirst { Sok } {
 	lassign $pmt Stat($Sok,N) Stat($Sok,I)
 
 	# create the window
-	set Wn ".wu[unique]"
+	set w ".wu[unique]"
 
 	set Stat($Sok,F) 0
+	set Wins($Sok) $w
+	toplevel $w
+	wm title $w "UART at node $Stat($Sok,I)"
 
-	set Wins($Sok) $Wn
+	# any requested type from geometry?
+	set params [string tolower \
+		[string index [do_geometry $w "uart" $Stat($Sok,N)] 0]]
 
-	set Stat($Sok,UART) [mkUart $Sok "UART at node $Stat($Sok,I)" \
-		$Stat($Sok,M)]
+	if { $params == "p" } {
+		set Stat($Sok,M) 2
+	} elseif { $params == "h" || $params == "b" || $params == "x" } {
+		set Stat($Sok,M) 1
+	} elseif { $params == "a" || $params == "c" || $params == "s" } {
+		set Stat($Sok,M) 0
+	}
 
-	set Stat($Sok,PLUG) [vplug_init [lindex $pmt 0] [lindex $pmt 1] \
-		[lindex $pmt 3] $Sok]
+	if { $Stat($Sok,M) == 2 } {
+		# Plug variant requested
+		set Stat($Sok,PLUG) [vplug_init [lindex $pmt 0] \
+						[lindex $pmt 1] \
+						[lindex $pmt 3] \
+						$Sok]
+		if { $Stat($Sok,PLUG) == 0 } {
+			# force ASCII and leave the choice open
+			set Stat($Sok,M) 0
+		}
+	} else {
+		set Stat($Sok,PLUG) 0
+	}
+
+	set Stat($Sok,UART) [mkUart $Sok]
 
 	# reset the input script
 	fileevent $Sok readable "uartRead $Sok"
@@ -3207,7 +3238,7 @@ proc u_state_change { Sok } {
 #
 	global Stat
 
-	set nn $Stat($Sok,S)
+	set nn $Stat($Sok,N)
 
 	if { ![info exists Stat($Sok,UART)] || ![info exists Stat(PNN,$nn)] } {
 		return
@@ -3321,27 +3352,13 @@ proc connUart { Sok { ix -1 } } {
 	log "U-U connection successful"
 }
 
-proc mkUart { Sok tt hex } {
+proc mkUart { Sok } {
 #
 # Creates a new terminal
 #
 	global Wins Stat FONT
 
 	set w $Wins($Sok)
-
-	toplevel $w
-
-	wm title $w $tt
-
-	set params [string tolower \
-		[string index [do_geometry $w "uart" $Stat($Sok,N)] 0]]
-
-	if { $params == "h" || $params == "b" || $params == "x" } {
-		# force type
-		set hex 1
-	} elseif { $params == "a" || $params == "c" || $params == "s" } {
-		set hex 0
-	}
 
 	text $w.t
 
@@ -3377,22 +3394,34 @@ proc mkUart { Sok tt hex } {
 
 	bind $w.stat.u <Return> "handleUserInput $Sok"
 
-	frame $w.stat.hsel -borderwidth 2
-	pack $w.stat.hsel -side right -expand no
+	if { $Stat($Sok,M) == 2 } {
+		# set this just in case
+		set Stat($Sok,H) 0
+	} else {
+		# do not include the HEX toggle for the plugin variant
+		frame $w.stat.hsel -borderwidth 2
+		pack $w.stat.hsel -side right -expand no
 
-	label $w.stat.hsel.lab -text "HEX"
-	pack $w.stat.hsel.lab -side left
+		label $w.stat.hsel.lab -text "HEX"
+		pack $w.stat.hsel.lab -side left
 
-	set Stat($Sok,H) $hex
+		# now this can be 0 = normal, 1 = hex
+		set Stat($Sok,H) $Stat($Sok,M)
+
+		set dmn $w.stat.hsel.but
+		checkbutton $dmn -state normal -variable Stat($Sok,H)
+		pack $dmn -side left
+		tip_set $dmn "Toggle between the normal and HEX modes.\
+			Note: in HEX mode, the input consists of pairs of HEX\
+			digits,	e.g., 68 65 6C 70 0A."  
+	}
+
+	# from now on, Stat($Sok,M) is used to remember the previous mode,
+	# in case it is toggled
+	set Stat($Sok,M) $Stat($Sok,H)
+
 	# U-U file descriptor
 	set Stat($Sok,FD,U) ""
-
-	set dmn $w.stat.hsel.but
-	checkbutton $dmn -state normal -variable Stat($Sok,H)
-	pack $dmn -side left
-	tip_set $dmn "Toggle between the normal and HEX modes. Note: in HEX\
-		mode, the input consists of pairs of HEX digits, e.g.,\
-		68 65 6C 70 0A."
 
 	frame $w.stat.usel -borderwidth 2
 	pack $w.stat.usel -side right -expand no
@@ -3997,7 +4026,7 @@ proc l_state_change { Sok } {
 
 	set fast $Stat($Sok,FA)
 	set stat $Stat($Sok,LD)
-	set nn $Stat($Sok,S)
+	set nn $Stat($Sok,N)
 
 	set w [stwin $Sok]
 
@@ -4232,7 +4261,7 @@ proc e_state_change { Sok } {
 #
 	global Stat Wins
 
-	set nn $Stat($Sok,S)
+	set nn $Stat($Sok,N)
 
 	if { ![info exists Wins($Sok)] || ![info exists Stat(PNN,$nn)] } {
 		return
@@ -4350,7 +4379,7 @@ proc g_state_change { Sok } {
 		return
 	}
 
-	set nn $Stat($sok,S)
+	set nn $Stat($sok,N)
 
 	if { $Stat(PNN,$nn) == "F" } {
 		lcdgUPDI $Sok "off"
@@ -4656,7 +4685,7 @@ proc p_state_change { Sok } {
 
 	set np $Stat($Sok,NP)
 	set na $Stat($Sok,NA)
-	set nn $Stat($Sok,S)
+	set nn $Stat($Sok,N)
 
 	set da(0) 0
 	set da(1) 0
@@ -4835,7 +4864,7 @@ proc pinsInput { Sok pin } {
 		return 0
 	}
 
-	set nn $Stat($Sok,S)
+	set nn $Stat($Sok,N)
 	if { $Stat(PNN,$nn) == "F" } {
 		# the node is off
 		return 0
@@ -5324,7 +5353,7 @@ proc s_state_change { Sok } {
 
 	set w [stwin $Sok]
 
-	set nn $Stat($Sok,S)
+	set nn $Stat($Sok,N)
 
 	# actuators
 
@@ -5564,7 +5593,7 @@ proc nodeStateChange { n } {
 
 		set w $Wins($s)
 
-		if { [info exists Stat($s,S)] && $Stat($s,S) == $n } {
+		if { [info exists Stat($s,N)] && $Stat($s,N) == $n } {
 			set tp [string index $w 2]
 			catch { ${tp}_state_change $s }
 		}
@@ -5970,7 +5999,7 @@ proc w_state_change { Sok } {
 
 	global Stat
 
-	set nn $Stat($Sok,S)
+	set nn $Stat($Sok,N)
 
 	if ![info exists Stat(PNN,$nn)] {
 		return
@@ -6949,6 +6978,10 @@ proc mkMove { Sok } {
 
 	# a popup menu for node-related commands
 	set m [menu $w.ncm]
+	if $Stat(P) {
+		$m add command -label "UART (plug)" \
+			-command {moveNC "UART (plug)"}
+	}
 	$m add command -label "UART (ascii)" -command {moveNC "UART (ascii)"}
 	$m add command -label "UART (hex)" -command {moveNC "UART (hex)"}
 	$m add command -label "SENSORS" -command {moveNC "SENSORS"}
@@ -7991,6 +8024,11 @@ proc doConnect { { opt "" } { nod "" } } {
 
 	switch $opt {
 
+		"UART (plug)"	{
+			if [valsid nod] { return }
+			uartHandler $nod p $fg
+		}
+
 		"UART (ascii)"	{
 			if [valsid nod] { return }
 			uartHandler $nod a $fg
@@ -8166,8 +8204,7 @@ tip_set .top.connect "Click to connect to the module selected by the widgets\
 	to the left. Note that you can also connect to node-specific modules\
 	from the ROAMER window by right-clicking on the nodes."
 
-tk_optionMenu .top.select Option \
-	"UART (ascii)" \
+set optl [list "UART (ascii)" \
 	"UART (hex)" \
 	"SENSORS" \
 	"PINS" \
@@ -8177,7 +8214,15 @@ tk_optionMenu .top.select Option \
 	"PTRACKER" \
 	"ROAMER" \
 	"PANEL" \
-	"CLOCK"
+	"CLOCK" ]
+
+if $Stat(P) {
+	set optl [linsert $optl 0 "UART (plug)"]
+}
+
+tk_optionMenu .top.select Option {*}$optl
+
+unset optl
 
 tip_set .top.select "This is the menu of modules to connect to. Modules\
 	ROAMER, PANEL, and CLOCK are global (require no node number), so you\
