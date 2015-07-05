@@ -231,7 +231,7 @@ proc copy_udaemon_plug { } {
 		return
 	}
 
-	set td [file join $TDIR "uplug.tcl"]
+	set td [file join $TDIR "shared_plug.tcl"]
 	if [catch { file copy $BL $td } err] {
 		abt "Cannot copy $BL to $td, $err"
 	}

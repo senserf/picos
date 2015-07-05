@@ -112,7 +112,7 @@ proc run { } {
 	after 2000
 
 	set ar [list "-T"]
-	if [file isfile "uplug.tcl"] {
+	if { [file isfile "uplug.tcl"] || [file isfile "shared_plug.tcl"] } {
 		lappend ar "-P"
 	}
 	lappend ar "&"
