@@ -4453,3 +4453,8 @@ PG150704A:
 	Added the event items suggested by Wlodek (not sure if they are right).
 	I don't think voltage is shown correctly. My attempts at changing the
 	sensor setting yield no correlated responses.
+
+PG150705A:
+
+	Some tweaks to the scripts for encapsulating VUEE models in preparation
+	for sending the new spot model to Alphatronics.
