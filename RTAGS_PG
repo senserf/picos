@@ -1273,3 +1273,9 @@ PG150705A:
     is now available. This windows should be selected if you want to use the
     plugin, otherwise, the plugin is disabled, so you can, e.g., connect to
     the window an external device, without the plugin being in the way.
+
+PG150706A:
+
+    For a virtual UART connected to a real COM port, udaemon now shows (in hex)
+    both streams of data, i.e., input as well as output, rather than merely
+    output, as before.

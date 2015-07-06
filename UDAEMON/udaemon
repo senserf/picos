@@ -3119,37 +3119,15 @@ proc uartRead { Sok } {
 
 	if $Stat($Sok,H) {
 		# handle the HEX case
-		if !$Stat($Sok,M) {
-			# just entered
-			endLine $Sok $Wn.t
-			set Stat($Sok,M) 1
-			set Stat($Sok,F) 0
-		}
-
-		set sl [string length $chunk]
-		for { set ix 0 } { $ix < $sl } { incr ix } {
-			set b [string index $chunk $ix]
-			# this gets converted to three characters
-			set enc [tohex $b]
-			if { $Stat($Sok,F) >= 80 } {
+		show_hbytes $Sok $chunk 0
+	} else {
+		if { $Stat($Sok,M) != -1 } {
+			set Stat($Sok,M) -1
+			if $Stat($Sok,F) {
 				endLine $Sok $Wn.t
 				set Stat($Sok,F) 0
 			}
-			addText $Sok $Wn.t $enc
-			incr Stat($Sok,F) 2
-			if { $Stat($Sok,F) <= 77 } {
-				addText $Sok $Wn.t " "
-				incr Stat($Sok,F)
-			}
 		}
-	} else {
-		if $Stat($Sok,M) {
-			# just exited
-			set Stat($Sok,M) 0
-			set Stat($Sok,F) 0
-			endLine $Sok $Wn.t
-		}
-		# we have something
 		append Stat($Sok,B) $chunk
 		# look for CR+LF, LF+CR, CR, LF; if there is only
 		# one of those at the end, ignore it for now and
@@ -3186,15 +3164,15 @@ proc uartRead { Sok } {
 			addText $Sok $Wn.t [string range $Stat($Sok,B) \
 						       0 [expr $el - 1]]
 			incr sl -$el
-			# in the ASCII mode, this is only used to tel
-			# wheter we are at the beginning of a line or
-			# not
-			incr Stat($Sok,F) 1
+			# this is only used to tell wheter we are at the
+			# beginning of a line or not
+			set Stat($Sok,F) 1
 			set Stat($Sok,B) [string range $Stat($Sok,B) $el end]
 		}
+
 		if { $Stat($Sok,B) != "" } {
 			addText $Sok $Wn.t $Stat($Sok,B)
-			incr Stat($Sok,F) 1
+			set Stat($Sok,F) 1
 			set Stat($Sok,B) ""
 		}
 	}
@@ -3226,6 +3204,8 @@ proc uuRead { Sok } {
 		# nothing read
 		return
 	}
+
+	show_hbytes $Sok $chunk 1
 
 	# make this transparent, it is better to detect disconnection
 	# elsewhere
@@ -3397,6 +3377,7 @@ proc mkUart { Sok } {
 	if { $Stat($Sok,M) == 2 } {
 		# set this just in case
 		set Stat($Sok,H) 0
+		set Stat($Sok,M) -1
 	} else {
 		# do not include the HEX toggle for the plugin variant
 		frame $w.stat.hsel -borderwidth 2
@@ -3407,7 +3388,11 @@ proc mkUart { Sok } {
 
 		# now this can be 0 = normal, 1 = hex
 		set Stat($Sok,H) $Stat($Sok,M)
-
+		if $Stat($Sok,H) {
+			set Stat($Sok,M) 2
+		} else {
+			set Stat($Sok,M) -1
+		}
 		set dmn $w.stat.hsel.but
 		checkbutton $dmn -state normal -variable Stat($Sok,H)
 		pack $dmn -side left
@@ -3416,9 +3401,9 @@ proc mkUart { Sok } {
 			digits,	e.g., 68 65 6C 70 0A."  
 	}
 
-	# from now on, Stat($Sok,M) is used to remember the previous mode,
-	# in case it is toggled
-	set Stat($Sok,M) $Stat($Sok,H)
+	# from now on, Stat($Sok,M) is used to remember the previous state for
+	# the content of the window: 0 - hex reading, 1 - hex writing,
+	# 2 - hex unknown, -1 - ASCII
 
 	# U-U file descriptor
 	set Stat($Sok,FD,U) ""
@@ -3514,7 +3499,39 @@ proc term_sfile { Sok tag } {
 
 	term_setsfb $Sok
 }
-		
+
+proc show_hbytes { Sok chunk dir } {
+#
+# Present hex data in the UART window
+#
+	global Stat
+
+	set w [stwin $Sok]
+
+	set sl [string length $chunk]
+	set ou ""
+
+	for { set ix 0 } { $ix < $sl } { incr ix } {
+		append ou " [tohex [string index $chunk $ix]]"
+	}
+
+	if { $Stat($Sok,M) != $dir } {
+		if $Stat($Sok,F) {
+			endLine $Sok $w.t
+			set Stat($Sok,F) 0
+		}
+		if { $dir == 0 } {
+			addText $Sok $w.t "-->"
+		} else {
+			addText $Sok $w.t "<--"
+		}
+		set Stat($Sok,M) $dir
+	}
+	addText $Sok $w.t $ou
+	# not at EOL
+	set Stat($Sok,F) 1
+}
+			
 proc handleUserInput { Sok } {
 
 	global Stat
@@ -3531,15 +3548,7 @@ proc handleUserInput { Sok } {
 		return
 	}
 
-	if $Stat($Sok,F) {
-		set Stat($Sok,F) 0
-		endLine $Sok $w.t
-	}
-
 	if $Stat($Sok,H) {
-		set Stat($Sok,M) 1
-		addText $Sok $w.t $tx
-		endLine $Sok $w.t
 		set os ""
 		set tx [string trim $tx]
 		set err 0
@@ -3560,15 +3569,22 @@ proc handleUserInput { Sok } {
 			append os [format %c [expr $d0 * 16 + $d1]]
 		}
 		if $err {
+			if $Stat($Sok,F) {
+				endLine $Sok $w.t
+			}
 			addText $Sok $w.t "ILLEGAL HEX INPUT, LINE IGNORED!!!"
 			endLine $Sok $w.t
+			set Stat($Sok,F) 0
 			return
 		}
-		if [sock_wr $Sok $os] {
-			return
-		}
+		show_hbytes $Sok $os 1
+		sock_wr $Sok $os
 	} else {
-		set Stat($Sok,M) 0
+		if $Stat($Sok,F) {
+			endLine $Sok $w.t
+			set Stat($Sok,F) 0
+		}
+		set Stat($Sok,M) -1
 		# ASCII
 		if [sock_wr $Sok "${tx}\r\n"] {
 			return
