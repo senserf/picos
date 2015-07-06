@@ -4458,3 +4458,12 @@ PG150705A:
 
 	Some tweaks to the scripts for encapsulating VUEE models in preparation
 	for sending the new spot model to Alphatronics.
+
+PG150706A:
+
+	More tweaks to VUEE encapsulation:
+
+	- added piter to the pack
+
+	- made sure that piter reads .piterrc in the directory it is called in
+	  first, if the file is available there

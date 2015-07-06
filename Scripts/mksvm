@@ -105,16 +105,18 @@ proc copy_side { } {
 	}
 }
 
-proc wrap_udaemon { } {
+proc wrap_script { pn } {
 
 	global TDIR PP
 
-	if { [catch { exec which udaemon } ud] || ![file exists $ud] } {
-		abt "Cannot locate udaemon script"
+	set tpn "${pn}.tcl"
+
+	if { [catch { exec which $pn } ud] || ![file exists $ud] } {
+		abt "Cannot locate $pn"
 	}
 
-	if [catch { exec cp $ud [file join $TDIR "udaemon.tcl"] } err] {
-		abt "Cannot copy udaemon to $TDIR, $err"
+	if [catch { exec cp $ud [file join $TDIR $tpn] } err] {
+		abt "Cannot copy $pn to $TDIR, $err"
 	}
 
 	set CD [pwd]
@@ -122,11 +124,11 @@ proc wrap_udaemon { } {
 		abt "Cannot cd to $TDIR, $err"
 	}
 
-	if [catch { exec fullwrap "udaemon.tcl" } err] {
-		abt "Cannot wrap udaemon, $err"
+	if [catch { exec fullwrap $tpn } err] {
+		abt "Cannot wrap $pn, $err"
 	}
 
-	file delete -force "udaemon.tcl"
+	file delete -force $tpn
 
 	cd $CD
 }
@@ -237,6 +239,18 @@ proc copy_udaemon_plug { } {
 	}
 }
 
+proc copy_piter_config { } {
+
+	global TDIR
+
+	if [file exists "config.pit"] {
+		set td [file join $TDIR ".piterrc"]
+		if [catch { file copy "config.pit" $td } err] {
+			abt "Cannot copy config.pit to $td, $err"
+		}
+	}
+}
+
 proc check_reverse_y { } {
 
 	global CONF
@@ -324,7 +338,11 @@ copy_supplementary_data
 copy_udaemon_plug
 
 puts "wrapping udaemon ..."
-wrap_udaemon
+wrap_script "udaemon"
+
+puts "wrapping piter ..."
+wrap_script "piter"
+copy_piter_config
 
 puts "wrapping runmodel ..."
 wrap_runmodel

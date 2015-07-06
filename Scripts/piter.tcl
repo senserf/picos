@@ -87,6 +87,9 @@ if { $ST(WSH) < 8.5 } {
 	exit 99
 }
 
+# Working directory
+set PM(PWD) [pwd]
+
 # home directory
 if { [info exists env(HOME)] && $env(HOME) != "" } {
 	set PM(HOM) $env(HOME)
@@ -95,7 +98,11 @@ if { [info exists env(HOME)] && $env(HOME) != "" } {
 }
 
 # the default rc file
-set PM(SAP) [file join $PM(HOM) ".piterrc"]
+set PM(SAP) [file join $PM(PWD) ".piterrc"]
+if ![file exists $PM(SAP)] {
+	# if the file exists in current directory, it has precedence
+	set PM(SAP) [file join $PM(HOM) ".piterrc"]
+}
 
 #
 # Prescan arguments:
@@ -823,9 +830,6 @@ set ST(SFD) ""
 
 # UART connect status string
 set ST(UCS) "disconnected"
-
-# Working directory
-set PM(PWD) [pwd]
 
 # for tracing and debugging
 set DB(SFD)	""
