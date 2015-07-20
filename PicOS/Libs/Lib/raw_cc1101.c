@@ -134,14 +134,14 @@ static void cc1100_spi_out (byte b) {
 
 	for (i = 0; i < 8; i++) {
 		if (b & 0x80)
-			si_up;
+			cc1100_si_up;
 		else
-			si_down;
+			cc1100_si_down;
 		b <<= 1;
-		sclk_up;
-		SPI_WAIT;
-		sclk_down;
-		SPI_WAIT;
+		cc1100_sclk_up;
+		CC1100_SPI_WAIT;
+		cc1100_sclk_down;
+		CC1100_SPI_WAIT;
 	}
 }
 
@@ -151,17 +151,17 @@ static byte cc1100_spi_out_stat (byte b) {
 
 	for (i = val = 0; i < 8; i++) {
 		if (b & 0x80)
-			si_up;
+			cc1100_si_up;
 		else
-			si_down;
+			cc1100_si_down;
 		val <<= 1;
-		if (so_val)
+		if (cc1100_so_val)
 			val |= 1;
 		b <<= 1;
-		sclk_up;
-		SPI_WAIT;
-		sclk_down;
-		SPI_WAIT;
+		cc1100_sclk_up;
+		CC1100_SPI_WAIT;
+		cc1100_sclk_down;
+		CC1100_SPI_WAIT;
 	}
 	return (val & CC1100_STATE_MASK);
 }
@@ -172,12 +172,12 @@ static byte cc1100_spi_in () {
 
 	for (i = val = 0; i < 8; i++) {
 		val <<= 1;
-		if (so_val)
+		if (cc1100_so_val)
 			val |= 1;
-		sclk_up;
-		SPI_WAIT;
-		sclk_down;
-		SPI_WAIT;
+		cc1100_sclk_up;
+		CC1100_SPI_WAIT;
+		cc1100_sclk_down;
+		CC1100_SPI_WAIT;
 	}
 
 	return val;
@@ -185,47 +185,47 @@ static byte cc1100_spi_in () {
 
 void rrf_set_reg (byte addr, byte val) {
 
-	SPI_START;
-	SPI_WAIT;
+	CC1100_SPI_START;
+	CC1100_SPI_WAIT;
 	cc1100_spi_out (addr);
 	cc1100_spi_out (val);
-	SPI_END;
+	CC1100_SPI_END;
 }
 
 byte rrf_get_reg (byte addr) {
 
 	register byte val;
 
-	SPI_START;
+	CC1100_SPI_START;
 	cc1100_spi_out (addr | 0x80);
 	val = cc1100_spi_in ();
-	SPI_END;
+	CC1100_SPI_END;
 	return val;
 }
 
 void rrf_set_reg_burst (byte addr, byte *buffer, word count) {
 
-	SPI_START;
+	CC1100_SPI_START;
 	cc1100_spi_out (addr | 0x40);
 	while (count--)
 		cc1100_spi_out (*buffer++);
-	SPI_END;
+	CC1100_SPI_END;
 }
 
 void rrf_get_reg_burst (byte addr, byte *buffer, word count) {
 
-	SPI_START;
+	CC1100_SPI_START;
 	cc1100_spi_out (addr | 0xC0);
 	while (count--)
 		*buffer++ = cc1100_spi_in ();
-	SPI_END;
+	CC1100_SPI_END;
 }
 	
 static void cc1100_strobe (byte cmd) {
 
-	SPI_START;
+	CC1100_SPI_START;
 	cc1100_spi_out (cmd);
-	SPI_END;
+	CC1100_SPI_END;
 }
 
 #endif
@@ -253,9 +253,9 @@ ReTry:
 		val = cc1100_strobe (CCxxx0_SNOP);
 #else
 
-		SPI_START;
+		CC1100_SPI_START;
 		val = cc1100_spi_out_stat (CCxxx0_SNOP | 0x80);
-		SPI_END;
+		CC1100_SPI_END;
 #endif
 		switch (val) {
 
@@ -340,14 +340,14 @@ int rrf_rx_status () {
 #else
 	byte b, val;
 
-	SPI_START;
+	CC1100_SPI_START;
 
 	val = cc1100_spi_out_stat (CCxxx0_RXBYTES);
 
 	// Get RXBYTES
 	b = cc1100_spi_in ();
 
-	SPI_END;
+	CC1100_SPI_END;
 
 	if (val == CC1100_STATE_IDLE || val == CC1100_STATE_RX)
 		// The status is right, return #bytes in RX FIFO; note that we
@@ -408,7 +408,7 @@ void rrf_pd () {
 
 void rrf_chip_reset () {
 
-	full_reset;
+	cc1100_full_reset;
 
 	// Re-initialize registers from the table
 	rrf_set_reg_group (rrf_regs);
@@ -420,7 +420,7 @@ void rrf_chip_reset () {
 void rrf_init () {
 
 	// Initialize the requisite pins
-	ini_regs;
+	cc1100_ini_regs;
 	rrf_chip_reset ();
 	rrf_enter_rx ();
 }

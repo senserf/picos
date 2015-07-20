@@ -24,7 +24,8 @@ proc xq { pgm { pargs "" } } {
 # Execute program
 #
 	set ef [auto_execok $pgm]
-	set re [eval [list exec] [list $ef] $pargs]
+	set re [eval [list exec] [list $pgm] $pargs]
+	#set re [eval [list exec] [list $ef] $pargs]
 	return $re
 }
 

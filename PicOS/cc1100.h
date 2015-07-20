@@ -854,15 +854,15 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 
 // ============================================================================
 
-#define	SPI_START	CNOP
-#define	SPI_END		CNOP
+#define	CC1100_SPI_START	CNOP
+#define	CC1100_SPI_END		CNOP
 
 // Note that SRES on CC430 leaves the chip in SLEEP rather than IDLE, so a
 // safe transition to IDLE involves a wake delay
-#define	full_reset	do { \
-				strobe (CCxxx0_SRES); \
-				strobe (CCxxx0_SNOP); \
-			} while (0)
+#define	cc1100_full_reset	do { \
+					strobe (CCxxx0_SRES); \
+					strobe (CCxxx0_SNOP); \
+				} while (0)
 
 #include "irq_cc430_rf.h"
 
@@ -870,30 +870,30 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 
 // ============================================================================
 
-#define	SPI_START	do { \
-				csn_down; \
-				while (so_val); \
-			} while (0)
+#define	CC1100_SPI_START	do { \
+					cc1100_csn_down; \
+					while (cc1100_so_val); \
+				} while (0)
 
-#define	SPI_END		csn_up
+#define	CC1100_SPI_END		cc1100_csn_up
 
-#define	full_reset	do { \
-				sclk_down; \
-				csn_up; \
-        			UWAIT1; \
-				csn_down; \
-				UWAIT1; \
-				csn_up; \
-				UWAIT41; \
-				SPI_START; \
-				spi_out (CCxxx0_SRES); \
-				while (so_val); \
-				SPI_END; \
-			} while (0)
+#define	cc1100_full_reset	do { \
+					cc1100_sclk_down; \
+					cc1100_csn_up; \
+        				CC1100_UWAIT1; \
+					cc1100_csn_down; \
+					CC1100_UWAIT1; \
+					cc1100_csn_up; \
+					CC1100_UWAIT41; \
+					CC1100_SPI_START; \
+					spi_out (CCxxx0_SRES); \
+					while (cc1100_so_val); \
+					CC1100_SPI_END; \
+				} while (0)
 
 #if RADIO_WOR_MODE
 
-#define	wor_enable_int	rcv_enable_int
+#define	wor_enable_int	cc1100_rcv_int_enable
 
 #endif
 

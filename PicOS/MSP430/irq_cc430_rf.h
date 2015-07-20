@@ -6,9 +6,9 @@
 // routine
 // ============================================================================
 
-#define	RX_FIFO_READY		(RF1AIN & 0x01)
+#define	CC1100_RX_FIFO_READY		(RF1AIN & 0x01)
 
-#define	ini_regs		CNOP
+#define	cc1100_ini_regs		CNOP
 
 #define	chip_not_ready		(RF1AIN & IRQ_RXTM)
 
@@ -29,9 +29,9 @@
 REQUEST_EXTERNAL (irq_cc430_rf);
 
 
-#define rcv_enable_int		do { \
+#define cc1100_rcv_int_enable		do { \
 					RF1AIE = IRQ_RCPT; \
-					if (RX_FIFO_READY) \
+					if (CC1100_RX_FIFO_READY) \
 						_BIS (RF1AIFG, IRQ_RCPT); \
 				} while (0)
 

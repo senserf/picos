@@ -73,10 +73,10 @@ static byte get_byte () {
 
 static void put_reg (byte reg, byte val) {
 
-	csn_down;
+	cc1100_csn_down;
 	put_byte (CMD_W_REGISTER + reg);
 	put_byte (val);
-	csn_up;
+	cc1100_csn_up;
 	// Let's keep data consistently down when nothing happens
 	data_down;
 }
@@ -85,11 +85,11 @@ static byte get_reg (byte reg) {
 
 	byte res;
 
-	csn_down;
+	cc1100_csn_down;
 	put_byte (CMD_R_REGISTER + reg);
 	data_down;
 	res = get_byte ();
-	csn_up;
+	cc1100_csn_up;
 
 	return res;
 }
@@ -101,7 +101,7 @@ static byte get_stat () {
 	byte i, stat;
 
 	data_up;	// CMD_NOP is 'all ones'
-	csn_down;
+	cc1100_csn_down;
 
 	for (stat = 0, i = 0; i < 8; i++) {
 		stat <<= 1;
@@ -110,7 +110,7 @@ static byte get_stat () {
 		sck_up;
 		sck_down;
 	}
-	csn_up;
+	cc1100_csn_up;
 	data_down;
 
 	return stat;
@@ -150,11 +150,11 @@ static byte chip_config () {
 			netaddr [4]
 		);
 #endif
-		csn_down;
+		cc1100_csn_down;
 		put_byte (CMD_W_REGISTER + adtfill [i]);
 		for (j = 0; j < 5; j++)
 			put_byte (netaddr [j]);
-		csn_up;
+		cc1100_csn_up;
 	}
 	data_down;
 }
@@ -178,12 +178,12 @@ static byte chip_verify () {
 	}
 
 	for (i = 0; i < sizeof (adtfill); i++) {
-		csn_down;
+		cc1100_csn_down;
 		put_byte (CMD_R_REGISTER + adtfill [i]);
 		data_down;
 		for (j = 0; j < 5; j++)
 			reg [j] = get_byte ();
-		csn_up;
+		cc1100_csn_up;
 #if 0
 		diag ("REG %d == %x %x %x %x %x", adtfill [i],
 			reg [0],
@@ -242,17 +242,17 @@ static void xmt_enable () {
 
 static void rx_flush () {
 
-	csn_down;
+	cc1100_csn_down;
 	put_byte (CMD_FLUSH_RX);
-	csn_up;
+	cc1100_csn_up;
 	data_down;
 }
 
 static void tx_flush () {
 
-	csn_down;
+	cc1100_csn_down;
 	put_byte (CMD_FLUSH_TX);
-	csn_up;
+	cc1100_csn_up;
 	data_down;
 }
 
@@ -324,7 +324,7 @@ static void ini_rf24l01 () {
 
 	ini_regs;
 	ce_down;
-	csn_up;
+	cc1100_csn_up;
 	mdelay (2);
 	chip_config ();
 	stat = chip_verify ();
@@ -372,14 +372,14 @@ static void do_rx_fifo () {
 		goto Rtn;
 	}
 
-	csn_down;
+	cc1100_csn_down;
 	put_byte (CMD_R_RX_PAYLOAD);
 	data_down;
 
 	len = get_byte ();
 	for (n = PIP_LENGTH - 1, bptr = (byte*) rbuff; n--; )
 		*bptr++ = get_byte ();
-	csn_up;
+	cc1100_csn_up;
 #if 0
 	diag ("RX PKT [%d]: %x %x %x", len, rbuff [0], rbuff [1], rbuff [2]);
 #endif
@@ -530,14 +530,14 @@ thread (rf24l01_driver)
 #endif
 	xmt_enable ();
 
-	csn_down;
+	cc1100_csn_down;
 	put_byte (CMD_W_TX_PAYLOAD);
 
 	put_byte ((byte)paylen);
 
 	for (st = 0; st < XMT_PAYLEN; st++)
 		put_byte (((byte*)xbuff) [st]);
-	csn_up;
+	cc1100_csn_up;
 	data_down;
 
 	// This will start the transmission

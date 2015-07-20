@@ -171,17 +171,17 @@ static byte spi_out (byte b) {
 
 	for (i = val = 0; i < 8; i++) {
 		if (b & 0x80)
-			si_up;
+			cc1100_si_up;
 		else
-			si_down;
+			cc1100_si_down;
 		val <<= 1;
-		if (so_val)
+		if (cc1100_so_val)
 			val |= 1;
 		b <<= 1;
-		sclk_up;
-		SPI_WAIT;
-		sclk_down;
-		SPI_WAIT;
+		cc1100_sclk_up;
+		CC1100_SPI_WAIT;
+		cc1100_sclk_down;
+		CC1100_SPI_WAIT;
 	}
 	return (val & CC1100_STATE_MASK);
 }
@@ -192,12 +192,12 @@ static byte spi_in () {
 
 	for (i = val = 0; i < 8; i++) {
 		val <<= 1;
-		if (so_val)
+		if (cc1100_so_val)
 			val |= 1;
-		sclk_up;
-		SPI_WAIT;
-		sclk_down;
-		SPI_WAIT;
+		cc1100_sclk_up;
+		CC1100_SPI_WAIT;
+		cc1100_sclk_down;
+		CC1100_SPI_WAIT;
 	}
 
 	return val;
@@ -205,49 +205,49 @@ static byte spi_in () {
 
 static void set_reg (byte addr, byte val) {
 
-	SPI_START;
-	SPI_WAIT;
+	CC1100_SPI_START;
+	CC1100_SPI_WAIT;
 	spi_out (addr);
 	spi_out (val);
-	SPI_END;
+	CC1100_SPI_END;
 }
 
 static byte get_reg (byte addr) {
 
 	register byte val;
 
-	SPI_START;
+	CC1100_SPI_START;
 	spi_out (addr | 0x80);
 	val = spi_in ();
-	SPI_END;
+	CC1100_SPI_END;
 	return val;
 }
 
 static void set_reg_burst (byte addr, byte *buffer, word count) {
 
-	SPI_START;
+	CC1100_SPI_START;
 	spi_out (addr | 0x40);
 	while (count--)
 		spi_out (*buffer++);
-	SPI_END;
+	CC1100_SPI_END;
 }
 
 static void get_reg_burst (byte addr, byte *buffer, word count) {
 
-	SPI_START;
+	CC1100_SPI_START;
 	spi_out (addr | 0xC0);
 	while (count--)
 		*buffer++ = spi_in ();
-	SPI_END;
+	CC1100_SPI_END;
 }
 	
 static byte strobe (byte cmd) {
 
 	register byte res;
 
-	SPI_START;
+	CC1100_SPI_START;
 	res = spi_out (cmd);
-	SPI_END;
+	CC1100_SPI_END;
 	return res;
 }
 
@@ -257,13 +257,13 @@ static int rx_status () {
 
 	c = 255;
 	while (1) {
-		SPI_START;
+		CC1100_SPI_START;
 		// Owing to the bug mentioned in the errata, we read RXBYTES
 		// twice
 		val = spi_out (CCxxx0_RXBYTES);
 		// Get RXBYTES
 		b = spi_in ();
-		SPI_END;
+		CC1100_SPI_END;
 		if (b == c)
 			return ((val == CC1100_STATE_IDLE ||
 				 val == CC1100_STATE_RX) && b <= 64) ?
@@ -550,7 +550,7 @@ static void chip_reset () {
 #if RADIO_WOR_MODE
 	woron = 0;
 #endif
-	full_reset;
+	cc1100_full_reset;
 	// Set the registers
 	set_reg_burst (0x00, (byte*)cc1100_rfsettings,
 		sizeof (cc1100_rfsettings));
@@ -856,7 +856,7 @@ DR_LOOP__:
 	if (RxST != RCV_STATE_PD) {
 		// Take care of the RX FIFO; only when the chip is solid off,
 		// don't we have to look there
-		while (RX_FIFO_READY)
+		while (CC1100_RX_FIFO_READY)
 			do_rx_fifo ();
 	}
 
@@ -883,7 +883,7 @@ DR_LOOP__:
 			// periodically recalibrate here understanding that the
 			// wait in RX is going to be quite finite
 			delay (wor_idle_timeout, DR_WORTMOUT);
-			rcv_enable_int;
+			cc1100_rcv_int_enable;
 			release;
 		}
 #endif
@@ -899,7 +899,7 @@ DR_LOOP__:
 			// Periodic recalibration
 			delay (RADIO_RECALIBRATE * 1024, DR_RECALIBRATE);
 #endif
-			rcv_enable_int;
+			cc1100_rcv_int_enable;
 		}
 		release;
 	}
@@ -917,7 +917,7 @@ Bkf:
 		wait (__pi_v_qevent, DR_LOOP);
 		delay (bckf_timer, DR_LOOP);
 		if (RxST != RCV_STATE_PD)
-			rcv_enable_int;
+			cc1100_rcv_int_enable;
 		release;
 	}
 
@@ -1152,7 +1152,7 @@ FEXmit:
 
   entry (DR_WORTMOUT)
 
-	if (woron && !RX_FIFO_READY && tcvphy_top (physid) == NULL) {
+	if (woron && !CC1100_RX_FIFO_READY && tcvphy_top (physid) == NULL) {
 		// This will enter WOR mode. Note: we could add more conditions:
 		//
 		//	- PQT reached (that would require running the RX mode
@@ -1483,15 +1483,15 @@ void phys_cc1100 (int phy, int mbs) {
 
 #if !defined(__CC430__) && (RADIO_OPTIONS & RADIO_OPTION_CCHIP)
 	// Chip connectivity test
-	csn_down;
+	cc1100_csn_down;
 	mdelay (2);
-	if (so_val) {
+	if (cc1100_so_val) {
 		// This precludes hangups that would have been caused by stuck
-		// so_val on our first attempt to talk to the chip
+		// cc1100_so_val on our first attempt to talk to the chip
 		syserror (EHARDWARE, "cc11 ch");
 	}
-	// csn_up
-	SPI_END;
+	// cc1100_csn_up
+	CC1100_SPI_END;
 #endif
 
 	// Buffer length in bytes including the checksum
@@ -1515,7 +1515,7 @@ void phys_cc1100 (int phy, int mbs) {
 	LEDI (2, 0);
 
 	// Initialize the device
-	ini_regs;
+	cc1100_ini_regs;
 	chip_reset ();
 
 #if DIAG_MESSAGES

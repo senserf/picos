@@ -13,9 +13,9 @@ if (cc1100_int) {
     _PVS (MONITOR_PIN_CC1100_INT, 1);
 #endif
 
-    clear_cc1100_int;
+    cc1100_clear_int;
 
-    rcv_disable_int;
+    cc1100_rcv_int_disable;
 
     p_trigger (__pi_v_drvprcs, __pi_v_qevent);
 

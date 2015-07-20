@@ -6,9 +6,9 @@
 /* ==================================================================== */
 
 
-#define	UWAIT1		udelay (1)
-#define	UWAIT41		udelay (41)
-#define	SPI_WAIT	do { } while (0)
+#define	CC1100_UWAIT1		udelay (1)
+#define	CC1100_UWAIT41		udelay (41)
+#define	CC1100_SPI_WAIT		CNOP
 
 #include "board_rf.h"
 

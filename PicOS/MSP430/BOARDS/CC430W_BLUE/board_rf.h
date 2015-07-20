@@ -11,15 +11,15 @@
 // that the default edge (up) is OK
 #define	cc1100_int		(RF1AIFG & 0x01)
 
-#define	clear_cc1100_int	_BIC (RF1AIFG, 0x01)
+#define	cc1100_clear_int	_BIC (RF1AIFG, 0x01)
 
 // This is my mildly educated guess; the manual really sucks at this point
-#define	RX_FIFO_READY		(RF1AIN & 0x01)
+#define	CC1100_RX_FIFO_READY		(RF1AIN & 0x01)
 
-#define rcv_enable_int		do { \
+#define cc1100_rcv_int_enable		do { \
 					_BIS (RF1AIE, 0x01); \
-					if (RX_FIFO_READY) \
+					if (CC1100_RX_FIFO_READY) \
 						_BIS (RF1AIFG, 0x01); \
 				} while (0)
 						
-#define rcv_disable_int		_BIC (RF1AIE, 0x01)
+#define cc1100_rcv_int_disable		_BIC (RF1AIE, 0x01)
