@@ -9,15 +9,34 @@
 
 // ============================================================================
 
+#define	DW1000_ROLE_TAG		0
+#define	DW1000_ROLE_PEG		1
+
+// ============================================================================
+
 #define	DW1000_REG_DEVID	0x00
+#define	DW1000_REG_SYS_CFG	0x04
 #define	DW1000_REG_OTPC		0x2d		// OTP control
 #define	DW1000_REG_PMSC		0x36
 #define	DW1000_REG_AON		0x2c
+#define	DW1000_REG_FS_CTRL	0x2b
+
+// ============================================================================
+
+#define	DW1000_CF_FFEN		0x00000001
+#define	DW1000_CF_FFBC		0x00000002
+#define	DW1000_CF_FFAD		0x00000008
+#define	DW1000_CF_FFAA		0x00000010
+#define	DW1000_CF_FFMASK	0x000001FF	// All filtering bits
+#define	DW1000_CF_HIRQ_POL	0x00000200	// IRQ polarity is high
+#define	DW1000_CF_DIS_DRXB	0x00001000	// Disable dual buffering
 
 // ============================================================================
 
 #define	DW1000_ADDR_LDOTUNE	0x04
 #define	DW1000_ADDR_ANTDELAY	0x1c
+#define	DW1000_ADDR_XTRIM	0x1e
+#define	DW1000_ADDR_TXCONF	0x10
 
 #define	DW1000_ONW_LDC		0x0040		// AON_WCFG load user config
 #define	DW1000_ONW_L64P		0x0080		// AON_WCFG L64P
@@ -104,4 +123,13 @@ static const chconfig_t chconfig [] = {
 #define	dw1000_def_rfdelay(prf)	((prf) ? \
 				      __dw1000_rfdelay (DW1000_64M_RFDELAY) : \
 				      __dw1000_rfdelay (DW1000_16M_RFDELAY) )
+
+// Default TX power (see txSpectrumConfig in the reference driver)
+#define	dw1000_def_txpower	(mode.channel ? (mode.prf ? 0x25456585 : \
+					0x0E082848) : (mode.prf ? 0x07274767 : \
+						0x15355575))
+
+// According to the RD, smart power is enabled when data rate is 6M8
+#define	dw1000_use_smartpower	(mode.datarate)
+
 #endif

@@ -4467,3 +4467,11 @@ PG150706A:
 
 	- made sure that piter reads .piterrc in the directory it is called in
 	  first, if the file is available there
+
+PG150729A:
+
+	I have modified the SHOCK praxis (for CHRONOS) to make it possible to
+	collect continuous acceleration data from the watch.
+
+	Also, there is some (barely started) code for the experimental driver
+	for DecaWave 1000.

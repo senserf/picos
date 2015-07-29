@@ -35,6 +35,9 @@ word	AccelLast, AccelMax;
 // ============================================================================
 
 static lword AccelWhen, AccelUntil;
+static lword AccelBuf [MAX_ACC_PACK];
+static word AccelInterval, AccelSernum;
+static byte AccelPack, AccelFill;
 // The default of zero won't modify any registers leaving them at the
 // default settings
 static bma250_regs_t AccelRegs = { 0x00003017, { 0x03, 0x0f, 0x00, 0x00, 0x07,
@@ -181,6 +184,8 @@ Off:
 		}
 
 		when (&AccelRequest, AR_LOOP);
+		if (AccelInterval)
+			delay (AccelInterval, AR_REPORT);
 		wait_sensor (SENSOR_MOTION, AR_EVENT);
 
 	state AR_READ:
@@ -197,6 +202,42 @@ Off:
 			    sizeof (message_accvalue_t));
 
 			tcv_endp (msg);
+		}
+
+		sameas AR_LOOP;
+
+	state AR_REPORT:
+
+		bma250_data_t val;
+		address msg;
+		message_accreport_t *pmt;
+
+		read_sensor (AR_REPORT, SENSOR_MOTION, (address)(&val));
+
+		AccelBuf [AccelFill] = (((lword) (val.x & 0x3ff)) << 20) |
+				       (((lword) (val.y & 0x3ff)) << 10) |
+				       (((lword) (val.z & 0x3ff))      ) ;
+		if (++AccelFill == AccelPack) {
+			// Expedite the packet
+			AccelFill <<= 2;
+			if ((msg = new_msg (message_accreport_code,
+				8 + sizeof (word) + AccelFill)) != NULL) {
+
+				rtc_get (&RTC);
+				pmt = (message_accreport_t*) osspar (msg);
+				pmt->time [0] = RTC.year;
+				pmt->time [1] = RTC.month;
+				pmt->time [2] = RTC.day;
+				pmt->time [3] = RTC.hour;
+				pmt->time [4] = RTC.minute;
+				pmt->time [5] = RTC.second;
+				pmt->sernum = AccelSernum;
+				pmt->data.size = AccelFill;
+				memcpy (pmt->data.content, AccelBuf, AccelFill);
+				tcv_endp (msg);
+			}
+			AccelFill = 0;
+			AccelSernum++;
 		}
 
 		sameas AR_LOOP;
@@ -313,10 +354,14 @@ fsm accel_starter (byte on) {
 		delay (1024, AS_RUNNING);
 }
 
-Boolean accel_start (byte on, lword af, lword du) {
-
-	AccelWhen  = af + seconds ();
-	AccelUntil = du ? AccelWhen + du : 0;
+Boolean accel_start (Boolean on, lword after, lword duration, byte pack,
+								word interval) {
+	AccelWhen  = after + seconds ();
+	AccelUntil = duration ? AccelWhen + duration : 0;
+	AccelInterval = pack ? interval : 0;
+	AccelPack = pack <= MAX_ACC_PACK ? pack : MAX_ACC_PACK;
+	AccelFill = 0;
+	AccelSernum = 0;
 	killall (accel_starter);
 	return runfsm accel_starter (on) != 0;
 }
@@ -530,7 +575,9 @@ OK:
 			if (pmt->what) {
 				if (!accel_start (pmt->what == 2,
 				    pmt->after,
-				    pmt->duration)) {
+				    pmt->duration,
+				    pmt->pack,
+				    pmt->interval)) {
 					oss_ack (ACK_NORES);
 					return;
 				}
@@ -729,8 +776,10 @@ fsm root {
 		word sid;
 
 		ezlcd_init ();
+
 		LCDOn = 1;
 		ezlcd_on ();
+
 		powerdown ();
 
 		phys_cc1100 (0, MAX_PACKET_LENGTH);
@@ -743,8 +792,22 @@ fsm root {
 		// Initialize
 		watch_start ();
 		display_item (ITEM_WATCH);
+
 		runfsm radio_receiver;
-		
+
+#ifdef RADIO_INITIALLY_ON
+		switch_radio (1);
+#endif
+
+#ifdef DISPLAY_INITIALLY_OFF
+
+		delay (1024, RS_DOFF);
+		release;
+
+	state RS_DOFF:
+
+		switch_lcd (0);
+#endif
 		// Assume the role of button handler
 
 	state RS_BUTTON_LOOP:

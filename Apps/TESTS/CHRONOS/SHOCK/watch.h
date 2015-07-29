@@ -5,6 +5,7 @@
 #include "rtc_cc430.h"
 
 #define	MAX_TIME_CALLBACKS	4
+#define	MAX_ACC_PACK		10
 
 typedef void (*time_callback_f) ();
 

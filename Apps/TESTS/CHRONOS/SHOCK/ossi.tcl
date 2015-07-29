@@ -129,7 +129,7 @@ oss_interface -id 0x00010021 -speed 115200 -length 56 \
 ##
 ##	accel config ... options ... registers, e.g.,
 ##		accel config -par 1 6 8 -mo -fl -reg 0x0F 7
-##	accel on [-from 13:40] [-to 14:55] [-erase]
+##	accel on [-from 13:40] [-to 14:55] [-erase] [-report n m]
 ##	accel erase
 ##	accel [read]
 ##	accel stats
@@ -170,6 +170,10 @@ oss_command accturn 0x02 {
 	# 2 - on
 	# 4 - erase	(flag)
 	byte	what;
+	# when reporting, how many readings per packet
+	byte	pack;
+	# milliseconds between report readings
+	word	interval;
 }
 
 oss_command time 0x03 {
@@ -274,6 +278,15 @@ oss_message accregs 0x05 {
 # Accelerator configuration
 #
 	blob	regs;
+}
+
+oss_message accreport 0x06 {
+#
+# Accelerator report
+#
+	byte	time [6];
+	word	sernum;
+	blob	data;
 }
 
 oss_message ap 0x80 {
@@ -566,6 +579,10 @@ proc rtctos { rtc } {
 
 proc parse_cmd_accel { what } {
 #
+	# parameters of report request
+	set pa 0
+	set in 0
+
 	if { $what != "" } {
 		set kl { "configure" "on" "read" "stats" "events" "off"
 			 "erase" }
@@ -602,7 +619,8 @@ proc parse_cmd_accel { what } {
 	if { $what == "erase" } {
 		# erase only
 		parse_check_empty
-		oss_issuecommand 0x02 [oss_setvalues [list 0 0 4] "accturn"]
+		oss_issuecommand 0x02 [oss_setvalues [list 0 0 4 $pa $in] \
+			"accturn"]
 		return
 	}
 
@@ -612,7 +630,7 @@ proc parse_cmd_accel { what } {
 		set to -1
 		set er -1
 
-		set klist { "erase" "from" "to" }
+		set klist { "erase" "from" "to" "report" }
 
 		# current time
 		set cu [clock seconds]
@@ -632,6 +650,32 @@ proc parse_cmd_accel { what } {
 					error "duplicate erase"
 				}
 				set er 1
+				continue
+			}
+
+			if { $k == "report" } {
+				# two numbers expected with the first
+				# defaulting to 1024, the second to 1
+				if { $pa > 0 } {
+					error "duplicate report"
+				}
+				# the first number
+				set in [oss_parse -skip -number -return 1]
+				if { $in == "" } {
+					set in 1024
+				} elseif { $in < 4 || $in > 65535 } {
+					error "illegal report interval, must\
+						be between 4 and 65535"
+				}
+				# the second one, no harm if the first one
+				# wasn't there
+				set pa [oss_parse -skip -number -return 1]
+				if { $pa == "" } {
+					set pa 1
+				} elseif { $pa < 1 || $pa > 10 } {
+					error "illegal pack count for report,\
+						must be between 1 and 10"
+				}
 				continue
 			}
 
@@ -689,14 +733,14 @@ proc parse_cmd_accel { what } {
 		set fr [expr { $fr - $cu }]
 
 		parse_check_empty
-		oss_issuecommand 0x02 [oss_setvalues [list $fr $to $cm] \
-			"accturn"]
+		oss_issuecommand 0x02 [oss_setvalues \
+			[list $fr $to $cm $pa $in] "accturn"]
 		return
 	}
 
 	# off
 	parse_check_empty
-	oss_issuecommand 0x02 [oss_setvalues [list 0 0 1] "accturn"]
+	oss_issuecommand 0x02 [oss_setvalues [list 0 0 1 $pa $in] "accturn"]
 }
 
 proc parse_cmd_press { what } {
@@ -1048,6 +1092,33 @@ proc show_msg_presst { msg } {
 	set res "Pressure sensor:\n"
 	append res "  Pressure:    $pr (Pa)\n"
 	append res "  Temperature: [expr { $te/10 }].[expr { $te%10 }] (C)\n"
+
+	oss_ttyout $res
+}
+
+proc show_msg_accreport { msg } {
+
+	lassign [oss_getvalues $msg "accreport"] tm ser vals
+
+	set res "ACC report: [clock format [rtctos $tm]] **$ser\n"
+
+	while { [llength $vals] >= 4 } {
+		lassign $vals a b c d
+		set vals [lrange $vals 4 end]
+		set x [expr { (($c >> 4) | ($d << 4)) & 0x3ff }]
+		if [expr { $x & 0x200 }] {
+			set x [expr { $x - 0x400 }]
+		}
+		set y [expr { (($b >> 2) | ($c << 6)) & 0x3ff }]
+		if [expr { $y & 0x200 }] {
+			set y [expr { $y - 0x400 }]
+		}
+		set z [expr { (($a     ) | ($b << 8)) & 0x3ff }]
+		if [expr { $z & 0x200 }] {
+			set z [expr { $z - 0x400 }]
+		}
+		append res "   [pacc $x]  [pacc $y]  [pacc $z]\n"
+	}
 
 	oss_ttyout $res
 }

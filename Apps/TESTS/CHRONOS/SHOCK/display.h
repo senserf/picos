@@ -110,7 +110,7 @@ void press_display ();
 void switch_radio (byte), display_rfstat (), accel_update_display ();
 void accel_clear ();
 
-Boolean accel_start (byte, lword, lword), press_trigger (byte);
+Boolean accel_start (Boolean, lword, lword, byte, word), press_trigger (byte);
 
 void press_update_display (lword, sint);
 

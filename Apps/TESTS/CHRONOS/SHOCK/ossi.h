@@ -39,6 +39,8 @@ typedef struct {
 	lword	after;
 	lword	duration;
 	byte	what;
+	byte	pack;
+	word	interval;
 } command_accturn_t;
 
 #define	command_time_code	3
@@ -117,6 +119,13 @@ typedef struct {
 typedef struct {
 	blob	regs;
 } message_accregs_t;
+
+#define	message_accreport_code	6
+typedef struct {
+	byte	time [6];
+	word	sernum;
+	blob	data;
+} message_accreport_t;
 
 
 // ===================================

@@ -571,7 +571,7 @@ void accel_exit_set_mode () {
 	if (GStat != AccelOn) {
 		if (GStat > 1)
 			accel_clear ();
-		accel_start (GStat, 0, 0);
+		accel_start (GStat, 0, 0, 0, 0);
 	}
 	accel_display ();
 }

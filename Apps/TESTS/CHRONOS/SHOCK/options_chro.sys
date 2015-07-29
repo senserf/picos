@@ -5,3 +5,9 @@
 #define	RADIO_WOR_MODE		1
 #define	BMA250_RAW_INTERFACE
 #define	BMP085_AUTO_CALIBRATE
+
+// Undefine to start with radio off
+#define	RADIO_INITIALLY_ON
+
+// Undefine to have the display initially on
+#define	DISPLAY_INITIALLY_OFF

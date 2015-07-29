@@ -97,10 +97,12 @@ static void chip_read (byte reg, word index, word length, byte *stuff) {
 // Not sure if we need to store ldotune, probably not, but antenna delay must
 // be restored after every wakeup; note that antenna delay is separate for
 // PRF64 and PRF16
-static word antdelay = 0;
+static word	antdelay = 0,
+		netid = 0;		// PAN
 
 // This is the default mode; it is resettable with the RESET physopt
 static chconfig_t mode = chconfig [0];
+static byte role = DW1000_ROLE_TAG;
 
 // ============================================================================
 // ============================================================================
@@ -147,7 +149,7 @@ static void dw1000_init () {
 // After startup
 //
 	word w;
-	lword lw;
+	lword lw, cf;
 
 	DW1000_RESET;	// Hard reset
 
@@ -182,6 +184,53 @@ static void dw1000_init () {
 	// should move this to the end of initialization?
 	w = DW1000_CF0_SLEEP_EN | DW1000_CF0_WAKE_SPI;
 	chip_write (DW1000_REG_AON, 6, 1, (byte*)&w);
+
+	// Crystal trim
+	if ((w = (word) read_otpm (DW1000_ADDR_XTRIM) & 0x1F) == 0)
+		// No calibration value stored, use the default mid range, as
+		// in the reference driver
+		w = 0x10;
+	// Write the trim or'red with the stuff that goes to the upper bits of
+	// the byte; the RD says: bits 7:5 must always be set to binary “011”.
+	// Failure to maintain this value will result in DW1000 malfunction.
+	chip_write (DW1000_REG_FS_CTRL, 0x0e, 1, (byte*)&w);
+
+	// Set the config register to the default, then prepare it and write
+	// once
+	cf = DW1000_CF_HIRQ_POL | DW1000_CF_DIS_DRXB;
+
+	// Set EUI to be all ones except for the last word, which is
+	// equal to Host Id
+	lw = 0;
+	chip_write (DW1000_REG_EUI, 0, 4, (byte*)&lw);
+	lw = (word)host_id;
+	chip_write (DW1000_REG_EUI, 4, 4, (byte*)&lw);
+
+	// Set PAN to network Id
+	
+
+
+	if (role == DW1000_ROLE_TAG)
+
+	// TX config (power); this is an array of lw power entries, two entries
+	// per channel starting at 1, first entry for PRF 16M, the other for
+	// 64M
+	lw = read_otpm (DW1000_ADDR_TXCONF + (mode.channel ? 8 : 2) + mode.prf);
+	if (lw == 0 || lw == MAX_LWORD)
+		// Absent
+		lw = dw1000_def_txpower;
+
+	if (dw1000_use_smartpower) {
+
+
+###here shouldn't we first figure out how to set the whole 32-bit SYS_CFG
+###register?
+###peg should run without frame filtering, because the tags don't know it;
+###for now we do something simple, the actual algorithm is going to be
+###complicate (if we get there at all)
+	
+	
+	
 
 	// XTRIM, TX Config ...
 		
