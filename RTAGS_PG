@@ -4475,3 +4475,8 @@ PG150729A:
 
 	Also, there is some (barely started) code for the experimental driver
 	for DecaWave 1000.
+
+PG150802A:
+
+	The OSS script for SHOCK now reports RSS/LQI for packets arriving from
+	the watch. The DecaWave driver pushed a bit (not too much).

@@ -939,11 +939,18 @@ proc sectoh { se } {
 	return [join $ti ","]
 }
 
+proc get_rss { msg } {
+
+	binary scan [string range $msg end-1 end] cucu lq rs
+
+	return "RSS: $rs, LQI: [expr { $lq & 0x7f }]"
+}
+
 proc show_msg_status { msg } {
 
 	lassign [oss_getvalues $msg "status"] se af du ac di de ba fm mm tm
 
-	set res "Node status:\n"
+	set res "Node status ([get_rss $msg]):\n"
 
 	append res "  Uptime:      [sectoh $se]\n"
 
@@ -994,7 +1001,7 @@ proc show_msg_accvalue { msg } {
 
 	lassign [oss_getvalues $msg "accvalue"] stat x y z t
 
-	set res "Accelerator reading:\n"
+	set res "Accelerator reading ([get_rss $msg]):\n"
 	append res "  Events:      [format %04X $stat]\n"
 	append res "  X:           [pacc $x]\n"
 	append res "  Y:           [pacc $y]\n"
@@ -1008,7 +1015,7 @@ proc show_msg_accstats { msg } {
 
 	lassign [oss_getvalues $msg "accstats"] af du ne to ma la on
 
-	set res "Accelerator monitor:\n"
+	set res "Accelerator monitor ([get_rss $msg]):\n"
 	append res "  Status:      "
 	if $on {
 		append res "ON"
@@ -1058,7 +1065,7 @@ proc show_msg_accregs { msg } {
 
 	set regs [lrange $regs 4 end]
 
-	set hdr "Accelerometer config:"
+	set hdr "Accelerometer config ([get_rss $msg]):"
 
 	set res ""
 
@@ -1089,7 +1096,7 @@ proc show_msg_presst { msg } {
 
 	lassign [oss_getvalues $msg "presst"] pr te
 
-	set res "Pressure sensor:\n"
+	set res "Pressure sensor ([get_rss $msg]):\n"
 	append res "  Pressure:    $pr (Pa)\n"
 	append res "  Temperature: [expr { $te/10 }].[expr { $te%10 }] (C)\n"
 
@@ -1100,7 +1107,8 @@ proc show_msg_accreport { msg } {
 
 	lassign [oss_getvalues $msg "accreport"] tm ser vals
 
-	set res "ACC report: [clock format [rtctos $tm]] **$ser\n"
+	set res "ACC report:\
+		[clock format [rtctos $tm]] **$ser ([get_rss $msg])\n"
 
 	while { [llength $vals] >= 4 } {
 		lassign $vals a b c d

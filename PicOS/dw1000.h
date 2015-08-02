@@ -6,6 +6,13 @@
 /* ==================================================================== */
 
 #include "kernel.h"
+#include "dw1000_sys.h"
+
+// ============================================================================
+
+#ifndef	DW1000_OPTIONS
+#define	DW1000_OPTIONS		0x0000
+#endif
 
 // ============================================================================
 
@@ -15,9 +22,13 @@
 // ============================================================================
 
 #define	DW1000_REG_DEVID	0x00
+#define	DW1000_REG_EUI		0x01
+#define	DW1000_REG_PANADR	0x03
 #define	DW1000_REG_SYS_CFG	0x04
+#define	DW1000_REG_TX_POWER	0x1e
 #define	DW1000_REG_OTPC		0x2d		// OTP control
 #define	DW1000_REG_PMSC		0x36
+#define	DW1000_REG_TX_CAL	0x2a
 #define	DW1000_REG_AON		0x2c
 #define	DW1000_REG_FS_CTRL	0x2b
 
@@ -30,6 +41,7 @@
 #define	DW1000_CF_FFMASK	0x000001FF	// All filtering bits
 #define	DW1000_CF_HIRQ_POL	0x00000200	// IRQ polarity is high
 #define	DW1000_CF_DIS_DRXB	0x00001000	// Disable dual buffering
+#define	DW1000_CF_DIS_STPX	0x00040000	// Disable smart TX power
 
 // ============================================================================
 
@@ -82,7 +94,7 @@ typedef struct {
 	byte	channel:1,	// Boolean: 0 - 2, 1 - 5
 		prf:1,		// PRF code, also Boolean: 0 - 16M, 1 - 64M
 		precode:1,	// Preamble code: 0 - 3, 1 - 9
-		nssfd:1;	// Boolean: non-standard SFD
+		nssfd:1,	// Boolean: non-standard SFD
 		datarate:1,	// Boolean: 0 - 110K, 1 - 6M8
 		preamble:1,	// Boolean: 0 - 128, 1 - 1024
 		pacsize:2;	// PAC selection: 0 through 3
@@ -99,14 +111,14 @@ typedef struct {
 
 static const chconfig_t chconfig [] = {
 //         CH PRF PCO NSF RAT PRE PAC
-	{  0,  0,  0,  1,  0,  1,  DW1000_PAC32 ) },
-	{  0,  0,  0,  0,  1,  0,  DW1000_PAC8  ) },
-	{  0,  1,  1,  1,  0,  1,  DW1000_PAC32 ) },
-	{  0,  1,  1,  0,  1 , 0,  DW1000_PAC8  ) },
-	{  1,  0,  0,  1,  0 , 1,  DW1000_PAC32 ) },
-	{  1,  0,  0,  0,  1 , 0,  DW1000_PAC8  ) },
-	{  1,  1,  1,  1,  0 , 1,  DW1000_PAC32 ) },
-	{  1,  1,  1,  0,  1 , 0,  DW1000_PAC8  ) }
+	{  0,  0,  0,  1,  0,  1,  DW1000_PAC32  },
+	{  0,  0,  0,  0,  1,  0,  DW1000_PAC8   },
+	{  0,  1,  1,  1,  0,  1,  DW1000_PAC32  },
+	{  0,  1,  1,  0,  1 , 0,  DW1000_PAC8   },
+	{  1,  0,  0,  1,  0 , 1,  DW1000_PAC32  },
+	{  1,  0,  0,  0,  1 , 0,  DW1000_PAC8   },
+	{  1,  1,  1,  1,  0 , 1,  DW1000_PAC32  },
+	{  1,  1,  1,  0,  1 , 0,  DW1000_PAC8   }
 };
 
 
@@ -123,6 +135,9 @@ static const chconfig_t chconfig [] = {
 #define	dw1000_def_rfdelay(prf)	((prf) ? \
 				      __dw1000_rfdelay (DW1000_64M_RFDELAY) : \
 				      __dw1000_rfdelay (DW1000_16M_RFDELAY) )
+
+// Pulse generator calibration (see txSpectrumConfig in the reference driver)
+#define dw1000_def_pgdelay	(mode.channel ? 0xc0 : 0xc2)
 
 // Default TX power (see txSpectrumConfig in the reference driver)
 #define	dw1000_def_txpower	(mode.channel ? (mode.prf ? 0x25456585 : \

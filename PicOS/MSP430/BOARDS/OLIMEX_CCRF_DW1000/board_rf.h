@@ -27,7 +27,7 @@
 #define	dw1000_si_down		_BIC (P1OUT, 0x08)
 
 // The delay is probably redundant, the manual says that 10ns is enough
-#define	DW1000_RESET		do { \ 
+#define	DW1000_RESET		do { \
 					_BIS (P3DIR, 0x01); \
 					udelay (10); \
 					_BIC (P3DIR, 0x01); \

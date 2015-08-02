@@ -168,8 +168,8 @@ fsm receiver {
 		if (len >= RFPFRAME + sizeof (oss_hdr_t) + 2 &&
 		  len <= OSS_PACKET_LENGTH + RFPFRAME &&
 		    pkt [1] == APS.nodeid) {
-			// Write to the UART
-			len -= RFPFRAME;
+			// Write to the UART; include RSS and LQI
+			len -= RFPHDOFF;
 			if ((msg = tcv_wnp (WNONE, sd_uart, upl (len)))
 			    != NULL) {
 				memcpy (msg, pkt + (RFPHDOFF/2), len);

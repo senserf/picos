@@ -8,11 +8,7 @@
 
 #define	DW1000_DEFINE_RF_SETTINGS
 #include "dw1000.h"
-#endif
-
-#ifndef DW1000_SPI_WAIT
-#define	DW1000_SPI_WAIT	CNOP
-#endif
+#undef DW1000_DEFINE_RF_SETTINGS
 
 // ============================================================================
 // Chip access functions ======================================================
@@ -64,7 +60,7 @@ static void chip_trans (byte reg, word index) {
 	if (index) {
 		if (index < 128) {
 			spi_out ((byte)index);
-			return
+			return;
 		}
 		spi_out (((byte)index) | 0x80);
 		spi_out ((byte)(index >> 7));
@@ -100,14 +96,14 @@ static void chip_read (byte reg, word index, word length, byte *stuff) {
 static word	antdelay = 0,
 		netid = 0;		// PAN
 
-// This is the default mode; it is resettable with the RESET physopt
-static chconfig_t mode = chconfig [0];
+// This is the default mode; resettable with the RESET physopt
+static chconfig_t mode;
 static byte role = DW1000_ROLE_TAG;
 
 // ============================================================================
 // ============================================================================
 
-#if 0
+#if (DW1000_OPTIONS & 0x0001)
 
 static lword dw1000_device_id () {
 
@@ -144,7 +140,21 @@ static lword read_otpm (word addr) {
 	return res;
 }
 
-static void dw1000_init () {
+static void enter_sleep () {
+
+	byte b;
+
+	// The manual says: in order to put the DW1000 into the SLEEP state
+	// SLEEP_EN needs to be set in AON_CFG0 and then the configuration
+	// needs to be uploaded to the AON using the UPL_CFG bit in AON_CTRL.
+	// This assumes that SLEEP_EN is already set.
+	b = 0x00;
+	chip_write (DW1000_REG_AON, 2, 1, &b);
+	b = 0x02;
+	chip_write (DW1000_REG_AON, 2, 1, &b);
+}
+
+static void initialize () {
 //
 // After startup
 //
@@ -164,6 +174,11 @@ static void dw1000_init () {
 	w = 0x01;
 	chip_write (DW1000_REG_PMSC, 0, 1, (byte*)&w);
 
+#if (DW1000_OPTIONS & 0x0001)
+	lw = dw1000_device_id ();
+	diag ("DWINIT: %x%x", (word)(lw >> 16), (word) lw);
+#endif
+
 	// Read and preserve antenna delay; will be set manually on every wake,
 	// so we just make sure it is handy
 	lw = read_otpm (DW1000_ADDR_ANTDELAY);
@@ -176,7 +191,7 @@ static void dw1000_init () {
 	// we don't use; not sure if PRES_SLEEP is needed at this stage
 	w = DW1000_ONW_LDC | DW1000_ONW_LLDE | DW1000_ONW_PRES_SLEEP;
 	if ((read_otpm (DW1000_ADDR_LDOTUNE) & 0xff) != 0)
-		w |= DW1000_LLDO;
+		w |= DW1000_ONW_LLDO;
 	chip_write (DW1000_REG_AON, 0, 2, (byte*)w);
 
 	// Enable sleep with wake on CS; not sure if the SLEEP_EN bit should be
@@ -197,21 +212,22 @@ static void dw1000_init () {
 
 	// Set the config register to the default, then prepare it and write
 	// once
-	cf = DW1000_CF_HIRQ_POL | DW1000_CF_DIS_DRXB;
+	cf = DW1000_CF_HIRQ_POL | DW1000_CF_DIS_DRXB | DW1000_CF_FFEN;
 
+	// No, we don't touch EUI as we will be using short addresses only
+#if 0
 	// Set EUI to be all ones except for the last word, which is
 	// equal to Host Id
 	lw = 0;
 	chip_write (DW1000_REG_EUI, 0, 4, (byte*)&lw);
 	lw = (word)host_id;
 	chip_write (DW1000_REG_EUI, 4, 4, (byte*)&lw);
-
-	// Set PAN to network Id
+#endif
+	// Set PAN and short address to network Id and Host Id; note: we should
+	// reset this whenever the Host Id changes!
+	lw = ((word)host_id) | (((lword)netid) << 16);
+	chip_write (DW1000_REG_PANADR, 0, 4, (byte*)&lw);
 	
-
-
-	if (role == DW1000_ROLE_TAG)
-
 	// TX config (power); this is an array of lw power entries, two entries
 	// per channel starting at 1, first entry for PRF 16M, the other for
 	// 64M
@@ -220,26 +236,82 @@ static void dw1000_init () {
 		// Absent
 		lw = dw1000_def_txpower;
 
-	if (dw1000_use_smartpower) {
+	if (!dw1000_use_smartpower) {
+		// In the reference driver, if smartpower is used, then the
+		// tx power value is applied "as-is"; otherwise, its LS byte
+		// is replicated over all the remaining bytes (how is this
+		// for black magic?)
+		memset (&lw, (byte)lw, 4);
+		// Disable smart power (enabled by default)
+		_BIS (cf, DW1000_CD_DIS_STPX);
+	}
+
+	// Pulse generator calibration + TX power
+	w = dw1000_def_pgdelay;
+	chip_write (DW1000_REG_TX_CAL, 0x0b, 1, (byte*)&w);
+	chip_write (DW1000_REG_TX_POWER, 0, 4, (byte*)&lw);
+
+	// Note that we always use filtering (FFEN is set by default - see
+	// above); a Tag only accepts frames addressed to itself, while a Peg
+	// behaves as a "coordinator", i.e., accepts destination-less frames
+	// where PAN ID matches its PAN ID (i.e., frames restricted to our
+	// Network Id); we do not use ACK frames at all (do we have to?)
+	_BIS (cf, role == DW1000_ROLE_TAG ? DW1000_CF_FFAD : DW1000_CF_FFBC);
+
+	// Enable clocks normal; note: the reference driver does some weird
+	// things to the apparently unused bits of the PMSC_CTRL0, my shortcut
+	// is to write zero to the entire low word
+	w = 0x0000;
+	chip_write (DW1000_REG_PMSC, 0, 2, (byte*)&w);
+
+	// Write the configuration register
+	chip_write (DW1000_REG_SYS_CFG, 0, 4, (byte*)&cf);
+
+	// Enter sleep
+	enter_sleep ();
+}
+
+void dw1000_start (byte md, word ni) {
+//
+// This one is user-visible
+//
+	if (md >= sizeof (chconfig) / sizeof (chconfig_t))
+		syserror (EREQPAR, "dw1");
+
+	mode = chconfig [md];
+	netid = ni;
+
+	initialize ();
+}
+
+void dw1000_listen () {
+
+}
+
+void dw1000_range () {
 
 
-###here shouldn't we first figure out how to set the whole 32-bit SYS_CFG
-###register?
-###peg should run without frame filtering, because the tags don't know it;
-###for now we do something simple, the actual algorithm is going to be
-###complicate (if we get there at all)
+}
+
+
+
+- enable interrupts (formally) NO, later, as needed
+- write CF OK
+- set clocks to normal? OK
+- enter sleep (after sleep TX for Tag and RX for Peg) NO, manually for now
+
+
+
+
+
+//###here shouldn't we first figure out how to set the whole 32-bit SYS_CFG
+//###register?
+//###peg should run without frame filtering, because the tags don't know it;
+//###for now we do something simple, the actual algorithm is going to be
+//###complicate (if we get there at all)
 	
 	
 	
-
-	// XTRIM, TX Config ...
-		
-
-
-
-
-
-
 
 
 	// Configuration notes:
@@ -248,7 +320,7 @@ static void dw1000_init () {
 	//	Set WAKE_PIN to enable pin wake (no need to use it)
 	//	Clear WAKE_CNT to disable autowake on internal timer
 	//
-	//	Set ONW_LDC i AON_WCFG to make sure that configuration is
+	//	Set ONW_LDC in AON_WCFG to make sure that configuration is
 	//	saved and restored of sleep/wake
 	//
 	//	Set ONW_LLDO in AON_WCF only if LDOTUNE_CAL from OTP reads
@@ -275,10 +347,15 @@ static void dw1000_init () {
 	if ((read_otpm (DW1000_ADDR_LDOTUNE) & 0xff) != 0)
 		w |= DW1000_ONW_LLDO;
 
-	
-	
-
-
+#endif
 
 }
 
+void phys_dw1000 (int phy, int mbs) {
+
+	// The default mode
+	diag ("START");
+	mode = chconfig [0];
+	dw1000_init ();
+	diag ("END");
+}
