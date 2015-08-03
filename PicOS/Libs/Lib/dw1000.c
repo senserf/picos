@@ -243,7 +243,7 @@ static void initialize () {
 		// for black magic?)
 		memset (&lw, (byte)lw, 4);
 		// Disable smart power (enabled by default)
-		_BIS (cf, DW1000_CD_DIS_STPX);
+		_BIS (cf, DW1000_CF_DIS_STPX);
 	}
 
 	// Pulse generator calibration + TX power
@@ -275,6 +275,7 @@ void dw1000_start (byte md, word ni) {
 //
 // This one is user-visible
 //
+	diag ("DW1000 start");
 	if (md >= sizeof (chconfig) / sizeof (chconfig_t))
 		syserror (EREQPAR, "dw1");
 
@@ -282,6 +283,7 @@ void dw1000_start (byte md, word ni) {
 	netid = ni;
 
 	initialize ();
+	diag ("DW1000 start exit");
 }
 
 void dw1000_listen () {
@@ -294,6 +296,8 @@ void dw1000_range () {
 }
 
 
+
+#if 0
 
 - enable interrupts (formally) NO, later, as needed
 - write CF OK
@@ -349,13 +353,7 @@ void dw1000_range () {
 
 #endif
 
-}
-
 void phys_dw1000 (int phy, int mbs) {
 
 	// The default mode
-	diag ("START");
-	mode = chconfig [0];
-	dw1000_init ();
-	diag ("END");
 }

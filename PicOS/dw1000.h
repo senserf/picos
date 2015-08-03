@@ -8,10 +8,12 @@
 #include "kernel.h"
 #include "dw1000_sys.h"
 
+//+++ "dw1000.c"
+
 // ============================================================================
 
 #ifndef	DW1000_OPTIONS
-#define	DW1000_OPTIONS		0x0000
+#define	DW1000_OPTIONS		0x0001
 #endif
 
 // ============================================================================
@@ -146,5 +148,19 @@ static const chconfig_t chconfig [] = {
 
 // According to the RD, smart power is enabled when data rate is 6M8
 #define	dw1000_use_smartpower	(mode.datarate)
+
+###############################################################################
+###############################################################################
+
+// Room for the (tentative) API; for now, I propose to treat this as a sensor
+// generating events and returning readings consisting of pairs: Node Id,
+// distance (maybe some more, like a timestamp). Probably, after each reading,
+// we should reset it for the next measurement.
+
+
+
+
+// Temporary
+void dw1000_start (byte, word);
 
 #endif
