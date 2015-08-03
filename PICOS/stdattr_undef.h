@@ -117,4 +117,5 @@
 #undef msg_isClear
 #undef set_master_chg
 #undef guide_rtr
+#undef tarp_pxopts
 #endif

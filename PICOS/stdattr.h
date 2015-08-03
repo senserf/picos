@@ -197,6 +197,7 @@
 #define	local_host		_dac (PicOSNode, local_host)
 #define	master_host		_dac (PicOSNode, master_host)
 #define	tarp_ctrl		_dac (PicOSNode, tarp_ctrl)
+#define tarp_pxopts		_dac (PicOSNode, tarp_pxopts)
 
 #define	tr_offset(a) 	(  ((PicOSNode*)TheStation)->_na_tr_offset (a)  )
 #define	msg_isBind(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isBind (a)  )

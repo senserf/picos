@@ -188,6 +188,7 @@ Bkf:
 				ppw = w;
 			rf->setrfpowr (lastp = ppw);
 		}
+		// trace ("PXOPT pl: %1d", ppw);
 	}
 
 	if (*ppm & 0x8000)
