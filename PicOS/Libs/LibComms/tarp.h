@@ -114,6 +114,11 @@ extern  tarpCtrlType	tarp_ctrl;
 extern  nid_t		net_id;
 extern  nid_t		local_host;
 extern  nid_t		master_host;
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+// N=0 XP=7 CAV=0
+#define DEF_TARP_PXOPTS	0x7000
+extern	word		tarp_pxopts;
+#endif
 
 #ifdef	__SMURPH__
 // Needed for net.c

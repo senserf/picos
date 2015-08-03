@@ -8,6 +8,10 @@
 
 tarpCtrlType _da (tarp_ctrl);
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+word _da (tarp_pxopts);
+#endif
+
 __STATIC word tarp_cyclingSeq;
 
 nid_t	_da (net_id); 
@@ -18,6 +22,10 @@ nid_t   _da (master_host);
 
 tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, 0xA3, 0,
 	DEFAULT_RSSI_THOLD, YES};
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+word _da (tarp_pxopts) = DEF_TARP_PXOPTS;
+#endif
 
 __STATIC word tarp_cyclingSeq = 0;
 

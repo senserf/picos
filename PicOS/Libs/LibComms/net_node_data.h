@@ -38,11 +38,19 @@ int net_fd;
 int net_phys;
 int net_plug;
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+word net_pxopts;
+#endif
+
 #else	// In the real world
 
 int net_fd   = -1;
 int net_phys = -1;
 int net_plug = -1;
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+word net_pxopts = 0x7000; // pizda dupa DEF_NET_PXOPTS;
+#endif
 
 #endif	/* __SMURPH__ */
 

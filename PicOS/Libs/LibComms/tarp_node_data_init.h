@@ -5,6 +5,10 @@
 	_da (tarp_ctrl).rssi_th = DEFAULT_RSSI_THOLD;
 	_da (tarp_ctrl).ssignal = YES;
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	_da (tarp_pxopts) = DEF_TARP_PXOPTS;
+#endif
+
 	tarp_cyclingSeq = 0;
 
 	// These defaults will be reset by the praxis

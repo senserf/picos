@@ -460,6 +460,11 @@ application should decide if this is an error...
 		memcpy (packet + 1,  buf, len);
 		// always load entropy, just before rssi
 		packet [(radio_len(len) >> 1) - 2] = (word) entropy;
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		packet [(radio_len(len) >> 1) - 1] = net_pxopts;
+#endif
+
 		if ((encr & 3) && !msg_isClear(*buf)) {
 			// add encr to msg_type
 			*(byte *)(packet +1) |= encr << 6;

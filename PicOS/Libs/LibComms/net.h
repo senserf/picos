@@ -28,4 +28,10 @@ Boolean msg_isClear (byte);
 
 #endif
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+// N=0 XP=7 CAV=0
+#define DEF_NET_PXOPTS 0x7000
+extern  word            net_pxopts;
+#endif
+
 #endif

@@ -589,3 +589,7 @@ WO150704A:
   - removed opref from relay report;
   - cleanup & minor fixes.
 
+WO150802A:    VUEE >= WO150802A
+  locaspot: spot with 32-slot survey; see notes.txt in there.
+  A half-failed attempt at implementing PXOPTIONS in net and tarp; see
+    locaspot/notes.txt for that, too.

@@ -137,6 +137,12 @@ __PRIVF (PicOSNode, void, ackForRtr) (headerType * b, int * ses) {
 	*dum = net_id;
 	dum[1] = 0; // msg_null - hopefully, invalidates all else
 	memcpy ((char *)dum +3, (char *)b +1, sizeof (headerType) -1);
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	// dupa it'll be an impressive catastrophe if header ever becomes an odd number DO NOT FIX IT HERE
+	dum[((sizeof(headerType) + 6) >>1) -1] = tarp_pxopts;
+#endif
+
 #if 0
 	diag ("verbose dummy out for s%u s%u t%u r%u", b->snd, b->seq_no,
 			b->msg_type, b->rcv);
@@ -312,6 +318,7 @@ __PRIVF (PicOSNode, int, check_spd) (headerType * msg) {
 	return j;
 }
 
+// August 2015 pxopts inserts deserve more tests both with and without RADIO_OPTION_PXOPTIONS
 __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 
 	address dup;
@@ -325,7 +332,7 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 		diag ("tarp rcv bad length %d", length);
 		return TCV_DSP_DROP;
 	}
-
+	
 	if (msgBuf->msg_type == 0) { // dummy ack from dst
 #if TARP_RTR
 #if 0
@@ -501,7 +508,16 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			  *((byte *)dup + tr_offset (msgBuf)) = 
 				  (byte)local_host;
 			  *((byte *)dup + tr_offset (msgBuf) +1) = rssi;
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+				dup[((length +sizeof(nid_t)) >>1) -1] = tarp_pxopts;
+			} else {
+				dup[(length >>1) -1] = tarp_pxopts;
 			}
+#else
+			}
+#endif
+
 			tarp_ctrl.fwd++;
 		}
 		dbug_rx ("%u %u bcast cpy & rcv %u", msgBuf->msg_type, 
@@ -524,6 +540,9 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 #endif
 		if (!msg_isTrace (msgBuf->msg_type)) {
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+			buffer[(length >>1) -1] = tarp_pxopts;
+#endif
 			dbug_rx ("%u %u xmit %u", msgBuf->msg_type, 
 					msgBuf->snd, msgBuf->seq_no);
 			return TCV_DSP_XMT;
@@ -541,6 +560,11 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 #endif
 			*((byte *)dup + tr_offset (msgBuf)) = (byte)local_host;
 			*((byte *)dup + tr_offset (msgBuf) +1) = rssi;
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+			dup[((length +sizeof(nid_t)) >>1) -1] = tarp_pxopts;
+#endif
+
 			dbug_rx ("%u %u cpy trace", 
 					msgBuf->msg_type, msgBuf->snd);
 		}

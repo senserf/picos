@@ -141,6 +141,17 @@ static int tcv_xmt_tarp (address p) {
 
 #if TARP_RTR
 static int tcv_tmt_tarp (address p) {
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+
+	if (p[(tcv_tlength >> 1) -1] != tarp_pxopts) {
+#if !SOFTWARE_CRC
+		trace ("tcv_tmt_tarp PXOPTS: %u %u", tarp_pxopts, p[(tcv_tlength >> 1) -1]);
+#endif
+		p[(tcv_tlength >> 1) -1] = tarp_pxopts;
+	}
+#endif
+
 	// tarp rtr monitoring is in tarp_xmt and tarp_rx, as they deal
 	// with tarp structs. Here, just re-xmt as urgent.
 	return TCV_DSP_XMTU;
