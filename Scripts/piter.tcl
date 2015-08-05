@@ -5525,7 +5525,7 @@ proc mo_init_f { } {
 
 	set ST(STA) 0
 	set ST(BYP) 3
-	set ST(MOD) "E"
+	set ST(MOD) "F"
 
 	fconfigure $ST(SFD) -buffering none -translation binary
 

@@ -4480,3 +4480,17 @@ PG150802A:
 
 	The OSS script for SHOCK now reports RSS/LQI for packets arriving from
 	the watch. The DecaWave driver pushed a bit (not too much).
+
+PG150805A:
+
+	Location reports are properly included in locaspot's shared_plug.
+	I have created a Tcl package named fesc.tcl to encapsulate a standalone
+	version of the F-type UART interface (as per Alphanet 1.5). This
+	package is now used in the ATOLS collector which can directly talk to
+	version 1.5 master (+ the location report). Use the ALPAHET_BASE_WARSAW
+	board (in locaspot) to produce the flash image for a Warsaw-based
+	Alphanet master.
+
+	We are basically ready to send the test praxis to Alphatronics; waiting
+	for Jasmien to respond.
+
