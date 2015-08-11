@@ -69,7 +69,7 @@ interrupt (CC1101_VECTOR) irq_cc430_rf () {
 #else
 	if (RF1AIFG & IRQ_RCPT) {
 #endif
-    		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
+    		p_trigger (__cc1100_v_drvprcs, __cc1100_v_qevent);
     		RISE_N_SHINE;
 	}
 

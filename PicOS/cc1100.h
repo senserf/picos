@@ -639,7 +639,7 @@ static const	byte	cc1100_ratereg [] = {
         					CCxxx0_FSCAL2
 					    };
 
-static const	byte	__pi_rate0 [] = {
+static const	byte	__cc1100_v_rate0 [] = {
 
         					CCxxx0_FSCTRL1_RATE0,
        						CCxxx0_MDMCFG4_RATE0,
@@ -651,7 +651,7 @@ static const	byte	__pi_rate0 [] = {
         					CCxxx0_FSCAL2_RATE0
 					};
 
-static const	byte	__pi_rate1 [] = {
+static const	byte	__cc1100_v_rate1 [] = {
 
         					CCxxx0_FSCTRL1_RATE1,
        						CCxxx0_MDMCFG4_RATE1,
@@ -663,7 +663,7 @@ static const	byte	__pi_rate1 [] = {
         					CCxxx0_FSCAL2_RATE1
 					};
 
-static const	byte	__pi_rate2 [] = {
+static const	byte	__cc1100_v_rate2 [] = {
 
 					        CCxxx0_FSCTRL1_RATE2,
        						CCxxx0_MDMCFG4_RATE2,
@@ -675,7 +675,7 @@ static const	byte	__pi_rate2 [] = {
         					CCxxx0_FSCAL2_RATE2
 					};
 
-static const	byte	__pi_rate3 [] = {
+static const	byte	__cc1100_v_rate3 [] = {
 
         					CCxxx0_FSCTRL1_RATE3,
        						CCxxx0_MDMCFG4_RATE3,
@@ -687,10 +687,10 @@ static const	byte	__pi_rate3 [] = {
         					CCxxx0_FSCAL2_RATE3
 					};
 
-static const	byte	*cc1100_ratemenu [] = {	__pi_rate0,
-						__pi_rate1,
-						__pi_rate2,
-						__pi_rate3  };
+static const	byte	*cc1100_ratemenu [] = {	__cc1100_v_rate0,
+						__cc1100_v_rate1,
+						__cc1100_v_rate2,
+						__cc1100_v_rate3  };
 
 #define	approx_xmit_time(p)	(vrate < 2 ? (p) : 1)
 
@@ -910,6 +910,6 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 					utimer_set (bckf_timer, 0); \
 			} while (0)
 
-extern word		__pi_v_drvprcs, __pi_v_qevent;
+extern word		__cc1100_v_drvprcs, __cc1100_v_qevent;
 
 #endif

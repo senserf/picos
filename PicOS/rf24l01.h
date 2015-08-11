@@ -212,6 +212,6 @@
 						(rnd () & ((1 << (e)) - 1))); \
 			} while (0)
 
-extern word		__pi_v_drvprcs, __pi_v_qevent;
+extern word		__rf24l01_v_drvprcs, __rf24l01_v_qevent;
 
 #endif

@@ -332,7 +332,7 @@ static word	bckf_lbt = 0;
 
 #endif
 
-word		__pi_v_drvprcs, __pi_v_qevent;
+word		__cc1100_v_drvprcs, __cc1100_v_qevent;
 
 // ============================================================================
 #if (RADIO_OPTIONS & RADIO_OPTION_STATS)
@@ -875,7 +875,7 @@ DR_LOOP__:
 
 	// The next thing to find out is whether we have anything to transmit
 	if ((xbuff = tcvphy_top (physid)) == NULL) {
-		wait (__pi_v_qevent, DR_LOOP);
+		wait (__cc1100_v_qevent, DR_LOOP);
 #if RADIO_WOR_MODE
 		if (woron) {
 			// Listen for a while before resuming WOR; do that only
@@ -914,7 +914,7 @@ DR_LOOP__:
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 Bkf:
 #endif
-		wait (__pi_v_qevent, DR_LOOP);
+		wait (__cc1100_v_qevent, DR_LOOP);
 		delay (bckf_timer, DR_LOOP);
 		if (RxST != RCV_STATE_PD)
 			cc1100_rcv_int_enable;
@@ -1041,7 +1041,7 @@ Bkf:
 	if (tcv_isurgent (xbuff)) {
 		// A waking packet, start with a large preamble
 		delay (wor_preamble_time, DR_XMIT);
-		wait (__pi_v_qevent, DR_BREAK);
+		wait (__cc1100_v_qevent, DR_BREAK);
 		release;
 	}
 
@@ -1165,7 +1165,7 @@ FEXmit:
 		// see if we are losing a lot by ignoring those cases. After
 		// all, the role of the timeout (which gets us here) is to make
 		// sure that we don't.
-		wait (__pi_v_qevent, DR_LOOP);
+		wait (__cc1100_v_qevent, DR_LOOP);
 		power_down ();
 		release;
 	}
@@ -1207,7 +1207,7 @@ static int option (int opt, address val) {
 		RxST = RCV_STATE_ON;
 		LEDI (0, 1);
 OREvnt:
-		p_trigger (__pi_v_drvprcs, __pi_v_qevent);
+		p_trigger (__cc1100_v_drvprcs, __cc1100_v_qevent);
 
 	    case PHYSOPT_TXON:
 	    case PHYSOPT_TXOFF:
@@ -1508,7 +1508,7 @@ void phys_cc1100 (int phy, int mbs) {
 	physid = phy;
 
 	/* Register the phy */
-	__pi_v_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
+	__cc1100_v_qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1100);
 
 	LEDI (0, 0);
 	LEDI (1, 0);
@@ -1550,9 +1550,9 @@ void phys_cc1100 (int phy, int mbs) {
 	utimer_add (&bckf_timer);
 
 	// Start the driver process
-	__pi_v_drvprcs = runthread (cc1100_driver);
+	__cc1100_v_drvprcs = runthread (cc1100_driver);
 #if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
-	if (__pi_v_drvprcs == 0)
+	if (__cc1100_v_drvprcs == 0)
 		syserror (ERESOURCE, "cc11");
 #endif
 }

@@ -11,7 +11,7 @@ if (rf24l01_int) {
 
     clear_rf24l01_int;
     clr_rcv_int;
-    p_trigger (__pi_v_drvprcs, __pi_v_qevent);
+    p_trigger (__rf24l01_v_drvprcs, __rf24l01_v_qevent);
     RISE_N_SHINE;
 
 }
