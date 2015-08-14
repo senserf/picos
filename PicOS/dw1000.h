@@ -18,11 +18,6 @@
 
 // ============================================================================
 
-#define	DW1000_ROLE_TAG		0
-#define	DW1000_ROLE_PEG		1
-
-// ============================================================================
-
 #define	DW1000_REG_DEVID	0x00
 #define	DW1000_REG_EUI		0x01
 #define	DW1000_REG_PANADR	0x03
@@ -41,9 +36,15 @@
 #define	DW1000_REG_CHAN_CTRL	0x1f
 #define	DW1000_REG_TX_FCTRL	0x08
 #define	DW1000_REG_RX_FINFO	0x10
+#define	DW1000_REG_RX_BUFFER	0x11
 #define	DW1000_REG_TX_BUFFER	0x09
 #define	DW1000_REG_SYS_STATUS	0x0f
 #define	DW1000_REG_SYS_CTRL	0x0d
+#define	DW1000_REG_SYS_MASK	0x0e
+#define	DW1000_REG_RX_TIME	0x15
+#define	DW1000_REG_TX_TIME	0x17
+#define	DW1000_REG_DX_TIME	0x0a
+#define	DW1000_REG_TX_ANTD	0x18
 
 // ============================================================================
 
@@ -104,6 +105,16 @@
 #define	DW1000_IRQ_ALLSANE	(DW1000_IRQ_ALLTX 	|\
 				 DW1000_IRQ_RXFINE	|\
 				 DW1000_IRQ_RXERRORS)
+
+// IRQs to enable when waiting for reception; I am not sure if the RXAUTR flag
+// works as explained in the manual (the reference driver mentions a bug); if
+// it does, the single RXFCG IRQ should do, and the getevent function can be
+// simplified; otherwise, we have to include more flags here and, probably,
+// complicate getevent even more
+#define	DW1000_IRQ_RECEIVE	(DW1000_IRQ_RXFCG)
+
+// IRQs to enable when waiting for the end of transmissions
+#define	DW1000_IRQ_TRANSMIT	(DW1000_IRQ_TXFRS)
 
 // ============================================================================
 
@@ -272,7 +283,7 @@ static const lword __digital_bb_config [2][4] = {
 
 #define	dw1000_dtune1		(mode.prf ? 0x008d : 0x0087)
 
-#define	dw1000_dtune2		__digital_bb_config [mode.prf][mode.pac]
+#define	dw1000_dtune2		__digital_bb_config [mode.prf][mode.pacsize]
 
 #define	DW1000_AGCTUNE2		0x2502a907
 
@@ -280,22 +291,72 @@ static const lword __digital_bb_config [2][4] = {
 
 #define	dw1000_dwnssfdl		(mode.datarate ? 0x08 : 0x40)
 
+// ============================================================================
 
-###############################################################################
-###############################################################################
+// Location handshake frame lengths (including FCS)
+#define	DW1000_FRLEN_TPOLL	9
+#define	DW1000_FRLEN_ARESP	11
+#define	DW1000_FRLEN_TFIN	24
+
+// ============================================================================
+// ============================================================================
 
 extern sint __dw1000_v_drvprcs;
 
+// Flags
+#define	DW1000_FLG_ANCHOR	0x01
+#define	DW1000_FLG_LDREADY	0x02
+#define	DW1000_FLG_ACTIVE	0x04
+
+// We may try to reduce it to four bytes, if the timing is right
+#define	DW1000_TSTAMP_LEN	5
+
+typedef struct {
+//
+// The things are arranged such that the second significant byte of
+// TRR, which we need as the base for calculating the transmit time of FIN,
+// is aligned at 4-byte boundary, so we can use it as a longword in direct
+// arithmetic
+//
+	word tag;				// Source
+	byte tst [5*DW1000_TSTAMP_LEN];		// Five time stamps
+	byte seq;				// Sequence number
+
+} dw1000_locdata_t;
+
+// Offsets into time stamps
+#define	DW1000_TSOFF_TSP	(DW1000_TSTAMP_LEN * 0)
+#define	DW1000_TSOFF_TRR	(DW1000_TSTAMP_LEN * 1)
+#define	DW1000_TSOFF_TSF	(DW1000_TSTAMP_LEN * 2)
+#define	DW1000_TSOFF_TRP	(DW1000_TSTAMP_LEN * 3)
+#define	DW1000_TSOFF_TSR	(DW1000_TSTAMP_LEN * 4)
+
+// PicOS timeouts; let's be generous for now
+#define	DW1000_TMOUT_FIN	500
+#define	DW1000_TMOUT_ARESP	400
+
+// According to the manual, teh resolution of time stamps is 1/(128*499.2*10^6)
+// seconds, which means 1/63897600000 seconds, or 1.565 * 10^-11 seconds. When
+// we remove the least significant byte (for FIN time calculation), we get ca.
+// 4 * 10^-9, i.e., 4 nanoseconds. This is the unit of the processing delay:
+// here the first part is in microseconds (rather generous, but we shall see).
+#define	DW1000_FIN_DELAY	(2000L * 250L)
+
+// The maximum number of tries for Tag polls until the successful transmission
+// of FIN
+#define	DW1000_MAX_TTRIES	4
+
+// Inter try delay
+#define	DW1000_TPOLL_DELAY	10
 
 // Room for the (tentative) API; for now, I propose to treat this as a sensor
 // generating events and returning readings consisting of pairs: Node Id,
 // distance (maybe some more, like a timestamp). Probably, after each reading,
 // we should reset it for the next measurement.
 
-
-
-
-// Temporary
 void dw1000_start (byte, byte, word);
+void dw1000_stop ();
+void dw1000_read (word, const byte*, address);
+void dw1000_write (word, const byte*, address);
 
 #endif

@@ -17,7 +17,7 @@ if (dw1000_int) {
 
     dw1000_int_disable;
 
-    p_trigger (__dw1000_v_drvprcs, &__dw1000_v_drvprcs);
+    p_trigger (__dw1000_v_drvprcs, (word)(&__dw1000_v_drvprcs));
 
     RISE_N_SHINE;
 

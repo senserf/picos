@@ -73,18 +73,29 @@
 #define	PIN_DAC_PINS	0x00
 
 // ============================================================================
-#if 1
 
 #include "analog_sensor.h"
 #include "sensors.h"
+#include "dw1000.h"
 
 #define	SENSOR_LIST { \
-		INTERNAL_TEMPERATURE_SENSOR,	\
-		INTERNAL_VOLTAGE_SENSOR		\
+		INTERNAL_TEMPERATURE_SENSOR,			\
+		INTERNAL_VOLTAGE_SENSOR,			\
+		DIGITAL_SENSOR (0, NULL, dw1000_read) 		\
 	}
 #define	SENSOR_ANALOG
+#define	SENSOR_DIGITAL
+#define	SENSOR_EVENTS
+
+#define	ACTUATOR_LIST { \
+		DIGITAL_ACTUATOR (0, NULL, dw1000_write)	\
+	}
+#define	ACTUATOR_DIGITAL
+
 #define	N_HIDDEN_SENSORS	2
 
-#endif
+#define	SENSOR_RANGE		0
+#define	ACTUATOR_RANGE		0
+
 // ============================================================================
 

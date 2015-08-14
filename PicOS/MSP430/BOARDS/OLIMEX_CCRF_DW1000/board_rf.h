@@ -47,3 +47,6 @@
 
 // Used after wakeup from lp to assess whether the chip is ready to go
 #define	dw1000_ready		(P3IN & 0x01)
+
+//+++ "p2irq.c"
+REQUEST_EXTERNAL (p2irq);
