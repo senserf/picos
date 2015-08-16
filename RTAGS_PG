@@ -4494,3 +4494,27 @@ PG150805A:
 	We are basically ready to send the test praxis to Alphatronics; waiting
 	for Jasmien to respond.
 
+
+PG150816A:
+
+	Fixed locaspot according to Wlodek's suggestions, specifically:
+
+	1. I have switched off LBT for pings. To make the issue more
+	conspicuous, I have added a constant to pong.h. This seems to have
+	taken care of the problem of broken reports. Note that with LBT off,
+	there is no reason why the complete series of pings cannot get out
+	within some well bounded time, so I have left the condition in
+	msg_io_peg.c:62 as it was (commenting out the tentative change). Now,
+	I understand that LBT is switched back on for pongs in pong.c:84, so
+	there is no need to revert the setting explicitly after sending out all
+	pings.
+
+	2. The original ping spacing (pong.cc:45) was probably too long. I have
+	added a constant to pong.h to easily redefine it. For now, I have set
+	it to 5 + (rnd () & 7), which (probably) can still be reduced. This
+	shortens the report generation time (and can help reduce the timeout).
+
+	Some temporary modifications to the dw1000 driver (still being
+	developed).
+
+	2. 

@@ -91,7 +91,7 @@ static void chip_read (byte reg, word index, word length, byte *stuff) {
 // be restored after every wakeup; note that antenna delay is separate for
 // PRF64 and PRF16
 static word	antdelay = 0,
-		netid = 0;		// PAN
+		pan = 0;		// PAN
 
 // This is the default mode; resettable with the RESET physopt
 static chconfig_t mode;
@@ -108,18 +108,6 @@ sint __dw1000_v_drvprcs;
 
 // ============================================================================
 // ============================================================================
-
-#if (DW1000_OPTIONS & 0x0001)
-
-static lword dw1000_device_id () {
-
-	lword d;
-
-	chip_read (DW1000_REG_DEVID, 0, 4, (byte*)&d);
-	return d;
-}
-
-#endif
 
 #if 0
 static void reset_rx () {
@@ -184,18 +172,24 @@ static void initialize () {
 	chip_write (DW1000_REG_PMSC, 0, 1, &b);
 
 #if (DW1000_OPTIONS & 0x0001)
-	lw = dw1000_device_id ();
+	chip_read (DW1000_REG_DEVID, 0, 4, (byte*)&lw);
 	diag ("DWINIT: %x%x", (word)(lw >> 16), (word) lw);
 #endif
 
 	// Read and preserve antenna delay; will be set manually on every wake,
 	// so we just make sure it is handy
 	lw = read_otpm (DW1000_ADDR_ANTDELAY);
+	antdelay = (word)((mode.prf ? (lw >> 16) : lw) & 0xffff);
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("ADLX: %u", antdelay);
+#endif
 	// Determine the actual delay to use
-	if ((antdelay = (word)((mode.prf ? (lw >> 16) : lw) & 0xffff)) == 0)
+	if (antdelay == 0)
 		// Use some default delay as per reference driver
 		antdelay = dw1000_def_rfdelay (mode.prf);
-
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("ADLY: %u", antdelay);
+#endif
 	// AON wakeup configuration; L64P is only set for 64B preamble, which
 	// we don't use; not sure if PRES_SLEEP is needed at this stage
 	w = DW1000_ONW_LDC | DW1000_ONW_LLDE | DW1000_ONW_PRES_SLEEP;
@@ -239,9 +233,13 @@ static void initialize () {
 #endif
 	// Set PAN and short address to network Id and Host Id; note: we should
 	// reset this whenever the Host Id changes!
-	lw = ((word)host_id) | (((lword)netid) << 16);
+	lw = ((word)host_id) | (((lword)pan) << 16);
 	chip_write (DW1000_REG_PANADR, 0, 4, (byte*)&lw);
-	
+#if (DW1000_OPTIONS & 0x0001)
+	lw = 0xffffffff;
+	chip_read (DW1000_REG_PANADR, 0, 4, (byte*)&lw);
+	diag ("PANA: %x%x", (word)(lw >> 16), (word)lw);
+#endif
 	// TX config (power); this is an array of lw power entries, two entries
 	// per channel starting at 1, first entry for PRF 16M, the other for
 	// 64M
@@ -282,7 +280,9 @@ static void initialize () {
 
 	// Write the configuration register
 	chip_write (DW1000_REG_SYS_CFG, 0, 4, (byte*)&cf);
-
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("B1 done");
+#endif
 	// ====================================================================
 	// Not sure if this block belongs here, probably makes no difference;
 	// Configure LDE
@@ -314,7 +314,9 @@ static void initialize () {
 
 	w = dw1000_dtune1;
 	chip_write (DW1000_REG_DRX_CONF, 0x04, 2, (byte*)&w);
-
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("B2 done");
+#endif
 	// dtune1b
 	if (mode.datarate) {
 		// 6M8: dtune1b; we don't use preamble length of 64
@@ -353,7 +355,9 @@ static void initialize () {
 	}
 
 	chip_write (DW1000_REG_CHAN_CTRL, 0, 4, (byte*)&lw);
-
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("B3 done");
+#endif
 	// Preamble size, TX PRF, ranging bit
 	lw = (((lword)(dw1000_preamble | dw1000_prf)) << 16) | 0x00008000 |
 		(((lword)dw1000_datarate) << 13);
@@ -372,7 +376,7 @@ static void initialize () {
 
 	// Preset the transmit buffer: this is common for both modes (PAN
 	// follows the sequence number)
-	chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&netid);
+	chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
 
 	if (flags & DW1000_FLG_ANCHOR) {
 		// Frame control bytes are 41 88 (short destination address,
@@ -394,9 +398,14 @@ static void initialize () {
 	chip_write (DW1000_REG_TX_BUFFER, v, 2, (byte*)&host_id);
 
 	// ====================================================================
-	
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("B4 done");
+#endif
 	// Enter sleep
 	tosleep ();
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("init done");
+#endif
 }
 
 static void wakeitup () {
@@ -406,15 +415,20 @@ static void wakeitup () {
 //
 	word w;
 
+diag ("WA1");
 	DW1000_SPI_START;
+diag ("WA2");
 	udelay (250);
+diag ("WA3");
 	DW1000_SPI_STOP;
+diag ("WA4");
 
 	for (w = 0; w < 50; w++) {
 		mdelay (1);
 		if (dw1000_ready)
 			goto Ready;
 	}
+diag ("WA5");
 
 	syserror (EHARDWARE, "dw1");
 
@@ -422,12 +436,14 @@ static void wakeitup () {
 	// they delay for about this much to "stabilize the crystal"
 Ready:
 	mdelay (90);
+diag ("WA6");
 
 	// Now we have to reload the antenna delay; this makes me wonder why
 	// bother; can't we just account for it in the formula?
 	chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
 
 	// Should we put some test here to make sure we are actually alive?
+diag ("WA7");
 }
 
 static void toidle () {
@@ -544,7 +560,9 @@ static void starttx_n_release (word st) {
 // Start TX
 //
 	byte b;
-
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("RX");
+#endif
 	wait (&__dw1000_v_drvprcs, st);
 
 	irqenable (DW1000_IRQ_TRANSMIT);
@@ -554,7 +572,9 @@ static void starttx_n_release (word st) {
 	chip_write (DW1000_REG_SYS_CTRL, 0, 1, &b);
 
 	dw1000_int_enable;
-
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("RXEN");
+#endif
 	release;
 }
 	
@@ -813,7 +833,7 @@ void dw1000_start (byte md, byte rl, word ni) {
 		syserror (EREQPAR, "dw1");
 
 	mode = chconfig [md];
-	netid = ni;
+	pan = ni;
 
 	if (rl) {
 		// The role is PEG (aka ANCHOR); FIXME: perhaps the roles

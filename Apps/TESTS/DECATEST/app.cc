@@ -133,7 +133,7 @@ fsm root {
 	if (role)
 		thefsm = runfsm peg_thread;
 
-	dw1000_start ((byte)mode, (byte)role, 0xBABA);
+	dw1000_start ((byte)mode, (byte)role, 0xC0C0);
 
     state WOK:
 
