@@ -76,6 +76,7 @@
 
 #include "analog_sensor.h"
 #include "sensors.h"
+#include "actuators.h"
 #include "dw1000.h"
 
 #define	SENSOR_LIST { \

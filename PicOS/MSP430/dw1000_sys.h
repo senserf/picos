@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 
-#define	DW1000_SPI_WAIT		CNOP
+#define	DW1000_SPI_WAIT		udelay (1)
 
 #include "board_rf.h"
 

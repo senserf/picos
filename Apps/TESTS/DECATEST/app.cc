@@ -23,13 +23,43 @@ dw1000_locdata_t location;
 
 // ============================================================================
 
+void dumpbytes (byte *buf, word len) {
+
+	byte is;
+	word ix;
+
+	diag_disable_int (a, is);
+
+	for (ix = 0; ix < len; ix++) {
+
+		if ((ix & 0xF) == 0) {
+			diag_wait (a); diag_wchar ('\r', a);
+			diag_wait (a); diag_wchar ('\n', a);
+		}
+
+		diag_wait (a); diag_wchar (' ', a);
+		diag_wait (a); diag_wchar (
+			__pi_hex_enc_table [((*buf) >> 4) & 0xf], a);
+		diag_wait (a); diag_wchar (
+			__pi_hex_enc_table [((*buf)     ) & 0xf], a);
+		buf++;
+	}
+
+	diag_wait (a); diag_wchar ('\r', a);
+	diag_wait (a); diag_wchar ('\n', a);
+
+	diag_enable_int (a, is);
+}
+
+// ============================================================================
+
 fsm peg_thread {
 
     word cnt;
 
     state EVENT:
 
-	read_sensor (SENSOR_RANGE, EVENT, (address)&location);
+	read_sensor (EVENT, SENSOR_RANGE, (address)&location);
 	if (location.tag == 0) {
 		wait_sensor (SENSOR_RANGE, EVENT);
 		release;
@@ -75,13 +105,19 @@ fsm root {
 		halt ();
 	}
 
+	leds (0, 1);
+
     state BANNER:
 
 	ser_outf (BANNER,
 		"\r\nDECA TEST, NId = %u\r\n"
 		"d 0 - off\r\n"
 		"d 1 m r - on\r\n"
-		"r\r\n"
+		"s - poll\r\n"
+		"p msec - pull cs\r\n"
+		"r r o n - read\r\n"
+		"w r o n v - write\r\n"
+		"q - reset\r\n"
 			, (word)host_id
 	);
 
@@ -93,7 +129,14 @@ fsm root {
 	switch (ibuf [0]) {
 
 		case 'd': proceed DECAONOFF;
-		case 'r': proceed POLL;
+		case 's': proceed POLL;
+		case 'p': proceed PULLCS;
+		case 'r': proceed REG_READ;
+		case 'w': proceed REG_WRITE;
+		case 'q': {
+				DW1000_RESET;
+				proceed WOK;
+		}
 
 	}
 
@@ -118,6 +161,8 @@ fsm root {
 			kill (thefsm);
 			thefsm = 0;
 		}
+		powerdown ();
+		leds (0, 0);
 		proceed WOK;
 	}
 
@@ -133,6 +178,8 @@ fsm root {
 	if (role)
 		thefsm = runfsm peg_thread;
 
+	powerup ();
+	leds (0, 1);
 	dw1000_start ((byte)mode, (byte)role, 0xC0C0);
 
     state WOK:
@@ -146,6 +193,67 @@ fsm root {
 		proceed ILLEGAL;
 
 	location.seq = (byte) seconds ();
-	write_actuator (ACTUATOR_RANGE, POLL, (address)&(location.seq));
+	write_actuator (POLL, ACTUATOR_RANGE, (address)&(location.seq));
 	proceed COMMAND;
+
+    state PULLCS:	// Test CS pull
+
+	word tm;
+
+	tm = 1;
+	scan (ibuf + 1, "%u", &tm);
+
+	DW1000_SPI_START;
+	delay (tm, PULLCS_DONE);
+	release;
+
+    state PULLCS_DONE:
+
+	DW1000_SPI_STOP;
+	proceed WOK;
+
+    state REG_READ:
+
+	{
+		word i, reg, ind, len; byte *buf;
+
+		reg = WNONE;
+		ind = 0;
+		len = 1;
+
+		scan (ibuf + 1, "%x %u %u", &reg, &ind, &len);
+		if (reg == WNONE)
+			proceed ILLEGAL;
+		if (len < 1 || len > 64)
+			proceed ILLEGAL;
+
+		if ((buf = (byte*)umalloc (len)) == NULL)
+			proceed ILLEGAL;
+
+		chip_read ((byte)reg, ind, len, buf);
+
+		dumpbytes (buf, len);
+		ufree (buf);
+	}
+
+	proceed WOK;
+
+    state REG_WRITE:
+
+	{
+		word i, reg, ind, len; lword val; byte *buf;
+
+		reg = WNONE;
+		ind = 0;
+		len = 1;
+
+		scan (ibuf + 1, "%x %u %u %lx", &reg, &ind, &len, &val);
+		if (reg == WNONE)
+			proceed ILLEGAL;
+		if (len != 1 && len != 2 && len != 4)
+			proceed ILLEGAL;
+		chip_write ((byte)reg, ind, len, (byte*)&val);
+	}
+
+	proceed WOK;
 }

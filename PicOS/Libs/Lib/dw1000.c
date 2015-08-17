@@ -64,7 +64,10 @@ static void chip_trans (byte reg, word index) {
 	}
 }
 
-static void chip_write (byte reg, word index, word length, byte *stuff) {
+#if !(DW1000_OPTIONS & 0x0001)
+static
+#endif
+void chip_write (byte reg, word index, word length, byte *stuff) {
 //
 // Write
 //
@@ -74,7 +77,10 @@ static void chip_write (byte reg, word index, word length, byte *stuff) {
 	DW1000_SPI_STOP;
 }
 
-static void chip_read (byte reg, word index, word length, byte *stuff) {
+#if !(DW1000_OPTIONS & 0x0001)
+static
+#endif
+void chip_read (byte reg, word index, word length, byte *stuff) {
 //
 // Read
 //
@@ -127,12 +133,12 @@ static lword read_otpm (word addr) {
 //
 	lword res;
 
-	chip_write (DW1000_REG_OTPC, 4, 2, (byte*)&addr);
+	chip_write (DW1000_REG_OTP_IF, 4, 2, (byte*)&addr);
 	addr = 0x03;	// Manual drive OTP_READ
-	chip_write (DW1000_REG_OTPC, 6, 1, (byte*)&addr);
+	chip_write (DW1000_REG_OTP_IF, 6, 1, (byte*)&addr);
 	addr = 0x00;
-	chip_write (DW1000_REG_OTPC, 6, 1, (byte*)&addr);
-	chip_read (DW1000_REG_OTPC, 10, 4, (byte*)&res);
+	chip_write (DW1000_REG_OTP_IF, 6, 1, (byte*)&addr);
+	chip_read (DW1000_REG_OTP_IF, 10, 4, (byte*)&res);
 	return res;
 }
 
@@ -150,6 +156,37 @@ static void tosleep () {
 	chip_write (DW1000_REG_AON, 2, 1, &b);
 }
 
+static void wakeitup () {
+//
+// Wakes up the chip from lp mode; note: for now we spin like crazy; this may
+// have to be reorganized into an FSM later
+//
+	word w;
+
+	DW1000_SPI_START;
+	udelay (250);
+	DW1000_SPI_STOP;
+
+	for (w = 0; w < 50; w++) {
+		mdelay (1);
+		if (dw1000_ready)
+			goto Ready;
+	}
+
+	syserror (EHARDWARE, "dw1");
+
+	// After going through all those pains to detect when the chip gets up,
+	// they delay for about this much to "stabilize the crystal"
+Ready:
+	mdelay (90);
+
+	// Now we have to reload the antenna delay; this makes me wonder why
+	// bother; can't we just account for it in the formula?
+	chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
+
+	// Should we put some test here to make sure we are actually alive?
+}
+
 static void initialize () {
 //
 // After startup
@@ -158,6 +195,11 @@ static void initialize () {
 	byte a, b;
 	lword lw, cf;
 
+	// There is no way to easily and authoritatively reset the chip; RST
+	// is down when in sleep, so to make the pull down meaningful, you
+	// have to bring it up first; this presumes that wake (by CS) has been
+	// configured; other than that, it is power down and up again
+	wakeitup ();
 	DW1000_RESET;	// Hard reset
 
 	// Before configuring PLL, the SPI rate is not supposed to exceed 3M
@@ -180,22 +222,21 @@ static void initialize () {
 	// so we just make sure it is handy
 	lw = read_otpm (DW1000_ADDR_ANTDELAY);
 	antdelay = (word)((mode.prf ? (lw >> 16) : lw) & 0xffff);
+
 #if (DW1000_OPTIONS & 0x0001)
-	diag ("ADLX: %u", antdelay);
+	diag ("OTPAD: %u", antdelay);
 #endif
 	// Determine the actual delay to use
 	if (antdelay == 0)
 		// Use some default delay as per reference driver
 		antdelay = dw1000_def_rfdelay (mode.prf);
-#if (DW1000_OPTIONS & 0x0001)
-	diag ("ADLY: %u", antdelay);
-#endif
+
 	// AON wakeup configuration; L64P is only set for 64B preamble, which
 	// we don't use; not sure if PRES_SLEEP is needed at this stage
 	w = DW1000_ONW_LDC | DW1000_ONW_LLDE | DW1000_ONW_PRES_SLEEP;
 	if ((read_otpm (DW1000_ADDR_LDOTUNE) & 0xff) != 0)
 		w |= DW1000_ONW_LLDO;
-	chip_write (DW1000_REG_AON, 0, 2, (byte*)w);
+	chip_write (DW1000_REG_AON, 0, 2, (byte*)&w);
 
 	// Enable sleep with wake on CS; not sure if the SLEEP_EN bit should be
 	// set now; apparently, it doesn't put the device to sleep; maybe we
@@ -207,20 +248,26 @@ static void initialize () {
 	if ((b = (byte) read_otpm (DW1000_ADDR_XTRIM) & 0x1F) == 0)
 		// No calibration value stored, use the default mid range, as
 		// in the reference driver
-		b = 0x10;
-	// Write the trim or'red with the stuff that goes to the upper bits of
-	// the byte; the RD says: bits 7:5 must always be set to binary “011”.
-	// Failure to maintain this value will result in DW1000 malfunction.
-	chip_read (DW1000_REG_FS_CTRL, 0x0e, 1, &a);
-	b = (a & ~0x1f) | (b & 0x1f);
+		b = DW1000_PLL2_CALCFG;
+	else
+		// Write the trim or'red with the stuff that goes to the upper
+		// bits of the byte; the manual says: bits 7:5 must always be
+		// set to binary “011”. Failure to maintain this value will
+		// result in DW1000 malfunction.
+		b = (DW1000_PLL2_CALCFG & ~0x1f) | (b & 0x1f);
+
 	chip_write (DW1000_REG_FS_CTRL, 0x0e, 1, &b);
 
 	// Set the config register to the default, then prepare it and write
 	// once
-	cf = DW1000_CF_HIRQ_POL | DW1000_CF_DIS_DRXB | DW1000_CF_FFEN |
+	cf = DW1000_CF_HIRQ_POL | DW1000_CF_DIS_DRXB ;
+// PGTEST
+#if 0
+		DW1000_CF_FFEN | DW1000_CF_FFAD |
 		// Auto RX re-enable, so we won't have to handle incorrect
 		// frames by hand
 		DW1000_CF_RXAUTR;
+#endif
 
 	// No, we don't touch EUI as we will be using short addresses only
 #if 0
@@ -235,11 +282,7 @@ static void initialize () {
 	// reset this whenever the Host Id changes!
 	lw = ((word)host_id) | (((lword)pan) << 16);
 	chip_write (DW1000_REG_PANADR, 0, 4, (byte*)&lw);
-#if (DW1000_OPTIONS & 0x0001)
-	lw = 0xffffffff;
-	chip_read (DW1000_REG_PANADR, 0, 4, (byte*)&lw);
-	diag ("PANA: %x%x", (word)(lw >> 16), (word)lw);
-#endif
+
 	// TX config (power); this is an array of lw power entries, two entries
 	// per channel starting at 1, first entry for PRF 16M, the other for
 	// 64M
@@ -270,19 +313,27 @@ static void initialize () {
 	// behaves as a "coordinator", i.e., accepts destination-less frames
 	// where PAN ID matches its PAN ID (i.e., frames restricted to our
 	// Network Id); we do not use ACK frames at all (do we have to?)
-	_BIS (cf, flags & DW1000_FLG_ANCHOR ? DW1000_CF_FFBC : DW1000_CF_FFAD);
+// PGTEST
+#if 0
+	if (flags & DW1000_FLG_ANCHOR)
+		_BIS (cf, DW1000_CF_FFBC);
+#endif
+
+	// LDELOAD, note: this is probably not needed if LLDE is set in AON
+	// (as it is)
+	w = 0x8000;
+	chip_write (DW1000_REG_OTP_IF, 6, 2, (byte*)&w);
+	udelay (200);
 
 	// Enable clocks normal; note: the reference driver does some weird
 	// things to the apparently unused bits of the PMSC_CTRL0, my shortcut
-	// is to write zero to the entire low word
-	w = 0x0000;
+	// is to write there what is needed
+	w = 0x0200;
 	chip_write (DW1000_REG_PMSC, 0, 2, (byte*)&w);
 
 	// Write the configuration register
 	chip_write (DW1000_REG_SYS_CFG, 0, 4, (byte*)&cf);
-#if (DW1000_OPTIONS & 0x0001)
-	diag ("B1 done");
-#endif
+
 	// ====================================================================
 	// Not sure if this block belongs here, probably makes no difference;
 	// Configure LDE
@@ -298,14 +349,19 @@ static void initialize () {
 	// Configure RF PLL
 	chip_write (DW1000_REG_FS_CTRL, 7, 5, (byte*)dw1000_pll2_config);
 
+#if 0
+	// Already done above
 	b = DW1000_PLL2_CALCFG;
 	chip_write (DW1000_REG_FS_CTRL, 0x0e, 1, &b);
+#endif
 
 	// RF RX blocks
 	b = DW1000_RX_CONFIG;
 	chip_write (DW1000_REG_RF_CONF, 0x0b, 1, &b);
 
 	lw = dw1000_rf_txctrl;
+	// Note: the most significant byte ends up to DE no matter what we
+	// write; some undocumented feature
 	chip_write (DW1000_REG_RF_CONF, 0x0c, 4, (byte*)&lw);
 
 	// Baseband parameters
@@ -314,19 +370,18 @@ static void initialize () {
 
 	w = dw1000_dtune1;
 	chip_write (DW1000_REG_DRX_CONF, 0x04, 2, (byte*)&w);
-#if (DW1000_OPTIONS & 0x0001)
-	diag ("B2 done");
-#endif
+
 	// dtune1b
 	if (mode.datarate) {
 		// 6M8: dtune1b; we don't use preamble length of 64
-		b = 0x28;
-		chip_write (DW1000_REG_DRX_CONF, 0x26, 1, &b);
 		w = 0x20;
 	} else {
 		w = 0x64;
 	}
 	chip_write (DW1000_REG_DRX_CONF, 0x06, 2, (byte*)&w);
+
+	b = 0x28;
+	chip_write (DW1000_REG_DRX_CONF, 0x26, 1, &b);
 
 	// dtune2
 	lw = dw1000_dtune2;
@@ -355,9 +410,7 @@ static void initialize () {
 	}
 
 	chip_write (DW1000_REG_CHAN_CTRL, 0, 4, (byte*)&lw);
-#if (DW1000_OPTIONS & 0x0001)
-	diag ("B3 done");
-#endif
+
 	// Preamble size, TX PRF, ranging bit
 	lw = (((lword)(dw1000_preamble | dw1000_prf)) << 16) | 0x00008000 |
 		(((lword)dw1000_datarate) << 13);
@@ -370,7 +423,7 @@ static void initialize () {
 	chip_write (DW1000_REG_TX_FCTRL, 0, 4, (byte*)&lw);
 
 	// Write RX antenna delay, TX delay will be written on wakeup
-	chip_write (DW1000_REG_LDE_IF, 0x1804, 2, (byte*)antdelay);
+	chip_write (DW1000_REG_LDE_IF, 0x1804, 2, (byte*)&antdelay);
 
 	// ====================================================================
 
@@ -398,52 +451,12 @@ static void initialize () {
 	chip_write (DW1000_REG_TX_BUFFER, v, 2, (byte*)&host_id);
 
 	// ====================================================================
-#if (DW1000_OPTIONS & 0x0001)
-	diag ("B4 done");
-#endif
+
 	// Enter sleep
 	tosleep ();
 #if (DW1000_OPTIONS & 0x0001)
-	diag ("init done");
+	diag ("INIT OK");
 #endif
-}
-
-static void wakeitup () {
-//
-// Wakes up the chip from lp mode; note: for now we spin like crazy; this may
-// have to be reorganized into an FSM later
-//
-	word w;
-
-diag ("WA1");
-	DW1000_SPI_START;
-diag ("WA2");
-	udelay (250);
-diag ("WA3");
-	DW1000_SPI_STOP;
-diag ("WA4");
-
-	for (w = 0; w < 50; w++) {
-		mdelay (1);
-		if (dw1000_ready)
-			goto Ready;
-	}
-diag ("WA5");
-
-	syserror (EHARDWARE, "dw1");
-
-	// After going through all those pains to detect when the chip gets up,
-	// they delay for about this much to "stabilize the crystal"
-Ready:
-	mdelay (90);
-diag ("WA6");
-
-	// Now we have to reload the antenna delay; this makes me wonder why
-	// bother; can't we just account for it in the formula?
-	chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
-
-	// Should we put some test here to make sure we are actually alive?
-diag ("WA7");
 }
 
 static void toidle () {
@@ -463,7 +476,20 @@ static byte getevent () {
 	lword status;
 	byte len;
 
+Redo:
 	chip_read (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+diag ("GE: %x%x", (word)(status >> 16), (word)status);
+
+	if (status & DW1000_IRQ_OTHERS) {
+		// These are not auto-cleared
+#if (DW1000_OPTIONS & 0x0001)
+		if (status & (DW1000_IRQ_CLKPLL_LL | DW1000_IRQ_RFPLL_LL))
+			diag ("LOCK! %x", (word)(status >> 16));
+#endif
+		status = DW1000_IRQ_OTHERS;
+		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+		goto Redo;
+	}
 
 	if (status & DW1000_IRQ_LDEDONE) {
 		// This is a walkaround for a bug (creatively copied from the
@@ -478,9 +504,11 @@ static byte getevent () {
 		// timeout). After RX, it does TX + RX and timeout. After the
 		// final RX, it calculated the distance.
 		if ((status & (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) !=
-		    (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD))
+		    (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) {
 			// Bad frame
+diag ("DBUG");
 			goto Bad;
+		}
 	}
 
 	// If we check this before TX, then we may be OK for RX forcibly
@@ -488,6 +516,7 @@ static byte getevent () {
 	// TX, but includes RX
 	if (status & DW1000_IRQ_RXFCG) {
 		// Receiver FCS OK
+diag ("RXOK");
 		if ((status & DW1000_IRQ_LDEDONE) == 0)
 			goto Bad;
 		if ((status & DW1000_IRQ_RXOVRR))
@@ -502,6 +531,7 @@ Rtn:
 		// and reception, and do nothing else
 		status = DW1000_IRQ_ALLSANE;
 		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+diag ("GE: %d", len);
 		return len;
 	}
 
@@ -529,6 +559,7 @@ Bad:
 	}
 
 	// None
+diag ("GE: v");
 	return DW1000_EVT_NIL;
 }
 
@@ -540,15 +571,19 @@ static void rxenable_n_release (word st) {
 //
 // Enable RX
 //
-	byte b;
+	word w;
 
 	wait (&__dw1000_v_drvprcs, st);
 
+// PGTEST
+	irqenable (DW1000_IRQ_RXFINE | DW1000_IRQ_RXERRORS);
+#if 0
 	irqenable (DW1000_IRQ_RECEIVE);
+#endif
 
 	// RXENAB
-	b = 0x10;
-	chip_write (DW1000_REG_SYS_CTRL, 0, 1, &b);
+	w = 0x100;
+	chip_write (DW1000_REG_SYS_CTRL, 0, 2, (byte*)&w);
 
 	dw1000_int_enable;
 
@@ -560,9 +595,7 @@ static void starttx_n_release (word st) {
 // Start TX
 //
 	byte b;
-#if (DW1000_OPTIONS & 0x0001)
-	diag ("RX");
-#endif
+
 	wait (&__dw1000_v_drvprcs, st);
 
 	irqenable (DW1000_IRQ_TRANSMIT);
@@ -572,9 +605,7 @@ static void starttx_n_release (word st) {
 	chip_write (DW1000_REG_SYS_CTRL, 0, 1, &b);
 
 	dw1000_int_enable;
-#if (DW1000_OPTIONS & 0x0001)
-	diag ("RXEN");
-#endif
+
 	release;
 }
 	
@@ -594,6 +625,8 @@ thread (dw1000_anchor)
 
 	wakeitup ();
 	_BIC (flags, DW1000_FLG_LDREADY);
+// Initial cleanup
+getevent ();
 
 retry_rxp:
 
@@ -602,9 +635,14 @@ retry_rxp:
     entry (DWA_TPOLL)
 
 	// IRQ wakeup
+
+// PGTEST
+#if 0
 	if (getevent () != DW1000_FRLEN_TPOLL)
 		// This must be the TPOLL packet length
 		goto retry_rxp;
+#endif
+goto retry_rxp;
 
 	// The chip should be IDLE at this point
 
@@ -726,6 +764,14 @@ thread (dw1000_range)
 
     entry (RAN_POLL_DONE)
 
+// PGTEST
+getevent ();
+toidle ();
+locdata.seq++;
+delay (1024, RAN_TPOLL);
+release;
+goto tpoll_exit;
+
 	if (getevent () != DW1000_EVT_XMT) {
 
 tpoll_more:
@@ -737,6 +783,7 @@ tpoll_more:
 		delay (DW1000_TPOLL_DELAY, RAN_TPOLL);
 		release;
 	}
+// FIXME: use WAIT4RESP
 
 	// Get the packet's transmit time
 	chip_read (DW1000_REG_TX_TIME, 0, DW1000_TSTAMP_LEN,
@@ -831,6 +878,7 @@ void dw1000_start (byte md, byte rl, word ni) {
 		syserror (ETOOMANY, "dw1");
 	if (md >= sizeof (chconfig) / sizeof (chconfig_t))
 		syserror (EREQPAR, "dw1");
+	_BIS (flags, DW1000_FLG_ACTIVE);
 
 	mode = chconfig [md];
 	pan = ni;
@@ -853,6 +901,8 @@ void dw1000_stop () {
 //
 	if ((flags & DW1000_FLG_ACTIVE) == 0)
 		return;
+
+	_BIS (flags, DW1000_FLG_ACTIVE);
 
 	if (__dw1000_v_drvprcs) {
 		kill (__dw1000_v_drvprcs);

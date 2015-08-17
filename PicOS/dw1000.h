@@ -23,7 +23,7 @@
 #define	DW1000_REG_PANADR	0x03
 #define	DW1000_REG_SYS_CFG	0x04
 #define	DW1000_REG_TX_POWER	0x1e
-#define	DW1000_REG_OTPC		0x2d		// OTP control
+#define	DW1000_REG_OTP_IF	0x2d		// OTP control
 #define	DW1000_REG_PMSC		0x36
 #define	DW1000_REG_RF_CONF	0x28
 #define	DW1000_REG_TX_CAL	0x2a
@@ -105,6 +105,15 @@
 #define	DW1000_IRQ_ALLSANE	(DW1000_IRQ_ALLTX 	|\
 				 DW1000_IRQ_RXFINE	|\
 				 DW1000_IRQ_RXERRORS)
+
+// These that are not auto-cleared on sane actions
+#define	DW1000_IRQ_OTHERS	(DW1000_IRQ_CLKPLL_LL	|\
+				 DW1000_IRQ_RFPLL_LL	|\
+				 DW1000_IRQ_CPLOCK	|\
+				 DW1000_IRQ_ESYNCR	|\
+				 DW1000_IRQ_GPIOIRQ	|\
+				 DW1000_IRQ_TXBERR)
+				 
 
 // IRQs to enable when waiting for reception; I am not sure if the RXAUTR flag
 // works as explained in the manual (the reference driver mentions a bug); if
@@ -194,7 +203,7 @@ typedef struct {
 } chconfig_t;
 
 // Preamble selection determines SFD timeout: 0 - 129, 1 - 1057
-#define	dw1000_sfdto		(mode.prf ? 1057 : 129)
+#define	dw1000_sfdto		(mode.preamble ? 1057 : 129)
 #define	dw1000_channel		(mode.channel ? 5 : 2)
 #define	dw1000_precode		(mode.precode ? 9 : 3)
 #define	dw1000_prf		(mode.prf ? DW1000_PRF_64M : DW1000_PRF_16M)
@@ -358,5 +367,10 @@ void dw1000_start (byte, byte, word);
 void dw1000_stop ();
 void dw1000_read (word, const byte*, address);
 void dw1000_write (word, const byte*, address);
+
+#if !(DW1000_OPTIONS & 0x0001)
+void chip_read (byte, word, word, byte*)
+void chip_write (byte, word, word, byte*)
+#endif
 
 #endif
