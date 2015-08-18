@@ -7,6 +7,10 @@
 #include "dw1000.h"
 #undef DW1000_DEFINE_RF_SETTINGS
 
+#if 1
+void dumpbytes (byte*, word);
+#endif
+
 // ============================================================================
 // Chip access functions ======================================================
 // ============================================================================
@@ -48,6 +52,18 @@ static byte spi_in () {
 static void chip_trans (byte reg, word index) {
 //
 // Start SPI transaction, reg includes the write flag, if required
+//
+// Formats:
+//
+//	r/w 0 x x x x x x	... data ...
+//      0/1 - --- reg ---
+//
+//	r/w 1 x x x x x x
+//	 0  ---- ind ----	... data ...
+//
+//	r/w 1 x x x x x x
+//	 1  ---- ind ----	(low order 7 bits)
+//	 ------- ind ----	(high order bits)	... data ...
 //
 	DW1000_SPI_START;
 	if (index)
@@ -93,20 +109,26 @@ void chip_read (byte reg, word index, word length, byte *stuff) {
 // ============================================================================
 // ============================================================================
 
-// Not sure if we need to store ldotune, probably not, but antenna delay must
-// be restored after every wakeup; note that antenna delay is separate for
-// PRF64 and PRF16
+// Not sure if we need to store ldotune, probably not, but TX antenna delay
+// must be restored after every wakeup (documented chip bug); note that antenna
+// delay is different for PRF64 and PRF16
 static word	antdelay = 0,
 		pan = 0;		// PAN
 
-// This is the default mode; resettable with the RESET physopt
+// This is the mode byte (I have turned the selections, identical to those of
+// the reference driver) into a set of flags fitting one packed byte
 static chconfig_t mode;
+
+// Operation flags (only 3 used so far)
 static byte flags;
 
 // Location data; it may make sense to allocate it dynamically based on the
-// role (later)
+// role (later); used primarily by the anchor thread, but the tag thread uses
+// a healthy chunk of it as well
 static dw1000_locdata_t locdata;
 
+// This aliases the upper 4 bytes of the TRR stamp which is used as the base
+// for calculating the predicatble transmit time of the Tag's FIN packet
 #define	trr_upper	(*((lword*)(locdata.tst + DW1000_TSOFF_TRR + 1)))
 
 // The thread
@@ -115,8 +137,7 @@ sint __dw1000_v_drvprcs;
 // ============================================================================
 // ============================================================================
 
-#if 0
-static void reset_rx () {
+static void resetrx () {
 
 	byte c;
 
@@ -125,7 +146,59 @@ static void reset_rx () {
 	c = 0xf0;
 	chip_write (DW1000_REG_PMSC, 3, 1, &c);
 }
-#endif
+
+static void aonupload () {
+
+	byte b;
+
+	b = 0x00;
+	chip_write (DW1000_REG_AON, 2, 1, &b);
+	b = 0x02;
+	chip_write (DW1000_REG_AON, 2, 1, &b);
+}
+
+// The manual says: in order to put the DW1000 into the SLEEP state
+// SLEEP_EN needs to be set in AON_CFG0 and then the configuration
+// needs to be uploaded to the AON using the UPL_CFG bit in AON_CTRL.
+// This assumes that SLEEP_EN is already set.
+#define	tosleep()	aonupload ()
+
+static void xticlocks () {
+//
+// Set the clocks to XTI and disable sequencing
+//
+	byte b;
+
+	// I think that this amounts to setting the LSB of PMSC CTRL0 to 0x01
+	b = 0;
+	chip_write (DW1000_REG_PMSC, 0, 1, (byte*)&b);
+}
+
+static void softreset () {
+
+	word w;
+
+	// Clocks set to XTI, PKTSEQ cleared
+	xticlocks ();
+	w = 0;
+	// This clears PKTSEQ in PMSC CTRL1, it must be set to 0xE7 for normal
+	// operation
+	chip_write (DW1000_REG_PMSC, 4, 2, (byte*)&w);
+	// Clear any AON auto download bits (as reset will trigger AON download)
+	chip_write (DW1000_REG_AON, 0, 2, (byte*)&w);
+	// Clear the wakeup configuration
+	chip_write (DW1000_REG_AON, 6, 1, (byte*)&w);
+	// Upload the new configuration
+	aonupload ();
+	// Reset the softreset bits in PMSC; note: the reference driver is
+	// obsessive about not changing the unused/reserved bits in all those
+	// registers; perhaps we should adopt the same policy
+	chip_write (DW1000_REG_PMSC, 3, 1, (byte*)&w);
+	// They say, it needs 10us to let the PLL lock
+	mdelay (20);
+	w = 0xf0;
+	chip_write (DW1000_REG_PMSC, 3, 1, (byte*)&w);
+}
 
 static lword read_otpm (word addr) {
 //
@@ -142,19 +215,6 @@ static lword read_otpm (word addr) {
 	return res;
 }
 
-static void tosleep () {
-
-	byte b;
-
-	// The manual says: in order to put the DW1000 into the SLEEP state
-	// SLEEP_EN needs to be set in AON_CFG0 and then the configuration
-	// needs to be uploaded to the AON using the UPL_CFG bit in AON_CTRL.
-	// This assumes that SLEEP_EN is already set.
-	b = 0x00;
-	chip_write (DW1000_REG_AON, 2, 1, &b);
-	b = 0x02;
-	chip_write (DW1000_REG_AON, 2, 1, &b);
-}
 
 static void wakeitup () {
 //
@@ -163,12 +223,15 @@ static void wakeitup () {
 //
 	word w;
 
+	// CS wakeup: pull down CS for a short while
 	DW1000_SPI_START;
 	udelay (250);
 	DW1000_SPI_STOP;
 
 	for (w = 0; w < 50; w++) {
 		mdelay (1);
+		// This is RST, which is supposed to come up after a not too
+		// longish while indicating that the chip is ready
 		if (dw1000_ready)
 			goto Ready;
 	}
@@ -180,11 +243,13 @@ static void wakeitup () {
 Ready:
 	mdelay (90);
 
-	// Now we have to reload the antenna delay; this makes me wonder why
+	// Now we have to reload the TX antenna delay; this makes me wonder why
 	// bother; can't we just account for it in the formula?
 	chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
 
 	// Should we put some test here to make sure we are actually alive?
+	// I guess RST up indicates that fine, especially that the test fails
+	// sometimes on my boards
 }
 
 static void initialize () {
@@ -200,6 +265,7 @@ static void initialize () {
 	// have to bring it up first; this presumes that wake (by CS) has been
 	// configured; other than that, it is power down and up again
 	wakeitup ();
+	softreset ();
 	DW1000_RESET;	// Hard reset
 
 	// Before configuring PLL, the SPI rate is not supposed to exceed 3M
@@ -210,8 +276,7 @@ static void initialize () {
 	// The reference driver sets the clocks to XTI for reading OTP, it says
 	// that otherwise the operation is unreliable; I think that this
 	// amounts to setting the LSB of PMSC CTRL0 to 0x01
-	b = 0x01;
-	chip_write (DW1000_REG_PMSC, 0, 1, &b);
+	xticlocks ();
 
 #if (DW1000_OPTIONS & 0x0001)
 	chip_read (DW1000_REG_DEVID, 0, 4, (byte*)&lw);
@@ -234,9 +299,20 @@ static void initialize () {
 	// AON wakeup configuration; L64P is only set for 64B preamble, which
 	// we don't use; not sure if PRES_SLEEP is needed at this stage
 	w = DW1000_ONW_LDC | DW1000_ONW_LLDE | DW1000_ONW_PRES_SLEEP;
-	if ((read_otpm (DW1000_ADDR_LDOTUNE) & 0xff) != 0)
+	if ((read_otpm (DW1000_ADDR_LDOTUNE) & 0xff) != 0) {
+		b = 0x02;
+		// LDO_KICK, whatever it is
+		chip_write (DW1000_REG_OTP_IF, 0x12, 1, &b);
 		w |= DW1000_ONW_LLDO;
+#if (DW1000_OPTIONS & 0x0001)
+		diag ("LDOTUNE: %x", b);
+#endif
+	}
 	chip_write (DW1000_REG_AON, 0, 2, (byte*)&w);
+
+	// Disable the sleep counter
+	b = 0;
+	chip_write (DW1000_REG_AON, 0x0a, 1, &b);
 
 	// Enable sleep with wake on CS; not sure if the SLEEP_EN bit should be
 	// set now; apparently, it doesn't put the device to sleep; maybe we
@@ -260,19 +336,14 @@ static void initialize () {
 
 	// Set the config register to the default, then prepare it and write
 	// once
-	cf = DW1000_CF_HIRQ_POL | DW1000_CF_DIS_DRXB ;
-// PGTEST
-#if 0
-		DW1000_CF_FFEN | DW1000_CF_FFAD |
-		// Auto RX re-enable, so we won't have to handle incorrect
-		// frames by hand
-		DW1000_CF_RXAUTR;
-#endif
+	cf = DW1000_CF_HIRQ_POL | DW1000_CF_DIS_DRXB | DW1000_CF_RXAUTR
+// PGTEST FF enabled
+		| DW1000_CF_FFEN | DW1000_CF_FFAD;
 
 	// No, we don't touch EUI as we will be using short addresses only
 #if 0
 	// Set EUI to be all ones except for the last word, which is
-	// equal to Host Id
+	// equal to Host Id; note: we need no EUI, not at this stage, anyway
 	lw = 0;
 	chip_write (DW1000_REG_EUI, 0, 4, (byte*)&lw);
 	lw = (word)host_id;
@@ -313,17 +384,20 @@ static void initialize () {
 	// behaves as a "coordinator", i.e., accepts destination-less frames
 	// where PAN ID matches its PAN ID (i.e., frames restricted to our
 	// Network Id); we do not use ACK frames at all (do we have to?)
-// PGTEST
-#if 0
+// PGTEST: enabled
+#if 1
 	if (flags & DW1000_FLG_ANCHOR)
 		_BIS (cf, DW1000_CF_FFBC);
 #endif
 
+#if 0
+// PGTEST (indeed, seems not needed)
 	// LDELOAD, note: this is probably not needed if LLDE is set in AON
 	// (as it is)
 	w = 0x8000;
 	chip_write (DW1000_REG_OTP_IF, 6, 2, (byte*)&w);
 	udelay (200);
+#endif
 
 	// Enable clocks normal; note: the reference driver does some weird
 	// things to the apparently unused bits of the PMSC_CTRL0, my shortcut
@@ -348,12 +422,6 @@ static void initialize () {
 
 	// Configure RF PLL
 	chip_write (DW1000_REG_FS_CTRL, 7, 5, (byte*)dw1000_pll2_config);
-
-#if 0
-	// Already done above
-	b = DW1000_PLL2_CALCFG;
-	chip_write (DW1000_REG_FS_CTRL, 0x0e, 1, &b);
-#endif
 
 	// RF RX blocks
 	b = DW1000_RX_CONFIG;
@@ -427,6 +495,8 @@ static void initialize () {
 
 	// ====================================================================
 
+#if 0
+	// Sorry, cannot do this, because the buffer doesn't survive sleep
 	// Preset the transmit buffer: this is common for both modes (PAN
 	// follows the sequence number)
 	chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
@@ -449,6 +519,7 @@ static void initialize () {
 	}
 	chip_write (DW1000_REG_TX_BUFFER, 0, 2, (byte*)&w);
 	chip_write (DW1000_REG_TX_BUFFER, v, 2, (byte*)&host_id);
+#endif
 
 	// ====================================================================
 
@@ -478,7 +549,7 @@ static byte getevent () {
 
 Redo:
 	chip_read (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
-diag ("GE: %x%x", (word)(status >> 16), (word)status);
+	// diag ("GE: %x%x", (word)(status >> 16), (word)status);
 
 	if (status & DW1000_IRQ_OTHERS) {
 		// These are not auto-cleared
@@ -506,7 +577,6 @@ diag ("GE: %x%x", (word)(status >> 16), (word)status);
 		if ((status & (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) !=
 		    (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) {
 			// Bad frame
-diag ("DBUG");
 			goto Bad;
 		}
 	}
@@ -516,7 +586,6 @@ diag ("DBUG");
 	// TX, but includes RX
 	if (status & DW1000_IRQ_RXFCG) {
 		// Receiver FCS OK
-diag ("RXOK");
 		if ((status & DW1000_IRQ_LDEDONE) == 0)
 			goto Bad;
 		if ((status & DW1000_IRQ_RXOVRR))
@@ -531,7 +600,7 @@ Rtn:
 		// and reception, and do nothing else
 		status = DW1000_IRQ_ALLSANE;
 		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
-diag ("GE: %d", len);
+		// diag ("GE: %d", len);
 		return len;
 	}
 
@@ -550,16 +619,19 @@ diag ("GE: %d", len);
 		goto Rtn;
 	}
 
-	// Do we need that?
+	// Do we need that? Yes, the manual explicitly says that we do.
 	if (status & DW1000_IRQ_RXERRORS) {
 Bad:
 		toidle ();
+		// Reset RX (the manual says we should do it after every
+		// perceived RX error; this makes me wonder if we can use
+		// RXAUTR at all
+		resetrx ();
 		len = DW1000_EVT_BAD;
 		goto Rtn;
 	}
 
 	// None
-diag ("GE: v");
 	return DW1000_EVT_NIL;
 }
 
@@ -575,11 +647,13 @@ static void rxenable_n_release (word st) {
 
 	wait (&__dw1000_v_drvprcs, st);
 
-// PGTEST
-	irqenable (DW1000_IRQ_RXFINE | DW1000_IRQ_RXERRORS);
-#if 0
+	// This one causes weird spontaneous IRQs on one of the two
+	// boards I'm testing it on (and makes status unreadable);
+	// the problem: how can we catch all errors after which we are
+	// supposed to reset RX?
+	// irqenable (DW1000_IRQ_RECEIVE | DW1000_IRQ_RXERRORS);
+
 	irqenable (DW1000_IRQ_RECEIVE);
-#endif
 
 	// RXENAB
 	w = 0x100;
@@ -624,9 +698,21 @@ thread (dw1000_anchor)
     entry (DWA_INIT)
 
 	wakeitup ();
+
 	_BIC (flags, DW1000_FLG_LDREADY);
-// Initial cleanup
-getevent ();
+	// Initial cleanup
+	getevent ();
+
+	// Preset the fixed fragments of transmit buffer; must be done after
+	// wakeup, as the preset doesn't survive sleep
+	{
+		word w;
+
+		w = 0x8841;
+		chip_write (DW1000_REG_TX_BUFFER, 0, 2, (byte*)&w);
+		chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
+		chip_write (DW1000_REG_TX_BUFFER, 7, 2, (byte*)&host_id);
+	}
 
 retry_rxp:
 
@@ -634,32 +720,48 @@ retry_rxp:
 
     entry (DWA_TPOLL)
 
-	// IRQ wakeup
-
-// PGTEST
-#if 0
-	if (getevent () != DW1000_FRLEN_TPOLL)
-		// This must be the TPOLL packet length
-		goto retry_rxp;
+	{
+		// IRQ wakeup
+#if (DW1000_OPTIONS & 0x0001)
+		byte e;
+		if ((e = getevent ()) != DW1000_FRLEN_TPOLL) {
+			diag ("ARX BAD: %x", e);
+			goto retry_rxp;
+		}
+#else
+		if (getevent () != DW1000_FRLEN_TPOLL)
+			// This must be the TPOLL packet length
+			goto retry_rxp;
 #endif
-goto retry_rxp;
+	}
+
+diag ("TPOLL!");
 
 	// The chip should be IDLE at this point
 
 	_BIC (flags, DW1000_FLG_LDREADY);
 tpoll:
+	// The frame looks like this:
+	//	01 80 sq pa pa ni ni
+	//		pa - PAN (network Id)
+	//		ni - node (Tag) Id
+	// The total (formal) payload length is 9 bytes (two bytes of CRC at
+	// the end also also counted)
 
-	// It looks like we have got a POLL; to save on time, we assume it is
-	// correct, i.e., we do not verify anything (which we may want to do
-	// later) only grab the sender Id and time the packet
-	chip_read (DW1000_REG_RX_BUFFER, 3, 1, &(locdata.seq));
+	// To save on time, we do not check the frame structure (except for its
+	// length); we only grab the sender Id and time the packet
+	chip_read (DW1000_REG_RX_BUFFER, 2, 1, &(locdata.seq));
 	// FIXME: to simplify things (reduce chip communication) we can ignore
 	// the official sequence number in the frame and use custom one
 	// adjacent to src/dst
 	chip_read (DW1000_REG_RX_BUFFER, 5, 2, (byte*)&(locdata.tag));
 	chip_read (DW1000_REG_RX_TIME, 0, DW1000_TSTAMP_LEN,
 		locdata.tst + DW1000_TSOFF_TRP);
-
+#if 0
+diag ("TAG: %d", locdata.tag);
+dumpbytes (locdata.tst + DW1000_TSOFF_TRP, 5);
+goto retry_rxp;
+#endif
 	// Insert the source Tag ID, now dst, into the outgoing message
 	chip_write (DW1000_REG_TX_BUFFER, 5, 2, (byte*)&(locdata.tag));
 	// Insert the sequence number
@@ -671,15 +773,38 @@ retry_tx:
 
     entry (DWA_RESP_DONE)
 
-	if (getevent () != DW1000_EVT_XMT)
-		// Do we really have to check? Probably, if anything, it makes
-		// better sense to assume that any event out of the ordinary
-		// breaks the handshake
-		goto retry_tx;
+	{
+#if (DW1000_OPTIONS & 0x0001)
+		byte e;
+		if ((e = getevent ()) != DW1000_EVT_XMT) {
+			diag ("ATX BAD: %x", e);
+			goto reset_handshake;
+		}
+#else
+		if (getevent () != DW1000_EVT_XMT)
+			// Should anything weird happen here, we simply abort
+			// the handshake
+			goto reset_handshake;
+#endif
+	}
 
 	// Transmit time
 	chip_read (DW1000_REG_TX_TIME, 0, DW1000_TSTAMP_LEN,
 		locdata.tst + DW1000_TSOFF_TSR);
+
+#if 1
+diag ("ANC: %d", locdata.tag);
+dumpbytes (locdata.tst + DW1000_TSOFF_TSR, 5);
+goto retry_rxp;
+#endif
+
+
+
+
+
+
+
+
 
 	// Receive the fin packet
 	delay (DW1000_TMOUT_FIN, DWA_RESET);
@@ -724,6 +849,8 @@ retry_tx:
 
     entry (DWA_RESET)
 
+reset_handshake:
+
 	toidle ();
 	goto retry_rxp;
 
@@ -750,10 +877,21 @@ thread (dw1000_range)
 	// Use this as the try counter
 	locdata.tag = DW1000_MAX_TTRIES;
 
+	// Preset the fixed portions of TX buffer
+
+	{
+		word w;
+
+		w = 0x8001;
+		chip_write (DW1000_REG_TX_BUFFER, 0, 2, (byte*)&w);
+		chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
+		chip_write (DW1000_REG_TX_BUFFER, 5, 2, (byte*)&host_id);
+	}
+
     entry (RAN_TPOLL)
 
 	// Insert the sequence number into the outgoing packet
-	chip_write (DW1000_REG_TX_BUFFER, 3, 1, &(locdata.seq));
+	chip_write (DW1000_REG_TX_BUFFER, 2, 1, &(locdata.seq));
 	// Set the length
 	{
 		byte e = 9;
@@ -764,6 +902,8 @@ thread (dw1000_range)
 
     entry (RAN_POLL_DONE)
 
+	{
+#if 0
 // PGTEST
 getevent ();
 toidle ();
@@ -771,82 +911,103 @@ locdata.seq++;
 delay (1024, RAN_TPOLL);
 release;
 goto tpoll_exit;
+#endif
 
-	if (getevent () != DW1000_EVT_XMT) {
-
+#if (DW1000_OPTIONS & 0x0001)
+		byte e;
+		if ((e = getevent ()) != DW1000_EVT_XMT) {
+			diag ("TRX BAD: %x", e);
+#else
+		if (getevent () != DW1000_EVT_XMT) {
+#endif
 tpoll_more:
-		toidle ();
-		if (locdata.tag <= 1)
-			goto tpoll_exit;
+			toidle ();
+			if (locdata.tag <= 1)
+				goto tpoll_exit;
 
-		locdata.tag--;
-		delay (DW1000_TPOLL_DELAY, RAN_TPOLL);
-		release;
+			locdata.tag--;
+			delay (DW1000_TPOLL_DELAY, RAN_TPOLL);
+			release;
+		}
+
+		// Consider using WAIT4RESP, if there are timing problems
+		// with reception
+
+		// Get the packet's transmit time
+		chip_read (DW1000_REG_TX_TIME, 0, DW1000_TSTAMP_LEN,
+			locdata.tst + DW1000_TSOFF_TSP);
+
+		// Preset the length for the next outgoing packet (FIN) now, to
+		// balance the load between the two stages; note that SEQ is OK
+		{
+			byte e = 24;
+			chip_write (DW1000_REG_TX_FCTRL, 0, 1, &e);
+		}
+
+		// Read the anchor's response
+		delay (DW1000_TMOUT_ARESP, RAN_FAILURE);
+		rxenable_n_release (RAN_ANCHOR);
 	}
-// FIXME: use WAIT4RESP
-
-	// Get the packet's transmit time
-	chip_read (DW1000_REG_TX_TIME, 0, DW1000_TSTAMP_LEN,
-		locdata.tst + DW1000_TSOFF_TSP);
-
-	// Preset the length for the next outgoing packet (FIN) now, to
-	// balance the load between the two stages; note that SEQ is OK
-	{
-		byte e = 24;
-
-		chip_write (DW1000_REG_TX_FCTRL, 0, 1, &e);
-	}
-
-	// Read the anchor's response
-	delay (DW1000_TMOUT_ARESP, RAN_FAILURE);
-	rxenable_n_release (RAN_ANCHOR);
 
     entry (RAN_ANCHOR)
 
-	if (getevent () != DW1000_FRLEN_ARESP)
-		goto tpoll_more;
-
 	{
+#if (DW1000_OPTIONS & 0x0001)
 		byte e;
-		chip_read (DW1000_REG_RX_BUFFER, 3, 1, &e);
-		if (e != locdata.seq)
-			// Pointless for sure
+		if ((e = getevent ()) != DW1000_FRLEN_ARESP) {
+			diag ("RCP BAD: %x", e);
 			goto tpoll_more;
-	}
-
-	// Save the time stamp
-	chip_read (DW1000_REG_RX_TIME, 0, DW1000_TSTAMP_LEN,
-		locdata.tst + DW1000_TSOFF_TRR);
-
-	// Calculate the transmit time of FIN packet
-	{
-		lword t = (trr_upper + DW1000_FIN_DELAY) & ~1;
-		chip_write (DW1000_REG_DX_TIME, 1, 4, (byte*)&t);
-		// Now for the adjusted time to insert into the packet
-		t += *(((byte*)&antdelay) + 1);
-		memcpy (locdata.tst + DW1000_TSOFF_TSF + 1, &t, 4);
-		*(locdata.tst + DW1000_TSOFF_TSF) = (byte)antdelay;
-	}
-
-	chip_write (DW1000_REG_TX_BUFFER, 7, 3 * DW1000_TSTAMP_LEN,
-		locdata.tst + DW1000_TSOFF_TSP);
-
-	wait (&__dw1000_v_drvprcs, RAN_FIN);
-	irqenable (DW1000_IRQ_TRANSMIT);
-
-	{
-		// TXSTRT + TXDLYS
-		byte b = (0x02 | 0x04);
-		chip_write (DW1000_REG_SYS_CTRL, 0, 1, &b);
-		// Verify not late
-		chip_read (DW1000_REG_SYS_STATUS, 3, 1, &b);
-		if (b & 0x08)
+		}
+#else
+		if (getevent () != DW1000_FRLEN_ARESP)
 			goto tpoll_more;
+#endif
+		{
+			byte e;
+			chip_read (DW1000_REG_RX_BUFFER, 2, 1, &e);
+			if (e != locdata.seq)
+				// Pointless for sure
+				goto tpoll_more;
+		}
+
+// PG: no reception from anchor, perhaps something wrong with frame filtering;
+// we probably have to take advantage of WAIT4RESP
+diag ("RESP!");
+goto tpoll_exit;
+
+		// Save the time stamp
+		chip_read (DW1000_REG_RX_TIME, 0, DW1000_TSTAMP_LEN,
+			locdata.tst + DW1000_TSOFF_TRR);
+
+		// Calculate the transmit time of FIN packet
+		{
+			lword t = (trr_upper + DW1000_FIN_DELAY) & ~1;
+			chip_write (DW1000_REG_DX_TIME, 1, 4, (byte*)&t);
+			// Now for the adjusted time to insert into the packet
+			t += *(((byte*)&antdelay) + 1);
+			memcpy (locdata.tst + DW1000_TSOFF_TSF + 1, &t, 4);
+			*(locdata.tst + DW1000_TSOFF_TSF) = (byte)antdelay;
+		}
+
+		chip_write (DW1000_REG_TX_BUFFER, 7, 3 * DW1000_TSTAMP_LEN,
+			locdata.tst + DW1000_TSOFF_TSP);
+
+		wait (&__dw1000_v_drvprcs, RAN_FIN);
+		irqenable (DW1000_IRQ_TRANSMIT);
+
+		{
+			// TXSTRT + TXDLYS
+			byte b = (0x02 | 0x04);
+			chip_write (DW1000_REG_SYS_CTRL, 0, 1, &b);
+			// Verify not late
+			chip_read (DW1000_REG_SYS_STATUS, 3, 1, &b);
+			if (b & 0x08)
+				goto tpoll_more;
+		}
+
+		dw1000_int_enable;
+		release;
 	}
-
-	dw1000_int_enable;
-
-	release;
 			
     entry (RAN_FIN)
 
@@ -864,6 +1025,9 @@ tpoll_exit:
 
     entry (RAN_FAILURE)
 
+#if (DW1000_OPTIONS & 0x0001)
+	diag ("RAN TMOUT");
+#endif
 	goto tpoll_more;
 
 endthread
