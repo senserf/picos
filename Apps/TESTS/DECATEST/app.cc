@@ -74,7 +74,7 @@ fsm peg_thread {
 
 	lword lw;
 
-	if (cnt >= 25)
+	if (cnt >= 30)
 		sameas EVENT;
 
 	memcpy (&lw, location.tst + cnt, 4);

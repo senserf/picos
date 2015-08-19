@@ -328,7 +328,7 @@ typedef struct {
 // arithmetic
 //
 	word tag;				// Source
-	byte tst [5*DW1000_TSTAMP_LEN];		// Five time stamps
+	byte tst [6*DW1000_TSTAMP_LEN];		// Six time stamps
 	byte seq;				// Sequence number
 
 } dw1000_locdata_t;
@@ -339,17 +339,19 @@ typedef struct {
 #define	DW1000_TSOFF_TSF	(DW1000_TSTAMP_LEN * 2)
 #define	DW1000_TSOFF_TRP	(DW1000_TSTAMP_LEN * 3)
 #define	DW1000_TSOFF_TSR	(DW1000_TSTAMP_LEN * 4)
+#define	DW1000_TSOFF_TRF	(DW1000_TSTAMP_LEN * 5)
 
 // PicOS timeouts; let's be generous for now
 #define	DW1000_TMOUT_FIN	500
 #define	DW1000_TMOUT_ARESP	400
 
-// According to the manual, teh resolution of time stamps is 1/(128*499.2*10^6)
+// According to the manual, the resolution of time stamps is 1/(128*499.2*10^6)
 // seconds, which means 1/63897600000 seconds, or 1.565 * 10^-11 seconds. When
 // we remove the least significant byte (for FIN time calculation), we get ca.
 // 4 * 10^-9, i.e., 4 nanoseconds. This is the unit of the processing delay:
 // here the first part is in microseconds (rather generous, but we shall see).
-#define	DW1000_FIN_DELAY	(2000L * 250L)
+#define	DW1000_FIN_DELAY	(4000L * 250L)
+//#define	DW1000_FIN_DELAY	(2000L * 250L)
 
 // The maximum number of tries for Tag polls until the successful transmission
 // of FIN
