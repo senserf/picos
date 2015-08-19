@@ -4517,4 +4517,6 @@ PG150816A:
 	Some temporary modifications to the dw1000 driver (still being
 	developed).
 
-	2. 
+PG150819A:
+
+	The first working version of the dw1000 driver + some document.
