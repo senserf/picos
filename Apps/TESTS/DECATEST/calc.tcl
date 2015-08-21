@@ -4,6 +4,7 @@ exec tclsh "$0" "$@"
 
 set TU [expr { 1.0 / (128 * 499.2 * 1000000.0) }]
 set CC 299700000.0
+set TF [expr { $TU * $CC }]
 
 proc diff { a b } {
 #
@@ -14,12 +15,12 @@ proc diff { a b } {
 		set a [expr { $a + 0x10000000000 }]
 	}
 
-	return [expr { $b - $a }]
+	return [expr { $a - $b }]
 }
 	
 proc calc { smp } {
 
-	global TU CC
+	global TF
 
 	lassign $smp TSP TRR TSF TRP TSR TRF
 
@@ -32,11 +33,13 @@ proc calc { smp } {
 	set TOFA [expr { ($da1 - $da2) / 2.0 }]
 	set TOFB [expr { ($db1 - $db2) / 2.0 }]
 
-	set TOF [expr ($TOFA + $TOFB) / 2.0]
+	set TOF [expr { ($TOFA + $TOFB) / 2.0 }]
 
-	set DST [expr ($TOF * $TU * $CC)]
+	set DST [expr { $TOF * $TF }]
+	set DSA [expr { $TOFA * $TF }]
+	set DSB [expr { $TOFB * $TF }]
 
-	return [list $DST $TOF $TOFA $TOFB]
+	return [list $DST $DSA $DSB $TOF $TOFA $TOFB]
 }
 
 proc main { } {
@@ -73,9 +76,11 @@ proc main { } {
 	set res [calc $samples]
 
 	puts "Distance:      [format %1.3f [lindex $res 0]]"
-	puts "ATOF:          [format %1.3f [lindex $res 1]]"
-	puts "ATOFA:         [format %1.3f [lindex $res 2]]"
-	puts "ATOFB:         [format %1.3f [lindex $res 3]]"
+	puts "Distance A:    [format %1.3f [lindex $res 1]]"
+	puts "Distance B:    [format %1.3f [lindex $res 2]]"
+	puts "ATOF:          [format %1.3f [lindex $res 3]]"
+	puts "ATOFA:         [format %1.3f [lindex $res 4]]"
+	puts "ATOFB:         [format %1.3f [lindex $res 5]]"
 }
 
 main

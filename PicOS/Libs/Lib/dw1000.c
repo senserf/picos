@@ -7,13 +7,37 @@
 #include "dw1000.h"
 #undef DW1000_DEFINE_RF_SETTINGS
 
-#if 1
-void dumpbytes (byte*, word);
-#endif
-
 // ============================================================================
 // Chip access functions ======================================================
 // ============================================================================
+
+#if DW1000_USE_SPI
+
+//
+// USART variant
+//
+
+static void spi_out (byte b) {
+
+	volatile byte s;
+
+	dw1000_put (b);
+	while (!dw1000_xc_ready);
+	s = dw1000_get;
+}
+
+static byte spi_in () {
+
+	dw1000_put (0);
+	while (!dw1000_xc_ready);
+	return dw1000_get;
+}
+
+#else
+
+//
+// Direct variant
+//
 
 static void spi_out (byte b) {
 
@@ -48,6 +72,8 @@ static byte spi_in () {
 
 	return val;
 }
+
+#endif /* SPI variant */
 
 static void chip_trans (byte reg, word index) {
 //
@@ -263,6 +289,8 @@ static void initialize () {
 	byte a, b;
 	lword lw, cf;
 
+	// This starts in slow mode
+	dw1000_spi_init;
 	// There is no way to easily and authoritatively reset the chip; RST
 	// is down when in sleep, so to make the pull down meaningful, you
 	// have to bring it up first; this presumes that wake (by CS) has been
@@ -521,6 +549,7 @@ static void initialize () {
 	// ====================================================================
 
 	// Enter sleep
+	dw1000_spi_fast;
 	tosleep ();
 #if (DW1000_OPTIONS & 0x0001)
 	diag ("INIT OK");
@@ -847,6 +876,15 @@ thread (dw1000_range)
 
     entry (RAN_INIT)
 
+	// Save the powerdown state
+	if (is_powerdown) {
+		// Always do it in powerup
+		powerup ();
+		_BIS (flags, DW1000_FLG_REVERTPD);
+	} else {
+		_BIC (flags, DW1000_FLG_REVERTPD);
+	}
+
 	// We wake it up for a single episode; this will change later
 	wakeitup ();
 
@@ -863,6 +901,10 @@ thread (dw1000_range)
 		chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
 		chip_write (DW1000_REG_TX_BUFFER, 5, 2, (byte*)&host_id);
 	}
+
+#ifdef MONITOR_PIN_DW1000_CYCLE
+	_PVS (MONITOR_PIN_DW1000_CYCLE, 1);
+#endif
 
     entry (RAN_TPOLL)
 
@@ -884,14 +926,7 @@ thread (dw1000_range)
 		byte e;
 		if ((e = getevent ()) != DW1000_FRLEN_ARESP) {
 			diag ("RCP BAD: %x", e);
-tpoll_more:
-			toidle ();
-			if (locdata.tag <= 1)
-				goto tpoll_exit;
-
-			locdata.tag--;
-			delay (DW1000_TPOLL_DELAY, RAN_TPOLL);
-			release;
+			goto tpoll_more;
 		}
 #else
 		if (getevent () != DW1000_FRLEN_ARESP)
@@ -920,6 +955,8 @@ tpoll_more:
 		}
 
 		// Calculate the transmit time of FIN packet
+		// FIXME: read current time instead of using RX and see if it
+		// isn't better
 		{
 			lword t = (trr_upper + DW1000_FIN_DELAY) & ~(lword)1;
 			chip_write (DW1000_REG_DX_TIME, 1, 4, (byte*)&t);
@@ -964,6 +1001,11 @@ tpoll_exit:
 
 		__dw1000_v_drvprcs = 0;
 		trigger (&locdata);
+		if (flags & DW1000_FLG_REVERTPD)
+			powerdown ();
+#ifdef MONITOR_PIN_DW1000_CYCLE
+		_PVS (MONITOR_PIN_DW1000_CYCLE, 0);
+#endif
 		finish;
 	}
 
@@ -972,7 +1014,15 @@ tpoll_exit:
 #if (DW1000_OPTIONS & 0x0001)
 	diag ("RAN FAIL");
 #endif
-	goto tpoll_more;
+
+tpoll_more:
+
+	toidle ();
+	if (locdata.tag <= 1)
+		goto tpoll_exit;
+
+	locdata.tag--;
+	delay (DW1000_TPOLL_DELAY, RAN_TPOLL);
 
 endthread
 

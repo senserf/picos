@@ -13,7 +13,7 @@
 // ============================================================================
 
 #ifndef	DW1000_OPTIONS
-#define	DW1000_OPTIONS		0x0001
+#define	DW1000_OPTIONS		0x0000
 #endif
 
 // ============================================================================
@@ -45,6 +45,7 @@
 #define	DW1000_REG_TX_TIME	0x17
 #define	DW1000_REG_DX_TIME	0x0a
 #define	DW1000_REG_TX_ANTD	0x18
+#define	DW1000_REG_SYS_TIME	0x06
 
 // ============================================================================
 
@@ -316,6 +317,7 @@ extern sint __dw1000_v_drvprcs;
 #define	DW1000_FLG_ANCHOR	0x01
 #define	DW1000_FLG_LDREADY	0x02
 #define	DW1000_FLG_ACTIVE	0x04
+#define	DW1000_FLG_REVERTPD	0x08
 
 // We may try to reduce it to four bytes, if the timing is right
 #define	DW1000_TSTAMP_LEN	5
@@ -341,17 +343,27 @@ typedef struct {
 #define	DW1000_TSOFF_TSR	(DW1000_TSTAMP_LEN * 4)
 #define	DW1000_TSOFF_TRF	(DW1000_TSTAMP_LEN * 5)
 
-// PicOS timeouts; let's be generous for now
-#define	DW1000_TMOUT_FIN	500
-#define	DW1000_TMOUT_ARESP	400
+// PicOS timeouts: anchor waiting for FIN following sending RESP
+#define	DW1000_TMOUT_FIN	100
+
+// This cannot be shortened any more
+#define	DW1000_TMOUT_ARESP	7
 
 // According to the manual, the resolution of time stamps is 1/(128*499.2*10^6)
 // seconds, which means 1/63897600000 seconds, or 1.565 * 10^-11 seconds. When
 // we remove the least significant byte (for FIN time calculation), we get ca.
 // 4 * 10^-9, i.e., 4 nanoseconds. This is the unit of the processing delay:
 // here the first part is in microseconds (rather generous, but we shall see).
+
+// This also seems to be at the minimum (in reference to the RX time of RESP)
+#if DW1000_USE_SPI
+#define	DW1000_FIN_DELAY	(3000L * 250L)
+#else
 #define	DW1000_FIN_DELAY	(4000L * 250L)
-//#define	DW1000_FIN_DELAY	(2000L * 250L)
+#endif
+
+// The amount of ON time of the Tag needed to carry out a complete exchange is
+// now about 92ms (measured on the oscilloscope as the high time of RST)
 
 // The maximum number of tries for Tag polls until the successful transmission
 // of FIN
@@ -370,9 +382,9 @@ void dw1000_stop ();
 void dw1000_read (word, const byte*, address);
 void dw1000_write (word, const byte*, address);
 
-#if !(DW1000_OPTIONS & 0x0001)
-void chip_read (byte, word, word, byte*)
-void chip_write (byte, word, word, byte*)
+#if (DW1000_OPTIONS & 0x0001)
+void chip_read (byte, word, word, byte*);
+void chip_write (byte, word, word, byte*);
 #endif
 
 #endif

@@ -4520,3 +4520,10 @@ PG150816A:
 PG150819A:
 
 	The first working version of the dw1000 driver + some document.
+
+PG150821A:
+
+	The dw1000 driver cleaned up a bit and made decent. I have added the
+	option to use fast (about 20MHz) SPI rate for chip-uC communication
+	(using USART rather than direct pin operations), which (slightly)
+	reduces the handshake time.
