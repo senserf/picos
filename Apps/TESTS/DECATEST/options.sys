@@ -1,6 +1,8 @@
 // #define	MONITOR_PIN_DW1000_CYCLE	P3_3
 // #undef 	DW1000_USE_SPI
 // #define	DW1000_USE_SPI	0
+// #define	DW1000_OPTIONS	0x0001
+#define	DW1000_USE_SHORT_STAMPS	1
 
 #undef	UART_DRIVER
 #undef	UART_TCV

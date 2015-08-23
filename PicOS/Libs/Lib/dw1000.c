@@ -145,17 +145,13 @@ static word	antdelay = 0,
 // the reference driver) into a set of flags fitting one packed byte
 static chconfig_t mode;
 
-// Operation flags (only 3 used so far)
+// Binary flags
 static byte flags;
 
 // Location data; it may make sense to allocate it dynamically based on the
 // role (later); used primarily by the anchor thread, but the tag thread uses
 // a healthy chunk of it as well
 static dw1000_locdata_t locdata;
-
-// This aliases the upper 4 bytes of the TRR stamp which is used as the base
-// for calculating the predicatble transmit time of the Tag's FIN packet
-#define	trr_upper	(*((lword*)(locdata.tst + DW1000_TSOFF_TRR + 1)))
 
 // The thread
 sint __dw1000_v_drvprcs;
@@ -183,10 +179,10 @@ static void aonupload () {
 	chip_write (DW1000_REG_AON, 2, 1, &b);
 }
 
-// The manual says: in order to put the DW1000 into the SLEEP state
-// SLEEP_EN needs to be set in AON_CFG0 and then the configuration
-// needs to be uploaded to the AON using the UPL_CFG bit in AON_CTRL.
-// This assumes that SLEEP_EN is already set.
+// The manual says: in order to put the DW1000 into the SLEEP state SLEEP_EN
+// needs to be set in AON_CFG0 and then the configuration needs to be uploaded
+// to the AON using the UPL_CFG bit in AON_CTRL. This assumes that SLEEP_EN is
+// already set. Thus, in the right circumstances, aonupload acts like sleep.
 #define	tosleep()	aonupload ()
 
 static void xticlocks () {
@@ -204,11 +200,11 @@ static void softreset () {
 
 	word w;
 
-	// Clocks set to XTI, PKTSEQ cleared
+	// Clocks set to XTI
 	xticlocks ();
 	w = 0;
-	// This clears PKTSEQ in PMSC CTRL1, it must be set to 0xE7 for normal
-	// operation
+	// This clears PKTSEQ in PMSC CTRL1, it will be auto reset to 0xE7
+	// for normal operation
 	chip_write (DW1000_REG_PMSC, 4, 2, (byte*)&w);
 	// Clear any AON auto download bits (as reset will trigger AON download)
 	chip_write (DW1000_REG_AON, 0, 2, (byte*)&w);
@@ -220,7 +216,7 @@ static void softreset () {
 	// obsessive about not changing the unused/reserved bits in all those
 	// registers; perhaps we should adopt the same policy
 	chip_write (DW1000_REG_PMSC, 3, 1, (byte*)&w);
-	// They say, it needs 10us to let the PLL lock
+	// They say, it needs 10us for the PLL to lock
 	mdelay (20);
 	w = 0xf0;
 	chip_write (DW1000_REG_PMSC, 3, 1, (byte*)&w);
@@ -241,44 +237,160 @@ static lword read_otpm (word addr) {
 	return res;
 }
 
+static void toidle () {
+//
+// Put the chip into IDLE state
+//
+	byte b;
 
-static void wakeitup () {
+	b = 0x40;
+	chip_write (DW1000_REG_SYS_CTRL, 0, 1, &b);
+}
+
+static byte getevent () {
+//
+// Retrieves and clears the interrupt status
+//
+	lword status;
+	byte len;
+
+Redo:
+	chip_read (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+	// diag ("GE: %x%x", (word)(status >> 16), (word)status);
+
+	if (status & DW1000_IRQ_OTHERS) {
+		// These are not auto-cleared
+#if (DW1000_OPTIONS & 0x0001)
+		if (status & (DW1000_IRQ_CLKPLL_LL | DW1000_IRQ_RFPLL_LL))
+			diag ("LOCK! %x", (word)(status >> 16));
+#endif
+		status = DW1000_IRQ_OTHERS;
+		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+		goto Redo;
+	}
+
+	if (status & DW1000_IRQ_LDEDONE) {
+		// This is a walkaround for a bug (creatively copied from the
+		// reference driver). I wish I understood what I am doing.
+		// My plan is to base the operation solely on receive events.
+		// Say, the Tag starts a handshake by sending the first packet.
+		// It sets up RX after TX with RX timeout. We will set up the
+		// interrupt service for RX events only, assuming that the the
+		// TX event is uninteresting. After RX, the Tag sends the final
+		// packet of the handshake, and after TX it goes down until the
+		// next try (we may add n ACK later). The Peg waits for RX (no
+		// timeout). After RX, it does TX + RX and timeout. After the
+		// final RX, it calculated the distance.
+		if ((status & (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) !=
+		    (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) {
+			// Bad frame
+			goto Bad;
+		}
+	}
+
+	// If we check this before TX, then we may be OK for RX forcibly
+	// following TX (if we ever go for this option), if the mask ignores
+	// TX, but includes RX
+	if (status & DW1000_IRQ_RXFCG) {
+		// Receiver FCS OK
+		if ((status & DW1000_IRQ_LDEDONE) == 0)
+			goto Bad;
+		if ((status & DW1000_IRQ_RXOVRR))
+			goto Bad;
+		// Receive
+		chip_read (DW1000_REG_RX_FINFO, 0, 1, &len);
+		// This will mean "reception"
+		len &= 0x7f;
+Rtn:
+		// The device status should now be OK, so there is no need
+		// to disable RXTX, because we manually initiate transmission
+		// and reception, and do nothing else
+		status = DW1000_IRQ_ALLSANE;
+		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+		// diag ("GE: %d", len);
+		return len;
+	}
+
+	if (status & DW1000_IRQ_TXFRS) {
+		// Xmit done
+		len = DW1000_EVT_XMT;
+		goto Rtn;
+	}
+
+	if (status & DW1000_IRQ_RXRFTO) {
+		// Receive timeout; not sure if we are going to use this
+		// feature; it may be handy in the Tag waiting for a Peg
+		// response
+		len = DW1000_EVT_TMO;
+		// RX doesn't auto re-enable after frame wait timeout
+		goto Rtn;
+	}
+
+	// Do we need that? Yes, the manual explicitly says that we do.
+	if (status & DW1000_IRQ_RXERRORS) {
+Bad:
+		toidle ();
+		// Reset RX (the manual says we should do it after every
+		// perceived RX error; this makes me wonder if we can use
+		// RXAUTR at all
+		resetrx ();
+		len = DW1000_EVT_BAD;
+		goto Rtn;
+	}
+
+	// None
+	return DW1000_EVT_NIL;
+}
+
+static void wakeitup (Boolean hard) {
 //
 // Wakes up the chip from lp mode; note: for now we spin like crazy; this may
 // have to be reorganized into an FSM later
 //
 	word w;
 
-	// CS wakeup: pull down CS for a short while (10us should do)
+	// CS wakeup: pull down CS for a short while (10us should do); 
+	// udelay (50) seems to be too little, however (the loop below fails)
 	DW1000_SPI_START;
 	mdelay (1);
 	DW1000_SPI_STOP;
 
-	while (1) {
-		for (w = 0; w < 100; w++) {
-			mdelay (1);
-			// This is RST, which is supposed to come up after a
-			// not too longish while indicating that the chip is
-			// ready
-			if (dw1000_ready)
-				goto Ready;
-		}
+	for (w = 0; w < 100; w++) {
+		mdelay (1);
+		// This is RST, which is supposed to come up after a
+		// not too longish while indicating that the chip is
+		// ready
+		if (dw1000_ready)
+			goto Ready;
+	}
 
 #if (DW1000_OPTIONS & 0x0001)
-		diag ("WAKE TM");
-#else
-		syserror (EHARDWARE, "dw1");
+	diag ("WAKE TM");
 #endif
-	}
+	syserror (EHARDWARE, "dw1");
 
 	// After going through all those pains to detect when the chip gets up,
 	// they delay for about this much to "stabilize the crystal"
 Ready:
-	mdelay (90);
 
-	// Now we have to reload the TX antenna delay; this makes me wonder why
-	// bother; can't we just account for it in the formula?
-	chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
+#if DW1000_WAKEUP_TIME
+	mdelay (DW1000_WAKEUP_TIME);
+#endif
+
+	if (hard) {
+		// Reload the TX antenna delay; this makes me wonder why
+		// bother; can't we just account for it in the formula?
+		chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
+		// Reset the RX; note: this seems to prevent weird problems
+		// with the first communication episode after wakeup (like
+		// late FIN)
+		toidle ();
+		resetrx ();
+		// Clean up the interrupt status of any startup garbage; the
+		// role of this is to have a first go through the status bits
+		// removing those that won't go away by themselves
+		getevent ();
+	}
 }
 
 static void initialize () {
@@ -289,24 +401,23 @@ static void initialize () {
 	byte a, b;
 	lword lw, cf;
 
-	// This starts in slow mode
+	// This starts in slow mode (less than 3M) when using the USART
+	// variant of SPI. The manual (and the reference driver) says that
+	// before configuring PLL, the SPI rate is not supposed to exceed 3M.
+	// With the direct-pin implementation, things are always fine, because
+	// the SPI rate appears then to be about 500K, but with the USART
+	// variant, we get a rate in excess of 10M, so we have to worry
 	dw1000_spi_init;
 	// There is no way to easily and authoritatively reset the chip; RST
 	// is down when in sleep, so to make the pull down meaningful, you
 	// have to bring it up first; this presumes that wake (by CS) has been
 	// configured; other than that, it is power down and up again
-	wakeitup ();
+	wakeitup (NO);
 	softreset ();
 	DW1000_RESET;	// Hard reset
 
-	// Before configuring PLL, the SPI rate is not supposed to exceed 3M
-	// I am not sure how fast we can ever get, probably not much faster
-	// than that, so let us just ignore this little issue and keep our
-	// fingers crossed
-
 	// The reference driver sets the clocks to XTI for reading OTP, it says
-	// that otherwise the operation is unreliable; I think that this
-	// amounts to setting the LSB of PMSC CTRL0 to 0x01
+	// that otherwise the operation is unreliable
 	xticlocks ();
 
 #if (DW1000_OPTIONS & 0x0001)
@@ -315,7 +426,10 @@ static void initialize () {
 #endif
 
 	// Read and preserve antenna delay; will be set manually on every wake,
-	// so we just make sure it is handy
+	// so we just make sure it is handy. FIXME: perhaps we should get rid
+	// of the antenna delay (assume it is zero), because the preliminary
+	// experiments indicate that calibration is going to be needed and,
+	// IMHO, the best place to store all the adjustments is the OSS
 	lw = read_otpm (DW1000_ADDR_ANTDELAY);
 	antdelay = (word)((mode.prf ? (lw >> 16) : lw) & 0xffff);
 
@@ -510,8 +624,8 @@ static void initialize () {
 
 	if (flags & DW1000_FLG_ANCHOR)
 		// This is the fixed length of the anchor's response; there are
-		// two different lengths: 9 and 24 (including FCS) for a Tag
-		lw |= 11;
+		// two different lengths for a Tag
+		lw |= DW1000_FRLEN_ARESP;
 
 	chip_write (DW1000_REG_TX_FCTRL, 0, 4, (byte*)&lw);
 
@@ -520,145 +634,15 @@ static void initialize () {
 
 	// ====================================================================
 
-#if 0
-	// Sorry, cannot do this, because the buffer doesn't survive sleep
-	// Preset the transmit buffer: this is common for both modes (PAN
-	// follows the sequence number)
-	chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
-
-	if (flags & DW1000_FLG_ANCHOR) {
-		// Frame control bytes are 41 88 (short destination address,
-		// short source address, pan compression, frame type = data
-		w = 0x8841;
-		v = 7;
-	} else {
-		// Frame control bytes are 01 80 (no destination address,
-		// short source address, frame type = data; the buffer
-		// layout is: 01 80 SQ PAN PAN SRC SRC ...; the length is
-		// 7 (for the initial poll) and 22 (for the fin message which
-		// additionally includes 3 * 5 = 15 bytes of timestamps); note
-		// that the stored length must include two extra bytes for FCS
-		w = 0x8001;
-		// Position of source address
-		v = 5;
-	}
-	chip_write (DW1000_REG_TX_BUFFER, 0, 2, (byte*)&w);
-	chip_write (DW1000_REG_TX_BUFFER, v, 2, (byte*)&host_id);
-#endif
-
-	// ====================================================================
+	// Assume fast SPI; this is void when SPI is direct-pin
+	dw1000_spi_fast;
 
 	// Enter sleep
-	dw1000_spi_fast;
 	tosleep ();
+
 #if (DW1000_OPTIONS & 0x0001)
 	diag ("INIT OK");
 #endif
-}
-
-static void toidle () {
-//
-// Put the chip into IDLE state
-//
-	byte b;
-
-	b = 0x40;
-	chip_write (DW1000_REG_SYS_CTRL, 0, 1, &b);
-}
-
-static byte getevent () {
-//
-// Retrieves and clears the interrupt status
-//
-	lword status;
-	byte len;
-
-Redo:
-	chip_read (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
-	// diag ("GE: %x%x", (word)(status >> 16), (word)status);
-
-	if (status & DW1000_IRQ_OTHERS) {
-		// These are not auto-cleared
-#if (DW1000_OPTIONS & 0x0001)
-		if (status & (DW1000_IRQ_CLKPLL_LL | DW1000_IRQ_RFPLL_LL))
-			diag ("LOCK! %x", (word)(status >> 16));
-#endif
-		status = DW1000_IRQ_OTHERS;
-		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
-		goto Redo;
-	}
-
-	if (status & DW1000_IRQ_LDEDONE) {
-		// This is a walkaround for a bug (creatively copied from the
-		// reference driver). I wish I understood what I am doing.
-		// My plan is to base the operation solely on receive events.
-		// Say, the Tag starts a handshake by sending the first packet.
-		// It sets up RX after TX with RX timeout. We will set up the
-		// interrupt service for RX events only, assuming that the the
-		// TX event is uninteresting. After RX, the Tag sends the final
-		// packet of the handshake, and after TX it goes down until the
-		// next try (we may add n ACK later). The Peg waits for RX (no
-		// timeout). After RX, it does TX + RX and timeout. After the
-		// final RX, it calculated the distance.
-		if ((status & (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) !=
-		    (DW1000_IRQ_RXPHD | DW1000_IRQ_RXSFDD)) {
-			// Bad frame
-			goto Bad;
-		}
-	}
-
-	// If we check this before TX, then we may be OK for RX forcibly
-	// following TX (if we ever go for this option), if the mask ignores
-	// TX, but includes RX
-	if (status & DW1000_IRQ_RXFCG) {
-		// Receiver FCS OK
-		if ((status & DW1000_IRQ_LDEDONE) == 0)
-			goto Bad;
-		if ((status & DW1000_IRQ_RXOVRR))
-			goto Bad;
-		// Receive
-		chip_read (DW1000_REG_RX_FINFO, 0, 1, &len);
-		// This will mean "reception"
-		len &= 0x7f;
-Rtn:
-		// The device status should now be OK, so there is no need
-		// to disable RXTX, because we manually initiate transmission
-		// and reception, and do nothing else
-		status = DW1000_IRQ_ALLSANE;
-		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
-		// diag ("GE: %d", len);
-		return len;
-	}
-
-	if (status & DW1000_IRQ_TXFRS) {
-		// Xmit done
-		len = DW1000_EVT_XMT;
-		goto Rtn;
-	}
-
-	if (status & DW1000_IRQ_RXRFTO) {
-		// Receive timeout; not sure if we are going to use this
-		// feature; it may be handy in the Tag waiting for a Peg
-		// response
-		len = DW1000_EVT_TMO;
-		// RX doesn't auto re-enable after frame wait timeout
-		goto Rtn;
-	}
-
-	// Do we need that? Yes, the manual explicitly says that we do.
-	if (status & DW1000_IRQ_RXERRORS) {
-Bad:
-		toidle ();
-		// Reset RX (the manual says we should do it after every
-		// perceived RX error; this makes me wonder if we can use
-		// RXAUTR at all
-		resetrx ();
-		len = DW1000_EVT_BAD;
-		goto Rtn;
-	}
-
-	// None
-	return DW1000_EVT_NIL;
 }
 
 static void irqenable (lword mask) {
@@ -699,7 +683,11 @@ static void starttx_n_release (word st, word del, word ds) {
 	delay (del, ds);
 	wait (&__dw1000_v_drvprcs, st);
 
-	// We only care about the subsequent receive
+	// We only care about the subsequent receive (and we also delay on
+	// a timeout), so we ignore the intermediate TX interrupt assuming
+	// it will have occurred (and the TX will have completed) when we get
+	// the RX interrupt. The chip stores all the info pertaining to the TX
+	// in a way that does not collide with the RX info.
 	irqenable (DW1000_IRQ_RECEIVE);
 
 	// TXSTRT + WAIT4RESP
@@ -724,11 +712,9 @@ thread (dw1000_anchor)
 
     entry (DWA_INIT)
 
-	wakeitup ();
+	wakeitup (YES);
 
 	_BIC (flags, DW1000_FLG_LDREADY);
-	// Initial cleanup
-	getevent ();
 
 	// Preset the fixed fragments of transmit buffer; must be done after
 	// wakeup, as the preset doesn't survive sleep
@@ -885,8 +871,8 @@ thread (dw1000_range)
 		_BIC (flags, DW1000_FLG_REVERTPD);
 	}
 
-	// We wake it up for a single episode; this will change later
-	wakeitup ();
+	// We wake it up for a single episode
+	wakeitup (YES);
 
 	// Use this as the try counter
 	locdata.tag = DW1000_MAX_TTRIES;
@@ -912,8 +898,7 @@ thread (dw1000_range)
 	chip_write (DW1000_REG_TX_BUFFER, 2, 1, &(locdata.seq));
 	// Set the length
 	{
-		byte e = 9;
-
+		byte e = DW1000_FRLEN_TPOLL;
 		chip_write (DW1000_REG_TX_FCTRL, 0, 1, &e);
 	}
 
@@ -922,8 +907,20 @@ thread (dw1000_range)
     entry (RAN_ANCHOR)
 
 	{
+		// We need these to copy the TRR time stamp in such a way
+		// that its bytes 1-4 are aligned into a lword (we need it
+		// for the arithmetics); the LS byte is still needed as
+		// well
+		word _trr [3];
+
+// This is the TRR stamp array of bytes
+#define	trr		(((byte*)_trr) + 1)
+// This is "upper" word we have in mind, i.e., bytes 1-4
+#define	trr_upper	((lword*)(_trr + 1))
+// This is a handy extra byte
+#define	e		(*((byte*)_trr))
+
 #if (DW1000_OPTIONS & 0x0001)
-		byte e;
 		if ((e = getevent ()) != DW1000_FRLEN_ARESP) {
 			diag ("RCP BAD: %x", e);
 			goto tpoll_more;
@@ -932,39 +929,44 @@ thread (dw1000_range)
 		if (getevent () != DW1000_FRLEN_ARESP)
 			goto tpoll_more;
 #endif
-		{
-			byte e;
-			chip_read (DW1000_REG_RX_BUFFER, 2, 1, &e);
-			if (e != locdata.seq)
-				// Pointless for sure
-				goto tpoll_more;
-		}
+		chip_read (DW1000_REG_RX_BUFFER, 2, 1, &e);
+		if (e != locdata.seq)
+			// Pointless for sure
+			goto tpoll_more;
 
 		// Save the time stamps: previous TX
 		chip_read (DW1000_REG_TX_TIME, 0, DW1000_TSTAMP_LEN,
 			locdata.tst + DW1000_TSOFF_TSP);
 
-		// ... and the current RX
-		chip_read (DW1000_REG_RX_TIME, 0, DW1000_TSTAMP_LEN,
-			locdata.tst + DW1000_TSOFF_TRR);
+		// ... and the current RX; we need the whole thing because
+		// it will be used as a reference
+		chip_read (DW1000_REG_RX_TIME, 0, 5, trr);
+		memcpy (locdata.tst + DW1000_TSOFF_TRR, trr, DW1000_TSTAMP_LEN);
 
 		// Set the length of the FIN packet
 		{
-			byte b = 24;
+			byte b = DW1000_FRLEN_TFIN;
 			chip_write (DW1000_REG_TX_FCTRL, 0, 1, &b);
 		}
 
-		// Calculate the transmit time of FIN packet
-		// FIXME: read current time instead of using RX and see if it
-		// isn't better
-		{
-			lword t = (trr_upper + DW1000_FIN_DELAY) & ~(lword)1;
-			chip_write (DW1000_REG_DX_TIME, 1, 4, (byte*)&t);
-			// Now for the adjusted time to insert into the packet
-			t += *(((byte*)&antdelay) + 1);
-			memcpy (locdata.tst + DW1000_TSOFF_TSF + 1, &t, 4);
-			*(locdata.tst + DW1000_TSOFF_TSF) = (byte)antdelay;
-		}
+		// Calculate the transmit time of the FIN packet (using a fixed
+		// offset w.r.t. the reception time of RESP
+		*trr_upper = (*trr_upper + DW1000_FIN_DELAY) & ~(lword)1;
+		// The least significant 9 bits of the timer are always zero;
+		// so we write the 4 MS bytes - the rightmost bit
+		chip_write (DW1000_REG_DX_TIME, 1, 4, (byte*)trr_upper);
+		// Now for the adjusted time to insert into the packet; the
+		// marker will be dispatched at the preset time + antenna delay
+		// (isn't this another good reason to get rid of the antenna
+		// delay)
+		*trr_upper += *(((byte*)&antdelay) + 1);
+		memcpy (locdata.tst + DW1000_TSOFF_TSF + 1, trr_upper, 
+			DW1000_TSTAMP_LEN - 1);
+		// And the adjusted LSB
+		*(locdata.tst + DW1000_TSOFF_TSF) = (byte)antdelay;
+
+		// FIXME: it might be faster to write the stamps independetly
+		// into the TX buffer
 
 		chip_write (DW1000_REG_TX_BUFFER, 7, 3 * DW1000_TSTAMP_LEN,
 			locdata.tst + DW1000_TSOFF_TSP);
@@ -979,6 +981,10 @@ thread (dw1000_range)
 			// Verify not late
 			chip_read (DW1000_REG_SYS_STATUS, 3, 1, &b);
 			if (b & 0x08) {
+				// If this status bit is set immediately after
+				// delayed TX start, it means that the timer
+				// is further than 1/2 of the cycle ahead,
+				// i.e., we are late
 #if (DW1000_OPTIONS & 0x0001)
 				diag ("FIN LATE");
 #endif
@@ -989,6 +995,10 @@ thread (dw1000_range)
 		dw1000_int_enable;
 		release;
 	}
+
+#undef 	trr
+#undef	trr_upper
+#undef	e
 			
     entry (RAN_FIN)
 
@@ -1026,6 +1036,9 @@ tpoll_more:
 
 endthread
 
+// ============================================================================
+// Externally visible functions for starting, stopping, and implementing the
+// sensor and the actuator
 // ============================================================================
 
 void dw1000_start (byte md, byte rl, word ni) {

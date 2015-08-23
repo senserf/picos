@@ -16,6 +16,19 @@
 #define	DW1000_OPTIONS		0x0000
 #endif
 
+#ifndef	DW1000_USE_SHORT_STAMPS
+#define	DW1000_USE_SHORT_STAMPS	0
+#endif
+
+// The length of time stamp in bytes
+#if DW1000_USE_SHORT_STAMPS
+#define	DW1000_TSTAMP_LEN	4
+#else
+#define	DW1000_TSTAMP_LEN	5
+#endif
+
+// ============================================================================
+// Registers
 // ============================================================================
 
 #define	DW1000_REG_DEVID	0x00
@@ -47,6 +60,8 @@
 #define	DW1000_REG_TX_ANTD	0x18
 #define	DW1000_REG_SYS_TIME	0x06
 
+// ============================================================================
+// Interrupt flags
 // ============================================================================
 
 #define	DW1000_IRQ_ICRBP	0x80000000
@@ -127,12 +142,17 @@
 #define	DW1000_IRQ_TRANSMIT	(DW1000_IRQ_TXFRS)
 
 // ============================================================================
+// Event types returned by getevent after an interrupt
+// ============================================================================
 
-#define	DW1000_EVT_BAD		0x80
-#define	DW1000_EVT_XMT		0x81
-#define	DW1000_EVT_TMO		0x82
-#define	DW1000_EVT_NIL		0x00
+#define	DW1000_EVT_BAD		0x80		// Error
+#define	DW1000_EVT_XMT		0x81		// Xmit done
+#define	DW1000_EVT_TMO		0x82		// Timeout
+#define	DW1000_EVT_NIL		0x00		// Void
+// Note: after RX, the function returns frame length
 
+// ============================================================================
+// Configuration flags
 // ============================================================================
 
 #define	DW1000_CF_FFEN		0x00000001
@@ -147,11 +167,17 @@
 #define	DW1000_CF_RXAUTR	0x20000000	// RX auto re-enable
 
 // ============================================================================
+// Some OTP addresses
+// ============================================================================
 
 #define	DW1000_ADDR_LDOTUNE	0x04
 #define	DW1000_ADDR_ANTDELAY	0x1c
 #define	DW1000_ADDR_XTRIM	0x1e
 #define	DW1000_ADDR_TXCONF	0x10
+
+// ============================================================================
+// AON flags 
+// ============================================================================
 
 #define	DW1000_ONW_LDC		0x0040		// AON_WCFG load user config
 #define	DW1000_ONW_L64P		0x0080		// AON_WCFG L64P
@@ -163,36 +189,52 @@
 #define	DW1000_CF0_SLEEP_EN	0x01		// AON_CF0 sleep enable
 #define	DW1000_CF0_WAKE_SPI	0x04		// AON_CF0 wake on SPI
 
-//! Constants for selecting the bit rate for data TX (and RX)
-//! These are defined for write (with just a shift) the TX_FCTRL register
-#define DW1000_BR_110K		0	//!< UWB bit rate 110 kbits/s
-#define DW1000_BR_850K		1	//!< UWB bit rate 850 kbits/s
-#define DW1000_BR_6M8		2	//!< UWB bit rate 6.8 Mbits/s
+// ============================================================================
+// Constants for selecting the bit rate for data TX (and RX)
+// ============================================================================
 
-//! Constants for specifying the (Nominal) mean Pulse Repetition Frequency
-//! These are defined for direct write (with a shift if necessary) to
-//! CHAN_CTRL and TX_FCTRL regs
+#define DW1000_BR_110K		0	// UWB bit rate 110 kbits/s
+#define DW1000_BR_850K		1	// UWB bit rate 850 kbits/s
+#define DW1000_BR_6M8		2	// UWB bit rate 6.8 Mbits/s
+
+// ============================================================================
+// Constants for specifying the (nominal) mean Pulse Repetition Frequency
+// ============================================================================
+
 #define DW1000_PRF_16M		1	//!< UWB PRF 16 MHz
 #define DW1000_PRF_64M		2	//!< UWB PRF 64 MHz
 
-//! Constants for specifying Preamble Acquisition Chunk (PAC) Size in symbols
+// ============================================================================
+// Constants for specifying Preamble Acquisition Chunk (PAC) Size in symbols
+// ============================================================================
+
 #define DW1000_PAC8		0	//!< PAC  8 (preamble 128 and below)
 #define DW1000_PAC16		1	//!< PAC 16 (256)
 #define DW1000_PAC32		2	//!< PAC 32 (512)
 #define DW1000_PAC64		3	//!< PAC 64 (1024 and up)
 
-//! constants for specifying TX Preamble length in symbols defined to allow
-//! them be directly written into byte 2 of the TX_FCTRL register (i.e. a four
+// ============================================================================
+// Constants for specifying TX Preamble length in symbols defined to allow
+// them be directly written into byte 2 of the TX_FCTRL register (i.e. a four
 // bit value destined for bits 20..18 but shifted left by 2 for byte alignment)
-#define DW1000_PLEN_4096 0x0C	//! Standard preamble length 4096 symbols
-#define DW1000_PLEN_2048 0x28	//! Non-standard preamble length 2048 symbols
-#define DW1000_PLEN_1536 0x18	//! Non-standard preamble length 1536 symbols
-#define DW1000_PLEN_1024 0x08	//! Standard preamble length 1024 symbols
-#define DW1000_PLEN_512	 0x34	//! Non-standard preamble length 512 symbols
-#define DW1000_PLEN_256	 0x24	//! Non-standard preamble length 256 symbols
-#define DW1000_PLEN_128	 0x14	//! Non-standard preamble length 128 symbols
-#define DW1000_PLEN_64	 0x04	//! Standard preamble length 64 symbols
+// ============================================================================
 
+#define DW1000_PLEN_4096 0x0C	// Standard preamble length 4096 symbols
+#define DW1000_PLEN_2048 0x28	// Non-standard preamble length 2048 symbols
+#define DW1000_PLEN_1536 0x18	// Non-standard preamble length 1536 symbols
+#define DW1000_PLEN_1024 0x08	// Standard preamble length 1024 symbols
+#define DW1000_PLEN_512	 0x34	// Non-standard preamble length 512 symbols
+#define DW1000_PLEN_256	 0x24	// Non-standard preamble length 256 symbols
+#define DW1000_PLEN_128	 0x14	// Non-standard preamble length 128 symbols
+#define DW1000_PLEN_64	 0x04	// Standard preamble length 64 symbols
+
+// ============================================================================
+// Compressed (to one byte) data structure representing the various RF configs
+// which I've basically copied (the configs, not the structure) from the
+// reference driver. As the paramaters of those configurations come from a
+// reduced set, I was able to use bits and one short field instead of full
+// values
+// ============================================================================
 typedef struct {
 	byte	channel:1,	// Boolean: 0 - 2, 1 - 5
 		prf:1,		// PRF code, also Boolean: 0 - 16M, 1 - 64M
@@ -203,8 +245,10 @@ typedef struct {
 		pacsize:2;	// PAC selection: 0 through 3
 } chconfig_t;
 
-// Preamble selection determines SFD timeout: 0 - 129, 1 - 1057
+// Preamble selection determines SFD timeout: 0 - 129, 1 - 1057, so there is no
+// need to store it (sfdto) in the structure
 #define	dw1000_sfdto		(mode.preamble ? 1057 : 129)
+
 #define	dw1000_channel		(mode.channel ? 5 : 2)
 #define	dw1000_precode		(mode.precode ? 9 : 3)
 #define	dw1000_prf		(mode.prf ? DW1000_PRF_64M : DW1000_PRF_16M)
@@ -216,8 +260,13 @@ typedef struct {
 
 #ifdef	DW1000_DEFINE_RF_SETTINGS
 
+// ============================================================================
 // The configuration options to choose from; I am copying them creatively
 // from Deca driver (8 options). We may settle later on something fixed.
+// ============================================================================
+
+// Options: 0, 2-7 work, 2 produces funny TRP sometimes, as if the reception
+// of POLL at anchor couldn't be properly timed
 
 static const chconfig_t chconfig [] = {
 //         CH PRF PCO NSF RAT PRE PAC
@@ -231,11 +280,13 @@ static const chconfig_t chconfig [] = {
 	{  1,  1,  1,  0,  1 , 0,  DW1000_PAC8   }
 };
 
+// RF PLL configuration values: five values per channel
 static const byte __pll2_config [2][5] = {
 	{ 0x08, 0x05, 0x40, 0x08, 0x26 },	// 4 Ghz, channel 2
 	{ 0x1d, 0x04, 0x00, 0x08, 0xa6 }	// 6.5 Ghz, channel 5
 };
 
+// dtune2 values, one value for each PRF/PAC pair
 static const lword __digital_bb_config [2][4] = {
         { 0x311A002D, 0x331A0052, 0x351A009A, 0x371A011D },
         { 0x313B006B, 0x333B00BE, 0x353B015E, 0x373B0296 }
@@ -243,11 +294,15 @@ static const lword __digital_bb_config [2][4] = {
 
 #endif
 
+// ============================================================================
 // Default antenna delays (calculation copied from reference driver)
+// ============================================================================
+
 #define	DW1000_64M_RFDELAY	514.462
 #define	DW1000_16M_RFDELAY	513.9067
 
-#define DW1000_TIME_UNIT	(1.0/499.2e6/128.0)	// !< = 15.65e-12 s
+// Time resolution for packet flight timing
+#define DW1000_TIME_UNIT	(1.0/499.2e6/128.0)	// = 15.65e-12 s
 
 #define	__dw1000_rfdelay(b)	((word)((((b) / 2.0) * 1e-9) / \
 					DW1000_TIME_UNIT))
@@ -255,24 +310,26 @@ static const lword __digital_bb_config [2][4] = {
 				      __dw1000_rfdelay (DW1000_64M_RFDELAY) : \
 				      __dw1000_rfdelay (DW1000_16M_RFDELAY) )
 
-// Pulse generator calibration (see txSpectrumConfig in the reference driver)
+// Pulse generator calibration
 #define dw1000_def_pgdelay	(mode.channel ? 0xc0 : 0xc2)
 
-// Default TX power (see txSpectrumConfig in the reference driver)
+// Default TX power
 #define	dw1000_def_txpower	(mode.channel ? (mode.prf ? 0x25456585 : \
 					0x0E082848) : (mode.prf ? 0x07274767 : \
 						0x15355575))
 
-// Copied from lde_replicaCoeff in the reference driver (for preamble codes 9
-// and 3
+// According to the RD, smart power is enabled when data rate is 6M8
+#define	dw1000_use_smartpower	(mode.datarate)
+
+// ============================================================================
+// LDE configuration parameters
+// ============================================================================
+
 #define	__dw1000_lde_coeff	((word)((mode.precode ? (0.16 * 65536) : \
 					(0.32 * 65536))))
 // For 110K, it must be divided by 8
 #define	dw1000_lde_coeff	(mode.datarate ? __dw1000_lde_coeff : \
 					__dw1000_lde_coeff >> 3)
-
-// According to the RD, smart power is enabled when data rate is 6M8
-#define	dw1000_use_smartpower	(mode.datarate)
 
 #define	DW1000_LDE_PARAM1	(0x60 | 13)
 
@@ -282,7 +339,10 @@ static const lword __digital_bb_config [2][4] = {
 
 #define	DW1000_PLL2_CALCFG	(0x60 | 0x10)
 
-// This is for narrow bandwitdh, which is our case
+// ============================================================================
+// Receiver configuration params
+// ============================================================================
+
 #define	DW1000_RX_CONFIG	0xd8
 
 #define	dw1000_rf_txctrl	(mode.channel ? 0x001e3fe0 : 0x00045ca0)
@@ -302,31 +362,31 @@ static const lword __digital_bb_config [2][4] = {
 #define	dw1000_dwnssfdl		(mode.datarate ? 0x08 : 0x40)
 
 // ============================================================================
+// Handshake frame lengths (including FCS)
+// ============================================================================
 
-// Location handshake frame lengths (including FCS)
 #define	DW1000_FRLEN_TPOLL	9
 #define	DW1000_FRLEN_ARESP	11
 #define	DW1000_FRLEN_TFIN	24
 
 // ============================================================================
-// ============================================================================
 
 extern sint __dw1000_v_drvprcs;
 
+// ============================================================================
 // Flags
-#define	DW1000_FLG_ANCHOR	0x01
-#define	DW1000_FLG_LDREADY	0x02
-#define	DW1000_FLG_ACTIVE	0x04
-#define	DW1000_FLG_REVERTPD	0x08
+// ============================================================================
 
-// We may try to reduce it to four bytes, if the timing is right
-#define	DW1000_TSTAMP_LEN	5
+#define	DW1000_FLG_ANCHOR	0x01	// Anchor mode
+#define	DW1000_FLG_LDREADY	0x02	// Location data ready
+#define	DW1000_FLG_ACTIVE	0x04	// Module active
+#define	DW1000_FLG_REVERTPD	0x08	// Revert to powerdown when done
 
 typedef struct {
 //
 // The things are arranged such that the second significant byte of
 // TRR, which we need as the base for calculating the transmit time of FIN,
-// is aligned at 4-byte boundary, so we can use it as a longword in direct
+// is aligned at 2-byte boundary, so we can use it as a longword in direct
 // arithmetic
 //
 	word tag;				// Source
@@ -334,6 +394,12 @@ typedef struct {
 	byte seq;				// Sequence number
 
 } dw1000_locdata_t;
+
+// Delay after formal wakeup until we can say that the clock has stabilized
+// (in mdelay milliseconds); note: the reference driver uses some long delay
+// of order 80 milliseconds or so; I see that things appear to work with 0,
+// but am not sure if this doesn't affect the accuracy or something
+#define	DW1000_WAKEUP_TIME	0
 
 // Offsets into time stamps
 #define	DW1000_TSOFF_TSP	(DW1000_TSTAMP_LEN * 0)
@@ -349,33 +415,32 @@ typedef struct {
 // This cannot be shortened any more
 #define	DW1000_TMOUT_ARESP	7
 
-// According to the manual, the resolution of time stamps is 1/(128*499.2*10^6)
-// seconds, which means 1/63897600000 seconds, or 1.565 * 10^-11 seconds. When
-// we remove the least significant byte (for FIN time calculation), we get ca.
-// 4 * 10^-9, i.e., 4 nanoseconds. This is the unit of the processing delay:
-// here the first part is in microseconds (rather generous, but we shall see).
+// The resolution of time stamps is 1/(128*499.2*10^6) seconds, which means
+// 1/63897600000 seconds, or 1.565 * 10^-11 seconds. A 40-bit timer covers
+// about 17.2 seconds (this is the wrap around time). I have considered using
+// only 4 least significant bytes, which is about 67ms. Considering that a
+// handshake takes ca. 10ms, this may work, so perhaps we should try.
 
-// This also seems to be at the minimum (in reference to the RX time of RESP)
+// Fixed offset from RESP reception to FIN TX. This seems to be at the minimum
+// (my attempts to reduce below these values haven't succeeded). When we remove
+// the least significant byte (for FIN time calculation), we get ca. 4 * 10^-9,
+// i.e., 4 nanoseconds. This is the unit of the processing delay: here the
+// first part is in microseconds, the 250 is to bring the 4ns to a millisecond.
+// DW1000_FIN_DELAY can be reduced to 2500 when the data rate is 6.8M.
 #if DW1000_USE_SPI
 #define	DW1000_FIN_DELAY	(3000L * 250L)
 #else
 #define	DW1000_FIN_DELAY	(4000L * 250L)
 #endif
 
-// The amount of ON time of the Tag needed to carry out a complete exchange is
-// now about 92ms (measured on the oscilloscope as the high time of RST)
-
 // The maximum number of tries for Tag polls until the successful transmission
 // of FIN
 #define	DW1000_MAX_TTRIES	4
 
-// Inter try delay
+// Inter try delay (PicOS milliseconds)
 #define	DW1000_TPOLL_DELAY	10
 
-// Room for the (tentative) API; for now, I propose to treat this as a sensor
-// generating events and returning readings consisting of pairs: Node Id,
-// distance (maybe some more, like a timestamp). Probably, after each reading,
-// we should reset it for the next measurement.
+// The (tentative) API
 
 void dw1000_start (byte, byte, word);
 void dw1000_stop ();

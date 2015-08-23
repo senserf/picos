@@ -103,14 +103,18 @@ fsm peg_thread {
 
 	lword lw;
 
-	if (cnt >= 30)
+	if (cnt >= 6 * DW1000_TSTAMP_LEN)
 		sameas EVENT;
 
 	memcpy (&lw, location.tst + cnt, 4);
 
+#if DW1000_TSTAMP_LEN == 4
+	ser_outf (SHOWTS, "%lx\r\n", lw);
+#else
 	ser_outf (SHOWTS, "%x%lx\r\n", location.tst [cnt + 4], lw);
+#endif
 
-	cnt += 5;
+	cnt += DW1000_TSTAMP_LEN;
 	sameas SHOWTS;
 }
 

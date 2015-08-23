@@ -12,7 +12,7 @@ proc diff { a b } {
 # numbers
 #
 	if { $a < $b } {
-		set a [expr { $a + 0x10000000000 }]
+		set a [expr { $a + 0x100000000 }]
 	}
 
 	return [expr { $a - $b }]

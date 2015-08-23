@@ -4527,3 +4527,17 @@ PG150821A:
 	option to use fast (about 20MHz) SPI rate for chip-uC communication
 	(using USART rather than direct pin operations), which (slightly)
 	reduces the handshake time.
+
+PG150823A:
+
+	Further cleanups and improvements to the dw1000 driver. I have trimmed
+	some delays, added a compilation option to use 4-byte time stamps for
+	presentation (in the value returned by the sensor), i.e., removing the
+	most significant byte from the 4-bit value, and tested the remaining 7
+	RF modes. They all work except for mode 2 which, apparently, causes
+	problems with packet timing (some time stamps come up nonsensical).
+
+	Come to think of it, with the 4-byte (longword) time stamp option, the
+	value returned by the sensor can be reduced to two TOF values (the
+	differentials can be comfortably calculated by the Peg). This would
+	reduce the size of the sensor value to 11 (well, 12) bytes (from 28).
