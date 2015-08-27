@@ -4541,3 +4541,9 @@ PG150823A:
 	value returned by the sensor can be reduced to two TOF values (the
 	differentials can be comfortably calculated by the Peg). This would
 	reduce the size of the sensor value to 11 (well, 12) bytes (from 28).
+
+PG150827A:
+
+	Reorganized the options for the dw1000 driver. Added an option to
+	remove the internal antenna delay offset, which is probaly useless in
+	our (prospective) applications. This is explained in the driver doc.

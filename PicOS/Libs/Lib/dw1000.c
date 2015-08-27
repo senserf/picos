@@ -106,7 +106,7 @@ static void chip_trans (byte reg, word index) {
 	}
 }
 
-#if !(DW1000_OPTIONS & 0x0001)
+#if !(DW1000_OPTIONS & DW1000_OPT_DEBUG)
 static
 #endif
 void chip_write (byte reg, word index, word length, byte *stuff) {
@@ -119,7 +119,7 @@ void chip_write (byte reg, word index, word length, byte *stuff) {
 	DW1000_SPI_STOP;
 }
 
-#if !(DW1000_OPTIONS & 0x0001)
+#if !(DW1000_OPTIONS & DW1000_OPT_DEBUG)
 static
 #endif
 void chip_read (byte reg, word index, word length, byte *stuff) {
@@ -135,11 +135,13 @@ void chip_read (byte reg, word index, word length, byte *stuff) {
 // ============================================================================
 // ============================================================================
 
-// Not sure if we need to store ldotune, probably not, but TX antenna delay
-// must be restored after every wakeup (documented chip bug); note that antenna
-// delay is different for PRF64 and PRF16
-static word	antdelay = 0,
-		pan = 0;		// PAN
+static word	pan = 0;
+
+#if !(DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
+// TX antenna delay must be restored after every wakeup (documented chip bug);
+// note that antenna delay is different for PRF64 and PRF16
+static word	antdelay = 0;
+#endif
 
 // This is the mode byte (I have turned the selections, identical to those of
 // the reference driver) into a set of flags fitting one packed byte
@@ -260,7 +262,7 @@ Redo:
 
 	if (status & DW1000_IRQ_OTHERS) {
 		// These are not auto-cleared
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 		if (status & (DW1000_IRQ_CLKPLL_LL | DW1000_IRQ_RFPLL_LL))
 			diag ("LOCK! %x", (word)(status >> 16));
 #endif
@@ -364,7 +366,7 @@ static void wakeitup (Boolean hard) {
 			goto Ready;
 	}
 
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 	diag ("WAKE TM");
 #endif
 	syserror (EHARDWARE, "dw1");
@@ -378,9 +380,17 @@ Ready:
 #endif
 
 	if (hard) {
+#if !(DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
 		// Reload the TX antenna delay; this makes me wonder why
 		// bother; can't we just account for it in the formula?
 		chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
+#endif
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
+		chip_read (DW1000_REG_TX_ANTD, 0, 2, (byte*)&w);
+		diag ("TXAD %x", w);
+		chip_read (DW1000_REG_LDE_IF, 0, 2, (byte*)&w);
+		diag ("RXAD %x", w);
+#endif
 		// Reset the RX; note: this seems to prevent weird problems
 		// with the first communication episode after wakeup (like
 		// late FIN)
@@ -420,11 +430,12 @@ static void initialize () {
 	// that otherwise the operation is unreliable
 	xticlocks ();
 
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 	chip_read (DW1000_REG_DEVID, 0, 4, (byte*)&lw);
 	diag ("DWINIT: %x%x", (word)(lw >> 16), (word) lw);
 #endif
 
+#if !(DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
 	// Read and preserve antenna delay; will be set manually on every wake,
 	// so we just make sure it is handy. FIXME: perhaps we should get rid
 	// of the antenna delay (assume it is zero), because the preliminary
@@ -432,15 +443,14 @@ static void initialize () {
 	// IMHO, the best place to store all the adjustments is the OSS
 	lw = read_otpm (DW1000_ADDR_ANTDELAY);
 	antdelay = (word)((mode.prf ? (lw >> 16) : lw) & 0xffff);
-
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 	diag ("OTPAD: %u", antdelay);
 #endif
 	// Determine the actual delay to use
 	if (antdelay == 0)
 		// Use some default delay as per reference driver
 		antdelay = dw1000_def_rfdelay (mode.prf);
-
+#endif
 	// AON wakeup configuration; L64P is only set for 64B preamble, which
 	// we don't use; not sure if PRES_SLEEP is needed at this stage
 	w = DW1000_ONW_LDC | DW1000_ONW_LLDE | DW1000_ONW_PRES_SLEEP;
@@ -449,8 +459,8 @@ static void initialize () {
 		// LDO_KICK, whatever it is
 		chip_write (DW1000_REG_OTP_IF, 0x12, 1, &b);
 		w |= DW1000_ONW_LLDO;
-#if (DW1000_OPTIONS & 0x0001)
-		diag ("LDOTUNE: %x", b);
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
+		diag ("OTPLDT: %x", b);
 #endif
 	}
 	chip_write (DW1000_REG_AON, 0, 2, (byte*)&w);
@@ -629,9 +639,10 @@ static void initialize () {
 
 	chip_write (DW1000_REG_TX_FCTRL, 0, 4, (byte*)&lw);
 
+#if !(DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
 	// Write RX antenna delay, TX delay will be written on wakeup
 	chip_write (DW1000_REG_LDE_IF, 0x1804, 2, (byte*)&antdelay);
-
+#endif
 	// ====================================================================
 
 	// Assume fast SPI; this is void when SPI is direct-pin
@@ -640,7 +651,7 @@ static void initialize () {
 	// Enter sleep
 	tosleep ();
 
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 	diag ("INIT OK");
 #endif
 }
@@ -735,7 +746,7 @@ retry_rxp:
 
 	{
 		// IRQ wakeup
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 		byte e;
 		if ((e = getevent ()) != DW1000_FRLEN_TPOLL) {
 			diag ("ARX BAD: %x", e);
@@ -790,7 +801,7 @@ tpoll:
 			goto tpoll;
 
 		if (b != DW1000_FRLEN_TFIN) {
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 			diag ("ATF BAD: %x", b);
 #endif
 			goto retry_rxp;
@@ -799,7 +810,7 @@ tpoll:
 		// Check the sequence number
 		chip_read (DW1000_REG_RX_BUFFER, 2, 1, &b);
 		if (b != locdata.seq) {
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 			diag ("ATF SEQ: %x", b);
 #endif
 			goto retry_rxp;
@@ -812,7 +823,7 @@ tpoll:
 		// Check the src
 		chip_read (DW1000_REG_RX_BUFFER, 5, 2, (byte*)&s);
 		if (s != locdata.tag) {
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 			diag ("ATF SRC: %x", s);
 #endif
 			goto retry_rxp;
@@ -841,7 +852,7 @@ tpoll:
 reset_handshake:
 
 	toidle ();
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 	diag ("ANC RST");
 #endif
 	goto retry_rxp;
@@ -920,7 +931,7 @@ thread (dw1000_range)
 // This is a handy extra byte
 #define	e		(*((byte*)_trr))
 
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 		if ((e = getevent ()) != DW1000_FRLEN_ARESP) {
 			diag ("RCP BAD: %x", e);
 			goto tpoll_more;
@@ -955,15 +966,21 @@ thread (dw1000_range)
 		// The least significant 9 bits of the timer are always zero;
 		// so we write the 4 MS bytes - the rightmost bit
 		chip_write (DW1000_REG_DX_TIME, 1, 4, (byte*)trr_upper);
-		// Now for the adjusted time to insert into the packet; the
-		// marker will be dispatched at the preset time + antenna delay
-		// (isn't this another good reason to get rid of the antenna
-		// delay)
+
+#if (DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
+		// No antenna delay, i.e., it is zero; this can be preset once
+		// when the mode is assumed
+		*(locdata.tst + DW1000_TSOFF_TSF) = 0;
+#else
+
+		// The adjusted time to insert into the packet; the marker will
+		// be dispatched at the preset time + antenna delay
 		*trr_upper += *(((byte*)&antdelay) + 1);
-		memcpy (locdata.tst + DW1000_TSOFF_TSF + 1, trr_upper, 
-			DW1000_TSTAMP_LEN - 1);
 		// And the adjusted LSB
 		*(locdata.tst + DW1000_TSOFF_TSF) = (byte)antdelay;
+#endif
+		memcpy (locdata.tst + DW1000_TSOFF_TSF + 1, trr_upper, 
+			DW1000_TSTAMP_LEN - 1);
 
 		// FIXME: it might be faster to write the stamps independetly
 		// into the TX buffer
@@ -985,7 +1002,7 @@ thread (dw1000_range)
 				// delayed TX start, it means that the timer
 				// is further than 1/2 of the cycle ahead,
 				// i.e., we are late
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 				diag ("FIN LATE");
 #endif
 				goto tpoll_more;
@@ -1021,7 +1038,7 @@ tpoll_exit:
 
     entry (RAN_FAILURE)
 
-#if (DW1000_OPTIONS & 0x0001)
+#if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 	diag ("RAN FAIL");
 #endif
 

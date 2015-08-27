@@ -44,6 +44,10 @@ proc calc { smp } {
 
 proc main { } {
 
+	set ave 0.0
+	set tot 0.0
+	set cnt 0
+
 	while 1 {
 
 		set samples ""
@@ -64,8 +68,7 @@ proc main { } {
 			set num "0x$line"
 
 			if [catch { expr $num } num] {
-				puts "illegal input"
-				exit
+				continue
 			}
 
 			lappend samples $num
@@ -76,13 +79,19 @@ proc main { } {
 		}
 
 		set res [calc $samples]
+		set dis [lindex $res 0]
+		set tot [expr { $tot + $dis }]
+		incr cnt
+		set ave [expr { $tot / $cnt }]
 
-		puts "Distance:      [format %1.3f [lindex $res 0]]"
+		puts "Number:        $cnt"
+		puts "Distance:      [format %1.3f $dis]"
 		puts "Distance A:    [format %1.3f [lindex $res 1]]"
 		puts "Distance B:    [format %1.3f [lindex $res 2]]"
 		puts "ATOF:          [format %1.3f [lindex $res 3]]"
 		puts "ATOFA:         [format %1.3f [lindex $res 4]]"
 		puts "ATOFB:         [format %1.3f [lindex $res 5]]"
+		puts "Average:       [format %1.3f $ave]\n"
 	}
 }
 
