@@ -106,10 +106,7 @@ static void chip_trans (byte reg, word index) {
 	}
 }
 
-#if !(DW1000_OPTIONS & DW1000_OPT_DEBUG)
-static
-#endif
-void chip_write (byte reg, word index, word length, byte *stuff) {
+void dw1000_register_write (byte reg, word index, word length, byte *stuff) {
 //
 // Write
 //
@@ -119,10 +116,9 @@ void chip_write (byte reg, word index, word length, byte *stuff) {
 	DW1000_SPI_STOP;
 }
 
-#if !(DW1000_OPTIONS & DW1000_OPT_DEBUG)
-static
-#endif
-void chip_read (byte reg, word index, word length, byte *stuff) {
+#define	chip_write(a,b,c,d)	dw1000_register_write (a, b, c, (byte*)(d))
+
+void dw1000_register_read (byte reg, word index, word length, byte *stuff) {
 //
 // Read
 //
@@ -131,6 +127,8 @@ void chip_read (byte reg, word index, word length, byte *stuff) {
 		*stuff++ = spi_in ();
 	DW1000_SPI_STOP;
 }
+
+#define	chip_read(a,b,c,d)	dw1000_register_read (a, b, c, (byte*)(d))
 
 // ============================================================================
 // ============================================================================
@@ -195,7 +193,7 @@ static void xticlocks () {
 
 	// I think that this amounts to setting the LSB of PMSC CTRL0 to 0x01
 	b = 0;
-	chip_write (DW1000_REG_PMSC, 0, 1, (byte*)&b);
+	chip_write (DW1000_REG_PMSC, 0, 1, &b);
 }
 
 static void softreset () {
@@ -207,21 +205,21 @@ static void softreset () {
 	w = 0;
 	// This clears PKTSEQ in PMSC CTRL1, it will be auto reset to 0xE7
 	// for normal operation
-	chip_write (DW1000_REG_PMSC, 4, 2, (byte*)&w);
+	chip_write (DW1000_REG_PMSC, 4, 2, &w);
 	// Clear any AON auto download bits (as reset will trigger AON download)
-	chip_write (DW1000_REG_AON, 0, 2, (byte*)&w);
+	chip_write (DW1000_REG_AON, 0, 2, &w);
 	// Clear the wakeup configuration
-	chip_write (DW1000_REG_AON, 6, 1, (byte*)&w);
+	chip_write (DW1000_REG_AON, 6, 1, &w);
 	// Upload the new configuration
 	aonupload ();
 	// Reset the softreset bits in PMSC; note: the reference driver is
 	// obsessive about not changing the unused/reserved bits in all those
 	// registers; perhaps we should adopt the same policy
-	chip_write (DW1000_REG_PMSC, 3, 1, (byte*)&w);
+	chip_write (DW1000_REG_PMSC, 3, 1, &w);
 	// They say, it needs 10us for the PLL to lock
 	mdelay (20);
 	w = 0xf0;
-	chip_write (DW1000_REG_PMSC, 3, 1, (byte*)&w);
+	chip_write (DW1000_REG_PMSC, 3, 1, &w);
 }
 
 static lword read_otpm (word addr) {
@@ -230,12 +228,12 @@ static lword read_otpm (word addr) {
 //
 	lword res;
 
-	chip_write (DW1000_REG_OTP_IF, 4, 2, (byte*)&addr);
+	chip_write (DW1000_REG_OTP_IF, 4, 2, &addr);
 	addr = 0x03;	// Manual drive OTP_READ
-	chip_write (DW1000_REG_OTP_IF, 6, 1, (byte*)&addr);
+	chip_write (DW1000_REG_OTP_IF, 6, 1, &addr);
 	addr = 0x00;
-	chip_write (DW1000_REG_OTP_IF, 6, 1, (byte*)&addr);
-	chip_read (DW1000_REG_OTP_IF, 10, 4, (byte*)&res);
+	chip_write (DW1000_REG_OTP_IF, 6, 1, &addr);
+	chip_read (DW1000_REG_OTP_IF, 10, 4, &res);
 	return res;
 }
 
@@ -257,7 +255,7 @@ static byte getevent () {
 	byte len;
 
 Redo:
-	chip_read (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+	chip_read (DW1000_REG_SYS_STATUS, 0, 4, &status);
 	// diag ("GE: %x%x", (word)(status >> 16), (word)status);
 
 	if (status & DW1000_IRQ_OTHERS) {
@@ -267,7 +265,7 @@ Redo:
 			diag ("LOCK! %x", (word)(status >> 16));
 #endif
 		status = DW1000_IRQ_OTHERS;
-		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+		chip_write (DW1000_REG_SYS_STATUS, 0, 4, &status);
 		goto Redo;
 	}
 
@@ -308,7 +306,7 @@ Rtn:
 		// to disable RXTX, because we manually initiate transmission
 		// and reception, and do nothing else
 		status = DW1000_IRQ_ALLSANE;
-		chip_write (DW1000_REG_SYS_STATUS, 0, 4, (byte*)&status);
+		chip_write (DW1000_REG_SYS_STATUS, 0, 4, &status);
 		// diag ("GE: %d", len);
 		return len;
 	}
@@ -383,12 +381,12 @@ Ready:
 #if !(DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
 		// Reload the TX antenna delay; this makes me wonder why
 		// bother; can't we just account for it in the formula?
-		chip_write (DW1000_REG_TX_ANTD, 0, 2, (byte*)&antdelay);
+		chip_write (DW1000_REG_TX_ANTD, 0, 2, &antdelay);
 #endif
 #if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
-		chip_read (DW1000_REG_TX_ANTD, 0, 2, (byte*)&w);
+		chip_read (DW1000_REG_TX_ANTD, 0, 2, &w);
 		diag ("TXAD %x", w);
-		chip_read (DW1000_REG_LDE_IF, 0, 2, (byte*)&w);
+		chip_read (DW1000_REG_LDE_IF, 0, 2, &w);
 		diag ("RXAD %x", w);
 #endif
 		// Reset the RX; note: this seems to prevent weird problems
@@ -431,7 +429,7 @@ static void initialize () {
 	xticlocks ();
 
 #if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
-	chip_read (DW1000_REG_DEVID, 0, 4, (byte*)&lw);
+	chip_read (DW1000_REG_DEVID, 0, 4, &lw);
 	diag ("DWINIT: %x%x", (word)(lw >> 16), (word) lw);
 #endif
 
@@ -463,7 +461,7 @@ static void initialize () {
 		diag ("OTPLDT: %x", b);
 #endif
 	}
-	chip_write (DW1000_REG_AON, 0, 2, (byte*)&w);
+	chip_write (DW1000_REG_AON, 0, 2, &w);
 
 	// Disable the sleep counter
 	b = 0;
@@ -499,23 +497,26 @@ static void initialize () {
 	// Set EUI to be all ones except for the last word, which is
 	// equal to Host Id; note: we need no EUI, not at this stage, anyway
 	lw = 0;
-	chip_write (DW1000_REG_EUI, 0, 4, (byte*)&lw);
+	chip_write (DW1000_REG_EUI, 0, 4, &lw);
 	lw = (word)host_id;
-	chip_write (DW1000_REG_EUI, 4, 4, (byte*)&lw);
+	chip_write (DW1000_REG_EUI, 4, 4, &lw);
 #endif
 	// Set PAN and short address to network Id and Host Id; note: we should
 	// reset this whenever the Host Id changes!
 	lw = ((word)host_id) | (((lword)pan) << 16);
-	chip_write (DW1000_REG_PANADR, 0, 4, (byte*)&lw);
+	chip_write (DW1000_REG_PANADR, 0, 4, &lw);
 
 	// TX config (power); this is an array of lw power entries, two entries
 	// per channel starting at 1, first entry for PRF 16M, the other for
 	// 64M
+#if (DW1000_OPTIONS & DW1000_OPT_MAX_TX_POWER)
+	lw = DW1000_MAX_TX_POWER;
+#else
 	lw = read_otpm (DW1000_ADDR_TXCONF + (mode.channel ? 8 : 2) + mode.prf);
 	if (lw == 0 || lw == MAX_LWORD)
 		// Absent
 		lw = dw1000_def_txpower;
-
+#endif
 	if (!dw1000_use_smartpower) {
 		// In the reference driver, if smartpower is used, then the
 		// tx power value is applied "as-is"; otherwise, its LS byte
@@ -531,7 +532,7 @@ static void initialize () {
 	// Pulse generator calibration + TX power
 	b = dw1000_def_pgdelay;
 	chip_write (DW1000_REG_TX_CAL, 0x0b, 1, &b);
-	chip_write (DW1000_REG_TX_POWER, 0, 4, (byte*)&lw);
+	chip_write (DW1000_REG_TX_POWER, 0, 4, &lw);
 
 	// Note that we always use filtering (FFEN is set by default - see
 	// above); a Tag only accepts frames addressed to itself, while a Peg
@@ -544,7 +545,7 @@ static void initialize () {
 	// LDELOAD, note: this is probably not needed if LLDE is set in AON
 	// (as it is)
 	w = 0x8000;
-	chip_write (DW1000_REG_OTP_IF, 6, 2, (byte*)&w);
+	chip_write (DW1000_REG_OTP_IF, 6, 2, &w);
 	udelay (200);
 #endif
 
@@ -552,25 +553,25 @@ static void initialize () {
 	// things to the apparently unused bits of the PMSC_CTRL0, my shortcut
 	// is to write there what is needed
 	w = 0x0200;
-	chip_write (DW1000_REG_PMSC, 0, 2, (byte*)&w);
+	chip_write (DW1000_REG_PMSC, 0, 2, &w);
 
 	// Write the configuration register
-	chip_write (DW1000_REG_SYS_CFG, 0, 4, (byte*)&cf);
+	chip_write (DW1000_REG_SYS_CFG, 0, 4, &cf);
 
 	// ====================================================================
 	// Not sure if this block belongs here, probably makes no difference;
 	// Configure LDE
 	w = dw1000_lde_coeff;
-	chip_write (DW1000_REG_LDE_IF, 0x2804, 2, (byte*)&w);
+	chip_write (DW1000_REG_LDE_IF, 0x2804, 2, &w);
 
 	b = DW1000_LDE_PARAM1;
 	chip_write (DW1000_REG_LDE_IF, 0x0806, 1, &b);
 
 	w = dw1000_lde_param3;
-	chip_write (DW1000_REG_LDE_IF, 0x1806, 2, (byte*)&w);
+	chip_write (DW1000_REG_LDE_IF, 0x1806, 2, &w);
 
 	// Configure RF PLL
-	chip_write (DW1000_REG_FS_CTRL, 7, 5, (byte*)dw1000_pll2_config);
+	chip_write (DW1000_REG_FS_CTRL, 7, 5, dw1000_pll2_config);
 
 	// RF RX blocks
 	b = DW1000_RX_CONFIG;
@@ -579,14 +580,14 @@ static void initialize () {
 	lw = dw1000_rf_txctrl;
 	// Note: the most significant byte ends up to DE no matter what we
 	// write; some undocumented feature
-	chip_write (DW1000_REG_RF_CONF, 0x0c, 4, (byte*)&lw);
+	chip_write (DW1000_REG_RF_CONF, 0x0c, 4, &lw);
 
 	// Baseband parameters
 	w = dw1000_sftsh;
-	chip_write (DW1000_REG_DRX_CONF, 0x02, 2, (byte*)&w);
+	chip_write (DW1000_REG_DRX_CONF, 0x02, 2, &w);
 
 	w = dw1000_dtune1;
-	chip_write (DW1000_REG_DRX_CONF, 0x04, 2, (byte*)&w);
+	chip_write (DW1000_REG_DRX_CONF, 0x04, 2, &w);
 
 	// dtune1b
 	if (mode.datarate) {
@@ -595,24 +596,24 @@ static void initialize () {
 	} else {
 		w = 0x64;
 	}
-	chip_write (DW1000_REG_DRX_CONF, 0x06, 2, (byte*)&w);
+	chip_write (DW1000_REG_DRX_CONF, 0x06, 2, &w);
 
 	b = 0x28;
 	chip_write (DW1000_REG_DRX_CONF, 0x26, 1, &b);
 
 	// dtune2
 	lw = dw1000_dtune2;
-	chip_write (DW1000_REG_DRX_CONF, 0x08, 4, (byte*)&lw);
+	chip_write (DW1000_REG_DRX_CONF, 0x08, 4, &lw);
 
 	// dtune3
 	w = dw1000_sfdto;
-	chip_write (DW1000_REG_DRX_CONF, 0x20, 2, (byte*)&w);
+	chip_write (DW1000_REG_DRX_CONF, 0x20, 2, &w);
 
 	// AGC
 	lw = DW1000_AGCTUNE2;
-	chip_write (DW1000_REG_AGC_CTRL, 0x0c, 4, (byte*)&lw);
+	chip_write (DW1000_REG_AGC_CTRL, 0x0c, 4, &lw);
 	w = dw1000_agctune1;
-	chip_write (DW1000_REG_AGC_CTRL, 0x04, 2, (byte*)&w);
+	chip_write (DW1000_REG_AGC_CTRL, 0x04, 2, &w);
 
 	w = dw1000_channel;
 	lw = w | (w << 4) | (((lword)dw1000_prf) << 18);
@@ -626,7 +627,7 @@ static void initialize () {
 		lw |= 0x00320000;
 	}
 
-	chip_write (DW1000_REG_CHAN_CTRL, 0, 4, (byte*)&lw);
+	chip_write (DW1000_REG_CHAN_CTRL, 0, 4, &lw);
 
 	// Preamble size, TX PRF, ranging bit
 	lw = (((lword)(dw1000_preamble | dw1000_prf)) << 16) | 0x00008000 |
@@ -637,11 +638,11 @@ static void initialize () {
 		// two different lengths for a Tag
 		lw |= DW1000_FRLEN_ARESP;
 
-	chip_write (DW1000_REG_TX_FCTRL, 0, 4, (byte*)&lw);
+	chip_write (DW1000_REG_TX_FCTRL, 0, 4, &lw);
 
 #if !(DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
 	// Write RX antenna delay, TX delay will be written on wakeup
-	chip_write (DW1000_REG_LDE_IF, 0x1804, 2, (byte*)&antdelay);
+	chip_write (DW1000_REG_LDE_IF, 0x1804, 2, &antdelay);
 #endif
 	// ====================================================================
 
@@ -657,7 +658,7 @@ static void initialize () {
 }
 
 static void irqenable (lword mask) {
-	chip_write (DW1000_REG_SYS_MASK, 0, 4, (byte*)&mask);
+	chip_write (DW1000_REG_SYS_MASK, 0, 4, &mask);
 }
 
 static void rxenable_n_release (word st) {
@@ -678,7 +679,7 @@ static void rxenable_n_release (word st) {
 
 	// RXENAB
 	w = 0x100;
-	chip_write (DW1000_REG_SYS_CTRL, 0, 2, (byte*)&w);
+	chip_write (DW1000_REG_SYS_CTRL, 0, 2, &w);
 
 	dw1000_int_enable;
 
@@ -733,9 +734,9 @@ thread (dw1000_anchor)
 		word w;
 
 		w = 0x8841;
-		chip_write (DW1000_REG_TX_BUFFER, 0, 2, (byte*)&w);
-		chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
-		chip_write (DW1000_REG_TX_BUFFER, 7, 2, (byte*)&host_id);
+		chip_write (DW1000_REG_TX_BUFFER, 0, 2, &w);
+		chip_write (DW1000_REG_TX_BUFFER, 3, 2, &pan);
+		chip_write (DW1000_REG_TX_BUFFER, 7, 2, &host_id);
 	}
 
 retry_rxp:
@@ -776,12 +777,12 @@ tpoll:
 	// FIXME: to simplify things (reduce chip communication) we can ignore
 	// the official sequence number in the frame and use custom one
 	// adjacent to src/dst
-	chip_read (DW1000_REG_RX_BUFFER, 5, 2, (byte*)&(locdata.tag));
+	chip_read (DW1000_REG_RX_BUFFER, 5, 2, &(locdata.tag));
 	chip_read (DW1000_REG_RX_TIME, 0, DW1000_TSTAMP_LEN,
 		locdata.tst + DW1000_TSOFF_TRP);
 
 	// Insert the source Tag ID, now dst, into the outgoing message
-	chip_write (DW1000_REG_TX_BUFFER, 5, 2, (byte*)&(locdata.tag));
+	chip_write (DW1000_REG_TX_BUFFER, 5, 2, &(locdata.tag));
 	// Insert the sequence number
 	chip_write (DW1000_REG_TX_BUFFER, 2, 1, &(locdata.seq));
 
@@ -821,7 +822,7 @@ tpoll:
 		word s;
 
 		// Check the src
-		chip_read (DW1000_REG_RX_BUFFER, 5, 2, (byte*)&s);
+		chip_read (DW1000_REG_RX_BUFFER, 5, 2, &s);
 		if (s != locdata.tag) {
 #if (DW1000_OPTIONS & DW1000_OPT_DEBUG)
 			diag ("ATF SRC: %x", s);
@@ -894,9 +895,9 @@ thread (dw1000_range)
 		word w;
 
 		w = 0x8001;
-		chip_write (DW1000_REG_TX_BUFFER, 0, 2, (byte*)&w);
-		chip_write (DW1000_REG_TX_BUFFER, 3, 2, (byte*)&pan);
-		chip_write (DW1000_REG_TX_BUFFER, 5, 2, (byte*)&host_id);
+		chip_write (DW1000_REG_TX_BUFFER, 0, 2, &w);
+		chip_write (DW1000_REG_TX_BUFFER, 3, 2, &pan);
+		chip_write (DW1000_REG_TX_BUFFER, 5, 2, &host_id);
 	}
 
 #ifdef MONITOR_PIN_DW1000_CYCLE
@@ -965,7 +966,7 @@ thread (dw1000_range)
 		*trr_upper = (*trr_upper + DW1000_FIN_DELAY) & ~(lword)1;
 		// The least significant 9 bits of the timer are always zero;
 		// so we write the 4 MS bytes - the rightmost bit
-		chip_write (DW1000_REG_DX_TIME, 1, 4, (byte*)trr_upper);
+		chip_write (DW1000_REG_DX_TIME, 1, 4, trr_upper);
 
 #if (DW1000_OPTIONS & DW1000_OPT_NO_ANT_DELAY)
 		// No antenna delay, i.e., it is zero; this can be preset once
@@ -1024,8 +1025,10 @@ thread (dw1000_range)
 
 		toidle ();
 tpoll_exit:
-		tosleep ();
 
+#if !(DW1000_OPTIONS & DW1000_OPT_DONT_SLEEP)
+		tosleep ();
+#endif
 		__dw1000_v_drvprcs = 0;
 		trigger (&locdata);
 		if (flags & DW1000_FLG_REVERTPD)

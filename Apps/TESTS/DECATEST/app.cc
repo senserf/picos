@@ -297,7 +297,7 @@ fsm root {
 		if ((buf = (byte*)umalloc (len)) == NULL)
 			proceed ILLEGAL;
 
-		chip_read ((byte)reg, ind, len, buf);
+		dw1000_register_read ((byte)reg, ind, len, buf);
 
 		dumpbytes (buf, len);
 		ufree (buf);
@@ -319,7 +319,7 @@ fsm root {
 			proceed ILLEGAL;
 		if (len != 1 && len != 2 && len != 4)
 			proceed ILLEGAL;
-		chip_write ((byte)reg, ind, len, (byte*)&val);
+		dw1000_register_write ((byte)reg, ind, len, (byte*)&val);
 	}
 
 	proceed WOK;

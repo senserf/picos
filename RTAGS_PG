@@ -4547,3 +4547,9 @@ PG150827A:
 	Reorganized the options for the dw1000 driver. Added an option to
 	remove the internal antenna delay offset, which is probaly useless in
 	our (prospective) applications. This is explained in the driver doc.
+
+PG150830A:
+
+	More fixes/enhancements to the dw1000 driver. I have redone the
+	document a bit. Also fixed a mistake in the last Alphanet Interface
+	document which caused Jasmien some frustration.

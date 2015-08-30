@@ -19,7 +19,8 @@
 #define	DW1000_OPT_DEBUG	0x01
 #define	DW1000_OPT_SHORT_STAMPS	0x02
 #define	DW1000_OPT_NO_ANT_DELAY	0x04
-#define	DW1000_OPT_SHORT_RESULT	0x08
+#define	DW1000_OPT_MAX_TX_POWER	0x08
+#define	DW1000_OPT_DONT_SLEEP	0x10
 
 // The length of time stamp in bytes
 #if (DW1000_OPTIONS & DW1000_OPT_SHORT_STAMPS)
@@ -295,6 +296,10 @@ static const lword __digital_bb_config [2][4] = {
 
 #endif
 
+// This is the maximum TX power setting; NOTE: it doesn't work for 6.8MHz; it
+// may depend on the channel
+#define	DW1000_MAX_TX_POWER	0x1f
+
 // ============================================================================
 // Default antenna delays (calculation copied from reference driver)
 // ============================================================================
@@ -319,8 +324,13 @@ static const lword __digital_bb_config [2][4] = {
 					0x0E082848) : (mode.prf ? 0x07274767 : \
 						0x15355575))
 
+#if (DW1000_OPTIONS & DW1000_OPT_MAX_TX_POWER)
+// Disable smartpower
+#define	dw1000_use_smartpower	0
+#else
 // According to the RD, smart power is enabled when data rate is 6M8
 #define	dw1000_use_smartpower	(mode.datarate)
+#endif
 
 // ============================================================================
 // LDE configuration parameters
@@ -448,9 +458,7 @@ void dw1000_stop ();
 void dw1000_read (word, const byte*, address);
 void dw1000_write (word, const byte*, address);
 
-#if (DW1000_OPTIONS & 0x0001)
-void chip_read (byte, word, word, byte*);
-void chip_write (byte, word, word, byte*);
-#endif
+void dw1000_register_read (byte, word, word, byte*);
+void dw1000_register_write (byte, word, word, byte*);
 
 #endif
