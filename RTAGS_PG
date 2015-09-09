@@ -4553,3 +4553,17 @@ PG150830A:
 	More fixes/enhancements to the dw1000 driver. I have redone the
 	document a bit. Also fixed a mistake in the last Alphanet Interface
 	document which caused Jasmien some frustration.
+
+PG150909A:
+
+	Fixed a bug in spot's shared_plug: setassoc -clear was generating an
+	incorrect sequence (without the required dummy index).
+
+	Added a new board, OLIMEX_CCRF_DW1000_STAMP, representing Gerry's
+	stamp-sized node equipped with DW1000 mapped to OLIMEX_CCRF for
+	testing.
+
+	Fixed a few (rather minor) mistakes in the Alphanet interface document
+	(preliminary.docx).
+
+	A few cleanups in documents: Serial and DW1000.
