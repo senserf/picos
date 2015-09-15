@@ -4567,3 +4567,10 @@ PG150909A:
 	(preliminary.docx).
 
 	A few cleanups in documents: Serial and DW1000.
+
+PG150915A:
+
+	It is now possible in spot and locaspot to declare DEF_CHAN (see
+	commons.h), i.e., the default channel for the praxis. I have set
+	DEF_NID and DEF_CHAN for locaspot to 78 and 128, respectively to
+	separate it from spot (77, 0).
