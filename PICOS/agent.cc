@@ -3999,7 +3999,7 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 #if LONGBITS <= 32
 			"U %1ld %c %1f %1f <%s,%s> [%s,%s]\n",
 #else
-			"U %1d %c %1u %1f %1f <%s,%s> [%s,%s]\n",
+			"U %1d %c %1f %1f <%s,%s> [%s,%s]\n",
 #endif
 			NN,
 			pn->Halted ? 'F' : 'O', xx, yy, cl, cp, ch, lb)) >=
