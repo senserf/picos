@@ -126,7 +126,7 @@ int tty_setraw (int desc, int speed, int parity, int stopb) {
 	return 0;
 }
 
-main () {
+int main () {
 
 	int fdm0, fdm1, ps;
 	char c;
