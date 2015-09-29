@@ -860,8 +860,7 @@ void    makeSmurph () {
 	if (signal (SIGQUIT, SIG_IGN) != SIG_IGN) signal (SIGQUIT, SIG_DFL);
 }
 
-
-main    (int argc, char *argv[]) {
+int main    (int argc, char *argv[]) {
 
 	int     i, nogo, semfd, verfd;
 	char	*str;

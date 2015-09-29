@@ -117,10 +117,14 @@ char    CFName [MFNLEN],                // The current file name
 
 #define MAXKWDLEN       2048            // Maximum length of an identifier
 
+class	SymDesc;
+SymDesc *addSym (const char*, int, int stts=ANNOUNCED,
+		 int mode=FREE, int estat=EXPOSABLE);
+
 class   SymDesc {                       // A symbol description
 
-	friend	SymDesc *addSym (const char*, int, int stts=ANNOUNCED,
-					int mode=FREE, int estat = EXPOSABLE);
+	friend	SymDesc *addSym (const char*, int, int stts,
+					int mode, int estat);
 	friend  SymDesc *getSym (const char*);
 
 	private:

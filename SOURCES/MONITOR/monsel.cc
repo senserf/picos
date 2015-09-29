@@ -591,7 +591,7 @@ void    processDisplay () {
   // Locate the handle
   for (sp = Smurphs; sp; sp = sp -> next) if (sp->Handle == Handle) break;
   // Create a separate process to handle the request
-  if (NPId = fork ()) {
+  if ((NPId = fork ())) {
     cdebugl (form ("processDisplay spawning Smurph->DSD %1d", NPId));
     // We are the parent
     if (NPId < 0) longjmp (restart, 0);        // Fork has failed
@@ -654,7 +654,7 @@ Disc:
     exit (0);
   }
   // BLK reply received from SMURPH -- setup two-way communication
-  if (NPId = fork ()) {
+  if ((NPId = fork ())) {
     cdebugl (form ("Smurph->DSD: spawning DSD->Smurph %1d", NPId));
     // We are the parent
     if (NPId < 0) {
@@ -682,7 +682,7 @@ void	processInfo () {
   SmDesc *sp;
   int NPId;
   // Spawn a child immediately
-  if (NPId = fork ()) {
+  if ((NPId = fork ())) {
     // We are the parent
     if (NPId < 0) longjmp (restart, 0);        // Fork has failed
     return;
@@ -757,7 +757,7 @@ void processStatus () {
     // Locate the handle
     for (sp = Smurphs; sp; sp = sp -> next) if (sp->Handle == Handle) break;
     // Create a separate process to handle the request
-    if (NPId = fork ()) {
+    if ((NPId = fork ())) {
       // We are the parent
       if (NPId < 0) longjmp (restart, 0);        // Fork has failed
       if (sp && sp->RPId == 0) sp->RPId = NPId;  // Make it unusable
@@ -783,7 +783,7 @@ void processStatus () {
     processSingleStatus (sp);
   } else {
     // This is a global request
-    if (NPId = fork ()) {
+    if ((NPId = fork ())) {
       // We are the parent
       if (NPId < 0) longjmp (restart, 0);
       for (sp = Smurphs; sp; sp = sp -> next)
@@ -852,7 +852,7 @@ void childTerm () {
   longjmp (restart, 0);
 };
 
-main    (int argc, char *argv []) {
+int main (int argc, char *argv []) {
   const char  *st;
   char  pname [SIGNLENGTH+2];
   struct timeval seltim;

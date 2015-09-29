@@ -5102,13 +5102,16 @@ class   zz_client : public AI {
 
 extern  zz_client  zz_AI_client;         // Announcement
 
+// forward declaration that includes the default
+void    zz_sort_group (SGroup*, float* = NULL);
+
 class   SGroup {                // A station group
 
 	friend  class   zz_client;
 	friend  class   Traffic;
 	friend  class   CGroup;
 	friend  class   Port;
-	friend  void    zz_sort_group (SGroup*, float* = NULL);
+	friend  void    zz_sort_group (SGroup*, float*);
 	friend  void    zz_start_client ();
 
 	private:

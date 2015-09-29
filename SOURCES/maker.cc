@@ -126,7 +126,7 @@ void bad_usage (const char *pn) {
 	exit (99);
 }
 	
-main (int argc, const char *argv []) {
+int	main (int argc, const char *argv []) {
 
 	char    c, *s;
 	const char *pname, *rtag;

@@ -263,7 +263,7 @@ static int isLetter (int c) {
 /* Checks  is  the  character is a legal first character of a */
 /* name                                                       */
 /* ---------------------------------------------------------- */
-  if (c >= 'a' && c <= 'z' || c >= 'A' && c <= 'Z') return YES;
+  if ((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z')) return YES;
   if (c == '_') return (YES);       // Underscore is also legal
   return (NO);
 };
