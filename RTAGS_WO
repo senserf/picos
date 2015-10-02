@@ -593,3 +593,9 @@ WO150802A:    VUEE >= WO150802A
   locaspot: spot with 32-slot survey; see notes.txt in there.
   A half-failed attempt at implementing PXOPTIONS in net and tarp; see
     locaspot/notes.txt for that, too.
+
+WO151002A:
+  SEAWOLF/BOOTH/show: a minor tweak to make treasure hunt work. What is
+  troubling: it used to work, likely a slightly older version was preserved
+  in git. In any case, the change is a 2-liner in root_sui.cc, clearly visible.
+  Also, Image_sui_Oct02.a43 was added to images.zip.
