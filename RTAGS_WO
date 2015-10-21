@@ -599,3 +599,19 @@ WO151002A:
   troubling: it used to work, likely a slightly older version was preserved
   in git. In any case, the change is a 2-liner in root_sui.cc, clearly visible.
   Also, Image_sui_Oct02.a43 was added to images.zip.
+
+WO151021A:
+ locaspot - put together location and event reporting in 1 msg (loca reading
+   is on the 32B long tail). Separated location into loca.h/cc on the occasion.
+   This is the intention (not motivated by true requirements): global alarms
+   add 32B to event reporting, local events are supposed to send separate loca
+   events to the master, exactly as it's been before. The overall trigger for
+   all this was the fact that both in vuee and in real setups separate loca
+   messages seemed to be severly limited at the master, in comparison with
+   event messages sent right after them.
+
+ tracEd - site_mob_types.xml aligned to serve as an illustration for VUEE
+   experiments at AT.
+
+ spot - highlighted heartbeats, reports and rep acks (msg_io_peg.cc) and
+   their coloring in aa_floor_plus2.xml.
