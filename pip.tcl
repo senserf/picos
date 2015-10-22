@@ -6684,6 +6684,11 @@ if { $ST(SYS) == "L" } {
 # Linux versions of bpcs functions ############################################
 ###############################################################################
 
+proc kill_proc_by_id { id sig } {
+
+	exec kill -$sig $id
+}
+
 proc kill_proc_by_name { name } {
 #
 # A desperate tool to kill something we have spawned, which has escaped, like
@@ -6793,6 +6798,11 @@ proc bpcs_kill { pi } {
 ###############################################################################
 # Cygwin versions of bpcs functions ###########################################
 ###############################################################################
+
+proc kill_proc_by_id { id sig } {
+
+	exec kill -f -$sig $id
+}
 
 proc kill_proc_by_name { name } {
 #
@@ -7415,7 +7425,7 @@ proc kill_pipe { fd { sig "KILL" } { stay "" } } {
 	}
 	foreach p $pp {
 		log "Killing <$sig> pipe $fd process $p"
-		if [catch { exec kill -$sig $p } err] {
+		if [catch { kill_proc_by_id $p $sig } err] {
 			log "Cannot kill $p: $err"
 		}
 	}
@@ -7524,6 +7534,25 @@ proc upload_ELP { } {
 # Cygwin versions of loader functions #########################################
 ###############################################################################
 
+proc ecf_is_sane { cfn { del 0 } } {
+#
+# Checks if the elpro config file exists and is sane
+#
+	if ![file exists $cfn] {
+		return 0
+	}
+
+	if { [catch { file stat $cfn sta } ] || $sta(size) < 256 } {
+		# bad
+		if $del {
+			catch { file delete -force $cfn }
+		}
+		return 0
+	}
+
+	return 1
+}
+
 proc upload_ELP { } {
 #
 # Elprotronic
@@ -7572,14 +7601,15 @@ proc upload_ELP { } {
 	# may have to redo this once
 	set loc 1
 	while 1 {
-
 		# check for a local copy of the configuration file
-		if ![file exists $cfn] {
+		if ![ecf_is_sane $cfn 1] {
 			# absent -> copy from the installation directory
 			set dfn [file dirname $ep]
-			set tra 1
-			if { [regexp -nocase {^[a-z]:[/\\](.*)} $dfn jnk vfn] &&
-			     [info exists env(LOCALAPPDATA)] } {
+			puts "EP dirname: $dfn"
+			if { ( [regexp -nocase {^[a-z]:[/\\](.*)} $dfn jnk vfn]\
+			 || [regexp -nocase {^/cygdrive/[a-z][/\\](.*)} \
+			   $dfn jnk vfn] ) && \
+			    [info exists env(LOCALAPPDATA)] } {
 				# try virtualstore first; the Windows (Active)
 				# version of Tcl/Tk gets the config file from
 				# the installation directory whereas it should
@@ -7589,19 +7619,17 @@ proc upload_ELP { } {
 				# probably because of some UAC settings
 				set vfn [file join $env(LOCALAPPDATA) \
 				    VirtualStore $vfn $cfn]
-				puts "Config file absent, trying $vfn"
+				puts "Config file absent, trying vstore $vfn"
 				if [catch { file copy -force -- $vfn $cfn } \
 				    err] {
 					log "Failed to copy $vfn, $err"
-				} else {
-					# done
-					set tra 0
+					catch { file delete -force $cfn }
 				}
 			}
-			if $tra {
+			if ![ecf_is_sane $cfn 1] {
 				# try the installation directory
 				set vfn [file join $dfn $cfn]
-				puts "Config file absent, trying $vfn"
+				puts "Config file absent, trying install $vfn"
 				if [catch { file copy -force -- $vfn $cfn } \
 				   err] {
 					alert "Cannot retrieve the\

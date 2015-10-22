@@ -806,3 +806,11 @@ PG150701A:
 
 	Intercept and ignore errors caused by weird Windows file names which
 	Cygwin's Tcl tries to normalize (expand) into even weirder ways.
+
+PG151022A:
+
+	Improved the recognition of Elprotronic configuration file, to decide
+	when (and how) to use the default.
+
+	Improved a bit the operation of killing a Windows process, which should
+	make it more reliable.
