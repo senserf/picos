@@ -1857,6 +1857,14 @@ proc parse_time { a r l p } {
 	}
 }
 
+proc ishex { c } {
+	return [regexp -nocase "\[0-9a-f\]" $c]
+}
+
+proc isoct { c } {
+	return [regexp -nocase "\[0-7\]" $c]
+}
+
 proc parse_string { a r l p } {
 #
 # Parses a string
@@ -1968,7 +1976,6 @@ proc parse_string { a r l p } {
 			}
 			set mline [string range $mline 1 end]
 			set nc $c
-			continue
 		}
 		scan $nc %c val
 		lappend vals [expr $val % 256]

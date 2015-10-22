@@ -4574,3 +4574,15 @@ PG150915A:
 	commons.h), i.e., the default channel for the praxis. I have set
 	DEF_NID and DEF_CHAN for locaspot to 78 and 128, respectively to
 	separate it from spot (77, 0).
+
+PG151022A:
+
+	Fixed a problem in looper_peg.c in spot causing NULL pointer references
+	on failed form (under memory stress).
+
+	Redone VUEE model packing.
+
+	Fixes to the ALPHANET_AP331_PANIC board reflecting Stefaan's new
+	variant (closely imitating AP320).
+
+	Tcl wrappers are now included with the PICOS tree (in Scripts/Tcl).

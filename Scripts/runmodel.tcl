@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec tclsh85 "$0" "$@"
+exec wish85 "$0" "$@"
 
 proc cw { } {
 #
@@ -29,55 +29,57 @@ proc xq { pgm { pargs "" } } {
 	return $re
 }
 
-proc iflist { } {
+proc kill_pipe { fd } {
 #
-# Prepare a list of input file candidates
+# Kills the process on the other end of our pipe
 #
-	set fl [glob -nocomplain "*.xml"]
-	set re ""
-
-	foreach f $fl {
-		if [catch { open $f "r" } fd] {
-			continue
-		}
-		if [catch { read $fd } cn] {
-			catch { close $fd }
-			continue
-		}
-		if { [string first "<network" $cn] >= 0 } {
-			lappend re $f
-		}
-	}
-
-	return $re
-}
-
-proc soutput { } {
-#
-# Selects the output file
-#
-	global OFN
-
-	set fl [tk_getSaveFile -parent . -defaultextension "txt" \
-		-initialfile $OFN \
-		-title "Output file name:"]
-
-	if { $fl == "" } {
+	if { $fd == "" || [catch { pid $fd } pp] || $pp == "" } {
 		return
 	}
 
-	set OFN $fl
+	foreach p $pp {
+		if ![catch { exec kill -f $p } err] {
+			term_output "Killed: $p"
+		}
+	}
+	catch { close $fd }
 }
 
 proc run { } {
 
-	global IFN OFN
+	global WI FI OFD UDE PIP BUF Running
+
+	if $Running {
+		stop_term
+		return
+	}
+
+	if { $FI(DS) == "" } {
+		alert "No data file selected"
+		return
+	}
+
+	# do we have an output file
+	catch { close $OFD }
+	set OFD ""
+	if { $FI(OS) != "" } {
+		if [catch { open $FI(OS) "a" } OFD] {
+			alert "Cannot open the output file $FI(OS), $OFD"
+			set OFD ""
+			return
+		}
+	}
+
+	set ef [auto_execok "./side.exe"]
+	if { $ef == "" } {
+		alert "Cannot execute the simulator"
+	}
 
 	set fl [glob -nocomplain "supp_node*.xml"]
 
 	set sl ""
 	set sn 0
-	set ar [list $IFN $OFN]
+	set ar [list $FI(DS) +]
 	foreach f $fl {
 		if [regexp "^supp_node_(.+).xml" $f jnk suf] {
 			lappend sl $suf
@@ -103,75 +105,350 @@ proc run { } {
 		}
 	}
 
-	lappend ar "&"
+	set cmd "[list $ef] -e"
 
-	if [catch { xq side.exe $ar } er] {
-		alert "Cannot start SIDE: $er"
-		return
+	foreach k $ar {
+		lappend cmd $k
 	}
+
+	lappend cmd "2>@1"
+
+	if [catch { open "|$cmd" "r" } fd] {
+		alert "Error starting simulator, $fd"
+	}
+
+	set PIP $fd
+	set BUF ""
+
+	fconfigure $fd -blocking 0 -buffering none -eofchar "" -translation lf
+	fileevent $fd readable "term_output"
+
+	set Running 1
+	update_run_button
 
 	after 2000
 
-	set ar [list "-T"]
-	if { [file isfile "uplug.tcl"] || [file isfile "shared_plug.tcl"] } {
-		lappend ar "-P"
+	set ef [auto_execok "./udaemon.exe"]
+	if { $ef == "" } {
+		alert "Cannot execute udaemon"
 	}
-	lappend ar "&"
 
-	if [catch { xq udaemon.exe $ar } er] {
-		alert "Cannot start udaemon: $er"
+	set ar [list [list $ef] "-T"]
+
+	if { [file isfile "uplug.tcl"] || [file isfile "shared_plug.tcl"] } {
+		append ar " -P"
+	}
+
+	append ar " 2>@1"
+
+	if [catch { open "|$ar" "r" } fd] {
+		alert "Cannot start udaemon: $fd"
 		return
 	}
 
-	exit 0
+	set UDE $fd
+
+	fconfigure $fd -blocking 0 -buffering none -eofchar ""
+	fileevent $fd readable "udaemon_output"
+}
+
+proc stop_term { } {
+
+	global UDE PIP OFD Running
+
+	if { $UDE != "" } {
+		kill_pipe $UDE
+		set UDE ""
+	}
+
+	if { $PIP != "" } {
+		kill_pipe $PIP
+		set PIP ""
+	}
+
+	if { $OFD != "" } {
+		catch { close $OFD }
+		set OFD ""
+	}
+
+	set Running 0
+	update_run_button
+}
+
+proc update_run_button { } {
+
+	global WI Running
+
+	if $Running {
+		set t "Stop"
+	} else {
+		set t "Run"
+	}
+
+	$WI(RU) configure -text $t
+}
+
+proc udaemon_output { } {
+
+	global UDE
+
+	if { [catch { read $UDE } dummy] || [eof $UDE] } {
+		stop_term
+	}
+}
+
+proc term_output { { line "" } } {
+
+	global PIP OFD BUF
+
+	if { $line != "" } {
+
+		set chunk "$line\n"
+
+	} else {
+
+		if [catch { read $PIP } chunk] {
+			stop_term
+			return
+		}
+
+		if [eof $PIP] {
+			stop_term
+			return
+		}
+
+		if { $chunk == "" } {
+			return
+		}
+
+		if { $OFD != "" } {
+			catch { puts -nonewline $OFD $chunk }
+		}
+	}
+
+	append BUF $chunk
+	# look for CR+LF, LF+CR, CR, LF; if there is only one of those at the
+	# end, ignore it for now and keep for posterity
+	set sl [string length $BUF]
+
+	while { [regexp "\[\r\n\]" $BUF m] } {
+		set el [string first $m $BUF]
+		if { $el == 0 } {
+			# first character
+			if { $sl < 2 } {
+				# have to leave it and wait
+				return
+			}
+			# check the second one
+			set n [string index $BUF 1]
+			if { $m == "\r" && $n == "\n" || \
+			     $m == "\n" && $n == "\r"    } {
+				# two-character EOL
+				set BUF [string range $BUF 2 end]
+				incr sl -2
+			} else {
+				set BUF [string range $BUF 1 end]
+				incr sl -1
+			}
+			# complete previous line
+			term_endline
+			continue
+		}
+		# send the preceding string to the terminal
+		term_addtxt [string range $BUF 0 [expr $el - 1]]
+		incr sl -$el
+		set BUF [string range $BUF $el end]
+	}
+
+	if { $BUF != "" } {
+		term_addtxt $BUF
+		set BUF ""
+	}
+}
+
+proc term_addtxt { txt } {
+
+	global WI
+
+	set t $WI(CO)
+
+	$t configure -state normal
+	$t insert end $txt
+	$t configure -state disabled
+	$t yview -pickplace end
+}
+
+proc term_endline { } {
+
+	global WI
+
+	set t $WI(CO)
+
+	$t configure -state normal
+	$t insert end "\n"
+
+	while 1 {
+		set ix [$t index end]
+		set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
+		if { $ix <= 4096 } {
+			break
+		}
+		# delete the topmost line if above limit
+		$t delete 1.0 2.0
+	}
+
+	$t configure -state disabled
+	# make sure the last line is displayed
+	$t yview -pickplace end
+}
+
+proc get_data_files { } {
+
+	return [lsort [concat [glob -nocomplain "*.xml"] \
+		[glob -nocomplain "*.txt"]]]
+}
+
+proc select_data_file { } {
+
+	global WI
+
+	set fl [get_data_files]
+
+	if { $fl == "" } {
+		alert "No data files available"
+		return
+	}
+
+	set r "$WI(DS)._sdm"
+
+	catch { destroy $r }
+
+	set m [menu $r -tearoff 0]
+
+	foreach f $fl {
+		$m add command -label $f -command [list use_data_file $f]
+	}
+
+	tk_popup $m [winfo rootx $WI(DS)] [winfo rooty $WI(DS)]
+}
+
+proc use_data_file { f } {
+
+	global WI FI
+
+	$WI(DS) configure -text [button_file_name $f]
+	set FI(DS) $f
+}
+
+proc select_output_file { } {
+
+	global WI FI
+
+	set fl [tk_getSaveFile \
+		-parent . \
+		-defaultextension ".txt" \
+		-initialdir . \
+		-title "Output file name:"]
+
+	set FI(OS) $fl
+
+	if { $fl == "" } {
+		set fl "None"
+	} else {
+		set fl [button_file_name $fl]
+	}
+
+	$WI(OS) configure -text $fl
+}
+
+proc button_file_name { f } {
+
+	set ll [string length $f]
+
+	if { $ll > 24 } {
+		set f [string range $f end-23 end]
+	}
+
+	return $f
+}
+
+proc clear_term { } {
+
+	global WI
+
+	set t $WI(CO)
+
+	$t configure -state normal
+	$t delete 1.0 end
+	$t configure -state disabled
 }
 
 proc start { } {
 
-	global IFN OFN
+	global WI FI Running
 
-	wm title . "Model selection"
+	wm title . "Runmodel"
 
-	set ifl [iflist]
-	if { $ifl == "" } {
-		alert "No data files found"
-		exit 1
+	set uf [frame .uf]
+	pack $uf -side top -fill both -expand yes
+	set t [text $uf.t \
+			-yscrollcommand "$uf.scroly set" \
+			-setgrid true \
+        		-width 80 -height 24 -wrap char \
+			-font {-family courier -size 10} \
+			-exportselection 1 \
+			-state normal]
+	set WI(CO) $t
+	$t delete 1.0 end
+	set s [scrollbar $uf.scroly -command "$t yview"]
+	pack $s -side right -fill y
+	pack $t -expand yes -fill both
+
+	frame .bf -borderwidth 0
+	pack .bf -side top -expand no -fill both
+
+	label .bf.dl -text "Data: "
+	pack .bf.dl -side left -expand no -fill y
+
+	set df [lindex [get_data_files] 0]
+	if { $df == "" } {
+		set FI(DS) ""
+		set df "Select"
+	} else {
+		set FI(DS) $df
+		set df [button_file_name $df]
 	}
 
-	set IFN [lindex $ifl 0]
-	set OFN "output.txt"
+	set WI(DS) [button .bf.db -text $df -justify left \
+		-command select_data_file]
+	pack .bf.db -side left -expand no -fill y
 
-	set u [frame .u]
-	pack $u -side top -expand y -fill both
+	label .bf.ol -text " Output: "
+	pack .bf.ol -side left -expand no -fill y
 
-	#######################################################################
+	set FI(OS) ""
+	set WI(OS) [button .bf.ob -text "None" -justify left \
+		-command select_output_file]
+	pack .bf.ob -side left -expand no -fill y
 
-	label $u.il -text "Select data file:" -anchor w
-	grid $u.il -column 0 -row 0 -padx 4 -pady 2 -sticky w
+	set WI(RU) [button .bf.rb -text "Run" -command run]
+	pack .bf.rb -side right -expand no -fill y
 
-	eval "tk_optionMenu $u.im IFN $ifl"
-	grid $u.im -column 1 -row 0 -padx 4 -pady 2 -sticky we
+	button .bf.rc -text "Clear" -command clear_term
+	pack .bf.rc -side right -expand no -fill y
 
-	#######################################################################
+	set Running 0
 
-	label $u.ol -text "Select output file:" -anchor w
-	grid $u.ol -column 0 -row 1 -padx 4 -pady 2 -sticky w
-
-	button $u.om -textvariable OFN -command "soutput"
-	grid $u.om -column 1 -row 1 -padx 4 -pady 2 -sticky we
-
-	#######################################################################
-
-	set d [frame .d]
-	pack $d -side top -expand n -fill x
-
-	button $d.c -text "Cancel" -command "exit 0"
-	pack $d.c -side left -expand n
-
-	button $d.g -text "Run model" -command "run"
-	pack $d.g -side right -expand n
-
-	#######################################################################
+	bind . <Destroy> kill_me
 }
+
+proc kill_me { } {
+
+	catch { stop_term }
+	exit 0
+}
+
+set UDE ""
+set PIP ""
 
 start

@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set CYGDLLS { "cyggcc_s-1.dll" "cygstdc++-6.dll" "cygwin1.dll" }
+set CYGDLLS { "cyggcc_s-1.dll" "cygstdc++-6.dll" "cygwin1.dll" "kill.exe" }
 
 proc abt { m } {
 	puts stderr $m
@@ -59,13 +59,15 @@ proc copy_cygwin_dlls { } {
 
 proc copy_applib { } {
 
-	global TDIR PP
+	global TDIR PP FW
 
 	if [catch { exec sh picospath } PP] {
 		abt "Cannot get PICOS path (picospath failure), $PP"
 	}
 
 	set pp [file join $PP "Apps" "DataLib"]
+
+	set FW [file join $PP "Scripts" "Tcl" fullwrap.exe]
 
 	set fl [glob -nocomplain -path "${pp}/" "*"]
 
@@ -107,7 +109,7 @@ proc copy_side { } {
 
 proc wrap_script { pn } {
 
-	global TDIR PP
+	global TDIR PP FW
 
 	set tpn "${pn}.tcl"
 
@@ -124,7 +126,7 @@ proc wrap_script { pn } {
 		abt "Cannot cd to $TDIR, $err"
 	}
 
-	if [catch { exec fullwrap $tpn } err] {
+	if [catch { exec $FW $tpn } err] {
 		abt "Cannot wrap $pn, $err"
 	}
 
@@ -289,7 +291,7 @@ proc fix_runmodel { } {
 
 proc wrap_runmodel { } {
 
-	global TDIR PP
+	global TDIR PP FW
 
 	if [catch { file copy [file join $PP "Scripts" "runmodel.tcl"] $TDIR } \
 	    err] {
@@ -307,7 +309,7 @@ proc wrap_runmodel { } {
 		fix_runmodel
 	}
 
-	if [catch { exec fullwrap "runmodel.tcl" } err] {
+	if [catch { exec $FW "runmodel.tcl" } err] {
 		abt "Cannot wrap runmodel.tcl, $err"
 	}
 

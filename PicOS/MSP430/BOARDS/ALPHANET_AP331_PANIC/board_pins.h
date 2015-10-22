@@ -5,11 +5,12 @@
 
 // ============================================================================
 // P1.0	BUTTON, on low
-// P1.5 DATA from loop detector
-// P1.6 WAKE from loop detector
+// P1.3 WAKE from loop detector
+// P1.4 DATA from loop detector (schematics says IN2 BMA250, error?)
+// P1.7 INT1 of BMA250
 #define	PIN_DEFAULT_P1SEL		0x00
-#define	PIN_DEFAULT_P1DIR		0x9E
-#define	PIN_DEFAULT_P1REN		0x61
+#define	PIN_DEFAULT_P1DIR		0x66
+#define	PIN_DEFAULT_P1REN		0x19
 #define	PIN_DEFAULT_P1OUT		0x01
 
 // ============================================================================
@@ -33,15 +34,18 @@
 #define	PIN_DEFAULT_P4SEL		0x00
 #define	PIN_DEFAULT_P4DIR		0x30
 #define	PIN_DEFAULT_P4OUT		0x30
-
 // ============================================================================
+// P5.2 BMA250 CSB
+// P5.5 BMA250 SCx
+// P5.6 BMA250 SDx
+// P5.7 BMA250 SDO
 #define	PIN_DEFAULT_P5SEL		0x00
-#define	PIN_DEFAULT_P5DIR		0xFF
-#define	PIN_DEFAULT_P5OUT		0x00
+#define	PIN_DEFAULT_P5DIR		0x7F
+#define	PIN_DEFAULT_P5OUT		0x24
 // ============================================================================
 
 // Normal button on P1.0, for now ignore the WAKE "button"; we will have to
-// do something, because the polarity of WAKE is 1 wherease that of the normal
+// do something, because the polarity of WAKE is 1 whereas that of the normal
 // panic button is 0
 #define	BUTTON_LIST 		{ BUTTON_DEF (1, 0x01, 0) }
 #define	BUTTON_PIN_P1_IRQ	0x03
@@ -61,10 +65,39 @@
 
 // ============================================================================
 
+#include "bma250.h"
+#define	bma250_csel	_BIC (P5OUT, 0x04)
+#define	bma250_cunsel	_BIS (P5OUT, 0x04)
+
+#define	bma250_enable	_BIS (P1IE, 0x80)
+#define	bma250_disable	_BIC (P1IE, 0x80)
+#define	bma250_clear	_BIC (P1IFG, 0x80)
+#define	bma250_int	(P1IFG & 0x80)
+
+#define	bma250_clkl	_BIC (P5OUT, 0x20)
+#define	bma250_clkh	_BIS (P5OUT, 0x20)
+
+#define	bma250_outl	_BIC (P5OUT, 0x40)
+#define	bma250_outh	_BIS (P5OUT, 0x40)
+
+#define	bma250_data	(P5IN & 0x80)
+
+// Note: this delay only applies when writing. 15us didn't work, 20us did,
+// so 40 looks like a safe bet
+#define	bma250_delay	udelay (40)
+
+// ============================================================================
+
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
+		DIGITAL_SENSOR (0, bma250_init, bma250_read)	\
 	}
+
+#define	SENSOR_MOTION		0
+#define	SENSOR_DIGITAL
+#define	SENSOR_EVENTS
+#define	SENSOR_INITIALIZERS
 
 // ============================================================================
 
