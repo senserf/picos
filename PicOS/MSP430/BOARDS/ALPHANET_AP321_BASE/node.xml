@@ -7,7 +7,7 @@
     	<lbt>
 		delay			4msec
 		threshold		-109.0dBm
-		tries			5
+		tries			8
     	</lbt>
     	<backoff>
 		min			2msec
