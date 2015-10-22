@@ -4586,3 +4586,15 @@ PG151022A:
 	variant (closely imitating AP320).
 
 	Tcl wrappers are now included with the PICOS tree (in Scripts/Tcl).
+
+PG151022B:
+
+	Fixed shared_plug in locaspot to properly recognize location readings
+	piggybacked onto event packets (as well whatever it recognized before).
+
+	Fixed the bug in oss_peg_tcve.cc resulting in the incorrect values in
+	location readings piggubacked onto events.
+
+	Added a new board ALPHANET_TAG_WARSAW (associated with BUT1 in
+	locaspot) to let us use the WARSAW box as a Tag.
+	
