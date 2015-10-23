@@ -1279,3 +1279,11 @@ PG150706A:
     For a virtual UART connected to a real COM port, udaemon now shows (in hex)
     both streams of data, i.e., input as well as output, rather than merely
     output, as before.
+
+PG151023A:
+
+    The right-click menu in UART and EMUL now includes Clear to erase the
+    window. I like this better than a separate button which would take up
+    space.
+
+    A minor and irrelevant fix in board.cc.

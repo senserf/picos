@@ -1759,10 +1759,10 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 			psir = STB [i] . sir;
 			if (STB [i] . ber < 0)
 				excptn ("Root: BER entries in <ber> must not "
-					"be negative, %f is", STB [i] . ber);
+					"be negative, %g is", STB [i] . ber);
 			if (STB [i] . ber <= pber)
 				excptn ("Root: BER entries in <ber> must be "
-					"monotonically increasing, %f and %f "
+					"monotonically increasing, %g and %g "
 					"aren't", pber, STB [i] . ber);
 			pber = STB [i] . ber;
 		}

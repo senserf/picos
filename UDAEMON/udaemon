@@ -1215,7 +1215,7 @@ proc lappendunique { ls it } {
 	return 0
 }
 
-proc cut_copy_paste { w x y } {
+proc cut_copy_paste { w x y { c "" } } {
 #
 # Handles windows-style cut-copy-paste from a text widget; invoked in response
 # to right click in a text widget
@@ -1265,7 +1265,28 @@ proc cut_copy_paste { w x y } {
 	}
 	$m add command -label "Paste" -command "tk_textPaste $w" -state $st
 
+	if { $c != "" } {
+		$m add separator
+		if [$w compare 1.0 < "end - 1 chars"] {
+			set st "normal"
+		} else {
+			set st "disabled"
+		}
+		$m add command -label "Clear" -command "clear_txt $w" \
+			-state $st
+	}
+
 	tk_popup $m $x $y
+}
+
+proc clear_txt { w } {
+
+	if [catch { $w configure -state normal }] {
+		return
+	}
+
+	$w delete 1.0 end
+	$w configure -state disabled
 }
 
 ###############################################################################
@@ -3369,7 +3390,7 @@ proc mkUart { Sok } {
 	text $w.stat.u -height 1 -font $FONT(D)
 	pack $w.stat.u -side left -expand yes -fill x
 
-	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
 	bind $w.stat.u <ButtonRelease-3> "cut_copy_paste %W %X %Y"
 
 	bind $w.stat.u <Return> "handleUserInput $Sok"
@@ -4203,7 +4224,7 @@ proc emulFirst { Sok } {
 	pack $w.scroly -side right -fill y
 	pack $w.t -expand yes -fill both
 
-	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+	bind $w.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
 
 	frame $w.stat -borderwidth 2
 	pack $w.stat -expand no -fill x
@@ -8303,7 +8324,7 @@ pack .logger.scrollx -side bottom -fill x
 
 pack .logger.t -side left -fill both -expand true
 
-bind .logger.t <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+bind .logger.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
 
 pack .logger -side top -fill both -expand true
 
