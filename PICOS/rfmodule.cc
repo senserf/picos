@@ -14,16 +14,16 @@
 #define	rxe	rf
 #define	rxoff	(rf->RXOFF)
 #define	sid	(rf->statid)
-#define	minbkf	(rf->min_backoff)
-#define	maxbkf	(rf->max_backoff)
-#define	lbtth	(rf->lbt_threshold)
-#define	lbtdl	(rf->lbt_delay)
-#define	lbtries	(rf->lbt_tries);
+#define	minbkf	(rf->cpars->min_backoff)
+#define	maxbkf	(rf->cpars->max_backoff)
+#define	lbtth	(rf->cpars->lbt_threshold)
+#define	lbtdl	(rf->cpars->lbt_delay)
+#define	lbtries	(rf->cpars->lbt_tries)
 #define	xmtg	(rf->Xmitting)
 #define	rcvg	(rf->Receiving)
-#define	defxp	(rf->DefXPower)
-#define	defrt	(rf->DefRate)
-#define	defch	(rf->DefChannel)
+#define	defxp	(rf->cpars->DefXPower)
+#define	defrt	(rf->cpars->DefRate)
+#define	defch	(rf->cpars->DefChannel)
 #define	physid	(rf->phys_id)
 #define	rerr	(rf->rerror)
 
@@ -73,7 +73,6 @@ double RM_ADC::sigLevel () {
 	DT = (double)(Time - Last);
 	NA = ATime + DT;
 	res = ((Average * ATime) / NA) + (CLevel * DT) / NA;
-	// trace ("RM_ADC: %g / %g", res, rf->lbt_threshold);
 	return res;
 #else
 	return Maximum;
@@ -146,7 +145,7 @@ RM_Xmitter::perform {
 			release;
 		}
 		// Reset the number of tries
-		ntry = lbtries;
+		ntry = 0;
 	}
 
 	assert (buflen <= mxpl, "RM_Xmitter: packet too long, %1d > %1d",
@@ -192,15 +191,15 @@ Bkf:
 	}
 
 	if (*ppm & 0x8000)
-		ntry = 0;
+		ntry = lbtries;
 #endif
 
-	if (ntry) {
+	if (ntry < lbtries) {
 
 		if (rcvg) {
 			delay (minbkf, XM_LOOP);
 			when (txe, XM_LOOP);
-			ntry--;
+			ntry++;
 			release;
 		}
 
@@ -247,24 +246,27 @@ Xmit:
 		set_congestion_indicator (minbkf);
 		delay (minbkf, XM_LOOP);
 		when (txe, XM_LOOP);
-		if (ntry)
-			ntry--;
+		if (ntry < lbtries)
+			ntry++;
 		release;
 	}
 
 	if (rxoff)
 		goto Xmit;
 
-	if (RSSI->sigLevel () < lbtth)
+	if (RSSI->sigLevel () < lbtth [ntry]) {
+		// trace ("LBT+ %1d %g %g", ntry, RSSI->sigLevel (), lbtth [ntry]);
 		goto Xmit;
+	}
+	// trace ("LBT- %1d %g %g", ntry, RSSI->sigLevel (), lbtth [ntry]);
 
 #if ((RADIO_OPTIONS & (RADIO_OPTION_RBKF | RADIO_OPTION_STATS)) == (RADIO_OPTION_RBKF | RADIO_OPTION_STATS))
 	if (rerr [RERR_CONG] >= 0x0fff)
 		diag ("RF driver: LBT congestion!!");
 #endif
 	gbackoff ();
-	if (ntry)
-		ntry--;
+	if (ntry < lbtries)
+		ntry++;
 	set_congestion_indicator (minbkf);
 	proceed XM_LOOP;
 

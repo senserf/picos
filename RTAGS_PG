@@ -1287,3 +1287,11 @@ PG151023A:
     space.
 
     A minor and irrelevant fix in board.cc.
+
+PG151025A:	PICOS >= PG151025A
+
+    I have extended the <lbt> specification in the data set to provide for
+    multiple thresholds corresponding to the way LBT is handled in the
+    real-life CC1100 driver. The specification is a bit clumsy, because I
+    wanted to avoid looking up and modifying all old data sets. So it is
+    downward compatible with the old sets.

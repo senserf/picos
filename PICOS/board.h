@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	1.01
+#define	VUEE_VERSION	1.02
 
 #include "picos.h"
 #include "ndata.h"
@@ -54,7 +54,7 @@
 #define	ThePckt		((PKT*)ThePacket)
 #define	ThePPcs		((_PP_*)TheProcess)
 
-#define	MAX_LINE_LENGTH	63	// For d_uart_inp_p
+#define	MAX_LINE_LENGTH		63	// For d_uart_inp_p
 
 typedef	void *code_t;
 
@@ -169,7 +169,22 @@ packet	PKT {
 	};
 };
 
-#define	RERR
+typedef struct {
+//
+// This is the constant part of the RF interface, so it can be shared by
+// multiple nodes
+//
+	double	DefRPower,	// Receiver boost
+		*lbt_threshold;
+
+	word	DefXPower,	// These are indices
+		DefRate,
+		DefChannel,
+		min_backoff,
+		max_backoff,
+		lbt_delay,
+		lbt_tries;
+} rfm_const_t;
 
 class rfm_intd_t {
 //
@@ -177,12 +192,7 @@ class rfm_intd_t {
 //
 	public: // ============================================================
 
-	// Defaults needed for reset
-	double		DefRPower;	// Receiver boost
-
-	word		DefXPower,	// These are indexes
-			DefRate,
-			DefChannel;
+	rfm_const_t	*cpars;		// Constant parameters
 
 	word		statid;
 
@@ -195,10 +205,7 @@ class rfm_intd_t {
 	address		__pi_x_buffer, __pi_r_buffer;
 	int		tx_event;
 
-	double		lbt_threshold;
-
-	word		min_backoff, max_backoff, backoff;
-	word		lbt_delay, lbt_tries;
+	word		backoff;
 	word		phys_id;
 
 #if (RADIO_OPTIONS & RADIO_OPTION_STATS)

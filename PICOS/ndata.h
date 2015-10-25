@@ -7,7 +7,7 @@
  * respective constructors. Those constructors, as a matter of principle,
  * will deallocate the structures and those of their attributes that they
  * will not use directly (like, possibly, some const arrays).
- * The reason we use such packages is that oterwise the list of arguments
+ * The reason we use such packages is that otherwise the list of arguments
  * of the node constructor would be very long and messy.
  */
 
@@ -16,7 +16,8 @@ typedef	struct {
 // RF module
 
 	double	Boost,		// Receiver boost
-		LBTThs;		// LBT threshold
+		*LBTThs;	// LBT thresholds; the number equals LBTTries
+				// ... stored as strpool items
 	word	Rate,		// Rate select
 		Power,		// Power select
 		Channel,	// Channel number
@@ -30,6 +31,7 @@ typedef	struct {
 } data_rf_t;
 
 #define	EP_N_BOUNDS		8
+#define	RF_N_THRESHOLDS		16
 
 struct data_epini_struct {
 

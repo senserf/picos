@@ -100,6 +100,7 @@ static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
 		if (l)
 			continue;
 		// Found
+		// trace ("strpool, found: %x", p);
 		return p->STR;
 	}
 
@@ -109,8 +110,10 @@ static	const byte *find_strpool (const byte *str, int len, Boolean cp) {
 		// Copy the string
 		p->STR = new byte [len];
 		memcpy ((void*)(p->STR), str, len);
+		// trace ("strpool, new, copy: %x", p);
 	} else {
 		p->STR = str;
+		// trace ("strpool, new nocopy: %x", p);
 	}
 	p->Len = len;
 	p->Next = STRPOOL;
@@ -131,6 +134,10 @@ static int nstrcmp (const char *a, const char *b) {
 
 	return strcmp (a, b);
 }
+
+// ============================================================================
+
+static rfm_const_t *RFMCONSTS = NULL;
 
 // ============================================================================
 
@@ -437,32 +444,39 @@ void PicOSNode::initParams () {
 rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 
 	const data_rf_t *rf = nd->rf;
+	rfm_const_t rfmc;
 
 	// These two survive reset. We assume that they are never
 	// changed by the praxis.
-	min_backoff = (word) (rf->BCMin);
+	rfmc.min_backoff = (word) (rf->BCMin);
 
 	// This is turned into the argument for 'toss' to generate the
 	// proper offset. The consistency has been verified by
 	// readNodeParams.
-	max_backoff = (word) (rf->BCMax) - min_backoff + 1;
+	rfmc.max_backoff = (word) (rf->BCMax) - rfmc.min_backoff + 1;
 
 	// Same about these two
 	if (rf->LBTDel == 0) {
 		// Disable it
-		lbt_threshold = HUGE;
-		lbt_delay = 0;
-		lbt_tries = 0;
+		rfmc.lbt_threshold = NULL;
+		rfmc.lbt_delay = 0;
+		rfmc.lbt_tries = 0;
 	} else {
-		lbt_threshold = dBToLin (rf->LBTThs);
-		lbt_delay = rf->LBTDel;
-		lbt_tries = rf->LBTTries;
+		// This is already converted to linear
+		rfmc.lbt_threshold = rf->LBTThs;
+		rfmc.lbt_delay = rf->LBTDel;
+		rfmc.lbt_tries = rf->LBTTries;
 	}
 
-	DefXPower   = rf->Power;		// Index
-	DefRPower   = dBToLin (rf->Boost);	// Value in dB
-	DefRate     = rf->Rate;			// Index
-	DefChannel  = rf->Channel;
+	rfmc.DefXPower   = rf->Power;			// Index
+	// This one has to be converted
+	rfmc.DefRPower   = dBToLin (rf->Boost);		// Value in dB
+	rfmc.DefRate     = rf->Rate;			// Index
+	rfmc.DefChannel  = rf->Channel;
+
+	// trace ("strpool cpars");
+	cpars = (rfm_const_t*) find_strpool ((const byte*)&rfmc,
+		sizeof (rfm_const_t), YES);
 
 	RFInterface = create Transceiver (
 				1,			// Dummy
@@ -470,8 +484,8 @@ rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 				1.0,			// Dummy
 				1.0,			// Dummy
 				nd->X, nd->Y );
-	setrfrate (DefRate);
-	setrfchan (DefChannel);
+	setrfrate (cpars->DefRate);
+	setrfchan (cpars->DefChannel);
 
 	Ether->connect (RFInterface);
 
@@ -483,11 +497,11 @@ void rfm_intd_t::init () {
 //
 
 	RFInterface->rcvOn ();
-	setrfpowr (LastPower = DefXPower);
-	RFInterface->setRPower (DefRPower);
+	setrfpowr (LastPower = cpars->DefXPower);
+	RFInterface->setRPower (cpars->DefRPower);
 
-	setrfrate (DefRate);
-	setrfchan (DefChannel);
+	setrfrate (cpars->DefRate);
+	setrfchan (cpars->DefChannel);
 	
 	statid = 0;
 
@@ -704,7 +718,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 
 	lsize = (lsize + 3) / 4;		// Convert to 4-tuples
 	if (lsize > MFree) {
-//trace ("MEMALLOC OOM: %1d [%1d, %1d]", MFree, size, lsize);
+		// trace ("MEMALLOC OOM: %1d [%1d, %1d]", MFree, size, lsize);
 		return NULL;
 	}
 
@@ -722,7 +736,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 	else
 		MTail->Next = mc;
 	MTail = mc;
-	//trace ("MEMALLOC %x %1d [%1d, %1d]", mc->PTR, MFree, lsize, size);
+	// trace ("MEMALLOC %x %1d [%1d, %1d]", mc->PTR, MFree, lsize, size);
 
 	return mc->PTR;
 }
@@ -732,7 +746,7 @@ void PicOSNode::memFree (address p) {
 	MemChunk *mc, *pc;
 
 	if (p == NULL) {
-	//trace ("MEMFREE: NULL");
+	// trace ("MEMFREE: NULL");
 		return;
 	}
 
@@ -751,10 +765,10 @@ void PicOSNode::memFree (address p) {
 
 			delete [] (byte*) (mc->PTR);
 			MFree += mc -> Size;
-			//trace ("MEMFREE: %x %1d [%1d]", p, MFree, mc->Size);
+			// trace ("MEMFREE: %x %1d [%1d]", p, MFree, mc->Size);
 			assert (MFree <= MTotal,
 				"PicOSNode->memFree: corrupted memory");
-			//trace ("MEMFREE OK: %x %1d", p, mc->Size);
+			// trace ("MEMFREE OK: %x %1d", p, mc->Size);
 			delete mc;
 			TB.signal (N_MEMEVENT);
 			return;
@@ -2251,6 +2265,7 @@ InpIll:
 					es);
 			// We copy the string, as it has to survive the
 			// initialization
+			// trace ("strpool iodesc");
 			str = (char*) find_strpool ((const byte*) str, len + 1,
 				YES);
 			if (ID == NULL)
@@ -2490,6 +2505,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 					"%s", xname (nn), att);
 
 		// Allocate storage for the tag
+		// trace ("strpool preinit");
 		P->PITS [i] . Tag = (char*) find_strpool ((const byte*) att,
 			d + 1, YES);
 
@@ -2544,6 +2560,7 @@ void BoardRoot::readPreinits (sxml_t data, int nn) {
 			if (d == 0) {
 				P->PITS [i] . Value = 0;
 			} else {
+				// trace ("strpool PITS");
 				P->PITS [i] . Value = (IPointer)
 					find_strpool ((const byte*) att, d + 1,
 						YES);
@@ -2795,11 +2812,20 @@ static Boolean parseLocation (sxml_t cur, int tp, Long nn,
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 							   const char *ion) {
 
-	nparse_t np [2 + EP_N_BOUNDS];
+#if RF_N_THRESHOLDS > EP_N_BOUNDS
+#define	__np_size (RF_N_THRESHOLDS + 2)
+#else
+#define	__np_size (EP_N_BOUNDS + 2)
+#endif
+	nparse_t np [__np_size];
+#undef	__np_size
+
+	double rfths [RF_N_THRESHOLDS], *rft;
+
 	sxml_t cur, mai;
 	const char *att;
 	char *str, *as;
-	int i, len;
+	int i, len, nts;
 	data_rf_t *RF;
 	data_ep_t *EP;
 	data_no_t *ND;
@@ -2930,10 +2956,11 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 			" is no RF <channel>", xname (nn, lab));
 
 		RF = ND->rf = new data_rf_t;
-		RF->LBTThs = RF->Boost = HUGE;
+		RF->Boost = HUGE;
 		RF->Power = RF->Rate = RF->Channel = RF->Pre = RF->LBTDel =
 			RF->BCMin = RF->BCMax = WNONE;
-		RF->LBTTries = 5;
+		// LBTDel == WNONE implies that LBTThs is irrelevant
+		RF->LBTThs = NULL;
 
 		RF->absent = YES;
 
@@ -3014,22 +3041,91 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 	
 		// ============================================================
 	
-		np [1] . type = TYPE_double;
-		np [2] . type = TYPE_LONG;
-	
 		/* LBT */
 		if ((cur = sxml_child (mai, "lbt")) != NULL) {
-			if ((len = parseNumbers (sxml_txt (cur), 3, np)) < 2)
-				xevi ("<lbt>", xname (nn, lab), sxml_txt (cur));
-			RF->LBTDel = (word) (np [0].LVal);
-			RF->LBTThs = np [1].DVal;
+			// del, thresholds, tries
+			for (i = 1; i < RF_N_THRESHOLDS + 1; i++)
+				np [i] . type = TYPE_double;
+			len = parseNumbers (sxml_txt (cur),
+				RF_N_THRESHOLDS + 2,
+					np);
 
-			if (len >= 3)
-				RF->LBTTries = (word) (np [2].LVal);
-	
-			print (form ("  LBT:        del=%1d, ths=%g, "
-				"tries=%1d\n",
-					RF->LBTDel, RF->LBTThs, RF->LBTTries));
+			if (len == 0) {
+				// Disabled
+				nts = 0;
+				RF->LBTTries = 0;
+				RF->LBTDel = 0;
+			} else {
+				// Read the delay which goes first
+				RF->LBTDel = (word) (np [0].LVal);
+				if (RF->LBTDel == 0) {
+					// Disabled as well
+					nts = 0;
+					RF->LBTTries = 0;
+				} else {
+					if (len == 2) {
+					  	// This is for downward
+						// compatibility: if there are
+						// just two numbers, the second
+						// is the threshold and the
+					  	// number of tries (by default)
+						// is 5
+						nts = 1;
+						rfths [0] = np [1].DVal;
+						RF->LBTTries = 5;
+					} else {
+						if (len < 2)
+						  xevi ("<lbt>",
+						    xname (nn, lab),
+						      sxml_txt (cur));
+						// At least three values: all
+						// but the last one are
+						// thresholds
+						for (nts = 0; nts < len-2;
+						  nts++)
+						  rfths [nts] = np [nts+1].DVal;
+					  	RF->LBTTries =
+						  (word) (np [len-1].DVal);
+					}
+				}
+			}
+
+			if (RF->LBTTries > RF_N_THRESHOLDS || RF->LBTTries < 0)
+				excptn ("Root: illegal retry count (%1d) in "
+					"<lbt> for %s, should be > 0 and <= "
+					"%1d", RF->LBTTries,
+						xname (nn, lab),
+							RF_N_THRESHOLDS);
+			if (nts > RF->LBTTries)
+				excptn ("Root: retry count (%1d) in <lbt> for "
+					"%s is smaller than number of "
+					"thresholds (%1d)",
+						RF->LBTTries,
+							xname (nn, lab),
+								nts);
+
+			// Replicate the missing thresholds from the last
+			for (i = nts; nts < RF->LBTTries; nts++)
+				rfths [nts] = rfths [i-1];
+
+			if (nts == 0) {
+				RF->LBTThs = NULL;
+				print ("  LBT:        disabled\n");
+			} else {
+				print (form ("  LBT:        del=%1d, ths=<",
+					RF->LBTDel));
+				for (i = 0; i < nts-1; i++) {
+					print (form ("%gdBm,", rfths [i]));
+					rfths [i] = dBToLin (rfths [i]);
+				}
+				print (form ("%gdBm>\n", rfths [i]));
+				rfths [i] = dBToLin (rfths [i]);
+				// trace ("strpool LBTTHS");
+				RF->LBTThs =
+				    (double*) find_strpool ((const byte*) rfths,
+					sizeof (double) * nts, YES);
+			}
+			
 			ppf = YES;
 			RF->absent = NO;
 		}
@@ -3654,6 +3750,7 @@ NotErr:
 		for (pn = 0; pn < PN->NP; pn++)
 			print (PINS::gbit (BS, pn) ? "1" : "0");
 		print ("\n");
+		// trace ("strpool PINS");
 		PN->ST = find_strpool ((const byte*)BS, len, NO);
 		if (PN->ST != BS)
 			// Recycled
@@ -3726,6 +3823,7 @@ NotErr:
 			print (form ("      Timing: %1d, %1d, %1d\n",
 				PN->DEB [4], PN->DEB [5], PN->DEB [6]));
 
+		// trace ("strpool BUTS");
 		PN->BN = find_strpool ((const byte*)BS, PN->NP, NO);
 		if (PN->BN != BS)
 			// Recycled
@@ -3757,6 +3855,7 @@ NotErr:
 		for (pn = 0; pn < PN->NP; pn++)
 			print (PINS::gbit (BS, pn) ? "1" : "0");
 		print ("\n");
+		// trace ("strpool PDEFS");
 		PN->IV = find_strpool ((const byte*)BS, len, NO);
 		if (PN->IV != BS)
 			// Recycled
@@ -3789,6 +3888,7 @@ NotErr:
 				SS [pn] = (short) d;
 		}
 
+		// trace ("strpool VOLT");
 		PN->VO = (const short*) find_strpool ((const byte*) SS,
 			(int)(PN->NA) * sizeof (short), NO);
 
@@ -4316,6 +4416,7 @@ data_pt_t *BoardRoot::readPwtrParams (sxml_t data, const char *esn) {
 		for (i = 0; i < nm; i++)
 			lv [i] = np [i].DVal;
 
+		// trace ("strpool PLEVS");
 		md->Levels = (double*) find_strpool ((const byte*)lv, 
 			nm * sizeof (double), YES);
 
@@ -5450,7 +5551,7 @@ process WatchDog (PicOSNode) {
 
 		state Alert:
 
-			trace ("WATCHDOG RESET");
+			// trace ("WATCHDOG RESET");
 			reset ();
 	};
 };
