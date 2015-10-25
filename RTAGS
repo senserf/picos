@@ -814,3 +814,8 @@ PG151022A:
 
 	Improved a bit the operation of killing a Windows process, which should
 	make it more reliable.
+
+PG151025A:
+
+	The console window can now be cleared form the right click menu inside
+	the window as well as via the old menu button.

@@ -6241,7 +6241,7 @@ if {[info exists ::scrolledframe::version]} { return }
 
 ## End scrolled frame #########################################################
 
-proc cut_copy_paste { w x y } {
+proc cut_copy_paste { w x y { c "" } } {
 #
 # Handles windows-style cut-copy-paste from a text widget; invoked in response
 # to right click in a text widget
@@ -6291,7 +6291,28 @@ proc cut_copy_paste { w x y } {
 	}
 	$m add command -label "Paste" -command "tk_textPaste $w" -state $st
 
+	if { $c != "" } {
+		$m add separator
+		if [$w compare 1.0 < "end - 1 chars"] {
+			set st "normal"
+		} else {
+			set st "disabled"
+		}
+		$m add command -label "Clear" -command "clear_txt $w" \
+			-state $st
+	}
+
 	tk_popup $m $x $y
+}
+
+proc clear_txt { w } {
+
+	if [catch { $w configure -state normal }] {
+		return
+	}
+
+	$w delete 1.0 end
+	$w configure -state disabled
 }
 
 proc ece_inp { cs } {
@@ -6570,7 +6591,7 @@ proc ece_mkwindow { } {
 
 	$P(M1,EC) insert end $ece_V(commands)
 
-	bind $P(M1,EC) <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+	bind $P(M1,EC) <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
 
 	bind $w <Destroy> "md_click -1 1"
 }
@@ -9226,7 +9247,7 @@ proc mk_project_window { } {
 	# tag for file line numbers
 	$Term tag configure errtag -background gray
 
-	bind $Term <ButtonRelease-3> "cut_copy_paste %W %X %Y"
+	bind $Term <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
 
 	## the bottom frame
 	set bf [frame $pw.bof]
