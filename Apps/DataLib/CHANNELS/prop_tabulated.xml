@@ -6,9 +6,19 @@
 			assuming a steady drop of 10dB per 50m, past
 			the 20m range.
 		-->
-			  0.1m     -30.0dB	1.0dB
-			  5.0m     -53.0dB	2.0dB
-			 20.0m     -59.0dB	3.0dB
-			 50.0m     -65.0dB	4.0dB
-			400.0m    -135.0dB	8.0dB
+		<!-- Original table:
+			  0.1m     -30.0dB	0.3dB
+			  5.0m     -53.0dB	0.4dB
+			 20.0m     -59.0dB	0.5dB
+			 50.0m     -65.0dB	0.7dB
+			400.0m    -135.0dB	0.8dB
+		-->
+		<!-- Quicker fading:
+		-->
+			  0.1m     -30.0dB	0.3dB
+			  5.0m     -53.0dB	0.4dB
+			 20.0m     -65.0dB	0.5dB
+			 50.0m     -95.0dB	0.6dB
+			100.0m	  -120.0dB	0.7dB
+			200.0m    -175.0dB	0.8dB
 	</propagation>

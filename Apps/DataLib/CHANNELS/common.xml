@@ -1,6 +1,39 @@
 	<cutoff>-115.0dBm</cutoff>
+
+	<!--
+		Note: only the first ber element matters, so the remaining ones
+		are comments. You can choose any of them by moving it to front.
+	-->
+
+	<ber>	Lenient variant:
+		  	SIR	   BER
+			88.0	1.0E-9
+			53.0    5.0E-9
+			43.0	1.0E-8
+			33.0	5.0E-8
+			23.0	1.0E-7
+			13.0	1.0E-5
+	 		 3.0    2.0E-1
+	 		 0.0    9.9E-1
+	</ber>
+
+	<ber>	Extremely lenient variant (practically no interference):
+		  	SIR	   BER
+			88.0	5.0E-16
+			53.0    1.0E-15
+			43.0	3.0E-15
+			33.0	1.0E-14
+			23.0	5.0E-14
+			13.0	5.0E-13
+	 		 3.0    2.0E-11
+	 		 0.0    9.9E-11
+	</ber>
+	
 	<ber>
 		<!--
+			This is the standard variant. I don't think it works
+			very well, especially for buildings.
+
 			We need something like decent reception @ no noise at
 			100m, some reception at 150m, marginal reception at
 			200m, and no reception at 250m. That is assuming xmit
@@ -31,6 +64,7 @@
 	 		 3.0    2.0E-1
 	 		 0.0    9.9E-1
 	</ber>
+
 	<frame>
 		min preamble (aka syncbits) = 8
 			<!-- for CC1100, x the bit rate refers to information

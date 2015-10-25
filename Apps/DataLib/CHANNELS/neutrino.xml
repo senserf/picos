@@ -1,0 +1,4 @@
+<channel bn="-108.0dBm">
+	<xi:include href="CHANNELS/prop_neutrino.xml"/>
+	<xi:include href="CHANNELS/common.xml"/>
+</channel>

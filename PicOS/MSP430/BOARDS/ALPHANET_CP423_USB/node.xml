@@ -5,9 +5,16 @@
     	<preamble>32 bits</preamble>
 	<rate>2</rate>
     	<lbt>
-		delay			4msec
-		threshold		-109.0dBm
-		tries			5
+		delay			1msec
+		threshold		-109.0dBm 
+					 -99.0dBm
+					 -89.0dBm
+					 -80.0dBm
+					 -70.0dBm
+					 -45.0dBm
+					 -30.0dBm
+					  -0.0dBm
+		tries			8
     	</lbt>
     	<backoff>
 		min			2msec

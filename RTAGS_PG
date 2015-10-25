@@ -4598,3 +4598,24 @@ PG151022B:
 	Added a new board ALPHANET_TAG_WARSAW (associated with BUT1 in
 	locaspot) to let us use the WARSAW box as a Tag.
 	
+
+PG151025A:	VUEE >= PG151025A
+
+	I have modified the <lbt> elements in all node.xml files associated
+	with boards to make the LBT procedure closer to its real-life
+	counterpart (this requires new VUEE). Also, I have tweaked a bit the
+	parameters in the tabulated/common channel specification files with
+	the intention of:
+
+	- reducing the bit error rate for smaller S/N ratios (perhaps to
+	  account for the capture effect, or whatever)
+
+	- reducing the effective propagation distance (I believe that the
+	  original data that I put into those parameters roughly corresponded
+	  to open-field propagation, which is unrealistic in a building and
+	  tends to cause too much interference)
+
+	At any rate, I am now able to see more location reports in locaspot
+	running with the large dataset (aa_floor_plus2.xml). See the files:
+	common.xml and prop_tabulated.xml in App/DataLib/CHANNELS for the
+	(reversible) changes.
