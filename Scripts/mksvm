@@ -85,7 +85,8 @@ proc copy_data { } {
 
 	global TDIR
 
-	set fl [concat [glob -nocomplain "*.xml"] [glob -nocomplain "*.gif"]]
+	set fl [concat [glob -nocomplain "*.xml"] [glob -nocomplain "*.gif"] \
+		[glob -nocomplain "README*"]]
 
 	foreach f $fl {
 		if [catch { file copy $f $TDIR } err] {
@@ -258,10 +259,30 @@ proc check_reverse_y { } {
 	global CONF
 
 	if { [string first "YCDN 1" $CONF] >= 0 } {
-		return 1
+		return [list "-R"]
 	}
 
-	return 0
+	return ""
+}
+
+proc check_resync { } {
+
+	global CONF
+
+	set res ""
+
+	if { [regexp {VURI +([[:digit:]]+)} $CONF j v] &&
+	    ![catch { expr $v } v] } {
+		lappend res "-r"
+		lappend res $v
+	}
+
+	if { [regexp {VUSM +([^ ]+)} $CONF j v] && ![catch { expr $v } v] } {
+		lappend res "-s"
+		lappend res $v
+	}
+
+	return $res
 }
 
 proc fix_runmodel { } {
@@ -278,7 +299,13 @@ proc fix_runmodel { } {
 
 	catch { close $fd }
 
-	regsub "\"-T\"" $rf "\"-T\" \"-R\"" rf
+	set p [check_reverse_y]
+
+	regsub {set UDEPARS [^\n]*} $rf "set UDEPARS \"$p\"" rf
+
+	set p [check_resync]
+
+	regsub {set VUEPARS [^\n]*} $rf "set VUEPARS \"$p\"" rf
 
 	if [catch { open "runmodel.tcl" "w" } fd] {
 		abt "Cannot write runmodel.tcl in $TDIR"
@@ -298,16 +325,12 @@ proc wrap_runmodel { } {
 		abt "Cannot copy runmodel.tcl to $TDIR, $err"
 	}
 
-	set yr [check_reverse_y]
-
 	set CD [pwd]
 	if [catch { cd $TDIR } err] {
 		abt "Cannot cd to $TDIR, $err"
 	}
 
-	if $yr {
-		fix_runmodel
-	}
+	fix_runmodel
 
 	if [catch { exec $FW "runmodel.tcl" } err] {
 		abt "Cannot wrap runmodel.tcl, $err"

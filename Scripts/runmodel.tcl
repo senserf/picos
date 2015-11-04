@@ -47,7 +47,7 @@ proc kill_pipe { fd } {
 
 proc run { } {
 
-	global WI FI OFD UDE PIP BUF Running
+	global WI FI OFD UDE PIP BUF Running VUEPARS UDEPARS
 
 	if $Running {
 		stop_term
@@ -91,7 +91,7 @@ proc run { } {
 		}
 	}
 
-	if { $sn || $sl != "" } {
+	if { $sn || $sl != "" || $VUEPARS != "" } {
 		lappend ar "--"
 		if $sn {
 			lappend ar "-n"
@@ -103,6 +103,10 @@ proc run { } {
 				lappend ar "supp_node_$s.xml"
 			}
 		}
+	}
+
+	foreach s $VUEPARS {
+		lappend ar $s
 	}
 
 	set cmd "[list $ef] -e"
@@ -135,8 +139,12 @@ proc run { } {
 
 	set ar [list [list $ef] "-T"]
 
+	foreach s $UDEPARS {
+		lappend ar $s
+	}
+
 	if { [file isfile "uplug.tcl"] || [file isfile "shared_plug.tcl"] } {
-		append ar " -P"
+		lappend ar "-P"
 	}
 
 	append ar " 2>@1"
@@ -450,5 +458,8 @@ proc kill_me { } {
 
 set UDE ""
 set PIP ""
+
+set VUEPARS ""
+set UDEPARS ""
 
 start

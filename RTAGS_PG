@@ -4619,3 +4619,13 @@ PG151025A:	VUEE >= PG151025A
 	running with the large dataset (aa_floor_plus2.xml). See the files:
 	common.xml and prop_tabulated.xml in App/DataLib/CHANNELS for the
 	(reversible) changes.
+
+PG151104A:
+
+	Upgraded freewrap (in Scripts/Tcl) to the newest version. Removed the
+	hold mode from uart.xml in locaspot to reduce the stress on memory in
+	large models. Fixed mksvm and runmodel.tcl to copy more project
+	parameters (like resync interval, for example) from the project to the
+	VUEEPACK. The calcs script in DECATEST modified to provide for 
+	a (calibrated) distance offset to make the readings easier to
+	interpret.

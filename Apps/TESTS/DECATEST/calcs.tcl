@@ -42,7 +42,26 @@ proc calc { smp } {
 	return [list $DST $DSA $DSB $TOF $TOFA $TOFB]
 }
 
+proc do_calib { line } {
+
+	global OFFSET
+
+	if ![regexp {^c[^[:space:]]*[[:space:]]+([^[:space:]]+)} $line jnk of] {
+		return
+	}
+
+	if [catch { expr { $of } } of] {
+		return
+	}
+
+	set OFFSET $of
+
+	puts "OFFSET = $OFFSET"
+}
+
 proc main { } {
+
+	global OFFSET
 
 	set ave 0.0
 	set tot 0.0
@@ -65,6 +84,21 @@ proc main { } {
 				continue
 			}
 
+			if { [lindex $line 0] == "c" } {
+				# calibration
+				do_calib $line
+				set ave 0.0
+				set tot 0.0
+				set cnt 0
+				continue
+			}
+
+			if { [lindex $line 0] == "z" } {
+				set ave 0.0
+				set tot 0.0
+				set cnt 0
+			}
+
 			set num "0x$line"
 
 			if [catch { expr $num } num] {
@@ -79,7 +113,7 @@ proc main { } {
 		}
 
 		set res [calc $samples]
-		set dis [lindex $res 0]
+		set dis [expr { [lindex $res 0] - $OFFSET }]
 		set tot [expr { $tot + $dis }]
 		incr cnt
 		set ave [expr { $tot / $cnt }]
@@ -94,5 +128,7 @@ proc main { } {
 		puts "Average:       [format %1.3f $ave]\n"
 	}
 }
+
+set OFFSET 0.0
 
 main
