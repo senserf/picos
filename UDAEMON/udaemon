@@ -6506,7 +6506,7 @@ proc moveGNP { Sok cmd } {
 		return
 	}
 
-	lassign $pmt nod hos tot tn
+	lassign $pmt nod hos tot tn sta
 
 	# this obviates any pending update for the node
 	unset -nocomplain Stat($Sok,PZ,$nod)
@@ -6645,8 +6645,13 @@ proc moveGNP { Sok cmd } {
 	# fast blink flag for the LEDs
 	# { color label } for highlighting
 	#
-	set Stat($Sok,NL,$nod) \
-		[list $x $y $tn $co "" "" $fb [vipars $Sok $vc $vn $nod]]
+	if { $sta == "F" } {
+		set v [list "gray" ""]
+	} else {
+		set v [vipars $Sok $vc $vn $nod]
+	}
+		
+	set Stat($Sok,NL,$nod) [list $x $y $tn $co "" "" $fb $v]
 
 	# the host number, i.e., the lower word of host_id, aka local_host
 	set Stat($Sok,NH,$nod) $hos

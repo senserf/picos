@@ -1295,3 +1295,8 @@ PG151025A:	PICOS >= PG151025A
     real-life CC1100 driver. The specification is a bit clumsy, because I
     wanted to avoid looking up and modifying all old data sets. So it is
     downward compatible with the old sets.
+
+PG151204A:
+
+    Fixed a bug in udaemon causing that the initial "off" status of a node
+    wasn't reflected correctly in the node's color.
