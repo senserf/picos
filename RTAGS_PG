@@ -4629,3 +4629,34 @@ PG151104A:
 	VUEEPACK. The calcs script in DECATEST modified to provide for 
 	a (calibrated) distance offset to make the readings easier to
 	interpret.
+
+PG151204A:
+
+	I have created a new version of Netting, see directory netting_demo,
+	leaving Wlodek's original version intact. I have rewritten the doc,
+	tried to make the thing a bit more flashy (within my mediocre talents),
+	and also configurable into a VUEEPACK. The Netting source document (for
+	the demo version) is now kept in PICOS/Docs/SOURCE, while the praxis
+	directory contains the PDF version (in DOCS/Netting.pdf). Basically,
+	the idea is that netting_demo can be sent out as a self-contained
+	and illustrative demo.
+
+	Upgraded mksvm (the VUEEPACK generator script) to assist in a better
+	organization of the packages. We should organize the projects to be
+	sent as VUEEPACK demos in such a way that:
+
+	- only the essential data files are directly visible, so the user
+	  cannot easily click on (select) some garbage .xml file as data
+
+	- any auxiliary data snippets included by true data files are kept in
+	  directory DATAFILES
+
+	- PDF documentation is kept in DOCS (only this kind of documentation is
+	  copied by mksvm
+
+	- generally, no garbage .xml files
+
+	I have also added to the channel model files tabulated.xml and
+	common.xml a few (commented out) options affecting the range and error
+	rates. We still desperately need some good parameterization of those
+	models.

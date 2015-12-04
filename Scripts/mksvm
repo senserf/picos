@@ -86,11 +86,22 @@ proc copy_data { } {
 	global TDIR
 
 	set fl [concat [glob -nocomplain "*.xml"] [glob -nocomplain "*.gif"] \
-		[glob -nocomplain "README*"]]
+		[glob -nocomplain "*.jpg"] [glob -nocomplain "README*"]]
 
 	foreach f $fl {
 		if [catch { file copy $f $TDIR } err] {
 			abt "Cannot copy $f to $TDIR, $err"
+		}
+	}
+
+	if [file isdirectory "DATAFILES"] {
+		if [catch { file copy "DATAFILES" $TDIR } err] {
+			abt "Cannot copy DATAFILES f to $TDIR, $err"
+		}
+	}
+	if [file isdirectory "DOCS"] {
+		if [catch { file copy "DOCS" $TDIR } err] {
+			abt "Cannot copy DOCS f to $TDIR, $err"
 		}
 	}
 }
@@ -198,6 +209,7 @@ proc copy_supplementary_data { } {
 	}
 
 	set bd [file join $PP PicOS MSP430 BOARDS]
+	set tdir [file join $TDIR "DATAFILES"]
 
 	foreach b $BL s $SU {
 		set sd [file join $bd $b "node.xml"]
@@ -205,7 +217,10 @@ proc copy_supplementary_data { } {
 			if { $s != "" } {
 				set s "_$s"
 			}
-			set td [file join $TDIR "supp_node$s.xml"]
+			if ![file isdirectory $tdir] {
+				catch { file mkdir $tdir }
+			}
+			set td [file join $tdir "supp_node$s.xml"]
 			if [catch { file copy $sd $td } err] {
 				abt "Cannot copy $sd to $td, $err"
 			}

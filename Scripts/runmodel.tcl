@@ -75,7 +75,9 @@ proc run { } {
 		alert "Cannot execute the simulator"
 	}
 
-	set fl [glob -nocomplain "supp_node*.xml"]
+	set tdir "DATAFILES"
+
+	set fl [glob -nocomplain -tails -directory DATAFILES "supp_node*.xml"]
 
 	set sl ""
 	set sn 0
@@ -95,12 +97,12 @@ proc run { } {
 		lappend ar "--"
 		if $sn {
 			lappend ar "-n"
-			lappend ar "supp_node.xml"
+			lappend ar [file join $tdir "supp_node.xml"]
 		} else {
 			foreach s $sl {
 				lappend ar "-n"
 				lappend ar $s
-				lappend ar "supp_node_$s.xml"
+				lappend ar [file join $tdir "supp_node_$s.xml"]
 			}
 		}
 	}

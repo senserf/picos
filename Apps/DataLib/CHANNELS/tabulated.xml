@@ -1,8 +1,4 @@
 <channel bn="-108.0dBm">
-	<!--
-		My SA shows RSSI = 60 when no traffic. Taken at its face value,
-	     	that means -108.0dBm background noise.
-	-->
 	<xi:include href="CHANNELS/prop_tabulated.xml"/>
 	<xi:include href="CHANNELS/common.xml"/>
 </channel>
