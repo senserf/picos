@@ -52,8 +52,6 @@ static byte rreg (byte reg) {
 	return res;
 }
 
-void msg_xx (word, word);
-
 static void wreg (byte reg, byte val) {
 
 	volatile byte res;

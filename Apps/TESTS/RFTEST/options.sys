@@ -64,7 +64,7 @@
 #define	CC1100		1
 
 #undef	RADIO_USE_LEDS
-#define	RADIO_USE_LEDS	0
+#define	RADIO_USE_LEDS	7
 
 // ============================================================================
 
