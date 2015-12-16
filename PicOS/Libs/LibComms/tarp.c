@@ -546,7 +546,7 @@ __PUBLF (PicOSNode, int, tarp_rx) (address buffer, int length, int *ses) {
 			dbug_rx ("%u %u xmit %u", msgBuf->msg_type, 
 					msgBuf->snd, msgBuf->seq_no);
 			// PG
-			// highlight_set (1, 1.5, "FWD (%u): %u %u %u", length, msgBuf->msg_type, msgBuf->snd, msgBuf->hoc);
+			highlight_set (1, 1.5, "FWD (%u): %u %u %u", length, msgBuf->msg_type, msgBuf->snd, msgBuf->hoc);
 			return TCV_DSP_XMT;
 		}
 
