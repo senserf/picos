@@ -170,6 +170,7 @@ set CFVueeItems {
 			"VUDF"		""
 			"VUSM"		1.0
 			"VURI"		500
+			"EARG"		""
 }
 
 ## Names of the configurable loaders
@@ -5087,6 +5088,16 @@ proc mk_vuee_conf_window { } {
 	pack $f.m -side right -expand n
 
 	##
+	set f $w.ty
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Extra args: "
+	pack $f.l -side left -expand n
+	entry $f.m -width 16 -font $FFont -textvariable P(M0,EARG)
+	set P(M0,earg) $f.m
+	pack $f.m -side right -expand y -fill x
+
+	##
 	set f $w.tj
 	frame $f
 	pack $f -side top -expand y -fill x
@@ -7223,7 +7234,12 @@ proc side_args { deb } {
 		}
 	}
 
-	set argm ""
+	set ea [dict get $P(CO) "EARG"]
+	if { $ea != "" } {
+		foreach aa [split $ea] {
+			lappend argl $aa
+		}
+	}
 
 	# locate default node data in board directories
 
