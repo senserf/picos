@@ -162,9 +162,56 @@
 #define	TCV_LIMIT_XMT		0	// No limit for OUT queue
 #endif
 
+// ============================================================================
+// TARP
+// ============================================================================
+
+#ifndef	TARP_CACHES_MALLOCED
+#define	TARP_CACHES_MALLOCED	0
+#endif
+
+#ifndef	TARP_CACHES_TEST
+#define	TARP_CACHES_TEST	0
+#endif
+
+#ifndef	TARP_DDCACHESIZE
+#define	TARP_DDCACHESIZE	20
+#endif
+
+#ifndef	TARP_SPDCACHESIZE
+#define	TARP_SPDCACHESIZE	20
+#endif
+
+#ifndef	TARP_RTRCACHESIZE
+#define	TARP_RTRCACHESIZE	10
+#endif
+
+#ifndef	TARP_MAXHOPS
+#define	TARP_MAXHOPS		10
+#endif
+
 #ifndef	TARP_RTR
 #define	TARP_RTR		0
 #endif
+
+#ifndef	TARP_RTR_TOUT
+#define	TARP_RTR_TOUT		1024
+#endif
+
+#ifndef	TARP_DEF_RSSITH
+#define	TARP_DEF_RSSITH		100
+#endif
+
+#ifndef	TARP_DEF_PXOPTS
+#define	TARP_DEF_PXOPTS		0x7000
+#endif
+
+#ifndef	TARP_DEF_PARAMS
+// 				lvrrrwssf
+#define	TARP_DEF_PARAMS		0xA3
+#endif
+
+// ============================================================================
 
 #ifndef	DIAG_MESSAGES
 #define	DIAG_MESSAGES		2

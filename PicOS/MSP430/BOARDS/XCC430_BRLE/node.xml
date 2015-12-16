@@ -22,7 +22,7 @@
     </radio>
     <uart rate="115200" bsize="256">
 	<input source="socket"></input>
-	<output target="socket" type="held"></output>
+	<output target="socket"></output>
     </uart>
     <leds number="4">
     	<output target="socket"></output>
@@ -44,7 +44,7 @@
 	<buttons>0</buttons>
     </pins>
     <emul>
-	<output target="socket" type="held"></output>
+	<output target="socket"></output>
     </emul>
     <ptracker>
 	<output target="socket"/>

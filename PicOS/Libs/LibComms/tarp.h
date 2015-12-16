@@ -13,9 +13,6 @@
 // should be included in the model
 #define	VUEE_LIB_PLUG_TARP
 
-#define TARP_CACHES_MALLOCED	0
-#define	TARP_CACHES_TEST	0
-
 //+++ "tarp.c"
 
 // I'm missing them...
@@ -27,22 +24,18 @@
 #define false NO
 #endif
 
-#define ddCacheSize		20
-#define spdCacheSize		20
-#define rtrCacheSize		10
+// See modsyms.h (PG)
+#define ddCacheSize		TARP_DDCACHESIZE
+#define spdCacheSize		TARP_SPDCACHESIZE
+#define rtrCacheSize		TARP_RTRCACHESIZE
 //#define tarp_maxHops		125 check DD... seriously
-//#define tarp_maxHops		10
-#define tarp_maxHops		5
+//#define tarp_maxHops		5
+#define tarp_maxHops		TARP_MAXHOPS
 
 #if TARP_RTR
 #if TCV_TIMERS == 0 || TCV_HOOKS == 0
 #error missing TCV_TIMERS or TCV_HOOKS
 #endif
-#define TARP_RTR_TOUT	1024
-#endif
-
-#ifndef DEFAULT_RSSI_THOLD
-#define DEFAULT_RSSI_THOLD	100
 #endif
 
 /*

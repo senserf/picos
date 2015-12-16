@@ -20,11 +20,11 @@ nid_t   _da (master_host);
 
 #else	/* The real world */
 
-tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, 0xA3, 0,
-	DEFAULT_RSSI_THOLD, YES};
+tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, TARP_DEF_PARAMS, 0,
+	TARP_DEF_RSSITH, YES};
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
-word _da (tarp_pxopts) = DEF_TARP_PXOPTS;
+word _da (tarp_pxopts) = TARP_DEF_PXOPTS;
 #endif
 
 __STATIC word tarp_cyclingSeq = 0;

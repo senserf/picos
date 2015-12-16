@@ -41,7 +41,7 @@
 	<buttons>0 1</buttons>
     </pins>
     <emul>
-	<output target="socket" type="held"></output>
+	<output target="socket"></output>
     </emul>
     <ptracker>
 	<output target="socket"/>

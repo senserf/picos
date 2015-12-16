@@ -4660,3 +4660,15 @@ PG151204A:
 	common.xml a few (commented out) options affecting the range and error
 	rates. We still desperately need some good parameterization of those
 	models.
+
+PG151216A:
+
+	Removed the "held" type specification from emuls in all board node.xml
+	files to prevent accidental "memory leaks". They can be always put back
+	for test cases, but keeping them in by default is probably not a good
+	idea.
+
+	TARP specific constants/parameters moved (mostly from tarp.h) to
+	modsym.h, so they can be redefined in options.sys on a per-board,
+	per-praxis basis. Wlodek should have a look at this and taylor it
+	to his taste.

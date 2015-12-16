@@ -34,7 +34,7 @@
 	<sensor number="-1" vsize="2" delay="0.01" init="2457">2600</sensor>
     </sensors>
     <emul>
-	<output target="socket" type="held"></output>
+	<output target="socket"></output>
     </emul>
     <ptracker>
 	<output target="socket"/>
