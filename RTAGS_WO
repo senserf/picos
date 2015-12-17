@@ -615,3 +615,8 @@ WO151021A:
 
  spot - highlighted heartbeats, reports and rep acks (msg_io_peg.cc) and
    their coloring in aa_floor_plus2.xml.
+
+WO151217A:
+ A spot fix to a major bug causing loops after memory depletion. Sort of
+ hypothetical on real HW but definitely observed in VUEE. I'd like to tag
+ and separate the fix before other pending changes. (file: loca.cc)
