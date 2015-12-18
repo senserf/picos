@@ -7,6 +7,7 @@
 
 #include "tcvplug.h"
 #include "tarp.h"
+
 extern void tarp_init(void);
 extern int tarp_rx (address buffer, int length, int *ses);
 extern int tarp_tx (address buffer);
@@ -144,11 +145,15 @@ static int tcv_tmt_tarp (address p) {
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 
-	if (p[(tcv_tlength >> 1) -1] != tarp_pxopts) {
+	if (p[(tcv_tlength(p) >> 1) -1] != tarp_pxopts) {
+
+#ifdef __SMURPH__
 #if !SOFTWARE_CRC
-		trace ("tcv_tmt_tarp PXOPTS: %u %u", tarp_pxopts, p[(tcv_tlength >> 1) -1]);
+		trace ("tcv_tmt_tarp PXOPTS: %u %u", tarp_pxopts, p[(tcv_tlength(p) >> 1) -1]);
 #endif
-		p[(tcv_tlength >> 1) -1] = tarp_pxopts;
+#endif
+
+		p[(tcv_tlength(p) >> 1) -1] = tarp_pxopts;
 	}
 #endif
 

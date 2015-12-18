@@ -4672,3 +4672,19 @@ PG151216A:
 	modsym.h, so they can be redefined in options.sys on a per-board,
 	per-praxis basis. Wlodek should have a look at this and taylor it
 	to his taste.
+
+PG151218A:
+
+	Fixed a bug in the (never before compiled) code in plug_tarp.c (Wlodek
+	forgot that tcv_tlength takes an argument). It is another question
+	whether the code works (I've just made it compile).
+
+	Suggested a convention for naming included options files. One would
+	like to have them stand out a bit, so their names look different from
+	those of per-app options_xxx.sys files, while having them listed in
+	PIP's Options list. For example, we used to have a file in locaspot
+	named options_pxopts.inc which couldn't be directly seen from PIP. So
+	the two included files that we have there now are named
+	options_tarp_.sys and options_pxopts_.sys (note _ before .). Just a
+	suggestion.
+
