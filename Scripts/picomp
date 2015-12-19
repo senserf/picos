@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.3
+set Version 0.32
 
 ## Directory names to be ignored in the project's directory:
 ## strict names, patterns (case ignored)
@@ -3509,9 +3509,24 @@ proc mkdlist { } {
 
 	foreach ln [split $sl "\n"] {
 		set ln [string trim $ln]
-		if { [regexp "^#define\[ \t\]+(\[^ (\t\]+)" $ln jk sy] ||
-		     [regexp "//->\[ \t\]*(\[^ \t\]+)" $ln jk sy] } {
-			lappend MODSYMS $sy
+		if [regexp "^#define\[ \t\]+(\[^ (\t\]+)(.*)" $ln jk sy rd] {
+			if [regexp "//\[ \t\]*\\+(\\+*)" $rd jk nw] {
+				if { $nw != "" } {
+					# no warning
+					set rd 2
+				} else {
+					# warn and redefine
+					set rd 1
+				}
+			} else {
+				# redefinition not allowed
+				set rd 0
+			}
+			lappend MODSYMS [list $sy $rd]
+			continue
+		}
+		if [regexp "//->\[ \t\]*(\[^ \t\]+)" $ln jk sy] {
+			lappend MODSYMS $sy 0
 		}
 	}
 
@@ -3704,22 +3719,59 @@ proc which_endian { } {
 	}
 }
 
-proc add_modsym { l sym val } {
+proc add_modsym { l item } {
 
 	upvar $l ls
 
 	if ![info exists ls] {
-		set ls [list $sym $val]
+		set ls [list $item]
 		return
 	}
 
-	foreach t $ls {
+	lassign $item sym val red dcx
+
+	for { set i 0 } { $i < [llength $ls] } { incr i } {
+		set t [lindex $ls $i]
 		if { [lindex $t 0] == $sym } {
+			set v1 [eexpr $val]
+			set v2 [eexpr [lindex $t 1]]
+			if { $v1 != $v2 } {
+				if $red {
+					# pick the larger value, if possible
+					set f 0
+					if [catch {
+						if { $v1 <= $v2 } {
+							set f 1
+						}
+					} ] {
+						set f 2
+					}
+				} else {
+					set f 2
+				}
+				if { $f == 2 } {
+					if { $dcx == "" } {
+						set dcx [list 1 $sym]
+					}
+					xerror "cannot redefine OPTIONS symbol\
+						$sym from $v2 to $v1" $dcx
+				} elseif { $f == 0 } {
+					# redefine the existing one
+					lset ls $i [list $sym $v1 $red]
+					if { $red < 2 } {
+						swarn "OPTIONS symbol $sym\
+						    redefined from $v2 to $v1"
+					}
+				} elseif { $red < 2 } {
+					swarn "OPTIONS symbol $sym value $v1\
+						overriden by previous value $v2"
+				}
+			}
 			return
 		}
 	}
 
-	lappend ls [list $sym $val]
+	lappend ls $item
 }
 
 proc parse_vuee { } {
@@ -3858,7 +3910,7 @@ proc parse_vuee { } {
 		emit_vini
 
 		foreach m $VMList {
-			add_modsym GVMList [lindex $m 0] [lindex $m 1]
+			add_modsym GVMList $m
 		}
 	}
 
@@ -3875,6 +3927,7 @@ proc parse_vuee { } {
 			if { $err == 3 } {
 				errab "cannot read status file, internal error"
 			}
+			puts stderr "vuee: errors -- simulator not created"
 			return
 		}
 		set err [compile_vuee]
@@ -3886,11 +3939,14 @@ proc parse_vuee { } {
 
 proc setsymbols { dl } {
 #
-# Preset symbols for parsing files
+# Preset symbols for parsing a program
 #
-	global Symbols
+	global Symbols Symdecl
 
+	# symbols
 	array unset Symbols
+	# and occurrence contexts for error diagnostics
+	array unset Symdecl
 
 	foreach d $dl {
 		set v ""
@@ -3984,7 +4040,7 @@ proc compile_pgm { } {
 # Compile one program
 #
 	global PG PCN Pgm SFList ToCompile Processed NotFound TDIR EXEC FG DF HF
-	global Symbols VMList MODSYMS
+	global Symbols Symdecl VMList MODSYMS
 
 	# list of handled files
 	set SFList ""
@@ -4077,8 +4133,15 @@ proc compile_pgm { } {
 		# determine the configuration of optional VUEE modules
 
 		foreach vm $MODSYMS {
-			if [info exists Symbols($vm)] {
-				add_modsym VMList $vm $Symbols($vm)
+			lassign $vm sym red
+			if [info exists Symbols($sym)] {
+				if [info exists Symdecl($sym)] {
+					set dcx $Symdecl($sym)
+				} else {
+					set dcx ""
+				}
+				add_modsym VMList \
+					[list $sym $Symbols($sym) $red $dcx]
 			}
 		}
 
@@ -4210,11 +4273,16 @@ proc rtfile { fn } {
 	return $res
 }
 
-proc swarn { m } {
+proc swarn { m { dcx "" } } {
 
 	global FLine CFName
 
-	puts "$CFName:$FLine (warning): $m"
+	if { $dcx != "" } {
+		set hdr "[lindex $dcx 1]:[lindex $dcx 0]"
+	} else {
+		set hdr "$CFName:$FLine"
+	}
+	puts "$hdr (warning): $m"
 }
 
 proc pwarn { m } {
@@ -4412,7 +4480,60 @@ proc remcmnt { str } {
 	return [string trim [string range $str 0 [expr $ps - 1]]]
 }
 
-proc sexpr { str } {
+proc eexpr { str { fail "" } } {
+#
+# Evaluate a #define value, or try, anyway, return:
+#
+#	the expression value, if can be computed
+#	the original value processed as much as it could be, otherwise
+#	set fail if not ""
+#
+	global Symbols
+
+	regsub -all "\[ \t\]+" $str "" str
+
+	set turn 0
+
+	while { [regexp -nocase "^\[a-z_.\]\[a-z_0-9.\]*" $str mat] ||
+		     [regexp -nocase "\[^a-z_0-9.\](\[a-z_.\]\[a-z_0-9.\]*)" \
+			$str jk mat] } {
+
+		# we have something looking like a bare keyword
+		if ![info exists Symbols($mat)] {
+			break
+		}
+
+		# substitute the definition and keep going
+		set frm [string first $mat $str]
+		set len [string length $mat]
+		set nex [string range $str 0 [expr $frm - 1]]
+		append nex $Symbols($mat)
+		append nex [string range $str [expr $frm + $len] end]
+		set str $nex
+		incr turn
+		if { $turn > 32 } {
+			break
+		}
+	}
+
+	if [catch { eval expr $str } val] {
+		if { $fail != "" } {
+			upvar $fail ff
+			set ff 1
+		}
+		regsub -all "\[ \t\]+" $str "" str
+		return $str
+	}
+
+	if { $fail != "" } {
+		upvar $fail ff
+		set ff 0
+	}
+	
+	return $val
+}
+
+proc evalif { str } {
 #
 # Evaluates IF conditions (not so naive any more, in fact extremely powerful,
 # especially for its simplicity)
@@ -4446,33 +4567,9 @@ proc sexpr { str } {
 		set str $nex
 	}
 
-	regsub -all "\[ \t\]+" $str "" str
+	set val [eexpr $str fail]
 
-	set turn 0
-
-	while { [regexp -nocase "^\[a-z_.\]\[a-z_0-9.\]*" $str mat] ||
-		     [regexp -nocase "\[^a-z_0-9.\](\[a-z_.\]\[a-z_0-9.\]*)" \
-			$str jk mat] } {
-
-		# we have something looking like a bare keyword
-		if ![info exists Symbols($mat)] {
-			break
-		}
-
-		# substitute the definition and keep going
-		set frm [string first $mat $str]
-		set len [string length $mat]
-		set nex [string range $str 0 [expr $frm - 1]]
-		append nex $Symbols($mat)
-		append nex [string range $str [expr $frm + $len] end]
-		set str $nex
-		incr turn
-		if { $turn > 32 } {
-			break
-		}
-	}
-
-	if [catch { eval expr $str } val] {
+	if $fail {
 		return -1
 	}
 
@@ -4495,7 +4592,7 @@ proc scanfile { fname inner { prelude "" } } {
 # the output file. If specified, it must be a list of lines (no terminating
 # "\n") ending with an empty item (i.e., an empty line).
 #
-	global CFName FLine Symbols DirList EDirList FG
+	global CFName FLine Symbols Symdecl DirList EDirList FG
 
 	set CFName $fname
 
@@ -4693,7 +4790,7 @@ proc scanfile { fname inner { prelude "" } } {
 				continue
 			}
 			# if
-			set val [sexpr $ar]
+			set val [evalif $ar]
 			if { $val < 0 } {
 				swarn "cannot evaluate #if condition,\
 						assuming zero"
@@ -4728,7 +4825,7 @@ proc scanfile { fname inner { prelude "" } } {
 			}
 
 			# 2, i.e., the if was skipped
-			set val [sexpr $ar]
+			set val [evalif $ar]
 			if { $val < 0 } {
 				swarn "cannot evaluate #elif condition,\
 						assuming zero"
@@ -4816,6 +4913,7 @@ proc scanfile { fname inner { prelude "" } } {
 			}
 
 			set Symbols($kwd) $nam
+			set Symdecl($kwd) [list $FLine $CFName]
 			continue
 		}
 

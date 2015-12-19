@@ -4688,3 +4688,21 @@ PG151218A:
 	options_tarp_.sys and options_pxopts_.sys (note _ before .). Just a
 	suggestion.
 
+PG151219A:
+
+	PiComp modified to issue errors and warnings when some symbols
+	parameterizing the global components of a multiprogram model are
+	defined inconsistently in external headers (aka per-program
+	options.sys files). The way to treat such symbols is now marked in
+	modsyms.h (using special comments). The options (on conflicting, i.e.,
+	non-identical) definitions are:
+
+	- issue a warning and use the "safest" definition (this is for
+	  conflicts that are not considered fatal, although it makes sense to
+	  bring them to the user's attention)
+
+	- use the safest definition without a warning
+
+	- signal a fatal error (a serious problem)
+
+	I know this sucks. We may want to do it better later.

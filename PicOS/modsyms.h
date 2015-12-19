@@ -42,6 +42,18 @@
 #define	UART_TCV_MODE_E		3	// STX/ETX/DLE with one-byte parity
 #define	UART_TCV_MODE_F		4	// STX/ETX/DLE with one-byte checksum
 
+// RADIO_OPTIONS bits (see cc1100.h); I put them in here to make them uniformly
+// visible for PicOS as well as VUEE
+#define	RADIO_OPTION_RBKF	0x001
+#define	RADIO_OPTION_DIAG	0x002
+#define	RADIO_OPTION_STATS	0x004
+#define	RADIO_OPTION_CCHIP	0x008
+#define	RADIO_OPTION_NOCHECKS	0x010
+#define	RADIO_OPTION_WORPARAMS	0x020
+#define	RADIO_OPTION_REGWRITE	0x040
+#define	RADIO_OPTION_ENTROPY	0x080
+#define	RADIO_OPTION_PXOPTIONS	0x100
+
 // These are special sequences to identify (for picomp) those symbols that are
 // only defined, not set. These symbols represent optional modules.
 
@@ -54,16 +66,26 @@
 //->VUEE_LIB_OEP
 //->VUEE_LIB_LCDG
 
+// Here is the convention for marking MODSYMS symbols in comments:
+//
+//	+	- can be redefined, higher value always wins, issue warning
+//	++	- can be redefined, higher value always wins, no warning
+//
+// Nothing, or anything else, means that the symbol cannot be redefined in
+// different programs of the same praxis. For now, we need nothing else, we
+// shall see if this is enough in the longer run.
+//
+
 #ifndef	CODE_LONG_INTS
-#define	CODE_LONG_INTS		1
+#define	CODE_LONG_INTS		1	// +
 #endif
 
 #ifndef	UART_TCV
-#define	UART_TCV		0
+#define	UART_TCV		0	// +
 #endif
 
 #ifndef	UART_TCV_MODE
-#define	UART_TCV_MODE		UART_TCV_MODE_N
+#define	UART_TCV_MODE		UART_TCV_MODE_N	// ++
 #endif
 
 #ifndef	CC1000
@@ -79,39 +101,25 @@
 #endif
 
 #ifndef	CC3000
-#define	CC3000			0
+#define	CC3000			0	// +
 #endif
 
 #ifndef	ETHERNET_DRIVER
-#define	ETHERNET_DRIVER		0
+#define	ETHERNET_DRIVER		0	// +
 #endif
 
 #ifndef	RADIO_OPTIONS
 #define RADIO_OPTIONS		0
 #endif
 
-// RADIO_OPTIONS bits (see cc1100.h); I put them in here to make them uniformly
-// visible for PicOS as well as VUEE
-#define	RADIO_OPTION_RBKF	0x001
-#define	RADIO_OPTION_DIAG	0x002
-#define	RADIO_OPTION_STATS	0x004
-#define	RADIO_OPTION_CCHIP	0x008
-#define	RADIO_OPTION_NOCHECKS	0x010
-#define	RADIO_OPTION_WORPARAMS	0x020
-#define	RADIO_OPTION_REGWRITE	0x040
-#define	RADIO_OPTION_ENTROPY	0x080
-#define	RADIO_OPTION_PXOPTIONS	0x100
-
-
-
 // RF modules blink LEDs on transmission, reception, and so on ...
 #ifndef	RADIO_USE_LEDS
-#define	RADIO_USE_LEDS		0
+#define	RADIO_USE_LEDS		0	// +
 #endif
 
 // LEDs for UART over TCV
 #ifndef	UART_USE_LEDS
-#define	UART_USE_LEDS		0
+#define	UART_USE_LEDS		0	// +
 #endif
 
 #ifndef	RADIO_CRC_MODE
@@ -119,7 +127,7 @@
 #endif
 
 #ifndef DUMP_MEMORY
-#define	DUMP_MEMORY		0
+#define	DUMP_MEMORY		0	// +
 #endif
 
 #ifndef	TCV_LIMIT_RCV
@@ -214,11 +222,11 @@
 // ============================================================================
 
 #ifndef	DIAG_MESSAGES
-#define	DIAG_MESSAGES		2
+#define	DIAG_MESSAGES		2		// +
 #endif
 
 #ifndef	dbg_level
-#define	dbg_level		0
+#define	dbg_level		0		// +
 #endif
 
 /* ======================================================================== */
