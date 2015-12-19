@@ -3760,11 +3760,13 @@ proc add_modsym { l item } {
 					lset ls $i [list $sym $v1 $red]
 					if { $red < 2 } {
 						swarn "OPTIONS symbol $sym\
-						    redefined from $v2 to $v1"
+						    redefined from $v2 to $v1"\
+							$dcx
 					}
 				} elseif { $red < 2 } {
 					swarn "OPTIONS symbol $sym value $v1\
-						overriden by previous value $v2"
+					    overriden by previous value $v2"\
+						$dcx
 				}
 			}
 			return
@@ -4913,7 +4915,7 @@ proc scanfile { fname inner { prelude "" } } {
 			}
 
 			set Symbols($kwd) $nam
-			set Symdecl($kwd) [list $FLine $CFName]
+			set Symdecl($kwd) [list [expr { $FLine - 1 }] $CFName]
 			continue
 		}
 
