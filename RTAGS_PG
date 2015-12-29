@@ -4706,3 +4706,32 @@ PG151219A:
 	- signal a fatal error (a serious problem)
 
 	I know this sucks. We may want to do it better later.
+
+PG151229A:
+
+	I have added a model of the Alphatronics test setup to locaspot; also
+	cleaned up the data sets moving included files to a separate directory
+	(DATAFILES) to facilitate VUEEPACKs. I have done some sampling and
+	location tracking in the model to test the new ATOLS server. So far so
+	good. ALPHATEST in locaspot contains the database with profile samples
+	for the model.
+
+	Here are instructions for playing with the server:
+
+	- go to ATOLS; edit the host ID in params.xml to be "localhost"
+
+	- copy locdbase.bin from PICOS/.../locaspot/ALPHATEST to ATOLS
+
+	- start the server (still in ATOLS) for VUEE: ./server.tcl -v 11
+	  (note: 11 is the absolute number of the master node)
+
+	- run guiprofiler in ATOLS (it should connect to the server); you
+	  will see the server's (cleaned up) log in the window
+
+	- run PIP and start VUEE in locaspot for alphatest.xml (the gray nodes
+	  are OFF, use PANEL to switch one Tag ON, e.g., 38134, note that the
+	  ones in the left half of the window are spare Pegs)
+
+	- try some location tracking
+
+	- to create samples, anchor the Tag (RTFM)
