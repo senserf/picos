@@ -620,3 +620,38 @@ WO151217A:
  A spot fix to a major bug causing loops after memory depletion. Sort of
  hypothetical on real HW but definitely observed in VUEE. I'd like to tag
  and separate the fix before other pending changes. (file: loca.cc)
+
+WO151229A:
+ Locaspot: rather minor changes, but with serious functional impact.
+  Lightly tested in VUEE only. The main goal: deliver maximum number of
+  location readings without impeding alarms delivery. Parameters tweaking
+  may be necessary to get acceptable performance or to reject (revert) the
+  changes:
+  - per hop retries (TARP_RTR) replaced praxis' report retries, i.e. NO
+    praxis-level reliable report delivery. Likely, this is OK with Bruges-alike
+    setups, I'm not sure about lesser redundancy (e.g. in AT buildings).
+    TARP_RTR is set to 2, in options_tarp_.sys.
+  - LOCA_TOUT_PING, LOCA_TOUT_PONG in LIB_PEG/loca.h, both set to 5 (seconds).
+    These are timeouts after which incoming pings (bursts) or pongs (alarms)
+    clear orphan burst cache (now still just 1 burst collection at a time is
+    allowed). It is debatable if this (passive) burst cleanup is adequate.
+    Even if it is, I don't know what are the 'right' values.
+  - LOCA_TRAC (set to 1), also in LIB_PEG/loca.h, diags burst cache cleanup in
+    VUEE's console (not in EMUL).
+  - In root_peg.cc, tarp_ctrl.param are set with slack 0 (0xB3 and 0xB2 for the
+    master). This (and appropriate TARP_DEF_RSSITH) worries me most, because
+    bad values may ruin the network. Again, AT buildings should be a good
+    testing ground, with lesser net redundancy than in Bruges.
+
+  Regardless of results from testing at AT, I'll do a burst cache with
+  parametrized size. It makes sense to allow 2-3 burst collections, especially
+  if we obsolete peg audits and report retries.
+
+  For testing at AT, all pegs must be reflashed. Tags are formally ok, but I
+  would reflash them, too, for seemingly irrelevant but different TARP settings.
+
+  I believe the locaspot praxis should be rewriten, when we decide about retries
+  (RTR and reliable reporting). Backward compatibility with 1.0 in Bruges is a
+  yet another requirement we should take seriously and treat it as a general
+  net upgrade functionality.
+
