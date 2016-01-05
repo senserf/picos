@@ -45,6 +45,16 @@ static bma250_regs_t AccelRegs = { 0x00003017, { 0x03, 0x0f, 0x00, 0x00, 0x07,
 						 0x00, 0x00, 0x01, 0x4d, 0x00,
 						 0x00, 0x00, 0x00, 0x00, 0x00 }
 				 };
+
+// Registers for high-speed collection of raw data
+static const bma250_regs_t CollectRegs = {
+				   0x000fffff, { 0x03, 0x0f, 0x00, 0x00,
+						 0x00, 0x00, 0x00, 0x09,
+						 0x30, 0x81, 0x0f, 0xc0,
+						 0x00, 0x14, 0x04, 0x0a,
+						 0x18, 0x08, 0x08, 0x10 }
+				  };
+
 static const item_t *TheItem;
 static sint RFC;
 static word RadioDelay = RADIO_WOR_IDLE_TIMEOUT;
@@ -523,6 +533,23 @@ static void msg_acccnf () {
 
 // ============================================================================
 
+static void setclock (command_time_t *pmt) {
+
+	RTC.year   = pmt->time [0];
+	RTC.month  = pmt->time [1];
+	RTC.day    = pmt->time [2];
+	RTC.hour   = pmt->time [3];
+	RTC.minute = pmt->time [4];
+	RTC.second = pmt->time [5];
+	rtc_set (&RTC);
+	// Make sure to update the LCD copy
+	if (Item == ITEM_WATCH) {
+		WatchBeingSet = BNONE;
+		SetMode = NO;
+		display_item (ITEM_WATCH);
+	}
+}
+
 static void handle_rf_command (byte code, address par, word pml) {
 
 	word u;
@@ -590,24 +617,10 @@ OK:
 			if (pml < sizeof (command_time_t))
 				goto BadLength;
 
-#define	pmt ((command_time_t*)par)
+			setclock ((command_time_t*)par);
 
-			RTC.year   = pmt->time [0];
-			RTC.month  = pmt->time [1];
-			RTC.day    = pmt->time [2];
-			RTC.hour   = pmt->time [3];
-			RTC.minute = pmt->time [4];
-			RTC.second = pmt->time [5];
-			rtc_set (&RTC);
-			// Make sure to update the LCD copy
-			if (Item == ITEM_WATCH) {
-				WatchBeingSet = BNONE;
-				SetMode = NO;
-				display_item (ITEM_WATCH);
-			}
 			goto OK;
 
-#undef	pmt
 		case command_radio_code:
 
 			if (pml < sizeof (command_radio_t))
@@ -660,6 +673,25 @@ OK:
 
 			oss_ack (ACK_PARAM);
 			return;
+
+		case command_collect_code:
+
+			if (pml < sizeof (command_time_t))
+				goto BadLength;
+
+			setclock ((command_time_t*)par);
+
+			// Set the registers to a nice foolproof config
+			memcpy (&CollectRegs, &AccelRegs, sizeof (AccelRegs));
+
+			// Force on
+			if (!accel_start (YES, 0, 0, MAX_ACC_PACK, 4)) {
+				oss_ack (ACK_NORES);
+				return;
+			}
+
+			goto OK;
+
 	}
 
 	oss_ack (ACK_COMMAND);

@@ -63,6 +63,11 @@ typedef struct {
 	byte	what;
 } command_getinfo_t;
 
+#define	command_collect_code	7
+typedef struct {
+	byte	time [6];
+} command_collect_t;
+
 // ==================
 // Message structures
 // ==================
