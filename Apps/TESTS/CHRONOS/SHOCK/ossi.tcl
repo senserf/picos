@@ -208,6 +208,17 @@ oss_command getinfo 0x06 {
 	byte	what;
 }
 
+oss_command collect 0x07 {
+#
+# A quick shortcut for:
+#
+#	- setting the accelerometer to maximum sensitivty/frequency
+#	- setting the time/date
+#	- starting collection at maximum rate
+#
+	byte	time [6];
+}
+
 oss_command ap 0x80 {
 #
 # Access point configuration
@@ -585,7 +596,7 @@ proc parse_cmd_accel { what } {
 
 	if { $what != "" } {
 		set kl { "configure" "on" "read" "stats" "events" "off"
-			 "erase" }
+			 "erase" "collect" }
 		if [catch { oss_keymatch $what $kl } what] {
 			set kl [join $kl ", "]
 			error "expected one of $kl"
@@ -595,6 +606,13 @@ proc parse_cmd_accel { what } {
 	if { $what == "" || $what == "read" } {
 		parse_check_empty
 		oss_issuecommand 0x06 [oss_setvalues [list 1] "getinfo"]
+		return
+	}
+
+	if { $what == "collect" } {
+		parse_check_empty
+		set val [stortc [clock seconds]]
+		oss_issuecommand 0x07 [oss_setvalues [list $val] "collect"]
 		return
 	}
 

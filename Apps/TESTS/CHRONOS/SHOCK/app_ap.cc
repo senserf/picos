@@ -24,7 +24,7 @@ static address		PMT;		// ... - the header
 static word		PML;		// Length
 static byte		LastRef = 0;
 
-static command_ap_t	APS = { 1, 1, 2048, 0xDEAD };		// AP status
+static command_ap_t	APS = { 1, 1, 2048, 0x1 };		// AP status
 
 // ============================================================================
 

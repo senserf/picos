@@ -4735,3 +4735,10 @@ PG151229A:
 	- try some location tracking
 
 	- to create samples, anchor the Tag (RTFM)
+
+PG160105A:
+
+	Wrote a dumb data collector (ewe.tcl) for the SHOCK app (see the brief
+	doc in the praxis directory). Added a command to SHOCK providing a
+	shortcut for initializing the sensor and starting data collection in
+	a single go, to make it easier and more reliable.
