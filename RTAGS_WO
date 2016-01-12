@@ -655,3 +655,35 @@ WO151229A:
   yet another requirement we should take seriously and treat it as a general
   net upgrade functionality.
 
+WO160112A:
+  Locaspot: fixed references for location data; readings come with consistent
+  timestamps taken at sourcing tag at the beginning of ping bursts. Note that
+  events without location data (potentially subject of report retries) keep
+  their timestamps (from hosting peg), as they also serve audits.
+
+  Reports with location data are not acked (and not cached for retries).
+
+  Location data cash cleaning params, from loca.h:
+// in seconds... likely, a single constant will do
+// 10 comes from 4 tries 3s apart, after loca burst (3*3+1)
+#define LOCA_TOUT_PING 10
+#define LOCA_TOUT_PONG 10
+// after _LREP loca data is cleared but not sent
+#define LOCA_TOUT_LREP 30
+
+  Added a flag to msg_report, to indicate if with location data. 2nd last spare
+  bit in pongDataType is used.
+
+  Added a byte at the end of all reports. If it is set, it is followed by
+  reference and loca vestor. From oss_peg_tcve.cc:
+	byte	locat; // 1 - with location data
+	// locat == 1 only
+	word	ref;
+	byte	locavec[LOCAVEC_SIZ];
+
+  All lightly tested in VUEE. There is still some symptoms I can't reconcile
+  if large aa_floor... is run, but I'll wait for Pawel's comments and adjustments
+  to location server and shared_plug. Before I forget, my main worry: why at
+  the model start not a single report comes with loca data. At a single node
+  restart all seems good, but at the VUEE start it is not.
+
