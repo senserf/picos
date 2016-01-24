@@ -16,6 +16,7 @@ rm -f storage.h
 rm -f hold.h
 rm -f phys_cc1100.h
 #################################
+rm -f as3932.h
 rm -f bma250.h
 rm -f bmp085.h
 rm -f modsyms.h

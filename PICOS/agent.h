@@ -53,7 +53,7 @@
 #define	ARQS_INPUT_BUFLEN	64		// PANEL request buffer size
 #define	AUPD_OUTPUT_BUFLEN	64		// Actuator update buffer size
 #define	LCDG_OUTPUT_BUFLEN	1024		// LCDG output buffer size (bts)
-#define	DATA_OUTPUT_BUFLEN	1024		// For sending XML data
+#define	DATA_OUTPUT_BUFLEN	16384		// For sending XML data
 
 #define	XTRN_IMODE_NONE		(0<<29)
 #define	XTRN_IMODE_DEVICE	(1<<29)
@@ -109,7 +109,7 @@
 #define	ECONN_AMBIGUOUS		9
 
 #define	ECONN_NOMODULE		128
-#define	ECONN_OK		129		/* Positive ack */
+#define	ECONN_OK		129		/* Positive ack, if >= this */
 
 // Request flags:
 //
@@ -865,9 +865,9 @@ process	AgentInterface {
 };
 
 extern word __pi_Agent_Port;
-extern char *__pi_XML_Data, *__pi_XML_Suppl, *__pi_BGR_Image;
-extern int __pi_XML_Data_Length, __pi_XML_Suppl_Length;
+extern char *__pi_XML_Data, *__pi_XML_Suppl, **__pi_BGR_Image;
+extern int __pi_XML_Data_Length, __pi_XML_Suppl_Length, __pi_N_BGR_Images;
 
-char *__pi_rdfile (const char*, int&);
+char *__pi_rdfile (const char*, char *buf, int, int&);
 
 #endif

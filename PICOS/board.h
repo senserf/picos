@@ -1,7 +1,12 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	1.02
+#define	VUEE_VERSION	1.1
+
+#ifndef	ZZ_R3D
+// A fallback to compile legacy praxes
+#define	ZZ_R3D	0
+#endif
 
 #include "picos.h"
 #include "ndata.h"
@@ -436,6 +441,19 @@ station PicOSNode abstract {
 	void uart_reset (), uart_abort ();
 
 	// Location
+#if ZZ_R3D
+	inline void get_location (double &xx, double &yy, double &zz) {
+		if (RFInt != NULL)
+			RFInt->RFInterface->getLocation (xx, yy, zz);
+		else
+			xx = yy = zz = 0.0;
+	};
+
+	inline void set_location (double xx, double yy, double zz) {
+		if (RFInt != NULL)
+			RFInt->RFInterface->setLocation (xx, yy, zz);
+	};
+#else
 	inline void get_location (double &xx, double &yy) {
 		if (RFInt != NULL)
 			RFInt->RFInterface->getLocation (xx, yy);
@@ -447,6 +465,7 @@ station PicOSNode abstract {
 		if (RFInt != NULL)
 			RFInt->RFInterface->setLocation (xx, yy);
 	};
+#endif
 
 	// This one is called by the praxis to reset the node
 	void _da (reset) ();
@@ -960,6 +979,7 @@ process MoveHandler {
 	~MoveHandler ();
 
 	void fill_buffer (Long, char);
+	char *read_image_files (int&);
 
 	perform;
 };

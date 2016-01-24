@@ -1300,3 +1300,8 @@ PG151204A:
 
     Fixed a bug in udaemon causing that the initial "off" status of a node
     wasn't reflected correctly in the node's color.
+
+PG160124A:	PICOS >= PG160124A, SIDE >= PG160124A, PIP >= PG1601224A
+
+    Added the 3d option. RTFM (the red bits). Also, you may want to look at
+    the Alpha setup model in locaspot (with the present project VUEE config).

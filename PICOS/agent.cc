@@ -21,9 +21,9 @@ char	*__pi_XML_Data,
 // Supplementary data, i.e., board-specific <node> defaults
 	*__pi_XML_Suppl,
 // File name of ROAMER's background image
-	*__pi_BGR_Image;
+	**__pi_BGR_Image;
 
-int	__pi_XML_Data_Length, __pi_XML_Suppl_Length;
+int	__pi_XML_Data_Length, __pi_XML_Suppl_Length, __pi_N_BGR_Images = 0;
 
 static MUpdates *MUP = NULL,	// To signal mobility updates
 		*PUP = NULL;	// To signal panel updates
@@ -93,54 +93,50 @@ static char *sigseq (PicOSNode *pn) {
 			pn->getTName ());
 }
 
-char *__pi_rdfile (const char *fn, int &Len) {
+char *__pi_rdfile (const char *fn, char *buf, int SLen, int &FLen) {
 //
-// Read the contents of file into memory
+// Read the contents of file into memory, possibly into an existing buffer
 //
 	int fd, len, cur, rea;
 	char *f;
 
 	if ((fd = open (fn, O_RDONLY)) < 0) {
-		Len = -1;
+		// File open failure
+FErr:
+		FLen = -1;
+ERet:
+		if (buf != NULL)
+			free (buf);
 		return NULL;
 	}
 
-	if ((f = (char*) malloc (len = 16384)) == NULL) {
-M_err:
-		Len = -2;
-G_err:
-		close (fd);
-		return NULL;
-	}
-
-	cur = 0;
+	cur = len = SLen;
 
 	while (1) {
 		if (cur == len) {
-			if ((f = (char*) realloc (f, len += 8192)) == NULL)
-				goto M_err;
+			if ((f = (char*) realloc (buf, len += 8192)) == NULL) {
+				// No memory
+				FLen = -2;
+				close (fd);
+				goto ERet;
+			}
+			buf = f;
 		}
 		if ((rea = read (fd, f + cur, len - cur)) == 0)
 			break;
 		if (rea < 0) {
-			free (f);
-			Len = -1;
-			goto G_err;
+			close (fd);
+			goto FErr;
 		}
 		cur += rea;
 	}
 
 	close (fd);
 
-	if ((Len = cur) == 0) {
-		free (f);
-		f = NULL;
-	}
+	// Down to size
+	buf = (char*) realloc (buf, FLen = cur);
 
-	// In case we have grabbed way too much
-	f = (char*) realloc (f, Len);
-
-	return f;
+	return buf;
 }
 			
 int Dev::wl (int st, char *&buf, int &left) {
@@ -2100,8 +2096,12 @@ DataSender::perform {
 
 	state AckData:
 
-		c = htonl (ECONN_OK | (((lword)(__pi_XML_Data_Length +
-			__pi_XML_Suppl_Length)) << 8));
+		c = htonl ((ECONN_OK
+#if ZZ_R3D
+			+1
+#endif
+			) | (((lword)(__pi_XML_Data_Length +
+				__pi_XML_Suppl_Length)) << 8));
 
 		if (Agent->wi (AckData, (char*)(&c), 4) == ERROR) {
 Term:
@@ -3961,13 +3961,20 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 //
 	PicOSNode *pn;
 	double xx, yy;
+#if ZZ_R3D
+	double zz;
+#endif
 	char cp [MAX_PINS+1];
 	char cl [MAX_LEDS+2];
 	char ch [8];
 	char *lb, *sg;
 
 	pn = (PicOSNode*) idToStation (NN);
-	pn -> get_location (xx, yy);
+	pn -> get_location (xx, yy
+#if ZZ_R3D
+				  , zz
+#endif
+				      );
 
 	if (pn->pins)
 		// Send "coloring" pins
@@ -3995,14 +4002,23 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 	}
 
 	if (cmd == 'U') {
-		while ((Left = snprintf (RBuf, RBSize,
+		while ((Left = snprintf (RBuf, RBSize, "U "
 #if LONGBITS <= 32
-			"U %1ld %c %1f %1f <%s,%s> [%s,%s]\n",
+			"%1ld"
 #else
-			"U %1d %c %1f %1f <%s,%s> [%s,%s]\n",
+			"%1d"
 #endif
+			" %c %1f %1f"
+#if ZZ_R3D
+			" %1f"
+#endif
+			" <%s,%s> [%s,%s]\n",
 			NN,
-			pn->Halted ? 'F' : 'O', xx, yy, cl, cp, ch, lb)) >=
+			pn->Halted ? 'F' : 'O', xx, yy,
+#if ZZ_R3D
+					        zz,
+#endif
+						cl, cp, ch, lb)) >=
 			RBSize) {
 				RBSize = (word)(Left + 16);
 				delete [] RBuf;
@@ -4011,9 +4027,16 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 	} else {
 		sg = sigseq (pn);
 		while ((Left = snprintf (RBuf, RBSize,
-			"%s %1f %1f %1d <%s,%s> [%s,%s]\n",
+			"%s %1f %1f"
+#if ZZ_R3D
+			" %1f"
+#endif
+			" %1d <%s,%s> [%s,%s]\n",
 			sg,
 			xx, yy,
+#if ZZ_R3D
+			zz,
+#endif
 			pn->Movable, cl, cp, ch, lb)) >= RBSize) {
 				RBSize = (word)(Left + 16);
 				delete [] RBuf;
@@ -4024,11 +4047,65 @@ void MoveHandler::fill_buffer (Long NN, char cmd) {
 	BP = &(RBuf [0]);
 }
 
+char *MoveHandler::read_image_files (int &total) {
+
+	int cur, aug;
+	char *buf, *f;
+	lword hl, seg;
+	word i, hs;
+
+	if (__pi_N_BGR_Images == 0) {
+ENull:
+		total = 0;
+		return NULL;
+	}
+
+	cur = 0;
+	buf = NULL;
+
+	for (i = 0; i < __pi_N_BGR_Images; i++) {
+
+		if (__pi_BGR_Image [i] == NULL)
+			continue;
+
+		if ((f = (char*)realloc (buf, cur + 6)) == NULL) {
+			if (buf != NULL)
+				free (buf);
+			goto ENull;
+		}
+
+		buf = __pi_rdfile (__pi_BGR_Image [i], f, cur + 6, aug);
+
+		if (aug < 0)
+			// __pi_rdfile deallocates buffer on error
+			goto ENull;
+
+		// The actual length of the chunk
+		seg = (lword)(aug - cur - 6);
+
+		hs = htons (i);
+		hl = htonl (seg);
+
+		memcpy (buf + cur, &hs, 2);
+		memcpy (buf + cur + 2, &hl, 4);
+
+		cur = aug;
+	}
+
+	total = cur;
+
+	return buf;
+}
+
 MoveHandler::perform {
 
 	TIME st;
 	double dl;
+#if ZZ_R3D
+	nparse_t NP [11];
+#else
 	nparse_t NP [9];
+#endif
 	int rc;
 	Long NN;
 	char *re;
@@ -4046,12 +4123,12 @@ MoveHandler::perform {
 			// No need to acknowledge
 			sameas AckDone;
 
-		// Check if background image is available
+		// Check if background images are available
 		if (__pi_BGR_Image != NULL &&
 		    (Flags & XTRN_OMODE_OPTION) &&
-		    (RBuf = __pi_rdfile (__pi_BGR_Image, Left)) != NULL) {
+		    (RBuf = read_image_files (Left)) != NULL) {
 			if (Left > 0xFFFFFF) {
-				// File too big
+				// File too big (FIXME: how to diagnose this?)
 				free (RBuf);
 				RBuf = NULL;
 				Left = 0;
@@ -4076,12 +4153,16 @@ Term:
 
 		BP = RBuf;
 
+		Agent->resize (DATA_OUTPUT_BUFLEN);
+
 	transient BgrMove:
 
 		if (Agent->wl (BgrMove, BP, Left) == ERROR)
 			goto Term;
 
 		free (RBuf);
+
+		Agent->resize (MRQS_INPUT_BUFLEN);
 
 	transient AckDone:
 
@@ -4236,6 +4317,41 @@ Illegal_nid:
 			}
 
 			// Prepare the parse structure
+#if ZZ_R3D
+			// ====================================================
+			// 3D =================================================
+			// ====================================================
+
+			NP [0] . type = NP [1] . type = NP [2] . type =
+				TYPE_double;
+
+			if ((rc = parseNumbers (BP, 3, NP)) != 3)
+				goto Illegal;
+
+			if (NP [0].DVal < 0.0 || NP [1].DVal < 0.0
+					      || NP [2].DVal < 0.0) {
+Illegal_crd:
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: illegal "
+					    "coordinates (%f, %f, %f), must "
+					        "not be negative", NP[0].DVal,
+						    NP[1].DVal, NP[2].DVal);
+				// Socket
+				goto IDisconn;
+			}
+
+			if (pn->RFInt != NULL) {
+				TR = pn->RFInt->RFInterface;
+				// Cancel any present movement
+				rwpmmStop (TR);
+				TR -> setLocation (NP [0].DVal, NP [1].DVal,
+								NP [2].DVal);
+			}
+#else
+			// ====================================================
+			// 2D =================================================
+			// ====================================================
+
 			NP [0] . type = NP [1] . type = TYPE_double;
 
 			if ((rc = parseNumbers (BP, 2, NP)) != 2)
@@ -4258,6 +4374,9 @@ Illegal_crd:
 				rwpmmStop (TR);
 				TR -> setLocation (NP [0].DVal, NP [1].DVal);
 			}
+
+			// ====================================================
+#endif	/* R3D */
 			// Send the update regardless, you will get 0,0 for a
 			// transceiver-less node
 			__mup_update (NN);
@@ -4280,6 +4399,65 @@ Illegal_crd:
 					    "a non-movable node");
 				goto IDisconn;
 			}
+#if ZZ_R3D
+			// ====================================================
+			// 3D =================================================
+			// ====================================================
+
+			for (rc = 0; rc < 11; rc++)
+				NP [rc] . type = TYPE_double;
+
+			if ((rc = parseNumbers (BP, 11, NP)) != 11)
+				goto Illegal;
+
+			if (NP [0].DVal < 0.0 || NP [1].DVal < 0.0
+					      || NP [2].DVal < 0.0)
+				goto Illegal_crd;
+
+			// More validation of arguments: the rectangle
+			if (NP [3].DVal < NP [0].DVal || NP [4].DVal <
+			    NP [1].DVal || NP [5].DVal < NP [2].DVal) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+				    excptn ("MoveHandler: illegal box "
+					"coordinates "
+					"<%f,%f,%f> <%f,%f,%f>", NP[0].DVal,
+					   NP[1].DVal, NP[2].DVal, NP[3].DVal,
+					   NP[4].DVal, NP[5].DVal);
+				// Socket
+				goto IDisconn;
+			}
+
+			if (NP [6].DVal <= 0.0 || NP [7].DVal < NP [6].DVal) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: illegal speed "
+					"parameters "
+					"(%f,%f)", NP[6].DVal, NP[7].DVal);
+				// Socket
+				goto IDisconn;
+			}
+
+			if (NP [8].DVal < 0.0 || NP [9].DVal < NP [8].DVal) {
+				if (imode (Flags) != XTRN_IMODE_SOCKET)
+					excptn ("MoveHandler: illegal pause "
+					"parameters "
+					"(%f,%f)", NP[8].DVal, NP[9].DVal);
+				// Socket
+				goto IDisconn;
+			}
+
+			// The time can be negative, which (including zero)
+			// means that we roam forever
+
+			rwpmmStart (NN, pn->RFInt->RFInterface,
+				NP [0].DVal, NP [1].DVal,
+				NP [2].DVal, NP [3].DVal,
+				NP [4].DVal, NP [5].DVal,
+				NP [6].DVal, NP [7].DVal,
+				NP [8].DVal, NP [9].DVal, NP [10].DVal);
+#else
+			// ====================================================
+			// 2D =================================================
+			// ====================================================
 
 			for (rc = 0; rc < 9; rc++)
 				NP [rc] . type = TYPE_double;
@@ -4330,6 +4508,8 @@ Illegal_crd:
 				NP [6].DVal, NP [7].DVal,
 				NP [8].DVal);
 
+			// ====================================================
+#endif	/* R3D */
 			proceed Loop;
 
 		    case '\0':

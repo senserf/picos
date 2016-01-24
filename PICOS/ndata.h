@@ -251,7 +251,11 @@ typedef struct {
 	word	On;		// Initially on
 	word	Lcdg;		// This will do for now as a flag
 	lword	HID;
-	double X, Y;		// Coordinates
+	double X, Y
+#if ZZ_R3D
+		, Z
+#endif
+			;	// Coordinates
 	Boolean	Movable,
 		HID_present;
 	data_rf_t *rf;		// RF module data parameters

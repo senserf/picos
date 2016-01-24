@@ -69,7 +69,11 @@ typedef struct preinit_s preinit_t;
 
 typedef struct {
 
-	double	x, y;
+	double	x, y
+#if ZZ_R3D
+		    , z
+#endif
+		       ;
 	Boolean Movable;
 
 } location_t;
@@ -483,7 +487,11 @@ rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 				(Long)(rf->Pre),
 				1.0,			// Dummy
 				1.0,			// Dummy
-				nd->X, nd->Y );
+				nd->X, nd->Y
+#if ZZ_R3D
+					    , nd->Z
+#endif
+						   );
 	setrfrate (cpars->DefRate);
 	setrfchan (cpars->DefChannel);
 
@@ -2439,26 +2447,33 @@ void BoardRoot::initRoamers (sxml_t data) {
 
 void BoardRoot::initAgent (sxml_t data) {
 //
-// Extracts the stuff that belongs to the Agent's visual info and must be
-// known to us. For now, this is only the file name of the background image,
-// if any.
+// Extract the list of background images for roamers. The files will be sent to
+// the agent when a roamer session is established.
 //
 	sxml_t t;
 	const char *att;
-	int len;
+	int cnt, len;
 
 	if ((data = sxml_child (data, "display")) == NULL)
 		return;
 
-	if ((t = sxml_child (data, "roamer")) != NULL &&
-	    (att = sxml_attr (t, "image")) != NULL &&
-	    (len = strlen (att)) != 0) {
+	for (__pi_N_BGR_Images = 0, t = sxml_child (data, "roamer"); t != NULL;
+		t = sxml_next (t))
+			__pi_N_BGR_Images++;
 
-		__pi_BGR_Image = (char*) malloc (len + 1);
-		strcpy (__pi_BGR_Image, att);
+	if (__pi_N_BGR_Images == 0)
+		return;
 
-		// Try to open; do we really care? What if nobody ever asks
-		// for it?
+	__pi_BGR_Image = new char* [__pi_N_BGR_Images];
+
+	for (cnt = 0, t = sxml_child (data, "roamer"); cnt < __pi_N_BGR_Images;
+	     t = sxml_next (t), cnt++) {
+		if ((att = sxml_attr (t, "image")) != NULL &&
+		    (len = strlen (att)) != 0) {
+			__pi_BGR_Image [cnt] = new char [len + 1];
+			strcpy (__pi_BGR_Image [cnt], att);
+		} else
+			__pi_BGR_Image [cnt] = NULL;
 	}
 }
 
@@ -2750,15 +2765,23 @@ static void deallocate_ep_def (data_ep_t *ep) {
 }
 
 static Boolean parseLocation (sxml_t cur, int tp, Long nn,
-							 double *x, double *y) {
+						    double *x, double *y
+#if ZZ_R3D
+						             , double *z
+#define	__ndim 3
+#else
+#define	__ndim 2
+#endif
+									) {
 //
 // tp == 0	=> defaults
 // tp == 1	=> within <node>
 // tp == 2	=> within <location>
 //
 	const char *att;
-	nparse_t np [2];
-	Boolean res;
+	nparse_t np [__ndim];
+	int i;
+	Boolean res, bad;
 
 	res = YES + YES;	// undefined
 
@@ -2781,10 +2804,21 @@ static Boolean parseLocation (sxml_t cur, int tp, Long nn,
 
 	// Not defaults
 	att = sxml_txt (cur);
-	np [0].type = np [1].type = TYPE_double;
-	if (parseNumbers (att, 2, np) != 2 || np [0].DVal < 0.0 || 
-	    np [1].DVal < 0.0) {
 
+	for (i = 0; i < __ndim; i++)
+		np [i].type = TYPE_double;
+
+	bad = (parseNumbers (att, __ndim, np) != __ndim);
+
+	if (!bad) {
+		for (i = 0; i < __ndim; i++)
+			if (np [i].DVal < 0.0) {
+				bad = YES;
+				break;
+			}
+	}
+
+	if (bad) {
 		if (tp == 1)
 			excptn ("Root: illegal location (%s) for <node> %1d",
 				att, nn);
@@ -2795,18 +2829,35 @@ static Boolean parseLocation (sxml_t cur, int tp, Long nn,
 
 	*x = np [0].DVal;
 	*y = np [1].DVal;
-
+#if ZZ_R3D
+	*z = np [2].DVal;
+#endif
 	if (tp == 1)
-		print (form ("  Location: <%1.2f,%1.2f> %c\n\n",
+		print (form ("  Location: <%1.2f,%1.2f"
+#if ZZ_R3D
+					",%1.2f"
+#endif
+					"> %c\n\n",
 				*x, *y, 
+#if ZZ_R3D
+				    *z,
+#endif
 				 res == NO  ? 'F' :
 				(res == YES ? 'M' : 'D')));
 	else
-		print (form ("  Node %1d: <%1.2f,%1.2f> %c\n", nn,
+		print (form ("  Node %1d: <%1.2f,%1.2f"
+#if ZZ_R3D
+					",%1.2f"
+#endif
+					"> %c\n", nn,
 				*x, *y, 
+#if ZZ_R3D
+				    *z,
+#endif
 				 res == NO  ? 'F' :
 				(res == YES ? 'M' : 'D')));
 	return res;
+#undef __ndim
 }
 		 
 data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
@@ -2835,7 +2886,11 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 	ND->Mem = 0;
 	// These ones are not set here, placeholders only to be set by
 	// the caller
-	ND->X = ND->Y = -1.0;
+	ND->X = ND->Y =
+#if ZZ_R3D
+		ND->Z =
+#endif
+			-1.0;
 	// The default for Movability is YES, but for a node (as opposed to
 	// "default") make it "undefined" for now
 	ND->Movable = (nn < 0) ? YES : YES + YES;
@@ -3403,7 +3458,11 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 
 	if ((cur = sxml_child (data, "location")) != NULL)
 		ND->Movable = parseLocation (cur, nn >= 0, nn, &(ND->X),
-			&(ND->Y));
+			&(ND->Y)
+#if ZZ_R3D
+		      , &(ND->Z)
+#endif
+				);
 	return ND;
 }
 
@@ -4515,7 +4574,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 		append_suppl ("<supplement>\n");
 
 		for (tq = 0; tq < NFC; tq++) {
-			xdata = __pi_rdfile (bfn = BDFN [tq], tl);
+			xdata = __pi_rdfile (bfn = BDFN [tq], NULL, 0, tl);
 			if (tl < 0)
 				excptn ("Root: cannot access board defaults "
 					"file %s", bfn);
@@ -4591,7 +4650,11 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 					" defined", last);
 
 			locs [last] . Movable = parseLocation (cno, 2, last,
-				&(locs [last] . x), &(locs [last] . y));
+				&(locs [last] . x), &(locs [last] . y)
+#if ZZ_R3D
+						  , &(locs [last] . z)
+#endif
+									);
 
 			fill++;
 		}
@@ -4903,21 +4966,36 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 					"undefined", i);
 		}
 
-		if (NOD->X < 0.0 || NOD->Y < 0.0) {
+		if (NOD->X < 0.0 || NOD->Y < 0.0
+#if ZZ_R3D
+				 || NOD->Z < 0.0
+#endif
+						) {
 			// No location
 			if (locs && locs [i] . Movable != 0xff) {
 				NOD->X = locs [i] . x;
 				NOD->Y = locs [i] . y;
+#if ZZ_R3D
+				NOD->Z = locs [i] . z;
+#endif
 				NOD->Movable = locs [i] . Movable;
 			}
 		}
 
-		if (NOD->X < 0.0 || NOD->Y < 0.0) {
+		if (NOD->X < 0.0 || NOD->Y < 0.0
+#if ZZ_R3D
+				 || NOD->Z < 0.0
+#endif
+			) {
 			if (NRF != NULL)
 			  	excptn ("Root: no location for node %1d (which"
-					"is equipped with radio)", i);
+					" is equipped with radio)", i);
 			// OK, if no radio, but force it to be legal
-			NOD->X = NOD->Y = 0.0;
+			NOD->X = NOD->Y =
+#if ZZ_R3D
+				 NOD->Z =
+#endif
+					  0.0;
 			NOD->Movable = NO;
 		} else {
 			// Location OK

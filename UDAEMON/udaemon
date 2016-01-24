@@ -844,6 +844,9 @@ set HostName		"localhost"
 set AGENT_MAGIC		0xBAB4
 set ECONN_OK		129
 set PortNumber		""
+set Stat(TD)		0
+set Rms			""
+set RD(S)		""
 
 array set LED_COLORS	{ 0 red 1 green 2 yellow 3 orange 4 blue }
 
@@ -917,15 +920,14 @@ array set FONT		{
 #
 # Default canvas parameters for ROAMER:
 #
-# NR     = node radius
-# ND     = node diameter
-# TO     = text label Y offset
+# NR     = default node radius
+# TO     = text label Y offset (relative to node bound)
 # LO	 = note offset (x,y) from the corner of node's box
 # RX, RY = running coordinate offset from left bottom
 # MW, MH = minimum width and height
 # DW, DH = default (initial) width and height
 #
-array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 ND 10 TO 10 RX 10 RY 10
+array set CMARGIN	{ L 24 R 24 U 24 D 34 NR 5 TO 5 RX 10 RY 10
 			  LO 0 LW 100 MW 200 MH 200 DW 400 DH 400 }
 
 #
@@ -981,18 +983,18 @@ array set LCDOFFITEMS {
 array set LCDCOLORS 	{ ONE #ff8080 ONI #ff0000 OFE #000000 OFI #0F0F0F }
 
 array set SREQUESTS	{
-				UART		1
-				PINS		2
-				LEDS		3
-				ROAMER		4
-				PANEL		5
-				CLOCK		6
-				SENSORS		7
-				LCDG		8
-				PTRACKER	9
-				EMUL		10
-				XMLDATA		11
-				STOP		12
+				UART		{  1 "u" }
+				PINS		{  2 "p" }
+				LEDS		{  3 "l" }
+				ROAMER		{  4 "m" }
+				PANEL		{  5 "n" }
+				CLOCK		{  6 "c" }
+				SENSORS		{  7 "s" }
+				LCDG		{  8 "g" }
+				PTRACKER	{  9 "w" }
+				EMUL		{ 10 "e" }
+				XMLDATA		{ 11 "x" }
+				STOP		{ 12 "h" }
 			}
 
 ###############################################################################
@@ -1078,7 +1080,7 @@ proc dbinB { s } {
 	}
 	binary scan $str c val
 	set str [string range $str 1 end]
-	return [expr ($val & 0x000000ff)]
+	return [expr { ($val & 0x000000ff) }]
 }
 
 proc dbinS { s } {
@@ -1091,7 +1093,7 @@ proc dbinS { s } {
 	}
 	binary scan $str S val
 	set str [string range $str 2 end]
-	return [expr ($val & 0x0000ffff)]
+	return [expr { ($val & 0x0000ffff) }]
 }
 
 proc dbinI { s } {
@@ -1162,7 +1164,7 @@ proc valnum { n { min "" } { max "" } } {
 		error "string is not an integer number"
 	}
 
-	if [catch { expr $n } n] {
+	if [catch { expr { $n } } n] {
 		error "string is not a number"
 	}
 
@@ -1290,6 +1292,92 @@ proc clear_txt { w } {
 }
 
 ###############################################################################
+
+proc md_click { val { lv 0 } } {
+#
+# Generic done event for modal windows/dialogs
+#
+	global P
+
+	if { [info exists P(M$lv,EV)] && $P(M$lv,EV) == 0 } {
+		set P(M$lv,EV) $val
+	}
+}
+
+proc md_stop { { lv 0 } } {
+#
+# Close operation for a modal window
+#
+	global P
+
+	if [info exists P(M$lv,WI)] {
+		catch { destroy $P(M$lv,WI) }
+	}
+	array unset P "M$lv,*"
+	# make sure all upper modal windows are destroyed as well; this is
+	# in case grab doesn't work
+	for { set l $lv } { $l < 10 } { incr l } {
+		if [info exists P(M$l,WI)] {
+			md_stop $l
+		}
+	}
+	# if we are at level > 0 and previous level exists, make it grab the
+	# pointers
+	while { $lv > 0 } {
+		incr lv -1
+		if [info exists P(M$lv,WI)] {
+			catch { grab $P(M$lv,WI) }
+			break
+		}
+	}
+}
+
+proc md_wait { { lv 0 } } {
+#
+# Wait for an event on the modal dialog
+#
+	global P
+
+	set P(M$lv,EV) 0
+	vwait P(M$lv,EV)
+	if ![info exists P(M$lv,EV)] {
+		return -1
+	}
+	if { $P(M$lv,EV) < 0 } {
+		# cancellation
+		md_stop $lv
+		return -1
+	}
+
+	return $P(M$lv,EV)
+}
+
+proc md_window { tt { lv 0 } } {
+#
+# Creates a modal dialog
+#
+	global P
+
+	set w [cw].modal$lv
+	catch { destroy $w }
+	set P(M$lv,WI) $w
+	toplevel $w
+	wm title $w $tt
+
+	if { $lv > 0 } {
+		set l [expr $lv - 1]
+		if [info exists P(M$l,WI)] {
+			# release the grab of the previous level window
+			catch { grab release $P(M$l,WI) }
+		}
+	}
+
+	# this fails sometimes
+	catch { grab $w }
+	return $w
+}
+
+###############################################################################
 # arguments, preprocessing ####################################################
 ###############################################################################
 
@@ -1316,7 +1404,7 @@ proc bad_usage { } {
 
 proc parse_args { } {
 
-	global argv PortNumber HostName RY TM PF
+	global argv PortNumber HostName TM PF
 
 	# invert Y coordinates
 	set RY 0
@@ -1369,7 +1457,7 @@ proc parse_args { } {
 			bad_usage
 		}
 		if ![regexp "(.*):(.*)" $j j h p] {
-			if [catch { expr $j } p] {
+			if [catch { expr { $j } } p] {
 				set p ""
 				set h $j
 			} else {
@@ -1396,6 +1484,8 @@ proc parse_args { } {
 	if { $PortNumber == "" } {
 		set PortNumber 4443
 	}
+
+	setycoord $RY
 }
 
 proc plugin_check { } {
@@ -1452,8 +1542,11 @@ proc XMLDATA_ini { Sok code } {
 #
 	global Stat Geometry
 
+	# set up the dimensionality
+	setdim [expr { $code & 0xff }]
+
 	# length
-	set dfl [expr ($code >> 8) & 0x00ffffff]
+	set dfl [expr { ($code >> 8) & 0x00ffffff }]
 
 	if { $dfl == 0 } {
 		# zero length, no XML data
@@ -1477,7 +1570,8 @@ proc readXML { Sok } {
 	global Stat Geometry
 
 	while (1) {
-		if [sock_rd $Sok ch [expr $Stat($Sok,FL) - $Stat($Sok,LE)]] {
+		if [sock_rd $Sok ch \
+		    [expr { $Stat($Sok,FL) - $Stat($Sok,LE) }]] {
 			# failure
 			return
 		}
@@ -1515,9 +1609,7 @@ proc parse_geometry { } {
 #
 	global Stat Geometry LogStat
 
-	if [info exists Geometry(+F)] {
-		unset Geometry(+F)
-	}
+	set Geometry(roamer) ""
 
 	log "Waiting for XML data from the server ..."
 
@@ -1549,7 +1641,15 @@ proc parse_geometry { } {
 		return
 	}
 
-	log "Connection OK, XML data received"
+	set p "Connection OK, XML data received, "
+
+	if $Stat(TD) {
+		append p "3d"
+	} else {
+		append p "2d"
+	}
+
+	log $p
 
 	if [catch { sxml_parse Geometry(+F) } p] {
 		gperror $p
@@ -1577,7 +1677,7 @@ proc parse_geometry { } {
 	set NN -1
 
 	# initialize node color sets
-	set Geometry(roamer,NC) ""
+	set Geometry(N,NC) ""
 
 	# generic defaults
 	set d [sxml_child $p "defaults"]
@@ -1688,70 +1788,138 @@ proc parse_disp { item n mod { nod "" } { typ "" } } {
 
 proc parse_roamer { item } {
 #
-# Parses the extras for roamer
+# Parses one roamer
 #
-	global Geometry
+	global Geometry HPA
 
-	# we may have a background image for the roamer, which will also fix
-	# the dimensions; note that the image (as such) may come from the
-	# server (so we won't be using the file), but we still need the
-	# dimensions
+	# can be empty
+	set nam [sxml_attr $item "name"]
 
+	# index (for errors)
+	set rnu [llength $Geometry(roamer)]
+
+	# parse the display part
+	parse_disp $item [roamlab $rnu] 0
+
+	# background image
 	set img [sxml_attr $item "image"]
+
+	# intialize wid and hei to absent
+	set wid ""
+	set hei ""
+
+	# fetch these in advance
+	set vw [sxml_attr $item "width"]
+	set vh [sxml_attr $item "height"]
+	set box [sxml_attr $item "box"]
+
 	if { $img != "" } {
-		set dim [sxml_attr $item "width"]
-		if { $dim != "" } {
-			if { [catch { expr $dim } val] || $val <= 0.0 } {
-				gperror "illegal number in\
-						    width in roamer spec: $dim"
+
+		if { $vw == "" && $vh == "" && $box == "" } {
+			gperror "in roamer $rnu, image must be accompanied by\
+				at least one of width, height, or box"
+		}
+
+		if { $vw != "" || $vh != "" } {
+			if { $box != "" } {
+				gperror "in roamer $rnu, legacy width/height\
+					cannot be mixed with box"
 			}
-			set Geometry(roamer,w) $val
-		}
-		set dim [sxml_attr $item "height"]
-		if { $dim != "" } {
-			if { [catch { expr $dim } val] || $val <= 0.0 } {
-				gperror "illegal number in\
-						    height in roamer spec: $dim"
+			# transform into a box
+			set box [list [list 0.0 $vw] [list 0.0 $vh] ""]
+		} else {
+			# decode the box
+			set nli ""
+			while 1 {
+				set box [string trimleft $box " \t,"]
+				if { $box == "" } {
+					break
+				}
+				if ![regexp "^$HPA(F)(.*)" $box jnk v box] {
+					gperror "in roamer $rnu, FP value\
+						expected in box"
+				}
+				lappend nli $v
 			}
-			set Geometry(roamer,h) $val
+			set xp ""
+			set yp ""
+			set zp ""
+			set nl [llength $nli]
+			if { $nl == 4 } {
+				set xp [list [lindex $nli 0] [lindex $nli 2]]
+				set yp [list [lindex $nli 1] [lindex $nli 3]]
+			} elseif { $nl == 6 } {
+				set xp [list [lindex $nli 0] [lindex $nli 3]]
+				set yp [list [lindex $nli 1] [lindex $nli 4]]
+				set zp [list [lindex $nli 2] [lindex $nli 5]]
+			} else {
+				gperror "in roamer $rnu, illegal number of\
+					values, $nl, in box, 4 or 6 expected"
+			}
+			set box [list $xp $yp $zp]
 		}
-		if { ![info exists Geometry(roamer,w)] && \
-		     ![info exists Geometry(roamer,h)] } {
-			gperror "image in roamer spec requires\
-					    at least one of 'width', 'height'"
+
+		# validate the box
+		set i 0
+		foreach p $box {
+			lassign $p a b
+			incr i
+			if { $a == "" } {
+				# formal verification in terms of the presence
+				# of items has been assessed already
+				continue
+			}
+			if { [catch { expr { $a } } v] || $a < 0.0 } {
+				gperror "in roamer $rnu, illegal box value $a"
+			}
+			if { $b == "" } {
+				continue
+			}
+			if { [catch { expr { $b } } v] || $b < $a 
+			    || ($i < 3 && $b == $a) } {
+				# should we require a minimum difference?
+				gperror "in roamer $rnu, illegal box value $b"
+			}
 		}
-		set Geometry(roamer,i) [sxml_attr $item "image"]
 	}
 
-	set ns [sxml_attr $item "nodesize"]
-	if { $ns != "" } {
-		if [catch { valnum $ns 4 100 } ns] {
-			gperror "illegal nodesize: $ns"
+	set v [sxml_attr $item "nodesize"]
+	if { $v != "" } {
+		if [catch { valnum $v 4 100 } ns] {
+			gperror "illegal nodesize in roamer $rnu: $ns"
 		}
-		if [expr $ns & 1] {
+		if [expr { $ns & 1 }] {
 			# make sure it is even
 			incr ns
 		}
-		set nsh [expr $ns / 2]
-		global CMARGIN
-		set CMARGIN(ND) $ns
-		set CMARGIN(NR) $nsh
-		set CMARGIN(TO) [expr $nsh + 5]
+		# this will be stored (half the node size); CMARGIN must be
+		# set: NR <- nsh, TO <- $nsh + 5
+		set nsh [expr { $ns / 2 }]
 	}
+
+	# note: img is probably useless, a flag should do, let's keep it
+	# around though as it does no harm
+	lappend Geometry(roamer) [list $nam $img $box $nsh]
 }
 
 proc parse_globals { data } {
 #
 # Parses the global <display> objects
 #
+	global Geometry
+
+	# initialize the list of roamers
+	set Geometry(roamer) ""
+
 	foreach j [sxml_children $data] {
 
 		set n [string tolower [sxml_name $j]]
-		parse_disp $j $n 0
 
 		if { $n == "roamer" } {
 			# this one is special
 			parse_roamer $j
+		} else {
+			parse_disp $j $n 0
 		}
 	}
 }
@@ -2043,7 +2211,7 @@ proc parse_node { item { n "" } { t "" } } {
 		gperror "[parse_serr $n $t] <color>, $cst"
 	}
 	if { $cst != "" } {
-		lappend Geometry(roamer,NC) [list $n $t $cst]
+		lappend Geometry(N,NC) [list $n $t $cst]
 	}
 
 	## sensors
@@ -2057,7 +2225,6 @@ proc parse_node { item { n "" } { t "" } } {
 	set it [sxml_child $item "pins"]
 	if { $it != "" } {
 		parse_pins $it $n $t
-		set w [sxml_child $it "window"]
 	}
 
 	## leds
@@ -2275,11 +2442,11 @@ proc get_cset { node } {
 #
 	global Geometry
 
-	if ![info exists Geometry(roamer,NC)] {
+	if ![info exists Geometry(N,NC)] {
 		return ""
 	}
 
-	foreach cd $Geometry(roamer,NC) {
+	foreach cd $Geometry(N,NC) {
 		if [covered_node [lindex $cd 0] [lindex $cd 1] $node] {
 			return [lindex $cd 2]
 		}
@@ -2363,7 +2530,7 @@ proc get_label { Sok n { pfx "" } } {
 			break
 		}
 
-		set lb [lindex $ll [expr $n - $min + 1]]
+		set lb [lindex $ll [expr { $n - $min + 1 }]]
 		break
 	}
 
@@ -2457,6 +2624,13 @@ proc predisplay { } {
 	foreach p [array names Geometry "=*"] {
 		set wn [string range $p 1 end]
 		set pl $Geometry($p)
+		# check if roamer
+		set rix [isroamlab $wn]
+		if { $rix != "" } {
+			# a roamer
+			predisplay_single "moveHandler $rix"
+			continue
+		}
 		switch -- $wn {
 			"uart" {
 				predisplay_nodes "uartHandler %n a" $pl
@@ -2594,11 +2768,11 @@ proc wdestroy { Sok } {
 
 	global Wins Stat
 
-	if [info exists Wins($Sok,NODESTROY)] {
-		return
-	}
-
 	if [info exists Wins($Sok)] {
+		set w $Wins($Sok)
+		# make sure the window is killed
+		catch { bind $w <Destroy> "" }
+		catch { destroy $w }
 		unset Wins($Sok)
 	}
 
@@ -2665,7 +2839,7 @@ proc stwin { Sok } {
 proc winlocate { tag { stid "" } { hid 0 } } {
 #
 # Tries to locate a window of a given type (tag) for a given node (stid); if
-# stid is null, the windows is supposed to be node-independent, i.e., global;
+# stid is null, the window is supposed to be node-independent, i.e., global;
 # returns 1 if the window is already present, zero otherwise
 #
 	global Wins Stat
@@ -2673,11 +2847,12 @@ proc winlocate { tag { stid "" } { hid 0 } } {
 	set wn ""
 
 	foreach s [array names Wins] {
-		# window name
-		set w $Wins($s)
-		if ![regexp "^.w$tag\[0-9\]" $w] {
+		# module name
+		if { $tag != $Stat($s,K) } {
 			continue
 		}
+		# window name
+		set w $Wins($s)
 		# check node ID
 		if { $stid == "" } {
 			if { ![info exists Stat($s,S)] || $Stat($s,S) == "" } {
@@ -2702,13 +2877,25 @@ proc winlocate { tag { stid "" } { hid 0 } } {
 	}
 
 	if { $wn != "" } {
-		if { $wn == "x" } {
+		# window type
+		set wt [string index $wn 0]
+		if { $wt == "d" } {
+			# dummy, i.e., no window, say it exists, but do nothing;
+			# used for sessions with potentially multiple windows
+			return 1
+		}
+		if { $wt == "x" } {
+			# true, but connection in progress, do nothing, say
+			# something, it basically exists; also used for
+			# simple window-less connections
 			log "connection already in progress"
+			return 1
 		} else {
+			# a true, existing window
 			log "window already present"
 			catch { raise $wn }
+			return 1
 		}
-		return 1
 	}
 
 	return 0
@@ -2725,9 +2912,17 @@ proc dealloc { Sok } {
 	ctimeout $Sok
 
 	if [info exists Wins($Sok)] {
-		# there is a window for this socket
+		# there is a session for this socket
 		set w $Wins($Sok)
-		if [winfo exists $w] {
+		# window type
+		set t [string index $w 0]
+		if { $t == "d" } {
+			# a dummy (session) window, execute cleanup procedure
+			set cfun ${w}_cleaner
+			if { [info procs $cfun] != "" } {
+				$cfun
+			}
+		} elseif [winfo exists $w] {
 			# indeed, there is; the window becomes a zombie; it
 			# is left on the screen, so it can still be viewed,
 			# but it is detached from the set
@@ -2793,7 +2988,7 @@ proc sock_req { Sok rqnum stid flags } {
 	fileevent $Sok writable ""
 }
 
-proc sock_conn { what { stid -1 } { flags 0 } } {
+proc sock_conn { what { stid -1 } { flags 0 } { stype "x" } } {
 #
 # Get a socket to VUEE
 #
@@ -2804,7 +2999,7 @@ proc sock_conn { what { stid -1 } { flags 0 } } {
 		return ""
 	}
 
-	set rqnum $SREQUESTS($what)
+	lassign $SREQUESTS($what) rqnum wcode
 
 	set tt $what
 	if { $stid >= 0 } {
@@ -2837,9 +3032,12 @@ proc sock_conn { what { stid -1 } { flags 0 } } {
 	# for disconnection messages
 	set Stat($Sok,W) $what
 
+	# module code
+	set Stat($Sok,K) $wcode
+
 	# this is a placeholder - to preannounce the window for winlocate
 	# until we actually get it up (or otherwise)
-	set Wins($Sok) "x"
+	set Wins($Sok) $stype
 
 	if { $stid >= 0 } {
 		set Stat($Sok,S) $stid
@@ -2874,8 +3072,8 @@ proc sock_rep { Sok } {
 	}
 
 	set co [dbinI res]
-	set cc [expr $co & 0xff]
-	if { $cc != $ECONN_OK } {
+	set cc [expr { $co & 0xff }]
+	if { $cc < $ECONN_OK } {
 		log "connection[mdName $Sok] rejected by VUEE: [conerror $cc]"
 		dealloc $Sok
 		return
@@ -2930,7 +3128,7 @@ proc sock_wr { Sok da } {
 	return 0
 }
 
-proc sock_rl { Sok hand } {
+proc sock_rl { Sok } {
 #
 # Read a line from socket, invoke the handler function per each line; assumes
 # Stat($Sok,B) to have been preset to null
@@ -2950,12 +3148,28 @@ proc sock_rl { Sok hand } {
 			if { $n < 0 } {
 				return
 			}
-			set ln [string range $Stat($Sok,B) 0 [expr $n - 1]]
-			$hand $Sok [string trim $ln]
+			set ln [string range $Stat($Sok,B) 0 [expr { $n - 1 }]]
+			$Stat($Sok,IH) $Sok [string trim $ln]
 			set Stat($Sok,B) [string range $Stat($Sok,B) \
-				[expr $n + 1] end]
+				[expr { $n + 1 }] end]
 		}
 	}
+}
+
+proc set_ih { Sok { fun "dummy_ih" } } {
+#
+# Sets up the input handler for socket
+#
+	global Stat
+
+	set Stat($Sok,IH) $fun
+	fileevent $Sok readable "sock_rl $Sok"
+}
+
+proc dummy_ih { s m } {
+#
+# Do nothing
+#
 }
 
 proc node_sig { Sok c { v "" } } {
@@ -2971,9 +3185,9 @@ proc node_sig { Sok c { v "" } } {
 	}
 
 	if [catch {
-		set nod [expr $nod]
-		set hos [expr $hos & 0xFFFF]
-		set tot [expr $tot]
+		set nod [expr { $nod }]
+		set hos [expr { $hos & 0xFFFF }]
+		set tot [expr { $tot }]
 	} ] {
 		return "illegal number in signature"
 	}
@@ -3036,7 +3250,7 @@ proc UART_ini { Sok code } {
 	global Stat
 
 	# the rate
-	set Stat($Sok,R) [expr (($code >> 8) & 0x0ffff) * 100]
+	set Stat($Sok,R) [expr { (($code >> 8) & 0x0ffff) * 100 }]
 	log "UART rate: $Stat($Sok,R)"
 
 	# wait for the first message
@@ -3183,7 +3397,7 @@ proc uartRead { Sok } {
 			}
 			# send the preceding string to the terminal
 			addText $Sok $Wn.t [string range $Stat($Sok,B) \
-						       0 [expr $el - 1]]
+						       0 [expr { $el - 1 }]]
 			incr sl -$el
 			# this is only used to tell wheter we are at the
 			# beginning of a line or not
@@ -3587,7 +3801,7 @@ proc handleUserInput { Sok } {
 				set err 1
 				break
 			}
-			append os [format %c [expr $d0 * 16 + $d1]]
+			append os [format %c [expr { $d0 * 16 + $d1 } ]]
 		}
 		if $err {
 			if $Stat($Sok,F) {
@@ -3647,7 +3861,7 @@ proc endLine { Sok w } {
 	$w insert end "\n"
 
 	set ix [$w index end]
-	set ix [string range $ix 0 [expr [string first "." $ix] - 1]]
+	set ix [string range $ix 0 [expr { [string first "." $ix] - 1 } ]]
 
 	if { $ix > $MaxLineCount } {
 		# scroll out the topmost line if above limit
@@ -3722,7 +3936,7 @@ proc clockRead { Sok } {
 
 	global CTime
 
-	set rd [expr 4 - [string length $CTime(buf)]]
+	set rd [expr { 4 - [string length $CTime(buf)] }]
 
 	if [sock_rd $Sok chunk $rd] {
 		return
@@ -3741,11 +3955,11 @@ proc clockRead { Sok } {
 
 proc sectos { sec } {
 
-	set hr [expr ($sec / 3600) % 24]
-	set mn [expr ($sec / 60) % 60]
-	set se [expr ($sec % 60)]
+	set hr [expr { ($sec / 3600) % 24 }]
+	set mn [expr { ($sec / 60) % 60 }]
+	set se [expr { ($sec % 60) }]
 
-	if [expr $se & 0x01] {
+	if [expr { $se & 0x01 }] {
 		return [format "%02d:%02d:%02d" $hr $mn $se]
 	} else {
 		return [format "%02d %02d %02d" $hr $mn $se]
@@ -3962,7 +4176,7 @@ proc ledsUpdate { Sok } {
 		}
 		if { $ch == "\n" } {
 			# end of command line
-			set nd [expr $Stat($Sok,D) - 10]
+			set nd [expr { $Stat($Sok,D) - 10 }]
 			# decrease congestion timer after every line; we don't
 			# want to stall them, only tell apart the first few
 			# close ones
@@ -3993,7 +4207,7 @@ proc ledsUpdate { Sok } {
 
 proc mkoneled { canv off n } {
 
-	set t [$canv create oval $off 4 [expr 20 + $off] 24 -fill grey]
+	set t [$canv create oval $off 4 [expr { 20 + $off }] 24 -fill grey]
 	tip_setc $canv $t "Shows the status of LED number $n"
 	return $t
 }
@@ -4266,9 +4480,9 @@ proc emulUpdate { Sok } {
 			if { $el < 0 } {
 				break
 			}
-			set ms [string range $Stat($Sok,B) 0 [expr $el - 1]]
+			set ms [string range $Stat($Sok,B) 0 [expr { $el - 1 }]]
 			set Stat($Sok,B) [string range $Stat($Sok,B) \
-				[expr $el + 1] end]
+				[expr { $el + 1 }] end]
 
 			set ms [string trim $ms]
 			if { $ms == "" } {
@@ -4416,7 +4630,7 @@ proc g_state_change { Sok } {
 		return
 	}
 
-	set nn $Stat($sok,N)
+	set nn $Stat($Sok,N)
 
 	if { $Stat(PNN,$nn) == "F" } {
 		lcdgUPDI $Sok "off"
@@ -4487,9 +4701,9 @@ proc lcdgUPDP { Sok v } {
 	set x $Stat($Sok,XC)
 	set y $Stat($Sok,YC)
 
-	set r [expr int(255.0 * (($v >> 8) & 0xF) / 15.0)]
-	set g [expr int(255.0 * (($v >> 4) & 0xF) / 15.0)]
-	set b [expr int(255.0 * (($v     ) & 0xF) / 15.0)]
+	set r [expr { int(255.0 * (($v >> 8) & 0xF) / 15.0) }]
+	set g [expr { int(255.0 * (($v >> 4) & 0xF) / 15.0) }]
+	set b [expr { int(255.0 * (($v     ) & 0xF) / 15.0) }]
 	# puts "PIXEL [format %04x $v] $r $g $b"
 
 	lset Stat($Sok,RA,$y) $x [format #%02X%02X%02X $r $g $b]
@@ -4528,7 +4742,7 @@ proc lcdgRead { Sok } {
 			binary scan $ch S val
 
 			# word type
-			set tp [expr $val & 0x0F000]
+			set tp [expr { $val & 0x0F000 }]
 
 			if { $tp == 0 } {
 				# this is a pixel
@@ -4536,7 +4750,7 @@ proc lcdgRead { Sok } {
 				set Stat($Sok,LP) $val
 			} elseif { $tp == 0x1000 } {
 				# a command
-				set cmd [expr $val & 0x00F00]
+				set cmd [expr { $val & 0x00F00 }]
 				if { $cmd == 0x300 } {
 					# set, requires 8 more bytes
 					if { [string length $ch] < 10 } {
@@ -4587,10 +4801,10 @@ proc lcdgRead { Sok } {
 					}
 				}
 
-			} elseif { [expr $val & 0x8000] != 0 } {
+			} elseif { [expr { $val & 0x8000 }] != 0 } {
 
 				# last pixel repeat
-				set val [expr $val & 0x7fff]
+				set val [expr { $val & 0x7fff }]
 				set lp $Stat($Sok,LP)
 				# puts "REPEAT: [format %04x $lp] $val"
 				while { $val >= 0 } {
@@ -4669,10 +4883,10 @@ proc pinsFirst { Sok } {
 	}
 
 	if { [catch {
-		set np [expr $np]
-		set na [expr $na]
-		set d0 [expr $d0]
-		set d1 [expr $d1]
+		set np [expr { $np }]
+		set na [expr { $na }]
+		set d0 [expr { $d0 }]
+		set d1 [expr { $d1 }]
 	} ] || $np < 1 || 
 	    $na >  $np ||
 	    $d0 >= $np ||
@@ -4869,7 +5083,7 @@ proc pinsUpdate { Sok } {
 
 		if { $ch == "\n" } {
 			# end of command line
-			set nd [expr $Stat($Sok,D) - 10]
+			set nd [expr { $Stat($Sok,D) - 10 }]
 			if { $nd < 0 } {
 				set nd 0
 			}
@@ -4937,7 +5151,7 @@ proc setPinDac { Sok pin v } {
 	set w [stwin $Sok]
 
 	# convert the value
-	set v [expr int (($v / 3.3) * 32768.0)]
+	set v [expr { int(($v / 3.3) * 32768.0) }]
 	if { $v > 32767 } {
 		set v 32767
 	}
@@ -5076,7 +5290,7 @@ proc toVoltage { v } {
 		# this is in fact negative
 		return 00.000
 	}
-	return [format %06.3f [expr 3.3 * ($v / 32768.0)]]
+	return [format %06.3f [expr { 3.3 * ($v / 32768.0) }]]
 }
 
 proc newPinStatus { Sok upd } {
@@ -5093,8 +5307,8 @@ proc newPinStatus { Sok upd } {
 	set np $Stat($Sok,NP)
 
 	if { [catch {
-		set pin [expr $pin]
-		set val [expr $val]
+		set pin [expr { $pin }]
+		set val [expr { $val }]
 	     }] || $pin >= $np } {
 	
 		return
@@ -5173,10 +5387,10 @@ proc sensorsFirst { Sok } {
 	}
 
 	if { [catch {
-		set na [expr $na]
-		set oa [expr $oa]
-		set ns [expr $ns]
-		set os [expr $os]
+		set na [expr { $na }]
+		set oa [expr { $oa }]
+		set ns [expr { $ns }]
+		set os [expr { $os }]
 	} ] } {
 		log "incorrect handshake,\
 			illegal sensor counts $na/$oa/$ns/$os"
@@ -5253,7 +5467,7 @@ proc mkSensors { Sok ns os na oa tt } {
 				be adjusted by the user, only by the node)"
 
 			eval label ${f}l -anchor w \
-				[get_label $Sok [expr $i - $oa] "Act "]
+				[get_label $Sok [expr { $i - $oa }] "Act "]
 
 			grid ${f}l -row $i -column 0 -sticky we
 		}
@@ -5283,7 +5497,7 @@ proc mkSensors { Sok ns os na oa tt } {
 			${f}s set 0.0
 
 			eval label ${f}l -anchor w \
-				[get_label $Sok [expr $i - $os] "Sen "]
+				[get_label $Sok [expr { $i - $os }] "Sen "]
 
 			grid ${f}l -row $i -column 0 -sticky we
 
@@ -5319,7 +5533,7 @@ proc sensorsUpdate { Sok } {
 
 		if { $ch == "\n" } {
 			# end of command line
-			set nd [expr $Stat($Sok,D) - 10]
+			set nd [expr { $Stat($Sok,D) - 10 }]
 			if { $nd < 0 } {
 				set nd 0
 			}
@@ -5353,15 +5567,15 @@ proc newSensorStatus { Sok upd } {
 
 	# sanity checks
 
-	if [catch { expr $sen } sen] {
+	if [catch { expr { $sen } } sen] {
 		return
 	}
 
-	if [catch { expr 0x[string trim $max] } max] {
+	if [catch { expr { 0x[string trim $max] } } max] {
 		return
 	}
 
-	if [catch { expr 0x[string trim $val] } val] {
+	if [catch { expr { 0x[string trim $val] } } val] {
 		return
 	}
 
@@ -5415,7 +5629,7 @@ proc s_state_change { Sok } {
 		set f "$w.act.f$sen"
 
 		if $max {
-			set dmax [expr double ($max)]
+			set dmax [expr { double($max) }]
 		} else {
 			set val 0
 			set dmax 1.0
@@ -5424,10 +5638,10 @@ proc s_state_change { Sok } {
 		if { $max != [lindex $pv 1] } {
 			# the maximum has changed
 			${f}s configure -to $dmax \
-				-tickinterval [expr $dmax / 5.0]
+				-tickinterval [expr { $dmax / 5.0 }]
 		}
 
-		set val [expr double ($val)]
+		set val [expr { double($val) }]
 
 		${f}s configure -state normal
 		${f}s set $val
@@ -5457,7 +5671,7 @@ proc s_state_change { Sok } {
 		set f "$w.sen.f$sen"
 
 		if $max {
-			set dmax [expr double ($max)]
+			set dmax [expr { double ($max) }]
 		} else {
 			set dmax 1.0
 			set val 0
@@ -5466,7 +5680,7 @@ proc s_state_change { Sok } {
 		if { $max != [lindex $pv 1] } {
 			# the maximum has changed
 			${f}s configure -to $dmax \
-				-tickinterval [expr $dmax / 5.0]
+				-tickinterval [expr { $dmax / 5.0 }]
 
 			set tp "Shows and sets the sensor value ("
 			set te "Sends a sensor event to the node"
@@ -5484,7 +5698,7 @@ proc s_state_change { Sok } {
 		}
 
 
-		set val [expr double ($val)]
+		set val [expr { double($val) }]
 		${f}s configure -state normal
 		${f}s set $val
 		if { $max == 0 } {
@@ -5511,7 +5725,7 @@ proc sensorSend { Sok } {
 	foreach va [array names Stat "$Sok,SEV,*"] {
 		set sn [lindex $Stat($va) 0]
 		set sv [lindex $Stat($va) 1]
-		set ln "S $sn [format 0x%1x [expr int ($sv)]]\n"
+		set ln "S $sn [format 0x%1x [expr { int ($sv) }]]\n"
 		if [sock_wr $Sok $ln] {
 			break
 		}
@@ -5553,8 +5767,7 @@ proc PANEL_ini { Sok code } {
 
 	set Stat(PNN,S) $Sok
 
-	# to make sure the socket is not deallocated with the window
-	fileevent $Sok readable "sock_rl $Sok panelUpd"
+	set_ih $Sok panelUpd
 	stimeout $Sok
 }
 
@@ -5594,7 +5807,7 @@ proc panelUpd { Sok cmd } {
 			return
 		}
 
-		if [catch { expr $nn } nn] {
+		if [catch { expr { $nn } } nn] {
 			log "illegal panel init message: $cmd"
 			return
 		}
@@ -5763,7 +5976,7 @@ proc addPanel { Sok } {
 		return
 	}
 
-	if { [catch { expr $Stat($Sok,NA) } nod] || $nod < 0 } {
+	if { [catch { expr { $Stat($Sok,NA) } } nod] || $nod < 0 } {
 		# this is just a precaution
 		log "illegal node number"
 		return
@@ -6088,7 +6301,8 @@ proc pwrtResize { Sok nw nh } {
 		# canvas parameters
 		set aw $Stat($Sok,WW)
 		set ah $Stat($Sok,WH)
-		set Stat($Sok,RM) [list [expr $nw - $aw] [expr $nh - $ah]]
+		set Stat($Sok,RM) [list [expr { $nw - $aw }]\
+			[expr { $nh - $ah }]]
 		return
 	}
 
@@ -6119,8 +6333,8 @@ proc pwrtDoResize { Sok } {
 	set ah $Stat($Sok,WH)
 	lassign $Stat($Sok,RM) dw dh
 
-	set aw [expr $aw - $dw]
-	set ah [expr $ah - $dh]
+	set aw [expr { $aw - $dw }]
+	set ah [expr { $ah - $dh }]
 
 	set Stat($Sok,WW) $aw
 	set Stat($Sok,WH) $ah
@@ -6140,31 +6354,31 @@ proc pwrtRedraw { Sok } {
 	set H $Stat($Sok,WH)
 
 	# width and height for the gauge
-	set gw [expr $W - $PMARGIN(L) - $PMARGIN(R)]
-	set gh [expr $H - $PMARGIN(T) - $PMARGIN(B)]
+	set gw [expr { $W - $PMARGIN(L) - $PMARGIN(R) }]
+	set gh [expr { $H - $PMARGIN(T) - $PMARGIN(B) }]
 
 	$w.c delete all
 
 	set go [$w.c create rectangle \
-			$PMARGIN(L) $PMARGIN(T) \
-			[expr $W - $PMARGIN(R)] [expr $H - $PMARGIN(B)] \
+		$PMARGIN(L) $PMARGIN(T) \
+		[expr { $W - $PMARGIN(R) }] [expr { $H - $PMARGIN(B) }] \
 			-fill gray]
 
 	# draw the scales
-	set nx [expr $tl - $tf]
+	set nx [expr { $tl - $tf }]
 
 	set i 0
 	for { set tk $tf } { $tk <= $tl } { incr tk } {
 		# labeled ticks
-		set x [expr (($gw * $i) / $nx) + $PMARGIN(L)]
-		$w.c create line $x [expr $PMARGIN(T) - 5] \
-				 $x [expr $PMARGIN(T) + 5]
+		set x [expr { (($gw * $i) / $nx) + $PMARGIN(L) }]
+		$w.c create line $x [expr { $PMARGIN(T) - 5 }] \
+				 $x [expr { $PMARGIN(T) + 5 }]
 		# the label
-		$w.c create text $x [expr $PMARGIN(T) - 7] \
+		$w.c create text $x [expr { $PMARGIN(T) - 7 }] \
 			-anchor s -text "1e$tk" -state disabled
 
 		# unlabeled ticks
-		set db [expr pow(10,$tk)]
+		set db [expr { pow(10,$tk) }]
 
 		incr i
 
@@ -6173,10 +6387,11 @@ proc pwrtRedraw { Sok } {
 		}
 
 		for { set j 2 } { $j <= 9 } { incr j } {
-			set dc [expr $db * $j]
-			set x [expr [pwrt_eval $gw $tf $tl $dc] + $PMARGIN(L)]
-			$w.c create line $x [expr $PMARGIN(T) - 3] \
-				 $x [expr $PMARGIN(T) + 3]
+			set dc [expr { $db * $j }]
+			set x [expr { [pwrt_eval $gw $tf $tl $dc] + 
+				$PMARGIN(L) }]
+			$w.c create line $x [expr { $PMARGIN(T) - 3 }] \
+				 $x [expr { $PMARGIN(T) + 3 }]
 		}
 	}
 
@@ -6184,25 +6399,26 @@ proc pwrtRedraw { Sok } {
 	set xv [pwrt_eval $gw $tf $tl $vv]
 	set xa [pwrt_eval $gw $tf $tl $av]
 
-	set x [expr $xv + $PMARGIN(L) - 3]
-	set y0 [expr $PMARGIN(T) - 1]
-	set y1 [expr $PMARGIN(T) + $gh + 1]
-	set Stat($Sok,MC) [$w.c create rectangle $x $y0 [expr $x + 6] $y1 \
+	set x [expr { $xv + $PMARGIN(L) - 3 }]
+	set y0 [expr { $PMARGIN(T) - 1 }]
+	set y1 [expr { $PMARGIN(T) + $gh + 1 }]
+	set Stat($Sok,MC) [$w.c create rectangle $x $y0 [expr { $x + 6 }] $y1 \
 		-fill red]
-	set x [expr $xa + $PMARGIN(L) - 3]
-	set Stat($Sok,MA) [$w.c create rectangle $x $y0 [expr $x + 6] $y1 \
+	set x [expr { $xa + $PMARGIN(L) - 3 }]
+	set Stat($Sok,MA) [$w.c create rectangle $x $y0 [expr { $x + 6 }] $y1 \
 		-fill green]
 
 	# textual values
-	set Stat($Sok,TS) [$w.c create text $PMARGIN(L) [expr $H - 4] \
+	set Stat($Sok,TS) [$w.c create text $PMARGIN(L) [expr { $H - 4 }] \
 		-anchor sw -text "Tim: $tm" -state disabled]
-	set Stat($Sok,TC) [$w.c create text [expr $W / 3] [expr $H - 4] \
+	set Stat($Sok,TC) [$w.c create text [expr { $W / 3 }] \
+		[expr { $H - 4 }] \
 		-anchor s -text "Cur: [pwrt_pz $vv]" -state disabled]
-	set Stat($Sok,TA) [$w.c create text [expr int(1.8 * $W / 3.0)] \
-		[expr $H - 4] -anchor s -text "Avg: [pwrt_pz $av]" \
+	set Stat($Sok,TA) [$w.c create text [expr { int(1.8 * $W / 3.0) }] \
+		[expr { $H - 4 }] -anchor s -text "Avg: [pwrt_pz $av]" \
 		-state disabled]
-	set Stat($Sok,TM) [$w.c create text [expr $W - $PMARGIN(R)] \
-		[expr $H - 4] \
+	set Stat($Sok,TM) [$w.c create text [expr { $W - $PMARGIN(R) }] \
+		[expr { $H - 4 }] \
 		-anchor se -text "Max: [pwrt_pz $bv]" -state disabled]
 }
 
@@ -6225,7 +6441,7 @@ proc pwrtUpd { Sok } {
 
 		if { $ch == "\n" } {
 			# end of line
-			set nd [expr $Stat($Sok,D) - 10]
+			set nd [expr { $Stat($Sok,D) - 10 }]
 			if { $nd < 0 } {
 				set nd 0
 			}
@@ -6254,11 +6470,11 @@ proc pwrt_pz { v } {
 }
 
 proc pwrtLex { d } {
-	return [expr int(floor(log10($d)))]
+	return [expr { int(floor(log10($d))) }]
 }
 
 proc pwrtHex { d } {
-	return [expr int(ceil(log10($d)))]
+	return [expr { int(ceil(log10($d))) }]
 }
 
 proc pwrt_eval { w tf tl v } {
@@ -6267,7 +6483,7 @@ proc pwrt_eval { w tf tl v } {
 		return 0
 	}
 
-	return [expr int(((log10($v) - $tf) / ($tl - $tf)) * $w)]
+	return [expr { int(((log10($v) - $tf) / ($tl - $tf)) * $w) }]
 }
 
 proc pwrtParse { Sok } {
@@ -6283,7 +6499,7 @@ proc pwrtParse { Sok } {
 
 	regexp "^.0*(.*).$" $tim jnk tim
 
-	if { [catch { expr $avg } avg] || [catch { expr $lst } lst] ||
+	if { [catch { expr { $avg } } avg] || [catch { expr { $lst } } lst] ||
 		$avg < 0.0 || $lst < 0.0 } {
 			return
 	}
@@ -6355,20 +6571,20 @@ proc pwrtParse { Sok } {
 	set H $Stat($Sok,WH)
 
 	# width and height for the gauge
-	set gw [expr $W - $PMARGIN(L) - $PMARGIN(R)]
-	set gh [expr $H - $PMARGIN(T) - $PMARGIN(B)]
+	set gw [expr { $W - $PMARGIN(L) - $PMARGIN(R) }]
+	set gh [expr { $H - $PMARGIN(T) - $PMARGIN(B) }]
 
 	set xv [pwrt_eval $gw $tf $tl $lst]
 	set xa [pwrt_eval $gw $tf $tl $avg]
 
-	set y0 [expr $PMARGIN(T) - 1]
-	set y1 [expr $PMARGIN(T) + $gh + 1]
+	set y0 [expr { $PMARGIN(T) - 1 }]
+	set y1 [expr { $PMARGIN(T) + $gh + 1 }]
 
-	set x [expr $xv + $PMARGIN(L) - 3]
-	$w.c coords $Stat($Sok,MC) $x $y0 [expr $x + 6] $y1
+	set x [expr { $xv + $PMARGIN(L) - 3 }]
+	$w.c coords $Stat($Sok,MC) $x $y0 [expr { $x + 6 }] $y1
 
-	set x [expr $xa + $PMARGIN(L) - 3]
-	$w.c coords $Stat($Sok,MA) $x $y0 [expr $x + 6] $y1
+	set x [expr { $xa + $PMARGIN(L) - 3 }]
+	$w.c coords $Stat($Sok,MA) $x $y0 [expr { $x + 6 }] $y1
 
 	$w.c itemconfigure $Stat($Sok,TS) -text "Tim: $tim"
 	$w.c itemconfigure $Stat($Sok,TC) -text "Cur: [pwrt_pz $lst]"
@@ -6380,30 +6596,365 @@ proc pwrtParse { Sok } {
 # ROAMER ######################################################################
 ###############################################################################
 
-proc moveHandler { } {
+proc setdim { acode } {
+#
+# Declare the procs handling node position input, which depend on
+# dimensionality; called by XMLDATA_ini after initial handshake
+#
+    global Stat ECONN_OK
 
-	global Geometry
+    if { $acode != $ECONN_OK } {
 
-	if [winlocate "m"] {
+	set Stat(TD) 1
+
+	proc rdnpos { cmd } {
+	#
+	# Read node position from roamer cmd
+	#
+		global HPA
+
+		if ![regexp "$HPA(F) $HPA(F) $HPA(F) $HPA(D) $HPA(P) $HPA(V)" \
+			$cmd junk x y z mov ls ps vc vn] {
+
+			return ""
+		}
+
+		# here we want to diagnose problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+			set zz [expr { $z }]
+		} ] {
+			error "illegal node coordinates <$x,$y,$z>"
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 || $zz < 0.0 } {
+			error "negative node coordinate <$x,$y,$z>"
+		}
+
+		return [list [list $xx $yy $zz] $mov $ls $ps $vc $vn]
+	}
+
+	proc rdnupd { cmd } {
+	#
+	# Read node position update
+	#
+		global HPA
+
+		if ![regexp \
+		"^U $HPA(D) $HPA(Q) $HPA(F) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      	    $cmd junk nod os x y z ls ps vc vn] {
+			return ""
+		}
+
+		# here we ignore problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+			set zz [expr { $z }]
+		} ] {
+			return ""
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 || $zz < 0.0 } {
+			return ""
+		}
+
+		return [list $nod $os [list $xx $yy $zz] $ls $ps $vc $vn]
+	}
+
+    } else {
+
+	proc rdnpos { cmd } {
+	#
+	# Read node position from roamer cmd
+	#
+		global HPA
+
+		if ![regexp "$HPA(F) $HPA(F) $HPA(D) $HPA(P) $HPA(V)" \
+			$cmd junk x y mov ls ps vc vn] {
+
+			return ""
+		}
+
+		# here we want to diagnose problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+		} ] {
+			error "illegal node coordinates <$x,$y>"
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 } {
+			error "negative node coordinate <$x,$y>"
+		}
+		return [list [list $xx $yy 0.0] $mov $ls $ps $vc $vn]
+	}
+
+	proc rdnupd { cmd } {
+	#
+	# Read node position update
+	#
+		global HPA
+
+		if ![regexp \
+		"^U $HPA(D) $HPA(Q) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
+	      	    $cmd junk nod os x y ls ps vc vn] {
+			return ""
+		}
+
+		# here we ignore problems
+		if [catch {
+			set xx [expr { $x }]
+			set yy [expr { $y }]
+		} ] {
+			return ""
+		}
+
+		if { $xx < 0.0 || $yy < 0.0 } {
+			return ""
+		}
+
+		return [list $nod $os [list $xx $yy 0.0] $ls $ls $vc $vn]
+	}
+    }
+}
+
+proc setycoord { ry } {
+#
+# Declares procs that depend on the y-coordinate direction
+#
+    if $ry {
+	# Y reversed, i.e., top = 0
+	proc ytocv { sid y } {
+	#
+	# Converts network y coordinate to canvas y
+	#
+		global RD CMARGIN
+	
+		return [expr { round (($RD($sid,M,h) * \
+			($y - $RD($sid,yl)))/$RD($sid,M,H)) + $CMARGIN(D) }]
+	}
+	proc yfromcv { sid ny } {
+	#
+	# Converts canvas y coordinate to network y
+	#
+		global RD CMARGIN
+
+		return [expr { ($RD($sid,M,H) * \
+			double ($ny - $CMARGIN(D))) / double ($RD($sid,M,h)) \
+				+ $RD($sid,yl) }]
+	}
+    } else {
+	# bottom = 0
+	proc ytocv { sid y } {
+	#
+		global RD CMARGIN
+
+		set ch $RD($sid,M,h)
+		return [expr { $ch - round (($ch * \
+			($y - $RD($sid,yl)))/$RD($sid,M,H)) + $CMARGIN(U) }]
+	}
+	proc yfromcv { sid ny } {
+	#
+		global RD CMARGIN
+
+		set ch $RD($sid,M,h)
+		return [expr { ($RD($sid,M,H) * \
+			double ($ch - $ny + $CMARGIN(U))) / double ($ch) + \
+				$RD($sid,yl) }]
+	}
+    }
+}
+
+proc xtocv { sid x } {
+#
+# Converts network x coordinate to canvas x
+#
+	global RD CMARGIN
+
+	return [expr { round (($RD($sid,M,w) * \
+		($x - $RD($sid,xl)))/$RD($sid,M,W)) + $CMARGIN(L) }]
+}
+
+proc xfromcv { sid nx } {
+#
+# Converts canvas x coordinate to network x
+#
+	global RD CMARGIN
+
+	return [expr { ($RD($sid,M,W) * \
+		double ($nx - $CMARGIN(L))) / double ($RD($sid,M,w)) + \
+			$RD($sid,xl) }]
+}
+
+###############################################################################
+
+proc dmove_cleaner { } {
+#
+# This function will be called when the session socket for roamer windows is
+# closed by the simulator
+#
+	global Rms RD RBI
+
+	log "roamer session terminated"
+	# disable the canvases in all windows; this should freeze them and
+	# make the removal of their data safe
+	foreach r $Rms {
+		set sid [lindex $r 1]
+		catch { $RD($sid,WN).c configure -state disabled }
+	}
+
+	# now we lose the link to the existing windows
+	set Rms ""
+
+	# free the data structures
+	array unset RD
+
+	# master session socket (as a flag that the session is no more)
+	set RD(S) ""
+
+	# delete background images
+	array unset RBI
+}
+
+proc delete_roamer { sid } {
+#
+# Called to destroy the roamer window
+#
+	global Rms RD
+
+	# remove the roamer from the list
+	set nfn 1
+	set new ""
+	foreach r $Rms {
+		if { [lindex $r 1] == $sid } {
+			set nfn 0
+		} else {
+			lappend new $r
+		}
+	}
+
+	if $nfn {
+		# deleting a zombie window, nothing left to do
 		return
 	}
 
-	if [info exists Geometry(roamer,i)] {
-		# we can use the background image, but we don't have it, so
-		# we have to ask the server
-		set rq 2
-	} else {
-		set rq 0
+	set Rms $new
+
+	# make sure the window is in fact destroyed
+	if [info exists RD($sid,WN)] {
+		set w $RD($sid,WN)
+		catch { bind $w <Destroy> "" }
+		catch { destroy $w }
 	}
 
-	sock_conn "ROAMER" -1 $rq
+	# delete the roamer's data
+	array unset RD "$sid,*"
+
+	if { $Rms == "" } {
+		# kill the session
+		dealloc $RD(S)
+	}
+}
+
+proc move_ixtosid { ix } {
+#
+# Convert roamer index to sid
+#
+	global Rms
+
+	foreach r $Rms {
+		if { [lindex $r 0] == $ix } {
+			return [lindex $r 1]
+		}
+	}
+
+	return ""
+}
+
+proc move_sidtoix { sid } {
+#
+# Convert sid to roamer index
+#
+	global Rms
+
+	foreach r $Rms {
+		if { [lindex $r 1] == $sid } {
+			return [lindex $r 0]
+		}
+	}
+
+	return ""
+}
+
+proc moveHandler { rix } {
+#
+# Starts a roamer window
+#
+	global Geometry Rms RD Wins
+
+	set sid [move_ixtosid $rix]
+
+	if { $sid != "" } {
+		# the roamer is there already, get the window
+		if ![info exists RD($sid,WN)] {
+			log "connection already in progress"
+			return
+		}
+		# apparently, the window is there already
+		catch { raise $RD($sid,WN) }
+		return
+	}
+
+	# the roamer
+	set ro [lindex $Geometry(roamer) $rix]
+
+	# create a sid
+	set sid "s[unique]"
+
+	# create a list entry: rix sid
+	lappend Rms [list $rix $sid]
+
+	# re-sort the list by rix (we don't really have to)
+	set Rms [lsort -index 0 -integer $Rms]
+
+	# this is the socket of the master session
+	if [info exists RD(SU)] {
+		# this means that the session has started
+		move_start_roamers
+		return
+	}
+
+	if { $RD(S) == "" } {
+		# this means that there is no session
+		move_start_session
+	}
+
+	# otherwise, the session is started, so we just wait
+}
+
+proc move_start_session { } {
+#
+# Initiate a connection to the simulator
+#
+	global RD
+
+	if [winlocate "m"] {
+		# this wont happen
+		return
+	}
+
+	# for now, we always ask for background images, if any; the last arg
+	# sets session type to d and requests a cleaner
+	set RD(S) [sock_conn "ROAMER" -1 2 "dmove"]
 }
 
 proc ROAMER_ini { Sok code } {
 
 	global Stat
 
-	set bfl [expr ($code >> 8) & 0x00ffffff]
+	set bfl [expr { ($code >> 8) & 0x00ffffff }]
 	# message acquisition buffer
 	set Stat($Sok,B) ""
 	# background image data
@@ -6426,10 +6977,11 @@ proc moveBGI { Sok } {
 #
 # Read the background image from the simulator
 #
-	global Stat
+	global Stat Geometry RBI
 
 	while (1) {
-		if [sock_rd $Sok ch [expr $Stat($Sok,FL) - $Stat($Sok,LE)]] {
+		if [sock_rd $Sok ch \
+		    [expr { $Stat($Sok,FL) - $Stat($Sok,LE) }]] {
 			# failure
 			return
 		}
@@ -6446,22 +6998,64 @@ proc moveBGI { Sok } {
 		stimeout $Sok
 	}
 
-	log "read $Stat($Sok,LE) bytes of background image"
+	# partition it into images
+	set tot $Stat($Sok,LE)
+	set img $Stat($Sok,BI)
+
+	unset Stat($Sok,LE)
+	unset Stat($Sok,BI)
+
+	set rem $tot
+	set nro 0
+
+	while 1 {
+
+		if { $rem < 10 } {
+			break
+		}
+
+		set rix [dbinS img]
+		set len [dbinI img]
+
+		incr rem -6
+
+		if { $rix >= [llength $Geometry(roamer)] || $len <= 0 ||
+		     $len > $rem } {
+
+			log "illegal format of background image data"
+			dealloc $Sok
+			return
+		}
+
+		set RBI($rix) [string range $img 0 [expr { $len - 1 }]]
+		set img [string range $img $len end]
+
+		incr rem -$len
+		incr nro
+	}
+
+	if { $nro == 1 } {
+		set s ""
+	} else {
+		set s "s"
+	}
+
+	log "$tot bytes of background image data, $nro image$s"
 
 	moveINP $Sok
 }
 
 proc moveINP { Sok } {
 
-	global Stat
+	global Stat RD
 
 	# collect node info: total number of nodes unknown
-	set Stat($Sok,NN) -1
+	set RD(NN) -1
 	# for default coloring: the number of node colors used so far,
 	# one color per node type
-	set Stat($Sok,NT) 0
+	set RD(NT) 0
 	# current node number queried
-	set Stat($Sok,CI) 0
+	set RD(CI) 0
 
 	log "receiving node positions ..."
 
@@ -6469,7 +7063,7 @@ proc moveINP { Sok } {
 		return
 	}
 
-	fileevent $Sok readable "sock_rl $Sok moveGNP"
+	set_ih $Sok moveGNP
 	stimeout $Sok
 }
 
@@ -6477,22 +7071,29 @@ proc moveGNP { Sok cmd } {
 #
 # Receive initial node positions
 #
-	global Wins Stat HPA NTYPE_COLORS Geometry
+	global RD HPA NTYPE_COLORS Geometry
 
 	if { [node_sig $Sok cmd pmt] != "" } {
 		# check for an update arriving while we are collecting
 		# the initial positions; store it and play back later when
 		# we are done with this stage
 		if [regexp "^U $HPA(D) " $cmd junk nod] {
-			set Stat($Sok,PZ,$nod) $cmd
+			set RD(PZ,$nod) $cmd
 		}
 		return
 	}
 
-	if ![regexp "$HPA(F) $HPA(F) $HPA(D) $HPA(P) $HPA(V)" $cmd junk \
-	    x y mov ls ps vc vn] {
+	if [catch { rdnpos $cmd } pos] {
+		log "illegal response, $pos"
+		dealloc $Sok
 		return
 	}
+
+	if { $pos == "" } {
+		return
+	}
+
+	lassign $pos xyz mov ls ps vc vn
 
 	if { $ls != "" } {
 		# fast-blink flag for the LEDs
@@ -6501,45 +7102,30 @@ proc moveGNP { Sok cmd } {
 	} else {
 		set fb 0
 	}
-				
-	if [catch { set mov [expr $mov] } ] {
+
+	if [catch { set mov [expr { $mov }] } ] {
 		return
 	}
 
 	lassign $pmt nod hos tot tn sta
 
 	# this obviates any pending update for the node
-	unset -nocomplain Stat($Sok,PZ,$nod)
+	unset -nocomplain RD(PZ,$nod)
 
-	if { $nod != $Stat($Sok,CI) } {
+	if { $nod != $RD(CI) } {
 		# the expected node number is wrong, this will not happen
 		log "illegal or out of sequence node number $nod"
 		dealloc $Sok
 		return
 	}
 
-	if { $Stat($Sok,NN) < 0 } {
+	if { $RD(NN) < 0 } {
 		# set the total only once
-		set Stat($Sok,NN) $tot
-	} elseif { $Stat($Sok,NN) != $tot } {
+		set RD(NN) $tot
+	} elseif { $RD(NN) != $tot } {
 		# different total, this will never happen either
 		log "illegal response,\
 			total doesn't match expected value '$cmd'"
-		dealloc $Sok
-		return
-	}
-
-	if [catch {
-		set x [expr $x]
-		set y [expr $y]
-	} ] {
-		log "illegal node coordinates <$x, $y>"
-		dealloc $Sok
-		return
-	}
-
-	if { $x < 0.0 || $y < 0.0 } {
-		log "negative node coordinate <$x, $y>"
 		dealloc $Sok
 		return
 	}
@@ -6550,16 +7136,16 @@ proc moveGNP { Sok cmd } {
 	# node type color: if there's a Geometry entry for the node, it takes
 	# effect; otherwise, we use some standard colors indexed by node type;
 	# we start by assigning standard colors to types
-	if ![info exists Stat($Sok,NT,$tn)] {
+	if ![info exists RD(NT,$tn)] {
 		# this is a new type, assign a default color to the type
-		if { $Stat($Sok,NT) >= [llength $NTYPE_COLORS] } {
+		if { $RD(NT) >= [llength $NTYPE_COLORS] } {
 			# no more colors
 			set co "grey"
 		} else {
-			set co [lindex $NTYPE_COLORS $Stat($Sok,NT)]
-			incr Stat($Sok,NT)
+			set co [lindex $NTYPE_COLORS $RD(NT)]
+			incr RD(NT)
 		}
-		set Stat($Sok,NT,$tn) $co
+		set RD(NT,$tn) $co
 	}
 
 	#
@@ -6603,7 +7189,7 @@ proc moveGNP { Sok cmd } {
 		}
 	} else {
 		# use the default
-		set co [list 0 [list [list $Stat($Sok,NT,$tn) 0]]]
+		set co [list 0 [list [list $RD(NT,$tn) 0]]]
 	}
 
 	# highlight colors for fast access (needed by vipars among others)
@@ -6622,86 +7208,257 @@ proc moveGNP { Sok cmd } {
 	}
 
 	# small-numbered colors for node highlighting
-	set Stat($Sok,HV,$nod) [lindex $hl 1]
+	set RD(HV,$nod) [lindex $hl 1]
 
 	# fgr/bgr pair for notes and node identifiers
-	lassign [lindex $hl 0] Stat($Sok,HF,$nod) Stat($Sok,HB,$nod)
+	lassign [lindex $hl 0] RD(HF,$nod) RD(HB,$nod)
 
-	if { $Stat($Sok,HF,$nod) == "" } {
+	if { $RD(HF,$nod) == "" } {
 		# this one cannot be null
-		set Stat($Sok,HF,$nod) "black"
+		set RD(HF,$nod) "black"
+	}
+
+	if { $sta == "F" } {
+		set v [list "gray" ""]
+	} else {
+		set v [vipars $vc $vn $nod]
 	}
 
 	#
 	# This list gives the complete description of how the node should be
 	# drawn:
 	#
-	# x coordinate
-	# y coordinate
+	# coordinates
 	# type name
 	# color (or color set)
-	# list of canvas items
-	# text item for node number
 	# fast blink flag for the LEDs
 	# { color label } for highlighting
 	#
-	if { $sta == "F" } {
-		set v [list "gray" ""]
-	} else {
-		set v [vipars $Sok $vc $vn $nod]
-	}
-		
-	set Stat($Sok,NL,$nod) [list $x $y $tn $co "" "" $fb $v]
+	set RD(NL,$nod) [list $xyz $tn $co $fb $v]
+
+	# Two items that used to be present on this list, following co, i.e.,
+	#
+	# list of canvas items
+	# text item for node number
+	#
+	# have been moved to the roamer-specific location RD($sid,$nod). If
+	# that entry does not exist, it means that the node is not present
+	# in the roamer
+	# 
 
 	# the host number, i.e., the lower word of host_id, aka local_host
-	set Stat($Sok,NH,$nod) $hos
+	set RD(NH,$nod) $hos
 
 	# movability
-	set Stat($Sok,NM,$nod) $mov
+	set RD(NM,$nod) $mov
 
-	# highlight label widget pair
-	set Stat($Sok,HL,$nod) ""
-
-	incr Stat($Sok,CI)
-	if { $Stat($Sok,CI) == $tot } {
+	incr RD(CI)
+	if { $RD(CI) == $tot } {
 		# done
-		unset Stat($Sok,CI)
-		set Wins($Sok) ".wm[unique]"
-		if [mkMove $Sok] {
-			# unfortunately, this can fail
-			dealloc $Sok
-			log "failed"
-			# this will return from the caller (sock_rl) to prevent
-			# any further interpretation
-			return -code return
+		unset RD(CI)
+		# flag == session UP
+		set RD(SU) 1
+		move_start_roamers
+		if { $RD(S) == "" } {
+			# no session (all roamers failed to start)
+			return
 		}
 		# play back pending updates
-		foreach ix [array names Stat "$Sok,PZ,*"] {
-			moveUpd $Sok $Stat($ix)
-			unset Stat($ix)
+		foreach ix [array names RD "PZ,*"] {
+			# the first arg to moveUpd is not used
+			moveUpd $Sok $RD($ix)
+			unset RD($ix)
 		}
-		log "done"
-		fileevent $Sok readable "sock_rl $Sok moveUpd"
+		log "roamer session started"
+		set_ih $Sok moveUpd
 		return
 	}
-
+		
 	# query for next node
-	sock_wr $Sok "Q $Stat($Sok,CI)\n"
+	sock_wr $Sok "Q $RD(CI)\n"
 }
 
-proc vipars { Sok col lab nod } {
+proc move_start_roamers { } {
+#
+# Called whenever there is at least one new roamer in the pool; scans the
+# roamers in order and initializes the first one; then goes again from the
+# top
+
+	global RD Rms
+
+	while { $Rms != "" } {
+		set nomore 1
+		foreach r $Rms {
+			if ![info exists RD([lindex $r 1],WN)] {
+				# window not present, set it up
+				mkMove $r
+				set nomore 0
+			}
+		}
+		if $nomore {
+			return
+		}
+	}
+}
+
+###############################################################################
+
+proc mkMove { rmr } {
+#
+# Create a roamer window
+#
+	global Stat RD RBI CMARGIN Geometry
+
+	lassign $rmr rix sid
+
+	set rmg [lindex $Geometry(roamer) $rix]
+	# name
+	set nam [lindex $rmg 0]
+	# node size
+	set nsh [lindex $rmg 3]
+
+	set w ".wm$sid"
+	toplevel $w
+	set aw [roamlab $rix]
+	if { $nam != "" } {
+		set nam "$aw ($nam)"
+	} else {
+		set nam $aw
+	}
+	wm title $w $nam
+	do_geometry $w $aw
+
+	# make it visible for deletion on failure (below)
+	set RD($sid,WN) $w
+	set c $w.c
+
+	# margins implied by node size
+	if { $nsh == "" } {
+		set nsh $CMARGIN(NR)
+	}
+	set RD($sid,MN) $nsh
+	set RD($sid,MT) [expr { $nsh + $CMARGIN(TO) }]
+
+	if { [lindex $rmg 1] != "" && [info exists RBI($rix)] } {
+		# use the image received from the simulator
+		if [catch { image create photo -data $RBI($rix) } bgr] {
+			log "cannot render remote background image for roamer\
+				$nam, $bgr"
+			# clear RD($sid,...), delete window, check null session
+			delete_roamer $sid
+			return 1
+		}
+		# apparently we have succeeded with the image
+		set aw [image width $bgr]
+		set ah [image height $bgr]
+		# not resizable
+		wm minsize $w $aw $ah
+		wm maxsize $w $aw $ah
+		wm resizable $w 0 0
+		set RD($sid,NC) [list $aw $ah]
+		set RD($sid,RE) 0
+		set wi 0.0
+		set hi 0.0
+		lassign [lindex $rmg 2] xp yp zp
+		if { [lindex $xp 1] != "" } {
+			# there is a width
+			if [catch { expr { [lindex $xp 1] - [lindex $xp 0] } }\
+			    wi] {
+				set wi 0.0
+			}
+		}
+		if { [lindex $yp 1] != "" } {
+			# there is a height
+			if [catch { expr { [lindex $yp 1] - [lindex $yp 0] } }\
+			    hi] {
+				set hi 0.0
+			}
+		}
+		if { ($wi == 0.0 && $hi == 0.0) || $wi < 0.0 || $hi < 0.0 } {
+			log "illegal box parameters for roamer $nam"
+			delete_roamer $sid
+			return 1
+		}
+
+		if { $wi != 0 && $hi == 0 } {
+			set hi [expr { (double($wi) * $ah) / $aw }]
+			lset yp 1 [expr { [lindex $yp 0] + $hi }]
+		}
+		if { $hi != 0 && $wi == 0 } {
+			set wi [expr { (double ($hi) * $aw) / $ah }]
+			lset xp 1 [expr { [lindex $xp 0] + $wi }]
+		}
+		set RD($sid,BB) [list $xp $yp $zp]
+		if [cvcalc_static $sid $wi $hi] {
+			delete_roamer $sid
+			return 1
+		}
+		canvas $c -width $aw -height $ah
+		pack $c -expand 1 -fill both
+		$c create image 0 0 -anchor nw -image $bgr
+	} else {
+		wm minsize $w $CMARGIN(MW) $CMARGIN(MH)
+		set aw $CMARGIN(DW)
+		set ah $CMARGIN(DH)
+		set RD($sid,NC) [list $aw $ah]
+		# resizable
+		set RD($sid,RE) 1
+		cvcalc_dynamic $sid
+		canvas $c -width $aw -height $ah
+		pack $c -expand 1 -fill both
+		set RD($sid,BB) ""
+	}
+
+	set tsm "*-Right click a node to see the menu of modules to\
+		connect to"
+	if $Stat(TD) {
+		append tsm " or to move the node in the 'z' dimension"
+	}
+	append tsm ".\n*-Drag a node to move it to a new location.\n\
+		*-Click one node then another one to see the\
+		distance between them.\n*-Hover over a node to see\
+		(in left bottom corner) its coordinates and IDs.\n*-Click\
+		the dimension box in right bottom corner to save node\
+		coordinates in a file."
+	tip_set $c $tsm
+
+	moveRedraw $sid
+
+	bind $w <Destroy> "delete_roamer $sid"
+	bind $c <Configure> "moveResize $sid %w %h"
+
+	# a popup menu for node-related commands
+	set m [menu $w.ncm]
+	if $Stat(P) {
+		$m add command -label "UART (plug)" \
+			-command {moveNC "UART (plug)"}
+	}
+	$m add command -label "UART (ascii)" -command {moveNC "UART (ascii)"}
+	$m add command -label "UART (hex)" -command {moveNC "UART (hex)"}
+	$m add command -label "SENSORS" -command {moveNC "SENSORS"}
+	$m add command -label "PINS" -command {moveNC "PINS"}
+	$m add command -label "LEDS" -command {moveNC "LEDS"}
+	$m add command -label "EMUL" -command {moveNC "EMUL"}
+	$m add command -label "LCDG" -command {moveNC "LCDG"}
+	$m add command -label "PTRACKER" -command {moveNC "PTRACKER"}
+	$m add command -label "Move" -command {moveZC}
+
+	return 0
+}
+
+proc vipars { col lab nod } {
 #
 # Sanitize the "visualization" arguments and combine them into a single item
 #
-	global Stat HPA
+	global HPA RD
 
 	set lab [string trim $lab]
 	if { $col == "" && $lab == "" } {
 		# nothing
 		return ""
 	}
-	if { $col != "" && ![catch { expr $col } col] } {
-		set hl $Stat($Sok,HV,$nod)
+	if { $col != "" && ![catch { expr { $col } } col] } {
+		set hl $RD(HV,$nod)
 		if { $col < [llength $hl] } {
 			set col [lindex $hl $col]
 		} else {
@@ -6754,73 +7511,47 @@ proc cassgn { cse ls ps } {
 
 ###############################################################################
 
-proc cvcalc_static { Sok wi hi } {
+proc cvcalc_static { sid wi hi } {
 #
 # Calculate static canvas parameters for the non-resizable variant of ROAMER
 # window with a background image
 #
-	global Stat CMARGIN
+	global RD CMARGIN
 
 	# the canvas size
-	lassign $Stat($Sok,NC) aw ah
+	lassign $RD($sid,NC) aw ah
 
-	set cw [expr $aw - $CMARGIN(L) - $CMARGIN(R)]
-	set ch [expr $ah - $CMARGIN(U) - $CMARGIN(D)]
+	# effective width and height
+	set cw [expr { $aw - $CMARGIN(L) - $CMARGIN(R) }]
+	set ch [expr { $ah - $CMARGIN(U) - $CMARGIN(D) }]
 
 	if { $cw < 10 || $ch < 10 } {
-		log "background image for ROAMER is too small"
+		# to avoid problems
+		log "background image for roamer is too small"
 		return 1
 	}
 
-	# corner coordinates of the effective mapped area of the image after
-	# subtracting margins
-	set XL [expr (double($CMARGIN(L)) * $wi) / $aw]
-	set XH [expr double($wi) - (double($CMARGIN(R)) * $wi) / $aw]
-	set YL [expr (double($CMARGIN(U)) * $hi) / $ah]
-	set YH [expr double($hi) - (double($CMARGIN(D)) * $hi) / $ah]
+	# wi, hi are the width and height in meters; now calculate the
+	# effective coordinates in meters of the displayable area (after
+	# accounting for the margins)
+	set XL [expr { (double($CMARGIN(L)) * $wi) / $aw }]
+	set XH [expr { double($wi) - (double($CMARGIN(R)) * $wi) / $aw }]
+	set YL [expr { (double($CMARGIN(U)) * $hi) / $ah }]
+	set YH [expr { double($hi) - (double($CMARGIN(D)) * $hi) / $ah }]
 
-	set Stat($Sok,M,XL) $XL
-	set Stat($Sok,M,XH) $XH
-	set Stat($Sok,M,YL) $YL
-	set Stat($Sok,M,YH) $YH
+	set RD($sid,xl) $XL
+	set RD($sid,xh) $XH
+	set RD($sid,yl) $YL
+	set RD($sid,yh) $YH
 	
-	# network width and height
-	set Stat($Sok,M,W) [expr $XH - $XL]
-	set Stat($Sok,M,H) [expr $YH - $YL]
+	# effective width and height of the displayable area
+	set RD($sid,M,W) [expr { $XH - $XL }]
+	set RD($sid,M,H) [expr { $YH - $YL }]
 
-	# active canvas width and height
-	set Stat($Sok,M,w) $cw
-	set Stat($Sok,M,h) $ch
+	# active width and height in canvas pixels
+	set RD($sid,M,w) $cw
+	set RD($sid,M,h) $ch
 
-	# fix node coordinates
-
-	for { set n 0 } { $n < $Stat($Sok,NN) } { incr n } {
-		set p $Stat($Sok,NL,$n)
-		set x [lindex $p 0]
-		set y [lindex $p 1]
-		set b 0
-		if { $XL > $x } {
-			log "Node $n, coordinates <$x,$y>: $x < left margin"
-			set x $XL
-			set b 1
-		} elseif { $x > $XH } {
-			log "Node $n, coordinates <$x,$y>: $x > right margin"
-			set x $XH
-			set b 1
-		}
-		if { $YL > $y } {
-			log "Node $n, coordinates <$x,$y>: $y < upper margin"
-			set y $YL
-			set b 1
-		} elseif { $y > $YH } {
-			log "Node $n, coordinates <$x,$y>: $y > bottom margin"
-			set y $YH
-			set b 1
-		}
-		if $b {
-			set Stat($Sok,NL,$n) [lreplace $p 0 1 $x $y]
-		}
-	}
 	return 0
 }
 
@@ -6833,7 +7564,7 @@ proc mv_xpand { min max D } {
 	upvar $max MAX
 
 	# current span
-	set d [expr $MAX - $MIN]
+	set d [expr { $MAX - $MIN }]
 
 	if { $d >= $D } {
 		# forget it
@@ -6841,39 +7572,39 @@ proc mv_xpand { min max D } {
 	}
 
 	# the deficit
-	set d [expr $D - $d]
+	set d [expr { $D - $d }]
 
 	# try symmetrically
-	set h [expr $d / 2.0]
+	set h [expr { $d / 2.0 }]
 
 	if { $h > $MIN } {
 		# cannot be symmetric
 		set MIN 0.0
 		set MAX $D
 	} else {
-		set MIN [expr $MIN - $h]
-		set MAX [expr $MAX + $h]
+		set MIN [expr { $MIN - $h }]
+		set MAX [expr { $MAX + $h }]
 	}
 
-	return [expr $MAX - $MIN]
+	return [expr { $MAX - $MIN }]
 }
 
-proc cvcalc_dynamic { Sok } {
+proc cvcalc_dynamic { sid } {
 #
 # Recalculate canvas parameters based on current network bounds
 #
-	global Stat CMARGIN
+	global RD CMARGIN
 
-	# calculate the minimum and maximum network coordinates
+	# calculate the minimum and maximum network coordinates; note: a
+	# "dynamic", i.e., resizable, window always includes all nodes, so
+	# this is almost as before
 	set XL ""
 	set XH ""
 	set YL ""
 	set YH ""
 
-	for { set n 0 } { $n < $Stat($Sok,NN) } { incr n } {
-		set p $Stat($Sok,NL,$n)
-		set x [lindex $p 0]
-		set y [lindex $p 1]
+	for { set n 0 } { $n < $RD(NN) } { incr n } {
+		lassign [lindex $RD(NL,$n) 0] x y
 		if { $XL == "" || $XL > $x } {
 			set XL $x
 		}
@@ -6893,11 +7624,11 @@ proc cvcalc_dynamic { Sok } {
 	set H [mv_xpand YL YH 1.0]
 
 	# absolute parameters of the canvas in pixels
-	lassign $Stat($Sok,NC) aw ah
+	lassign $RD($sid,NC) aw ah
 
 	# subtract the margins to obtain the active width and height
-	set cw [expr $aw - $CMARGIN(L) - $CMARGIN(R)]
-	set ch [expr $ah - $CMARGIN(U) - $CMARGIN(D)]
+	set cw [expr { $aw - $CMARGIN(L) - $CMARGIN(R) }]
+	set ch [expr { $ah - $CMARGIN(U) - $CMARGIN(D) }]
 
 	if { $cw < 10 || $ch < 10 } {
 		# now what? formally, this is impossible because the window
@@ -6907,147 +7638,49 @@ proc cvcalc_dynamic { Sok } {
 
 	# make the coordinates fit
 
-	if { [expr double ($ch) / double ($cw)] > \
-	     [expr double ( $H) / double ( $W)] } {
+	if { [expr { double ($ch) / double ($cw) }] >
+	     [expr { double ( $H) / double ( $W) }] } {
 		# constrained by width, calculate height
-		set D [expr (double ($W) * double ($ch)) / double ($cw)]
+		set D [expr { (double ($W) * double ($ch)) / double ($cw) }]
 		set H [mv_xpand YL YH $D]
 	} else {
 		# vice versa
-		set D [expr (double ($H) * double ($cw)) / double ($ch)]
+		set D [expr { (double ($H) * double ($cw)) / double ($ch) }]
 		set W [mv_xpand XL XH $D]
 	}
 
 	# network bounds
-	set Stat($Sok,M,XL) $XL
-	set Stat($Sok,M,XH) $XH
-	set Stat($Sok,M,YL) $YL
-	set Stat($Sok,M,YH) $YH
+	set RD($sid,xl) $XL
+	set RD($sid,xh) $XH
+	set RD($sid,yl) $YL
+	set RD($sid,yh) $YH
 	
 	# network width and height
-	set Stat($Sok,M,W) $W
-	set Stat($Sok,M,H) $H
+	set RD($sid,M,W) $W
+	set RD($sid,M,H) $H
 
 	# active canvas width and height
-	set Stat($Sok,M,w) $cw
-	set Stat($Sok,M,h) $ch
+	set RD($sid,M,w) $cw
+	set RD($sid,M,h) $ch
 }
 
-proc mkMove { Sok } {
+proc moveSNL { sid } {
 #
-# Create the ROAMER window
+# Save node locations
 #
-	global Wins Stat CMARGIN Geometry
+	global RD Stat
 
-	set w $Wins($Sok)
-	toplevel $w
+	# a sanity check; we are called by an event, so it never hurts to check
+	# if the thing is still around
 
-	wm title $w "ROAMER"
-	do_geometry $w "roamer"
-
-	if [info exists Geometry(roamer,i)] {
-		if { $Stat($Sok,BI) != "" } {
-			# use the image that has arrived from the server
-			if [catch {
-				image create photo -data $Stat($Sok,BI)
-			} bgr] {
-				log "cannot render remote background image,\
-					$bgr"
-				return 1
-			}
-		} else {
-			# use the local file
-			set imf $Geometry(roamer,i)
-			if [catch { image create photo -file $imf } bgr] {
-				log "cannot open the local background image\
-					file $imf, $bgr"
-				return 1
-			}
-		}
-		# apparently we have succeeded with the image
-		set aw [image width $bgr]
-		set ah [image height $bgr]
-		# not resizable
-		wm minsize $w $aw $ah
-		wm maxsize $w $aw $ah
-		wm resizable $w 0 0
-		set Stat($Sok,NC) [list $aw $ah]
-		set Stat($Sok,RE) 0
-		set wi 0.0
-		set hi 0.0
-		if [info exists Geometry(roamer,w)] {
-			set wi $Geometry(roamer,w)
-		}
-		if [info exists Geometry(roamer,h)] {
-			set hi $Geometry(roamer,h)
-		}
-		if { $wi != 0 && $hi == 0 } {
-			set hi [expr (double($wi) * $ah) / $aw]
-		}
-		if { $hi != 0 && $wi == 0 } {
-			set wi [expr (double ($hi) * $aw) / $ah]
-		}
-		if [cvcalc_static $Sok $wi $hi] {
-			return 1
-		}
-		canvas $w.c -width $aw -height $ah
-		pack $w.c -expand 1 -fill both
-		$w.c create image 0 0 -anchor nw -image $bgr
-	} else {
-		wm minsize $w $CMARGIN(MW) $CMARGIN(MH)
-		set aw $CMARGIN(DW)
-		set ah $CMARGIN(DH)
-		set Stat($Sok,NC) [list $aw $ah]
-		# resizable
-		set Stat($Sok,RE) 1
-		cvcalc_dynamic $Sok
-		canvas $w.c -width $aw -height $ah
-		pack $w.c -expand 1 -fill both
-	}
-
-	tip_set $w.c "*-Right click a node to see the menu of modules to\
-		connect to.\n*-Drag a node to move it to a new location.\n\
-		*-Click one node then another one to see the\
-		distance between them.\n*-Hover over a node to see\
-		(in left bottom corner) its coordinates and IDs.\n*-Click\
-		the dimension box in right bottom corner to save node\
-		coordinates in a file."
-
-	moveRedraw $Sok
-
-	bind $w <Destroy> "wdestroy $Sok"
-	bind $w.c <Configure> "moveResize $Sok %w %h"
-
-	# a popup menu for node-related commands
-	set m [menu $w.ncm]
-	if $Stat(P) {
-		$m add command -label "UART (plug)" \
-			-command {moveNC "UART (plug)"}
-	}
-	$m add command -label "UART (ascii)" -command {moveNC "UART (ascii)"}
-	$m add command -label "UART (hex)" -command {moveNC "UART (hex)"}
-	$m add command -label "SENSORS" -command {moveNC "SENSORS"}
-	$m add command -label "PINS" -command {moveNC "PINS"}
-	$m add command -label "LEDS" -command {moveNC "LEDS"}
-	$m add command -label "EMUL" -command {moveNC "EMUL"}
-	$m add command -label "LCDG" -command {moveNC "LCDG"}
-	$m add command -label "PTRACKER" -command {moveNC "PTRACKER"}
-
-	return 0
-}
-
-proc moveSNL { Sok } {
-
-	global Stat
-
-	set w [stwin $Sok]
-
-	if ![info exists Stat($Sok,NN)] {
+	if ![info exists RD($sid,WN)] {
 		return
 	}
 
-	set N $Stat($Sok,NN)
-	set loc "<locations>\n"
+	set w $RD($sid,WN)
+
+	set N $RD(NN)
+	set out "<locations>\n"
 
 	set fn [tk_getSaveFile \
 		-defaultextension ".xml" \
@@ -7068,215 +7701,257 @@ proc moveSNL { Sok } {
 
 	# create the location list
 	for { set n 0 } { $n < $N } { incr n } {
-		lassign $Stat($Sok,NL,$n) x y
-		append loc "    <location node=\"$n\"> [format %4.3f $x]\
-			[format %4.3f $y] </location>\n"
+		set loc [lindex $RD(NL,$n) 0]
+		lassign $loc x y z
+		append out "    <location node=\"$n\"> [format %4.3f $x]\
+			[format %4.3f $y] "
+		if $Stat(TD) {
+			append out "[format %4.3f $z] "
+		}
+		append out "</location>\n"
 	}
 
-	append loc "</locations>"
+	append out "</locations>"
 
-	if [catch { puts $fd $loc } err] {
-		alert "Caccot write to $fn: $err"
+	if [catch { puts $fd $out } err] {
+		alert "Cannot write to $fn: $err"
 	}
 
 	catch { close $fd }
-
 }
 
-proc drawNode { Sok w n } {
+proc drawNode { sid w n } {
 #
-# Draws node number n in window w
+# Draws, redraws, or erases a node, depending on whether it belongs to the
+# roamer now, belonged in the past, and so on
 #
-	global Stat CMARGIN
+	global RD
 
-	# coords, typename, color (set), items, text, fblink, vis
-	lassign $Stat($Sok,NL,$n) x y z c o t f v
+	# roamer-independent attributes of the node
+	set na $RD(NL,$n)
 
-	# network to canvas
-	set cx [xtocv $Sok $x]
-	set cy [ytocv $Sok $y]
+	# index for the roamer-specific attributes
+	set lix "$sid,$n"
 
-	set ns [lindex $c 0]
-	if { $ns == 0 } {
-		# fixed color implying 1 slice
-		set ns 1
+	# the node's current location
+	set loc [lindex $na 0]
+
+	lassign $loc x y z
+	set bb $RD($sid,BB)
+	lassign $bb xp yp zp
+
+	# this checks if the node falls into the roamer's bounding box
+	if { $bb == "" || ( [lindex $xp 0] <= $x && [lindex $xp 1] >= $x &&
+			    [lindex $yp 0] <= $y && [lindex $yp 1] >= $y &&
+			  ( $zp == "" ||
+			    [lindex $zp 0] <= $z && [lindex $zp 1] >= $z  )) } {
+
+		# make sure the node is within canvas, do we need this?
+		if { $RD($sid,xl) > $x } {
+			log "Node $n, coordinates <$x,$y>: $x < left margin"
+			set x $RD($sid,xl)
+		} elseif { $x > $RD($sid,xh) } {
+			log "Node $n, coordinates <$x,$y>: $x > right margin"
+			set x $RD($sid,xh)
+		}
+		if { $RD($sid,yl) > $y } {
+			log "Node $n, coordinates <$x,$y>: $y < upper margin"
+			set y $RD($sid,yl)
+		} elseif { $y > $RD($sid,yh) } {
+			log "Node $n, coordinates <$x,$y>: $y > bottom margin"
+			set y $RD($sid,yh)
+		}
+
+		set cx [xtocv $sid $x]
+		set cy [ytocv $sid $y]
+
+		# bounding coordinates of the node circle
+		set cm $RD($sid,MN)
+		set cxl [expr { $cx - $cm }]
+		set cyl [expr { $cy - $cm }]
+		set cxh [expr { $cx + $cm }]
+		set cyh [expr { $cy + $cm }]
+		# override (highlight) color
+		lassign [lindex $na 4] vc vl
+		set c [lindex $na 2]
+		# color list
+		set cl [lindex $c 1]
+
+		if [info exists RD($lix)] {
+			# the node is present in the canvas -> redraw
+			lassign $RD($lix) o t
+			foreach ci $o co $cl {
+				$w coords $ci $cxl $cyl $cxh $cyh
+				colconf $sid $n $ci $co $vc
+			}
+			# the legend
+			lassign $t la bg
+			$w coords $la $cx [expr { $cy - $RD($sid,MT) }]
+			if { $bg != "" } {
+				# have to redraw the bounding box
+				$w delete $bg
+				set bg [$w create rectangle [$w bbox $la] \
+					-fill $RD(HB,$n) -outline ""]
+				$w raise $la
+				lset RD($lix) 1 [list $la $bg]
+				# previously, I would return this to the caller
+				# (see old moveNewLocation); it shouldn't be
+				# necessary now, because the static and dynamic
+				# attribute of the node are separated
+			}
+		} else {
+			# first time
+			set ns [lindex $c 0]
+			# initialize the list of canvas items
+			set o ""
+			if { $ns == 0 || $ns == 1 } {
+				# a single slice (note that 0 means fixed color)
+				set ci [$w create oval $cxl $cyl $cxh $cyh \
+					-fill gray]
+				colconf $sid $n $ci [lindex $cl 0] $vc
+				# bind the mouse events
+				$w bind $ci <B1-Motion> \
+					"moveMove $sid $n %x %y"
+				$w bind $ci <B1-ButtonRelease> \
+					"moveUpButton $sid $n"
+				$w bind $ci <Enter> "moveEnter $sid $n"
+				$w bind $ci <Leave> "moveLeave $sid"
+				$w bind $ci <B3-ButtonRelease> \
+					"moveNodeMenu $sid $n %X %Y"
+				lappend o $ci
+			} else {
+				# arcs
+				set ast 0
+				# degrees left to complete
+				set lef 360
+				foreach co $cl {
+					# degrees to cover
+					set ext [expr { $lef / $ns }]
+					set ci [$w create arc $cxl $cyl \
+						$cxh $cyh \
+			    			-extent $ext -start $ast \
+						-fill gray]
+					colconf $sid $n $ci $co $vc
+					# bind the mouse events
+					$w bind $ci <B1-Motion> \
+						"moveMove $sid $n %x %y"
+					$w bind $ci <B1-ButtonRelease> \
+						"moveUpButton $sid $n"
+					$w bind $ci <Enter> \
+						"moveEnter $sid $n"
+					$w bind $ci <Leave> "moveLeave $sid"
+					$w bind $ci <B3-ButtonRelease> \
+						"moveNodeMenu $sid $n %X %Y"
+					lappend o $ci
+					incr ast $ext
+					incr lef -$ext
+					incr ns -1
+				}
+			}
+			# the legend
+			set la [$w create text $cx \
+				[expr { $cy - $RD($sid,MT) }] \
+				-anchor s -text $RD(NH,$n) \
+				-state disabled -fill $RD(HF,$n)]
+
+			# highlight
+			if { $RD(HB,$n) != "" } {
+				set bg [$w create rectangle [$w bbox $la] \
+					-fill $RD(HB,$n) -outline ""]
+				$w raise $la
+			} else {
+				set bg ""
+			}
+			set RD($lix) [list $o [list $la $bg]]
+		}
+		drawNote $sid $w $n $cx $cy $vl
+		return
 	}
-	# the rectangle shared by all arcs
-	set cxl [expr $cx - $CMARGIN(NR)]
-	set cyl [expr $cy - $CMARGIN(NR)]
-	set cxh [expr $cx + $CMARGIN(NR)]
-	set cyh [expr $cy + $CMARGIN(NR)]
 
-	# color list
-	set cl [lindex $c 1]
-
-	# canvas item list
-	set o ""
-
-	# temporary override color (visualization)
-	set vc [lindex $v 0]
-
-	# textual label
-	set vl [lindex $v 1]
-
-	if { $ns == 1 } {
-		# a single slice, i.e., an oval
-		set ci [$w.c create oval $cxl $cyl $cxh $cyh -fill gray]
-		colconf $Sok $n $ci [lindex $cl 0] $vc
-		# bind the mouse events
-		$w.c bind $ci <B1-Motion> "moveMove $Sok $n %x %y"
-		$w.c bind $ci <B1-ButtonRelease> "moveUpButton $Sok $n"
-		$w.c bind $ci <Enter> "moveEnter $Sok $n"
-		$w.c bind $ci <Leave> "moveLeave $Sok"
-		$w.c bind $ci <B3-ButtonRelease> "moveNodeMenu $Sok $n %X %Y"
-		lappend o $ci
-	} else {
-		# arcs
-		set ast 0
-		# degrees left to complete
-		set lef 360
-		foreach co $cl {
-			# degrees to cover
-			set ext [expr $lef / $ns]
-			set ci [$w.c create arc $cxl $cyl $cxh $cyh \
-			    -extent $ext -start $ast -fill gray]
-			colconf $Sok $n $ci $co $vc
-			# bind the mouse events
-			$w.c bind $ci <B1-Motion> "moveMove $Sok $n %x %y"
-			$w.c bind $ci <B1-ButtonRelease> "moveUpButton $Sok $n"
-			$w.c bind $ci <Enter> "moveEnter $Sok $n"
-			$w.c bind $ci <Leave> "moveLeave $Sok"
-			$w.c bind $ci <B3-ButtonRelease> \
-				"moveNodeMenu $Sok $n %X %Y"
-			lappend o $ci
-			incr ast $ext
-			incr lef -$ext
-			incr ns -1
+	# the node does not qualify into this roamer, so remove it, if present
+	if [info exists RD($lix)] {
+		lassign $RD($lix) o t
+		lassign $t la bg
+		foreach ci $o {
+			$w delete $ci
+		}
+		$w delete $la
+		if { $bg != "" } {
+			$w delete $bg
+		}
+		unset RD($lix)
+		# check for highlight note
+		if [info exists RD($sid,HL,$n)] {
+			lassign $RD($sid,HL,$n) la bg
+			$w delete $la
+			if { $bg != "" } {
+				$w deleted $bg
+			}
+			unset RD($sid,HL,$n)
 		}
 	}
-
-	drawNote $Sok $n $cx $cy $vl
-
-	# use the note colors for the node number (we may want to change this
-	# later)
-
-	# the node number
-	set la [$w.c create text $cx [expr $cy - $CMARGIN(TO)] \
-		-anchor s -text $Stat($Sok,NH,$n) \
-		-state disabled -fill $Stat($Sok,HF,$n)]
-
-	if { $Stat($Sok,HB,$n) != "" } {
-		set bg [$w.c create rectangle [$w.c bbox $la] \
-			-fill $Stat($Sok,HB,$n) -outline ""]
-		$w.c raise $la
-	} else {
-		set bg ""
-	}
-
-	set t [list $la $bg]
-	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
 }
 
-proc redrawNode { Sok w n } {
-#
-# Redraw an existing node in a new place
-#
-	global Stat CMARGIN
-
-	lassign $Stat($Sok,NL,$n) x y z c o t f v
-
-	set cx [xtocv $Sok $x]
-	set cy [ytocv $Sok $y]
-	set cxl [expr $cx - $CMARGIN(NR)]
-	set cyl [expr $cy - $CMARGIN(NR)]
-	set cxh [expr $cx + $CMARGIN(NR)]
-	set cyh [expr $cy + $CMARGIN(NR)]
-
-	# override (highlight) color
-	set vc [lindex $v 0]
-	# label
-	set vl [lindex $v 1]
-
-	foreach ci $o co [lindex $c 1] {
-  		$w.c coords $ci $cxl $cyl $cxh $cyh
-		colconf $Sok $n $ci $co $vc
-	}
-
-	lassign $t la bg
-	$w.c coords $la $cx [expr $cy - $CMARGIN(TO)]
-
-	if { $bg != "" } {
-		# have to redraw the bounding box
-		$w.c delete $bg
-		set bg [$w.c create rectangle [$w.c bbox $la] \
-			-fill $Stat($Sok,HB,$n) -outline ""]
-		$w.c raise $la
-		set t [list $la $bg]
-		set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
-	}
-
-	drawNote $Sok $n $cx $cy $vl
-
-	# propagate the possible change to the caller
-	return $t
-}
-
-proc moveRedraw { Sok } {
+proc moveRedraw { sid } {
 #
 # Draw or redraw (after resize) the contents of ROAMER's window
 #
-	global Stat CMARGIN
+	global RD CMARGIN
 
-	set w [stwin $Sok]
-	set N $Stat($Sok,NN)
+	# the window (strictly speaking, the canvas)
+	set w "$RD($sid,WN).c"
 
-	# network width and height
-	set W $Stat($Sok,M,W)
-	set H $Stat($Sok,M,H)
+	# layer width and height
+	set W $RD($sid,M,W)
+	set H $RD($sid,M,H)
 	set dmsg [format "%4.3fm x %4.3fm" $W $H]
 
 	# canvas (full) width and height
-	lassign $Stat($Sok,NC) aw ah
+	lassign $RD($sid,NC) aw ah
 	# coordinates of the message
-	set ddx [expr $aw - $CMARGIN(RX)]
-	set ddy [expr $ah - $CMARGIN(RY)]
+	set ddx [expr { $aw - $CMARGIN(RX) }]
+	set ddy [expr { $ah - $CMARGIN(RY) }]
 
-	if ![info exists Stat($Sok,AX)] {
-		# dmsg widget does not exist; this means that we are
-		# creating the canvas (as opposed to redrawing it)
-		for { set n 0 } { $n < $N } { incr n } {
-			drawNode $Sok $w $n
-		}
-		set tx [$w.c create text $ddx $ddy -anchor e \
+	if ![info exists RD($sid,AX)] {
+		# dmsg widget doesn't exist, create it (clumsy, but only now
+		# we know where)
+		set tx [$w create text $ddx $ddy -anchor e \
 			-text $dmsg -state disabled]
 	} else {
-		# redrawing existing nodes, i.e., adjusting their coordinates
-		for { set n 0 } { $n < $N } { incr n } {
-			redrawNode $Sok $w $n
-		}
-		lassign $Stat($Sok,AX) tx bg
-		$w.c coords $tx $ddx $ddy
-		$w.c itemconfigure $tx -text $dmsg
-		$w.c delete $bg
+		# adjust the position of the widget
+		lassign $RD($sid,AX) tx bg
+		$w coords $tx $ddx $ddy
+		$w itemconfigure $tx -text $dmsg
+		# delete the background, because it will be re-created
+		$w delete $bg
 	}
 
-	set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
+	set bg [$w create rectangle [$w bbox $tx] -fill lightgray \
 		-outline black]
-	tip_setc $w.c $bg "Click to save node positions in a file"
-	$w.c bind $bg <ButtonRelease-1> "moveSNL $Sok"
-	$w.c raise $tx
+	tip_setc $w $bg "Click to save node positions in a file"
+	$w bind $bg <ButtonRelease-1> "moveSNL $sid"
+	$w raise $tx
 
-	set Stat($Sok,AX) [list $tx $bg]
+	set RD($sid,AX) [list $tx $bg]
+
+	for { set n 0 } { $n < $RD(NN) } { incr n } {
+		drawNode $sid $w $n
+	}
 }
 
-proc moveNodeMenu { Sok n x y } {
+proc moveNodeMenu { sid n x y } {
+#
+# Called by a right-click in the node
+#
+	global RD MStatId
 
-	global MStatId
-
-	set w [stwin $Sok]
+	# as with all event callbacks ...
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+	# a way to communicate the node Id
 	set MStatId $n
-	set m $w.ncm
-	tk_popup $m $x $y
+	tk_popup $RD($sid,WN).ncm $x $y
 }
 
 proc moveNC { wh } {
@@ -7286,104 +7961,251 @@ proc moveNC { wh } {
 	doConnect $wh $MStatId
 }
 
-proc move_ninfo { Sok n } {
+proc moveZC { } {
+
+	global MStatId RD Stat Rms
+
+	set P(M0,NO) $MStatId
+
+	lassign [lindex $RD(NL,$MStatId) 0] P(M0,XC) P(M0,YC) P(M0,ZC)
+
+	set w [md_window "Move Node $MStatId"]
+
+	set tf [frame $w.tf]
+	pack $tf -side top -expand y -fill x
+
+	if $Stat(TD) {
+		set clist "X Y Z"
+	} else {
+		set clist "X Y"
+	}
+
+	foreach k $clist {
+		set f [frame $tf.f$k]
+		pack $f -side top -expand y -fill x
+		label $f.l -text "${k}: "
+		pack $f.l -side left -fill y
+		set P(M0,${k}V) [spinbox $f.b -from 0.0 -to 9999.9 \
+			-increment 0.1 -format %6.1f -width 10]
+		$f.b set [format "%6.1f" $P(M0,${k}C)]
+		pack $f.b -side left -expand y -fill x
+	}
+
+	set f [frame $w.bf]
+	pack $f -side top -expand n -fill x
+
+	button $f.b -text "Done" -command "md_click 1"
+	pack $f.b -side right -expand n -fill x
+
+	button $f.c -text "Cancel" -command "md_click -1"
+	pack $f.c -side left -expand n -fill x
+
+	bind $w <Destroy> "md_click -1"
+
+	while 1 {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
+			# cancelled
+			md_stop
+			break
+		}
+
+		if { $ev == 1 } {
+			# accepted
+			set cos ""
+			foreach k $clist {
+				set c [string trim [$P(M0,${k}V) get]]
+				if { [catch { expr { $c } } c] || $c < 0.0 || \
+				    $c > 9999.9 } {
+					alert "Illegal value of $k coordinate"
+					continue
+				}
+				lappend cos $c
+			}
+			# check if the node falls into at least one bbox
+			lassign $cos x y z
+			set ok 0
+			foreach r $Rms {
+				set bb $RD([lindex $r 1],BB)
+				lassign $bb xp yp zp
+				if { $bb == "" ||
+			( [lindex $xp 0] <= $x && [lindex $xp 1] >= $x &&
+			  [lindex $yp 0] <= $y && [lindex $yp 1] >= $y &&
+		        ( $zp == "" ||
+			  [lindex $zp 0] <= $z && [lindex $zp 1] >= $z  )) } {
+					set ok 1
+					break
+				}
+			}
+
+			if !$ok {
+				alert "The coordinates do not fall into any of\
+					the currently active roamer windows"
+				continue
+			}
+
+			set no $P(M0,NO)
+
+			if ![info exists RD(NL,$no)] {
+				# a safety check
+				break
+			}
+
+			set pc [lindex $RD(NL,$no) 0]
+
+			# check if change
+			set ok 0
+			set ix 0
+			foreach k $clist {
+				if { [lindex $cos $ix] != [lindex $pc $ix] } {
+					lset pc $ix [lindex $cos $ix]
+					set ok 1
+				}
+				incr ix
+			}
+
+			if $ok {
+				lset RD(NL,$no) 0 $pc
+				after 0 "updateNode $no"
+			}
+			break
+		}
+	}
+
+	md_stop
+	return
+}
+
+proc updateNode { no } {
+
+	global Rms RD
+
+	foreach r $Rms {
+		set xid [lindex $r 1]
+		drawNode $xid $RD($xid,WN).c $no
+	}
+}
+
+proc move_ninfo { n } {
 #
 # Node information line (showing up when the mouse enters the node)
 #
-	global Stat
+	global RD Stat
 
-	if ![info exists Stat($Sok,NL,$n)] {
+	if ![info exists RD(NL,$n)] {
+		# a precaution
 		return ""
 	}
 
-	lassign $Stat($Sok,NL,$n) x y p
-	set msg [format "<%4.3f,%4.3f>: %s" $x $y $p]
-	append msg " $n/$Stat($Sok,NH,$n)"
+	lassign $RD(NL,$n) loc p
+	lassign $loc x y z
+
+	if $Stat(TD) {
+		set msg [format "<%4.3f,%4.3f,%4.3f>: %s" $x $y $z $p]
+	} else {
+		set msg [format "<%4.3f,%4.3f>: %s" $x $y $p]
+	}
+
+	append msg " $n/$RD(NH,$n)"
 
 	return $msg
 }
 
-proc show_ninfo { Sok n } {
+proc show_ninfo { sid n } {
 
-	global Stat CMARGIN
+	global RD CMARGIN
 
-	set w [stwin $Sok]
+	if ![info exists RD($sid,WN)] {
+		return
+	}
 
-	if [info exists Stat($Sok,RC)] {
-		foreach wi $Stat($Sok,RC) {
+	set w $RD($sid,WN)
+
+	if [info exists RD($sid,RC)] {
+		# previous info still being shown
+		foreach wi $RD($sid,RC) {
 			$w.c delete $wi
 		}
 	}
 
 	set tx [$w.c create text $CMARGIN(RX) \
-		[expr [lindex $Stat($Sok,NC) 1] - $CMARGIN(RY)] -anchor sw \
-			-text [move_ninfo $Sok $n] -state disabled]
+		[expr { [lindex $RD($sid,NC) 1] - $CMARGIN(RY) }] -anchor sw \
+			-text [move_ninfo $n] -state disabled]
 
 	set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
 		-outline ""]
 
 	$w.c raise $tx
 
-	set Stat($Sok,RC) [list $tx $bg]
+	set RD($sid,RC) [list $tx $bg]
 }
 
-proc moveEnter { Sok n } {
+proc moveEnter { sid n } {
 #
 # Do the proper action from the callback. When I tried to do it directly from
 # this event handler, it would occasionally get into an infinite Enter-Exit
 # loop.
 #
-	after 1 "show_ninfo $Sok $n"
+	after 1 "show_ninfo $sid $n"
 }
 
-proc moveLeave { Sok } {
+proc moveLeave { sid } {
 
-	global Stat
+	global RD
 
-	set w [stwin $Sok]
+	if ![info exists RD($sid,WN)] {
+		return
+	}
 
-	if [info exists Stat($Sok,RC)] {
-		foreach wi $Stat($Sok,RC) {
+	set w $RD($sid,WN)
+
+	if [info exists RD($sid,RC)] {
+		# clean the info
+		foreach wi $RD($sid,RC) {
 			$w.c delete $wi
 		}
-		unset Stat($Sok,RC)
+		unset RD($sid,RC)
 	}
 }
 
-proc moveMove { Sok n nx ny } {
+proc moveMove { sid n nx ny } {
 #
 # Move one node (mouse action)
 #
-	global Stat CMARGIN
+	global RD CMARGIN Stat
 
-	set w [stwin $Sok]
+	if ![info exists RD($sid,WN)] {
+		return
+	}
 
-	if !$Stat($Sok,NM,$n) {
+	set w $RD($sid,WN)
+
+	if !$RD(NM,$n) {
 		# node not movable
 		return
 	}
 
-	lassign $Stat($Sok,NL,$n) x y z c o t f v
+	# get network coordinates (x, y) from the canvas
+	set x [xfromcv $sid $nx]
+	set y [yfromcv $sid $ny]
 
-	# network coordinates
-	set x [xfromcv $Sok $nx]
-	set y [yfromcv $Sok $ny]
-
-	if { $Stat($Sok,RE) == 0 } {
+	if { $RD($sid,RE) == 0 } {
 		# not resizable
-		if { $x < $Stat($Sok,M,XL) } {
-			set x $Stat($Sok,M,XL)
-			set nx [xtocv $Sok $x]
-		} elseif { $x > $Stat($Sok,M,XH) } {
-			set x $Stat($Sok,M,XH)
-			set nx [xtocv $Sok $x]
+		if { $x < $RD($sid,xl) } {
+			set x $RD($sid,xl)
+			set nx [xtocv $sid $x]
+		} elseif { $x > $RD($sid,xh) } {
+			set x $RD($sid,xh)
+			set nx [xtocv $sid $x]
 		}
-		if { $y < $Stat($Sok,M,YL) } {
-			set y $Stat($Sok,M,YL)
-			set ny [xtocv $Sok $y]
-		} elseif { $y > $Stat($Sok,M,YH) } {
-			set y $Stat($Sok,M,YH)
-			set ny [xtocv $Sok $y]
+		if { $y < $RD($sid,yl) } {
+			set y $RD($sid,yl)
+			set ny [xtocv $sid $y]
+		} elseif { $y > $RD($sid,yh) } {
+			set y $RD($sid,yh)
+			set ny [xtocv $sid $y]
 		}
 	} else {
 		# LS is unset at the start of move and it gets set at the
@@ -7391,334 +8213,263 @@ proc moveMove { Sok n nx ny } {
 		# that remain in effect during the entire mouse drag; when the
 		# mouse button is released, LS becomes unset, so the limits
 		# for the next move will be set anew
-		if ![info exists Stat($Sok,LS)] {
+		if ![info exists RD($sid,LS)] {
 			# calculate limits for this move
-			set d $Stat($Sok,M,W)
-			set xl [expr $Stat($Sok,M,XL) - $d]
+			set d $RD($sid,M,W)
+			set xl [expr { $RD($sid,xl) - $d }]
 			if { $xl < 0.0 } {
 				set xl 0.0
 			}
-			set xh [expr $Stat($Sok,M,XH) + $d]
-			set d $Stat($Sok,M,H)
-			set yl [expr $Stat($Sok,M,YL) - $d]
+			set xh [expr { $RD($sid,xh) + $d }]
+			set d $RD($sid,M,H)
+			set yl [expr { $RD($sid,yl) - $d }]
 			if { $yl < 0.0 } {
 				set yl 0.0
 			}
-			set yh [expr $Stat($Sok,M,YH) + $d]
-			set Stat($Sok,LS) [list $xl $xh $yl $yh]
+			set yh [expr { $RD($sid,yh) + $d }]
+			set RD($sid,LS) [list $xl $xh $yl $yh]
 		} else {
-			lassign $Stat($Sok,LS) xl xh yl yh
+			lassign $RD($sid,LS) xl xh yl yh
 		}
 		if { $x < $xl } {
 			set x $xl
-			set nx [xtocv $Sok $x]
+			set nx [xtocv $sid $x]
 		} elseif { $x > $xh } {
 			set x $xh
-			set nx [xtocv $Sok $x]
+			set nx [xtocv $sid $x]
 		}
 		if { $y < $yl } {
 			set y $yl
-			set ny [ytocv $Sok $y]
+			set ny [ytocv $sid $y]
 		}
 		if { $y > $yh } {
 			set y $yh
-			set ny [ytocv $Sok $y]
+			set ny [ytocv $sid $y]
 		}
 	}
 
-	# update the canvas coordinates
-	set cxl [expr $nx - $CMARGIN(NR)]
-	set cyl [expr $ny - $CMARGIN(NR)]
-	set cxh [expr $nx + $CMARGIN(NR)]
-	set cyh [expr $ny + $CMARGIN(NR)]
+	# replace node coordinates, x and y only
+	lset RD(NL,$n) 0 0 $x
+	lset RD(NL,$n) 0 1 $y
 
-	foreach ci $o {
-		$w.c coords $ci $cxl $cyl $cxh $cyh
-	}
-
-	moveNote $Sok $n $nx $ny
-
-	# update the position of node number
-
-	lassign $t la bg
-	$w.c coords $la $nx [expr $ny - $CMARGIN(TO)]
-	if { $bg != "" } {
-		# have to redraw the bounding box
-		$w.c delete $bg
-		set bg [$w.c create rectangle [$w.c bbox $la] \
-			-fill $Stat($Sok,HB,$n) -outline ""]
-		$w.c raise $la
-		set t [list $la $bg]
-	}
-
-	set Stat($Sok,NL,$n) [list $x $y $z $c $o $t $f $v]
-
-	if [sock_wr $Sok "M $n $x $y\n"] {
-		return
-	}
+	# move the node
+	drawNode $sid $w.c $n
 
 	# update running coordinate display
-	if [info exists Stat($Sok,RC)] {
-		lassign $Stat($Sok,RC) tx bg
-		$w.c itemconfigure $tx -text [move_ninfo $Sok $n]
+	if [info exists RD($sid,RC)] {
+		lassign $RD($sid,RC) tx bg
+		$w.c itemconfigure $tx -text [move_ninfo $n]
 		$w.c delete $bg
 		set bg [$w.c create rectangle [$w.c bbox $tx] -fill lightgray \
 			-outline ""]
 		$w.c raise $tx
-		set Stat($Sok,RC) [list $tx $bg]
+		set RD($sid,RC) [list $tx $bg]
 	}
 
-	# move flag for moveUpButton
-	set Stat($Sok,MF) $n
+	# move flag for up-button event
+	set RD($sid,MF) $n
+
+	# notify the simulator
+	set msg "M $n $x $y"
+	if $Stat(TD) {
+		append msg " [lindex $RD(NL,$n) 0 2]"
+	}
+	append msg "\n"
+	sock_wr $RD(S) $msg
 }
 
-proc moveShowDist { Sok n0 n1 } {
+proc moveShowDist { sid n0 n1 } {
 
-	global Stat
+	global RD
 
-	set w [stwin $Sok]
+	if { ![info exists RD($sid,WN)] || ![info exists RD($sid,$n0)] || 
+	     ![info exists RD($sid,$n1)] } {
+		return
+	}
 
-	set p $Stat($Sok,NL,$n0)
-	set x0 [lindex $p 0]
-	set y0 [lindex $p 1]
+	set w $RD($sid,WN)
 
-	set p $Stat($Sok,NL,$n1)
-	set x1 [lindex $p 0]
-	set y1 [lindex $p 1]
+	lassign [lindex $RD(NL,$n0) 0] x0 y0 z0
+	lassign [lindex $RD(NL,$n1) 0] x1 y1 z1
 
-	set X0 [xtocv $Sok $x0]
-	set Y0 [ytocv $Sok $y0]
-	set X1 [xtocv $Sok $x1]
-	set Y1 [ytocv $Sok $y1]
+	set X0 [xtocv $sid $x0]
+	set Y0 [ytocv $sid $y0]
+	set X1 [xtocv $sid $x1]
+	set Y1 [ytocv $sid $y1]
 
-	set d [expr sqrt (double ($x1 - $x0) * double ($x1 - $x0) + \
-		double ($y1 - $y0) * double ($y1 - $y0))]
+	set d [expr { sqrt (double ($x1 - $x0) * double ($x1 - $x0) + \
+			    double ($y1 - $y0) * double ($y1 - $y0) + \
+			    double ($z1 - $z0) * double ($z1 - $z0) + \
+		) }]
 
-	set XM [expr round (($X0 + $X1) / 2.0)]
-	set YM [expr round (($Y0 + $Y1) / 2.0)]
-	set Stat($Sok,PU) [$w.c create text $XM $YM -text [format "%4.3fm" $d] \
+	set XM [expr { round (($X0 + $X1) / 2.0) }]
+	set YM [expr { round (($Y0 + $Y1) / 2.0) }]
+
+	set la [$w.c create text $XM $YM -text [format "%4.3fm" $d] \
 		-state disabled]
-
-	set Stat($Sok,PT) [$w.c create line $X0 $Y0 $X1 $Y1 -state disabled \
+	set li [$w.c create line $X0 $Y0 $X1 $Y1 -state disabled \
 		-dash { 2 4 }]
 
-	after 2000 moveClearDist $Sok
+	set RD($sid,PU) [list $la $li]
+
+	after 2000 moveClearDist $sid
 }
 
-proc moveClearDist { Sok } {
+proc moveClearDist { sid } {
 
-	global Stat
+	global RD
 
-	set w [stwin $Sok]
+	if ![info exists RD($sid,WN)] {
+		return
+	}
 
-	if [info exists Stat($Sok,PT)] {
-		$w.c delete $Stat($Sok,PT)
-		$w.c delete $Stat($Sok,PU)
-		unset Stat($Sok,PT)
-		unset Stat($Sok,PU)
+	set w $RD($sid,WN)
+
+	if [info exists RD($sid,PU)] {
+		lassign $RD($sid,PU) la li
+		$w.c delete $la
+		$w.c delete $li
+		unset Stat($sid,PU)
 	}
 }
 
-proc moveUpButton { Sok n } {
+proc moveUpButton { sid n } {
 
-	global Stat
+	global RD
 
-	# just checking if we are still around
-	stwin $Sok
+	if ![info exists RD($sid,WN)] {
+		return
+	}
 
-	if ![info exists Stat($Sok,MF)] {
+	if ![info exists RD($sid,MF)] {
 		# no move to complete
-		if [info exists Stat($Sok,PS)] {
-			if { $Stat($Sok,PS) == $n } {
-				# cancel
-				unset Stat($Sok,PS)
+		if [info exists RD($sid,PS)] {
+			# second leg of "show distance"?
+			if { $RD($sid,PS) == $n } {
+				# same node, ignore???
+				# unset RD($sid,PS)
 				return
 			}
 			# draw a line between the two nodes and display
 			# the distance
-			if [info exists Stat($Sok,PT)] {
+			if [info exists RD($sid,PU)] {
 				# previous distance still displayed
+				unset RD($sid,PS)
 				return
 			}
-			moveShowDist $Sok $Stat($Sok,PS) $n
-			unset Stat($Sok,PS)
+			moveShowDist $sid $RD($sid,PS) $n
+			unset RD($sid,PS)
 			return
 		}
 		# the first point
-		set Stat($Sok,PS) $n
+		set RD($sid,PS) $n
 		return
 	}
 
-	if [info exists Stat($Sok,PS)] {
-		# starting point for a line
-		unset Stat($Sok,PS)
+	# a move to complete
+	if [info exists RD($sid,PS)] {
+		# starting point for a line (should we reset it?)
+		unset RD($sid,PS)
 	}
 
-	if [info exists Stat($Sok,LS)] {
+	if [info exists RD($sid,LS)] {
 		# window size at start of move
-		unset Stat($Sok,LS)
+		unset RD($sid,LS)
 	}
 
-	unset Stat($Sok,MF)
+	unset RD($sid,MF)
 
-	set p $Stat($Sok,NL,$n)
-	set x [lindex $p 0]
-	set y [lindex $p 1]
-	moveRedim $Sok x y
+	lassign [lindex $RD(NL,$n) 0] x y
+	moveRedim $sid $x $y
 }
 
-proc moveResize { Sok nw nh } {
+proc moveResize { sid nw nh } {
 
-	global Stat
+	global RD
 
-	stwin $Sok
 
-	if ![info exists Stat($Sok,RM)] {
+	if ![info exists RD($sid,WN)] {
+		return
+	}
+
+	if ![info exists RD($sid,RM)] {
 		# this is a dummy first time after startup; we use it to
 		# determine the window margin size, i.e., the difference
 		# between the resized width and height and the actual
 		# canvas parameters
-		foreach { aw ah } $Stat($Sok,NC) { }
-		set Stat($Sok,RM) [list [expr $nw - $aw] [expr $nh - $ah]]
+		lassign $RD($sid,NC) aw ah
+		set RD($sid,RM) [list [expr { $nw - $aw }] [expr { $nh - $ah }]]
 		return
 	}
 
-	if { $Stat($Sok,RE) == 0 } {
-		# just a precaution
+	if { $RD($sid,RE) == 0 } {
+		# not resizable
 		return
 	}
 
-	if [info exists Stat($Sok,T)] {
+	if [info exists RD($sid,T)] {
 		# update timer running, kill it
-		after cancel $Stat($Sok,T)
+		after cancel $RD($sid,T)
 	}
 
-	set Stat($Sok,NC) [list $nw $nh]
+	set RD($sid,NC) [list $nw $nh]
 
 	# delay the actual action until we have stabilized
-	set Stat($Sok,T) [after 1000 moveDoResize $Sok]
+	set RD($sid,T) [after 1000 moveDoResize $sid]
 
 	# FIXME: how to avoid shrinking the canvas below a minimum decent size
 }
 
-proc moveDoResize { Sok } {
+proc moveDoResize { sid } {
 
-	global Stat
+	global RD
 
-	stwin $Sok
+	if ![info exists RD($sid,WN)] {
+		return
+	}
 
-	if [info exists Stat($Sok,T)] {
-		unset Stat($Sok,T)
+	if [info exists RD($sid,T)] {
+		unset RD($sid,T)
 	}
 
 	# correct for the window boundary
-	lassign $Stat($Sok,NC) aw ah
-	lassign $Stat($Sok,RM) dw dh
+	lassign $RD($sid,NC) aw ah
+	lassign $RD($sid,RM) dw dh
 
-	set aw [expr $aw - $dw]
-	set ah [expr $ah - $dh]
+	set aw [expr { $aw - $dw }]
+	set ah [expr { $ah - $dh }]
 
-	set Stat($Sok,NC) [list $aw $ah]
+	set RD($sid,NC) [list $aw $ah]
 
-	cvcalc_dynamic $Sok
-
-	moveRedraw $Sok
+	cvcalc_dynamic $sid
+	moveRedraw $sid
 }
 
 proc moveUpd { Sok cmd } {
 #
 # receive location updates
 #
-	global Stat HPA
+	global Stat RD Rms
 
-	if ![regexp "^U $HPA(D) $HPA(Q) $HPA(F) $HPA(F) $HPA(P) $HPA(V)" \
-	      $cmd junk nod os x y ls ps vc vn] {
+	set upd [rdnupd $cmd]
+
+	if { $upd == "" } {
 		return
 	}
 
-	if { [catch {
-		set nod [expr $nod]
-		set x [expr $x]
-		set y [expr $y]
-	}] || $x < 0.0 || $y < 0.0 || $nod >= $Stat($Sok,NN) } {
+	lassign $upd nod os nlc ls ps vc vn
+
+	if ![info exists RD(NL,$nod)] {
 		# just ignore
 		return
 	}
 
-	moveNewLocation $Sok $nod $os $x $y $ls $ps [vipars $Sok $vc $vn $nod]
-}
+	lassign $RD(NL,$nod) loc t c f v
 
-proc moveRedim { Sok nxx nyy } {
-#
-# Checks if the location is out of present canvas bounds and optionally
-# redimensions the canvas
-#
-	global Stat
+	set vic [vipars $vc $vn $nod]
 
-	upvar $nxx nx
-	upvar $nyy ny
-
-	# current network bounds
-	set XL $Stat($Sok,M,XL)
-	set XH $Stat($Sok,M,XH)
-	set YL $Stat($Sok,M,YL)
-	set YH $Stat($Sok,M,YH)
-
-	if { $Stat($Sok,RE) == 0 } {
-		# do nothing if not resizable, but make sure the nodes
-		# do show up in the window
-		if { $nx < $XL } {
-			set nx $XL
-		} elseif { $nx > $XH } {
-			set nx $XH
-		}
-		if { $ny < $YL } {
-			set ny $YL
-		} elseif { $ny > $YH } {
-			set ny $YH
-		}
-		return 0
-	}
-
-	if { $nx < $XL || $nx > $XH || $ny < $YL || $ny > $YH } {
-		cvcalc_dynamic $Sok
-		moveRedraw $Sok
-		return 1
-	}
-
-	return 0
-}
-
-proc moveNewLocation { Sok nod os nx ny ls ps vic } {
-#
-# Update the location and (possibly) color of the node
-#
-	global Stat CMARGIN
-
-	set w [stwin $Sok]
-
-	lassign $Stat($Sok,NL,$nod) x y z c o t f v
-
-	if { $x != $nx || $y != $ny } {
-		# take care of position change first, then do the updates on
-		# the new node location
-		set x $nx
-		set y $ny
-		set Stat($Sok,NL,$nod) [lreplace $Stat($Sok,NL,$nod) 0 1 $x $y]
-		if ![moveRedim $Sok nx ny] {
-			# no resize, move just this one node, but note that its
-			# coordinates may have been adjusted by moveRedim
-			set x $nx
-			set y $ny
-			set Stat($Sok,NL,$nod) \
-				[lreplace $Stat($Sok,NL,$nod) 0 1 $x $y]
-			set t [redrawNode $Sok $w $nod]
-		}
-	}
-
-	# color change flag
+	# change flags: color, note
 	set cc 0
-	# label change flag
 	set lc 0
 
 	set b [string index $ls 0]
@@ -7758,28 +8509,84 @@ proc moveNewLocation { Sok nod os nx ny ls ps vic } {
 		set v $vic
 	}
 
-	set Stat($Sok,NL,$nod) [list $x $y $z $c $o $t $f $v]
+	set RD(NL,$nod) [list $nlc $t $c $f $v]
 
-	if $cc {
-		# color change
-		foreach ci $o co [lindex $c 1] {
-			colconf $Sok $nod $ci $co [lindex $v 0]
+	if { $nlc != $loc } {
+		# just redraw the node
+		foreach r $Rms {
+			set xid [lindex $r 1]
+			if $RD($xid,RE) {
+				# resizable
+				if [moveRedim $xid [lindex $nlc 0] \
+				    [lindex $nlc 1]] {
+					# resized and accounted for
+					continue
+				}
+			}
+			drawNode $xid $RD($xid,WN).c $nod
 		}
+		return
 	}
 
-	if $lc {
-		drawNote $Sok $nod [xtocv $Sok $x] [ytocv $Sok $y] \
-			[lindex $v 1]
+	if { !$cc && !$lc } {
+		# nothing to do at all
+		return
+	}
+
+	# just update what's needed
+	lassign $nlc x y
+	foreach r $Rms {
+		set xid [lindex $r 1]
+		if [info exists RD($xid,$nod)] {
+			lassign $RD($xid,$nod) o t
+			if $cc {
+				foreach ci $o co [lindex $c 1] {
+					colconf $xid $nod $ci $co [lindex $v 0]
+				}
+			}
+			if $lc {
+				drawNote $xid $RD($xid,WN).c $nod \
+					[xtocv $xid $x] [ytocv $xid $y] \
+					[lindex $v 1]
+			}
+		}
 	}
 }
 
-proc colconf { Sok nod wg col cov } {
+proc moveRedim { sid nx ny } {
+#
+# Checks if the location is out of present canvas bounds and optionally
+# redimensions the canvas; if that happens, the nodes are redrawn
+#
+	global RD
+
+	if { $RD($sid,RE) == 0 } {
+		# not resizable
+		return 0
+	}
+
+	# current network bounds
+	set XL $RD($sid,xl)
+	set XH $RD($sid,xh)
+	set YL $RD($sid,yl)
+	set YH $RD($sid,yh)
+
+	if { $nx < $XL || $nx > $XH || $ny < $YL || $ny > $YH } {
+		cvcalc_dynamic $sid
+		moveRedraw $sid
+		return 1
+	}
+
+	return 0
+}
+
+proc colconf { sid nod wg col cov } {
 #
 # Configure the color of a node or its fragment
 #
-	global Stat
+	global RD
 
-	set w [stwin $Sok]
+	set w $RD($sid,WN)
 
 	if { $cov != "" } {
 		# temporary override; let's be careful, because the color
@@ -7787,8 +8594,8 @@ proc colconf { Sok nod wg col cov } {
 		if ![catch { $w.c itemconfigure $wg -fill $cov }] {
 			# we have succeeded, make sure there's no callback
 			# (if the previous state was blinking)
-			if [info exists Stat($Sok,$wg,X)] {
-				unset Stat($Sok,$wg,X)
+			if [info exists RD($sid,$wg,X)] {
+				unset RD($sid,$wg,X)
 			}
 			return
 		}
@@ -7798,68 +8605,69 @@ proc colconf { Sok nod wg col cov } {
 
 	if [lindex $col 1] {
 		# blinking, store the color for the callback
-		set Stat($Sok,$wg,C) $co
-		if ![info exists Stat($Sok,$wg,X)] {
+		set RD($sid,$wg,C) $co
+		if ![info exists RD($sid,$wg,X)] {
 			# the blinker callback is not active, so have to start
 			# it (initially in the ON state)
-			set Stat($Sok,$wg,X) 1
-			colblink $Sok $nod $wg
+			set RD($sid,$wg,X) 1
+			colblink $sid $nod $wg
 		}
 	} else {
-		if [info exists Stat($Sok,$wg,X)] {
+		if [info exists RD($sid,$wg,X)] {
 			# this will tell the callback to go away
-			unset Stat($Sok,$wg,X)
+			unset RD($sid,$wg,X)
 		}
 		$w.c itemconfigure $wg -fill $co
 	}
 }
 
-proc colblink { Sok nod wg } {
+proc colblink { sid nod wg } {
 #
 # The blinker callback for colconf
 #
-	global Stat
+	global RD
 
-	set w [stwin $Sok]
-	if ![info exists Stat($Sok,$wg,X)] {
-		# another good reason to exit
+	if { ![info exists RD($sid,WN)] || ![info exists RD($sid,$wg,X)] } {
 		return
 	}
-	if $Stat($Sok,$wg,X) {
+
+	set w $RD($sid,WN)
+
+	if $RD($sid,$wg,X) {
 		# turn on
-		$w.c itemconfigure $wg -fill $Stat($Sok,$wg,C)
-		set Stat($Sok,$wg,X) 0
+		$w.c itemconfigure $wg -fill $RD($sid,$wg,C)
+		set RD($sid,$wg,X) 0
 	} else {
 		$w.c itemconfigure $wg -fill gray
-		set Stat($Sok,$wg,X) 1
+		set RD($sid,$wg,X) 1
 	}
 
 	# when next?
-	if { [lindex $Stat($Sok,NL,$nod) 6] != 0 } {
+	if { [lindex $RD(NL,$nod) 3] != 0 } {
 		# fast
 		set del 128
 	} else {
 		set del 512
 	}
-	after $del "colblink $Sok $nod $wg"
+	after $del "colblink $sid $nod $wg"
 }
 
-proc noteCoords { Sok x y } {
+proc noteCoords { sid x y } {
 #
-# Caclculate note coordinates
+# Compute the coordinates of a node "note"
 #
-	global Stat CMARGIN
+	global RD CMARGIN
 
 	# this is the offset of the label box corner from the corner of the
 	# node's box; we still don't know the direction
-	set co [expr $CMARGIN(NR) + $CMARGIN(LO)]
+	set co [expr { $RD($sid,MN) + $CMARGIN(LO) }]
 
 	# determine the box's orientation; it is always in the direction of
 	# maximum space
-	lassign $Stat($Sok,NC) aw ah
+	lassign $RD($sid,NC) aw ah
 
 	# determine the text anchor
-	if { [expr $ah - $y] > $y } {
+	if { [expr { $ah - $y }] > $y } {
 		set dy 1
 		set anc "n"
 	} else {
@@ -7867,9 +8675,9 @@ proc noteCoords { Sok x y } {
 		set anc "s"
 	}
 	# anchor y coordinate
-	set yc [expr $y + $dy * $co]
+	set yc [expr { $y + $dy * $co }]
 
-	if { [expr $aw - $x] > $x } {
+	if { [expr { $aw - $x }] > $x } {
 		set dx 1
 		append anc "w"
 		set jus "left"
@@ -7879,27 +8687,25 @@ proc noteCoords { Sok x y } {
 		set jus "right"
 	}
 	# anchor x coordinate
-	set xc [expr $x + $dx * $co]
+	set xc [expr { $x + $dx * $co }]
 
 	return [list $xc $yc $anc $jus]
 }
 
-proc drawNote { Sok n x y txt } {
+proc drawNote { sid w n x y txt } {
 #
 # Draws a note box for the node $n at node coords x y
 #
-	global Stat CMARGIN FONT
+	global RD CMARGIN FONT
 
-	set w [stwin $Sok]
-
-	if { $Stat($Sok,HL,$n) != "" } {
-		# remove the previous one
-		lassign $Stat($Sok,HL,$n) la bg
-		$w.c delete $la
+	if [info exists RD($sid,HL,$n)] {
+		# previous note exists, remove
+		lassign $RD($sid,HL,$n) la bg
+		catch { $w delete $la }
 		if { $bg != "" } {
-			$w.c delete $bg
+			catch { $w delete $bg }
 		}
-		set Stat($Sok,HL,$n) ""
+		unset RD($sid,HL,$n)
 	}
 
 	if { $txt == "" } {
@@ -7908,11 +8714,11 @@ proc drawNote { Sok n x y txt } {
 	}
 
 	# coordinates and anchor
-	lassign [noteCoords $Sok $x $y] xc yc anc jus
+	lassign [noteCoords $sid $x $y] xc yc anc jus
 
 	# width taken by the text if not broken
 	set rw [font measure $FONT(L) $txt]
-	set rw [expr $rw + 14]
+	set rw [expr { $rw + 14 }]
 	if { $rw > $CMARGIN(LW) } {
 		# will break into multiple lines
 		set rw $CMARGIN(LW)
@@ -7920,46 +8726,18 @@ proc drawNote { Sok n x y txt } {
 		set rw 0
 	}
 
-	set la [$w.c create text $xc $yc -anchor $anc -text $txt \
-		-justify $jus -width $rw -fill $Stat($Sok,HF,$n)]
+	set la [$w create text $xc $yc -anchor $anc -text $txt \
+		-justify $jus -width $rw -fill $RD(HF,$n)]
 
-	if { $Stat($Sok,HB,$n) != "" } {
-		set bg [$w.c create rectangle [$w.c bbox $la] \
-			-fill $Stat($Sok,HB,$n) -outline ""]
-		$w.c raise $la
+	if { $RD(HB,$n) != "" } {
+		set bg [$w create rectangle [$w bbox $la] \
+			-fill $RD(HB,$n) -outline ""]
+		$w raise $la
 	} else {
 		set bg ""
 	}
 
-	set Stat($Sok,HL,$n) [list $la $bg]
-}
-
-proc moveNote { Sok n x y } {
-#
-# Update the note's coordinates
-#
-	global Stat
-
-	set w [stwin $Sok]
-
-	if { $Stat($Sok,HL,$n) == "" } {
-		# no label
-		return
-	}
-
-	lassign [noteCoords $Sok $x $y] xc yc anc jus
-	lassign $Stat($Sok,HL,$n) la bg
-
-	$w.c coords $la $xc $yc
-	$w.c itemconfigure $la -anchor $anc -justify $jus
-
-	if { $bg != "" } {
-		$w.c delete $bg
-		set bg [$w.c create rectangle [$w.c bbox $la] \
-			-fill $Stat($Sok,HB,$n) -outline ""]
-		$w.c raise $la
-		set Stat($Sok,HL,$n) [list $la $bg]
-	}
+	set RD($sid,HL,$n) [list $la $bg]
 }
 
 proc terminate_on_exit { } {
@@ -8036,7 +8814,7 @@ proc valsid { var } {
 
 	upvar $var v
 
-	if [catch { expr $v } num] {
+	if [catch { expr { $v } } num] {
 		log "request ignored: illegal node Id '$v'"
 		return 1
 	}
@@ -8048,7 +8826,7 @@ proc doConnect { { opt "" } { nod "" } } {
 #
 # Handle a new connection request
 #
-	global Option IDMode StatId AGENT_MAGIC
+	global OPT IDMode StatId AGENT_MAGIC
 
 	if { $opt != "" } {
 		# direct
@@ -8061,7 +8839,15 @@ proc doConnect { { opt "" } { nod "" } } {
 			set fg 0
 		}
 		set nod $StatId
-		set opt $Option
+		set opt [$OPT(BUT) cget -text]
+	}
+
+	# check for roamer, it is kind of special
+	set rix [isroamlab $opt]
+	if { $rix != "" } {
+		# yep, this is a roamer
+		moveHandler $rix
+		return
 	}
 
 	switch $opt {
@@ -8111,11 +8897,6 @@ proc doConnect { { opt "" } { nod "" } } {
 			pwrtHandler $nod $fg
 		}
 
-		"ROAMER" {
-
-			moveHandler
-		}
-
 		"PANEL" {
 
 			panelHandler 
@@ -8127,86 +8908,10 @@ proc doConnect { { opt "" } { nod "" } } {
 		}
 
 		default {
-			log "request ignored: $Option unimplemented"
+			log "request ignored: $opt unimplemented"
 		}
 	}
 }
-
-###############################################################################
-###############################################################################
-
-parse_args
-
-###############################################################################
-# The shape of these functions depends on whether the Y coordinate is reversed
-###############################################################################
-
-if $RY {
-	# Y reversed, i.e., top = 0
-	proc ytocv { Sok y } {
-	#
-	# Converts network y coordinate to canvas y
-	#
-		global Stat CMARGIN
-	
-		return [expr round (($Stat($Sok,M,h) * \
-			($y - $Stat($Sok,M,YL)))/$Stat($Sok,M,H)) + $CMARGIN(D)]
-	}
-	proc yfromcv { Sok ny } {
-	#
-	# Converts canvas y coordinate to network y
-	#
-		global Stat CMARGIN
-
-		return [expr ($Stat($Sok,M,H) * \
-			double ($ny - $CMARGIN(D))) / double ($Stat($Sok,M,h)) \
-				+ $Stat($Sok,M,YL)]
-	}
-} else {
-	# bottom = 0
-	proc ytocv { Sok y } {
-	#
-		global Stat CMARGIN
-
-		set ch $Stat($Sok,M,h)
-		return [expr $ch - round (($ch * \
-			($y - $Stat($Sok,M,YL)))/$Stat($Sok,M,H)) + $CMARGIN(U)]
-	}
-	proc yfromcv { Sok ny } {
-	#
-		global Stat CMARGIN
-
-		set ch $Stat($Sok,M,h)
-		return [expr ($Stat($Sok,M,H) * \
-			double ($ch - $ny + $CMARGIN(U))) / double ($ch) + \
-				$Stat($Sok,M,YL)]
-	}
-}
-
-unset RY
-
-proc xtocv { Sok x } {
-#
-# Converts network x coordinate to canvas x
-#
-	global Stat CMARGIN
-
-	return [expr round (($Stat($Sok,M,w) * \
-		($x - $Stat($Sok,M,XL)))/$Stat($Sok,M,W)) + $CMARGIN(L)]
-}
-
-proc xfromcv { Sok nx } {
-#
-# Converts canvas x coordinate to network x
-#
-	global Stat CMARGIN
-
-	return [expr ($Stat($Sok,M,W) * \
-		double ($nx - $CMARGIN(L))) / double ($Stat($Sok,M,w)) + \
-			$Stat($Sok,M,XL)]
-}
-
-###############################################################################
 
 proc change_tips_status { } {
 
@@ -8224,119 +8929,234 @@ proc change_tips_status { } {
 		set TIPSTAT 1
 	}
 }
-		
+	
+proc vplug_init { nn hn nt ta } {
+#
+# Default plugin
+#
+	return 0
+}
+
+proc make_root_window { } {
+
+	global OPT Stat IDMode TIPSTAT FONT Logger LogStat
+
+	wm title . "VUEE udaemon (ZZ000000A)"
+
+	frame .top -borderwidth 10
+	pack .top -side top -expand 0 -fill x
+	button .top.quit -text "Quit" -command { terminate }
+	button .top.connect -text "Connect" -command doConnect
+
+	tip_set .top.connect "Click to connect to the module selected by the\
+	widgets to the left. Note that you can also connect to node-specific\
+	modules from ROAMER windows by right-clicking on the nodes."
+
+	set OPT(OPS) [list "UART (ascii)" \
+		"UART (hex)" \
+		"SENSORS" \
+		"PINS" \
+		"LEDS" \
+		"EMUL" \
+		"LCDG" \
+		"PTRACKER" \
+		"ROAMER" \
+		"PANEL" \
+		"CLOCK" ]
+
+	if $Stat(P) {
+		set OPT(OPS) [linsert $OPT(OPS) 0 "UART (plug)"]
+	}
+
+	set OPT(BUT) ".top.select"
+	set OPT(MEN) "$OPT(BUT).m"
+
+	menubutton $OPT(BUT) -text "---" -direction right -menu $OPT(MEN) \
+		-relief raised
+	menu $OPT(MEN) -tearoff 0
+
+	tip_set .top.select "This is the menu of modules to connect to. Modules\
+		ROAMER, PANEL, and CLOCK are global (require no node number),\
+		so you can leave the \"number\" field empty.\
+		The remaining modules belong to nodes, so a node number is\
+		required."
+	
+	label .top.la -text "Node"
+	set IDMode "host"
+	tk_optionMenu .top.hs IDMode "serial" "host"
+
+	tip_set .top.hs "Select the way to interpret the node number (to the\
+		right). It can be Host Id (node address), or serial (SMURPH)\
+		node number (from zero up)."
+
+	label .top.lb -text "number:"
+	entry .top.stat -width 6 -relief sunken -textvariable StatId \
+		-validate key -vcmd {validSid %P} -invcmd bell
+
+	tip_set .top.stat "Enter the node number for those modules that belong\
+		to nodes, i.e., UART, SENSORS, PINS, LEDS, EMUL, LCDG, and\
+		PTRACKER. That number will be interpreted as the Host Id (node\
+		address within the network), or as the internal (SMURPH) serial\
+		number of the node (from zero up), depending on the selection\
+		in the menu to the left."
+
+	set TIPSTAT 1
+
+	label .top.tl -text "+" -font $FONT(D)
+
+	tip_set .top.tl "Click to switch the hover-over tips off. Click again\
+		to switch them back on"
+
+	bind .top.tl <ButtonRelease-1> change_tips_status
+
+	pack .top.quit .top.connect .top.tl .top.select -side right
+	pack .top.la .top.hs .top.lb .top.stat -side left
+
+	bind .top.stat <Return> doConnect
+	bind .top <Destroy> { alex }
+	bind . <Destroy> { alex }
+
+	focus .top.stat
+
+	frame .logger
+
+	set Logger [text .logger.t -width 64 -height 10 \
+		-borderwidth 2 -relief raised -setgrid true -wrap none \
+		-yscrollcommand {.logger.scrolly set} \
+		-xscrollcommand {.logger.scrollx set} \
+		-font $FONT(R) \
+		-exportselection 1 \
+		-state normal]
+
+	set LogStat 1
+
+	scrollbar .logger.scrolly -command {.logger.t yview}
+	scrollbar .logger.scrollx -orient horizontal -command {.logger.t xview}
+
+	pack .logger.scrolly -side right -fill y
+	pack .logger.scrollx -side bottom -fill x
+
+	pack .logger.t -side left -fill both -expand true
+
+	bind .logger.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
+
+	pack .logger -side top -fill both -expand true
+
+	$Logger delete 1.0 end
+	$Logger configure -state disabled
+
+	bind . <Destroy> { terminate }
+}
+
+proc roamlab { { n "" } } {
+#
+# Produces a label for roamer numbed n; this label formally identifies the
+# roamer module and is also displayed as the first word of the roamer
+# identifier in menus
+#
+	if { $n == "" } {
+		return "ROAMER"
+	}
+	return "ROAMER_$n"
+}
+
+proc isroamlab { lab } {
+#
+# Extracts the roamer index from a roamer label
+#
+	if ![regexp "^ROAMER(.*)" $lab jnk rpm] {
+		# not a roamer
+		return ""
+	}
+	set rpm [string trimleft $rpm "_"]
+	if ![regexp {^[[:digit:]]+} $rpm inx] {
+		# single, standard, unindexed roamer has number 0
+		return 0
+	}
+
+	if [catch { expr { $inx } } inx] {
+		# a precaution
+		return ""
+	}
+
+	return $inx
+}
+
+proc make_option_list { } {
+#
+# Called when the list of roamers is known to build the option lists
+#
+	global Geometry OPT
+
+	set rlist ""
+	if { $Geometry(roamer) == "" } {
+		lappend rlist [roamlab]
+	} else {
+		set ix 0
+		foreach r $Geometry(roamer) {
+			set nam [lindex $r 0]
+			set lab [roamlab $ix]
+			if { $nam != "" } {
+				append lab " ($nam)"
+			}
+			lappend rlist $lab
+			incr ix
+		}
+	}
+
+	# the first option selected by default
+	$OPT(BUT) configure -text [lindex $OPT(OPS) 0]
+
+	set n 0
+	foreach e $OPT(OPS) {
+
+		if { $e == "ROAMER" } {
+			if { [llength $rlist] == 1 } {
+				# starightforward entry
+				$OPT(MEN) add command -label [lindex $rlist 0] \
+					-command "option_click $OPT(MEN) $n"
+			} else {
+				# create cascade menu of roamers
+				set sm "$OPT(MEN).rm"
+				menu $sm -tearoff 0
+				set nr 0
+				foreach r $rlist {
+					$sm add command -label $r \
+					    -command "option_click $sm $nr"
+					incr nr
+				}
+				$OPT(MEN) add cascade -label "ROAMERS..." \
+					-menu $sm
+			}
+		} else {
+			# regular option
+			$OPT(MEN) add command -label $e \
+				-command "option_click $OPT(MEN) $n"
+		}
+
+		incr n
+	}
+}
+
+proc option_click { men n } {
+#
+# Set connection option
+#
+	global OPT
+
+	$OPT(BUT) configure -text [$men entrycget $n -label]
+}
+
 ###############################################################################
-# Default plugin ##############################################################
 ###############################################################################
 
-proc vplug_init { nn hn nt ta } { return 0 }
+parse_args
 
 plugin_check
 
 ###############################################################################
 
-wm title . "VUEE udaemon (ZZ000000A)"
-
-frame .top -borderwidth 10
-pack .top -side top -expand 0 -fill x
-button .top.quit -text "Quit" -command { terminate }
-button .top.connect -text "Connect" -command doConnect
-
-tip_set .top.connect "Click to connect to the module selected by the widgets\
-	to the left. Note that you can also connect to node-specific modules\
-	from the ROAMER window by right-clicking on the nodes."
-
-set optl [list "UART (ascii)" \
-	"UART (hex)" \
-	"SENSORS" \
-	"PINS" \
-	"LEDS" \
-	"EMUL" \
-	"LCDG" \
-	"PTRACKER" \
-	"ROAMER" \
-	"PANEL" \
-	"CLOCK" ]
-
-if $Stat(P) {
-	set optl [linsert $optl 0 "UART (plug)"]
-}
-
-tk_optionMenu .top.select Option {*}$optl
-
-unset optl
-
-tip_set .top.select "This is the menu of modules to connect to. Modules\
-	ROAMER, PANEL, and CLOCK are global (require no node number), so you\
-	can leave the \"number\" field empty. The remaining modules belong\
-	to nodes, so a node number is required."
-	
-
-label .top.la -text "Node"
-set IDMode "host"
-tk_optionMenu .top.hs IDMode "serial" "host"
-
-tip_set .top.hs "Select the way to interpret the node number (to the right).\
-	It can be Host Id (node address), or serial (SMURPH) node number\
-	(from zero up)."
-
-label .top.lb -text "number:"
-entry .top.stat -width 6 -relief sunken -textvariable StatId \
-	-validate key -vcmd {validSid %P} -invcmd bell
-
-tip_set .top.stat "Enter the node number for those modules that belong to\
-	nodes, i.e., UART, SENSORS, PINS, LEDS, EMUL, LCDG, and PTRACKER.\
-	That number will be interpreted as the Host Id (node address within\
-	the network), or as the internal (SMURPH) serial number of the node\
-	(from zero up), depending on the selection in the menu to the left."
-
-set TIPSTAT 1
-
-label .top.tl -text "+" -font $FONT(D)
-
-tip_set .top.tl "Click to switch the hover-over tips off. Click again\
-	to switch them back on"
-
-bind .top.tl <ButtonRelease-1> change_tips_status
-
-pack .top.quit .top.connect .top.tl .top.select -side right
-
-pack .top.la .top.hs .top.lb .top.stat -side left
-
-bind .top.stat <Return> doConnect
-bind .top <Destroy> { alex }
-bind . <Destroy> { alex }
-
-focus .top.stat
-
-frame .logger
-
-set Logger [text .logger.t -width 64 -height 10 \
-	-borderwidth 2 -relief raised -setgrid true -wrap none \
-	-yscrollcommand {.logger.scrolly set} \
-	-xscrollcommand {.logger.scrollx set} \
-	-font $FONT(R) \
-	-exportselection 1 \
-	-state normal]
-
-set LogStat 1
-
-scrollbar .logger.scrolly -command {.logger.t yview}
-scrollbar .logger.scrollx -orient horizontal -command {.logger.t xview}
-
-pack .logger.scrolly -side right -fill y
-pack .logger.scrollx -side bottom -fill x
-
-pack .logger.t -side left -fill both -expand true
-
-bind .logger.t <ButtonRelease-3> "cut_copy_paste %W %X %Y c"
-
-pack .logger -side top -fill both -expand true
-
-$Logger delete 1.0 end
-$Logger configure -state disabled
-
-bind . <Destroy> { terminate }
+make_root_window
 
 if { [info tclversion] < 8.5 } {
 
@@ -8349,6 +9169,11 @@ catch { close stdin }
 catch { close stderr }
 
 parse_geometry
+
+# past this point we have read the geometry data, so we know the dimensionality
+# and the list of roamers; now we can set up the OPT menu
+
+make_option_list
 
 if $TM {
 	terminate_on_exit
