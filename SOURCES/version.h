@@ -136,8 +136,8 @@ typedef void (*SIGARG) (int);
 
 /* The following defs are inserted by maker. Everything starting with the */
 /* next line will be removed and written from scratch.                    */
-#define  ZZ_SOURCES      "/home/pawel/SOFTWARE/SIDE/SOURCES"
-#define  ZZ_LIBPATH      "/home/pawel/SOFTWARE/SIDE/LIB"
-#define  ZZ_INCPATH      "-I /home/pawel/SOFTWARE/SIDE/Examples/IncLib -I /home/pawel/SOFTWARE/VUEE/PICOS"
-#define  ZZ_XINCPAT      {"/home/pawel/SOFTWARE/PICOS/Apps/DataLib", NULL}
-#define  ZZ_RTAG	"PG150325A"
+#define  ZZ_SOURCES      "/home/nripg/SOFTWARE/SIDE/SOURCES"
+#define  ZZ_LIBPATH      "/home/nripg/SOFTWARE/SIDE/LIB"
+#define  ZZ_INCPATH      "-I /home/nripg/SOFTWARE/SIDE/Examples/IncLib -I /home/nripg/SOFTWARE/VUEE/PICOS"
+#define  ZZ_XINCPAT      {"/home/nripg/SOFTWARE/PICOS/Apps/DataLib", NULL}
+#define  ZZ_RTAG	"PG160124A"

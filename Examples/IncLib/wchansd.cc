@@ -12,6 +12,15 @@
 #define	trc(a, ...)
 #endif
 
+#if ZZ_R3D
+#define	__ndim 3
+#else
+#define	__ndim 2
+#endif
+
+#define	__nrof (__ndim + __ndim)
+#define	__ntrd (__nrof + 2)
+
 typedef struct {
 //
 // A sample being read from the input data file
@@ -28,11 +37,20 @@ static inline double vlength (sdpair_t &sdp) {
 // Note that the length is in meters
 //
 	double x, y;
+#if ZZ_R3D
+	double z;
+#endif
 
 	x = (double) (sdp.XA - sdp.XB);
 	y = (double) (sdp.YA - sdp.YB);
-
-	return sqrt (x * x + y * y) / Du;
+#if ZZ_R3D
+	y = (double) (sdp.ZA - sdp.ZB);
+#endif
+	return sqrt (x * x + y * y
+#if ZZ_R3D
+			   + z * z
+#endif
+					) / Du;
 };
 
 // ============================================================================
@@ -41,14 +59,14 @@ void RFSampled::read_samples (const char *sfname) {
 //
 // Read the input file containing data samples; the line format is:
 //
-//	Xs Ys Xd Yd RSSI pow
+//	Xs Ys Xd Yd RSSI pow (for 3d: Xs Ys Zs Xd Yd Zd RSSI pow)
 //
 // The last number is optional and defaults to a model parameter
 //
 	rss_rsample_t		*RSamples;
 	Long			SRSamples, ln, e, i;
 	FILE			*sf;
-	nparse_t		NP [6];
+	nparse_t		NP [__ntrd];
 	sdpair_t		SDP;
 	rss_rsample_t           *RSMP;
 	rss_sample_t            *SMP, SSMP;
@@ -57,6 +75,7 @@ void RFSampled::read_samples (const char *sfname) {
 	unsigned short		RS, PO;
 	unsigned int		uv;
 	double			d, att;
+	int			cnt;
 	
 	NSamples = SRSamples = 0;
 
@@ -95,13 +114,12 @@ void RFSampled::read_samples (const char *sfname) {
 Opened:
 	trc ("sample file opened");
 
-	NP [0] . type =
-	NP [1] . type =
-	NP [2] . type =
-	NP [3] . type = TYPE_double;
+	for (cnt = 0; cnt < __ndim + __ndim; cnt++)
+		NP [cnt] . type = TYPE_double;
 
-	NP [4] . type =
-	NP [5] . type = TYPE_int;
+	NP [__nrof + 0] . type =
+	NP [__nrof + 1] . type =
+						TYPE_int;
 
 	ln = 0;
 	lbs = 0;
@@ -115,22 +133,29 @@ Opened:
 		if (*c == '#' || *c == '\0')
 			continue;
 
-		e = parseNumbers (linebuf, 6, NP);
-		if (e < 5 || e > 6)
+		e = parseNumbers (linebuf, __ntrd, NP);
+		if (e < __ntrd - 1 || e > __ntrd)
 			excptn ("RFSampled: illegal content of line %1d in the "
 				"sample file", ln);
 		// Read the coordinates
-		SDP.XA = (Long) duToItu (NP [0] . DVal);
-		SDP.YA = (Long) duToItu (NP [1] . DVal);
-		SDP.XB = (Long) duToItu (NP [2] . DVal);
-		SDP.YB = (Long) duToItu (NP [3] . DVal);
+		cnt = 0;
+		SDP.XA = (Long) duToItu (NP [cnt++] . DVal);
+		SDP.YA = (Long) duToItu (NP [cnt++] . DVal);
+#if ZZ_R3D
+		SDP.ZA = (Long) duToItu (NP [cnt++] . DVal);
+#endif
+		SDP.XB = (Long) duToItu (NP [cnt++] . DVal);
+		SDP.YB = (Long) duToItu (NP [cnt++] . DVal);
+#if ZZ_R3D
+		SDP.ZB = (Long) duToItu (NP [cnt++] . DVal);
+#endif
 		PO = PS->upper ();
-		uv = (unsigned int) (NP [4] . IVal);
+		uv = (unsigned int) (NP [cnt++] . IVal);
 		assert (uv <= 0x0FFFF, "RFSampled: illegal RSSI (%1u) in line "
 			"%1d in the sample file", uv, ln);
 		RS = (unsigned short) uv;
-		if (e > 5) {
-			uv = (unsigned int) (NP [5] . IVal);
+		if (e > __ntrd - 1) {
+			uv = (unsigned int) (NP [cnt] . IVal);
 			assert (uv <= 0x0FFFF,
 				"RFSampled: illegal power level (%1u) in line "
 				"%1d in the sample file", uv, ln);
@@ -241,6 +266,17 @@ Opened:
 
 		memcpy (SMP, &SSMP, sizeof (rss_sample_t));
 
+#if ZZ_R3D
+		trc ("SMP <%1d,%1d,%1d> - <%1d,%1d,%1d>, %g, %g",
+			SMP->SDP.XA,
+			SMP->SDP.YA,
+			SMP->SDP.ZA,
+			SMP->SDP.XB,
+			SMP->SDP.YB,
+			SMP->SDP.ZB,
+			SMP->Attenuation,
+			SMP->Sigma);
+#else
 		trc ("SMP <%1d,%1d> - <%1d,%1d>, %g, %g",
 			SMP->SDP.XA,
 			SMP->SDP.YA,
@@ -248,6 +284,7 @@ Opened:
 			SMP->SDP.YB,
 			SMP->Attenuation,
 			SMP->Sigma);
+#endif
 	}
 
 	Samples = (rss_sample_t*) realloc (Samples, NSamples *
@@ -354,6 +391,18 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 			di->Rehash = (void*) (HTable [ix]);
 			HTable [ix] = (dict_item_t*) di;
 		}
+#if ZZ_R3D
+		trc ("attenuate HE found: <%1d,%1d,%1d> - <%1d,%1d,%1d>, "
+			"%g, %g",
+			di->SMP.SDP.XA,
+			di->SMP.SDP.YA,
+			di->SMP.SDP.ZA,
+			di->SMP.SDP.XB,
+			di->SMP.SDP.YB,
+			di->SMP.SDP.ZB,
+			di->SMP.Attenuation,
+			di->SMP.Sigma);
+#else
 		trc ("attenuate HE found: <%1d,%1d> - <%1d,%1d>, %g, %g",
 			di->SMP.SDP.XA,
 			di->SMP.SDP.YA,
@@ -361,11 +410,23 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 			di->SMP.SDP.YB,
 			di->SMP.Attenuation,
 			di->SMP.Sigma);
+#endif
 	} else {
 		// Need to build a new entry
 		di = interpolate (sdp);
 		di -> Rehash = (void*) (HTable [ix]);
 		HTable [ix] = di;
+#if ZZ_R3D
+		trc ("attenuate new HE: <%1d,%1d,%1d> - <%1d,%1d,%1d>, %g, %g",
+			di->SMP.SDP.XA,
+			di->SMP.SDP.YA,
+			di->SMP.SDP.ZA,
+			di->SMP.SDP.XB,
+			di->SMP.SDP.YB,
+			di->SMP.SDP.ZB,
+			di->SMP.Attenuation,
+			di->SMP.Sigma);
+#else
 		trc ("attenuate new HE: <%1d,%1d> - <%1d,%1d>, %g, %g",
 			di->SMP.SDP.XA,
 			di->SMP.SDP.YA,
@@ -373,6 +434,7 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 			di->SMP.SDP.YB,
 			di->SMP.Attenuation,
 			di->SMP.Sigma);
+#endif
 	}
 
 	res = dBToLin (di->SMP.Attenuation + dRndGauss (0.0, di->SMP.Sigma));
@@ -387,8 +449,13 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 	Long		NBK, i, j, k;
 	dict_item_t	*DI;
 
+#if ZZ_R3D
+	trc ("interpolate: <%1d,%1d,%1d> - <%1d,%1d,%1d> l=%g",
+		sdp.XA, sdp.YA, sdp.ZA, sdp.XB, sdp.YB, sdb.ZB, vlength (sdp));
+#else
 	trc ("interpolate: <%1d,%1d> - <%1d,%1d> l=%g", sdp.XA, sdp.YA, sdp.XB,
 		sdp.YB, vlength (sdp));
+#endif
 
 	for (i = NBK = 0; i < NSamples; i++) {
 
@@ -449,6 +516,17 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 		// Stage 1: replace distances by exponents; the distance is
 		// transposed to Du (meters), so we know what the factor (EAF)
 		// applies to
+#if ZZ_R3D
+		trc ("in[%1d] = <%1d,%1d,%1d> - <%1d,%1d,%1d>, %g, %g, d=%g", i,
+			BK [i]->SDP.XA,
+			BK [i]->SDP.YA,
+			BK [i]->SDP.ZA,
+			BK [i]->SDP.XB,
+			BK [i]->SDP.YB,
+			BK [i]->SDP.ZB,
+			BK [i]->Attenuation,
+			BK [i]->Sigma, DBK [i]);
+#else
 		trc ("in[%1d] = <%1d,%1d> - <%1d,%1d>, %g, %g, d=%g", i,
 			BK [i]->SDP.XA,
 			BK [i]->SDP.YA,
@@ -456,6 +534,7 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 			BK [i]->SDP.YB,
 			BK [i]->Attenuation,
 			BK [i]->Sigma, DBK [i]);
+#endif
 		DBK [i] = exp (-((DBK [i] / A) * EAF));
 		trc ("in d->w %g [EAF=%g]", DBK [i], EAF);
 	}
@@ -523,12 +602,19 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 		// No need to worry
 		return res;
 
+#if ZZ_R3D
+	src->getRawLocation (SDP.XA, SDP.YA, SDP.ZA);
+	TheTransceiver->getRawLocation (SDP.XB, SDP.YB, SDP.ZB);
+	trc ("RFC_att (sd) = <%1d,%1d,%1d> - <%1d,%1d,%1d>",
+		SDP.XA, SDP.YA, SDP.ZA,
+		SDP.XB, SDP.YB, ADP.ZB);
+#else
 	src->getRawLocation (SDP.XA, SDP.YA);
 	TheTransceiver->getRawLocation (SDP.XB, SDP.YB);
-
 	trc ("RFC_att (sd) = <%1d,%1d> - <%1d,%1d>",
 		SDP.XA, SDP.YA,
 		SDP.XB, SDP.YB);
+#endif
 
 	res = res * xp->Level * attenuate (SDP);
 

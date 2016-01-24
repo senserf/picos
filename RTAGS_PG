@@ -606,3 +606,8 @@ PG150325A:
 
 	   Fixed sxml_name to never return NULL to appease the newest version
 	   of g++.
+
+PG160124A:
+
+	   Modifications to the channel models to accommodate the 3d option of
+	   VUEE.

@@ -1,0 +1,53 @@
+<network nodes="20">
+    <grid>0.1m</grid>
+    <tolerance quality="2">1E-4</tolerance>
+    <xi:include href="channel.xml"/>
+    <nodes>
+
+	<parameters>
+		===================================
+					data	ack
+		===================================
+		preamble:		32	32
+		bit rate:		2 	2	<!-- 38400 bps -->
+		channel:		0 	128	<!-- out of 256 -->
+		xmit power level:	7 	7	<!-- the max -->
+		===================================
+					min	max
+		===================================
+		backoff: 		0.02   0.10
+		ack wait:		0.01   0.02
+		===================================
+	</parameters>
+
+	<!-- These are in meters, look at the map! -->
+	<node> 36000.0  36000.0</node>
+	<node>108000.0  45000.0</node>
+	<node>240000.0 162000.0</node>
+	<node>336000.0 240000.0</node>
+	<node>372000.0 294000.0</node>
+	<node>404000.0 309000.0</node>
+	<node>430000.0 405000.0</node>
+	<node>396000.0 510000.0</node>
+	<node>432000.0 450000.0</node>
+	<node>492000.0 498000.0</node>
+    </nodes>
+
+    <traffic>
+	<packets>
+		all in bits
+		frame:			96
+		minimum length:		1024
+		maximum length:		1024
+		ack length:		32
+	</packets>
+	<messages>
+		minimum length:		1024	(bits)
+		maximum length:		1024	(bits)
+		mean interarrival time:	4.5	(seconds)
+	</messages>
+    </traffic>
+
+    <timelimit>1000 seconds</timelimit>
+
+</network>

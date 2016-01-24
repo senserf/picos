@@ -19,9 +19,21 @@ static rwpmm_pool_t *rwpmm_find_mip (Transceiver *t) {
 	return NULL;
 }
 
-static inline double rwpmm_dist (double x, double y, double xt, double yt) {
+static inline double rwpmm_dist (  double  x, double  y 
+#if ZZ_R3D
+				 , double  z
+#endif
+				 , double xt, double yt
+#if ZZ_R3D
+				 , double zt
+#endif
+							) {
 
-	return sqrt ((xt - x) * (xt - x) + (yt - y) * (yt - y));
+	return sqrt ((xt - x) * (xt - x) + (yt - y) * (yt - y)
+#if ZZ_R3D
+					 + (zt - z) * (zt - z)
+#endif
+								);
 }
 
 void rwpmmSetNotifier (rwpmm_notifier_t n) {
@@ -52,8 +64,14 @@ void rwpmmStart (Long nid, Transceiver *rfm,
 
 			double x0,
 			double y0,
+#if ZZ_R3D
+			double z0,
+#endif
 			double x1,
 			double y1,
+#if ZZ_R3D
+			double z1,
+#endif
 			double mnsp,
 			double mxsp,
 			double mnpa,
@@ -63,9 +81,12 @@ void rwpmmStart (Long nid, Transceiver *rfm,
 	if (!isStationId (nid))
 		excptn ("rwpmmStart: illegal node Id %1d", nid);
 
-	if (x0 < 0.0 || x1 < x0 || y0 < 0.0 || y1 < y0)
-		excptn ("rwpmmStart: node %1d, illegal bounding rectangle",
-			nid);
+	if (x0 < 0.0 || x1 < x0 || y0 < 0.0 || y1 < y0
+#if ZZ_R3D
+				|| z0 < 0.0 || z1 < z0
+#endif
+							)
+		excptn ("rwpmmStart: node %1d, illegal bounding box", nid);
 
 	if (mnsp <= 0.0 || mxsp < mnsp)
 		excptn ("rwpmmStart: node %1d, illegal speed", nid);
@@ -75,14 +96,28 @@ void rwpmmStart (Long nid, Transceiver *rfm,
 
 	rwpmmStop (rfm);
 
-	create RWPMover (nid, rfm, x0, y0, x1, y1, mnsp, mxsp, mnpa, mxpa, dur);
+	create RWPMover (nid, rfm, x0, y0, 
+#if ZZ_R3D
+				       z0,
+#endif
+				       x1, y1,
+#if ZZ_R3D
+					   z1,
+#endif
+					       mnsp, mxsp, mnpa, mxpa, dur);
 }
 
 void RWPMover::setup (Long nn, Transceiver *rfm,
 						double x0,
 						double y0,
+#if ZZ_R3D
+						double z0,
+#endif
 						double x1,
 						double y1,
+#if ZZ_R3D
+						double z1,
+#endif
 						double minsp,
 						double maxsp,
 						double minpa,
@@ -99,7 +134,10 @@ void RWPMover::setup (Long nn, Transceiver *rfm,
 	Y0 = y0;
 	X1 = x1;
 	Y1 = y1;
-
+#if ZZ_R3D
+	Z0 = z0;
+	Z1 = z1;
+#endif
 	MINSP = minsp;
 	MAXSP = maxsp;
 
@@ -111,7 +149,11 @@ void RWPMover::setup (Long nn, Transceiver *rfm,
 	else
 		Until = Time + etuToItu (howlong);
 
-	TR->getLocation (TX, TY);
+	TR->getLocation (TX, TY
+#if ZZ_R3D
+			   , TZ
+#endif
+				);
 }
 
 RWPMover::perform {
@@ -124,13 +166,26 @@ RWPMover::perform {
 	// Current coordinates
 	CX = TX;
 	CY = TY;
-
+#if ZZ_R3D
+	CZ = TZ;
+#endif
 	// Generate a random destination within the rectangle
 	TX = dRndUniform (X0, X1);
 	TY = dRndUniform (Y0, Y1);
+#if ZZ_R3D
+	TZ = dRndUniform (Z0, Z1);
+#endif
 
 	// Distance in meters
-	sp = rwpmm_dist (TX, TY, CX, CY);
+	sp = rwpmm_dist (TX, TY 
+#if ZZ_R3D
+			   , TZ
+#endif
+		       , CX, CY
+#if ZZ_R3D
+			   , CZ
+#endif
+				);
 
 	// Target number of steps (tiny teleportations)
 	cn = sp / RWPMM_TARGET_STEP;
@@ -149,7 +204,11 @@ RWPMover::perform {
 
     transient Advance:
 
-	TR->setLocation (CX, CY);
+	TR->setLocation (CX, CY
+#if ZZ_R3D
+			   , CZ
+#endif
+				);
 
 	if (rwpmm_notifier != NULL)
 		(*rwpmm_notifier) (NID);
@@ -180,21 +239,38 @@ Finish:
 		Count = 0;
 		CX = TX;
 		CY = TY;
+#if ZZ_R3D
+		CZ = TZ;
+#endif
 		Timer->wait (TLeft, Advance);
 		sleep;
 	}
 
 	// Remaining distance in meters
-	sp = rwpmm_dist (CX, CY, TX, TY);
+	sp = rwpmm_dist (CX, CY
+#if ZZ_R3D
+			   , CZ
+#endif
+		       , TX, TY
+#if ZZ_R3D
+			   , TZ
+#endif
+				);
 	if (sp < 0.0001) {
 		// Just in case
 		CX = TX;
 		CY = TY;
+#if ZZ_R3D
+		CZ = TZ;
+#endif
 	} else {
 		// Distance fraction for next step
 		cn =  sp / Count;
 		CX += cn * (TX - CX) / sp;
 		CY += cn * (TY - CY) / sp;
+#if ZZ_R3D
+		CZ += cn * (TZ - CZ) / sp;
+#endif
 	}
 
 	// Current interval

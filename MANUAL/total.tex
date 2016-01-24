@@ -1905,7 +1905,7 @@ XML tree.
 
 \begin{quote}
 \noindent\hspace{-0.35in}{\tt sxml\_t sxml\_parse\_input (char del =
-'{\char092}0', char **data = NULL); }\\ \hspace{0in}
+'{\char092}0', char **data = NULL, int *len); }\\ \hspace{0in}
 The function reads the standard data file (stream {\tt Inf}---\sect{rm_au_io})
 and treats it as an XML string to be parsed and transformed into a tree.
 It returns the root node of the tree, which should be checked for 
@@ -1919,6 +1919,9 @@ argument.
 The string will be complete in the sense that the contents of any
 {\em included\/} files (see below) will have been inserted in their respective
 places, i.e., there will be no ``include'' tags in the string.
+If the third argument is not {\tt NULL} (and the second argument is not
+{\tt NULL} as well), then the length of the string stored in the second
+argument will be stored at the pointer passed in the third argument.
 \end{quote}
 
 The last function is the only one that interprets {\em includes\/} in the parsed

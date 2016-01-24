@@ -35,6 +35,10 @@ void rwpmmStart (Long,			// Node Id
 			double, 	// Y0  ** bounding
 			double, 	// X1  ** rectangle
 			double,		// Y1  ** 
+#if ZZ_R3D
+			double,		// in 3d, we have X0,Y0,Z0 ...
+			double,
+#endif
 			double, 	// Mns ** minimum speed
 			double,		// Mxs ** maximum speed
 			double,		// Mnp ** minimum pause
@@ -53,13 +57,17 @@ process RWPMover {
 	Long NID;
 
 	double	X0, Y0, X1, Y1;			// Bounding rectangle
-
+#if ZZ_R3D
+	double	Z0, Z1;
+#endif
 	double	MINSP, MAXSP,			// Speed
 		MINPA, MAXPA;			// Pause
 
 	double	CX, CY,				// Current coordinates
 		TX, TY;				// Target coordinates
-
+#if ZZ_R3D
+	double	CZ, TZ;
+#endif
 	TIME	Until,				// Total time for the roaming
 		TLeft;				// Left for the present leg
 
@@ -73,6 +81,10 @@ process RWPMover {
 				double, 	// Y0  ** bounding
 				double, 	// X1  ** rectangle
 				double,		// Y1  **
+#if ZZ_R3D
+				double,
+				double,
+#endif
 				double, 	// Mns ** minimum speed
 				double,		// Mxs ** maximum speed
 				double,		// Mnp ** minimum pause

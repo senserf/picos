@@ -2386,7 +2386,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 	tm = TIME_inf;
 	while (SchBOP != NULL && SchBOP->Schedule <= Time) {
 		assert (SchBOP->Schedule == Time,
-			"RF_ACTIVITY->HandleEvent: time warp");
+			"RF_ACTIVITY->HandleEvent: time warp (p)");
 		// Initialize the activity
 		SchBOP->initAct ();
 		D = SchBOP->Destination;
@@ -2413,7 +2413,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 
 	while (SchBOT != NULL && SchBOT->Schedule <= Time) {
 		assert (SchBOT->Schedule == Time,
-			"RF_ACTIVITY->HandleEvent: time warp");
+			"RF_ACTIVITY->HandleEvent: time warp (b)");
 		D = SchBOT->Destination;
 		if (Aborted) {
 			// No packet, aborted preamble
@@ -2462,7 +2462,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 
 	while (SchEOT != NULL && SchEOT->Schedule <= Time) {
 		assert (SchEOT->Schedule == Time,
-			"RF_ACTIVITY->HandleEvent: time warp");
+			"RF_ACTIVITY->HandleEvent: time warp (e)");
 		D = SchEOT->Destination;
 		// Remove the activity from the pool
 		SchEOT->Done = YES;

@@ -427,7 +427,7 @@ XM_EData:
 	RFM->backoff_reset ();
 	// Generate backoff (left suspended until run)
 	RFM->backoff_generate ();
-	// The role of this is to make the next slot has actually begun
+	// The role of this is to make sure the next slot has actually begun
 	// when we start waiting for DIFS; in particular, whatever activity
 	// is detected, even immediately after we start waiting, it will
 	// result in the proper advancement of the backoff

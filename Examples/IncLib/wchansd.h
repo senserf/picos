@@ -17,8 +17,15 @@
 
 typedef	struct {
 
-	Long	XA, YA, XB, YB;
-
+	DISTANCE XA, YA
+#if ZZ_R3D
+		   , ZA
+#endif
+	       , XB, YB
+#if ZZ_R3D
+		   , ZB
+#endif
+			;
 } sdpair_t;
 
 typedef struct {
@@ -84,27 +91,47 @@ rfchannel RFSampled : RadioChannel {
 		if (Symmetric)
 			// Make sure we do not differentiate between
 			// directions
-			return ((sdp.XA ^ sdp.XB) + ((sdp.YA ^ sdp.YB) >> 1))
-				& RFSMPL_HASHMASK;
+			return	(
+			    (sdp.XA ^ sdp.XB) + ((sdp.YA ^ sdp.YB) >> 1)
+#if ZZ_R3D
+					      + ((sdp.ZA ^ sdp.ZB) << 1)
+#endif
+			    	)
+					& RFSMPL_HASHMASK;
 		else
 			// Make sure we do differentiate between directions
-			return (sdp.XA + (sdp.XB >> 1) + (sdp.YA >> 2) +
-				(sdp.YB >> 3)) & RFSMPL_HASHMASK;
+			return	(
+			     sdp.XA + (sdp.XB >> 1) + (sdp.YA >> 2)
+					+ (sdp.YB >> 3)
+#if ZZ_R3D
+					+ (sdp.ZA << 1) + (sdp.ZB << 2)
+#endif
+				)
+					& RFSMPL_HASHMASK;
 	};
 
 	inline Boolean sdpcmp (sdpair_t &a, sdpair_t &b) {
 
-		if (	a.XA == b.XA &&
-			a.YA == b.YA &&
-			a.XB == b.XB &&
-			a.YB == b.YB       )
+		if (	a.XA == b.XA
+		     && a.YA == b.YA
+		     && a.XB == b.XB
+		     && a.YB == b.YB
+#if ZZ_R3D
+		     && a.ZA == b.ZA
+		     && a.ZB == b.ZB
+#endif
+				       )
 						return YES;
-
-		if (	Symmetric &&
-			a.XB == b.XA &&
-			a.YB == b.YA &&
-			a.XA == b.XB &&
-			a.YA == b.YB	   )
+		if (	Symmetric
+		     && a.XB == b.XA
+		     && a.YB == b.YA
+		     && a.XA == b.XB
+		     && a.YA == b.YB
+#if ZZ_R3D
+		     && a.ZB == b.ZA
+		     && a.ZA == b.ZB
+#endif
+					)
 						return YES;
 
 		return NO;
@@ -116,14 +143,29 @@ rfchannel RFSampled : RadioChannel {
 	// of the Euclidean distances between the points
 	//
 		double d0, d1, d2, d3, D0, D1;
-
+#if ZZ_R3D
+		double d4, d5;
+#endif
 		d0 = (double)(sa.XA - sb.XA);
 		d1 = (double)(sa.YA - sb.YA);
 		d2 = (double)(sa.XB - sb.XB);
 		d3 = (double)(sa.YB - sb.YB);
-
-		D0 = sqrt ((d0 * d0) + (d1 * d1)) +
-		     sqrt ((d2 * d2) + (d3 * d3));
+#if ZZ_R3D
+		d4 = (double)(sa.ZA - sb.ZA);
+		d5 = (double)(sa.ZB - sb.ZB);
+#endif
+		D0 = sqrt (
+				(d0 * d0) + (d1 * d1)
+#if ZZ_R3D
+			      + (d4 * d4)
+#endif
+						) +
+		     sqrt (
+				(d2 * d2) + (d3 * d3)
+#if ZZ_R3D
+			      + (d5 * d5)
+#endif
+						);
 
 		if (Symmetric) {
 			// Try the other way around
@@ -131,9 +173,22 @@ rfchannel RFSampled : RadioChannel {
 			d1 = (double)(sa.YA - sb.YB);
 			d2 = (double)(sa.XB - sb.XA);
 			d3 = (double)(sa.YB - sb.YA);
-
-			D1 = sqrt ((d0 * d0) + (d1 * d1)) +
-			     sqrt ((d2 * d2) + (d3 * d3));
+#if ZZ_R3D
+			d4 = (double)(sa.ZA - sb.ZB);
+			d5 = (double)(sa.ZB - sb.ZA);
+#endif
+			D1 = sqrt (
+					(d0 * d0) + (d1 * d1)
+#if ZZ_R3D
+				      + (d4 * d4)
+#endif
+							) +
+			     sqrt (
+					(d2 * d2) + (d3 * d3)
+#if ZZ_R3D
+				      + (d5 * d5)
+#endif
+							);
 
 			if (D1 < D0)
 				D0 = D1;

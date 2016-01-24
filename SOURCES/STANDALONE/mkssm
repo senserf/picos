@@ -1,0 +1,146 @@
+#!/bin/sh
+###################\
+exec tclsh "$0" "$@"
+#
+# Creates a standalone model from a compiled SMURPH project; should be
+# called under Cygwin in the project directory
+#
+###############################################################################
+
+set CYGDLLS { "cyggcc_s-1.dll" "cygstdc++-6.dll" "cygwin1.dll" "kill.exe" }
+
+proc abt { m } {
+	puts stderr $m
+	exit 99
+}
+
+proc bad_args { } {
+
+	global argv0
+
+	abt "Usage: $argv0 \[target_directory_name\]"
+}
+
+proc parse_args { } {
+
+	global argv TDIR
+
+	set na [llength $argv]
+	if { $na == 0 } {
+		set TDIR [file join [pwd] "SIDEPACK"]
+	} elseif { $na == 1 } {
+		set TDIR [lindex $argv 0]
+	} else {
+		bad_args
+	}
+}
+
+proc make_target_directory { } {
+
+	global TDIR
+
+	catch { file delete -force -- $TDIR }
+
+	if [catch { file mkdir $TDIR } err] {
+		abt "Cannot create $TDIR, $err"
+	}
+}
+
+proc copy_cygwin_dlls { } {
+
+	global TDIR CYGDLLS
+
+	foreach f $CYGDLLS {
+		if [catch { file copy [file join "/bin" $f] $TDIR } err] {
+			abt "Cannot copy $f from /bin to $TDIR, $err"
+		}
+	}
+}
+
+proc copy_side { } {
+
+	global TDIR
+
+	if ![file exists "side.exe"] {
+		abt "Project not compiled, no side.exe file"
+	}
+
+	set fl [glob -nocomplain "*.cc"]
+	set fl [concat $fl [glob -nocomplain "*.h"]]
+	set fl [concat $fl [glob -nocomplain "*.txt"]]
+	set fl [concat $fl [glob -nocomplain "*.xml"]]
+	lappend fl "side.exe"
+
+	foreach f $fl {
+		if [catch { file copy $f $TDIR } err] {
+			abt "Cannot copy $f to $TDIR, $err"
+		}
+	}
+}
+
+proc fix_runmodel { } {
+
+	global TDIR
+
+	if [catch { open "runmodel.tcl" "r" } fd] {
+		abt "Cannot open runmodel.tcl in $TDIR"
+	}
+
+	if [catch { read $fd } rf] {
+		abt "Cannot read runmodel.tcl in $TDIR"
+	}
+
+	catch { close $fd }
+
+	regsub "\"-T\"" $rf "\"-T\" \"-R\"" rf
+
+	if [catch { open "runmodel.tcl" "w" } fd] {
+		abt "Cannot write runmodel.tcl in $TDIR"
+	}
+
+	puts -nonewline $fd $rf
+
+	catch { close $fd }
+}
+
+proc wrap_runmodel { } {
+
+	global TDIR argv0
+
+	# determine the location of the runmodel script as the same directory
+	# where the current script is running from
+
+	set pp [file dirname [file normalize $argv0]]
+
+	if [catch { file copy [file join $pp "runmodel.tcl"] $TDIR } \
+	    err] {
+		abt "Cannot copy runmodel.tcl to $TDIR, $err"
+	}
+
+	set CD [pwd]
+	if [catch { cd $TDIR } err] {
+		abt "Cannot cd to $TDIR, $err"
+	}
+
+	if [catch { exec fullwrap "runmodel.tcl" } err] {
+		abt "Cannot wrap runmodel.tcl, $err"
+	}
+
+	file delete -force "runmodel.tcl"
+
+	cd $CD
+}
+
+parse_args
+
+puts "target directory: $TDIR"
+make_target_directory
+
+puts "copying project directory ..."
+copy_side
+
+puts "copying Cygwin DLLs and apps ..."
+copy_cygwin_dlls
+
+puts "wrapping runmodel ..."
+wrap_runmodel
