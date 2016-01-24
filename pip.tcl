@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 0.71
+set ST(VER) 0.73
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -114,8 +114,17 @@ set GdbCmd "gdb"
 set GdbMCmd "msp430-gdb"
 set MspDCmd "mspdebug"
 set XTCmd "xterm"
-set EXCmd "explorer"
 set SACmd "sa"
+if { $ST(SYS) == "L" } {
+	# check for dolphin and nautilus with dolphin being preferred
+	set EXCmd [auto_execok "dolphin"]
+	if { $EXCmd == "" } {
+		set EXCmd [auto_execok "nautilus"]
+	}
+} else {
+	# Windows
+	set EXCmd "explorer"
+}
 
 ## File types to be listed in the Files view:
 ## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
@@ -158,6 +167,7 @@ set CFBoardItems {
 set CFVueeItems {
 			"VDISABLE"	0
 			"CMPIS"		0
+			"THRD"		0
 			"DPBC"		0
 			"PFAC"		"Default"
 			"UDON"		0
@@ -2292,7 +2302,7 @@ proc tree_selection { { x "" } { y "" } } {
 
 proc tree_menu { x y X Y } {
 
-	global ST
+	global EXCmd
 
 	# create the menu
 	catch { destroy .popm }
@@ -2306,8 +2316,8 @@ proc tree_menu { x y X Y } {
 	$m add command -label "Copy to ..." -command "copy_to $x $y"
 	$m add command -label "New directory ..." -command "new_directory $x $y"
 	$m add command -label "Run XTerm here" -command "run_xterm_here $x $y"
-	if { $ST(SYS) != "L" } {
-		$m add command -label "Run Windows Explorer here" \
+	if { $EXCmd != "" } {
+		$m add command -label "Run File Explorer here" \
 			-command "run_explorer_here $x $y"
 	}
 	tk_popup .popm $X $Y
@@ -4885,12 +4895,12 @@ proc do_vuee_config { } {
 	while 1 {
 
 		# enable/disable widgets
-		vconf_widgets disable { cmpis dpbc pfac udon udtm ycdn oson osnn
-			udpl osnh vudf vusm vuri }
+		vconf_widgets disable { thrd cmpis dpbc pfac udon udtm ycdn
+			oson osnn udpl osnh vudf vusm vuri }
 
 		if !$P(M0,VDISABLE) {
 			vconf_widgets normal \
-				{ cmpis dpbc pfac udon oson vudf vusm vuri }
+			    { thrd cmpis dpbc pfac udon oson vudf vusm vuri }
 			if $P(M0,UDON) {
 				vconf_widgets normal { udtm ycdn udpl }
 			}
@@ -4952,6 +4962,15 @@ proc mk_vuee_conf_window { } {
 	label $f.l -text "Disable VUEE for this project: "
 	pack $f.l -side left -expand n
 	checkbutton $f.c -variable P(M0,VDISABLE) -command "set P(M0,EV) 2"
+	pack $f.c -side right -expand n
+
+	##
+	set f $w.te
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "3d network layout: "
+	pack $f.l -side left -expand n
+	set P(M0,thrd) [checkbutton $f.c -variable P(M0,THRD)]
 	pack $f.c -side right -expand n
 
 	##
@@ -8470,9 +8489,9 @@ proc run_explorer { { wd "" } } {
 
 	global EXCmd ST
 
-	if { $ST(SYS) == "L" } {
+	if { $EXCmd == "" } {
 		# not available
-		alert "Windows explorer is not available on this system"
+		alert "No file explorer available on this system"
 		return
 	}
 
@@ -8480,7 +8499,13 @@ proc run_explorer { { wd "" } } {
 		set wd [pwd]
 	}
 
-	catch { xq $EXCmd [list [dospath $wd] "&"] }
+	if { $ST(SYS) == "L" } {
+		set args [list $wd "&"]
+	} else {
+		set args [list [dospath $wd] "&"]
+	}
+
+	catch { xq $EXCmd $args }
 }
 
 proc run_any_program { } {
@@ -8646,7 +8671,7 @@ proc reset_file_menu { { clear 0 } } {
 # Create the File menu of the project window; it must be done dynamically,
 # because it depends on the list of recently opened projects
 #
-	global LProjects P ST
+	global LProjects P EXCmd
 
 	set m .menu.file
 
@@ -8700,8 +8725,8 @@ proc reset_file_menu { { clear 0 } } {
 	$m add separator
 
 	$m add command -label "Run XTerm" -command "run_xterm_here" -state $st
-	if { $ST(SYS) != "L" } {
-		$m add command -label "Run Windows Explorer" \
+	if { $EXCmd != "" } {
+		$m add command -label "Run File Explorer" \
 			-command "run_explorer_here" -state $st
 	}
 
@@ -8919,7 +8944,7 @@ proc reset_exec_menu { { clear 0 } } {
 #
 # Re-create the exec menu
 #
-	global P SIDENAME TCMD SACmd ST
+	global P SIDENAME TCMD SACmd EXCmd
 
 	set m .menu.exec
 	if [catch { $m delete 0 end } ] {
@@ -9039,8 +9064,8 @@ proc reset_exec_menu { { clear 0 } } {
 	}
 	$m add command -label "Run program" -command run_any_program -state $st
 	$m add command -label "XTerm" -command run_xterm
-	if { $ST(SYS) != "L" } {
-		$m add command -label "Windows Explorer" -command run_explorer
+	if { $EXCmd != "" } {
+		$m add command -label "File Explorer" -command run_explorer
 	}
 
 	$m add separator
@@ -9547,6 +9572,10 @@ proc do_make_vuee { { arg "" } } {
 		set arg [linsert $arg 0 "-i"]
 	}
 
+	if { [dict get $P(CO) "THRD"] != 0 } {
+		lappend arg "-3"
+	}
+
 	if [catch { run_term_command "picomp" $arg } err] {
 		alert $err
 	}
@@ -9870,7 +9899,7 @@ proc do_clean_light { { ix "" } } {
 proc open_search_window { } {
 #
 	global P FFont CFSearchModes CFSearchItems CFSearchTags CFSearchSFiles
-	global ST
+	global EXCmd
 
 	if { $P(AC) == "" } {
 		return
@@ -10051,7 +10080,7 @@ proc open_search_window { } {
 	button $f.xb -text "XTerm" -command do_open_xterm
 	pack $f.xb -side right -expand n
 
-	if { $ST(SYS) != "L" } {
+	if { $EXCmd != "" } {
 		button $f.yb -text "Explorer" -command do_open_explorer
 		pack $f.yb -side right -expand n
 	}

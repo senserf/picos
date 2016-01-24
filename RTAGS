@@ -819,3 +819,7 @@ PG151025A:
 
 	The console window can now be cleared form the right click menu inside
 	the window as well as via the old menu button.
+
+PG160124A:	VUEE >= PG160124A, SIDE >= PG160124A, PICOS >= PG1601224A
+
+	3d option added.
