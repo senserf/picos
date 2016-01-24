@@ -13,7 +13,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set Version 0.32
+set Version 0.33
 
 ## Directory names to be ignored in the project's directory:
 ## strict names, patterns (case ignored)
@@ -4096,6 +4096,10 @@ proc compile_pgm { } {
 			}
 		}
 
+		if $FG(3) {
+			lappend pre "#define ZZ_R3D 1"
+		}
+
 		if { $pg != "" } {
 			if [info exists DF($pg)] {
 				# pgm-specific defs
@@ -6438,6 +6442,7 @@ proc usage { } {
 	puts stderr "       -n together with -e shows VUEE_TMP status"
 	puts stderr "       -Dsym, -Dpgm+sym, -Dsym=val, -Dpgm+sym=val"
 	puts stderr "       -Hfile, -Hpgm+file"
+	puts stderr "       -3  -> select 3d geometry (as opposed to 2d)"
 	exit 99
 }
 
@@ -6454,6 +6459,9 @@ set FG(C) 1
 
 # all non-static functions are made idiosyncratic
 set FG(I) 0
+
+# 2d by default
+set FG(3) 0
 
 #arguments for VUEE
 set FG(VA) ""
@@ -6558,6 +6566,8 @@ foreach arg $argv {
 		set FG(E) 1
 	} elseif { $arg == "-i" } {
 		set FG(I) 1
+	} elseif { $arg == "-3" || $arg == "-3d" } {
+		set FG(3) 1
 	} elseif { $arg == "--" } {
 		# arguments for the vuee compiler
 		if !$FG(V) {
@@ -6577,7 +6587,14 @@ if { $FG(E) && !$FG(V) } {
 if { [array names DF] != "" && !$FG(V) } {
 	errab "-D... illegal with PicOS mode (-p)"
 }
-	
+
+if $FG(3) {
+	if !$FG(V) {
+		errab "-3 illegal with PicOS mode (-p)"
+	}
+	lappend FG(VA) "-3"
+}
+
 o_initialize
 
 set ErrCnt 0
