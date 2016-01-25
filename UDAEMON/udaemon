@@ -1895,6 +1895,8 @@ proc parse_roamer { item } {
 		# this will be stored (half the node size); CMARGIN must be
 		# set: NR <- nsh, TO <- $nsh + 5
 		set nsh [expr { $ns / 2 }]
+	} else {
+		set nsh ""
 	}
 
 	# note: img is probably useless, a flag should do, let's keep it
