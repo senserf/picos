@@ -2240,8 +2240,10 @@ proc mkRootWindow { } {
 	pack $w -side top -expand y -fill x
 
 	# the four mark buttons (why four?)
-	foreach i { 0 1 2 } c { red yellow green } {
-		set b [button $w.b$i -text "" -command "cbclick $i $c" -bg $c]
+	foreach i { 0 1 2 } c { red yellow green } \
+	    t { "SSANIE" "RUCH" "LEZENIE" } {
+		set b [button $w.b$i -text $t -command "cbclick $i $c $t" \
+			-bg $c]
 		grid $b -column $i -row 0 -sticky news -padx 1 -pady 1
 		grid columnconfigure $w $i -weight 1
 	}
@@ -2304,9 +2306,9 @@ proc savelog { } {
 	}
 }
 
-proc cbclick { n c } {
+proc cbclick { n c t } {
 
-	dsp "EVENT: $n $c"
+	dsp "EVENT: $n $c $t"
 }
 
 proc terminate { } {

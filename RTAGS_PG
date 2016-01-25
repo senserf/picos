@@ -4746,6 +4746,6 @@ PG160105A:
 PG160124A:	4 0	VUEE >= PG160124A, SIDE >= PG160124A, PIP >= PG1601224A
 
 	Added the 3d option for VUEE models. Read the red bits in the VUEE
-	manual and vave a quick look at the Alpha setup model in locaspot.
+	manual and have a quick look at the Alpha setup model in locaspot.
 	Note the 3d selection in PIP's VUEE config menu.
 
