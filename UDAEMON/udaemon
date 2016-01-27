@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec wish "$0" "$@"
+exec wish86 C:/cygwin/home/nripg/bin/udaemon.tcl "$@"
 
 ###############################################################################
 
@@ -1160,7 +1160,8 @@ proc valnum { n { min "" } { max "" } } {
 		error "empty string"
 	}
 
-	if { [string first "." $n] >= 0 || [string first "e" $n] >= 0 } {
+	if { ![regexp {[[:digit:]]} $n] || [string first "." $n] >= 0 || \
+	    [string first "e" $n] >= 0 } {
 		error "string is not an integer number"
 	}
 
@@ -8816,7 +8817,7 @@ proc valsid { var } {
 
 	upvar $var v
 
-	if [catch { expr { $v } } num] {
+	if [catch { valnum $v 0 } num] {
 		log "request ignored: illegal node Id '$v'"
 		return 1
 	}
