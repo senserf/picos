@@ -611,3 +611,9 @@ PG160124A:
 
 	   Modifications to the channel models to accommodate the 3d option of
 	   VUEE.
+
+PG160128A:
+
+	   Added an option to deploy a partially precompiled version of SIDE,
+	   with the KERNEL sources excluded, to be use solely for VUEE. This
+	   may be useful for creating giveaway packages.

@@ -29,6 +29,17 @@ if { $rta == "" } {
 	set rta "0"
 }
 
+puts "Setting up libraries ..."
+
+if { $Stat(S) != "L" } {
+	set sdi "LIBS/Cygwin"
+} else {
+	set sdi "LIBS/Linux"
+}
+
+exec cp -ar $sdi/LIB .
+exec cp -a $sdi/libtcpip.a SOURCES/LIB
+
 puts "Compiling maker, bin=$bin, container=$vpa, rtag=$rta ..."
 
 cd SOURCES
@@ -43,11 +54,6 @@ if { $Stat(S) != "L" } {
 }
 
 exec strip $exf
-
-puts "Running maker for mks ..."
-set out [exec [auto_execok ./maker] -b -r $rta << \
-	"none\n\n\n25\n\n\nlocalhost\n4442\nmks\n$bin\ny\nn\n\n\n"]
-puts $out
 
 puts "Running maker for vuee ..."
 set out [exec [auto_execok ./maker] -b -r $rta << \

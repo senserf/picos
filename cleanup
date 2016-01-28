@@ -1,8 +1,7 @@
 #!/bin/sh
 
-find . -regex ".*\.o" -exec rm -f '{}' \;
-
 cd Examples
+find . -regex ".*\.o" -exec rm -f '{}' \;
 find . -name "side" -exec rm -f '{}' \;
 find . -name "side.exe" -exec rm -f '{}' \;
 find . -name "side.sgn" -exec rm -f '{}' \;
@@ -24,6 +23,7 @@ cd ..
 cd ..
 
 cd SOURCES
+find . -regex ".*\.o" -exec rm -f '{}' \;
 cd LIB
 rm -rf libtcpip.a libsxml.a
 cd ..

@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-2012   P. Gburzynski */
+/* Copyright (C) 1991-2016   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -14,6 +14,7 @@
 #include	<sys/stat.h>
 #include        <sys/types.h>
 #include        <sys/socket.h>
+#include	<fcntl.h>
 #include        <netinet/in.h>
 #include	<netdb.h>
 #include        <ctype.h>
@@ -802,20 +803,26 @@ COVH:
 
 	getwd (wd);
 	chdir ("LIB");
-        system ("rm -rf *.o *.a");
 
-	cout << "Creating the library ...\n";
-	strcpy (cb, "make COMP=\"");
-	strcat (cb, ccomp);
-        strcat (cb, "\" CCOMP=\"");
-        strcat (cb, ckomp);
-	strcat (cb, "\"");
-	strcat (cb, " RANLIB=./ifranlib");
+	// Check if Makefile is present, if not skip this step
+	if ((i = open ("Makefile", O_RDONLY)) < 0) {
+		cout << "Skipping library compilation\n";
+	} else {
+		close (i);
+        	system ("rm -rf *.o *.a");
+		cout << "Creating the library ...\n";
+		strcpy (cb, "make COMP=\"");
+		strcat (cb, ccomp);
+	        strcat (cb, "\" CCOMP=\"");
+	        strcat (cb, ckomp);
+		strcat (cb, "\"");
+		strcat (cb, " RANLIB=./ifranlib");
 
-	if (system (cb)) {
-		cerr << "Problems creating the library,";
-		cerr << " procedure aborted\n" FLUSH;
-		exit (1);
+		if (system (cb)) {
+			cerr << "Problems creating the library,";
+			cerr << " procedure aborted\n" FLUSH;
+			exit (1);
+		}
 	}
 
 	chdir (wd);

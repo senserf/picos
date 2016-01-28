@@ -1,0 +1,22 @@
+#!/bin/sh
+./cleanup
+rm -rf .git
+cd Examples
+rm -rf A* B* E* O* R* S* T* W*
+cd IncLib
+rm -rf a* c* d* e* f* h* l* m* p* rf* rp* s* t* u*
+cd ../..
+##################################################
+rm -rf MANUAL
+cd SOURCES
+rm -rf STANDALONE DSD MONITOR
+cd KERNEL
+mv depend_precomp.txt depend.txt
+rm -rf *.cc
+cd ../LIB
+rm -rf Makefile *.cc *.c ifranlib
+cd ../..
+##########################################################
+rm -rf INSTALL.txt README.txt cleanup scopy* strip*
+mv deploy_nosource deploy
+##########################################################
