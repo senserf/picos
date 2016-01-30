@@ -7429,6 +7429,7 @@ proc mkMove { rmr } {
 
 	bind $w <Destroy> "delete_roamer $sid"
 	bind $c <Configure> "moveResize $sid %w %h"
+	bind $c <B1-ButtonRelease> "moveShowPos $sid %x %y"
 
 	# a popup menu for node-related commands
 	set m [menu $w.ncm]
@@ -8302,7 +8303,7 @@ proc moveShowDist { sid n0 n1 } {
 
 	set d [expr { sqrt (double ($x1 - $x0) * double ($x1 - $x0) + \
 			    double ($y1 - $y0) * double ($y1 - $y0) + \
-			    double ($z1 - $z0) * double ($z1 - $z0) + \
+			    double ($z1 - $z0) * double ($z1 - $z0)   \
 		) }]
 
 	set XM [expr { round (($X0 + $X1) / 2.0) }]
@@ -8332,8 +8333,14 @@ proc moveClearDist { sid } {
 		lassign $RD($sid,PU) la li
 		$w.c delete $la
 		$w.c delete $li
-		unset Stat($sid,PU)
+		unset RD($sid,PU)
 	}
+}
+
+proc moveShowPos { sid x y } {
+
+	set pos [format "%1.2f %1.2f" [xfromcv $sid $x] [yfromcv $sid $y]]
+	log "Position = <$x $y> ($pos)"
 }
 
 proc moveUpButton { sid n } {
