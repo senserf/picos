@@ -687,3 +687,19 @@ WO160112A:
   the model start not a single report comes with loca data. At a single node
   restart all seems good, but at the VUEE start it is not.
 
+WO160131A:
+  Locaspot:
+  - collecting up to LOCA_SNUM (now: 3) burst at a time;
+  - added locaudit with LOCA_TOUT_AUDIT (14s) timeout; wakes up every
+    LOCA_TOUT_AUDIT /2 s;
+  - removed LOCA_TOUT_LREP, audit makes it obsolete;
+  - minor cleanup after -Wall compile.
+
+  Set LOCA_TRAC for VUEE testing location data flow & events. Diags were moved
+  to EMUL windows, it is easier to trace individual pegs, as the events are
+  not exceptional any more. For easy tests: run alphatest model, open
+  uart(plug) on 1, connect PANEL and quickly toggle nodes 0-5 ON.
+
+  Outstanding: we should(?) come up with a decent way for variable length of
+  loca data - Renesas must cope with it as well, so this versioning is likely
+  to be more explicit than packet length.

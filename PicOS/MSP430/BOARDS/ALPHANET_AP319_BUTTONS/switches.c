@@ -3,7 +3,6 @@
 void read_switches (switches_t *s) {
 //
 //
-	word i;
 	byte a;
 
 	_BIS (P3REN, 0xFF);
