@@ -8,25 +8,30 @@ exec tclsh "$0" "$@"
 set BINDIR "/usr/bin"
 set SHAREDDIR "/usr/share"
 
+set ST(SYS) "W"
+set ST(VER) 32
+
 ###############################################################################
 # Determine the system type ###################################################
 ###############################################################################
 
-if [catch { exec uname } ST(SYS)] {
+if [catch { exec uname -a } ST(SYS)] {
 
-	set ST(SYS) "W"
-
-} elseif [regexp -nocase "linux" $ST(SYS)] {
-
-	set ST(SYS) "L"
-
-} elseif [regexp -nocase "cygwin" $ST(SYS)] {
-
-	set ST(SYS) "C"
-
+	puts "cannot determine system type,\
+			assuming (stupidly) $ST(SYS) $ST(VER)"
 } else {
 
-	set ST(SYS) "W"
+	if { [string first "x86_64" $ST(SYS)] > 0 } {
+		set ST(VER) 64
+	}
+
+	if [regexp -nocase "linux" $ST(SYS)] {
+		set ST(SYS) "L"
+	} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+		set ST(SYS) "C"
+	} else {
+		set ST(SYS) "W"
+	}
 }
 
 ###############################################################################
@@ -78,8 +83,16 @@ if { $ST(SYS) == "L" } {
 	set TD [file join $WD "CYGWIN"]
 }
 
-set BD [jac $TD "BIN"]
+if { $ST(VER) == 64 } {
+	set BD "64"
+} else {
+	set BD ""
+}
+
+set BD [jac $TD "BIN$BD"]
 set SD [jac $TD "SHARED"]
+
+puts "Copying from $BD ..."
 
 cd $BD
 
@@ -88,6 +101,8 @@ if { [catch { glob "*" } fl] || $fl == "" } {
 }
 
 cpfiles $fl $BINDIR "+x,go-w"
+
+puts "Copying from $SD ..."
 
 cd $SD
 

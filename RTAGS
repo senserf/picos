@@ -823,3 +823,8 @@ PG151025A:
 PG160124A:	VUEE >= PG160124A, SIDE >= PG160124A, PICOS >= PG1601224A
 
 	3d option added.
+
+PG160216A:
+
+	Added 64-bit elvis binaries to elvis installation (for Cygwin as well
+	as Linux). The right version is recognized automatically by instelvis.

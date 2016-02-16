@@ -7,25 +7,30 @@ exec tclsh "$0" "$@"
 # date
 #
 
+set ST(SYS) "W"
+set ST(VER) 32
+
 ###############################################################################
 # Determine the system type ###################################################
 ###############################################################################
 
-if [catch { exec uname } ST(SYS)] {
+if [catch { exec uname -a } ST(SYS)] {
 
-	set ST(SYS) "W"
-
-} elseif [regexp -nocase "linux" $ST(SYS)] {
-
-	set ST(SYS) "L"
-
-} elseif [regexp -nocase "cygwin" $ST(SYS)] {
-
-	set ST(SYS) "C"
-
+	puts "cannot determine system type,\
+			assuming (stupidly) $ST(SYS) $ST(VER)"
 } else {
 
-	set ST(SYS) "W"
+	if { [string first "x86_64" $ST(SYS)] > 0 } {
+		set ST(VER) 64
+	}
+
+	if [regexp -nocase "linux" $ST(SYS)] {
+		set ST(SYS) "L"
+	} elseif [regexp -nocase "cygwin" $ST(SYS)] {
+		set ST(SYS) "C"
+	} else {
+		set ST(SYS) "W"
+	}
 }
 
 # current directory
@@ -61,23 +66,36 @@ if { $ST(SYS) == "L" } {
 
 puts "Target directory is $TD"
 
-set BD [file join $TD "BIN"]
+if { $ST(VER) == 64 } {
+	set BD "64"
+} else {
+	set BD ""
+}
+
+set BD [file join $TD "BIN$BD"]
 set SD [file join $TD "SHARED"]
 
-catch { file delete -force -- $TD }
+catch { file delete -force -- $BD }
+catch { file delete -force -- $SD }
 
 if { [catch { file mkdir $TD } ] || [catch { file mkdir $BD } ] ||
      [catch { file mkdir $SD } ] } {
 	abort "Cannot create one of target directories"
 }
 
+puts "Copying to $BD ..."
+
 foreach b $BINFILES {
+	puts "Copying $b"
 	if [catch { file copy -force $b $BD } err] {
 		abort "Cannot copy $b to $BD: $err"
 	}
 }
 
+puts "Copying to $SD ..."
+
 foreach b $SHAREDFILES {
+	puts "Copying $b"
 	if [catch { file copy -force $b $SD } err] {
 		abort "Cannot copy $b to $SD: $err"
 	}
