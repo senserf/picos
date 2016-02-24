@@ -287,6 +287,10 @@ proc anchor { } {
 
 	set PPATH [file normalize ".."]
 	if { [string first $HOME $PPATH] != 0 } {
+		if { [string first "/cygdrive/" $PPATH] == 0 } {
+			# OK
+			return
+		}
 		if [regexp -nocase "^(\[a-z\]):(/.*)" $PPATH jnk dr ta] {
 			# we are on Cygwin and this is a different drive
 			set PPATH "/cygdrive/$dr$ta"

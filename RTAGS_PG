@@ -4749,3 +4749,13 @@ PG160124A:	4 0	VUEE >= PG160124A, SIDE >= PG160124A, PIP >= PG1601224A
 	manual and have a quick look at the Alpha setup model in locaspot.
 	Note the 3d selection in PIP's VUEE config menu.
 
+PG160224A:
+
+	Modified shared_plug (in spot and locaspot) to offer two new options
+	applicable to every command: -nodeid nidl -remote nidr can be used to
+	set the local and remote Node Id explicitly (note that by default they
+	are both set to the "configured" Id).
+
+	Some adjustments to the channel model for Alphatest in locaspot.
+
+	A minor fix in deploy.
