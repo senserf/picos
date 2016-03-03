@@ -703,3 +703,23 @@ WO160131A:
   Outstanding: we should(?) come up with a decent way for variable length of
   loca data - Renesas must cope with it as well, so this versioning is likely
   to be more explicit than packet length.
+
+WO160303A:
+ Alphanet 1.51 (locaspot with changed minor version):
+Introduced remote commands. The mechanism: If within 'OSS Data' (see the preliminary document on OSSI) nonzero node_id is not local_host, the OSS Data is wrapped in a msg_rpc message and shipped with proximity flag set to this node_id. There, it is executed as if it came via OSSI, with a few exceptions and additions:
+- Responses go back via msg_rpcAck to the sender, where they're sent on the OSSI. The node_id within OSS Data indicates the remote node where the command was executed.
+- If the Command is too long, RC_ELEN is returned (as it was for CMD_RELAY, for example). I can't see practical examples of this limitation.
+- If the Response is be too long, it is trimmed and sent with RC_ELEN. It can happen with CMD_GET and CMD_GET_ASSOC - the number of parameters or indices is reduced to fit in the RF packet. Note that it means that getassoc not always returns the association table to the end. I don't want to change the command for Renesas uncertainties, so it still takes only 'from' index, but the max. number of entries in one shot *through RF* is limited to 12 (at present).
+
+To be able to issue RPCs, the node must be in the Custodian (PMOD_CUST (2)) mode, explicitly set or cleared. To accept commands over RF, the node must be in the Configurable (PMOD_CONF(1)) mode. Note that PMOD_CONF will unblock certain parameter changes as well, when we figure out what should be settable before 2.0.
+
+PMOD_CONF can be set remotely but must be the 1st parameter in the CMD_SET which does it. The node remembers the Custodian's id (to be precise: 13 LSbits of it) and does not accept accept commands via RF from any other node. If there is such an attempt, the Configurable mode is cleared.
+
+Note that only node types with TCVE support this functionality. In fact, for all practical purposes, this kind of functionality seriously questions a reason for nodes with different types of OSSIs within one praxis.
+
+Touched shared_plugin; Pawel, please check and smooth things there, perhaps when we implement CMD_SNIFF:
+- tarp -> tarpall
+- added -pegmode parameter
+- added RC_ERES, RC_ELEN
+
+Same applies to the uart_plugin document. However, the changes there are temporary, to clean up when the 'preliminary i/f' is updated as well, after CMD_SNIFF implementation.
