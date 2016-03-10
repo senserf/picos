@@ -14,7 +14,7 @@ static int tcv_xmt_boss (address);
 const tcvplug_t plug_boss =
 		{ tcv_ope_boss, tcv_clo_boss, tcv_rcv_boss, tcv_frm_boss,
 			tcv_out_boss, tcv_xmt_boss, NULL,
-				0x00E1 /* Plugin Id */ };
+				INFO_PLUG_BOSS };
 
 const word boss_wnone = WNONE;
 

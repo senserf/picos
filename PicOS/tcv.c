@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -316,13 +316,17 @@ __PUBLF (PicOSNode, void, tcv_endp) (address p) {
 	hblock_t *b;
 
 	b = header (p);
-	verify_ses (b, "tcv02");
 	if (b->attributes.b.outgoing) {
+		verify_ses (b, "tcv02");
 		verify_plg (b, tcv_out, "tcv03");
 		dispose (b, plugins [b->attributes.b.plugin] ->
 			tcv_out (p));
 	} else
-		/* This is a received packet - just drop it */
+		/*
+		 * This is a received packet - just drop it, no need to verify
+		 * session, can be legitimately invoked after the session has
+		 * been closed,
+		 */
 		rlp (b);
 }
 

@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #
 ###############################################################################
 
-set CYGDLLS { "cyggcc_s-1.dll" "cygstdc++-6.dll" "cygwin1.dll" "kill.exe" }
+set CYGDLLS { "cyggcc_s-seh-1.dll" "cyggcc_s-1.dll" "cygstdc++-6.dll" "cygwin1.dll" "kill.exe" }
 
 proc abt { m } {
 	puts stderr $m
@@ -52,7 +52,8 @@ proc copy_cygwin_dlls { } {
 
 	foreach f $CYGDLLS {
 		if [catch { file copy [file join "/bin" $f] $TDIR } err] {
-			abt "Cannot copy $f from /bin to $TDIR, $err"
+			puts "No file in /bin: $f, skipped"
+			# abt "Cannot copy $f from /bin to $TDIR, $err"
 		}
 	}
 }

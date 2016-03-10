@@ -782,51 +782,6 @@ void	dbb (word);
 /* TCV specific stuff to be visible by everybody */
 /* ============================================= */
 
-/*
- * General control options for radio interfaces and their models
- */
-#define	PHYSOPT_PLUGINFO	(-1)	/* These two are kind of special */
-#define	PHYSOPT_PHYSINFO	(-2)
-
-#define	PHYSOPT_STATUS		0	/* Get device status */
-#define	PHYSOPT_TXON		1	/* Transmitter on */
-#define	PHYSOPT_TXOFF		2	/* Transmitter off */
-#define	PHYSOPT_TXHOLD		3	/* OFF + queue */
-#define	PHYSOPT_HOLD		3	/* General hold */
-#define	PHYSOPT_RXON		4	/* Receiver on */
-#define	PHYSOPT_ON		4	/* General on */
-#define	PHYSOPT_RXOFF		5	/* Receiver off */
-#define	PHYSOPT_OFF		5	/* General off */
-#define	PHYSOPT_CAV		6	/* Set collision avoidance 'vector' */
-#define	PHYSOPT_SETPOWER 	7	/* Transmission power */
-#define	PHYSOPT_GETPOWER	8	/* Last reception power */
-#define	PHYSOPT_ERROR		9	/* Return/clear error code */
-#define	PHYSOPT_SETSID		10	/* Set station (network) ID */
-#define	PHYSOPT_GETSID		11	/* Return station Id */
-#define	PHYSOPT_SENSE		12	/* Return channel status */
-
-#define	PHYSOPT_SETPAYLEN	14	/* Set payload length */
-#define	PHYSOPT_GETPAYLEN	15
-
-#define	PHYSOPT_SETGROUP	16	/* Set station group */
-#define	PHYSOPT_GETGROUP	17
-
-#define	PHYSOPT_SETCHANNEL	18	/* Set RF channel */
-#define	PHYSOPT_GETCHANNEL	19
-
-#define	PHYSOPT_SETMODE		20
-#define	PHYSOPT_GETMODE		21
-
-#define	PHYSOPT_SETRATE		22
-#define	PHYSOPT_GETRATE		23
-
-#define	PHYSOPT_GETMAXPL	24	/* Get the maximum packet length */
-
-#define	PHYSOPT_RESET		25	/* Reset the radio */
-#define	PHYSOPT_SETPARAMS	26	/* Generic request to set misc params */
-
-#define	PHYSOPT_TRANSPARENT	27
-
 #if	TCV_PRESENT
 
 #include "tcv_defs.h"
@@ -884,25 +839,6 @@ void	adc_start (int, int, int);
 int	adc_read (int);
 void	adc_stop (void);
 #endif
-
-/* ========================================== */
-/* Registered identifiers of plugins and phys */
-/* ========================================== */
-#define	INFO_PLUG_NULL		0x0001	/* NULL plugin */
-#define INFO_PLUG_TARP          0x0002  /* TARP plugin */
-
-#define	INFO_PHYS_UART    	0x0100	/* Non-persistent UART */
-#define	INFO_PHYS_UARTB    	0x1100	/* Non-persistent UART + BlueTooth */
-#define	INFO_PHYS_UARTP		0x4100	/* Persistent UART */
-#define	INFO_PHYS_UARTL		0x8100	/* Line-mode UART over TCV */
-#define	INFO_PHYS_UARTLB	0x9100	/* Line-mode UART + BlueTooth */
-#define	INFO_PHYS_ETHER    	0x0200	/* Raw Ethernet */
-#define INFO_PHYS_CC1000        0x0400  /* CC1000 radio */
-#define	INFO_PHYS_DM2100	0x0500	/* DM2100 */
-#define	INFO_PHYS_CC1100	0x0600	/* CC1100 */
-#define	INFO_PHYS_DM2200	0x0700  /* VERSA 2 */
-#define	INFO_PHYS_RF24L01	0x0800
-#define	INFO_PHYS_CC3000	0x0201
 
 #endif //if SIM_NET==0
 

@@ -4759,3 +4759,15 @@ PG160224A:
 	Some adjustments to the channel model for Alphatest in locaspot.
 
 	A minor fix in deploy.
+
+PG160310A:
+
+	Modified Scripts/mksvm to accommodate 64-bit Cygwin (one more DLL is
+	needed in VUEEPACK).
+
+	Fixed a minor problem in tcv.c (discovered when I was testing the SNIFF
+	plugin).
+
+	A few symbols shared between PICOS and VUEE integrated into modsyms.h.
+
+	Some irrelevant cosmetics.

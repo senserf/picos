@@ -26,13 +26,13 @@ static int tcv_xmt_null (address);
 const tcvplug_t plug_null =
 		{ tcv_ope_null, tcv_clo_null, tcv_rcv_null, tcv_frm_null,
 			tcv_out_null, tcv_xmt_null, NULL,
-				0x0001 /* Plugin Id */ };
+				INFO_PLUG_NULL };
 
 #ifndef	__SMURPH__
 #include "plug_null_node_data.h"
 #endif
 
-#define	ndsc	_dac (PicOSNode, ndsc)
+#define	ndsc_null	_dac (PicOSNode, ndsc_null)
 
 static int tcv_ope_null (int phy, int fd, va_list plid) {
 /*
@@ -40,19 +40,19 @@ static int tcv_ope_null (int phy, int fd, va_list plid) {
  */
 	int i;
 
-	if (ndsc == NULL) {
-		ndsc = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
-		if (ndsc == NULL)
+	if (ndsc_null == NULL) {
+		ndsc_null = (int*) umalloc (sizeof (int) * TCV_MAX_PHYS);
+		if (ndsc_null == NULL)
 			syserror (EMALLOC, "plug_null tcv_ope_null");
 		for (i = 0; i < TCV_MAX_PHYS; i++)
-			ndsc [i] = NONE;
+			ndsc_null [i] = NONE;
 	}
 
 	/* phy has been verified by TCV */
-	if (ndsc [phy] != NONE)
+	if (ndsc_null [phy] != NONE)
 		return ERROR;
 
-	ndsc [phy] = fd;
+	ndsc_null [phy] = fd;
 	return 0;
 }
 
@@ -60,17 +60,17 @@ static int tcv_clo_null (int phy, int fd) {
 
 	/* phy/fd has been verified */
 
-	if (ndsc == NULL || ndsc [phy] != fd)
+	if (ndsc_null == NULL || ndsc_null [phy] != fd)
 		return ERROR;
 
-	ndsc [phy] = NONE;
+	ndsc_null [phy] = NONE;
 	return 0;
 }
 
 static int tcv_rcv_null (int phy, address p, int len, int *ses,
 							     tcvadp_t *bounds) {
 
-	if (ndsc == NULL || (*ses = ndsc [phy]) == NONE)
+	if (ndsc_null == NULL || (*ses = ndsc_null [phy]) == NONE)
 		return TCV_DSP_PASS;
 
 	bounds->head = bounds->tail = 0;
@@ -94,4 +94,4 @@ static int tcv_xmt_null (address p) {
 	return TCV_DSP_DROP;
 }
 
-#undef ndsc
+#undef ndsc_null
