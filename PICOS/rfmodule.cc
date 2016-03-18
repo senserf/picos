@@ -602,7 +602,7 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 	if (!su)
 		syserror (ERESOURCE, "phys_rf");
 
-	TheNode->_na_add_entropy ((lword)(lRndUniform (0, MAX_long) ^
+	TheNode->_na_add_entropy ((lword)(lRndUniform ((LONG)0, MAX_LONG) ^
 		getEffectiveTimeOfDay ()));
 
 #if 0
