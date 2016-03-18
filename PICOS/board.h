@@ -366,6 +366,10 @@ station PicOSNode abstract {
 	lword		_da (entropy),
 			__host_id__;
 
+	inline void _da (add_entropy) (lword u) {
+		_da (entropy) = (_da (entropy) << 4) ^ u;
+	};
+
 	inline lword __host_id () { return __host_id__; };
 
 	/*

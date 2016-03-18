@@ -391,6 +391,8 @@ RM_Receiver::perform {
 		
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
 	rbf [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
+	TheNode->_na_add_entropy (rssi);
+trace ("Entropy: %x", _dac (PicOSNode, entropy));
 
 #if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	rerr [RERR_RCPS] ++;
@@ -599,6 +601,9 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 			runthread (RM_Receiver) != 0;
 	if (!su)
 		syserror (ERESOURCE, "phys_rf");
+
+	TheNode->_na_add_entropy ((lword)(lRndUniform (0, MAX_long) ^
+		getEffectiveTimeOfDay ()));
 
 #if 0
 	// Dump the Transceiver status

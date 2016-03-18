@@ -155,8 +155,6 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	HEX_TO_ASCII(p)		(__pi_hex_enc_table [(p) & 0xf])
 
-#define	add_entropy(w)	(TheNode->entropy = (TheNode->entropy << 4) ^ (w))
-
 /* ======================================================================== */
 
 #define	ptrtoint(a)			__cpint (a)

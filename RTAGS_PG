@@ -1310,3 +1310,7 @@ PG160310A:	PICOS >= PG160310A
 
 	
     A few symbols shared between PICOS and VUEE integrated into modsyms.h.
+
+PG160318A:
+
+    Entropy handling fixed. Entropy is now properly collected in the model.
