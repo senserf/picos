@@ -1,8 +1,8 @@
 #ifndef __tarp_h_
 #define __tarp_h_
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007.			*/
-/* All rights reserved.							*/
+/* Copyright (C) Olsonet Communications, 2002 - 2016.					*/
+/* All rights reserved.													*/
 /* ==================================================================== */
 
 #include "sysio.h"
@@ -82,12 +82,17 @@ typedef struct rtrc {
 	byte	hoc [rtrCacheSize];
 } rtrcType; // 1 + 1 + 10 * (2+1+1) bytes
 
+// In March 2015 flags :8 were replaced with pp_urg, pp_widen, spare fields
+// Apparently. flags were not used, but the constructs were preserved in
+// pp_urg and pp_widen fields. Now, we have 4 spare bits for extravagance.
 typedef struct tarpCtrlStruct {
 	word	rcv;
 	word	snd;
 	word	fwd;
 	word	param :8;
-	word	flags :8;
+	word	pp_urg 	 :1; // pp: per packet (tx clears these)
+	word	pp_widen :3;
+	word	spare :4;
 	word	rssi_th :8;  // rssi threshold
 	word	ssignal :8; // spare: a bool that can be local in tarp_rx
 } tarpCtrlType;
@@ -98,10 +103,6 @@ typedef struct tarpCtrlStruct {
 #define tarp_drop_weak	((tarp_ctrl.param >> 3) & 1)
 #define tarp_rte_rec	((tarp_ctrl.param >> 4) & 3)
 #define tarp_level	((tarp_ctrl.param >> 6) & 3)
-
-// flags
-#define tarp_setretry(r)   (tarp_ctrl.flags |= (r & 0x0F))
-#define TARP_URGENT	0x10
 
 extern  tarpCtrlType	tarp_ctrl;
 extern  nid_t		net_id;

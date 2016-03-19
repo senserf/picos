@@ -587,13 +587,13 @@ __PRIVF (PicOSNode, void, setHco) (headerType * msg) {
 		return;
 	}
 	if (msg->rcv == master_host) {
-		msg->hco = (spdCache->m_hop>>8) + (tarp_ctrl.flags & 0x0F);
+		msg->hco = (spdCache->m_hop>>8) + tarp_ctrl.pp_widen;
 		return;
 	}
 
 	if ((i = findInSpd(msg->rcv)) < spdCacheSize)
 		msg->hco = (spdCache->en[i].hop >>8) +
-			(tarp_ctrl.flags & 0x0F);
+			tarp_ctrl.pp_widen;
 
 	else
 		msg->hco = tarp_maxHops;
@@ -601,7 +601,7 @@ __PRIVF (PicOSNode, void, setHco) (headerType * msg) {
 
 __PUBLF (PicOSNode, int, tarp_tx) (address buffer) {
 	headerType * msgBuf = (headerType *)(buffer+1);
-	int rc = (tarp_ctrl.flags & TARP_URGENT ? TCV_DSP_XMTU : TCV_DSP_XMT);
+	int rc = (tarp_ctrl.pp_urg ? TCV_DSP_XMTU : TCV_DSP_XMT);
 
 	tarp_ctrl.snd++;
 	msgBuf->hoc = 0;
@@ -611,14 +611,16 @@ __PUBLF (PicOSNode, int, tarp_tx) (address buffer) {
 		tarp_cyclingSeq = 1;
 	msgBuf->seq_no = tarp_cyclingSeq;
 	msgBuf->snd = local_host;
-	// clear flags (meant: exceptions) every time tarp_tx is called
-	tarp_ctrl.flags = 0;
+	// clear per packet exceptions every time tarp_tx is called
+	tarp_ctrl.pp_urg = 0;
+	tarp_ctrl.pp_widen = 0;
 
 	dbug_lte ("%u %u %u snd %u", msgBuf->msg_type, msgBuf->rcv,
 		msgBuf->seq_no, (word)seconds());
 
 	dbug_rx ("%u %u tx %u %u %u", msgBuf->msg_type, msgBuf->snd,
 			msgBuf->rcv, msgBuf->hco, msgBuf->seq_no);
+
 	return rc;
 }
 

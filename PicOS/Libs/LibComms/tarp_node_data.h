@@ -1,7 +1,7 @@
 #ifndef __tarp_node_data_h
 #define __tarp_node_data_h
 
-// rcv, snd, fwd, |10 10 0 01 1|, flags, rssi_th, ssignal
+// rcv, snd, fwd, |10 10 0 01 1|, pp_urg,pp_widen,spare, rssi_th, ssignal
 // param: |level, rte_rec, slack, routing|
 
 #ifdef	__SMURPH__
@@ -20,7 +20,7 @@ nid_t   _da (master_host);
 
 #else	/* The real world */
 
-tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, TARP_DEF_PARAMS, 0,
+tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, TARP_DEF_PARAMS, 0,0,0,
 	TARP_DEF_RSSITH, YES};
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)

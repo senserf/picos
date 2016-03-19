@@ -347,7 +347,7 @@ __PUBLF (PicOSNode, int, net_rx)
 			tcv_endp(packet);
 			return -1;
 		}
-			
+
 		if (*buf_ptr == NULL)
 			*buf_ptr = (char *)umalloc(size);
 		if (*buf_ptr == NULL)
@@ -456,7 +456,7 @@ application should decide if this is an error...
 		if (packet == NULL) {
 			return -1;
 		}
-		//packet[0] = 0; not needed any more
+		packet[0] = net_id;
 		memcpy (packet + 1,  buf, len);
 		// always load entropy, just before rssi
 		packet [(radio_len(len) >> 1) - 2] = (word) entropy;

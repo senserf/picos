@@ -723,3 +723,15 @@ Touched shared_plugin; Pawel, please check and smooth things there, perhaps when
 - added RC_ERES, RC_ELEN
 
 Same applies to the uart_plugin document. However, the changes there are temporary, to clean up when the 'preliminary i/f' is updated as well, after CMD_SNIFF implementation.
+
+WO160319A:
+ Alphanet (locaspot): (preliminary?) SNIFFER implementation as a TCV plugin collocated and deeply coupled with the praxis. Lightly tested, I'll wait for Pawel's comments, as I'm not sure about so much digression from the praxis' intended functionality (on the other hand, this may be extremely useful in the field).
+  - sniffer.cc / h - the plugin and its i/f;
+  - oss_peg_tcve.cc - UI to the plugin;
+  - net.c - net_id ALWAYS is set in outgoing packets (for all praxes using this i/f)
+  - touched shared_plugin.tcl for 'sniff'
+  - commited DATAFILES/alphasamples.txt Pawel sent
+  - updated (in spot) preliminary.docx and uart_plugin.odt, with 160309 prefixes.
+  - SNIF_DBG is left ON, for observing crucial plugin state changes (in EMUL window).
+ In LibComms, I replaced unused TARP flags with equivalent 'per packet' functionality, potentially useful. It was in preparation for a different sniffer implementation, not needed now, but the 'pp' fields are less wasteful.
+ 
