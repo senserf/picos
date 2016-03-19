@@ -392,7 +392,6 @@ RM_Receiver::perform {
 	// Fake the RSSI for now. FIXME: do it right! Include add_entropy.
 	rbf [(pktlen - 1) >> 1] = ((word) rssi << 8) | qual;
 	TheNode->_na_add_entropy (rssi);
-trace ("Entropy: %x", _dac (PicOSNode, entropy));
 
 #if (RADIO_OPTIONS & RADIO_OPTION_STATS)
 	rerr [RERR_RCPS] ++;
