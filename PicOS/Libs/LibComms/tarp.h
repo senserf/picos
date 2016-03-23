@@ -98,11 +98,16 @@ typedef struct tarpCtrlStruct {
 } tarpCtrlType;
 
 // param
-#define tarp_fwd_on	(tarp_ctrl.param & 1)
-#define tarp_slack	((tarp_ctrl.param >> 1) & 3)
+#define tarp_fwd_on		(tarp_ctrl.param & 1)
+#define tarp_slack		((tarp_ctrl.param >> 1) & 3)
 #define tarp_drop_weak	((tarp_ctrl.param >> 3) & 1)
 #define tarp_rte_rec	((tarp_ctrl.param >> 4) & 3)
-#define tarp_level	((tarp_ctrl.param >> 6) & 3)
+#define tarp_level		((tarp_ctrl.param >> 6) & 3)
+#define set_tarp_fwd(p)			do { tarp_ctrl.param =((tarp_ctrl.param & 0xFE) | ((p) & 1)); } while (0)
+#define set_tarp_slack(p)		do { tarp_ctrl.param =((tarp_ctrl.param & 0xF9) | (((p) & 3) << 1)); } while (0)
+#define set_tarp_drop_weak(p)	do { tarp_ctrl.param =((tarp_ctrl.param & 0xF7) | (((p) & 1) << 3)); } while (0)
+#define set_tarp_rte_rec(p)		do { tarp_ctrl.param =((tarp_ctrl.param & 0xCF) | (((p) & 3) << 4)); } while (0)
+#define set_tarp_level(p)		do { tarp_ctrl.param =((tarp_ctrl.param & 0x3F) | (((p) & 3) << 6)); } while (0)
 
 extern  tarpCtrlType	tarp_ctrl;
 extern  nid_t		net_id;

@@ -735,3 +735,14 @@ WO160319A:
   - SNIF_DBG is left ON, for observing crucial plugin state changes (in EMUL window).
  In LibComms, I replaced unused TARP flags with equivalent 'per packet' functionality, potentially useful. It was in preparation for a different sniffer implementation, not needed now, but the 'pp' fields are less wasteful.
  
+WO160323A:
+ Alphanet (locaspot): some sensitive CMD_SET are operational (not in PMOD_REG); it seems we have some anticipated 'field testing' capacity:
+ - added settable PAR_TARP_RSS (0x11) (tarprss in shared_plug) - the threshold for the SPD cache updates;
+ - made settable: PAR_TARP_S (tarpslack), PAR_TARP_R (tarprrec), PAR_TARP_L (tarplevel), PAR_TARP (tarpall);
+ - tarp.h now provides macra to set particulars in tarp_ctrl.param; they're used within the tcve i/f;
+ - note the tarpslack / tarprrec swap in shared_plug - they were inconsistent with the praxis;
+ - updated (NOT renamed) preliminary.docx, uart_plugin.odt (we'll have embedded 'Histories' if we ever discover & sync with AT's nomenclature).
+ 
+ Likely, we're away from Alphanet 2.0 by NVM operations and '(multiple) master politics'. We need inspiration from daily operations and needs.
+ 
+ 
