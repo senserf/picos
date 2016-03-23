@@ -828,3 +828,8 @@ PG160216A:
 
 	Added 64-bit elvis binaries to elvis installation (for Cygwin as well
 	as Linux). The right version is recognized automatically by instelvis.
+
+PG160323A:
+
+	The VUEE configuration set includes now an extra field to specify
+	extra SMURPH compilation parameters (useful for debugging).

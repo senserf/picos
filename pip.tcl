@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec tclsh "$0" "$@"
+exec tclsh86 C:/cygwin64/home/nripg/bin/pip "$@"
 
 package require Tk
 package require Ttk
@@ -181,6 +181,7 @@ set CFVueeItems {
 			"VUSM"		1.0
 			"VURI"		500
 			"EARG"		""
+			"EBRG"		""
 }
 
 ## Names of the configurable loaders
@@ -5107,10 +5108,20 @@ proc mk_vuee_conf_window { } {
 	pack $f.m -side right -expand n
 
 	##
+	set f $w.tb
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Extra comp args: "
+	pack $f.l -side left -expand n
+	entry $f.m -width 16 -font $FFont -textvariable P(M0,EBRG)
+	set P(M0,ebrg) $f.m
+	pack $f.m -side right -expand y -fill x
+
+	##
 	set f $w.ty
 	frame $f
 	pack $f -side top -expand y -fill x
-	label $f.l -text "Extra args: "
+	label $f.l -text "Extra exec args: "
 	pack $f.l -side left -expand n
 	entry $f.m -width 16 -font $FFont -textvariable P(M0,EARG)
 	set P(M0,earg) $f.m
@@ -9574,6 +9585,14 @@ proc do_make_vuee { { arg "" } } {
 
 	if { [dict get $P(CO) "THRD"] != 0 } {
 		lappend arg "-3"
+	}
+
+	set ea [dict get $P(CO) "EBRG"]
+	if { $ea != "" } {
+		lappend arg "--"
+		foreach aa [split $ea] {
+			lappend arg $aa
+		}
 	}
 
 	if [catch { run_term_command "picomp" $arg } err] {
