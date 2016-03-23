@@ -35,7 +35,8 @@ IPointer	MemoryUsed;
 #define STDOUT  1
 #define STDERR  2
 
-#define IBSIZE  8192                    // Input buffer size
+#define IBSIZE  16384                   // Input buffer size
+#define	MXPREP	4096			// Maximum length of prep line
 #define OBSIZE  1024                    // Output buffer size
 #define MFNLEN  PATH_MAX+1              // Maximum length of a filename
 #define MSTACK  256                     // Process declaration stack size
@@ -49,9 +50,10 @@ char    IBuffer [IBSIZE+1],             // This is a circular buffer
 
 char    *FirstP = IBuffer,              // Input buffer pointers
 	*LimitP = IBuffer + (IBSIZE + 1);
-char    *InP = FirstP, *OutP = FirstP, *EnLkpPtr;
+char    *InP = FirstP, *OutP = FirstP, *EnLkpPtr, *EnSPrepD = NULL;
 
-int     Eof = NO;                       // YES, if EOF on input
+int     Eof = NO,                       // YES, if EOF on input
+	EnLkpEOL = NO;			// YES, if EOL during skipping
 
 char    *StartP = OBuffer,              // Output buffer pointers
 	*EndP = OBuffer+OBSIZE;

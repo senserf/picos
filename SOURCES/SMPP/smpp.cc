@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-2010   P. Gburzynski */
+/* Copyright (C) 1991-2016   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -563,40 +563,84 @@ int     startLkp () {
 		if (Eof) return (END);
 	}
 	EnLkpPtr = OutP;
+	EnLkpEOL = NO;
 	return (YES);
 }
 
-static INLINE int lkpC () {
+static int lkpC () {
 
 /* --------------------------------------- */
 /* Lookup the next character in the buffer */
 /* --------------------------------------- */
 
 	char    c;
+	int	pl;
 
+Retry:
 	if (EnLkpPtr == InP) {          // End of buffer reached
 		if (Eof) return (END);
 		readBuf ();
 		if (EnLkpPtr == InP) {
 			if (Eof) return (END);
 			// Lookup exceeds buffer capacity
+TooLong:
 			xerror ("construct too long");
 			return (ERROR);
 		}
 	}
 	c = *EnLkpPtr++;
 	if (EnLkpPtr >= LimitP) EnLkpPtr = FirstP;
-	if (c == '\n') SkLineCnt++;
+	if (c == '\n') {
+		SkLineCnt++;
+		EnLkpEOL = YES;
+	} else {
+		if (EnLkpEOL && c == '#') {
+			// Suspect prep insert (this won't work for weird
+			// constructs, like escaped strings and what have you,
+			// but let's take the risk)
+			if (EnSPrepD == NULL)
+				// Overwrite, if there's a previous one
+				EnSPrepD = new char [MXPREP];
+			EnSPrepD [0] = c;
+			pl = 1;
+			while (1) {
+				if (EnLkpPtr == InP) {
+					if (Eof) {
+						delete (EnSPrepD);
+						EnSPrepD = NULL;
+						return (END);
+					}
+					readBuf ();
+					if (EnLkpPtr == InP) {
+						delete (EnSPrepD);
+						EnSPrepD = NULL;
+						if (!Eof) goto TooLong;
+						return (END);
+					}
+				}
+				c = *EnLkpPtr++;
+				if (EnLkpPtr >= LimitP) EnLkpPtr = FirstP;
+
+				if (pl == MXPREP) {
+					xerror ("inline preprocessor insert "
+						"too long");
+					delete (EnSPrepD);
+					EnSPrepD = NULL;
+					return ERROR;
+				}
+
+				if (c == '\n')
+					c = '\0';
+
+				EnSPrepD [pl++] = c;
+				if (c == '\0')
+					break;
+			}
+			goto Retry;
+		}
+		EnLkpEOL = NO;
+	}
 	return (c);
-}
-
-void    catchUp () {
-
-/* ------------------------------------------------ */
-/* Advance the out pointer to the lookahead pointer */
-/* ------------------------------------------------ */
-
-	while (OutP != EnLkpPtr) getC ();
 }
 
 void    flushBuf () {
@@ -627,6 +671,56 @@ void    putC (const char *s) {
 /* ---------------------------------- */
 
 	while (*s != '\0') putC (*s++);
+}
+
+void    catchUp () {
+
+/* ------------------------------------------------ */
+/* Advance the out pointer to the lookahead pointer */
+/* ------------------------------------------------ */
+
+	while (OutP != EnLkpPtr) getC ();
+	if (EnSPrepD != NULL) {
+#if 1
+		char *cp, c;
+		int nln, bpt;
+
+		// Prep line to flush; FIXME: we basically redo 
+		// processLineCommand; this has to be integrated
+		cp = EnSPrepD + 1;
+		while (isspace (*cp))
+			cp++;
+		if (!isdigit (*cp))
+			goto Copy;
+
+		// Line number
+		for (nln = *cp - '0'; *cp++ && isdigit (*cp);
+			nln = nln * 10 + (*cp - '0'));
+
+		// File name
+		while (isspace (*cp))
+			cp++;
+		if (*cp != '"')
+			goto Copy;
+
+		for (bpt = 0; ;) {
+			c = *cp++;
+			if (c == '\0') goto Copy;
+			if (c == '"') break;
+			if (bpt < MFNLEN-1) CFName [bpt++] = c;
+		}
+
+		CFName [bpt] = '\0';
+
+		LineNumber = nln;
+Copy:
+		putC ('\n');
+		putC (EnSPrepD);
+		putC ('\n');
+#endif
+		delete (EnSPrepD);
+		EnSPrepD = NULL;
+	}
 }
 
 void    finish () {

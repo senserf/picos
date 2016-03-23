@@ -5,6 +5,12 @@
 // General framework for a wireless channel model (version V - used in VUEE)
 // =========================================================================
 
+// #define	trc(a, ...)	trace (a, ## __VA_ARGS__)
+
+#ifndef trc
+#define	trc(a, ...)
+#endif
+
 // Standard indexes into the XVMapper table
 #define	XVMAP_RATES	0
 #define	XVMAP_RBOOST	1
@@ -240,6 +246,7 @@ class MXChannels {
 	MXChannels (unsigned short, int, double*);
 
 	inline double ifactor (unsigned short c1, unsigned short c2) {
+		trc ("IFACTOR: %1d %1d", c1, c2);
 
 		if (c1 > c2)
 			c1 -= c2;

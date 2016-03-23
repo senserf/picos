@@ -3,10 +3,6 @@
 
 #include "wchan.h"
 
-#ifndef trc
-#define	trc(a, ...)
-#endif
-
 RadioChannel *Ether = NULL;
 
 void RadioChannel::setup (

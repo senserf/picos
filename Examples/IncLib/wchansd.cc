@@ -5,13 +5,6 @@
 
 #include "wchan.cc"
 
-#undef trc
-//#define	trc(a, ...)	trace (a, ## __VA_ARGS__)
-
-#ifndef trc
-#define	trc(a, ...)
-#endif
-
 #if ZZ_R3D
 #define	__ndim 3
 #else
@@ -373,7 +366,7 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 	if (HTable == NULL) {
 		// No sampled data, fallback to the table
 		d = vlength (sdp);
-		res = dBToLin (ATTB->setvalue (vlength (sdp), NO) +
+		res = dBToLin (ATTB->setvalue (d, NO) +
 			dRndGauss (0.0, sigma (d)));
 		trc ("attenuate: no sampled data %g %g", res, sigma (d));
 		return res;
@@ -451,7 +444,7 @@ dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 
 #if ZZ_R3D
 	trc ("interpolate: <%1d,%1d,%1d> - <%1d,%1d,%1d> l=%g",
-		sdp.XA, sdp.YA, sdp.ZA, sdp.XB, sdp.YB, sdb.ZB, vlength (sdp));
+		sdp.XA, sdp.YA, sdp.ZA, sdp.XB, sdp.YB, sdp.ZB, vlength (sdp));
 #else
 	trc ("interpolate: <%1d,%1d> - <%1d,%1d> l=%g", sdp.XA, sdp.YA, sdp.XB,
 		sdp.YB, vlength (sdp));
@@ -607,7 +600,7 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 	TheTransceiver->getRawLocation (SDP.XB, SDP.YB, SDP.ZB);
 	trc ("RFC_att (sd) = <%1d,%1d,%1d> - <%1d,%1d,%1d>",
 		SDP.XA, SDP.YA, SDP.ZA,
-		SDP.XB, SDP.YB, ADP.ZB);
+		SDP.XB, SDP.YB, SDP.ZB);
 #else
 	src->getRawLocation (SDP.XA, SDP.YA);
 	TheTransceiver->getRawLocation (SDP.XB, SDP.YB);

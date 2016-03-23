@@ -17,6 +17,6 @@ cd ../LIB
 rm -rf Makefile *.cc *.c ifranlib
 cd ../..
 ##########################################################
-rm -rf INSTALL.txt README.txt cleanup scopy* strip*
+rm -rf INSTALL.txt README.txt scopy* strip*
 mv deploy_nosource deploy
 ##########################################################
