@@ -745,4 +745,9 @@ WO160323A:
  
  Likely, we're away from Alphanet 2.0 by NVM operations and '(multiple) master politics'. We need inspiration from daily operations and needs.
  
+WO160408A:
+  Alphanet (locaspot): an attempt at facilitating migration 1.0 -> 1.5:
+  - DEF_CHAN 128 -> 0, DEF_NID 78 -> 77;
+  - added BTYPE_AT_BUT1_1_0 and BTYPE_AT_BUT6_1_0 and used it in 
+    oss_peg_tcve.cc and tag_mgr.cc, perhaps all the rest would work
  
