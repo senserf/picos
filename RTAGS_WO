@@ -750,4 +750,15 @@ WO160408A:
   - DEF_CHAN 128 -> 0, DEF_NID 78 -> 77;
   - added BTYPE_AT_BUT1_1_0 and BTYPE_AT_BUT6_1_0 and used it in 
     oss_peg_tcve.cc and tag_mgr.cc, perhaps all the rest would work
- 
+
+WO160415A:
+  Alphanet (locaspot): ver 1.53 flashed into Antwerp nodes:
+  - DEF_NID 88 (netid)
+  - added settable PAR_RFCHAN (rfchan in shared_plugin)
+  - default slack 1
+  In netting_demo:
+  - added sh (set local host), sc (set channel)
+  - stats show the channel
+  - changed TARP_DEF_RSSITH 40->90
+  - commented out options more suitable for some tests (TARP_MAXHOPS, DEF_PLEV)
+  Updated preliminary.docx, uart_plugin. Netting demo doc is NOT updated.
