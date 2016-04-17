@@ -762,3 +762,18 @@ WO160415A:
   - changed TARP_DEF_RSSITH 40->90
   - commented out options more suitable for some tests (TARP_MAXHOPS, DEF_PLEV)
   Updated preliminary.docx, uart_plugin. Netting demo doc is NOT updated.
+
+WO160417A:
+ Alphanet:
+ - Added PMOD_EXCC(3) for 'exclusive cusdtodian'. The idea is to have an option
+   of bestowing custodian functionality on any peg (PMOD_CUST) or bringing
+   a node capable of all peg / custodian functionality but not participating in
+   networking unless for strictly defined custodian business of sniffing and
+   remote comands. The recommended functionality: flash the node with alien NID;
+   setparam -pegmod 3; setparam -netid <desired_netid>. When PMOD_EXCC is set:
+   - guide_rtr() makes the node not participating in soft acks even with
+     TARP_RTR set.
+   - all watchdogs beacons and loopers are killed.
+   Changing pegmode from PMOD_EXCC to anything resets the node. If we ever do
+   NVM here, fo NOT write pegmode there.
+
