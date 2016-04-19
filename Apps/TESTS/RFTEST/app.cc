@@ -57,7 +57,7 @@ word	g_pkt_mindel = 1024, g_pkt_maxdel = 1024,
 	g_snd_count, g_snd_rnode, g_snd_rcode, g_chsec, g_pcmd_del, g_snd_left,
 	g_snd_sernum = 1, g_snd_rtries, g_pkt_ack_to, g_flags = 0;
 
-byte	g_last_rssi, g_last_qual, g_snd_urgent;
+byte	g_rstat, g_last_rssi, g_last_qual, g_snd_urgent;
 
 word	g_pat_peer, g_pat_cnt, g_pat_cntr;
 lword	g_pat_acc;
@@ -626,6 +626,7 @@ word do_command (const char *cb, word sender, word sernum) {
 		if (to != 0) {
 			killall (thread_rxbackon);
 			tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
+			g_rstat = 2;
 			if  (runfsm thread_rxbackon (to) == 0)
 				return 6;
 		}
@@ -650,6 +651,7 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		killall (thread_rxbackon);
 		tcv_control (g_fd_rf, PHYSOPT_RXOFF, &wormode);
+		g_rstat = wormode ? 1 : 2;
 		return 0;
 	    }
 
@@ -657,6 +659,7 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		killall (thread_rxbackon);
 		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+		g_rstat = 0;
 		return 0;
 
 	    case 'p': {
@@ -843,6 +846,13 @@ RetFlags:
 
 		scan (cb + 1, "%u %u", &ch, &sc);
 
+		if (ch == WNONE && !sender) {
+			// return current channel
+			tcv_control (g_fd_rf, PHYSOPT_GETCHANNEL, &ch);
+			uart_outf (WNONE, "C = %u", ch);
+			return WNONE;
+		}
+
 		if (ch > 255) 
 			return 10;
 
@@ -856,8 +866,16 @@ RetFlags:
 			g_chsec = sc;
 		}
 
+		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
+		tcv_control (g_fd_rf, PHYSOPT_RESET, NULL);
 		tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &ch);
-
+		if (g_rstat == 1) {
+			// WOR
+			ch = 1;
+			tcv_control (g_fd_rf, PHYSOPT_RXOFF, &ch);
+		} else {
+			tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+		}
 		// Never confirm
 		return WNONE;
 	    }
@@ -1276,6 +1294,7 @@ fsm thread_rxbackon (word offtime) {
 	entry RF_BACKON:
 
 		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+		g_rstat = 0;
 		finish;
 }
 
@@ -1868,6 +1887,7 @@ fsm root {
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
 	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
 	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+	g_rstat = 0;
 
 	runfsm thread_listener;
 
@@ -1931,8 +1951,9 @@ fsm root {
 
 	scr = NETWORK_ID | ((g_flags >> 11) & 0x7);
 	uart_outf (RS_BANNER,
-		"Node: %u, NetId: %x, Channel: %u, XPower: %u, Power%s, %s",
-			HOST_ID, scr, g_flags & 0xff, (g_flags >> 8) & 0x7,
+	"Node: %u, NetId: %x, Rate: %u, Channel: %u, XPower: %u, Power%s, %s",
+			HOST_ID, scr, RADIO_DEFAULT_BITRATE,
+				g_flags & 0xff, (g_flags >> 8) & 0x7,
 				(g_flags & 0x8000) ? "down" : "up",
 				(g_flags & 0x4000) ? "Active" : "Passive");
 
@@ -1943,6 +1964,7 @@ fsm root {
 
 	// tcv_control (g_fd_rf, PHYSOPT_TXON, NULL);
 	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+	g_rstat = 0;
 	runfsm thread_listener;
 
 	if (g_flags & 0x4000)
@@ -2014,6 +2036,7 @@ fsm root {
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
 	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
 	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+	g_rstat = 0;
 
 	runfsm thread_listener;
 
