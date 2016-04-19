@@ -777,3 +777,6 @@ WO160417A:
    Changing pegmode from PMOD_EXCC to anything resets the node. If we ever do
    NVM here, fo NOT write pegmode there.
 
+WO160419A:
+ Alphanet: Added CMD_RESET, CMD_NHOOD, REP_NHOOD, msg_nh, msg_nhAck.
+ NOT TESTED, submission for shared_plug updates.
