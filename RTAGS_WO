@@ -780,3 +780,8 @@ WO160417A:
 WO160419A:
  Alphanet: Added CMD_RESET, CMD_NHOOD, REP_NHOOD, msg_nh, msg_nhAck.
  NOT TESTED, submission for shared_plug updates.
+
+WO160419B:
+ Alphanet 1.6: Fixed moronic typos & mistakes in CMD_NHOOD handling. Lightly
+ tested in VUEE, with Pawel's updates to shared_plug.
+ The version set to 1.6 - it'll be flashed in AT with tag looper set to 120s.
