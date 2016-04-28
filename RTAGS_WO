@@ -790,3 +790,8 @@ WO160425A:
  Alphanet: I MUST submit this, for maintenance. Note that all images I generated for AT on April 21, April 22 have those changes in and they're ver. 1.6, so I don't change the version:
  - changed burst spacing from 5 to 30 ms (plus rnd mod 7).
  - fixed loca audit looping every 7ms (now it audits every 7s.
+
+WO160428A:
+  Alphanet 1.7:  for a set of Images to flash in Bruges. DEF_NID 77, DEF_CHAN 0.
+  There will be a WARSAW peg image with DEF_NID 99, to serve as an
+  'exclusive custodian'.
