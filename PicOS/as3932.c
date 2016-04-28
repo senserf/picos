@@ -111,10 +111,10 @@ static byte get_byte () {
 
 	for (b = 0, i = 0; i < 8; i++) {
 		b <<= 1;
-		if (as3932_data)
-			b |= 1;
 		as3932_clkh;
 		as3932_delay;
+		if (as3932_data)
+			b |= 1;
 		as3932_clkl;
 		as3932_delay;
 	}
@@ -233,6 +233,8 @@ void as3932_on (byte conf, byte mode, word patt) {
 				b |= 0x04;
 			// Pattern tolerance
 			as3932_wreg (2, (mode << 4) & 0x60);
+			as3932_wreg (5, (byte)(patt >> 8));
+			as3932_wreg (6, (byte)(patt     ));
 		}
 		as3932_wreg (1, b);
 	}

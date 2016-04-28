@@ -76,6 +76,7 @@
 #define	as3932_outh	_BIS (P2OUT, 0x02)
 
 #define	as3932_data	(P2IN & 0x01)
+#define	as3932_rdat	(P1IN & 0x10)
 
 // ============================================================================
 
@@ -117,6 +118,8 @@
 	}
 
 #define	SENSOR_MOTION		0
+#define SENSOR_AS3932		1
+
 #define	SENSOR_DIGITAL
 #define	SENSOR_EVENTS
 #define	SENSOR_INITIALIZERS
