@@ -13,13 +13,12 @@
 #define	as3932_bring_down	CNOP
 #endif
 
-
 #ifdef	as3932_spi_read
 // ============================================================================
 // SPI access =================================================================
 // ============================================================================
 
-byte as3932_rreg (byte reg) {
+static byte rreg (byte reg) {
 
 	volatile byte res;
 
@@ -50,7 +49,7 @@ byte as3932_rreg (byte reg) {
 	return res;
 }
 
-void as3932_wreg (byte reg, byte val) {
+static void wreg (byte reg, byte val) {
 
 	volatile byte res;
 
@@ -79,7 +78,7 @@ void as3932_wreg (byte reg, byte val) {
 	as3932_delay;
 }
 
-void as3932_wcmd (byte cmd) {
+static void wcmd (byte cmd) {
 
 	// Select the chip
 	as3932_csel;
@@ -113,7 +112,7 @@ static byte get_byte () {
 		b <<= 1;
 		as3932_clkh;
 		as3932_delay;
-		if (as3932_data)
+		if (as3932_inp)
 			b |= 1;
 		as3932_clkl;
 		as3932_delay;
@@ -139,7 +138,7 @@ static void put_byte (byte b) {
 	}
 }
 
-void as3932_wreg (byte reg, byte val) {
+void wreg (byte reg, byte val) {
 
 	// Select the chip
 	as3932_csel;
@@ -155,7 +154,7 @@ void as3932_wreg (byte reg, byte val) {
 	as3932_delay;
 }
 
-void as3932_wcmd (byte cmd) {
+static void wcmd (byte cmd) {
 
 	// Select the chip
 	as3932_csel;
@@ -166,7 +165,7 @@ void as3932_wcmd (byte cmd) {
 	as3932_delay;
 }
 
-byte as3932_rreg (byte reg) {
+static byte rreg (byte reg) {
 
 	byte res;
 
@@ -188,67 +187,78 @@ byte as3932_rreg (byte reg) {
 // ============================================================================
 #endif
 
-byte as3932_status = 0;
+byte as3932_status = 0, as3932_bytes [AS3932_DATASIZE];
+
+static byte bitnum;
 
 // ============================================================================
 
-static void clrevent () {
+void as3932_clearall (byte full) {
 
-	_BIC (as3932_status, AS3932_STATUS_EVENT);
-	// Clear the wake event
-	as3932_wcmd (AS3932_CMD_CWAKE);
-	as3932_wcmd (AS3932_CMD_CFALS);
-	// RSSI should be reset by CWAKE
-	as3932_enable;
+	as3932_stop_timer;
+	as3932_tim_cli;
+
+	_BIC (as3932_status, AS3932_STATUS_RUNNING);
+
+	as3932_disable_d;
+	as3932_disable_w;
+
+	bitnum = 0;
+
+	if (full) {
+	        _BIC (as3932_status, AS3932_STATUS_EVENT |
+			AS3932_STATUS_BOUNDARY | AS3932_STATUS_DATA);
+	        // Clear the wake event
+	        wcmd (AS3932_CMD_CWAKE);
+	        as3932_enable_w;
+	}
 }
 
 void as3932_init () {
 
 	// Put the chip into power down, off by default
-	as3932_disable;
 	as3932_bring_up;
-	as3932_wreg (0, 1);
+	wreg (0, 1);
 	as3932_bring_down;
+	// This is to be done only once (timeout timer for detecting DAT
+	// changes)
+	as3932_init_timer;
 }
 
-void as3932_on (byte conf, byte mode, word patt) {
+void as3932_on () {
 
 	byte b;
 
 	as3932_bring_up;
-	as3932_disable;
-
-	if (conf == 0) {
-		// defaults
-		as3932_wcmd (AS3932_CMD_DEFAU);
-	} else {
-		as3932_wreg (0, (conf >> 4) & 0x0E);
-		as3932_wreg (7,  conf       & 0x1F);
-		b = 0x21;
-		if (patt != 0) {
-			// Data correlation
-			b |= 0x02;
-			if (mode & 1)
-				// Double pattern
-				b |= 0x04;
-			// Pattern tolerance
-			as3932_wreg (2, (mode << 4) & 0x60);
-			as3932_wreg (5, (byte)(patt >> 8));
-			as3932_wreg (6, (byte)(patt     ));
-		}
-		as3932_wreg (1, b);
-	}
-
+	wcmd (AS3932_CMD_DEFAU);
 	_BIS (as3932_status, AS3932_STATUS_ON);
-	clrevent ();
+	as3932_clearall (1);
+	wcmd (AS3932_CMD_CFALS);
 }
 
 void as3932_off () {
 
 	if (as3932_status & AS3932_STATUS_ON) {
+		as3932_clearall (0);
 		as3932_init ();
-		_BIC (as3932_status, AS3932_STATUS_ON);
+		_BIC (as3932_status, AS3932_STATUS_EVENT | AS3932_STATUS_ON);
 	}
+}
+
+Boolean as3932_addbit () {
+
+	byte bit;
+
+	bit = 0x80 >> (bitnum & 7);
+
+	as3932_bytes [bitnum >> 3] &= ~bit;
+
+	if (as3932_status & AS3932_STATUS_DATA)
+		as3932_bytes [bitnum >> 3] |= bit;
+
+	bitnum++;
+
+	return (bitnum == (8 * AS3932_DATASIZE));
 }
 
 // ============================================================================
@@ -273,22 +283,14 @@ void as3932_read (word st, const byte *junk, address val) {
 		release;
 	}
 
-	// Read value
-	if (!(as3932_status & AS3932_STATUS_ON)) {
-		// No data, the sensor is off
-		bzero (val, sizeof (as3932_data_t));
+	if ((as3932_status & AS3932_STATUS_EVENT) == 0) {
+		// No data
+		bzero (val, AS3932_NBYTES);
 		return;
 	}
 
-#define	__sd	((as3932_data_t*)val)
+	memcpy (val, as3932_bytes, AS3932_NBYTES);
 
-	__sd->fwake = as3932_rreg (13);
-	for (r = 0; r < 3; r++)
-		__sd->rss [r] = as3932_rreg (10 + r) & 0x1F;
-
-#undef __sd
-	
-	// Clear events
-	if (as3932_status & AS3932_STATUS_EVENT)
-		clrevent ();
+	// Reset and restart
+	as3932_clearall (1);
 }

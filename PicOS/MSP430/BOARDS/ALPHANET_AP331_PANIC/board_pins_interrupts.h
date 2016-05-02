@@ -4,7 +4,8 @@
 /* ==================================================================== */
 
 #ifdef	P1_INTERRUPT_SERVICE
+#include "irq_as3932_d.h"
+#include "irq_as3932_w.h"
 #include "irq_bma250.h"
-#include "irq_as3932.h"
 #endif
 

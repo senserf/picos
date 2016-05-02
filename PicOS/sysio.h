@@ -349,6 +349,7 @@ word	adcs_overflow ();
 
 #define	_BIS(a,b)	(a) |= (b)
 #define	_BIC(a,b)	(a) &= ~(b)
+#define	_BIX(a,b)	(a) ^= (b)
 
 /* ============ */
 /* Tricky casts */

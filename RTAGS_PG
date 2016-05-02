@@ -4776,3 +4776,8 @@ PG160428A:
 
 	Fixed the definition of AP331, added a simple App (LOOPTEST) to test
 	the preliminary version of the loop sensor driver.
+
+PG160502A:
+
+	The first tentative version of AS3932 (LF loop detector) driver
+	intended for AP331. Illustrated in PROPRIETARY/ALPHATRONICS/LOOPTEST.

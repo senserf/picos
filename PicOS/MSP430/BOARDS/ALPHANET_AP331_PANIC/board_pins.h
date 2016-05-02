@@ -1,5 +1,5 @@
 /* ========================================================================= */
-/* Copyright (C) Olsonet Communications, 2015                                */
+/* Copyright (C) Olsonet Communications, 2015 - 2016                         */
 /* All rights reserved.                                                      */
 /* ========================================================================= */
 
@@ -44,11 +44,9 @@
 #define	PIN_DEFAULT_P5OUT		0x24
 // ============================================================================
 
-// Normal button on P1.0, for now ignore the WAKE "button"; we will have to
-// do something, because the polarity of WAKE is 1 whereas that of the normal
-// panic button is 0
+// Normal button on P1.0
 #define	BUTTON_LIST 		{ BUTTON_DEF (1, 0x01, 0) }
-#define	BUTTON_PIN_P1_IRQ	0x03
+#define	BUTTON_PIN_P1_IRQ	0x01
 #define	BUTTON_DEBOUNCE_DELAY	32
 #define	BUTTON_PRESSED_LOW	1
 #define	BUTTON_PANIC		0
@@ -59,24 +57,41 @@
 
 // ============================================================================
 
+#define	as3932_csel		_BIS (P2OUT, 0x08)
+#define	as3932_cunsel		_BIC (P2OUT, 0x08)
+
+#define	as3932_enable_w		_BIS (P1IE, 0x20)
+#define	as3932_disable_w	_BIC (P1IE, 0x20)
+#define	as3932_clear_w		_BIC (P1IFG, 0x20)
+#define	as3932_int_w		(P1IFG & 0x20)
+
+#define	as3932_clkl		_BIC (P2OUT, 0x04)
+#define	as3932_clkh		_BIS (P2OUT, 0x04)
+
+#define	as3932_outl		_BIC (P2OUT, 0x02)
+#define	as3932_outh		_BIS (P2OUT, 0x02)
+
+#define	as3932_inp		(P2IN & 0x01)
+
+#define	as3932_enable_d		do { \
+				    if (as3932_status & AS3932_STATUS_DATA) \
+					_BIS (P1IES, 0x10); \
+				    else \
+					_BIC (P1IES, 0x10); \
+				    as3932_clear_d; \
+				    _BIS (P1IE, 0x10); \
+				} while (0)
+
+#define	as3932_disable_d	_BIC (P1IE, 0x10)
+#define	as3932_clear_d		_BIC (P1IFG, 0x10)
+
+#define	as3932_int_d		(P1IFG & 0x10)
+
+#define	as3932_data		(P1IN & 0x10)
+
+#define	AS3932_CRCVALUE		0x24
+
 #include "as3932.h"
-
-#define	as3932_csel	_BIS (P2OUT, 0x08)
-#define	as3932_cunsel	_BIC (P2OUT, 0x08)
-
-#define	as3932_enable	_BIS (P1IE, 0x20)
-#define	as3932_disable	_BIC (P1IE, 0x20)
-#define	as3932_clear	_BIC (P1IFG, 0x20)
-#define	as3932_int	(P1IFG & 0x20)
-
-#define	as3932_clkl	_BIC (P2OUT, 0x04)
-#define	as3932_clkh	_BIS (P2OUT, 0x04)
-
-#define	as3932_outl	_BIC (P2OUT, 0x02)
-#define	as3932_outh	_BIS (P2OUT, 0x02)
-
-#define	as3932_data	(P2IN & 0x01)
-#define	as3932_rdat	(P1IN & 0x10)
 
 // ============================================================================
 

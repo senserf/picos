@@ -5,6 +5,27 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include "pins.h"
+
+#ifndef	AS3932_NBYTES
+// Bytes of data
+#define	AS3932_NBYTES		4
+#endif
+
+#ifndef	AS3932_CRCVALUE
+// No CRC byte
+#define	AS3932_CRCVALUE		(-1)
+#endif
+
+// ============================================================================
+
+// How many bytes to actually expect
+#if AS3932_CRCVALUE >= 0
+#define	AS3932_DATASIZE		(AS3932_NBYTES + 1)
+#else
+#define	AS3932_DATASIZE		AS3932_NBYTES
+#endif
+
 // Request mode codes
 #define	AS3932_MODE_WRITE	0x00
 #define	AS3932_MODE_READ	0x40
@@ -18,13 +39,7 @@
 #define	AS3932_CMD_DEFAU	0xC4	// All registers to default
 
 typedef struct {
-//
-// This amounts to a long value: false wake count + 3 x RSS; each RSS is
-// just 5 bits long
-//
-	byte	fwake;
-	byte	rss [3];
-
+	byte	val [AS3932_NBYTES];
 } as3932_data_t;
 
 #ifndef __SMURPH__
@@ -35,36 +50,28 @@ typedef struct {
 void as3932_init (void);
 void as3932_read (word, const byte*, address);
 
-extern byte as3932_status;
+extern byte as3932_status, as3932_bytes [];
 
-#define	AS3932_STATUS_ON	0x01
-#define	AS3932_STATUS_WAIT	0x02
-#define	AS3932_STATUS_EVENT	0x04
+#define	AS3932_STATUS_RUNNING	0x01
+#define	AS3932_STATUS_ON	0x02
+#define	AS3932_STATUS_WAIT	0x04
+#define	AS3932_STATUS_EVENT	0x08
+#define	AS3932_STATUS_DATA	0x10
+#define	AS3932_STATUS_BOUNDARY	0x20
 
 #endif
 
 #ifdef	__SMURPH__
 
-#define as3932_on(a,b,c)	emul (12, "AS3932_ON: %02x %02x %04x", a, b, c)
-#define as3932_off()		emul (12, "AS3932_OFF: <>")
-#define as3932_rreg(a)		0
-#define	as3932_wreg(a,b)	emul (12, "AS3932_WREG: %1d %02x", a, b)
-#define	as3932_wcmd(a)		emul (12, "AS3932_WCMD: %02x", a, b)
+#define as3932_on()		emul (12, "AS3932_ON")
+#define as3932_off()		emul (12, "AS3932_OFF")
 
 #else
 
-// Arguments: channels (3 bits), double pattern, tolerance (2 bits),
-// pattern 16 bits, bit rate: 5 bits; 0 - defaults
-// ttdccc
-//
-// conf = cccbbbbb	[ channels rate ]
-// mode = ttd		[ tolerance double ]
-// patt = pattern
-void as3932_on (byte conf, byte mode, word patt);
+void as3932_on ();
 void as3932_off ();
-void as3932_wreg (byte, byte);
-byte as3932_rreg (byte);
-void as3932_wcmd (byte);
+void as3932_clearall (byte);
+Boolean as3932_addbit ();
 
 #endif
 
