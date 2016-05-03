@@ -218,6 +218,7 @@ void as3932_init () {
 
 	// Put the chip into power down, off by default
 	as3932_bring_up;
+	// Power down
 	wreg (0, 1);
 	as3932_bring_down;
 	// This is to be done only once (timeout timer for detecting DAT
@@ -240,6 +241,8 @@ void as3932_off () {
 
 	if (as3932_status & AS3932_STATUS_ON) {
 		as3932_clearall (0);
+		// Make sure we are in a decent state
+		wcmd (AS3932_CMD_CWAKE);
 		as3932_init ();
 		_BIC (as3932_status, AS3932_STATUS_EVENT | AS3932_STATUS_ON);
 	}
