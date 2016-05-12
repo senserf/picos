@@ -89,7 +89,7 @@
 
 #define	as3932_data		(P1IN & 0x10)
 
-#define	AS3932_CRCVALUE		0x24
+#define	AS3932_CRCVALUE		0x96
 
 #include "as3932.h"
 

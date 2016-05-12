@@ -4781,3 +4781,9 @@ PG160502A:
 
 	The first tentative version of AS3932 (LF loop detector) driver
 	intended for AP331. Illustrated in PROPRIETARY/ALPHATRONICS/LOOPTEST.
+
+PG160512A:
+
+	The first production-ready version of the AS3932 driver. This is in
+	fact a trivial adjustment in the board configuration for AP331, but
+	I am tagging it for the proper record.
