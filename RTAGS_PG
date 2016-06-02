@@ -1314,3 +1314,9 @@ PG160310A:	PICOS >= PG160310A
 PG160318A:
 
     Entropy handling fixed. Entropy is now properly collected in the model.
+
+PG160602A:
+
+    Fixed a bug in udaemon introduced by my seemingly innocent attempt at
+    optimizing some arithmetic expressions (around PG160124A) and causing
+    that sensor status (as perceived by udaemon) wasn't updated correctly.

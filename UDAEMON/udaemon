@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec wish "$0" "$@"
+exec wish86 "$0" "$@"
 
 ###############################################################################
 
@@ -5574,11 +5574,11 @@ proc newSensorStatus { Sok upd } {
 		return
 	}
 
-	if [catch { expr { 0x[string trim $max] } } max] {
+	if [catch { expr { "0x[string trim $max]" } } max] {
 		return
 	}
 
-	if [catch { expr { 0x[string trim $val] } } val] {
+	if [catch { expr { "0x[string trim $val]" } } val] {
 		return
 	}
 
