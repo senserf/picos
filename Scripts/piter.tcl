@@ -844,6 +844,8 @@ set CH(DPR)	[format %c [expr 0x10]]
 # defaut port/timeout for direct VUEE connections
 set PM(VPO)	4443
 set PM(VCT)	4000
+# default port for TCP connection
+set PM(TPO)	9022
 
 # maximum message length (for packet modes), set to default, resettable
 set PM(MPL)	82
@@ -1167,7 +1169,7 @@ proc sy_updtitle { } {
 		append hd " <$ST(UCS)>"
 	}
 
-	wm title . "Piter (ZZ000000A)$hd"
+	wm title . "Piter (WO160419A)$hd"
 }
 
 proc sy_cut_copy_paste { w x y } {
@@ -1495,7 +1497,7 @@ proc sy_valpars { } {
 		set ST(RFN) [lindex $pf 3]
 		# call plug_init before uartpoll_... so all input will be
 		# intercepted
-		if [catch { plug_init $PM(PLA) } erq] {
+		if [catch { plug_init $mod $PM(PLA) } erq] {
 			append err ", plugin init failed: $erq"
 			incr erc
 		} else {
@@ -1615,7 +1617,7 @@ proc sy_reconnect { } {
 	set ol [unames_choice]
 	set WI(DEL) [concat [lindex $ol 0] [lindex $ol 1]]
 
-	if { $WI(DEL) == "" } {
+	if { 0 && $WI(DEL) == "" } {
 		sy_alert "No device available to connect to"
 		return
 	}
@@ -1643,13 +1645,17 @@ proc sy_reconnect { } {
 	set WI(DEO) ""
 	sy_setdefdev
 
-	button $w.dev.scb -text "Scan" -anchor w -command sy_scandev
+
+	if { $WI(DEL) != "" } {
+		button $w.dev.scb -text "Scan" -anchor w -command sy_scandev
+		eval "set WI(DEM) \[tk_optionMenu $w.dev.dmn WI(DEV) $WI(DEL)\]"
+		bind $w.dev.dmn <ButtonRelease-1> sy_devselect
+	} else {
+		label $w.dev.scb -text "---"
+		label $w.dev.dmn -text "NO UARTS"
+	}
+
 	grid $w.dev.scb -column 0 -row 0 -sticky new
-
-	eval "set WI(DEM) \[tk_optionMenu $w.dev.dmn WI(DEV) $WI(DEL)\]"
-
-	bind $w.dev.dmn <ButtonRelease-1> sy_devselect
-
 	grid $w.dev.dmn -column 1 -row 0 -sticky new
 
 	label $w.dev.odl -text "Other:"
@@ -1933,7 +1939,7 @@ proc sy_initialize { } {
 		}
 
 		if { $par == "V" } {
-			puts "PG140406A"
+			puts "ZZ000000A"
 			exit 0
 		}
 
@@ -2143,7 +2149,7 @@ proc sy_initialize { } {
 	fileevent stdin readable $sfu
 
 	# plugin initializer
-	if [catch { plug_init $PM(PLA) } err] {
+	if [catch { plug_init $mod $PM(PLA) } err] {
 		pt_abort "Plugin init failed: $err"
 	}
 }
@@ -2455,6 +2461,31 @@ proc pt_chks { wa } {
 	return $chs
 }
 
+proc sy_tcp_conn { ho po } {
+#
+# Connect to a TCP socket
+#
+	if { [info tclversion] > 8.5 && $ho == "localhost" } {
+		# do not use -async, it doesn't seem to work in 8.6
+		# for localhost
+		set err [catch { socket $ho $po } sfd]
+	} else {
+		set err [catch { socket -async $ho $po } sfd]
+	}
+
+	if $err {
+		error "Connection failed: $sfd"
+	}
+
+	if [catch { fconfigure $sfd -blocking 0 -buffering none \
+    	    -translation binary -encoding binary } erc] {
+		cleanup
+		error "Connection failed: $erc"
+	}
+
+	return $sfd
+}
+
 proc sy_ustart { udev speed } {
 #
 # open the UART
@@ -2463,30 +2494,52 @@ proc sy_ustart { udev speed } {
 
 
 	set nn ""
-	if [regexp "^(\[0-9\]*):" $udev mat nn] {
-		# suspect a direct VUEE connection
-		set ho "localhost"
-		set po $PM(VPO)
-		if { $nn == "" } {
-			set no 0
-		} else {
-			if [catch { expr $nn } no] {
-				return "illegal VUEE node number: $nn"
+
+	set tcp ""
+	set vnn ""
+
+	if { [regexp -nocase \
+	        {^(vuee[[:blank:]]*)?([[:digit:]]*):} $udev mat jnk vnn] ||
+	     [regexp -nocase {^(tcp):} $udev mat tcp] } {
+		if { $tcp == "" } {
+			# vuee node number or null
+			if { $vnn == "" } {
+				set no 0
+			} else {
+				if [catch { expr $vnn } no] {
+					return "illegal VUEE node number: $vnn"
+				}
 			}
+			set po $PM(VPO)
+		} else {
+			set po $PM(TPO)
 		}
+		# VUEE or TCP connection
+		set ho "localhost"
 		set udev [string range $udev [string length $mat] end]
 		if [regexp "^(\[^:\]+)" $udev ho] {
 			set udev [string range $udev [string length $ho] end]
 		}
 		if { $udev != "" } {
 			if { [string index $udev 0] != ":" } {
-				return "illegal VUEE port syntax: $udev"
+				return "illegal port syntax: $udev"
 			}
 			set udev [string range $udev 1 end]
 			if { $udev != "" && [catch { expr $udev } po] } {
-				return "illegal VUEE port syntax: $udev"
+				return "illegal port syntax: $udev"
 			}
 		}
+
+		if { $tcp != "" } {
+			# striaghtforward TCP connect
+			if [catch { sy_tcp_conn $ho $po } ST(SFD)] {
+				return "failed to connect to ${ho}:$po,\
+					$ST(SFD)"
+			}
+			return ""
+		}
+
+		# VUEE
 
 		set ST(CAN) 0
 
@@ -3404,7 +3457,7 @@ proc sy_setdefplug { } {
 	append sc {proc plug_inppp_b \{ inp \} \{ return 2 \}\n}
 	append sc {proc plug_outpp_t \{ inp \} \{ return 2 \}\n}
 	append sc {proc plug_outpp_b \{ inp \} \{ return 2 \}\n}
-	append sc {proc plug_init  \{ pla \} \{ \}\n}
+	append sc {proc plug_init  \{ mod pla \} \{ \}\n}
 	append sc {proc plug_reset \{ \} \{ \}\n}
 	append sc {proc plug_close \{ \} \{ \}\n}
 

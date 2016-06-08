@@ -4787,3 +4787,9 @@ PG160512A:
 	The first production-ready version of the AS3932 driver. This is in
 	fact a trivial adjustment in the board configuration for AP331, but
 	I am tagging it for the proper record.
+
+PG160608A:
+
+	Fixed shared_plug in locaspot to make it possible to talk to the master
+	over the ATOLS gateway. Fixed piter to be able to talk to a TCP port
+	(say RS232 over TCP).
