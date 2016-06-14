@@ -795,3 +795,19 @@ WO160428A:
   Alphanet 1.7:  for a set of Images to flash in Bruges. DEF_NID 77, DEF_CHAN 0.
   There will be a WARSAW peg image with DEF_NID 99, to serve as an
   'exclusive custodian'.
+
+WO160614A:
+ Alphanet (loocaspot): Added the AP331 node type (tag). Lightly tested, only in VUEE with alphatest.xml, see below. Outstanding: documentation, decent tests, including hardware checks. Pawel's pending updates to shared_plug will make those much easier. A few details:
+ 
+ - OSSI: loca data integrated within the event report for AP331 are shorten to 8 bytes with averaged RSSIs. General format changed as well:
+   - The 'dial' field, in 'preliminary' doc DS1 byte, is now 4 byte long, pushing all the following byte numbers down by 3.
+   - The 'locat' field (XI in the doc) now indicates data that follows it as 0 (LOCA_NONE), 1 (LOCA_FULL), 2 (LOCA_SHORT). LOCA_SHORT indicates the 8B vector. Note that the 2B 'ref' stays consistent in LOCA_SHORT and LOCA_FULL, only the vector that follows is 8B or 32B long, respectively. These changes are readily visible in oss_peg_tcve.cc:873-881.
+
+ - 'locat' field carried in 'pong' and 'report' msgs and stored as pong data is extended to 2 bits (struct sizes are unchanged) to carry the info about loca data. However, now it is set on tags. Pegs can only clear it, if respective loca data has not been collected. This opens a way to configure tags with or without location bursts (this seems to be one of pending requirements). Also note that unnecessary (ignored so far) loca bursts from local buttons on AP319s are eliminated - they are triggered only if preceding logic sets 'locat' to differ from LOCA_NONE.
+ 
+ - The aforementioned 4B board-specific field is part of all data originated on AP331 nodes. It doesn't have to be so, but seems better for current requirements. However, it banns LOCA_FULL vectors from AP331s also for events that would be able to carry all data, namely heartbeat and button push. This approach can be changed if needed.
+ 
+ - alphatest.xml is modified to include AP331 nodes 701, 702, 703, next to their AP320 siblings. The 'loop alarm' can be triggered by pushing button '1' (it is #2 in the data) or moving 'sensor 1' (reported as #2) slider. (The sensor is added to node.xml in ALPHANET_AP331_PANIC board definition.)
+ 
+ - SYSVER_min is nicked 7 -> 8, as OSSI format changed and a new node type appeared. I don't think 1.7 and 1.8 can coexist in a network, even if they shouldn't crash.
+ 
