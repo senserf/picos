@@ -775,7 +775,7 @@ WO160417A:
      TARP_RTR set.
    - all watchdogs beacons and loopers are killed.
    Changing pegmode from PMOD_EXCC to anything resets the node. If we ever do
-   NVM here, fo NOT write pegmode there.
+   NVM here, do NOT write pegmode there.
 
 WO160419A:
  Alphanet: Added CMD_RESET, CMD_NHOOD, REP_NHOOD, msg_nh, msg_nhAck.
