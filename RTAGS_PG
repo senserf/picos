@@ -620,9 +620,15 @@ PG160128A:
 
 PG160323A:
 
-	   After updated the gcc/g++ suite under my Cygwin, the SMUPRH compiler
+	   After updating the gcc/g++ suite under my Cygwin, the SMUPRH compiler
 	   started to generate weird compilation errors which, on closer
-	   scrutiny, turned out to result from ne line directives that would
+	   scrutiny, turned out to result from new line directives that would
 	   split some SMURPH constructs. I think I have fixed this.
 
 	   Plus a few irrelevant cosmetics.
+
+PG160704A:	PICOS >= PG160704A, SIDE >= PG160704A
+
+	   The sampled channel model simplified and redone (as per VUEE doc).
+
+	   

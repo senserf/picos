@@ -27,7 +27,7 @@ typedef struct {
 
 static inline double vlength (sdpair_t &sdp) {
 //
-// Note that the length is in meters
+// Note that the returned length is in meters
 //
 	double x, y;
 #if ZZ_R3D
@@ -102,10 +102,10 @@ void RFSampled::read_samples (const char *sfname) {
 #endif
 		excptn ("RFSampled: cannot open sample file %s", sfname);
 	} else {
-		print (form ("  Sample file: %s\n", sfname));
+		print (form ("  Samples file: %s\n", sfname));
 	}
 Opened:
-	trc ("sample file opened");
+	trc ("samples file opened");
 
 	for (cnt = 0; cnt < __ndim + __ndim; cnt++)
 		NP [cnt] . type = TYPE_double;
@@ -113,6 +113,8 @@ Opened:
 	NP [__nrof + 0] . type =
 	NP [__nrof + 1] . type =
 						TYPE_int;
+
+	// x, y, [z,] x, y, [z,] rss, plevel
 
 	ln = 0;
 	lbs = 0;
@@ -128,8 +130,8 @@ Opened:
 
 		e = parseNumbers (linebuf, __ntrd, NP);
 		if (e < __ntrd - 1 || e > __ntrd)
-			excptn ("RFSampled: illegal content of line %1d in the "
-				"sample file", ln);
+			excptn ("RFSampled: illegal contents of line %1d "
+				"in the samples file", ln);
 		// Read the coordinates
 		cnt = 0;
 		SDP.XA = (Long) duToItu (NP [cnt++] . DVal);
@@ -151,7 +153,7 @@ Opened:
 			uv = (unsigned int) (NP [cnt] . IVal);
 			assert (uv <= 0x0FFFF,
 				"RFSampled: illegal power level (%1u) in line "
-				"%1d in the sample file", uv, ln);
+				"%1d in the samples file", uv, ln);
 			PO = (unsigned short) uv;
 		}
 
@@ -183,7 +185,7 @@ Opened:
 				}
 				assert (RSamples != NULL,
 					"RFSampled: out of memory "
-						"(creating sample list)");
+						"(creating list of samples)");
 			}
 			RSMP = &(RSamples [NSamples]);
 			NSamples++;
@@ -231,11 +233,13 @@ Opened:
 	fclose (sf);
 	free (linebuf);
 
-	// Transform the sample array in place into the online database
-	Samples = (rss_sample_t*) RSamples;
+	// Transform the sample array in place into the online database; this
+	// assumes that sizeof (rss_sample_t) <= sizeof (rss_rsample_t)
+	assert (sizeof (rss_sample_t) <= sizeof (rss_rsample_t),
+		"Compatibility error: sizeof (rss_sample_t) > "
+			"sizeof (rss_rsample_t)");
 
-	assert (NSamples >= K, "RFSampled: less than K=%1d SD samples (%1d) in "
-		"the sample file", K, NSamples);
+	Samples = (rss_sample_t*) RSamples;
 
 	print (NSamples, "  Number of SD points:", 10, 26);
 
@@ -248,10 +252,11 @@ Opened:
 		SSMP.SDP = RSMP->SDP;
 
 		SSMP.Attenuation = (float)(RSMP->Attenuation);
-		if (RSMP->NS < 2) {
-			// Single-valued sample, use the default Sigma
+		SSMP.Distance = (float)(d = vlength (SSMP.SDP));
+		if (K == 0 || RSMP->NS < K) {
+			// Below threshold, use the default Sigma
 			SSMP.Sigma = (SIGMA == NULL) ? Sigma :
-				SIGMA->setvalue (vlength (SSMP.SDP));
+				SIGMA->setvalue (d);
 		} else {
 			SSMP.Sigma = (float) sqrt (RSMP->Sigma /
 				(RSMP->NS - 1));
@@ -260,7 +265,7 @@ Opened:
 		memcpy (SMP, &SSMP, sizeof (rss_sample_t));
 
 #if ZZ_R3D
-		trc ("SMP <%1d,%1d,%1d> - <%1d,%1d,%1d>, %g, %g",
+		trc ("SMP <%1d,%1d,%1d> - <%1d,%1d,%1d>, %g, %g, %g",
 			SMP->SDP.XA,
 			SMP->SDP.YA,
 			SMP->SDP.ZA,
@@ -268,14 +273,16 @@ Opened:
 			SMP->SDP.YB,
 			SMP->SDP.ZB,
 			SMP->Attenuation,
+			SMP->Distance,
 			SMP->Sigma);
 #else
-		trc ("SMP <%1d,%1d> - <%1d,%1d>, %g, %g",
+		trc ("SMP <%1d,%1d> - <%1d,%1d>, %g, %g, %g",
 			SMP->SDP.XA,
 			SMP->SDP.YA,
 			SMP->SDP.XB,
 			SMP->SDP.YB,
 			SMP->Attenuation,
+			SMP->Distance,
 			SMP->Sigma);
 #endif
 	}
@@ -291,8 +298,7 @@ void RFSampled::setup (
 	Long nt,		// The number of transceivers
 	const sir_to_ber_t *st,	// SIR to BER conversion table
 	int    sl,		// Length of the conversion table
-	int	k,		// Number of closest samples to average
-	double eaf,		// Exponential averaging factor
+	int	k,		// Sampled sigma threshold
 	double sig,		// Default lognormal random component
 	double no,		// Background noise (dBm)
 	double bu,		// Channel busy signal threshold dBm
@@ -317,19 +323,18 @@ void RFSampled::setup (
 	BThrs = dBToLin (bu);
 	Symmetric = symm;
 	Sigma = sig;
-	EAF = eaf;
 
-	if ((K = k) > RFSMPL_MAXK)
-		excptn ("RFSampled: samples to average larger than max (%1d)",
-			RFSMPL_MAXK);
+	if ((K = k) > 0 && K < 2)
+		excptn ("RFSampled: sampled sigma threshold (K=%1d) must be "
+			"either zero or greater than 1", K);
+
 	ATTB = (DVMapper*)(ivcc [XVMAP_ATT]);
 	SIGMA = (DVMapper*)(ivcc [XVMAP_SIGMA]);
 
 	print (MinPr, 		"  Minimum preamble:", 10, 26);
 	print (bu,    		"  Activity threshold:", 10, 26);
 	print (co,    		"  Cutoff threshold:", 10, 26);
-	print (EAF,   		"  Averaging exponent:", 10, 26);
-	print (K,     		"  Samples to average:", 10, 26);
+	print (K,     		"  Sigma threshold:", 10, 26);
 	print (Symmetric, 	"  Symmetric:", 10, 26);
 
 	print ("\n  Distance(m)  Attenuation(dB)    Sigma\n");
@@ -374,7 +379,7 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 
 	for (dh = NULL, di = HTable [ix = hash (sdp)]; di != NULL;
 	    dh = di, di = (dict_item_t*)(di->Rehash))
-		if (sdpcmp (sdp, di->SMP.SDP))
+		if (sdpcmp (sdp, di->SDP))
 		    break;
 
 	if (di != NULL) {
@@ -387,22 +392,22 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 #if ZZ_R3D
 		trc ("attenuate HE found: <%1d,%1d,%1d> - <%1d,%1d,%1d>, "
 			"%g, %g",
-			di->SMP.SDP.XA,
-			di->SMP.SDP.YA,
-			di->SMP.SDP.ZA,
-			di->SMP.SDP.XB,
-			di->SMP.SDP.YB,
-			di->SMP.SDP.ZB,
-			di->SMP.Attenuation,
-			di->SMP.Sigma);
+			di->SDP.XA,
+			di->SDP.YA,
+			di->SDP.ZA,
+			di->SDP.XB,
+			di->SDP.YB,
+			di->SDP.ZB,
+			di->Attenuation,
+			di->Sigma);
 #else
 		trc ("attenuate HE found: <%1d,%1d> - <%1d,%1d>, %g, %g",
-			di->SMP.SDP.XA,
-			di->SMP.SDP.YA,
-			di->SMP.SDP.XB,
-			di->SMP.SDP.YB,
-			di->SMP.Attenuation,
-			di->SMP.Sigma);
+			di->SDP.XA,
+			di->SDP.YA,
+			di->SDP.XB,
+			di->SDP.YB,
+			di->Attenuation,
+			di->Sigma);
 #endif
 	} else {
 		// Need to build a new entry
@@ -411,170 +416,98 @@ double RFSampled::attenuate (sdpair_t &sdp) {
 		HTable [ix] = di;
 #if ZZ_R3D
 		trc ("attenuate new HE: <%1d,%1d,%1d> - <%1d,%1d,%1d>, %g, %g",
-			di->SMP.SDP.XA,
-			di->SMP.SDP.YA,
-			di->SMP.SDP.ZA,
-			di->SMP.SDP.XB,
-			di->SMP.SDP.YB,
-			di->SMP.SDP.ZB,
-			di->SMP.Attenuation,
-			di->SMP.Sigma);
+			di->SDP.XA,
+			di->SDP.YA,
+			di->SDP.ZA,
+			di->SDP.XB,
+			di->SDP.YB,
+			di->SDP.ZB,
+			di->Attenuation,
+			di->Sigma);
 #else
 		trc ("attenuate new HE: <%1d,%1d> - <%1d,%1d>, %g, %g",
-			di->SMP.SDP.XA,
-			di->SMP.SDP.YA,
-			di->SMP.SDP.XB,
-			di->SMP.SDP.YB,
-			di->SMP.Attenuation,
-			di->SMP.Sigma);
+			di->SDP.XA,
+			di->SDP.YA,
+			di->SDP.XB,
+			di->SDP.YB,
+			di->Attenuation,
+			di->Sigma);
 #endif
 	}
 
-	res = dBToLin (di->SMP.Attenuation + dRndGauss (0.0, di->SMP.Sigma));
+	res = dBToLin (di->Attenuation + dRndGauss (0.0, di->Sigma));
 	trc ("attenuate: %g", res);
 	return res;
 }
 
 dict_item_t *RFSampled::interpolate (sdpair_t &sdp) {
 
-	rss_sample_t	*s, *BK [RFSMPL_MAXK];
-	double		D, A, S, T, W, DBK [RFSMPL_MAXK], TBK [RFSMPL_MAXK];
-	Long		NBK, i, j, k;
-	dict_item_t	*DI;
+	rss_sample_t	*s;
+	dict_item_t	*di;
+	double 		l, d, A, S, L, W;
+	int		i;
+
+	l = vlength (sdp);
 
 #if ZZ_R3D
 	trc ("interpolate: <%1d,%1d,%1d> - <%1d,%1d,%1d> l=%g",
-		sdp.XA, sdp.YA, sdp.ZA, sdp.XB, sdp.YB, sdp.ZB, vlength (sdp));
+		sdp.XA, sdp.YA, sdp.ZA, sdp.XB, sdp.YB, sdp.ZB, l);
 #else
 	trc ("interpolate: <%1d,%1d> - <%1d,%1d> l=%g", sdp.XA, sdp.YA, sdp.XB,
-		sdp.YB, vlength (sdp));
+		sdp.YB, l);
 #endif
 
-	for (i = NBK = 0; i < NSamples; i++) {
+	A = S = L = W = 0.0;
 
-		// Select K closest samples
+	for (i = 0; i < NSamples; i++) {
+
 		s = Samples + i;
-		D = sdpdist (s->SDP, sdp);
 
-		if (NBK == K) {
-			// Table already filled
-			if (D >= DBK [0])
-				// Greater that current max, skip it
-				continue;
-			// Make sure the max is at the top
-			A = D;
-			k = 0;
-			for (j = 1; j < NBK; j++) {
-				if (DBK [j] > A) {
-					k = j;
-					A = DBK [j];
-				}
-			}
-
-			if (k) {
-				// Move the new max to the top
-				BK [0] = BK [k];
-				DBK [0] = A;
-			}
-		} else {
-			// Put it in, but keep the max at the top
-			if (NBK && DBK [0] < D) {
-				// Replace the head
-				DBK [NBK] = DBK [0];
-				BK [NBK] = BK [0];
-				k = 0;
-			} else {
-				k = NBK;
-			}
-			NBK++;
+		if ((d = sdpdist (s->SDP, sdp)) < 0.5) {
+			// This means exact match with a generous provision
+			// for any rounding errors (which will never happen)
+			A = s->Attenuation;
+			S = s->Sigma;
+#if ZZ_R3D
+			trc ("interpolate: exact <%1d,%1d,%1d> - <%1d,%1d,%1d>",
+				s->SDP.XA, s->SDP.YA, s->SDP.ZA,
+				s->SDP.XB, s->SDP.YB, s->SDP.ZB);
+#else
+			trc ("interpolate: exact <%1d,%1d> - <%1d,%1d>",
+				s->SDP.XA, s->SDP.YA,
+				s->SDP.XB, s->SDP.YB);
+#endif
+			goto Ready;
 		}
 
-		BK [k] = s;
-		DBK [k] = D;
+		d = 1.0 / d;
+
+		A += s->Attenuation * d;
+		S += s->Sigma * d;
+		L += s->Distance * d;
+		W += d;
 	}
 
-	// Calculate the average distance to make the exponential weights
-	// scale-invariant
-	A = 0.0;
-	for (i = 0; i < NBK; i++)
-		A += DBK [i];
-
-	A /= NBK;
-	if (A == 0.0)
-		// This is impossible, but be prepared, e.g., some degenerate
-		// case of NBK == 1
-		A = 1.0;
-
-	for (i = 0; i < NBK; i++) {
-		// Stage 1: replace distances by exponents; the distance is
-		// transposed to Du (meters), so we know what the factor (EAF)
-		// applies to
-#if ZZ_R3D
-		trc ("in[%1d] = <%1d,%1d,%1d> - <%1d,%1d,%1d>, %g, %g, d=%g", i,
-			BK [i]->SDP.XA,
-			BK [i]->SDP.YA,
-			BK [i]->SDP.ZA,
-			BK [i]->SDP.XB,
-			BK [i]->SDP.YB,
-			BK [i]->SDP.ZB,
-			BK [i]->Attenuation,
-			BK [i]->Sigma, DBK [i]);
-#else
-		trc ("in[%1d] = <%1d,%1d> - <%1d,%1d>, %g, %g, d=%g", i,
-			BK [i]->SDP.XA,
-			BK [i]->SDP.YA,
-			BK [i]->SDP.XB,
-			BK [i]->SDP.YB,
-			BK [i]->Attenuation,
-			BK [i]->Sigma, DBK [i]);
-#endif
-		DBK [i] = exp (-((DBK [i] / A) * EAF));
-		trc ("in d->w %g [EAF=%g]", DBK [i], EAF);
-	}
-
-	W = A = S = D = 0.0;
-	for (i = 0; i < NBK; i++) {
-		// Stage2: convert weight di to ti = di * Prod (1 - dj) (j!=i);
-		// this makes sure that 1) if there is (one) di == 1, all ti's
-		// except that one will be zero, 2) di closer to one are
-		// further amplified (will have to check it empirically)
-		T = DBK [i];
-		for (j = 0; j < NBK; j++)
-			if (j != i)
-				T *= (1.0 - DBK [j]);
-		// Sum of weights for normalization
-		W += T;
-		A += (BK [i] -> Attenuation) * T;
-		S += (BK [i] -> Sigma) * T;
-		D += vlength (BK [i] -> SDP) * T;
-		trc ("in[%1d] no: W=%g|%g, A=%g|%g, S=%g|%g, D=%g|%g",
-			i, T, W, BK[i]->Attenuation * T, A,
-			BK[i]->Sigma * T, S,
-			vlength (BK[i]->SDP), D);
-	}
-
-			// Averages:
-	A /= W;		// 	- attenuation
-	S /= W;		// 	- sigma
-	D /= W;		// 	- vector length
-
-	trc ("in av: A=%g, S=%g, D=%g", A, S, D);
-
-	DI = (dict_item_t*) malloc (sizeof (dict_item_t));
-	assert (DI != NULL, "RFSampled: out of memory for dictionary items");
-
-	// Normalize
-	DI->SMP.SDP = sdp;
-	DI->SMP.Sigma = (float) S;
+	A /= W;
+	S /= W;
+	L /= W;
 
 	// Adjust for distance difference, use dB values
-	DI->SMP.Attenuation = A + ATTB->setvalue (vlength (sdp), NO) -
-		ATTB->setvalue (D, NO);
+	A = A + ATTB->setvalue (l, NO) - ATTB->setvalue (L, NO);
 
-	trc ("in ad: ATT=%g = A + AS=%g - AD=%g", DI->SMP.Attenuation,
-		ATTB->setvalue (vlength (sdp), NO), ATTB->setvalue (D, NO));
+Ready:
+	di = (dict_item_t*) malloc (sizeof (dict_item_t));
+	assert (di != NULL, "RFSampled: out of memory for dictionary items");
 
-	return DI;
+	// Normalize
+	di->SDP = sdp;
+	di->Attenuation = (float) A;
+	di->Sigma = (float) S;
+
+	trc ("in ad: ATT=%g = A + AS=%g - AD=%g", di->Attenuation,
+		ATTB->setvalue (l, NO), ATTB->setvalue (L, NO));
+
+	return di;
 }
 
 // ============================================================================

@@ -185,8 +185,8 @@ template <class RType> class XVMapper {
 
 	Boolean exact (RType w) {
 	//
-	// Checks if the representation is in range, i.e., between min and
-	// max
+	// Checks if the representation occurs exactly as an argument in the
+	// table
 	//
 		int a, b, ix;
 
@@ -217,7 +217,10 @@ template <class RType> class XVMapper {
 	};
 
 	Boolean inrange (RType w) {
-
+	//
+	// Checks if the representation is in range, i.e., between min and
+	// max
+	//
 		if (NL == 1)
 			return (w == VLV [0]);
 

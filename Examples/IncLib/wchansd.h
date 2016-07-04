@@ -7,7 +7,6 @@
 
 #define	RFSMPL_HASHSIZE		8192
 #define	RFSMPL_HASHMASK		(RFSMPL_HASHSIZE - 1)
-#define	RFSMPL_MAXK		32
 
 // Indexes into the XVMapper table
 #define	XVMAP_ATT		4
@@ -34,6 +33,7 @@ typedef struct {
 //
 	sdpair_t	SDP;		// S-D pair
 	float		Attenuation,	// in dB, derived from RSS and power
+			Distance,	// Distance in meters between S and D
 			Sigma;		// Standard deviation of Attenuation
 } rss_sample_t;
 
@@ -41,7 +41,8 @@ typedef struct {
 //
 // This is a dictionary item stored in the hash table
 //
-	rss_sample_t	SMP;
+	sdpair_t	SDP;
+	float		Attenuation, Sigma;
 	void		*Rehash;
 
 } dict_item_t;
@@ -55,12 +56,11 @@ rfchannel RFSampled : RadioChannel {
 //
 	double	BThrs,	// Channel busy signal threshold
 	      	COSL,	// Cut-off signal level
-		Sigma,	// Default lognormal random component of attenuation
-		EAF;	// Exponential averaging factor
+		Sigma;	// Default lognormal random component of attenuation
 
 	Long  	MinPr;	// Minimum number of preamble bits for reception
 
-	int		K;	// Samples to average
+	int	K;	// Minimum number of merged samples for sampled sigma
 
 	DVMapper	*ATTB,	// Attenuation table
 			*SIGMA;	// Sigma table
@@ -140,7 +140,7 @@ rfchannel RFSampled : RadioChannel {
 	inline double sdpdist (sdpair_t &sa, sdpair_t &sb) {
 	//
 	// Calculates the "distance" between SD pairs expressed as the sum
-	// of the Euclidean distances between the points
+	// of the Euclidean distances between the points (in DU)
 	//
 		double d0, d1, d2, d3, D0, D1;
 #if ZZ_R3D
@@ -207,8 +207,7 @@ rfchannel RFSampled : RadioChannel {
 		Long,			// The number of transceivers
 		const sir_to_ber_t*,	// SIR to BER conversion table
 		int,			// Length of the conversion table
-		int,			// The number of samples to average
-		double,			// Exponential averaging factor
+		int,			// Sampled sigma K threshold
 		double,			// Gaussian lognormal component
 		double,			// Background noise (dBm)
 		double,			// Channel busy signal threshold dBm
