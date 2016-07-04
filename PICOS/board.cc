@@ -2,7 +2,7 @@
 #define __picos_board_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2015.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2016.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -1901,25 +1901,17 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 
 	} else if (__pi_channel_type == CTYPE_SAMPLED) {
 
-		K = 4;					// Samples to average
-		dref = 1.0;				// Averaging factor
-		if ((att = sxml_attr (prp, "average")) != NULL) {
+		K = 2;					// Sigma threshold
+		if (((att = sxml_attr (prp, "sthreshold")) != NULL) ||
+		    ((att = sxml_attr (prp, "threshold")) != NULL) ) {
 			np [0].type = TYPE_int;
-			nr = parseNumbers (att, NPTABLE_SIZE, np);
-			if (nr == 0 || nr > 2)
-				xeai ("average", "<propagation>", att);
+			nr = parseNumbers (att, 1, np);
+			if (nr == 0)
+				xeai ("sthreshold", "<propagation>", att);
 			K = (int) (np [0].LVal);
-			if (K < 1 || K > 32)
-				excptn ("Root: the number of samples to "
-					"average must be between 1 and 32, is "
-					"%1d", K);
-			if (nr > 1) {
-				dref = np [1].DVal;
-				if (dref <= 0.0)
-					excptn ("Root: the averaging factor "
-						"must be > 0.0, is %g",
-						dref);
-			}
+			if (K < 0 || K == 1)
+				excptn ("Root: the sigma threshold must be"
+					"> 1 or 0, is %1d", K);
 			np [0].type = TYPE_double;
 		}
 
@@ -2204,7 +2196,7 @@ RVErr:
 		create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db,
 			bn_db, cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 	else if (__pi_channel_type == CTYPE_SAMPLED)
-		create RFSampled (NN, STB, nb, K, dref, sigm, bn_db, bn_db,
+		create RFSampled (NN, STB, nb, K, sigm, bn_db, bn_db,
 			cutoff, syncbits, bpb, frml, ivc, sfname, symm,
 				mxc, NULL);
 	else if (__pi_channel_type == CTYPE_NEUTRINO)

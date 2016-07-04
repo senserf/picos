@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	1.1
+#define	VUEE_VERSION	1.2
 
 #ifndef	ZZ_R3D
 // A fallback to compile legacy praxes

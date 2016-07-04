@@ -7967,7 +7967,7 @@ proc moveNC { wh } {
 
 proc moveZC { } {
 
-	global MStatId RD Stat Rms
+	global MStatId RD Stat Rms P
 
 	set P(M0,NO) $MStatId
 
@@ -8084,12 +8084,21 @@ proc moveZC { } {
 
 proc updateNode { no } {
 
-	global Rms RD
+	global Rms RD Stat
 
 	foreach r $Rms {
 		set xid [lindex $r 1]
 		drawNode $xid $RD($xid,WN).c $no
 	}
+
+	# notify the simulator
+	set pc [lindex $RD(NL,$no) 0]
+	set msg "M $no [lindex $pc 0] [lindex $pc 1]"
+	if $Stat(TD) {
+		append msg " [lindex $pc 2]"
+	}
+	append msg "\n"
+	sock_wr $RD(S) $msg
 }
 
 proc move_ninfo { n } {

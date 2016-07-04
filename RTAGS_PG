@@ -1320,3 +1320,10 @@ PG160602A:
     Fixed a bug in udaemon introduced by my seemingly innocent attempt at
     optimizing some arithmetic expressions (around PG160124A) and causing
     that sensor status (as perceived by udaemon) wasn't updated correctly.
+
+PG160704A:	SIDE >= PG160704A, PICOS >= PG160704A
+
+    The sampled channel model redone. The doc updated. Fixed a bug in udaemon
+    causing that new node coordinates entered via a node's popup window were
+    not conveyed to the simulator until the node was subsequently moved with
+    the mouse.
