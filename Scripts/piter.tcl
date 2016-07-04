@@ -1169,7 +1169,7 @@ proc sy_updtitle { } {
 		append hd " <$ST(UCS)>"
 	}
 
-	wm title . "Piter (WO160419A)$hd"
+	wm title . "Piter (ZZ000000A)$hd"
 }
 
 proc sy_cut_copy_paste { w x y } {
@@ -1408,7 +1408,7 @@ proc sy_valpars { } {
 	}
 
 	if { $prt == "" } {
-		append err ", no UART device specified"
+		append err ", no device specified"
 		incr erc
 	}
 
@@ -1560,6 +1560,10 @@ proc sy_setdefdev { } {
 			set WI(DEO) $p
 		}
 	}
+
+	if { $WI(DEV) == "NO UARTS" } {
+		set WI(DEV) ""
+	}
 }
 
 proc sy_scandev { } {
@@ -1572,8 +1576,13 @@ proc sy_scandev { } {
 	set ol [unames_choice]
 	set WI(DEL) [concat [lindex $ol 0] [lindex $ol 1]]
 
+	if { $WI(DEL) == "" } {
+		set WI(DEL) [list "NO UARTS"]
+	}
+
 	$WI(DEM) delete 0 end
 	set ix 0
+
 	foreach w $WI(DEL) {
 		$WI(DEM) add command -label $w -command "sy_devselect $ix"
 		incr ix
@@ -1597,7 +1606,12 @@ proc sy_devselect { { ix -1 } } {
 	if { [lsearch -exact $WI(DEL) $w] < 0 } {
 		set w [lindex $WI(DEL) 0]
 	}
-	set WI(DEV) $w
+
+	if { $w == "NO UARTS" } {
+		set WI(DEV) ""
+	} else {
+		set WI(DEV) $w
+	}
 	set WI(DEO) ""
 }
 
@@ -1617,9 +1631,8 @@ proc sy_reconnect { } {
 	set ol [unames_choice]
 	set WI(DEL) [concat [lindex $ol 0] [lindex $ol 1]]
 
-	if { 0 && $WI(DEL) == "" } {
-		sy_alert "No device available to connect to"
-		return
+	if { $WI(DEL) == "" } {
+		set WI(DEL) [list "NO UARTS"]
 	}
 
 	# read the parameters
@@ -1645,15 +1658,9 @@ proc sy_reconnect { } {
 	set WI(DEO) ""
 	sy_setdefdev
 
-
-	if { $WI(DEL) != "" } {
-		button $w.dev.scb -text "Scan" -anchor w -command sy_scandev
-		eval "set WI(DEM) \[tk_optionMenu $w.dev.dmn WI(DEV) $WI(DEL)\]"
-		bind $w.dev.dmn <ButtonRelease-1> sy_devselect
-	} else {
-		label $w.dev.scb -text "---"
-		label $w.dev.dmn -text "NO UARTS"
-	}
+	button $w.dev.scb -text "Scan" -anchor w -command sy_scandev
+	eval "set WI(DEM) \[tk_optionMenu $w.dev.dmn WI(DEV) $WI(DEL)\]"
+	bind $w.dev.dmn <ButtonRelease-1> sy_devselect
 
 	grid $w.dev.scb -column 0 -row 0 -sticky new
 	grid $w.dev.dmn -column 1 -row 0 -sticky new

@@ -4793,3 +4793,9 @@ PG160608A:
 	Fixed shared_plug in locaspot to make it possible to talk to the master
 	over the ATOLS gateway. Fixed piter to be able to talk to a TCP port
 	(say RS232 over TCP).
+
+PG160704A:	VUEE >= PG160704A, SIDE >= PG160704A
+
+	Changes in a few data sets corresponding to the new version of the
+	sampled channel model. Some cosmetics to the AS3932 driver. A minor
+	fix to piter.

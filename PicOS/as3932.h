@@ -74,6 +74,12 @@ void as3932_off ();
 void as3932_clearall (byte);
 Boolean as3932_addbit ();
 
+#ifdef	AS3932_REGACCESS
+#define	as3932_static
+#else
+#define	as3932_static	static
+#endif
+
 #endif
 
 #endif

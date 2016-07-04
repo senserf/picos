@@ -18,7 +18,7 @@
 // SPI access =================================================================
 // ============================================================================
 
-static byte rreg (byte reg) {
+as3932_static byte as3932_rreg (byte reg) {
 
 	volatile byte res;
 
@@ -49,7 +49,7 @@ static byte rreg (byte reg) {
 	return res;
 }
 
-static void wreg (byte reg, byte val) {
+as3932_static void as3932_wreg (byte reg, byte val) {
 
 	volatile byte res;
 
@@ -78,7 +78,7 @@ static void wreg (byte reg, byte val) {
 	as3932_delay;
 }
 
-static void wcmd (byte cmd) {
+as3932_static void as3932_wcmd (byte cmd) {
 
 	// Select the chip
 	as3932_csel;
@@ -138,7 +138,7 @@ static void put_byte (byte b) {
 	}
 }
 
-void wreg (byte reg, byte val) {
+as3932_static as3932_wreg (byte reg, byte val) {
 
 	// Select the chip
 	as3932_csel;
@@ -154,7 +154,7 @@ void wreg (byte reg, byte val) {
 	as3932_delay;
 }
 
-static void wcmd (byte cmd) {
+as3932_static void as3932_wcmd (byte cmd) {
 
 	// Select the chip
 	as3932_csel;
@@ -165,7 +165,7 @@ static void wcmd (byte cmd) {
 	as3932_delay;
 }
 
-static byte rreg (byte reg) {
+as3932_static byte as3932_rreg (byte reg) {
 
 	byte res;
 
@@ -209,7 +209,7 @@ void as3932_clearall (byte full) {
 	        _BIC (as3932_status, AS3932_STATUS_EVENT |
 			AS3932_STATUS_BOUNDARY | AS3932_STATUS_DATA);
 	        // Clear the wake event
-	        wcmd (AS3932_CMD_CWAKE);
+	        as3932_wcmd (AS3932_CMD_CWAKE);
 	        as3932_enable_w;
 	}
 }
@@ -219,7 +219,7 @@ void as3932_init () {
 	// Put the chip into power down, off by default
 	as3932_bring_up;
 	// Power down
-	wreg (0, 1);
+	as3932_wreg (0, 1);
 	as3932_bring_down;
 	// This is to be done only once (timeout timer for detecting DAT
 	// changes)
@@ -231,10 +231,10 @@ void as3932_on () {
 	byte b;
 
 	as3932_bring_up;
-	wcmd (AS3932_CMD_DEFAU);
+	as3932_wcmd (AS3932_CMD_DEFAU);
 	_BIS (as3932_status, AS3932_STATUS_ON);
 	as3932_clearall (1);
-	wcmd (AS3932_CMD_CFALS);
+	as3932_wcmd (AS3932_CMD_CFALS);
 }
 
 void as3932_off () {
@@ -242,7 +242,7 @@ void as3932_off () {
 	if (as3932_status & AS3932_STATUS_ON) {
 		as3932_clearall (0);
 		// Make sure we are in a decent state
-		wcmd (AS3932_CMD_CWAKE);
+		as3932_wcmd (AS3932_CMD_CWAKE);
 		as3932_init ();
 		_BIC (as3932_status, AS3932_STATUS_EVENT | AS3932_STATUS_ON);
 	}

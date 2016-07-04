@@ -1,5 +1,4 @@
-	<propagation type="sampled" samples="CHANNELS/samples.txt"
-		average="4,0.1">
+	<propagation type="sampled" samples="CHANNELS/samples.txt">
 		<!--
 			Based on the empirical data collected by Wlodek
 			and Gerry, and trying to take RSSI at its face

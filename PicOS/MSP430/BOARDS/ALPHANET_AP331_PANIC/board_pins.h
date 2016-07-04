@@ -89,7 +89,9 @@
 
 #define	as3932_data		(P1IN & 0x10)
 
-#define	AS3932_CRCVALUE		0x96
+//#define	AS3932_CRCVALUE		0x96
+#define	AS3932_CRCVALUE		(-1)
+#define	AS3932_REGACCESS
 
 #include "as3932.h"
 
