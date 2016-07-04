@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec tclsh86 C:/cygwin64/home/nripg/bin/pip "$@"
+exec tclsh "$0" "$@"
 
 package require Tk
 package require Ttk
@@ -178,6 +178,7 @@ set CFVueeItems {
 			"OSNN"		0
 			"OSNH"		0
 			"VUDF"		""
+			"VUOF"		""
 			"VUSM"		1.0
 			"VURI"		500
 			"EARG"		""
@@ -4897,11 +4898,11 @@ proc do_vuee_config { } {
 
 		# enable/disable widgets
 		vconf_widgets disable { thrd cmpis dpbc pfac udon udtm ycdn
-			oson osnn udpl osnh vudf vusm vuri }
+			oson osnn udpl osnh vudf vuof vusm vuri }
 
 		if !$P(M0,VDISABLE) {
 			vconf_widgets normal \
-			    { thrd cmpis dpbc pfac udon oson vudf vusm vuri }
+		          { thrd cmpis dpbc pfac udon oson vudf vuof vusm vuri }
 			if $P(M0,UDON) {
 				vconf_widgets normal { udtm ycdn udpl }
 			}
@@ -5080,9 +5081,20 @@ proc mk_vuee_conf_window { } {
 	pack $f -side top -expand y -fill x
 	label $f.l -text "Praxis data file: "
 	pack $f.l -side left -expand n
-	set P(M0,vudf) [button $f.b -text "Select" -command "vuee_conf_fsel"]
+	set P(M0,vudf) [button $f.b -text "Select" -command "vuee_conf_dsel"]
 	pack $f.b -side right -expand n
 	label $f.f -textvariable P(M0,VUDF)
+	pack $f.f -side right -expand n
+
+	##
+	set f $w.ta
+	frame $f
+	pack $f -side top -expand y -fill x
+	label $f.l -text "Praxis output file: "
+	pack $f.l -side left -expand n
+	set P(M0,vuof) [button $f.b -text "Select" -command "vuee_conf_osel"]
+	pack $f.b -side right -expand n
+	label $f.f -textvariable P(M0,VUOF)
 	pack $f.f -side right -expand n
 
 	##
@@ -5139,7 +5151,7 @@ proc mk_vuee_conf_window { } {
 	bind $w <Destroy> "md_click -1"
 }
 
-proc vuee_conf_fsel { } {
+proc vuee_conf_dsel { } {
 #
 # Selects a data file for the praxis (VUEE model)
 #
@@ -5187,7 +5199,56 @@ proc vuee_conf_fsel { } {
 		set P(M0,VUDF) [relative_path $fn]
 
 		# for posterity
-		set P(LS,VUDF) [file dirname $fn]
+		set P(LFS,VUDF) [file dirname $fn]
+
+		return
+	}
+}
+
+proc vuee_conf_osel { } {
+#
+# Selects an output file for the praxis (VUEE model)
+#
+	global P
+
+	if { ![info exists P(LFS,VUOF)] ||
+	      [file_location $P(LFS,VUOF)] != "T" } {
+		# remembers last directory and defaults to the project's
+		# directory
+		set P(LFS,VUOF) $P(AC)
+	}
+
+	set ft [list [list "Praxis output file" [list ".txt"]]]
+	set de ".txt"
+	set ti "output file for the praxis"
+
+	while 1 {
+
+		reset_all_menus 1
+		set fn [tk_getSaveFile 	-defaultextension $de \
+					-filetypes $ft \
+					-initialdir $P(LFS,VUOF) \
+					-title "Select an $ti" \
+					-parent $P(M0,WI)]
+		reset_all_menus
+
+		if { $fn == "" } {
+			# cancelled, cancel
+			set P(M0,VUOF) ""
+			return
+		}
+
+		# check if OK
+		if { [file_location $fn] != "T" } {
+			alert "The file must belong to the project tree"
+			continue
+		}
+
+		# assume it is OK, but use a relative path
+		set P(M0,VUOF) [relative_path $fn]
+
+		# for posterity
+		set P(LFS,VUOF) [file dirname $fn]
 
 		return
 	}
@@ -5241,7 +5302,7 @@ proc vuee_conf_psel { } {
 		set P(M0,UDPL) [relative_path $fn]
 
 		# for posterity
-		set P(LS,UDPL) [file dirname $fn]
+		set P(LFS,UDPL) [file dirname $fn]
 
 		return
 	}
@@ -7239,9 +7300,13 @@ proc side_args { deb } {
 		return ""
 	}
 
+	set of [dict get $P(CO) "VUOF"]
+
 	set argl [list "-e" $df]
 
-	if !$deb {
+	if { $of != "" } {
+		lappend argl $of
+	} elseif !$deb {
 		# write to stderr, if output directed to console
 		lappend argl "+"
 	}

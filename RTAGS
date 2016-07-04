@@ -833,3 +833,9 @@ PG160323A:
 
 	The VUEE configuration set includes now an extra field to specify
 	extra SMURPH compilation parameters (useful for debugging).
+
+PG160704A:
+
+	Added an option to VUEE config to direct the simulator's output to a
+	file, which is convenient, e.g., when the simulator is producing large
+	volumes of trace data.
