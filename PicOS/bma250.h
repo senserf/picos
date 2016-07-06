@@ -153,4 +153,10 @@ void bma250_off (byte);
 
 #endif	/* BMA250_RAW_INTERFACE */
 
+#ifdef	BMA250_REGACCESS
+#define	bma250_static
+#else
+#define	bma250_static	static
+#endif
+
 #endif	/* Conditional include */

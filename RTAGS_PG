@@ -4799,3 +4799,8 @@ PG160704A:	VUEE >= PG160704A, SIDE >= PG160704A
 	Changes in a few data sets corresponding to the new version of the
 	sampled channel model. Some cosmetics to the AS3932 driver. A minor
 	fix to piter.
+
+PG160707A:
+
+	Fixed (well, circumvented) the problem with AP331 (ALPHANET_AP331_PANIC)
+	where BMA250 is erroneously crosswired with AS3932.

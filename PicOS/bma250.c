@@ -21,7 +21,7 @@
 // SPI access =================================================================
 // ============================================================================
 
-static byte rreg (byte reg) {
+bma250_static byte bma250_rreg (byte reg) {
 
 	volatile byte res;
 
@@ -52,7 +52,7 @@ static byte rreg (byte reg) {
 	return res;
 }
 
-static void wreg (byte reg, byte val) {
+bma250_static void bma250_wreg (byte reg, byte val) {
 
 	volatile byte res;
 
@@ -120,7 +120,7 @@ static void put_byte (byte b) {
 	}
 }
 
-static void wreg (byte reg, byte val) {
+bma250_static void bma250_wreg (byte reg, byte val) {
 
 	// Select the chip
 	bma250_csel;
@@ -136,7 +136,7 @@ static void wreg (byte reg, byte val) {
 	bma250_delay;
 }
 
-static byte rreg (byte reg) {
+bma250_static byte bma250_rreg (byte reg) {
 
 	byte res;
 
@@ -166,7 +166,7 @@ static void clrevent () {
 
 	_BIC (bma250_status, BMA250_STATUS_EVENT);
 	// Fully latched interrupts
-	wreg (0x21, 0x87);
+	bma250_wreg (0x21, 0x87);
 	bma250_enable;
 }
 
@@ -174,8 +174,13 @@ void bma250_init () {
 
 	sint c;
 
-	for (c = 0; c < 3; c++)
-		wreg (0x11, 0x80);
+	for (c = 0; c < 3; c++) {
+#ifdef BOARD_ALPHANET_AP331_PANIC
+		// Make sure INT2 is open drain
+		bma250_wreg (0x20, 0x0b);
+#endif
+		bma250_wreg (0x11, 0x80);
+	}
 }
 
 #ifdef	BMA250_RAW_INTERFACE
@@ -191,21 +196,24 @@ void bma250_on (bma250_regs_t *regs) {
 
 	bma250_bring_up;
 	// Reset
-	wreg (0x14, 0xB6);
+	bma250_wreg (0x14, 0xB6);
 	udelay (200);
 
 	bma250_disable;
 
 	for (i = 0, r = regs->regs; i < sizeof (reglist); i++, r++)
 		if ((regs->rmask >> i) & 1)
-			wreg (reglist [i], *r);
+			bma250_wreg (reglist [i], *r);
 
 	_BIS (bma250_status, BMA250_STATUS_ON);
 	clrevent ();
 
 	// Global interrupt configuration, all interrupts directed to INT1,
 	// INT2 is not connected; new-data unmapped, we never use it
-	wreg (0x19, 0xF7);
+	bma250_wreg (0x19, 0xF7);
+#ifdef BOARD_ALPHANET_AP331_PANIC
+	bma250_wreg (0x20, 0x0b);
+#endif
 }
 
 void bma250_off () {
@@ -225,7 +233,7 @@ void bma250_on (byte range, byte bandwidth, byte stat) {
 
 	bma250_bring_up;
 	// Reset the chip
-	wreg (0x14, 0xB6);
+	bma250_wreg (0x14, 0xB6);
 	udelay (200);
 
 	bma250_disable;
@@ -233,13 +241,15 @@ void bma250_on (byte range, byte bandwidth, byte stat) {
 	clrevent ();
 
 	// range & bandwidth
-	wreg (0x0F, range);
-	wreg (0x10, bandwidth | 0x8);
+	bma250_wreg (0x0F, range);
+	bma250_wreg (0x10, bandwidth | 0x8);
 
 	// Global interrupt configuration, all interrupts directed to INT1,
 	// INT2 is not connected; new-data unmapped, we never use it
-	wreg (0x19, 0xF7);
-
+	bma250_wreg (0x19, 0xF7);
+#ifdef BOARD_ALPHANET_AP331_PANIC
+	bma250_wreg (0x20, 0x0b);
+#endif
 	// Enable the events
 	r16 = r17 = 0;
 
@@ -264,8 +274,8 @@ void bma250_on (byte range, byte bandwidth, byte stat) {
 		_BIS (r17, BMA250_ALL_AXES);
 
 	// Enable the events
-	wreg (0x16, r16);
-	wreg (0x17, r17);
+	bma250_wreg (0x16, r16);
+	bma250_wreg (0x17, r17);
 }
 
 void bma250_move (byte nsamples, byte threshold) {
@@ -278,8 +288,8 @@ void bma250_move (byte nsamples, byte threshold) {
 	else if (nsamples > 4)
 		nsamples = 4;
 
-	wreg (0x27, nsamples - 1);
-	wreg (0x28, threshold);
+	bma250_wreg (0x27, nsamples - 1);
+	bma250_wreg (0x28, threshold);
 }
 
 void bma250_tap (byte mode, byte threshold, byte delay, byte nsamples) {
@@ -290,7 +300,7 @@ void bma250_tap (byte mode, byte threshold, byte delay, byte nsamples) {
 	if (delay > 7)
 		delay = 7;
 		
-	wreg (0x2A, mode | delay);
+	bma250_wreg (0x2A, mode | delay);
 
 	if (nsamples > 3)
 		nsamples = 3;
@@ -298,7 +308,7 @@ void bma250_tap (byte mode, byte threshold, byte delay, byte nsamples) {
 	if (threshold > 31)
 		threshold = 31;
 
-	wreg (0x2B, nsamples << 6 | threshold);
+	bma250_wreg (0x2B, nsamples << 6 | threshold);
 }
 
 void bma250_orient (byte blocking, byte mode, byte theta, byte hysteresis) {
@@ -309,12 +319,12 @@ void bma250_orient (byte blocking, byte mode, byte theta, byte hysteresis) {
 	if (hysteresis > 7)
 		hysteresis = 7;
 
-	wreg (0x2C, blocking | mode | (hysteresis << 4));
+	bma250_wreg (0x2C, blocking | mode | (hysteresis << 4));
 
 	if (theta > 63)
 		theta = 63;
 
-	wreg (0x2D, theta);
+	bma250_wreg (0x2D, theta);
 }
 
 void bma250_flat (byte theta, byte hold) {
@@ -327,8 +337,8 @@ void bma250_flat (byte theta, byte hold) {
 	if (hold > 3)
 		hold = 3;
 
-	wreg (0x2E, theta);
-	wreg (0x2F, hold << 4);
+	bma250_wreg (0x2E, theta);
+	bma250_wreg (0x2F, hold << 4);
 }
 
 void bma250_lowg (byte mode, byte threshold, byte del, byte hysteresis) {
@@ -336,12 +346,12 @@ void bma250_lowg (byte mode, byte threshold, byte del, byte hysteresis) {
 	if (!(bma250_status & BMA250_STATUS_ON))
 		return;
 
-	wreg (0x22, del);
-	wreg (0x23, threshold);
+	bma250_wreg (0x22, del);
+	bma250_wreg (0x23, threshold);
 	if (hysteresis > 3)
 		hysteresis = 3;
 
-	wreg (0x24, hysteresis | mode);
+	bma250_wreg (0x24, hysteresis | mode);
 }
 
 void bma250_highg (byte threshold, byte del, byte hysteresis) {
@@ -352,10 +362,10 @@ void bma250_highg (byte threshold, byte del, byte hysteresis) {
 	if (hysteresis > 3)
 		hysteresis = 3;
 
-	wreg (0x24, hysteresis << 6);
+	bma250_wreg (0x24, hysteresis << 6);
 
-	wreg (0x25, del);
-	wreg (0x26, threshold);
+	bma250_wreg (0x25, del);
+	bma250_wreg (0x26, threshold);
 }
 
 void bma250_off (byte pow) {
@@ -378,7 +388,7 @@ void bma250_off (byte pow) {
 	else
 		pow = (16+64) - pow;
 
-	wreg (0x11, pow);
+	bma250_wreg (0x11, pow);
 }
 
 #endif	/* BMA250_RAW_INTERFACE */
@@ -411,17 +421,17 @@ void bma250_read (word st, const byte *junk, address val) {
 	}
 
 	// Status
-	*val++ = rreg (0x09) | (((word)(rreg (0x0c))) << 8);
+	*val++ = bma250_rreg (0x09) | (((word)(bma250_rreg (0x0c))) << 8);
 
 	// Acc data
 	for (r = 0x02; r < 0x08; r += 2, val++) {
-		if ((*val = ((word)(rreg (r) >> 6)) | ((word)(rreg (r+1)) << 2))
-			& 0x200)
+		if ((*val = ((word)(bma250_rreg (r) >> 6)) |
+			((word)(bma250_rreg (r+1)) << 2)) & 0x200)
 				*val |= 0xFC00;
 	}
 
 	// Temperature
-	*((byte*)val) = rreg (0x08);
+	*((byte*)val) = bma250_rreg (0x08);
 
 	// Clear events
 	if (bma250_status & BMA250_STATUS_EVENT)
