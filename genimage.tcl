@@ -5,10 +5,10 @@ exec tclsh85 "$0" "$@"
 ############################################################################
 # Generates copies of an Image file with modified node ID                  #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2008-2012 All Rights Reserved      #
+# Copyright (C) Olsonet Communications, 2008-2016 All Rights Reserved      #
 ############################################################################
 
-set PM(VER)	1.4.0
+set PM(VER)	1.5.1
 
 proc usage { } {
 
@@ -109,6 +109,33 @@ proc ftps { } {
 	return [lindex $PM(MDS,$DEFS(MOD)) 1]
 }
 
+proc reset_target_file_name { { defs 0 } } {
+
+	global DEFS IFN TFN
+
+	if $defs {
+		set tfn $DEFS(IFN)
+	} else {
+		set tfn $IFN
+	}
+
+	if { $tfn == "" } {
+		set tfn "Image_nnnn"
+	} else {
+		set tfn [file rootname $tfn]
+		if ![regexp -nocase "_nnnn" $tfn] {
+			append tfn "_nnnn"
+		}
+	}
+
+	set tfn "$tfn[suff]"
+
+	set DEFS(TFN) $tfn
+	if !$defs {
+		set TFN $tfn
+	}
+}
+
 proc reset_file_name_mode { } {
 #
 # Executed by setdefs and after a change of the file name mode (ihex/ELF) to
@@ -131,7 +158,7 @@ proc reset_file_name_mode { } {
 			if { $i == "IFN" } {
 				set DEFS($i) "Image[suff]"
 			} else {
-				set DEFS($i) "Image_nnnn[suff]"
+				reset_target_file_name 1
 			}
 		}
 		# check if the input image file is present
@@ -257,12 +284,14 @@ proc setdefs { } {
 
 	set PM(CFN) [file normalize $PM(CFN)]
 
-	foreach t { SRD TRD IFN TFN IDN PFX FRM CNT MOD } {
+	foreach t { SRD TRD IFN TFN IDN IDA APV PFX FRM CNT MOD } {
 		## SRD - source directory
 		## TRD - target directory
 		## IFN - input file name
 		## TFN - target file name (pattern)
-		## IDN - cookie
+		## IDN - cookie (hid)
+		## IDA - cookie (app)
+		## APV - application value
 		## PFX - target cookie replacement prefix
 		## FRM - starting counter value
 		## CNT - number of copies
@@ -310,7 +339,7 @@ proc setdefs { } {
 	}
 
 	if { [verify_idn $DEFS(PFX) 4] == "" } {
-		set DEFS(PFX) "BACA"
+		set DEFS(PFX) "0000"
 	}
 
 	if { [verify_pnm $DEFS(FRM)] == "" } {
@@ -319,6 +348,15 @@ proc setdefs { } {
 
 	if { [verify_pnm $DEFS(CNT)] == "" } {
 		set DEFS(CNT) 1
+	}
+
+	if { [verify_idn $DEFS(IDA) 8] == "" } {
+		set DEFS(IDA) "BACADEAF"
+	}
+
+	if { [verify_idn $DEFS(APV) 8] == "" } {
+		# null legal and means disable
+		set DEFS(APV) ""
 	}
 }
 
@@ -413,7 +451,7 @@ proc checksum { s } {
 	while { $s != "" } {
 		set b [string range $s 0 1]
 		set s [string range $s 2 end]
-		if [catch { expr 0x$b + $sum } sum] {
+		if [catch { expr { "0x$b" + $sum } } sum] {
 			return ""
 		}
 	}
@@ -521,6 +559,7 @@ proc locate_id_IHEX { im idn } {
 #
 	set cn -1
 	set ix -1
+	set il [string length $idn]
 	foreach ch $im {
 		incr ix
 		if { [lindex $ch 1] != 0 } {
@@ -528,23 +567,26 @@ proc locate_id_IHEX { im idn } {
 			continue
 		}
 		set chunk [lindex $ch 2]
-		set loc [string first $idn $chunk] 
-		if { $loc < 0 } {
-			lappend new $ch
-			continue
+		set cl [expr { [string length $chunk] - $il }]
+		for { set iy 0 } { $iy <= $cl } { incr iy 2 } {
+			if { [string range $chunk $iy [expr { $iy + $il - 1 }]]
+			    == $idn } {
+				if { $cn >= 0 } {
+					# duplicate
+					return "!1"
+				}
+				set cn $ix
+				set po $iy
+				set ad [expr { [lindex $ch 0] + ($iy >> 1) }]
+			}
 		}
-		if { $cn >= 0 || [string last $idn $chunk] != $loc } {
-			error "Image error, multiple occurrences of the cookie!"
-		}
-		set cn $ix
-		set po $loc
 	}
 
 	if { $cn < 0 } {
-		error "Cookie not found in the image file!"
+		return "!0"
 	}
 
-	return [list $cn $po]
+	return [list $cn $po $ad [expr { $il >> 1 }]]
 }
 
 proc modify_image_IHEX { im org s } {
@@ -604,6 +646,63 @@ proc write_image_IHEX { im fn } {
 	catch { close $fd }
 }
 
+proc compare_images_IHEX { org der mks } {
+
+	foreach img [list $org $der] b { "O" "D" } {
+		# build byte images: O - original, D - derived
+		foreach chk $img {
+			lassign $chk ad tp chunk
+			if { $tp != 0 } {
+				# not a "data" record
+				continue
+			}
+			set cl [string length $chunk]
+			for { set i 0 } { $i < $cl } { incr i 2 } {
+				set by [string range $chunk $i \
+					[expr { $i + 1 }]]
+				set ${b}($ad) $by
+				incr ad
+			}
+		}
+	}
+
+	# extract the list of replacements
+	set res ""
+	foreach m $mks {
+		lassign $m cn po ad il
+		set pb ""
+		for { set i 0 } { $i < $il } { incr i } {
+			if ![info exists O($ad)] {
+				# impossible
+				return ""
+			}
+			if ![info exists D($ad)] {
+				return ""
+			}
+			set pb "$D($ad)$pb"
+			# make them look same
+			set D($ad) $O($ad)
+			incr ad
+		}
+		lappend res $pb
+	}
+
+	# check if same now
+
+	foreach ad [array names D] {
+		if { ![info exists O($ad)] || $O($ad) != $D($ad) } {
+			return ""
+		}
+		unset O($ad)
+	}
+
+	if { [array names O] != "" } {
+		return ""
+	}
+
+	return $res
+}
+
 ###############################################################################
 # ELF file processing #########################################################
 ###############################################################################
@@ -637,18 +736,19 @@ proc locate_id_ELF { im idn } {
 	# first location
 	set loc [string first $idb $im]
 	if { $loc < 0 } {
-		error "Cookie not found in the image file!"
+		return "!0"
 	}
 	if { [string last $idb $im] != $loc } {
-		error "Image error, multiple occurrences of the cookie!"
+		return "!1"
 	}
-	return $loc
+	return [list $loc [string length $idb]]
 }
 	
 proc modify_image_ELF { im org s } {
 #
 # Substitute the new string in the image
 #
+	set org [lindex $org 0]
 	set s [idn_to_bin $s]
 	set len [string length $s]
 	return [string replace $im $org [expr $org + $len - 1] $s]
@@ -663,6 +763,40 @@ proc write_image_ELF { im fn } {
 	fconfigure $fd -encoding binary -translation binary
 	puts -nonewline $fd $im
 	catch { close $fd }
+}
+
+proc compare_images_ELF { org der mks } {
+
+	set ll [string length $org]
+
+	if { $ll != [string length $der] } {
+		return ""
+	}
+
+	set res ""
+	foreach m $mks {
+		lassign $m ad il
+		set pb ""
+		for { set i 0 } { $i < $il } { incr i } {
+			set bo [string index $org $ad]
+			if { $bo == "" } {
+				# impossible
+				return ""
+			}
+			binary scan [string index $der $ad] H2 w
+			set pb "[string toupper $w]$pb"
+			set der [string replace $der $ad $ad $bo]
+			incr ad
+		}
+		lappend res $pb
+	}
+
+	# check if same now
+	if { $org != $der } {
+		return ""
+	}
+
+	return $res
 }
 
 ###############################################################################
@@ -695,17 +829,16 @@ proc mkfname { ofn s } {
 	foreach q $s {
 		set t "${q}$t"
 	}
-	set rfn "[file rootname $ofn]"
-
-	regsub -nocase "_\[a-z0-9.\]*$" $rfn "" rfn
 
 	append t "_[format %05u [expr 0x$t & 0x0000ffff]]"
 
-	if { $rfn == $ofn } {
-		return "${rfn}_$t"
+	set rfn "[file rootname $ofn]"
+
+	if ![regsub -nocase "_nnnn" $rfn "_$t" rfn] {
+		append rfn "_$t"
 	}
 
-	return "${rfn}_$t[file extension $ofn]"
+	return "$rfn[file extension $ofn]"
 }
 
 ###############################################################################
@@ -850,6 +983,8 @@ proc change_ifn { } {
 	} else {
 		set IFN $fn
 	}
+
+	reset_target_file_name
 }
 
 proc change_trd { } {
@@ -860,6 +995,7 @@ proc change_trd { } {
 
 	set fn [tk_getSaveFile \
 		-initialdir $DEFS(TRD) \
+		-confirmoverwrite 0 \
 		-initialfile $DEFS(TFN) \
 		-title "Target files"]
 
@@ -877,55 +1013,87 @@ proc change_trd { } {
 	}
 }
 
+proc validate_common { } {
+#
+# Validate parameters (common for generate and compare)
+#
+	global TFN IFN DEFS
+
+	if { $IFN == "" } {
+		error "Input file has not been specified!"
+	}
+
+	if { $TFN == "" } {
+		error "Destination file(s) unknown!"
+	}
+
+	set idn [verify_idn $DEFS(IDN) 8]
+	if { $idn == "" } {
+		error "Illegal HID cookie, must be an 8-digit hex number!"
+	}
+
+	set pfx [verify_idn $DEFS(PFX) 4]
+	if { $pfx == "" } {
+		error "Illegal NetID, must be a 4-digit hex number!"
+	}
+
+	set apv [string trim $DEFS(APV)]
+	if { $apv == "" } {
+		set DEFS(APV) ""
+		set ida ""
+	} else {
+		# validate
+		set ida [verify_idn $DEFS(IDA) 8]
+		if { $ida == "" } {
+			error "Illegal APP cookie,\
+				must be an 8-digit hex number!"
+		}
+		set apv [verify_idn $apv 8]
+		if { $apv == "" } {
+			error "Illegal APP value,\
+				must be an 8-digit hex number!"
+		}
+	}
+
+	return [list $idn $pfx $ida $apv]
+}
+
 proc generate { } {
 #
 # Do it
 # 
 	global TFN IFN DEFS EWAIT
 
-	if { $IFN == "" } {
-		alert "Input file has not been specified!"
+	if [catch { validate_common } res] {
+		alert $res
 		return
 	}
 
-	if { $TFN == "" } {
-		alert "Destination file(s) unknown!"
-		return
-	}
+	lassign $res idn pfx ida apv
 
 	set str [verify_pnm $DEFS(FRM)]
 	if { $str == "" } {
-		alert "The FROM number is illegal, must be something integer\
+		alert "\"From\" is illegal, must be something integer\
 			greater than zero and less than 65536!"
 		return
 	}
 
 	set cnt [verify_pnm $DEFS(CNT)]
 	if { $cnt == "" } {
-		alert "The COUNT is illegal, must be something integer\
+		alert "\"How many\" is illegal, must be something integer\
 			greater than zero and less than 65536!"
 		return
 	}
 
 	if { [expr $str + $cnt] > 65536 } {
-		alert "FROM + COUNT is greater than 65536, which is illegal,\
-			as the maximum node number is 65535!"
+		alert "\"From\" + \"How many\" is greater than 65536,\
+			which is illegal, as the maximum node Id is 65535!"
 		return
 	}
 
-	set idn [verify_idn $DEFS(IDN) 8]
-	if { $idn == "" } {
-		alert "The cookie is illegal, must be an 8-digit hex number!"
-		return
-	}
+	set mo $DEFS(MOD)
 
-	set pfx [verify_idn $DEFS(PFX) 4]
-	if { $pfx == "" } {
-		alert "The prefix is illegal, must be a 4-digit hex number!"
-		return
-	}
-
-	if [catch { read_source_$DEFS(MOD) $IFN } image] {
+	if [catch { read_source_$mo $IFN } image] {
 		alert $image
 		return
 	}
@@ -938,9 +1106,32 @@ proc generate { } {
 		return
 	}
 
-	if [catch { locate_id_$DEFS(MOD) $image [join $idn ""] } org] {
-		alert $org
+	set orgh [locate_id_$mo $image [join $idn ""]]
+
+	if { $orgh == "!0" } {
+		alert "HID cookie not found in image!"
 		return
+	}
+
+	if { $orgh == "!1" } {
+		alert "Multiple HID cookies found in image!"
+		return
+	}
+
+	if { $ida != "" } {
+		set orga [locate_id_$mo $image [join $ida ""]]
+		if { $orga == "!0" } {
+			alert "APP cookie not found in image!"
+			return
+		}
+		if { $orga == "!1" } {
+			alert "Multiple APP cookies found in image!"
+			return
+		}
+		# this only happens once
+		set image [modify_image_$mo $image $orga [join $apv ""]]
+	} else {
+		set orga ""
 	}
 
 	disable_go
@@ -961,10 +1152,9 @@ proc generate { } {
 			break
 		}
 
-		set image [modify_image_$DEFS(MOD) $image $org [join $frm ""]]
-
+		set image [modify_image_$mo $image $orgh [join $frm ""]]
 		set nfn [mkfname $TFN $frm]
-		if [catch { write_image_$DEFS(MOD) $image $nfn } err] {
+		if [catch { write_image_$mo $image $nfn } err] {
 			cancel_gen
 			alert "Cannot write to $nfn: $err!"
 			enable_go
@@ -983,6 +1173,76 @@ proc generate { } {
 	}
 }
 
+proc compare { } {
+#
+# Compare the images
+#
+	global TFN IFN DEFS
+
+	if [catch { validate_common } res] {
+		alert $res
+		return
+	}
+
+	lassign $res idn pfx ida apv
+
+	set mo $DEFS(MOD)
+
+	set pl ""
+
+	if [catch { read_source_$mo $IFN } image] {
+		alert $image
+		return
+	}
+
+	if [catch { read_source_$mo $TFN } imagf] {
+		alert $imagf
+		return
+	}
+
+	set orgh [locate_id_$mo $image [join $idn ""]]
+
+	if { $orgh == "!0" } {
+		alert "HID cookie not found in image!"
+		return
+	}
+
+	if { $orgh == "!1" } {
+		alert "Multiple HID cookies found in image!"
+		return
+	}
+
+	lappend pl $orgh
+
+	if { $ida != "" } {
+		set orga [locate_id_$mo $image [join $ida ""]]
+		if { $orga == "!0" } {
+			alert "APP cookie not found in image!"
+			return
+		}
+		if { $orga == "!1" } {
+			alert "Multiple APP cookies found in image!"
+			return
+		}
+		lappend pl $orga
+	}
+
+	set res [compare_images_$mo $image $imagf $pl]
+
+	if { $res == "" } {
+		alert "The images are unrelated!"
+		return
+	}
+
+	set msg "HID = [lindex $res 0]"
+	set orga [lindex $res 1]
+
+	if { $orga != "" } {
+		append msg ", APV = $orga"
+	}
+
+	alert $msg
+}
 
 ###############################################################################
 
@@ -1004,25 +1264,44 @@ pack .fls -side top -expand 1 -fill x
 
 set w ".fls"
 
-label $w.ifl -text "Input file:"
-grid $w.ifl -column 0 -row 0 -sticky w -padx 4
+label $w.ftl -text "Type:"
+grid $w.ftl -column 0 -row 0 -sticky w -padx 4
 
-entry $w.ifn -width 58 -textvariable IFN
-grid $w.ifn -column 1 -row 0 -sticky we -padx 4 
+menubutton $w.men -text $DEFS(MOD) -direction right -menu $w.men.m \
+	-relief raised
 
-button $w.ifb -text "Change" -command "change_ifn"
-grid $w.ifb -column 2 -row 0 -sticky w -padx 4
+grid $w.men -column 1 -row 0 -sticky w -padx 4
+
+menu $w.men.m -tearoff 0
+set n 0
+foreach t $PM(MDS) {
+	$w.men.m add command -label $t -command "click_file_mode $w.men $n"
+	incr n
+}
 
 ##
 
-label $w.odl -text "Output file(s): "
-grid $w.odl -column 0 -row 1 -sticky w -padx 4
+label $w.ifl -text "Input:"
+grid $w.ifl -column 0 -row 1 -sticky w -padx 4
+
+entry $w.ifn -width 58 -textvariable IFN
+grid $w.ifn -column 1 -row 1 -sticky we -padx 4 
+
+button $w.ifb -text "Change" -command "change_ifn"
+grid $w.ifb -column 2 -row 1 -sticky w -padx 4
+
+##
+
+label $w.odl -text "Output: "
+grid $w.odl -column 0 -row 2 -sticky w -padx 4
 
 entry $w.odn -width 58 -textvariable TFN
-grid $w.odn -column 1 -row 1 -sticky we -padx 4
+grid $w.odn -column 1 -row 2 -sticky we -padx 4
 
 button $w.odb -text "Change" -command "change_trd"
-grid $w.odb -column 2 -row 1 -sticky w -padx 4
+grid $w.odb -column 2 -row 2 -sticky w -padx 4
+
+bind $w.odb <ButtonRelease-3> reset_target_file_name
 
 ##
 
@@ -1035,24 +1314,13 @@ pack .sel -side top -fill x
 
 ##
 
-labelframe .sel.mo -text "File type" -padx 4 -pady 4
-pack .sel.mo -side left -expand 0 -fill both
+labelframe .sel.co -text "HID Cookie" -padx 4 -pady 4
+pack .sel.co -side left -expand 0 -fill both
 
 ##
 
-set w ".sel.mo"
-label $w.sel -text "Select: "
-pack $w.sel -side left -expand 0 -padx 4
-
-menubutton $w.men -text $DEFS(MOD) -direction right -menu $w.men.m \
-	-relief raised
-pack $w.men -side left -expand 0
-menu $w.men.m -tearoff 0
-set n 0
-foreach t $PM(MDS) {
-	$w.men.m add command -label $t -command "click_file_mode $w.men $n"
-	incr n
-}
+labelframe .sel.pr -text "NetId" -padx 4 -pady 4
+pack .sel.pr -side left -expand 0 -fill both
 
 ##
 
@@ -1084,11 +1352,6 @@ pack $w.cnn -side left -expand 0 -padx 4
 
 ##
 
-labelframe .sel.co -text "Cookie" -padx 4 -pady 4
-pack .sel.co -side left -expand 0 -fill both
-
-##
-
 set w ".sel.co"
 
 entry $w.co -width 10 -textvariable DEFS(IDN)
@@ -1096,15 +1359,34 @@ pack $w.co -side top -padx 4
 
 ##
 
-labelframe .sel.pr -text "Prefix" -padx 4 -pady 4
-pack .sel.pr -side left -expand 0 -fill both
-
-##
-
 set w ".sel.pr"
 
 entry $w.pr -width 5 -textvariable DEFS(PFX)
 pack $w.pr -side top -padx 4
+
+##
+
+labelframe .sel.cp -text "APP Cookie" -padx 4 -pady 4
+pack .sel.cp -side left -expand 0 -fill both
+
+##
+
+set w ".sel.cp"
+
+entry $w.co -width 10 -textvariable DEFS(IDA)
+pack $w.co -side top -padx 4
+
+##
+
+labelframe .sel.av -text "APP Value" -padx 4 -pady 4
+pack .sel.av -side left -expand 0 -fill both
+
+##
+
+set w ".sel.av"
+
+entry $w.co -width 10 -textvariable DEFS(APV)
+pack $w.co -side top -padx 4
 
 ##
 
@@ -1117,6 +1399,9 @@ set w ".act"
 
 button $w.run -text "Generate" -command "generate"
 pack $w.run -side left -padx 4
+
+button $w.cmp -text "Compare" -command "compare"
+pack $w.cmp -side left -padx 4
 
 set GOBUT "$w.run"
 

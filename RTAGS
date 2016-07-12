@@ -839,3 +839,19 @@ PG160704A:
 	Added an option to VUEE config to direct the simulator's output to a
 	file, which is convenient, e.g., when the simulator is producing large
 	volumes of trace data.
+
+PG160712A:
+
+	Modified genimage: 1) a new interpretation of the HID cookie; 2) added
+	a new (APP) cookie; 3) added the Compare button.
+
+	Note that when the Value field of the APP cookie is NULL, the cookie
+	is disabled (the compatibility mode).
+
+	For comparison, put the file name of the second (derived) image into
+	the target field and hit Compare. If the files are compatible, the
+	script will show you the cookie values in the derived image. If not,
+	it will say that the files are "unrelated".
+
+	A right click on the target Change button shortcuts ("normalizes") the
+	target file name to the source file name (handy for Generate).
