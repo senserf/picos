@@ -13,10 +13,9 @@
 
 	tarp_cyclingSeq = 0;
 
-	// These defaults will be reset by the praxis
-	_da (net_id)	 	= (word) preinit ("NID");
+	_da (net_id) = _da (master_host) = 
+		(word) ((lword) preinit ("HID") >> 16);
 	_da (local_host) 	= (word)((lword) preinit ("HID"));
-	_da (master_host)	= (word) preinit ("MHOST");
 
 #if TARP_CACHES_MALLOCED
 

@@ -29,9 +29,10 @@ word _da (tarp_pxopts) = TARP_DEF_PXOPTS;
 
 __STATIC word tarp_cyclingSeq = 0;
 
-nid_t	_da (net_id) = 85;
-nid_t	_da (local_host) = 97;
-nid_t   _da (master_host) = 1;
+// explicit constants needed, apps will overwrite with derivatives of host_id
+nid_t	_da (net_id) = 0xAA;
+nid_t	_da (master_host) = 0xAA; 
+nid_t	_da (local_host) = 0xBB;
 
 #endif	/* SMURPH or PicOS */
 

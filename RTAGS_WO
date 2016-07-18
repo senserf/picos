@@ -810,4 +810,10 @@ WO160614A:
  - alphatest.xml is modified to include AP331 nodes 701, 702, 703, next to their AP320 siblings. The 'loop alarm' can be triggered by pushing button '1' (it is #2 in the data) or moving 'sensor 1' (reported as #2) slider. (The sensor is added to node.xml in ALPHANET_AP331_PANIC board definition.)
  
  - SYSVER_min is nicked 7 -> 8, as OSSI format changed and a new node type appeared. I don't think 1.7 and 1.8 can coexist in a network, even if they shouldn't crash.
- 
+
+WO160718A:
+ Locaspot 1.81: trivial changes to set default NID and MHOST to MSW of HID:
+ LibComms, locaspot (incl. all .xml, where BACA001 changed to BACABACA).
+ NO multiple masters (per NID), no NVM. The reason: this change satisfies
+ AT requests and I have doubts if we're going the right way with genihex-based
+ customization other than setting defaults MID=NID=HID>>16 and LH = (word)HID. 
