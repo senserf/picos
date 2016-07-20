@@ -4804,3 +4804,7 @@ PG160707A:
 
 	Fixed (well, circumvented) the problem with AP331 (ALPHANET_AP331_PANIC)
 	where BMA250 is erroneously crosswired with AS3932.
+
+PG160721A:
+
+	The first (sort of) working version of the CC2420 driver.

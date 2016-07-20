@@ -96,6 +96,10 @@
 #define	CC1100 			0
 #endif
 
+#ifndef	CC2420
+#define	CC2420			0
+#endif
+
 #ifndef	DM2200
 #define	DM2200 			0
 #endif
@@ -531,6 +535,7 @@
 #define INFO_PHYS_CC1000        0x0400  /* CC1000 radio */
 #define	INFO_PHYS_DM2100	0x0500	/* DM2100 */
 #define	INFO_PHYS_CC1100	0x0600	/* CC1100 */
+#define	INFO_PHYS_CC2420	0x0610	/* CC2420 */
 #define	INFO_PHYS_DM2200	0x0700  /* VERSA 2 */
 #define	INFO_PHYS_RF24L01	0x0800
 #define	INFO_PHYS_CC3000	0x0201

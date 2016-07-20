@@ -43,7 +43,7 @@ fsm root {
 			
 		my_led = (led_status_t*)umalloc (sizeof (led_status_t));
 		my_led -> led = 1;
-		blink (my_led, NO);
+		blink (my_led, YES);
 		runfsm blinker (my_led);
 
 	state INPUT:

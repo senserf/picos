@@ -1,0 +1,114 @@
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
+
+// Directions as viewed by the uC
+
+// P1:
+//	0 - RF FIFOP IN
+//	1 - UART1TX (cross, must be input, ignore otherwise)
+//	2 - FLASH_W OUT (write protect)
+//	3 - RF FIFO IN
+//	4 - RF CCA IN
+//	5 - SHT11 SDA IN
+//	6 - SHT11 CLK OUT
+//	7 - SHT11 POWER OUT
+				// 1100 0100
+#define	PIN_DEFAULT_P1DIR	0xC4
+#define	PIN_DEFAULT_P1OUT	0x00
+
+// P2:
+//	0 - CHARGER STATUS IN [ pulled up 100K ]
+//	1 - NC
+//	2 - UART1RX (cross, must be IN)
+//	3 - NC
+//	4 - SERIAL ID can be open (IN) [ pulled up ]
+//	5 - NC
+//	6 - NC
+//	7 - USB Vcc/3V IN
+				// 0110 1010
+#define	PIN_DEFAULT_P2DIR	0x6A
+#define	PIN_DEFAULT_P2OUT	0x00
+
+// P3:
+//	0 - NC
+//	1 - RF SI OUT
+//	2 - RF SO IN
+//	3 - RF CLK OUT
+//	4 - NC
+//	5 - NC
+//	6 - UART1TX
+//	7 - UART1RX
+				// 0101 1011
+#define	PIN_DEFAULT_P3DIR	0x5B
+#define	PIN_DEFAULT_P3OUT	0x00
+
+// P4:
+//	0 - NC
+//	1 - RF SFD IN
+//	2 - RF CS OUT
+//	3 - NC
+//	4 - FLASH CS OUT [ def high ]
+//	5 - RF VRGEN_EN OUT [ pulled down 500K ]
+//	6 - RF RESET OUT [ active low, pulled up 500K ]
+//	7 - FLASH HOLD OUT [ def high ? ]
+
+				// 1111 1101
+#define	PIN_DEFAULT_P4DIR	0xFD
+#define	PIN_DEFAULT_P4OUT	0xB4
+
+// P5:
+//	0 - NC
+//	1 - NC
+//	2 - NC
+//	3 - NC
+//	4 - LED1 (active high) Y
+//	5 - LED2 R
+//	6 - LED3 G
+//	7 - NC
+				// 1111 1111
+#define	PIN_DEFAULT_P5DIR	0xFF
+#define	PIN_DEFAULT_P5OUT	0x00
+
+// P6:
+//	CONNECTOR
+#define	PIN_DEFAULT_P6DIR	0xFF
+#define	PIN_DEFAULT_P6OUT	0x00
+
+
+// ============================================================================
+
+#define	PIN_LIST	{	\
+	PIN_DEF	(P6, 0),	\
+	PIN_DEF	(P6, 1),	\
+	PIN_DEF	(P6, 2),	\
+	PIN_DEF	(P6, 3),	\
+	PIN_DEF	(P6, 4),	\
+	PIN_DEF	(P6, 5),	\
+	PIN_DEF	(P6, 6),	\
+	PIN_DEF	(P6, 7),	\
+}
+
+#define	PIN_MAX			8	// Number of pins
+#define	PIN_MAX_ANALOG		8	// Number of available analog pins
+#define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
+
+
+// ============================================================================
+#if 1
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR		\
+	}
+#define	SENSOR_ANALOG
+#define	N_HIDDEN_SENSORS	2
+
+#endif
+
+// ============================================================================
+

@@ -76,6 +76,10 @@ heapmem {10, 90};
 #include "phys_rf24l01.h"
 #endif
 
+#if CC2420
+#include "phys_cc2420.h"
+#endif
+
 #include "plug_null.h"
 
 #if ENCRYPT
@@ -155,9 +159,9 @@ fsm receiver {
 
 #if UART_DRIVER
 
-#if     CC1000 || DM2100 || CC1100 || DM2200
+#if     CC1000 || DM2100 || CC1100 || DM2200 || CC2420
 
-	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %u), pow = %u qua = %u\r\n",
+	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %u), pow = %u qua = %x\r\n",
 		packet [1],
 		last_rcv, tcv_left (packet) - 2,
 #if LITTLE_ENDIAN
@@ -297,7 +301,8 @@ fsm sender {
   entry SN_NEXT_1:
 
 #if UART_DRIVER
-	ser_outf (SN_NEXT_1, "SND %lu, len = %u\r\n", last_snt, packet_length);
+	// packet_length is useful info (payload)
+	ser_outf (SN_NEXT_1, "SND: %lu, len = %u\r\n", last_snt, packet_length);
 #endif
 	lcd_update ();
 	proceed (SN_SEND);
@@ -350,7 +355,7 @@ fsm root {
 #endif
 #endif
 
-#if CC1000 || CC1100
+#if CC1000 || CC1100 || CC2420
 	const word parm_power = 255;
 #endif
 
@@ -365,7 +370,7 @@ fsm root {
 	ibuf [0] = 0xff;
 #endif
 
-#if 0
+#if 1
 	ibuf [0] = 0;
 #endif
 
@@ -386,6 +391,10 @@ fsm root {
 	phys_cc1100 (0, MAXPLEN);
 #endif
 
+#if CC2420
+	phys_cc2420 (0, MAXPLEN);
+#endif
+
 #if RF24G
 	phys_rf24g (0, 5, 2);
 #endif
@@ -401,7 +410,7 @@ fsm root {
 		halt ();
 	}
 
-#if CC1000 || CC1100
+#if CC1000 || CC1100 || CC2420
 	tcv_control (sfd, PHYSOPT_SETPOWER, (address) &parm_power);
 #endif
 
