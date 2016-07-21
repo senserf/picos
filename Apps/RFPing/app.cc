@@ -159,23 +159,26 @@ fsm receiver {
 
 #if UART_DRIVER
 
+	if (maxfree (0, NULL) >= 256) {
 #if     CC1000 || DM2100 || CC1100 || DM2200 || CC2420
 
-	ser_outf (RC_DATA, "RCV: [%x] %lu (len = %u), pow = %u qua = %x\r\n",
-		packet [1],
-		last_rcv, tcv_left (packet) - 2,
+		ser_outf (RC_DATA,
+			"RCV: [%x] %lu (len = %u), pow = %u qua = %x\r\n",
+			packet [1],
+			last_rcv, tcv_left (packet) - 2,
 #if LITTLE_ENDIAN
-		((byte*)packet) [tcv_left (packet) - 1],
-		((byte*)packet) [tcv_left (packet) - 2]
+			((byte*)packet) [tcv_left (packet) - 1],
+			((byte*)packet) [tcv_left (packet) - 2]
 #else
-		((byte*)packet) [tcv_left (packet) - 2],
-		((byte*)packet) [tcv_left (packet) - 1]
+			((byte*)packet) [tcv_left (packet) - 2],
+			((byte*)packet) [tcv_left (packet) - 1]
 #endif
-	);
+		);
 #else
-	ser_outf (RC_DATA, "RCV: %lu (len = %u)\r\n", last_rcv,
-		tcv_left (packet) - 2);
+		ser_outf (RC_DATA, "RCV: %lu (len = %u)\r\n", last_rcv,
+			tcv_left (packet) - 2);
 #endif
+	}
 #endif
 	tcv_endp (packet);
 
@@ -201,10 +204,11 @@ fsm receiver {
   entry RC_ACK:
 
 #if UART_DRIVER
-	ser_outf (RC_ACK, "ACK: %lu (len = %u)\r\n", last_ack,
-		tcv_left (packet));
+	if (maxfree (0, NULL) >= 128) {
+		ser_outf (RC_ACK, "ACK: %lu (len = %u)\r\n", last_ack,
+			tcv_left (packet));
+	}
 #endif
-
 	tcv_endp (packet);
 	trigger (&last_ack);
 	lcd_update ();
@@ -301,8 +305,11 @@ fsm sender {
   entry SN_NEXT_1:
 
 #if UART_DRIVER
-	// packet_length is useful info (payload)
-	ser_outf (SN_NEXT_1, "SND: %lu, len = %u\r\n", last_snt, packet_length);
+	if (maxfree (0, NULL) >= 128) {
+		// packet_length is useful info (payload)
+		ser_outf (SN_NEXT_1, "SND: %lu, len = %u\r\n",
+			last_snt, packet_length);
+	}
 #endif
 	lcd_update ();
 	proceed (SN_SEND);

@@ -22,6 +22,9 @@ int cc1000_init (word plug);
 #if CC1100
 int cc1100_init (word plug);
 #endif
+#if CC2420
+int cc2420_init (word plug);
+#endif
 #if DM2200
 int dm2200_init (word plug);
 #endif

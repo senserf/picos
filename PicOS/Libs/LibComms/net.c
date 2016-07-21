@@ -26,6 +26,10 @@
 #include "phys_cc1100.h"
 #endif
 
+#if CC2420
+#include "phys_cc2420.h"
+#endif
+
 #if DM2200
 #include "phys_dm2200.h"
 #endif
@@ -96,6 +100,10 @@ static int cc1000_init (word);
 static int cc1100_init (word);
 #endif
 
+#if CC2420
+static int cc2420_init (word);
+#endif
+
 #if DM2200
 static int dm2200_init (word);
 #endif
@@ -133,6 +141,10 @@ __PUBLF (PicOSNode, int, net_init) (word phys, word plug) {
 #if CC1100
 	case INFO_PHYS_CC1100:
 		return (net_fd = cc1100_init (plug));
+#endif
+#if CC2420
+	case INFO_PHYS_CC2420:
+		return (net_fd = cc2420_init (plug));
 #endif
 #if DM2200
 	case INFO_PHYS_DM2200:
@@ -186,6 +198,25 @@ __PRIVF (PicOSNode, int, cc1100_init) (word plug) {
 	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		dbg_2 (0x2000); // Cannot open cc1100
 		diag ("%s: Cannot open CC1100 if", myName);
+		return -1;
+	}
+	tcv_control (fd, PHYSOPT_TXON, NULL);
+	tcv_control (fd, PHYSOPT_RXON, NULL);
+	return fd;
+}
+#endif
+
+#if CC2420
+__PRIVF (PicOSNode, int, cc2420_init) (word plug) {
+	int fd;
+	phys_cc2420 (0, NET_MAXPLEN);
+	if (plug == INFO_PLUG_TARP)
+		tcv_plug (0, &plug_tarp);
+	else
+		tcv_plug (0, &plug_null);
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
+		dbg_2 (0x2000); // Cannot open cc2420
+		diag ("%s: Cannot open CC2420 if", myName);
 		return -1;
 	}
 	tcv_control (fd, PHYSOPT_TXON, NULL);
@@ -304,7 +335,7 @@ __PUBLF (PicOSNode, int, net_rx)
 		return 0;
 
 	if (rssi_ptr) {
-#if CC1100 || CC1000 || DM2200
+#if CC1100 || CC1000 || DM2200 || CC2420
 		*rssi_ptr = packet[(size >> 1) -1];
 #else
 		*rssi_ptr = 0;
@@ -341,6 +372,7 @@ __PUBLF (PicOSNode, int, net_rx)
 
 	case INFO_PHYS_CC1000:
 	case INFO_PHYS_CC1100: // sid, entropy, rssi
+	case INFO_PHYS_CC2420:
 	case INFO_PHYS_DM2200:
 		size -= 6;
 		if (size == 0 || size > NET_MAXPLEN) {
@@ -398,7 +430,7 @@ __PUBLF (PicOSNode, int, net_rx)
 #define ether_ptype			0x6007
 #define ether_len(len)		((62 >= ((len) + 15)) ? 62 : ((len) + 15))
 
-#if CC1100
+#if CC1100 || CC2420
 // 2 - station id, 2 - entropy, 2 - rssi, even
 #define radio_len(len)  (((len) + 6 +1) & 0xfffe)
 #else
@@ -451,6 +483,7 @@ application should decide if this is an error...
 #endif
 	  case INFO_PHYS_CC1000:
 	  case INFO_PHYS_CC1100:
+	  case INFO_PHYS_CC2420:
 	  case INFO_PHYS_DM2200:
 		packet = tcv_wnp (state, net_fd, radio_len(len));
 		if (packet == NULL) {

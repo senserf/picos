@@ -4808,3 +4808,15 @@ PG160707A:
 PG160721A:
 
 	The first (sort of) working version of the CC2420 driver.
+
+PG160721B:
+
+	Fixed what appears to have been an old race in __outserial.c (involving
+	events triggered by I/O interrupts from the UART) which only surfaced
+	under extreme traffic to the UART. With CC2420 (much quicker
+	transmissions than with CC1100), RFPing has demonstrated quite
+	blatantly the deadlock prone nature of the old serial operations for
+	the UART which insist on grabbing memory before proceeding.
+
+	Added hooks to LibComms and Netting Demo incorporating CC2420 (or so I
+	think). Netting Demo seems to work with my two (real) genomotes.
