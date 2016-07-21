@@ -546,6 +546,29 @@ __PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
 	phys_rfmodule_init (phy, mbs);
 }
 
+__PUBLF (PicOSNode, void, phys_cc2420) (int phy, int mbs) {
+/*
+ * phy  - interface number
+ * mbs  - maximum packet length (including checksum, must be divisible by 4)
+ */
+	rfm_intd_t *rf;
+
+	rf = TheNode->RFInt;
+
+	if (mbs < 6 || mbs > CC2420_MAXPLEN) {
+		if (mbs == 0)
+			mbs = CC2420_MAXPLEN;
+		else
+			syserror (EREQPAR, "phys_cc2420");
+	}
+
+	rbf = (address) memAlloc (mbs, (word) (mbs + 2));
+	if (rbf == NULL)
+		syserror (EMALLOC, "phys_cc2420");
+
+	phys_rfmodule_init (phy, mbs);
+}
+
 __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 /*
  * phy  - interface number

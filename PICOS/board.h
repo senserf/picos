@@ -310,6 +310,7 @@ station PicOSNode abstract {
 
 	void		_da (phys_dm2200) (int, int);
 	void		_da (phys_cc1100) (int, int);
+	void		_da (phys_cc2420) (int, int);
 	void		phys_rfmodule_init (int, int);
 	void		_da (phys_uart) (int, int, int);
 

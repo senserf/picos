@@ -1327,3 +1327,8 @@ PG160704A:	SIDE >= PG160704A, PICOS >= PG160704A
     causing that new node coordinates entered via a node's popup window were
     not conveyed to the simulator until the node was subsequently moved with
     the mouse.
+
+PG160721A:	PICOS >= PG160721B
+
+    Added CC2420 to the model. It is pretty equivalent to CC1100 except for
+    the larger maximum packet length.

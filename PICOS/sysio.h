@@ -39,6 +39,8 @@
 #define	CC1100_MAXPLEN		60
 #endif
 
+#define	CC2420_MAXPLEN		126
+
 // ----------------------------------------------------------------------- //
 // NOTE: this will be replaced in PicOS as an isolated fragment of sysio.h //
 // ----------------------------------------------------------------------- //

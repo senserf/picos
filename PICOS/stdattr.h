@@ -15,6 +15,7 @@
 
 #define	phys_dm2200	_dac (PicOSNode, phys_dm2200)
 #define	phys_cc1100	_dac (PicOSNode, phys_cc1100)
+#define	phys_cc2420	_dac (PicOSNode, phys_cc2420)
 #define	phys_uart	_dac (PicOSNode, phys_uart)
 
 #define	rnd()		toss (65536)
