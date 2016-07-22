@@ -4820,3 +4820,8 @@ PG160721B:
 
 	Added hooks to LibComms and Netting Demo incorporating CC2420 (or so I
 	think). Netting Demo seems to work with my two (real) genomotes.
+
+PG160722A:
+
+	The SHT11 sensor configured into the GENOMOTE board. This concludes my
+	little project of making GENOMOTE one of our supported devices.

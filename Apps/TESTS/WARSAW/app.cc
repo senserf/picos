@@ -13,7 +13,6 @@
 #include "iflash_sys.h"
 
 #define	MIN_PACKET_LENGTH	8
-#define	MAX_PACKET_LENGTH	60
 
 heapmem {10, 90};
 
@@ -22,8 +21,29 @@ heapmem {10, 90};
 #include "form.h"
 #include "storage.h"
 
+#if CC1100
 #include "phys_cc1100.h"
+#include "cc1100.h"
 #include "plug_null.h"
+#define	MAX_PACKET_LENGTH	CC1100_MAXPLEN
+#define	phys_radio(a,b)		phys_cc1100 (a, b)
+#define	RADIO_PRESENT
+#endif
+
+#if CC2420
+#include "phys_cc2420.h"
+#include "cc2420.h"
+#include "plug_null.h"
+#define	MAX_PACKET_LENGTH	CC2420_MAXPLEN
+#define	phys_radio(a,b)		phys_cc2420 (a, b)
+#define	RADIO_PRESENT
+#endif
+
+#ifndef	MAX_PACKET_LENGTH
+#define	MAX_PACKET_LENGTH	48
+#endif
+
+#define	MAX_PAYLOAD_LENGTH	(MAX_PACKET_LENGTH - 2)
 
 #include "pinopts.h"
 #include "hold.h"
@@ -37,7 +57,6 @@ heapmem {10, 90};
 #endif
 
 #define	IBUFLEN		132
-#define MAXPLEN		(MAX_PACKET_LENGTH + 2)
 
 #define	EEPROM_INCR	255
 
@@ -51,7 +70,7 @@ static char	*ibuf;
 static address	packet;
 static word	send_interval = 512;
 static word	plength_min = MIN_PACKET_LENGTH,
-		plength_max = MAX_PACKET_LENGTH;
+		plength_max = MAX_PAYLOAD_LENGTH;
 
 #ifdef RTC_TEST
 rtc_time_t dtime;
@@ -2100,9 +2119,10 @@ fsm root {
 	diag ("");
 	diag ("");
 
-#if CC1100
+#ifdef 	RADIO_PRESENT
+	// We have a radio
 	diag ("Radio ...");
-	phys_cc1100 (0, MAXPLEN);
+	phys_radio (0, MAX_PACKET_LENGTH);
 
 	tcv_plug (0, &plug_null);
 	sfd = tcv_open (NONE, 0, 0);
@@ -2254,15 +2274,15 @@ RS_Loop:		proceed RS_RCMD;
 			scan (ibuf + 1, "%d %d", &mn, &mx);
 			if (mn >= 0) {
 				if (mn < MIN_PACKET_LENGTH ||
-				    mn > MAX_PACKET_LENGTH)
+				    mn > MAX_PAYLOAD_LENGTH)
 					plength_min = MIN_PACKET_LENGTH;
 				else
 					plength_min = mn;
 			}
 			if (mx >= 0) {
 				if (mx < MIN_PACKET_LENGTH ||
-				    mx > MAX_PACKET_LENGTH)
-					plength_max = MAX_PACKET_LENGTH;
+				    mx > MAX_PAYLOAD_LENGTH)
+					plength_max = MAX_PAYLOAD_LENGTH;
 				else
 					plength_max = mx;
 			}

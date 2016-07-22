@@ -76,6 +76,18 @@
 #define	PIN_DEFAULT_P6DIR	0xFF
 #define	PIN_DEFAULT_P6OUT	0x00
 
+#include "sht_xx.h"
+
+// ?????
+#define	shtxx_ini_regs	_BIS (P1OUT, 0x80)
+#define	shtxx_dtup	_BIC (P1DIR, 0x20)
+#define	shtxx_dtdown	_BIS (P1DIR, 0x20)
+#define	shtxx_dtin	_BIC (P1DIR, 0x20)
+#define	shtxx_dtout	do { } while (0)
+#define	shtxx_data	(P1IN & 0x20)
+
+#define	shtxx_ckup	_BIS (P1OUT, 0x40)
+#define	shtxx_ckdown	_BIC (P1OUT, 0x40)
 
 // ============================================================================
 
@@ -102,11 +114,19 @@
 #include "sensors.h"
 
 #define	SENSOR_LIST { \
-		INTERNAL_TEMPERATURE_SENSOR,	\
-		INTERNAL_VOLTAGE_SENSOR		\
+		INTERNAL_TEMPERATURE_SENSOR,			\
+		INTERNAL_VOLTAGE_SENSOR,			\
+		DIGITAL_SENSOR (0, shtxx_init, shtxx_temp),	\
+		DIGITAL_SENSOR (0, NULL, shtxx_humid),		\
 	}
 #define	SENSOR_ANALOG
+#define	SENSOR_DIGITAL
+#define	SENSOR_INITIALIZERS
+
 #define	N_HIDDEN_SENSORS	2
+
+#define	SENSOR_TEMP	0
+#define	SENSOR_HUMID	1
 
 #endif
 
