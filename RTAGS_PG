@@ -4825,3 +4825,12 @@ PG160722A:
 
 	The SHT11 sensor configured into the GENOMOTE board. This concludes my
 	little project of making GENOMOTE one of our supported devices.
+
+PG160801A:
+
+	Added ALPHANET_AP441_BASE to BOARDS describing AP441 intended as a Peg
+	(master) variant for Alphanet.
+
+	A new VUEE network model in locaspot (simplified Annonciaden) matching
+	the example in my slides for the Lisbon presentation. I wanted to have
+	something to show just in case.
