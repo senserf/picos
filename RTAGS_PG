@@ -4834,3 +4834,8 @@ PG160801A:
 	A new VUEE network model in locaspot (simplified Annonciaden) matching
 	the example in my slides for the Lisbon presentation. I wanted to have
 	something to show just in case.
+
+PG160802A:
+
+	Fixed the AP441 board definition to set the default RS485 polarity to
+	"active high". The board now seems to work with locaspot.

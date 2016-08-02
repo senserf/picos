@@ -15,7 +15,8 @@
 // a macro available for that
 #define	PIN_DEFAULT_P1SEL	0x60
 #define	PIN_DEFAULT_P1DIR	0xDF
-#define	PIN_DEFAULT_P1OUT	0x00
+// Apparently, the switch must be high!
+#define	PIN_DEFAULT_P1OUT	0x80
 
 #define	rs485_set_active(d)	do { \
 				    if (d) \
