@@ -8,10 +8,17 @@
 #include "ser.h"
 #include "serf.h"
 #include "form.h"
-#include "phys_cc1100.h"
 #include "plug_null.h"
 
 #include "pins.h"
+
+#if CC1100
+#include "phys_cc1100.h"
+#endif
+
+#if CC2420
+#include "phys_cc2420.h"
+#endif
 
 #if defined(PIN_LIST) || defined (__SMURPH__)
 #define	PIN_OPERATIONS_INCLUDED
@@ -329,7 +336,12 @@ fsm root {
 
 	runfsm watchdog;
 
+#if CC1100
 	phys_cc1100 (0, MAXPLEN);
+#endif
+#if CC2420
+	phys_cc2420 (0, MAXPLEN);
+#endif
 	// WARNING: the SMURPH model assumes that the plugin is static, i.e.,
 	// all nodes use the same plugin. This is easy to change later, but
 	// ... for now ...

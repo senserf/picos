@@ -1,0 +1,63 @@
+#
+# August 12, 2016
+#
+
+deploy
+RTAGS_PG
+RTAGS_WO
+RTAGS
+
+Apps
+	cleanup
+	DataLib
+	EXAMPLES
+	PROPRIETARY
+		inProgress
+			netting_demo
+	RFPING_u
+	TESTS
+		SENSORS
+		WARSAW
+		RFTEST
+		CHRONOS
+Docs
+	*.pdf
+
+Linux
+	nullmodem.c
+	tty.setting*
+
+Scripts
+	cleanapp
+	gdbp_tiny.sh
+	genihex
+	mkmk
+	olimex_programmer.sh
+	oss.tcl
+	permissions
+	picomp
+	piter.tcl
+	usefetdll
+
+PicOS
+	*.c
+	*.h
+	kernel
+	MSP430
+		*.c
+		*.h
+		BOARDS
+			WARSAW
+			GENOMOTE
+			OLIMEX_CCRF
+			OLIMEX_CCRFLCD
+			CHRONOS
+			CHRONOS_WHITE
+			XCC430
+	Libs
+		Lib
+		LibComms
+		LibLCDG
+		LibXRS
+		LibOEP
+		LibOSS

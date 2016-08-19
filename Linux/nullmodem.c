@@ -6,7 +6,9 @@
 #include <unistd.h>
 #include <stdio.h>
 
-extern char *ptsname (int);
+char *ptsname (int);
+int grantpt (int);
+int unlockpt (int);
 
 int tty_setraw (int desc, int speed, int parity, int stopb) {
 

@@ -4839,3 +4839,7 @@ PG160802A:
 
 	Fixed the AP441 board definition to set the default RS485 polarity to
 	"active high". The board now seems to work with locaspot.
+
+PG160819A:
+
+	A new demo in locaspot, a few cleanups, a test app for AP331
