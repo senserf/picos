@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 0.73
+set ST(VER) 0.80
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -73,33 +73,27 @@ set STagsArgs "-l -i -t -v -h --"
 ## -s helps VUEE tags, because otherwise global functions don't seem to get
 ## tagged
 set VTagsArgs "-l -i -t -v -h -s --"
-set GdbLdCmd "gdbloader"
-set GdbLdUse "usefetdll"
 if { $ST(SYS) == "L" } {
-	# Only this works for now
-	set GdbLdPgm {
-			{ "FET430UIF" "tiusb" "" }
-		     }
-	## Only this one causes problems
-	set GdbLdPtk { "msp430-gdbproxy" }
-	set SIDENAME "side"
-	# default loader
+	# check for dolphin and nautilus with dolphin being preferred
+	set EXCmd [auto_execok "dolphin"]
+	if { $EXCmd == "" } {
+		set EXCmd [auto_execok "nautilus"]
+	}
+	# loaders
+	set CFLDNames { MSD GPR }
 	set DEFLOADR "MSD"
+	set SIDENAME "side"
 } else {
-	set GdbLdPgm {
-			{ "FET430UIF" "tiusb" "TIUSB" }
-			{ "Olimex-Tiny" "olimex" "TIUSB" }
-			{ "Generic" "original" "" }
-		     }
-	## Programs to kill (clean up) when gdbloader exits
-	set GdbLdPtk { "msp430-gdbproxy" "msp430-gdb" }
-	set SIDENAME "side.exe"
+	set EXCmd "explorer"
+	set CFLDNames { ELP MSD GPR }
 	set DEFLOADR "ELP"
+	set SIDENAME "side.exe"
 }
 
 set MspdLdDrv { "tilib"
 		"rf2500"
 		"uif"
+		"gdbc"
 		"olimex"
 		"olimex-v1"
 		"olimex-iso"
@@ -107,6 +101,12 @@ set MspdLdDrv { "tilib"
 		"sim"
 		"goodfet"
 		"pif"
+		"gpio"
+		"ezfet"
+		"uif-bsl"
+		"flash-bsl"
+		"load-bsl"
+		"rom-bsl"
 		"manual" }
 
 set PiterCmd "piter"
@@ -115,16 +115,6 @@ set GdbMCmd "msp430-gdb"
 set MspDCmd "mspdebug"
 set XTCmd "xterm"
 set SACmd "sa"
-if { $ST(SYS) == "L" } {
-	# check for dolphin and nautilus with dolphin being preferred
-	set EXCmd [auto_execok "dolphin"]
-	if { $EXCmd == "" } {
-		set EXCmd [auto_execok "nautilus"]
-	}
-} else {
-	# Windows
-	set EXCmd "explorer"
-}
 
 ## File types to be listed in the Files view:
 ## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
@@ -185,14 +175,10 @@ set CFVueeItems {
 			"EBRG"		""
 }
 
-## Names of the configurable loaders
-set CFLDNames { ELP MSD GPR MGD }
-
 ## Configuration data for loaders:
 ##	LDSEL		- loader selector
 ##	LDMSD...	- mspdebug (device, driver, GDB port, allow upgrade)
 ##	LDELP...	- Elprotronic Lite (program path)
-##	LDMGD...	- GDB + proxy (legacy, being retired)
 ##	LDGPR...	- general command-line program
 set CFLoadItems {
 			"LDSEL"		""
@@ -201,8 +187,6 @@ set CFLoadItems {
 			"LDMSDGDP"	"None"
 			"LDMSDAFU"	0
 			"LDELPPATH"	"Automatic"
-			"LDMGDDEV"	"Automatic"
-			"LDMGDARG"	"msp430"
 			"LDGPRPATH"	""
 			"LDGPRARG"	""
 		}
@@ -3918,13 +3902,8 @@ proc get_config { } {
 
 	foreach { k v } $pf {
 		if { $k == "" || ![dict exists $P(CO) $k] } {
-			if { $k == "UDDF" } {
-				# this one has been removed, just ignore
-				continue
-			}
-			alert "Illegal contents of config.prj ($v), file\
-				ignored"
-			return
+			# just ignore
+			continue
 		}
 		dict set D $k $v
 	}
@@ -4538,7 +4517,7 @@ proc do_loaders_config { } {
 
 proc mk_loaders_conf_window { } {
 
-	global P ST FFont GdbLdPgm MspdLdDrv DEFLOADR
+	global P ST FFont MspdLdDrv DEFLOADR CFLDNames
 
 	set w [md_window "Loader configuration"]
 
@@ -4548,141 +4527,112 @@ proc mk_loaders_conf_window { } {
 	}
 
 	## MSPDEBUG
+	if { [lsearch -exact $CFLDNames "MSD"] >= 0 } {
 
-	set f $w.f0
-	labelframe $f -text "MSPDebug" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
+		set f $w.f0
+		labelframe $f -text "MSPDebug" -padx 2 -pady 2
+		pack $f -side top -expand y -fill x
 
-	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "MSD"
-	pack $f.sel -side top -anchor "nw"
-	frame $f.f
-	pack $f.f -side top -expand y -fill x
-	label $f.f.l -text "FET device for MSPDebug: "
-	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "loaders_conf_msd_fsel 0"
-	pack $f.f.b -side right -expand n
-	button $f.f.a -text "Auto" -command "loaders_conf_msd_fsel 1"
-	pack $f.f.a -side right -expand n
-	label $f.f.f -textvariable P(M0,LDMSDDEV)
-	pack $f.f.f -side right -expand n
+		radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) \
+			-value "MSD"
+		pack $f.sel -side top -anchor "nw"
+		frame $f.f
+		pack $f.f -side top -expand y -fill x
+		label $f.f.l -text "FET device for MSPDebug: "
+		pack $f.f.l -side left -expand n
+		button $f.f.b -text "Select" -command "loaders_conf_msd_fsel 0"
+		pack $f.f.b -side right -expand n
+		button $f.f.a -text "Auto" -command "loaders_conf_msd_fsel 1"
+		pack $f.f.a -side right -expand n
+		label $f.f.f -textvariable P(M0,LDMSDDEV)
+		pack $f.f.f -side right -expand n
 	
-	frame $f.g
-	pack $f.g -side top -expand y -fill x
+		frame $f.g
+		pack $f.g -side top -expand y -fill x
 
-	label $f.g.l -text "Driver: "
-	pack $f.g.l -side left -expand n
+		label $f.g.l -text "Driver: "
+		pack $f.g.l -side left -expand n
 
-	# create the list of drivers
-	set pl $MspdLdDrv
-	if { [lsearch -exact $pl $P(M0,LDMSDDRV)] < 0 } {
-		set P(M0,LDMSDDRV) [lindex $pl 0]
+		# create the list of drivers
+		set pl $MspdLdDrv
+		if { [lsearch -exact $pl $P(M0,LDMSDDRV)] < 0 } {
+			set P(M0,LDMSDDRV) [lindex $pl 0]
+		}
+
+		eval "tk_optionMenu $f.g.e P(M0,LDMSDDRV) [split [join $pl]]"
+		pack $f.g.e -side right -expand n
+
+		frame $f.u
+		pack $f.u -side top -expand y -fill x
+
+		label $f.u.l -text "Allow firmware update: "
+		pack $f.u.l -side left -expand n
+
+		checkbutton $f.u.c -variable P(M0,LDMSDAFU)
+		pack $f.u.c -side right -expand n
+
+		frame $f.w
+		pack $f.w -side top -expand y -fill x
+	
+		label $f.w.l -text "GDB connection port: "
+		pack $f.w.l -side left -expand n
+
+		eval "tk_optionMenu $f.w.e P(M0,LDMSDGDP) None 2000 2001 2002 \
+			2003 3010 3011 3012 3100 3101 3102"
+		pack $f.w.e -side right -expand n
 	}
 
-	eval "tk_optionMenu $f.g.e P(M0,LDMSDDRV) [split [join $pl]]"
-	pack $f.g.e -side right -expand n
-
-	frame $f.u
-	pack $f.u -side top -expand y -fill x
-
-	label $f.u.l -text "Allow firmware update: "
-	pack $f.u.l -side left -expand n
-
-	checkbutton $f.u.c -variable P(M0,LDMSDAFU)
-	pack $f.u.c -side right -expand n
-
-	frame $f.w
-	pack $f.w -side top -expand y -fill x
-	
-	label $f.w.l -text "GDB connection port: "
-	pack $f.w.l -side left -expand n
-
-	eval "tk_optionMenu $f.w.e P(M0,LDMSDGDP) None 2000 2001 2002 2003 \
-		3010 3011 3012 3100 3101 3102"
-	pack $f.w.e -side right -expand n
-
 	## Elprotronic
-	set f $w.f1
-	labelframe $f -text "Elprotronic" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
-	##
-	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "ELP"
-	pack $f.sel -side top -anchor "nw"
-	##
-	frame $f.f
-	pack $f.f -side top -expand y -fill x
-	##
-	label $f.f.l -text "Path to the program's executable: "
-	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "loaders_conf_elp_fsel 0"
-	pack $f.f.b -side right -expand n
-	button $f.f.a -text "Auto" -command "loaders_conf_elp_fsel 1"
-	pack $f.f.a -side right -expand n
-	label $f.f.f -textvariable P(M0,LDELPPATH)
-	pack $f.f.f -side right -expand n
+	if { [lsearch -exact $CFLDNames "ELP"] >= 0 } {
 
-	## Command line
-	set f $w.f2
-	labelframe $f -text "Command line" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
-	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "GPR"
-	pack $f.sel -side top -anchor "nw"
-	##
-	frame $f.f
-	pack $f.f -side top -expand y -fill x
-	##
-	label $f.f.l -text "Path to the program: "
-	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "loaders_conf_gpr_fsel"
-	pack $f.f.b -side right -expand n
-	label $f.f.f -textvariable P(M0,LDGPRPATH)
-	pack $f.f.f -side right -expand n
-	##
-	frame $f.g
-	pack $f.g -side top -expand y -fill x
-	##
-	label $f.g.l -text "Arguments: "
-	pack $f.g.l -side left -expand n
-	entry $f.g.a -font $FFont -textvariable P(M0,LDGPRARG)
-	pack $f.g.a -side right -expand y -fill x
-
-	## MSP430GDB
-	set f $w.f3
-	labelframe $f -text "msp430-gdb" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
-	radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "MGD"
-	pack $f.sel -side top -anchor "nw"
-	frame $f.f
-	pack $f.f -side top -expand y -fill x
-
-	if { $ST(SYS) == "L" } {
-		label $f.f.l -text "FET device for msp430-gdbproxy: "
+		set f $w.f1
+		labelframe $f -text "Elprotronic" -padx 2 -pady 2
+		pack $f -side top -expand y -fill x
+		##
+		radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) \
+			-value "ELP"
+		pack $f.sel -side top -anchor "nw"
+		##
+		frame $f.f
+		pack $f.f -side top -expand y -fill x
+		##
+		label $f.f.l -text "Path to the program's executable: "
 		pack $f.f.l -side left -expand n
-		button $f.f.b -text "Select" -command "loaders_conf_mgd_fsel 0"
+		button $f.f.b -text "Select" -command "loaders_conf_elp_fsel 0"
 		pack $f.f.b -side right -expand n
-		button $f.f.a -text "Auto" -command "loaders_conf_mgd_fsel 1"
+		button $f.f.a -text "Auto" -command "loaders_conf_elp_fsel 1"
 		pack $f.f.a -side right -expand n
-		label $f.f.f -textvariable P(M0,LDMGDDEV)
+		label $f.f.f -textvariable P(M0,LDELPPATH)
 		pack $f.f.f -side right -expand n
 	}
 
-	frame $f.g
-	pack $f.g -side top -expand y -fill x
+	if { [lsearch -exact $CFLDNames "GPR"] >= 0 } {
 
-	label $f.g.l -text "Programmer: "
-	pack $f.g.l -side left -expand n
-
-	# create the list of programmers
-	set pl ""
-	foreach p $GdbLdPgm {
-		lappend pl [lindex $p 0]
+		## Command line
+		set f $w.f2
+		labelframe $f -text "Command line" -padx 2 -pady 2
+		pack $f -side top -expand y -fill x
+		radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) -value "GPR"
+		pack $f.sel -side top -anchor "nw"
+		##
+		frame $f.f
+		pack $f.f -side top -expand y -fill x
+		##
+		label $f.f.l -text "Path to the program: "
+		pack $f.f.l -side left -expand n
+		button $f.f.b -text "Select" -command "loaders_conf_gpr_fsel"
+		pack $f.f.b -side right -expand n
+		label $f.f.f -textvariable P(M0,LDGPRPATH)
+		pack $f.f.f -side right -expand n
+		##
+		frame $f.g
+		pack $f.g -side top -expand y -fill x
+		##
+		label $f.g.l -text "Arguments: "
+		pack $f.g.l -side left -expand n
+		entry $f.g.a -font $FFont -textvariable P(M0,LDGPRARG)
+		pack $f.g.a -side right -expand y -fill x
 	}
-
-	if { [lsearch -exact $pl $P(M0,LDMGDARG)] < 0 } {
-		set P(M0,LDMGDARG) [lindex $pl 0]
-	}
-
-	eval "tk_optionMenu $f.g.e P(M0,LDMGDARG) $pl"
-	pack $f.g.e -side right -expand n
 
 	## Buttons
 	set f $w.fb
@@ -4746,42 +4696,6 @@ proc loaders_conf_elp_fsel { auto } {
 
 	if { $fi != "" } {
 		set P(M0,LDELPPATH) $fi
-	}
-}
-
-proc loaders_conf_mgd_fsel { auto } {
-#
-# Select the path to mspgcc-gdb (gdb proxy) device
-#
-	global P ST
-
-	if { $ST(SYS) != "L" } {
-		# will never happen
-		alert "This attribute can only be configured on Linux"
-		return
-	}
-
-	if $auto {
-		set P(M0,LDMGDDEV) "Automatic"
-		return
-	}
-
-	set id "/dev"
-	if { $P(M0,LDMGDDEV) != "" && $P(M0,LDMGDDEV) != "Automatic" } {
-		set fp [file dirname $P(M0,LDMGDDEV)]
-		if [file isdirectory $fp] {
-			set id $fp
-		}
-	}
-
-	reset_all_menus 1
-	set fi [tk_getOpenFile \
-		-initialdir $id \
-		-parent $P(M0,WI)]
-	reset_all_menus
-
-	if { $fi != "" } {
-		set P(M0,LDMGDDEV) $fi
 	}
 }
 
@@ -7627,8 +7541,14 @@ proc upload_image { } {
 	# the loader
 	set ul [dict get $P(CO) "LDSEL"]
 
+	# check if legal (depends on the system)
+	if { $ul != "" && [lsearch -exact $CFLDNames $ul] < 0 } {
+		# use default
+		set ul ""
+	}
+
 	if { $ul == "" } {
-		# use the default
+		# use default
 		set ul $DEFLOADR
 		dict set P(CO) "LDSEL" $ul
 		set_config
@@ -7868,84 +7788,6 @@ proc upload_ELP { } {
 }
 
 ###############################################################################
-}
-###############################################################################
-
-proc upload_MGD { } {
-#
-# GDB + proxy
-#
-	global P TCMD GdbLdCmd ST GdbLdPgm GdbLdUse
-
-	set fl [glob -nocomplain "Image*"]
-
-	# check if there's at least one qualifying file
-	set fail 1
-	foreach f $fl {
-		if { [string first "." $f] < 0 } {
-			# yes
-			set fail 0
-			break
-		}
-	}
-
-	if $fail {
-		alert "No loadable (ELF) image file found"
-		return
-	}
-
-	set arg [dict get $P(CO) "LDMGDARG"]
-
-	# argument list
-	set al ""
-
-	if { $ST(SYS) == "L" } {
-		# device is only relevant on Linux
-		set dev [dict get $P(CO) "LDMGDDEV"]
-		if { $dev != "" && ![regexp -nocase "auto" $dev] } {
-			lappend al "-D"
-			lappend al $dev
-		}
-	}
-
-	set lib ""
-	foreach p $GdbLdPgm {
-		if { [lindex $p 0] == $arg } {
-			set lib [lindex $p 1]
-			set arg [lindex $p 2]
-			break
-		}
-	}
-
-	if { $lib == "" } {
-		alert "Programmer $arg is illegal, please reconfigure the\
-			loader"
-		return
-	}
-
-	# try to switch to the proper DLL set; will not work on Linux right
-	# away
-	catch { xq $GdbLdUse [list $lib] }
-
-	if { $arg != "" } {
-		set al [concat $al $arg]
-	}
-
-	set TCMD(FY) 1
-	bpcs_run $GdbLdCmd $al "FL"
-}
-
-proc kill_gdbproxy { } {
-#
-# For some reason, gdbproxy doesn't want to disappear, so we do it the
-# hard way; note: gdbloader has similar code, but it won't execute if we
-# kill the script
-#
-	global GdbLdPtk
-
-	foreach p $GdbLdPtk {
-		kill_proc_by_name $p
-	}
 }
 
 ###############################################################################
@@ -8339,9 +8181,6 @@ proc upload_action { start } {
 			# already handled
 			return
 		}
-		if { $TCMD(FL,LT) == "MGD" } {
-			kill_gdbproxy
-		}
 		if { $TCMD(FY) == 3 } {
 			# need to kill two processes; prevent the second copy
 			# of upload_action from running
@@ -8538,7 +8377,7 @@ proc mk_run_pgm_window { } {
 	labelframe $f -text "Command to run" -padx 2 -pady 2
 	pack $f -side top -expand n -fill x
 
-	entry $f.e -width 38 -font $FFont -textvariable P(M0,cm)
+	set te [entry $f.e -width 38 -font $FFont -textvariable P(M0,cm)]
 	pack $f.e -side top -expand n -fill x
 
 	set b $w.b
@@ -8552,6 +8391,7 @@ proc mk_run_pgm_window { } {
 	pack $b.eb -side right -expand n
 
 	bind $w <Destroy> "md_click -1"
+	bind $te <Return> "md_click 1"
 }
 
 proc run_xterm { } {

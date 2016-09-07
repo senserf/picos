@@ -95,6 +95,5 @@ if [catch { file mkdir $hd } err] {
 
 copyscript "." "pip.tcl" "" $hd $RTG
 copyscript "." "genimage.tcl" ".tcl" $hd $RTG
-copyscript "." "gdbloader.tcl" "" $hd $RTG
 
 puts "Done"

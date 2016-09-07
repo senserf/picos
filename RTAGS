@@ -855,3 +855,10 @@ PG160712A:
 
 	A right click on the target Change button shortcuts ("normalizes") the
 	target file name to the source file name (handy for Generate).
+
+PG160907A:
+
+	See PICOS. Same thing. Also, I have removed some garbage. We no longer
+	support the old gdbproxy, at least not in PIP. It seems that MSPDebug
+	is better for that role (assuming you ever want to use gdb for
+	debugging real devices). Read the new doc.
