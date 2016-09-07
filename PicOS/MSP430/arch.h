@@ -61,6 +61,7 @@ extern byte	*__bss_end;
 
 void		__pi_release () __attribute__ ((noreturn));
 
+//#define	hard_reset	__asm__ __volatile__("br &0xfffe"::)
 #define	hard_reset	__asm__ __volatile__("br #_reset_vector__"::)
 
 #define	nodata		do { } while (0)

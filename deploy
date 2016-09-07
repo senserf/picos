@@ -531,16 +531,14 @@ proc doit { } {
 
 	set ScriptsToFix { pip }
 
-
 	# copy scripts (for PICOS and VUEE); PIP did it itself
 	if [info exists REL(PICOS)] {
 		copyscript "Scripts" "mkmk" "" $BIN $REL(PICOS)
 		copyscript "Scripts" "picomp" "" $BIN $REL(PICOS)
-		copyscript "Scripts" "usefetdll" "" $BIN $REL(PICOS)
 		copyscript "Scripts" "piter.tcl" ".tcl" $BIN $REL(PICOS)
 		copyscript "Scripts" "oss.tcl" "" $BIN $REL(PICOS)
 		set ScriptsToFix [concat $ScriptsToFix \
-			{ piter genimage gdbloader oss }]
+			{ piter genimage oss }]
 	}
 	if [info exists REL(VUEE)] {
 		copyscript "../VUEE/UDAEMON" "udaemon" ".tcl" $BIN $REL(VUEE)

@@ -10,7 +10,6 @@
 
 extern 			__pi_pcb_t	*__pi_curr;
 extern 			address		__pi_utims [MAX_UTIMERS];
-extern	void				_reset_vector__;
 
 void	__pi_malloc_init (void);
 

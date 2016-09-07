@@ -4843,3 +4843,25 @@ PG160802A:
 PG160819A:
 
 	A new demo in locaspot, a few cleanups, a test app for AP331
+
+PG160907A:
+
+	I have updated a few documents and cleaned up a couple of things to be
+	better aligned with the new [installation] document and the set of
+	tools available in the new version of our repo
+	(http://www.olsonet.com/REPO/contents.html). Note that the new repo
+	contains new versions of the binary MSPGCC tools for Windows and for
+	Linux (Ubuntu). "New" does not mean a compiler upgrade, but rather a
+	better packaging.
+
+	This is the first step in bringing the platform up to date and checking
+	how far we can adapt some elements of the new MSPGCC toolchain now
+	being officially supported by TI. My first look at the TI-supported
+	MSPGCC indicates that it is considerably worse than the last community
+	edition whose tweaked variant we now use (it genarates much larger code
+	which is basically our only criterion of quality, cosidering that the
+	compiler has been otherwise quite stable for a number of generations),
+	so perhaps our objective should be to preserve the old tools and keep
+	them in sync with the rest of the platform, as opposed to trying to
+	adapt to TI's politics of screwing up the free tools, so they can sell
+	their "real" software for more.
