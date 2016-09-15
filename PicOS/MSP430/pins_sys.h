@@ -11,7 +11,7 @@
 // This is for the "legacy" (the so-called unified access) pin interface ======
 // ============================================================================
 
-#define	PIN_DEF(p,n)	{ p ## IN_ - __PORT_FBASE__ , n }
+#define	PIN_DEF(p,n)	{ p ## ORD__ , n }
 #define PIN_RESERVED	{ 0xff, 0 }
 
 /*
@@ -278,8 +278,8 @@ void __pi_write_dac (word, word, word);
 // This is for the sensor/actuator-type pin interface =========================
 // ============================================================================
 
-#define	INPUT_PIN(p,n,e)	{ n, e, p ## IN_  - __PORT_FBASE__ }
-#define	OUTPUT_PIN(p,n,e)	{ n, e, p ## OUT_ - __PORT_FBASE__ }
+#define	INPUT_PIN(p,n,e)	{ n, e, p ## ORD__ }
+#define	OUTPUT_PIN(p,n,e)	{ n, e, p ## ORD__ }
 
 #if defined(INPUT_PIN_LIST) || defined(OUTPUT_PIN_LIST)
 

@@ -15,15 +15,13 @@
 // a macro available for that
 #define	PIN_DEFAULT_P1SEL	0x60
 #define	PIN_DEFAULT_P1DIR	0xDF
-// Apparently, the switch must be high!
-#define	PIN_DEFAULT_P1OUT	0x80
 
-#define	rs485_set_active(d)	do { \
-				    if (d) \
-						_BIS (P1OUT,0x80) \
-					else \
-						_BIC (P1OUT,0x80); \
-				} while (0)
+#define	PIN_DEFAULT_P1OUT	0x00
+
+#define	UART_XMITTER_ON		_BIS (P1OUT,0x80)
+#define	UART_XMITTER_OFF	_BIC (P1OUT,0x80)
+#define	UART_XMITTER_ON_DELAY	0
+#define	UART_XMITTER_OFF_DELAY	0
 
 // ============================================================================
 // P2.0 NC

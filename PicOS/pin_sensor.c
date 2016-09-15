@@ -4,6 +4,8 @@
 
 #ifdef INPUT_PIN_LIST
 
+#include "pins_sys_in.h"
+
 // ============================================================================
 // Pin sensor =================================================================
 // ============================================================================
@@ -34,8 +36,8 @@ void pin_sensor_read (word st, const byte *junk, address val) {
 	*val = 0;
 	for (i = 0, p = input_pins;
 	    		  i < sizeof (input_pins) / sizeof (piniod_t); i++, p++)
-		*val |= (((((*((byte*)(__PORT_FBASE__ + p->poff))) &
-			(1 << p->pnum)) != 0) ^ p->edge) << i);
+		*val |= ((((__port_in (p->poff) & (1 << p->pnum)) != 0) ^
+			p->edge) << 1);
 }
 
 void pin_sensor_interrupt () {
@@ -52,6 +54,8 @@ void pin_sensor_interrupt () {
 
 #ifdef OUTPUT_PIN_LIST
 
+#include "pins_sys_out.h"
+
 // ============================================================================
 // Pin actuator ===============================================================
 // ============================================================================
@@ -62,11 +66,14 @@ void pin_actuator_write (word st, const byte *junk, address val) {
 
 	const piniod_t *p;
 	word i;
-	byte *t, b, c;
+	volatile byte *t;
+	byte b, c;
 
 	for (i = 0, p = output_pins;
 		      i < sizeof (output_pins) / sizeof (piniod_t); i++, p++) {
-		b = *(t = ((byte*)(__PORT_FBASE__ + p->poff)));
+
+		b = *(t = __port_out (p->poff));
+
 		c = (1 << p->pnum);
 		if (((*val >> i) & 1) ^ p->edge)
 			// Must be set

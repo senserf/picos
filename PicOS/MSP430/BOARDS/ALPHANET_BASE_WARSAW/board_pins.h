@@ -60,64 +60,10 @@
 #define	PIN_DEFAULT_P5DIR	0xFB
 //#define	PIN_DEFAULT_P5OUT	0x01	// Default CS is up
 #define	PIN_DEFAULT_P5OUT	0x0B	// Default both CS, CLK are up
-
-#if ADC_SAMPLER
-
-#define	PIN_DEFAULT_P6DIR	0x00
-
-#define	PIN_LIST	{	\
-	PIN_DEF	(P1, 6),	\
-	PIN_DEF	(P1, 7),	\
-	PIN_DEF	(P2, 2),	\
-	PIN_DEF	(P2, 3),	\
-	PIN_DEF	(P2, 5),	\
-	PIN_DEF	(P2, 6),	\
-	PIN_DEF	(P4, 0),	\
-	PIN_DEF	(P4, 4),	\
-	PIN_DEF	(P4, 5),	\
-	PIN_DEF	(P4, 6),	\
-	PIN_DEF	(P4, 7),	\
-	PIN_DEF	(P5, 4),	\
-}
-
-#define	PIN_MAX			12	// Number of pins
-#define	PIN_MAX_ANALOG		0	// Number of available analog pins
-#define	PIN_DAC_PINS		0
-
-#else	/* NO SAMPLER */
-
 #define	PIN_DEFAULT_P6DIR	0xFF
 
-#define	PIN_LIST	{	\
-	PIN_DEF	(P6, 0),	\
-	PIN_DEF	(P6, 1),	\
-	PIN_DEF	(P6, 2),	\
-	PIN_DEF	(P6, 3),	\
-	PIN_DEF	(P6, 4),	\
-	PIN_DEF	(P6, 5),	\
-	PIN_DEF	(P6, 6),	\
-	PIN_DEF	(P6, 7),	\
-	PIN_DEF	(P1, 6),	\
-	PIN_DEF	(P1, 7),	\
-	PIN_DEF	(P2, 2),	\
-	PIN_DEF	(P2, 3),	\
-	PIN_DEF	(P2, 5),	\
-	PIN_DEF	(P2, 6),	\
-	PIN_DEF	(P4, 0),	\
-	PIN_DEF	(P4, 4),	\
-	PIN_DEF	(P4, 5),	\
-	PIN_DEF	(P4, 6),	\
-	PIN_DEF	(P4, 7),	\
-	PIN_DEF (P5, 4)		\
-}
-
-#define	PIN_MAX			20	// Number of pins
-#define	PIN_MAX_ANALOG		8	// Number of available analog pins
-#define	PIN_DAC_PINS		0x0706	// Two DAC pins: #6 and #7
-
-#endif /* SAMPLER or no SAMPLER */
-
 // ============================================================================
+
 #if 1
 
 #include "analog_sensor.h"

@@ -4865,3 +4865,21 @@ PG160907A:
 	them in sync with the rest of the platform, as opposed to trying to
 	adapt to TI's politics of screwing up the free tools, so they can sell
 	their "real" software for more.
+
+PG160915A:
+
+	I have reimplemented the pin operations (described in the PinOps doc)
+	to make them use reliable (chip-transparent) port addresses, as opposed
+	to the old hacks assuming fixed offsets between different registers of
+	the same port. Note that these operations are not really used in
+	production praxis (while being possibly handy for various prototypes
+	and so on), perhaps except for their small (and separate) subset used
+	in pin sensors. The new implementation takes a bit more code (we
+	probably don't care), while being independent of the CPU model and also
+	of the intentionally invisible port-related symbols defined in mspgcc
+	header files. For example, the official (TI) version of mspgcc doesn't
+	define those symbols which renders the old hack ineffective with that
+	compiler.
+
+	Note that the semantics of the pin operations (and thus the PinOps doc)
+	remain unchanged.

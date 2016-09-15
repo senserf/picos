@@ -34,7 +34,6 @@
 #define		__UART_CONFIG__	1
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
-#define		__PORT_FBASE__	P3IN_	// Lowest-address port register
 #define		__FLASH_TYPE__	1
 #endif
 
@@ -45,7 +44,6 @@
 #define		__UART_CONFIG__	1
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
-#define		__PORT_FBASE__	P3IN_
 #define		__FLASH_TYPE__	1
 #endif
 
@@ -56,7 +54,6 @@
 #define		__UART_CONFIG__	1
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
-#define		__PORT_FBASE__	P3IN_
 #define		__FLASH_TYPE__	1
 #endif
 
@@ -67,7 +64,6 @@
 #define		__UART_CONFIG__	1
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
-#define		__PORT_FBASE__	P3IN_
 #define		__FLASH_TYPE__	1
 #endif
 
@@ -78,7 +74,6 @@
 #define		__UART_CONFIG__	1
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
-#define		__PORT_FBASE__	P3IN_
 // Different pins
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
@@ -93,7 +88,6 @@
 #define		__UART_CONFIG__	1
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
-#define		__PORT_FBASE__	P10IN_
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
 #define		__SWAPPED_UARTS__
@@ -107,7 +101,6 @@
 #define		__UART_CONFIG__	1
 #define		__ADC_CONFIG__	1
 #define		__TCI_CONFIG__	1
-#define		__PORT_FBASE__	P10IN_
 #define		UART_PREINIT_A	_BIS (P4SEL, 0x03)
 #define		UART_PREINIT_B	CNOP
 #define		__SWAPPED_UARTS__
@@ -121,7 +114,6 @@
 #define       	__CC430_6xx__
 #define		__CC430__
 #define		__PORTMAPPER__
-#define		__PORT_FBASE__	P1IN_	// Won't cover port J!!!
 #define		__UART_CONFIG__	2
 #define		__ADC_CONFIG__	3	// Extended ADC with REF module
 #define		__TCI_CONFIG__	2
@@ -140,7 +132,6 @@
 #define       	__CC430_5xx__
 #define		__CC430__
 #define		__PORTMAPPER__
-#define		__PORT_FBASE__	P1IN_	// Won't cover port J!!!
 #define		__NO_PORT_P4
 #define		__UART_CONFIG__	2
 #define		__ADC_CONFIG__	3	// Extended ADC with REF module
