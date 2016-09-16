@@ -4883,3 +4883,9 @@ PG160915A:
 
 	Note that the semantics of the pin operations (and thus the PinOps doc)
 	remain unchanged.
+
+PG160916A:
+
+	PG160915A was buggy. I forgot that port initialization code in
+	portinit.h depended on some defs in supplement_sys.h which my "fix"
+	removed. Should be fine now.

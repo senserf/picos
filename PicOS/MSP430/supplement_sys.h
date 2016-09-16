@@ -75,55 +75,98 @@
 #endif
 
 // ============================================================================
-// Unified port presence constants (byte ports only, J excluded)
+// Unified port presence constants (byte ports only)
 // ============================================================================
 
 #if defined(__MSP430_HAS_PORT0__) || defined(__MSP430_HAS_PORT0_R__)
 #define	__PORT0_PRESENT__
+#if defined(__MSP430_HAS_PORT0_R__)
+#define __PORT0_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT1__) || defined(__MSP430_HAS_PORT1_R__)
 #define	__PORT1_PRESENT__
+#if defined(__MSP430_HAS_PORT1_R__)
+#define __PORT1_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT2__) || defined(__MSP430_HAS_PORT2_R__)
 #define	__PORT2_PRESENT__
+#if defined(__MSP430_HAS_PORT2_R__)
+#define __PORT2_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT3__) || defined(__MSP430_HAS_PORT3_R__)
 #define	__PORT3_PRESENT__
+#if defined(__MSP430_HAS_PORT3_R__)
+#define __PORT3_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT4__) || defined(__MSP430_HAS_PORT4_R__)
 #define	__PORT4_PRESENT__
+#if defined(__MSP430_HAS_PORT4_R__)
+#define __PORT4_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT5__) || defined(__MSP430_HAS_PORT5_R__)
 #define	__PORT5_PRESENT__
+#if defined(__MSP430_HAS_PORT5_R__)
+#define __PORT5_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT6__) || defined(__MSP430_HAS_PORT6_R__)
 #define	__PORT6_PRESENT__
+#if defined(__MSP430_HAS_PORT6_R__)
+#define __PORT6_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT7__) || defined(__MSP430_HAS_PORT7_R__)
 #define	__PORT7_PRESENT__
+#if defined(__MSP430_HAS_PORT7_R__)
+#define __PORT7_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT8__) || defined(__MSP430_HAS_PORT8_R__)
 #define	__PORT8_PRESENT__
+#if defined(__MSP430_HAS_PORT8_R__)
+#define __PORT8_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT9__) || defined(__MSP430_HAS_PORT9_R__)
 #define	__PORT9_PRESENT__
+#if defined(__MSP430_HAS_PORT9_R__)
+#define __PORT9_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT10__) || defined(__MSP430_HAS_PORT10_R__)
 #define	__PORT10_PRESENT__
+#if defined(__MSP430_HAS_PORT10_R__)
+#define __PORT10_RESISTOR_PRESENT__
+#endif
 #endif
 
 #if defined(__MSP430_HAS_PORT11__) || defined(__MSP430_HAS_PORT11_R__)
 #define	__PORT11_PRESENT__
+#if defined(__MSP430_HAS_PORT11_R__)
+#define __PORT11_RESISTOR_PRESENT__
+#endif
+#endif
+
+#if defined(__MSP430_HAS_PORTJ__) || defined(__MSP430_HAS_PORTJ_R__)
+#define	__PORTJ_PRESENT__
+#if defined(__MSP430_HAS_PORTJ_R__)
+#define __PORTJ_RESISTOR_PRESENT__
+#endif
 #endif
 
 #define	P0ORD__		0

@@ -39,7 +39,7 @@
 
 // ============================================================================
 
-#ifdef	P0SEL_
+#ifdef	__PORT0_PRESENT__
 
 #ifndef	PIN_DEFAULT_P0SEL
 #define	PIN_DEFAULT_P0SEL	0x00
@@ -66,7 +66,7 @@
 #if PIN_DEFAULT_P0DIR
 	P0DIR = PIN_DEFAULT_P0DIR;
 #endif
-#ifdef	P0DS_
+#ifdef	__PORT0_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P0DS
 	P0DS = PIN_DEFAULT_P0DS;
 #endif
@@ -79,7 +79,7 @@
 
 // ============================================================================
 
-#ifdef	P1SEL_
+#ifdef	__PORT1_PRESENT__
 
 #ifndef	PIN_DEFAULT_P1SEL
 #define	PIN_DEFAULT_P1SEL	0x00
@@ -106,7 +106,7 @@
 #if PIN_DEFAULT_P1DIR
 	P1DIR = PIN_DEFAULT_P1DIR;
 #endif
-#ifdef	P1DS_
+#ifdef	__PORT1_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P1DS
 	P1DS = PIN_DEFAULT_P1DS;
 #endif
@@ -119,7 +119,7 @@
 
 // ============================================================================
 
-#ifdef	P2SEL_
+#ifdef	__PORT2_PRESENT__
 
 #ifndef	PIN_DEFAULT_P2SEL
 #define	PIN_DEFAULT_P2SEL	0x00
@@ -146,7 +146,7 @@
 #if PIN_DEFAULT_P2DIR
 	P2DIR = PIN_DEFAULT_P2DIR;
 #endif
-#ifdef	P2DS_
+#ifdef	__PORT2_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P2DS
 	P2DS = PIN_DEFAULT_P2DS;
 #endif
@@ -159,7 +159,8 @@
 
 // ============================================================================
 
-#ifdef	P3SEL_
+#ifdef	__PORT3_PRESENT__
+
 #ifndef	PIN_DEFAULT_P3SEL
 #define	PIN_DEFAULT_P3SEL	0x00
 #endif
@@ -185,7 +186,7 @@
 #if PIN_DEFAULT_P3DIR
 	P3DIR = PIN_DEFAULT_P3DIR;
 #endif
-#ifdef	P3DS_
+#ifdef	__PORT3_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P3DS
 	P3DS = PIN_DEFAULT_P3DS;
 #endif
@@ -198,7 +199,7 @@
 
 // ============================================================================
 
-#ifdef	P4SEL_
+#ifdef	__PORT4_PRESENT__
 
 #ifndef	PIN_DEFAULT_P4SEL
 #define	PIN_DEFAULT_P4SEL	0x00
@@ -225,7 +226,7 @@
 #if PIN_DEFAULT_P4DIR
 	P4DIR = PIN_DEFAULT_P4DIR;
 #endif
-#ifdef	P4DS_
+#ifdef	__PORT4_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P4DS
 	P4DS = PIN_DEFAULT_P4DS;
 #endif
@@ -238,7 +239,7 @@
 
 // ============================================================================
 
-#ifdef	P5SEL_
+#ifdef	__PORT5_PRESENT__
 
 #ifndef	PIN_DEFAULT_P5SEL
 #define	PIN_DEFAULT_P5SEL	0x00
@@ -265,7 +266,7 @@
 #if PIN_DEFAULT_P5DIR
 	P5DIR = PIN_DEFAULT_P5DIR;
 #endif
-#ifdef	P5DS_
+#ifdef	__PORT5_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P5DS
 	P5DS = PIN_DEFAULT_P5DS;
 #endif
@@ -279,7 +280,7 @@
 
 // ============================================================================
 
-#ifdef	P6SEL_
+#ifdef	__PORT6_PRESENT__
 
 #ifndef	PIN_DEFAULT_P6SEL
 #define	PIN_DEFAULT_P6SEL	0x00
@@ -306,7 +307,7 @@
 #if PIN_DEFAULT_P6DIR
 	P6DIR = PIN_DEFAULT_P6DIR;
 #endif
-#ifdef	P6DS_
+#ifdef	__PORT6_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P6DS
 	P6DS = PIN_DEFAULT_P6DS;
 #endif
@@ -319,7 +320,7 @@
 
 // ============================================================================
 
-#ifdef	P7SEL_
+#ifdef	__PORT7_PRESENT__
 
 #ifndef	PIN_DEFAULT_P7SEL
 #define	PIN_DEFAULT_P7SEL	0x00
@@ -346,7 +347,7 @@
 #if PIN_DEFAULT_P7DIR
 	P7DIR = PIN_DEFAULT_P7DIR;
 #endif
-#ifdef	P7DS_
+#ifdef	__PORT7_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P7DS
 	P7DS = PIN_DEFAULT_P7DS;
 #endif
@@ -359,7 +360,7 @@
 
 // ============================================================================
 
-#ifdef	P8SEL_
+#ifdef	__PORT8_PRESENT__
 
 #ifndef	PIN_DEFAULT_P8SEL
 #define	PIN_DEFAULT_P8SEL	0x00
@@ -386,7 +387,7 @@
 #if PIN_DEFAULT_P8DIR
 	P8DIR = PIN_DEFAULT_P8DIR;
 #endif
-#ifdef	P8DS_
+#ifdef	__PORT8_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P8DS
 	P8DS = PIN_DEFAULT_P8DS;
 #endif
@@ -399,7 +400,7 @@
 
 // ============================================================================
 
-#ifdef	P9SEL_
+#ifdef	__PORT9_PRESENT__
 
 #ifndef	PIN_DEFAULT_P9SEL
 #define	PIN_DEFAULT_P9SEL	0x00
@@ -426,7 +427,7 @@
 #if PIN_DEFAULT_P9DIR
 	P9DIR = PIN_DEFAULT_P9DIR;
 #endif
-#ifdef	P9DS_
+#ifdef	__PORT9_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P9DS
 	P9DS = PIN_DEFAULT_P9DS;
 #endif
@@ -439,7 +440,7 @@
 
 // ============================================================================
 
-#ifdef	P10SEL_
+#ifdef	__PORT10_PRESENT__
 
 #ifndef	PIN_DEFAULT_P10SEL
 #define	PIN_DEFAULT_P10SEL	0x00
@@ -466,7 +467,7 @@
 #if PIN_DEFAULT_P10DIR
 	P10DIR = PIN_DEFAULT_P10DIR;
 #endif
-#ifdef	P10DS_
+#ifdef	__PORT10_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P10DS
 	P10DS = PIN_DEFAULT_P10DS;
 #endif
@@ -479,7 +480,7 @@
 
 // ============================================================================
 
-#ifdef	P11SEL_
+#ifdef	__PORT11_PRESENT__
 
 #ifndef	PIN_DEFAULT_P11SEL
 #define	PIN_DEFAULT_P11SEL	0x00
@@ -506,7 +507,7 @@
 #if PIN_DEFAULT_P11DIR
 	P11DIR = PIN_DEFAULT_P11DIR;
 #endif
-#ifdef	P11DS_
+#ifdef	__PORT11_RESISTOR_PRESENT__
 #if PIN_DEFAULT_P11DS
 	P11DS = PIN_DEFAULT_P11DS;
 #endif
@@ -519,7 +520,7 @@
 
 // ============================================================================
 
-#ifdef	PJDIR_
+#ifdef	__PORTJ_PRESENT__
 
 #ifndef	PIN_DEFAULT_PJSEL
 #define	PIN_DEFAULT_PJSEL	0x00
@@ -546,7 +547,7 @@
 #if PIN_DEFAULT_PJDIR
 	PJDIR = PIN_DEFAULT_PJDIR;
 #endif
-#ifdef	PJDS_
+#ifdef	__PORTJ_RESISTOR_PRESENT__
 #if PIN_DEFAULT_PJDS
 	PJDS = PIN_DEFAULT_PJDS;
 #endif

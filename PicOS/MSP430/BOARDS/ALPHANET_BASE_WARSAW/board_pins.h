@@ -25,6 +25,16 @@
 
 #endif
 
+
+#if 0
+// To test the half-duplex mode of UART for RS485
+#define	UART_XMITTER_ON		udelay (10)
+#define	UART_XMITTER_OFF	udelay (10)
+#define	UART_XMITTER_ON_DELAY	0
+#define	UART_XMITTER_OFF_DELAY	0
+#endif
+
+
 // ============================================================================
 
 // 0, 1, 7 hang loose, 4 = soft reset button, must be IN
