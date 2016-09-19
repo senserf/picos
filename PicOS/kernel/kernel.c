@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -968,6 +968,11 @@ static void qfree (address ch) {
 #else
 static void qfree (int np, address ch) {
 #define	MA_NP	np
+#endif
+
+#if	__COMP_VERSION__ > 4
+	// Trying to circumvent a bug in TI MSPGCC
+	volatile
 #endif
 	address chunk, cc;
 
