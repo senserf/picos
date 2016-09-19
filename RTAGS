@@ -862,3 +862,7 @@ PG160907A:
 	support the old gdbproxy, at least not in PIP. It seems that MSPDebug
 	is better for that role (assuming you ever want to use gdb for
 	debugging real devices). Read the new doc.
+
+PG160919A:	PICOS >= PG160919A
+
+	See PICOS. A few more options in Configuration->Options.

@@ -61,6 +61,7 @@ set PicOSPath	""
 set DefProjDir	""
 
 set EditCommand "elvis -f ram -m -G x11 -font 9x15"
+
 ## Delay after opening a new elvis session and before the first command to it
 ## can be issued; I am not sure this is needed, because I only had problems
 ## with this (or rather with something that seems to be circumvented by this)
@@ -73,6 +74,10 @@ set STagsArgs "-l -i -t -v -h --"
 ## -s helps VUEE tags, because otherwise global functions don't seem to get
 ## tagged
 set VTagsArgs "-l -i -t -v -h -s --"
+
+## default prefix for MSP tool chain programs
+set DefMPfx "msp430-"
+
 if { $ST(SYS) == "L" } {
 	# check for dolphin and nautilus with dolphin being preferred
 	set EXCmd [auto_execok "dolphin"]
@@ -111,10 +116,10 @@ set MspdLdDrv { "tilib"
 
 set PiterCmd "piter"
 set GdbCmd "gdb"
-set GdbMCmd "msp430-gdb"
 set MspDCmd "mspdebug"
-set XTCmd "xterm"
 set SACmd "sa"
+set DefTerm "xterm"
+set DefDTerm [list xterm -e %f]
 
 ## File types to be listed in the Files view:
 ## header label, file qualifying patterns, filetypes [for tk_getSaveFile]
@@ -191,14 +196,17 @@ set CFLoadItems {
 			"LDGPRARG"	""
 		}
 
-## Options; for now, we have just the max number of lines for the terminal +
-## permissions for accessing system files, but we will add more, e.g., search
-## options seem to fit here as well
-set CFOptItems {
-			"OPTERMLINES"	1000
-			"OPSYSFILES"	1
-			"OPVUEEFILES"	0
-		}
+## Options: the toolchain prefix, the xterm program, the debugger command, the
+## max number of lines for the console window + permissions for accessing
+## system files; need to evaluate
+set CFOptItems [list \
+		 "OPTCPREFIX" $DefMPfx \
+		 "OPTCOPTOVR" "" \
+		 "OPTTRMCMND" $DefTerm \
+		 "OPTGDBCMND" $DefDTerm \
+		 "OPTERMLINES" 1000 \
+		 "OPSYSFILES" 1 \
+		 "OPVUEEFILES" 0]
 
 set CFOptSFModes { "Never" "Tags, R/O" "Always, R/O" "Always, R/W" }
 
@@ -2301,7 +2309,8 @@ proc tree_menu { x y X Y } {
 	$m add command -label "Copy from ..." -command "copy_from $x $y"
 	$m add command -label "Copy to ..." -command "copy_to $x $y"
 	$m add command -label "New directory ..." -command "new_directory $x $y"
-	$m add command -label "Run XTerm here" -command "run_xterm_here $x $y"
+	$m add command -label "Run terminal here" -command \
+		"run_xterm_here $x $y"
 	if { $EXCmd != "" } {
 		$m add command -label "Run File Explorer here" \
 			-command "run_explorer_here $x $y"
@@ -5245,7 +5254,7 @@ proc do_options { } {
 #
 # Configure "other" options associated with the project
 #
-	global P CFOptItems CFOptSFModes TermLines
+	global P CFOptItems CFOptSFModes TermLines DefMPfx DefTerm DefDTerm
 
 	if { $P(AC) == "" || $P(CO) == "" } {
 		return
@@ -5264,8 +5273,36 @@ proc do_options { } {
 			return
 		}
 
+		set c 0
+
 		if { $ev == 1 } {
-			# accepted, verify number
+			set val [string trim $P(M0,cp)]
+			if { $val == "" } {
+				# make it the default
+				set val $DefMPfx
+			}
+			if { $val != $P(M0,OPTCPREFIX) } {
+				set c 1
+				set P(M0,OPTCPREFIX) $val
+			}
+			set val [string trim $P(M0,oo)]
+			if { $val != $P(M0,OPTCOPTOVR) } {
+				set c 1
+				set P(M0,OPTCOPTOVR) $val
+			}
+			set val [string trim $P(M0,tr)]
+			if { $val == "" } {
+				# make it the default
+				set val $DefTerm
+			}
+			set P(M0,OPTTRMCMND) $val
+			set val [string trim $P(M0,gd)]
+			if { $val == "" } {
+				# make it the default
+				set val $DefDTerm
+			}
+			set P(M0,OPTGDBCMND) $val
+			# verify number
 			set n $P(M0,lc)
 			if [catch { valnum $n 24 100000 } n] {
 				alert "Illegal console line number limit: $n"
@@ -5314,6 +5351,11 @@ proc do_options { } {
 			if $z {
 				vue_make_ctags
 			}
+			if $c {
+				term_dspline \
+				  "--TOOL CONFIG CHANGED, FULL CLEAN FORCED --"
+				do_cleanup
+			}
 			return
 		}
 	}
@@ -5325,20 +5367,62 @@ proc mk_options_conf_window { } {
 
 	set w [md_window "Options"]
 
+	set ewidth 16
+
 	##
 	set f $w.tf
 	frame $f
 	pack $f -side top -expand y -fill x
 
+	set row 0
+
+	label $f.cpl -text "MSPGCC toolchain file name prefix: "
+	grid $f.cpl -column 0 -row $row -padx 4 -pady 2 -sticky w
+
+	set P(M0,cp) $P(M0,OPTCPREFIX)
+	entry $f.cpe -width $ewidth -font $FFont -textvariable P(M0,cp)
+	grid $f.cpe -column 1 -row $row -padx 4 -pady 2 -sticky we
+
+	incr row
+
+	label $f.ool -text "Compiler option override: "
+	grid $f.ool -column 0 -row $row -padx 4 -pady 2 -sticky w
+
+	set P(M0,oo) $P(M0,OPTCOPTOVR)
+	entry $f.ooe -width $ewidth -font $FFont -textvariable P(M0,oo)
+	grid $f.ooe -column 1 -row $row -padx 4 -pady 2 -sticky we
+
+	incr row
+
+	label $f.trl -text "Terminal window command: "
+	grid $f.trl -column 0 -row $row -padx 4 -pady 2 -sticky w
+
+	set P(M0,tr) $P(M0,OPTTRMCMND)
+	entry $f.tre -width $ewidth -font $FFont -textvariable P(M0,tr)
+	grid $f.tre -column 1 -row $row -padx 4 -pady 2 -sticky we
+
+	incr row
+
+	label $f.gdl -text "GDB invocation: "
+	grid $f.gdl -column 0 -row $row -padx 4 -pady 2 -sticky w
+
+	set P(M0,gd) $P(M0,OPTGDBCMND)
+	entry $f.gde -width $ewidth -font $FFont -textvariable P(M0,gd)
+	grid $f.gde -column 1 -row $row -padx 4 -pady 2 -sticky we
+
+	incr row
+
 	label $f.tll -text "Maximum number of lines saved in console: "
-	grid $f.tll -column 0 -row 0 -padx 4 -pady 2 -sticky w
+	grid $f.tll -column 0 -row $row -padx 4 -pady 2 -sticky w
 
 	set P(M0,lc) $P(M0,OPTERMLINES)
-	entry $f.tle -width 8 -font $FFont -textvariable P(M0,lc)
-	grid $f.tle -column 1 -row 0 -padx 4 -pady 2 -sticky we
+	entry $f.tle -width $ewidth -font $FFont -textvariable P(M0,lc)
+	grid $f.tle -column 1 -row $row -padx 4 -pady 2 -sticky we
+
+	incr row
 
 	label $f.sfl -text "Show and edit PicOS system files: "
-	grid $f.sfl -column 0 -row 1 -padx 4 -pady 2 -sticky w
+	grid $f.sfl -column 0 -row $row -padx 4 -pady 2 -sticky w
 
 	set v $P(M0,OPSYSFILES)
 	if [catch { valnum $v 0 3 } v] {
@@ -5346,11 +5430,13 @@ proc mk_options_conf_window { } {
 	}
 	set P(M0,sf) [lindex $CFOptSFModes $v]
 	eval "tk_optionMenu $f.sfe P(M0,sf) $CFOptSFModes"
-	grid $f.sfe -column 1 -row 1 -padx 4 -pady 2 -sticky we
+	grid $f.sfe -column 1 -row $row -padx 4 -pady 2 -sticky we
+
+	incr row
 
 	if $ST(VP) {
 		label $f.vfl -text "Show and edit VUEE system files: "
-		grid $f.vfl -column 0 -row 2 -padx 4 -pady 2 -sticky w
+		grid $f.vfl -column 0 -row $row -padx 4 -pady 2 -sticky w
 
 		set v $P(M0,OPVUEEFILES)
 		if [catch { valnum $v 0 3 } v] {
@@ -5358,7 +5444,7 @@ proc mk_options_conf_window { } {
 		}
 		set P(M0,vf) [lindex $CFOptSFModes $v]
 		eval "tk_optionMenu $f.vfe P(M0,vf) $CFOptSFModes"
-		grid $f.vfe -column 1 -row 2 -padx 4 -pady 2 -sticky we
+		grid $f.vfe -column 1 -row $row -padx 4 -pady 2 -sticky we
 	}
 
 	##
@@ -8114,7 +8200,7 @@ proc check_mspdebug_proxy { } {
 #
 # A callback to check if the proxy is ready and to start GDB if so
 #
-	global TCMD XTCmd GdbMCmd
+	global P TCMD MSPDTERM GdbCmd DefMPfx
 
 	if { $TCMD(FY) != 3 || $TCMD(FL) != "" } {
 		# cannot happen
@@ -8132,9 +8218,28 @@ proc check_mspdebug_proxy { } {
 	set TCMD(TR) ""
 
 	# start GDB
-	set al [list -e $GdbMCmd]
-	lappend al $TCMD(FY,AR)
-	bpcs_run $XTCmd $al "FL"
+	set gcp [dict get $P(CO) "OPTGDBCMND"]
+	# terminal program
+	set xt [lindex $gcp 0]
+	set al ""
+	foreach a [lrange $gcp 1 end] {
+		if { $a == "%f" } {
+			# substitute gdb invocation
+			set pgm [dict get $P(CO) "OPTCPREFIX"]
+			if { $pgm == "" } {
+				set pgm $DefMPfx
+			}
+			append pgm $GdbCmd
+			lappend al $pgm
+			lappend al $TCMD(FY,AR)
+		} else {
+			lappend al $a
+		}
+	}
+	bpcs_run $xt $al "FL"
+
+	# lappend al "&"
+	# catch { xq $xt $al }
 }
 
 ###############################################################################
@@ -8396,9 +8501,18 @@ proc mk_run_pgm_window { } {
 
 proc run_xterm { } {
 
-	global XTCmd
+	global P
 
-	catch { xq $XTCmd "&" }
+	set xtc [dict get $P(CO) "OPTTRMCMND"]
+
+	set pgm [lindex $xtc 0]
+	set arg ""
+	foreach a [lrange $xtc 1 end] {
+		lappend arg $a
+	}
+	lappend arg "&"
+
+	catch { xq $pgm $arg }
 }
 
 proc run_explorer { { wd "" } } {
@@ -8640,7 +8754,8 @@ proc reset_file_menu { { clear 0 } } {
 
 	$m add separator
 
-	$m add command -label "Run XTerm" -command "run_xterm_here" -state $st
+	$m add command -label "Run terminal" \
+		-command "run_xterm_here" -state $st
 	if { $EXCmd != "" } {
 		$m add command -label "Run File Explorer" \
 			-command "run_explorer_here" -state $st
@@ -8979,7 +9094,7 @@ proc reset_exec_menu { { clear 0 } } {
 		set st "disabled"
 	}
 	$m add command -label "Run program" -command run_any_program -state $st
-	$m add command -label "XTerm" -command run_xterm
+	$m add command -label "Terminal" -command run_xterm
 	if { $EXCmd != "" } {
 		$m add command -label "File Explorer" -command run_explorer
 	}
@@ -9265,6 +9380,13 @@ proc do_mkmk_node { { bi 0 } { ea "" } } {
 	set lm [blindex [dict get $P(CO) "LM"] $bi]
 	set bo [lindex $bo $bi]
 
+	# compiler prefix
+	set cpf [dict get $P(CO) "OPTCPREFIX"]
+	if { $cpf != "" } {
+		lappend al "-c"
+		lappend al $cpf
+	}
+
 	if { $ST(LO) || $lm } {
 		# library mode; check if there's a library
 		set lb [library_present $bo]
@@ -9284,6 +9406,14 @@ proc do_mkmk_node { { bi 0 } { ea "" } } {
 	if $mb {
 		# the label
 		lappend al [lindex $P(PL) $bi]
+	}
+
+	set cpf [dict get $P(CO) "OPTCOPTOVR"]
+	if { $cpf != "" } {
+		lappend al "--"
+		foreach a $cpf {
+			lappend al $a
+		}
 	}
 
 	if [catch { run_term_command "mkmk" $al $ea } err] {
@@ -10001,7 +10131,7 @@ proc open_search_window { } {
 	button $f.nb -text "New" -command do_edit_new_file
 	pack $f.nb -side right -expand n
 
-	button $f.xb -text "XTerm" -command do_open_xterm
+	button $f.xb -text "Term" -command do_open_xterm
 	pack $f.xb -side right -expand n
 
 	if { $EXCmd != "" } {
