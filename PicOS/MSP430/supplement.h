@@ -1,6 +1,14 @@
-// No need to put conditions here; included by arch.h to fix problems with
-// symbolic constants that can be inconsistent across different mspgcc
-// compiler versions
+#ifndef __pg_supplement_h
+#define	__pg_supplement_h
+
+#if __COMP_VERSION__ < 4
+#include <io.h>
+#include <signal.h>
+#else
+#include <msp430.h>
+#endif
+
+#define interrupt(x) void __attribute__((interrupt (x)))
 
 #if !defined(SREF_AVCC_AVSS) && defined(SREF_0)
 #define	SREF_AVCC_AVSS  		SREF_0
@@ -181,3 +189,24 @@
 #define	P9ORD__		9
 #define	P10ORD__	10
 #define	P11ORD__	11
+
+#ifndef	READ_SR
+#define	READ_SR				__get_SR_register ()
+#endif
+
+#if __COMP_VERSION__ > 4
+
+#if 0
+extern char		*__bssend;
+#define	__BSS_END	__bssend
+#endif
+
+extern char		*__heap_start__;
+#define	__BSS_END	__heap_start__
+
+#else
+extern char		*__bss_end;
+#define	__BSS_END	__bss_end
+#endif
+
+#endif

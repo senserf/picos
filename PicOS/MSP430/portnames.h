@@ -1,14 +1,6 @@
 #ifndef __pg_portnames_h
 #define	__pg_portnames_h		1
 
-#if __COMP_VERSION__ < 4
-#include <io.h>
-#include <signal.h>
-#else
-#include <msp430.h>
-#include <legacymsp430.h>
-#endif
-
 /* ==================================================================== */
 /* Copyright (C) Olsonet Communications, 2002 - 2013                    */
 /* All rights reserved.                                                 */
@@ -22,7 +14,7 @@
 // variable argument, then you will implement functions referencing these
 // macros.
 
-#if defined(P1DIR) || defined(P1DIR_)
+#if defined(__PORT1_PRESENT__)
 
 #define	_PDS_s_01(p)	case 0: _BIS (P1DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_01(p)	case 0: _BIC (P1DIR, 1 << ((p) & 7)); break;
@@ -71,7 +63,7 @@
 
 // ============================================================================
 
-#if defined(P2DIR) || defined(P2DIR_)
+#if defined(__PORT2_PRESENT__)
 
 #define	_PDS_s_02(p)	case 1: _BIS (P2DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_02(p)	case 1: _BIC (P2DIR, 1 << ((p) & 7)); break;
@@ -120,7 +112,7 @@
 
 // ============================================================================
 
-#if defined(P3DIR) || defined(P3DIR_)
+#if defined(__PORT3_PRESENT__)
 
 #define	_PDS_s_03(p)	case 2: _BIS (P3DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_03(p)	case 2: _BIC (P3DIR, 1 << ((p) & 7)); break;
@@ -169,7 +161,7 @@
 
 // ============================================================================
 
-#if defined(P4DIR) || defined(P4DIR_)
+#if defined(__PORT4_PRESENT__)
 
 #define	_PDS_s_04(p)	case 3: _BIS (P4DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_04(p)	case 3: _BIC (P4DIR, 1 << ((p) & 7)); break;
@@ -218,7 +210,7 @@
 
 // ============================================================================
 
-#if defined(P5DIR) || defined(P5DIR_)
+#if defined(__PORT5_PRESENT__)
 
 #define	_PDS_s_05(p)	case 4: _BIS (P5DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_05(p)	case 4: _BIC (P5DIR, 1 << ((p) & 7)); break;
@@ -267,7 +259,7 @@
 
 // ============================================================================
 
-#if defined(P6DIR) || defined(P6DIR_)
+#if defined(__PORT6_PRESENT__)
 
 #define	_PDS_s_06(p)	case 5: _BIS (P6DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_06(p)	case 5: _BIC (P6DIR, 1 << ((p) & 7)); break;
@@ -316,7 +308,7 @@
 
 // ============================================================================
 
-#if defined(P7DIR) || defined(P7DIR_)
+#if defined(__PORT7_PRESENT__)
 
 #define	_PDS_s_07(p)	case 6: _BIS (P7DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_07(p)	case 6: _BIC (P7DIR, 1 << ((p) & 7)); break;
@@ -365,7 +357,7 @@
 
 // ============================================================================
 
-#if defined(P8DIR) || defined(P8DIR_)
+#if defined(__PORT8_PRESENT__)
 
 #define	_PDS_s_08(p)	case 7: _BIS (P8DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_08(p)	case 7: _BIC (P8DIR, 1 << ((p) & 7)); break;
@@ -414,7 +406,7 @@
 
 // ============================================================================
 
-#if defined(P9DIR) || defined(P9DIR_)
+#if defined(__PORT9_PRESENT__)
 
 #define	_PDS_s_09(p)	case 8: _BIS (P9DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_09(p)	case 8: _BIC (P9DIR, 1 << ((p) & 7)); break;
@@ -463,7 +455,7 @@
 
 // ============================================================================
 
-#if defined(P10DIR) || defined(P10DIR_)
+#if defined(__PORT10_PRESENT__)
 
 #define	_PDS_s_10(p)	case 9: _BIS (P10DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_10(p)	case 9: _BIC (P10DIR, 1 << ((p) & 7)); break;
@@ -512,7 +504,7 @@
 
 // ============================================================================
 
-#if defined(P11DIR) || defined(P11DIR_)
+#if defined(__PORT11_PRESENT__)
 
 #define	_PDS_s_11(p)	case 10: _BIS (P11DIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_11(p)	case 10: _BIC (P11DIR, 1 << ((p) & 7)); break;
@@ -566,7 +558,7 @@
 #define	_PFS_c_J(p)
 #define	_PF____J(p)	0 ? 0
 
-#if defined(PJDIR) || defined(PJDIR_)
+#if defined(__PORTJ_PRESENT__)
 
 #define	_PDS_s_J(p)	case 11: _BIS (PJDIR, 1 << ((p) & 7)); break;
 #define	_PDS_c_J(p)	case 11: _BIC (PJDIR, 1 << ((p) & 7)); break;

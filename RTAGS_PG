@@ -4889,3 +4889,24 @@ PG160916A:
 	PG160915A was buggy. I forgot that port initialization code in
 	portinit.h depended on some defs in supplement_sys.h which my "fix"
 	removed. Should be fine now.
+
+PG160919A:	PIP >= PG160919A
+
+	I have redone a few things to make PICOS compile with the TI version of
+	MSPGCC. Well, it does, but the TI compiler is even worse than I thought
+	(and I mean much worse), because it generates incorrect code! It took
+	me a whole day to figure out what was going on (and why a simple
+	program didn't work). When compiling with code size optimization (which
+	still sucks compared to the old compiler) TI MSPGCC incorrectly assumes
+	that some variables that have changed haven't. This is such a crude
+	error (painfully affecting my malloc/free functions), that I am
+	inclined to think that it is intentional. The problem (apparently)
+	disappears when you a) switch off code size optimization (but then the
+	code size becomes about twice what we get from the old compiler) or b)
+	put volatile in front of some "sensitive" variables (which makes no
+	sense, because there is no good reason for that; and, of course the
+	code size still grows when you do that).
+
+	Anyway, PIP allows you now to switch compilers (if you have more than
+	one). A few more changes that you may or may not spot, depending how
+	inquisitive you are.

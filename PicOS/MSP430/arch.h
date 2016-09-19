@@ -43,33 +43,39 @@ typedef struct {
 		
 extern volatile systat_t __pi_systat;
 
-extern byte	*__bss_end;
-#define	MALLOC_START		((address)&__bss_end)
+#define	MALLOC_START		((address)&__BSS_END)
 
 #if	STACK_GUARD
-#define MALLOC_LENGTH	(	(((word) STACK_END - (word)&__bss_end)/2) - 1)
+#define MALLOC_LENGTH	(	(((word) STACK_END - (word)&__BSS_END)/2) - 1)
 #else
-#define MALLOC_LENGTH		(((word) STACK_END - (word)&__bss_end)/2)
+#define MALLOC_LENGTH		(((word) STACK_END - (word)&__BSS_END)/2)
 #endif
 
-#define	STATIC_LENGTH		(((word)&__bss_end - (word)RAM_START + 1)/2)
+#define	STATIC_LENGTH		(((word)&__BSS_END - (word)RAM_START + 1)/2)
+
+#if __COMP_VERSION__ > 4
+
+#define	SET_RELEASE_POINT	__asm__ __volatile__ (\
+		".global __pi_release\n"\
+		"__pi_release: mov %0, R1"\
+			:: "i"(STACK_START): "R1")
+#else
 
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\
 		".global __pi_release\n"\
 		"__pi_release: mov %0, r1"\
 			:: "i"(STACK_START): "r1")
+#endif
 
 void		__pi_release () __attribute__ ((noreturn));
 
-//#define	hard_reset	__asm__ __volatile__("br &0xfffe"::)
-#define	hard_reset	__asm__ __volatile__("br #_reset_vector__"::)
+#define	hard_reset	__asm__ __volatile__("br &0xfffe"::)
+//#define	hard_reset	__asm__ __volatile__("br #_reset_vector__"::)
 
 #define	nodata		do { } while (0)
 
 #define	INLINE		inline
 
 #define	REQUEST_EXTERNAL(p) __asm__ (".global " #p)
-
-#include "supplement_sys.h"
 
 #endif

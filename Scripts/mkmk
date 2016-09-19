@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #                                                                          #
 # See: proc bad_usage for usage                                            #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005 - 2015 All Rights Reserved    #
+# Copyright (C) Olsonet Communications, 2005 - 2016 All Rights Reserved    #
 ############################################################################
 
 set DEBUG 0
@@ -550,8 +550,8 @@ proc outmkfc { def } {
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
-	puts $mfd "CC=ecogncc"
-	puts $mfd "CL=ecogcl"
+	puts $mfd "CC=$Run(CPF)ecogncc"
+	puts $mfd "CL=$Run(CPF)ecogcl"
 
 	puts -nonewline $mfd "CF=-quiet"
 	foreach sht $def {
@@ -559,7 +559,12 @@ proc outmkfc { def } {
 	}
 
 	puts $mfd ""
-	puts $mfd "OF=-g -DNDEBUG"
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
+	} else {
+		set cfg "-g -DNDEBUG"
+	}
+	puts $mfd "OF=$cfg"
 	puts $mfd "TD=$Tfn"
 	puts $mfd "OD=$Ofn"
 
@@ -779,7 +784,7 @@ proc outmkfc_lib { def } {
 #	SrcLists:	per-target array of files to compile (ToCompile)
 #
 	global DirShort IncShort SrcLists Depend CWD NotFound LIncludes
-	global StubDir StubList
+	global StubDir StubList Run
 
 	# build a trimmed list of relevant directories
 	trimdir
@@ -789,7 +794,7 @@ proc outmkfc_lib { def } {
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
-	puts $mfd "CC=ecogncc"
+	puts $mfd "CC=$Run(CPF)ecogncc"
 	puts $mfd "RM=rm"
 
 	puts -nonewline $mfd "CF=-quiet"
@@ -798,7 +803,12 @@ proc outmkfc_lib { def } {
 	}
 
 	puts $mfd ""
-	puts $mfd "OF=-g -DNDEBUG"
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
+	} else {
+		set cfg "-g -DNDEBUG"
+	}
+	puts $mfd "OF=$cfg"
 	puts $mfd "TD=temp"
 	puts $mfd "TS=temp/stubs"
 	puts $mfd "TR=LIBRARY/include/sysio.h"
@@ -1015,10 +1025,10 @@ proc outmkf { def cpu } {
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
-	puts $mfd "CC=msp430-gcc"
-	puts $mfd "AS=msp430-as"
-	puts $mfd "OC=msp430-objcopy -O ihex"
-	puts $mfd "SI=msp430-size -Ax"
+	puts $mfd "CC=$Run(CPF)gcc"
+	puts $mfd "AS=$Run(CPF)as"
+	puts $mfd "OC=$Run(CPF)objcopy -O ihex"
+	puts $mfd "SI=$Run(CPF)size -Ax"
 	puts -nonewline $mfd "CF=-mmcu=[cputag $cpu]"
 	if { $Run(GCV) < 4 } {
 		puts -nonewline $mfd " -mendup-at=main"
@@ -1028,9 +1038,21 @@ proc outmkf { def cpu } {
 	}
 	puts $mfd ""
 	puts $mfd "AF=-mmcu=[cputag $cpu]"
-	puts $mfd "OF=-Os -g -Wundef"
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
+	} else {
+		set cfg "-Os -g -Wundef"
+	}
+	puts $mfd "OF=$cfg"
 	puts $mfd "TR=Image"
 	puts $mfd "TD=./$Kfn"
+
+	puts -nonewline $mfd "LD="
+
+	if { $Run(GCV) > 4 } {
+		# this must be explicit
+		puts -nonewline $mfd "-L $Run(GCI) "
+	}
 
 	if [islibrun] {
 		if { $Run(DNM) == 1 } {
@@ -1038,10 +1060,10 @@ proc outmkf { def cpu } {
 		} else {
 			set lfn $Run(library)
 		}
-		puts $mfd "LD=-L$lfn -lpicos"
-	} else {
-		puts $mfd "LD="
+		puts -nonewline $mfd "-L $lfn -lpicos"
 	}
+
+	puts $mfd ""
 
 	# output the list of directories
 	puts $mfd "# include directories"
@@ -1084,6 +1106,11 @@ proc outmkf { def cpu } {
 	puts $mfd "#"
 
 	puts -nonewline $mfd "IN="
+
+	if { $Run(GCV) > 4 } {
+		puts -nonewline $mfd "-I $Run(GCI) "
+	}
+
 	foreach dir $idirs {
 		puts -nonewline $mfd "-I \$([lindex $dir 1]) "
 	}
@@ -1235,10 +1262,10 @@ proc outmkf_lib { def cpu } {
 	}
 
 	puts $mfd "#\n# Created by mkmk, DO NOT EDIT!!!\n#"
-	puts $mfd "CC=msp430-gcc"
-	puts $mfd "AS=msp430-as"
-	puts $mfd "AR=msp430-ar"
-	puts $mfd "RL=msp430-ranlib"
+	puts $mfd "CC=$Run(CPF)gcc"
+	puts $mfd "AS=$Run(CPF)as"
+	puts $mfd "AR=$Run(CPF)ar"
+	puts $mfd "RL=$Run(CPF)ranlib"
 	puts $mfd "RM=rm"
 	puts -nonewline $mfd "CF=-mmcu=[cputag $cpu]"
 	if { $Run(GCV) < 4 } {
@@ -1249,7 +1276,12 @@ proc outmkf_lib { def cpu } {
 	}
 	puts $mfd ""
 	puts $mfd "AF=-mmcu=[cputag $cpu]"
-	puts $mfd "OF=-Os -g -Wundef"
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
+	} else {
+		set cfg "-Os -g -Wundef"
+	}
+	puts $mfd "OF=$cfg"
 	puts $mfd "TR=LIBRARY/libpicos.a"
 	puts $mfd "TD=./KTMP"
 
@@ -1294,6 +1326,9 @@ proc outmkf_lib { def cpu } {
 	puts $mfd "#"
 
 	puts -nonewline $mfd "IN="
+	if { $Run(GCV) > 4 } {
+		puts -nonewline $mfd "-I $Run(GCI) "
+	}
 	foreach dir $idirs {
 		puts -nonewline $mfd "-I \$([lindex $dir 1]) "
 	}
@@ -2326,9 +2361,11 @@ proc scanfile { fname } {
 
 proc bad_usage { } {
 
-	puts stderr "Usage: mkmk boardname \[-m|-p\] \[label\]"
-	puts stderr "       mkmk boardname -l"
-	puts stderr "       mkmk -M|-P \[libdir\] \[label\]"
+	puts stderr "Usage: mkmk boardname \[-c pfx\] \[-m|-p\] \[label\]"
+	puts stderr "       mkmk boardname \[-c pfx\] -l"
+	puts stderr "       mkmk \[-c pfx\] -M|-P \[libdir\] \[label\]"
+	puts stderr "       mkmk -V"
+	puts stderr "       mkmk ... -- override compile args for mspgcc
 	exit 1
 }
 
@@ -2375,7 +2412,7 @@ proc sysdesig { } {
 	return "Linux"
 }
 
-proc ifnotcygwin { } {
+proc onlinux { } {
 #
 # Checks if mspgcc operates in the cygwin environment, i.e., using cygwin DLLs.
 # This tells us whether the compiler accepts UNIX-like file names or not. Note
@@ -2384,13 +2421,15 @@ proc ifnotcygwin { } {
 #
 	global Run
 
-	if [catch { exec which msp430-gcc } p] {
+	set comp "$Run(CPF)gcc"
+
+	if [catch { exec which $comp } gcd] {
 	    	errab "Cannot locate mspgcc installation, sorry!"
 	}
 
-	set p [file dirname $p]
+	set gcd [file dirname $gcd]
 
-	if [catch { exec ls $p } p] {
+	if [catch { exec ls $gcd } p] {
 		errab "Cannot inspect mspgcc installation, sorry!"
 	}
 
@@ -2403,19 +2442,19 @@ proc ifnotcygwin { } {
 	} else {
 		# determine the version; this is also needed for Linux;
 		set res ""
-		catch { exec msp430-gcc -v } res
+		catch { exec $comp -v } res
 		if ![regexp "version (\[0-9\]+\)\\.\[0-9\]+\\.\[0-9\]+" \
 		    $res jnk res] {
-			errab "Cannot determine msp430-gcc version number"
+			errab "Cannot determine $comp version number"
 		}
 
-		puts stdout "msp430-gcc $jnk"
+		puts stdout "$comp $jnk"
 
 		if { $res > 3 } {
 			set Run(GCV) $res
 		}
 
-		if { [lsearch $p "msp430-gcc.exe"] >= 0 } {
+		if { [lsearch $p "${comp}.exe"] >= 0 } {
 			if { $res < 4 } {
 				set ver 0
 			} else {
@@ -2447,6 +2486,18 @@ proc ifnotcygwin { } {
 		}
 	} else {
 		set Run(DNM) $ver
+	}
+
+	set gci [file join [file dirname $gcd] "include"]
+
+	if ![file isdirectory $gci] {
+		errab "Compiler include directory $gci not found"
+	}
+
+	set Run(GCI) [canon $gci]
+
+	if { $Run(DNM) == 1 } {
+		set Run(GCI) [dsname $Run(GCI)]
 	}
 }
 
@@ -2512,13 +2563,17 @@ proc main { } {
 
 	cygfix
 
-	set Run(type) "m"
+	set Run(type) ""
 	# the board (this must not be null)
 	set Run(board) ""
 	# the praxis (null means all)
 	set Run(praxis) ""
 	# for a library run
 	set Run(library) ""
+	# compiler path prefix
+	set Run(CPF) ""
+	# override compiler args
+	set Run(OCA) ""
 	
 	# parse the arguments #################################################
 
@@ -2538,56 +2593,94 @@ proc main { } {
 		}
 	}
 
-	set arg [getarg]
+	# decode arguments
+	set kcnt 0
 
-	if { $arg == "" } {
+	while 1 {
+
+		set arg [getarg]
+
+		if { $arg == "" } {
+			break
+		}
+
+		if { [string index $arg 0] != "-" } {
+			# this must be a board name or tag
+			if { $kcnt == 0 } {
+				# board name
+				set Run(board) $arg
+			} elseif { $kcnt == 1 } {
+				# tag
+				set Run(praxis) $arg
+			} else {
+				bad_usage
+			}
+			incr kcnt
+			continue
+		}
+
+		set arg [string range $arg 1 end]
+
+		if { [string first $arg "mpl"] >= 0 } {
+			# this must occur with board, check later
+			if { $Run(type) != "" } {
+				bad_usage
+			}
+			set Run(type) $arg
+			continue
+		}
+
+		if { $arg == "V" } {
+			# just print the version number (release tag)
+			puts "ZZ000000A"
+			exit 0
+		}
+
+		if { $arg == "c" } {
+			# compiler name prefix
+			set cpf [getarg]
+			if { $Run(CPF) != "" || $cpf == "" || \
+			    [string index $cpf 0] == "-" } {
+				bad_usage
+			}
+			set Run(CPF) $cpf
+			continue
+		}
+
+		if { $arg == "M" || $arg == "P" } {
+			if { $kcnt || $Run(type) != "" } {
+				bad_usage
+			}
+			# library mode
+			set Run(type) $arg
+			# library path required
+			set arg [getarg]
+			if { $arg == "" || [string index $arg 0] == "-" } {
+				bad_usage
+			}
+			set Run(library) [uxname $arg]
+			# expect tag/label, but no boardname
+			incr kcnt
+			continue
+		}
+
+		if { $arg == "-" } {
+			# override compiler args
+			set Run(OCA) $argv
+			break
+		}
+
 		bad_usage
 	}
 
-	if { $arg == "-V" } {
-		# just print the version number (release tag)
-		puts "ZZ000000A"
-		exit 0
+	if { $Run(type) == "" } {
+		set Run(type) "m"
 	}
 
-	if { $arg == "-M" || $arg == "-P" } {
-		# library mode
-		set Run(type) [string index $arg 1]
-		# library path required
-		set arg [getarg]
-		if { $arg == "" } {
-			bad_usage
-		}
-		set Run(library) [uxname $arg]
-		set arg [getarg]
-	} else {
-		# this must be a board name
-		if { [string index $arg 0] == "-" } {
-			# just in case
-			bad_usage
-		}
-		set Run(board) $arg
-		set arg [getarg]
-		# this is an optional -l, -m, or -p
-		if { [string index $arg 0] == "-" } {
-			set Run(type) [string range $arg 1 end]
-			if ![regexp "\[mpl\]" $Run(type)] {
-				bad_usage
-			}
-			set arg [getarg]
-		}
+	if { $Run(type) != "M" && $Run(type) != "P" && $Run(board) == "" } {
+		bad_usage
 	}
-	# optional tag
-	if { $arg != "" } {
-		if { [string index $arg 0] == "-" } {
-			bad_usage
-		}
-		set Run(praxis) $arg
-		if { [getarg] != "" } {
-			bad_usage
-		}
-	}
-			
+
 	#######################################################################
 
 	set CWD [pwd]
@@ -2613,7 +2706,11 @@ proc main { } {
 			errab "Parameter -$Run(type) is only applicable to\
 				Cyan SDK (an eCOG board)"
 		}
-		ifnotcygwin
+		if { $Run(CPF) == "" } {
+			# the default prefix
+			set Run(CPF) "msp430-"
+		}
+		onlinux
 	}
 
 	set RPREF [canon RPREF]

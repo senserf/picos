@@ -50,8 +50,6 @@ static void	devinit_uart (int);
 
 #endif  /* UART_DRIVER || UART_TCV */
 
-extern byte	*__bss_end;
-
 #if MAX_DEVICES
 
 // On MSP430, UART is the only "device" (a good reason to get rid of the
@@ -1129,13 +1127,13 @@ static void ios_init () {
 		"-" SYSVER_B
 #endif
         	", (C) Olsonet Communications, 2002-2016");
-	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__bss_end));
+	diag ("Leftover RAM: %d bytes", (word)STACK_END - (word)(&__BSS_END));
 #endif
 
 #endif	/* DIAG_MESSAGES */
 
 	dbg_1 (0x1000 | SYSVER_X);
-	dbg_1 ((word)STACK_END - (word)(&__bss_end)); // RAM in bytes
+	dbg_1 ((word)STACK_END - (word)(&__BSS_END)); // RAM in bytes
 
 #if MAX_DEVICES
 	/* Initialize devices */

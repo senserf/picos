@@ -51,9 +51,9 @@ fsm root {
 		char cmd [4];
 
 		ser_in (INPUT, cmd, 4);
-		if (strncmp (cmd, "on", 2) == 0)
+		if (cmd [1] == 'n')
 			blink (my_led, YES);
-		else if (strncmp (cmd, "of", 2) == 0)
+		else if (cmd [1] == 'f')
 			blink (my_led, NO);
 		else
 			proceed BAD_INPUT;
