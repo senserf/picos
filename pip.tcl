@@ -5447,6 +5447,8 @@ proc mk_options_conf_window { } {
 		grid $f.vfe -column 1 -row $row -padx 4 -pady 2 -sticky we
 	}
 
+	grid columnconfigure $f 1 -weight 1
+
 	##
 	set f $w.bf
 	frame $f
@@ -9648,6 +9650,8 @@ proc do_prebuild_lib { board ea } {
 #
 # Prebuild a library for the specified board
 #
+	global P
+
 	remove_temp
 
 	if [catch { file mkdir temp } err] {
@@ -9655,7 +9659,19 @@ proc do_prebuild_lib { board ea } {
 		return
 	}
 
-	set al [list -c "cd temp ; mkmk $board -l"]
+	set cpf [dict get $P(CO) "OPTCPREFIX"]
+	set al "cd temp ; mkmk "
+	if { $cpf != "" } {
+		append al "-c $cpf "
+	}
+	append al "$board -l"
+
+	set cpf [dict get $P(CO) "OPTCOPTOVR"]
+	if { $cpf != "" } {
+		append al " -- $cpf"
+	}
+
+	set al [list -c $al]
 
 	if [catch { run_term_command "bash" $al $ea remove_temp } err] {
 		remove_temp
@@ -11106,13 +11122,23 @@ proc get_picos_project_files { } {
 		return ""
 	}
 
+
 	foreach m $ml {
+		set msg "--SCANNING FOR CTAGS"
+		if { $m != "" } {
+			append msg " IN $m"
+		}
+		append msg " ..."
+		term_dspline $msg
+		update
 		scan_mkfile $m
 	}
 
 	set fl [lsort [array names FNARR]]
 
 	array unset FNARR
+
+	term_dspline "--DONE--"
 
 	return $fl
 }

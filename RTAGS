@@ -866,3 +866,9 @@ PG160907A:
 PG160919A:	PICOS >= PG160919A
 
 	See PICOS. A few more options in Configuration->Options.
+
+PG160920A:
+
+	Fixed one little problem: yesterday, when providing for the different
+	compiler versions (the toolchain file path prefix), I forgot about the
+	library mode invocation of mkmk. Plus a few cosmetics.
