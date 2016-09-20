@@ -4910,3 +4910,7 @@ PG160919A:	PIP >= PG160919A
 	Anyway, PIP allows you now to switch compilers (if you have more than
 	one). A few more changes that you may or may not spot, depending how
 	inquisitive you are.
+
+PG160920A:
+
+	Updated the manual for mkmk + a few minor cosmetics.

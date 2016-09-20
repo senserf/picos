@@ -1,7 +1,7 @@
 #ifndef __pg_mach_h
 #define	__pg_mach_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -254,7 +254,7 @@
 
 #if STACK_GUARD
 #define	check_stack_overflow \
-			 do { \
+			do { \
 				if (*(((word*)STACK_END)-1) != STACK_SENTINEL) \
 					syserror (ESTACK, "st"); \
 			} while (0)
@@ -808,8 +808,12 @@ extern uart_t __pi_uart [];
 
 #endif
 
-#define	sti	_EINT ()
-#define	cli	_DINT ()
+//#define	sti	_EINT ()
+//#define	cli	_DINT ()
+// Formally, nops are needed around these, only sometimes, not a big deal
+// to make them always safe
+#define	sti	do { __asm__ ("nop\n\t"); _EINT (); } while (0)
+#define	cli	do { _DINT (); __asm__ ("nop\n\t"); } while (0)
 
 #ifndef	LOW_POWER_SLEEP_MODE
 #define	LOW_POWER_SLEEP_MODE	LPM3_bits

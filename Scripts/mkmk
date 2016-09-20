@@ -2580,20 +2580,6 @@ proc main { } {
 	# forced path type preference
 	set Run(DNM) ""
 	set Run(GCV) 0
-	set f [lsearch -regexp $argv "^-\[LUCW\]$"]
-	if { $f >= 0 } {
-		set arg [lindex $argv $f]
-		set argv [lreplace $argv $f $f]
-		if { $arg == "-C" } {
-			set Run(DNM) 0
-		} elseif { $arg == "-W" } {
-			set Run(DNM) 1
-		} else {
-			set Run(DNM) 2
-		}
-	}
-
-	# decode arguments
 	set kcnt 0
 
 	while 1 {
@@ -2620,6 +2606,23 @@ proc main { } {
 		}
 
 		set arg [string range $arg 1 end]
+		if { [string length $arg] != 1 } {
+			bad_usage
+		}
+
+		if { [string first $arg "LUCW"] >= 0 } {
+			if { $Run(DNM) != "" } {
+				bad_usage
+			}
+			if { $arg == "C" } {
+				set Run(DNM) 0
+			} elseif { $arg == "W" } {
+				set Run(DNM) 1
+			} else {
+				set Run(DNM) 2
+			}
+			continue
+		}
 
 		if { [string first $arg "mpl"] >= 0 } {
 			# this must occur with board, check later

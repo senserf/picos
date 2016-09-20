@@ -145,7 +145,8 @@ int main (void) {
 	// clock is started explicitly by delay requests
 	sti_tim;
 #endif
-	_EINT ();
+	// We are up and running
+	sti;
 
 	// Fall through to scheduler
 
