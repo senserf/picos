@@ -20,7 +20,7 @@ nid_t   _da (master_host);
 
 #else	/* The real world */
 
-tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, TARP_DEF_PARAMS, 0,0,0,
+tarpCtrlType _da (tarp_ctrl) = {0, 0, 0, TARP_DEF_PARAMS, 0,0,0,0,0,
 	TARP_DEF_RSSITH, YES};
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)

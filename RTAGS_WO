@@ -817,3 +817,11 @@ WO160718A:
  NO multiple masters (per NID), no NVM. The reason: this change satisfies
  AT requests and I have doubts if we're going the right way with genihex-based
  customization other than setting defaults MID=NID=HID>>16 and LH = (word)HID. 
+
+WO160926A:
+ Locaspot 1.82:
+ Introduced RFID as an attempt to address conflicting requirements of Wandering Detection (WD) via loop detection in AP331. See '160926_preliminary' Appendix C. We should explore (later) our WOR as a replacement for AS3932 loops, add peg alarms and get a truly decent implementation of RFID+.
+
+ Sleepers in LibComms (tarpCrelType):
+ We want to be able to have masters changed via messages (as it was before AT) and have settable multiple masters. This is a relatively easy implementation; hoever, it needs a thoughtful cooperation from OSS and provisioning agents. So, only handy but not used params are implanted (I don't want to remove what once was done): flags mchg_msg and mchg_set. When the true multiple master functionality is implemented, they'll serve as indicators what is allowed by provisioning.
+ 
