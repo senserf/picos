@@ -92,7 +92,9 @@ typedef struct tarpCtrlStruct {
 	word	param :8;
 	word	pp_urg 	 :1; // pp: per packet (tx clears these)
 	word	pp_widen :3;
-	word	spare :4;
+	word	mchg_msg :1;
+	word	mchg_set :1;
+	word	spare 	:2;
 	word	rssi_th :8;  // rssi threshold
 	word	ssignal :8; // spare: a bool that can be local in tarp_rx
 } tarpCtrlType;

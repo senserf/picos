@@ -2,6 +2,8 @@
 	_da (tarp_ctrl).rcv = _da (tarp_ctrl).snd = _da (tarp_ctrl).fwd = 0;
 	_da (tarp_ctrl).pp_urg = 0;
 	_da (tarp_ctrl).pp_widen = 0;
+	_da (tarp_ctrl).mchg_msg = 0;
+	_da (tarp_ctrl).mchg_set = 0;
 	_da (tarp_ctrl).spare = 0;
 	_da (tarp_ctrl).param = TARP_DEF_PARAMS;
 	_da (tarp_ctrl).rssi_th = TARP_DEF_RSSITH;
