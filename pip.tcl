@@ -140,6 +140,7 @@ set IGDirs { "^cvs$" "^vuee_tmp$" "^ktmp" "junk" "attic" "ossi" "\\~\\$"
 ## List of directories for soft cleaning; perhaps the Cyan ones should not be
 ## there
 set SoftCleanDirs { "out" "tmp" "KTMP" }
+set VueeCleanFiles [list "VUEE_TMP" $SIDENAME]
 
 ###############################################################################
 
@@ -4853,6 +4854,12 @@ proc do_vuee_config { } {
 				set P(M0,OSNN) $val
 			}
 
+			# check if should erase VUEE build
+			if { $P(M0,THRD) != [dict get $P(CO) "THRD"] } {
+				term_dspline \
+			  	"--DIMENSIONALITY CHANGED, VUEE BUILD CLEANED--"
+				do_clean_vuee
+			}
 			dialog_to_params $CFVueeItems
 			md_stop
 			set_config
@@ -9960,8 +9967,17 @@ proc do_clean_light { { ix "" } } {
 		set d $d$suf
 		catch { exec rm -rf $d }
 	}
+}
 
-	reset_bnx_menus
+proc do_clean_vuee { } {
+#
+# VUEE cleanup
+#
+	global VueeCleanFiles
+
+	foreach d $VueeCleanFiles {
+		catch { exec rm -rf $d }
+	}
 }
 
 ###############################################################################
