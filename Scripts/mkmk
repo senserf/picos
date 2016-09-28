@@ -1041,7 +1041,7 @@ proc outmkf { def cpu } {
 	if { $Run(OCA) != "" } {
 		set cfg $Run(OCA)
 	} else {
-		set cfg "-Os -g -Wundef"
+		set cfg "-Os -g -Wundef -fno-strict-aliasing"
 	}
 	puts $mfd "OF=$cfg"
 	puts $mfd "TR=Image"
@@ -1279,7 +1279,7 @@ proc outmkf_lib { def cpu } {
 	if { $Run(OCA) != "" } {
 		set cfg $Run(OCA)
 	} else {
-		set cfg "-Os -g -Wundef"
+		set cfg "-Os -g -Wundef -fno-strict-aliasing"
 	}
 	puts $mfd "OF=$cfg"
 	puts $mfd "TR=LIBRARY/libpicos.a"

@@ -4914,3 +4914,17 @@ PG160919A:	PIP >= PG160919A
 PG160920A:
 
 	Updated the manual for mkmk + a few minor cosmetics.
+
+PG160928A:
+
+	Following my exchange on the TI forum with some of the enlightened
+	members of the community, I have added -fno-strict-aliasing to the
+	default compilation options of MSPGCC. As it turns out, the TI version
+	(5.3.0) does by default what any sane person must deem unsafe
+	optimization, i.e., assuming that strict-aliasing is in effect. As far
+	as I can see, there is only one place in PicOS affected by that (qfree
+	in kernel.c), but ... how can one be 100% sure?
+
+	Funny thing, with -fno-strict-aliasing (which is expected to make some
+	[code size] optimization impossible) the code size doesn't increase at
+	all, but in fact decreases slightly ;-). Good work guys!
