@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-10   P. Gburzynski */
+/* Copyright (C) 1991-16   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -28,11 +28,15 @@
 /* The three constants below should be defined by maker */
 /* ---------------------------------------------------- */
 #ifndef CCOMP
-#define CCOMP   "g++"
+#define CCOMP   	"g++"
+#endif
+
+#ifndef	CCEXTRAARGS
+#define	CCEXTRAARGS	"-fno-strict-aliasing"
 #endif
 
 #ifndef MAXLIB
-#define MAXLIB  5
+#define MAXLIB  	5
 #endif
 
 #ifndef	ZZ_INCPATH
@@ -735,6 +739,8 @@ void    makeSmurph () {
 
 	*out << "CMP= " << CCOMP;
 	if (BeVerbose) *out << " -v";
+	*out << ' ';
+	*out << CCEXTRAARGS;
 	*out << '\n';
 	*out << "OPT= " << OPT << '\n';
 	*out << "ASR= " << ASR << '\n';

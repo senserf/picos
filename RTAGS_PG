@@ -631,4 +631,9 @@ PG160704A:	PICOS >= PG160704A, SIDE >= PG160704A
 
 	   The sampled channel model simplified and redone (as per VUEE doc).
 
-	   
+PG161001A:
+
+	   I have added -fno-strict-aliasing to the options of g++ when
+	   compiling the simulator. This is to make sure that enforcing strict
+	   aliasing by default in the newer versions of the compiler will not
+	   affect the correctness of code.

@@ -3684,7 +3684,7 @@ Consequently, {\tt RFChannel} should be viewed as a generic parent type for
 building actual channel types, whose exact behavior is fully specified by
 a collection of virtual methods provided by the user.
 
-The primary role of those methods is to determine how a signal attenuates
+The primary role of those methods is to describe how a signal attenuates
 over distance, and how the levels of multiple signals perceived by the same
 recipient determine whether any of those signals can be recognized as a
 valid packet.
@@ -3913,7 +3913,7 @@ In all circumstances, the {\tt Tag} attribute of {\tt xm} indicates the current
 value of the transceiver's {\tt Tag}.
 If {\tt ex} is not {\tt NONE} ($-1$), it gives the index of one entry
 in {\tt sl} that should be ignored.
-This operation is also used in calculating the total level of interference
+Note that this operation is also used in calculating the total level of interference
 affecting one selected signal; in such a case, the signal in question should be
 excluded from the calculation.
 \end{quote}

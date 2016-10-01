@@ -307,25 +307,17 @@ static void init_channel (int NN) {
 
 	} else if (channel_type == CTYPE_SAMPLED) {
 
-		K = 4;					// Samples to average
-		dref = 1.0;				// Averaging factor
+		K = 3;					// Sigma threshold
 		if ((att = sxml_attr (prp, "average")) != NULL) {
 			np [0].type = TYPE_int;
 			nr = parseNumbers (att, NPTABLE_SIZE, np);
-			if (nr == 0 || nr > 2)
+			if (nr != 1)
 				xeai ("average", "<propagation>", att);
 			K = (int) (np [0].LVal);
 			if (K < 1 || K > 32)
 				excptn ("Root: the number of samples to "
 					"average must be between 1 and 32, is "
 					"%1d", K);
-			if (nr > 1) {
-				dref = np [1].DVal;
-				if (dref <= 0.0)
-					excptn ("Root: the averaging factor "
-						"must be > 0.0, is %g",
-						dref);
-			}
 			np [0].type = TYPE_double;
 		}
 
@@ -610,7 +602,7 @@ RVErr:
 		create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db,
 			bn_db, cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 	else if (channel_type == CTYPE_SAMPLED)
-		create RFSampled (NN, STB, nb, K, dref, sigm, bn_db, bn_db,
+		create RFSampled (NN, STB, nb, K, sigm, bn_db, bn_db,
 			cutoff, syncbits, bpb, frml, ivc, sfname, symm,
 				mxc, NULL);
 	else if (channel_type == CTYPE_NEUTRINO)
