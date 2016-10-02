@@ -17,7 +17,7 @@
 void emitBuilder (SymDesc *co = NULL);
 
 #ifdef DEBUG
-void    debug (char *t) {
+static void debug (char *t) {
 
 /* ----------------------- */
 /* Print out debug message */
@@ -304,7 +304,7 @@ static INLINE int hash (const char *s) {
 	return ((res + *s) & (HASHTS-1));
 }
 
-void    ioerror (int fd) {
+static void ioerror (int fd) {
 
 /* ------------------------- */
 /* Process i/o error (fatal) */
@@ -317,7 +317,7 @@ void    ioerror (int fd) {
 	exit (2);
 }
 
-void    excptn (char *t) {
+static void excptn (char *t) {
 
 /* ----------------------- */
 /* Memory allocation error */
@@ -410,7 +410,7 @@ INLINE SymDesc *getSym (const char *sym) {
 	return (NULL);
 }
 
-inline  int     isDefined (SymDesc *ob, int qual, int stts) {
+static inline  int  isDefined (SymDesc *ob, int qual, int stts) {
 
 /* ---------------------------------------------- */
 /* Checks whether the symbol is defined as needed */
@@ -454,7 +454,7 @@ INLINE KFUNC getKey (char *s) {
 	return (NULL);
 }
 	
-void    readBuf () {
+static void readBuf () {
 
 /* ------------------------------------ */
 /* Fills the input buffer with new data */
@@ -552,7 +552,7 @@ void    xerror (const char *t, ...) {
 	exit (1);
 }
 
-int     startLkp () {
+static int startLkp () {
 
 /* ------------------------------------ */
 /* Starts advance lookup for characters */
@@ -643,7 +643,7 @@ TooLong:
 	return (c);
 }
 
-void    flushBuf () {
+static void flushBuf () {
 
 /* ----------------------------------------------- */
 /* Writes the output buffer to the standard output */
@@ -664,7 +664,7 @@ static inline void putC (char c) {
 	*FreeP++ = c;
 }
 
-void    putC (const char *s) {
+static void putC (const char *s) {
 
 /* ---------------------------------- */
 /* Writes a string to the output file */
@@ -673,57 +673,7 @@ void    putC (const char *s) {
 	while (*s != '\0') putC (*s++);
 }
 
-void    catchUp () {
-
-/* ------------------------------------------------ */
-/* Advance the out pointer to the lookahead pointer */
-/* ------------------------------------------------ */
-
-	while (OutP != EnLkpPtr) getC ();
-	if (EnSPrepD != NULL) {
-#if 1
-		char *cp, c;
-		int nln, bpt;
-
-		// Prep line to flush; FIXME: we basically redo 
-		// processLineCommand; this has to be integrated
-		cp = EnSPrepD + 1;
-		while (isspace (*cp))
-			cp++;
-		if (!isdigit (*cp))
-			goto Copy;
-
-		// Line number
-		for (nln = *cp - '0'; *cp++ && isdigit (*cp);
-			nln = nln * 10 + (*cp - '0'));
-
-		// File name
-		while (isspace (*cp))
-			cp++;
-		if (*cp != '"')
-			goto Copy;
-
-		for (bpt = 0; ;) {
-			c = *cp++;
-			if (c == '\0') goto Copy;
-			if (c == '"') break;
-			if (bpt < MFNLEN-1) CFName [bpt++] = c;
-		}
-
-		CFName [bpt] = '\0';
-
-		LineNumber = nln;
-Copy:
-		putC ('\n');
-		putC (EnSPrepD);
-		putC ('\n');
-#endif
-		delete (EnSPrepD);
-		EnSPrepD = NULL;
-	}
-}
-
-void    finish () {
+static void finish () {
 
 /* ----------------------- */
 /* Completes the execution */
@@ -746,37 +696,7 @@ void    finish () {
 	exit (ErrorsFound != 0);
 }
 
-static inline void genDCons (char *t) {
-
-/* ------------------------- */
-/* Emits a dummy constructor */
-/* ------------------------- */
-
-	putC (t); putC (" () {}; ");
-}
-
-int     pushDecl (SymDesc *co) {
-
-/* ------------------------------------------ */
-/* Push a new object declaration on the stack */
-/* ------------------------------------------ */
-
-	if (DeclStackDepth >= MSTACK) {
-		xerror ("declarations overnested");
-		return (NO);
-	}
-
-	DeclStack [DeclStackDepth] . CObject = CObject;
-	DeclStack [DeclStackDepth] . CObjectBC = CObjectBC;
-
-	DeclStackDepth ++;
-
-	CObject = co;
-	CObjectBC = BraceLevel;
-	return (YES);
-}
-
-void    processLineCommand () {
+static void processLineCommand () {
 
 /* ---------------------------------------------------------- */
 /* Processes the line command of the form # ddd "sssss" [nnn] */
@@ -827,7 +747,94 @@ Copy:   // Copy the rest of the line until EOL
 	putC (c);
 }
 
-int     getKeyword (char *kbuf, int fc = 0, int mswd = 0) {
+static void flushPrep () {
+//
+// Flush any pending preprocessor command
+//
+	if (EnSPrepD != NULL) {
+#if 1
+		char *cp, c;
+		int nln, bpt;
+
+		// Prep line to flush; we basically redo processLineCommand;
+		// this has to be integrated at the nearest occasion
+		cp = EnSPrepD + 1;
+		while (isspace (*cp))
+			cp++;
+		if (!isdigit (*cp))
+			goto Copy;
+
+		// Line number
+		for (nln = *cp - '0'; *cp++ && isdigit (*cp);
+			nln = nln * 10 + (*cp - '0'));
+
+		// File name
+		while (isspace (*cp))
+			cp++;
+		if (*cp != '"')
+			goto Copy;
+
+		for (bpt = 0; ;) {
+			c = *cp++;
+			if (c == '\0') goto Copy;
+			if (c == '"') break;
+			if (bpt < MFNLEN-1) CFName [bpt++] = c;
+		}
+
+		CFName [bpt] = '\0';
+
+		LineNumber = nln;
+Copy:
+		putC ('\n');
+		putC (EnSPrepD);
+		putC ('\n');
+#endif
+		delete (EnSPrepD);
+		EnSPrepD = NULL;
+	}
+}
+
+static void catchUp () {
+
+/* ------------------------------------------------ */
+/* Advance the out pointer to the lookahead pointer */
+/* ------------------------------------------------ */
+
+	while (OutP != EnLkpPtr) getC ();
+	flushPrep ();
+}
+
+static inline void genDCons (char *t) {
+
+/* ------------------------- */
+/* Emits a dummy constructor */
+/* ------------------------- */
+
+	putC (t); putC (" () {}; ");
+}
+
+static int pushDecl (SymDesc *co) {
+
+/* ------------------------------------------ */
+/* Push a new object declaration on the stack */
+/* ------------------------------------------ */
+
+	if (DeclStackDepth >= MSTACK) {
+		xerror ("declarations overnested");
+		return (NO);
+	}
+
+	DeclStack [DeclStackDepth] . CObject = CObject;
+	DeclStack [DeclStackDepth] . CObjectBC = CObjectBC;
+
+	DeclStackDepth ++;
+
+	CObject = co;
+	CObjectBC = BraceLevel;
+	return (YES);
+}
+
+static int getKeyword (char *kbuf, int fc = 0, int mswd = 0) {
 
 /* ---------------------------------------------------------- */
 /* Gets  a  keyword  into  buffer kbuf. Returns the non-blank */
@@ -876,7 +883,7 @@ int     getKeyword (char *kbuf, int fc = 0, int mswd = 0) {
 	return (c);
 }
 
-int     getArg (char *kbuf) {
+static int getArg (char *kbuf) {
 
 /* ---------------------------------------------------------- */
 /* Gets  an argument (which can be an expression) into buffer */
@@ -948,7 +955,7 @@ int     getArg (char *kbuf) {
 	return (c);
 }
 
-int     isState (char *st) {
+static int isState (char *st) {
 
 /* --------------------------------------------------------- */
 /* Checks if the state 'st' occurs on the process state list */
@@ -972,7 +979,7 @@ int     isState (char *st) {
 	return (YES);
 }
 
-char    *isStateP (char *st) {
+static char *isStateP (char *st) {
 
 /* ------------------------------------------------------------ */
 /* Checks if the state 'st' occurs on the process state list or */
@@ -1001,7 +1008,7 @@ char    *isStateP (char *st) {
 	return (p->Name);
 }
 
-int     processWait (int del) {
+static int processWait (int del) {
 
 /* --------------------------------------- */
 /* Expands the ...wait (a, b) ... sequence */
@@ -1065,7 +1072,7 @@ WaitErr:
 	return (YES);
 }
 
-int     processTerminate (int del) {
+static int processTerminate (int del) {
 
 /* -------------------- */
 /* Expands 'terminate;' */
@@ -1087,7 +1094,7 @@ int     processTerminate (int del) {
 	return (YES);
 }
 
-int     processGetDelay (int del) {
+static int processGetDelay (int del) {
 
 /* --------------------------------------------- */
 /* Expands the ...->getDelay (a, b) ... sequence */
@@ -1136,7 +1143,7 @@ int     processGetDelay (int del) {
 	return (YES);
 }
 
-int     processSetDelay (int del) {
+static int processSetDelay (int del) {
 
 /* ------------------------------------------------ */
 /* Expands the ...->setDelay (a, b, c) ... sequence */
@@ -1196,7 +1203,7 @@ SetdErr:
 	return (YES);
 }
 
-int     processIdentify (int del) {
+static int processIdentify (int del) {
 
 /* ---------------------------------- */
 /* Expands the `identify t;' sequence */
@@ -1314,7 +1321,7 @@ Done:   putC ("\";");
 	return (YES);
 }
 
-int     processState (int del) {
+static int processState (int del) {
 
 /* ------------------------------------- */
 /* Expands the `state nnnnnn :' sequence */
@@ -1361,7 +1368,7 @@ int     processState (int del) {
 	return (YES);
 }
 
-int     processTransient (int del) {
+static int processTransient (int del) {
 
 /* ------------------------------------------------------- */
 /* Expands the controversial `transient nnnnnn :' sequence */
@@ -1400,7 +1407,7 @@ int     processTransient (int del) {
 	return (YES);
 }
 
-int     processStates (int del) {
+static int processStates (int del) {
 
 /* ------------------------------- */
 /* Expands `states {...}' sequence */
@@ -1511,7 +1518,7 @@ int     processStates (int del) {
 	return (YES);
 }
 
-int     processSleep (int del) {
+static int processSleep (int del) {
 
 /* ------------- */
 /* Expands sleep */
@@ -1540,7 +1547,7 @@ int     processSleep (int del) {
 	return (YES);
 }
 
-int     processProceed (int del) {
+static int processProceed (int del) {
 
 /* --------------------------------- */
 /* Expands the `proceed s;' sequence */
@@ -1642,7 +1649,7 @@ ProcErr:
 	return (YES);
 }
 
-int     processSkipto (int del) {
+static int processSkipto (int del) {
 
 /* -------------------------------- */
 /* Expands the `skipto s;' sequence */
@@ -1715,7 +1722,7 @@ int     processSkipto (int del) {
 	return (YES);
 }
 
-int     processSameas (int del) {
+static int processSameas (int del) {
 
 /* -------------------------------- */
 /* Expands the `sameas s;' sequence */
@@ -1797,7 +1804,7 @@ ProcErr:
 	return (YES);
 }
 
-int     process_nt (
+static int process_nt (
 		int del,		// Delimiter
 		int xt,			// Type ordinal
 		const char *ki,		// Declaration keyword
@@ -1992,23 +1999,23 @@ Assumereal:
 	return (YES);
 }
 
-int     processEobject (int del) {
+static int processEobject (int del) {
 
 	return process_nt (del, EOBJECT, "eobject", "EObject", EXPOSABLE, NO);
 }
 
-int     processStation (int del) {
+static int processStation (int del) {
 
 	return process_nt (del, STATION, "station", "Station", EXPOSABLE, NO);
 }
 
-int     processObserver (int del) {
+static int processObserver (int del) {
 
 	return process_nt (del, OBSERVER, "observer", "Observer", EXPOSABLE,
 		YES);
 }
 
-int     processMessage (int del) {
+static int processMessage (int del) {
 
 	int res;
 
@@ -2021,7 +2028,7 @@ int     processMessage (int del) {
 	return res;
 }
 
-int     processPacket (int del) {
+static int processPacket (int del) {
 
 	int res;
 
@@ -2034,7 +2041,7 @@ int     processPacket (int del) {
 	return res;
 }
 
-int     processLink (int del) {
+static int processLink (int del) {
 
 	int res;
 
@@ -2047,7 +2054,7 @@ int     processLink (int del) {
 	return res;
 }
 
-int     processRFChannel (int del) {
+static int processRFChannel (int del) {
 
 	int res;
 
@@ -2061,7 +2068,7 @@ int     processRFChannel (int del) {
 	return res;
 }
 
-int     processProcess (int del) {
+static int processProcess (int del) {
 
 /* ------------------------------------ */
 /* Expands the Process type declaration */
@@ -2324,7 +2331,7 @@ Assumereal:
 	return (YES);
 }
 
-int     processMailbox (int del) {
+static int processMailbox (int del) {
 
 /* ------------------------------------ */
 /* Expands the Mailbox type declaration */
@@ -2535,7 +2542,7 @@ Assumereal:
 	return (YES);
 }
 
-int     processInitem (int del) {
+static int processInitem (int del) {
 
 /* ----------------------------------------- */
 /* Processes 'inItem' occurring in a mailbox */
@@ -2579,7 +2586,7 @@ Synerror:
 	return (YES);
 }
 
-int     processOutitem (int del) {
+static int processOutitem (int del) {
 
 /* ------------------------------------------ */
 /* Processes 'outItem' occurring in a mailbox */
@@ -2623,7 +2630,7 @@ Synerror:
 	return (YES);
 }
 
-void	endOfMailbox () {
+static void endOfMailbox () {
 
 /* ----------------------------------------------- */
 /* Processes the end of a mailbox type declaration */
@@ -2646,7 +2653,7 @@ void	endOfMailbox () {
 	putC ('}');
 }
 
-int     processSetup (int del) {
+static int processSetup (int del) {
 
 /* --------------------------------------- */
 /* Processes 'setup' occurring in a Packet */
@@ -2727,7 +2734,7 @@ Synerror:
 	return (YES);
 }
 
-int     processPFMMQU (int del) {
+static int processPFMMQU (int del) {
 
 /* ----------------------------------------- */
 /* Processes 'pfmMQU' occurring in a Traffic */
@@ -2791,7 +2798,7 @@ Synerror:
 	return (YES);
 }
 
-int     processPFMMDE (int del) {
+static int processPFMMDE (int del) {
 
 /* ----------------------------------------- */
 /* Processes 'pfmMDE' occurring in a Traffic */
@@ -2857,12 +2864,12 @@ Synerror:
 
 const char *pfmtype;
 
-void	pxerror (const char *s) {
+static void pxerror (const char *s) {
 
 	xerror ("%s %s", pfmtype, s);
 }
 
-int     prcPFM (int del) {
+static int prcPFM (int del) {
 
 /* ---------------------------- */
 /* Common processing for pfmXXX */
@@ -2927,13 +2934,18 @@ Synerror:
 	return (YES);
 }
 
-int	processPFMMTR (int del) { pfmtype = "pfmMTR"; return (prcPFM (del)); }
-int	processPFMMRC (int del) { pfmtype = "pfmMRC"; return (prcPFM (del)); }
-int	processPFMPTR (int del) { pfmtype = "pfmPTR"; return (prcPFM (del)); }
-int	processPFMPRC (int del) { pfmtype = "pfmPRC"; return (prcPFM (del)); }
-int	processPFMPDE (int del) { pfmtype = "pfmPDE"; return (prcPFM (del)); }
+static int
+	processPFMMTR (int del) { pfmtype = "pfmMTR"; return (prcPFM (del)); }
+static int
+	processPFMMRC (int del) { pfmtype = "pfmMRC"; return (prcPFM (del)); }
+static int
+	processPFMPTR (int del) { pfmtype = "pfmPTR"; return (prcPFM (del)); }
+static int
+	processPFMPRC (int del) { pfmtype = "pfmPRC"; return (prcPFM (del)); }
+static int
+	processPFMPDE (int del) { pfmtype = "pfmPDE"; return (prcPFM (del)); }
 
-int     doPerform (int del, SymDesc *obj) {
+static int doPerform (int del, SymDesc *obj) {
 
 /* --------------------------------- */
 /* Expands the 'perform' declaration */
@@ -2998,7 +3010,7 @@ Modeerr:
 	return (YES);
 }
 
-int     processTraffic (int del) {
+static int processTraffic (int del) {
 
 /* ------------------------------------ */
 /* Expands the Traffic type declaration */
@@ -3229,7 +3241,7 @@ Assumereal:
 	return (YES);
 }
 
-int     isSymbol (char *arg) {
+static int isSymbol (char *arg) {
 
 /* -------------------------------------- */
 /* Checks is the string is a legal symbol */
@@ -3244,7 +3256,7 @@ int     isSymbol (char *arg) {
 	return (YES);
 }
 
-SymDesc *isPrcs (char *s) {
+static SymDesc *isPrcs (char *s) {
 
 /* ---------------------------------------------------------------- */
 /* Checks whether the symbol is a process type id (used in inspect) */
@@ -3269,7 +3281,7 @@ SymDesc *isPrcs (char *s) {
 	return (ob);
 }
 
-int     processInspect (int del) {
+static int processInspect (int del) {
 
 /* ----------------------- */
 /* Expands the inpect call */
@@ -3475,7 +3487,7 @@ Pstanerr:
 	return (YES);
 }
 
-int     processTimeout (int del) {
+static int processTimeout (int del) {
 
 /* ------------------------ */
 /* Expands the timeout call */
@@ -3522,7 +3534,7 @@ Synerror:
 	return (YES);
 }
 
-int     processCreate (int del) {
+static int processCreate (int del) {
 
 /* ----------------------- */
 /* Expands the create call */
@@ -3689,7 +3701,7 @@ Setupdone:
 	return (YES);
 }
 
-void    emitBuilder (SymDesc *co) {
+void emitBuilder (SymDesc *co) {
 
 /* ------------------------------------------------------- */
 /* Generates the 'builder' function for the current object */
@@ -3769,7 +3781,7 @@ Done:
 	if (lc != END) catchUp ();
 }
 
-int     processNew (int del) {
+static int processNew (int del) {
 
 /* ---------------------------------------------------------- */
 /* Checks  if  'new'  is not followed by the name of a SMURPH */
@@ -3798,7 +3810,7 @@ int     processNew (int del) {
 	return (NO);
 }
 
-int     doExposure (int del, SymDesc *obj) {
+static int doExposure (int del, SymDesc *obj) {
 
 /* ------------------------------- */
 /* Expands the exposure definition */
@@ -3880,7 +3892,7 @@ Done:
 	return (YES);
 }
 
-int     processOnpaper (int del) {
+static int processOnpaper (int del) {
 
 /* --------------------------------------------- */
 /* Expands the 'onpaper' header of exposure mode */
@@ -3923,7 +3935,7 @@ int     processOnpaper (int del) {
 	return (YES);
 }
 
-int     processOnscreen (int del) {
+static int processOnscreen (int del) {
 
 /* ---------------------------------------------- */
 /* Expands the 'onscreen' header of exposure mode */
@@ -3967,7 +3979,7 @@ int     processOnscreen (int del) {
 	return (YES);
 }
 
-int     processExmode (int del) {
+static int processExmode (int del) {
 
 /* ------------------- */
 /* Expands 'exmode m:' */
@@ -4005,7 +4017,7 @@ int     processExmode (int del) {
 	return (YES);
 }
 
-int     doExpose (int del) {
+static int doExpose (int del) {
 
 /* -------------------------------------------------- */
 /* Expands 'expose;' (must be preceded by 'symbol::') */
@@ -4035,7 +4047,7 @@ int     doExpose (int del) {
 	return (YES);
 }
 
-int     processExpose (int del) {
+static int processExpose (int del) {
 
 /* -------------------------------------------------------- */
 /* Processes illegal exposure -- not preceded by 'symbol::' */
@@ -4046,7 +4058,7 @@ int     processExpose (int del) {
 	return (NO);
 }
 
-int     processGetproclist (int del) {
+static int processGetproclist (int del) {
 
 	// getproclist (a, b, k, n)	->
 	//
@@ -4143,7 +4155,7 @@ Synerror:
 	return (YES);
 }
 
-int     processPerform (int del) {
+static int processPerform (int del) {
 
 /* ----------------------------------------------------- */
 /* Preprocesses 'perform' within object type declaration */
@@ -4166,7 +4178,7 @@ int     processPerform (int del) {
 	return (doPerform (del, CObject));
 }
 
-int     processExposure (int del) {
+static int processExposure (int del) {
 
 /* ------------------------------------------------------ */
 /* Preprocesses 'exposure' declared within an object type */
@@ -4176,7 +4188,7 @@ int     processExposure (int del) {
 	return (doExposure (del, CObject));
 }
 
-int     processKeyword (int fc) {
+static int processKeyword (int fc) {
 
 /* --------------------------------------------------------- */
 /* Try to match the keyword with the ones in your dictionary */
@@ -4187,7 +4199,8 @@ int     processKeyword (int fc) {
 	KFUNC   f;
 
 	SkLineCnt = 0;  // Count skipped lines
-	if (startLkp () == END) return (NO);
+	if (startLkp () == END)
+		goto RtNo;
 	// This is the keyword we should try to match
 	del = getKeyword (kwd, fc);
 	// del is the non-blank delimiter
@@ -4226,16 +4239,16 @@ int     processKeyword (int fc) {
 		    // perform
 		    if (CodeType) {
 			xerror ("'perform' within another 'perform'");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (CObject != NULL) {
 		       xerror ("illegal '::perform' declaration inside object");
-		       return (NO);
+		       goto RtNo;
 		    }
 		    // Determine the status of the ownining object
 		    if ((ob = getSym (kwd)) == NULL) {
 			xerror ("'perform' for an undefined process type");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (ob->Type == PROCESS) {
 			CodeType = PROCESS;
@@ -4243,7 +4256,7 @@ int     processKeyword (int fc) {
 			CodeType = OBSERVER;
 		    } else {
 			xerror ("'perform' neither in process nor in observer");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (!(ob->PAnn)) {
 			xerror ("'perform' was not announced in '%s'", kwd);
@@ -4252,7 +4265,7 @@ int     processKeyword (int fc) {
 		    if (ob->Mode == VIRTUAL) {
 		   xerror ("'perform' for a virtual or announced process type");
 		       CodeType = NO;
-		       return (NO);
+		       goto RtNo;
 		    }
 		    CodeObject = ob;
 		    putC ("void ");
@@ -4263,7 +4276,7 @@ int     processKeyword (int fc) {
 		    // exposure
 		    if ((ob = getSym (kwd)) == NULL) {
 			      xerror ("exposure for an undefined object type");
-			      return (NO);
+			      goto RtNo;
 		    }
 		    putC ("void ");
 		    putC (kwd);
@@ -4286,23 +4299,23 @@ Ignsetup:
 	            if (del != '(') {
 Setserr:
 		        xerror ("setup definition syntax error");
-		        return (NO);
+		        goto RtNo;
 		    }
 		    while (1) { del = lkpC (); if (!isspace (del)) break; }
 		    if (del == ')') goto Ignsetup;
 	            del = getKeyword (pfm, del);
 
-		    if (del != '*') return (NO);
-		    if ((ox = getSym (pfm)) == NULL) return (NO);
-		    if (ox->Type != MESSAGE) return (NO);
+		    if (del != '*') goto RtNo;
+		    if ((ox = getSym (pfm)) == NULL) goto RtNo;
+		    if (ox->Type != MESSAGE) goto RtNo;
 
 		    if (ob->States == NULL) {
 	xerror ("this setup was not announced in the class declaration");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (strcmp ((char*)(ob->States), pfm)) {
        xerror ("Packet setup argument type collides with previous declaration");
-			return (NO);
+			goto RtNo;
 		    }
 	            if (strcmp (pfm, "Message") == 0) goto Ignsetup;
 
@@ -4340,22 +4353,22 @@ IgnMQU:
 	            if (del != '(') {
 SetMQU:
 			pxerror ("definition syntax error");
-		        return (NO);
+		        goto RtNo;
 		    }
 	            del = getKeyword (pfm);
 		    if (del != '*') {
 			pxerror ("argument must be a Message subtype pointer");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (strcmp (pfm, "Message") == 0) goto IgnMQU;
 		    if (ob->States == NULL) {
 			pxerror ("illegal for a virtual Traffic type");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (ob->States [0] == NULL || strcmp (ob->States [0],pfm)) {
 	    		pxerror ("argument type doesn't match traffic message "
 				"type");
-			return (NO);
+			goto RtNo;
 		    }
 
 		    del = getKeyword (pfm);
@@ -4396,21 +4409,21 @@ IgnPFF:
 	            if (del != '(') {
 SetPFF:
 		        pxerror ("definition syntax error");
-		        return (NO);
+		        goto RtNo;
 		    }
 	            del = getKeyword (pfm);
 		    if (del != '*') {
 		        pxerror ("argument must be a Packet subtype pointer");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (strcmp (pfm, "Packet") == 0) goto IgnPFF;
 		    if (ob->States == NULL) {
 			pxerror ("illegal for a virtual Traffic type");
-			return (NO);
+			goto RtNo;
 		    }
 		    if (ob->States [1] == NULL || strcmp (ob->States [1],pfm)) {
 	           pxerror ("argument type doesn't match traffic packet type");
-			return (NO);
+			goto RtNo;
 		    }
 
 		    del = getKeyword (pfm);
@@ -4446,8 +4459,14 @@ SetPFF:
 
 Tryother:
 		
-	if (!islower (*kwd)) return (NO);
-	if ((f = getKey (kwd)) == NULL) return (NO);
+	if (!islower (*kwd)) {
+RtNo:
+		status = NO;
+		goto Done;
+	}
+		
+	if ((f = getKey (kwd)) == NULL)
+		goto RtNo;
 
 	status = f (del);
 Done:
@@ -4455,10 +4474,13 @@ Done:
 		// Make sure the output line count agrees
 		while (SkLineCnt--) putC ('\n');
 	}
+
+	flushPrep ();
+
 	return (status);
 }
 
-int	main (int argc, char *argv []) {
+int main (int argc, char *argv []) {
 
 /* ------------- */
 /* The main loop */

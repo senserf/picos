@@ -31,16 +31,18 @@
 #define CCOMP   	"g++"
 #endif
 
-#ifndef	CCEXTRAARGS
-#define	CCEXTRAARGS	"-fno-strict-aliasing"
-#endif
-
 #ifndef MAXLIB
 #define MAXLIB  	5
 #endif
 
 #ifndef	ZZ_INCPATH
 #define	ZZ_INCPATH	""
+#endif
+
+// =======================================================
+
+#ifndef	CCEXTRAARGS
+#define	CCEXTRAARGS	"-fno-strict-aliasing"
 #endif
 
 #define	LNAMESIZE	32	// Library name index size

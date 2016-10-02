@@ -1,5 +1,5 @@
 /* SIDE version number */
-#define  VERSION      "3.25-OA"
+#define  VERSION      "3.26-OA"
 
 #ifdef	__CYGWIN32__
 #define	ZZ_CYW				1
@@ -140,4 +140,4 @@ typedef void (*SIGARG) (int);
 #define  ZZ_LIBPATH      "/home/nripg/SOFTWARE/SIDE/LIB"
 #define  ZZ_INCPATH      "-I /home/nripg/SOFTWARE/SIDE/Examples/IncLib -I /home/nripg/SOFTWARE/VUEE/PICOS"
 #define  ZZ_XINCPAT      {"/home/nripg/SOFTWARE/PICOS/Apps/DataLib", NULL}
-#define  ZZ_RTAG	"PG160704A"
+#define  ZZ_RTAG	"PG161001A"

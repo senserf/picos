@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-03   P. Gburzynski */
+/* Copyright (C) 1991-16   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -150,7 +150,7 @@ typedef	int (*KFUNC)(int);		// Pointer to a key processing functn
 
 class	KeyDesc {			// A keyword descriptor
 
-	friend	KFUNC	getKey (char*);
+	friend	KFUNC getKey (char*);
 
 	private:
 	KeyDesc	*next;			// Rehash list pointer

@@ -622,8 +622,8 @@ PG160323A:
 
 	   After updating the gcc/g++ suite under my Cygwin, the SMUPRH compiler
 	   started to generate weird compilation errors which, on closer
-	   scrutiny, turned out to result from new line directives that would
-	   split some SMURPH constructs. I think I have fixed this.
+	   scrutiny, turned out to result from new preprocessor directives that
+	   would split some SMURPH constructs. I think I have fixed this.
 
 	   Plus a few irrelevant cosmetics.
 
@@ -637,3 +637,11 @@ PG161001A:
 	   compiling the simulator. This is to make sure that enforcing strict
 	   aliasing by default in the newer versions of the compiler will not
 	   affect the correctness of code.
+
+PG161002A:
+
+	   This corrects the fix from PG160323A. Some compilation errors were
+	   tagged with incorrect line numbers and file names. I hope I've got
+	   it right this time.
+
+	   A few cosmetics in smpp.

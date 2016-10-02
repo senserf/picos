@@ -230,7 +230,7 @@ SKIP:
 
 			// A character to be skipped
 
-			if (k == '*')   // Comment - skip to eol
+			if (k == '*' || k == '#')   // Comment - skip to eol
 				while (ef = !Inf.eof ()) {
 					Inf.get (k);
 					if (k == '\n') break;

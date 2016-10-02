@@ -8,4 +8,4 @@ smpp: smpp.o
 	$(COMP) $(OPTI) -o smpp smpp.o $(OLPATH)
 
 smpp.o:	smpp.cc smpp.h ../version.h
-	$(COMP) -w $(OPTI) -c smpp.cc
+	$(COMP) -w -fno-strict-aliasing $(OPTI) -c smpp.cc
