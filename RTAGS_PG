@@ -4942,3 +4942,9 @@ PG170103A:
 
 	3. Pure cosmetics (data in RFTEST, netting_demo) + a few file
 	   permissions
+
+PG170112A:
+
+	Fixed portnames.h in MSP430. Not extremely important, just cleaning up
+	before starting the CC13XX port. More cleanups to come (probably on a
+	separate branch).
