@@ -500,11 +500,8 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	battr_t attp;
 	sesdesc_t *s;
 
-#ifdef	__SMURPH__
-#define	va_par(s)	ap
 	va_list		ap;
 	va_start (ap, plid);
-#endif
 
 #if DIAG_MESSAGES > 1
 	/* Check if we have the plugin and the phy */
@@ -540,7 +537,7 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 
 	sysassert (plugins [plid] -> tcv_ope != NULL, "tcv06");
 
-	if (plugins [plid] -> tcv_ope (phy, fd, va_par (plid))) {
+	if (plugins [plid] -> tcv_ope (phy, fd, ap)) {
 		return ERROR;
 	}
 

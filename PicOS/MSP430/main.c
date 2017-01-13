@@ -104,14 +104,6 @@ void halt (void) {
 		_BIS_SR (LPM4_bits);
 }
 
-#if	ADC_PRESENT
-#error "S: ADC_PRESENT on MSP430 is illegal"
-// There is no general ADC interface at the moment. Well, not of the same
-// kind as there used to be for eCOG. There is an ADC sampler (see
-// ../adc_sampler.[ch]) as well as various board-specific hooks to the ADC.
-// Also, the ADC is used internally for Radio RSSI.
-#endif
-
 int main (void) {
 
 #if	STACK_GUARD
@@ -183,15 +175,6 @@ void __pi_syserror (int ec) {
 
 #else	/* RESET_ON_SYSERR */
 
-// ========== DISABLED ========================================================
-#if 0
-#ifdef	EEPROM_PRESENT
-	ee_sync (WNONE);
-#endif
-#ifdef	SDRAM_PRESENT
-	sd_sync ();
-#endif
-#endif
 // ============================================================================
 
 	while (1) {
@@ -914,10 +897,6 @@ interrupt (TCI_VECTOR) timer_int () {
 		UTIMS_CASCADE(3);
 		}}}}
 #undef UTIMS_CASCADE
-
-#if	ADC_PRESENT
-		// Stub
-#endif
 
 		// Extras
 #include "irq_timer.h"

@@ -151,7 +151,7 @@ char *vform (char *res, const char *fm, va_list aq) {
 
 	if (res != NULL) {
 		// We trust the caller
-		__pi_vfparse (res, MAX_UINT, fm, aq);
+		__pi_vfparse (res, MAX_WORD, fm, aq);
 		return res;
 	}
 

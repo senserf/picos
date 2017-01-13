@@ -5,6 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include <stdarg.h>
 #include "supplement.h"
 #include "portnames.h"
 
@@ -498,6 +499,9 @@ word tci_update_delay_ticks (Boolean);
 // ============================================================================
 
 #include "uart_def.h"
+
+// No other devices on MSP430
+#define	MAX_DEVICES	UART_DRIVER
 
 #if	UART_DRIVER
 

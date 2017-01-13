@@ -1,7 +1,0 @@
-.DECLARED
-$rc_ch
-$rc_setlev
-.UNDECLARED
-$__pi_rc_limit
-$__pi_rcl_thrshld
-.END

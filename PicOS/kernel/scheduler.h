@@ -11,7 +11,7 @@ Redo:
 	_PVS (MONITOR_PIN_SCHED, 1);
 #endif
 	// Catch up with time
-	update_n_wake (MAX_UINT, NO);
+	update_n_wake (MAX_WORD, NO);
 
 	// Run the first ready process
 	for_all_tasks (__pi_curr) {

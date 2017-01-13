@@ -2,7 +2,7 @@
 #define	__pg_sysio_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -55,21 +55,7 @@
 #define	LEDS_DRIVER	1
 #endif
 
-/* ================================== */
-/* Some hard configuration parameters */
-/* ================================== */
-#ifdef	__MSP430__
-// The io interface is not very popular in this version; we do not use io
-// unless the old-fashioned UART interface is present (i.e., io is only ever
-// used for the UART)
-#define	MAX_DEVICES		UART_DRIVER
 #define	__NORETURN__		__attribute__ ((noreturn))
-#else
-#define	MAX_DEVICES		6
-#define	__NORETURN__
-#endif
-
-#define	MAX_MALLOC_WASTE	12
 
 /* ======================================================================== */
 /* This one is not easy to change because the loop in timer_int is unwound. */
@@ -299,27 +285,20 @@ word	adcs_overflow ();
 
 #endif	/* ADC_SAMPLER */
 
-#define	MAX_INT			((int)0x7fff)
-#define	MAX_UINT		((word)0xffff)
-#define	MAX_WORD		MAX_UINT
-#define	MIN_INT			((int)0x8000)
-#define	MIN_UINT		((word)0)
-#define	MIN_WORD		MIN_UINT
-#define	MAX_LONG		((lint)0x7fffffffL)
-#define	MIN_LONG		((lint)0x80000000L)
-#define MAX_ULONG		((lword)0xffffffffL)
-#define	MAX_LWORD		MAX_ULONG
-#define	MIN_ULONG		((lword)0)
-#define	MIN_LWORD		MIN_ULONG
+// There may be more, but they are arch-specific; we will have to encapsulate
+// them into a file easily identifiable by VUEE (and postulate that arch is
+// known when the model is compiled)
+#define	MAX_WORD		((word)0xffff)
+#define	MAX_LWORD		((word)0xffffffff)
 
 /* ============================ */
 /* Device identifiers (numbers) */
 /* ============================ */
 #define	UART_A			0
-#ifdef	UART_PREINIT_B
 #define	UART_B			1
-#endif
 #define	UART			UART_A
+
+// The ones below are anachronisms
 #define	LCD			2
 #define	LEDS			3
 #define	ETHERNET		4
@@ -389,8 +368,6 @@ word	adcs_overflow ();
 #define	htonl(w)	ntohl (w)
 #define	wtonl(w)	ntowl (w)
 
-#define	wsizeof(a)	((sizeof (a) + sizeof (word) - 1) / sizeof (word))
-
 /* ============================================================ */
 /* The main program (process) to be provided by the application */
 /* ============================================================ */
@@ -398,10 +375,10 @@ void	root (word state);
 
 typedef	void (*fsmcode)(word);
 
-void		__pi_wait (word, word);
-void		__pi_trigger (word), __pi_ptrigger (sint, word);
-sint		__pi_fork (fsmcode func, word data);
-void		__pi_fork_join_release (fsmcode func, word data, word st);
+void		__pi_wait (aword, word);
+void		__pi_trigger (aword), __pi_ptrigger (aword, aword);
+aword		__pi_fork (fsmcode func, aword data);
+void		__pi_fork_join_release (fsmcode func, aword data, word st);
 void		reset (void) __NORETURN__ ;
 void		halt (void) __NORETURN__ ;
 
@@ -413,44 +390,44 @@ void		__pi_strncat (char*, const char*, int);
 void		__pi_memcpy (char *dest, const char *src, int);
 void		__pi_memset (char *dest, char c, int);
 
-extern 	const char	__pi_hex_enc_table [];
+extern 	const char		 __pi_hex_enc_table [];
 #define	HEX_TO_ASCII(p)		(__pi_hex_enc_table [(p) & 0xf])
 
 extern	const lword	host_id;
 
-#if	MALLOC_SINGLEPOOL
+#if	MALLOC_NPOOLS < 2
 
-address			__pi_malloc (word);
-void			__pi_free (address);
-void			__pi_waitmem (word);
+aword			*__pi_malloc (word);	// size in bytes up to 64K-1
+void			__pi_free (aword*);
+void			__pi_waitmem (word);	// state
 
 #if	MALLOC_STATS
-word			__pi_memfree (address);
-word			__pi_maxfree (address);
+word			__pi_memfree (address);	// word total free
+word			__pi_maxfree (address);	// max free chunk size
 #define	memfree(p,s)	__pi_memfree (s)
 #define	maxfree(p,s)	__pi_maxfree (s)
 #endif
 
-#define	free(p,s)	__pi_free ((address)(s))
-#define	malloc(p,s)	__pi_malloc (s)
+#define	free(p,s)	__pi_free ((aword*)(s))
+#define	malloc(p,s)	((address)__pi_malloc (s))
 #define	waitmem(p,t)	__pi_waitmem (t)
 
-#else	/* MALLOC_SINGLEPOOL */
+#else	// Multiple pools
 
-address			__pi_malloc (int, word);
-void			__pi_free (int, address);
-void			__pi_waitmem (int, word);
+aword			*__pi_malloc (sint, word);	// pool, size
+void			__pi_free (sint, aword*);	// pool, pointer
+void			__pi_waitmem (sint, word);
 #if	MALLOC_STATS
-word			__pi_memfree (int, address);
-word			__pi_maxfree (int, address);
+word			__pi_memfree (sint, address);
+word			__pi_maxfree (sint, address);
 #define	memfree(p,s)	__pi_memfree (p, s)
 #define	maxfree(p,s)	__pi_maxfree (p, s)
 #endif
-#define	free(p,s)	__pi_free (p, (address)(s))
-#define	malloc(p,s)	__pi_malloc (p,s)
+#define	free(p,s)	__pi_free (p, (aword*)(s))
+#define	malloc(p,s)	((address)__pi_malloc (p,s))
 #define	waitmem(p,t)	__pi_waitmem (p, t)
 
-#endif	/* MALLOC_SINGLEPOOL */
+#endif	// MALLOC_NPOOLS
 
 #if	STACK_GUARD
 word			__pi_stackfree (void);
@@ -461,21 +438,16 @@ word			__pi_stackfree (void);
 
 #if	DIAG_MESSAGES > 1
 
-void		__pi_syserror (int, const char*) __NORETURN__ ;
+void		__pi_syserror (sint, const char*) __NORETURN__ ;
 #define		syserror(a,b)	__pi_syserror (a, b)
 #define		sysassert(a,b)	do { \
 					if (!(a)) syserror (EASSERT, b); \
 				} while (0)
 #else
 
-void		__pi_syserror (int) __NORETURN__ ;
+void		__pi_syserror (sint) __NORETURN__ ;
 #define		syserror(a,b)	__pi_syserror (a)
 #define		sysassert(a,b)	CNOP
-#endif
-
-#if	SDRAM_PRESENT
-void		ramget (address, lword, int);
-void		ramput (lword, address, int);
 #endif
 
 #if	DUMP_MEMORY
@@ -589,6 +561,7 @@ void	diag (const char *, ...);
 #endif
 
 #if RANDOM_NUMBER_GENERATOR > 1
+// ###here: will have to provide a hardware option
 // High-quality rnd
 lword lrnd (void);
 #define	rnd()	((word)(lrnd () >> 16))
@@ -610,7 +583,7 @@ word	switches (void);
 /* ======================================= */
 /* This is the common i/o request function */
 /* ======================================= */
-int	io (int, int, int, char*, int);
+sint	io (word, word, word, char*, word);
 #define	ion(a,b,c,d)	io (NONE, a, b, c, d)
 #endif	/* MAX_DEVICES */
 
@@ -623,13 +596,13 @@ void unwait (void);
 
 /* Timer wait */
 void	delay (word, word);
-word	dleft (sint);
+word	dleft (aword);
 
 /* Signal trigger: returns the number of awakened processes */
-#define	trigger(a)	__pi_trigger ((word)(a))
-#define	ptrigger(a,b)	__pi_ptrigger (a, (word)(b))
+#define	trigger(a)	__pi_trigger ((aword)(a))
+#define	ptrigger(a,b)	__pi_ptrigger (a, (aword)(b))
 /* Kill the indicated process */
-void	kill (sint);
+void	kill (aword);
 /* Kill all processes running this code */
 void	killall (fsmcode);
 
@@ -638,10 +611,10 @@ void	killall (fsmcode);
 /* Wait for any process running this code */
 #define	joinall(f,s)	when (f, s)
 /* Locate a process by code */
-sint	running (fsmcode);
-int	crunning (fsmcode);
+aword	running (fsmcode);
+word	crunning (fsmcode);
 /* Transform pid into code pointer */
-fsmcode getcode (sint);
+fsmcode getcode (aword);
 /* Proceed to another state */
 void	proceed (word);
 /* Power up/down functions */
@@ -683,14 +656,15 @@ void	freeze (word);
 #define	call(p,d,s)	do { join (fork (p, d), s); release; } while (0)
 
 #define	finish		kill (0)
-#define	fork(p,d)	__pi_fork (p, (word)(d))
-#define	forkjr(p,d,s)	__pi_fork_join_release (p, (word)(d), s)
+#define	fork(p,d)	__pi_fork (p, (aword)(d))
+#define	forkjr(p,d,s)	__pi_fork_join_release (p, (aword)(d), s)
 #define	getcpid()	running (NULL)
 #define	ptleft()	crunning (NULL)
 
 #define	release		__pi_release ()
 
-#define	heapmem		const word __pi_heap [] =
+// Pool percentages
+#define	heapmem		const byte __pi_heap [] =
 
 #define	strlen(s)	__pi_strlen (s)
 #define	strcpy(a,b)	__pi_strcpy (a, b)
@@ -708,7 +682,7 @@ void	freeze (word);
 /* Availability of a free process table entry */
 #define	npwait(s)	waitmem (0, s)
 /* Actual size of an malloc'ed piece */
-#define	actsize(p)	(*(((word*)(p))-1) << 1)
+#define	actsize(p)	(*(((aword*)(p))-1) << 1)
 
 void __pi_badstate (void);
 
@@ -717,7 +691,7 @@ void __pi_badstate (void);
 				d data = (d) __pi_curr->data; \
 				switch (__pi_st) {
 
-#define	savedata(a)	(__pi_curr->data = (word)(a))
+#define	savedata(a)	(__pi_curr->data = (aword)(a))
 
 #define	strand(a,b)	process (a, b)
 
@@ -730,8 +704,8 @@ void __pi_badstate (void);
 
 #define	entry(s)	case s:
 
-#define	procname(p)	void p (word)
-#define	sprocname(p)	void p (word)
+#define	procname(p)	void p (aword)
+#define	sprocname(p)	void p (aword)
 
 #define	runthread(a)	fork (a, NULL)
 #define	runstrand(a,b)	fork (a, b)
@@ -751,33 +725,6 @@ void	dbb (word);
 #define	UART_CNTRL_SETRATE	1
 #define	UART_CNTRL_GETRATE	2
 #define	UART_CNTRL_TRANSPARENT	3
-
-#define	LCD_CNTRL_POS		1	/* Position (SEEK) */
-#define	LCD_CNTRL_ERASE		2	/* Clear */
-
-#define RADIO_CNTRL_XMTCTRL	1	/* Transmitter enable/disable */
-#define RADIO_CNTRL_RCVCTRL	2	/* Receiver enable/disable */
-#define	RADIO_CNTRL_READSTAT	3
-#define	RADIO_CNTRL_READPOWER	4
-#define	RADIO_CNTRL_SETPOWER	5
-#define	RADIO_CNTRL_CALIBRATE	6
-#define	RADIO_CNTRL_CHECKSUM	7	/* Enable/disable checksum */
-#define	RADIO_CNTRL_SETPRLEN	8	/* Cycles in transmitted preamble */
-#define	RADIO_CNTRL_SETPRWAIT	9	/* Waiting for preamble high */
-#define	RADIO_CNTRL_SETPRTRIES	10	/* Set num of retries for rcvd prmbl */
-
-#define	ETHERNET_CNTRL_PROMISC	1	/* Ethernet promiscuous mode on/off */
-#define	ETHERNET_CNTRL_MULTI	2	/* Accept multicast on/off */
-#define	ETHERNET_CNTRL_SETID	3	/* Set card ID for cooked mode */
-#define	ETHERNET_CNTRL_RMODE	4	/* Set read mode */
-#define	ETHERNET_CNTRL_WMODE	5	/* Set write mode */
-#define	ETHERNET_CNTRL_GMODE	6	/* Return last read mode */
-#define	ETHERNET_CNTRL_ERROR	7	/* Return error status */
-#define	ETHERNET_CNTRL_SENSE	8	/* Check for pending rcv packet */
-
-#define	ETHERNET_MODE_RAW	0
-#define	ETHERNET_MODE_COOKED	1
-#define	ETHERNET_MODE_BOTH	2
 
 /* ============================================= */
 /* TCV specific stuff to be visible by everybody */
@@ -821,27 +768,9 @@ extern	lword entropy;
 #define	EFLASH		13	/* FLASH reference out of range */
 #define	EWATCH		14	/* Watchdog condition */
 #define	ENOTNOW		15	/* Operation illegal at this time */
+#define	ESYSPAR		16	/* Illegal system initialization parameter */
 
-#if	ADC_PRESENT
-#if     CC1000
-#error  "S: CC1000 and ADC_PRESENT are incompatible"
-#endif
-/* === */
-/* ADC */
-/* === */
-#define	ADC_MODE_TEMP		0
-#define	ADC_MODE_VOLTAGE	1
-#define	ADC_MODE_INTREF		2	/* Internal reference */
-#define	ADC_MODE_OUTREF		3	/* Reference goes out */
-#define	ADC_MODE_EXTREF		4	/* External reference */
-#define	ADC_MODE_DIFFER		5	/* Differentials */
-
-void	adc_start (int, int, int);
-int	adc_read (int);
-void	adc_stop (void);
-#endif
-
-#endif //if SIM_NET==0
+#endif // if SIM_NET==0
 
 // Tools for isolating SMURPH-specific code from VUEE
 
@@ -849,9 +778,8 @@ void	adc_stop (void);
 #define	_dac(a,b)	b
 #define	_dad(t,a)	a
 
-// Should be something redundant and empty; cannot be literaly empty as the
-// stupid CYAN compiler won't take it
-#define	praxis_starter(a)	void kill (sint)
+// Should be something redundant and empty
+#define	praxis_starter(a)
 
 #define	__STATIC	static
 #define	__CONST		const
@@ -883,7 +811,7 @@ typedef struct	{
 /* A single event awaited by a process */
 /* =================================== */
 	word	State;
-	word	Event;
+	aword	Event;
 } __pi_event_t;
 
 struct __pi_pcb_s {
@@ -898,7 +826,7 @@ struct __pi_pcb_s {
 	word		Status;
 	word		Timer;		/* Timer wakeup tick */
 	fsmcode		code;		/* Code function pointer */
-	word		data;		/* Data pointer */
+	aword		data;		/* Data pointer */
 	__pi_event_t	Events [MAX_EVENTS_PER_TASK];
 #if MAX_TASKS <= 0
 	// Linked PCBT

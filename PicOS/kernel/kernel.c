@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -71,10 +71,14 @@ const char	__pi_hex_enc_table [] = {
 
 const lword	host_id = 0xBACADEAD;
 
-static	address mevent;
+// Memory events
 
-#define	MEV_NWAIT(np)	(*((byte*)(&(mevent [np])) + 0 ))
-#define	MEV_NFAIL(np)	(*((byte*)(&(mevent [np])) + 1 ))
+typedef	struct {
+	byte	nwait;	// Number of processes waiting for the pool
+	byte	nfail;	// Number of consecutive allocation failures
+} mevent_t;
+
+static	mevent_t mevent [MALLOC_NPOOLS];
 
 // PID verifier ===============================================================
 
@@ -91,12 +95,12 @@ static	address mevent;
 // Function ===================================================================
 
 #if PID_VER_TYPE == 1
-static __pi_pcb_t *pidver (sint pid) {
+static __pi_pcb_t *pidver (aword pid) {
 
 	register __pi_pcb_t *i;
 
 	for_all_tasks (i)
-		if ((int)(i) == pid)
+		if ((aword)(i) == pid)
 			return i;
 	syserror (EREQPAR, "pid");
 }
@@ -128,13 +132,6 @@ void utimer_add (address ut) {
 // Add a utimer
 //
 	int i;
-
-	/* Check if the timer is not in SDRAM */
-#if	SDRAM_PRESENT
-	if (ut >= (address)SDRAM_ADDR && ut < (address)
-		((word)SDRAM_ADDR + ((word)1 << SDRAM_SIZE)))
-		syserror (EREQPAR, "ut a");
-#endif
 
 	for (i = 0; i < MAX_UTIMERS; i++)
 		if (__pi_utims [i] == NULL)
@@ -175,14 +172,6 @@ void __pi_utimer_set (address t, word v) {
 	*t = v;
 	TCI_RUN_AUXILIARY_TIMER;
 }
-
-#endif
-
-#ifdef	__ECOG1__
-
-// For MSP430, this is a macro
-
-lword seconds () { return __pi_nseconds; }
 
 #endif
 
@@ -308,7 +297,7 @@ MOK:
 /* ==================== */
 /* Launch a new process */
 /* ==================== */
-sint __pi_fork (fsmcode func, word data) {
+aword __pi_fork (fsmcode func, aword data) {
 
 	__pi_pcb_t *i;
 
@@ -345,7 +334,7 @@ sint __pi_fork (fsmcode func, word data) {
 	// Note: no race with interrupt trigger/ptrigger
 	__PCB = i;
 #endif
-	return (sint) i;
+	return (aword) i;
 #else
 //
 // Static PCBT
@@ -355,7 +344,7 @@ sint __pi_fork (fsmcode func, word data) {
 			i -> code = func;
 			i -> data = data;
 			i -> Status = 0;
-			return (sint) i;
+			return (aword) i;
 		}
 	return 0;
 #endif
@@ -370,11 +359,11 @@ void proceed (word state) {
 	release;
 }
 
-void __pi_wait (word event, word state) {
+void __pi_wait (aword event, word state) {
 //
 // The unified wait operation
 //
-	int j = nevents (__pi_curr);
+	sint j = nevents (__pi_curr);
 
 	if (j >= MAX_EVENTS_PER_TASK)
 		syserror (ENEVENTS, "sw");
@@ -383,7 +372,7 @@ void __pi_wait (word event, word state) {
 	incwait (__pi_curr);
 }
 
-void __pi_trigger (word event) {
+void __pi_trigger (aword event) {
 //
 // The unified trigger operation
 //
@@ -408,7 +397,7 @@ void __pi_trigger (word event) {
 	}
 }
 
-void __pi_ptrigger (sint pid, word event) {
+void __pi_ptrigger (aword pid, aword event) {
 //
 // Trigger for a single process
 //
@@ -428,14 +417,14 @@ void __pi_ptrigger (sint pid, word event) {
 	} 
 }
 
-void __pi_fork_join_release (fsmcode func, word data, word st) {
+void __pi_fork_join_release (fsmcode func, aword data, word st) {
 
-	sint pid;
+	aword pid;
 
 	if ((pid = __pi_fork (func, data)) == 0)
 		return;
 
-	__pi_wait ((word) pid, st);
+	__pi_wait (pid, st);
 	release;
 }
 
@@ -467,18 +456,18 @@ void unwait (void) {
 /* Return the number of milliseconds that the indicated process is going to */
 /* sleep for                                                                */
 /* ======================================================================== */
-word dleft (sint pid) {
+word dleft (aword pid) {
 
 	__pi_pcb_t *i;
 
-	update_n_wake (MAX_UINT, YES);
+	update_n_wake (MAX_WORD, YES);
 
 	if (pid == 0)
 		i = __pi_curr;
 	else {
 		ver_pid (i, pid);
 		if (i->code == NULL || !twaiting (i))
-			return MAX_UINT;
+			return MAX_WORD;
 	}
 
 	return i->Timer - __pi_old;
@@ -488,24 +477,24 @@ static void killev (__pi_pcb_t *pid) {
 //
 // Deliver events after killing a process
 //
-	word wfun;
+	aword wfun;
 	int j;
 	__pi_pcb_t *i;
 
-	wfun = (word)(pid->code);
+	wfun = (aword)(pid->code);
 	for_all_tasks (i) {
 #if MAX_TASKS > 0
 		if (i->code == NULL)
 			continue;
 #endif
 		for (j = 0; j < nevents (i); j++) {
-			if (i->Events [j] . Event == (word)pid
+			if (i->Events [j] . Event == (aword)pid
 			    || i->Events [j] . Event == wfun
 #if MAX_TASKS > 0
 // Also take care of those waiting for a free slot, but only when MAX_TASKS is
 // in effect, as otherwise ufree will trigger the memory event when the PCB is
 // freed
-			    || i->Events [j] . Event == (word)(&(mevent [0]))
+			    || i->Events [j] . Event == (aword)(&(mevent [0]))
 #endif
 			    ) {
 				wakeupev (i, j);
@@ -515,7 +504,7 @@ static void killev (__pi_pcb_t *pid) {
 	}
 }
 
-void kill (sint pid) {
+void kill (aword pid) {
 //
 // Terminate the process
 //
@@ -528,11 +517,11 @@ void kill (sint pid) {
 	__pi_pcb_t *j;
 
 	if (pid == 0)
-		pid = (sint) __pi_curr;
+		pid = (aword) __pi_curr;
 
 	j = NULL;
 	for_all_tasks (i) {
-		if ((sint)i == pid) {
+		if ((aword)i == pid) {
 			// Found it
 			if (j == NULL)
 				__PCB = i->Next;
@@ -618,7 +607,7 @@ void killall (fsmcode fun) {
 		release;
 }
 
-fsmcode getcode (sint pid) {
+fsmcode getcode (aword pid) {
 
 	__pi_pcb_t *i;
 
@@ -630,7 +619,7 @@ fsmcode getcode (sint pid) {
 	return i->code;
 }
 
-sint running (fsmcode fun) {
+aword running (fsmcode fun) {
 
 	__pi_pcb_t *i;
 
@@ -644,10 +633,10 @@ sint running (fsmcode fun) {
 	return 0;
 }
 
-int crunning (fsmcode fun) {
+word crunning (fsmcode fun) {
 //
 	__pi_pcb_t *i;
-	int c;
+	word c;
 
 	c = 0;
 	for_all_tasks (i)
@@ -720,11 +709,11 @@ void adddevfunc (devreqfun_t rf, int loc) {
 /* ==================================== */
 /* User-visible i/o request distributor */
 /* ==================================== */
-int io (int retry, int dev, int operation, char *buf, int len) {
+sint io (word retry, word dev, word operation, char *buf, word len) {
 
-	int ret;
+	sint ret;
 
-	if (dev < 0 || dev >= MAX_DEVICES || ioreq [dev] == NULL)
+	if (dev >= MAX_DEVICES || ioreq [dev] == NULL)
 		syserror (ENODEVICE, "io");
 
 	if (len == 0)
@@ -753,7 +742,7 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 		 * drivers that do not require separate driver processes, yet
 		 * want to perceive interrupts. In such a case, we have to call
 		 * the ioreq function again to clean up (unmask interrupts)
-	 	*/
+	 	 */
 		if (retry != NONE) {
 			iowait (dev, operation, retry);
 			(ioreq [dev]) (NONE, buf, len);
@@ -765,15 +754,11 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 
 	/* ret < -2. This means a timer retry after -ret -2 milliseconds */
 	if (retry != NONE) {
-		return 0;
+		delay (-ret - 2, retry);
+		release;
 	}
 
-	delay (-ret - 2, retry);
-	release;
-
-#ifdef	__ECOG1__
 	return 0;
-#endif
 }
 
 #endif	/* MAX_DEVICES */
@@ -782,41 +767,61 @@ int io (int retry, int dev, int operation, char *buf, int len) {
 /* ========================= MEMORY ALLOCATORS ========================= */
 /* --------------------------------------------------------------------- */
 
-#if	MALLOC_SINGLEPOOL == 0
-extern	word __pi_heap [];
+// The application can request less than 64K for a single chunk, even though
+// the total amount of allocatable memory can be more than that
+
+#if	MALLOC_NPOOLS > 1
+// Pool size percentages
+extern	byte __pi_heap [];
 #endif
 
-static 	address *mpools;
+// These are pool headers, i.e., pointers to awords
+static	aword	*mpools [MALLOC_NPOOLS];
 
 #if	MALLOC_STATS
-static 	address mnfree, mcfree;
+// Pointers to awords storing the statistics; the statistics are kept exact,
+// but the returned values are maxed at word size
+static	aword	mnfree [MALLOC_NPOOLS], mcfree [MALLOC_NPOOLS];
 #endif
 
-#define	m_nextp(c)	((address)(*(c)))
-#define m_setnextp(c,p)	(*(c) = (word)(p))
+#define	m_nextp(c)	((aword*)(*(c)))
+#define m_setnextp(c,p)	(*(c) = (aword)(p))
 #define m_size(c)	(*((c)-1))
 #define	m_magic(c) 	(*((c)+1))
-#define	m_hdrlen	1
+#define	m_hdrlen	1			// in awords
+
+#if	SIZE_OF_AWORD > 16
+// Corruption guard (for MALLOC_SAFE)
+#define	MALLOC_MAGIC		0xDEAFDEAF
+#define	MALLOC_UMASK		0x80000000
+#define	MALLOC_PCEIL		0xffffffff	// MAX_AWORD
+#define	MAX_MALLOC_WASTE	8
+#define	topword(w)		((w) > MAX_WORD ? MAX_WORD : (word)(w))
+#else
+#define	MALLOC_MAGIC		0xDEAF
+#define	MALLOC_UMASK		0x8000
+#define	MALLOC_PCEIL		0xffff
+#define	MAX_MALLOC_WASTE	12
+#define	topword(w)		(w)
+#endif
 
 #if 0
 
 void dump_malloc (const char *s) {
 
-#if	MALLOC_SINGLEPOOL
-#define	MPMESS 		"N %u, F %u", nc, tot
-#define	NPOOLS		1
-#else
+#if SIZE_OF_AWORD > 2
+#define	MPMESS		"POOL %d, N %lu, F %lu", i, nc, tot
+#else	// SIZE_OF_AWORD
 #define	MPMESS		"POOL %d, N %u, F %u", i, nc, tot
-#define	NPOOLS		2
-#endif
+#endif	// SIZE_OF_AWORD
 
-	word tot, nc;
-	address ch;
-	int i;
+	aword tot, nc;
+	aword *ch;
+	sint i;
 
 	diag (s);
 
-	for (i = 0; i < NPOOLS; i++) {
+	for (i = 0; i < MALLOC_NPOOLS; i++) {
 		tot = 0;
 		for (nc = 0, ch = mpools [i]; ch != NULL; ch = m_nextp (ch)) {
 			tot += m_size (ch);
@@ -837,111 +842,70 @@ void __pi_malloc_init () {
 /* Initializes memory allocation pools */
 /* =================================== */
 
-#if	MALLOC_SINGLEPOOL
-#define	MA_NP		1
-#else
-#define	MA_NP		np
-	word	mtot, np, perc, chunk, fac, ceil;
-	address freelist, morg;
+	aword	mlen;
 
-	for (perc = np = 0; perc < 100; np++)
-		/* Calculate the number of pools */
+#if MALLOC_NPOOLS > 1
+
+	aword	*morg, *freelist, ceil, chunk;
+	sint	perc, np, fac;
+
+	for (perc = np = 0; np < MALLOC_NPOOLS; np++) {
+		// This assumes that the percentage adds to 100, otherwise
+		// we will hit an error
+		if (__pi_heap [np] == 0)
+			syserror (ESYSPAR, "mal1");
 		perc += __pi_heap [np];
-#endif	/* MALLOC_SINGLEPOOL */
+	}
 
-	if (MALLOC_LENGTH < 256 + MA_NP)
-		/* Make sure we do have some memory available */
+	if (perc != 100)
+		// Make sure the percentages add up to 100
+		syserror (ESYSPAR, "mal2");
+#endif
+	if ((mlen = (aword)MALLOC_LENGTH) < 256)
+		// Make sure we do have some memory available
 		syserror (ERESOURCE, "mal1");
 
-	/* Set aside the free list table for the pools */
-	mpools = (address*) MALLOC_START;
-	mevent = MALLOC_START + MA_NP;
+#if MALLOC_NPOOLS == 1
 
-#if	MALLOC_SINGLEPOOL
+	// ====================================================================
+	// The single-pool case
+	// ====================================================================
 
-#if	MALLOC_STATS
-	mnfree = mevent + 1;
-	mcfree = mnfree + 1;
-#define	morg 		(mcfree + 1)
-#define	mtot		(MALLOC_LENGTH - 4)
-#else	/* MALLOC_STATS */
-#define	morg 		(mevent + 1)
-#define	mtot 		(MALLOC_LENGTH - 2)
-#endif	/* MALLOC_STATS */
-
-	mpools [0] = morg + m_hdrlen;
-
-#if	MALLOC_ALIGN4
-	if (((word)(mpools [0]) & 0x2)) {
-		// Make sure the chunk origin is doubleword aligned
-		mpools [0]++;
-		m_size (mpools [0]) = mtot - m_hdrlen - 1;
-	} else {
-		m_size (mpools [0]) = mtot - m_hdrlen;
-	}
-#else
-	m_size (mpools [0]) = mtot - m_hdrlen;
-
-#endif	/* MALLOC_ALIGN4 */
-
-	MEV_NWAIT (0) = 0;
-
+	mpools [0] = ((aword*)MALLOC_START) + m_hdrlen;
+	// The size is in awords
+	m_size (mpools [0]) = mlen - m_hdrlen;
+	m_setnextp (mpools [0], NULL);
+#if	MALLOC_SAFE
+	m_magic (mpools [0]) = MALLOC_MAGIC;
+#endif
 #if	MALLOC_STATS
 	mnfree [0] = mcfree [0] = m_size (mpools [0]);
 #endif
-	m_setnextp (mpools [0], NULL);
-#if	MALLOC_SAFE
-	m_magic (mpools [0]) = 0xdeaf;
-#endif
 
-#undef	morg
-#undef	mtot
+#else	// MALLOC_NPOOLS > 1
 
-#else	/* MALLOC_SINGLEPOOL */
+	// ====================================================================
+	// Multiple pools
+	// ====================================================================
 
-#if	MALLOC_STATS
-	mnfree = mevent + np;
-	mcfree = mnfree + np;
-	morg = mcfree + np;
-	mtot = MALLOC_LENGTH - 4 * np;
-#else	/* MALLOC_STATS */
-	morg = mevent + np;
-	mtot = MALLOC_LENGTH - 2 * np;
-#endif	/* MALLOC_STATS */
-
-#if	MALLOC_ALIGN4
-	if (((word)morg & 0x2) == 0) {
-		// Make sure the chunk origin is doubleword aligned
-		morg++;
-		mtot--;
-	}
-#endif
-	perc = mtot;
+	morg = (aword*)MALLOC_START;
+	perc = mlen;
 
 	while (np) {
 		np--;
 		mpools [np] = freelist = morg + m_hdrlen;
 		if (np) {
-			/* Do it avoiding long division */
-			ceil = MAX_UINT / __pi_heap [np];
-			for (chunk = mtot, fac = 0; chunk > ceil;
+			// Do it in a way avoiding tricky division
+			ceil = MALLOC_PCEIL / (aword)(__pi_heap [np]);
+			for (chunk = mlen, fac = 0; chunk > ceil;
 				chunk >>= 1, fac++);
-			chunk = (chunk * __pi_heap [np]) / 100;
+			chunk = (chunk * (aword)__pi_heap [np]) / 100;
 			chunk <<= fac;
-			// This required __div/__mul from the library:
-			// chunk = (word)((((lint) __pi_heap [np]) * mtot)/100);
 		} else {
 			chunk = perc;
 		}
 
-#if	MALLOC_ALIGN4
-		if ((chunk & 01))
-			// Make sure it is even, so the allocatable chunk size
-			// is odd
-			chunk--;
-#endif	/* MALOC_ALIGN4 */
-
-		if (chunk < 128)
+		if (chunk < 64)
 			syserror (ERESOURCE, "mal2");
 
 		m_size (freelist) =
@@ -949,36 +913,35 @@ void __pi_malloc_init () {
 			mnfree [np] = mcfree [np] =
 #endif
 				chunk - m_hdrlen;
-		MEV_NWAIT (np) = 0;
 		m_setnextp (freelist, NULL);
 #if	MALLOC_SAFE
-		m_magic (freelist) = 0xdeaf;
+		m_magic (freelist) = MALLOC_MAGIC;
 #endif
 		morg += chunk;
 		/* Whatever remains for grabs */
 		perc -= chunk;
 	}
-#endif	/* MALLOC_SINGLEPOOL */
-#undef	MA_NP
+#endif	// MALLOC_NPOOLS
+
 }
 
-#if	MALLOC_SINGLEPOOL
-static void qfree (address ch) {
+#if	MALLOC_NPOOLS == 1
+static void qfree (aword *ch) {
 #define	MA_NP	0
 #else
-static void qfree (int np, address ch) {
+static void qfree (int np, aword *ch) {
 #define	MA_NP	np
 #endif
 
-#if	__COMP_VERSION__ > 4
+#if	0
 	// Trying to circumvent a bug in TI MSPGCC
 	// Not needed: -fno-strict-aliasing does take care of it, and is
 	// safer for other potential cases of "unsafe optimization"
 	// volatile
 #endif
-	address chunk, cc;
+	aword *chunk, *cc;
 
-	cc = (address)(mpools + MA_NP);
+	cc = (aword*)(mpools + MA_NP);
 	for (chunk = mpools [MA_NP]; chunk != NULL; chunk = m_nextp (chunk)) {
 		if (chunk + m_size (chunk) + m_hdrlen == ch) {
 			/* Merge at the front */
@@ -996,7 +959,7 @@ static void qfree (int np, address ch) {
 	}
 
 	/* Insert */
-	cc = (address)(mpools + MA_NP);
+	cc = (aword*)(mpools + MA_NP);
 	for (chunk = mpools [MA_NP]; chunk != NULL; cc = chunk,
 		chunk = m_nextp (chunk))
 			if (m_size (chunk) >= m_size (ch))
@@ -1006,14 +969,14 @@ static void qfree (int np, address ch) {
 	m_setnextp (cc, ch);
 
 #if	MALLOC_SAFE
-	m_magic (ch) = 0xdeaf;
+	m_magic (ch) = MALLOC_MAGIC;
 #endif
 
 #undef	MA_NP
 }
 
-#if	MALLOC_SINGLEPOOL
-void __pi_free (address ch) {
+#if	MALLOC_NPOOLS == 1
+void __pi_free (aword *ch) {
 #define	MA_NP	0
 #define	QFREE	qfree (ch)
 #else
@@ -1024,15 +987,16 @@ void __pi_free (int np, address ch) {
 /*
  * User-visible free
  */
+
 	if (ch == NULL)
 		/* free (NULL) is legal */
 		return;
 
 #if	MALLOC_SAFE
-	if ((m_size (ch) & 0x8000) == 0)
+	if ((m_size (ch) & MALLOC_UMASK) == 0)
 		syserror (EMALLOC, "malg");
-
-	m_size (ch) &= 0x7fff;
+	else
+		m_size (ch) ^= MALLOC_UMASK;
 #endif
 
 #if	MALLOC_STATS
@@ -1040,9 +1004,9 @@ void __pi_free (int np, address ch) {
 #endif
 	QFREE;
 
-	if (MEV_NWAIT (MA_NP)) {
-		trigger ((word)(&(mevent [MA_NP])));
-		MEV_NWAIT (MA_NP) --;
+	if (mevent [MA_NP] . nwait) {
+		trigger ((aword)(&(mevent [MA_NP])));
+		mevent [MA_NP] . nwait --;
 	}
 
 #undef	QFREE
@@ -1050,66 +1014,65 @@ void __pi_free (int np, address ch) {
 
 }
 
-#if	MALLOC_SINGLEPOOL
-address __pi_malloc (word size) {
+#if	MALLOC_NPOOLS == 1
+aword *__pi_malloc (word size) {
 #define	MA_NP	0
 #define	QFREE	qfree (cc);
 #else
-address __pi_malloc (int np, word size) {
+aword *__pi_malloc (int np, word size) {
 #define	QFREE	qfree (np, cc);
 #define	MA_NP	np
 #endif
-	address chunk, cc;
-	word waste;
+	aword	*chunk, *cc, waste;
 
+#if	SIZE_OF_AWORD > 16
+
+	aword	_size;
+
+	if (size < 8)
+		// At least two awords
+		_size = 2;
+	else
+		// Convert to awords
+		_size = (((aword)size) + 3) >> 2;
+#else
 	/* Put a limit on how many bytes you can formally request */
 	if (size > 0x8000)
 		syserror (EREQPAR, "mal");
 
-#if	MALLOC_ALIGN4
-	if (size < 6) {
-		size = 3;
-	} else {
-		size = (size + 1) >> 1;
-		if ((size & 1) == 0)
-			// Make this an odd number of words, such that the next
-			// chunk will fall on an odd-word boundary
-			size++;
-	}
-#else
 	if (size < 4)
-		/* Never allocate less than two words */
+		// At least two words
 		size = 2;
 	else
-		/* Convert size to words */
+		// Convert to words
 		size = (size + 1) >> 1;
-	/* Right shift of unsigned doesn't propagate the sign bit */
-#endif	/* MALLOC_ALIGN4 */
+#define	_size	size
+#endif
 
-	cc = (address)(mpools + MA_NP);
+	cc = (aword*)(mpools + MA_NP);
 	for (chunk = mpools [MA_NP]; chunk != NULL; cc = chunk,
 		chunk = m_nextp (chunk)) {
 #if	MALLOC_SAFE
-			if (m_magic (chunk) != 0xdeaf)
+			if (m_magic (chunk) != MALLOC_MAGIC)
 				syserror (EMALLOC, "malc");
 #endif
-			if (m_size (chunk) >= size)
+			if (m_size (chunk) >= _size)
 				break;
 	}
 	if (chunk) {
 		/* We've got a chunk - remove it from the list */
 		m_setnextp (cc, m_nextp (chunk));
 		/* Is the waste acceptable ? */
-		if ((waste = m_size (chunk) - size) > MAX_MALLOC_WASTE) {
+		if ((waste = m_size (chunk) - _size) > MAX_MALLOC_WASTE) {
 			/* Split the chunk */
-			m_size (chunk) = size;
-			cc = chunk + size + m_hdrlen;
+			m_size (chunk) = _size;
+			cc = chunk + _size + m_hdrlen;
 			m_size (cc) = waste - m_hdrlen;
 			/* Insert the chunk */
 			QFREE;
 		}
 		// Erase the failure counter
-		MEV_NFAIL (MA_NP) = 0;
+		mevent [MA_NP] . nfail = 0;
 #if	MALLOC_STATS
 		mcfree [MA_NP] -= m_size (chunk);
 		if (mnfree [MA_NP] > mcfree [MA_NP])
@@ -1121,8 +1084,8 @@ address __pi_malloc (int np, word size) {
 #endif
 	} else {
 		// Failure
-		if (MEV_NFAIL (MA_NP) != 255)
-			MEV_NFAIL (MA_NP) ++;
+		if (mevent [MA_NP] . nfail != 255)
+			mevent [MA_NP] . nfail ++;
 #if	RESET_ON_MALLOC
 		else {
 #if	RESET_ON_SYSERR
@@ -1156,10 +1119,10 @@ void __pi_waitmem (int np, word state) {
 /*
  * Wait for pool memory release
  */
-	if (MEV_NWAIT (MA_NP) != 255)
-		MEV_NWAIT (MA_NP) ++;
+	if (mevent [MA_NP] . nwait != 255)
+		mevent [MA_NP] . nwait ++;
 
-	wait ((word)(&(mevent [MA_NP])), state);
+	wait ((aword)(&(mevent [MA_NP])), state);
 #undef	MA_NP
 }
 
@@ -1176,8 +1139,8 @@ word	__pi_memfree (int np, address min) {
  * Returns memory statistics
  */
 	if (min != NULL)
-		*min = mnfree [MA_NP];
-	return mcfree [MA_NP];
+		*min = topword (mnfree [MA_NP]);
+	return topword (mcfree [MA_NP]);
 #undef	MA_NP
 }
 
@@ -1191,46 +1154,21 @@ word	__pi_maxfree (int np, address nc) {
 /*
  * Returns the maximum available chunk size (in words)
  */
-	address chunk;
-	word max, nchk;
+	aword *chunk;
+	aword max, nchk;
 
 	for (max = nchk = 0, chunk = mpools [MA_NP]; chunk != NULL;
 	    chunk = m_nextp (chunk), nchk++)
 		if (m_size (chunk) > max)
 			max = m_size (chunk);
 	if (nc != NULL)
-		*nc = nchk;
+		*nc = topword (nchk);
 
-	return max;
+	return topword (max);
 #undef	MA_NP
 }
 
 #endif /* MALLOC_STATS */
-
-#if	SDRAM_PRESENT
-void __pi_sdram_test (void) {
-
-	unsigned int loc, err;
-
-#if ! ECOG_SIM
-
-	for (loc = 0; loc != ((word)1 << SDRAM_SIZE); loc++)
-		*((word*)SDRAM_ADDR + loc) = 1 - loc;
-	err = 0;
-	for (loc = 0; loc != ((word)1 << SDRAM_SIZE); loc++)
-		if (*((word*)SDRAM_ADDR + loc) != 1 - loc)
-			err++;
-#else
-	err = 0;
-	loc = ((word)1 << SDRAM_SIZE);
-#endif
-
-	if (err)
-		diag ("SDRAM failure, 0x%x words, %u errors", loc, err);
-	else
-		diag ("SDRAM block OK, 0x%x words", loc);
-}
-#endif
 
 /* --------------------------------------------------------------------- */
 /* ======================= END MEMORY ALLOCATORS ======================= */
@@ -1282,6 +1220,7 @@ void __pi_dbg (const word lvl, word code) {
 			v = (word)'a' + v - 10;
 		else
 			v = (word)'0' + v;
+
 		dgout (v);
 	}
 	
@@ -1301,9 +1240,10 @@ void diag (const char *mess, ...) {
 /* Writes a direct message to UART0 */
 /* ================================ */
 
+	lword val;
 	va_list	ap;
-	word i, val, v;
-	char *s;
+	sint bc;
+	word v;
 	byte is;
 
 	va_start (ap, mess);
@@ -1312,47 +1252,60 @@ void diag (const char *mess, ...) {
 	while  (*mess != '\0') {
 		if (*mess == '%') {
 			mess++;
+			if (*mess == 'l') {
+				bc = 32;
+				val = va_arg (ap, lword);
+				mess++;
+			} else {
+				bc = 16;
+				// On a 32-bit system, this must be a 32-bit
+				// item regardless of the requested size
+				val = va_arg (ap, aword);
+			}
 			switch (*mess) {
-			  case 'x' :
-				val = va_arg (ap, word);
-				for (i = 0; i < 16; i += 4) {
-					v = (word) __pi_hex_enc_table [
-							(val >> (12 - i)) & 0xf
-								    ];
+			  case 'x' : {
+				sint i = 0;
+				while (i < bc) {
+					i += 4;
+					v = __pi_hex_enc_table [
+					(val >> (bc - i)) & 0xf];
 					dgout (v);
 				}
 				break;
-			  case 'd' :
-				val = va_arg (ap, word);
-				if (val & 0x8000) {
+			  }
+			  case 'd' : {
+				lword d;
+				if ((val >> (bc - 1)) & 1) {
 					dgout ('-');
-					val = (~val) + 1;
+					val = ~val + 1;
 				}
-			    DI_SIG:
-				i = 10000;
+DI_SIG:
+				d = (bc == 16) ? 10000 : 1000000000;
 				while (1) {
-					v = val / i;
-					if (v || i == 1) break;
-					i /= 10;
+					// Strip initial zeros
+					v = (word) (val / d);
+					if (v || d == 1) break;
+					d /= 10;
 				}
 				while (1) {
 					dgout (v + '0');
-					val = val - (v * i);
-					i /= 10;
-					if (i == 0) break;
-					v = val / i;
+					val = val - (v * d);
+					d /= 10;
+					if (d == 0) break;
+					v = (word) (val / d);
 				}
 				break;
+			  }
 			  case 'u' :
-				val = va_arg (ap, word);
 				goto DI_SIG;
-			  case 's' :
-				s = va_arg (ap, char*);
+			  case 's' : {
+				char *s = (char*)(aword)val;
 				while (*s != '\0') {
 					dgout (*s);
 					s++;
 				}
 				break;
+			  }
 			  default:
 				dgout ('%');
 				dgout (*mess);
@@ -1368,12 +1321,6 @@ void diag (const char *mess, ...) {
 	diag_wait (a);
 	diag_enable_int (a, is);
 }
-
-#else
-
-#ifdef __ECOG1__
-void diag (const char *fmt, ...) { }
-#endif
 
 #endif	/* DIAG_MESSAGES */
 

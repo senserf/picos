@@ -8,11 +8,13 @@
 //+++ "vform.c"
 
 char *form (char *buf, const char *fm, ...) {
-
-	return vform (buf, fm, va_par (fm));
+	va_list ap;
+	va_start (ap, fm);
+	return vform (buf, fm, ap);
 }
 
 word fsize (const char *fm, ...) {
-
-	return vfsize (fm, va_par (fm));
+	va_list ap;
+	va_start (ap, fm);
+	return vfsize (fm, ap);
 }

@@ -259,16 +259,8 @@
 #define	MAX_TASKS		0
 #endif
 
-#ifdef __ECOG1__
-#ifdef	STACK_SIZE
-#if STACK_SIZE != 256
-#error "S: cannot redefine STACK_SIZE for ECOG1 this way!!"
-#endif
-#endif
-#else
 #ifndef	STACK_SIZE
 #define	STACK_SIZE		256
-#endif
 #endif
 
 // Detect stack overrun
@@ -328,22 +320,43 @@
 #define	GLACIER			0
 #endif
 
-// If this is 1, SDRAM is configured in. Dynamic memory is allocated within
-// the first 32K page of SDRAM. THe remaining SDRAM is available through
-// ramget / ramput. (0/1) [eCOG]
-#ifndef	SDRAM_PRESENT
-#define	SDRAM_PRESENT		0
+// ============================================================================
+// MALLOC pools
+// ============================================================================
+
+#ifndef MALLOC_NPOOLS
+// MALLOC_NPOOLS takes precedence over the legacy SINGLEPOOL option
+#ifdef MALLOC_SINGLEPOOL
+// Fallback to the legacy options
+#if MALLOC_SINGLEPOOL
+#define	MALLOC_NPOOLS		1
+#else
+// The old default
+#define	MALLOC_NPOOLS		2
+#endif
+#else
+// The legacy option undefined as well
+#define	MALLOC_NPOOLS		2
+#endif
 #endif
 
-// Configures the ADC interface: 0/1 [eCOG, deprecated]
-#ifndef	ADC_PRESENT
-#define	ADC_PRESENT		0
+// MALLOC_NPOOLS is now set and authoritative, make sure it is sane
+#if MALLOC_NPOOLS < 1
+#undef	MALLOC_NPOOLS
+#define	MALLOC_NPOOLS		1
 #endif
 
-// Use a single memory pool for malloc (may make better sense for tight
-// memory boards)
-#ifndef	MALLOC_SINGLEPOOL
+#if MALLOC_NPOOLS > 8
+#error "S: MALLOC_NPOOLS is larger than 8"
+#endif
+
+#ifdef	MALLOC_SINGLEPOOL
+#undef	MALLOC_SINGLEPOOL
+#if MALLOC_NPOOLS > 1
 #define	MALLOC_SINGLEPOOL	0
+#else
+#define	MALLOC_SINGLEPOOL	1
+#endif
 #endif
 
 // Keep track of free memory
@@ -354,11 +367,6 @@
 // Safe malloc (safer anyway)
 #ifndef	MALLOC_SAFE
 #define	MALLOC_SAFE		0
-#endif
-
-// Doubleword alignment of malloc'ed memory
-#ifndef	MALLOC_ALIGN4
-#define	MALLOC_ALIGN4		0
 #endif
 
 #ifndef	DM2100
