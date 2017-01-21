@@ -970,12 +970,6 @@ static void qfree (int np, address ch) {
 #define	MA_NP	np
 #endif
 
-#if	__COMP_VERSION__ > 4
-	// Trying to circumvent a bug in TI MSPGCC
-	// Not needed: -fno-strict-aliasing does take care of it, and is
-	// safer for other potential cases of "unsafe optimization"
-	// volatile
-#endif
 	address chunk, cc;
 
 	cc = (address)(mpools + MA_NP);

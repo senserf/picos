@@ -1,12 +1,14 @@
 #ifndef __pg_supplement_h
 #define	__pg_supplement_h
 
-#if __COMP_VERSION__ < 4
+#define	mkmk_eval
+#if __GNUC__ < 4
 #include <io.h>
 #include <signal.h>
 #else
 #include <msp430.h>
 #endif
+#undef	mkmk_eval
 
 #define interrupt(x) void __attribute__((interrupt (x)))
 
@@ -194,7 +196,8 @@
 #define	READ_SR				__get_SR_register ()
 #endif
 
-#if __COMP_VERSION__ > 4
+#define	mkmk_eval
+#if __GNUC__ > 4
 
 #if 0
 extern char		*__bssend;
@@ -208,5 +211,7 @@ extern char		*__heap_start__;
 extern char		*__bss_end;
 #define	__BSS_END	__bss_end
 #endif
+
+#undef	mkmk_eval
 
 #endif
