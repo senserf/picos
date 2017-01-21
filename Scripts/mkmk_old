@@ -7,7 +7,7 @@ exec tclsh "$0" "$@"
 #                                                                          #
 # See: proc bad_usage for usage                                            #
 #                                                                          #
-# Copyright (C) Olsonet Communications, 2005 - 2017 All Rights Reserved    #
+# Copyright (C) Olsonet Communications, 2005 - 2016 All Rights Reserved    #
 ############################################################################
 
 set DEBUG 0
@@ -27,14 +27,6 @@ set Targets {
 		{ "MSP430"	"M" "msp430x148" }
 		{ "eCOG"	"E" "" }
 }
-#################################^ - Run(arch)
-
-###here: targets need not description here; they are determined by the
-###	 subdirectories of PicOS; no default cpu model, they are also
-###	 determined by subdirectories of target + spec in BOARD
-###	 we shall go from the root, i.e., the main program
-
-
 # eCOG has no parameters for now
 
 ## Directory names to be ignored in the project's directory:
@@ -64,6 +56,15 @@ set DirList {
 #
 set TocTail {
 		"kernel"
+}
+
+proc cygfix { } {
+#
+# Issue a dummy reference to a file path to trigger a possible DOS-path
+# warning, after which things should continue without any further warnings.
+# This first reference must be caught as otherwise it would abort the script.
+#
+	catch { exec ls [pwd] }
 }
 
 proc lappend_toc { li i } {
@@ -306,10 +307,10 @@ proc outprf { def cpu } {
 	set Tfn "temp"
 	set Ofn "out"
 	set Kfn "KTMP"
-	if { $Run(pgm) != "" } {
-		append Tfn "_$Run(pgm)"
-		append Ofn "_$Run(pgm)"
-		append Kfn "_$Run(pgm)"
+	if { $Run(praxis) != "" } {
+		append Tfn "_$Run(praxis)"
+		append Ofn "_$Run(praxis)"
+		append Kfn "_$Run(praxis)"
 	}
 
 	# build a trimmed list of relevant directories
@@ -538,10 +539,10 @@ proc outmkfc { def } {
 	set Mfn "Makefile"
 	set Tfn "temp"
 	set Ofn "out"
-	if { $Run(pgm) != "" } {
-		append Mfn "_$Run(pgm)"
-		append Tfn "_$Run(pgm)"
-		append Ofn "_$Run(pgm)"
+	if { $Run(praxis) != "" } {
+		append Mfn "_$Run(praxis)"
+		append Tfn "_$Run(praxis)"
+		append Ofn "_$Run(praxis)"
 	}
 
 	if [catch { open $Mfn "w" } mfd] {
@@ -558,8 +559,8 @@ proc outmkfc { def } {
 	}
 
 	puts $mfd ""
-	if { $Run(oca) != "" } {
-		set cfg $Run(oca)
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
 	} else {
 		set cfg "-g -DNDEBUG"
 	}
@@ -802,8 +803,8 @@ proc outmkfc_lib { def } {
 	}
 
 	puts $mfd ""
-	if { $Run(oca) != "" } {
-		set cfg $Run(oca)
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
 	} else {
 		set cfg "-g -DNDEBUG"
 	}
@@ -1014,9 +1015,9 @@ proc outmkf { def cpu } {
 
 	set Mfn "Makefile"
 	set Kfn "KTMP"
-	if { $Run(pgm) != "" } {
-		append Mfn "_$Run(pgm)"
-		append Kfn "_$Run(pgm)"
+	if { $Run(praxis) != "" } {
+		append Mfn "_$Run(praxis)"
+		append Kfn "_$Run(praxis)"
 	}
 
 	if [catch { open $Mfn "w" } mfd] {
@@ -1037,8 +1038,8 @@ proc outmkf { def cpu } {
 	}
 	puts $mfd ""
 	puts $mfd "AF=-mmcu=[cputag $cpu]"
-	if { $Run(oca) != "" } {
-		set cfg $Run(oca)
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
 	} else {
 		set cfg "-Os -g -Wundef -fno-strict-aliasing"
 	}
@@ -1275,8 +1276,8 @@ proc outmkf_lib { def cpu } {
 	}
 	puts $mfd ""
 	puts $mfd "AF=-mmcu=[cputag $cpu]"
-	if { $Run(oca) != "" } {
-		set cfg $Run(oca)
+	if { $Run(OCA) != "" } {
+		set cfg $Run(OCA)
 	} else {
 		set cfg "-Os -g -Wundef -fno-strict-aliasing"
 	}
@@ -1470,7 +1471,7 @@ proc canon { fnf } {
 	}
 
 	# at this point the path is UNIX format
-	if { $Run(arch) == "E" } {
+	if { $Run(mode) == "E" } {
 		set fn [dsname $fn]
 	}
 
@@ -1666,7 +1667,7 @@ proc lboard { tgt } {
 	# we have found the target
 	set Run(bdir) $pard
 	set uprd [file join $uprd "params.sys"]
-	set Run(arch) [lindex $tar 1]
+	set Run(mode) [lindex $tar 1]
 	if [catch { open $uprd "r" } pfd] {
 		# no parameters, use defaults
 		set Flags [lindex $tar 2]
@@ -2358,6 +2359,16 @@ proc scanfile { fname } {
 	catch { close $fd }
 }
 
+proc bad_usage { } {
+
+	puts stderr "Usage: mkmk boardname \[-c pfx\] \[-m|-p\] \[label\]"
+	puts stderr "       mkmk boardname \[-c pfx\] -l"
+	puts stderr "       mkmk \[-c pfx\] -M|-P \[libdir\] \[label\]"
+	puts stderr "       mkmk -V"
+	puts stderr "       mkmk ... -- override compile args for mspgcc
+	exit 1
+}
+
 proc getflag { fg } {
 
 	global Flags
@@ -2509,7 +2520,7 @@ proc outquote { s } {
 #
 	global Run
 
-	if { $Run(arch) == "E" && ($Run(type) == "p" || $Run(type) == "P") } {
+	if { $Run(mode) == "E" && ($Run(type) == "p" || $Run(type) == "P") } {
 		# a CyanIDE project, i.e., XML
 		return "&lt;$s&gt;"
 	}
@@ -2535,1232 +2546,34 @@ proc getoptfile { suff } {
 	return ""
 }
 
+proc getarg { } {
 
+	global argv
 
+	set arg [lindex $argv 0]
+	set argv [lrange $argv 1 end]
 
-
-
-#############################################
-#### new #### move here new (acceptable) code
-#############################################
-
-###############################################################################
-# Determine the system type ###################################################
-###############################################################################
-if [catch { exec uname } ST(SYS)] {
-	set ST(SYS) "W"
-} elseif [regexp -nocase "linux" $ST(SYS)] {
-	set ST(SYS) "L"
-} elseif [regexp -nocase "cygwin" $ST(SYS)] {
-	set ST(SYS) "C"
-} else {
-	set ST(SYS) "W"
-}
-if { $ST(SYS) != "L" } {
-	# sanitize arguments
-	set u [string trimright [lindex $argv end]]
-	if { $u == "" } {
-		set argv [lreplace $argv end end]
-	} else {
-		set argv [lreplace $argv end end $u]
-	}
-	unset u
-}
-
-###############################################################################
-# Determine the way devices are named; if running natively under Cygwin, use
-# Linux style
-###############################################################################
-
-if [file isdirectory "/dev"] {
-	set ST(DEV) "L"
-} else {
-	set ST(DEV) "W"
-}
-
-###############################################################################
-###############################################################################
-
-package provide xml 1.0
-###############################################################################
-# Mini XML parser. Copyright (C) 2008-12 Olsonet Communications Corporation.
-###############################################################################
-
-### Last modified PG111008A ###
-
-namespace eval XML {
-
-proc xstring { s } {
-#
-# Extract a possibly quoted string
-#
-	upvar $s str
-
-	if { [xspace str] != "" } {
-		error "illegal white space"
-	}
-
-	set c [string index $str 0]
-	if { $c == "" } {
-		error "empty string illegal"
-	}
-
-	if { $c != "\"" } {
-		# no quote; this is formally illegal in XML, but let's be
-		# pragmatic
-		regexp "^\[^ \t\n\r\>\]+" $str val
-		set str [string range $str [string length $val] end]
-		return [xunesc $val]
-	}
-
-	# the tricky way
-	if ![regexp "^.(\[^\"\]*)\"" $str match val] {
-		error "missing \" in string"
-	}
-	set str [string range $str [string length $match] end]
-
-	return [xunesc $val]
-}
-
-proc xunesc { str } {
-#
-# Remove escapes from text
-#
-	regsub -all "&amp;" $str "\\&" str
-	regsub -all "&quot;" $str "\"" str
-	regsub -all "&lt;" $str "<" str
-	regsub -all "&gt;" $str ">" str
-	regsub -all "&nbsp;" $str " " str
-
-	return $str
-}
-
-proc xspace { s } {
-#
-# Skip white space
-#
-	upvar $s str
-
-	if [regexp -indices "^\[ \t\r\n\]+" $str ix] {
-		set ix [lindex $ix 1]
-		set match [string range $str 0 $ix]
-		set str [string range $str [expr $ix + 1] end]
-		return $match
-	}
-
-	return ""
-}
-
-proc xcmnt { s } {
-#
-# Skip a comment
-#
-	upvar $s str
-
-	set sav $str
-
-	set str [string range $str 4 end]
-	set cnt 1
-
-	while 1 {
-		set ix [string first "-->" $str]
-		set iy [string first "<!--" $str]
-		if { $ix < 0 } {
-			error "unterminated comment: [string range $sav 0 15]"
-		}
-		if { $iy > 0 && $iy < $ix } {
-			incr cnt
-			set str [string range $str [expr $iy + 4] end]
-		} else {
-			set str [string range $str [expr $ix + 3] end]
-			incr cnt -1
-			if { $cnt == 0 } {
-				return
-			}
-		}
-	}
-}
-
-proc xftag { s } {
-#
-# Find and extract the first tag in the string
-#
-	upvar $s str
-
-	set front ""
-
-	while 1 {
-		# locate the first tag
-		set ix [string first "<" $str]
-		if { $ix < 0 } {
-			set str "$front$str"
-			return ""
-		}
-		append front [string range $str 0 [expr $ix - 1]]
-		set str [string range $str $ix end]
-		# check for a comment
-		if { [string range $str 0 3] == "<!--" } {
-			# skip the comment
-			xcmnt str
-			continue
-		}
-		set et ""
-		if [regexp -nocase "^<(/)?\[a-z:_\]" $str ix et] {
-			# this is a tag
-			break
-		}
-		# skip the thing and keep going
-		append front "<"
-		set str [string range $str 1 end]
-	}
-
-	if { $et != "" } {
-		set tm 1
-	} else {
-		set tm 0
-	}
-
-	if { $et != "" } {
-		# terminator, skip the '/', so the text is positioned at the
-		# beginning of keyword
-		set ix 2
-	} else {
-		set ix 1
-	}
-
-	# starting at the keyword
-	set str [string range $str $ix end]
-
-	if ![regexp -nocase "^(\[a-z0-9:_\]+)(.*)" $str ix kwd str] {
-		# error
-		error "illegal tag: [string range $str 0 15]"
-	}
-
-	set kwd [string tolower $kwd]
-
-	# decode the attributes
-	set attr ""
-	array unset atts
-
-	while 1 {
-		xspace str
-		if { $str == "" } {
-			error "unterminated tag: <$et$kwd"
-		}
-		set c [string index $str 0]
-		if { $c == "/" } {
-			# self-terminating
-			if { $tm != 0 || [string index $str 1] != ">" } {
-				error "broken self-terminating tag:\
-					<$et$kwd ... [string range $str 0 15]"
-			}
-			set str [string range $str 2 end]
-			return [list 2 $front $kwd $attr]
-		}
-		if { $c == ">" } {
-			# done
-			set str [string range $str 1 end]
-			# term preceding_text keyword attributes
-			return [list $tm $front $kwd $attr]
-		}
-		# this must be a keyword
-		if ![regexp -nocase "^(\[a-z\]\[a-z0-9_\]*)=" $str match atr] {
-			error "illegal attribute: <$et$kwd ... [string range \
-				$str 0 15]"
-		}
-		set atr [string tolower $atr]
-		if [info exists atts($attr)] {
-			error "duplicate attribute: <$et$kwd ... $atr"
-		}
-		set atts($atr) ""
-		set str [string range $str [string length $match] end]
-		if [catch { xstring str } val] {
-			error "illegal attribute value: \
-				<$et$kwd ... $atr=[string range $str 0 15]"
-		}
-		lappend attr [list $atr $val]
-	}
-}
-
-proc xadv { s kwd } {
-#
-# Returns the text + the list of children for the current tag. A child looks
-# like this:
-#
-#	text:		<"" the_text>
-#	element:	<tag attributes children_list>
-#
-	upvar $s str
-
-	set chd ""
-
-	while 1 {
-		# locate the nearest tag
-		set tag [xftag str]
-		if { $tag == "" } {
-			# no more
-			if { $kwd != "" } {
-				error "unterminated tag: <$kwd ...>"
-			}
-
-			if { $str != "" } {
-				# a tailing text item
-				lappend chd [list "" $str]
-				return $chd
-			}
-		}
-
-		set md [lindex $tag 0]
-		set fr [lindex $tag 1]
-		set kw [lindex $tag 2]
-		set at [lindex $tag 3]
-
-		if { $fr != "" } {
-			# append a text item
-			lappend chd [list "" $fr]
-		}
-
-		if { $md == 0 } {
-			# opening, not self-closing
-			set cl [xadv str $kw]
-			# inclusion ?
-			set tc [list $kw $at $cl]
-			if ![xincl str $tc] {
-				lappend chd $tc
-			}
-		} elseif { $md == 2 } {
-			# opening, self-closing
-			set tc [list $kw $at ""]
-			if ![xincl str $tc] {
-				lappend chd $tc
-			}
-		} else {
-			# closing
-			if { $kw != $kwd } {
-				error "mismatched tag: <$kwd ...> </$kw>"
-			}
-			# we are done with the tag
-			return $chd
-		}
-	}
-}
-
-proc xincl { s tag } {
-#
-# Process an include tag
-#
-	set kw [lindex $tag 0]
-
-	if { $kw != "include" && $kw != "xi:include" } {
-		return 0
-	}
-
-	set fn [sxml_attr $tag "href"]
-
-	if { $fn == "" } {
-		error "href attribute of <$kw ...> is empty"
-	}
-
-	if [catch { open $fn "r" } fd] {
-		error "cannot open include file $fn: $fd"
-	}
-
-	if [catch { read $fd } fi] {
-		catch { close $fd }
-		error "cannot read include file $fn: $fi"
-	}
-
-	# merge it
-	upvar $s str
-
-	set str $fi$str
-
-	return 1
-}
-
-proc sxml_parse { s } {
-#
-# Builds the XML tree from the provided string
-#
-	upvar $s str
-
-	set v [xadv str ""]
-
-	return [list root "" $v]
-}
-
-proc sxml_name { s } {
-
-	return [lindex $s 0]
-}
-
-proc sxml_txt { s } {
-
-	set txt ""
-
-	foreach t [lindex $s 2] {
-		if { [lindex $t 0] == "" } {
-			append txt [lindex $t 1]
-		}
-	}
-
-	return $txt
-}
-
-proc sxml_snippet { s } {
-
-	if { [lindex $s 0] != "" } {
-		return ""
-	}
-
-	return [lindex $s 1]
-}
-
-proc sxml_attr { s n { e "" } } {
-
-	if { $e != "" } {
-		# flag to tell the difference between an empty attribute and
-		# its complete lack
-		upvar $e ef
-		set ef 0
-	}
-
-	if { [lindex $s 0] == "" } {
-		# this is a text
-		return ""
-	}
-
-	set al [lindex $s 1]
-	set n [string tolower $n]
-	foreach a $al {
-		if { [lindex $a 0] == $n } {
-			if { $e != "" } {
-				set ef 1
-			}
-			return [lindex $a 1]
-		}
-	}
-	return ""
-}
-
-proc sxml_children { s { n "" } } {
-
-	# this is automatically null for a text
-	set cl [lindex $s 2]
-
-	if { $n == "+" } {
-		# all including text
-		return $cl
-	}
-
-	set res ""
-
-	if { $n == "" } {
-		# tagged elements only
-		foreach c $cl {
-			if { [lindex $c 0] != "" } {
-				lappend res $c
-			}
-		}
-		return $res
-	} else {
-		# all with the given tag name
-		foreach c $cl {
-			if { [lindex $c 0] == $n } {
-				lappend res $c
-			}
-		}
-	}
-
-	return $res
-}
-
-proc sxml_child { s n } {
-
-	# null for a text
-	set cl [lindex $s 2]
-
-	foreach c $cl {
-		if { [lindex $c 0] == $n } {
-			return $c
-		}
-	}
-
-	return ""
-}
-
-proc sxml_yes { item attr } {
-#
-# A useful shortcut
-#
-	if { [string tolower [string index [sxml_attr $item $attr] 0]] == \
-		"y" } {
-			return 1
-	}
-	return 0
-}
-
-namespace export sxml_*
-
-### end of XML namespace ######################################################
-
-}
-
-namespace import ::XML::*
-
-###############################################################################
-###############################################################################
-###############################################################################
-
-proc errab { m } {
-
-	puts stderr $m
-	exit 1
-}
-
-proc lappend_unique { li i } {
-
-	upvar $li l
-
-	if { ![info exists l] || [lsearch -exact $l $i] < 0 } {
-		lappend l $i
-	}
-}
-
-proc bad_usage { { msg "" } } {
-#
-#
-#
-	if { msg != "" } {
-
-		puts stderr "Illegal argument: $msg"
-		puts stderr ""
-	}
-
-	puts stderr "Usage: (1) mkmk boardname \[-a arch\] \[label\]"
-	puts stderr "       (2) mkmk boardname \[-a arch\] -l
-	puts stderr "       (3) mkmk boardname \[-a arch\] -L \[label\]"
-	puts stderr "       (4) mkmk -V"
-	puts stderr "       (5) mkmk ... -- gcc args"
-	puts stderr "--"
-	puts stderr " 1 - create image for the given board/architecture/program"
-	puts stderr " 2 - create library for the given board/architecture"
-	puts stderr " 3 - create image (as in 1) from a library"
-	puts stderr " 4 - print version number and exit"
-	puts stderr " 5 - way to override some gcc compiler args"
-
-	exit 1
-
-	# theoretically, arch can be determined by boardname, if boardname
-	# happens to be unique, but we make arch obligatory, which will
-	# simplify things (and be more natural) for PIP
-}
-
-proc process_args { } {
-
-	global Run argv
-
-	# to count "keyword" args (boardname, label)
-	set nc 0
-
-	set Run(arch) ""
-	set Run(board) ""
-	set Run(type) ""
-	set Run(pgm) ""
-	set Run(oca) ""
-
-	while { $argv != "" } {
-
-		set arg [lindex $argv 0]
-		set argv [lrange $argv 1 end]
-
-		if { [string index $arg 0] == "-" } {
-			set arg [string range $arg 1 end]
-			if { $arg == "a" } {
-				# architecture
-				if [info exists a] {
-					bad_usage "duplicate -a"
-				}
-				set a [lindex $argv 0]
-				if { $a == "" || [string index $a 0] == "-" } {
-					bad_usage "architecture expected after\
-						-a"
-				}
-				set argv [lrange $argv 1 end]
-				continue
-			}
-			if { $arg == "l" } {
-				# library
-				if [info exists l] {
-					bad_usage "duplicate -l"
-				}
-				if [info exists L] {
-					bad_usage "illegal -l preceded by -L"
-				}
-				set l ""
-				continue
-			}
-			if { $arg == "L" } {
-				# library
-				if [info exists L] {
-					bad_usage "duplicate -L"
-				}
-				if [info exists l] {
-					bad_usage "illegal -L preceded by -l"
-				}
-				set L ""
-				continue
-			}		
-			if { $arg == "V" } {
-				if [info exists V] {
-					bad_usage "duplicate -V"
-				}
-				set V ""
-				continue
-			}
-			if { $arg == "-" } {
-				# double dash, whatever follows will be used as
-				# gcc args
-				set o $argv
-				break
-			}
-			bad_usage "-$arg unknown"
-		}
-
-		if $nc {
-			# this can only be the program label
-			if { $nc > 1 } {
-				bad_usage "$arg unrecognizable"
-			}
-			set p $arg
-		} else {
-			set b $arg
-		}
-
-		incr nc
-	}
-
-	if [info exists V] {
-		# nothing else expected
-		if { [info exists a] || [info exists l] || [info exists L] ||
-		     [info exists o] || $nc } {
-			bad_usage "-V cannot be mixed with other arguments"
-		}
-		# will be replaced with the proper tag by deploy
-		puts "ZZ000000A"
-		exit 0
-	}
-
-	if { $nc == 0 } {
-		bad_usage "boardname required"
-	}
-
-	set Run(board) $b
-
-	if [info exists L] {
-		# type L -> compiling from library
-		set Run(type) "L"
-	} elseif [info exists l] {
-		if { $nc > 1 } {
-			bad_usage "program label illegal with -l"
-		}
-		set Run(type) "l"
-	} else {
-		set Run(type) "S"
-	}
-
-	if [info exists a] {
-		set Run(arch) $a
-	}
-
-	if [info exists l] {
-			# type l -> creating library
-			set Run(type) "l"
-			if { $nc > 1 } {
-				bad_usage "program label illegal with -l"
-			}
-		} else {
-			set Run(type) "n"
-			if { $nc > 1 } {
-				set Run(pgm) $p
-			}
-		}
-	}
-
-	if { $nc > 1 } {
-		set Run(pgm) $p
-	}
-
-	if [info exists $o] {
-		set Run(oca) $o
-	}
-}
-
-proc arch_candidates { } {
-#
-# Returns the list of tail subdirectory names that appear to be valid
-# target identifiers, i.e., being directories named with all capitals and
-# digits
-#
-	global SDirs
-
-	set dir [file join $SDirs(root) "PicOS"]
-
-	set fl [glob -nocomplain -directory $dir -tails *]
-	set res ""
-
-	foreach f $fl {
-		if ![regexp {^[A-Z0-9]+$} $f] {
-			continue
-		}
-		if ![file isdirectory [file join $dir $f]] {
-			continue
-		}
-		lappend res $f
-	}
-
-	return $res
-}
-
-proc mk_fname { fn } {
-#
-# Transform a file name to mkmk native format (so mkmk understands it)
-#
-	global ST
-
-	set res $fn
-
-	if { $ST(SYS) == "C" } {
-		# running on Cygwin
-		if { $ST(DEV) == "W" } {
-			# convert to Windows
-			if [catch { exec cygpath -w $fn } res] {
-				errab "Cannot convert file path $fn to Windows\
-					native, $res"
-			}
-		} else {
-			# convert to Unix
-			if [catch { exec cygpath $fn } res] {
-				errab "Cannot convert file path $fn to Cygwin\
-					(Unix) format, $res"
-			}
-		}
-	}
-
-	# nothing on Unix
-	return $res
-}
-
-proc cmp_tags { a b } {
-#
-# Compares two release tags, returns "", -1, 0, 1
-#
-
-	set pat "(\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\]\[0-9\])(\[A-Z\])?$"
-
-	set leta "a"
-	if ![regexp $pat $a jnk numa leta] {
-		# failed
-		return ""
-	}
-	set numa "1$numa"
-
-	set letb "a"
-	if ![regexp $pat $b jnk numb letb] {
-		return ""
-	}
-	set numb "1$numb"
-
-	if { $numa < $numb } {
-		return -1
-	}
-
-	if { $numa > $numb } {
-		return 1
-	}
-
-	# the tricky case, have to look at the letters
-
-	set leta [string tolower $leta]
-	set letb [string tolower $letb]
-
-	if { $leta == $letb } {
-		return 0
-	}
-
-	if { [lindex [lsort [list $leta $letb]] 0] == $leta } {
-		return -1
-	}
-
-	return 1
-}
-
-proc locate_root { } {
-#
-# Locate the root directory of the package
-#
-	global SDirs
-
-	set rpref [pwd]
-	set SDirs(cwd) $rpref
-
-	while 1 {
-
-		set root [file dirname $rpref]
-
-		if { [file tail $rpref] == "Apps" } {
-			# a candidate
-			if [file isdirectory [file join $root "PicOS"]] {
-				# done
-				break
-			}
-		}
-
-		if { $root == $rpref } {
-			# we have hit the bottom
-			errab "Path to current directory contains no \"Apps\""
-		}
-		set rpref $root
-	}
-
-	# root directory .../PICOS
-	set SDirs(root) $root
-}
-
-proc do_rtags { } {
-#
-# Read RTAGS looking for the current version numbers
-#
-	global CCDefs SDirs
-
-	# patterns for locating release/version tags
-	set rt "X000000A"
-	set maj 0
-	set min 0
-	set ptg "(\[0-9A-Z\]+):"
-	set pve "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
-
-	set fl [exec ls $SDirs(root)]
-
-	foreach f $fl {
-
-		if ![regexp "^RTAGS" $f] {
-			continue
-		}
-
-		if [catch { open [file join $SDirs(root) $f] "r" } fd] {
-			errab "Cannot open $f: $fd"
-		}
-
-		if [catch { read $fd } rtf] {
-			errab "Cannot read $f: $rtf"
-		}
-
-		catch { close $fd }
-
-		# the last RTAG
-		if { ![regexp -nocase ".*\n$ptg" $rtf fd rtag] &&
-		     ![regexp -nocase "^$ptg" $rtf fd rtag] } {
-			continue
-		}
-		set cmp [cmp_tags $rt $rtag]
-		if { $cmp == "" } {
-			errab "Illegal tag '$rtag' in $f"
-		} elseif { $cmp < 0 } {
-			set rt $rtag
-		}
-
-		# look for version
-
-		if { ![regexp -nocase ".*\n$pve" $rtf fd ma mi] &&
-		     ![regexp -nocase "^$pve" $rtf fd ma mi] } {
-			continue
-		}
-
-		if { [catch { expr $ma } mar] || [catch { expr $mi } mir] } {
-			errab "Illegal version numbers '$ma $mi' in $f"
-		}
-
-		if { $ma > $maj || ( $ma == $maj && $mi > $min ) } {
-			set maj $ma
-			set min $mi
-		}
-	}
-		
-	puts "PicOS version ${maj}.${min}, release $rt"
-
-	# defines for the system version
-	lappend CCDefs "SYSVER_U=$maj"
-	lappend CCDefs "SYSVER_L=$min"
-	lappend CCDefs "SYSVER_T=$rt"
-}
-
-proc locate_arch { } {
-#
-# Fixes the architecture argument. The argument can be absent or abbreviated,
-# in which case the architecture is determined by board.
-#
-	global Run SDirs
-
-	set res ""
-	set arch [string toupper $Run(arch)]
-
-	foreach a [arch_candidates] {
-		if { $arch == "" || [string first $arch $a] == 0 } {
-			# check if the board occurs there
-			set bp [file join $SDirs(root) "PicOS" $a "BOARDS" \
-				$Run(board)]
-			if [file isdirectory $bp] {
-				if { $res == "" } {
-					set res $a
-				} else {
-					errab "More than one board matches the\
-						arguments, please specify the\
-						architecture"
-				}
-			}
-		}
-	}
-
-	if { $res == "" } {
-		errab "Board $Run(board) not found"
-	}
-
-	set Run(arch) $res
-}
-
-proc get_compiler_data { } {
-#
-# Parses the compile file
-#
-	global SDirs Run Comp
-
-	set pmf [file join $SDirs(picos) $Run(arch) "compile.xml"]
-
-	if [catch { open $pmf "r" } fd] {
-		errab "Cannot open compile.xml for $Run(arch), $fd"
-	}
-
-	if [catch { read $fd } cdata] {
-		errab "Cannot read compile.xml for $Run(arch), $cdata"
-	}
-
-	catch { close $fd }
-
-	if [catch { sxml_parse cdata } cdata] {
-		errab "Bad format of compile.xml for $Run(arch), $cdata"
-	}
-
-	# cc, ld, ar, ranlib
-	# foreach: path, args, postargs, after
-
-	foreach ta { "cc" "ld" "ar" "ranlib" } {
-		set Comp($ta,path) ""
-		set Comp($ta,args) ""
-		set Comp($ta,postargs) ""
-		set Comp($ta,after) ""
-		set Comp($ta,dos) 0
-		set el [sxml_child $cdata $ta]
-		if { $el != "" } {
-			if { [sxml_yes $el "dospaths"] ||
-			     [sxml_yes $el "dospath"] } {
-				set Comp($ta,dos) 1
-			}
-			set Comp($ta,path) [sxml_txt [sxml_child $el "path"]]
-			set Comp($ta,args) [sxml_txt [sxml_child $el "args"]]
-			set Comp($ta,postargs) [sxml_txt \
-				[sxml_child $el "postargs"]]
-			set Comp($ta,after) [sxml_txt [sxml_child $el "after"]]
-		}
-	}
-
-	if { $Comp(cc,path) == "" || $Comp(ld,path) == "" } {
-		errab "Inadequate contents of compile.xml for $Run(arch)"
-	}
-}
-
-proc get_flags { } {
-
-	global SDirs Flags
-
-	set sp [file join $SDirs(root) "PicOS" $Run(arch) "BOARDS" \
-		$Run(board) "params.sys"]
-
-	if [catch { open $sp "r" } fd] {
-		errab "No params.sys in the board directory"
-	}
-
-	if [catch { read $fd } ps] {
-		errab "Cannot read params.sys, $ps"
-	}
-
-	foreach ln [split $ps "\n"] {
-		set ln [string trim $ln]
-		if { $ln == "" } {
-			continue
-		}
-		if [regexp {^-(^[a-z])[[:space:]]+(.*)} $ln jnk flag body] {
-			set Flags($flag) $body
-		} else {
-			if [regexp {^[a-z0-9]+$} $ln] {
-				set Flags(c) $ln
-			} else {
-				errab "Bad flag line, $ln, in params.sys"
-			}
-		}
-	}
-
-	if ![info exists Flags(c)] {
-		errab "CPU tag missing from params.sys"
-	}
-	set Run(cpu) $Flags(c)
-}
-			
-proc initialize { } {
-
-	global CCDefs
-
-	# locate the root directory
-	locate_root
-
-	# list of defines for the compiler
-	set CCDefs ""
-
-	# obtain version numbers from RTAGS
-	do_rtags
-
-	# fix the path to architecture
-	locate_arch
-
-	# compiler data
-	get_compiler_data
-
-	# get the CPU type
-	get_flags
-}
-
-proc make_clean { } {
-
-	global Run
-
-	catch { exec rm -rf "Makefile" "KTMP" ".gdbinit" "gdb.ini" }
-
-	if { $Run(pgm) == "" } {
-		# remove program-specific stuff; otherwise (if we are
-		# generating a single program-specific image, the stuff for
-		# other programs is left intact
-		catch { exec rm -rf "Makefile_*" "KTMP_*" }
-	} else {
-		catch { exec rm -rf "KTMP_$Run(pgm)" }
-	}
-
-	catch { file mkdir "KTMP_$Run(pgm)" }
-}
-
-proc add_all_subdirs { dname } {
-#
-# A recursive helper for build_directory_list
-#
-	global __aas
-
-	set sdl [glob -nocomplain -directory $dname -tails *]
-
-	foreach f $sdl {
-
-		set ff [file normalize [file join $dname $f]]
-		if ![file isdirectory $ff] {
-			continue
-		}
-
-		# directories to ignore
-		set k 0
-		foreach p \
-		    { "^VUEE_TMP$" "^ktmp" "junk" "attic" "ossi" "\\~\\$" } {
-
-			if [regexp -nocase $p $f] {
-				set k 1
-				break
-			}
-		}
-
-		if $k {
-			continue
-		}
-
-		if [info exists __aas($ff)] {
-			# avod link loops
-			continue
-		}
-
-		set __aas($ff) ""
-		add_all_subdirs $ff
-	}
-}
-
-proc build_directory_list { } {
-
-	global Run SDirs PDirs LDirs
-
-	#
-	# Initial directories to be searched (in this order). This also
-	# reflects the order of search. Local directories must be at the end,
-	# following ".".
-	#
-	set roots {
-			"PicOS/%arch%"
-			"PicOS/%arch%/%cpu%"
-			"PicOS/%arch%/BOARDS/%board%"
-			"PicOS/kernel"
-			"PicOS"
-			"PicOS/Libs/*"
-			"."
-			"./*"
-	}
-
-	set LDirs ""
-
-	# working copy of the target list
-	set PDirs ""
-
-	foreach p $roots {
-		regsub -all "%arch%" $p $Run(arch) p
-		regsub -all "%board%" $p $Run(board) p
-		regsub -all "%cpu%" $p $Run(cpu) p
-		if [regexp {/\*$} $p] {
-			# wildcard means all subdirectories (recursively)
-			set p [string range $p 0 end-2]
-			if { $p != "." } {
-				# convert to the path format used by mkmk
-				set p [file join $SDirs(root) [mk_fname $p]]
-			}
-			if ![file isdirectory $p] {
-				# skip
-				continue
-			}
-			add_all_subdirs $p
-			set dl [lsort [array names __aas]]
-			array unset __aas
-			foreach p $dl {
-				lappend_unique PDirs $p
-			}
-			if { $LDirs != "" } {
-				# these are subdirs of ".", put them here as
-				# well
-				foreach p $dl {
-					lappend_unique LDirs $p
-				}
-			}
-			continue
-		}
-		# just this directory
-		if { $p != "." } {
-			set p [file normalize [file join $SDirs(root) \
-				 [mk_fname $p]]]
-			if ![file isdirectory $p] {
-				continue
-			}
-			if { $LDirs != "" } {
-				# local directories, i.e., subdirs of .
-				lappend_unique LDirs $p
-			}
-		} else {
-			set p [file normalize $p]
-			# first one considered local
-			lappend LDirs $p
-		}
-		lappend_unique PDirs $p
-	}
-}
-
-proc get_options_file_defs { } {
-#
-# Determine if and which options.sys file should be included
-#
-	global Run CCDefs
-
-	if { $Run(pgm) != "" } {
-		set of "options_$Run(pgm).sys"
-		if [file isfile $of] {
-			lappend CCDefs "__OPTIONS_SYS__=\"<$of>\""
-		}
-	}
-	set of "options.sys"
-	if [file isfile $of] {
-		lappend CCDefs "__OPTIONS_SYS__=\"<$of>\""
-	}
-}
-
-proc add_extra_defines { } {
-
-	global Run CCDefs
-
-	lappend CCDefs "BOARD_$Run(board)"
-	lappend CCDefs "BOARD_TYPE=$Run(board)"
-###here: need to get the compiler version (hey, maybe not needed, maybe the
-###      prog can get it from the compiler
-###	__GNUC__ works, but have to switch off "cannot evaluate" warnings
-	lappend CCDefs "__COMP_VERSION__=$Run(GCV)"
-
-	if { $Run(pgm) != "" } {
-		lappend CCDefs "PGMLABEL_$Run(pgm)"
-		lappend CCDefs "PGMLABEL=$Run(pgm)"
-	}
-
-	lappend CCDefs "__$Root(arch)__"
-	lappend CCDefs "__$Root(cpu)__"
-	get_options_file_defs
+	return $arg
 }
 
 proc main { } {
 
-	global Run
+	global argv ToCompile NotFound CWD Run Symbols Scanned CFName
+	global SrcLists LIncludes CWDL ExtraIncDirs
 
-	# this is probably no longer needed
-	# cygfix
-
-	# Run(type): "S" - normal (source) project run
-	#	     "l" - creating library
-	#	     "L" - project run from library
-
-	# this fills in the Run array
-	process_args
-
-	# initialize things
-	initialize
-
-	# cleanup before build; do we need this when building a library?
-	make_clean
-
-	# build the list of directories to search
-	build_directory_list
-
-	# add extra defines
-	add_extra_defines
-
-
-
-
-###here
-
-
-
-
-
-
-
+	cygfix
 
 	set Run(type) ""
 	# the board (this must not be null)
 	set Run(board) ""
 	# the praxis (null means all)
-	set Run(pgm) ""
+	set Run(praxis) ""
 	# for a library run
 	set Run(library) ""
 	# compiler path prefix
 	set Run(CPF) ""
 	# override compiler args
-### maybe we don't need that after all
-	set Run(oca) ""
+	set Run(OCA) ""
 	
 	# parse the arguments #################################################
 
@@ -3784,7 +2597,7 @@ proc main { } {
 				set Run(board) $arg
 			} elseif { $kcnt == 1 } {
 				# tag
-				set Run(pgm) $arg
+				set Run(praxis) $arg
 			} else {
 				bad_usage
 			}
@@ -3856,7 +2669,7 @@ proc main { } {
 
 		if { $arg == "-" } {
 			# override compiler args
-			set Run(oca) $argv
+			set Run(OCA) $argv
 			break
 		}
 
@@ -3884,7 +2697,7 @@ proc main { } {
 	# CPU type
 	set mcpu [getflag "c"]
 
-	if { $Run(arch) == "E" } {
+	if { $Run(mode) == "E" } {
 		# this can only be on Windows
 		if { $Run(DNM) != "" && $Run(DNM) != 1 } {
 			puts stdout "Warning: explicit [sysdesig]-type path\
@@ -3936,22 +2749,22 @@ proc main { } {
 			"out" "temp" "internal.map" "cstartup.asm" "irq.asm" \
 				"LIBRARY" ".gdbinit" "gdb.ini" }
 
-	if { $Run(pgm) == "" } {
+	if { $Run(praxis) == "" } {
 
 		# remove praxis-specific makefiles; otherwise (if we are
 		# generating single-praxis makefiles, the makefiles for other
 		# praxes are left intact
 		catch { exec rm -rf "Makefile_*" "out_*" "temp_*" "KTMP_*" }
 	} else {
-		append Ofn "_$Run(pgm)"
-		append Tfn "_$Run(pgm)"
-		append Kfn "_$Run(pgm)"
+		append Ofn "_$Run(praxis)"
+		append Tfn "_$Run(praxis)"
+		append Kfn "_$Run(praxis)"
 		catch { exec rm -rf $Kfn }
 	}
 
 	mkdlist $TGT
 
-	if { $Run(arch) == "E" } {
+	if { $Run(mode) == "E" } {
 		catch { file mkdir $Ofn $Tfn }
 	} else {
 		catch { file mkdir $Kfn }
@@ -3964,9 +2777,9 @@ proc main { } {
 	lappend deflist "BOARD_TYPE=$Run(board)"
 	lappend deflist "__COMP_VERSION__=$Run(GCV)"
 
-	if { $Run(pgm) != "" } {
-		lappend deflist "PGMLABEL_$Run(pgm)"
-		lappend deflist "PGMLABEL=$Run(pgm)"
+	if { $Run(praxis) != "" } {
+		lappend deflist "PGMLABEL_$Run(praxis)"
+		lappend deflist "PGMLABEL=$Run(praxis)"
 	}
 
 	set ExtraIncDirs ""
@@ -4018,7 +2831,7 @@ proc main { } {
 		array unset Processed
 		set ScrLists($suffix) ""
 
-		if { $Run(arch) == "M" } {
+		if { $Run(mode) == "M" } {
 			lappend deflist "__MSP430__"
 			# CPU ID needed by mkmk
 			lappend deflist [mkcpulabel $mcpu]
@@ -4054,7 +2867,7 @@ proc main { } {
 		catch { file mkdir "LIBRARY" }
 		catch { file mkdir "LIBRARY/include" }
 
-		if { $Run(arch) == "M" } {
+		if { $Run(mode) == "M" } {
 			outmkf_lib $deflist $mcpu
 		} else {
 			outmkfc_lib $deflist
@@ -4097,18 +2910,18 @@ proc main { } {
 				directory"
 		}
 
-		if { $Run(pgm) != "" } {
+		if { $Run(praxis) != "" } {
 
 			# request to create a single-praxis makefile in
 			# multiple-praxis VUEE-compatible setup
 
-			if { [lsearch -exact $sufflist $Run(pgm)] < 0 } {
-				errab "File app_$Run(pgm).cc not found in\
+			if { [lsearch -exact $sufflist $Run(praxis)] < 0 } {
+				errab "File app_$Run(praxis).cc not found in\
 					current directory"
 			}
-			set sufflist [list $Run(pgm)]
+			set sufflist [list $Run(praxis)]
 
-			set optfile [getoptfile $Run(pgm)]
+			set optfile [getoptfile $Run(praxis)]
 
 		} else {
 
@@ -4119,7 +2932,7 @@ proc main { } {
 			}
 		}
 
-		if { $Run(arch) == "M" } {
+		if { $Run(mode) == "M" } {
 			# MSP430: no project
 			lappend deflist "__MSP430__"
 			lappend deflist [mkcpulabel $mcpu]
@@ -4171,7 +2984,7 @@ proc main { } {
 			dmp "TO COMPILE SRC \[$suffix\]: '$SrcLists($suffix)'"
 		}
 
-		if { $Run(arch) == "M" } {
+		if { $Run(mode) == "M" } {
 			outmkf $deflist $mcpu
 		} else {
 			# project file
@@ -4193,27 +3006,3 @@ proc main { } {
 }
 
 main
-
-exit
-
-##################
-##################
-# deleted garbage
-##################
-##################
-
-proc bad_usage { } {
-#
-# Run(arch) - M or E identifies the architecture; we shall use for that
-# subdirectories of PicOS other than Libs and kernel (must be all capitals or
-# digits).
-#
-# Run(type) - m, p [normal], l [build lib], M, P [library]
-#
-	puts stderr "Usage: mkmk boardname \[-c pfx\] \[-m|-p\] \[label\]"
-	puts stderr "       mkmk boardname \[-c pfx\] -l"
-	puts stderr "       mkmk \[-c pfx\] -M|-P \[libdir\] \[label\]"
-	puts stderr "       mkmk -V"
-	puts stderr "       mkmk ... -- override compile args for mspgcc
-	exit 1
-}
