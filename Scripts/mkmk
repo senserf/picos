@@ -2000,6 +2000,7 @@ proc sexpr { str } {
 #
 # Evaluates naive IF conditions
 #
+###here: incorporate ESymbols
 	global Symbols
 
 	if [info exists Symbols(mkmk_eval)] {
@@ -3301,6 +3302,7 @@ proc locate_root { } {
 #
 	global SDirs
 
+	# this is normalized
 	set rpref [pwd]
 	set SDirs(cwd) $rpref
 
@@ -3466,6 +3468,11 @@ proc get_compiler_data { } {
 			     [sxml_yes $el "dospath"] } {
 				set Comp($ta,dos) 1
 			}
+			# we have a problem with paths, because we don't quite
+			# know where a path actually occurs; while we can
+			# assume that the compiler "path" (below) is in fact
+			# a path, the commands in "after" are a bit tricky; so
+			# something is missing here
 			set Comp($ta,path) [sxml_txt [sxml_child $el "path"]]
 			set Comp($ta,args) [sxml_txt [sxml_child $el "args"]]
 			set Comp($ta,postargs) [sxml_txt \
@@ -3613,13 +3620,22 @@ proc build_directory_list { } {
 			"PicOS/kernel"
 			"PicOS"
 			"PicOS/Libs/*"
-			"."
-			"./*"
 	}
 
+	# if creating a library, ignore all local files, i.e., only look at
+	# PicOS files; NOTE: we didn't have that before, so, for example, a
+	# library built could be influenced by local options.sys; I don't
+	# think that makes a lot of sense
+
+	if { $Run(type) != "l" } {
+		lappend root "."
+		lappend root "./*"
+	}
+
+	# subdirectories of the praxis directory
 	set LDirs ""
 
-	# working copy of the target list
+	# system subdirectories + LDirs, i.e, the works
 	set PDirs ""
 
 	foreach p $roots {
@@ -3678,6 +3694,11 @@ proc get_options_file_defs { } {
 #
 	global Run CCDefs
 
+	if { $Run(type) == "l" } {
+		# no local options for a library build
+		return
+	}
+
 	if { $Run(pgm) != "" } {
 		set of "options_$Run(pgm).sys"
 		if [file isfile $of] {
@@ -3692,28 +3713,191 @@ proc get_options_file_defs { } {
 
 proc add_extra_defines { } {
 
-	global Run CCDefs
+	global Run CCDefs ESymbols Comp
 
 	lappend CCDefs "BOARD_$Run(board)"
 	lappend CCDefs "BOARD_TYPE=$Run(board)"
-###here: need to get the compiler version (hey, maybe not needed, maybe the
-###      prog can get it from the compiler
-###	__GNUC__ works, but have to switch off "cannot evaluate" warnings
-	lappend CCDefs "__COMP_VERSION__=$Run(GCV)"
+
+	# get the compiler version number; not needed any more for MSP430
+	# code (no need for the extra symbol, __COMP_VERSION__), but let us
+	# do it just in case, so mkmk knows the version from this stage on
+
+	# this should work without path conversions (assuming the comp path
+	# is just the call name, and system $PATH is properly set); we will
+	# fix it later (don't know how) if the simple idea doesn't work
+	if [catch { exec $Comp(cc,path) -v } res] {
+		errab "Error trying to invoke $Comp(cc,path), $res"
+	}
+	if ![regexp "version (\[0-9\]+\)\\.\[0-9\]+\\.\[0-9\]+" $res jnk res] {
+		errab "Cannot determine $Comp(cc,path) version number,\
+			unrecognized response: $res"
+	}
+	puts stdout "$comp $jnk"
+	set Comp(cc,version) $res
+	# make sure the version symbol is internally recognized
+	set ESymbols(__GNUC__) $res
+	# ... add more extra symbols as needed
 
 	if { $Run(pgm) != "" } {
 		lappend CCDefs "PGMLABEL_$Run(pgm)"
 		lappend CCDefs "PGMLABEL=$Run(pgm)"
 	}
 
-	lappend CCDefs "__$Root(arch)__"
-	lappend CCDefs "__$Root(cpu)__"
+	lappend CCDefs "__$Run(arch)__"
+	lappend CCDefs "__$Run(cpu)__"
+
 	get_options_file_defs
+}
+
+proc lookup_file { fn mode prefdir dirs } {
+#
+# Lookup the given file; modes are:
+#
+#	0 - include lookup, if a partial path precedes the file name, make sure
+#	    to add the prefix to this path to include directories
+#
+#	1 - sourced (//+++) addition; this cannot be a header, but a source
+#	    file; partial path processing still applies, but there is no need
+#	    to add the prefix to include directories
+#
+# prefdir - preferred directory, i.e., the directory to be tried first (the one
+#	    containing the includer)
+#
+# dirs    - the package directory list to search
+#
+# The argument paths are specified in the format of mkmk
+#
+	global SDirs EDirs
+
+	if { $prefdir != "" } {
+		# put the preferred directory in front
+		set dirs [concat [list $prefdir] $dirs]
+	}
+
+	set dir [file dirname $fn]
+
+	if { $dir != "." && $dir != "" } {
+		# the file name has a (possibly partial) directory prefix
+		set fil [file tail $fn]
+		# full normalized prefix
+		set dir [file normalize $dir]
+		# this feature is restricted to subdirs of the App directory
+		if { [string first $SDirs(cwd) $dir] != 0 } {
+			errab "Illegal compound path for included file $fn"
+		}
+		set dir [string range $dir [string length $SDirs(cwd)] end]
+		set dl [string length $dir]
+		# now we are searching for a directory whose tail matches dir
+		# and which contains $fn
+		set ffn ""
+		foreach d $dirs {
+			# the last occurrence
+			set pos [string last $dir $d]
+			if { $pos < 0 } {
+				continue
+			}
+			if { [expr $pos + $dl] != [string length $d] } {
+				continue
+			}
+			# we have a match on directory name
+			set ff [file normalize [file join $d $fil]]
+			if [file isfile $ff] {
+				# check for a duplicate
+				if { $ffn != "" && $ffn != $ff } {
+					puts stdout "Warning: multiple\
+					    occurrences of file $fn (at\
+						$ffn and $ff)"
+					break
+				} else {
+					set ffn $ff
+					set ddn [string range $d 0 \
+						[expr $pos - 1]]
+				}
+			}
+		}
+
+		if { $ffn == "" } {
+			# this is an error
+			errab "Cannot locate path-prefixed file $fn"
+		}
+
+		if { $mode == 0 } {
+			# should add the prefix to the list of extra includes
+			lappend_unique EDirs $ddn]
+		}
+		return $ffn
+	}
+
+	# a regular file
+	set ffn ""
+	foreach d $dirs {
+		set ff [file normalize [file join $d $fn]]
+		if [file isfile $ff] {
+			if { $ffn != "" && $ffn != $ff } {
+				puts stdout "Warning: multiple occurrences of\
+					file $fn (at $ffn and $ff)"
+				break
+			} else {
+				set ffn $ff
+			}
+		}
+	}
+
+	return $ffn
+}
+
+proc lookup_file_globally { fn } {
+
+	global PDirs
+
+	return [lookup_file $fn 1 "" $PDirs]
+}
+
+proc create_library { } {
+
+	global Flags Run PDirs NFound
+
+	if { ![info exists Flags(l)] || $Flags(l) == "" } {
+		errab "Board $Run(board) specifies no files for a library build"
+	}
+
+	set ToCompile ""
+	# the list of system files to be compiled into the BOARD library
+	set iflist $Flags(l)
+
+	while 1 {
+		set iflist [string trim $iflist]
+		# this assumes no spaces in file names; probably OK for
+		# sanity, especially that we only use root names
+		if ![regexp {^([^[:space:]]+)(.*)} $iflist jnk f iflist] {
+			# no more files
+			break
+		}
+
+		# look up the file within PicOS directories; the local part
+		# of PDirs is switched off
+		set nf [lookup_file_globally $f]
+		if { $nf == "" } {
+			lappend_unique NFound $f
+		} elseif { [file extension $nf] != ".h" } {
+			lappend_toc ToCompile $nf
+		}
+	}
+			
+
+
+		
+###here
+
+
+
+
+
 }
 
 proc main { } {
 
-	global Run
+	global Run NFound
 
 	# this is probably no longer needed
 	# cygfix
@@ -3736,6 +3920,21 @@ proc main { } {
 
 	# add extra defines
 	add_extra_defines
+
+	if { $Run(type) == "l" } {
+		create_library
+	} else {
+		create_image
+	}
+
+	if { $NFound != "" } {
+		puts -nonewline stdout "Warning: //+++ sources not found:"
+		foreach fn $NFound {
+			puts -nonewline stdout "  $fn "
+		}
+		puts stdout ""
+	}
+}
 
 
 

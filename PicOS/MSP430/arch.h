@@ -49,7 +49,8 @@ extern volatile systat_t __pi_systat;
 
 #define	STATIC_LENGTH		(((aword)&__BSS_END - (aword)RAM_START + 1)/2)
 
-#if __COMP_VERSION__ > 4
+#define	mkmk_eval
+#if __GNUC__ > 4
 
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\
 		".global __pi_release\n"\
@@ -62,6 +63,7 @@ extern volatile systat_t __pi_systat;
 		"__pi_release: mov %0, r1"\
 			:: "i"(STACK_START): "r1")
 #endif
+#undef mkmk_eval
 
 void		__pi_release () __attribute__ ((noreturn));
 
