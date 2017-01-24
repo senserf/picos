@@ -1819,7 +1819,7 @@ proc needlist { ar fname } {
 
 		if ![regexp $pat $ar jk nfn] {
 			# we don't understand this
-			puts stdout \
+			puts \
 				"Warning: '//+++' syntax error: '$ar' in $fname"
 				break
 		}
@@ -1891,7 +1891,7 @@ proc flook { fn mode prefdir dirs } {
 			if [file isfile $ff] {
 				# check for a duplicate
 				if { $ffn != "" && $ffn != $ff } {
-					puts stdout "Warning: multiple\
+					puts "Warning: multiple\
 					    occurrences of file $fn (at\
 						$ffn and $ff)"
 					break
@@ -1924,7 +1924,7 @@ proc flook { fn mode prefdir dirs } {
 		set ff [canon [file join $d $fn]]
 		if [file isfile $ff] {
 			if { $ffn != "" && $ffn != $ff } {
-				puts stdout "Warning: multiple occurrences of\
+				puts "Warning: multiple occurrences of\
 					file $fn (at $ffn and $ff)"
 				break
 			} else {
@@ -2142,7 +2142,7 @@ proc scanfile { fname } {
 
 		if { [gets $fd line] < 0 } {
 			if { $ifnest > 0 } {
-				puts stdout "Warning: #endif missing in $fname"
+				puts "Warning: #endif missing in $fname"
 			}
 			break
 		}
@@ -2151,8 +2151,8 @@ proc scanfile { fname } {
 		    [regexp "^\[ \t\]*//\\+\\+\\+(.*)" $line jk ar] } {
 			# needed files
 			set ar [needlist $ar $fname]
+			set dnn [file dirname $fname]
 			foreach nfn $ar {
-				set dnn [file dirname $fname]
 				set fn [flookl $nfn 1 $dnn]
 				if { $fn == "" &&
 				    [file extension $nfn] == ".c" } {
@@ -2217,7 +2217,7 @@ proc scanfile { fname } {
 			# if
 			set val [sexpr $ar]
 			if { $val < 0 } {
-		puts stdout "Warning: failed to evaluate: '$ar' in $fname"
+		puts "Warning: failed to evaluate: '$ar' in $fname"
 				set val 0
 			}
 			if $val {
@@ -2232,7 +2232,7 @@ proc scanfile { fname } {
 		if { $cm == "elif" } {
 			dmp "ELIF: $ifnest, $ifstack($ifnest): $line"
 			if { $ifnest < 1 } {
-			    puts stdout "Warning: extraneous #elif in $fname"
+			    puts "Warning: extraneous #elif in $fname"
 			    continue
 			}
 			if { $ifstack($ifnest) == 1 } {
@@ -2246,7 +2246,7 @@ proc scanfile { fname } {
 			# 0 or 2, i.e., try it as well, or the if was skipped
 			set val [sexpr $ar]
 			if { $val < 0 } {
-		puts stdout "Warning: failed to evaluate: '$ar' in $fname"
+		puts "Warning: failed to evaluate: '$ar' in $fname"
 				set val 0
 			}
 			if $val {
@@ -2260,7 +2260,7 @@ proc scanfile { fname } {
 				
 		if { $cm == "else" } {
 			if { $ifnest < 1 } {
-			    puts stdout "Warning: extraneous #else in $fname"
+			    puts "Warning: extraneous #else in $fname"
 			    continue
 			}
 			if { $ifstack($ifnest) == 1 } {
@@ -2276,7 +2276,7 @@ proc scanfile { fname } {
 			if { $ifnest > 0 } {
 				incr ifnest -1
 			} else {
-			    puts stdout "Warning: extraneous #endif in $fname"
+			    puts "Warning: extraneous #endif in $fname"
 			}
 			dmp "ENDIF: $ifnest, $ifstack($ifnest)"
 			continue
@@ -2438,7 +2438,7 @@ proc onlinux { } {
 			errab "Cannot determine $comp version number"
 		}
 
-		puts stdout "$comp $jnk"
+		puts "$comp $jnk"
 
 		if { $res > 3 } {
 			set Run(GCV) $res
@@ -2468,11 +2468,11 @@ proc onlinux { } {
 		append res "Linux"
 	}
 
-	puts stdout "$res environment for mspgcc"
+	puts "$res environment for mspgcc"
 
 	if { $Run(DNM) != "" } {
 		if { $Run(DNM) != $ver } {
-			puts stdout "[sysdesig] environment forced"
+			puts "[sysdesig] environment forced"
 		}
 	} else {
 		set Run(DNM) $ver
@@ -3732,7 +3732,7 @@ proc add_extra_defines { } {
 		errab "Cannot determine $Comp(cc,path) version number,\
 			unrecognized response: $res"
 	}
-	puts stdout "$comp $jnk"
+	puts "$comp $jnk"
 	set Comp(cc,version) $res
 	# make sure the version symbol is internally recognized
 	set ESymbols(__GNUC__) $res
@@ -3804,9 +3804,8 @@ proc lookup_file { fn mode prefdir dirs } {
 			if [file isfile $ff] {
 				# check for a duplicate
 				if { $ffn != "" && $ffn != $ff } {
-					puts stdout "Warning: multiple\
-					    occurrences of file $fn (at\
-						$ffn and $ff)"
+					puts "Warning: multiple occurrences of\
+						file $fn (at $ffn and $ff)"
 					break
 				} else {
 					set ffn $ff
@@ -3834,8 +3833,8 @@ proc lookup_file { fn mode prefdir dirs } {
 		set ff [file normalize [file join $d $fn]]
 		if [file isfile $ff] {
 			if { $ffn != "" && $ffn != $ff } {
-				puts stdout "Warning: multiple occurrences of\
-					file $fn (at $ffn and $ff)"
+				puts "Warning: multiple occurrences of file\
+					$fn (at $ffn and $ff)"
 				break
 			} else {
 				set ffn $ff
@@ -3853,15 +3852,339 @@ proc lookup_file_globally { fn } {
 	return [lookup_file $fn 1 "" $PDirs]
 }
 
+proc lookup_file_locally { fn mode prefdir } {
+
+	global Run PDirs LDirs
+
+	if { $Run(type) == "L" } {
+		# compiling from library, local files only
+		set pd $LDirs
+	} else {
+		# all files
+		set pd $PDirs
+	}
+
+	return [lookup_file $fn $mode $prefdir $pd]
+}
+
+proc setsymbols { } {
+#
+# Preset symbols for parsing files
+#
+	global Symbols CCDefs
+
+	array unset Symbols
+
+	foreach d $CCDefs {
+		if ![regexp "^(\[^=\]+)=(.*)" $d jnk d v] {
+			set v ""
+		}
+		set Symbols($d) $v
+	}
+}
+
+proc needlist { ar } {
+#
+# Returns the list of files from "//+++". The argument is the piece of line
+# past the +++ string.
+#
+	set fl ""
+	while 1 {
+		set ar [string trim $ar]
+		if { $ar == "" } {
+			break
+		}
+
+		set d0 [string index $ar 0]
+		if { $d0 == "\"" } {
+			set ind [regexp {^"([^"]+)"} $ar mat nfn]
+		} elseif { $d0 == "<" } {
+			set ind [regexp {^<([^>]+)>} $ar mat nfn]
+		} else {
+			set ind [regexp {^([^[:blank:]]+)} $ar mat nfn]
+		}
+
+		if !ind {
+			error "syntax error in '//+++' ($ar)"
+		}
+
+		set ar [string range $ar [string length $mat] end]
+
+		lappend fl $nfn
+	}
+
+	return $fl
+}
+
+proc scanfile { fname } {
+
+	global Depend Symbols Scanned NFound FilesToCompile CFName Run
+
+	if [info exists Scanned($fname)] {
+		# once per file
+		return
+	}
+
+	set Scanned($fname) ""
+
+	if [catch { open $fname "r" } fd] {
+		errab "Cannot open file '$fname': $fd"
+	}
+
+	set ifnest 0
+	#
+	# assume that the entire file is encapsulated in a dummy if at level
+	# zero, which is being totally ignored
+	#
+	# Flags:
+	#
+	#	0	- ignore, i.e., both parts should be scanned
+	#	1	- accepting the current part
+	#	2	- skipping the current part, waiting for else or endif
+	#	3	- skipping both parts because the outer if is being
+	#		  skipped
+	#
+
+	set ifstack($ifnest) "0"
+
+	# the directory of the scanned file
+	set dnn [file dirname $fname]
+
+	while 1 {
+
+		if { [gets $fd line] < 0 } {
+			if { $ifnest > 0 } {
+				puts "Warning: #endif(s) missing in $fname"
+			}
+			break
+		}
+
+		if { $ifstack($ifnest) <= 1 && \
+		    [regexp {^[[:blank:]]*//\+\+\+(.*)} $line jk ar] } {
+			# "needed" files
+			if [catch { needlist $ar } ar] {
+				puts "Warning: $ar, file $fname, the entire\
+					request ignored"
+				set ar ""
+			}
+			foreach nfn $ar {
+				set fn [lookup_file_locally $nfn 1 $dnn]
+				if { $fn == "" &&
+				    [file extension $nfn] == ".c" } {
+					# try ".cc"
+					set fn [lookup_file_locally \
+					  "[file rootname $nfn].cc" 1 $dnn]
+				}
+				if { $fn == "" } {
+					if { $Run(type) != "L" } {
+						# no warning if compiling
+						# against a library
+						lappend_unique NotFound $nfn
+					}
+				} else {
+					# add to the compile set
+					lappend_unique FilesToCompile $fn
+				}
+			}
+			continue
+		}
+
+		# look for a preprocessor directive
+		if ![regexp {^[[:blank:]]*#([[:alpha:]]+)[[:blank:]]*(.*)} \
+		    $line jk cm ar] {
+			# and ignore everything else
+			continue
+		}
+
+		if { $cm == "if" || $cm == "ifdef" || $cm == "ifndef" } {
+			incr ifnest
+			if { $ifstack($ifnest) > 1 } {
+				# we are skipping an outer if, so we should
+				# skip this one entirely
+				set ifstack($ifnest) 3
+				continue
+			}
+			if { $cm == "if" } {
+				set val [sexpr $ar]
+				if { $val < 0 } {
+					puts "Warning: failed to evaluate:\
+						'$ar' in $fname"
+					set val 0
+				}
+				if $val {
+					set ifstack($ifnest) 1
+				} else {
+					set ifstack($ifnest) 2
+				}
+				continue
+			}
+			# ifdef or ifndef
+			if ![regexp {^[[:alnum:]_.]+} $ar nam] {
+				# illegal identifier (symbol), ignore
+				set ifstack($ifnest) 0
+				continue
+			}
+			if [info exists Symbols($nam)] {
+				if { $cm == "ifdef" } {
+					set ifstack($ifnest) 1
+				} else {
+					set ifstack($ifnest) 2
+				}
+			} else {
+				if { $cm == "ifdef" } {
+					set ifstack($ifnest) 2
+				} else {
+					set ifstack($ifnest) 1
+				}
+			}
+			continue
+		}
+
+		if { $cm == "elif" } {
+			if { $ifnest < 1 } {
+			    puts "Warning: extraneous #elif in $fname"
+			    continue
+			}
+			if { $ifstack($ifnest) == 1 } {
+				# following a successful #if, skip until #endif
+				set ifstack($ifnest) 3
+				continue
+			}
+			if { $ifstack($ifnest) == 3 } {
+				continue
+			}
+			# 0 or 2, i.e., try it as well, or the if was skipped
+			set val [sexpr $ar]
+			if { $val < 0 } {
+				puts "Warning: failed to evaluate: '$ar' in\
+					$fname, assumed 0"
+				set val 0
+			}
+			if $val {
+				set ifstack($ifnest) 1
+			} else {
+				set ifstack($ifnest) 2
+			}
+			continue
+		}
+				
+		if { $cm == "else" } {
+			if { $ifnest < 1 } {
+			    puts "Warning: extraneous #else in $fname"
+			    continue
+			}
+			if { $ifstack($ifnest) == 1 } {
+				set ifstack($ifnest) 2
+			} elseif { $ifstack($ifnest) == 2 } {
+				set ifstack($ifnest) 1
+			}
+			continue
+		}
+
+		if { $cm == "endif" } {
+			if { $ifnest > 0 } {
+				incr ifnest -1
+			} else {
+				puts "Warning: extraneous #endif in $fname"
+			}
+			continue
+		}
+
+		if { $ifstack($ifnest) > 1 } {
+			# skipping, ignore anything else
+			continue
+		}
+
+		if { $cm == "define" } {
+
+			# remove comment
+			set ar [remcmnt $ar]
+			set nam ""
+			if ![regexp {^([[:alnum:]_.]+)([[:blank:]]+(.*))?} \
+			    $ar jk kwd jk nam] {
+				puts "Warning: unrecognized #define in\
+					$fname, $ar, ignored"
+				continue
+			}
+
+			set Symbols($kwd) $nam
+			continue
+		}
+
+		if { $cm == "undef" } {
+			if ![regexp {^[[:alnum:]_.]+} $ar kwd] {
+				puts "Warning: unrecognized #undef in\
+					$fname, $ar, ignored"
+				continue
+			}
+			if [info exists Symbols($kwd)] {
+				unset Symbols($kwd)
+			}
+			continue
+		}
+
+		if { $cm == "include" } {
+			if ![regexp {^["<]([^"><]+)[">]} $ar jk fn] {
+				# not so easy, check if the file name to include
+				# comes as a symbol
+				if ![regexp {^[[:alnum:]_.]+} $ar fn] {
+					# unrecognizable
+					puts "Warning: unrecognizable\
+						#include in $fname, $ar,\
+						ignored"
+					continue
+				}
+				# try the symbol
+				if ![info exists Symbols($fn)] {
+					puts "Warning: symbolic #include\
+						symbol in $fname, $fn, is not\
+						defined, statement ignored"
+					continue
+				}
+				set fn [string trim $Symbols($fn) "\"<>"]
+			}
+			set fn [string trim $fn]
+			if { $fn == "" } {
+				puts "Warning: empty #include in $fname,\
+					ignored"
+				continue
+			}
+			set fn [lookup_file_locally $fn 0 $dnn]
+			if { $fn != "" } {
+				# recursive scan of the included file
+				scanfile $fn
+				# add to dependencies
+				lappend_unique Depend($CFName) $fn
+			} else {
+				# not found, just ignore, because it may be
+				# a system/compiler file which we don't care
+				# about
+				continue
+			}
+			continue
+		}
+
+		if { $cm == "error" } {
+			set ar [string trim $ar " \t\""]
+			if { [string first "S:" $ar] >= 0 } {
+				puts stderr "#error in <$fname>:\n$ar"
+###here: stopping error
+				exit 1
+			}
+		}
+	}
+	catch { close $fd }
+}
+
 proc create_library { } {
 
-	global Flags Run PDirs NFound
+	global Flags Run FilesToCompile CFName Scanned Symbols NFound SrcFiles
 
 	if { ![info exists Flags(l)] || $Flags(l) == "" } {
 		errab "Board $Run(board) specifies no files for a library build"
 	}
 
-	set ToCompile ""
+	set FilesToCompile ""
 	# the list of system files to be compiled into the BOARD library
 	set iflist $Flags(l)
 
@@ -3880,19 +4203,138 @@ proc create_library { } {
 		if { $nf == "" } {
 			lappend_unique NFound $f
 		} elseif { [file extension $nf] != ".h" } {
-			lappend_toc ToCompile $nf
+			lappend_unique FilesToCompile $nf
 		}
 	}
-			
 
+	if { $NFound != "" } {
+		puts stderr "Files not found (cannot compile library):"
+		foreach fn $NFound {
+			puts -nonewline stderr "$fn "
+		}
+		exit 1
+	}
 
-		
-###here
+	if { $FilesToCompile == "" } {
+		errab "No library files to compile, check board's params.sys"
+	}
 
+	# no pgm prefix, library files are global
+	set SrcFiles() ""
 
+	while { $FilesToCompile != "" } {
+		# current file name
+		set CFName [lindex $FilesToCompile 0]
+		set FilesToCompile [lrange $FilesToCompile 1 end]
+		if [info exists processed($CFName)] {
+			# done already
+			continue
+		}
+		set processed($CFName) ""
+		lappend_unique SrcFiles() $CFName
+		setsymbols
+		scanfile $CFName
+		array unset Scanned
+	}
 
+	array unset processed
+	array unset Symbols
+	unset FilesToCompile
 
+	make_makefile_lib
+}
 
+proc create_image { } {
+
+	global SDirs Run FilesToCompile SrcFiles Scanned Symbols
+
+	# scan CD for eligible app files
+	set flist [glob -nocomplain -directory $SDirs(cwd) -tails *]
+	set pgmlist ""
+	set nopgm 0
+	foreach fn $flist {
+		if { $fn == "app.c" } {
+			# a legacy single app file
+			set rootsuff ".c"
+			incr nopgm
+			continue
+		}
+		if { $fn == "app.cc" } {
+			set rootsuff ".cc"
+			incr nopgm
+			continue
+		}
+
+		if [regexp {^app_([a-zA-Z0-9]+)\\.cc$} $fn jnk suff] {
+			# only non-legacy projects can employ ".cc" files
+			lappend pgmlist $suff
+			set rootsuff ".cc"
+			continue
+		}
+	}
+
+	if { $nopgm > 1 } {
+		errab "app.c cannot coexist with app.cc within the same project"
+	}
+
+	if { $nopgm && $pgmlist != "" } {
+		errab "app.cc/app.c cannot coexists with app_xxx.cc within the\
+			same project"
+	}
+
+	if { $nopgm == 0 && $pgmlist == "" } {
+		errab "No app.cc, app.c, or app_xxx.cc found in the project's\
+			directory"
+	}
+
+	if { $Run(pgm) != "" } {
+		# a request to create a single-program makefile
+		if { [lsearch -exact $pgmlist $Run(pgm)] < 0 } {
+			errab "No app_$Run(pgm).cc file found in the project's\
+				directory"
+		}
+		set pgmlist [list $Run(pgm)]
+		# options file already taken care of
+	} else {
+		if { $pgmlist == "" } {
+			# turn it into a single-null-pgm list
+			set pgmlist [list ""]
+		}
+	}
+
+	foreach pgm $pgmlist {
+
+		set FilesToCompile ""
+
+		# suffix to "app"
+		if { $pgm == "" } {
+			set suff ""
+		} else {
+			set suff "_$pgm"
+		}
+
+		lappend_unique FilesToCompile "app${suff}${rootsuff}"
+
+		set SrcFiles($pgm) ""
+
+		while { $FilesToCompile != "" } {
+			set CFName [lindex $FilesToCompile 0]
+			set FilesToCompile [lrange $FilesToCompile 1 end]
+			if [info exists processed($CFname)] {
+				continue
+			}
+			lappend_unique $SrcFiles($pgm) $CFName
+			setsymbols
+			scanfile $CFName
+			array unset Scanned
+		}
+
+		array unset processed
+		array unset Symbols
+		unset FilesToCompile
+	}
+
+	make_makefile_image
 }
 
 proc main { } {
@@ -3921,6 +4363,8 @@ proc main { } {
 	# add extra defines
 	add_extra_defines
 
+	NFound = ""
+
 	if { $Run(type) == "l" } {
 		create_library
 	} else {
@@ -3932,7 +4376,7 @@ proc main { } {
 		foreach fn $NFound {
 			puts -nonewline stdout "  $fn "
 		}
-		puts stdout ""
+		puts ""
 	}
 }
 
@@ -4086,7 +4530,7 @@ proc main { } {
 	if { $Run(arch) == "E" } {
 		# this can only be on Windows
 		if { $Run(DNM) != "" && $Run(DNM) != 1 } {
-			puts stdout "Warning: explicit [sysdesig]-type path\
+			puts "Warning: explicit [sysdesig]-type path\
 				preference for CyanIDE ignored"
 		}
 		set Run(DNM) 1
@@ -4204,7 +4648,7 @@ proc main { } {
 			foreach fn $NotFound {
 				puts -nonewline stdout "$fn "
 			}
-			puts stdout ""
+			puts ""
 			exit 1
 		}
 
@@ -4271,8 +4715,8 @@ proc main { } {
 			if { $fn == "app.c" } {
 				set rootsuff ".c"
 				incr empsuff
-				continue
-			}
+					continue
+				}
 			if { $fn == "app.cc" } {
 				set rootsuff ".cc"
 				incr empsuff
@@ -4387,7 +4831,7 @@ proc main { } {
 		foreach fn $NotFound {
 			puts -nonewline stdout "$fn "
 		}
-		puts stdout ""
+		puts ""
 	}
 }
 
