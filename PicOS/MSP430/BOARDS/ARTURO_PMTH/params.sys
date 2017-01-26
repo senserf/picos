@@ -1,2 +1,2 @@
-msp430x1611
+msp430f1611
 -l tcv.c phys_cc1100.c storage_at45xxx.c iflash.c sht_xx.c sensors.c analog_sensor.c form.c scan.c ser_out.c ser_outb.c ser_in.c ser_select.c net.c tarp.c lhold.c checksum.c plug_tarp.c encrypt.c plug_null.c ser.h

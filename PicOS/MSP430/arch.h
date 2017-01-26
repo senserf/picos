@@ -10,7 +10,6 @@
 /* Architecture-specific definitions                                    */
 /* ==================================================================== */
 
-typedef unsigned char	bool;
 typedef unsigned char	Boolean;
 typedef	unsigned int	word;		// 16-bit
 typedef	int		sint;		// Machine's standard integer (VUEE)

@@ -1,0 +1,22 @@
+<compile>
+	<cc dospaths="yes">
+		<path>msp430-gcc</path>
+		<args>-mmcu=%cpu% -Os -g -Wundef -fno-strict-aliasing</args>
+	</cc>
+	<ld dospaths="yes">
+		<path>msp430-gcc</path>
+		<args>-mmcu=%cpu%</args>
+		<postargs>-L %ccdir%/../include</postargs>
+		<after>
+			msp430-objcopy %image% -O ihex %image%.a43
+			msp430-size -Ax %image%
+		</after>
+	</ld>
+	<gdb>
+		<init file=".gdbinit">
+			set remoteaddresssize 64
+			set remotetimeout 999999
+			target remote localhost:2000
+		</init>
+	</gdb>
+</compile>

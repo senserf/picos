@@ -1,2 +1,2 @@
--c msp430x1611
+-c msp430f1611
 -l main.c sysio.h plug_boss.h raw_cc1101.h plug_boss.c raw_cc1101.c
