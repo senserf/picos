@@ -648,7 +648,6 @@ proc process_args { } {
 			bad_usage "program label illegal with -l"
 		}
 	} else {
-		set Run(type) "n"
 		if { $nc > 1 } {
 			set Run(pgm) $p
 		}
@@ -1234,6 +1233,9 @@ proc build_directory_list { } {
 		}
 		lappend_unique PDirs $p
 	}
+
+	dmp "PDIRS: $PDirs"
+	dmp "LDIRS: $LDirs"
 }
 
 proc get_options_file_defs { } {
@@ -1412,6 +1414,10 @@ proc lookup_file_locally { fn mode prefdir } {
 	if { $Run(type) == "L" } {
 		# compiling from library, local files only
 		set pd $LDirs
+		if { [lsearch $prefdir $LDirs] < 0 } {
+			# only local prefdirs
+			set prefdir ""
+		}
 	} else {
 		# all files
 		set pd $PDirs
@@ -1591,7 +1597,7 @@ proc sexpr { str } {
 
 proc scanfile { fname } {
 
-	global Depend Symbols Scanned NFound FilesToCompile CFName Run
+	global Depend Symbols Scanned NFound FilesToCompile CFName Run PDirs
 
 	if [info exists Scanned($fname)] {
 		# once per file
@@ -1823,7 +1829,8 @@ proc scanfile { fname } {
 					ignored"
 				continue
 			}
-			set fm [lookup_file_locally $fn 0 $dnn]
+			# set fm [lookup_file_locally $fn 0 $dnn]
+			set fm [lookup_file $fn 0 $dnn $PDirs]
 			if { $fm != "" } {
 				# recursive scan of the included file
 				scanfile $fm
@@ -1900,7 +1907,7 @@ proc incdirs { } {
 
 proc make_makefile_image { } {
 
-	global DShort IShort SFiles Depend NFound Run Comp CCDefs
+	global DShort IShort SFiles Depend NFound Run Comp CCDefs SDirs
 
 	set mfn "Makefile"
 	set kfn "KTMP"
@@ -2112,6 +2119,170 @@ proc make_makefile_image { } {
 	append maf "clean :\n\trm -rf $kfn\n"
 
 	# gdb init file to be generated differently!!!
+
+	if [catch { exec cat > $mfn << $maf } err] {
+		errab "Cannot write to $mfn, $err"
+	}
+}
+
+proc make_makefile_lib { } {
+
+	global Comp Run SDirs SFiles CCDefs
+
+	set lfn [file join $SDirs(root) "PicOS" $Run(arch) "BOARDS" \
+		$Run(board) "libpicos.a"]
+
+	set maf "#\n# Created by mkmk, DO NOT EDIT!!!\n#\n"
+
+	# output processor definitions
+	foreach pd { "cc" "ar" "ranlib" } {
+		set ma [string toupper $pd]
+		append maf "${ma}=$Comp($pd,path)\n"
+	}
+
+	if { $Comp(ar,path) == "" } {
+		errab "No definition for the ar processor in compile.xml for\
+			$Run(arch)"
+	}
+
+	set mfn "Makefile"
+	set kfn "KTMP"
+
+	# defines
+	append maf "#\nDE="
+	foreach de $CCDefs {
+		append maf "-D$de "
+	}
+	
+	# include directories
+	append maf "\n#\nIN=[incdirs]\n"
+
+	set lfm [fpath $lfn "m"]
+
+	append maf "#\nall :\t$lfm\n\n"
+
+	# the actual target
+	append maf "$lfm :\t"
+
+	foreach fn $SFiles() {
+		# the mkmk path variant
+		set fp [file join $kfn [file rootname [file tail $fn]].o]
+		# make path variant
+		lappend of_d [fpath $fp "m"]
+		# processor (AR) path variant
+		lappend of_p [fpath $fp "ar"]
+	}
+
+	append maf [join $of_d]
+	append maf "\n"
+	append maf "\trm -rf $lfm\n"
+	append maf "\t\$(AR)"
+
+	set ar [asubst $Comp(ar,args) "" "ar"]
+	if { $ar != "" } {
+		append maf " $ar"
+	}
+
+	append maf " q [fpath $lfn "ar"] [join $of_p]"
+
+	set ar [asubst $Comp(ar,postargs) "" "ar"]
+	if { $ar != "" } {
+		append maf " $ar"
+	}
+
+	append maf "\n"
+
+	if { $Comp(ranlib,path) != "" } {
+		append maf "\t\$(RANLIB)"
+		set ar [asubst $Comp(ranlib,args) "" "ranlib"]
+		if { $ar != "" } {
+			append maf " $ar"
+		}
+		append maf " "
+		append maf [fpath $lfn "ranlib"]
+		set ar [asubst $Comp(ranlib,postargs) "" "ranlib"]
+		if { $ar != "" } {
+			append maf " $ar"
+		}
+		append maf "\n"
+	}
+
+	append maf "\n#\n"
+
+	# files to compile
+	foreach sf $SFiles() mf $of_d {
+
+		set rfn [file tail $sf]
+		set suf [file extension $rfn]
+		set rna [file rootname $rfn]
+
+		if [info exists tgts($rna)] {
+			# already taken care of
+			continue
+		}
+
+		# CC output file
+		set ofn [fpath [file join $kfn "${rna}.o"] "cc"]
+
+		set tgts($rna) ""
+
+		# complete make path to source
+		set smf [fpath $sf "m"]
+
+		# local target and source dependency
+		append maf "$mf : $smf"
+
+		# other dependencies
+		if [info exists Depend($sf)] {
+			foreach df $Depend($sf) {
+				append maf " [fpath $df m]"
+			}
+		}
+
+		append maf "\n"
+
+		# the action
+		append maf "\tmkdir -p $kfn\n"
+		set ar [asubst $Comp(cc,args) "" "cc"]
+		set pa [asubst $Comp(cc,postargs) "" "cc"]
+
+		if { $suf == ".cc" } {
+			# VUEE-compatible, preprocessed
+			set rfn "${rna}.c"
+			set rfm [file join $kfn "___pcs___$rfn"]
+			set rfo [file join $kfn "___pct___$rfn"]
+			set rfn [file join $kfn $rfn]
+
+			# make paths
+			set rmm [fpath $rfm "m"]
+			set rmo [fpath $rfo "m"]
+			set rmn [fpath $rfn "m"]
+
+			# CC paths
+			set rcm [fpath $rfm "cc"]
+			set rcn [fpath $rfn "cc"]
+
+			# copy src to _pcs
+			append maf "\tcp $smf $rmm\n"
+			append maf \
+		            "\t\$(CC) $ar \$(DE) \$(IN) -E $rcm $pa > $rmo\n"
+			append maf "\tpicomp -p < $rmo > $rmn\n"
+			# remove the temporary files
+			append maf "\trm $rmm $rmo\n"
+			append maf "\t\$(CC) $ar \$(DE) \$(IN) -c $rcn"
+		} else {
+			set scf [fpath $smf "cc"]
+			append maf "\t\$(CC) $ar \$(DE) \$(IN) -c $scf"
+		}
+
+		append maf " -o $ofn $pa\n\n"
+	}
+
+	append maf "\n"
+
+	# clean
+
+	append maf "clean :\n\trm -rf $kfn\n"
 
 	if [catch { exec cat > $mfn << $maf } err] {
 		errab "Cannot write to $mfn, $err"

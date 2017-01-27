@@ -20,5 +20,6 @@ fi
 cd Apps
 ./cleanup
 cd ..
-rm -rf LIBRARIES
+# remove libraries
+rm -rf PicOS/*/BOARDS/*/libpicos.a
 ./Scripts/permissions

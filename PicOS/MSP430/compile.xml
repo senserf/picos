@@ -12,6 +12,12 @@
 			msp430-size -Ax %image%
 		</after>
 	</ld>
+	<ar dospaths="yes">
+		<path>msp430-ar</path>
+	</ar>
+	<ranlib dospaths="yes">
+		<path>msp430-ranlib</path>
+	</ranlib>
 	<gdb>
 		<init file=".gdbinit">
 			set remoteaddresssize 64
