@@ -499,30 +499,27 @@ proc bad_usage { { msg "" } } {
 #
 #
 #
-	if { msg != "" } {
+	if { $msg != "" } {
 
 		puts stderr "Illegal argument: $msg"
 		puts stderr ""
 	}
 
 	puts stderr "Usage: (1) mkmk boardname \[-a arch\] \[label\]"
-	puts stderr "       (2) mkmk boardname \[-a arch\] -l
-	puts stderr "       (3) mkmk boardname \[-a arch\] -L \[label\]"
+	puts stderr "       (2) mkmk boardname \[-a arch\] -l \[label\]"
+	puts stderr "       (3) mkmk
 	puts stderr "       (4) mkmk -V"
-	puts stderr "       (5) mkmk ... -- gcc args"
 	puts stderr "--"
 	puts stderr " 1 - create image for the given board/architecture/program"
-	puts stderr " 2 - create library for the given board/architecture"
-	puts stderr " 3 - create image (as in 1) from a library"
+	puts stderr " 2 - create image (as in 1) from a library"
+	puts stderr " 3 - create library (must be executed in a board dir)"
 	puts stderr " 4 - print version number and exit"
-	puts stderr " 5 - way to override some gcc compiler args"
 
 	exit 1
-
-	# theoretically, arch can be determined by boardname, if boardname
-	# happens to be unique, but we make arch obligatory, which will
-	# simplify things (and be more natural) for PIP
 }
+
+###here
+###also: add comments to Makefiles for ctagging
 
 proc process_args { } {
 
@@ -535,7 +532,6 @@ proc process_args { } {
 	set Run(board) ""
 	set Run(type) ""
 	set Run(pgm) ""
-	set Run(oca) ""
 
 	while { $argv != "" } {
 
@@ -562,35 +558,15 @@ proc process_args { } {
 				if [info exists l] {
 					bad_usage "duplicate -l"
 				}
-				if [info exists L] {
-					bad_usage "illegal -l preceded by -L"
-				}
 				set l ""
 				continue
 			}
-			if { $arg == "L" } {
-				# library
-				if [info exists L] {
-					bad_usage "duplicate -L"
-				}
-				if [info exists l] {
-					bad_usage "illegal -L preceded by -l"
-				}
-				set L ""
-				continue
-			}		
 			if { $arg == "V" } {
 				if [info exists V] {
 					bad_usage "duplicate -V"
 				}
 				set V ""
 				continue
-			}
-			if { $arg == "-" } {
-				# double dash, whatever follows will be used as
-				# gcc args
-				set o $argv
-				break
 			}
 			bad_usage "-$arg unknown"
 		}
@@ -610,8 +586,7 @@ proc process_args { } {
 
 	if [info exists V] {
 		# nothing else expected
-		if { [info exists a] || [info exists l] || [info exists L] ||
-		     [info exists o] || $nc } {
+		if { [info exists a] || [info exists l] || $nc } {
 			bad_usage "-V cannot be mixed with other arguments"
 		}
 		# will be replaced with the proper tag by deploy
@@ -620,45 +595,27 @@ proc process_args { } {
 	}
 
 	if { $nc == 0 } {
-		bad_usage "boardname required"
-	}
-
-	set Run(board) $b
-
-	if [info exists L] {
-		# type L -> compiling from library
-		set Run(type) "L"
-	} elseif [info exists l] {
-		if { $nc > 1 } {
-			bad_usage "program label illegal with -l"
+		if [info exists l] {
+			bad_usage "-l illegal without board name"
 		}
-		set Run(type) "l"
+		# make library
+		set Run(type) "L"
 	} else {
-		set Run(type) "S"
+		set Run(board) $b
+		if [info exists l] {
+			# type l -> compiling from library
+			set Run(type) "l"
+		} else {
+			set Run(type) "s"
+		}
 	}
 
 	if [info exists a] {
 		set Run(arch) $a
 	}
 
-	if [info exists l] {
-		# type l -> creating library
-		set Run(type) "l"
-		if { $nc > 1 } {
-			bad_usage "program label illegal with -l"
-		}
-	} else {
-		if { $nc > 1 } {
-			set Run(pgm) $p
-		}
-	}
-
 	if { $nc > 1 } {
 		set Run(pgm) $p
-	}
-
-	if [info exists o] {
-		set Run(oca) $o
 	}
 }
 
@@ -803,32 +760,55 @@ proc locate_root { } {
 #
 # Locate the root directory of the package
 #
-	global SDirs
+	global SDirs Run
 
 	# this is normalized
 	set rpref [pwd]
 	set SDirs(cwd) $rpref
 
-	while 1 {
-
+	if { $Run(type) == "L" } {
+		# making a library
+		set Run(board) [file tail $rpref]
 		set root [file dirname $rpref]
-
-		if { [file tail $rpref] == "Apps" } {
-			# a candidate
-			if [file isdirectory [file join $root "PicOS"]] {
-				# done
-				break
+		# this should be BOARDS
+		if { [file tail $root] != "BOARDS" } {
+			errab "For a library make, mkmk must be invoked in a\
+				board directory"
+		}
+		set root [file dirname $root]
+		# this is the arch
+		set arch [file tail $root]
+		if { $Run(arch) != "" && $Run(arch) != $arch } {
+			errab "Illegal architecure, $Run(arch), the board\
+				belongs to $arch"
+		}
+		set Run(arch) $arch
+		set root [file dirname $root]
+		# this should be PicOS
+		if { [file tail $root] != "PicOS" } {
+			errab "The board directory is not rooted at PicOS"
+		}
+		set root [file dirname $root]
+	} else {
+		while 1 {
+			set root [file dirname $rpref]
+			if { [file tail $rpref] == "Apps" } {
+				# a candidate
+				if [file isdirectory \
+				    [file join $root "PicOS"]] {
+					# done
+					break
+				}
 			}
+			if { $root == $rpref } {
+				# we have hit the bottom
+				errab "Path to current directory contains\
+					no \"Apps\""
+			}
+			set rpref $root
 		}
-
-		if { $root == $rpref } {
-			# we have hit the bottom
-			errab "Path to current directory contains no \"Apps\""
-		}
-		set rpref $root
 	}
 
-	# root directory .../PICOS
 	set SDirs(root) $root
 }
 
@@ -906,6 +886,11 @@ proc locate_arch { } {
 # in which case the architecture is determined by board.
 #
 	global Run SDirs
+
+	if { $Run(type) == "L" } {
+		# library make, arch must be known already
+		return
+	}
 
 	set res ""
 	set arch [string toupper $Run(arch)]
@@ -1174,7 +1159,7 @@ proc build_directory_list { } {
 	# library built could be influenced by local options.sys; I don't
 	# think that makes a lot of sense
 
-	if { $Run(type) != "l" } {
+	if { $Run(type) != "L" } {
 		lappend roots "."
 		lappend roots "./*"
 	}
@@ -1244,7 +1229,7 @@ proc get_options_file_defs { } {
 #
 	global Run CCDefs
 
-	if { $Run(type) == "l" } {
+	if { $Run(type) == "L" } {
 		# no local options for a library build
 		return
 	}
@@ -1411,7 +1396,7 @@ proc lookup_file_locally { fn mode prefdir } {
 
 	global Run PDirs LDirs
 
-	if { $Run(type) == "L" } {
+	if { $Run(type) == "l" } {
 		# compiling from library, local files only
 		set pd $LDirs
 		if { [lsearch $prefdir $LDirs] < 0 } {
@@ -1655,7 +1640,7 @@ proc scanfile { fname } {
 					  "[file rootname $nfn].cc" 1 $dnn]
 				}
 				if { $fn == "" } {
-					if { $Run(type) != "L" } {
+					if { $Run(type) != "l" } {
 						# no warning if compiling
 						# against a library
 						lappend_unique NFound $nfn
@@ -1997,7 +1982,7 @@ proc make_makefile_image { } {
 			append maf "$fn "
 		}
 
-		if { $Run(type) == "L" } {
+		if { $Run(type) == "l" } {
 			# add the library file to dependencies
 			set libdir [file join $SDirs(root) "PicOS" $Run(arch) \
 				"BOARDS" $Run(board)]
@@ -2018,7 +2003,7 @@ proc make_makefile_image { } {
 			append maf " $fn"
 		}
 
-		if { $Run(type) == "L" } {
+		if { $Run(type) == "l" } {
 			# the library
 			append maf " -L [fpath $libdir ld] -lpicos"
 		}
@@ -2127,10 +2112,9 @@ proc make_makefile_image { } {
 
 proc make_makefile_lib { } {
 
-	global Comp Run SDirs SFiles CCDefs
+	global Comp Run SDirs SFiles CCDefs Depend
 
-	set lfn [file join $SDirs(root) "PicOS" $Run(arch) "BOARDS" \
-		$Run(board) "libpicos.a"]
+	set lfn "libpicos.a"
 
 	set maf "#\n# Created by mkmk, DO NOT EDIT!!!\n#\n"
 
@@ -2473,9 +2457,9 @@ proc main { } {
 	# this is probably no longer needed
 	# cygfix
 
-	# Run(type): "S" - normal (source) project run
-	#	     "l" - creating library
-	#	     "L" - project run from library
+	# Run(type): "s" - normal (source) project run
+	#	     "l" - compile from library
+	#	     "L" - create library
 
 	# this fills in the Run array
 	process_args
@@ -2494,7 +2478,7 @@ proc main { } {
 
 	set NFound ""
 
-	if { $Run(type) == "l" } {
+	if { $Run(type) == "L" } {
 		create_library
 	} else {
 		create_image

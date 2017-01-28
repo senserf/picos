@@ -529,7 +529,7 @@ proc doit { } {
 		set BINW [exec cygpath -m $BIN]
 	}
 
-	set ScriptsToFix { pip }
+	set ScriptsToFix { pip mkmk }
 
 	# copy scripts (for PICOS and VUEE); PIP did it itself
 	if [info exists REL(PICOS)] {

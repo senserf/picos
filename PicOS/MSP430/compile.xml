@@ -19,6 +19,7 @@
 		<path>msp430-ranlib</path>
 	</ranlib>
 	<gdb>
+		<path>msp430-gdb</path>
 		<init file=".gdbinit">
 			set remoteaddresssize 64
 			set remotetimeout 999999
