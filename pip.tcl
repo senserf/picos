@@ -75,8 +75,39 @@ set STagsArgs "-l -i -t -v -h --"
 ## tagged
 set VTagsArgs "-l -i -t -v -h -s --"
 
-## default prefix for MSP tool chain programs
-set DefMPfx "msp430-"
+###############################################################################
+###############################################################################
+
+# Known, preprocessed flash loaders by known archs; one shared option for all
+# archs is "general-purpose command line". The names are proc name extensions.
+
+set CFLDNames(MSP430)	"ELP MSD GPR"
+set CFLDNames(CC13XX)	"GPR"
+
+## Configuration data for the loaders:
+##	LDSEL		- loader selector
+##	LDMSD...	- mspdebug (device, driver, GDB port, allow upgrade)
+##	LDELP...	- Elprotronic Lite (program path)
+##	LDGPR...	- general command-line program
+
+set CFLoadItems(MSP430) {
+			"MSP430LDSEL"		""
+			"MSP430LDMSDDEV"	"Automatic"
+			"MSP430LDMSDDRV"	"tilib"
+			"MSP430LDMSDGDP"	"None"
+			"MSP430LDMSDAFU"	0
+			"MSP430LDELPPATH"	"Automatic"
+			"MSP430LDGPRPATH"	""
+			"MSP430LDGPRARG"	""
+		}
+
+set CFLoadItems(CC13XX)	{
+			"CC13XXLDGPRPATH"	""
+			"CC13XXLDGPRARG"	""
+		}
+
+###############################################################################
+###############################################################################
 
 if { $ST(SYS) == "L" } {
 	# check for dolphin and nautilus with dolphin being preferred
@@ -85,38 +116,13 @@ if { $ST(SYS) == "L" } {
 		set EXCmd [auto_execok "nautilus"]
 	}
 	# loaders
-	set CFLDNames { MSD GPR }
-	set DEFLOADR "MSD"
 	set SIDENAME "side"
 } else {
 	set EXCmd "explorer"
-	set CFLDNames { ELP MSD GPR }
-	set DEFLOADR "ELP"
 	set SIDENAME "side.exe"
 }
 
-set MspdLdDrv { "tilib"
-		"rf2500"
-		"uif"
-		"gdbc"
-		"olimex"
-		"olimex-v1"
-		"olimex-iso"
-		"olimex-iso-mk2"
-		"sim"
-		"goodfet"
-		"pif"
-		"gpio"
-		"ezfet"
-		"uif-bsl"
-		"flash-bsl"
-		"load-bsl"
-		"rom-bsl"
-		"manual" }
-
 set PiterCmd "piter"
-set GdbCmd "gdb"
-set MspDCmd "mspdebug"
 set SACmd "sa"
 set DefTerm "xterm"
 set DefDTerm [list xterm -e %f]
@@ -147,14 +153,14 @@ set VueeCleanFiles [list "VUEE_TMP" $SIDENAME]
 ## Dictionary of configuration items (to be searched for in config.prj) + their
 ## default values:
 ##
-##	CPU (there's only one choice for now)
-##	MB  - multiple boards (0 or 1) for multiprogram praxes
-##	BO  - list of boards (per program, P(PL) is the corresponding list of
-##	      labels
-##	LM  - library mode (indexed as BO), 0 - no, 1 - YES
+##	ARCH - architecture
+##	MB   - multiple boards (0 or 1) for multiprogram praxes
+##	BO   - list of boards (per program, P(PL) is the corresponding list of
+##	       labels
+##	LM   - library mode (indexed as BO), 0 - no, 1 - YES
 ##
 set CFBoardItems {
-			"CPU" 		"MSP430"
+			"ARCH" 		""
 			"MB" 		0
 			"BO" 		""
 			"LM"		""
@@ -181,28 +187,10 @@ set CFVueeItems {
 			"EBRG"		""
 }
 
-## Configuration data for loaders:
-##	LDSEL		- loader selector
-##	LDMSD...	- mspdebug (device, driver, GDB port, allow upgrade)
-##	LDELP...	- Elprotronic Lite (program path)
-##	LDGPR...	- general command-line program
-set CFLoadItems {
-			"LDSEL"		""
-			"LDMSDDEV"	"Automatic"
-			"LDMSDDRV"	"tilib"
-			"LDMSDGDP"	"None"
-			"LDMSDAFU"	0
-			"LDELPPATH"	"Automatic"
-			"LDGPRPATH"	""
-			"LDGPRARG"	""
-		}
-
 ## Options: the toolchain prefix, the xterm program, the debugger command, the
 ## max number of lines for the console window + permissions for accessing
 ## system files; need to evaluate
 set CFOptItems [list \
-		 "OPTCPREFIX" $DefMPfx \
-		 "OPTCOPTOVR" "" \
 		 "OPTTRMCMND" $DefTerm \
 		 "OPTGDBCMND" $DefDTerm \
 		 "OPTERMLINES" 1000 \
@@ -249,10 +237,6 @@ set CFItems 	[concat $CFBoardItems \
 			$CFOptItems \
 			$CFSearchItems \
 			$CFXecItems]
-
-## List of legal CPU types; eCOG won't work
-## set CPUTypes { MSP430 eCOG }
-set CPUTypes { MSP430 }
 
 ###############################################################################
 
@@ -379,7 +363,6 @@ set TCMD(FL) ""
 set TCMD(FL,CB) ""
 set TCMD(FL,SI) "INT"
 set TCMD(FL,AC) "upload_action"
-## loader type (CFLDNames)
 set TCMD(FL,LT) ""
 
 ## Slots for up to 4 instances of piter, CPITERS counts them, so we can order
@@ -403,6 +386,437 @@ set P(SSR) 0
 ## double exit avoidance flag
 set DEAF 0
 
+###############################################################################
+###############################################################################
+
+package provide xml 1.0
+###############################################################################
+# Mini XML parser. Copyright (C) 2008-12 Olsonet Communications Corporation.
+###############################################################################
+
+### Last modified PG111008A ###
+
+namespace eval XML {
+
+proc xstring { s } {
+#
+# Extract a possibly quoted string
+#
+	upvar $s str
+
+	if { [xspace str] != "" } {
+		error "illegal white space"
+	}
+
+	set c [string index $str 0]
+	if { $c == "" } {
+		error "empty string illegal"
+	}
+
+	if { $c != "\"" } {
+		# no quote; this is formally illegal in XML, but let's be
+		# pragmatic
+		regexp "^\[^ \t\n\r\>\]+" $str val
+		set str [string range $str [string length $val] end]
+		return [xunesc $val]
+	}
+
+	# the tricky way
+	if ![regexp "^.(\[^\"\]*)\"" $str match val] {
+		error "missing \" in string"
+	}
+	set str [string range $str [string length $match] end]
+
+	return [xunesc $val]
+}
+
+proc xunesc { str } {
+#
+# Remove escapes from text
+#
+	regsub -all "&amp;" $str "\\&" str
+	regsub -all "&quot;" $str "\"" str
+	regsub -all "&lt;" $str "<" str
+	regsub -all "&gt;" $str ">" str
+	regsub -all "&nbsp;" $str " " str
+
+	return $str
+}
+
+proc xspace { s } {
+#
+# Skip white space
+#
+	upvar $s str
+
+	if [regexp -indices "^\[ \t\r\n\]+" $str ix] {
+		set ix [lindex $ix 1]
+		set match [string range $str 0 $ix]
+		set str [string range $str [expr $ix + 1] end]
+		return $match
+	}
+
+	return ""
+}
+
+proc xcmnt { s } {
+#
+# Skip a comment
+#
+	upvar $s str
+
+	set sav $str
+
+	set str [string range $str 4 end]
+	set cnt 1
+
+	while 1 {
+		set ix [string first "-->" $str]
+		set iy [string first "<!--" $str]
+		if { $ix < 0 } {
+			error "unterminated comment: [string range $sav 0 15]"
+		}
+		if { $iy > 0 && $iy < $ix } {
+			incr cnt
+			set str [string range $str [expr $iy + 4] end]
+		} else {
+			set str [string range $str [expr $ix + 3] end]
+			incr cnt -1
+			if { $cnt == 0 } {
+				return
+			}
+		}
+	}
+}
+
+proc xftag { s } {
+#
+# Find and extract the first tag in the string
+#
+	upvar $s str
+
+	set front ""
+
+	while 1 {
+		# locate the first tag
+		set ix [string first "<" $str]
+		if { $ix < 0 } {
+			set str "$front$str"
+			return ""
+		}
+		append front [string range $str 0 [expr $ix - 1]]
+		set str [string range $str $ix end]
+		# check for a comment
+		if { [string range $str 0 3] == "<!--" } {
+			# skip the comment
+			xcmnt str
+			continue
+		}
+		set et ""
+		if [regexp -nocase "^<(/)?\[a-z:_\]" $str ix et] {
+			# this is a tag
+			break
+		}
+		# skip the thing and keep going
+		append front "<"
+		set str [string range $str 1 end]
+	}
+
+	if { $et != "" } {
+		set tm 1
+	} else {
+		set tm 0
+	}
+
+	if { $et != "" } {
+		# terminator, skip the '/', so the text is positioned at the
+		# beginning of keyword
+		set ix 2
+	} else {
+		set ix 1
+	}
+
+	# starting at the keyword
+	set str [string range $str $ix end]
+
+	if ![regexp -nocase "^(\[a-z0-9:_\]+)(.*)" $str ix kwd str] {
+		# error
+		error "illegal tag: [string range $str 0 15]"
+	}
+
+	set kwd [string tolower $kwd]
+
+	# decode the attributes
+	set attr ""
+	array unset atts
+
+	while 1 {
+		xspace str
+		if { $str == "" } {
+			error "unterminated tag: <$et$kwd"
+		}
+		set c [string index $str 0]
+		if { $c == "/" } {
+			# self-terminating
+			if { $tm != 0 || [string index $str 1] != ">" } {
+				error "broken self-terminating tag:\
+					<$et$kwd ... [string range $str 0 15]"
+			}
+			set str [string range $str 2 end]
+			return [list 2 $front $kwd $attr]
+		}
+		if { $c == ">" } {
+			# done
+			set str [string range $str 1 end]
+			# term preceding_text keyword attributes
+			return [list $tm $front $kwd $attr]
+		}
+		# this must be a keyword
+		if ![regexp -nocase "^(\[a-z\]\[a-z0-9_\]*)=" $str match atr] {
+			error "illegal attribute: <$et$kwd ... [string range \
+				$str 0 15]"
+		}
+		set atr [string tolower $atr]
+		if [info exists atts($attr)] {
+			error "duplicate attribute: <$et$kwd ... $atr"
+		}
+		set atts($atr) ""
+		set str [string range $str [string length $match] end]
+		if [catch { xstring str } val] {
+			error "illegal attribute value: \
+				<$et$kwd ... $atr=[string range $str 0 15]"
+		}
+		lappend attr [list $atr $val]
+	}
+}
+
+proc xadv { s kwd } {
+#
+# Returns the text + the list of children for the current tag. A child looks
+# like this:
+#
+#	text:		<"" the_text>
+#	element:	<tag attributes children_list>
+#
+	upvar $s str
+
+	set chd ""
+
+	while 1 {
+		# locate the nearest tag
+		set tag [xftag str]
+		if { $tag == "" } {
+			# no more
+			if { $kwd != "" } {
+				error "unterminated tag: <$kwd ...>"
+			}
+
+			if { $str != "" } {
+				# a tailing text item
+				lappend chd [list "" $str]
+				return $chd
+			}
+		}
+
+		set md [lindex $tag 0]
+		set fr [lindex $tag 1]
+		set kw [lindex $tag 2]
+		set at [lindex $tag 3]
+
+		if { $fr != "" } {
+			# append a text item
+			lappend chd [list "" $fr]
+		}
+
+		if { $md == 0 } {
+			# opening, not self-closing
+			set cl [xadv str $kw]
+			# inclusion ?
+			set tc [list $kw $at $cl]
+			if ![xincl str $tc] {
+				lappend chd $tc
+			}
+		} elseif { $md == 2 } {
+			# opening, self-closing
+			set tc [list $kw $at ""]
+			if ![xincl str $tc] {
+				lappend chd $tc
+			}
+		} else {
+			# closing
+			if { $kw != $kwd } {
+				error "mismatched tag: <$kwd ...> </$kw>"
+			}
+			# we are done with the tag
+			return $chd
+		}
+	}
+}
+
+proc xincl { s tag } {
+#
+# Process an include tag
+#
+	set kw [lindex $tag 0]
+
+	if { $kw != "include" && $kw != "xi:include" } {
+		return 0
+	}
+
+	set fn [sxml_attr $tag "href"]
+
+	if { $fn == "" } {
+		error "href attribute of <$kw ...> is empty"
+	}
+
+	if [catch { open $fn "r" } fd] {
+		error "cannot open include file $fn: $fd"
+	}
+
+	if [catch { read $fd } fi] {
+		catch { close $fd }
+		error "cannot read include file $fn: $fi"
+	}
+
+	# merge it
+	upvar $s str
+
+	set str $fi$str
+
+	return 1
+}
+
+proc sxml_parse { s } {
+#
+# Builds the XML tree from the provided string
+#
+	upvar $s str
+
+	set v [xadv str ""]
+
+	return [list root "" $v]
+}
+
+proc sxml_name { s } {
+
+	return [lindex $s 0]
+}
+
+proc sxml_txt { s } {
+
+	set txt ""
+
+	foreach t [lindex $s 2] {
+		if { [lindex $t 0] == "" } {
+			append txt [lindex $t 1]
+		}
+	}
+
+	return $txt
+}
+
+proc sxml_snippet { s } {
+
+	if { [lindex $s 0] != "" } {
+		return ""
+	}
+
+	return [lindex $s 1]
+}
+
+proc sxml_attr { s n { e "" } } {
+
+	if { $e != "" } {
+		# flag to tell the difference between an empty attribute and
+		# its complete lack
+		upvar $e ef
+		set ef 0
+	}
+
+	if { [lindex $s 0] == "" } {
+		# this is a text
+		return ""
+	}
+
+	set al [lindex $s 1]
+	set n [string tolower $n]
+	foreach a $al {
+		if { [lindex $a 0] == $n } {
+			if { $e != "" } {
+				set ef 1
+			}
+			return [lindex $a 1]
+		}
+	}
+	return ""
+}
+
+proc sxml_children { s { n "" } } {
+
+	# this is automatically null for a text
+	set cl [lindex $s 2]
+
+	if { $n == "+" } {
+		# all including text
+		return $cl
+	}
+
+	set res ""
+
+	if { $n == "" } {
+		# tagged elements only
+		foreach c $cl {
+			if { [lindex $c 0] != "" } {
+				lappend res $c
+			}
+		}
+		return $res
+	} else {
+		# all with the given tag name
+		foreach c $cl {
+			if { [lindex $c 0] == $n } {
+				lappend res $c
+			}
+		}
+	}
+
+	return $res
+}
+
+proc sxml_child { s n } {
+
+	# null for a text
+	set cl [lindex $s 2]
+
+	foreach c $cl {
+		if { [lindex $c 0] == $n } {
+			return $c
+		}
+	}
+
+	return ""
+}
+
+proc sxml_yes { item attr } {
+#
+# A useful shortcut
+#
+	if { [string tolower [string index [sxml_attr $item $attr] 0]] == \
+		"y" } {
+			return 1
+	}
+	return 0
+}
+
+namespace export sxml_*
+
+### end of XML namespace ######################################################
+
+}
+
+namespace import ::XML::*
+
+###############################################################################
 ###############################################################################
 
 proc log { m } {
@@ -492,7 +906,7 @@ proc blindex { lst ix } {
 #
 	set v [lindex $lst $ix]
 
-	if { ![regexp "^\[0-9\]+$" $v] || $v == 0 } {
+	if { ![regexp {^[[:digit:]]+$} $v] || $v == 0 } {
 		return 0
 	}
 	return 1
@@ -884,7 +1298,7 @@ proc write_piprc { f } {
 
 proc get_rcoptions { } {
 #
-# Retrieve the list of options from the .rc fil
+# Retrieve the list of options from the .rc file
 #
 	set rc [read_piprc]
 
@@ -1023,7 +1437,9 @@ proc board_set { } {
 #
 	global P
 
+	# bool: multiple boards flag
 	set mb [dict get $P(CO) "MB"]
+	# list of boards indexed by program number
 	set bo [dict get $P(CO) "BO"]
 
 	if { $mb == "" || $bo == "" } {
@@ -3891,7 +4307,7 @@ proc get_config { } {
 #
 # Reads the project configuration from config.prj
 #
-	global CFItems P TermLines
+	global CFItems P TermLines Archs
 
 	# start from the dictionary of defaults
 	set P(CO) $CFItems
@@ -3919,6 +4335,18 @@ proc get_config { } {
 	}
 
 	set P(CO) [dict merge $P(CO) $D]
+
+	# validate the arch setting
+	set a [dict get $P(CO) "ARCH"]
+	if { $a == "" || [lsearch -exact $Archs $a] < 0 } {
+		log "Arch not set or illegal, reset to default"
+		set a [lindex $Archs 0]
+		dict set P(CO) "ARCH" $a
+		set_config
+	}
+
+	# any items to be updated on architecture switch
+	update_arch $a
 
 	# this one is optimized a bit for faster access
 	set TermLines [dict get $P(CO) "OPTERMLINES"]
@@ -4083,42 +4511,17 @@ proc click_menu_button { w n { cmd "" } } {
 	}
 }
 
-proc library_dir { board } {
-#
-# Returns the path to the library directory associated with the board
-#
-	global PicOSPath
-
-	set dir [file join $PicOSPath "LIBRARIES"]
-
-	if ![file isdirectory $dir] {
-		# make sure it exists
-		catch { exec rm -rf $dir }
-		if [catch { file mkdir $dir } err] {
-			alert "Cannot create $dir: $err, internal error"
-			# continue, there's nothing you can do about it
-		}
-	}
-
-	return [fpnorm [file join $dir $board]]
-}
-
 proc library_present { board } {
 #
 # Checks if there's a library present for the board
 #
-	set dir [library_dir $board]
-	if ![file isdirectory $dir] {
-		set dir ""
-	}
-
-	return $dir
+	return [file isfile [file join [boards_dir] $board "libpicos.a"]]
 }
 
-proc boards_dir { { cpu "" } } {
+proc boards_dir { { arch "" } } {
 #
-# Returns the path to the BOARDS directory for the given CPU, or for the
-# project's CPU, if null
+# Returns the path to the BOARDS directory for the given arch, or for the
+# project's arch, if null
 #
 	global PicOSPath P ST
 
@@ -4126,11 +4529,11 @@ proc boards_dir { { cpu "" } } {
 		return ""
 	}
 
-	if { $cpu == "" } {
-		set cpu [dict get $P(CO) "CPU"]
+	if { $arch == "" } {
+		set arch [dict get $P(CO) "ARCH"]
 	}
 
-	return [fpnorm [file join $PicOSPath PicOS $cpu BOARDS]]
+	return [fpnorm [file join $PicOSPath PicOS $arch BOARDS]]
 }
 
 proc board_repo { bo } {
@@ -4209,7 +4612,7 @@ proc board_opts { bo } {
 
 proc do_board_selection { } {
 #
-# Execute CPU and board selection from Configuration menu
+# Execute ARCH and board selection from Configuration menu
 #
 	global P CFBoardItems
 
@@ -4278,20 +4681,82 @@ proc do_board_selection { } {
 	}
 }
 
-proc cpu_selection_click { w t } {
+proc update_arch { arch } {
 #
-# A different CPU has been selected
+# Function to fetch any information specific to the architecture that has just
+# changed
+#
+	global PicOSPatch ARCHINFO
+
+	set ARCHINFO(GDBPATH) ""
+	set ARCHINFO(GDBINIT,FILE) ""
+	set ARCHINFO(GDBINIT,CONTENTS) ""
+
+	set cpif [file join $PicOSPath PicOS $arch "compile.xml"]
+
+	if [catch { open $cpif "r" } fd] {
+		log "Cannot open compile.xml for $arch, $fd"
+		return
+	}
+
+	if [catch { read $fd } cdata] {
+		catch { close $fd }
+		log "Cannot read compile.xml for $arch, $cdata"
+		return
+	}
+
+	catch { close $fd }
+
+	if [catch { sxml_parse cdata } cdata] {
+		log "Bad format of compile.xml for $arch, $cdata"
+		return
+	}
+
+	set cdata [sxml_child $cdata "compile"]
+	if { $cdata == "" } {
+		log "No <compile> tag in compile.xml for $arch"
+		return
+	}
+
+	# this is the only thing we care about for now, perhaps there will be
+	# more
+	set el [sxml_child $cdata "gdb"]
+
+	if { $el != "" } {
+		set ARCHINFO(GDBPATH) \
+			[string trim [sxml_txt [sxml_child $el "path"]]]
+		set gi [sxml_child $el "init"] {
+		set cp [sxml_attr $gi "file"]
+		if { $cp == "" } {
+			# the default name
+			set cp ".gdbinit"
+		}
+		set cn ""
+		foreach ln [split [sxml_txt $gi] "\n"] {
+			set ln [string trim $ln]
+			if { $ln != "" } {
+				append cn "${ln}\n"
+			}
+		}
+		set ARCHINFO(GDBINIT,FILE) $cp
+		set ARCHINFO(GDBINIT,CONTENTS) $cn
+}
+
+proc arch_selection_click { w t } {
+#
+# A different ARCH has been selected
 #
 	global P
 
-	if { $t != $P(M0,CPU) } {
+	if { $t != $P(M0,ARCH) } {
 		# an actual change, redefine the board lists
 		set P(M0,BO) ""
 		set boards [board_list $t]
 		foreach m $P(M0,BL) {
 			set_board_menu_button $m "" $boards
 		}
-		set P(M0,CPU) $t
+		set P(M0,ARCH) $t
+		update_arch $t
 	}
 }
 
@@ -4312,7 +4777,7 @@ proc mk_board_selection_window { } {
 #
 # Open the board selection window
 #
-	global P CPUTypes ST
+	global P Archs ST
 
 	set w [md_window "Board selection"]
 
@@ -4327,14 +4792,14 @@ proc mk_board_selection_window { } {
 	set rm [expr $rn + 1]
 	set ro [expr $rm + 1]
 
-	### CPU selection #####################################################
+	### Arch selection ####################################################
 
 
-	label $f.cpl -text "CPU"
+	label $f.cpl -text "Arch"
 	grid $f.cpl -column $cn -row $rn -sticky nw -padx 1 -pady 1
 
 	mk_menu_button $f.cpb
-	set_menu_button $f.cpb $P(M0,CPU) $CPUTypes cpu_selection_click
+	set_menu_button $f.cpb $P(M0,ARCH) $Archs arch_selection_click
 	grid $f.cpb -column $cn -row $rm -sticky nw -padx 1 -pady 1
 
 	label $f.lml -text "Lib mode:"
@@ -4354,8 +4819,8 @@ proc mk_board_selection_window { } {
 	}
 
 	# the list of available boards
-	set boards [board_list $P(M0,CPU)]
-	# the list of menus with board lists to update after a CPU change
+	set boards [board_list $P(M0,ARCH)]
+	# the list of menus with board lists to update after an ARCH change
 	set P(M0,BL) ""
 
 	if $P(M0,MB) {
@@ -4502,9 +4967,22 @@ proc do_loaders_config { } {
 		return
 	}
 
-	params_to_dialog $CFLoadItems
+	set arch [dict get $P(CO) "ARCH"]
 
-	mk_loaders_conf_window
+	if [info exists CFLDNames($arch)] {
+		set ldlr $CFLDNames($arch)
+	} else {
+		set ldlr ""
+	}
+
+	if { $ldrs == "" } {
+		alert "No loaders available to architecture $arch"
+		return
+	}
+
+	params_to_dialog $CFLoadItems($arch)
+
+	mk_loaders_conf_window $arch $ldrs
 
 	while 1 {
 
@@ -4517,7 +4995,7 @@ proc do_loaders_config { } {
 
 		if { $ev == 1 } {
 			# accepted
-			dialog_to_params $CFLoadItems
+			dialog_to_params $CFLoadItems($arch)
 			md_stop
 			set_config
 			return
@@ -4525,72 +5003,440 @@ proc do_loaders_config { } {
 	}
 }
 
-proc mk_loaders_conf_window { } {
+proc mk_loaders_conf_window { $arch $ldrs } {
 
-	global P ST FFont MspdLdDrv DEFLOADR CFLDNames
+	global P ST FFont MspdLdDrv CFLDNames
 
 	set w [md_window "Loader configuration"]
 
-	if { $P(M0,LDSEL) == "" } {
+	# this depends on the arch; I was thinking about removing the
+	# configuration to an external XML file (or something, but that
+	# way we would have to give up some of the (often simple) adaptation
+	# tweaks for some standard loaders; so we basically retain the mess
+	# additionally parameterizing the selection by arch (assuming that
+	# we will be adding tweaks for other archs as we discover them)
+
+	set als "${arch}LDSEL"
+	if { $P(M0,$als) == "" } {
 		# the default
-		set P(M0,LDSEL) $DEFLOADR
+		set P(M0,$als) [lindex $ldrs 0]
 	}
 
-	## MSPDEBUG
-	if { [lsearch -exact $CFLDNames "MSD"] >= 0 } {
+	set fc 0
+	foreach ld $ldrs {
 
-		set f $w.f0
-		labelframe $f -text "MSPDebug" -padx 2 -pady 2
-		pack $f -side top -expand y -fill x
+		ldr_lcw_$ld $w.f$fc $arch
 
-		radiobutton $f.sel -text "Use" -variable P(M0,LDSEL) \
-			-value "MSD"
-		pack $f.sel -side top -anchor "nw"
-		frame $f.f
-		pack $f.f -side top -expand y -fill x
-		label $f.f.l -text "FET device for MSPDebug: "
-		pack $f.f.l -side left -expand n
-		button $f.f.b -text "Select" -command "loaders_conf_msd_fsel 0"
-		pack $f.f.b -side right -expand n
-		button $f.f.a -text "Auto" -command "loaders_conf_msd_fsel 1"
-		pack $f.f.a -side right -expand n
-		label $f.f.f -textvariable P(M0,LDMSDDEV)
-		pack $f.f.f -side right -expand n
+	}
+
+	## Buttons
+	set f $w.fb
+	frame $f
+	pack $f -side top -expand y -fill x
+	button $f.c -text "Cancel" -command "md_click -1"
+	pack $f.c -side left -expand n
+	button $f.d -text "Done" -command "md_click 1"
+	pack $f.d -side right -expand n
+
+	bind $w <Destroy> "md_click -1"
+}
+
+proc mk_upload_file_selection_window { flist } {
+
+	global P
+
+	set w [md_window "File selection"]
+
+	frame $w.tf
+	pack $w.tf -side top -expand y -fill x
+
+	label $w.tf.l -text "Select the image file to upload: "
+	pack $w.tf.l -side left -expand n -fill x
+
+	set P(M0,UFILE) [lindex $flist 0]
+
+	eval "tk_optionMenu $w.tf.r P(M0,UFILE) [split [join $flist]]"
+	pack $w.tf.r -side right -expand n
+
+	frame $w.bf
+	pack $w.bf -side top -expand y -fill x
+
+	button $w.bf.b -text "Go Ahead" -command "md_click 1"
+	pack $w.bf.b -side right -expand n -fill x
+
+	button $w.bf.c -text "Cancel" -command "md_click -1"
+	pack $w.bf.c -side left -expand n -fill x
+
+	bind $w <Destroy> "md_click -1"
+}
+
+proc mk_gdb_files { { port "" } } {
+#
+# Creates the GDB config files
+#
+	global ARCHINFO
+
+	if { ![info exists ARCHINFO(GDBINIT,FILE)] ||
+	    $ARCHINFO(GDBINIT,FILE) == "" } {
+		# no info available
+		log "No info to create gdb init file"
+		return
+	}
+
+	set fn $ARCHINFO(GDBINIT,FIILE)
+	set fc $ARCHINFO(GDBINIT,CONTENTS)
+	if { $port != "" } {
+		# substitute the port number
+		if [regexp -line -indices \
+		    {^[[:blank:]]*target.*(:[[:digit:]]+)} $fc ma ma] {
+			set fc \
+			   "[string range $fc 0 [lindex $ma 0]]$port[string \
+				range $fc [expr { [lindex $ma 1] + 1 }] end]"
+		} else {
+			log "Cannot insert port number into gdbinit"
+		}
+	}
+
+	if [catch { open $fn "w" } fd] {
+		error "unable to open $fn, $fd"
+	}
+	if [catch { puts $fd $fc } err] {
+		catch { close $fd }
+		error "unable to write to $fn, $err"
+	}
+	catch { close $fd }
+}
+
+###############################################################################
+# Loader conf MSPDEBUG ########################################################
+###############################################################################
+
+proc ldr_lcw_MSD { f arch } {
+#
+# Creates the configuration widget for the MSPDEBUG loader
+#
+	labelframe $f -text "MSPDebug" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+
+	# selector
+	radiobutton $f.sel -text "Use" -variable P(M0,${arch}LDSEL) -value "MSD"
+	pack $f.sel -side top -anchor "nw"
+
+	frame $f.f
+	pack $f.f -side top -expand y -fill x
+	label $f.f.l -text "FET device for MSPDebug: "
+	pack $f.f.l -side left -expand n
+	button $f.f.b -text "Select" -command "ldr_cnf_MSD_fsel $arch 0"
+	pack $f.f.b -side right -expand n
+
+	button $f.f.a -text "Auto" -command "ldr_cnf_MSD_fsel $arch 1"
+	pack $f.f.a -side right -expand n
+	label $f.f.f -textvariable P(M0,${arch}LDMSDDEV)
+	pack $f.f.f -side right -expand n
 	
-		frame $f.g
-		pack $f.g -side top -expand y -fill x
+	frame $f.g
+	pack $f.g -side top -expand y -fill x
+	label $f.g.l -text "Driver: "
+	pack $f.g.l -side left -expand n
 
-		label $f.g.l -text "Driver: "
-		pack $f.g.l -side left -expand n
+	# create the list of drivers
 
-		# create the list of drivers
-		set pl $MspdLdDrv
-		if { [lsearch -exact $pl $P(M0,LDMSDDRV)] < 0 } {
-			set P(M0,LDMSDDRV) [lindex $pl 0]
+	set pl { "tilib"
+		"rf2500"
+		"uif"
+		"gdbc"
+		"olimex"
+		"olimex-v1"
+		"olimex-iso"
+		"olimex-iso-mk2"
+		"sim"
+		"goodfet"
+		"pif"
+		"gpio"
+		"ezfet"
+		"uif-bsl"
+		"flash-bsl"
+		"load-bsl"
+		"rom-bsl"
+		"manual" }
+
+	if { [lsearch -exact $pl $P(M0,${arch}LDMSDDRV)] < 0 } {
+		# safe fallback
+		set P(M0,${arch}LDMSDDRV) [lindex $pl 0]
+	}
+
+	eval "tk_optionMenu $f.g.e P(M0,${arch}LDMSDDRV) [split [join $pl]]"
+	pack $f.g.e -side right -expand n
+
+	frame $f.u
+	pack $f.u -side top -expand y -fill x
+
+	label $f.u.l -text "Allow firmware update: "
+	pack $f.u.l -side left -expand n
+
+	checkbutton $f.u.c -variable P(M0,${arch}LDMSDAFU)
+	pack $f.u.c -side right -expand n
+
+	frame $f.w
+	pack $f.w -side top -expand y -fill x
+	
+	label $f.w.l -text "GDB connection port: "
+	pack $f.w.l -side left -expand n
+
+	eval "tk_optionMenu $f.w.e P(M0,${arch}LDMSDGDP) None 2000 2001 2002 \
+		2003 3010 3011 3012 3100 3101 3102"
+	pack $f.w.e -side right -expand n
+}
+
+proc ldr_cnf_MSD_fsel { arch auto } {
+#
+# Select the path to mspdebug device
+#
+	global P ST
+
+	if { $ST(SYS) != "L" } {
+		alert "This attribute can only be configured on Linux"
+		return
+	}
+
+	set lsd "${arch}LDMSDDEV"
+
+	if $auto {
+		set P(M0,$lsd) "Automatic"
+		return
+	}
+
+	set id "/dev"
+	if { $P(M0,$lsd) != "" && $P(M0,$lsd) != "Automatic" } {
+		set fp [file dirname $P(M0,$lsd)]
+		if [file isdirectory $fp] {
+			set id $fp
+		}
+	}
+
+	reset_all_menus 1
+	set fi [tk_getOpenFile \
+		-initialdir $id \
+		-parent $P(M0,WI)]
+	reset_all_menus
+
+	if { $fi != "" } {
+		set P(M0,$lsd) $fi
+	}
+}
+
+proc ldr_upl_MSD { arch } {
+#
+# MSPDEBUG upload
+#
+	global P TCMD ARCHINFO
+
+	set fl [glob -nocomplain "Image*"]
+
+	if { $fl == "" } {
+		alert "No image file found"
+		return
+	}
+
+	set fl [lsort $fl]
+
+	set driver [dict get $P(CO) "${arch}LDMSDDRV"]
+
+	if { $driver == "manual" } {
+		alert "Manual handler for mspdebug not implemented yet"
+		return
+	}
+
+	set al ""
+
+	set device [dict get $P(CO) "${arch}LDMSDDEV"]
+
+	if { $device != "Automatic" } {
+		lappend al "-d"
+		lappend al $device
+	}
+
+	if [dict get $P(CO) "${arch}LDMSDAFU"] {
+		lappend al "--allow-fw-update"
+	}
+
+	lappend al $driver
+	
+	if ![catch { valport [dict get $P(CO) "${arch}LDMSDGDP"] } gp] {
+
+		# gdb proxy, need path to GDB
+		if { ![info exists ARCHINFO(GDBPATH)] ||
+		    $ARCHINFO(GDBPATH) == "" } {
+			# not available
+			alert "GDB path not available, check compile.xml for\
+				$arch"
+			return
 		}
 
-		eval "tk_optionMenu $f.g.e P(M0,LDMSDDRV) [split [join $pl]]"
-		pack $f.g.e -side right -expand n
+		# extract ELF files only, GDB doesn't handle any others
+		set ffl ""
+		foreach f $fl {
+			if { [file extension $f] == "" } {
+				lappend ffl $f
+			}
+		}
 
-		frame $f.u
-		pack $f.u -side top -expand y -fill x
+		if { $ffl == "" } {
+			alert "No ELF image file found (GDB only handles ELF\
+				images)"
+			return
+		}
 
-		label $f.u.l -text "Allow firmware update: "
-		pack $f.u.l -side left -expand n
+		if { [llength $ffl] == 1 } {
+			set fn [lindex $ffl 0]
+		} else {
+			log "MSPDEBUG: file selection dialog"
+			set w [mk_upload_file_selection_window $ffl]
+			while 1 {
+				set ev [md_wait]
+				if { $ev < 0 } {
+					# cancelled
+					return
+				}
+				if { $ev == 1 } {
+					set fn $P(M0,UFILE)
+					md_stop
+					break
+				}
+			}
+		}
 
-		checkbutton $f.u.c -variable P(M0,LDMSDAFU)
-		pack $f.u.c -side right -expand n
+		set TCMD(FY,AR) $fn
 
-		frame $f.w
-		pack $f.w -side top -expand y -fill x
-	
-		label $f.w.l -text "GDB connection port: "
-		pack $f.w.l -side left -expand n
+		if [catch { mk_gdb_files $gp } err] {
+			alert "Failed to create the GDB init file, $err"
+			return
+		}
 
-		eval "tk_optionMenu $f.w.e P(M0,LDMSDGDP) None 2000 2001 2002 \
-			2003 3010 3011 3012 3100 3101 3102"
-		pack $f.w.e -side right -expand n
+		lappend al "gdb $gp"
+
+		log "MSPDEBUG: args = $al"
+
+		term_dspline "STARTING MSPDEBUG AS GDB PROXY"
+
+		set TCMD(FY) 3
+
+		if [catch { run_term_command "mspdebug" $al "upload_action 0" \
+	    	    "upload_action 0" } err] {
+			alert "MSPDebug failed, $err"
+			upload_action 0
+			return
+		}
+
+		set TCMD(TO) 1
+		set TCMD(TR) ""
+
+		set TCMD(FY,CB) [after 300 ldr_pxy_MSD]
+
+		return
 	}
+
+	# check if there is a single file
+	set froot ""
+	set ok 1
+	foreach f $fl {
+		set fr [file rootname $f]
+		if { $froot == "" } {
+			set froot $fr
+		} elseif { $froot != $fr } {
+			set ok 0
+			break
+		}
+	}
+
+	log "MSPDEBUG: root = $froot, list = $fl"
+
+	if $ok {
+		# this gives preference to ELF files
+		set fn [lindex $fl 0]
+		log "MSPDEBUG: single file = $fn"
+	} else {
+		# we need to decide in a separate dialog
+		log "MSPDEBUG: file selection dialog"
+		set w [mk_upload_file_selection_window $fl]
+		while 1 {
+			set ev [md_wait]
+			if { $ev < 0 } {
+				# cancelled
+				return
+			}
+			if { $ev == 1 } {
+				set fn $P(M0,UFILE)
+				md_stop
+				break
+			}
+		}
+	}
+
+	set TCMD(FY) 2
+
+	lappend al "prog $fn"
+
+	log "MSPDEBUG: args = $al"
+
+	term_dspline "UPLOADING: $fn"
+
+	if [catch { run_term_command "mspdebug" $al "upload_action 0" \
+	    "upload_action 0" } err] {
+		alert "MSPDebug failed, $err"
+		upload_action 0
+	}
+}
+
+proc ldr_pxy_MSD { } {
+#
+# A callback to check if the proxy is ready and to start GDB if so
+#
+	global P TCMD MSPDTERM ARCHINFO
+
+	if { $TCMD(FY) != 3 || $TCMD(FL) != "" } {
+		# cannot happen
+		return
+	}
+
+	if { [string first "waiting for connection" $TCMD(TR)] < 0 } {
+		# not yet
+		set TCMD(FY,CB) [after 300 ldr_pxy_MSD]
+		return
+	}
+
+	set TCMD(FY,CB) ""
+	set TCMD(TO) 0
+	set TCMD(TR) ""
+
+	# start GDB
+	set gcp [dict get $P(CO) "OPTGDBCMND"]
+	# terminal program
+	set xt [lindex $gcp 0]
+	set al ""
+	foreach a [lrange $gcp 1 end] {
+		if { $a == "%f" } {
+			# substitute gdb invocation
+			lappend al $ARCHINFO(GDBPATH)
+			lappend al $TCMD(FY,AR)
+		} else {
+			lappend al $a
+		}
+	}
+	bpcs_run $xt $al "FL"
+
+	# lappend al "&"
+	# catch { xq $xt $al }
+}
+
+###here
+
+
+
+
+
+
+
 
 	## Elprotronic
 	if { [lsearch -exact $CFLDNames "ELP"] >= 0 } {
@@ -4706,41 +5552,6 @@ proc loaders_conf_elp_fsel { auto } {
 
 	if { $fi != "" } {
 		set P(M0,LDELPPATH) $fi
-	}
-}
-
-proc loaders_conf_msd_fsel { auto } {
-#
-# Select the path to mspdebug device
-#
-	global P ST
-
-	if { $ST(SYS) != "L" } {
-		alert "This attribute can only be configured on Linux"
-		return
-	}
-
-	if $auto {
-		set P(M0,LDMSDDEV) "Automatic"
-		return
-	}
-
-	set id "/dev"
-	if { $P(M0,LDMSDDEV) != "" && $P(M0,LDMSDDEV) != "Automatic" } {
-		set fp [file dirname $P(M0,LDMSDDEV)]
-		if [file isdirectory $fp] {
-			set id $fp
-		}
-	}
-
-	reset_all_menus 1
-	set fi [tk_getOpenFile \
-		-initialdir $id \
-		-parent $P(M0,WI)]
-	reset_all_menus
-
-	if { $fi != "" } {
-		set P(M0,LDMSDDEV) $fi
 	}
 }
 
@@ -5261,7 +6072,7 @@ proc do_options { } {
 #
 # Configure "other" options associated with the project
 #
-	global P CFOptItems CFOptSFModes TermLines DefMPfx DefTerm DefDTerm
+	global P CFOptItems CFOptSFModes TermLines DefTerm DefDTerm
 
 	if { $P(AC) == "" || $P(CO) == "" } {
 		return
@@ -5283,20 +6094,6 @@ proc do_options { } {
 		set c 0
 
 		if { $ev == 1 } {
-			set val [string trim $P(M0,cp)]
-			if { $val == "" } {
-				# make it the default
-				set val $DefMPfx
-			}
-			if { $val != $P(M0,OPTCPREFIX) } {
-				set c 1
-				set P(M0,OPTCPREFIX) $val
-			}
-			set val [string trim $P(M0,oo)]
-			if { $val != $P(M0,OPTCOPTOVR) } {
-				set c 1
-				set P(M0,OPTCOPTOVR) $val
-			}
 			set val [string trim $P(M0,tr)]
 			if { $val == "" } {
 				# make it the default
@@ -5382,24 +6179,6 @@ proc mk_options_conf_window { } {
 	pack $f -side top -expand y -fill x
 
 	set row 0
-
-	label $f.cpl -text "MSPGCC toolchain file name prefix: "
-	grid $f.cpl -column 0 -row $row -padx 4 -pady 2 -sticky w
-
-	set P(M0,cp) $P(M0,OPTCPREFIX)
-	entry $f.cpe -width $ewidth -font $FFont -textvariable P(M0,cp)
-	grid $f.cpe -column 1 -row $row -padx 4 -pady 2 -sticky we
-
-	incr row
-
-	label $f.ool -text "Compiler option override: "
-	grid $f.ool -column 0 -row $row -padx 4 -pady 2 -sticky w
-
-	set P(M0,oo) $P(M0,OPTCOPTOVR)
-	entry $f.ooe -width $ewidth -font $FFont -textvariable P(M0,oo)
-	grid $f.ooe -column 1 -row $row -padx 4 -pady 2 -sticky we
-
-	incr row
 
 	label $f.trl -text "Terminal window command: "
 	grid $f.trl -column 0 -row $row -padx 4 -pady 2 -sticky w
@@ -7409,7 +8188,7 @@ proc run_vuee { { deb 0 } } {
 #
 # Run the model; the arg: 0 - normal, 1 - debug, 2 - debug + go
 #
-	global P TCMD SIDENAME GdbCmd
+	global P TCMD SIDENAME
 
 	if { $P(AC) == "" || $P(CO) == "" } {
 		# no project
@@ -7433,9 +8212,9 @@ proc run_vuee { { deb 0 } } {
 		catch { exec rm -f ".gdbinit" }
 		catch { exec rm -f "gdb.ini" }
 		# start the debugger
-		if [catch { run_term_command $GdbCmd [list $SIDENAME] \
+		if [catch { run_term_command "gdb" [list $SIDENAME] \
 		    "" "" 1 } err] {
-			alert "Cannot execute $GdbCmd: $err"
+			alert "Cannot execute gdb: $err"
 			return
 		}
 		if { $deb < 2 } {
@@ -7622,7 +8401,9 @@ proc stop_term { } {
 
 proc upload_image { } {
 
-	global P CFLDNames TCMD DEFLOADR
+	global P CFLDNames TCMD
+
+	set arch [dict get $P(CO) "ARCH"]
 
 	if { $P(AC) == "" } {
 		return
@@ -7633,32 +8414,37 @@ proc upload_image { } {
 		return
 	}
 
+	set als "${arch}LDSEL}"
+
 	# the loader
-	set ul [dict get $P(CO) "LDSEL"]
+	set ul [dict get $P(CO) $als]
 
 	# check if legal (depends on the system)
-	if { $ul != "" && [lsearch -exact $CFLDNames $ul] < 0 } {
-		# use default
-		set ul ""
+	if { $ul != "" } {
+		if { ![info exists CFLDNames($arch)] ||
+ 		    [lsearch -exact $CFLDNames($arch) $ul] < 0 } {
+			# force default
+			set ul ""
+		}
 	}
 
 	if { $ul == "" } {
 		# use default
-		set ul $DEFLOADR
-		dict set P(CO) "LDSEL" $ul
+		if { ![info exists CFLDNames($arch)] ||
+		    $CFLDNames($arch) == "" } {
+			alert "No loaders available for architecture $arch"
+			return
+		}
+		set ul [lindex $CFLDNames($arch) 0]
+		dict set P(CO) "$als" $ul
 		set_config
-	}
-
-	if { [lsearch -exact $CFLDNames $ul] < 0 } {
-		alert "Loader $ul unknown"
-		return
 	}
 
 	# indicate which loader is running; note that LDSEL may change, so
 	# we need something reliable
 	set TCMD(FL,LT) $ul
 
-	upload_$ul
+	ldr_upl_$ul $arch
 }
 
 if { $ST(SYS) == "L" } {
@@ -7887,26 +8673,6 @@ proc upload_ELP { } {
 
 ###############################################################################
 
-proc make_gdb_files { port } {
-#
-# Creates the GDB config files for the given port number
-#
-	set fc "set remoteaddresssize 64\n"
-	append fc "set remotetimeout 999999\n"
-	append fc "target remote localhost:$port"
-
-	foreach fn { ".gdbinit" "gdb.ini" } {
-		if [catch { open $fn "w" } fd] {
-			error "unable to open $fn, $fd"
-		}
-		if [catch { puts $fd $fc } err] {
-			catch { close $fd }
-			error "unable to write to $fn, $err"
-		}
-		catch { close $fd }
-	}
-}
-
 proc gpr_file_arg { } {
 #
 # Returns the list: filetype filetype, where the first filetype is the
@@ -8051,236 +8817,7 @@ proc upload_GPR { } {
 	}
 }
 
-proc upload_MSD { } {
-#
-# MSPDEBUG
-#
-	global P TCMD MspDCmd
-
-	set fl [glob -nocomplain "Image*"]
-
-	if { $fl == "" } {
-		alert "No image file found"
-		return
-	}
-
-	set fl [lsort $fl]
-
-	set driver [dict get $P(CO) "LDMSDDRV"]
-
-	if { $driver == "manual" } {
-		alert "Manual handler for mspdebug not implemented yet"
-		return
-	}
-
-	set al ""
-
-	set device [dict get $P(CO) "LDMSDDEV"]
-
-	if { $device != "Automatic" } {
-		lappend al "-d"
-		lappend al $device
-	}
-
-	if [dict get $P(CO) "LDMSDAFU"] {
-		lappend al "--allow-fw-update"
-	}
-
-	lappend al $driver
-	
-	if ![catch { valport [dict get $P(CO) "LDMSDGDP"] } gp] {
-
-		# extract only ELF files, GDB only handles these
-		set ffl ""
-		foreach f $fl {
-			if { [file extension $f] == "" } {
-				lappend ffl $f
-			}
-		}
-
-		if { $ffl == "" } {
-			alert "No ELF image file found (GDB only handles ELF\
-				images"
-			return
-		}
-
-		if { [llength $ffl] == 1 } {
-			set fn [lindex $ffl 0]
-		} else {
-			log "MSPDEBUG: file selection dialog"
-			set w [mk_upload_file_selection_window $ffl]
-			while 1 {
-				set ev [md_wait]
-				if { $ev < 0 } {
-					# cancelled
-					return
-				}
-				if { $ev == 1 } {
-					set fn $P(M0,UFILE)
-					md_stop
-					break
-				}
-			}
-		}
-
-		set TCMD(FY,AR) $fn
-
-		if [catch { make_gdb_files $gp } err] {
-			alert "Cannot create GDB init files, $err"
-			return
-		}
-
-		lappend al "gdb $gp"
-
-		log "MSPDEBUG: args = $al"
-
-		term_dspline "STARTING MSPDEBUG AS GDB PROXY"
-
-		set TCMD(FY) 3
-
-		if [catch { run_term_command $MspDCmd $al "upload_action 0" \
-	    	    "upload_action 0" } err] {
-			alert "MSPDebug failed, $err"
-			upload_action 0
-			return
-		}
-
-		set TCMD(TO) 1
-		set TCMD(TR) ""
-
-		set TCMD(FY,CB) [after 300 check_mspdebug_proxy]
-
-		return
-	}
-
-	# check if there is a single file
-	set froot ""
-	set ok 1
-	foreach f $fl {
-		set fr [file rootname $f]
-		if { $froot == "" } {
-			set froot $fr
-		} elseif { $froot != $fr } {
-			set ok 0
-			break
-		}
-	}
-
-	log "MSPDEBUG: root = $froot, list = $fl"
-
-	if $ok {
-		# this gives preference to ELF files
-		set fn [lindex $fl 0]
-		log "MSPDEBUG: single file = $fn"
-	} else {
-		# we need to decide in a separate dialog
-		log "MSPDEBUG: file selection dialog"
-		set w [mk_upload_file_selection_window $fl]
-		while 1 {
-			set ev [md_wait]
-			if { $ev < 0 } {
-				# cancelled
-				return
-			}
-			if { $ev == 1 } {
-				set fn $P(M0,UFILE)
-				md_stop
-				break
-			}
-		}
-	}
-
-	set TCMD(FY) 2
-
-	lappend al "prog $fn"
-
-	log "MSPDEBUG: args = $al"
-
-	term_dspline "UPLOADING: $fn"
-
-	if [catch { run_term_command $MspDCmd $al "upload_action 0" \
-	    "upload_action 0" } err] {
-		alert "MSPDebug failed, $err"
-		upload_action 0
-	}
-}
-
-proc check_mspdebug_proxy { } {
-#
-# A callback to check if the proxy is ready and to start GDB if so
-#
-	global P TCMD MSPDTERM GdbCmd DefMPfx
-
-	if { $TCMD(FY) != 3 || $TCMD(FL) != "" } {
-		# cannot happen
-		return
-	}
-
-	if { [string first "waiting for connection" $TCMD(TR)] < 0 } {
-		# not yet
-		set TCMD(FY,CB) [after 300 check_mspdebug_proxy]
-		return
-	}
-
-	set TCMD(FY,CB) ""
-	set TCMD(TO) 0
-	set TCMD(TR) ""
-
-	# start GDB
-	set gcp [dict get $P(CO) "OPTGDBCMND"]
-	# terminal program
-	set xt [lindex $gcp 0]
-	set al ""
-	foreach a [lrange $gcp 1 end] {
-		if { $a == "%f" } {
-			# substitute gdb invocation
-			set pgm [dict get $P(CO) "OPTCPREFIX"]
-			if { $pgm == "" } {
-				set pgm $DefMPfx
-			}
-			append pgm $GdbCmd
-			lappend al $pgm
-			lappend al $TCMD(FY,AR)
-		} else {
-			lappend al $a
-		}
-	}
-	bpcs_run $xt $al "FL"
-
-	# lappend al "&"
-	# catch { xq $xt $al }
-}
-
 ###############################################################################
-
-proc mk_upload_file_selection_window { flist } {
-
-	global P
-
-	set w [md_window "File selection"]
-
-	frame $w.tf
-	pack $w.tf -side top -expand y -fill x
-
-	label $w.tf.l -text "Select the image file to upload: "
-	pack $w.tf.l -side left -expand n -fill x
-
-	set P(M0,UFILE) [lindex $flist 0]
-
-	eval "tk_optionMenu $w.tf.r P(M0,UFILE) [split [join $flist]]"
-	pack $w.tf.r -side right -expand n
-
-	frame $w.bf
-	pack $w.bf -side top -expand y -fill x
-
-	button $w.bf.b -text "Go Ahead" -command "md_click 1"
-	pack $w.bf.b -side right -expand n -fill x
-
-	button $w.bf.c -text "Cancel" -command "md_click -1"
-	pack $w.bf.c -side left -expand n -fill x
-
-	bind $w <Destroy> "md_click -1"
-}
 
 ###############################################################################
 
@@ -8789,10 +9326,13 @@ proc reset_config_menu { { clear 0 } } {
 	}
 
 	if { $clear || $P(AC) == "" } {
+		# nothing to show
 		return
 	}
 
-	$m add command -label "CPU+Board ..." -command "do_board_selection"
+	# Used to be called CPU+Board, let's be a bit more exacting this time
+	$m add command -label "Arch+Board ..." -command "do_board_selection"
+
 	if $ST(VP) {
 		set st "normal"
 	} else {
@@ -8868,13 +9408,15 @@ proc reset_build_menu { { clear 0 } } {
 	set bm [dict get $P(CO) "LM"]
 
 	if { $mb != "" && $bo != "" } {
-		# we do have mkmk
+		# mkmk is applicable
 		if $mb {
+			# multiple boards
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
 				set lm [blindex $bm $bi]
 				if { $ST(LO) || $lm } {
+					# library only or lib mode
 					set lm "lib"
 				} else {
 					set lm "src"
@@ -9387,48 +9929,37 @@ proc do_mkmk_node { { bi 0 } { ea "" } } {
 	}
 
 	set lm [blindex [dict get $P(CO) "LM"] $bi]
+	set ar [dict get $P(CO) "ARCH"]
 	set bo [lindex $bo $bi]
 
-	# compiler prefix
-	set cpf [dict get $P(CO) "OPTCPREFIX"]
-	if { $cpf != "" } {
-		lappend al "-c"
-		lappend al $cpf
-	}
+	# the board argument
+	lappend al $bo
+
+	# the arch
+	lappend al "-a"
+	lappend al $ar
 
 	if { $ST(LO) || $lm } {
 		# library mode; check if there's a library
-		set lb [library_present $bo]
-		if { $lb == "" } {
+		if ![library_present $bo] {
 			alert "There's no library at board $bo; you have to\
 				create one to be able to use the library\
 				mode for the build"
 			return
 		}
-		lappend al "-M"
-		lappend al $lb
-	} else {
-		# source mode
-		lappend al $bo
+		lappend al "-l"
 	}
-
+		
 	if $mb {
 		# the label
 		lappend al [lindex $P(PL) $bi]
-	}
-
-	set cpf [dict get $P(CO) "OPTCOPTOVR"]
-	if { $cpf != "" } {
-		lappend al "--"
-		foreach a $cpf {
-			lappend al $a
-		}
 	}
 
 	if [catch { run_term_command "mkmk" $al $ea } err] {
 		alert $err
 	}
 }
+
 
 proc do_make_node { { bi 0 } { m 0 } { ea "" } } {
 #
@@ -9536,7 +10067,7 @@ proc do_make_all { { m 0 } { s 0 } } {
 	if { $m >= $nb } {
 		# called for the last time; note that we postpone sys ctags
 		# until the successfull end of the entire chain; thus, a
-		# failure somewhere along the line may live sys ctags obsolete;
+		# failure somewhere along the line may leave stale sys ctags;
 		# this is OK, because we view the entire operation as a single
 		# step
 		if $P(WBL) {
@@ -9568,7 +10099,7 @@ proc do_make_all { { m 0 } { s 0 } } {
 			term_dspline "--PREBUILD FOR $suf FAILED--"
 			return
 		}
-		# fall through proceeding to build
+		# fall through to build
 	} else {
 		# stage 2: build completed
 		if ![file_present "Image_$suf"] {
@@ -9646,43 +10177,16 @@ proc do_make_vuee { { arg "" } } {
 	reset_bnx_menus
 }
 
-proc remove_temp { } {
-#
-# To clean up after aborted makelib
-#
-	catch { exec rm -rf temp }
-}
-
 proc do_prebuild_lib { board ea } {
 #
 # Prebuild a library for the specified board
 #
 	global P
 
-	remove_temp
+	set al [list $board -L]
 
-	if [catch { file mkdir temp } err] {
-		alert "Cannot create temporary directory: $err"
-		return
-	}
-
-	set cpf [dict get $P(CO) "OPTCPREFIX"]
-	set al "cd temp ; mkmk "
-	if { $cpf != "" } {
-		append al "-c $cpf "
-	}
-	append al "$board -l"
-
-	set cpf [dict get $P(CO) "OPTCOPTOVR"]
-	if { $cpf != "" } {
-		append al " -- $cpf"
-	}
-
-	set al [list -c $al]
-
-	if [catch { run_term_command "bash" $al $ea remove_temp } err] {
-		remove_temp
-		alert "Cannot run library mkmk for $board: $err"
+	if [catch { run_term_command "mkmk" $al $ea } err] {
+		alert "Cannot run library make for $board: $err"
 	}
 }
 
@@ -9690,37 +10194,12 @@ proc do_build_lib { board ea } {
 #
 # Completes the library build, which is a two-stage operation
 #
-	if ![file isdirectory temp] {
-		# something happened along the way
-		return
-	}
+	set al [list -c "cd [file join [boards_dir] $board]; make"]
 
-	set al [list -c "cd temp; make"]
-
-	if [catch { run_term_command "bash" $al $ea remove_temp } err] {
+	if [catch { run_term_command "bash" $al $ea } err] {
 		remove_temp
 		alert "Cannot run library make for $board: $err"
 	}
-}
-
-proc move_library { board } {
-#
-# Move the library to the target directory
-#
-	set ld [library_dir $board]
-
-	# source
-	set ll [file join "temp" "LIBRARY"]
-
-	# first, move the Makefile to LIBRARY; we will be needing it for
-	# sys ctags
-	catch { exec mv [file join "temp" "Makefile"] $ll }
-
-	# remove the target if exists
-	catch { exec rm -rf $ld }
-
-	# do the move, errors exposed
-	exec mv $ll $ld
 }
 
 proc verify_lib_preconds { board } {
@@ -9741,12 +10220,12 @@ proc verify_lib_preconds { board } {
 	}
 
 	# some heuristics
-	if ![regexp "-l\[ \t\]\[^\n\r\]*\\.c" $ps] {
+	if ![regexp {-l[[:space:]][^\n\r]*\.c} $ps] {
 		return 2
 	}
 
 	# check if library exists
-	if { [library_present $board] != "" } {
+	if [library_present $board] {
 		return 3
 	}
 
@@ -9770,7 +10249,7 @@ proc do_makelib { board { st 0 } } {
 			alert "Board $board declares no library files;\
 			please edit params.sys in the board directory and add\
 			a line starting with -l and including the list of\
-			files+headers to compile"
+			files/headers to compile"
 			return
 		}
 		# now the warning
@@ -9785,9 +10264,8 @@ proc do_makelib { board { st 0 } } {
 
 	if { $st == 1 } {
 		# stage 1: proper build
-		if ![file isfile [file join temp Makefile]] {
+		if ![file isfile [file join [boards_dir] $board Makefile]] {
 			term_dspline "--PREBUILD FAILED, LIBRARY NOT CREATED--"
-			remove_temp
 			return
 		}
 		term_dspline "--BUILDING LIBRARY for $board--"
@@ -9796,18 +10274,11 @@ proc do_makelib { board { st 0 } } {
 	}
 
 	# stage 2: after build
-	if ![file exists [file join temp LIBRARY libpicos.a]] {
+	if ![file exists [file join [boards_dir] $board libpicos.a]] {
 		term_dspline "--BUILD FAILED, LIBRARY NOT CREATED--"
-		remove_temp
 		return
 	}
 
-	if [catch { move_library $board } err] {
-		alert "Cannot move library to target directory: $err"
-	} else {
-		term_dspline "--LIBRARY CREATED--"
-	}
-	remove_temp
 	sys_make_ctags
 }
 	
@@ -9887,16 +10358,14 @@ proc do_makelib_all { { bx 0 } { bn "" } { st 0 } } {
 	if { [lindex $bo $bx] != $bn } {
 		alert "Board structure changed during library build,\
 			operation aborted"
-		remove_temp
 		return
 	}
 
 	if { $st == 1 } {
 		# stage 1: proper build
-		if ![file isfile [file join temp Makefile]] {
+		if ![file isfile [file join [boards_dir] $bn Makefile]] {
 			term_dspline \
 			    "--PREBUILD FAILED, LIBRARY for $bn NOT CREATED--"
-			remove_temp
 			return
 		}
 		term_dspline "--BUILDING LIBRARY for $bn--"
@@ -9905,20 +10374,12 @@ proc do_makelib_all { { bx 0 } { bn "" } { st 0 } } {
 	}
 
 	# stage 2: after build
-	if ![file exists [file join temp LIBRARY libpicos.a]] {
+	if ![file exists [file join [boards_dir] $bn libpicos.a]] {
 		term_dspline "--BUILD FAILED, LIBRARY for $bn NOT CREATED--"
-		remove_temp
 		return
 	}
 
-	if [catch { move_library $bn } err] {
-		alert "Cannot move library to target directory $bn: $err"
-		remove_temp
-		return
-	} else {
-		term_dspline "--LIBRARY CREATED--"
-	}
-	remove_temp
+	term_dspline "--LIBRARY CREATED--"
 
 	# try the next one
 	do_makelib_all [expr $bx + 1] "" 0
@@ -10991,11 +11452,12 @@ proc do_edit_new_file { } {
 
 ###############################################################################
 
+###here: fixed
 proc scan_mkfile { mfn } {
 #
 # Scans a Makefile for the list of project-related "system" files
 #
-	global ST FNARR PicOSPath
+	global FNARR
 
 	if [catch { open $mfn "r" } fd] {
 		return
@@ -11011,83 +11473,40 @@ proc scan_mkfile { mfn } {
 	set mf [split $mf "\n"]
 
 	foreach ln $mf {
-		# collect the list of file paths
-		if $ST(DP) {
-			# We expect DOS paths, but we don't know if mkmk
-			# is native, i.e., if it uses DOS paths at all
-			if [regexp "^(\[IS\]\[0-9\]+)=(\[A-Z\]:.*)" \
-			    $ln jk pf fn] {
-				# this happens when mkmk uses DOS paths as well
-				set FS($pf) [string trimright $fn]
-				continue
-			}
-			# give it a second chance
-			if { [regexp "^(\[IS\]\[0-9\]+)U?=(/.*)" \
-			    $ln jk pf fn] && ![info exists FS($pf)] } {
-				if { [string first $ST(NPP) $fn] == 0 } {
-					# starts with a PicOS path in "unix"
-					# flavor
-					set fn "$PicOSPath[string range \
-					    [string trimright $fn] $ST(NPL) \
-						end]"
-					set FS($pf) $fn
-				}
-				continue
-			}
-		} elseif [regexp "^(\[IS\]\[0-9\]+)U?=(/.*)" $ln jk pf fn] {
-			# expect unix paths
-			set FS($pf) [string trimright $fn]
+		# the paths are in "make" format, so basically UNIX
+		if ![regexp {^[^[:blank:]]+[[:blank:]]*:[[:blank:]]*(.*)} $ln \
+		    flist flist] {
 			continue
 		}
-		# check for the special case of "current" directory
-		if [regexp "^(\[IS\]\[0-9\]+)=\[.\]" $ln jk pf] {
-			set FS($pf) "."
+		foreach fn [split $flist " \t"] {
+			set fn [string trim $fn]
+			if { $fn == "" } {
+				continue
+			}
+			set fnarr($fn) ""
+		}
+	}
+
+	foreach fn [array names fnarr] {
+		set ex [file extension $fn]
+		if { $ex != ".cc" && $ex != ".c" && $ex != ".h" } {
+			# ignore
 			continue
 		}
-		# scan for file reference
-		while 1 {
-			if ![regexp "\\$\\((\[IS\]\[0-9\]+)U?\\)/(\[^ \t\]+)" \
-				$ln ma pf fn] {
-					break
-			}
 
-			# remove the match from the string
-			set ix [string first $ma $ln]
-			if { $ix < 0 } {
-				# impossible
-				break
-			}
-			set ln "[string range $ln 0 [expr $ix-1]][string range \
-				$ln [expr $ix + [string length $ma]] end]"
+		set fn [fpnorm $fn]
 
-			# check if this is one of interesting files
-			set ex [file extension $fn]
-			if { $ex != ".cc" && $ex != ".c" && $ex != ".h" } {
-				# ignore
-				continue
-			}
-
-			if ![info exists FS($pf)] {
-				# this is impossible, unless the makefile is
-				# broken
-				continue
-			}
-
-			set fn [fpnorm [file join $FS($pf) $fn]]
-
-			if { [file_location $fn] != "S" } {
-				# ignore files other than PicOS files
-				continue
-			}
-
-			if ![file isfile $fn] {
-				# make sure the file in fact exists
-				continue
-			}
-
-			set FNARR($fn) ""
+		if { [file_location $fn] != "S" } {
+			# ignore files other than PicOS files
+			continue
 		}
 
+		if ![file isfile $fn] {
+			# make sure the file in fact exists
+			continue
+		}
+
+		set FNARR($fn) ""
 	}
 }
 
@@ -11115,6 +11534,7 @@ proc get_picos_project_files { } {
 		set b [lindex $bo $i]
 		if { $ST(LO) || $l } {
 			# library mode, use LIBRARY Makefile
+###here: bool
 			set lb [library_present $b]
 			if { $lb == "" } {
 				continue
@@ -11162,18 +11582,18 @@ proc get_picos_project_files { } {
 proc get_picos_files { } {
 #
 # Produces the list of all files in the PicOS directory, related to the given
-# CPU, recursing as necessary
+# ARCH, recursing as necessary
 #
-	global P PicOSPath FNLIST FNDIR FNCPU
+	global P PicOSPath FNLIST FNDIR FNARCH
 
 	set FNLIST ""
-	set FNCPU [dict get $P(CO) "CPU"]
+	set FNARCH [dict get $P(CO) "ARCH"]
 	set FNDIR [file join $PicOSPath "PicOS"]
 
 	gsf_trv ""
 
 	set fn $FNLIST
-	unset FNLIST FNCPU FNDIR
+	unset FNLIST FNARCH FNDIR
 	return $fn
 }
 
@@ -11181,7 +11601,7 @@ proc gsf_trv { p } {
 #
 # Recursive directory traverser for get_picos_files
 #
-	global FNLIST FNCPU FNDIR CPUDirs
+	global FNLIST FNARCH FNDIR Archs
 
 	# full path to current place
 	set wh [file join $FNDIR $p]
@@ -11200,9 +11620,9 @@ proc gsf_trv { p } {
 			continue
 		} 
 		if { $p == "" } {
-			# zero level; ignore if a CPU dir different from
+			# zero level; ignore if the ARCH dir different from
 			# ours
-			if { [lsearch $f $CPUDirs] >= 0 && $f != $FNCPU } {
+			if { [lsearch $f $Archs] >= 0 && $f != $FNARCH } {
 				continue
 			}
 		}
@@ -11267,9 +11687,42 @@ proc get_vuee_files { } {
 ###############################################################################
 ###############################################################################
 
+proc errab { msg } {
+
+	puts stderr $msg
+	exit 99
+}
+
+proc arch_dirs { } {
+#
+# Returns the list of tail subdirectory names that appear to be valid
+# target arch identifiers, i.e., being directories named with all capitals and
+# digits
+#
+	global PicOSPath
+
+	set dir [file join $PicOSPath "PicOS"]
+
+	set fl [glob -nocomplain -directory $dir -tails *]
+	set res ""
+
+	foreach f $fl {
+		if ![regexp {^[A-Z0-9]+$} $f] {
+			continue
+		}
+		if ![file isdirectory [file join $dir $f]] {
+			continue
+		}
+		lappend res $f
+	}
+
+	return [lsort $res]
+}
+
+###here: done
 proc initialize { } {
 
-	global ST PicOSPath DefProjDir CPUDirs SACmd
+	global ST PicOSPath DefProjDir Archs SACmd
 
 	if $ST(DP) {
 		log "preferred path format: DOS"
@@ -11279,8 +11732,7 @@ proc initialize { } {
 
 	# path to PICOS
 	if [catch { xq picospath } ST(NPP)] {
-		puts stderr "cannot locate PicOS path: $ST(NPP)"
-		exit 99
+		errab "cannot locate PicOS path: $ST(NPP)"
 	}
 
 	set PicOSPath [fpnorm $ST(NPP)]
@@ -11307,19 +11759,20 @@ proc initialize { } {
 		set ST(VP) 0
 	}
 
-	# CPU-specific directories
-	set CPUDirs ""
-	foreach t { "MSP430" "eCOG" } {
-		if [file isdirectory [file join $PicOSPath "PicOS" $t]] {
-			lappend CPUDirs $t
-		}
+	# architecture directories
+	set Archs [arch_dirs]
+
+	# This must be non-empty these days
+	if { $Archs == "" } {
+		errab "no architectures in this PicOS installation"
 	}
 
-	if { $CPUDirs == "" } {
+	if ![file isfile [file join $PicOSPath "PicOS" "tcv.c"]] {
+		# a simple test for sources present
 		log "Library-only installation"
 		set ST(LO) 1
 	} else {
-		log "CPUs: [join $CPUDirs]"
+		log "Architectures: [join $Archs]"
 		set ST(LO) 0
 	}
 
