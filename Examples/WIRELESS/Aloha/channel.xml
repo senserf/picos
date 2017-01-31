@@ -51,7 +51,7 @@
 		2	 38400		-3dB
 		3       200000		-11dB
 	</rates>
-	<channels number="255">
+	<channels number="256">
 		Cross channel separation
 		28dB 38dB 54dB 70dB 86dB 102dB
 	</channels>

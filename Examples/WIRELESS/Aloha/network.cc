@@ -6,6 +6,12 @@
 
 #define	MAX_UINT	((unsigned short) 0xFFFF)
 
+//
+// I have borrowed some bits from VUEE to implement XML-style input which is
+// more difficult to program, but (arguably) makes it easier to specify input
+// data
+//
+
 int channel_type = -1;
 sxml_t xml_data;
 
@@ -57,7 +63,7 @@ static void xmon (int nr, const unsigned short *wt, const double *dta,
 	}
 }
 
-static void sptypes (nparse_t *np, int tp) {
+void sptypes (nparse_t *np, int tp) {
 
 	int i;
 

@@ -4,9 +4,10 @@ identify (Simple ALOHA);
 
 Long NNodes;
 double MinBackoff, MaxBackoff;
-double MinAckWait, MaxAckWait;
 Long MinPL, MaxPL, AckPL, FrameLength;
 DataTraffic *UTrf;
+
+Long TotalSentPackets, TotalReceivedPackets;
 
 process Root {
 
@@ -48,10 +49,8 @@ void Root::initNodes () {
 	np [7 ].type = TYPE_int;
 	np [8 ].type = TYPE_double;
 	np [9 ].type = TYPE_double;
-	np [10].type = TYPE_double;
-	np [11].type = TYPE_double;
 
-	if (parseNumbers (att, 12, np) != 12)
+	if (parseNumbers (att, 10, np) != 10)
 		excptn ("Root: illegal <parameters>");
 
 	prd = (unsigned short) (np [0] . IVal);
@@ -64,8 +63,6 @@ void Root::initNodes () {
 	pwa = (unsigned short) (np [7] . IVal);
 	MinBackoff = np [8 ] . DVal;
 	MaxBackoff = np [9 ] . DVal;
-	MinAckWait = np [10] . DVal;
-	MaxAckWait = np [11] . DVal;
 
 	print ("\nParameters shared by all nodes:\n\n");
 	print (prd,		" Preamble length (d):", 10, 26);
@@ -78,8 +75,6 @@ void Root::initNodes () {
 	print (pwa,		" Transmit power (a):", 10, 26);
 	print (MinBackoff,	" Minimum backoff:", 10, 26);
 	print (MaxBackoff,	" Maximum backoff:", 10, 26);
-	print (MinAckWait,	" Minimum backoff:", 10, 26);
-	print (MaxAckWait,	" Maximum backoff:", 10, 26);
 
 	np [0] . type = TYPE_double;
 	np [1] . type = TYPE_double;
@@ -110,13 +105,55 @@ void Root::initNodes () {
 
 	print ("\n");
 }
-		
+
+static Long *read_sids (sxml_t data, const char *hdr) {
+//
+// Read a list of node Id's representing the set of senders or receivers for
+// the traffic pattern
+//
+	sxml_t curr;
+	Long *sids;
+	// Some humongous limit
+	nparse_t np [1024];
+	int i, nsids;
+
+	if ((curr = sxml_child (data, hdr)) == NULL)
+		// Ignore
+		return NULL;
+
+	for (i = 0; i < 1024; i++)
+		np [i].type = TYPE_int;
+
+	nsids = parseNumbers (sxml_txt (curr), 1024, np);
+
+	if (nsids == 0 || nsids > 1024)
+		excptn ("Root: illegal number of entries, %1d, in <%s> for "
+			"<traffic>", nsids, hdr);
+
+	Ouf << "  Message " << hdr << ":";
+
+	sids = new Long [nsids + 1];
+
+	for (i = 0; i < nsids; i++){
+
+		sids [i] = np [i].IVal;
+		Ouf << ' ' << sids [i];
+	}
+
+	// The sentinel
+	sids [i] = -1;
+	Ouf << "\n\n";
+
+	return sids;
+}
+
 void Root::initTraffic () {
 
 	sxml_t data, curr;
 	double MinML, MaxML, MINT;
 	nparse_t np [4];
 	const char *att;
+	Long *sids, *sid;
 
 	if ((data = sxml_child (xml_data, "traffic")) == NULL)
 		excptn ("Root: no <traffic>");
@@ -171,10 +208,25 @@ void Root::initTraffic () {
 	UTrf =
 	    create DataTraffic (MIT_exp + MLE_unf, MINT, MinML, MaxML);
 
-	// All node are senders
-	UTrf->addSender (ALL);
-	// ... and receivers
-	UTrf->addReceiver (ALL);
+	if ((sids = read_sids (data, "senders")) == NULL) {
+		// All node are senders
+		UTrf->addSender (ALL);
+	} else {
+		// Explicit list
+		for (sid = sids; *sid >= 0; sid++)
+			UTrf->addSender (*sid);
+		delete sids;
+	}
+		
+	if ((sids = read_sids (data, "receivers")) == NULL) {
+		// All node are receivers
+		UTrf->addReceiver (ALL);
+	} else {
+		// Explicit list
+		for (sid = sids; *sid >= 0; sid++)
+			UTrf->addReceiver (*sid);
+		delete sids;
+	}
 }
 
 void Root::setTimeLimit () {
@@ -230,5 +282,15 @@ Root::perform {
 	state Stop:
 
 		Client->printPfm ();
+
+		// The two counters
+
+		print (TotalSentPackets, "  Total sent:", 10, 26);
+		print (TotalReceivedPackets, "  Total received:", 10, 26);
+		if (TotalSentPackets == 0)
+			TotalSentPackets = 1;
+		print ((double)TotalReceivedPackets/(double)TotalSentPackets,
+			"  Delivery Fraction:", 10, 26);
+		
 		terminate;
 }

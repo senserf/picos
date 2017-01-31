@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-13   P. Gburzynski */
+/* Copyright (C) 1991-17   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 //#define	ZZ_RF_DEBUG
@@ -1758,6 +1758,10 @@ typedef Long    RATE;
 /* ------------------------- */
 /* Setting simulation limits */
 /* ------------------------- */
+
+void   setLimit (Long nm, TIME mt);
+void   setLimit (Long nm);
+
 #if	ZZ_NFP
 
 void   setLimit (Long nm, TIME mt, Long ct);
@@ -1795,10 +1799,15 @@ inline	double ituToEtu (TIME t) {
 	return ((double) t) * Itu;
 };
 
-#endif	/* NFP */
+inline void setLimit (Long nm, double mt, double ct) {
+	setLimit (nm, etuToItu (mt), ct);
+};
 
-void   setLimit (Long nm, TIME mt);
-void   setLimit (Long nm);
+inline void setLimit (Long nm, double mt) {
+	setLimit (nm, etuToItu (mt));
+}
+
+#endif	/* NFP */
 
 /* ------------------------ */
 /* Standard input functions */
@@ -1947,6 +1956,11 @@ extern  ZZ_EVENT               *zz_pe;
 extern  ZZ_REQUEST             *zz_pr;
 extern  Long                   zz_npee;
 extern  TIME                   Time;
+
+#if	ZZ_NFP
+#else
+#define	ETime		       ituToEtu (Time)
+#endif
 
 extern  Long                   NStations;
 extern  Station                **zz_st;

@@ -141,7 +141,7 @@ packet RTSPacket : DCFPacket {
 
 		// Note: this setting is only used by CTS, as the RTS NAV is
 		// assummed blindly to be DCF_NAV_rts_auto. We could optimize
-		// things a bit with this assumption, nut perhaps it makes
+		// things a bit with this assumption, but perhaps it makes
 		// better sense to keep things simple.
 
 		DCFP_Flags = 0;

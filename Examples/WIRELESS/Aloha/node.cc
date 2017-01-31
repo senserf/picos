@@ -14,6 +14,7 @@ DTransmitter::perform {
 	transient Ready:
 
 #if 0
+// A quick and naive LBT scheme
 		if (DCh->busy ()) {
 			DCh->wait (SILENCE, Backoff);
 			sleep;
@@ -25,6 +26,7 @@ DTransmitter::perform {
 	state XDone:
 
 		DCh->stop ();
+		TotalSentPackets++;
 
 		S->ExpectedAckSender = (Long)(Buffer->Receiver);
 		S->AckEvent->wait (0, GotAck);
@@ -58,6 +60,7 @@ DReceiver::perform {
 
 	state Received:
 
+		TotalReceivedPackets++;
 		if (ThePacket->isMy ()) {
 			Long snd, seq;
 			snd = ThePacket->Sender;

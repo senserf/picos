@@ -4,21 +4,21 @@
 \label{rm_in}
 
 The package version described by this manual is identified in the title.
-If the version number of your simulator is higher, some of its features may
+If the version number of your copy of the simulator is higher, some of its features may
 not be covered by this manual.
 
 \subsection{A historical note}
 \label{rm_in_hi}
 
-The present package is the outcome of an old and long project, which started in
+The present package is the outcome of an old and long project which started in
 1986 as an academic study of collision-based (CSMA/CD) medium access control
 (MAC) protocols for wired (local-area) networks.
 About that time, many publicized performance aspects of CSMA/CD-based networks
 (like Ethernet) had been subjected to heavy criticism from the more
-practically inclined members of the community---for their apparent irrelevance
-and overly pessimistic confusing conclusions.
+practically inclined members of the community, for their apparent lack of practical relevance
+and overly pessimistic, confusing conclusions.
 The culprit, or rather culprits, were identified among the popular
-collection of analytical models, whose cavalier application to describing
+collection of analytical models, whose nonchalant application to describing
 poorly understood and crudely approximated phenomena had resulted in
 worthless numbers and exaggerated blanket claims.
 
@@ -41,7 +41,7 @@ of independent clocks, and so on,
 were carefully reflected in the system models.
 In fact, those models had the appearance of programs actually
 {\em implementing\/} the protocols on some abstract hardware.
-Thus, our system was often referred to as an emulator rather than
+Thus, our system was often referred to as an emulator rather than a
 simulator.
 
 Around 1989 we became involved in a project with Lockheed Missile and Space
@@ -77,19 +77,19 @@ Then, in 2002, we created PicOS---a low-footprint operating system for
 microcontrollers, whose stack-less threads were directly based on the idea of
 {\sc SMURPH/SIDE} {\em processes}.
 
-The most recent (August 2006)
-step in the evolution of {\sc LANSF}, {\sc SMURPH}, {\sc SIDE} is the addition
-of a generic model of a wireless channel, which makes it possible to use
-the package for modeling wireless networks, especially ad-hoc networks
+The next step
+step in the evolution of {\sc LANSF}, {\sc SMURPH}, {\sc SIDE} was the addition
+of a generic model of a wireless channel (in 2006) which made it possible to use
+the package for modeling wireless networks, including ad-hoc networks
 consisting of a potentially large number of possibly mobile nodes.
-The generic nature of the channel model allows the user to plug into it
+The generic nature of the channel model allowed the user to plug into it
 functions describing the propagation characteristics of the actual wireless
 medium,
-e.g., the impact of distance on signal level and interference,
+e.g., the impact of distance on signal attenuation and interference,
 as well as the relationship between the signal-to-interference ratio
 and the probability of a successful packet reception.
 
-Another recent feature is the inclusion of the so-called {\em visualization
+Another (somewhat related) feature was the inclusion of the so-called {\em visualization
 mode\/} for simulation.
 When run in this mode, the simulator attempts to synchronize the virtual time
 of the model to the prescribed intervals of real time.
@@ -100,7 +100,7 @@ the behavior of the modeled system by making intervals of virtual time
 perceptible by the user as real time intervals of proportional
 duration.
 This is only possible if the simulator can ``catch up'' with real time.
-In many cases, the program can only render a slow motion visualization of the
+If this is not the case, the program can still render a slow-motion visualization of the
 model.
 
 To avoid unnecessary complication, the package will be called \smurph\ in
@@ -111,7 +111,7 @@ namely
 as a platform for implementing control programs driving real physical
 equipment.
 This introduction will not be confusing, if the reader keeps in mind that
-network simulation is by far the most relevant mission of our system.
+network simulation is by far the most important mission of our system.
 If simulation is the reader's only concern, then we recommend skipping all
 paragraphs that refer to the ``real mode of operation.''
 
@@ -247,7 +247,7 @@ Events triggered and perceived by the control program occur in virtual time
 that usually has no relation to the execution time as perceived by the user.
 
 In the {\em visualization mode}, the system is entirely virtual
-(we have strict simulation); however, the program tries to match virtual
+(pure simulation); however, the program tries to match virtual
 time intervals to their real time counterparts, as specified by the user.
 This way, the on-line behavior of the model {\em visualizes\/} the
 behavior of the ``real thing,'' possibly up to a certain factor.
@@ -582,15 +582,9 @@ As all simulators, \smurph\ provides tools for
 modeling the flow of time in a class of physical systems.
 Time in \smurph\ is discrete, which means that integer numbers are used
 to represent time instants and intervals.
-In the light of modern physics, the discrete nature of the modeled time
-is not really a limitation,\footnote{In fact, real time is also
-discrete, namely, for two events separated in time by less than the so-called
-Planck interval (about $10^{-45}$s) the concept of chronological ordering
-is meaningless.} provided that the granularity of time sampling is not
-too coarse.
 
 In \smurph, the user is responsible for choosing the granularity of the
-modeled time.
+modeled time (which can be practically arbitrarily fine).
 This granularity is determined by the physical interpretation
 of the time unit---the interval between two consecutive time instants.
 This interval is called the {\em indivisible time unit\/} and is denoted
@@ -657,6 +651,15 @@ tell the relationship between the {\em ITU\/} and {\em ETU}.
 {\tt Itu} contains the number of {\em ETU\/}s in one {\em ITU\/} and
 {\tt Etu}, the reciprocal of {\tt Itu}, contains the number of {\em ITU\/}s
 in one {\em ETU}.
+
+The current simulated time in {\em ITU\/}s is available via two global (intentionally read-only) variables declared as:
+\begin{verbatim}
+        TIME Time;
+        double ETime;
+\end{verbatim}
+\noindent
+The type {\tt TIME} is introduced in \sect{rm_mp_vr}.
+The first variable tells the simulated time in {\em ITU\/}s while the seconds one does it in {\em ETU\/}s.\footnote{This variable is in fact a macro.}
 
 The third unit is called {\em DU}, which stands for {\em distance unit}.
 Its purpose is to establish a convenient measure of distance (typically
@@ -11244,7 +11247,7 @@ The {\tt Mailbox} {\em AI\/} provides a frame for defining mailbox types
 and creating objects of these types.
 This tool has evolved quite a bit from its original and rather simple
 version (from early {\sc SMURPH})
-reaching the stage when it rather desperately call for some drastic measure,
+reaching the stage when it rather desperately calls for some drastic measure,
 like replacing it with two or three separate tools (with different names).
 While there seems to be a unifying theme for all the different mailbox variants
 described in this section, one can see three distinct types of functionality,
@@ -11261,8 +11264,7 @@ Viewed from the highest level of its role  in the program a mailbox can be
 An internal mailbox is used as an ``internal''
 synchronization/communication vehicle for 
 \smurph\ processes, while a bound mailbox is
-attached to an external device or a socket, thus providing the control
-program with a reactive interface to the outside world.
+attached to an external device or a socket, thus providing the program with a reactive interface to the outside world.
 Bound mailboxes are only available in the real or visualization
 mode, while internal mailboxes can be used in both modes.
 
@@ -11299,7 +11301,7 @@ pointer representing possibly complex structures.
 A fifo mailbox has a capacity, which is usually
 determined at the moment of its creation, but can also be redefined
 dynamically,
-A mailbox with capacity $N>=0$
+A mailbox with capacity $N \ge 0$
 can accommodate up to $N$ pending items.
 Such items are queued, if not immediately awaited, and can be extracted later.
 If the capacity is huge (e.g., {\tt MAX\_long}---\sect{rm_mp_co}), the mailbox
@@ -14247,6 +14249,14 @@ The primary purpose of the function is to define hard exit conditions for
 simulation experiments.
 Control programs driving real physical systems usually have no exit conditions
 and they don't use {\tt setLimit}.
+
+The first two variants of {\tt setLimit} also occur with the second argument type being {\tt double}, i.e.,
+\begin{verbatim}
+        setLimit (Long MaxNM, double MaxTimeETU, double MaxCPUTime);
+        setLimit (Long MaxNM, double MaxTimeETU);
+\end{verbatim}
+\noindent
+and accept the time limit specified in {\em ETU\/}s rather than in {\em ITU\/}s.
 
 Although typically {\tt setLimit} is called from {\tt Root} before the
 simulation is started (\sect{rm_pr_or}),
