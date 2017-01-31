@@ -507,19 +507,18 @@ proc bad_usage { { msg "" } } {
 
 	puts stderr "Usage: (1) mkmk boardname \[-a arch\] \[label\]"
 	puts stderr "       (2) mkmk boardname \[-a arch\] -l \[label\]"
-	puts stderr "       (3) mkmk
-	puts stderr "       (4) mkmk -V"
+	puts stderr "       (3) mkmk"
+	puts stderr "       (4) mkmk boardname \[-a arch\] -L"
+	puts stderr "       (5) mkmk -V"
 	puts stderr "--"
 	puts stderr " 1 - create image for the given board/architecture/program"
 	puts stderr " 2 - create image (as in 1) from a library"
 	puts stderr " 3 - create library (must be executed in a board dir)"
-	puts stderr " 4 - print version number and exit"
+	puts stderr " 4 - create library (invoked in a project dir)"
+	puts stderr " 5 - print version number and exit"
 
 	exit 1
 }
-
-###here
-###also: add comments to Makefiles for ctagging
 
 proc process_args { } {
 
@@ -561,6 +560,14 @@ proc process_args { } {
 				set l ""
 				continue
 			}
+			if { $arg == "L" } {
+				# library make, requires board/arch
+				if [info exists L] {
+					bad_usage "duplicate -L"
+				}
+				set L ""
+				continue
+			}
 			if { $arg == "V" } {
 				if [info exists V] {
 					bad_usage "duplicate -V"
@@ -586,7 +593,8 @@ proc process_args { } {
 
 	if [info exists V] {
 		# nothing else expected
-		if { [info exists a] || [info exists l] || $nc } {
+		if { [info exists a] || [info exists l] || [info exists L]
+		    || $nc } {
 			bad_usage "-V cannot be mixed with other arguments"
 		}
 		# will be replaced with the proper tag by deploy
@@ -598,13 +606,15 @@ proc process_args { } {
 		if [info exists l] {
 			bad_usage "-l illegal without board name"
 		}
-		# make library
+		# make library, force "L" which is the only available option
 		set Run(type) "L"
 	} else {
 		set Run(board) $b
 		if [info exists l] {
 			# type l -> compiling from library
 			set Run(type) "l"
+		} elseif [info exists L] {
+			set Run(type) "L"
 		} else {
 			set Run(type) "s"
 		}
@@ -615,6 +625,9 @@ proc process_args { } {
 	}
 
 	if { $nc > 1 } {
+		if { $Run(type) == "L" } {
+			bad_usage "program label illegal with -L"
+		}
 		set Run(pgm) $p
 	}
 }
@@ -766,21 +779,23 @@ proc locate_root { } {
 	set rpref [pwd]
 	set SDirs(cwd) $rpref
 
-	if { $Run(type) == "L" } {
-		# making a library
+	if { $Run(type) == "L" && $Run(board) == "" } {
+		# this is only possible if mkmk is called in the board
+		# directory
 		set Run(board) [file tail $rpref]
 		set root [file dirname $rpref]
 		# this should be BOARDS
 		if { [file tail $root] != "BOARDS" } {
-			errab "For a library make, mkmk must be invoked in a\
+			errab "For a library make with no explicit board\
+				specified, mkmk must be invoked in the\
 				board directory"
 		}
 		set root [file dirname $root]
 		# this is the arch
 		set arch [file tail $root]
 		if { $Run(arch) != "" && $Run(arch) != $arch } {
-			errab "Illegal architecure, $Run(arch), the board\
-				belongs to $arch"
+			errab "Illegal explicit architecure, $Run(arch), the\
+				board belongs to $arch"
 		}
 		set Run(arch) $arch
 		set root [file dirname $root]
@@ -790,6 +805,9 @@ proc locate_root { } {
 		}
 		set root [file dirname $root]
 	} else {
+		# the second option regarding where exactly mkmk has been
+		# invoked is an App directory; this is also applicable to -L
+		# with the explicit board/arch
 		while 1 {
 			set root [file dirname $rpref]
 			if { [file tail $rpref] == "Apps" } {
@@ -880,17 +898,12 @@ proc do_rtags { } {
 	lappend CCDefs "SYSVER_T=$rt"
 }
 
-proc locate_arch { } {
+proc locate_arch_n_board { } {
 #
 # Fixes the architecture argument. The argument can be absent or abbreviated,
 # in which case the architecture is determined by board.
 #
 	global Run SDirs
-
-	if { $Run(type) == "L" } {
-		# library make, arch must be known already
-		return
-	}
 
 	set res ""
 	set arch [string toupper $Run(arch)]
@@ -917,6 +930,8 @@ proc locate_arch { } {
 	}
 
 	set Run(arch) $res
+	set SDirs(board) [file join $SDirs(root) "PicOS" $Run(arch) "BOARDS" \
+		$Run(board)]
 }
 
 proc get_compiler_data { } {
@@ -1018,8 +1033,7 @@ proc get_flags { } {
 
 	global SDirs Flags Run
 
-	set sp [file join $SDirs(root) "PicOS" $Run(arch) "BOARDS" \
-		$Run(board) "params.sys"]
+	set sp [file join $SDirs(board) "params.sys"]
 
 	if [catch { open $sp "r" } fd] {
 		errab "No params.sys in the board directory"
@@ -1065,7 +1079,7 @@ proc initialize { } {
 	do_rtags
 
 	# fix the path to architecture
-	locate_arch
+	locate_arch_n_board
 
 	# compiler data
 	get_compiler_data
@@ -1076,7 +1090,12 @@ proc initialize { } {
 
 proc make_clean { } {
 
-	global Run
+	global Run SDirs
+
+	if { $Run(type) == "L" } {
+		# cleanup within the board directory
+		catch { exec rm -rf "libpicos.a" }
+	}
 
 	catch { exec rm -rf "Makefile" "KTMP" ".gdbinit" "gdb.ini" }
 
@@ -1984,9 +2003,7 @@ proc make_makefile_image { } {
 
 		if { $Run(type) == "l" } {
 			# add the library file to dependencies
-			set libdir [file join $SDirs(root) "PicOS" $Run(arch) \
-				"BOARDS" $Run(board)]
-			set libfile [file join $libdir "libpicos.a"]
+			set libfile [file join $SDirs(board) "libpicos.a"]
 			append maf [fpath $libfile "m"]
 		}
 
@@ -2005,7 +2022,7 @@ proc make_makefile_image { } {
 
 		if { $Run(type) == "l" } {
 			# the library
-			append maf " -L [fpath $libdir ld] -lpicos"
+			append maf " -L [fpath $SDirs(board) ld] -lpicos"
 		}
 
 		set ar [asubst $Comp(ld,postargs) $imfile "ld"]
@@ -2173,6 +2190,9 @@ proc make_makefile_lib { } {
 	if { $ar != "" } {
 		append maf " $ar"
 	}
+
+	# cleanup, so only Makefile and libpicos.a are left
+	append maf "\n\trm -rf $kfn\n"
 
 	append maf "\n"
 
@@ -2452,7 +2472,7 @@ proc create_image { } {
 
 proc main { } {
 
-	global Run NFound
+	global Run SDirs NFound
 
 	# this is probably no longer needed
 	# cygfix
@@ -2467,7 +2487,15 @@ proc main { } {
 	# initialize things
 	initialize
 
-	# cleanup before build; do we need this when building a library?
+	if { $Run(type) == "L" } {
+		# do the make in the board directory
+		if [catch { cd $SDirs(board) } err] {
+			# just in case, shouldn't happen
+			errabt "Cannot change to $SDirs(board), $err"
+		}
+	}
+
+	# cleanup before build
 	make_clean
 
 	# build the list of directories to search
