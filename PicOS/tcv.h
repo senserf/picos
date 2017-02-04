@@ -1,7 +1,7 @@
 #ifndef	__tcv_h
 #define __tcv_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "sysio.h"

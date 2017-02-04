@@ -19,9 +19,6 @@ typedef	unsigned long	lword;		// 32-bit
 typedef	unsigned int	aword;		// Integer accommodating address
 typedef	word		*address;
 
-// Size of pointer in bytes
-#define	SIZE_OF_AWORD	2
-
 #define	byteaddr(p)	((char*)(p))
 
 typedef struct {

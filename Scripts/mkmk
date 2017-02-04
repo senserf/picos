@@ -938,7 +938,7 @@ proc get_compiler_data { } {
 #
 # Parses the compile file
 #
-	global SDirs Run Comp
+	global SDirs Run Comp CCDefs
 
 	set pmf [file join $SDirs(root) "PicOS" $Run(arch) "compile.xml"]
 
@@ -986,6 +986,15 @@ proc get_compiler_data { } {
 			set Comp($ta,postargs) [sxml_txt \
 				[sxml_child $el "postargs"]]
 			set Comp($ta,after) [sxml_txt [sxml_child $el "after"]]
+		}
+		if { $ta == "cc" } {
+			# check for extra defines
+			foreach de [sxml_children $el "define"] {
+				set de [string trim [sxml_txt $de]]
+				if { $de != "" } {
+					lappend CCDefs $de
+				}
+			}
 		}
 	}
 

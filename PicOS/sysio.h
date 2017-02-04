@@ -285,12 +285,6 @@ word	adcs_overflow ();
 
 #endif	/* ADC_SAMPLER */
 
-// There may be more, but they are arch-specific; we will have to encapsulate
-// them into a file easily identifiable by VUEE (and postulate that arch is
-// known when the model is compiled)
-#define	MAX_WORD		((word)0xffff)
-#define	MAX_LWORD		((word)0xffffffff)
-
 /* ============================ */
 /* Device identifiers (numbers) */
 /* ============================ */
@@ -310,21 +304,6 @@ word	adcs_overflow ();
 #define	JIFFIES			1024	/* Clock ticks in a second           */
 #define	SECONDS_IN_MINUTE	64
 
-
-#define	NULL			0
-#define	NONE			((word)(-1))
-#define	LNONE			((lword)(0xffffffffL))
-#define	LWNONE			LNONE
-#define	SNONE			((int)(-1))
-#define	WNONE			NONE
-#define	BNONE			0xff
-#define	ERROR			NONE
-#define	BLOCKED			((word)(-2))
-
-#define	NO	((Boolean)0)
-#define	YES	((Boolean)1)
-
-#define	CNOP	do { } while (0)
 
 #define	_BIS(a,b)	(a) |= (b)
 #define	_BIC(a,b)	(a) &= ~(b)
@@ -751,24 +730,6 @@ extern	lword entropy;
 #define	add_entropy(w)	do { } while (0)
 #define	entropy		0
 #endif
-
-/* Errors */
-#define	ENODEVICE	1	/* Illegal device */
-#define	ENOOPER		2	/* Illegal operation */
-#define	EREQPAR		3	/* Illegal request parameters */
-#define	ERESOURCE	4	/* Out of resources */
-#define	ENEVENTS	5	/* Too many wait requests */
-#define	EMALLOC		6	/* Memory corruption */
-#define	ESTATE		7	/* Illegal process state */
-#define	EHARDWARE	8	/* Hardware error */
-#define	ETOOMANY	9	/* Too many times (like more than once) */
-#define	EASSERT		10	/* Consistency check failed */
-#define	ESTACK		11	/* Stack overrun */
-#define	EEEPROM		12	/* EEPROM reference out of range */
-#define	EFLASH		13	/* FLASH reference out of range */
-#define	EWATCH		14	/* Watchdog condition */
-#define	ENOTNOW		15	/* Operation illegal at this time */
-#define	ESYSPAR		16	/* Illegal system initialization parameter */
 
 #endif // if SIM_NET==0
 

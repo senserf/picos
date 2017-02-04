@@ -790,7 +790,7 @@ static	aword	mnfree [MALLOC_NPOOLS], mcfree [MALLOC_NPOOLS];
 #define	m_magic(c) 	(*((c)+1))
 #define	m_hdrlen	1			// in awords
 
-#if	SIZE_OF_AWORD > 16
+#if	SIZE_OF_AWORD > 2
 // Corruption guard (for MALLOC_SAFE)
 #define	MALLOC_MAGIC		0xDEAFDEAF
 #define	MALLOC_UMASK		0x80000000
@@ -809,12 +809,6 @@ static	aword	mnfree [MALLOC_NPOOLS], mcfree [MALLOC_NPOOLS];
 
 void dump_malloc (const char *s) {
 
-#if SIZE_OF_AWORD > 2
-#define	MPMESS		"POOL %d, N %lu, F %lu", i, nc, tot
-#else	// SIZE_OF_AWORD
-#define	MPMESS		"POOL %d, N %u, F %u", i, nc, tot
-#endif	// SIZE_OF_AWORD
-
 	aword tot, nc;
 	aword *ch;
 	sint i;
@@ -827,10 +821,9 @@ void dump_malloc (const char *s) {
 			tot += m_size (ch);
 			nc++;
 		}
-		diag (MPMESS);
+		diag ("POOL %d, N " __ufaw ", F " __ufaw, i, nc, tot);
 	}
 
-#undef	MPMESS
 #undef	NPOOLS
 
 }
@@ -1025,7 +1018,7 @@ aword *__pi_malloc (int np, word size) {
 #endif
 	aword	*chunk, *cc, waste;
 
-#if	SIZE_OF_AWORD > 16
+#if	SIZE_OF_AWORD > 2
 
 	aword	_size;
 
@@ -1152,7 +1145,7 @@ word	__pi_maxfree (int np, address nc) {
 #define	MA_NP	np
 #endif
 /*
- * Returns the maximum available chunk size (in words)
+ * Returns the maximum available chunk size (in awords)
  */
 	aword *chunk;
 	aword max, nchk;

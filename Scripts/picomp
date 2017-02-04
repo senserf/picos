@@ -9,7 +9,7 @@ exec tclsh "$0" "$@"
 #	1. PicOS to C compiler
 #	2. PicOS to VUEE compiler
 #
-# Copyright (C) Olsonet Communications Corporation, 2010-2012
+# Copyright (C) Olsonet Communications Corporation, 2010-2017
 #
 ###############################################################################
 
@@ -3460,7 +3460,7 @@ proc mkdlist { } {
 #
 # Create the list of local subdirectories to search for include files
 #
-	global FG MKRECV CWD DirList EDirList env MODSYMS
+	global FG MKRECV CWD DirList EDirList env MODSYMS DF
 
 	mkdrec $CWD
 
@@ -3506,6 +3506,13 @@ proc mkdlist { } {
 	}
 
 	set MODSYMS ""
+
+	if [info exists DF(+)] {
+		# prepend the global defs from picomp invocation
+		foreach d $DF(+) {
+			lappend MODSYMS $d
+		}
+	}
 
 	foreach ln [split $sl "\n"] {
 		set ln [string trim $ln]

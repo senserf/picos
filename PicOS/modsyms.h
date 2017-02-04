@@ -485,7 +485,7 @@
 /* ======================================================= */
 /* General control options for interfaces and their models */
 /* ======================================================= */
-#define	PHYSOPT_PLUGINFO	(-1)	/* These two are kind of special */
+#define	PHYSOPT_PLUGINFO	(-1)	/* These two are special */
 #define	PHYSOPT_PHYSINFO	(-2)
 
 #define	PHYSOPT_STATUS		0	/* Get device status */
@@ -547,5 +547,100 @@
 #define	INFO_PHYS_DM2200	0x0700  /* VERSA 2 */
 #define	INFO_PHYS_RF24L01	0x0800
 #define	INFO_PHYS_CC3000	0x0201
+
+/* ========================================== */
+/* Global and architecture-independend bounds */
+/* ========================================== */
+#define	MAX_WORD		((word)0xffff)
+#define	MAX_LWORD		((lword)0xffffffff)
+
+#if SIZE_OF_AWORD > 2
+// diag formats for printing awords (hex and unsigned int)
+#define	__hfaw	"%lx"
+#define	__ufaw	"%lu"
+#define	MAX_AWORD		MAX_LWORD
+#else
+#define	__hfaw	"%x"
+#define	__ufaw	"%u"
+#define	MAX_AWORD		MAX_WORD
+#endif
+
+#if SIZE_OF_SINT > 2
+#define	__hfsi "%lx"
+#define	__ufsi "%lu"
+#define	__sfsi "%ld"
+#define	MAX_SINT		((sint)0x7fffffff)
+#define	MIN_SINT		((sint)0x80000000)
+#else
+#define	__hfsi "%x"
+#define	__ufsi "%u"
+#define	__sfsi "%d"
+#define	MAX_SINT		((sint)0x7fff)
+#define	MIN_SINT		((sint)0x8000)
+#endif
+
+// Standard values (shared with VUEE)
+#ifndef	NULL
+#define	NULL	0
+#endif
+
+#ifndef	NO
+#define	NO	0
+#endif
+
+#ifndef	YES
+#define	YES	1
+#endif
+
+#ifndef	CNOP
+#define	CNOP	do { } while (0)
+#endif
+
+#ifndef	NONE
+#define	NONE	(-1)
+#endif
+
+#ifndef	WNONE
+#define	WNONE	((word)NONE)
+#endif
+
+#ifndef	LNONE
+#define	LNONE	((lword)NONE)
+#endif
+
+#ifndef	LWNONE
+#define	LWNONE	LNONE
+#endif
+
+#ifndef	BNONE
+#define	BNONE	0xff
+#endif
+
+#ifndef	ERROR
+#define	ERROR	NONE
+#endif
+
+#ifndef	BLOCKED
+#define	BLOCKED	(-2)
+#endif
+
+
+// Error codes
+#define	ENODEVICE	1	/* Illegal device */
+#define	ENOOPER		2	/* Illegal operation */
+#define	EREQPAR		3	/* Illegal request parameters */
+#define	ERESOURCE	4	/* Out of resources */
+#define	ENEVENTS	5	/* Too many wait requests */
+#define	EMALLOC		6	/* Memory corruption */
+#define	ESTATE		7	/* Illegal process state */
+#define	EHARDWARE	8	/* Hardware error */
+#define	ETOOMANY	9	/* Too many times (like more than once) */
+#define	EASSERT		10	/* Consistency check failed */
+#define	ESTACK		11	/* Stack overrun */
+#define	EEEPROM		12	/* EEPROM reference out of range */
+#define	EFLASH		13	/* FLASH reference out of range */
+#define	EWATCH		14	/* Watchdog condition */
+#define	ENOTNOW		15	/* Operation illegal at this time */
+#define	ESYSPAR		16	/* Illegal system initialization parameter */
 
 #endif 
