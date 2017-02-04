@@ -4696,6 +4696,7 @@ proc update_arch { arch } {
 	set ARCHINFO(GDBPATH) ""
 	set ARCHINFO(GDBINIT,FILE) ""
 	set ARCHINFO(GDBINIT,CONTENTS) ""
+	set ARCHINFO(VUEE,DEFS) ""
 
 	set cpif [file join $PicOSPath PicOS $arch "compile.xml"]
 
@@ -4723,8 +4724,7 @@ proc update_arch { arch } {
 		return
 	}
 
-	# this is the only thing we care about for now, perhaps there will be
-	# more
+	# gdb
 	set el [sxml_child $cdata "gdb"]
 
 	if { $el != "" } {
@@ -4745,6 +4745,16 @@ proc update_arch { arch } {
 		}
 		set ARCHINFO(GDBINIT,FILE) $cp
 		set ARCHINFO(GDBINIT,CONTENTS) $cn
+	}
+
+	# VUEE defs (needed to properly size the basic types)
+	set el [sxml_child $cdata "vuee"]
+
+	foreach gi [sxml_children $el "define"] {
+		set cp [string trim [sxml_txt $gi]]
+		if { $cp != "" } {
+			lappend ARCHINFO(VUEE,DEFS) $cp
+		}
 	}
 }
 
@@ -10114,7 +10124,7 @@ proc do_make_all { { m 0 } { s 0 } } {
 
 proc do_make_vuee { { arg "" } } {
 
-	global P
+	global P ARCHINFO
 
 	if ![close_modified] {
 		return
@@ -10147,6 +10157,13 @@ proc do_make_vuee { { arg "" } } {
 				set arg [linsert $arg 0 \
 					"-H[unipath $fn]"]
 			}
+		}
+	}
+
+	# arch-specific defines
+	if [info exists ARCHINFO(VUEE,DEFS)] {
+		foreach b $ARCHINFO(VUEE,DEFS) {
+			set arg [linsert $arg 0 "-D$b"]
 		}
 	}
 
