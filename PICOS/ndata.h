@@ -246,11 +246,11 @@ typedef struct {
  * in one place, we can simplify constructor headers and avoid mess
  * during network construction stage.
  */
+	lword	Mem;		// Memory
+	lword	HID;
 	word	PLimit;		// Process table size
-	word	Mem;		// Memory
 	word	On;		// Initially on
 	word	Lcdg;		// This will do for now as a flag
-	lword	HID;
 	double X, Y
 #if ZZ_R3D
 		, Z

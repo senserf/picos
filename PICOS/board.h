@@ -78,7 +78,7 @@ struct mem_chunk_struct	{
 	struct	mem_chunk_struct	*Next;
 
 	address	PTR;		// The address
-	word	Size;		// The simulated size in full words
+	lword	Size;		// The simulated size in awords
 };
 
 typedef	struct mem_chunk_struct	MemChunk;
@@ -156,10 +156,10 @@ typedef	struct {
 
 packet	PKT {
 
-	word	*Payload;
+	address	Payload;
 	word	PaySize;
 
-	void load (word *pay, int paysize) {
+	void load (address pay, int paysize) {
 		// Note that paysize is in bytes and must be even. This is
 		// called just before transmission.
 		assert (paysize >= 2, "PKT: illegal payload size: %1d",
@@ -351,11 +351,11 @@ station PicOSNode abstract {
 	 * Memory allocator
 	 */
 	MemChunk	*MHead, *MTail;
-	word		MTotal, MFree,
+	lword		MTotal, MFree,
 			NFree;		// Minimum free so far - for stats
 
 	// Current number of processes + limit; note: a single (countdown) 
-	// value could do theoretically, but then we would need a 'default"
+	// value could do theoretically, but then we would need a "default"
 	// for reset
 	word		NPcss, NPcLim;
 

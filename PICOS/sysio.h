@@ -89,15 +89,6 @@ typedef	int (*ctrlfun_t) (int option, address);
 
 #define	stackfree()	256
 
-#ifndef	NULL
-#define	NULL		0
-
-#define	YES		1
-#define	NO		0
-#define	NONE		(-1)
-#define	ERROR		NONE
-#endif
-
 #define	JIFFIES		1024	/* Clock ticks in a second */
 
 #define	umalloc(s)	tmalloc (s)
@@ -105,34 +96,11 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	umwait(s)	tmwait (s)
 #define	npwait(s)	tmwait (s)
 
-#define	SNONE		((int)NONE)
-#define	WNONE		((word)NONE)
-#define	LWNONE		((lword)NONE)
-#define	BNONE		0xff
-#define	BLOCKED		(-2)
-
 #define	trigger(a)	((void)(TheNode->TB.signal (__cpint(a))))
 #define	ptrigger(a,b)	trigger(b)
 
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
 	    ((a) - 'a' + 10) : (((a)>='A'&&(a)<='F') ? ((a) - 'A' + 10) : 0) ) )
-
-/* Errors */
-#define	ENODEVICE	1	/* Illegal device */
-#define	ENOOPER		2	/* Illegal operation */
-#define	EREQPAR		3	/* Illegal request parameters */
-#define	ERESOURCE	4	/* Out of resources */
-#define	ENEVENTS	5	/* Too many wait requests */
-#define	EMALLOC		6	/* Memory corruption */
-#define	ESTATE		7	/* Illegal process state */
-#define	EHARDWARE	8	/* Hardware error */
-#define	ETOOMANY	9	/* Too many times (like more than once) */
-#define	EASSERT		10	/* Consistency check failed */
-#define	ESTACK		11	/* Stack overrun */
-#define	EEEPROM		12	/* EEPROM reference out of range */
-#define	EFLASH		13	/* FLASH reference out of range */
-#define	EWATCH		14	/* Watchdog condition */
-#define	ENOTNOW		15	/* Operation illegal at this time */
 
 #if	BYTE_ORDER == LITTLE_ENDIAN
 

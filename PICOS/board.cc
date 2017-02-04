@@ -2,7 +2,7 @@
 #define __picos_board_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2016.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2017.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -215,8 +215,8 @@ sint _PP_::_pp_apid_ () {
 
 	while (1) {
 
-		if (lcpid == MAX_INT)
-			// Make sure you don't exceed PicOS's range of int
+		if (lcpid == MAX_SINT)
+			// Make sure you don't exceed PicOS's range of sint
 			lcpid = 1;
 		else
 			lcpid++;
@@ -726,7 +726,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 
 	lsize = (lsize + 3) / 4;		// Convert to 4-tuples
 	if (lsize > MFree) {
-		// trace ("MEMALLOC OOM: %1d [%1d, %1d]", MFree, size, lsize);
+		// trace ("MEMALLOC OOM: %1u [%1d, %1u]", MFree, size, lsize);
 		return NULL;
 	}
 
@@ -744,7 +744,7 @@ address PicOSNode::memAlloc (int size, word lsize) {
 	else
 		MTail->Next = mc;
 	MTail = mc;
-	// trace ("MEMALLOC %x %1d [%1d, %1d]", mc->PTR, MFree, lsize, size);
+	// trace ("MEMALLOC %x %1u [%1u, %1d]", mc->PTR, MFree, lsize, size);
 
 	return mc->PTR;
 }
@@ -757,7 +757,6 @@ void PicOSNode::memFree (address p) {
 	// trace ("MEMFREE: NULL");
 		return;
 	}
-
 
 	for (pc = NULL, mc = MHead; mc != NULL; pc = mc, mc = mc -> Next) {
 
@@ -773,10 +772,10 @@ void PicOSNode::memFree (address p) {
 
 			delete [] (byte*) (mc->PTR);
 			MFree += mc -> Size;
-			// trace ("MEMFREE: %x %1d [%1d]", p, MFree, mc->Size);
+			// trace ("MEMFREE: %x %1u [%1u]", p, MFree, mc->Size);
 			assert (MFree <= MTotal,
 				"PicOSNode->memFree: corrupted memory");
-			// trace ("MEMFREE OK: %x %1d", p, mc->Size);
+			// trace ("MEMFREE OK: %x %1u", p, mc->Size);
 			delete mc;
 			TB.signal (N_MEMEVENT);
 			return;
@@ -792,9 +791,14 @@ word _dad (PicOSNode, memfree) (int pool, word *res) {
 	if (res != NULL)
 		*res = NFree << 1;
 
-	// This is supposed to be in words, if I remember correctly. What
+	// This is supposed to be in awords, if I remember correctly. What
 	// a mess!!!
+
+#if SIZE_OF_AWORD == 2
 	return MFree << 1;
+#else
+	return MFree;
+#endif
 }
 
 word _dad (PicOSNode, maxfree) (int pool, word *res) {
@@ -804,7 +808,11 @@ word _dad (PicOSNode, maxfree) (int pool, word *res) {
 	if (res != NULL)
 		*res = 1;
 
+#if SIZE_OF_AWORD == 2
 	return MFree << 1;
+#else
+	return MFree;
+#endif
 }
 
 word _dad (PicOSNode, actsize) (address p) {
@@ -814,7 +822,7 @@ word _dad (PicOSNode, actsize) (address p) {
 	for (mc = MHead; mc != NULL; mc = mc->Next)
 		if (p == mc->PTR)
 			// Found
-			return mc->Size * 4;
+			return (word)(mc->Size * 4);
 
 	excptn ("PicOSNode->actsize: incorrect chunk pointer");
 	return 0;
@@ -1001,7 +1009,7 @@ char* _dad (PicOSNode, vform) (char *res, const char *fm, va_list aq) {
 
 	if (res != NULL) {
 		// We trust the caller
-		vfparse (res, MAX_UINT, fm, aq);
+		vfparse (res, MAX_WORD, fm, aq);
 		return res;
 	}
 
@@ -2154,7 +2162,7 @@ RVErr:
 			np [0] . type = TYPE_LONG;
 			if (parseNumbers (att, 1, np) != 1)
 				xevi ("<channels>", "<channel>", att);
-			if (np [0] . LVal < 1 || np [0] . LVal > MAX_UINT)
+			if (np [0] . LVal < 1 || np [0] . LVal > MAX_WORD)
 				xevi ("<channels>", "<channel>", att);
 			wn = (word) (np [0] . LVal);
 			if (wn == 0)
@@ -2956,11 +2964,14 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 		np [0].type = np [1].type = TYPE_LONG;
 		if (parseNumbers (sxml_txt (cur), 1, np) != 1)
 			xevi ("<memory>", xname (nn, lab), sxml_txt (cur));
-		ND->Mem = (word) (np [0] . LVal);
-		if (ND->Mem > 0x00008000)
-			excptn ("Root: <memory> too large (%1d) in %s; the "
-				"maximum is 32768", ND->Mem, xname (nn, lab));
-		print (form ("  Memory:     %1d bytes\n", ND->Mem));
+		ND->Mem = (lword) (np [0] . LVal);
+		if (ND->Mem > 0x40000000)
+			// Some sane limit
+                        excptn ("Root: <memory> too large (%1d) in %s; the "
+                                "maximum is %1u", ND->Mem, xname (nn, lab),
+					0x40000000);
+
+		print (form ("  Memory:     %1u bytes\n", ND->Mem));
 		ppf = YES;
 	}
 
@@ -3824,7 +3835,7 @@ NotErr:
 			if (len < 1 || len > 3)
 				xeai ("timing", es, att);
 			for (pn = 0; pn < len; pn++) {
-				if (np [pn].LVal < 0 || np [pn].LVal > MAX_UINT)
+				if (np [pn].LVal < 0 || np [pn].LVal > MAX_WORD)
 					xeai ("timing", es, att);
 				PN->DEB [4 + pn] = (Long)(np [pn].LVal);
 			}
@@ -3980,7 +3991,7 @@ static int sa_smax (const char *what, const char *err, sxml_t root) {
 		if ((att = sxml_attr (root, "number")) != NULL ||
 		    (att = sxml_attr (root, "index")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
-			    np [0].LVal < -(MAX_INT) || np [0].LVal > MAX_INT)
+			    np [0].LVal < -256 || np [0].LVal > 255)
 				// This is an error
 				xeai ("number/index", err, att);
 			last = (int) (np [0].LVal);
@@ -4110,8 +4121,8 @@ static SensActDesc *sa_doit (const char *what, sint *off, const char *erc,
 		if ((att = sxml_attr (sns, "number")) != NULL ||
 		    (att = sxml_attr (sns, "index")) != NULL) {
 			if (parseNumbers (att, 1, np) != 1 ||
-			    np [0].LVal < -MAX_INT ||
-			    np [0].LVal >  MAX_INT   )
+			    np [0].LVal < -256 ||
+			    np [0].LVal >  255   )
 				xeai ("number/index", erc, att);
 			last = (int) (np [0].LVal);
 		} else
@@ -5411,14 +5422,14 @@ word dleft (sint pid) {
 	} else {
 		p = find_pcs_by_id (pid);
 		if (p == NULL || flagCleared (p->Flags, _PP_flag_wtimer))
-			return MAX_UINT;
+			return MAX_WORD;
 	}
 	if (p->WaitingUntil <= Time)
 		return 0;
 
 	// To milliseconds
 	d = ituToEtu (p->WaitingUntil - Time) * MSCINSECOND;
-	return d > (double)(MAX_UINT-1) ? MAX_UINT-1 : (word) d;
+	return d > (double)(MAX_WORD-1) ? MAX_WORD-1 : (word) d;
 }
 
 void hold (int st, lword sec) {
