@@ -36,8 +36,7 @@ void pin_sensor_read (word st, const byte *junk, address val) {
 	*val = 0;
 	for (i = 0, p = input_pins;
 	    		  i < sizeof (input_pins) / sizeof (piniod_t); i++, p++)
-		*val |= ((((__port_in (p->poff) & (1 << p->pnum)) != 0) ^
-			p->edge) << 1);
+		*val |= __port_in_value (p) << i;
 }
 
 void pin_sensor_interrupt () {
@@ -66,23 +65,10 @@ void pin_actuator_write (word st, const byte *junk, address val) {
 
 	const piniod_t *p;
 	word i;
-	volatile byte *t;
-	byte b, c;
 
 	for (i = 0, p = output_pins;
-		      i < sizeof (output_pins) / sizeof (piniod_t); i++, p++) {
-
-		b = *(t = __port_out (p->poff));
-
-		c = (1 << p->pnum);
-		if (((*val >> i) & 1) ^ p->edge)
-			// Must be set
-			_BIS (b, c);
-		else
-			// Must be cleared
-			_BIC (b, c);
-		*t = b;
-	}
+		      i < sizeof (output_pins) / sizeof (piniod_t); i++, p++)
+		__port_out_value (p, (*val >> i) & 1);
 }
 
 #endif /* OUTPUT_PIN_LIST */

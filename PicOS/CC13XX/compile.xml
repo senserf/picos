@@ -1,0 +1,40 @@
+<compile>
+	<vuee>
+		<define>__TYPE_SINT__=int32_t</define>
+		<define>__TYPE_LINT__=int32_t</define>
+		<define>__TYPE_AWORD__=uint32_t</define>
+		<define>SIZE_OF_AWORD=4</define>
+		<define>SIZE_OF_SINT=4</define>
+	</vuee>
+	<cc dospaths="yes">
+		<define>SIZE_OF_AWORD=4</define>
+		<define>SIZE_OF_SINT=4</define>
+		<path>arm-none-eabi-gcc</path>
+		<args>-Dgcc -D__CC1350__ -mcpu=cortex-m3 -mthumb -Os -ffunction-sections -fdata-sections -g -gdwarf-3 -gstrict-dwarf -Wall -specs="nosys.specs" -fno-strict-aliasing -std=c99 --asm -fmax-errors=10 -I %archdir%/CC13XXWARE</args>
+	</cc>
+	<ld dospaths="yes">
+		<path>arm-none-eabi-gcc</path>
+		<args>-Os -Wl,-T,%archdir%/cc13x0f128.lds -ffunction-sections -fdata-sections -g -gdwarf-3 -gstrict-dwarf -Wall -specs="nosys.specs" -fno-strict-aliasing -std=c99 --asm -mthumb -Wl,-Map,%image%.map -Wl,--gc-sections -nostartfiles -nodefaultlibs -nostdlib -static</args>
+		<postargs>%archdir%/CC13XXWARE/driverlib/bin/gcc/driverlib.lib</postargs>
+		<after>
+			arm-none-eabi-objdump -D -S %image% > %image.objdump
+		</after>
+	</ld>
+	<ar dospaths="yes">
+		<path>arm-none-eabi-ar</path>
+	</ar>
+	<ranlib dospaths="yes">
+		<path>arm-none-eabi-ranlib</path>
+	</ranlib>
+	<gdb>
+		<path>arm-none-eabi-gdb</path>
+		<init file=".gdbinit">
+			mem 0x00 0x20000 ro 32 nocache
+			mem 0x10000000 0x10020000 ro 32 nocache
+			mem 0x20000000 0x20005000 rw 32 nocache
+			mem 0x40000000 0x400E1028 rw 32 nocache
+			mem 0xE000E000 0xE000F000 rw 32 nocache
+			target remote localhost:55000
+		</init>
+	</gdb>
+</compile>

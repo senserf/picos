@@ -8,7 +8,6 @@
 //
 // Put all lword variables here to avoid losing memory on alignment
 //
-lword 	__pi_nseconds;
 
 #if	ENTROPY_COLLECTION
 lword	entropy;

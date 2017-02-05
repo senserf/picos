@@ -608,21 +608,6 @@ void __pi_utimer_set (address, word);
 #define	utimer_set(a,v)	((a) = v)
 #endif
 
-/* Second clock */
-#ifdef	__ECOG1__
-void	clockup (void), clockdown (void);
-lword	seconds (void);
-#else
-// On MSP430, these are defined (conditionally) in mach.h
-// void	clockup (void), clockdown (void);
-#define	seconds()	__pi_nseconds
-extern	byte		__pi_mincd;
-#endif
-
-extern	lword		__pi_nseconds;
-
-#define	setseconds(a)	(__pi_nseconds = (lword) (a));
-
 /* Spin delay */
 void	udelay (word);
 void	mdelay (word);

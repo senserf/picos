@@ -1,7 +1,7 @@
 #ifndef __pg_mach_h
 #define	__pg_mach_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -879,5 +879,10 @@ extern uart_t __pi_uart [];
 #if LEDS_DRIVER
 #include "leds.h"
 #endif
+
+// Seconds clock
+extern	lword		__pi_nseconds;
+#define	seconds()	__pi_nseconds
+#define	setseconds(a)	(__pi_nseconds = (lword) (a));
 
 #endif

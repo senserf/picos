@@ -2,14 +2,16 @@
 #include "storage.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 #include "irq_timer_headers.h"
 
-extern 			__pi_pcb_t	*__pi_curr;
-extern 			address		__pi_utims [MAX_UTIMERS];
+extern 	__pi_pcb_t	*__pi_curr;
+extern 	address		__pi_utims [MAX_UTIMERS];
+
+lword 	__pi_nseconds;
 
 void	__pi_malloc_init (void);
 
