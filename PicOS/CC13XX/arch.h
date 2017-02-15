@@ -20,6 +20,10 @@
 #include <driverlib/sys_ctrl.h>
 #include <driverlib/aon_rtc.h>
 
+#define	mkmk_eval
+#include "cmsis_gcc.h"
+#undef	mkmk_eval
+
 /* ==================================================================== */
 /* Architecture-specific definitions                                    */
 /* ==================================================================== */
@@ -49,15 +53,18 @@ typedef struct {
 		
 extern volatile systat_t __pi_systat;
 
-#define	MALLOC_START		((address)&__BSS_END)
+extern	char	*__bss_start__, *__bss_end__;
+
+#define	MALLOC_START		((address)&__bss_end__)
 
 #if	STACK_GUARD
-#define MALLOC_LENGTH	(	(((aword) STACK_END - (aword)&__BSS_END)/2) - 1)
+#define MALLOC_LENGTH	(	(((aword) STACK_END - (aword)&__bss_end__)/2) \
+					- 1)
 #else
-#define MALLOC_LENGTH		(((aword) STACK_END - (aword)&__BSS_END)/2)
+#define MALLOC_LENGTH		(((aword) STACK_END - (aword)&__bss_end__)/2)
 #endif
 
-#define	STATIC_LENGTH		(((aword)&__BSS_END - (aword)RAM_START + 1)/2)
+#define	STATIC_LENGTH		(((aword)&__bss_end__ - (aword)RAM_START + 1)/2)
 
 
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\

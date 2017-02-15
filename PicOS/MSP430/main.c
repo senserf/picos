@@ -149,7 +149,7 @@ int main (void) {
 }
 
 #if DIAG_MESSAGES > 1
-void __pi_syserror (int ec, const char *m) {
+void __pi_syserror (word ec, const char *m) {
 
 	WATCHDOG_STOP;
 
@@ -158,7 +158,7 @@ void __pi_syserror (int ec, const char *m) {
 #endif
 	diag ("SYSERR: %x, %s", ec, m);
 #else
-void __pi_syserror (int ec) {
+void __pi_syserror (word ec) {
 
 	WATCHDOG_STOP;
 
@@ -1349,6 +1349,8 @@ X_redo:
 				*((word*)buf) = __pi_uart_getrate (u);
 				return 1;
 			}
+#endif
+
 #ifdef blue_ready
 			if (len == UART_CNTRL_TRANSPARENT) {
 				if (*((word*)buf))
@@ -1357,8 +1359,6 @@ X_redo:
 					_BIS (u->flags, UART_FLAGS_NOTRANS);
 				return 1;
 			}
-#endif
-
 #endif
 			/* Fall through */
 		default:

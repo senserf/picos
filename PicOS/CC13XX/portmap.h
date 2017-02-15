@@ -6,6 +6,6 @@
 
 // The ioid (pin number) falls into the RESERVED bits of the value, from where
 // it is removed before the value is applied
-#define	iocportconfig(id,fun,opt)	((opt) | (fun) | ((ioid) << 19))
+#define	iocportconfig(ioid,fun,opt)	((opt) | (fun) | ((ioid) << 19))
 
 #endif

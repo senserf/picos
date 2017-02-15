@@ -18,6 +18,8 @@
 #ifdef	__cc1350__
 #define	RAM_START	0x20000000
 #define	RAM_SIZE	0x00005000
+// Calibrate to microsecond
+#define	__USEC_DELAY	4
 #endif
 
 // More CPU types to come?
@@ -32,6 +34,19 @@
 // ============================================================================
 
 // ###here: FLASH
+
+// ###here: WATCHDOG
+#define	WATCHDOG_STOP	CNOP
+#define	WATCHDOG_START	CNOP
+#define	WATCHDOG_CLEAR	CNOP
+#define	WATCHDOG_HOLD	CNOP
+#define	WATCHDOG_RESUME	CNOP
+
+#define  watchdog_start()        WATCHDOG_START
+#define  watchdog_stop()         WATCHDOG_STOP
+#define  watchdog_clear()        WATCHDOG_CLEAR
+
+// ============================================================================
 
 #define	RAM_END		(RAM_START + RAM_SIZE)
 #define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
@@ -53,16 +68,6 @@
 
 #define	cli			__disable_irq ()
 #define	sti			__enable_irq ()
-
-#define	powerdown()		do { \
-					HWREG (NVIC_SYS_CTRL) |= \
-						NVIC_SYS_CTRL_SLEEPDEEP; \
-				} while (0)
-
-#define	powerup()		do { \
-					HWREG (NVIC_SYS_CTRL) &= \
-						~(NVIC_SYS_CTRL_SLEEPDEEP); \
-				} while (0)
 
 // ============================================================================
 
@@ -118,8 +123,6 @@ word tci_update_delay_ticks (Boolean);
 
 #define	cli_utims	cli_aux
 #define	sti_utims	sti_aux
-#endif
-
 
 // ============================================================================
 // UART(s) ====================================================================
@@ -150,9 +153,9 @@ extern uart_t __pi_uart [];
 #define	UART_FLAGS_OUT		0x40
 #define	UART_FLAGS_NOTRANS	0x20
 
-#define	__pi_uart_getrate()		(__pi_uart.rate)
+word __pi_uart_getrate (const uart_t*);
 
-Boolean __pi_uart_setrate (word);
+Boolean __pi_uart_setrate (word, uart_t*);
 
 #endif	/* UART_DRIVER */
 
@@ -175,8 +178,8 @@ Boolean __pi_uart_setrate (word);
 #endif
 
 // The seconds clock
-###here: need sync to make sure the value is correctly read after sleep?
-###here: generally, when do we need to sync? driverlib doesn't seem to
+// ###here: need sync to make sure the value is correctly read after sleep?
+// ###here: generally, when do we need to sync? driverlib doesn't seem to
 #define seconds()	AONRTCSecGet ()
 #define	setseconds(a)	do { \
 			    HWREG (AON_RTC_BASE + AON_RTC_O_SEC) = (lword)(a); \

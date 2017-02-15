@@ -417,14 +417,14 @@ word			__pi_stackfree (void);
 
 #if	DIAG_MESSAGES > 1
 
-void		__pi_syserror (sint, const char*) __NORETURN__ ;
+void		__pi_syserror (word, const char*) __NORETURN__ ;
 #define		syserror(a,b)	__pi_syserror (a, b)
 #define		sysassert(a,b)	do { \
 					if (!(a)) syserror (EASSERT, b); \
 				} while (0)
 #else
 
-void		__pi_syserror (sint) __NORETURN__ ;
+void		__pi_syserror (word) __NORETURN__ ;
 #define		syserror(a,b)	__pi_syserror (a)
 #define		sysassert(a,b)	CNOP
 #endif
@@ -567,7 +567,7 @@ sint	io (word, word, word, char*, word);
 #endif	/* MAX_DEVICES */
 
 /* User wait */
-#define	wait(a,b)	__pi_wait ((word)(a),b)
+#define	wait(a,b)	__pi_wait ((aword)(a),b)
 /* A prefered alias */
 #define	when(a,b)	wait (a,b)
 
@@ -668,8 +668,8 @@ void __pi_badstate (void);
 
 #define	entry(s)	case s:
 
-#define	procname(p)	void p (aword)
-#define	sprocname(p)	void p (aword)
+#define	procname(p)	void p (word)
+#define	sprocname(p)	void p (word)
 
 #define	runthread(a)	fork (a, NULL)
 #define	runstrand(a,b)	fork (a, b)

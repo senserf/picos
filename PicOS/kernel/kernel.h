@@ -1,7 +1,7 @@
 #ifndef __pg_kernel_h
 #define __pg_kernel_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -88,7 +88,7 @@ void adddevfunc (devreqfun_t, int);
 // Encoding device events: an address-derived value being different for
 // different devices/operations; note: this is obsolete and only used by
 // the old 'io' mechanism
-#define devevent(dev,ope) (((word)&io) + ((dev) << 3) + (ope))
+#define devevent(dev,ope) (((aword)&io) + ((dev) << 3) + (ope))
 
 #define	iowait(dev,eve,sta)	wait (devevent (dev,eve), sta)
 #define	iotrigger(dev,eve)	trigger (devevent (dev, eve))

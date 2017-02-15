@@ -1384,8 +1384,9 @@ proc lookup_file { fn mode prefdir dirs } {
 		}
 
 		if { $ffn == "" } {
-			# this is an error
-			errab "Cannot locate path-prefixed file $fn"
+			# this used to be an error
+			# errab "Cannot locate path-prefixed file $fn"
+			return ""
 		}
 
 		if { $mode == 0 } {
