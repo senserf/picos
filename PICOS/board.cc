@@ -266,7 +266,7 @@ void __pi_dbg (word x, word v) {
 	trace ("DBG: %1d == %04x / %1u", x, v, v);
 }
 
-void syserror (int p, const char *s) {
+void syserror (word p, const char *s) {
 	excptn ("SYSERROR [%1d]: %1d, %s", TheStation->getId (), p, s);
 }
 

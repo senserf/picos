@@ -71,7 +71,7 @@ Boolean __pi_validate_uart_rate (word);
 extern	const char __pi_hex_enc_table [];
 extern	int __pi_channel_type;
 
-void	syserror (int, const char*);
+void	syserror (word, const char*);
 
 struct mem_chunk_struct	{
 
