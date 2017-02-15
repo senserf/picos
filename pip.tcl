@@ -3686,7 +3686,7 @@ proc mk_rename_window { old } {
 
 ###############################################################################
 
-proc val_prj_dir { dir } {
+proc val_prj_dir { dir { na 0 } } {
 #
 # Validate the formal location of a project directory
 #
@@ -3703,8 +3703,11 @@ proc val_prj_dir { dir } {
 		if { $d == $dir } {
 			# no change
 			log "bad prj dir $dir -> $d"
-			alert "This directory won't do! A project directory\
-				must be a proper subdirectory of $apps"
+			if { $na == 0 } {
+				alert "This directory won't do! A project\
+					directory must be a proper\
+						subdirectory of $apps"
+			}
 			return 0
 		}
 		if { $d == $apps } {
@@ -9277,6 +9280,20 @@ proc reset_file_menu { { clear 0 } } {
 	$m add command -label "Close project ..." -command "close_project" \
 		-state $st
 	$m add separator
+
+	# validate LProjects
+	if { $LProjects != "" } {
+		set new ""
+		foreach p $LProjects {
+			if [val_prj_dir [fpnorm $p] 1] {
+				lappend new $p
+			}
+		}
+		if { $LProjects != $new } {
+			set LProjects $new
+			set_rcoption LProjects
+		}
+	}
 
 	if { $LProjects != "" } {
 		set ix 0
