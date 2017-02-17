@@ -102,6 +102,7 @@ set CFLoadItems(MSP430) {
 		}
 
 set CFLoadItems(CC13XX)	{
+			"CC13XXLDSEL"		""
 			"CC13XXLDGPRPATH"	""
 			"CC13XXLDGPRARG"	""
 		}
@@ -5142,11 +5143,12 @@ proc mk_loaders_conf_window { arch ldrs } {
 	set w [md_window "Loader configuration"]
 
 	# this depends on the arch; I was thinking about removing the
-	# configuration to an external XML file (or something, but that
+	# configuration to an external XML file (or something), but that
 	# way we would have to give up some of the (often simple) adaptation
 	# tweaks for some standard loaders; so we basically retain the mess
 	# additionally parameterizing the selection by arch (assuming that
-	# we will be adding tweaks for other archs as we discover them)
+	# we will be adding tweaks for other archs, as they become needed or
+	# useful)
 
 	set als "${arch}LDSEL"
 	if { $P(M0,$als) == "" } {
@@ -5941,7 +5943,7 @@ proc ldr_cnf_GPR_fsel { arch } {
 			}
 		} else {
 			# use the directory path of last selection
-			set id [file dirname $P(M0,$ldd)]
+			set id [file dirname $P(M0,$ldp)]
 			if ![file isdirectory $id] {
 				set id ""
 			}
