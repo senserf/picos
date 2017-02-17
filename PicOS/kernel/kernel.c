@@ -5,9 +5,8 @@
 #include "kernel.h"
 #include "tcv.h"
 
-//
-// Put all lword variables here to avoid losing memory on alignment
-//
+// Needed this once for something, apparently not any more
+// #include "pins.h"
 
 #if	ENTROPY_COLLECTION
 lword	entropy;
@@ -19,10 +18,10 @@ lword	__pi_seed = 327672838L;
 word	__pi_seed = 30011;
 #endif
 
-#include "pins.h"
-
 /* Task table */
 #if MAX_TASKS <= 0
+// Dynamic PCBT, this is the (much preferred) default these days; do we want
+// to keep the option?
 __pi_pcb_t *__PCB = NULL;
 #else
 __pi_pcb_t __PCB [MAX_TASKS];
@@ -51,9 +50,9 @@ static		word	millisec;
 word		__pi_mintk;
 volatile word	__pi_old, __pi_new;
 
-/* ================================ */
-/* User-defineable countdown timers */
-/* ================================ */
+/* ================ */
+/* Countdown timers */
+/* ================ */
 address		__pi_utims [MAX_UTIMERS];
 
 #if TCV_PRESENT && TCV_TIMERS
@@ -68,6 +67,7 @@ const char	__pi_hex_enc_table [] = {
 				'8', '9', 'A', 'B', 'C', 'D', 'E', 'F'
 			      };
 
+// The cookie for flash image customization
 const lword	host_id = 0xBACADEAD;
 
 // Memory events
@@ -238,7 +238,7 @@ void update_n_wake (word min, Boolean force) {
 			}
 		}
 #if TCV_PRESENT && TCV_TIMERS
-		// Identify the packet timers that has gone off. This function
+		// Identify the packet timers that have gone off. This function
 		// picks them up and puts into a special queue, pointed to by
 		// __pi_tcv_ftimers (in kernel.c). Then, __pi_tcv_execqueue
 		// (see below) will actually fire them. We cannot fire them
@@ -247,9 +247,9 @@ void update_n_wake (word min, Boolean force) {
 		// tcvp_settimer requests, which in turn will call us (i.e.,
 		// update_n_wake) recursively (which would be bad at this
 		// stage). So we have to do it in two steps. Note that nothing
-		// really happens between these two steps, except that want to
-		// separate them by the code that separates this point from the
-		// call to __pi_tcv_execqueue below.
+		// really happens between these two steps, except that we want
+		// to postpone the second one until __pi_tcv_execqueue below
+		// (just before we return).
 		__pi_tcv_runqueue (znew, &min);
 #endif
 	} else {
@@ -763,11 +763,12 @@ sint io (word retry, word dev, word operation, char *buf, word len) {
 #endif	/* MAX_DEVICES */
 
 /* --------------------------------------------------------------------- */
-/* ========================= MEMORY ALLOCATORS ========================= */
+/* ============================== MALLOC =============================== */
 /* --------------------------------------------------------------------- */
 
 // The application can request less than 64K for a single chunk, even though
-// the total amount of allocatable memory can be more than that
+// the total amount of allocatable memory can be more than that; will be easy
+// to change, if needed
 
 #if	MALLOC_NPOOLS > 1
 // Pool size percentages
@@ -822,9 +823,6 @@ void dump_malloc (const char *s) {
 		}
 		diag ("POOL %d, N " __ufaw ", F " __ufaw, i, nc, tot);
 	}
-
-#undef	NPOOLS
-
 }
 
 #endif	/* 0 */
@@ -843,7 +841,7 @@ void __pi_malloc_init () {
 
 	for (perc = np = 0; np < MALLOC_NPOOLS; np++) {
 		// This assumes that the percentage adds to 100, otherwise
-		// we will hit an error
+		// we fail
 		if (__pi_heap [np] == 0)
 			syserror (ESYSPAR, "mal1");
 		perc += __pi_heap [np];
@@ -854,7 +852,8 @@ void __pi_malloc_init () {
 		syserror (ESYSPAR, "mal2");
 #endif
 	if ((mlen = (aword)MALLOC_LENGTH) < 256)
-		// Make sure we do have some memory available
+		// Make sure we do have some memory available; note that mlen
+		// is in words
 		syserror (ERESOURCE, "mal1");
 
 #if MALLOC_NPOOLS == 1
@@ -1045,11 +1044,11 @@ aword *__pi_malloc (int np, word size) {
 	for (chunk = mpools [MA_NP]; chunk != NULL; cc = chunk,
 		chunk = m_nextp (chunk)) {
 #if	MALLOC_SAFE
-			if (m_magic (chunk) != MALLOC_MAGIC)
-				syserror (EMALLOC, "malc");
+		if (m_magic (chunk) != MALLOC_MAGIC)
+			syserror (EMALLOC, "malc");
 #endif
-			if (m_size (chunk) >= _size)
-				break;
+		if (m_size (chunk) >= _size)
+			break;
 	}
 	if (chunk) {
 		/* We've got a chunk - remove it from the list */
@@ -1072,7 +1071,7 @@ aword *__pi_malloc (int np, word size) {
 			mnfree [MA_NP] = mcfree [MA_NP];
 #endif
 #if	MALLOC_SAFE
-		m_size (chunk) |= 0x8000;
+		m_size (chunk) |= MALLOC_UMASK;
 #endif
 	} else {
 		// Failure

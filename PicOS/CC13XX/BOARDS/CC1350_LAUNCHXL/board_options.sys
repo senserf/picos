@@ -6,6 +6,7 @@
 #define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
 #define	MALLOC_SAFE		1
 #define	MALLOC_STATS		1
+#define	STACK_SIZE		1024	/* This is in bytes */
 #define STACK_GUARD		1
 #define ENTROPY_COLLECTION	1
 #define	RANDOM_NUMBER_GENERATOR	2

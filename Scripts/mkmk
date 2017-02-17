@@ -934,6 +934,20 @@ proc locate_arch_n_board { } {
 		$Run(board)]
 }
 
+proc combine_xml_txt { el tag { sp " " } } {
+
+	set res ""
+
+	foreach it [sxml_children $el $tag] {
+		set it [string trim [sxml_txt $it]]
+		if { $it != "" } {
+			lappend res $it
+		}
+	}
+
+	return [join $res $sp]
+}
+
 proc get_compiler_data { } {
 #
 # Parses the compile file
@@ -981,11 +995,11 @@ proc get_compiler_data { } {
 			# assume that the compiler "path" (below) is in fact
 			# a path, the commands in "after" are a bit tricky; so
 			# something is missing here
-			set Comp($ta,path) [sxml_txt [sxml_child $el "path"]]
-			set Comp($ta,args) [sxml_txt [sxml_child $el "args"]]
-			set Comp($ta,postargs) [sxml_txt \
-				[sxml_child $el "postargs"]]
-			set Comp($ta,after) [sxml_txt [sxml_child $el "after"]]
+			set Comp($ta,path) [string trim \
+				[sxml_txt [sxml_child $el "path"]]]
+			set Comp($ta,args) [combine_xml_txt $el "args"]
+			set Comp($ta,postargs) [combine_xml_txt $el "postargs"]
+			set Comp($ta,after) [combine_xml_txt $el "after" "\n"]
 		}
 		if { $ta == "cc" } {
 			# check for extra defines

@@ -6,7 +6,7 @@
 /* ==================================================================== */
 
 #include "portnames.h"
-//+++ startup_gcc.c
+//+++ startup_gcc.c ccfg.c
 
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
@@ -72,6 +72,8 @@
 // ============================================================================
 
 // PD mode is entered elsewhere and need not be sustained on every sleep
+// Weird. I wasted two days before discovering that one NOP at the end of
+// the loop is not enough. Are two?
 #define	__SLEEP		do { \
 				CPU_MARK_IDLE; \
 				while (1) { \
@@ -81,11 +83,13 @@
 					__WFI (); \
 					sti; \
 					__NOP (); \
+					__NOP (); \
 				} \
 				__pi_systat.evntpn = 0; \
 				CPU_MARK_BUSY; \
 				sti; \
 			} while (0)
+// ###here: check_stack_overflow (no seconds clock)
 
 #define	RISE_N_SHINE	do { __pi_systat.evntpn = 1; } while (0)
 #define	RTNI		return
@@ -99,7 +103,7 @@
 #define	TCI_RUN_AUXILIARY_TIMER		tci_run_auxiliary_timer ()
 #define	TCI_UPDATE_DELAY_TICKS(f)	tci_update_delay_ticks (f)
 // One half of the range
-#define	TCI_MAXDEL			(((word)(65535)) >> 2)
+#define	TCI_MAXDEL			(((word)(65535)) >> 1)
 // We use direct milliseconds
 #define	TCI_DELTOTICKS(d)		(d)
 // Convert milliseconds to timer increments; bit 16 (from left) is 1 sec, so

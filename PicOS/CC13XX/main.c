@@ -156,7 +156,8 @@ void powerup (void) {
 // The clock ==================================================================
 // ============================================================================
 
-// Interval for which the delay timer was last set
+// Interval for which the delay timer was last set; if setdel is nonzero, it
+// means that the timer is running
 static word setdel = 0;
 
 static inline word gettav () {
@@ -165,7 +166,7 @@ static inline word gettav () {
 //
 	// This is the full 64-bit timer which we position at milliseconds
 	// and extract the 16-bit millisecond count from
-	return (word)((AONRTCCurrent64BitValueGet () >> (32 - 10)) & 0xffff);
+	return (word)(AONRTCCurrent64BitValueGet () >> (32 - 10));
 }
 
 static inline lword settav (word del) {
@@ -173,7 +174,7 @@ static inline lword settav (word del) {
 // Calculate the comparator value for the new delay
 //
 	return (lword)(AONRTCCurrent64BitValueGet () >> 16) +
-		TCI_TINCR ((lword) del);
+		TCI_TINCR (del);
 }
 
 void tci_run_delay_timer () {
@@ -210,7 +211,7 @@ void tci_run_auxiliary_timer () {
 	
 void AONRTCIntHandler () {
 
-	sint events;
+	lword events;
 
 	events = HWREG (AON_RTC_BASE + AON_RTC_O_EVFLAGS) & 
 	    (AON_RTC_EVFLAGS_CH2 | AON_RTC_EVFLAGS_CH0);
@@ -279,13 +280,15 @@ EUT:
 		cli_tim;
 
 		__pi_new += setdel;
+		setdel = 0;
 		RISE_N_SHINE;
 
 #ifdef	MONITOR_PIN_CLOCK
 		_PVS (MONITOR_PIN_CLOCK, 0);
 #endif
-		RTNI;
 	}
+
+	RTNI;
 }
 
 word tci_update_delay_ticks (Boolean force) {
@@ -335,7 +338,7 @@ static inline void port_config () {
 #define	port_config()	CNOP
 #endif
 
-#if UART_DRIVER || UART_TCV
+#ifdef N_UARTS
 
 // The data type is different with UART_TCV; I know this is clumsy
 
@@ -406,7 +409,7 @@ static void preinit_uart () {
 	while (PRCMPowerDomainStatus (PRCM_DOMAIN_PERIPH) !=
 		PRCM_DOMAIN_POWER_ON);
 
-#ifdef	UART_PREINIT_A
+#ifdef	N_UARTS
 	// The first UART
 	PRCMPeripheralRunEnable (PRCM_PERIPH_UART0);
 	PRCMPeripheralSleepEnable (PRCM_PERIPH_UART0);
@@ -420,7 +423,7 @@ static void preinit_uart () {
 	UARTHwFlowControlDisable (UART0_BASE);
 
 	// Set the initial (default) rate
-	__pi_uart_setrate (UART_RATE, __pi_uart);
+	__pi_uart_setrate (UART_RATE/100, __pi_uart);
 #endif
 
 	// UART_B ...
@@ -576,6 +579,16 @@ static void devinit_uart (int devnum) {
 // End UART driver ============================================================
 // ============================================================================
 
+static void sync_tim () {
+//
+// Make sure there are no pending requests for the clock; this just reads the
+// SYNC register
+//
+	volatile long d;
+
+	d = HWREG (AON_RTC_BASE + AON_RTC_O_SYNC);
+}
+
 void system_init () {
 
 	PRCMPowerDomainOn (PRCM_DOMAIN_PERIPH);
@@ -593,6 +606,12 @@ void system_init () {
 	// Start RTC defining the events; we use channel 0 for the delay clock
 	// and channel 2 for the AUX clock; the seconds clock comes for free
 
+	// Clock (64 bits):
+	// Sec: xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
+	// Sub: xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
+	// Tick increment        10 0000 0000 0000 0000 0000
+	// MSec increment  100 0000 0000 0000 0000 0000 0000
+
 	// The increment value on channel 2 set to 1 msec
 	AONRTCIncValueCh2Set (TCI_TINCR (1));
 	// Enable continuous operation of channel 2
@@ -607,15 +626,7 @@ void system_init () {
 		AON_RTC_CTL_EN;
 
 	// Enable RTC interrupts
-	IntEnable (INT_UART0_COMB);
-
-	for (int i = 0; i < MAX_DEVICES; i++)
-		if (devinit [i] . init != NULL)
-			devinit [i] . init (devinit [i] . param);
-
-	// Kick the auxiliary timer right away, in case there is something
-	// required by the drivers
-	void tci_run_auxiliary_timer ();
+	IntEnable (INT_AON_RTC_COMB);
 
 	// Initialize memory
 	__pi_malloc_init ();
@@ -667,7 +678,7 @@ void system_init () {
 #ifdef	SYSVER_B
 		"-" SYSVER_B
 #endif
-        	", (C) Olsonet Communications, 2002-2016");
+        	", (C) Olsonet Communications, 2002-2017");
 	diag ("Leftover RAM: %d bytes",
 		(word)((aword)STACK_END - (aword)(&__bss_end__)));
 #endif
@@ -682,15 +693,17 @@ void system_init () {
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
 #endif
-
+	// Kick the auxiliary timer in case something is needed by the
+	// drivers
+	tci_run_auxiliary_timer ();
 }
 
 int main (void) {
 
-#if STACK_GUARD
+#if STACK_GUARD && 0
 	{
 		register sint i;
-		for (i = 0; i < (STACK_SIZE / sizeof (lword)); i++)
+		for (i = 0; i < (STACK_SIZE / sizeof (lword)) - 16; i++)
 			*((((lword*)STACK_END) - 1) + i) = STACK_SENTINEL;
 	}
 #endif

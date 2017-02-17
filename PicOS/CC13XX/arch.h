@@ -57,14 +57,15 @@ extern	char	*__bss_start__, *__bss_end__;
 
 #define	MALLOC_START		((address)&__bss_end__)
 
+// This is in awords
 #if	STACK_GUARD
-#define MALLOC_LENGTH	(	(((aword) STACK_END - (aword)&__bss_end__)/2) \
+#define MALLOC_LENGTH	(	(((aword) STACK_END - (aword)&__bss_end__)/4) \
 					- 1)
 #else
-#define MALLOC_LENGTH		(((aword) STACK_END - (aword)&__bss_end__)/2)
+#define MALLOC_LENGTH		(((aword) STACK_END - (aword)&__bss_end__)/4)
 #endif
 
-#define	STATIC_LENGTH		(((aword)&__bss_end__ - (aword)RAM_START + 1)/2)
+#define	STATIC_LENGTH		(((aword)&__bss_end__ - (aword)RAM_START + 1)/4)
 
 
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\

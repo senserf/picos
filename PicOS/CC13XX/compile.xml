@@ -10,14 +10,30 @@
 		<define>SIZE_OF_AWORD=4</define>
 		<define>SIZE_OF_SINT=4</define>
 		<path>arm-none-eabi-gcc</path>
-		<args>-Dgcc -D__CC1350__ -mcpu=cortex-m3 -mthumb -Os -ffunction-sections -fdata-sections -g -gdwarf-3 -gstrict-dwarf -specs="nosys.specs" -fno-strict-aliasing -std=c99 --asm -fmax-errors=10 -I %archdir%/CC13XXWARE</args>
+		<args>-Dgcc -D__CC1350__ -mcpu=cortex-m3 -mthumb</args>
+		<args>-Os</args>
+		<args>-ffunction-sections -fdata-sections -g -gdwarf-3</args>
+		<args>-gstrict-dwarf -specs="nosys.specs"</args>
+		<args>-fno-strict-aliasing -std=c99 --asm -fmax-errors=10</args>
+		<args>-I %archdir%/CC13XXWARE</args>
 	</cc>
 	<ld dospaths="yes">
 		<path>arm-none-eabi-gcc</path>
-		<args>-Os -Wl,-T,%archdir%/cc13x0f128.lds -ffunction-sections -fdata-sections -g -gdwarf-3 -gstrict-dwarf -specs="nosys.specs" -fno-strict-aliasing -std=c99 --asm -mthumb -Wl,-Map,%image%.map -Wl,--gc-sections -nostartfiles -nodefaultlibs -nostdlib -static</args>
-		<postargs>%archdir%/CC13XXWARE/driverlib/bin/gcc/driverlib.lib</postargs>
+		<args>-Wl,-T,%archdir%/cc13x0f128.lds -ffunction-sections</args>
+		<args>-fdata-sections -g -gdwarf-3 -gstrict-dwarf</args>
+		<args>-specs="nosys.specs" -fno-strict-aliasing -std=c99</args>
+		<args>--asm -mthumb -Wl,-Map,%image%.map</args>
+		<args>-Wl,--gc-sections</args>
+		<args>-nostartfiles -nodefaultlibs -nostdlib -static</args>
+		<postargs>
+			%archdir%/CC13XXWARE/driverlib/bin/gcc/driverlib.lib
+		</postargs>
 		<after>
-			arm-none-eabi-objdump -D -S %image% > %image%.objdump
+			arm-none-eabi-size -Ax %image%
+		</after>
+		<after>
+			cp %image% %image%.out
+			arm-none-eabi-objdump -D -S %image%.out > %image%.objdump
 		</after>
 	</ld>
 	<ar dospaths="yes">
@@ -34,7 +50,7 @@
 			mem 0x20000000 0x20005000 rw 32 nocache
 			mem 0x40000000 0x400E1028 rw 32 nocache
 			mem 0xE000E000 0xE000F000 rw 32 nocache
-			target remote localhost:55000
+			target remote 10.0.2.2:55000
 		</init>
 	</gdb>
 </compile>

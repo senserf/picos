@@ -8,6 +8,7 @@ typedef struct {
 fsm blinker (led_status_t *lstat) {
 
 	state CHECK_STATUS:
+diag ("STAT: %d", lstat->state);
 
 		if (lstat->state < 2) {
 			leds (lstat->led, 0);
