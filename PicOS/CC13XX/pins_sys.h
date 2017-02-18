@@ -12,6 +12,62 @@
 
 #include "board_pins.h"
 
+// Up to four LEDS
+
+#ifdef	LED0_pin
+#ifndef	LED0_polarity
+#define	LED0_polarity	1
+#endif
+#if	LED0_polarity
+#define	LED0_ON		GPIO_setDio (LED0_pin)
+#define	LED0_OFF	GPIO_clearDio (LED0_pin)
+#else
+#define	LED0_ON		GPIO_clearDio (LED0_pin)
+#define	LED0_OFF	GPIO_setDio (LED0_pin)
+#endif
+#endif
+
+#ifdef	LED1_pin
+#ifndef	LED1_polarity
+#define	LED1_polarity	1
+#endif
+#if	LED1_polarity
+#define	LED1_ON		GPIO_setDio (LED1_pin)
+#define	LED1_OFF	GPIO_clearDio (LED1_pin)
+#else
+#define	LED1_ON		GPIO_clearDio (LED1_pin)
+#define	LED1_OFF	GPIO_setDio (LED1_pin)
+#endif
+#endif
+
+#ifdef	LED2_pin
+#ifndef	LED2_polarity
+#define	LED2_polarity	1
+#endif
+#if	LED2_polarity
+#define	LED2_ON		GPIO_setDio (LED2_pin)
+#define	LED2_OFF	GPIO_clearDio (LED2_pin)
+#else
+#define	LED2_ON		GPIO_clearDio (LED2_pin)
+#define	LED2_OFF	GPIO_setDio (LED2_pin)
+#endif
+#endif
+
+#ifdef	LED3_pin
+#ifndef	LED3_polarity
+#define	LED3_polarity	1
+#endif
+#if	LED3_polarity
+#define	LED3_ON		GPIO_setDio (LED3_pin)
+#define	LED3_OFF	GPIO_clearDio (LED3_pin)
+#else
+#define	LED3_ON		GPIO_clearDio (LED3_pin)
+#define	LED3_OFF	GPIO_setDio (LED3_pin)
+#endif
+#endif
+
+// ============================================================================
+
 #ifndef	PIN_MAX_ANALOG
 #define	PIN_MAX_ANALOG			0
 #endif

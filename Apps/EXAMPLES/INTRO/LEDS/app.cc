@@ -1,5 +1,6 @@
 #include "sysio.h"
 #include "ser.h"
+#include "serf.h"
 
 typedef struct {
 	byte led, state;
@@ -8,7 +9,6 @@ typedef struct {
 fsm blinker (led_status_t *lstat) {
 
 	state CHECK_STATUS:
-diag ("STAT: %d", lstat->state);
 
 		if (lstat->state < 2) {
 			leds (lstat->led, 0);
@@ -30,6 +30,24 @@ void blink (led_status_t *lstat, Boolean on) {
 	trigger (lstat);
 }
 
+fsm testdelay {
+
+	word d;
+
+	state INIT:
+
+		d = 512 + (lrnd () & 0x1fff);
+
+		delay (d, WAKE);
+		release;
+
+	state WAKE:
+
+		// diag ("W: %u, %lu", d, seconds ());
+		ser_outf (WAKE, "W: %u, %lu\r\n", d, seconds ());
+		proceed INIT;
+}
+
 fsm root {
 
 	led_status_t *my_led;
@@ -45,7 +63,9 @@ fsm root {
 		my_led = (led_status_t*)umalloc (sizeof (led_status_t));
 		my_led -> led = 1;
 		blink (my_led, YES);
+		leds (0, 2);
 		runfsm blinker (my_led);
+		runfsm testdelay;
 
 	state INPUT:
 

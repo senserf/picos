@@ -60,7 +60,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 			switch (c) {
 			    case 'x' : {
 				word val; int i;
-				val = va_arg (ap, word);
+				val = (word) va_arg (ap, aword);
 				for (i = 12; ; i -= 4) {
 					outc (__pi_hex_enc_table
 						[(val>>i)&0xf]);
@@ -72,7 +72,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 			    case 'd' :
 			    case 'u' : {
 				word val, i;
-				val = va_arg (ap, word);
+				val = (word) va_arg (ap, aword);
 				if (c == 'd' && (val & 0x8000) != 0) {
 					/* Minus */
 					outc ('-');
@@ -114,7 +114,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 #endif
 			    case 'c' : {
 				word val;
-				val = va_arg (ap, word);
+				val = (word) va_arg (ap, aword);
 				outc (val);
 				break;
 			    }

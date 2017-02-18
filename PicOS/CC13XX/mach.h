@@ -102,8 +102,7 @@
 #define	TCI_RUN_DELAY_TIMER		tci_run_delay_timer ()
 #define	TCI_RUN_AUXILIARY_TIMER		tci_run_auxiliary_timer ()
 #define	TCI_UPDATE_DELAY_TICKS(f)	tci_update_delay_ticks (f)
-// One half of the range
-#define	TCI_MAXDEL			(((word)(65535)) >> 1)
+#define	TCI_MAXDEL			((word)(65535))
 // We use direct milliseconds
 #define	TCI_DELTOTICKS(d)		(d)
 // Convert milliseconds to timer increments; bit 16 (from left) is 1 sec, so

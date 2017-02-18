@@ -255,7 +255,10 @@ void update_n_wake (word min, Boolean force) {
 	} else {
 		// Nobody is eligible for wakeup, the old minimum holds, unless
 		// the requested one is less
-		if (__pi_mintk - znew < min) 
+		if ((word)(__pi_mintk - znew) < min) 
+			// BTW: beware of conditions, like the one above, in
+			// the ARM (32-bit) port!!! I wasted one full day to
+			// find out that the cast was needed
 			goto MOK;
 	}
 
@@ -1240,7 +1243,7 @@ void diag (const char *mess, ...) {
 	va_start (ap, mess);
 	diag_disable_int (a, is);
 
-	while  (*mess != '\0') {
+	while (*mess != '\0') {
 		if (*mess == '%') {
 			mess++;
 			if (*mess == 'l') {
@@ -1268,6 +1271,8 @@ void diag (const char *mess, ...) {
 				lword d;
 				if ((val >> (bc - 1)) & 1) {
 					dgout ('-');
+					if (bc == 16)
+						val |= 0xffff0000;
 					val = ~val + 1;
 				}
 DI_SIG:
@@ -1288,6 +1293,8 @@ DI_SIG:
 				break;
 			  }
 			  case 'u' :
+				if (bc == 16)
+					val &= 0xffff;
 				goto DI_SIG;
 			  case 's' : {
 				char *s = (char*)(aword)val;

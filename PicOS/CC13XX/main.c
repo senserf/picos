@@ -173,14 +173,14 @@ static inline lword settav (word del) {
 //
 // Calculate the comparator value for the new delay
 //
-	return (lword)(AONRTCCurrent64BitValueGet () >> 16) +
-		TCI_TINCR (del);
+	return (lword)(AONRTCCurrent64BitValueGet () >> 16) + TCI_TINCR (del);
 }
 
 void tci_run_delay_timer () {
 //
 // Set the delay timer according to __pi_mintk
 //
+#if 0
 	word d;
 
 	// Time to elapse in msec
@@ -188,6 +188,8 @@ void tci_run_delay_timer () {
 
 	// Top off at half the range
 	setdel = (d > TCI_MAXDEL) ? TCI_MAXDEL : d;
+#endif
+	setdel = __pi_mintk - __pi_old;
 
 	// Set the comparator
 	HWREG (AON_RTC_BASE + AON_RTC_O_CH0CMP) = settav (setdel);
@@ -325,13 +327,14 @@ EX:
 
 #ifdef	IOCPORTS
 
-static const lword port_confs [] = IOCPORTS;
+const lword port_confs [] = IOCPORTS;
 
 static inline void port_config () {
 
-	for (int i = 0; i < sizeof (port_confs) / sizeof (lword); i++)
+	for (int i = 0; i < sizeof (port_confs) / sizeof (lword); i++) {
 		HWREG (IOC_BASE + ((port_confs [i] >> 17) & 0x7c)) =
 			port_confs [i] & 0xff07ffff;
+	}
 }
 
 #else
@@ -414,9 +417,10 @@ static void preinit_uart () {
 	PRCMPeripheralRunEnable (PRCM_PERIPH_UART0);
 	PRCMPeripheralSleepEnable (PRCM_PERIPH_UART0);
 	PRCMPeripheralDeepSleepEnable (PRCM_PERIPH_UART0);
+	PRCMLoadSet ();
 
 	// Seems to be needed, otherwise the initialization fails
-	udelay (10);
+	mdelay (10);
 
 	UARTFIFOEnable (UART0_BASE);
 	UARTFIFOLevelSet (UART0_BASE, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
@@ -425,7 +429,6 @@ static void preinit_uart () {
 	// Set the initial (default) rate
 	__pi_uart_setrate (UART_RATE/100, __pi_uart);
 #endif
-
 	// UART_B ...
 }
 
@@ -603,8 +606,28 @@ void system_init () {
 	// Initialize DIO ports
 	port_config ();
 
-	// Start RTC defining the events; we use channel 0 for the delay clock
-	// and channel 2 for the AUX clock; the seconds clock comes for free
+	// LEDS
+#ifdef	LED0_pin
+	GPIO_setOutputEnableDio (LED0_pin, 1);
+	// LED0_OFF;
+#endif
+#ifdef	LED1_pin
+	GPIO_setOutputEnableDio (LED1_pin, 1);
+	// LED1_OFF;
+#endif
+#ifdef	LED2_pin
+	GPIO_setOutputEnableDio (LED2_pin, 1);
+	// LED2_OFF;
+#endif
+#ifdef	LED3_pin
+	GPIO_setOutputEnableDio (LED3_pin, 1);
+	// LED3_OFF;
+#endif
+	// This will also turn them off
+	all_leds_blink;
+
+	// RTC: we use channel 0 for the delay clock and channel 2 for the AUX
+	// clock; the seconds clock comes for free
 
 	// Clock (64 bits):
 	// Sec: xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx xxxx
@@ -612,13 +635,13 @@ void system_init () {
 	// Tick increment        10 0000 0000 0000 0000 0000
 	// MSec increment  100 0000 0000 0000 0000 0000 0000
 
-	// The increment value on channel 2 set to 1 msec
+	// The autoincrement value on channel 2 set to 1 msec
 	AONRTCIncValueCh2Set (TCI_TINCR (1));
 	// Enable continuous operation of channel 2
 	HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL,
 		AON_RTC_CHCTL_CH2_CONT_EN_BITN) = 1;
 
-	// Define the combined event as consisting of channels 0 and 2 +
+	// Define the combined event as consisting of channels 0 and 2 and
 	// enable the clock
 	HWREG (AON_RTC_BASE + AON_RTC_O_CTL) =
 		AON_RTC_CTL_COMB_EV_MASK_CH0 |
@@ -628,7 +651,7 @@ void system_init () {
 	// Enable RTC interrupts
 	IntEnable (INT_AON_RTC_COMB);
 
-	// Initialize memory
+	// Initialize the memory allocator
 	__pi_malloc_init ();
 
 #if MAX_TASKS > 0
