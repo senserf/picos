@@ -180,15 +180,6 @@ void tci_run_delay_timer () {
 //
 // Set the delay timer according to __pi_mintk
 //
-#if 0
-	word d;
-
-	// Time to elapse in msec
-	d = __pi_mintk - __pi_old;
-
-	// Top off at half the range
-	setdel = (d > TCI_MAXDEL) ? TCI_MAXDEL : d;
-#endif
 	setdel = __pi_mintk - __pi_old;
 
 	// Set the comparator
@@ -579,7 +570,41 @@ static void devinit_uart (int devnum) {
 #endif /* UART_DRIVER */
 
 // ============================================================================
-// End UART driver ============================================================
+// Pin interrupts and buttons =================================================
+// ============================================================================
+
+void GPIOIntHandler () {
+//
+// The fallback policy is ignore
+//
+#ifdef	BUTTON_LIST
+#include "irq_buttons.h"
+#endif
+	// Room for more
+}
+
+// ============================================================================
+
+#ifdef	BUTTON_LIST
+
+void __buttons_setirq (int val) {
+
+	int i;
+	lword bn;
+
+	cli;
+	for (i = 0; i < N_BUTTONS; i++) {
+		bn = BUTTON_GPIO (button_list [i]);
+		GPIO_clearEventDio (bn);
+		HWREGBITW (IOC_BASE + (bn << 2), IOC_IOCFG0_EDGE_IRQ_EN_BITN) =
+			val;
+	}
+	sti;
+}
+
+#endif
+
+// ============================================================================
 // ============================================================================
 
 static void sync_tim () {
@@ -653,6 +678,9 @@ void system_init () {
 
 	// Initialize the memory allocator
 	__pi_malloc_init ();
+
+	// Enable GPIO interrupts
+	IntEnable (INT_AON_GPIO_EDGE);
 
 #if MAX_TASKS > 0
 	// Rigid task table (I don't think we use it any more)

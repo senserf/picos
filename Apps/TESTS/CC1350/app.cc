@@ -30,6 +30,46 @@ void blink (led_status_t *lstat, Boolean on) {
 	trigger (lstat);
 }
 
+fsm testdelay {
+
+	word d;
+
+	state INIT:
+
+		d = 512 + (lrnd () & 0x1fff);
+
+		delay (d, WAKE);
+		release;
+
+	state WAKE:
+
+		// diag ("W: %u, %lu", d, seconds ());
+		ser_outf (WAKE, "W: %u, %lu\r\n", d, seconds ());
+		proceed INIT;
+}
+
+static word Buttons;
+
+static void butpress (word but) {
+
+	Buttons |= (1 << but);
+	trigger (&Buttons);
+}
+
+fsm button_thread {
+
+	state BT_LOOP:
+
+		if (Buttons == 0) {
+			when (&Buttons, BT_LOOP);
+			release;
+		}
+
+		ser_outf (BT_LOOP, "Press: %x\r\n", Buttons);
+		Buttons = 0;
+		sameas BT_LOOP;
+}
+
 fsm root {
 
 	led_status_t *my_led;
@@ -47,6 +87,10 @@ fsm root {
 		blink (my_led, YES);
 		leds (0, 2);
 		runfsm blinker (my_led);
+		runfsm testdelay;
+
+		buttons_action (butpress);
+		runfsm button_thread;
 
 	state INPUT:
 
