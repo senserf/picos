@@ -1,6 +1,7 @@
 #include "sysio.h"
 #include "ser.h"
 #include "serf.h"
+#include "sensors.h"
 
 typedef struct {
 	byte led, state;
@@ -28,6 +29,65 @@ fsm blinker (led_status_t *lstat) {
 void blink (led_status_t *lstat, Boolean on) {
 	lstat->state = on ? 2 : 0;
 	trigger (lstat);
+}
+
+fsm testsensor {
+
+	word value, voltage, temperature;
+
+	state STARTIT:
+
+		// dump_sensor_list ();
+
+	state MEASURE_A:
+
+		read_sensor (MEASURE_A, 0, &value);
+
+	state MEASURE_V:
+
+		read_sensor (MEASURE_V, -1, &voltage);
+
+		// Hard delay
+		read_sensor (WNONE, -2, &temperature);
+
+	state PRINTIT:
+
+		ser_outf (PRINTIT, "Values: %u [%x], %u [%x], %u [%x]\r\n",
+			value, value, voltage, voltage,
+				temperature, temperature);
+
+		delay (2048, MEASURE_A);
+
+#if 0
+	state INIT:
+
+diag ("ADC CLOCK");
+		AUXWUCClockEnable (AUX_WUC_ADI_CLOCK | AUX_WUC_ANAIF_CLOCK);
+		delay (100, NEXT);
+		release;
+
+	state NEXT:
+
+		AUXADCSelectInput (ADC_COMPB_IN_AUXIO7);
+		AUXADCEnableSync (AUXADC_REF_FIXED, AUXADC_SAMPLE_TIME_2P7_US,
+			AUXADC_TRIGGER_MANUAL);
+
+	state SENSE_LOOP:
+
+		AUXADCFlushFifo ();
+		AUXADCGenManualTrigger ();
+
+	state WAIT_SAMPLE:
+
+		if (AUXADCGetFifoStatus () & AUXADC_FIFO_EMPTY_M) {
+			delay (1, WAIT_SAMPLE);
+			release;
+		}
+
+diag ("VALUE: %d", (word) AUXADCReadFifo ());
+
+		delay (2048, SENSE_LOOP);
+#endif
 }
 
 fsm testdelay {
@@ -91,6 +151,8 @@ fsm root {
 
 		buttons_action (butpress);
 		runfsm button_thread;
+
+		runfsm testsensor;
 
 	state INPUT:
 

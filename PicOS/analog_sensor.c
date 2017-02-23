@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -24,7 +24,7 @@ static	int praa_count = 0;
 #define	sensor_adc_postlude(p)	CNOP
 #endif
 
-// Note: the state is now mandatory
+// Note: the state is mandatory
 void analog_sensor_read (word state, const a_sensdesc_t *params, address val) {
 
 	if (praa_count <= 0) {

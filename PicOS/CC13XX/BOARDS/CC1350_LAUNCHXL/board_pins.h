@@ -12,6 +12,8 @@
 // Button interrupts are enabled explicitly in the driver, so they should be
 // disabled in the definitions below
 //
+// ADC test on 23 as AUXIO7
+//
 #define	IOCPORTS { \
 		iocportconfig (IOID_3, IOC_PORT_MCU_UART0_TX, \
 			IOC_IOMODE_NORMAL 	| \
@@ -61,6 +63,19 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0), \
+		iocportconfig (IOID_23, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_NO_IOPULL		| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			IOC_PORT_AUX_IO		| \
+			0), \
 	}
 
 #define	PIN_LIST { \
@@ -80,7 +95,6 @@
 		PIN_DEF (IOID_20), \
 		PIN_DEF (IOID_21), \
 		PIN_DEF (IOID_22), \
-		PIN_DEF (IOID_23), \
 		PIN_DEF (IOID_24), \
 		PIN_DEF (IOID_25), \
 		PIN_DEF (IOID_26), \
@@ -90,7 +104,7 @@
 		PIN_DEF (IOID_30)  \
 	}
 
-#define	PIN_MAX	24
+#define	PIN_MAX	23
 
 #define	BUTTON_LIST	{ \
 				BUTTON_DEF (IOID_13, 0), \
@@ -104,4 +118,45 @@
 // an issue on CC1350.
 #define	N_BUTTONS		2
 #define	BUTTON_GPIOS		((1 << IOID_13) | (1 << IOID_14))
+
+// ============================================================================
+
+#define	SENSOR_ANALOG
+#define	SENSOR_DIGITAL
+#define	N_HIDDEN_SENSORS	2
+
+#include "analog_sensor.h"
+#include "sensors.h"
+
+#define	SENS_ISI	2	// Inter-sample interval
+#define	SENS_NSA	8	// Number of samples
+// AUXIO7 maps into pin 23
+#define	SENS_PIN	ADC_COMPB_IN_AUXIO7
+// This is 4.3V, the other option is AUXADC_REF_VDDS_REL (VDDS)
+#define	SENS_REF	AUXADC_REF_FIXED
+// Sample holding (sampling) time, the options are:
+//	AUXADC_SAMPLE_TIME_2P7_US
+//	AUXADC_SAMPLE_TIME_5P3_US
+//	AUXADC_SAMPLE_TIME_10P6_US
+//	AUXADC_SAMPLE_TIME_21P3_US
+//	AUXADC_SAMPLE_TIME_42P6_US
+//	AUXADC_SAMPLE_TIME_85P3_US
+//	AUXADC_SAMPLE_TIME_170_US
+//	AUXADC_SAMPLE_TIME_341_US
+//	AUXADC_SAMPLE_TIME_682_US
+//	AUXADC_SAMPLE_TIME_1P37_MS
+//	AUXADC_SAMPLE_TIME_2P73_MS
+//	AUXADC_SAMPLE_TIME_5P46_MS
+//	AUXADC_SAMPLE_TIME_10P9_MS
+#define	SENS_SHT	AUXADC_SAMPLE_TIME_1P37_MS
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,	\
+		INTERNAL_VOLTAGE_SENSOR,	\
+		ANALOG_SENSOR (	SENS_ISI,	\
+				SENS_NSA,	\
+				SENS_PIN,	\
+				SENS_REF,	\
+				SENS_SHT),	\
+}
 

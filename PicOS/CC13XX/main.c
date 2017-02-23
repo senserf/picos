@@ -65,6 +65,43 @@ void halt (void) {
 		__WFI ();
 }
 
+#ifdef	SENSOR_DIGITAL
+// ============================================================================
+// Access to battery monitor and temperature sensor ===========================
+// ============================================================================
+void __pi_batmon (word st, const byte *sen, address val) {
+
+	static byte where = 0;
+
+	if (where) {
+		// Measure
+Measure:
+		if (sen [1]) {
+			// Temperature
+			*val = (word) AONBatMonTemperatureGetDegC ();
+		} else {
+			// Voltage
+			*val = (word) AONBatMonBatteryVoltageGet ();
+		}
+		where = 0;
+		AONBatMonDisable ();
+	} else {
+		// Initialize
+		AONBatMonEnable ();
+		if (st == WNONE) {
+			// 250 us doesn't work, 500 does, looks like we need
+			// 1ms to feel safe
+			mdelay (1);
+			goto Measure;
+		}
+		where = 1;
+		delay (1, st);
+		release;
+	}
+}
+
+#endif
+
 #if DIAG_MESSAGES > 1
 // ============================================================================
 // SYSERROR ===================================================================
