@@ -38,7 +38,7 @@ volatile systat_t __pi_systat;
 /* =============== */
 /* Current process */
 /* =============== */
-__pi_pcb_t	*__pi_curr;
+__pi_pcb_t *__pi_curr;
 
 /* ========= */
 /* The clock */
@@ -732,7 +732,7 @@ sint io (word retry, word dev, word operation, char *buf, word len) {
 		 * This means busy with the ready event to be triggered by
 		 * a process, in which case iowait requires no locking.
 		 */
-		if (retry == NONE)
+		if (retry == WNONE)
 			return 0;
 		iowait (dev, operation, retry);
 		release;
@@ -745,7 +745,7 @@ sint io (word retry, word dev, word operation, char *buf, word len) {
 		 * want to perceive interrupts. In such a case, we have to call
 		 * the ioreq function again to clean up (unmask interrupts)
 	 	 */
-		if (retry != NONE) {
+		if (retry != WNONE) {
 			iowait (dev, operation, retry);
 			(ioreq [dev]) (NONE, buf, len);
 			release;
@@ -755,7 +755,7 @@ sint io (word retry, word dev, word operation, char *buf, word len) {
 	}
 
 	/* ret < -2. This means a timer retry after -ret -2 milliseconds */
-	if (retry != NONE) {
+	if (retry != WNONE) {
 		delay (-ret - 2, retry);
 		release;
 	}

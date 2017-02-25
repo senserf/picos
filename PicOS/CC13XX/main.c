@@ -617,6 +617,10 @@ void GPIOIntHandler () {
 #ifdef	BUTTON_LIST
 #include "irq_buttons.h"
 #endif
+
+#ifdef	INPUT_PIN_LIST
+#include "irq_pin_sensor.h"
+#endif
 	// Room for more
 }
 
@@ -631,7 +635,26 @@ void __buttons_setirq (int val) {
 
 	cli;
 	for (i = 0; i < N_BUTTONS; i++) {
-		bn = BUTTON_GPIO (button_list [i]);
+		bn = BUTTON_GPIO (__button_list [i]);
+		GPIO_clearEventDio (bn);
+		HWREGBITW (IOC_BASE + (bn << 2), IOC_IOCFG0_EDGE_IRQ_EN_BITN) =
+			val;
+	}
+	sti;
+}
+
+#endif
+
+#ifdef	INPUT_PIN_LIST
+
+void __pinlist_setirq (int val) {
+
+	int i;
+	lword bn;
+
+	cli;
+	for (i = 0; i < N_PINLIST; i++) {
+		bn = INPUT_PINLIST_GPIO (__input_pins [i]);
 		GPIO_clearEventDio (bn);
 		HWREGBITW (IOC_BASE + (bn << 2), IOC_IOCFG0_EDGE_IRQ_EN_BITN) =
 			val;
@@ -786,6 +809,24 @@ void system_init () {
 	tci_run_auxiliary_timer ();
 }
 
+// static volatile lword __saved_sp;
+
+#if 0
+void __run_everything () {
+
+#include "scheduler.h"
+
+}
+#endif
+
+__attribute__ ((noreturn)) void __pi_release () {
+
+	__set_MSP ((lword)(STACK_START));
+
+#include "scheduler.h"
+
+}
+
 int main (void) {
 
 #if STACK_GUARD && 0
@@ -809,8 +850,6 @@ int main (void) {
 
 	sti;
 
-	// Fall through to the scheduler
-
-#include "scheduler.h"
-
+	__pi_release ();
 }
+

@@ -10,17 +10,9 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 	char c;
 	word d;
 
-#ifdef	INTERNAL_FUNCTIONS_ALLOWED
-
 	void outc (word c) {
 		if (res && (d < n)) res [d] = (char)(c); d++;
 	};
-
-#else
-
-#define outc(c) do { if (res && (d < n)) res [d] = (char)(c); d++; } while (0)
-
-#endif	/* INTERNAL_FUNCTIONS_ALLOWED */
 
 #define enci(b)	i = (b); \
 		while (1) { \

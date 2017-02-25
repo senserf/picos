@@ -87,8 +87,13 @@ void adddevfunc (devreqfun_t, int);
 
 // Encoding device events: an address-derived value being different for
 // different devices/operations; note: this is obsolete and only used by
-// the old 'io' mechanism
-#define devevent(dev,ope) (((aword)&io) + ((dev) << 3) + (ope))
+// the old 'io' mechanism.
+// Note: the event used to look like this:
+// 	#define devevent(dev,ope) (((aword)&io) + ((dev) << 3) + (ope))
+// which posed too much demands on the loader. So I am guessing a random
+// "address" that won't be confused with any other (normal) event. No big
+// harm if it is, I guess.
+#define devevent(dev,ope) ((MAX_AWORD - 257) + ((dev) << 3) + (ope))
 
 #define	iowait(dev,eve,sta)	wait (devevent (dev,eve), sta)
 #define	iotrigger(dev,eve)	trigger (devevent (dev, eve))

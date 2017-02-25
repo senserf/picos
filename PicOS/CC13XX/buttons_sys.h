@@ -3,14 +3,12 @@
 
 #include "pins.h"
 
-extern const word button_list [];
+extern const word __button_list [];
 
 #define	BUTTON_GPIO(b)			(((b) >> 8) & 0xff)
 #define	BUTTON_REPEAT(b)		(((b)     ) & 0xff)
 
 #define	BUTTON_DEF(gpio,repeat)		( ((gpio) << 8) | (repeat) )
-
-#define	BUTTON_PRESSED_EVENT ((aword)&button_list)
 
 // We inherit (from MSP430) the rigid concept of the same polarity for all
 // buttons; here we are in fact more flexible (or rather it's easier to be

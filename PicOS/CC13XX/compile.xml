@@ -11,7 +11,7 @@
 		<define>SIZE_OF_SINT=4</define>
 		<path>arm-none-eabi-gcc</path>
 		<args>-Dgcc -D__CC1350__ -mcpu=cortex-m3 -mthumb</args>
-		<!-- <args>-Os</args> -->
+		<args>-Os</args>
 		<args>-ffunction-sections -fdata-sections -g -gdwarf-3</args>
 		<args>-gstrict-dwarf -specs="nosys.specs"</args>
 		<args>-fno-strict-aliasing -std=c99 --asm -fmax-errors=10</args>

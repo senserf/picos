@@ -49,7 +49,7 @@
 // ============================================================================
 
 #define	RAM_END		(RAM_START + RAM_SIZE)
-#define	STACK_START	((byte*)RAM_END)	// FWA + 1 of stack
+#define	STACK_START	((byte*)(RAM_END-0))	// FWA + 1 of stack
 #define	STACK_END	(STACK_START - STACK_SIZE)
 
 #define	STACK_SENTINEL	0xA778B779

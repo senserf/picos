@@ -33,11 +33,15 @@ void blink (led_status_t *lstat, Boolean on) {
 
 fsm testsensor {
 
-	word value, voltage, temperature;
+	word value, voltage, temperature, pins;
 
 	state STARTIT:
 
-		// dump_sensor_list ();
+		read_sensor (STARTIT, 1, &pins);
+
+	state SHOWPINS:
+
+		ser_outf (SHOWPINS, "PINS: %x\r\n", pins);
 
 	state MEASURE_A:
 
@@ -50,44 +54,16 @@ fsm testsensor {
 		// Hard delay
 		read_sensor (WNONE, -2, &temperature);
 
+		// Pins again
+		read_sensor (WNONE, 1, &pins);
+
 	state PRINTIT:
 
-		ser_outf (PRINTIT, "Values: %u [%x], %u [%x], %u [%x]\r\n",
+		ser_outf (PRINTIT, "Values: %u [%x], %u [%x], %u [%x], P%x\r\n",
 			value, value, voltage, voltage,
-				temperature, temperature);
-
-		delay (2048, MEASURE_A);
-
-#if 0
-	state INIT:
-
-diag ("ADC CLOCK");
-		AUXWUCClockEnable (AUX_WUC_ADI_CLOCK | AUX_WUC_ANAIF_CLOCK);
-		delay (100, NEXT);
-		release;
-
-	state NEXT:
-
-		AUXADCSelectInput (ADC_COMPB_IN_AUXIO7);
-		AUXADCEnableSync (AUXADC_REF_FIXED, AUXADC_SAMPLE_TIME_2P7_US,
-			AUXADC_TRIGGER_MANUAL);
-
-	state SENSE_LOOP:
-
-		AUXADCFlushFifo ();
-		AUXADCGenManualTrigger ();
-
-	state WAIT_SAMPLE:
-
-		if (AUXADCGetFifoStatus () & AUXADC_FIFO_EMPTY_M) {
-			delay (1, WAIT_SAMPLE);
-			release;
-		}
-
-diag ("VALUE: %d", (word) AUXADCReadFifo ());
-
-		delay (2048, SENSE_LOOP);
-#endif
+				temperature, temperature, pins);
+		delay (2096, MEASURE_A);
+		wait_sensor (1, STARTIT);
 }
 
 fsm testdelay {
@@ -103,7 +79,6 @@ fsm testdelay {
 
 	state WAKE:
 
-		// diag ("W: %u, %lu", d, seconds ());
 		ser_outf (WAKE, "W: %u, %lu\r\n", d, seconds ());
 		proceed INIT;
 }
@@ -148,10 +123,8 @@ fsm root {
 		leds (0, 2);
 		runfsm blinker (my_led);
 		runfsm testdelay;
-
 		buttons_action (butpress);
 		runfsm button_thread;
-
 		runfsm testsensor;
 
 	state INPUT:

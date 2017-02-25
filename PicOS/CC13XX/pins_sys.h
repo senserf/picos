@@ -151,6 +151,21 @@ typedef struct {
 
 #endif
 
+#if defined(INPUT_PIN_LIST)
+
+extern const piniod_t __input_pins [];
+void __pinlist_setirq (int);
+
+// No need for initialization, edge set globally
+#define	__pinsen_setedge_irq		CNOP
+#define	INPUT_PINLIST_GPIO(p)		((p).pnum)
+#define	__pinsen_clear_and_enable	__pinlist_setirq (1)
+#define	__pinsen_disable_and_clear	__pinlist_setirq (0)
+
+#define	pin_sensor_int		(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
+					INPUT_PINLIST_GPIOS)	
+#endif
+
 // ============================================================================
 
 #endif

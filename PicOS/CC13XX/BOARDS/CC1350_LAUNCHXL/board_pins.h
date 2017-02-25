@@ -14,6 +14,9 @@
 //
 // ADC test on 23 as AUXIO7
 //
+// Pin sensor on 25, 26, 27, 28 polarity low (pushed to ground)
+//
+//
 #define	IOCPORTS { \
 		iocportconfig (IOID_3, IOC_PORT_MCU_UART0_TX, \
 			IOC_IOMODE_NORMAL 	| \
@@ -76,6 +79,54 @@
 			IOC_STRENGTH_AUTO	| \
 			IOC_PORT_AUX_IO		| \
 			0), \
+		iocportconfig (IOID_25, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0), \
+		iocportconfig (IOID_26, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0), \
+		iocportconfig (IOID_27, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0), \
+		iocportconfig (IOID_28, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0), \
 	}
 
 #define	PIN_LIST { \
@@ -96,15 +147,11 @@
 		PIN_DEF (IOID_21), \
 		PIN_DEF (IOID_22), \
 		PIN_DEF (IOID_24), \
-		PIN_DEF (IOID_25), \
-		PIN_DEF (IOID_26), \
-		PIN_DEF (IOID_27), \
-		PIN_DEF (IOID_28), \
 		PIN_DEF (IOID_29), \
 		PIN_DEF (IOID_30)  \
 	}
 
-#define	PIN_MAX	23
+#define	PIN_MAX	19
 
 #define	BUTTON_LIST	{ \
 				BUTTON_DEF (IOID_13, 0), \
@@ -121,12 +168,36 @@
 
 // ============================================================================
 
-#define	SENSOR_ANALOG
+#define	BUTTON_A	0x0001
+#define	BUTTON_B	0x0002
+#define	BUTTON_C	0x0004
+#define	BUTTON_D	0x0008
+
+// Edge == 1 means reverse polarity, i.e., pressed low
+#define	INPUT_PIN_LIST	{ \
+				INPUT_PIN (IOID_25, 1), \
+				INPUT_PIN (IOID_26, 1), \
+				INPUT_PIN (IOID_27, 1), \
+				INPUT_PIN (IOID_28, 1), \
+			}
+
+#define	N_PINLIST		4
+#define	INPUT_PINLIST_GPIOS	((1 << IOID_25) | \
+				 (1 << IOID_26) | \
+				 (1 << IOID_27) | \
+				 (1 << IOID_28))
+
+// ============================================================================
+
 #define	SENSOR_DIGITAL
+#define	SENSOR_ANALOG
+#define	SENSOR_EVENTS
+// #define SENSOR_INITIALIZERS
 #define	N_HIDDEN_SENSORS	2
 
 #include "analog_sensor.h"
 #include "sensors.h"
+#include "pin_sensor.h"
 
 #define	SENS_ISI	2	// Inter-sample interval
 #define	SENS_NSA	8	// Number of samples
@@ -151,12 +222,13 @@
 #define	SENS_SHT	AUXADC_SAMPLE_TIME_1P37_MS
 
 #define	SENSOR_LIST { \
-		INTERNAL_TEMPERATURE_SENSOR,	\
-		INTERNAL_VOLTAGE_SENSOR,	\
-		ANALOG_SENSOR (	SENS_ISI,	\
-				SENS_NSA,	\
-				SENS_PIN,	\
-				SENS_REF,	\
-				SENS_SHT),	\
+		INTERNAL_TEMPERATURE_SENSOR,			\
+		INTERNAL_VOLTAGE_SENSOR,			\
+		ANALOG_SENSOR (	SENS_ISI,			\
+				SENS_NSA,			\
+				SENS_PIN,			\
+				SENS_REF,			\
+				SENS_SHT),			\
+		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
 }
 
