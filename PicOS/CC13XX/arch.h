@@ -21,6 +21,7 @@
 #include <driverlib/aon_rtc.h>
 #include <driverlib/aon_batmon.h>
 #include <driverlib/aux_adc.h>
+#include <driverlib/osc.h>
 
 #define	mkmk_eval
 #include "cmsis_gcc.h"

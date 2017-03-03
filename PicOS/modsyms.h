@@ -96,6 +96,10 @@
 #define	CC1100 			0
 #endif
 
+#ifndef	CC1350_RF
+#define	CC1350_RF		0
+#endif
+
 #ifndef	CC2420
 #define	CC2420			0
 #endif
@@ -547,6 +551,7 @@
 #define	INFO_PHYS_DM2200	0x0700  /* VERSA 2 */
 #define	INFO_PHYS_RF24L01	0x0800
 #define	INFO_PHYS_CC3000	0x0201
+#define	INFO_PHYS_CC1350	0x0900
 
 /* ========================================== */
 /* Global and architecture-independend bounds */

@@ -731,6 +731,8 @@ void system_init () {
 	HWREG (AON_RTC_BASE + AON_RTC_O_CTL) =
 		AON_RTC_CTL_COMB_EV_MASK_CH0 |
 		AON_RTC_CTL_COMB_EV_MASK_CH2 |
+// For the radio
+AON_RTC_CTL_RTC_UPD_EN |
 		AON_RTC_CTL_EN;
 
 	// Enable RTC interrupts
@@ -827,6 +829,15 @@ __attribute__ ((noreturn)) void __pi_release () {
 
 }
 
+#if CC1350_RF
+
+// Temporary !!!
+
+//+++ "rfprop.c"
+void __rfprop_initialize ();
+
+#endif
+
 int main (void) {
 
 #if STACK_GUARD && 0
@@ -847,6 +858,11 @@ int main (void) {
 	// Delay root startup for 16 msec to make sure that the drivers go
 	// first
 	delay (16, 0);
+
+#if CC1350_RF
+	// This is temporary !!!!! Not a driver yet!!!!
+	__rfprop_initialize ();
+#endif
 
 	sti;
 

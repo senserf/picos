@@ -1,3 +1,6 @@
+//
+// This is the exact copy of startup_gcc.c in CC13XXWARE/startup_files/ (PG)
+//
 /******************************************************************************
 *  Filename:       startup_gcc.c
 *  Revised:        $Date: 2016-05-19 11:08:26 +0200 (to, 19 mai 2016) $

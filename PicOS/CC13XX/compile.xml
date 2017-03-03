@@ -24,7 +24,11 @@
 		<args>-specs="nosys.specs" -fno-strict-aliasing -std=c99</args>
 		<args>--asm -mthumb -Wl,-Map,%image%.map</args>
 		<args>-Wl,--gc-sections</args>
-		<args>-nostartfiles -nodefaultlibs -nostdlib -static</args>
+		<args>-nostartfiles</args>
+		<!-- need standard memcpy; we should replace our versions
+		     with the standard ones -->
+		<!-- <args>-nodefaultlibs -nostdlib</args> -->
+		<args>-static</args>
 		<postargs>
 			%archdir%/CC13XXWARE/driverlib/bin/gcc/driverlib.lib
 		</postargs>

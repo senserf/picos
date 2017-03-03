@@ -18,3 +18,6 @@
 #define UART_TCV		0
 #define UART_RATE		9600
 #define	UART_RATE_SETTABLE	1
+
+// The radio
+#define	CC1350_RF		1
