@@ -5,6 +5,9 @@
 
 // UART on 2,3, two buttons, 13, 14, polarity down
 //
+// RF control on 1 (low: 2.4GHz, high: sub 1GHz)
+// RF switch on 30 (high -> on)
+//
 // Note: not sure whether the hysteresis option wouldn't help to debounce
 // buttons (the manual doesn't bother to mention how it exactly works); same
 // about slew (no clue what it is)
@@ -127,10 +130,52 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0), \
+		iocportconfig (IOID_1, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_MAX	| \
+			0), \
+		iocportconfig (IOID_30, IOC_PORT_GPIO, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_8MA		| \
+			IOC_STRENGTH_MAX	| \
+			0), \
 	}
 
+// ============================================================================
+
+#define	RADIO_PINS_PREINIT	do { \
+					GPIO_setOutputEnableDio (IOID_1 , 1); \
+					GPIO_setOutputEnableDio (IOID_30, 1); \
+				} while (0)
+
+#define	RADIO_PINS_ON		do { \
+					GPIO_setDio (IOID_30); \
+					GPIO_setDio (IOID_1); \
+				} while (0)
+
+#define	RADIO_PINS_OFF		do { \
+					GPIO_clearDio (IOID_30); \
+					GPIO_clearDio (IOID_1); \
+				} while (0)
+
+// ============================================================================
+
 #define	PIN_LIST { \
-		PIN_DEF (IOID_1),  \
 		PIN_DEF (IOID_4),  \
 		PIN_DEF (IOID_5),  \
 		PIN_DEF (IOID_8),  \
@@ -148,10 +193,9 @@
 		PIN_DEF (IOID_22), \
 		PIN_DEF (IOID_24), \
 		PIN_DEF (IOID_29), \
-		PIN_DEF (IOID_30)  \
 	}
 
-#define	PIN_MAX	19
+#define	PIN_MAX	17
 
 #define	BUTTON_LIST	{ \
 				BUTTON_DEF (IOID_13, 0), \

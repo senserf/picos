@@ -691,6 +691,7 @@ void system_init () {
 	// Initialize DIO ports
 	port_config ();
 
+#if LEDS_DRIVER
 	// LEDS
 #ifdef	LED0_pin
 	GPIO_setOutputEnableDio (LED0_pin, 1);
@@ -710,6 +711,11 @@ void system_init () {
 #endif
 	// This will also turn them off
 	all_leds_blink;
+#endif
+
+#ifdef	RADIO_PINS_PREINIT
+	RADIO_PINS_PREINIT;
+#endif
 
 	// RTC: we use channel 0 for the delay clock and channel 2 for the AUX
 	// clock; the seconds clock comes for free

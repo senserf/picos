@@ -101,6 +101,11 @@ void __rfprop_initialize () {
 //
 // This is probably very temporary
 //
+
+#ifdef	RADIO_PINS_ON
+	RADIO_PINS_ON;
+#endif
+
 	// Void, reset value
 	HWREG (PRCM_BASE + PRCM_O_RFCMODESEL) =  RF_MODE_PROPRIETARY_SUB_1;
 
@@ -263,7 +268,8 @@ diag ("DONE");
 
 
 	//
-	runthread (rf_test_transmitter);
+	// runthread (rf_test_transmitter);
+	runthread (rf_test_receiver);
 }
 
 // Default PROP_TX:
