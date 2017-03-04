@@ -76,14 +76,20 @@ void __rfprop_wcm (rfc_radioOp_t *cmd, lword tstat, lword timeout) {
 //
 // Wait for a radio operation command to complete
 //
-word os = 0xffff;
-diag ("WS: %x", tstat);
+
+#if 1	/* Debug (show status changes) */
+		word os = 0xffff;
+		diag ("WS: %x", tstat);
+#endif
 	while (1) {
-if (cmd->status != os) {
-  os = cmd->status;
-  diag ("ST: %x", os);
-}
+#if 1
+		if (cmd->status != os) {
+  			os = cmd->status;
+  			diag ("ST: %x", os);
+		}
+#endif
 		if (cmd->status == tstat)
+			// Target status
 			return;
 		if (timeout-- == 0) {
 			diag ("RF OT: %x", cmd->commandNo);
@@ -103,14 +109,14 @@ void __rfprop_initialize () {
 //
 
 #ifdef	RADIO_PINS_ON
+	// In case special signals are required
 	RADIO_PINS_ON;
 #endif
-
 	// Void, reset value
 	HWREG (PRCM_BASE + PRCM_O_RFCMODESEL) =  RF_MODE_PROPRIETARY_SUB_1;
 
-	// The oscillator
-	OSCXHfPowerModeSet (HIGH_POWER_XOSC);
+	// The oscillator (do we need this?)
+	// OSCXHfPowerModeSet (HIGH_POWER_XOSC);
 
 	if (OSCClockSourceGet(OSC_SRC_CLK_HF) != OSC_XOSC_HF) {
 		diag ("OSC!");
@@ -283,10 +289,15 @@ diag ("DONE");
 static byte tseqnum = 0;
 
 #define	PAYLEN	32
+#define	MARGIN	8
+#define	TOTLEN	(PAYLEN + MARGIN)
 
-static	byte tbuff [PAYLEN+4];	// Including a margin
+
+static	byte tbuff [TOTLEN];	// Including a margin
 
 #define	RTT_LOOP	0
+
+int	next_paylen = 28;
 
 thread (rf_test_transmitter)
 
@@ -294,18 +305,28 @@ thread (rf_test_transmitter)
 
 	entry (RTT_LOOP)
 
-		tbuff [0] = 0;
+		tbuff [0] = 0xf9;
 		tbuff [1] = tseqnum++;
 
-		for (i = 2; i < PAYLEN + 4; i++)
+		for (i = 2; i < next_paylen; i++)
 			tbuff [i] = (byte) i;
 
+		while (i < TOTLEN)
+			tbuff [i++] = 0xfa;
+
 		RF_cmdPropTx.pPkt = tbuff;
-		RF_cmdPropTx.pktLen = PAYLEN;
+		RF_cmdPropTx.pktLen = next_paylen;
 
 		__rfprop_cmd ((lword)&RF_cmdPropTx);
 		__rfprop_wcm ((rfc_radioOp_t*)&RF_cmdPropTx, PROP_DONE_OK,
 			100000);
+
+		diag ("TX: %d, %x %x %x %x ... %x %x",
+			next_paylen,
+			tbuff [0], tbuff [1], tbuff [2], tbuff [3],
+				tbuff [next_paylen - 1], tbuff [next_paylen]);
+
+		next_paylen = (next_paylen < 32) ? next_paylen + 1 : 28;
 
 		delay (2048, RTT_LOOP);
 
@@ -315,13 +336,19 @@ endthread
 
 #define	NRXBUFFS	2
 
-static	byte rbuff [NRXBUFFS * (PAYLEN + 4)];
+static	byte rbuff [NRXBUFFS * TOTLEN];
 
 static	rfc_dataEntryPointer_t dbuffs [NRXBUFFS];
 
 static	dataQueue_t dqueue;
 
 static	rfc_propRxOutput_t rxstat;
+
+void __clean_rbuff (byte *rb) {
+
+	for (int i = 0; i < TOTLEN; i++)
+		rb [i] = 0xAB;
+}
 
 void __rfprop_initbuffs () {
 
@@ -342,10 +369,11 @@ void __rfprop_initbuffs () {
 		db->config.type = 2;	// Pointer entry
 		db->config.lenSz = 1;	// Single byte for length
 		db->config.irqIntv = 0;	// Irrelevant
-		db->length = PAYLEN + 4;
+		db->length = TOTLEN-2;
 		db->pData = rb;
+		__clean_rbuff (rb);
 
-		rb += PAYLEN + 4;
+		rb += TOTLEN;
 		da = db++;
 	}
 
@@ -360,6 +388,7 @@ void __rfprop_initbuffs () {
 thread (rf_test_receiver)
 
 	int i;
+	byte flength, plength;
 	rfc_dataEntryPointer_t *db;
 
 	entry (RCV_INIT)
@@ -378,6 +407,7 @@ thread (rf_test_receiver)
 		// Discard rejects from the queue
 		RF_cmdPropRx . rxConf . bAutoFlushIgnored = 1;
 		RF_cmdPropRx . rxConf . bAutoFlushCrcErr = 1;
+		RF_cmdPropRx . rxConf . bAppendRssi = 1;
 
 		// By default discards CRC appends status byte
 
@@ -388,11 +418,50 @@ thread (rf_test_receiver)
 		for (i = 0; i < NRXBUFFS; i++) {
 			db = dbuffs + i;
 			if (db->status == DATA_ENTRY_FINISHED) {
-				diag ("RX: %x %x %x %x",
-					db->pData [0],
-					db->pData [1],
+
+				flength = db->pData [0];
+				plength = db->pData [1];
+
+				if (flength > PAYLEN + 4) {
+					diag ("FL BIG: %u", flength);
+					flength = PAYLEN + 4;
+				}
+
+				if (plength > PAYLEN) {
+					diag ("PL BIG: %u", plength);
+					plength = PAYLEN;
+				}
+
+	// With AppendRssi, two bytes past payload are used: RSSI + 0,
+	// without, just one zero, the buffer length must be
+	// paylen + 2 + rss + 1; the packet looks this way:
+	//	total paylen pay ... pay rssi 0
+	// total is paylen + 3 (with RSSI), even though paylen + 4 bytes
+	// are actually written
+	diag ("RX: %d %d, %x %x %x %x ... %x | %x %x %x %x %x %x",
+					flength, plength,
 					db->pData [2],
-					db->pData [3]);
+					db->pData [3],
+					db->pData [4],
+					db->pData [5],
+					db->pData [2 + plength - 1],
+					db->pData [2 + plength - 0],
+					db->pData [2 + plength + 1],
+					db->pData [2 + plength + 2],
+					db->pData [2 + plength + 3],
+					db->pData [2 + plength + 4],
+					db->pData [2 + plength + 5] );
+
+	diag ("RS: %u %u %u %u %u <%d> %lu",
+		rxstat.nRxOk,
+		rxstat.nRxNok,
+		rxstat.nRxIgnored,
+		rxstat.nRxStopped,
+		rxstat.nRxBufFull,
+		rxstat.lastRssi,
+		rxstat.timeStamp);
+
+				__clean_rbuff (db->pData);
 				db->status = DATA_ENTRY_PENDING;
 			}
 		}
