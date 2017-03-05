@@ -5,14 +5,15 @@
 
 /* ========================================================================== */
 
+typedef	uint32_t	lword;
+typedef	uint16_t	word;
+
 #define	MSCINSECOND	1024.0			// Milliseconds in a second
 #define	MILLISECOND	(1.0/MSCINSECOND)	// Seconds in a millisecond
 
-typedef	unsigned short	word;
 typedef	word		*address;
 typedef	short int	sint;
 typedef Long		lint;
-typedef	U_Long		lword;
 typedef	unsigned char	byte;
 
 #define	MAX_INT		((int)0x7FFF)		// This is the PicOS int !!
