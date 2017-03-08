@@ -25,6 +25,7 @@
 #define	UART_FROM_SMCLK		1
 #define	UART_PREINIT		CNOP	// Pins defined statically
 #define	RADIO_USE_LEDS		7
+#define	UART_RATE		115200
 
 #define CC1100			1
 #define	INFO_FLASH		2

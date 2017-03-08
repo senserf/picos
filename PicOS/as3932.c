@@ -232,6 +232,10 @@ void as3932_on () {
 
 	as3932_bring_up;
 	as3932_wcmd (AS3932_CMD_DEFAU);
+	// This one seems to help a bit
+	as3932_wreg (3, (0 << 7) | (0 << 6) | (0x0 << 3) | 0x2);
+	// This one seems to be useless
+	// as3932_wreg (2, (1 << 7) | (0x3 << 5) | 0x0);
 	_BIS (as3932_status, AS3932_STATUS_ON);
 	as3932_clearall (1);
 	as3932_wcmd (AS3932_CMD_CFALS);

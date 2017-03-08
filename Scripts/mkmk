@@ -2836,7 +2836,7 @@ proc main { } {
 			# CPU ID needed by mkmk
 			lappend deflist [mkcpulabel $mcpu]
 		} else {
-			lappend deflist "__ECOG__"
+			lappend deflist "__ECOG1__"
 		}
 
 		set optfile [getoptfile ""]
@@ -2938,7 +2938,7 @@ proc main { } {
 			lappend deflist [mkcpulabel $mcpu]
 		} else {
 			# project file
-			lappend deflist "__ECOG__"
+			lappend deflist "__ECOG1__"
 		}
 
 		if { $optfile != "" } {

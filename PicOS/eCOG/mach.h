@@ -12,7 +12,10 @@
 /* Hardware-specific definitions                                              */
 /*                                                                            */
 
+#ifndef	__ECOG1__
+// Should be defined by mkmk
 #define	__ECOG1__	1
+#endif
 
 #include "arch.h"
 

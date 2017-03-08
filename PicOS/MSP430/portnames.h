@@ -75,11 +75,11 @@
 #define	_PHS_c_02(p)	case 1: _BIC (P2DS,  1 << ((p) & 7)); break;
 #define	_PPS_s_02(p)	case 1: _BIS (P2REN, 1 << ((p) & 7)); break;
 #define	_PPS_c_02(p)	case 1: _BIC (P2REN, 1 << ((p) & 7)); break;
-#define	_PV____02(p)	((p) >> 3) == 0 ? P2IN
-#define	_PF____02(p)	((p) >> 3) == 0 ? P2SEL
-#define	_PD____02(p)	((p) >> 3) == 0 ? P2DIR
-#define	_PH____02(p)	((p) >> 3) == 0 ? P2DS
-#define	_PP____02(p)	((p) >> 3) == 0 ? P2REN
+#define	_PV____02(p)	((p) >> 3) == 1 ? P2IN
+#define	_PF____02(p)	((p) >> 3) == 1 ? P2SEL
+#define	_PD____02(p)	((p) >> 3) == 1 ? P2DIR
+#define	_PH____02(p)	((p) >> 3) == 1 ? P2DS
+#define	_PP____02(p)	((p) >> 3) == 1 ? P2REN
 
 #define	P2_0		(8+0)
 #define	P2_1		(8+1)
@@ -124,11 +124,11 @@
 #define	_PHS_c_03(p)	case 2: _BIC (P3DS,  1 << ((p) & 7)); break;
 #define	_PPS_s_03(p)	case 2: _BIS (P3REN, 1 << ((p) & 7)); break;
 #define	_PPS_c_03(p)	case 2: _BIC (P3REN, 1 << ((p) & 7)); break;
-#define	_PV____03(p)	((p) >> 3) == 0 ? P3IN
-#define	_PF____03(p)	((p) >> 3) == 0 ? P3SEL
-#define	_PD____03(p)	((p) >> 3) == 0 ? P3DIR
-#define	_PH____03(p)	((p) >> 3) == 0 ? P3DS
-#define	_PP____03(p)	((p) >> 3) == 0 ? P3REN
+#define	_PV____03(p)	((p) >> 3) == 2 ? P3IN
+#define	_PF____03(p)	((p) >> 3) == 2 ? P3SEL
+#define	_PD____03(p)	((p) >> 3) == 2 ? P3DIR
+#define	_PH____03(p)	((p) >> 3) == 2 ? P3DS
+#define	_PP____03(p)	((p) >> 3) == 2 ? P3REN
 
 #define	P3_0		(16+0)
 #define	P3_1		(16+1)
@@ -173,11 +173,11 @@
 #define	_PHS_c_04(p)	case 3: _BIC (P4DS,  1 << ((p) & 7)); break;
 #define	_PPS_s_04(p)	case 3: _BIS (P4REN, 1 << ((p) & 7)); break;
 #define	_PPS_c_04(p)	case 3: _BIC (P4REN, 1 << ((p) & 7)); break;
-#define	_PV____04(p)	((p) >> 3) == 0 ? P4IN
-#define	_PF____04(p)	((p) >> 3) == 0 ? P4SEL
-#define	_PD____04(p)	((p) >> 3) == 0 ? P4DIR
-#define	_PH____04(p)	((p) >> 3) == 0 ? P4DS
-#define	_PP____04(p)	((p) >> 3) == 0 ? P4REN
+#define	_PV____04(p)	((p) >> 3) == 3 ? P4IN
+#define	_PF____04(p)	((p) >> 3) == 3 ? P4SEL
+#define	_PD____04(p)	((p) >> 3) == 3 ? P4DIR
+#define	_PH____04(p)	((p) >> 3) == 3 ? P4DS
+#define	_PP____04(p)	((p) >> 3) == 3 ? P4REN
 
 #define	P4_0		(24+0)
 #define	P4_1		(24+1)
@@ -222,11 +222,11 @@
 #define	_PHS_c_05(p)	case 4: _BIC (P5DS,  1 << ((p) & 7)); break;
 #define	_PPS_s_05(p)	case 4: _BIS (P5REN, 1 << ((p) & 7)); break;
 #define	_PPS_c_05(p)	case 4: _BIC (P5REN, 1 << ((p) & 7)); break;
-#define	_PV____05(p)	((p) >> 3) == 0 ? P5IN
-#define	_PF____05(p)	((p) >> 3) == 0 ? P5SEL
-#define	_PD____05(p)	((p) >> 3) == 0 ? P5DIR
-#define	_PH____05(p)	((p) >> 3) == 0 ? P5DS
-#define	_PP____05(p)	((p) >> 3) == 0 ? P5REN
+#define	_PV____05(p)	((p) >> 3) == 4 ? P5IN
+#define	_PF____05(p)	((p) >> 3) == 4 ? P5SEL
+#define	_PD____05(p)	((p) >> 3) == 4 ? P5DIR
+#define	_PH____05(p)	((p) >> 3) == 4 ? P5DS
+#define	_PP____05(p)	((p) >> 3) == 4 ? P5REN
 
 #define	P5_0		(32+0)
 #define	P5_1		(32+1)

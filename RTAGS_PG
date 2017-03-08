@@ -4928,3 +4928,23 @@ PG160928A:
 	Funny thing, with -fno-strict-aliasing (which is expected to make some
 	[code size] optimization impossible) the code size doesn't increase at
 	all, but in fact decreases slightly ;-). Good work guys!
+
+PG170103A:
+
+	Some overdue cosmetics before we move on in this wonderful New Year:
+
+	1. Packet counter for the RFID beacons issued by AP331 (locaspot) is
+	   now NOT reset on detecting a loop ID change
+
+	2. A minor (and probably irrelevant) adjustment in the driver of
+	   AS3932 which (in my lame tests) seems to improve the RFID detection
+	   range
+
+	3. Pure cosmetics (data in RFTEST, netting_demo) + a few file
+	   permissions
+
+PG170112A:
+
+	Fixed portnames.h in MSP430. Not extremely important, just cleaning up
+	before starting the CC13XX port. More cleanups to come (probably on a
+	separate branch).
