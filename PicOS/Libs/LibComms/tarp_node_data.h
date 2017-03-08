@@ -31,7 +31,10 @@ __STATIC word tarp_cyclingSeq = 0;
 
 // explicit constants needed, apps will overwrite with derivatives of host_id
 nid_t	_da (net_id) = 0xAA;
-nid_t	_da (master_host) = 0xAA; 
+
+// keep consistent even if not needed (1.81 vs. 1.83 master_host)
+// nid_t	_da (master_host) = 0xAA;
+nid_t   _da (master_host) = 1; 
 nid_t	_da (local_host) = 0xBB;
 
 #endif	/* SMURPH or PicOS */
