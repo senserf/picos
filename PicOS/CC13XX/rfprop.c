@@ -155,6 +155,14 @@ static rfc_CMD_PROP_CS_t cmd_cs = {
 		.csEndTime = (RADIO_LBT_SENSE_TIME * 4 * 1024),
 	};
 #endif
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+
+static rfc_CMD_SET_TX_POWER_t cmd_sp = {
+		.commandNo = CMD_SET_TX_POWER
+	};
+
+#endif
 		
 // As far as I can tell, the trim structure can be set up once (RF need not be
 // powered on) and then written to RF core when it comes up, so I am splitting
@@ -504,6 +512,7 @@ thread (cc1350_driver)
 	address ppm;
 	word pcav;
 #endif
+
 	entry (DR_LOOP)
 
 DR_LOOP__:
@@ -553,7 +562,8 @@ DR_LOOP__:
 			if (dstate & DSTATE_RXAC) {
 				// Try to receive
 				rx_int_enable ();
-//delay (1024, DR_LOOP);
+				// For lost interrups (test)
+				// delay (1024, DR_LOOP);
 			} else if (dstate & DSTATE_RFON) {
 				// Delay until off
 				delay (offdelay, DR_GOOF);
@@ -575,8 +585,7 @@ Bkf:
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 		// Check for CAV requested in the packet
-		ppm = ((address)(RF_cmdPropTx.pPkt)) +
-			((tcv_tlength ((address)(RF_cmdPropTx.pPkt)) >> 1) - 1);
+		ppm = (address)(RF_cmdPropTx.pPkt + paylen);
 		if ((pcav = (*ppm) & 0x0fff)) {
 			// Remove for next turn
 			*ppm &= ~0x0fff;
@@ -588,12 +597,29 @@ Bkf:
 		rf_on ();
 		rx_de ();
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		if ((pcav = patable [(*ppm >> 12) & 0x7]) !=
+		    RF_cmdPropRadioDivSetup.txPower) {
+			// Need to change
+		    	RF_cmdPropRadioDivSetup.txPower = 
+				cmd_sp.txPower = pcav;
+			issue_cmd ((lword)&cmd_sp);
+		}
+#endif
+
 #if RADIO_LBT_SENSE_TIME > 0
 
 		// ============================================================
 		// LBT ON =====================================================
 		// ============================================================
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		if (*ppm & 0x8000) {
+			// LBT off requested by packet
+			txtries = RADIO_LBT_MAX_TRIES;
+			goto Force;
+		}
+#endif
 		RF_cmdPropTx . status = 0;
 		HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
 			~RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE;
@@ -614,7 +640,9 @@ Bkf:
 		// Check the TX status
 		if (RF_cmdPropTx.status != PROP_DONE_OK) {
 			if (txtries >= RADIO_LBT_MAX_TRIES) {
-				// Force a starightforward TX
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+Force:
+#endif
 				// diag ("FORCED");
 				RF_cmdPropTx . status = 0;
 				HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
@@ -852,15 +880,15 @@ OREvnt:
 
 #if RADIO_DEFAULT_POWER < 8
 			for (ret = 0; ret < 8; ret++)
-				if (RF_cmdPropRadioDivSetup.txPower ==
-					patable [ret])
+				if (RF_cmdPropRadioDivSetup.txPower
+					== patable [ret])
 						break;
 #else
 			ret = 8;
 #endif
 			goto RVal;
 
-#if RADIO_DEFAULT_POWER < 8
+#if RADIO_DEFAULT_POWER < 8 && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0
 		// Can be set
 		case PHYSOPT_SETPOWER:
 
@@ -873,7 +901,6 @@ OREvnt:
 			_BIS (dstate, DSTATE_IRST);
 			goto OREvnt;
 #endif
-
 		case PHYSOPT_GETCHANNEL:
 
 			ret = (int) channel;
@@ -979,6 +1006,9 @@ void phys_cc1350 (int phy, int mbs) {
 	// Preset the power, rate, and channel
 
 #if RADIO_DEFAULT_POWER <= 7
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	cmd_sp.txPower =
+#endif
 	RF_cmdPropRadioDivSetup.txPower = patable [RADIO_DEFAULT_POWER];
 #endif
 

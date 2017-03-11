@@ -73,6 +73,10 @@ bool 	RCVon;
 bool	rkillflag;
 bool	tkillflag;
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+word	xpower;
+#endif
+
 // ============================================================================
 
 static word gen_packet_length (void) {
@@ -142,8 +146,10 @@ fsm receiver {
 		packet [0] = 0;
 		packet [1] = PKT_ACK;
 		((lword*)packet) [1] = wtonl (last_rcv);
-
 		packet [4] = (word) (entropy);
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		packet [ACK_LENGTH/2 - 1] = xpower;
+#endif
 		tcv_endp (packet);
 	}
 	proceed RC_TRY;
@@ -233,6 +239,9 @@ Finish:
 	for (pp = 4; pp < pl; pp++)
 		packet [pp] = (word) (entropy);
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	packet [pl] = xpower;
+#endif
 	tcv_endp (packet);
 
     entry SN_NEXT1:
@@ -515,6 +524,9 @@ fsm root {
 		while (k > 3)
 			((byte*)pkt) [k--] = 0xAA;
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		pkt [k/2] = xpower;
+#endif
 		tcv_endp (pkt);
 	}
 
@@ -702,7 +714,14 @@ fsm root {
 	if (scan (ibuf + 1, "%u", p+0) < 1)
 		proceed RS_RCMD1;
 
+	if (p [0] > 7)
+		proceed RS_RCMD1;
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	xpower = p [0] << 12;
+#else
 	tcv_control (sfd, PHYSOPT_SETPOWER, p);
+#endif
 	proceed RS_RCMD;
 
     entry RS_GETP:
