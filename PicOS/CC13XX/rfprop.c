@@ -15,6 +15,7 @@
 #include <driverlib/rf_prop_mailbox.h>
 #include <driverlib/rf_data_entry.h>
 #include <driverlib/rfc.h>
+#include <inc/hw_rfc_rat.h>
 
 #include <rf_patches/rf_patch_cpe_genfsk.h>
 #include <rf_patches/rf_patch_rfe_genfsk.h>
@@ -32,8 +33,14 @@
 
 // ============================================================================
 
+static	int paylen = 0;			// Current TX payload length
+
 static byte	rbuffl = 0,		// Input buffer length
 		dstate = 0;		// Driver state
+
+#if RADIO_LBT_SENSE_TIME > 0
+static byte	txtries = 0;		// Number of TX attempts for current pkt
+#endif
 
 // State flags
 #define	DSTATE_RXON	0x01	// Rx logically on
@@ -107,6 +114,48 @@ static rfc_CMD_PING_t		cmd_pin = { .commandNo = CMD_PING };
 // Command to start the RAT (timer)
 static rfc_CMD_SYNC_START_RAT_t	cmd_srt = { .commandNo = CMD_SYNC_START_RAT };
 
+#if RADIO_LBT_SENSE_TIME > 0
+
+// Command for carrier sense (LBT)
+static rfc_CMD_PROP_CS_t cmd_cs = {
+		.commandNo = CMD_PROP_CS,
+		// Chained to TX
+		.pNextOp = (rfc_radioOp_t*) &RF_cmdPropTx,
+		.startTime = 0,
+		.startTrigger.triggerType = 0,	// Immediately
+		.startTrigger.bEnaCmd = 0,
+		.startTrigger.triggerNo = 0,
+		.startTrigger.pastTrig = 0,
+		// True means channel busy
+		.condition.rule = COND_STOP_ON_TRUE,
+		.condition.nSkip = 0,
+		// Keep everything running, no matter what
+		.csFsConf.bFsOffIdle = 0,
+		.csFsConf.bFsOffBusy = 0,
+		// What we measure
+		.csConf.bEnaRssi = 1,
+		.csConf.bEnaCorr = 1,
+		.csConf.operation = 0,	// EITHER (as opposed to AND)
+		.csConf.busyOp = 1,	// End sensing when channel found busy
+		.csConf.idleOp = 0,	// Continue when idle
+		.csConf.timeoutRes = 0,	// Timeout on invalid = busy (aot idle)
+		// Converted from absolute to signed
+		.rssiThr = (byte)(RADIO_LBT_RSSI_THRESHOLD - 128),
+		.numRssiIdle = RADIO_LBT_RSSI_NIDLE,
+		.numRssiBusy = RADIO_LBT_RSSI_NBUSY,
+		.corrPeriod = RADIO_LBT_CORR_PERIOD,
+		.corrConfig.numCorrInv = RADIO_LBT_CORR_NINVD,
+		.corrConfig.numCorrBusy = RADIO_LBT_CORR_NBUSY,
+		// How to end: time relative to start
+		.csEndTrigger.triggerType = TRIG_REL_START,
+		.csEndTrigger.bEnaCmd = 0,
+		.csEndTrigger.triggerNo = 0,
+		.csEndTrigger.pastTrig = 0,
+		// Converted frim milliseconds to RAT 4MHz ticks
+		.csEndTime = (RADIO_LBT_SENSE_TIME * 4 * 1024),
+	};
+#endif
+		
 // As far as I can tell, the trim structure can be set up once (RF need not be
 // powered on) and then written to RF core when it comes up, so I am splitting
 // the operation into two parts ... we shall see
@@ -451,8 +500,6 @@ static	int txcounter;
 
 thread (cc1350_driver)
 
-	int paylen;
-
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 	address ppm;
 	word pcav;
@@ -478,7 +525,29 @@ DR_LOOP__:
 			rx_ac ();
 		}
 
-		if ((RF_cmdPropTx.pPkt = (byte*)tcvphy_top (physid)) == NULL) {
+		// Try to get a packet to transmit
+		if (paylen == 0) {
+			if ((RF_cmdPropTx.pPkt = (byte*)tcvphy_get (physid,
+			    &paylen)) != NULL) {
+
+				// Ignore the two extra bytes right away, we
+				// have no use for them
+				paylen -= 2;
+				sysassert (paylen <= rbuffl && paylen > 0 &&
+				    (paylen & 1) == 0, "cc13 py");
+
+				LEDI (1, 1);
+
+				if (statid != 0xffff)
+					// Insert NetId
+					((address)(RF_cmdPropTx.pPkt)) [0] =
+						statid;
+
+				RF_cmdPropTx.pktLen = (byte) paylen;
+			}
+		}
+
+		if (paylen == 0) {
 			// Nothing to transmit
 			wait (qevent, DR_LOOP);
 			if (dstate & DSTATE_RXAC) {
@@ -515,28 +584,64 @@ Bkf:
 			goto Bkf;
 		}
 #endif
-		// Make sure we are up
+		// Make sure we are up and in the right state
 		rf_on ();
-
-		// LBT (later)
-		tcvphy_get (physid, &paylen);
-		// Ignore the two extra bytes right away, we have no use for
-		// them
-		paylen -= 2;
-		sysassert (paylen <= rbuffl && paylen > 0 && (paylen & 1) == 0,
-			"cc13 py");
-
-		LEDI (1, 1);
-
-		if (statid != 0xffff)
-			// Insert NetId
-			((address)(RF_cmdPropTx.pPkt)) [0] = statid;
-
-		RF_cmdPropTx.pktLen = (byte) paylen;
-
-		// Stop the receiver
 		rx_de ();
 
+#if RADIO_LBT_SENSE_TIME > 0
+
+		// ============================================================
+		// LBT ON =====================================================
+		// ============================================================
+
+		RF_cmdPropTx . status = 0;
+		HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
+			~RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE;
+		issue_cmd ((lword)&cmd_cs);
+
+	entry (DR_XMIT)
+
+		if (dstate & DSTATE_IRST)
+			goto DR_LOOP__;
+
+		if ((HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) &
+		    RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE) == 0) {
+			// Keep waiting
+			delay (1, DR_XMIT);
+			release;
+		}
+
+		// Check the TX status
+		if (RF_cmdPropTx.status != PROP_DONE_OK) {
+			if (txtries >= RADIO_LBT_MAX_TRIES) {
+				// Force a starightforward TX
+				// diag ("FORCED");
+				RF_cmdPropTx . status = 0;
+				HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
+					~RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE;
+				issue_cmd ((lword)&RF_cmdPropTx);
+				proceed (DR_XMIT);
+			}
+			txtries++;
+			// Backoff
+			// diag ("BUSY");
+#if RADIO_LBT_BACKOFF_EXP == 0
+			delay (1, DR_LOOP);
+			release;
+#else
+			gbackoff (RADIO_LBT_BACKOFF_EXP);
+			goto DR_LOOP__;
+#endif
+		}
+#else	/* RADIO_LBT_SENSE_TIME */
+
+		// ============================================================
+		// LBT OFF ====================================================
+		// ============================================================
+
+		RF_cmdPropTx . status = 0;
+		HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
+			~RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE;
 		issue_cmd ((lword)&RF_cmdPropTx);
 
 #ifdef	DETECT_HANGUPS
@@ -547,9 +652,8 @@ Bkf:
 		if (dstate & DSTATE_IRST)
 			goto DR_LOOP__;
 
-		// For now, let's have it the easy way
-
-		if (RF_cmdPropTx.status != PROP_DONE_OK) {
+		if ((HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) &
+		    RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE) == 0) {
 #ifdef	DETECT_HANGUPS
 			if (txcounter-- == 0) {
 				diag ("TX HANG: %lx", RF_cmdPropTx.status);
@@ -560,8 +664,30 @@ Bkf:
 			release;
 		}
 
+		if (RF_cmdPropTx.status != PROP_DONE_OK) {
+			// Something went wrong; actually, this can happen
+			// when transmitting immediately after rf_on
+#ifdef	DETECT_HANGUPS
+			// diag ("TX ERR: %lx", RF_cmdPropTx.status);
+			// syserror (EHARDWARE, "txerr");
+#endif
+			delay (1, DR_LOOP);
+			release;
+		}
+
+#endif	/* RADIO_LBT_SENSE_TIME */
+
+		// ============================================================
+		// ============================================================
+		// ============================================================
+
 		// Release the packet
 		tcvphy_end ((address)(RF_cmdPropTx.pPkt));
+		paylen = 0;
+
+#if RADIO_LBT_SENSE_TIME > 0
+		txtries = 0;
+#endif
 
 		LEDI (1, 0);
 

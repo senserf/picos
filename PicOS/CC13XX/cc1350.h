@@ -143,5 +143,40 @@
 #define	RADIO_LBT_XMIT_SPACE	2
 #endif
 
+// Carrier sense time before transmission in milliseconds
+// 0 disables LBT
+#ifndef	RADIO_LBT_SENSE_TIME
+#define	RADIO_LBT_SENSE_TIME	2
+#endif
+
+#ifndef	RADIO_LBT_RSSI_THRESHOLD
+#define	RADIO_LBT_RSSI_THRESHOLD	70
+#endif
+
+#ifndef	RADIO_LBT_RSSI_NIDLE
+#define	RADIO_LBT_RSSI_NIDLE		4
+#endif
+
+#ifndef	RADIO_LBT_RSSI_NBUSY
+#define	RADIO_LBT_RSSI_NBUSY		4
+#endif
+
+#ifndef	RADIO_LBT_CORR_PERIOD
+#define	RADIO_LBT_CORR_PERIOD		(4 * 1024)
+#endif
+
+#ifndef	RADIO_LBT_CORR_NINVD
+#define	RADIO_LBT_CORR_NINVD		3
+#endif
+
+#ifndef	RADIO_LBT_CORR_NBUSY
+#define	RADIO_LBT_CORR_NBUSY		3
+#endif
+
+#ifndef	RADIO_LBT_MAX_TRIES
+#define	RADIO_LBT_MAX_TRIES		16
+#endif
+
+
 
 #endif
