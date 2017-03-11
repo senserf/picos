@@ -42,7 +42,8 @@
 #include <inc/hw_ccfg.h>
 #include <inc/hw_ccfg_simple_struct.h>
 
-// Make sure options from BOARD are effective for this
+// Make sure options from BOARD (and other stuff) are effective for this
+#include "ccfg.h"
 
 // Default settings are:
 //
@@ -114,8 +115,8 @@
 //#####################################
 
 #ifndef CCFG_FORCE_VDDR_HH
-//#define CCFG_FORCE_VDDR_HH                              0x0        // Use default VDDR trim
-#define CCFG_FORCE_VDDR_HH                           0x1        // Force VDDR voltage to the factory HH setting (FCFG1..VDDR_TRIM_HH)
+#define CCFG_FORCE_VDDR_HH                              0x0        // Use default VDDR trim
+// #define CCFG_FORCE_VDDR_HH                           0x1        // Force VDDR voltage to the factory HH setting (FCFG1..VDDR_TRIM_HH)
 #endif
 
 //*****************************************************************************

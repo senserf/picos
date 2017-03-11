@@ -835,15 +835,6 @@ __attribute__ ((noreturn)) void __pi_release () {
 
 }
 
-#if CC1350_RF
-
-// Temporary !!!
-
-//+++ "rfprop.c"
-void __rfprop_initialize ();
-
-#endif
-
 int main (void) {
 
 #if STACK_GUARD && 0
@@ -865,13 +856,7 @@ int main (void) {
 	// first
 	delay (16, 0);
 
-#if CC1350_RF
-	// This is temporary !!!!! Not a driver yet!!!!
-	__rfprop_initialize ();
-#endif
-
 	sti;
 
 	__pi_release ();
 }
-

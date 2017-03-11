@@ -2,7 +2,7 @@
 #define	__pg_modsyms_h		1
 
 /* ======================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2016                        */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                        */
 /* All rights reserved.                                                     */
 /* ======================================================================== */
 

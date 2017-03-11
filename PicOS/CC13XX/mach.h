@@ -6,6 +6,8 @@
 /* ==================================================================== */
 
 #include "portnames.h"
+
+// Make sure these files are always compiled in
 //+++ startup_gcc.c ccfg.c
 
 #define	LITTLE_ENDIAN	1

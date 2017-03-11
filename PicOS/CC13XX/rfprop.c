@@ -3,13 +3,12 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-// Code for RF in the proprietary mode
+// ============================================================================
+// CC1350 RF driver operating in the so-called proprietary mode ===============
+// ============================================================================
 
+// Needed by some library includes
 #define	DEVICE_FAMILY	cc13x0
-
-#define	mkmk_eval
-#include "smartrf_settings.h"
-#undef	mkmk_eval
 
 #include <driverlib/rf_common_cmd.h>
 #include <driverlib/rf_prop_cmd.h>
@@ -20,451 +19,857 @@
 #include <rf_patches/rf_patch_cpe_genfsk.h>
 #include <rf_patches/rf_patch_rfe_genfsk.h>
 
-//+++ "smartrf_settings.c"
-
 #include "sysio.h"
+#include "tcvphys.h"
+#include "cc1350.h"
+
+// Radio parameter settings by TI
+#define	mkmk_eval
+#include "smartrf_settings.h"
+#undef	mkmk_eval
+
+#define	DETECT_HANGUPS	100
 
 // ============================================================================
 
-#define	RFCMDWAIT		100
-#define	RF_MAX_COMMAND_SIZE	256
+static byte	rbuffl = 0,		// Input buffer length
+		dstate = 0;		// Driver state
+
+// State flags
+#define	DSTATE_RXON	0x01	// Rx logically on
+#define	DSTATE_RXAC	0x02	// Rx active
+#define	DSTATE_TXIP	0x04	// Tx in progress
+#define	DSTATE_RFON	0x10	// Device on
+#define	DSTATE_IRST	0x80	// Internal error / reset request
+
+// The number of simultaneous receive buffers
+#define	NRBUFFS		2
+
+// The secret command (stolen from tirtos)
+#define	RF_CMD0		0x0607
+
+#if RADIO_BITRATE_INDEX > 0
+
+// We can change the rate; rates 1-3 are settable, 0 must be hardwired
+
+static byte vrate = RADIO_BITRATE_INDEX;
+
+#endif
+
+static byte channel = RADIO_DEFAULT_CHANNEL;
+
+#if RADIO_DEFAULT_POWER <= 7
+
+// Power can be changed; the max power must be hardwired (with rate 0) for
+// long range operation
+
+static const word patable [] = CC1350_PATABLE;
+
+#endif
+
+static word	physid,
+		statid = 0,
+		bckf_timer = 0,
+		offdelay = RADIO_DEFAULT_OFFDELAY;
+
+#if RADIO_BITRATE_INDEX > 0
+
+typedef struct {
+		word	ps,	// prescale
+			rw;	// rate word
+} ratable_t;
+
+static const ratable_t ratable [] = CC1350_RATABLE;
+
+#endif
+
+// Pointer to the queue of reception buffers
+#define	rbuffs 		(RF_cmdPropRx . pQueue)
+
+// Reception statistics (can be extracted via PHYSOPT_ERROR)
+static rfc_propRxOutput_t	rxstat;
+
+// Events
+static aword drvprcs, qevent;
 
 // ============================================================================
 
-procname (rf_test_transmitter);
-procname (rf_test_receiver);
-
-static lword cmdstat;	// Probably not needed
-
-// Init command data
+#if 0
+// A command to retrieve firmware version and stuff
 static rfc_CMD_GET_FW_INFO_t	cmd_gfi = { .commandNo = CMD_GET_FW_INFO };
+#endif
+
+#if 0
+// Ping command
 static rfc_CMD_PING_t		cmd_pin = { .commandNo = CMD_PING };
+#endif
+
+// Command to start the RAT (timer)
 static rfc_CMD_SYNC_START_RAT_t	cmd_srt = { .commandNo = CMD_SYNC_START_RAT };
 
-int __rfprop_cmd (lword cmd) {
+// As far as I can tell, the trim structure can be set up once (RF need not be
+// powered on) and then written to RF core when it comes up, so I am splitting
+// the operation into two parts ... we shall see
+static rfTrim_t rfTrim;
+
+// ============================================================================
+
+static void issue_cmd (lword cmd) {
 //
-// Issue a command to the radio, wait for status, detect low-level problems;
-// we shall see whether we should do it via interrupts (RFCMDACK) or FSM
-// delay
+// Issue a command to the radio, wait for (immediate) status, detect low-level
+// problems (no interrupts)
 //
-	int i, res;
+	int res;
 
-	HWREG (RFC_DBELL_BASE + RFC_DBELL_O_CMDR) = cmd;
-	for (i = 0; i < RFCMDWAIT; i++) {
-		udelay (1);
-		cmdstat = HWREG (RFC_DBELL_BASE + RFC_DBELL_O_CMDSTA);
-		if ((res = cmdstat & 0xff))
-			break;
-	}
-
-	if (i == RFCMDWAIT) {
-		// Timeout
-		diag ("RCMD TO: %lx", cmd);
-		syserror (EHARDWARE, "rt0");
-	}
-
-	if (res == 0x01)
-		// This means OK
-		return 0;
-
-	// Generic error, never OK
-	diag ("RCMD ER: %lx %x", cmd, res);
-	return 1;
-}
-
-void __rfprop_wcm (rfc_radioOp_t *cmd, lword tstat, lword timeout) {
-//
-// Wait for a radio operation command to complete
-//
-
-#if 1	/* Debug (show status changes) */
-		word os = 0xffff;
-		diag ("WS: %x", tstat);
+#ifdef	DETECT_HANGUPS
+	int cnt = DETECT_HANGUPS * 900;
 #endif
 	while (1) {
-#if 1
-		if (cmd->status != os) {
-  			os = cmd->status;
-  			diag ("ST: %x", os);
+		if ((res = RFCDoorbellSendTo (cmd) & 0xff) == 0x01)
+			return;
+		// We ignore the (larger) status for now; do we need it?
+		if (res != 0x86)
+			// Some fundamental problem
+			syserror (EHARDWARE, "rt1");
+		// Otherwise it means: previous command not completed, so keep
+		// trying
+#ifdef	DETECT_HANGUPS
+		if (cnt-- == 0) {
+			diag ("HUP %lx %lx", cmd, res);
+			syserror (EHARDWARE, "hang ic0");
 		}
 #endif
+		udelay (1);
+	}
+}
+
+static void wait_cmd (rfc_radioOp_t *cmd, lword tstat, lword timeout) {
+//
+// Wait for a radio operation command to complete (for those commands for
+// which we want to wait without involving interrupts)
+//
+	while (1) {
 		if (cmd->status == tstat)
-			// Target status
+			// Target status reached
 			return;
 		if (timeout-- == 0) {
-			diag ("RF OT: %x", cmd->commandNo);
-			syserror (EHARDWARE, "rt1");
+#ifdef DETECT_HANGUPS
+			diag ("HUP %lx %lx %lx", cmd->commandNo,
+				cmd->status, tstat);
+#endif
+			syserror (EHARDWARE, "rt2");
 		}
 		udelay (1);
 	}
+}
+
+static void halt_cmd () {
+//
+// Make sure the device is not running any command; will this do?
+//
+	issue_cmd (CMDR_DIR_CMD (CMD_ABORT));
 }
 
 // ============================================================================
 
-void __rfprop_initbuffs ();
-		
-void __rfprop_initialize () {
+static void rf_on () {
 //
-// This is probably very temporary
+// Turn the radio on
 //
+	if (dstate & DSTATE_RFON)
+		return;
 
 #ifdef	RADIO_PINS_ON
-	// In case special signals are required
+	// Any special pin settings?
 	RADIO_PINS_ON;
 #endif
-	// Void, reset value
-	HWREG (PRCM_BASE + PRCM_O_RFCMODESEL) =  RF_MODE_PROPRIETARY_SUB_1;
-
-	// The oscillator (do we need this?)
+	// The oscillator (do we need this?); some people on the net say we
+	// do, but I don't think so
 	// OSCXHfPowerModeSet (HIGH_POWER_XOSC);
 
-	if (OSCClockSourceGet(OSC_SRC_CLK_HF) != OSC_XOSC_HF) {
-		diag ("OSC!");
-		OSCHF_TurnOnXosc();
-		do { mdelay (1); } while (!OSCHF_AttemptToSwitchToXosc ());
-	}
+	// The default setting of OSC clock source is OSC_RCOSC_HF; we shall
+	// revert to it when the radio is switched off
+	OSCHF_TurnOnXosc();
+	do { udelay (10); } while (!OSCHF_AttemptToSwitchToXosc ());
 
-	mdelay (10);
-#if 1
-// In main
-	// RAT synced with RTC
+	// Make sure RAT is driven by RTC
 	HWREGBITW (AON_RTC_BASE + AON_RTC_O_CTL, AON_RTC_CTL_RTC_UPD_EN_BITN) =
 		1;
-#endif
 
-	// Power up the domain
+	// Power up the domain (there's no peripheral for RF)
 	PRCMPowerDomainOn (PRCM_DOMAIN_RFCORE);
+
+#ifdef	DETECT_HANGUPS
+	for (int cnt = DETECT_HANGUPS * 999; ; ) {
+		if (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) ==
+	    	    PRCM_DOMAIN_POWER_ON)
+			break;
+		if (cnt-- == 0)
+			syserror (EHARDWARE, "pcmon");
+		udelay (1);
+	}
+#else
 	while (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) !=
-		PRCM_DOMAIN_POWER_ON);
-
-#if 0
-	// This is not a peripheral !!!
-	// Enable
-	PRCMPeripheralRunEnable (PRCM_PERIPH_RFCORE);
-	PRCMPeripheralSleepEnable (PRCM_PERIPH_RFCORE);
-	PRCMPeripheralDeepSleepEnable (PRCM_PERIPH_RFCORE);
-	PRCMLoadSet ();
-	while (!PRCMLoadGet ());
+	    PRCM_DOMAIN_POWER_ON) {
+	}
 #endif
-
+	// Enable the clock
 	RFCClockEnable ();
-	// Check how much is needed
-	mdelay (100);
 
-#if 0
-
-HWREG(AON_WUC_BASE + AON_WUC_O_AUXCTL) |= AON_WUC_AUXCTL_AUX_FORCE_ON;
-while( !(HWREG(AON_WUC_BASE + AON_WUC_O_PWRSTAT)&AON_WUC_PWRSTAT_AUX_PD_ON) ){;}
-
-HWREG(AUX_WUC_BASE + AUX_WUC_O_MODCLKEN0) |= AUX_WUC_MODCLKEN0_AUX_DDI0_OSC|AUX_WUC_MODCLKEN0_SMPH;
-
-//HWREG(AUX_DDI0_OSC_BASE + DDI_0_OSC_O_CTL0) |= DDI_0_OSC_CTL0_SCLK_HF_SRC_SEL;
-DDI32BitsSet(AUX_DDI0_OSC_BASE,DDI_0_OSC_O_CTL0,DDI_0_OSC_CTL0_SCLK_HF_SRC_SEL);
-
-#endif
-
-	diag ("CMD0");
-
-#if 1
-#define RF_CMD0 0x0607
-	HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
-	__rfprop_cmd (
+	// Set up some magic for the patches to work
+	issue_cmd (
 		CMDR_DIR_CMD_2BYTE (RF_CMD0,
 			RFC_PWR_PWMCLKEN_MDMRAM | RFC_PWR_PWMCLKEN_RFERAM));
-#endif
-
-	diag ("PATCHING");
-
-
-
-
-
-
-
-	// Patches
+	// Apply the patches
 	rf_patch_cpe_genfsk ();
+	rf_patch_rfe_genfsk ();	
+	// Undo the magic
+        issue_cmd (CMDR_DIR_CMD_2BYTE (RF_CMD0, 0));
 
-#if 1
-	rf_patch_rfe_genfsk ();		// Check if needed
-#endif
-	diag ("PATHCHED");
-
-#if 1
-        // Turn off additional clocks
-        __rfprop_cmd (CMDR_DIR_CMD_2BYTE (RF_CMD0, 0));
-#endif
-
-
-
-
-	diag ("BUS");
-
-
-#if 1
-        //Initialize bus request
-        HWREG(RFC_DBELL_BASE + RFC_DBELL_O_RFACKIFG) = 0;
-	__rfprop_cmd (CMDR_DIR_CMD_1BYTE(CMD_BUS_REQUEST, 1));
-#endif
-
-
-	diag ("DONE");
-
-
-
-
+        // Initialize bus request; AFAICT, this is only needed if we want to
+	// deep sleep while the radio is sending data to our RAM
+	issue_cmd (CMDR_DIR_CMD_1BYTE (CMD_BUS_REQUEST, 1));
 
 	RFCAdi3VcoLdoVoltageMode (true);
 
+	// This must be done with RF core on, on every startup
+       	RFCRfTrimSet (&rfTrim);
 
-#if 1
-	// To be done only once !!!
-	RFCRTrim ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup);
-
-        rfTrim_t rfTrim;
-        RFCRfTrimRead ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup,
-		(rfTrim_t*)&rfTrim);
-        RFCRfTrimSet ((rfTrim_t*)&rfTrim);
-
+#if 0
+	// Show up the firmware version on first power up
+	issue_cmd ((lword)&cmd_gfi);
+	diag ("RF: %x %x %x %x",
+					cmd_gfi.versionNo,
+					cmd_gfi.startOffset,
+					cmd_gfi.freeRamSz,
+					cmd_gfi.availRatCh);
 #endif
 
-	diag ("TRIMMED");
-
-
-
-
-
-#if 1
-	// Check connection
-	__rfprop_cmd ((lword)&cmd_gfi);
-
-	// Show the result
-	diag ("GFI: %x %x %x %x", cmd_gfi.versionNo, cmd_gfi.startOffset,
-		cmd_gfi.freeRamSz, cmd_gfi.availRatCh);
-diag ("PING");
-	// Ping
-	__rfprop_cmd ((lword)&cmd_pin);
+#if 0
+	// Check connection?
+	issue_cmd ((lword)&cmd_pin);
 #endif
 
-	mdelay (10);
+	// Setup the "proprietary" mode
+	issue_cmd ((lword)&RF_cmdPropRadioDivSetup);
+	// Wait until done
+	wait_cmd ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup, PROP_DONE_OK,
+		10000);
 
-diag ("SPRO");
-	// Setup proprietary mode
-	__rfprop_cmd ((lword)&RF_cmdPropRadioDivSetup);
-	// Wait for done
-	__rfprop_wcm ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup, PROP_DONE_OK,
-		100000);
-
-diag ("SRAT");
 	// Start RAT
-	__rfprop_cmd ((lword)&cmd_srt);
+	issue_cmd ((lword)&cmd_srt);
 
-diag ("SFRE");
+	// Power up frequency synthesizer; apparently this is needed if
+	// CMD_PROP_RADIO_DIV_SETUP.bNoFsPowrup == 1 (it is zero, as set by
+	// SmartRF Studio)
 
-	// Power up frequency synthesizer, if 
-	// CMD_PROP_RADIO_DIV_SETUP.bNoFsPowrup == 1 (it is zero)
+	// Set the frequency
+	issue_cmd ((lword)&RF_cmdFs);
+	wait_cmd ((rfc_radioOp_t*)&RF_cmdFs, DONE_OK, 10000);
 
-	// Set frequency
-	__rfprop_cmd ((lword)&RF_cmdFs);
-	__rfprop_wcm ((rfc_radioOp_t*)&RF_cmdFs, DONE_OK, 100000);
+	_BIS (dstate, DSTATE_RFON);
+	_BIC (dstate, DSTATE_IRST);
 
-diag ("DONE");
+	// Interrupts, we only care about reception and system error (?)
+	HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIEN) = 0;
+	HWREG(RFC_DBELL_BASE+RFC_DBELL_O_RFCPEIFG) = 0;
+	IntEnable (INT_RFC_CPE_0);
 
-
-
-
-
-	//
-	// runthread (rf_test_transmitter);
-	runthread (rf_test_receiver);
+	LEDI (0, 1);
 }
 
-// Default PROP_TX:
+static void rf_off () {
 //
-//	pktConf.bfsOff = 0	(keep Freq Syn on after command)
-//	pktConf.bUseCrc = 1
-//	pktConf.bVarLen = 1	(length as first byte)
+// Turn the radio off
 //
-// Still don't know how to interpret length
+	if ((dstate & DSTATE_RFON) == 0)
+		return;
 
-static byte tseqnum = 0;
+	IntDisable (INT_RFC_CPE_0);
+	RFCClockDisable ();
 
-#define	PAYLEN	32
-#define	MARGIN	8
-#define	TOTLEN	(PAYLEN + MARGIN)
+	PRCMPowerDomainOff (PRCM_DOMAIN_RFCORE);
 
+#ifdef	DETECT_HANGUPS
+	for (int cnt = DETECT_HANGUPS * 999; ; ) {
+		if (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) ==
+	    	    PRCM_DOMAIN_POWER_OFF)
+			break;
+		if (cnt-- == 0)
+			syserror (EHARDWARE, "pcmof");
+		udelay (1);
+	}
+#else
+	while (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) !=
+	    PRCM_DOMAIN_POWER_OFF) {
+	}
+#endif
+	// Decouple RAT from RTC
+	HWREGBITW (AON_RTC_BASE + AON_RTC_O_CTL, AON_RTC_CTL_RTC_UPD_EN_BITN) =
+		0;
 
-static	byte tbuff [TOTLEN];	// Including a margin
+	OSCHF_SwitchToRcOscTurnOffXosc ();
 
-#define	RTT_LOOP	0
+#ifdef	RADIO_PINS_OFF
+	RADIO_PINS_OFF;
+#endif
+	_BIC (dstate, DSTATE_RFON);
+	LEDI (0, 0);
+}
 
-int	next_paylen = 28;
-
-thread (rf_test_transmitter)
-
+static void rx_ac () {
+//
+// Activate the receiver
+//
+	rfc_dataEntryGeneral_t *re;
 	int i;
 
-	entry (RTT_LOOP)
+	if (dstate & DSTATE_RXAC)
+		return;
 
-		tbuff [0] = 0xf9;
-		tbuff [1] = tseqnum++;
+	// Make sure the buffers are clean
+	for (re = (rfc_dataEntryGeneral_t*) (rbuffs->pCurrEntry), i = 0;
+	    i < NRBUFFS; i++, re = (rfc_dataEntryGeneral_t*)(re->pNextEntry))
+		re->status = DATA_ENTRY_PENDING;
 
-		for (i = 2; i < next_paylen; i++)
-			tbuff [i] = (byte) i;
+	// Issue the command
+	issue_cmd ((lword)&RF_cmdPropRx);
 
-		while (i < TOTLEN)
-			tbuff [i++] = 0xfa;
+	_BIS (dstate, DSTATE_RXAC);
+}
 
-		RF_cmdPropTx.pPkt = tbuff;
-		RF_cmdPropTx.pktLen = next_paylen;
+static void rx_de () {
+//
+// Deactivate the receiver
+//
+	if ((dstate & DSTATE_RXAC) == 0)
+		return;
 
-		__rfprop_cmd ((lword)&RF_cmdPropTx);
-		__rfprop_wcm ((rfc_radioOp_t*)&RF_cmdPropTx, PROP_DONE_OK,
-			100000);
+	issue_cmd (CMDR_DIR_CMD (CMD_ABORT));
+	_BIC (dstate, DSTATE_RXAC);
+}
 
-		diag ("TX: %d, %x %x %x %x ... %x %x",
-			next_paylen,
-			tbuff [0], tbuff [1], tbuff [2], tbuff [3],
-				tbuff [next_paylen - 1], tbuff [next_paylen]);
+static void plugch () {
+//
+// Insert the channel number as the right frequency in the proper place
+//
+	RF_cmdFs.frequency = 
+		// Channel number is just the megahertz increment
+		RF_cmdPropRadioDivSetup.centerFreq = CC1350_BASEFREQ + channel;
+}
 
-		next_paylen = (next_paylen < 32) ? next_paylen + 1 : 28;
+#if RADIO_BITRATE_INDEX > 0
 
-		delay (2048, RTT_LOOP);
+static void plugrt () {
+//
+// Insert the rate parameters
+//
+	RF_cmdPropRadioDivSetup.symbolRate.preScale = ratable [vrate - 1] . ps;
+	RF_cmdPropRadioDivSetup.symbolRate.rateWord = ratable [vrate - 1] . rw;
+}
 
-endthread
+#endif
+
+static void rx_int_enable () {
+
+	rfc_dataEntryGeneral_t *db;
+	int i, pl;
+
+	// This clears all interrupt flags and enables those that we want; this
+	// is different than (e.g.) for CC1100/MSP430, because events can be
+	// lost (the clear operation may remove an event tht we haven't looked
+	// at yet; so we do the reception with interrupts enabled; if an
+	// interrupt arrives while we are looking, it will just unblock the
+	// driver thread which will force (later) another invocation of this
+	// function
+	RFCCpe0IntEnable (RFC_DBELL_RFCPEIEN_RX_OK |
+		RFC_DBELL_RFCPEIEN_INTERNAL_ERROR);
+
+#define	__dp	(&(db->data))
+
+	// Receive
+	for (db = (rfc_dataEntryGeneral_t*) (rbuffs->pCurrEntry), i = 0;
+	    i < NRBUFFS; i++, db = (rfc_dataEntryGeneral_t*)(db->pNextEntry)) {
+		if (db->status == DATA_ENTRY_FINISHED) {
+			LEDI (2, 1);
+			// Consistency checks
+			if (__dp [0] == __dp [1] + 3 && __dp [1] <= rbuffl &&
+			   (__dp [1] & 1) == 0) {
+				// Payload length (including two extra bytes)
+				pl = __dp [1] + 2;
+				// Swap RSS and status, actually move RSS one
+				// byte up and zero the status (for now); RSS
+				// is unbiased to nonnegative (as usual)
+				__dp [pl + 1] = __dp [pl] - 128;
+				__dp [pl] = 0;
+				tcvphy_rcv (physid, (address)(__dp + 2), pl);
+			}
+#ifdef	DETECT_HANGUPS
+			else {
+				diag ("BAD RX");
+			}
+#endif
+			// Mark the buffer as free
+			db->status = DATA_ENTRY_PENDING;
+		}
+	}
+
+#undef __dp
+
+	LEDI (2, 0);
+}
+
+void RFCCPE0IntHandler (void) {
+
+	if (HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) &
+	    RFC_DBELL_RFCPEIFG_INTERNAL_ERROR)
+		// Internal error
+		_BIS (dstate, DSTATE_IRST);
+
+	// Clear all interrupts (why do they do it in a loop?); must be some
+	// magic, because it didn't work for me the sane way
+	RFCCpeIntClear (LWNONE);
+	// HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 0;
+	// Disable
+	RFCCpeIntDisable (LWNONE);
+	// HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIEN) = 0;
+
+	p_trigger (drvprcs, qevent);
+
+	RISE_N_SHINE;
+}
 
 // ============================================================================
 
-#define	NRXBUFFS	2
+#define	DR_LOOP		0
+#define	DR_XMIT		1
+#define	DR_GOOF		2
 
-static	byte rbuff [NRXBUFFS * TOTLEN];
+#ifdef	DETECT_HANGUPS
+static	int txcounter;
+#endif
 
-static	rfc_dataEntryPointer_t dbuffs [NRXBUFFS];
+thread (cc1350_driver)
 
-static	dataQueue_t dqueue;
+	int paylen;
 
-static	rfc_propRxOutput_t rxstat;
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	address ppm;
+	word pcav;
+#endif
+	entry (DR_LOOP)
 
-void __clean_rbuff (byte *rb) {
-
-	for (int i = 0; i < TOTLEN; i++)
-		rb [i] = 0xAB;
-}
-
-void __rfprop_initbuffs () {
-
-	byte *rb;
-	rfc_dataEntryPointer_t *da, *db;
-	int i;
-
-	for (db = &(dbuffs [0]), rb = rbuff, i = 0; i < NRXBUFFS; i++) {
-
-		db->status = 0;		// Status == pending
-
-		if (i)
-			da->pNextEntry = (byte*) db;
-
-		if (i == NRXBUFFS - 1)
-			db->pNextEntry = (byte*) &(dbuffs [0]);
-
-		db->config.type = 2;	// Pointer entry
-		db->config.lenSz = 1;	// Single byte for length
-		db->config.irqIntv = 0;	// Irrelevant
-		db->length = TOTLEN-2;
-		db->pData = rb;
-		__clean_rbuff (rb);
-
-		rb += TOTLEN;
-		da = db++;
-	}
-
-	dqueue.pCurrEntry = (byte*) &(dbuffs [0]);
-	dqueue.pLastEntry = NULL;
-}
-
-#define	RCV_INIT	0
-#define	RCV_START	1
-#define	RCV_LOOP	2
-
-thread (rf_test_receiver)
-
-	int i;
-	byte flength, plength;
-	rfc_dataEntryPointer_t *db;
-
-	entry (RCV_INIT)
-
-		__rfprop_initbuffs ();
-
-	entry (RCV_START)
-
-		RF_cmdPropRx . pQueue = &dqueue;	
-		RF_cmdPropRx . pOutput = (byte*) &rxstat;	
-
-		// Is this how we keep it in a loop?
-		RF_cmdPropRx . pktConf . bRepeatOk = 1;
-		RF_cmdPropRx . pktConf . bRepeatNok = 1;
-
-		// Discard rejects from the queue
-		RF_cmdPropRx . rxConf . bAutoFlushIgnored = 1;
-		RF_cmdPropRx . rxConf . bAutoFlushCrcErr = 1;
-		RF_cmdPropRx . rxConf . bAppendRssi = 1;
-
-		// By default discards CRC appends status byte
-
-		__rfprop_cmd ((lword)&RF_cmdPropRx);
-
-	entry (RCV_LOOP)
-
-		for (i = 0; i < NRXBUFFS; i++) {
-			db = dbuffs + i;
-			if (db->status == DATA_ENTRY_FINISHED) {
-
-				flength = db->pData [0];
-				plength = db->pData [1];
-
-				if (flength > PAYLEN + 4) {
-					diag ("FL BIG: %u", flength);
-					flength = PAYLEN + 4;
-				}
-
-				if (plength > PAYLEN) {
-					diag ("PL BIG: %u", plength);
-					plength = PAYLEN;
-				}
-
-	// With AppendRssi, two bytes past payload are used: RSSI + 0,
-	// without, just one zero, the buffer length must be
-	// paylen + 2 + rss + 1; the packet looks this way:
-	//	total paylen pay ... pay rssi 0
-	// total is paylen + 3 (with RSSI), even though paylen + 4 bytes
-	// are actually written
-	diag ("RX: %d %d, %x %x %x %x ... %x | %x %x %x %x %x %x",
-					flength, plength,
-					db->pData [2],
-					db->pData [3],
-					db->pData [4],
-					db->pData [5],
-					db->pData [2 + plength - 1],
-					db->pData [2 + plength - 0],
-					db->pData [2 + plength + 1],
-					db->pData [2 + plength + 2],
-					db->pData [2 + plength + 3],
-					db->pData [2 + plength + 4],
-					db->pData [2 + plength + 5] );
-
-	diag ("RS: %u %u %u %u %u <%d> %lu",
-		rxstat.nRxOk,
-		rxstat.nRxNok,
-		rxstat.nRxIgnored,
-		rxstat.nRxStopped,
-		rxstat.nRxBufFull,
-		rxstat.lastRssi,
-		rxstat.timeStamp);
-
-				__clean_rbuff (db->pData);
-				db->status = DATA_ENTRY_PENDING;
-			}
+DR_LOOP__:
+		if (dstate & DSTATE_IRST) {
+			// Reset request
+			rf_off ();
+			// Need some delay?
+			_BIC (dstate,
+			 DSTATE_RXAC | DSTATE_RFON | DSTATE_TXIP | DSTATE_IRST);
 		}
 
-		delay (2, RCV_LOOP);
+		// Keep RX state in sync with the requested state
+		if (dstate & DSTATE_RXAC) {
+			if ((dstate & DSTATE_RXON) == 0)
+				rx_de ();
+		} else if (dstate & DSTATE_RXON) {
+			// Request to activate the receiver
+			rf_on ();
+			rx_ac ();
+		}
+
+		if ((RF_cmdPropTx.pPkt = (byte*)tcvphy_top (physid)) == NULL) {
+			// Nothing to transmit
+			wait (qevent, DR_LOOP);
+			if (dstate & DSTATE_RXAC) {
+				// Try to receive
+				rx_int_enable ();
+//delay (1024, DR_LOOP);
+			} else if (dstate & DSTATE_RFON) {
+				// Delay until off
+				delay (offdelay, DR_GOOF);
+			}
+			release;
+		}
+
+		if (bckf_timer) {
+			// Backoff wait
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+Bkf:
+#endif
+			wait (qevent, DR_LOOP);
+			delay (bckf_timer, DR_LOOP);
+			if (dstate & DSTATE_RXAC)
+				rx_int_enable ();
+			release;
+		}
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		// Check for CAV requested in the packet
+		ppm = ((address)(RF_cmdPropTx.pPkt)) +
+			((tcv_tlength ((address)(RF_cmdPropTx.pPkt)) >> 1) - 1);
+		if ((pcav = (*ppm) & 0x0fff)) {
+			// Remove for next turn
+			*ppm &= ~0x0fff;
+			utimer_set (bckf_timer, pcav);
+			goto Bkf;
+		}
+#endif
+		// Make sure we are up
+		rf_on ();
+
+		// LBT (later)
+		tcvphy_get (physid, &paylen);
+		// Ignore the two extra bytes right away, we have no use for
+		// them
+		paylen -= 2;
+		sysassert (paylen <= rbuffl && paylen > 0 && (paylen & 1) == 0,
+			"cc13 py");
+
+		LEDI (1, 1);
+
+		if (statid != 0xffff)
+			// Insert NetId
+			((address)(RF_cmdPropTx.pPkt)) [0] = statid;
+
+		RF_cmdPropTx.pktLen = (byte) paylen;
+
+		// Stop the receiver
+		rx_de ();
+
+		issue_cmd ((lword)&RF_cmdPropTx);
+
+#ifdef	DETECT_HANGUPS
+		txcounter = DETECT_HANGUPS;
+#endif
+	entry (DR_XMIT)
+
+		if (dstate & DSTATE_IRST)
+			goto DR_LOOP__;
+
+		// For now, let's have it the easy way
+
+		if (RF_cmdPropTx.status != PROP_DONE_OK) {
+#ifdef	DETECT_HANGUPS
+			if (txcounter-- == 0) {
+				diag ("TX HANG: %lx", RF_cmdPropTx.status);
+				syserror (EHARDWARE, "txhung");
+			}
+#endif
+			delay (1, DR_XMIT);
+			release;
+		}
+
+		// Release the packet
+		tcvphy_end ((address)(RF_cmdPropTx.pPkt));
+
+		LEDI (1, 0);
+
+#if RADIO_LBT_XMIT_SPACE
+		utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
+		// If we don't care to space (don't we?), then perhaps we
+		// should send whatever pending packets we have in the queue
+		// without restarting the receiver
+#endif
+		// This will restart RX, if RX is logically on
+		goto DR_LOOP__;
+
+	entry (DR_GOOF)
+
+		// Inactivity timeout with RX OFF
+		if (!(dstate & DSTATE_IRST) && (dstate & DSTATE_RXON) == 0 &&
+		    tcvphy_top (physid) == NULL)
+			rf_off ();
+
+		goto DR_LOOP__;
 endthread
+
+#undef	DR_LOOP
+#undef	DR_XMIT
+#undef	DR_GOOF
+
+// ============================================================================
+
+static void init_rbuffs () {
+//
+// Set up the receive buffer pool
+//
+	int i;
+	rfc_dataEntryGeneral_t *re, *da, *db;
+
+	i = 0;
+	while (1) {
+		db = (rfc_dataEntryGeneral_t*)
+			umalloc (sizeof (rfc_dataEntryGeneral_t) - 1 + rbuffl +
+				2);
+			// 2 extra bytes needed on top of two extra bytes
+			// from mbs; at this stage rbuffl = max paylen + 2
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
+		if (db == NULL)
+			syserror (EMALLOC, "cc13");
+#endif
+		db->status = DATA_ENTRY_PENDING;
+
+		if (i)
+			// Link to previous
+			da->pNextEntry = (byte*) db;
+		else
+			re = db;
+
+		db->config.type = 0;	// General (data in structure)
+		db->config.lenSz = 1;	// Single byte for length
+		db->config.irqIntv = 0;	// Irrelevant
+		db->length = rbuffl + 2;
+		if (++i == NRBUFFS)
+			break;
+		da = db;
+	}
+
+	// Link last to first
+	db->pNextEntry = (byte*) re;
+
+	// This is an alias for RF_cmdPropRx.pQueue
+	rbuffs = (dataQueue_t*) umalloc (sizeof (dataQueue_t));
+		
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
+	if (rbuffs == NULL)
+		syserror (EMALLOC, "cc13");
+#endif
+	rbuffs->pCurrEntry = (byte*) re;
+	rbuffs->pLastEntry = NULL;
+
+	// Prepare the command to start reading
+	RF_cmdPropRx . pOutput = (byte*) &rxstat;
+
+	// I guess this is how we make sure the command runs in a loop
+	RF_cmdPropRx . pktConf . bRepeatOk = 1;
+	RF_cmdPropRx . pktConf . bRepeatNok = 1;
+
+	// Auto-discard rejects from the queue
+	RF_cmdPropRx . rxConf . bAutoFlushIgnored = 1;
+	RF_cmdPropRx . rxConf . bAutoFlushCrcErr = 1;
+
+	// RSSI appended to the received packet; also, by default, the CRC
+	// is discarded and a status byte is appended
+	RF_cmdPropRx . rxConf . bAppendRssi = 1;
+
+	// Make rbuffl exactly equal to max payload length
+	rbuffl -= 2;
+}
+
+static int option (int opt, address val) {
+
+	int ret = 0;
+
+	switch (opt) {
+
+		case PHYSOPT_STATUS:
+
+			ret = 2 | ((dstate & DSTATE_RXON) != 0);
+			goto RVal;
+
+		case PHYSOPT_RXON:
+
+			_BIS (dstate, DSTATE_RXON);
+OREvnt:
+			p_trigger (drvprcs, qevent);
+
+		case PHYSOPT_TXON:
+		case PHYSOPT_TXOFF:
+		case PHYSOPT_TXHOLD:
+
+			goto RRet;
+
+		case PHYSOPT_RXOFF:
+
+			_BIC (dstate, DSTATE_RXON);
+			goto OREvnt;
+
+		case PHYSOPT_SETSID:
+
+			statid = (val == NULL) ? 0 : *val;
+			goto RRet;
+
+		case PHYSOPT_GETSID:
+
+			ret = (int) statid;
+			goto RVal;
+
+		case PHYSOPT_GETMAXPL:
+
+			ret = rbuffl + 2;
+			goto RVal;
+
+	    	case PHYSOPT_ERROR:
+
+			if (val != NULL) {
+				memcpy (val, &rxstat,
+					sizeof (rfc_propRxOutput_t));
+			} else {
+				memset (&rxstat, 0, 
+					sizeof (rfc_propRxOutput_t));
+			}
+
+			goto RRet;
+
+		case PHYSOPT_CAV:
+
+			if (val == NULL)
+				// Random backoff
+				gbackoff (RADIO_LBT_BACKOFF_EXP);
+			else
+				utimer_set (bckf_timer, *val);
+
+			goto OREvnt;
+
+		case PHYSOPT_GETPOWER:
+
+#if RADIO_DEFAULT_POWER < 8
+			for (ret = 0; ret < 8; ret++)
+				if (RF_cmdPropRadioDivSetup.txPower ==
+					patable [ret])
+						break;
+#else
+			ret = 8;
+#endif
+			goto RVal;
+
+#if RADIO_DEFAULT_POWER < 8
+		// Can be set
+		case PHYSOPT_SETPOWER:
+
+			// This is a global reset; apparently, we can do
+			// per-packet power via a special command
+
+			ret = (val == NULL) ? RADIO_DEFAULT_POWER :
+				(*val > 7) ? 7 : *val;
+			RF_cmdPropRadioDivSetup.txPower = patable [ret];
+			_BIS (dstate, DSTATE_IRST);
+			goto OREvnt;
+#endif
+
+		case PHYSOPT_GETCHANNEL:
+
+			ret = (int) channel;
+			goto RVal;
+
+		case PHYSOPT_SETCHANNEL:
+
+			channel = (val == NULL) ? RADIO_DEFAULT_CHANNEL :
+				(*val > 7) ? 7 : *val;
+			plugch ();
+			_BIS (dstate, DSTATE_IRST);
+			goto OREvnt;
+
+		case PHYSOPT_GETRATE:
+
+#if RADIO_BITRATE_INDEX > 0
+			ret = (int) vrate;
+#endif
+			goto RVal;
+
+#if RADIO_BITRATE_INDEX > 0
+
+		case PHYSOPT_SETRATE:
+
+			vrate = (val == NULL) ? RADIO_BITRATE_INDEX :
+				(*val > 3) ? 3 : (*val < 1) ? 1 : *val;
+			plugch ();
+			_BIS (dstate, DSTATE_IRST);
+			goto OREvnt;
+#endif
+		case PHYSOPT_SETPARAMS:
+
+			// For now, this sets the off delay
+			offdelay = (val == NULL) ? RADIO_DEFAULT_OFFDELAY :
+				*val;
+			goto RRet;
+
+		default:
+
+			syserror (EREQPAR, "cc13 op");
+	}
+RRet:
+	return ret;
+RVal:
+	if (val != NULL)
+		*val = ret;
+	goto RRet;
+}
+
+// ============================================================================
+
+void phys_cc1350 (int phy, int mbs) {
+//
+// For combatibility with cc1100, mbs does cover the checksum (or status
+// bytes), so it is equal to max payload length + 2. Not sure what the maximum
+// packet length is (and I have reasons not to trust the manual), so let me
+// assume it is 255 - 4 - 1 = 250. We shall be careful.
+//
+
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
+	if (rbuffl != 0)
+		/* We are allowed to do it only once */
+		syserror (ETOOMANY, "cc13");
+#endif
+	if (mbs == 0)
+		mbs = CC1350_MAXPLEN;
+
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
+	if (mbs < 6 || mbs > CC1350_MAXPLEN)
+		/* We are allowed to do it only once */
+		syserror (EREQPAR, "cc13 mb");
+#endif
+
+	rbuffl = (byte) mbs;
+
+	// Allocate the receive pool
+	init_rbuffs ();
+
+	physid = phy;
+
+	// Register the phy
+	qevent = tcvphy_reg (phy, option, INFO_PHYS_CC1350);
+
+	LEDI (0, 0);
+	LEDI (1, 0);
+	LEDI (2, 0);
+
+#if DIAG_MESSAGES
+	diag ("CC1350: %d, %d, %d", RADIO_BITRATE_INDEX, RADIO_DEFAULT_POWER,
+		RADIO_DEFAULT_CHANNEL);
+#endif
+
+	// Install the backoff timer
+	utimer_add (&bckf_timer);
+
+	// Start the driver process
+	drvprcs = runthread (cc1350_driver);
+
+#if (RADIO_OPTIONS & RADIO_OPTION_NOCHECKS) == 0
+	if (drvprcs == 0)
+		syserror (ERESOURCE, "cc13");
+#endif
+	// Preset the power, rate, and channel
+
+#if RADIO_DEFAULT_POWER <= 7
+	RF_cmdPropRadioDivSetup.txPower = patable [RADIO_DEFAULT_POWER];
+#endif
+
+#if RADIO_BITRATE_INDEX > 0
+	plugrt ();
+#endif
+	plugch ();
+
+	// Make sure, prop mode is selected in PRCM (this is supposed to be
+	// the default)
+	HWREG (PRCM_BASE + PRCM_O_RFCMODESEL) =  RF_MODE_PROPRIETARY_SUB_1;
+
+	// Precompute the Trim
+	RFCRTrim ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup);
+       	RFCRfTrimRead ((rfc_radioOp_t*)&RF_cmdPropRadioDivSetup,
+			(rfTrim_t*)&rfTrim);
+
+	// Direct all doorbell interrupts permanently to CPE0
+	HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEISL) = 0;
+}

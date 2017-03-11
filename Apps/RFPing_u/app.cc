@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -18,6 +18,10 @@
 
 #if CC2420
 #include "phys_cc2420.h"
+#endif
+
+#if CC1350_RF
+#include "phys_cc1350.h"
 #endif
 
 #if defined(PIN_LIST) || defined (__SMURPH__)
@@ -80,6 +84,16 @@ static word gen_packet_length (void) {
 			MIN_PACKET_LENGTH) & 0xFFE;
 #endif
 
+}
+
+static inline void rdelay (word del, word st) {
+//
+// Randomized delay
+//
+	if (del > 16)
+		del = del - 7 + (rnd () & 0xF);
+
+	delay (del, st);
 }
 
 fsm receiver {
@@ -184,7 +198,7 @@ Finish:
 	when (&tkillflag, SN_SEND);
 
 	if (last_ack != last_snt) {
-		delay (tdelay, SN_NEXT);
+		rdelay (tdelay, SN_NEXT);
 		when (&last_ack, SN_SEND);
 		release;
 	}
@@ -193,7 +207,9 @@ Finish:
 
 	packet_length = gen_packet_length ();
 
-	proceed SN_NEXT;
+	// proceed SN_NEXT;
+	rdelay (tdelay, SN_NEXT);
+	release;
 
     entry SN_NEXT:
 
@@ -341,6 +357,9 @@ fsm root {
 #endif
 #if CC2420
 	phys_cc2420 (0, MAXPLEN);
+#endif
+#if CC1350_RF
+	phys_cc1350 (0, MAXPLEN);
 #endif
 	// WARNING: the SMURPH model assumes that the plugin is static, i.e.,
 	// all nodes use the same plugin. This is easy to change later, but
