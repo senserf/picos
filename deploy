@@ -246,7 +246,7 @@ proc anchor { } {
 #
 # Locate the root directory of PICOS (i.e., from where we should be called)
 #
-	global CWD RWD BIN env HOME PPATH
+	global CWD RWD BIN env HOME PPATH ST
 
 	set CWD [pwd]
 
@@ -287,6 +287,10 @@ proc anchor { } {
 
 	set PPATH [file normalize ".."]
 	if { [string first $HOME $PPATH] != 0 } {
+		if { $ST(SYS) == "L" } {
+			# OK
+			return
+		}
 		if { [string first "/cygdrive/" $PPATH] == 0 } {
 			# OK
 			return
@@ -529,7 +533,7 @@ proc doit { } {
 		set BINW [exec cygpath -m $BIN]
 	}
 
-	set ScriptsToFix { pip }
+	set ScriptsToFix { pip mkmk }
 
 	# copy scripts (for PICOS and VUEE); PIP did it itself
 	if [info exists REL(PICOS)] {

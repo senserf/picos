@@ -211,7 +211,6 @@ extern char		*__heap_start__;
 extern char		*__bss_end;
 #define	__BSS_END	__bss_end
 #endif
-
 #undef	mkmk_eval
 
 #endif

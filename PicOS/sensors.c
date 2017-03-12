@@ -27,6 +27,20 @@ static const i_sensdesc_t sensor_list [] = SENSOR_LIST;
 
 #define	sensors	((d_sensdesc_t*) sensor_list)
 
+#if 0
+void dump_sensor_list () {
+
+	sint i, j;
+
+	for (i = 0; i < N_SENSORS; i++) {
+		diag ("Sensor %d", i);
+		for (j = 0; j < sizeof (i_sensdesc_t); j++)
+			diag ("  %x", *(((byte*)&(sensor_list [i])) + j));
+	}
+}
+
+#endif
+
 #ifdef	SENSOR_INITIALIZERS
 
 // Some sensors have to be initialized

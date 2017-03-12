@@ -5,7 +5,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "pin_sensor_sys.h"
+#include "pins_sys.h"
 
 #if defined(INPUT_PIN_LIST) || defined(OUTPUT_PIN_LIST)
 //+++ pin_sensor.c
@@ -14,7 +14,6 @@
 #ifdef INPUT_PIN_LIST
 void pin_sensor_init ();
 void pin_sensor_read (word, const byte*, address);
-void pin_sensor_interrupt ();
 #endif
 
 #ifdef OUTPUT_PIN_LIST

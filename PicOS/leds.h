@@ -5,11 +5,10 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-#include "leds_sys.h"
-
 #if LEDS_DRIVER
 
 #include "board_leds.h"
+#include "pins.h"
 
 #endif
 

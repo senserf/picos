@@ -1,10 +1,11 @@
 #ifndef __pg_mach_h
 #define	__pg_mach_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#include <stdarg.h>
 #include "supplement.h"
 #include "portnames.h"
 
@@ -21,14 +22,11 @@
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
 
-// Meaning we are gcc
-#define	INTERNAL_FUNCTIONS_ALLOWED	1
-
 // ============================================================================
 // CPU type dependencies ======================================================
 // ============================================================================
 
-#ifdef		__MSP430_148__
+#ifdef		__msp430f148__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_1xx__
@@ -38,7 +36,7 @@
 #define		__FLASH_TYPE__	1
 #endif
 
-#ifdef		__MSP430_149__
+#ifdef		__msp430f149__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_1xx__
@@ -48,7 +46,7 @@
 #define		__FLASH_TYPE__	1
 #endif
 
-#ifdef		__MSP430_1611__
+#ifdef		__msp430f1611__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x2800	// 10240
 #define       	__MSP430_1xx__
@@ -58,7 +56,7 @@
 #define		__FLASH_TYPE__	1
 #endif
 
-#ifdef		__MSP430_449__
+#ifdef		__msp430f449__
 #define		RAM_START	0x200
 #define		RAM_SIZE	0x800	// 2048
 #define       	__MSP430_4xx__
@@ -68,7 +66,7 @@
 #define		__FLASH_TYPE__	1
 #endif
 
-#ifdef		__MSP430_G4617__
+#ifdef		__msp430fG4617__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x2000	// 8K
 #define       	__MSP430_4xx__
@@ -82,7 +80,7 @@
 #define		__FLASH_TYPE__	1
 #endif
 
-#ifdef		__MSP430_G4618__
+#ifdef		__MSP430fG4618__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x2000	// 8K
 #define       	__MSP430_4xx__
@@ -95,7 +93,7 @@
 #define		__FLASH_TYPE__	1
 #endif
 
-#ifdef		__MSP430_G4619__
+#ifdef		__msp430fG4619__
 #define		RAM_START	0x1100
 #define		RAM_SIZE	0x1000	// 4K
 #define       	__MSP430_4xx__
@@ -108,7 +106,7 @@
 #define		__FLASH_TYPE__	1
 #endif
 
-#ifdef		__CC430_6137__
+#ifdef		__cc430f6137__
 #define		RAM_START	0x1C00
 #define		RAM_SIZE	0x1000	// 4K
 #define       	__MSP430_6xx__
@@ -126,7 +124,7 @@
 #define		SMCLK_RATE	(CRYSTAL_RATE * (DCO_MULTIPLIER + 1))
 #endif
 
-#ifdef		__CC430_5137__
+#ifdef		__cc430f5137__
 #define		RAM_START	0x1C00
 #define		RAM_SIZE	0x1000	// 4K
 #define       	__MSP430_5xx__
@@ -498,6 +496,9 @@ word tci_update_delay_ticks (Boolean);
 // ============================================================================
 
 #include "uart_def.h"
+
+// No other devices on MSP430
+#define	MAX_DEVICES	UART_DRIVER
 
 #if	UART_DRIVER
 
@@ -875,5 +876,10 @@ extern uart_t __pi_uart [];
 #if LEDS_DRIVER
 #include "leds.h"
 #endif
+
+// Seconds clock
+extern	lword		__pi_nseconds;
+#define	seconds()	__pi_nseconds
+#define	setseconds(a)	(__pi_nseconds = (lword) (a));
 
 #endif

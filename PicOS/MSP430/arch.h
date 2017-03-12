@@ -2,7 +2,7 @@
 #define	__pg_arch_h		1
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -10,24 +10,16 @@
 /* Architecture-specific definitions                                    */
 /* ==================================================================== */
 
-typedef unsigned char	bool;
 typedef unsigned char	Boolean;
-typedef	unsigned int	word;
-typedef	int		sint;
-typedef	long int	lint;
-typedef	unsigned char	byte;
-typedef	unsigned long	lword;
-typedef	unsigned int	field;
+typedef	unsigned int	word;		// 16-bit
+typedef	int		sint;		// Machine's standard integer (VUEE)
+typedef	long int	lint;		// Machine's standard long integer
+typedef	unsigned char	byte;		// 8-bit
+typedef	unsigned long	lword;		// 32-bit
+typedef	unsigned int	aword;		// Integer accommodating address
 typedef	word		*address;
 
-/* va_arg */
-typedef	volatile address	va_list;
-#define	va_par(p)		(((address)&(p)) + wsizeof(p))
-#define	va_start(a,p)		((a) = va_par (p))
-#define	va_arg(a,t)		(*(t *) (((a) += wsizeof (t)) - wsizeof (t)))
-#define	va_end(a)		((a) = 0)
-
-#define	byteaddr(p)		((char*)(p))
+#define	byteaddr(p)	((char*)(p))
 
 typedef struct {
 
@@ -46,12 +38,12 @@ extern volatile systat_t __pi_systat;
 #define	MALLOC_START		((address)&__BSS_END)
 
 #if	STACK_GUARD
-#define MALLOC_LENGTH	(	(((word) STACK_END - (word)&__BSS_END)/2) - 1)
+#define MALLOC_LENGTH	(	(((aword) STACK_END - (aword)&__BSS_END)/2) - 1)
 #else
-#define MALLOC_LENGTH		(((word) STACK_END - (word)&__BSS_END)/2)
+#define MALLOC_LENGTH		(((aword) STACK_END - (aword)&__BSS_END)/2)
 #endif
 
-#define	STATIC_LENGTH		(((word)&__BSS_END - (word)RAM_START + 1)/2)
+#define	STATIC_LENGTH		(((aword)&__BSS_END - (aword)RAM_START + 1)/2)
 
 #define	mkmk_eval
 #if __GNUC__ > 4

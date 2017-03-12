@@ -7,7 +7,7 @@
 
 static void (*baction) (word) = NULL;
 static word pbutton;
-const word button_list [] = BUTTON_LIST;
+const word __button_list [] = BUTTON_LIST;
 
 #define	BU_WAIT		0
 #define	BU_OFF		1
@@ -36,11 +36,11 @@ Term:
 	}
 
 	// Find the button
-	for (pbutton = 0; pbutton < sizeof (button_list) / sizeof (word); 
+	for (pbutton = 0; pbutton < sizeof (__button_list) / sizeof (word); 
 	    pbutton++) {
 		// This is the priority order, in case more than one button
 		// is pressed at the same time
-		if (button_pressed (button_list [pbutton])) {
+		if (button_pressed (__button_list [pbutton])) {
 			// Do the action
 			(*baction) (pbutton);
 			// Basic debounce delay: wait for this much before
@@ -53,16 +53,16 @@ Debounce:
 
 	// Not found
 Done:
-	when (BUTTON_PRESSED_EVENT, BU_WAIT);
+	when (&__button_list, BU_WAIT);
 	buttons_enable ();
 	release;
 		
   entry (BU_OFF)
 
-	if (!button_still_pressed (button_list [pbutton]))
+	if (!button_still_pressed (__button_list [pbutton]))
 		goto Done;
 
-	if (BUTTON_REPEAT (button_list [pbutton])) {
+	if (BUTTON_REPEAT (__button_list [pbutton])) {
 		// Wait for repeat
 		delay (BUTTON_REPEAT_DELAY, BU_LOOP);
 		release;
@@ -71,7 +71,7 @@ Done:
 
   entry (BU_LOOP)
 
-	if (!button_still_pressed (button_list [pbutton]))
+	if (!button_still_pressed (__button_list [pbutton]))
 		goto Done;
 
 	if (baction == NULL)

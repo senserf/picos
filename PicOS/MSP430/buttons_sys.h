@@ -3,6 +3,16 @@
 
 #include "pins.h"
 
+extern const word __button_list [];
+
+#define	BUTTON_PORT(b)			(((b) >> 12) & 0xf)
+#define	BUTTON_REPEAT(b)		(((b) >> 8 ) & 0xf)
+#define	BUTTON_PIN(b)			((byte) (b))
+
+#define	BUTTON_DEF(port,pin,repeat)	( ((port) << 12) | \
+					  ((repeat) << 8) | \
+						(pin))
+
 #ifndef	BUTTON_PRESSED_LOW
 #define	BUTTON_PRESSED_LOW	0
 #endif

@@ -1,5 +1,6 @@
 #include "sysio.h"
 #include "ser.h"
+#include "serf.h"
 
 typedef struct {
 	byte led, state;
@@ -44,6 +45,7 @@ fsm root {
 		my_led = (led_status_t*)umalloc (sizeof (led_status_t));
 		my_led -> led = 1;
 		blink (my_led, YES);
+		leds (0, 2);
 		runfsm blinker (my_led);
 
 	state INPUT:

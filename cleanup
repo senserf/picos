@@ -20,5 +20,8 @@ fi
 cd Apps
 ./cleanup
 cd ..
-rm -rf LIBRARIES
+# remove libraries and their make accessories
+rm -rf PicOS/*/BOARDS/*/libpicos.a
+rm -rf PicOS/*/BOARDS/*/Makefile
+rm -rf PicOS/*/BOARDS/*/KTMP
 ./Scripts/permissions

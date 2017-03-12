@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -18,6 +18,10 @@
 
 #if CC2420
 #include "phys_cc2420.h"
+#endif
+
+#if CC1350_RF
+#include "phys_cc1350.h"
 #endif
 
 #if defined(PIN_LIST) || defined (__SMURPH__)
@@ -69,6 +73,10 @@ bool 	RCVon;
 bool	rkillflag;
 bool	tkillflag;
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+word	xpower;
+#endif
+
 // ============================================================================
 
 static word gen_packet_length (void) {
@@ -80,6 +88,16 @@ static word gen_packet_length (void) {
 			MIN_PACKET_LENGTH) & 0xFFE;
 #endif
 
+}
+
+static inline void rdelay (word del, word st) {
+//
+// Randomized delay
+//
+	if (del > 16)
+		del = del - 7 + (rnd () & 0xF);
+
+	delay (del, st);
 }
 
 fsm receiver {
@@ -128,8 +146,10 @@ fsm receiver {
 		packet [0] = 0;
 		packet [1] = PKT_ACK;
 		((lword*)packet) [1] = wtonl (last_rcv);
-
 		packet [4] = (word) (entropy);
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		packet [ACK_LENGTH/2 - 1] = xpower;
+#endif
 		tcv_endp (packet);
 	}
 	proceed RC_TRY;
@@ -184,7 +204,7 @@ Finish:
 	when (&tkillflag, SN_SEND);
 
 	if (last_ack != last_snt) {
-		delay (tdelay, SN_NEXT);
+		rdelay (tdelay, SN_NEXT);
 		when (&last_ack, SN_SEND);
 		release;
 	}
@@ -193,7 +213,9 @@ Finish:
 
 	packet_length = gen_packet_length ();
 
-	proceed SN_NEXT;
+	// proceed SN_NEXT;
+	rdelay (tdelay, SN_NEXT);
+	release;
 
     entry SN_NEXT:
 
@@ -217,6 +239,9 @@ Finish:
 	for (pp = 4; pp < pl; pp++)
 		packet [pp] = (word) (entropy);
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	packet [pl] = xpower;
+#endif
 	tcv_endp (packet);
 
     entry SN_NEXT1:
@@ -341,6 +366,9 @@ fsm root {
 #endif
 #if CC2420
 	phys_cc2420 (0, MAXPLEN);
+#endif
+#if CC1350_RF
+	phys_cc1350 (0, MAXPLEN);
 #endif
 	// WARNING: the SMURPH model assumes that the plugin is static, i.e.,
 	// all nodes use the same plugin. This is easy to change later, but
@@ -496,6 +524,9 @@ fsm root {
 		while (k > 3)
 			((byte*)pkt) [k--] = 0xAA;
 
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		pkt [k/2] = xpower;
+#endif
 		tcv_endp (pkt);
 	}
 
@@ -683,7 +714,14 @@ fsm root {
 	if (scan (ibuf + 1, "%u", p+0) < 1)
 		proceed RS_RCMD1;
 
+	if (p [0] > 7)
+		proceed RS_RCMD1;
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	xpower = p [0] << 12;
+#else
 	tcv_control (sfd, PHYSOPT_SETPOWER, p);
+#endif
 	proceed RS_RCMD;
 
     entry RS_GETP:

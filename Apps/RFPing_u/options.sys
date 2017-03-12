@@ -32,4 +32,7 @@
 
 #endif
 
+#define	RADIO_OPTIONS	RADIO_OPTION_PXOPTIONS
+
+
 // #define	TCV_LIMIT_RCV	4

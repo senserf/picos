@@ -10,7 +10,7 @@
 // Pin sensor =================================================================
 // ============================================================================
 
-static const piniod_t input_pins [] = INPUT_PIN_LIST;
+const piniod_t __input_pins [] = INPUT_PIN_LIST;
 
 void pin_sensor_init () { __pinsen_setedge_irq; }
 
@@ -26,28 +26,16 @@ void pin_sensor_read (word st, const byte *junk, address val) {
 			// Make sure this is not WNONE
 			return;
 		cli;
-		__pinsen_clear_irq;
-		__pinsen_enable_irq;
-		when (&input_pins, st);
+		__pinsen_clear_and_enable;
+		when (&__input_pins, st);
 		sti;
 		release;
 	}
 
 	*val = 0;
-	for (i = 0, p = input_pins;
-	    		  i < sizeof (input_pins) / sizeof (piniod_t); i++, p++)
-		*val |= ((((__port_in (p->poff) & (1 << p->pnum)) != 0) ^
-			p->edge) << 1);
-}
-
-void pin_sensor_interrupt () {
-
-	i_trigger ((word)(&input_pins));
-
-	__pinsen_disable_irq;
-	__pinsen_clear_irq;
-
-	RISE_N_SHINE;
+	for (i = 0, p = __input_pins;
+	    	    i < sizeof (__input_pins) / sizeof (piniod_t); i++, p++)
+		*val |= __port_in_value (p) << i;
 }
 
 #endif /* INPUT_PIN_LIST */
@@ -66,23 +54,10 @@ void pin_actuator_write (word st, const byte *junk, address val) {
 
 	const piniod_t *p;
 	word i;
-	volatile byte *t;
-	byte b, c;
 
 	for (i = 0, p = output_pins;
-		      i < sizeof (output_pins) / sizeof (piniod_t); i++, p++) {
-
-		b = *(t = __port_out (p->poff));
-
-		c = (1 << p->pnum);
-		if (((*val >> i) & 1) ^ p->edge)
-			// Must be set
-			_BIS (b, c);
-		else
-			// Must be cleared
-			_BIC (b, c);
-		*t = b;
-	}
+		      i < sizeof (output_pins) / sizeof (piniod_t); i++, p++)
+		__port_out_value (p, (*val >> i) & 1);
 }
 
 #endif /* OUTPUT_PIN_LIST */

@@ -1,7 +1,12 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2016                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
+
+// Note: TCV functions have been written to be sint-size independent. That
+// facilitated running TCV under VUEE (directly) and is now beneficial
+// from the viewpoint of the ARM port. It should work fine on any architecture
+// where sizeof(int) == sizeof (address).
 
 #ifndef	__tcv_cc__
 #define	__tcv_cc__
@@ -91,14 +96,14 @@ static void rlp (hblock_t*);
 __PRIVF (PicOSNode, void, dmpq) (qhead_t *q) {
 
 	hblock_t *pp;
-	diag ("START Q DUMP %x", (word)q);
+	diag ("START Q DUMP " __hfaw, (aword)q);
 	for (pp = q_first (q); !q_end (pp, q); pp = q_next (pp))
 		diag ("%d %x [%x %x %x]", pp->length, pp->attributes,
 			((word*)(payload (pp))) [0],
 			((word*)(payload (pp))) [1],
 			((word*)(payload (pp))) [2]
 		);
-	diag ("END Q DUMP %x", (word)q);
+	diag ("END Q DUMP " __hfaw, (aword)q);
 }
 
 __PUBLF (PicOSNode, void, tcv_dumpqueues) (void) {
@@ -500,11 +505,8 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 	battr_t attp;
 	sesdesc_t *s;
 
-#ifdef	__SMURPH__
-#define	va_par(s)	ap
 	va_list		ap;
 	va_start (ap, plid);
-#endif
 
 #if DIAG_MESSAGES > 1
 	/* Check if we have the plugin and the phy */
@@ -540,7 +542,7 @@ __PUBLF (PicOSNode, int, tcv_open) (word state, int phy, int plid, ... ) {
 
 	sysassert (plugins [plid] -> tcv_ope != NULL, "tcv06");
 
-	if (plugins [plid] -> tcv_ope (phy, fd, va_par (plid))) {
+	if (plugins [plid] -> tcv_ope (phy, fd, ap)) {
 		return ERROR;
 	}
 
@@ -824,14 +826,14 @@ __PUBLF (PicOSNode, int, tcv_control) (int fd, int opt, address arg) {
 			return 0;
 		if (opt == PHYSOPT_PLUGINFO) {
 			const tcvplug_t *p;
-			if (fd > TCV_MAX_PLUGS)
+			if (fd >= TCV_MAX_PLUGS)
 				return 0;
 			if ((p = plugins [fd]) == NULL)
 				return 0;
 			return p->tcv_info;
 		}
 		/* PHYSINFO */
-		if (fd > TCV_MAX_PHYS)
+		if (fd >= TCV_MAX_PHYS)
 			return 0;
 		return physinfo [fd];
 	}

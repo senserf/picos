@@ -9,7 +9,7 @@ exec tclsh "$0" "$@"
 #	1. PicOS to C compiler
 #	2. PicOS to VUEE compiler
 #
-# Copyright (C) Olsonet Communications Corporation, 2010-2012
+# Copyright (C) Olsonet Communications Corporation, 2010-2017
 #
 ###############################################################################
 
@@ -195,6 +195,7 @@ set C_WORDS(if)			{ 0 }
 set C_WORDS(return)		{ 0 }
 set C_WORDS(static)		{ 1 1 1 0 0 1 }
 set C_WORDS(union)		{ 1 1 1 1 0 1 }
+set C_WORDS(inline)		{ 0 }
 set C_WORDS(while)		{ 0 }
 ## Our keywords
 set C_WORDS(bool)		{ 1 1 1 1 1 0 }
@@ -1315,6 +1316,10 @@ P {
 		# a standard keyword
 		if { $tcs == 3 || [lindex $kat 0] == 0 } {
 			# type complete or a non-declaration keyword
+			if { $TK == "inline" } {
+				# ignore
+				continue
+			}
 			if $xp {
 				xerror "illegal keyword $TK in declaration"
 			}
@@ -2820,7 +2825,7 @@ K {
 			}
 
 			# an argument, will have to reparse
-			append ins "(word)("
+			append ins "(aword)("
 
 			set arg [get_args]
 			if { $TK != ")" } {
@@ -2883,7 +2888,7 @@ K {
 			truncate $run_mark
 
 			# this goes out right away
-			putS "__pi_fork_join_release ($fsm_name, (word)("
+			putS "__pi_fork_join_release ($fsm_name, (aword)("
 			# this gets pushed back to input to be reparsed
 			set ins "$dat), $sta)"
 			pushback $ins
@@ -3460,7 +3465,7 @@ proc mkdlist { } {
 #
 # Create the list of local subdirectories to search for include files
 #
-	global FG MKRECV CWD DirList EDirList env MODSYMS
+	global FG MKRECV CWD DirList EDirList env MODSYMS DF
 
 	mkdrec $CWD
 
@@ -3506,6 +3511,13 @@ proc mkdlist { } {
 	}
 
 	set MODSYMS ""
+
+	if [info exists DF(+)] {
+		# prepend the global defs from picomp invocation
+		foreach d $DF(+) {
+			lappend MODSYMS $d
+		}
+	}
 
 	foreach ln [split $sl "\n"] {
 		set ln [string trim $ln]

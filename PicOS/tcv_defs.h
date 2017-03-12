@@ -1,7 +1,7 @@
 #ifndef	__tcv_defs_h
 #define __tcv_defs_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -41,7 +41,8 @@ struct __tcv_qitem_s {
 typedef	struct __tcv_qitem_s	__tcv_qitem_t;
 typedef	struct __tcv_qitem_s	__tcv_qhead_t;
 
-#define	TCV_QHEAD_LENGTH	4
+// Two pointers
+#define	TCV_QHEAD_LENGTH	(SIZE_OF_AWORD * 2)
 
 struct __tcv_titem_s {
 // Timer queue item
@@ -84,11 +85,11 @@ struct __tcv_hblock_s {
 	 * has been either removed from a queue, or not yet put into a queue;
 	 * thus, we recycle the links for this purpose.
 	 */
-    } u;			// 4 bytes PicOS, 8 bytes simulator
+    } u;
 
 #if	TCV_HOOKS
-	address *hptr;		// 2 bytes PicOS, 4 bytes simulator
-#define	TCV_HBLOCK_HOOKS_LENGTH		2
+	address *hptr;
+#define	TCV_HBLOCK_HOOKS_LENGTH		SIZE_OF_AWORD
 #else
 #define	TCV_HBLOCK_HOOKS_LENGTH		0
 #endif
@@ -107,14 +108,15 @@ struct __tcv_hblock_s {
 	 * Timer queue links (must be the last item, see
 	 * t_tqoffset below
 	 */
-	__tcv_titem_t	tqueue;		// 6 bytes PicOS, 12 bytes simulator
-#define	TCV_HBLOCK_TIMERS_LENGTH	6
+	__tcv_titem_t	tqueue;		// 2 pointers + word
+	// Or is it SIZE_OF_AWORD * 3?
+#define	TCV_HBLOCK_TIMERS_LENGTH	(SIZE_OF_AWORD * 2 + 2) 
 #else
 #define	TCV_HBLOCK_TIMERS_LENGTH	0
 #endif
 };
 
-#define	TCV_HBLOCK_LENGTH   (8+TCV_HBLOCK_HOOKS_LENGTH+TCV_HBLOCK_TIMERS_LENGTH)
+#define	TCV_HBLOCK_LENGTH   (TCV_QHEAD_LENGTH+4+TCV_HBLOCK_HOOKS_LENGTH+TCV_HBLOCK_TIMERS_LENGTH)
 
 typedef	struct __tcv_hblock_s	__tcv_hblock_t;
 
@@ -139,11 +141,11 @@ typedef	struct {
 	 * when the open operation is resumed. Kind of clumsy, especially that
 	 * I can think of no other use for this attribute.
 	 */
-	int		pid;
+	aword		pid;
 #endif
 } __tcv_sesdesc_t;
 
-#define	TCV_SESDESC_LENGTH	(4+2+2)
+#define	TCV_SESDESC_LENGTH	(TCV_QHEAD_LENGTH + 2 + SIZE_OF_AWORD)
 
 #define	__tcv_hblenb		(sizeof (__tcv_hblock_t))
 #define __tcv_hblen		(__tcv_hblenb/sizeof(word))

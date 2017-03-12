@@ -1,1 +1,0 @@
--l main.c sysio.h plug_tarp.c tarp.c net.c ser_in.c ser_out.c ser_inf.c ser_outf.c form.c ser.h serf.h plug_null.c plug_tarp.c ser_outb.c phys_cc1000.c

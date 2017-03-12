@@ -2,14 +2,16 @@
 #include "storage.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
 #include "irq_timer_headers.h"
 
-extern 			__pi_pcb_t	*__pi_curr;
-extern 			address		__pi_utims [MAX_UTIMERS];
+extern 	__pi_pcb_t	*__pi_curr;
+extern 	address		__pi_utims [MAX_UTIMERS];
+
+lword 	__pi_nseconds;
 
 void	__pi_malloc_init (void);
 
@@ -104,14 +106,6 @@ void halt (void) {
 		_BIS_SR (LPM4_bits);
 }
 
-#if	ADC_PRESENT
-#error "S: ADC_PRESENT on MSP430 is illegal"
-// There is no general ADC interface at the moment. Well, not of the same
-// kind as there used to be for eCOG. There is an ADC sampler (see
-// ../adc_sampler.[ch]) as well as various board-specific hooks to the ADC.
-// Also, the ADC is used internally for Radio RSSI.
-#endif
-
 int main (void) {
 
 #if	STACK_GUARD
@@ -155,7 +149,7 @@ int main (void) {
 }
 
 #if DIAG_MESSAGES > 1
-void __pi_syserror (int ec, const char *m) {
+void __pi_syserror (word ec, const char *m) {
 
 	WATCHDOG_STOP;
 
@@ -164,7 +158,7 @@ void __pi_syserror (int ec, const char *m) {
 #endif
 	diag ("SYSERR: %x, %s", ec, m);
 #else
-void __pi_syserror (int ec) {
+void __pi_syserror (word ec) {
 
 	WATCHDOG_STOP;
 
@@ -183,15 +177,6 @@ void __pi_syserror (int ec) {
 
 #else	/* RESET_ON_SYSERR */
 
-// ========== DISABLED ========================================================
-#if 0
-#ifdef	EEPROM_PRESENT
-	ee_sync (WNONE);
-#endif
-#ifdef	SDRAM_PRESENT
-	sd_sync ();
-#endif
-#endif
 // ============================================================================
 
 	while (1) {
@@ -915,10 +900,6 @@ interrupt (TCI_VECTOR) timer_int () {
 		}}}}
 #undef UTIMS_CASCADE
 
-#if	ADC_PRESENT
-		// Stub
-#endif
-
 		// Extras
 #include "irq_timer.h"
 
@@ -1368,6 +1349,8 @@ X_redo:
 				*((word*)buf) = __pi_uart_getrate (u);
 				return 1;
 			}
+#endif
+
 #ifdef blue_ready
 			if (len == UART_CNTRL_TRANSPARENT) {
 				if (*((word*)buf))
@@ -1376,8 +1359,6 @@ X_redo:
 					_BIS (u->flags, UART_FLAGS_NOTRANS);
 				return 1;
 			}
-#endif
-
 #endif
 			/* Fall through */
 		default:

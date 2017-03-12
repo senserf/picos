@@ -1,3 +1,5 @@
 if (pin_sensor_int) {
-	pin_sensor_interrupt ();
+	i_trigger ((aword)(&__input_pins));
+	__pinsen_disable_and_clear;
+	RISE_N_SHINE;
 }

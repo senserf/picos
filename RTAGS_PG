@@ -4948,3 +4948,40 @@ PG170112A:
 	Fixed portnames.h in MSP430. Not extremely important, just cleaning up
 	before starting the CC13XX port. More cleanups to come (probably on a
 	separate branch).
+
+PG170312A:	5  0	VUEE >= PG170312A, PIP >= PG170312A
+
+	Here is the list of changes:
+
+	1. eCOG/Cyan support has been removed.
+
+	2. mkmk has been completely rewritten, so different architectures can
+	   be accommodate with a reasonable ease, as long as the toolchain is
+	   GNU-compatible.
+   
+	3. Support for CC1350 has been included. Not everything works yet
+	   (low-power/power management is not implemented, but the radio does
+	   work [in the so-called proprietary mode, which basically means
+	   cc1100-like]). RFPing_u has been compiled and runs with CC1350
+	   Launchpad (CC1350_LAUNCHXL is the only BOARD available for the
+	   device). Stay tuned. This opens the rather straightforward avenue
+	   for supporting other ARM-based devices.
+   
+	To compile stuff for CC1350 you need the GNU ARM toolchain. I have been
+	using Version 6-2016-q4-major, December 21, 2016, from:
+	https://developer.arm.com/open-source/gnu-toolchain/gnu-rm/downloads 
+	Install it and make the tools visible via the standard PATH (Cygwin or
+	Ubuntu). You may want to read the new document for mkmk. Other
+	documents will be updated/created in due time (hopefully soon).
+
+	For flashing, use Flash Programmer 2 from TI, or the command-line
+	version (srfprog) that comes with it (which I will try to integrate
+	with PIP for the next [related] commit).
+
+	Subdirectory CC13XX of PicOS contains the "architecture" set for
+	CC1350. Look there if you are curious. The reason why the port has been
+	so slow is that many features of CC1350 are not documented (TI want us
+	to use their RTOS). Starting from CC1350 was probably a stupid idea
+	(MSP432 + [say] CC1100) would have been way easier. But, on the
+	surface, CC1350 is a neat device with a powerful and flexible radio
+	integrated on the chip. We shall see.

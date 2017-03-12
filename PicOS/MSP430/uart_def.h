@@ -12,8 +12,8 @@
 
 //
 // Even though CPU-specific differences may be small, it makes better sense
-// to copy the whole thing into a separate chunk instead of messing up a
-// given chunk with conditions
+// to copy the whole thing into a separate chunk instead of messing things up
+// with lots of conditions
 //
 
 #include "mach.h"
@@ -32,6 +32,10 @@ typedef struct	{
 // ============================================================================
 // Standard MSP430F1xx: two UARTs [shared part] ===============================
 // ============================================================================
+
+#if UART_DRIVER > 2
+#error "S: UART_DRIVER set to more than available on the device!!!"
+#endif
 
 // ============================================================================
 
@@ -407,6 +411,10 @@ typedef struct	{
 #if __UART_CONFIG__ == 2
 
 // CC430 single UART on P1.5, P1.6
+
+#if UART_DRIVER > 1
+#error "S: UART_DRIVER set to more than available on the device!!!"
+#endif
 
 #ifndef	UART_FROM_SMCLK
 #define	UART_FROM_SMCLK	0
