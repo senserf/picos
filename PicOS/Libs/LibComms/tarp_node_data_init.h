@@ -15,8 +15,11 @@
 
 	tarp_cyclingSeq = 0;
 
-	_da (net_id) = _da (master_host) = 
-		(word) ((lword) preinit ("HID") >> 16);
+// see the comments about locaspot 1.81 vs. 1.83
+//	_da (net_id) = _da (master_host) = 
+//		(word) ((lword) preinit ("HID") >> 16);
+	_da (net_id) =(word) ((lword) preinit ("HID") >> 16);
+	_da (master_host) = (word) preinit ("MHOST"); // I don't think this is in use in locaspot
 	_da (local_host) 	= (word)((lword) preinit ("HID"));
 
 #if TARP_CACHES_MALLOCED

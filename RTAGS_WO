@@ -825,3 +825,6 @@ WO160926A:
  Sleepers in LibComms (tarpCrelType):
  We want to be able to have masters changed via messages (as it was before AT) and have settable multiple masters. This is a relatively easy implementation; hoever, it needs a thoughtful cooperation from OSS and provisioning agents. So, only handy but not used params are implanted (I don't want to remove what once was done): flags mchg_msg and mchg_set. When the true multiple master functionality is implemented, they'll serve as indicators what is allowed by provisioning.
  
+WO170308A:
+ Locaspot 1.83: undone MHOST sets from 1.81 (WO160718A), it is back to 1:
+ LibComms, locaspot (incl. 10 .xml files, where BACABACA changed back to BACA0001).
