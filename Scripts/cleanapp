@@ -1,2 +1,2 @@
 #!/bin/sh
-rm -rf KTMP KTMP_* VUEE_TMP Image* *.cyp *.cyw cstartup.* qqpack.asm *.lif irq.* internal.map out temp out_* temp_* Makefile Makefile_* .gdbinit gdb.ini *.o side.* side */LIBRARY *.stackdump junk*
+rm -rf KTMP KTMP_* VUEE_TMP Image* Makefile Makefile_* .gdbinit gdb.ini *.o side.* side */LIBRARY *.stackdump junk*

@@ -195,6 +195,7 @@ set C_WORDS(if)			{ 0 }
 set C_WORDS(return)		{ 0 }
 set C_WORDS(static)		{ 1 1 1 0 0 1 }
 set C_WORDS(union)		{ 1 1 1 1 0 1 }
+set C_WORDS(inline)		{ 0 }
 set C_WORDS(while)		{ 0 }
 ## Our keywords
 set C_WORDS(bool)		{ 1 1 1 1 1 0 }
@@ -1315,6 +1316,10 @@ P {
 		# a standard keyword
 		if { $tcs == 3 || [lindex $kat 0] == 0 } {
 			# type complete or a non-declaration keyword
+			if { $TK == "inline" } {
+				# ignore
+				continue
+			}
 			if $xp {
 				xerror "illegal keyword $TK in declaration"
 			}
