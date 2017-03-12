@@ -872,3 +872,7 @@ PG160920A:
 	Fixed one little problem: yesterday, when providing for the different
 	compiler versions (the toolchain file path prefix), I forgot about the
 	library mode invocation of mkmk. Plus a few cosmetics.
+
+PG170312A:	PICOS >= PG170312A
+
+	Armport merge. Modification matching the new mkmk.

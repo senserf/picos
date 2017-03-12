@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 0.90
+set ST(VER) 1.01
 
 ###############################################################################
 # Determine the system type ###################################################
