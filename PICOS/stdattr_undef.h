@@ -9,6 +9,7 @@
 #undef host_id
 #undef phys_dm2200
 #undef phys_cc1100
+#undef phys_cc1350
 #undef phys_uart
 #undef rnd
 #undef diag

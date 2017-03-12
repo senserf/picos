@@ -5,23 +5,43 @@
 
 /* ========================================================================== */
 
-typedef	uint32_t	lword;
-typedef	uint16_t	word;
-
 #define	MSCINSECOND	1024.0			// Milliseconds in a second
 #define	MILLISECOND	(1.0/MSCINSECOND)	// Seconds in a millisecond
 
-typedef	word		*address;
-typedef	short int	sint;
-typedef Long		lint;
-typedef	unsigned char	byte;
+#ifndef	__TYPE_WORD__
+#define	__TYPE_WORD__	uint16_t
+#endif
 
-#define	MAX_INT		((int)0x7FFF)		// This is the PicOS int !!
-#define	MAX_UINT	((word)0xFFFF)
-#define	MAX_WORD	MAX_UINT
-#define	MAX_ULONG	((lword)0xFFFFFFFF)
+#ifndef	__TYPE_LWORD__
+#define	__TYPE_LWORD__	uint32_t
+#endif
 
+#ifndef	__TYPE_SINT__
+// Good for MSP430, but not for ARM
+#define	__TYPE_SINT__	int16_t
+#endif
+
+#ifndef	__TYPE_LINT__
+#define	__TYPE_LINT__	int32_t
+#endif
+
+#ifndef	__TYPE_AWORD__
+// Good for MSP430, but not for ARM
+#define	__TYPE_AWORD__	uint16_t
+#endif
+
+#ifndef	IFLASH_SIZE
 #define	IFLASH_SIZE	128	// Words
+#endif
+
+typedef	__TYPE_WORD__	word;
+typedef	__TYPE_SINT__	sint;
+typedef __TYPE_LINT__	lint;
+typedef	__TYPE_LWORD__	lword;
+typedef	__TYPE_AWORD__	aword;
+
+typedef	unsigned char	byte;
+typedef	word		*address;
 
 #define	sysassert(a,b)	do { if (!(a)) syserror (EASSERT, b); } while (0)
 #define	CNOP		do { } while (0)

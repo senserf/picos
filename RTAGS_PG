@@ -1332,3 +1332,7 @@ PG160721A:	PICOS >= PG160721B
 
     Added CC2420 to the model. It is pretty equivalent to CC1100 except for
     the larger maximum packet length.
+
+PG170312A:	PICOS >= PG170312A
+
+    Compatibility mods for CC1350.

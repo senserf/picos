@@ -71,14 +71,14 @@ Boolean __pi_validate_uart_rate (word);
 extern	const char __pi_hex_enc_table [];
 extern	int __pi_channel_type;
 
-void	syserror (int, const char*);
+void	syserror (word, const char*);
 
 struct mem_chunk_struct	{
 
 	struct	mem_chunk_struct	*Next;
 
 	address	PTR;		// The address
-	word	Size;		// The simulated size in full words
+	lword	Size;		// The simulated size in awords
 };
 
 typedef	struct mem_chunk_struct	MemChunk;
@@ -156,10 +156,10 @@ typedef	struct {
 
 packet	PKT {
 
-	word	*Payload;
+	address	Payload;
 	word	PaySize;
 
-	void load (word *pay, int paysize) {
+	void load (address pay, int paysize) {
 		// Note that paysize is in bytes and must be even. This is
 		// called just before transmission.
 		assert (paysize >= 2, "PKT: illegal payload size: %1d",
@@ -310,6 +310,7 @@ station PicOSNode abstract {
 
 	void		_da (phys_dm2200) (int, int);
 	void		_da (phys_cc1100) (int, int);
+	void		_da (phys_cc1350) (int, int);
 	void		_da (phys_cc2420) (int, int);
 	void		phys_rfmodule_init (int, int);
 	void		_da (phys_uart) (int, int, int);
@@ -351,11 +352,11 @@ station PicOSNode abstract {
 	 * Memory allocator
 	 */
 	MemChunk	*MHead, *MTail;
-	word		MTotal, MFree,
+	lword		MTotal, MFree,
 			NFree;		// Minimum free so far - for stats
 
 	// Current number of processes + limit; note: a single (countdown) 
-	// value could do theoretically, but then we would need a 'default"
+	// value could do theoretically, but then we would need a "default"
 	// for reset
 	word		NPcss, NPcLim;
 
