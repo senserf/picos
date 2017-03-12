@@ -85,6 +85,7 @@ ln -sf board.h lcdg_n6100p.h
 ln -sf board.h phys_uart.h
 ln -sf board.h pins.h
 ln -sf board.h phys_cc1100.h
+ln -sf board.h phys_cc1350.h
 ln -sf board.h phys_cc2420.h
 ln -sf board.h pinopts.h
 ln -sf board.h rtc_s35390.h
@@ -93,4 +94,5 @@ ln -sf board.h sensors.h
 ln -sf board.h actuators.h
 ln -sf board.h hold.h
 ln -sf board.h cc1100.h
+ln -sf board.h cc1350.h
 ln -sf board.h cc2420.h

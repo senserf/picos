@@ -1,5 +1,6 @@
 #!/bin/sh
 rm -f cc1100.h
+rm -f cc1350.h
 rm -f cc2420.h
 rm -f rtc_cc430.h
 rm -f rtc_s35390.h
@@ -16,6 +17,7 @@ rm -f serf.h
 rm -f storage.h
 rm -f hold.h
 rm -f phys_cc1100.h
+rm -f phys_cc1350.h
 rm -f phys_cc2420.h
 #################################
 rm -f as3932.h
