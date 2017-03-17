@@ -240,8 +240,7 @@ static void rf_on () {
 	// Any special pin settings?
 	RADIO_PINS_ON;
 #endif
-	// The oscillator (do we need this?); some people on the net say we
-	// do, but I don't think so
+	// The oscillator (do we need this?); no, this is the default, anyway
 	// OSCXHfPowerModeSet (HIGH_POWER_XOSC);
 
 	// The default setting of OSC clock source is OSC_RCOSC_HF; we shall
@@ -254,7 +253,7 @@ static void rf_on () {
 		1;
 
 	// Power up the domain (there's no peripheral for RF)
-	PRCMPowerDomainOn (PRCM_DOMAIN_RFCORE);
+	__pi_ondomain (PRCM_DOMAIN_RFCORE);
 
 #ifdef	DETECT_HANGUPS
 	for (int cnt = DETECT_HANGUPS * 999; ; ) {
@@ -345,22 +344,8 @@ static void rf_off () {
 	IntDisable (INT_RFC_CPE_0);
 	RFCClockDisable ();
 
-	PRCMPowerDomainOff (PRCM_DOMAIN_RFCORE);
+	__pi_offdomain (PRCM_DOMAIN_RFCORE);
 
-#ifdef	DETECT_HANGUPS
-	for (int cnt = DETECT_HANGUPS * 999; ; ) {
-		if (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) ==
-	    	    PRCM_DOMAIN_POWER_OFF)
-			break;
-		if (cnt-- == 0)
-			syserror (EHARDWARE, "pcmof");
-		udelay (1);
-	}
-#else
-	while (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) !=
-	    PRCM_DOMAIN_POWER_OFF) {
-	}
-#endif
 	// Decouple RAT from RTC
 	HWREGBITW (AON_RTC_BASE + AON_RTC_O_CTL, AON_RTC_CTL_RTC_UPD_EN_BITN) =
 		0;
@@ -434,7 +419,7 @@ static void rx_int_enable () {
 
 	// This clears all interrupt flags and enables those that we want; this
 	// is different than (e.g.) for CC1100/MSP430, because events can be
-	// lost (the clear operation may remove an event tht we haven't looked
+	// lost (the clear operation may remove an event that we haven't looked
 	// at yet; so we do the reception with interrupts enabled; if an
 	// interrupt arrives while we are looking, it will just unblock the
 	// driver thread which will force (later) another invocation of this
@@ -477,7 +462,10 @@ static void rx_int_enable () {
 }
 
 void RFCCPE0IntHandler (void) {
-
+//
+// This is extremely simple and effective: any interrupt (of the enabled
+// kind, of course) unhangs the driver thread which sees what's happened
+//
 	if (HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) &
 	    RFC_DBELL_RFCPEIFG_INTERNAL_ERROR)
 		// Internal error
@@ -1029,3 +1017,14 @@ void phys_cc1350 (int phy, int mbs) {
 	// Direct all doorbell interrupts permanently to CPE0
 	HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEISL) = 0;
 }
+
+//
+// Notes:
+//
+//	CMD_PING can be a way to trigger an interrupt, especially that we put
+//	them all into a single basket
+//
+//	Implement timeouts for commands that wait for interrupts; when the
+//	receiver is on, recover every second or so (reimplement xmit using
+//	interrupts and keep a special thread issuing periodic triggers or
+//	something like that

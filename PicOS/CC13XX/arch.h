@@ -19,6 +19,7 @@
 #include <driverlib/ioc.h>
 #include <driverlib/sys_ctrl.h>
 #include <driverlib/aon_rtc.h>
+#include <driverlib/aon_event.h>
 #include <driverlib/aon_batmon.h>
 #include <driverlib/aux_adc.h>
 #include <driverlib/osc.h>
@@ -50,7 +51,12 @@ typedef struct {
 		ledblk:1,	// Blink flag
 		ledsts:4;	// Blink status of four leds
 
-	byte	ledblc;		// Blink counter
+	byte	ledblc,		// Blink counter
+
+		reqpdm,		// Requested power-down mode
+		effpdm;		// Effective power-down mode
+
+	lword	ondmns;		// Domains being powered on
 
 } systat_t;
 		

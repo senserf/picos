@@ -73,7 +73,6 @@
 
 // ============================================================================
 
-// PD mode is entered elsewhere and need not be sustained on every sleep
 // Weird. I wasted two days before discovering that one NOP at the end of
 // the loop is not enough. Are two?
 #define	__SLEEP		do { \
@@ -82,7 +81,7 @@
 					cli; \
 					if (__pi_systat.evntpn) \
 						break; \
-					__WFI (); \
+					__do_wfi_as_needed (); \
 					sti; \
 					__NOP (); \
 					__NOP (); \
@@ -91,7 +90,7 @@
 				CPU_MARK_BUSY; \
 				sti; \
 			} while (0)
-// ###here: check_stack_overflow (no seconds clock)
+// Stack overflow to be checked
 
 #define	RISE_N_SHINE	do { __pi_systat.evntpn = 1; } while (0)
 #define	RTNI		return
@@ -189,5 +188,9 @@ Boolean __pi_uart_setrate (word, uart_t*);
 #define	setseconds(a)	do { \
 			    HWREG (AON_RTC_BASE + AON_RTC_O_SEC) = (lword)(a); \
 			} while (0)
+
+#define	powermode()	(__pi_systat . pdflags & 0x3)
+
+extern void __pi_ondomain (lword), __pi_offdomain (lword);
 
 #endif

@@ -26,7 +26,7 @@
 #undef	DIAG_MESSAGES
 
 #define	LEDS_DRIVER	1
-#define	RADIO_USE_LEDS	7
+#define	RADIO_USE_LEDS	0
 #define	CODE_LONG_INTS	1
 #define	DIAG_MESSAGES	2
 

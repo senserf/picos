@@ -31,18 +31,10 @@ extern 	volatile 	word 		__pi_old, __pi_new;
 
 extern	void tcv_init (void);
 
-#if MAX_TASKS <= 0
-// Linked PCBT
 extern	__pi_pcb_t	*__PCB;
+
 #define	for_all_tasks(i)	for (i = __PCB; i != NULL; i = i->Next)
 #define	pcb_not_found(i)	((i) == NULL)
-#else
-extern	__pi_pcb_t	__PCB [];
-#define FIRST_PCB		(&(__PCB [0]))
-#define	LAST_PCB		(FIRST_PCB + MAX_TASKS)
-#define for_all_tasks(i)	for (i = FIRST_PCB; i != LAST_PCB; i++)
-#define	pcb_not_found(i)	((i) == LAST_PCB)
-#endif
 
 #define	setestate(e,s,v)	do { \
 					(e).State = (s) << 4; \
@@ -105,22 +97,6 @@ void adddevfunc (devreqfun_t, int);
 /* =============================================== */
 /* Event trigger code for interrupt mode functions */
 /* =============================================== */
-#if MAX_TASKS > 0
-#define	i_trigger(evnt)	do {\
-		int j; __pi_pcb_t *i;\
-		for_all_tasks (i) {\
-			if (i->code == NULL)\
-				continue;\
-			for (j = 0; j < nevents (i); j++) {\
-				if (i->Events [j] . Event == evnt) {\
-					wakeupev (i, j);\
-					break;\
-				}\
-			}\
-		}\
-	} while (0)
-
-#else
 #define	i_trigger(evnt)	do {\
 		int j; __pi_pcb_t *i;\
 		for_all_tasks (i) {\
@@ -132,7 +108,6 @@ void adddevfunc (devreqfun_t, int);
 			}\
 		}\
 	} while (0)
-#endif
 
 /* ==================================== */
 /* A shortcut when the process is known */

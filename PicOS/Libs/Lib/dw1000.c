@@ -875,10 +875,11 @@ thread (dw1000_range)
     entry (RAN_INIT)
 
 	// Save the powerdown state
-	if (is_powerdown) {
+	if (powermode ()) {
 		// Always do it in powerup
 		powerup ();
 		_BIS (flags, DW1000_FLG_REVERTPD);
+		// FIXME: this assumes a single-level PD depth (MSP430)
 	} else {
 		_BIC (flags, DW1000_FLG_REVERTPD);
 	}

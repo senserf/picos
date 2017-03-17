@@ -6,8 +6,6 @@
 
 #include "options.sys"
 
-#if !ECOG_SIM
-
 //+++ "__display.c"
 
 extern address __display_pmem;
@@ -37,13 +35,3 @@ int dsp_lcd (const char *m, Boolean kl) {
 	}
 	return 0;
 }
-
-#else
-void sim_lcd (const char *m);
-
-int dsp_lcd (const char *m, Boolean kl) {
-	sim_lcd (m);
-	return 0;
-}
-#endif
-

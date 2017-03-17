@@ -594,24 +594,27 @@ static void ssm_init () {
 
 }
 
-void powerdown (void) {
+void setpowermode (word m) {
+//
+// Only one level of PD
+//
+	if (m) {
 
-	__pi_systat.pdmode = 1;
-	clockdown ();
+		__pi_systat.pdmode = 1;
+		clockdown ();
 #if CRYSTAL2_RATE
-	// Disable XTL2
-	_BIS (BCSCTL1, XT2OFF);
+		// Disable XTL2
+		_BIS (BCSCTL1, XT2OFF);
 #endif
-}
-
-void powerup (void) {
+	} else {
 
 #if CRYSTAL2_RATE
-	// Enable XTL2
-	_BIC (BCSCTL1, XT2OFF);
+		// Enable XTL2
+		_BIC (BCSCTL1, XT2OFF);
 #endif
-	clockup ();
-	__pi_systat.pdmode = 0;
+		clockup ();
+		__pi_systat.pdmode = 0;
+	}
 }
 
 #define	mkmk_eval
@@ -1058,14 +1061,6 @@ word __pi_stackfree (void) {
 #endif
 
 static void ios_init () {
-
-#if MAX_TASKS > 0
-	__pi_pcb_t *p;
-
-	for_all_tasks (p)
-		/* Mark all task table entries as available */
-		p->code = NULL;
-#endif
 
 #ifdef	EMERGENCY_STARTUP_CONDITION
 

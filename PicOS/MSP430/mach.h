@@ -882,4 +882,7 @@ extern	lword		__pi_nseconds;
 #define	seconds()	__pi_nseconds
 #define	setseconds(a)	(__pi_nseconds = (lword) (a));
 
+// Power status
+#define	powermode()	(__pi_systat.pdmode)
+
 #endif

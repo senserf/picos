@@ -494,8 +494,7 @@ void		dmp_mem (void);
 			} while (0)
 						
 #define	fastblink(a)	(__pi_systat.fstblk = ((a) != 0))
-#define is_fastblink    (__pi_systat.fstblk != 0)
-#define	is_powerdown	(__pi_systat.pdmode)
+#define fastblinking()  (__pi_systat.fstblk != 0)
 
 #define	all_leds_blink	do { leds_on; mdelay (200); leds_off; mdelay (200); } \
 				while (0)
@@ -518,8 +517,8 @@ void		dmp_mem (void);
 #undef	fastblink
 #endif
 
-#ifdef	is_fastblink
-#undef	is_fastblink
+#ifdef	fastblinking
+#undef	fastblinking
 #endif
 
 #define	leds(a,b)	CNOP
@@ -597,7 +596,9 @@ fsmcode getcode (aword);
 /* Proceed to another state */
 void	proceed (word);
 /* Power up/down functions */
-void	powerup (void), powerdown (void);
+void	setpowermode (word);
+#define	powerup() 	setpowermode (0)
+#define	powerdown()	setpowermode (DEFAULT_PD_MODE)
 /* User timers */
 void	utimer_add (address), utimer_delete (address);
 
@@ -774,10 +775,7 @@ struct __pi_pcb_s {
 	fsmcode		code;		/* Code function pointer */
 	aword		data;		/* Data pointer */
 	__pi_event_t	Events [MAX_EVENTS_PER_TASK];
-#if MAX_TASKS <= 0
-	// Linked PCBT
 	struct __pi_pcb_s	*Next;
-#endif
 };
 
 typedef struct __pi_pcb_s __pi_pcb_t;

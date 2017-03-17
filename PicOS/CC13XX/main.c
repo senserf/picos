@@ -32,6 +32,38 @@ void mdelay (volatile word n) {
 	}
 }
 
+void __pi_ondomain (lword d) {
+//
+// Add the indicated domains to the on set
+//
+	if (d & PRCM_DOMAIN_RFCORE) {
+		// Make sure the effective PD mode is at most 1
+		if (__pi_systat.effpdm > 1)
+			__pi_systat.effpdm = 1;
+	}
+
+	PRCMPowerDomainOn (d);
+	while (PRCMPowerDomainStatus (d) != PRCM_DOMAIN_POWER_ON);
+
+	__pi_systat.ondmns |= d;
+}
+
+void __pi_offdomain (lword d) {
+//
+// Remove the indicated domains from the on set
+//
+
+	PRCMPowerDomainOff (d);
+	while (PRCMPowerDomainStatus (d) != PRCM_DOMAIN_POWER_OFF);
+
+	if (d & PRCM_DOMAIN_RFCORE) {
+		if (__pi_systat.reqpdm > __pi_systat.effpdm)
+			__pi_systat.effpdm = __pi_systat.reqpdm;
+	}
+
+	__pi_systat.ondmns &= ~d;
+}
+
 // ============================================================================
 // RESET ======================================================================
 // ============================================================================
@@ -58,11 +90,13 @@ void reset (void) {
 void halt (void) {
 
 	cli_tim;
-	powerdown ();
 	diag ("PicOS halted");
 	mdelay (500);
-	while (1)
-		__WFI ();
+	setpowermode (2);
+	// Make all threads disappear; no need to worry about the memory leak;
+	// we are going down
+	__PCB = NULL;
+	release;
 }
 
 #ifdef	SENSOR_DIGITAL
@@ -175,19 +209,21 @@ const static devinit_t devinit [] = {
 #define	N_UARTS		UART_TCV
 #endif
 
-// ============================================================================
-// Power management (to do) ===================================================
-// ============================================================================
+#ifdef	IOCPORTS
 
-void powerdown (void) {
+const lword port_confs [] = IOCPORTS;
 
-	HWREG (NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
+static inline void port_config () {
+
+	for (int i = 0; i < sizeof (port_confs) / sizeof (lword); i++) {
+		HWREG (IOC_BASE + ((port_confs [i] >> 17) & 0x7c)) =
+			port_confs [i] & 0xff07ffff;
+	}
 }
 
-void powerup (void) {
-
-	HWREG (NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
-}
+#else
+#define	port_config()	CNOP
+#endif
 
 // ============================================================================
 // The clock ==================================================================
@@ -353,22 +389,6 @@ EX:
 
 // ============================================================================
 
-#ifdef	IOCPORTS
-
-const lword port_confs [] = IOCPORTS;
-
-static inline void port_config () {
-
-	for (int i = 0; i < sizeof (port_confs) / sizeof (lword); i++) {
-		HWREG (IOC_BASE + ((port_confs [i] >> 17) & 0x7c)) =
-			port_confs [i] & 0xff07ffff;
-	}
-}
-
-#else
-#define	port_config()	CNOP
-#endif
-
 #ifdef N_UARTS
 
 // The data type is different with UART_TCV; I know this is clumsy
@@ -383,30 +403,14 @@ static word urates [N_UARTS];
 
 Boolean __pi_uart_setrate (word rate, uart_t *ua) {
 
-#if N_UARTS > 1
-	lword base;
-	int unum;
-
-	if (ua == __pi_uart) {
-		base = UART0_BASE;
-		unum = 0;
-	} else {
-		base = UART1_BASE;
-		unum = 1;
-	}
-#else
-#define	base UART0_BASE
-#define	unum 0
-#endif
-
 	if (rate < 24 && rate > 2560)
 		return NO;
 
 	// Everything else is OK
 
-	UARTDisable (base);
+	UARTDisable (UART0_BASE);
 
-	UARTConfigSetExpClk (base,
+	UARTConfigSetExpClk (UART0_BASE,
 		SysCtrlClockGet (),
 		((uint32_t)rate) * 100,
 		UART_CONFIG_WLEN_8	|
@@ -415,52 +419,41 @@ Boolean __pi_uart_setrate (word rate, uart_t *ua) {
 		0
 	);
 
-	UARTEnable (base);
-	urates [unum] = rate;
+	UARTEnable (UART0_BASE);
+	urates [0] = rate;
 	return YES;
 }
 
-#if N_UARTS > 1
-#undef base
-#undef unum
-#endif
-
 word __pi_uart_getrate (const uart_t *ua) {
 
-#if N_UARTS > 1
-	return urates [(ua == __pi_uart) ? 0 : 1];
-#else
 	return urates [0];
-#endif
 }
 
+static void reinit_uart () {
+//
+// The part to be done after standby-mode power up to account for the UART's
+// lack of retention
+//
+	UARTFIFOEnable (UART0_BASE);
+	UARTFIFOLevelSet (UART0_BASE, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
+	UARTHwFlowControlDisable (UART0_BASE);
+
+	__pi_uart_setrate (urates [0], __pi_uart);
+}
+	
 static void preinit_uart () {
 
-	PRCMPowerDomainOn (PRCM_DOMAIN_SERIAL);
-	while (PRCMPowerDomainStatus (PRCM_DOMAIN_PERIPH) !=
-		PRCM_DOMAIN_POWER_ON);
-
-#ifdef	N_UARTS
-	// The first UART
 	PRCMPeripheralRunEnable (PRCM_PERIPH_UART0);
 	PRCMPeripheralSleepEnable (PRCM_PERIPH_UART0);
 	PRCMPeripheralDeepSleepEnable (PRCM_PERIPH_UART0);
 	PRCMLoadSet ();
 
-	// Seems to be needed, otherwise the initialization fails
-	mdelay (10);
+	urates [0] = UART_RATE / 100;
 
-	UARTFIFOEnable (UART0_BASE);
-	UARTFIFOLevelSet (UART0_BASE, UART_FIFO_TX4_8, UART_FIFO_RX4_8);
-	UARTHwFlowControlDisable (UART0_BASE);
-
-	// Set the initial (default) rate
-	__pi_uart_setrate (UART_RATE/100, __pi_uart);
-#endif
-	// UART_B ...
+	reinit_uart ();
 }
 
-#endif	/* UART_DRIVER || UART_TCV */
+#endif	/* N_UARTS */
 
 #if UART_DRIVER
 
@@ -596,11 +589,15 @@ void UART0IntHandler () {
 	RTNI;
 }
 
+static inline void enable_uart_interrupts () {
+
+	UARTIntEnable (UART0_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX);
+}
+
 static void devinit_uart (int devnum) {
 
 	adddevfunc (ioreq_uart_a, devnum);
-
-	UARTIntEnable (UART0_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX);
+	enable_uart_interrupts ();
 	IntEnable (INT_UART0_COMB);
 }
 
@@ -667,21 +664,9 @@ void __pinlist_setirq (int val) {
 // ============================================================================
 // ============================================================================
 
-static void sync_tim () {
-//
-// Make sure there are no pending requests for the clock; this just reads the
-// SYNC register
-//
-	volatile long d;
-
-	d = HWREG (AON_RTC_BASE + AON_RTC_O_SYNC);
-}
-
 void system_init () {
 
-	PRCMPowerDomainOn (PRCM_DOMAIN_PERIPH);
-	while (PRCMPowerDomainStatus (PRCM_DOMAIN_PERIPH) !=
-		PRCM_DOMAIN_POWER_ON);
+	__pi_ondomain (PRCM_DOMAIN_PERIPH);
 
 	PRCMPeripheralRunEnable (PRCM_PERIPH_GPIO);
 	PRCMPeripheralSleepEnable (PRCM_PERIPH_GPIO);
@@ -715,8 +700,8 @@ void system_init () {
 
 #ifdef	RADIO_PINS_PREINIT
 	RADIO_PINS_PREINIT;
+	RADIO_PINS_OFF;
 #endif
-
 	// RTC: we use channel 0 for the delay clock and channel 2 for the AUX
 	// clock; the seconds clock comes for free
 
@@ -737,9 +722,15 @@ void system_init () {
 	HWREG (AON_RTC_BASE + AON_RTC_O_CTL) =
 		AON_RTC_CTL_COMB_EV_MASK_CH0 |
 		AON_RTC_CTL_COMB_EV_MASK_CH2 |
-// For the radio
-AON_RTC_CTL_RTC_UPD_EN |
+		// For the radio
+		AON_RTC_CTL_RTC_UPD_EN |
 		AON_RTC_CTL_EN;
+
+#if 0
+	// Set the event for standby mode wakeup (we may need a way to
+	// set this from the program)
+	AONEventMcuSet (AON_EVENT_MCU_EVENT0, AON_EVENT_RTC_COMB_DLY);
+#endif
 
 	// Enable RTC interrupts
 	IntEnable (INT_AON_RTC_COMB);
@@ -749,18 +740,6 @@ AON_RTC_CTL_RTC_UPD_EN |
 
 	// Enable GPIO interrupts
 	IntEnable (INT_AON_GPIO_EDGE);
-
-#if MAX_TASKS > 0
-	// Rigid task table (I don't think we use it any more)
-
-	{
-		__pi_pcb_t *p;
-
-		for_all_tasks (p)
-			/* Mark all task table entries as available */
-			p->code = NULL;
-	}
-#endif
 
 #ifdef	EMERGENCY_STARTUP_CONDITION
 
@@ -784,6 +763,9 @@ AON_RTC_CTL_RTC_UPD_EN |
 #endif
 
 #if	UART_DRIVER || UART_TCV
+
+	__pi_ondomain (PRCM_DOMAIN_SERIAL);
+
 	preinit_uart ();
 #endif
 
@@ -817,16 +799,150 @@ AON_RTC_CTL_RTC_UPD_EN |
 	tci_run_auxiliary_timer ();
 }
 
-// static volatile lword __saved_sp;
+// ============================================================================
+// Power management ===========================================================
+// ============================================================================
 
-#if 0
-void __run_everything () {
+void setpowermode (word mode) {
+//
+// This just sets the mode; the action is carried out when we are about to
+// execute WFI
+//
+	if (mode > 2)
+		// This is the maximum
+		mode = 2;
 
-#include "scheduler.h"
-
+	__pi_systat.effpdm = ((__pi_systat.reqpdm = mode) < 2 ||
+	    (__pi_systat.ondmns & PRCM_DOMAIN_RFCORE) == 0) ?
+		mode : 1;
 }
-#endif
 
+static inline void __do_wfi_as_needed () {
+//
+// WFI in the right power mode
+//
+	switch (__pi_systat.effpdm) {
+
+		case 0:
+
+			__WFI ();
+			return;
+
+				// ============================================
+		case 1:		// IDLE MODE ==================================
+				// ============================================
+
+			// Flash not needed
+			HWREG (PRCM_BASE + PRCM_O_PDCTL1VIMS) |=
+				PRCM_PDCTL1VIMS_ON;
+
+			// Do we need that?
+			PRCMCacheRetentionEnable ();
+
+			// Turn off the CPU power domain
+			PRCMPowerDomainOff (PRCM_DOMAIN_CPU);
+
+			// Complete AON writes
+			SysCtrlAonSync ();
+
+			// Enter deep sleep
+			HWREG(NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
+			__WFI ();
+			HWREG(NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
+
+			// We are mostly woken by the timer
+			SysCtrlAonSync ();
+
+			return;
+
+				// ============================================
+		default:	// STANDBY MODE ===============================
+				// ============================================
+
+			AONIOCFreezeEnable ();
+			// We know that XOSC_HF is not active, because RF is
+			// off
+
+			// Allow AUX to power down
+			AONWUCAuxWakeupEvent (AONWUC_AUX_ALLOW_SLEEP);
+
+			// Pending AON writes
+			SysCtrlAonSync ();
+
+			PRCMLoadSet ();
+
+			// Domains off
+			PRCMPowerDomainOff (__pi_systat.ondmns |
+				PRCM_DOMAIN_CPU);
+
+			// Request uLDO during standby
+			PRCMMcuUldoConfigure (true);
+#if 1
+			// Don't want cache retention; our cache mode is
+			// VIMS_MODE_ENABLED
+			// FIXME: consider turning cache off (as an option)
+#if 0
+			// No need for it to be changing
+			while (VIMSModeGet (VIMS_BASE) == VIMS_MODE_CHANGING);
+#endif
+			PRCMCacheRetentionDisable ();
+
+			// Turn off the VIMS
+			VIMSModeSet (VIMS_BASE, VIMS_MODE_OFF);
+#endif
+			// Setup recharge parameters
+			SysCtrlSetRechargeBeforePowerDown
+				(XOSC_IN_HIGH_POWER_MODE);
+
+			// Wait for AON writes to complete
+			SysCtrlAonSync ();
+
+			// Enter deep sleep
+			HWREG(NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
+			__WFI ();
+			HWREG(NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
+#if 1
+			// Back from sleep; the cache
+			VIMSModeSet (VIMS_BASE, VIMS_MODE_ENABLED);
+			PRCMCacheRetentionEnable ();
+#endif
+			// Force power on of AUX; this also counts as a write
+			// so a following sync will force an update of AON
+			// registers
+			AONWUCAuxWakeupEvent (AONWUC_AUX_WAKEUP);
+			while (!(AONWUCPowerStatusGet () &
+				AONWUC_AUX_POWER_ON));
+
+			// Restore power domain states 
+			PRCMPowerDomainOn (__pi_systat.ondmns);
+			while (PRCMPowerDomainStatus (__pi_systat.ondmns) !=
+				PRCM_DOMAIN_POWER_ON);
+
+			// Make sure clock settings take effect
+			PRCMLoadSet ();
+
+			// Release uLDO
+			PRCMMcuUldoConfigure (false);
+
+			// Disable I/O freeze
+			AONIOCFreezeDisable ();
+
+			// Ensure shadow RTC is updated
+			SysCtrlAonSync ();
+
+			// Adjust recharge parameters
+			SysCtrlAdjustRechargeAfterPowerDown ();
+
+			// Restart no-retention modules
+			if (__pi_systat.ondmns & PRCM_DOMAIN_SERIAL) {
+				// For dev or tcv
+				reinit_uart ();
+				enable_uart_interrupts ();
+			}
+
+			// ... other domains (we don't do it with RF on)
+	}
+}
 __attribute__ ((noreturn)) void __pi_release () {
 
 	__set_MSP ((lword)(STACK_START));
@@ -850,6 +966,9 @@ int main (void) {
 	tcv_init ();
 #endif
 
+	// For standby mode wakeup on timer
+	AONEventMcuWakeUpSet (AON_EVENT_MCU_EVENT0, AON_EVENT_RTC_COMB_DLY);
+
 	// Assume root process identity
 	__pi_curr = (__pi_pcb_t*) fork (root, 0);
 	// Delay root startup for 16 msec to make sure that the drivers go
@@ -860,3 +979,26 @@ int main (void) {
 
 	__pi_release ();
 }
+
+//
+// Notes:
+//
+//	Do not enter PD if aux timer is active (aux_timer_inactive = 0);
+//	how to do it? Not possible, I am afraid ... because the interrup
+//	won't break the SLEEP. Force RISE_N_SHINE when aux_timer_inactive
+//	becomes set and PD mode is selected!!!!! Not needed, the SLEEP loop
+//	turns after every interrupt!!!
+//
+//	We must keep track of power domains. For example, if UART is present,
+//	it must be powered up (this can be done statically), but what about
+//	radio? OK, for now, we may prevent deep sleep if radio is on (status
+//	change involves a SLEEP loop turn).
+//
+//	We still don't have phys_uart. Later, after we know how to do power
+//	management.
+//
+//	How to avoid the minute wakeups on MAX delay?
+//
+//
+//	Implement STACK GUARD
+//

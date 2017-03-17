@@ -19,13 +19,11 @@ word	__pi_seed = 30011;
 #endif
 
 /* Task table */
-#if MAX_TASKS <= 0
-// Dynamic PCBT, this is the (much preferred) default these days; do we want
-// to keep the option?
+// The static PCBT option has been removed; for historical (and compatibility)
+// reasons MAX_TASKS == 0 means new process added at the end, while MAX_TASKS
+// != 0 means new process added in front; there is no limit on the number of
+// tasks
 __pi_pcb_t *__PCB = NULL;
-#else
-__pi_pcb_t __PCB [MAX_TASKS];
-#endif
 
 #if MAX_DEVICES
 /* Device table */
@@ -303,10 +301,6 @@ aword __pi_fork (fsmcode func, aword data) {
 
 	__pi_pcb_t *i;
 
-#if MAX_TASKS <= 0
-//
-// Linked PCBT, the PCB is malloc'ed
-//
 	if ((i = (__pi_pcb_t*) umalloc (sizeof (__pi_pcb_t))) == NULL)
 		return 0;
 
@@ -337,19 +331,6 @@ aword __pi_fork (fsmcode func, aword data) {
 	__PCB = i;
 #endif
 	return (aword) i;
-#else
-//
-// Static PCBT
-//
-	for_all_tasks (i)
-		if (i->code == NULL) {
-			i -> code = func;
-			i -> data = data;
-			i -> Status = 0;
-			return (aword) i;
-		}
-	return 0;
-#endif
 }
 
 /* ======================== */
@@ -382,13 +363,6 @@ void __pi_trigger (aword event) {
 	__pi_pcb_t *i;
 
 	for_all_tasks (i) {
-#if MAX_TASKS > 0
-//
-// With linked PCBT, this is never NULL
-//
-		if (i->code == NULL)
-			continue;
-#endif
 		for (j = 0; j < nevents (i); j++) {
 			if (i->Events [j] . Event == event) {
 				/* Wake up */
@@ -408,10 +382,6 @@ void __pi_ptrigger (aword pid, aword event) {
 
 	ver_pid (i, pid);
 
-#if MAX_TASKS > 0
-	if (i->code == NULL)
-		return;
-#endif
 	for (j = 0; j < nevents (i); j++) {
 		if (i->Events [j] . Event == event) {
 			wakeupev (i, j);
@@ -485,19 +455,9 @@ static void killev (__pi_pcb_t *pid) {
 
 	wfun = (aword)(pid->code);
 	for_all_tasks (i) {
-#if MAX_TASKS > 0
-		if (i->code == NULL)
-			continue;
-#endif
 		for (j = 0; j < nevents (i); j++) {
 			if (i->Events [j] . Event == (aword)pid
 			    || i->Events [j] . Event == wfun
-#if MAX_TASKS > 0
-// Also take care of those waiting for a free slot, but only when MAX_TASKS is
-// in effect, as otherwise ufree will trigger the memory event when the PCB is
-// freed
-			    || i->Events [j] . Event == (aword)(&(mevent [0]))
-#endif
 			    ) {
 				wakeupev (i, j);
 				break;
@@ -510,13 +470,7 @@ void kill (aword pid) {
 //
 // Terminate the process
 //
-	__pi_pcb_t *i;
-
-#if MAX_TASKS <= 0
-//
-// Linked PCBT
-//
-	__pi_pcb_t *j;
+	__pi_pcb_t *i, *j;
 
 	if (pid == 0)
 		pid = (aword) __pi_curr;
@@ -538,25 +492,6 @@ void kill (aword pid) {
 		j = i;
 	}
 	syserror (EREQPAR, "kpi");
-
-#else
-//
-// Static PCBT
-//
-	if (pid == 0)
-		i = __pi_curr;
-	else
-		ver_pid (i, pid);
-
-	if (i->code != NULL) {
-		killev (i);
-		i->Status = 0;
-		i->code = NULL;
-	}
-
-	if (i == __pi_curr)
-		release;
-#endif
 }
 
 void killall (fsmcode fun) {
@@ -564,13 +499,7 @@ void killall (fsmcode fun) {
 // Kill all processes running the given code
 //
 	Boolean rel;
-	__pi_pcb_t *i;
-
-#if MAX_TASKS <= 0
-//
-// Linked PCBT
-//
-	__pi_pcb_t *j, *k;
+	__pi_pcb_t *i, *j, *k;
 
 	rel = NO;
 	j = NULL;
@@ -590,21 +519,7 @@ void killall (fsmcode fun) {
 			i = (j = i)->Next;
 		}
 	}
-#else
-//
-// Static PCBT
-//
-	rel = NO;
-	for_all_tasks (i) {
-		if (i->code == fun) {
-			if (i == __pi_curr)
-				rel = YES;
-			killev (i);
-			i->Status = 0;
-			i->code = NULL;
-		}
-	}
-#endif
+
 	if (rel)
 		release;
 }

@@ -36,7 +36,12 @@
 			arm-none-eabi-size -Ax %image%
 		</after>
 		<after>
+			<!-- The GUI programmer by TI needs the suffix to be
+			     .out -->
 			cp %image% %image%.out
+			<!-- Another stupid command line programmer by TI
+			     requires the ihex format with the .hex suffix -->
+			arm-none-eabi-objcopy %image% -O ihex %image%.hex
 			arm-none-eabi-objdump -D -S %image%.out > %image%.objdump
 		</after>
 	</ld>

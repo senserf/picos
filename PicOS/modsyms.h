@@ -76,6 +76,10 @@
 // shall see if this is enough in the longer run.
 //
 
+#ifndef	DEFAULT_PD_MODE
+#define	DEFAULT_PD_MODE		1	// +
+#endif
+
 #ifndef	CODE_LONG_INTS
 #define	CODE_LONG_INTS		1	// +
 #endif
@@ -243,11 +247,6 @@
 
 #ifndef	__SMURPH__
 
-// This one indicates whether we are running under the simulator (0/1) [eCOG]
-#ifndef ECOG_SIM
-#define	ECOG_SIM		0
-#endif
-
 #ifndef	NESTED_INTERRUPTS
 #define	NESTED_INTERRUPTS	0
 #endif
@@ -256,9 +255,10 @@
 #define	SPIN_WHEN_HALTED	0
 #endif
 
-// The maximum number of tasks in the system: size of the PCB table; if <= 0,
-// the PCBT is linked, i.e,. PCBs are umalloc'ed; if < 0, new PCBs are
-// allocated from the front, so new processes get higher priority
+// The static PCBT option has been removed; PCBT is linked, and there is no
+// limit on the number of tasks; this value only tells whether a new task is
+// appended at the end (MAX_TASKS == 0) or at the beginning (MAX_TASKS != 0)
+// of the task list
 #ifndef	MAX_TASKS
 #define	MAX_TASKS		0
 #endif

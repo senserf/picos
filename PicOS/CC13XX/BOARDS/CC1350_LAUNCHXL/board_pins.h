@@ -17,7 +17,7 @@
 //
 // ADC test on 23 as AUXIO7
 //
-// Pin sensor on 25, 26, 27, 28 polarity low (pushed to ground)
+// Pin sensor on 25, 26, 27, 28 polarity low (pulled to ground)
 //
 //
 #define	IOCPORTS { \
@@ -74,7 +74,6 @@
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
 			IOC_INT_DISABLE		| \
-			IOC_IOPULL_UP		| \
 			IOC_NO_IOPULL		| \
 			IOC_HYST_DISABLE	| \
 			IOC_SLEW_DISABLE	| \
@@ -276,3 +275,13 @@
 		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
 }
 
+//
+// Notes:
+//
+//	Both RF control pins are down in the RF off state. Is this OK for
+//	low power?
+//
+//	DIO4 and DIO5 have external pullups to Vdd (3.3K each)
+//
+//	DIO20 is nCS for external flash, pulled up 2.2K
+//

@@ -5,8 +5,6 @@
 #include "sysio.h"
 #include "options.sys"
 
-#if !ECOG_SIM
-
 //+++ "__dupdater.c"
 
 extern address __dupdater_pmem;
@@ -67,14 +65,3 @@ void upd_lcd (const char *buf) {
 	if (changed && updpid == 0)
 		updpid = runthread (__dupdater);
 }
-
-
-#else
-
-void sim_lcd (const char *m);
-
-void upd_lcd (const char *buf) {
-   sim_lcd (buf);
-}
-
-#endif

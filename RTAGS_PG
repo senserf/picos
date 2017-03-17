@@ -4956,7 +4956,7 @@ PG170312A:	5  0	VUEE >= PG170312A, PIP >= PG170312A
 	1. eCOG/Cyan support has been removed.
 
 	2. mkmk has been completely rewritten, so different architectures can
-	   be accommodate with a reasonable ease, as long as the toolchain is
+	   be accommodated with a reasonable ease, as long as the toolchain is
 	   GNU-compatible.
    
 	3. Support for CC1350 has been included. Not everything works yet
@@ -4985,3 +4985,20 @@ PG170312A:	5  0	VUEE >= PG170312A, PIP >= PG170312A
 	(MSP432 + [say] CC1100) would have been way easier. But, on the
 	surface, CC1350 is a neat device with a powerful and flexible radio
 	integrated on the chip. We shall see.
+
+PG170317A:
+
+	Power management for CC1350 begins to work. I have removed the old
+	and useless option for fixed-size process table. It was getting in the
+	way of progress, so to speak. I can put the device into sleep and
+	standby modes, but there still seems to be some (minor) current
+	leakage. The launchpad is not extremely friendly from the viewpoint of
+	current measurement, as there is extra circuitry on the PCB with some
+	potential for leaks. The shutdown mode (next step) should be easy,
+	as it is basically a power-off mode with reset on defineable pins.
+
+	I think it's time to do some documenting.
+
+	Oh, added the new version of AP331 to the ALPHATRONICS board set, as
+	well as an OLIMEX board variant to test their new voltage sensors. The
+	latter will be be probably removed soon.

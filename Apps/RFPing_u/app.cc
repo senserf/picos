@@ -345,6 +345,26 @@ fsm watchdog {
 	delay (300, WA_WAIT);
 }
 
+fsm reverter (word n) {
+//
+// Revert to power mode 0 after n seconds
+//
+
+	entry RE_START:
+
+		delay ((n > 60 ? 60 : n) * 1024, RE_REVERT);
+		release;
+
+	entry RE_REVERT:
+
+		setpowermode (0);
+
+	entry RE_MESSAGE:
+
+		ser_out (RE_MESSAGE, "REVERTED\r\n");
+		finish;
+}
+
 fsm root {
 
     char *ibuf;
@@ -359,7 +379,7 @@ fsm root {
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
 
-	runfsm watchdog;
+	// runfsm watchdog;
 
 #if CC1100
 	phys_cc1100 (0, MAXPLEN);
@@ -400,6 +420,7 @@ fsm root {
 		"q        -> stop rf\r\n"
 		"i        -> set sid\r\n"
 		"z        -> reset\r\n"
+		"m n d    -> power mode\r\n"
 #ifdef PIN_OPERATIONS_INCLUDED
 		"p n      -> read pin\r\n"
 		"u n v    -> set pin\r\n"
@@ -450,6 +471,7 @@ fsm root {
 	    case 'q': proceed RS_QUIT;
 	    case 'i': proceed RS_SSID;
 	    case 'z': proceed RS_RES;
+	    case 'm': proceed RS_PDM;
 #ifdef PIN_OPERATIONS_INCLUDED
 	    case 'p': proceed RS_RPIN;
 	    case 'u': proceed RS_SPIN;
@@ -600,6 +622,17 @@ fsm root {
 
 	reset ();
 	// We should be killed past this
+
+    entry RS_PDM:
+
+	// Power down mode
+	p [0] = 0;
+	p [1] = 0;
+	scan (ibuf + 1, "%u %u", p+0, p+1);
+	setpowermode (p [0]);
+	if (p [1])
+		runfsm reverter (p [1]);
+	proceed RS_RCMD;
 
 #ifdef PIN_OPERATIONS_INCLUDED
     entry RS_RPIN:
