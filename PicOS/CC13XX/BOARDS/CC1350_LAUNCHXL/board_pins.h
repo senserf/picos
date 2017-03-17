@@ -38,7 +38,7 @@
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
 			IOC_INT_DISABLE		| \
-			IOC_NO_IOPULL		| \
+			IOC_IOPULL_UP		| \
 			IOC_INPUT_ENABLE	| \
 			IOC_HYST_DISABLE	| \
 			IOC_SLEW_DISABLE	| \
@@ -160,6 +160,7 @@
 #define	RADIO_PINS_PREINIT	do { \
 					GPIO_setOutputEnableDio (IOID_1 , 1); \
 					GPIO_setOutputEnableDio (IOID_30, 1); \
+					RADIO_PINS_OFF; \
 				} while (0)
 
 #define	RADIO_PINS_ON		do { \

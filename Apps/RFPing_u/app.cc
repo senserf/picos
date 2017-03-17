@@ -456,7 +456,7 @@ fsm root {
 
 	if ((unsigned char) ibuf [0] == 0xff)
 		delay (1024*10, RS_AUTOSTART);
-  
+
 	k = ser_in (RS_RCMD, ibuf, IBUFLEN);
 
 	switch (ibuf [0]) {
@@ -472,6 +472,9 @@ fsm root {
 	    case 'i': proceed RS_SSID;
 	    case 'z': proceed RS_RES;
 	    case 'm': proceed RS_PDM;
+#ifdef __CC1350__
+	    case 'e': proceed RS_GEC;
+#endif
 #ifdef PIN_OPERATIONS_INCLUDED
 	    case 'p': proceed RS_RPIN;
 	    case 'u': proceed RS_SPIN;
@@ -633,6 +636,14 @@ fsm root {
 	if (p [1])
 		runfsm reverter (p [1]);
 	proceed RS_RCMD;
+
+#ifdef __CC1350__
+	// Event count
+    entry RS_GEC:
+
+	ser_outf (RS_GEC, "EC = %lu\r\n", system_event_count);
+	proceed RS_RCMD;
+#endif
 
 #ifdef PIN_OPERATIONS_INCLUDED
     entry RS_RPIN:

@@ -255,20 +255,6 @@ static void rf_on () {
 	// Power up the domain (there's no peripheral for RF)
 	__pi_ondomain (PRCM_DOMAIN_RFCORE);
 
-#ifdef	DETECT_HANGUPS
-	for (int cnt = DETECT_HANGUPS * 999; ; ) {
-		if (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) ==
-	    	    PRCM_DOMAIN_POWER_ON)
-			break;
-		if (cnt-- == 0)
-			syserror (EHARDWARE, "pcmon");
-		udelay (1);
-	}
-#else
-	while (PRCMPowerDomainStatus (PRCM_DOMAIN_RFCORE) !=
-	    PRCM_DOMAIN_POWER_ON) {
-	}
-#endif
 	// Enable the clock
 	RFCClockEnable ();
 
@@ -282,9 +268,11 @@ static void rf_on () {
 	// Undo the magic
         issue_cmd (CMDR_DIR_CMD_2BYTE (RF_CMD0, 0));
 
+#if 0
         // Initialize bus request; AFAICT, this is only needed if we want to
 	// deep sleep while the radio is sending data to our RAM
 	issue_cmd (CMDR_DIR_CMD_1BYTE (CMD_BUS_REQUEST, 1));
+#endif
 
 	RFCAdi3VcoLdoVoltageMode (true);
 
@@ -342,6 +330,12 @@ static void rf_off () {
 		return;
 
 	IntDisable (INT_RFC_CPE_0);
+
+	RFCAdi3VcoLdoVoltageMode (false);
+
+	// Without this, the domain isn't truly switched off
+	RFCSynthPowerDown ();
+
 	RFCClockDisable ();
 
 	__pi_offdomain (PRCM_DOMAIN_RFCORE);

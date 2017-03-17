@@ -193,4 +193,6 @@ Boolean __pi_uart_setrate (word, uart_t*);
 
 extern void __pi_ondomain (lword), __pi_offdomain (lword);
 
+extern lword system_event_count;
+
 #endif

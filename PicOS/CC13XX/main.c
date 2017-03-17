@@ -700,7 +700,6 @@ void system_init () {
 
 #ifdef	RADIO_PINS_PREINIT
 	RADIO_PINS_PREINIT;
-	RADIO_PINS_OFF;
 #endif
 	// RTC: we use channel 0 for the delay clock and channel 2 for the AUX
 	// clock; the seconds clock comes for free
@@ -817,10 +816,14 @@ void setpowermode (word mode) {
 		mode : 1;
 }
 
+lword system_event_count;	// For debugging, but maybe it should stay
+
 static inline void __do_wfi_as_needed () {
 //
 // WFI in the right power mode
 //
+	system_event_count ++;
+
 	switch (__pi_systat.effpdm) {
 
 		case 0:
