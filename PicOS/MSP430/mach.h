@@ -19,6 +19,8 @@
 #error "S: this must be compiled with mspgcc!!!"
 #endif
 
+#define	DEFAULT_PD_MODE	1
+
 #define	LITTLE_ENDIAN	1
 #define	BIG_ENDIAN	0
 

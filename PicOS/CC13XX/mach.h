@@ -44,9 +44,11 @@
 #define	WATCHDOG_HOLD	CNOP
 #define	WATCHDOG_RESUME	CNOP
 
-#define  watchdog_start()        WATCHDOG_START
-#define  watchdog_stop()         WATCHDOG_STOP
-#define  watchdog_clear()        WATCHDOG_CLEAR
+#define  watchdog_start()       WATCHDOG_START
+#define  watchdog_stop()        WATCHDOG_STOP
+#define  watchdog_clear()       WATCHDOG_CLEAR
+
+#define	DEFAULT_PD_MODE	2
 
 // ============================================================================
 

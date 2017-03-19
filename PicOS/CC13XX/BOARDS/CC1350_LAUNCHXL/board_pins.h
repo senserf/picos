@@ -3,7 +3,7 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-// UART on 2,3, two buttons, 13, 14, polarity down
+// UART on 2,3, two buttons, 13, 14, polarity down, shutdown wakeup on low
 //
 // RF control on 1 (low: 2.4GHz, high: sub 1GHz)
 // RF switch on 30 (high -> on)
@@ -47,7 +47,7 @@
 			0), \
 		iocportconfig (IOID_13, IOC_PORT_GPIO, \
 			IOC_IOMODE_NORMAL 	| \
-			IOC_NO_WAKE_UP		| \
+			IOC_WAKE_ON_LOW		| \
 			IOC_FALLING_EDGE	| \
 			IOC_INT_DISABLE		| \
 			IOC_IOPULL_UP		| \
@@ -59,7 +59,7 @@
 			0), \
 		iocportconfig (IOID_14, IOC_PORT_GPIO, \
 			IOC_IOMODE_NORMAL 	| \
-			IOC_NO_WAKE_UP		| \
+			IOC_WAKE_ON_LOW		| \
 			IOC_FALLING_EDGE	| \
 			IOC_INT_DISABLE		| \
 			IOC_IOPULL_UP		| \

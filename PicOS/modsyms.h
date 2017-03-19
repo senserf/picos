@@ -76,10 +76,6 @@
 // shall see if this is enough in the longer run.
 //
 
-#ifndef	DEFAULT_PD_MODE
-#define	DEFAULT_PD_MODE		1	// +
-#endif
-
 #ifndef	CODE_LONG_INTS
 #define	CODE_LONG_INTS		1	// +
 #endif

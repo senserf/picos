@@ -624,7 +624,6 @@ void	freeze (word);
 #define	fork(p,d)	__pi_fork (p, (aword)(d))
 #define	forkjr(p,d,s)	__pi_fork_join_release (p, (aword)(d), s)
 #define	getcpid()	running (NULL)
-#define	ptleft()	crunning (NULL)
 
 #define	release		__pi_release ()
 
@@ -646,8 +645,13 @@ void	freeze (word);
 #define umwait(s)	waitmem (0, s)
 /* Availability of a free process table entry */
 #define	npwait(s)	waitmem (0, s)
+
 /* Actual size of an malloc'ed piece */
+#if SIZE_OF_AWORD > 2
+#define	actsize(p)	(*(((aword*)(p))-1) << 2)
+#else
 #define	actsize(p)	(*(((aword*)(p))-1) << 1)
+#endif
 
 void __pi_badstate (void);
 

@@ -5002,3 +5002,13 @@ PG170317A:
 	Oh, added the new version of AP331 to the ALPHATRONICS board set, as
 	well as an OLIMEX board variant to test their new voltage sensors. The
 	latter will be be probably removed soon.
+
+PG170319A:
+
+	All four power modes for CC1350 work, including shutdown.
+
+	Updated some documentation, deleted some garbage.
+
+	Fixed battery voltage reports in locaspot to make sure that the
+	single-byte value returned to the OSS never overflows (i.e., is
+	topped at 255).

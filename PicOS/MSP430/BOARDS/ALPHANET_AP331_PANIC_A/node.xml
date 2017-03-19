@@ -32,10 +32,12 @@
     <sensors>
     	<input source="socket"></input>
 	<output target="socket"></output>
+	<sensor number="-3" vsize="2" delay="0.01" init="2457">2600</sensor>
 	<sensor number="-2" vsize="2" delay="0.01" init="2300">2000</sensor>
-	<sensor number="-1" vsize="2" delay="0.01" init="2457">2600</sensor>
+	<sensor number="-1" vsize="2" delay="0.01" init="2600">3400</sensor>
 	<sensor number="0" vsize="4" delay="0.01" init="0"></sensor>
         <sensor number="1" vsize="4" delay="0.01" init="0"></sensor>
+	<sensor number="2" vsize="2" delay="0.01" init="3000">3500</sensor>
     </sensors>
     <pins number="2">
 	<input source="socket"></input>

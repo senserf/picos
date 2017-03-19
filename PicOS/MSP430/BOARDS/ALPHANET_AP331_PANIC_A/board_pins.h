@@ -3,6 +3,9 @@
 /* All rights reserved.                                                      */
 /* ========================================================================= */
 
+// This is AP331 with an external battery voltage sensor (before the regulator)
+// and a charger voltage sensor
+
 // ============================================================================
 // P1.0	BUTTON, on low
 // P1.4 DATA from loop detector (crosswired with BMA250 INT2, not used)
@@ -147,6 +150,7 @@
 #define	CHA_SEN_SHT		4
 #define	CHA_SEN_ISI		1
 #define	CHA_SEN_NSA		64
+// Referenced to Vcc
 #define	CHA_SEN_URE		ADC_SREF_VVSS
 #define	CHA_SEN_ERE		0
 
@@ -154,12 +158,19 @@
 #define	BAT_SEN_SHT		4
 #define	BAT_SEN_ISI		1
 #define	BAT_SEN_NSA		64
+// Referenced to 2.5V
 #define	BAT_SEN_URE		ADC_SREF_RVSS
 #define	BAT_SEN_ERE		ADC_FLG_REF25 | ADC_FLG_REFON
 
 #define	SENSOR_LIST { \
-		INTERNAL_TEMPERATURE_SENSOR,			\
-		INTERNAL_VOLTAGE_SENSOR,			\
+		INTERNAL_VOLTAGE_SENSOR,      \
+		INTERNAL_TEMPERATURE_SENSOR,  \
+		ANALOG_SENSOR ( BAT_SEN_ISI,  \
+				BAT_SEN_NSA,  \
+				BAT_SEN_PIN,  \
+				BAT_SEN_URE,  \
+				BAT_SEN_SHT,  \
+				BAT_SEN_ERE), \
 		DIGITAL_SENSOR (0, bma250_init, bma250_read),	\
 		DIGITAL_SENSOR (0, as3932_init, as3932_read),	\
 		ANALOG_SENSOR ( CHA_SEN_ISI,  \
@@ -168,12 +179,6 @@
 				CHA_SEN_URE,  \
 				CHA_SEN_SHT,  \
 				CHA_SEN_ERE), \
-		ANALOG_SENSOR ( BAT_SEN_ISI,  \
-				BAT_SEN_NSA,  \
-				BAT_SEN_PIN,  \
-				BAT_SEN_URE,  \
-				BAT_SEN_SHT,  \
-				BAT_SEN_ERE), \
 	}
 
 #define	sensor_adc_prelude(p) \
@@ -186,10 +191,15 @@
 
 #define	sensor_adc_postlude(p)	_BIC (P3OUT, 0x02)
 
-#define	SENSOR_MOTION		0
-#define SENSOR_AS3932		1
-#define	SENSOR_CHARGE		2
-#define	SENSOR_BATTERY		3
+// Sensors:
+//
+//	-3	internal voltage
+//	-2	temperature
+//	-1	external voltage (replacing standard voltage)
+//	 0	accel
+//	 1	as3932
+//	 2	charger sensor
+//
 
 #define	SENSOR_DIGITAL
 #define	SENSOR_ANALOG
@@ -198,7 +208,7 @@
 
 // ============================================================================
 
-#define	N_HIDDEN_SENSORS	2
+#define	N_HIDDEN_SENSORS	3
 
 // ============================================================================
 

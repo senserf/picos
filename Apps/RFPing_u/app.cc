@@ -10,6 +10,10 @@
 #include "form.h"
 #include "plug_null.h"
 
+#ifdef	BUTTON_LIST
+#include "buttons.h"
+#endif
+
 #include "pins.h"
 
 #if CC1100
@@ -365,6 +369,25 @@ fsm reverter (word n) {
 		finish;
 }
 
+#ifdef	BUTTON_LIST
+
+fsm showbuttons (word b) {
+
+	state SHOWTHEM:
+
+		ser_outf (SHOWTHEM, "B: %x\r\n", b);
+		finish;
+}
+
+void button (word butts) {
+
+	setpowermode (0);
+
+	runfsm showbuttons (butts);
+}
+
+#endif
+
 fsm root {
 
     char *ibuf;
@@ -403,6 +426,10 @@ fsm root {
 		diag ("Cannot open tcv interface");
 		halt ();
 	}
+
+#ifdef	BUTTON_LIST
+	buttons_action (button);
+#endif
 
     entry RS_RCMDM2:
 

@@ -725,12 +725,6 @@ void system_init () {
 		AON_RTC_CTL_RTC_UPD_EN |
 		AON_RTC_CTL_EN;
 
-#if 0
-	// Set the event for standby mode wakeup (we may need a way to
-	// set this from the program)
-	AONEventMcuSet (AON_EVENT_MCU_EVENT0, AON_EVENT_RTC_COMB_DLY);
-#endif
-
 	// Enable RTC interrupts
 	IntEnable (INT_AON_RTC_COMB);
 
@@ -768,25 +762,33 @@ void system_init () {
 	preinit_uart ();
 #endif
 
+	// If waking from shutdown, unfreeze the I/O
+	if (SysCtrlResetSourceGet () == RSTSRC_WAKEUP_FROM_SHUTDOWN) {
+
+		PowerCtrlIOFreezeDisable ();
+
+	} else {
+
 #if	DIAG_MESSAGES
-	diag ("");
+		diag ("");
 
 #ifdef	BANNER
-	diag (BANNER);
+		diag (BANNER);
 #else
-	diag ("PicOS v" SYSVER_S "/" SYSVER_R
+		diag ("PicOS v" SYSVER_S "/" SYSVER_R
 #ifdef	SYSVER_B
-		"-" SYSVER_B
+			"-" SYSVER_B
 #endif
-        	", (C) Olsonet Communications, 2002-2017");
-	diag ("Leftover RAM: %d bytes",
-		(word)((aword)STACK_END - (aword)(&__bss_end__)));
+        		", (C) Olsonet Communications, 2002-2017");
+		diag ("Leftover RAM: %d bytes",
+			(word)((aword)STACK_END - (aword)(&__bss_end__)));
 #endif
 
 #endif	/* DIAG_MESSAGES */
 
-	dbg_1 (0x1000 | SYSVER_X);
-	dbg_1 ((word)STACK_END - (word)(&__BSS_END)); // RAM in bytes
+		dbg_1 (0x1000 | SYSVER_X);
+		dbg_1 ((word)STACK_END - (word)(&__BSS_END)); // RAM in bytes
+	}
 
 #if MAX_DEVICES
 	for (int i = UART; i < MAX_DEVICES; i++)
@@ -807,9 +809,9 @@ void setpowermode (word mode) {
 // This just sets the mode; the action is carried out when we are about to
 // execute WFI
 //
-	if (mode > 2)
+	if (mode > 3)
 		// This is the maximum
-		mode = 2;
+		mode = 3;
 
 	__pi_systat.effpdm = ((__pi_systat.reqpdm = mode) < 2 ||
 	    (__pi_systat.ondmns & PRCM_DOMAIN_RFCORE) == 0) ?
@@ -849,9 +851,10 @@ static inline void __do_wfi_as_needed () {
 			SysCtrlAonSync ();
 
 			// Enter deep sleep
-			HWREG(NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
+DeepSleep:
+			HWREG (NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
 			__WFI ();
-			HWREG(NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
+			HWREG (NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
 
 			// We are mostly woken by the timer
 			SysCtrlAonSync ();
@@ -859,7 +862,7 @@ static inline void __do_wfi_as_needed () {
 			return;
 
 				// ============================================
-		default:	// STANDBY MODE ===============================
+		case 2:		// STANDBY MODE ===============================
 				// ============================================
 
 			AONIOCFreezeEnable ();
@@ -901,9 +904,9 @@ static inline void __do_wfi_as_needed () {
 			SysCtrlAonSync ();
 
 			// Enter deep sleep
-			HWREG(NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
+			HWREG (NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
 			__WFI ();
-			HWREG(NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
+			HWREG (NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
 #if 1
 			// Back from sleep; the cache
 			VIMSModeSet (VIMS_BASE, VIMS_MODE_ENABLED);
@@ -944,8 +947,75 @@ static inline void __do_wfi_as_needed () {
 			}
 
 			// ... other domains (we don't do it with RF on)
+			return;
+
+				// ============================================
+		default:	// SHUTDOWN ===================================
+				// ============================================
+#if 0
+			// OSC source must be HF at this point (it is, but
+			// let's make it absolutely foolproof)
+    			if (OSCClockSourceGet (OSC_SRC_CLK_HF) !=
+			    OSC_RCOSC_HF) {
+            			OSCClockSourceSet (OSC_SRC_CLK_HF |
+					OSC_SRC_CLK_MF, OSC_RCOSC_HF);
+            			while (!OSCHfSourceReady ());
+            			OSCHfSourceSwitch ();
+        		}
+#endif
+
+#if 0
+			// Disable CRYPTO and UDMA (we don't need them [yet])
+        		PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_CRYPTO);
+        		PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_UDMA);
+        		PRCMLoadSet ();
+        		while (!PRCMLoadGet());
+#endif
+			// Power off AUX and disconnect from bus
+			AUXWUCPowerCtrl (AUX_WUC_POWER_OFF);
+
+			// Remove AUX force ON
+			HWREG (AON_WUC_BASE + AON_WUC_O_AUXCTL) &=
+				~AON_WUC_AUXCTL_AUX_FORCE_ON;
+			HWREG (AON_WUC_BASE + AON_WUC_O_JTAGCFG) &=
+				~AON_WUC_JTAGCFG_JTAG_PD_FORCE_ON;
+
+			// Reset AON event source IDs to prevent pending events
+			// from powering on MCU/AUX
+			HWREG (AON_EVENT_BASE + AON_EVENT_O_MCUWUSEL) =
+				0x3F3F3F3F;
+			HWREG (AON_EVENT_BASE + AON_EVENT_O_AUXWUSEL) =
+				0x3F3F3F3F;
+
+			// Pins should be configured for wakeup by now; sync AON
+			SysCtrlAonSync();
+
+			// Enable shutdown, latch the IO
+			AONWUCShutDownEnable ();
+
+			// Sync AON again
+			SysCtrlAonSync ();
+
+			// Wait until AUX powered off
+			while (AONWUCPowerStatusGet () & AONWUC_AUX_POWER_ON);
+
+			// Request to power off the MCU when it goes to deep
+			// sleep
+			PRCMMcuPowerOff ();
+
+			// Turn off all domains
+			PRCMPowerDomainOff (
+					PRCM_DOMAIN_RFCORE |
+					PRCM_DOMAIN_SERIAL |
+					PRCM_DOMAIN_PERIPH |
+					PRCM_DOMAIN_CPU    |
+					PRCM_DOMAIN_VIMS );
+
+			// Deep sleep, no return
+			goto DeepSleep;
 	}
 }
+
 __attribute__ ((noreturn)) void __pi_release () {
 
 	__set_MSP ((lword)(STACK_START));
@@ -971,6 +1041,9 @@ int main (void) {
 
 	// For standby mode wakeup on timer
 	AONEventMcuWakeUpSet (AON_EVENT_MCU_EVENT0, AON_EVENT_RTC_COMB_DLY);
+	// Edge on any I/O, will it take care of UART? No, of course not!
+	// But it does work for buttons.
+	AONEventMcuWakeUpSet (AON_EVENT_MCU_EVENT1, AON_EVENT_IO);
 
 	// Assume root process identity
 	__pi_curr = (__pi_pcb_t*) fork (root, 0);
