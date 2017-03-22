@@ -7,7 +7,7 @@
 #define	UART_DRIVER		0
 #define UART_TCV		1
 
-#define	UART_TCV_MODE	UART_TCV_MODE_P
+#define	UART_TCV_MODE	UART_TCV_MODE_L
 
 #if 0
 #define	uart_b_xmitter_on		_BIS (P1OUT, 0x40)

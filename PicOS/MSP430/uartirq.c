@@ -12,32 +12,43 @@
 #define	RBUF		uart_a_read
 
 #ifdef	UART_A_TX_RX_VECTOR
+
 // A single vector for both RX and TX (as in CC430)
+
 interrupt (UART_A_TX_RX_VECTOR) uart0xx_int (void) {
 
 	if (uart_a_tx_interrupt) {
-#else
-// Separate functions for RX and TX
-interrupt (UART_A_TX_VECTOR) uart0tx_int (void) {
-#endif
 
 #include "irq_uart_x.h"
 
-}
-
-#ifdef	UART_A_TX_RX_VECTOR
-else {
-#else
-interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
-#endif
+	} else {
 
 #include "irq_uart_r.h"
 
+	}
+
+	RTNI;
 }
 
-#ifdef	UART_A_TX_RX_VECTOR
+#else 
+
+// Two separate vectors
+
+interrupt (UART_A_TX_VECTOR) uart0tx_int (void) {
+
+#include "irq_uart_x.h"
+
+	RTNI;
 }
-#endif
+
+interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
+
+#include "irq_uart_r.h"
+
+	RTNI;
+}
+
+#endif	/* One or two vectors */
 
 #undef UA
 #undef XBUF_STORE
@@ -47,6 +58,8 @@ interrupt (UART_A_RX_VECTOR) uart0rx_int (void) {
 
 #if N_UARTS_TCV > 1
 
+// Two UARTS (two separate vectors)
+
 #define	UA		(__pi_uart + 1)
 #define	XBUF_STORE(a)	uart_b_write (a)
 #define	RBUF		uart_b_read
@@ -55,11 +68,15 @@ interrupt (UART_B_TX_VECTOR) uart1tx_int (void) {
 
 #include "irq_uart_x.h"
 
+	RTNI;
+
 }
 
 interrupt (UART_B_RX_VECTOR) uart1rx_int (void) {
 
 #include "irq_uart_r.h"
+
+	RTNI;
 
 }
 

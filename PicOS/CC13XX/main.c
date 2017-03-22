@@ -570,6 +570,11 @@ Redo_tx:
 	}
 }
 
+static void devinit_uart (int devnum) {
+
+	adddevfunc (ioreq_uart_a, devnum);
+}
+
 void UART0IntHandler () {
 
 	uart_a_clear_interrupts;
@@ -589,19 +594,50 @@ void UART0IntHandler () {
 	RTNI;
 }
 
+#endif
+
+#if UART_TCV
+
+void UART0IntHandler () {
+
+	uart_a_clear_interrupts;
+
+#define	UA		__pi_uart
+#define	RBUF 		uart_a_read
+#define	XBUF_STORE(a)	uart_a_write (a)
+
+	while (uart_a_char_available) {
+
+		// Should we check UA->r_istate == IRQ_R_OFF (to hold
+		// advance characters in the FIFO)?
+
+#include "irq_uart_r.h"
+
+	}
+
+	while (UA->x_istate != IRQ_X_OFF && uart_a_room_in_tx) {
+
+#include "irq_uart_x.h"
+
+	}
+
+#undef	UA
+#undef	RBUF
+#undef	XBUF_STORE
+
+	RTNI;
+}
+
+#endif
+
+#if N_UARTS
+
 static inline void enable_uart_interrupts () {
 
 	UARTIntEnable (UART0_BASE, UART_INT_RX | UART_INT_RT | UART_INT_TX);
 }
 
-static void devinit_uart (int devnum) {
-
-	adddevfunc (ioreq_uart_a, devnum);
-	enable_uart_interrupts ();
-	IntEnable (INT_UART0_COMB);
-}
-
-#endif /* UART_DRIVER */
+#endif
 
 // ============================================================================
 // Pin interrupts and buttons =================================================
@@ -794,6 +830,12 @@ void system_init () {
 	for (int i = UART; i < MAX_DEVICES; i++)
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
+#endif
+
+#if N_UARTS
+	// The same for UART_DRIVER and UART_TCV
+	enable_uart_interrupts ();
+	IntEnable (INT_UART0_COMB);
 #endif
 	// Kick the auxiliary timer in case something is needed by the
 	// drivers
@@ -1016,9 +1058,25 @@ DeepSleep:
 	}
 }
 
+#if STACK_GUARD
+
+word __pi_stackfree (void) {
+
+	word sc;
+
+	for (sc = 0; sc < STACK_SIZE / sizeof (lword); sc++)
+		if (*(((lword*)STACK_END) + sc) != STACK_SENTINEL)
+			break;
+	return sc;
+}
+
+#endif
+
 __attribute__ ((noreturn)) void __pi_release () {
 
 	__set_MSP ((lword)(STACK_START));
+
+	check_stack_overflow;
 
 #include "scheduler.h"
 
@@ -1026,7 +1084,7 @@ __attribute__ ((noreturn)) void __pi_release () {
 
 int main (void) {
 
-#if STACK_GUARD && 0
+#if STACK_GUARD
 	{
 		register sint i;
 		for (i = 0; i < (STACK_SIZE / sizeof (lword)) - 16; i++)
@@ -1078,3 +1136,4 @@ int main (void) {
 //
 //	Implement STACK GUARD
 //
+

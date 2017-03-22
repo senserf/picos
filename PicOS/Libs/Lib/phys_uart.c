@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "kernel.h"
@@ -91,6 +91,7 @@ strand (rcvuart, uart_t*)
 		// cost much, and we are always ready; note that we do not
 		// fork the process persistently
 		when (RSEVENT, RC_START);
+		when (RXEVENT, RC_END);
 		UART_START_RECEIVER;
 	}
 	release;
@@ -164,7 +165,7 @@ strand (xmtuart, uart_t*)
 #define	UA __pi_uart
 #endif
 
-    word stln;
+    int stln;
 
     entry (XM_LOOP)
 
@@ -200,7 +201,7 @@ strand (xmtuart, uart_t*)
 		syserror (EREQPAR, "xln");
 
 	// In bytes
-	UA->x_buffl = stln;
+	UA->x_buffl = (byte) stln;
 	stln >>= 1;
 	if (UA->v_statid != 0xffff)
 		UA->x_buffer [0] = UA->v_statid;
@@ -479,7 +480,7 @@ strand (xmtuart, uart_t*)
 #define	UA __pi_uart
 #endif
 
-    word stln;
+    int stln;
 
     entry (XM_LOOP)
 
@@ -511,7 +512,7 @@ strand (xmtuart, uart_t*)
 			UA->x_buffl = UA->x_buffc = 0;
 		} else {
 			UA->x_buffh = (UA->v_flags & (UAFLG_EMAB | UAFLG_SMAB));
-			UA->x_buffc = stln;
+			UA->x_buffc = (byte) stln;
 			if ((stln & 1)) 
 				// The transmitted length will be even anyway
 				stln++;
@@ -520,7 +521,8 @@ strand (xmtuart, uart_t*)
 			// Calculate checksum; note that this assumes a
 			// particular layout of uart_t!!!
 			stln = w_chk ((address)(&(UA->x_buffh)), 1, 0);
-			stln = w_chk (UA->x_buffer, UA->x_buffl >> 1, stln);
+			stln = w_chk (UA->x_buffer, UA->x_buffl >> 1,
+				(word)stln);
 			UA->x_chk0 = ((byte*)(&stln)) [0];
 			UA->x_chk1 = ((byte*)(&stln)) [1];
 			// Mark it as unacknowledged
@@ -534,7 +536,8 @@ strand (xmtuart, uart_t*)
 			UA->x_buffh ^= UAFLG_EMAB;
 			// ... so must recalculate checksum
 			stln = w_chk ((address)(&(UA->x_buffh)), 1, 0);
-			stln = w_chk (UA->x_buffer, UA->x_buffl >> 1, stln);
+			stln = w_chk (UA->x_buffer, UA->x_buffl >> 1,
+				(word)stln);
 			UA->x_chk0 = ((byte*)(&stln)) [0];
 			UA->x_chk1 = ((byte*)(&stln)) [1];
 		}
@@ -630,7 +633,7 @@ strand (rcvuart, uart_t*)
 #endif
 
     byte b;
-    word stln;
+    int stln;
 
     entry (RC_LOOP)
 
@@ -946,7 +949,7 @@ strand (xmtuart, uart_t*)
 #define	UA __pi_uart
 #endif
 
-    word stln;
+    int stln;
 
     entry (XM_LOOP)
 
@@ -974,7 +977,7 @@ strand (xmtuart, uart_t*)
 #endif /* blue_ready */
 
 	// Empty line allowed here, even though an empty line cannot be received
-	UA->x_buffl = stln;
+	UA->x_buffl = (byte) stln;
 
 #ifdef UART_XMITTER_ON
 
@@ -1279,7 +1282,7 @@ strand (xmtuart, uart_t*)
 #define	UA __pi_uart
 #endif
 
-    word stln;
+    int stln;
 
     entry (XM_LOOP)
 
@@ -1308,7 +1311,7 @@ strand (xmtuart, uart_t*)
 	if (stln >= UA->r_buffl)
 		syserror (EREQPAR, "xln");
 
-	UA->x_buffl = stln;
+	UA->x_buffl = (byte) stln;
 
 #ifdef UART_XMITTER_ON
 

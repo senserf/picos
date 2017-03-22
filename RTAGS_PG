@@ -5012,3 +5012,8 @@ PG170319A:
 	Fixed battery voltage reports in locaspot to make sure that the
 	single-byte value returned to the OSS never overflows (i.e., is
 	topped at 255).
+
+PG170322A:
+
+	Done UART over TCV for CC1350. A few cosmetics also affecting MSP430,
+	hopefully in the right direction.

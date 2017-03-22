@@ -29,12 +29,12 @@
 // Bit 0x80 is available
 
 
-#define	TXEVENT			((word)(&(UA->x_buffer)))
-#define	RXEVENT			((word)(&(UA->r_buffer)))
-#define	RSEVENT			((word)(&(UA->r_buffl)))
-#define	OFFEVENT		((word)(&(UA->r_buffs)))
-#define	ACKEVENT		((word)(&(UA->r_buffp)))
-#define	RDYEVENT		((word)(&(UA->r_istate)))
+#define	TXEVENT			((aword)(&(UA->x_buffer)))
+#define	RXEVENT			((aword)(&(UA->r_buffer)))
+#define	RSEVENT			((aword)(&(UA->r_buffl)))
+#define	OFFEVENT		((aword)(&(UA->r_buffs)))
+#define	ACKEVENT		((aword)(&(UA->r_buffp)))
+#define	RDYEVENT		((aword)(&(UA->r_istate)))
 
 #define	RCVSPACE		50
 #define	RXTIME			1024
@@ -56,8 +56,8 @@ typedef	struct	{
 #if UART_TCV_MODE == UART_TCV_MODE_N
 	word	v_statid;
 #endif
-	word	v_physid, x_qevent;
-	word	r_prcs,   x_prcs;
+	word	v_physid;
+	aword	x_qevent, r_prcs, x_prcs;
 
 #if UART_RATE_SETTABLE
 	byte	flags;
@@ -69,7 +69,7 @@ typedef	struct	{
 
 extern	uart_t __pi_uart [N_UARTS_TCV];
 
-// IRQ states
+// IRQ states (the OFF states must be zero for proper initialization)
 
 #define	IRQ_R_OFF	0
 #define	IRQ_R_STRT	1
@@ -82,9 +82,8 @@ extern	uart_t __pi_uart [N_UARTS_TCV];
 #define	IRQ_X_STRT	1
 #define	IRQ_X_LEN	2
 #define	IRQ_X_PKT	3
-#define	IRQ_X_STOP	4
-#define	IRQ_X_CH1	5
-#define	IRQ_X_PAE	6
+#define	IRQ_X_CH1	4
+#define	IRQ_X_PAE	5
 #define	IRQ_X_ETX	IRQ_X_CH1
 #define	IRQ_X_LIN	IRQ_X_LEN
 #define	IRQ_X_ESC	IRQ_X_LEN

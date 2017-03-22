@@ -138,11 +138,11 @@ proc parse_leds { max } {
 			set st 0
 		}
 
-		set dj [expr $di * 2]
-		set st [expr $st << $dj]
-		set ms [expr 0x3 << $dj]
+		set dj [expr { $di * 2 }]
+		set st [expr { $st << $dj }]
+		set ms [expr { 0x3 << $dj }]
 
-		if { [expr $res & $ms] != $ms } {
+		if { [expr { $res & $ms }] != $ms } {
 			error "duplicate setting for LED $di"
 		}
 
@@ -152,8 +152,9 @@ proc parse_leds { max } {
 	if { $res == $sre } {
 		error "LED value expected"
 	}
-}
 
+	return $res
+}
 
 proc parse_choice { choice sel } {
 
@@ -428,7 +429,7 @@ proc parse_cmd_system { } {
 
 			"blinkrate" {
 				set blinkrate [parse_choice \
-				    { { fast f } { slow s } } "blinkrate"]
+				    { { slow s } { fast f } } "blinkrate"]
 				incr otr
 			}
 

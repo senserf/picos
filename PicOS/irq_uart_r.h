@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -16,7 +16,7 @@
 
 		// Absorb bytes and ignore them
 		b = RBUF;
-		RTNI;
+		break;
 
 	case IRQ_R_STRT:
 
@@ -24,13 +24,15 @@
 		b = RBUF;
 		if (b != 0x55)
 			// Waiting for the "preamble"
-			RTNI;
+			break;
+#if 0
 		// Trigger 'reception started' event (for timeouts)
 		RISE_N_SHINE;
 		if (UA->r_prcs != 0)
 			p_trigger (UA->r_prcs, RSEVENT);
+#endif
 		UA->r_istate = IRQ_R_LEN;
-		RTNI;
+		break;
 
 	case IRQ_R_LEN:
 
@@ -45,7 +47,7 @@
 		UA->r_buffs = b + 4;
 		UA->r_buffp = 0;
 		UA->r_istate = IRQ_R_PKT;
-		RTNI;
+		break;
 
 	case IRQ_R_PKT:
 
@@ -63,7 +65,7 @@ RxEvent:
 #endif
 			UA->r_istate = IRQ_R_OFF;
 		}
-		RTNI;
+		break;
     }	
 
 #endif
@@ -79,7 +81,7 @@ RxEvent:
 
 		// Absorb bytes and ignore them
 		b = RBUF;
-		RTNI;
+		break;
 
 	case IRQ_R_STRT:
 
@@ -88,14 +90,14 @@ RxEvent:
 		if ((b & 0xfc) != 0)
 			// Waiting for something that looks like a header
 			// byte
-			RTNI;
+			break;
 		// Trigger 'reception started' event
 		RISE_N_SHINE;
 		if (UA->r_prcs != 0)
 			p_trigger (UA->r_prcs, RSEVENT);
 		((byte*)(UA->r_buffer)) [0] = b;
 		UA->r_istate = IRQ_R_LEN;
-		RTNI;
+		break;
 
 	case IRQ_R_LEN:
 
@@ -111,7 +113,7 @@ RxEvent:
 		UA->r_buffp = 0;
 		((byte*)(UA->r_buffer)) [1] = b;
 		UA->r_istate = IRQ_R_PKT;
-		RTNI;
+		break;
 
 	case IRQ_R_PKT:
 
@@ -119,7 +121,7 @@ RxEvent:
 		if (UA->r_buffp > UA->r_buffs && (UA->r_buffp & 1))
 			// Read the first byte of checksum
 			UA->r_istate = IRQ_R_CHK1;
-		RTNI;
+		break;
 
 	case IRQ_R_CHK1:
 
@@ -136,7 +138,7 @@ RxEvent:
 			p_trigger (UA->x_prcs, RDYEVENT);
 #endif
 		UA->r_istate = IRQ_R_OFF;
-		RTNI;
+		break;
     }	
 
 #endif
@@ -154,14 +156,14 @@ RxEvent:
 
 		// Receive the first byte: ignore anything less than space
 		if (b < 0x20)
-			RTNI;
+			break;
 
 		// Network ID field not used, i.e., usable for payload
 		UA->r_buffp = 1;
 		*((byte*)(UA->r_buffer)) = b;
 		UA->r_istate = IRQ_R_LIN;
 		LEDIU (2, 1);
-		RTNI;
+		break;
 
 	case IRQ_R_LIN:
 
@@ -183,9 +185,10 @@ RxEvent:
 				((byte*)(UA->r_buffer)) [UA->r_buffp++] = b;
 		}
 
-	default:
+	// default:
 
-		RTNI;
+		// Nothing
+		// break;
 
 	
     }	
@@ -199,58 +202,61 @@ RxEvent:
 
     b = RBUF;
     if (b == 0x10 && (UA->v_flags & UAFLG_ESCP) == 0) {
+
 	UA->v_flags |= UAFLG_ESCP;
-	RTNI;
-    }
+	// Ignore
 
-    switch (UA->r_istate) {
+    } else {
 
-	case IRQ_R_OFF:
+    	switch (UA->r_istate) {
 
-		break;
+		case IRQ_R_OFF:
 
-	case IRQ_R_STRT:
+			break;
 
-		if (b == 0x02 && (UA->v_flags & UAFLG_ESCP) == 0) {
-			// Expecting STX
-			LEDIU (2, 1);
+		case IRQ_R_STRT:
+
+			if (b == 0x02 && (UA->v_flags & UAFLG_ESCP) == 0) {
+				// Expecting STX
+				LEDIU (2, 1);
 STX_rst:
-			UA->r_buffp = 0;
-			UA->r_istate = IRQ_R_PKT;
-		}
-		break;
+				UA->r_buffp = 0;
+				UA->r_istate = IRQ_R_PKT;
+			}
+			break;
 
-	case IRQ_R_PKT:
+		case IRQ_R_PKT:
 
-		if ((UA->v_flags & UAFLG_ESCP) == 0) {
-			// Unescaped
-			if (b == 0x03) {
-				// The end
-				RISE_N_SHINE;
-				if (UA->r_prcs != 0)
-					p_trigger (UA->r_prcs, RXEVENT);
+			if ((UA->v_flags & UAFLG_ESCP) == 0) {
+				// Unescaped
+				if (b == 0x03) {
+					// The end
+					RISE_N_SHINE;
+					if (UA->r_prcs != 0)
+						p_trigger (UA->r_prcs, RXEVENT);
 #ifdef UART_XMITTER_ON
-				// Half-duplex
-				if (UA->x_prcs != 0)
-					p_trigger (UA->x_prcs, RDYEVENT);
+					// Half-duplex
+					if (UA->x_prcs != 0)
+						p_trigger (UA->x_prcs,
+							RDYEVENT);
 #endif
-				UA->r_istate = IRQ_R_OFF;
+					UA->r_istate = IRQ_R_OFF;
+					break;
+				}
+				if (b == 0x02)
+					// STX reset
+					goto STX_rst;
+			}
+			if (UA->r_buffp >= UA->r_buffl) {
+				// Too long, reset
+				LEDIU (2, 0);
+				UA->r_istate = IRQ_R_STRT;
 				break;
 			}
-			if (b == 0x02)
-				// STX reset
-				goto STX_rst;
-		}
-		if (UA->r_buffp >= UA->r_buffl) {
-			// Too long, reset
-			LEDIU (2, 0);
-			UA->r_istate = IRQ_R_STRT;
-			break;
-		}
-		((byte*)(UA->r_buffer)) [UA->r_buffp++] = b;
-    }
+			((byte*)(UA->r_buffer)) [UA->r_buffp++] = b;
+	    }
 
-    UA->v_flags &= ~UAFLG_ESCP;
-    RTNI;
+	    UA->v_flags &= ~UAFLG_ESCP;
+    }
 
 #endif

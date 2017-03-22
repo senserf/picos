@@ -1,4 +1,5 @@
 #include "sysio.h"
+#include "phys_uart.h"
 #include "plug_null.h"
 #include "form.h"
 
@@ -129,7 +130,6 @@ fsm root {
 		w = 0xffff;
 		tcv_control (SFD, PHYSOPT_SETSID, &w);
 #endif
-
 	state NEXTPK:
 
 		in_packet = tcv_rnp (NEXTPK, SFD);

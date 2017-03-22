@@ -1,15 +1,22 @@
 #include "sysio.h"
+
+#ifdef	__cc1350__
+#include "phys_cc1350.h"
+#include "cc1350.h"
+#define	MAX_PACKET_LENGTH 	CC1350_MAXPLEN
+#define	phys_rf(a,b)	phys_cc1350 (a, b)
+#else
 #include "phys_cc1100.h"
+#include "cc1100.h"
+#define	MAX_PACKET_LENGTH 	CC1100_MAXPLEN
+#define	phys_rf(a,b)	phys_cc1100 (a, b)
+#endif
+
 #include "phys_uart.h"
 #include "plug_null.h"
 
 #include "ossi.h"
 
-#ifndef __SMURPH__
-#include "cc1100.h"
-#endif
-
-#define	MAX_PACKET_LENGTH 	CC1100_MAXPLEN
 #define	MAX_PAYLOAD_LENGTH	(MAX_PACKET_LENGTH - 2 - 2 - 4)
 
 // ============================================================================
@@ -153,7 +160,7 @@ fsm root {
 
 		word si = 0xFFFF;
 
-		phys_cc1100 (0, MAX_PACKET_LENGTH);
+		phys_rf (0, MAX_PACKET_LENGTH);
 		phys_uart (1, OSS_PACKET_LENGTH, 0);
 		tcv_plug (0, &plug_null);
 
@@ -167,6 +174,8 @@ fsm root {
 			syserror (ERESOURCE, "ini");
 
 		runfsm radio_receiver;
+
+		leds (0, 1);
 
 	state RS_CMD:
 
