@@ -982,7 +982,7 @@ proc fpnorm { fn } {
 		# this is the only place where we may have a problem: we have
 		# a full path from Cygwin, while the script needs DOS
 		if ![catch { xq "cygpath" [list -w $fn] } fm] {
-			log "Path (L->D): $fn -> $fm"
+			# log "Path (L->D): $fn -> $fm"
 			set fn $fm
 		} else {
 			log "cygpath failed: $fn, $fm"
@@ -990,7 +990,7 @@ proc fpnorm { fn } {
 	} elseif { !$ST(DP) && $ST(SYS) != "L" &&
 	    [regexp "^\[A-Za-z\]:\[/\\\\\]" $fn] } {
 		if ![catch { xq "cygpath" [list $fn] } fm] {
-			log "Path (D->L): $fn -> $fm"
+			# log "Path (D->L): $fn -> $fm"
 			set fn $fm
 		} else {
 			log "cygpath failed: $fn, $fm"
@@ -1394,6 +1394,7 @@ proc file_location { f } {
 #	"T"	inside project
 #	"S"	PicOS (system)
 #	"V"	VUEE
+#	"B"	Boards
 #	"X"	external
 #
 	global P PicOSPath
@@ -1408,6 +1409,11 @@ proc file_location { f } {
 	if { [string first [fpnorm [file join $PicOSPath "PicOS"]] $f] == 0 } {
 		# PicOS
 		return "S"
+	}
+
+	if { [string first [boards_dir] $f] == 0 } {
+		# board
+		return "B"
 	}
 
 	if { [string first [fpnorm [file join $PicOSPath "../VUEE/PICOS"]] $f] \
@@ -1503,11 +1509,6 @@ proc gfl_tree { } {
 
 	if { [dict get $P(CO) "OPSYSFILES"] == 0 } {
 		# do not include BOARD files, if the user prefers not to care
-		return
-	}
-
-	if $ST(LO) {
-		# library-only installation, do not include board dirs
 		return
 	}
 
@@ -2037,7 +2038,7 @@ proc file_perm { em } {
 #
 	global P
 
-	if { $em == "S" } {
+	if { $em == "S" || $em == "B" } {
 		return [dict get $P(CO) "OPSYSFILES"]
 	} elseif { $em == "V" } {
 		return [dict get $P(CO) "OPVUEEFILES"]
@@ -3251,12 +3252,17 @@ proc new_file { { x "" } { y "" } } {
 			continue
 		}
 
-		if { [file_location $fn] != "T" } {
-			alert "This file is located outside the project's\
-				directory! Use the buttons in the Search window\
+		set em [file_location $fn]
+
+		if { $em != "T" } {
+			if { [file_perm $em] < 3 } {
+				alert "You are not allowed to create files in\
+				this directory in this way!\
+				Use the buttons in the Search window\
 				to create directories and files outside the\
 				project"
-			continue
+				continue
+			}
 		}
 
 		if [file exists $fn] {
@@ -4532,11 +4538,7 @@ proc boards_dir { { arch "" } } {
 # Returns the path to the BOARDS directory for the given arch, or for the
 # project's arch, if null
 #
-	global PicOSPath P ST
-
-	if $ST(LO) {
-		return ""
-	}
+	global PicOSPath P
 
 	if { $arch == "" } {
 		set arch [dict get $P(CO) "ARCH"]
@@ -4545,29 +4547,9 @@ proc boards_dir { { arch "" } } {
 	return [fpnorm [file join $PicOSPath PicOS $arch BOARDS]]
 }
 
-proc board_repo { bo } {
-
-	global PicOSPath ST
-
-	if $ST(LO) {
-		set bd [file join $PicOSPath LIBRARIES]
-	} else {
-		set bd [boards_dir]
-	}
-
-	return [file join $bd $bo]
-}
-
 proc board_list { cpu } {
 
-	global PicOSPath ST
-
-	if $ST(LO) {
-		# library installation
-		set dn [file join $PicOSPath LIBRARIES]
-	} else {
-		set dn [boards_dir $cpu]
-	}
+	set dn [boards_dir $cpu]
 
 	set fl [glob -nocomplain -tails -directory $dn *]
 
@@ -4578,21 +4560,6 @@ proc board_list { cpu } {
 			# ignore any non-directory files
 			continue
 		}
-		if $ST(LO) {
-			# have to verify target
-			if [catch { open [file join $bdf target] "r" } dd] {
-				continue
-			}
-			if [catch { read $dd } dc] {
-				catch { close $dd }
-				continue
-			}
-			catch { close $dd }
-			if { [string first $cpu $dc] < 0 } {
-				continue
-			}
-		}
-
 		lappend r $f
 	}
 	return [lsort $r]
@@ -4602,15 +4569,7 @@ proc board_opts { bo } {
 #
 # Returns the file name of the board options file
 #
-	global PicOSPath ST
-
-	set fn [board_repo $bo]
-
-	if $ST(LO) {
-		set fn [file join $fn "include"]
-	}
-
-	set fn [file join $fn "board_options.sys"]
+	set fn [file join [boards_dir] $bo "board_options.sys"]
 
 	if [file isfile $fn] {
 		return $fn
@@ -8633,7 +8592,7 @@ proc side_args { deb } {
 			set bi 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
-				set fna [file join [board_repo $b] "node.xml"]
+				set fna [file join [boards_dir] $b "node.xml"]
 				if [file isfile $fna] {
 					lappend argm "-n"
 					lappend argm $suf
@@ -8642,7 +8601,7 @@ proc side_args { deb } {
 				incr bi
 			}
 		} else {
-			set fna [file join [board_repo $bo] "node.xml"]
+			set fna [file join [boards_dir] $bo "node.xml"]
 			if [file isfile $fna] {
 				lappend argm "-n"
 				lappend argm [unipath $fna]
@@ -11566,12 +11525,10 @@ proc get_picos_project_files { } {
 		set b [lindex $bo $i]
 		if { $ST(LO) || $l } {
 			# library mode, use LIBRARY Makefile
-###here: bool
-			set lb [library_present $b]
-			if { $lb == "" } {
+			if ![library_present $b] {
 				continue
 			}
-			set lb [fpnorm [file join $lb "Makefile"]]
+			set lb [file join [boards_dir] $b "Makefile"]
 		} else {
 			# source mode
 			set lb "Makefile"
