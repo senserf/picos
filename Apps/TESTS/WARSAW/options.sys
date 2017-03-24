@@ -2,7 +2,7 @@
 #define	DIAG_MESSAGES	2
 
 #undef	INFO_FLASH
-#define	INFO_FLASH	2
+#define	INFO_FLASH	0
 
 #define	SD_KEEP_IDLE	1
 

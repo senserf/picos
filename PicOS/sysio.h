@@ -265,6 +265,11 @@
 //+++ "storage_mt29xxx.c"
 #endif
 
+#if STORAGE_MX25R8035
+#define	EEPROM_PRESENT	1
+//+++ "storage_mx25r8035.c"
+#endif
+
 #if STORAGE_SDCARD
 #define	SDCARD_PRESENT	1
 //+++ "sdcard.c"

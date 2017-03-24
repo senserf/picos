@@ -10,7 +10,10 @@
 // ============================================================================
 #include "sysio.h"
 #include "tcvphys.h"
+
+#if INFO_FLASH
 #include "iflash_sys.h"
+#endif
 
 #define	MIN_PACKET_LENGTH	8
 
@@ -36,6 +39,15 @@ heapmem {10, 90};
 #include "plug_null.h"
 #define	MAX_PACKET_LENGTH	CC2420_MAXPLEN
 #define	phys_radio(a,b)		phys_cc2420 (a, b)
+#define	RADIO_PRESENT
+#endif
+
+#if CC1350_RF
+#include "phys_cc1350.h"
+#include "cc1350.h"
+#include "plug_null.h"
+#define	MAX_PACKET_LENGTH	CC1350_MAXPLEN
+#define	phys_radio(a,b)		phys_cc1350 (a, b)
 #define	RADIO_PRESENT
 #endif
 
@@ -364,8 +376,10 @@ fsm test_pin {
 		" 0-1.5V, 1-2.5V, 2-Vcc, 3-Eref\r\n"
 		"s p v -> set pin 'p' to digital v (0/1)\r\n"
 		"v p -> show the value of pin 'p'\r\n"
+#ifdef	_PF
 		"S p v -> set raw pin'p' [0,1-out, 2-in, 3-sp]\r\n"
 		"V p -> show\r\n"
+#endif
 		"q -> return to main test\r\n"
 	);
 
@@ -377,8 +391,10 @@ fsm test_pin {
 		case 'r': proceed PI_ADC;
 		case 's': proceed PI_SET;
 		case 'v': proceed PI_VIE;
+#ifdef	_PF
 		case 'S': proceed PI_SRAW;
 		case 'V': proceed PI_VRAW;
+#endif
 		case 'q': { finish; };
 	}
 	
@@ -419,6 +435,8 @@ fsm test_pin {
 	ser_outf (PI_VIEP1, "Value: %u\r\n", nt);
 	proceed PI_RCMD;
 
+#ifdef _PF
+
   state PI_SRAW:
 
 	w = WNONE;
@@ -453,10 +471,13 @@ fsm test_pin {
 
 	ser_outf (PI_VRAWP1, "Pin %u = val %u, dir %u, fun %u\r\n", nt, sl, ss);
 	proceed PI_RCMD;
+#endif
 
 }
 
 // ============================================================================
+
+#if INFO_FLASH
 
 fsm test_ifl {
 
@@ -589,6 +610,9 @@ Done:
 	goto Done;
 
 }
+
+#endif
+
 // ============================================================================
 
 #ifdef EPR_TEST
@@ -1911,6 +1935,8 @@ fsm test_bma250 {
 
 // ============================================================================
 
+#ifdef	ADC_TEST
+
 fsm test_adc {
 
   state AD_INIT:
@@ -1984,6 +2010,8 @@ Value:
 	ser_out (AD_STOPP2, "Idle\r\n");
 	goto Value;
 }
+
+#endif
 
 // ============================================================================
 
@@ -2169,7 +2197,10 @@ fsm root {
 		"o c  -> cswitch on\r\n"
 		"f c  -> cswitch off\r\n"
 #endif
+
+#if INFO_FLASH
 		"F -> flash test\r\n"
+#endif
 
 #ifdef EPR_TEST
 		"E -> EEPROM test\r\n"
@@ -2193,7 +2224,9 @@ fsm root {
 		"B -> bma250\r\n"
 #endif
 
+#ifdef	ADC_TEST
 		"A -> ADC\r\n"
+#endif
 
 #ifdef RTC_TEST
 		"T -> RTC\r\n"
@@ -2355,11 +2388,13 @@ RS_Loop:		proceed RS_RCMD;
 #endif
 		case 'n' : reset ();
 
+#if INFO_FLASH
 		case 'F' : {
 				runfsm test_ifl;
 				joinall (test_ifl, RS_RCMDM2);
 				release;
 		}
+#endif
 
 #ifdef EPR_TEST
 		case 'E' : {
@@ -2415,11 +2450,14 @@ RS_Loop:		proceed RS_RCMD;
 				release;
 		}
 #endif
+
+#ifdef	ADC_TEST
 		case 'A' : {
 				runfsm test_adc;
 				joinall (test_adc, RS_RCMDM2);
 				release;
 		}
+#endif
 
 #ifdef RTC_TEST
 		case 'T' : {

@@ -5017,3 +5017,14 @@ PG170322A:
 
 	Done UART over TCV for CC1350. A few cosmetics also affecting MSP430,
 	hopefully in the right direction.
+
+PG170324A:
+
+	I have written a simple driver for the external flash chip (MX25R8035,
+	1MB) available on the CC1350 launchpad board and configured it into the
+	system. The interface is exactly the same as for the EEPROM on the
+	WARSAW board. It appears to be doing fine.
+
+	I have modified a bit the way GPIO pins are configured for CC1350. It
+	is possible now to declare statically (in board_pins.h) that a pin
+	is output and preset it to 0 or 1 (see board_pins.h for the launchpad).

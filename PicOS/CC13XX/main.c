@@ -5,6 +5,10 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#if	defined(EEPROM_PRESENT) || defined(SDCARD_PRESENT)
+#include "storage.h"
+#endif
+
 extern 	__pi_pcb_t	*__pi_curr;
 extern 	address		__pi_utims [MAX_UTIMERS];
 
@@ -214,10 +218,22 @@ const static devinit_t devinit [] = {
 const lword port_confs [] = IOCPORTS;
 
 static inline void port_config () {
+//
+// Port configuration; we use the RESERVED parts for some extras
+//
+	int pin;
 
 	for (int i = 0; i < sizeof (port_confs) / sizeof (lword); i++) {
-		HWREG (IOC_BASE + ((port_confs [i] >> 17) & 0x7c)) =
-			port_confs [i] & 0xff07ffff;
+
+		pin = (port_confs [i] >> 19) & 0x1f;
+		HWREG (IOC_BASE + (pin << 2)) = port_confs [i] & 0x7f077f3f;
+		if (port_confs [i] & 0x80)
+			// Output
+			GPIO_setOutputEnableDio (pin, GPIO_OUTPUT_ENABLE);
+		if (port_confs [i] & 0x40)
+			GPIO_setDio (pin);
+		else
+			GPIO_clearDio (pin);
 	}
 }
 
@@ -713,30 +729,9 @@ void system_init () {
 	port_config ();
 
 #if LEDS_DRIVER
-	// LEDS
-#ifdef	LED0_pin
-	GPIO_setOutputEnableDio (LED0_pin, 1);
-	// LED0_OFF;
-#endif
-#ifdef	LED1_pin
-	GPIO_setOutputEnableDio (LED1_pin, 1);
-	// LED1_OFF;
-#endif
-#ifdef	LED2_pin
-	GPIO_setOutputEnableDio (LED2_pin, 1);
-	// LED2_OFF;
-#endif
-#ifdef	LED3_pin
-	GPIO_setOutputEnableDio (LED3_pin, 1);
-	// LED3_OFF;
-#endif
-	// This will also turn them off
 	all_leds_blink;
 #endif
 
-#ifdef	RADIO_PINS_PREINIT
-	RADIO_PINS_PREINIT;
-#endif
 	// RTC: we use channel 0 for the delay clock and channel 2 for the AUX
 	// clock; the seconds clock comes for free
 

@@ -437,6 +437,9 @@
 #ifndef	STORAGE_MT29XXX
 #define	STORAGE_MT29XXX		0
 #endif
+#ifndef	STORAGE_MX25R8035
+#define	STORAGE_MX25R8035	0
+#endif
 #ifndef	STORAGE_SDCARD
 #define	STORAGE_SDCARD		0
 #endif
