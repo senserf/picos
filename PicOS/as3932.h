@@ -76,6 +76,9 @@ Boolean as3932_addbit ();
 
 #ifdef	AS3932_REGACCESS
 #define	as3932_static
+byte as3932_rreg (byte);
+void as3932_wcmd (byte);
+void as3932_wreg (byte, byte);
 #else
 #define	as3932_static	static
 #endif

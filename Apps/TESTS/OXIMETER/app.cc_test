@@ -1,0 +1,91 @@
+#include "sysio.h"
+#include "ser.h"
+#include "serf.h"
+#include "max30102.h"
+
+fsm sampler {
+
+	word re, ir;
+
+	state LOOP:
+
+		max30102_read_sample (LOOP, &re, &ir);
+
+	state OUTSAMPLE:
+
+		ser_outf (OUTSAMPLE, "-> %x %x\r\n", re, ir);
+		sameas LOOP;
+}
+
+fsm root {
+
+	word par, val;
+
+	state MENU:
+
+		ser_out (MENU,
+			"Commands:\r\n"
+			"  o [0|1]\r\n"
+			"  r nx\r\n"
+			"  w nx vx\r\n"
+			"  s [0|1]\r\n"
+		);
+
+	state INPUT:
+
+		char cmd [4];
+
+		ser_in (INPUT, cmd, 4);
+		if (cmd [0] == 'o' || cmd [0] == 's') {
+			par = 1;
+			scan (cmd + 1, "%u", &par);
+			if (cmd [0] == 'o') {
+				if (par)
+					max30102_start ();
+				else
+					max30102_stop ();
+			} else {
+				if (par) {
+					if (!running (sampler))
+						runfsm sampler;
+				} else {
+					killall (sampler);
+				}
+			}
+
+			proceed SAYOK;
+
+		} else if (cmd [0] == 'r') {
+			// Register read
+			par = WNONE;
+			scan (cmd + 1, "%x", &par);
+			if (par <= 0xff) {
+				val = max30102_rreg ((byte)par);
+				proceed OUTREG;
+			}
+		} else if (cmd [0] == 'w') {
+			// Register write
+			par = WNONE;
+			val = 0;
+			scan (cmd + 1, "%x %x", &par, &val);
+			if (par <= 0xfd) {
+				max30102_wreg ((byte)par, (byte)val);
+				proceed OUTREG;
+			}
+		}
+
+	state BAD_INPUT:
+
+		ser_out (BAD_INPUT, "Illegal input\r\n");
+		proceed MENU;
+
+	state SAYOK:
+
+		ser_out (SAYOK, "OK\r\n");
+		proceed INPUT;
+
+	state OUTREG:
+
+		ser_outf (OUTREG, "Reg [%x] = %x\r\n", par, val);
+		proceed INPUT;
+}

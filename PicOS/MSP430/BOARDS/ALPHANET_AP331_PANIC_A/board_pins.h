@@ -33,11 +33,11 @@
 #define	PIN_DEFAULT_P3DIR		0xFF
 #define	PIN_DEFAULT_P3OUT		0x00
 // ============================================================================
-// P4.6 - LED (G) (active low)
+// P4.4 - LED (G) (active low)
 // P4.5 - LED (R) (active low)
 #define	PIN_DEFAULT_P4SEL		0x00
-#define	PIN_DEFAULT_P4DIR		0x60
-#define	PIN_DEFAULT_P4OUT		0x60
+#define	PIN_DEFAULT_P4DIR		0x30
+#define	PIN_DEFAULT_P4OUT		0x30
 // ============================================================================
 // P5.2 BMA250 CSB
 // P5.5 BMA250 SCx
@@ -127,6 +127,9 @@
 // Note: this delay only applies when writing. 15us didn't work, 20us did,
 // so 40 looks like a safe bet
 #define	bma250_delay	udelay (40)
+
+// Makes sure INT2 is open drain to fix the double wiring problem for P1.4
+#define	bma250_extra_setreg	bma250_wreg (0x20, 0x0b)
 
 // ============================================================================
 

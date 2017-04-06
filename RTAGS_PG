@@ -5028,3 +5028,26 @@ PG170324A:
 	I have modified a bit the way GPIO pins are configured for CC1350. It
 	is possible now to declare statically (in board_pins.h) that a pin
 	is output and preset it to 0 or 1 (see board_pins.h for the launchpad).
+
+PG170406A:
+
+	Wrote a driver for MAX30102 (an oximetry sensor) as well as a test
+	program for it. The program does produce some results that look like
+	something approximating my pulse rate + some SPO2 reading, but it
+	probably needs adjustments. I have adapted some messy reference code
+	for Arduino (with very poor understanding of what I was doing).
+
+	Other minor things:
+
+	Modified the test program for AP331 to test the extra two voltage
+	sensors on AP331_PANIC_A.
+
+	Fixed the driver for BMA250 to properly circumvent the miswiring
+	problem on AP331. Previously, the driver assumed that
+	BOARD_ALPHANET_AP331_PANIC was the only miswired board (the workaround
+	was activated by the board Id), but the "A" variant happens to be
+	miswired as well.
+
+	Added a constant to root_peg.cc in locaspot so now you can declare in
+	options.sys whether the master should accept Tag alarms and respond to
+	them.

@@ -175,9 +175,8 @@ void bma250_init () {
 	sint c;
 
 	for (c = 0; c < 3; c++) {
-#ifdef BOARD_ALPHANET_AP331_PANIC
-		// Make sure INT2 is open drain
-		bma250_wreg (0x20, 0x0b);
+#ifdef bma250_extra_setreg
+		bma250_extra_setreg;
 #endif
 		bma250_wreg (0x11, 0x80);
 	}
@@ -211,8 +210,8 @@ void bma250_on (bma250_regs_t *regs) {
 	// Global interrupt configuration, all interrupts directed to INT1,
 	// INT2 is not connected; new-data unmapped, we never use it
 	bma250_wreg (0x19, 0xF7);
-#ifdef BOARD_ALPHANET_AP331_PANIC
-	bma250_wreg (0x20, 0x0b);
+#ifdef bma250_extra_setreg
+	bma250_extra_setreg;
 #endif
 }
 
@@ -247,8 +246,8 @@ void bma250_on (byte range, byte bandwidth, byte stat) {
 	// Global interrupt configuration, all interrupts directed to INT1,
 	// INT2 is not connected; new-data unmapped, we never use it
 	bma250_wreg (0x19, 0xF7);
-#ifdef BOARD_ALPHANET_AP331_PANIC
-	bma250_wreg (0x20, 0x0b);
+#ifdef bma250_extra_setreg
+	bma250_extra_setreg;
 #endif
 	// Enable the events
 	r16 = r17 = 0;

@@ -120,6 +120,9 @@
 
 #define	bma250_data	(P5IN & 0x80)
 
+// Makes sure INT2 is open drain to fix the double wiring problem for P1.4
+#define	bma250_extra_setreg	bma250_wreg (0x20, 0x0b)
+
 // Note: this delay only applies when writing. 15us didn't work, 20us did,
 // so 40 looks like a safe bet
 #define	bma250_delay	udelay (40)

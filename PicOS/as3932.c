@@ -138,7 +138,7 @@ static void put_byte (byte b) {
 	}
 }
 
-as3932_static as3932_wreg (byte reg, byte val) {
+as3932_static void as3932_wreg (byte reg, byte val) {
 
 	// Select the chip
 	as3932_csel;
