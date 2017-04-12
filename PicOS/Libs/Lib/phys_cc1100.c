@@ -815,7 +815,9 @@ RRX:
 #endif
 	tcvphy_rcv (physid, rbuff, paylen);
 Rtn:
+#if RADIO_LBT_BACKOFF_RX
 	gbackoff (RADIO_LBT_BACKOFF_RX);
+#endif
 	LEDI (2, 0);
 
 #ifdef	MONITOR_PIN_CC1100_RX

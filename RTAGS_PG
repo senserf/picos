@@ -5051,3 +5051,19 @@ PG170406A:
 	Added a constant to root_peg.cc in locaspot so now you can declare in
 	options.sys whether the master should accept Tag alarms and respond to
 	them.
+
+PG170413A:
+
+	Updated the Installation document to include a bit about CC1350. BTW:
+	the repository at http://www.olsonet.com/REPO/contents.html has been
+	updated as well.
+
+	Cosmetics in the CC1350 RF driver. A preliminary (and rudimentary)
+	document for the driver is available.
+
+	Cosmetics in piter: added a field in the Open dialog to enter a title
+	for the window. When you have a dozen piter windows open at the same
+	time it helps when you can tell which is which.
+
+	Fixed a minor glitch in mkmk showing when creating libraries for
+	CC1350.

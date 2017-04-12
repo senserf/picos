@@ -777,7 +777,6 @@ proc locate_root { } {
 
 	# this is normalized
 	set rpref [pwd]
-	set SDirs(cwd) $rpref
 
 	if { $Run(type) == "L" && $Run(board) == "" } {
 		# this is only possible if mkmk is called in the board
@@ -2518,6 +2517,8 @@ proc main { } {
 			errabt "Cannot change to $SDirs(board), $err"
 		}
 	}
+
+	set SDirs(cwd) [pwd]
 
 	# cleanup before build
 	make_clean

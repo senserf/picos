@@ -558,6 +558,10 @@
 #define	MAX_WORD		((word)0xffff)
 #define	MAX_LWORD		((lword)0xffffffff)
 
+#ifndef	SIZE_OF_AWORD
+#error "S: SIZE_OF_AWORD undefined, you need to select Arch+Board for the project"
+#endif
+
 #if SIZE_OF_AWORD > 2
 // diag formats for printing awords (hex and unsigned int)
 #define	__hfaw	"%lx"

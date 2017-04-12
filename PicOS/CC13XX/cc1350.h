@@ -43,7 +43,7 @@
 #endif
 
 #if RADIO_DEFAULT_CHANNEL < 0 || RADIO_DEFAULT_CHANNEL > 7
-#error "S: RADIO_DEFAULT_CHANNEL > 255!!!"
+#error "S: RADIO_DEFAULT_CHANNEL > 7!!!"
 #endif
 
 #ifndef	RADIO_SYSTEM_IDENT
@@ -111,8 +111,9 @@
 				}
 
 // Channel increment; for now, 1 channel == 1 MHz
-#define	CC1350_NCHANNELS	 16
+#ifndef	CC1350_BASEFREQ
 #define	CC1350_BASEFREQ		868	// Megahertz
+#endif
 
 #define	CC1350_MAXPLEN	250
 
@@ -137,6 +138,10 @@
 #define	RADIO_LBT_BACKOFF_EXP	6
 #endif
 
+#ifndef	RADIO_LBT_BACKOFF_RX
+#define	RADIO_LBT_BACKOFF_RX	3
+#endif
+
 // Fixed minimum space (in milliseconds) between two consecutively transmitted
 // packets
 #ifndef	RADIO_LBT_XMIT_SPACE
@@ -153,6 +158,8 @@
 #define	RADIO_LBT_RSSI_THRESHOLD	70
 #endif
 
+// This is probably completely irrelevant, because we only care about detecting
+// the busy status
 #ifndef	RADIO_LBT_RSSI_NIDLE
 #define	RADIO_LBT_RSSI_NIDLE		4
 #endif
@@ -161,8 +168,9 @@
 #define	RADIO_LBT_RSSI_NBUSY		4
 #endif
 
+// This is in RAT ticks (at 4MHz)
 #ifndef	RADIO_LBT_CORR_PERIOD
-#define	RADIO_LBT_CORR_PERIOD		(4 * 1024)
+#define	RADIO_LBT_CORR_PERIOD		(4 * 32)
 #endif
 
 #ifndef	RADIO_LBT_CORR_NINVD

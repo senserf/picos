@@ -42,6 +42,11 @@ static byte	rbuffl = 0,		// Input buffer length
 static byte	txtries = 0;		// Number of TX attempts for current pkt
 #endif
 
+#if RADIO_LBT_MAX_TRIES > 255
+#undef	RADIO_LBT_MAX_TRIES
+#define	RADIO_LBT_MAX_TRIES	255
+#endif
+
 // State flags
 #define	DSTATE_RXON	0x01	// Rx logically on
 #define	DSTATE_RXAC	0x02	// Rx active
@@ -116,6 +121,12 @@ static rfc_CMD_SYNC_START_RAT_t	cmd_srt = { .commandNo = CMD_SYNC_START_RAT };
 
 #if RADIO_LBT_SENSE_TIME > 0
 
+#if RADIO_LBT_CORR_PERIOD == 0
+#define	ENABLE_CORR_LBT	0
+#else
+#define	ENABLE_CORR_LBT	1
+#endif
+
 // Command for carrier sense (LBT)
 static rfc_CMD_PROP_CS_t cmd_cs = {
 		.commandNo = CMD_PROP_CS,
@@ -134,7 +145,7 @@ static rfc_CMD_PROP_CS_t cmd_cs = {
 		.csFsConf.bFsOffBusy = 0,
 		// What we measure
 		.csConf.bEnaRssi = 1,
-		.csConf.bEnaCorr = 1,
+		.csConf.bEnaCorr = ENABLE_CORR_LBT,
 		.csConf.operation = 0,	// EITHER (as opposed to AND)
 		.csConf.busyOp = 1,	// End sensing when channel found busy
 		.csConf.idleOp = 0,	// Continue when idle
@@ -151,12 +162,16 @@ static rfc_CMD_PROP_CS_t cmd_cs = {
 		.csEndTrigger.bEnaCmd = 0,
 		.csEndTrigger.triggerNo = 0,
 		.csEndTrigger.pastTrig = 0,
-		// Converted frim milliseconds to RAT 4MHz ticks
+		// Converted from milliseconds to RAT 4MHz ticks
 		.csEndTime = (RADIO_LBT_SENSE_TIME * 4 * 1024),
 	};
 #endif
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+
+#if RADIO_DEFAULT_POWER > 7
+#error "S: PXOPTIONS requires RADIO_DEFAULT_POWER < 8"
+#endif
 
 static rfc_CMD_SET_TX_POWER_t cmd_sp = {
 		.commandNo = CMD_SET_TX_POWER
@@ -409,7 +424,7 @@ static void plugrt () {
 static void rx_int_enable () {
 
 	rfc_dataEntryGeneral_t *db;
-	int i, pl;
+	int i, pl, nr;
 
 	// This clears all interrupt flags and enables those that we want; this
 	// is different than (e.g.) for CC1100/MSP430, because events can be
@@ -424,10 +439,11 @@ static void rx_int_enable () {
 #define	__dp	(&(db->data))
 
 	// Receive
-	for (db = (rfc_dataEntryGeneral_t*) (rbuffs->pCurrEntry), i = 0;
+	for (db = (rfc_dataEntryGeneral_t*) (rbuffs->pCurrEntry), i = nr = 0;
 	    i < NRBUFFS; i++, db = (rfc_dataEntryGeneral_t*)(db->pNextEntry)) {
 		if (db->status == DATA_ENTRY_FINISHED) {
 			LEDI (2, 1);
+			nr++;
 			// Consistency checks
 			if (__dp [0] == __dp [1] + 3 && __dp [1] <= rbuffl &&
 			   (__dp [1] & 1) == 0) {
@@ -452,7 +468,12 @@ static void rx_int_enable () {
 
 #undef __dp
 
-	LEDI (2, 0);
+	if (nr) {
+		LEDI (2, 0);
+#if RADIO_LBT_BACKOFF_RX
+		gbackoff (RADIO_LBT_BACKOFF_RX);
+#endif
+	}
 }
 
 void RFCCPE0IntHandler (void) {
@@ -632,7 +653,9 @@ Force:
 				issue_cmd ((lword)&RF_cmdPropTx);
 				proceed (DR_XMIT);
 			}
+#if RADIO_LBT_MAX_TRIES < 255
 			txtries++;
+#endif
 			// Backoff
 			// diag ("BUSY");
 #if RADIO_LBT_BACKOFF_EXP == 0

@@ -1676,6 +1676,14 @@ proc sy_reconnect { } {
 
 	#######################################################################
 
+	labelframe $w.lab -padx 4 -pady 4 -text "Title"
+	pack $w.lab -side top -expand y -fill x -anchor n
+
+	entry $w.lab.lab -width 16 -textvariable PM(TTL) -bg gray
+	pack $w.lab.lab -side top -expand y -fill x -anchor n
+
+	#######################################################################
+
 	labelframe $w.mod -padx 4 -pady 4 -text "Mode"
 	pack $w.mod -side top -expand y -fill x -anchor n
 
