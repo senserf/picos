@@ -1336,3 +1336,7 @@ PG160721A:	PICOS >= PG160721B
 PG170312A:	PICOS >= PG170312A
 
     Compatibility mods for CC1350.
+
+PG170413A:
+
+    Added the new operation setpowermode replacing powerup and powerdown.

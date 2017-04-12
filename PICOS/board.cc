@@ -5607,14 +5607,9 @@ void __pi_strncat (char *d, const char *s, int n) {
 
 // ============================================================================
 
-void powerdown () {
+void setpowermode (word pl) {
 
-	TheNode->pwrt_change (PWRT_CPU, PWRT_CPU_LP);
-}
-
-void powerup () {
-
-	TheNode->pwrt_change (PWRT_CPU, PWRT_CPU_FP);
+	TheNode->pwrt_change (PWRT_CPU, pl);
 }
 
 // ============================================================================

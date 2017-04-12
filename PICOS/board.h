@@ -1036,7 +1036,10 @@ sint __pi_getcpid ();
 
 // ============================================================================
 
-void powerdown (), powerup ();
+void setpowermode (word);
+
+#define	powerup()	setpowermode (0)
+#define	powerdown()	setpowermode (1)
 
 // ============================================================================
 
