@@ -4638,6 +4638,7 @@ proc do_board_selection { } {
 			dialog_to_params $CFBoardItems
 			md_stop
 			set_config
+			reset_config_menu
 			reset_build_menu
 			# we do this in case board list has changed
 			gfl_tree
@@ -10110,6 +10111,12 @@ proc do_make_vuee { { arg "" } } {
 
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
+
+	if { $mb == "" || $bo == "" } {
+		alert "You must select Arch+Board before building a VUEE\
+			model for the project"
+		return
+	}
 
 	if { [dict get $P(CO) "DPBC"] == 0 && $mb != "" && $bo != "" } {
 		# add the defines pertaining to the board
