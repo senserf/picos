@@ -147,10 +147,21 @@ static void ready () {
 word ee_open () {
 //
 // Open (for more than one operation)
-
+//
 	ready ();
 	dopen = DOPEN_PERM;
-
+#if 0
+	{
+		byte r [3];
+		ee_start;
+		put_byte (CMD_RDID);
+		r [0] = get_byte ();
+		r [1] = get_byte ();
+		r [2] = get_byte ();
+		ee_stop;
+		diag ("ID: %x %x %x", r [0], r [1], r [2]);
+	}
+#endif
 	return 0;
 }
 

@@ -1,0 +1,378 @@
+/* ==================================================================== */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
+/* All rights reserved.                                                 */
+/* ==================================================================== */
+
+// DIO_1	- i reed switch (active high, needs pulldown)
+// DIO_2	- i mic input
+// DIO_3	- o mic clock
+// DIO_4	- i button 0 (active low, needs pullup)
+// DIO_5	- b SDA	(both externally pulled up)
+// DIO_6	- o SCL	(shared by bmp280, hdc1000ypa, tmp007, opt3001
+// DIO_7	- i MPU INT (mpu-9250 gir/acc)
+// DIO_8	- b SDA mpu-9250 	(both externally pulled up)
+// DIO_9	- o SCL mpu-9250
+// DIO_10	- o LED0	(single LED lit when high)
+// DIO_11	- i tmp007 RDY	(externally pulled up)
+// DIO_12	- b mpu-9250 PWR
+// DIO_13	- o mic power (keep low) 
+// DIO_14	- o mx25r8035 CS (externally pulled up)
+// DIO_15	- o button 1 (active low, needs pullup)
+// DIO_16	- ? conn (audio?)
+// DIO_17	- o mx25r8035 SCLK
+// DIO_18	- i mx25r8035 MISO
+// DIO_19	- o mx25r8035 MOSI
+// DIO_20	- ? conn (CSN?)
+// DIO_21	- o buzzer (keep low)
+// DIO_22	- ? conn (AUDIO DO?)
+// DIO_23	- ? conn DP2
+// DIO_24	- ? conn DP1
+// DIO_25	- ? conn DP0
+// DIO_26	- i connected to VDD (volt sensor???)
+// DIO_27	- ? conn DP3
+// DIO_28	- i conn DP4	UART RX
+// DIO_29	- o conn DP5	UART TX
+// DIO_30	- i connected to VDD via 200k res (external button?)
+
+// ============================================================================
+
+#define	IOCPORTS { \
+		iocportconfig (IOID_1, IOC_PORT_GPIO, \
+			/* Reed switch (button sen), active high, pulldown */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_RISING_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_DOWN		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_2, IOC_PORT_GPIO, \
+			/* Mic input, not used yet, set to input */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_3, IOC_PORT_GPIO, \
+			/* Mic clock, not used yet, set to output 0 */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 1, 0), \
+		iocportconfig (IOID_4, IOC_PORT_GPIO, \
+			/* Button 0, active low, needs pullup */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_5, IOC_PORT_GPIO, \
+			/* SDA, shared, pulled up externally, init open */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_6, IOC_PORT_GPIO, \
+			/* SCL, shared, pulled up externally, init open */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_7, IOC_PORT_GPIO, \
+			/* gir/acc int, not used yet, input, pull down */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_DOWN		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_8, IOC_PORT_GPIO, \
+			/* gir/acc SDA, pulled up externally, init open */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_9, IOC_PORT_GPIO, \
+			/* gir/acc SCL, pulled up externally, init open */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_10, IOC_PORT_GPIO, \
+			/* single LED, lit when high */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 1, 0), \
+		iocportconfig (IOID_11, IOC_PORT_GPIO, \
+			/* tmp007 RDY, not used yet, pulled up externally */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_12, IOC_PORT_GPIO, \
+			/* gir/acc PWR, init open drain */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 1), \
+		iocportconfig (IOID_13, IOC_PORT_GPIO, \
+			/* mic PWR */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 1, 0), \
+		iocportconfig (IOID_14, IOC_PORT_GPIO, \
+			/* mx25r8035 CS */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_15, IOC_PORT_GPIO, \
+			/* Button 1, active low, needs pullup */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_ENABLE		| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_17, IOC_PORT_GPIO, \
+			/* mx25r8035 SCLK */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 1, 0), \
+		iocportconfig (IOID_18, IOC_PORT_GPIO, \
+			/* mx25r8035 MISO */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_DOWN		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_19, IOC_PORT_GPIO, \
+			/* mx25r8035 MOSI */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 1, 0), \
+		iocportconfig (IOID_21, IOC_PORT_GPIO, \
+			/* buzzer, not used yet, keep low */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 1, 0), \
+		iocportconfig (IOID_28, IOC_PORT_MCU_UART0_RX, \
+			/* UART RX */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_IOPULL_UP		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+		iocportconfig (IOID_29, IOC_PORT_MCU_UART0_TX, \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_NO_EDGE		| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_DISABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
+	}
+
+// ============================================================================
+// PINS AVAILABLE ON THE CONN =================================================
+// ============================================================================
+
+#define	PIN_LIST { \
+		PIN_DEF (IOID_16),	\
+		PIN_DEF (IOID_20),	\
+		PIN_DEF (IOID_22),	\
+		PIN_DEF (IOID_23),	\
+		PIN_DEF (IOID_24),	\
+		PIN_DEF (IOID_25),	\
+		PIN_DEF (IOID_26),	\
+		PIN_DEF (IOID_27),	\
+		PIN_DEF (IOID_30),	\
+	}
+
+#define	PIN_MAX	9
+
+// ============================================================================
+// BUTTONS ====================================================================
+// ============================================================================
+
+#define	BUTTON_LIST	{ \
+				BUTTON_DEF (IOID_4 , 0), \
+				BUTTON_DEF (IOID_15, 0), \
+			}
+
+#define	BUTTON_DEBOUNCE_DELAY	4
+#define	BUTTON_PRESSED_LOW	1
+// This is needed for CC1350, not needed for MSP430; should we get rid of them
+// by some kind of better (dynamic) initialization? Code size is (probably) not
+// an issue on CC1350.
+#define	N_BUTTONS		2
+#define	BUTTON_GPIOS		((1 << IOID_4) | (1 << IOID_15))
+
+// ============================================================================
+// PIN SENSOR (REED SWITCH) ===================================================
+// ============================================================================
+
+// Edge == 0 means pressed high
+#define	INPUT_PIN_LIST	{ \
+				INPUT_PIN (IOID_1, 0), \
+			}
+
+#define	N_PINLIST		1
+#define	INPUT_PINLIST_GPIOS	(1 << IOID_1)
+
+// ============================================================================
+// ============================================================================
+
+#define	SENSOR_DIGITAL
+#define	SENSOR_EVENTS
+#define	N_HIDDEN_SENSORS	2
+
+#include "sensors.h"
+#include "pin_sensor.h"
+
+#define	SENSOR_LIST { \
+		INTERNAL_TEMPERATURE_SENSOR,			\
+		INTERNAL_VOLTAGE_SENSOR,			\
+		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
+}
+
+// ============================================================================
+// ============================================================================

@@ -149,6 +149,11 @@
 #include "storage.h"
 #endif
 
+#ifdef	BOARD_CC1350_SENSORTAG
+#define	EPR_TEST
+#include "storage.h"
+#endif
+
 // ============================================================================
 
 #endif
