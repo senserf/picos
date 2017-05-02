@@ -184,8 +184,6 @@ Boolean __pi_uart_setrate (word, uart_t*);
 #endif
 
 // The seconds clock
-// ###here: need sync to make sure the value is correctly read after sleep?
-// ###here: generally, when do we need to sync? driverlib doesn't seem to
 #define seconds()	AONRTCSecGet ()
 #define	setseconds(a)	do { \
 			    HWREG (AON_RTC_BASE + AON_RTC_O_SEC) = (lword)(a); \
@@ -196,5 +194,9 @@ Boolean __pi_uart_setrate (word, uart_t*);
 extern void __pi_ondomain (lword), __pi_offdomain (lword);
 
 extern lword system_event_count;
+
+#if I2C_INTERFACE
+Boolean __i2c_op (byte, byte*, lword, byte*, lword);
+#endif
 
 #endif

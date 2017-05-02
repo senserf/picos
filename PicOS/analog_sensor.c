@@ -45,12 +45,9 @@ void analog_sensor_read (word state, const a_sensdesc_t *params, address val) {
 		praa_avg = 0;
 Next:
 		adc_start;
-		if (state != NONE) {
 Wait:
-			delay (1, state);
-			release;
-		}
-		udelay (10);
+		delay (1, state);
+		release;
 	}
 
 	if ((praa_count & 1)) {

@@ -16,6 +16,7 @@
 #include <driverlib/prcm.h>
 #include <driverlib/gpio.h>
 #include <driverlib/uart.h>
+#include <driverlib/i2c.h>
 #include <driverlib/ioc.h>
 #include <driverlib/sys_ctrl.h>
 #include <driverlib/aon_rtc.h>

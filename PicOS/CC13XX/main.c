@@ -36,6 +36,10 @@ void mdelay (volatile word n) {
 	}
 }
 
+// ============================================================================
+// Keeping domains on/off =====================================================
+// ============================================================================
+
 void __pi_ondomain (lword d) {
 //
 // Add the indicated domains to the on set
@@ -140,7 +144,7 @@ Measure:
 
 #endif
 
-#if DIAG_MESSAGES > 1
+#if	DIAG_MESSAGES > 1
 // ============================================================================
 // SYSERROR ===================================================================
 // ============================================================================
@@ -163,9 +167,9 @@ void __pi_syserror (word ec) {
 #endif
 	cli;
 
-#if RESET_ON_SYSERR
+#if	RESET_ON_SYSERR
 
-#if LEDS_DRIVER
+#if	LEDS_DRIVER
 	for (__pi_mintk = 0; __pi_mintk < 32; __pi_mintk++)
 		all_leds_blink;
 #endif
@@ -175,7 +179,7 @@ void __pi_syserror (word ec) {
 
 // ============================================================================
 
-#if LEDS_DRIVER
+#if	LEDS_DRIVER
 	while (1) {
 		all_leds_blink;
 	}
@@ -191,11 +195,11 @@ void __pi_syserror (word ec) {
 // Device drivers =============================================================
 // ============================================================================
 
-#if MAX_DEVICES
+#if	MAX_DEVICES
 
 // UART is the only device these days
 
-#if UART_DRIVER
+#if	UART_DRIVER
 #define	N_UARTS		UART_DRIVER
 static void devinit_uart (int);
 #endif
@@ -209,8 +213,17 @@ const static devinit_t devinit [] = {
 
 #endif	/* MAX_DEVICES */
 
-#if UART_TCV
+#if	UART_TCV
 #define	N_UARTS		UART_TCV
+#endif
+
+#if	defined(N_UARTS) || I2C_INTERFACE
+// Note: in the future we may decide to switch these things on and off
+// dynamically; not sure if it is worthwhile from the viewpoint of power
+// savings, because the true low power mode (STANDBY or SHUTDOWN) forces
+// the serial domain off, so we probably don't care whether it is on or off
+// during regular or deep sleep
+#define	NEED_SERIAL_DOMAIN
 #endif
 
 #ifdef	IOCPORTS
@@ -405,11 +418,122 @@ EX:
 
 // ============================================================================
 
-#ifdef N_UARTS
+#if	I2C_INTERFACE
+
+static void reinit_i2c () {
+//
+// After standby-mode power up; not sure if it isn't better to re-execute
+// this instead on every communication
+//
+	// The last arg is true/false (fast == 400K, slow == 100K)
+	I2CMasterInitExpClk (I2C0_BASE, SysCtrlClockGet (), I2C_RATE);
+	I2CMasterEnable (I2C0_BASE);
+	// No interrupts
+}
+
+static void preinit_i2c () {
+
+	PRCMPeripheralRunEnable (PRCM_PERIPH_I2C0);
+#if 1
+	// Not sure if we need these, because we are not using I2C interrupts,
+	// at least not yet
+	PRCMPeripheralSleepEnable (PRCM_PERIPH_I2C0);
+	PRCMPeripheralDeepSleepEnable (PRCM_PERIPH_I2C0);
+#endif
+	PRCMLoadSet ();
+
+	reinit_i2c ();
+}
+
+static lword i2c_wait () {
+
+	lword st;
+
+	while (1) {
+		st = HWREG (I2C0_BASE + I2C_O_MSTAT);
+		if ((st & I2C_MSTAT_BUSY) == 0)
+			return (st & (I2C_MSTAT_ERR | I2C_MSTAT_ARBLST));
+	}
+}
+
+Boolean __i2c_op (byte ad, byte *xm, lword xl, byte *rx, lword rl) {
+//
+// Issue a transaction
+//
+	lword dl;
+
+	if ((dl = xl)) {
+		// Transmit present
+		I2CMasterSlaveAddrSet (I2C0_BASE, ad, false);
+		I2CMasterDataPut (I2C0_BASE, *xm);
+		xm++;
+		dl--;
+		i2c_wait ();
+		// The command [ ACK STOP START RUN ]
+		I2CMasterControl (I2C0_BASE, (dl == 0 && rl == 0) ?
+			// Just send the byte and stop; unfortunately, we have
+			// to handle those different cases separately, because
+			// start and stop bits are set in the same go
+			I2C_MASTER_CMD_SINGLE_SEND :		// 0111
+			// Start, don't stop, there is more
+			I2C_MASTER_CMD_BURST_SEND_START);	// 0011
+
+		if (i2c_wait ()) {
+Error:
+			I2CMasterControl (I2C0_BASE,
+				// 0100
+				I2C_MASTER_CMD_BURST_RECEIVE_ERROR_STOP);
+			return YES;
+		}
+
+		while (dl) {
+			// Keep going for more bytes to send
+			I2CMasterDataPut (I2C0_BASE, *xm);
+			xm++;
+			dl--;
+			I2CMasterControl (I2C0_BASE, (dl == 0 && rl == 0) ?
+				I2C_MASTER_CMD_BURST_SEND_FINISH :	// 0101
+				I2C_MASTER_CMD_BURST_SEND_CONT);	// 0001
+			if (i2c_wait ())
+				goto Error;
+		}
+	}
+
+	// Now receive
+
+	if (rl) {
+		I2CMasterSlaveAddrSet (I2C0_BASE, ad, true);
+		rl--;
+		I2CMasterControl (I2C0_BASE, rl ? 
+			I2C_MASTER_CMD_BURST_RECEIVE_START :	// 1011
+			I2C_MASTER_CMD_SINGLE_RECEIVE);		// 0111
+		if (i2c_wait ())
+			goto Error;
+		*rx++ = I2CMasterDataGet (I2C0_BASE);
+
+		while (rl) {
+			rl--;
+			I2CMasterControl (I2C0_BASE, rl ? 
+				I2C_MASTER_CMD_BURST_RECEIVE_CONT :	// 1001
+				I2C_MASTER_CMD_BURST_RECEIVE_FINISH);	// 0101
+			if (i2c_wait ())
+				goto Error;
+			*rx++ = I2CMasterDataGet (I2C0_BASE);
+		}
+	}
+
+	return NO;
+}
+
+#endif
+
+// ============================================================================
+
+#ifdef	N_UARTS
 
 // The data type is different with UART_TCV; I know this is clumsy
 
-#if N_UARTS > 1
+#if	N_UARTS > 1
 #error "S: only one UART is available on CC13XX, but N_UARTS > 1"
 #endif
 
@@ -471,7 +595,7 @@ static void preinit_uart () {
 
 #endif	/* N_UARTS */
 
-#if UART_DRIVER
+#if	UART_DRIVER
 
 // ============================================================================
 // The UART driver ============================================================
@@ -512,7 +636,7 @@ Redo_rx:
 
 		case WRITE:
 
-#if defined(blue_ready) && defined(BLUETOOTH_UART)
+#if	defined(blue_ready) && defined(BLUETOOTH_UART)
 			// Bluetooth on UART
 			if ((__pi_uart->flags & UART_FLAGS_NOTRANS) == 0 &&
 			    // BT must be connected
@@ -553,7 +677,7 @@ Redo_tx:
 
 		case CONTROL:
 
-#if UART_RATE_SETTABLE
+#if	UART_RATE_SETTABLE
 			if (len == UART_CNTRL_SETRATE) {
 				if (__pi_uart_setrate (*((word*)buf),
 					__pi_uart))
@@ -567,7 +691,7 @@ Redo_tx:
 			}
 #endif
 
-#ifdef blue_ready
+#ifdef	blue_ready
 			if (len == UART_CNTRL_TRANSPARENT) {
 				if (*((word*)buf))
 					_BIC (__pi_uart->flags,
@@ -612,7 +736,7 @@ void UART0IntHandler () {
 
 #endif
 
-#if UART_TCV
+#if	UART_TCV
 
 void UART0IntHandler () {
 
@@ -646,7 +770,7 @@ void UART0IntHandler () {
 
 #endif
 
-#if N_UARTS
+#ifdef	N_UARTS
 
 static inline void enable_uart_interrupts () {
 
@@ -670,7 +794,9 @@ void GPIOIntHandler () {
 #ifdef	INPUT_PIN_LIST
 #include "irq_pin_sensor.h"
 #endif
-	// Room for more
+
+#include "board_pins_interrupts.h"
+
 }
 
 // ============================================================================
@@ -728,7 +854,7 @@ void system_init () {
 	// Initialize DIO ports
 	port_config ();
 
-#if LEDS_DRIVER
+#if	LEDS_DRIVER
 	all_leds_blink;
 #endif
 
@@ -772,8 +898,20 @@ void system_init () {
 	}
 #endif
 
+#ifdef	NEED_SERIAL_DOMAIN
+	__pi_ondomain (PRCM_DOMAIN_SERIAL);
+#endif
+
+#ifdef	N_UARTS
+	preinit_uart ();
+#endif
+
+#if	I2C_INTERFACE
+	preinit_i2c ();
+#endif
 
 #ifdef	SENSOR_INITIALIZERS
+	// May need I2C for this
 	__pi_init_sensors ();
 #endif
 
@@ -785,14 +923,6 @@ void system_init () {
 	// Extra initialization
 	EXTRA_INITIALIZERS;
 #endif
-
-#if	UART_DRIVER || UART_TCV
-
-	__pi_ondomain (PRCM_DOMAIN_SERIAL);
-
-	preinit_uart ();
-#endif
-
 	// If waking from shutdown, unfreeze the I/O
 	if (SysCtrlResetSourceGet () == RSTSRC_WAKEUP_FROM_SHUTDOWN) {
 
@@ -821,13 +951,13 @@ void system_init () {
 		dbg_1 ((word)STACK_END - (word)(&__BSS_END)); // RAM in bytes
 	}
 
-#if MAX_DEVICES
+#if	MAX_DEVICES
 	for (int i = UART; i < MAX_DEVICES; i++)
 		if (devinit [i] . init != NULL)
 			devinit [i] . init (devinit [i] . param);
 #endif
 
-#if N_UARTS
+#ifdef	N_UARTS
 	// The same for UART_DRIVER and UART_TCV
 	enable_uart_interrupts ();
 	IntEnable (INT_UART0_COMB);
@@ -976,13 +1106,20 @@ DeepSleep:
 			// Adjust recharge parameters
 			SysCtrlAdjustRechargeAfterPowerDown ();
 
-			// Restart no-retention modules
-			if (__pi_systat.ondmns & PRCM_DOMAIN_SERIAL) {
-				// For dev or tcv
-				reinit_uart ();
-				enable_uart_interrupts ();
-			}
+			// Restart no-retention modules; they are static
+			// at present, but we may want to power them up and
+			// down dynamically in the future
 
+#ifdef	N_UARTS
+			// This assumes that PRCM_DOMAIN_SERIAL is up:
+			// __pi_systat.ondmns & PRCM_DOMAIN_SERIAL)
+			reinit_uart ();
+			enable_uart_interrupts ();
+#endif
+
+#if	I2C_INTERFACE
+			reinit_i2c ();
+#endif
 			// ... other domains (we don't do it with RF on)
 			return;
 
@@ -1053,7 +1190,7 @@ DeepSleep:
 	}
 }
 
-#if STACK_GUARD
+#if	STACK_GUARD
 
 word __pi_stackfree (void) {
 
@@ -1079,7 +1216,7 @@ __attribute__ ((noreturn)) void __pi_release () {
 
 int main (void) {
 
-#if STACK_GUARD
+#if	STACK_GUARD
 	{
 		register sint i;
 		for (i = 0; i < (STACK_SIZE / sizeof (lword)) - 16; i++)
@@ -1088,7 +1225,7 @@ int main (void) {
 #endif
 	system_init ();
 
-#if TCV_PRESENT
+#if	TCV_PRESENT
 	tcv_init ();
 #endif
 

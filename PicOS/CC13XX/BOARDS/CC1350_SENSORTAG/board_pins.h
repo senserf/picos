@@ -89,9 +89,9 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
-		iocportconfig (IOID_5, IOC_PORT_GPIO, \
+		iocportconfig (IOID_5, IOC_PORT_MCU_I2C_MSSDA, \
 			/* SDA, shared, pulled up externally, init open */ \
-			IOC_IOMODE_NORMAL 	| \
+			IOC_IOMODE_OPEN_DRAIN_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
 			IOC_INT_DISABLE		| \
@@ -102,9 +102,9 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
-		iocportconfig (IOID_6, IOC_PORT_GPIO, \
+		iocportconfig (IOID_6, IOC_PORT_MCU_I2C_MSSCL, \
 			/* SCL, shared, pulled up externally, init open */ \
-			IOC_IOMODE_NORMAL 	| \
+			IOC_IOMODE_OPEN_DRAIN_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
 			IOC_INT_DISABLE		| \
@@ -168,10 +168,10 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 1, 0), \
 		iocportconfig (IOID_11, IOC_PORT_GPIO, \
-			/* tmp007 RDY, not used yet, pulled up externally */ \
+			/* tmp007 Alert */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
-			IOC_NO_EDGE		| \
+			IOC_FALLING_EDGE	| \
 			IOC_INT_DISABLE		| \
 			IOC_NO_IOPULL		| \
 			IOC_INPUT_ENABLE	| \
@@ -364,14 +364,37 @@
 #define	SENSOR_DIGITAL
 #define	SENSOR_EVENTS
 #define	N_HIDDEN_SENSORS	2
+#define	SENSOR_INITIALIZERS
 
 #include "sensors.h"
 #include "pin_sensor.h"
+
+// ============================================================================
+// TMP007 thermopile sensor ===================================================
+// ============================================================================
+
+#define	TMP007_ADDR	0x44
+
+#include "tmp007.h"
+
+#define	tmp007_enable	HWREGBITW (IOC_BASE + (IOID_11 << 2), \
+				IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 1
+
+#define	tmp007_disable	HWREGBITW (IOC_BASE + (IOID_11 << 2), \
+				IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 0
+
+#define	tmp007_clear	GPIO_clearEventDio (IOID_11)
+
+#define	tmp007_int	(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
+				(1 << IOID_11))
+
+// ============================================================================
 
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
 		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
+		DIGITAL_SENSOR (0, tmp007_init, tmp007_read),	\
 }
 
 // ============================================================================

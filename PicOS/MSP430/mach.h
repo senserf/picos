@@ -19,6 +19,8 @@
 #error "S: this must be compiled with mspgcc!!!"
 #endif
 
+// The default power down mode for MSP430 is level 1, i.e., there is only
+// one power down mode, e.g., in contrast to CC13XX
 #define	DEFAULT_PD_MODE	1
 
 #define	LITTLE_ENDIAN	1

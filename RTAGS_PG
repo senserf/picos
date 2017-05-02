@@ -5067,3 +5067,11 @@ PG170413A:
 
 	Fixed a minor glitch in mkmk showing when creating libraries for
 	CC1350.
+
+PG170502A:
+
+	Implemented a standardized non-interrupt interface to I2C for CC1350.
+	Implemented a driver for the tmp007 thermopile sensor present on the
+	CC1350 SensorTag (not documented yet, but simple enough).
+
+	A few related cosmetics here and there.

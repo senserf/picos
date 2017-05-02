@@ -421,6 +421,21 @@
 #define	UART_INPUT_BUFFER_LENGTH	0
 #endif
 
+/* ============= */
+/* I2C interface */
+/* ============= */
+
+#ifndef	I2C_INTERFACE
+#define	I2C_INTERFACE		0
+#endif
+
+#ifndef	I2C_RATE
+// This means the default
+#define	I2C_RATE		0
+#endif
+
+// ============================================================================
+
 #ifndef	ADC_SAMPLER
 #define	ADC_SAMPLER			0
 #endif

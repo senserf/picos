@@ -81,7 +81,7 @@ typedef struct {
 
 #ifndef	__SMURPH__
 
-#include "bma250_sys.h"
+#include "pins.h"
 //+++ "bma250.c"
 
 void bma250_init (void);
