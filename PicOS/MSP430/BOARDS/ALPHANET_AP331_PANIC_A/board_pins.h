@@ -93,6 +93,9 @@
 
 #define	as3932_data		(P1IN & 0x10)
 
+// Action if the sensor is absent: none required, but we still detect
+#define	as3932_detect_absent	CNOP
+
 #define	AS3932_CRCVALUE		0x96
 // #define	AS3932_CRCVALUE		(-1)
 
@@ -130,6 +133,12 @@
 
 // Makes sure INT2 is open drain to fix the double wiring problem for P1.4
 #define	bma250_extra_setreg	bma250_wreg (0x20, 0x0b)
+
+// Action if the sensor is absent: pull the input pins so they don't float
+#define	bma250_detect_absent	do { \
+					_BIS (P1REN, 0x80); \
+					_BIS (P5REN, 0x80); \
+				} while (0)
 
 // ============================================================================
 

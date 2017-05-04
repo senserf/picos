@@ -59,17 +59,18 @@ extern byte as3932_status, as3932_bytes [];
 #define	AS3932_STATUS_EVENT	0x08
 #define	AS3932_STATUS_DATA	0x10
 #define	AS3932_STATUS_BOUNDARY	0x20
+#define	AS3932_STATUS_ABSENT	0x80
 
 #endif
 
 #ifdef	__SMURPH__
 
-#define as3932_on()		emul (12, "AS3932_ON")
+#define as3932_on()		( emul (12, "AS3932_ON"), YES)
 #define as3932_off()		emul (12, "AS3932_OFF")
 
 #else
 
-void as3932_on ();
+Boolean as3932_on ();
 void as3932_off ();
 void as3932_clearall (byte);
 Boolean as3932_addbit ();

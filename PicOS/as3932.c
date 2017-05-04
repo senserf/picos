@@ -220,16 +220,30 @@ void as3932_init () {
 	as3932_bring_up;
 	// Power down
 	as3932_wreg (0, 1);
+
+#ifdef	as3932_detect_absent
+	if (as3932_rreg (0) != 1) {
+		// Absent
+		as3932_bring_down;
+		as3932_detect_absent;
+		as3932_status = AS3932_STATUS_ABSENT;
+		return;
+	}
+#endif
 	as3932_bring_down;
 	// This is to be done only once (timeout timer for detecting DAT
 	// changes)
 	as3932_init_timer;
 }
 
-void as3932_on () {
+Boolean as3932_on () {
 
 	byte b;
 
+#ifdef	as3932_detect_absent
+	if (as3932_status & AS3932_STATUS_ABSENT)
+		return NO;
+#endif
 	as3932_bring_up;
 	as3932_wcmd (AS3932_CMD_DEFAU);
 	// This one seems to help a bit
@@ -239,6 +253,8 @@ void as3932_on () {
 	_BIS (as3932_status, AS3932_STATUS_ON);
 	as3932_clearall (1);
 	as3932_wcmd (AS3932_CMD_CFALS);
+
+	return YES;
 }
 
 void as3932_off () {

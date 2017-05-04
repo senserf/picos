@@ -93,6 +93,7 @@ extern byte bma250_status;
 #define	BMA250_STATUS_ON	0x01
 #define	BMA250_STATUS_WAIT	0x02
 #define	BMA250_STATUS_EVENT	0x04
+#define	BMA250_STATUS_ABSENT	0x80
 
 #endif
 
@@ -112,12 +113,12 @@ typedef struct {
 
 #ifdef	__SMURPH__
 
-#define	bma250_on(a)		emul (9, "BMA250_ON: ... regs ...")
+#define	bma250_on(a)		( emul (9, "BMA250_ON: ... regs ..."), YES)
 #define	bma250_off()		emul (9, "BMA250_OFF: <>")
 
 #else
 
-void bma250_on (bma250_regs_t*);
+Boolean bma250_on (bma250_regs_t*);
 void bma250_off ();
 
 #endif
@@ -126,7 +127,8 @@ void bma250_off ();
 
 #ifdef	__SMURPH__
 
-#define	bma250_on(a,b,c)	emul (1, "BMA250_ON: %1d %1d %02x", a, b, c)
+#define	bma250_on(a,b,c)	( emul (1, "BMA250_ON: %1d %1d %02x", a, b, c),\
+					YES)
 #define	bma250_off(a)		emul (1, "BMA250_OFF: %1d", a)
 #define	bma250_move(a,b)	emul (1, "BMA250_MOVE: %1d %1d", a, b)
 #define	bma250_tap(a,b,c,d)	emul (1, "BMA250_TAP: %1d %1d %1d %1d", a, b,\
@@ -140,7 +142,7 @@ void bma250_off ();
 
 #else
 
-void bma250_on (byte range, byte bandwidth, byte events);
+Boolean bma250_on (byte range, byte bandwidth, byte events);
 void bma250_move (byte nsamples, byte threshold);
 void bma250_tap (byte mode, byte threshold, byte delay, byte nsamples);
 void bma250_orient (byte blocking, byte mode, byte theta, byte hysteresis);

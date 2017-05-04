@@ -174,12 +174,27 @@ void bma250_init () {
 
 	sint c;
 
+#ifdef	bma250_detect_absent
+	// Bring up and try to reset
+	bma250_bring_up;
+	udelay (200);
+	if (bma250_rreg (0) != 0x03) {
+		// Chip ID
+		bma250_bring_down_x;
+		bma250_detect_absent;
+		bma250_status = BMA250_STATUS_ABSENT;
+		return;
+	}
+#endif
+
 	for (c = 0; c < 3; c++) {
 #ifdef bma250_extra_setreg
 		bma250_extra_setreg;
 #endif
 		bma250_wreg (0x11, 0x80);
 	}
+
+	bma250_bring_down_x;
 }
 
 #ifdef	BMA250_RAW_INTERFACE
@@ -188,11 +203,15 @@ static const byte reglist [] = { 0x0F, 0x10, 0x11, 0x13, 0x16, 0x17, 0x1E,
 				 0x22, 0x23, 0x24, 0x25, 0x26, 0x27, 0x28,
 				 0x2A, 0x2B, 0x2C, 0x2D, 0x2E, 0x2F };
 
-void bma250_on (bma250_regs_t *regs) {
+Boolean bma250_on (bma250_regs_t *regs) {
 
 	word i;
 	byte *r;
 
+#ifdef	bma250_detect_absent
+	if (bma250_status & BMA250_STATUS_ABSENT)
+		return NO;
+#endif
 	bma250_bring_up;
 	// Reset
 	bma250_wreg (0x14, 0xB6);
@@ -213,6 +232,8 @@ void bma250_on (bma250_regs_t *regs) {
 #ifdef bma250_extra_setreg
 	bma250_extra_setreg;
 #endif
+
+	return YES;
 }
 
 void bma250_off () {
@@ -226,9 +247,14 @@ void bma250_off () {
 
 #else	/* BMA250_RAW_INTERFACE not defined */
 
-void bma250_on (byte range, byte bandwidth, byte stat) {
+Boolean bma250_on (byte range, byte bandwidth, byte stat) {
 //
 	byte r16, r17;
+
+#ifdef	bma250_detect_absent
+	if (bma250_status & BMA250_STATUS_ABSENT)
+		return NO;
+#endif
 
 	bma250_bring_up;
 	// Reset the chip
@@ -275,6 +301,8 @@ void bma250_on (byte range, byte bandwidth, byte stat) {
 	// Enable the events
 	bma250_wreg (0x16, r16);
 	bma250_wreg (0x17, r17);
+
+	return YES;
 }
 
 void bma250_move (byte nsamples, byte threshold) {

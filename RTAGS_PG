@@ -5075,3 +5075,14 @@ PG170502A:
 	CC1350 SensorTag (not documented yet, but simple enough).
 
 	A few related cosmetics here and there.
+
+PG170504A:
+
+	Added an option to detect absent BMA250 and AS3932, so the same image
+	for AP331 can be used for both versions of the Tag (as requested by
+	Jasmien). Note: it probably could be used, anyway, but now it is a
+	bit safer, as we can make sure that the dangling pins are configured
+	properly for maximum power savings.
+
+	Some trivial cosmetics to commons.h of locaspot so I can set DEF_MHOST
+	from options.sys. Is the default supposed to be DEF_NID these days?
