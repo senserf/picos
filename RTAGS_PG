@@ -5086,3 +5086,8 @@ PG170504A:
 
 	Some trivial cosmetics to commons.h of locaspot so I can set DEF_MHOST
 	from options.sys. Is the default supposed to be DEF_NID these days?
+
+PG170512A:
+
+	ALPHANET_AP331_PANIC_A redefined into ALPHANET_AP331_PANIC_V32. This
+	is the new version of AP331 where BMA250 and AS3932 are optional.

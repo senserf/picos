@@ -9,6 +9,8 @@
 // ============================================================================
 // P1.0	BUTTON, on low
 // P1.4 DATA from loop detector (crosswired with BMA250 INT2, not used)
+//      -- not crosswired any more, but the fix is compatible, so let's
+//      -- keep it just in case
 // P1.5 WAKE from loop detector
 // P1.7 INT1 of BMA250
 #define	PIN_DEFAULT_P1SEL		0x00
@@ -33,11 +35,11 @@
 #define	PIN_DEFAULT_P3DIR		0xFF
 #define	PIN_DEFAULT_P3OUT		0x00
 // ============================================================================
-// P4.4 - LED (G) (active low)
 // P4.5 - LED (R) (active low)
+// P4.6 - LED (G) (active low)
 #define	PIN_DEFAULT_P4SEL		0x00
-#define	PIN_DEFAULT_P4DIR		0x30
-#define	PIN_DEFAULT_P4OUT		0x30
+#define	PIN_DEFAULT_P4DIR		0x60
+#define	PIN_DEFAULT_P4OUT		0x60
 // ============================================================================
 // P5.2 BMA250 CSB
 // P5.5 BMA250 SCx
@@ -132,6 +134,7 @@
 #define	bma250_delay	udelay (40)
 
 // Makes sure INT2 is open drain to fix the double wiring problem for P1.4
+//      -- not needed any more, no harm keeping it around
 #define	bma250_extra_setreg	bma250_wreg (0x20, 0x0b)
 
 // Action if the sensor is absent: pull the input pins so they don't float
