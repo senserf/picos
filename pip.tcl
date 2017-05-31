@@ -8204,7 +8204,7 @@ proc bpcs_run { path al pi } {
 #
 # Run a background Windows? program
 #
-	global TCMD ST
+	global TCMD ST BinPath
 
 	# a simple escape; do we need more?
 	regsub -all "\[ \t()\]" $path {\\&} path
@@ -8215,7 +8215,7 @@ proc bpcs_run { path al pi } {
 		append path " [list $a]"
 	}
 
-	if [catch { exec bash -c "exec $path" & } pl] {
+	if [catch { exec [file join $BinPath "bash"] -c "exec $path" & } pl] {
 		alert "Cannot execute $path: $pl"
 		return 1
 	}
@@ -8738,12 +8738,14 @@ proc run_term_command { cmd al { ea "" } { aa "" } { ni 0 } } {
 
 	if [isfullpath $cmd] {
 		log "Full path exec"
+if 0 {
 		if ![file exists $cmd] {
 			error "executable file doesn't exist"
 		}
 		if ![file executable $cmd] {
 			error "file is not executable"
 		}
+}
 		set cmd [list $cmd]
 	} else {
 		set ef [auto_execok $cmd]
@@ -10192,10 +10194,18 @@ proc do_build_lib { board ea } {
 #
 # Completes the library build, which is a two-stage operation
 #
-	set al [list -c "cd [file join [boards_dir] $board]; make"]
+	global BinPath
 
-	if [catch { run_term_command "bash" $al $ea } err] {
-		remove_temp
+	set bd [file join [boards_dir] $board]
+
+	set al [list -c "cd $bd; make"]
+
+	if [catch { run_term_command [file join $BinPath "bash"] $al $ea } \
+	    err] {
+		catch {
+			file delete --force [file join $bd "Makefile"]
+			file delete --force [file join $bd "libpicos.a"]
+		}
 		alert "Cannot run library make for $board: $err"
 	}
 }
@@ -11450,7 +11460,6 @@ proc do_edit_new_file { } {
 
 ###############################################################################
 
-###here: fixed
 proc scan_mkfile { mfn } {
 #
 # Scans a Makefile for the list of project-related "system" files
@@ -11715,16 +11724,27 @@ proc arch_dirs { } {
 	return [lsort $res]
 }
 
-###here: done
 proc initialize { } {
 
-	global ST PicOSPath DefProjDir Archs SACmd
+	global ST PicOSPath DefProjDir Archs SACmd BinPath
 
 	if $ST(DP) {
 		log "preferred path format: DOS"
 	} else {
 		log "preferred path format: UNIX"
 	}
+
+	if { $ST(SYS) != "L" } {
+		# path to bin (for explicit preference of some programs, say
+		# to distinguish Windows bash from Cygwin bash); use some UNIX
+		# characteristic program to make sure it comes from the right
+		# place
+		set BinPath [file dirname [auto_execok uname]]
+	} else {
+		set BinPath ""
+	}
+
+	log "UNIX bin path: $BinPath"
 
 	# path to PICOS
 	if [catch { xq picospath } ST(NPP)] {

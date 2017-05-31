@@ -880,3 +880,10 @@ PG170312A:	PICOS >= PG170312A
 PG170413A:
 
 	Updated the documentation, fixed a minor glitch.
+
+PG170531A:
+
+	Improved the identification of Cygwin bash to avoid confusion with
+	Windows bash (the never ending saga of Cygwin mess). Hopefully, Windows
+	bash (with the proper accommodation of USB devices) is just behind the
+	corner. Then Cygwin will finally go.
