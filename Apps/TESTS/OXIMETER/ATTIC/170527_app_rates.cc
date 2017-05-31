@@ -50,19 +50,60 @@ max30102_sample_t	ir_buff [NSAMPLES], re_buff [NSAMPLES],
 
 // ============================================================================
 
-static void cupdate (word hr, word sp) {
+// Variables made external so we can see them for debugging
+word	hrate, spo2;
+byte	npeaks, nratios;
 
-	diag ("HR = %u, SP = %u", hr, sp);
+// ============================================================================
+
+// Debug
+lint	dbgths;
+word	dbgrat;
+lword	dbgnpk;
+
+#define	KEMA	3
+
+// ============================================================================
+
+static void dbgupd () {
+
+	dbgnpk = dbgnpk + npeaks - (dbgnpk >> KEMA);
+	dbgrat = (word)((15 * dbgnpk) >> KEMA);
 }
+
+// ============================================================================
+
+fsm show {
+
+	state WAIT_DATA_READY:
+
+		when (show, DISPLAY_DATA);
+		release;
+
+	state DISPLAY_DATA:
+
+		ser_outf (DISPLAY_DATA,
+			"T: %lu, R: %u, S: %u, [%u %u %ld %u]\r\n",
+				seconds (),
+				hrate,
+				spo2,
+				npeaks,
+				nratios,
+				dbgths,
+				dbgrat
+		);
+
+		sameas WAIT_DATA_READY;
+}
+
+// ============================================================================
 
 static void calculate () {
 
 	lint tha, thb, la, lb;
 	lint ratios [MAX_RATIOS];
 	int i, j, w;
-	word hrate, spo2;
 	byte peaks [MAX_NPEAKS];
-	byte npeaks, nratios;
 	byte b, ba, bb;
 
 	for (tha = 0, i = 0; i < NSAMPLES; i++) 
@@ -77,13 +118,17 @@ static void calculate () {
 		an_x [i] = tha - (lint)ir_buff [i];
 
 	for (tha = 0, i = 0; i < NSAMPLES - NAVERAGE; i++)
-		// Average 4 consecutive samples and calculate threshold
+		// Average 4 consecutive samples and calculate threshold
 		tha += (an_x [i] = (an_x [i  ] + an_x [i+1] +
 			     	    an_x [i+2] + an_x [i+3]   ) / 4);
 	while (i < NSAMPLES)
 		tha += an_x [i++];
 
-	if ((tha /= NSAMPLES) < MIN_PEAK_THRESHOLD)
+	tha /= NSAMPLES;
+
+	dbgths = tha;
+
+	if (tha < MIN_PEAK_THRESHOLD)
 		tha = MIN_PEAK_THRESHOLD;
 	else if (tha > MAX_PEAK_THRESHOLD)
 		tha = MAX_PEAK_THRESHOLD;
@@ -101,7 +146,7 @@ static void calculate () {
 			w = 1;
 			while (i + w < NSAMPLES && an_x [i] == an_x [i + w])
 			// Extend the flat part
-			w++;
+				w++;
 			if (an_x [i] > an_x [i + w] && npeaks < MAX_NPEAKS) {
 				// End of peak, add if room; flat peak is
 				// marked by left edge of the plateau
@@ -178,6 +223,8 @@ static void calculate () {
 
 	hrate = (SAMPFREQ * 60 * (npeaks - 1)) / w;
 
+	dbgupd ();
+
 	// ====================================================================
 	// SPO2 ===============================================================
 	// ====================================================================
@@ -248,7 +295,7 @@ static void calculate () {
 	if (tha > 2 && tha < 184)
 		spo2 = spo2_table [tha - 3];
 Done:
-	cupdate (hrate, spo2);
+	CNOP;
 }
 
 #if 0
@@ -305,6 +352,8 @@ fsm collect {
 
 		calculate ();
 
+		trigger (show);
+
 		s_min = MAX_SAMPLE;
 		s_max = 0;
 
@@ -343,6 +392,10 @@ fsm root {
 
 	word par, val;
 
+	state INIT:
+
+		runfsm show;
+
 	state MENU:
 
 		ser_out (MENU,
@@ -363,7 +416,7 @@ fsm root {
 			scan (cmd + 1, "%u", &par);
 			if (cmd [0] == 'o') {
 				if (par)
-					max30102_start ();
+					max30102_start (2);
 				else
 					max30102_stop ();
 			} else {

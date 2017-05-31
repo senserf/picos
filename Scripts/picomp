@@ -3473,6 +3473,29 @@ proc mkdlist { } {
 
 	array unset MKRECV
 
+	# locate AppLib
+	set app $CWD
+	while 1 {
+		set apu [file dirname $app]
+		if { [file tail $apu] == "Apps" } {
+			# check if AppLib present
+			set apl [file join $apu "AppLib"]
+			if [file isdirectory $apl] {
+				break
+			}
+		}
+		if { $apu == $app } {
+			# we have hit the bottom
+			set apl ""
+			break
+		}
+		set app $apu
+	}
+
+	if { $apl != "" } {
+		lappend DirList $apl
+	}
+
 	set vuee [finddir "VUEE" "PICOS"]
 	set side [finddir "SIDE" "Examples/IncLib"]
 

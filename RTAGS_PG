@@ -5091,3 +5091,34 @@ PG170512A:
 
 	ALPHANET_AP331_PANIC_A redefined into ALPHANET_AP331_PANIC_V32. This
 	is the new version of AP331 where BMA250 and AS3932 are optional.
+
+PG170531A:
+
+	I have added a new simple feature tentatively called "application-level
+	libraries". Previously, if you wanted to have a piece of code shared by
+	different praxes, there were two options:
+
+	1. to put it in one of PicOS Lib directories
+
+	2. to replicate the code into each praxis
+
+	The problem with 1 is that, because of VUEE, the code that you put into
+	PicOS "official" libraries must be accounted for by VUEE and programmed
+	with some rigour. If you wanted to simply have a piece of code looking
+	like a part of the application, 2 was the only option. Even symbolic
+	links to shared directories could not be used, because of the Cygwin
+	mess: Cygwin links are invisible by Windows and vice-versa.
+
+	So now, the AppLib subdirectory in Apps can be used as the container
+	for code pieces that are implicitly visible to all applications,
+	basically as if they appeared in the application directory. I have put
+	there blink.cc / blink.h for illustration. You can just include blink.h
+	from the praxis, and blink.cc will be compiled along with the praxis
+	(as its component). Note that the code in AppLib can be programmed in
+	exactly the same ways as the user-level praxis code, i.e., it is
+	compiled by picomp.
+
+	Fixed voltage conversion in shared_plug in locaspot.
+
+	Started working on the oximeter collection praxis. Putting this on
+	hold for the Belgium trip.

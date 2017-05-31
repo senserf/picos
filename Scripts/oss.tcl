@@ -2960,16 +2960,20 @@ proc oss_genheader { } {
 ###########################
 ###########################
 
-	set res "#include \"sysio.h\"\n\n"
-	append res "#define\tOSS_PRAXIS_ID\t\t$PM(PXI)\n"
-	append res "#define\tOSS_UART_RATE\t\t$PM(USP)\n"
-	append res "#define\tOSS_PACKET_LENGTH\t$PM(MPL)\n"
+	set res "#include \"sysio.h\""
 
 	append res {
 // =================================================================
 // Generated automatically, do not edit (unless you really want to)!
 // =================================================================
 
+}
+
+	append res "#define\tOSS_PRAXIS_ID\t\t$PM(PXI)\n"
+	append res "#define\tOSS_UART_RATE\t\t$PM(USP)\n"
+	append res "#define\tOSS_PACKET_LENGTH\t$PM(MPL)\n"
+
+	append res {
 typedef	struct {
 	word size;
 	byte content [];

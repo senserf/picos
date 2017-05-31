@@ -1203,6 +1203,7 @@ proc build_directory_list { } {
 	if { $Run(type) != "L" } {
 		lappend roots "."
 		lappend roots "./*"
+		lappend roots "Apps/AppLib"
 	}
 
 	# subdirectories of the praxis directory

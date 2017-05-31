@@ -13,7 +13,7 @@ typedef	lword	max30102_sample_t;
 #define	MAX_SAMPLE	MAX_LWORD
 #endif
 
-void max30102_start ();
+void max30102_start (word);
 void max30102_stop ();
 void max30102_wreg (byte, byte);
 byte max30102_rreg (byte);

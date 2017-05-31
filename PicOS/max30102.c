@@ -138,7 +138,7 @@ byte max30102_rreg (byte reg) {
 				return r;
 			}
 		}
-udelay (100);
+		udelay (100);
 	}
 }
 
@@ -146,20 +146,34 @@ udelay (100);
 
 // ============================================================================
 
-void max30102_start () {
+void max30102_start (word mode) {
 //
 // Initialization (copied from the Arduino reference code)
+//
+// 	mode:
+//		0 -> no averaging, 100 samples/s
+//		1 ->  2 samples
+//		2 ->  4 samples
+//		3 ->  8 samples
+//		4 -> 16 samples
+//		5 -> 32 samples
 //
 	// Reset
 	wreg (REG_MODE_CONFIG, 		0x40);
 	udelay (100);
 	wreg (REG_INTR_ENABLE_1,	0xc0);
 	wreg (REG_INTR_ENABLE_2,	0x00);
+	// These shouldn't be needed, if the reset (above) works
 	// wreg (REG_FIFO_WR_PTR, 		0x00);
 	// wreg (REG_OVF_COUNTER, 		0x00);
 	// wreg (REG_FIFO_RD_PTR, 		0x00);
-	// Four averaged samples, interrupt on anything in FIFO
-	wreg (REG_FIFO_CONFIG, 		0x4f);
+
+	// arduino 0x4f (4 samples avg, 25/s, MAX 0x0f (no avg, 100/s)
+	if (mode > 5)
+		mode = 5;
+
+	wreg (REG_FIFO_CONFIG, 		0x0f | (byte)(mode << 5));
+
 	// SPO2 mode
 	wreg (REG_MODE_CONFIG, 		0x03);
 	// Range 15.63, 100 sps [4 avg], led power max
@@ -201,7 +215,8 @@ void max30102_read_sample (word st, max30102_sample_t *re,
 #if MAX30102_SHORT_SAMPLES
 	*re = (word)(s /* >> 2 */);
 #else
-	*re = s &= 0x03ffff;
+	// Perhaps, as a compromise, we can pack this into byte triplets?
+	*re = s & 0x03ffff;
 #endif
 	s  = ((lword) rdb (1)) << 16;
 	s |= ((lword) rdb (1)) << 8;
@@ -210,7 +225,7 @@ void max30102_read_sample (word st, max30102_sample_t *re,
 #if MAX30102_SHORT_SAMPLES
 	*ir = (word)(s /* >> 2 */);
 #else
-	*ir = s &= 0x03ffff;
+	*ir = s & 0x03ffff;
 #endif
 	i2c_stop ();
 }

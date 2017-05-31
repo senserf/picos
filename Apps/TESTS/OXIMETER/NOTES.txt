@@ -1,0 +1,4 @@
+This is presently being redone:
+
+I have programmed the ossi script + ap for wireless data acquisition,
+the Tag is not programmed yet. Putting this on hold for the Belgium trip.
