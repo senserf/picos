@@ -49,5 +49,5 @@
 	<module id="radio">0.0004 16.0 30.7 30.7</module>
 	<module id="sensors">0.0 0.15</module>
     </ptracker>
-    <color led="3" on="red" off="darkblue"/>
+    <color led="3" on="red" off="orange"/>
 </node>

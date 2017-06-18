@@ -5122,3 +5122,12 @@ PG170531A:
 
 	Started working on the oximeter collection praxis. Putting this on
 	hold for the Belgium trip.
+
+PG170618A:
+
+	I have cleaned up the VUEE data sets in locaspot. Also, I have improved
+	(and brought up to date) the Bezannes model (bezannes.xml). The channel
+	model is much better (closer to the real thing) than the previous
+	version. I am going to try to bring it even closer, so I have something
+	to test (with a reasonable reliability) future modifications to the
+	location server.
