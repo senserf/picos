@@ -3385,7 +3385,7 @@ proc finddir { name tail } {
 # Try to find one of the extra include directories, either from an evironment
 # variable, or by searching upward
 #
-	global env
+	global env PICOSPATH
 
 	set envar "${name}PATH"
 
@@ -3405,10 +3405,17 @@ proc finddir { name tail } {
 		return [file normalize [file join $dir $tail]]
 	}
 
-	# try searching from here up stopping at the first directory named
-	# that contains name/tail
-
 	set ftail [file join $name $tail]
+
+	# check for picospath, and try a directory parallel to PICOS
+
+	set dir [file join [file dirname $PICOSPATH] $ftail]
+	if [file isdirectory $dir] {
+		return [file normalize $dir]
+	}
+
+	# try searching from here up stopping at the first directory named
+	# that contains name/tail (this is basically dead code)
 
 	set tdi [pwd]
 	set lst ""
@@ -6515,6 +6522,12 @@ set FG(E) 0
 set FG(EC) ""
 
 set an 0
+
+# get PICOS path
+if [catch { eval exec sh picospath } PICOSPATH] {
+	errab "cannot locate PICOS root; has the package been properly\
+		installed?"
+}
 
 proc parse_def_arg { a } {
 #

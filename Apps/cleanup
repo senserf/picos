@@ -144,39 +144,49 @@ proc locate_scripts { } {
 #
 	global SDN SDC SLIST TFN
 
-	set dir "."
 	set SDN ""
-	set pdn ""
 
-	for { set i 0 } { $i < 32 } { incr i } {
+	if ![catch { eval exec sh picospath } dir] {
+		# use this way to locate Scripts
 		set dn [file normalize [file join $dir "Scripts"]]
-		if { $dn == $pdn } {
-			# no change
-			break
-		}
-		set pdn $dn
-		if [file isdirectory $dn] {
-			# got it
-			set SDN $dn
-			if [regexp -nocase "^(\[a-z\]):" $SDN jnk dl] {
-				set SDC "/cygdrive/[string tolower $dl]"
-				append SDC [string range $SDN 2 end]
-			} else {
-				set SDC $SDN
+	} else {
+		# look it up backwards (only works for a subdirectory of
+		# Apps)
+		set dir "."
+		set pdn ""
+		for { set i 0 } { $i < 32 } { incr i } {
+			set dn [file normalize [file join $dir "Scripts"]]
+			if { $dn == $pdn } {
+				# no change
+				set dn ""
+				break
 			}
-			if [catch { exec ls $SDC } SLIST] {
-				puts stderr "couldn't list Scripts directory,\
-					sorry!"
+			set pdn $dn
+			if [file isdirectory $dn] {
+				# got it
+				break
 			}
-			set TFN "/tmp/pic_mop_[pid]"
-			return
+			# go up
+			set dir "../$dir"
 		}
-		# go up
-		set dir "../$dir"
 	}
 
-	puts stderr "couldn't locate Scripts directory, sorry!"
-	exit 1
+	if { $dn == "" } {
+		puts stderr "couldn't locate Scripts directory, sorry!"
+		exit 1
+	}
+
+	set SDN $dn
+	if [regexp -nocase "^(\[a-z\]):" $SDN jnk dl] {
+		set SDC "/cygdrive/[string tolower $dl]"
+		append SDC [string range $SDN 2 end]
+	} else {
+		set SDC $SDN
+	}
+	if [catch { exec ls $SDC } SLIST] {
+		puts stderr "couldn't list Scripts directory, sorry!"
+	}
+	set TFN "/tmp/pic_mop_[pid]"
 }
 
 cygfix

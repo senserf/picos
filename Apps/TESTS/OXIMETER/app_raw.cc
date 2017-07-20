@@ -3,6 +3,8 @@
 #include "serf.h"
 #include "max30102.h"
 
+#define	AUTOSTART	1
+
 fsm collect {
 
 	lword res, irs;
@@ -22,6 +24,14 @@ fsm collect {
 
 fsm root {
 
+#if AUTOSTART
+
+	state INIT:
+
+		max30102_start (0);
+		runfsm collect;
+		finish;
+#else
 	word par, val;
 
 	state MENU:
@@ -92,4 +102,7 @@ fsm root {
 
 		ser_outf (OUTREG, "Reg [%x] = %x\r\n", par, val);
 		proceed INPUT;
+
+#endif /* AUTOSTART */
+
 }

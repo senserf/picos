@@ -773,60 +773,14 @@ proc locate_root { } {
 #
 # Locate the root directory of the package
 #
-	global SDirs Run
+	global SDirs
 
-	# this is normalized
-	set rpref [pwd]
-
-	if { $Run(type) == "L" && $Run(board) == "" } {
-		# this is only possible if mkmk is called in the board
-		# directory
-		set Run(board) [file tail $rpref]
-		set root [file dirname $rpref]
-		# this should be BOARDS
-		if { [file tail $root] != "BOARDS" } {
-			errab "For a library make with no explicit board\
-				specified, mkmk must be invoked in the\
-				board directory"
-		}
-		set root [file dirname $root]
-		# this is the arch
-		set arch [file tail $root]
-		if { $Run(arch) != "" && $Run(arch) != $arch } {
-			errab "Illegal explicit architecure, $Run(arch), the\
-				board belongs to $arch"
-		}
-		set Run(arch) $arch
-		set root [file dirname $root]
-		# this should be PicOS
-		if { [file tail $root] != "PicOS" } {
-			errab "The board directory is not rooted at PicOS"
-		}
-		set root [file dirname $root]
-	} else {
-		# the second option regarding where exactly mkmk has been
-		# invoked is an App directory; this is also applicable to -L
-		# with the explicit board/arch
-		while 1 {
-			set root [file dirname $rpref]
-			if { [file tail $rpref] == "Apps" } {
-				# a candidate
-				if [file isdirectory \
-				    [file join $root "PicOS"]] {
-					# done
-					break
-				}
-			}
-			if { $root == $rpref } {
-				# we have hit the bottom
-				errab "Path to current directory contains\
-					no \"Apps\""
-			}
-			set rpref $root
-		}
+	if [catch { eval exec sh picospath } root] {
+		errab "Cannot find PICOS root; has the package been properly\
+			installed?"
 	}
 
-	set SDirs(root) $root
+	set SDirs(root) [fpath $root]
 }
 
 proc do_rtags { } {

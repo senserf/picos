@@ -33,19 +33,27 @@ lword	re, ir;
 
 lword	se_irs,		// Damped sample
 	se_iro,		// Damped last (old) sample
-	se_plr;
+	se_plr;		// Damped pulse rate
 
 lword	sslp;		// Samples since last peak
 
-byte	dir;		// 0-down, 1-up
+byte	dir;		// Current slope direction: 0-down, 1-up
 
 // ============================================================================
 
 static inline void sema_update (lword *s, word k, lword v) {
+//
+// Simple (power of 2) EMA:
+//
+//	*s is EMA * 2^k, v is new value
+//
 	*s = *s + v - (*s >> k);
 }
 
 static inline lword sema_get (lword s, word k) {
+//
+// Turn the stored EMA * 2^k into the actual value
+//
 	return s >> k;
 }
 
@@ -75,7 +83,7 @@ fsm show {
 static void change_direction () {
 
 	if (dir == 0) {
-		// Peak
+		// We have reached a peak, direction has changed to "down"
 		if (sslp < 5 * SAMPFREQ) {
 			sema_update (&se_plr, par_plsd, sslp);
 			trigger (show);
@@ -90,6 +98,7 @@ static void update () {
 
 	sslp++;
 
+	// Sample damping
 	sema_update (&se_irs, par_irsd, ir);
 
 	sirs = sema_get (se_irs, par_irsd);

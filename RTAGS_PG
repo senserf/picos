@@ -5131,3 +5131,21 @@ PG170618A:
 	version. I am going to try to bring it even closer, so I have something
 	to test (with a reasonable reliability) future modifications to the
 	location server.
+
+PG170720A:	PIP >= PG170720A
+
+	I have removed the restriction that a praxis directory must be located
+	under Apps; in other words, it can be put anywhere within the file
+	system, as long as the path doesn't contain spaces (the Cygwin-Window
+	mess cannot be avoided completely).
+
+	We are going to separate (some) applications (praxes) from PicOS
+	turning them into independent git repositories (the above change is
+	supposed to facilitate the idea). Quite likely, this is the last commit
+	into the PICOS repository as we know it. I am going to create a new
+	version of this repository with some praxes removed (also from the
+	history) and the history confined to the components not belonging to
+	those praxes. We shall see how it works.
+
+	A few unrelated cosmetics (like adjustments to the Bezannes channel
+	model).
