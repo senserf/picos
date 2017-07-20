@@ -887,3 +887,8 @@ PG170531A:
 	Windows bash (the never ending saga of Cygwin mess). Hopefully, Windows
 	bash (with the proper accommodation of USB devices) is just behind the
 	corner. Then Cygwin will finally go.
+
+PG170720A:	PICOS >= PG170720A
+
+	Removed the restriction that a praxis directory must be located under
+	Apps.

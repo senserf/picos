@@ -3705,32 +3705,17 @@ proc val_prj_dir { dir { na 0 } } {
 		return 0
 	}
 
-	while 1 {
-		set d [fpnorm [file dirname $dir]]
-		if { $d == $dir } {
-			# no change
-			log "bad prj dir $dir -> $d"
-			if { $na == 0 } {
-				alert "This directory won't do! A project\
-					directory must be a proper\
-						subdirectory of $apps"
-			}
-			return 0
-		}
-		if { $d == $apps } {
-			# OK
-			return 1
-		}
-		set dir $d
-	}
+	# removed the restriction on the project directory to be a subdirectory
+	# of Apps
+
+	return 1
 }
 
 proc prj_name { dir } {
 
 	global PicOSPath
 
-	return [string trim [string range $dir [string length \
-		[fpnorm [file join $PicOSPath Apps]]] end] "/"]
+	return [file tail $dir]
 }
 
 proc val_prj_incomp { } {
