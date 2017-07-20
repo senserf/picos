@@ -495,6 +495,19 @@ proc lappend_unique { li i } {
 	}
 }
 
+proc xq { pgm { pargs "" } } {
+#
+# A flexible exec (or so I hope)
+#
+	set ef [auto_execok $pgm]
+	if ![file executable $ef] {
+		set ret [eval [list exec] [list sh] [list $ef] $pargs]
+	} else {
+		set ret [eval [list exec] [list $ef] $pargs]
+	}
+	return $ret
+}
+
 proc bad_usage { { msg "" } } {
 #
 #
@@ -775,7 +788,7 @@ proc locate_root { } {
 #
 	global SDirs
 
-	if [catch { eval exec sh picospath } root] {
+	if [catch { xq picospath } root] {
 		errab "Cannot find PICOS root; has the package been properly\
 			installed?"
 	}

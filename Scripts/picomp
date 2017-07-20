@@ -92,6 +92,19 @@ proc newlines { n } {
 	return $res
 }
 
+proc xq { pgm { pargs "" } } {
+#
+# A flexible exec (or so I hope)
+#
+	set ef [auto_execok $pgm]
+	if ![file executable $ef] {
+		set ret [eval [list exec] [list sh] [list $ef] $pargs]
+	} else {
+		set ret [eval [list exec] [list $ef] $pargs]
+	}
+	return $ret
+}
+
 ###############################################################################
 ###############################################################################
 
@@ -6524,7 +6537,7 @@ set FG(EC) ""
 set an 0
 
 # get PICOS path
-if [catch { eval exec sh picospath } PICOSPATH] {
+if [catch { xq picospath } PICOSPATH] {
 	errab "cannot locate PICOS root; has the package been properly\
 		installed?"
 }
