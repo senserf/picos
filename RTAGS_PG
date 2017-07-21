@@ -5149,3 +5149,58 @@ PG170720A:	PIP >= PG170720A
 
 	A few unrelated cosmetics (like adjustments to the Bezannes channel
 	model).
+
+PG170721A:
+
+	READ CAREFULLY!!!!!!!
+
+	I have removed two subdirectories from Apps: PROPRIETARY and LEGACY,
+	to be stored in separate repos.
+
+	I have removed all formal git tags!!!! Don't panic! This is OK. I
+	suggest that we stop formal tagging (tags are a bit troublesome,
+	because they have to be pushed separately, don't count as changes [no
+	email notifications], and get in the way of something every once in a
+	while).
+
+	This doesn't mean that we don't want to use our "internal" tags, like
+	PG170720A. We can use them and put them into RTAGS and commit messages.
+	They are fine, except that they won't identify commits directly.
+
+	To see the commits corresponding to our internal tags execute:
+
+		git log > rtags.txt
+
+	You will see there a list of commit messages looking (for example)
+	like this:
+
+	===================
+
+	commit 07b4c0639c152a9fd779fd67187f6312bc33c8ac
+	Author: Pawel Gburzynski <pawel@olsonet.com>
+	Date:   Thu May 12 21:04:04 2016 +0200
+
+    	PG160512A:
+    
+    	The first production-ready version of the AS3932 driver. This is in
+    	fact a trivial adjustment in the board configuration for AP331, but
+    	I am tagging it for the proper record.
+
+	===================
+
+	The SHA1 sum in the "commit" line identifies the commit. An initial
+	unique sequence will do, e.g., here is the command to look at the
+	version of some file as per PG160512A:
+
+		git show 07b4c063:PicOS/as3932.c > old_content.txt
+
+	Note that git log basically replicates RTAGS this way (in the log).
+	While we may want to keep RTAGS around (in PICOS they are needed for
+	other things, we may keep more information there, and so on), we don't
+	need them for the retrieval of old versions. As long as we put the
+	internal tag id into a commit message, we are safe without using formal
+	(git) tags (we can match the internal tag to the commit). Of course,
+	this can be also done by date.
+
+
+
