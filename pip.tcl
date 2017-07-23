@@ -11612,7 +11612,8 @@ proc gsf_trv { p } {
 		if { $p == "" } {
 			# zero level; ignore if the ARCH dir different from
 			# ours
-			if { [lsearch $f $Archs] >= 0 && $f != $FNARCH } {
+			if { [lsearch -exact $Archs $f] >= 0 &&
+			    $f != $FNARCH } {
 				continue
 			}
 		}
