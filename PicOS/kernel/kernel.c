@@ -1047,8 +1047,11 @@ word	__pi_memfree (int np, address min) {
 /*
  * Returns memory statistics
  */
-	if (min != NULL)
+	if (min != NULL) {
 		*min = topword (mnfree [MA_NP]);
+		// Reset the minimum to current
+		mnfree [MA_NP] = mcfree [MA_NP];
+	}
 	return topword (mcfree [MA_NP]);
 #undef	MA_NP
 }

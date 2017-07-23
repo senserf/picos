@@ -92,7 +92,6 @@
 				CPU_MARK_BUSY; \
 				sti; \
 			} while (0)
-// Stack overflow to be checked
 
 #define	RISE_N_SHINE	do { __pi_systat.evntpn = 1; } while (0)
 #define	RTNI		return

@@ -1260,12 +1260,6 @@ int main (void) {
 //	radio? OK, for now, we may prevent deep sleep if radio is on (status
 //	change involves a SLEEP loop turn).
 //
-//	We still don't have phys_uart. Later, after we know how to do power
-//	management.
-//
 //	How to avoid the minute wakeups on MAX delay?
 //
 //
-//	Implement STACK GUARD
-//
-
