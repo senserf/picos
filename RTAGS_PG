@@ -1340,3 +1340,7 @@ PG170312A:	PICOS >= PG170312A
 PG170413A:
 
     Added the new operation setpowermode replacing powerup and powerdown.
+
+PG170812A:
+
+    Fixed udaemon to prevent attempts to move non-movable nodes.

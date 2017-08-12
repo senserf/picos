@@ -7969,6 +7969,12 @@ proc moveZC { } {
 
 	global MStatId RD Stat Rms P
 
+	if !$RD(NM,$MStatId) {
+		# not movable
+		alert "Node is not movable!"
+		return
+	}
+
 	set P(M0,NO) $MStatId
 
 	lassign [lindex $RD(NL,$MStatId) 0] P(M0,XC) P(M0,YC) P(M0,ZC)
