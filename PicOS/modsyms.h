@@ -65,6 +65,7 @@
 //->VUEE_LIB_XRS
 //->VUEE_LIB_OEP
 //->VUEE_LIB_LCDG
+//->VUEE_LIB_OL
 
 // Here is the convention for marking MODSYMS symbols in comments:
 //

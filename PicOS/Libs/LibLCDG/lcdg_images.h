@@ -12,6 +12,7 @@
 #include "lcdg_images_params.h"
 #include "lcdg_images_types.h"
 
+//+++
 void	lcdg_im_init (word, word);
 word	lcdg_im_find (const byte*, byte, word);
 byte	lcdg_im_hdr (word, lcdg_im_hdr_t*);

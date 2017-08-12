@@ -5202,5 +5202,17 @@ PG170721A:
 	(git) tags (we can match the internal tag to the commit). Of course,
 	this can be also done by date.
 
+PG170812A:
 
+	I am not pushing this one, because we are still not sure whether the
+	changes will stay. This isn't even a branch, I just want to stage these
+	modifications, before trying the next set. We may still revert to the
+	pre-split version and make these changes there before re-splitting
+	again.
 
+	AppLib can now have subdirectories.
+
+	I have cleaned up a couple of items in Libs to make SEAWOLF/YEP compile
+	under picomp (i.e., PIP). I don't want to have a single serious praxis
+	left that must be compiled in the legacy mode.
+	

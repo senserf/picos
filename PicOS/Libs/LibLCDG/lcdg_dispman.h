@@ -26,6 +26,7 @@ extern byte		LCDG_DM_STATUS;
 #endif
 // ============================================================================
 
+//+++
 Boolean lcdg_dm_shown (const lcdg_dm_obj_t*);
 void lcdg_dm_menu_d (lcdg_dm_men_t*);
 void lcdg_dm_menu_u (lcdg_dm_men_t*);

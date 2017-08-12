@@ -29,7 +29,6 @@ extern byte OEP_RQN, OEP_PHY;
 // ============================================================================
 
 //+++
-
 Boolean oep_init ();
 byte oep_rcv (word nch, oep_chf_t);
 byte oep_snd (word ylid, byte yrqn, word nch, oep_chf_t);

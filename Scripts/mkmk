@@ -514,21 +514,19 @@ proc bad_usage { { msg "" } } {
 #
 	if { $msg != "" } {
 
-		puts stderr "Illegal argument: $msg"
+		puts stderr "Illegal arguments: $msg"
 		puts stderr ""
 	}
 
 	puts stderr "Usage: (1) mkmk boardname \[-a arch\] \[label\]"
 	puts stderr "       (2) mkmk boardname \[-a arch\] -l \[label\]"
-	puts stderr "       (3) mkmk"
-	puts stderr "       (4) mkmk boardname \[-a arch\] -L"
-	puts stderr "       (5) mkmk -V"
+	puts stderr "       (3) mkmk boardname \[-a arch\] -L"
+	puts stderr "       (4) mkmk -V"
 	puts stderr "--"
 	puts stderr " 1 - create image for the given board/architecture/program"
 	puts stderr " 2 - create image (as in 1) from a library"
-	puts stderr " 3 - create library (must be executed in a board dir)"
-	puts stderr " 4 - create library (invoked in a project dir)"
-	puts stderr " 5 - print version number and exit"
+	puts stderr " 3 - create library"
+	puts stderr " 4 - show version number and quit"
 
 	exit 1
 }
@@ -616,11 +614,7 @@ proc process_args { } {
 	}
 
 	if { $nc == 0 } {
-		if [info exists l] {
-			bad_usage "-l illegal without board name"
-		}
-		# make library, force "L" which is the only available option
-		set Run(type) "L"
+		bad_usage "at least boardname required"
 	} else {
 		set Run(board) $b
 		if [info exists l] {
@@ -1170,7 +1164,7 @@ proc build_directory_list { } {
 	if { $Run(type) != "L" } {
 		lappend roots "."
 		lappend roots "./*"
-		lappend roots "Apps/AppLib"
+		lappend roots "Apps/AppLib/*"
 	}
 
 	# subdirectories of the praxis directory

@@ -3485,36 +3485,20 @@ proc mkdlist { } {
 #
 # Create the list of local subdirectories to search for include files
 #
-	global FG MKRECV CWD DirList EDirList env MODSYMS DF
+	global FG MKRECV CWD DirList EDirList env MODSYMS DF PICOSPATH
 
-	mkdrec $CWD
+	set app $CWD
 
+	mkdrec $app
 	set DirList [lsort [array names MKRECV]]
-
 	array unset MKRECV
 
-	# locate AppLib
-	set app $CWD
-	while 1 {
-		set apu [file dirname $app]
-		if { [file tail $apu] == "Apps" } {
-			# check if AppLib present
-			set apl [file join $apu "AppLib"]
-			if [file isdirectory $apl] {
-				break
-			}
-		}
-		if { $apu == $app } {
-			# we have hit the bottom
-			set apl ""
-			break
-		}
-		set app $apu
-	}
+	# AppLib (if present)
+	set app [file normalize [file join $PICOSPATH "Apps" "AppLib"]]
+	mkdrec $app
 
-	if { $apl != "" } {
-		lappend DirList $apl
-	}
+	set DirList [concat $DirList [lsort [array names MKRECV]]]
+	array unset MKRECV
 
 	set vuee [finddir "VUEE" "PICOS"]
 	set side [finddir "SIDE" "Examples/IncLib"]
