@@ -18,8 +18,6 @@
 #include "encrypt.h"
 #include "lcdg_n6100p_driver.h"
 
-#include "lib_params.h"
-
 #ifndef	VUEE_RESYNC_INTERVAL
 // The default RT sync granularity in msecs
 #define	VUEE_RESYNC_INTERVAL	500
@@ -697,8 +695,6 @@ station PicOSNode abstract {
 
 	// Note: static TCV data is initialized in tcv_init.
 #include "tcv_node_data.h"
-
-#include "lib_attributes.h"
 
 	// Praxis requested attributes (intended for libraries)
 

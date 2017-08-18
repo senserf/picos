@@ -105,16 +105,6 @@
 
 // ============================================================================
 
-#define net_opt(a,b)	(  ((PicOSNode*)TheStation)->_na_net_opt (a,b)  )
-#define net_qera(a)	(  ((PicOSNode*)TheStation)->_na_net_qera (a)  )
-#define net_qsize(a)	(  ((PicOSNode*)TheStation)->_na_net_qsize (a) )
-#define net_init(a,b)	(  ((PicOSNode*)TheStation)->_na_net_init (a,b)  )
-#define net_rx(a,b,c,d)	(  ((PicOSNode*)TheStation)->_na_net_rx (a,b,c,d)  )
-#define net_tx(a,b,c,d)	(  ((PicOSNode*)TheStation)->_na_net_tx (a,b,c,d)  )
-#define net_close(a)	(  ((PicOSNode*)TheStation)->_na_net_close (a)  )
-
-// ============================================================================
-
 #define	getSpdCacheSize() \
 	(  ((PicOSNode*)TheStation)->_na_getSpdCacheSize ()  )
 #define	getDdCacheSize() \
@@ -195,19 +185,4 @@
 
 // ============================================================================
 
-#define	net_id			_dac (PicOSNode, net_id)
-#define	local_host		_dac (PicOSNode, local_host)
-#define	master_host		_dac (PicOSNode, master_host)
-#define	tarp_ctrl		_dac (PicOSNode, tarp_ctrl)
-#define tarp_pxopts		_dac (PicOSNode, tarp_pxopts)
-
-#define	tr_offset(a) 	(  ((PicOSNode*)TheStation)->_na_tr_offset (a)  )
-#define	msg_isBind(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isBind (a)  )
-#define	msg_isTrace(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isTrace (a)  )
-#define	msg_isMaster(a)	(  ((PicOSNode*)TheStation)->_na_msg_isMaster (a)  )
-#define	msg_isNew(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isNew (a)  )
-#define	msg_isClear(a) 	(  ((PicOSNode*)TheStation)->_na_msg_isClear (a)  )
-#define	set_master_chg() \
-			(  ((PicOSNode*)TheStation)->_na_set_master_chg ()  )
-#define guide_rtr(a)	(  ((PicOSNode*)TheStation)->_na_guide_rtr (a)  )
 #endif

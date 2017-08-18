@@ -417,9 +417,6 @@ void PicOSNode::reset () {
 		pwr_tracker->rst ();
 
 	initParams ();
-
-#include "lib_attributes_init.h"
-
 }
 
 void PicOSNode::initParams () {
@@ -711,9 +708,6 @@ void PicOSNode::setup (data_no_t *nd) {
 
 	Halted = NO;
 	init ();
-
-#include "lib_attributes_init.h"
-
 }
 
 address PicOSNode::memAlloc (int size, word lsize) {
@@ -5758,8 +5752,6 @@ void check_pptable () {
 identify (VUEE VUEE_VERSION);
 
 #include "lcdg_n6100p.cc"
-
-#include "lib_modules.h"
 
 #include "stdattr_undef.h"
 

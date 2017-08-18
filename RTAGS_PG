@@ -1344,3 +1344,7 @@ PG170413A:
 PG170812A:
 
     Fixed udaemon to prevent attempts to move non-movable nodes.
+
+PG170818A:	PICOS >= PG170818A
+
+    See PG170818A in PICOS.

@@ -34,11 +34,18 @@ rm -f tcvplug.h
 rm -f rfleds.h
 rm -f ualeds.h
 rm -f lcdg_n6100p.cc
+#################################
+rm -f encrypt.h
+rm -f encrypt.cc
+rm -f checksum.cc
+##################################################################
+# old links, delete everything past this line a while after 170818
+##################################################################
+rm -f lcdg_n6100p.cc
 rm -f plug_null.h
 rm -f plug_null.cc
 rm -f plug_null_node_data.h
 rm -f plug_null_node_data_init.h
-#################################
 rm -f msg_tarp.h
 rm -f net.cc
 rm -f net_node_data.h
@@ -52,11 +59,6 @@ rm -f tarp.h
 rm -f tarp_hooks.h
 rm -f tarp_node_data.h
 rm -f tarp_node_data_init.h
-
-rm -f encrypt.h
-rm -f encrypt.cc
-rm -f checksum.cc
-
 rm -f ab_data.h
 rm -f ab.cc
 rm -f abb.cc
@@ -65,12 +67,10 @@ rm -f ab_params.h
 rm -f ab_modes.h
 rm -f ab.h
 rm -f abb.h
-
 rm -f plug_boss.h
 rm -f plug_boss.cc
 rm -f plug_boss_node_data.h
 rm -f plug_boss_node_data_init.h
-
 rm -f oep.cc
 rm -f oep.h
 rm -f oep_node_data.h
@@ -82,10 +82,8 @@ rm -f oep_ee_node_data.h
 rm -f oep_ee_node_data_init.h
 rm -f oep_ee.cc
 rm -f oep_ee.h
-
 rm -f ee_ol.cc
 rm -f ee_ol.h
-
 rm -f lcdg_dispman.cc
 rm -f lcdg_dispman.h
 rm -f lcdg_dispman_node_data.h
