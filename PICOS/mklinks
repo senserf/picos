@@ -4,7 +4,7 @@ ln -s ../../PICOS/PicOS/PLibs/Sensors/bmp085.h bmp085.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/bma250.h bma250.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/as3932.h as3932.h
 ln -s ../../PICOS/PicOS/modsyms.h modsyms.h
-ln -s ../../PICOS/PicOS/dbgtrc.h dbgtrc.h
+ln -s ../../PICOS/PicOS/PLibs/Misc/dbgtrc.h dbgtrc.h
 ln -s ../../PICOS/PicOS/PLibs/VnetI/tcv.c tcv.cc
 ln -s ../../PICOS/PicOS/PLibs/VnetI/tcv.h .
 ln -s ../../PICOS/PicOS/PLibs/VnetI/tcv_defs.h .
