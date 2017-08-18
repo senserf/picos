@@ -18,7 +18,7 @@ set Version 0.33
 ## Directory names to be ignored in the project's directory:
 ## strict names, patterns (case ignored)
 set IGDirs {
-	{ "CVS" "VUEE_TMP" }
+	{ "VUEE_TMP" }
 	{ "^ktmp" "junk" "attic" "ossi" "\\~\\$" }
 }
 
@@ -3490,21 +3490,27 @@ proc mkdlist { } {
 	set app $CWD
 
 	mkdrec $app
-	set DirList [lsort [array names MKRECV]]
+	set la [lsort [array names MKRECV]]
 	array unset MKRECV
 
-	# AppLib (if present)
+	set app [file normalize [file join $PICOSPATH "PicOS" "VLibs"]]
+	mkdrec $app
+	set lb [lsort [array names MKRECV]]
+	array unset MKRECV
+
 	set app [file normalize [file join $PICOSPATH "Apps" "AppLib"]]
 	mkdrec $app
+	set lc [lsort [array names MKRECV]]
+	array unset MKRECV
 
-	set DirList [concat $DirList [lsort [array names MKRECV]]]
+	set DirList [concat $la $lb $lc]
 	array unset MKRECV
 
 	set vuee [finddir "VUEE" "PICOS"]
 	set side [finddir "SIDE" "Examples/IncLib"]
 
 	# check if the VUEE directory looks sane
-	foreach fn { "board.cc" "tarp.h" "pins.h" } {
+	foreach fn { "board.cc" "tcv.h" "pins.h" } {
 		set fn [file join $vuee $fn]
 		if ![file isfile $fn] {
 			errab "directory $vuee does not look complete; perhaps\
@@ -3529,11 +3535,11 @@ proc mkdlist { } {
 	catch { close $fd }
 
 	# trim it down
-	if [regexp -line -indices "^//->" $sl ix] {
+	if [regexp -nocase -line -indices "^//->\[ \t\]*b" $sl ix] {
 		set sl [string range $sl [lindex $ix 0] end]
 	}
 
-	if [regexp -line -indices "^#ifndef\[ \t\]+__SMURPH__" $sl ix] {
+	if [regexp -nocase -line -indices "^//->\[ \t\]*e" $sl ix] {
 		set sl [string range $sl 0 [expr [lindex $ix 0] - 1]]
 	}
 
@@ -3563,9 +3569,6 @@ proc mkdlist { } {
 			}
 			lappend MODSYMS [list $sy $rd]
 			continue
-		}
-		if [regexp "//->\[ \t\]*(\[^ \t\]+)" $ln jk sy] {
-			lappend MODSYMS $sy 0
 		}
 	}
 
@@ -3635,6 +3638,15 @@ proc verify_externals { } {
 			xerror \
 			    "external symbol [lindex $ex 1] is never defined" \
 				[lindex $ex 2]
+		}
+	}
+
+	foreach ex $PG($Pgm,ET) {
+
+		if { [lsearch -exact $PG($Pgm,CN) [lindex $ex 0]] < 0 } {
+			xerror \
+			    "external trueconst symbol [lindex $ex 1]\
+			      is never defined" [lindex $ex 2]
 		}
 	}
 }
@@ -3819,7 +3831,7 @@ proc parse_vuee { } {
 #
 # Compile all programs in current directory into VUEE
 #
-	global DirList Pgm PgmList VMList CWD TDIR SFList FG EXEC ErrCnt HF
+	global Pgm PgmList VMList CWD TDIR SFList FG EXEC ErrCnt HF
 
 	# find the requisite executables
 	foreach p { "vuee" "vue2" "vue" } {
@@ -4174,8 +4186,7 @@ proc compile_pgm { } {
 
 		set exp [scanfile $cfn 1 $pre]
 
-		# search for defined symbols in the form VUEE_LIB_... which
-		# determine the configuration of optional VUEE modules
+		# modsyms defines
 
 		foreach vm $MODSYMS {
 			lassign $vm sym red
@@ -4266,6 +4277,10 @@ proc compile_pgm { } {
 	set PG($pg,TD) ""
 	# type name list (to prevent duplicates)
 	set PG($pg,TN) ""
+	# trueconst names (for easy detection of duplicates_
+	set PG($pg,CN) ""
+	# external trueconst list (for detecting the unsatisifed ones)
+	set PG($pg,ET) ""
 
 	set cnt 0
 	foreach cfn $SFList {
@@ -5606,13 +5621,60 @@ K {
       # trueconst #############################################################
       #########################################################################
       if { $ins == "trueconst" } {
-	# this is left alone, with truconst replaced by const
 	if { [lsearch -exact $pfx "const"] >= 0 } {
 	  xerror "trueconst and const cannot be mixed"
 	  continue
 	}
-	s_vdl d pfx $pfx
-	putS [outdecl $d]
+	set ext [lsearch -exact $pfx "extern"]
+	# the list of variables
+	set vrs [g_vdl $d vrs]
+	set lnu [g_vdl $d lnu]
+	# substitute variable list
+	set wrs ""
+	set ins ""
+	foreach v $vrs {
+	  set vnm [g_vdec $v nam]
+	  if { $Pgm != "" } {
+	    # mangle: trueconsts in different programs should be different
+	    set nnm "__vtrc[pnfx]_$vnm"
+	    append ins "#ifndef $vnm\n#define $vnm $nnm\n#endif\n"
+	    # re-build the declaration using mangled names
+	    set w $v
+	    s_vdec w nam $nnm
+	    lappend wrs $w
+	  } else {
+	    set nnm $vnm
+	  }
+	  if { $ext < 0 } {
+	    # an actual definition
+	    if { [lsearch -exact $PG($Pgm,CN) $nnm] >= 0 } {
+	      xerror "duplicate trueconst declaration $vnm"
+	      continue
+	    }
+	    lappend PG($Pgm,CN) $nnm
+	  } else {
+	    # extern
+	    lappend_unique PG($Pgm,ET) [list $nnm $vnm $lnu]
+	  }
+	}
+	if { $Pgm != "" } {
+	  # a copy of the declration with mangled names
+	  set e ""
+	  s_vdl e typ [g_vdl $d typ]
+	  s_vdl e lnu [g_vdl $d lnu]
+	  s_vdl e vrs $wrs
+	  if $FG(D) {
+	    dbg "mangled_trueconst:"
+	    o_dump $e vdl
+	  }
+	} else {
+	  set e $d
+	}
+	s_vdl e pfx $pfx
+	putS [outdecl $e]
+	if { $ins != "" } {
+	  putS $ins
+	}
 	catchup
 	continue
       }

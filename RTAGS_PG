@@ -5216,3 +5216,75 @@ PG170812A:
 	under picomp (i.e., PIP). I don't want to have a single serious praxis
 	left that must be compiled in the legacy mode.
 	
+PG170818A:	5  4	VUEE >= PG170818A, PIP >= PG170818A
+
+	Lots! I have completely reorganized the source tree. Most of the
+	CPU-architecture-independent system stuff has been put into subdirs
+	PicOS/PLibs and PicOS/VLibs which are partitioned into further
+	subdirectories. This is described (a bit) in [picos] and [mkmk].
+	The simple idea is that VLibs contains the stuff that can be handled
+	(compiled) by picomp and is thus directly (without any obscure tweaks
+	that we have been using until today) usable by VUEE models.
+
+	I have transformed TARP (LibComms) (and other stuff) to be picomp-
+	compliant. Haven't tested it too thoroughly, of course, but there is no
+	reason to expect problems, because it all has been almost completely
+	mechanical.
+
+	Two implications:
+
+	1. The so-called legacy praxes won't compile. As a matter of fact they
+	   couldn't compile (without tweaks) for some time (after I added the
+	   CC1350 CPU as an architecture option). This is OK. The amount of
+	   effort needed to convert a legacy praxis to the compliant format is
+	   small. I have converted YEP (the only serious legacy praxis that I
+	   could spot) in a few minutes.
+
+	2. As all plugins (and some other stuff) now compile under picomp, the
+	   different programs of the same praxis receive their own versions of
+	   those things (and they can be parameterized differently). The last
+	   item that remains to be fixed in this direction is TCV (VNETI). I
+	   may do something about this later.
+
+	Note that this inflates a bit the code of the VUEE model (and increases
+	the compilation time), but this is negligible.
+
+	So from now all new hardware-independent modules can (and should) be
+	programmed in a picomp-compliant fashion. Well, hardware-dependent
+	modules can, too. When you use .cc as the program file suffix, its
+	compilation will be handled by picomp. But only those modules that
+	are stored inside VLibs will be available to VUEE (when compiling for
+	VUEE, picomp looks there for any unresolved stuff referenced from the
+	application). Thus, if you want to make a piece of PicOS code available
+	to VUEE: 1) make it picomp-compliant, 2) move it somewhere under VLibs.
+
+	There have been a few (rather minor) changes related to the above. For
+	example, the interpretation of trueconst has been upgraded in such a
+	way that trueconsts with the same name declared by different programs
+	of the same praxis do not interfere.
+
+	The reorganization should not affect praxes that were compliant before
+	this update. Occasionally there may be a trivially fixable error caused
+	by a missing include (say for net.h) which previously went undetected,
+	because net.h was included from other headers that had been tweaked to
+	accommodate the manual hooks needed by VUEE to handle legacy code. I
+	have corrected these little problems in locaspot, for example.
+
+	TARP's virtual functions need not be declared as idiosyncratic any more
+	(because they need not be virtual in the VUEE model [previously they
+	had to, because there was a single global instance of the TARP model]).
+	Whether they are idiosyncratic or not will follow from the -i option of
+	picomp, as for other non-static functions.
+
+	Documentation has been updated as far as I've been able to locate the
+	places to update.
+
+	I have fixed params.sys in board definitions to reference proper files
+	(with the proper extension .cc, wherever changed). Note that the files
+	moved to VLibs have their extensions changed from .c to .cc (so picomp
+	can claim them). Note that the picomp-compliance of (some) system files
+	is compatible with library mode builds, i.e., the object variants of
+	such files can be put in board libraries.
+
+	Module reference constants for VUEE, like VUEE_LIB_PLUG_NULL have been
+	eliminated (I think I have removed them completely).

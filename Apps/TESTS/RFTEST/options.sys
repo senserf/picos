@@ -1,4 +1,3 @@
-#define VUEE_LIB_PLUG_NULL
 #define	VUEE_RESYNC_INTERVAL	100
 
 // #define	TLDEBUG

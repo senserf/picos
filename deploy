@@ -492,10 +492,10 @@ proc linux_nullmodem { } {
 	catch { cd $CWD }
 	return ""
 }
-		
+
 proc doit { } {
 
-	global CWD PLIST BIN BINW HOME TCL85 ST REL argv
+	global CWD PLIST BIN BINW HOME TCL85 ST PVER REL argv
 
 	anchor
 
@@ -586,8 +586,21 @@ proc doit { } {
 
 	#######################################################################
 
-	set pp "#!/bin/sh\nif \[ \"x\$1\" = \"x\" \]; then\n"
-	append pp "\techo $CWD\nelse\n\techo $argv\nfi"
+	if ![info exists PVER] {
+		set pv "0.0"
+	} else {
+		set pv $PVER
+	}
+
+	if ![info exists REL(PICOS)] {
+		set rl "ZZ000000A"
+	} else {
+		set rl $REL(PICOS)
+	}
+
+	set pp "#!/bin/sh\nif \[ \"x\$1\" = \"x\" \]; then\n\techo $CWD\n"
+	append pp "elif \[ \"x\$1\" = \"x-v\" \]; then\n\techo \"$pv $rl\"\n"
+	append pp "else\n\techo $argv\nfi"
 
 	catch {
 		set fd [open "picospath" "w"]

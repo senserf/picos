@@ -58,14 +58,8 @@
 // only defined, not set. These symbols represent optional modules.
 
 // ============================================================================
-
-//->VUEE_LIB_PLUG_NULL
-//->VUEE_LIB_PLUG_TARP
-//->VUEE_LIB_PLUG_BOSS
-//->VUEE_LIB_XRS
-//->VUEE_LIB_OEP
-//->VUEE_LIB_LCDG
-//->VUEE_LIB_OL
+//-> BEGINNING OF PART INTERPRETED BY PICOMP
+// ============================================================================
 
 // Here is the convention for marking MODSYMS symbols in comments:
 //
@@ -183,49 +177,55 @@
 // TARP
 // ============================================================================
 
+//
+// All values can be overwritten, the overwritten value only gets into the
+// root glue file in the VUEE model (__vuee_root.cc), where it is basically
+// irrelevant, because now each program gets its private copy of TARP with
+// the private version of the value
+//
 #ifndef	TARP_CACHES_MALLOCED
-#define	TARP_CACHES_MALLOCED	0
+#define	TARP_CACHES_MALLOCED	0	// ++
 #endif
 
 #ifndef	TARP_CACHES_TEST
-#define	TARP_CACHES_TEST	0
+#define	TARP_CACHES_TEST	0	// ++
 #endif
 
 #ifndef	TARP_DDCACHESIZE
-#define	TARP_DDCACHESIZE	20
+#define	TARP_DDCACHESIZE	20	// ++
 #endif
 
 #ifndef	TARP_SPDCACHESIZE
-#define	TARP_SPDCACHESIZE	20
+#define	TARP_SPDCACHESIZE	20	// ++
 #endif
 
 #ifndef	TARP_RTRCACHESIZE
-#define	TARP_RTRCACHESIZE	10
+#define	TARP_RTRCACHESIZE	10	// ++
 #endif
 
 #ifndef	TARP_MAXHOPS
-#define	TARP_MAXHOPS		10
+#define	TARP_MAXHOPS		10	// ++
 #endif
 
 #ifndef	TARP_RTR
-#define	TARP_RTR		0
+#define	TARP_RTR		0	// ++
 #endif
 
 #ifndef	TARP_RTR_TOUT
-#define	TARP_RTR_TOUT		1024
+#define	TARP_RTR_TOUT		1024	// ++
 #endif
 
 #ifndef	TARP_DEF_RSSITH
-#define	TARP_DEF_RSSITH		100
+#define	TARP_DEF_RSSITH		100	// ++
 #endif
 
 #ifndef	TARP_DEF_PXOPTS
-#define	TARP_DEF_PXOPTS		0x7000
+#define	TARP_DEF_PXOPTS		0x7000	// ++
 #endif
 
 #ifndef	TARP_DEF_PARAMS
 // 				lvrrrwssf
-#define	TARP_DEF_PARAMS		0xA3
+#define	TARP_DEF_PARAMS		0xA3	// ++
 #endif
 
 // ============================================================================
@@ -238,9 +238,9 @@
 #define	dbg_level		0		// +
 #endif
 
-/* ======================================================================== */
-/* End of the part parsed by picomp                                         */
-/* ======================================================================== */
+// ============================================================================
+//-> END OF PART INTERPRETED BY PICOMP
+// ============================================================================
 
 #ifndef	__SMURPH__
 

@@ -1,3 +1,2 @@
-#define VUEE_LIB_PLUG_NULL
 #define RADIO_OPTIONS	0x100
 #define	UART_RATE	115200

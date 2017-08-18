@@ -780,7 +780,7 @@ proc locate_root { } {
 #
 # Locate the root directory of the package
 #
-	global SDirs
+	global SDirs PVer
 
 	if [catch { xq picospath } root] {
 		errab "Cannot find PICOS root; has the package been properly\
@@ -788,68 +788,26 @@ proc locate_root { } {
 	}
 
 	set SDirs(root) [fpath $root]
+
+	if [catch { xq picospath -v } PVer] {
+		errab "Cannot get PICOS version; has the package been properly\
+			installed?"
+	}
+
+	set PVer [string trim $PVer]
 }
 
 proc do_rtags { } {
 #
 # Read RTAGS looking for the current version numbers
 #
-	global CCDefs SDirs
+	global CCDefs PVer
 
-	# patterns for locating release/version tags
-	set rt "X000000A"
-	set maj 0
-	set min 0
-	set ptg "(\[0-9A-Z\]+):"
-	set pve "\[0-9A-Z\]+:\[ \t\]*(\[0-9\]+)\[ \t\]+(\[0-9\]+)"
-
-	set fl [exec ls $SDirs(root)]
-
-	foreach f $fl {
-
-		if ![regexp "^RTAGS" $f] {
-			continue
-		}
-
-		if [catch { open [file join $SDirs(root) $f] "r" } fd] {
-			errab "Cannot open $f: $fd"
-		}
-
-		if [catch { read $fd } rtf] {
-			errab "Cannot read $f: $rtf"
-		}
-
-		catch { close $fd }
-
-		# the last RTAG
-		if { ![regexp -nocase ".*\n$ptg" $rtf fd rtag] &&
-		     ![regexp -nocase "^$ptg" $rtf fd rtag] } {
-			continue
-		}
-		set cmp [cmp_tags $rt $rtag]
-		if { $cmp == "" } {
-			errab "Illegal tag '$rtag' in $f"
-		} elseif { $cmp < 0 } {
-			set rt $rtag
-		}
-
-		# look for version
-
-		if { ![regexp -nocase ".*\n$pve" $rtf fd ma mi] &&
-		     ![regexp -nocase "^$pve" $rtf fd ma mi] } {
-			continue
-		}
-
-		if { [catch { expr $ma } mar] || [catch { expr $mi } mir] } {
-			errab "Illegal version numbers '$ma $mi' in $f"
-		}
-
-		if { $ma > $maj || ( $ma == $maj && $mi > $min ) } {
-			set maj $ma
-			set min $mi
-		}
+	if ![regexp {([[:digit:]]+)\.([[:digit:]]+) +([^[:space:]]+)} $PVer \
+	    jnk maj min rt] {
+		errab "Illegal PICOS version string from picospath: $PVer"
 	}
-		
+
 	puts "PicOS version ${maj}.${min}, release $rt"
 
 	# defines for the system version
@@ -1153,7 +1111,9 @@ proc build_directory_list { } {
 			"PicOS/%arch%/BOARDS/%board%"
 			"PicOS/kernel"
 			"PicOS"
-			"PicOS/Libs/*"
+			"PicOS/PLibs/*"
+			"PicOS/VLibs/*"
+			"Apps/AppLib/*"
 	}
 
 	# if creating a library, ignore all local files, i.e., only look at
@@ -1164,7 +1124,6 @@ proc build_directory_list { } {
 	if { $Run(type) != "L" } {
 		lappend roots "."
 		lappend roots "./*"
-		lappend roots "Apps/AppLib/*"
 	}
 
 	# subdirectories of the praxis directory

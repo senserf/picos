@@ -1,2 +1,2 @@
 -c msp430f148
--l main.c kernel.c tcv.c phys_cc1100.c storage_m95xxx.c tarp.c plug_null.c plug_tarp.c encrypt.c net.c
+-l main.c kernel.c tcv.c phys_cc1100.c storage_m95xxx.c tarp.cc plug_null.cc plug_tarp.cc encrypt.c net.c

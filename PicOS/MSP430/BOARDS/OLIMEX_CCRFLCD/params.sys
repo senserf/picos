@@ -1,2 +1,2 @@
 -c cc430f5137
--l main.c sysio.h plug_tarp.c tarp.c net.c phys_cc1100.c ser_in.c ser_out.c ser_inf.c ser_outf.c form.c pin_read.c ser.h serf.h plug_null.c plug_tarp.c ser_outb.c rtc_cc430.c lcd_ccrf.h lcd_ccrf.c
+-l main.c plug_tarp.cc tarp.cc net.cc phys_cc1100.c ser_in.c ser_out.c ser_inf.c ser_outf.c form.c pin_read.c plug_null.cc ser_outb.c rtc_cc430.c lcd_ccrf.c

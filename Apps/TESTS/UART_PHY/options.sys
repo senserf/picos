@@ -16,6 +16,4 @@
 #define	uart_b_xmitter_off_delay	1
 #endif
 
-#define	VUEE_LIB_PLUG_NULL
-
 #define	BT_MODULE_LINKMATIK
