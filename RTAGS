@@ -892,3 +892,8 @@ PG170720A:	PICOS >= PG170720A
 
 	Removed the restriction that a praxis directory must be located under
 	Apps.
+
+PG170818A:	PICOS >= PG170818A
+
+	Fixed the recognition of "library-only" installation in accordance with
+	the reorganization of PICOS directory structure.

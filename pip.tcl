@@ -11769,7 +11769,8 @@ proc initialize { } {
 		errab "no architectures in this PicOS installation"
 	}
 
-	if ![file isfile [file join $PicOSPath "PicOS" "tcv.c"]] {
+	if ![file isfile \
+	    [file join $PicOSPath "PicOS" "PLibs" "VNetI" "tcv.c"]] {
 		# a simple test for sources present
 		log "Library-only installation"
 		set ST(LO) 1
