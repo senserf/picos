@@ -92,7 +92,7 @@ extern byte tmp007_status;
 
 void tmp007_on (word, word);		// Mode, enable
 void tmp007_off ();
-void tmp007_setlimits (sint, sint, sint, sint);	// OH, OL, LH, LL
+void tmp007_setlimits (wint, wint, wint, wint);	// OH, OL, LH, LL
 word tmp007_rreg (byte);
 void tmp007_wreg (byte, word);
 

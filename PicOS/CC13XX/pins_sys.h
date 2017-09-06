@@ -167,5 +167,12 @@ void __pinlist_setirq (int);
 #endif
 
 // ============================================================================
+// To switch the I2C bus, the arguments are two pin numbers
+// ============================================================================
+
+#if I2C_INTERFACE > 1
+// A pair of pins (sda << 8) | scl
+void __select_i2c_bus (word);
+#endif
 
 #endif

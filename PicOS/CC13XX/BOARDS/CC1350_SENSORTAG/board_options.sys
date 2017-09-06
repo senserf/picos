@@ -20,7 +20,7 @@
 #define UART_RATE		9600
 #define	UART_RATE_SETTABLE	1
 
-#define	I2C_INTERFACE		1
+#define	I2C_INTERFACE		2	/* 2 means multiple busses */
 #define	I2C_RATE		1
 
 // The radio

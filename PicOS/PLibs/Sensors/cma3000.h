@@ -5,6 +5,8 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+#ifndef	__SMURPH__
+
 #include "cma3000_sys.h"
 //+++ "cma3000.c"
 
@@ -23,5 +25,14 @@ void cma3000_on (byte md, byte th, byte tm);
 //
 
 void cma3000_on_auto ();
+
+#else
+
+#define	cma3000_reg(a)		0
+#define	cma3000_off()		emul (9, "CMA3000_OFF")
+#define	cma3000_on(a,b,c)	emul (9, "CMA3000_ON: %1d %1d %1d", a, b, c)
+#define	cma3000_on_auto()	emul (9, "CMA3000_ON_AUTO")
+
+#endif
 
 #endif

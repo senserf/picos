@@ -2901,10 +2901,12 @@ K {
 			truncate $run_mark
 
 			# this goes out right away
-			putS "__pi_fork_join_release ($fsm_name, (aword)("
+			putS "do { if (__pi_join (__pi_fork ($fsm_sname,\
+				(aword)("
 			# this gets pushed back to input to be reparsed
-			set ins "$dat), $sta)"
-			pushback $ins
+			set ins "$dat)), $sta)) __pi_release (); } while (0)"
+			# don't forget about the extra brace
+			pushback $ins 1
 			continue
 		}
 

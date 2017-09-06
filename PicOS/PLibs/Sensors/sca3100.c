@@ -128,16 +128,16 @@ void sca3100_off () {
 
 void sca3100_read (word st, const byte *junk, address val) {
 
-	sint *p;
+	wint *p;
 	sint i;
 
-	p = (sint*) val;
+	p = (wint*) val;
 
 	// Ignore temp for now
 	for (i = 0; i < 6; i += 2) {
 		sclear ();
 		*p =
-		 (sint)(((word) (rreg (aregs [i])) << 8) | rreg (aregs [i+1]));
+		 (wint)(((word) (rreg (aregs [i])) << 8) | rreg (aregs [i+1]));
 		p++;
 	}
 }

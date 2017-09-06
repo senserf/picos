@@ -389,15 +389,19 @@ void __pi_ptrigger (aword pid, aword event) {
 	} 
 }
 
-void __pi_fork_join_release (fsmcode func, aword data, word st) {
+aword __pi_join (aword pid, word st) {
 
-	aword pid;
+	__pi_pcb_t	*i;
 
-	if ((pid = __pi_fork (func, data)) == 0)
-		return;
+	for_all_tasks (i) {
+		if ((aword)i == pid) {
+			// Found
+			__pi_wait (pid, st);
+			return pid;
+		}
+	}
 
-	__pi_wait (pid, st);
-	release;
+	return 0;
 }
 
 /* ========== */

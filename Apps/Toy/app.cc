@@ -77,7 +77,7 @@ fsm root {
 
   entry RS_SHOW:
 
-	call (output, (char*)"\r\n"
+	call output ((char*)"\r\n"
 		"Welcome to PicOS!\r\n"
 		"Commands:\r\n"
 		" 'f %d %u %x %c %s %ld %lu %lx' (format test)\r\n"
@@ -90,7 +90,7 @@ fsm root {
 
   entry RS_READ:
 
-	call (input, ibuf, RS_CMND);
+	call input (ibuf, RS_CMND);
 
   entry RS_CMND:
 
@@ -103,7 +103,7 @@ fsm root {
 	 	case 'h' : halt ();
 	}
 
-	call (output, (char*) "Illegal command or parameter\r\n", RS_SHOW);
+	call output ((char*) "Illegal command or parameter\r\n", RS_SHOW);
 
   entry RS_FORMAT:
 
@@ -125,7 +125,7 @@ fsm root {
 	    form (ibuf, "%d ** %d, %u, %x, %c, %s, %ld, %lu, %lx **\r\n", q,
 				vi, vu, vx, vc, vs, vli, vlu, vlx);
 
-	    call (output, ibuf, RS_READ);
+	    call output (ibuf, RS_READ);
 	}
 
   entry RS_SHOWMEM:
@@ -133,7 +133,7 @@ fsm root {
         form (ibuf, "Stack %u wds, static data %u wds, heap %u wds\r\n",
 		stackfree (), staticsize (), memfree (0, 0));
 
-	call (output, ibuf, RS_READ);
+	call output (ibuf, RS_READ);
 
   entry RS_DELAY:
 
@@ -171,5 +171,5 @@ fsm root {
 
   entry RS_DUP:
 
-	call (output, (char*) "done\r\n", RS_READ);
+	call output ((char*) "done\r\n", RS_READ);
 }

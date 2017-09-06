@@ -1,6 +1,7 @@
 <compile>
 	<vuee>
 		<define>__TYPE_SINT__=int32_t</define>
+		<define>__TYPE_WINT__=int16_t</define>
 		<define>__TYPE_LINT__=int32_t</define>
 		<define>__TYPE_AWORD__=uint32_t</define>
 		<define>SIZE_OF_AWORD=4</define>

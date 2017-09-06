@@ -13,6 +13,7 @@
 typedef unsigned char	Boolean;
 typedef	unsigned int	word;		// 16-bit
 typedef	int		sint;		// Machine's standard integer (VUEE)
+typedef	int		wint;		// Word-sized integer
 typedef	long int	lint;		// Machine's standard long integer
 typedef	unsigned char	byte;		// 8-bit
 typedef	unsigned long	lword;		// 32-bit

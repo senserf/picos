@@ -445,6 +445,74 @@ static void preinit_i2c () {
 	reinit_i2c ();
 }
 
+#if	I2C_INTERFACE > 1
+
+// ============================================================================
+// Provide for multiple busses
+// ============================================================================
+
+static void shutdown_i2c () {
+//
+// Stop I2C powerwise; without it we cannot switch the pin set; at least, the
+// switch doesn't seem to work
+//
+	PRCMPeripheralRunDisable (PRCM_PERIPH_I2C0);
+#if 1
+	// Not sure if we need these, because we are not using I2C interrupts,
+	// at least not yet
+	PRCMPeripheralSleepDisable (PRCM_PERIPH_I2C0);
+	PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_I2C0);
+#endif
+	PRCMLoadSet ();
+}
+
+// ============================================================================
+
+static	word i2c_pins = WNONE;
+
+#define	I2C_PIN_CONFIG	(	IOC_IOMODE_OPEN_DRAIN_NORMAL	| \
+				IOC_NO_WAKE_UP			| \
+				IOC_NO_EDGE             		| \
+				IOC_INT_DISABLE         		| \
+				IOC_NO_IOPULL           		| \
+				IOC_INPUT_ENABLE        		| \
+				IOC_HYST_DISABLE        		| \
+				IOC_SLEW_DISABLE        		| \
+				IOC_CURRENT_2MA         		| \
+				IOC_STRENGTH_AUTO)
+
+// ============================================================================
+
+void __select_i2c_bus (word pns) {
+
+	if (pns == i2c_pins)
+		// Already OK, do nothing
+		return;
+
+	if (i2c_pins != WNONE) {
+		// Undo the previous pins
+		HWREG (IOC_BASE + ((i2c_pins >> 6) & 0xfc)) = I2C_PIN_CONFIG |
+			IOC_PORT_GPIO;
+		HWREG (IOC_BASE + ((i2c_pins << 2) & 0xfc)) = I2C_PIN_CONFIG |
+			IOC_PORT_GPIO;
+		shutdown_i2c ();
+	}
+		
+	// Redefine the pins and store them for subsequent reference
+	HWREG (IOC_BASE + ((pns >> 6) & 0xfc)) = I2C_PIN_CONFIG |
+		IOC_PORT_MCU_I2C_MSSDA;
+	HWREG (IOC_BASE + ((pns << 2) & 0xfc)) = I2C_PIN_CONFIG |
+		IOC_PORT_MCU_I2C_MSSCL;
+
+	i2c_pins = pns;
+
+	preinit_i2c ();
+}
+
+#endif	/* I2C_INTERFACE > 1 (multiple busses) */
+
+// ============================================================================
+
 static lword i2c_wait () {
 
 	lword st;
@@ -906,7 +974,7 @@ void system_init () {
 	preinit_uart ();
 #endif
 
-#if	I2C_INTERFACE
+#if	I2C_INTERFACE == 1
 	preinit_i2c ();
 #endif
 
@@ -1118,7 +1186,12 @@ DeepSleep:
 #endif
 
 #if	I2C_INTERFACE
+#if	I2C_INTERFACE == 1
 			reinit_i2c ();
+#else
+			// Force reinit on first I/O
+			i2c_pins = WNONE;
+#endif
 #endif
 			// ... other domains (we don't do it with RF on)
 			return;

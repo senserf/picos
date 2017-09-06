@@ -13,16 +13,23 @@
 	    <sensors>
 		<input source="socket"></input>
 		<output target="socket"></output>
-		<sensor number="0" vsize="2" delay="0.01" init="6000">
-			14000
+		<sensor number="-2" vsize="2" delay="0.01" init="4555">
+			9000
 		</sensor>
-		<sensor number="1" vsize="2" delay="0.01" init="1500">
+		<sensor number="-1" vsize="2" delay="0.01" init="2096">
 			3300
+		</sensor>
+		<sensor number="0" vsize="2" delay="0.01" init="0x0000">
+		</sensor>
+		<sensor number="1" vsize="4" delay="0.01" init="0xaaaabbbb">
+		</sensor>
+		<sensor number="2" vsize="4" delay="0.01" init="0xeeeeeeee">
 		</sensor>
 	    </sensors>
 	</defaults>
 	<node number="0">
 	    <location>1.0 4.0</location>
+	    <emul><output target="socket"></output></emul>
 	</node>
     </nodes>
 </network>

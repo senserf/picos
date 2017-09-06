@@ -36,6 +36,7 @@
 typedef uint8_t		Boolean;
 typedef	uint16_t	word;		// 16-bit
 typedef	int32_t		sint;		// Machine's standard integer
+typedef	int16_t		wint;		// Short int
 typedef	int32_t		lint;		// Machine's standard long integer
 typedef	uint8_t		byte;		// 8-bit
 typedef	uint32_t	lword;		// 32-bit

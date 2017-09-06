@@ -10,20 +10,29 @@
 #include "board_pins.h"
 #endif
 
-#ifdef	cma3000_enable
+// These constants are expected to be defined in board_pins.h (at least for
+// this test) and refer to the specific sensor numbers as assigned to the
+// sensor. This way we have the sensor type encoded into the constant for 
+// any specific kind of handling.
+
+#ifdef	SENSOR_CMA3000
 #include "cma3000.h"
-#define	CMA3000
 #endif
 
-#ifdef	sca3100_data
+#ifdef	SENSOR_SCA3100
 #include "sca3100.h"
-#define	SCA3100
 #endif
 
-#ifdef	tmp007_enable
+#ifdef	SENSOR_TMP007
 #include "tmp007.h"
-#define	TMP007
 #endif
+
+#ifdef	SENSOR_MPU9250
+#include "mpu9250.h"
+#endif
+
+// No actuator interface yet; should be easy to add when needed; in particular,
+// the DW1000 test should be reimplemented here
 
 #include "ser.h"
 #include "serf.h"
@@ -31,269 +40,534 @@
 
 #define	IBUFLEN		82
 #define	MAXVALLEN	16
+#define	MAX_SENSORS	16
 
-static word vl = 1;		// Sensor value length
-static word sen [MAXVALLEN];	// Sensor value
+// ============================================================================
 
-fsm outval {
+typedef struct {
+
+	sint sensor;		// Sensor ID (number), can be negative
+	word vlength;		// Value length in words
+	const char *name;	// Sensor name
+	word del, count;	// Reporting delay + remaining count
+	aword epid, vpid;	// Event thread + reporting thread
+	word value [0];		// The value itself
+
+} sensval_t;
+
+static sensval_t *sensors [MAX_SENSORS];
+static word n_sensors = 0;
+
+static Boolean streq (const char *a, const char *b) {
+
+	while (*a == *b) {
+		if (*a == '\0')
+			return YES;
+		*a++;
+		*b++;
+	}
+
+	return NO;
+}
+
+fsm outval (sensval_t *sen) {
 //
-// Write sensor value
+// Output sensor value
 //
 	word cnt;
 
 	state INIT:
 
-		if (vl == 1) {
-			ser_outf (INIT, "Value: %x [%u] <%d>\r\n",
-				sen [0], sen [0], sen [0]);
-			finish;
-		}
-
-		ser_outf (INIT, "========\r\n");
+		ser_outf (INIT, "=== Sensor %s\r\n", sen->name);
 		cnt = 0;
 
 	state NEXT:
 
-		if (cnt >= vl)
+		if (cnt == sen->vlength)
 			// Done
 			finish;
 
-		ser_outf (NEXT, "Value [%d] = %x [%u] <%d>\r\n", cnt,
-					sen [cnt], sen [cnt], sen [cnt]);
+		ser_outf (NEXT, "  [%d] = %x [%u] <%d>\r\n", cnt,
+			sen->value [cnt], sen->value [cnt], sen->value [cnt]);
 		cnt++;
 		sameas NEXT;
 }
 
+fsm svalues (sensval_t *sen) {
+
+	state SV_REPORT:
+
+		read_sensor (SV_REPORT, sen->sensor, sen->value);
+		call outval (sen, SV_DONE);
+
+	state SV_DONE:
+
+		if (sen->count <= 1) {
+			sen->vpid = 0;
+			finish;
+		}
+
+		sen->count--;
+
+		delay (sen->del, SV_REPORT);
+}
+
+
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
 
-fsm sevents (sint sn) {
+fsm sevents (sensval_t *sen) {
 
   state SE_WAIT:
 
-	wait_sensor (sn, SE_EVENT);
+	wait_sensor (sen->sensor, SE_EVENT);
 
   state SE_EVENT:
 
-	ser_outf (SE_EVENT, "Event on sensor %d\r\n", sn);
+	ser_outf (SE_EVENT, "Event on sensor %s (%d)\r\n", sen->name,
+		sen->sensor);
 
   state SE_READ:
 
-	read_sensor (SE_READ, sn, sen);
-	join (runfsm outval, SE_WAIT);
-	// delay (1024, SE_WAIT);
-	// sameas SE_WAIT;
+	read_sensor (SE_READ, sen->sensor, sen->value);
+	call outval (sen, SE_WAIT);
 }
 
 #endif
+
+// ============================================================================
+
+static void add_sensor (sint id, const char *name, word vl) {
+
+	sensval_t *p;
+
+	if (n_sensors == MAX_SENSORS) {
+		diag ("TOO MANY SENSORS!");
+		reset ();
+	}
+
+	p = (sensval_t*) umalloc (sizeof (sensval_t) + vl + vl);
+	if (p == NULL) {
+		diag ("MEMORY!");
+		reset ();
+	}
+
+	p->sensor = id;
+	p->name = name;
+	p->vlength = vl;
+	p->del = p->count = 0;
+	p->epid = p->vpid = 0;
+
+	bzero (p->value, vl + vl);
+
+	sensors [n_sensors++] = p;
+}
+
+void parse (char **c, char **t) {
+
+	char *cc = *c, *tt;
+
+	while (isspace (*cc)) cc++;
+
+	*c = tt = cc;
+
+	if (*cc == '\0') {
+		*t = cc;
+		return;
+	}
+
+	while (!isspace (*tt) && *tt != '\0') tt++;
+
+	if (*tt == '\0') {
+		*t = tt;
+		return;
+	}
+
+	*tt++ = '\0';
+
+	while (isspace (*tt)) tt++;
+
+	*t = tt;
+}
+
+sensval_t *find_sensor (const char *str) {
+
+	const char *cp;
+	wint sid;
+	word sn;
+
+	sid = -999;
+	scan (str, "%d", &sid);
+
+	cp = (sid == -999) ? str : NULL;
+
+	for (sn = 0; sn < n_sensors; sn++)
+		if (cp != NULL && streq (cp, sensors [sn]->name) ||
+		    cp == NULL && sensors [sn]->sensor == sid)
+			// found
+			break;
+	if (sn == n_sensors)
+		return NULL;
+
+	return sensors [sn];
+}
+
+// ============================================================================
 		
 fsm root {
 
-	char *ibuf;
-	sint v, a, b, c; word x, y, z;
+	char *ibuf, *curr, *tail;
+	word wa;
 
-  state RS_INIT:
+	state RS_INIT:
 
-	ibuf = (char*) umalloc (IBUFLEN);
-
-  state RS_BANNER:
-
-	ser_out (RS_BANNER,
-		"\r\nSensor Test\r\n"
-		"Commands:\r\n"
-#ifdef CMA3000
-		"C m t u   -> CMA3000 on, mo th tm\r\n"
-		"F         -> CMA3000 off\r\n"
+		// Create sensor descriptions
+#ifdef	SENSOR_TEMP
+		add_sensor (SENSOR_TEMP, "temp", 1);
 #endif
-#ifdef SCA3100
-		"C         -> SCA3100 on\r\n"
-		"F         -> SCA3100 off\r\n"
+#ifdef	SENSOR_VOLTAGE
+		add_sensor (SENSOR_VOLTAGE, "volt", 1);
 #endif
-#ifdef TMP007
-		"C m e     -> TMP007 on, mo en\r\n"
-		"F         -> TMP007 off\r\n"
-		"S h l h l -> TMP007 setlimits, oh ol lh ll\r\n"
-		"R r       -> TMP007 rreg, rn\r\n"
-		"W r v     -> TMP007 wreg, rn v\r\n"
+#ifdef	SENSOR_PIN
+		add_sensor (SENSOR_PIN, "pin", 1);
 #endif
-		"s n      -> set sensor value length (words)\r\n"
-		"r s      -> read value of sensor s\r\n"
-		"c s d    -> read value of sensor s continually at d int\r\n"
+#ifdef	SENSOR_CMA3000
+		add_sensor (SENSOR_CMA3000, "cma3000", 2);
+#endif
+#ifdef	SENSOR_SCA3100
+		add_sensor (SENSOR_SCA3100, "sca3100", 3);
+#endif
+#ifdef	SENSOR_TMP007
+		add_sensor (SENSOR_TMP007, "tmp007", 2);
+#endif
+#ifdef	SENSOR_MPU9250
+		add_sensor (SENSOR_MPU9250, "mpu9250", 10);
+#endif
+		// ... add more as needed
+
+		if ((ibuf = (char*) umalloc (IBUFLEN)) == NULL) {
+			diag ("MEMORY!");
+			reset ();
+		}
+
+	state RS_BANNER:
+
+		ser_out (RS_BANNER,
+			"\r\nSensor Test\r\n"
+		// Sensors that need explicit commands to start/stop
+#ifdef SENSOR_CMA3000
+	"cma3000 [on mo th tm | off]\r\n"
+#endif
+#ifdef SENSOR_SCA3100
+	"sca3100 [on | off]\r\n"
+#endif
+#ifdef SENSOR_TMP007
+	"tmp007 [on mo en | off | sl oh ol lh ll | rr r | wr r v]\r\n"
+#endif
+#ifdef SENSOR_MPU9250
+	"mpu9250 [on op th | off | r[a|c] r | w[a|c] r v]\r\n"
+#endif
+		"r sen [times [intv]]\r\n"
+#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
+		"e sen\r\n"
+#endif
+		"stop\r\n"
+		"list\r\n"
+		"reset\r\n"
+	);
+
+	state RS_RCMD:
+
+		leds (0, 1);
+		ser_in (RS_RCMD, ibuf, IBUFLEN);
+		leds (0, 0);
+		curr = ibuf;
+		parse (&curr, &tail);
+
+		if (*curr == '\0')
+			sameas RS_ERROR;
+
+#ifdef SENSOR_CMA3000
+		if (streq (curr, "cma3000"))
+			sameas RS_CMA3000;
+#endif
+#ifdef SENSOR_SCA3100
+		if (streq (curr, "sca3100"))
+			sameas RS_SCA3100;
+#endif
+#ifdef SENSOR_TMP007
+		if (streq (curr, "tmp007"))
+			sameas RS_TMP007;
+#endif
+#ifdef SENSOR_MPU9250
+		if (streq (curr, "mpu9250"))
+			sameas RS_MPU9250;
+#endif
+		if (streq (curr, "r"))
+			sameas RS_R;
+#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
+		if (streq (curr, "e"))
+			sameas RS_E;
+#endif
+		if (streq (curr, "stop"))
+			sameas RS_STOP;
+
+		if (streq (curr, "list"))
+			sameas RS_LIST;
+
+		if (streq (curr, "reset"))
+			reset ();
+
+	state RS_ERROR:
+
+		ser_out (RS_ERROR, "Illegal command or parameter\r\n");
+		sameas RS_BANNER;
+
+	state RS_OK:
+
+		ser_out (RS_OK, "OK\r\n");
+		sameas RS_RCMD;
+
+	state RS_SHOWWA:
+
+		ser_outf (RS_SHOWWA, "Value = %x [%u, %d]\r\n", wa, wa, wa);
+		sameas RS_RCMD;
+
+#ifdef SENSOR_CMA3000
+
+	state RS_CMA3000:
+
+		word a, b, c;
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			a = 0; b = 1; c = 3;
+			scan (tail, "%u %u %u", &a, &b, &c);
+			cma3000_on (a, b, c);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			cma3000_off ();
+			sameas RS_OK;
+		}
+		sameas RS_ERROR;
+#endif
+
+#ifdef SENSOR_SCA3100
+
+	state RS_SCA3100:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			sca3100_on ();
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			sca3100_off ();
+			sameas RS_OK;
+		}
+		sameas RS_ERROR;
+#endif
+
+#ifdef SENSOR_TMP007
+
+	state RS_TMP007:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			word mo, en;
+			mo = 0x1440;
+			en = 0;
+			scan (tail, "%x %x", &mo, &en);
+			tmp007_on (mo, en);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			tmp007_off ();
+			sameas RS_OK;
+		}
+		if (streq (curr, "sl")) {
+			wint oh, ol, lh, ll;
+			oh = ol = lh = ll = 0;
+			scan (tail, "%d %d %d %d", &oh, &ol, &lh, &ll);
+			tmp007_setlimits (oh, ol, lh, ll);
+			sameas RS_OK;
+		}
+		if (streq (curr, "rr")) {
+			word rn;
+			rn = 0;
+			scan (tail, "%x", &rn);
+			wa = tmp007_rreg ((byte)rn);
+			sameas RS_SHOWWA;
+		}
+		if (streq (curr, "wr")) {
+			word rn, va;
+			rn = va = 0;
+			scan (tail, "%x %x", &rn, &va);
+			tmp007_wreg ((byte)rn, va);
+			sameas RS_OK;
+		}
+		sameas RS_ERROR;
+#endif
+
+#ifdef SENSOR_MPU9250
+
+	state RS_MPU9250:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			word op, th;
+			// Default set for LP motion detection:
+			//	lpf = 1, odr = 5, A only, ar = 0, gr = 0, md
+			// op = 1 00 00 0001 0101 001
+			//	1000 0000 1010 1001
+			op = 0x80A9;
+			th = 32;
+			scan (tail, "%x %u", &op, &th);
+			mpu9250_on (op, (byte)th);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			mpu9250_off ();
+			sameas RS_OK;
+		}
+		if (streq (curr, "ra")) {
+			word r;
+			byte v;
+			r = 0;
+			scan (tail, "%x", &r);
+			mpu9250_rregan ((byte)r, &v, 1);
+			wa = v;
+			sameas RS_SHOWWA;
+		}
+		if (streq (curr, "rc")) {
+			word r;
+			byte v;
+			r = 0;
+			scan (tail, "%x", &r);
+			mpu9250_rregcn ((byte)r, &v, 1);
+			wa = v;
+			sameas RS_SHOWWA;
+		}
+		if (streq (curr, "wa")) {
+			word r, v;
+			r = 0; v = 0;
+			scan (tail, "%x %x", &r, &v);
+			mpu9250_wrega ((byte)r, (byte)v);
+			sameas RS_OK;
+		}
+		if (streq (curr, "wc")) {
+			word r, v;
+			r = 0; v = 0;
+			scan (tail, "%x %x", &r, &v);
+			mpu9250_wregc ((byte)r, (byte)v);
+			sameas RS_OK;
+		}
+
+		sameas RS_ERROR;
+#endif
+
+	state RS_R:
+
+		sensval_t *sen;
+		word del, ntm;
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if ((sen = find_sensor (curr)) == NULL || sen->vpid != 0)
+			sameas RS_ERROR;
+
+		ntm = 0;
+		del = 0;
+
+		scan (tail, "%d %d", &ntm, &del);
+		if (ntm == 0)
+			ntm = 1;
+
+		sen->del = del;
+		sen->count = ntm;
+		sen->vpid = runfsm svalues (sen);
+		sameas RS_OK;
 
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
-		"v s      -> report events on sensor s\r\n"
+
+	state RS_E:
+
+		sensval_t *sen;
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if ((sen = find_sensor (curr)) == NULL || sen->epid != 0)
+			sameas RS_ERROR;
+
+		sen->epid = runfsm sevents (sen);
+		sameas RS_OK;
 #endif
 
-#if defined(ACTUATOR_LIST) || defined(__SMURPH__)
-		"a s v    -> set actuator s to v (hex)\r\n"
-#endif
-		);
+	state RS_STOP:
 
-  state RS_RCMD:
+		word i;
+		sensval_t *sen;
 
-	ser_in (RS_RCMD, ibuf, IBUFLEN);
+		curr = tail;
+		parse (&curr, &tail);
 
-	switch (ibuf [0]) {
-#if defined(CMA3000) || defined(SCA3100) || defined(TMP007)
-		case 'C' : proceed RS_CMO;
-		case 'F' : proceed RS_CMF;
-#endif
-#if defined(TMP007)
-		case 'S' : proceed RS_SETL;
-		case 'R' : proceed RS_RREG;
-		case 'W' : proceed RS_WREG;
-#endif
-		case 's' : proceed RS_SVAL;
-		case 'r' : proceed RS_GSEN;
-		case 'c' : proceed RS_CSEN;
+		if ((sen = find_sensor (curr)) != NULL) {
+			// A single sensor
+			if (sen->epid) {
+				kill (sen->epid);
+				sen->epid = 0;
+			}
+			if (sen->vpid) {
+				kill (sen->vpid);
+				sen->vpid = 0;
+			}
+			sameas RS_OK;
+		}
 
-#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
-		case 'v' : proceed RS_SWAIT;
-#endif
-#if defined(ACTUATOR_LIST) || defined(__SMURPH__)
-		case 'a' : proceed RS_SACT;
-#endif
-	}
+		// All sensors
 
-  state RS_ERR:
+		for (i = 0; i < n_sensors; i++) {
+			sen = sensors [i];
+			if (sen->epid) {
+				kill (sen->epid);
+				sen->epid = 0;
+			}
+			if (sen->vpid) {
+				kill (sen->vpid);
+				sen->vpid = 0;
+			}
+		}
+		sameas RS_OK;
 
-	ser_out (RS_ERR, "Illegal command or parameter\r\n");
-	proceed RS_BANNER;
+	state RS_LIST:
 
-#if defined(SENSOR_EVENTS) || defined(__SMURPH__)
+		wa = 0;
 
-  state RS_SWAIT:
+	state RS_LIST_N:
 
-	v = -1;
-	scan (ibuf + 1, __sfsi, &v);
-	if (v < 0) {
-		killall (sevents);
-	} else {
-		runfsm sevents (v);
-	}
-	proceed RS_RCMD;
-#endif
+		sensval_t *sen;
 
-  state RS_SVAL:
+		if (wa == n_sensors)
+			sameas RS_OK;
 
-	vl = 0;
-	scan (ibuf + 1, "%u", &vl);
-	if (vl == 0)
-		vl = 1;
-	else if (vl > 16)
-		vl = 16;
-	proceed RS_RCMD;
+		sen = sensors [wa];
 
-  state RS_GSEN:
+		ser_outf (RS_LIST_N, "Index=%d, vl=%d, nm=%s, de=%d, co=%d, "
+		    "ep=%c, vp=%c\r\n",
+			sen->sensor, sen->vlength, sen->name, sen->del,
+				sen->count, sen->epid ? 'y' : 'n',
+					sen->vpid ? 'y' : 'n');
 
-	v = 0;
-	scan (ibuf + 1, __sfsi, &v);
-	bzero (sen, sizeof (sen));
-
-  state RS_GSEN_READ:
-
-	read_sensor (RS_GSEN_READ, v, sen);
-	join (runfsm outval, RS_RCMD);
-	release;
-
-  state RS_CSEN:
-
-	v = 0;
-	x = 1024;
-	scan (ibuf + 1, __sfsi "%u", &v, &x);
-	bzero (sen, sizeof (sen));
-
-  state RS_CSEN_READ:
-
-	read_sensor (RS_CSEN_READ, v, sen);
-	join (runfsm outval, RS_CSEN_NEXT);
-	release;
-
-  state RS_CSEN_NEXT:
-
-	delay (x, RS_CSEN_READ);
-	release;
-
-#if defined(ACTUATOR_LIST) || defined(__SMURPH__)
-
-  state RS_SACT:
-
-	v = 0;
-	x = 0;
-
-	scan (ibuf + 1, __sfsi "%x", &v, &x);
-
-  state RS_SACT_SET:
-
-	write_actuator (RS_SACT_SET, v, &x);
-	proceed RS_RCMD;
-#endif
-
-#if defined(CMA3000) || defined(SCA3100) || defined(TMP007)
-
-  state RS_CMO:
-
-#ifdef CMA3000
-	x = 0;
-	y = 1;
-	z = 3;
-	scan (ibuf + 1, "%u %u %u", &x, &y, &z);
-	cma3000_on (x, y, z);
-#endif
-
-#ifdef	SCA3100
-	sca3100_on ();
-#endif
-
-#ifdef	TMP007
-	x = 0x1440;
-	y = 0;
-	scan (ibuf + 1, "%x %x", &x, &y);
-	tmp007_on (x, y);
-#endif
-	proceed RS_RCMD;
-
-  state RS_CMF:
-
-#ifdef CMA3000
-	cma3000_off ();
-#endif
-#ifdef	SCA3100
-	sca3100_off ();
-#endif
-#ifdef	TMP007
-	tmp007_off ();
-#endif
-	proceed RS_RCMD;
-
-#endif
-
-#ifdef TMP007
-
-  state RS_SETL:
-
-	v = a = b = c = 0;
-	scan (ibuf + 1, __sfsi __sfsi __sfsi __sfsi, &v, &a, &b, &c);
-	tmp007_setlimits (v, a, b, c);
-	proceed RS_RCMD;
-
-  state RS_RREG:
-
-	x = 0;
-	scan (ibuf + 1, "%x", &x);
-	y = tmp007_rreg ((byte)x);
-
-  state RS_RREG_W:
-
-	ser_outf (RS_RREG_W, "[%x] = %x\r\n", x, y);
-	proceed RS_RCMD;
-
-  state RS_WREG:
-
-	x = y = 0;
-	scan (ibuf + 1, "%x %x", &x, &y);
-	tmp007_wreg ((byte)x, y);
-	proceed RS_RCMD;
-
-#endif
-
+		wa++;
+		sameas RS_LIST_N;
 }

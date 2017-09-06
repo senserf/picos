@@ -28,6 +28,6 @@ void beep (word del, word tone, word st) {
 
 	if (st == NONE)
 		runstrand (__beeper, (address) del);
-	else
-		call (__beeper, (address) del, st);
+	else if (join (fork (__beeper, (address) del), st))
+		release;
 }

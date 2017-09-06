@@ -89,7 +89,7 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
-		iocportconfig (IOID_5, IOC_PORT_MCU_I2C_MSSDA, \
+		iocportconfig (IOID_5, IOC_PORT_GPIO, \
 			/* SDA, shared, pulled up externally, init open */ \
 			IOC_IOMODE_OPEN_DRAIN_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
@@ -102,7 +102,7 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
-		iocportconfig (IOID_6, IOC_PORT_MCU_I2C_MSSCL, \
+		iocportconfig (IOID_6, IOC_PORT_GPIO, \
 			/* SCL, shared, pulled up externally, init open */ \
 			IOC_IOMODE_OPEN_DRAIN_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
@@ -116,12 +116,12 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
 		iocportconfig (IOID_7, IOC_PORT_GPIO, \
-			/* gir/acc int, not used yet, input, pull down */ \
+			/* mpu9250 int */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
-			IOC_NO_EDGE		| \
+			IOC_RISING_EDGE		| \
 			IOC_INT_DISABLE		| \
-			IOC_IOPULL_DOWN		| \
+			IOC_NO_IOPULL		| \
 			IOC_INPUT_ENABLE	| \
 			IOC_HYST_DISABLE	| \
 			IOC_SLEW_DISABLE	| \
@@ -130,7 +130,7 @@
 			0, 0, 0), \
 		iocportconfig (IOID_8, IOC_PORT_GPIO, \
 			/* gir/acc SDA, pulled up externally, init open */ \
-			IOC_IOMODE_NORMAL 	| \
+			IOC_IOMODE_OPEN_DRAIN_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
 			IOC_INT_DISABLE		| \
@@ -143,7 +143,7 @@
 			0, 0, 0), \
 		iocportconfig (IOID_9, IOC_PORT_GPIO, \
 			/* gir/acc SCL, pulled up externally, init open */ \
-			IOC_IOMODE_NORMAL 	| \
+			IOC_IOMODE_OPEN_DRAIN_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
 			IOC_INT_DISABLE		| \
@@ -181,18 +181,18 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
 		iocportconfig (IOID_12, IOC_PORT_GPIO, \
-			/* gir/acc PWR, init open drain */ \
+			/* mpu9250 PWR */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
 			IOC_INT_DISABLE		| \
 			IOC_NO_IOPULL		| \
-			IOC_INPUT_ENABLE	| \
+			IOC_INPUT_DISABLE	| \
 			IOC_HYST_DISABLE	| \
 			IOC_SLEW_DISABLE	| \
-			IOC_CURRENT_2MA		| \
+			IOC_CURRENT_4MA		| \
 			IOC_STRENGTH_AUTO	| \
-			0, 0, 1), \
+			0, 1, 0), \
 		iocportconfig (IOID_13, IOC_PORT_GPIO, \
 			/* mic PWR */ \
 			IOC_IOMODE_NORMAL 	| \
@@ -377,25 +377,58 @@
 
 #include "tmp007.h"
 
-#define	tmp007_enable	HWREGBITW (IOC_BASE + (IOID_11 << 2), \
-				IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 1
+#define	tmp007_enable		HWREGBITW (IOC_BASE + (IOID_11 << 2), \
+					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 1
 
-#define	tmp007_disable	HWREGBITW (IOC_BASE + (IOID_11 << 2), \
-				IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 0
+#define	tmp007_disable		HWREGBITW (IOC_BASE + (IOID_11 << 2), \
+					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 0
 
-#define	tmp007_clear	GPIO_clearEventDio (IOID_11)
+#define	tmp007_clear		GPIO_clearEventDio (IOID_11)
 
-#define	tmp007_int	(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
-				(1 << IOID_11))
+#define	tmp007_int		(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
+					(1 << IOID_11))
+
+// This is set to account for multpile configurations of I2C pins when there
+// are multiple busses which then have to be switched as needed
+#define	tmp007_sda		IOID_5
+#define	tmp007_scl		IOID_6
+
+// ============================================================================
+// MPU9250 accel, gyro, compass combo
+// ============================================================================
+
+#define	MPU9250_I2C_ADDRESS	0x68
+#define	MPU9250_AKM_ADDRESS	0x0C
+
+#include "mpu9250.h"
+
+#define	mpu9250_bring_up	GPIO_setDio (IOID_12)
+#define	mpu9250_bring_down	GPIO_clearDio (IOID_12)
+
+#define	mpu9250_enable		HWREGBITW (IOC_BASE + (IOID_7 << 2), \
+					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 1
+
+#define	mpu9250_disable		HWREGBITW (IOC_BASE + (IOID_7 << 2), \
+					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 0
+
+#define	mpu9250_clear		GPIO_clearEventDio (IOID_7)
+
+#define	mpu9250_int		(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
+					(1 << IOID_7))
+#define	mpu9250_sda		IOID_8
+#define	mpu9250_scl		IOID_9
 
 // ============================================================================
 
+#if 1
 #define	SENSOR_LIST { \
 		INTERNAL_TEMPERATURE_SENSOR,			\
 		INTERNAL_VOLTAGE_SENSOR,			\
 		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
 		DIGITAL_SENSOR (0, tmp007_init, tmp007_read),	\
+		DIGITAL_SENSOR (0, NULL, mpu9250_read),		\
 }
+#endif
 
 // ============================================================================
 // ============================================================================

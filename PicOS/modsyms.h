@@ -426,12 +426,13 @@
 /* I2C interface */
 /* ============= */
 
+// 0 - no, 1 - single bus (pins preconfigured), 2 - multiple busses
 #ifndef	I2C_INTERFACE
 #define	I2C_INTERFACE		0
 #endif
 
 #ifndef	I2C_RATE
-// This means the default
+// This means the default (slow)
 #define	I2C_RATE		0
 #endif
 
