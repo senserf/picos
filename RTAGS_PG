@@ -1348,3 +1348,10 @@ PG170812A:
 PG170818A:	PICOS >= PG170818A
 
     See PG170818A in PICOS.
+
+PG170906A:	PICOS >= PG170906A
+
+    Added the new "standard" type wint (see PICOS).
+
+    Removed the call macro and replaced with a picomp-generated sequence (also
+    see PICOMP).

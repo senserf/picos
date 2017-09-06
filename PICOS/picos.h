@@ -21,6 +21,10 @@
 #define	__TYPE_SINT__	int16_t
 #endif
 
+#ifndef	__TYPE_WINT__
+#define	__TYPE_WINT__	int16_t
+#endif
+
 #ifndef	__TYPE_LINT__
 #define	__TYPE_LINT__	int32_t
 #endif
@@ -36,6 +40,7 @@
 
 typedef	__TYPE_WORD__	word;
 typedef	__TYPE_SINT__	sint;
+typedef	__TYPE_WINT__	wint;
 typedef __TYPE_LINT__	lint;
 typedef	__TYPE_LWORD__	lword;
 typedef	__TYPE_AWORD__	aword;

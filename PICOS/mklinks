@@ -1,5 +1,8 @@
 #!/bin/sh
 ./rmlinks
+ln -s ../../PICOS/PicOS/PLibs/Sensors/tmp007.h tmp007.h
+ln -s ../../PICOS/PicOS/PLibs/Sensors/sca3100.h sca3100.h
+ln -s ../../PICOS/PicOS/PLibs/Sensors/mpu9250.h mpu9250.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/bmp085.h bmp085.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/bma250.h bma250.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/as3932.h as3932.h
