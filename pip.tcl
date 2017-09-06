@@ -60,7 +60,7 @@ if { [lsearch -exact $argv "-D"] >= 0 } {
 set PicOSPath	""
 set DefProjDir	""
 
-set EditCommand "elvis -f ram -m -G x11 -font 9x15"
+set EditCommand "elvis -f ram -m -G x11"
 
 ## Delay after opening a new elvis session and before the first command to it
 ## can be issued; I am not sure this is needed, because I only had problems
@@ -293,7 +293,7 @@ set ESchemesD {
 		{formatted {normal {} {} {}}}
 		{link {{} #0000FF #ADD8E6 {} underlined}}
 		{spell {{} {} {} #FFC0CB}}
-		{font 9x15}
+		{font default}
 		{commands {}}
 	}
 
@@ -2114,8 +2114,10 @@ proc edit_file { fn } {
 		set f [lindex $it 0]
 		set l [lindex $it 1]
 		if { $f == "font" } {
-			lappend ar "-font"
-			lappend ar $l
+			if { $l != "default" } {
+				lappend ar "-font"
+				lappend ar $l
+			}
 			continue
 		}
 		if { $f == "commands" } {
@@ -7153,7 +7155,7 @@ proc mk_new_escheme_window { } {
 ###############################################################################
 
 ## Font options
-set ece_FS { 5x7 5x8 6x9 6x10 6x12 6x13 7x13 7x14 8x13 9x15 9x18 10x20 }
+set ece_FS { default 5x7 5x8 6x9 6x10 6x12 6x13 7x13 7x14 8x13 9x15 9x18 10x20 }
 
 ## Attributes
 set ece_ATT { bold italic underlined boxed }

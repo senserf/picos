@@ -897,3 +897,7 @@ PG170818A:	PICOS >= PG170818A
 
 	Fixed the recognition of "library-only" installation in accordance with
 	the reorganization of PICOS directory structure.
+
+PG170906A:
+
+	A few cosmetics related to the parameters of Elvis.
