@@ -97,6 +97,7 @@ fsm svalues (sensval_t *sen) {
 
 	state SV_REPORT:
 
+		bzero (sen->value, sen->vlength << 1);
 		read_sensor (SV_REPORT, sen->sensor, sen->value);
 		call outval (sen, SV_DONE);
 
@@ -128,6 +129,7 @@ fsm sevents (sensval_t *sen) {
 
   state SE_READ:
 
+	bzero (sen->value, sen->vlength << 1);
 	read_sensor (SE_READ, sen->sensor, sen->value);
 	call outval (sen, SE_WAIT);
 }
@@ -428,7 +430,11 @@ fsm root {
 			//	lpf = 1, odr = 5, A only, ar = 0, gr = 0, md
 			// op = 1 00 00 0001 0101 001
 			//	1000 0000 1010 1001
-			op = 0x80A9;
+			op = 	MPU9250_LP_MOTION_DETECT	+
+				MPU9250_SEN_ACCEL		+
+				MPU9250_ACCEL_RANGE_2		+
+				MPU9250_LPF_188			+
+				MPU9250_LPA_4;
 			th = 32;
 			scan (tail, "%x %u", &op, &th);
 			mpu9250_on (op, (byte)th);

@@ -155,46 +155,6 @@
 
 // ============================================================================
 
-// Mode options: gyro range
-#define	MPU9250_GYRO_RANGE_250		0	// 2-bit field
-#define	MPU9250_GYRO_RANGE_500		1
-#define	MPU9250_GYRO_RANGE_1000		2
-#define	MPU9250_GYRO_RANGE_2000		2
-
-// Accel range
-#define	MPU9250_ACCEL_RANGE_2		0	// 2-bit field
-#define	MPU9250_ACCEL_RANGE_4		1
-#define	MPU9250_ACCEL_RANGE_8		2
-#define	MPU9250_ACCEL_RANGE_16		3
-
-// Low pass filter
-#define	MPU9250_LPF_256			0	// 3-bit field
-#define	MPU9250_LPF_188			1
-#define	MPU9250_LPF_98			2
-#define	MPU9250_LPF_42			3
-#define	MPU9250_LPF_20			4
-#define	MPU9250_LPF_10			5
-#define	MPU9250_LPF_5			6
-#define	MPU9250_LPF_2100		7
-
-// LP ODR
-
-// Output data rate
-#define	MPU9250_LPA_03			0
-#define	MPU9250_LPA_06			1
-#define	MPU9250_LPA_1			2
-#define	MPU9250_LPA_2			3
-#define	MPU9250_LPA_5			4
-#define	MPU9250_LPA_10			5
-#define	MPU9250_LPA_20			6
-#define	MPU9250_LPA_40			7
-#define	MPU9250_LPA_80			8
-#define	MPU9250_LPA_160			9
-#define	MPU9250_LPA_320			10
-#define	MPU9250_LPA_640			11
-
-// ============================================================================
-
 // Options components
 
 #define	MPU9250_OPT_SH_LPF		0	// LPF shift
@@ -203,6 +163,52 @@
 #define	MPU9250_OPT_SH_ACCEL_RANGE	(MPU9250_OPT_SH_SENSORS + 4)
 #define	MPU9250_OPT_SH_GYRO_RANGE	(MPU9250_OPT_SH_ACCEL_RANGE + 2)
 #define	MPU9250_OPT_SH_MOTION_DETECT	(MPU9250_OPT_SH_GYRO_RANGE + 2)
+
+#define	MPU9250_LP_MOTION_DETECT	(1 << MPU9250_OPT_SH_MOTION_DETECT)
+
+#define	MPU9250_GYRO_RANGE_250		(0 << MPU9250_OPT_SH_GYRO_RANGE)
+#define	MPU9250_GYRO_RANGE_500		(1 << MPU9250_OPT_SH_GYRO_RANGE)
+#define	MPU9250_GYRO_RANGE_1000		(2 << MPU9250_OPT_SH_GYRO_RANGE)
+#define	MPU9250_GYRO_RANGE_2000		(3 << MPU9250_OPT_SH_GYRO_RANGE)
+
+// Accel range
+#define	MPU9250_ACCEL_RANGE_2		(0 << MPU9250_OPT_SH_ACCEL_RANGE)
+#define	MPU9250_ACCEL_RANGE_4		(1 << MPU9250_OPT_SH_ACCEL_RANGE)
+#define	MPU9250_ACCEL_RANGE_8		(2 << MPU9250_OPT_SH_ACCEL_RANGE)
+#define	MPU9250_ACCEL_RANGE_16		(3 << MPU9250_OPT_SH_ACCEL_RANGE)
+
+// Low pass filter
+#define	MPU9250_LPF_256			(0 << MPU9250_OPT_SH_LPF)
+#define	MPU9250_LPF_188			(1 << MPU9250_OPT_SH_LPF)
+#define	MPU9250_LPF_98			(2 << MPU9250_OPT_SH_LPF)
+#define	MPU9250_LPF_42			(3 << MPU9250_OPT_SH_LPF)
+#define	MPU9250_LPF_20			(4 << MPU9250_OPT_SH_LPF)
+#define	MPU9250_LPF_10			(5 << MPU9250_OPT_SH_LPF)
+#define	MPU9250_LPF_5			(6 << MPU9250_OPT_SH_LPF)
+#define	MPU9250_LPF_2100		(7 << MPU9250_OPT_SH_LPF)
+
+// LP ODR
+
+// Output data rate
+#define	MPU9250_LPA_02			(0  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_05			(1  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_1			(2  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_2			(3  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_4			(4  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_8			(5  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_16			(6  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_32			(7  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_64			(8  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_128			(9  << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_256			(10 << MPU9250_OPT_SH_ODR)
+#define	MPU9250_LPA_512			(11 << MPU9250_OPT_SH_ODR)
+
+#define	MPU9250_SEN_ACCEL		(1 << MPU9250_OPT_SH_SENSORS)
+#define	MPU9250_SEN_GYRO		(2 << MPU9250_OPT_SH_SENSORS)
+#define	MPU9250_SEN_COMPASS		(4 << MPU9250_OPT_SH_SENSORS)
+#define	MPU9250_SEN_TEMP		(8 << MPU9250_OPT_SH_SENSORS)
+
+// ============================================================================
 
 // Driver flags
 

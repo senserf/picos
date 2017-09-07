@@ -123,7 +123,7 @@ void mpu9250_on (word options, byte threshold) {
 //			 7 - 10		which: A G C T
 //			11 - 12		arange
 //			13 - 14		grange
-//			15		motion detect (event) flag
+//			15		lp motion detect (event) flag
 //
 //	For motion detect: 1000 0000 1010 1001 = 80A9, th = 32
 //
@@ -154,9 +154,10 @@ void mpu9250_on (word options, byte threshold) {
 
 	// 1 = A, 2 = G, 4 = C, 8 = T
 	sensors = (options >> MPU9250_OPT_SH_SENSORS) & 0x0f;
-	if (sensors == 0 || (options & (1 << MPU9250_OPT_SH_MOTION_DETECT)))
-		// Make sure to include the accelerometer
-		sensors |= 0x01;
+	if (sensors == 0 || (options & (1 << MPU9250_OPT_SH_MOTION_DETECT))) {
+		// Accel only, if lp motion detect selected
+		sensors = 0x01;
+	}
 	// Disable what's not needed
 	b = (sensors & 1) ? 0x00 : 0x38;
 	if ((sensors & 2) == 0)
@@ -209,14 +210,19 @@ void mpu9250_on (word options, byte threshold) {
 		mpu9250_wrega (MPU9250_REG_WOM_THR, threshold);
 		// Interrupt enable
 		mpu9250_wrega (MPU9250_REG_INT_ENABLE, 0x40);
-	}
+		// The cycle bit
+		b = 0x20;
+	} else
+		b = 0x00;
 
 	// Frequency of wakeups
 	mpu9250_wrega (MPU9250_REG_LP_ACCEL_ODR,
 		(options >> MPU9250_OPT_SH_ODR) & 0x0f);
 
-	// If gyro, clock from PLL, otherwise internal, set CYCLE
-	mpu9250_wrega (MPU9250_REG_PWR_MGMT_1, (sensors & 2) ? 0x21 : 0x20);
+	if (sensors & 2)
+		// Clock from PLL, if gyro used
+		b |= 1;
+	mpu9250_wrega (MPU9250_REG_PWR_MGMT_1, b);
 
 	mpu9250_status |= sensors;
 
@@ -272,7 +278,7 @@ void mpu9250_read (word st, const byte *sen, address val) {
 
 	vap = val;
 
-	if (mpu9250_status & 0x01) {
+	if (mpu9250_status & MPU9250_STATUS_ACCEL_ON) {
 		// Accel present
 		mpu9250_rregan (MPU9250_REG_ACCEL_XOUT_H, (byte*)vap, 6);
 #if LITTLE_ENDIAN
@@ -281,7 +287,7 @@ void mpu9250_read (word st, const byte *sen, address val) {
 		vap += 3;
 	}
 
-	if (mpu9250_status & 0x02) {
+	if (mpu9250_status & MPU9250_STATUS_GYRO_ON) {
 		// Gyro present
 		mpu9250_rregan (MPU9250_REG_GYRO_XOUT_H, (byte*)vap, 6);
 #if LITTLE_ENDIAN
@@ -290,7 +296,7 @@ void mpu9250_read (word st, const byte *sen, address val) {
 		vap += 3;
 	}
 
-	if (mpu9250_status & 0x04) {
+	if (mpu9250_status & MPU9250_STATUS_COMPASS_ON) {
 		// Compass present
 		mpu9250_rregcn (MPU9250_REG_AKM_HXL, (byte*)vap, 6);
 #if BIG_ENDIAN
@@ -305,7 +311,7 @@ void mpu9250_read (word st, const byte *sen, address val) {
 		mpu9250_wregc (MPU9250_REG_AKM_CNTL, 0x11);
 	}
 
-	if (mpu9250_status & 0x08) {
+	if (mpu9250_status & MPU9250_STATUS_TEMP_ON) {
 		// Temperature
 		mpu9250_rregan (MPU9250_REG_TEMP_OUT_H, (byte*)vap, 2);
 #if LITTLE_ENDIAN

@@ -5338,3 +5338,8 @@ PG170906A:	VUEE >= PG170906A
 	culprit: undocumented features only available through the manufacturer's
 	driver (messy and utterly incompatible with anything PicOS). This seems
 	to be the new philosophy for "microcontrollers".
+
+PG170907A:
+
+	The mpu9250 driver is sort of ready and complete for now. I have
+	written a brief document.
