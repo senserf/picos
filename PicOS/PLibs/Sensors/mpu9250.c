@@ -40,12 +40,7 @@
 
 #if I2C_INTERFACE
 
-#if I2C_INTERFACE > 1
-// Bus selection
-#define	sbus	__select_i2c_bus ((word)((mpu9250_sda << 8) | mpu9250_scl))
-#else
-#define	sbus	CNOP
-#endif
+#define	sbus	__i2c_open (mpu9250_scl, mpu9250_sda, mpu9250_rate)
 
 // For now, this only works for CC1350
 

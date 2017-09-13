@@ -37,12 +37,12 @@ proc unames_init { dtype { stype "" } } {
 			set Dev(RRT) "/dev/ttyS%"
 		}
 		# and their bounds
-		set Dev(RRB) { 0 31 }
+		set Dev(RRB) { 0 255 }
 	} else {
 		set Dev(PRT) { "CNCA%" "CNCB%" }
 		set Dev(PRB) { 0 3 }
 		set Dev(RRT) "COM%:"
-		set Dev(RRB) { 1 32 }
+		set Dev(RRB) { 1 256 }
 	}
 
 	unames_defnames

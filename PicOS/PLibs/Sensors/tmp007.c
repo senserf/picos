@@ -25,12 +25,7 @@ byte	tmp007_status = 0;
 // Use I2C interface commands; for now, this only works for CC1350; MSP430
 // implementation (raw pin) will be trivial, if we ever need it
 
-#if I2C_INTERFACE > 1
-// Bus selection
-#define	sbus	__select_i2c_bus ((word)((tmp007_sda << 8) | tmp007_scl))
-#else
-#define	sbus	CNOP
-#endif
+#define	sbus	__i2c_open (tmp007_scl, tmp007_sda, tmp007_rate)
 
 void tmp007_wreg (byte reg, word val) {
 //

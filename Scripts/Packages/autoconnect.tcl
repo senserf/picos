@@ -195,13 +195,13 @@ proc ac_callback { } {
 		# trc "AC N CUR=$ACB(CUR), DVL=$ACB(DVL)"
 		# try to open a new UART
 		if { $ACB(CUR) >= $ACB(DVL) } {
+			set ACB(STA) "L"
 			if { $ACB(DVL) == 0 } {
 				# no devices
 				set ACB(LDS) 0
 				ac_again 1000
 				return
 			}
-			set ACB(STA) "L"
 			ac_again 100
 			return
 		}

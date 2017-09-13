@@ -167,12 +167,42 @@ void __pinlist_setirq (int);
 #endif
 
 // ============================================================================
-// To switch the I2C bus, the arguments are two pin numbers
-// ============================================================================
+#if SSI_INTERFACE
 
-#if I2C_INTERFACE > 1
-// A pair of pins (sda << 8) | scl
-void __select_i2c_bus (word);
+//
+// Interrupt enable/disable; these are to be used by the driver (which knows
+// "w" (the interface) as a constant, so it will be optimized out
+//
+
+#define	__ssi_irq_enable_rx(w)	SSIIntEnable ((w) ? SSI1_BASE : SSI0_BASE, \
+		 SSI_RXFF | SSI_RXTO | SSI_RXOR)
+
+#define	__ssi_irq_disable_rx(w)	SSIIntDisable ((w) ? SSI1_BASE : SSI0_BASE, \
+		 SSI_RXFF | SSI_RXTO | SSI_RXOR)
+
+#define	__ssi_irq_enable_tx(w)	SSIIntEnable ((w) ? SSI1_BASE : SSI0_BASE, \
+		SSI_TXFF)
+
+#define	__ssi_irq_disable_tx(w)	SSIIntDisable ((w) ? SSI1_BASE : SSI0_BASE, \
+		SSI_TXFF)
+
+#define	__ssi_irq_disable(w)	SSIIntDisable ((w) ? SSI1_BASE : SSI0_BASE, \
+		SSI_RXFF | SSI_RXTO | SSI_RXOR | SSI_TXFF)
+
+// Single byte read/write
+
+#define	__ssi_rx_ready(w)	(HWREG (((w) ? SSI1_BASE : SSI0_BASE) + \
+		SSI_O_SR) & SSI_SR_RNE)
+#define	__ssi_tx_ready(w)	(HWREG (((w) ? SSI1_BASE : SSI0_BASE) + \
+		SSI_O_SR) & SSI_SR_TNF)
+#define	__ssi_ready(w)		(HWREG (((w) ? SSI1_BASE : SSI0_BASE) + \
+		SSI_O_SR) & (SSI_SR_TNF | SSI_SR_RNE))
+#define	__ssi_rx(w)		((byte) HWREG (((w) ? SSI1_BASE : SSI0_BASE) + \
+		SSI_O_DR))
+#define	__ssi_tx(w,b)		HWREG (((w) ? SSI1_BASE : SSI0_BASE) + \
+		SSI_O_DR) = (b)
 #endif
+
+// ============================================================================
 
 #endif

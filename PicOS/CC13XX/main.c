@@ -217,12 +217,17 @@ const static devinit_t devinit [] = {
 #define	N_UARTS		UART_TCV
 #endif
 
-#if	defined(N_UARTS) || I2C_INTERFACE
+// Note that I2C and SSI are dynamically switched on and off, so we should
+// probably do the same with UART allowing the app to switch it on and off;
+// this way the power status of serial domain should be kept track of in some
+// flag (FIXME later)
+#if	defined(N_UARTS) || I2C_INTERFACE || SSI_INTERFACE
 // Note: in the future we may decide to switch these things on and off
 // dynamically; not sure if it is worthwhile from the viewpoint of power
 // savings, because the true low power mode (STANDBY or SHUTDOWN) forces
 // the serial domain off, so we probably don't care whether it is on or off
-// during regular or deep sleep
+// during regular or deep sleep; if we do, we shall keep track whether the
+// domain is on or off and switch it dynamically;
 #define	NEED_SERIAL_DOMAIN
 #endif
 
@@ -417,99 +422,251 @@ EX:
 }
 
 // ============================================================================
+// SSI ========================================================================
+// ============================================================================
+
+#if 	SSI_INTERFACE
+
+//
+// Input pin "off" configuration; I think we may need to collect this info from
+// board config on the per-pin basis
+//
+#define	SSI_OFF_PINP		(	IOC_IOMODE_NORMAL		| \
+					IOC_NO_WAKE_UP			| \
+					IOC_NO_EDGE             	| \
+					IOC_INT_DISABLE         	| \
+					IOC_NO_IOPULL           	| \
+					IOC_INPUT_ENABLE        	| \
+					IOC_HYST_DISABLE        	| \
+					IOC_SLEW_DISABLE        	| \
+					IOC_CURRENT_2MA         	| \
+					IOC_STRENGTH_AUTO	)
+
+// Output pin "off" configuration
+#define	SSI_OFF_POUT		(	IOC_IOMODE_NORMAL		| \
+					IOC_NO_WAKE_UP			| \
+					IOC_NO_EDGE             	| \
+					IOC_INT_DISABLE         	| \
+					IOC_NO_IOPULL           	| \
+					IOC_INPUT_DISABLE        	| \
+					IOC_HYST_DISABLE        	| \
+					IOC_SLEW_DISABLE        	| \
+					IOC_CURRENT_2MA         	| \
+					IOC_STRENGTH_AUTO	)
+//
+// The pins; BNONE means unused, ck == BNONE means module is off
+//
+static	byte	ssi_ck [2] = { BNONE, BNONE },
+		ssi_rx [2] = { BNONE, BNONE },
+		ssi_tx [2] = { BNONE, BNONE },
+		ssi_fs [2] = { BNONE, BNONE };
+
+//
+// Mode index to mode code
+//
+static const byte ssi_modes [] = {
+		(byte) SSI_FRF_MOTO_MODE_0,
+		(byte) SSI_FRF_MOTO_MODE_1,
+		(byte) SSI_FRF_MOTO_MODE_2,
+		(byte) SSI_FRF_MOTO_MODE_3,
+		(byte) SSI_FRF_TI,
+		(byte) SSI_FRF_NMW };
+
+static const lword ssi_base [2] = { SSI0_BASE, SSI1_BASE };
+
+// Interrupt service function
+static __ssi_int_fun_t ssi_int_fun [2] = { NULL, NULL };
+
+void SSI0IntHandler () {
+
+	SSIIntClear (SSI0_BASE, SSI_RXTO | SSI_RXOR | SSI_TXFF);
+
+	if (ssi_int_fun [0])
+		ssi_int_fun [0] ();
+}
+
+void SSI1IntHandler () {
+
+	SSIIntClear (SSI1_BASE, SSI_RXTO | SSI_RXOR | SSI_TXFF);
+
+	if (ssi_int_fun [1])
+		ssi_int_fun [1] ();
+}
+
+void __ssi_open (sint w, const byte *p, byte m, word rate,
+							__ssi_int_fun_t ifun) {
+//
+// Open SSI interface,
+//
+//	p 	pins: ck, rx, tx, fs
+//	m	mode (see ssi_modes above)
+// 	rate	bit rate in 100's bps as for UART
+//	ifun	the interrupt function
+//
+	lword ub;
+
+	if (p == NULL) {
+		if (ssi_ck [w] == BNONE)
+			return;
+	} else {
+		if (p [0] == ssi_ck [w])
+			return;
+	}
+
+	ub = w ? PRCM_PERIPH_SSI1 : PRCM_PERIPH_SSI0;
+
+	if (ssi_ck [w] != BNONE) {
+		// Close the previous interface
+		ssi_int_fun [w] = NULL;
+		HWREG (IOC_BASE + (ssi_ck [w] << 2)) = SSI_OFF_POUT |
+			IOC_PORT_GPIO;
+		if (ssi_rx [w] != BNONE) {
+			HWREG (IOC_BASE + (ssi_rx [w] << 2)) =
+				SSI_OFF_POUT | IOC_PORT_GPIO;
+			ssi_rx [w] = BNONE;
+		}
+		if (ssi_tx [w] != BNONE) {
+			HWREG (IOC_BASE + (ssi_tx [w] << 2)) =
+				SSI_OFF_POUT | IOC_PORT_GPIO;
+			ssi_tx [w] = BNONE;
+		}
+		if (ssi_fs [w] != BNONE) {
+			HWREG (IOC_BASE + (ssi_fs [w] << 2)) =
+				SSI_OFF_POUT | IOC_PORT_GPIO;
+			ssi_fs [w] = BNONE;
+		}
+		// Shut down the interface
+		SSIDisable (ssi_base [w]);
+		SSIIntDisable (ssi_base [w], SSI_RXFF | SSI_RXTO | SSI_RXOR |
+			SSI_RXFF);
+		IntDisable (w ? INT_SSI1_COMB : INT_SSI0_COMB);
+		PRCMPeripheralRunDisable (ub);
+#if 1
+		// Not sure if we need these, because we are not using I2C
+		// interrupts, at least not yet
+		PRCMPeripheralSleepDisable (ub);
+		PRCMPeripheralDeepSleepDisable (ub);
+#endif
+		PRCMLoadSet ();
+	}
+
+	if (p != NULL && p [0] != BNONE) {
+		// Restart for the new configuration
+		HWREG (IOC_BASE + ((ssi_ck [w] = p [0]) << 2)) = SSI_OFF_POUT |
+			(w ? IOC_PORT_MCU_SSI1_CLK : IOC_PORT_MCU_SSI0_CLK);
+		if (p [1] != BNONE)
+			HWREG (IOC_BASE + ((ssi_rx [w] = p [1]) << 2)) =
+				SSI_OFF_PINP | (w ? IOC_PORT_MCU_SSI1_RX :
+					IOC_PORT_MCU_SSI0_RX);
+		if (p [2] != BNONE)
+			HWREG (IOC_BASE + ((ssi_tx [w] = p [2]) << 2)) =
+				SSI_OFF_POUT | (w ? IOC_PORT_MCU_SSI1_TX :
+					IOC_PORT_MCU_SSI0_TX);
+		if (p [3] != BNONE)
+			HWREG (IOC_BASE + ((ssi_fs [w] = p [3]) << 2)) =
+				SSI_OFF_POUT | (w ? IOC_PORT_MCU_SSI1_FSS :
+					IOC_PORT_MCU_SSI0_FSS);
+
+		PRCMPeripheralRunEnable (ub);
+#if 1
+		PRCMPeripheralSleepEnable (ub);
+		PRCMPeripheralDeepSleepEnable (ub);
+#endif
+		PRCMLoadSet ();
+
+		ssi_int_fun [w] = ifun;
+
+		SSIConfigSetExpClk (ssi_base [w], SysCtrlClockGet (),
+			ssi_modes [m],
+			SSI_MODE_MASTER,
+			(lword) rate * 100,
+			8);
+		// Note: increasing the width will improve the bandwidth,
+		// because the FIFO consists of entries, not bytes
+
+		SSIEnable (ssi_base [w]);
+		IntEnable (w ? INT_SSI1_COMB : INT_SSI0_COMB);
+		// Interrupts must be enabled by the driver
+	} else
+		ssi_ck [w] = BNONE;
+}
+
+#endif
+
+// ============================================================================
+// I2C ========================================================================
+// ============================================================================
 
 #if	I2C_INTERFACE
 
-static void reinit_i2c () {
 //
-// After standby-mode power up; not sure if it isn't better to re-execute
-// this instead on every communication
+// Pin configuration for an off I2C pin; not sure if this is 100% right for
+// all occassions, because it assumes external pullups; we may need to keep
+// this in board description on a per-pin basis
 //
-	// The last arg is true/false (fast == 400K, slow == 100K)
-	I2CMasterInitExpClk (I2C0_BASE, SysCtrlClockGet (), I2C_RATE);
-	I2CMasterEnable (I2C0_BASE);
-	// No interrupts
-}
+#define	I2C_OFF_PCONF		(	IOC_IOMODE_OPEN_DRAIN_NORMAL	| \
+					IOC_NO_WAKE_UP			| \
+					IOC_NO_EDGE             	| \
+					IOC_INT_DISABLE         	| \
+					IOC_NO_IOPULL           	| \
+					IOC_INPUT_ENABLE        	| \
+					IOC_HYST_DISABLE        	| \
+					IOC_SLEW_DISABLE        	| \
+					IOC_CURRENT_2MA         	| \
+					IOC_STRENGTH_AUTO	)
 
-static void preinit_i2c () {
+// Note: I2C is interrupt-less for now, but I see a scheme whereby we provide
+// an optional interrupt function upon open; this can be done now, because we
+// ALWAYS open the interface explicitly before use and, possibly, close it
+// afterwards
 
-	PRCMPeripheralRunEnable (PRCM_PERIPH_I2C0);
-#if 1
-	// Not sure if we need these, because we are not using I2C interrupts,
-	// at least not yet
-	PRCMPeripheralSleepEnable (PRCM_PERIPH_I2C0);
-	PRCMPeripheralDeepSleepEnable (PRCM_PERIPH_I2C0);
-#endif
-	PRCMLoadSet ();
+// The pins
+static	byte	i2c_scl = BNONE, i2c_sda = BNONE;
 
-	reinit_i2c ();
-}
+void __i2c_open (byte scl, byte sda, Boolean rate) {
 
-#if	I2C_INTERFACE > 1
-
-// ============================================================================
-// Provide for multiple busses
-// ============================================================================
-
-static void shutdown_i2c () {
-//
-// Stop I2C powerwise; without it we cannot switch the pin set; at least, the
-// switch doesn't seem to work
-//
-	PRCMPeripheralRunDisable (PRCM_PERIPH_I2C0);
-#if 1
-	// Not sure if we need these, because we are not using I2C interrupts,
-	// at least not yet
-	PRCMPeripheralSleepDisable (PRCM_PERIPH_I2C0);
-	PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_I2C0);
-#endif
-	PRCMLoadSet ();
-}
-
-// ============================================================================
-
-static	word i2c_pins = WNONE;
-
-#define	I2C_PIN_CONFIG	(	IOC_IOMODE_OPEN_DRAIN_NORMAL	| \
-				IOC_NO_WAKE_UP			| \
-				IOC_NO_EDGE             		| \
-				IOC_INT_DISABLE         		| \
-				IOC_NO_IOPULL           		| \
-				IOC_INPUT_ENABLE        		| \
-				IOC_HYST_DISABLE        		| \
-				IOC_SLEW_DISABLE        		| \
-				IOC_CURRENT_2MA         		| \
-				IOC_STRENGTH_AUTO)
-
-// ============================================================================
-
-void __select_i2c_bus (word pns) {
-
-	if (pns == i2c_pins)
-		// Already OK, do nothing
+	if (scl == i2c_scl)
+		// This is the sole signature of the last open; when this pin
+		// matches, we check no further
 		return;
 
-	if (i2c_pins != WNONE) {
-		// Undo the previous pins
-		HWREG (IOC_BASE + ((i2c_pins >> 6) & 0xfc)) = I2C_PIN_CONFIG |
+	if (i2c_scl != BNONE) {
+		// Undo the previous setup
+		HWREG (IOC_BASE + (i2c_sda << 2)) = I2C_OFF_PCONF |
 			IOC_PORT_GPIO;
-		HWREG (IOC_BASE + ((i2c_pins << 2) & 0xfc)) = I2C_PIN_CONFIG |
+		HWREG (IOC_BASE + (i2c_scl << 2)) = I2C_OFF_PCONF |
 			IOC_PORT_GPIO;
-		shutdown_i2c ();
+		// Shut down the interface
+		PRCMPeripheralRunDisable (PRCM_PERIPH_I2C0);
+#if 1
+		// Not sure if we need these, because we are not using I2C
+		// interrupts, at least not yet
+		PRCMPeripheralSleepDisable (PRCM_PERIPH_I2C0);
+		PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_I2C0);
+#endif
+		PRCMLoadSet ();
 	}
-		
-	// Redefine the pins and store them for subsequent reference
-	HWREG (IOC_BASE + ((pns >> 6) & 0xfc)) = I2C_PIN_CONFIG |
-		IOC_PORT_MCU_I2C_MSSDA;
-	HWREG (IOC_BASE + ((pns << 2) & 0xfc)) = I2C_PIN_CONFIG |
-		IOC_PORT_MCU_I2C_MSSCL;
 
-	i2c_pins = pns;
+	i2c_sda = sda;
+	if ((i2c_scl = scl) != BNONE) {
+		// Restart for the new configuration
+		HWREG (IOC_BASE + (i2c_sda << 2)) = I2C_OFF_PCONF |
+			IOC_PORT_MCU_I2C_MSSDA;
+		HWREG (IOC_BASE + (i2c_scl << 2)) = I2C_OFF_PCONF |
+			IOC_PORT_MCU_I2C_MSSCL;
 
-	preinit_i2c ();
+		PRCMPeripheralRunEnable (PRCM_PERIPH_I2C0);
+#if 1
+		PRCMPeripheralSleepEnable (PRCM_PERIPH_I2C0);
+		PRCMPeripheralDeepSleepEnable (PRCM_PERIPH_I2C0);
+#endif
+		PRCMLoadSet ();
+
+		// The last arg is true/false (fast == 400K, slow == 100K)
+		I2CMasterInitExpClk (I2C0_BASE, SysCtrlClockGet (), rate);
+		I2CMasterEnable (I2C0_BASE);
+	}
 }
-
-#endif	/* I2C_INTERFACE > 1 (multiple busses) */
 
 // ============================================================================
 
@@ -524,7 +681,7 @@ static lword i2c_wait () {
 	}
 }
 
-Boolean __i2c_op (byte ad, byte *xm, lword xl, byte *rx, lword rl) {
+Boolean __i2c_op (byte ad, const byte *xm, lword xl, byte *rx, lword rl) {
 //
 // Issue a transaction
 //
@@ -974,10 +1131,6 @@ void system_init () {
 	preinit_uart ();
 #endif
 
-#if	I2C_INTERFACE == 1
-	preinit_i2c ();
-#endif
-
 #ifdef	SENSOR_INITIALIZERS
 	// May need I2C for this
 	__pi_init_sensors ();
@@ -1185,13 +1338,9 @@ DeepSleep:
 			enable_uart_interrupts ();
 #endif
 
-#if	I2C_INTERFACE
-#if	I2C_INTERFACE == 1
-			reinit_i2c ();
-#else
-			// Force reinit on first I/O
-			i2c_pins = WNONE;
-#endif
+#if I2C_INTERFACE
+			// Force I2C reinit on first I/O
+			i2c_scl = BNONE;
 #endif
 			// ... other domains (we don't do it with RF on)
 			return;

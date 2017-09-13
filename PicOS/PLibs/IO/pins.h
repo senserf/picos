@@ -128,4 +128,31 @@ PULSE_MONITOR;
 
 #endif  /* PULSE_MONITOR */
 
+// Not sure if this is the best place. This code used to be in pins_sys.h, but
+// it should rightfully be architecture independent, even if, at present, these
+// protocols are implemented for CC1350 only.
+
+// ============================================================================
+#if I2C_INTERFACE
+
+// To (re)initialize the I2C bus, the arguments are two pin numbers (scl, sda)
+// + rate (low, high)
+void __i2c_open (byte, byte, Boolean);
+#define	__i2c_close()	__i2c_open (BNONE, 0, NO)
+Boolean __i2c_op (byte, const byte*, lword, byte*, lword);
+
+#endif
+// ============================================================================
+#if SSI_INTERFACE
+
+// Interrupt function type
+typedef	void (*__ssi_int_fun_t)(void);
+
+// which [0,1] {clk, rx, tx, fs}, mode, rate, intfun
+void __ssi_open (sint, const byte*, byte, word, __ssi_int_fun_t);
+#define	__ssi_close(w) __ssi_open (w, NULL, 0, 0, NULL)
+
+#endif
+// ============================================================================
+
 #endif

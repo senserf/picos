@@ -5343,3 +5343,12 @@ PG170907A:
 
 	The mpu9250 driver is sort of ready and complete for now. I have
 	written a brief document.
+
+PG170913A:
+
+	I have writen a simple driver for the one-bit microphone on the
+	CC1350 SENSORTAG which seems to work and probably can be used for
+	things like noise detection.
+
+	Fixed a bug in autoconnect.tcl causing a failure to connect to a new
+	COM port, if the previous set of COM ports was empty.

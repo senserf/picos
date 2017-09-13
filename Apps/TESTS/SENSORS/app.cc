@@ -31,6 +31,10 @@
 #include "mpu9250.h"
 #endif
 
+#ifdef	SENSOR_OBMICROPHONE
+#include "obmicrophone.h"
+#endif
+
 // No actuator interface yet; should be easy to add when needed; in particular,
 // the DW1000 test should be reimplemented here
 
@@ -90,6 +94,7 @@ fsm outval (sensval_t *sen) {
 		ser_outf (NEXT, "  [%d] = %x [%u] <%d>\r\n", cnt,
 			sen->value [cnt], sen->value [cnt], sen->value [cnt]);
 		cnt++;
+
 		sameas NEXT;
 }
 
@@ -244,6 +249,9 @@ fsm root {
 #ifdef	SENSOR_MPU9250
 		add_sensor (SENSOR_MPU9250, "mpu9250", 10);
 #endif
+#ifdef	SENSOR_OBMICROPHONE
+		add_sensor (SENSOR_OBMICROPHONE, "obmicrophone", 4);
+#endif
 		// ... add more as needed
 
 		if ((ibuf = (char*) umalloc (IBUFLEN)) == NULL) {
@@ -267,6 +275,9 @@ fsm root {
 #endif
 #ifdef SENSOR_MPU9250
 	"mpu9250 [on op th | off | r[a|c] r | w[a|c] r v]\r\n"
+#endif
+#ifdef SENSOR_OBMICROPHONE
+	"obmic [on rate | off | reset]\r\n"
 #endif
 		"r sen [times [intv]]\r\n"
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
@@ -303,6 +314,10 @@ fsm root {
 #ifdef SENSOR_MPU9250
 		if (streq (curr, "mpu9250"))
 			sameas RS_MPU9250;
+#endif
+#ifdef SENSOR_OBMICROPHONE
+		if (streq (curr, "obmic"))
+			sameas RS_OBMIC;
 #endif
 		if (streq (curr, "r"))
 			sameas RS_R;
@@ -480,10 +495,37 @@ fsm root {
 		sameas RS_ERROR;
 #endif
 
+#ifdef SENSOR_OBMICROPHONE
+
+	state RS_OBMIC:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			// The default is 1.2M (is this a tall order?)
+			word ra = 12000;
+			scan (tail, "%u", &ra);
+			obmicrophone_on (ra);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			obmicrophone_off ();
+			sameas RS_OK;
+		}
+		if (streq (curr, "reset")) {
+			obmicrophone_reset ();
+			sameas RS_OK;
+		}
+
+	sameas RS_ERROR;
+#endif
+
 	state RS_R:
 
 		sensval_t *sen;
 		word del, ntm;
+byte aa[8];
 
 		curr = tail;
 		parse (&curr, &tail);
@@ -501,6 +543,7 @@ fsm root {
 		sen->del = del;
 		sen->count = ntm;
 		sen->vpid = runfsm svalues (sen);
+
 		sameas RS_OK;
 
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)

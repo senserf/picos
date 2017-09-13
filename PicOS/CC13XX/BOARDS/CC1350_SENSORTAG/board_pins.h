@@ -51,7 +51,7 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
 		iocportconfig (IOID_2, IOC_PORT_GPIO, \
-			/* Mic input, not used yet, set to input */ \
+			/* Mic input, dynamically reconfigured */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
@@ -64,7 +64,7 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
 		iocportconfig (IOID_3, IOC_PORT_GPIO, \
-			/* Mic clock, not used yet, set to output 0 */ \
+			/* Mic clock, dynamically reconfigured */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
@@ -75,7 +75,7 @@
 			IOC_SLEW_DISABLE	| \
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
-			0, 1, 0), \
+			0, 0, 0), \
 		iocportconfig (IOID_4, IOC_PORT_GPIO, \
 			/* Button 0, active low, needs pullup */ \
 			IOC_IOMODE_NORMAL 	| \
@@ -194,7 +194,7 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 1, 0), \
 		iocportconfig (IOID_13, IOC_PORT_GPIO, \
-			/* mic PWR */ \
+			/* Mic PWR */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
@@ -390,8 +390,9 @@
 
 // This is set to account for multpile configurations of I2C pins when there
 // are multiple busses which then have to be switched as needed
-#define	tmp007_sda		IOID_5
 #define	tmp007_scl		IOID_6
+#define	tmp007_sda		IOID_5
+#define	tmp007_rate		1
 
 // ============================================================================
 // MPU9250 accel, gyro, compass combo
@@ -415,8 +416,25 @@
 
 #define	mpu9250_int		(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
 					(1 << IOID_7))
-#define	mpu9250_sda		IOID_8
 #define	mpu9250_scl		IOID_9
+#define	mpu9250_sda		IOID_8
+#define	mpu9250_rate		1
+
+// ============================================================================
+// SPH0641LM4H one-bit microphone =============================================
+// ============================================================================
+
+#include "obmicrophone.h"
+
+#define	obmic_bring_up		GPIO_setDio (IOID_13)
+#define	obmic_bring_down	GPIO_clearDio (IOID_13)
+#define	obmic_rx		IOID_2
+#define	obmic_ck		IOID_3
+#define	obmic_if		0
+// MOTOROLA MODE 3, polarity 1, phase 1
+#define	obmic_mode		3
+
+// Using the new "standard" SSI interface
 
 // ============================================================================
 
@@ -427,6 +445,7 @@
 		DIGITAL_SENSOR (0, NULL, pin_sensor_read),	\
 		DIGITAL_SENSOR (0, tmp007_init, tmp007_read),	\
 		DIGITAL_SENSOR (0, NULL, mpu9250_read),		\
+		DIGITAL_SENSOR (0, NULL, obmicrophone_read),	\
 }
 #endif
 

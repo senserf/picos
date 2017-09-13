@@ -194,8 +194,4 @@ extern void __pi_ondomain (lword), __pi_offdomain (lword);
 
 extern lword system_event_count;
 
-#if I2C_INTERFACE
-Boolean __i2c_op (byte, byte*, lword, byte*, lword);
-#endif
-
 #endif

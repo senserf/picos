@@ -1,6 +1,7 @@
 // Put here to be visible by VUEE
-#define SENSOR_TEMP	(-2)
-#define	SENSOR_VOLTAGE	(-1)
-#define	SENSOR_PIN	0
-#define	SENSOR_TMP007	1
-#define	SENSOR_MPU9250	2
+#define SENSOR_TEMP		(-2)
+#define	SENSOR_VOLTAGE		(-1)
+#define	SENSOR_PIN		0
+#define	SENSOR_TMP007		1
+#define	SENSOR_MPU9250		2
+#define	SENSOR_OBMICROPHONE	3
