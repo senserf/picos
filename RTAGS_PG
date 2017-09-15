@@ -5352,3 +5352,8 @@ PG170913A:
 
 	Fixed a bug in autoconnect.tcl causing a failure to connect to a new
 	COM port, if the previous set of COM ports was empty.
+
+PG170915A:
+
+	A driver for the BMP280 pressure/temperature combo (for CC1350
+	SENSORTAG) is now available (documentation will shortly follow).

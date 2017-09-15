@@ -35,6 +35,10 @@
 #include "obmicrophone.h"
 #endif
 
+#ifdef	SENSOR_BMP280
+#include "bmp280.h"
+#endif
+
 // No actuator interface yet; should be easy to add when needed; in particular,
 // the DW1000 test should be reimplemented here
 
@@ -252,6 +256,9 @@ fsm root {
 #ifdef	SENSOR_OBMICROPHONE
 		add_sensor (SENSOR_OBMICROPHONE, "obmicrophone", 4);
 #endif
+#ifdef	SENSOR_BMP280
+		add_sensor (SENSOR_BMP280, "bmp280", 8);
+#endif
 		// ... add more as needed
 
 		if ((ibuf = (char*) umalloc (IBUFLEN)) == NULL) {
@@ -278,6 +285,9 @@ fsm root {
 #endif
 #ifdef SENSOR_OBMICROPHONE
 	"obmic [on rate | off | reset]\r\n"
+#endif
+#ifdef SENSOR_BMP280
+	"bmp280 [on mode | off]\r\n"
 #endif
 		"r sen [times [intv]]\r\n"
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
@@ -318,6 +328,10 @@ fsm root {
 #ifdef SENSOR_OBMICROPHONE
 		if (streq (curr, "obmic"))
 			sameas RS_OBMIC;
+#endif
+#ifdef SENSOR_BMP280
+		if (streq (curr, "bmp280"))
+			sameas RS_BMP280;
 #endif
 		if (streq (curr, "r"))
 			sameas RS_R;
@@ -521,11 +535,33 @@ fsm root {
 	sameas RS_ERROR;
 #endif
 
+#ifdef	SENSOR_BMP280
+
+	state RS_BMP280:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			// default = forced 0x01, press ovs 1 0x04,
+			// 		temp ovs 1 0x20, filter 1 0x400,
+			//		standby 4 0x8000
+			//
+			word ra = 0x8425;
+			scan (tail, "%x", &ra);
+			bmp280_on (ra);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			bmp280_off ();
+			sameas RS_OK;
+		}
+#endif
+
 	state RS_R:
 
 		sensval_t *sen;
 		word del, ntm;
-byte aa[8];
 
 		curr = tail;
 		parse (&curr, &tail);

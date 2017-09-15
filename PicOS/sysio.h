@@ -322,12 +322,18 @@ word	adcs_overflow ();
 /* ============= */
 /* Byte ordering */
 /* ============= */
+
+// Byte/word swap
+#define	__swabw(w)	((((w)&0xff)<<8)|(((w)>>8)&0xff))
+#define __swabl(w)	((((w)&0xff)<<24)|(((w)&0xff00)<<8)|\
+				(((w)>>8)&0xff00)|(((w)>>24)&0xff))
+#define	__swawl(w)	((((w) & 0xffff) << 16) | (((w) >> 16) & 0xffff))
+
 #if	LITTLE_ENDIAN
 
-#define	ntohs(w)	((((w)&0xff)<<8)|(((w)>>8)&0xff))
-#define ntohl(w)	((((w)&0xff)<<24)|(((w)&0xff00)<<8)|\
-				(((w)>>8)&0xff00)|(((w)>>24)&0xff))
-#define	ntowl(w)	((((w) & 0xffff) << 16) | (((w) >> 16) & 0xffff))
+#define	ntohs(w)	__swabw (w)
+#define ntohl(w)	__swabl (w)
+#define	ntowl(w)	__swawl (w)
 
 // Access to word fragments by pointers: byte in word, word in long,
 // byte in long

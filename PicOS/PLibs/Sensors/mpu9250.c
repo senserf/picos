@@ -3,23 +3,16 @@
 
 #ifndef	mpu9250_bring_up
 #define	mpu9250_bring_up	CNOP
-#ifndef	MPU9250_DELAY_POWERUP
-// No powerup implies no powerup delay
-#define	MPU9250_DELAY_POWERUP	0
-#define	MPU9250_DELAY_POWERDOWN	0
+#ifndef	MPU9250_DELAY_RESET
+#define	MPU9250_DELAY_RESET	5
+#endif
+#ifndef	MPU9250_DELAY_WAKEUP
+#define	MPU9250_DELAY_WAKEUP	24
 #endif
 #endif
 
 #ifndef	mpu9250_bring_down
 #define	mpu9250_bring_down	CNOP
-#endif
-
-#ifndef	MPU9250_DELAY_POWERUP
-#define	MPU9250_DELAY_POWERUP	50
-#endif
-
-#ifndef	MPU9250_DELAY_POWERDOWN
-#define	MPU9250_DELAY_POWERDOWN	5
 #endif
 
 #ifndef	MPU9250_DELAY_RESET
@@ -129,8 +122,6 @@ void mpu9250_on (word options, byte threshold) {
 		mpu9250_off ();
 
 	mpu9250_bring_up;
-	// Power up delay
-	__mdelay (MPU9250_DELAY_POWERUP);
 #if MPU9250_DELAY_RESET
 	// Need reset after power up
 	mpu9250_wrega (MPU9250_REG_PWR_MGMT_1, 0x80);
@@ -236,7 +227,6 @@ void mpu9250_off () {
 	mpu9250_wrega (MPU9250_REG_PWR_MGMT_1, 0x40);
 #endif
 	mpu9250_bring_down;
-	__mdelay (MPU9250_DELAY_POWERDOWN);
 	mpu9250_status &= ~0x0f;
 }
 
@@ -245,7 +235,7 @@ static void swab (address p, word n) {
 // Swap bytes
 //
 	while (n--) {
-		*p = (((*p) & 0xff) << 8) | (((*p) >> 8) & 0xff);
+		*p = __swabw (*p);
 		p++;
 	}
 }

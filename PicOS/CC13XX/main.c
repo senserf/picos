@@ -428,32 +428,6 @@ EX:
 #if 	SSI_INTERFACE
 
 //
-// Input pin "off" configuration; I think we may need to collect this info from
-// board config on the per-pin basis
-//
-#define	SSI_OFF_PINP		(	IOC_IOMODE_NORMAL		| \
-					IOC_NO_WAKE_UP			| \
-					IOC_NO_EDGE             	| \
-					IOC_INT_DISABLE         	| \
-					IOC_NO_IOPULL           	| \
-					IOC_INPUT_ENABLE        	| \
-					IOC_HYST_DISABLE        	| \
-					IOC_SLEW_DISABLE        	| \
-					IOC_CURRENT_2MA         	| \
-					IOC_STRENGTH_AUTO	)
-
-// Output pin "off" configuration
-#define	SSI_OFF_POUT		(	IOC_IOMODE_NORMAL		| \
-					IOC_NO_WAKE_UP			| \
-					IOC_NO_EDGE             	| \
-					IOC_INT_DISABLE         	| \
-					IOC_NO_IOPULL           	| \
-					IOC_INPUT_DISABLE        	| \
-					IOC_HYST_DISABLE        	| \
-					IOC_SLEW_DISABLE        	| \
-					IOC_CURRENT_2MA         	| \
-					IOC_STRENGTH_AUTO	)
-//
 // The pins; BNONE means unused, ck == BNONE means module is off
 //
 static	byte	ssi_ck [2] = { BNONE, BNONE },
@@ -518,21 +492,17 @@ void __ssi_open (sint w, const byte *p, byte m, word rate,
 	if (ssi_ck [w] != BNONE) {
 		// Close the previous interface
 		ssi_int_fun [w] = NULL;
-		HWREG (IOC_BASE + (ssi_ck [w] << 2)) = SSI_OFF_POUT |
-			IOC_PORT_GPIO;
+		IOCIOPortIdSet (ssi_ck [w], IOC_PORT_GPIO);
 		if (ssi_rx [w] != BNONE) {
-			HWREG (IOC_BASE + (ssi_rx [w] << 2)) =
-				SSI_OFF_POUT | IOC_PORT_GPIO;
+			IOCIOPortIdSet (ssi_rx [w], IOC_PORT_GPIO);
 			ssi_rx [w] = BNONE;
 		}
 		if (ssi_tx [w] != BNONE) {
-			HWREG (IOC_BASE + (ssi_tx [w] << 2)) =
-				SSI_OFF_POUT | IOC_PORT_GPIO;
+			IOCIOPortIdSet (ssi_tx [w], IOC_PORT_GPIO);
 			ssi_tx [w] = BNONE;
 		}
 		if (ssi_fs [w] != BNONE) {
-			HWREG (IOC_BASE + (ssi_fs [w] << 2)) =
-				SSI_OFF_POUT | IOC_PORT_GPIO;
+			IOCIOPortIdSet (ssi_fs [w], IOC_PORT_GPIO);
 			ssi_fs [w] = BNONE;
 		}
 		// Shut down the interface
@@ -552,19 +522,19 @@ void __ssi_open (sint w, const byte *p, byte m, word rate,
 
 	if (p != NULL && p [0] != BNONE) {
 		// Restart for the new configuration
-		HWREG (IOC_BASE + ((ssi_ck [w] = p [0]) << 2)) = SSI_OFF_POUT |
-			(w ? IOC_PORT_MCU_SSI1_CLK : IOC_PORT_MCU_SSI0_CLK);
+		IOCIOPortIdSet (ssi_ck [w] = p [0], 
+			w ? IOC_PORT_MCU_SSI1_CLK : IOC_PORT_MCU_SSI0_CLK);
 		if (p [1] != BNONE)
-			HWREG (IOC_BASE + ((ssi_rx [w] = p [1]) << 2)) =
-				SSI_OFF_PINP | (w ? IOC_PORT_MCU_SSI1_RX :
+			IOCIOPortIdSet (ssi_rx [w] = p [1],
+				w ? IOC_PORT_MCU_SSI1_RX :
 					IOC_PORT_MCU_SSI0_RX);
 		if (p [2] != BNONE)
-			HWREG (IOC_BASE + ((ssi_tx [w] = p [2]) << 2)) =
-				SSI_OFF_POUT | (w ? IOC_PORT_MCU_SSI1_TX :
+			IOCIOPortIdSet (ssi_tx [w] = p [2],
+				w ? IOC_PORT_MCU_SSI1_TX :
 					IOC_PORT_MCU_SSI0_TX);
 		if (p [3] != BNONE)
-			HWREG (IOC_BASE + ((ssi_fs [w] = p [3]) << 2)) =
-				SSI_OFF_POUT | (w ? IOC_PORT_MCU_SSI1_FSS :
+			IOCIOPortIdSet (ssi_fs [w] = p [3],
+				w ? IOC_PORT_MCU_SSI1_FSS :
 					IOC_PORT_MCU_SSI0_FSS);
 
 		PRCMPeripheralRunEnable (ub);
@@ -599,22 +569,6 @@ void __ssi_open (sint w, const byte *p, byte m, word rate,
 
 #if	I2C_INTERFACE
 
-//
-// Pin configuration for an off I2C pin; not sure if this is 100% right for
-// all occassions, because it assumes external pullups; we may need to keep
-// this in board description on a per-pin basis
-//
-#define	I2C_OFF_PCONF		(	IOC_IOMODE_OPEN_DRAIN_NORMAL	| \
-					IOC_NO_WAKE_UP			| \
-					IOC_NO_EDGE             	| \
-					IOC_INT_DISABLE         	| \
-					IOC_NO_IOPULL           	| \
-					IOC_INPUT_ENABLE        	| \
-					IOC_HYST_DISABLE        	| \
-					IOC_SLEW_DISABLE        	| \
-					IOC_CURRENT_2MA         	| \
-					IOC_STRENGTH_AUTO	)
-
 // Note: I2C is interrupt-less for now, but I see a scheme whereby we provide
 // an optional interrupt function upon open; this can be done now, because we
 // ALWAYS open the interface explicitly before use and, possibly, close it
@@ -632,10 +586,8 @@ void __i2c_open (byte scl, byte sda, Boolean rate) {
 
 	if (i2c_scl != BNONE) {
 		// Undo the previous setup
-		HWREG (IOC_BASE + (i2c_sda << 2)) = I2C_OFF_PCONF |
-			IOC_PORT_GPIO;
-		HWREG (IOC_BASE + (i2c_scl << 2)) = I2C_OFF_PCONF |
-			IOC_PORT_GPIO;
+		IOCIOPortIdSet (i2c_sda, IOC_PORT_GPIO);
+		IOCIOPortIdSet (i2c_scl, IOC_PORT_GPIO);
 		// Shut down the interface
 		PRCMPeripheralRunDisable (PRCM_PERIPH_I2C0);
 #if 1
@@ -650,10 +602,8 @@ void __i2c_open (byte scl, byte sda, Boolean rate) {
 	i2c_sda = sda;
 	if ((i2c_scl = scl) != BNONE) {
 		// Restart for the new configuration
-		HWREG (IOC_BASE + (i2c_sda << 2)) = I2C_OFF_PCONF |
-			IOC_PORT_MCU_I2C_MSSDA;
-		HWREG (IOC_BASE + (i2c_scl << 2)) = I2C_OFF_PCONF |
-			IOC_PORT_MCU_I2C_MSSCL;
+		IOCIOPortIdSet (i2c_sda, IOC_PORT_MCU_I2C_MSSDA);
+		IOCIOPortIdSet (i2c_scl, IOC_PORT_MCU_I2C_MSSCL);
 
 		PRCMPeripheralRunEnable (PRCM_PERIPH_I2C0);
 #if 1

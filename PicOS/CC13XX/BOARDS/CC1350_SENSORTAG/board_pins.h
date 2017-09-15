@@ -51,7 +51,7 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
 		iocportconfig (IOID_2, IOC_PORT_GPIO, \
-			/* Mic input, dynamically reconfigured */ \
+			/* Mic input, dynamically reconfigured, starts off */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_NO_WAKE_UP		| \
 			IOC_NO_EDGE		| \
@@ -373,7 +373,7 @@
 // TMP007 thermopile sensor ===================================================
 // ============================================================================
 
-#define	TMP007_ADDR	0x44
+#define	TMP007_ADDR		0x44
 
 #include "tmp007.h"
 
@@ -403,8 +403,11 @@
 
 #include "mpu9250.h"
 
-#define	mpu9250_bring_up	GPIO_setDio (IOID_12)
-#define	mpu9250_bring_down	GPIO_clearDio (IOID_12)
+#define	mpu9250_bring_up	do { GPIO_setDio (IOID_12); \
+					mdelay (40); } while (0)
+
+#define	mpu9250_bring_down	do { GPIO_clearDio (IOID_12); \
+					mdelay (2); } while (0)
 
 #define	mpu9250_enable		HWREGBITW (IOC_BASE + (IOID_7 << 2), \
 					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 1
@@ -426,6 +429,8 @@
 
 #include "obmicrophone.h"
 
+// Using the new "standard" SSI interface
+
 #define	obmic_bring_up		GPIO_setDio (IOID_13)
 #define	obmic_bring_down	GPIO_clearDio (IOID_13)
 #define	obmic_rx		IOID_2
@@ -434,7 +439,17 @@
 // MOTOROLA MODE 3, polarity 1, phase 1
 #define	obmic_mode		3
 
-// Using the new "standard" SSI interface
+// ============================================================================
+// BMP280 pressure/temperature combo ==========================================
+// ============================================================================
+
+#include "bmp280.h"
+
+#define	BMP280_ADDR		0x77
+
+#define	bmp280_scl		IOID_6
+#define	bmp280_sda		IOID_5
+#define	bmp280_rate		1
 
 // ============================================================================
 
@@ -446,6 +461,7 @@
 		DIGITAL_SENSOR (0, tmp007_init, tmp007_read),	\
 		DIGITAL_SENSOR (0, NULL, mpu9250_read),		\
 		DIGITAL_SENSOR (0, NULL, obmicrophone_read),	\
+		DIGITAL_SENSOR (0, NULL, bmp280_read),		\
 }
 #endif
 

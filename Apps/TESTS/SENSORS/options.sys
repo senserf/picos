@@ -5,3 +5,4 @@
 #define	SENSOR_TMP007		1
 #define	SENSOR_MPU9250		2
 #define	SENSOR_OBMICROPHONE	3
+#define	SENSOR_BMP280		4
