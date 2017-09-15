@@ -29,7 +29,7 @@
 
 void bmp280_wreg (byte reg, byte val) {
 //
-// Write word to reg
+// Write byte to reg
 //
 	byte msg [2];
 
@@ -42,7 +42,7 @@ void bmp280_wreg (byte reg, byte val) {
 
 void bmp280_rregn (byte reg, byte *data, word n) {
 //
-// Read a 16-bit value from the indicated register
+// Read bytes from the indicated register
 //
 	sbus;
 	while (__i2c_op (BMP280_ADDR, &reg, 1, data, n));
@@ -215,7 +215,11 @@ void bmp280_on (word wmode) {
 //
 	byte d;
 
+	if (bmode & 3)
+		bmp280_off ();
+
 	bmp280_bring_up;
+
 	d = 0;
 	bmp280_rregn (BMP280_CHIP_ID_REG, &d, 1);
 	if (d != BMP280_CHIP_ID1 && d != BMP280_CHIP_ID2 &&
@@ -242,8 +246,11 @@ void bmp280_on (word wmode) {
 
 void bmp280_off () {
 
-	bmp280_wreg (BMP280_CTRL_MEAS_REG, bmode = 0);
-	bstatus &= ~BMP280_STATUS_PENDING;
+	if (bmode & 3) {
+		bmp280_wreg (BMP280_CTRL_MEAS_REG, bmode = 0);
+		bstatus &= ~BMP280_STATUS_PENDING;
+		bmp280_bring_down;
+	}
 }
 
 void bmp280_read (word st, const byte *junk, address val) {

@@ -452,6 +452,40 @@
 #define	bmp280_rate		1
 
 // ============================================================================
+// HDC1000 humid/temp combo ===================================================
+// ============================================================================
+
+#include "hdc1000.h"
+
+#define	HDC1000_ADDR		0x43
+
+#define	hdc1000_scl		IOID_6
+#define	hdc1000_sda		IOID_5
+#define	hdc1000_rate		1
+
+// ============================================================================
+// OPT3001 light ==============================================================
+// ============================================================================
+
+#include "opt3001.h"
+
+#define	OPT3001_ADDR		0x45
+
+#define	opt3001_scl		IOID_6
+#define	opt3001_sda		IOID_5
+#define	opt3001_rate		1
+
+// ============================================================================
+// BUZZER =====================================================================
+// ============================================================================
+
+// Not sure what to do about the buzzer (aka beeper)
+#define	beeper_pin_on		GPIO_setDio (IOID_21)
+#define	beeper_pin_off		GPIO_clearDio (IOID_21)
+
+#include "beeper.h"
+
+// ============================================================================
 
 #if 1
 #define	SENSOR_LIST { \
@@ -462,6 +496,8 @@
 		DIGITAL_SENSOR (0, NULL, mpu9250_read),		\
 		DIGITAL_SENSOR (0, NULL, obmicrophone_read),	\
 		DIGITAL_SENSOR (0, NULL, bmp280_read),		\
+		DIGITAL_SENSOR (0, NULL, hdc1000_read),		\
+		DIGITAL_SENSOR (0, NULL, opt3001_read),		\
 }
 #endif
 

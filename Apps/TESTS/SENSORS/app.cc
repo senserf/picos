@@ -39,6 +39,18 @@
 #include "bmp280.h"
 #endif
 
+#ifdef	SENSOR_HDC1000
+#include "hdc1000.h"
+#endif
+
+#ifdef	SENSOR_OPT3001
+#include "opt3001.h"
+#endif
+
+#ifdef	beeper_pin_on
+#include "beeper.h"
+#endif
+
 // No actuator interface yet; should be easy to add when needed; in particular,
 // the DW1000 test should be reimplemented here
 
@@ -259,6 +271,12 @@ fsm root {
 #ifdef	SENSOR_BMP280
 		add_sensor (SENSOR_BMP280, "bmp280", 8);
 #endif
+#ifdef	SENSOR_HDC1000
+		add_sensor (SENSOR_HDC1000, "hdc1000", 4);
+#endif
+#ifdef	SENSOR_OPT3001
+		add_sensor (SENSOR_OPT3001, "opt3001", 4);
+#endif
 		// ... add more as needed
 
 		if ((ibuf = (char*) umalloc (IBUFLEN)) == NULL) {
@@ -289,6 +307,12 @@ fsm root {
 #ifdef SENSOR_BMP280
 	"bmp280 [on mode | off]\r\n"
 #endif
+#ifdef SENSOR_HDC1000
+	"hdc1000 [on mode | off]\r\n"
+#endif
+#ifdef SENSOR_OPT3001
+	"opt3001 [on mode | off]\r\n"
+#endif
 		"r sen [times [intv]]\r\n"
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
 		"e sen\r\n"
@@ -296,6 +320,9 @@ fsm root {
 		"stop\r\n"
 		"list\r\n"
 		"reset\r\n"
+#ifdef	beeper_pin_on
+		"buzz [tim [frq]]\r\n"
+#endif
 	);
 
 	state RS_RCMD:
@@ -333,6 +360,14 @@ fsm root {
 		if (streq (curr, "bmp280"))
 			sameas RS_BMP280;
 #endif
+#ifdef SENSOR_HDC1000
+		if (streq (curr, "hdc1000"))
+			sameas RS_HDC1000;
+#endif
+#ifdef SENSOR_OPT3001
+		if (streq (curr, "opt3001"))
+			sameas RS_OPT3001;
+#endif
 		if (streq (curr, "r"))
 			sameas RS_R;
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
@@ -347,7 +382,10 @@ fsm root {
 
 		if (streq (curr, "reset"))
 			reset ();
-
+#ifdef	beeper_pin_on
+		if (streq (curr, "buzz"))
+			sameas RS_BUZZ;
+#endif
 	state RS_ERROR:
 
 		ser_out (RS_ERROR, "Illegal command or parameter\r\n");
@@ -556,6 +594,56 @@ fsm root {
 			bmp280_off ();
 			sameas RS_OK;
 		}
+#endif
+
+#ifdef	SENSOR_HDC1000
+
+	state RS_HDC1000:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			// default = both, 14 bits
+			word ra = 0x0003;
+			scan (tail, "%x", &ra);
+			hdc1000_on (ra);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			hdc1000_off ();
+			sameas RS_OK;
+		}
+#endif
+
+#ifdef	SENSOR_OPT3001
+
+	state RS_OPT3001:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			// default = both, 14 bits
+			word ra = 0xc600;
+			scan (tail, "%x", &ra);
+			opt3001_on (ra);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			opt3001_off ();
+			sameas RS_OK;
+		}
+#endif
+
+#ifdef	beeper_pin_on
+
+	state RS_BUZZ:
+
+		word ra = 1, fq = 1;
+		scan (tail, "%d %d", &ra, &fq);
+		beep (ra, fq);
+		sameas RS_OK;
 #endif
 
 	state RS_R:

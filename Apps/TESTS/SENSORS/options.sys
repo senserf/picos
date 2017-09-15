@@ -6,3 +6,7 @@
 #define	SENSOR_MPU9250		2
 #define	SENSOR_OBMICROPHONE	3
 #define	SENSOR_BMP280		4
+#define	SENSOR_HDC1000		5
+#define	SENSOR_OPT3001		6
+
+#define BUZZER

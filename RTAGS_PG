@@ -5357,3 +5357,12 @@ PG170915A:
 
 	A driver for the BMP280 pressure/temperature combo (for CC1350
 	SENSORTAG) is now available (documentation will shortly follow).
+
+PG170915B:
+
+	Drivers for HDC1000 (TI humidity/temperature combo) and OPT3001 (TI
+	ambient light sensor). Also, some rudimentary buzzer "driver". This
+	(for now) completes the set of drivers for the CC1350 SENSORTAG. In
+	other words, we seem to have the device well in hand now.
+
+	I will document the drivers shortly. There isn't a lot to write.
