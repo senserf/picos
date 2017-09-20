@@ -66,17 +66,17 @@ void opt3001_on (word wmode) {
 // Configuration
 //
 // #define	OPT3001_MODE_AUTORANGE	0xC000		// 0x0-0xB
-// #define	OPT3001_MODE_TIME100	0x0000		// fast
-// #define	OPT3001_MODE_TIME800	0x0800		// slow
+// #define	OPT3001_MODE_TIME_100	0x0000		// fast
+// #define	OPT3001_MODE_TIME_800	0x0800		// slow
 // #define	OPT3001_MODE_LATCH	0x0010		// Int latch
 // #define	OPT3001_MODE_POLARITY_L	0x0000		// Int polarity
 // #define	OPT3001_MODE_POLARITY_H	0x0008
 // #define	OPT3001_MODE_NOEXP	0x0004		// Don't show exponent
 // 
-// #define	OPT3001_MODE_FAULT1	0x0000		// Fault count
-// #define	OPT3001_MODE_FAULT2	0x0001
-// #define	OPT3001_MODE_FAULT4	0x0002
-// #define	OPT3001_MODE_FAULT8	0x0003
+// #define	OPT3001_MODE_FAULT_1	0x0000		// Fault count
+// #define	OPT3001_MODE_FAULT_2	0x0001
+// #define	OPT3001_MODE_FAULT_4	0x0002
+// #define	OPT3001_MODE_FAULT_8	0x0003
 // Conversion modes
 // #define	OPT3001_MODE_CMODE_SD	0x0000		// Shutdown
 // #define	OPT3001_MODE_CMODE_SS	0x0200		// Single shot
@@ -98,7 +98,7 @@ void opt3001_on (word wmode) {
 		ostatus |= OPT3001_STATUS_SS;
 	}
 
-	if ((wmode & OPT3001_MODE_TIME800) == 0)
+	if ((wmode & OPT3001_MODE_TIME_800) == 0)
 		ostatus |= OPT3001_STATUS_SLOW;
 	
 	opt3001_wreg (OPT3001_REG_CONFIG, wmode);
@@ -114,7 +114,7 @@ void opt3001_off () {
 	}
 }
 
-void opt3001_setlimits (word lo, word hi) {
+void opt3001_setlimits (word hi, word lo) {
 
 	opt3001_wreg (OPT3001_REG_LIMIT_L, lo);
 	opt3001_wreg (OPT3001_REG_LIMIT_H, hi);

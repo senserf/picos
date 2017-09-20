@@ -108,6 +108,10 @@ void tmp007_on (word mode, word enable) {
 //
 	tmp007_disable;
 	tmp007_bring_up;
+	if (enable)
+		// Make sure that if anything is enabled, then ALERT in CONF
+		// is also set
+		mode |= TMP007_CONFIG_ALERT;
 	tmp007_wreg (TMP007_REG_CONF, mode);
 	tmp007_wreg (TMP007_REG_SMEN, enable);
 	_BIS (tmp007_status, TMP007_STATUS_ON);
@@ -119,10 +123,10 @@ void tmp007_setlimits (wint oh, wint ol, wint lh, wint ll) {
 // These are specified at 0.5 degree resolution; should we use the same
 // resolution as for temperature?
 //
-	tmp007_wreg (TMP007_REG_TOHL, (word)(oh << 6));
-	tmp007_wreg (TMP007_REG_TOLL, (word)(ol << 6));
-	tmp007_wreg (TMP007_REG_TDHL, (word)(lh << 6));
-	tmp007_wreg (TMP007_REG_TDLL, (word)(ll << 6));
+	tmp007_wreg (TMP007_REG_TOHL, ((word)(oh << 2)) & 0xffc0);
+	tmp007_wreg (TMP007_REG_TOLL, ((word)(ol << 2)) & 0xffc0);
+	tmp007_wreg (TMP007_REG_TDHL, ((word)(lh << 2)) & 0xffc0);
+	tmp007_wreg (TMP007_REG_TDLL, ((word)(ll << 2)) & 0xffc0);
 }
 
 void tmp007_off () {
@@ -161,18 +165,17 @@ void tmp007_read (word st, const byte *junk, address val) {
 
 	if (!(tmp007_status & TMP007_STATUS_ON)) {
 		// No data
-		*val = 0;
+Inv:
+		bzero (val, 4);
 		return;
 	}
 
 	// Read the data register
 	val [1] = tmp007_rreg (TMP007_REG_TOBJ);
 
-	if (val [1] & 1) {
+	if (val [1] & 1)
 		// Invalid?
-		delay (1, st);
-		release;
-	}
+		goto Inv;
 
 	val [0] = tmp007_rreg (TMP007_REG_TDIE);
 

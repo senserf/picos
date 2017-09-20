@@ -5366,3 +5366,10 @@ PG170915B:
 	other words, we seem to have the device well in hand now.
 
 	I will document the drivers shortly. There isn't a lot to write.
+
+PG170920A:
+
+	Documented most of the new sensor drivers (well, just a few pages).
+	Made a few little adjustments here and there. One thing that isn't
+	documented yet is the microphone driver which will probably change
+	a bit when I get back home. Greetings from Sardinia!

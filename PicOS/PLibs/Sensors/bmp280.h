@@ -113,7 +113,7 @@
 #define	BMP280_MODE_FILTER_8					(3 << 10)
 #define	BMP280_MODE_FILTER_16					(4 << 10)
 
-#define	BMP280_MODE_STANDBY_1_MS				(0 << 13)
+#define	BMP280_MODE_STANDBY_05_MS				(0 << 13)
 #define	BMP280_MODE_STANDBY_63_MS				(1 << 13)
 #define	BMP280_MODE_STANDBY_125_MS				(2 << 13)
 #define	BMP280_MODE_STANDBY_250_MS				(3 << 13)

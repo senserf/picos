@@ -173,8 +173,8 @@ void hdc1000_read (word st, const byte *junk, address val) {
 	nw--;
 	if (select & 1)
 		// Convert humid to tenths of percent
-		val [nw] = (word)(((lint) (val [nw]) * 1000) / 0x10000);
+		val [nw] = (word)(((lint) (val [nw]) * 10000) / 0x10000);
 	if (select & 2)
 		// Convert temp to tenths of degrees
-		val [0] = (((lint) (val [0]) * 1650) / 0x10000) - 400;
+		val [0] = (word)((((lint) (val [0]) * 1650) / 0x10000) - 400);
 }

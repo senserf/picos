@@ -17,17 +17,29 @@
 
 // Config register fields
 #define	OPT3001_MODE_AUTORANGE	0xC000
-#define	OPT3001_MODE_TIME100	0x0000
-#define	OPT3001_MODE_TIME800	0x0800
+#define	OPT3001_MODE_RANGE_0	0x0000
+#define	OPT3001_MODE_RANGE_1	0x1000
+#define	OPT3001_MODE_RANGE_2	0x2000
+#define	OPT3001_MODE_RANGE_3	0x3000
+#define	OPT3001_MODE_RANGE_4	0x4000
+#define	OPT3001_MODE_RANGE_5	0x5000
+#define	OPT3001_MODE_RANGE_6	0x6000
+#define	OPT3001_MODE_RANGE_7	0x7000
+#define	OPT3001_MODE_RANGE_8	0x8000
+#define	OPT3001_MODE_RANGE_9	0x9000
+#define	OPT3001_MODE_RANGE_10	0xa000
+#define	OPT3001_MODE_RANGE_11	0xb000
+#define	OPT3001_MODE_TIME_100	0x0000
+#define	OPT3001_MODE_TIME_800	0x0800
 #define	OPT3001_MODE_LATCH	0x0010		// Latch
 #define	OPT3001_MODE_POLARITY_L	0x0000		// Int polarity
 #define	OPT3001_MODE_POLARITY_H	0x0008
 #define	OPT3001_MODE_NOEXP	0x0004		// Don't show exponent
 
-#define	OPT3001_MODE_FAULT1	0x0000		// Fault count
-#define	OPT3001_MODE_FAULT2	0x0001
-#define	OPT3001_MODE_FAULT4	0x0002
-#define	OPT3001_MODE_FAULT8	0x0003
+#define	OPT3001_MODE_FAULT_1	0x0000		// Fault count
+#define	OPT3001_MODE_FAULT_2	0x0001
+#define	OPT3001_MODE_FAULT_4	0x0002
+#define	OPT3001_MODE_FAULT_8	0x0003
 
 // Conversion modes
 #define	OPT3001_MODE_CMODE_SD	0x0000		// Shutdown
@@ -53,11 +65,26 @@
 // ============================================================================
 
 typedef struct {
-//
-// Sensor value:
-//
-	word	result;
-	word	status;
+
+	union {
+		word result;
+		struct {
+			word man:12;
+			word exp:4;
+		};
+	};
+
+	union {
+		word status;
+		struct {
+			word unused3:5;
+			word lo:1;
+			word hi:1;
+			word unused2:1;
+			word ovf:1;
+			word unused1:7;
+		};
+	};
 
 } opt3001_data_t;
 

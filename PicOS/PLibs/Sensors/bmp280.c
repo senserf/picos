@@ -303,7 +303,7 @@ void bmp280_read (word st, const byte *junk, address val) {
 
 	if (pp) {
 		bmp280_rregn (BMP280_PRESSURE_MSB_REG, da, 3);
-		*vp = compensate_press (unpack (da));
+		*vp++ = compensate_press (unpack (da));
 		return;
 	}
 
