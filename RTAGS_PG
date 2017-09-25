@@ -5373,3 +5373,13 @@ PG170920A:
 	Made a few little adjustments here and there. One thing that isn't
 	documented yet is the microphone driver which will probably change
 	a bit when I get back home. Greetings from Sardinia!
+
+PG170925A:
+
+	Implemented and documented a (let's call it naive) driver for the
+	one-bit microphone on the CC1350 SENSORTAG.
+
+	Fixed an alignment problem for the malloced area for CC1350.
+
+	Fixed a problem with SSI shutdown for CC1350.
+

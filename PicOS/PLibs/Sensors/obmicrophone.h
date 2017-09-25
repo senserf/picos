@@ -12,8 +12,11 @@ typedef struct {
 // Sensor value: number of samples from last reset + level
 //
 	lword	nsamples;
-	lint 	level;
+	lword 	amplitude;
 } obmicrophone_data_t;
+
+#define	OBMICROPHONE_MINRATE	1000	// 100 kHz
+#define	OBMICROPHONE_MAXRATE	24750	// 2.475 MHz
 
 #ifndef __SMURPH__
 

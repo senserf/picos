@@ -490,7 +490,23 @@ void __ssi_open (sint w, const byte *p, byte m, word rate,
 	ub = w ? PRCM_PERIPH_SSI1 : PRCM_PERIPH_SSI0;
 
 	if (ssi_ck [w] != BNONE) {
-		// Close the previous interface
+
+		// Shut down the previous intrface
+
+		SSIDisable (ssi_base [w]);
+		SSIIntDisable (ssi_base [w], SSI_RXFF | SSI_RXTO | SSI_RXOR |
+			SSI_RXFF);
+		IntDisable (w ? INT_SSI1_COMB : INT_SSI0_COMB);
+		PRCMPeripheralRunDisable (ub);
+#if 1
+		// Not sure if we need these, because we are not using I2C
+		// interrupts, at least not yet
+		PRCMPeripheralSleepDisable (ub);
+		PRCMPeripheralDeepSleepDisable (ub);
+#endif
+		PRCMLoadSet ();
+
+		// Reset the pins to standard GPIO
 		ssi_int_fun [w] = NULL;
 		IOCIOPortIdSet (ssi_ck [w], IOC_PORT_GPIO);
 		if (ssi_rx [w] != BNONE) {
@@ -505,23 +521,12 @@ void __ssi_open (sint w, const byte *p, byte m, word rate,
 			IOCIOPortIdSet (ssi_fs [w], IOC_PORT_GPIO);
 			ssi_fs [w] = BNONE;
 		}
-		// Shut down the interface
-		SSIDisable (ssi_base [w]);
-		SSIIntDisable (ssi_base [w], SSI_RXFF | SSI_RXTO | SSI_RXOR |
-			SSI_RXFF);
-		IntDisable (w ? INT_SSI1_COMB : INT_SSI0_COMB);
-		PRCMPeripheralRunDisable (ub);
-#if 1
-		// Not sure if we need these, because we are not using I2C
-		// interrupts, at least not yet
-		PRCMPeripheralSleepDisable (ub);
-		PRCMPeripheralDeepSleepDisable (ub);
-#endif
-		PRCMLoadSet ();
 	}
 
 	if (p != NULL && p [0] != BNONE) {
+
 		// Restart for the new configuration
+
 		IOCIOPortIdSet (ssi_ck [w] = p [0], 
 			w ? IOC_PORT_MCU_SSI1_CLK : IOC_PORT_MCU_SSI0_CLK);
 		if (p [1] != BNONE)

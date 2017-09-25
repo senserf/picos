@@ -64,16 +64,21 @@
 
 // ============================================================================
 
+typedef	void (*svfun_t) (word, address);
+
 typedef struct {
 
 	sint sensor;		// Sensor ID (number), can be negative
 	word vlength;		// Value length in words
 	const char *name;	// Sensor name
+	svfun_t show;		// Function to show the value
 	word del, count;	// Reporting delay + remaining count
 	aword epid, vpid;	// Event thread + reporting thread
-	word value [0];		// The value itself
+	lword value [0];	// The value itself (lword aligned)
 
 } sensval_t;
+
+// ============================================================================
 
 static sensval_t *sensors [MAX_SENSORS];
 static word n_sensors = 0;
@@ -90,36 +95,93 @@ static Boolean streq (const char *a, const char *b) {
 	return NO;
 }
 
+// ============================================================================
+
+static void show_single (word st, address val) {
+
+	ser_outf (st, "HEX: %x, UNS: %u, SIG: %d\r\n", *val, *val, *val);
+}
+
+static void show_xyz (word st, address val) {
+
+	ser_outf (st, "X: %d, Y: %d, Z: %d\r\n", val [0], val [1], val [2]);
+}
+
+static void show_2s (word st, address val) {
+
+	ser_outf (st, "V0: %d, V1: %d\r\n", val [0], val [1]);
+}
+
+#ifdef	SENSOR_OBMICROPHONE
+
+static void show_obmic (word st, address val) {
+
+	lword ns, am;
+
+	if ((ns = ((lword*)val) [0]) == 0)
+		// Preventing division by zero
+		ns = 1;
+
+	am = ((lword*)val) [1];
+
+	ser_outf (st, "V0: %lu, V1: %lu\r\n", ns, am);
+	obmicrophone_reset ();
+}
+
+#endif
+
+static void show_2ls (word st, address val) {
+
+	ser_outf (st, "V0: %ld, V1: %ld\r\n",
+		((lword*)val) [0],
+		((lword*)val) [1]);
+}
+
+#ifdef	SENSOR_MPU9250
+
+static void show_mpu9250 (word st, address val) {
+
+	ser_outf (st, "A: [%d, %d, %d], G: [%d, %d, %d], C: [%d, %d, %d], "
+		"T: %d\r\n", 
+			val [0], val [1], val [2],
+			val [3], val [4], val [5],
+			val [6], val [7], val [8], val [9]);
+}
+
+#endif
+
+#ifdef	SENSOR_OPT3001
+
+static void show_opt3001 (word st, address val) {
+
+	ser_outf (st, "E: %d, L: %d, S: %x\r\n", val [0] >> 12,
+		val [0] & 0x0fff, val [1]);
+}
+
+#endif
+
+// ============================================================================
+
 fsm outval (sensval_t *sen) {
 //
 // Output sensor value
 //
-	word cnt;
-
 	state INIT:
 
 		ser_outf (INIT, "=== Sensor %s\r\n", sen->name);
-		cnt = 0;
 
-	state NEXT:
+	state SHOW:
 
-		if (cnt == sen->vlength)
-			// Done
-			finish;
-
-		ser_outf (NEXT, "  [%d] = %x [%u] <%d>\r\n", cnt,
-			sen->value [cnt], sen->value [cnt], sen->value [cnt]);
-		cnt++;
-
-		sameas NEXT;
+		sen->show (SHOW, (address)(sen->value));
+		finish;
 }
 
 fsm svalues (sensval_t *sen) {
 
 	state SV_REPORT:
 
-		bzero (sen->value, sen->vlength << 1);
-		read_sensor (SV_REPORT, sen->sensor, sen->value);
+		bzero (sen->value, sen->vlength);
+		read_sensor (SV_REPORT, sen->sensor, (address)(sen->value));
 		call outval (sen, SV_DONE);
 
 	state SV_DONE:
@@ -150,8 +212,8 @@ fsm sevents (sensval_t *sen) {
 
   state SE_READ:
 
-	bzero (sen->value, sen->vlength << 1);
-	read_sensor (SE_READ, sen->sensor, sen->value);
+	bzero (sen->value, sen->vlength);
+	read_sensor (SE_READ, sen->sensor, (address)(sen->value));
 	call outval (sen, SE_WAIT);
 }
 
@@ -159,7 +221,7 @@ fsm sevents (sensval_t *sen) {
 
 // ============================================================================
 
-static void add_sensor (sint id, const char *name, word vl) {
+static void add_sensor (sint id, const char *name, word vl, svfun_t sf) {
 
 	sensval_t *p;
 
@@ -168,7 +230,7 @@ static void add_sensor (sint id, const char *name, word vl) {
 		reset ();
 	}
 
-	p = (sensval_t*) umalloc (sizeof (sensval_t) + vl + vl);
+	p = (sensval_t*) umalloc (sizeof (sensval_t) + vl);
 	if (p == NULL) {
 		diag ("MEMORY!");
 		reset ();
@@ -179,8 +241,9 @@ static void add_sensor (sint id, const char *name, word vl) {
 	p->vlength = vl;
 	p->del = p->count = 0;
 	p->epid = p->vpid = 0;
+	p->show = sf;
 
-	bzero (p->value, vl + vl);
+	bzero (p->value, vl);
 
 	sensors [n_sensors++] = p;
 }
@@ -245,37 +308,37 @@ fsm root {
 
 		// Create sensor descriptions
 #ifdef	SENSOR_TEMP
-		add_sensor (SENSOR_TEMP, "temp", 1);
+		add_sensor (SENSOR_TEMP, "temp", 2, show_single);
 #endif
 #ifdef	SENSOR_VOLTAGE
-		add_sensor (SENSOR_VOLTAGE, "volt", 1);
+		add_sensor (SENSOR_VOLTAGE, "volt", 2, show_single);
 #endif
 #ifdef	SENSOR_PIN
-		add_sensor (SENSOR_PIN, "pin", 1);
+		add_sensor (SENSOR_PIN, "pin", 2, show_single);
 #endif
 #ifdef	SENSOR_CMA3000
-		add_sensor (SENSOR_CMA3000, "cma3000", 2);
+		add_sensor (SENSOR_CMA3000, "cma3000", 6, show_xyz);
 #endif
 #ifdef	SENSOR_SCA3100
-		add_sensor (SENSOR_SCA3100, "sca3100", 3);
+		add_sensor (SENSOR_SCA3100, "sca3100", 6, show_xyz);
 #endif
 #ifdef	SENSOR_TMP007
-		add_sensor (SENSOR_TMP007, "tmp007", 2);
+		add_sensor (SENSOR_TMP007, "tmp007", 4, show_2s);
 #endif
 #ifdef	SENSOR_MPU9250
-		add_sensor (SENSOR_MPU9250, "mpu9250", 10);
+		add_sensor (SENSOR_MPU9250, "mpu9250", 20, show_mpu9250);
 #endif
 #ifdef	SENSOR_OBMICROPHONE
-		add_sensor (SENSOR_OBMICROPHONE, "obmicrophone", 4);
+		add_sensor (SENSOR_OBMICROPHONE, "obmicrophone", 8, show_obmic);
 #endif
 #ifdef	SENSOR_BMP280
-		add_sensor (SENSOR_BMP280, "bmp280", 8);
+		add_sensor (SENSOR_BMP280, "bmp280", 8, show_2ls);
 #endif
 #ifdef	SENSOR_HDC1000
-		add_sensor (SENSOR_HDC1000, "hdc1000", 4);
+		add_sensor (SENSOR_HDC1000, "hdc1000", 8, show_2s);
 #endif
 #ifdef	SENSOR_OPT3001
-		add_sensor (SENSOR_OPT3001, "opt3001", 4);
+		add_sensor (SENSOR_OPT3001, "opt3001", 8, show_opt3001);
 #endif
 		// ... add more as needed
 

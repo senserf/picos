@@ -104,6 +104,7 @@ SECTIONS
         _bss = .;
         *(.bss*)
         *(COMMON)
+	. = ALIGN(4);
         _ebss = .;
         __bss_end__ = .;
     } > SRAM

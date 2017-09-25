@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 #include "sysio.h"
@@ -11,7 +11,11 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 	word d;
 
 	void outc (word c) {
-		if (res && (d < n)) res [d] = (char)(c); d++;
+		if (res && (d < n))
+			// Store if there is a buffer ...
+			res [d] = (char) c;
+		// ... otherwise just count
+		d++;
 	};
 
 #define enci(b)	i = (b); \
@@ -47,7 +51,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 		}
 
 		if (c == '%') {
-			/* Something special */
+			// Something special ?
 			c = *fm++;
 			switch (c) {
 			    case 'x' : {
@@ -55,7 +59,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 				val = (word) va_arg (ap, aword);
 				for (i = 12; ; i -= 4) {
 					outc (__pi_hex_enc_table
-						[(val>>i)&0xf]);
+						[ (val >> i) & 0xf ]);
 					if (i == 0)
 						break;
 				}
@@ -77,6 +81,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 			    case 'l' :
 				c = *fm;
 				if (c == 'd' || c == 'u') {
+					// 'i' is needed by 'enci'
 					lword val, i;
 					fm++;
 					val = va_arg (ap, lword);
@@ -86,7 +91,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 						outc ('-');
 						val = (~val) + 1;
 					}
-					enci (1000000000L);
+					enci (1000000000UL);
 				} else if (c == 'x') {
 					lword val;
 					int i;
@@ -94,7 +99,7 @@ word __pi_vfparse (char *res, word n, const char *fm, va_list ap) {
 					val = va_arg (ap, lword);
 					for (i = 28; ; i -= 4) {
 						outc (__pi_hex_enc_table
-							[(val>>i)&0xf]);
+							[ (val >> i) & 0xf ]);
 						if (i == 0)
 							break;
 					}
