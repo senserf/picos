@@ -25,6 +25,8 @@ rm -f bma250.h
 rm -f tmp007.h
 rm -f sca3100.h
 rm -f mpu9250.h
+rm -f obmicrophone.h
+rm -f bmp280.h
 rm -f bmp085.h
 rm -f modsyms.h
 rm -f dbgtrc.h

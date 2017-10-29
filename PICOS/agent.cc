@@ -3560,7 +3560,7 @@ void LEDSM::rst () {
 	Fast = NO;
 
 	if (IN.OT != NULL)
-		IN.OT->signal (NULL);
+		IN.OT->signal (0);
 }
 
 LEDSM::~LEDSM () {
@@ -3582,7 +3582,7 @@ void LEDSM::leds_op (word led, word op) {
 		setstat (led, op);
 		Changed = YES;
 		if (IN.OT != NULL)
-			IN.OT->signal (NULL);
+			IN.OT->signal (0);
 		// Also queue for position update (for node coloring)
 		__mup_update (IN.TPN->getId ());
 	}
@@ -3594,7 +3594,7 @@ void LEDSM::setfast (Boolean on) {
 		Fast = on;
 		Changed = YES;
 		if (IN.OT != NULL)
-			IN.OT->signal (NULL);
+			IN.OT->signal (0);
 		__mup_update (IN.TPN->getId ());
 	}
 }

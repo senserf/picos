@@ -817,7 +817,7 @@ class pwr_tracker_t {
 	void upd () {
 		Changed = YES;
 		if (IN.OT != NULL)
-			IN.OT->signal (NULL);
+			IN.OT->signal (0);
 	};
 
 	int pwrt_status (char);

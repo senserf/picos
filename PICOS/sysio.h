@@ -103,23 +103,25 @@ typedef	int (*ctrlfun_t) (int option, address);
 #define	hexcode(a)	(isdigit(a) ? ((a) - '0') : ( ((a)>='a'&&(a)<='f') ?\
 	    ((a) - 'a' + 10) : (((a)>='A'&&(a)<='F') ? ((a) - 'A' + 10) : 0) ) )
 
+// Byte/word swap
+#define	__swabw(w)	((((w)&0xff)<<8)|(((w)>>8)&0xff))
+#define __swabl(w)	((((w)&0xff)<<24)|(((w)&0xff00)<<8)|\
+				(((w)>>8)&0xff00)|(((w)>>24)&0xff))
+#define	__swawl(w)	((((w) & 0xffff) << 16) | (((w) >> 16) & 0xffff))
+
 #if	BYTE_ORDER == LITTLE_ENDIAN
 
-#define	ntowl(w)	((((w) & 0xffff) << 16) | (((w) >> 16) & 0xffff))
+#define	ntowl(w)	__swawl (w)
 #define	re_endian_w(w)	CNOP
 #define	re_endian_lw(w)	CNOP
 
 #else
 
 #define ntowl(w)	(w)
-#define	re_endian_w(w)	do { (w) = (((word)(w)) >> 8) | (((word)(w)) << 8); }\
-				while (0)
-#define	re_endian_lw(w)	do { (w) = ((((lword)(w)) >> 24)          ) | \
-				   ((((lword)(w)) >>  8) &  0xff00) | \
-				   ((((lword)(w)) <<  8) & 0xff000) | \
-				   ((((lword)(w)) << 24)          ) \
-			} while (0)
-				   
+
+#define	re_endian_w(w)	do { (w) = __swabw ((word)(w)); } while (0)
+#define	re_endian_lw(w)	do { (w) = __swabl ((lword)(w)); } while (0)
+
 #endif	/* LITTLE_ENDIAN */
 
 #define	wtonl(w)	ntowl (w)

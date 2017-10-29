@@ -1355,3 +1355,9 @@ PG170906A:	PICOS >= PG170906A
 
     Removed the call macro and replaced with a picomp-generated sequence (also
     see PICOMP).
+
+PG171029A:	SIDE >= PG171029A
+
+    Mandatory cosmetics required for compatibility with new overloads of
+    signal (for Process and Monitor) in SMURPH/SIDE. A couple of other
+    (important) cosmetics thrown in.
