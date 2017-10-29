@@ -238,7 +238,7 @@ class TankPanel extends Frame {
     InputStream is;
     hoststr = OP.getParameter("host");
     portstr = OP.getParameter("port");
-    if (hoststr == null) hoststr = "legal.cs.ualberta.ca";
+    if (hoststr == null) hoststr = "localhost";
     if (portstr == null) portstr = "3345";
     int port = Integer.parseInt(portstr);
     is = null;
@@ -258,7 +258,8 @@ class TankPanel extends Frame {
         return null;
       }
     } catch (Exception e) {
-      System.out.println ("Security violation on socket for host "+hoststr);
+      System.out.println ("Security violation on socket for host "+hoststr
+ +" "+e);
       return null;
     }
     try {

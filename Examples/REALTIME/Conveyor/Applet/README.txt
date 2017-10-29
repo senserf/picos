@@ -1,25 +1,21 @@
-To create the java 1.1.x version:
+To recompile:
 
-  rm Conveyor.java
-  make      (or make VERSION=11)
-
-To create the jave 1.0.x version:
-
-  rm Conveyor.java
-  make VERSION=10
+  rm Water.java
+  make
+  javac Water.java
 
 ------------------------------------------------------------------------------
 
-To make the operator applet work, you have to edit index.htm and change the
-host name to point to the host on which the simulator is running. Then you
-will be able to invoke the applet by loading index.htm in your java enabled
-browser or in your applet viewer.
+To make the applet work, make sure that the parameters in index.html are
+OK. Read README.txt in SOURCES/DSD about accessing the applet from your
+browser. You need the tiny web server (SOURCES/NWEB) + the right setting of
+Java permissions.
 
 Each data set (files ../data_*.txt) includes the port number of the operator
-mailbox on the simulator's side. This port is now the same (3345) for all
+mailbox on the simulator's side. This port is now the same (3346) for all
 data sets. You may change this number (e.g., if you want to run more than
-one example on the same host), but then you will have to change the port
-number parameter in index.htm.
+one example on the same host at the same time), but then you will have to
+change the port number parameter in index.html.
 
 If the windows don't come out right, try resizing them. Different platforms
 may introduce different top and bottom margins, which makes it impossible to
@@ -27,19 +23,6 @@ display correctly narrow windows (like the belts) on all of them.
 If this bothers you, edit Conveyor.src and redefine TOFFSET and BOFFSET
 in class StatusDisplay. Then you will have to rebuild the applet classes
 with your java compiler.
-
-If the name of your source files end with "jav" instead of "java"
-(this may happen if you are on Windows), rename them to "---.java"
-before trying to compile them.
-
-Compile all java source files, e.g., "javac *.java".
-
-Note that the browser may restrict applet communication to the host from which
-the applet page (i.e., index.htm) was fetched. In such a case, the simulator
-must run on a host equipped with a web server, and the applet code (all .class
-(.cla) and .gif files) as well as index.htm must be fetched from that host.
-Alternatively, you may run the applet from appletviewer (but you have to
-choose unlimited network and class access from its properties menu).
 
 The "Terminate" button is disabled in the present version of the applet (it
 behaves as "Disconnect"). To enable it, locate in Conveyor.src two comment

@@ -69,7 +69,7 @@ void Alert::notify (int level, const char *fmt, ...) {
   va_start (ap, fmt);
   vsprintf (txtbuf, fmt, ap);
   Value = level;
-  ALS->signal (NULL);
+  ALS->signal (0);
 };
 
 void Override::mapNet (const char *oid) {

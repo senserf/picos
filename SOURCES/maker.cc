@@ -639,10 +639,10 @@ cout << "Specify the name of the make program (" << DEFMKNAM << "): ";
 
 if (!batch) {
 cout << '\n';
-cout << "Specify  the  path  to  the  directory that is to contain the make\n";
-cout << "program. The default path is:\n\n";
+cout << "Specify  the  path  to  the  directory where you keep your private\n";
+cout << "executables. This is where I will put the mks program. The default\n";
+cout << "path is:\n\n";
 }
-
 	if ((s = HOME) == NULL)
 		wd [0] = '\0';
 	else
@@ -899,13 +899,8 @@ COVH:
 			cout << "Creating 'monitor' ...\n" FLUSH;
 			strcpy (cb, "make COMP=");
 			strcat (cb, ccomp);
-#ifdef	ZZ_CYW
-	                strcat (cb, " PROG=monpol.cc");
-#else
 	                strcat (cb, " PROG=monsel.cc");
-#endif
 			// strcat (cb, " OPTI=-w");
-
 			if (system (cb)) {
 				cerr << "Problems creating monitor,";
 				cerr << " procedure aborted\n" FLUSH;
@@ -918,13 +913,34 @@ COVH:
 #endif
 			chdir (wd);
 
+			// Mini web server
+
+			chdir ("NWEB");
+			cout << "Creating nweb24 (the mini web server) ...\n"
+				FLUSH;
+			strcpy (cb, "make COMP=");
+			strcat (cb, ckomp);
+			if (system (cb)) {
+				cerr << "Problems creating nweb24,";
+				cerr << " procedure aborted\n" FLUSH;
+				exit (1);
+			}
+#ifdef	ZZ_CYW
+			system ("strip nweb24.exe");
+#else
+			system ("strip nweb24");
+#endif
+			chdir (wd);
 if (!batch) {
 cout << '\n';
 cout << "The monitor is in file 'MONITOR/monitor'. If you want to run it on\n";
 cout << "this machine, move to directory MONITOR and execute:\n\n";
-cout << "                    monitor standard.t &\n\n";
+cout << "                    monitor standard.t -b\n\n";
 cout << "Make  sure  that  no other copy of the monitor is running already,\n";
 cout << "because otherwise the monitor will complain about occupied port.\n\n";
+cout << "The mini web server,  which you may need for  running  DSD,  is in\n";
+cout << "file 'NWEB/nweb24'. Execute nweb24 -h for help.  Also, read README\n";
+cout << "in SOURCES/DSD.\n\n";
 }
 		}
 
@@ -932,7 +948,7 @@ cout << "because otherwise the monitor will complain about occupied port.\n\n";
 		chdir ("DSD");
 		cout << "Setting up 'dsd' ...\n" FLUSH;
 		sprintf (cb,
-           "sed -e \"s/hhhh/%s/\" -e \"s/pppp/%1d/\" < index.pat > index.htm",
+           "sed -e \"s/hhhh/%s/\" -e \"s/pppp/%1d/\" < index.pat > index.html",
 		monhost, monport);
                 cout << cb << '\n';
                 m = system (cb);

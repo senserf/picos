@@ -1,7 +1,5 @@
 #ifndef __server_h__
-
 #define __server_h__
-
 
 // Definitions for implementing socket-based servers
 

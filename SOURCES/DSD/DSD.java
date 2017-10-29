@@ -1667,15 +1667,14 @@ class DisplayWindow extends Frame {
         iy = iy1;
       }
     } else {
+      // Points
       pt += 2; // Make sure we have got something
       while (count-- > 0) {
         ix = (SegX [from] * w) / MAXSHORT;
         iy = (SegY [from] * h) / MAXSHORT;
         if (tp == 2)
-          // Points
           OffScreenGraphics.fillOval (x+ix, y-iy, pt, pt);
         else
-          // Stripes
           OffScreenGraphics.fillRect (x+ix, y-iy, pt, iy);
         from++;
       }
@@ -2629,7 +2628,7 @@ class RootWindow extends Frame implements ActionListener {
     // Item are added in the reverse order
     m.addItem (new String (chbuf, 0, ix));
   }
-  synchronized void processMenuPhrase () {
+  /* synchronized [hangs on Linux, OK on Windows] */ void processMenuPhrase () {
     SObject so;
     disableMenus ();
     while (IB.peekOctet () == PRT.PH_TXT) {
@@ -3006,13 +3005,13 @@ class RootWindow extends Frame implements ActionListener {
         try {
           Thread.sleep (DISPLAYDELAY);
         } catch (InterruptedException e) {
-          if (Main.DisplayThread == null)
-                return;
+   if (Main.DisplayThread == null)
+    return;
           break;
-        }
+ }
       } catch (ThreadDeath e) {
-        Main.DisplayThread = null;
-        return;
+ Main.DisplayThread = null;
+ return;
       }
       if ((CTime = System.currentTimeMillis ()) - LastBlinkTime > BLINKTIME) {
         if (BlinkON) BlinkON = false; else BlinkON = true;

@@ -1,6 +1,6 @@
-/* oooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 2003   P. Gburzynski */
-/* oooooooooooooooooooooooooooooooooo */
+/* ooooooooooooooooooooooooooooooooooooooo */
+/* Copyright (C) 2003-2017   P. Gburzynski */
+/* ooooooooooooooooooooooooooooooooooooooo */
 
 // ---------------------------------------------------------------------
 // This is the polling version of the monitor that assumes no select and

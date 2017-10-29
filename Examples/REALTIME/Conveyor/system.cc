@@ -110,9 +110,9 @@ MotorDriver::perform {
   state StatusWait:
     TheProcess->wait (SIGNAL, StatusChange, HIGH);
   state StatusChange:
-    if ((int)TheSignal != Motor->getValue ()) {
+    if (TheValue != Motor->getValue ()) {
       // A new status
-      Motor->setValue ((int)TheSignal);
+      Motor->setValue (TheValue);
       Timer->wait (Inertia, StatusWait);
     } else
       TheProcess->wait (SIGNAL, StatusChange, HIGH);
@@ -126,7 +126,7 @@ SensorDriver::perform {
       Sense->wait (NEWITEM, StatusChange, HIGH);
       sleep;
     }
-    signal ((void*)(LastValue = NewValue));  // Pass the change
+    signal (LastValue = NewValue);  // Pass the change
   transient WaitResume:
     Timer->wait (Inertia, StatusChange);
 };
@@ -159,7 +159,7 @@ SegmentDriver::perform {
 
   state Input:
 
-    if (TheSignal == SENSOR_ON) {
+    if (TheValue == SENSOR_ON) {
       if (S->Motor->getValue () == MOTOR_OFF)
         MD->signal ((void*)MOTOR_ON);    // Start up the motor
       LastOutTime = Time;                // For detecting jams
@@ -169,7 +169,7 @@ SegmentDriver::perform {
 
   state Output:
 
-    if ((int)TheSignal == SENSOR_OFF) {
+    if (TheValue == SENSOR_OFF) {
       if (S->BoxesInTransit)
         S->BoxesInTransit--;
       else
@@ -227,7 +227,7 @@ MergerDriver::perform {
 
   state Input:
 
-    if (TheSignal == SENSOR_ON) {
+    if (TheValue == SENSOR_ON) {
       if (S->Motor->getValue () == MOTOR_OFF)
         MD->signal ((void*)MOTOR_ON);    // Start up the motor
       LastOutTime = Time;                // For detecting jams
@@ -237,7 +237,7 @@ MergerDriver::perform {
 
   state Output:
 
-    if ((int)TheSignal == SENSOR_OFF) {
+    if (TheValue == SENSOR_OFF) {
       if (S->BoxesInTransit)
         S->BoxesInTransit--;
       else
@@ -279,7 +279,7 @@ DiverterDriver::perform {
 
   state Input:
 
-    if (TheSignal != SENSOR_ON) proceed WaitSensor;
+    if (TheValue != SENSOR_ON) proceed WaitSensor;
     Timer->wait (DivertTime, DivertDecision);
 
   state DivertDecision:

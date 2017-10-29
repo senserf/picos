@@ -33,5 +33,8 @@ cd ..
 cd MONITOR
 rm -rf monitor monitor.exe
 cd ..
+cd NWEB
+rm -rf nweb24 nweb24.exe
+cd ..
 rm -rf maker maker.exe
 cd ..

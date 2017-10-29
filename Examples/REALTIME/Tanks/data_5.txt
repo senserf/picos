@@ -21,6 +21,6 @@ Pump network addresses:
 8 8 8
 9 9 9
 
-Port number:                      3341
+Port number:                      3345
 
 Idle time:			  600 second

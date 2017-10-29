@@ -145,7 +145,8 @@ actions that make the system behave in a prescribed way.
 %%%reacts.gif
 \begin{figure}[htbp]%
 \begin{center}
-\ \psfig{figure=FIGURES/reacts.ps}
+%\ \psfig{figure=FIGURES/reacts.ps}
+\includegraphics[scale=0.5]{{FIGURES/reacts.png}}\\
 \caption{A reactive system.}%
 \end{center}
 \end{figure}%
@@ -274,7 +275,8 @@ and the general concepts of object-oriented programming.
 %%%struct.gif
 \begin{figure}[htbp]%
 \begin{center}
-\ \psfig{figure=FIGURES/struct.ps}
+%\ \psfig{figure=FIGURES/struct.ps}
+\includegraphics[scale=0.5]{FIGURES/struct.png}
 \caption{The structure of \smurph.}%
 \end{center}
 \end{figure}%
@@ -343,7 +345,8 @@ timing.
 %%% struct2.gif
 \begin{figure}[htbp]%
 \begin{center}
-\ \psfig{figure=FIGURES/struct2.ps}
+%\ \psfig{figure=FIGURES/struct2.ps}
+\includegraphics[scale=0.5]{FIGURES/struct2.png}
 \caption{Components of a \smurph\ program.}%
 \end{center}
 \end{figure}%
@@ -365,7 +368,8 @@ represent such objects as structured {\em packets}.
 %%% struct3.gif
 \begin{figure}[htbp]%
 \begin{center}
-\ \psfig{figure=FIGURES/struct3.ps}
+%\ \psfig{figure=FIGURES/struct3.ps}
+\includegraphics[scale=0.5]{FIGURES/struct3.png}
 \caption{A control program in {\smurph}.}%
 \end{center}
 \end{figure}%
@@ -1220,7 +1224,7 @@ Consequently, we wanted to cover them as much as possible by our own tools,
 such that the same \smurph\ program could compile and run
 without modifications on all popular platforms.
 These tools are still present in the most recent version of our package,
-although these days the standard libraries are incomparably more consistent.
+even though these days the standard libraries are much more consistent than they were when our project started.
 
 \subsection{Random number generators}
 \label{rm_au_rn}
@@ -2192,7 +2196,8 @@ We assume that all of them are derived from a common ancestor called
 %%%%hot.gif
 \begin{figure}
 \begin{center}
-\ \resizebox{90mm}{!}{\psfig{figure=FIGURES/hier.eps}}
+%\ \resizebox{90mm}{!}{\psfig{figure=FIGURES/hier.eps}}
+\ \resizebox{90mm}{!}{\includegraphics{FIGURES/hier.png}}
 \caption{Hierarchy of user-visible compound types.}%
 \label{ty_hi}
 \end{center}
@@ -10665,7 +10670,7 @@ the rate is fixed and can thus be hardwired into {\tt ber}.}
 One way to arrive at such a function is to calculate the signal-to-noise
 ratio, e.g.,
 \[
-{\em SNR} = \frac{{\em sl} \times {\em rs}}{{\em il} \times {\em rs} + {\em bg}}\;\;\;\,
+{\textit SNR} = \frac{{\textit sl} \times {\textit rs}}{{\textit il} \times {\textit rs} + {\textit bg}}\;\;\;\,
 \]
 where {\em bg\/} is a fixed (mean) level of background noise.
 Then, {\em SNR\/} can be transformed into
@@ -14709,15 +14714,15 @@ The observer's code method has the same layout as a process code method, i.e.,
 {\tt\begin{tabbing}
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
 \> {\tt perform \{} \\
-\> \> {\tt state} ${\em OS}_0${\tt :} \\
+\> \> {\tt state} ${\textit OS}_0${\tt :} \\
 \> \> \> \ldots \\
-\> \> {\tt state} ${\em OS}_1${\tt :} \\
+\> \> {\tt state} ${\textit OS}_1${\tt :} \\
 \> \> \> \ldots \\
-\> \> {\tt state} ${\em OS}_{p-1}${\tt :} \\
+\> \> {\tt state} ${\textit OS}_{p-1}${\tt :} \\
 \> \> \> \ldots \\
 \> {\tt \};}
 \end{tabbing}}
-where ${\em OS}_0,\ldots ,{\em OS}_{p-1}$
+where ${\textit OS}_0,\ldots ,{\textit OS}_{p-1}$
 are state identifiers listed with the
 {\tt states} statement within the observer type declaration.
 
@@ -15065,21 +15070,21 @@ method and has the following general format:
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
 \> {\tt exposure \{}\\
 \> \> {\tt onpaper \{}\\
-\> \> \> {\tt exmode }${\em mp}_0${\tt :}\\
+\> \> \> {\tt exmode }${\textit mp}_0${\tt :}\\
 \> \> \> \> \ldots \\
-\> \> \> {\tt exmode }${\em mp}_1${\tt :}\\
+\> \> \> {\tt exmode }${\textit mp}_1${\tt :}\\
 \> \> \> \> \ldots \\
 \> \> \> \ldots \\
-\> \> \> {\tt exmode }${\em mp}_{k-1}${\tt :}\\
+\> \> \> {\tt exmode }${\textit mp}_{k-1}${\tt :}\\
 \> \> \> \> \ldots \\
 \> \> {\tt \};}\\
 \> \> {\tt onscreen \{}\\
-\> \> \> {\tt exmode }${\em ms}_0${\tt :}\\
+\> \> \> {\tt exmode }${\textit ms}_0${\tt :}\\
 \> \> \> \> \ldots \\
-\> \> \> {\tt exmode }${\em ms}_1${\tt :}\\
+\> \> \> {\tt exmode }${\textit ms}_1${\tt :}\\
 \> \> \> \> \ldots \\
 \> \> \> \ldots \\
-\> \> \> {\tt exmode }${\em ms}_{n-1}${\tt :}\\
+\> \> \> {\tt exmode }${\textit ms}_{n-1}${\tt :}\\
 \> \> \> \> \ldots \\
 \> \> {\tt \};}\\
 \> {\tt \};}
@@ -17687,7 +17692,7 @@ figure~6.
 %%% dsdmain.gif
 \begin{figure}
 \begin{center}
-\ \psfig{figure=FIGURES/dsdmain.ps}
+\ \includegraphics[scale=0.5]{FIGURES/dsdmain.png}
 \caption{The main window of \dsd.}%
 \end{center}
 \end{figure}
@@ -18225,7 +18230,7 @@ by the subnodes appear in the selection area of the root window
 %%% hoo.gif
 \begin{figure}
 \begin{center}
-\ \resizebox{90mm}{!}{\psfig{figure=FIGURES/hoo.eps}}
+\ \resizebox{90mm}{!}{\includegraphics{FIGURES/hoo.png}}
 \caption{The ownership hierarchy of exposable objects.}%
 \end{center}
 \end{figure}
@@ -18334,7 +18339,7 @@ process (the first child item on the initial selection list).
 %%% dsddial.gif
 \begin{figure}
 \begin{center}
-\ \psfig{figure=FIGURES/dsddial.ps}
+\ \includegraphics[scale=0.5]{FIGURES/dsddial.png}
 \caption{A sample display dialog.}%
 \end{center}
 \end{figure}
@@ -18482,7 +18487,7 @@ figure~9.
 %%% dsdstep.gif
 \begin{figure}[htbp]%
 \begin{center}
-\ \psfig{figure=FIGURES/dsdstep.ps}
+\ \includegraphics{FIGURES/dsdstep.png}
 \caption{The step dialog.\label{fig.dsdstep}}%
 \end{center}
 \end{figure}%
@@ -18590,7 +18595,7 @@ figure~10.
 %%% dsddin.gif
 \begin{figure}[htbp]%
 \begin{center}
-\ \psfig{figure=FIGURES/dsddin.ps}
+\ \includegraphics{FIGURES/dsddin.png}
 \caption{The display interval dialog.}%
 \end{center}
 \end{figure}%
@@ -18704,9 +18709,19 @@ This directory includes a number of sample protocols programmed in
 \end{quote}
 
 \begin{quote}
-\noindent\hspace{-0.35in}{\bf {\tt README}}\\ \hspace{0in}
+\noindent\hspace{-0.35in}{\bf {\tt README.txt}}\\ \hspace{0in}
 This file contains the copyright notice and the log of changes
-introduced to the package since version 0.9.
+introduced to the package since version 0.9 until the end of August 2006.
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt RTAGS\_PG}}\\ \hspace{0in}
+Log of changes starting at March 3, 2006 until present.
+\end{quote}
+
+\begin{quote}
+\noindent\hspace{-0.35in}{\bf {\tt INSTALL.txt}}\\ \hspace{0in}
+Installation instructions.
 \end{quote}
 
 \begin{quote}
@@ -18715,13 +18730,10 @@ This is a shell script used to create a copy of the package by
 linking some files to the original (see below).
 \end{quote}\medskip
 
-Additionally, the root directory includes file {\tt INSTALL} with
-brief installation instructions for the package.
-
 %% sds.gif
 \begin{figure}
 \begin{center}
-\ \psfig{figure=FIGURES/sds.ps}
+\ \includegraphics[scale=0.5]{FIGURES/sds.png}
 \caption{The structure of \smurph\ directories.}%
 \end{center}%
 \end{figure}%
@@ -18795,16 +18807,10 @@ of the kernel (\sect{rm_un_cr}).
 Before the package is installed, the user must make sure that the target
 machine is equipped with the tools needed to compile the package.
 For the UNIX environment, this is usually the case.
-Some old versions of the GNU C++ compiler may have problems with
-\smurph---we recommend at least version~3.4.4.\footnote{It is always
-recommended to use the most recent available version of the
-compiler.}
+
 The version of \dsd\ included with the package assumes JDK (Java Development
-Kit) version 1.2.x or later.
-This kit can be downloaded from
-{http://www.javasoft.com/}
-or another site pointed from that page.
-\dsd\ is precompiled to be 1.2 compliant.
+Kit) which can be downloaded from
+{http://www.java.com/}.
 Note that the specification and execution system of \smurph\ can be used
 without \dsd.
 

@@ -13,6 +13,8 @@
 #define MERGER            6
 #define SMERGER           7
 
+#define	TheValue	((int)(IPointer)TheSignal)
+
 process MotorDriver;    // Just announcing
 process SensorDriver;
 

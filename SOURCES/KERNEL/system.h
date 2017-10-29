@@ -293,9 +293,6 @@ extern  int     zz_processId;
 #define         DEBUGGING               1
 #endif
 
-#define		tohex(d)	((char)((d) > 9) ? (d) + 'a' - 10 : (d) + '0'))
-
-
 /* ---------------------------------------------------------- */
 /* Check  interval:  every  CHCKINT  events smurph will check */
 /* against the CPU time limit                                 */

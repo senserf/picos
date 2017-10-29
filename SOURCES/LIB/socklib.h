@@ -15,6 +15,9 @@ int getSocketConnection (int);                  // Accept
 int setSocketUnblocking (int);
 int setSocketBlocking (int);
 
+// Our options: linger + keepalive; DSD doesn't like nolinger
+void setSocketOptions (int, int, int, int);
+
 void closeAllSockets ();
 
 // Standard BSD stuff

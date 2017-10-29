@@ -19,15 +19,16 @@
 #include        <netinet/in.h>
 #include        <netdb.h>
 
-static void set_socket_options (int sfd) {
-  // Sets the "no linger" option for the socket
+void setSocketOptions (int sfd, int lgon, int lgtime, int kal) {
+
   struct linger linp;
-  int kal;
+
   bzero (&linp, sizeof (linp));
-  linp.l_onoff = 1;
-  linp.l_linger = 0;
+
+  linp.l_onoff = lgon;
+  linp.l_linger = lgtime;
+
   setsockopt (sfd, SOL_SOCKET, SO_LINGER, &linp, sizeof (linp));
-  kal = 1;
   setsockopt (sfd, SOL_SOCKET, SO_KEEPALIVE, &kal, sizeof (kal));
 }
 
@@ -73,7 +74,7 @@ int openClientSocket (const char *hostname, int port) {
       return -1;
     }
   }
-  set_socket_options (sk);
+  setSocketOptions (sk, 0, 0, 1);
   return sk;
 };
 
@@ -96,7 +97,7 @@ int openClientSocket (const char *fname) {
       return -1;
     }
   }
-  set_socket_options (sk);
+  setSocketOptions (sk, 0, 0, 1);
   return sk;
 };
 
@@ -114,7 +115,7 @@ int openServerSocket (int port) {
     errno = er;
     return -1;
   }
-  set_socket_options (sk);
+  setSocketOptions (sk, 0, 0, 1);
   listen (sk, 5);
   return sk;
 };
@@ -140,7 +141,7 @@ int openServerSocket (const char *fname) {
     errno = er;
     return -1;
   }
-  set_socket_options (sk);
+  setSocketOptions (sk, 0, 0, 1);
   listen (sk, 5);
   return sk;
 };

@@ -1,6 +1,6 @@
-/* oooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 2003   P. Gburzynski */
-/* oooooooooooooooooooooooooooooooooo */
+/* ooooooooooooooooooooooooooooooooooooooo */
+/* Copyright (C) 2003-2017   P. Gburzynski */
+/* ooooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
 
@@ -852,24 +852,45 @@ void childTerm () {
   longjmp (restart, 0);
 };
 
+void show_usage () {
+	const char *str = "Usage: monitor templatefile [-b]\n";
+	write (2, str, strlen (str));
+	exit (1);
+}
+
 int main (int argc, char *argv []) {
   const char  *st;
   char  pname [SIGNLENGTH+2];
   struct timeval seltim;
-  // There is no use for stdin and stdout. We are going to operate as a
-  // a daemon
+  int daemon;
+
+  argc--;
+  daemon = 0;
+  zz_TemplateFile = NULL;
+
+  while (argc) {
+    argc--;
+    argv++;
+    if (strcmp (*argv, "-b") == 0) {
+      if (daemon)
+        show_usage ();
+      daemon = 1;
+      continue;
+    }
+
+    if (zz_TemplateFile != NULL)
+      show_usage ();
+
+    zz_TemplateFile = *argv;
+  }
+
+  if (zz_TemplateFile == NULL)
+    show_usage ();
+
+  readTemplates ();
+
   close (0);
   close (1);
-  if (argc > 2) {
-    st = "Usage: monitor [templatefile]\n"; 
-    write (2, st, strlen (st));
-    exit (1);
-  }
-  if (argc > 1) {
-    zz_TemplateFile = argv [1];
-    readTemplates ();
-  } else
-    Templates = NULL;
 
   Master = openServerSocket (ZZ_MONSOCK);
 
@@ -877,6 +898,14 @@ int main (int argc, char *argv []) {
     excptn (
 "Monitor startup error: port probably taken, rebuild with another socket port\n"
     );
+  }
+
+  if (daemon) {
+    // Become a daemon
+    if (fork () != 0)
+      return (0);
+    signal (SIGHUP, SIG_IGN);
+    setpgrp ();
   }
 
   LSk = -1;
@@ -957,6 +986,9 @@ int main (int argc, char *argv []) {
       } else if (dummy == DSD_SIGNATURE) {
         // A dsd request
         cdebugl (form ("DSD %1d", LSk));
+	// Make sure linger is present, as otherwise DSD fails to read from the
+	// socket after the monitor has closed its end
+	setSocketOptions (LSk, 0, 0, 1);
         processServer ();
       } else
         longjmp (restart, 0);

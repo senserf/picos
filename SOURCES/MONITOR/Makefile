@@ -1,6 +1,6 @@
 # Creates the monitor
 
-PROG= monpol.cc
+PROG= monsel.cc
 COMP= g++
 OPTI= 
 PLIBS= -L../LIB

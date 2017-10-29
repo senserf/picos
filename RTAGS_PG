@@ -651,3 +651,20 @@ PG170131A:
 	   This basically relates to the upgrade of the Aloha model for my
 	   course at Vistula, but there have been a few cosmetics as well,
 	   including changes in the manual.
+
+PG171029A:	VUEE >= PG171029A
+
+	   I have resucitated the DSD applet (and the other applets in
+	   Examples/REALTIME. Not sure why. Probably to show it to my students
+	   at Vistula ;-). To make sense out if it, I would have to rewrite the
+	   applet in Tcl/Tk. These days Java is way less attractive for this
+	   kind of interface than it seemed to me 24 years ago.
+
+	   A few cosmetic changes introduced along the way. For example, I have
+	   overloaded signal (for Process and Monitor) to accept integer
+	   arguments (properly casting them to void*). The problem was that
+	   on 64-bit machines (practically all of them these days), a simple
+	   cast, as in: signal ((void*)a), and the other way: (int)b [where b
+	   is void*] triggers errors, because precision is lost. Not sure if it
+	   is much better now, because, e.g., signal (NULL) triggers copmiler
+  	   complaints about ambiguities [but signal (0) is fine].

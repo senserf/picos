@@ -3141,7 +3141,7 @@ class RootWindow extends Frame {
     m.addItem (new String (chbuf, 0, ix));
   }
 
-  synchronized void processMenuPhrase () {
+  /* synchronized [hangs on Linux, OK on Windows] */ void processMenuPhrase () {
     SObject so;
     disableMenus ();
     while (IB.peekOctet () == PRT.PH_TXT) {

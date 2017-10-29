@@ -3063,6 +3063,14 @@ class	zz_monitor : public AI {
 	int signal (void*);
 	int signalP (void*);
 
+	inline int signal (IPointer p) { return signal ((void*)p); };
+	inline int signalP (IPointer p) { return signalP ((void*)p); };
+
+#if PTRBITS != INTBITS
+	inline int signal (int p) { return signal ((IPointer)p); };
+	inline int signalP (int p) { return signalP ((IPointer)p); };
+#endif
+
 	const char	*getTName () { return ("Monitor"); };
 
 	inline  void    printRqs (const char *hd = NULL, Long s = NONE) {
@@ -6073,6 +6081,14 @@ class   Process : public AI {
 
 	// Sends a priority signal to the process
 	int signalP (void *sp = NULL);
+
+	int signal (IPointer p) { return signal ((void*)p); };
+	int signalP (IPointer p) { return signalP ((void*)p); };
+
+#if PTRBITS != INTBITS
+	int signal (int p) { return signal ((IPointer)p); };
+	int signalP (int p) { return signalP ((IPointer)p); };
+#endif
 
 	// Checks if a signal is pending
 	int isSignal ();

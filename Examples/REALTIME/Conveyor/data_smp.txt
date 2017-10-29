@@ -64,7 +64,7 @@ The traffic model part
 The operator part
 =================
 
-Port number is 3345
+Port number is 3346
 
 Note: this number must match the port number in index.html of the operator
       applet.

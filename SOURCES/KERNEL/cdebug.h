@@ -2,13 +2,15 @@
 
 #ifdef	CDEBUG
 
+#define	tohex(d)	((char) (((d) > 9) ? (d) + 'a' - 10 : (d) + '0'))
+
 #define cdebug(s) ::write (2, s, strlen (s))
 #define cdebugl(s) do { cdebug (s); cdebug ("\n"); } while (0)
 
 static void cdhex (void *p, int nb = 0) {
   char e [10]; int i, k;
   for (i = 7; i >= 0; i--) {
-    k = (int) p & 0xf;
+    k = (int) (IPointer) p & 0xf;
     e [i] = tohex (k);
     p = (void*) ((long) p >> 4);
   }

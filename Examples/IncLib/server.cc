@@ -1,5 +1,4 @@
 #ifndef __server_c__
-
 #define __server_c__
 
 // Note: ACCEPTOR must be defined as the type of the process accepting

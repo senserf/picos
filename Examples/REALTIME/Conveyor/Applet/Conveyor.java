@@ -1520,7 +1520,7 @@ class BoxDesc {
 }
 class StatusDisplay extends Frame {
   final static int SEGWIDTH = 900; // Window default sizes
-  final static int SEGHIGHT = 100;
+  final static int SEGHIGHT = 120;
   final static int MERWIDTH = 600;
   final static int MERHIGHT = 100;
   final static int DIVWIDTH = 174;
@@ -1529,12 +1529,9 @@ class StatusDisplay extends Frame {
   final static int SRCHIGHT = 128;
   final static int SNKWIDTH = 200;
   final static int SNKHIGHT = 128;
-  // Windows'95
-  //final static int TOFFSET      =  0;    // Top margin
-  //final static int BOFFSET      = 40;    // Bottom margin
-  // X (Unix)
+  // IE Windows 10
   final static int TOFFSET = 40; // Top margin
-  final static int BOFFSET = 0; // Bottom margin
+  final static int BOFFSET = 10; // Bottom margin
   final static int INITBXSIZE = 64; // Initial size of the boxes array
   final static int SEGENTRYSIZE = 10; // Borrowed from operator.h
   final static int SNENTRYSIZE = 8; // Sink update entry

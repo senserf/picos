@@ -1466,7 +1466,7 @@ traffic SignalTP (ATMMessage, Cell) {
       // present).  This  is  why  we  need  WCON.  The  process is awakened by
       // receiving the cell type as a signal. Signal passing among processes is
       // one of the possible ways of communicating processes in SMURPH.
-      if (WCON [c->VCI]) WCON [c->VCI] -> signal ((void*) (c->Type));
+      if (WCON [c->VCI]) WCON [c->VCI] -> signal (c->Type);
     }
   }; 
 };
@@ -1519,7 +1519,7 @@ HandShake::perform {
   state Reply:
     // A response has arrived -- the process de-registers from WCON ...
     STP->WCON [VCI] = NULL;
-    if ((int)TheSignal == ECode)
+    if ((IPointer)TheSignal == ECode)
       // This  is  the  response  we expected -- the process terminates itself.
       // Note that this event will be perceived by  the  process  that  created
       // HandShake (see below).
@@ -1790,7 +1790,7 @@ FPilot::perform {
     Timer->wait (FTP->ATimeout, GenMessage);
   state GotReply:
     // We have received an acknowledgement
-    if ((int)TheSignal == NO) {
+    if ((IPointer)TheSignal == NO) {
       // NACK -- increment counters
       FTP->NRetransmissions++;
       FTP->NRetransmittedBits += Length;
