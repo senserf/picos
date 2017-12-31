@@ -8884,9 +8884,9 @@ Another way to determine whether a given
 packet is addressed to a specific station
 is to call this method of {\tt Packet}:
 \begin{verbatim}
-        int isMy (Station *s = NULL);
+        int isMine (Station *s = NULL);
 \end{verbatim}
-which returns nonzero if and only if the indicated station is the packet's
+(also available as {\tt isMy}) which returns nonzero if and only if the indicated station is the packet's
 receiver (or one of the receivers in the broadcast case).
 If the argument is NULL (or absent), the inquiry refers to the station
 pointed to by {\tt TheStation}, i.e., to the station that runs the inquiring
@@ -9304,7 +9304,7 @@ A damaged packet does not trigger the {\tt EMP} event (\sect{rm_po_wr}).
 This also applies to {\tt anotherPacket} (\sect{rm_po_in_pr})
 called after {\tt BMP} ({\tt EMP}),
 which ignores header-damaged (damaged) packets.
-The packet method {\tt isMy} (\sect{rm_po_wr_rp}) returns {\tt NO} for
+The packet method {\tt isMine} (\sect{rm_po_wr_rp}) returns {\tt NO} for
 a header-damaged packet (but works as usual if the packet is damaged without
 being header-damaged).
 \end{quote}
@@ -10361,7 +10361,7 @@ issued, the event is triggered within the same {\em ITU}.
 The event occurs under the same conditions as {\tt BOT} with one added necessary
 condition: the packet must be addressed to the station running the process
 that has issued the wait request.
-Formally, it means that {\tt isMy} (\sect{rm_po_wr_rp}) returns {\tt YES}
+Formally, it means that {\tt isMine} (\sect{rm_po_wr_rp}) returns {\tt YES}
 for the packet (this also covers broadcast scenarios in which the current
 station is one of possibly multiple recipients).
 \end{quote}
@@ -10373,7 +10373,7 @@ The event occurs under
 in the same conditions as {\tt EOT} with one added necessary
 condition: the packet must be addressed to the station running the process
 that has issued the wait request.
-Formally, it means that {\tt isMy} (\sect{rm_po_wr_rp}) returns {\tt YES}
+Formally, it means that {\tt isMine} (\sect{rm_po_wr_rp}) returns {\tt YES}
 for the packet (this also covers broadcast scenarios in which the current
 station is one of possibly multiple recipients).
 This is the most natural way of receiving packets at their proper

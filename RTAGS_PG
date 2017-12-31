@@ -668,3 +668,12 @@ PG171029A:	VUEE >= PG171029A
 	   is void*] triggers errors, because precision is lost. Not sure if it
 	   is much better now, because, e.g., signal (NULL) triggers copmiler
   	   complaints about ambiguities [but signal (0) is fine].
+
+PG171231A:
+
+	   A few more cosmetics and irrelevancies:
+
+		- the Alternating Bit example rewritten to make more sense
+		- removed the completely defunct Bulb example from REALTIME
+		- added a PID (as in PID controller) example to REALTIME
+		- added a CarWash example

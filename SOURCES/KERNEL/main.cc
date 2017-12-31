@@ -634,6 +634,10 @@ void setResync (Long msecs, double tm) {
 			msecs);
 
 	ResyncInt = (TIME)(Etu * tm);
+
+	Assert (ResyncInt != TIME_0,
+		"setResync: the interval is mapped to less than 1 ITU");
+
 	if (msecs == 1000) {
 		ResyncDelta.tv_sec = 1;
 		ResyncDelta.tv_usec = 0;

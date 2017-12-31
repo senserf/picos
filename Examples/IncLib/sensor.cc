@@ -3,28 +3,26 @@
 
 #include "sensor.h"
 
-void Sensor::setValue (int v) { Value = v; this->put (); Pending = YES; };
+void Sensor::setValue (int v) { Value = v; this->put (); };
 
-int Sensor::getValue () { Pending = NO; return Value; };
+int Sensor::getValue () { return Value; };
 
 void Sensor::setup (NetAddress &na) {
   Reference = na;
   setLimit (0);
   Value = 0;
-  Pending = NO;
   mapNet ();
 };
 
-int Actuator::getValue () { Pending = NO; return Value; };
+int Actuator::getValue () { return Value; };
 
-void Actuator::setValue (int v) { Value = v; this->put (); Pending = YES; };
+void Actuator::setValue (int v) { Value = v; this->put (); };
 
 void Actuator::setup (NetAddress &na, int InitVal) {
   // Note that this time we care about the initial value of the actuator
   Reference = na;
   setLimit (0);
   Value = InitVal;
-  Pending = YES;
   mapNet ();
 };
 

@@ -1,5 +1,8 @@
 identify "Alternating Bit";
 
+// Declare the extra attributes of packets; use different names, even
+// though the types are internally identical, to emphasize that we are
+// talking about different-purpose packets
 packet PacketType { int SequenceBit; };
 
 packet AckType { int SequenceBit; };
@@ -31,6 +34,7 @@ process TransmitterType (SenderType) {
 	Mailbox *Alert;
 	TIME Timeout;
 	states { NextPacket, Retransmit, EndXmit, Acked };
+	// The setup argument is the ACK wait timeout
 	void setup (TIME);
 	perform;
 };
@@ -39,7 +43,7 @@ process AckReceiverType (SenderType) {
 
 	Port *Channel;
 	Mailbox *Alert;
-	states { WaitAck, AckBegin, AckArrival, Collision };
+	states { WaitAck, AckBegin, AckArrival };
 	void setup ();
 	perform;
 };
@@ -49,7 +53,8 @@ process ReceiverType (RecipientType) {
 	Port *Channel;
 	Mailbox *Alert;
 	TIME Timeout;
-	states { WaitPacket, BeginPacket, PacketArrival, ReAck, Collision };
+	states { WaitPacket, BeginPacket, PacketArrival, TimeOut };
+	// The setup argument is the (data) packet wait timeout
 	void setup (TIME);
 	perform;
 };
@@ -59,7 +64,7 @@ process AcknowledgerType (RecipientType) {
 	Port *Channel;
 	AckType *Ack;
 	Mailbox *Alert;
-	states { WaitAlert, SendAck, ReAck, EndXmit };
+	states { WaitAlert, SendAck, EndXmit };
 	void setup ();
 	perform;
 };
@@ -72,33 +77,70 @@ process Root {
 	perform;
 };
 
-int AckLength;
-SenderType *Sender;
-RecipientType *Recipient;
-TIME TransmissionRate, SenderTimeout, RecipientTimeout, Distance;
-Link *SenderToRecipient, *RecipientToSender;
-double MessageLength, MeanMessageInterarrivalTime, FaultRate;
-long MessageNumberLimit;
+// ============================================================================
+// Model parameters readable from the data file
+// ============================================================================
+
+int    HeaderLength,		// Packet header length in bits
+       AckLength,		// ACK length (fixed, header excluded)
+       MinPktLength,		// Minimum packet length
+       MaxPktLength;		// Maximum packet length
+
+TIME   TransmissionRate,
+       SenderTimeout,		// ACK wait timeout
+       RecipientTimeout,	// Data packet wait timeout
+       Distance;		// Channel length
+
+double MessageLength,		// Traffic parameters
+       MeanMessageInterarrivalTime,
+
+       FaultRate;		// Link fault rate (BER)
+
+long   MessageNumberLimit;	// Termination condition
+
+// ============================================================================
+// Pointers to network objects
+// ============================================================================
+
+SenderType       *Sender;	// The sender station
+RecipientType    *Recipient;	// The receiver station
+
+Link             *STRLink,	// S->R channel
+                 *RTSLink;	// R->S channel
+
+// ============================================================================
 
 void SenderType::setup () {
-
+//
+// SMURPH "conctructor" for the Sender Station
+//
 	IncomingPort = create Port;
+	// Only a port on which we transmit needs a rate
 	OutgoingPort = create Port (TransmissionRate);
+	// This is a signalling interface between the the processes run by
+	// the station
 	AlertMailbox = create Mailbox (1);
+	// Packet counter (the alternating bit)
 	LastSent = 0;
 };
 
 void RecipientType::setup () {
-
+//
+// SMURPH "conctructor" for the Recipient Station
+//
 	IncomingPort = create Port;
 	OutgoingPort = create Port (TransmissionRate);
 	AlertMailbox = create Mailbox (1);
-	AckBuffer.fill (this, Sender, AckLength);
+	// Pre-fill the ACK packet (the part that never changes)
+	AckBuffer.fill (this, Sender, AckLength + HeaderLength, AckLength);
 	Expected = 0;
 };
 
 void TransmitterType::setup (TIME tmout) {
-
+//
+// Constructor for the transmitter process (run by Sender)
+//
+	// Local pointers to the relevant attributes of the station
 	Channel = S->OutgoingPort;
 	Buffer = &(S->PacketBuffer);
 	Alert = S->AlertMailbox;
@@ -106,13 +148,17 @@ void TransmitterType::setup (TIME tmout) {
 };
 
 void AckReceiverType::setup () {
+//
+// ACK receiver, the second process run by Sender
 
 	Channel = S->IncomingPort;
 	Alert = S->AlertMailbox;
 };
 
 void ReceiverType::setup (TIME tmout) {
-
+//
+// Run by Recipient
+//
 	Channel = S->IncomingPort;
 	Alert = S->AlertMailbox;
 	Timeout = tmout;
@@ -125,34 +171,45 @@ void AcknowledgerType::setup () {
 	Alert = S->AlertMailbox;
 };
 
+// ===========================================================================
+// Process code implementations
+// ===========================================================================
+
 TransmitterType::perform {
 
 	state NextPacket:
 
-		if (Client->getPacket (Buffer)) {
-			Buffer->SequenceBit = S->LastSent;
-			proceed Retransmit;
-		} else
+		if (!Client->getPacket (Buffer, MinPktLength, MaxPktLength,
+		    HeaderLength)) {
+			// No packet available, wait for arrival
 			Client->wait (ARRIVAL, NextPacket);
-
-	state Retransmit:
-
-		if (Channel->busy ()) {
-			Channel->wait (SILENCE, Retransmit);
 			sleep;
 		}
+
+		// A new packet to transmit
+		Buffer->SequenceBit = S->LastSent;
+
+	transient Retransmit:
+
 		Channel->transmit (Buffer, EndXmit);
 
 	state EndXmit:
 
 		Channel->stop ();
+
+		// Wait for signal from the ACK-receiver ...
 		Alert->wait (RECEIVE, Acked);
+		// ... or timeout, whichever comes sooner
 		Timer->wait (Timeout, Retransmit);
 
 	state Acked:
 
+		// Mark the buffer as empty (done with the packet)
 		Buffer->release ();
+		// Flip the alternating bit
 		S->LastSent = 1 - S->LastSent;
+		// Alert->erase ();
+		// And continue for next outgoing packet
 		proceed NextPacket;
 };
 
@@ -160,74 +217,80 @@ AckReceiverType::perform {
 
 	state WaitAck:
 
+		// Wait for the beginning of a packet addressed to this
+		// station
 		Channel->wait (BMP, AckBegin);
 
 	state AckBegin:
 
+		// The ACK can complete normally, like this:
 		Channel->wait (EMP, AckArrival);
-		Channel->wait (COLLISION, Collision);
+
+		// Or may just disappear into silence, meaning that it has
+		// an error:
+		Channel->wait (SILENCE, WaitAck);
 
 	state AckArrival:
 
+		// We have received an ACK packet
 		if (((AckType*)ThePacket)->SequenceBit == S->LastSent)
+			// As expected, notify the Transmitter process
 			Alert->put ();
-		skipto WaitAck;
-
-	state Collision:
 
 		skipto WaitAck;
-
 };
 
 ReceiverType::perform {
 
 	state WaitPacket:
 
+		// Wait for a data packet from Sender ...
 		Channel->wait (BMP, BeginPacket);
-		Timer->wait (Timeout, ReAck);
+		// ... or for timeout
+		Timer->wait (Timeout, TimeOut);
 
 	state BeginPacket:
 
-		Channel->wait (COLLISION, Collision);
+		// The packet can complete normally:
 		Channel->wait (EMP, PacketArrival);
+
+		// ... or may disappear into silence
+		Channel->wait (SILENCE, WaitPacket);
 
 	state PacketArrival:
 
 		if (((PacketType*)ThePacket)->SequenceBit == S->Expected) {
+			// The alternating bit is as expected, receive the
+			// packet ...
 			Client->receive (ThePacket, Channel);
+			// ... and flip the "expected" bit
 			S->Expected = 1 - S->Expected;
 		}
-		Alert->put ();
-		skipto WaitPacket;
-
-	state ReAck:
+		// Whatever has happened, kick the ACK-sender process to issue
+		// an ACK
 
 		Alert->put ();
 		skipto WaitPacket;
 
-	state Collision:
+	state TimeOut:
 
-		skipto WaitPacket;
+		Alert->put ();
+		sameas WaitPacket;
 };
 
 AcknowledgerType::perform {
 
 	state WaitAlert:
 
+		// Wait for a kick from the data receiver process
 		Alert->wait (RECEIVE, SendAck);
 
 	state SendAck:
 
+		// In response to the kick, send an ACK packet with the
+		// alternating bit set to the inverse of "expected" (to
+		// acknowledge the "last received" packet)
 		Ack->SequenceBit = 1 - S->Expected;
-		proceed ReAck;
-
-	state ReAck:
-
-		if (Channel->busy ()) {
-			Channel->wait (SILENCE, ReAck);
-			sleep;
-		}
-
 		Channel->transmit (Ack, EndXmit);
 
 	state EndXmit:
@@ -254,16 +317,22 @@ Root::perform {
 
 void Root::readData () {
 
+	readIn (HeaderLength);
 	readIn (AckLength);
+	readIn (MinPktLength);
+	readIn (MaxPktLength);
+
 	readIn (TransmissionRate);
-	readIn (FaultRate);
-	readIn (Distance);
 	readIn (SenderTimeout);
 	readIn (RecipientTimeout);
+	readIn (Distance);
+
 	readIn (MessageLength);
 	readIn (MeanMessageInterarrivalTime);
-	readIn (MessageNumberLimit);
 
+	readIn (FaultRate);
+
+	readIn (MessageNumberLimit);
 };
 
 void Root::buildNetwork () {
@@ -272,16 +341,16 @@ void Root::buildNetwork () {
 	
 	Sender = create SenderType;
 	Recipient = create RecipientType;
-	SenderToRecipient = create Link (2);
-	RecipientToSender = create Link (2);
-	(from = Sender->OutgoingPort)->connect (SenderToRecipient);
-	(to = Recipient->IncomingPort)->connect (SenderToRecipient);
+	STRLink = create Link (2);
+	RTSLink = create Link (2);
+	(from = Sender->OutgoingPort)->connect (STRLink);
+	(to = Recipient->IncomingPort)->connect (STRLink);
 	from->setDTo (to, Distance);
-	RecipientToSender->setFaultRate (FaultRate);
-	(from = Recipient->OutgoingPort)->connect (RecipientToSender);
-	(to = Sender->IncomingPort)->connect (RecipientToSender);
+	RTSLink->setFaultRate (FaultRate);
+	(from = Recipient->OutgoingPort)->connect (RTSLink);
+	(to = Sender->IncomingPort)->connect (RTSLink);
 	from->setDTo (to, Distance);
-	SenderToRecipient->setFaultRate (FaultRate);
+	STRLink->setFaultRate (FaultRate);
 };
 
 void Root::defineTraffic () {
@@ -289,7 +358,7 @@ void Root::defineTraffic () {
 	TrafficType *tp;
 
 	tp = create TrafficType (MIT_exp + MLE_fix,
-	MeanMessageInterarrivalTime, MessageLength);
+		MeanMessageInterarrivalTime, MessageLength);
 	tp->addSender (Sender);
 	tp->addReceiver (Recipient);
 	setLimit (MessageNumberLimit);
@@ -306,7 +375,7 @@ void Root::startProtocol () {
 void Root::printResults () {
 
 	Client->printPfm ();
-	SenderToRecipient->printPfm ();
-	RecipientToSender->printPfm ();
+	STRLink->printPfm ();
+	RTSLink->printPfm ();
 
 };

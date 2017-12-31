@@ -1,8 +1,8 @@
 To recompile:
 
-  rm Water.java
+  rm Conveyor.java
   make
-  javac Water.java
+  javac Conveyor.java
 
 ------------------------------------------------------------------------------
 

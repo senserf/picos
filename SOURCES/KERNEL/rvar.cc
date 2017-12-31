@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-07   P. Gburzynski */
+/* Copyright (C) 1991-18   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -722,7 +722,14 @@ void    RVariable::calculate (double &min, double &max, double *mmnts,
 	if (moments == 0) return;
 	mmnts [0] = moment(s,0);
 	if (moments < 2) return;
-	mmnts [1] = moment(s,1) - (mmnts[0] * mmnts[0]);  // Variance
+	if (min == max) {
+		// Make sure zero is zero
+		for (j = 1; j < moments; j++)
+			mmnts [j] = 0.0;
+		return;
+	}
+	mmnts [1] = (min == max) ? 0.0 :
+		moment(s,1) - (mmnts[0] * mmnts[0]);  // Variance
 
 	for (j = 3; j <= moments; j++) {
 		for (sum = 0.0, k = 0, f = 1.0, m = 1.0; k <= j; k++) {
@@ -768,8 +775,15 @@ void    RVariable::calculate (double &min, double &max, double *mmnts,
 	if (moments == 0) return;
 	mmnts [0] = bmoment(s,0);       // The mean value
 	if (moments < 2) return;
+
+	if (min == max) {
+		// Make sure zero is zero
+		for (j = 1; j < moments; j++)
+			mmnts [j] = 0.0;
+		return;
+	}
+
 	mmnts [1] = bmoment(s,1) - (mmnts[0] * mmnts[0]);  // Variance
-	if (mmnts [1] < 0.0) mmnts [1] = 0.0;              // Just in case
 
 	for (j = 3; j <= moments; j++) {
 		for (sum = 0.0, k = 0, f = 1.0, m = 1.0; k <= j; k++) {

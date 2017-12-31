@@ -80,7 +80,7 @@ You will have to set "Class access" to Unrestricted in Applet->Properties.
 Otherwise, to run the applet from the browser, you have to make sure it is
 running. To start it, move to directory NWEB and execute:
 
-	./nweb24 ../DSD
+	./nweb24 -d ../DSD
 
 The argument is the root directory for the web service (we set it to the
 location of the applet). Note that the default port is 8001. If you want to

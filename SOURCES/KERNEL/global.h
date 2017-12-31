@@ -5334,6 +5334,7 @@ class   Packet  {                       // Packet skeleton
 
 	// Checks if the packet is addressed to this station
 	int     isMy (Station *s = NULL);
+	inline	int isMine (Station *s = NULL) { return isMy (s); };
 
 	// The packet version of release
 	inline  void    release () {

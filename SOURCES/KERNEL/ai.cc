@@ -273,7 +273,7 @@ void    zz_adjust_ownership () {
 	for (o = ox; o != NULL && o != ZZ_Main; o = o->next);
 
 	if (o == NULL)
-	   excptn ("Adjusting ownership tree: Root missing from Kernel's list");
+	   excptn ("Adjusting ownership tree: Root has been terminated");
 
 	pool_out (o);
 	pool_in (o, Kernel->ChList);

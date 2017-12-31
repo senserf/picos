@@ -1,0 +1,2 @@
+Interarrival time:	10.0 	minutes
+Simulated time:		10080	minutes = one week

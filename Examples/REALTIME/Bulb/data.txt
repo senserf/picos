@@ -1,4 +1,0 @@
-30.0      bulb on time
-1.0       response time
-3342      port for dummy connections
-600       idle time

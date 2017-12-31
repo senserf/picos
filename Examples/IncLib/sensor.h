@@ -27,13 +27,11 @@ inline  int  operator== (NetAddress &a, NetAddress &b) {
 mailbox Sensor {
   private:
     int Value;
-    Boolean Pending;
     void mapNet ();
   public:
     NetAddress Reference;
     void setValue (int);
     int getValue ();
-    Boolean pending () { return Pending; };
     void setup (NetAddress&);
 };
 
@@ -42,12 +40,10 @@ mailbox Sensor {
 mailbox Actuator {
   private:
     int Value;
-    Boolean Pending;
     void mapNet ();
   public:
     NetAddress Reference;
     void setValue (int);
-    Boolean pending () { return Pending; };
     int getValue ();
     void setup (NetAddress&, int iv = 0);
 };
