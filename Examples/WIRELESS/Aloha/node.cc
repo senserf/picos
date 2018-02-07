@@ -1,109 +1,76 @@
 #include "types.h"
 
-DTransmitter::perform {
+// ============================================================================
+
+HTransmitter::perform {
 
 	state NPacket:
 
-		if (UTrf->getPacket (Buffer, MinPL, MaxPL, FrameLength) == NO) {
-			UTrf->wait (ARRIVAL, NPacket);
-			sleep;
-		}
+		Pkt = S->getPacket (NPacket);
+		Up -> transmit (Pkt, PDone);
 
-		Buffer->SeqNum = ++(SndSeqNums [Buffer->Receiver]);
+	state PDone:
 
-	transient Ready:
-
-#if 0
-// A quick and naive LBT scheme
-		if (DCh->busy ()) {
-			DCh->wait (SILENCE, Backoff);
-			sleep;
-		}
+		Up->stop ();
+		if (Pkt == &(S->Buffer)) {
+#ifdef	LOCAL_MEASURES
+			HXmt [Pkt->Receiver]++;
 #endif
+			S->Buffer.release ();
+		}
 
-		DCh->transmit (Buffer, XDone);
-	
+		skipto NPacket;
+}
+
+HReceiver::perform {
+
+	state Listen:
+
+		Down->wait (BMP, GotBMP);
+		Down->wait (EMP, GotEMP);
+
+	state GotEMP:
+
+		S->receive ((DataPacket*)ThePacket);
+		// Should add space before waiting for next BMP
+
+	transient GotBMP:
+
+		skipto Listen;
+}
+
+// ============================================================================
+
+THalfDuplex::perform {
+
+	state Loop:
+
+		if (S->getPacket (Loop)) {
+			Timer->delay (SWITCH_DELAY, Xmit);
+			sleep;
+		}
+
+		Down->wait (BMP, GotBMP);
+		Down->wait (EMP, GotEMP);
+
+	state GotEMP:
+
+		S->receive (ThePacket);
+
+	transient GotBMP:
+
+		skipto Loop;
+
+	state Xmit:
+
+#ifdef	LOCAL_MEASURES
+		S->rc++;
+#endif
+		Up->transmit (S->Buffer, XDone);
+
 	state XDone:
 
-		DCh->stop ();
-		TotalSentPackets++;
-
-		S->ExpectedAckSender = (Long)(Buffer->Receiver);
-		S->AckEvent->wait (0, GotAck);
-		Timer->wait (S->backoff (), Ready);
-
-	state GotAck:
-
-		Buffer->release ();
-		proceed NPacket;
-
- 	state Backoff:
-
-		Timer->wait (S->backoff (), Ready);
-}
-
-DReceiver::perform {
-
-	state Wait:
-
-		DCh->wait (BOT, BPacket);
-
-	state BPacket:
-
-		DCh->follow (ThePacket);
-		skipto Watch;
-
-	state Watch:
-
-		DCh->wait (EOT, Received);
-		DCh->wait (BERROR, Wait);
-
-	state Received:
-
-		TotalReceivedPackets++;
-		if (ThePacket->isMy ()) {
-			Long snd, seq;
-			snd = ThePacket->Sender;
-			seq = ((DataPacket*)ThePacket)->SeqNum;
-			if (seq != RcvSeqNums [snd]) {
-				Client->receive (ThePacket, TheTransceiver);
-				RcvSeqNums [snd] = seq;
-			}
-			Ack->fill (S->getId (), ThePacket->Sender,
-				AckPL + FrameLength, AckPL);
-			Ack->Receiver = ThePacket->Sender;
-			ACh->transmit (Ack, ADone);
-			sleep;
-		}
-		proceed Wait;
-
-	state ADone:
-
-		ACh->stop ();
-		proceed Wait;	
-}
-
-AReceiver::perform {
-
-	state Wait:
-
-		ACh->wait (BOT, BPacket);
-
-	state BPacket:
-
-		ACh->follow (ThePacket);
-		skipto Watch;
-
-	state Watch:
-
-		ACh->wait (EOT, Received);
-		ACh->wait (BERROR, Wait);
-
-	state Received:
-
-		if (ThePacket->isMy () && ThePacket->Sender ==
-		    S->ExpectedAckSender)
-			S->AckEvent->signal (0);
-
-		proceed Wait;
-}
+		Up->stop ();
+		S->backoff ();
+		Timer->delay (SWITCH_DELAY, Loop);
+};

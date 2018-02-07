@@ -3089,6 +3089,18 @@ extern	zz_monitor  zz_AI_monitor;
 // A macro to define object-related event ordinals
 #define	MONITOR_LOCAL_EVENT(o)	((void*)(((char*)TheStation)+(o)))
 
+#define	varwait(var,val,new,st)	do { \
+				    if ((var) == (value)) { \
+					Monitor->wait ((void*)(&(var)), st); \
+					sleep; \
+				    } else { \
+					(var) = (new); \
+				    } \
+				} while (0)
+
+#define	varsignal(var,val)	do { (var) = (val); \
+				    Monitor->signal ((void*)(&(var))); \
+				} while (0)
 /* -------- */
 /* Timer AI */
 /* -------- */
@@ -4384,9 +4396,9 @@ class	RFChannel : public AI {
 		// If the second argument is >= 0, it gives the index of
 		// the activity to be ignored (e.g., when we are calculating
 		// the interference for one selected activity.
-		// The last argument contains the receiver's Tag and the
-		// power level of own activity, if present (i.e., XPower).
-		// If the transceiver is not transmitting, this power level
+		// The last argument contains the receiver's signal
+		// of own activity, if present.
+		// If the transceiver is not transmitting, the power level
 		// is 0.0.
 
 	virtual Boolean RFC_act (
@@ -4481,8 +4493,8 @@ class	RFChannel : public AI {
 	Long		DefPreamble,
 			DefErrorRun;
 
-	IPointer	DefTag;
-	
+	RF_TAG_TYPE	DefXTag, DefRTag;
+
 	Boolean		DefAevMode;
 
 	void zz_start ();
@@ -4528,7 +4540,12 @@ class	RFChannel : public AI {
 	void 	connect (Transceiver*);
 	void	setTRate (RATE r = RATE_inf);
 	void	setPreamble (Long p = -1);
-	void	setTag (IPointer p = ANY);
+	void	setXTag (RF_TAG_TYPE p = ANY);
+	inline void setXTag () { setXTag (DefXTag); };
+	void	setRTag (RF_TAG_TYPE p = ANY);
+	inline void setRTag () { setRTag (DefRTag); };
+	void	setTag (RF_TAG_TYPE p = ANY);
+	void	setTag ();
 	void	setErrorRun (Long e = -1);
 	void	setXPower (double p = -1.0);
 	void	setRPower (double p = -1.0);
@@ -4673,15 +4690,13 @@ class	Transceiver : public AI {
 	RATE		TRate;		// In ITUs
 
 	/*
-	 * This is the receiver sensitivity combined with the transceiver's
-	 * Tag. We keep them together because they are often used as a pair.
+	 * Receiver gain + receiver Tag
 	 */
-	SLEntry		SenTag;
-
+	SLEntry		RcvSig,
 	/*
-	 * Transmitter power
+	 * Transmit power + transmit Tag
 	 */
-	double		XPower;
+			XmtSig;
 
 	/*
 	 * Threshold for signal-level events
@@ -4842,18 +4857,18 @@ class	Transceiver : public AI {
 	IHist *iHist (const Packet *p = NULL);
 
 	inline Boolean error (const SLEntry *sl, IHist *h) {
-		return RFC->error (TRate, sl, &SenTag, h);
+		return RFC->error (TRate, sl, &RcvSig, h);
 	};
 
 	inline Long errors (const SLEntry *sl, IHist *h) {
-		return RFC->errors (TRate, sl, &SenTag, h);
+		return RFC->errors (TRate, sl, &RcvSig, h);
 	};
 
 	Boolean error (Packet *p = NULL);
 	Long errors (Packet *p = NULL);
 
 	inline Boolean busy () {
-		return RxOn ? RFC->RFC_act (sigLevel (), &SenTag) : 0;
+		return RxOn ? RFC->RFC_act (sigLevel (), &RcvSig) : 0;
 	};
 
 	inline Boolean idle () {
@@ -4875,19 +4890,21 @@ class	Transceiver : public AI {
 	~Transceiver ();
 
 	const char	*getTName () { return ("Tcv"); };
-	int	getSID (), getYID ();
+	int		getSID (), getYID ();
 
-	RATE	setTRate (RATE r = RATE_inf);
-	Long	setPreamble (Long p = -1);
-	double	setXPower (double p = -1.0);
-	double	setRPower (double p = -1.0);
-	IPointer setTag (IPointer p = ANY);
-	Long	setErrorRun (Long e = -1);
-	double 	setMinDistance (double d = -1.0);
-	Boolean	setAevMode (Boolean b = YESNO);
-	double 	setSigThreshold (double);
-	Boolean follow (Packet *p = NULL);
-	inline Boolean isFollowed (Packet*);
+	RATE		setTRate (RATE r = RATE_inf);
+	Long		setPreamble (Long p = -1);
+	double		setXPower (double p = -1.0);
+	double		setRPower (double p = -1.0);
+	RF_TAG_TYPE 	setTag (RF_TAG_TYPE p = ANY);
+	RF_TAG_TYPE 	setRTag (RF_TAG_TYPE p = ANY);
+	RF_TAG_TYPE 	setXTag (RF_TAG_TYPE p = ANY);
+	Long		setErrorRun (Long e = -1);
+	double 		setMinDistance (double d = -1.0);
+	Boolean		setAevMode (Boolean b = YESNO);
+	double 		setSigThreshold (double);
+	Boolean 	follow (Packet *p = NULL);
+	inline Boolean	isFollowed (Packet*);
 
 	void reassess ();
 
@@ -4937,9 +4954,11 @@ class	Transceiver : public AI {
 	inline  TIME	getPreambleTime () {
 		return (TIME) TRate * (LONG) Preamble;
 	};
-	inline	double	getXPower () { return XPower; };
-	inline	double	getRPower () { return SenTag.Level; };
-	inline	IPointer getTag () { return SenTag.Tag; };
+	inline	double	getXPower () { return XmtSig.Level; };
+	inline	double	getRPower () { return RcvSig.Level; };
+	inline	RF_TAG_TYPE getRTag () { return RcvSig.Tag; };
+	inline	RF_TAG_TYPE getXTag () { return XmtSig.Tag; };
+	inline	RF_TAG_TYPE getTag () { return getRTag (); };
 	inline	Long	getErrorRun () { return ErrorRun; };
 	inline  double  getSigThreshold () { return SigThreshold; };
 	double  getMinDistance ();

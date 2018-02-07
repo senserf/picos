@@ -301,8 +301,8 @@ double Transceiver::sigLevel () {
 			ac [na++] = &(a->RSS);
 	txcvr = this;
 
-	xm.Tag = SenTag.Tag;
-	xm.Level = (Activity != NULL) ? XPower : 0.0;
+	xm.Tag = XmtSig.Tag;
+	xm.Level = (Activity != NULL) ? XmtSig.Level : 0.0;
 
 	return RFC->RFC_add (na, NONE, ac, &xm);
 }
@@ -476,9 +476,9 @@ void RFChannel::setup (Long nx, RATE r, int pre, double XP, double RP,
 	DefTRate = r;
 	DefPreamble = pre;
 	DefMinDistance = ituToDu (DISTANCE_1);
+	DefXTag = DefRTag = 0;
 	DefAevMode = YES;
 	DefErrorRun = 1;
-	DefTag = 0;
 
 	NTransceivers = (int) nx;
 
@@ -569,9 +569,9 @@ void Transceiver::setup (RATE r, int pre, double XP, double RP,
 #endif
 
 	Preamble = pre;
-	XPower = XP;
+	XmtSig.Level = XP;
 	// Receiver sensitivity
-	SenTag.Level = RP;
+	RcvSig.Level = RP;
 }
 
 Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
@@ -588,7 +588,8 @@ Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
   "Transceiver: cannot create new transceivers after the protocol has started");
 
 	Class = AIC_transceiver;
-	Owner = TheStation;
+	// Moved to zz_start, didn't work here for static declarations
+	// Owner = TheStation;
 	nextp = NULL;
 	RFC = NULL;
 	SigThreshold = 0.0;
@@ -608,7 +609,7 @@ Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
 	RxOn = YES;
 	AevMode = YESNO;
 	Mark = NO;
-	SenTag.Tag = ANY;
+	XmtSig.Tag = RcvSig.Tag = ANY;
 	ErrorRun = -1;
 
 	if (nn != NULL) {
@@ -647,6 +648,7 @@ void    Transceiver::zz_start () {
 	nextp = NULL;
 	Activities = NULL;
 	Activity = NULL;
+	Owner = TheStation;
 
 	if ((p = TheStation->Transceivers) == NULL) {
 		TheStation->Transceivers = this;
@@ -685,7 +687,7 @@ void	RFChannel::connect (Transceiver *xcv) {
 		xcv->setPreamble (DefPreamble);
 	if (xcv->TRate == RATE_inf)
 		xcv->setTRate (DefTRate);
-	if (xcv->XPower < 0.0)
+	if (xcv->getXPower () < 0.0)
 		xcv->setXPower (DefXPower);
 	if (xcv->getRPower () < 0.0)
 		xcv->setRPower (DefRPower);
@@ -693,8 +695,10 @@ void	RFChannel::connect (Transceiver *xcv) {
 		xcv->setAevMode (DefAevMode);
 	if (xcv->getMinDistance () < 0.0)
 		xcv->setMinDistance (DefMinDistance);
-	if (xcv->getTag () == ANY)
-		xcv->setTag (DefTag);
+	if (xcv->getRTag () == ANY)
+		xcv->setRTag (DefRTag);
+	if (xcv->getXTag () == ANY)
+		xcv->setXTag (DefXTag);
 	if (xcv->ErrorRun < 0)
 		xcv->setErrorRun (DefErrorRun);
 }
@@ -789,20 +793,41 @@ RATE	Transceiver::setTRate (RATE r) {
 	return qr;
 }
 
-IPointer Transceiver::setTag (IPointer t) {
+RF_TAG_TYPE Transceiver::setXTag (RF_TAG_TYPE t) {
 
-	IPointer old;
+	RF_TAG_TYPE old;
 
 	if (t == ANY && RFC)
-		t = RFC->DefTag;
+		t = RFC->DefXTag;
 
 	assert (t != ANY,
-		"Transceiver->setTag: %s, illegal (null) tag",
+		"Transceiver->setXTag: %s, illegal (ANY) XTag value",
 			getSName ());
 
-	old = SenTag.Tag;
-	SenTag.Tag = t;
+	old = XmtSig.Tag;
+	XmtSig.Tag = t;
 	return old;
+}
+
+RF_TAG_TYPE Transceiver::setRTag (RF_TAG_TYPE t) {
+
+	RF_TAG_TYPE old;
+
+	if (t == ANY && RFC)
+		t = RFC->DefRTag;
+
+	assert (t != ANY,
+		"Transceiver->setRTag: %s, illegal (ANY) RTag value",
+			getSName ());
+
+	old = RcvSig.Tag;
+	RcvSig.Tag = t;
+	return old;
+}
+
+RF_TAG_TYPE Transceiver::setTag (RF_TAG_TYPE t) {
+	setXTag (t);
+	return setRTag (t);
 }
 
 Long	Transceiver::setErrorRun (Long e) {
@@ -847,14 +872,14 @@ double	Transceiver::setXPower (double p) {
 		"Transceiver->setXPower: %s, llegal (undefined) power (%f)",
 			getSName (), p);
 
-	op = XPower;
-	XPower = p;
+	op = XmtSig.Level;
+	XmtSig.Level = p;
 
 	if (zz_flg_started) {
 
-		if (XPower > op)
+		if (XmtSig.Level > op)
 			RFC->nei_xtd (this);
-		else if (XPower < op)
+		else if (XmtSig.Level < op)
 			RFC->nei_trm (this);
 	}
 
@@ -872,13 +897,13 @@ double	Transceiver::setRPower (double p) {
 		"Transceiver->setRPower: %s, illegal (undefined) power (%1f)",
 			getSName (), p);
 
-	op = SenTag.Level;
-	SenTag.Level = p;
+	op = RcvSig.Level;
+	RcvSig.Level = p;
 
 	if (zz_flg_started) {
-		if (SenTag.Level > op)
+		if (RcvSig.Level > op)
 			RFC->nei_add (this);
-		else if (SenTag.Level < op)
+		else if (RcvSig.Level < op)
 			RFC->nei_del (this);
 	}
 
@@ -923,22 +948,52 @@ void RFChannel::setPreamble (Long t) {
 			Tcvs [i] -> setPreamble (t);
 }
 
-void RFChannel::setTag (IPointer t) {
+void RFChannel::setXTag (RF_TAG_TYPE t) {
 
-/* ================================ */
-/* Set the rate of all transceivers */
-/* ================================ */
+/* ================================== */
+/* Set the X Tags of all transceivers */
+/* ================================== */
 
 	Long i;
 
-	if (t == ANY)
-		t = DefTag;
-	else
-		DefTag = t;
+	DefXTag = t;
 
 	for (i = 0; i < NTransceivers; i++)
 		if (Tcvs [i])
-			Tcvs [i] -> SenTag.Tag = t;
+			Tcvs [i] -> setXTag (t);
+}
+
+void RFChannel::setRTag (RF_TAG_TYPE t) {
+
+/* ================================== */
+/* Set the R Tags of all transceivers */
+/* ================================== */
+
+	Long i;
+
+	DefRTag = t;
+
+	for (i = 0; i < NTransceivers; i++)
+		if (Tcvs [i])
+			Tcvs [i] -> setRTag (t);
+}
+
+void RFChannel::setTag (RF_TAG_TYPE t) {
+
+/* ================================ */
+/* Set the Tags of all transceivers */
+/* ================================ */
+
+	setXTag (t);
+	setRTag (t);
+}
+
+void RFChannel::setTag () {
+
+	assert (DefRTag == DefXTag,
+	    "RFChannel->setTag: %s, DefXTag != DefRTag", getSName ());
+
+	setTag (DefXTag);
 }
 
 void RFChannel::setErrorRun (Long e) {
@@ -966,7 +1021,7 @@ void RFChannel::setXPower (double p) {
 
 	for (i = 0; i < NTransceivers; i++)
 		if (Tcvs [i])
-			Tcvs [i] -> XPower = p;
+			Tcvs [i] -> XmtSig.Level = p;
 
 	if (zz_flg_started) {
 		// Redo all neighborhoods
@@ -987,7 +1042,7 @@ void RFChannel::setRPower (double p) {
 
 	for (i = 0; i < NTransceivers; i++)
 		if (Tcvs [i])
-			Tcvs [i] -> SenTag.Level = p;
+			Tcvs [i] -> RcvSig.Level = p;
 
 	if (zz_flg_started) {
 		// Redo all neighborhoods
@@ -1334,10 +1389,7 @@ double RFChannel::getRange (double &lx, double &ly, double &hx, double &hy) {
 }
 
 inline double RFChannel::rfc_cut (const Transceiver *f, const Transceiver *t) {
-	SLEntry fs;
-	fs.Level = f->XPower;
-	fs.Tag = f->SenTag.Tag;
-	return RFC_cut (f->XPower, t->SenTag.Level);
+	return RFC_cut (f->XmtSig.Level, t->RcvSig.Level);
 }
 
 void RFChannel::nei_bld (Transceiver *T) {
@@ -1693,7 +1745,7 @@ void Transceiver::handle_ifv () {
 		// Process(es) waiting for BERROR
 
 		t = Time + (TIME) TRate * RFC->RFC_erd (TRate,
-			&(TracedActivity->RSS), &SenTag,
+			&(TracedActivity->RSS), &RcvSig,
 				TracedActivity->INT.cur (), ErrorRun);
 
 		for (rq = RQueue [BERROR]; rq != NULL; rq = rq->next) {
@@ -1857,10 +1909,10 @@ void Transceiver::startTransfer (Packet *p) {
 			ro->Killed = ro->Done = NO;
 			ro->Stage = RFA_STAGE_BOP;
 			ro->Next = Activity->SchBOP;
-			ro->RSS.Tag = SenTag.Tag;
+			ro->RSS.Tag = XmtSig.Tag;
 			// This will be adjusted by initAct to represent the
 			// perceived signal level at the receiver
-			ro->RSS.Level = XPower;
+			ro->RSS.Level = XmtSig.Level;
 			Activity->SchBOP = ro;
 		}
 		// Schedule the initial event to advance the roster
@@ -2011,8 +2063,8 @@ void Transceiver::updateIF () {
 		ac [na++] = &(a->RSS);
 	}
 
-	xm.Tag = SenTag.Tag;
-	xm.Level = (Activity != NULL) ? XPower : 0.0;
+	xm.Tag = XmtSig.Tag;
+	xm.Level = (Activity != NULL) ? XmtSig.Level : 0.0;
 
 	for (na = 0, a = Activities; a != NULL; a = a->next) {
 		if (a->Done)
@@ -2162,7 +2214,7 @@ Packet *Transceiver::findRPacket () {
 		if (a->within_packet () && !a->Killed) {
 			a->INT.update ();
 			tpckt = &(a->RFA->Pkt);
-			if (RFC->RFC_eot (a->RFA->TRate, &(a->RSS), &SenTag,
+			if (RFC->RFC_eot (a->RFA->TRate, &(a->RSS), &RcvSig,
 			    &(a->INT)))
 				return tpckt;
 		}
@@ -2179,7 +2231,7 @@ void Transceiver::reschedule_sil () {
 
 	txcvr = this;
 
-	if (RxOn && RFC->RFC_act (sigLevel (), &SenTag))
+	if (RxOn && RFC->RFC_act (sigLevel (), &RcvSig))
 		return;
 
 	// RxOn == NO implies silence
@@ -2211,7 +2263,7 @@ void Transceiver::reschedule_act () {
 
 	txcvr = this;
 
-	if (RFC->RFC_act (sigLevel (), &SenTag) == NO)
+	if (RFC->RFC_act (sigLevel (), &RcvSig) == NO)
 		return;
 
 	for (rq = RQueue [ACTIVITY]; rq != NULL; rq = rq->next) {
@@ -2245,7 +2297,7 @@ void Transceiver::reschedule_bot (ZZ_RSCHED *rfa) {
 
 	txcvr = this;
 
-	if (RFC->RFC_bot (rfa->RFA->TRate, &(rfa->RSS), &SenTag, &(rfa->INT))) {
+	if (RFC->RFC_bot (rfa->RFA->TRate, &(rfa->RSS), &RcvSig, &(rfa->INT))) {
 		// Receivable
 		for (rq = RQueue [BOT]; rq != NULL; rq = rq->next) {
 
@@ -2313,7 +2365,7 @@ void Transceiver::reschedule_eot (ZZ_RSCHED *rfa) {
 
 		txcvr = this;
 
-		if (RFC->RFC_eot (rfa->RFA->TRate, &(rfa->RSS), &SenTag,
+		if (RFC->RFC_eot (rfa->RFA->TRate, &(rfa->RSS), &RcvSig,
 								&(rfa->INT))) {
 			// Receivable
 			for (rq = RQueue [EOT]; rq != NULL; rq = rq->next) {
@@ -2899,7 +2951,7 @@ Redo:
 				txcvr = this;
 
 				return RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
-					&SenTag, &(a->INT));
+					&RcvSig, &(a->INT));
 			}
 		}
 		// FIXME: I am not sure if this is the right thing to
@@ -3232,13 +3284,13 @@ void    Transceiver::wait (int ev, int pstate) {
 
 	    case SILENCE:
 
-		if (!RFC->RFC_act (sigLevel (), &SenTag))
+		if (!RFC->RFC_act (sigLevel (), &RcvSig))
 			t = Time;
 		break;
 
 	    case ACTIVITY:
 
-		if (RFC->RFC_act (sigLevel (), &SenTag)) {
+		if (RFC->RFC_act (sigLevel (), &RcvSig)) {
 			t = Time;
 			// Find the first receiveable packet. This is pretty
 			// much useless, isn't it?
@@ -3284,7 +3336,7 @@ void    Transceiver::wait (int ev, int pstate) {
 				a->INT.update ();
 				tpckt = &(a->RFA->Pkt);
 				if (RFC->RFC_bot (a->RFA->TRate, &(a->RSS),
-				    &SenTag, &(a->INT))) {
+				    &RcvSig, &(a->INT))) {
 					TracedActivity = a;
 					t = Time;
 					break;
@@ -3315,7 +3367,7 @@ void    Transceiver::wait (int ev, int pstate) {
 				a->INT.update ();
 				tpckt = &(a->RFA->Pkt);
 				if (RFC->RFC_bot (a->RFA->TRate, &(a->RSS),
-				    &SenTag, &(a->INT))) {
+				    &RcvSig, &(a->INT))) {
 					TracedActivity = a;
 					t = Time;
 					break;
@@ -3356,7 +3408,7 @@ void    Transceiver::wait (int ev, int pstate) {
 
 				tpckt = &(a->RFA->Pkt);
 	    			if (RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
-				    &SenTag, &(a->INT))) {
+				    &RcvSig, &(a->INT))) {
 					t = Time;
 					break;
 				}
@@ -3386,7 +3438,7 @@ void    Transceiver::wait (int ev, int pstate) {
 
 				tpckt = &(a->RFA->Pkt);
 	    			if (RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
-				    &SenTag, &(a->INT))) {
+				    &RcvSig, &(a->INT))) {
 					t = Time;
 					break;
 				}
@@ -3405,7 +3457,7 @@ void    Transceiver::wait (int ev, int pstate) {
 		if (TracedActivity != NULL && !TracedActivity->Done) {
 
 			t = Time + (TIME) TRate * RFC->RFC_erd (TRate,
-				&(TracedActivity->RSS), &SenTag,
+				&(TracedActivity->RSS), &RcvSig,
 				TracedActivity->INT.cur (), ErrorRun);
 
 		} else {
@@ -3638,7 +3690,7 @@ void Transceiver::dspEvnt (int *elist) {
 					// Assessment needed
 					a->INT.update ();
 					if (RFC->RFC_bot (a->RFA->TRate,
-					    &(a->RSS), &SenTag, &(a->INT))) {
+					    &(a->RSS), &RcvSig, &(a->INT))) {
 						elist [2] ++;
 						elist [8] ++;
 						if (a->RFA->Pkt.isMy (Owner))
@@ -3649,7 +3701,7 @@ void Transceiver::dspEvnt (int *elist) {
 				if (ev == EOT) {
 					a->INT.update ();
 	    				if (RFC->RFC_eot (a->RFA->TRate,
-					    &(a->RSS), &SenTag, &(a->INT))) {
+					    &(a->RSS), &RcvSig, &(a->INT))) {
 						elist [3] ++;
 						if (a->RFA->Pkt.isMy (Owner))
 							elist [5] ++;
@@ -3797,7 +3849,7 @@ void    RFChannel::exPrint1 (const char *hdr) {
 		Ouf << '(' << getOName () << ") Performance measures:\n\n";
 	}
 
-	print (NTAttempts     , "    Number of transfer attempts:    ");
+	print (NTAttempts     , "    Number of transmit attempts:    ");
 	print (NTPackets      , "    Number of transmitted packets:  ");
 	print (NTBits         , "    Number of transmitted bits:     ");
 	print (NRPackets      , "    Number of received packets:     ");
@@ -3938,9 +3990,9 @@ void RFChannel::exPrtTop (Boolean full) {
 		Ouf << ' ';
 		print ((int)(t->Preamble), 5);
 		Ouf << ' ';
-		print (t->XPower, 7);
+		print (t->XmtSig.Level, 7);
 		Ouf << ' ';
-		print (t->SenTag.Level, 7);
+		print (t->RcvSig.Level, 7);
 		Ouf << ' ';
 		print (t->NNeighbors, 6);
 		Ouf << ' ';
@@ -3965,7 +4017,8 @@ void RFChannel::exPrtTop (Boolean full) {
 	print (DefMinDistance   , "        MinDistance: ");
 	print (DefErrorRun      , "        ErrorRun:    ");
 	print (DefAevMode       , "        AevMode:     ");
-	print (DefTag           , "        Tag:         ");
+	print (DefXTag          , "        XTag:        ");
+	print (DefRTag          , "        RTag:        ");
 
 	Ouf << "\n    Neighbor lists:\n\n";
 
@@ -4437,7 +4490,7 @@ void    Transceiver::exPrint1 (const char *hdr) {
 		ptime (Activity->BOTTime, 14);
 		Ouf << ' ';
 
-		print (XPower, 8);
+		print (XmtSig.Level, 8);
 		Ouf << "   ------   ------   ------";
 #if ZZ_DBG
 		print (zz_trunc (p->Signature, 10), 11);
@@ -4646,7 +4699,7 @@ void    Transceiver::exDisplay1 () {
 
 		dtime (Activity->BOTTime);
 
-		display (XPower);
+		display (XmtSig.Level);
 		display ("---");
 		display ("---");
 		display ("---");

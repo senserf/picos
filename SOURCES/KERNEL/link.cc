@@ -6113,7 +6113,7 @@ void    Link::exPrint1 (const char *hdr) {
 	}
 
 	print (NTJams         , "    Number of jamming signals:      ");
-	print (NTAttempts     , "    Number of transfer attempts:    ");
+	print (NTAttempts     , "    Number of transmit attempts:    ");
 	print (NTPackets      , "    Number of transmitted packets:  ");
 	print (NTBits         , "    Number of transmitted bits:     ");
 	print (NRPackets      , "    Number of received packets:     ");
