@@ -61,16 +61,49 @@
 #define	UART_DRIVER	0
 #define	CODE_LONG_INTS	1
 
-#define	CC1100		1
+// ============================================================================
+// Which radio ================================================================
+// ============================================================================
+
+#ifdef CC1100
+#if CC1100
+#define	RADIO_OPTIONS	(RADIO_OPTION_RBKF + RADIO_OPTION_STATS + RADIO_OPTION_REGWRITE + RADIO_OPTION_ENTROPY + RADIO_OPTION_WORPARAMS)
+#define	MAX_PACKET_LENGTH	CC1100_MAXPLEN
+#define	RADIO_DEFAULT_BITRATE	1
+#define	RADIO_DEFAULT_POWER	7
+#define	RADIO_CRC_MODE		0
+#define	RF_INCLUDE_PHY		"phys_cc1100.h"
+#define	RF_INCLUDE_SYS		"cc1100.h"
+#define	PHY_CALL(a,b)		phys_cc1100 (a, b)
+#endif
+#endif
+
+#ifdef CC1350_RF
+#if CC1350_RF
+#define	RADIO_OPTIONS	(RADIO_OPTION_RBKF)
+// Make it shorter than max, the official max is probably too large
+#define	MAX_PACKET_LENGTH	64
+#define	RADIO_DEFAULT_BITRATE	3
+#define	RADIO_DEFAULT_POWER	7
+#define	RF_INCLUDE_PHY		"phys_cc1350.h"
+#define	RF_INCLUDE_SYS		"cc1350.h"
+#define	PHY_CALL(a,b)		phys_cc1350 (a, b)
+#endif
+#endif
+
+#ifndef	MAX_PACKET_LENGTH
+#error	"S: NO RADIO MODULE!!!"
+#endif
+
+// ============================================================================
 
 #undef	RADIO_USE_LEDS
-#define	RADIO_USE_LEDS	7
+#define	RADIO_USE_LEDS		0
+#define	BLINK_ON_RECEPTION	0
 
 // ============================================================================
 
 #undef	DIAG_IMPLEMENTATION
-#define	RADIO_OPTIONS		(RADIO_OPTION_RBKF + RADIO_OPTION_STATS + RADIO_OPTION_REGWRITE + RADIO_OPTION_ENTROPY + RADIO_OPTION_WORPARAMS)
-#define	RADIO_CRC_MODE		0
 
 #define	NUMBER_OF_SENSORS	0
 
@@ -88,9 +121,6 @@
 #define	DIAG_IMPLEMENTATION	1
 
 #endif
-
-//#define	RADIO_LBT_BACKOFF_EXP	6
-//#define	RADIO_LBT_BACKOFF_RX	2
 
 #define	TCV_LIMIT_XMT		16
 

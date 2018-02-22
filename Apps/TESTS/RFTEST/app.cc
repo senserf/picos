@@ -6,9 +6,9 @@
 #include "sysio.h"
 #include "tcvphys.h"
 #ifndef __SMURPH__
-#include "cc1100.h"
+#include RF_INCLUDE_SYS
 #endif
-#include "phys_cc1100.h"
+#include RF_INCLUDE_PHY
 #include "plug_null.h"
 #include "hold.h"
 
@@ -37,7 +37,9 @@
 #include "sensors.h"
 #endif
 
-#define	MAX_PACKET_LENGTH	CC1100_MAXPLEN
+#ifndef	RADIO_WOR_MODE
+#define	RADIO_WOR_MODE	0
+#endif
 
 heapmem { 50, 50 };
 
@@ -67,7 +69,7 @@ word	g_pat_nlqi, g_pat_maxlqi, g_pat_drop;
 
 char	*g_snd_rcmd, *g_pcmd_cmd;
 
-#ifndef	__SMURPH__
+#ifdef	CC1100_PATABLE
 const byte g_patable [] = CC1100_PATABLE;
 #endif
 
@@ -709,7 +711,7 @@ word do_command (const char *cb, word sender, word sernum) {
 
 	    case 'v': {
 
-		sint fg;
+		wint fg;
 
 		fg = -1;
 		scan (cb + 1, "%d", &fg);
@@ -731,7 +733,7 @@ RetFlags:
 		g_flags &= ~0x6000;
 		goto RetFlags;
 
-#ifndef __SMURPH__
+#ifdef	CC1100_PATABLE
 
 	    case 't':
 
@@ -749,6 +751,7 @@ RetFlags:
 		if (runfsm thread_patable == 0)
 			return 6;
 		return 0;
+#endif
 
 #if RADIO_WOR_MODE
 
@@ -777,6 +780,9 @@ RetFlags:
 	    }
 
 #endif
+
+#ifdef	CC1100_PATABLE
+
 	    case 'm': {
 
 		// Modify CC1100 register
@@ -834,8 +840,7 @@ RetFlags:
 		return 0;
 	    }
 
-#endif	/* __SMURPH__ */
-
+#endif
 	    case 'C': {
 
 		// Switch channel for the prescribed number of seconds
@@ -928,7 +933,8 @@ RetFlags:
 		return 0;
 	    }
 			
-#ifndef __SMURPH__
+#ifdef CC1100_PATABLE
+
 	    // Two special commands used by PATABLE tester
 
 	    case '+': {
@@ -989,7 +995,9 @@ RetFlags:
 		ptrigger (pid, &g_pat_cred);
 		return WNONE;
 	    }
+#endif
 
+#ifndef	__SMURPH__
 #if UART_TCV
 
 	    case 'z': {
@@ -1177,7 +1185,7 @@ void view_rcv_packet (address p, word pl) {
 
 #else
 	uart_outf (WNONE,
-		"<-S:%u, D:%x, N:%u, L:%u, P:%u, R:%u, Q:%u, A:%u, M%c"
+		"<-S:%u, D:%u, N:%u, L:%u, P:%u, R:%u, Q:%u, A:%u, M%c"
 #if NUMBER_OF_SENSORS > 0
 		", V:%u"
 #if NUMBER_OF_SENSORS > 1
@@ -1242,7 +1250,7 @@ void view_xmt_packet (address p, word pl) {
 	m_out (WNONE, c_msg);
 
 #else
-	uart_outf (WNONE, "->N:%u, L:%u, P:%u, M%c"
+	uart_outf (WNONE, "->N:%u, L:%u, P:%u, M:%c"
 #if NUMBER_OF_SENSORS > 0
 		", V:%u"
 #if NUMBER_OF_SENSORS > 1
@@ -1343,7 +1351,7 @@ fsm thread_chguard {
 
 // ============================================================================
 
-#ifndef	__SMURPH__
+#ifdef	CC1100_PATABLE
 
 fsm thread_patable {
 
@@ -1457,7 +1465,7 @@ fsm thread_patable {
 	finish;
 }
 
-#endif /* __SMURPH__ */
+#endif /* CC1100_PATABLE */
 
 // ============================================================================
 
@@ -1588,7 +1596,7 @@ fsm thread_ureporter (word clear) {
   entry RE_START:
 
 	tcv_control (g_fd_rf, PHYSOPT_GETCHANNEL, &cnt);
-	uart_outf (RE_START, "Stats (local) ch = %u):", cnt);
+	uart_outf (RE_START, "Stats (local, ch = %u):", cnt);
 
   entry RE_MEM:
 
@@ -1637,6 +1645,32 @@ fsm thread_ureporter (word clear) {
 
 // ============================================================================
 
+#ifdef	BLINK_ON_RECEPTION
+
+fsm blinker {
+
+	state BL_START:
+
+		leds (BLINK_ON_RECEPTION, 1);
+		delay (512, BL_DONE);
+		release;
+
+	state BL_DONE:
+
+		leds (BLINK_ON_RECEPTION, 0);
+		finish;
+}
+
+#define	blink()	do { if (!running (blinker)) runfsm blinker; } while (0)
+
+#else
+
+#define	blink()	CNOP
+
+#endif
+
+// ============================================================================
+
 fsm thread_listener {
 
   entry LI_WAIT:
@@ -1646,6 +1680,7 @@ fsm thread_listener {
 
 	packet = tcv_rnp (LI_WAIT, g_fd_rf);
 	g_lrs = seconds ();
+	blink ();
 	// Packet length in words
 	pl = (tcv_left (packet) >> 1);
 	tr = packet [pl - 1];
@@ -1862,7 +1897,7 @@ fsm root {
 	ezlcd_init ();
 	ezlcd_on ();
 
-	phys_cc1100 (0, MAX_PACKET_LENGTH);
+	PHY_CALL (0, MAX_PACKET_LENGTH);
 	tcv_plug (0, &plug_null);
 	g_fd_rf = tcv_open (WNONE, 0, 0);	// NULL plug on CC1100
 
@@ -1924,7 +1959,7 @@ fsm root {
 #endif
 
 	// Packet length for the PHY doesn't cover the checksum
-	phys_cc1100 (0, MAX_PACKET_LENGTH);
+	PHY_CALL (0, MAX_PACKET_LENGTH);
 	phys_uart (1, UART_LINE_LENGTH, 0);
 	tcv_plug (0, &plug_null);
 	g_fd_rf = tcv_open (WNONE, 0, 0);	// NULL plug on CC1100
@@ -2011,7 +2046,7 @@ fsm root {
 #ifdef TLDEBUG
 	tld_init (20, 2, 64);
 #endif
-	phys_cc1100 (0, MAX_PACKET_LENGTH);
+	PHY_CALL (0, MAX_PACKET_LENGTH);
 	tcv_plug (0, &plug_null);
 	g_fd_rf = tcv_open (WNONE, 0, 0);	// NULL plug on CC1100
 

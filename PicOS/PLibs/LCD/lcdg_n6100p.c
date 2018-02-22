@@ -116,7 +116,7 @@ void LCDG::queue () {
 
 	if (UHead == NULL) {
 		UHead = UTail = cu;
-		IN.OT->signal (NULL);
+		IN.OT->signal (0);
 	} else
 		UTail = (UTail->Next = cu);
 

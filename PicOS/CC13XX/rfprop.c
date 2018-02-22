@@ -178,6 +178,14 @@ static rfc_CMD_SET_TX_POWER_t cmd_sp = {
 	};
 
 #endif
+
+#if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
+// Accumulated backoff
+static word	bckf_lbt = 0;
+#define	update_bckf_lbt(v)	bckf_lbt += (v)
+#else
+#define	update_bckf_lbt(v)	CNOP
+#endif
 		
 // As far as I can tell, the trim structure can be set up once (RF need not be
 // powered on) and then written to RF core when it comes up, so I am splitting
@@ -335,6 +343,11 @@ static void rf_on () {
 	IntEnable (INT_RFC_CPE_0);
 
 	LEDI (0, 1);
+
+#if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
+	bckf_lbt = 0;
+#endif
+
 }
 
 static void rf_off () {
@@ -610,6 +623,11 @@ Bkf:
 		}
 #endif
 
+#if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
+		((address)(RF_cmdPropTx.pPkt)) [1] = bckf_lbt;
+		// Do not zero the counter as it may still grow
+#endif
+
 #if RADIO_LBT_SENSE_TIME > 0
 
 		// ============================================================
@@ -660,9 +678,11 @@ Force:
 			// diag ("BUSY");
 #if RADIO_LBT_BACKOFF_EXP == 0
 			delay (1, DR_LOOP);
+			update_bckf_lbt (1);
 			release;
 #else
 			gbackoff (RADIO_LBT_BACKOFF_EXP);
+			update_bckf_lbt (bckf_timer);
 			goto DR_LOOP__;
 #endif
 		}
@@ -718,10 +738,13 @@ Force:
 		tcvphy_end ((address)(RF_cmdPropTx.pPkt));
 		paylen = 0;
 
+#if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
+		bckf_lbt = 0;
+#endif
+
 #if RADIO_LBT_SENSE_TIME > 0
 		txtries = 0;
 #endif
-
 		LEDI (1, 0);
 
 #if RADIO_LBT_XMIT_SPACE

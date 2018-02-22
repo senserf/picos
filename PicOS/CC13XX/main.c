@@ -1,7 +1,7 @@
 #include "kernel.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2017                           */
+/* Copyright (C) Olsonet Communications, 2018                           */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -491,7 +491,7 @@ void __ssi_open (sint w, const byte *p, byte m, word rate,
 
 	if (ssi_ck [w] != BNONE) {
 
-		// Shut down the previous intrface
+		// Shut down the previous interface
 
 		SSIDisable (ssi_base [w]);
 		SSIIntDisable (ssi_base [w], SSI_RXFF | SSI_RXTO | SSI_RXOR |
@@ -1116,7 +1116,7 @@ void system_init () {
 #ifdef	SYSVER_B
 			"-" SYSVER_B
 #endif
-        		", (C) Olsonet Communications, 2002-2017");
+        		", (C) Olsonet Communications, 2002-2018");
 		diag ("Leftover RAM: %d bytes",
 			(word)((aword)STACK_END - (aword)(&__bss_end__)));
 #endif

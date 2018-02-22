@@ -1196,15 +1196,21 @@ proc get_options_file_defs { } {
 		return
 	}
 
+	set os 0
+
 	if { $Run(pgm) != "" } {
 		set of "options_$Run(pgm).sys"
 		if [file isfile $of] {
 			lappend CCDefs "__OPTIONS_SYS__=\"<$of>\""
+			set os 1
 		}
 	}
-	set of "options.sys"
-	if [file isfile $of] {
-		lappend CCDefs "__OPTIONS_SYS__=\"<$of>\""
+
+	if !$os {
+		set of "options.sys"
+		if [file isfile $of] {
+			lappend CCDefs "__OPTIONS_SYS__=\"<$of>\""
+		}
 	}
 }
 

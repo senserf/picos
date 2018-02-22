@@ -5383,3 +5383,9 @@ PG170925A:
 
 	Fixed a problem with SSI shutdown for CC1350.
 
+PG180222A:
+
+	Mostly cosmetics accumulated over all those months. A slight adjustment
+	to the CC1350 RF driver to make it possible to run my RFTEST on the
+	device. I want to measure the transmission range for the SENSORTAG
+	outfitted with Gerry's antennas.

@@ -146,7 +146,7 @@ proc locate_scripts { } {
 
 	set SDN ""
 
-	if ![catch { eval exec sh picospath } dir] {
+	if ![catch { eval exec picospath } dir] {
 		# use this way to locate Scripts
 		set dn [file normalize [file join $dir "Scripts"]]
 	} else {
