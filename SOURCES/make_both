@@ -10,6 +10,7 @@ then
 	bindir="BIN"
 else
 	echo "Your need a subdirectory named bin or BIN in your home directory!"
+	echo "That directory should be present in your PATH."
 	exit 1
 fi
 fi

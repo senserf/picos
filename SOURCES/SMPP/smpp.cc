@@ -1149,7 +1149,7 @@ static int processSetDelay (int del) {
 /* Expands the ...->setDelay (a, b, c) ... sequence */
 /* ------------------------------------------------ */
 
-	// ->getSelay (a, b, c) expands into:
+	// ->setDelay (a, b, c) expands into:
         // ->zz_setdelay (a, ((typeof (a))(0))->b, c)
 
 	char    arg [MAXKWDLEN+1], sta [MAXKWDLEN+1];

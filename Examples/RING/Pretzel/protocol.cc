@@ -55,7 +55,7 @@ Relay::perform {
       YourPurge->put (SMark->Number);
     };
     // Relay the slot marker
-    ORing->startTransfer (SMark);
+    ORing->startTransmit (SMark);
     IRing->wait (EOT, MDone);
   state MDone:
     ORing->stop ();
@@ -64,7 +64,7 @@ Relay::perform {
     else if (Erasing)
       skipto WaitSlot;
     else if (IRing->events (BOT)) {
-      ORing->startTransfer (ThePacket);
+      ORing->startTransmit (ThePacket);
       skipto WaitEOT;
     } else
       proceed WaitSlot;

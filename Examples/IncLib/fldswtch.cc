@@ -38,7 +38,7 @@ PortServer::perform {
     }
   transient Relaying:
     RStarted = Time;
-    OPort->startTransfer (S->RPacket);
+    OPort->startTransmit (S->RPacket);
     StopSignal->wait (NEWITEM, Stop);
     AbortSignal->wait (NEWITEM, Abort);
     IPort->wait (ACTIVITY, DAbort);

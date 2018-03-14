@@ -1840,21 +1840,21 @@ void Transceiver::rcvOff () {
 	reschedule_sil ();
 }
 
-void Transceiver::startTransfer (Packet *p) {
+void Transceiver::startTransmit (Packet *p) {
 
 	int i;
 	ZZ_RSCHED *ro;
 	ZZ_NEIGHBOR *ne;
 
-	if_from_observer ("Transceiver->startTransfer: called from an "
+	if_from_observer ("Transceiver->startTransmit: called from an "
 			  "observer");
 
 	assert (Activity == NULL,
-		"Transceiver->startTransfer: %s, multiple transmissions",
+		"Transceiver->startTransmit: %s, multiple transmissions",
 			getSName ());
 
 	assert (p->TLength > 0,
-		"Transceiver->startTransfer: %s, illegal packet length %1d",
+		"Transceiver->startTransmit: %s, illegal packet length %1d",
 			getSName (), p->TLength);
 
 	if (RFC->FlgSPF == ON)
@@ -1868,9 +1868,9 @@ void Transceiver::startTransfer (Packet *p) {
 	Activity->Pkt = *p;
 
 	Assert (TRate != RATE_0 && TRate != RATE_inf,
-		"Transceiver->startTransfer: %s, TRate undefined",
+		"Transceiver->startTransmit: %s, TRate undefined",
 			getSName ());
-	Assert (Preamble >= 0, "Transceiver->startTransfer: %s, preamble "
+	Assert (Preamble >= 0, "Transceiver->startTransmit: %s, preamble "
 		"length is undefined", getSName ());
 
 	Activity->TRate = (Activity->Tcv = this)->TRate;

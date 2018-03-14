@@ -678,12 +678,19 @@ PG171231A:
 		- added a PID (as in PID controller) example to REALTIME
 		- added a CarWash example
 
-PG180207:
+PG180207A:
 
-	  Added a second Tag attribute for Transceiver, so now we have XTag
-	  (the transmit tag) and RTag (the receive tag). This has been done
-	  in a backward-compatible way, so the old channel models work fine.
+	   Added a second Tag attribute for Transceiver, so now we have XTag
+	   (the transmit tag) and RTag (the receive tag). This has been done
+	   in a backward-compatible way, so the old channel models work fine.
 
-	  The Aloha model (Examples/WIRELESS/Aloha) completely redone.
+	   The Aloha model (Examples/WIRELESS/Aloha) completely redone.
 
-	  A few cosmetics here and there.
+	   A few cosmetics here and there.
+
+PG180314A:
+
+	   Renamed startTransfer to startTransmit, which seems to make somewhat
+	   better sense.
+
+	   A few irrelevant cleanups. Brought the manual up to date.

@@ -1073,7 +1073,7 @@ void    ZZ_SYSTEM::exPrint0 (const char *hdr) {
 	ZZ_PFItem                       *pfi;
 	int				m;
 #endif
-	buildNetwork ();
+	rootInitDone ();
 
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
@@ -1235,7 +1235,7 @@ void    ZZ_SYSTEM::exPrint1 (const char *hdr) {
 #endif
 #endif
 
-	buildNetwork ();
+	rootInitDone ();
 	if (hdr != NULL) {
 		Ouf << hdr << "\n\n";
 	} else {

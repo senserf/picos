@@ -172,36 +172,6 @@ class		ZZ_RF_ACTIVITY;
 /* ----------------------------------- */
 #define         ident(a)                ((a)->getId ())
 
-/* ----------------------------- */
-/* Aliases for Info01 and Info02 */
-/* ----------------------------- */
-
-#if	ZZ_NOC
-
-#define         TheTraffic              __cpint (Info02)
-#define         ThePacket               ((Packet*)(Info01))
-#define         ThePort                 ((Port*)(Info02))
-#define         TheMessage              ((Message*)(Info01))
-
-#endif
-
-#define         TheEvent                __cpint (Info02)
-#define         TheCount                __cpint (Info01)
-#define         TheItem                 Info01
-#define         TheMailbox              ((Mailbox*)(Info02))
-#define         TheExitCode             __cpint (Info01)
-#define         TheSender               ((Process*)(Info02))
-#define         TheSignal               Info01
-#define         TheBarrier              __cpint (Info01)
-#define		TheEnd			((Boolean)__cpint (Info01))
-
-/* ---------------------------------------------------------- */
-/* One  more  alias of the same type, but for something else. */
-/* This is the pointer to  the  current  window's  associated */
-/* object                                                     */
-/* ---------------------------------------------------------- */
-#define         TheWFrame               (zz_the_window->frame)
-
 /* ------------------- */
 /* Operations on flags */
 /* ------------------- */
@@ -465,7 +435,7 @@ class		ZZ_RF_ACTIVITY;
 #define         EOJ             3       // End of jam
 #define         COLLISION       9
 #define         ZZ_MY_COLLISION 10      // Invisible to the user
-#define		ABTTRANSFER	10	// A special value for ANYEVENT
+#define		ABTPACKET	10	// A special value for ANYEVENT
 
 #define         ZZ_N_LINK_EVENTS        (ZZ_MY_COLLISION+1)
 
@@ -625,10 +595,10 @@ class ZZ_SYSTEM;
 /* ----------------------------------------- */
 void    ZZRoot ();
 
-/* ------------------------------------------------- */
-/* Forces topology construction at the point of call */
-/* ------------------------------------------------- */
-void    buildNetwork ();
+/* --------------------------------------------------------- */
+/* Forces virtual hardware construction at the point of call */
+/* --------------------------------------------------------- */
+void    rootInitDone ();
 
 /* ------------------ */
 /* Actual termination */
@@ -3543,7 +3513,7 @@ class   Port : public AI {
 
 	// Start packet transmission
 
-	void    startTransfer (Packet*);
+	void    startTransmit (Packet*);
 
 	// Transmit packet
 
@@ -4823,7 +4793,7 @@ class	Transceiver : public AI {
 
 	void rcvOn (), rcvOff ();
 
-	void startTransfer (Packet*);
+	void startTransmit (Packet*);
 
 	inline int stop () {
 		term_xfer (EOT);
@@ -6352,7 +6322,7 @@ class ZZ_SYSTEM : public Station {
 	};
 
 	friend  class   Process;
-	friend  void    buildNetwork ();
+	friend  void    rootInitDone ();
 
 	private:
 
@@ -6514,7 +6484,7 @@ void setTraceStation (Long st);
 #if  ZZ_TAG
 inline void Port::transmit (Packet *p, int s, LONG tag) {
 
-	startTransfer (p);
+	startTransmit (p);
 	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
 		getSName ());
 	Timer->wait ((TIME)TRate * (LONG)(p->TLength), s, tag);
@@ -6522,7 +6492,7 @@ inline void Port::transmit (Packet *p, int s, LONG tag) {
 
 inline void Port::transmit (Packet &p, int s, LONG tag) {
 
-	startTransfer (&p);
+	startTransmit (&p);
 	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
 		getSName ());
 	Timer->wait ((TIME)TRate * (LONG)(p.TLength), s, tag);
@@ -6530,7 +6500,7 @@ inline void Port::transmit (Packet &p, int s, LONG tag) {
 #else
 inline void Port::transmit (Packet *p, int s) {
 
-	startTransfer (p);
+	startTransmit (p);
 	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
 		getSName ());
 	Timer->wait ((TIME)TRate * (LONG)(p->TLength), s);
@@ -6601,8 +6571,8 @@ inline void RFChannel::stdpfmPAB (Packet *p) {
 #if  ZZ_TAG
 inline void Transceiver::transmit (Packet *p, int s, LONG tag) {
 
-	// TRate verified by startTransfer
-	startTransfer (p);
+	// TRate verified by startTransmit
+	startTransmit (p);
 	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + getPreambleTime (),
 		s, tag);
 };
@@ -6614,7 +6584,7 @@ inline void Transceiver::transmit (Packet &p, int s, LONG tag) {
 #else
 inline void Transceiver::transmit (Packet *p, int s) {
 
-	startTransfer (p);
+	startTransmit (p);
 	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + getPreambleTime (), s);
 };
 
@@ -6819,5 +6789,35 @@ inline void zz_remths () {
 extern	const char *DataLibDirs [];
 
 #endif
+
+/* ----------------------------- */
+/* Aliases for Info01 and Info02 */
+/* ----------------------------- */
+
+#if	ZZ_NOC
+
+#define         TheTraffic              __cpint (Info02)
+#define         ThePacket               ((Packet*)(Info01))
+#define         ThePort                 ((Port*)(Info02))
+#define         TheMessage              ((Message*)(Info01))
+
+#endif
+
+#define         TheEvent                __cpint (Info02)
+#define         TheCount                __cpint (Info01)
+#define         TheItem                 Info01
+#define         TheMailbox              ((Mailbox*)(Info02))
+#define         TheExitCode             __cpint (Info01)
+#define         TheSender               ((Process*)(Info02))
+#define         TheSignal               Info01
+#define         TheBarrier              __cpint (Info01)
+#define		TheEnd			((Boolean)__cpint (Info01))
+
+/* ---------------------------------------------------------- */
+/* One  more  alias of the same type, but for something else. */
+/* This is the pointer to  the  current  window's  associated */
+/* object                                                     */
+/* ---------------------------------------------------------- */
+#define         TheWFrame               (zz_the_window->frame)
 
 #include        "inlines.h"

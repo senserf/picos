@@ -8310,7 +8310,7 @@ This is how things appear in real life.
 
 The following port method is used to start a packet transmission:
 \begin{verbatim}
-        void startTransfer (Packet *buf);
+        void startTransmit (Packet *buf);
 \end{verbatim}
 where {\tt buf} points to the buffer
 containing the packet to be transmitted (\sect{rm_cl_pb}).
@@ -8328,7 +8328,7 @@ The following port method:
         int stop ();
 \end{verbatim}
 terminates the transmission of a packet inserted by a previous call to
-{\tt startTransfer}.
+{\tt startTransmit}.
 With {\tt stop}, the terminated packet is {\em complete}, i.e., formally
 equipped with a pertinent trailer that allows the receiving party to
 recognize the complete packet.
@@ -8363,7 +8363,7 @@ follows:
 12345678\=1234\=1234\=1234\=1234\=1234\=1234\=1234\=1234\kill
 \> \ldots \\
 \> {\tt state Transmit:}\\
-\> \> {\tt MyPort->startTransfer (buffer);}\\
+\> \> {\tt MyPort->startTransmit (buffer);}\\
 \> \> {\tt Timer->wait (buffer->TLength*MyPort->getTRate (), Done);}\\
 \> {\tt state Done:}\\
 \> \> {\tt MyPort->stop ();}\\
@@ -8420,7 +8420,7 @@ has the same effect as executing:
 
 The transmission rate of a port can be changed at any time
 by calling {\tt setTRate} (see~\sect{rm_to_po_cr}).
-If {\tt setTRate} is invoked after {\tt startTransfer} or {\tt transmit} but
+If {\tt setTRate} is invoked after {\tt startTransmit} or {\tt transmit} but
 before {\tt stop}, it has no impact on the packet being transmitted.
 It is also possible to change the transmission rates of all ports connected
 to a given link by executing the {\tt setTRate} method associated with type
@@ -8589,7 +8589,7 @@ heard at the port (i.e., {\tt BOT}, {\tt EOT}, {\tt BMP}, {\tt EMP}, and
 also {\tt ANYEVENT}---see below), the environment variable
 {\tt ThePacket} ({\tt Info01}) of type {\tt Packet*} returns the pointer
 to the object representing the packet.
-This object is a copy of the packet buffer given to {\tt startTransfer}
+This object is a copy of the packet buffer given to {\tt startTransmit}
 or {\tt transmit} (\sect{rm_po_ac_st}) when the transmission of the packet
 was started.
 
@@ -8631,7 +8631,7 @@ following symbolic constants:
 {\tt ~~~~EOT~~~~~~~~~} end of a complete packet terminated by {\tt stop}
 
 \noindent
-{\tt ~~~~ABTTRANSFER~} end of an aborted packet, i.e., terminated by {\tt abort}
+{\tt ~~~~ABTPACKET~~~} end of an aborted packet, i.e., terminated by {\tt abort}
 
 \noindent
 {\tt ~~~~BOJ~~~~~~~~~} beginning of a jamming signal
@@ -8642,7 +8642,7 @@ following symbolic constants:
 \bigskip
 
 If the event type is {\tt BOT}, {\tt EOT} or
-{\tt ABTTRANSFER}, {\tt ThePacket} points to
+{\tt ABTPACKET}, {\tt ThePacket} points to
 the corresponding packet object.
 
 The purpose of {\tt ANYEVENT} is to cover all circumstances when anything
@@ -10052,7 +10052,7 @@ Similar to how this is done for ports (see \sect{rm_po_ac_st}),
 a packet transmission on a transceiver can be started with this 
 method:
 \begin{verbatim}
-        void startTransfer (Packet *buf);
+        void startTransmit (Packet *buf);
 \end{verbatim}
 where {\tt buf} points to the buffer
 containing the packet to be transmitted (\sect{rm_cl_pb}).
@@ -10064,7 +10064,7 @@ variable {\tt ThePacket} ({\tt Info01}) of type {\tt Packet*}.
 Another environment variable, {\tt TheTransceiver} ({\tt Info02}) of type
 {\tt Transceiver*}, returns a pointer to the transceiver executing the
 operation.
-Note that this is different from the {\tt Port} variant of {\tt startTransfer};
+Note that this is different from the {\tt Port} variant of {\tt startTransmit};
 this departure is useful for the {\em assessment methods\/} of
 {\tt RFChannel}, notably {\tt RFC\_xmt}, which may want to reference the
 transceiver.
@@ -10103,7 +10103,7 @@ The following transceiver method:
         void transmit (Packet *buf, int done);
 \end{verbatim}
 starts transmitting the packet contained in {\tt buf} (by calling
-{\tt startTransfer}) and automatically
+{\tt startTransmit}) and automatically
 sets up the {\tt Timer} to wake up the process in state {\tt done} when the
 transmission is complete.
 
@@ -10161,7 +10161,7 @@ for directly converting logical bits to time.
 
 The transmission rate of a transceiver can be changed at any time by calling
 {\tt setTRate} (see \sect{rm_to_tr_if}).
-If {\tt setTRate} is invoked after {\tt startTransfer} or {\tt transmit} but
+If {\tt setTRate} is invoked after {\tt startTransmit} or {\tt transmit} but
 before {\tt stop}, it has no impact on the packet being transmitted.
 
 \noindent
@@ -10501,7 +10501,7 @@ If the waking event is related to a specific (proper) packet
 the environment variable {\tt ThePacket} ({\tt Info01}) of type {\tt Packet*}
 returns the packet pointer.
 This object pointed to by {\tt ThePacket} is the copy
-of the packet buffer created by {\tt startTransfer}
+of the packet buffer created by {\tt startTransmit}
 or {\tt transmit} (\sect{rm_tr_ac_st})
 when the packet transmission was started.
 

@@ -37,7 +37,7 @@ Relay::perform {
     *Relayed = *ThePacket;
     if (Relayed->Sender == S->getId ())
       Relayed->Receiver = NONE;      // Destroy own packet
-    ORing->startTransfer (Relayed);  // Start relaying the packet
+    ORing->startTransmit (Relayed);  // Start relaying the packet
     skipto WFrm;
   state WFrm:
     IRing->wait (ANYEVENT, EFrm);

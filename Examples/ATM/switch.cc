@@ -1952,7 +1952,7 @@ VPilot::perform {
     Kernel->terminate ();
 };
 
-void startTraffic () {
+void startTransmit () {
      // This method creates the three traffic patterns declared above
   STP = create SignalTP;
   FTP = create FilesTP;
@@ -1970,7 +1970,7 @@ process Root {
     state Start:
       makeNetwork ();              // Build the network
       startProtocol ();            // Start the protocol processes
-      startTraffic ();             // Create traffic patterns
+      startTransmit ();            // Create traffic patterns
       Kernel->wait (DEATH, Stop);  // Wait until the simulation is over
     state Stop:
       // Print the results

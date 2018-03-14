@@ -2441,7 +2441,7 @@ TIME    Port::aevTime () {
 				} else if (a -> Type == TRANSFER) {
 					rinfo = EOT;
 				} else {
-					rinfo = ABTTRANSFER;
+					rinfo = ABTPACKET;
 				}
 			}
 		} else {
@@ -2482,7 +2482,7 @@ TIME    Port::aevTime () {
 				} else if (a -> Type == TRANSFER) {
 					rinfo = EOT;
 				} else {
-					rinfo = ABTTRANSFER;
+					rinfo = ABTPACKET;
 				}
 			}
 		} else {
@@ -2531,7 +2531,7 @@ LRQAEV:
 	} else if (a -> Type == TRANSFER) {
 		rinfo = EOT;
 	} else {
-		rinfo = ABTTRANSFER;
+		rinfo = ABTPACKET;
 	}
 
 	for (a=a->next; a != NULL; a = a->next) {
@@ -2560,7 +2560,7 @@ LRQAEV:
 			} else if (a -> Type == TRANSFER) {
 				rinfo = EOT;
 			} else {
-				rinfo = ABTTRANSFER;
+				rinfo = ABTPACKET;
 			}
 		}
 	}
@@ -2879,7 +2879,7 @@ void    Link::packetDamage (Packet *packet) {
 };
 #endif
 
-void    Port::startTransfer (Packet *packet) {
+void    Port::startTransmit (Packet *packet) {
 
 /* --------------------------- */
 /* Start transmitting a packet */
@@ -2887,7 +2887,7 @@ void    Port::startTransfer (Packet *packet) {
 
 	ZZ_LINK_ACTIVITY   *a;
 
-	if_from_observer ("Port->startTransfer: called from an observer");
+	if_from_observer ("Port->startTransmit: called from an observer");
 
 	if (Lnk->FlgSPF == ON) Lnk->NTAttempts ++;
 #if ZZ_FLK
@@ -2899,11 +2899,11 @@ void    Port::startTransfer (Packet *packet) {
 	Info02 = (void*) (tpckt -> TP);                         // TheTraffic
 
 	assert (Activity == NULL,
-		"Port->startTransfer: %s, multiple activities on the port",
+		"Port->startTransmit: %s, multiple activities on the port",
 			getSName ());
 
 	assert (packet->TLength > 0,
-		"Port->startTransfer: %s, illegal packet length %1d",
+		"Port->startTransmit: %s, illegal packet length %1d",
 			getSName (), packet->TLength);
 
 	if (Lnk->Type == LT_pointtopoint) {
@@ -3194,7 +3194,7 @@ int     Port::abort () {
 	Info01 = (void*) (tpckt = &(bac -> Pkt));       // ThePacket
 	Info02 = (void*) (tpckt->TP);                   // TheTraffic
 
-	reschedule_aev (ABTTRANSFER);
+	reschedule_aev (ABTPACKET);
 	reschedule_sil (EOT);
 	reschedule_col (EOT);
 	return (TRANSFER);

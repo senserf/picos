@@ -180,11 +180,11 @@ void    setFlush () {
 }
 #endif
 
-void    buildNetwork () {
+void    rootInitDone () {
 
-/* -------------------------- */
-/* Forces topology definition */
-/* -------------------------- */
+/* ----------------------------------------- */
+/* Forces the definition of virtual hardware */
+/* ----------------------------------------- */
 
 	Station *s;
 	Process *p;
@@ -202,9 +202,9 @@ void    buildNetwork () {
 		zz_start_client ();
 #endif
 
-		// Postprocess the network topolgy definitions by
+		// Postprocess the network bild by
 		// cleaning up temporary data structures and creating
-		// port distance vectors.
+		// port distance vectors
 
 		System->makeTopology ();
 
@@ -960,7 +960,7 @@ int main (int argc, char *argv []) {
 	// the coordinator is not counted.
 	ic = 0;
 	zz_chckint = CHCKINT;
-	buildNetwork ();                // Force topology definition
+	rootInitDone ();                // Force topology definition
 
 	if (zz_flg_printDefs) {
 		// Output network configuration and more garbage

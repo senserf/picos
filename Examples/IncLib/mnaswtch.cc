@@ -94,7 +94,7 @@ Router::perform {
     OPort = S->OPorts [OP];
     S->Idle [OP] = NO;
     // Relay the packet
-    OPort->startTransfer (ThePacket);
+    OPort->startTransmit (ThePacket);
     skipto WaitEnd;
   state WaitEnd:
     IPort->wait (EOT, EndPacket);
@@ -114,7 +114,7 @@ InDelay::perform {
   state Waiting:
     IPort->wait (BOT, In);
   state In:
-    NPort->startTransfer (ThePacket);
+    NPort->startTransmit (ThePacket);
     S->Used [MP] ++;
     skipto WaitEOT;
   state WaitEOT:

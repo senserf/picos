@@ -22,17 +22,15 @@
 
 
 
-                               VERSION 3.2
+                               VERSION 3.3
 
         By:
                     Pawel Gburzynski
-                    University of Alberta
-                    Department of Computing Science
-                    321 Athabasca Hall
-                    Edmonton, Alberta, CANADA T6G 2E8
-                    tel.:  (780) 492-2347
-                    fax:   (780) 492-1071
-                    email: pawelg@ualberta.ca
+                    Olsonet Communications Corporation
+                    http://www.olsonet.com/
+                    Vistula Univeristy
+                    http://www.vistula.edu.pl/
+                    pawel@olsonet.com
 
   ----------------------------------------------------------------------------
  |  Note: The following book about SMURPH/SIDE is available:                  |
@@ -41,12 +39,17 @@
  |        Prentice Hall, 1996                                                 |
  |        ISBN 0-13-554270-7                                                  |
  |                                                                            |
- |  Note: The book may be outdated (SMURPH/SIDE has evolved in  the  meantime |
+ |        The book may be outdated (SMURPH/SIDE has evolved in  the  meantime |
  |        and  there  are  many  new features not described in the book (like |
  |        wireless channels, for example). Nonetheless, the book is still the |
  |        most friendly introduction to the package (and the idea behind it). |
  |        Use the enclosed reference manual as the authoritative  (albeit not |
  |        quite as friendly) source of wisdom.                                |
+ |                                                                            |
+ |        I am (March 2018) working on a new document that:                   |
+ |           - will be shorter than the book                                  |
+ |           - will cover the wireless features of SMURPH                     |
+ |           - will be more friendly than the manual                          |
  |                                                                            |
   ----------------------------------------------------------------------------
 
@@ -61,7 +64,7 @@
   ----------------------------------------------------------------------------
 
   ----------------------------------------------------------------------------
- |  Copyright (C) 1994-2014 P. Gburzynski                                     |
+ |  Copyright (C) 1994-2018 P. Gburzynski                                     |
   ----------------------------------------------------------------------------
 
        ----------------------------------------------------------------
