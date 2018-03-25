@@ -2950,7 +2950,7 @@ Redo:
 				tpckt = (Packet*) p;
 				txcvr = this;
 
-				return RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
+				return !RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
 					&RcvSig, &(a->INT));
 			}
 		}

@@ -694,3 +694,9 @@ PG180314A:
 	   better sense.
 
 	   A few irrelevant cleanups. Brought the manual up to date.
+
+PG180325A:
+
+	   Fixed a bug in radio.cc (in Transceiver::dead). Apparently, the
+	   method has not been used until today, because the bug was rather
+	   painfully obvious.

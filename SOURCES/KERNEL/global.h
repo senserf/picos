@@ -420,7 +420,7 @@ class		ZZ_RF_ACTIVITY;
 /*
  * sigLevel ordinals
  */
-#define	SIGL_OWN	0	// activity's onw signal level
+#define	SIGL_OWN	0	// activity's own signal level
 #define	SIGL_IFM	1	// maximum interference
 #define	SIGL_IFA	2	// average interference
 #define	SIGL_IFC	3	// current interference

@@ -34,7 +34,7 @@ void RadioChannel::setup (
 	BitsPerByte = bpb;
 	PacketFrameLength = frm;
 	
-	// This must match the order in which ivcc is filled in board.cc
+	// This must match the order in which ivcc is filled
 	Rates = ivcc [XVMAP_RATES];
 	RBoost = ivcc [XVMAP_RBOOST];
 	RSSIC = ivcc [XVMAP_RSSI];
