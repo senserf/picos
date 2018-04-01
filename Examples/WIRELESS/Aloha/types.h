@@ -109,7 +109,7 @@ station Hub : ALOHADevice {
 		Packet *p;
 		if (AQ.getAck (&ABuffer, st))
 			return &ABuffer;
-		if (Client->getPacket (Buffer, 0, PACKET_LENGTH,
+		if (Client->getPacket (Buffer, (Long) 0, PACKET_LENGTH,
 		    FRAME_LENGTH)) {
 			unwait ();
 			return &Buffer;
@@ -154,7 +154,7 @@ station Terminal : ALOHADevice {
 		}
 		if (Buffer.isFull ())
 			return YES;
-		if (Client->getPacket (Buffer, 0, PACKET_LENGTH,
+		if (Client->getPacket (Buffer, (Long) 0, PACKET_LENGTH,
 		    FRAME_LENGTH)) {
 			Buffer.AB = AB;
 #ifdef	LOCAL_MEASURES

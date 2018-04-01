@@ -700,3 +700,21 @@ PG180325A:
 	   Fixed a bug in radio.cc (in Transceiver::dead). Apparently, the
 	   method has not been used until today, because the bug was rather
 	   painfully obvious.
+
+PG180401A:
+
+	   Added a small feature whereby it is possible to extend the linger
+	   time for an activity leaving an RFChannel from 1 ITU to any
+	   specified amount. This is accomplished by one extra optional
+	   argument of the RFChannel setup method. Added a similar attribute
+	   (plus setup argument) to (wired) Link for symmetry. The way the
+	   feature is occasionally useful in a wireless link, it may also be
+	   useful in a wired one.
+
+	   I haven't documented this feature yet in the manual, because:
+
+	   1. I am not 100% sure if it will stay in its present form
+
+	   2. I am planning to scrap the manual and replace it with the new
+	      (hopefully friendlier) version, which I am working on in the
+	      background

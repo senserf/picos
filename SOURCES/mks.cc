@@ -1198,7 +1198,8 @@ int main    (int argc, char *argv[]) {
 			if (i < 0 || i > 9 || (*argv)[1] != '\0') badArgs ();
 			libindex [LIBX_PRC] = **argv;
 			if (**argv == '0') {
-                                // Don't use double at ALL (LONG is 64 bits)
+                                // double is obsolote, not used any more, 0 is
+				// same as 1
                                 PRC [16] = '1';
 			} else {
 				// Translate into 32-bit portions

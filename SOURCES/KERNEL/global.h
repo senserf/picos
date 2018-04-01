@@ -3733,7 +3733,8 @@ class   Link : public AI {
 	BITCOUNT        NDBits;                 // Number of damaged bits
 #endif
 
-	TIME            ArchiveTime;            // Archiving period
+	TIME            ArchiveTime,            // Archiving period
+			PurgeDelay;		// Activity linger time
 
 	ZZ_REQUEST      *RQueue [ZZ_N_LINK_EVENTS];     // Request queues
 
@@ -3742,10 +3743,11 @@ class   Link : public AI {
 
 	void zz_start ();                       // Nonstandard constructor
 
-	void setup (Long np, RATE r, TIME at, int spf);
+	void setup (Long np, RATE r, TIME at, int spf, TIME del);
 
-	void setup (Long np, TIME at = TIME_0, int spf = ON) {
-		setup (np, RATE_0, at, spf);
+	void setup (Long np, TIME at = TIME_0, int spf = ON,
+	    TIME del = TIME_0) {
+		setup (np, RATE_0, at, spf, del);
 	}
 
 	~Link () {
@@ -3774,6 +3776,8 @@ class   Link : public AI {
 	void setD     (int, int, double);
 	void setDFrom (int, double);
 	void setDTo   (int, double);
+
+	void setPurgeDelay (TIME del) { PurgeDelay = del; };
 
 	// User-definable extensions
 
@@ -3900,12 +3904,13 @@ inline  void    zz_bld_BLink (char *nn = NULL) {
 class   ULink : public Link {
 	public:
 	virtual const char *getTName () { return ("ULink"); };
-	inline void setup (Long np, RATE r, TIME at, int spf) {
+	inline void setup (Long np, RATE r, TIME at, int spf, TIME del) {
 		Type = LT_unidirectional;
-		Link::setup (np, r, at, spf);
+		Link::setup (np, r, at, spf, del);
 	};
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
-		setup (np, RATE_0, at, spf);
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON,
+	    TIME del = TIME_0) {
+		setup (np, RATE_0, at, spf, del);
 	};
 };
 
@@ -3925,12 +3930,13 @@ inline  void    zz_bld_ULink (char *nn = NULL) {
 class   PLink : public Link {
 	public:
 	virtual const char *getTName () { return ("PLink"); };
-	inline void setup (Long np, RATE r, TIME at, int spf) {
+	inline void setup (Long np, RATE r, TIME at, int spf, TIME del) {
 		Type = LT_pointtopoint;
-		Link::setup (np, r, at, spf);
+		Link::setup (np, r, at, spf, del);
 	};
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
-		setup (np, RATE_0, at, spf);
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON,
+	    TIME del = TIME_0) {
+		setup (np, RATE_0, at, spf, del);
 	};
 };
 
@@ -3950,11 +3956,12 @@ inline  void    zz_bld_PLink (char *nn = NULL) {
 class   CLink : public Link {
 	public:
 	virtual const char *getTName () { return ("CLink"); };
-	inline void setup (Long np, RATE r, TIME at, int spf) {
+	inline void setup (Long np, RATE r, TIME at, int spf, TIME del) {
 		Type = LT_cpropagate;
-		Link::setup (np, r, at, spf);
+		Link::setup (np, r, at, spf, del);
 	};
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON,
+	    TIME del = 0) {
 		setup (np, RATE_0, at, spf);
 	};
 };
@@ -4298,6 +4305,7 @@ class	RFChannel : public AI {
 	friend class Transceiver;
 	friend class RosterService;
 	friend class ZZ_RSCHED;
+	friend class ZZ_RF_ACTIVITY;
 	friend class ZZ_SYSTEM;
 	friend class Station;
 	friend class zz_client;
@@ -4310,6 +4318,10 @@ class	RFChannel : public AI {
 	Transceiver	**Tcvs;
 
 	void (*PCleaner) (Packet*);		// Packet cleaner funtion
+
+	// Delay after which disappearing activities are purged; by default
+	// this is set to 1 ITU
+	TIME 		PurgeDelay;
 
 	// Exposures:
 	//	0 - wait requests (the usual); only Transceivers can have
@@ -4470,10 +4482,10 @@ class	RFChannel : public AI {
 	void zz_start ();
 
 	void setup (Long np, RATE r, int pre, double xp, double rp,
-		int spf = ON);
+		int spf = ON, TIME pdel = TIME_1);
 
-	void setup (Long np, int spf = ON) {
-		setup (np, RATE_0, 0, 0.0, 0.0, spf);
+	void setup (Long np, int spf = ON, TIME pdel = TIME_1) {
+		setup (np, RATE_0, 0, 0.0, 0.0, spf, pdel);
 	}
 
 	~RFChannel () {
@@ -4523,6 +4535,8 @@ class	RFChannel : public AI {
 	void	setAevMode (Boolean b = YESNO);
 
 	void	setPacketCleaner (void (*)(Packet*));
+
+	void	setPurgeDelay (TIME del) { PurgeDelay = del; };
 
 	// If the histogram contains a bit error
 	Boolean error (RATE, const SLEntry*, const SLEntry*, const IHist*);

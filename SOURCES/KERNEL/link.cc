@@ -399,7 +399,7 @@ void Link::setFaultRate (double r, int ft) {
 #endif
 };
 
-void    Link::setup (Long np, RATE r, TIME at, int spf) {
+void    Link::setup (Long np, RATE r, TIME at, int spf, TIME del) {
 
 /* ------------------- */
 /* Link initialization */
@@ -408,9 +408,10 @@ void    Link::setup (Long np, RATE r, TIME at, int spf) {
 	int     i, j;
 	static  int     asize = 15;     // A small power of two - 1 (initial
 					// size of zz_lk)
-
 	DefTRate = r;
 	DefAevMode = YES;
+
+	PurgeDelay = del;
 
 	Link    **scratch;
 
@@ -3081,7 +3082,7 @@ int     Port::stop () {
 
 	// Schedule event to remove the activity from the link
 
-	t = Time + MaxDistance;
+	t = Time + MaxDistance + Lnk->PurgeDelay;
 
 	if (Lnk->Type == LT_pointtopoint)  {
 
@@ -3091,16 +3092,16 @@ int     Port::stop () {
 		// Try to find a 'hint' event for scheduling link removal
 		// for this activity.
 		if ((hint = findHint (bac)) != NULL) {
-			bac->ae = new ZZ_EVENT (hint, Time+MaxDistance, System,
+			bac->ae = new ZZ_EVENT (hint, t, System,
 				(void*) bac, NULL, shandle, Lnk, LNK_PURGE,
 					RemFromLk, NULL);
 		} else {
-			bac->ae = new ZZ_EVENT (Time + MaxDistance, System,
+			bac->ae = new ZZ_EVENT (t, System,
 				(void*) bac, NULL, shandle, Lnk, LNK_PURGE,
 					RemFromLk, NULL);
 		}
 	} else
-		new ZZ_EVENT (Time + MaxDistance, System, (void*) bac, NULL,
+		new ZZ_EVENT (t, System, (void*) bac, NULL,
 			shandle, Lnk, LNK_PURGE, RemFromLk, NULL);
 
 	if (bac->Type == JAM) {

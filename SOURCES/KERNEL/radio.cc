@@ -447,13 +447,14 @@ void    RFChannel::zz_start () {
 
 	// Initialize some members
 	FlgSPF = ON;
+	PurgeDelay = TIME_1;
 	PCleaner = NULL;
 	// Add to the Kernel
 	pool_in (this, TheProcess->ChList);
 };
 
 void RFChannel::setup (Long nx, RATE r, int pre, double XP, double RP,
-								     int spf) {
+							  int spf, TIME pdel) {
 
 	static	int asize = 3;
 	RFChannel **scratch;
@@ -464,6 +465,7 @@ void RFChannel::setup (Long nx, RATE r, int pre, double XP, double RP,
 			"protocol has started");
 
 	FlgSPF = spf;
+	PurgeDelay = pdel;
 
 	assert (nx > 1, "RFChannel: the number of transceivers (%1d) must be at"
 		" least 2", nx);
@@ -2552,7 +2554,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 			// the whole thing one ITU later -> to make sure
 			// that the last recipient can recognize the packet
 			RE = new ZZ_EVENT (
-				Time + TIME_1,
+				Time + Tcv->RFC->PurgeDelay,
 				System,		// Station
 				(void*)this,	// Info01
 				NULL,		// Info02

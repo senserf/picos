@@ -1,5 +1,5 @@
-SMURPH Version 3.21-OA      MNA: Manhattan-street    Mon Jan 21 22:58:25 2013
-Call arguments: data_smp.txt junko
+SMURPH Version 3.3-AA      MNA: Manhattan-street    Sun Apr  1 23:00:45 2018
+Call arguments: data_smp.txt junk.txt
 
 Traffic parameters
 
