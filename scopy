@@ -1,18 +1,31 @@
 #!/bin/sh
+#
+# Create a copy of the source tree with links to fixed fraagments (for
+# sharing the same installation, e.g., in a student lab)
+#
+#	mkdir SMURPHCOPY
+#	cd SMURPHCOPY
+#	~/.../SIDE/scopy ~/.../SIDE
+#
 ed=`echo $0 | sed -e 's,/[^/][^/]*$,,'`
 mkdir LIB SOURCES SOURCES/KERNEL
 touch LIB/liblock
-mkdir SOURCES/MONITOR SOURCES/DSD SOURCES/SMPP SOURCES/LIB
+mkdir SOURCES/MONITOR SOURCES/DSD SOURCES/SMPP SOURCES/NWEB SOURCES/LIB
 ln -s $ed/README* .
+ln -s $ed/RTAGS* .
+ln -s $ed/INSTALL* .
+ln -s $ed/deploy .
 cp $ed/SOURCES/version.h SOURCES
 ln -s $ed/SOURCES/defaults.h SOURCES
 ln -s $ed/SOURCES/*.c* SOURCES
+ln -s $ed/SOURCES/make_* SOURCES
 ln -s $ed/MANUAL MANUAL
 ln -s $ed/SOURCES/KERNEL/*.c* SOURCES/KERNEL
 ln -s $ed/SOURCES/KERNEL/*.h SOURCES/KERNEL
-ln -s $ed/SOURCES/KERNEL/depend.txt SOURCES/KERNEL
+ln -s $ed/SOURCES/KERNEL/depend* SOURCES/KERNEL
 ln -s $ed/SOURCES/DSD/README* SOURCES/DSD
 ln -s $ed/SOURCES/DSD/*.jav* SOURCES/DSD
+ln -s $ed/SOURCES/DSD/java.policy SOURCES/DSD
 cp $ed/SOURCES/DSD/*.cla* SOURCES/DSD
 cp $ed/SOURCES/DSD/*.gif* SOURCES/DSD
 ln -s $ed/SOURCES/DSD/*.src* SOURCES/DSD
@@ -26,13 +39,11 @@ ln -s $ed/SOURCES/MONITOR/README* SOURCES/MONITOR
 ln -s $ed/SOURCES/MONITOR/standard.t SOURCES/MONITOR
 ln -s $ed/SOURCES/MONITOR/*.c* SOURCES/MONITOR
 ln -s $ed/SOURCES/MONITOR/*.h SOURCES/MONITOR
-ln -s $ed/SOURCES/MONITOR/start SOURCES/MONITOR
 ln -s $ed/SOURCES/MONITOR/Mak* SOURCES/MONITOR
+ln -s $ed/SOURCES/NWEB/Mak* SOURCES/NWEB
+ln -s $ed/SOURCES/NWEB/*.c SOURCES/NWEB
 ln -s $ed/SOURCES/LIB/*.c* SOURCES/LIB
 ln -s $ed/SOURCES/LIB/*.h SOURCES/LIB
-ln -s $ed/SOURCES/LIB/*.s SOURCES/LIB
 ln -s $ed/SOURCES/LIB/ifranlib SOURCES/LIB
 ln -s $ed/SOURCES/LIB/Mak* SOURCES/LIB
 cp -r $ed/Examples Examples
-cd Examples
-rm -rf fixc*

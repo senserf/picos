@@ -283,7 +283,10 @@ static void outmes (ostream &fiptr, char *txt) {
 	for (tcp = tc; *tcp == ' '; tcp++);
 
 	fiptr << ">>> " << txt << '\n';
-	fiptr << ">>> At virtual time          = " << tcp << '\n';
+	fiptr << ">>> At virtual time          = " << tcp;
+	if (Etu != 1.0)
+		fiptr << form (" [%12.9f]", ituToEtu (Time));
+	fiptr << '\n';
 	fiptr << ">>> Input data file name     = ";
 	if ((zz_ifn == NULL) || ((zz_ifn[0] == '.') && (zz_ifn[1] == '\0')))
 		fiptr << "STDIN";

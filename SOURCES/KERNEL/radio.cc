@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-13   P. Gburzynski */
+/* Copyright (C) 1991-18   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -182,7 +182,7 @@ double IHist::avg (double ts, double du) const {
  * we go to the end.
  */
 	int i;
-	double s, t, u, d;
+	double s, t, u, d, v;
 		
 	s = 0.0;
 	t = 0.0;
@@ -194,13 +194,14 @@ double IHist::avg (double ts, double du) const {
 
 		for (i = NEntries - 1; i >= 0; i--) {
 			d = (double) (History [i] . Interval);
+			v = History [i] . Value;
 			u = t + d;
 			if (u >= du) {
 				u = du;
 				d = u - t;
-				i = 0;
+				i = -1;
 			}
-			s = s * (t / u) + ((History [i] . Value * d) / u);
+			s = s * (t / u) + ((v * d) / u);
 			t = u;
 		}
 		return s;
@@ -215,17 +216,34 @@ double IHist::avg (double ts, double du) const {
 		}
 	}
 
-	for (i++; i < NEntries; i++) {
-		d = (double) (History [i] . Interval);
-		u = t + d;
-		if (du >= 0.0 && u >= du) {
-			u = du;
-			d = u - t;
-			i = NEntries;
+	if (du < 0.0) {
+
+		for (i++; i < NEntries; i++) {
+			d = (double) (History [i] . Interval);
+			v = History [i] . Value;
+			u = t + d;
+			s = s * (t / u) + ((v * d) / u);
+			t = u;
 		}
-		s = s * (t / u) + ((History [i] . Value * d) / u);
-		t = u;
+
+	} else if (t < du) {
+
+		for (i++; i < NEntries; i++) {
+			d = (double) (History [i] . Interval);
+			v = History [i] . Value;
+			u = t + d;
+			if (u >= du) {
+				u = du;
+				d = u - t;
+				// To break the loop
+				i = NEntries;
+			}
+			s = s * (t / u) + ((v * d) / u);
+			t = u;
+		}
 	}
+
+	Assert (s >= 0.0, "IHist->avg, returning negative value %g", s);
 	return s;
 }
 
@@ -454,7 +472,7 @@ void    RFChannel::zz_start () {
 };
 
 void RFChannel::setup (Long nx, RATE r, int pre, double XP, double RP,
-							  int spf, TIME pdel) {
+							  TIME pdel, int spf) {
 
 	static	int asize = 3;
 	RFChannel **scratch;
@@ -594,7 +612,7 @@ Transceiver::Transceiver (RATE r, int pre, double XP, double RP,
 	// Owner = TheStation;
 	nextp = NULL;
 	RFC = NULL;
-	SigThreshold = 0.0;
+	SigThresholdLow = SigThresholdHigh = 0.0;
 	TracedActivity = NULL;
 	MinDistance = DISTANCE_inf;
 
@@ -1734,6 +1752,7 @@ void Transceiver::handle_ifv () {
 	TIME		t;
 	ZZ_REQUEST	*rq, *rm;
 	ZZ_EVENT	*ev;
+	double		sigl;
 	int		qt;
 #if ZZ_TAG
 	int		q;
@@ -1781,24 +1800,43 @@ void Transceiver::handle_ifv () {
 		}
 	}
 
-	qt = (TracedActivity->INT.cur () <= SigThreshold) ? INTLOW : INTHIGH;
+	if ((sigl = TracedActivity->INT.cur ()) <= SigThresholdLow) {
 
-	for (rq = RQueue [qt]; rq != NULL; rq = rq->next) {
-		if (rq->when == Time && FLIP)
-			// Already scheduled on another occasion
-			// (unlikely)
-			continue;
-		rq->Info01 = &(TracedActivity->RFA->Pkt);
+		for (rq = RQueue [INTLOW]; rq != NULL; rq = rq->next) {
+			if (rq->when == Time && FLIP)
+				// Already scheduled on another occasion
+				continue;
+			rq->Info01 = &(TracedActivity->RFA->Pkt);
 #if     ZZ_TAG
-		rq->when . set (Time);
-		if ((ev = rq->event) -> waketime.cmp (rq->when) <= 0 && FLIP)
-			continue;
+			rq->when . set (Time);
+			if ((ev = rq->event) -> waketime.cmp (rq->when) <= 0 && FLIP)
+				continue;
 #else
-		rq->when = Time;
-		if ((ev = rq->event) -> waketime <= Time && FLIP)
-			continue;
+			rq->when = Time;
+			if ((ev = rq->event) -> waketime <= Time && FLIP)
+				continue;
 #endif
-		ev->new_top_request (rq);
+			ev->new_top_request (rq);
+		}
+	}
+
+	if (sigl > SigThresholdHigh) {
+
+		for (rq = RQueue [INTHIGH]; rq != NULL; rq = rq->next) {
+			if (rq->when == Time && FLIP)
+				continue;
+			rq->Info01 = &(TracedActivity->RFA->Pkt);
+#if     ZZ_TAG
+			rq->when . set (Time);
+			if ((ev = rq->event) -> waketime.cmp (rq->when) <= 0 && FLIP)
+				continue;
+#else
+			rq->when = Time;
+			if ((ev = rq->event) -> waketime <= Time && FLIP)
+				continue;
+#endif
+			ev->new_top_request (rq);
+		}
 	}
 }
 
@@ -2085,7 +2123,7 @@ void Transceiver::reschedule_thh () {
 	ZZ_REQUEST	*rq;
 	ZZ_EVENT	*ev;
 
-	if (sigLevel () > SigThreshold) {
+	if (sigLevel () > SigThresholdHigh) {
 		for (rq = RQueue [SIGHIGH]; rq != NULL; rq = rq->next) {
 #if     ZZ_TAG
 			rq->when . set (Time);
@@ -2109,7 +2147,7 @@ void Transceiver::reschedule_thl () {
 	ZZ_REQUEST	*rq;
 	ZZ_EVENT	*ev;
 
-	if (sigLevel () <= SigThreshold) {
+	if (sigLevel () <= SigThresholdLow) {
 		for (rq = RQueue [SIGLOW]; rq != NULL; rq = rq->next) {
 #if     ZZ_TAG
 			rq->when . set (Time);
@@ -3177,30 +3215,44 @@ double	Transceiver::sigLevel (int which) {
 	}
 }
 
-double Transceiver::setSigThreshold (double t) {
+double Transceiver::setSigThresholdHigh (double t) {
 
-	assert (t >= 0.0, "Transceiver->setSignalThreshold: %s, threshold (%f) "
-		"cannot be negative", getSName (), t);
+	assert (t >= 0.0,
+		"Transceiver->setSigThresholdHigh: %s, threshold (%f) "
+			"cannot be negative", getSName (), t);
 
 	double old;
 
-	old = SigThreshold;
+	old = SigThresholdHigh;
+	SigThresholdHigh = t;
 
 	if (RxOn) {
-		if (t < SigThreshold) {
-			SigThreshold = t;
+		if (t < old)
 			reschedule_thh ();
-		} else {
-			SigThreshold = t;
-			reschedule_thl ();
-		}
-	} else {
-		SigThreshold = t;
 	}
 
 	return old;
 }
 
+double Transceiver::setSigThresholdLow (double t) {
+
+	assert (t >= 0.0,
+		"Transceiver->setSigThresholdLow: %s, threshold (%f) "
+			"cannot be negative", getSName (), t);
+
+	double old;
+
+	old = SigThresholdLow;
+	SigThresholdLow = t;
+
+	if (RxOn) {
+		if (t > old)
+			reschedule_thl ();
+	}
+
+	return old;
+}
+			
 double Transceiver::getMinDistance () {
 
 	if (MinDistance == DISTANCE_inf)
@@ -3471,7 +3523,7 @@ void    Transceiver::wait (int ev, int pstate) {
 
 		if (TracedActivity != NULL && !TracedActivity->Done) {
 			TracedActivity->INT.update ();
-			if (TracedActivity->INT.cur () <= SigThreshold) {
+			if (TracedActivity->INT.cur () <= SigThresholdLow) {
 				tpckt = &(TracedActivity->RFA->Pkt);
 				t = Time;
 			}
@@ -3482,7 +3534,7 @@ void    Transceiver::wait (int ev, int pstate) {
 
 		if (TracedActivity != NULL && !TracedActivity->Done) {
 			TracedActivity->INT.update ();
-			if (TracedActivity->INT.cur () > SigThreshold) {
+			if (TracedActivity->INT.cur () > SigThresholdHigh) {
 				tpckt = &(TracedActivity->RFA->Pkt);
 				t = Time;
 			}
@@ -3491,13 +3543,13 @@ void    Transceiver::wait (int ev, int pstate) {
 
 	    case SIGLOW:
 
-		if (sigLevel () <= SigThreshold)
+		if (sigLevel () <= SigThresholdLow)
 			t = Time;
 		break;
 
 	    case SIGHIGH:
 
-		if (sigLevel () > SigThreshold)
+		if (sigLevel () > SigThresholdHigh)
 			t = Time;
 		break;
 

@@ -527,7 +527,6 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 	if (res == 0.0)
 		// No need to worry
 		return res;
-
 #if ZZ_R3D
 	src->getRawLocation (SDP.XA, SDP.YA, SDP.ZA);
 	TheTransceiver->getRawLocation (SDP.XB, SDP.YB, SDP.ZB);
@@ -537,9 +536,9 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 #else
 	src->getRawLocation (SDP.XA, SDP.YA);
 	TheTransceiver->getRawLocation (SDP.XB, SDP.YB);
-	trc ("RFC_att (sd) = <%1d,%1d> - <%1d,%1d>",
+	trc ("RFC_att (sd) = <%1d,%1d> - <%1d,%1d> %g",
 		SDP.XA, SDP.YA,
-		SDP.XB, SDP.YB);
+		SDP.XB, SDP.YB, d);
 #endif
 
 	res = res * xp->Level * attenuate (SDP);

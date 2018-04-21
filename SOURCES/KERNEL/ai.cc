@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-08   P. Gburzynski */
+/* Copyright (C) 1991-18   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -611,7 +611,7 @@ const char    *AI::zz_eid (LPointer eid) {
                                 encodeLong (eid, tmp, 10);
                                 return (form ("%s", tmp));
 #else
-                                return (form ("%1d", zz_trunc (eid, 10)));
+                                return (form ("%1u", zz_trunc (eid, 10)));
 #endif
                         }
 

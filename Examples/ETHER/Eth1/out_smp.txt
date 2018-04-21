@@ -1,5 +1,5 @@
-SMURPH Version 2.90-OC      Ethernet1    Mon Jul  2 23:49:33 2007
-Call arguments: data_smp.txt junko
+SMURPH Version 3.3-AB      Ethernet1    Mon Apr  2 16:40:07 2018
+Call arguments: data_smp.txt junk.txt
 
 Network topology
 
@@ -186,7 +186,7 @@ Receivers: all stations, equal weights totaling to 1.0
 
 (Client) End of list
 
-Time:         4129438     (Client) Global performance measures:
+Time: 4129438 (Client) Global performance measures:
 
 AMD - Absolute message delay:
 

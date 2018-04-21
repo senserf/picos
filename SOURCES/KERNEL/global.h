@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-17   P. Gburzynski */
+/* Copyright (C) 1991-18   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 //#define	ZZ_RF_DEBUG
@@ -3733,8 +3733,7 @@ class   Link : public AI {
 	BITCOUNT        NDBits;                 // Number of damaged bits
 #endif
 
-	TIME            ArchiveTime,            // Archiving period
-			PurgeDelay;		// Activity linger time
+	TIME            PurgeDelay;            	// Archiving (linger) period
 
 	ZZ_REQUEST      *RQueue [ZZ_N_LINK_EVENTS];     // Request queues
 
@@ -3743,11 +3742,10 @@ class   Link : public AI {
 
 	void zz_start ();                       // Nonstandard constructor
 
-	void setup (Long np, RATE r, TIME at, int spf, TIME del);
+	void setup (Long np, RATE r, TIME at, int spf);
 
-	void setup (Long np, TIME at = TIME_0, int spf = ON,
-	    TIME del = TIME_0) {
-		setup (np, RATE_0, at, spf, del);
+	void setup (Long np, TIME at = TIME_0, int spf = ON) {
+		setup (np, RATE_0, at, spf);
 	}
 
 	~Link () {
@@ -3777,7 +3775,7 @@ class   Link : public AI {
 	void setDFrom (int, double);
 	void setDTo   (int, double);
 
-	void setPurgeDelay (TIME del) { PurgeDelay = del; };
+	void setPurgeDelay (TIME);
 
 	// User-definable extensions
 
@@ -3904,13 +3902,12 @@ inline  void    zz_bld_BLink (char *nn = NULL) {
 class   ULink : public Link {
 	public:
 	virtual const char *getTName () { return ("ULink"); };
-	inline void setup (Long np, RATE r, TIME at, int spf, TIME del) {
+	inline void setup (Long np, RATE r, TIME at, int spf) {
 		Type = LT_unidirectional;
-		Link::setup (np, r, at, spf, del);
+		Link::setup (np, r, at, spf);
 	};
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON,
-	    TIME del = TIME_0) {
-		setup (np, RATE_0, at, spf, del);
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+		setup (np, RATE_0, at, spf);
 	};
 };
 
@@ -3930,13 +3927,12 @@ inline  void    zz_bld_ULink (char *nn = NULL) {
 class   PLink : public Link {
 	public:
 	virtual const char *getTName () { return ("PLink"); };
-	inline void setup (Long np, RATE r, TIME at, int spf, TIME del) {
+	inline void setup (Long np, RATE r, TIME at, int spf) {
 		Type = LT_pointtopoint;
-		Link::setup (np, r, at, spf, del);
+		Link::setup (np, r, at, spf);
 	};
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON,
-	    TIME del = TIME_0) {
-		setup (np, RATE_0, at, spf, del);
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
+		setup (np, RATE_0, at, spf);
 	};
 };
 
@@ -3956,12 +3952,11 @@ inline  void    zz_bld_PLink (char *nn = NULL) {
 class   CLink : public Link {
 	public:
 	virtual const char *getTName () { return ("CLink"); };
-	inline void setup (Long np, RATE r, TIME at, int spf, TIME del) {
+	inline void setup (Long np, RATE r, TIME at, int spf) {
 		Type = LT_cpropagate;
-		Link::setup (np, r, at, spf, del);
+		Link::setup (np, r, at, spf);
 	};
-	inline void setup (Long np, TIME at = TIME_0, int spf = ON,
-	    TIME del = 0) {
+	inline void setup (Long np, TIME at = TIME_0, int spf = ON) {
 		setup (np, RATE_0, at, spf);
 	};
 };
@@ -4482,10 +4477,10 @@ class	RFChannel : public AI {
 	void zz_start ();
 
 	void setup (Long np, RATE r, int pre, double xp, double rp,
-		int spf = ON, TIME pdel = TIME_1);
+		TIME pdel = TIME_1, int spf = ON);
 
-	void setup (Long np, int spf = ON, TIME pdel = TIME_1) {
-		setup (np, RATE_0, 0, 0.0, 0.0, spf, pdel);
+	void setup (Long np, TIME pdel = TIME_1, int spf = ON) {
+		setup (np, RATE_0, 0, 0.0, 0.0, pdel, spf);
 	}
 
 	~RFChannel () {
@@ -4683,9 +4678,9 @@ class	Transceiver : public AI {
 			XmtSig;
 
 	/*
-	 * Threshold for signal-level events
+	 * Thresholds for signal-level events
 	 */
-	double		SigThreshold;
+	double		SigThresholdLow, SigThresholdHigh;
 
 	/*
 	 * Traced activity
@@ -4886,7 +4881,12 @@ class	Transceiver : public AI {
 	Long		setErrorRun (Long e = -1);
 	double 		setMinDistance (double d = -1.0);
 	Boolean		setAevMode (Boolean b = YESNO);
-	double 		setSigThreshold (double);
+	double		setSigThresholdHigh (double);
+	double		setSigThresholdLow (double);
+	double 		setSigThreshold (double tl) {
+				setSigThresholdLow (tl);
+				return setSigThresholdHigh (tl);
+			};
 	Boolean 	follow (Packet *p = NULL);
 	inline Boolean	isFollowed (Packet*);
 
@@ -4944,7 +4944,9 @@ class	Transceiver : public AI {
 	inline	RF_TAG_TYPE getXTag () { return XmtSig.Tag; };
 	inline	RF_TAG_TYPE getTag () { return getRTag (); };
 	inline	Long	getErrorRun () { return ErrorRun; };
-	inline  double  getSigThreshold () { return SigThreshold; };
+	inline  double  getSigThresholdLow () { return SigThresholdLow; };
+	inline  double  getSigThresholdHigh () { return SigThresholdHigh; };
+	inline  double  getSigThreshold () { return SigThresholdHigh; };
 	double  getMinDistance ();
 	inline	Boolean	getAevMode () { return AevMode; };
 
@@ -6705,7 +6707,7 @@ inline  void   receive (Packet &p, RFChannel &l) {
 inline	double linTodB (double v) {
 
 	if (v <= 0.0)
-		excptn ("linTodB: argument must be > 0.0, is %f", v);
+		excptn ("linTodB: argument must be > 0.0, is %g", v);
 	return log10 (v) * 10.0;
 };
 

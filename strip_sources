@@ -1,4 +1,8 @@
 #!/bin/sh
+#
+# Strips the sources for a library-only deployment of VUEE/SMURPH
+# (not for normal use)
+#
 ./cleanup
 rm -rf .git
 cd Examples
@@ -9,7 +13,7 @@ cd ../..
 ##################################################
 rm -rf MANUAL
 cd SOURCES
-rm -rf STANDALONE DSD MONITOR
+rm -rf STANDALONE DSD MONITOR NWEB
 cd KERNEL
 mv depend_precomp.txt depend.txt
 rm -rf *.cc

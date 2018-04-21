@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-13   P. Gburzynski */
+/* Copyright (C) 1991-18   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -251,7 +251,7 @@ void    LinkService::zz_code () {
 	assert (cl->NAlive >= 0,
 		"LinkService: negative number of link activities");
 
-	if (cl->ArchiveTime == TIME_0) {
+	if (cl->PurgeDelay == TIME_0) {
 		// Archive not used
 		if (a->Type == JAM) {
 			--cl->NAliveJams;
@@ -295,7 +295,7 @@ void    LinkService::zz_code () {
 			// The archive is empty
 			cl->Archived = cl->ArchivedTail = a;
 			a->prev = (ZZ_LINK_ACTIVITY*)(&(cl->Archived));
-			a->ae = new ZZ_EVENT (Time + cl->ArchiveTime, System,
+			a->ae = new ZZ_EVENT (Time + cl->PurgeDelay, System,
 				(void*) a, NULL, TheProcess, cl, ARC_PURGE,
 					RemFromAr, NULL);
 		} else {
@@ -303,7 +303,7 @@ void    LinkService::zz_code () {
 			cl->ArchivedTail->next = a;
 			cl->ArchivedTail = a;
 			// Use hint
-			a->ae = new ZZ_EVENT (a->prev->ae, Time+cl->ArchiveTime,
+			a->ae = new ZZ_EVENT (a->prev->ae, Time+cl->PurgeDelay,
 				System, (void*) a, NULL, TheProcess, cl,
 					ARC_PURGE, RemFromAr, NULL);
 		}
@@ -311,7 +311,7 @@ void    LinkService::zz_code () {
 
 		pool_in (a, cl->Archived);
 
-		new ZZ_EVENT (Time + cl->ArchiveTime, System, (void*) a, NULL,
+		new ZZ_EVENT (Time + cl->PurgeDelay, System, (void*) a, NULL,
 			TheProcess, cl, ARC_PURGE, RemFromAr, NULL);
 	}
 
@@ -379,7 +379,7 @@ void    Link::zz_start () {
 	PCleaner = NULL;
 	// Add the link to Kernel
 	pool_in (this, TheProcess->ChList);
-};
+}
 
 void Link::setFaultRate (double r, int ft) {
 
@@ -397,9 +397,14 @@ void Link::setFaultRate (double r, int ft) {
 #else
     excptn ("Link->setFaultRate illegal -- smurph not created with '-z'");
 #endif
-};
+}
 
-void    Link::setup (Long np, RATE r, TIME at, int spf, TIME del) {
+void	Link::setPurgeDelay (TIME at) {
+
+	PurgeDelay = (at <= TIME_1) ? TIME_0 : at;
+}
+
+void    Link::setup (Long np, RATE r, TIME at, int spf) {
 
 /* ------------------- */
 /* Link initialization */
@@ -411,8 +416,6 @@ void    Link::setup (Long np, RATE r, TIME at, int spf, TIME del) {
 	DefTRate = r;
 	DefAevMode = YES;
 
-	PurgeDelay = del;
-
 	Link    **scratch;
 
 	Assert (!zz_flg_started,
@@ -421,7 +424,7 @@ void    Link::setup (Long np, RATE r, TIME at, int spf, TIME del) {
 	FlgSPF = spf;   // Whether to calculate standard performance measures
 	NPorts = (int)np;
 
-	ArchiveTime = at;
+	setPurgeDelay (at);
 
 	NAliveTransfers = NArchivedTransfers = NArchived = NAlive =
 		NArchivedJams = 0;
@@ -1067,7 +1070,7 @@ void    ZZ_SYSTEM::makeTopologyL () {
 					if (Prt->DV [k] > td) td = Prt->DV [k]; 
 				}
 			}
-			Prt->MaxDistance = td + DISTANCE_1;
+			Prt->MaxDistance = td + TIME_1;
 		}
 
 		// Deallocate temporary data structures
@@ -3082,7 +3085,7 @@ int     Port::stop () {
 
 	// Schedule event to remove the activity from the link
 
-	t = Time + MaxDistance + Lnk->PurgeDelay;
+	t = Time + MaxDistance;
 
 	if (Lnk->Type == LT_pointtopoint)  {
 
@@ -3174,15 +3177,15 @@ int     Port::abort () {
 		// Try to find a 'hint' event for scheduling link removal
 		// for this activity.
 		if ((hint = findHint (bac)) != NULL)
-			bac->ae = new ZZ_EVENT (hint, Time+MaxDistance, System,
+			bac->ae = new ZZ_EVENT (hint, t, System,
 				(void*) bac, NULL, shandle, Lnk, LNK_PURGE,
 					RemFromLk, NULL);
 		else
-			bac->ae = new ZZ_EVENT (Time + MaxDistance, System,
+			bac->ae = new ZZ_EVENT (t, System,
 				(void*) bac, NULL, shandle, Lnk, LNK_PURGE,
 					RemFromLk, NULL);
 	} else
-		new ZZ_EVENT (Time + MaxDistance, System, (void*) bac, NULL,
+		new ZZ_EVENT (t, System, (void*) bac, NULL,
 			shandle, Lnk, LNK_PURGE, RemFromLk, NULL);
 
 	if (bac->Type == JAM) {

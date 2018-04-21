@@ -1,5 +1,5 @@
-SMURPH Version 3.00-OA      Piggyback Ethernet (B)    Sat Apr 12 16:37:30 2008
-Call arguments: data_smp.txt out_smp.txt
+SMURPH Version 3.3-AB      Piggyback Ethernet (B)    Mon Apr  2 16:41:01 2018
+Call arguments: data_smp.txt junk.txt
 
 Network topology
 

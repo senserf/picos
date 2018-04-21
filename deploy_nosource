@@ -17,16 +17,31 @@ set bin [lindex $argv 0]
 set vpa [lindex $argv 1]
 set rta [lindex $argv 2]
 
+proc abt { msg } {
+	puts stderr $msg
+	exit 1
+}
+
 if { $bin == "" } {
-	set bin "bin"
+	# determine one that is actually present
+	if ![info exists env(HOME)] {
+		abt "cannot locate home directory!"
+	}
+	if [file exists [file join $env(HOME) "bin"]] {
+		set bin "bin"
+	} elseif [file exists [file join $env(HOME) "BIN"]] {
+		set bin "BIN"
+	} else {
+		abt "neither 'bin' not 'BIN' exists in HOME"
+	}
 }
 
 if { $vpa == "" } {
-	set vpa "SOFTWARE"
+	abt "source path must be specified, the script must be invoked from PICOS/deploy!"
 }
 
 if { $rta == "" } {
-	set rta "0"
+	abt "rtag must be specified!"
 }
 
 puts "Setting up libraries ..."

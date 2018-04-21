@@ -718,3 +718,21 @@ PG180401A:
 	   2. I am planning to scrap the manual and replace it with the new
 	      (hopefully friendlier) version, which I am working on in the
 	      background
+
+PG180421A:
+
+	   On second thought I removed the linger feature from wired links
+	   (added in the previous commit), because it was basically covered by
+	   the so-called link archive. I have settled for rearranging the setup
+	   arguments for wired links a bit, so, from that angle, it looks like
+	   the same thing as the linger feature for a wireless channel.
+
+	   A few more cosmetics partially inspired by our little project with
+	   Niels, and partially by the new document that I've been working on
+	   (which, every once in a while, forces me to re-think this or that). 
+
+	   Fixed (or so I hope) a bug in calculating integrated interference
+	   over a received packet fragment.
+
+	   I am not updating the old manual, because it will be replaced
+	   (hopefully soon).
