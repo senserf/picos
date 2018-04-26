@@ -1,0 +1,8 @@
+#!/bin/sh
+latex manual
+latex manual
+latex manual
+dvips -f -O 0.0in,0.6in < manual.dvi > manual.ps
+#dvips -f < manual.dvi > manual.ps
+ps2pdf manual.ps manual.pdf
+rm -rf *.aux *.dvi *.log *.ps *.toc
