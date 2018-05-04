@@ -4759,13 +4759,13 @@ class	Transceiver : public AI {
 
 	void 	reschedule_bop (),
 		reschedule_eop (),
-		reschedule_act (),
-		reschedule_sil (),
+		reschedule_act (double),
+		reschedule_sil (double),
 		reschedule_aev (int),
 		reschedule_bot (ZZ_RSCHED*),
 		reschedule_eot (ZZ_RSCHED*),
-		reschedule_thh (),
-		reschedule_thl ();
+		reschedule_thh (double),
+		reschedule_thl (double);
 
 	inline double qdst (const Transceiver *t) {
 		// Note: this returns the distance converted to Du
@@ -4949,6 +4949,8 @@ class	Transceiver : public AI {
 	inline  double  getSigThreshold () { return SigThresholdHigh; };
 	double  getMinDistance ();
 	inline	Boolean	getAevMode () { return AevMode; };
+
+	inline	Station	*getOwner () { return Owner; };
 
 	void zz_expose (int, const char *h = NULL, Long s = NONE);
 	

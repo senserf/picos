@@ -111,7 +111,7 @@ Xmit:
 	// The Tag values is interpreted by function gain in channel.cc, which
 	// is invoked by the RFC_att assessment method (see channel.cc).
 	//
-	S->RFI->setTag (angle_to_tag (P->Direction));
+	S->RFI->setXTag (angle_to_tag (P->Direction));
 
 	// Transmit the packet
 	S->RFI->transmit (P, XM_TXDONE);

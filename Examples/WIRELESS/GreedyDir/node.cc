@@ -809,7 +809,7 @@ void initNodes (Long N, Long P) {
 		TN = create Node (XmitRate, P);
 		// Make the Tag point to RF_MODULE, which will give us a
 		// handy shortcut for gain calculations
-		TN->RFI->setTag ((IPointer)(TN->RFM));
+		TN->RFI->setXTag ((IPointer)(TN->RFM));
 		// Default antenna settings
 		TN->RFM->setXAntOmni ();
 		TN->RFM->setRAntOmni ();

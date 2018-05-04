@@ -745,3 +745,26 @@ PG180426A:
 	   proofread), it looks decent enough to me to do as a replacement for
 	   the old manual, especially that the latter has not been updated for
 	   a while (and, generally, has not been considered very friendly).
+
+PG180504A:	VUEE >= PG180504A
+
+	   Fixed a bug causing that quick wireless channel switching (as at
+	   slot boundaries in Niels's DECT model) would not trigger the proper
+	   reassessment of interfering signals from other channels falling into
+	   the same slot. In simple words, interference was not calculated
+	   correctly. Well, SMURPH has never before been exposed to the kind of
+	   channel switching dynamics that we exercise in the DECT model.
+
+	   SIR values in the sir-to-ber array in the generic wchan.h/wchan.cc
+	   model are now specified in dB, rather than linearly. This is for
+	   consistency: I want to make sure that all "user" data related to
+	   signals is specified in the logarithmic domain. Note that this
+	   requires an update in VUEE, so the new version of SMURPH is not
+	   compatible with old VUEE. BTW: this also means that new SMURPH is
+	   not compatible with the previous DECT model. The new DECT model is
+	   coming up. Stay tuned, Niels!
+
+	   Added the getOwner method to Transceiver, so the identity of the
+	   owning station of a Transceiver can be made public.
+
+	   A few cosmetics here and there.

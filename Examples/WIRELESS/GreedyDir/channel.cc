@@ -35,9 +35,9 @@ static double dir_gain (Transceiver *src, Transceiver *dst) {
 	double RA, XA, XS, YS, XD, YD, ang, gai;
 
 	// Source antenna setting
-	XA = ((MY_RFModule*) (src->getTag ())) -> getXAnt ();
+	XA = ((MY_RFModule*) (src->getXTag ())) -> getXAnt ();
 	// Destination antenna setting
-	RA = ((MY_RFModule*) (dst->getTag ())) -> getRAnt ();
+	RA = ((MY_RFModule*) (dst->getXTag ())) -> getRAnt ();
 
 	if (XA < 0.0 && RA < 0.0) {
 		// Get the trivial case out of the way

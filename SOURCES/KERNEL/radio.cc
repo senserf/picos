@@ -327,15 +327,15 @@ double Transceiver::sigLevel () {
 
 void Transceiver::reassess () {
 /*
- * This one is heavy duty. Called to completely reassess the signals perceived
- * by the transceiver. To be used after some attribute in the transceiver, that
- * is used by RFC_att, changes. One example would be a directional antenna used
- * for reception.
+ * Called to reassess the signals perceived by the transceiver. To be used
+ * after a change of an attribute in the transceiver that has impact on
+ * RFC_att.
  */
 	ZZ_RSCHED *a;
 	SLEntry xm;
 	double sl, sn;
 
+	// Previous total signal level
 	sl = sigLevel ();
 	
 	txcvr = this;
@@ -349,13 +349,14 @@ void Transceiver::reassess () {
 	}
 	updateIF ();
 
+	// New total signal level
 	sn = sigLevel ();
 	if (sn > sl) {
-		reschedule_thh ();
-		reschedule_act ();
+		reschedule_thh (sn);
+		reschedule_act (sn);
 	} else if (sn < sl) {
-		reschedule_thl ();
-		reschedule_sil ();
+		reschedule_thl (sn);
+		reschedule_sil (sn);
 	}
 }
 
@@ -842,6 +843,10 @@ RF_TAG_TYPE Transceiver::setRTag (RF_TAG_TYPE t) {
 
 	old = RcvSig.Tag;
 	RcvSig.Tag = t;
+
+	if (zz_flg_started && t != old)
+		reassess ();
+
 	return old;
 }
 
@@ -925,6 +930,7 @@ double	Transceiver::setRPower (double p) {
 			RFC->nei_add (this);
 		else if (RcvSig.Level < op)
 			RFC->nei_del (this);
+		reassess ();
 	}
 
 	return op;
@@ -1847,6 +1853,7 @@ void Transceiver::rcvOn () {
 	ZZ_RSCHED	*a;
 	ZZ_REQUEST      *rq;
 	ZZ_EVENT        *ev;
+	double		sigl;
 
 	if (RxOn)
 		// Already on
@@ -1855,7 +1862,7 @@ void Transceiver::rcvOn () {
 	for (a = Activities; a != NULL; a = a->next)
 		a->initSS ();
 	updateIF ();
-	reschedule_thh ();
+	reschedule_thh (sigl = sigLevel ());
 
 	// Process events and packet, i.e., bring the state of the port
 	// to sanity
@@ -1870,14 +1877,14 @@ void Transceiver::rcvOn () {
 		// falling into the same ITU as rcvOn with probability 1/2.
 	}
 	// Activity
-	reschedule_act ();
+	reschedule_act (sigl);
 }
 
 void Transceiver::rcvOff () {
 
 	RxOn = NO;
-	reschedule_thl ();
-	reschedule_sil ();
+	reschedule_thl (0.0);
+	reschedule_sil (0.0);
 }
 
 void Transceiver::startTransmit (Packet *p) {
@@ -1885,6 +1892,7 @@ void Transceiver::startTransmit (Packet *p) {
 	int i;
 	ZZ_RSCHED *ro;
 	ZZ_NEIGHBOR *ne;
+	double sigl;
 
 	if_from_observer ("Transceiver->startTransmit: called from an "
 			  "observer");
@@ -1987,8 +1995,8 @@ void Transceiver::startTransmit (Packet *p) {
 	// Include transmitter's interference
 	if (RxOn) {
 		updateIF ();
-		reschedule_thh ();
-		reschedule_act ();
+		reschedule_thh (sigl = sigLevel ());
+		reschedule_act (sigl);
 	}
 
 	tpckt = &(Activity -> Pkt);      		// ThePacket (Info01)
@@ -1998,6 +2006,7 @@ void Transceiver::startTransmit (Packet *p) {
 void Transceiver::term_xfer (int evnt) {
 
 	ZZ_RSCHED *ro;
+	double sigl;
 
 	if_from_observer ("Tranceiver->stop/abort: called from an observer");
 
@@ -2077,8 +2086,8 @@ void Transceiver::term_xfer (int evnt) {
 	// At the current Transceiver ...
 	if (RxOn) {
 		updateIF ();
-		reschedule_thl ();
-		reschedule_sil ();
+		reschedule_thl (sigl = sigLevel ());
+		reschedule_sil (sigl);
 	}
 }
 
@@ -2116,14 +2125,14 @@ void Transceiver::updateIF () {
 	}
 }
 
-void Transceiver::reschedule_thh () {
+void Transceiver::reschedule_thh (double sigl) {
 /*
  * Handles signal level going up
  */
 	ZZ_REQUEST	*rq;
 	ZZ_EVENT	*ev;
 
-	if (sigLevel () > SigThresholdHigh) {
+	if (sigl > SigThresholdHigh) {
 		for (rq = RQueue [SIGHIGH]; rq != NULL; rq = rq->next) {
 #if     ZZ_TAG
 			rq->when . set (Time);
@@ -2140,14 +2149,14 @@ void Transceiver::reschedule_thh () {
 	}
 }
 
-void Transceiver::reschedule_thl () {
+void Transceiver::reschedule_thl (double sigl) {
 /*
  * Handles signal level going down
  */
 	ZZ_REQUEST	*rq;
 	ZZ_EVENT	*ev;
 
-	if (sigLevel () <= SigThresholdLow) {
+	if (sigl <= SigThresholdLow) {
 		for (rq = RQueue [SIGLOW]; rq != NULL; rq = rq->next) {
 #if     ZZ_TAG
 			rq->when . set (Time);
@@ -2184,7 +2193,7 @@ void Transceiver::reschedule_bop () {
 #endif
 		ev->new_top_request (rq);
 	}
-	reschedule_act ();
+	reschedule_act (sigLevel ());
 	reschedule_aev (BOP);
 }
 
@@ -2262,7 +2271,7 @@ Packet *Transceiver::findRPacket () {
 	return NULL;
 }
 
-void Transceiver::reschedule_sil () {
+void Transceiver::reschedule_sil (double sigl) {
 /*
  * Silence
  */
@@ -2271,7 +2280,7 @@ void Transceiver::reschedule_sil () {
 
 	txcvr = this;
 
-	if (RxOn && RFC->RFC_act (sigLevel (), &RcvSig))
+	if (RxOn && RFC->RFC_act (sigl, &RcvSig))
 		return;
 
 	// RxOn == NO implies silence
@@ -2294,7 +2303,7 @@ void Transceiver::reschedule_sil () {
 	}
 }
 
-void Transceiver::reschedule_act () {
+void Transceiver::reschedule_act (double sigl) {
 /*
  * Activity
  */
@@ -2303,7 +2312,7 @@ void Transceiver::reschedule_act () {
 
 	txcvr = this;
 
-	if (RFC->RFC_act (sigLevel (), &RcvSig) == NO)
+	if (RFC->RFC_act (sigl, &RcvSig) == NO)
 		return;
 
 	for (rq = RQueue [ACTIVITY]; rq != NULL; rq = rq->next) {
@@ -2463,7 +2472,7 @@ void Transceiver::reschedule_eot (ZZ_RSCHED *rfa) {
 
 	// For AEV, we also look at killed packets
 	reschedule_aev (EOT);
-	reschedule_sil ();
+	reschedule_sil (sigLevel ());
 }
 
 void ZZ_RF_ACTIVITY::handleEvent () {
@@ -2471,6 +2480,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 	TIME tm;
 	ZZ_RSCHED *ro;
 	Transceiver *D;
+	double sigl;
 
 	assert (Roster != NULL, "RF_ACTIVITY->handleEvent: no roster");
 
@@ -2485,7 +2495,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 		// Covers BOP, AEV, ACT...
 		if (D->RxOn) {
 			D->reschedule_bop ();
-			D->reschedule_thh ();
+			D->reschedule_thh (D->sigLevel ());
 		}
 		// Move it to BOT queue
 		ro = SchBOP;
@@ -2514,9 +2524,9 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 			SchBOT->Stage = RFA_STAGE_APR;
 			if (D->RxOn) {
 				D->updateIF ();
-				D->reschedule_thl ();
+				D->reschedule_thl (sigl = D->sigLevel ());
 				D->reschedule_eop ();
-				D->reschedule_sil ();
+				D->reschedule_sil (sigl);
 			}
 			SchBOT = SchBOT->next;
 			continue;
@@ -2564,7 +2574,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 			D->updateIF ();
 			// Complete and close this one
 			SchEOT->INT.update (0.0);
-			D->reschedule_thl ();
+			D->reschedule_thl (D->sigLevel ());
 			// This covers AEV, SILENCE, EOT, EMP ....
 			D->reschedule_eot (SchEOT);
 		}
@@ -2589,8 +2599,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 	if (SchEOT == NULL) {
 		if (SchBOT == NULL && tm == TIME_inf) {
 			// This means that we are done: schedule removal for
-			// the whole thing one ITU later -> to make sure
-			// that the last recipient can recognize the packet
+			// the whole thing
 			RE = new ZZ_EVENT (
 				Time + Tcv->RFC->PurgeDelay,
 				System,		// Station
@@ -3228,7 +3237,7 @@ double Transceiver::setSigThresholdHigh (double t) {
 
 	if (RxOn) {
 		if (t < old)
-			reschedule_thh ();
+			reschedule_thh (sigLevel ());
 	}
 
 	return old;
@@ -3247,7 +3256,7 @@ double Transceiver::setSigThresholdLow (double t) {
 
 	if (RxOn) {
 		if (t > old)
-			reschedule_thl ();
+			reschedule_thl (sigLevel ());
 	}
 
 	return old;

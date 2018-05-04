@@ -520,9 +520,9 @@ double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
 	// Channel crosstalk
 	res = Channels->ifactor (cha = tagToCh (xp->Tag),
-		tagToCh (TheTransceiver->getTag ()));
+		tagToCh (TheTransceiver->getRTag ()));
 	trc ("RFC_att (ct) = %g [%08x %08x]", res, xp->Tag,
-		TheTransceiver->getTag ());
+		TheTransceiver->getRTag ());
 
 	if (res == 0.0)
 		// No need to worry

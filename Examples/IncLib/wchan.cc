@@ -47,6 +47,8 @@ void RadioChannel::setup (
 
 	// Preprocess the BER table
 	stb = (sir_to_ber_t*) STB;
+	for (i = 0; i < STBL; i++)
+		stb [i].sir = dBToLin (stb [i].sir);
 	for (i = 0; i < STBL-1; i++)
 		stb [i].fac = (stb [i+1].ber - stb [i].ber) /
 			(stb [i].sir - stb [i+1].sir);
@@ -210,7 +212,7 @@ void MXChannels::print () {
 	if (NSEP) {
 		::print (", sep(dB): ");
 		for (i = 0; i < NSEP; i++)
-			::print (form (" %g", linTodB (SEP [i])));
+			::print (form (" %g", -linTodB (SEP [i])));
 	}
 	::print ("\n");
 }

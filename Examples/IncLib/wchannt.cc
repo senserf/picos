@@ -31,7 +31,7 @@ void RFNeutrino::setup (
 
 double RFNeutrino::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
-	if (xp->Tag != TheTransceiver->getTag () || d >= Range)
+	if (xp->Tag != TheTransceiver->getRTag () || d >= Range)
 		return 0.0;
 
 	return 1.0;

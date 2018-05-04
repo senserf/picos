@@ -21,7 +21,7 @@ static double dir_gain (Transceiver *src, Transceiver *dst) {
 	double XS, YS, XD, YD, Angle, Delta, DA, Dir;
 
 	// Direction at which our antenna is pointing
-	Dir = tag_to_angle (src->getTag ());
+	Dir = tag_to_angle (src->getXTag ());
 
 	if (Dir < 0.0) {
 		// Omnidirectional transmission, the gain is 1.0
