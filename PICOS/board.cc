@@ -1772,8 +1772,8 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 		STB = new sir_to_ber_t [nb];
 
 		for (i = 0; i < nb; i++) {
-			// The SIR is stored as a linear ratio
-			STB [i].sir = dBToLin (np [2 * i] . DVal);
+			// The SIR is stored as a logarithmic ratio
+			STB [i].sir = np [2 * i] . DVal;
 			STB [i].ber = np [2 * i + 1] . DVal;
 			// Validate
 			if (STB [i] . sir >= psir)
