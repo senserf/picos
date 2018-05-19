@@ -30,6 +30,7 @@ rfchannel RFShadow : RadioChannel {
 	double (*gain) (Transceiver*, Transceiver*);
 
 	// Assessment methods
+	double	RFC_add (int, int, const SLEntry**, const SLEntry*);
 	double RFC_att (const SLEntry*, double, Transceiver*);
 	Boolean RFC_act (double, const SLEntry*);
 	Boolean RFC_bot (RATE, const SLEntry*, const SLEntry*, const IHist*);

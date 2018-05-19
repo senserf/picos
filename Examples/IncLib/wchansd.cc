@@ -512,6 +512,21 @@ Ready:
 
 // ============================================================================
 
+double RFSampled::RFC_add (int n, int own, const SLEntry **sl,
+	const SLEntry *xmt) {
+
+	double tsl;
+
+	if ((tsl = xmt->Level) != 0.0)
+		tsl *= Channels->ifactor (tagToCh (TheTransceiver->getRTag ()),
+			tagToCh (TheTransceiver->getXTag ()));
+
+	while (n--)
+		if (n != own)
+			tsl += sl [n] -> Level;
+	return tsl;
+}
+
 double RFSampled::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
 	double res;

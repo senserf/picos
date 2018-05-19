@@ -29,6 +29,22 @@ void RFNeutrino::setup (
 
 // ============================================================================
 
+double RFNeutrino::RFC_add (int n, int own, const SLEntry **sl,
+	const SLEntry *xmt) {
+
+	double tsl;
+
+	if ((tsl = xmt->Level) != 0.0 &&
+		TheTransceiver->getRTag () !=
+			TheTransceiver->getXTag ())
+				tsl = 0.0;
+	while (n--)
+		if (n != own)
+			tsl += sl [n] -> Level;
+	return tsl;
+}
+
+
 double RFNeutrino::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 
 	if (xp->Tag != TheTransceiver->getRTag () || d >= Range)
