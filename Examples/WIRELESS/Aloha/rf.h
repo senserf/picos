@@ -56,8 +56,8 @@ rfchannel ALOHARF {
 		return -27.0 * log10 ((4.0*3.14159265358979323846/0.75) * d);
 	};
 		
-	TIME RFC_xmt (RATE r, Long nb) {
-		return (TIME) r * nb;
+	TIME RFC_xmt (RATE r, Packet *p) {
+		return (TIME) r * p->TLength;
 	};
 
 	double RFC_att (const SLEntry *xp, double d, Transceiver *src) {

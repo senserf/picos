@@ -40,7 +40,7 @@ rfchannel ShadowingChannel {
 	double RFC_cut (double, double);
 	Long RFC_erb (RATE, const SLEntry*, const SLEntry*, double, Long);
 	Long RFC_erd (RATE, const SLEntry*, const SLEntry*, double, Long);
-	virtual TIME RFC_xmt (RATE, Long);
+	virtual TIME RFC_xmt (RATE, Packet*);
 };
 
 #endif

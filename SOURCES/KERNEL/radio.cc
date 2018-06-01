@@ -4943,9 +4943,9 @@ Long RFChannel::RFC_erd (RATE tr, const SLEntry *rl, const SLEntry *sen,
 		getSName ());
 }
 
-TIME RFChannel::RFC_xmt (RATE tr, Long pl) {
+TIME RFChannel::RFC_xmt (RATE tr, Packet *p) {
 
-	return (TIME) tr * (LONG) pl;
+	return (TIME) tr * (p->TLength);
 }
 
 #endif	/* NOR */

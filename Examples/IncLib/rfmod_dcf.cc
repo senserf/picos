@@ -121,12 +121,12 @@ RFModule::RFModule (Transceiver *r, Long pqs) {
 		// until the last RFModule has been created).
 		pr = Xcv->getPreambleTime();
 
-		xt_ack = Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_ACK);
-		xt_cts = Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_CTS);
+		xt_ack = (TIME) DCF_XRate * PKT_LENGTH_ACK;
+		xt_cts = (TIME) DCF_XRate * PKT_LENGTH_CTS;
 
 		print (ituToEtu(pr),	 "  Preamble time:",		10, 26);
 		print (PKT_LENGTH_RTS,   "  RTS length:",		10, 26);
-		print (ituToEtu(Ether->RFC_xmt (DCF_XRate, PKT_LENGTH_RTS)),
+		print (ituToEtu((TIME) DCF_XRate * PKT_LENGTH_RTS),
 					 "  RTS time:",			10, 26);
 		print (PKT_LENGTH_CTS,   "  CTS length:",		10, 26);
 		print (ituToEtu(xt_cts), "  CTS time:", 		10, 26);

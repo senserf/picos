@@ -137,7 +137,7 @@ packet RTSPacket : DCFPacket {
 
 		// And this is the NAV setting for RTS (see RFModule::RFmodule
 		// in rfmod_dcf.cc)
-		NAV = Ether->RFC_xmt (DCF_XRate, p->TLength) + DCF_NAV_rts;
+		NAV = Ether->RFC_xmt (DCF_XRate, p) + DCF_NAV_rts;
 
 		// Note: this setting is only used by CTS, as the RTS NAV is
 		// assummed blindly to be DCF_NAV_rts_auto. We could optimize

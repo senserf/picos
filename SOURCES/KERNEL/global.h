@@ -684,10 +684,10 @@ Long	cpuTime ();			// If no FP, this is in seconds
 double  cpuTime ();                     // Gives the CPU execution time
 
 #define	Distance_inf	HUGE
-#define	Distance_1	1.0
+#define	Distance_1	(1.0/Du)
 #define	Distance_0	0.0
 #define	Time_0		0.0
-#define	Time_1		1.0
+#define	Time_1		Itu
 #define	Time_inf	HUGE
 
 extern	double		Du, Itu, Etu;
@@ -4441,7 +4441,7 @@ class	RFChannel : public AI {
 
 	virtual TIME RFC_xmt (
 			RATE,
-			Long	// Total packet length (TLength)
+			Packet*
 		);
 		// This one isn't really an assessment method. It calculates
 		// the transmission time of a packet with a given total
@@ -4791,8 +4791,6 @@ class	Transceiver : public AI {
 
 	void connect (Long);
 
-	INLINE TIME bitsToTime (Long n = 1);
-
 	inline double distTo (Transceiver *tcv) {
 		Assert (RFC != NULL && RFC == tcv->RFC,
 			"Transceiver->distTo: %s -- %s, not connected or on "
@@ -4863,7 +4861,7 @@ class	Transceiver : public AI {
 	inline void transmit (Packet&, int);
 	void wait (int, int);
 #endif
-	inline TIME getXTime (Long);
+	inline TIME getXTime (Packet*);
 
 	void	zz_start ();
 	~Transceiver ();
@@ -6586,13 +6584,16 @@ inline void RFChannel::stdpfmPAB (Packet *p) {
 	// Empty
 };
 
+inline TIME Transceiver::getXTime (Packet *p) {
+	return RFC->RFC_xmt (TRate, p) + getPreambleTime ();
+};
+
 #if  ZZ_TAG
 inline void Transceiver::transmit (Packet *p, int s, LONG tag) {
 
 	// TRate verified by startTransmit
 	startTransmit (p);
-	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + getPreambleTime (),
-		s, tag);
+	Timer->wait (getXTime (p), s, tag);
 };
 
 inline void Transceiver::transmit (Packet &p, int s, LONG tag) {
@@ -6603,7 +6604,7 @@ inline void Transceiver::transmit (Packet &p, int s, LONG tag) {
 inline void Transceiver::transmit (Packet *p, int s) {
 
 	startTransmit (p);
-	Timer->wait (RFC->RFC_xmt (TRate, p->TLength) + getPreambleTime (), s);
+	Timer->wait (getXTime (p), s);
 };
 
 inline void Transceiver::transmit (Packet &p, int s) {
@@ -6611,10 +6612,6 @@ inline void Transceiver::transmit (Packet &p, int s) {
 	transmit (&p, s);
 };
 #endif
-
-inline TIME Transceiver::getXTime (Long bits) {
-	return RFC->RFC_xmt (TRate, bits) + getPreambleTime ();
-};
 
 inline Boolean Transceiver::isFollowed (Packet *p) {
 	return TracedActivity != NULL && p == &(TracedActivity->RFA->Pkt);

@@ -88,12 +88,11 @@ int    HeaderLength,		// Packet header length in bits
 
 TIME   TransmissionRate,
        SenderTimeout,		// ACK wait timeout
-       RecipientTimeout,	// Data packet wait timeout
-       Distance;		// Channel length
+       RecipientTimeout;	// Data packet wait timeout
 
 double MessageLength,		// Traffic parameters
        MeanMessageInterarrivalTime,
-
+       Distance,		// Channel length
        FaultRate;		// Link fault rate (BER)
 
 long   MessageNumberLimit;	// Termination condition

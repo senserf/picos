@@ -49,12 +49,13 @@ Boolean ShadowingChannel::RFC_act (double sl, const SLEntry *rs) {
 	return sl * rs->Level >= AThrs;
 }
 
-TIME ShadowingChannel::RFC_xmt (RATE r, Long tl) {
+TIME ShadowingChannel::RFC_xmt (RATE r, Packet *p) {
 
-	assert ((tl & 0x7) == 0, "RFC_xmt: packet length %d not divisible by 8",
-		tl);
+	assert ((p->TLength & 0x7) == 0,
+		"RFC_xmt: packet length %d not divisible by 8", p->TLength);
 
-	return (TIME) r * (LONG) ((tl >> 3) * BitsPerByte + FrameLength);
+	return (TIME) r * (LONG) (((p->TLength) >> 3) * BitsPerByte +
+		FrameLength);
 }
 
 double ShadowingChannel::RFC_cut (double xp, double rp) {

@@ -97,12 +97,13 @@ void RadioChannel::setup (
 		Channels->print ();
 }
 
-TIME RadioChannel::RFC_xmt (RATE r, Long tl) {
+TIME RadioChannel::RFC_xmt (RATE r, Packet *p) {
 
-	assert ((tl & 0x7) == 0, "RFC_xmt: packet length %d not divisible by 8",
-		tl);
+	assert ((p->TLength & 0x7) == 0,
+		"RFC_xmt: packet length %d not divisible by 8", p->TLength);
 
-	return (TIME) r * (LONG) ((tl >> 3) * BitsPerByte + PacketFrameLength);
+	return (TIME) r * (LONG) (((p->TLength) >> 3) * BitsPerByte +
+		PacketFrameLength);
 }
 
 double RadioChannel::ber (double sir) {

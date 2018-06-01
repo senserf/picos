@@ -390,11 +390,6 @@ INLINE Transceiver *idToTransceiver (int id) {
 	return (p);
 };
 
-INLINE TIME Transceiver::bitsToTime (Long b) {
-
-	return RFC->RFC_xmt (TRate, b);
-};
-
 #if	ZZ_R3D
 INLINE void Station::getLocation (double &x, double &y, double &z) {
 	Assert (Transceivers != NULL, "Station->getLocation: no transceivers");

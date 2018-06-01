@@ -293,7 +293,7 @@ rfchannel RadioChannel {
 
 	MXChannels	*Channels;	// Available channels
 
-	virtual TIME RFC_xmt (RATE, Long);
+	virtual TIME RFC_xmt (RATE, Packet*);
 
 	double ber (double);		// Converts SIR to BER
 
