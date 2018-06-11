@@ -110,6 +110,8 @@ void    Station::zz_start () {
 	// Clock tolerance parameters
 	CQuality = zz_quality;
 	CTolerance = zz_tolerance;
+	// There's not default for this
+	CDrift = 0.0;
 #endif
 
 	// Add the station to the owner's list
@@ -120,22 +122,50 @@ void    Station::zz_start () {
 
 #if	ZZ_TOL
 
-void    Station::setTolerance (double t, int q) {
+void    Station::setTolerance (double t, int q, double d) {
 
-	if ((CTolerance = t) == 0.0)
-		CQuality = 0;
-	else
+	if (t >= 0.0) {
+		Assert (t < 0.5,
+		    "Station->setTolerance: illegal tolerance, %1.10f, must be "
+			"between 0.0 and 0.5", t);
+		CTolerance = t;
+	}
+
+	if (q >= 0) {
+		Assert (q <= 10,
+		    "Station->setTolerance: illegal quality, %1d, must be "
+			"between 0 and 10", q);
 		CQuality = q;
-	Assert ((q >=0) && (q <= 10) && (t >= 0.0) && (t < 1.0),
-		"Station->setTolerance: illegal clock tolerance parameters: "
-			"%f, %1d", t, q);
+	}
+
+	Assert (d >= -0.5 && d <= 0.5,
+		"Station->setTolerance: illegal drift, %1.10f, must be "
+		"between -0.5 and 0.5", d);
+
+	CDrift = d;
 }
 
-double	Station::getTolerance (int *q) {
+void    Station::setDrift (double d) {
+
+	Assert (d >= -0.5 && d <= 0.5,
+		"Station->setDrift: illegal drift, %1.10f, must be "
+		"between -0.5 and 0.5", d);
+
+	CDrift = d;
+}
+
+double	Station::getTolerance (int *q, double *d) {
 
 	if (q)
 		*q = CQuality;
+	if (d)
+		*d = CDrift;
 	return CTolerance;
+}
+
+double	Station::getDrift () {
+
+	return CDrift;
 }
 
 #endif

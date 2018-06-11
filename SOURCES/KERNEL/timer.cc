@@ -1,5 +1,5 @@
 /* ooooooooooooooooooooooooooooooooooooo */
-/* Copyright (C) 1991-09   P. Gburzynski */
+/* Copyright (C) 1991-18   P. Gburzynski */
 /* ooooooooooooooooooooooooooooooooooooo */
 
 /* --- */
@@ -21,6 +21,42 @@ zz_timer::zz_timer () {
         WList = NULL;
 }
 
+#if 	ZZ_TOL
+
+#define cadjust(ev,tp) do { \
+ \
+	double	p, y; \
+	int	i; \
+ \
+	if (TheStation->CQuality) { \
+ \
+		for (p = 1.0, i = 1; i <= TheStation->CQuality; \
+			i++, p *= 1.0 - rnd (SEED_delay)); \
+ \
+		y = -log (p); \
+ \
+		for (p = 1.0, i = 1; i <= TheStation->CQuality; \
+			i++, p *= 1.0 - rnd (SEED_delay)); \
+ \
+		y = y / (y - log (p)); \
+		y = TheStation->CTolerance * (y+y-1.0) + TheStation->CDrift; \
+ \
+	} else { \
+		y = TheStation->CDrift; \
+	} \
+ \
+	if (y < 0.0) \
+		ev = ev - (tp) ((ev * -y) + 0.5); \
+	else \
+		ev = ev + (tp) ((ev *  y) + 0.5); \
+} while (0)
+
+#else
+
+#define	cadjust(a,tp)	NOP
+
+#endif
+
 #if  ZZ_TAG
 void    zz_timer::wait (TIME ev, int pstate, LONG tag) {
 #else
@@ -33,10 +69,6 @@ void    zz_timer::wait (TIME ev, int pstate) {
 
 	TIME    t;
 
-#if     ZZ_TOL
-	double  p, y;
-	int     i;
-#endif
 #if     ZZ_TAG
 	int     q;
 #endif
@@ -51,26 +83,8 @@ void    zz_timer::wait (TIME ev, int pstate) {
 		zz_c_wait_event -> station = TheStation;
 		zz_c_wait_event -> process = TheProcess;
 
-#if     ZZ_TOL
+		cadjust (ev, TIME);
 
-		if (TheStation->CQuality) {
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = -log (p);
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = y / (y - log (p));
-
-			if ((y = TheStation->CTolerance * (y+y-1.0)) < 0.0)
-				ev = ev - (BIG) ((ev * -y) + 0.5);
-			else
-				ev = ev + (BIG) ((ev * y) + 0.5);
-		}
-#endif
 		t = Time + ev;
 	
 #if     BIG_precision == 1
@@ -104,26 +118,8 @@ void    zz_timer::wait (TIME ev, int pstate) {
 
 	} else {
 
-#if     ZZ_TOL
+		cadjust (ev, TIME);
 
-		if (TheStation->CQuality) {
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = -log (p);
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = y / (y - log (p));
-
-			if ((y = TheStation->CTolerance * (y+y-1.0)) < 0.0)
-				ev = ev - (BIG) ((ev * -y) + 0.5);
-			else
-				ev = ev + (BIG) ((ev * y) + 0.5);
-		}
-#endif
 		t = Time + ev;
 	
 #if     BIG_precision == 1
@@ -435,10 +431,6 @@ void    zz_timer::wait (LONG ev, int pstate) {
 
 	TIME    t;
 
-#if     ZZ_TOL
-	double  p, y;
-	int     i;
-#endif
 	if_from_observer ("Timer->wait: called from an observer");
 
 	if (zz_c_first_wait) {
@@ -450,26 +442,8 @@ void    zz_timer::wait (LONG ev, int pstate) {
 		zz_c_wait_event -> station = TheStation;
 		zz_c_wait_event -> process = TheProcess;
 
-#if     ZZ_TOL
+		cadjust (ev, LONG);
 
-		if (TheStation->CQuality) {
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = -log (p);
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = y / (y - log (p));
-
-			if ((y = TheStation->CTolerance * (y+y-1.0)) < 0.0)
-				ev = (LONG) (ev - ((ev * -y) + 0.5));
-			else
-				ev = (LONG) (ev + ((ev * y) + 0.5));
-		}
-#endif
 		t = Time + ev;
 	
 		new ZZ_REQUEST (&WList, this, NONE, pstate);
@@ -500,26 +474,8 @@ void    zz_timer::wait (LONG ev, int pstate) {
 
 	} else {
 
-#if     ZZ_TOL
+		cadjust (ev, LONG);
 
-		if (TheStation->CQuality) {
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = -log (p);
-
-			for (p = 1.0, i = 1; i <= TheStation->CQuality;
-				i++, p *= 1.0 - rnd (SEED_delay));
-
-			y = y / (y - log (p));
-
-			if ((y = TheStation->CTolerance * (y+y-1.0)) < 0.0)
-				ev = (LONG) (ev - ((ev * -y) + 0.5));
-			else
-				ev = (LONG) (ev + ((ev * y) + 0.5));
-		}
-#endif
 		t = Time + ev;
 	
 		new ZZ_REQUEST (&WList, this, NONE, pstate);

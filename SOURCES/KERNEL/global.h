@@ -2556,7 +2556,8 @@ class   Station : public ZZ_Object {
 	ZZ_Object       *ChList;        // Child list (objects owned)
 
 #if     ZZ_TOL
-	double          CTolerance;     // Tolerance parameters
+	double          CTolerance,     // Tolerance parameters
+			CDrift;
 	int             CQuality;
 #endif
 	static Long sernum;             // Serial number
@@ -2605,8 +2606,10 @@ class   Station : public ZZ_Object {
 	void terminate ();
 
 #if	ZZ_TOL
-	void	setTolerance (double t, int q);
-	double	getTolerance (int *q = NULL);
+	void	setTolerance (double t = -1.0, int q = -1, double d = 0.0);
+	void	setDrift (double);
+	double	getTolerance (int *q = NULL, double *d = NULL);
+	double	getDrift ();
 #endif
 
 #if	ZZ_NOC

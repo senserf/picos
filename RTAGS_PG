@@ -776,9 +776,18 @@ PG180519A:
 PG180601A:
 
 	   I have changed the signature of RFC_xmt, one of the so-called
-	   assessment method, to base its operation of the (full) packet,
+	   assessment methods, to base its operation of the (full) packet,
 	   rather than just the length. This makes more sense, because, in
 	   some advanced models, different components of the same packet can
 	   be sent using different encodings (rates).
 
-	   A new version of the manual (aka book). Enjoy the index!
+	   A new version of the manual (aka the book). Enjoy the index!
+
+PG180611A:
+
+	   I have extended the concept of clock tolerance, so far aimed at
+	   merely "randomizing" the indications of independent clocks, by an
+	   explicit drift parameter (introducing a pronounced, one-way drift).
+	   Thus, the drift mechanism is now built into the SMURPH Timer.
+
+	   Updated the manual (aka the book).
