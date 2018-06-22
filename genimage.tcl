@@ -8,7 +8,7 @@ exec tclsh85 "$0" "$@"
 # Copyright (C) Olsonet Communications, 2008-2016 All Rights Reserved      #
 ############################################################################
 
-set PM(VER)	1.5.1
+set PM(VER)	1.6.0
 
 proc usage { } {
 
@@ -56,8 +56,10 @@ set PM(PWD) [file normalize [pwd]]
 set MWSG ""
 # list of modes for Image files and the associated file name extensions
 set PM(MDS) { "IHEX" "ELF" }
-set PM(MDS,IHEX) { ".a43" {{ "Intel Hex" {*.a43}} { "All" {*} }}}
+set PM(MDS,IHEX) { ".a43" {{ "Intel Hex" {*.a43}} {"TI Hex" {*.hex}} { "All" {*} }}}
 set PM(MDS,ELF) { "" {{ "All" {*} }}}
+set PM(EXS,IHEX) { ".a43" ".hex" }
+set PM(EXS,ELF) { "" }
 
 ## double exit avoidance flag
 set DEAF 0
@@ -121,14 +123,16 @@ proc reset_target_file_name { { defs 0 } } {
 
 	if { $tfn == "" } {
 		set tfn "Image_nnnn"
+		set suf [file extension $DEFS(IFN)]
 	} else {
+		set suf [file extension $tfn]
 		set tfn [file rootname $tfn]
 		if ![regexp -nocase "_nnnn" $tfn] {
 			append tfn "_nnnn"
 		}
 	}
 
-	set tfn "$tfn[suff]"
+	set tfn "${tfn}${suf}"
 
 	set DEFS(TFN) $tfn
 	if !$defs {
@@ -143,6 +147,8 @@ proc reset_file_name_mode { } {
 #
 	global DEFS PM IFN TFN
 
+	set sufflist $PM(EXS,$DEFS(MOD))
+
 	foreach t { SRD TRD } i { IFN TFN } {
 		if { $DEFS($t) != "" } {
 			# check if exists
@@ -154,9 +160,16 @@ proc reset_file_name_mode { } {
 			set DEFS($t) $PM(DEP)
 		}
 		set DEFS($t) [file normalize $DEFS($t)]
-		if { $DEFS($i) == "" || [file extension $DEFS($i)] != [suff] } {
+		if { $DEFS($i) != "" } {
+			# check if the extension is legit
+			set suf [file extension $DEFS($i)]
+			if { [lsearch -exact $sufflist $suf] < 0 } {
+				set DEFS($i) ""
+			}
+		}
+		if { $DEFS($i) == "" } {
 			if { $i == "IFN" } {
-				set DEFS($i) "Image[suff]"
+				set DEFS($i) "Image[lindex $sufflist 0]"
 			} else {
 				reset_target_file_name 1
 			}
@@ -166,24 +179,30 @@ proc reset_file_name_mode { } {
 		    ![file isfile [file join $DEFS($t) $DEFS($i)]] } {
 			# sorry, try to look something up
 			if { [catch { glob -directory $DEFS($t) -tails \
-			     "Image*[suff]" } fl] || $fl == "" } {
+			    "Image*" } fl] || $fl == "" } {
 				# this won't work, anyway, but we need some
 				# filler
-				set DEFS($i) "Image[suff]"
+				set DEFS($i) "Image[lindex $sufflist 0]"
 			} else {
 				set fl [lsort $fl]
 				set fi ""
 				foreach f $fl {
-					# eliminate clones
-					if ![regexp -nocase \
+					# first, eliminate clones
+					if [regexp -nocase \
 					     "_.*\[a-z0-9\]_\[0-9\]+" $f] {
+						continue
+					}
+					# check for suffix match
+					set suf [file extension $f]
+					if { [lsearch -exact $sufflist $suf] >=
+					    0 } {
 						set fi $f
 						break
 					}
 				}
 				if { $fi == "" } {
 					# still need the filler
-					set fi "Image[suff]"
+					set fi "Image[lindex $sufflist 0]"
 				}
 				set DEFS($i) $fi
 			}

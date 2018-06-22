@@ -2161,7 +2161,8 @@ proc edit_file { fn } {
 	lappend ar $ca
 	lappend ar $fn
 
-	if [catch { open "|$EditCommand $ar" "r+" } fd] {
+	set ar "$EditCommand $ar"
+	if [catch { open "|$ar" "r+" } fd] {
 		alert "Cannot start text editor: $fd"
 		return
 	}
@@ -2190,7 +2191,7 @@ proc edit_file { fn } {
 	# mark the status in the tree
 	gfl_status $fn 0
 
-	log "Editing file: $fn, mode $em"
+	log "Editing file: $fn, mode $em, cmd $ar"
 
 	fconfigure $fd -blocking 0 -buffering none
 	fileevent $fd readable "edit_status_read $fd"

@@ -93,6 +93,3 @@ Quick start and demo:
    Build or Execute.
 
 11.Now for the real show. Click Execute->Run VUEE.
-
-   Note that it is all extremely preliminary and buggy. I will keep working on
-   it. Please send me your comments.

@@ -901,3 +901,7 @@ PG170818A:	PICOS >= PG170818A
 PG170906A:
 
 	A few cosmetics related to the parameters of Elvis.
+
+PG180622A:
+
+	Improved file name/defaults handling in genimage + minor cosmetics.
