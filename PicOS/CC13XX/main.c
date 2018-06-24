@@ -46,8 +46,8 @@ void __pi_ondomain (lword d) {
 //
 	if (d & PRCM_DOMAIN_RFCORE) {
 		// Make sure the effective PD mode is at most 1
-		if (__pi_systat.effpdm > 1)
-			__pi_systat.effpdm = 1;
+		if (__pi_systat.effpdm > RFCORE_PD_MODE)
+			__pi_systat.effpdm = RFCORE_PD_MODE;
 	}
 
 	PRCMPowerDomainOn (d);
@@ -60,7 +60,6 @@ void __pi_offdomain (lword d) {
 //
 // Remove the indicated domains from the on set
 //
-
 	PRCMPowerDomainOff (d);
 	while (PRCMPowerDomainStatus (d) != PRCM_DOMAIN_POWER_OFF);
 
@@ -393,31 +392,35 @@ EUT:
 
 word tci_update_delay_ticks (Boolean force) {
 //
-// Called to stop the timer, if running, and tally up the ticks
+// Called to stop the timer, if running, and tally up the ticks; fixed not
+// to use sti_tim
 //
+	if (!force)
+		// Just checking in a safe loop of the scheduler; no problem
+		// about setdel possibly changing to zero, which we will find
+		// out on the next (event) turn of the scheduler loop
+		return setdel;
+
+	// Now we have to be accurate
+	if (setdel == 0)
+		// Timer must be disabled when setdel is found to be zero
+		// in a non-interrupt; so the return is safe
+		return NO;
+
 	cli_tim;
+
+	// Have to check again with the interrupt disabled; setdel is allowed to
+	// become zero only once per setting (and per cli_tim)
 	if (setdel) {
-		// The timer has been running, otherwise we don't have to
-		// bother; force tells whether we have to stop the timer (e.g.,
-		// catering to a new delay request), or whether we are just
-		// checking; if !force, and the timer is running, just let
-		// it go and return YES, to tell update_n_wake to exit;
-		// when we return NO, it means that we actually have to
-		// examine the delay queue; in such a case, the timer will
-		// be restarted later
-		if (force) {
-			// Determine the difference between the comparator
-			// and the clock
-			__pi_new += setdel - (TCI_INCRT (HWREG (AON_RTC_BASE +
+		// Determine the difference between the comparator and the clock
+		__pi_new += setdel - (TCI_INCRT (HWREG (AON_RTC_BASE +
 				AON_RTC_O_CH0CMP)) - gettav ());
-			// Use it only once
-			setdel = 0;
-			goto EX;
-		}
-		sti_tim;
-		return YES;
+		// Use it only once
+		setdel = 0;
+		// Racing with the interrupt: make sure the event is disabled
+		HWREG (AON_RTC_BASE + AON_RTC_O_EVFLAGS) = AON_RTC_EVFLAGS_CH0;
 	}
-EX:
+
 	return NO;
 }
 
@@ -1024,6 +1027,8 @@ void __pinlist_setirq (int val) {
 
 void system_init () {
 
+	Boolean wfsd;		// Wakeup from shutdown
+
 	__pi_ondomain (PRCM_DOMAIN_PERIPH);
 
 	PRCMPeripheralRunEnable (PRCM_PERIPH_GPIO);
@@ -1031,8 +1036,27 @@ void system_init () {
 	PRCMPeripheralDeepSleepEnable (PRCM_PERIPH_GPIO);
 	PRCMLoadSet ();
 
+#if 0
+	// This is set by config, I guess
+#if USE_FLASH_CACHE
+	VIMSModeSafeSet (VIMS_BASE, VIMS_MODE_ENABLED, true);
+#else
+	VIMSModeSafeSet (VIMS_BASE, VIMS_MODE_DISABLED, true);
+#endif
+#endif
+
 	// Initialize DIO ports
 	port_config ();
+
+	if (SysCtrlResetSourceGet () == RSTSRC_WAKEUP_FROM_SHUTDOWN) {
+		// Waking from shutdown, shoul unfreeze I/O right after setting
+		// up the port config, so we can control the peripherals, and,
+		// e.g., blink the LEDs ;-)
+		wfsd = YES;
+		PowerCtrlIOFreezeDisable ();
+	} else {
+		wfsd = NO;
+	}
 
 #if	LEDS_DRIVER
 	all_leds_blink;
@@ -1099,12 +1123,9 @@ void system_init () {
 	// Extra initialization
 	EXTRA_INITIALIZERS;
 #endif
-	// If waking from shutdown, unfreeze the I/O
-	if (SysCtrlResetSourceGet () == RSTSRC_WAKEUP_FROM_SHUTDOWN) {
+	if (!wfsd) {
 
-		PowerCtrlIOFreezeDisable ();
-
-	} else {
+		// Don't show the banner, if waking from shutdown
 
 #if	DIAG_MESSAGES
 		diag ("");
@@ -1156,11 +1177,76 @@ void setpowermode (word mode) {
 		// This is the maximum
 		mode = 3;
 
-	__pi_systat.effpdm = ((__pi_systat.reqpdm = mode) < 2 ||
+	__pi_systat.effpdm = ((__pi_systat.reqpdm = mode) <= RFCORE_PD_MODE ||
 	    (__pi_systat.ondmns & PRCM_DOMAIN_RFCORE) == 0) ?
-		mode : 1;
+		mode : RFCORE_PD_MODE;
 }
 
+__attribute__((noreturn)) void hibernate () {
+//
+// Unconditional shutdown
+//
+#if 0
+	// OSC source must be HF at this point (it is, but let's make it
+	// absolutely foolproof)
+    	if (OSCClockSourceGet (OSC_SRC_CLK_HF) != OSC_RCOSC_HF) {
+       		OSCClockSourceSet (OSC_SRC_CLK_HF |
+			OSC_SRC_CLK_MF, OSC_RCOSC_HF);
+       		while (!OSCHfSourceReady ());
+       		OSCHfSourceSwitch ();
+       	}
+#endif
+
+#if 0
+	// Disable CRYPTO and UDMA (we don't need them [yet])
+       	PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_CRYPTO);
+       	PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_UDMA);
+       	PRCMLoadSet ();
+       	while (!PRCMLoadGet ());
+#endif
+	// Power off AUX and disconnect from bus
+	AUXWUCPowerCtrl (AUX_WUC_POWER_OFF);
+
+	// Remove AUX force ON
+	HWREG (AON_WUC_BASE + AON_WUC_O_AUXCTL) &= ~AON_WUC_AUXCTL_AUX_FORCE_ON;
+	HWREG (AON_WUC_BASE + AON_WUC_O_JTAGCFG) &=
+		~AON_WUC_JTAGCFG_JTAG_PD_FORCE_ON;
+
+	// Reset AON event source IDs to prevent pending events from powering
+	// on MCU/AUX
+	HWREG (AON_EVENT_BASE + AON_EVENT_O_MCUWUSEL) = 0x3F3F3F3F;
+	HWREG (AON_EVENT_BASE + AON_EVENT_O_AUXWUSEL) = 0x3F3F3F3F;
+
+	// Pins should be configured for wakeup by now; sync AON
+	SysCtrlAonSync ();
+
+	// Enable shutdown, latch the IO
+	AONWUCShutDownEnable ();
+
+	// Sync AON again (why do we have to do it twice?)
+	SysCtrlAonSync ();
+
+	// Wait until AUX powered off
+	while (AONWUCPowerStatusGet () & AONWUC_AUX_POWER_ON);
+
+	// Request to power off the MCU when it goes to deep sleep
+	PRCMMcuPowerOff ();
+
+	// Turn off all domains
+	PRCMPowerDomainOff (
+			PRCM_DOMAIN_RFCORE |
+			PRCM_DOMAIN_SERIAL |
+			PRCM_DOMAIN_PERIPH |
+			PRCM_DOMAIN_CPU    |
+			PRCM_DOMAIN_VIMS );
+
+	// Deep sleep
+	while (1)
+		// Once is enough, but then gcc complains that the function
+		// returns; so what is the attribute for?
+		PRCMDeepSleep ();
+}
+	
 lword system_event_count;	// For debugging, but maybe it should stay
 
 static inline void __do_wfi_as_needed () {
@@ -1194,13 +1280,17 @@ static inline void __do_wfi_as_needed () {
 			SysCtrlAonSync ();
 
 			// Enter deep sleep
-DeepSleep:
-			HWREG (NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
-			__WFI ();
-			HWREG (NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
+			PRCMDeepSleep ();
 
-			// We are mostly woken by the timer
-			SysCtrlAonSync ();
+			// PRCMDeepSleep is Equivalent to this
+			// HWREG (NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
+			// __WFI ();
+			// HWREG (NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
+
+			// We are mostly woken by the timer; previously, I had
+			// here SysCtrlAonSync, but it didn't work; this makes
+			// more sense, intuitively
+			SysCtrlAonUpdate ();
 
 			return;
 
@@ -1210,7 +1300,7 @@ DeepSleep:
 
 			AONIOCFreezeEnable ();
 			// We know that XOSC_HF is not active, because RF is
-			// off
+			// off; the only idle mode compatible with RF is IDLE
 
 			// Allow AUX to power down
 			AONWUCAuxWakeupEvent (AONWUC_AUX_ALLOW_SLEEP);
@@ -1226,58 +1316,68 @@ DeepSleep:
 
 			// Request uLDO during standby
 			PRCMMcuUldoConfigure (true);
-#if 1
-			// Don't want cache retention; our cache mode is
-			// VIMS_MODE_ENABLED
-			// FIXME: consider turning cache off (as an option)
-#if 0
-			// No need for it to be changing
-			while (VIMSModeGet (VIMS_BASE) == VIMS_MODE_CHANGING);
-#endif
-			PRCMCacheRetentionDisable ();
 
+			// This is needed here!!! Why???
+			while (VIMSModeGet (VIMS_BASE) == VIMS_MODE_CHANGING);
+#if USE_FLASH_CACHE == 0
+			// No flash cache, make sure VIMS is down
 			// Turn off the VIMS
 			VIMSModeSet (VIMS_BASE, VIMS_MODE_OFF);
+			// This applies to GPRAM then, it is lost on sleep?
+			PRCMCacheRetentionDisable ();
 #endif
 			// Setup recharge parameters
-			SysCtrlSetRechargeBeforePowerDown
-				(XOSC_IN_HIGH_POWER_MODE);
+			SysCtrlSetRechargeBeforePowerDown (
+				XOSC_IN_HIGH_POWER_MODE
+			);
 
 			// Wait for AON writes to complete
 			SysCtrlAonSync ();
 
 			// Enter deep sleep
-			HWREG (NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
-			__WFI ();
-			HWREG (NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
-#if 1
-			// Back from sleep; the cache
+			PRCMDeepSleep ();
+
+			// HWREG (NVIC_SYS_CTRL) |= NVIC_SYS_CTRL_SLEEPDEEP;
+			// __WFI ();
+			// HWREG (NVIC_SYS_CTRL) &= ~(NVIC_SYS_CTRL_SLEEPDEEP);
+
+#if USE_FLASH_CACHE == 0
+			// Restore the cache mode; note: make sure that it is
+			// globally enabled, which is the default
 			VIMSModeSet (VIMS_BASE, VIMS_MODE_ENABLED);
+			// This has to be cleaned up!! We only cover two
+			// possibilities now; the third one is no cache, no
+			// extra GPRAM; probably the most interesting one!
 			PRCMCacheRetentionEnable ();
 #endif
 			// Force power on of AUX; this also counts as a write
 			// so a following sync will force an update of AON
 			// registers
 			AONWUCAuxWakeupEvent (AONWUC_AUX_WAKEUP);
-			while (!(AONWUCPowerStatusGet () &
-				AONWUC_AUX_POWER_ON));
 
 			// Restore power domain states 
 			PRCMPowerDomainOn (__pi_systat.ondmns);
-			while (PRCMPowerDomainStatus (__pi_systat.ondmns) !=
-				PRCM_DOMAIN_POWER_ON);
 
-			// Make sure clock settings take effect
+			// Make sure clock settings take effect (not needed
+			// after PRCMPowerDomainOn??)
 			PRCMLoadSet ();
 
 			// Release uLDO
 			PRCMMcuUldoConfigure (false);
 
+			// Wait for the domains to come up
+			while (PRCMPowerDomainStatus (__pi_systat.ondmns) !=
+				PRCM_DOMAIN_POWER_ON);
+
 			// Disable I/O freeze
 			AONIOCFreezeDisable ();
 
 			// Ensure shadow RTC is updated
-			SysCtrlAonSync ();
+			SysCtrlAonUpdate ();
+
+			// Wait for AUX to power up
+			while (!(AONWUCPowerStatusGet () &
+				AONWUC_AUX_POWER_ON));
 
 			// Adjust recharge parameters
 			SysCtrlAdjustRechargeAfterPowerDown ();
@@ -1288,7 +1388,7 @@ DeepSleep:
 
 #ifdef	N_UARTS
 			// This assumes that PRCM_DOMAIN_SERIAL is up:
-			// __pi_systat.ondmns & PRCM_DOMAIN_SERIAL)
+			// __pi_systat.ondmns & PRCM_DOMAIN_SERIAL
 			reinit_uart ();
 			enable_uart_interrupts ();
 #endif
@@ -1297,73 +1397,17 @@ DeepSleep:
 			// Force I2C reinit on first I/O
 			i2c_scl = BNONE;
 #endif
-			// ... other domains (we don't do it with RF on)
+			// ... other domains (we don't do this with RF on)
 			return;
 
 				// ============================================
 		default:	// SHUTDOWN ===================================
 				// ============================================
-#if 0
-			// OSC source must be HF at this point (it is, but
-			// let's make it absolutely foolproof)
-    			if (OSCClockSourceGet (OSC_SRC_CLK_HF) !=
-			    OSC_RCOSC_HF) {
-            			OSCClockSourceSet (OSC_SRC_CLK_HF |
-					OSC_SRC_CLK_MF, OSC_RCOSC_HF);
-            			while (!OSCHfSourceReady ());
-            			OSCHfSourceSwitch ();
-        		}
-#endif
 
-#if 0
-			// Disable CRYPTO and UDMA (we don't need them [yet])
-        		PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_CRYPTO);
-        		PRCMPeripheralDeepSleepDisable (PRCM_PERIPH_UDMA);
-        		PRCMLoadSet ();
-        		while (!PRCMLoadGet());
-#endif
-			// Power off AUX and disconnect from bus
-			AUXWUCPowerCtrl (AUX_WUC_POWER_OFF);
+		hibernate ();
 
-			// Remove AUX force ON
-			HWREG (AON_WUC_BASE + AON_WUC_O_AUXCTL) &=
-				~AON_WUC_AUXCTL_AUX_FORCE_ON;
-			HWREG (AON_WUC_BASE + AON_WUC_O_JTAGCFG) &=
-				~AON_WUC_JTAGCFG_JTAG_PD_FORCE_ON;
+		// No return
 
-			// Reset AON event source IDs to prevent pending events
-			// from powering on MCU/AUX
-			HWREG (AON_EVENT_BASE + AON_EVENT_O_MCUWUSEL) =
-				0x3F3F3F3F;
-			HWREG (AON_EVENT_BASE + AON_EVENT_O_AUXWUSEL) =
-				0x3F3F3F3F;
-
-			// Pins should be configured for wakeup by now; sync AON
-			SysCtrlAonSync();
-
-			// Enable shutdown, latch the IO
-			AONWUCShutDownEnable ();
-
-			// Sync AON again
-			SysCtrlAonSync ();
-
-			// Wait until AUX powered off
-			while (AONWUCPowerStatusGet () & AONWUC_AUX_POWER_ON);
-
-			// Request to power off the MCU when it goes to deep
-			// sleep
-			PRCMMcuPowerOff ();
-
-			// Turn off all domains
-			PRCMPowerDomainOff (
-					PRCM_DOMAIN_RFCORE |
-					PRCM_DOMAIN_SERIAL |
-					PRCM_DOMAIN_PERIPH |
-					PRCM_DOMAIN_CPU    |
-					PRCM_DOMAIN_VIMS );
-
-			// Deep sleep, no return
-			goto DeepSleep;
 	}
 }
 
@@ -1405,11 +1449,9 @@ int main (void) {
 #if	TCV_PRESENT
 	tcv_init ();
 #endif
-
 	// For standby mode wakeup on timer
 	AONEventMcuWakeUpSet (AON_EVENT_MCU_EVENT0, AON_EVENT_RTC_COMB_DLY);
-	// Edge on any I/O, will it take care of UART? No, of course not!
-	// But it does work for buttons.
+	// Edge on any I/O
 	AONEventMcuWakeUpSet (AON_EVENT_MCU_EVENT1, AON_EVENT_IO);
 
 	// Assume root process identity
@@ -1438,5 +1480,4 @@ int main (void) {
 //	change involves a SLEEP loop turn).
 //
 //	How to avoid the minute wakeups on MAX delay?
-//
 //

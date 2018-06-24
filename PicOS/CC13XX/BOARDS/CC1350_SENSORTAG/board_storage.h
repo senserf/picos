@@ -18,4 +18,4 @@
 
 // This should properly power down the flash chip
 // disabled for debugging
-// #define	EXTRA_INITIALIZERS	do { ee_open (); ee_close (); } while (0)
+#define	EXTRA_INITIALIZERS	do { ee_open (); ee_close (); } while (0)

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2018                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -77,17 +77,17 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
 		iocportconfig (IOID_4, IOC_PORT_GPIO, \
-			/* Button 0, active low, needs pullup */ \
+			/* Button 0, active low, pullup, wake up from s/d */ \
 			IOC_IOMODE_NORMAL 	| \
-			IOC_NO_WAKE_UP		| \
 			IOC_FALLING_EDGE	| \
 			IOC_INT_DISABLE		| \
 			IOC_IOPULL_UP		| \
 			IOC_INPUT_ENABLE	| \
-			IOC_HYST_ENABLE		| \
+			IOC_HYST_DISABLE	| \
 			IOC_SLEW_DISABLE	| \
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
+			IOC_WAKE_ON_LOW		| \
 			0, 0, 0), \
 		iocportconfig (IOID_5, IOC_PORT_GPIO, \
 			/* SDA, shared, pulled up externally, init open */ \
@@ -222,15 +222,15 @@
 		iocportconfig (IOID_15, IOC_PORT_GPIO, \
 			/* Button 1, active low, needs pullup */ \
 			IOC_IOMODE_NORMAL 	| \
-			IOC_NO_WAKE_UP		| \
 			IOC_FALLING_EDGE	| \
 			IOC_INT_DISABLE		| \
 			IOC_IOPULL_UP		| \
 			IOC_INPUT_ENABLE	| \
-			IOC_HYST_ENABLE		| \
+			IOC_HYST_DISABLE	| \
 			IOC_SLEW_DISABLE	| \
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
+			IOC_WAKE_ON_LOW		| \
 			0, 0, 0), \
 		iocportconfig (IOID_17, IOC_PORT_GPIO, \
 			/* mx25r8035 SCLK */ \

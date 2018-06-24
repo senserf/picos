@@ -246,6 +246,63 @@ set C_WORDS(protected)		{ 0 }
 set C_WORDS(true)		{ 0 }
 set C_WORDS(wchar_t)		{ 0 }
 
+###############################################################################
+# Operators to be parsed as single tokens #####################################
+###############################################################################
+
+set O_T(+)			{ "+" "=" }
+set O_T(-)			{ "-" ">" "=" }
+set O_T(*)			{ "=" }
+set O_T(/)			{ "=" }
+set O_T(%)			{ "=" }
+set O_T(=)			{ "=" }
+set O_T(!)			{ "=" }
+set O_T(>)			{ ">" "=" }
+set O_T(>>)			{ "=" }
+set O_T(<)			{ "<" "=" }
+set O_T(<<)			{ "=" }
+set O_T(&)			{ "&" "=" }
+set O_T(|)			{ "|" "=" }
+set O_T(^)			{ "=" }
+set O_T(.)			{ "." }
+set O_T(..)			{ "." }
+
+proc popr { c } {
+
+	global O_T
+
+	putC $c
+
+	if ![info exists O_T($c)] {
+		return $c
+	}
+
+	set d [peekC]
+	foreach s $O_T($c) {
+		if { $s == $d } {
+			# at least two-character
+			putC $d
+			getC
+			append c $d
+			if [info exists O_T($c)] {
+				# three?
+				set d [peekC]
+				foreach t $O_T($c) {
+					if { $t == $d } {
+						putC $d
+						getC
+						append c $d
+						return $c
+					}
+				}
+			}
+			return $c
+		}
+	}
+
+	return $c
+}
+
 proc catt { k } {
 
 	global C_WORDS
@@ -1003,16 +1060,17 @@ proc ntoken { } {
 			}
 
 			"/" {
-				putC $c
-				set c [peekC]
-				if { $c == "/" || $c == "*" } {
-					set as "/$c"
-					set ws $c
+				set d [peekC]
+				if { $d == "/" || $d == "*" } {
+					# comment
 					putC $c
+					set as "/$d"
+					set ws $d
+					putC $d
 					getC
 					continue
 				}
-				outtok "/"
+				# fallback to operator
 			}
 
 			"\}" {
@@ -1026,47 +1084,9 @@ proc ntoken { } {
 				incr PS(BRL)
 				outtok "\{"
 			}
-
-			"-" {
-				putC $c
-				set c [peekC]
-				if { $c == ">" } {
-					putC $c
-					getC
-					outtok "->"
-					continue
-				}
-				outtok "-"
-			}
-
-			"." {
-				putC $c
-				set c [peekC]
-				if { $c == "." } {
-					# this must be followed by a third dot,
-					# or the token is illegal
-					putC $c
-					getC
-					set c [peekC]
-					if { $c != "." } {
-						xerror "illegal token starting\
-							with .."
-					} else {
-						putC $c
-						getC
-					}
-					outtok "..."
-					continue
-				}
-				outtok "."
-			}
-
-		  	default {
-
-				putC $c
-				outtok $c
-			}
 		}
+
+		outtok [popr $c]
 	}
 
 	set PAR_IT "f"

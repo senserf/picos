@@ -10,4 +10,12 @@
 #endif
 #endif
 
+#if USE_FLASH_CACHE
+// Disable extra GPRAM
+#define	SET_CCFG_SIZE_AND_DIS_FLAGS_DIS_GPRAM 	1
+#else
+// Enable extra GPRAM
+#define	SET_CCFG_SIZE_AND_DIS_FLAGS_DIS_GPRAM 	0
+#endif
+
 #endif

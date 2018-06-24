@@ -87,8 +87,8 @@
 			IOC_STRENGTH_AUTO	| \
 			0, 0, 0), \
 		iocportconfig (IOID_13, IOC_PORT_GPIO, \
+			/* Button 0, also shutdown wakeup */ \
 			IOC_IOMODE_NORMAL 	| \
-			IOC_WAKE_ON_LOW		| \
 			IOC_FALLING_EDGE	| \
 			IOC_INT_DISABLE		| \
 			IOC_IOPULL_UP		| \
@@ -97,8 +97,10 @@
 			IOC_SLEW_DISABLE	| \
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
+			IOC_WAKE_ON_LOW		| \
 			0, 0, 0), \
 		iocportconfig (IOID_14, IOC_PORT_GPIO, \
+			/* Button 1 */ \
 			IOC_IOMODE_NORMAL 	| \
 			IOC_WAKE_ON_LOW		| \
 			IOC_FALLING_EDGE	| \

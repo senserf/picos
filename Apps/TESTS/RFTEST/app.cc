@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2018                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -77,6 +77,190 @@ address	g_rcv_ackrp;
 
 noded_t	g_rep_nodes [MAX_NODES];
 
+// ============================================================================
+
+#ifdef	SIGNALING_LED
+
+word	blink_delay;
+word	n_blinks;
+
+fsm blinker {
+
+	state BL_START:
+
+		if (n_blinks) {
+			n_blinks--;
+			leds (SIGNALING_LED, 1);
+			delay (blink_delay, BL_NEXT);
+			release;
+		}
+
+		finish;
+
+	state BL_NEXT:
+
+		leds (SIGNALING_LED, 0);
+		delay (blink_delay, BL_START);
+}
+
+static void _blink (word n, word d) {
+
+	if (n == 0)
+		// Stop
+		n_blinks = 0;
+	else if ((n += n_blinks) > 255)
+		n_blinks = 255;
+	else
+		n_blinks = n;
+
+	if (d > 1024)
+		d = 1024;
+	else if (d < 4)
+		d = 4;
+
+	blink_delay = d;
+
+	if (n_blinks && !running (blinker))
+		runfsm blinker;
+}
+
+#define	blink(n,d)	_blink (n, d)
+
+#else
+
+#define	blink(n,d)	CNOP
+
+#endif	/* SIGNALING_LED */
+
+#ifdef	STATUS_LED
+
+#if defined(SIGNALING_LED) && STATUS_LED == SIGNALING_LED
+
+fsm status_blinker {
+
+	state SB_WAIT:
+
+		if (n_blinks == 0)
+			blink (1, 16);
+
+		delay (g_rstat == 2 ? 4096 : 1024, SB_WAIT);
+}
+
+#else
+
+fsm status_blinker {
+
+	state SB_ON:
+
+		leds (STATUS_LED, 1);
+		delay (16, SB_OFF);
+		release;
+
+	state SB_OFF:
+
+		leds (STATUS_LED, 0);
+		delay (g_rstat == 2 ? 4096 : 1024, SB_ON);
+}
+
+#endif
+
+#endif
+
+// ============================================================================
+
+word do_command (const char*, word, word);
+
+fsm thread_sender;
+
+#if !defined(CHRONOS) && defined(BUTTON_LIST)
+
+// Button control
+
+fsm button_holder {
+
+	word counter;
+
+	state BH_START:
+
+		// 5 sec push
+		counter = 1024 * 5;
+
+	state BH_LOOP:
+
+		delay (1, BH_TRY);
+		release;
+
+	state BH_TRY:
+
+		if (button_down (0)) {
+			if (--counter)
+				sameas BH_LOOP;
+			// Everything OFF
+			do_command ("q", 0, 0);
+			do_command ("f", 0, 0);
+			// Fast blink a few times
+			blink (128, 64);
+			delay (40 * 64, BH_HIBERNATE);
+			release;
+		}
+
+		// Normal action which is radio toggle
+		if (running (thread_sender) || g_rstat != 2) {
+			if (do_command ("q", 0, 0) == 0 &&
+			    do_command ("f", 0, 0) == 0)
+				blink (2, 128);
+		} else {
+			if (do_command ("s", 0, 0) == 0 &&
+			    do_command ("g", 0, 0) == 0)
+				blink (4, 128);
+		}
+
+		finish;
+
+	state BH_HIBERNATE:
+
+		// Generally, it is trickier than this; we have to make sure
+		// all pins are in the "no current" state, because shutdown
+		// will freeze their state
+#ifdef	CC1350
+		leds_off;
+		hibernate ();
+#else
+		// Hibernate (shutdown mode) not available
+		if (running (thread_sender) || g_rstat != 2) {
+			if (do_command ("q", 0, 0) == 0 &&
+			    do_command ("f", 0, 0) == 0)
+		}
+#ifdef	SIGNALING_LED
+		n_blinks = 2;
+#endif
+		finish;
+#endif
+
+}
+
+static void buttons (word but) {
+
+	switch (but) {
+
+		case 0:
+			// Run a thread to detect a long push, to power down
+			// the device
+			if (running (button_holder))
+				// Ignore
+				return;
+
+			runfsm button_holder;
+	}
+
+	// Tacitly ignore other buttons
+}
+
+#define	BUTTONS_ACTION_PRESENT
+
+#endif
+
+// ============================================================================
 // ============================================================================
 
 #ifdef CHRONOS
@@ -328,7 +512,7 @@ void send_mak (address pkt, word pl) {
 	if (pkt [POFF_ACT] == HOST_ID) {
 		// Show it on the UART
 #ifdef CHRONOS
-		enc_dec (pkt [POFF_RSSQ] >> 8);
+		enc_dec (pkt [POFF_RSSQ] >> 8, 4);
 		m_out (WNONE, "RSSI");
 #else
 		uart_outf (WNONE,
@@ -427,7 +611,7 @@ Cant_fork:
 		goto Bad_length;
 
 #ifdef CHRONOS
-	enc_dec (buf [POFF_RSSQ] >> 8);
+	enc_dec (buf [POFF_RSSQ] >> 8, 4);
 	m_out (WNONE, "RSSI");
 #else
 	uart_outf (WNONE, "MAK F:%u, T:%u, N:%u, L:%u, P:%u, R:%u, Q:%u",
@@ -603,10 +787,12 @@ word do_command (const char *cb, word sender, word sernum) {
 		g_pkt_maxpl = (int) mapl;
 		g_pkt_ack_to = acto;
 
+#ifndef CHRONOS
 		if (!sender)
 			uart_outf (WNONE,
 			    "mnd:%u, mxd:%u, mnl:%u, mxl:%u, act:%u",
 				mide, made, mipl, mapl, acto);
+#endif
 		return 0;
 	    }
 
@@ -692,14 +878,14 @@ word do_command (const char *cb, word sender, word sernum) {
 	    case 'd':
 
 		// Power down mode
-		powerdown ();
+		setpowermode (POWER_DOWN_MODE);
 		g_flags |= 0x8000;
 		return 0;
 
 	    case 'u':
 
 		// Power up mode
-		powerup ();
+		setpowermode (0);
 		g_flags &= ~0x8000;
 		return 0;
 
@@ -721,9 +907,10 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		g_flags = (g_flags & 0x9fff) | ((fg & 3) << 13);
 RetFlags:
+#ifndef	CHRONOS
 		if (!sender)
 			uart_outf (WNONE, "F:%u", (g_flags >> 13) & 3);
-
+#endif
 		return 0;
 
 	    }
@@ -854,7 +1041,9 @@ RetFlags:
 		if (ch == WNONE && !sender) {
 			// return current channel
 			tcv_control (g_fd_rf, PHYSOPT_GETCHANNEL, &ch);
+#ifndef CHRONOS
 			uart_outf (WNONE, "C = %u", ch);
+#endif
 			return WNONE;
 		}
 
@@ -880,6 +1069,8 @@ RetFlags:
 			tcv_control (g_fd_rf, PHYSOPT_RXOFF, &ch);
 		} else {
 			tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+			// Just making sure
+			g_rstat = 0;
 		}
 		// Never confirm
 		return WNONE;
@@ -1042,7 +1233,8 @@ RetFlags:
 		    case 'r': {
 			// Memory read
 			Boolean b;
-			volatile word a, c;
+			volatile word c;
+			volatile aword a;
 			cb++;
 			b = YES;
 			if (*cb == 'w') {
@@ -1053,14 +1245,14 @@ RetFlags:
 			}
 			// Read the address in hex
 			a = 0;
-			scan (cb + 1, "%x", &a);
+			scan (cb + 1, __hfsi, &a);
 			if (a == 0)
 				return 10;
 			if (b)
 				c = *((byte*)a);
 			else
 				c = *((word*)a);
-			uart_outf (WNONE, "ZR: %c(%x) => %x <%u>",
+			uart_outf (WNONE, "ZR: %c(" __hfsi, ") => %x <%u>",
 				b ? 'B' : 'W',
 				a, c, c);
 			return WNONE;
@@ -1069,7 +1261,8 @@ RetFlags:
 		    case 'w' : {
 			// Memory write
 			Boolean b;
-			volatile word a, c;
+			volatile word c;
+			volatile aword a;
 			cb++;
 			b = YES;
 			if (*cb == 'w') {
@@ -1080,14 +1273,14 @@ RetFlags:
 			}
 			// Read the address and content in hex
 			a = c = 0;
-			scan (cb + 1, "%x %x", &a, &c);
+			scan (cb + 1, __hfsi " %x", &a, &c);
 			if (a == 0)
 				return 10;
 			if (b)
 				*((byte*)a) = (byte)c;
 			else
 				*((word*)a) = c;
-			uart_outf (WNONE, "ZW: %x <%u> => %c(%x)",
+			uart_outf (WNONE, "ZW: %x <%u> => %c(" __hfsi ")",
 				c, c,
 				b ? 'B' : 'W',
 				a);
@@ -1571,6 +1764,16 @@ fsm thread_rreporter {
 
   entry UF_DRIV:
 
+#ifdef 	CC1350
+	uart_outf (UF_DRIV, "Driver stats: %u, %u, %u, %u, %u, %u, %lu",
+			g_rcv_ackrp [POFF_RERR  ],
+			g_rcv_ackrp [POFF_RERR+1],
+			g_rcv_ackrp [POFF_RERR+2] & 0xff,
+			g_rcv_ackrp [POFF_RERR+2] >> 8,
+			g_rcv_ackrp [POFF_RERR+3] & 0xff,
+			(byte)((g_rcv_ackrp [POFF_RERR+3] >> 8) - 128),
+			*((lword*)(g_rcv_ackrp + POFF_RERR + 4)));
+#else
 	uart_outf (UF_DRIV, "Driver stats: %u, %u, %u, %u, %u, %u",
 			g_rcv_ackrp [POFF_RERR  ],
 			g_rcv_ackrp [POFF_RERR+1],
@@ -1578,6 +1781,8 @@ fsm thread_rreporter {
 			g_rcv_ackrp [POFF_RERR+3],
 			g_rcv_ackrp [POFF_RERR+4],
 			g_rcv_ackrp [POFF_RERR+5] );
+#endif
+
 #endif
 	tcv_endp (g_rcv_ackrp);
 	g_rcv_ackrp = NULL;
@@ -1637,37 +1842,18 @@ fsm thread_ureporter (word clear) {
 		tcv_control (g_fd_rf, PHYSOPT_ERROR, NULL);
 
 #ifndef CHRONOS
+#ifdef	CC1350
+	uart_outf (RE_DRIV, "Driver stats: %u, %u, %u, %u, %u, %u, %lu",
+		errs [0], errs [1], errs [2] & 0xff, errs [2] >> 8,
+		errs [3] & 0xff, (byte)((errs [3] >> 8) - 128),
+		*((lword*)(errs + 4)));
+#else
 	uart_outf (RE_DRIV, "Driver stats: %u, %u, %u, %u, %u, %u",
 		errs [0], errs [1], errs [2], errs [3], errs [4], errs [5]);
 #endif
+#endif
 	finish;
 }
-
-// ============================================================================
-
-#ifdef	BLINK_ON_RECEPTION
-
-fsm blinker {
-
-	state BL_START:
-
-		leds (BLINK_ON_RECEPTION, 1);
-		delay (512, BL_DONE);
-		release;
-
-	state BL_DONE:
-
-		leds (BLINK_ON_RECEPTION, 0);
-		finish;
-}
-
-#define	blink()	do { if (!running (blinker)) runfsm blinker; } while (0)
-
-#else
-
-#define	blink()	CNOP
-
-#endif
 
 // ============================================================================
 
@@ -1680,7 +1866,7 @@ fsm thread_listener {
 
 	packet = tcv_rnp (LI_WAIT, g_fd_rf);
 	g_lrs = seconds ();
-	blink ();
+	blink (1, 256);
 	// Packet length in words
 	pl = (tcv_left (packet) >> 1);
 	tr = packet [pl - 1];
@@ -1806,7 +1992,7 @@ fsm thread_sender (word dl) {
 // CHRONOS ====================================================================
 // ============================================================================
 
-static byte rcv_stat = 0, lcd_stat = 0;
+static byte lcd_stat = 0;
 
 static void buttons (word but) {
 
@@ -1851,17 +2037,16 @@ static void buttons (word but) {
 
 	    case 3:
 
-		if (rcv_stat == 0) {
-			// OFF
-			rcv_stat = 1;
+		if (g_rstat == 0) {
+			// ON->OFF
 			estat = do_command ("f", 0, 0);
 			msg_hi ("RXOF");
-		} else if (rcv_stat == 1) {
-			rcv_stat = 2;
+		} else if (g_rstat == 2) {
+			// OFF->WOR
 			estat = do_command ("f 1", 0, 0);
 			msg_hi ("RXVO");
 		} else {
-			rcv_stat = 0;
+			// WOR->ON
 			msg_hi ("RXON");
 			estat = do_command ("g", 0, 0);
 		}
@@ -1882,6 +2067,8 @@ static void buttons (word but) {
 
 	err_msg (WNONE, estat);
 }
+
+#define	BUTTONS_ACTION_PRESENT
 
 fsm root {
 
@@ -1921,27 +2108,33 @@ fsm root {
 	scr = (g_flags >> 8) & 0x7;
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
 	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
-	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
-	g_rstat = 0;
 
 	runfsm thread_listener;
 
-	if (g_flags & 0x4000)
+	if (g_flags & 0x4000) {
 		runfsm thread_sender (0);
+		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+		g_rstat = 0;
+	} else {
+		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
+		g_rstat = 2;
+	}
 
 	// Only this one stays
 	g_flags &= 0x8000;
 
 	if (g_flags)
-		powerdown ();
+		setpowermode (POWER_DOWN_MODE);
 
 	msg_hi ("RFTS");
 	msg_lo ("READY");
 
+#ifdef	BUTTONS_ACTION_PRESENT
 	buttons_action (buttons);
+#endif
 	finish;
 }
-	
+
 #elif UART_TCV
 
 // ============================================================================
@@ -1966,7 +2159,6 @@ fsm root {
 	g_fd_uart = tcv_open (WNONE, 1, 0);	// NULL plug on UART
 	if (g_fd_rf < 0 || g_fd_uart < 0)
 		syserror (ERESOURCE, "app desc");
-
 
 	g_flags = HOST_FLAGS;
 
@@ -1997,19 +2189,31 @@ fsm root {
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
 	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
 
-	// tcv_control (g_fd_rf, PHYSOPT_TXON, NULL);
-	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
-	g_rstat = 0;
 	runfsm thread_listener;
 
-	if (g_flags & 0x4000)
+	if (g_flags & 0x4000) {
 		runfsm thread_sender (0);
+		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+		g_rstat = 0;
+	} else {
+		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
+		g_rstat = 2;
+	}
 
 	// Only this one stays
 	g_flags &= 0x8000;
 
 	if (g_flags)
-		powerdown ();
+		setpowermode (POWER_DOWN_MODE);
+
+#ifdef	BUTTONS_ACTION_PRESENT
+	buttons_action (buttons);
+#endif
+	blink (8, 32);
+
+#ifdef STATUS_LED
+	runfsm status_blinker;
+#endif
 
   entry RS_ON:
 
@@ -2048,9 +2252,7 @@ fsm root {
 #endif
 	PHY_CALL (0, MAX_PACKET_LENGTH);
 	tcv_plug (0, &plug_null);
-	g_fd_rf = tcv_open (WNONE, 0, 0);	// NULL plug on CC1100
-
-	if (g_fd_rf < 0)
+	if ((g_fd_rf = tcv_open (WNONE, 0, 0)) < 0)
 		syserror (ERESOURCE, "app desc");
 
 	g_flags = HOST_FLAGS;
@@ -2070,11 +2272,24 @@ fsm root {
 	scr = (g_flags >> 8) & 0x7;
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &scr);
 	tcv_control (g_fd_rf, PHYSOPT_SETCHANNEL, &g_flags);
-	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
-	g_rstat = 0;
 
 	runfsm thread_listener;
 
+#ifdef 	BUTTONS_ACTION_PRESENT
+	buttons_action (buttons);
+	if (g_flags & 0x4000) {
+		tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+		g_rstat = 0;
+	} else {
+		tcv_control (g_fd_rf, PHYSOPT_RXOFF, NULL);
+		g_rstat = 2;
+	}
+#else
+	// Start with the receiver on, because otherwise you have no chance
+	// of ever going
+	tcv_control (g_fd_rf, PHYSOPT_RXON, NULL);
+	g_rstat = 0;
+#endif
 	if (g_flags & 0x4000)
 		runfsm thread_sender (0);
 
@@ -2082,8 +2297,13 @@ fsm root {
 	g_flags &= 0x8000;
 
 	if (g_flags)
-		powerdown ();
+		setpowermode (POWER_DOWN_MODE);
 
+	blink (4, 32);
+
+#ifdef STATUS_LED
+	runfsm status_blinker;
+#endif
 	finish;
 }
 

@@ -5389,3 +5389,25 @@ PG180222A:
 	to the CC1350 RF driver to make it possible to run my RFTEST on the
 	device. I want to measure the transmission range for the SENSORTAG
 	outfitted with Gerry's antennas.
+
+PG180624A:
+
+	Low-power modes for CC1350 redone. I have been struggling for a week
+	or so with a weird problem causing random and non-replicable (or rather
+	replicable, but with no hint of common sense) hangups in low-power wait
+	states. Things seem to work now, but I am not 100% sure if I have
+	solved the problem, because I don't quite understand everything that
+	I have done. Well, at least I understand something.
+
+	I have also eliminated (or I think so) a race (or maybe two races) in
+	handling delay timers (in CC1350).
+
+	I have upgraded RFTEST to better accommodate CC1350 devices, especially
+	the UART-less SENSORTAG, incorporating the shutdown mode, restart on
+	a button, and a few other minor things. Read the doc + the extra note
+	on CC1350 in Apps/TESTS/RFTEST/Doc.
+
+	Fixed a problem in picomp causing compilation errors with tricky
+	expressions in arguments to fsms.
+
+	A few cosmetics here and there.

@@ -76,12 +76,19 @@ bool	XMTon;
 bool 	RCVon;
 bool	rkillflag;
 bool	tkillflag;
+word	pmode = WNONE;
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 word	xpower;
 #endif
 
 // ============================================================================
+
+static void setpm (word pm) {
+
+	if (pm != pmode)
+		setpowermode (pmode = pm);
+}
 
 static word gen_packet_length (void) {
 
@@ -356,12 +363,12 @@ fsm reverter (word n) {
 
 	entry RE_START:
 
-		delay ((n > 60 ? 60 : n) * 1024, RE_REVERT);
+		delay (((n & 0xff) > 60 ? 60 : (n & 0xff)) * 1024, RE_REVERT);
 		release;
 
 	entry RE_REVERT:
 
-		setpowermode (0);
+		setpm (n >> 8);
 
 	entry RE_MESSAGE:
 
@@ -381,7 +388,8 @@ fsm showbuttons (word b) {
 
 void button (word butts) {
 
-	setpowermode (0);
+	if (pmode > 1)
+		setpm (1);
 
 	runfsm showbuttons (butts);
 }
@@ -394,11 +402,12 @@ fsm root {
     sint k, n1;
     const char *fmt;
     char obuf [32];
-    word p [2];
+    word p [3];
     lint lp;
 
     entry RS_INIT:
 
+	setpm (0);
 	ibuf = (char*) umalloc (IBUFLEN);
 	ibuf [0] = 0;
 
@@ -447,7 +456,7 @@ fsm root {
 		"q        -> stop rf\r\n"
 		"i        -> set sid\r\n"
 		"z        -> reset\r\n"
-		"m n d    -> power mode\r\n"
+		"m n d r  -> power mode\r\n"
 #ifdef PIN_OPERATIONS_INCLUDED
 		"p n      -> read pin\r\n"
 		"u n v    -> set pin\r\n"
@@ -658,10 +667,11 @@ fsm root {
 	// Power down mode
 	p [0] = 0;
 	p [1] = 0;
-	scan (ibuf + 1, "%u %u", p+0, p+1);
-	setpowermode (p [0]);
+	p [2] = 0;
+	scan (ibuf + 1, "%u %u %u", p+0, p+1, p+2);
+	setpm (p [0]);
 	if (p [1])
-		runfsm reverter (p [1]);
+		runfsm reverter (p [1] | (p [2] << 8));
 	proceed RS_RCMD;
 
 #ifdef __CC1350__

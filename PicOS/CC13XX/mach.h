@@ -1,7 +1,7 @@
 #ifndef __pg_mach_h
 #define	__pg_mach_h		1
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2018                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -35,6 +35,11 @@
 
 // ============================================================================
 
+#ifndef	USE_FLASH_CACHE
+// By default the extra GP RAM is used for flash cache
+#define	USE_FLASH_CACHE	1
+#endif
+
 // ###here: FLASH
 
 // ###here: WATCHDOG
@@ -49,6 +54,14 @@
 #define  watchdog_clear()       WATCHDOG_CLEAR
 
 #define	DEFAULT_PD_MODE	2
+
+// This is the power down mode when radio is on; as it turns out, when system
+// RAM is used for buffers and parameter, the CPU domain must be powered up
+// (see Section 23.2, Doorbell). Radio RAM can be used, but there are tradeoffs
+// complicating the power budget (Section 23.3.2.1), so perhaps the simplest
+// solution is to keep it in RAM, also keeping the CPU on while the radio is
+// active.
+#define	RFCORE_PD_MODE	0
 
 // ============================================================================
 
@@ -117,14 +130,27 @@ void tci_run_delay_timer ();
 void tci_run_auxiliary_timer ();
 word tci_update_delay_ticks (Boolean);
 
-#define	cli_tim		HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
-				AON_RTC_CHCTL_CH0_EN_BITN) = 0
-#define	sti_tim		HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
-				AON_RTC_CHCTL_CH0_EN_BITN) = 1
-#define	cli_aux		HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
-				AON_RTC_CHCTL_CH2_EN_BITN) = 0;
-#define	sti_aux		HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
-				AON_RTC_CHCTL_CH2_EN_BITN) = 1;
+// Not 100% sure if we need to sync after clearing the RTC int in AON; I am
+// trying to play it safe, especially that the STANDBY mode has been causing
+// me serious problems, and I am far from convinced that it is OK now
+#define	cli_tim		do { HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
+				AON_RTC_CHCTL_CH0_EN_BITN) = 0; \
+				SysCtrlAonSync (); \
+			} while (0)
+
+
+#define	sti_tim		do { HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
+				AON_RTC_CHCTL_CH0_EN_BITN) = 1; \
+			} while (0)
+
+#define	cli_aux		do { HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
+				AON_RTC_CHCTL_CH2_EN_BITN) = 0; \
+				SysCtrlAonSync (); \
+			} while (0)
+
+#define	sti_aux		do { HWREGBITW (AON_RTC_BASE + AON_RTC_O_CHCTL, \
+				AON_RTC_CHCTL_CH2_EN_BITN) = 1; \
+			} while (0)
 
 #define	cli_utims	cli_aux
 #define	sti_utims	sti_aux
@@ -191,6 +217,10 @@ Boolean __pi_uart_setrate (word, uart_t*);
 #define	powermode()	(__pi_systat . pdflags & 0x3)
 
 extern void __pi_ondomain (lword), __pi_offdomain (lword);
+
+// A function to go directly and unconditionally to SHUTDOWN, as an alternative
+// to setpowermode (3), which delays the action to the nearest WFI
+extern void hibernate ();
 
 extern lword system_event_count;
 
