@@ -76,7 +76,8 @@ void rwpmmStart (Long nid, Transceiver *rfm,
 			double mxsp,
 			double mnpa,
 			double mxpa,
-			double dur)		{
+			double dur,
+			int mode)		{
 
 	if (!isStationId (nid))
 		excptn ("rwpmmStart: illegal node Id %1d", nid);
@@ -94,6 +95,9 @@ void rwpmmStart (Long nid, Transceiver *rfm,
 	if (mnpa < 0.0 || mxpa < mnpa)
 		excptn ("rwpmmStart: node %1d, illegal pause time", nid);
 
+	if (mode < 0 || mode > RWPMM_MODE_MAX)
+		excptn ("rwpmmStart: node %1d, illegal mode", nid);
+
 	rwpmmStop (rfm);
 
 	create RWPMover (nid, rfm, x0, y0, 
@@ -104,7 +108,8 @@ void rwpmmStart (Long nid, Transceiver *rfm,
 #if ZZ_R3D
 					   z1,
 #endif
-					       mnsp, mxsp, mnpa, mxpa, dur);
+					       mnsp, mxsp, mnpa, mxpa, dur,
+							mode);
 }
 
 void RWPMover::setup (Long nn, Transceiver *rfm,
@@ -122,7 +127,8 @@ void RWPMover::setup (Long nn, Transceiver *rfm,
 						double maxsp,
 						double minpa,
 						double maxpa,
-						double howlong) {
+						double howlong,
+						int mode) {
 
 	ME = new rwpmm_pool_t;
 	ME->RFM = TR = rfm;
@@ -143,6 +149,8 @@ void RWPMover::setup (Long nn, Transceiver *rfm,
 
 	MINPA = minpa;
 	MAXPA = maxpa;
+
+	Mode = mode;
 
 	if (howlong <= 0.0)
 		Until = TIME_inf;
@@ -169,13 +177,74 @@ RWPMover::perform {
 #if ZZ_R3D
 	CZ = TZ;
 #endif
-	// Generate a random destination within the rectangle
-	TX = dRndUniform (X0, X1);
-	TY = dRndUniform (Y0, Y1);
-#if ZZ_R3D
-	TZ = dRndUniform (Z0, Z1);
-#endif
 
+	switch (Mode) {
+
+		case RWPMM_MODE_RANDOM:
+
+			// Generate a random destination within the rectangle
+			TX = dRndUniform (X0, X1);
+			TY = dRndUniform (Y0, Y1);
+#if ZZ_R3D
+			TZ = dRndUniform (Z0, Z1);
+#endif
+			break;
+
+		case RWPMM_MODE_CIRCUMFERENCE:
+
+			if (X0 == X1) {
+VLine:
+				TX = X0;
+				TY = (TY == Y0) ? Y1 : Y0;
+			} else if (Y0 == Y1) {
+HLine:
+				TY = Y0;
+				TX = (TX == X0) ? X1 : X0;
+			} else if (TX == X0) {
+				if (TY == Y1)
+					TX = X1;
+				else
+					TY = Y1;
+			} else if (TY == Y0) {
+				TX = X0;
+			} else {
+				TX = X1;
+				TY = Y0;
+			}
+#if ZZ_R3D
+			TZ = Z0;
+#endif
+			break;
+
+		default:
+
+			// Diagonal
+			if (X0 == X1)
+				goto VLine;
+			if (Y0 == Y1)
+				goto HLine;
+
+			if (TX == X0) {
+				if (TY == Y0) {
+					TX = X1;
+					TY = Y1;
+				} else {
+					TY = Y0;
+				}
+			} else {
+				if (TY == Y0) {
+					TX = X0;
+					TY = Y1;
+				} else {
+					TX = X1;
+					TY = Y0;
+				}
+			}
+#if ZZ_R3D
+			TZ = Z0;
+#endif
+	}
+				
 	// Distance in meters
 	sp = rwpmm_dist (TX, TY 
 #if ZZ_R3D

@@ -106,7 +106,6 @@ station Hub : ALOHADevice {
 	void setup ();
 
 	Packet *getPacket (int st)  {
-		Packet *p;
 		if (AQ.getAck (&ABuffer, st))
 			return &ABuffer;
 		if (Client->getPacket (Buffer, (Long) 0, PACKET_LENGTH,

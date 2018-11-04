@@ -1,6 +1,6 @@
 ##
 ## This is a skeleton of Makefile used by mks to create the actual Makefile
-## for building a smurph instance
+## for building a smurph instance (the version for precompiled libs)
 ##
 ## SRC=, LIB= , PRC...CLI, CMP=
 

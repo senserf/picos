@@ -15,6 +15,12 @@
 #define	RWPMM_MIN_STEPS		4		// Even a tiny move is no jump
 #endif
 
+#define	RWPMM_MODE_RANDOM		0	// Random point
+#define	RWPMM_MODE_CIRCUMFERENCE	1	// Around the rectangle
+#define	RWPMM_MODE_DIAGONAL		2	// Cross through diagonals
+
+#define	RWPMM_MODE_MAX			RWPMM_MODE_DIAGONAL
+
 process RWPMover;
 
 struct rwpmm_pool_s {
@@ -43,7 +49,8 @@ void rwpmmStart (Long,			// Node Id
 			double,		// Mxs ** maximum speed
 			double,		// Mnp ** minimum pause
 			double,		// Mxp ** maximum pause
-			double		// Tim ** total time (inf if 0)
+			double h = 0.0,	// Tim ** total time (inf if 0)
+			int m = 0	// Mode
 		);
 
 typedef void (*rwpmm_notifier_t)(Long);
@@ -73,6 +80,8 @@ process RWPMover {
 
 	Long	Count;				// Number of steps
 
+	int	Mode;
+
 	states { NextLeg, Advance };
 
 	void setup (Long,			// Node number
@@ -89,7 +98,8 @@ process RWPMover {
 				double,		// Mxs ** maximum speed
 				double,		// Mnp ** minimum pause
 				double,		// Mxp ** maximum pause
-				double		// Tim ** total time (inf if 0)
+				double,		// Tim ** total time (inf if 0)
+				int		// Mode
 					);
 	perform;
 };
