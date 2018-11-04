@@ -791,3 +791,13 @@ PG180611A:
 	   Thus, the drift mechanism is now built into the SMURPH Timer.
 
 	   Updated the manual (aka the book).
+
+PG181104A:
+
+	   Removed the binary lib for Cygwin (the "binaries-only" setup) which
+	   was obsolete and rather obviously useless.
+
+	   Slightly extended the random way point mobility model by including
+	   the options to move around a rectangle and through its diagonals.
+	   This way the distance/range covered by the movement can be made
+	   deterministic.
