@@ -801,3 +801,17 @@ PG181104A:
 	   the options to move around a rectangle and through its diagonals.
 	   This way the distance/range covered by the movement can be made
 	   deterministic.
+
+PG181227A:
+
+	   SMURPH has gone GNU PL V3. This is in preparation for the print of
+	   my new book on SMURPH (by Springer).
+
+	   - I have added the standard GNU PL V3 copyright notice to all
+	     relevant files. Needless to say, this has been done by a script.
+
+	   - Updated the book files. Note: those files will be removed when
+	     SMURPH is turned into a version to be put on Springer servers.
+	     In other words, the present version is not official.
+
+	   No other changes.
