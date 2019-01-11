@@ -124,7 +124,7 @@ RFModule::RFModule (Transceiver *r, Long pqs) {
 	backoff_reset ();
 	backoff_clear ();
 
-	xr = r->getTRate ();
+	xr = r->getXRate ();
 
 	if (DCF_XRate == TIME_0) {
 

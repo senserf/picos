@@ -376,7 +376,7 @@ INLINE Port *idToPort (int id) {
 };
 
 INLINE TIME Port::bitsToTime (Long b) {
-	return ((TIME)TRate * b);
+	return ((TIME)XRate * b);
 };
 #endif	/* NOL */
 

@@ -1214,7 +1214,7 @@ PFND:
 PFNE:
 			Ouf << form ("     %5d %10d %7d ", zz_trunc (j, 5),
 				k, l);
-			print (p->TRate, 11);
+			print (p->XRate, 11);
 			Ouf << '\n';
 		}
 		Ouf << '\n';
@@ -1360,7 +1360,7 @@ void    ZZ_SYSTEM::exPrint1 (const char *hdr) {
 PFNF:
 			Ouf << form ("     %5d %10d %7d ", zz_trunc (j, 5),
 				k, l);
-			print (p->TRate, 11);
+			print (p->XRate, 11);
 			Ouf << '\n';
 		}
 		Ouf << '\n';

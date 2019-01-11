@@ -815,3 +815,12 @@ PG181227A:
 	     In other words, the present version is not official.
 
 	   No other changes.
+
+PG190112A:
+
+	   Cosmetics: renamed TRate to XRate for compatibility with stuff like
+	   XPower, XTag, etc. Brought the old manual up to date and renamed
+	   some directories. I want to keep the manual up to date, even though
+	   it sucks, because the book will be removed from the package at some
+	   point, and it makes sense to have some authoritative documentation
+	   included.

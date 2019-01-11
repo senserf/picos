@@ -509,7 +509,7 @@ void RFChannel::setup (Long nx, RATE r, int pre, double XP, double RP,
 
 	DefXPower = XP;
 	DefRPower = RP;
-	DefTRate = r;
+	DefXRate = r;
 	DefPreamble = pre;
 	DefMinDistance = ituToDu (DISTANCE_1);
 	DefXTag = DefRTag = 0;
@@ -584,7 +584,7 @@ void Transceiver::setup (RATE r, int pre, double XP, double RP,
 	Transceiver *p;
 	int i;
 
-	TRate = r;
+	XRate = r;
 
 #if ZZ_R3D
 	assert (x >= 0.0 && y >= 0.0 && z >= 0.0, "Transceiver: "
@@ -592,7 +592,7 @@ void Transceiver::setup (RATE r, int pre, double XP, double RP,
 			TheStation->getSName (),
 			x, y, z);
 #else
-	assert (x >= 0.0 && y >= 0.0, "setLocation: %s, location "
+	assert (x >= 0.0 && y >= 0.0, "Transceiver: %s, location "
 		"coordinates (%f, %f) must not be negative",
 			TheStation->getSName (),
 			x, y);
@@ -721,8 +721,8 @@ void	RFChannel::connect (Transceiver *xcv) {
 
 	if (xcv->Preamble < 0)
 		xcv->setPreamble (DefPreamble);
-	if (xcv->TRate == RATE_inf)
-		xcv->setTRate (DefTRate);
+	if (xcv->XRate == RATE_inf)
+		xcv->setXRate (DefXRate);
 	if (xcv->getXPower () < 0.0)
 		xcv->setXPower (DefXPower);
 	if (xcv->getRPower () < 0.0)
@@ -814,18 +814,18 @@ void	Transceiver::setLocation (double x, double y) {
 	RFC->nei_cor (this);
 }
 
-RATE	Transceiver::setTRate (RATE r) {
+RATE	Transceiver::setXRate (RATE r) {
 
 	RATE qr;
 
 	if (r == RATE_inf && RFC)
-		r = RFC->DefTRate;
+		r = RFC->DefXRate;
 
 	assert (r != RATE_inf,
-		"Transceiver->setTRate: %s, illegal (infinite) rate",
+		"Transceiver->setXRate: %s, illegal (infinite) rate",
 			getSName ());
-	qr = TRate;
-	TRate = r;
+	qr = XRate;
+	XRate = r;
 	return qr;
 }
 
@@ -951,7 +951,7 @@ double	Transceiver::setRPower (double p) {
 	return op;
 }
 
-void RFChannel::setTRate (RATE r) {
+void RFChannel::setXRate (RATE r) {
 
 /* ================================ */
 /* Set the rate of all transceivers */
@@ -960,14 +960,14 @@ void RFChannel::setTRate (RATE r) {
 	Long i;
 
 	if (r == RATE_inf)
-		r = DefTRate;
+		r = DefXRate;
 	else
-		DefTRate = r;
+		DefXRate = r;
 
 	for (i = 0; i < NTransceivers; i++)
 		if (Tcvs [i])
 			// Can be called at initialization
-			Tcvs [i] -> TRate = r;
+			Tcvs [i] -> XRate = r;
 }
 
 void RFChannel::setPreamble (Long t) {
@@ -1786,7 +1786,7 @@ void Transceiver::handle_ifv () {
 
 		// Process(es) waiting for BERROR
 
-		t = Time + (TIME) TRate * RFC->RFC_erd (TRate,
+		t = Time + (TIME) XRate * RFC->RFC_erd (XRate,
 			&(TracedActivity->RSS), &RcvSig,
 				TracedActivity->INT.cur (), ErrorRun);
 
@@ -1930,13 +1930,13 @@ void Transceiver::startTransmit (Packet *p) {
 			p->frameSize ()];
 	Activity->Pkt = *p;
 
-	Assert (TRate != RATE_0 && TRate != RATE_inf,
-		"Transceiver->startTransmit: %s, TRate undefined",
+	Assert (XRate != RATE_0 && XRate != RATE_inf,
+		"Transceiver->startTransmit: %s, XRate undefined",
 			getSName ());
 	Assert (Preamble >= 0, "Transceiver->startTransmit: %s, preamble "
 		"length is undefined", getSName ());
 
-	Activity->TRate = (Activity->Tcv = this)->TRate;
+	Activity->XRate = (Activity->Tcv = this)->XRate;
 
 	Activity->BOTTime = Activity->EOTTime = TIME_inf;  // EOT not known yet
 	Activity->Aborted = NO;
@@ -2278,7 +2278,7 @@ Packet *Transceiver::findRPacket () {
 		if (a->within_packet () && !a->Killed) {
 			a->INT.update ();
 			tpckt = &(a->RFA->Pkt);
-			if (RFC->RFC_eot (a->RFA->TRate, &(a->RSS), &RcvSig,
+			if (RFC->RFC_eot (a->RFA->XRate, &(a->RSS), &RcvSig,
 			    &(a->INT)))
 				return tpckt;
 		}
@@ -2361,7 +2361,7 @@ void Transceiver::reschedule_bot (ZZ_RSCHED *rfa) {
 
 	txcvr = this;
 
-	if (RFC->RFC_bot (rfa->RFA->TRate, &(rfa->RSS), &RcvSig, &(rfa->INT))) {
+	if (RFC->RFC_bot (rfa->RFA->XRate, &(rfa->RSS), &RcvSig, &(rfa->INT))) {
 		// Receivable
 		for (rq = RQueue [BOT]; rq != NULL; rq = rq->next) {
 
@@ -2429,7 +2429,7 @@ void Transceiver::reschedule_eot (ZZ_RSCHED *rfa) {
 
 		txcvr = this;
 
-		if (RFC->RFC_eot (rfa->RFA->TRate, &(rfa->RSS), &RcvSig,
+		if (RFC->RFC_eot (rfa->RFA->XRate, &(rfa->RSS), &RcvSig,
 								&(rfa->INT))) {
 			// Receivable
 			for (rq = RQueue [EOT]; rq != NULL; rq = rq->next) {
@@ -3014,7 +3014,7 @@ Redo:
 				tpckt = (Packet*) p;
 				txcvr = this;
 
-				return !RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
+				return !RFC->RFC_eot (a->RFA->XRate, &(a->RSS),
 					&RcvSig, &(a->INT));
 			}
 		}
@@ -3413,7 +3413,7 @@ void    Transceiver::wait (int ev, int pstate) {
 				// Hasn't been processed by handleEvent yet
 				a->INT.update ();
 				tpckt = &(a->RFA->Pkt);
-				if (RFC->RFC_bot (a->RFA->TRate, &(a->RSS),
+				if (RFC->RFC_bot (a->RFA->XRate, &(a->RSS),
 				    &RcvSig, &(a->INT))) {
 					TracedActivity = a;
 					t = Time;
@@ -3444,7 +3444,7 @@ void    Transceiver::wait (int ev, int pstate) {
 				// Hasn't been processed by handleEvent yet
 				a->INT.update ();
 				tpckt = &(a->RFA->Pkt);
-				if (RFC->RFC_bot (a->RFA->TRate, &(a->RSS),
+				if (RFC->RFC_bot (a->RFA->XRate, &(a->RSS),
 				    &RcvSig, &(a->INT))) {
 					TracedActivity = a;
 					t = Time;
@@ -3485,7 +3485,7 @@ void    Transceiver::wait (int ev, int pstate) {
 				a->INT.update ();
 
 				tpckt = &(a->RFA->Pkt);
-	    			if (RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
+	    			if (RFC->RFC_eot (a->RFA->XRate, &(a->RSS),
 				    &RcvSig, &(a->INT))) {
 					t = Time;
 					break;
@@ -3515,7 +3515,7 @@ void    Transceiver::wait (int ev, int pstate) {
 				a->INT.update ();
 
 				tpckt = &(a->RFA->Pkt);
-	    			if (RFC->RFC_eot (a->RFA->TRate, &(a->RSS),
+	    			if (RFC->RFC_eot (a->RFA->XRate, &(a->RSS),
 				    &RcvSig, &(a->INT))) {
 					t = Time;
 					break;
@@ -3534,7 +3534,7 @@ void    Transceiver::wait (int ev, int pstate) {
 
 		if (TracedActivity != NULL && !TracedActivity->Done) {
 
-			t = Time + (TIME) TRate * RFC->RFC_erd (TRate,
+			t = Time + (TIME) XRate * RFC->RFC_erd (XRate,
 				&(TracedActivity->RSS), &RcvSig,
 				TracedActivity->INT.cur (), ErrorRun);
 
@@ -3767,7 +3767,7 @@ void Transceiver::dspEvnt (int *elist) {
 				if (ev == BOT) {
 					// Assessment needed
 					a->INT.update ();
-					if (RFC->RFC_bot (a->RFA->TRate,
+					if (RFC->RFC_bot (a->RFA->XRate,
 					    &(a->RSS), &RcvSig, &(a->INT))) {
 						elist [2] ++;
 						elist [8] ++;
@@ -3778,7 +3778,7 @@ void Transceiver::dspEvnt (int *elist) {
 				}
 				if (ev == EOT) {
 					a->INT.update ();
-	    				if (RFC->RFC_eot (a->RFA->TRate,
+	    				if (RFC->RFC_eot (a->RFA->XRate,
 					    &(a->RSS), &RcvSig, &(a->INT))) {
 						elist [3] ++;
 						if (a->RFA->Pkt.isMy (Owner))
@@ -4064,7 +4064,7 @@ void RFChannel::exPrtTop (Boolean full) {
 		t = Tcvs [j];
 		print (GSID (t->Id), 8);
 		Ouf << form ("/%03d ", zz_trunc (GYID (t->Id), 3));
-		print (t->TRate, 8);
+		print (t->XRate, 8);
 		Ouf << ' ';
 		print ((int)(t->Preamble), 5);
 		Ouf << ' ';
@@ -4090,7 +4090,7 @@ void RFChannel::exPrtTop (Boolean full) {
 	Ouf << "\n    Transceiver defaults:\n\n";
 	print (DefXPower        , "        XPower:      ");
 	print (DefRPower        , "        RPower:      ");
-	print (DefTRate         , "        TRate:       ");
+	print (DefXRate         , "        XRate:       ");
 	print (DefPreamble      , "        Preamble:    ");
 	print (DefMinDistance   , "        MinDistance: ");
 	print (DefErrorRun      , "        ErrorRun:    ");

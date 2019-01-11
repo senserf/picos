@@ -3420,7 +3420,7 @@ class   Port : public AI {
 	DISTANCE         *DV,           // Distance vector to other ports
 			 MaxDistance;   // Maximum value in DV
 
-	RATE             TRate;         // Transmission rate
+	RATE             XRate;         // Transmission rate
 	Link             *Lnk;          // Link pointer
 	int              LRId;          // Link-relative port id
 
@@ -3620,9 +3620,11 @@ class   Port : public AI {
 
 	void    setup (RATE r = RATE_inf);
 
-	RATE setTRate (RATE r = RATE_inf);
+	RATE setXRate (RATE r = RATE_inf);
+	inline RATE setRate (RATE r = RATE_inf) { return setXRate (r); };
 	Boolean setAevMode (Boolean b = YESNO);
-	inline RATE getTRate () { return TRate; };
+	inline RATE getXRate () { return XRate; };
+	inline RATE getRate () { return XRate; };
 	inline Boolean getAevMode () { return AevMode; };
 
 #if  ZZ_TAG
@@ -3698,7 +3700,8 @@ class   Link : public AI {
 	public:
 
 	void    setFaultRate (double r = 0.0, int ft = FT_LEVEL1);
-	void    setTRate (RATE r = RATE_inf);
+	void    setXRate (RATE r = RATE_inf);
+	inline	void setRate (RATE r = RATE_inf) { setXRate (r); };
 	void	setAevMode (Boolean b = YESNO);
 
 	void	setPacketCleaner (void (*)(Packet*));
@@ -3755,7 +3758,7 @@ class   Link : public AI {
 
 	ZZ_REQUEST      *RQueue [ZZ_N_LINK_EVENTS];     // Request queues
 
-	RATE		DefTRate;
+	RATE		DefXRate;
 	Boolean		DefAevMode;
 
 	void zz_start ();                       // Nonstandard constructor
@@ -4483,7 +4486,7 @@ class	RFChannel : public AI {
 			DefXPower,
 			DefRPower;
 
-	RATE		DefTRate;
+	RATE		DefXRate;
 
 	Long		DefPreamble,
 			DefErrorRun;
@@ -4533,7 +4536,8 @@ class	RFChannel : public AI {
 	virtual void    pfmPAB (Packet*) {};
 
 	void 	connect (Transceiver*);
-	void	setTRate (RATE r = RATE_inf);
+	void	setXRate (RATE r = RATE_inf);
+	inline void setRate (RATE r = RATE_inf) { setXRate (r); };
 	void	setPreamble (Long p = -1);
 	void	setXTag (RF_TAG_TYPE p = ANY);
 	inline void setXTag () { setXTag (DefXTag); };
@@ -4684,7 +4688,7 @@ class	Transceiver : public AI {
 	DISTANCE	Z;
 #endif
 	Long		Preamble;	// In bits
-	RATE		TRate;		// In ITUs
+	RATE		XRate;		// In ITUs
 
 	/*
 	 * Receiver gain + receiver Tag
@@ -4852,11 +4856,11 @@ class	Transceiver : public AI {
 	IHist *iHist (const Packet *p = NULL);
 
 	inline Boolean error (const SLEntry *sl, IHist *h) {
-		return RFC->error (TRate, sl, &RcvSig, h);
+		return RFC->error (XRate, sl, &RcvSig, h);
 	};
 
 	inline Long errors (const SLEntry *sl, IHist *h) {
-		return RFC->errors (TRate, sl, &RcvSig, h);
+		return RFC->errors (XRate, sl, &RcvSig, h);
 	};
 
 	Boolean error (Packet *p = NULL);
@@ -4887,7 +4891,8 @@ class	Transceiver : public AI {
 	const char	*getTName () { return ("Tcv"); };
 	int		getSID (), getYID ();
 
-	RATE		setTRate (RATE r = RATE_inf);
+	RATE		setXRate (RATE r = RATE_inf);
+	inline RATE setRate (RATE r = RATE_inf) { return setXRate (r); };
 	Long		setPreamble (Long p = -1);
 	double		setXPower (double p = -1.0);
 	double		setRPower (double p = -1.0);
@@ -4949,10 +4954,11 @@ class	Transceiver : public AI {
 	};
 #endif	/* ZZ_R3D */
 
-	inline	RATE	getTRate () { return TRate; };
+	inline	RATE	getXRate () { return XRate; };
+	inline	RATE	getRate () { return XRate; };
 	inline	Long	getPreamble () { return Preamble; };
 	inline  TIME	getPreambleTime () {
-		return (TIME) TRate * (LONG) Preamble;
+		return (TIME) XRate * (LONG) Preamble;
 	};
 	inline	double	getXPower () { return XmtSig.Level; };
 	inline	double	getRPower () { return RcvSig.Level; };
@@ -5936,7 +5942,7 @@ class ZZ_RF_ACTIVITY {
 	Transceiver	*Tcv;
 
 	// Rate at which we have been transmitted
-	RATE		TRate;
+	RATE		XRate;
 
 	ZZ_EVENT	*RE,		// Scheduler event
 			*RF;		// End of preamble event
@@ -6519,25 +6525,25 @@ void setTraceStation (Long st);
 inline void Port::transmit (Packet *p, int s, LONG tag) {
 
 	startTransmit (p);
-	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
+	assert (XRate != 0, "Port->transmit: %s, transmission rate undefined",
 		getSName ());
-	Timer->wait ((TIME)TRate * (LONG)(p->TLength), s, tag);
+	Timer->wait ((TIME)XRate * (LONG)(p->TLength), s, tag);
 };
 
 inline void Port::transmit (Packet &p, int s, LONG tag) {
 
 	startTransmit (&p);
-	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
+	assert (XRate != 0, "Port->transmit: %s, transmission rate undefined",
 		getSName ());
-	Timer->wait ((TIME)TRate * (LONG)(p.TLength), s, tag);
+	Timer->wait ((TIME)XRate * (LONG)(p.TLength), s, tag);
 };
 #else
 inline void Port::transmit (Packet *p, int s) {
 
 	startTransmit (p);
-	assert (TRate != 0, "Port->transmit: %s, transmission rate undefined",
+	assert (XRate != 0, "Port->transmit: %s, transmission rate undefined",
 		getSName ());
-	Timer->wait ((TIME)TRate * (LONG)(p->TLength), s);
+	Timer->wait ((TIME)XRate * (LONG)(p->TLength), s);
 };
 
 inline void Port::transmit (Packet &p, int s) {
@@ -6603,13 +6609,13 @@ inline void RFChannel::stdpfmPAB (Packet *p) {
 };
 
 inline TIME Transceiver::getXTime (Packet *p) {
-	return RFC->RFC_xmt (TRate, p) + getPreambleTime ();
+	return RFC->RFC_xmt (XRate, p) + getPreambleTime ();
 };
 
 #if  ZZ_TAG
 inline void Transceiver::transmit (Packet *p, int s, LONG tag) {
 
-	// TRate verified by startTransmit
+	// XRate verified by startTransmit
 	startTransmit (p);
 	Timer->wait (getXTime (p), s, tag);
 };
