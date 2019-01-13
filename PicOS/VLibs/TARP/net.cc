@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007			*/
+/* Copyright (C) Olsonet Communications, 2002 - 2019			*/
 /* All rights reserved.							*/
 /* ==================================================================== */
 
@@ -32,6 +32,10 @@
 
 #if DM2200
 #include "phys_dm2200.h"
+#endif
+
+#if CC1350_RF
+#include "phys_cc1350.h"
 #endif
 
 #endif	/* if not the simulator */
@@ -99,6 +103,11 @@ static int cc1000_init (word);
 
 #if CC1100
 static int cc1100_init (word);
+#define	NET_MAXPLEN		60
+#endif
+
+#if CC1350_RF
+static int cc1350_init (word);
 #endif
 
 #if CC2420
@@ -109,10 +118,8 @@ static int cc2420_init (word);
 static int dm2200_init (word);
 #endif
 
-#if CC1100
+#ifndef NET_MAXPLEN
 #define	NET_MAXPLEN		60
-#else
-#define NET_MAXPLEN		80
 #endif
 
 #ifdef	myName
@@ -136,6 +143,10 @@ int net_init (word phys, word plug) {
 #if CC1000
 	case INFO_PHYS_CC1000:
 		return (net_fd = cc1000_init (plug));
+#endif
+#if CC1350_RF
+	case INFO_PHYS_CC1350:
+		return (net_fd = cc1350_init (plug));
 #endif
 #if CC1100
 	case INFO_PHYS_CC1100:
@@ -197,6 +208,25 @@ static int cc1100_init (word plug) {
 	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
 		dbg_2 (0x2000); // Cannot open cc1100
 		diag ("%s: Cannot open CC1100 if", myName);
+		return -1;
+	}
+	tcv_control (fd, PHYSOPT_TXON, NULL);
+	tcv_control (fd, PHYSOPT_RXON, NULL);
+	return fd;
+}
+#endif
+
+#if CC1350_RF
+static int cc1350_init (word plug) {
+	int fd;
+	phys_cc1350 (0, NET_MAXPLEN);
+	if (plug == INFO_PLUG_TARP)
+		tcv_plug (0, &plug_tarp);
+	else
+		tcv_plug (0, &plug_null);
+	if ((fd = tcv_open (WNONE, 0, 0)) < 0) {
+		dbg_2 (0x2000); // Cannot open cc1100
+		diag ("%s: Cannot open CC1350 if", myName);
 		return -1;
 	}
 	tcv_control (fd, PHYSOPT_TXON, NULL);
@@ -334,7 +364,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 		return 0;
 
 	if (rssi_ptr) {
-#if CC1100 || CC1000 || DM2200 || CC2420
+#if CC1100 || CC1000 || DM2200 || CC2420 || CC1350_RF
 		*rssi_ptr = packet[(size >> 1) -1];
 #else
 		*rssi_ptr = 0;
@@ -371,6 +401,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 
 	case INFO_PHYS_CC1000:
 	case INFO_PHYS_CC1100: // sid, entropy, rssi
+	case INFO_PHYS_CC1350:
 	case INFO_PHYS_CC2420:
 	case INFO_PHYS_DM2200:
 		size -= 6;
@@ -429,7 +460,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 #define ether_ptype			0x6007
 #define ether_len(len)		((62 >= ((len) + 15)) ? 62 : ((len) + 15))
 
-#if CC1100 || CC2420
+#if CC1100 || CC2420 || CC1350_RF
 // 2 - station id, 2 - entropy, 2 - rssi, even
 #define radio_len(len)  (((len) + 6 +1) & 0xfffe)
 #else
@@ -483,6 +514,7 @@ application should decide if this is an error...
 #endif
 	  case INFO_PHYS_CC1000:
 	  case INFO_PHYS_CC1100:
+	  case INFO_PHYS_CC1350:
 	  case INFO_PHYS_CC2420:
 	  case INFO_PHYS_DM2200:
 		packet = tcv_wnp (state, net_fd, radio_len(len));

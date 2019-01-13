@@ -68,6 +68,7 @@
 #endif
 #endif
 
+#ifndef	CC1350_PATABLE
 // ============================================================================
 // Power settings (from SmartRF Studio):
 //
@@ -97,11 +98,13 @@
 					0x58D8, \
 					0xBC2B, \
 				}
+#endif
 
 // Highest power has a separate smartf_settings.c in two versions:
 //	- long range, low rate
 //	- 50 kbps, TI default
 
+#ifndef	CC1350_RATABLE
 // From SmartRF Studio (starting from index = 1, because the lowest rate
 // comes with non-settable, special config
 #define	CC1350_RATABLE 		{ \
@@ -109,12 +112,15 @@
 					{ 0x7,	0x2DE0 }, \
 					{ 0xF,	0x8000 }, \
 				}
+#endif
 
 // Channel increment; for now, 1 channel == 1 MHz
 #ifndef	CC1350_BASEFREQ
 #define	CC1350_BASEFREQ		868	// Megahertz
 #endif
 
+// This isn't negotiable, but, obviously, the application can use less than
+// this
 #define	CC1350_MAXPLEN		250
 
 // ============================================================================

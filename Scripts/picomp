@@ -3608,7 +3608,7 @@ proc find_pgms { } {
 #
 # Find all programs in the current directory
 #
-	global CWD PG PgmList
+	global CWD PG PgmList XF
 
 	set PgmList ""
 
@@ -3617,6 +3617,7 @@ proc find_pgms { } {
 	}
 
 	set empsuff 0
+	set disabled 0
 
 	foreach fn $flist {
 
@@ -3633,6 +3634,11 @@ proc find_pgms { } {
 		}
 
 		if [regexp "^app_(\[a-zA-Z0-9\]+)\\.cc$" $fn jnk pn] {
+			if [info exists XF($pn)] {
+				# ignore
+				incr disabled
+				continue
+			}
 			if $empsuff {
 				fprerr
 			}
@@ -3643,8 +3649,18 @@ proc find_pgms { } {
 	}
 
 	if { $PgmList == "" } {
-		errab\
-		    "no app\[_...\] program file(s) found in current directory"
+		set txt "no app\[_...\] program file(s) found in "
+		append txt "current directory"
+		if $disabled {
+			append txt " ("
+			if { $disabled == 1 } {
+				append txt "one program"
+			} else {
+				append txt "$disabled programs"
+			}
+			append txt " disabled)"
+		}
+		errab $txt
 	}
 }
 
@@ -6564,7 +6580,7 @@ proc usage { } {
 	puts stderr "       --  -> subsequent args passed to vuee"
 	puts stderr "       -n together with -e shows VUEE_TMP status"
 	puts stderr "       -Dsym, -Dpgm+sym, -Dsym=val, -Dpgm+sym=val"
-	puts stderr "       -Hfile, -Hpgm+file"
+	puts stderr "       -Hfile, -Hpgm+file, -Xpgm"
 	puts stderr "       -3  -> select 3d geometry (as opposed to 2d)"
 	exit 99
 }
@@ -6614,28 +6630,24 @@ proc parse_def_arg { a } {
 #
 # Parse a -D argument (see "usage")
 #
-	global DF HF
+	global DF HF XF
 
 	set pgm "+"
 	set val ""
 
-	if [regexp "^-D" $a] {
-		set xf "DF"
-	} elseif [regexp "^-H" $a] {
-		set xf "HF"
-	} else {
-		return 1
-	}
-
+	# the first two characters
+	set xf [string range $a 0 1]
 	set a [string range $a 2 end]
 
-	if [regexp "^(\[a-zA-Z0-9\]+)\\+" $a mat pn] {
-		set pgm $pn
-		set a [string range $a [string length $mat] end]
-	}
+	if { $xf == "-D" } {
 
-	if { $xf == "DF" } {
 		# defines
+
+		if [regexp "^(\[a-zA-Z0-9\]+)\\+" $a mat pn] {
+			set pgm $pn
+			set a [string range $a [string length $mat] end]
+		}
+
 		if ![regexp -nocase "^\[a-z0-9_$\]+" $a sym] {
 			return 1
 		}
@@ -6658,7 +6670,15 @@ proc parse_def_arg { a } {
 
 		lappend DF($pgm) [list $sym $val]
 
-	} else {
+	} elseif { $xf == "-H" } {
+
+		# extra includes
+
+		if [regexp "^(\[a-zA-Z0-9\]+)\\+" $a mat pn] {
+			set pgm $pn
+			set a [string range $a [string length $mat] end]
+		}
+
 		# extra includes
 		if ![file isfile $a] {
 			puts stderr "Extra header file $a does not exist!"
@@ -6670,6 +6690,16 @@ proc parse_def_arg { a } {
 		}
 
 		lappend HF($pgm) $a
+
+	} else {
+
+		# disabled programs
+
+		if ![regexp "^\[a-zA-Z0-9\]+$" $a] {
+			return 1
+		}
+
+		set XF($a) ""
 	}
 
 	return 0

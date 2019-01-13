@@ -3,6 +3,9 @@
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
+// NOTE: Gerry says that tmp007 is absent in newer versions of the board; need
+// to make sure
+
 // DIO_1	- i reed switch (active high, needs pulldown)
 // DIO_2	- i mic input
 // DIO_3	- o mic clock

@@ -5411,3 +5411,10 @@ PG180624A:
 	expressions in arguments to fsms.
 
 	A few cosmetics here and there.
+
+PG190113A:
+
+	Picomp now admits one more argument type to declare exceptions for
+	programs of multiprogram praxes (see PG190113A in PIP).
+
+	A few cosmetics.

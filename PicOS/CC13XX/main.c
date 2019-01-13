@@ -395,33 +395,36 @@ word tci_update_delay_ticks (Boolean force) {
 // Called to stop the timer, if running, and tally up the ticks; fixed not
 // to use sti_tim
 //
-	if (!force)
-		// Just checking in a safe loop of the scheduler; no problem
-		// about setdel possibly changing to zero, which we will find
-		// out on the next (event) turn of the scheduler loop
-		return setdel;
-
-	// Now we have to be accurate
-	if (setdel == 0)
-		// Timer must be disabled when setdel is found to be zero
-		// in a non-interrupt; so the return is safe
-		return NO;
-
-	cli_tim;
-
-	// Have to check again with the interrupt disabled; setdel is allowed to
-	// become zero only once per setting (and per cli_tim)
-	if (setdel) {
-		// Determine the difference between the comparator and the clock
-		__pi_new += setdel - (TCI_INCRT (HWREG (AON_RTC_BASE +
-				AON_RTC_O_CH0CMP)) - gettav ());
-		// Use it only once
-		setdel = 0;
-		// Racing with the interrupt: make sure the event is disabled
-		HWREG (AON_RTC_BASE + AON_RTC_O_EVFLAGS) = AON_RTC_EVFLAGS_CH0;
+	if (force) {
+		// We must make sure that the timer is stopped and we know
+		// where it is, because we have to reset it consistently with
+		// any pending wait requests
+		if (setdel) {
+			// Running; note that when setdel is found to be zero,
+			// we know for a fact that the timer is fully stopped;
+			// this is guaranteed by the event handling mechanism
+			cli_tim;
+			// Check again with timer interrupt disabled; if setdel
+			// is zero now, we get back to the previous case
+			if (setdel) {
+				// This is the only nontrivial case: the timer
+				// actually running; simulate its going off
+				// with the delay (setdel) set to go off now
+				__pi_new += setdel -
+					(TCI_INCRT (HWREG (AON_RTC_BASE +
+						AON_RTC_O_CH0CMP)) - gettav ());
+				// Mark it as stopped
+				setdel = 0;
+				// Racing with the interrupt: make sure the
+				// event is disabled; the timer is truly 
+				// stopped now
+				HWREG (AON_RTC_BASE + AON_RTC_O_EVFLAGS) =
+					AON_RTC_EVFLAGS_CH0;
+			}
+		}
 	}
 
-	return NO;
+	return setdel;
 }
 
 // ============================================================================
@@ -1049,7 +1052,7 @@ void system_init () {
 	port_config ();
 
 	if (SysCtrlResetSourceGet () == RSTSRC_WAKEUP_FROM_SHUTDOWN) {
-		// Waking from shutdown, shoul unfreeze I/O right after setting
+		// Waking from shutdown, shouls unfreeze I/O right after setting
 		// up the port config, so we can control the peripherals, and,
 		// e.g., blink the LEDs ;-)
 		wfsd = YES;

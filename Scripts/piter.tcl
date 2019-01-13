@@ -628,7 +628,7 @@ proc unames_init { dtype { stype "" } } {
 		# real ttys
 		if { $Dev(SYS) == "L" } {
 			# actual Linux
-			set Dev(RRT) "/dev/ttyUSB%"
+			set Dev(RRT) { "/dev/ttyUSB%" "/dev/ttyACM%" }
 		} else {
 			# Cygwin
 			set Dev(RRT) "/dev/ttyS%"
