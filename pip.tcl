@@ -5,7 +5,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 1.01
+set ST(VER) 1.02
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -159,12 +159,14 @@ set VueeCleanFiles [list "VUEE_TMP" $SIDENAME]
 ##	BO   - list of boards (per program, P(PL) is the corresponding list of
 ##	       labels
 ##	LM   - library mode (indexed as BO), 0 - no, 1 - YES
+##	LD   - disabled programs
 ##
 set CFBoardItems {
 			"ARCH" 		""
 			"MB" 		0
 			"BO" 		""
 			"LM"		""
+			"LD"		""
 }
 
 set CFVueeItems {
@@ -399,8 +401,6 @@ package provide xml 1.0
 ###############################################################################
 # Mini XML parser. Copyright (C) 2008-12 Olsonet Communications Corporation.
 ###############################################################################
-
-### Last modified PG111008A ###
 
 namespace eval XML {
 
@@ -1516,6 +1516,10 @@ proc gfl_tree { } {
 	foreach b [board_set] {
 
 		# path to the board directory
+		if { $b == "" } {
+			# empty
+			continue
+		}
 		set bp [file join $bdir $b]
 		if ![file isdirectory $bp] {
 			# just in case
@@ -4429,6 +4433,10 @@ proc set_board_menu_button { w sel blist } {
 
 	$w configure -text $sel
 
+	set mbn "---"
+	$w.m add command -label $mbn \
+		-command "board_selection_click $w $mbn"
+
 	# cascade submenu counter for naming
 	set sc 0
 
@@ -4593,6 +4601,7 @@ proc do_board_selection { } {
 		if $P(M0,MB) {
 			for { set n 0 } { $n < [llength $P(PL)] } { incr n } {
 				set P(M0,LM,$n) [blindex $P(M0,LM) $n]
+				set P(M0,LD,$n) [blindex $P(M0,LD) $n]
 			}
 		} else {
 			set lm [lindex $P(M0,LM) 0]
@@ -4600,6 +4609,7 @@ proc do_board_selection { } {
 				set lm 0
 			}
 			set P(M0,LM,0) $lm
+			set P(M0,LD,0) 1
 		}
 		
 		set w [mk_board_selection_window]
@@ -4615,10 +4625,12 @@ proc do_board_selection { } {
 		if { $ev == 1 } {
 			# accepted; copy the options
 			set P(M0,LM) ""
+			set P(M0,LD) ""
 			if $P(M0,MB) {
 				for { set n 0 } { $n < [llength $P(PL)] } \
 				    { incr n } {
 					lappend P(M0,LM) $P(M0,LM,$n)
+					lappend P(M0,LD) $P(M0,LD,$n)
 				}
 			} else {
 				lappend P(M0,LM) $P(M0,LM,0)
@@ -4738,6 +4750,9 @@ proc board_selection_click { w t } {
 	# the board number
 	set nb 0
 	regexp "\[0-9\]+$" $w nb
+	if { [string index $t 0] == "-" } {
+		set t ""
+	}
 	set P(M0,BO) [mreplace $P(M0,BO) $nb $t]
 }
 
@@ -4757,20 +4772,31 @@ proc mk_board_selection_window { } {
 	# column number for the grid
 	set cn 0
 	set rn 0
-	set rm [expr $rn + 1]
-	set ro [expr $rm + 1]
+	set rm [expr { $rn + 1 }]
+	set ro [expr { $rm + 1 }]
 
 	### Arch selection ####################################################
 
 	label $f.cpl -text "Arch"
-	grid $f.cpl -column $cn -row $rn -sticky nw -padx 1 -pady 1
+	grid $f.cpl -row $cn -column $rn -sticky nw -padx 1 -pady 1
 
 	mk_menu_button $f.cpb
+	$f.cpb configure -anchor w
 	set_menu_button $f.cpb $P(M0,ARCH) $Archs arch_selection_click
-	grid $f.cpb -column $cn -row $rm -sticky nw -padx 1 -pady 1
+	grid $f.cpb -row $cn -column $rm -sticky we -padx 1 -pady 1
+
+	set rs [expr { $rm + 1 }]
+	if $P(M0,MB) {
+		# multiple boards
+		set ro [expr { $rs + 1 }]
+		label $f.lse -text "Disabled:"
+		grid $f.lse -row $cn -column $rs -sticky nw -padx 1 -pady 1
+	} else {
+		set ro $rs
+	}
 
 	label $f.lml -text "Lib mode:"
-	grid $f.lml -column $cn -row $ro -sticky nw -padx 1 -pady 1
+	grid $f.lml -row $cn -column $ro -sticky nw -padx 1 -pady 1
 
 	### Multiple boards/single board ######################################
 
@@ -4779,10 +4805,9 @@ proc mk_board_selection_window { } {
 		# is needed
 		incr cn
 		label $f.mbl -text "Multiple"
-		grid $f.mbl -column $cn -row $rn -sticky nw -padx 1 -pady 1
-		checkbutton $f.mbc -variable P(M0,MB) \
-			-command "md_click 2"
-		grid $f.mbc -column $cn -row $rm -sticky nw -padx 1 -pady 1
+		grid $f.mbl -row $cn -column $rn -sticky nw -padx 1 -pady 1
+		checkbutton $f.mbc -variable P(M0,MB) -command "md_click 2"
+		grid $f.mbc -row $cn -column $rm -sticky nw -padx 1 -pady 1
 	}
 
 	# the list of available boards
@@ -4808,14 +4833,21 @@ proc mk_board_selection_window { } {
 			}
 			incr cn
 			label $f.bl$nb -text "Board ($suf)"
-			grid $f.bl$nb -column $cn -row $rn -sticky nw \
+			grid $f.bl$nb -row $cn -column $rn -sticky nw \
 				-padx 1 -pady 1
 			set mb $f.bm$nb
 			lappend P(M0,BL) $mb
 			mk_menu_button $mb
+			$mb configure -anchor w
 			set_board_menu_button $mb $bn $boards
-			grid $f.bm$nb -column $cn -row $rm -sticky nw \
+			grid $f.bm$nb -row $cn -column $rm -sticky we \
 				-padx 1 -pady 1
+
+			checkbutton $f.la$nb -variable P(M0,LD,$nb) \
+				-state normal
+			grid $f.la$nb -row $cn -column $rs -sticky nw \
+				-padx 1 -pady 1
+
 			if $ST(LO) {
 				# make sure the library option is set and it is
 				# frozen
@@ -4825,7 +4857,7 @@ proc mk_board_selection_window { } {
 				set st "normal"
 			}
 			checkbutton $f.lm$nb -variable P(M0,LM,$nb) -state $st
-			grid $f.lm$nb -column $cn -row $ro -sticky nw \
+			grid $f.lm$nb -row $cn -column $ro -sticky nw \
 				-padx 1 -pady 1
 
 			incr nb
@@ -4837,12 +4869,12 @@ proc mk_board_selection_window { } {
 		incr cn
 		set bn [lindex $P(M0,BO) 0]
 		label $f.bl0 -text "Board"
-		grid $f.bl0 -column $cn -row $rn -sticky nw -padx 1 -pady 1
+		grid $f.bl0 -row $cn -column $rn -sticky nw -padx 1 -pady 1
 		set mb $f.bm0
 		lappend P(M0,BL) $mb
 		mk_menu_button $mb
 		set_board_menu_button $mb $bn $boards
-		grid $f.bm0 -column $cn -row $rm -sticky nw -padx 1 -pady 1
+		grid $f.bm0 -row $cn -column $rm -sticky nw -padx 1 -pady 1
 		if $ST(LO) {
 			# make sure the library option is set and it is frozen
 			set st "disabled"
@@ -4851,7 +4883,7 @@ proc mk_board_selection_window { } {
 			set st "normal"
 		}
 		checkbutton $f.lm0 -variable P(M0,LM,0) -state $st
-		grid $f.lm0 -column $cn -row $ro -sticky nw -padx 1 -pady 1
+		grid $f.lm0 -row $cn -column $ro -sticky nw -padx 1 -pady 1
 	}
 
 	incr cn
@@ -4859,11 +4891,11 @@ proc mk_board_selection_window { } {
 	# the done button
 	button $f.don -text "Done" -width 7 \
 		-command "md_click 1"
-	grid $f.don -column $cn -row $ro -sticky nw -padx 1 -pady 1
+	grid $f.don -row $cn -column $ro -sticky nw -padx 1 -pady 1
 
 	button $f.can -text "Cancel" -width 7 \
 		-command "md_click -1"
-	grid $f.can -column $cn -row $rn -sticky nw -padx 1 -pady 1
+	grid $f.can -row $cn -column $rn -sticky nw -padx 1 -pady 1
 
 	bind $w <Destroy> "md_click -1"
 
@@ -9381,12 +9413,14 @@ proc reset_build_menu { { clear 0 } } {
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
 	set bm [dict get $P(CO) "LM"]
+	set bd [dict get $P(CO) "LD"]
 
 	if { $mb != "" && $bo != "" } {
 		# mkmk is applicable
 		if $mb {
 			# multiple boards
 			set bi 0
+			set nb 0
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
 				set lm [blindex $bm $bi]
@@ -9396,27 +9430,34 @@ proc reset_build_menu { { clear 0 } } {
 				} else {
 					set lm "src"
 				}
-				$m add command -label \
-				    "Pre-build $suf ($b $lm)" -command \
-				    "do_mkmk_node $bi sys_make_ctags"
+				if { $b != "" && ![blindex $bd $bi] } {
+					$m add command -label \
+					    "Pre-build $suf ($b $lm)" -command \
+					    "do_mkmk_node $bi sys_make_ctags"
+					incr nb
+				}
 				incr bi
 			}
 			$m add separator
-			if { $bi > 1 } {
+			if { $nb > 1 } {
 				$m add command -label "Pre-build all" -command \
 				"do_mkmk_all"
 				$m add separator
 			}
 			set bi 0
+			set nb 0
 			foreach b $bo {
-				set suf [lindex $P(PL) $bi]
-				$m add command -label \
-					"Build $suf (make)" \
-					-command "do_make_node $bi"
+				if { $b != "" && ![blindex $bd $bi] } {
+					set suf [lindex $P(PL) $bi]
+					$m add command -label \
+						"Build $suf (make)" \
+						-command "do_make_node $bi"
+					incr nb
+				}
 				incr bi
 			}
 			$m add separator
-			if { $bi > 1 } {
+			if { $nb > 1 } {
 				$m add command -label "Build all" \
 				-command "do_make_all"
 				$m add separator
@@ -9465,15 +9506,18 @@ proc reset_build_menu { { clear 0 } } {
 			$m add separator
 			set bi 0
 			foreach n $bo {
-				set suf [lindex $P(PL) $bi]
-				if [scdir_present $suf] {
-					set st "normal"
-				} else {
-					set st "disabled"
+				if { $n != "" && ![blindex $bd $bi] } {
+					set suf [lindex $P(PL) $bi]
+					if [scdir_present $suf] {
+						set st "normal"
+					} else {
+						set st "disabled"
+					}
+					$m add command -label \
+						"Clean (light, $suf)" \
+						-state $st \
+						-command "do_clean_light $bi"
 				}
-				$m add command -label "Clean (light, $suf)" \
-					-state $st \
-					-command "do_clean_light $bi"
 				incr bi
 			}
 		} else {
@@ -9995,6 +10039,7 @@ proc do_mkmk_all { { m 0 } } {
 
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
+	set bd [dict get $P(CO) "LD"]
 
 	if { $mb == "" || $mb == 0 } {
 		# to prevent stupid crashes on races
@@ -10002,6 +10047,21 @@ proc do_mkmk_all { { m 0 } } {
 	}
 
 	set nb [llength $bo]
+
+	while { $m < $nb } {
+		set suf [lindex $P(PL) $m]
+		set b [lindex $bo $m]
+		if ![blindex $bd $m] {
+			break
+		}
+		# disabled
+		set txt $suf
+		if { $b != "" } {
+			append txt " \[$b\]"
+		}
+		term_dspline "--DISABLED: $txt--"
+		incr m
+	}
 
 	if { $m >= $nb } {
 		# called for the last time
@@ -10011,8 +10071,6 @@ proc do_mkmk_all { { m 0 } } {
 	}
 
 	# do board number m
-	set suf [lindex $P(PL) $m]
-	set b [lindex $bo $m]
 	term_dspline "--PREBUILDING $suf for $b--"
 	do_mkmk_node $m "do_mkmk_all [expr $m + 1]"
 }
@@ -10025,6 +10083,7 @@ proc do_make_all { { m 0 } { s 0 } } {
 
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
+	set bd [dict get $P(CO) "LD"]
 
 	if { $mb == "" || $mb == 0 } {
 		# to account for races
@@ -10039,6 +10098,23 @@ proc do_make_all { { m 0 } { s 0 } } {
 
 	set nb [llength $bo]
 
+	while { $m < $nb } {
+
+		set suf [lindex $P(PL) $m]
+		set b [lindex $bo $m]
+
+		if ![blindex $bd $m] {
+			break
+		}
+		# disabled
+		set txt $suf
+		if { $b != "" } {
+			append txt " \[$b\]"
+		}
+		term_dspline "--DISABLED: $txt--"
+		incr m
+	}
+
 	if { $m >= $nb } {
 		# called for the last time; note that we postpone sys ctags
 		# until the successfull end of the entire chain; thus, a
@@ -10051,9 +10127,6 @@ proc do_make_all { { m 0 } { s 0 } } {
 		term_dspline "--ALL DONE--"
 		return
 	}
-
-	set suf [lindex $P(PL) $m]
-	set b [lindex $bo $m]
 
 	set mf "Makefile_$suf"
 
@@ -10101,6 +10174,7 @@ proc do_make_vuee { { arg "" } } {
 
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
+	set bd [dict get $P(CO) "LD"]
 
 	if { $mb == "" || $bo == "" } {
 		alert "You must select Arch+Board before building a VUEE\
@@ -10112,17 +10186,26 @@ proc do_make_vuee { { arg "" } } {
 		# add the defines pertaining to the board
 		if $mb {
 			set bi 0
+			set di ""
 			foreach b $bo {
 				set suf [lindex $P(PL) $bi]
-				set arg [linsert $arg 0 \
-					"-D${suf}+BOARD_$b" \
-					"-D${suf}+BOARD_TYPE=$b"]
-				set fn [board_opts $b]
-				if { $fn != "" } {
+				if ![blindex $bd $bi] {
 					set arg [linsert $arg 0 \
-						"-H${suf}+[unipath $fn]"]
+						"-D${suf}+BOARD_$b" \
+						"-D${suf}+BOARD_TYPE=$b"]
+					set fn [board_opts $b]
+					if { $fn != "" } {
+						set arg [linsert $arg 0 \
+						    "-H${suf}+[unipath $fn]"]
+					}
+				} else {
+					set arg [linsert $arg 0 "-X${suf}"]
+					lappend di $suf
 				}
 				incr bi
+			}
+			if { $di != "" } {
+				term_dspline "--DISABLED: [join $di ", "]"
 			}
 		} else {
 			set arg [linsert $arg 0 "-DBOARD_$bo" \
@@ -10424,6 +10507,7 @@ proc do_clean_light { { ix "" } } {
 		set d $d$suf
 		catch { exec rm -rf $d }
 	}
+	reset_bnx_menus
 }
 
 proc do_clean_vuee { } {

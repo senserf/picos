@@ -905,3 +905,15 @@ PG170906A:
 PG180622A:
 
 	Improved file name/defaults handling in genimage + minor cosmetics.
+
+PG190113A:	PICOS >= PG190113A
+
+	The Arch+Board configuration dialog now allows you to selectively
+	disable individual programs of a multi-program praxis. A disabled
+	program does not compile with "Build all" and, what is more important,
+	does not compile for VUEE. For a large praxis, like Alphanet, it is
+	useful to selectively disable some programs, especially when some of
+	them are intended for different arhitectures and cannot/should not be
+	compiled all together.
+
+	This is accompanied by a modification in picomp (PICOS).
