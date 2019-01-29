@@ -101,7 +101,7 @@ rfchannel ALOHARF {
 #ifdef	NEUTRINO
 		return sn->Level > 0.0;
 #else
-		return sl * sn->Level > AThrs;
+		return sl * sn->Level + BNoise > AThrs;
 #endif
 	};
 

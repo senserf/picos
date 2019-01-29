@@ -62,7 +62,7 @@ void RadioChannel::setup (
 	Channels = mxc;
 	Ether = this;
 
-	setAevMode (NO);
+	setAevMode (AEV_MODE_TRANSITION);
 
 	// Preprocess the BER table
 	stb = (sir_to_ber_t*) STB;

@@ -454,12 +454,12 @@ void    zz_ptime (ZZ_TBIG&, int);
 /* ------------------------------------- */
 /* Protocol-invisible bus activity types */
 /* ------------------------------------- */
-#define         TRANSFER_J              6       // Followed by a jam
+#define         TRANSMISSION_J	6       // Followed by a jam
 
 #endif	/* NOL */
 
 #if	ZZ_NOR || ZZ_NOL
-#define         TRANSFER_A              5       // Transfer attempt
+#define         TRANSMISSION_A	5       // Transmission attempt
 #endif
 
 #if	ZZ_NOR

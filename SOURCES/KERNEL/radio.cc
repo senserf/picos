@@ -388,7 +388,8 @@ inline int ZZ_RSCHED::any_event () {
 		tpckt = &(RFA->Pkt);
 		if (Stage == RFA_STAGE_BOT)
 			return BOT;
-		// ENDTRANSFER
+
+		// EOT
 		INT.update ();
 		return EOT;
 	}
@@ -2782,7 +2783,7 @@ int Transceiver::anotherActivity () {
 		for ( ; apca != NULL; apca = apca -> next) {
 			if (bot_now (apca)) {
 				Info01 = (void*) (&(apca->RFA->Pkt));
-				return TRANSFER;
+				return TRANSMISSION;
 			}
 		}
 		return NONE;
@@ -2792,7 +2793,7 @@ int Transceiver::anotherActivity () {
 		for ( ; apca != NULL; apca = apca -> next) {
 			if (eot_now (apca)) {
 				Info01 = (void*) (&(apca->RFA->Pkt));
-				return TRANSFER;
+				return TRANSMISSION;
 			}
 		}
 		return NONE;
@@ -2802,7 +2803,7 @@ int Transceiver::anotherActivity () {
 		for ( ; apca != NULL; apca = apca -> next) {
 			if (bot_now (apca) && apca->RFA->Pkt.isMy ()) {
 				Info01 = (void*) (&(apca->RFA->Pkt));
-				return TRANSFER;
+				return TRANSMISSION;
 			}
 		}
 		return NONE;
@@ -2812,7 +2813,7 @@ int Transceiver::anotherActivity () {
 		for ( ; apca != NULL; apca = apca -> next) {
 			if (eot_now (apca) && apca->RFA->Pkt.isMy ()) {
 				Info01 = (void*) (&(apca->RFA->Pkt));
-				return TRANSFER;
+				return TRANSMISSION;
 			}
 		}
 		return NONE;
@@ -2826,7 +2827,7 @@ int Transceiver::anotherActivity () {
 				continue;
 			if (apca->within_packet ()) {
 				Info01 = (void*) (&(apca->RFA->Pkt));
-				return TRANSFER;
+				return TRANSMISSION;
 			}
 			return PREAMBLE;
 		}
@@ -4886,7 +4887,7 @@ double RFChannel::RFC_att (const SLEntry *sl, double dst, Transceiver *s) {
 	return sl->Level;
 }
 
-double RFChannel::RFC_add (int n, int own, const SLEntry **sl,
+double RFChannel::RFC_add (int n, int followed, const SLEntry **sl,
 	const SLEntry *xmt) {
 
 /* ============================ */
@@ -4898,7 +4899,7 @@ double RFChannel::RFC_add (int n, int own, const SLEntry **sl,
 	tsl = xmt->Level;
 
 	while (n--)
-		if (n != own)
+		if (n != followed)
 			tsl += sl [n] -> Level;
 	return tsl;
 }

@@ -1435,7 +1435,7 @@ TIME    Port::collisionTime (int lookatjams) {
 						goto LKJAMS;
 					} 
 				} else {
-					if (a->Type == TRANSFER_J) {
+					if (a->Type == TRANSMISSION_J) {
 						// Followed by jam
 						tc = tfa;
 						goto LKJAMS;
@@ -1968,7 +1968,7 @@ TIME    Port::eotTime () {
 	for (t = TIME_inf, a = Lnk->Alive, tact = NULL; a != NULL;
 		a = a -> next) {
 
-		if (a->Type != TRANSFER) continue;
+		if (a->Type != TRANSMISSION) continue;
 
 		// Note that for a transfer, a->FTime is != TIME_inf
 
@@ -1990,7 +1990,7 @@ TIME    Port::eotTime () {
 	for (t = TIME_inf, a = Lnk->Alive, tact = NULL; a != NULL;
 		a = a -> next) {
 
-		if ((a->LRId > LRId) || (a->Type != TRANSFER)) continue;
+		if ((a->LRId > LRId) || (a->Type != TRANSMISSION)) continue;
 
 		// Note that for a transfer, a->FTime is != TIME_inf
 
@@ -2014,13 +2014,13 @@ TIME    Port::eotTime () {
 		return (TIME_inf);
 	}
 
-	if (a->Type != TRANSFER
+	if (a->Type != TRANSMISSION
 #if ZZ_FLK
   || (Lnk->FType == FT_LEVEL2 && flagSet (a->Pkt.Flags, PF_damaged))
 #endif
 				) {
 		for (a = a->next; a != NULL; a = a->next) {
-			if (a->LRId > LRId || a->Type != TRANSFER) continue;
+			if (a->LRId > LRId || a->Type != TRANSMISSION) continue;
 			// Note that now a->FTime must be finite
 			t = a->FTime + DV [a->LRId];
 			if (t < Time) continue;
@@ -2042,7 +2042,7 @@ EOT1:
 
 	for (a = a->next; a != NULL; a = a->next) {
 
-		if (a->Type != TRANSFER || a->LRId > LRId) continue;
+		if (a->Type != TRANSMISSION || a->LRId > LRId) continue;
 		if (a->STime + DV [a->LRId] >= t) {
 			tpckt = &(tact->Pkt);
 			return (t);
@@ -2294,7 +2294,7 @@ TIME    Port::empTime () {
 	for (t = TIME_inf, a = Lnk->Alive, tact = NULL; a != NULL;
 		a = a -> next) {
 
-		if (a->Type != TRANSFER) continue;
+		if (a->Type != TRANSMISSION) continue;
 #if ZZ_FLK
   if (Lnk->FType > FT_LEVEL0 && flagSet (a->Pkt.Flags, PF_damaged)) continue;
 #endif
@@ -2333,7 +2333,7 @@ TIME    Port::empTime () {
 
 		if (a->LRId > LRId) continue;
 
-		if (a->Type != TRANSFER) continue;
+		if (a->Type != TRANSMISSION) continue;
 #if ZZ_FLK
   if (Lnk->FType > FT_LEVEL0 && flagSet (a->Pkt.Flags, PF_damaged)) continue;
 #endif
@@ -2371,7 +2371,7 @@ TIME    Port::empTime () {
 
 		// Find the first packet addressed to me
 
-		if (a->Type != TRANSFER || a->LRId > LRId) continue;
+		if (a->Type != TRANSMISSION || a->LRId > LRId) continue;
 
 		if (!flagSet ((a->Pkt).Flags, PF_broadcast)) {
 			if ((a->Pkt).Receiver != TheStation->Id)
@@ -2397,7 +2397,7 @@ TIME    Port::empTime () {
 
 	for (a = a->next; a != NULL; a = a->next) {
 
-		if (a->Type != TRANSFER || a->LRId > LRId) continue;
+		if (a->Type != TRANSMISSION || a->LRId > LRId) continue;
 		if (a->STime + DV [a->LRId] >= t) break;
 
 		if (flagSet ((a->Pkt).Flags, PF_broadcast)) {
@@ -2457,7 +2457,7 @@ TIME    Port::aevTime () {
 				t = ts;
 				if ((tact = a) -> Type == JAM) {
 					rinfo = EOJ;
-				} else if (a -> Type == TRANSFER) {
+				} else if (a -> Type == TRANSMISSION) {
 					rinfo = EOT;
 				} else {
 					rinfo = ABTPACKET;
@@ -2498,7 +2498,7 @@ TIME    Port::aevTime () {
 				t = ts;
 				if ((tact = a) -> Type == JAM) {
 					rinfo = EOJ;
-				} else if (a -> Type == TRANSFER) {
+				} else if (a -> Type == TRANSMISSION) {
 					rinfo = EOT;
 				} else {
 					rinfo = ABTPACKET;
@@ -2547,7 +2547,7 @@ LRQAEV:
 
 	if ((tact = a) -> Type == JAM) {
 		rinfo = EOJ;
-	} else if (a -> Type == TRANSFER) {
+	} else if (a -> Type == TRANSMISSION) {
 		rinfo = EOT;
 	} else {
 		rinfo = ABTPACKET;
@@ -2576,7 +2576,7 @@ LRQAEV:
 			t = ts;
 			if ((tact = a) -> Type == JAM) {
 				rinfo = EOJ;
-			} else if (a -> Type == TRANSFER) {
+			} else if (a -> Type == TRANSMISSION) {
 				rinfo = EOT;
 			} else {
 				rinfo = ABTPACKET;
@@ -2913,7 +2913,7 @@ void    Port::startTransmit (Packet *packet) {
 	Lnk -> packetDamage (packet);
 	if (flagSet (packet->Flags, PF_damaged)) Lnk->spfmPDM (packet);
 #endif
-	new_activity = zz_gen_activity (LRId, this, TRANSFER_A, packet);
+	new_activity = zz_gen_activity (LRId, this, TRANSMISSION_A, packet);
 	Info01 = (void*) (tpckt = &(new_activity -> Pkt));      // ThePacket
 	Info02 = (void*) (tpckt -> TP);                         // TheTraffic
 
@@ -3011,10 +3011,11 @@ void    Port::startJam () {
 		// ending at Time (optimization for CPROPAGATE link type)
 
 		for (a = Lnk->Alive; a != NULL; a = a -> next)
-			if ((a -> LRId == LRId) && (a -> Type == TRANSFER_A) &&
+			if ((a -> LRId == LRId) &&
+			    (a -> Type == TRANSMISSION_A) &&
 				(a -> FTime >= Time)) {
 
-				a -> Type = TRANSFER_J;
+				a -> Type = TRANSMISSION_J;
 				break;
 			}
 		break;
@@ -3132,7 +3133,7 @@ int     Port::stop () {
 	Info01 = (void*) (tpckt = &(bac -> Pkt));       // ThePacket
 	Info02 = (void*) (tpckt->TP);                   // TheTraffic
 
-	bac->Type = TRANSFER;                   // Properly terminated packet
+	bac->Type = TRANSMISSION;		// A properly terminated packet
 
 	// Update link counters
 
@@ -3158,7 +3159,7 @@ int     Port::stop () {
 	reschedule_aev (EOT);
 	reschedule_sil (EOT);
 	reschedule_col (EOT);
-	return (TRANSFER);
+	return (TRANSMISSION);
 }
 
 int     Port::abort () {
@@ -3216,7 +3217,7 @@ int     Port::abort () {
 	reschedule_aev (ABTPACKET);
 	reschedule_sil (EOT);
 	reschedule_col (EOT);
-	return (TRANSFER);
+	return (TRANSMISSION);
 }
 
 void    Port::reschedule_act    (int act) {
@@ -4156,7 +4157,7 @@ TIME    Port::lastEOT () {
 
 		// Ignore activities other than completed transfers that end
 		// before the current time
-		if (a->Type != TRANSFER) continue;
+		if (a->Type != TRANSMISSION) continue;
 		t = a->FTime + DV [a->LRId];
 		if (t > Time) continue;
 
@@ -4176,7 +4177,7 @@ TIME    Port::lastEOT () {
 			if ((Lnk->Type >= LT_unidirectional) &&
 				(a->LRId > LRId)) continue;
 
-			if (a->Type == TRANSFER) {
+			if (a->Type == TRANSMISSION) {
 				t = a->FTime + DV [a->LRId];
 				if (t > tc) {
 #if ZZ_FLK
@@ -4488,7 +4489,8 @@ int     Port::events (int etype) {
 				if ((Lnk->Type >= LT_unidirectional) &&
 					(a->LRId > LRId)) continue;
 
-				if ((a->Type == TRANSFER) && def (a->FTime) &&
+				if ((a->Type == TRANSMISSION) &&
+				    def (a->FTime) &&
 					(a->FTime + DV [a->LRId] == Time)) {
 					result++;
 					if (Info01 == NULL)

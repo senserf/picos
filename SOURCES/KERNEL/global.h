@@ -398,15 +398,16 @@ class		ZZ_RF_ACTIVITY;
 #define         EMP             7       // End of packet addressed to me
 #define         ANYEVENT        8       // Any status change of the carrier
 
-#define		AEV_MODE_PERSISTENT	0	// Persistent ANYEVENT mode
-#define		AEV_MODE_TRANSITION	1	// Non-persistent
+#define		AEV_MODE_PERSISTENT	YES	// Persistent ANYEVENT mode
+#define		AEV_MODE_TRANSITION	NO	// Non-persistent
+#define		AEV_MODE_NONPERSISTENT	AEV_MODE_TRANSITION
 
 /* ---------------------------------------------------------- */
 /* User-visible  Bus  activity  types  (returned  in TheEvent */
 /* after ANYEVENT)                                            */
 /* ---------------------------------------------------------- */
-#define         JAM                     0
-#define         TRANSFER                1
+#define         JAM		0
+#define         TRANSMISSION	1
 
 #endif
 
@@ -4826,12 +4827,12 @@ class	Transceiver : public AI {
 
 	inline int stop () {
 		term_xfer (EOT);
-		return TRANSFER;
+		return TRANSMISSION;
 	};
 
 	inline int abort () {
 		term_xfer (SILENCE);
-		return TRANSFER;
+		return TRANSMISSION;
 	};
 
 	Boolean transmitting () { return Activity != NULL; };

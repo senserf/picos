@@ -8500,7 +8500,7 @@ be perceived as a complete (receivable) packet.
 
 Each of the two methods returns an integer value that tells
 the type of the terminated activity.
-This value can be either {\tt TRANSFER} or {\tt JAM}.
+This value can be either {\tt TRANSMISSION} or {\tt JAM}.
 It is illegal to attempt to interrupt a non-existent activity, i.e., to
 execute {\tt stop} or {\tt abort} on an idle port.
 
@@ -10280,7 +10280,7 @@ which {\em aborts\/} the transmission.
 This means that the packet has been interrupted in the middle,
 and it will never be perceived as a complete (receivable) packet.
 For compatibility with the similar methods available for {\tt Port}s
-(\sect{rm_po_ac_st}) both the above methods return {\tt TRANSFER}.
+(\sect{rm_po_ac_st}) both the above methods return {\tt TRANSMISSION}.
 Note that both {\tt stop} as well as {\tt abort} will trigger an error
 if no packet is being transmitted.
 
@@ -11189,7 +11189,7 @@ remove the {\tt EOT} event from the transceiver (\sect{rm_ti_wa}).
 
 The method returns {\tt NONE} when it runs out of activities to present.
 Otherwise, its value is
-{\tt PREAMBLE} or {\tt TRANSFER}, depending on whether the activity is still
+{\tt PREAMBLE} or {\tt TRANSMISSION}, depending on whether the activity is still
 in the preamble stage or within the proper packet.
 In the above example, all activities traversed by {\tt anotherActivity} are
 bound to be within the proper packet (stage {\em E\/}), so there is no
@@ -11205,7 +11205,7 @@ If the method is called after {\tt ANYEVENT}, {\tt ACTIVITY}, or after
 a call to {\tt activities}, then it will scan through
 all activities perceived by the transceiver at the current {\em ITU},
 regardless of their stage.
-Whenever it returns {\tt TRANSFER} (as opposed to {\tt PREAMBLE}),
+Whenever it returns {\tt TRANSMISSION} (as opposed to {\tt PREAMBLE}),
 {\tt ThePacket} will be set to point to the respective packet.
 
 Even if {\tt anotherActivity} returns {\tt PREAMBLE} (and
