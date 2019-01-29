@@ -1367,3 +1367,11 @@ PG180504A:	SIDE >= PG180504A
     SIR values in the sir-to-ber array in the generic wchan.h/wchan.cc model
     in SMURPH are now specified in dB, rather than linearly. This requires a
     matching update in VUEE, so here it is.
+
+PG190129A:
+
+    Fixed the reference to setTRate (to setXRate) to match the recent
+    "cosmetic" change in SMURPH/SIDE.
+
+    The node menu that pops up in udaemon's roamer window now allows you to
+    power the node up and down, as well as to reset it.

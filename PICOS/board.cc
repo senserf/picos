@@ -550,7 +550,7 @@ void rfm_intd_t::setrfrate (word ix) {
 	assert (m->exact (ix), "RFInt->setrfrate: illegal rate index %1d", ix);
 
 	rate = m->setvalue (ix);
-	RFInterface->setTRate ((RATE) round ((double)etuToItu (1.0) / rate));
+	RFInterface->setXRate ((RATE) round ((double)etuToItu (1.0) / rate));
 	RFInterface->setTag ((RFInterface->getTag () & 0xffff) | (ix << 16));
 }
 

@@ -6025,6 +6025,18 @@ proc reqPanel { Sok ix rq } {
 	sock_wr $Sok "$rq [lindex $no 0]\n"
 }
 
+proc turnNode { n st } {
+
+	global Stat
+
+	if ![info exists Stat(PNN,S)] {
+		log "request ignored, no panel connection"
+		return
+	}
+
+	sock_wr $Stat(PNN,S) "$st $n\n"
+}
+
 proc delPanel { Sok ix } {
 
 	global Stat
@@ -7431,11 +7443,15 @@ proc mkMove { rmr } {
 	bind $c <Configure> "moveResize $sid %w %h"
 	bind $c <B1-ButtonRelease> "moveShowPos $sid %x %y"
 
-	# a popup menu for node-related commands
-	set m [menu $w.ncm]
+	# a popup menu for node-related commands; cannot be torn off, because
+	# it is shared
+	set m [menu $w.ncm -tearoff 0]
+	# the number of fixed items
+	set nit 0
 	if $Stat(P) {
 		$m add command -label "UART (plug)" \
 			-command {moveNC "UART (plug)"}
+		incr nit
 	}
 	$m add command -label "UART (ascii)" -command {moveNC "UART (ascii)"}
 	$m add command -label "UART (hex)" -command {moveNC "UART (hex)"}
@@ -7446,6 +7462,9 @@ proc mkMove { rmr } {
 	$m add command -label "LCDG" -command {moveNC "LCDG"}
 	$m add command -label "PTRACKER" -command {moveNC "PTRACKER"}
 	$m add command -label "Move" -command {moveZC}
+	incr nit 9
+
+	set RD($sid,MI) $nit
 
 	return 0
 }
@@ -7947,15 +7966,38 @@ proc moveNodeMenu { sid n x y } {
 #
 # Called by a right-click in the node
 #
-	global RD MStatId
+	global RD MStatId Stat
 
 	# as with all event callbacks ...
 	if ![info exists RD($sid,WN)] {
 		return
 	}
-	# a way to communicate the node Id
+	# a way to communicate the node Id; the menu is shared, so, e.g., it
+	# cannot be torn off
 	set MStatId $n
-	tk_popup $RD($sid,WN).ncm $x $y
+	# the menu
+	set men $RD($sid,WN).ncm
+	# the number of fixed items in the menu
+	set nit $RD($sid,MI)
+	# delete node-specific items inserted by previous popup
+	$men delete $nit end
+	if [info exists Stat(PNN,$n)] {
+		$men add separator
+		# the node status
+		if { $Stat(PNN,$n) == "F" } {
+			# the node is powered down
+			$men add command -label "Turn ON" -command\
+				"turnNode $n O"
+		} else {
+			# the node is powered up
+			$men add command -label "Turn OFF" -command\
+				"turnNode $n F"
+		}
+		$men add separator
+		$men add command -label "Reset" -command "turnNode $n R"
+	}
+			
+	tk_popup $men $x $y
 }
 
 proc moveNC { wh } {
@@ -8354,8 +8396,14 @@ proc moveClearDist { sid } {
 
 proc moveShowPos { sid x y } {
 
-	set pos [format "%1.2f %1.2f" [xfromcv $sid $x] [yfromcv $sid $y]]
-	log "Position = <$x $y> ($pos)"
+	if [catch { 
+		set pos \
+		    [format "%1.2f %1.2f" [xfromcv $sid $x] [yfromcv $sid $y]]
+	} ] {
+		log "Node not available"
+	} else {
+		log "Position = <$x $y> ($pos)"
+	}
 }
 
 proc moveUpButton { sid n } {

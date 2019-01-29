@@ -656,7 +656,7 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 		Transceiver *t;
 		t = rf->RFInterface;
 		diag ("TRANSCEIVER %1d, %1d, %g, %g, %1d, %1d, %g, %1d",
-			(Long)(t->getTRate ()),
+			(Long)(t->getTXate ()),
 			t->getPreamble (),
 			t->getXPower (),
 			t->getRPower (),
