@@ -46,12 +46,12 @@
 
 // DD cache struct
 typedef struct ddc {
-	// Note: int changed to sint. The idea is to use this type consistently
+	// Note: int changed to wint. The idea is to use this type consistently
 	// in all structures (like packet headers) to distinguish it from int
 	// in the simulator. We want to preserve in the simulator the original
 	// size of all items that contribute to packets. Notably, we cannot do
 	// this with pointers (as in TCV buffers), and then we play tricks.
-	sint	head;
+	wint	head;
 	seq_t	m_seq;
 	byte	spare;
 	nid_t	node[ddCacheSize];
@@ -66,7 +66,7 @@ struct spde {
 
 // SPD cache struct
 typedef struct spdc {
-	sint	head;
+	wint	head;
 	word	m_hop; // check if it's really better with int instead word
 	struct	spde en[spdCacheSize];
 } spdcType;
@@ -74,9 +74,9 @@ typedef struct spdc {
 typedef struct rtrc {
 	byte	head;
 	byte	fecnt;
-	address pkt [rtrCacheSize];
 	byte	rcnt [rtrCacheSize];
 	byte	hoc [rtrCacheSize];
+	address pkt [rtrCacheSize];
 } rtrcType; // 1 + 1 + 10 * (2+1+1) bytes
 
 // In March 2015 flags :8 were replaced with pp_urg, pp_widen, spare fields

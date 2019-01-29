@@ -5418,3 +5418,11 @@ PG190113A:
 	programs of multiprogram praxes (see PG190113A in PIP).
 
 	A few cosmetics.
+
+PG190129A:
+
+	Fixed a bug in tcv.h causing that a buffer offset was calculated
+	incorrectly on architectures with 32-bit sint, like ARM. That, in
+	turn, caused TARP to crash on the CC1350.
+
+	Reshuffled a bit the rtrcType struct (in tarp.h) to improve alignment.

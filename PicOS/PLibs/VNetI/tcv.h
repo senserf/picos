@@ -40,7 +40,7 @@
 //#define	t_tqoffset	(((int*)(((hblock_t*)0)->tqueue))-(int*)((hblock_t*)0))
 // ... and this one is a bit less reliable:
 #define	t_tqoffset	((sizeof(hblock_t) - sizeof(titem_t))/sizeof (word))
-#define t_buffer(p)	((hblock_t*)((sint*)(p) - t_tqoffset))
+#define t_buffer(p)	((hblock_t*)((wint*)(p) - t_tqoffset))
 #define	t_empty		(tcv_q_tim . next == (titem_t*)(&tcv_q_tim))
 
 #define	deqt(t)		do { \

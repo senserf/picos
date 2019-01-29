@@ -140,7 +140,7 @@ static word findInSpd (nid_t host) {
 
 static word findInRtr (nid_t sndr, seq_t seqn, address pkt) {
 
-	sint i;
+	wint i;
 
 	if (rtrCache->head)
 		i = rtrCache->head;

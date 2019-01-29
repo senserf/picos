@@ -71,6 +71,11 @@
 // shall see if this is enough in the longer run.
 //
 
+// Operations for accessing INFO flash
+#ifndef	INFO_FLASH
+#define	INFO_FLASH		0
+#endif
+
 #ifndef	CODE_LONG_INTS
 #define	CODE_LONG_INTS		1	// +
 #endif
@@ -466,11 +471,6 @@
 #define	RTC_S35390		0
 #endif
 // ============================================================================
-
-// Operations for accessing INFO flash on MSP430
-#ifndef	INFO_FLASH
-#define	INFO_FLASH		0
-#endif
 
 // System error resets the micro
 #ifndef	RESET_ON_SYSERR
