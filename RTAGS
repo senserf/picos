@@ -917,3 +917,7 @@ PG190113A:	PICOS >= PG190113A
 	compiled all together.
 
 	This is accompanied by a modification in picomp (PICOS).
+
+PG190203A:
+
+	A couple of cosmetic fixes to the previous commit.

@@ -4518,6 +4518,9 @@ proc click_menu_button { w n { cmd "" } } {
 	set t [$w.m entrycget $n -label]
 	$w configure -text $t
 	if { $cmd != "" } {
+		if { $t == "---" } {
+			set t ""
+		}
 		$cmd $w $t
 	}
 }
@@ -4819,20 +4822,10 @@ proc mk_board_selection_window { } {
 		# multiple
 		set nb 0
 		set tb ""
-		set lb ""
 		foreach suf $P(PL) {
 			set bn [lindex $P(M0,BO) $nb]
-			if { $bn == "" } {
-				if { $lb != "" } {
-					set bn $lb
-				} else {
-					set bn "---"
-				}
-			} else {
-				set lb $bn
-			}
 			incr cn
-			label $f.bl$nb -text "Board ($suf)"
+			label $f.bl$nb -text "Board for ${suf}:"
 			grid $f.bl$nb -row $cn -column $rn -sticky nw \
 				-padx 1 -pady 1
 			set mb $f.bm$nb
