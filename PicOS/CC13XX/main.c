@@ -1,7 +1,7 @@
 #include "kernel.h"
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2018                           */
+/* Copyright (C) Olsonet Communications, 2018-2019                      */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 

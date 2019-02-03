@@ -5426,3 +5426,7 @@ PG190129A:
 	turn, caused TARP to crash on the CC1350.
 
 	Reshuffled a bit the rtrcType struct (in tarp.h) to improve alignment.
+
+PG190203A:
+
+	Defined an Alphanet Tag board based on CC1350 SENSORTAG.
