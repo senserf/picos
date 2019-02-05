@@ -1,1 +1,1 @@
-{MOD IHEX} {TFN Image_nnnn.hex} {CNT 1} {FRM 1} {IFN Image.hex} {SRD C:/cygwin64/home/nripg/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {PFX 8700} {IDA BACADEAF} {TRD C:/cygwin64/home/nripg/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {APV {}} {IDN BACADEAD}
+{MOD IHEX} {TFN Image_nnnn.hex} {CNT 1} {FRM 2} {IFN Image.hex} {SRD C:/cygwin64/home/nripg/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {PFX 8700} {IDA BACADEAF} {TRD C:/cygwin64/home/nripg/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {APV {}} {IDN BACADEAD}

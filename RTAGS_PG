@@ -5430,3 +5430,7 @@ PG190129A:
 PG190203A:
 
 	Defined an Alphanet Tag board based on CC1350 SENSORTAG.
+
+PG190205A:
+
+	Upgaded RFTEST so we can test PATABLE settings for CC1350.

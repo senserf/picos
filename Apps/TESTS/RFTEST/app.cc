@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2018                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2019                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -61,16 +61,23 @@ word	g_pkt_mindel = 1024, g_pkt_maxdel = 1024,
 
 byte	g_rstat, g_last_rssi, g_last_qual, g_snd_urgent;
 
-word	g_pat_peer, g_pat_cnt, g_pat_cntr;
-lword	g_pat_acc;
-byte	g_pat_cset [] = { 0x3e, 0, 255 }, g_pat_cred;
-
-word	g_pat_nlqi, g_pat_maxlqi, g_pat_drop;
 
 char	*g_snd_rcmd, *g_pcmd_cmd;
 
 #ifdef	CC1100_PATABLE
-const byte g_patable [] = CC1100_PATABLE;
+const	byte g_patable [] = CC1100_PATABLE;
+byte	g_pat_cset [] = { 0x3e, 0, 255 };
+#endif
+
+#ifdef	CC1350_PATABLE
+word 	g_patable [] = CC1350_PATABLE;
+#endif
+
+#if	defined(CC1100_PATABLE) || defined(CC1350_PATABLE)
+word	g_pat_peer, g_pat_ntries, g_pat_cntr, g_pat_left, g_pat_curr;
+lword	g_pat_acc;
+word	g_pat_nlqi, g_pat_maxlqi, g_pat_drop;
+byte	g_pat_cred;
 #endif
 
 address	g_rcv_ackrp;
@@ -871,7 +878,7 @@ word do_command (const char *cb, word sender, word sernum) {
 		// Stop transmitting
 		killall (thread_sender);
 		// To terminate the PATABLE thread, if running
-		g_pat_cnt = 0;
+		g_pat_ntries = 0;
 		trigger (&g_pat_cred);
 		return 0;
 
@@ -920,7 +927,7 @@ RetFlags:
 		g_flags &= ~0x6000;
 		goto RetFlags;
 
-#ifdef	CC1100_PATABLE
+#if defined (CC1100_PATABLE) || defined(CC1350_PATABLE)
 
 	    case 't':
 
@@ -929,11 +936,23 @@ RetFlags:
 			// One at a time
 			return 8;
 
-		g_pat_cnt = 16;
-		scan (cb + 1, "%u %u", &g_pat_peer, &g_pat_cnt);
+		// Remote node address
+		g_pat_peer = WNONE;
+		// Tries per value
+		g_pat_ntries = 16;
+		// Current (starting) value to try
+		g_pat_curr = 0;
+		// Number of values to try
+		g_pat_left = 1;
 
-		if (g_pat_cnt == 0)
-			g_pat_cnt = 1;
+		scan (cb + 1, "%u %u %x %u", &g_pat_peer, &g_pat_ntries,
+			&g_pat_curr, &g_pat_left);
+
+		if (g_pat_peer == WNONE)
+			return 4;
+
+		if (g_pat_ntries == 0)
+			g_pat_ntries = 1;
 
 		if (runfsm thread_patable == 0)
 			return 6;
@@ -968,11 +987,11 @@ RetFlags:
 
 #endif
 
-#ifdef	CC1100_PATABLE
+#if defined(CC1100_PATABLE) || defined(CC1350_PATABLE)
 
 	    case 'm': {
 
-		// Modify CC1100 register
+		// Modify CC1100 register or CC1350 patable
 
 		word n, v;
 		const char *cq;
@@ -997,7 +1016,9 @@ RetFlags:
 			// supplementary table, so the command without
 			// arguments resets the chip
 			tcv_control (g_fd_rf, PHYSOPT_RESET, NULL);
+			// This works fine for both CC1100 and CC1350
 		} else {
+#ifdef	CC1100_PATABLE
 			if (n & 1)
 				return 4;
 			if ((rs = (byte*) umalloc (n + 1)) == NULL)
@@ -1022,6 +1043,28 @@ RetFlags:
 			rs [n] = 0xff;
 			tcv_control (g_fd_rf, PHYSOPT_RESET, (address) rs);
 			ufree (rs);
+#endif
+#ifdef	CC1350_PATABLE
+			if (n > 8)
+				return 4;
+			// Collect the numbers
+			cq = cb + 1;
+			n = 0;
+			while (1) {
+				cq = skip_blk (cq);
+				if (*cq == '\0')
+					break;
+				v = WNONE;
+				scan (cq, "%x", &v);
+				if (v == WNONE) {
+					return 4;
+				}
+				g_patable [n++] = v;
+				cq = skip_del (cq);
+			}
+
+			tcv_control (g_fd_rf, PHYSOPT_RESET, g_patable);
+#endif
 		}
 		// Do nothing
 		return 0;
@@ -1124,7 +1167,7 @@ RetFlags:
 		return 0;
 	    }
 			
-#ifdef CC1100_PATABLE
+#if defined(CC1100_PATABLE) || defined(CC1350_PATABLE)
 
 	    // Two special commands used by PATABLE tester
 
@@ -1163,7 +1206,7 @@ RetFlags:
 			// No PATABLE thread
 			return WNONE;
 
-		if ((byte)sernum != g_pat_cset [1])
+		if (sernum != g_pat_curr)
 			// Obsolete reading
 			return WNONE;
 
@@ -1544,7 +1587,7 @@ fsm thread_chguard {
 
 // ============================================================================
 
-#ifdef	CC1100_PATABLE
+#if defined(CC1100_PATABLE) || defined(CC1350_PATABLE)
 
 fsm thread_patable {
 
@@ -1557,12 +1600,17 @@ fsm thread_patable {
 	ntries = 0;
 	// Select PATABLE [0]
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &ntries);
-	// Starting value
-	g_pat_cset [1] = 0;
 
   entry PA_CSET:
 
+#ifdef CC1100_PATABLE
+	g_pat_cset [1] = (byte) g_pat_curr;
 	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)&g_pat_cset);
+#endif
+#ifdef CC1350_PATABLE
+	g_patable [0] = g_pat_curr;
+	tcv_control (g_fd_rf, PHYSOPT_RESET, g_patable);
+#endif
 	g_pat_cntr = 0;
 	g_pat_acc = 0;
 	g_pat_nlqi = g_pat_maxlqi = g_pat_drop = 0;
@@ -1575,14 +1623,14 @@ fsm thread_patable {
   	address packet;
 
 	// Issue a command
-	if (g_pat_cnt == 0)
+	if (g_pat_ntries == 0)
 		// Aborted
 		proceed PA_DONE;
 		
 	packet = tcv_wnp (PA_RUN, g_fd_rf, (POFF_CMD + 1 + 1) * 2);
 	packet [POFF_RCV] = g_pat_peer;
 	packet [POFF_SND] = HOST_ID;
-	packet [POFF_SER] = (word) (g_pat_cset [1]);
+	packet [POFF_SER] = g_pat_curr;
 	packet [POFF_FLG] = 0;
 	strcpy ((char*)(packet+POFF_CMD), "+");
 	tcv_endp (packet);
@@ -1607,14 +1655,14 @@ fsm thread_patable {
 
   entry PA_NEWVAL:
 
-	if (g_pat_cnt == 0)
+	if (g_pat_ntries == 0)
 		// Aborted
 		proceed PA_DONE;
 
 	g_pat_acc += g_pat_cred;
 	g_pat_cntr++;
 
-	if (g_pat_cntr < g_pat_cnt) {
+	if (g_pat_cntr < g_pat_ntries) {
 		// Need more samples
 		ntries = 0;
 		proceed PA_RUN;
@@ -1626,19 +1674,19 @@ fsm thread_patable {
 
 #ifdef CHRONOS
 
-	enc_hex (g_pat_cset [1], 2);
+	enc_hex (g_pat_curr, 2);
 	enc_dec ((word) (g_pat_cntr  > 1 ? g_pat_acc / g_pat_cntr : g_pat_acc),
 		3);
 
 	m_out (PA_NEXT, c_msg);
 #else
-	uart_outf (PA_NEXT, "0x%x, %d, %d, %u, %u", g_pat_cset [1],
-		(word) (g_pat_cntr  > 1 ? g_pat_acc / g_pat_cntr : g_pat_acc),
+	uart_outf (PA_NEXT, "0x%x, %d, %d, %u, %u", g_pat_curr,
+		(word) (g_pat_cntr > 1 ? g_pat_acc / g_pat_cntr : g_pat_acc),
 			g_pat_cntr, g_pat_nlqi, g_pat_maxlqi);
 #endif
 	// Next value
-	if (g_pat_cset [1] != 255) {
-		g_pat_cset [1] ++;
+	if (--g_pat_left) {
+		g_pat_curr++;
 		proceed PA_CSET;
 	}
 
@@ -1651,14 +1699,21 @@ fsm thread_patable {
 #else
 	uart_out (PA_DONE, "All done");
 #endif
+
 	// Resume previous setting
+
+#ifdef CC1100_PATABLE
 	g_pat_cset [1] = g_patable [0];
 	tcv_control (g_fd_rf, PHYSOPT_RESET, (address)&g_pat_cset);
+#endif
+#ifdef CC1350_PATABLE
+	tcv_control (g_fd_rf, PHYSOPT_RESET, NULL);
+#endif
 	tcv_control (g_fd_rf, PHYSOPT_SETPOWER, &spow);
 	finish;
 }
 
-#endif /* CC1100_PATABLE */
+#endif /* PATABLEs */
 
 // ============================================================================
 

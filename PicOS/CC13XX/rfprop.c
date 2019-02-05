@@ -75,7 +75,13 @@ static byte channel = RADIO_DEFAULT_CHANNEL;
 // Power can be changed; the max power must be hardwired (with rate 0) for
 // long range operation
 
-static const word patable [] = CC1350_PATABLE;
+// Used to be const, but we want to be able to modify the values from the
+// default settings and also be able to revert to the defaults
+
+static byte txpower;
+
+static word patable_def [] = CC1350_PATABLE;
+static address patable = patable_def;
 
 #endif
 
@@ -170,7 +176,7 @@ static rfc_CMD_PROP_CS_t cmd_cs = {
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 
 #if RADIO_DEFAULT_POWER > 7
-#error "S: PXOPTIONS requires RADIO_DEFAULT_POWER < 8"
+#error "S: PXOPTIONS requires RADIO_DEFAULT_POWER <= 7"
 #endif
 
 static rfc_CMD_SET_TX_POWER_t cmd_sp = {
@@ -906,28 +912,36 @@ OREvnt:
 
 		case PHYSOPT_GETPOWER:
 
-#if RADIO_DEFAULT_POWER < 8
-			for (ret = 0; ret < 8; ret++)
-				if (RF_cmdPropRadioDivSetup.txPower
-					== patable [ret])
-						break;
+#if RADIO_DEFAULT_POWER <= 7
+			ret = txpower;
 #else
-			ret = 8;
+			ret = RADIO_DEFAULT_POWER;
 #endif
 			goto RVal;
 
-#if RADIO_DEFAULT_POWER < 8 && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0
+		case PHYSOPT_RESET:
+
+#if RADIO_DEFAULT_POWER <= 7
+			// Just the patable
+			patable = (val == NULL) ? patable_def : val;
+Reset_pwr:
+			RF_cmdPropRadioDivSetup.txPower = patable [txpower];
+#endif
+			_BIS (dstate, DSTATE_IRST);
+			goto OREvnt;
+
+#if RADIO_DEFAULT_POWER <= 7 && (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS) == 0
 		// Can be set
 		case PHYSOPT_SETPOWER:
 
-			// This is a global reset; apparently, we can do
-			// per-packet power via a special command
+			// This goes via a global reset; apparently, we can do
+			// per-packet power via a special command; the global
+			// reset makes sense for a casual SETPOWER, because we
+			// can execute it sensibly regardless of the RF state
 
-			ret = (val == NULL) ? RADIO_DEFAULT_POWER :
+			ret = txpower = (val == NULL) ? RADIO_DEFAULT_POWER :
 				(*val > 7) ? 7 : *val;
-			RF_cmdPropRadioDivSetup.txPower = patable [ret];
-			_BIS (dstate, DSTATE_IRST);
-			goto OREvnt;
+			goto Reset_pwr;
 #endif
 		case PHYSOPT_GETCHANNEL:
 
@@ -1037,7 +1051,8 @@ void phys_cc1350 (int phy, int mbs) {
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 	cmd_sp.txPower =
 #endif
-	RF_cmdPropRadioDivSetup.txPower = patable [RADIO_DEFAULT_POWER];
+	RF_cmdPropRadioDivSetup.txPower =
+		patable [txpower = RADIO_DEFAULT_POWER];
 #endif
 
 #if RADIO_BITRATE_INDEX > 0
