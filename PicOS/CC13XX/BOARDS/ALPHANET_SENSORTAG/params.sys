@@ -1,2 +1,2 @@
 -c cc1350
--l main.c rfprop.c ser_in.c ser_out.c ser_inf.c ser_outf.c form.c serf.h
+-l main.c rfprop.c ser_in.c ser_out.c ser_inf.c ser_outf.c form.c serf.h cma3000.h sca3100.h mpu9250.h obmicrophone.h bmp280.h hdc1000.h opt3001.h

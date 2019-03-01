@@ -235,8 +235,8 @@ fsm button_holder {
 #else
 		// Hibernate (shutdown mode) not available
 		if (running (thread_sender) || g_rstat != 2) {
-			if (do_command ("q", 0, 0) == 0 &&
-			    do_command ("f", 0, 0) == 0)
+			if (do_command ("q", 0, 0) == 0)
+			    do_command ("f", 0, 0);
 		}
 #ifdef	SIGNALING_LED
 		n_blinks = 2;

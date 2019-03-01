@@ -1,40 +1,41 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2018                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2019                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
-// This is for 1.5.1 without the TMP007 sensor
+// NOTE: Gerry says that tmp007 is absent in newer versions of the board; need
+// to make sure
 
-// DIO_1	- i Hall-effect switch (active low, push-pull)
+// DIO_1	- i Hall-effect sensor (active low, push-pull)
 // DIO_2	- i mic input
 // DIO_3	- o mic clock
 // DIO_4	- i button 0 (active low, needs pullup)
 // DIO_5	- b SDA	(both externally pulled up)
-// DIO_6	- o SCL	(shared by bmp280, hdc1000ypa, opt3001
+// DIO_6	- o SCL	(shared by bmp280, hdc1000ypa, tmp007, opt3001
 // DIO_7	- i MPU INT (mpu-9250 gir/acc)
 // DIO_8	- b SDA mpu-9250 	(both externally pulled up)
 // DIO_9	- o SCL mpu-9250
 // DIO_10	- o LED0	(single LED lit when high)
-// DIO_11	- was tmp007 RDY, now UNUSED
+// DIO_11	- i tmp007 RDY	(externally pulled up)
 // DIO_12	- b mpu-9250 PWR
 // DIO_13	- o mic power (keep low) 
 // DIO_14	- o mx25r8035 CS (externally pulled up)
 // DIO_15	- o button 1 (active low, needs pullup)
-// DIO_16	- ? conn (audio?)		DP12
+// DIO_16	- ? conn (audio?)
 // DIO_17	- o mx25r8035 SCLK
 // DIO_18	- i mx25r8035 MISO
 // DIO_19	- o mx25r8035 MOSI
-// DIO_20	- ? conn (CSN?) 		DP11
+// DIO_20	- ? conn (CSN?)
 // DIO_21	- o buzzer (keep low)
-// DIO_22	- ? conn (AUDIO DO?)		DP6
-// DIO_23	- ? conn 			DP2
-// DIO_24	- ? conn 			DP1
-// DIO_25	- ? conn 			DP0
+// DIO_22	- ? conn (AUDIO DO?)
+// DIO_23	- ? conn DP2
+// DIO_24	- ? conn DP1
+// DIO_25	- ? conn DP0
 // DIO_26	- i connected to VDD (volt sensor???)
-// DIO_27	- ? conn 			DP3
-// DIO_28	- i conn DP4			UART RX
-// DIO_29	- o conn DP5			UART TX
-// DIO_30	- i connected to VDD via 200k res 	UNUSED
+// DIO_27	- ? conn DP3
+// DIO_28	- i conn DP4	UART RX
+// DIO_29	- o conn DP5	UART TX
+// DIO_30	- i connected to VDD via 200k res (external button?)
 
 // ============================================================================
 
@@ -169,6 +170,19 @@
 			IOC_CURRENT_2MA		| \
 			IOC_STRENGTH_AUTO	| \
 			0, 1, 0), \
+		iocportconfig (IOID_11, IOC_PORT_GPIO, \
+			/* tmp007 Alert */ \
+			IOC_IOMODE_NORMAL 	| \
+			IOC_NO_WAKE_UP		| \
+			IOC_FALLING_EDGE	| \
+			IOC_INT_DISABLE		| \
+			IOC_NO_IOPULL		| \
+			IOC_INPUT_ENABLE	| \
+			IOC_HYST_DISABLE	| \
+			IOC_SLEW_DISABLE	| \
+			IOC_CURRENT_2MA		| \
+			IOC_STRENGTH_AUTO	| \
+			0, 0, 0), \
 		iocportconfig (IOID_12, IOC_PORT_GPIO, \
 			/* mpu9250 PWR */ \
 			IOC_IOMODE_NORMAL 	| \
@@ -300,7 +314,6 @@
 			0, 0, 0), \
 	}
 
-#if 0
 // ============================================================================
 // PINS AVAILABLE ON THE CONN =================================================
 // ============================================================================
@@ -316,7 +329,6 @@
 	}
 
 #define	PIN_MAX	7
-#endif
 
 // ============================================================================
 // BUTTONS ====================================================================
@@ -326,9 +338,6 @@
 				BUTTON_DEF (IOID_4 , 0), \
 				BUTTON_DEF (IOID_15, 0), \
 			}
-
-#define	BUTTON_PANIC		0
-#define	BUTTON_LOOP		1
 
 #define	BUTTON_DEBOUNCE_DELAY	4
 #define	BUTTON_PRESSED_LOW	1
@@ -360,6 +369,31 @@
 
 #include "sensors.h"
 #include "pin_sensor.h"
+
+// ============================================================================
+// TMP007 thermopile sensor ===================================================
+// ============================================================================
+
+#define	TMP007_ADDR		0x44
+
+#include "tmp007.h"
+
+#define	tmp007_enable		HWREGBITW (IOC_BASE + (IOID_11 << 2), \
+					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 1
+
+#define	tmp007_disable		HWREGBITW (IOC_BASE + (IOID_11 << 2), \
+					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 0
+
+#define	tmp007_clear		GPIO_clearEventDio (IOID_11)
+
+#define	tmp007_int		(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
+					(1 << IOID_11))
+
+// This is set to account for multpile configurations of I2C pins when there
+// are multiple busses which then have to be switched as needed
+#define	tmp007_scl		IOID_6
+#define	tmp007_sda		IOID_5
+#define	tmp007_rate		1
 
 // ============================================================================
 // MPU9250 accel, gyro, compass combo
@@ -464,6 +498,7 @@
 		DIGITAL_SENSOR (0, NULL, bmp280_read),		\
 		DIGITAL_SENSOR (0, NULL, hdc1000_read),		\
 		DIGITAL_SENSOR (0, NULL, opt3001_read),		\
+		DIGITAL_SENSOR (0, tmp007_init, tmp007_read),	\
 }
 #endif
 

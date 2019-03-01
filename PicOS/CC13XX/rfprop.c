@@ -52,7 +52,7 @@ static byte	txtries = 0;		// Number of TX attempts for current pkt
 #define	DSTATE_RXAC	0x02	// Rx active
 #define	DSTATE_TXIP	0x04	// Tx in progress
 #define	DSTATE_RFON	0x10	// Device on
-#define	DSTATE_IRST	0x80	// Internal error / reset request
+#define	DSTATE_IRST	0x80	// Reset request
 
 // The number of simultaneous receive buffers
 #define	NRBUFFS		2
@@ -922,7 +922,7 @@ OREvnt:
 		case PHYSOPT_RESET:
 
 #if RADIO_DEFAULT_POWER <= 7
-			// Just the patable
+			// Replace the patable
 			patable = (val == NULL) ? patable_def : val;
 Reset_pwr:
 			RF_cmdPropRadioDivSetup.txPower = patable [txpower];

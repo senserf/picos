@@ -5434,3 +5434,26 @@ PG190203A:
 PG190205A:
 
 	Upgaded RFTEST so we can test PATABLE settings for CC1350.
+
+
+PG190301A:	SIDE >= PG190301A
+
+	Accounting for the three different versions of CC1350 SENSORTAG that
+	I now have in my shoebox:
+
+	1.4.5	- the first version with the simple reed switch and the tmp007
+		  sensor
+	1.5.0	- reversed polarity of the reed switch (replaced by a
+	   	  Hall-effect sensor)
+	1.5.1	- as above, but without the tmp007 sensor
+
+	The differences must be accounted for (even if the affected components
+	are not used) to achieve the proper (minimum) current drain in the
+	lowest power modes.
+
+	Removed old (clumsy) code from picomp for recognizing machine
+	endianness from Tcl. It can be done directly now (in Tcl 8.6). The code
+	needed a matching (even more clumsy) hack in mks.cc (SMUPRH), which
+	has been removed as well.
+
+	Some less relevant cosmetics.

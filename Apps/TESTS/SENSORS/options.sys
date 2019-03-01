@@ -1,12 +1,16 @@
-// Put here to be visible by VUEE
+// Put these here so they are visible by VUEE
+
 #define SENSOR_TEMP		(-2)
 #define	SENSOR_VOLTAGE		(-1)
-#define	SENSOR_PIN		0
-#define	SENSOR_TMP007		1
-#define	SENSOR_MPU9250		2
-#define	SENSOR_OBMICROPHONE	3
-#define	SENSOR_BMP280		4
-#define	SENSOR_HDC1000		5
-#define	SENSOR_OPT3001		6
+#define	SENSOR_PIN		(SENSOR_VOLTAGE 	+ 1)
+#define	SENSOR_MPU9250		(SENSOR_PIN 		+ 1)
+#define	SENSOR_OBMICROPHONE	(SENSOR_MPU9250		+ 1)
+#define	SENSOR_BMP280		(SENSOR_OBMICROPHONE	+ 1)
+#define	SENSOR_HDC1000		(SENSOR_BMP280		+ 1)
+#define	SENSOR_OPT3001		(SENSOR_HDC1000		+ 1)
+
+#ifdef	BOARD_CC1350_SENSORTAG_TMP
+#define	SENSOR_TMP007		(SENSOR_OPT3001		+ 1)
+#endif
 
 #define BUZZER

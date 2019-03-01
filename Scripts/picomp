@@ -52,6 +52,18 @@ proc lappend_unique { li i } {
 ###############################################################################
 ###############################################################################
 
+proc endianness { } {
+#
+# Returns the endianness of the running machine (assumes Tcl 8.5 or higher)
+#
+	binary scan [binary format i 1] n u
+	if { $u == 1 } {
+		return "little"
+	} else {
+		return "big"
+	}
+}
+
 proc isalpha { c } {
 #
 # Applied to single characters only
@@ -3786,25 +3798,18 @@ proc compile_vuee { } {
 
 proc which_endian { } {
 #
-# We will learn this from vuee; Tcl8.4 doesn't know; Tcl8.5 is smarter, but
-# cygwin is not there yet
+# Sets the endianness
 #
 	global FG EXEC
 
-	if [catch { exec $EXEC(vuee) -Q } res] {
-		errab "cannot execute vuee: $res"
-	}
+	set res [endianness]
 
-	if { [string first "Lit" $res] >= 0 } {
+	if { [string first "l" $res] >= 0 } {
 		# little
 		set FG(EN) 0
-	} elseif { [string first "Big" $res] >= 0 } {
+	} else {
 		# big
 		set FG(EN) 1
-	} else {
-		puts "warning: cannot get endianness from vuee,\
-			assumming 'little'"
-		set FG(EN) 0
 	}
 }
 

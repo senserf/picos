@@ -84,7 +84,7 @@
 #endif
 
 // ============================================================================
-#if defined(BOARD_CC1350_SENSORTAG)
+#if defined(BOARD_CC1350_SENSORTAG) || defined(BOARD_CC1350_SENSORTAG_14X) || defined(BOARD_CC1350_SENSORTAG_150)
 #define	CC1350
 #define	CC1350_SENSORTAG
 #define	SIGNALING_LED		0

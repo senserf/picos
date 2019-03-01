@@ -322,9 +322,6 @@ fsm root {
 #ifdef	SENSOR_SCA3100
 		add_sensor (SENSOR_SCA3100, "sca3100", 6, show_xyz);
 #endif
-#ifdef	SENSOR_TMP007
-		add_sensor (SENSOR_TMP007, "tmp007", 4, show_2s);
-#endif
 #ifdef	SENSOR_MPU9250
 		add_sensor (SENSOR_MPU9250, "mpu9250", 20, show_mpu9250);
 #endif
@@ -339,6 +336,9 @@ fsm root {
 #endif
 #ifdef	SENSOR_OPT3001
 		add_sensor (SENSOR_OPT3001, "opt3001", 8, show_opt3001);
+#endif
+#ifdef	SENSOR_TMP007
+		add_sensor (SENSOR_TMP007, "tmp007", 4, show_2s);
 #endif
 		// ... add more as needed
 
@@ -358,9 +358,6 @@ fsm root {
 #ifdef SENSOR_SCA3100
 	"sca3100 [on | off]\r\n"
 #endif
-#ifdef SENSOR_TMP007
-	"tmp007 [on mo en | off | sl oh ol lh ll | rr r | wr r v]\r\n"
-#endif
 #ifdef SENSOR_MPU9250
 	"mpu9250 [on op th | off | r[a|c] r | w[a|c] r v]\r\n"
 #endif
@@ -375,6 +372,9 @@ fsm root {
 #endif
 #ifdef SENSOR_OPT3001
 	"opt3001 [on mode | off]\r\n"
+#endif
+#ifdef SENSOR_TMP007
+	"tmp007 [on mo en | off | sl oh ol lh ll | rr r | wr r v]\r\n"
 #endif
 		"r sen [times [intv]]\r\n"
 #if defined(SENSOR_EVENTS) || defined(__SMURPH__)
@@ -407,10 +407,6 @@ fsm root {
 		if (streq (curr, "sca3100"))
 			sameas RS_SCA3100;
 #endif
-#ifdef SENSOR_TMP007
-		if (streq (curr, "tmp007"))
-			sameas RS_TMP007;
-#endif
 #ifdef SENSOR_MPU9250
 		if (streq (curr, "mpu9250"))
 			sameas RS_MPU9250;
@@ -430,6 +426,10 @@ fsm root {
 #ifdef SENSOR_OPT3001
 		if (streq (curr, "opt3001"))
 			sameas RS_OPT3001;
+#endif
+#ifdef SENSOR_TMP007
+		if (streq (curr, "tmp007"))
+			sameas RS_TMP007;
 #endif
 		if (streq (curr, "r"))
 			sameas RS_R;
@@ -499,49 +499,6 @@ fsm root {
 		}
 		if (streq (curr, "off")) {
 			sca3100_off ();
-			sameas RS_OK;
-		}
-		sameas RS_ERROR;
-#endif
-
-#ifdef SENSOR_TMP007
-
-	state RS_TMP007:
-
-		curr = tail;
-		parse (&curr, &tail);
-
-		if (streq (curr, "on")) {
-			word mo, en;
-			mo = 0x1440;
-			en = 0;
-			scan (tail, "%x %x", &mo, &en);
-			tmp007_on (mo, en);
-			sameas RS_OK;
-		}
-		if (streq (curr, "off")) {
-			tmp007_off ();
-			sameas RS_OK;
-		}
-		if (streq (curr, "sl")) {
-			wint oh, ol, lh, ll;
-			oh = ol = lh = ll = 0;
-			scan (tail, "%d %d %d %d", &oh, &ol, &lh, &ll);
-			tmp007_setlimits (oh, ol, lh, ll);
-			sameas RS_OK;
-		}
-		if (streq (curr, "rr")) {
-			word rn;
-			rn = 0;
-			scan (tail, "%x", &rn);
-			wa = tmp007_rreg ((byte)rn);
-			sameas RS_SHOWWA;
-		}
-		if (streq (curr, "wr")) {
-			word rn, va;
-			rn = va = 0;
-			scan (tail, "%x %x", &rn, &va);
-			tmp007_wreg ((byte)rn, va);
 			sameas RS_OK;
 		}
 		sameas RS_ERROR;
@@ -697,6 +654,49 @@ fsm root {
 			opt3001_off ();
 			sameas RS_OK;
 		}
+#endif
+
+#ifdef SENSOR_TMP007
+
+	state RS_TMP007:
+
+		curr = tail;
+		parse (&curr, &tail);
+
+		if (streq (curr, "on")) {
+			word mo, en;
+			mo = 0x1440;
+			en = 0;
+			scan (tail, "%x %x", &mo, &en);
+			tmp007_on (mo, en);
+			sameas RS_OK;
+		}
+		if (streq (curr, "off")) {
+			tmp007_off ();
+			sameas RS_OK;
+		}
+		if (streq (curr, "sl")) {
+			wint oh, ol, lh, ll;
+			oh = ol = lh = ll = 0;
+			scan (tail, "%d %d %d %d", &oh, &ol, &lh, &ll);
+			tmp007_setlimits (oh, ol, lh, ll);
+			sameas RS_OK;
+		}
+		if (streq (curr, "rr")) {
+			word rn;
+			rn = 0;
+			scan (tail, "%x", &rn);
+			wa = tmp007_rreg ((byte)rn);
+			sameas RS_SHOWWA;
+		}
+		if (streq (curr, "wr")) {
+			word rn, va;
+			rn = va = 0;
+			scan (tail, "%x %x", &rn, &va);
+			tmp007_wreg ((byte)rn, va);
+			sameas RS_OK;
+		}
+		sameas RS_ERROR;
 #endif
 
 #ifdef	beeper_pin_on

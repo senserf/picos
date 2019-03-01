@@ -1052,7 +1052,7 @@ void system_init () {
 	port_config ();
 
 	if (SysCtrlResetSourceGet () == RSTSRC_WAKEUP_FROM_SHUTDOWN) {
-		// Waking from shutdown, shouls unfreeze I/O right after setting
+		// Waking from shutdown, should unfreeze I/O right after setting
 		// up the port config, so we can control the peripherals, and,
 		// e.g., blink the LEDs ;-)
 		wfsd = YES;
@@ -1407,9 +1407,8 @@ static inline void __do_wfi_as_needed () {
 		default:	// SHUTDOWN ===================================
 				// ============================================
 
-		hibernate ();
-
-		// No return
+			hibernate ();
+			// No return
 
 	}
 }

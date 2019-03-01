@@ -30,7 +30,7 @@ void obmicrophone_reset ();
 
 #else	/* __SMURPH__ */
 
-#define	obmicrophone_on(a)	emul (9, "OBMICROPHONE_ON: %d00", a, b)
+#define	obmicrophone_on(a)	emul (9, "OBMICROPHONE_ON: %d00", a)
 #define	obmicrophone_off()	emul (9, "OBMICROPHONE_OFF: <>")
 #define	obmicrophone_reset()	emul (9, "OBMICROPHONE_RESET: <>")
 
