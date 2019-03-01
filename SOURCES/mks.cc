@@ -714,7 +714,7 @@ void	makeDep (const char *fn, ostream *out) {
 	system (form ("echo -n > %s", tmpdname));
 
 	// Generate them
-	system (form ("makedepend -f%s %s", tmpdname, fn));
+	system (form ("makedepend -f%s %s 2>/dev/null", tmpdname, fn));
 
 	// Read the file
 	if ((inp = openIStream (tmpdname)) == NULL)
