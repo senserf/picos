@@ -828,3 +828,11 @@ PG190112A:
 PG190129A:
 
 	   Just a few cosmetics.
+
+PG190301A:	PICOS >= PG190301A
+
+	   Improved mks.cc to correctly recognize dependencies on included
+	   header files. Removed the old (now unnecessary) hack helping
+	   picomp to recognize machine endianness.
+
+	   A few cleanups related to the book.

@@ -161,7 +161,7 @@ int     ncfiles = 0, cfsize = 16, nincludes = 0;
 
 char    cd [PATH_MAX];
 
-char    tmpfname [64], tmponame [64];
+char    tmpfname [64], tmponame [64], tmpdname [64];
 
 int	LeaveCFiles = 0,	// Flag == do not remove preprocessor '.C' files
 	BeVerbose = 0,		// Inform about what exactly is being done
@@ -263,6 +263,8 @@ void    sigint () {
 
 	unlink (tmpfname);
 	unlink (tmponame);
+	unlink (tmpdname);
+
 	exit (1);
 }
 
@@ -561,6 +563,7 @@ Signature::Signature (char *fn) {
 	tl = NULL;
 
         if (Inp != NULL) {
+		// Read the library index
 		tl = new char* [maxcom = 1024];
 		for (i = j = 0; pkc () != ENDFILE; i++) {
 			if (nbl () == '\n') break;
@@ -571,12 +574,12 @@ Signature::Signature (char *fn) {
 		}
 		LIndex [j] = '\0';
 	}
-	// We are done with the library index
+
 	if (fnamecomp (LIndex, fn)) {
 		// Different libraries
 		out = openOStream ("side.sgn");
 		if (out == NULL)
-			excptn ("cannot open side.sgn file");
+			excptn ("cannot open side.sgn file for writing");
 		*out << fn << '\n';
 		out->flush ();
 		delete out;
@@ -585,6 +588,7 @@ Signature::Signature (char *fn) {
 		LIndex [0] = '\0';
 		return;
 	}
+
 	// The same library: read the common lists
 	j = 0;
 	while (1) {
@@ -697,6 +701,49 @@ void	Signature::close () {
         delete out;
 };
 
+void	makeDep (const char *fn, ostream *out) {
+
+/* ----------------------------------------- */
+/* Output the local dependencies of the file */
+/* ----------------------------------------- */
+
+	istream *inp;
+	char c;
+
+	// Make sure the dependencies file starts empty
+	system (form ("echo -n > %s", tmpdname));
+
+	// Generate them
+	system (form ("makedepend -f%s %s", tmpdname, fn));
+
+	// Read the file
+	if ((inp = openIStream (tmpdname)) == NULL)
+		excptn ("cannot open temporary file");
+
+	while (1) {
+		if (inp->eof ())
+			// No way, just ignore
+			goto Quit;
+		inp->get (c);
+		if (c == ':')
+			break;
+	}
+
+	// Skip the blank or tab
+	inp->get (c);
+
+	while (1) {
+		if (inp->eof ())
+			break;
+		inp->get (c);
+		if (c == '\n')
+			break;
+		out->put (c);
+	}
+Quit:
+	delete inp;
+}
+
 void    makeSmurph () {
 
 /* ---------------------------- */
@@ -732,7 +779,9 @@ void    makeSmurph () {
 	mkstemp (tmpfname);
 	system (form ("touch -r %s %s", fname, tmpfname));
 	strcpy (tmponame, tmpfname);
+	strcpy (tmpdname, tmpfname);
 	tmponame [6] = 'o';
+	tmpdname [6] = 'd';
 
 	if (signal (SIGINT, SIG_IGN) != SIG_IGN)
 		signal (SIGINT, (SIGARG) sigint);
@@ -813,7 +862,9 @@ void    makeSmurph () {
 			}
 			for (i = 0; ; i++) {
 				if (inp->eof () || i >= PATH_MAX-1)
-			    excptn ("'depend.txt' file has illegal contents");
+			    		excptn ("illegal content of "
+						"'depend.txt', reinstall the "
+						"package");
 				inp->get (c);
 				if (c == '?') break;
 				fname [i] = c;
@@ -823,15 +874,20 @@ void    makeSmurph () {
 
 			for (i = 0; i < ncfiles; i++) {
 				for (cp = fname; *cp != '\0'; cp++) {
-					if (*cp == '%')
+				    switch (*cp) {
+					case '%':
 						*out << cfiles [i];
-					else if (*cp == '@')
+						break;
+					case '@':
 						*out << toObject (cfiles [i]);
-					else if (*cp == '^')
+						break;
+					case '^':
 						*out << i;
-					else if (*cp == '&')
+						break;
+					case '&':
 						*out << toSmpp (cfiles [i]);
-					else if (*cp == '!') {
+						break;
+					case '!':
 						// SMPP params
 						*out << i << ' ' << cfiles [i];
 						if (libindex [LIBX_TAG] == 'y')
@@ -844,8 +900,14 @@ void    makeSmurph () {
 						  *out << " -r";
 						if (libindex [LIBX_NOS] == 'n')
 						  *out << " -s";
-					} else
+						break;
+					case '`':
+						// Local dependencies
+						makeDep (cfiles [i], out);
+						break;
+					default:
 						out->put (*cp);
+				    }
 				}
 				if (i < ncfiles-1) *out << '\n';
 			}
@@ -885,7 +947,7 @@ void    makeSmurph () {
 
 int main    (int argc, char *argv[]) {
 
-	int     i, nogo, semfd, verfd;
+	int     i, semfd, verfd;
 	char	*str;
 
 	// Initialize things for argument processing
@@ -947,8 +1009,6 @@ int main    (int argc, char *argv[]) {
 	strcpy (libindex, "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx");
 
 	cfiles = new char* [cfsize];
-
-	nogo = 0;
 
 	while (argc > 0) {
 
@@ -1198,11 +1258,6 @@ int main    (int argc, char *argv[]) {
 			if (PRC [16] == '-') badArgs ();
 			break;
 
-		  case 'Q' :
-
-			nogo = 1;
-			break;
-
 		  case 'b' :
 
 			if (argc < 2 || libindex [LIBX_PRC] != 'x') badArgs ();
@@ -1288,7 +1343,6 @@ int main    (int argc, char *argv[]) {
 	// Prepare the library name
 
 	for (i = 0; i < NOPT-2; i++) {
-
 		if ((options [i])[9] == '1')
 			libindex [i] = 'y';
 		else
@@ -1309,21 +1363,6 @@ int main    (int argc, char *argv[]) {
 
         // Turn the index into a library name
         compressLibName ();
-
-	if (nogo) {
-		// Version number and quit; we will use it to pass to picomp
-		// the kind of system data that is difficult to acquire from
-		// Tcl
-		cout << pname << " version " << VERSION <<
-#if BYTE_ORDER == LITTLE_ENDIAN
-			" Lit"
-#else
-			" Big"
-#endif
-		// More may come later
-				<< '\n';
-		exit (0);
-	}
 
 	if (ncfiles == 0) getFNames ();
 

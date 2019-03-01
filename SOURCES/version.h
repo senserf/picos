@@ -157,8 +157,7 @@ typedef void (*SIGARG) (int);
 /* next line will be removed and written from scratch.                    */
 #define  ZZ_SOURCES      "/home/nripg/SOFTWARE/SIDE/SOURCES"
 #define  ZZ_LIBPATH      "/home/nripg/SOFTWARE/SIDE/LIB"
-#define  ZZ_INCPATH      "-I /home/nripg/SOFTWARE/SIDE/Examples/IncLib -I /home/nripg/SOFTWARE/VUEE/PICOS"
-#define  ZZ_XINCPAT      {"/home/nripg/SOFTWARE/PICOS/Apps/DataLib", NULL}
+#define  ZZ_INCPATH      "-I /home/nripg/SOFTWARE/SIDE/Examples/IncLib"
 #define  ZZ_MONHOST      "localhost"
 #define  ZZ_MONSOCK      4442
-#define  ZZ_RTAG	"PG190112A"
+#define  ZZ_RTAG	"0"
