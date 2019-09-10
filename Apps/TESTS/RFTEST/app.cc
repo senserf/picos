@@ -877,9 +877,11 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		// Stop transmitting
 		killall (thread_sender);
+#if	defined(CC1100_PATABLE) || defined(CC1350_PATABLE)
 		// To terminate the PATABLE thread, if running
 		g_pat_ntries = 0;
 		trigger (&g_pat_cred);
+#endif
 		return 0;
 
 	    case 'd':

@@ -46,3 +46,4 @@
 // sensor for the button pins)
 #define	BUTTONS
 
+#define	RADIO_DEFAULT_BITRATE	2

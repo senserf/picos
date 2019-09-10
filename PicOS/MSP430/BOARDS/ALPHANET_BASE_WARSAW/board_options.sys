@@ -30,15 +30,23 @@
 
 #define STORAGE_AT45XXX		0
 #define	STORAGE_SDCARD		0
-#define	INFO_FLASH		2
+#define	INFO_FLASH		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
+
+#if 0
+
+// I am removing this adjustments for tests with CHRONOS, we are not compatible
+// with Alphanet (PG)
 
 // 868 MHz adjusted for the discrepancy noted in Alphatronics boards
 #define	CC1100_FREQ_FREQ2_VALUE	0x21
 #define	CC1100_FREQ_FREQ1_VALUE	0x62
 #define	CC1100_FREQ_FREQ0_VALUE	0xC2
+#endif
+
+// #define	TAGLIST_BLOCK	NO
 
 // RF rate = 38400
 #define	RADIO_DEFAULT_BITRATE	2

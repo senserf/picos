@@ -7,9 +7,7 @@
 #include "rf.h"
 #include "netid.h"
 
-#ifndef __SMURPH__
 #include "cc1100.h"
-#endif
 
 // UART packet length as a fucntion of the payload length (2 bytes for CRC)
 #define	upl(a)		((a) + 2)

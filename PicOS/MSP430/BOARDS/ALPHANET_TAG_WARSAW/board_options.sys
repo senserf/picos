@@ -28,7 +28,7 @@
 
 #define STORAGE_AT45XXX		0
 #define	STORAGE_SDCARD		0
-#define	INFO_FLASH		2
+#define	INFO_FLASH		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1

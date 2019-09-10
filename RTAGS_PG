@@ -5457,3 +5457,8 @@ PG190301A:	SIDE >= PG190301A
 	has been removed as well.
 
 	Some less relevant cosmetics.
+
+PG190910A:
+
+	Minor configuration changes to CHRONOS boards to make them compatible
+	with Alphanet.

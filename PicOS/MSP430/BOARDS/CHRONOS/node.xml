@@ -3,6 +3,7 @@
     <radio>
     	<power>7</power>
     	<preamble>32 bits</preamble>
+	<rate>2</rate>
     	<lbt>
 		delay			1msec
 		threshold		-109.0dBm 

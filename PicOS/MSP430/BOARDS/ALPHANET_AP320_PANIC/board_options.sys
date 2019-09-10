@@ -31,7 +31,7 @@
 #define	CC1100_FREQ_FREQ0_VALUE	0x00
 #endif
 
-#define	INFO_FLASH		2
+#define	INFO_FLASH		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
