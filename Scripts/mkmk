@@ -533,7 +533,7 @@ proc bad_usage { { msg "" } } {
 
 proc process_args { } {
 
-	global Run argv
+	global CCDefs Run argv
 
 	# to count "keyword" args (boardname, label)
 	set nc 0
@@ -542,6 +542,9 @@ proc process_args { } {
 	set Run(board) ""
 	set Run(type) ""
 	set Run(pgm) ""
+
+	# list of defines for the compiler
+	set CCDefs ""
 
 	while { $argv != "" } {
 
@@ -586,6 +589,15 @@ proc process_args { } {
 				set V ""
 				continue
 			}
+			if { [string index $arg 0] == "D" } {
+				# a define
+				set def [string range $arg 1 end]
+				if { $def != "" } {
+					lappend CCDefs $def
+				}
+				continue
+			}
+
 			bad_usage "-$arg unknown"
 		}
 
@@ -1012,9 +1024,6 @@ proc initialize { } {
 
 	# locate the root directory
 	locate_root
-
-	# list of defines for the compiler
-	set CCDefs ""
 
 	# obtain version numbers from RTAGS
 	do_rtags
@@ -2431,7 +2440,7 @@ proc main { } {
 	#	     "l" - compile from library
 	#	     "L" - create library
 
-	# this fills in the Run array
+	# fills in the Run array
 	process_args
 
 	# initialize things

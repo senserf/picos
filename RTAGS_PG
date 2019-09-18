@@ -5462,3 +5462,8 @@ PG190910A:
 
 	Minor configuration changes to CHRONOS boards to make them compatible
 	with Alphanet.
+
+PG190917A:
+
+	Added an option to mkmk to enable defining symbols for the compiler
+	from PIP.
