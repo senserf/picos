@@ -921,3 +921,8 @@ PG190113A:	PICOS >= PG190113A
 PG190203A:
 
 	A couple of cosmetic fixes to the previous commit.
+
+PG190917A:	PICOS >= PG190917A
+
+	Added a config window to provide (additional) global defines which may
+	be handy for quick and temporary parametrization + a few cosmetics.

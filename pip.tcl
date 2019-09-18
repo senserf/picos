@@ -190,6 +190,11 @@ set CFVueeItems {
 			"EBRG"		""
 }
 
+## Extra defines for the compiler
+set CFEDefines {
+			"XDEFS"		""
+}
+
 ## Options: the toolchain prefix, the xterm program, the debugger command, the
 ## max number of lines for the console window + permissions for accessing
 ## system files; need to evaluate
@@ -235,6 +240,7 @@ set CFXecItems {
 set TermLines 1000
 
 set CFItems 	[concat $CFBoardItems \
+			$CFEDefines \
 			$CFVueeItems \
 			$CFOptItems \
 			$CFSearchItems \
@@ -4638,19 +4644,25 @@ proc do_board_selection { } {
 			} else {
 				lappend P(M0,LM) $P(M0,LM,0)
 			}
-			dialog_to_params $CFBoardItems
+			set mc [dialog_to_params $CFBoardItems]
 			md_stop
-			set_config
-			reset_config_menu
-			reset_build_menu
-			# we do this in case board list has changed
-			gfl_tree
-			# and this as a matter of principle
-			term_dspline "--RECONFIGURATION, FULL CLEAN FORCED--"
-			do_cleanup
+			if $mc {
+				# there was a change
+				set_config
+				reset_config_menu
+				reset_build_menu
+				gfl_tree
+				force_full_clean
+			}
 			return
 		}
 	}
+}
+
+proc force_full_clean { } {
+
+	term_dspline "--RECONFIGURATION, FULL CLEAN FORCED--"
+	do_cleanup
 }
 
 proc update_arch { arch } {
@@ -4938,9 +4950,17 @@ proc dialog_to_params { nl } {
 #
 	global P
 
+	set mod 0
+
 	foreach { k j } $nl {
-		dict set P(CO) $k $P(M0,$k)
+		if { [dict get $P(CO) $k] != $P(M0,$k) } {
+			dict set P(CO) $k $P(M0,$k)
+			incr mod
+		}
 	}
+
+	# return modification count
+	return $mod
 }
 
 ###############################################################################
@@ -6086,6 +6106,148 @@ proc oss_available { } {
 	return [file_present "ossi.tcl"]
 }
 
+proc do_extra_defines { } {
+
+	global P CFEDefines
+
+	if { $P(AC) == "" } {
+		# the usual precaution
+		return
+	}
+
+	params_to_dialog $CFEDefines
+
+	mk_edefs_window
+
+	while 1 {
+
+		set ev [md_wait]
+
+		if { $ev < 0 } {
+			# cancellation
+			return
+		}
+
+		if { $ev == 0 } {
+			# nothing
+			continue
+		}
+
+		# validate the input
+		if [catch { validate_edefines } err] {
+			alert "Illegal syntax, $err"
+			continue
+		}
+
+		set mc [dialog_to_params $CFEDefines]
+		md_stop
+		if $mc {
+			set_config
+			force_full_clean
+		}
+		return
+	}
+}
+
+proc mk_edefs_window { } {
+
+	global P FFont
+
+	# convert the list to individual entries
+	set ne 0
+	foreach em $P(M0,XDEFS) {
+		if { $em != "" } {
+			set P(M0,XD$ne) $em
+			incr ne
+		}
+	}
+
+	# provide 4 extra entries for new defines at the end
+	set te [expr { $ne + 4 } ]
+	set P(M0,NE) $te
+
+	set w [md_window "Extra defines"]
+
+	set f $w.mf
+	frame $f
+	pack $f -side top -expand y -fill x
+
+	label $f.dla -text "Symbol\[=value\]"
+	grid $f.dla -column 0 -row 0 -padx 4 -pady 3 -sticky n
+
+	label $f.dlc -text "Clear"
+	grid $f.dlc -column 1 -row 0 -padx 4 -pady 3 -sticky n
+
+	for { set i 0 } { $i < $te } { incr i } {
+		if ![info exists P(M0,XD$i)] {
+			set P(M0,XD$i) ""
+		}
+		entry $f.den$i -font $FFont -textvariable P(M0,XD$i) \
+			-width 36
+		grid $f.den$i -column 0 -row [expr { $i + 1 }] -padx 4 -pady 2 \
+			-sticky we
+		button $f.but$i -text " " -command "edefs_clear $i"
+		grid $f.but$i -column 1 -row [expr { $i + 1 }] -padx 4 -pady 2 \
+			-sticky we
+	}
+
+	grid columnconfigure $f 0 -weight 1
+
+	##
+	set f $w.bf
+	frame $f
+	pack $f -side top -expand n -fill x
+
+	button $f.cb -text "Cancel" -command "md_click -1"
+	pack $f.cb -side left -expand n
+
+	button $f.db -text "Done" -command "md_click 1"
+	pack $f.db -side right -expand n
+
+	bind $w <Destroy> "md_click -1"
+}
+
+proc edefs_clear { i } {
+
+	global P
+
+	if [info exists P(M0,XD$i)] {
+		set P(M0,XD$i) ""
+	}
+}
+
+proc validate_edefines { } {
+
+	global P
+
+	set res ""
+
+	for { set i 0 } { $i < $P(M0,NE) } { incr i } {
+		set df $P(M0,XD$i)
+		if { $df == "" } {
+			# ignore erased/empty entries
+			continue
+		}
+		lappend res $df
+		set en [expr { $i + 1 }]
+		# look up the initial keyword
+		if ![regexp {^[_[:alpha:]][_[:alnum:]]*} $df mat] {
+			error "entry $en, illegal symbol being defined"
+		}
+		set rm [string range $df [string length $mat] end]
+		if { $rm == "" } {
+			continue
+		}
+		# for now, just check if it starts with =nonblank
+		if ![regexp {^=[^[:space:]]} $rm] {
+			error "entry $en, symbol can only be followed by =..."
+		}
+	}
+
+	# return the list
+	set P(M0,XDEFS) $res
+}
+		
 proc do_vuee_config { } {
 
 	global P CFVueeItems
@@ -8599,18 +8761,22 @@ proc side_args { deb } {
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
 	set po [dict get $P(CO) "PFAC"]
+	set bd [dict get $P(CO) "LD"]
 
 	if { $dp == 0 && $mb != "" && $bo != "" } {
 		if $mb {
 			# multiple boards
 			set bi 0
 			foreach b $bo {
-				set suf [lindex $P(PL) $bi]
-				set fna [file join [boards_dir] $b "node.xml"]
-				if [file isfile $fna] {
-					lappend argm "-n"
-					lappend argm $suf
-					lappend argm [unipath $fna]
+				if { $b != "" && ![blindex $bd $bi] } {
+					set suf [lindex $P(PL) $bi]
+					set fna [file join [boards_dir] $b \
+						"node.xml"]
+					if [file isfile $fna] {
+						lappend argm "-n"
+						lappend argm $suf
+						lappend argm [unipath $fna]
+					}
 				}
 				incr bi
 			}
@@ -9338,6 +9504,7 @@ proc reset_config_menu { { clear 0 } } {
 	} else {
 		set st "disabled"
 	}
+	$m add command -label "Extra defines ..." -command "do_extra_defines"
 	$m add command -label "VUEE ..." -command "do_vuee_config" -state $st
 	$m add command -label "Loaders ..." -command "do_loaders_config"
 
@@ -9415,15 +9582,15 @@ proc reset_build_menu { { clear 0 } } {
 			set bi 0
 			set nb 0
 			foreach b $bo {
-				set suf [lindex $P(PL) $bi]
-				set lm [blindex $bm $bi]
-				if { $ST(LO) || $lm } {
-					# library only or lib mode
-					set lm "lib"
-				} else {
-					set lm "src"
-				}
 				if { $b != "" && ![blindex $bd $bi] } {
+					set suf [lindex $P(PL) $bi]
+					set lm [blindex $bm $bi]
+					if { $ST(LO) || $lm } {
+						# library only or lib mode
+						set lm "lib"
+					} else {
+						set lm "src"
+					}
 					$m add command -label \
 					    "Pre-build $suf ($b $lm)" -command \
 					    "do_mkmk_node $bi sys_make_ctags"
@@ -9922,6 +10089,20 @@ proc mk_project_window { } {
 	bind . <Destroy> "terminate -force"
 }
 
+proc get_extra_defines { } {
+
+	global P
+
+	set dl ""
+	foreach d [dict get $P(CO) "XDEFS"] {
+		if { $d != "" } {
+			lappend dl "-D$d"
+		}
+	}
+
+	return $dl
+}
+
 proc do_mkmk_node { { bi 0 } { ea "" } } {
 
 	global P ST
@@ -9930,7 +10111,7 @@ proc do_mkmk_node { { bi 0 } { ea "" } } {
 		return
 	}
 
-	set al ""
+	set al [get_extra_defines]
 
 	set mb [dict get $P(CO) "MB"]
 	set bo [dict get $P(CO) "BO"]
@@ -10222,6 +10403,9 @@ proc do_make_vuee { { arg "" } } {
 		set arg [linsert $arg 0 "-i"]
 	}
 
+	# insert the global project defines in the very front of evrything
+	set arg [concat [get_extra_defines] $arg]
+
 	if { [dict get $P(CO) "THRD"] != 0 } {
 		lappend arg "-3"
 	}
@@ -10245,9 +10429,7 @@ proc do_prebuild_lib { board ea } {
 #
 # Prebuild a library for the specified board
 #
-	global P
-
-	set al [list $board -L]
+	set al [concat [get_extra_defines] [list $board -L]]
 
 	if [catch { run_term_command "mkmk" $al $ea } err] {
 		alert "Cannot run library make for $board: $err"
