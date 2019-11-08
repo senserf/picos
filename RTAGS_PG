@@ -1375,3 +1375,7 @@ PG190129A:
 
     The node menu that pops up in udaemon's roamer window now allows you to
     power the node up and down, as well as to reset it.
+
+PG191108A:
+
+    Fixed mklinks/rmlinks to cover hdc1000 and opt3001 needed for CC1350.

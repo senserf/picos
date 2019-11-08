@@ -28,6 +28,8 @@ rm -f mpu9250.h
 rm -f obmicrophone.h
 rm -f bmp280.h
 rm -f bmp085.h
+rm -f hdc1000.h
+rm -f opt3001.h
 rm -f modsyms.h
 rm -f dbgtrc.h
 rm -f tcv.cc

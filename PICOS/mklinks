@@ -4,6 +4,8 @@ ln -s ../../PICOS/PicOS/PLibs/Sensors/tmp007.h tmp007.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/sca3100.h sca3100.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/mpu9250.h mpu9250.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/obmicrophone.h obmicrophone.h
+ln -s ../../PICOS/PicOS/PLibs/Sensors/hdc1000.h hdc1000.h
+ln -s ../../PICOS/PicOS/PLibs/Sensors/opt3001.h opt3001.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/bmp280.h bmp280.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/bmp085.h bmp085.h
 ln -s ../../PICOS/PicOS/PLibs/Sensors/bma250.h bma250.h
