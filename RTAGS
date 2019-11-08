@@ -926,3 +926,7 @@ PG190917A:	PICOS >= PG190917A
 
 	Added a config window to provide (additional) global defines which may
 	be handy for quick and temporary parametrization + a few cosmetics.
+
+PG191108A:
+
+	Added "Refresh" to the tree command menu.

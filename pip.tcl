@@ -1,6 +1,6 @@
 #!/bin/sh
 ########\
-exec tclsh "$0" "$@"
+exec tclsh86 C:/cygwin64/home/nripg/bin/pip "$@"
 
 package require Tk
 package require Ttk
@@ -2752,6 +2752,8 @@ proc tree_menu { x y X Y } {
 		$m add command -label "Run File Explorer here" \
 			-command "run_explorer_here $x $y"
 	}
+	$m add separator
+	$m add command -label "Refresh" -command "gfl_tree"
 	tk_popup .popm $X $Y
 }
 
