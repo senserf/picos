@@ -19,8 +19,7 @@ word	__pi_seed = 30011;
 #endif
 
 /* Task table */
-// The static PCBT option has been removed; for historical (and compatibility)
-// reasons MAX_TASKS == 0 means new process added at the end, while MAX_TASKS
+// TASK_ORDERING == 0 means new process added at the end, while TASK_ORDERING
 // != 0 means new process added in front; there is no limit on the number of
 // tasks
 __pi_pcb_t *__PCB = NULL;
@@ -308,7 +307,7 @@ aword __pi_fork (fsmcode func, aword data) {
 	i->data = data;
 	i->Status = 0;
 
-#if MAX_TASKS == 0
+#if TASK_ORDERING == 0
 //
 // The PCB is appended at the end
 //

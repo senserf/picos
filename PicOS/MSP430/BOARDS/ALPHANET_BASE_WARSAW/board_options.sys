@@ -21,7 +21,10 @@
 #define UART_TCV		1
 #define UART_RATE		115200
 
+#ifndef	RADIO_USE_LEDS
+// Make it possible for a PIP config def to override this
 #define	RADIO_USE_LEDS		3
+#endif
 
 #define CC1100			1
 
@@ -35,18 +38,13 @@
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
 
-#if 0
-
-// I am removing this adjustments for tests with CHRONOS, we are not compatible
-// with Alphanet (PG)
+#if 1
 
 // 868 MHz adjusted for the discrepancy noted in Alphatronics boards
 #define	CC1100_FREQ_FREQ2_VALUE	0x21
 #define	CC1100_FREQ_FREQ1_VALUE	0x62
 #define	CC1100_FREQ_FREQ0_VALUE	0xC2
 #endif
-
-// #define	TAGLIST_BLOCK	NO
 
 // RF rate = 38400
 #define	RADIO_DEFAULT_BITRATE	2

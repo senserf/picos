@@ -26,14 +26,13 @@
 #define	UART_PREINIT		CNOP	// Pins defined statically
 #define	RADIO_USE_LEDS		7
 
+#define	INFO_FLASH		1
+
 #define CC1100			1
 #if 0
 #define	CC1100_FREQ_FREQ1_VALUE	0xC0
 #define	CC1100_FREQ_FREQ0_VALUE	0x00
 #endif
-
-#define	INFO_FLASH		2
-
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1
 

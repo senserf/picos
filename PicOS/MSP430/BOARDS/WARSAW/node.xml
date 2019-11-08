@@ -22,6 +22,9 @@
     </radio>
     <leds number="3">
     	<output target="socket"></output>
+	<color on="yellow" off="black"/>
+	<color on="green" off="black"/>
+	<color on="red" off="black"/>
     </leds>
     <eeprom size="524288" clean="0xFF"
 	timing="0.000004,0.000006,

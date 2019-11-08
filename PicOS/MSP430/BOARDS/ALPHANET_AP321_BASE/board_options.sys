@@ -26,7 +26,11 @@
 #define	UART_FROM_SMCLK		1	// Needed for 115200
 #define	UART_TCV		1
 #define	UART_RATE		115200
+
+#ifndef	RADIO_USE_LEDS
+// Allows for redefinitions from PIP config
 #define	RADIO_USE_LEDS		3
+#endif
 
 #define CC1100			1
 

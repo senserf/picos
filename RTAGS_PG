@@ -5467,3 +5467,8 @@ PG190917A:
 
 	Added an option to mkmk to enable defining symbols for the compiler
 	from PIP.
+
+PG191108A:
+
+	A few cleanups in the documentation and board definitions. The config
+	symbol MAX_TASKS renamed to TASK_ORDERING.

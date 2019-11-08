@@ -2,31 +2,79 @@
 #include "ser.h"
 #include "serf.h"
 
+// This simple app features a somewhat artificially complicated FSM to
+// periodically blink a LED. Its role is educational. There is a simple
+// (built-in) mechanism for blinking LEDs in PicOS which we ignore.
+
 typedef struct {
+	// This data structure describes one LED to be blinked. It is assumed
+	// that (in principle) we can have multiple copies of the blinker fsm,
+	// one for each LED. Attribute led is the LED number (0, 1, ...), state
+	// describes the current state of the LED needed by blinker (see below).
 	byte led, state;
 } led_status_t;
 
 fsm blinker (led_status_t *lstat) {
+	// Here is the FSM. The argument points to a data structure (see above)
+	// representing the LED to be controled by the FSM. It appears to the
+	// FSM as a "static" and private variable, i.e., one whose contents
+	// survive state transitions. The primary role of an FSM argument is
+	// to differentiate different copies of the same FSM by giving them
+	// different (private) data to work on.
 
 	state CHECK_STATUS:
 
+		// The single state is activated whenever there is anything
+		// to do. Attribute state can have one of the following
+		// values:
+		//
+		//	0 - the LED should go off and stay off (stop blinking)
+		//	1 - the LED should go off, and back on after a delay
+		//	2 - the LED should go on, and back off after a delay
+
 		if (lstat->state < 2) {
+			// state is 0 or 1, first make sure the LED is off
+			// (leds is a system function)
 			leds (lstat->led, 0);
 			if (lstat->state) {
+				// state is nonzero, i.e., 1; this means that
+				// we continue blinking; state is set to 2 and
+				// the FSM delays for 512 (picos) milliseconds
 				lstat->state = 2;
 				delay (512, CHECK_STATUS);
 			}
+			// Otherwise (state is zero) we don't wait for the
+			// timer; this value means that we stop blinking (and
+			// do nothing) until the blinking is turned on (by a
+			// call to blink - see below)
 		} else {
+			// state is 2; the LED is turned on
 			leds (lstat->led, 1);
+			// Then we set state to 1 to turn the LED off ...
 			lstat->state = 1;
+			// ... after this many milliseconds; note that the on
+			// period is longer than the off period
 			delay (768, CHECK_STATUS);
 		}
 
+		// Regardless of whether we are waiting on the timer (delay
+		// has been called) or not, we also wait for an event triggered
+		// when blink is called. When that happens, we kick the FSM to
+		// run in its only state - to respond to the change; it is a
+		// standard practice to use addresses of data structures as
+		// event identifiers: any integer value can be used for that
+		// purpose
 		when (lstat, CHECK_STATUS);
 }
 
 void blink (led_status_t *lstat, Boolean on) {
+	// This is called to turn the blinking on and off. If the argument is
+	// YES (true or nonzero), state is set to 2 (so the LED starts in the
+	// on state). Otherwise, state is set to 0, so the LED will be turned
+	// off and the blinker will stop waiting for a next blink call.
 	lstat->state = on ? 2 : 0;
+	// Regardless of what has been requested, the blinker is kicked, so the
+	// LED responds right away.
 	trigger (lstat);
 }
 
@@ -45,7 +93,6 @@ fsm root {
 		my_led = (led_status_t*)umalloc (sizeof (led_status_t));
 		my_led -> led = 1;
 		blink (my_led, YES);
-		leds (0, 2);
 		runfsm blinker (my_led);
 
 	state INPUT:

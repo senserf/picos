@@ -259,10 +259,10 @@
 
 // The static PCBT option has been removed; PCBT is linked, and there is no
 // limit on the number of tasks; this value only tells whether a new task is
-// appended at the end (MAX_TASKS == 0) or at the beginning (MAX_TASKS != 0)
-// of the task list
-#ifndef	MAX_TASKS
-#define	MAX_TASKS		0
+// appended at the end (TASK_ORDERING == 0) or at the beginning
+// (TASK_ORDERING != 0) of the task list
+#ifndef	TASK_ORDERING
+#define	TASK_ORDERING		0
 #endif
 
 #ifndef	STACK_SIZE

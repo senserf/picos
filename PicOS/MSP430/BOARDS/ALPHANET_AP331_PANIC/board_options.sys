@@ -23,11 +23,15 @@
 #define	LEDS_BLINKING		1
 
 #define UART_DRIVER		0
+
+#ifndef	RADIO_USE_LEDS
+// Allows overriding from PIP config
 #define	RADIO_USE_LEDS		0
+#endif
 
 #define CC1100			1
 
-#define	INFO_FLASH		2
+#define	INFO_FLASH		1
 
 #define RESET_ON_SYSERR		1
 #define RESET_ON_MALLOC		1

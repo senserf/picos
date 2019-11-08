@@ -2122,7 +2122,8 @@ fsm root {
 	diag ("MEM: %d %d", sl, ss);
 #endif
 	ibuf = (char*) umalloc (IBUFLEN);
-	ibuf [0] = 0;
+	// ibuf [0] = 0;
+	ibuf [0] = 0xff;
 
 #if 0
 #ifdef RTC_TEST
@@ -2247,12 +2248,12 @@ RS_Err:
 
 	if ((unsigned char) ibuf [0] == 0xff)
 		ser_out (RS_RCMDM1,
-			"No cmd in 30 sec -> start radio\r\n"
+			"No cmd in 15 sec -> start radio\r\n"
 			);
   state RS_RCMD:
 
 	if ((unsigned char) ibuf [0] == 0xff)
-		delay (1024*30, RS_AUTOSTART);
+		delay (1024*15, RS_AUTOSTART);
   
 	ser_in (RS_RCMD, ibuf, IBUFLEN-1);
 	unwait ();
