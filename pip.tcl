@@ -1665,8 +1665,7 @@ proc gfl_spec { fl ft } {
 		# directories first; the name
 		set n [lindex $t 0]
 		set rfl [gfl_spec [lindex $t 1] $ft]
-		if { $rfl != "" || $ft == "Sources" } {
-			# Sources also collects all empty directories
+		if { $rfl != "" } {
 			set fp 1
 			lappend dirs [list $n $rfl]
 		}

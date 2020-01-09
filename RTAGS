@@ -930,3 +930,7 @@ PG190917A:	PICOS >= PG190917A
 PG191108A:
 
 	Added "Refresh" to the tree command menu.
+
+PG200109A:
+
+	A cosmetic improvement to the tree view of project files.
