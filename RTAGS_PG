@@ -836,3 +836,7 @@ PG190301A:	PICOS >= PG190301A
 	   picomp to recognize machine endianness.
 
 	   A few cleanups related to the book.
+
+PG200109A:
+
+	   A few irrelevant cosmetics + the book, just bringing it up to date.
