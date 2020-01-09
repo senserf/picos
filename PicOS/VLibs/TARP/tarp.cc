@@ -4,6 +4,7 @@
 /* ==================================================================== */
 
 #include "tarp.h"
+#include "net.h"
 
 // rcv, snd, fwd, |10 10 0 01 1|, pp_urg,pp_widen,spare, rssi_th, ssignal
 // param: |level, rte_rec, slack, routing|
@@ -175,23 +176,24 @@ static void ackForRtr (headerType * b, int * ses) {
 	if (guide_rtr (b) < 2) // not interesting msg
 		return;
 
-
-	if ((dum = tcvp_new (sizeof (headerType) + 6, TCV_DSP_XMTU, *ses)) ==
+	if ((dum = tcvp_new (sizeof (headerType) + NET_FRAME_LENGTH,
+		TCV_DSP_XMTU, *ses)) ==
 			NULL) {
 		dbug_rtr ("no dummy ack");
 		return;
 	}
 	*dum = net_id;
-	dum[1] = 0; // msg_null - hopefully, invalidates all else
+	dum [1] = 0; // msg_null - hopefully, invalidates all else
 	memcpy ((char *)dum +3, (char *)b +1, sizeof (headerType) -1);
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 	// dupa it'll be an impressive catastrophe if header ever becomes an odd number DO NOT FIX IT HERE
-	dum[((sizeof(headerType) + 6) >>1) -1] = tarp_pxopts;
+	dum[((sizeof(headerType) + NET_FRAME_LENGTH) >> 1) -1] =
+		tarp_pxopts;
 #endif
 
 #if 0
-	diag ("verbose dummy out for s%u s%u t%u r%u", b->snd, b->seq_no,
+	diag ("verbose dummy out for s%u s%u t%x r%u", b->snd, b->seq_no,
 			b->msg_type, b->rcv);
 #endif
 }
@@ -238,6 +240,61 @@ void tarp_init (void) {
 #endif
 
 //#define in_shadow(c, m) ((c) == (m))
+
+// ============================================================================
+
+#if TARP_COMPRESS
+
+// I have tried to use an internal function (declared within cmp_discard) for
+// the qualifier (at least for C compilation), which would've eliminated the
+// need for a static variable, but it crashes gcc ;-(
+
+#if 1
+
+// Variant with an extra static variable + regular function
+
+static headerType *cmp_msb;
+
+static int cmp_qual (address pkt) {
+//
+// Packet qualifier for path compression
+//
+	headerType *h = (headerType*)(pkt + 1);
+
+	return (h->snd == cmp_msb->snd && h->seq_no == cmp_msb->seq_no);
+}
+
+#endif
+
+static void cmp_discard (headerType *p) {
+
+#if 0
+	// Variant with an internal function (crashes the compiler [gcc])
+	int cmp_qual (address pkt) {
+		headerType *h = (headerType*)(pkt + 1);
+		return (h->snd == p->snd && h->seq_no == p->seq_no);
+	};
+#else
+	cmp_msb = p;
+#endif
+
+#if 1
+	// No trace (diag)
+	net_opt (PHYSOPT_REVOKE, (address) cmp_qual);
+#else
+	// Trace (diag)
+	{
+		sint s = net_opt (PHYSOPT_REVOKE, (address) cmp_qual);
+		if (s) {
+			diag ("COMPRESSED: %d", s);
+		}
+	}
+#endif
+}
+
+#endif	/* TARP_COMPRESS */
+
+// ============================================================================
 
 static Boolean dd_fresh (headerType * buffer) {
 
@@ -338,16 +395,22 @@ static int check_spd (headerType * msg) {
 		if (i < 0 && tarp_rte_rec != 0)
 			spdCache->m_hop++;
 
-		dbug_rx ("%u %u spdm %d %u %u %u %u", 
+		dbug_rx ("%x %u spdm %d %u %u %u %u", 
 			msg->msg_type, msg->snd, i,
 			msg->hco, msg->hoc, spdCache->m_hop, msg->seq_no);
-
+#if TARP_COMPRESS
+		if (i > -TARP_COMPRESS)
+			// TARP_COMPRESS == 1 -> i >= 0 (optimal path),
+			// TARP_COMPRESS  > 1 -> admitted suboptimal path,
+			// probably a bad idea
+			msg->msg_type |= TARP_OPTPATH_FLAG;
+#endif
 		return i;
 	}
 
 	if ((i = findInSpd(msg->rcv)) >= spdCacheSize) {
 
-		dbug_rx ("%u %u spdno %d %u %u %u", msg->msg_type, msg->snd,
+		dbug_rx ("%x %u spdno %d %u %u %u", msg->msg_type, msg->snd,
 			msg->hco - msg->hoc + tarp_slack -1,
 			msg->hco, msg->hoc, msg->seq_no);
 
@@ -362,29 +425,75 @@ static int check_spd (headerType * msg) {
 	if (j < 0 && tarp_rte_rec != 0)
 		spdCache->en[i].hop++; // failed routing attempts ++
 
-	dbug_rx ("%u %u spd %d %u %u %u %u", 
+	dbug_rx ("%x %u spd %d %u %u %u %u", 
 			msg->msg_type, msg->snd, j, msg->hco,
 	  		msg->hoc, spdCache->en[i].hop, msg->seq_no);
 
 	return j;
 }
 
+static void do_rx_dup (address buffer, int length, int off, int ses) {
+//
+// Duplicate the packet and send it out, if off is nonzero, assume the message
+// is a trace, so use off to insert host_id % 256 and RSSI
+//
+	headerType *msgBuf = (headerType*)(buffer + 1);
+	address dup;
+	int nlen;
+
+	// Minimum physical length of the copy, need room for two bytes at
+	// offset + packet trailer (offset is absolute, i.e., from the
+	// beginning of physical packet)
+	if ((nlen = off + NET_TRAILER_LENGTH + 2) > NET_MAXPLEN) {
+		// Ignore
+		dbug_rx ("%x %u cpy ovf %u", msgBuf->msg_type, msgBuf->snd,
+			msgBuf->seq_no);
+		return;
+	}
+
+	// If off is zero, nlen is definitely smaller than length, so length
+	// will be used
+
+	if (nlen < length)
+		// Never decrease
+		nlen = length;
+
+	if ((dup = tcvp_new (nlen, TCV_DSP_XMT, ses)) == NULL) {
+		dbg_8 (0x3000); // Tarp dup2 failed
+		diag ("Tarp dup2 failed");
+		// Do nothing
+		return;
+	}
+
+	memcpy ((char*)dup, (char*)buffer, length);
+
+	if (off) {
+		*((byte*)dup + off    ) = (byte)local_host;
+		*((byte*)dup + off + 1) = net_get_rssi (buffer, length);
+	}
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+	dup [(nlen >> 1) -1] = tarp_pxopts;
+#endif
+	dbug_rx ("%x %u bcast cpy %u", msgBuf->msg_type, msgBuf->snd,
+		msgBuf->seq_no);
+}
+
 // August 2015 pxopts inserts deserve more tests both with and without RADIO_OPTION_PXOPTIONS
 int tarp_rx (address buffer, int length, int *ses) {
 
-	address dup;
 	headerType * msgBuf = (headerType *)(buffer+1);
-	byte rssi;
+	address dup;
 
 #if TARP_RTR
 	word i;
 #endif
-	if (length < sizeof(headerType) + 6) { // sid, entropy, rssi
+	if (length < sizeof(headerType) + NET_FRAME_LENGTH) {
 		diag ("tarp rcv bad length %d", length);
 		return TCV_DSP_DROP;
 	}
 	
-	if (msgBuf->msg_type == 0) { // dummy ack from dst
+	if (tarp_mType (msgBuf->msg_type) == 0) { // dummy ack from dst
 #if TARP_RTR
 #if 0
 		diag ("verbose dummy in for s%u s%u r%u", 
@@ -418,7 +527,7 @@ int tarp_rx (address buffer, int length, int *ses) {
 	}
 
 #if TARP_RTR
-	if (guide_rtr (msgBuf)  == 2 && 
+	if (guide_rtr (msgBuf) == 2 && 
 		(i = findInRtr (msgBuf->snd, msgBuf->seq_no, NULL)) <
 			rtrCacheSize) {
 		if (msgBuf->hoc < rtrCache->hoc[i]) {
@@ -454,20 +563,13 @@ int tarp_rx (address buffer, int length, int *ses) {
 	}
 #endif
 
-#if DM2200
-	// RSSI on TR8100 is LSB, MSB is 0
-	tarp_ctrl.ssignal = ((rssi = buffer[(length >>1) -1]) >=
-			tarp_ctrl.rssi_th) ?  YES : NO;
-#else
-	// assuming CC1100: RSSI is MSB
-	tarp_ctrl.ssignal = ((rssi = (buffer[(length >>1) -1] >> 8)) >=
-			tarp_ctrl.rssi_th) ?  YES : NO;
-#endif
+	tarp_ctrl.ssignal = (net_get_rssi (buffer, length) >=
+		tarp_ctrl.rssi_th) ?  YES : NO;
 
-	dbug_lte ("%u %u %u rcv %u", msgBuf->msg_type, msgBuf->snd,
+	dbug_lte ("%x %u %u rcv %u", msgBuf->msg_type, msgBuf->snd,
 			msgBuf->seq_no, (word)seconds());
 
-	dbug_rx ("%u %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
+	dbug_rx ("%x %u ssig %u drop %u", msgBuf->msg_type, msgBuf->snd,
 		tarp_ctrl.ssignal, tarp_drop_weak);
 
 	if (!tarp_ctrl.ssignal) {
@@ -478,9 +580,10 @@ int tarp_rx (address buffer, int length, int *ses) {
 	}
 
 	tarp_ctrl.rcv++;
+
 	if (*buffer == 0)  { // from unbound node
 
-		dbug_rx ("%u %u from unbound %s", msgBuf->msg_type, msgBuf->snd,
+		dbug_rx ("%x %u from unbound %s", msgBuf->msg_type, msgBuf->snd,
 			net_id == 0 || !msg_isNew(msgBuf->msg_type) ?  
 				"drop" : "rcv");
 		return net_id == 0 || !msg_isNew(msgBuf->msg_type) ?
@@ -489,13 +592,13 @@ int tarp_rx (address buffer, int length, int *ses) {
 
 	if (msgBuf->snd == local_host) {
 		// my own echo -- drop it
-		dbug_rx ("%u %u drop echo", msgBuf->msg_type, msgBuf->snd);
+		dbug_rx ("%x %u drop echo", msgBuf->msg_type, msgBuf->snd);
 		return TCV_DSP_DROP;
 	}
 
 	if (net_id == 0 && !msg_isBind (msgBuf->msg_type)) {
 
-		dbug_rx ("%u %u drop no net_id", msgBuf->msg_type, msgBuf->snd);
+		dbug_rx ("%x %u drop no net_id", msgBuf->msg_type, msgBuf->snd);
 		return TCV_DSP_DROP;
 	}
 
@@ -516,9 +619,17 @@ int tarp_rx (address buffer, int length, int *ses) {
 		ackForRtr (msgBuf, ses);
 #endif
 
+#if TARP_COMPRESS
+	if (msgBuf->msg_type & TARP_OPTPATH_FLAG) {
+		// Check transmit queue
+		cmp_discard (msgBuf);
+		// Clear the flag, so it is not forwarded
+		msgBuf->msg_type ^= TARP_OPTPATH_FLAG;
+	}
+#endif
 	if (tarp_level && !dd_fresh(msgBuf)) {  // check and update DD
 
-		dbug_rx ("%u %u drop dup %u", msgBuf->msg_type, msgBuf->snd,
+		dbug_rx ("%x %u drop dup %u", msgBuf->msg_type, msgBuf->snd,
 			msgBuf->seq_no);
 		return TCV_DSP_DROP;    //duplicate
 	}
@@ -527,7 +638,7 @@ int tarp_rx (address buffer, int length, int *ses) {
 		upd_spd (msgBuf);
 
 	if (msgBuf->rcv == local_host) {
-		dbug_rx ("%u %u rcv is me %u", msgBuf->msg_type, msgBuf->snd, 
+		dbug_rx ("%x %u rcv is me %u", msgBuf->msg_type, msgBuf->snd, 
 			msgBuf->seq_no);
 		return TCV_DSP_RCV;
 	}
@@ -537,56 +648,38 @@ int tarp_rx (address buffer, int length, int *ses) {
 		// if we ever want bcast retried... for now, this is redundant
 		ackForRtr (msgBuf, ses);
 #endif
-		if (!tarp_fwd_on || msgBuf->prox ||
-				msgBuf->hoc >= msgBuf->hco) {
-
-		dbug_rx ("%u %u bcast just rcv %u", msgBuf->msg_type, 
-				msgBuf->snd, msgBuf->seq_no);
-			return TCV_DSP_RCV;
-		}
-
-		if ((dup = tcvp_new (msg_isTrace (msgBuf->msg_type) ?
-		  length +sizeof(nid_t) : length, TCV_DSP_XMT, *ses)) == NULL) {
-			dbg_8 (0x2000); // Tarp dup failed
-			diag ("Tarp dup failed");
-		} else {
-			memcpy ((char *)dup, (char *)buffer, length);
-			if (msg_isTrace (msgBuf->msg_type)) { // crap kludge
-#if 0
-			  memcpy ((char *)dup + tr_offset (msgBuf),
-				(char *)&local_host, sizeof(nid_t));
-#endif
-			  *((byte *)dup + tr_offset (msgBuf)) = 
-				  (byte)local_host;
-			  *((byte *)dup + tr_offset (msgBuf) +1) = rssi;
-
-#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
-				dup[((length +sizeof(nid_t)) >>1) -1] = tarp_pxopts;
-			} else {
-				dup[(length >>1) -1] = tarp_pxopts;
-			}
-#else
-			}
-#endif
-
+		if (tarp_fwd_on && !msgBuf->prox &&
+				msgBuf->hoc < msgBuf->hco) {
+			// Duplicate the packet, send the copy,
+			// receive the original
+			do_rx_dup (buffer, length,
+				msg_isTrace (msgBuf->msg_type) ?
+					tr_offset (msgBuf) : 0, *ses);
 			tarp_ctrl.fwd++;
+		} else {
+			// Just receive
+			dbug_rx ("%x %u bcast just rcv %u", msgBuf->msg_type, 
+				msgBuf->snd, msgBuf->seq_no);
 		}
-		dbug_rx ("%u %u bcast cpy & rcv %u", msgBuf->msg_type, 
-			msgBuf->snd, msgBuf->seq_no);
+
 		return TCV_DSP_RCV; // the original
 	}
 
 	if (msgBuf->hoc >= tarp_maxHops) {
 
-		dbug_rx ("%u %u Max drop %d", msgBuf->msg_type, msgBuf->snd, 
+		dbug_rx ("%x %u Max drop %d", msgBuf->msg_type, msgBuf->snd, 
 			msgBuf->seq_no);
 		return TCV_DSP_DROP;
 	}
 
 	if (tarp_fwd_on && !msgBuf->prox &&
 		(tarp_level < 2 || check_spd (msgBuf) >= 0)) {
+
 		tarp_ctrl.fwd++;
 #if TARP_RTR
+		// PG: Why? Doesn't normal FWD fulfill this goal? Oh, I see,
+		// this is stronger, because the ACK is unconditional on the
+		// number of hops.
 		ackForRtr (msgBuf, ses);
 #endif
 		if (!msg_isTrace (msgBuf->msg_type)) {
@@ -594,36 +687,23 @@ int tarp_rx (address buffer, int length, int *ses) {
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 			buffer[(length >>1) -1] = tarp_pxopts;
 #endif
-			dbug_rx ("%u %u xmit %u", msgBuf->msg_type, 
+			dbug_rx ("%x %u xmit %u", msgBuf->msg_type, 
 					msgBuf->snd, msgBuf->seq_no);
-			// PG
-			// highlight_set (1, 1.5, "FWD (%u): %u %u %u", length, msgBuf->msg_type, msgBuf->snd, msgBuf->hoc);
 			return TCV_DSP_XMT;
 		}
 
-		if ((dup = tcvp_new (length +sizeof(nid_t), TCV_DSP_XMT, *ses))
-			== NULL) {
-			dbg_8 (0x3000); // Tarp dup2 failed
-			diag ("Tarp dup2 failed");
-		} else {
-			memcpy ((char *)dup, (char *)buffer, length);
-#if 0
-			memcpy ((char *)dup + tr_offset (msgBuf),
-				(char *)&local_host, sizeof(nid_t));
-#endif
-			*((byte *)dup + tr_offset (msgBuf)) = (byte)local_host;
-			*((byte *)dup + tr_offset (msgBuf) +1) = rssi;
-
-#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
-			dup[((length +sizeof(nid_t)) >>1) -1] = tarp_pxopts;
-#endif
-
-			dbug_rx ("%u %u cpy trace", 
-					msgBuf->msg_type, msgBuf->snd);
-		}
+		// Trace
+		do_rx_dup (buffer, length, tr_offset (msgBuf), *ses);
+		// Forwarded a copy, drop the original
+		return TCV_DSP_DROP;
+		// PG: in Wlodek's version, the original was also DSP_XMT. I
+		// think it was wrong, because the packet was retransmitted
+		// with the same length and hoc++. That caused packet overflow
+		// on next hop. Netting would crash on trace messages over a
+		// notrivial number of hops.
 	}
 
-	dbug_rx ("%u %u (&) drop %u", msgBuf->msg_type, msgBuf->snd, 
+	dbug_rx ("%x %u (&) drop %u", msgBuf->msg_type, msgBuf->snd, 
 		msgBuf->seq_no);
 	return TCV_DSP_DROP;
 }
@@ -668,10 +748,10 @@ int tarp_tx (address buffer) {
 	tarp_ctrl.pp_urg = 0;
 	tarp_ctrl.pp_widen = 0;
 
-	dbug_lte ("%u %u %u snd %u", msgBuf->msg_type, msgBuf->rcv,
+	dbug_lte ("%x %u %u snd %u", msgBuf->msg_type, msgBuf->rcv,
 		msgBuf->seq_no, (word)seconds());
 
-	dbug_rx ("%u %u tx %u %u %u", msgBuf->msg_type, msgBuf->snd,
+	dbug_rx ("%x %u tx %u %u %u", msgBuf->msg_type, msgBuf->snd,
 			msgBuf->rcv, msgBuf->hco, msgBuf->seq_no);
 
 	return rc;
@@ -684,7 +764,7 @@ int tarp_xmt (address buffer) {
 	word i;
 
 	// msg_null - ack at dst || irrelevant
-	if (msgBuf->msg_type == 0 || guide_rtr (msgBuf) < 2)
+	if (tarp_mType (msgBuf->msg_type) == 0 || guide_rtr (msgBuf) < 2)
 		return TCV_DSP_DROP;
 
 
@@ -692,7 +772,7 @@ int tarp_xmt (address buffer) {
 
 		if (++rtrCache->rcnt[i] > TARP_RTR) {
 			rtrCache->fecnt++;
-			dbug_rtr ("%x-%u.%u t%u r%u unhooked-rtr at %u %u",
+			dbug_rtr ("%x-%u.%u t%x r%u unhooked-rtr at %u %u",
                                         rtrCache->pkt[i],
 					in_header(buffer +1, snd),
 					in_header(buffer +1, seq_no),

@@ -20,21 +20,32 @@ void hold (word st, lword sec) {
 
 	if ((del = seconds ()) < sec) {
 		del = sec - del;
-		if (del == 1) {
-			// Make it extremely fine to catch the second boundary
+		if (del <= HOLD_STEP_DELAY_SEC) {
+			// Make it as fine as it gets to catch the second
+			// boundary
 			delay (1, st);
 			release;
 		}
+#ifdef	TRIPLE_CLOCK
+#if	TRIPLE_CLOCK == 0
+		// Not sure if this is gonna work any more with 
+		// TRIPLE_CLOCK == 0, let me leave this legacy code as a
+		// comment
 		if (del == 2) {
 			// Force clockup
 			delay (100, st);
 			release;
 		}
-		if (del <= 32) {
+#endif
+#endif
+		// Allow for roundups on millisecond waits, so we don't miss
+		// the beginning of the target second
+		del -= HOLD_STEP_DELAY_SEC;
+		if (del <= HOLD_BREAK_DELAY_SEC) {
 			delay (((word)del) << 10, st);
 			release;
 		}
-		delay ((word)32 * 1024, st);
+		delay ((word)HOLD_BREAK_DELAY_SEC * 1024, st);
 		release;
 	}
 }

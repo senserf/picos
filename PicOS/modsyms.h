@@ -208,6 +208,10 @@
 #define	TARP_RTRCACHESIZE	10	// ++
 #endif
 
+#ifndef	TARP_COMPRESS
+#define	TARP_COMPRESS		0	// ++
+#endif
+
 #ifndef	TARP_MAXHOPS
 #define	TARP_MAXHOPS		10	// ++
 #endif
@@ -229,7 +233,7 @@
 #endif
 
 #ifndef	TARP_DEF_PARAMS
-// 				lvrrrwssf
+// 				lvrrwssf
 #define	TARP_DEF_PARAMS		0xA3	// ++
 #endif
 
@@ -545,6 +549,8 @@
 #define	PHYSOPT_SETPARAMS	26	/* Generic request to set misc params */
 
 #define	PHYSOPT_TRANSPARENT	27
+
+#define	PHYSOPT_REVOKE		28
 
 /* ========================================== */
 /* Registered identifiers of plugins and phys */

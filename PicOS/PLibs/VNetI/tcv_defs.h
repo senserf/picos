@@ -1,7 +1,7 @@
 #ifndef	__tcv_defs_h
 #define __tcv_defs_h
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2020                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 

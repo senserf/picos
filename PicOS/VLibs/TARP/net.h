@@ -5,6 +5,8 @@
 /* All rights reserved.							*/
 /* ==================================================================== */
 
+#include "netparams.h"
+
 //+++ "net.cc"
 
 int net_opt (int opt, address arg);

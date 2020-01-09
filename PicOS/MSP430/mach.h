@@ -364,6 +364,14 @@ typedef	struct {
 #endif
 
 // ============================================================================
+// The maximum "hold" second delay to carry out in a single go (converted to
+// msec wait) + the maximum hold delay to split into fine 1 msec delays
+// ============================================================================
+
+#define	HOLD_BREAK_DELAY_SEC	(TCI_MAXDEL >> 10)
+#define	HOLD_STEP_DELAY_SEC	2
+
+// ============================================================================
 
 #define	TCI_LOW_DIV		(CRYSTAL_RATE/(8*TCI_LOW_PER_SEC))
 

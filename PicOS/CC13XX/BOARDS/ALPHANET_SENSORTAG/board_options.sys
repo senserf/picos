@@ -1,6 +1,10 @@
 #define	STORAGE_MX25R8035	1
 #define	MALLOC_SINGLEPOOL	1
+
+#ifndef	DIAG_MESSAGES
 #define DIAG_MESSAGES		0
+#endif
+
 #define	TCV_PRESENT		1
 #define	TCV_TIMERS		0
 #define	TCV_HOOKS		0

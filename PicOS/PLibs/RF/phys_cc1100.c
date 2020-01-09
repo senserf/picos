@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2020                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -1419,6 +1419,18 @@ OREvnt:
 #endif
 		}
 
+		break;
+#endif
+
+#if TARP_COMPRESS
+	    // I make this conditional on a TARP parameter, although the
+	    // feature is potentially generally useful
+	    case PHYSOPT_REVOKE:
+
+		// This seems to be quite easy, because the driver is
+		// carefully lazy about extracting the packet from the
+		// queue
+		ret = tcvphy_erase (physid, (pktqual_t)val);
 		break;
 #endif
 	    default:

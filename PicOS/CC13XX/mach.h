@@ -111,7 +111,16 @@
 
 // ============================================================================
 
+// This isn't an option, and good riddance, too!
 #define	TRIPLE_CLOCK	1
+
+// ============================================================================
+// The maximum "hold" second delay to carry out in a single go (converted to
+// msec wait) + the maximum hold delay to split into fine 1 msec delays
+// ============================================================================
+
+#define	HOLD_BREAK_DELAY_SEC	63
+#define	HOLD_STEP_DELAY_SEC	1
 
 #define	TCI_MARK_AUXILIARY_TIMER_ACTIVE	aux_timer_inactive = 0
 #define	TCI_RUN_DELAY_TIMER		tci_run_delay_timer ()

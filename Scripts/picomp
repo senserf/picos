@@ -9,7 +9,9 @@ exec tclsh "$0" "$@"
 #	1. PicOS to C compiler
 #	2. PicOS to VUEE compiler
 #
-# Copyright (C) Olsonet Communications Corporation, 2010-2017
+# P. Gburzynski
+#
+# Copyright (C) Olsonet Communications Corporation, 2010-2020
 #
 ###############################################################################
 

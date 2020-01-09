@@ -1,7 +1,7 @@
 #ifndef	__tcvdata_h__
 #define	__tcvdata_h__
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2006                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2020                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -52,7 +52,7 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 #if TCV_LIMIT_RCV || TCV_LIMIT_XMT
 	Boolean qmore (qhead_t *q, word lim);
 #endif
-	int empty (qhead_t *oq);
+	int empty (qhead_t *oq, pktqual_t);
 	void dispose (hblock_t *p, int dv);
 #if DUMP_MEMORY
 	void dmpq (qhead_t *q);
@@ -100,7 +100,7 @@ __STATIC const tcvplug_t *plugins [TCV_MAX_PLUGS];
 	address 	_da (tcvphy_get) (int phy, int *len);
 	address 	_da (tcvphy_top) (int phy);
 	void 		_da (tcvphy_end) (address pkt);
-	int 		_da (tcvphy_erase) (int phy);
+	int 		_da (tcvphy_erase) (int phy, pktqual_t qua);
 
 	void		_da (tcv_init) ();
 

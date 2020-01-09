@@ -139,7 +139,7 @@
 #define	dbg_binary	0
 #endif
 
-extern	void __pi_dbg (word, word);
+extern	void __pi_dbg (int, word);
 
 #endif
 

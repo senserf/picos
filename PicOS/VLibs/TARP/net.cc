@@ -7,41 +7,7 @@
 #include "tcvphys.h"
 #include "plug_null.h"
 #include "plug_tarp.h"
-
-#ifndef __SMURPH__
-
-#if ETHERNET_DRIVER
-#include "phys_ether.h"
-#endif
-
-#if UART_TCV
-#include "phys_uart.h"
-#endif
-
-#if CC1000
-#include "phys_cc1000.h"
-#endif
-
-#if CC1100
-#include "phys_cc1100.h"
-#endif
-
-#if CC2420
-#include "phys_cc2420.h"
-#endif
-
-#if DM2200
-#include "phys_dm2200.h"
-#endif
-
-#if CC1350_RF
-#include "phys_cc1350.h"
-#endif
-
-#endif	/* if not the simulator */
-
 #include "tarp.h"
-
 #include "net.h"
 
 #ifndef __SMURPH__
@@ -103,7 +69,6 @@ static int cc1000_init (word);
 
 #if CC1100
 static int cc1100_init (word);
-#define	NET_MAXPLEN		60
 #endif
 
 #if CC1350_RF
@@ -116,10 +81,6 @@ static int cc2420_init (word);
 
 #if DM2200
 static int dm2200_init (word);
-#endif
-
-#ifndef NET_MAXPLEN
-#define	NET_MAXPLEN		60
 #endif
 
 #ifdef	myName
@@ -341,11 +302,6 @@ static int uart_init (word plug) {
 }
 #endif
 
-// 7 words, 62 is the shortest frame
-#define ether_min_frame		62
-#define ether_offset(len)	((len) + 7)
-#define ether_ptype		0x6007
-
 int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 
 	address packet;
@@ -404,7 +360,7 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 	case INFO_PHYS_CC1350:
 	case INFO_PHYS_CC2420:
 	case INFO_PHYS_DM2200:
-		size -= 6;
+		size = phys_to_payload (size);
 		if (size == 0 || size > NET_MAXPLEN) {
 			tcv_endp(packet);
 			return -1;
@@ -418,21 +374,22 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 			// packet: {sid, header, payload, 0/1B, entropy, rssi}
 			in_key = in_header(packet +1, msg_type);
 			if (!msg_isClear(in_key)) {
-			    in_key >>= 6;
+			    in_key = tarp_mEncr (in_key);
 			    if ((encr & 4) && (encr & 3) != in_key) {
 				tcv_endp(packet);
 				dbg_8 (0x4000 | in_key); // strict & mismatch 
 				return 0;
 			    }
 			    if (in_key) {
-			 	decrypt (packet +1 + (sizeof(headerType) >> 1),
-				  (size +6 -2 - sizeof(headerType) -2) >> 1,
-				  &enkeys[(in_key -1) << 2]);
+			 	decrypt (packet + 1 + (sizeof(headerType) >> 1),
+				  (size + NET_FRAME_LENGTH - 2 - 
+				    sizeof(headerType) - 2) >> 1,
+				      &enkeys[(in_key -1) << 2]);
 				in_key = *(((byte *)enkeys +
 			 	    ((in_key -1) << 4)) +
-				    (in_header(packet +1, msg_type) & 0x0F));
-				if (*((byte *)packet + size +6 -1 -2 -1) !=
-					in_key) {
+				    (in_header(packet + 1, msg_type) & 0x0F));
+				if (*((byte *)packet + size +
+				  NET_FRAME_LENGTH -1 -2 -1) != in_key) {
 					tcv_endp(packet);
 					dbg_8 (0x5000 | in_key);
 					return 0;
@@ -440,8 +397,8 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 			    }
 			}
 			memcpy(*buf_ptr, (char *)(packet +1), size);
-			**buf_ptr &= 0x3F;
 		}
+		**buf_ptr &= TARP_MSGTYPE_MASK;
 		tcv_endp(packet);
 		return size;
 
@@ -453,21 +410,6 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 
 	return -1;
 }
-
-// 7 words, 15 = 14 head + 1 tail bytes (needed), 62 is the shortest frame
-#define ether_min_frame		62
-#define ether_offset(len)	((len) + 7)
-#define ether_ptype			0x6007
-#define ether_len(len)		((62 >= ((len) + 15)) ? 62 : ((len) + 15))
-
-#if CC1100 || CC2420 || CC1350_RF
-// 2 - station id, 2 - entropy, 2 - rssi, even
-#define radio_len(len)  (((len) + 6 +1) & 0xfffe)
-#else
-// 2 - header, 4 - crc, +3 mod 4 == 0
-// (if the length is not divisible by 4, things may happen)
-#define radio_len(len)		(((len) + 2+ 4 + 3) & 0xfffc)
-#endif
 
 int net_tx (word state, char * buf, int len, byte encr) {
 
@@ -517,29 +459,29 @@ application should decide if this is an error...
 	  case INFO_PHYS_CC1350:
 	  case INFO_PHYS_CC2420:
 	  case INFO_PHYS_DM2200:
-		packet = tcv_wnp (state, net_fd, radio_len(len));
+		packet = tcv_wnp (state, net_fd, payload_to_phys (len));
 		if (packet == NULL) {
 			return -1;
 		}
 		packet[0] = net_id;
 		memcpy (packet + 1,  buf, len);
 		// always load entropy, just before rssi
-		packet [(radio_len(len) >> 1) - 2] = (word) entropy;
+		packet [(payload_to_phys (len) >> 1) - 2] = (word) entropy;
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
-		packet [(radio_len(len) >> 1) - 1] = net_pxopts;
+		packet [(payload_to_phys (len) >> 1) - 1] = net_pxopts;
 #endif
 
 		if ((encr & 3) && !msg_isClear(*buf)) {
 			// add encr to msg_type
-			*(byte *)(packet +1) |= encr << 6;
+			*(byte *)(packet +1) |= encr << TARP_ENCRYPT_SHIFT;
 			// load the "signature"
-			*((byte *)packet + radio_len(len) -4) =
+			*((byte *)packet + payload_to_phys (len) -4) =
 				*((byte *)enkeys + (((encr & 3) -1) << 4) +
 					(in_header(buf, msg_type) & 0x0F));
 			encrypt (packet + 1 + (sizeof(headerType) >> 1),
-			  (radio_len(len) - 2 - sizeof(headerType) - 2) >> 1,
-			  &enkeys[((encr & 3) -1) << 2]);
+			  (payload_to_phys (len) - 2 - sizeof(headerType) - 2)
+			    >> 1, &enkeys[((encr & 3) -1) << 2]);
 		}
 		break;
 

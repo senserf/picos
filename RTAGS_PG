@@ -5472,3 +5472,65 @@ PG191108A:
 
 	A few cleanups in the documentation and board definitions. The config
 	symbol MAX_TASKS renamed to TASK_ORDERING.
+
+PG200109A:	VUEE >= PG200109A
+
+	Improved hold to make sure that even very long delays correctly end up
+	as close to the edge of the target second as possible (so we can
+	reliably use it to implement longish duty cycles).
+
+	Added a new PHYSOPT_REVOKE for CC1100 and CC1350_RF. With this
+	operation, the caller can selectively revoke (remove) packets from the
+	driver's output queue. This is a handle for TARP_COMPRESS, see below.
+
+	Modified tcvphy_erase to accept a second argument which is a pointer to
+	the qualifier function to identify the packets to be erased (previously
+	the function would clear the entire output queue [and it still does
+	that when the qualifier pointer is NULL]). This is documented in the
+	VNETI doc. Needed by PHYSOPT_REVOKE.
+
+	Added a few constants and macros (in net and tarp) to parameterize the
+	length of packet headers and trailers, so the arithmetics needed to
+	account for them is more explicit.
+
+	Added the "compress" option to TARP (TARP_COMPRESS). This is the, so
+	far hypothetical, feature that we discussed with Wlodek some time ago,
+	aimed at eliminating parallel paths of the same "optimal" length. It
+	seems to work quite well, at least in simulations.
+
+	I have tried to settle the format of message type in TARP header to
+	five rightmost bits of the respective byte (see the constants in
+	tarp.h) leaving the remaining 3 bits for flags. Two flags are (sort of)
+	used at present for encryption (which we should redo if it is ever
+	needed). The third one is the "O" bit for TARP_COMPRESS.
+
+	Fixed a bug (or a bugoid, if you will) in tarp.cc which caused crashes
+	on trace messages over a nontrivial number of hops (I needed them in
+	the context of netting). There were two problems:
+
+	1. It was never checked whether the offset to add new trace information
+	   was within legit packet boundaries. When the number of hops was
+	   large enough, the requested packet length would overflow the
+	   driver's bounds.
+	
+	2. A non-broadcast, forwarded trace packet was duplicated (and possibly
+	   extended to include new trace info [that was OK]), but it was also
+	   retransmitted "as-is" (with TCV_DSP_XMT). Perhaps Wlodek had a
+	   reason for that, but it was wrong. It would cause a problem when the
+	   directly retransmitted copy of the packet was received (and
+	   subsequently processed as a trace packet). That hop count was
+	   incremented (w.r.t. the original), but the packet size wasn't, so
+	   the trace offset calculated on the received packet was pointing
+	   beyond the payload.
+	
+	I have made sure (or tried anyway) that:
+
+	1. When the trace offset for a replicated and extended packet exceeds
+	   what can be fit into a legit packet, the packet is dropped.
+	
+	2. A non-broadcast, forwarded trace packet is only sent in the extended
+	   version, and the original is dropped.
+	
+	Needless to say, I am not 100% sure what I have done and whether I have
+	accomplished anything.
+

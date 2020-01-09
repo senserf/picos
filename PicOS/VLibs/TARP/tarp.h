@@ -7,7 +7,6 @@
 
 #include "sysio.h"
 #include "tcvplug.h"
-
 #include "msg_tarp.h"
 
 //+++ "tarp.cc"
@@ -128,5 +127,17 @@ Boolean msg_isClear (byte);
 word guide_rtr (headerType*);
 #endif
 void set_master_chg (void);
+
+// Mask for the actual message type, in case we use flags; 5 bits providing
+// for 32 distinct types
+#define	TARP_MSGTYPE_MASK	0x1f
+#define	tarp_mType(m)		((m) & TARP_MSGTYPE_MASK)
+
+// Shift for the encryption flags; this will probably never be used
+#define	TARP_ENCRYPT_SHIFT	6
+#define	tarp_mEncr(m)		(((m) >> TARP_ENCRYPT_SHIFT) & 3)
+
+// Optimal path flag
+#define	TARP_OPTPATH_FLAG	0x20
 
 #endif

@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2017-2019                      */
+/* Copyright (C) Olsonet Communications, 2017-2020                      */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -50,7 +50,7 @@ static byte	txtries = 0;		// Number of TX attempts for current pkt
 // State flags
 #define	DSTATE_RXON	0x01	// Rx logically on
 #define	DSTATE_RXAC	0x02	// Rx active
-#define	DSTATE_TXIP	0x04	// Tx in progress
+#define	DSTATE_TXIP	0x04	// Tx in progress (packet locked)
 #define	DSTATE_RFON	0x10	// Device on
 #define	DSTATE_IRST	0x80	// Reset request
 
@@ -538,12 +538,15 @@ thread (cc1350_driver)
 	entry (DR_LOOP)
 
 DR_LOOP__:
+		// Make sure the packet is unlocked
+		_BIC (dstate, DSTATE_TXIP);
+		
 		if (dstate & DSTATE_IRST) {
 			// Reset request
 			rf_off ();
 			// Need some delay?
 			_BIC (dstate,
-			 DSTATE_RXAC | DSTATE_RFON | DSTATE_TXIP | DSTATE_IRST);
+			 DSTATE_RXAC | DSTATE_RFON | DSTATE_IRST);
 		}
 
 		// Keep RX state in sync with the requested state
@@ -620,6 +623,7 @@ Bkf:
 		rx_de ();
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+		// Set the transmit power according to what the packet requests
 		if ((pcav = patable [(*ppm >> 12) & 0x7]) !=
 		    RF_cmdPropRadioDivSetup.txPower) {
 			// Need to change
@@ -630,15 +634,18 @@ Bkf:
 #endif
 
 #if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
+		// The obscure optional report (only for tests)
 		((address)(RF_cmdPropTx.pPkt)) [1] = bckf_lbt;
 		// Do not zero the counter as it may still grow
 #endif
+		// Lock the packet
+		_BIS (dstate, DSTATE_TXIP);
 
 #if RADIO_LBT_SENSE_TIME > 0
 
-		// ============================================================
-		// LBT ON =====================================================
-		// ============================================================
+// ============================================================================
+// LBT ON =====================================================================
+// ============================================================================
 
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 		if (*ppm & 0x8000) {
@@ -650,6 +657,7 @@ Bkf:
 		RF_cmdPropTx . status = 0;
 		HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
 			~RFC_DBELL_RFCPEIFG_LAST_COMMAND_DONE;
+		// Carrier sense + transmit if OK
 		issue_cmd ((lword)&cmd_cs);
 
 	entry (DR_XMIT)
@@ -666,10 +674,12 @@ Bkf:
 
 		// Check the TX status
 		if (RF_cmdPropTx.status != PROP_DONE_OK) {
+			// Carrier sense failed
 			if (txtries >= RADIO_LBT_MAX_TRIES) {
 #if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
 Force:
 #endif
+				// Forced transmission after CS failure
 				// diag ("FORCED");
 				RF_cmdPropTx . status = 0;
 				HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
@@ -683,20 +693,23 @@ Force:
 			// Backoff
 			// diag ("BUSY");
 #if RADIO_LBT_BACKOFF_EXP == 0
+			// Unlock, this is the only wait
+			_BIC (dstate, DSTATE_TXIP);
 			delay (1, DR_LOOP);
 			update_bckf_lbt (1);
 			release;
 #else
 			gbackoff (RADIO_LBT_BACKOFF_EXP);
 			update_bckf_lbt (bckf_timer);
+			// Will also unlock the packet
 			goto DR_LOOP__;
 #endif
 		}
 #else	/* RADIO_LBT_SENSE_TIME */
 
-		// ============================================================
-		// LBT OFF ====================================================
-		// ============================================================
+// ============================================================================
+// LBT OFF ====================================================================
+// ============================================================================
 
 		RF_cmdPropTx . status = 0;
 		HWREG (RFC_DBELL_BASE + RFC_DBELL_O_RFCPEIFG) = 
@@ -740,9 +753,11 @@ Force:
 		// ============================================================
 		// ============================================================
 
-		// Release the packet
+		// Release the packet, it has been locked
 		tcvphy_end ((address)(RF_cmdPropTx.pPkt));
 		paylen = 0;
+		// No need to unlock, it is gone anyway, and will be unlocked
+		// at DR_LOOP
 
 #if (RADIO_OPTIONS & RADIO_OPTION_RBKF)
 		bckf_lbt = 0;
@@ -980,6 +995,29 @@ Reset_pwr:
 				*val;
 			goto RRet;
 
+#if TARP_COMPRESS
+	    	// I make this conditional on a TARP parameter, although the
+	    	// feature is potentially generally useful
+	    	case PHYSOPT_REVOKE:
+
+			ret = 0;
+			if (paylen != 0 && (dstate & DSTATE_TXIP) == 0) {
+				// Check the currently pending packet, if not
+				// locked
+				if (((pktqual_t)val)
+					((address)RF_cmdPropTx.pPkt)) {
+					// Delete current
+					tcvphy_end ((address)
+						RF_cmdPropTx.pPkt);
+					paylen = 0;
+					ret++;
+				}
+			}
+
+			// Now try the queued packets
+			ret += tcvphy_erase (physid, (pktqual_t)val);
+			break;
+#endif
 		default:
 
 			syserror (EREQPAR, "cc13 op");

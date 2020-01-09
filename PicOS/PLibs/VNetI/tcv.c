@@ -1,5 +1,5 @@
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
+/* Copyright (C) Olsonet Communications, 2002 - 2020                    */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -204,20 +204,24 @@ __PRIVF (PicOSNode, Boolean, qmore) (qhead_t *q, word lim) {
 }
 #endif
 
-__PRIVF (PicOSNode, int, empty) (qhead_t *oq) {
+__PRIVF (PicOSNode, int, empty) (qhead_t *oq, pktqual_t qual) {
 /*
  * Empties the indicated queue
  */
 	int nq;
 	hblock_t *b;
 
-	for (nq = 0; ; nq++) {
-		b = q_first (oq);
-		if (q_end (b, oq))
-			return nq;
-		// deq (b);
-		rlp (b);
+	nq = 0;
+Er_rt:
+	for (b = q_first (oq); !q_end (b, oq); b = q_next (b)) {
+		if (qual == NULL || qual ((address)(b + 1))) {
+			// deq (b);
+			rlp (b);
+			nq++;
+			goto Er_rt;
+		}
 	}
+
 	return nq;
 }
 
@@ -694,24 +698,7 @@ __PUBLF (PicOSNode, int, tcv_erase) (int fd, int disp) {
 		syserror (EREQPAR, "tcv15");
 	}
 
-	if (disp == TCV_DSP_RCVU || disp == TCV_DSP_XMTU) {
-		// All
-		return empty (rq);
-	}
-
-	// Non-urgent
-	nq = 0;
-Er_rt:
-	for (b = q_first (rq); !q_end (b, rq); b = q_next (b)) {
-		if (b->attributes.b.urgent == 0) {
-			// deq (b);
-			rlp (b);
-			nq++;
-			goto Er_rt;
-		}
-	}
-
-	return nq;
+	return empty (rq, NULL);
 }
 
 __PUBLF (PicOSNode, address, tcv_wnps) (word state, int fd, int length,
@@ -1282,12 +1269,17 @@ __PUBLF (PicOSNode, void, tcvphy_end) (address pkt) {
 		tcv_xmt (pkt));
 }
 
-__PUBLF (PicOSNode, int, tcvphy_erase) (int phy) {
+__PUBLF (PicOSNode, int, tcvphy_erase) (int phy, pktqual_t qual) {
 /*
  * Erases the output queue
  */
+	hblock_t *p, *v;
+	qhead_t *q;
+	int nq;
+
 	verify_fph (phy, "tcv35");
-	return empty (oqueues [phy]);
+
+	return empty (oqueues [phy], qual);
 }
 
 __PUBLF (PicOSNode, void, tcv_init) () {
