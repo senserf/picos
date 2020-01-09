@@ -64,6 +64,7 @@
 #include "tcv_defs.h"
 
 typedef	int (*ctrlfun_t) (int option, address);
+typedef	int (*revkfun_t) (address);
 
 /* Disposition codes */
 #define	TCV_DSP_PASS	0

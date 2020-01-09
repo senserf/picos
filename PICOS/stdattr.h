@@ -19,7 +19,8 @@
 #define	phys_cc2420	_dac (PicOSNode, phys_cc2420)
 #define	phys_uart	_dac (PicOSNode, phys_uart)
 
-#define	rnd()		toss (65536)
+#define	rnd()		((word)toss (65536))
+#define	lrnd()		((lword)((toss(65536) << 16) | toss(65536)))
 #define	diag(...)	(  ((PicOSNode*)TheStation)->_na_diag ( __VA_ARGS__)  )
 #define	emul(...)	(  ((PicOSNode*)TheStation)->_na_emul ( __VA_ARGS__)  )
 
@@ -175,8 +176,8 @@
 	(  ((PicOSNode*)TheStation)->_na_tcvphy_top (a)  )
 #define	tcvphy_end(a) \
 	(  ((PicOSNode*)TheStation)->_na_tcvphy_end (a)  )
-#define	tcvphy_erase(a) \
-	(  ((PicOSNode*)TheStation)->_na_tcvphy_erase (a)  )
+#define	tcvphy_erase(a,b) \
+	(  ((PicOSNode*)TheStation)->_na_tcvphy_erase (a,b)  )
 
 #define	tcv_init() \
 	(  ((PicOSNode*)TheStation)->_na_tcv_init ()  )

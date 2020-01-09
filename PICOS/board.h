@@ -237,6 +237,9 @@ class rfm_intd_t {
 	// Before halt
 	void abort ();
 
+	// Revoke packet
+	int revoke (revkfun_t);
+
 };
 
 // ============================================================================

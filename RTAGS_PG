@@ -1379,3 +1379,7 @@ PG190129A:
 PG191108A:
 
     Fixed mklinks/rmlinks to cover hdc1000 and opt3001 needed for CC1350.
+
+PG200109A:	PICOS >= PG200109A
+
+    Added PHYSOPT_REVOKE to rfmodule, to mirror the change in PicOS.

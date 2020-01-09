@@ -261,7 +261,7 @@ void _dad (PicOSNode, emul) (sint n, const char *s, ...) {
 	}
 }
 
-void __pi_dbg (word x, word v) {
+void __pi_dbg (int x, word v) {
 
 	trace ("DBG: %1d == %04x / %1u", x, v, v);
 }

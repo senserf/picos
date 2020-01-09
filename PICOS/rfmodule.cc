@@ -36,6 +36,28 @@ static int rfm_option (int, address);
 
 // ============================================================================
 
+int rfm_intd_t::revoke (revkfun_t qual) {
+//
+// Revokes a packet from the transmit queue as qualified by the provided
+// function
+//
+	int nc = 0;
+
+	if (__pi_x_buffer != NULL) {
+		// Apply the function to the current packet
+		if (qual (__pi_x_buffer)) {
+			if (!Xmitting) {
+				tcvphy_end (__pi_x_buffer);
+				__pi_x_buffer = NULL;
+				nc++;
+			}
+		}
+	}
+
+	// Scan the transmit queue
+	return nc + tcvphy_erase (phys_id, qual);
+}
+
 void RM_Receiver::setup () {
 
 	rf = TheNode->RFInt;
@@ -215,11 +237,18 @@ Bkf:
 	}
 Xmit:
 	set_congestion_indicator (0);
-	obf.load (xbf, buflen);
+	// Last check
+	if (xbf == NULL)
+		sameas XM_LOOP;
 	xmtg = YES;
+	obf.load (xbf, buflen);
 	pwr_on ();
 	LEDI (1, 1);
 	rfi->transmit (&obf, XM_TXDONE);
+
+#ifdef HIGHLIGHT_XMT
+	highlight_set (1, HIGHLIGHT_XMT, "XMT");
+#endif
 
     state XM_TXDONE:
 
@@ -403,6 +432,7 @@ RM_Receiver::perform {
 		rbf [2]);
 #endif
 	tcvphy_rcv (physid, rbf, pktlen);
+
 	proceed RCV_GETIT;
 }
 
@@ -510,6 +540,7 @@ RN_Xmitter::perform {
 		obf.load (xbf, buflen);
 		pwr_on ();
 		LEDI (1, 1);
+		xmtg = YES;
 		rfi->transmit (&obf, XM_TXDONE);
 
 	state XM_TXDONE:
@@ -517,6 +548,8 @@ RN_Xmitter::perform {
 		rfi->stop ();
 		LEDI (1, 0);
 		tcvphy_end (xbf);
+		xbf = NULL;
+		xmtg = NO;
 		pwr_off ();
 		proceed XM_LOOP;
 }
@@ -829,6 +862,10 @@ static int rfm_option (int opt, address val) {
 	    case PHYSOPT_RESET:
 		// Void
 		return 0;
+
+	    case PHYSOPT_REVOKE:
+
+		return rf->revoke ((revkfun_t)val);
 
 	    default:
 
