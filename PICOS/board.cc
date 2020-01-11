@@ -1671,9 +1671,10 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 	const char *sfname, *att, *xnam;
 	double bn_db, beta, dref, sigm, loss_db, psir, pber, cutoff;
 	nparse_t np [NPTABLE_SIZE];
-	int K, nb, nr, i, j, syncbits, bpb, frml;
+	int K, nr, i, j, syncbits, bpb, frml;
 	sxml_t prp, cur;
-	sir_to_ber_t	*STB;
+	sir_to_ber_t	*STB;	// SIR to BER table
+	int		NB;	// Number of entries in SIR to BER
 	IVMapper	*ivc [6];
 	MXChannels	*mxc;
 	word wn, *wt;
@@ -1749,29 +1750,29 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 			xenf ("<ber>", "<channel>");
 
 		att = sxml_txt (cur);
-		nb = parseNumbers (att, NPTABLE_SIZE, np);
-		if (nb > NPTABLE_SIZE)
+		NB = parseNumbers (att, NPTABLE_SIZE, np);
+		if (NB > NPTABLE_SIZE)
 			excptn ("Root: <ber> table too large, "
 				"increase NPTABLE_SIZE");
 
-		if (nb < 4 || (nb & 1) != 0) {
+		if (NB < 4 || (NB & 1) != 0) {
 
-			if (nb < 0)
+			if (NB < 0)
 				excptn ("Root: illegal numerical value in "
 					"<ber> table");
 			else
 				excptn ("Root: illegal size of <ber> table "
 					"(%1d), must be an even number >= 4",
-					nb);
+					NB);
 		}
 
 		psir = HUGE;
 		pber = -1.0;
 		// This is the size of BER table
-		nb /= 2;
-		STB = new sir_to_ber_t [nb];
+		NB /= 2;
+		STB = new sir_to_ber_t [NB];
 
-		for (i = 0; i < nb; i++) {
+		for (i = 0; i < NB; i++) {
 			// The SIR is stored as a logarithmic ratio
 			STB [i].sir = np [2 * i] . DVal;
 			STB [i].ber = np [2 * i + 1] . DVal;
@@ -1885,13 +1886,13 @@ int BoardRoot::initChannel (sxml_t data, int NN, Boolean nc) {
 			// Use the default sigma of zero if missing
 			sigm = 0.0;
 		att = sxml_txt (prp);
-		if ((nb = parseNumbers (att, 4, np)) != 4) {
-			if (nb < 0)
+		if ((nr = parseNumbers (att, 4, np)) != 4) {
+			if (nr < 0)
 				excptn ("Root: illegal number in "
 					"<propagation>");
 			else
 				excptn ("Root: expected 4 numbers in "
-					"<propagation>, found %1d", nb);
+					"<propagation>, found %1d", nr);
 		}
 
 		if (np [0].DVal != -10.0)
@@ -2195,10 +2196,10 @@ RVErr:
 	// Create the channel
 
 	if (__pi_channel_type == CTYPE_SHADOWING)
-		create RFShadow (NN, STB, nb, dref, loss_db, beta, sigm, bn_db,
+		create RFShadow (NN, STB, NB, dref, loss_db, beta, sigm, bn_db,
 			bn_db, cutoff, syncbits, bpb, frml, ivc, mxc, NULL);
 	else if (__pi_channel_type == CTYPE_SAMPLED)
-		create RFSampled (NN, STB, nb, K, sigm, bn_db, bn_db,
+		create RFSampled (NN, STB, NB, K, sigm, bn_db, bn_db,
 			cutoff, syncbits, bpb, frml, ivc, sfname, symm,
 				mxc, NULL);
 	else if (__pi_channel_type == CTYPE_NEUTRINO)
