@@ -247,6 +247,10 @@ Xmit:
 	rfi->transmit (&obf, XM_TXDONE);
 
 #ifdef HIGHLIGHT_XMT
+	// if (buflen > 14 && (((byte*)xbf) [2] & 0x1f) == 1 && 
+		// xbf [5] == 0 && xbf [6] == 1)
+	// PGTMP: DISP message with ref 1
+	// highlight_set ((xbf [4] & 0x7f) == 0 ? 2 : 1, HIGHLIGHT_XMT, "XMT");
 	highlight_set (1, HIGHLIGHT_XMT, "XMT");
 #endif
 

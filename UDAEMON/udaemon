@@ -882,7 +882,8 @@ array set PIN_COLORS	{ D,0 "#A4E22E" D,1 "#FFFF7F" D,2 "#FE8592"
 
 array set PANEL_COLORS	{ ACTIVE  "#F0EC00" DISABLED "#BEBEBE" DEL "#007DFF"
 			  ONLABEL "#FF0000" OFFLABEL "#909090"
-			  HOSTID  "#F7C89E" }
+			  HOSTID  "#F7C89E" GRPNAME  "#66B2FF"
+			  ADDNODE "#3399FF" PRTLABEL "#E881D8" }
 
 array set PIN_STCODE	{ 0 "I" 1 "O" 2 "A" 3 "D" 4 "D" 5 "P" 6 "N" 7 "-" }
 
@@ -1663,11 +1664,17 @@ proc parse_geometry { } {
 		gperror "<network> not found"
 	}
 
+	# get the number of nodes
+	set TN [sxml_attr $Geometry(+F) "nodes"]
+	if { $TN == "" || [catch { valnum $TN 1 } TN] } {
+		gperror "'nodes' attributes ansent in <network>"
+	}
+
 	# zero-level, node-independent modules
 	set p [sxml_child $Geometry(+F) "display"]
 
 	if { $p != "" } {
-		parse_globals $p
+		parse_globals $p $TN
 	}
 
 	# go for <nodes>; postpone defaults for the end, so they provide a
@@ -1785,6 +1792,116 @@ proc parse_disp { item n mod { nod "" } { typ "" } } {
 	if $dsp {
 		lappendunique Geometry(=$n) $nod
 	}
+}
+
+proc postparse_panel { item nn } {
+#
+# Look for named groups of nodes
+#
+	global Geometry
+
+	# make it one less than the number of nodes
+	incr nn -1
+
+	set res ""
+
+	foreach it [sxml_children $item "nodes"] {
+		set nam [sxml_attr $it "name"]
+		if { $nam == "" } {
+			gperror "'name' attribute missing in <panel><nodes>"
+		}
+		if [info exists __nms($nam)] {
+			gperror "duplicate name: $nam in <panel><nodes>"
+		}
+		set ofs [sxml_attr $it "offset"]
+		if { $ofs == "" } {
+			set ofs 0
+		} elseif { [catch { valnum $ofs } ofs] } {
+			gperror "illegal 'offset' in <panel><nodes\
+				name=\"$nam\">"
+		}
+
+		set frm [sxml_attr $it "from"]
+
+		if { $frm != "" } {
+
+			# copied from previous
+			set fl ""
+			foreach r $res {
+				if { [lindex $r 0] == $frm } {
+					# found
+					set fl [lindex $r 1]
+					break
+				}
+			}
+			if { $fl == "" } {
+				gperror "\"from=$frm\" not found in\
+					<panel><nodes name=\"$nam\">"
+			}
+			set nl ""
+			foreach n1 $fl {
+				set n2 [expr { $n1 + $ofs }]
+				if [catch { valnum $n2 0 $nn } n1] {
+					gperror "illegal value $n2 after offset\
+						in <panel><nodes name=\"$nam\">"
+				}
+				lappend nl $n1
+			}
+
+		} else {
+
+			set t [sxml_txt $it]
+			set __nms($nam) ""
+			array unset __nn
+			while 1 {
+				set t [string trimleft $t " \t,\r\n"]
+				if { $t == "" } {
+					break
+				}
+				if [regexp {^([[:digit:]]+)-([[:digit:]]+)(.*)}\
+					 $t mat n1 n2 t] {
+					# bounds
+					if { [catch {
+				       valnum [expr {$n1 + $ofs}] 0 $nn } n1] ||
+			     	     	     [catch {
+				       valnum [expr {$n2 + $ofs}] 0 $nn } n2] ||
+			     	             $n1 > $n2 } {
+						gperror \
+					    		"illegal bound $mat in\
+					     	   <panel><nodes name=\"$nam\">"
+					}
+					while { $n1 <= $n2 } {
+						set __nn($n1) ""
+						incr n1
+					}
+					continue
+				}
+				if [regexp {^([[:digit:]]+)(.*)} $t mat n1 t] {
+					# a single node
+					if [catch { valnum [expr {$n1 + $ofs}] \
+				                                  0 $nn } n1] {
+						gperror \
+					    		"illegal node id $mat\
+ 						in <panel><nodes name=\"$nam\">"
+					}
+					set __nn($n1) ""
+					continue
+				}
+				gperror "illegal node $mat id in\
+					 <panel><nodes name=\"$nam\">"
+
+			} 
+			set nl [lsort -integer [array names __nn]]
+			if { $nl == "" } {
+				gperror "<nodes> list in\
+					<panel><nodes name=\"$nam\"> is empty"
+			}
+		}
+
+		lappend res [list $nam $nl]
+	}
+
+	set Geometry(panel,ng) $res
 }
 
 proc parse_roamer { item } {
@@ -1905,7 +2022,7 @@ proc parse_roamer { item } {
 	lappend Geometry(roamer) [list $nam $img $box $nsh]
 }
 
-proc parse_globals { data } {
+proc parse_globals { data nn } {
 #
 # Parses the global <display> objects
 #
@@ -1923,6 +2040,9 @@ proc parse_globals { data } {
 			parse_roamer $j
 		} else {
 			parse_disp $j $n 0
+			if { $n == "panel" } {
+				postparse_panel $j $nn
+			}
 		}
 	}
 }
@@ -6025,6 +6145,27 @@ proc reqPanel { Sok ix rq } {
 	sock_wr $Sok "$rq [lindex $no 0]\n"
 }
 
+proc reqPanelG { Sok ix rq } {
+
+	global Stat Geometry
+
+	set w [stwin $Sok]
+
+	if ![info exists Geometry(panel,ng)] {
+		log "request ignored, no node groups"
+		return
+	}
+
+	set nl [lindex [lindex $Geometry(panel,ng) $ix] 1]
+	if { $nl == "" } {
+		log "request ignored, no such node group"
+	}
+
+	foreach no $nl {
+		sock_wr $Sok "$rq $no\n"
+	}
+}
+
 proc turnNode { n st } {
 
 	global Stat
@@ -6059,7 +6200,7 @@ proc updPanel { } {
 #
 # Make or re-make, e.g., after adding/deleting a node
 #
-	global Wins Stat PANEL_COLORS
+	global Wins Stat PANEL_COLORS Geometry
 
 	set Sok $Stat(PNN,S)
 	set w $Wins($Sok)
@@ -6087,83 +6228,164 @@ proc updPanel { } {
 			do_geometry $w "panel"
 		}
 
-		frame $w.stat -borderwidth 1
-		pack $w.stat -side top -expand 1 -fill x
+		set fr [frame $w.stat -borderwidth 1]
+		pack $fr -side top -expand 1 -fill x
 
+		set row 0
 		for { set ix 0 } { $ix < $ne } { incr ix } {
 			# create placeholders for the node descriptors
-			set fr [frame $w.stat.pa$ix]
-			pack $fr -side top -expand 1 -fill x
-			label $fr.ide -text ""
-			pack $fr.ide -side left
-			tip_set $fr.ide "Shows the internal (SMURPH) number of\
+			set c [label $fr.ni$ix -text "" -width 7 -justify right]
+			grid $c -column 0 -row $row -sticky nsew
+			tip_set $c "Shows the internal (SMURPH) number of\
 				the node and its type name, i.e., program name\
 				suffix"
-			label $fr.hos -text "" -bg $PANEL_COLORS(HOSTID)
-			pack $fr.hos -side left
-			tip_set $fr.hos "This is the host_id of the node, i.e.,\
+			set c [label $fr.ho$ix -text "" \
+				-bg $PANEL_COLORS(HOSTID) \
+				-width 7 -justify right]
+			grid $c -column 1 -row $row -sticky nsew
+			tip_set $c "This is the host_id of the node, i.e.,\
 				its formal network address"
-			button $fr.del -text "Delete" -state normal \
+			set c [button $fr.on$ix -text "On" \
+				-command "reqPanel $Sok $ix O"]
+			grid $c -column 2 -row $row -sticky nsew
+			tip_set $c "Press to power the node on"
+			set c [button $fr.of$ix -text "Off" \
+				-command "reqPanel $Sok $ix F"]
+			grid $c -column 3 -row $row -sticky nsew
+			tip_set $c "Press to power the node off"
+			set c [button $fr.re$ix -text "Reset" -state normal \
+				-command "reqPanel $Sok $ix R" \
+				-bg $PANEL_COLORS(ACTIVE)]
+			grid $c -column 4 -row $row -sticky nsew
+			tip_set $c "Press to reset the node"
+			set c [button $fr.de$ix -text "Delete" -state normal \
 				-command "delPanel $Sok $ix" \
-				-bg $PANEL_COLORS(DEL)
-			tip_set $fr.del "Press to remove the node from the\
+				-bg $PANEL_COLORS(DEL)]
+			grid $c -column 5 -row $row -sticky nsew
+			tip_set $c "Press to remove the node from the\
 				panel. Nothing will happen to the node itself:\
 				it will just disappear from the panel."
-			button $fr.res -text "Reset" -state normal \
-				-command "reqPanel $Sok $ix R" \
-				-bg $PANEL_COLORS(ACTIVE)
-			tip_set $fr.res "Press to reset the node"
-			button $fr.off -text "Off" \
-				-command "reqPanel $Sok $ix F"
-			tip_set $fr.off "Press to power the node off"
-			button $fr.on -text "On" \
-				-command "reqPanel $Sok $ix O"
-			tip_set $fr.on "Press to power the node on"
-			pack $fr.del $fr.res $fr.off $fr.on -side right
+			incr row
+		}
+		if [info exists Geometry(panel,ng)] {
+			set ix 0
+			foreach nl $Geometry(panel,ng) {
+				set c [label $fr.nm$ix -text [lindex $nl 0] \
+					-justify right \
+					-bg $PANEL_COLORS(GRPNAME)]
+				grid $c -column 0 -columnspan 2 -row $row \
+					-sticky nsew
+				tip_set $c "Shows the node group to be\
+					turned on or off (or reset) all at once"
+				set c [button $fr.nn$ix -text "On" \
+					-state normal \
+					-command "reqPanelG $Sok $ix O"]
+				grid $c -column 2 -row $row -sticky nsew
+				tip_set $c "Press to power the group on"
+				set c [button $fr.ff$ix -text "Off" \
+					-state normal \
+					-command "reqPanelG $Sok $ix F"]
+				grid $c -column 3 -row $row -sticky nsew
+				tip_set $c "Press to power the group off"
+				set c [button $fr.rs$ix -text "Reset" \
+					-state normal \
+					-command "reqPanelG $Sok $ix R" \
+						-bg $PANEL_COLORS(ACTIVE)]
+				grid $c -column 4 -row $row -sticky nsew
+				tip_set $c "Press to reset the group"
+				incr ix
+				incr row
+			}
 		}
 
 		if { $ne < $Stat(PNN) } {
-			frame $w.add -borderwidth 1
-			pack $w.add -side top -expand 1 -fill x
-			entry $w.add.non -width 6 -relief sunken \
+			set c [entry $fr.an -relief sunken \
 				-textvariable Stat($Sok,NA) -validate key \
-					-vcmd {validSid %P} -invcmd bell
-			tip_set $w.add.non "Enter here the (internal) number\
+					-vcmd {validSid %P} -invcmd bell]
+			grid $c -column 0 -columnspan 2 -row $row -sticky nsew \
+				-padx 2 -pady 2
+			tip_set $c "Enter here the (internal) number\
 				of the node to be added to the panel.\
 				You can only add one node at a time."
-			button $w.add.but -text "Add" -command "addPanel $Sok"
-			tip_set $w.add.but "Press to add to the panel the node\
+			bind $c <Return> "addPanel $Sok"
+			set c [button $fr.but -text "Add" \
+				-command "addPanel $Sok" \
+				-bg $PANEL_COLORS(ADDNODE)]
+			grid $c -column 2 -columnspan 3 -row $row -sticky nsew
+			tip_set $c "Press to add to the panel the node\
 				whose number you have entered in the box to\
 				the left"
-			pack $w.add.non $w.add.but -side left
 		}
+
 	}
 
 	# update labels and buttons
 	set ix 0
+	set fr $w.stat
 	foreach no $Stat($Sok,SL) {
 		lassign $no non noh not
-		set fr $w.stat.pa$ix
-		$fr.ide configure -text [format "%4d: %s" $non $not]
-		$fr.hos configure -text [format "%5d" $noh]
+		$fr.ni$ix configure -text [format "%4d: %s" $non $not]
+		$fr.ho$ix configure -text [format "%5d" $noh]
 		if { $Stat(PNN,$non) == "F" } {
 			# node is down: ON active, OFF disabled
-			$fr.ide configure -bg $PANEL_COLORS(OFFLABEL)
-			$fr.on configure -state normal -bg \
+			$fr.ni$ix configure -bg $PANEL_COLORS(OFFLABEL)
+			$fr.on$ix configure -state normal -bg \
 				$PANEL_COLORS(ACTIVE)
-			$fr.off configure -state disabled -bg \
+			$fr.of$ix configure -state disabled -bg \
 				$PANEL_COLORS(DISABLED)
 		} else {
 			# node is up: OFF active, ON disabled
-			$fr.ide configure -bg $PANEL_COLORS(ONLABEL)
-			$fr.on configure -state disabled -bg \
+			$fr.ni$ix configure -bg $PANEL_COLORS(ONLABEL)
+			$fr.on$ix configure -state disabled -bg \
 				$PANEL_COLORS(DISABLED)
-			$fr.off configure -state normal -bg \
+			$fr.of$ix configure -state normal -bg \
 				$PANEL_COLORS(ACTIVE)
 		}
 		incr ix
 	}
-		
+
+	if [info exists Geometry(panel,ng)] {
+		# update group status
+		set ix 0
+		foreach nl $Geometry(panel,ng) {
+			set nof 0
+			set non 0
+			foreach no [lindex $nl 1] {
+				if { [info exists Stat(PNN,$no)] &&
+				     $Stat(PNN,$no) == "F" } {
+					incr nof
+				} else {
+					incr non
+				}
+			}
+			if { $non == 0 } {
+				# all nodes in group are off
+				$fr.nm$ix configure -bg $PANEL_COLORS(OFFLABEL)
+			} elseif { $nof == 0 } {
+				$fr.nm$ix configure -bg $PANEL_COLORS(ONLABEL)
+			} else {
+				$fr.nm$ix configure -bg $PANEL_COLORS(PRTLABEL)
+			}
+
+			if { $non != 0 } {
+				$fr.ff$ix configure -state normal \
+					-bg $PANEL_COLORS(ACTIVE)
+			} else {
+				$fr.ff$ix configure -state disabled \
+					-bg $PANEL_COLORS(DISABLED)
+			}
+
+			if { $nof != 0 } {
+				$fr.nn$ix configure -state normal \
+					-bg $PANEL_COLORS(ACTIVE)
+			} else {
+				$fr.nn$ix configure -state disabled \
+					-bg $PANEL_COLORS(DISABLED)
+			}
+			incr ix
+		}
+	}
+
 	set Stat($Sok,DL) $Stat($Sok,SL)
 }
 

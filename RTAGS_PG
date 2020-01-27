@@ -1389,3 +1389,12 @@ PG200111A:
     Fixed a bug in processing the input to the shadowing channel model causing
     that the SIR-to-BER table was truncated sometimes. The shadowing model
     hasn't been used in a while.
+
+PG200127A:
+
+    It is now possible to declare groups of nodes to be easily controlled
+    en bloc from the PANEL, e.g., you can switch them all on, off, and reset
+    with a single click.
+
+    Cleaned up the mess with inheriting node defaults when both board defaults
+    and in-data defaults were available.

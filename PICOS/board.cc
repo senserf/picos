@@ -2922,9 +2922,11 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 	print ("Node configuration [");
 
 	if (nn < 0) {
-		print ("default");
-		if (nn < 1)
-			print (form ("--%s", lab ? lab : "*"));
+		print ("defaults:");
+		if (nn < -1)
+			print (form (" board=%s", lab ? lab : "*"));
+		else
+			print (" generic");
 	} else {
 		print (form ("    %3d", nn));
 	}
@@ -4528,7 +4530,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 							const char *BDFN [],
 								    int NFC) {
 	data_no_t *DEF, *BDEF [NFTABLE_SIZE], *NOD, *D;
-	const char *bfn, *def_type, *nod_type, *att, *start;
+	const char *ss, *bfn, *def_type, *nod_type, *att, *start;
 	char *xdata;
 	sxml_t cno, lcc, cur, *xnodes;
 	Long i, j, last, fill;
@@ -4707,7 +4709,8 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 		if ((nod_type = sxml_attr (cno, "type")) == NULL)
 			nod_type = def_type;
 
-		att = sxml_attr (cno, "default");
+		if ((att = sxml_attr (cno, "default")) == NULL)
+			att = sxml_attr (cno, "defaults");
 
 		// Check if the node type has a board default
 		D = NULL;
@@ -4719,21 +4722,24 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 		}
 
 		// Which default to use
-		if (att == NULL || *att == 'd') {
+		if (att == NULL || *att == 'd' || *att == 'g') {
 			// Generic defaults only
 			D = DEF;
 		} else if (*att == 'b') {
 			// Board only
+			ss = nod_type ? nod_type : "*";
 			if (D == NULL)
 				excptn ("Root: node type <%s>, number %1d, "
 					"requires board default, but no such "
-					"default is available",
-					nod_type ? nod_type : "*", i);
+					"default is available", ss, i);
+			print (form ("  Inserting defaults: board=%s\n\n", ss));
 		} else {
 			// Flexible
 			if (D == NULL)
 				D = DEF;
 		}
+		if (D == DEF && D != NULL)
+			print ("  Inserting defaults: generic\n\n");
 
 		// Substitute defaults as needed; validate later
 		if (NOD->Mem == 0)
