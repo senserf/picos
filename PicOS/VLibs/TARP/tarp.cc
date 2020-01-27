@@ -8,6 +8,7 @@
 
 // rcv, snd, fwd, |10 10 0 01 1|, pp_urg,pp_widen,spare, rssi_th, ssignal
 // param: |level, rte_rec, slack, routing|
+// L L R R W S S F
 
 tarpCtrlType tarp_ctrl = {0, 0, 0, TARP_DEF_PARAMS, 0,0,0,0,0,
 	TARP_DEF_RSSITH, YES};
@@ -27,6 +28,11 @@ nid_t   master_host = 1;
 nid_t	local_host = 0xBB;
 
 /* ================================================================ */
+
+#ifndef	TARP_RREC_BUMP
+// Don't want to make it official
+#define	TARP_RREC_BUMP	0
+#endif
 
 #if TARP_CACHES_MALLOCED
 
@@ -73,7 +79,8 @@ int getDd (int i, word * host, word * seq) {
 
 int getSpd (int i, word * host, word * hop) {
 	*host = _spdCache.en[i].host;
-	*hop  = _spdCache.en[i].hop;
+	*hop  = (((word)(_spdCache.en[i].s_cntrs.hoc)) << 8) |
+		_spdCache.en[i].s_cntrs.att;
 	return _spdCache.head;
 }
 
@@ -83,7 +90,7 @@ word getDdM (word * seq) {
 }
 
 word getSpdM (word * hop) {
-	*hop  = _spdCache.m_hop;
+	*hop  = (((word)(_spdCache.m_cntrs.hoc)) << 8) | _spdCache.m_cntrs.att;
 	return master_host;
 }
 
@@ -150,11 +157,13 @@ static word findInRtr (nid_t sndr, seq_t seqn, address pkt) {
 	--i;
 
 	while (i != rtrCache->head) {
-		if ((pkt != NULL || pkt == NULL && sndr == 0 && seqn == 0) && 
-				pkt == rtrCache->pkt[i] || 
-		    pkt == NULL && rtrCache->pkt[i] != NULL &&
-		      in_header(rtrCache->pkt[i] +1, seq_no) == seqn &&
-		      in_header(rtrCache->pkt[i] +1, snd) == sndr) {
+		if (
+			(pkt != NULL || pkt == NULL && sndr == 0 && seqn == 0)
+				&& pkt == rtrCache->pkt[i]
+			|| 
+		    	pkt == NULL && rtrCache->pkt[i] != NULL &&
+		      	in_header(rtrCache->pkt[i] +1, seq_no) == seqn &&
+		      	in_header(rtrCache->pkt[i] +1, snd) == sndr) {
 #if 0
 			diag ("verbose found at %u: %x %u %u", 
 					i, pkt, sndr, seqn);
@@ -315,7 +324,8 @@ static Boolean dd_fresh (headerType * buffer) {
 		}
 		ddCache->m_seq = buffer->seq_no;
 		if (tarp_ctrl.ssignal) {
-			spdCache->m_hop = (word)(buffer->hoc) << 8;
+			spdCache->m_cntrs.att = 0;
+			spdCache->m_cntrs.hoc = buffer->hoc;
 		}
 		return true;
 	}
@@ -356,15 +366,18 @@ static void upd_spd (headerType * msg) {
 	word i;
 	if (msg->snd == master_host) {
 		// clears retries or empty write:
-		spdCache->m_hop = (word)(msg->hoc) << 8;
+		spdCache->m_cntrs.att = 0;
+		spdCache->m_cntrs.hoc = msg->hoc;
 		return;
 	}
 	if ((i = findInSpd (msg->snd)) < spdCacheSize) {
-		spdCache->en[i].hop = (word)(msg->hoc) << 8;
+		spdCache->en[i].s_cntrs.att = 0;
+		spdCache->en[i].s_cntrs.hoc = msg->hoc;
 		return;
 	}
 	spdCache->en[spdCache->head].host = msg->snd;
-	spdCache->en[spdCache->head].hop = (word)(msg->hoc) << 8;
+	spdCache->en[spdCache->head].s_cntrs.att = 0;
+	spdCache->en[spdCache->head].s_cntrs.hoc = msg->hoc;
 	if (++spdCache->head >= spdCacheSize)
 		spdCache->head = 0;
 	return;
@@ -380,33 +393,54 @@ static void upd_spd (headerType * msg) {
 
    The packet should not be forwarded if the function returns a negative value.
 */
+
+static int spd_rank (headerType *msg, spdx_t *ce) {
+
+	int r;
+
+#if TARP_RREC_BUMP
+
+	// Here's the option to push hco on rte rec
+	int h;
+
+	if ((h = ((msg->hco > 0) ? msg->hco : tarp_maxHops) +
+		(ce->att >> tarp_rte_rec)) > tarp_maxHops)
+			h = tarp_maxHops;
+	msg->hco = (word)h;
+	r = h - msg->hoc - ce->hoc + tarp_slack;
+#else
+	r = (msg->hco > 0 ? msg->hco : tarp_maxHops) - msg->hoc -
+		ce->hoc + (ce->att >> tarp_rte_rec) + tarp_slack;
+#endif
+	if (r < 0 && tarp_rte_rec != 0)
+		ce->att ++;
+
+	dbug_rx ("%x %u->%u spd %d %u %u %u %u %u", 
+		msg->msg_type, msg->snd, msg->rcv, r,
+			msg->hco, msg->hoc, ce->hoc, ce->att, msg->seq_no);
+
+#if TARP_COMPRESS
+#if 1
+	if (r > -TARP_COMPRESS)
+		// TARP_COMPRESS == 1 -> i >= 0 (optimal path),
+		// TARP_COMPRESS  > 1 -> admitted suboptimal path,
+		// probably a bad idea
+#else
+	if (r >= 0)
+#endif
+		msg->msg_type |= TARP_OPTPATH_FLAG;
+#endif
+	return r;
+}
+
 static int check_spd (headerType * msg) {
 
-	int i, j;
+	int i;
 
-	if (msg->rcv == master_host) {
+	if (msg->rcv == master_host)
 		// hco should not be 0 any more... keep it until we can
 		// test things properly
-		i = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
-			msg->hoc -
-			(spdCache->m_hop >>8) +
-			((spdCache->m_hop & 0x00FF) >> tarp_rte_rec) +
-			tarp_slack;
-		if (i < 0 && tarp_rte_rec != 0)
-			spdCache->m_hop++;
-
-		dbug_rx ("%x %u spdm %d %u %u %u %u", 
-			msg->msg_type, msg->snd, i,
-			msg->hco, msg->hoc, spdCache->m_hop, msg->seq_no);
-#if TARP_COMPRESS
-		if (i > -TARP_COMPRESS)
-			// TARP_COMPRESS == 1 -> i >= 0 (optimal path),
-			// TARP_COMPRESS  > 1 -> admitted suboptimal path,
-			// probably a bad idea
-			msg->msg_type |= TARP_OPTPATH_FLAG;
-#endif
-		return i;
-	}
+		return spd_rank (msg, &(spdCache->m_cntrs));
 
 	if ((i = findInSpd(msg->rcv)) >= spdCacheSize) {
 
@@ -417,19 +451,7 @@ static int check_spd (headerType * msg) {
 		return msg->hco - msg->hoc + tarp_slack -1;
 	}
 
-	j = (msg->hco > 0 ? msg->hco : tarp_maxHops) -
-		msg->hoc -
-		(spdCache->en[i].hop >>8) +
-		((spdCache->en[i].hop & 0x00FF) >> tarp_rte_rec) +
-		tarp_slack;
-	if (j < 0 && tarp_rte_rec != 0)
-		spdCache->en[i].hop++; // failed routing attempts ++
-
-	dbug_rx ("%x %u spd %d %u %u %u %u", 
-			msg->msg_type, msg->snd, j, msg->hco,
-	  		msg->hoc, spdCache->en[i].hop, msg->seq_no);
-
-	return j;
+	return spd_rank (msg, &(spdCache->en [i].s_cntrs));
 }
 
 static void do_rx_dup (address buffer, int length, int off, int ses) {
@@ -531,6 +553,12 @@ int tarp_rx (address buffer, int length, int *ses) {
 		(i = findInRtr (msgBuf->snd, msgBuf->seq_no, NULL)) <
 			rtrCacheSize) {
 		if (msgBuf->hoc < rtrCache->hoc[i]) {
+			// The overheard hop is shorter ...
+#if TARP_COMPRESS && 0
+			// ... and the overheard message is not optimal
+			&& !(msgBuf->msg_type & TARP_OPTPATH_FLAG)
+#endif
+		) {
 			// should we send back a dummy? Likely not, as our
 			// retry will have a chance to clear the upstream...
 			dbug_rtr ("%x-%u.%u resisted %u (%u) at %u",
@@ -719,13 +747,12 @@ static void setHco (headerType * msg) {
 		return;
 	}
 	if (msg->rcv == master_host) {
-		msg->hco = (spdCache->m_hop>>8) + tarp_ctrl.pp_widen;
+		msg->hco = spdCache->m_cntrs.hoc + tarp_ctrl.pp_widen;
 		return;
 	}
 
 	if ((i = findInSpd(msg->rcv)) < spdCacheSize)
-		msg->hco = (spdCache->en[i].hop >>8) +
-			tarp_ctrl.pp_widen;
+		msg->hco = spdCache->en[i].s_cntrs.hoc + tarp_ctrl.pp_widen;
 
 	else
 		msg->hco = tarp_maxHops;
@@ -782,12 +809,19 @@ int tarp_xmt (address buffer) {
 			return TCV_DSP_DROP; // tcv will clear the hook
 		}
 
-               dbug_rtr ("rtr %u %x-%u.%u", rtrCache->rcnt[i],
+                dbug_rtr ("rtr %u %x-%u.%u", rtrCache->rcnt[i],
                                 rtrCache->pkt[i],
                                 in_header(buffer +1, snd),
                                 in_header(buffer +1, seq_no));
 
 CacheIt:
+#if 0
+		// More stupid ideas? Bump hco with every retransmission; tends
+		// to flood, I guess. Maybe on last retransmission (if more than
+		// one)?
+		if (in_header (buffer + 1, hco) < tarp_maxHops)
+			in_header (buffer + 1, hco) ++;
+#endif
 		tcvp_settimer (buffer, TARP_RTR_TOUT);
 		return TCV_DSP_PASS;
 	}

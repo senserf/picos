@@ -5534,3 +5534,9 @@ PG200109A:	VUEE >= PG200109A
 	Needless to say, I am not 100% sure what I have done and whether I have
 	accomplished anything.
 
+PG200127A:
+
+	I have made a few (further) cleanups in TARP, or so I think. Added the
+	bump variant for the "trace recovery" option which pushes the packet's
+	backward hop count (aka hco). Not sure if it makes sense, but, as such,
+	it shouldn't break anything.

@@ -57,16 +57,21 @@ typedef struct ddc {
 	seq_t	seq[ddCacheSize];
 } ddcType;
 
+// SPD counters
+typedef struct spdx_s {
+	byte	hoc, att;
+} spdx_t;
+
 // SPD entry
 struct spde {
 	nid_t	host;
-	word	hop; // MSB - hoc, LSB - attempt count
+	spdx_t 	s_cntrs;
 };
 
 // SPD cache struct
 typedef struct spdc {
 	wint	head;
-	word	m_hop; // check if it's really better with int instead word
+	spdx_t 	m_cntrs;
 	struct	spde en[spdCacheSize];
 } spdcType;
 
