@@ -3174,7 +3174,7 @@ proc tree_sel_params { { x "" } { y "" } } {
 				}
 				# node type
 				set ht [lindex [$tv item $t -values] 0]
-				if { ht == "c" || $ht == "b" } {
+				if { $ht == "c" || $ht == "b" } {
 					# the top, i.e., the class node or
 					# a board header
 					break
@@ -9449,7 +9449,7 @@ proc reset_file_menu { { clear 0 } } {
 			incr ix
 		}
 		$m add separator
-		$m add command -label "Clean history" -command clean_lprojects
+		$m add command -label "Clear history" -command clean_lprojects
 		$m add separator
 	}
 
@@ -9654,7 +9654,7 @@ proc reset_build_menu { { clear 0 } } {
 		-command "do_make_vuee { -e -n }"
 	$m add separator
 
-	$m add command -label "Clean (full)" -command "do_cleanup"
+	$m add command -label "Clear (full)" -command "do_cleanup"
 
 	if { $TCMD(FD) != "" || [glob -nocomplain "Makefile*"] == "" } {
 		set st "disabled"
@@ -9675,7 +9675,7 @@ proc reset_build_menu { { clear 0 } } {
 						set st "disabled"
 					}
 					$m add command -label \
-						"Clean (light, $suf)" \
+						"Clear (light, $suf)" \
 						-state $st \
 						-command "do_clean_light $bi"
 				}
@@ -9687,7 +9687,7 @@ proc reset_build_menu { { clear 0 } } {
 			} else {
 				set st "disabled"
 			}
-			$m add command -label "Clean (soft)" -state $st \
+			$m add command -label "Clear (soft)" -state $st \
 				-command "do_clean_light"
 		}
 	}
@@ -9846,7 +9846,7 @@ proc reset_exec_menu { { clear 0 } } {
 	}
 
 	$m add separator
-	$m add command -label "Clean console" -command term_clean
+	$m add command -label "Clear console" -command term_clean
 }
 
 proc reset_bnx_menus { { clear 0 } } {
@@ -10871,7 +10871,7 @@ proc open_search_window { } {
 	button $f.gb -text "Search" -command do_search
 	pack $f.gb -side right -expand n
 
-	button $f.kb -text "Clean" -command do_clean_search
+	button $f.kb -text "Clear" -command do_clean_search
 	pack $f.kb -side right -expand n
 
 	button $f.eb -text "Edit" -command do_edit_any_file

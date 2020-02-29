@@ -934,3 +934,7 @@ PG191108A:
 PG200109A:
 
 	A cosmetic improvement to the tree view of project files.
+
+PG200229A:
+
+	Fixed a minor bug in tree view, a few more cosmetics.
