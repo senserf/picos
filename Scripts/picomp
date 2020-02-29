@@ -3414,6 +3414,11 @@ proc mkdrec { dname } {
 		if $k {
 			continue
 		}
+		if [catch { file normalize [file join $dname $f] } f] {
+			# to prevent errors caused by weird filenames, e.g.,
+			# representing Windows locks
+			continue
+		}
 		set f [file normalize [file join $dname $f]]
 		if { $f == "" } {
 			continue

@@ -1073,7 +1073,12 @@ proc add_all_subdirs { dname } {
 
 	foreach f $sdl {
 
-		set ff [file normalize [file join $dname $f]]
+		if [catch { file normalize [file join $dname $f] } ff] {
+			# to prevent errors caused by weird filenames, e.g.,
+			# representing Windows locks
+			continue
+		}
+
 		if ![file isdirectory $ff] {
 			continue
 		}
