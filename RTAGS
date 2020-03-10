@@ -938,3 +938,10 @@ PG200109A:
 PG200229A:
 
 	Fixed a minor bug in tree view, a few more cosmetics.
+
+PG200310A:
+
+	Replaced the elvis executables (for quick elvis installation) with the
+	newest version. I only updated the 64-bit variants of the executables
+	because I don't have the systems to compile the 32-bit versions.  Who
+	cares!

@@ -2286,7 +2286,7 @@ proc edit_status_read { fd } {
 		return
 	}
 
-	log "PIPE: $line"
+	log "ELVIS: $line"
 
 	# room for more
 }
@@ -2444,7 +2444,9 @@ proc close_modified { } {
 
 	# save the files
 	foreach u $dl {
-		edit_command $u "w!"
+		# the space in front sys "do it quietly" (no need to raise the
+		# window)
+		edit_command $u " w!"
 		delay 10
 	}
 

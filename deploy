@@ -96,4 +96,6 @@ if [catch { file mkdir $hd } err] {
 copyscript "." "pip.tcl" "" $hd $RTG
 copyscript "." "genimage.tcl" ".tcl" $hd $RTG
 
+#file copy [file join "ELVIS" "elvisrc"] [file join $HOME ".elvisrc"]
+
 puts "Done"

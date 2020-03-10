@@ -28,3 +28,7 @@ color x11.link like formatted underlined blue or light blue
 color x11.spell on pink
 color termcap.normal green on black
 :set controlfont="fixed"
+:set font="fixed"
+:set boldfont="fixed"
+:set italicfont="fixed"
+:set filenamerules="dollar,special,tilde,wildcard"
