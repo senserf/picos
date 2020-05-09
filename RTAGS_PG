@@ -1398,3 +1398,9 @@ PG200127A:
 
     Cleaned up the mess with inheriting node defaults when both board defaults
     and in-data defaults were available.
+
+PG200509A:
+
+    A few functions were not returning the status properly. By tradition that
+    status was always ignored, so nobody cared. These days gcc/g++ complains
+    about non-void functions returning no values.

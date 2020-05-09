@@ -1398,19 +1398,19 @@ word _dad (PicOSNode, ee_read) (lword adr, byte *buf, word n) {
 word _dad (PicOSNode, ee_write) (word st, lword adr, const byte *buf, word n) {
 
 	sysassert (eeprom != NULL, "ee_write no eeprom");
-	eeprom->put (st, adr, buf, (lword) n);
+	return eeprom->put (st, adr, buf, (lword) n);
 };
 
 word _dad (PicOSNode, ee_erase) (word st, lword fr, lword up) {
 
 	sysassert (eeprom != NULL, "ee_erase no eeprom");
-	eeprom->erase (st, fr, up);
+	return eeprom->erase (st, fr, up);
 };
 
 word _dad (PicOSNode, ee_sync) (word st) {
 
 	sysassert (eeprom != NULL, "ee_sync no eeprom");
-	eeprom->sync (st);
+	return eeprom->sync (st);
 };
 
 int _dad (PicOSNode, if_write) (word adr, word w) {

@@ -2991,6 +2991,7 @@ int PINS::pin_write_dac (word pin, word val, word ref) {
 	if (VDAC [ix] != ov || !m)
 		// Update needed
 		qupd_pin (pin);
+	return OK;
 }
 
 void PINS::pmon_start_cnt (lint count, Boolean edge) {
