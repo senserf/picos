@@ -5540,3 +5540,8 @@ PG200127A:
 	bump variant for the "trace recovery" option which pushes the packet's
 	backward hop count (aka hco). Not sure if it makes sense, but, as such,
 	it shouldn't break anything.
+
+PG200509A:
+
+	Fixed a bug in net.cc (mea culpa, introduced in PG200109A). Writing
+	into a potentially unallocated buffer.

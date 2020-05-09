@@ -397,8 +397,8 @@ int net_rx (word state, char ** buf_ptr, address rssi_ptr, byte encr) {
 			    }
 			}
 			memcpy(*buf_ptr, (char *)(packet +1), size);
+			**buf_ptr &= TARP_MSGTYPE_MASK;
 		}
-		**buf_ptr &= TARP_MSGTYPE_MASK;
 		tcv_endp(packet);
 		return size;
 
