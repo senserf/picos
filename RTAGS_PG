@@ -840,3 +840,8 @@ PG190301A:	PICOS >= PG190301A
 PG200109A:
 
 	   A few irrelevant cosmetics + the book, just bringing it up to date.
+
+PG200509A:
+
+	   Added the noreturn attribute to abort functions, so new gcc doesn't
+	   complain about no-value returns.

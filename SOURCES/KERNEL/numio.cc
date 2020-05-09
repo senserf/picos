@@ -774,6 +774,9 @@ static char *sxml_handle_includes (char *IF, int *MS, char **err) {
 	e = (s = IF) + *MS;
 	*err = NULL;
 
+	// The really stupid thing is that these naive heuristics do not
+	// account for comments
+
 	while (1) {
 		// Find a tag
 		while (s < e && *s != '<')

@@ -684,11 +684,11 @@ double	getTolerance (int *q = NULL);
 /* -------------------- */
 /* Exception processing */
 /* -------------------- */
-int     excptn (const char*, ...);      // Aborts the simulation
+int     excptn (const char*, ...) __attribute__ ((noreturn));
 #if     ZZ_AER
-int     zz_aerror (const char*);        // Same, but after arithmetic error
+int     zz_aerror (const char*) __attribute__ ((noreturn));
 #endif
-void    zz_ierror (const char*);        // Fatal error before starting
+void    zz_ierror (const char*) __attribute__ ((noreturn));
 
 #if	ZZ_NFP
 
