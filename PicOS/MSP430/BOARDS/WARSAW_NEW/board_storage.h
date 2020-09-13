@@ -175,7 +175,6 @@
 #define	ee_start	do { _BIC (P5OUT, 0x01); ee_clkl; } while (0)
 #define	ee_stop		do { _BIS (P5OUT, 0x01); ee_clkh; } while (0)
 
-
 // SD =========================================================================
 
 #define	sd_bring_up	do { \

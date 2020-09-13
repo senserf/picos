@@ -206,7 +206,8 @@ static void ackForRtr (headerType * b, int * ses) {
 			b->msg_type, b->rcv);
 #endif
 }
-#endif
+
+#endif	/* TARP_RTR */
 
 void tarp_init (void) {
 
@@ -552,7 +553,7 @@ int tarp_rx (address buffer, int length, int *ses) {
 	if (guide_rtr (msgBuf) == 2 && 
 		(i = findInRtr (msgBuf->snd, msgBuf->seq_no, NULL)) <
 			rtrCacheSize) {
-		if (msgBuf->hoc < rtrCache->hoc[i]) {
+		if (msgBuf->hoc < rtrCache->hoc[i]
 			// The overheard hop is shorter ...
 #if TARP_COMPRESS && 0
 			// ... and the overheard message is not optimal

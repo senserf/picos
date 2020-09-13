@@ -5545,3 +5545,9 @@ PG200509A:
 
 	Fixed a bug in net.cc (mea culpa, introduced in PG200109A). Writing
 	into a potentially unallocated buffer.
+
+PG200913A:
+
+	Irrelevant cosmetics. The linker suddenly started to complain about
+	symbols related to ser_select.[hc]. I think I have fixed it.
+	

@@ -2122,8 +2122,8 @@ fsm root {
 	diag ("MEM: %d %d", sl, ss);
 #endif
 	ibuf = (char*) umalloc (IBUFLEN);
-	// ibuf [0] = 0;
-	ibuf [0] = 0xff;
+	ibuf [0] = 0;
+	// ibuf [0] = 0xff;
 
 #if 0
 #ifdef RTC_TEST

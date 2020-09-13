@@ -6,9 +6,7 @@
 
 #if	UART_DRIVER > 1
 
-#define THE_UART UART_A
-
-int __serial_port = THE_UART;
+int __serial_port;	// UART_A == 0, this is the default
 
 int ser_select (int port) {
 

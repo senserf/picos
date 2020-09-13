@@ -15,7 +15,7 @@
 // DIO_8	- b SDA mpu-9250 	(both externally pulled up)
 // DIO_9	- o SCL mpu-9250
 // DIO_10	- o LED0	(single LED lit when high)
-// DIO_11	- was tmp007 RDY, now UNUSED
+// DIO_11*	- was tmp007 RDY, now UNUSED and unavailable
 // DIO_12	- b mpu-9250 PWR
 // DIO_13	- o mic power (keep low) 
 // DIO_14	- o mx25r8035 CS (externally pulled up)
