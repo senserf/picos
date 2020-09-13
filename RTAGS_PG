@@ -845,3 +845,9 @@ PG200509A:
 
 	   Added the noreturn attribute to abort functions, so new gcc doesn't
 	   complain about no-value returns.
+
+PG200913A:
+
+	   A few more cosmetics to appease the compiler (which becomes smarter
+	   every day ;-). Fixed a bug in Examples/IncLib/wchanshs.cc (missing
+	   RFC_add which cannot default anymore).

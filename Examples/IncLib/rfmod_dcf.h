@@ -283,7 +283,7 @@ class	RFModule {
 		}
 	};
 
-	inline TIME backoff_stop () {
+	inline void backoff_stop () {
 
 		Long nsl;
 

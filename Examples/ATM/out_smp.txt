@@ -1,5 +1,5 @@
-SMURPH Version 2.80L      ATM Switch Model Exercise    Fri Oct 20 23:38:39 2006
-Call arguments: data_smp.txt out
+SMURPH Version 3.9-AG      ATM Switch Model Exercise    Sun Sep 13 20:13:47 2020
+Call arguments: data_smp.txt junk_smp.txt
 
 Network topology
 

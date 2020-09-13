@@ -31,6 +31,23 @@
 #define	trc(a, ...)
 #endif
 
+double RFShadow::RFC_add (int n, int followed, const SLEntry **sl,
+	const SLEntry *xmt) {
+
+/* ============================ */
+/* Simple additive interference */
+/* ============================ */
+
+	double tsl;
+
+	tsl = xmt->Level;
+
+	while (n--)
+		if (n != followed)
+			tsl += sl [n] -> Level;
+	return tsl;
+}
+
 double RFShadow::RFC_att (const SLEntry *xp, double d, Transceiver *src) {
 /*
  * Attenuation formula according to the shadowing model:

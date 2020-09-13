@@ -1,5 +1,5 @@
-SMURPH Version 3.26-OA      Very Simple Wireless Network    Sun Oct 16 21:40:46 2016
-Call arguments: data_smp.txt junk.txt
+SMURPH Version 3.9-AG      Very Simple Wireless Network    Sun Sep 13 20:09:18 2020
+Call arguments: data_smp.txt junk_smp.txt
 
 RFChannel:
 
@@ -9,16 +9,16 @@ RFChannel:
   Phys header length:             16
 
    SIR(dB)           BER
-        50         1e-07
-        40         2e-07
-        30         5e-07
-        20         1e-06
+       inf         1e-07
+       inf         2e-07
+      1000         5e-07
+       100         1e-06
         10         1e-05
-         5        0.0001
-         2          0.01
-         0           0.2
-        -2           0.5
-        -5          0.99
+   3.16228        0.0001
+   1.58489          0.01
+         1           0.2
+  0.630957           0.5
+  0.316228          0.99
 
       Rate         BPS  Boost(dB)
          0       1e+07          0
@@ -43,101 +43,99 @@ Bit rate (same for all nodes): 10000000 bps
 
   Preamble time:          6.4044e-06
   RTS length:                    160
-  RTS time:               3.3623e-05
+  RTS time:               1.6011e-05
   CTS length:                    112
-  CTS time:               2.4017e-05
+  CTS time:               1.1208e-05
   ACK length:                    112
-  ACK time:               2.4017e-05
-  EIFS:                   0.00021442
-  NAV data:               5.8421e-05
-  NAV CTS:                9.2825e-05
-  NAV RTS:                0.00015125
-  NAV RTS (auto):         0.00021442
+  ACK time:               1.1208e-05
+  EIFS:                   0.00020161
+  NAV data:               4.5612e-05
+  NAV CTS:                8.0016e-05
+  NAV RTS:                0.00012563
+  NAV RTS (auto):         0.00020161
   BOT timeout:             0.0001624
-  CTS timeout:            5.2016e-05
-  ACK timeout:            5.2016e-05
+  CTS timeout:            3.9207e-05
+  ACK timeout:            3.9207e-05
 
-Time: 18640936159631 [6217.947004] <25> +WMess+ destination 10 unreachable, no neighbors
-Time: 18657029148147 [6223.315047] <25> +WMess+ destination 6 unreachable, no neighbors
-Time: 21585063486146 [7200.002172] (Client) Global performance measures:
+Time: 21585075953744 [7200.006330] (Client) Global performance measures:
 
 AMD - Absolute message delay:
 
-      Number of samples:               1221
-      Minimum value:        0.0002533519372
-      Maximum value:            0.227957186
-      Mean value:             0.01948954696
-      Variance:             0.0006187840863
-      Standard deviation:     0.02487537108
-      Confidence int @95%:    0.07159225855
-      Confidence int @99%:    0.09405615601
+      Number of samples:               1229
+      Minimum value:        0.0002520857279
+      Maximum value:           0.2327718781
+      Mean value:             0.02149059211
+      Variance:             0.0006932568989
+      Standard deviation:      0.0263297721
+      Confidence int @95%:    0.06849815102
+      Confidence int @99%:     0.0899911933
 
 APD - Absolute packet delay:
 
-      Number of samples:               1221
-      Minimum value:        0.0002533519372
-      Maximum value:            0.227957186
-      Mean value:             0.01948954696
-      Variance:             0.0006187840863
-      Standard deviation:     0.02487537108
-      Confidence int @95%:    0.07159225855
-      Confidence int @99%:    0.09405615601
+      Number of samples:               1229
+      Minimum value:        0.0002520857279
+      Maximum value:           0.2327718781
+      Mean value:             0.02149059211
+      Variance:             0.0006932568989
+      Standard deviation:      0.0263297721
+      Confidence int @95%:    0.06849815102
+      Confidence int @99%:     0.0899911933
 
 WMD - Weighted message delay:
 
-      Number of samples:           10050632
-      Minimum value:        0.0002533519372
-      Maximum value:            0.227957186
-      Mean value:             0.02268643068
-      Variance:             0.0007738723156
-      Standard deviation:     0.02781856063
-      Confidence int @95%:  0.0007581023944
-      Confidence int @99%:    0.00099597636
+      Number of samples:           10453864
+      Minimum value:        0.0002520857279
+      Maximum value:           0.2327718781
+      Mean value:             0.02483389008
+      Variance:              0.000799762056
+      Standard deviation:     0.02828006464
+      Confidence int @95%:  0.0006903245073
+      Confidence int @99%:  0.0009069314318
 
 MAT - Message access time:
 
-      Number of samples:               1672
+      Number of samples:               1696
       Minimum value:                      0
       Maximum value:                      0
       Mean value:                         0
       Variance:                           0
       Standard deviation:                 0
-      Confidence int @95%:              nan
-      Confidence int @99%:              nan
+      Confidence int @95%:             -nan
+      Confidence int @99%:             -nan
 
 PAT - Packet access time:
 
-      Number of samples:               1672
+      Number of samples:               1696
       Minimum value:                      0
       Maximum value:                      0
       Mean value:                         0
       Variance:                           0
       Standard deviation:                 0
-      Confidence int @95%:              nan
-      Confidence int @99%:              nan
+      Confidence int @95%:             -nan
+      Confidence int @99%:             -nan
 
 MLS - Message length distribution:
 
-      Number of samples:               1672
-      Minimum value:                    264
+      Number of samples:               1696
+      Minimum value:                    256
       Maximum value:                  16376
-      Mean value:               8365.138756
-      Variance:                 21426683.64
-      Standard deviation:        4628.89659
-      Confidence int @95%:    0.02652419819
-      Confidence int @99%:    0.03484684201
+      Mean value:               8508.023585
+      Variance:                 21497640.23
+      Standard deviation:        4636.55478
+      Confidence int @95%:    0.02593640968
+      Confidence int @99%:    0.03407461986
 
-    Number of generated messages:              1672
+    Number of generated messages:              1696
     Number of queued messages:                    0
-    Number of transmitted messages:            1672
-    Number of received messages:               1221
-    Number of transmitted packets:             1672
-    Number of received packets:                1221
+    Number of transmitted messages:            1696
+    Number of received messages:               1229
+    Number of transmitted packets:             1696
+    Number of received packets:                1229
     Number of queued bits:                        0
-    Number of transmitted bits:            13986512
-    Number of received bits:               10050632
+    Number of transmitted bits:            14429608
+    Number of received bits:               10453864
     Measurement start time:                       0
-    Throughput:                          1395.92069
+    Throughput:                         1451.924279
 
 (Client) End of list
 

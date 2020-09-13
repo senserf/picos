@@ -1,5 +1,5 @@
-SMURPH Version 3.00-OA      TCR2    Wed Oct 24 11:21:41 2007
-Call arguments: data_smp.txt junko
+SMURPH Version 3.9-AG      TCR2    Sun Sep 13 20:12:43 2020
+Call arguments: data_smp.txt junk_smp.txt
 
 Network topology
 

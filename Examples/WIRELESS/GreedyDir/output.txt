@@ -1,4 +1,4 @@
-SMURPH Version 3.3-AB      Very Simple Wireless Network    Fri May  4 20:52:26 2018
+SMURPH Version 3.9-AG      Very Simple Wireless Network    Sun Sep 13 21:42:26 2020
 Call arguments: data.txt junk.txt
 
 RFChannel:
@@ -73,58 +73,58 @@ Bit rate (same for all nodes): 10000000 bps
 
   Preamble time:          6.4044e-06
   RTS length:                    160
-  RTS time:               3.3623e-05
+  RTS time:               1.6011e-05
   CTS length:                    112
-  CTS time:               2.4017e-05
+  CTS time:               1.1208e-05
   ACK length:                    112
-  ACK time:               2.4017e-05
-  EIFS:                   0.00021442
-  NAV data:               5.8421e-05
-  NAV CTS:                9.2825e-05
-  NAV RTS:                0.00015125
-  NAV RTS (auto):         0.00021442
+  ACK time:               1.1208e-05
+  EIFS:                   0.00020161
+  NAV data:               4.5612e-05
+  NAV CTS:                8.0016e-05
+  NAV RTS:                0.00012563
+  NAV RTS (auto):         0.00020161
   BOT timeout:             0.0001624
-  CTS timeout:            5.2016e-05
-  ACK timeout:            5.2016e-05
+  CTS timeout:            3.9207e-05
+  ACK timeout:            3.9207e-05
 
-Time: 21585069202580 [7200.004078] (Client) Global performance measures:
+Time: 21585063372886 [7200.002134] (Client) Global performance measures:
 
 AMD - Absolute message delay:
 
-      Number of samples:               1738
-      Minimum value:         0.000246931162
-      Maximum value:          0.02216232871
-      Mean value:            0.003140444994
-      Variance:             7.737079333e-06
-      Standard deviation:    0.002781560593
-      Confidence int @95%:    0.04164170654
-      Confidence int @99%:    0.05470785426
+      Number of samples:               1711
+      Minimum value:        0.0002485219291
+      Maximum value:          0.02133284587
+      Mean value:            0.003207655648
+      Variance:             7.841846781e-06
+      Standard deviation:    0.002800329763
+      Confidence int @95%:    0.04136685496
+      Confidence int @99%:    0.05434676098
 
 APD - Absolute packet delay:
 
-      Number of samples:               1738
-      Minimum value:         0.000246931162
-      Maximum value:          0.02216232871
-      Mean value:            0.003140444994
-      Variance:             7.737079333e-06
-      Standard deviation:    0.002781560593
-      Confidence int @95%:    0.04164170654
-      Confidence int @99%:    0.05470785426
+      Number of samples:               1711
+      Minimum value:        0.0002485219291
+      Maximum value:          0.02133284587
+      Mean value:            0.003207655648
+      Variance:             7.841846781e-06
+      Standard deviation:    0.002800329763
+      Confidence int @95%:    0.04136685496
+      Confidence int @99%:    0.05434676098
 
 WMD - Weighted message delay:
 
-      Number of samples:           14277704
-      Minimum value:         0.000246931162
-      Maximum value:          0.02216232871
-      Mean value:            0.004085387342
-      Variance:             9.489953172e-06
-      Standard deviation:     0.00308057676
-      Confidence int @95%:  0.0003911340997
-      Confidence int @99%:  0.0005138624013
+      Number of samples:           14385128
+      Minimum value:        0.0002485219291
+      Maximum value:          0.02133284587
+      Mean value:            0.004130682918
+      Variance:             9.414226456e-06
+      Standard deviation:    0.003068261145
+      Confidence int @95%:  0.0003838571794
+      Confidence int @99%:  0.0005043021618
 
 MAT - Message access time:
 
-      Number of samples:               1738
+      Number of samples:               1711
       Minimum value:                      0
       Maximum value:                      0
       Mean value:                         0
@@ -135,7 +135,7 @@ MAT - Message access time:
 
 PAT - Packet access time:
 
-      Number of samples:               1738
+      Number of samples:               1711
       Minimum value:                      0
       Maximum value:                      0
       Mean value:                         0
@@ -146,26 +146,26 @@ PAT - Packet access time:
 
 MLS - Message length distribution:
 
-      Number of samples:               1738
+      Number of samples:               1711
       Minimum value:                    264
       Maximum value:                  16384
-      Mean value:               8215.019563
-      Variance:                 20594614.61
-      Standard deviation:       4538.128976
-      Confidence int @95%:    0.02597164261
-      Confidence int @99%:    0.03412090802
+      Mean value:               8407.438925
+      Variance:                 20428669.22
+      Standard deviation:       4519.808538
+      Confidence int @95%:    0.02547342748
+      Confidence int @99%:    0.03346636518
 
-    Number of generated messages:              1738
+    Number of generated messages:              1711
     Number of queued messages:                    0
-    Number of transmitted messages:            1738
-    Number of received messages:               1738
-    Number of transmitted packets:             1738
-    Number of received packets:                1738
+    Number of transmitted messages:            1711
+    Number of received messages:               1711
+    Number of transmitted packets:             1711
+    Number of received packets:                1711
     Number of queued bits:                        0
-    Number of transmitted bits:            14277704
-    Number of received bits:               14277704
+    Number of transmitted bits:            14385128
+    Number of received bits:               14385128
     Measurement start time:                       0
-    Throughput:                         1983.013321
+    Throughput:                         1997.933852
 
 (Client) End of list
 

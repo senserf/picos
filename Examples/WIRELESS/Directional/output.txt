@@ -1,4 +1,4 @@
-SMURPH Version 3.3-AB      Very Simple Wireless Network    Fri May  4 20:38:51 2018
+SMURPH Version 3.9-AG      Very Simple Wireless Network    Sun Sep 13 21:43:50 2020
 Call arguments: data.txt junk.txt
 
 RFChannel:

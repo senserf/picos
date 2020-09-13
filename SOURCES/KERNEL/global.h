@@ -536,6 +536,7 @@ class ZZ_PFItem;
 class Port;
 class Link;
 class ZZ_LINK_ACTIVITY;
+ZZ_LINK_ACTIVITY *zz_gen_activity (int, Port*, int, Packet *p = (Packet*) NULL);
 #endif
 
 #if	ZZ_NOR
@@ -3407,8 +3408,7 @@ class   Port : public AI {
 	friend  class   Traffic;
 	friend  class   Station;
 	friend  class   ZZ_SYSTEM;
-	friend  ZZ_LINK_ACTIVITY *zz_gen_activity (int, Port*, int,
-		Packet *p = (Packet*) NULL);
+	friend  ZZ_LINK_ACTIVITY *zz_gen_activity (int, Port*, int, Packet*);
 	friend  class   LinkService;
 	friend  void    setD (Port*, Port*, double);
 	friend  void    zz_adjust_ownership ();
@@ -5437,7 +5437,7 @@ class   Traffic : public AI {
 	friend  class   zz_client_service;
 	friend  class   ZZ_LINK_ACTIVITY;
 #if ZZ_NOL
-	friend  ZZ_LINK_ACTIVITY *zz_gen_activity (int, Port*, int, Packet *p);
+	friend  ZZ_LINK_ACTIVITY *zz_gen_activity (int, Port*, int, Packet*);
 #endif
 	friend  class   Message;
 	friend  class   Packet;
