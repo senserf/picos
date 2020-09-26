@@ -60,6 +60,7 @@ Packet preamble length: 	32	** in physical bits
 Transmission power:		1.2	dBm
 Minimum backoff:		0.002	two milliseconds
 Maximum backoff:		0.040	forty milliseconds
+Packet space:			0.000
 
 ===============================================================================
 			Node coordinates

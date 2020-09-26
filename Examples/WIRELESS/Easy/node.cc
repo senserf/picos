@@ -41,7 +41,7 @@ Transmitter::perform {
 
 		Xcv->stop ();
 		Buffer->release ();
-		Timer->wait (backoff (), NPacket);
+		Timer->wait (PSpace + backoff (), NPacket);
 
  	state Backoff:
 

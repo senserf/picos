@@ -426,10 +426,12 @@ int     findLVer () {
 	DIR     *cdir;
 	struct  direct  *dentry;
 	struct  stat    statbuf;
-	int     count, tfd;
+	int     count, tfd, retries;
 	long    matime, loc, cloc;
 	char    *cc;
 
+	retries = 0;
+ReTry:
 	if ((cdir = opendir (".")) == NULL)
 		excptn ("cannot open library directory");
 
@@ -442,6 +444,17 @@ int     findLVer () {
 	if (dentry != NULL) {
 		// Directory found
 		closedir (cdir);
+		// Force full recompilation, if TouchSources > 1; note that
+		// we are holding a global lock to the library
+		if (TouchSources > 1) {
+			if (retries) {
+				excptn (form ("cannot remove LIB directory: %s",
+					libfname));
+			}
+			system (form ("rm -fr %s 2>/dev/null", libfname));
+			retries++;
+			goto ReTry;
+		}
 		cc = form ("%s/lockfile", libfname);
 		if ((tfd = open (cc, O_WRONLY, 0)) < 0)
 			tfd = open (cc, O_WRONLY+O_CREAT, 0777);
@@ -744,7 +757,7 @@ Quit:
 	delete inp;
 }
 
-void    makeSmurph () {
+void    makeSmurph (int argc, char *argv []) {
 
 /* ---------------------------- */
 /* Makes the simulator instance */
@@ -807,6 +820,11 @@ void    makeSmurph () {
 	if (BeVerbose) *out << " -v";
 	*out << ' ';
 	*out << CCEXTRAARGS;
+
+	while (argc-- > 0) 
+		// Do we need to escape them?
+		*out << ' ' << *argv++;
+		
 	*out << '\n';
 	*out << "OPT= " << OPT << '\n';
 	*out << "ASR= " << ASR << '\n';
@@ -938,6 +956,16 @@ void    makeSmurph () {
 	if (!LeaveCFiles)
 		for (i = 0; i < ncfiles; i++) unlink (toSmpp (cfiles [i]));
 
+	// If compiling with extra arguments for g++, remove the signature and
+	// the library
+	if (TouchSources > 1) {
+		unlink ("side.sgn");
+		getwd (cd);
+		if (chdir (ZZ_LIBPATH) >= 0)
+			system (form ("rm -fr %s 2>/dev/null", libfname));
+		chdir (cd);
+	}
+
 	if (eraseo)
 		excptn ("errors -- simulator not created");
 
@@ -945,7 +973,7 @@ void    makeSmurph () {
 	if (signal (SIGQUIT, SIG_IGN) != SIG_IGN) signal (SIGQUIT, SIG_DFL);
 }
 
-int main    (int argc, char *argv[]) {
+int main    (int argc, char *argv []) {
 
 	int     i, semfd, verfd;
 	char	*str;
@@ -1289,7 +1317,9 @@ int main    (int argc, char *argv[]) {
 
  		  case 't' :
 
-			if (TouchSources++) badArgs ();
+			if (TouchSources)
+				badArgs ();
+			TouchSources = 1;
 			break;
 
 		  case 'E' :
@@ -1311,6 +1341,17 @@ int main    (int argc, char *argv[]) {
 			includes [nincludes++] = *argv;
 			break;
 
+		  case '-' :
+
+			// The rest are arguments passed to gcc, force -t
+			// to make sure the whole things is recompiled; we
+			// will be using this in emergencies
+
+			argv++;
+			argc--;
+			TouchSources = 2;
+			goto NoMoreArgs;
+
 		  case 'V' :
 
 			// Print version number
@@ -1329,6 +1370,8 @@ int main    (int argc, char *argv[]) {
 		argv++;
 		argc--;
 	}
+
+NoMoreArgs:
 
 	// Adjustments ...
 	if (REA [9] != '1' && RSY [9] != '1')
@@ -1406,5 +1449,5 @@ int main    (int argc, char *argv[]) {
 	// That's it. Now prepare the makefile for the library
 
 	chdir (cd);                     // Resume original directory
-	makeSmurph ();
+	makeSmurph (argc, argv);
 }

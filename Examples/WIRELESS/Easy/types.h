@@ -21,7 +21,7 @@
 #define	__types_h__
 
 // Global parameters
-extern double MinBackoff, MaxBackoff;
+extern double MinBackoff, MaxBackoff, PSpace;
 extern RATE XmitRate;
 extern Long Preamble;
 extern double XmitPower;

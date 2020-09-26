@@ -34,7 +34,7 @@ process Root {
 };
 
 // Global parameters
-double MinBackoff, MaxBackoff;
+double MinBackoff, MaxBackoff, PSpace;
 RATE XmitRate;
 Long Preamble;
 double XmitPower;
@@ -66,16 +66,19 @@ Long Root::initChannel () {
 
 	print ("Parameters of shadowing channel:\n\n");
 
-	// Grid: the granularity of position data.
+	// Grid: the granularity of position data in meters (because it is
+	// used to divide SOL_VACUUM (which is in meters per second).
 	readIn (g);
 	print (g,		" Distance granularity:", 10, 26);
 
-	// Set up the units of time and distance. The external time unit is
-	// second, the internal time unit (ITU) is the crossing time of grid
-	// unit.
-	setEtu (SOL_VACUUM / g);
+	// Set up the units of time and distance.
+	// SOL_VACUUM is in m/s. So 1 ITU (the time grain) is set to the
+	// fraction of a second needed to cross the grid distance (assuming the
+	// latter is in meters). This implies that 1 ETU = 1 second.
+	setItu (g/SOL_VACUUM);
 
-	// The distance unit (1m), i.e., propagation time across 1m
+	// The distance unit expressed as propagation time, i.e., how many ITUs
+	// are needed to cover 1 m (so we express distance in meters).
 	setDu (1.0/g);
 
 	// Clock tolerance (0.01%)
@@ -85,12 +88,12 @@ Long Root::initChannel () {
 	readIn (NS);
 	print (NS,		" Number of nodes:", 10, 26);
 
-	// Background noise in dBm
+	// Background noise in dBm for the channel model
 	readIn (BN);
 	print (BN,		" Background noise:", 10, 26);
 
 	// Parameters for the shadowing formula
-	// RP(d)/XP [dB] = -10 x 3.0 x log(d/1.0m) + X(1.0) - 38.0
+	// RP(d)/XP [dB] = -10 x Beta x log(d/RD) + X(Sigma) - LossRD
 
 	// This is supposed to be 10 and will be ignored
 	readIn (Beta);
@@ -131,6 +134,7 @@ Long Root::initChannel () {
 
 	for (i = 0; i < NSTB; i++) {
 		readIn (d);
+		// Specified in dB, stored as a regular fraction
 		STBT [i] . SIR = dBToLin (d);
 		readIn (STBT [i] . BER);
 		print (form ("     %8.3fdB -> %8g\n", d, STBT [i]. BER));
@@ -156,26 +160,33 @@ void Root::initNodes (Long N) {
 	double d, x, y;
 	Long n;
 
-	print ("Parameters shared by all nodes:\n\n");
+	print ("\nParameters shared by all nodes:\n\n");
 
-	readIn (n);		// Transmission rate
-	// Number of ITUs in one second
-	d = (double) etuToItu (1.0);
-	// Number of ITUs per bit
-	XmitRate = (RATE) round (d / n);
+	// Transmission rate in bps
+	readIn (n);
+
+	// Convert to ITUs per bit (Etu = number of ITUs in 1 second)
+	XmitRate = (RATE) round (Etu / n);
+
 	print (n,		" Transmission rate:", 10, 26);
+	print (XmitRate,	" ITUs per bit:", 10, 26);
 
 	readIn (Preamble);
 	print (Preamble,	" Preamble length:", 10, 26);
 
 	readIn (XmitPower);		// Transmission power
 	print (XmitPower,	"  Transmission power:", 10, 26);
+	// Convert to linear (assuming log [dBm] on input)
+	XmitPower = dBToLin (XmitPower);
+	print (XmitPower,	"  As absolute value:", 10, 26);
 
 	readIn (MinBackoff);		// Minimum backoff
 	readIn (MaxBackoff);		// Maximum backoff
+	readIn (PSpace);		// Packet space after xmit
 
 	print (MinBackoff,	"  Minimum backoff:", 10, 26);
 	print (MaxBackoff,  	"  Maximum backoff:", 10, 26);
+	print (PSpace,  	"  Packet space:", 10, 26);
 
 	for (n = 0; n < N; n++) {
 		readIn (x);

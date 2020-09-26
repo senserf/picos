@@ -27,6 +27,12 @@
 
 #include        "system.h"
 
+#ifdef	FORCE_ZERO_PROPAGATION_TIME
+#define	prop_time(dst)	DISTANCE_0
+#else
+#define	prop_time(dst)	(dst)
+#endif
+
 // Activity stages reflecting event schedule at the destination
 #define	RFA_STAGE_BOP	0	// Beginning of preamble
 #define	RFA_STAGE_BOT	1	// Beginning of packet
@@ -168,6 +174,7 @@ inline void ZZ_RSCHED::initSS () {
 
 inline void ZZ_RSCHED::initAct () {
 
+	// For RFC_att
 	txcvr = Destination;
 	tpckt = &(RFA->Pkt);
 
@@ -178,6 +185,7 @@ inline void ZZ_RSCHED::initAct () {
 	RSS.Level = Destination->RFC->RFC_att (&RSS, ituToDu (Distance),
 		RFA->Tcv);
 
+	// This is the moment the activity becomes visible to the transceiver
 	pool_in (this, Destination->Activities);
 
 	Destination->NActivities++;
@@ -1951,9 +1959,7 @@ void Transceiver::startTransmit (Packet *p) {
 		// transmitter's point of view.
 		Activity->RE = Activity->RF = NULL;
 		Activity->Roster = NULL;
-
 	} else {
-
 		Activity->Roster = new ZZ_RSCHED [NNeighbors];
 		// Start from the last neighbor, so the list is sorted in the
 		// increasing order of distance (it is constructed in reverse
@@ -1968,7 +1974,7 @@ void Transceiver::startTransmit (Packet *p) {
 			ro->Destination = ne->Neighbor;
 			if ((ro->Distance = ne->Distance) < MinDistance)
 				ro->Distance = MinDistance;
-			ro->Schedule = Time + ne->Distance;
+			ro->Schedule = Time + prop_time (ro->Distance);
 			ro->LastEvent = TIME_inf;
 			ro->Killed = ro->Done = NO;
 			ro->Stage = RFA_STAGE_BOP;
@@ -2075,7 +2081,8 @@ void Transceiver::term_xfer (int evnt) {
 				// Schedules for these become definite
 				for (ro = Activity->SchEOT; ro != NULL;
 				    ro = ro->Next) {
-					ro->Schedule = ro->Distance + Time;
+					ro->Schedule = Time +
+						prop_time (ro->Distance);
 					if (evnt != EOT)
 						// This is an abort
 						ro->Killed = YES;
@@ -2519,7 +2526,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 		ro->Next = NULL;
 		ro->LastEvent = Time;
 		ro->Schedule = (BOTTime == TIME_inf) ? TIME_inf :
-			BOTTime + ro->Distance;
+			BOTTime + prop_time (ro->Distance);
 		if (SchBOT == NULL)
 			SchBOT = ro;
 		else
@@ -2568,7 +2575,7 @@ void ZZ_RF_ACTIVITY::handleEvent () {
 		ro->Next = NULL;
 		ro->LastEvent = Time;
 		ro->Schedule = (EOTTime == TIME_inf) ? TIME_inf :
-			EOTTime + ro->Distance;
+			EOTTime + prop_time (ro->Distance);
 		if (SchEOT == NULL)
 			SchEOT = ro;
 		else
@@ -2670,7 +2677,7 @@ void ZZ_RF_ACTIVITY::triggerBOT () {
 
 		// Schedules for these become definite
 		for (ro = SchBOT; ro != NULL; ro = ro->Next)
-			ro->Schedule = ro->Distance + Time;
+			ro->Schedule = Time + prop_time (ro->Distance);
 
 		// Check if should reschedule the service event
 #if ZZ_TAG

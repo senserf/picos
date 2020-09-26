@@ -54,21 +54,29 @@ void ShadowingChannel::setup (
 
 double ShadowingChannel::RFC_att (const SLEntry *xp, double d,
 					Transceiver *src) {
+	// The attenuation formula
+
 	if (d < RDist)
+		// Anything less than reference distance is treated as
+		// reference distance
 		d = RDist;
 
-	// Note: for illustration, this formula is not optimized:
-	// Received power = xp * LORD * Gauss (0.0, Sigma) * (d/RDist) ^ -Beta
+	// For illustration, this formula is not optimized
 	return (xp->Level * dBToLin (dRndGauss (0.0, Sigma))) /
 		(LORD * pow (d / RDist, Beta));
 }
 
 Boolean ShadowingChannel::RFC_act (double sl, const SLEntry *rs) {
 
+	// Activity sense: received signal multiplied by receiver gain is
+	// greater than the threshold
+
 	return sl * rs->Level >= AThrs;
 }
 
 TIME ShadowingChannel::RFC_xmt (RATE r, Packet *p) {
+
+	// Transmit time for a packet
 
 	assert ((p->TLength & 0x7) == 0,
 		"RFC_xmt: packet length %d not divisible by 8", p->TLength);
@@ -79,11 +87,18 @@ TIME ShadowingChannel::RFC_xmt (RATE r, Packet *p) {
 
 double ShadowingChannel::RFC_cut (double xp, double rp) {
 
+	// Cutoff threshold: distance over which signal tranmsitted at level
+	// xp will be detected at level less than COSL, assuming receiver
+	// gain rp
+
 	return pow ((rp * xp)/(COSL * LORD), 1.0 / Beta) * RDist;
 }
 
 Boolean ShadowingChannel::RFC_bot (RATE r, const SLEntry *sl, const SLEntry *rs,
 							const IHist *h) {
+
+	// BOT trigger: received at least MinPr trailing bits of preamble
+	// without a bit error
 
 	return (h->bits (r) >= MinPr) && !error (r, sl, rs, h, -1, MinPr);
 }
@@ -91,16 +106,23 @@ Boolean ShadowingChannel::RFC_bot (RATE r, const SLEntry *sl, const SLEntry *rs,
 Boolean ShadowingChannel::RFC_eot (RATE r, const SLEntry *sl, const SLEntry *rs,
 							const IHist *h) {
 
+	// EOT trigger: the packet has been followed. If there's been a bit
+	// error before EOT, the receiver has detected it via another event
 	return TheTransceiver->isFollowed (ThePacket);
 }
 
 Long ShadowingChannel::RFC_erb (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	double ir, Long nb) {
+
+	// Bit error distribution: independent, based on SIR/BER
+
 	return lRndBinomial (ber ((sl->Level * rs->Level)/(ir + BNoise)), nb);
 }
 
 Long ShadowingChannel::RFC_erd (RATE tr, const SLEntry *sl, const SLEntry *rs,
 	double ir, Long nb) {
+
+	// Expected waiting time for a bit error (Poisson)
 
 	double er;
 

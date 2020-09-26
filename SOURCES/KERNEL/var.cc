@@ -255,6 +255,8 @@ ZZ_REQUEST      *zz_c_other,            // Next wait request pointer
 
 #if  ZZ_TAG
 ZZ_TBIG zz_c_wait_tmin;                 // Earliest request so far
+					// Default priority for system events
+LONG	zz_sysevent_tag = SYSEVENT_PRIORITY;
 #else
 TIME    zz_c_wait_tmin;                 // Earliest request so far
 #endif

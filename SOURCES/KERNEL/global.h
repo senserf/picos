@@ -1738,16 +1738,29 @@ typedef Long    RATE;
 #define RATE_1          1
 #endif
 
-/* ------------------------ */
-/* More function prototypes */
-/* ------------------------ */
-
 /* ------------------------- */
 /* Setting simulation limits */
 /* ------------------------- */
 
 void   setLimit (Long nm, TIME mt);
 void   setLimit (Long nm);
+
+#if	ZZ_TAG
+
+// Priority of system events
+#ifndef	SYSEVENT_PRIORITY
+// Default priority for system events
+#define	SYSEVENT_PRIORITY	(0L)
+#endif
+
+extern	LONG	zz_sysevent_tag;
+LONG	setSyseventTag (LONG);
+
+#else	/* Event priorities turned off */
+
+#define	setSyseventTag(a)	(0L)
+
+#endif	/* Priorities of system events */
 
 #if	ZZ_NFP
 
@@ -2934,11 +2947,9 @@ class   ZZ_EVENT {
 				int  e,
 				int  pst,
 				ZZ_REQUEST *ch) {
-
 	// Generates a new event
-
 #if  ZZ_TAG
-		waketime.set (wk, 0);
+		waketime.set (wk, zz_sysevent_tag);
 #else
 		waketime = wk;
 #endif
@@ -2978,7 +2989,7 @@ class   ZZ_EVENT {
 	// Generates a new event with "hint" h
 
 #if  ZZ_TAG
-		waketime.set (wk, 0);
+		waketime.set (wk, zz_sysevent_tag);
 #else
 		waketime = wk;
 #endif

@@ -851,3 +851,10 @@ PG200913A:
 	   A few more cosmetics to appease the compiler (which becomes smarter
 	   every day ;-). Fixed a bug in Examples/IncLib/wchanshs.cc (missing
 	   RFC_add which cannot default anymore).
+
+PG200926A:
+
+	   Added a function to set the priority of system events when the
+	   model is compiled with -p. Added a tweak to force the propagation
+	   time to be zero (regardless of the formal distance). Added an option
+	   to mks to pass arguments directly to gcc/g++.

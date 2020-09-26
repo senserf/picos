@@ -334,7 +334,7 @@ INLINE  ZZ_EVENT::ZZ_EVENT (
         // Generates a new "stored" event with undefined waketime
 
 #if  ZZ_TAG
-                waketime.set (TIME_inf, 0);
+                waketime.set (TIME_inf, zz_sysevent_tag);
 #else
                 waketime = TIME_inf;
 #endif

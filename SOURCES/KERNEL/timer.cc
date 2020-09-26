@@ -25,6 +25,15 @@
 
 #include        "system.h"
 
+#if ZZ_TAG
+LONG setSyseventTag (LONG nv) {
+
+	LONG ov = zz_sysevent_tag;
+	zz_sysevent_tag = nv;
+	return ov;
+}
+#endif
+
 zz_timer::zz_timer () {
 
 /* --------------- */
