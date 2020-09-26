@@ -2,7 +2,7 @@
 #define __picos_board_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2017.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2020.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 
@@ -449,25 +449,20 @@ rfm_intd_t::rfm_intd_t (const data_no_t *nd) {
 
 	// These two survive reset. We assume that they are never
 	// changed by the praxis.
-	rfmc.min_backoff = (word) (rf->BCMin);
+	if ((rfmc.min_backoff = rf->BCMin) == 0 && rf->BCMax == 0)
+		// Min == Max == 0 means that backoff is switched off; then
+		// set max_backoff to 0 to indicate this in the simplest way
+		rfmc.max_backoff = 0;
+	else
+		// Otherwise, turn this into the argument for toss,
+		// so it easy to generate the randomized offset
+		rfmc.max_backoff = rf->BCMax - rfmc.min_backoff + 1;
 
-	// This is turned into the argument for 'toss' to generate the
-	// proper offset. The consistency has been verified by
-	// readNodeParams.
-	rfmc.max_backoff = (word) (rf->BCMax) - rfmc.min_backoff + 1;
-
-	// Same about these two
-	if (rf->LBTDel == 0) {
-		// Disable it
-		rfmc.lbt_threshold = NULL;
-		rfmc.lbt_delay = 0;
-		rfmc.lbt_tries = 0;
-	} else {
-		// This is already converted to linear
-		rfmc.lbt_threshold = rf->LBTThs;
-		rfmc.lbt_delay = rf->LBTDel;
-		rfmc.lbt_tries = rf->LBTTries;
-	}
+	// This is already converted to linear
+	rfmc.lbt_threshold = rf->LBTThs;
+	rfmc.lbt_delay = rf->LBTDel;
+	rfmc.lbt_tries = rf->LBTTries;
+	rfmc.lbt_nthrs = rf->LBTNThrs;
 
 	rfmc.DefXPower   = rf->Power;			// Index
 	// This one has to be converted
@@ -2871,7 +2866,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 	sxml_t cur, mai;
 	const char *att;
 	char *str, *as;
-	int i, len, nts;
+	int i, len;
 	data_rf_t *RF;
 	data_ep_t *EP;
 	data_no_t *ND;
@@ -3098,78 +3093,70 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 	
 		/* LBT */
 		if ((cur = sxml_child (mai, "lbt")) != NULL) {
-			// del, thresholds, tries
+			// The format is: del, thresholds, ntries
+			// del = 0 => a single shot (without involving
+			// the RSSI process); ntries = 0 => no limit;
+			// no thresholds => completely off
 			for (i = 1; i < RF_N_THRESHOLDS + 1; i++)
+				// The type of the zeroth entry is assumed to
+				// be LONG
 				np [i] . type = TYPE_double;
+
 			len = parseNumbers (sxml_txt (cur),
-				RF_N_THRESHOLDS + 2,
-					np);
+				RF_N_THRESHOLDS + 2, np);
 
 			if (len == 0) {
 				// Disabled
-				nts = 0;
-				RF->LBTTries = 0;
-				RF->LBTDel = 0;
+				RF->LBTTries = RF->LBTNThrs = RF->LBTDel = 0;
 			} else {
-				// Read the delay which goes first
 				RF->LBTDel = (word) (np [0].LVal);
-				if (RF->LBTDel == 0) {
-					// Disabled as well
-					nts = 0;
-					RF->LBTTries = 0;
+				if (len == 1) {
+					// Disabled, but only if del == 0
+					if (RF->LBTDel)
+						excptn ("Root: illegal single "
+						"entry (%1d) in <lbt> for %s, "
+						"can only be zero",
+							RF->LBTDel, 
+							    xname (nn, lab));
+				} else if (len == 2) {
+				  	// This is for downward
+					// compatibility: if there are
+					// just two numbers, the second
+					// is the threshold and the
+				  	// number of tries (by default)
+					// is 5
+					RF->LBTNThrs = 1;
+					RF->LBTTries = 5;
+					rfths [0] = np [1].DVal;
 				} else {
-					if (len == 2) {
-					  	// This is for downward
-						// compatibility: if there are
-						// just two numbers, the second
-						// is the threshold and the
-					  	// number of tries (by default)
-						// is 5
-						nts = 1;
-						rfths [0] = np [1].DVal;
-						RF->LBTTries = 5;
-					} else {
-						if (len < 2)
-						  xevi ("<lbt>",
-						    xname (nn, lab),
-						      sxml_txt (cur));
-						// At least three values: all
-						// but the last one are
-						// thresholds
-						for (nts = 0; nts < len-2;
-						  nts++)
-						  rfths [nts] = np [nts+1].DVal;
-					  	RF->LBTTries =
-						  (word) (np [len-1].DVal);
-					}
+					for (i = 0; i < len-2; i++)
+						// These are thresholds
+						rfths [i] = np [i+1].DVal;
+					RF->LBTNThrs = i;
+				  	RF->LBTTries = (word) (np [len-1].DVal);
 				}
 			}
 
-			if (RF->LBTTries > RF_N_THRESHOLDS || RF->LBTTries < 0)
-				excptn ("Root: illegal retry count (%1d) in "
-					"<lbt> for %s, should be > 0 and <= "
-					"%1d", RF->LBTTries,
-						xname (nn, lab),
+			if (RF->LBTNThrs > RF_N_THRESHOLDS)
+				excptn ("Root: too many thresholds (%1d) in "
+					"<lbt> for %s, the max is %1d",
+					RF->LBTNThrs, xname (nn, lab),
 							RF_N_THRESHOLDS);
-			if (nts > RF->LBTTries)
+			if (RF->LBTTries > 0 && RF->LBTNThrs > RF->LBTTries)
 				excptn ("Root: retry count (%1d) in <lbt> for "
-					"%s is smaller than number of "
-					"thresholds (%1d)",
-						RF->LBTTries,
-							xname (nn, lab),
-								nts);
+					"%s is nonzero and smaller than the "
+					"number of thresholds (%1d)",
+						RF->LBTTries, xname (nn, lab),
+							RF->LBTNThrs);
 
-			// Replicate the missing thresholds from the last
-			for (i = nts; nts < RF->LBTTries; nts++)
-				rfths [nts] = rfths [i-1];
-
-			if (nts == 0) {
+			if (RF->LBTNThrs == 0) {
+				// This means disabled
 				RF->LBTThs = NULL;
 				print ("  LBT:        disabled\n");
 			} else {
-				print (form ("  LBT:        del=%1d, ths=<",
-					RF->LBTDel));
-				for (i = 0; i < nts-1; i++) {
+				print (form ("  LBT:        del=%1d, ret=%1d, "
+					"ths=<", RF->LBTDel, RF->LBTTries));
+				for (i = 0; i < RF->LBTNThrs - 1; i++) {
 					print (form ("%gdBm,", rfths [i]));
 					rfths [i] = dBToLin (rfths [i]);
 				}
@@ -3178,7 +3165,7 @@ data_no_t *BoardRoot::readNodeParams (sxml_t data, int nn, const char *lab,
 				// trace ("strpool LBTTHS");
 				RF->LBTThs =
 				    (double*) find_strpool ((const byte*) rfths,
-					sizeof (double) * nts, YES);
+					sizeof (double) * RF->LBTNThrs, YES);
 			}
 			
 			ppf = YES;
@@ -4795,6 +4782,7 @@ void BoardRoot::initNodes (sxml_t data, int NT, int NN, const char *BDLB [],
 			if (NRF->LBTDel == WNONE) {
 				NRF->LBTDel = DRF->LBTDel;
 				NRF->LBTThs = DRF->LBTThs;
+				NRF->LBTNThrs = DRF->LBTNThrs;
 				NRF->LBTTries = DRF->LBTTries;
 			}
 		}

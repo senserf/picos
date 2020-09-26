@@ -1613,7 +1613,7 @@ proc parse_geometry { } {
 
 	set Geometry(roamer) ""
 
-	log "Waiting for XML data from the server ..."
+	log "Waiting for XML data from the simulator ..."
 
 	set LogStat 0
 

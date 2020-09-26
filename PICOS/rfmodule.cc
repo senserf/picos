@@ -19,6 +19,7 @@
 #define	lbtth	(rf->cpars->lbt_threshold)
 #define	lbtdl	(rf->cpars->lbt_delay)
 #define	lbtries	(rf->cpars->lbt_tries)
+#define	lbtnths (rf->cpars->lbt_nthrs)
 #define	xmtg	(rf->Xmitting)
 #define	rcvg	(rf->Receiving)
 #define	defxp	(rf->cpars->DefXPower)
@@ -26,6 +27,10 @@
 #define	defch	(rf->cpars->DefChannel)
 #define	physid	(rf->phys_id)
 #define	rerr	(rf->rerror)
+
+#define	upd_try_count	do { \
+			    if (ntry < (lbtries ? lbtries : MAX_WORD)) ntry++; \
+			} while (0)
 
 #include "stdattr.h"
 #include "tcvphys.h"
@@ -101,16 +106,91 @@ double RM_ADC::sigLevel () {
 #endif
 }
 
+void RM_ADC::start () {
+
+	if (!On) {
+		On = YES;
+		// This one can be legitimately rejected on a race: the signal
+		// repo may be pending with the previous "off" signal. This is
+		// exactly what the On flag is for.
+		this->signal ((void*)YES);
+	}
+}
+
+void RM_ADC::stop () {
+
+	if (On) {
+		On = NO;
+		if (this->signal ((void*)NO) == REJECTED)
+			excptn ("RM_ADC: rejected stop signal");
+	} else
+		excptn ("RM_ADC: unexpected stop signal");
+}
+
+RM_ADC::perform {
+
+    state ADC_WAIT:
+
+	if (!On) {
+		this->wait (SIGNAL, ADC_WAIT);
+		sleep;
+	}
+
+    transient ADC_RESUME:
+
+#ifdef LBT_THRESHOLD_IS_AVERAGE
+	ATime = 0.0;
+	Average = 0.0;
+	Last = Time;
+	CLevel = rfi->sigLevel ();
+#else
+	Maximum = rfi->sigLevel ();
+#endif
+	// In case something is already pending
+	rfi->wait (ANYEVENT, ADC_UPDATE);
+	this->wait (SIGNAL, ADC_STOP);
+
+    state ADC_UPDATE:
+
+	// Calculate the average signal level over the sampling
+	// period
+
+#ifdef LBT_THRESHOLD_IS_AVERAGE
+	double DT, NA;
+	DT = (double)(Time - Last);	// Time increment
+	NA = ATime + DT;		// New total sampling time
+	CLevel = rfi->sigLevel ();
+	Average = ((Average * ATime) / NA) + (CLevel * DT) / NA;
+	Last = Time;
+	ATime = NA;
+#else
+	double DT;
+	if ((DT = rfi->sigLevel ()) > Maximum)
+		Maximum = DT;
+#endif
+	// Only new events, no looping!
+	rfi->wait (ANYEVENT, ADC_UPDATE);
+	this->wait (SIGNAL, ADC_STOP);
+
+    state ADC_STOP:
+
+	Assert (ptrtoint (TheSignal) == NO, "ADC: illegal OFF signal");
+	// Done: wait for another request
+	sameas ADC_WAIT;
+}
+
 void RM_Xmitter::setup () {
 
 	rf = TheNode->RFInt;
 	xbf = NULL;
-	RSSI = create RM_ADC;
-
+	RSSI = lbtdl ? create RM_ADC : NULL;
 }
 
 void RM_Xmitter::gbackoff () {
+	// This is only called when backoff is defined, so maxbkf is > 0 and
+	// has been set to the proper argument for toss
 	bkf = minbkf + toss (maxbkf);
+	// trace ("bkf = %1d", bkf);
 }
 
 void RM_Xmitter::pwr_on () {
@@ -160,6 +240,8 @@ RM_Xmitter::perform {
 
     state XM_LOOP:
 
+	double thr;
+
 	if (xbf == NULL) {
 		if ((xbf = tcvphy_get (physid, &buflen)) == NULL) {
 			// Nothing to transmit
@@ -199,6 +281,8 @@ Bkf:
 		goto Bkf;
 	}
 
+#if 0
+	// This transmitter is not used any more with a neutrion-type channel
 	if (__pi_channel_type != CTYPE_NEUTRINO) {
 		// Xmit power setting?
 		ppw = (*ppm >> 12) & 0x7;
@@ -211,28 +295,54 @@ Bkf:
 		}
 		// trace ("PXOPT pl: %1d", ppw);
 	}
-
-	if (*ppm & 0x8000)
-		ntry = lbtries;
 #endif
 
-	if (ntry < lbtries) {
+	if (*ppm & 0x8000)
+		// This is ineffective when lbtries == 0
+		// ntry = lbtries;
+		goto Force;	// What an ugly jump!
+#endif
 
+	// trace ("TR: %1d %1d %1d", lbtries, ntry, lbtnths);
+	if (!lbtries || ntry < lbtries) {
+Force:
 		if (rcvg) {
+#if 0
+			// need this for safety?
 			delay (minbkf, XM_LOOP);
-			when (txe, XM_LOOP);
 			ntry++;
+#endif
+			when (txe, XM_LOOP);
 			release;
 		}
 
-		if (lbtdl && !rxoff) {
-			// Start the ADC
-			if (RSSI->signal ((void*)YES) == REJECTED)
-				// Race with ADC
-				proceed XM_LOOP;
-
-			delay (lbtdl, XM_LBS);
-			release;
+		if (lbtnths && !rxoff) {
+			// LBT enabled and receiver turned on
+			if (lbtdl) {
+				// Have to listen for a while, use the RSSI
+				// process
+				// trace ("wsi %1d %1d", lbtdl, ntry);
+				RSSI->start ();
+				delay (lbtdl, XM_LBS);
+				release;
+			}
+			// A single shot, this is the threshold level
+			thr = lbtth [(ntry >= lbtnths) ? lbtnths - 1 : ntry];
+			// trace ("SS: %g", linTodB (thr));
+			if (rfi->sigLevel () > thr) {
+				// Have to back off
+				set_congestion_indicator (1);
+				if (maxbkf) {
+					// Normal backoff
+					gbackoff ();
+					upd_try_count;
+					proceed XM_LOOP;
+				}
+				// Wait for signal low
+				rfi->setSigThresholdLow (thr);
+				rfi->wait (SIGLOW, XM_LOOP);
+				release;
+			}
 		}
 	}
 Xmit:
@@ -258,7 +368,7 @@ Xmit:
 
 	rfi->stop ();
 	LEDI (1, 0);
-	if (lbtdl == 0)
+	if (lbtnths == 0)
 		// To reduce the risk of livelocks; not needed with LBT
 		gbackoff ();
 
@@ -271,16 +381,16 @@ Xmit:
 
     state XM_LBS:
 
-	if (RSSI->signal ((void*)NO) == REJECTED)
-		// Race with ADC
-		proceed XM_LBS;
+	RSSI->stop ();
 
 	if (rcvg) {
-		set_congestion_indicator (minbkf);
+#if 0
+		set_congestion_indicator (1);
+		upd_try_count;
 		delay (minbkf, XM_LOOP);
+#endif
+		// trace ("rvg");
 		when (txe, XM_LOOP);
-		if (ntry < lbtries)
-			ntry++;
 		release;
 	}
 
@@ -288,72 +398,20 @@ Xmit:
 		goto Xmit;
 
 	if (RSSI->sigLevel () < lbtth [ntry]) {
-		// trace ("LBT+ %1d %g %g", ntry, RSSI->sigLevel (), lbtth [ntry]);
+		// trace ("lbt+ %1d %g %g", ntry, RSSI->sigLevel (), lbtth [ntry]);
 		goto Xmit;
 	}
-	// trace ("LBT- %1d %g %g", ntry, RSSI->sigLevel (), lbtth [ntry]);
+	// trace ("lbt- %1d %g %g", ntry, RSSI->sigLevel (), lbtth [ntry]);
 
 #if ((RADIO_OPTIONS & (RADIO_OPTION_RBKF | RADIO_OPTION_STATS)) == (RADIO_OPTION_RBKF | RADIO_OPTION_STATS))
 	if (rerr [RERR_CONG] >= 0x0fff)
 		diag ("RF driver: LBT congestion!!");
 #endif
 	gbackoff ();
-	if (ntry < lbtries)
-		ntry++;
-	set_congestion_indicator (minbkf);
+	upd_try_count;
+	set_congestion_indicator (1);
 	proceed XM_LOOP;
 
-}
-
-RM_ADC::perform {
-
-    state ADC_WAIT:
-
-	this->wait (SIGNAL, ADC_RESUME);
-
-    state ADC_RESUME:
-
-	assert (ptrtoint (TheSignal) == YES, "RM_ADC: illegal ON signal");
-
-#ifdef LBT_THRESHOLD_IS_AVERAGE
-	ATime = 0.0;
-	Average = 0.0;
-	Last = Time;
-	CLevel = rfi->sigLevel ();
-#else
-	Maximum = rfi->sigLevel ();
-#endif
-	// In case something is already pending
-	rfi->wait (ANYEVENT, ADC_UPDATE);
-	this->wait (SIGNAL, ADC_STOP);
-
-    state ADC_UPDATE:
-
-	// Calculate the average signal level over the sampling
-	// period
-
-#ifdef LBT_THRESHOLD_IS_AVERAGE
-	double DT, NA;
-	DT = (double)(Time - Last);	// Time increment
-	NA = ATime + DT;		// New total sampling time
-	CLevel = rfi->sigLevel ();
-	Average = ((Average * ATime) / NA) + (CLevel * DT) / NA;
-	Last = Time;
-	ATime = NA;
-#else
-	double DT;
-	if ((DT = rfi->sigLevel ()) > Maximum)
-		Maximum = DT;
-#endif
-	// Only new events, no looping!
-	rfi->wait (ANYEVENT, ADC_UPDATE);
-	this->wait (SIGNAL, ADC_STOP);
-
-    state ADC_STOP:
-
-	Assert (ptrtoint (TheSignal) == NO, "ADC: illegal OFF signal");
-	// Done: wait for another request
-	proceed ADC_WAIT;
 }
 
 RM_Receiver::perform {
@@ -366,7 +424,11 @@ RM_Receiver::perform {
 
     state RCV_GETIT:
 
-	rcvg = NO;
+	if (rcvg) {
+		rcvg = NO;
+		trigger (txe);
+	}
+
 	LEDI (2, 0);
 
 	if (rxoff) {
@@ -383,6 +445,7 @@ RM_Receiver::perform {
 		when (rxe, RCV_GETIT);
 		release;
 	}
+
 	LEDI (2, 1);
 	rcvg = YES;
 	rfi->follow (ThePckt);
@@ -580,7 +643,7 @@ __PUBLF (PicOSNode, void, phys_cc1100) (int phy, int mbs) {
 	if (rbf == NULL)
 		syserror (EMALLOC, "phys_cc1100");
 
-	phys_rfmodule_init (phy, mbs);
+	phys_rfmodule_init (phy, mbs, INFO_PHYS_CC1100);
 }
 
 __PUBLF (PicOSNode, void, phys_cc1350) (int phy, int mbs) {
@@ -603,7 +666,7 @@ __PUBLF (PicOSNode, void, phys_cc1350) (int phy, int mbs) {
 	if (rbf == NULL)
 		syserror (EMALLOC, "phys_cc1350");
 
-	phys_rfmodule_init (phy, mbs);
+	phys_rfmodule_init (phy, mbs, INFO_PHYS_CC1350);
 }
 
 __PUBLF (PicOSNode, void, phys_cc2420) (int phy, int mbs) {
@@ -626,7 +689,7 @@ __PUBLF (PicOSNode, void, phys_cc2420) (int phy, int mbs) {
 	if (rbf == NULL)
 		syserror (EMALLOC, "phys_cc2420");
 
-	phys_rfmodule_init (phy, mbs);
+	phys_rfmodule_init (phy, mbs, INFO_PHYS_CC2420);
 }
 
 __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
@@ -649,10 +712,10 @@ __PUBLF (PicOSNode, void, phys_dm2200) (int phy, int mbs) {
 	if (rbf == NULL)
 		syserror (EMALLOC, "phys_dm2200");
 
-	phys_rfmodule_init (phy, mbs);
+	phys_rfmodule_init (phy, mbs, INFO_PHYS_DM2200);
 }
 
-void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
+void PicOSNode::phys_rfmodule_init (int phy, int rbs, int inf) {
 
 	rfm_intd_t *rf;
 	Boolean su;
@@ -665,7 +728,7 @@ void PicOSNode::phys_rfmodule_init (int phy, int rbs) {
 	physid = phy;
 
 	/* Register the phy */
-	txe = tcvphy_reg (phy, rfm_option, INFO_PHYS_DM2200);
+	txe = tcvphy_reg (phy, rfm_option, inf);
 	mxpl = rbs;
 
 	/* Both parts are initially active */
@@ -902,6 +965,7 @@ static int rfm_option (int opt, address val) {
 #undef	rerr
 #undef	retr
 #undef	lastp
+#undef	upd_try_count
 
 #include "stdattr_undef.h"
 

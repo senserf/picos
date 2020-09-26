@@ -1404,3 +1404,9 @@ PG200509A:
     A few functions were not returning the status properly. By tradition that
     status was always ignored, so nobody cared. These days gcc/g++ complains
     about non-void functions returning no values.
+
+PG200926A:
+
+    Extended the LBT specification for the wireless interface to provide for a
+    one-shot, zero LBT option which I am going to use for experiments. This
+    doesn't affect previous models. A few additional cosmetics in rfmodule.

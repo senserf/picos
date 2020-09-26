@@ -24,6 +24,7 @@ typedef	struct {
 		BCMin, BCMax,	// Minimum and maximum backoff
 		LBTDel,		// LBT delay
 		LBTTries,	// Maximum number of attempts
+		LBTNThrs,	// The number of thresholds
 		Pre;		// Preamble length
 
 	Boolean absent;		// Explicitly absent

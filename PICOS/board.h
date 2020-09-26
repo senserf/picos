@@ -1,7 +1,7 @@
 #ifndef	__picos_board_h__
 #define	__picos_board_h__
 
-#define	VUEE_VERSION	1.2
+#define	VUEE_VERSION	1.4
 
 #ifndef	ZZ_R3D
 // A fallback to compile legacy praxes
@@ -185,6 +185,7 @@ typedef struct {
 		DefChannel,
 		min_backoff,
 		max_backoff,
+		lbt_nthrs,
 		lbt_delay,
 		lbt_tries;
 } rfm_const_t;
@@ -313,7 +314,7 @@ station PicOSNode abstract {
 	void		_da (phys_cc1100) (int, int);
 	void		_da (phys_cc1350) (int, int);
 	void		_da (phys_cc2420) (int, int);
-	void		phys_rfmodule_init (int, int);
+	void		phys_rfmodule_init (int, int, int);
 	void		_da (phys_uart) (int, int, int);
 
 	// Used to implement second clock (as starting from zero)
@@ -878,6 +879,8 @@ process RM_ADC (PicOSNode) {
 #else
 	double		Maximum;
 #endif
+	Boolean		On;
+
 	double sigLevel ();
 
 	states { ADC_WAIT, ADC_RESUME, ADC_UPDATE, ADC_STOP };
@@ -885,6 +888,8 @@ process RM_ADC (PicOSNode) {
 	perform;
 
 	void setup ();
+	void start ();
+	void stop ();
 };
 
 process RM_Xmitter : _PP_ (PicOSNode) {
