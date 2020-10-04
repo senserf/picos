@@ -1,5 +1,13 @@
 Quick start and demo:
 
+Note: this file is obsolete, although it should basically work. PIP is now
+installed automatically when PICOS is "deployed". You should read the
+Installation document in the PICOS Docs directory and follow the instructions
+in there.
+
+You still have to install elvis separately (because it requires root access),
+so you can do step 1, once you have come here.
+
 1. Install the modified version of elvis. On Cygwin, just execute ./instelvis
    in this directory. On Linux, become root first and then do the same.
 
@@ -16,7 +24,7 @@ Quick start and demo:
    play with the settings in that file to build your best personal
    configuration of colors.
 
-2. Install PIP. Just execute ./instpip in this directory.
+2. Install PIP. Execute ./deploy in this directory.
 
    Note: if you worry about the polution of your PC caused by the above
    installs, here is the complete list of things that get stored (so you can

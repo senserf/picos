@@ -1,11 +1,16 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
 ##########################\
 exec tclsh85 "$0" "$@"
 
 ############################################################################
 # Generates copies of an Image file with modified node ID                  #
-#                                                                          #
-# Copyright (C) Olsonet Communications, 2008-2016 All Rights Reserved      #
 ############################################################################
 
 set PM(VER)	1.6.0
