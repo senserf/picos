@@ -1,8 +1,17 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
+
 #ifndef __agent_c__
 #define __agent_c__
 
 /* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2014.       */
+/* Copyright (C) Olsonet Communications Corporation, 2008 - 2020.       */
 /* All rights reserved.                                                 */
 /* ==================================================================== */
 

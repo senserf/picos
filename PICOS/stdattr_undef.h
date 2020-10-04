@@ -1,3 +1,12 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
+
 // Created automatically, do not edit!!!
 #ifdef __picos_stdattr_h__
 #undef __picos_stdattr_h__
