@@ -10,11 +10,6 @@
 #ifndef __agent_c__
 #define __agent_c__
 
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2020.       */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
-
 // External agent interface
 
 #include "board.h"

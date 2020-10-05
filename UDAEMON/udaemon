@@ -52,9 +52,6 @@ if [file isdirectory "/dev"] {
 catch { package require Img }
 
 package provide xml 1.0
-###############################################################################
-# Mini XML parser. Copyright (C) 2008-12 Olsonet Communications Corporation.
-###############################################################################
 
 namespace eval XML {
 
@@ -481,11 +478,6 @@ namespace import ::XML::*
 ###############################################################################
 
 package provide unames 1.0
-##########################################################################
-# This is a package for handling the various names under which COM ports #
-# may appear in our messy setup.                                         #
-# Copyright (C) 2012 Olsonet Communications Corporation.                 #
-##########################################################################
 
 namespace eval UNAMES {
 

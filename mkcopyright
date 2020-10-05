@@ -7,33 +7,6 @@
 #	This file is part of the PICOS platform
 #
 #
-
-#
-#	Copyright 2002-2020 (C) Olsonet Communications Corporation
-#	Programmed by Pawel Gburzynski & Wlodek Olesinski
-#	All rights reserved
-#
-#	This file is part of the PICOS platform
-#
-#
-
-#
-#	Copyright 2002-2020 (C) Olsonet Communications Corporation
-#	Programmed by Pawel Gburzynski & Wlodek Olesinski
-#	All rights reserved
-#
-#	This file is part of the PICOS platform
-#
-#
-
-#
-#	Copyright 2002-2020 (C) Olsonet Communications Corporation
-#	Programmed by Pawel Gburzynski & Wlodek Olesinski
-#	All rights reserved
-#
-#	This file is part of the PICOS platform
-#
-#
 ##########################\
 exec tclsh "$0" "$@"
 
@@ -55,7 +28,7 @@ lappend Headers [binary format cccc 0x23 0x21 0x2f 0x62]
 lappend Headers [binary format cccc 0x23 0x21 0x2f 0x75]
 
 set CExtensions { ".c" ".cc" ".h" ".java" }
-set CExceptions { "nweb24.c" "sxml\\.c$" "sxml\\.h$" "\\.git/" }
+set CExceptions { "\\.git/" }
 set SHeaders [lrange $Headers 2 3]
 
 set CFName "LICENSE.txt"
@@ -104,40 +77,43 @@ proc calc_mode { fn } {
 	return 644
 }
 
-proc comment_line { ln } {
+proc comment_line { ln typ } {
 
-	if [regexp {^[[:blank:]]*//} $ln] {
-		return 1
-	}
-
-	if [regexp {^[[:blank:]]*/\*} $ln] {
-		return 1
-	}
-
-	if [regexp {^[[:blank:]]*\*/} $ln] {
-		return 1
-	}
-
-	if { [regexp {^[[:blank:]]*#$} $ln] || 
-	    [regexp {^[[:blank:]]*#[^!]} $ln] } {
-		if [regexp {\\$} $ln] {
-			return 0
+	if { $typ == "c" } {
+		if [regexp {^[[:blank:]]*//} $ln] {
+			return 1
 		}
-		return 1
-	}
 
+		if [regexp {^[[:blank:]]*/\*} $ln] {
+			return 1
+		}
+
+		if [regexp {^[[:blank:]]*\*/} $ln] {
+			return 1
+		}
+
+	} else {
+
+		if { [regexp {^[[:blank:]]*#$} $ln] || 
+		    [regexp {^[[:blank:]]*#[^!]} $ln] } {
+			if [regexp {\\$} $ln] {
+				return 0
+			}
+			return 1
+		}
+	}
 	return 0
 }
 
-proc delete_old_copyright { fc } {
+proc delete_old_copyright { fc typ } {
 
 	upvar $fc FC
 
 	set ix 0
 	set cx -1
-	# prevent match in the script source
+	# prevent match in the script source ;-)
 	set pat "copyr"
-	append pat "ight.*gburzynski"
+	append pat "ight.*olsonet comm"
 	foreach ln $FC {
 		if [regexp -nocase $pat $ln] {
 			set cx $ix
@@ -154,14 +130,14 @@ proc delete_old_copyright { fc } {
 	set lx $cx
 	set ex [expr { [llength $FC] - 1 }]
 
-	if [comment_line [lindex $FC $cx]] {
+	if [comment_line [lindex $FC $cx] $typ] {
 		# include all adjacent comment lines
 		while 1 {
 			if { $fx == 0 } {
 				break
 			}
 			set dx [expr { $fx - 1 }]
-			if ![comment_line [lindex $FC $dx]] {
+			if ![comment_line [lindex $FC $dx] $typ] {
 				break
 			}
 			set fx $dx
@@ -171,7 +147,7 @@ proc delete_old_copyright { fc } {
 				break
 			}
 			set dx [expr { $lx + 1 }]
-			if ![comment_line [lindex $FC $dx]] {
+			if ![comment_line [lindex $FC $dx] $typ] {
 				break
 			}
 			set lx $dx
@@ -183,7 +159,7 @@ proc delete_old_copyright { fc } {
 				break
 			}
 			set fx [expr { $fx - 1 }]
-			if [comment_line [lindex $FC $fx]] {
+			if [comment_line [lindex $FC $fx] $typ] {
 				break
 			}
 		}
@@ -192,7 +168,7 @@ proc delete_old_copyright { fc } {
 				break
 			}
 			set lx [expr { $lx + 1 }]
-			if [comment_line [lindex $FC $lx]] {
+			if [comment_line [lindex $FC $lx] $typ] {
 				break
 			}
 		}
@@ -216,11 +192,11 @@ proc insert_copyright_c { fn } {
 	catch { close $fd }
 
 	# delete the old copyright notice
-	while { [delete_old_copyright CF] } { }
+	while { [delete_old_copyright CF "c"] } { }
 
 	# insert the new copyright notice
 	set clf $CLF
-	if [comment_line [lindex $CF 0]] {
+	if [comment_line [lindex $CF 0] "c"] {
 		# separate from any exisiting comment for idempotence
 		lappend clf ""
 	}
@@ -251,11 +227,11 @@ proc insert_copyright_s { fn } {
 	catch { close $fd }
 
 	# delete the old copyright notice
-	while { [delete_old_copyright CF] } { }
+	while { [delete_old_copyright CF "s"] } { }
 
 	# insert the new copyright notice
 	set slf $SLF
-	if [comment_line [lindex $CF 1]] {
+	if [comment_line [lindex $CF 1] "s"] {
 		# separate from any exisiting comment for idempotence
 		lappend slf ""
 	}

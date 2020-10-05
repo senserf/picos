@@ -10,11 +10,6 @@
 #ifndef __picos_board_c__
 #define __picos_board_c__
 
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications Corporation, 2008 - 2020.       */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
-
 #include "stdattr_undef.h"
 
 #include "board.h"
