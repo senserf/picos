@@ -1,5 +1,5 @@
 /*
-	Copyright 1995-2018, 2019 Pawel Gburzynski
+	Copyright 1995-2020 Pawel Gburzynski
 
 	This file is part of SMURPH/SIDE.
 
@@ -7,7 +7,6 @@
 	it under the terms of the GNU General Public License as published by
 	the Free Software Foundation, either version 3 of the License, or
 	(at your option) any later version.
-
 	SMURPH/SIDE is distributed in the hope that it will be useful,
 	but WITHOUT ANY WARRANTY; without even the implied warranty of
 	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -898,7 +897,7 @@ static int getKeyword (char *kbuf, int fc = 0, int mswd = 0) {
 	return (c);
 }
 
-static int getArg (char *kbuf) {
+static int getArg (char *kbuf, int fc = 0) {
 
 /* ---------------------------------------------------------- */
 /* Gets  an argument (which can be an expression) into buffer */
@@ -907,26 +906,28 @@ static int getArg (char *kbuf) {
 
 	int     i, c, pc, ws;
 
-	// Skip white spaces
-	while (1) {
-		c = lkpC ();
-		if (!isspace (c)) break;
+	if (fc == 0) {
+		// Skip white spaces
+		while (1) {
+			fc = lkpC ();
+			if (!isspace (fc)) break;
+		}
 	}
 
-	if (c == END || c == ERROR) return (c);
+	if (fc == END || fc == ERROR) return (fc);
 
-	if (c == ',' || c == ')' || c == ';') {
+	if (fc == ',' || fc == ')' || fc == ';') {
 		xerror ("argument missing");
 		return (ERROR);
 	}
 
-	kbuf [0] = c;
-	if (c == '"' || c == '\'')
-		ws = c;                 // Within string
+	kbuf [0] = fc;
+	if (fc == '"' || fc == '\'')
+		ws = fc;                 // Within string
 	else
 		ws = 0;
 
-	if (c == '(')
+	if (fc == '(')
 		pc = 1;                 // Parentheses count
 	else
 		pc = 0;
@@ -1581,7 +1582,9 @@ static int processProceed (int del) {
 	char    arg [MAXKWDLEN+1], sarg [MAXKWDLEN+1];
 	int     lc, pc;
 
-	if (! CodeType) return (NO);
+	// We allow this from the outside, but we handle it a bit differently
+	// (see below)
+	// if (! CodeType) return (NO);
 
 	lc = del;
 	sarg [0] = '\0';
@@ -1603,11 +1606,14 @@ ProcErr:
 		return (NO);
 	}
 
-	lc = getKeyword (arg, lc);
+	// Assume a general expression; when invoked from a function, we cannot
+	// check if this is a legit state (any int can potentially be)
+	// lc = getKeyword (arg, lc);
+	lc = getArg (arg, lc);
 
 	if (lc == ',') {
 		// Two argument proceed
-		if (CodeType != PROCESS) {
+		if (CodeType == OBSERVER) {
 			xerror ("two-argument proceed in an observer");
 			return (NO);
 		}
@@ -1637,25 +1643,33 @@ ProcErr:
 		return (NO);
 	}
 
-	if (!isState (arg)) return (NO);
+	// Don't check, even if inside the process code method
+	// if (!isState (arg)) return (NO);
 
 	putC ("do { ");
 
-	if (CodeType == PROCESS) {
-		putC ("zz_AI_timer.zz_proceed (");
-		putC (arg);
-		if (sarg [0] != '\0') {
-			putC (',');
-			putC (sarg);
-		}
-		putC ("); return;");
-	} else {
+	if (CodeType == OBSERVER) {
 		// The observer version
 		putC ("TheObserverState = ");
 		putC (arg);
 		putC ("; goto __state_label_");
 		putC (arg);
 		putC (";");
+	} else {
+		// Process or external function
+		putC ("zz_AI_timer.zz_proceed (");
+		putC (arg);
+		if (sarg [0] != '\0') {
+			putC (',');
+			putC (sarg);
+		}
+		putC ("); ");
+		if (CodeType == PROCESS) {
+			putC ("return;");
+		} else {
+			// Outside of process, cannot just return
+			putC ("longjmp (zz_waker, 1);");
+		}
 	}
 
 	putC (" } while (0);");
@@ -1679,7 +1693,9 @@ static int processSkipto (int del) {
 	char    arg [MAXKWDLEN+1];
 	int     lc, pc;
 
-	if (CodeType != PROCESS) return (NO);
+	// if (CodeType != PROCESS) return (NO);
+	// Explicitly forbid if directly from observer
+	if (CodeType == OBSERVER) return (NO);
 
 	lc = del;
 
@@ -1699,9 +1715,9 @@ static int processSkipto (int del) {
 		return (NO);
 	}
 
-	lc = getKeyword (arg, lc);
+	// lc = getKeyword (arg, lc);
+	lc = getArg (arg, lc);
 
-	if (!isState (arg)) return (NO);
 	putC ("do { zz_AI_timer.zz_skipto (");
 	putC (arg);
 	if (lc == ',') {
@@ -1713,6 +1729,8 @@ static int processSkipto (int del) {
 		putC (',');
 		putC (arg);
 	}
+
+	putC ("); ");
 
 	while (pc) {
 		if (lc != ')') {
@@ -1731,7 +1749,15 @@ static int processSkipto (int del) {
 		return (NO);
 	}
 
-	putC ("); return; } while (0);");
+	if (CodeType == PROCESS) {
+		// Directly from process
+		putC ("return;");
+	} else {
+		// From outside
+		putC ("longjmp (zz_waker, 1);");
+	}
+
+	putC (" } while (0);");
 
 	catchUp ();
 	return (YES);

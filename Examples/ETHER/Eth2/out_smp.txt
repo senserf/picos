@@ -1,35 +1,35 @@
-SMURPH Version 1.7      Ethernet2    Wed Feb 10 16:12:24 1993
-Call arguments: data_smp.txt out
+SMURPH Version 3.9-AG      Ethernet2    Wed Sep 30 13:03:40 2020
+Call arguments: data_smp.txt junk.txt
 
 Network topology
 
 Stations:
 
-  NumId             Type         NPorts       NBuffers                NName
-      0     EtherStation              1              1                -----
-      1     EtherStation              1              1                -----
-      2     EtherStation              1              1                -----
-      3     EtherStation              1              1                -----
-      4     EtherStation              1              1                -----
-      5     EtherStation              1              1                -----
-      6     EtherStation              1              1                -----
-      7     EtherStation              1              1                -----
-      8     EtherStation              1              1                -----
-      9     EtherStation              1              1                -----
-     10     EtherStation              1              1                -----
-     11     EtherStation              1              1                -----
-     12     EtherStation              1              1                -----
-     13     EtherStation              1              1                -----
-     14     EtherStation              1              1                -----
-     15     EtherStation              1              1                -----
-     16     EtherStation              1              1                -----
-     17     EtherStation              1              1                -----
-     18     EtherStation              1              1                -----
-     19     EtherStation              1              1                -----
-     20     EtherStation              1              1                -----
-     21     EtherStation              1              1                -----
-     22     EtherStation              1              1                -----
-     23     EtherStation              1              1                -----
+  NumId             Type  NPorts  NTrans  NBuffs            NName
+      0     EtherStation       1       0       1            -----
+      1     EtherStation       1       0       1            -----
+      2     EtherStation       1       0       1            -----
+      3     EtherStation       1       0       1            -----
+      4     EtherStation       1       0       1            -----
+      5     EtherStation       1       0       1            -----
+      6     EtherStation       1       0       1            -----
+      7     EtherStation       1       0       1            -----
+      8     EtherStation       1       0       1            -----
+      9     EtherStation       1       0       1            -----
+     10     EtherStation       1       0       1            -----
+     11     EtherStation       1       0       1            -----
+     12     EtherStation       1       0       1            -----
+     13     EtherStation       1       0       1            -----
+     14     EtherStation       1       0       1            -----
+     15     EtherStation       1       0       1            -----
+     16     EtherStation       1       0       1            -----
+     17     EtherStation       1       0       1            -----
+     18     EtherStation       1       0       1            -----
+     19     EtherStation       1       0       1            -----
+     20     EtherStation       1       0       1            -----
+     21     EtherStation       1       0       1            -----
+     22     EtherStation       1       0       1            -----
+     23     EtherStation       1       0       1            -----
 
 Links:
 
@@ -161,6 +161,9 @@ Links:
         22         22       0           1
         23         23       0           1
 
+
+RFChannels
+
 (System) End of list
 
 Traffic parameters
@@ -172,96 +175,109 @@ MLE distribution:      EXPONENTIAL (Mean = 1.02e+03)
 Standard Client is:    ON
 Standard measures are: ON
 
-Communication group #000 (density        1)
+Communication group #000 (density       24)
 
-Senders:   all stations, equal weights totaling to 1.0
+Senders:   all stations
 
-Receivers: all stations, equal weights totaling to 1.0
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+(   16        1)   (   17        1)   (   18        1)   (   19        1)   
+(   20        1)   (   21        1)   (   22        1)   (   23        1)   
 
+Receivers: all stations
+
+(    0        1)   (    1        1)   (    2        1)   (    3        1)   
+(    4        1)   (    5        1)   (    6        1)   (    7        1)   
+(    8        1)   (    9        1)   (   10        1)   (   11        1)   
+(   12        1)   (   13        1)   (   14        1)   (   15        1)   
+(   16        1)   (   17        1)   (   18        1)   (   19        1)   
+(   20        1)   (   21        1)   (   22        1)   (   23        1)   
 
 (Traffic 0) End of list
 
 (Client) End of list
 
-Time:         4155862     (Client) Global performance measures:
+Time: 4129438 (Client) Global performance measures:
 
 AMD - Absolute message delay:
 
       Number of samples:               2000
       Minimum value:                    581
-      Maximum value:               2.09e+06
-      Mean value:                   9.2e+04
-      Variance:                    7.45e+10
-      Standard deviation:          2.73e+05
-      Confidence int @95%:             0.13
-      Confidence int @99%:            0.171
+      Maximum value:                1468270
+      Mean value:                86598.6155
+      Variance:              3.99433006e+10
+      Standard deviation:       199858.2012
+      Confidence int @95%:     0.1011467887
+      Confidence int @99%:      0.132884174
 
 APD - Absolute packet delay:
 
       Number of samples:               2000
       Minimum value:                    581
-      Maximum value:               2.07e+06
-      Mean value:                  1.31e+04
-      Variance:                     6.4e+09
-      Standard deviation:             8e+04
-      Confidence int @95%:            0.267
-      Confidence int @99%:            0.351
+      Maximum value:                1468270
+      Mean value:                15006.7795
+      Variance:                  5644176420
+      Standard deviation:       75127.73403
+      Confidence int @95%:     0.2194087091
+      Confidence int @99%:     0.2882537887
 
 WMD - Weighted message delay:
 
-      Number of samples:            2048120
+      Number of samples:            2049352
       Minimum value:                    581
-      Maximum value:               2.09e+06
-      Mean value:                  9.04e+04
-      Variance:                    7.73e+10
-      Standard deviation:          2.78e+05
-      Confidence int @95%:          0.00421
-      Confidence int @99%:          0.00553
+      Maximum value:                1468270
+      Mean value:               84230.93183
+      Variance:             3.736391107e+10
+      Standard deviation:       193297.4678
+      Confidence int @95%:   0.003141972294
+      Confidence int @99%:   0.004127846253
 
 MAT - Message access time:
 
       Number of samples:               2000
       Minimum value:                    576
-      Maximum value:               2.09e+06
-      Mean value:                   9.2e+04
-      Variance:                    7.45e+10
-      Standard deviation:          2.73e+05
-      Confidence int @95%:             0.13
-      Confidence int @99%:            0.171
+      Maximum value:                1468205
+      Mean value:                 86556.783
+      Variance:             3.994343916e+10
+      Standard deviation:       199858.5479
+      Confidence int @95%:      0.101195848
+      Confidence int @99%:     0.1329486269
 
 PAT - Packet access time:
 
       Number of samples:               2000
       Minimum value:                    576
-      Maximum value:               2.07e+06
-      Mean value:                  1.31e+04
-      Variance:                     6.4e+09
-      Standard deviation:             8e+04
-      Confidence int @95%:            0.268
-      Confidence int @99%:            0.352
+      Maximum value:                1468205
+      Mean value:                 14964.947
+      Variance:                  5644186423
+      Standard deviation:        75127.8006
+      Confidence int @95%:     0.2200222316
+      Confidence int @99%:     0.2890598196
 
 MLS - Message length distribution:
 
-      Number of samples:               2068
+      Number of samples:               2055
       Minimum value:                      8
-      Maximum value:               7.99e+03
-      Mean value:                  1.02e+03
-      Variance:                    1.02e+06
-      Standard deviation:          1.01e+03
-      Confidence int @95%:           0.0426
-      Confidence int @99%:           0.0559
+      Maximum value:                   7992
+      Mean value:               1019.713869
+      Variance:                 1017403.021
+      Standard deviation:       1008.663978
+      Confidence int @95%:    0.04276794114
+      Confidence int @99%:    0.05618747369
 
-    Number of generated messages:              2068
-    Number of queued messages:                   68
+    Number of generated messages:              2055
+    Number of queued messages:                   55
     Number of transmitted messages:            2000
     Number of received messages:               2000
     Number of transmitted packets:             2000
     Number of received packets:                2000
-    Number of queued bits:                    69976
-    Number of transmitted bits:             2048120
-    Number of received bits:                2048120
+    Number of queued bits:                    46160
+    Number of transmitted bits:             2049352
+    Number of received bits:                2049352
     Measurement start time:                       0
-    Throughput:                               0.493
+    Throughput:                        0.4962786704
 
 (Client) End of list
 

@@ -858,3 +858,11 @@ PG200926A:
 	   model is compiled with -p. Added a tweak to force the propagation
 	   time to be zero (regardless of the formal distance). Added an option
 	   to mks to pass arguments directly to gcc/g++.
+
+PG201004A:
+
+	   Fixed smpp to allow proceed and skipto in functions, and to allow
+	   expressions as state identifiers. Added a generic "plant" model to
+	   the library for builiding plant models illustrating PID controllers.
+	   Updates to the (big) manual (aka the book). Updated the copyright
+	   notice.
