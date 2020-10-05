@@ -1,15 +1,7 @@
-# 40 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 44 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 
 
 
-
-
-
-
-
-
-
-# 1 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/mach.h"
 
 
 
@@ -572,9 +564,9 @@ extern volatile unsigned int DMA2SA __asm__("__" "DMA2SA");
 extern volatile unsigned int DMA2DA __asm__("__" "DMA2DA");
 
 extern volatile unsigned int DMA2SZ __asm__("__" "DMA2SZ");
-# 211 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/supplement.h"
+# 219 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/supplement.h"
 extern char *__bss_end;
-# 13 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/arch.h"
+# 17 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/arch.h"
 typedef unsigned char Boolean;
 typedef unsigned int word;
 typedef int sint;
@@ -600,13 +592,13 @@ typedef struct {
 } systat_t;
 
 extern volatile systat_t __pi_systat;
-# 65 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/arch.h"
+# 69 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/arch.h"
 void __pi_release () __attribute__ ((noreturn));
-# 487 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/mach.h"
+# 491 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/mach.h"
 void tci_run_delay_timer ();
 void tci_run_auxiliary_timer ();
 word tci_update_delay_ticks (Boolean);
-# 20 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/uart_def.h"
+# 24 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/uart_def.h"
 
 
 
@@ -616,7 +608,7 @@ typedef struct {
  word rate;
  byte A, B;
 } uart_rate_table_entry_t;
-# 511 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/mach.h"
+# 515 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/mach.h"
 
 
 
@@ -649,31 +641,7 @@ typedef struct {
 
 
 extern uart_t __pi_uart [];
-# 1 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/IO/pins.h"
-
-
-
-
-
-
-
-# 1 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/pins_sys.h"
-
-
-
-
-
-
-
-# 1 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/analog_sensor.h"
-
-
-
-
-
-
-
-# 11 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/sensors_sys.h"
+# 19 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/sensors_sys.h"
 typedef struct {
 
  word W [3];
@@ -695,28 +663,15 @@ typedef struct {
  void (*fun_ini) ();
 
 } d_sensdesc_t;
-# 12 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/sensors.h"
+# 16 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/sensors.h"
 
 void read_sensor (word, sint, address);
-# 9 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/analog_sensor.h"
+# 13 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/analog_sensor.h"
 
 
 
 void analog_sensor_read (word, const a_sensdesc_t*, address);
-# 1 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/analog_actuator.h"
-
-
-
-
-
-
-
-# 1 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/actuators_sys.h"
-
-
-
-
-
+# 14 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/actuators_sys.h"
 typedef struct {
 
  word W [3];
@@ -737,15 +692,15 @@ typedef struct {
  void (*fun_ini) ();
 
 } d_actudesc_t;
-# 12 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/actuators.h"
+# 16 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/actuators.h"
 
 void write_actuator (word, sint, address);
-# 9 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/analog_actuator.h"
+# 13 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Sensors/analog_actuator.h"
 
 
 
 void analog_actuator_write (word, const a_actudesc_t*, word);
-# 212 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/pins_sys.h"
+# 216 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/pins_sys.h"
 typedef struct {
  byte poff, pnum;
 } pind_t;
@@ -770,18 +725,18 @@ void __pi_pin_clear (word);
 void __pi_pin_set_input (word);
 void __pi_pin_set_output (word);
 void __pi_pin_set_adc (word);
-# 261 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/pins_sys.h"
+# 265 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/pins_sys.h"
 Boolean __pi_pin_dac_available (word);
 Boolean __pi_pin_dac (word);
 void __pi_clear_dac (word);
 void __pi_set_dac (word);
 void __pi_write_dac (word, word, word);
-# 890 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/mach.h"
+# 894 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/MSP430/mach.h"
 
 
 
 extern lword __pi_nseconds;
-# 364 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 368 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 void root (word state);
 
 typedef void (*fsmcode)(word);
@@ -815,7 +770,7 @@ void __pi_waitmem (word);
 
 word __pi_memfree (address);
 word __pi_maxfree (address);
-# 423 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 427 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 word __pi_stackfree (void);
 
 
@@ -825,7 +780,7 @@ word __pi_stackfree (void);
 
 
 void __pi_syserror (word, const char*) __attribute__ ((noreturn)) ;
-# 547 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 551 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 void diag (const char *, ...);
 
 
@@ -835,7 +790,7 @@ void diag (const char *, ...);
 
 
 lword lrnd (void);
-# 575 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 579 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 sint io (word, word, word, char*, word);
 
 
@@ -887,11 +842,11 @@ void __pi_utimer_set (address, word);
 
 void udelay (word);
 void mdelay (word);
-# 667 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 671 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 void __pi_badstate (void);
-# 728 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 732 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 extern lword entropy;
-# 771 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
+# 775 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/sysio.h"
 typedef struct {
 
 
@@ -920,42 +875,27 @@ struct __pi_pcb_s {
 typedef struct __pi_pcb_s __pi_pcb_t;
 
 extern __pi_pcb_t *__pi_curr;
-# 1 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Serial/ser.h"
-
-
-
-
-
-
-
-
+# 13 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Serial/ser.h"
 
 
 
 int ser_out (word, const char*);
 int ser_in (word, char*, int);
 int ser_outb (word, const char*);
-# 11 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Serial/form.h"
+# 15 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Serial/form.h"
 word __pi_vfparse (char*, word, const char*, va_list);
 char *vform (char*, const char*, va_list);
 int vscan (const char*, const char*, va_list);
 char *form (char*, const char*, ...);
 word fsize (const char*, ...);
 int scan (const char*, const char*, ...);
-# 10 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Serial/serf.h"
+# 14 "C:/cygwin64/home/nripg/SOFTWARE/PICOS/PicOS/PLibs/Serial/serf.h"
 
 
 
 int ser_outf (word, const char*, ...);
 int ser_inf (word, const char*, ...);
-# 4 "app.cc"
-
-
-# 1 "./plant.h"
-
-
-
-# 7 "app.cc"
+# 12 "app.cc"
 
 
 
@@ -963,7 +903,12 @@ int ser_inf (word, const char*, ...);
 
 
 
-word control_interval = 1024,
+
+
+
+
+word control_interval = 16,
+
 
  monitor_interval = 1024;
 
@@ -977,9 +922,7 @@ lint Kp = 0, Ki = 0, Kd = 0;
 
 Boolean Active = 0;
 
-
-
-lint setpoint = (0 + 2047) / 2,
+lint setpoint,
  output,
  setting,
  error,
@@ -1011,6 +954,8 @@ void get_error (word st) {
 
 void set_plant (word st) {
 
+
+
  word val = (word) setting;
 
  write_actuator (st, 0, &val);
@@ -1018,16 +963,30 @@ void set_plant (word st) {
 
 void update_integral () {
 
- if (Ki == 0 || error == 0 || previous_error > 0 && error < 0 ||
-  previous_error < 0 && error > 0) {
-   integral = 0;
-   return;
+
+
+
+
+
+ if (Ki == 0 || error == 0) {
+
+  integral = 0;
+  return;
  }
+ if (previous_error > 0 && error < 0 ||
+     previous_error < 0 && error > 0) {
+
+  integral = error;
+  return;
+ }
+
 
  integral += error;
 }
 
 void update_derivative () {
+
+
 
  derivative = error - previous_error;
 }
@@ -1039,14 +998,32 @@ void calculate_new_input () {
  lint delta;
 
 
- delta = ((Kp * error + (Ki * integral * control_interval)/1024 +
-  Kd * derivative) *
 
-  (1023 - 512)) /
+ delta = ((
 
-  ((lint)(2047 - 0) *
 
-  100);
+  Kp * error +
+
+
+
+
+
+  (Ki * integral * control_interval)/1024 +
+
+
+
+
+  (Kd * derivative * 1024)/control_interval
+
+
+
+  ) * (1023 - 512)) /
+
+
+
+  ((lint)(2047 - 0) * 100);
+
+
 
  setting = 512 + delta;
 
@@ -1098,9 +1075,9 @@ void control_cycle (word st) {
 
 #define LOOP 0
 #define GET_RESPONSE 1
-# 146 "app.cc"
+# 188 "app.cc"
 void controller (word __pi_st) { switch (__pi_st) { 
-# 146 "app.cc"
+# 188 "app.cc"
 
 
  case LOOP : __stlab_LOOP: {
@@ -1116,14 +1093,14 @@ void controller (word __pi_st) { switch (__pi_st) {
 break; } default: __pi_badstate (); } }
 #undef LOOP
 #undef GET_RESPONSE
-# 158 "app.cc"
+# 200 "app.cc"
 
 
 
 #define LOOP 0
-# 160 "app.cc"
+# 202 "app.cc"
 void monitor (word __pi_st) { switch (__pi_st) { 
-# 160 "app.cc"
+# 202 "app.cc"
 
 
  case LOOP : __stlab_LOOP: {
@@ -1159,9 +1136,9 @@ break; } default: __pi_badstate (); } }
 #define SET_PLANT 7
 #define SHOW_PARAMS 8
 #define RUN_CYCLE 9
-# 184 "app.cc"
+# 226 "app.cc"
 void root (word __pi_st) { switch (__pi_st) { 
-# 184 "app.cc"
+# 226 "app.cc"
 
 
  static char cmd[64];
@@ -1338,5 +1315,5 @@ break; } default: __pi_badstate (); } }
 #undef SET_PLANT
 #undef SHOW_PARAMS
 #undef RUN_CYCLE
-# 349 "app.cc"
+# 391 "app.cc"
 

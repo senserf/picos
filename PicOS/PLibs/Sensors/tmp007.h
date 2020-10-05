@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef __pg_tmp007_h
 #define	__pg_tmp007_h
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2017                           */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 // This address is selected by grounding both address definition pins; 7 bits
 // only (MSB must be zero)

@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_sht_xx_h
 #define	__pg_sht_xx_h
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 #include "sht_xx_sys.h"
 //+++ "sht_xx.c"

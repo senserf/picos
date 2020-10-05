@@ -1,3 +1,11 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #define	STORAGE_AT45_TYPE	410	// Select the actual model used (D)
 
 #include "pins.h"

@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2015                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 #include "kernel.h"
 #include "cc1100_sys.h"

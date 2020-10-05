@@ -5551,3 +5551,9 @@ PG200913A:
 	Irrelevant cosmetics. The linker suddenly started to complain about
 	symbols related to ser_select.[hc]. I think I have fixed it.
 	
+PG201005A:
+
+	Looks like a lot of changes, but it's nothing, really. Added a standard
+	copyright notice to (practically) every source file. This is in
+	preparation for stashing this stuff into some attic and forgetting
+	about it.

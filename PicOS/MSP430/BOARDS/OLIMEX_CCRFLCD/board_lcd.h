@@ -1,3 +1,12 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
+
 // SDA and SCL are pulled up externally
 #define	lcd_ccrf_sda_low	_BIS (P3DIR, 0x80)
 #define	lcd_ccrf_sda_high	_BIC (P3DIR, 0x80)

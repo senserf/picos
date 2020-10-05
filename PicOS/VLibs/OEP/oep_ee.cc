@@ -1,3 +1,11 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef __oep_ee_c__
 #define	__oep_ee_c__
 
@@ -8,10 +16,6 @@
 
 #include "oep_ee_types.h"
 
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 //
 // Functions for sending/receiving blocks of EEPROM via OEP

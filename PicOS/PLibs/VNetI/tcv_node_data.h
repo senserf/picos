@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__tcvdata_h__
 #define	__tcvdata_h__
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2020                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 /* #define	DUMPQUEUES	1 */
 

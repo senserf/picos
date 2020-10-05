@@ -1,13 +1,16 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 #include "locengine.h"
 
-//
-// Copyright (C) 2008 Olsonet Communications Corporation
-//
-// PG March 2008
-//
 
 #define	MAXPEGS		128
 //#define	DEBUGGING	1

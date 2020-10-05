@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_storage_mt29xxx_h
 #define	__pg_storage_mt29xxx_h	1
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 // EE_NBLOCKS defined in board_storage.h
 

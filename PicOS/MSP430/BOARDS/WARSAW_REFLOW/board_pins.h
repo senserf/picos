@@ -1,7 +1,11 @@
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 
 #define	PIN_DEFAULT_P1DIR	0xC0
 #define	PIN_DEFAULT_P2DIR	0x9F	// 0,1 and 7 hang loose

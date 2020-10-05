@@ -1,6 +1,6 @@
 #include "__vueehdr.h"
 
-# 15 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 23 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 #define control_interval (((__NT*)TheStation)->__vattr_control_interval)
 #define monitor_interval (((__NT*)TheStation)->__vattr_monitor_interval)
 
@@ -167,10 +167,10 @@ void control_cycle (word st) {
 
 
 
-# 180 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 188 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 controller::perform { _pp_enter_ (); 
 
-# 180 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 188 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 
 
  transient LOOP: {
@@ -186,10 +186,10 @@ controller::perform { _pp_enter_ ();
 }}
 
 
-# 194 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 202 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 monitor::perform { _pp_enter_ (); 
 
-# 194 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 202 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 
 
  transient LOOP: {
@@ -216,10 +216,10 @@ monitor::perform { _pp_enter_ ();
 
 
 #define cmd (((__NT*)TheStation)->__vattr_root_cmd)
-# 218 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 226 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 root::perform { _pp_enter_ (); 
 
-# 218 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 226 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 
 
  
@@ -387,7 +387,7 @@ root::perform { _pp_enter_ ();
 
 }}
 #undef cmd
-# 383 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 391 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 
 
 void __NT::__praxis_starter () { (TheNode->tally_in_pcs()?(create root )->_pp_apid_():0); }

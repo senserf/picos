@@ -1,4 +1,12 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
 TD="/cygdrive/c/Olimex/MSP430 Programmer"
 cp $2 "${TD}"/image.hex
 cd "$TD"

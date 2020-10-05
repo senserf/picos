@@ -1,10 +1,14 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef __pg_arch_h
 #define	__pg_arch_h		1
 
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 /* ==================================================================== */
 /* Architecture-specific definitions                                    */

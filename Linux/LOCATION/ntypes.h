@@ -1,11 +1,14 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__ntypes_h
 #define	__ntypes_h
 
-//
-// Copyright (C) 2008 Olsonet Communications Corporation
-//
-// PG March 2008
-//
 
 typedef	unsigned int		u32;
 typedef	unsigned short int	u16;

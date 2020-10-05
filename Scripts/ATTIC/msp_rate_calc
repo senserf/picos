@@ -1,15 +1,15 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
 ##########################\
 exec tclsh "$0" "$@"
 
-#######################################################################
-# This script calculates UBR and UMCTL for the serial port setting on #
-# MSP430                                                              #
-#                                                                     #
-# Usage: msp_rate_calc (you will be prompted for parameters)          #
-#                                                                     #
-# Copyright (C) Olsonet Communications, 2005, All Rights Reserved     #
-#######################################################################
 
 proc readnum { var txt } {
 

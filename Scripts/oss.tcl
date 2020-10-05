@@ -1,4 +1,12 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
 #####################\
 exec wish "$0" "$@"
 
@@ -48,10 +56,6 @@ if { $ST(WSH) < 8.5 } {
 ###############################################################################
 
 package provide uartpoll 1.0
-#################################################################
-# Selects polled versus automatic input from asynchronous UART. #
-# Copyright (C) 2012 Olsonet Communications Corporation.        #
-#################################################################
 
 namespace eval UARTPOLL {
 
@@ -180,11 +184,6 @@ namespace import ::UARTPOLL::uartpoll_*
 
 
 package provide unames 1.0
-##########################################################################
-# This is a package for handling the various names under which COM ports #
-# may appear in our messy setup.                                         #
-# Copyright (C) 2012 Olsonet Communications Corporation.                 #
-##########################################################################
 
 namespace eval UNAMES {
 
@@ -409,10 +408,6 @@ namespace import ::UNAMES::*
 ###############################################################################
 
 package provide vuart 1.0
-#####################################################################
-# This is a package for initiating direct VUEE-UART communication.  #
-# Copyright (C) 2012 Olsonet Communications Corporation.            #
-#####################################################################
 
 namespace eval VUART {
 

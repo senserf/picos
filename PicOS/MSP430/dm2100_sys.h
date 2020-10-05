@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_dm2100_sys_h
 #define	__pg_dm2100_sys_h	1
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 //+++ "dm2100irq.c"
 

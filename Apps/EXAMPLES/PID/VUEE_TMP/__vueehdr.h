@@ -52,19 +52,19 @@
 #include "board.h"
 station __NT : PicOSNode { 
 char __attr_init_origin [0];
-# 15 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 23 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 word __vattr_control_interval,__vattr_monitor_interval;
 
-# 25 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 33 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 lint __vattr_Kp,__vattr_Ki,__vattr_Kd;
 
-# 28 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 36 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 Boolean __vattr_Active;
 
-# 30 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 38 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 lint __vattr_setpoint,__vattr_output,__vattr_setting,__vattr_error,__vattr_previous_error,__vattr_integral,__vattr_derivative;
 
-# 220 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 228 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 char __vattr_root_cmd[64];
 
 char __attr_init_end [0];
@@ -73,17 +73,17 @@ void reset () { PicOSNode::reset (); };
 void init (); 
 };
 #include "stdattr.h"
-# 180 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 188 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 process controller : _PP_ (__NT) {
 states { LOOP,GET_RESPONSE };
 perform;
 };
-# 194 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 202 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 process monitor : _PP_ (__NT) {
 states { LOOP };
 perform;
 };
-# 218 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
+# 226 "/home/nripg/SOFTWARE/PICOS/Apps/EXAMPLES/PID/app.cc"
 process root : _PP_ (__NT) {
 states { INIT,BANNER,UART_INPUT,BAD_COMMAND,ILLEGAL_PARAMETER,RUNNING_ALREADY,STOPPED_ALREADY,SET_PLANT,SHOW_PARAMS,RUN_CYCLE };
 perform;

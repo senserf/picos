@@ -1,14 +1,17 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #define _GNU_SOURCE 1
 #include <stdio.h>
 #include <ctype.h>
 #include <stdlib.h>
 #include "locengine.h"
 
-//
-// Copyright (C) 2008-2012 Olsonet Communications Corporation
-//
-// PG March 2008, revised December 2011, January 2012
-//
 
 //
 // This is a naive and temporary implementation of the tpoint database: to

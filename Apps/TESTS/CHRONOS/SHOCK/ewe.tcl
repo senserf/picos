@@ -1,4 +1,12 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
 ########\
 exec tclsh "$0" "$@"
 
@@ -84,11 +92,6 @@ set SFont {-family courier -size 9}
 ###############################################################################
 
 package provide unames 1.0
-##########################################################################
-# This is a package for handling the various names under which COM ports #
-# may appear in our messy setup.                                         #
-# Copyright (C) 2012 Olsonet Communications Corporation.                 #
-##########################################################################
 
 namespace eval UNAMES {
 

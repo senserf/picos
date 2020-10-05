@@ -1,7 +1,11 @@
-/* ========================================================================= */
-/* Copyright (C) Olsonet Communications, 2017                                */
-/* All rights reserved.                                                      */
-/* ========================================================================= */
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 
 // This is AP331 with an external battery voltage sensor (before the regulator)
 // and a charger voltage sensor

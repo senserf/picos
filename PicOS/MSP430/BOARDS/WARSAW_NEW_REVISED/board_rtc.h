@@ -1,3 +1,11 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #define	rtc_clk_delay	udelay (2)
 
 // Both CLK and DATA are open drain, so we never pull them up from here; this

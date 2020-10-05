@@ -1,3 +1,12 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
+
 // 2 leds: red on GPIO6, green on GPIO7
 
 #define	LED0_pin	6

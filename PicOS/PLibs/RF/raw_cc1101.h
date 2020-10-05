@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_raw_cc1101_h
 #define	__pg_raw_cc1101_h
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 #define	CC1101_RAW_INTERFACE	1
 

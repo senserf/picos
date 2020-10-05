@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_storage_m95xxx_h
 #define	__pg_mstorage_95xxx_h	1
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2007                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 #include "kernel.h"
 #include "storage.h"

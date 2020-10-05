@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__tcv_h
 #define __tcv_h
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 #include "sysio.h"
 
 #if	TCV_PRESENT

@@ -1,10 +1,14 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef __pg_modsyms_h
 #define	__pg_modsyms_h		1
 
-/* ======================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2017                        */
-/* All rights reserved.                                                     */
-/* ======================================================================== */
 
 /* ======================================================================== */
 /*              C O N F I G U R A T I O N    O P T I O N S                  */

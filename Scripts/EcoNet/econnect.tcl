@@ -1,14 +1,15 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
 ###########################\
 exec wish "$0" "$@"
 
-#################################################################
-#                                                               #
-# ConSenT version 1.3.E                                         #
-#                                                               #
-# Copyright (C) Olsonet Communications Corporation, 2009 - 2013 #
-#                                                               #
-#################################################################
 
 ##
 ## This is a modified version of econnect (from eco_demo/OSSI/ECONNECT)
@@ -54,10 +55,6 @@ if [file isdirectory "/dev"] {
 
 ###############################################################################
 package provide uartpoll 1.0
-#################################################################
-# Selects polled versus automatic input from asynchronous UART. #
-# Copyright (C) 2012 Olsonet Communications Corporation.        #
-#################################################################
 
 namespace eval UARTPOLL {
 
@@ -186,10 +183,6 @@ namespace import ::UARTPOLL::uartpoll_*
 
 ###############################################################################
 package provide vuart 1.0
-#####################################################################
-# This is a package for initiating direct VUEE-UART communication.  #
-# Copyright (C) 2012 Olsonet Communications Corporation.            #
-#####################################################################
 
 namespace eval VUART {
 
@@ -482,11 +475,6 @@ namespace import ::VUART::vuart_conn
 ###############################################################################
 
 package provide unames 1.0
-##########################################################################
-# This is a package for handling the various names under which COM ports #
-# may appear in our messy setup.                                         #
-# Copyright (C) 2012 Olsonet Communications Corporation.                 #
-##########################################################################
 
 namespace eval UNAMES {
 
@@ -1412,9 +1400,6 @@ namespace import ::SNIPPETS::*
 ### Logging ###################################################################
 
 package provide log 1.0
-###############################################################################
-# Log functions. Copyright (C) 2008-13 Olsonet Communications Corporation.
-###############################################################################
 
 namespace eval LOGGING {
 

@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_lcdg_n6100p_driver_h__
 #define	__pg_lcdg_n6100p_driver_h__
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 // This is the PicOS version of the combined headers for lcdg_n6100p.c. The
 // same source of the driver with a different version of this file will be

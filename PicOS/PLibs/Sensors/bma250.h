@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_bma250_h
 #define	__pg_bma250_h
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2014                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 // This illustrates how we can VUEE-ify some exotic hardware without pushing
 // it to far; this file should be linked to VUEE/PICOS and included from 

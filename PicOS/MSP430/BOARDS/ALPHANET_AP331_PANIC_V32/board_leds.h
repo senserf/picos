@@ -1,3 +1,11 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #define	LED0_ON		_BIC (P4OUT, 0x40)
 #define	LED0_OFF	_BIS (P4OUT, 0x40)
 #define	LED3_ON		_BIC (P4OUT, 0x20)

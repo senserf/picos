@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_cc1000_h
 #define	__pg_cc1000_h	1
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 #include "cc1000_sys.h"
 #include "rfleds.h"

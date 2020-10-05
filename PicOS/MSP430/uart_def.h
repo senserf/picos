@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_uart_def_h
 #define	__pg_uart_def_h		1
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 //
 // This is a complete set of macros for UART operation, such that the rest can

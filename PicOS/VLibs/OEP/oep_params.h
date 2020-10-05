@@ -1,10 +1,14 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef __oep_params_h__
 #define	__oep_params_h__
 
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2009                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 // These are parameters that are visible to the praxis in the same way
 // regardless of the mode (VUEE versus PicOS)

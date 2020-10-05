@@ -1,12 +1,15 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
 ##########################\
 exec tclsh "$0" "$@"
 
-############################################################################
-# Explicitly includes sourced Tcl files in the script                      #
-#                                                                          #
-# Copyright (C) Olsonet Communications, 2008 All Rights Reserved           #
-############################################################################
 
 proc abt { m } {
 

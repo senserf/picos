@@ -1,10 +1,14 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef __pg_portnames_h
 #define	__pg_portnames_h		1
 
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2013                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 // Transformations of port operations, such that port pins can be
 // referenced uniformly as a continuous range of numbers. This sucks.

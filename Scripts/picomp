@@ -1,19 +1,15 @@
 #!/bin/sh
+#
+#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Programmed by Pawel Gburzynski & Wlodek Olesinski
+#	All rights reserved
+#
+#	This file is part of the PICOS platform
+#
+#
 ###################\
 exec tclsh "$0" "$@"
 
-###############################################################################
-#
-# Two in one:
-#
-#	1. PicOS to C compiler
-#	2. PicOS to VUEE compiler
-#
-# P. Gburzynski
-#
-# Copyright (C) Olsonet Communications Corporation, 2010-2020
-#
-###############################################################################
 
 set Version 0.33
 

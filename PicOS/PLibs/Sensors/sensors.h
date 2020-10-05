@@ -1,9 +1,13 @@
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 #ifndef	__pg_sensors_h
 #define	__pg_sensors_h
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2010                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
 
 #include "sysio.h"
 //+++ "sensors.c"

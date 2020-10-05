@@ -1,10 +1,11 @@
-/* ==================================================================== */
-/* Copyright (C) Olsonet Communications, 2002 - 2012                    */
-/* All rights reserved.                                                 */
-/* ==================================================================== */
-//
-// A simple "access point" for OSS communication over RF using XRS
-//
+/*
+	Copyright 2002-2020 (C) Olsonet Communications Corporation
+	Programmed by Pawel Gburzynski & Wlodek Olesinski
+	All rights reserved
+
+	This file is part of the PICOS platform
+
+*/
 
 #include "sysio.h"
 #include "tcvphys.h"
