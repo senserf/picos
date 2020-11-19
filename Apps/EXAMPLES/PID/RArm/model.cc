@@ -19,7 +19,7 @@ RArm *TheArm;
 static void bad_args () {
 
 	excptn ("bad model-specific arguments,"
-		" usage: ... -- [-m mass] [0l logintrvl]");
+		" usage: ... -- [-m mass] [-l logintrvl]");
 }
 
 void Root::buildPlant () {

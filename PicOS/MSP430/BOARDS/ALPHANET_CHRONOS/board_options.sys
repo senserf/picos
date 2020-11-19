@@ -1,0 +1,53 @@
+#define	MALLOC_SINGLEPOOL	1
+
+#define DIAG_MESSAGES		0	// Disabled for now
+#define	DIAG_IMPLEMENTATION	2	// We will be creative in the praxis
+
+#define	TCV_PRESENT		1
+#define	TCV_TIMERS		0
+#define	TCV_HOOKS		0
+
+#define	CODE_LONG_INTS		1	/* 'ld' 'lu' 'lx' in formats */
+
+#define	MALLOC_SAFE		1
+#define	MALLOC_STATS		1
+#define STACK_GUARD		1
+#define	GLACIER			0
+
+#define	RANDOM_NUMBER_GENERATOR	2
+#define ENTROPY_COLLECTION	1
+
+#define	PMM_LEVEL		3	// Power management level
+
+// LEDs defined through LCD, but this must be set as it still selects them
+// as a global option
+#define LEDS_DRIVER		1
+
+// This must be zero, even though we have blinking capability, as the
+// capability does not depend on the system clock
+#define LEDS_BLINKING		0
+
+#define UART_DRIVER		0
+#define	RADIO_USE_LEDS		7
+
+#define CC1100			1
+
+#define CRYSTAL_RATE		32768
+
+#define	INFO_FLASH		1
+
+#define RESET_ON_SYSERR		1
+#define RESET_ON_MALLOC		1
+
+// Don't ref out (by default) as the pin function is shared
+#define	ADC_REFERENCE_OUT	0
+
+// If this one is defined (need not be set), we have buttons (rather than a
+// sensor for the button pins)
+#define	BUTTONS
+
+// 868 MHz adjusted for the discrepancy noted in Alphatronics boards
+#define	CC1100_FREQ_FREQ2_VALUE	0x21
+#define	CC1100_FREQ_FREQ1_VALUE	0x62
+#define	CC1100_FREQ_FREQ0_VALUE	0xC2
+#endif

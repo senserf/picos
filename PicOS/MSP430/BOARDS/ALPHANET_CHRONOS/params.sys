@@ -1,0 +1,2 @@
+-c cc430f6137
+-l main.c plug_tarp.cc tarp.cc net.cc phys_cc1100.c plug_null.cc scp1000.c cma3000.c rtc_cc430.c ez430_lcd.c ab.cc abb.cc sensors.c hold.c

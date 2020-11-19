@@ -70,7 +70,7 @@
 //	0x004 track packets: 6 counters + PHYSOPT_ERROR (see phys_cc1100.c)
 //	0x008 prechecks: initial check for RF chip present (to prevent hangups)
 //  	0x010 lean code: remove parameter checks for driver requests
-//	0x020 WOR test mode: PHYSOPT_SETPARAMS sets WOR parameters
+//	0x020 WOR test mode: PHYSOPT_SETPARAMS sets extended WOR parameters
 //	0x040 RESET with argument writes into registers (doing no reset)
 //	0x080 collect entropy from the air on startup
 //	0x100 last word of outgoing packet specifies transmission options
@@ -166,6 +166,8 @@
 #ifndef	RADIO_BITRATE_SETTABLE
 #define	RADIO_BITRATE_SETTABLE	0
 #endif
+
+#define	RADIO_N_CHANNELS	256
 
 #ifndef RADIO_DEFAULT_CHANNEL
 #define	RADIO_DEFAULT_CHANNEL	0
@@ -904,6 +906,21 @@ static const byte cc1100_agcctrl_table [LBT_RETR_FORCE_RCV] = {
 #endif	/* __CC430__ */
 
 // ============================================================================
+
+#if RADIO_WOR_MODE
+
+typedef struct {
+//
+// WOR parameters as passed in the PHYSOPT call
+//
+	word	offdelay;
+	word	interval;
+#if RADIO_OPTIONS & RADIO_OPTION_WORPARAMS
+	byte	evt0_time, rx_time, pq_thr, rssi_thr, evt1_time;
+#endif
+} cc1100_rfparams_t;
+
+#endif
 
 #define	gbackoff(e)	do { \
 				if (e) \

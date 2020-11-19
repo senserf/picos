@@ -48,12 +48,16 @@
 
 #define	BMP085_AUTO_CALIBRATE
 
-#if 1
+#if 0
 
+// Activate this for ALPHANET
 // 868 MHz adjusted for the discrepancy noted in Alphatronics boards
+
 #define	CC1100_FREQ_FREQ2_VALUE	0x21
 #define	CC1100_FREQ_FREQ1_VALUE	0x62
 #define	CC1100_FREQ_FREQ0_VALUE	0xC2
-#endif
 
 #define	RADIO_DEFAULT_BITRATE	2
+
+#endif
+

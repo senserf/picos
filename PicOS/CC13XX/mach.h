@@ -65,7 +65,11 @@
 // complicating the power budget (Section 23.3.2.1), so perhaps the simplest
 // solution is to keep it in RAM, also keeping the CPU on while the radio is
 // active.
-#define	RFCORE_PD_MODE	0
+
+// Set to 1, seems to be the maximum that works, reset to 0 if it causes
+// problems. Probably makes sense to keep at 0, unless WOR is used. Note that
+// the app can keep the device powerup when the radio is running.
+#define	RFCORE_PD_MODE	1
 
 // ============================================================================
 

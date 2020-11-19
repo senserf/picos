@@ -1,0 +1,3 @@
+#!/bin/sh
+cleanapp
+rm -rf OVEN/*.o OVEN/side* OSS/reflow.exe

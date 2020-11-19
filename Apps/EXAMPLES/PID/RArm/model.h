@@ -15,8 +15,6 @@
 
 #define	CONTROLLER_HOST	"localhost"
 #define	VUEE_PORT	4443		// This is the default port
-#define	THE_SENSOR	0
-#define	THE_ACTUATOR	0
 
 // Macro to make sure that a bounded value is actually between the bounds
 #define	enforce_bounds(a,min,max)	do { \

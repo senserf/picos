@@ -5557,3 +5557,11 @@ PG201005A:
 	copyright notice to (practically) every source file. This is in
 	preparation for stashing this stuff into some attic and forgetting
 	about it.
+
+PG201119A:
+
+	Added the WOR option to the CC1350 driver (needed some exercise to keep
+	me alive). A few more little things that nobody cares about. Like the
+	REFLOW praxis which has been turned into a nice example for a course
+	on microcontrollers that I was supposed to teach a few months ago,
+	and which I luckily never will.

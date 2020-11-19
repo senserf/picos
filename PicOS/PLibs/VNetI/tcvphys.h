@@ -18,6 +18,8 @@
 typedef	int (*ctrlfun_t) (int option, address);
 typedef	int (*pktqual_t) (address);
 
+#define	tcvphy_isurgent(p)	tcv_isurgent (p)
+
 #ifndef	__SMURPH__
 
 int tcvphy_reg (int, ctrlfun_t, int);

@@ -8,6 +8,18 @@
 */
 #include "kernel.h"
 
+#if 0
+void dump_data () {
+
+	uint32_t *ptr, *ptq;
+
+	diag ("DATA: ");
+	for (ptr = &_data, ptq = &_etext; ptr < &_edata; ptr++) {
+		diag ("%lx : %lx  // %lx : %lx", ptr, *ptr, ptq, *ptq);
+		ptq++;
+	}
+}
+#endif
 
 #if	defined(EEPROM_PRESENT) || defined(SDCARD_PRESENT)
 #include "storage.h"
@@ -247,7 +259,8 @@ static inline void port_config () {
 	for (int i = 0; i < sizeof (port_confs) / sizeof (lword); i++) {
 
 		pin = (port_confs [i] >> 19) & 0x1f;
-		HWREG (IOC_BASE + (pin << 2)) = port_confs [i] & 0x7f077f3f;
+		HWREG (IOC_BASE + IOC_O_IOCFG0 + (pin << 2)) =
+			port_confs [i] & 0x7f077f3f;
 		if (port_confs [i] & 0x80)
 			// Output
 			GPIO_setOutputEnableDio (pin, GPIO_OUTPUT_ENABLE);
@@ -1002,8 +1015,8 @@ void __buttons_setirq (int val) {
 	for (i = 0; i < N_BUTTONS; i++) {
 		bn = BUTTON_GPIO (__button_list [i]);
 		GPIO_clearEventDio (bn);
-		HWREGBITW (IOC_BASE + (bn << 2), IOC_IOCFG0_EDGE_IRQ_EN_BITN) =
-			val;
+		HWREGBITW (IOC_BASE + IOC_O_IOCFG0 + (bn << 2),
+			IOC_IOCFG0_EDGE_IRQ_EN_BITN) = val;
 	}
 	sti;
 }
@@ -1021,8 +1034,8 @@ void __pinlist_setirq (int val) {
 	for (i = 0; i < N_PINLIST; i++) {
 		bn = INPUT_PINLIST_GPIO (__input_pins [i]);
 		GPIO_clearEventDio (bn);
-		HWREGBITW (IOC_BASE + (bn << 2), IOC_IOCFG0_EDGE_IRQ_EN_BITN) =
-			val;
+		HWREGBITW (IOC_BASE + IOC_O_IOCFG0 + (bn << 2),
+			IOC_IOCFG0_EDGE_IRQ_EN_BITN) = val;
 	}
 	sti;
 }
@@ -1132,7 +1145,7 @@ void system_init () {
 #endif
 	if (!wfsd) {
 
-		// Don't show the banner, if waking from shutdown
+		// Don't show the banner if waking from shutdown
 
 #if	DIAG_MESSAGES
 		diag ("");
@@ -1144,7 +1157,7 @@ void system_init () {
 #ifdef	SYSVER_B
 			"-" SYSVER_B
 #endif
-        		", (C) Olsonet Communications, 2002-2018");
+        		", (C) Olsonet Communications, 2002-2020");
 		diag ("Leftover RAM: %d bytes",
 			(word)((aword)STACK_END - (aword)(&__bss_end__)));
 #endif
@@ -1264,7 +1277,9 @@ static inline void __do_wfi_as_needed () {
 
 	switch (__pi_systat.effpdm) {
 
-		case 0:
+				// ============================================
+		case 0:		// ACTIVE MODE ================================
+				// ============================================
 
 			__WFI ();
 			return;
@@ -1408,7 +1423,7 @@ static inline void __do_wfi_as_needed () {
 			return;
 
 				// ============================================
-		default:	// SHUTDOWN ===================================
+		default:	// SHUTDOWN MODE ==============================
 				// ============================================
 
 			hibernate ();

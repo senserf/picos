@@ -841,8 +841,11 @@ word do_command (const char *cb, word sender, word sernum) {
 
 		word wormode;
 
+#if 0
+		// Make it available for tests
 		if (sender)
 			return 11;
+#endif
 
 		wormode = 0;
 
@@ -970,10 +973,29 @@ RetFlags:
 	    case 'w': {
 
 		// Set WOR parameters
-		word n, v [7];
+#ifdef	CC1350
+		cc1350_rfparams_t wp;
+		word v [4];
 
-		v [0] = RADIO_WOR_PREAMBLE_TIME / 1024;
-		v [1] = RADIO_WOR_IDLE_TIMEOUT / 1024;
+		v [0] = RADIO_DEFAULT_OFFDELAY;
+		v [1] = RADIO_DEFAULT_WOR_INTERVAL;
+		v [2] = RADIO_DEFAULT_WOR_RSSI;
+		v [3] = 1;				// PQT
+
+		scan (cb + 1, "%u %u %u %u", v + 0, v + 1, v + 2, v + 3);
+
+		wp . offdelay = v [0];
+		wp . interval = v [1];
+		wp . rss = (byte) (v [2]);
+		wp . pqt = (v [3] != 0);
+
+		tcv_control (g_fd_rf, PHYSOPT_SETPARAMS, (address)(&wp));
+#else
+		cc1100_rfparams_t wp;
+		word v [7];
+
+		v [0] = RADIO_WOR_IDLE_TIMEOUT;
+		v [1] = RADIO_WOR_PREAMBLE_TIME;
 		v [2] = WOR_EVT0_TIME >> 8;
 		v [3] = WOR_RX_TIME;
 		v [4] = WOR_PQ_THR;
@@ -983,14 +1005,20 @@ RetFlags:
 		scan (cb + 1, "%u %u %u %u %u %u %u",
 			v + 0, v + 1, v + 2, v + 3, v + 4, v + 5, v + 6);
 
-		for (n = 0; n < 7; n++)
-			((byte*)v) [n] = (byte) v [n];
+		wp . offdelay = 	 v [0];
+		wp . interval = 	 v [1];
+#if RADIO_OPTIONS & RADIO_OPTION_WORPARAMS
+		wp . evt0_time =  (byte)(v [2]);
+		wp . rx_time = 	  (byte)(v [3]);
+		wp . pq_thr = 	  (byte)(v [4]);
+		wp . rssi_thr =   (byte)(v [5]);
+		wp . evt1_time =  (byte)(v [6]);
+#endif
 
-		tcv_control (g_fd_rf, PHYSOPT_SETPARAMS, v);
-
+		tcv_control (g_fd_rf, PHYSOPT_SETPARAMS, (address)(&wp));
+#endif
 		return 0;
 	    }
-
 #endif
 
 #if defined(CC1100_PATABLE) || defined(CC1350_PATABLE)
@@ -1025,6 +1053,7 @@ RetFlags:
 			// This works fine for both CC1100 and CC1350
 		} else {
 #ifdef	CC1100_PATABLE
+			// This modifies registers, not just PATABLE
 			if (n & 1)
 				return 4;
 			if ((rs = (byte*) umalloc (n + 1)) == NULL)
@@ -1051,6 +1080,7 @@ RetFlags:
 			ufree (rs);
 #endif
 #ifdef	CC1350_PATABLE
+			// This substitutes the PATABLE
 			if (n > 8)
 				return 4;
 			// Collect the numbers
@@ -1096,7 +1126,7 @@ RetFlags:
 			return WNONE;
 		}
 
-		if (ch > 255) 
+		if (ch > RADIO_N_CHANNELS) 
 			return 10;
 
 		if (ch == 0 || !sender) {
@@ -1427,7 +1457,7 @@ void view_rcv_packet (address p, word pl) {
 
 #else
 	uart_outf (WNONE,
-		"<-S:%u, D:%u, N:%u, L:%u, P:%u, R:%u, Q:%u, A:%u, M%c"
+		"<-S:%u, B:%u, N:%u, L:%u, P:%u, R:%u, Q:%u, A:%u, M%c"
 #if NUMBER_OF_SENSORS > 0
 		", V:%u"
 #if NUMBER_OF_SENSORS > 1

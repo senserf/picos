@@ -38,7 +38,7 @@
 #elif RADIO_DEFAULT_BITRATE == 38400 || RADIO_DEFAULT_BITRATE == 2
 #define	RADIO_BITRATE_INDEX	2
 #elif RADIO_DEFAULT_BITRATE == 50000 || RADIO_DEFAULT_BITRATE == 3
-#define	RADIO_BITRATE_INDEX	2
+#define	RADIO_BITRATE_INDEX	3
 #else
 #error "S: Unknown bit rate, legal rates are: 0-625, 1-10000, 2-38400, 3-50000"
 #endif
@@ -50,12 +50,15 @@
 #define	RADIO_DEFAULT_CHANNEL	0
 #endif
 
+#define	RADIO_N_CHANNELS	8
+
 #if RADIO_DEFAULT_CHANNEL < 0 || RADIO_DEFAULT_CHANNEL > 7
 #error "S: RADIO_DEFAULT_CHANNEL > 7!!!"
 #endif
 
 #ifndef	RADIO_SYSTEM_IDENT
-#define	RADIO_SYSTEM_IDENT	0xAB3553BA	/* Sync word */
+// Can be set to zero and means "use the value provided by SmartRF Studio"
+#define	RADIO_SYSTEM_IDENT	0xAB3553BA
 #endif
 
 #ifndef	RADIO_DEFAULT_OFFDELAY
@@ -64,7 +67,17 @@
 #define	RADIO_DEFAULT_OFFDELAY	256
 #endif
 
-// WOR and stuff later, if ever
+#ifndef	RADIO_WOR_MODE
+#define	RADIO_WOR_MODE		0
+#endif
+
+#ifndef	RADIO_DEFAULT_WOR_INTERVAL
+#define	RADIO_DEFAULT_WOR_INTERVAL	512
+#endif
+
+#ifndef	RADIO_DEFAULT_WOR_RSSI
+#define	RADIO_DEFAULT_WOR_RSSI		(-111 + 128)
+#endif
 
 // ============================================================================
 
@@ -113,15 +126,15 @@
 //	- 50 kbps, TI default
 
 #ifndef	CC1350_RATABLE
-// From SmartRF Studio (starting from index = 1, because the lowest rate
-// comes with non-settable, special config
+// The entry number 0 is not used for setting the rate, because rate #0 must be
+// hardwired (and the rate is then not settable)
 #define	CC1350_RATABLE 		{ \
-					{ 0xB,	0x12C5 }, \
-					{ 0x7,	0x2DE0 }, \
-					{ 0xF,	0x8000 }, \
+					{ 0xF,  0x199A, 10000 }, \
+					{ 0xB,	0x12C5, 9997 }, \
+					{ 0x7,	0x2DE0, 38399 }, \
+					{ 0xF,	0x8000, 50000 }, \
 				}
 #endif
-
 // Channel increment; for now, 1 channel == 1 MHz
 #ifndef	CC1350_BASEFREQ
 #define	CC1350_BASEFREQ		868	// Megahertz
@@ -199,6 +212,16 @@
 #define	RADIO_LBT_MAX_TRIES		16
 #endif
 
-
+typedef struct {
+//
+// RF parameters as passed in the PHYSOPT call
+//
+	word	offdelay;
+#if RADIO_WOR_MODE
+	word	interval;
+	byte	rss;		// RSSI threshold
+	byte	pqt;		// This is yes or no for now
+#endif
+} cc1350_rfparams_t;
 
 #endif

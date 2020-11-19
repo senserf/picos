@@ -1390,37 +1390,47 @@ OREvnt:
 		goto OREvnt;
 
 #if RADIO_WOR_MODE
-	    // Change WOR params
+
+#define	__wpars	((cc1100_rfparams_t*)val)
+
 	    case PHYSOPT_SETPARAMS:
+
+		// Change WOR params
 
 		if (val == NULL) {
 			set_default_wor_params ();
 		} else {
-			wor_idle_timeout = *val++;
-			wor_preamble_time = *val;
+			wor_idle_timeout = __wpars -> offdelay;
+			wor_preamble_time = __wpars -> interval;
 #if (RADIO_OPTIONS & RADIO_OPTION_WORPARAMS)
 			byte *v = (byte*)(++val);
 			// High byte of EVT0 value
+			set_reg (CCxxx0_WOREVT1, __wpars -> evt0_time);
 			set_reg (CCxxx0_WOREVT1, v [0]);
 			// RX time
 			cc1100_wor_von [3] = 
-				((v [3] == 0) ?
+				(__wpars->rssi_thr ?
 				    // Switch off RSSI thresholding
 				    CCxxx0_MCSM2_WOR_P :
 				        // RSSI thresholding is on
 					CCxxx0_MCSM2_WOR_RP) |
-					    ((v [1] > 6) ? 6 : v [1]);
+					    ((__wpars->rx_time > 6) ? 6 :
+						__wpars->rx_time);
 			// PQT
 			cc1100_wor_von [0] = (cc1100_wor_von [0] & 0x1F) |
-				(((v [2] == 0) ? 1 : ((v [2] > 7) ? 7 :
-					v [2])) << 5);
+				(((__wpars->pq_thr == 0) ? 1 :
+					((__wpars->pq_thr > 7) ? 7 :
+						__wpars->pq_thr)) << 5);
 			// RSSI threshold
 			cc1100_wor_von [1] = (cc1100_wor_von [1] & 0xF0) |
-				((((v [3] > 15) ? 15 : v [3]) - 8) & 0x0F);
+				((((__wpars->rssi_thr > 15) ? 15 :
+					__wpars->rssi_thr) - 8) & 0x0F);
 			// EVNT1
 			cc1100_wor_von [2] = (cc1100_wor_von [2] & 0x8F) |
-				(((v [4] > 7) ? 7 : v [4]) << 4);
+				(((__wpars->evt1_time > 7) ? 7 :
+					__wpars->evt1_time) << 4);
 #endif
+#undef	__wpars
 		}
 
 		break;
