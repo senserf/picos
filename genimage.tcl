@@ -13,13 +13,13 @@ exec tclsh85 "$0" "$@"
 # Generates copies of an Image file with modified node ID                  #
 ############################################################################
 
-set PM(VER)	1.6.0
+set PM(VER)	1.6.1
 
 proc usage { } {
 
 	global argv0
 
-	puts stderr "Usage: $argv0 \[-C \[configfile\]\]"
+	puts stderr "Usage: $argv0 \[-C \[configfile\]\] \[-F\]"
 	exit 99
 }
 
@@ -62,9 +62,9 @@ set MWSG ""
 # list of modes for Image files and the associated file name extensions
 set PM(MDS) { "IHEX" "ELF" }
 set PM(MDS,IHEX) { ".a43" {{ "Intel Hex" {*.a43}} {"TI Hex" {*.hex}} { "All" {*} }}}
-set PM(MDS,ELF) { "" {{ "All" {*} }}}
+set PM(MDS,ELF) { "" {{ "TI ELF" {*.out}} { "Generic" {*.elf}} { "All" {*} }}}
 set PM(EXS,IHEX) { ".a43" ".hex" }
-set PM(EXS,ELF) { "" }
+set PM(EXS,ELF) { "" ".out" ".elf" }
 
 ## double exit avoidance flag
 set DEAF 0
@@ -910,9 +910,14 @@ proc cw { } {
 	return $w
 }
 
-proc alert { msg } {
+proc alert { msg { eb "" } } {
 
-	tk_dialog [cw].alert "Attention!" $msg "" 0 "OK"
+	if { $eb != "" } {
+		return [tk_dialog [cw].alert "Attention!" $msg "" 0 "OK" $eb]
+	} else {
+		tk_dialog [cw].alert "Attention!" $msg "" 0 "OK"
+		return 0
+	}
 }
 
 proc mk_mess_window { w h } {
@@ -1082,7 +1087,7 @@ proc validate_common { } {
 	return [list $idn $pfx $ida $apv]
 }
 
-proc generate { } {
+proc generate { { auto "" } } {
 #
 # Do it
 # 
@@ -1191,9 +1196,16 @@ proc generate { } {
 	cancel_gen
 	enable_go
 
+	if { $auto != "" } {
+		terminate
+	}
+
 	if { $cnt == 0 } {
-		alert "All done!"
+		set f [alert "All done!" "OK + quit"]
 		savdefs
+		if $f {
+			terminate
+		}
 	}
 }
 
@@ -1433,3 +1445,7 @@ button $w.q -text "Exit" -command "terminate"
 pack $w.q -side right -padx 4
 
 bind . <Destroy> { terminate }
+
+if { [lsearch -exact $argv "-F"] >= 0 } {
+	generate "F"
+}

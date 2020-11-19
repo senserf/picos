@@ -12,7 +12,7 @@ exec tclsh86 C:/cygwin64/home/nripg/bin/pip "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 1.02
+set ST(VER) 1.03
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -8472,7 +8472,7 @@ proc bpcs_kill { pi } {
 }
 ###############################################################################
 
-proc run_genimage { } {
+proc run_genimage { { fast 0 } } {
 #
 	global P TCMD
 
@@ -8498,6 +8498,10 @@ proc run_genimage { } {
 		set cmd "[list $ef]"
 	} else {
 		set cmd "[list sh] [list $ef]"
+	}
+
+	if $fast {
+		append cmd " -F"
 	}
 
 	append cmd " -C 2>@1"
@@ -9744,6 +9748,8 @@ proc reset_exec_menu { { clear 0 } } {
 	if { $TCMD(FG) == "" } {
 		$m add command -label "Customize image ..." \
 			-command run_genimage -state $st
+		$m add command -label "Customize image (prev)" \
+			-command "run_genimage 1" -state $st
 	} else {
 		$m add command -label "Stop genimage" -command stop_genimage
 	}

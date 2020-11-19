@@ -945,3 +945,8 @@ PG200310A:
 	newest version. I only updated the 64-bit variants of the executables
 	because I don't have the systems to compile the 32-bit versions.  Who
 	cares!
+
+PG201119A:
+
+	Added a shortcut to redo genimage for the previous settings without
+	having to go through the clicks.
