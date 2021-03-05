@@ -211,7 +211,7 @@ proc unames_init { dtype { stype "" } } {
 		# real ttys
 		if { $Dev(SYS) == "L" } {
 			# actual Linux
-			set Dev(RRT) "/dev/ttyUSB%"
+			set Dev(RRT) { "/dev/ttyUSB%" "/dev/ttyACM%" }
 		} else {
 			# Cygwin
 			set Dev(RRT) "/dev/ttyS%"
@@ -1824,7 +1824,7 @@ proc parse_number { a r l p } {
 
 proc parse_time { a r l p } {
 #
-# Parses a time string than can be parsed by clock scan
+# Parses a time string than can be handled by clock scan
 #
 	upvar $a args
 	upvar $r res
@@ -2955,15 +2955,14 @@ proc oss_genheader { } {
 ###########################
 ###########################
 
-	set res "#include \"sysio.h\""
-
+	set res "#ifndef  __ossi_h_pg__\n#define  __ossi_h_pg__\n"
+	append res "#include \"sysio.h\""
 	append res {
 // =================================================================
 // Generated automatically, do not edit (unless you really want to)!
 // =================================================================
 
 }
-
 	append res "#define\tOSS_PRAXIS_ID\t\t$PM(PXI)\n"
 	append res "#define\tOSS_UART_RATE\t\t$PM(USP)\n"
 	append res "#define\tOSS_PACKET_LENGTH\t$PM(MPL)\n"
@@ -3042,6 +3041,8 @@ typedef	struct {
 // End of automatically generated code 
 // ===================================
 }
+
+	append res "#endif\n"
 
 ###########################
 ###########################

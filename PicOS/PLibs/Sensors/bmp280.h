@@ -103,6 +103,7 @@
 #define	BMP280_MODE_PRESS_OVS_4X				(3 << 2)
 #define	BMP280_MODE_PRESS_OVS_8X				(4 << 2)
 #define	BMP280_MODE_PRESS_OVS_16X				(5 << 2)
+#define	BMP280_MODE_PRESS_OVS_MASK				(7 << 2)
 
 #define	BMP280_MODE_TEMP_OVS_OFF				(0 << 5)
 #define	BMP280_MODE_TEMP_OVS_1X					(1 << 5)
@@ -110,6 +111,7 @@
 #define	BMP280_MODE_TEMP_OVS_4X					(3 << 5)
 #define	BMP280_MODE_TEMP_OVS_8X					(4 << 5)
 #define	BMP280_MODE_TEMP_OVS_16X				(5 << 5)
+#define	BMP280_MODE_TEMP_OVS_MASK				(7 << 5)
 
 #define	BMP280_MODE_FILTER_OFF					(0 << 10)
 #define	BMP280_MODE_FILTER_2					(1 << 10)

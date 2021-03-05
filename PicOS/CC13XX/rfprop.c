@@ -1649,9 +1649,8 @@ void phys_cc1350 (int phy, int mbs) {
 }
 
 //
-// Notes:
+// To do:
 //
-//	CMD_PING can be a way to trigger an interrupt, especially that we put
-//	them all into a single basket
+// Check if using RF memory allows us to lower the power budget. This is tricky
+// because we have to circumvent the patch area.
 //
-//	- WOR on, RX off, WOR on -> HUP, it loops somewhere

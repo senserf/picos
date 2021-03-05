@@ -39,6 +39,10 @@
 // DIO_28	- i conn DP4			UART RX
 // DIO_29	- o conn DP5			UART TX
 // DIO_30	- i connected to VDD via 200k res 	UNUSED
+//
+// NOTE: DIO_4 and DIO_15 wake up from shutdown on LOW
+//
+
 
 // ============================================================================
 
