@@ -170,9 +170,11 @@
 #define	MPU9250_OPT_SH_SENSORS		(MPU9250_OPT_SH_ODR + 4)
 #define	MPU9250_OPT_SH_ACCEL_RANGE	(MPU9250_OPT_SH_SENSORS + 4)
 #define	MPU9250_OPT_SH_GYRO_RANGE	(MPU9250_OPT_SH_ACCEL_RANGE + 2)
-#define	MPU9250_OPT_SH_MOTION_DETECT	(MPU9250_OPT_SH_GYRO_RANGE + 2)
+#define	MPU9250_OPT_SH_EVENT_TYPE	(MPU9250_OPT_SH_GYRO_RANGE + 2)
+#define	MPU9250_OPT_SH_RATE_DIVIDER	24
 
-#define	MPU9250_LP_MOTION_DETECT	(1 << MPU9250_OPT_SH_MOTION_DETECT)
+#define	MPU9250_LP_MOTION_DETECT	(1 << MPU9250_OPT_SH_EVENT_TYPE)
+#define	MPU9250_LP_SYNC_READ		(2 << MPU9250_OPT_SH_EVENT_TYPE)
 
 #define	MPU9250_GYRO_RANGE_250		(0 << MPU9250_OPT_SH_GYRO_RANGE)
 #define	MPU9250_GYRO_RANGE_500		(1 << MPU9250_OPT_SH_GYRO_RANGE)
@@ -237,7 +239,7 @@ void mpu9250_read (word, const byte*, address);
 
 extern byte mpu9250_status;
 
-void mpu9250_on (word, byte);
+void mpu9250_on (lword, byte);
 void mpu9250_off ();
 void mpu9250_wrega (byte, byte);
 void mpu9250_wregc (byte, byte);

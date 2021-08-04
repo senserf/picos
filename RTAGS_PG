@@ -5569,3 +5569,24 @@ PG201119A:
 PG210305A:
 
 	Overdue cosmetics, mostly in documentation.
+
+PG210804A:
+
+	Extended the mpu9250 driver to generate events on the internal clock to
+	facilitate continuous data acquisition at high rates. Done this for a
+	little project aiming at using the SENSORTAG as a reliable collector 
+	(streamer) of IMU data.
+
+	A few cleanups in the CC1350 RF driver + the matching cleanups in the
+	CC1100 driver (so things are kept in order).
+
+	The root FSM can now take an optional argument of type aword which can
+	tell it something about the startup. For CC1350 (and for now), if this
+	argument is nonzero, it means that the system is waking from shutdown
+	(aka hibernation). Thus, for example, when powered up (after inserting
+	the battery), the system can immediately hibernate, e.g., to be later
+	restarted on a button (like the SENSORTAG with one of the two buttons
+	acting as the on/off switch).
+
+	A few minor updates to the documentations.
+

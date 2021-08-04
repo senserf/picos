@@ -819,9 +819,8 @@ RRX:
 #endif
 	tcvphy_rcv (physid, rbuff, paylen);
 Rtn:
-#if RADIO_LBT_BACKOFF_RX
-	gbackoff (RADIO_LBT_BACKOFF_RX);
-#endif
+	gbackoff_rcv;
+
 	LEDI (2, 0);
 
 #ifdef	MONITOR_PIN_CC1100_RX
@@ -1015,20 +1014,11 @@ Bkf:
 		if (rerror [RERR_CONG] >= 0x0fff)
 				diag ("CC1100: LBT CNG");
 #endif
-
-#if RADIO_LBT_BACKOFF_EXP == 0
-		// Aggressive transmitter
-		delay (1, DR_LOOP);
-		set_congestion_indicator (1);
-		update_bckf_lbt (1);
-		release;
-#else
 		// Backoff
-		gbackoff (RADIO_LBT_BACKOFF_EXP);
+		gbackoff_lbt;
 		set_congestion_indicator (bckf_timer);
 		update_bckf_lbt (bckf_timer);
 		goto DR_LOOP__;
-#endif
 	} else {
 		// Channel access granted
 		set_congestion_indicator (0);
@@ -1127,9 +1117,7 @@ Bkf:
 #endif
 	LEDI (1, 0);
 
-#if RADIO_LBT_XMIT_SPACE
-	utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
-#endif
+	gbackoff_xmt;
 
 #ifdef	MONITOR_PIN_CC1100_TXS
 	_PVS (MONITOR_PIN_CC1100_TXS, 0);
@@ -1290,7 +1278,7 @@ OREvnt:
 		// Force an explicit backoff
 		if (val == NULL)
 			// Random backoff
-			gbackoff (RADIO_LBT_BACKOFF_EXP);
+			gbackoff_lbt;
 		else
 			utimer_set (bckf_timer, *val);
 		goto OREvnt;

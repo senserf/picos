@@ -103,27 +103,24 @@ byte	mpu9250_status = 0,
 
 // ============================================================================
 
-static void clrevent () {
-
-	_BIC (mpu9250_status, MPU9250_STATUS_EVENT);
-	// This is edge-triggered, so let's enable it first
-	mpu9250_enable;
-	// Should I read accel regs to clear, or should I assume that we are
-	// always called after read?
-}
-
-void mpu9250_on (word options, byte threshold) {
+void mpu9250_on (lword options, byte threshold) {
 //
 //	options:	 0 -  2		lpf
 //			 3 -  6		odr
 //			 7 - 10		which: A G C T
 //			11 - 12		arange
 //			13 - 14		grange
-//			15		lp motion detect (event) flag
+//			15 - 16		1 - motion detect, 2 - sync read
+//			17 - 23		reserved
+//			24 - 31		sampling rate
+//
+//      x x x x  x x x x  x x x x  x x x x  x x x x  x x x x  x x x x  x x x x
+//      ----------------  -------------- ---- --- ---- -------- -------- -----
+//	 sampling rate      unused       etp  rg   ra    comp      odr    lpf
 //
 //	For motion detect: 1000 0000 1010 1001 = 80A9, th = 32
 //
-	byte sensors, b, lpf;
+	byte sensors, etype, b, lpf;
 
 	if (mpu9250_status & 0x0f)
 		// The device is on, turn off first
@@ -148,8 +145,9 @@ void mpu9250_on (word options, byte threshold) {
 
 	// 1 = A, 2 = G, 4 = C, 8 = T
 	sensors = (options >> MPU9250_OPT_SH_SENSORS) & 0x0f;
-	if (sensors == 0 || (options & (1 << MPU9250_OPT_SH_MOTION_DETECT))) {
-		// Accel only, if lp motion detect selected
+	etype = (options >> MPU9250_OPT_SH_EVENT_TYPE) & 0x3;
+	if (sensors == 0 || etype != 0) {
+		// For event processing, select accel by default
 		sensors = 0x01;
 	}
 	// Disable what's not needed
@@ -171,7 +169,8 @@ void mpu9250_on (word options, byte threshold) {
 
 	// Interrupt + bypass configuration; motion detection ->
 	// latch + clear on read + bypass
-	b = (options & (1 << MPU9250_OPT_SH_MOTION_DETECT)) ? 0x30 : 0x00;
+	b = etype ? 0x30 : 0x00;
+
 	if (sensors & 4)
 		// Compass needed, bypass enable
 		b |= 0x02;
@@ -194,20 +193,30 @@ void mpu9250_on (word options, byte threshold) {
 		mpu9250_wregc (MPU9250_REG_AKM_CNTL, 0x11);
 	}
 
-	// Set the low pass filter; ACCEL_FCHOICE = 0 [~1]
-	mpu9250_wrega (MPU9250_REG_ACCEL_CONFIG2, 0x08 | lpf);
+	// Set the low pass filter; ACCEL_FCHOICE = 1 [~0]
+	// Fixed this (210630); ACCEL_FCHOICE was set to zero [~1 = 0x80] which
+	// disabled LPF setting for ACCEL
+	mpu9250_wrega (MPU9250_REG_ACCEL_CONFIG2, 0x00 | lpf);
 
-	if (options & (1 << MPU9250_OPT_SH_MOTION_DETECT)) {
-		// Accel hardware intelligence
+	// Set the sampling rate divider
+	mpu9250_wrega (MPU9250_REG_SMPLRT_DIV,
+		(byte)(options >> MPU9250_OPT_SH_RATE_DIVIDER));
+
+	if (etype == 1) {
+		// Motion detection, accel hardware intelligence
 		mpu9250_wrega (MPU9250_REG_MOT_DETECT_CTRL, 0xc0);
 		// Motion threshold
 		mpu9250_wrega (MPU9250_REG_WOM_THR, threshold);
-		// Interrupt enable
-		mpu9250_wrega (MPU9250_REG_INT_ENABLE, 0x40);
 		// The cycle bit
 		b = 0x20;
-	} else
+	} else 
 		b = 0x00;
+	
+	if (etype)
+		// Enable interrupts
+		mpu9250_wrega (MPU9250_REG_INT_ENABLE,
+			// Motion or data ready
+			etype == 1 ? 0x40 : 0x01);
 
 	// Frequency of wakeups
 	mpu9250_wrega (MPU9250_REG_LP_ACCEL_ODR,
@@ -216,11 +225,10 @@ void mpu9250_on (word options, byte threshold) {
 	if (sensors & 2)
 		// Clock from PLL, if gyro used
 		b |= 1;
+
 	mpu9250_wrega (MPU9250_REG_PWR_MGMT_1, b);
 
 	mpu9250_status |= sensors;
-
-	clrevent ();
 }
 
 void mpu9250_off () {
@@ -254,15 +262,26 @@ void mpu9250_read (word st, const byte *sen, address val) {
 	sint i;
 
 	if (val == NULL) {
-		// Issued to wait for an accelerometer event
+		// Issued to wait for an event
 		if (mpu9250_status & MPU9250_STATUS_EVENT) {
-			// Restart, the interrupt already disabled
-			sti;
+			// Event already pending
+Race:
+			_BIC (mpu9250_status, MPU9250_STATUS_EVENT);
 			proceed (st);
 		}
+		// Reset the interrupt condition
+		mpu9250_clear;
+		// Declare the FSM as waiting
 		when (&mpu9250_status, st);
 		_BIS (mpu9250_status, MPU9250_STATUS_WAIT);
-		sti;
+		// Enable interrupts
+		mpu9250_enable;
+		// Account for a race; this is impossible if enabling triggers
+		// an already pending interrupt
+		if (mpu9250_pending) {
+			mpu9250_disable;
+			goto Race;
+		}
 		release;
 	}
 
@@ -313,6 +332,5 @@ void mpu9250_read (word st, const byte *sen, address val) {
 		vap += 1;
 	}
 
-	if (mpu9250_status & MPU9250_STATUS_EVENT)
-		clrevent ();
+	_BIC (mpu9250_status, MPU9250_STATUS_EVENT);
 }

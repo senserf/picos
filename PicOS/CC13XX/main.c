@@ -1045,9 +1045,9 @@ void __pinlist_setirq (int val) {
 // ============================================================================
 // ============================================================================
 
-void system_init () {
+aword system_init () {
 
-	Boolean wfsd;		// Wakeup from shutdown
+	aword wfsd;		// Flags to pass to root
 
 	__pi_ondomain (PRCM_DOMAIN_PERIPH);
 
@@ -1072,10 +1072,10 @@ void system_init () {
 		// Waking from shutdown, should unfreeze I/O right after setting
 		// up the port config, so we can control the peripherals, and,
 		// e.g., blink the LEDs ;-)
-		wfsd = YES;
+		wfsd = 1;
 		PowerCtrlIOFreezeDisable ();
 	} else {
-		wfsd = NO;
+		wfsd = 0;
 	}
 
 #if	LEDS_DRIVER
@@ -1182,6 +1182,8 @@ void system_init () {
 	// Kick the auxiliary timer in case something is needed by the
 	// drivers
 	tci_run_auxiliary_timer ();
+
+	return wfsd;
 }
 
 // ============================================================================
@@ -1458,6 +1460,8 @@ __attribute__ ((noreturn)) void __pi_release () {
 
 int main (void) {
 
+	aword rflags;
+
 #if	STACK_GUARD
 	{
 		register sint i;
@@ -1465,7 +1469,7 @@ int main (void) {
 			*((((lword*)STACK_END) - 1) + i) = STACK_SENTINEL;
 	}
 #endif
-	system_init ();
+	rflags = system_init ();
 
 #if	TCV_PRESENT
 	tcv_init ();
@@ -1475,8 +1479,9 @@ int main (void) {
 	// Edge on any I/O
 	AONEventMcuWakeUpSet (AON_EVENT_MCU_EVENT1, AON_EVENT_IO);
 
-	// Assume root process identity
-	__pi_curr = (__pi_pcb_t*) fork (root, 0);
+	// Assume root process identity; pass root return from shutdown
+	// flag
+	__pi_curr = (__pi_pcb_t*) fork (root, rflags);
 	// Delay root startup for 16 msec to make sure that the drivers go
 	// first
 	delay (16, 0);

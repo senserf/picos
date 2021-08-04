@@ -33,7 +33,7 @@
 // to the sync word length (taken from the example)
 #define CORR_PERIOD_SYM_MARGIN		16
 
-// The parameters of the preamble check interval in us (for WOR).
+// The parameters of the preamble check interval in us for WOR.
 // I took it from the example, but it probably can be adjusted in principle.
 // This is what the example says:
 // ==============================
@@ -624,6 +624,8 @@ static void rx_ac () {
 	rfc_dataEntryGeneral_t *re;
 	int i;
 
+	// One hard prereq
+	rf_on ();
 	if (dstate & DSTATE_RXAC)
 		// Don't touch anything if RX is active. Note that in order to
 		// switch to WOR, the driver has to kill the RX first, if it
@@ -727,6 +729,7 @@ static int rx_int_enable () {
 				// Swap RSS and status, actually move RSS one
 				// byte up and zero the status (for now); RSS
 				// is unbiased to nonnegative (as per usual)
+				add_entropy (__dp [pl]);
 				__dp [pl + 1] = __dp [pl] + 128;
 				__dp [pl] = 0;
 				nr++;
@@ -764,11 +767,9 @@ static int rx_int_enable () {
 	}
 #endif
 
-#if RADIO_LBT_BACKOFF_RX
 	if (nr) {
-		gbackoff (RADIO_LBT_BACKOFF_RX);
+		gbackoff_rcv;
 	}
-#endif
 
 	LEDI (2, 0);
 	// State OK
@@ -835,7 +836,7 @@ thread (cc1350_driver)
 		// WORN = we want WOR to be on (same)
 		// WORS = WOR is suspended (with WORN, implies !WORA)
 		// RFON = the device is on
-		// RXAC	= RX active (inlcuding WOR)
+		// RXAC	= RX active (including WOR)
 		// WORA = WOR active (with RXAC), implies !WORS
 		// IRST = reset requested
 		// TXIP = packet being transmitted
@@ -863,7 +864,6 @@ DR_LOOP__:
 				// RX must be activated, rx_ac looks at the
 				// WOR options
 RxOn:
-				rf_on ();
 				rx_ac ();
 				if (dstate & DSTATE_WORA) {
 					// Apply a settling delay, the sniff
@@ -896,16 +896,12 @@ WorOn:
 #else	/* NO WOR */
 			if ((dstate & DSTATE_RXAC) == 0) {
 				// Without WOR, we just care about the RX state
-				rf_on ();
 				rx_ac ();
 			}
 #endif	/* WOR / NO WOR */
 		} else {
-			// RX is meant to be off ...
-			if (dstate & DSTATE_RXAC)
-				// ... but it happens to be active (including
-				// WOR), so just kill it
-				rx_de ();
+			// RX is meant to be off, make sure it is
+			rx_de ();
 		}
 
 		// We have gotten the state right, see if there is a packet
@@ -928,14 +924,14 @@ WorOn:
 					// Insert NetId
 					((address)the_packet) [0] = statid;
 
-				// Plug it into the command right away
+				// Plug it into the command
 				the_packet_length = (byte) paylen;
 			}
 		}
 
 		if (paylen == 0) {
 			// If paylen is still zero, there is nothing to
-			// transmit
+			// transmit at the moment
 			wait (qevent, DR_LOOP);
 			if (dstate & DSTATE_RXAC) {
 				// Try to receive; this also covers the
@@ -1008,7 +1004,7 @@ WorOn:
 
 		// Here we transmit a regular packet. Note that we ignore
 		// backoff (and LBT) for a WOR wakeup packet, which makes
-		// sense considering how much damage it is ging to do, anyway
+		// sense considering how much damage it is going to do
 
 		if (bckf_timer) {
 			// Backoff wait
@@ -1018,8 +1014,8 @@ Bkf:
 			wait (qevent, DR_LOOP);
 			delay (bckf_timer, DR_LOOP);
 			if (dstate & DSTATE_RXAC) {
-				// Don't forget about receiving packets while
-				// sitting on your hands
+				// Don't forget about receiving packets instead
+				// of sitting on your hands
 				if (rx_int_enable ())
 					goto DR_LOOP__;
 			}
@@ -1093,23 +1089,12 @@ Bkf:
 			if (txtries >= RADIO_LBT_MAX_TRIES)
 				// Forced TX, no CS
 				proceed (DR_FRCE);
-#if RADIO_LBT_MAX_TRIES < 255
 			txtries++;
-#endif
 			// Backoff
 			// diag ("BUSY");
-#if RADIO_LBT_BACKOFF_EXP == 0
-			// Unlock the packet
-			_BIC (dstate, DSTATE_TXIP);
-			delay (1, DR_LOOP);
-			update_bckf_lbt (1);
-			release;
-#else
-			gbackoff (RADIO_LBT_BACKOFF_EXP);
+			gbackoff_lbt;
 			update_bckf_lbt (bckf_timer);
-			// Will also unlock the packet
 			goto DR_LOOP__;
-#endif
 		}
 TXEnd:
 		// Release the packet
@@ -1128,13 +1113,10 @@ TXEnd:
 TXFin:
 #endif
 		LEDI (1, 0);
-
-#if RADIO_LBT_XMIT_SPACE
-		utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
-		// If we don't care to space (don't we?), then perhaps we
+		gbackoff_xmt;
+		// If we don't care to delay after xmt, then perhaps we
 		// should send whatever pending packets we have in the queue
 		// without restarting the receiver
-#endif
 		goto DR_LOOP__;
 
 	entry (DR_FRCE)
@@ -1205,13 +1187,7 @@ TXFin:
 TXFin:
 #endif
 		LEDI (1, 0);
-
-#if RADIO_LBT_XMIT_SPACE
-		utimer_set (bckf_timer, RADIO_LBT_XMIT_SPACE);
-		// If we don't care to space (don't we?), then perhaps we
-		// should send whatever pending packets we have in the queue
-		// without restarting the receiver
-#endif
+		gbackoff_xmt;
 		goto DR_LOOP__;
 
 #endif	/* RADIO_LBT_SENSE_TIME */
@@ -1446,8 +1422,8 @@ OREvnt:
 		case PHYSOPT_CAV:
 
 			if (val == NULL)
-				// Random backoff
-				gbackoff (RADIO_LBT_BACKOFF_EXP);
+				// Random LBT backoff
+				gbackoff_lbt;
 			else
 				utimer_set (bckf_timer, *val);
 
@@ -1653,4 +1629,10 @@ void phys_cc1350 (int phy, int mbs) {
 //
 // Check if using RF memory allows us to lower the power budget. This is tricky
 // because we have to circumvent the patch area.
+//
+//
+// How can we prevent interrupting reception in progress by a transmission?
+// We can have reception with a timeout while waiting for sync, which should do
+// for synchronized acks (and stuff like that). I don't think we can detect
+// reception and postpone transmission any other way.
 //

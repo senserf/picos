@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-#	Copyright 2002-2020 (C) Olsonet Communications Corporation
+#	Copyright 2002-2021 (C) Olsonet Communications Corporation
 #	Programmed by Pawel Gburzynski & Wlodek Olesinski
 #	All rights reserved
 #
@@ -11,7 +11,7 @@
 exec tclsh "$0" "$@"
 
 
-set Version 0.33
+set Version 0.50
 
 ## Directory names to be ignored in the project's directory:
 ## strict names, patterns (case ignored)
@@ -5977,7 +5977,7 @@ K {
 
     ####
 
-    if { $TK == "running" || $TK == "crunning" } {
+    if { $TK == "running" || $TK == "crunning" || $TK == "killall" } {
 
       # intercept crunning and convert its constant argument to the process
       # id
@@ -6007,8 +6007,8 @@ K {
 	}
 	set arg "&zz_$arg[pnfx]_prcs"
       } else {
-	if { $d == "running" } {
-	  xerror "the argument of running must be an FSM name"
+	if { $d != "crunning" } {
+	  xerror "the argument of running or killall must be an FSM name"
 	  continue
 	}
 	if { [catch { expr $arg } arg] || $arg != 0 } {
@@ -6022,12 +6022,13 @@ K {
 
       # replace with a call to internal function
       truncate $run_mark
-      putS "__pi_crunning ($arg)"
+      putS "__pi_$d ($arg)"
 
       continue
     }
 
-    if { $TK == "__pi_running" || $TK == "__pi_crunning" } {
+    if { $TK == "__pi_running" || $TK == "__pi_crunning" ||
+ 	 $TK == "__pi_killall" } {
 
       # this one is a temporary fix for compatibility with the present mess of
       # co-existing manually tweaked VUEE-compliant praxes; until we get rid
@@ -6083,8 +6084,8 @@ K {
       }
 
       if { $nam == "0" } {
-	if { $d == "running" } {
-	  xerror "the argument of running cannot be zero or NULL"
+	if { $d == "running" || $d == "killall" } {
+	  xerror "the argument of running or killall cannot be zero or NULL"
 	  continue
 	}
       } else {
@@ -6651,7 +6652,7 @@ proc parse_def_arg { a } {
 
 		# defines
 
-		if [regexp "^(\[a-zA-Z0-9\]+)\\+" $a mat pn] {
+		if [regexp "^(\[a-zA-Z0-9\]*)\\+" $a mat pn] {
 			set pgm $pn
 			set a [string range $a [string length $mat] end]
 		}
@@ -6682,7 +6683,7 @@ proc parse_def_arg { a } {
 
 		# extra includes
 
-		if [regexp "^(\[a-zA-Z0-9\]+)\\+" $a mat pn] {
+		if [regexp "^(\[a-zA-Z0-9\]*)\\+" $a mat pn] {
 			set pgm $pn
 			set a [string range $a [string length $mat] end]
 		}
@@ -6713,66 +6714,114 @@ proc parse_def_arg { a } {
 	return 0
 }
 
-foreach arg $argv {
+proc doargs { } {
 
-	incr an
+	global argv FG DF
 
-	if { $arg == "-p" } {
-		set FG(V) 0
-	} elseif { $arg == "-v" } {
-		set FG(V) 1
-	} elseif { $arg == "-V" } {
-		set FG(Q) 1
-	} elseif { $arg == "-n" } {
-		set FG(C) 0
-	} elseif { $arg == "-G" } {
-		set FG(D) 1
-	} elseif { $arg == "-A" } {
-		set FG(A) 1
-	} elseif { $arg == "-e" } {
-		set FG(E) 1
-	} elseif { $arg == "-i" } {
-		set FG(I) 1
-	} elseif { $arg == "-3" || $arg == "-3d" } {
-		set FG(3) 1
-	} elseif { $arg == "--" } {
-		# arguments for the vuee compiler
-		if !$FG(V) {
-			errab "-- ... illegal with PicOS mode (-p)"
+	set args $argv
+
+	while { $args != "" } {
+
+		set arg [lindex $args 0]
+		set args [lrange $args 1 end]
+
+		if { $arg == "-p" } {
+			set FG(V) 0
+		} elseif { $arg == "-v" } {
+			set FG(V) 1
+		} elseif { $arg == "-V" } {
+			set FG(Q) 1
+		} elseif { $arg == "-n" } {
+			set FG(C) 0
+		} elseif { $arg == "-G" } {
+			set FG(D) 1
+			# check for file name
+			set fn [lindex $args 0]
+			if { $fn != "" && [string index $fn 0] != "-" } {
+				# assume this is the file name
+				set FG(D,F) $fn
+				set args [lrange $args 1 end]
+			} else {
+				set FG(D,F) ""
+			}
+		} elseif { $arg == "-A" } {
+			set FG(A) 1
+		} elseif { $arg == "-e" } {
+			set FG(E) 1
+		} elseif { $arg == "-i" } {
+			set FG(I) 1
+		} elseif { $arg == "-3" || $arg == "-3d" } {
+			set FG(3) 1
+		} elseif { $arg == "--" } {
+			# arguments for the vuee compiler
+			if !$FG(V) {
+				errab "-- ... illegal with PicOS mode (-p)"
+			}
+			set FG(VA) $args
+			break
+		} elseif [parse_def_arg $arg] {
+			usage
 		}
-		set FG(VA) [lrange $argv $an end]
-		break
-	} elseif [parse_def_arg $arg] {
-		usage
+	}
+
+	if { $FG(E) && !$FG(V) } {
+		errab "-e illegal with PicOS mode (-p)"
+	}
+
+	if { [array names DF] != "" && !$FG(V) } {
+		errab "-D... illegal with PicOS mode (-p)"
+	}
+
+	if $FG(3) {
+		if !$FG(V) {
+			errab "-3 illegal with PicOS mode (-p)"
+		}
+		lappend FG(VA) "-3"
 	}
 }
 
-if { $FG(E) && !$FG(V) } {
-	errab "-e illegal with PicOS mode (-p)"
-}
-
-if { [array names DF] != "" && !$FG(V) } {
-	errab "-D... illegal with PicOS mode (-p)"
-}
-
-if $FG(3) {
-	if !$FG(V) {
-		errab "-3 illegal with PicOS mode (-p)"
-	}
-	lappend FG(VA) "-3"
-}
+doargs
 
 o_initialize
 
 set ErrCnt 0
 
-proc dbg { m } { }
+# set up debugging
+
+if $FG(D) {
+
+	if { $FG(D,F) != "" } {
+
+		if [catch { open $FG(D,F) "w" } fd] {
+			arrab "cannot open debug file $FG(D,F), $fd"
+		}
+
+		set FG(D,F) $fd
+		unset fd
+
+	} else {
+
+		# stdout
+
+		if { $FG(V) || $FG(Q) } {
+			set FG(D,F) "stdout"
+		} else {
+			# cannot use stdout because we filter
+			set FG(D,F) "stderr"
+		}
+	}
+
+	proc dbg { m } {
+		global FG
+		puts $FG(D,F) $m
+	}
+
+} else {
+
+	proc dbg { m } { }
+}
 
 if { $FG(V) || $FG(Q) } {
-
-	if $FG(D) {
-		proc dbg { m } { puts $m }
-	}
 
 	puts "PiComp version $Version (ZZ000000A)"
 

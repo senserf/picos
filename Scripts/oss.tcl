@@ -2174,20 +2174,21 @@ proc process_struct { struct } {
 
 		if { $tp == "blob" } {
 			if $blof {
-				error "you cannot have more than one blob"
+				error "you cannot have more than one \
+						blob attribute"
 			}
 			set blof 1
 		} else {
 			if $blof {
-				error "a blob can only occur as the last\
-					attribute"
+				error "a blob attribute can only occur\
+					as the last one within the structure"
 			}
 		}
 
 		# size
 		set tis [lindex $OSST($tp) 0]
 
-		while { $tis > 1 && [expr $len % $tis] } {
+		while { $tis > 1 && [expr { $len % $tis }] } {
 			# alignment
 			incr len
 		}

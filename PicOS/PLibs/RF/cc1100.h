@@ -9,9 +9,6 @@
 #ifndef	__pg_cc1100_h
 #define	__pg_cc1100_h	1
 
-#include "kernel.h"
-#include "cc1100_sys.h"
-#include "rfleds.h"
 
 // ============================================================================
 
@@ -34,11 +31,11 @@
 
 // ============================================================================
 
+#ifndef __SMURPH__
 
-
-
-
-
+#include "kernel.h"
+#include "cc1100_sys.h"
+#include "rfleds.h"
 
 /*
  * CRC calculation mode
@@ -86,23 +83,47 @@
 #define	RADIO_LBT_MIN_BACKOFF	2
 #endif
 
-// If this is zero, we have an "aggressive" transmitter (it tries to grab the
-// channel at 1 msec intervals); generally not recommended
-#ifndef	RADIO_LBT_BACKOFF_EXP
-#define	RADIO_LBT_BACKOFF_EXP	6
+#ifndef	RADIO_LBT_MAX_BACKOFF
+#ifdef	RADIO_LBT_BACKOFF_EXP
+// The legacy style
+#define	RADIO_LBT_MAX_NBACKOFF	(RADIO_LBT_MIN_BACKOFF + \
+					(1 << RADIO_LBT_BACKOFF_EXP) - 1)
+#endif
 #endif
 
-// If BACKOFF_RX is nonzero, then there is a backoff after packet reception
-// amounting to MIN_BACKOFF + random [0 ... 2^BACKOFF_RX - 1]
-#ifndef	RADIO_LBT_BACKOFF_RX
-#define	RADIO_LBT_BACKOFF_RX	3
+#ifndef	RADIO_LBT_MAX_BACKOFF
+#define	RADIO_LBT_MAX_BACKOFF	32
 #endif
 
-// Fixed minimum space (in milliseconds) between two consecutively transmitted
-// packets
-#ifndef	RADIO_LBT_XMIT_SPACE
-#define	RADIO_LBT_XMIT_SPACE	2
+#ifndef	RADIO_RCV_MIN_BACKOFF
+#define	RADIO_RCV_MIN_BACKOFF	2
 #endif
+
+#ifndef	RADIO_RCV_MAX_BACKOFF
+#define	RADIO_RCV_MAX_BACKOFF	2
+#endif
+
+#ifndef	RADIO_XMT_MIN_BACKOFF
+#ifdef	RADIO_LBT_XMIT_SPACE
+// Legacy
+#define	RADIO_XMT_MIN_BACKOFF	RADIO_LBT_XMIT_SPACE
+#define	RADIO_XMT_MAX_BACKOFF	RADIO_LBT_XMIT_SPACE
+#endif
+#endif
+
+// This should be preferably zero. No need to waste bandwidth for nothing, if
+// the application doesn't care.
+#ifndef	RADIO_XMT_MIN_BACKOFF
+#define	RADIO_XMT_MIN_BACKOFF	0
+#endif
+
+#ifndef	RADIO_XMT_MAX_BACKOFF
+#define	RADIO_XMT_MAX_BACKOFF	0
+#endif
+
+#define	gbackoff_lbt	gbackoff (RADIO_LBT_MIN_BACKOFF, RADIO_LBT_MAX_BACKOFF)
+#define	gbackoff_rcv	gbackoff (RADIO_RCV_MIN_BACKOFF, RADIO_RCV_MAX_BACKOFF)
+#define	gbackoff_xmt	gbackoff (RADIO_XMT_MIN_BACKOFF, RADIO_XMT_MAX_BACKOFF)
 
 //
 // LBT modes:
@@ -166,8 +187,6 @@
 #ifndef	RADIO_BITRATE_SETTABLE
 #define	RADIO_BITRATE_SETTABLE	0
 #endif
-
-#define	RADIO_N_CHANNELS	256
 
 #ifndef RADIO_DEFAULT_CHANNEL
 #define	RADIO_DEFAULT_CHANNEL	0
@@ -922,15 +941,36 @@ typedef struct {
 
 #endif
 
-#define	gbackoff(e)	do { \
-				if (e) \
-					utimer_set (bckf_timer, \
-						RADIO_LBT_MIN_BACKOFF + \
-						(rnd () & ((1 << (e)) - 1))); \
-				else \
-					utimer_set (bckf_timer, 0); \
-			} while (0)
+// The conditions will compile out as the actual arguments to gbackoff are
+// always constants. If there's no interval, set the timer to the fixed (min)
+// value, unless it is zero (in which case do nothing). Otherwise (an
+// interval), generate a random number between min and max.
+#define	gbackoff(min,max)  do { \
+			     if ((max) <= (min)) { \
+				if (min) \
+				  utimer_set (bckf_timer, min); \
+			     } else { \
+				utimer_set (bckf_timer, (min) + \
+		     		  (((lword)((max)-(min)+1) * rnd ()) >> 16)); \
+			     } \
+			   } while (0)
 
 extern word		__cc1100_v_drvprcs, __cc1100_v_qevent;
+
+#endif /* SMURPH: end stuff NOT needed by VUEE */
+
+//
+// Useful for VUEE, will be adding more
+//
+
+#define	RADIO_N_CHANNELS	256
+
+#if (RADIO_OPTIONS & RADIO_OPTION_PXOPTIONS)
+// PXOPTIONS access
+#define	set_pxopts(pkt,cav,lbt,pwr) 	do { \
+	((address)(pkt)) [(tcv_tlength ((address)(pkt)) >> 1) - 1] = \
+	((lbt) ? 0x0000 : 0x8000) | ((pwr) << 12) | (cav); } while (0)
+#endif
+
 
 #endif

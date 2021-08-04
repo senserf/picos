@@ -1,0 +1,47 @@
+<node>
+    <memory>19968 bytes</memory>
+    <radio>
+    	<power>7</power>
+	<rate>3</rate>
+	<!-- The preamble does not cover the SYNC word -->
+    	<preamble>32 bits</preamble>
+    	<lbt>
+		delay			1msec
+		threshold		-58.0dBm 
+		tries			4
+    	</lbt>
+    	<backoff>
+		min			1msec
+		span			63msec
+    	</backoff>
+    </radio>
+    <leds number="2">
+    	<output target="socket"></output>
+	<color on="red" off="black"/>
+	<color on="green" off="black"/>
+    </leds>
+    <uart rate="115200" bsize="12">
+	<input source="socket"></input>
+	<output target="socket"></output>
+    </uart>
+    <eeprom size="1048576" clean="0xFF"
+	timing="0.000004,0.000006,
+		0.000004,0.000034,
+		0.000060,0.000070,
+		0.000005,0.040000"></eeprom>
+    <iflash size="256,2"></iflash>
+    <sensors>
+    	<input source="socket"></input>
+	<output target="socket"></output>
+	<!-- temperature -->
+	<sensor number="-2" vsize="2" delay="0.001" init="21">100</sensor>
+	<!-- battery volt * 256 -->
+	<sensor number="-1" vsize="2" delay="0.001" init="793">1000</sensor>
+    </sensors>
+    <ptracker>
+	<output target="socket"/>
+	<module id="cpu">1.9 0.002</module>
+	<module id="radio">0.0004 5.4 13.4 13.4</module>
+	<module id="storage">0.0 0.040 4.0 4.0 4.0 4.0</module>
+    </ptracker>
+</node>

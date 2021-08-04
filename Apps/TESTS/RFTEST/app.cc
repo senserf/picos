@@ -9,10 +9,8 @@
 
 #include "sysio.h"
 #include "tcvphys.h"
-#ifndef __SMURPH__
-#include RF_INCLUDE_SYS
-#endif
 #include RF_INCLUDE_PHY
+#include RF_INCLUDE_SYS
 #include "plug_null.h"
 #include "hold.h"
 

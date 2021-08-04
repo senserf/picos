@@ -1,1 +1,1 @@
-{MOD ELF} {TFN Image_nnnn.out} {CNT 2} {FRM 10} {IFN Image.out} {SRD C:/cygwin64/home/nripg/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {PFX 8700} {IDA BACADEAF} {TRD C:/cygwin64/home/nripg/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {APV {}} {IDN BACADEAD}
+{MOD ELF} {TFN Image_nnnn.out} {CNT 2} {FRM 1} {IFN Image.out} {SRD /cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {PFX 8700} {IDA BACADEAF} {TRD /cygdrive/c/Users/nripg/OneDrive/STORAGE/SOFTWARE/PICOS/Apps/TESTS/RFTEST/C:/cygwin64/home/nripg/SOFTWARE/PICOS/Apps/TESTS/RFTEST} {APV {}} {IDN BACADEAD}
