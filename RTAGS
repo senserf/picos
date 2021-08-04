@@ -950,3 +950,8 @@ PG201119A:
 
 	Added a shortcut to redo genimage for the previous settings without
 	having to go through the clicks.
+
+PG210804A:
+
+	The Options window (in the Configuration menu) now includes a Notes
+	pane where you can enter notes and comments (e.g., things to remember).

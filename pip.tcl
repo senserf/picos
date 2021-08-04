@@ -7,12 +7,12 @@
 #	This file is part of the PICOS platform
 #
 ########\
-exec tclsh86 C:/cygwin64/home/nripg/bin/pip "$@"
+exec tclsh "$0" "$@"
 
 package require Tk
 package require Ttk
 
-set ST(VER) 1.03
+set ST(VER) 1.04
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -210,7 +210,8 @@ set CFOptItems [list \
 		 "OPTGDBCMND" $DefDTerm \
 		 "OPTERMLINES" 1000 \
 		 "OPSYSFILES" 1 \
-		 "OPVUEEFILES" 0]
+		 "OPVUEEFILES" 0 \
+		 "OPCOMMENT" ""]
 
 set CFOptSFModes { "Never" "Tags, R/O" "Always, R/O" "Always, R/W" }
 
@@ -6756,6 +6757,8 @@ proc do_options { } {
 			set P(M0,OPTERMLINES) $n
 			set TermLines $n
 
+			set P(M0,OPCOMMENT) [$P(M0,ct) get 1.0 end]
+
 			foreach u { "sf" "vf" } \
 			    z { "OPSYSFILES" "OPVUEEFILES" } {
 				set n [lsearch $CFOptSFModes $P(M0,$u)]
@@ -6783,6 +6786,7 @@ proc do_options { } {
 			} else {
 				set z 0
 			}
+
 			dialog_to_params $CFOptItems
 			md_stop
 			set_config
@@ -6817,7 +6821,7 @@ proc mk_options_conf_window { } {
 	##
 	set f $w.tf
 	frame $f
-	pack $f -side top -expand y -fill x
+	pack $f -side top -expand n -fill x
 
 	set row 0
 
@@ -6875,6 +6879,20 @@ proc mk_options_conf_window { } {
 	}
 
 	grid columnconfigure $f 1 -weight 1
+
+	##
+	set f $w.cf
+	ttk::labelframe $f -text Notes
+	pack $f -side top -expand y -fill both
+	set t $f.t
+	text $t
+	$t configure -font $FFont -exportselection 1 -state normal -height 4 \
+		-wrap word
+	pack $t -side top -expand y -fill both
+
+	$t delete 1.0 end
+	$t insert end $P(M0,OPCOMMENT)
+	set P(M0,ct) $t
 
 	##
 	set f $w.bf
@@ -10428,7 +10446,6 @@ proc do_make_vuee { { arg "" } } {
 
 	set ea [dict get $P(CO) "EBRG"]
 	if { $ea != "" } {
-		lappend arg "--"
 		foreach aa [split $ea] {
 			lappend arg $aa
 		}
