@@ -2622,6 +2622,14 @@ void PINS::buttons_action (void (*act)(word)) {
 	reset_buttons ();
 	ButtonsAction = act;
 }
+
+Boolean PINS::button_down (word but) {
+
+	if (but >= NButs)
+		syserror (EREQPAR, "buttons range");
+
+	return Buts [but] -> pinon ();
+}
 			
 void PINS::pin_new_value (word pin, word val) {
 

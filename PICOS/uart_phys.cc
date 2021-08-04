@@ -838,6 +838,9 @@ __PUBLF (PicOSNode, void, phys_uart) (int phy, int mbs, int which) {
 
 	IMode = uart->IMode;
 
+	assert (IMode != UART_IMODE_D,
+		"PicOSNode->phys_uart: llegal for a direct mode UART");
+
 	UA = UART_INTF_P (uart);
 
 	if (UA->r_buffer != NULL)

@@ -389,4 +389,8 @@ void __pi_dbg (int, word);
 #define	AB_MODE_PASSIVE	1
 #define	AB_MODE_ACTIVE	2
 
+#define	_BIS(a,b)	(a) |= (b)
+#define	_BIC(a,b)	(a) &= ~(b)
+#define	_BIX(a,b)	(a) ^= (b)
+
 #endif

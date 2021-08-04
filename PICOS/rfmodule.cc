@@ -307,8 +307,6 @@ Bkf:
 #endif
 
 	if (*ppm & 0x8000)
-		// This is ineffective when lbtries == 0
-		// ntry = lbtries;
 		goto Force;	// What an ugly jump!
 #endif
 

@@ -1415,3 +1415,12 @@ PG201004A:
 
     Added a standard copyright notice in front of every source file. A few
     updates to the documentation.
+
+PG210804A:	PICOS >= PG210804A
+
+    Button interface (the button_down function was missing). A few other minor
+    cleanups.
+
+    Made the RF headers in PicOS usable by VUEE.
+
+    Irrelevant cosmetics.

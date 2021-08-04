@@ -566,6 +566,11 @@ station PicOSNode abstract {
 		pins->buttons_action (act);
 	};
 
+	inline Boolean _da (button_down) (word but) {
+		if (pins == NULL)
+			no_pin_module ("button_down");
+		return pins->button_down (but);
+	};
 
 	inline word  _da (pin_read) (word pn) {
 		if (pins == NULL)

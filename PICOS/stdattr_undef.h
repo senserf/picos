@@ -45,6 +45,7 @@
 #undef ser_outf
 #undef ser_inf
 #undef buttons_action
+#undef button_down
 #undef pin_read
 #undef pin_write
 #undef pin_read_adc

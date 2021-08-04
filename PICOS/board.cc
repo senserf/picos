@@ -779,19 +779,19 @@ void PicOSNode::memFree (address p) {
 	excptn ("PicOSNode->memFree: chunk %x not found", p);
 }
 
+#if SIZE_OF_AWORD == 2
+// This is supposed to be in awords, if I remember correctly. What a mess!!!
+#define	__ret_memsize(a)	((a) << 1)
+#else
+#define	__ret_memsize(a)	(a)
+#endif
+
 word _dad (PicOSNode, memfree) (int pool, word *res) {
 
 	if (res != NULL)
-		*res = NFree << 1;
+		*res = __ret_memsize (NFree);
 
-	// This is supposed to be in awords, if I remember correctly. What
-	// a mess!!!
-
-#if SIZE_OF_AWORD == 2
-	return MFree << 1;
-#else
-	return MFree;
-#endif
+	return __ret_memsize (MFree);
 }
 
 word _dad (PicOSNode, maxfree) (int pool, word *res) {
@@ -801,11 +801,7 @@ word _dad (PicOSNode, maxfree) (int pool, word *res) {
 	if (res != NULL)
 		*res = 1;
 
-#if SIZE_OF_AWORD == 2
-	return MFree << 1;
-#else
-	return MFree;
-#endif
+	return __ret_memsize (MFree);
 }
 
 word _dad (PicOSNode, actsize) (address p) {

@@ -38,6 +38,7 @@
 #define	host_id		(  ((PicOSNode*)TheStation)->__host_id ()  )
 #define	reset()		(  ((PicOSNode*)TheStation)->_na_reset ()  )
 #define	halt()		(  ((PicOSNode*)TheStation)->_na_halt ()  )
+#define	hibernate()	halt ()
 #define	actsize(a)	(  ((PicOSNode*)TheStation)->_na_actsize (a)  )
 #define	memfree(a,b)	(  ((PicOSNode*)TheStation)->_na_memfree (a,b)  )
 #define	maxfree(a,b)	(  ((PicOSNode*)TheStation)->_na_maxfree (a,b)  )
@@ -73,6 +74,7 @@
 
 #define buttons_action(a) \
 			(  ((PicOSNode*)TheStation)->_na_buttons_action (a)  )
+#define button_down(a)  (  ((PicOSNode*)TheStation)->_na_button_down (a)  )
 #define pin_read(a)	(  ((PicOSNode*)TheStation)->_na_pin_read (a)  )
 #define pin_write(a,b)	(  ((PicOSNode*)TheStation)->_na_pin_write (a,b)  )
 #define pin_read_adc(a,b,c,d) \

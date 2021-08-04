@@ -707,6 +707,7 @@ class PINS {
 	~PINS ();
 
 	void buttons_action (void (*)(word));
+	Boolean button_down (word);
 	word pin_read (word);
 	int pin_write (word, word);
 	int pin_read_adc (word, word, word, word);

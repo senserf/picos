@@ -32,6 +32,8 @@ ln -s ../../PICOS/PicOS/PLibs/LCD/lcdg_n6100p.c lcdg_n6100p.cc
 ln -s ../../PICOS/PicOS/PLibs/Misc/encrypt.h .
 ln -s ../../PICOS/PicOS/PLibs/Misc/encrypt.c encrypt.cc
 ln -s ../../PICOS/PicOS/PLibs/Misc/checksum.c checksum.cc
+ln -s ../../PICOS/PicOS/PLibs/RF/cc1100.h .
+ln -s ../../PICOS/PicOS/CC13XX/cc1350.h .
 ####################################### for completeness (PicOS side)
 ln -s board.h form.h
 ln -s board.h ser.h
@@ -50,6 +52,4 @@ ln -s board.h rtc_cc430.h
 ln -s board.h sensors.h
 ln -s board.h actuators.h
 ln -s board.h hold.h
-ln -s board.h cc1100.h
-ln -s board.h cc1350.h
 ln -s board.h cc2420.h
