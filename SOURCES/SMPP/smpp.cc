@@ -309,7 +309,7 @@ static INLINE int hash (const char *s) {
 /* Calculates the hash code of a symbol/keyword */
 /* -------------------------------------------- */
 
-	register int    res;
+	int    res;
 
 	res = *s++;
 	if (*s == '\0') return (res & (HASHTS-1));
@@ -458,8 +458,8 @@ INLINE KFUNC getKey (char *s) {
 /* Gets the function for processing the key */
 /* ---------------------------------------- */
 
-	register int     h;
-	register KeyDesc *ck;
+	int     h;
+	KeyDesc *ck;
 
 	ck = KeyTab [h = hash (s)];
 	for (; ck != NULL; ck = ck->next)
@@ -2761,7 +2761,7 @@ Synerror:
 	if (lc == '{') {
 		BraceLevel++;
 		if (par [0] == '\0') goto Synerror;
-		putC ("{ register ");
+		putC ("{ ");
 		putC (typ);
 		putC (" *");
 		putC (par);
@@ -2825,7 +2825,7 @@ Synerror:
 	if (lc == '{') {
 		BraceLevel++;
 		if (par [0] == '\0') goto Synerror;
-		putC ("{ register ");
+		putC ("{ ");
 		putC (typ);
 		putC (" *");
 		putC (par);
@@ -2889,7 +2889,7 @@ Synerror:
 	if (lc == '{') {
 		BraceLevel++;
 		if (par [0] == '\0') goto Synerror;
-		putC ("{ register ");
+		putC ("{ ");
 		putC (typ);
 		putC (" *");
 		putC (par);
@@ -2961,7 +2961,7 @@ Synerror:
 	if (lc == '{') {
 		BraceLevel++;
 		if (par [0] == '\0') goto Synerror;
-		putC ("{ register ");
+		putC ("{ ");
 		putC (typ);
 		putC (" *");
 		putC (par);
@@ -3800,7 +3800,7 @@ void emitBuilder (SymDesc *co) {
 		putC (co->Name);
 		putC (" (");
 		if (nn) putC ("char *nn = 0");
-		putC (") { register ");
+		putC (") { ");
 		putC (co->Name);
 		putC (" *p; zz_COBJ [++zz_clv] = (void*) (p = new ");
 		putC (co->Name);
@@ -4371,7 +4371,7 @@ Setserr:
 
 		    if (del != '{') goto Setserr;
 		    BraceLevel++;
-		    putC ("{ register ");
+		    putC ("{ ");
 		    putC ((char*)(ob->States));
 		    putC (" *");
 		    putC (pfm);
@@ -4425,7 +4425,7 @@ SetMQU:
 
 		    if (del != '{') goto SetMQU;
 		    BraceLevel++;
-		    putC ("{ register ");
+		    putC ("{ ");
 		    putC (ob->States [0]);
 		    putC (" *");
 		    putC (pfm);
@@ -4480,7 +4480,7 @@ SetPFF:
 
 		    if (del != '{') goto SetPFF;
 		    BraceLevel++;
-		    putC ("{ register ");
+		    putC ("{ ");
 		    putC (ob->States [1]);
 		    putC (" *");
 		    putC (pfm);

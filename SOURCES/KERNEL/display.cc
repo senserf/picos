@@ -337,7 +337,7 @@ inline  static  int     getDescriptor () {
 /* --------------------------------------------------- */
 /* Gets one numeric descriptor from the input sequence */
 /* --------------------------------------------------- */
-  register int    rslt;
+  int    rslt;
   if (dscrhalf) {
     // Take the second half
     dscrhalf = NO;

@@ -38,7 +38,7 @@ int             zz_setjmp_done = NO;	// Flag == longjmp legal
 #if     ZZ_ATT
 #define smatch(a,b)     (!strcmp (a, b))
 #else
-static  inline  int     smatch (register char *s1, register char *s2) {
+static  inline  int     smatch (char *s1, char *s2) {
 
 /* ------------------------- */
 /* A local version of strcmp */
@@ -798,7 +798,7 @@ int main (int argc, char *argv []) {
 #if  ZZ_TAG
 	int qq;
 #endif
-	register     ZZ_REQUEST    *cp, *cq;
+	ZZ_REQUEST    *cp, *cq;
 
 #if  ZZ_REA
         mark_real_time ();
@@ -1687,10 +1687,10 @@ TIME    tRndTolerance   (TIME a, TIME b, int q) {
 #if	ZZ_NFP
 	zz_nfp ("tRndTolerance");
 #else
-	double                  y;
-	register        double  p;
-	register        int     i;
-	TIME                    r;
+	double  y;
+	double  p;
+	int     i;
+	TIME    r;
 
 	assert (q > 0, "tRndTolerance: q (%1d) must be > 0", q);
 	for (p = 1.0, i = 1; i <= q; i++, p *= 1.0 - rnd (SEED_delay));

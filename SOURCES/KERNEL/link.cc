@@ -58,7 +58,7 @@ ZZ_LINK_ACTIVITY *zz_gen_activity (int lrid, Port *gport, int type, Packet *p) {
 /* A special contructor for link activities */
 /* ---------------------------------------- */
 
-	register ZZ_LINK_ACTIVITY  *a;
+	ZZ_LINK_ACTIVITY  *a;
 
 	if (p != NULL) {
 		// Packet field needed
@@ -88,7 +88,7 @@ STATIC INLINE ZZ_LINK_ACTIVITY   *Port::initLAI () {
 /* Update last activity interpolator (LT_pointtopoint only) */
 /* -------------------------------------------------------- */
 
-	register ZZ_LINK_ACTIVITY  *a;
+	ZZ_LINK_ACTIVITY  *a;
 
 	if (IJTime <= Time) {
 
@@ -149,8 +149,8 @@ STATIC  INLINE  ZZ_EVENT   *Port::findHint (ZZ_LINK_ACTIVITY *act) {
 /* (unidirectional links only)                                */
 /* ---------------------------------------------------------- */
 
-	register ZZ_LINK_ACTIVITY  *b, *f;
-	register Long           i;
+	ZZ_LINK_ACTIVITY  *b, *f;
+	Long           i;
 
 	// A heuristic limit for the number of tries: 1/4 of the activity
 	// pool; can be adjusted experimentally, but who cares!

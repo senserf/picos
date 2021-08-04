@@ -149,7 +149,7 @@ INLINE void ZZ_EVENT::enqueue () {
 /* Puts the event into the event queue */
 /* ----------------------------------- */
 
-	register ZZ_EVENT *ep;
+	ZZ_EVENT *ep;
 
 	zz_npee++;              // Number of pending events
 
@@ -352,8 +352,8 @@ INLINE  ZZ_EVENT::ZZ_EVENT (
 #if	ZZ_NOL
 INLINE Port *Station::idToPort (int id) {
 
-	register Port *p;
-	register int sid = id;
+	Port *p;
+	int sid = id;
 
 	for (p = Ports; p != NULL && sid--; p = p->nextp);
 	Assert (p != NULL, "Station->idToPort: %s, illegal port Id %1d",
@@ -363,8 +363,8 @@ INLINE Port *Station::idToPort (int id) {
 
 INLINE Port *idToPort (int id) {
 
-	register Port *p;
-	register int sid = id;
+	Port *p;
+	int sid = id;
 
 	Assert (TheStation != NULL,
 		"idToPort: current station undefined");
@@ -382,8 +382,8 @@ INLINE TIME Port::bitsToTime (Long b) {
 #if	ZZ_NOR
 INLINE Transceiver *Station::idToTransceiver (int id) {
 
-	register Transceiver *p;
-	register int sid = id;
+	Transceiver *p;
+	int sid = id;
 
 	for (p = Transceivers; p != NULL && sid--; p = p->nextp);
 	Assert (p != NULL, "Station->idToTransceiver: %s illegal transceiver "
@@ -393,8 +393,8 @@ INLINE Transceiver *Station::idToTransceiver (int id) {
 
 INLINE Transceiver *idToTransceiver (int id) {
 
-	register Transceiver *p;
-	register int sid = id;
+	Transceiver *p;
+	int sid = id;
 
 	Assert (TheStation != NULL,
 		"idToTransceiver: current station undefined");
@@ -420,8 +420,8 @@ INLINE void Station::getLocation (double &x, double &y) {
 
 INLINE Mailbox *Station::idToMailbox (int id) {
 
-	register Mailbox *q;
-	register int sid = id;
+	Mailbox *q;
+	int sid = id;
 
 	for (q = Mailboxes; q != NULL && sid--; q = q->nextm);
 	Assert (q != NULL, "Station->idToMailbox: %s, illegal mailbox Id %1d",
@@ -431,8 +431,8 @@ INLINE Mailbox *Station::idToMailbox (int id) {
 
 INLINE Mailbox *idToMailbox (int id) {
 
-	register Mailbox *q;
-	register int sid = id;
+	Mailbox *q;
+	int sid = id;
 
 	Assert (TheStation != NULL,
 		"idToMailbox: current station undefined");
@@ -457,8 +457,8 @@ INLINE LONG lRndTolerance (LONG a, LONG b, int q) {
 	return 0;
 #else
 	double                  y;
-	register        double  p;
-	register        int     i;
+	double  p;
+	int     i;
 
 	assert (q > 0, "lRndTolerance: q (%1d) must be > 0", q);
 	for (p = 1.0, i = 1; i <= q; i++, p *= 1.0 - rnd (SEED_delay));
@@ -481,8 +481,8 @@ INLINE LONG lRndTolerance (double a, double b, int q) {
 	return 0;
 #else
 	double                  y;
-	register        double  p;
-	register        int     i;
+	double  p;
+	int     i;
 
 	assert (q > 0, "lRndTolerance: q (%1d) must be > 0", q);
 	for (p = 1.0, i = 1; i <= q; i++, p *= 1.0 - rnd (SEED_delay));
@@ -506,8 +506,8 @@ INLINE TIME tRndTolerance   (double a, double b, int q) {
 #else
 
 	double                  y;
-	register        double  p;
-	register        int     i;
+	double  p;
+	int     i;
 
 	assert (q > 0, "tRndTolerance: q (%1d) must be > 0", q);
 	for (p = 1.0, i = 1; i <= q; i++, p *= 1.0 - rnd (SEED_delay));
@@ -530,9 +530,9 @@ INLINE double dRndTolerance   (double a, double b, int q) {
 	return 0;
 #else
 
-	double                  y;
-	register        double  p;
-	register        int     i;
+	double  y;
+	double  p;
+	int     i;
 
 	assert (q > 0, "tRndTolerance: q (%1d) must be > 0", q);
 	for (p = 1.0, i = 1; i <= q; i++, p *= 1.0 - rnd (SEED_delay));

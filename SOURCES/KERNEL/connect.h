@@ -863,7 +863,7 @@ int Mailbox::sentinelFound () {
 /* including the sentinel.                                                 */
 /* ----------------------------------------------------------------------- */
 
-  register int ip, ic;
+  int ip, ic;
 
   if (csd != NONE) {
     // We don't fail for a disconnected mailbox -- the read will fail (softly)

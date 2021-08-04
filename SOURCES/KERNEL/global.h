@@ -2051,7 +2051,7 @@ inline  double  rnd (int seed) {
 #if     ZZ_R48
 	return (erand48 (zz_Seeds [seed]));
 #else
-	register Long           cs;
+	Long           cs;
 
 	if ((cs = zz_Seeds [seed] * ZZ_RND1) > ZZ_RND2) {
 		cs = cs - MAX_Long;
@@ -2077,7 +2077,7 @@ inline LONG    lRndUniform (LONG a, LONG b) {
 	zz_nfp ("lRndUniform");
 	return 0;
 #else
-	register LONG   res;
+	LONG   res;
 
 	res = (LONG) (a + (b - a + 1) * rnd (SEED_traffic));
 	return (res);
@@ -2094,7 +2094,7 @@ inline LONG    lRndUniform (double a, double b) {
 	zz_nfp ("lRndUniform");
 	return 0;
 #else
-	register LONG   res;
+	LONG   res;
 
 	res = (LONG) (a + (b - a + 1.0) * rnd (SEED_traffic));
 	return (res);
@@ -2202,12 +2202,12 @@ inline Long toss (Long n) {
 	zz_nfp ("toss");
 	return 0;
 #else
-	register double r;
+	double r;
 
 #if     ZZ_R48
 	r = erand48 (zz_Seeds [SEED_toss]);
 #else
-	register Long           cs;
+	Long           cs;
 
 	if ((cs = zz_Seeds [SEED_toss] * ZZ_RND1) > ZZ_RND2) {
 		cs = cs - MAX_Long;
@@ -2236,7 +2236,7 @@ inline int flip () {
 #if     ZZ_R48
 	return ((jrand48 (zz_Seeds [SEED_toss]) & 010000000000) == 0L);
 #else
-	register Long           cs;
+	Long           cs;
 
 	if ((cs = zz_Seeds [SEED_toss] * ZZ_RND1) > ZZ_RND2) {
 		cs = cs - MAX_Long;
@@ -2491,7 +2491,7 @@ class   RVariable : public ZZ_Object {
 };
 
 inline  void    zz_bld_RVariable (char *nn = NULL) {
-	register RVariable *p;
+	RVariable *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new RVariable);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -2705,7 +2705,7 @@ class   Station : public ZZ_Object {
 };
 
 inline  void    zz_bld_Station (char *nn = NULL) {
-	register Station *p;
+	Station *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Station);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -3380,7 +3380,7 @@ class   Mailbox : public AI {
 };
 
 inline  void    zz_bld_Mailbox (char *nn = NULL) {
-	register Mailbox *p;
+	Mailbox *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Mailbox);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -3661,7 +3661,7 @@ class   Port : public AI {
 };
 
 inline  void    zz_bld_Port (char *nn = NULL) {
-	register Port *p;
+	Port *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Port);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -3901,7 +3901,7 @@ void setDTo   (Port&, double);
 /* ------------------- */
 
 inline  void    zz_bld_Link (char *nn = NULL) {
-	register Link *p;
+	Link *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Link);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -3919,7 +3919,7 @@ class   BLink : public Link {
 };
 
 inline  void    zz_bld_BLink (char *nn = NULL) {
-	register BLink *p;
+	BLink *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new BLink);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -3944,7 +3944,7 @@ class   ULink : public Link {
 };
 
 inline  void    zz_bld_ULink (char *nn = NULL) {
-	register ULink *p;
+	ULink *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new ULink);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -3969,7 +3969,7 @@ class   PLink : public Link {
 };
 
 inline  void    zz_bld_PLink (char *nn = NULL) {
-	register PLink *p;
+	PLink *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new PLink);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -3994,7 +3994,7 @@ class   CLink : public Link {
 };
 
 inline  void    zz_bld_CLink (char *nn = NULL) {
-	register CLink *p;
+	CLink *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new CLink);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -4657,7 +4657,7 @@ class	RFChannel : public AI {
 };
 
 inline  void    zz_bld_RFChannel (char *nn = NULL) {
-	register RFChannel *p;
+	RFChannel *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new RFChannel);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -4803,13 +4803,13 @@ class	Transceiver : public AI {
 	inline double qdst (const Transceiver *t) {
 		// Note: this returns the distance converted to Du
 #if	ZZ_R3D
-		register double A, B, C;
+		double A, B, C;
 		A = ((double)X - (double)(t->X)) / Du;
 		B = ((double)Y - (double)(t->Y)) / Du;
 		C = ((double)Z - (double)(t->Z)) / Du;
 		return sqrt (A*A + B*B + C*C);
 #else
-		register double A, B;
+		double A, B;
 		A = ((double)X - (double)(t->X)) / Du;
 		B = ((double)Y - (double)(t->Y)) / Du;
 		return sqrt (A*A + B*B);
@@ -5010,7 +5010,7 @@ class	Transceiver : public AI {
 };
 
 inline  void    zz_bld_Transceiver (char *nn = NULL) {
-	register Transceiver *p;
+	Transceiver *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Transceiver);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -5209,7 +5209,7 @@ class   SGroup {                // A station group
 };
 
 inline  void    zz_bld_SGroup () {
-	register SGroup *p;
+	SGroup *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new SGroup);
 	p->zz_start ();
 }
@@ -5267,7 +5267,7 @@ class   CGroup {                // A communication group
 };
 
 inline  void    zz_bld_CGroup () {
-	register CGroup *p;
+	CGroup *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new CGroup);
 	p->zz_start ();
 }
@@ -5324,7 +5324,7 @@ class   Message {                       // Message skeleton
 };
 
 inline  void    zz_bld_Message () {
-	register Message *p;
+	Message *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Message);
 	p->zz_start ();
 }
@@ -5431,7 +5431,7 @@ class   Packet  {                       // Packet skeleton
 };
 
 inline  void    zz_bld_Packet () {
-	register Packet *p;
+	Packet *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Packet);
 	p->zz_start ();
 }
@@ -5839,7 +5839,7 @@ class   Traffic : public AI {
 };
 
 inline  void    zz_bld_Traffic (char *nn = NULL) {
-	register Traffic *p;
+	Traffic *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Traffic);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -6155,7 +6155,7 @@ class   Process : public AI {
 };
 
 inline  void    zz_bld_Process (char *nn = NULL) {
-	register Process *p;
+	Process *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Process);
 	p->zz_start ();
 	if (nn != NULL) {
@@ -6284,7 +6284,7 @@ class   Observer : public AI {
 };
 
 inline  void    zz_bld_Observer (char *nn = NULL) {
-	register Observer *p;
+	Observer *p;
 	zz_COBJ [++zz_clv] = (void*) (p = new Observer);
 	// Note: zz_start for Observers is called by smpp
 	if (nn != NULL) {

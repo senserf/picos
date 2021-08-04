@@ -22,7 +22,7 @@
 static DISTANCE LinkLength;
 
 int Connected (Long a, Long b, DISTANCE &d) {
-  register Long p, i;
+  Long p, i;
   // Calculate the number of ones on which a and b differ
   p = (a | b) & (~a | ~b);
   for (i = 1; i < p; i += i);
