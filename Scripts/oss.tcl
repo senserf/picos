@@ -1036,6 +1036,8 @@ set B(TIM)  ""
 # packet timeout (msec), once reception has started
 set B(PKT) 8000
 
+set B(SFD) ""
+
 ###############################################################################
 
 proc no_chks { wa } {
@@ -1511,7 +1513,7 @@ set OSSP(OPTIONS) { match number skip string start save restore then return
 set OSSI(OPTIONS) { id speed length parser connection }
 
 set OSSI(SPEEDS) { 1200 2400 4800 9600 14400 19200 28800 38400 76800 115200
-			256000 }
+			230400 256000 }
 
 # Current (working) parsed line + position of last action
 set OSSP(CUR) ""
@@ -1530,6 +1532,41 @@ set OSST(blob) 	[list 2 ""]
 set OSSI(ERRORS) 	""
 
 ###############################################################################
+###############################################################################
+
+proc oss_getwin { { separate 0 } } {
+#
+# Acquires a user window for private GUI
+#
+	global WI
+
+	if $separate {
+		set wi .user_$WI(USR)
+		toplevel $wi
+		incr WI(USR)
+		return $wi
+	}
+
+	# top frame of standard window
+	return ".user"
+}
+
+proc oss_isconnected { } {
+
+	global ST
+
+	if { $ST(UCS) != "" && $ST(HSK) } {
+		return 1
+	}
+
+	return 0
+}
+
+proc oss_exit { } {
+
+	sy_exit
+}
+
 ###############################################################################
 
 proc oss_keymatch { key klist } {
@@ -2357,7 +2394,7 @@ proc oss_interface { args } {
 
 		"speed" {
 
-			if { [catch { oss_valint $arg 1200 115200 } v] ||
+			if { [catch { oss_valint $arg 1200 256000 } v] ||
 			    [lsearch -exact $OSSI(SPEEDS) $v] < 0 } {
 				oss_ierr "oss_interface, illegal -speed, must\
 				    be one of [join $OSSI(SPEEDS)]"
@@ -2383,6 +2420,7 @@ proc oss_interface { args } {
 
 			set cpd [lindex $arg 0]
 			set mps [lindex $arg 1]
+			set ini [lindex $arg 2]
 
 			if { $cpd == "" && $mps == "" || $cpd != "" &&
 			  ![oss_isalnum $cpd] || $mps != "" && 
@@ -3170,6 +3208,9 @@ set WI(WUH)	"localhost"
 set WI(WUP)	4443
 set WI(WUN)	0
 
+# User window number
+set WI(USR)	0
+
 # OPREF
 set ST(OPREF)	1
 
@@ -3204,6 +3245,11 @@ proc sy_exit { } {
 		# a modal window exists, destroy it first
 		catch { destroy $MO(WIN) }
 		catch { unset MO(WIN) }
+	}
+
+	for { set i 0 } { $i < $WI(USR) } { incr i } {
+		# user window
+		catch { destroy .user_$WI(USR) }
 	}
 
 	exit 0
@@ -3464,6 +3510,8 @@ proc sy_savefile { } {
 	}
 }
 
+if 0 {
+
 proc sy_genheader { } {
 
 	global WI
@@ -3514,11 +3562,16 @@ proc sy_genheader { } {
 	}
 }
 
+}
+
 proc sy_mkterm { } {
 
 	global ST WI
 
 	sy_updtitle
+
+	frame .user
+	pack .user -expand yes -fill both
 
 	text .t \
 		-yscrollcommand ".scroly set" \
@@ -3550,8 +3603,11 @@ proc sy_mkterm { } {
 		-width 10]
 	pack .stat.fs.rb -side right
 
+if 0 { 
+	# this is now handled by -H
 	button .stat.fs.hb -command sy_genheader -text Hdr
 	pack .stat.fs.hb -side right
+}
 
 	set WI(SVA) [checkbutton .stat.fs.sa -state normal -variable ST(SFB)]
 	pack .stat.fs.sa -side right
@@ -3565,9 +3621,90 @@ proc sy_mkterm { } {
 
 	.t configure -state disabled
 	bind . <Destroy> "sy_exit"
-	bind .t <ButtonRelease-1> "tk_textCopy .t"
-	bind .stat.u <ButtonRelease-1> "tk_textCopy .stat.u"
-	bind .stat.u <ButtonRelease-2> "tk_textPaste .stat.u"
+	bind .t <ButtonRelease-3> "sy_cut_copy_paste %W %X %Y c"
+	bind .stat.u <ButtonRelease-3> "sy_cut_copy_paste %W %X %Y c"
+}
+
+proc sy_cut_copy_paste { w x y { c "" } } {
+#
+# Handles windows-style cut-copy-paste from a text widget; invoked in response
+# to right click in a text widget
+#
+	if [catch { $w get sel.first sel.last } sel] {
+		# selection absent -> empty
+		set sel ""
+	}
+
+	# determine the state, i.e., are we allowed to paste into the widget?
+	set sta [$w cget -state]
+	if { [string first "normal" $sta] >= 0 } {
+		set sta "normal"
+	} else {
+		set sta "disabled"
+	}
+
+	set r $w._rcm
+
+	catch { destroy $r }
+
+	set m [menu $r -tearoff 0]
+
+	if { $sel != "" && $sta == "normal" } {
+		# cut allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Cut" -command "tk_textCut $w" -state $st
+
+	if { $sel != "" } {
+		# copy allowed
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Copy" -command "tk_textCopy $w" -state $st
+
+	if [catch { clipboard get -displayof $w } cs] {
+		set cs ""
+	}
+	if { $sta == "normal" && $cs != "" } {
+		set st "normal"
+	} else {
+		set st "disabled"
+	}
+	$m add command -label "Paste" -command "tk_textPaste $w" -state $st
+
+	if { $c != "" } {
+		$m add separator
+		if [$w compare 1.0 < "end - 1 chars"] {
+			set st "normal"
+		} else {
+			set st "disabled"
+		}
+		$m add command -label "Clear" -command "sy_clear_txt $w" \
+			-state $st
+	}
+
+	tk_popup $m $x $y
+}
+
+proc sy_clear_txt { w } {
+
+	set sta [$w cget -state]
+	if { [string first "normal" $sta] >= 0 } {
+		set sta "normal"
+	} else {
+		set sta "disabled"
+	}
+
+	if [catch { $w configure -state normal }] {
+		return
+	}
+
+	$w delete 1.0 end
+
+	$w configure -state $sta
 }
 
 proc sy_term_enable { level } {
@@ -4059,6 +4196,8 @@ set USPEC {}
 #	-V
 #	-U dev ... dev (also -R)
 #	-U
+#	-H header file
+#	-H
 #
 ###############################################################################
 
@@ -4145,15 +4284,31 @@ proc sy_args { } {
 			continue
 		}
 
+		if { $arg == "-H" } {
+			# header file request
+			if [info exists A(h)] {
+				sy_abort "(usage) duplicate argument -H"
+			}
+			set A(h) ""
+			set arg [lindex $argv 0]
+			if { $arg == "" || [string index $arg 0] == "-" } {
+				set PM(HEF) ""
+			} else {
+				set PM(HEF) $arg
+				set argv [lrange $argv 1 end]
+			}
+			continue
+		}
+
 		sy_abort "(usage) illegal argument $arg"
 	}
 }
 				
 proc sy_init { } {
 
-	global PM WI USPEC ST argv
+	global PM WI USPEC ST
 
-	catch { close stdin}
+	catch { close stdin }
 
 	unames_init $ST(DEV) $ST(SYS)
 	# start by creating the window (in disabled state); we will use it
@@ -4192,7 +4347,37 @@ proc sy_init { } {
 	# should be an option (settable in the specification file) to make
 	# the connection completely automatic (no need to hit any buttons)
 
+	if [info exists PM(HEF)] {
+		# write the header file
+		if [catch { oss_genheader } hdr] {
+			sy_abort "Cannot generate header, $hdr"
+		}
+		if { $PM(HEF) == "" } {
+			set fd "stdout"
+		} elseif [catch { open $PM(HEF) "w" } fd] {
+			sy_abort "Cannot open $PM(HEF), $fd"
+		}
+
+		if [catch { puts -nonewline $fd $hdr } err] {
+			sy_abort "Cannot write to $PM(HEF), $err"
+		}
+
+		catch { close $fd }
+		unset PM(HEF)
+		exit 0
+	}
+
 	sy_term_enable 1
+
+	# user init function
+	set ini [lindex $PM(PRS) 2]
+	
+	if { $ini != "" } {
+		set fun [sy_localize $ini "USER"]
+		if [catch { $fun } err] {
+			sy_abort "user init function failed, $err"
+		}
+	}
 
 	while 1 {
 

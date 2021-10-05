@@ -56,7 +56,7 @@ extern volatile systat_t __pi_systat;
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\
 		".global __pi_release\n"\
 		"__pi_release: mov %0, R1"\
-			:: "i"(STACK_START): "R1")
+			:: "i"(STACK_START): /* "R1" */)
 #else
 
 #define	SET_RELEASE_POINT	__asm__ __volatile__ (\

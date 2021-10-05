@@ -83,6 +83,8 @@ set B(TIM)  ""
 # packet timeout (msec), once reception has started
 set B(PKT) 8000
 
+set B(SFD) ""
+
 ###############################################################################
 
 proc no_chks { wa } {

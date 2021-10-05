@@ -171,10 +171,12 @@
 #define	MPU9250_OPT_SH_ACCEL_RANGE	(MPU9250_OPT_SH_SENSORS + 4)
 #define	MPU9250_OPT_SH_GYRO_RANGE	(MPU9250_OPT_SH_ACCEL_RANGE + 2)
 #define	MPU9250_OPT_SH_EVENT_TYPE	(MPU9250_OPT_SH_GYRO_RANGE + 2)
+#define	MPU9250_OPT_SH_LP_MODE		(MPU9250_OPT_SH_EVENT_TYPE + 2)
 #define	MPU9250_OPT_SH_RATE_DIVIDER	24
 
 #define	MPU9250_LP_MOTION_DETECT	(1 << MPU9250_OPT_SH_EVENT_TYPE)
-#define	MPU9250_LP_SYNC_READ		(2 << MPU9250_OPT_SH_EVENT_TYPE)
+#define	MPU9250_SYNC_READ		(2 << MPU9250_OPT_SH_EVENT_TYPE)
+#define	MPU9250_LP_MODE			(1 << MPU9250_OPT_SH_LP_MODE)
 
 #define	MPU9250_GYRO_RANGE_250		(0 << MPU9250_OPT_SH_GYRO_RANGE)
 #define	MPU9250_GYRO_RANGE_500		(1 << MPU9250_OPT_SH_GYRO_RANGE)
@@ -229,6 +231,11 @@
 #define	MPU9250_STATUS_COMPASS_ADJREAD	0x10
 #define	MPU9250_STATUS_EVENT		0x20
 #define	MPU9250_STATUS_WAIT		0x40
+#define	MPU9250_STATUS_FIFO		0x80
+
+// Value returned by mpu9250_fifo_get on FIFO overflow
+
+#define	MPU9250_FIFO_OVERFLOW		0x8000
 
 #ifndef	__SMURPH__
 
@@ -245,6 +252,9 @@ void mpu9250_wrega (byte, byte);
 void mpu9250_wregc (byte, byte);
 void mpu9250_rregan (byte, byte*, word);
 void mpu9250_rregcn (byte, byte*, word);
+word mpu9250_fifo_get (address, word);
+void mpu9250_fifo_start ();
+void mpu9250_fifo_stop ();
 
 #else
 
@@ -255,6 +265,9 @@ void mpu9250_rregcn (byte, byte*, word);
 #define mpu9250_wregc(r,v)	emul (9, "MPU9250_WREGC: %02x %02x", r, v)
 #define mpu9250_rregan(a,b,c)	bzero (b, c)
 #define mpu9250_rregcn(a,b,c)	bzero (b, c)
+#define	mpu9250_fifo_get(a,b)	0
+#define mpu9250_fifo_start()	emul (9, "MPU9250_FIFO: START")
+#define mpu9250_fifo_stop()	emul (9, "MPU9250_FIFO: STOP")
 
 #endif
 

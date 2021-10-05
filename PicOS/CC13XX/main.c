@@ -1157,7 +1157,7 @@ aword system_init () {
 #ifdef	SYSVER_B
 			"-" SYSVER_B
 #endif
-        		", (C) Olsonet Communications, 2002-2020");
+        		", (C) Olsonet Communications, 2002-2021");
 		diag ("Leftover RAM: %d bytes",
 			(word)((aword)STACK_END - (aword)(&__bss_end__)));
 #endif

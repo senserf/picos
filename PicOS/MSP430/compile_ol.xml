@@ -3,12 +3,14 @@
 		<define>__TYPE_WORD__=uint16_t</define>
 		<define>__TYPE_LWORD__=uint32_t</define>
 		<define>__TYPE_SINT__=int16_t</define>
+		<define>__TYPE_WINT__=int16_t</define>
 		<define>__TYPE_LINT__=int32_t</define>
 		<define>__TYPE_AWORD__=uint32_t</define>
 		<define>SIZE_OF_AWORD=2</define>
 		<define>SIZE_OF_SINT=2</define>
 	</vuee>
 	<cc dospaths="yes">
+		<define>bool="unsigned char"</define>
 		<define>SIZE_OF_AWORD=2</define>
 		<define>SIZE_OF_SINT=2</define>
 		<path>msp430-gcc</path>
@@ -28,12 +30,24 @@
 	<ranlib dospaths="yes">
 		<path>msp430-ranlib</path>
 	</ranlib>
-	<gdb>
-		<path>msp430-gdb</path>
-		<init file=".gdbinit">
-			set remoteaddresssize 64
-			set remotetimeout 999999
-			target remote localhost:2000
-		</init>
-	</gdb>
+	<loaders>
+	    	<loader>
+			<path>mspdebug</path>
+			<arguments>
+				tilib --allow-fw-update "prog %f.a43"
+			</arguments>
+		</loader>
+		<debugger>
+			<path>msp430-gdb</path>
+			<arguments>%f</arguments>
+			<proxypath>mspdebug</proxypath>
+			<proxyarguments>tilib "gdb %p"</proxyarguments>
+			<port>2021</port>
+			<init file=".gdbinit">
+				set remoteaddresssize 64
+				set remotetimeout 999999
+				target remote localhost:55000
+			</init>
+		</debugger>
+	</loaders>
 </compile>

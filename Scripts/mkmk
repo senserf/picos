@@ -532,6 +532,7 @@ proc bad_usage { { msg "" } } {
 	puts stderr " 2 - create image (as in 1) from a library"
 	puts stderr " 3 - create library"
 	puts stderr " 4 - show version number and quit"
+	puts stderr " -c filename selects alternative compile.xml"
 
 	exit 1
 }
@@ -592,6 +593,18 @@ proc process_args { } {
 					bad_usage "duplicate -V"
 				}
 				set V ""
+				continue
+			}
+			if { $arg == "c" } {
+				if [info exists Run(cfname)] {
+					bad_usage "duplicate -c"
+				}
+				set c [lindex $argv 0]
+				if { $c == "" || [string index $c 0] == "-" } {
+					bad_usage "file name expected after -c"
+				}
+				set Run(cfname) $c
+				set argv [lrange $argv 1 end]
 				continue
 			}
 			if { [string index $arg 0] == "D" } {
@@ -883,31 +896,63 @@ proc combine_xml_txt { el tag { sp " " } } {
 	return [join $res $sp]
 }
 
-proc get_compiler_data { } {
-#
-# Parses the compile file
-#
-	global SDirs Run Comp CCDefs
+proc read_compiler_data { } {
 
-	set pmf [file join $SDirs(root) "PicOS" $Run(arch) "compile.xml"]
+	global Run SDirs
 
-	if [catch { open $pmf "r" } fd] {
-		errab "Cannot open compile.xml for $Run(arch), $fd"
+	if { ![info exists Run(cfname)] || $Run(cfname) == "" } {
+		set Run(cfname) "compile.xml"
 	}
 
-	if [catch { read $fd } cdata] {
-		errab "Cannot read compile.xml for $Run(arch), $cdata"
+	if { [file extension $Run(cfname)] == "" } {
+		# supply the default extension
+		append Run(cfname) ".xml"
+	}
+
+	# try to open "as is"
+	if [catch { open $Run(cfname) "r" } fd] {
+
+		# failed
+		if { [file pathtype $Run(cfname)] != "relative" } {
+			# no way
+			errab "Cannot open compiler data file $Run(cfname),\
+				$fd"
+		}
+
+		# try the package version
+		set Run(cfname) [file join $SDirs(root) "PicOS" $Run(arch) \
+			$Run(cfname)]
+
+		if [catch { open $Run(cfname) "r" } fd] {
+			errab "Cannot open compiler data file $Run(cfname),\
+				$fd"
+		}
+	}
+
+	if [catch { read $fd } cd] {
+		errab "Cannot read compiler data file $Run(cfname), $cd"
 	}
 
 	catch { close $fd }
 
+	return $cd
+}
+
+proc get_compiler_data { } {
+#
+# Parses the compile file
+#
+	global Run Comp CCDefs
+
+	set cdata [read_compiler_data]
+
 	if [catch { sxml_parse cdata } cdata] {
-		errab "Bad format of compile.xml for $Run(arch), $cdata"
+		errab "Bad format of compile data file $Run(cfname), $cdata"
 	}
 
 	set cdata [sxml_child $cdata "compile"]
 	if { $cdata == "" } {
-		errab "No <compile> tag in compile.xml for $Run(arch)"
+		errab "No <compile> tag in compile data file $Run(cfname)"
 	}
 
 	# cc, ld, ar, ranlib
@@ -948,42 +993,8 @@ proc get_compiler_data { } {
 	}
 
 	if { $Comp(cc,path) == "" || $Comp(ld,path) == "" } {
-		errab "Inadequate contents of compile.xml for $Run(arch)"
-	}
-
-	# check for a gdb init file
-	set el [sxml_child $cdata "gdb"]
-	set Comp(gdb,ifname) ""
-	set Comp(gdb,ifile) ""
-
-	if { $el != "" } {
-		set fi 0
-		foreach gi [sxml_children $el "init"] {
-			set cp [sxml_attr $gi "cpu"]
-			if { $cp == "" || $cp == "all" || $cp == "any" } {
-				set fi 1
-				break
-			}
-			if { $cp == $Run(cpu) } {
-				set fi 1
-				break
-			}
-		}
-		if $fi {
-			set cp [sxml_attr $gi "file"]
-			if { $cp == "" } {
-				# the default name
-				set cp ".gdbinit"
-			}
-			set Comp(gdb,ifname) $cp
-			set Comp(gdb,ifile) ""
-			foreach ln [split [sxml_txt $gi] "\n"] {
-				set ln [string trim $ln]
-				if { $ln != "" } {
-					append Comp(gdb,ifile) "${ln}\n"
-				}
-			}
-		}
+		errab "Inadequate contents of compile data file $Run(cfname),\
+			no compiler path or no loader path found"
 	}
 }
 
@@ -2262,20 +2273,6 @@ proc make_makefile_lib { } {
 	}
 }
 
-proc make_gdb_init_file { } {
-#
-# Put the gdb init file into the project's directory
-#
-	global Comp
-
-	if { $Comp(gdb,ifname) != "" } {
-	    if [catch { exec cat > $Comp(gdb,ifname) << $Comp(gdb,ifile) } er] {
-		puts "Warning: cannot insert $Comp(gdb,ifname) into project\
-			directory, $er"
-	    }
-	}
-}
-
 proc create_library { } {
 
 	global Flags Run FilesToCompile CFName Scanned Symbols NFound SFiles
@@ -2436,7 +2433,6 @@ proc create_image { } {
 	}
 
 	make_makefile_image
-	make_gdb_init_file
 }
 
 proc main { } {

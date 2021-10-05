@@ -878,7 +878,7 @@ RxOn:
 				if (!dstate_wor_rq) {
 					// ... but WOR is not asked for, stop
 					// RX and do it again, so rx_ac can
-					// take of setting the state right;
+					// set the state right;
 					// note that dstate_wor_rq accounts for
 					// WOR being possibly suspended
 WorOn:

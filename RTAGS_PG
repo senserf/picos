@@ -5590,3 +5590,14 @@ PG210804A:
 
 	A few minor updates to the documentations.
 
+PG211005A:	PIP >= PG211005A
+
+	Modified the format of compile.xml, especially debugger configuration;
+	mkmk does not generate .gdbinit any more, this is handled by PIP.
+	mpu9250 driver redone; FIFO option included, synchronous operation is
+	now possible whereby new data availability triggers interrupts.
+	oss.tcl extended: a command-line call added to create the header file
+	(and a PIP menu command for that), the possibility to open Tk windows
+	from user scripts.
+
+	Rewritten the Installation doc.

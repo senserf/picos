@@ -16,4 +16,4 @@
 #define	uart_b_xmitter_off_delay	1
 #endif
 
-#define	BT_MODULE_LINKMATIK
+// #define	BT_MODULE_LINKMATIK

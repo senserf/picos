@@ -111,12 +111,14 @@ void mpu9250_on (lword options, byte threshold) {
 //			11 - 12		arange
 //			13 - 14		grange
 //			15 - 16		1 - motion detect, 2 - sync read
-//			17 - 23		reserved
+//			17		LP mode for normal operation
+//			18		FIFO enable
+//			19 - 23		reserved
 //			24 - 31		sampling rate
 //
 //      x x x x  x x x x  x x x x  x x x x  x x x x  x x x x  x x x x  x x x x
-//      ----------------  -------------- ---- --- ---- -------- -------- -----
-//	 sampling rate      unused       etp  rg   ra    comp      odr    lpf
+//      ----------------  ---------- - - ---- --- ---- -------- -------- -----
+//	 sampling rate      unused   f l etp  rg   ra    comp      odr    lpf
 //
 //	For motion detect: 1000 0000 1010 1001 = 80A9, th = 32
 //
@@ -202,21 +204,21 @@ void mpu9250_on (lword options, byte threshold) {
 	mpu9250_wrega (MPU9250_REG_SMPLRT_DIV,
 		(byte)(options >> MPU9250_OPT_SH_RATE_DIVIDER));
 
+	// The cycle bit; this actually enables LPA (the low-power data rates),
+	// without this bit, the LPA settings are ignored
+	b =  (etype == 1 || (options & MPU9250_LP_MODE)) ? 0x20 : 0x00;
 	if (etype == 1) {
 		// Motion detection, accel hardware intelligence
 		mpu9250_wrega (MPU9250_REG_MOT_DETECT_CTRL, 0xc0);
 		// Motion threshold
 		mpu9250_wrega (MPU9250_REG_WOM_THR, threshold);
-		// The cycle bit
-		b = 0x20;
-	} else 
-		b = 0x00;
-	
+	}
+
 	if (etype)
-		// Enable interrupts
-		mpu9250_wrega (MPU9250_REG_INT_ENABLE,
-			// Motion or data ready
-			etype == 1 ? 0x40 : 0x01);
+		// Enable interrupts for motion detection or data ready, if
+		// we don't want FIFO. FIFO doesn't work in LP mode !!!
+		mpu9250_wrega (MPU9250_REG_INT_ENABLE, (etype == 1) ?
+			0x40 : 0x01);
 
 	// Frequency of wakeups
 	mpu9250_wrega (MPU9250_REG_LP_ACCEL_ODR,
@@ -237,6 +239,8 @@ void mpu9250_off () {
 		// Already off
 		return;
 
+	mpu9250_fifo_stop ();
+
 #if MPU9250_DELAY_RESET
 	// Need reset after power up; this basically means that power down
 	// won't do the trick; set the SLEEP bit
@@ -255,7 +259,82 @@ static void swab (address p, word n) {
 		p++;
 	}
 }
-	
+
+word mpu9250_fifo_get (address buf, word n) {
+//
+// Read from FIFO
+//
+	word cnt;
+
+	if ((mpu9250_status & MPU9250_STATUS_FIFO) == 0)
+		// FIFO is not on
+		return 0;
+
+	// Check for overflow
+	mpu9250_rregan (MPU9250_REG_INT_STATUS, (byte*)&cnt, 1);
+	if ((*((byte*)&cnt) & 0x10)) {
+		// Overflow, reset
+		mpu9250_wrega (MPU9250_REG_USER_CTRL, 0x44);
+		return MPU9250_FIFO_OVERFLOW;
+	}
+
+	mpu9250_rregan (MPU9250_REG_FIFO_COUNT_H, (byte*)&cnt, 2);
+	cnt = htons (cnt);
+	if (cnt < 2)
+		return 0;
+	// Turn it into words
+	cnt >>= 1;
+
+	if (cnt > n)
+		cnt = n;
+
+	n = cnt;
+
+	while (cnt--) {
+#if LITTLE_ENDIAN
+		mpu9250_rregan (MPU9250_REG_FIFO_R_W, ((byte*)buf) + 1, 1);
+		mpu9250_rregan (MPU9250_REG_FIFO_R_W, ((byte*)buf)    , 1);
+#else
+		mpu9250_rregan (MPU9250_REG_FIFO_R_W, ((byte*)buf)    , 1);
+		mpu9250_rregan (MPU9250_REG_FIFO_R_W, ((byte*)buf) + 1, 1);
+#endif
+		buf++;
+	}
+
+	return n;
+}
+
+void mpu9250_fifo_start () {
+//
+// Starts FIFO operation
+//
+	byte b;
+
+	b = (mpu9250_status & MPU9250_STATUS_ACCEL_ON) ? 0x08 : 0;
+	if ((mpu9250_status & MPU9250_STATUS_GYRO_ON))
+		// Add all coordinates of the gyro
+		b |= 0x70;
+	if ((mpu9250_status & MPU9250_STATUS_TEMP_ON))
+		// Throw in temp
+		b |= 0x80;
+	if (b) {
+		// Enable FIFO + reset
+		mpu9250_wrega (MPU9250_REG_USER_CTRL, 0x44);
+		mpu9250_wrega (MPU9250_REG_FIFO_EN, b);
+	}
+
+	_BIS (mpu9250_status, MPU9250_STATUS_FIFO);
+}
+
+void mpu9250_fifo_stop () {
+//
+// Stop FIFO operation
+//
+	mpu9250_wrega (MPU9250_REG_FIFO_EN, 0);
+	mpu9250_wrega (MPU9250_REG_USER_CTRL, 0x04);
+	_BIC (mpu9250_status, MPU9250_STATUS_FIFO);
+}
+
 void mpu9250_read (word st, const byte *sen, address val) {
 
 	address vap;

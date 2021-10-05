@@ -13,29 +13,42 @@
 		<define>bool="unsigned char"</define>
 		<define>SIZE_OF_AWORD=2</define>
 		<define>SIZE_OF_SINT=2</define>
-		<path>msp430-gcc</path>
-		<args>-mmcu=%cpu% -Os -g -Wundef -fno-strict-aliasing</args>
+		<path>msp430-elf-gcc</path>
+		<args>-mmcu=%cpu% -Os -g -Wundef -fno-strict-aliasing -I %ccdir%/../include</args>
 	</cc>
 	<ld dospaths="yes">
-		<path>msp430-gcc</path>
+		<path>msp430-elf-gcc</path>
 		<args>-mmcu=%cpu%</args>
+		<postargs>-L %ccdir%/../include</postargs>
 		<after>
-			msp430-objcopy %image% -O ihex %image%.a43
-			msp430-size -Ax %image%
+			msp430-elf-objcopy %image% -O ihex %image%.a43
+			msp430-elf-size -Ax %image%
 		</after>
 	</ld>
 	<ar dospaths="yes">
-		<path>msp430-ar</path>
+		<path>msp430-elf-ar</path>
 	</ar>
 	<ranlib dospaths="yes">
-		<path>msp430-ranlib</path>
+		<path>msp430-elf-ranlib</path>
 	</ranlib>
-	<gdb>
-		<path>msp430-gdb</path>
-		<init file=".gdbinit">
-			set remoteaddresssize 64
-			set remotetimeout 999999
-			target remote localhost:2000
-		</init>
-	</gdb>
+	<loaders>
+	    	<loader>
+			<path>mspdebug</path>
+			<arguments>
+				tilib --allow-fw-update "prog %f.a43"
+			</arguments>
+		</loader>
+		<debugger>
+			<path>msp430-elf-gdb</path>
+			<arguments>%f</arguments>
+			<proxypath>mspdebug</proxypath>
+			<proxyarguments>tilib "gdb %p"</proxyarguments>
+			<port>2021</port>
+			<init file=".gdbinit">
+				set remoteaddresssize 64
+				set remotetimeout 999999
+				target remote localhost:55000
+			</init>
+		</debugger>
+	</loaders>
 </compile>

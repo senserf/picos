@@ -1,0 +1,63 @@
+<node>
+    <memory>19968 bytes</memory>
+    <radio>
+    	<power>7</power>
+	<rate>3</rate>
+	<!-- The preamble does not cover the SYNC word -->
+    	<preamble>32 bits</preamble>
+    	<lbt>
+		delay			1msec
+		threshold		-58.0dBm 
+		tries			4
+    	</lbt>
+    	<backoff>
+		min			1msec
+		span			63msec
+    	</backoff>
+    </radio>
+    <leds number="1">
+    	<output target="socket"></output>
+	<color on="red" off="black"/>
+    </leds>
+    <eeprom size="1048576" clean="0xFF"
+	timing="0.000004,0.000006,
+		0.000004,0.000034,
+		0.000060,0.000070,
+		0.000005,0.040000"></eeprom>
+    <iflash size="256,2"></iflash>
+    <pins number="2">
+	<input source="socket"></input>
+	<buttons polarity="low">0 1</buttons>
+	<values>11</values>
+    </pins>
+    <sensors>
+    	<input source="socket"></input>
+	<output target="socket"></output>
+	<!-- temperature -->
+	<sensor number="-2" vsize="2" delay="0.001" init="21">1023</sensor>
+	<!-- battery volt * 256 -->
+	<sensor number="-1" vsize="2" delay="0.001" init="793">1023</sensor>
+	<!-- switch -->
+	<sensor number="0" vsize="2" delay="0.0" init="1">1</sensor>
+	<!-- all the remaining sensors are emulated trivially through a
+	     single word value -->
+	<!-- mpu9250 -->
+	<sensor number="1" vsize="2" delay="0.0" init="0">255</sensor>
+	<!-- obmicrophone -->
+	<sensor number="2" vsize="2" delay="0.0" init="0">255</sensor>
+	<!-- bmp280 -->
+	<sensor number="3" vsize="2" delay="0.02" init="0">255</sensor>
+	<!-- hdc1000 -->
+	<sensor number="4" vsize="2" delay="0.0072" init="0">255</sensor>
+	<!-- opt3001 -->
+	<sensor number="5" vsize="2" delay="0.5" init="0">255</sensor>
+	<!-- tmp007 -->
+	<sensor number="6" vsize="2" delay="0.5" init="0">255</sensor>
+    </sensors>
+    <ptracker>
+	<output target="socket"/>
+	<module id="cpu">1.9 0.002</module>
+	<module id="radio">0.0004 5.4 13.4 13.4</module>
+	<module id="storage">0.0 0.040 4.0 4.0 4.0 4.0</module>
+    </ptracker>
+</node>

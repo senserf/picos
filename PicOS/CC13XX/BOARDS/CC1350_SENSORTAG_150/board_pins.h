@@ -414,16 +414,25 @@
 #define	mpu9250_bring_down	do { GPIO_clearDio (IOID_12); \
 					mdelay (2); } while (0)
 
+// Enable interrupt
 #define	mpu9250_enable		HWREGBITW (IOC_BASE + (IOID_7 << 2), \
 					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 1
 
+// Disable interrupt
 #define	mpu9250_disable		HWREGBITW (IOC_BASE + (IOID_7 << 2), \
 					IOC_IOCFG0_EDGE_IRQ_EN_BITN) = 0
 
+// Clear interrupt
 #define	mpu9250_clear		GPIO_clearEventDio (IOID_7)
 
+// Recognize interrupt
 #define	mpu9250_int		(HWREG (GPIO_BASE + GPIO_O_EVFLAGS31_0) & \
 					(1 << IOID_7))
+
+// Condition pending already (note: interrupts should be configured in
+// persistent mode)
+#define	mpu9250_pending		GPIO_readDio (IOID_7)
+
 #define	mpu9250_scl		IOID_9
 #define	mpu9250_sda		IOID_8
 #define	mpu9250_rate		1
