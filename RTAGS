@@ -955,3 +955,26 @@ PG210804A:
 
 	The Options window (in the Configuration menu) now includes a Notes
 	pane where you can enter notes and comments (e.g., things to remember).
+
+
+PG211005A:	PICOS >= PG211005A
+
+	Redone flash loader configuration. I have removed the messy legacy code
+	for the Elprotronic loader (which was bending backwards trying to pass
+	arguments to the loader) as well as the complicated setup for MSPDebug,
+	and introduced instead the possibility to create an unlimited number of
+	command line loaders. The idea is that you can either set up a loader
+	the easy way, or (if the setup is messy) create extra wrapper scripts
+	to turn the loader into something that will accept command line
+	arguments.
+
+	A few other things. For example, the toolchain comfiguration file
+	compile.xml) can now be easily replaced from Configure->Arch+Board ...
+	I have discovered that the current TI version of the MSPGCC toolchain
+	generates better (shorter) code than our old (legacy) compiler, so it
+	probably should be used now as the default toolchain. But we may still
+	want to switch, and being able to easily specify an alternative 
+	toolchain configuration file will help.
+
+	Updated (rewritten) the document.
+	

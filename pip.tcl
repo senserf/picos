@@ -12,7 +12,7 @@ exec tclsh "$0" "$@"
 package require Tk
 package require Ttk
 
-set ST(VER) 1.04
+set ST(VER) 1.5
 
 ###############################################################################
 # Determine the system type ###################################################
@@ -32,7 +32,7 @@ set ST(DP) 0
 
 if { $ST(SYS) != "L" } {
 	# sanitize arguments; here you have a sample of the magnitude of
-	# stupidity I have to fight when glueing together Windows and Cygwin
+	# nonsense I have to fight when glueing together Windows and Cygwin
 	# stuff; the last argument (sometimes!) has a CR character appended
 	# at the end, and you wouldn't believe how much havoc that can cause
 	set u [string trimright [lindex $argv end]]
@@ -85,34 +85,19 @@ set VTagsArgs "-l -i -t -v -h -s --"
 ###############################################################################
 ###############################################################################
 
-# Known, preprocessed flash loaders by known archs; one shared option for all
-# archs is "general-purpose command line". The names are proc name extensions.
+# Flash loaders by arch; we remove the "known" loaders and replace them with
+# multiple loaders defineable by the user; I haven't used Elpro for a while,
+# then, the kludge to pass parameters to it was extremely clumsy and problem
+# prone. MPSDebug, while still usable, can be handled by a user-settable 
+# command or (preferably) a list of commands.
 
-set CFLDNames(MSP430)	"ELP MSD GPR"
-set CFLDNames(CC13XX)	"GPR"
-
-## Configuration data for the loaders:
-##	LDSEL		- loader selector
-##	LDMSD...	- mspdebug (device, driver, GDB port, allow upgrade)
-##	LDELP...	- Elprotronic Lite (program path)
-##	LDGPR...	- general command-line program
-
-set CFLoadItems(MSP430) {
-			"MSP430LDSEL"		""
-			"MSP430LDMSDDEV"	"Automatic"
-			"MSP430LDMSDDRV"	"tilib"
-			"MSP430LDMSDGDP"	"None"
-			"MSP430LDMSDAFU"	0
-			"MSP430LDELPPATH"	"Automatic"
-			"MSP430LDGPRPATH"	""
-			"MSP430LDGPRARG"	""
-		}
-
-set CFLoadItems(CC13XX)	{
-			"CC13XXLDSEL"		""
-			"CC13XXLDGPRPATH"	""
-			"CC13XXLDGPRARG"	""
-		}
+# Generic items for loaders; to be turned into options, they have to be
+# prefixed by arch; we change the prefix to arch_ to automatically invalidate
+# any old config settings
+# 	LDSEL		- current loader selection
+#	LDLIST		- the list of loaders
+#
+set CFLoadItemsGen { "LDSEL" "" "LDLIST" "" }
 
 ###############################################################################
 ###############################################################################
@@ -174,6 +159,7 @@ set CFBoardItems {
 			"BO" 		""
 			"LM"		""
 			"LD"		""
+			"CCF"		"compile.xml"
 }
 
 set CFVueeItems {
@@ -207,7 +193,7 @@ set CFEDefines {
 ## system files; need to evaluate
 set CFOptItems [list \
 		 "OPTTRMCMND" $DefTerm \
-		 "OPTGDBCMND" $DefDTerm \
+		 "OPTSHWCMND" $DefDTerm \
 		 "OPTERMLINES" 1000 \
 		 "OPSYSFILES" 1 \
 		 "OPVUEEFILES" 0 \
@@ -254,11 +240,7 @@ set CFItems 	[concat $CFBoardItems \
 			$CFSearchItems \
 			$CFXecItems]
 
-foreach arch [array names CFLoadItems] {
-	set CFItems [concat $CFItems $CFLoadItems($arch)]
-}
-
-unset arch
+# loader options (by arch) will be appended by initialize
 
 ###############################################################################
 
@@ -332,10 +314,6 @@ set TCMD(FD) ""
 ## Pipe fd of the program running the spectrum analyzer
 set TCMD(SA) ""
 
-## Trace (i.e., store) the output
-set TCMD(TO) 0
-set TCMD(TR) ""
-
 ## Flag: command needs input
 set TCMD(SH) 0
 
@@ -366,12 +344,12 @@ set TCMD(FO) ""
 ## File descriptor of the genimage pipe
 set TCMD(FG) ""
 
-## FET loader status: 0 - not running, 1 - single process running in FL,
+## Flash loader status: 0 - not running, 1 - single process running in FL,
 ## 2 - single process running in FD, 3 - two processes, one running in FL,
 ### the other in FD
 set TCMD(FY) 0
 
-## Callback for syncing the two processes of the TCMD(FY) = 3 case
+## Callback for delaying debugger startup with proxy, the TCMD(FY) = 3 case
 set TCMD(FY,CB) ""
 
 ## Argument for the second program
@@ -385,7 +363,6 @@ set TCMD(FL) ""
 set TCMD(FL,CB) ""
 set TCMD(FL,SI) "INT"
 set TCMD(FL,AC) "upload_action"
-set TCMD(FL,LT) ""
 
 ## Slots for up to 4 instances of piter, CPITERS counts them, so we can order
 ## them dynamically
@@ -872,7 +849,6 @@ proc valfname { fn t } {
 # Checks if the file/directory name doesn't include illegal (from our point of
 # view) characters
 #
-
 	if { [string tolower [string index $t 0]] == "d" } {
 		set t "directory"
 	} else {
@@ -1142,16 +1118,12 @@ proc term_clean { } {
 
 proc term_addtxt { txt } {
 
-	global TCMD Term ST
+	global Term ST
 
 	$Term configure -state normal
 	$Term insert end $txt
 	$Term configure -state disabled
 	$Term yview -pickplace end
-
-	if $TCMD(TO) {
-		append TCMD(TR) $txt
-	}
 
 	if { $ST(CF) != "" } {
 		catch { puts -nonewline $ST(CF) $txt }
@@ -1164,10 +1136,6 @@ proc term_endline { } {
 
 	$Term configure -state normal
 	$Term insert end "\n"
-
-	if $TCMD(TO) {
-		append TCMD(TR) "\n"
-	}
 
 	if { $ST(CF) != "" } {
 		catch { puts $ST(CF) "" }
@@ -1489,7 +1457,7 @@ proc gfl_tree { } {
 #
 # Fill/update the treeview file list with files
 #
-	global LFTypes MKRECV P ST
+	global LFTypes MKRECV P
 
 	array unset MKRECV
 	set fl [gfl_all_rec .]
@@ -1911,7 +1879,7 @@ proc vue_make_ctags { } {
 # PicOS files. We do this the first time the tags are needed and never update
 # them for as long as PIP is up.
 #
-	global P TagsCmd VTagsArgs
+	global TagsCmd VTagsArgs
 
 	set tl ""
 	if [file_perm "V"] {
@@ -2067,7 +2035,7 @@ proc find_escheme { fn em } {
 #
 # Produce the editor scheme for the file in question
 #
-	global Eschemes ESchemesA ESchemesD LFTypes
+	global ESchemesA
 
 	set tp [lindex [file_class $fn] 0]
 
@@ -3861,7 +3829,7 @@ proc clone_project { } {
 #
 # Clone a project directory to another directory
 #
-	global P DefProjDir
+	global DefProjDir
 
 	if [close_project] {
 		# cancelled 
@@ -3988,7 +3956,7 @@ proc close_project { } {
 
 proc open_project { { which -1 } { dir "" } } {
 
-	global P DefProjDir PicOSPath LProjects
+	global DefProjDir PicOSPath LProjects
 
 	log "open_project: $which, $dir"
 
@@ -4676,32 +4644,66 @@ proc force_full_clean { } {
 	do_cleanup
 }
 
+proc sxml_ctxt { it ky } {
+	return [string trim [sxml_txt [sxml_child $it $ky]]]
+}
+
+proc read_compiler_data { arch } {
+
+	global P PicOSPath
+
+	set cfn [dict get $P(CO) "CCF"]
+
+	if { $cfn == "" } {
+		set cfn "compile.xml"
+	}
+
+	if { [file extension $cfn] == "" } {
+		# supply the default extension
+		append cfn ".xml"
+	}
+
+	# try to open "as is"
+	if [catch { open $cfn "r" } fd] {
+
+		# failed
+		if { [file pathtype $cfn] != "relative" } {
+			# no way
+			error "Cannot open compiler data file $cfn, $fd"
+		}
+
+		# try the package version
+		set cfn [file join $PicOSPath PicOS $arch "compile.xml"]
+		if [catch { open $cfn "r" } fd] {
+			error "Cannot open compiler data file $cfn, $fd"
+		}
+	}
+
+	if [catch { read $fd } cd] {
+		error "Cannot read compiler data file $cfn, $cd"
+	}
+
+	catch { close $fd }
+
+	return $cd
+}
+
 proc update_arch { arch } {
 #
 # Function to fetch any information specific to the architecture that has just
 # changed
 #
-	global PicOSPath ARCHINFO
+	global P ARCHINFO
 
-	set ARCHINFO(GDBPATH) ""
-	set ARCHINFO(GDBINIT,FILE) ""
-	set ARCHINFO(GDBINIT,CONTENTS) ""
+	set ARCHINFO(LOADERS) ""
+	set ARCHINFO(DBINITS) ""
 	set ARCHINFO(VUEE,DEFS) ""
+	set ARCHINFO(LOADERS,LSCAN) 999
 
-	set cpif [file join $PicOSPath PicOS $arch "compile.xml"]
-
-	if [catch { open $cpif "r" } fd] {
-		log "Cannot open compile.xml for $arch, $fd"
+	if [catch { read_compiler_data $arch } cdata] {
+		log $cdata
 		return
 	}
-
-	if [catch { read $fd } cdata] {
-		catch { close $fd }
-		log "Cannot read compile.xml for $arch, $cdata"
-		return
-	}
-
-	catch { close $fd }
 
 	if [catch { sxml_parse cdata } cdata] {
 		log "Bad format of compile.xml for $arch, $cdata"
@@ -4714,29 +4716,52 @@ proc update_arch { arch } {
 		return
 	}
 
-	# gdb
-	set el [sxml_child $cdata "gdb"]
-
-	if { $el != "" } {
-		set ARCHINFO(GDBPATH) \
-			[string trim [sxml_txt [sxml_child $el "path"]]]
-		set gi [sxml_child $el "init"]
-		set cp [sxml_attr $gi "file"]
+	# get to the loaders section
+	set lsec [sxml_child $cdata "loaders"]
+	foreach ld [sxml_children $lsec "loader"] {
+		set cp [sxml_ctxt $ld "path"]
 		if { $cp == "" } {
-			# the default name
-			set cp ".gdbinit"
+			# ignore if path absent
+			continue
 		}
-		set cn ""
-		foreach ln [split [sxml_txt $gi] "\n"] {
-			set ln [string trim $ln]
-			if { $ln != "" } {
-				append cn "${ln}\n"
-			}
-		}
-		set ARCHINFO(GDBINIT,FILE) $cp
-		set ARCHINFO(GDBINIT,CONTENTS) $cn
+		set ca [sxml_ctxt $ld "arguments"]
+		lappend ARCHINFO(LOADERS) [list "c" $cp $ca "" "" ""]
 	}
-
+	foreach ld [sxml_children $lsec "debugger"] {
+		# gdb path (or maybe some other debugger)
+		set cp [sxml_ctxt $ld "path"]
+		set ca [sxml_ctxt $ld "arguments"]
+		set pp [sxml_ctxt $ld "proxypath"]
+		if { $cp == "" || $pp == "" } {
+			# both must be present for this to work
+			continue
+		}
+		set pa [sxml_ctxt $ld "proxyarguments"]
+		set po [sxml_ctxt $ld "port"]
+		if [catch { valnum $po 1 65535 } po] {
+			set po ""
+		}
+		lappend ARCHINFO(LOADERS) [list "d" $pp $pa $po $cp $ca]
+		# init file
+		set po [sxml_child $ld "init"]
+		if { $po != "" } {
+			# we have an init file, map it to the debugger path
+			set pp [sxml_attr $po "file"]
+			if { $pp == "" } {
+				# the default?
+				set pp ".gdbinit"
+			}
+			set cn ""
+			foreach ln [split [sxml_txt $po] "\n"] {
+				set ln [string trim $ln]
+				if { $ln != "" } {
+					append cn "${ln}\n"
+				}
+			}
+			lappend ARCHINFO(DBINITS) [list $cp $pp $cn]
+		}
+	}
+			
 	# VUEE defs (needed to properly size the basic types)
 	set el [sxml_child $cdata "vuee"]
 
@@ -4745,6 +4770,15 @@ proc update_arch { arch } {
 		if { $cp != "" } {
 			lappend ARCHINFO(VUEE,DEFS) $cp
 		}
+	}
+
+	# if no loaders are defined, set defaults
+	set all [dict get $P(CO) "${arch}_LDLIST"]
+	if { $all == "" || [llength $all] == 1 && [lindex $all 0 1] == "" } {
+		# the list is empty
+		set all $ARCHINFO(LOADERS)
+		dict set P(CO) "${arch}_LDLIST" $all
+		set_config
 	}
 }
 
@@ -4782,18 +4816,33 @@ proc board_selection_click { w t } {
 	set P(M0,BO) [mreplace $P(M0,BO) $nb $t]
 }
 
+proc ccf_selection_click { } {
+
+	global P
+
+	set P(M0,CCF) [string trim $P(M0,CCF)]
+
+	reset_all_menus 1
+	set fi [tk_getOpenFile -initialdir "." -parent $P(M0,WI)]
+	reset_all_menus
+
+	if { $fi != "" } {
+		set P(M0,CCF) $fi
+	}
+}
+
 proc mk_board_selection_window { } {
 #
 # Open the board selection window
 #
-	global P Archs ST
+	global P Archs ST FFont
 
 	set w [md_window "Board selection"]
 
 	set f "$w.main"
 
 	frame $f
-	pack $f -side top -expand y -fill both
+	pack $f -side top -expand n -fill x
 
 	# column number for the grid
 	set cn 0
@@ -4902,16 +4951,29 @@ proc mk_board_selection_window { } {
 		grid $f.lm0 -row $cn -column $ro -sticky nw -padx 1 -pady 1
 	}
 
-	incr cn
+	set f "$w.low"
+	frame $f
+	pack $f -side top -expand y -fill x
+
+	label $f.cl -text "Toolchain configuration file: "
+	pack $f.cl -side left -expand n
+
+	button $f.cb -text "Select" -width 7 -command "ccf_selection_click"
+	pack $f.cb -side right -expand n
+
+	entry $f.ce -font $FFont -textvariable P(M0,CCF)
+	pack $f.ce -side right -expand y -fill x
+
+	set f "$w.but"
+	frame $f
+	pack $f -side top -expand y -fill x
 
 	# the done button
-	button $f.don -text "Done" -width 7 \
-		-command "md_click 1"
-	grid $f.don -row $cn -column $ro -sticky nw -padx 1 -pady 1
+	button $f.don -text "Done" -width 7 -command "md_click 1"
+	pack $f.don -side right -expand n
 
-	button $f.can -text "Cancel" -width 7 \
-		-command "md_click -1"
-	grid $f.can -row $cn -column $rn -sticky nw -padx 1 -pady 1
+	button $f.can -text "Cancel" -width 7 -command "md_click -1"
+	pack $f.can -side left -expand n
 
 	bind $w <Destroy> "md_click -1"
 
@@ -4964,9 +5026,12 @@ proc dialog_to_params { nl } {
 	set mod 0
 
 	foreach { k j } $nl {
-		if { [dict get $P(CO) $k] != $P(M0,$k) } {
-			dict set P(CO) $k $P(M0,$k)
-			incr mod
+		if { [string index $k 0] != "_" } {
+			# modal variables starting with _ are not parameters
+			if { [dict get $P(CO) $k] != $P(M0,$k) } {
+				dict set P(CO) $k $P(M0,$k)
+				incr mod
+			}
 		}
 	}
 
@@ -4978,11 +5043,447 @@ proc dialog_to_params { nl } {
 # Flash loaders ###############################################################
 ###############################################################################
 
-proc upload_image { } {
+proc ldr_null { { tp "c" } } {
+#
+# Null loader
+#
+	return [list $tp "" "" "" "" ""]
+}
 
-	global P CFLDNames TCMD
+proc do_loaders_config { } {
+
+	global P CFLoadItems
+
+	if { $P(AC) == "" } {
+		return
+	}
+
+	# make sure a loader is not active while we are doing this
+	if [stop_loader 1] {
+		# the user says "NO"
+		return
+	}
 
 	set arch [dict get $P(CO) "ARCH"]
+
+	if ![info exists CFLoadItems($arch)] {
+		# something wrong, this will never happen
+		alert "Internal error, illegal architecture $arch"
+		return
+	}
+
+	while 1 {
+
+		params_to_dialog $CFLoadItems($arch)
+
+		mk_loaders_conf_window $arch
+
+		while 1 {
+
+			set ev [md_wait]
+
+			if { $ev < 0 } {
+				# cancelled
+				return
+			}
+
+			if { $ev == 1 } {
+				# accepted
+				set more [update_loaders $arch]
+				dialog_to_params $CFLoadItems($arch)
+				md_stop
+				set_config
+				if $more {
+					# redisplay the window
+					break
+				}
+				return
+			}
+		}
+	}
+}
+
+proc mk_loaders_conf_window { arch } {
+
+	global P
+
+	set w [md_window "Loader configuration"]
+
+	set als "${arch}_LDSEL"
+	set all "${arch}_LDLIST"
+	if { $P(M0,$als) == "" } {
+		# the default: the first entry
+		set P(M0,$als) 0
+	}
+
+	if { $P(M0,$all) == "" } {
+		set P(M0,$all) [list [ldr_null]]
+	}
+
+	set fc 0
+	foreach ld $P(M0,$all) {
+		# type: "c" command line, "d" debugger + proxy
+		set ltp [lindex $ld 0]
+		if { $ltp != "c" && $ltp != "d" } {
+			# maintain sanity
+			set ltp "c"
+		}
+		ldr_lcw_$ltp $ld $fc $w.f$fc $arch
+		incr fc
+	}
+
+	## Buttons
+	set f $w.fb
+	frame $f
+	pack $f -side top -expand y -fill x
+	button $f.c -text "Cancel" -width 7 -command "md_click -1"
+	pack $f.c -side left -expand n
+	button $f.d -text "Done" -width 7 -command "md_click 1"
+	pack $f.d -side right -expand n
+
+	bind $w <Destroy> "md_click -1"
+}
+
+proc ldr_lcw_c { ldr cnt f arch } {
+#
+# Configuration widget for a command-type loader
+#
+	global P FFont
+
+	labelframe $f -text "Loader $cnt" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+
+	# the upper frame
+	set fu [frame $f.uf]
+	pack $fu -side top -expand y -fill x
+
+	# selector
+	radiobutton $fu.sel -text "Use" -variable P(M0,${arch}_LDSEL) \
+		-value $cnt
+	pack $fu.sel -side left
+
+	# delete button
+	button $fu.del -text "Delete" -width 7 -command "ldr_wid_del $cnt $arch"
+	pack $fu.del -side right -expand n
+	set rlf [$fu.del cget -relief]
+
+	# the new button
+	menubutton $fu.new -text "New" -width 7 -direction right \
+		-menu $fu.new.m -relief $rlf
+	menu $fu.new.m -tearoff 0
+	$fu.new.m add command -label "Clone" \
+		-command "ldr_wid_new $cnt k"
+	$fu.new.m add command -label "Flasher" \
+		-command "ldr_wid_new $cnt c"
+	$fu.new.m add command -label "Debugger" \
+		-command "ldr_wid_new $cnt d"
+	pack $fu.new -side right -expand n
+
+	# path to the program
+	set fu [frame $f.pp]
+	pack $fu -side top -expand y -fill x
+
+	label $fu.l -text "Path to the program: "
+	pack $fu.l -side left -expand n
+
+	# a special modal variable requiring preprocessing on update
+	set vn "_${cnt}pp"
+	set P(M0,$vn) [lindex $ldr 1]
+
+	button $fu.b -text "Select" -width 7 \
+		-command "ldr_cnf_fsel $cnt $arch $vn"
+	pack $fu.b -side right -expand n
+	entry $fu.f -font $FFont -textvariable P(M0,$vn)
+	pack $fu.f -side right -expand y -fill x
+
+	set fu [frame $f.ag]
+	pack $fu -side top -expand y -fill x
+
+	label $fu.l -text "Arguments: "
+	pack $fu.l -side left -expand n
+
+	set vn "_${cnt}ag"
+	# a special modal variable requiring preprocessing on update
+	set P(M0,$vn) [lindex $ldr 2]
+	entry $fu.a -font $FFont -textvariable P(M0,$vn)
+	pack $fu.a -side left -expand y -fill x
+}
+
+proc ldr_lcw_d { ldr cnt f arch } {
+#
+# Configuration widget for a proxy-type loader
+#
+	global P FFont
+
+	labelframe $f -text "Debugger $cnt" -padx 2 -pady 2
+	pack $f -side top -expand y -fill x
+
+	# the upper frame
+	set fu [frame $f.uf]
+	pack $fu -side top -expand y -fill x
+
+	# selector
+	radiobutton $fu.sel -text "Use" -variable P(M0,${arch}_LDSEL) \
+		-value $cnt
+	pack $fu.sel -side left
+
+	# delete button
+	button $fu.del -text "Delete" -width 7 -command "ldr_wid_del $cnt $arch"
+	pack $fu.del -side right -expand n
+	set rlf [$fu.del cget -relief]
+
+	# new button
+	menubutton $fu.new -text "New" -width 7 -direction right \
+		-menu $fu.new.m -relief $rlf
+	menu $fu.new.m -tearoff 0
+	$fu.new.m add command -label "Clone" \
+		-command "ldr_wid_new $cnt k"
+	$fu.new.m add command -label "Flasher" \
+		-command "ldr_wid_new $cnt c"
+	$fu.new.m add command -label "Debugger" \
+		-command "ldr_wid_new $cnt d"
+	pack $fu.new -side right -expand n
+
+	# path to the program
+	set fu [frame $f.pp]
+	pack $fu -side top -expand y -fill x
+
+	label $fu.l -text "Path to the proxy: "
+	pack $fu.l -side left -expand n
+
+	set vn "_${cnt}pp"
+	set P(M0,$vn) [lindex $ldr 1]
+
+	button $fu.b -text "Select" -width 7 \
+		-command "ldr_cnf_fsel $cnt $arch $vn"
+	pack $fu.b -side right -expand n
+	entry $fu.f -font $FFont -textvariable P(M0,$vn)
+	pack $fu.f -side right -expand y -fill x
+
+	set fu [frame $f.ag]
+	pack $fu -side top -expand y -fill x
+
+	label $fu.l -text "Arguments: "
+	pack $fu.l -side left -expand n
+
+	set vn "_${cnt}ag"
+	# a special modal variable requiring preprocessing on update
+	set P(M0,$vn) [lindex $ldr 2]
+	entry $fu.a -font $FFont -textvariable P(M0,$vn)
+	pack $fu.a -side left -expand y -fill x
+
+	set fu [frame $f.po]
+	pack $fu -side top -expand y -fill x
+
+	label $fu.l -text "GDB connection port: "
+	pack $fu.l -side left -expand n
+
+	set vn "_${cnt}po"
+	set po [lindex $ldr 3]
+	if [catch { valnum $po 1 65535 } po] {
+		set po ""
+	}
+	set P(M0,$vn) $po
+
+	entry $fu.e -font $FFont -textvariable P(M0,$vn) -width 5
+	pack $fu.e -side right -expand n
+
+	# path to the debugger
+	set fu [frame $f.pd]
+	pack $fu -side top -expand y -fill x
+
+	label $fu.l -text "Path to GDB: "
+	pack $fu.l -side left -expand n
+
+	set vn "_${cnt}pd"
+	set P(M0,$vn) [lindex $ldr 4]
+
+	button $fu.b -text "Select" -width 7 \
+		-command "ldr_cnf_fsel $cnt $arch $vn"
+	pack $fu.b -side right -expand n
+	entry $fu.f -font $FFont -textvariable P(M0,$vn)
+	pack $fu.f -side right -expand y -fill x
+
+	set fu [frame $f.ad]
+	pack $fu -side top -expand y -fill x
+
+	label $fu.l -text "Arguments: "
+	pack $fu.l -side left -expand n
+
+	set vn "_${cnt}ad"
+	set P(M0,$vn) [lindex $ldr 5]
+	entry $fu.a -font $FFont -textvariable P(M0,$vn)
+	pack $fu.a -side left -expand y -fill x
+}
+
+proc update_loaders { arch } {
+
+	global P ARCHINFO
+
+	set als "${arch}_LDSEL"
+	set all "${arch}_LDLIST"
+	if { $P(M0,$als) == "" } {
+		# the default: the first entry
+		set P(M0,$als) 0
+	}
+
+	set fc 0
+	set nc 0
+	set nll ""
+	set more 0
+	set sel $P(M0,$als)
+
+	foreach ld $P(M0,$all) {
+		if [info exists P(M0,_${fc}de)] {
+			# delete this widget
+			if { $sel == $fc } {
+				set sel 0
+			}
+			incr more
+			incr fc
+			continue
+		}
+		if { $sel == $fc } {
+			# in case something in front has been deleted
+			set sel $nc
+		}
+
+		lassign $ld tp pp ag po pd ad
+
+		foreach va { pp ag po pd ad } {
+			set vn "_${fc}$va"
+			if [info exists P(M0,$vn)] {
+				set $va $P(M0,$vn)
+			}
+		}
+
+		if [catch { valnum $po 1 65535 } po] {
+			set po ""
+		}
+
+		set ld [list $tp $pp $ag $po $pd $ad]
+
+		lappend nll $ld
+
+		incr nc
+		incr fc
+	}
+
+	if { $nll == "" } {
+		# make sure there is at least one empty entry
+		lappend nll [ldr_null]
+	}
+
+	if [info exists P(M0,_new)] {
+		# new
+		lassign $P(M0,_new) cnt tp
+		unset P(M0,_new)
+		if { $cnt < [llength $nll] } {
+			# just in case
+			if { $tp == "k" } {
+				# clone
+				set nw [lindex $nll $cnt]
+			} else {
+				set nw [ldr_select_default $tp]
+				if { $nw == "" } {
+					set ns [ldr_null $tp]
+				}
+			}
+			if { $sel < $cnt } {
+				incr sel
+			}
+			incr cnt
+			set nll [linsert $nll $cnt $nw]
+		}
+		incr more
+	}
+
+	set P(M0,$als) $sel
+	set P(M0,$all) $nll
+
+	return $more
+}
+
+proc ldr_select_default { tp } {
+#
+# Returns the next standard loader to fill in a blank
+#
+	global ARCHINFO
+
+	set nl [llength $ARCHINFO(LOADERS)]
+
+	for { set i 0 } { $i < $nl } { incr i } {
+		if { $ARCHINFO(LOADERS,LSCAN) >= $nl } {
+			set ls 0
+		}
+		set ld [lindex $ARCHINFO(LOADERS) $ARCHINFO(LOADERS,LSCAN)]
+		incr ARCHINFO(LOADERS,LSCAN)
+		if { [lindex $ld 0] == $tp } {
+			# got it
+			return $ld
+		}
+	}
+
+	return ""
+}
+
+proc ldr_wid_del { cnt arch } {
+#
+# Delete the loader widget
+#
+	global P
+
+	set P(M0,_${cnt}de) ""
+
+	md_click 1
+}
+
+proc ldr_wid_new { cnt tp } {
+
+	global P
+
+	set P(M0,_new) [list $cnt $tp]
+
+	md_click 1
+}
+
+proc ldr_cnf_fsel { cnt arch vn } {
+#
+# Select the path to an executable loader, proxy, or debugger
+#
+	global P
+
+	set P(M0,$vn) [string trim $P(M0,$vn)]
+
+	# local cache for dir name
+	set ldd "${arch}LDGPRPATH_D"
+
+	if { [info exists P(M0,$ldd)] && [file isdirectory $P(M0,$ldd)] } {
+		set id $P(M0,$ldd)
+	} else {
+		# use the directory path of last selection
+		set id [file dirname $P(M0,$vn)]
+		if ![file isdirectory $id] {
+			set id ""
+		}
+		set P(M0,$ldd) $id
+	}
+
+	reset_all_menus 1
+	set fi [tk_getOpenFile -initialdir $id -parent $P(M0,WI)]
+	reset_all_menus
+
+	if { $fi != "" } {
+		set P(M0,$vn) $fi
+		set P(M0,$ldd) [file dirname $fi]
+	}
+}
+
+###############################################################################
+
+proc upload_image { } {
+
+	global P CFLoadItems TCMD
 
 	if { $P(AC) == "" } {
 		return
@@ -4993,37 +5494,299 @@ proc upload_image { } {
 		return
 	}
 
-	set als "${arch}LDSEL"
+	set arch [dict get $P(CO) "ARCH"]
 
-	# the loader
-	set ul [dict get $P(CO) $als]
+	if ![info exists CFLoadItems($arch)] {
+		# something wrong, this will never happen
+		alert "Internal error, illegal architecture $arch"
+		return
+	}
 
-	# check if legal (depends on the system)
-	if { $ul != "" } {
-		if { ![info exists CFLDNames($arch)] ||
- 		    [lsearch -exact $CFLDNames($arch) $ul] < 0 } {
-			# force default
-			set ul ""
+	set als [dict get $P(CO) "${arch}_LDSEL"]
+	set all [dict get $P(CO) "${arch}_LDLIST"]
+	set use $als
+
+	if [catch { valnum $use 0 [expr { [llength $all] - 1 }] } use] {
+		# make sure this is sane
+		set use 0
+	}
+
+	# the loader in use
+	set ldr [lindex $all $use]
+
+	# the type
+	if { [lindex $ldr 0] == "d" } {
+		# debugger
+		ldr_upl_d $arch $ldr
+	} else {
+		ldr_upl_c $arch $ldr
+	}
+}
+
+proc ldr_fargt { arg } {
+#
+# Returns the list: filetype filetype, where the first filetype is the
+# required file name suffix of a present image file and the second, if not
+# null, is the substitute suffix.
+#
+	if [regexp -nocase {%f\.([a-z_0-9]+)=([a-z_0-9]+)} $arg jnk ta tb] {
+		# the most general case: type substitute
+		return [list $ta $tb]
+	}
+
+	if [regexp -nocase {%f=([a-z_0-9]+)} $arg jnk tb] {
+		# empty first type
+		return [list "" $tb]
+	}
+
+	if [regexp -nocase {%f\.([a-z_0-9]+)} $arg jnk ta] {
+		# type, no substitute
+		return [list $ta ""]
+	}
+
+	if [regexp -nocase {%f} $arg] {
+		return [list "" ""]
+	}
+
+	# this pathological case means: no file needed
+	return ""
+}
+
+proc mk_upload_file_selection_window { flist } {
+
+	global P
+
+	set w [md_window "File selection"]
+
+	frame $w.tf
+	pack $w.tf -side top -expand y -fill x
+
+	label $w.tf.l -text "Select the image file to upload: "
+	pack $w.tf.l -side left -expand n -fill x
+
+	set P(M0,UFILE) [lindex $flist 0]
+
+	eval "tk_optionMenu $w.tf.r P(M0,UFILE) [split [join $flist]]"
+	pack $w.tf.r -side right -expand n
+
+	frame $w.bf
+	pack $w.bf -side top -expand y -fill x
+
+	button $w.bf.b -text "Go Ahead" -command "md_click 1"
+	pack $w.bf.b -side right -expand n -fill x
+
+	button $w.bf.c -text "Cancel" -command "md_click -1"
+	pack $w.bf.c -side left -expand n -fill x
+
+	bind $w <Destroy> "md_click -1"
+}
+
+proc ldr_farsub { arg } {
+#
+# Upload file name substitution
+#
+	global P
+
+	set ft [ldr_fargt $arg]
+
+	if { $ft == "" } {
+		# no file needed
+		return $arg
+	}
+
+	set ta [lindex $ft 0]
+	set tb [lindex $ft 1]
+	log "Load file types: $ta -> $tb"
+	set fl [glob -nocomplain "Image*"]
+
+	set ffl ""
+	foreach f $fl {
+		# select the interesting files
+		if { $ta == "" && [file extension $f] == "" ||
+		     $ta != "" && [file extension $f] == ".$ta" } {
+			lappend ffl $f
 		}
 	}
 
-	if { $ul == "" } {
-		# use default
-		if { ![info exists CFLDNames($arch)] ||
-		    $CFLDNames($arch) == "" } {
-			alert "No loaders available for architecture $arch"
-			return
+	if { $ffl == "" } {
+		if { $ta == "" } {
+			set tp "ELF (assumed)"
+		} else {
+			set tp $ta
 		}
-		set ul [lindex $CFLDNames($arch) 0]
-		dict set P(CO) "$als" $ul
-		set_config
+		error "No image file found, type = $tp"
 	}
 
-	# indicate which loader is running; note that LDSEL may change, so
-	# we need something reliable
-	set TCMD(FL,LT) $ul
+	if { [llength $ffl] == 1 } {
+		# a single choice
+		set fn [lindex $ffl 0]
+	} else {
+		set w [mk_upload_file_selection_window $ffl]
+		while 1 {
+			set ev [md_wait]
+			if { $ev < 0 } {
+				# cancelled
+				return
+			}
+			if { $ev == 1 } {
+				set fn $P(M0,UFILE)
+				md_stop
+				break
+			}
+		}
+	}
 
-	ldr_upl_$ul $arch
+	if { $tb != "" } {
+		# need to copy the file
+		set fm "[file rootname $fn].$tb"
+		if [catch { file copy -force -- $fn $fm } err] {
+			error "Cannot copy $fn to $fm, $err"
+		}
+		set fn $fm
+	}
+
+	# do the substitution
+	regsub -all -nocase {%f\.[a-z_0-9]+=[a-z_0-9]+} $arg $fn arg
+	regsub -all -nocase {%f=[a-z_0-9]+} $arg $fn arg
+	regsub -all -nocase {%f\.[a-z_0-9]+} $arg $fn arg
+	regsub -all -nocase {%f} $arg $fn arg
+
+	return $arg
+}
+
+proc ldr_ver_lst { arg } {
+#
+# Assemble a substituted argument string into a list of argments; looks like
+# a do nothing, but it verifies if the string is a legit list
+#
+	set res ""
+
+	foreach a $arg {
+		lappend res $a
+	}
+
+	return $res
+}
+
+proc ldr_upl_c { arch ldr } {
+#
+# A direct flash loader
+#
+	global TCMD
+
+	set pgm [lindex $ldr 1]
+
+	if { $pgm == "" } {
+		alert "Unknown loader program, you have to specify the program\
+			path in the loader configuration window"
+		return
+	}
+
+	if [catch { ldr_farsub [lindex $ldr 2] } arg] {
+		alert $arg
+		return
+	}
+
+	# build the arguments
+	set al ""
+
+	if [catch { ldr_ver_lst $arg } al] {
+		alert "The effective argument string ($arg) for the loader\
+			does not amount to a legit list"
+		return
+	}
+
+	set TCMD(FY) 1
+
+	term_dspline "UPLOADING: $pgm [join $al]"
+
+	if [catch { run_term_command $pgm $al "upload_action 0" \
+	    "upload_action 0" } err] {
+		alert "Cannot execute $pgm, $err"
+		upload_action 0
+	}
+}
+
+proc ldr_upl_d { arch ldr } {
+#
+# Now for the tricky bit: a proxy-based debugger
+#
+	global TCMD
+
+	set pro [lindex $ldr 1]
+
+	if { $pro == "" } {
+		alert "Unknown proxy program, you have to specify the program\
+			path in the loader configuration window"
+		return
+	}
+
+	# proxy argument
+	set par [lindex $ldr 2]
+	# proxy port
+	set ppo [lindex $ldr 3]
+
+	if [catch { valnum $ppo 1 65535 } ppo] {
+		set ppo ""
+	}
+
+	regsub -all -nocase {%p} $par $ppo par
+
+	# debugger
+	set pgm [lindex $ldr 4]
+
+	if { $pgm == "" } {
+		alert "Unknown debugger program, you have to specify the\
+			program path in the loader configuration window"
+		return
+	}
+
+	if [catch { ldr_farsub [lindex $ldr 5] } arg] {
+		alert $arg
+		return
+	}
+
+	if [catch { ldr_ver_lst $par } alp] {
+		alert "The effective argument string ($par) for the proxy\
+			does not amount to a legit list"
+		return
+	}
+
+	if [catch { ldr_ver_lst $arg } ald] {
+		alert "The effective argument string ($arg) for the debugger\
+			does not amount to a legit list"
+		return
+	}
+
+	mk_gdb_init $pgm $ppo
+
+	log "PROXY: $pro $alp"
+	term_dspline "STARTING DEBUG PROXY"
+
+	set TCMD(FY) 3
+	set TCMD(FY,AR) [concat [list $pgm] $ald]
+
+	if [catch { run_term_command $pro $alp "upload_action 0" \
+    	    "upload_action 0" } err] {
+		alert "Proxy startup failed, $err"
+		upload_action 0
+		return
+	}
+
+	set TCMD(FY,CB) [after 1000 ldr_start_debugger]
+}
+
+proc ldr_start_debugger { } {
+#
+# A callback to delay debugger startup
+#
+	global TCMD P
+
+	set gcp [dict get $P(CO) "OPTSHWCMND"]
+	set xt [lindex $gcp 0]
+	regsub {%f} [lrange $gcp 1 end] $TCMD(FY,AR) al
+	bpcs_run $xt $al "FL"
+	set TCMD(FY,CB) ""
 }
 
 proc upload_action { start } {
@@ -5051,9 +5814,7 @@ proc upload_action { start } {
 				catch { after cancel $TCMD(FY,CB) }
 				set TCMD(FY,CB) ""
 			}
-			# trace output off
-			set TCMD(TO) 0
-			set TCMD(TR) ""
+			# argument for the delayed debugger
 			set TCMD(FY,AR) ""
 		}
 		set TCMD(FY) 0
@@ -5088,141 +5849,43 @@ proc stop_loader { { ask 0 } } {
 	return 0
 }
 
-###############################################################################
-
-proc do_loaders_config { } {
-
-	global P CFLoadItems CFLDNames
-
-	if { $P(AC) == "" } {
-		return
-	}
-
-	# make sure the loader is not active while we are doing this
-	if [stop_loader 1] {
-		# the user says "NO"
-		return
-	}
-
-	set arch [dict get $P(CO) "ARCH"]
-
-	if [info exists CFLDNames($arch)] {
-		set ldrs $CFLDNames($arch)
-	} else {
-		set ldrs ""
-	}
-
-	if { $ldrs == "" } {
-		alert "No loaders available to architecture $arch"
-		return
-	}
-
-	params_to_dialog $CFLoadItems($arch)
-
-	mk_loaders_conf_window $arch $ldrs
-
-	while 1 {
-
-		set ev [md_wait]
-
-		if { $ev < 0 } {
-			# cancelled
-			return
-		}
-
-		if { $ev == 1 } {
-			# accepted
-			dialog_to_params $CFLoadItems($arch)
-			md_stop
-			set_config
-			return
-		}
-	}
-}
-
-proc mk_loaders_conf_window { arch ldrs } {
-
-	global P ST FFont MspdLdDrv CFLDNames
-
-	set w [md_window "Loader configuration"]
-
-	# this depends on the arch; I was thinking about removing the
-	# configuration to an external XML file (or something), but that
-	# way we would have to give up some of the (often simple) adaptation
-	# tweaks for some standard loaders; so we basically retain the mess
-	# additionally parameterizing the selection by arch (assuming that
-	# we will be adding tweaks for other archs, as they become needed or
-	# useful)
-
-	set als "${arch}LDSEL"
-	if { $P(M0,$als) == "" } {
-		# the default
-		set P(M0,$als) [lindex $ldrs 0]
-	}
-
-	set fc 0
-	foreach ld $ldrs {
-		ldr_lcw_$ld $w.f$fc $arch
-		incr fc
-
-	}
-
-	## Buttons
-	set f $w.fb
-	frame $f
-	pack $f -side top -expand y -fill x
-	button $f.c -text "Cancel" -command "md_click -1"
-	pack $f.c -side left -expand n
-	button $f.d -text "Done" -command "md_click 1"
-	pack $f.d -side right -expand n
-
-	bind $w <Destroy> "md_click -1"
-}
-
-proc mk_upload_file_selection_window { flist } {
-
-	global P
-
-	set w [md_window "File selection"]
-
-	frame $w.tf
-	pack $w.tf -side top -expand y -fill x
-
-	label $w.tf.l -text "Select the image file to upload: "
-	pack $w.tf.l -side left -expand n -fill x
-
-	set P(M0,UFILE) [lindex $flist 0]
-
-	eval "tk_optionMenu $w.tf.r P(M0,UFILE) [split [join $flist]]"
-	pack $w.tf.r -side right -expand n
-
-	frame $w.bf
-	pack $w.bf -side top -expand y -fill x
-
-	button $w.bf.b -text "Go Ahead" -command "md_click 1"
-	pack $w.bf.b -side right -expand n -fill x
-
-	button $w.bf.c -text "Cancel" -command "md_click -1"
-	pack $w.bf.c -side left -expand n -fill x
-
-	bind $w <Destroy> "md_click -1"
-}
-
-proc mk_gdb_files { { port "" } } {
+proc mk_gdb_init { pgm port } {
 #
-# Creates the GDB config files
+# Creates the debugger config file
 #
 	global ARCHINFO
 
-	if { ![info exists ARCHINFO(GDBINIT,FILE)] ||
-	    $ARCHINFO(GDBINIT,FILE) == "" } {
-		# no info available
-		log "No info to create gdb init file"
+	# find the init file best matching the debugger path
+	set pgm [string tolower $pgm]
+
+	set exa ""
+	set nex ""
+	foreach g $ARCHINFO(DBINITS) {
+		set pp [string tolower [lindex $g 0]]
+		# try the exact match
+		if { $pp == $pgm } {
+			set exa $g
+			break
+		}
+		if { [file tail $pp] == [file tail $pgm] } {
+			set nex $g
+		}
+	}
+
+	if { $exa == "" } {
+		set exa $nex
+	}
+
+	if { $exa == "" } {
+		log "No init file available for $pgm"
 		return
 	}
 
-	set fn $ARCHINFO(GDBINIT,FIILE)
-	set fc $ARCHINFO(GDBINIT,CONTENTS)
+	set fn [lindex $exa 1]
+	set fc [lindex $exa 2]
+
+	log "Init file $fn"
+
 	if { $port != "" } {
 		# substitute the port number
 		if [regexp -line -indices \
@@ -5246,870 +5909,7 @@ proc mk_gdb_files { { port "" } } {
 }
 
 ###############################################################################
-# Loader conf MSPDEBUG ########################################################
-###############################################################################
-
-proc ldr_lcw_MSD { f arch } {
-#
-# Creates the configuration widget for the MSPDEBUG loader
-#
-	global P
-
-	labelframe $f -text "MSPDebug" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
-
-	# selector
-	radiobutton $f.sel -text "Use" -variable P(M0,${arch}LDSEL) -value "MSD"
-	pack $f.sel -side top -anchor "nw"
-
-	frame $f.f
-	pack $f.f -side top -expand y -fill x
-	label $f.f.l -text "FET device for MSPDebug: "
-	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "ldr_cnf_MSD_fsel $arch 0"
-	pack $f.f.b -side right -expand n
-
-	button $f.f.a -text "Auto" -command "ldr_cnf_MSD_fsel $arch 1"
-	pack $f.f.a -side right -expand n
-	label $f.f.f -textvariable P(M0,${arch}LDMSDDEV)
-	pack $f.f.f -side right -expand n
-	
-	frame $f.g
-	pack $f.g -side top -expand y -fill x
-	label $f.g.l -text "Driver: "
-	pack $f.g.l -side left -expand n
-
-	# create the list of drivers
-
-	set pl { "tilib"
-		"rf2500"
-		"uif"
-		"gdbc"
-		"olimex"
-		"olimex-v1"
-		"olimex-iso"
-		"olimex-iso-mk2"
-		"sim"
-		"goodfet"
-		"pif"
-		"gpio"
-		"ezfet"
-		"uif-bsl"
-		"flash-bsl"
-		"load-bsl"
-		"rom-bsl"
-		"manual" }
-
-	if { [lsearch -exact $pl $P(M0,${arch}LDMSDDRV)] < 0 } {
-		# safe fallback
-		set P(M0,${arch}LDMSDDRV) [lindex $pl 0]
-	}
-
-	eval "tk_optionMenu $f.g.e P(M0,${arch}LDMSDDRV) [split [join $pl]]"
-	pack $f.g.e -side right -expand n
-
-	frame $f.u
-	pack $f.u -side top -expand y -fill x
-
-	label $f.u.l -text "Allow firmware update: "
-	pack $f.u.l -side left -expand n
-
-	checkbutton $f.u.c -variable P(M0,${arch}LDMSDAFU)
-	pack $f.u.c -side right -expand n
-
-	frame $f.w
-	pack $f.w -side top -expand y -fill x
-	
-	label $f.w.l -text "GDB connection port: "
-	pack $f.w.l -side left -expand n
-
-	eval "tk_optionMenu $f.w.e P(M0,${arch}LDMSDGDP) None 2000 2001 2002 \
-		2003 3010 3011 3012 3100 3101 3102"
-	pack $f.w.e -side right -expand n
-}
-
-proc ldr_cnf_MSD_fsel { arch auto } {
-#
-# Select the path to mspdebug device
-#
-	global P ST
-
-	if { $ST(SYS) != "L" } {
-		alert "This attribute can only be configured on Linux"
-		return
-	}
-
-	set lsd "${arch}LDMSDDEV"
-
-	if $auto {
-		set P(M0,$lsd) "Automatic"
-		return
-	}
-
-	set id "/dev"
-	if { $P(M0,$lsd) != "" && $P(M0,$lsd) != "Automatic" } {
-		set fp [file dirname $P(M0,$lsd)]
-		if [file isdirectory $fp] {
-			set id $fp
-		}
-	}
-
-	reset_all_menus 1
-	set fi [tk_getOpenFile \
-		-initialdir $id \
-		-parent $P(M0,WI)]
-	reset_all_menus
-
-	if { $fi != "" } {
-		set P(M0,$lsd) $fi
-	}
-}
-
-proc ldr_upl_MSD { arch } {
-#
-# MSPDEBUG upload
-#
-	global P TCMD ARCHINFO
-
-	set fl [glob -nocomplain "Image*"]
-
-	if { $fl == "" } {
-		alert "No image file found"
-		return
-	}
-
-	set fl [lsort $fl]
-
-	set driver [dict get $P(CO) "${arch}LDMSDDRV"]
-
-	if { $driver == "manual" } {
-		alert "Manual handler for mspdebug not implemented yet"
-		return
-	}
-
-	set al ""
-
-	set device [dict get $P(CO) "${arch}LDMSDDEV"]
-
-	if { $device != "Automatic" } {
-		lappend al "-d"
-		lappend al $device
-	}
-
-	if [dict get $P(CO) "${arch}LDMSDAFU"] {
-		lappend al "--allow-fw-update"
-	}
-
-	lappend al $driver
-	
-	if ![catch { valport [dict get $P(CO) "${arch}LDMSDGDP"] } gp] {
-
-		# gdb proxy, need path to GDB
-		if { ![info exists ARCHINFO(GDBPATH)] ||
-		    $ARCHINFO(GDBPATH) == "" } {
-			# not available
-			alert "GDB path not available, check compile.xml for\
-				$arch"
-			return
-		}
-
-		# extract ELF files only, GDB doesn't handle any others
-		set ffl ""
-		foreach f $fl {
-			if { [file extension $f] == "" } {
-				lappend ffl $f
-			}
-		}
-
-		if { $ffl == "" } {
-			alert "No ELF image file found (GDB only handles ELF\
-				images)"
-			return
-		}
-
-		if { [llength $ffl] == 1 } {
-			set fn [lindex $ffl 0]
-		} else {
-			log "MSPDEBUG: file selection dialog"
-			set w [mk_upload_file_selection_window $ffl]
-			while 1 {
-				set ev [md_wait]
-				if { $ev < 0 } {
-					# cancelled
-					return
-				}
-				if { $ev == 1 } {
-					set fn $P(M0,UFILE)
-					md_stop
-					break
-				}
-			}
-		}
-
-		set TCMD(FY,AR) $fn
-
-		if [catch { mk_gdb_files $gp } err] {
-			alert "Failed to create the GDB init file, $err"
-			return
-		}
-
-		lappend al "gdb $gp"
-
-		log "MSPDEBUG: args = $al"
-
-		term_dspline "STARTING MSPDEBUG AS GDB PROXY"
-
-		set TCMD(FY) 3
-
-		if [catch { run_term_command "mspdebug" $al "upload_action 0" \
-	    	    "upload_action 0" } err] {
-			alert "MSPDebug failed, $err"
-			upload_action 0
-			return
-		}
-
-		set TCMD(TO) 1
-		set TCMD(TR) ""
-
-		set TCMD(FY,CB) [after 300 ldr_pxy_MSD]
-
-		return
-	}
-
-	# check if there is a single file
-	set froot ""
-	set ok 1
-	foreach f $fl {
-		set fr [file rootname $f]
-		if { $froot == "" } {
-			set froot $fr
-		} elseif { $froot != $fr } {
-			set ok 0
-			break
-		}
-	}
-
-	log "MSPDEBUG: root = $froot, list = $fl"
-
-	if $ok {
-		# this gives preference to ELF files
-		set fn [lindex $fl 0]
-		log "MSPDEBUG: single file = $fn"
-	} else {
-		# we need to decide in a separate dialog
-		log "MSPDEBUG: file selection dialog"
-		set w [mk_upload_file_selection_window $fl]
-		while 1 {
-			set ev [md_wait]
-			if { $ev < 0 } {
-				# cancelled
-				return
-			}
-			if { $ev == 1 } {
-				set fn $P(M0,UFILE)
-				md_stop
-				break
-			}
-		}
-	}
-
-	set TCMD(FY) 2
-
-	lappend al "prog $fn"
-
-	log "MSPDEBUG: args = $al"
-
-	term_dspline "UPLOADING: $fn"
-
-	if [catch { run_term_command "mspdebug" $al "upload_action 0" \
-	    "upload_action 0" } err] {
-		alert "MSPDebug failed, $err"
-		upload_action 0
-	}
-}
-
-proc ldr_pxy_MSD { } {
-#
-# A callback to check if the proxy is ready and to start GDB if so
-#
-	global P TCMD MSPDTERM ARCHINFO
-
-	if { $TCMD(FY) != 3 || $TCMD(FL) != "" } {
-		# cannot happen
-		return
-	}
-
-	if { [string first "waiting for connection" $TCMD(TR)] < 0 } {
-		# not yet
-		set TCMD(FY,CB) [after 300 ldr_pxy_MSD]
-		return
-	}
-
-	set TCMD(FY,CB) ""
-	set TCMD(TO) 0
-	set TCMD(TR) ""
-
-	# start GDB
-	set gcp [dict get $P(CO) "OPTGDBCMND"]
-	# terminal program
-	set xt [lindex $gcp 0]
-	set al ""
-	foreach a [lrange $gcp 1 end] {
-		if { $a == "%f" } {
-			# substitute gdb invocation
-			lappend al $ARCHINFO(GDBPATH)
-			lappend al $TCMD(FY,AR)
-		} else {
-			lappend al $a
-		}
-	}
-	bpcs_run $xt $al "FL"
-
-	# lappend al "&"
-	# catch { xq $xt $al }
-}
-
-###############################################################################
-# Loader conf ELPROTRONIC #####################################################
-###############################################################################
-
-proc ldr_lcw_ELP { f arch } {
-#
-# Creates the configuration widget for the ELPROTRONIC loader
-#
-	global P ST
-
-	if { $ST(SYS) == "L" } {
-		# Windows only
-		return
-	}
-
-	labelframe $f -text "Elprotronic" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
-	##
-	radiobutton $f.sel -text "Use" -variable P(M0,${arch}LDSEL) -value "ELP"
-	pack $f.sel -side top -anchor "nw"
-	##
-	frame $f.f
-	pack $f.f -side top -expand y -fill x
-	##
-	label $f.f.l -text "Path to the program's executable: "
-	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "ldr_cnf_ELP_fsel $arch 0"
-	pack $f.f.b -side right -expand n
-	button $f.f.a -text "Auto" -command "ldr_cnf_ELP_fsel $arch 1"
-	pack $f.f.a -side right -expand n
-	label $f.f.f -textvariable P(M0,${arch}LDELPPATH)
-	pack $f.f.f -side right -expand n
-}
-
-proc ldr_cnf_ELP_fsel { arch auto } {
-#
-# Select the path to Elprotronic loader
-#
-	global P ST env
-
-	if { $ST(SYS) == "L" } {
-		alert "You cannot configure this loader on Linux"
-		return
-	}
-
-	set ldp "${arch}LDELPPATH"
-
-	if { $auto } {
-		set P(M0,$ldp) "Automatic"
-		return
-	}
-
-	set ldd "${arch}LDELPPATH_D"
-	if [info exists P(M0,$ldd)] {
-		set id $P(M0,$ldd)
-	} else {
-		set id ""
-		if { $P(M0,$ldp) == "" } {
-			if [info exists env(PROGRAMFILES)] {
-				set fp $env(PROGRAMFILES)
-			} else {
-				# fallback in case of problems
-				set fp "C:/Program Files"
-			}
-			set fp [fpnorm $fp]
-			if [file isdirectory $fp] {
-				set id $fp
-			}
-		} else {
-			# use the directory path of last selection
-			set fp [file dirname $P(M0,$ldp)]
-			if [file isdirectory $fp] {
-				set id $fp
-			}
-		}
-		set P(M0,$ldd) $id
-	}
-
-	reset_all_menus 1
-	set fi [tk_getOpenFile \
-		-initialdir $id \
-		-filetypes [list [list "Executable" [list ".exe"]]] \
-		-defaultextension ".exe" \
-		-parent $P(M0,WI)]
-	reset_all_menus
-
-	if { $fi != "" } {
-		set P(M0,$ldp) $fi
-	}
-}
-
-proc ldr_cfs_ELP { cfn { del 0 } } {
-#
-# Checks if the elpro config file exists and is sane
-#
-	if ![file exists $cfn] {
-		return 0
-	}
-
-	if { [catch { file stat $cfn sta } ] || $sta(size) < 256 } {
-		# bad
-		if $del {
-			catch { file delete -force $cfn }
-		}
-		return 0
-	}
-
-	return 1
-}
-
-proc ldr_upl_ELP { arch } {
-#
-# Elprotronic upload
-#
-	global P ST TCMD env
-
-	# sanity check
-
-	if { $ST(SYS) == "L" } {
-		# Windows only
-		alert "You cannot use this loader on Linux"
-		return
-	}
-
-	set cfn "config.ini"
-
-	set ep [dict get $P(CO) "${arch}LDELPPATH"]
-	if { $ep == "" || $ep == "Automatic" } {
-		# Try to locate
-		global env
-		set ep ""
-		foreach pp [array names env] {
-			if ![regexp -nocase "program.*files" $pp] {
-				continue
-			}
-			set pp [fpnorm $env($pp)]
-			log "Trying loader path: $pp"
-			set pp [glob -nocomplain \
-				-directory $pp "Elprotronic/*/*/FET*.exe"]
-			if { $pp != "" } {
-				set ep [lindex $pp 0]
-				break
-			}
-		}
-		if { $ep == "" } {
-			alert "Cannot autolocate the path to Elprotronic\
-				loader, please configure manually"
-			return
-		}
-	}
-
-	if ![file exists $ep] {
-		alert "No Elprotronic loader at $ep"
-		return
-	}
-
-	set im [glob -nocomplain "Image*.a43"]
-	if { $im == "" } {
-		alert "No .a43 (Intel) format image(s) available for upload"
-		return
-	}
-
-	log "Images: $im"
-	# may have to redo this once
-	set loc 1
-	while 1 {
-		# check for a local copy of the configuration file
-		if ![ldr_cfs_ELP $cfn 1] {
-			# absent -> copy from the installation directory
-			set dfn [file dirname $ep]
-			puts "EP dirname: $dfn"
-			if { ( [regexp -nocase {^[a-z]:[/\\](.*)} $dfn jnk vfn]\
-			 || [regexp -nocase {^/cygdrive/[a-z][/\\](.*)} \
-			   $dfn jnk vfn] ) && \
-			    [info exists env(LOCALAPPDATA)] } {
-				# try virtualstore first; the Windows (Active)
-				# version of Tcl/Tk gets the config file from
-				# the installation directory whereas it should
-				# come from virtualstore; I believe that should
-				# be automatic, but it isn't on my system (it
-				# is OK for the Cygwin version of Tcl/Tk),
-				# probably because of some UAC settings
-				set vfn [file join $env(LOCALAPPDATA) \
-				    VirtualStore $vfn $cfn]
-				puts "Config file absent, trying vstore $vfn"
-				if [catch { file copy -force -- $vfn $cfn } \
-				    err] {
-					log "Failed to copy $vfn, $err"
-					catch { file delete -force $cfn }
-				}
-			}
-			if ![ldr_cfs_ELP $cfn 1] {
-				# try the installation directory
-				set vfn [file join $dfn $cfn]
-				puts "Config file absent, trying install $vfn"
-				if [catch { file copy -force -- $vfn $cfn } \
-				   err] {
-					alert "Cannot retrieve the\
-						configuration file\
-						of Elprotronic loader: $err"
-					return
-				}
-			}
-			# flag = local copy already fetched from install
-			set loc 0
-		}
-
-		# try to open the local configuration file
-		if [catch { open $cfn "r" } fd] {
-			if $loc {
-				# redo
-				set loc 0
-				catch { file delete -force -- $cfn }
-				continue
-			}
-			alert "Cannot open local configuration file of\
-				Elprotronic loader: $fd"
-			return
-		}
-
-		if [catch { read $fd } cf] {
-			catch { close $fd }
-			if $loc {
-				# redo
-				set loc 0
-				catch { file delete -force -- $cfn }
-				continue
-			}
-			alert "Cannot read local configuration file of\
-				Elprotronic loader: $cf"
-			return
-		}
-
-		catch { close $fd }
-
-		# last file to load
-		if ![regexp "CodeFileName\[^\r\n\]*" $cf mat] {
-			if $loc {
-				# redo
-				set loc 0
-				catch { file delete -force -- $cfn }
-				continue
-			}
-			alert "Bad format of Elprotronic configuration file"
-			return
-		}
-		break
-	}
-
-	# locate the previous parameters
-	set loc 0
-	if [regexp \
-	    "^CodeFileName\[ \t\]+(\[^ \t\]+)\[ \t\]+(\[^ \t\]+)\[ \t\]+(.+)" \
-	    $mat jnk suf fil pat] {
-		# format OK
-		set loc 1
-		if { $suf != "a43" || [lsearch -exact $im $fil] < 0 } {
-			set loc 0
-		}
-		# verify the directory
-		if { !$loc || [string trim $pat] != \
-		     [dospath [file join $P(AC) $fil]] } {
-			set loc 0
-		}
-		log "Elpro previous: $suf $fil $pat $loc"
-	}
-
-	if !$loc {
-		# have to update the config file
-		set im [lindex [lsort $im] 0]
-		set ln "CodeFileName\ta43\t${im}\t"
-		append ln [dospath [file join $P(AC) $im]]
-		# substitute and rewrite
-		set ix [string first $mat $cf]
-		regsub -all "/" $ln "\\" ln
-		log "Elpro substituting: $ln"
-		set cf "[string range $cf 0 [expr $ix-1]]$ln[string range $cf \
-			[expr $ix + [string length $mat]] end]"
-
-		if [catch { open $cfn "w" } fd] {
-			alert "Cannot open the local configuration file of\
-				Elprotronic loader for writing: $fd"
-			return
-		}
-		if [catch { puts -nonewline $fd $cf } err] {
-			catch { close $fd }
-			alert "Cannot write the configuration file of\
-				Elprotronic loader: $err"
-			return
-		}
-		catch { close $fd }
-	}
-
-	# start the loader
-
-	set TCMD(FY) 1
-
-	bpcs_run $ep "" "FL"
-}
-
-###############################################################################
-# Loader conf GPR #############################################################
-###############################################################################
-
-proc ldr_lcw_GPR { f arch } {
-#
-# Configuration widget for the GPR (command line) loader
-#
-	global P FFont
-
-	labelframe $f -text "Command line" -padx 2 -pady 2
-	pack $f -side top -expand y -fill x
-	radiobutton $f.sel -text "Use" -variable P(M0,${arch}LDSEL) -value "GPR"
-	pack $f.sel -side top -anchor "nw"
-	##
-	frame $f.f
-	pack $f.f -side top -expand y -fill x
-	##
-	label $f.f.l -text "Path to the program: "
-	pack $f.f.l -side left -expand n
-	button $f.f.b -text "Select" -command "ldr_cnf_GPR_fsel $arch"
-	pack $f.f.b -side right -expand n
-	label $f.f.f -textvariable P(M0,${arch}LDGPRPATH)
-	pack $f.f.f -side right -expand n
-	##
-	frame $f.g
-	pack $f.g -side top -expand y -fill x
-	##
-	label $f.g.l -text "Arguments: "
-	pack $f.g.l -side left -expand n
-	entry $f.g.a -font $FFont -textvariable P(M0,${arch}LDGPRARG)
-	pack $f.g.a -side right -expand y -fill x
-}
-
-proc ldr_cnf_GPR_fsel { arch } {
-#
-# Select the path to the command-line loader
-#
-	global P ST env
-
-	set ldp "${arch}LDGPRPATH"
-
-	set P(M0,$ldp) [string trim $P(M0,$ldp)]
-
-	set ldd "${arch}LDGPRPATH_D"
-
-	if [info exists P(M0,$ldd)] {
-		set id $P(M0,$ldd)
-	} else {
-		if { $P(M0,$ldp) == "" } {
-			if { $ST(SYS) == "L" } {
-				# Linux
-				set fnd 0
-				foreach id { "/usr/local/msp430"
-					     "/usr/local"
-					     "/opt" } {
-					if [file isdirectory $id] {
-						set fnd 1
-						break
-					}
-				}
-				if !$fnd {
-					set id ""
-				}
-			} else {
-				# Windows/Cygwin
-				if [info exists env(PROGRAMFILES)] {
-					set id $env(PROGRAMFILES)
-				} else {
-					set id "C:/Program Files"
-				}
-				set id [fpnorm $id]
-				if ![file isdirectory $id] {
-					set id ""
-				}
-			}
-		} else {
-			# use the directory path of last selection
-			set id [file dirname $P(M0,$ldp)]
-			if ![file isdirectory $id] {
-				set id ""
-			}
-		}
-		set P(M0,$ldd) $id
-	}
-
-	reset_all_menus 1
-	set fi [tk_getOpenFile -initialdir $id -parent $P(M0,WI)]
-	reset_all_menus
-
-	if { $fi != "" } {
-		set P(M0,$ldp) $fi
-	}
-}
-
-proc ldr_far_GPR { arch } {
-#
-# Returns the list: filetype filetype, where the first filetype is the
-# required file name suffix of a present image file and the second, if not
-# null, is the substitute suffix.
-#
-	global P
-
-	set arg [dict get $P(CO) "${arch}LDGPRARG"]
-
-	if [regexp -nocase {%f\.([a-z_0-9]+)=([a-z_0-9]+)} $arg jnk ta tb] {
-		# the most general case: type substitute
-		return [list $ta $tb]
-	}
-
-	if [regexp -nocase {%f=([a-z_0-9]+)} $arg jnk tb] {
-		# empty first type
-		return [list "" $tb]
-	}
-
-	if [regexp -nocase {%f\.([a-z_0-9]+)} $arg jnk ta] {
-		# type, no substitute
-		return [list $ta ""]
-	}
-
-	if [regexp -nocase {%f} $arg] {
-		return [list "" ""]
-	}
-
-	# this pathological case means: no file needed
-	return ""
-}
-
-proc ldr_fns_GPR { arch fn } {
-#
-# Substitutes a file name in the argument string
-#
-	global P
-
-	set arg [dict get $P(CO) "${arch}LDGPRARG"]
-
-	regsub -all -nocase {%f\.[a-z_0-9]+=[a-z_0-9]+} $arg $fn arg
-	regsub -all -nocase {%f=[a-z_0-9]+} $arg $fn arg
-	regsub -all -nocase {%f\.[a-z_0-9]+} $arg $fn arg
-	regsub -all -nocase {%f} $arg $fn arg
-	return $arg
-}
-
-proc ldr_upl_GPR { arch } {
-#
-# General command-line loader upload
-#
-	global P
-
-	set pgm [dict get $P(CO) "${arch}LDGPRPATH"]
-	if { $pgm == "" } {
-		alert "Unknown loader program, you have to specify the program\
-			path in the loader configuration window"
-		return
-	}
-
-	set ft [ldr_far_GPR $arch]
-	if { $ft != "" } {
-		# file name substitution
-		set ta [lindex $ft 0]
-		set tb [lindex $ft 1]
-		log "Load file types: $ta -> $tb"
-		set fl [glob -nocomplain "Image*"]
-		set ffl ""
-
-		foreach f $fl {
-			# select the interesting files
-			if { $ta == "" && [file extension $f] == "" ||
-			     $ta != "" && [file extension $f] == ".$ta" } {
-				lappend ffl $f
-			}
-		}
-
-		if { $ffl == "" } {
-			if { $ta == "" } {
-				set tp "ELF"
-			} else {
-				set tp $ta
-			}
-			alert "No image file found (type = $tp)"
-			return
-		}
-
-		if { [llength $ffl] == 1 } {
-			set fn [lindex $ffl 0]
-		} else {
-			set w [mk_upload_file_selection_window $ffl]
-			while 1 {
-				set ev [md_wait]
-				if { $ev < 0 } {
-					# cancelled
-					return
-				}
-				if { $ev == 1 } {
-					set fn $P(M0,UFILE)
-					md_stop
-					break
-				}
-			}
-		}
-
-		if { $tb != "" } {
-			# need to copy the file
-			set fm "[file rootname $fn].$tb"
-			if [catch { file copy -force -- $fn $fm } err] {
-				alert "Cannot replicate $fn to $fm, $err"
-				return
-			}
-			set fn $fm
-		}
-	} else {
-		# file name is irrelevant
-		set fn ""
-	}
-
-	set arg [ldr_fns_GPR $arch $fn]
-
-	set al ""
-	if [catch {
-		foreach a $arg {
-			lappend al $a
-		}
-	} ] {
-		alert "The effective argument string ($arg) does not comprise\
-			a list"
-		return
-	}
-
-	set TCMD(FY) 1
-
-	term_dspline "UPLOADING: $fn"
-
-	if [catch { run_term_command $pgm $al "upload_action 0" \
-	    "upload_action 0" } err] {
-		alert "Cannot execute $pgm, $err"
-		upload_action 0
-	}
-}
-
-###############################################################################
-# End built-in loaders ########################################################
+# End loaders #################################################################
 ###############################################################################
 
 proc oss_available { } {
@@ -6336,7 +6136,7 @@ proc vconf_widgets { what which } {
 
 proc mk_vuee_conf_window { } {
 
-	global P FFont AgentPorts
+	global P FFont
 
 	set w [md_window "VUEE configuration"]
 
@@ -6747,7 +6547,7 @@ proc do_options { } {
 				# make it the default
 				set val $DefDTerm
 			}
-			set P(M0,OPTGDBCMND) $val
+			set P(M0,OPTSHWCMND) $val
 			# verify number
 			set n $P(M0,lc)
 			if [catch { valnum $n 24 100000 } n] {
@@ -6834,10 +6634,10 @@ proc mk_options_conf_window { } {
 
 	incr row
 
-	label $f.gdl -text "GDB invocation: "
+	label $f.gdl -text "Shell command in a terminal window: "
 	grid $f.gdl -column 0 -row $row -padx 4 -pady 2 -sticky w
 
-	set P(M0,gd) $P(M0,OPTGDBCMND)
+	set P(M0,gd) $P(M0,OPTSHWCMND)
 	entry $f.gde -width $ewidth -font $FFont -textvariable P(M0,gd)
 	grid $f.gde -column 1 -row $row -padx 4 -pady 2 -sticky we
 
@@ -6914,7 +6714,7 @@ proc do_eschemes { } {
 #
 # Configure Elvis color/font schemes
 #
-	global P ESchemes
+	global P
 
 	mk_eschemes_window
 
@@ -8292,7 +8092,7 @@ proc bpcs_run { path al pi } {
 #
 # Run a background program on Linux (use a pipe)
 #
-	global TCMD ST
+	global TCMD
 
 	log "Running $path $al <$pi>"
 
@@ -8407,7 +8207,7 @@ proc bpcs_run { path al pi } {
 #
 # Run a background Windows? program
 #
-	global TCMD ST BinPath
+	global TCMD BinPath
 
 	# a simple escape; do we need more?
 	regsub -all "\[ \t()\]" $path {\\&} path
@@ -8655,6 +8455,12 @@ proc run_oss { { auto 0 } { vuee 0 } } {
 
 	if { $P(AC) == "" || $P(CO) == "" } {
 		# no project
+		return
+	}
+
+	if { $auto == 2 } {
+		# just run it as a command
+		run_term_command "oss" { -H ossi.h }
 		return
 	}
 
@@ -8939,7 +8745,7 @@ proc run_term_command { cmd al { ea "" } { aa "" } { ni 0 } } {
 #	aa  - abort action, i.e., a statement to execute after abort
 #	ni  - need input (the pipe should be opened rw with input line enabled)
 #
-	global TCMD ST
+	global TCMD
 
 	if { $TCMD(FD) != "" } {
 		error "Already running a command. Abort it first"
@@ -8947,30 +8753,11 @@ proc run_term_command { cmd al { ea "" } { aa "" } { ni 0 } } {
 
 	log "Running $cmd $al"
 
-	if [isfullpath $cmd] {
-		log "Full path exec"
-if 0 {
-		if ![file exists $cmd] {
-			error "executable file doesn't exist"
-		}
-		if ![file executable $cmd] {
-			error "file is not executable"
-		}
-}
-		set cmd [list $cmd]
-	} else {
-		set ef [auto_execok $cmd]
-		if { $ef == "" } {
-			error "program is not executable"
-		}
-		if [file executable $ef] {
-			set cmd "[list $ef]"
-			log "Autoexec direct: $cmd"
-		} else {
-			set cmd "[list sh] [list $ef]"
-			log "Autoexec shell: $cmd"
-		}
+	set ef [auto_execok $cmd]
+	if { $ef == "" } {
+		error "program $cmd is not executable"
 	}
+	set cmd $ef
 
 	foreach a $al {
 		append cmd " [list $a]"
@@ -9204,7 +8991,7 @@ proc stop_piter { { w "" } } {
 
 proc mk_run_pgm_window { } {
 
-	global P ST FFont
+	global P FFont
 
 	set w [md_window "Enter command to run"]
 
@@ -9670,6 +9457,12 @@ proc reset_build_menu { { clear 0 } } {
 		}
 	}
 
+	if [oss_available] {
+		$m add command -label "Generate ossi.h" -command "run_oss 2 0" \
+			-state normal
+		$m add separator
+	}
+
 	if [vuee_disabled] {
 		set st "disabled"
 	} else {
@@ -9810,7 +9603,7 @@ proc reset_exec_menu { { clear 0 } } {
 	if { $TCMD(FO) == "" } {
 		if [oss_available] {
 			$m add command -label "Run oss (real)" \
-				-command run_oss -state normal
+				-command "run_oss 0 0" -state normal
 			if ![dict get $P(CO) "VDISABLE"] {
 				$m add command -label "Run oss (VUEE)" \
 					-command "run_oss 0 1" -state $st
@@ -9936,7 +9729,7 @@ proc mark_running { stat } {
 
 proc mark_running_cb { } {
 
-	global TCMD P
+	global TCMD
 
 	incr TCMD(CL)
 	mark_running_tm
@@ -10165,6 +9958,13 @@ proc do_mkmk_node { { bi 0 } { ea "" } } {
 	# the arch
 	lappend al "-a"
 	lappend al $ar
+
+	# compiler configuration file
+	set cfn [dict get $P(CO) "CCF"]
+	if { $cfn != "" } {
+		lappend al "-c"
+		lappend al $cfn
+	}
 
 	if { $ST(LO) || $lm } {
 		# library mode; check if there's a library
@@ -10462,7 +10262,16 @@ proc do_prebuild_lib { board ea } {
 #
 # Prebuild a library for the specified board
 #
+	global P
+
 	set al [concat [get_extra_defines] [list $board -L]]
+
+	# compiler configuration file
+	set cfn [dict get $P(CO) "CCF"]
+	if { $cfn != "" } {
+		lappend al "-c"
+		lappend al $cfn
+	}
 
 	if [catch { run_term_command "mkmk" $al $ea } err] {
 		alert "Cannot run library make for $board: $err"
@@ -12007,7 +11816,8 @@ proc arch_dirs { } {
 
 proc initialize { } {
 
-	global ST PicOSPath DefProjDir Archs SACmd BinPath
+	global ST PicOSPath DefProjDir Archs SACmd BinPath CFItems
+	global CFLoadItems CFLoadItemsGen
 
 	if $ST(DP) {
 		log "preferred path format: DOS"
@@ -12076,6 +11886,18 @@ proc initialize { } {
 
 	# file descriptor to save console
 	set ST(CF) ""
+
+	# Arch loader options
+	foreach a $Archs {
+		set CFLoadItems($a) ""
+		foreach { t v } $CFLoadItemsGen {
+			set u "${a}_${t}"
+			lappend CFItems $u
+			lappend CFItems $v
+			lappend CFLoadItems($a) $u
+			lappend CFLoadItems($a) $v
+		}
+	}
 }
 
 ###############################################################################
