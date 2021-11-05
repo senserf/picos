@@ -247,7 +247,7 @@ extern void __pi_ondomain (lword), __pi_offdomain (lword);
 
 // A function to go directly and unconditionally to SHUTDOWN, as an alternative
 // to setpowermode (3), which delays the action to the nearest WFI
-extern void hibernate ();
+void hibernate () __attribute__((noreturn));
 
 extern lword system_event_count;
 

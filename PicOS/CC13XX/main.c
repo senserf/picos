@@ -1204,7 +1204,7 @@ void setpowermode (word mode) {
 		mode : RFCORE_PD_MODE;
 }
 
-__attribute__((noreturn)) void hibernate () {
+void hibernate () {
 //
 // Unconditional shutdown
 //

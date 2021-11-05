@@ -10,6 +10,15 @@
 #include "ser.h"
 #include "serf.h"
 
+#define	ON_TIME		128
+#define	OFF_TIME	(5 * 1024)
+
+#if UART_DRIVER
+#define	POWER_MODE	1
+#else
+#define	POWER_MODE	2
+#endif
+
 // This simple app features a somewhat artificially complicated FSM to
 // periodically blink a LED. Its role is educational. There is a simple
 // (built-in) mechanism for blinking LEDs in PicOS which we ignore.
@@ -47,9 +56,9 @@ fsm blinker (led_status_t *lstat) {
 			if (lstat->state) {
 				// state is nonzero, i.e., 1; this means that
 				// we continue blinking; state is set to 2 and
-				// the FSM delays for 512 (picos) milliseconds
+				// the FSM delays for OFF_TIME
 				lstat->state = 2;
-				delay (512, CHECK_STATUS);
+				delay (OFF_TIME, CHECK_STATUS);
 			}
 			// Otherwise (state is zero) we don't wait for the
 			// timer; this value means that we stop blinking (and
@@ -60,9 +69,8 @@ fsm blinker (led_status_t *lstat) {
 			leds (lstat->led, 1);
 			// Then we set state to 1 to turn the LED off ...
 			lstat->state = 1;
-			// ... after this many milliseconds; note that the on
-			// period is longer than the off period
-			delay (768, CHECK_STATUS);
+			// ... after this many milliseconds
+			delay (ON_TIME, CHECK_STATUS);
 		}
 
 		// Regardless of whether we are waiting on the timer (delay
@@ -92,16 +100,21 @@ fsm root {
 
 	state START:
 
+		setpowermode (POWER_MODE);
+
+#if UART_DRIVER
 		ser_out (START,
 			"Commands:\r\n"
 			"  on\r\n"
 			"  off\r\n"
 		);
-			
+#endif
 		my_led = (led_status_t*)umalloc (sizeof (led_status_t));
 		my_led -> led = 1;
 		blink (my_led, YES);
 		runfsm blinker (my_led);
+
+#if UART_DRIVER
 
 	state INPUT:
 
@@ -124,4 +137,8 @@ fsm root {
 
 		ser_out (BAD_INPUT, "Illegal command\r\n");
 		proceed INPUT;
+#else
+		finish;
+#endif
+
 }

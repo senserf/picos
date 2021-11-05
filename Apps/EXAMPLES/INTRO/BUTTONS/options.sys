@@ -1,4 +1,4 @@
 #undef UART_DRIVER
-#define	UART_DRIVER		1
+#define	UART_DRIVER		0
 #define	CODE_LONG_INTS		1
 #define	MALLOC_SINGLEPOOL	1

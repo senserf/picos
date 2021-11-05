@@ -1,12 +1,3 @@
-/*
-	Copyright 2002-2020 (C) Olsonet Communications Corporation
-	Programmed by Pawel Gburzynski & Wlodek Olesinski
-	All rights reserved
-
-	This file is part of the PICOS platform
-
-*/
-
 /******************************************************************************
 *  Filename:       ccfg.c
 *  Revised:        $Date: 2016-03-14 10:46:32 +0100 (ma, 14 mar 2016) $

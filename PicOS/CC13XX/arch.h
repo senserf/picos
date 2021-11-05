@@ -122,7 +122,7 @@ extern	char	*__bss_start__, *__bss_end__;
 		
 // ============================================================================
 					
-void            __pi_release () __attribute__ ((noreturn));
+void __attribute__ ((noreturn)) __pi_release ();
 
 #define	hard_reset	SysCtrlSystemReset ()
 
