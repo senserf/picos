@@ -866,3 +866,9 @@ PG201004A:
 	   the library for builiding plant models illustrating PID controllers.
 	   Updates to the (big) manual (aka the book). Updated the copyright
 	   notice.
+
+PG210804A:
+
+	   I had to remove a few "register" specifications for variables from
+	   those ancient times when they would make a difference. Modern
+	   compilers do not seem to appreciate them.
